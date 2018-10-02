@@ -6,8 +6,7 @@ import (
 )
 
 const (
-	HeaderLength         = 17
-	HandshakeFixedLength = 272
+	HeaderLength = 17
 )
 
 type Header struct {
@@ -32,20 +31,16 @@ type Handshake struct {
 	Timestamp          uint64
 }
 
-func (h *Handshake) binaryLen() int {
-	return int(h.NameLength) + int(h.NodeNameLength) + HandshakeFixedLength
-}
-
 func (h *Handshake) marshalBinaryName() ([]byte, error) {
 	data := make([]byte, h.NameLength+1)
 	data[0] = h.NameLength
-	copy(data[1:h.NameLength], h.Name)
+	copy(data[1:1 + h.NameLength], h.Name)
 
 	return data, nil
 }
 
 func (h *Handshake) marshalBinaryVersion() ([]byte, error) {
-	data := make([]byte, 96)
+	data := make([]byte, 12)
 
 	binary.BigEndian.PutUint32(data[0:4], h.VersionMajor)
 	binary.BigEndian.PutUint32(data[4:8], h.VersionMinor)
@@ -58,7 +53,7 @@ func (h *Handshake) marshalBinaryNodeName() ([]byte, error) {
 	data := make([]byte, h.NodeNameLength+1)
 
 	data[0] = h.NodeNameLength
-	copy(data[1:h.NodeNameLength], h.NodeName)
+	copy(data[1:1+h.NodeNameLength], h.NodeName)
 
 	return data, nil
 }

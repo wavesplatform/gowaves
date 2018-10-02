@@ -44,3 +44,35 @@ func TestHeaderMarshalling(t *testing.T) {
 
 	}
 }
+
+type handshakeMarshallingTestData struct {
+	handshake        Handshake
+	encodedHandshake string
+}
+
+var handshakeMarshallingTests = []handshakeMarshallingTestData{
+	{
+		Handshake{0x2, "ab", 0x10, 0x3, 0x8, 0x2, "dc", 0x701, 0x2, []byte{10, 20}, 0x8000},
+		"0261620000001000000003000000080264630000000000000701000000020a140000000000008000",
+	},
+}
+
+func TestHandshakeMarshalling(t *testing.T) {
+	for _, v := range handshakeMarshallingTests {
+		decoded, err := hex.DecodeString(v.encodedHandshake)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		data, err := v.handshake.MarshalBinary()
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		res := bytes.Compare(data, decoded)
+		if res != 0 {
+			strEncoded := hex.EncodeToString(data)
+			log.Fatal(fmt.Errorf("want: %s, have: %s", v.encodedHandshake, strEncoded))
+		}
+	}
+}
