@@ -3,11 +3,266 @@ package proto
 import (
 	"encoding/binary"
 	"fmt"
+	"net"
 )
 
 const (
 	HeaderLength = 17
 )
+
+const (
+	AddrSchemeTestnet = 0x54
+	ArrcSchemeMainnet = 0x54
+)
+
+const (
+	GenesisTransactionType = iota + 1
+	PaymentTransactionType
+	IssueTransactionType
+	TransferTransactionType
+	ReissueTransactionType
+	BurnTransactionType
+	ExchangeTransactionType
+	LeaseTransactionType
+	LeaseCancelTransactionType
+	CreateAliasTransactionType
+	MassTransferTransactionType
+	DataTransactionType
+	SetScriptTransactionType
+	SponsorFeeTransactionType
+)
+const (
+	ContentIDGetPeers      = 0x1
+	ContentIDPeers         = 0x2
+	ContentIDGetSignatures = 0x14
+	ContentIDSignatures    = 0x15
+	ContentIDGetBlock      = 0x16
+	ContentIDBlock         = 0x17
+	ContentIDScore         = 0x18
+	ContentIDTransaction   = 0x19
+	ContentIDCheckpoint    = 0x64
+)
+
+type Address struct {
+	Version       uint8
+	AddrScheme    uint8
+	PublicKeyHash [20]byte
+	CheckSum      [4]byte
+}
+
+type Alias struct {
+	Version       uint8
+	AddrScheme    uint8
+	AliasBytesLen uint16
+	Alias         []byte
+}
+
+type Proof struct {
+	Size  uint16
+	Proof []byte
+}
+
+type BlockSignature [64]byte
+
+type Block struct {
+	Version                 uint8
+	Timestamp               uint64
+	ParentBlockSignature    BlockSignature
+	ConsensusBlockLength    uint32
+	BaseTarget              uint64
+	GenerationSignature     [32]byte
+	TransactionsBlockLength uint32
+	//Transactions            []Transaction
+	BlockSignature BlockSignature
+}
+
+type GenesisTransaction struct {
+	Type      uint8
+	Timestamp uint64
+	Amount    uint64
+	Recepient [26]byte
+}
+
+type IssueTransaction struct {
+	Type           uint8
+	Signature      BlockSignature
+	Type2          uint8
+	SenderKey      [32]byte
+	NameLength     uint16
+	NameBytes      []byte
+	DescrLength    uint16
+	DescrBytes     []byte
+	Quantity       uint64
+	Decimals       uint8
+	ReissuableFlag uint8
+	Fee            uint64
+	Timestamp      uint64
+}
+
+type ReissueTransaction struct {
+	Type           uint8
+	Signature      BlockSignature
+	Type2          uint8
+	SenderKey      [32]byte
+	AssetID        [32]byte
+	Quantity       uint64
+	ReissuableFlag uint8
+	Fee            uint64
+	Timestamp      uint64
+}
+
+type TransferTransaction struct {
+	Type                    uint8
+	Signature               BlockSignature
+	Type2                   uint8
+	SenderKey               [32]byte
+	AssetFlag               uint8
+	AssetID                 [32]byte
+	FeeAssetFlag            uint8
+	FeeAssetID              [32]byte
+	Timestamp               uint64
+	Amount                  uint64
+	Fee                     uint64
+	RecepientAddressOrAlias []byte
+	AttachmentLength        uint16
+	Attachment              []byte
+}
+
+type VersionedTransferTransaction struct {
+	Reserved                uint8
+	Type                    uint8
+	Version                 uint8
+	SenderKey               [32]byte
+	AssetFlag               uint8
+	AssetID                 [32]byte
+	Timestamp               uint64
+	Amount                  uint64
+	Fee                     uint64
+	RecepientAddressOrAlias []byte
+	AttachmentLength        uint16
+	AttachmentBytes         []byte
+	ProofVersion            uint8
+	ProofNumber             uint16
+	Proofs                  []byte
+}
+
+type BurnTransaction struct {
+	Type      uint8
+	SenderKey [32]byte
+	AssetID   [32]byte
+	Amount    uint64
+	Fee       uint64
+	Timestamp uint64
+	Signature BlockSignature
+}
+
+type ExchangeTransaction struct {
+	Type                  uint8
+	BuyOrderObjectLength  uint32
+	SellOrderObjectLength uint32
+	BuyOrderObjectBytes   []byte
+	SellOrderObjectBytes  []byte
+	Price                 uint64
+	Amount                uint64
+	BuyMatcherFee         uint64
+	SellMatcherFee        uint64
+	Fee                   uint64
+	Timestamp             uint64
+	Signature             BlockSignature
+}
+
+type LeaseTransaction struct {
+	Type                    uint8
+	SenderKey               [32]byte
+	RecepientAddressOrAlias []byte
+	Amount                  uint64
+	Fee                     uint64
+	Timestamp               uint64
+	Signature               BlockSignature
+}
+
+type LeaseCancelTransaction struct {
+	Version   uint8
+	ChainByte uint8
+	LeaseId   uint8
+	Fee       uint64
+	SenderKey [32]byte
+	Timestamp uint64
+}
+
+type CreateAliasTransaction struct {
+	Type             uint8
+	SenderKey        [32]byte
+	AliasObjectLen   uint16
+	AliasObjectBytes []byte
+	Fee              uint64
+	Timestamp        uint64
+	Signature        BlockSignature
+}
+
+type MassTransferTransaction struct {
+	Type              uint8
+	Version           uint8
+	SenderKey         [32]byte
+	AssetFlag         uint8
+	AssetId           [32]byte
+	NumberOfTransfers uint16
+	Transfers         []byte
+	Timestamp         uint8
+	Fee               uint8
+	AttachmenetLen    uint16
+	AttachmentBytes   []byte
+	ProofsVersion     uint8
+	ProofCount        uint16
+	Proofs            []byte
+}
+
+type DataEntry struct {
+	Key1  string
+	Value []byte
+}
+
+type DataTransaction struct {
+	Reserved       uint8
+	Type           uint8
+	Version        uint8
+	SenderKey      [32]byte
+	NumDataEntries uint16
+
+	DataEntries   []DataEntry
+	Timestamp     uint64
+	Fee           uint64
+	ProofsVErsion uint8
+	ProofCount    uint8
+	SignatureLen  uint16
+	Signature     BlockSignature
+}
+
+type SponsoredFeeTransaction struct {
+	Type               uint8
+	Version            uint8
+	SenderKey          [32]byte
+	AssetID            [32]byte
+	MinimalFeeInAssets uint64
+	Fee                uint64
+	Timestamp          uint64
+	Proofs             [64]byte
+}
+
+type SetScriptTransaction struct {
+	Type              uint8
+	Version           uint8
+	ChainId           uint8
+	SenderKey         [32]byte
+	ScriptNotNull     uint8
+	ScriptObjectLen   uint16
+	ScriptObjectBytes []byte
+	Fee               uint64
+	Timestamp         uint64
+}
+
+type Order struct {
+}
 
 type Header struct {
 	Length        uint32
@@ -31,10 +286,69 @@ type Handshake struct {
 	Timestamp          uint64
 }
 
+type GetPeersMessage struct {
+	Header
+}
+
+type PeerInfo struct {
+	addr net.IP
+	port int
+}
+
+type PeersMessage struct {
+	Header
+	PeersCount uint32
+	Peers      []net.IP
+}
+
+type BlockID [64]byte
+
+type GetSignaturesMessage struct {
+	Header
+	BlockIdsCount uint32
+	Blocks        []BlockID
+}
+
+type SignaturesMessage struct {
+	Header
+	BlockSignaturesCount uint32
+	BlockSignature       []BlockSignature
+}
+
+type GetBlockMessage struct {
+	Header
+	BlockID BlockID
+}
+
+type BlockMessage struct {
+	Header
+	BlockBytes []byte
+}
+
+type ScoreMessage struct {
+	Header
+	Score []byte
+}
+
+type TransactionMessage struct {
+	Header
+	Transaction []byte
+}
+
+type CheckpointItem struct {
+	Height    uint64
+	Signature BlockSignature
+}
+
+type CheckPointMessage struct {
+	Header
+	CheckpointItemsCount uint32
+}
+
 func (h *Handshake) marshalBinaryName() ([]byte, error) {
 	data := make([]byte, h.NameLength+1)
 	data[0] = h.NameLength
-	copy(data[1:1 + h.NameLength], h.Name)
+	copy(data[1:1+h.NameLength], h.Name)
 
 	return data, nil
 }
