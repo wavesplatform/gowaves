@@ -3,8 +3,11 @@ package proto
 import (
 	"bytes"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"log"
+	"net"
+	"strings"
 	"testing"
 )
 
@@ -16,11 +19,11 @@ type headerMarshallingTestData struct {
 var headerMarshallingTests = []headerMarshallingTestData{
 	{
 		Header{0x42, 0x42000000, 8, 0x666, 0x999},
-		"0000004242000000080000066600000999",
+		"0000004212345678080000066600000999",
 	},
 	{
 		Header{0x4200, 0x420000, 255, 0xaabbddee, 0xdeadbeef},
-		"0000420000420000ffaabbddeedeadbeef",
+		"0000420012345678ffaabbddeedeadbeef",
 	},
 }
 
@@ -77,6 +80,80 @@ func TestHandshakeMarshalling(t *testing.T) {
 		if res != 0 {
 			strEncoded := hex.EncodeToString(data)
 			log.Fatal(fmt.Errorf("want: %s, have: %s", v.encodedHandshake, strEncoded))
+		}
+	}
+}
+
+type getPeersMessageMarshallingTestData struct {
+	message        GetPeersMessage
+	encodedMessage string
+}
+
+var getPeersMessageTests = []getPeersMessageMarshallingTestData{
+	{
+		GetPeersMessage{Header{0x02, headerMagic, ContentIDGetPeers, 0, 0}},
+		"0000000212345678010000000000000000",
+	},
+}
+
+func TestGetPeersMessageMarshalling(t *testing.T) {
+	for _, v := range getPeersMessageTests {
+		decoded, err := hex.DecodeString(v.encodedMessage)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		data, err := v.message.MarshalBinary()
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		res := bytes.Compare(data, decoded)
+		if res != 0 {
+			strEncoded := hex.EncodeToString(data)
+			log.Fatal(fmt.Errorf("failed to marshal GetPeersMessage; want: %s, have: %s", v.encodedMessage, strEncoded))
+		}
+
+		var message GetPeersMessage
+
+		if err = message.UnmarshalBinary(decoded); err != nil {
+			log.Fatal(fmt.Errorf("failed to unmarshal GetPeersMessage; %s", err))
+		}
+
+		if message != v.message {
+			log.Fatal(errors.New("failed to correctly unmarshal GetPeersMessage"))
+		}
+	}
+}
+
+type peersMessageMarshallingTestData struct {
+	message        PeersMessage
+	encodedMessage string
+}
+
+var peersMessageTests = []peersMessageMarshallingTestData{
+	{
+		PeersMessage{Header{0x02, headerMagic, ContentIDPeers, 0, 0}, 1, []PeerInfo{{net.IPv4(1, 2, 3, 4), 0x1488}}},
+		"00000002 12345678 02 00000000 00000000 00000001 01020304 1488",
+	},
+}
+
+func TestPeersMessageMarshalling(t *testing.T) {
+	for _, v := range peersMessageTests {
+		decoded, err := hex.DecodeString(strings.Replace(v.encodedMessage, " ", "", -1))
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		data, err := v.message.MarshalBinary()
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		res := bytes.Compare(data, decoded)
+		if res != 0 {
+			strEncoded := hex.EncodeToString(data)
+			log.Fatal(fmt.Errorf("failed to marshal PeersMessage; want %s, have %s", v.encodedMessage, strEncoded))
 		}
 	}
 }

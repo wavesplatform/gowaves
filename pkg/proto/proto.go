@@ -2,12 +2,14 @@ package proto
 
 import (
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"net"
 )
 
 const (
 	HeaderLength = 17
+	headerMagic  = 0x12345678
 )
 
 const (
@@ -272,6 +274,31 @@ type Header struct {
 	PayloadCsum   uint32
 }
 
+func (h *Header) MarshalBinary() ([]byte, error) {
+	data := make([]byte, 17)
+
+	binary.BigEndian.PutUint32(data[0:4], h.Length)
+	binary.BigEndian.PutUint32(data[4:8], headerMagic)
+	data[8] = h.ContentID
+	binary.BigEndian.PutUint32(data[9:13], h.PayloadLength)
+	binary.BigEndian.PutUint32(data[13:17], h.PayloadCsum)
+
+	return data, nil
+}
+
+func (h *Header) UnmarshalBinary(data []byte) error {
+	h.Length = binary.BigEndian.Uint32(data[0:4])
+	h.Magic = binary.BigEndian.Uint32(data[4:8])
+	if h.Magic != headerMagic {
+		return fmt.Errorf("received wrong magic: want %x, have %x", headerMagic, h.Magic)
+	}
+	h.ContentID = data[8]
+	h.PayloadLength = binary.BigEndian.Uint32(data[9:13])
+	h.PayloadCsum = binary.BigEndian.Uint32(data[13:17])
+
+	return nil
+}
+
 type Handshake struct {
 	NameLength         uint8
 	Name               string
@@ -290,15 +317,89 @@ type GetPeersMessage struct {
 	Header
 }
 
+func (m *GetPeersMessage) MarshalBinary() ([]byte, error) {
+	m.ContentID = ContentIDGetPeers
+	header, err := m.Header.MarshalBinary()
+	if err != nil {
+		return nil, err
+	}
+
+	return header, nil
+}
+
+func (m *GetPeersMessage) UnmarshalBinary(b []byte) error {
+	err := m.Header.UnmarshalBinary(b)
+	return err
+}
+
 type PeerInfo struct {
 	addr net.IP
-	port int
+	port uint16
+}
+
+func (m *PeerInfo) MarshalBinary() ([]byte, error) {
+	buffer := make([]byte, 6)
+
+	copy(buffer[0:4], m.addr.To4())
+	binary.BigEndian.PutUint16(buffer[4:6], m.port)
+
+	return buffer, nil
+}
+
+func (m *PeerInfo) UnmarshalBinary(data []byte) error {
+	if len(data) < 6 {
+		return errors.New("too short")
+	}
+
+	m.addr = net.IPv4(data[0], data[1], data[2], data[3])
+	m.port = binary.BigEndian.Uint16(data[4:6])
+
+	return nil
 }
 
 type PeersMessage struct {
 	Header
 	PeersCount uint32
-	Peers      []net.IP
+	Peers      []PeerInfo
+}
+
+func (m *PeersMessage) MarshalBinary() ([]byte, error) {
+	m.ContentID = ContentIDPeers
+	header, err := m.Header.MarshalBinary()
+	if err != nil {
+		return nil, err
+	}
+
+	body := make([]byte, 4)
+
+	binary.BigEndian.PutUint32(body[0:4], m.PeersCount)
+
+	for _, k := range m.Peers {
+		peer, err := k.MarshalBinary()
+		if err != nil {
+			return nil, err
+		}
+		body = append(body, peer...)
+	}
+
+	header = append(header, body...)
+	return header, nil
+}
+
+func (m *PeersMessage) UnmarshalBinary(data []byte) error {
+	if err := m.Header.UnmarshalBinary(data[:17]); err != nil {
+		return err
+	}
+
+	for i := uint32(0); i < m.Header.PayloadLength; i += 6 {
+		var peer PeerInfo
+		if err := peer.UnmarshalBinary(data[i : i+6]); err != nil {
+			return err
+		}
+		m.Peers = append(m.Peers, peer)
+	}
+
+	return nil
 }
 
 type BlockID [64]byte
@@ -406,30 +507,4 @@ func (h *Handshake) MarshalBinary() ([]byte, error) {
 	data1 = append(data1, data3...)
 	data1 = append(data1, data4...)
 	return data1, nil
-}
-
-func (h *Header) MarshalBinary() ([]byte, error) {
-	data := make([]byte, HeaderLength)
-
-	binary.BigEndian.PutUint32(data[0:4], h.Length)
-	binary.BigEndian.PutUint32(data[4:8], h.Magic)
-	data[8] = h.ContentID
-	binary.BigEndian.PutUint32(data[9:13], h.PayloadLength)
-	binary.BigEndian.PutUint32(data[13:17], h.PayloadCsum)
-
-	return data, nil
-}
-
-func (h *Header) UnmarshalBinary(data []byte) error {
-	if len(data) < HeaderLength {
-		return fmt.Errorf("cannot unmarshal into header: got %v bytes, need %v", len(data), HeaderLength)
-	}
-
-	h.Length = binary.BigEndian.Uint32(data[0:4])
-	h.Magic = binary.BigEndian.Uint32(data[4:8])
-	h.ContentID = data[8]
-	h.PayloadLength = binary.BigEndian.Uint32(data[9:13])
-	h.PayloadCsum = binary.BigEndian.Uint32(data[13:17])
-
-	return nil
 }
