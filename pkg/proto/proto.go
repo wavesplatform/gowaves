@@ -499,8 +499,62 @@ func (m *GetSignaturesMessage) UnmarshalBinary(data []byte) error {
 }
 
 type SignaturesMessage struct {
-	BlockSignaturesCount uint32
-	BlockSignature       []BlockSignature
+	Signatures []BlockSignature
+}
+
+func (m *SignaturesMessage) MarshalBinary() ([]byte, error) {
+	body := make([]byte, 4, 4+len(m.Signatures))
+	binary.BigEndian.PutUint32(body[0:4], uint32(len(m.Signatures)))
+	for _, b := range m.Signatures {
+		body = append(body, b[:]...)
+	}
+
+	var h header
+	h.Length = headerLength + uint32(len(body))
+	h.Magic = headerMagic
+	h.ContentID = contentIDSignatures
+	h.PayloadLength = uint32(len(body))
+	h.PayloadCsum = 0
+
+	hdr, err := h.MarshalBinary()
+	if err != nil {
+		return nil, err
+	}
+
+	body = append(hdr, body...)
+
+	return body, nil
+}
+
+func (m *SignaturesMessage) UnmarshalBinary(data []byte) error {
+	var h header
+
+	if err := h.UnmarshalBinary(data); err != nil {
+		return err
+	}
+	if h.Magic != headerMagic {
+		return fmt.Errorf("wrong magic in header: %x", h.Magic)
+	}
+	if h.ContentID != contentIDSignatures {
+		return fmt.Errorf("wrong content id in header: %x", h.ContentID)
+	}
+	data = data[17:]
+	if len(data) < 4 {
+		return fmt.Errorf("message too short %v", len(data))
+	}
+	sigCount := binary.BigEndian.Uint32(data[0:4])
+	data = data[4:]
+
+	for i := uint32(0); i < sigCount; i++ {
+		var sig BlockSignature
+		if len(data[i:]) < 64 {
+			return fmt.Errorf("message too short: %v", len(data))
+		}
+		copy(sig[:], data[i:i+64])
+		m.Signatures = append(m.Signatures, sig)
+	}
+
+	return nil
 }
 
 type GetBlockMessage struct {

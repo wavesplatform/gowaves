@@ -207,3 +207,47 @@ func TestGetSignaturesMessageMarshalling(t *testing.T) {
 		}
 	}
 }
+
+type signaturesMarshallingTestData struct {
+	message        SignaturesMessage
+	encodedMessage string
+}
+
+var signaturesMessageTests = []signaturesMarshallingTestData{
+	{
+		SignaturesMessage{[]BlockSignature{BlockSignature{0x13}}},
+		//P. Len |    Magic | ContentID | Payload Length | PayloadCsum | Payload
+		"00000055  12345678          15         00000044      00000000   00000001 13000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000",
+	},
+}
+
+func TestSignaturesMessageMarshalling(t *testing.T) {
+	for _, v := range signaturesMessageTests {
+		rawString := strings.Replace(v.encodedMessage, " ", "", -1)
+		decoded, err := hex.DecodeString(rawString)
+		if err != nil {
+			t.Error(err)
+		}
+		data, err := v.message.MarshalBinary()
+		if err != nil {
+			t.Error(err)
+		}
+		if res := bytes.Compare(data, decoded); res != 0 {
+			strEncoded := hex.EncodeToString(data)
+			t.Errorf("failed to marshal Signatures message; want %s, have %s", rawString, strEncoded)
+		}
+
+		var message SignaturesMessage
+		if err = message.UnmarshalBinary(decoded); err != nil {
+			t.Errorf("failed to correctly unmarshal Signatures message; %s", err)
+		}
+		if len(message.Signatures) != len(v.message.Signatures) {
+			t.Error("failed to correctly unmarshal Signatures message")
+		}
+		for i := 0; i < len(message.Signatures); i++ {
+			if message.Signatures[i] != v.message.Signatures[i] {
+				t.Error("failed to correctly unmarshal Signatures message")
+			}
+		}
+	}
+}
