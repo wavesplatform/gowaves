@@ -561,6 +561,47 @@ type GetBlockMessage struct {
 	BlockID BlockID
 }
 
+func (m *GetBlockMessage) MarshalBinary() ([]byte, error) {
+	body := make([]byte, 0, 64)
+	body = append(body, m.BlockID[:]...)
+
+	var h header
+	h.Length = headerLength + uint32(len(body))
+	h.Magic = headerMagic
+	h.ContentID = contentIDGetBlock
+	h.PayloadLength = uint32(len(body))
+	h.PayloadCsum = 0
+
+	hdr, err := h.MarshalBinary()
+	if err != nil {
+		return nil, err
+	}
+	body = append(hdr, body...)
+	return body, nil
+}
+
+func (m *GetBlockMessage) UnmarshalBinary(data []byte) error {
+	var h header
+	if err := h.UnmarshalBinary(data); err != nil {
+		return err
+	}
+
+	if h.Magic != headerMagic {
+		return fmt.Errorf("wrong magic in header: %x", h.Magic)
+	}
+	if h.ContentID != contentIDGetBlock {
+		return fmt.Errorf("wrong content id in header: %x", h.ContentID)
+	}
+	data = data[17:]
+	if len(data) < 64 {
+		return fmt.Errorf("message too short %v", len(data))
+	}
+
+	copy(m.BlockID[:], data[:64])
+
+	return nil
+}
+
 type BlockMessage struct {
 	BlockBytes []byte
 }

@@ -251,3 +251,42 @@ func TestSignaturesMessageMarshalling(t *testing.T) {
 		}
 	}
 }
+
+type getBlockMarshallingData struct {
+	message        GetBlockMessage
+	encodedMessage string
+}
+
+var getBlockMessageTests = []getBlockMarshallingData{
+	{
+		GetBlockMessage{BlockID{0x15, 0x12}},
+		//P. Len |    Magic | ContentID | Payload Length | PayloadCsum | Payload
+		"00000051  12345678          16         00000040      00000000   15120000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000",
+	},
+}
+
+func TestGetBlockMessageMarshalling(t *testing.T) {
+	for _, v := range getBlockMessageTests {
+		rawString := strings.Replace(v.encodedMessage, " ", "", -1)
+		decoded, err := hex.DecodeString(rawString)
+		if err != nil {
+			t.Error(err)
+		}
+		data, err := v.message.MarshalBinary()
+		if err != nil {
+			t.Error(err)
+		}
+		if res := bytes.Compare(data, decoded); res != 0 {
+			strEncoded := hex.EncodeToString(data)
+			t.Errorf("failed to marshal GetBlock message; want %s, have %s", rawString, strEncoded)
+		}
+
+		var message GetBlockMessage
+		if err = message.UnmarshalBinary(decoded); err != nil {
+			t.Errorf("failed to correctly unmarshal GetBlock message; %s", err)
+		}
+		if message != v.message {
+			t.Errorf("failed to correctly unmarshal GetBlock message")
+		}
+	}
+}
