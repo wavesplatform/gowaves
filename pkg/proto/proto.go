@@ -643,6 +643,39 @@ type ScoreMessage struct {
 	Score []byte
 }
 
+func (m *ScoreMessage) MarshalBinary() ([]byte, error) {
+	var h header
+	h.Length = headerLength + uint32(len(m.Score))
+	h.Magic = headerMagic
+	h.ContentID = contentIDScore
+	h.PayloadLength = uint32(len(m.Score))
+	h.PayloadCsum = 0
+
+	hdr, err := h.MarshalBinary()
+	if err != nil {
+		return nil, err
+	}
+	hdr = append(hdr, m.Score...)
+	return hdr, nil
+}
+
+func (m *ScoreMessage) UnmarshalBinary(data []byte) error {
+	var h header
+	if err := h.UnmarshalBinary(data); err != nil {
+		return err
+	}
+	if h.Magic != headerMagic {
+		return fmt.Errorf("wrong magic in header: %x", h.Magic)
+	}
+	if h.ContentID != contentIDScore {
+		return fmt.Errorf("wrong content id in header: %x", h.ContentID)
+	}
+
+	m.Score = data[17:]
+
+	return nil
+}
+
 type TransactionMessage struct {
 	Transaction []byte
 }
