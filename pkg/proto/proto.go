@@ -719,7 +719,66 @@ type CheckpointItem struct {
 }
 
 type CheckPointMessage struct {
-	CheckpointItemsCount uint32
+	Checkpoints []CheckpointItem
+}
+
+func (m *CheckPointMessage) MarshalBinary() ([]byte, error) {
+	body := make([]byte, 4, 4+len(m.Checkpoints)*72+100)
+
+	binary.BigEndian.PutUint32(body[0:4], uint32(len(m.Checkpoints)))
+	for _, c := range m.Checkpoints {
+		var height [8]byte
+		binary.BigEndian.PutUint64(height[0:8], c.Height)
+		body = append(body, height[:]...)
+		body = append(body, c.Signature[:]...)
+	}
+
+	var h header
+	h.Length = headerLength + uint32(len(body))
+	h.Magic = headerMagic
+	h.ContentID = contentIDCheckpoint
+	h.PayloadLength = uint32(len(body))
+	h.PayloadCsum = 0
+
+	hdr, err := h.MarshalBinary()
+	if err != nil {
+		return nil, err
+	}
+
+	hdr = append(hdr, body...)
+	return hdr, nil
+
+}
+
+func (m *CheckPointMessage) UnmarshalBinary(data []byte) error {
+	var h header
+	if err := h.UnmarshalBinary(data); err != nil {
+		return err
+	}
+	if h.Magic != headerMagic {
+		return fmt.Errorf("ckeckpoint message magic is unexpected: %x", headerMagic)
+	}
+	if h.ContentID != contentIDCheckpoint {
+		return fmt.Errorf("checkpoint message contentid is unexpected %x", h.ContentID)
+	}
+	data = data[17:]
+	if len(data) < 4 {
+		return fmt.Errorf("checkpoint message data too short: %d", len(data))
+	}
+	checkpointsCount := binary.BigEndian.Uint32(data[0:4])
+	data = data[4:]
+	for i := uint32(0); i < checkpointsCount; i++ {
+		if len(data) < 72 {
+			return fmt.Errorf("checkpoint message data too short")
+		}
+		var ci CheckpointItem
+		ci.Height = binary.BigEndian.Uint64(data[0:8])
+		copy(ci.Signature[:], data[8:72])
+		data = data[72:]
+		m.Checkpoints = append(m.Checkpoints, ci)
+	}
+
+	return nil
 }
 
 func (h *Handshake) marshalBinaryName() ([]byte, error) {

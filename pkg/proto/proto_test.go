@@ -407,3 +407,51 @@ func TestTransactionMessageMarshalling(t *testing.T) {
 		}
 	}
 }
+
+type checkPointMarshallingTestData struct {
+	message        CheckPointMessage
+	encodedMessage string
+}
+
+var checkPointMessageTests = []checkPointMarshallingTestData{
+	{
+		CheckPointMessage{[]CheckpointItem{{0xdeadbeef, BlockSignature{0x10, 0x11}}}},
+		//P. Len |    Magic | ContentID | Payload Length | PayloadCsum | Payload
+		"0000005d  12345678          64         0000004c      00000000   00000001 00000000 deadbeef 10110000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000",
+	},
+}
+
+func TestCheckPointMessageMarshalling(t *testing.T) {
+	for _, v := range checkPointMessageTests {
+		rawString := strings.Replace(v.encodedMessage, " ", "", -1)
+		decoded, err := hex.DecodeString(rawString)
+		if err != nil {
+			t.Error(err)
+		}
+		data, err := v.message.MarshalBinary()
+		if err != nil {
+			t.Error(err)
+		}
+		if res := bytes.Compare(data, decoded); res != 0 {
+			strEncoded := hex.EncodeToString(data)
+			t.Errorf("failed to marshal CheckPoint message; want %s, have %s", rawString, strEncoded)
+		}
+
+		var message CheckPointMessage
+		if err = message.UnmarshalBinary(decoded); err != nil {
+			t.Errorf("failed to correctly unmarshal CheckPoint message; %s", err)
+		}
+		if len(message.Checkpoints) != len(v.message.Checkpoints) {
+			t.Errorf("failed to correctly unmarshal CheckPoint message: %d %d", len(message.Checkpoints), len(v.message.Checkpoints))
+		}
+
+		for i := 0; i < len(message.Checkpoints); i++ {
+			if message.Checkpoints[i].Height != v.message.Checkpoints[i].Height {
+				t.Errorf("wrong height")
+			}
+			if bytes.Compare(message.Checkpoints[i].Signature[:], v.message.Checkpoints[i].Signature[:]) != 0 {
+				t.Errorf("signatures don't match")
+			}
+		}
+	}
+}
