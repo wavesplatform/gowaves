@@ -680,6 +680,39 @@ type TransactionMessage struct {
 	Transaction []byte
 }
 
+func (m *TransactionMessage) MarshalBinary() ([]byte, error) {
+	var h header
+	h.Length = headerLength + uint32(len(m.Transaction))
+	h.Magic = headerMagic
+	h.ContentID = contentIDTransaction
+	h.PayloadLength = uint32(len(m.Transaction))
+	h.PayloadCsum = 0
+
+	hdr, err := h.MarshalBinary()
+	if err != nil {
+		return nil, err
+	}
+	hdr = append(hdr, m.Transaction...)
+	return hdr, nil
+}
+
+func (m *TransactionMessage) UnmarshalBinary(data []byte) error {
+	var h header
+	if err := h.UnmarshalBinary(data); err != nil {
+		return err
+	}
+	if h.Magic != headerMagic {
+		return fmt.Errorf("wrong magic in header: %x", h.Magic)
+	}
+	if h.ContentID != contentIDTransaction {
+		return fmt.Errorf("wrong content id in header: %x", h.ContentID)
+	}
+
+	m.Transaction = data[17:]
+
+	return nil
+}
+
 type CheckpointItem struct {
 	Height    uint64
 	Signature BlockSignature

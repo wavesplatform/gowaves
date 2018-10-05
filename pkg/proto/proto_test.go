@@ -368,3 +368,42 @@ func TestScoreMessageMarshalling(t *testing.T) {
 		}
 	}
 }
+
+type transactionMarshallingData struct {
+	message        TransactionMessage
+	encodedMessage string
+}
+
+var transactionMessageTests = []transactionMarshallingData{
+	{
+		TransactionMessage{[]byte{0x66, 0x42}},
+		//P. Len |    Magic | ContentID | Payload Length | PayloadCsum | Payload
+		"00000013  12345678          19         00000002      00000000   6642",
+	},
+}
+
+func TestTransactionMessageMarshalling(t *testing.T) {
+	for _, v := range transactionMessageTests {
+		rawString := strings.Replace(v.encodedMessage, " ", "", -1)
+		decoded, err := hex.DecodeString(rawString)
+		if err != nil {
+			t.Error(err)
+		}
+		data, err := v.message.MarshalBinary()
+		if err != nil {
+			t.Error(err)
+		}
+		if res := bytes.Compare(data, decoded); res != 0 {
+			strEncoded := hex.EncodeToString(data)
+			t.Errorf("failed to marshal Score message; want %s, have %s", rawString, strEncoded)
+		}
+
+		var message TransactionMessage
+		if err = message.UnmarshalBinary(decoded); err != nil {
+			t.Errorf("failed to correctly unmarshal Transaction message; %s", err)
+		}
+		if bytes.Compare(message.Transaction, v.message.Transaction) != 0 {
+			t.Errorf("failed to correctly unmarshal Transaction message")
+		}
+	}
+}
