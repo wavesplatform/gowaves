@@ -606,6 +606,39 @@ type BlockMessage struct {
 	BlockBytes []byte
 }
 
+func (m *BlockMessage) MarshalBinary() ([]byte, error) {
+	var h header
+	h.Length = headerLength + uint32(len(m.BlockBytes))
+	h.Magic = headerMagic
+	h.ContentID = contentIDBlock
+	h.PayloadLength = uint32(len(m.BlockBytes))
+	h.PayloadCsum = 0
+
+	hdr, err := h.MarshalBinary()
+	if err != nil {
+		return nil, err
+	}
+	hdr = append(hdr, m.BlockBytes...)
+	return hdr, nil
+}
+
+func (m *BlockMessage) UnmarshalBinary(data []byte) error {
+	var h header
+	if err := h.UnmarshalBinary(data); err != nil {
+		return err
+	}
+	if h.Magic != headerMagic {
+		return fmt.Errorf("wrong magic in header: %x", h.Magic)
+	}
+	if h.ContentID != contentIDBlock {
+		return fmt.Errorf("wrong content id in header: %x", h.ContentID)
+	}
+
+	m.BlockBytes = data[17:]
+
+	return nil
+}
+
 type ScoreMessage struct {
 	Score []byte
 }
