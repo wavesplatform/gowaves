@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	HeaderLength = 17
+	headerLength = 17
 	headerMagic  = 0x12345678
 )
 
@@ -34,15 +34,15 @@ const (
 	SponsorFeeTransactionType
 )
 const (
-	ContentIDGetPeers      = 0x1
-	ContentIDPeers         = 0x2
-	ContentIDGetSignatures = 0x14
-	ContentIDSignatures    = 0x15
-	ContentIDGetBlock      = 0x16
-	ContentIDBlock         = 0x17
-	ContentIDScore         = 0x18
-	ContentIDTransaction   = 0x19
-	ContentIDCheckpoint    = 0x64
+	contentIDGetPeers      = 0x1
+	contentIDPeers         = 0x2
+	contentIDGetSignatures = 0x14
+	contentIDSignatures    = 0x15
+	contentIDGetBlock      = 0x16
+	contentIDBlock         = 0x17
+	contentIDScore         = 0x18
+	contentIDTransaction   = 0x19
+	contentIDCheckpoint    = 0x64
 )
 
 type Address struct {
@@ -266,7 +266,7 @@ type SetScriptTransaction struct {
 type Order struct {
 }
 
-type Header struct {
+type header struct {
 	Length        uint32
 	Magic         uint32
 	ContentID     uint8
@@ -274,7 +274,7 @@ type Header struct {
 	PayloadCsum   uint32
 }
 
-func (h *Header) MarshalBinary() ([]byte, error) {
+func (h *header) MarshalBinary() ([]byte, error) {
 	data := make([]byte, 17)
 
 	binary.BigEndian.PutUint32(data[0:4], h.Length)
@@ -286,7 +286,7 @@ func (h *Header) MarshalBinary() ([]byte, error) {
 	return data, nil
 }
 
-func (h *Header) UnmarshalBinary(data []byte) error {
+func (h *header) UnmarshalBinary(data []byte) error {
 	h.Length = binary.BigEndian.Uint32(data[0:4])
 	h.Magic = binary.BigEndian.Uint32(data[4:8])
 	if h.Magic != headerMagic {
@@ -313,23 +313,47 @@ type Handshake struct {
 	Timestamp          uint64
 }
 
-type GetPeersMessage struct {
-	Header
-}
+type GetPeersMessage struct{}
 
 func (m *GetPeersMessage) MarshalBinary() ([]byte, error) {
-	m.ContentID = ContentIDGetPeers
-	header, err := m.Header.MarshalBinary()
+	var header header
+
+	header.Length = headerLength
+	header.Magic = headerMagic
+	header.ContentID = contentIDGetPeers
+	header.PayloadLength = 0
+	header.PayloadCsum = 0
+
+	res, err := header.MarshalBinary()
 	if err != nil {
 		return nil, err
 	}
 
-	return header, nil
+	return res, nil
 }
 
 func (m *GetPeersMessage) UnmarshalBinary(b []byte) error {
-	err := m.Header.UnmarshalBinary(b)
-	return err
+	var header header
+
+	err := header.UnmarshalBinary(b)
+	if err != nil {
+		return err
+	}
+
+	if header.Length != headerLength {
+		return fmt.Errorf("getpeers message length is unexpected: want %v have %v", headerLength, header.Length)
+	}
+	if header.Magic != headerMagic {
+		return fmt.Errorf("getpeers message magic is unexpected: want %x have %x", headerMagic, header.Magic)
+	}
+	if header.ContentID != contentIDGetPeers {
+		return fmt.Errorf("getpeers message contentid is unexpected: want %x have %x", contentIDGetPeers, header.ContentID)
+	}
+	if header.PayloadLength != 0 {
+		return fmt.Errorf("getpeers message length is not zero")
+	}
+
+	return nil
 }
 
 type PeerInfo struct {
@@ -358,18 +382,12 @@ func (m *PeerInfo) UnmarshalBinary(data []byte) error {
 }
 
 type PeersMessage struct {
-	Header
 	PeersCount uint32
 	Peers      []PeerInfo
 }
 
 func (m *PeersMessage) MarshalBinary() ([]byte, error) {
-	m.ContentID = ContentIDPeers
-	header, err := m.Header.MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
-
+	var h header
 	body := make([]byte, 4)
 
 	binary.BigEndian.PutUint32(body[0:4], m.PeersCount)
@@ -382,16 +400,34 @@ func (m *PeersMessage) MarshalBinary() ([]byte, error) {
 		body = append(body, peer...)
 	}
 
-	header = append(header, body...)
-	return header, nil
+	h.Length = headerLength + uint32(len(body))
+	h.Magic = headerMagic
+	h.ContentID = contentIDPeers
+	h.PayloadLength = uint32(len(body))
+	h.PayloadCsum = 0
+
+	hdr, err := h.MarshalBinary()
+	if err != nil {
+		return nil, err
+	}
+
+	hdr = append(hdr, body...)
+
+	return hdr, nil
 }
 
 func (m *PeersMessage) UnmarshalBinary(data []byte) error {
-	if err := m.Header.UnmarshalBinary(data[:17]); err != nil {
+	var header header
+	if err := header.UnmarshalBinary(data); err != nil {
 		return err
 	}
-
-	for i := uint32(0); i < m.Header.PayloadLength; i += 6 {
+	data = data[headerLength:]
+	if len(data) < 4 {
+		return errors.New("peers message has insufficient length")
+	}
+	peersCount := binary.BigEndian.Uint32(data[0:4])
+	data = data[4:]
+	for i := uint32(0); i < peersCount; i += 6 {
 		var peer PeerInfo
 		if err := peer.UnmarshalBinary(data[i : i+6]); err != nil {
 			return err
@@ -405,34 +441,28 @@ func (m *PeersMessage) UnmarshalBinary(data []byte) error {
 type BlockID [64]byte
 
 type GetSignaturesMessage struct {
-	Header
 	BlockIdsCount uint32
 	Blocks        []BlockID
 }
 
 type SignaturesMessage struct {
-	Header
 	BlockSignaturesCount uint32
 	BlockSignature       []BlockSignature
 }
 
 type GetBlockMessage struct {
-	Header
 	BlockID BlockID
 }
 
 type BlockMessage struct {
-	Header
 	BlockBytes []byte
 }
 
 type ScoreMessage struct {
-	Header
 	Score []byte
 }
 
 type TransactionMessage struct {
-	Header
 	Transaction []byte
 }
 
@@ -442,7 +472,6 @@ type CheckpointItem struct {
 }
 
 type CheckPointMessage struct {
-	Header
 	CheckpointItemsCount uint32
 }
 

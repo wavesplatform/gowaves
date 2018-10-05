@@ -12,17 +12,17 @@ import (
 )
 
 type headerMarshallingTestData struct {
-	header        Header
+	header        header
 	encodedHeader string
 }
 
 var headerMarshallingTests = []headerMarshallingTestData{
 	{
-		Header{0x42, 0x42000000, 8, 0x666, 0x999},
+		header{0x42, 0x42000000, 8, 0x666, 0x999},
 		"0000004212345678080000066600000999",
 	},
 	{
-		Header{0x4200, 0x420000, 255, 0xaabbddee, 0xdeadbeef},
+		header{0x4200, 0x420000, 255, 0xaabbddee, 0xdeadbeef},
 		"0000420012345678ffaabbddeedeadbeef",
 	},
 }
@@ -91,8 +91,8 @@ type getPeersMessageMarshallingTestData struct {
 
 var getPeersMessageTests = []getPeersMessageMarshallingTestData{
 	{
-		GetPeersMessage{Header{0x02, headerMagic, ContentIDGetPeers, 0, 0}},
-		"0000000212345678010000000000000000",
+		GetPeersMessage{},
+		"0000001112345678010000000000000000",
 	},
 }
 
@@ -133,14 +133,16 @@ type peersMessageMarshallingTestData struct {
 
 var peersMessageTests = []peersMessageMarshallingTestData{
 	{
-		PeersMessage{Header{0x02, headerMagic, ContentIDPeers, 0, 0}, 1, []PeerInfo{{net.IPv4(1, 2, 3, 4), 0x1488}}},
-		"00000002 12345678 02 00000000 00000000 00000001 01020304 1488",
+		PeersMessage{1, []PeerInfo{{net.IPv4(1, 2, 3, 4), 0x8888}}},
+		//P. Len |    Magic | ContentID | Payload Length | PayloadCsum | Payload
+		"0000001b  12345678          02         0000000a      00000000   00000001 01020304 8888",
 	},
 }
 
 func TestPeersMessageMarshalling(t *testing.T) {
 	for _, v := range peersMessageTests {
-		decoded, err := hex.DecodeString(strings.Replace(v.encodedMessage, " ", "", -1))
+		rawString := strings.Replace(v.encodedMessage, " ", "", -1)
+		decoded, err := hex.DecodeString(rawString)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -153,7 +155,7 @@ func TestPeersMessageMarshalling(t *testing.T) {
 		res := bytes.Compare(data, decoded)
 		if res != 0 {
 			strEncoded := hex.EncodeToString(data)
-			log.Fatal(fmt.Errorf("failed to marshal PeersMessage; want %s, have %s", v.encodedMessage, strEncoded))
+			t.Errorf("failed to marshal PeersMessage; want %s, have %s", rawString, strEncoded)
 		}
 	}
 }
