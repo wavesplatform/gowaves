@@ -843,3 +843,7 @@ func (h *Handshake) MarshalBinary() ([]byte, error) {
 	data1 = append(data1, data4...)
 	return data1, nil
 }
+
+func (h *Handshake) UnmarshalBinary(data []byte) error {
+	return errors.New("ERR")
+}
