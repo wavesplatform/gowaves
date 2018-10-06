@@ -246,6 +246,14 @@ func TestProtocolMarshalling(t *testing.T) {
 				strEncoded := hex.EncodeToString(data)
 				t.Errorf("want: %s, have %s", v.testEncoded, strEncoded)
 			}
+
+			m := v.testMessage
+			if err = m.UnmarshalBinary(decoded); err != nil {
+				t.Errorf("failed to unmarshal: %s", err)
+			}
+			if !v.testMessage.Equal(m) {
+				t.Errorf("failed to correclty unmarshal message")
+			}
 		})
 	}
 }
