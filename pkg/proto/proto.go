@@ -300,17 +300,14 @@ func (h *header) UnmarshalBinary(data []byte) error {
 }
 
 type Handshake struct {
-	NameLength         uint8
-	Name               string
-	VersionMajor       uint32
-	VersionMinor       uint32
-	VersionPatch       uint32
-	NodeNameLength     uint8
-	NodeName           string
-	NodeNonce          uint64
-	DeclaredAddrLength uint32
-	DeclaredAddrBytes  []byte
-	Timestamp          uint64
+	Name              string
+	VersionMajor      uint32
+	VersionMinor      uint32
+	VersionPatch      uint32
+	NodeName          string
+	NodeNonce         uint64
+	DeclaredAddrBytes []byte
+	Timestamp         uint64
 }
 
 type GetPeersMessage struct{}
@@ -782,9 +779,12 @@ func (m *CheckPointMessage) UnmarshalBinary(data []byte) error {
 }
 
 func (h *Handshake) marshalBinaryName() ([]byte, error) {
-	data := make([]byte, h.NameLength+1)
-	data[0] = h.NameLength
-	copy(data[1:1+h.NameLength], h.Name)
+	if len(h.Name) > 255 {
+		return nil, errors.New("handshake application name too long")
+	}
+	data := make([]byte, len(h.Name)+1)
+	data[0] = byte(len(h.Name))
+	copy(data[1:1+len(h.Name)], h.Name)
 
 	return data, nil
 }
@@ -800,22 +800,24 @@ func (h *Handshake) marshalBinaryVersion() ([]byte, error) {
 }
 
 func (h *Handshake) marshalBinaryNodeName() ([]byte, error) {
-	data := make([]byte, h.NodeNameLength+1)
-
-	data[0] = h.NodeNameLength
-	copy(data[1:1+h.NodeNameLength], h.NodeName)
+	if len(h.NodeName) > 255 {
+		return nil, errors.New("handshake node name too long")
+	}
+	data := make([]byte, len(h.NodeName)+1)
+	data[0] = byte(len(h.NodeName))
+	copy(data[1:1+len(h.NodeName)], h.NodeName)
 
 	return data, nil
 }
 
 func (h *Handshake) marshalBinaryAddr() ([]byte, error) {
-	data := make([]byte, 20+h.DeclaredAddrLength)
+	data := make([]byte, 20+len(h.DeclaredAddrBytes))
 
 	binary.BigEndian.PutUint64(data[0:8], h.NodeNonce)
-	binary.BigEndian.PutUint32(data[8:12], h.DeclaredAddrLength)
+	binary.BigEndian.PutUint32(data[8:12], uint32(len(h.DeclaredAddrBytes)))
 
-	copy(data[12:12+h.DeclaredAddrLength], h.DeclaredAddrBytes)
-	binary.BigEndian.PutUint64(data[12+h.DeclaredAddrLength:20+h.DeclaredAddrLength], h.Timestamp)
+	copy(data[12:12+len(h.DeclaredAddrBytes)], h.DeclaredAddrBytes)
+	binary.BigEndian.PutUint64(data[12+len(h.DeclaredAddrBytes):20+len(h.DeclaredAddrBytes)], h.Timestamp)
 
 	return data, nil
 }
@@ -845,5 +847,45 @@ func (h *Handshake) MarshalBinary() ([]byte, error) {
 }
 
 func (h *Handshake) UnmarshalBinary(data []byte) error {
-	return errors.New("ERR")
+	if len(data) < 1 {
+		return errors.New("data too short")
+	}
+	appNameLen := data[0]
+	data = data[1:]
+	if len(data) < int(appNameLen) {
+		return errors.New("data too short")
+	}
+	h.Name = string(data[:appNameLen])
+	data = data[appNameLen:]
+	if len(data) < 13 {
+		return errors.New("data too short")
+	}
+	h.VersionMajor = binary.BigEndian.Uint32(data[0:4])
+	h.VersionMinor = binary.BigEndian.Uint32(data[4:8])
+	h.VersionPatch = binary.BigEndian.Uint32(data[8:12])
+
+	nodeNameLen := data[12]
+	data = data[13:]
+	if len(data) < int(nodeNameLen) {
+		return errors.New("data too short")
+	}
+	h.NodeName = string(data[:nodeNameLen])
+	data = data[nodeNameLen:]
+	if len(data) < 12 {
+		return errors.New("data too short")
+	}
+	h.NodeNonce = binary.BigEndian.Uint64(data[:8])
+	declAddrLen := binary.BigEndian.Uint32(data[8:12])
+	data = data[12:]
+	if len(data) < int(declAddrLen) {
+		return errors.New("data too short")
+	}
+	h.DeclaredAddrBytes = append([]byte(nil), data[:declAddrLen]...)
+	data = data[declAddrLen:]
+	if len(data) < 8 {
+		return errors.New("data too short")
+	}
+	h.Timestamp = binary.BigEndian.Uint64(data[:8])
+
+	return nil
 }

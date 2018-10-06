@@ -42,11 +42,10 @@ func (h *Handshake) Equal(d comparable) bool {
 	if !ok {
 		return false
 	}
-	return h.NameLength == p.NameLength &&
-		h.Name == p.Name && h.VersionMajor == p.VersionMajor &&
+	return h.Name == p.Name && h.VersionMajor == p.VersionMajor &&
 		h.VersionMinor == p.VersionMinor && h.VersionPatch == p.VersionPatch &&
-		h.NodeNameLength == p.NodeNameLength && h.NodeName == p.NodeName &&
-		h.NodeNonce == p.NodeNonce && h.DeclaredAddrLength == p.DeclaredAddrLength &&
+		h.NodeName == p.NodeName &&
+		h.NodeNonce == p.NodeNonce &&
 		bytes.Compare(p.DeclaredAddrBytes, h.DeclaredAddrBytes) == 0 &&
 		h.Timestamp == p.Timestamp
 }
@@ -176,11 +175,11 @@ var tests = []protocolMarshallingTest{
 		"0000420012345678ffaabbddeedeadbeef",
 	},
 	{
-		&Handshake{0x2, "ab", 0x10, 0x3, 0x8, 0x2, "dc", 0x701, 0x2, []byte{10, 20}, 0x8000},
+		&Handshake{"ab", 0x10, 0x3, 0x8, "dc", 0x701, []byte{10, 20}, 0x8000},
 		"0261620000001000000003000000080264630000000000000701000000020a140000000000008000",
 	},
 	{
-		&Handshake{0x6, "wavesT", 0x0, 0xe, 0x5, 0xf, "My TESTNET node", 0x1c61, 0x08, []byte{0xb9, 0x29, 0x70, 0x1e, 0x00, 0x00, 0x1a, 0xcf}, 0x5bb482c9},
+		&Handshake{"wavesT", 0x0, 0xe, 0x5, "My TESTNET node", 0x1c61, []byte{0xb9, 0x29, 0x70, 0x1e, 0x00, 0x00, 0x1a, 0xcf}, 0x5bb482c9},
 		"06776176657354000000000000000e000000050f4d7920544553544e4554206e6f64650000000000001c6100000008b929701e00001acf000000005bb482c9",
 	},
 	{
