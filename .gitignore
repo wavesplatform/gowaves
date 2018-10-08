@@ -18,4 +18,4 @@ out/
 *.lock
 *.txt
 *.json
-
+.DS_Store
