@@ -27,11 +27,19 @@
 
 [[constraint]]
   branch = "master"
+  name = "github.com/agl/ed25519"
+
+[[constraint]]
+  branch = "master"
   name = "github.com/mr-tron/base58"
 
 [[constraint]]
   name = "github.com/stretchr/testify"
   version = "1.2.2"
+
+[[constraint]]
+  branch = "master"
+  name = "golang.org/x/crypto"
 
 [prune]
   go-tests = true
