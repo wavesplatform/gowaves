@@ -4,13 +4,17 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"net"
 )
 
 const (
-	headerLength = 17
-	headerMagic  = 0x12345678
+	headerLength  = 17
+	headerMagic   = 0x12345678
+	headerCsumLen = 4
 )
+
+const blockSignatureLen = 64
 
 const (
 	contentIDGetPeers      = 0x1
@@ -24,14 +28,14 @@ const (
 	contentIDCheckpoint    = 0x64
 )
 
-type BlockSignature [64]byte
+type BlockSignature [blockSignatureLen]byte
 
 type header struct {
 	Length        uint32
 	Magic         uint32
 	ContentID     uint8
 	PayloadLength uint32
-	PayloadCsum   uint32
+	PayloadCsum   [headerCsumLen]byte
 }
 
 func (h *header) MarshalBinary() ([]byte, error) {
@@ -41,7 +45,7 @@ func (h *header) MarshalBinary() ([]byte, error) {
 	binary.BigEndian.PutUint32(data[4:8], headerMagic)
 	data[8] = h.ContentID
 	binary.BigEndian.PutUint32(data[9:13], h.PayloadLength)
-	binary.BigEndian.PutUint32(data[13:17], h.PayloadCsum)
+	copy(data[13:17], h.PayloadCsum[:])
 
 	return data, nil
 }
@@ -54,7 +58,7 @@ func (h *header) UnmarshalBinary(data []byte) error {
 	}
 	h.ContentID = data[8]
 	h.PayloadLength = binary.BigEndian.Uint32(data[9:13])
-	h.PayloadCsum = binary.BigEndian.Uint32(data[13:17])
+	copy(h.PayloadCsum[:], data[13:17])
 
 	return nil
 }
@@ -79,7 +83,12 @@ func (m *GetPeersMessage) MarshalBinary() ([]byte, error) {
 	header.Magic = headerMagic
 	header.ContentID = contentIDGetPeers
 	header.PayloadLength = 0
-	header.PayloadCsum = 0
+	var empty [0]byte
+	dig, err := crypto.FastHash(empty[:])
+	if err != nil {
+		return nil, err
+	}
+	copy(header.PayloadCsum[:], dig[:4])
 
 	res, err := header.MarshalBinary()
 	if err != nil {
@@ -161,7 +170,11 @@ func (m *PeersMessage) MarshalBinary() ([]byte, error) {
 	h.Magic = headerMagic
 	h.ContentID = contentIDPeers
 	h.PayloadLength = uint32(len(body))
-	h.PayloadCsum = 0
+	dig, err := crypto.FastHash(body)
+	if err != nil {
+		return nil, err
+	}
+	copy(h.PayloadCsum[:], dig[:4])
 
 	hdr, err := h.MarshalBinary()
 	if err != nil {
@@ -213,7 +226,11 @@ func (m *GetSignaturesMessage) MarshalBinary() ([]byte, error) {
 	h.Magic = headerMagic
 	h.ContentID = contentIDGetSignatures
 	h.PayloadLength = uint32(len(body))
-	h.PayloadCsum = 0
+	dig, err := crypto.FastHash(body)
+	if err != nil {
+		return nil, err
+	}
+	copy(h.PayloadCsum[:], dig[:4])
 
 	hdr, err := h.MarshalBinary()
 	if err != nil {
@@ -271,7 +288,11 @@ func (m *SignaturesMessage) MarshalBinary() ([]byte, error) {
 	h.Magic = headerMagic
 	h.ContentID = contentIDSignatures
 	h.PayloadLength = uint32(len(body))
-	h.PayloadCsum = 0
+	dig, err := crypto.FastHash(body)
+	if err != nil {
+		return nil, err
+	}
+	copy(h.PayloadCsum[:], dig[:4])
 
 	hdr, err := h.MarshalBinary()
 	if err != nil {
@@ -327,7 +348,8 @@ func (m *GetBlockMessage) MarshalBinary() ([]byte, error) {
 	h.Magic = headerMagic
 	h.ContentID = contentIDGetBlock
 	h.PayloadLength = uint32(len(body))
-	h.PayloadCsum = 0
+	dig, err := crypto.FastHash(body)
+	copy(h.PayloadCsum[:], dig[:4])
 
 	hdr, err := h.MarshalBinary()
 	if err != nil {
@@ -369,7 +391,11 @@ func (m *BlockMessage) MarshalBinary() ([]byte, error) {
 	h.Magic = headerMagic
 	h.ContentID = contentIDBlock
 	h.PayloadLength = uint32(len(m.BlockBytes))
-	h.PayloadCsum = 0
+	dig, err := crypto.FastHash([]byte{})
+	if err != nil {
+		return nil, err
+	}
+	copy(h.PayloadCsum[:], dig[:4])
 
 	hdr, err := h.MarshalBinary()
 	if err != nil {
@@ -406,7 +432,11 @@ func (m *ScoreMessage) MarshalBinary() ([]byte, error) {
 	h.Magic = headerMagic
 	h.ContentID = contentIDScore
 	h.PayloadLength = uint32(len(m.Score))
-	h.PayloadCsum = 0
+	dig, err := crypto.FastHash([]byte{})
+	if err != nil {
+		return nil, err
+	}
+	copy(h.PayloadCsum[:], dig[:4])
 
 	hdr, err := h.MarshalBinary()
 	if err != nil {
@@ -443,7 +473,11 @@ func (m *TransactionMessage) MarshalBinary() ([]byte, error) {
 	h.Magic = headerMagic
 	h.ContentID = contentIDTransaction
 	h.PayloadLength = uint32(len(m.Transaction))
-	h.PayloadCsum = 0
+	dig, err := crypto.FastHash([]byte{})
+	if err != nil {
+		return nil, err
+	}
+	copy(h.PayloadCsum[:], dig[:4])
 
 	hdr, err := h.MarshalBinary()
 	if err != nil {
@@ -495,7 +529,11 @@ func (m *CheckPointMessage) MarshalBinary() ([]byte, error) {
 	h.Magic = headerMagic
 	h.ContentID = contentIDCheckpoint
 	h.PayloadLength = uint32(len(body))
-	h.PayloadCsum = 0
+	dig, err := crypto.FastHash(body)
+	if err != nil {
+		return nil, err
+	}
+	copy(h.PayloadCsum[:], dig[:4])
 
 	hdr, err := h.MarshalBinary()
 	if err != nil {
