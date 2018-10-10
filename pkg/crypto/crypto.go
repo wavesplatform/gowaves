@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"crypto/sha512"
+	"fmt"
 	"github.com/agl/ed25519"
 	"github.com/agl/ed25519/edwards25519"
 	"github.com/mr-tron/base58/base58"
@@ -51,6 +52,10 @@ func (d *Digest) UnmarshalJSON(value []byte) error {
 	}
 }
 
+func NewDigestFromBase58String(s string) (Digest, error) {
+	return array32FromBase58(s, "Digest")
+}
+
 type SecretKey [SecretKeySize]byte
 
 func (k SecretKey) MarshalBinary() ([]byte, error) {
@@ -78,6 +83,10 @@ func (k *SecretKey) UnmarshalJSON(value []byte) error {
 		copy(k[:], b[:SecretKeySize])
 		return nil
 	}
+}
+
+func NewSecretKeyFromBase58(s string) (SecretKey, error) {
+	return array32FromBase58(s, "SecretKey")
 }
 
 type PublicKey [PublicKeySize]byte
@@ -109,6 +118,10 @@ func (k *PublicKey) UnmarshalJSON(value []byte) error {
 	}
 }
 
+func NewPublicKeyFromBase58(s string) (PublicKey, error) {
+	return array32FromBase58(s, "PublicKey")
+}
+
 type Signature [SignatureSize]byte
 
 func (s Signature) MarshalBinary() ([]byte, error) {
@@ -136,6 +149,10 @@ func (s *Signature) UnmarshalJSON(value []byte) error {
 		copy(s[:], b[:SignatureSize])
 		return nil
 	}
+}
+
+func NewSignatureFromBase58(s string) (Signature, error) {
+	return array64FromBase58(s, "Signature")
 }
 
 func Keccak256(data []byte) Digest {
@@ -320,4 +337,30 @@ func fromBase58JSON(value []byte, size int, name string) ([]byte, error) {
 		return nil, errors.Errorf("incorrect length %d of %s value, expected %d", l, name, DigestSize)
 	}
 	return v[:size], nil
+}
+
+func array32FromBase58(s, name string) ([32]byte, error) {
+	var r [32]byte
+	if b, err := base58.Decode(s); err != nil {
+		return r, err
+	} else {
+		if l := len(b); l != 32 {
+			return r, fmt.Errorf("incorrect %s lenght %d, expected %d", name, l, 32)
+		}
+		copy(r[:], b[:32])
+		return r, nil
+	}
+}
+
+func array64FromBase58(s, name string) ([64]byte, error) {
+	var r [64]byte
+	if b, err := base58.Decode(s); err != nil {
+		return r, err
+	} else {
+		if l := len(b); l != 64 {
+			return r, fmt.Errorf("incorrect %s lenght %d, expected %d", name, l, 64)
+		}
+		copy(r[:], b[:64])
+		return r, nil
+	}
 }

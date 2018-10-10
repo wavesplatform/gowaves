@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"net"
 )
 
@@ -24,7 +25,7 @@ const (
 	contentIDCheckpoint    = 0x64
 )
 
-type BlockSignature [64]byte
+type BlockSignature crypto.Signature
 
 type header struct {
 	Length        uint32
@@ -563,9 +564,10 @@ func (h *Handshake) marshalBinaryNodeName() ([]byte, error) {
 	if len(h.NodeName) > 255 {
 		return nil, errors.New("handshake node name too long")
 	}
-	data := make([]byte, len(h.NodeName)+1)
-	data[0] = byte(len(h.NodeName))
-	copy(data[1:1+len(h.NodeName)], h.NodeName)
+	l := len(h.NodeName)
+	data := make([]byte, l+1)
+	data[0] = byte(l)
+	copy(data[1:1+l], h.NodeName)
 
 	return data, nil
 }

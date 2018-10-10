@@ -6,6 +6,8 @@ import (
 	"strings"
 )
 
+const WavesAssetName = "WAVES"
+
 // B58Bytes represents bytes as Base58 string in JSON
 type B58Bytes []byte
 
