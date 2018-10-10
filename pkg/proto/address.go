@@ -112,13 +112,13 @@ func (a *Address) Validate() (bool, error) {
 }
 
 func addressChecksum(b []byte) ([]byte, error) {
-	if h, err := crypto.SecureHash(b); err != nil {
+	h, err := crypto.SecureHash(b)
+	if err != nil {
 		return nil, err
-	} else {
-		c := make([]byte, checksumSize)
-		copy(c, h[:checksumSize])
-		return c, nil
 	}
+	c := make([]byte, checksumSize)
+	copy(c, h[:checksumSize])
+	return c, nil
 }
 
 type Alias struct {

@@ -50,31 +50,28 @@ type Asset struct {
 func NewAssetFromString(s string) (*Asset, error) {
 	if strings.ToUpper(s) == WavesAssetName {
 		return &Asset{Present: false}, nil
-	} else {
-		a, err := base58.Decode(s)
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to create Asset from string")
-		}
-		return &Asset{Present: true, ID: a}, nil
 	}
+	a, err := base58.Decode(s)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to create Asset from string")
+	}
+	return &Asset{Present: true, ID: a}, nil
 }
 
 // String method converts Asset to its text representation
 func (a Asset) String() string {
 	if a.Present {
 		return a.ID.String()
-	} else {
-		return WavesAssetName
 	}
+	return WavesAssetName
 }
 
 // MarshalJSON writes Asset as a JSON string Value
 func (a Asset) MarshalJSON() ([]byte, error) {
 	if a.Present {
 		return a.ID.MarshalJSON()
-	} else {
-		return []byte("null"), nil
 	}
+	return []byte("null"), nil
 }
 
 // UnmarshalJSON reads Asset from a JSON string Value

@@ -44,12 +44,12 @@ func (d Digest) MarshalJSON() ([]byte, error) {
 }
 
 func (d *Digest) UnmarshalJSON(value []byte) error {
-	if b, err := fromBase58JSON(value, DigestSize, "Digest"); err != nil {
+	b, err := fromBase58JSON(value, DigestSize, "Digest")
+	if err != nil {
 		return err
-	} else {
-		copy(d[:], b[:DigestSize])
-		return nil
 	}
+	copy(d[:], b[:DigestSize])
+	return nil
 }
 
 func NewDigestFromBase58String(s string) (Digest, error) {
@@ -77,12 +77,12 @@ func (k SecretKey) MarshalJSON() ([]byte, error) {
 }
 
 func (k *SecretKey) UnmarshalJSON(value []byte) error {
-	if b, err := fromBase58JSON(value, SecretKeySize, "SecretKey"); err != nil {
+	b, err := fromBase58JSON(value, SecretKeySize, "SecretKey")
+	if err != nil {
 		return err
-	} else {
-		copy(k[:], b[:SecretKeySize])
-		return nil
 	}
+	copy(k[:], b[:SecretKeySize])
+	return nil
 }
 
 func NewSecretKeyFromBase58(s string) (SecretKey, error) {
@@ -110,12 +110,12 @@ func (k PublicKey) MarshalJSON() ([]byte, error) {
 }
 
 func (k *PublicKey) UnmarshalJSON(value []byte) error {
-	if b, err := fromBase58JSON(value, PublicKeySize, "PublicKey"); err != nil {
+	b, err := fromBase58JSON(value, PublicKeySize, "PublicKey")
+	if err != nil {
 		return err
-	} else {
-		copy(k[:], b[:PublicKeySize])
-		return nil
 	}
+	copy(k[:], b[:PublicKeySize])
+	return nil
 }
 
 func NewPublicKeyFromBase58(s string) (PublicKey, error) {
@@ -143,12 +143,12 @@ func (s Signature) MarshalJSON() ([]byte, error) {
 }
 
 func (s *Signature) UnmarshalJSON(value []byte) error {
-	if b, err := fromBase58JSON(value, SignatureSize, "Signature"); err != nil {
+	b, err := fromBase58JSON(value, SignatureSize, "Signature")
+	if err != nil {
 		return err
-	} else {
-		copy(s[:], b[:SignatureSize])
-		return nil
 	}
+	copy(s[:], b[:SignatureSize])
+	return nil
 }
 
 func NewSignatureFromBase58(s string) (Signature, error) {
@@ -165,27 +165,27 @@ func Keccak256(data []byte) Digest {
 
 func FastHash(data []byte) (Digest, error) {
 	var d Digest
-	if h, err := blake2b.New256(nil); err != nil {
+	h, err := blake2b.New256(nil)
+	if err != nil {
 		return d, err
-	} else {
-		h.Write(data)
-		h.Sum(d[:0])
-		return d, nil
 	}
+	h.Write(data)
+	h.Sum(d[:0])
+	return d, nil
 }
 
 func SecureHash(data []byte) (Digest, error) {
 	var d Digest
-	if fh, err := blake2b.New256(nil); err != nil {
+	fh, err := blake2b.New256(nil)
+	if err != nil {
 		return d, err
-	} else {
-		fh.Write(data)
-		fh.Sum(d[:0])
-		h := sha3.NewLegacyKeccak256()
-		h.Write(d[:DigestSize])
-		h.Sum(d[:0])
-		return d, nil
 	}
+	fh.Write(data)
+	fh.Sum(d[:0])
+	h := sha3.NewLegacyKeccak256()
+	h.Write(d[:DigestSize])
+	h.Sum(d[:0])
+	return d, nil
 }
 
 func GenerateSecretKey(seed []byte) SecretKey {
@@ -341,26 +341,26 @@ func fromBase58JSON(value []byte, size int, name string) ([]byte, error) {
 
 func array32FromBase58(s, name string) ([32]byte, error) {
 	var r [32]byte
-	if b, err := base58.Decode(s); err != nil {
+	b, err := base58.Decode(s)
+	if err != nil {
 		return r, err
-	} else {
-		if l := len(b); l != 32 {
-			return r, fmt.Errorf("incorrect %s lenght %d, expected %d", name, l, 32)
-		}
-		copy(r[:], b[:32])
-		return r, nil
 	}
+	if l := len(b); l != 32 {
+		return r, fmt.Errorf("incorrect %s lenght %d, expected %d", name, l, 32)
+	}
+	copy(r[:], b[:32])
+	return r, nil
 }
 
 func array64FromBase58(s, name string) ([64]byte, error) {
 	var r [64]byte
-	if b, err := base58.Decode(s); err != nil {
+	b, err := base58.Decode(s)
+	if err != nil {
 		return r, err
-	} else {
-		if l := len(b); l != 64 {
-			return r, fmt.Errorf("incorrect %s lenght %d, expected %d", name, l, 64)
-		}
-		copy(r[:], b[:64])
-		return r, nil
 	}
+	if l := len(b); l != 64 {
+		return r, fmt.Errorf("incorrect %s lenght %d, expected %d", name, l, 64)
+	}
+	copy(r[:], b[:64])
+	return r, nil
 }
