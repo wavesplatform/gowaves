@@ -133,35 +133,34 @@ type PeerInfo struct {
 }
 
 func (m *PeerInfo) MarshalBinary() ([]byte, error) {
-	buffer := make([]byte, 6)
+	buffer := make([]byte, 8)
 
 	copy(buffer[0:4], m.addr.To4())
-	binary.BigEndian.PutUint16(buffer[4:6], m.port)
+	binary.BigEndian.PutUint32(buffer[4:8], uint32(m.port))
 
 	return buffer, nil
 }
 
 func (m *PeerInfo) UnmarshalBinary(data []byte) error {
-	if len(data) < 6 {
+	if len(data) < 8 {
 		return errors.New("too short")
 	}
 
 	m.addr = net.IPv4(data[0], data[1], data[2], data[3])
-	m.port = binary.BigEndian.Uint16(data[4:6])
+	m.port = uint16(binary.BigEndian.Uint32(data[4:8]))
 
 	return nil
 }
 
 type PeersMessage struct {
-	PeersCount uint32
-	Peers      []PeerInfo
+	Peers []PeerInfo
 }
 
 func (m *PeersMessage) MarshalBinary() ([]byte, error) {
 	var h header
 	body := make([]byte, 4)
 
-	binary.BigEndian.PutUint32(body[0:4], m.PeersCount)
+	binary.BigEndian.PutUint32(body[0:4], uint32(len(m.Peers)))
 
 	for _, k := range m.Peers {
 		peer, err := k.MarshalBinary()
@@ -202,9 +201,9 @@ func (m *PeersMessage) UnmarshalBinary(data []byte) error {
 	}
 	peersCount := binary.BigEndian.Uint32(data[0:4])
 	data = data[4:]
-	for i := uint32(0); i < peersCount; i += 6 {
+	for i := uint32(0); i < peersCount; i += 8 {
 		var peer PeerInfo
-		if err := peer.UnmarshalBinary(data[i : i+6]); err != nil {
+		if err := peer.UnmarshalBinary(data[i : i+8]); err != nil {
 			return err
 		}
 		m.Peers = append(m.Peers, peer)
