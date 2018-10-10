@@ -7,7 +7,6 @@ import (
 
 func PutStringWithUInt16Len(buf [] byte, s string) {
 	sl := uint16(len(s))
-	_ = buf[sl+1]
 	binary.BigEndian.PutUint16(buf, sl)
 	copy(buf[2:], s)
 }

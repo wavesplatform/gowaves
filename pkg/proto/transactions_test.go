@@ -12,57 +12,63 @@ import (
 )
 
 func TestIssueV1FromMainNet(t *testing.T) {
-	const (
-		senderPK = "BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6"
-		sig      = "6JAr35fMADxhhK5jEXCKBzZAMCBoXBPcW4D9iaBDnhATxQ7Dk5EgJKBSWCeauqftSUVWgY79bMjdxqomCRxafFd"
-		id       = "8LQW8f7P5d5PZM7GtZEBgaqRPGSzS3DfPuiXrURJ4AJS"
-	)
-	spk, err := crypto.NewPublicKeyFromBase58(senderPK)
-	if assert.NoError(t, err) {
-		tx, err := NewUnsignedIssueV1(spk, "WBTC", "Bitcoin Token", 2100000000000000, 8, false, 1480690876160, 100000000)
+	tests := []struct {
+		pk  string
+		sig string
+		id  string
+	}{
+		{"BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6", "6JAr35fMADxhhK5jEXCKBzZAMCBoXBPcW4D9iaBDnhATxQ7Dk5EgJKBSWCeauqftSUVWgY79bMjdxqomCRxafFd", "8LQW8f7P5d5PZM7GtZEBgaqRPGSzS3DfPuiXrURJ4AJS"},
+	}
+	for _, tc := range tests {
+		spk, err := crypto.NewPublicKeyFromBase58(tc.pk)
 		if assert.NoError(t, err) {
-			b := tx.marshalBody()
-			h, err := crypto.FastHash(b)
+			tx, err := NewUnsignedIssueV1(spk, "WBTC", "Bitcoin Token", 2100000000000000, 8, false, 1480690876160, 100000000)
 			if assert.NoError(t, err) {
-				assert.Equal(t, id, base58.Encode(h[:]))
-			}
-			s, err := crypto.NewSignatureFromBase58(sig)
-			if assert.NoError(t, err) {
-				assert.True(t, crypto.Verify(spk, s, b))
+				b := tx.marshalBody()
+				h, err := crypto.FastHash(b)
+				if assert.NoError(t, err) {
+					assert.Equal(t, tc.id, base58.Encode(h[:]))
+				}
+				s, err := crypto.NewSignatureFromBase58(tc.sig)
+				if assert.NoError(t, err) {
+					assert.True(t, crypto.Verify(spk, s, b))
 
+				}
 			}
 		}
 	}
 }
 
 func TestIssueV1Validations(t *testing.T) {
-	const (
-		senderPK    = "BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6"
-		name        = "TOKEN"
-		description = "This is a valid description for the token"
-		quantity    = 1000000
-		fee         = 100000
-	)
-	spk, err := crypto.NewPublicKeyFromBase58(senderPK)
-	if assert.NoError(t, err) {
-		_, err = NewUnsignedIssueV1(spk, "TKN", description, quantity, 2, false, 0, fee)
-		assert.EqualError(t, err, "incorrect number of bytes in the asset's name")
-		d := strings.Repeat("x", 1010)
-		_, err = NewUnsignedIssueV1(spk, name, d, quantity, 2, false, 0, fee)
-		assert.EqualError(t, err, "incorrect number of bytes in the asset's description")
-		_, err = NewUnsignedIssueV1(spk, name, description, 0, 2, false, 0, fee)
-		assert.EqualError(t, err, "quantity should be positive")
-		_, err = NewUnsignedIssueV1(spk, name, description, 10, 12, false, 0, fee)
-		assert.EqualError(t, err, fmt.Sprintf("incorrect decimals, should be no more then %d", maxDecimals))
-		_, err = NewUnsignedIssueV1(spk, name, description, 10, 2, false, 0, 0)
-		assert.EqualError(t, err, "fee should be positive")
+	tests := []struct {
+		pk       string
+		name     string
+		desc     string
+		quantity uint64
+		fee      uint64
+	}{
+		{"BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6", "TOKEN", "This is a valid description for the token", 1000000, 100000},
+	}
+	for _, tc := range tests {
+		spk, err := crypto.NewPublicKeyFromBase58(tc.pk)
+		if assert.NoError(t, err) {
+			_, err = NewUnsignedIssueV1(spk, "TKN", tc.desc, tc.quantity, 2, false, 0, tc.fee)
+			assert.EqualError(t, err, "incorrect number of bytes in the asset's name")
+			d := strings.Repeat("x", 1010)
+			_, err = NewUnsignedIssueV1(spk, tc.name, d, tc.quantity, 2, false, 0, tc.fee)
+			assert.EqualError(t, err, "incorrect number of bytes in the asset's description")
+			_, err = NewUnsignedIssueV1(spk, tc.name, tc.desc, 0, 2, false, 0, tc.fee)
+			assert.EqualError(t, err, "quantity should be positive")
+			_, err = NewUnsignedIssueV1(spk, tc.name, tc.desc, 10, 12, false, 0, tc.fee)
+			assert.EqualError(t, err, fmt.Sprintf("incorrect decimals, should be no more then %d", maxDecimals))
+			_, err = NewUnsignedIssueV1(spk, tc.name, tc.desc, 10, 2, false, 0, 0)
+			assert.EqualError(t, err, "fee should be positive")
+		}
 	}
 }
 
 func TestIssueV1SigningRoundTrip(t *testing.T) {
-	const (
-		seed = "3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc"
-	)
+	const seed = "3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc"
 	s, err := base58.Decode(seed)
 	if assert.NoError(t, err) {
 		sk, pk := crypto.GenerateKeyPair(s)
@@ -78,10 +84,7 @@ func TestIssueV1SigningRoundTrip(t *testing.T) {
 }
 
 func TestIssueV1ToJSON(t *testing.T) {
-	const (
-		seed = "3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc"
-	)
-
+	const seed = "3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc"
 	if s, err := base58.Decode(seed); assert.NoError(t, err) {
 		sk, pk := crypto.GenerateKeyPair(s)
 		ts := uint64(time.Now().Unix() * 1000)
