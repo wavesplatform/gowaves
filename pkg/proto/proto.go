@@ -51,6 +51,9 @@ func (h *header) MarshalBinary() ([]byte, error) {
 }
 
 func (h *header) UnmarshalBinary(data []byte) error {
+	if len(data) < headerLength-4 {
+		return fmt.Errorf("data is to short to unmarshal header: %d", len(data))
+	}
 	h.Length = binary.BigEndian.Uint32(data[0:4])
 	h.Magic = binary.BigEndian.Uint32(data[4:8])
 	if h.Magic != headerMagic {
@@ -58,7 +61,9 @@ func (h *header) UnmarshalBinary(data []byte) error {
 	}
 	h.ContentID = data[8]
 	h.PayloadLength = binary.BigEndian.Uint32(data[9:13])
-	copy(h.PayloadCsum[:], data[13:17])
+	if len(data) == headerLength {
+		copy(h.PayloadCsum[:], data[13:17])
+	}
 
 	return nil
 }
@@ -79,7 +84,7 @@ type GetPeersMessage struct{}
 func (m *GetPeersMessage) MarshalBinary() ([]byte, error) {
 	var header header
 
-	header.Length = headerLength
+	header.Length = headerLength - 8
 	header.Magic = headerMagic
 	header.ContentID = contentIDGetPeers
 	header.PayloadLength = 0
@@ -95,7 +100,7 @@ func (m *GetPeersMessage) MarshalBinary() ([]byte, error) {
 		return nil, err
 	}
 
-	return res, nil
+	return res[:headerLength-4], nil
 }
 
 func (m *GetPeersMessage) UnmarshalBinary(b []byte) error {
@@ -106,7 +111,7 @@ func (m *GetPeersMessage) UnmarshalBinary(b []byte) error {
 		return err
 	}
 
-	if header.Length != headerLength {
+	if header.Length != headerLength-8 {
 		return fmt.Errorf("getpeers message length is unexpected: want %v have %v", headerLength, header.Length)
 	}
 	if header.Magic != headerMagic {
