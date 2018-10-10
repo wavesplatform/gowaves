@@ -184,7 +184,8 @@ var tests = []protocolMarshallingTest{
 	},
 	{
 		&GetPeersMessage{},
-		"000000111234567801000000000e5751c0",
+		//P. Len |    Magic | ContentID | Payload Length | PayloadCsum | Payload
+		"00000009  12345678          01         00000000",
 	},
 	{
 		&PeersMessage{1, []PeerInfo{{net.IPv4(1, 2, 3, 4), 0x8888}}},
