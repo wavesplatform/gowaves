@@ -188,9 +188,21 @@ var tests = []protocolMarshallingTest{
 		"00000009  12345678          01         00000000",
 	},
 	{
-		&PeersMessage{1, []PeerInfo{{net.IPv4(1, 2, 3, 4), 0x8888}}},
+		&PeersMessage{[]PeerInfo{
+			{net.IPv4(0x8e, 0x5d, 0x25, 0x79), 0x1ad4},
+			{net.IPv4(0x34, 0x4d, 0x6f, 0xdb), 0x1acf},
+			{net.IPv4(0x34, 0x1c, 0x42, 0xd9), 0x1acf},
+			{net.IPv4(0x34, 0x1e, 0x2f, 0x43), 0x1acf},
+			{net.IPv4(0x34, 0x33, 0x5c, 0xb6), 0x1acf},
+		},
+		},
 		//P. Len |    Magic | ContentID | Payload Length | PayloadCsum | Payload
-		"00000017  12345678          02         0000000a      e83afba4   00000001 01020304 8888",
+		"00000039  12345678          02          0000002c     0b9ebfaf   00000005 8e5d2579 00001ad4 344d6fdb 00001acf 341c42d9 00001acf 341e2f43 00001acf 34335cb6 00001acf",
+	},
+	{
+		&PeersMessage{[]PeerInfo{{net.IPv4(1, 2, 3, 4), 0x8888}}},
+		//P. Len |    Magic | ContentID | Payload Length | PayloadCsum | Payload
+		"00000019  12345678          02         0000000c      648fa8c8   00000001 01020304 00008888",
 	},
 	{
 		&GetSignaturesMessage{[]BlockID{BlockID{0x01}}},
