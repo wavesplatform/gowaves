@@ -171,7 +171,7 @@ func (m *PeersMessage) MarshalBinary() ([]byte, error) {
 		body = append(body, peer...)
 	}
 
-	h.Length = headerLength + uint32(len(body))
+	h.Length = headerLength + uint32(len(body)) - 4
 	h.Magic = headerMagic
 	h.ContentID = contentIDPeers
 	h.PayloadLength = uint32(len(body))
@@ -227,7 +227,7 @@ func (m *GetSignaturesMessage) MarshalBinary() ([]byte, error) {
 	}
 
 	var h header
-	h.Length = headerLength + uint32(len(body))
+	h.Length = headerLength + uint32(len(body)) - 4
 	h.Magic = headerMagic
 	h.ContentID = contentIDGetSignatures
 	h.PayloadLength = uint32(len(body))
@@ -289,7 +289,7 @@ func (m *SignaturesMessage) MarshalBinary() ([]byte, error) {
 	}
 
 	var h header
-	h.Length = headerLength + uint32(len(body))
+	h.Length = headerLength + uint32(len(body)) - 4
 	h.Magic = headerMagic
 	h.ContentID = contentIDSignatures
 	h.PayloadLength = uint32(len(body))
@@ -349,7 +349,7 @@ func (m *GetBlockMessage) MarshalBinary() ([]byte, error) {
 	body = append(body, m.BlockID[:]...)
 
 	var h header
-	h.Length = headerLength + uint32(len(body))
+	h.Length = headerLength + uint32(len(body)) - 4
 	h.Magic = headerMagic
 	h.ContentID = contentIDGetBlock
 	h.PayloadLength = uint32(len(body))
@@ -392,7 +392,7 @@ type BlockMessage struct {
 
 func (m *BlockMessage) MarshalBinary() ([]byte, error) {
 	var h header
-	h.Length = headerLength + uint32(len(m.BlockBytes))
+	h.Length = headerLength + uint32(len(m.BlockBytes)) - 4
 	h.Magic = headerMagic
 	h.ContentID = contentIDBlock
 	h.PayloadLength = uint32(len(m.BlockBytes))
@@ -433,11 +433,11 @@ type ScoreMessage struct {
 
 func (m *ScoreMessage) MarshalBinary() ([]byte, error) {
 	var h header
-	h.Length = headerLength + uint32(len(m.Score))
+	h.Length = headerLength + uint32(len(m.Score)) - 4
 	h.Magic = headerMagic
 	h.ContentID = contentIDScore
 	h.PayloadLength = uint32(len(m.Score))
-	dig, err := crypto.FastHash([]byte{})
+	dig, err := crypto.FastHash(m.Score)
 	if err != nil {
 		return nil, err
 	}
@@ -474,7 +474,7 @@ type TransactionMessage struct {
 
 func (m *TransactionMessage) MarshalBinary() ([]byte, error) {
 	var h header
-	h.Length = headerLength + uint32(len(m.Transaction))
+	h.Length = headerLength + uint32(len(m.Transaction)) - 4
 	h.Magic = headerMagic
 	h.ContentID = contentIDTransaction
 	h.PayloadLength = uint32(len(m.Transaction))
@@ -530,7 +530,7 @@ func (m *CheckPointMessage) MarshalBinary() ([]byte, error) {
 	}
 
 	var h header
-	h.Length = headerLength + uint32(len(body))
+	h.Length = headerLength + uint32(len(body)) - 4
 	h.Magic = headerMagic
 	h.ContentID = contentIDCheckpoint
 	h.PayloadLength = uint32(len(body))
