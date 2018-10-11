@@ -3,6 +3,7 @@ package proto
 import (
 	"github.com/mr-tron/base58/base58"
 	"github.com/pkg/errors"
+	"strconv"
 	"strings"
 )
 
@@ -32,7 +33,10 @@ func (b *B58Bytes) UnmarshalJSON(value []byte) error {
 	if s == "null" {
 		return nil
 	}
-	s = strings.TrimSuffix(strings.TrimPrefix(s, "\""), "\"")
+	s, err := strconv.Unquote(s)
+	if err != nil {
+		errors.Wrap(err, "failed to unmarshal B58Bytes from JSON")
+	}
 	v, err := base58.Decode(s)
 	if err != nil {
 		return errors.Wrap(err, "failed to decode B58Bytes")
@@ -77,9 +81,10 @@ func (a Asset) MarshalJSON() ([]byte, error) {
 // UnmarshalJSON reads Asset from a JSON string Value
 func (a *Asset) UnmarshalJSON(value []byte) error {
 	s := strings.ToUpper(string(value))
-	if s == "NULL" || s == WavesAssetName || s == "" {
+	switch s {
+	case "NULL", WavesAssetName, "":
 		*a = Asset{Present: false}
-	} else {
+	default:
 		var b B58Bytes
 		err := b.UnmarshalJSON(value)
 		if err != nil {
@@ -113,7 +118,10 @@ func (a *Attachment) UnmarshalJSON(value []byte) error {
 	if s == "null" {
 		return nil
 	}
-	s = strings.TrimSuffix(strings.TrimPrefix(s, "\""), "\"")
+	s, err := strconv.Unquote(s)
+	if err != nil {
+		return errors.Wrap(err, "failed to unmarshal Attachment from JSON")
+	}
 	v, err := base58.Decode(s)
 	if err != nil {
 		return errors.Wrap(err, "failed to decode Attachment from JSON Value")
