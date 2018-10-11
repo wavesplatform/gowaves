@@ -14,8 +14,6 @@ const (
 	headerCsumLen = 4
 )
 
-const blockSignatureLen = 64
-
 const (
 	contentIDGetPeers      = 0x1
 	contentIDPeers         = 0x2
@@ -28,7 +26,7 @@ const (
 	contentIDCheckpoint    = 0x64
 )
 
-type BlockSignature [blockSignatureLen]byte
+type BlockSignature crypto.Signature
 
 type header struct {
 	Length        uint32
@@ -255,7 +253,7 @@ func (m *GetSignaturesMessage) UnmarshalBinary(data []byte) error {
 		return fmt.Errorf("wrong magic in header: %x", h.Magic)
 	}
 	if h.ContentID != contentIDGetSignatures {
-		return fmt.Errorf("wrong content id in header: %x", h.ContentID)
+		return fmt.Errorf("wrong content idsig in header: %x", h.ContentID)
 	}
 	data = data[17:]
 	if len(data) < 4 {
@@ -318,7 +316,7 @@ func (m *SignaturesMessage) UnmarshalBinary(data []byte) error {
 		return fmt.Errorf("wrong magic in header: %x", h.Magic)
 	}
 	if h.ContentID != contentIDSignatures {
-		return fmt.Errorf("wrong content id in header: %x", h.ContentID)
+		return fmt.Errorf("wrong content idsig in header: %x", h.ContentID)
 	}
 	data = data[17:]
 	if len(data) < 4 {
@@ -373,7 +371,7 @@ func (m *GetBlockMessage) UnmarshalBinary(data []byte) error {
 		return fmt.Errorf("wrong magic in header: %x", h.Magic)
 	}
 	if h.ContentID != contentIDGetBlock {
-		return fmt.Errorf("wrong content id in header: %x", h.ContentID)
+		return fmt.Errorf("wrong content idsig in header: %x", h.ContentID)
 	}
 	data = data[17:]
 	if len(data) < 64 {
@@ -418,7 +416,7 @@ func (m *BlockMessage) UnmarshalBinary(data []byte) error {
 		return fmt.Errorf("wrong magic in header: %x", h.Magic)
 	}
 	if h.ContentID != contentIDBlock {
-		return fmt.Errorf("wrong content id in header: %x", h.ContentID)
+		return fmt.Errorf("wrong content idsig in header: %x", h.ContentID)
 	}
 
 	m.BlockBytes = data[17:]
@@ -459,7 +457,7 @@ func (m *ScoreMessage) UnmarshalBinary(data []byte) error {
 		return fmt.Errorf("wrong magic in header: %x", h.Magic)
 	}
 	if h.ContentID != contentIDScore {
-		return fmt.Errorf("wrong content id in header: %x", h.ContentID)
+		return fmt.Errorf("wrong content idsig in header: %x", h.ContentID)
 	}
 
 	m.Score = data[17:]
@@ -500,7 +498,7 @@ func (m *TransactionMessage) UnmarshalBinary(data []byte) error {
 		return fmt.Errorf("wrong magic in header: %x", h.Magic)
 	}
 	if h.ContentID != contentIDTransaction {
-		return fmt.Errorf("wrong content id in header: %x", h.ContentID)
+		return fmt.Errorf("wrong content idsig in header: %x", h.ContentID)
 	}
 
 	m.Transaction = data[17:]
@@ -605,9 +603,10 @@ func (h *Handshake) marshalBinaryNodeName() ([]byte, error) {
 	if len(h.NodeName) > 255 {
 		return nil, errors.New("handshake node name too long")
 	}
-	data := make([]byte, len(h.NodeName)+1)
-	data[0] = byte(len(h.NodeName))
-	copy(data[1:1+len(h.NodeName)], h.NodeName)
+	l := len(h.NodeName)
+	data := make([]byte, l+1)
+	data[0] = byte(l)
+	copy(data[1:1+l], h.NodeName)
 
 	return data, nil
 }
