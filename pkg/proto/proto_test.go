@@ -184,47 +184,65 @@ var tests = []protocolMarshallingTest{
 	},
 	{
 		&GetPeersMessage{},
-		"000000111234567801000000000e5751c0",
+		//P. Len |    Magic | ContentID | Payload Length | PayloadCsum | Payload
+		"00000009  12345678          01         00000000",
 	},
 	{
-		&PeersMessage{1, []PeerInfo{{net.IPv4(1, 2, 3, 4), 0x8888}}},
+		&PeersMessage{[]PeerInfo{
+			{net.IPv4(0x8e, 0x5d, 0x25, 0x79), 0x1ad4},
+			{net.IPv4(0x34, 0x4d, 0x6f, 0xdb), 0x1acf},
+			{net.IPv4(0x34, 0x1c, 0x42, 0xd9), 0x1acf},
+			{net.IPv4(0x34, 0x1e, 0x2f, 0x43), 0x1acf},
+			{net.IPv4(0x34, 0x33, 0x5c, 0xb6), 0x1acf},
+		},
+		},
 		//P. Len |    Magic | ContentID | Payload Length | PayloadCsum | Payload
-		"0000001b  12345678          02         0000000a      e83afba4   00000001 01020304 8888",
+		"00000039  12345678          02          0000002c     0b9ebfaf   00000005 8e5d2579 00001ad4 344d6fdb 00001acf 341c42d9 00001acf 341e2f43 00001acf 34335cb6 00001acf",
+	},
+	{
+		&PeersMessage{[]PeerInfo{{net.IPv4(1, 2, 3, 4), 0x8888}}},
+		//P. Len |    Magic | ContentID | Payload Length | PayloadCsum | Payload
+		"00000019  12345678          02         0000000c      648fa8c8   00000001 01020304 00008888",
 	},
 	{
 		&GetSignaturesMessage{[]BlockID{BlockID{0x01}}},
 		//P. Len |    Magic | ContentID | Payload Length | PayloadCsum | Payload
-		"00000055  12345678          14         00000044      5474fb17   00000001 01000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000",
+		"00000051  12345678          14         00000044      5474fb17   00000001 01000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000",
 	},
 	{
 		&SignaturesMessage{[]BlockSignature{BlockSignature{0x13}}},
 		//P. Len |    Magic | ContentID | Payload Length | PayloadCsum | Payload
-		"00000055  12345678          15         00000044      5e0c8bee   00000001 13000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000",
+		"00000051  12345678          15         00000044      5e0c8bee   00000001 13000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000",
 	},
 	{
 		&GetBlockMessage{BlockID{0x15, 0x12}},
 		//P. Len |    Magic | ContentID | Payload Length | PayloadCsum | Payload
-		"00000051  12345678          16         00000040      01d5a895   15120000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000",
+		"0000004d  12345678          16         00000040      01d5a895   15120000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000",
 	},
 	{
 		&BlockMessage{[]byte{0x66, 0x42}},
 		//P. Len |    Magic | ContentID | Payload Length | PayloadCsum | Payload
-		"00000013  12345678          17         00000002      0e5751c0   6642",
+		"0000000f  12345678          17         00000002      0e5751c0   6642",
 	},
 	{
 		&ScoreMessage{[]byte{0x66, 0x42}},
 		//P. Len |    Magic | ContentID | Payload Length | PayloadCsum | Payload
-		"00000013  12345678          18         00000002      0e5751c0   6642",
+		"0000000f  12345678          18         00000002      c2426c62   6642",
+	},
+	{
+		&ScoreMessage{[]byte{0x01, 0x47, 0x02, 0x0e, 0x5b, 0x00, 0x75, 0x7a, 0xbe}},
+		//P. Len |    Magic | ContentID | Payload Length | PayloadCsum | Payload
+		"00000016  12345678          18         00000009      74580717   01 47 02 0e 5b 00 75 7a be",
 	},
 	{
 		&TransactionMessage{[]byte{0x66, 0x42}},
 		//P. Len |    Magic | ContentID | Payload Length | PayloadCsum | Payload
-		"00000013  12345678          19         00000002      0e5751c0   6642",
+		"0000000f  12345678          19         00000002      0e5751c0   6642",
 	},
 	{
 		&CheckPointMessage{[]CheckpointItem{{0xdeadbeef, BlockSignature{0x10, 0x11}}}},
 		//P. Len |    Magic | ContentID | Payload Length | PayloadCsum | Payload
-		"0000005d  12345678          64         0000004c      fcb6b02a   00000001 00000000 deadbeef 10110000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000",
+		"00000059  12345678          64         0000004c      fcb6b02a   00000001 00000000 deadbeef 10110000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000",
 	},
 }
 
