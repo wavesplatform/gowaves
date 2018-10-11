@@ -52,7 +52,7 @@ func (d *Digest) UnmarshalJSON(value []byte) error {
 	return nil
 }
 
-func NewDigestFromBase58String(s string) (Digest, error) {
+func NewDigestFromBase58(s string) (Digest, error) {
 	return array32FromBase58(s, "Digest")
 }
 
@@ -227,7 +227,8 @@ func GenerateKeyPair(seed []byte) (SecretKey, PublicKey) {
 	return sk, pk
 }
 
-func Sign(secretKey SecretKey, data []byte) (sig Signature) {
+func Sign(secretKey SecretKey, data []byte) Signature {
+	var sig Signature
 	var edPubKeyPoint edwards25519.ExtendedGroupElement
 	sk := [SecretKeySize]byte(secretKey)
 	edwards25519.GeScalarMultBase(&edPubKeyPoint, &sk)
@@ -239,7 +240,7 @@ func Sign(secretKey SecretKey, data []byte) (sig Signature) {
 	s[63] &= 0x7f
 	s[63] |= signBit
 	copy(sig[:], s[:SignatureSize])
-	return
+	return sig
 }
 
 func sign(curvePrivateKey, edPublicKey *[DigestSize]byte, data []byte) [SignatureSize]byte {

@@ -33,7 +33,8 @@ const (
 	maxDecimals                   = 8
 	proofsVersion            byte = 1
 
-	genesisLen          = 1 + 8 + AddressSize + 8
+	genesisBodyLen      = 1 + 8 + AddressSize + 8
+	paymentBodyLen      = 1 + 8 + crypto.PublicKeySize + AddressSize + 8 + 8
 	fixedIssueV1BodyLen = 1 + crypto.PublicKeySize + 2 + 2 + 8 + 1 + 1 + 8 + 8
 	minIssueV1BodyLen   = fixedIssueV1BodyLen + 4
 	minIssueV1Len       = 1 + crypto.SignatureSize + minIssueV1BodyLen
@@ -60,7 +61,7 @@ func NewUnsignedGenesis(recipient Address, amount, timestamp uint64) (*Genesis, 
 }
 
 func (tx *Genesis) marshalBody() []byte {
-	buf := make([]byte, genesisLen)
+	buf := make([]byte, genesisBodyLen)
 	buf[0] = byte(tx.Type)
 	binary.BigEndian.PutUint64(buf[1:], tx.Timestamp)
 	copy(buf[9:], tx.Recipient[:])
@@ -104,8 +105,8 @@ func (tx *Genesis) MarshalBinary() ([]byte, error) {
 }
 
 func (tx *Genesis) UnmarshalBinary(data []byte) error {
-	if l := len(data); l != genesisLen {
-		return errors.Errorf("incorrect data lenght for Genesis transaction, expected %d, received %d", genesisLen, l)
+	if l := len(data); l != genesisBodyLen {
+		return errors.Errorf("incorrect data lenght for Genesis transaction, expected %d, received %d", genesisBodyLen, l)
 	}
 	if data[0] != byte(GenesisTransaction) {
 		return errors.Errorf("incorrect transaction type %d for Genesis transaction", data[0])
@@ -121,10 +122,114 @@ func (tx *Genesis) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
+type Payment struct {
+	Type      TransactionType   `json:"type"`
+	Version   byte              `json:"version"`
+	ID        *crypto.Signature `json:"id"`
+	Signature *crypto.Signature `json:"signature"`
+	SenderPK  crypto.PublicKey  `json:"senderPublicKey"`
+	Recipient Address           `json:"recipient"`
+	Amount    uint64            `json:"amount"`
+	Fee       uint64            `json:"fee"`
+	Timestamp uint64            `json:"timestamp"`
+}
+
+func NewUnsignedPayment(senderPK crypto.PublicKey, recipient Address, amount, fee, timestamp uint64) (*Payment, error) {
+	if ok, err := recipient.Validate(); !ok {
+		return nil, errors.Wrapf(err, "invalid recipient address '%s", recipient.String())
+	}
+	if amount <= 0 {
+		return nil, errors.New("amount should be positive")
+	}
+	if fee <= 0 {
+		return nil, errors.New("fee should be positive")
+	}
+	return &Payment{Type: PaymentTransaction, Version: 1, SenderPK: senderPK, Recipient: recipient, Amount: amount, Fee: fee, Timestamp: timestamp}, nil
+}
+
+func (tx *Payment) marshalBody() []byte {
+	buf := make([]byte, paymentBodyLen)
+	buf[0] = byte(tx.Type)
+	binary.BigEndian.PutUint64(buf[1:], tx.Timestamp)
+	copy(buf[9:], tx.SenderPK[:])
+	copy(buf[9+crypto.PublicKeySize:], tx.Recipient[:])
+	binary.BigEndian.PutUint64(buf[9+crypto.PublicKeySize+AddressSize:], tx.Amount)
+	binary.BigEndian.PutUint64(buf[17+crypto.PublicKeySize+AddressSize:], tx.Fee)
+	return buf
+
+}
+
+func (tx *Payment) unmarshalBody(data []byte) error {
+	tx.Type = TransactionType(data[0])
+	tx.Version = 1
+	if l := len(data); l != paymentBodyLen {
+		return errors.Errorf("incorrect data size %d for Payment transaction, expected %d", l, paymentBodyLen)
+	}
+	if tx.Type != PaymentTransaction {
+		return errors.Errorf("unexpected transaction type %d for Payment transaction", tx.Type)
+	}
+	data = data[1:]
+	tx.Timestamp = binary.BigEndian.Uint64(data)
+	data = data[8:]
+	copy(tx.SenderPK[:], data[:crypto.PublicKeySize])
+	data = data[crypto.PublicKeySize:]
+	copy(tx.Recipient[:], data[:AddressSize])
+	data = data[AddressSize:]
+	tx.Amount = binary.BigEndian.Uint64(data)
+	data = data[8:]
+	tx.Fee = binary.BigEndian.Uint64(data)
+	return nil
+}
+
+func (tx *Payment) Sign(secretKey crypto.SecretKey) error {
+	b := tx.marshalBody()
+	d := make([]byte, len(b)+3)
+	copy(d[3:], b)
+	s := crypto.Sign(secretKey, d)
+	tx.ID = &s
+	tx.Signature = &s
+	return nil
+}
+
+func (tx *Payment) Verify(publicKey crypto.PublicKey) bool {
+	b := tx.marshalBody()
+	d := make([]byte, len(b)+3)
+	copy(d[3:], b)
+	return crypto.Verify(publicKey, *tx.Signature, d)
+}
+
+func (tx *Payment) MarshalBinary() ([]byte, error) {
+	b := tx.marshalBody()
+	buf := make([]byte, paymentBodyLen+crypto.SignatureSize)
+	copy(buf[:], b)
+	copy(buf[paymentBodyLen:], tx.Signature[:])
+	return buf, nil
+}
+
+func (tx *Payment) UnmarshalBinary(data []byte) error {
+	size := paymentBodyLen + crypto.SignatureSize
+	if l := len(data); l != size {
+		return errors.Errorf("not enough data for Payment transaction, expected %d, received %d", size, l)
+	}
+	if data[0] != byte(PaymentTransaction) {
+		return errors.Errorf("incorrect transaction type %d for Payment transaction", data[0])
+	}
+	err := tx.unmarshalBody(data[:paymentBodyLen])
+	if err != nil {
+		return errors.Wrap(err, "failed to unmarshal Payment transaction")
+	}
+	data = data[paymentBodyLen:]
+	var s crypto.Signature
+	copy(s[:], data[:crypto.SignatureSize])
+	tx.Signature = &s
+	tx.ID = &s
+	return nil
+}
+
 type IssueV1 struct {
 	Type        TransactionType   `json:"type"`
 	Version     byte              `json:"version,omitempty"`
-	ID          *crypto.Digest    `json:"idsig,omitempty"`
+	ID          *crypto.Digest    `json:"id,omitempty"`
 	Signature   *crypto.Signature `json:"signature,omitempty"`
 	SenderPK    crypto.PublicKey  `json:"senderPublicKey"`
 	Name        string            `json:"name"`
@@ -265,7 +370,7 @@ func (tx *IssueV1) UnmarshalBinary(data []byte) error {
 //type IssueV2 struct {
 //	Type        TransactionType  `json:"type"`
 //	Version     byte             `json:"version"`
-//	ID          *crypto.Digest   `json:"idsig,omitempty"`
+//	ID          *crypto.Digest   `json:"id,omitempty"`
 //	SenderPK    crypto.PublicKey `json:"senderPublicKey"`
 //	Name        string           `json:"name"`
 //	Description string           `json:"description"`

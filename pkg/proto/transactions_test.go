@@ -13,7 +13,7 @@ import (
 
 func TestGenesisFromMainNet(t *testing.T) {
 	tests := []struct {
-		idsig     string
+		sig       string
 		timestamp uint64
 		recipient string
 		amount    uint64
@@ -26,7 +26,7 @@ func TestGenesisFromMainNet(t *testing.T) {
 		{"29gnRjk8urzqc9kvqaxAfr6niQTuTZnq7LXDAbd77nydHkvrTA4oepoMLsiPkJ8wj2SeFB5KXASSPmbScvBbfLiV", 1465742577614, "3PBWXDFUc86N2EQxKJmW8eFco65xTyMZx6J", 100000000},
 	}
 	for _, tc := range tests {
-		id, _ := base58.Decode(tc.idsig)
+		id, _ := base58.Decode(tc.sig)
 		if rcp, err := NewAddressFromString(tc.recipient); assert.NoError(t, err) {
 			if tx, err := NewUnsignedGenesis(rcp, tc.amount, tc.timestamp); assert.NoError(t, err) {
 				if err := tx.GenerateSigID(); assert.NoError(t, err) {
@@ -66,12 +66,87 @@ func TestGenesisToJSON(t *testing.T) {
 	const addr = "3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ"
 	if rcp, err := NewAddressFromString(addr); assert.NoError(t, err) {
 		ts := uint64(time.Now().Unix() * 1000)
-		if tx, err := NewUnsignedGenesis(rcp, 1000, ts);assert.NoError(t, err) {
+		if tx, err := NewUnsignedGenesis(rcp, 1000, ts); assert.NoError(t, err) {
 			tx.GenerateSigID()
 			if j, err := json.Marshal(tx); assert.NoError(t, err) {
 				ej := fmt.Sprintf("{\"type\":1,\"version\":1,\"id\":\"%s\",\"signature\":\"%s\",\"timestamp\":%d,\"recipient\":\"%s\",\"amount\":1000}", base58.Encode(tx.ID[:]), base58.Encode(tx.Signature[:]), ts, tx.Recipient.String())
 				assert.Equal(t, ej, string(j))
 			}
+		}
+	}
+}
+
+func TestPaymentFromMainNet(t *testing.T) {
+	tests := []struct {
+		sig       string
+		timestamp uint64
+		spk       string
+		recipient string
+		amount    uint64
+		fee       uint64
+	}{
+		{"2ZojhAw3r8DhiHD6gRJ2dXNpuErAd4iaoj5NSWpfYrqppxpYkcXBHzSAWTkAGX5d3EeuAUS8rZ4vnxnDSbJU8MkM", 1465754870341, "AfZtLRQxLNYH5iradMkTeuXGe71uAiATVbr8DpXEEQa7", "3PP2ywCpyvC57rN4vUZhJjQrmGMTWnjFKi7", 20999990, 1},
+		{"5cQLvZVUZqYcC75u5vXydpPoxKeazyiNtKgtz4DSyQboDSyefxcQEihwN9er772DbFDuaBRDLQHbT9CJiezk8sba", 1465825839722, "vAyFRfGG225MjUXo2VXhLfh2F6utsGkG782HuKi5fRp", "3P9v6SjRKUZPZMG1aL2oTznGZHBvNr21EQS", 99999999, 1},
+		{"396pxC3YjVMjYQF7S9Xk3ntCjEJz4ip91ckux6ni4qpNEHbkyzqhSeYzyiVaUUM94uc21nGe8qwurGFDdzynrCHZ", 1466531340683, "2DAbbF2XuQPc3ePzKdxncsdMUzjSjEGC4nHx7kA3s1jm", "3PFrwqFZpoTzwKYq8NUALrtALP1oDvixt8z", 49310900000000, 1},
+	}
+	for _, tc := range tests {
+		sig, _ := crypto.NewSignatureFromBase58(tc.sig)
+		spk, _ := crypto.NewPublicKeyFromBase58(tc.spk)
+		if rcp, err := NewAddressFromString(tc.recipient); assert.NoError(t, err) {
+			if tx, err := NewUnsignedPayment(spk, rcp, tc.amount, tc.fee, tc.timestamp); assert.NoError(t, err) {
+				assert.Equal(t, tc.spk, base58.Encode(tx.SenderPK[:]))
+				assert.Equal(t, tc.amount, tx.Amount)
+				assert.Equal(t, tc.recipient, tx.Recipient.String())
+				assert.Equal(t, tc.timestamp, tx.Timestamp)
+				assert.Equal(t, tc.fee, tx.Fee)
+				b := tx.marshalBody()
+				var at Payment
+				err = at.unmarshalBody(b)
+				assert.NoError(t, err)
+				assert.Equal(t, *tx, at)
+				tx.Signature = &sig
+				tx.ID = &sig
+				tx.Verify(spk)
+				b, _ = tx.MarshalBinary()
+				err = at.UnmarshalBinary(b)
+				assert.NoError(t, err)
+				assert.Equal(t, *tx, at)
+			}
+		}
+	}
+}
+
+func TestPaymentValidations(t *testing.T) {
+	tests := []struct {
+		spk       string
+		recipient string
+		amount    uint64
+		fee       uint64
+		err       string
+	}{
+		{"AfZtLRQxLNYH5iradMkTeuXGe71uAiATVbr8DpXEEQa7", "3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ", 0, 10, "amount should be positive"},
+		{"AfZtLRQxLNYH5iradMkTeuXGe71uAiATVbr8DpXEEQa7", "3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ", 10, 0, "fee should be positive"},
+		{"AfZtLRQxLNYH5iradMkTeuXGe71uAiATVbr8DpXEEQa7", "3PAWwWa6GbwcJaFzwqXQN5KQm7H86Y7SHTQ", 10, 10, "invalid recipient address '3PAWwWa6GbwcJaFzwqXQN5KQm7H86Y7SHTQ: invalid Address checksum"},
+	}
+	for _, tc := range tests {
+		spk, _ := crypto.NewPublicKeyFromBase58(tc.spk)
+		rcp, _ := NewAddressFromString(tc.recipient)
+		_, err := NewUnsignedPayment(spk, rcp, tc.amount, tc.fee, 0)
+		assert.EqualError(t, err, tc.err)
+	}
+}
+
+func TestPaymentToJSON(t *testing.T) {
+	s, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
+	sk, pk := crypto.GenerateKeyPair(s)
+	rcp, _ := NewAddressFromString("3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ")
+	ts := uint64(time.Now().Unix() * 1000)
+	if tx, err := NewUnsignedPayment(pk, rcp, 1000, 10, ts); assert.NoError(t, err) {
+		err = tx.Sign(sk)
+		assert.NoError(t, err)
+		if j, err := json.Marshal(tx); assert.NoError(t, err) {
+			ej := fmt.Sprintf("{\"type\":2,\"version\":1,\"id\":\"%s\",\"signature\":\"%s\",\"senderPublicKey\":\"%s\",\"recipient\":\"%s\",\"amount\":1000,\"fee\":10,\"timestamp\":%d}", base58.Encode(tx.ID[:]), base58.Encode(tx.Signature[:]), base58.Encode(tx.SenderPK[:]), tx.Recipient.String(), ts)
+			assert.Equal(t, ej, string(j))
 		}
 	}
 }
@@ -155,7 +230,7 @@ func TestIssueV1ToJSON(t *testing.T) {
 			assert.Equal(t, ej, string(j))
 			if err := tx.Sign(sk); assert.NoError(t, err) {
 				if sj, err := json.Marshal(tx); assert.NoError(t, err) {
-					esj := fmt.Sprintf("{\"type\":3,\"version\":1,\"idsig\":\"%s\",\"signature\":\"%s\",\"senderPublicKey\":\"%s\",\"name\":\"TOKEN\",\"description\":\"\",\"quantity\":1000,\"decimals\":0,\"reissuable\":false,\"timestamp\":%d,\"fee\":100000}", base58.Encode(tx.ID[:]), base58.Encode(tx.Signature[:]), base58.Encode(pk[:]), ts)
+					esj := fmt.Sprintf("{\"type\":3,\"version\":1,\"id\":\"%s\",\"signature\":\"%s\",\"senderPublicKey\":\"%s\",\"name\":\"TOKEN\",\"description\":\"\",\"quantity\":1000,\"decimals\":0,\"reissuable\":false,\"timestamp\":%d,\"fee\":100000}", base58.Encode(tx.ID[:]), base58.Encode(tx.Signature[:]), base58.Encode(pk[:]), ts)
 					assert.Equal(t, esj, string(sj))
 				}
 			}
