@@ -249,7 +249,7 @@ func (m *GetSignaturesMessage) UnmarshalBinary(data []byte) error {
 		return fmt.Errorf("wrong magic in header: %x", h.Magic)
 	}
 	if h.ContentID != contentIDGetSignatures {
-		return fmt.Errorf("wrong content id in header: %x", h.ContentID)
+		return fmt.Errorf("wrong content idsig in header: %x", h.ContentID)
 	}
 	data = data[17:]
 	if len(data) < 4 {
@@ -312,7 +312,7 @@ func (m *SignaturesMessage) UnmarshalBinary(data []byte) error {
 		return fmt.Errorf("wrong magic in header: %x", h.Magic)
 	}
 	if h.ContentID != contentIDSignatures {
-		return fmt.Errorf("wrong content id in header: %x", h.ContentID)
+		return fmt.Errorf("wrong content idsig in header: %x", h.ContentID)
 	}
 	data = data[17:]
 	if len(data) < 4 {
@@ -367,7 +367,7 @@ func (m *GetBlockMessage) UnmarshalBinary(data []byte) error {
 		return fmt.Errorf("wrong magic in header: %x", h.Magic)
 	}
 	if h.ContentID != contentIDGetBlock {
-		return fmt.Errorf("wrong content id in header: %x", h.ContentID)
+		return fmt.Errorf("wrong content idsig in header: %x", h.ContentID)
 	}
 	data = data[17:]
 	if len(data) < 64 {
@@ -412,7 +412,7 @@ func (m *BlockMessage) UnmarshalBinary(data []byte) error {
 		return fmt.Errorf("wrong magic in header: %x", h.Magic)
 	}
 	if h.ContentID != contentIDBlock {
-		return fmt.Errorf("wrong content id in header: %x", h.ContentID)
+		return fmt.Errorf("wrong content idsig in header: %x", h.ContentID)
 	}
 
 	m.BlockBytes = data[17:]
@@ -453,7 +453,7 @@ func (m *ScoreMessage) UnmarshalBinary(data []byte) error {
 		return fmt.Errorf("wrong magic in header: %x", h.Magic)
 	}
 	if h.ContentID != contentIDScore {
-		return fmt.Errorf("wrong content id in header: %x", h.ContentID)
+		return fmt.Errorf("wrong content idsig in header: %x", h.ContentID)
 	}
 
 	m.Score = data[17:]
@@ -494,7 +494,7 @@ func (m *TransactionMessage) UnmarshalBinary(data []byte) error {
 		return fmt.Errorf("wrong magic in header: %x", h.Magic)
 	}
 	if h.ContentID != contentIDTransaction {
-		return fmt.Errorf("wrong content id in header: %x", h.ContentID)
+		return fmt.Errorf("wrong content idsig in header: %x", h.ContentID)
 	}
 
 	m.Transaction = data[17:]

@@ -11,6 +11,71 @@ import (
 	"time"
 )
 
+func TestGenesisFromMainNet(t *testing.T) {
+	tests := []struct {
+		idsig     string
+		timestamp uint64
+		recipient string
+		amount    uint64
+	}{
+		{"2DVtfgXjpMeFf2PQCqvwxAiaGbiDsxDjSdNQkc5JQ74eWxjWFYgwvqzC4dn7iB1AhuM32WxEiVi1SGijsBtYQwn8", 1465742577614, "3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ", 9999999500000000},
+		{"2TsxPS216SsZJAiep7HrjZ3stHERVkeZWjMPFcvMotrdGpFa6UCCmoFiBGNizx83Ks8DnP3qdwtJ8WFcN9J4exa3", 1465742577614, "3P8JdJGYc7vaLu4UXUZc1iRLdzrkGtdCyJM", 100000000},
+		{"3gF8LFjhnZdgEVjP7P6o1rvwapqdgxn7GCykCo8boEQRwxCufhrgqXwdYKEg29jyPWthLF5cFyYcKbAeFvhtRNTc", 1465742577614, "3PAGPDPqnGkyhcihyjMHe9v36Y4hkAh9yDy", 100000000},
+		{"5hjSPLDyqic7otvtTJgVv73H3o6GxgTBqFMTY2PqAFzw2GHAnoQddC4EgWWFrAiYrtPadMBUkoepnwFHV1yR6u6g", 1465742577614, "3P9o3ZYwtHkaU1KxsKkFjJqJKS3dLHLC9oF", 100000000},
+		{"ivP1MzTd28yuhJPkJsiurn2rH2hovXqxr7ybHZWoRGUYKazkfaL9MYoTUym4sFgwW7WB5V252QfeFTsM6Uiz3DM", 1465742577614, "3PJaDyprvekvPXPuAtxrapacuDJopgJRaU3", 100000000},
+		{"29gnRjk8urzqc9kvqaxAfr6niQTuTZnq7LXDAbd77nydHkvrTA4oepoMLsiPkJ8wj2SeFB5KXASSPmbScvBbfLiV", 1465742577614, "3PBWXDFUc86N2EQxKJmW8eFco65xTyMZx6J", 100000000},
+	}
+	for _, tc := range tests {
+		id, _ := base58.Decode(tc.idsig)
+		if rcp, err := NewAddressFromString(tc.recipient); assert.NoError(t, err) {
+			if tx, err := NewUnsignedGenesis(rcp, tc.amount, tc.timestamp); assert.NoError(t, err) {
+				if err := tx.GenerateSigID(); assert.NoError(t, err) {
+					assert.Equal(t, id, tx.ID[:])
+					assert.Equal(t, tc.amount, tx.Amount)
+					assert.Equal(t, tc.recipient, tx.Recipient.String())
+					assert.Equal(t, tc.timestamp, tx.Timestamp)
+					b, err := tx.MarshalBinary()
+					assert.NoError(t, err)
+					var at Genesis
+					err = at.UnmarshalBinary(b)
+					assert.NoError(t, err)
+					assert.Equal(t, *tx, at)
+				}
+			}
+		}
+	}
+}
+
+func TestGenesisValidations(t *testing.T) {
+	tests := []struct {
+		recipient string
+		amount    uint64
+		err       string
+	}{
+		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ", 0, "amount should be positive"},
+		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H86Y7SHTQ", 1000, "invalid recipient address '3PAWwWa6GbwcJaFzwqXQN5KQm7H86Y7SHTQ: invalid Address checksum"},
+	}
+	for _, tc := range tests {
+		rcp, _ := NewAddressFromString(tc.recipient)
+		_, err := NewUnsignedGenesis(rcp, tc.amount, 0)
+		assert.EqualError(t, err, tc.err)
+	}
+}
+
+func TestGenesisToJSON(t *testing.T) {
+	const addr = "3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ"
+	if rcp, err := NewAddressFromString(addr); assert.NoError(t, err) {
+		ts := uint64(time.Now().Unix() * 1000)
+		if tx, err := NewUnsignedGenesis(rcp, 1000, ts);assert.NoError(t, err) {
+			tx.GenerateSigID()
+			if j, err := json.Marshal(tx); assert.NoError(t, err) {
+				ej := fmt.Sprintf("{\"type\":1,\"version\":1,\"id\":\"%s\",\"signature\":\"%s\",\"timestamp\":%d,\"recipient\":\"%s\",\"amount\":1000}", base58.Encode(tx.ID[:]), base58.Encode(tx.Signature[:]), ts, tx.Recipient.String())
+				assert.Equal(t, ej, string(j))
+			}
+		}
+	}
+}
+
 func TestIssueV1FromMainNet(t *testing.T) {
 	tests := []struct {
 		pk  string
@@ -41,28 +106,24 @@ func TestIssueV1FromMainNet(t *testing.T) {
 
 func TestIssueV1Validations(t *testing.T) {
 	tests := []struct {
-		pk       string
 		name     string
 		desc     string
 		quantity uint64
+		decimals byte
 		fee      uint64
+		err      string
 	}{
-		{"BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6", "TOKEN", "This is a valid description for the token", 1000000, 100000},
+		{"TKN", "This is a valid description for the token", 1000000, 2, 100000, "incorrect number of bytes in the asset's name"},
+		{"TOKEN", strings.Repeat("x", 1010), 1000000, 2, 100000, "incorrect number of bytes in the asset's description"},
+		{"TOKEN", "This is a valid description for the token", 0, 2, 100000, "quantity should be positive"},
+		{"TOKEN", "This is a valid description for the token", 100000, 12, 100000, fmt.Sprintf("incorrect decimals, should be no more then %d", maxDecimals)},
+		{"TOKEN", "This is a valid description for the token", 100000, 2, 0, "fee should be positive"},
 	}
 	for _, tc := range tests {
-		spk, err := crypto.NewPublicKeyFromBase58(tc.pk)
+		spk, err := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
 		if assert.NoError(t, err) {
-			_, err = NewUnsignedIssueV1(spk, "TKN", tc.desc, tc.quantity, 2, false, 0, tc.fee)
-			assert.EqualError(t, err, "incorrect number of bytes in the asset's name")
-			d := strings.Repeat("x", 1010)
-			_, err = NewUnsignedIssueV1(spk, tc.name, d, tc.quantity, 2, false, 0, tc.fee)
-			assert.EqualError(t, err, "incorrect number of bytes in the asset's description")
-			_, err = NewUnsignedIssueV1(spk, tc.name, tc.desc, 0, 2, false, 0, tc.fee)
-			assert.EqualError(t, err, "quantity should be positive")
-			_, err = NewUnsignedIssueV1(spk, tc.name, tc.desc, 10, 12, false, 0, tc.fee)
-			assert.EqualError(t, err, fmt.Sprintf("incorrect decimals, should be no more then %d", maxDecimals))
-			_, err = NewUnsignedIssueV1(spk, tc.name, tc.desc, 10, 2, false, 0, 0)
-			assert.EqualError(t, err, "fee should be positive")
+			_, err = NewUnsignedIssueV1(spk, tc.name, tc.desc, tc.quantity, tc.decimals, false, 0, tc.fee)
+			assert.EqualError(t, err, tc.err)
 		}
 	}
 }
@@ -94,7 +155,7 @@ func TestIssueV1ToJSON(t *testing.T) {
 			assert.Equal(t, ej, string(j))
 			if err := tx.Sign(sk); assert.NoError(t, err) {
 				if sj, err := json.Marshal(tx); assert.NoError(t, err) {
-					esj := fmt.Sprintf("{\"type\":3,\"version\":1,\"id\":\"%s\",\"signature\":\"%s\",\"senderPublicKey\":\"%s\",\"name\":\"TOKEN\",\"description\":\"\",\"quantity\":1000,\"decimals\":0,\"reissuable\":false,\"timestamp\":%d,\"fee\":100000}", base58.Encode(tx.ID[:]), base58.Encode(tx.Signature[:]), base58.Encode(pk[:]), ts)
+					esj := fmt.Sprintf("{\"type\":3,\"version\":1,\"idsig\":\"%s\",\"signature\":\"%s\",\"senderPublicKey\":\"%s\",\"name\":\"TOKEN\",\"description\":\"\",\"quantity\":1000,\"decimals\":0,\"reissuable\":false,\"timestamp\":%d,\"fee\":100000}", base58.Encode(tx.ID[:]), base58.Encode(tx.Signature[:]), base58.Encode(pk[:]), ts)
 					assert.Equal(t, esj, string(sj))
 				}
 			}

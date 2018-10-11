@@ -121,3 +121,12 @@ func (a *Attachment) UnmarshalJSON(value []byte) error {
 	*a = Attachment(string(v))
 	return nil
 }
+
+type Script struct {
+	Version byte
+	Body    []byte
+}
+
+type OptionalScript struct {
+	MaybeScript *Script
+}
