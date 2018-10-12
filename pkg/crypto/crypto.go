@@ -25,6 +25,10 @@ const (
 
 type Digest [DigestSize]byte
 
+func (d Digest) String() string {
+	return base58.Encode(d[:])
+}
+
 func (d Digest) MarshalBinary() ([]byte, error) {
 	b := make([]byte, 0, DigestSize)
 	copy(b[:], d[:])
