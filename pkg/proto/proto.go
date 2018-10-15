@@ -116,7 +116,7 @@ func (m *GetPeersMessage) UnmarshalBinary(b []byte) error {
 		return fmt.Errorf("getpeers message magic is unexpected: want %x have %x", headerMagic, header.Magic)
 	}
 	if header.ContentID != contentIDGetPeers {
-		return fmt.Errorf("getpeers message contentid is unexpected: want %x have %x", contentIDGetPeers, header.ContentID)
+		return fmt.Errorf("getpeers message contentID is unexpected: want %x have %x", contentIDGetPeers, header.ContentID)
 	}
 	if header.PayloadLength != 0 {
 		return fmt.Errorf("getpeers message length is not zero")
@@ -253,7 +253,7 @@ func (m *GetSignaturesMessage) UnmarshalBinary(data []byte) error {
 		return fmt.Errorf("wrong magic in header: %x", h.Magic)
 	}
 	if h.ContentID != contentIDGetSignatures {
-		return fmt.Errorf("wrong content idsig in header: %x", h.ContentID)
+		return fmt.Errorf("wrong contentID in header: %x", h.ContentID)
 	}
 	data = data[17:]
 	if len(data) < 4 {
@@ -316,7 +316,7 @@ func (m *SignaturesMessage) UnmarshalBinary(data []byte) error {
 		return fmt.Errorf("wrong magic in header: %x", h.Magic)
 	}
 	if h.ContentID != contentIDSignatures {
-		return fmt.Errorf("wrong content idsig in header: %x", h.ContentID)
+		return fmt.Errorf("wrong contentID in header: %x", h.ContentID)
 	}
 	data = data[17:]
 	if len(data) < 4 {
@@ -371,7 +371,7 @@ func (m *GetBlockMessage) UnmarshalBinary(data []byte) error {
 		return fmt.Errorf("wrong magic in header: %x", h.Magic)
 	}
 	if h.ContentID != contentIDGetBlock {
-		return fmt.Errorf("wrong content idsig in header: %x", h.ContentID)
+		return fmt.Errorf("wrong contentID in header: %x", h.ContentID)
 	}
 	data = data[17:]
 	if len(data) < 64 {
@@ -416,7 +416,7 @@ func (m *BlockMessage) UnmarshalBinary(data []byte) error {
 		return fmt.Errorf("wrong magic in header: %x", h.Magic)
 	}
 	if h.ContentID != contentIDBlock {
-		return fmt.Errorf("wrong content idsig in header: %x", h.ContentID)
+		return fmt.Errorf("wrong contentID in header: %x", h.ContentID)
 	}
 
 	m.BlockBytes = data[17:]
@@ -457,7 +457,7 @@ func (m *ScoreMessage) UnmarshalBinary(data []byte) error {
 		return fmt.Errorf("wrong magic in header: %x", h.Magic)
 	}
 	if h.ContentID != contentIDScore {
-		return fmt.Errorf("wrong content idsig in header: %x", h.ContentID)
+		return fmt.Errorf("wrong contentID in header: %x", h.ContentID)
 	}
 
 	m.Score = data[17:]
@@ -498,7 +498,7 @@ func (m *TransactionMessage) UnmarshalBinary(data []byte) error {
 		return fmt.Errorf("wrong magic in header: %x", h.Magic)
 	}
 	if h.ContentID != contentIDTransaction {
-		return fmt.Errorf("wrong content idsig in header: %x", h.ContentID)
+		return fmt.Errorf("wrong contentID in header: %x", h.ContentID)
 	}
 
 	m.Transaction = data[17:]
@@ -556,7 +556,7 @@ func (m *CheckPointMessage) UnmarshalBinary(data []byte) error {
 		return fmt.Errorf("ckeckpoint message magic is unexpected: %x", headerMagic)
 	}
 	if h.ContentID != contentIDCheckpoint {
-		return fmt.Errorf("checkpoint message contentid is unexpected %x", h.ContentID)
+		return fmt.Errorf("checkpoint message contentID is unexpected %x", h.ContentID)
 	}
 	data = data[17:]
 	if len(data) < 4 {
