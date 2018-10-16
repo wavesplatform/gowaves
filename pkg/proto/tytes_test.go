@@ -1,9 +1,13 @@
 package proto
 
 import (
+	"encoding/json"
+	"fmt"
+	"github.com/mr-tron/base58/base58"
 	"github.com/stretchr/testify/assert"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"testing"
+	"time"
 )
 
 func TestOrderType_String(t *testing.T) {
@@ -90,55 +94,83 @@ func TestOrderValidations(t *testing.T) {
 	}
 }
 
-//func TestOrderSigningRoundTrip(t *testing.T) {
-//	const (
-//		senderSeed  = "3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc"
-//		matcherPK   = "7kPFrHDiGw1rCm7LPszuECwWYL3dMf6iMifLRDJQZMzy"
-//		amountAsset = "8LQW8f7P5d5PZM7GtZEBgaqRPGSzS3DfPuiXrURJ4AJS"
-//		priceAsset  = "2bkjzFqTMM3cQpbgGYKE8r7J73SrXFH8YfxFBRBterLt"
-//	)
-//	mpk, _ := base58.Decode(matcherPK)
-//	aa, _ := NewAssetFromString(amountAsset)
-//	pa, _ := NewAssetFromString(priceAsset)
-//	seed, _ := base58.Decode(senderSeed)
-//	ssk, spk := GenerateKeyPair(seed)
-//	ts := time.Now().Unix() * 1000
-//	ex := ts + 100*1000
-//	o, err := NewOrder(spk, mpk, *aa, *pa, Sell, 1000, 100, ts, ex, 10)
-//	assert.Nil(t, err)
-//	so, err := o.Sign(ssk)
-//	assert.Nil(t, err)
-//	assert.Equal(t, *o, so.Order)
-//	v, err := so.Verify(spk)
-//	assert.Nil(t, err)
-//	assert.True(t, v)
-//}
-//
-//func TestOrderToJSON(t *testing.T) {
-//	const (
-//		senderSeed  = "3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc"
-//		matcherPK   = "7kPFrHDiGw1rCm7LPszuECwWYL3dMf6iMifLRDJQZMzy"
-//		amountAsset = "8LQW8f7P5d5PZM7GtZEBgaqRPGSzS3DfPuiXrURJ4AJS"
-//		priceAsset  = "2bkjzFqTMM3cQpbgGYKE8r7J73SrXFH8YfxFBRBterLt"
-//	)
-//	mpk, _ := base58.Decode(matcherPK)
-//	aa, _ := NewAssetFromString(amountAsset)
-//	pa, _ := NewAssetFromString(priceAsset)
-//	seed, _ := base58.Decode(senderSeed)
-//	ssk, spk := GenerateKeyPair(seed)
-//	ts := time.Now().Unix() * 1000
-//	ex := ts + 100*1000
-//	o, err := NewOrder(spk, mpk, *aa, *pa, Sell, 1000, 100, ts, ex, 10)
-//	j, err := json.Marshal(o)
-//	assert.Nil(t, err)
-//	assert.NotNil(t, j)
-//	ej := fmt.Sprintf("{\"senderPublicKey\":\"%s\",\"matcherPublicKey\":\"%s\",\"assetPair\":{\"amountAsset\":\"%s\",\"priceAsset\":\"%s\"},\"orderType\":\"sell\",\"price\":1000,\"amount\":100,\"timestamp\":%d,\"expiration\":%d,\"matcherFee\":10}",
-//		base58.Encode(spk), matcherPK, amountAsset, priceAsset, ts, ex)
-//	assert.Equal(t, ej, string(j))
-//	so, err := o.Sign(ssk)
-//	sj, err := json.Marshal(so)
-//	assert.Nil(t, err)
-//	esj := fmt.Sprintf("{\"id\":\"%s\",\"senderPublicKey\":\"%s\",\"matcherPublicKey\":\"%s\",\"assetPair\":{\"amountAsset\":\"%s\",\"priceAsset\":\"%s\"},\"orderType\":\"sell\",\"price\":1000,\"amount\":100,\"timestamp\":%d,\"expiration\":%d,\"matcherFee\":10,\"signature\":\"%s\"}",
-//		base58.Encode(so.ID), base58.Encode(spk), matcherPK, amountAsset, priceAsset, ts, ex, base58.Encode(so.Signature))
-//	assert.Equal(t, esj, string(sj))
-//}
+func TestOrderSigningRoundTrip(t *testing.T) {
+	tests := []struct {
+		seed        string
+		matcher     string
+		amountAsset string
+		priceAsset  string
+		orderType   OrderType
+		amount      uint64
+		price       uint64
+		fee         uint64
+	}{
+		{"3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc", "7kPFrHDiGw1rCm7LPszuECwWYL3dMf6iMifLRDJQZMzy", "8LQW8f7P5d5PZM7GtZEBgaqRPGSzS3DfPuiXrURJ4AJS", "2bkjzFqTMM3cQpbgGYKE8r7J73SrXFH8YfxFBRBterLt", Sell, 1000, 100, 10},
+		{"3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc", "7kPFrHDiGw1rCm7LPszuECwWYL3dMf6iMifLRDJQZMzy", "WAVES", "2bkjzFqTMM3cQpbgGYKE8r7J73SrXFH8YfxFBRBterLt", Buy, 1, 1, 1},
+		{"3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc", "7kPFrHDiGw1rCm7LPszuECwWYL3dMf6iMifLRDJQZMzy", "8LQW8f7P5d5PZM7GtZEBgaqRPGSzS3DfPuiXrURJ4AJS", "WAVES", Sell, 2, 2, 2},
+	}
+	for _, tc := range tests {
+		seed, _ := base58.Decode(tc.seed)
+		sk, pk := crypto.GenerateKeyPair(seed)
+		mpk, _ := crypto.NewPublicKeyFromBase58(tc.matcher)
+		aa, _ := NewOptionalAssetFromString(tc.amountAsset)
+		pa, _ := NewOptionalAssetFromString(tc.priceAsset)
+		ts := uint64(time.Now().UnixNano() / 1000000)
+		exp := ts + 100*1000
+		if o, err := NewUnsignedOrder(pk, mpk, *aa, *pa, tc.orderType, tc.price, tc.amount, ts, exp, tc.fee); assert.NoError(t, err) {
+			if err := o.Sign(sk); assert.NoError(t, err) {
+				if r, err := o.Verify(pk); assert.NoError(t, err) {
+					assert.True(t, r)
+				}
+			}
+		}
+	}
+}
+
+func TestOrderToJSON(t *testing.T) {
+	tests := []struct {
+		seed        string
+		matcher     string
+		amountAsset string
+		priceAsset  string
+		orderType   OrderType
+		amount      uint64
+		price       uint64
+		fee         uint64
+	}{
+		{"3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc", "7kPFrHDiGw1rCm7LPszuECwWYL3dMf6iMifLRDJQZMzy", "8LQW8f7P5d5PZM7GtZEBgaqRPGSzS3DfPuiXrURJ4AJS", "2bkjzFqTMM3cQpbgGYKE8r7J73SrXFH8YfxFBRBterLt", Sell, 1000, 100, 10},
+		{"3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc", "7kPFrHDiGw1rCm7LPszuECwWYL3dMf6iMifLRDJQZMzy", "WAVES", "2bkjzFqTMM3cQpbgGYKE8r7J73SrXFH8YfxFBRBterLt", Buy, 1, 1, 1},
+		{"3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc", "7kPFrHDiGw1rCm7LPszuECwWYL3dMf6iMifLRDJQZMzy", "8LQW8f7P5d5PZM7GtZEBgaqRPGSzS3DfPuiXrURJ4AJS", "WAVES", Sell, 2, 2, 2},
+	}
+	for _, tc := range tests {
+		seed, _ := base58.Decode(tc.seed)
+		sk, pk := crypto.GenerateKeyPair(seed)
+		mpk, _ := crypto.NewPublicKeyFromBase58(tc.matcher)
+		aa, _ := NewOptionalAssetFromString(tc.amountAsset)
+		pa, _ := NewOptionalAssetFromString(tc.priceAsset)
+		ts := uint64(time.Now().UnixNano() / 1000000)
+		aas := "null"
+		if aa.Present {
+			aas = fmt.Sprintf("\"%s\"", aa.ID.String())
+		}
+		pas := "null"
+		if pa.Present {
+			pas = fmt.Sprintf("\"%s\"", pa.ID.String())
+		}
+		exp := ts + 100*1000
+		if o, err := NewUnsignedOrder(pk, mpk, *aa, *pa, tc.orderType, tc.price, tc.amount, ts, exp, tc.fee); assert.NoError(t, err) {
+			if j, err := json.Marshal(o); assert.NoError(t, err) {
+				ej := fmt.Sprintf("{\"senderPublicKey\":\"%s\",\"matcherPublicKey\":\"%s\",\"assetPair\":{\"amountAsset\":%s,\"priceAsset\":%s},\"orderType\":\"%s\",\"price\":%d,\"amount\":%d,\"timestamp\":%d,\"expiration\":%d,\"matcherFee\":%d}",
+					base58.Encode(pk[:]), tc.matcher, aas, pas, tc.orderType.String(), tc.price, tc.amount, ts, exp, tc.fee)
+				assert.Equal(t, ej, string(j))
+				if err := o.Sign(sk); assert.NoError(t, err) {
+					if j, err := json.Marshal(o); assert.NoError(t, err) {
+						ej := fmt.Sprintf("{\"id\":\"%s\",\"signature\":\"%s\",\"senderPublicKey\":\"%s\",\"matcherPublicKey\":\"%s\",\"assetPair\":{\"amountAsset\":%s,\"priceAsset\":%s},\"orderType\":\"%s\",\"price\":%d,\"amount\":%d,\"timestamp\":%d,\"expiration\":%d,\"matcherFee\":%d}",
+							base58.Encode(o.ID[:]), base58.Encode(o.Signature[:]), base58.Encode(pk[:]), tc.matcher, aas, pas, tc.orderType.String(), tc.price, tc.amount, ts, exp, tc.fee)
+						assert.Equal(t, ej, string(j))
+					}
+				}
+			}
+		}
+	}
+}
