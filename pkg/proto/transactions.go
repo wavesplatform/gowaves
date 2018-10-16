@@ -42,6 +42,8 @@ const (
 	transferV1MinLen       = 1 + crypto.SignatureSize + transferV1FixedBodyLen
 	reissueV1BodyLen       = 1 + crypto.PublicKeySize + crypto.DigestSize + 8 + 1 + 8 + 8
 	reissueV1MinLen        = 1 + crypto.SignatureSize + reissueV1BodyLen
+	burnV1BodyLen          = 1 + crypto.PublicKeySize + crypto.DigestSize + 8 + 8 + 8
+	burnV1MinLen           = 1 + crypto.SignatureSize + burnV1BodyLen
 )
 
 type Genesis struct {
@@ -564,8 +566,8 @@ func (tx *TransferV1) MarshalBinary() ([]byte, error) {
 }
 
 func (tx *TransferV1) UnmarshalBinary(data []byte) error {
-	if l := len(data); l < issueV1MinLen {
-		return errors.Errorf("not enough data for IssueV1 transaction, expected not less then %d, received %d", issueV1MinLen, l)
+	if l := len(data); l < transferV1MinLen {
+		return errors.Errorf("not enough data for TransferV1 transaction, expected not less then %d, received %d", transferV1MinLen, l)
 	}
 	if data[0] != byte(TransferTransaction) {
 		return errors.Errorf("incorrect transaction type %d for TransferV1 transaction", data[0])
@@ -709,6 +711,125 @@ func (tx *ReissueV1) UnmarshalBinary(data []byte) error {
 	d, err := crypto.FastHash(data)
 	if err != nil {
 		return errors.Wrap(err, "failed to hash ReissueV1 transaction")
+	}
+	tx.ID = &d
+	return nil
+}
+
+type BurnV1 struct {
+	Type      TransactionType   `json:"type"`
+	Version   byte              `json:"version,omitempty"`
+	ID        *crypto.Digest    `json:"id,omitempty"`
+	Signature *crypto.Signature `json:"signature,omitempty"`
+	SenderPK  crypto.PublicKey  `json:"senderPublicKey"`
+	AssetId   crypto.Digest     `json:"assetId"`
+	Amount    uint64            `json:"amount"`
+	Timestamp uint64            `json:"timestamp,omitempty"`
+	Fee       uint64            `json:"fee"`
+}
+
+func NewUnsignedBurnV1(senderPK crypto.PublicKey, assetId crypto.Digest, amount, timestamp, fee uint64) (*BurnV1, error) {
+	if amount <= 0 {
+		return nil, errors.New("amount should be positive")
+	}
+	if fee <= 0 {
+		return nil, errors.New("fee should be positive")
+	}
+	return &BurnV1{Type: BurnTransaction, Version: 1, SenderPK: senderPK, AssetId: assetId, Amount: amount, Timestamp: timestamp, Fee: fee}, nil
+}
+
+func (tx *BurnV1) bodyMarshalBinary() ([]byte, error) {
+	buf := make([]byte, burnV1BodyLen)
+	buf[0] = byte(tx.Type)
+	copy(buf[1:], tx.SenderPK[:])
+	copy(buf[1+crypto.PublicKeySize:], tx.AssetId[:])
+	binary.BigEndian.PutUint64(buf[1+crypto.PublicKeySize+crypto.DigestSize:], tx.Amount)
+	binary.BigEndian.PutUint64(buf[9+crypto.PublicKeySize+crypto.DigestSize:], tx.Fee)
+	binary.BigEndian.PutUint64(buf[17+crypto.PublicKeySize+crypto.DigestSize:], tx.Timestamp)
+	return buf, nil
+}
+
+func (tx *BurnV1) bodyUnmarshalBinary(data []byte) error {
+	tx.Type = TransactionType(data[0])
+	tx.Version = 1
+	if l := len(data); l < burnV1BodyLen {
+		return errors.Errorf("not enough data for BurnV1 transaction %d, expected not less then %d", l, burnV1BodyLen)
+	}
+	if tx.Type != BurnTransaction {
+		return errors.Errorf("unexpected transaction type %d for BurnV1 transaction", tx.Type)
+	}
+	data = data[1:]
+	copy(tx.SenderPK[:], data[:crypto.PublicKeySize])
+	data = data[crypto.PublicKeySize:]
+	copy(tx.AssetId[:], data[:crypto.DigestSize])
+	data = data[crypto.DigestSize:]
+	tx.Amount = binary.BigEndian.Uint64(data)
+	data = data[8:]
+	tx.Fee = binary.BigEndian.Uint64(data)
+	data = data[8:]
+	tx.Timestamp = binary.BigEndian.Uint64(data)
+	return nil
+}
+
+func (tx *BurnV1) Sign(secretKey crypto.SecretKey) error {
+	b, err := tx.bodyMarshalBinary()
+	if err != nil {
+		return errors.Wrap(err, "failed to sign BurnV1 transaction")
+	}
+	s := crypto.Sign(secretKey, b)
+	tx.Signature = &s
+	d, err := crypto.FastHash(b)
+	if err != nil {
+		return errors.Wrap(err, "failed to sign BurnV1 transaction")
+	}
+	tx.ID = &d
+	return nil
+}
+
+func (tx *BurnV1) Verify(publicKey crypto.PublicKey) (bool, error) {
+	if tx.Signature == nil {
+		return false, errors.New("empty signature")
+	}
+	b, err := tx.bodyMarshalBinary()
+	if err != nil {
+		return false, errors.Wrap(err, "failed to verify signature of BurnV1 transaction")
+	}
+	return crypto.Verify(publicKey, *tx.Signature, b), nil
+}
+
+func (tx *BurnV1) MarshalBinary() ([]byte, error) {
+	sl := crypto.SignatureSize
+	b, err := tx.bodyMarshalBinary()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to marshal BurnV1 transaction to bytes")
+	}
+	bl := len(b)
+	buf := make([]byte, 1+sl+bl)
+	buf[0] = byte(tx.Type)
+	copy(buf[1:], tx.Signature[:])
+	copy(buf[1+sl:], b)
+	return buf, nil
+}
+
+func (tx *BurnV1) UnmarshalBinary(data []byte) error {
+	if l := len(data); l < burnV1MinLen {
+		return errors.Errorf("not enough data for BurnV1 transaction, expected not less then %d, received %d", burnV1MinLen, l)
+	}
+	if data[0] != byte(BurnTransaction) {
+		return errors.Errorf("incorrect transaction type %d for BurnV1 transaction", data[0])
+	}
+	data = data[1:]
+	var s crypto.Signature
+	copy(s[:], data[:crypto.SignatureSize])
+	tx.Signature = &s
+	data = data[crypto.SignatureSize:]
+	err := tx.bodyUnmarshalBinary(data)
+	if err != nil {
+		return errors.Wrap(err, "failed to unmarshal BurnV1 transaction")
+	}
+	d, err := crypto.FastHash(data)
+	if err != nil {
+		return errors.Wrap(err, "failed to hash BurnV1 transaction")
 	}
 	tx.ID = &d
 	return nil
