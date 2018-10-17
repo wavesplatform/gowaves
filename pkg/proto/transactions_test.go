@@ -657,3 +657,232 @@ func TestBurnV1ToJSON(t *testing.T) {
 		}
 	}
 }
+
+func TestExchangeV1Validations(t *testing.T) {
+	buySender, _ := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
+	sellSender, _ := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
+	mpk, _ := crypto.NewPublicKeyFromBase58("E7zJzWVn6kwsc6zwDpxZrEFjUu3xszPZ7XcStYNprbSJ")
+	aa, _ := NewOptionalAssetFromString("3gRJoK6f7XUV7fx5jUzHoPwdb9ZdTFjtTPy2HgDinr1N")
+	pa, _ := NewOptionalAssetFromString("FftTzae2t8r6zZJ2VzEq2pS2Le4Vx9gYGXuDsEFBTYE2")
+	id, _ := crypto.NewDigestFromBase58("AkYY8M2iEts8xc21JEzwkMSmuJtH9ABGzEYeau4xWC5R")
+	sig, _ := crypto.NewSignatureFromBase58("5pzyUowLi31yP4AEh5qzg7gRrvmsfeypiUkW84CKzc4H6UTzEF2RgGPLckBEqNbJGn5ofQXzuDmUnxwuP3utYp9L")
+	bo, _ := NewUnsignedOrder(buySender, mpk, *aa, *pa, Buy, 10, 100, 0, 0, 3)
+	sbo, _ := NewUnsignedOrder(buySender, mpk, *aa, *pa, Buy, 10, 100, 0, 0, 3)
+	sbo.ID = &id
+	sbo.Signature = &sig
+	so, _ := NewUnsignedOrder(sellSender, mpk, *aa, *pa, Sell, 9, 50, 0, 0, 3)
+	sso, _ := NewUnsignedOrder(sellSender, mpk, *aa, *pa, Sell, 9, 50, 0, 0, 3)
+	sso.ID = &id
+	sso.Signature = &sig
+	tests := []struct {
+		buy     Order
+		sell    Order
+		price   uint64
+		amount  uint64
+		buyFee  uint64
+		sellFee uint64
+		fee     uint64
+		err     string
+	}{
+		{*sbo, *sso, 0, 456, 789, 987, 654, "price should be positive"},
+		{*sbo, *sso, 123, 0, 789, 987, 654, "amount should be positive"},
+		{*sbo, *sso, 123, 456, 0, 987, 654, "buy matcher's fee should be positive"},
+		{*sbo, *sso, 123, 456, 789, 0, 654, "sell matcher's fee should be positive"},
+		{*sbo, *sso, 123, 456, 789, 987, 0, "fee should be positive"},
+		{*bo, *sso, 123, 456, 789, 987, 654, "buy order should be signed"},
+		{*sbo, *so, 123, 456, 789, 987, 654, "sell order should be signed"},
+	}
+	for _, tc := range tests {
+		_, err := NewUnsignedExchangeV1(tc.buy, tc.sell, tc.price, tc.amount, tc.buyFee, tc.sellFee, tc.fee, 0)
+		assert.EqualError(t, err, tc.err)
+	}
+}
+
+func TestExchangeV1FromMainNet(t *testing.T) {
+	tests := []struct {
+		matcher        string
+		sig            string
+		id             string
+		amountAsset    string
+		priceAsset     string
+		buyId          string
+		buySender      string
+		buySig         string
+		buyPrice       uint64
+		buyAmount      uint64
+		buyTs          uint64
+		buyExp         uint64
+		buyFee         uint64
+		sellId         string
+		sellSender     string
+		sellSig        string
+		sellPrice      uint64
+		sellAmount     uint64
+		sellTs         uint64
+		sellExp        uint64
+		sellFee        uint64
+		price          uint64
+		amount         uint64
+		buyMatcherFee  uint64
+		sellMatcherFee uint64
+		fee            uint64
+		timestamp      uint64
+	}{
+		{"7kPFrHDiGw1rCm7LPszuECwWYL3dMf6iMifLRDJQZMzy", "YT5y1vAdvjcKaznbnNNH2Ep9hZwWrtHP7ue4vzDksbo3sp6A2STvy4fTBMutRkBwcBPgm78WQ6rFbGRG3NFWNW2", "3gRJoK6f7XUV7fx5jUzHoPwdb9ZdTFjtTPy2HgDinr1N", "FftTzae2t8r6zZJ2VzEq2pS2Le4Vx9gYGXuDsEFBTYE2", "WAVES",
+			"AkYY8M2iEts8xc21JEzwkMSmuJtH9ABGzEYeau4xWC5R", "E7zJzWVn6kwsc6zwDpxZrEFjUu3xszPZ7XcStYNprbSJ", "5pzyUowLi31yP4AEh5qzg7gRrvmsfeypiUkW84CKzc4H6UTzEF2RgGPLckBEqNbJGn5ofQXzuDmUnxwuP3utYp9L", 6278200, 6700000000, 1537776540542, 1540368240542, 300000,
+			"DXnD6PaRWSpTKpd4PTBU5UyWX6hfJA24EguDsNpgJJ8a", "E7zJzWVn6kwsc6zwDpxZrEFjUu3xszPZ7XcStYNprbSJ", "5WfFq2jZ65dFmdmCRwkgze5h1MwisPyYY8u2KRs7Go3M4cZTajhFfAwNaLFzScWr846SajLiZsx1i7FJTMYcFjXE", 6278200, 150000000000, 1537776523784, 1540368223784, 300000,
+			6278200, 6700000000, 300000, 13400, 300000, 1537776540342},
+		{"7kPFrHDiGw1rCm7LPszuECwWYL3dMf6iMifLRDJQZMzy", "28h3szGRoGNsMAyhbPMBmnYLUUNXUssvzHnEgFUyDkY3JR8FFo4rWJe1kXzQpmCHCqeguzJbjNZRECQ9E1jS3G2G", "AafRqbsudHeeDHMPLfsk49ZioHwmFhEguQt71XXGsnQt", "8ewyQ64YgpaXdqXyfQbp2FGFJVGdGuGgc9qvrKUrCuGV", "WAVES",
+			"5NyBm1CfcuuhbyQhknawhkm6u1bjNv6Avry7GFe3KQdf", "8cLFt3NHL13H5JCBBgbJDkjjcPseZ1YNtqMWnZS1B2n9", "3Dhf4jJz2SsmwkHfQyvgYRNfo2KViSSJM7DbVBprssxCYC1cpvUpSQr8nk7WQk56xCohLMfJcvDgk5bG8tW5TbVz", 7229657, 18245044292, 1539773859527, 1539774159527, 300000,
+			"D1Sbzhit6F7KaMuHKwXpKiU7eGnF5NkzkdLKaSUjVzHp", "8cLFt3NHL13H5JCBBgbJDkjjcPseZ1YNtqMWnZS1B2n9", "2GS9aRvuwiKLQgKFYUup4zfXkhkKwuiLwTKV4XDCFidP96wwFiXiva51q1YqG6dNFNGtSJ2h5gHEhPPATuSGMgbb", 7229657, 5417386295, 1539773858626, 1539774158626, 300000,
+			7229657, 5417386289, 89077, 299999, 300000, 1539773859535},
+	}
+	for _, tc := range tests {
+		buySender, _ := crypto.NewPublicKeyFromBase58(tc.buySender)
+		sellSender, _ := crypto.NewPublicKeyFromBase58(tc.sellSender)
+		mpk, _ := crypto.NewPublicKeyFromBase58(tc.matcher)
+		id, _ := crypto.NewDigestFromBase58(tc.id)
+		sig, _ := crypto.NewSignatureFromBase58(tc.sig)
+		aa, _ := NewOptionalAssetFromString(tc.amountAsset)
+		pa, _ := NewOptionalAssetFromString(tc.priceAsset)
+		bo, _ := NewUnsignedOrder(buySender, mpk, *aa, *pa, Buy, tc.buyPrice, tc.buyAmount, tc.buyTs, tc.buyExp, tc.buyFee)
+		bID, _ := crypto.NewDigestFromBase58(tc.buyId)
+		bSig, _ := crypto.NewSignatureFromBase58(tc.buySig)
+		bo.ID = &bID
+		bo.Signature = &bSig
+		so, _ := NewUnsignedOrder(sellSender, mpk, *aa, *pa, Sell, tc.sellPrice, tc.sellAmount, tc.sellTs, tc.sellExp, tc.sellFee)
+		sID, _ := crypto.NewDigestFromBase58(tc.sellId)
+		sSig, _ := crypto.NewSignatureFromBase58(tc.sellSig)
+		so.ID = &sID
+		so.Signature = &sSig
+		if tx, err := NewUnsignedExchangeV1(*bo, *so, tc.price, tc.amount, tc.buyMatcherFee, tc.sellMatcherFee, tc.fee, tc.timestamp); assert.NoError(t, err) {
+			if b, err := tx.bodyMarshalBinary(); assert.NoError(t, err) {
+				if h, err := crypto.FastHash(b); assert.NoError(t, err) {
+					assert.Equal(t, id, h)
+				}
+				assert.True(t, crypto.Verify(mpk, sig, b))
+			}
+		}
+	}
+}
+
+func TestExchangeV1BinaryRoundTrip(t *testing.T) {
+	seedA, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
+	sk, pk := crypto.GenerateKeyPair(seedA)
+	seedB, _ := base58.Decode("8cLFt3NHL13H5JCBBgbJDkjjcPseZ1YNtqMWnZS1B2n9")
+	msk, mpk := crypto.GenerateKeyPair(seedB)
+	aa, _ := NewOptionalAssetFromString("3gRJoK6f7XUV7fx5jUzHoPwdb9ZdTFjtTPy2HgDinr1N")
+	pa, _ := NewOptionalAssetFromString("FftTzae2t8r6zZJ2VzEq2pS2Le4Vx9gYGXuDsEFBTYE2")
+	ts := uint64(time.Now().UnixNano() / 1000000)
+	exp := ts + 100*1000
+	bo, _ := NewUnsignedOrder(pk, mpk, *aa, *pa, Buy, 12345, 67890, ts, exp, 3)
+	bo.Sign(sk)
+	so, _ := NewUnsignedOrder(pk, mpk, *aa, *pa, Sell, 98765, 54321, ts, exp, 3)
+	so.Sign(sk)
+	tests := []struct {
+		buy     Order
+		sell    Order
+		price   uint64
+		amount  uint64
+		buyFee  uint64
+		sellFee uint64
+		fee     uint64
+	}{
+		{*bo, *so, 123, 456, 789, 987, 654},
+		{*bo, *so, 987654321, 544321, 9876, 8765, 13245},
+	}
+	for _, tc := range tests {
+		ts := uint64(time.Now().UnixNano() / 1000000)
+		if tx, err := NewUnsignedExchangeV1(tc.buy, tc.sell, tc.price, tc.amount, tc.buyFee, tc.sellFee, tc.fee, ts); assert.NoError(t, err) {
+			if bb, err := tx.bodyMarshalBinary(); assert.NoError(t, err) {
+				var atx ExchangeV1
+				if err := atx.bodyUnmarshalBinary(bb); assert.NoError(t, err) {
+					assert.Equal(t, tx.Type, atx.Type)
+					assert.Equal(t, tx.Version, atx.Version)
+					assert.Equal(t, tx.SenderPK, atx.SenderPK)
+					assert.Equal(t, tx.BuyOrder, atx.BuyOrder)
+					assert.Equal(t, tx.SellOrder, atx.SellOrder)
+					assert.Equal(t, tx.Price, atx.Price)
+					assert.Equal(t, tx.Amount, atx.Amount)
+					assert.Equal(t, tx.BuyMatcherFee, atx.BuyMatcherFee)
+					assert.Equal(t, tx.SellMatcherFee, atx.SellMatcherFee)
+					assert.Equal(t, tx.Fee, atx.Fee)
+					assert.Equal(t, tx.Timestamp, atx.Timestamp)
+				}
+			}
+			if err := tx.Sign(msk); assert.NoError(t, err) {
+				if r, err := tx.Verify(mpk); assert.NoError(t, err) {
+					assert.True(t, r)
+				}
+			}
+			if b, err := tx.MarshalBinary(); assert.NoError(t, err) {
+				var atx ExchangeV1
+				if err := atx.UnmarshalBinary(b); assert.NoError(t, err) {
+					assert.Equal(t, tx.Type, atx.Type)
+					assert.Equal(t, tx.Version, atx.Version)
+					assert.Equal(t, tx.ID, atx.ID)
+					assert.Equal(t, tx.Signature, atx.Signature)
+					assert.Equal(t, mpk, atx.SenderPK)
+					assert.Equal(t, bo.ID, atx.BuyOrder.ID)
+					assert.Equal(t, so.ID, atx.SellOrder.ID)
+					assert.Equal(t, tc.price, atx.Price)
+					assert.Equal(t, tc.amount, atx.Amount)
+					assert.Equal(t, tc.buyFee, atx.BuyMatcherFee)
+					assert.Equal(t, tc.sellFee, atx.SellMatcherFee)
+					assert.Equal(t, tc.fee, tx.Fee)
+					assert.Equal(t, ts, tx.Timestamp)
+				}
+			}
+		}
+	}
+}
+
+func TestExchangeV1ToJSON(t *testing.T) {
+	seedA, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
+	sk, pk := crypto.GenerateKeyPair(seedA)
+	seedB, _ := base58.Decode("8cLFt3NHL13H5JCBBgbJDkjjcPseZ1YNtqMWnZS1B2n9")
+	msk, mpk := crypto.GenerateKeyPair(seedB)
+	tests := []struct {
+		amountAsset string
+		priceAsset  string
+		buyPrice    uint64
+		buyAmount   uint64
+		sellPrice   uint64
+		sellAmount  uint64
+		price       uint64
+		amount      uint64
+		buyFee      uint64
+		sellFee     uint64
+		fee         uint64
+	}{
+		{"3gRJoK6f7XUV7fx5jUzHoPwdb9ZdTFjtTPy2HgDinr1N", "FftTzae2t8r6zZJ2VzEq2pS2Le4Vx9gYGXuDsEFBTYE2", 100, 10, 110, 20, 110, 10, 30000, 15000, 30000},
+		{"3gRJoK6f7XUV7fx5jUzHoPwdb9ZdTFjtTPy2HgDinr1N", "WAVES", 100, 10, 110, 20, 110, 10, 30000, 15000, 30000},
+		{"FftTzae2t8r6zZJ2VzEq2pS2Le4Vx9gYGXuDsEFBTYE2", "WAVES", 100, 10, 110, 20, 110, 10, 30000, 15000, 30000},
+	}
+	for _, tc := range tests {
+		aa, _ := NewOptionalAssetFromString(tc.amountAsset)
+		pa, _ := NewOptionalAssetFromString(tc.priceAsset)
+		ts := uint64(time.Now().UnixNano() / 1000000)
+		exp := ts + 100*1000
+		bo, _ := NewUnsignedOrder(pk, mpk, *aa, *pa, Buy, tc.buyPrice, tc.buyAmount, ts, exp, tc.fee)
+		bo.Sign(sk)
+		boj, _ := json.Marshal(bo)
+		so, _ := NewUnsignedOrder(pk, mpk, *aa, *pa, Sell, tc.sellPrice, tc.sellAmount, ts, exp, tc.fee)
+		so.Sign(sk)
+		soj, _ := json.Marshal(so)
+		if tx, err := NewUnsignedExchangeV1(*bo, *so, tc.price, tc.amount, tc.buyFee, tc.sellFee, tc.fee, ts); assert.NoError(t, err) {
+			if j, err := json.Marshal(tx); assert.NoError(t, err) {
+				ej := fmt.Sprintf("{\"type\":7,\"version\":1,\"senderPublicKey\":\"%s\",\"order1\":%s,\"order2\":%s,\"price\":%d,\"amount\":%d,\"buyMatcherFee\":%d,\"sellMatcherFee\":%d,\"fee\":%d,\"timestamp\":%d}",
+					base58.Encode(mpk[:]), string(boj), string(soj), tc.price, tc.amount, tc.buyFee, tc.sellFee, tc.fee, ts)
+				assert.Equal(t, ej, string(j))
+				if err := tx.Sign(msk); assert.NoError(t, err) {
+					if j, err := json.Marshal(tx); assert.NoError(t, err) {
+						ej := fmt.Sprintf("{\"type\":7,\"version\":1,\"id\":\"%s\",\"signature\":\"%s\",\"senderPublicKey\":\"%s\",\"order1\":%s,\"order2\":%s,\"price\":%d,\"amount\":%d,\"buyMatcherFee\":%d,\"sellMatcherFee\":%d,\"fee\":%d,\"timestamp\":%d}",
+							base58.Encode(tx.ID[:]), base58.Encode(tx.Signature[:]), base58.Encode(mpk[:]), string(boj), string(soj), tc.price, tc.amount, tc.buyFee, tc.sellFee, tc.fee, ts)
+						assert.Equal(t, ej, string(j))
+					}
+				}
+			}
+		}
+	}
+}

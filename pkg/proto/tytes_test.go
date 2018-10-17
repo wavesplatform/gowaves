@@ -122,6 +122,22 @@ func TestOrderSigningRoundTrip(t *testing.T) {
 				if r, err := o.Verify(pk); assert.NoError(t, err) {
 					assert.True(t, r)
 				}
+				if b, err := o.MarshalBinary(); assert.NoError(t, err) {
+					var ao Order
+					if err := ao.UnmarshalBinary(b); assert.NoError(t, err) {
+						assert.Equal(t, o.ID, ao.ID)
+						assert.Equal(t, o.Signature, ao.Signature)
+						assert.Equal(t, o.SenderPK, ao.SenderPK)
+						assert.Equal(t, o.MatcherPK, ao.MatcherPK)
+						assert.Equal(t, o.AssetPair, ao.AssetPair)
+						assert.Equal(t, o.OrderType, ao.OrderType)
+						assert.Equal(t, o.Price, ao.Price)
+						assert.Equal(t, o.Amount, ao.Amount)
+						assert.Equal(t, o.Timestamp, ao.Timestamp)
+						assert.Equal(t, o.Expiration, ao.Expiration)
+						assert.Equal(t, o.MatcherFee, ao.MatcherFee)
+					}
+				}
 			}
 		}
 	}

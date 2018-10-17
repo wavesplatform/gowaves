@@ -401,7 +401,7 @@ func (o *Order) UnmarshalBinary(data []byte) error {
 	o.Signature = &s
 	d, err := crypto.FastHash(b)
 	if err != nil {
-		return errors.Wrap(err, "failed to unmarshal TransferV1 transaction")
+		return errors.Wrap(err, "failed to unmarshal Order from bytes")
 	}
 	o.ID = &d
 	return nil
