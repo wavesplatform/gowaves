@@ -3,8 +3,20 @@ package client
 import (
 	"context"
 	"fmt"
+	"github.com/pkg/errors"
 	"net/http"
+	"strings"
 )
+
+type Addresses struct {
+	options Options
+}
+
+func NewAddresses(options Options) *Addresses {
+	return &Addresses{
+		options: options,
+	}
+}
 
 type AddressesBalance struct {
 	Address       string `json:"address"`
@@ -12,7 +24,7 @@ type AddressesBalance struct {
 	Balance       uint64 `json:"balance"`
 }
 
-func (a *Client) GetAddressesBalance(ctx context.Context, address string) (*AddressesBalance, *Response, error) {
+func (a *Addresses) Balance(ctx context.Context, address string) (*AddressesBalance, *Response, error) {
 
 	req, err := http.NewRequest(
 		"GET",
@@ -23,7 +35,7 @@ func (a *Client) GetAddressesBalance(ctx context.Context, address string) (*Addr
 	}
 
 	out := new(AddressesBalance)
-	response, err := a.Do(ctx, req, out)
+	response, err := doHttp(ctx, a.options, req, out)
 	if err != nil {
 		return nil, response, err
 	}
@@ -40,7 +52,7 @@ type AddressesBalanceDetails struct {
 	Effective  uint64 `json:"effective"`
 }
 
-func (a *Client) GetAddressesBalanceDetails(ctx context.Context, address string) (*AddressesBalanceDetails, *Response, error) {
+func (a *Addresses) BalanceDetails(ctx context.Context, address string) (*AddressesBalanceDetails, *Response, error) {
 
 	req, err := http.NewRequest(
 		"GET",
@@ -51,7 +63,7 @@ func (a *Client) GetAddressesBalanceDetails(ctx context.Context, address string)
 	}
 
 	out := new(AddressesBalanceDetails)
-	response, err := a.Do(ctx, req, out)
+	response, err := doHttp(ctx, a.options, req, out)
 	if err != nil {
 		return nil, response, err
 	}
@@ -66,7 +78,7 @@ type AddressesScriptInfo struct {
 	ExtraFee   uint64 `json:"extra_fee"`
 }
 
-func (a *Client) GetAddressesScriptInfo(ctx context.Context, address string) (*AddressesScriptInfo, *Response, error) {
+func (a *Addresses) GetScriptInfo(ctx context.Context, address string) (*AddressesScriptInfo, *Response, error) {
 	req, err := http.NewRequest(
 		"GET",
 		fmt.Sprintf("%s/addresses/scriptInfo/%s", a.options.BaseUrl, address),
@@ -76,7 +88,7 @@ func (a *Client) GetAddressesScriptInfo(ctx context.Context, address string) (*A
 	}
 
 	out := new(AddressesScriptInfo)
-	response, err := a.Do(ctx, req, out)
+	response, err := doHttp(ctx, a.options, req, out)
 	if err != nil {
 		return nil, response, err
 	}
@@ -84,7 +96,7 @@ func (a *Client) GetAddressesScriptInfo(ctx context.Context, address string) (*A
 	return out, response, nil
 }
 
-func (a *Client) GetAddresses(ctx context.Context) ([]string, *Response, error) {
+func (a *Addresses) Addresses(ctx context.Context) ([]string, *Response, error) {
 	req, err := http.NewRequest(
 		"GET",
 		fmt.Sprintf("%s/addresses", a.options.BaseUrl),
@@ -94,7 +106,7 @@ func (a *Client) GetAddresses(ctx context.Context) ([]string, *Response, error) 
 	}
 
 	var out []string
-	response, err := a.Do(ctx, req, &out)
+	response, err := doHttp(ctx, a.options, req, &out)
 	if err != nil {
 		return nil, response, err
 	}
@@ -107,7 +119,7 @@ type AddressesValidate struct {
 	Valid   bool   `json:"valid"`
 }
 
-func (a *Client) GetAddressesValidate(ctx context.Context, address string) (*AddressesValidate, *Response, error) {
+func (a *Addresses) Validate(ctx context.Context, address string) (*AddressesValidate, *Response, error) {
 	req, err := http.NewRequest(
 		"GET",
 		fmt.Sprintf("%s/addresses/validate/%s", a.options.BaseUrl, address),
@@ -117,7 +129,7 @@ func (a *Client) GetAddressesValidate(ctx context.Context, address string) (*Add
 	}
 
 	out := new(AddressesValidate)
-	response, err := a.Do(ctx, req, out)
+	response, err := doHttp(ctx, a.options, req, out)
 	if err != nil {
 		return nil, response, err
 	}
@@ -131,7 +143,7 @@ type AddressesEffectiveBalance struct {
 	Balance       uint64 `json:"balance"`
 }
 
-func (a *Client) GetAddressesEffectiveBalance(ctx context.Context, address string) (*AddressesEffectiveBalance, *Response, error) {
+func (a *Addresses) EffectiveBalance(ctx context.Context, address string) (*AddressesEffectiveBalance, *Response, error) {
 	req, err := http.NewRequest(
 		"GET",
 		fmt.Sprintf("%s/addresses/effectiveBalance/%s", a.options.BaseUrl, address),
@@ -141,7 +153,7 @@ func (a *Client) GetAddressesEffectiveBalance(ctx context.Context, address strin
 	}
 
 	out := new(AddressesEffectiveBalance)
-	response, err := a.Do(ctx, req, out)
+	response, err := doHttp(ctx, a.options, req, out)
 	if err != nil {
 		return nil, response, err
 	}
@@ -153,7 +165,7 @@ type AddressesPublicKey struct {
 	Address string `json:"address"`
 }
 
-func (a *Client) GetAddressesPublicKey(ctx context.Context, publicKey string) (*AddressesPublicKey, *Response, error) {
+func (a *Addresses) PublicKey(ctx context.Context, publicKey string) (*AddressesPublicKey, *Response, error) {
 	req, err := http.NewRequest(
 		"GET",
 		fmt.Sprintf("%s/addresses/publicKey/%s", a.options.BaseUrl, publicKey),
@@ -163,7 +175,38 @@ func (a *Client) GetAddressesPublicKey(ctx context.Context, publicKey string) (*
 	}
 
 	out := new(AddressesPublicKey)
-	response, err := a.Do(ctx, req, out)
+	response, err := doHttp(ctx, a.options, req, out)
+	if err != nil {
+		return nil, response, err
+	}
+
+	return out, response, nil
+}
+
+type AddressesSignText struct {
+	Message   string `json:"message"`
+	PublicKey string `json:"publicKey"`
+	Signature string `json:"signature"`
+}
+
+func (a *Addresses) SignText(ctx context.Context, address string, message string) (*AddressesSignText, *Response, error) {
+
+	if a.options.ApiKey == "" {
+		return nil, nil, errors.New("no api key provided")
+	}
+
+	req, err := http.NewRequest(
+		"POST",
+		fmt.Sprintf("%s/addresses/signText/%s", a.options.BaseUrl, address),
+		strings.NewReader(message))
+	if err != nil {
+		return nil, nil, err
+	}
+
+	req.Header.Set("X-API-Key", a.options.ApiKey)
+
+	out := new(AddressesSignText)
+	response, err := doHttp(ctx, a.options, req, out)
 	if err != nil {
 		return nil, response, err
 	}

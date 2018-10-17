@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/go-errors/errors"
+	"io/ioutil"
 	"net/http"
 	"time"
 )
@@ -15,6 +16,7 @@ type Doer interface {
 type Options struct {
 	BaseUrl string
 	Client  Doer
+	ApiKey  string
 }
 
 var defaultOptions = Options{
@@ -23,7 +25,8 @@ var defaultOptions = Options{
 }
 
 type Client struct {
-	options Options
+	options   Options
+	Addresses *Addresses
 }
 
 type Response struct {
@@ -41,19 +44,27 @@ func NewClient(options ...Options) *Client {
 		panic("too many options provided. Expects no or just one item")
 	}
 
-	c := &Client{
-		options: defaultOptions,
-	}
+	opts := defaultOptions
 
 	if len(options) == 1 {
 		option := options[0]
+
 		if option.BaseUrl != "" {
-			c.options.BaseUrl = option.BaseUrl
+			opts.BaseUrl = option.BaseUrl
 		}
 
 		if option.Client != nil {
-			c.options.Client = option.Client
+			opts.Client = option.Client
 		}
+
+		if option.ApiKey != "" {
+			opts.ApiKey = option.ApiKey
+		}
+	}
+
+	c := &Client{
+		options:   opts,
+		Addresses: NewAddresses(opts),
 	}
 
 	return c
@@ -93,8 +104,10 @@ func doHttp(ctx context.Context, options Options, req *http.Request, v interface
 	response := newResponse(resp)
 
 	if response.StatusCode != http.StatusOK {
+		body, _ := ioutil.ReadAll(response.Body)
 		return response, &RequestError{
-			Err: errors.Errorf("Invalid status code: expect 200 got %d", response.StatusCode),
+			Err:  errors.Errorf("Invalid status code: expect 200 got %d", response.StatusCode),
+			Body: string(body),
 		}
 	}
 

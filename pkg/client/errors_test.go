@@ -14,6 +14,6 @@ func TestParseError_Error(t *testing.T) {
 
 func TestRequestError_Error(t *testing.T) {
 	txt := "request error"
-	err := RequestError{errors.New(txt)}
+	err := RequestError{Err: errors.New(txt)}
 	assert.Equal(t, txt, err.Error())
 }
