@@ -1,0 +1,5 @@
+waves:
+  network:
+    bind-address: "0.0.0.0"
+    port: 6863
+    node-name: "My GOWAVES node"
