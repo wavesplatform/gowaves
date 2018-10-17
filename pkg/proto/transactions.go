@@ -44,6 +44,8 @@ const (
 	reissueV1MinLen        = 1 + crypto.SignatureSize + reissueV1BodyLen
 	burnV1BodyLen          = 1 + crypto.PublicKeySize + crypto.DigestSize + 8 + 8 + 8
 	burnV1MinLen           = 1 + crypto.SignatureSize + burnV1BodyLen
+	exchangeV1FixedBodyLen = 1 + 4 + 4 + orderMinLen + orderMinLen + 8 + 8 + 8 + 8 + 8 + 8
+	exchangeV1MinLen       = exchangeV1FixedBodyLen + crypto.SignatureSize
 )
 
 type Genesis struct {
@@ -830,6 +832,204 @@ func (tx *BurnV1) UnmarshalBinary(data []byte) error {
 	d, err := crypto.FastHash(data)
 	if err != nil {
 		return errors.Wrap(err, "failed to hash BurnV1 transaction")
+	}
+	tx.ID = &d
+	return nil
+}
+
+type ExchangeV1 struct {
+	Type           TransactionType   `json:"type"`
+	Version        byte              `json:"version,omitempty"`
+	ID             *crypto.Digest    `json:"id,omitempty"`
+	Signature      *crypto.Signature `json:"signature,omitempty"`
+	SenderPK       crypto.PublicKey  `json:"senderPublicKey"`
+	BuyOrder       Order             `json:"order1"`
+	SellOrder      Order             `json:"order2"`
+	Price          uint64            `json:"price"`
+	Amount         uint64            `json:"amount"`
+	BuyMatcherFee  uint64            `json:"buyMatcherFee"`
+	SellMatcherFee uint64            `json:"sellMatcherFee"`
+	Fee            uint64            `json:"fee"`
+	Timestamp      uint64            `json:"timestamp,omitempty"`
+}
+
+func NewUnsignedExchangeV1(buy, sell Order, price, amount, buyMatcherFee, sellMatcherFee, fee, timestamp uint64) (*ExchangeV1, error) {
+	if buy.Signature == nil {
+		return nil, errors.New("buy order should be signed")
+	}
+	if sell.Signature == nil {
+		return nil, errors.New("sell order should be signed")
+	}
+	if amount <= 0 {
+		return nil, errors.New("amount should be positive")
+	}
+	if price <= 0 {
+		return nil, errors.New("price should be positive")
+	}
+	if buyMatcherFee <= 0 {
+		return nil, errors.New("buy matcher's fee should be positive")
+	}
+	if sellMatcherFee <= 0 {
+		return nil, errors.New("sell matcher's fee should be positive")
+	}
+	if fee <= 0 {
+		return nil, errors.New("fee should be positive")
+	}
+	return &ExchangeV1{Type: ExchangeTransaction, Version: 1, SenderPK: buy.MatcherPK, BuyOrder: buy, SellOrder: sell, Price: price, Amount: amount, BuyMatcherFee: buyMatcherFee, SellMatcherFee: sellMatcherFee, Fee: fee, Timestamp: timestamp}, nil
+}
+
+func (tx *ExchangeV1) bodyMarshalBinary() ([]byte, error) {
+	bob, err := tx.BuyOrder.MarshalBinary()
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to marshal ExchangeV1 body to bytes")
+	}
+	bol := uint32(len(bob))
+	sob, err := tx.SellOrder.MarshalBinary()
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to marshal ExchangeV1 body to bytes")
+	}
+	sol := uint32(len(sob))
+	var p uint32
+	buf := make([]byte, exchangeV1FixedBodyLen-orderMinLen*2+bol+sol)
+	buf[0] = byte(tx.Type)
+	p += 1
+	binary.BigEndian.PutUint32(buf[p:], bol)
+	p += 4
+	binary.BigEndian.PutUint32(buf[p:], sol)
+	p += 4
+	copy(buf[p:], bob)
+	p += bol
+	copy(buf[p:], sob)
+	p += sol
+	binary.BigEndian.PutUint64(buf[p:], tx.Price)
+	p += 8
+	binary.BigEndian.PutUint64(buf[p:], tx.Amount)
+	p += 8
+	binary.BigEndian.PutUint64(buf[p:], tx.BuyMatcherFee)
+	p += 8
+	binary.BigEndian.PutUint64(buf[p:], tx.SellMatcherFee)
+	p += 8
+	binary.BigEndian.PutUint64(buf[p:], tx.Fee)
+	p += 8
+	binary.BigEndian.PutUint64(buf[p:], tx.Timestamp)
+	return buf, nil
+}
+
+func (tx *ExchangeV1) bodyUnmarshalBinary(data []byte) error {
+	tx.Type = TransactionType(data[0])
+	tx.Version = 1
+	if l := len(data); l < exchangeV1MinLen {
+		return errors.Errorf("not enough data for ExchangeV1 transaction, expected not less then %d, received%d5", exchangeV1MinLen, l)
+	}
+	if tx.Type != ExchangeTransaction {
+		return errors.Errorf("unexpected transaction type %d for ExchangeV1 transaction", tx.Type)
+	}
+	data = data[1:]
+	bol := binary.BigEndian.Uint32(data)
+	data = data[4:]
+	sol := binary.BigEndian.Uint32(data)
+	data = data[4:]
+	var bo Order
+	err := bo.UnmarshalBinary(data[:bol])
+	if err != nil {
+		return errors.Wrapf(err, "failed to unmarshal ExchangeV1 body from bytes")
+	}
+	tx.BuyOrder = bo
+	data = data[bol:]
+	var so Order
+	err = so.UnmarshalBinary(data[:sol])
+	if err != nil {
+		return errors.Wrapf(err, "failed to unmarshal ExchangeV1 body from bytes")
+	}
+	tx.SellOrder = so
+	data = data[sol:]
+	tx.Price = binary.BigEndian.Uint64(data)
+	data = data[8:]
+	tx.Amount = binary.BigEndian.Uint64(data)
+	data = data[8:]
+	tx.BuyMatcherFee = binary.BigEndian.Uint64(data)
+	data = data[8:]
+	tx.SellMatcherFee = binary.BigEndian.Uint64(data)
+	data = data[8:]
+	tx.Fee = binary.BigEndian.Uint64(data)
+	data = data[8:]
+	tx.Timestamp = binary.BigEndian.Uint64(data)
+	data = data[8:]
+	tx.SenderPK = tx.BuyOrder.MatcherPK
+	return nil
+}
+
+func (tx *ExchangeV1) Sign(secretKey crypto.SecretKey) error {
+	b, err := tx.bodyMarshalBinary()
+	if err != nil {
+		return errors.Wrap(err, "failed to sign ExchangeV1 transaction")
+	}
+	s := crypto.Sign(secretKey, b)
+	tx.Signature = &s
+	d, err := crypto.FastHash(b)
+	if err != nil {
+		return errors.Wrap(err, "failed to sign ExchangeV1 transaction")
+	}
+	tx.ID = &d
+	return nil
+}
+
+func (tx *ExchangeV1) Verify(publicKey crypto.PublicKey) (bool, error) {
+	if tx.Signature == nil {
+		return false, errors.New("empty signature")
+	}
+	b, err := tx.bodyMarshalBinary()
+	if err != nil {
+		return false, errors.Wrap(err, "failed to verify signature of ExchangeV1 transaction")
+	}
+	return crypto.Verify(publicKey, *tx.Signature, b), nil
+}
+
+func (tx *ExchangeV1) MarshalBinary() ([]byte, error) {
+	b, err := tx.bodyMarshalBinary()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to marshal ExchangeV1 transaction to bytes")
+	}
+	bl := len(b)
+	buf := make([]byte, bl+crypto.SignatureSize)
+	copy(buf[0:], b)
+	copy(buf[bl:], tx.Signature[:])
+	return buf, nil
+}
+
+func (tx *ExchangeV1) UnmarshalBinary(data []byte) error {
+	if l := len(data); l < exchangeV1MinLen {
+		return errors.Errorf("not enough data for ExchangeV1 transaction, expected not less then %d, received %d", exchangeV1MinLen, l)
+	}
+	if data[0] != byte(ExchangeTransaction) {
+		return errors.Errorf("incorrect transaction type %d for ExchangeV1 transaction", data[0])
+	}
+	err := tx.bodyUnmarshalBinary(data)
+	if err != nil {
+		return errors.Wrap(err, "failed to unmarshal ExchangeV1 transaction from bytes")
+	}
+	var bl int
+	bl += exchangeV1FixedBodyLen
+	if tx.BuyOrder.AssetPair.AmountAsset.Present {
+		bl += crypto.DigestSize
+	}
+	if tx.BuyOrder.AssetPair.PriceAsset.Present {
+		bl += crypto.DigestSize
+	}
+	if tx.SellOrder.AssetPair.AmountAsset.Present {
+		bl += crypto.DigestSize
+	}
+	if tx.SellOrder.AssetPair.PriceAsset.Present {
+		bl += crypto.DigestSize
+	}
+	b := data[:bl]
+	data = data[bl:]
+	var s crypto.Signature
+	copy(s[:], data[:crypto.SignatureSize])
+	tx.Signature = &s
+	d, err := crypto.FastHash(b)
+	if err != nil {
+		return errors.Wrap(err, "failed to unmarshal ExchangeV1 transaction from bytes")
 	}
 	tx.ID = &d
 	return nil
