@@ -78,7 +78,7 @@ type AddressesScriptInfo struct {
 	ExtraFee   uint64 `json:"extra_fee"`
 }
 
-func (a *Addresses) GetScriptInfo(ctx context.Context, address string) (*AddressesScriptInfo, *Response, error) {
+func (a *Addresses) ScriptInfo(ctx context.Context, address string) (*AddressesScriptInfo, *Response, error) {
 	req, err := http.NewRequest(
 		"GET",
 		fmt.Sprintf("%s/addresses/scriptInfo/%s", a.options.BaseUrl, address),

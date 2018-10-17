@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-func TestClient_GetAddressesBalanceDetails(t *testing.T) {
+func TestAddresses_BalanceDetails(t *testing.T) {
 	address := "3P7qLRU2EZ1BfU3gt2jv6enrEiJ1gQbaWVL"
 	client := NewClient()
 	body, resp, err :=
@@ -25,18 +25,18 @@ func TestClient_GetAddressesBalanceDetails(t *testing.T) {
 	assert.Nil(t, body)
 }
 
-func TestClient_GetAddressesScriptInfo(t *testing.T) {
+func TestAddresses_ScriptInfo(t *testing.T) {
 	address := "3P7qLRU2EZ1BfU3gt2jv6enrEiJ1gQbaWVL"
 	client := NewClient()
 	body, resp, err :=
-		client.Addresses.GetScriptInfo(context.Background(), address)
+		client.Addresses.ScriptInfo(context.Background(), address)
 	assert.Nil(t, err)
 	assert.NotNil(t, resp)
 	assert.Equal(t, address, body.Address)
 	assert.IsType(t, &AddressesScriptInfo{}, body)
 }
 
-func TestClient_GetAddresses(t *testing.T) {
+func TestAddresses_Addresses(t *testing.T) {
 	client := NewClient()
 	body, resp, err :=
 		client.Addresses.Addresses(context.Background())
@@ -47,7 +47,7 @@ func TestClient_GetAddresses(t *testing.T) {
 
 }
 
-func TestClient_GetAddressesValidate(t *testing.T) {
+func TestAddresses_Validate(t *testing.T) {
 	address := "3P3oWUH9oXRqiByBG7g9hYSDpCFxcT2wTBS"
 	client := NewClient()
 	body, resp, err :=
@@ -61,7 +61,7 @@ func TestClient_GetAddressesValidate(t *testing.T) {
 	}, body)
 }
 
-func TestClient_GetAddressesBalance(t *testing.T) {
+func TestAddresses_Balance(t *testing.T) {
 	address := "3P3oWUH9oXRqiByBG7g9hYSDpCFxcT2wTBS"
 	client := NewClient()
 	body, resp, err :=
@@ -72,7 +72,7 @@ func TestClient_GetAddressesBalance(t *testing.T) {
 	assert.IsType(t, &AddressesBalance{}, body)
 }
 
-func TestClient_GetAddressesEffectiveBalance(t *testing.T) {
+func TestAddresses_EffectiveBalance(t *testing.T) {
 	address := "3P3oWUH9oXRqiByBG7g9hYSDpCFxcT2wTBS"
 	client := NewClient()
 	body, resp, err :=
@@ -84,7 +84,7 @@ func TestClient_GetAddressesEffectiveBalance(t *testing.T) {
 	assert.Equal(t, address, body.Address)
 }
 
-func TestClient_GetAddressesPublicKey(t *testing.T) {
+func TestAddresses_PublicKey(t *testing.T) {
 	pubKey := "AF9HLq2Rsv2fVfLPtsWxT7Y3S9ZTv6Mw4ZTp8K8LNdEp"
 	client := NewClient()
 	body, resp, err :=
