@@ -1126,3 +1126,123 @@ func TestLeaseCancelV1ToJSON(t *testing.T) {
 		}
 	}
 }
+
+func TestCreateAliasV1Validations(t *testing.T) {
+	tests := []struct {
+		alias string
+		fee   uint64
+		err   string
+	}{
+		{"something", 0, "fee should be positive"},
+	}
+	for _, tc := range tests {
+		spk, _ := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
+		a, _ := NewAlias('W', tc.alias)
+		_, err := NewUnsignedCreateAliasV1(spk, *a, tc.fee, 0)
+		assert.EqualError(t, err, tc.err)
+	}
+}
+
+func TestCreateAliasV1FromMainNet(t *testing.T) {
+	tests := []struct {
+		pk        string
+		sig       string
+		id        string
+		scheme    byte
+		alias     string
+		fee       uint64
+		timestamp uint64
+	}{
+		{"6e5rbqXt5UVYFqaQnuGeLjYSFwgmddmEAkYZWdBjPgAF", "3XfjLrk8HZt1mhXnAAaBLEcpbUb4xvsEEgf4AzRqn1bZv3uQ88LisjQn2NzApDYGDvmm1VV4gJxifREjyqDKxRLc", "BEwr6WzmzWT2DRTsmojipT6RoqPkZx64cbfQu4fjuEne", 'W', "stonescissors", 100000, 1537786658492},
+	}
+	for _, tc := range tests {
+		spk, _ := crypto.NewPublicKeyFromBase58(tc.pk)
+		id, _ := crypto.NewDigestFromBase58(tc.id)
+		sig, _ := crypto.NewSignatureFromBase58(tc.sig)
+		a, _ := NewAlias(tc.scheme, tc.alias)
+		if tx, err := NewUnsignedCreateAliasV1(spk, *a, tc.fee, tc.timestamp); assert.NoError(t, err) {
+			if b, err := tx.bodyMarshalBinary(); assert.NoError(t, err) {
+				if h, err := tx.id(); assert.NoError(t, err) {
+					assert.Equal(t, id, *h)
+				}
+				assert.True(t, crypto.Verify(spk, sig, b))
+			}
+		}
+	}
+}
+
+func TestCreateAliasV1BinaryRoundTrip(t *testing.T) {
+	tests := []struct {
+		scheme byte
+		alias  string
+		fee    uint64
+	}{
+		{'W', "somealias", 1234567890},
+		{'T', "testnetalias", 9876543210},
+	}
+	seed, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
+	sk, pk := crypto.GenerateKeyPair(seed)
+	for _, tc := range tests {
+		ts := uint64(time.Now().UnixNano() / 1000000)
+		a, _ := NewAlias(tc.scheme, tc.alias)
+		if tx, err := NewUnsignedCreateAliasV1(pk, *a, tc.fee, ts); assert.NoError(t, err) {
+			if bb, err := tx.bodyMarshalBinary(); assert.NoError(t, err) {
+				var atx CreateAliasV1
+				if err := atx.bodyUnmarshalBinary(bb); assert.NoError(t, err) {
+					assert.Equal(t, tx.Type, atx.Type)
+					assert.Equal(t, tx.Version, atx.Version)
+					assert.Equal(t, tx.SenderPK, atx.SenderPK)
+					assert.Equal(t, tx.Alias, atx.Alias)
+					assert.Equal(t, tx.Fee, atx.Fee)
+					assert.Equal(t, tx.Timestamp, atx.Timestamp)
+				}
+			}
+			if err := tx.Sign(sk); assert.NoError(t, err) {
+				if r, err := tx.Verify(pk); assert.NoError(t, err) {
+					assert.True(t, r)
+				}
+			}
+			if b, err := tx.MarshalBinary(); assert.NoError(t, err) {
+				var atx CreateAliasV1
+				if err := atx.UnmarshalBinary(b); assert.NoError(t, err) {
+					assert.Equal(t, tx.ID, atx.ID)
+					assert.Equal(t, tx.Signature, atx.Signature)
+					assert.Equal(t, pk, atx.SenderPK)
+					assert.Equal(t, tc.scheme, atx.Alias.Scheme)
+					assert.Equal(t, tc.alias, atx.Alias.Alias)
+					assert.Equal(t, tc.fee, tx.Fee)
+					assert.Equal(t, ts, tx.Timestamp)
+				}
+			}
+		}
+	}
+}
+
+func TestCreateAliasV1ToJSON(t *testing.T) {
+	tests := []struct {
+		scheme byte
+		alias  string
+		fee    uint64
+	}{
+		{'W', "alice", 1234567890},
+		{'T', "peter", 9876543210},
+	}
+	seed, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
+	sk, pk := crypto.GenerateKeyPair(seed)
+	for _, tc := range tests {
+		a, _ := NewAlias(tc.scheme, tc.alias)
+		ts := uint64(time.Now().UnixNano() / 1000000)
+		if tx, err := NewUnsignedCreateAliasV1(pk, *a, tc.fee, ts); assert.NoError(t, err) {
+			if j, err := json.Marshal(tx); assert.NoError(t, err) {
+				ej := fmt.Sprintf("{\"type\":10,\"version\":1,\"senderPublicKey\":\"%s\",\"alias\":\"%s\",\"fee\":%d,\"timestamp\":%d}", base58.Encode(pk[:]), a.String(), tc.fee, ts)
+				assert.Equal(t, ej, string(j))
+				if err := tx.Sign(sk); assert.NoError(t, err) {
+					if sj, err := json.Marshal(tx); assert.NoError(t, err) {
+						esj := fmt.Sprintf("{\"type\":10,\"version\":1,\"id\":\"%s\",\"signature\":\"%s\",\"senderPublicKey\":\"%s\",\"alias\":\"%s\",\"fee\":%d,\"timestamp\":%d}", base58.Encode(tx.ID[:]), base58.Encode(tx.Signature[:]), base58.Encode(pk[:]), a.String(), tc.fee, ts)
+						assert.Equal(t, esj, string(sj))
+					}
+				}
+			}
+		}
+	}
+}
