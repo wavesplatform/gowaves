@@ -27,6 +27,7 @@ var defaultOptions = Options{
 type Client struct {
 	options   Options
 	Addresses *Addresses
+	Blocks    *Blocks
 }
 
 type Response struct {
@@ -38,10 +39,9 @@ type HttpClient interface {
 
 // Creates new client instance
 // If no options provided will use default
-func NewClient(options ...Options) *Client {
-
+func NewClient(options ...Options) (*Client, error) {
 	if len(options) > 1 {
-		panic("too many options provided. Expects no or just one item")
+		return nil, errors.New("too many options provided. Expects no or just one item")
 	}
 
 	opts := defaultOptions
@@ -65,10 +65,10 @@ func NewClient(options ...Options) *Client {
 	c := &Client{
 		options:   opts,
 		Addresses: NewAddresses(opts),
+		Blocks:    NewBlocks(opts),
 	}
 
-	return c
-
+	return c, nil
 }
 
 func (a Client) GetOptions() Options {
@@ -94,6 +94,7 @@ func doHttp(ctx context.Context, options Options, req *http.Request, v interface
 	if req.Header.Get("Accept") == "" {
 		req.Header.Set("Accept", "application/json")
 	}
+	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := options.Client.Do(req)
 	if err != nil {

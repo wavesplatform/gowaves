@@ -1,9 +1,10 @@
 package client
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
-	"github.com/pkg/errors"
 	"net/http"
 	"strings"
 )
@@ -25,7 +26,6 @@ type AddressesBalance struct {
 }
 
 func (a *Addresses) Balance(ctx context.Context, address string) (*AddressesBalance, *Response, error) {
-
 	req, err := http.NewRequest(
 		"GET",
 		fmt.Sprintf("%s/addresses/balance/%s", a.options.BaseUrl, address),
@@ -41,7 +41,6 @@ func (a *Addresses) Balance(ctx context.Context, address string) (*AddressesBala
 	}
 
 	return out, response, nil
-
 }
 
 type AddressesBalanceDetails struct {
@@ -53,7 +52,6 @@ type AddressesBalanceDetails struct {
 }
 
 func (a *Addresses) BalanceDetails(ctx context.Context, address string) (*AddressesBalanceDetails, *Response, error) {
-
 	req, err := http.NewRequest(
 		"GET",
 		fmt.Sprintf("%s/addresses/balance/details/%s", a.options.BaseUrl, address),
@@ -69,7 +67,6 @@ func (a *Addresses) BalanceDetails(ctx context.Context, address string) (*Addres
 	}
 
 	return out, response, nil
-
 }
 
 type AddressesScriptInfo struct {
@@ -190,9 +187,8 @@ type AddressesSignText struct {
 }
 
 func (a *Addresses) SignText(ctx context.Context, address string, message string) (*AddressesSignText, *Response, error) {
-
 	if a.options.ApiKey == "" {
-		return nil, nil, errors.New("no api key provided")
+		return nil, nil, NoApiKeyError
 	}
 
 	req, err := http.NewRequest(
@@ -206,6 +202,72 @@ func (a *Addresses) SignText(ctx context.Context, address string, message string
 	req.Header.Set("X-API-Key", a.options.ApiKey)
 
 	out := new(AddressesSignText)
+	response, err := doHttp(ctx, a.options, req, out)
+	if err != nil {
+		return nil, response, err
+	}
+
+	return out, response, nil
+}
+
+type VerifyText struct {
+	Valid bool
+}
+
+type VerifyTextReq struct {
+	Message   string `json:"message"`
+	PublicKey string `json:"publickey"`
+	Signature string `json:"signature"`
+}
+
+func (a *Addresses) VerifyText(ctx context.Context, address string, body VerifyTextReq) (bool, *Response, error) {
+	if a.options.ApiKey == "" {
+		return false, nil, NoApiKeyError
+	}
+
+	bodyBytes, err := json.Marshal(body)
+	if err != nil {
+		return false, nil, err
+	}
+
+	req, err := http.NewRequest(
+		"POST",
+		fmt.Sprintf("%s/addresses/verifyText/%s", a.options.BaseUrl, address),
+		bytes.NewReader(bodyBytes))
+	if err != nil {
+		return false, nil, err
+	}
+
+	req.Header.Set("X-API-Key", a.options.ApiKey)
+
+	out := new(VerifyText)
+	response, err := doHttp(ctx, a.options, req, out)
+	if err != nil {
+		return false, response, err
+	}
+
+	return out.Valid, response, nil
+
+}
+
+type BalanceAfterConfirmations struct {
+	Address       string `json:"address"`
+	Confirmations uint64 `json:"confirmations"`
+	Balance       uint64 `json:"balance"`
+}
+
+func (a *Addresses) BalanceAfterConfirmations(
+	ctx context.Context, address string, confirmations uint64) (*BalanceAfterConfirmations, *Response, error) {
+
+	req, err := http.NewRequest(
+		"GET",
+		fmt.Sprintf("%s/addresses/balance/%s/%d", a.options.BaseUrl, address, confirmations),
+		nil)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	out := new(BalanceAfterConfirmations)
 	response, err := doHttp(ctx, a.options, req, out)
 	if err != nil {
 		return nil, response, err

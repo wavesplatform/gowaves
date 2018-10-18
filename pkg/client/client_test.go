@@ -7,17 +7,25 @@ import (
 	"testing"
 )
 
+// Must create new client or panic
+func mustClient(options ...Options) *Client {
+	client, err := NewClient(options...)
+	if err != nil {
+		panic(err)
+	}
+	return client
+}
+
 func TestClient_GetOptions(t *testing.T) {
-	client := NewClient()
+	client := mustClient()
 	assert.Equal(t, "https://nodes.wavesnodes.com", client.options.BaseUrl)
 
-	client = NewClient(Options{BaseUrl: "URL"})
+	client = mustClient(Options{BaseUrl: "URL"})
 	assert.Equal(t, "URL", client.options.BaseUrl)
 }
 
 func TestClient_Do(t *testing.T) {
-
-	client := NewClient()
+	client := mustClient()
 	bg := context.Background()
 	cancel, fn := context.WithCancel(bg)
 	fn()
@@ -28,5 +36,4 @@ func TestClient_Do(t *testing.T) {
 	assert.Nil(t, resp)
 	assert.NotNil(t, err)
 	assert.Contains(t, err.Error(), "context canceled")
-
 }
