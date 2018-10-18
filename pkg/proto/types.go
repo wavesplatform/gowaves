@@ -406,3 +406,4 @@ func (o *Order) UnmarshalBinary(data []byte) error {
 	o.ID = &d
 	return nil
 }
+
