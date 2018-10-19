@@ -41,6 +41,18 @@
   branch = "master"
   name = "golang.org/x/crypto"
 
+[[constraint]]
+  branch = "master"
+  name = "github.com/spf13/cobra"
+
+[[constraint]]
+  branch = "master"
+  name = "github.com/spf13/viper"
+
+[[constraint]]
+  branch = "master"
+  name = "go.uber.org/zap"
+
 [prune]
   go-tests = true
   unused-packages = true
