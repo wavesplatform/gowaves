@@ -1,0 +1,7 @@
+language: go
+
+before_install:
+  - dep ensure
+
+script:
+  - go test -v ./...
