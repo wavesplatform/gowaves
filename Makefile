@@ -5,7 +5,7 @@ SOURCE_DIRS = cmd pkg
 
 .PHONY: fmtcheck dep clean build gotest
 
-all: dep build fmtcheck
+all: dep build gotest fmtcheck
 
 dep:
 	dep ensure
