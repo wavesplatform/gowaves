@@ -28,6 +28,8 @@ type Client struct {
 	options   Options
 	Addresses *Addresses
 	Blocks    *Blocks
+	Wallet    *Wallet
+	Alias     *Alias
 }
 
 type Response struct {
@@ -66,6 +68,8 @@ func NewClient(options ...Options) (*Client, error) {
 		options:   opts,
 		Addresses: NewAddresses(opts),
 		Blocks:    NewBlocks(opts),
+		Wallet:    NewWallet(opts),
+		Alias:     NewAlias(opts),
 	}
 
 	return c, nil
