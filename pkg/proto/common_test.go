@@ -6,7 +6,7 @@ import (
 )
 
 func TestStringWithUInt16LenBinaryRoundTrip(t *testing.T) {
-	tests := []string {
+	tests := []string{
 		"",
 		"a",
 		"sdlfjsalktjerqoitjg asjfdg",
