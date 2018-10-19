@@ -70,10 +70,10 @@ func (m *PeersMessage) Equal(d comparable) bool {
 	}
 
 	for i := 0; i < len(m.Peers); i++ {
-		if !m.Peers[i].addr.Equal(p.Peers[i].addr) {
+		if !m.Peers[i].Addr.Equal(p.Peers[i].Addr) {
 			return false
 		}
-		if m.Peers[i].port != p.Peers[i].port {
+		if m.Peers[i].Port != p.Peers[i].Port {
 			return false
 		}
 	}
