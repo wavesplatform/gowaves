@@ -1,10 +1,11 @@
 PROJECT=gowaves
 ORGANISATION=wavesplatform
-SOURCE=$(shell find . -name '*.go')
+SOURCE=$(shell find . -name '*.go' | grep -v vendor/)
+SOURCE_DIRS = cmd pkg
 
-.PHONY: dep clean build gotest
+.PHONY: fmtcheck dep clean build gotest
 
-all: dep build
+all: dep build fmtcheck
 
 dep:
 	dep ensure
@@ -18,5 +19,7 @@ build/bin/forkdetector: $(SOURCE)
 gotest:
 	go test -cover ./...
 
+fmtcheck:
+	@gofmt -l -s $(SOURCE_DIRS) | grep ".*\.go"; if [ "$$?" = "0" ]; then exit 1; fi
 clean:
 	rm -rf build

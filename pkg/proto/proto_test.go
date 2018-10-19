@@ -205,12 +205,12 @@ var tests = []protocolMarshallingTest{
 		"00000019  12345678          02         0000000c      648fa8c8   00000001 01020304 00008888",
 	},
 	{
-		&GetSignaturesMessage{[]BlockID{BlockID{0x01}}},
+		&GetSignaturesMessage{[]BlockID{{0x01}}},
 		//P. Len |    Magic | ContentID | Payload Length | PayloadCsum | Payload
 		"00000051  12345678          14         00000044      5474fb17   00000001 01000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000",
 	},
 	{
-		&SignaturesMessage{[]BlockSignature{BlockSignature{0x13}}},
+		&SignaturesMessage{[]BlockSignature{{0x13}}},
 		//P. Len |    Magic | ContentID | Payload Length | PayloadCsum | Payload
 		"00000051  12345678          15         00000044      5e0c8bee   00000001 13000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000",
 	},
