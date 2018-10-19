@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"os"
 	"testing"
 )
@@ -14,7 +15,8 @@ func TestWallet_Seed(t *testing.T) {
 		return
 	}
 
-	client := mustClient(Options{BaseUrl: "https://testnode1.wavesnodes.com", ApiKey: apiKey})
+	client, err := NewClient(Options{BaseUrl: "https://testnode1.wavesnodes.com", ApiKey: apiKey})
+	require.Nil(t, err)
 	body, resp, err :=
 		client.Wallet.Seed(context.Background())
 

@@ -3,11 +3,13 @@ package client
 import (
 	"context"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"testing"
 )
 
 func TestBlocks_HeightBySignature(t *testing.T) {
-	client := mustClient(Options{BaseUrl: "https://testnode1.wavesnodes.com"})
+	client, err := NewClient(Options{BaseUrl: "https://testnode1.wavesnodes.com"})
+	require.Nil(t, err)
 	body, resp, err :=
 		client.Blocks.HeightBySignature(
 			context.Background(),
@@ -21,7 +23,8 @@ func TestBlocks_HeightBySignature(t *testing.T) {
 }
 
 func TestBlocks_HeadersAt(t *testing.T) {
-	client := mustClient(Options{BaseUrl: "https://testnode1.wavesnodes.com"})
+	client, err := NewClient(Options{BaseUrl: "https://testnode1.wavesnodes.com"})
+	require.Nil(t, err)
 	body, resp, err :=
 		client.Blocks.HeadersAt(context.Background(), 379627)
 
@@ -50,7 +53,8 @@ func TestBlocks_HeadersAt(t *testing.T) {
 }
 
 func TestBlocks_HeadersLast(t *testing.T) {
-	client := mustClient(Options{BaseUrl: "https://testnode1.wavesnodes.com"})
+	client, err := NewClient(Options{BaseUrl: "https://testnode1.wavesnodes.com"})
+	require.Nil(t, err)
 	body, resp, err :=
 		client.Blocks.HeadersLast(context.Background())
 
@@ -62,7 +66,8 @@ func TestBlocks_HeadersLast(t *testing.T) {
 }
 
 func TestBlocks_HeadersSeq(t *testing.T) {
-	client := mustClient(Options{BaseUrl: "https://testnode1.wavesnodes.com"})
+	client, err := NewClient(Options{BaseUrl: "https://testnode1.wavesnodes.com"})
+	require.Nil(t, err)
 	body, resp, err :=
 		client.Blocks.HeadersSeq(context.Background(), 375500, 375500)
 

@@ -3,29 +3,24 @@ package client
 import (
 	"context"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"net/http"
 	"testing"
 )
 
-// Must create new client or panic
-func mustClient(options ...Options) *Client {
-	client, err := NewClient(options...)
-	if err != nil {
-		panic(err)
-	}
-	return client
-}
-
 func TestClient_GetOptions(t *testing.T) {
-	client := mustClient()
+	client, err := NewClient()
+	require.Nil(t, err)
 	assert.Equal(t, "https://nodes.wavesnodes.com", client.options.BaseUrl)
 
-	client = mustClient(Options{BaseUrl: "URL"})
+	client, err = NewClient(Options{BaseUrl: "URL"})
+	require.Nil(t, err)
 	assert.Equal(t, "URL", client.options.BaseUrl)
 }
 
 func TestClient_Do(t *testing.T) {
-	client := mustClient()
+	client, err := NewClient()
+	require.Nil(t, err)
 	bg := context.Background()
 	cancel, fn := context.WithCancel(bg)
 	fn()

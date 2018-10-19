@@ -3,13 +3,15 @@ package client
 import (
 	"context"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"os"
 	"testing"
 )
 
 func TestAddresses_BalanceDetails(t *testing.T) {
 	address := "3P7qLRU2EZ1BfU3gt2jv6enrEiJ1gQbaWVL"
-	client := mustClient()
+	client, err := NewClient()
+	require.Nil(t, err)
 	body, resp, err :=
 		client.Addresses.BalanceDetails(context.Background(), address)
 	assert.Nil(t, err)
@@ -17,7 +19,8 @@ func TestAddresses_BalanceDetails(t *testing.T) {
 	assert.Equal(t, address, body.Address)
 	assert.IsType(t, &AddressesBalanceDetails{}, body)
 
-	bad := mustClient()
+	bad, err := NewClient()
+	require.Nil(t, err)
 	body, resp, err =
 		bad.Addresses.BalanceDetails(context.Background(), "3P7qLRU2EZ1BfU3gt2jv6enrE++1gQbaWVL")
 	assert.NotNil(t, err)
@@ -27,7 +30,8 @@ func TestAddresses_BalanceDetails(t *testing.T) {
 
 func TestAddresses_ScriptInfo(t *testing.T) {
 	address := "3P7qLRU2EZ1BfU3gt2jv6enrEiJ1gQbaWVL"
-	client := mustClient()
+	client, err := NewClient()
+	require.Nil(t, err)
 	body, resp, err :=
 		client.Addresses.ScriptInfo(context.Background(), address)
 	assert.Nil(t, err)
@@ -37,7 +41,8 @@ func TestAddresses_ScriptInfo(t *testing.T) {
 }
 
 func TestAddresses_Addresses(t *testing.T) {
-	client := mustClient()
+	client, err := NewClient()
+	require.Nil(t, err)
 	body, resp, err :=
 		client.Addresses.Addresses(context.Background())
 
@@ -49,7 +54,8 @@ func TestAddresses_Addresses(t *testing.T) {
 
 func TestAddresses_Validate(t *testing.T) {
 	address := "3P3oWUH9oXRqiByBG7g9hYSDpCFxcT2wTBS"
-	client := mustClient()
+	client, err := NewClient()
+	require.Nil(t, err)
 	body, resp, err :=
 		client.Addresses.Validate(context.Background(), address)
 
@@ -63,7 +69,8 @@ func TestAddresses_Validate(t *testing.T) {
 
 func TestAddresses_Balance(t *testing.T) {
 	address := "3P3oWUH9oXRqiByBG7g9hYSDpCFxcT2wTBS"
-	client := mustClient()
+	client, err := NewClient()
+	require.Nil(t, err)
 	body, resp, err :=
 		client.Addresses.Balance(context.Background(), address)
 
@@ -74,7 +81,8 @@ func TestAddresses_Balance(t *testing.T) {
 
 func TestAddresses_EffectiveBalance(t *testing.T) {
 	address := "3P3oWUH9oXRqiByBG7g9hYSDpCFxcT2wTBS"
-	client := mustClient()
+	client, err := NewClient()
+	require.Nil(t, err)
 	body, resp, err :=
 		client.Addresses.EffectiveBalance(context.Background(), address)
 
@@ -86,7 +94,8 @@ func TestAddresses_EffectiveBalance(t *testing.T) {
 
 func TestAddresses_PublicKey(t *testing.T) {
 	pubKey := "AF9HLq2Rsv2fVfLPtsWxT7Y3S9ZTv6Mw4ZTp8K8LNdEp"
-	client := mustClient()
+	client, err := NewClient()
+	require.Nil(t, err)
 	body, resp, err :=
 		client.Addresses.PublicKey(context.Background(), pubKey)
 
@@ -103,13 +112,12 @@ func TestAddresses_SignText(t *testing.T) {
 	}
 
 	text := "some-text"
-	client := mustClient(Options{BaseUrl: "https://testnode1.wavesnodes.com", ApiKey: apiKey})
+	client, err := NewClient(Options{BaseUrl: "https://testnode1.wavesnodes.com", ApiKey: apiKey})
+	require.Nil(t, err)
 	body, resp, err :=
 		client.Addresses.SignText(context.Background(), "3MzemqBzJ9h844PparHU1EzGC5SQmtH5pNp", text)
 
-	if err != nil {
-		t.Fatalf("expected nil, found %+v", err)
-	}
+	require.Nil(t, err)
 	assert.NotNil(t, resp)
 	assert.Equal(t, text, body.Message)
 	assert.IsType(t, &AddressesSignText{}, body)
@@ -128,13 +136,11 @@ func TestAddresses_VerifyText(t *testing.T) {
 		Signature: "4Bh3vksvhe55Ej8bwt42HiPgU18MynnKg87Rr1ZhRQUhmJmFiWC7imgaorW5QJRXxXwbK38bvRmZH4dncPzA9grA",
 	}
 
-	client := mustClient(Options{BaseUrl: "https://testnode1.wavesnodes.com", ApiKey: apiKey})
+	client, err := NewClient(Options{BaseUrl: "https://testnode1.wavesnodes.com", ApiKey: apiKey})
 	body, resp, err :=
 		client.Addresses.VerifyText(context.Background(), "3MzemqBzJ9h844PparHU1EzGC5SQmtH5pNp", data)
 
-	if err != nil {
-		t.Fatalf("expected nil, found %+v", err)
-	}
+	require.Nil(t, err)
 	assert.NotNil(t, resp)
 	assert.True(t, body)
 }
@@ -143,13 +149,11 @@ func TestAddresses_BalanceAfterConfirmations(t *testing.T) {
 	address := "3MzemqBzJ9h844PparHU1EzGC5SQmtH5pNp"
 	confirmations := uint64(1)
 
-	client := mustClient(Options{BaseUrl: "https://testnode1.wavesnodes.com"})
+	client, err := NewClient(Options{BaseUrl: "https://testnode1.wavesnodes.com"})
 	body, resp, err :=
 		client.Addresses.BalanceAfterConfirmations(context.Background(), "3MzemqBzJ9h844PparHU1EzGC5SQmtH5pNp", confirmations)
 
-	if err != nil {
-		t.Fatalf("expected nil, found %+v", err)
-	}
+	require.Nil(t, err)
 	assert.NotNil(t, resp)
 	assert.Equal(t, address, body.Address)
 	assert.Equal(t, confirmations, body.Confirmations)
