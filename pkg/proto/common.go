@@ -6,7 +6,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-func PutStringWithUInt16Len(buf [] byte, s string) {
+func PutStringWithUInt16Len(buf []byte, s string) {
 	sl := uint16(len(s))
 	binary.BigEndian.PutUint16(buf, sl)
 	copy(buf[2:], s)

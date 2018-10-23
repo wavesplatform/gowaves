@@ -16,6 +16,7 @@ const (
 	headerCsumLen = 4
 )
 
+// Constants for message IDs
 const (
 	ContentIDGetPeers      = 0x1
 	ContentIDPeers         = 0x2
@@ -28,6 +29,7 @@ const (
 	ContentIDCheckpoint    = 0x64
 )
 
+// BlockSignature is a signature of a formed block
 type BlockSignature crypto.Signature
 
 type header struct {
@@ -68,6 +70,7 @@ func (h *header) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
+// Handshake is the handshake structure of the waves protocol
 type Handshake struct {
 	Name              string
 	VersionMajor      uint32
@@ -124,6 +127,7 @@ func (h *Handshake) marshalBinaryAddr() ([]byte, error) {
 	return data, nil
 }
 
+// MarshalBinary encodes Handshake to binary form
 func (h *Handshake) MarshalBinary() ([]byte, error) {
 	data1, err := h.marshalBinaryName()
 	if err != nil {
@@ -148,6 +152,7 @@ func (h *Handshake) MarshalBinary() ([]byte, error) {
 	return data1, nil
 }
 
+// UnmarshalBinary decodes Handshake from binary from
 func (h *Handshake) UnmarshalBinary(data []byte) error {
 	if len(data) < 1 {
 		return errors.New("data too short")
@@ -192,6 +197,7 @@ func (h *Handshake) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
+// ReadFrom reads Handshake from io.Reader
 func (h *Handshake) ReadFrom(r io.Reader) (int64, error) {
 	buf := make([]byte, 1)
 
@@ -240,6 +246,7 @@ func (h *Handshake) ReadFrom(r io.Reader) (int64, error) {
 	return int64(nn), h.UnmarshalBinary(buf)
 }
 
+// WriteTo writes Handshake to io.Writer
 func (h *Handshake) WriteTo(w io.Writer) (int64, error) {
 	buf, err := h.MarshalBinary()
 	if err != nil {
@@ -250,8 +257,10 @@ func (h *Handshake) WriteTo(w io.Writer) (int64, error) {
 	return n, err
 }
 
+// GetPeersMessage implements the GetPeers message from the waves protocol
 type GetPeersMessage struct{}
 
+// MarshalBinary encodes GetPeersMessage to binary form
 func (m *GetPeersMessage) MarshalBinary() ([]byte, error) {
 	var header header
 
@@ -274,6 +283,7 @@ func (m *GetPeersMessage) MarshalBinary() ([]byte, error) {
 	return res[:headerLength-4], nil
 }
 
+// UnmarshalBinary decodes GetPeersMessage from binary form
 func (m *GetPeersMessage) UnmarshalBinary(b []byte) error {
 	var header header
 
@@ -298,6 +308,7 @@ func (m *GetPeersMessage) UnmarshalBinary(b []byte) error {
 	return nil
 }
 
+// ReadFrom reads GetPeersMessage from io.Reader
 func (m *GetPeersMessage) ReadFrom(r io.Reader) (int64, error) {
 	var packetLen [4]byte
 	nn, err := io.ReadFull(r, packetLen[:])
@@ -315,6 +326,7 @@ func (m *GetPeersMessage) ReadFrom(r io.Reader) (int64, error) {
 	return int64(nn), m.UnmarshalBinary(packet)
 }
 
+// WriteTo writes GetPeersMessage to io.Writer
 func (m *GetPeersMessage) WriteTo(w io.Writer) (int64, error) {
 	buf, err := m.MarshalBinary()
 	if err != nil {
@@ -325,11 +337,13 @@ func (m *GetPeersMessage) WriteTo(w io.Writer) (int64, error) {
 	return n, err
 }
 
+// PeerInfo represents the address of a single peer
 type PeerInfo struct {
 	Addr net.IP
 	Port uint16
 }
 
+// MarshalBinary encodes PeerInfo message to binary form
 func (m *PeerInfo) MarshalBinary() ([]byte, error) {
 	buffer := make([]byte, 8)
 
@@ -339,6 +353,7 @@ func (m *PeerInfo) MarshalBinary() ([]byte, error) {
 	return buffer, nil
 }
 
+// UnmarshalBinary decodes PeerInfo message from binary form
 func (m *PeerInfo) UnmarshalBinary(data []byte) error {
 	if len(data) < 8 {
 		return errors.New("too short")
@@ -350,10 +365,12 @@ func (m *PeerInfo) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
+// PeersMessage represents the peers message
 type PeersMessage struct {
 	Peers []PeerInfo
 }
 
+// MarshalBinary encodes PeersMessage message to binary form
 func (m *PeersMessage) MarshalBinary() ([]byte, error) {
 	var h header
 	body := make([]byte, 4)
@@ -388,6 +405,7 @@ func (m *PeersMessage) MarshalBinary() ([]byte, error) {
 	return hdr, nil
 }
 
+// UnmarshalBinary decodes PeersMessage from binary form
 func (m *PeersMessage) UnmarshalBinary(data []byte) error {
 	var header header
 	if err := header.UnmarshalBinary(data); err != nil {
@@ -427,6 +445,7 @@ func readPacket(r io.Reader) ([]byte, int64, error) {
 	return packet, int64(nn), nil
 }
 
+// ReadFrom reads PeersMessage from io.Reader
 func (m *PeersMessage) ReadFrom(r io.Reader) (int64, error) {
 	packet, nn, err := readPacket(r)
 	if err != nil {
@@ -436,6 +455,7 @@ func (m *PeersMessage) ReadFrom(r io.Reader) (int64, error) {
 	return nn, m.UnmarshalBinary(packet)
 }
 
+// WriteTo writes PeersMessage to io.Writer
 func (m *PeersMessage) WriteTo(w io.Writer) (int64, error) {
 	buf, err := m.MarshalBinary()
 	if err != nil {
@@ -446,12 +466,15 @@ func (m *PeersMessage) WriteTo(w io.Writer) (int64, error) {
 	return n, err
 }
 
+// BlockID represents the ID of a block
 type BlockID [64]byte
 
+// GetSignaturesMessage represents the Get Signatures request
 type GetSignaturesMessage struct {
 	Blocks []BlockID
 }
 
+// MarshalBinary encodes GetSignaturesMessage to binary form
 func (m *GetSignaturesMessage) MarshalBinary() ([]byte, error) {
 	body := make([]byte, 4, 4+len(m.Blocks)*64)
 	binary.BigEndian.PutUint32(body[0:4], uint32(len(m.Blocks)))
@@ -480,6 +503,7 @@ func (m *GetSignaturesMessage) MarshalBinary() ([]byte, error) {
 	return body, nil
 }
 
+// UnmarshalBinary decodes GetSignaturesMessage from binary form
 func (m *GetSignaturesMessage) UnmarshalBinary(data []byte) error {
 	var h header
 	if err := h.UnmarshalBinary(data); err != nil {
@@ -510,6 +534,7 @@ func (m *GetSignaturesMessage) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
+// ReadFrom reads GetSignaturesMessage from io.Reader
 func (m *GetSignaturesMessage) ReadFrom(r io.Reader) (int64, error) {
 	packet, nn, err := readPacket(r)
 	if err != nil {
@@ -519,6 +544,7 @@ func (m *GetSignaturesMessage) ReadFrom(r io.Reader) (int64, error) {
 	return nn, m.UnmarshalBinary(packet)
 }
 
+// WriteTo writes GetSignaturesMessage to io.Writer
 func (m *GetSignaturesMessage) WriteTo(w io.Writer) (int64, error) {
 	buf, err := m.MarshalBinary()
 	if err != nil {
@@ -529,10 +555,12 @@ func (m *GetSignaturesMessage) WriteTo(w io.Writer) (int64, error) {
 	return n, err
 }
 
+// SignaturesMessage represents Signatures message
 type SignaturesMessage struct {
 	Signatures []BlockSignature
 }
 
+// MarshalBinary encodes SignaturesMessage to binary form
 func (m *SignaturesMessage) MarshalBinary() ([]byte, error) {
 	body := make([]byte, 4, 4+len(m.Signatures))
 	binary.BigEndian.PutUint32(body[0:4], uint32(len(m.Signatures)))
@@ -561,6 +589,7 @@ func (m *SignaturesMessage) MarshalBinary() ([]byte, error) {
 	return body, nil
 }
 
+// UnmarshalBinary decodes SignaturesMessage from binary form
 func (m *SignaturesMessage) UnmarshalBinary(data []byte) error {
 	var h header
 
@@ -592,6 +621,7 @@ func (m *SignaturesMessage) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
+// ReadFrom reads SignaturesMessage from binary form
 func (m *SignaturesMessage) ReadFrom(r io.Reader) (int64, error) {
 	packet, nn, err := readPacket(r)
 	if err != nil {
@@ -601,6 +631,7 @@ func (m *SignaturesMessage) ReadFrom(r io.Reader) (int64, error) {
 	return nn, m.UnmarshalBinary(packet)
 }
 
+// WriteTo writes SignaturesMessage to binary form
 func (m *SignaturesMessage) WriteTo(w io.Writer) (int64, error) {
 	buf, err := m.MarshalBinary()
 	if err != nil {
@@ -611,10 +642,12 @@ func (m *SignaturesMessage) WriteTo(w io.Writer) (int64, error) {
 	return n, err
 }
 
+// GetBlockMessage represents GetBlock message
 type GetBlockMessage struct {
 	BlockID BlockID
 }
 
+// MarshalBinary encodes GetBlockMessage to binary form
 func (m *GetBlockMessage) MarshalBinary() ([]byte, error) {
 	body := make([]byte, 0, 64)
 	body = append(body, m.BlockID[:]...)
@@ -635,6 +668,7 @@ func (m *GetBlockMessage) MarshalBinary() ([]byte, error) {
 	return body, nil
 }
 
+// UnmarshalBinary decodes GetBlockMessage from binary form
 func (m *GetBlockMessage) UnmarshalBinary(data []byte) error {
 	var h header
 	if err := h.UnmarshalBinary(data); err != nil {
@@ -657,6 +691,7 @@ func (m *GetBlockMessage) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
+// ReadFrom reads GetBlockMessage from io.Reader
 func (m *GetBlockMessage) ReadFrom(r io.Reader) (int64, error) {
 	packet, nn, err := readPacket(r)
 	if err != nil {
@@ -666,6 +701,7 @@ func (m *GetBlockMessage) ReadFrom(r io.Reader) (int64, error) {
 	return nn, m.UnmarshalBinary(packet)
 }
 
+// WriteTo writes GetBlockMessage to io.Writer
 func (m *GetBlockMessage) WriteTo(w io.Writer) (int64, error) {
 	buf, err := m.MarshalBinary()
 	if err != nil {
@@ -676,10 +712,12 @@ func (m *GetBlockMessage) WriteTo(w io.Writer) (int64, error) {
 	return n, err
 }
 
+// BlockMessage represents Block message
 type BlockMessage struct {
 	BlockBytes []byte
 }
 
+// MarshalBinary encodes BlockMessage to binary form
 func (m *BlockMessage) MarshalBinary() ([]byte, error) {
 	var h header
 	h.Length = headerLength + uint32(len(m.BlockBytes)) - 4
@@ -700,6 +738,7 @@ func (m *BlockMessage) MarshalBinary() ([]byte, error) {
 	return hdr, nil
 }
 
+// UnmarshalBinary decodes BlockMessage from binary from
 func (m *BlockMessage) UnmarshalBinary(data []byte) error {
 	var h header
 	if err := h.UnmarshalBinary(data); err != nil {
@@ -717,6 +756,7 @@ func (m *BlockMessage) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
+// ReadFrom reads BlockMessage from io.Reader
 func (m *BlockMessage) ReadFrom(r io.Reader) (int64, error) {
 	packet, nn, err := readPacket(r)
 	if err != nil {
@@ -726,6 +766,7 @@ func (m *BlockMessage) ReadFrom(r io.Reader) (int64, error) {
 	return nn, m.UnmarshalBinary(packet)
 }
 
+// WriteTo writes BlockMessage to io.Writer
 func (m *BlockMessage) WriteTo(w io.Writer) (int64, error) {
 	buf, err := m.MarshalBinary()
 	if err != nil {
@@ -736,10 +777,12 @@ func (m *BlockMessage) WriteTo(w io.Writer) (int64, error) {
 	return n, err
 }
 
+// ScoreMessage represents Score message
 type ScoreMessage struct {
 	Score []byte
 }
 
+// MarshalBinary encodes ScoreMessage to binary form
 func (m *ScoreMessage) MarshalBinary() ([]byte, error) {
 	var h header
 	h.Length = headerLength + uint32(len(m.Score)) - 4
@@ -760,6 +803,7 @@ func (m *ScoreMessage) MarshalBinary() ([]byte, error) {
 	return hdr, nil
 }
 
+// UnmarshalBinary decodes ScoreMessage from binary form
 func (m *ScoreMessage) UnmarshalBinary(data []byte) error {
 	var h header
 	if err := h.UnmarshalBinary(data); err != nil {
@@ -777,6 +821,7 @@ func (m *ScoreMessage) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
+// ReadFrom reads ScoreMessage from io.Reader
 func (m *ScoreMessage) ReadFrom(r io.Reader) (int64, error) {
 	packet, nn, err := readPacket(r)
 	if err != nil {
@@ -785,6 +830,7 @@ func (m *ScoreMessage) ReadFrom(r io.Reader) (int64, error) {
 	return nn, m.UnmarshalBinary(packet)
 }
 
+// WriteTo writes ScoreMessage to io.Writer
 func (m *ScoreMessage) WriteTo(w io.Writer) (int64, error) {
 	buf, err := m.MarshalBinary()
 	if err != nil {
@@ -795,10 +841,12 @@ func (m *ScoreMessage) WriteTo(w io.Writer) (int64, error) {
 	return n, err
 }
 
+// TransactionMessage represents Transaction message
 type TransactionMessage struct {
 	Transaction []byte
 }
 
+// MarshalBinary encodes TransactionMessage to binary form
 func (m *TransactionMessage) MarshalBinary() ([]byte, error) {
 	var h header
 	h.Length = headerLength + uint32(len(m.Transaction)) - 4
@@ -819,6 +867,7 @@ func (m *TransactionMessage) MarshalBinary() ([]byte, error) {
 	return hdr, nil
 }
 
+// UnmarshalBinary decodes TransactionMessage from binary form
 func (m *TransactionMessage) UnmarshalBinary(data []byte) error {
 	var h header
 	if err := h.UnmarshalBinary(data); err != nil {
@@ -836,6 +885,7 @@ func (m *TransactionMessage) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
+// ReadFrom reads TransactionMessage from io.Reader
 func (m *TransactionMessage) ReadFrom(r io.Reader) (int64, error) {
 	packet, nn, err := readPacket(r)
 	if err != nil {
@@ -844,6 +894,7 @@ func (m *TransactionMessage) ReadFrom(r io.Reader) (int64, error) {
 	return nn, m.UnmarshalBinary(packet)
 }
 
+// WriteTo writes TransactionMessage to io.Writer
 func (m *TransactionMessage) WriteTo(w io.Writer) (int64, error) {
 	buf, err := m.MarshalBinary()
 	if err != nil {
@@ -854,15 +905,18 @@ func (m *TransactionMessage) WriteTo(w io.Writer) (int64, error) {
 	return n, err
 }
 
+// CheckpointItem represents a Checkpoint
 type CheckpointItem struct {
 	Height    uint64
 	Signature BlockSignature
 }
 
+// CheckPointMessage represents a CheckPoint message
 type CheckPointMessage struct {
 	Checkpoints []CheckpointItem
 }
 
+// MarshalBinary encodes CheckPointMessage to binary form
 func (m *CheckPointMessage) MarshalBinary() ([]byte, error) {
 	body := make([]byte, 4, 4+len(m.Checkpoints)*72+100)
 
@@ -895,6 +949,7 @@ func (m *CheckPointMessage) MarshalBinary() ([]byte, error) {
 
 }
 
+// UnmarshalBinary decodes CheckPointMessage from binary form
 func (m *CheckPointMessage) UnmarshalBinary(data []byte) error {
 	var h header
 	if err := h.UnmarshalBinary(data); err != nil {
@@ -926,6 +981,7 @@ func (m *CheckPointMessage) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
+// ReadFrom reads CheckPointMessage from io.Reader
 func (m *CheckPointMessage) ReadFrom(r io.Reader) (int64, error) {
 	packet, nn, err := readPacket(r)
 	if err != nil {
@@ -935,6 +991,7 @@ func (m *CheckPointMessage) ReadFrom(r io.Reader) (int64, error) {
 	return nn, m.UnmarshalBinary(packet)
 }
 
+// WriteTo writes CheckPointMessage to io.Writer
 func (m *CheckPointMessage) WriteTo(w io.Writer) (int64, error) {
 	buf, err := m.MarshalBinary()
 	if err != nil {
