@@ -5,6 +5,7 @@ import (
 	"encoding"
 	"encoding/hex"
 	"fmt"
+	"io"
 	"net"
 	"strings"
 	"testing"
@@ -13,6 +14,8 @@ import (
 type marshallable interface {
 	encoding.BinaryMarshaler
 	encoding.BinaryUnmarshaler
+	io.WriterTo
+	io.ReaderFrom
 }
 
 type comparable interface {
@@ -167,14 +170,6 @@ func (m *TransactionMessage) Equal(d comparable) bool {
 
 var tests = []protocolMarshallingTest{
 	{
-		&header{0x42, 0x42000000, 8, 0x666, [headerCsumLen]byte{0, 0, 0x9, 0x99}},
-		"0000004212345678080000066600000999",
-	},
-	{
-		&header{0x4200, 0x420000, 255, 0xaabbddee, [headerCsumLen]byte{0xde, 0xad, 0xbe, 0xef}},
-		"0000420012345678ffaabbddeedeadbeef",
-	},
-	{
 		&Handshake{"ab", 0x10, 0x3, 0x8, "dc", 0x701, []byte{10, 20}, 0x8000},
 		"0261620000001000000003000000080264630000000000000701000000020a140000000000008000",
 	},
@@ -264,12 +259,30 @@ func TestProtocolMarshalling(t *testing.T) {
 				t.Errorf("want: %s, have %s", v.testEncoded, strEncoded)
 			}
 
+			var writerBuffer bytes.Buffer
+			writer := io.Writer(&writerBuffer)
+
+			v.testMessage.WriteTo(writer)
+
+			if !bytes.Equal(writerBuffer.Bytes(), data) {
+				t.Errorf("failed to write message to writer")
+			}
+
+			v.testMessage.WriteTo(writer)
+
+			reader := io.Reader(&writerBuffer)
+
 			m := v.testMessage
 			if err = m.UnmarshalBinary(decoded); err != nil {
 				t.Errorf("failed to unmarshal: %s", err)
 			}
 			if !v.testMessage.Equal(m) {
 				t.Errorf("failed to correclty unmarshal message")
+			}
+
+			m.ReadFrom(reader)
+			if !v.testMessage.Equal(m) {
+				t.Errorf("failed to correctly read message from reader")
 			}
 		})
 	}
