@@ -70,12 +70,15 @@ func (h *header) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
+// Version represents the version of the protocol
+type Version struct {
+	Major, Minor, Patch uint32
+}
+
 // Handshake is the handshake structure of the waves protocol
 type Handshake struct {
 	Name              string
-	VersionMajor      uint32
-	VersionMinor      uint32
-	VersionPatch      uint32
+	Version           Version
 	NodeName          string
 	NodeNonce         uint64
 	DeclaredAddrBytes []byte
@@ -96,9 +99,9 @@ func (h *Handshake) marshalBinaryName() ([]byte, error) {
 func (h *Handshake) marshalBinaryVersion() ([]byte, error) {
 	data := make([]byte, 12)
 
-	binary.BigEndian.PutUint32(data[0:4], h.VersionMajor)
-	binary.BigEndian.PutUint32(data[4:8], h.VersionMinor)
-	binary.BigEndian.PutUint32(data[8:12], h.VersionPatch)
+	binary.BigEndian.PutUint32(data[0:4], h.Version.Major)
+	binary.BigEndian.PutUint32(data[4:8], h.Version.Minor)
+	binary.BigEndian.PutUint32(data[8:12], h.Version.Patch)
 
 	return data, nil
 }
@@ -167,9 +170,9 @@ func (h *Handshake) UnmarshalBinary(data []byte) error {
 	if len(data) < 13 {
 		return errors.New("data too short")
 	}
-	h.VersionMajor = binary.BigEndian.Uint32(data[0:4])
-	h.VersionMinor = binary.BigEndian.Uint32(data[4:8])
-	h.VersionPatch = binary.BigEndian.Uint32(data[8:12])
+	h.Version.Major = binary.BigEndian.Uint32(data[0:4])
+	h.Version.Minor = binary.BigEndian.Uint32(data[4:8])
+	h.Version.Patch = binary.BigEndian.Uint32(data[8:12])
 
 	nodeNameLen := data[12]
 	data = data[13:]
