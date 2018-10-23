@@ -1,11 +1,13 @@
 package proto
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"github.com/mr-tron/base58/base58"
 	"github.com/stretchr/testify/assert"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"strings"
 	"testing"
 	"time"
 )
@@ -186,6 +188,216 @@ func TestOrderToJSON(t *testing.T) {
 						assert.Equal(t, ej, string(j))
 					}
 				}
+			}
+		}
+	}
+}
+
+func TestIntegerDataEntryBinaryRoundTrip(t *testing.T) {
+	tests := []struct {
+		key   string
+		value int64
+	}{
+		{"some key", 12345},
+		{"negative value", -9876543210},
+		{"", 1234567890},
+		{"", 0},
+	}
+	for _, tc := range tests {
+		v := IntegerDataEntry{tc.key, tc.value}
+		if b, err := v.MarshalBinary(); assert.NoError(t, err) {
+			var av IntegerDataEntry
+			if err := av.UnmarshalBinary(b); assert.NoError(t, err) {
+				assert.Equal(t, tc.key, av.Key)
+				assert.Equal(t, tc.key, av.GetKey())
+				assert.Equal(t, tc.value, av.Value)
+				assert.Equal(t, Integer, av.GetValueType())
+			}
+		}
+	}
+}
+
+func TestIntegerDataEntryJSONRoundTrip(t *testing.T) {
+	tests := []struct {
+		key   string
+		value int64
+	}{
+		{"some key", 12345},
+		{"negative value", -9876543210},
+		{"", 1234567890},
+		{"", 0},
+	}
+	for _, tc := range tests {
+		v := IntegerDataEntry{tc.key, tc.value}
+		if b, err := v.MarshalJSON(); assert.NoError(t, err) {
+			js := string(b)
+			ejs := fmt.Sprintf("{\"key\":\"%s\",\"type\":\"integer\",\"value\":%d}", tc.key, tc.value)
+			assert.Equal(t, ejs, js)
+			var av IntegerDataEntry
+			if err := av.UnmarshalJSON(b); assert.NoError(t, err) {
+				assert.Equal(t, tc.key, av.Key)
+				assert.Equal(t, tc.key, av.GetKey())
+				assert.Equal(t, tc.value, av.Value)
+				assert.Equal(t, Integer, av.GetValueType())
+			}
+		}
+	}
+}
+
+func TestBooleanDataEntryBinaryRoundTrip(t *testing.T) {
+	tests := []struct {
+		key   string
+		value bool
+	}{
+		{"some key", true},
+		{"negative value", false},
+		{"", true},
+		{"", false},
+	}
+	for _, tc := range tests {
+		v := BooleanDataEntry{tc.key, tc.value}
+		if b, err := v.MarshalBinary(); assert.NoError(t, err) {
+			var av BooleanDataEntry
+			if err := av.UnmarshalBinary(b); assert.NoError(t, err) {
+				assert.Equal(t, tc.key, av.Key)
+				assert.Equal(t, tc.key, av.GetKey())
+				assert.Equal(t, tc.value, av.Value)
+				assert.Equal(t, Boolean, av.GetValueType())
+			}
+		}
+	}
+}
+
+func TestBooleanDataEntryJSONRoundTrip(t *testing.T) {
+	tests := []struct {
+		key   string
+		value bool
+	}{
+		{"some key", true},
+		{"negative value", false},
+		{"", true},
+		{"", false},
+	}
+	for _, tc := range tests {
+		v := BooleanDataEntry{tc.key, tc.value}
+		if b, err := v.MarshalJSON(); assert.NoError(t, err) {
+			js := string(b)
+			ejs := fmt.Sprintf("{\"key\":\"%s\",\"type\":\"boolean\",\"value\":%v}", tc.key, tc.value)
+			assert.Equal(t, ejs, js)
+			var av BooleanDataEntry
+			if err := av.UnmarshalJSON(b); assert.NoError(t, err) {
+				assert.Equal(t, tc.key, av.Key)
+				assert.Equal(t, tc.key, av.GetKey())
+				assert.Equal(t, tc.value, av.Value)
+				assert.Equal(t, Boolean, av.GetValueType())
+			}
+		}
+	}
+}
+
+func TestBinaryDataEntryBinaryRoundTrip(t *testing.T) {
+	tests := []struct {
+		key   string
+		value string
+	}{
+		{"some key", "3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc"},
+		{"empty value", ""},
+		{"", ""},
+	}
+	for _, tc := range tests {
+		bv, _ := base58.Decode(tc.value)
+		v := BinaryDataEntry{tc.key, bv}
+		if b, err := v.MarshalBinary(); assert.NoError(t, err) {
+			var av BinaryDataEntry
+			if err := av.UnmarshalBinary(b); assert.NoError(t, err) {
+				assert.Equal(t, tc.key, av.Key)
+				assert.Equal(t, tc.key, av.GetKey())
+				assert.ElementsMatch(t, bv, av.Value)
+				assert.Equal(t, Binary, av.GetValueType())
+			}
+		}
+	}
+}
+
+func TestBinaryDataEntryJSONRoundTrip(t *testing.T) {
+	tests := []struct {
+		key   string
+		value string
+	}{
+		{"some key", "3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc"},
+		{"empty value", ""},
+		{"", ""},
+	}
+	for _, tc := range tests {
+		bv, _ := base58.Decode(tc.value)
+		v := BinaryDataEntry{tc.key, bv}
+		if b, err := v.MarshalJSON(); assert.NoError(t, err) {
+			js := string(b)
+			var s string
+			if len(bv) == 0 {
+				s = "null"
+			} else {
+				s = fmt.Sprintf("\"%s\"", base64.StdEncoding.EncodeToString(bv))
+			}
+			ejs := fmt.Sprintf("{\"key\":\"%s\",\"type\":\"binary\",\"value\":%s}", tc.key, s)
+			assert.Equal(t, ejs, js)
+			var av BinaryDataEntry
+			if err := av.UnmarshalJSON(b); assert.NoError(t, err) {
+				assert.Equal(t, tc.key, av.Key)
+				assert.Equal(t, tc.key, av.GetKey())
+				assert.ElementsMatch(t, bv, av.Value)
+				assert.Equal(t, Binary, av.GetValueType())
+			}
+		}
+	}
+}
+
+func TestStringDataEntryBinaryRoundTrip(t *testing.T) {
+	tests := []struct {
+		key   string
+		value string
+	}{
+		{"some key", "some value string"},
+		{"empty value", ""},
+		{"", ""},
+		{strings.Repeat("key-", 10), strings.Repeat("value-", 100)},
+	}
+	for _, tc := range tests {
+		v := StringDataEntry{tc.key, tc.value}
+		if b, err := v.MarshalBinary(); assert.NoError(t, err) {
+			var av StringDataEntry
+			if err := av.UnmarshalBinary(b); assert.NoError(t, err) {
+				assert.Equal(t, tc.key, av.Key)
+				assert.Equal(t, tc.key, av.GetKey())
+				assert.Equal(t, tc.value, av.Value)
+				assert.Equal(t, String, av.GetValueType())
+			}
+		}
+	}
+}
+
+func TestStringDataEntryJSONRoundTrip(t *testing.T) {
+	tests := []struct {
+		key   string
+		value string
+	}{
+		{"some key", "some value string"},
+		{"empty value", ""},
+		{"", ""},
+		{strings.Repeat("key-", 10), strings.Repeat("value-", 100)},
+	}
+	for _, tc := range tests {
+		v := StringDataEntry{tc.key, tc.value}
+		if b, err := v.MarshalJSON(); assert.NoError(t, err) {
+			js := string(b)
+			ejs := fmt.Sprintf("{\"key\":\"%s\",\"type\":\"string\",\"value\":\"%s\"}", tc.key, tc.value)
+			assert.Equal(t, ejs, js)
+			var av StringDataEntry
+			if err := av.UnmarshalJSON(b); assert.NoError(t, err) {
+				assert.Equal(t, tc.key, av.Key)
+				assert.Equal(t, tc.key, av.GetKey())
+				assert.Equal(t, tc.value, av.Value)
+				assert.Equal(t, String, av.GetValueType())
 			}
 		}
 	}
