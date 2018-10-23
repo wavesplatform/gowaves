@@ -4,12 +4,16 @@ import (
 	"context"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/wavesplatform/gowaves/pkg/proto"
 	"os"
+
+	//"os"
 	"testing"
 )
 
 func TestAddresses_BalanceDetails(t *testing.T) {
-	address := "3P7qLRU2EZ1BfU3gt2jv6enrEiJ1gQbaWVL"
+	address, err := proto.NewAddressFromString("3P7qLRU2EZ1BfU3gt2jv6enrEiJ1gQbaWVL")
+	require.Nil(t, err)
 	client, err := NewClient()
 	require.Nil(t, err)
 	body, resp, err :=
@@ -18,18 +22,11 @@ func TestAddresses_BalanceDetails(t *testing.T) {
 	assert.NotNil(t, resp)
 	assert.Equal(t, address, body.Address)
 	assert.IsType(t, &AddressesBalanceDetails{}, body)
-
-	bad, err := NewClient()
-	require.Nil(t, err)
-	body, resp, err =
-		bad.Addresses.BalanceDetails(context.Background(), "3P7qLRU2EZ1BfU3gt2jv6enrE++1gQbaWVL")
-	assert.NotNil(t, err)
-	assert.Equal(t, 400, resp.StatusCode)
-	assert.Nil(t, body)
 }
 
 func TestAddresses_ScriptInfo(t *testing.T) {
-	address := "3P7qLRU2EZ1BfU3gt2jv6enrEiJ1gQbaWVL"
+	address, err := proto.NewAddressFromString("3P7qLRU2EZ1BfU3gt2jv6enrEiJ1gQbaWVL")
+	require.Nil(t, err)
 	client, err := NewClient()
 	require.Nil(t, err)
 	body, resp, err :=
@@ -48,12 +45,12 @@ func TestAddresses_Addresses(t *testing.T) {
 
 	assert.Nil(t, err)
 	assert.NotNil(t, resp)
-	assert.IsType(t, []string{}, body)
-
+	assert.IsType(t, []proto.Address{}, body)
 }
 
 func TestAddresses_Validate(t *testing.T) {
-	address := "3P3oWUH9oXRqiByBG7g9hYSDpCFxcT2wTBS"
+	address, err := proto.NewAddressFromString("3P3oWUH9oXRqiByBG7g9hYSDpCFxcT2wTBS")
+	require.Nil(t, err)
 	client, err := NewClient()
 	require.Nil(t, err)
 	body, resp, err :=
@@ -68,7 +65,8 @@ func TestAddresses_Validate(t *testing.T) {
 }
 
 func TestAddresses_Balance(t *testing.T) {
-	address := "3P3oWUH9oXRqiByBG7g9hYSDpCFxcT2wTBS"
+	address, err := proto.NewAddressFromString("3P3oWUH9oXRqiByBG7g9hYSDpCFxcT2wTBS")
+	require.Nil(t, err)
 	client, err := NewClient()
 	require.Nil(t, err)
 	body, resp, err :=
@@ -80,13 +78,14 @@ func TestAddresses_Balance(t *testing.T) {
 }
 
 func TestAddresses_EffectiveBalance(t *testing.T) {
-	address := "3P3oWUH9oXRqiByBG7g9hYSDpCFxcT2wTBS"
+	address, err := proto.NewAddressFromString("3P3oWUH9oXRqiByBG7g9hYSDpCFxcT2wTBS")
+	require.Nil(t, err)
 	client, err := NewClient()
 	require.Nil(t, err)
 	body, resp, err :=
 		client.Addresses.EffectiveBalance(context.Background(), address)
 
-	assert.Nil(t, err)
+	require.Nil(t, err)
 	assert.NotNil(t, resp)
 	assert.IsType(t, &AddressesEffectiveBalance{}, body)
 	assert.Equal(t, address, body.Address)
@@ -99,9 +98,11 @@ func TestAddresses_PublicKey(t *testing.T) {
 	body, resp, err :=
 		client.Addresses.PublicKey(context.Background(), pubKey)
 
-	assert.Nil(t, err)
+	require.Nil(t, err)
 	assert.NotNil(t, resp)
-	assert.Equal(t, &AddressesPublicKey{Address: "3P46PcNRyyf5372U9W9udzy8wHMrfgTxdqT"}, body)
+	address, err := proto.NewAddressFromString("3P46PcNRyyf5372U9W9udzy8wHMrfgTxdqT")
+	require.Nil(t, err)
+	assert.Equal(t, &AddressesPublicKey{Address: address}, body)
 }
 
 func TestAddresses_SignText(t *testing.T) {
@@ -111,11 +112,13 @@ func TestAddresses_SignText(t *testing.T) {
 		return
 	}
 
+	address, err := proto.NewAddressFromString("3MzemqBzJ9h844PparHU1EzGC5SQmtH5pNp")
+	require.Nil(t, err)
 	text := "some-text"
 	client, err := NewClient(Options{BaseUrl: "https://testnode1.wavesnodes.com", ApiKey: apiKey})
 	require.Nil(t, err)
 	body, resp, err :=
-		client.Addresses.SignText(context.Background(), "3MzemqBzJ9h844PparHU1EzGC5SQmtH5pNp", text)
+		client.Addresses.SignText(context.Background(), address, text)
 
 	require.Nil(t, err)
 	assert.NotNil(t, resp)
@@ -130,6 +133,9 @@ func TestAddresses_VerifyText(t *testing.T) {
 		return
 	}
 
+	address, err := proto.NewAddressFromString("3MzemqBzJ9h844PparHU1EzGC5SQmtH5pNp")
+	require.Nil(t, err)
+
 	data := VerifyTextReq{
 		Message:   "text",
 		PublicKey: "J26nL27BBmTgCRye1MdzkFduFDE2aA4agCcuJUyDR2sZ",
@@ -138,7 +144,7 @@ func TestAddresses_VerifyText(t *testing.T) {
 
 	client, err := NewClient(Options{BaseUrl: "https://testnode1.wavesnodes.com", ApiKey: apiKey})
 	body, resp, err :=
-		client.Addresses.VerifyText(context.Background(), "3MzemqBzJ9h844PparHU1EzGC5SQmtH5pNp", data)
+		client.Addresses.VerifyText(context.Background(), address, data)
 
 	require.Nil(t, err)
 	assert.NotNil(t, resp)
@@ -146,12 +152,13 @@ func TestAddresses_VerifyText(t *testing.T) {
 }
 
 func TestAddresses_BalanceAfterConfirmations(t *testing.T) {
-	address := "3MzemqBzJ9h844PparHU1EzGC5SQmtH5pNp"
+	address, err := proto.NewAddressFromString("3MzemqBzJ9h844PparHU1EzGC5SQmtH5pNp")
+	require.Nil(t, err)
 	confirmations := uint64(1)
 
 	client, err := NewClient(Options{BaseUrl: "https://testnode1.wavesnodes.com"})
 	body, resp, err :=
-		client.Addresses.BalanceAfterConfirmations(context.Background(), "3MzemqBzJ9h844PparHU1EzGC5SQmtH5pNp", confirmations)
+		client.Addresses.BalanceAfterConfirmations(context.Background(), address, confirmations)
 
 	require.Nil(t, err)
 	assert.NotNil(t, resp)

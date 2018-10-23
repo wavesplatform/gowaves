@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/wavesplatform/gowaves/pkg/proto"
 	"net/http"
 	"strings"
 )
@@ -20,15 +21,15 @@ func NewAddresses(options Options) *Addresses {
 }
 
 type AddressesBalance struct {
-	Address       string `json:"address"`
-	Confirmations uint64 `json:"confirmations"`
-	Balance       uint64 `json:"balance"`
+	Address       proto.Address `json:"address"`
+	Confirmations uint64        `json:"confirmations"`
+	Balance       uint64        `json:"balance"`
 }
 
-func (a *Addresses) Balance(ctx context.Context, address string) (*AddressesBalance, *Response, error) {
+func (a *Addresses) Balance(ctx context.Context, address proto.Address) (*AddressesBalance, *Response, error) {
 	req, err := http.NewRequest(
 		"GET",
-		fmt.Sprintf("%s/addresses/balance/%s", a.options.BaseUrl, address),
+		fmt.Sprintf("%s/addresses/balance/%s", a.options.BaseUrl, address.String()),
 		nil)
 	if err != nil {
 		return nil, nil, err
@@ -44,17 +45,17 @@ func (a *Addresses) Balance(ctx context.Context, address string) (*AddressesBala
 }
 
 type AddressesBalanceDetails struct {
-	Address    string `json:"address"`
-	Regular    uint64 `json:"regular"`
-	Generating uint64 `json:"generating"`
-	Available  uint64 `json:"available"`
-	Effective  uint64 `json:"effective"`
+	Address    proto.Address `json:"address"`
+	Regular    uint64        `json:"regular"`
+	Generating uint64        `json:"generating"`
+	Available  uint64        `json:"available"`
+	Effective  uint64        `json:"effective"`
 }
 
-func (a *Addresses) BalanceDetails(ctx context.Context, address string) (*AddressesBalanceDetails, *Response, error) {
+func (a *Addresses) BalanceDetails(ctx context.Context, address proto.Address) (*AddressesBalanceDetails, *Response, error) {
 	req, err := http.NewRequest(
 		"GET",
-		fmt.Sprintf("%s/addresses/balance/details/%s", a.options.BaseUrl, address),
+		fmt.Sprintf("%s/addresses/balance/details/%s", a.options.BaseUrl, address.String()),
 		nil)
 	if err != nil {
 		return nil, nil, err
@@ -70,15 +71,15 @@ func (a *Addresses) BalanceDetails(ctx context.Context, address string) (*Addres
 }
 
 type AddressesScriptInfo struct {
-	Address    string `json:"address"`
-	Complexity uint64 `json:"complexity"`
-	ExtraFee   uint64 `json:"extra_fee"`
+	Address    proto.Address `json:"address"`
+	Complexity uint64        `json:"complexity"`
+	ExtraFee   uint64        `json:"extra_fee"`
 }
 
-func (a *Addresses) ScriptInfo(ctx context.Context, address string) (*AddressesScriptInfo, *Response, error) {
+func (a *Addresses) ScriptInfo(ctx context.Context, address proto.Address) (*AddressesScriptInfo, *Response, error) {
 	req, err := http.NewRequest(
 		"GET",
-		fmt.Sprintf("%s/addresses/scriptInfo/%s", a.options.BaseUrl, address),
+		fmt.Sprintf("%s/addresses/scriptInfo/%s", a.options.BaseUrl, address.String()),
 		nil)
 	if err != nil {
 		return nil, nil, err
@@ -93,7 +94,7 @@ func (a *Addresses) ScriptInfo(ctx context.Context, address string) (*AddressesS
 	return out, response, nil
 }
 
-func (a *Addresses) Addresses(ctx context.Context) ([]string, *Response, error) {
+func (a *Addresses) Addresses(ctx context.Context) ([]proto.Address, *Response, error) {
 	req, err := http.NewRequest(
 		"GET",
 		fmt.Sprintf("%s/addresses", a.options.BaseUrl),
@@ -102,7 +103,7 @@ func (a *Addresses) Addresses(ctx context.Context) ([]string, *Response, error) 
 		return nil, nil, err
 	}
 
-	var out []string
+	var out []proto.Address
 	response, err := doHttp(ctx, a.options, req, &out)
 	if err != nil {
 		return nil, response, err
@@ -112,14 +113,14 @@ func (a *Addresses) Addresses(ctx context.Context) ([]string, *Response, error) 
 }
 
 type AddressesValidate struct {
-	Address string `json:"address"`
-	Valid   bool   `json:"valid"`
+	Address proto.Address `json:"address"`
+	Valid   bool          `json:"valid"`
 }
 
-func (a *Addresses) Validate(ctx context.Context, address string) (*AddressesValidate, *Response, error) {
+func (a *Addresses) Validate(ctx context.Context, address proto.Address) (*AddressesValidate, *Response, error) {
 	req, err := http.NewRequest(
 		"GET",
-		fmt.Sprintf("%s/addresses/validate/%s", a.options.BaseUrl, address),
+		fmt.Sprintf("%s/addresses/validate/%s", a.options.BaseUrl, address.String()),
 		nil)
 	if err != nil {
 		return nil, nil, err
@@ -135,15 +136,15 @@ func (a *Addresses) Validate(ctx context.Context, address string) (*AddressesVal
 }
 
 type AddressesEffectiveBalance struct {
-	Address       string `json:"address"`
-	Confirmations uint64 `json:"confirmations"`
-	Balance       uint64 `json:"balance"`
+	Address       proto.Address `json:"address"`
+	Confirmations uint64        `json:"confirmations"`
+	Balance       uint64        `json:"balance"`
 }
 
-func (a *Addresses) EffectiveBalance(ctx context.Context, address string) (*AddressesEffectiveBalance, *Response, error) {
+func (a *Addresses) EffectiveBalance(ctx context.Context, address proto.Address) (*AddressesEffectiveBalance, *Response, error) {
 	req, err := http.NewRequest(
 		"GET",
-		fmt.Sprintf("%s/addresses/effectiveBalance/%s", a.options.BaseUrl, address),
+		fmt.Sprintf("%s/addresses/effectiveBalance/%s", a.options.BaseUrl, address.String()),
 		nil)
 	if err != nil {
 		return nil, nil, err
@@ -159,7 +160,7 @@ func (a *Addresses) EffectiveBalance(ctx context.Context, address string) (*Addr
 }
 
 type AddressesPublicKey struct {
-	Address string `json:"address"`
+	Address proto.Address `json:"address"`
 }
 
 func (a *Addresses) PublicKey(ctx context.Context, publicKey string) (*AddressesPublicKey, *Response, error) {
@@ -186,14 +187,14 @@ type AddressesSignText struct {
 	Signature string `json:"signature"`
 }
 
-func (a *Addresses) SignText(ctx context.Context, address string, message string) (*AddressesSignText, *Response, error) {
+func (a *Addresses) SignText(ctx context.Context, address proto.Address, message string) (*AddressesSignText, *Response, error) {
 	if a.options.ApiKey == "" {
 		return nil, nil, NoApiKeyError
 	}
 
 	req, err := http.NewRequest(
 		"POST",
-		fmt.Sprintf("%s/addresses/signText/%s", a.options.BaseUrl, address),
+		fmt.Sprintf("%s/addresses/signText/%s", a.options.BaseUrl, address.String()),
 		strings.NewReader(message))
 	if err != nil {
 		return nil, nil, err
@@ -220,7 +221,7 @@ type VerifyTextReq struct {
 	Signature string `json:"signature"`
 }
 
-func (a *Addresses) VerifyText(ctx context.Context, address string, body VerifyTextReq) (bool, *Response, error) {
+func (a *Addresses) VerifyText(ctx context.Context, address proto.Address, body VerifyTextReq) (bool, *Response, error) {
 	if a.options.ApiKey == "" {
 		return false, nil, NoApiKeyError
 	}
@@ -232,7 +233,7 @@ func (a *Addresses) VerifyText(ctx context.Context, address string, body VerifyT
 
 	req, err := http.NewRequest(
 		"POST",
-		fmt.Sprintf("%s/addresses/verifyText/%s", a.options.BaseUrl, address),
+		fmt.Sprintf("%s/addresses/verifyText/%s", a.options.BaseUrl, address.String()),
 		bytes.NewReader(bodyBytes))
 	if err != nil {
 		return false, nil, err
@@ -251,17 +252,17 @@ func (a *Addresses) VerifyText(ctx context.Context, address string, body VerifyT
 }
 
 type BalanceAfterConfirmations struct {
-	Address       string `json:"address"`
-	Confirmations uint64 `json:"confirmations"`
-	Balance       uint64 `json:"balance"`
+	Address       proto.Address `json:"address"`
+	Confirmations uint64        `json:"confirmations"`
+	Balance       uint64        `json:"balance"`
 }
 
 func (a *Addresses) BalanceAfterConfirmations(
-	ctx context.Context, address string, confirmations uint64) (*BalanceAfterConfirmations, *Response, error) {
+	ctx context.Context, address proto.Address, confirmations uint64) (*BalanceAfterConfirmations, *Response, error) {
 
 	req, err := http.NewRequest(
 		"GET",
-		fmt.Sprintf("%s/addresses/balance/%s/%d", a.options.BaseUrl, address, confirmations),
+		fmt.Sprintf("%s/addresses/balance/%s/%d", a.options.BaseUrl, address.String(), confirmations),
 		nil)
 	if err != nil {
 		return nil, nil, err
