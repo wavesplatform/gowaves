@@ -2,14 +2,19 @@ package server
 
 import (
 	"bufio"
+	"context"
 	"encoding/binary"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"io"
 	"net"
 	"time"
 
-	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
+
+	"github.com/wavesplatform/gowaves/pkg/p2p"
+	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
 type Server struct {
@@ -20,35 +25,64 @@ type Server struct {
 func handleRequest(conn net.Conn) {
 }
 
-func handleClient(conn net.Conn) {
-	handshake := proto.Handshake{Name: "wavesT",
-		VersionMajor:      0x0,
-		VersionMinor:      0xe,
-		VersionPatch:      0x4,
-		NodeName:          "gowaves",
-		NodeNonce:         0x0,
-		DeclaredAddrBytes: []byte{},
-		Timestamp:         uint64(time.Now().Unix())}
+func dialContext(ctx context.Context, network, addr string) (net.Conn, error) {
+	var major, minor, patch uint32
+	minor = 5
 
-	_, err := handshake.WriteTo(conn)
+	dialer := net.Dialer{}
+
+	for i := 0; i < 20; i++ {
+		patch = uint32(i)
+		time.Sleep(20 * time.Second)
+		conn, err := dialer.DialContext(ctx, network, addr)
+		if err != nil {
+			continue
+		}
+
+		fmt.Printf("Trying to connect with version %v %v %v", major, minor, patch)
+		handshake := proto.Handshake{Name: "wavesT",
+			Version:           proto.Version{Major: major, Minor: minor, Patch: patch},
+			NodeName:          "gowaves",
+			NodeNonce:         0x0,
+			DeclaredAddrBytes: []byte{},
+			Timestamp:         uint64(time.Now().Unix())}
+
+		_, err = handshake.WriteTo(conn)
+		if err != nil {
+			zap.S().Error("failed to send handshake: ", err)
+			continue
+		}
+		_, err = handshake.ReadFrom(conn)
+		if err != nil {
+			zap.S().Error("failed to read handshake: ", err)
+			continue
+		}
+
+		var b []byte
+		b, e := json.Marshal(handshake)
+		if e != nil {
+			return nil, err
+		}
+		js := string(b)
+		zap.S().Info("received handshake: ", js)
+
+		return conn, nil
+	}
+	return nil, errors.New("TODO")
+}
+
+func handleClient(peer string) {
+	customTransport := p2p.Transport{DialContext: dialContext}
+	conn, _ := p2p.NewConn(
+		p2p.WithVersion(proto.Version{Major: 0, Minor: 5, Patch: 14}),
+		p2p.WithTransport(&customTransport),
+		p2p.WithRemote("tcp", peer),
+	)
+	err := conn.DialContext(context.Background(), "tcp", peer)
 	if err != nil {
-		zap.S().Error("failed to send handshake: ", err)
+		zap.S().Error("error while dialing: ", err)
 		return
 	}
-	_, err = handshake.ReadFrom(conn)
-	if err != nil {
-		zap.S().Error("failed to read handshake: ", err)
-		return
-	}
-
-	var b []byte
-	b, e := json.Marshal(handshake)
-	if e != nil {
-		return
-	}
-	js := string(b)
-	zap.S().Info("received handshake: ", js)
-
 	bufConnW := bufio.NewWriter(conn)
 	bufConn := bufio.NewReader(conn)
 
@@ -130,13 +164,9 @@ func (m *Server) Run() {
 }
 
 func (m *Server) RunClients() {
-	for _, peer := range m.BootPeerAddrs {
-		conn, err := net.Dial("tcp", peer)
-		if err != nil {
-			zap.S().Error("failed to connect to peer: ", err)
-			continue
-		}
 
-		go handleClient(conn)
+	for _, peer := range m.BootPeerAddrs {
+
+		go handleClient(peer)
 	}
 }
