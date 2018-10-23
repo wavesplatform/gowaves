@@ -6,6 +6,7 @@ import (
 	"github.com/mr-tron/base58/base58"
 	"github.com/stretchr/testify/assert"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -504,9 +505,9 @@ func TestReissueV1BinaryRoundTrip(t *testing.T) {
 					assert.Equal(t, pk, atx.SenderPK)
 					assert.Equal(t, aid, atx.AssetId)
 					assert.Equal(t, tc.quantity, atx.Quantity)
-					assert.Equal(t, tc.reissuable, tx.Reissuable)
-					assert.Equal(t, tc.fee, tx.Fee)
-					assert.Equal(t, ts, tx.Timestamp)
+					assert.Equal(t, tc.reissuable, atx.Reissuable)
+					assert.Equal(t, tc.fee, atx.Fee)
+					assert.Equal(t, ts, atx.Timestamp)
 				}
 			}
 		}
@@ -620,8 +621,8 @@ func TestBurnV1BinaryRoundTrip(t *testing.T) {
 					assert.Equal(t, pk, atx.SenderPK)
 					assert.Equal(t, aid, atx.AssetId)
 					assert.Equal(t, tc.amount, atx.Amount)
-					assert.Equal(t, tc.fee, tx.Fee)
-					assert.Equal(t, ts, tx.Timestamp)
+					assert.Equal(t, tc.fee, atx.Fee)
+					assert.Equal(t, ts, atx.Timestamp)
 				}
 			}
 		}
@@ -829,8 +830,8 @@ func TestExchangeV1BinaryRoundTrip(t *testing.T) {
 					assert.Equal(t, tc.amount, atx.Amount)
 					assert.Equal(t, tc.buyFee, atx.BuyMatcherFee)
 					assert.Equal(t, tc.sellFee, atx.SellMatcherFee)
-					assert.Equal(t, tc.fee, tx.Fee)
-					assert.Equal(t, ts, tx.Timestamp)
+					assert.Equal(t, tc.fee, atx.Fee)
+					assert.Equal(t, ts, atx.Timestamp)
 				}
 			}
 		}
@@ -974,8 +975,8 @@ func TestLeaseV1BinaryRoundTrip(t *testing.T) {
 					assert.Equal(t, pk, atx.SenderPK)
 					assert.Equal(t, a, atx.Recipient)
 					assert.Equal(t, tc.amount, atx.Amount)
-					assert.Equal(t, tc.fee, tx.Fee)
-					assert.Equal(t, ts, tx.Timestamp)
+					assert.Equal(t, tc.fee, atx.Fee)
+					assert.Equal(t, ts, atx.Timestamp)
 				}
 			}
 		}
@@ -1091,8 +1092,8 @@ func TestLeaseCancelV1BinaryRoundTrip(t *testing.T) {
 					assert.Equal(t, tx.Signature, atx.Signature)
 					assert.Equal(t, pk, atx.SenderPK)
 					assert.Equal(t, l, atx.LeaseID)
-					assert.Equal(t, tc.fee, tx.Fee)
-					assert.Equal(t, ts, tx.Timestamp)
+					assert.Equal(t, tc.fee, atx.Fee)
+					assert.Equal(t, ts, atx.Timestamp)
 				}
 			}
 		}
@@ -1210,8 +1211,8 @@ func TestCreateAliasV1BinaryRoundTrip(t *testing.T) {
 					assert.Equal(t, pk, atx.SenderPK)
 					assert.Equal(t, tc.scheme, atx.Alias.Scheme)
 					assert.Equal(t, tc.alias, atx.Alias.Alias)
-					assert.Equal(t, tc.fee, tx.Fee)
-					assert.Equal(t, ts, tx.Timestamp)
+					assert.Equal(t, tc.fee, atx.Fee)
+					assert.Equal(t, ts, atx.Timestamp)
 				}
 			}
 		}
@@ -1239,6 +1240,167 @@ func TestCreateAliasV1ToJSON(t *testing.T) {
 				if err := tx.Sign(sk); assert.NoError(t, err) {
 					if sj, err := json.Marshal(tx); assert.NoError(t, err) {
 						esj := fmt.Sprintf("{\"type\":10,\"version\":1,\"id\":\"%s\",\"signature\":\"%s\",\"senderPublicKey\":\"%s\",\"alias\":\"%s\",\"fee\":%d,\"timestamp\":%d}", base58.Encode(tx.ID[:]), base58.Encode(tx.Signature[:]), base58.Encode(pk[:]), a.String(), tc.fee, ts)
+						assert.Equal(t, esj, string(sj))
+					}
+				}
+			}
+		}
+	}
+}
+
+func TestMassTransferV1Validations(t *testing.T) {
+	addr, _ := NewAddressFromString("3PB1Y84BGdEXE4HKaExyJ5cHP36nEw8ovaE")
+	tests := []struct {
+		asset      string
+		transfers  []MassTransferEntry
+		fee        uint64
+		attachment string
+		err        string
+	}{
+		{"HmNSH2g1SWYHzuX1G4VCjL63TFs7PXDjsTAHzrAhSRCK", []MassTransferEntry{{addr, 100}}, 0, "", "fee should be positive"},
+		{"HmNSH2g1SWYHzuX1G4VCjL63TFs7PXDjsTAHzrAhSRCK", []MassTransferEntry{}, 10, "", "empty transfers"},
+		{"HmNSH2g1SWYHzuX1G4VCjL63TFs7PXDjsTAHzrAhSRCK", []MassTransferEntry{{addr, 0}, {addr, 20}}, 20, "", "at least one of the transfers has non-positive amount"},
+		{"HmNSH2g1SWYHzuX1G4VCjL63TFs7PXDjsTAHzrAhSRCK", []MassTransferEntry{{addr, 10}, {addr, 20}}, 30, strings.Repeat("blah-blah", 30), "attachment too long"},
+	}
+	for _, tc := range tests {
+		spk, _ := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
+		a, _ := NewOptionalAssetFromString(tc.asset)
+		_, err := NewUnsignedMassTransferV1(spk, *a, tc.transfers, tc.fee, 0, tc.attachment)
+		assert.EqualError(t, err, tc.err)
+	}
+}
+
+func TestMassTransferV1FromMainNet(t *testing.T) {
+	tests := []struct {
+		pk         string
+		sig        string
+		id         string
+		asset      string
+		addresses  []string
+		amounts    []uint64
+		fee        uint64
+		timestamp  uint64
+		attachment string
+	}{
+		{"CZtGUoC8hcE4xYsDNGNfzzbhn2Kg67AJdQ9LuMmyYkvr", "4xDmcaiEm7CcsHu6TLaWXEpN5G1sy5Bf4hTHEZXkwRZYZb1wcDCb1c2oN9pbco2g2oLjY2q9bLGwvMn2KWH3tnDg", "HmNSH2g1SWYHzuX1G4VCjL63TFs7PXDjsTAHzrAhSRCK", "34mkLgLeX6XDsqcafaNWNraQrLUiyGN8vP6TPLuyNKMs", []string{"3PB1Y84BGdEXE4HKaExyJ5cHP36nEw8ovaE", "3PCDiutJwRATXKhFHmadqVVVVA8WS81Sdgn", "3PJcqT9Avo2nf5fQG5FsSMSMyP9ZZhzExAk"}, []uint64{2, 2, 2}, 300000, 1537873402548, ""},
+	}
+	for _, tc := range tests {
+		spk, _ := crypto.NewPublicKeyFromBase58(tc.pk)
+		id, _ := crypto.NewDigestFromBase58(tc.id)
+		sig, _ := crypto.NewSignatureFromBase58(tc.sig)
+		a, _ := NewOptionalAssetFromString(tc.asset)
+		transfers := make([]MassTransferEntry, len(tc.addresses))
+		for i, as := range tc.addresses {
+			addr, _ := NewAddressFromString(as)
+			amount := tc.amounts[i]
+			transfers[i] = MassTransferEntry{addr, amount}
+		}
+		if tx, err := NewUnsignedMassTransferV1(spk, *a, transfers, tc.fee, tc.timestamp, tc.attachment); assert.NoError(t, err) {
+			if b, err := tx.bodyMarshalBinary(); assert.NoError(t, err) {
+				if h, err := crypto.FastHash(b); assert.NoError(t, err) {
+					assert.Equal(t, id, h)
+				}
+				assert.True(t, crypto.Verify(spk, sig, b))
+			}
+		}
+	}
+}
+
+func TestMassTransferV1BinaryRoundTrip(t *testing.T) {
+	addr, _ := NewAddressFromString("3PB1Y84BGdEXE4HKaExyJ5cHP36nEw8ovaE")
+	tests := []struct {
+		asset      string
+		transfers  []MassTransferEntry
+		fee        uint64
+		attachment string
+	}{
+		{"HmNSH2g1SWYHzuX1G4VCjL63TFs7PXDjsTAHzrAhSRCK", []MassTransferEntry{{addr, 9876543210}}, 1234567890, "this is the attachment"},
+		{"HmNSH2g1SWYHzuX1G4VCjL63TFs7PXDjsTAHzrAhSRCK", []MassTransferEntry{{addr, 12345}, {addr, 67890}}, 987654321, ""},
+		{"WAVES", []MassTransferEntry{{addr, 12345}, {addr, 67890}}, 987654321, ""},
+	}
+	seed, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
+	sk, pk := crypto.GenerateKeyPair(seed)
+	for _, tc := range tests {
+		ts := uint64(time.Now().UnixNano() / 1000000)
+		a, _ := NewOptionalAssetFromString(tc.asset)
+		if tx, err := NewUnsignedMassTransferV1(pk, *a, tc.transfers, tc.fee, ts, tc.attachment); assert.NoError(t, err) {
+			if bb, err := tx.bodyMarshalBinary(); assert.NoError(t, err) {
+				var atx MassTransferV1
+				if err := atx.bodyUnmarshalBinary(bb); assert.NoError(t, err) {
+					assert.Equal(t, tx.Type, atx.Type)
+					assert.Equal(t, tx.Version, atx.Version)
+					assert.Equal(t, tx.SenderPK, atx.SenderPK)
+					assert.Equal(t, tx.Asset, atx.Asset)
+					assert.ElementsMatch(t, tx.Transfers, atx.Transfers)
+					assert.Equal(t, tx.Fee, atx.Fee)
+					assert.Equal(t, tx.Timestamp, atx.Timestamp)
+					assert.Equal(t, tx.Attachment, atx.Attachment)
+				}
+			}
+			if err := tx.Sign(sk); assert.NoError(t, err) {
+				if r, err := tx.Verify(pk); assert.NoError(t, err) {
+					assert.True(t, r)
+				}
+			}
+			if b, err := tx.MarshalBinary(); assert.NoError(t, err) {
+				var atx MassTransferV1
+				if err := atx.UnmarshalBinary(b); assert.NoError(t, err) {
+					assert.Equal(t, tx.ID, atx.ID)
+					assert.Equal(t, len(tx.Proofs.Proofs), len(atx.Proofs.Proofs))
+					assert.ElementsMatch(t, tx.Proofs.Proofs, atx.Proofs.Proofs)
+					assert.Equal(t, pk, atx.SenderPK)
+					assert.ElementsMatch(t, tc.transfers, atx.Transfers)
+					assert.Equal(t, tc.fee, atx.Fee)
+					assert.Equal(t, ts, atx.Timestamp)
+					assert.Equal(t, tc.attachment, atx.Attachment.String())
+				}
+			}
+		}
+	}
+}
+
+func TestMassTransferV1ToJSON(t *testing.T) {
+	addr, _ := NewAddressFromString("3PB1Y84BGdEXE4HKaExyJ5cHP36nEw8ovaE")
+	tests := []struct {
+		asset              string
+		expectedAsset      string
+		transfers          []MassTransferEntry
+		fee                uint64
+		attachment         string
+		expectedAttachment string
+	}{
+		{"HmNSH2g1SWYHzuX1G4VCjL63TFs7PXDjsTAHzrAhSRCK", "\"HmNSH2g1SWYHzuX1G4VCjL63TFs7PXDjsTAHzrAhSRCK\"", []MassTransferEntry{{addr, 9876543210}}, 1234567890, "blah-blah-blah", ",\"attachment\":\"dBfDSWhwLmZQy4zr2S3\""},
+		{"HmNSH2g1SWYHzuX1G4VCjL63TFs7PXDjsTAHzrAhSRCK", "\"HmNSH2g1SWYHzuX1G4VCjL63TFs7PXDjsTAHzrAhSRCK\"", []MassTransferEntry{{addr, 12345}, {addr, 67890}}, 987654321, "", ""},
+		{"", "null", []MassTransferEntry{{addr, 12345}, {addr, 67890}}, 987654321, "", ""},
+	}
+	seed, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
+	sk, pk := crypto.GenerateKeyPair(seed)
+	for _, tc := range tests {
+		ts := uint64(time.Now().UnixNano() / 1000000)
+		a, _ := NewOptionalAssetFromString(tc.asset)
+		if tx, err := NewUnsignedMassTransferV1(pk, *a, tc.transfers, tc.fee, ts, tc.attachment); assert.NoError(t, err) {
+			if j, err := json.Marshal(tx); assert.NoError(t, err) {
+				var sb strings.Builder
+				for i, t := range tc.transfers {
+					if i != 0 {
+						sb.WriteRune(',')
+					}
+					sb.WriteRune('{')
+					sb.WriteString("\"recipient\":")
+					sb.WriteRune('"')
+					sb.WriteString(t.Recipient.String())
+					sb.WriteRune('"')
+					sb.WriteRune(',')
+					sb.WriteString("\"amount\":")
+					sb.WriteString(strconv.Itoa(int(t.Amount)))
+					sb.WriteRune('}')
+				}
+				ej := fmt.Sprintf("{\"type\":11,\"version\":1,\"senderPublicKey\":\"%s\",\"assetId\":%s,\"transfers\":[%s],\"timestamp\":%d,\"fee\":%d%s}", base58.Encode(pk[:]), tc.expectedAsset, sb.String(), ts, tc.fee, tc.expectedAttachment)
+				assert.Equal(t, ej, string(j))
+				if err := tx.Sign(sk); assert.NoError(t, err) {
+					if sj, err := json.Marshal(tx); assert.NoError(t, err) {
+						esj := fmt.Sprintf("{\"type\":11,\"version\":1,\"id\":\"%s\",\"proofs\":[\"%s\"],\"senderPublicKey\":\"%s\",\"assetId\":%s,\"transfers\":[%s],\"timestamp\":%d,\"fee\":%d%s}",
+							base58.Encode(tx.ID[:]), base58.Encode(tx.Proofs.Proofs[0]), base58.Encode(pk[:]), tc.expectedAsset, sb.String(), ts, tc.fee, tc.expectedAttachment)
 						assert.Equal(t, esj, string(sj))
 					}
 				}

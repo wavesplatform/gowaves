@@ -2,6 +2,7 @@ package proto
 
 import (
 	"encoding/binary"
+	"encoding/json"
 	"github.com/mr-tron/base58/base58"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
@@ -405,4 +406,123 @@ func (o *Order) UnmarshalBinary(data []byte) error {
 	}
 	o.ID = &d
 	return nil
+}
+
+const (
+	proofsVersion  byte = 1
+	proofsMinLen        = 1 + 2
+	proofsMaxCount      = 8
+	proofMaxSize        = 64
+)
+
+type ProofsV1 struct {
+	Version byte
+	Proofs  []B58Bytes
+}
+
+func (p ProofsV1) String() string {
+	var sb strings.Builder
+	sb.WriteRune('[')
+	for i, e := range p.Proofs {
+		if i != 0 {
+			sb.WriteString(", ")
+		}
+		sb.WriteString(e.String())
+	}
+	sb.WriteRune(']')
+	return sb.String()
+}
+
+func (p ProofsV1) MarshalJSON() ([]byte, error) {
+	return json.Marshal(p.Proofs)
+}
+
+func (p *ProofsV1) UnmarshalJSON(value []byte) error {
+	var tmp []B58Bytes
+	err := json.Unmarshal(value, &tmp)
+	if err != nil {
+		return errors.Wrap(err, "failed to unmarshal ProofsV1 from JSON")
+	}
+	p.Proofs = tmp
+	return nil
+}
+
+func (p *ProofsV1) MarshalBinary() ([]byte, error) {
+	pl := 0
+	for _, e := range p.Proofs {
+		pl += len(e) + 2
+	}
+	buf := make([]byte, proofsMinLen+pl)
+	pos := 0
+	buf[pos] = proofsVersion
+	pos += 1
+	binary.BigEndian.PutUint16(buf[pos:], uint16(len(p.Proofs)))
+	pos += 2
+	for _, e := range p.Proofs {
+		el := len(e)
+		binary.BigEndian.PutUint16(buf[pos:], uint16(el))
+		pos += 2
+		copy(buf[pos:], e)
+		pos += el
+	}
+	return buf, nil
+}
+
+func (p *ProofsV1) UnmarshalBinary(data []byte) error {
+	if l := len(data); l < proofsMinLen {
+		return errors.Errorf("not enough data for ProofsV1 value, expected %d, received %d", proofsMinLen, l)
+	}
+	p.Version = data[0]
+	if p.Version != proofsVersion {
+		return errors.Errorf("unexpected ProofsV1 version %d, expected %d", p.Version, proofsVersion)
+	}
+	data = data[1:]
+	n := int(binary.BigEndian.Uint16(data))
+	if n > proofsMaxCount {
+		return errors.Errorf("too many proofs in ProofsV1, expected no more than %d, received %d", proofsMaxCount, n)
+	}
+	data = data[2:]
+	for i := 0; i < n; i++ {
+		el := binary.BigEndian.Uint16(data)
+		if el > proofMaxSize {
+			return errors.Errorf("proof size %d bytes exceeds maximum allowed %d", el, proofMaxSize)
+		}
+		data = data[2:]
+		pr := make([]byte, el)
+		copy(pr, data[0:el])
+		data = data[el:]
+		p.Proofs = append(p.Proofs, pr)
+	}
+	return nil
+}
+
+func (p *ProofsV1) Sign(pos int, key crypto.SecretKey, data []byte) error {
+	if pos < 0 || pos > proofsMaxCount {
+		return errors.Errorf("failed to create proof at position %d, allowed positions from 0 to %d", pos, proofsMaxCount-1)
+	}
+	if len(p.Proofs)-1 < pos {
+		s := crypto.Sign(key, data)
+		p.Proofs = append(p.Proofs[:pos], append([]B58Bytes{s[:]}, p.Proofs[pos:]...)...)
+	} else {
+		pr := p.Proofs[pos]
+		if len(pr) > 0 {
+			return errors.Errorf("unable to overwrite non-empty proof at position %d", pos)
+		}
+		s := crypto.Sign(key, data)
+		copy(pr[:], s[:])
+	}
+	return nil
+}
+
+func (p *ProofsV1) Verify(pos int, key crypto.PublicKey, data []byte) (bool, error) {
+	if len(p.Proofs) <= pos {
+		return false, errors.Errorf("no proof at position %d", pos)
+	}
+	var sig crypto.Signature
+	sb := p.Proofs[pos]
+	if l := len(sb); l != crypto.SignatureSize {
+		return false, errors.Errorf("unexpected signature size %d, expected %d", l, crypto.SignatureSize)
+	}
+	copy(sig[:], sb)
+	return crypto.Verify(key, sig, data), nil
 }
