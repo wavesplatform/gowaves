@@ -583,7 +583,7 @@ type DataEntry interface {
 	GetKey() string
 	GetValueType() ValueType
 	MarshalBinary() ([]byte, error)
-	UnmarshalBinary(data []byte) error
+	binarySize() int
 }
 
 //IntegerDataEntry stores int64 value.
@@ -602,13 +602,16 @@ func (e IntegerDataEntry) GetValueType() ValueType {
 	return Integer
 }
 
+func (e IntegerDataEntry) binarySize() int {
+	return 2 + len(e.Key) + 1 + 8
+}
+
 //MarshalBinary marshals the integer data entry in its bytes representation.
 func (e IntegerDataEntry) MarshalBinary() ([]byte, error) {
-	kl := 2 + len(e.Key)
-	buf := make([]byte, kl+1+8)
+	buf := make([]byte, e.binarySize())
 	pos := 0
 	PutStringWithUInt16Len(buf[pos:], e.Key)
-	pos += kl
+	pos += 2 + len(e.Key)
 	buf[pos] = byte(Integer)
 	pos++
 	binary.BigEndian.PutUint64(buf[pos:], uint64(e.Value))
@@ -617,9 +620,9 @@ func (e IntegerDataEntry) MarshalBinary() ([]byte, error) {
 
 //UnmarshalBinary reads binary representation of integer data entry to the structure.
 func (e *IntegerDataEntry) UnmarshalBinary(data []byte) error {
-	const expectedLen = 2 + 1 + 8
-	if l := len(data); l < expectedLen {
-		return errors.Errorf("invalid data length for IntegerDataEntry, expected not less than %d, received %d", expectedLen, l)
+	const minLen = 2 + 1 + 8
+	if l := len(data); l < minLen {
+		return errors.Errorf("invalid data length for IntegerDataEntry, expected not less than %d, received %d", minLen, l)
 	}
 	k, err := StringWithUInt16Len(data)
 	if err != nil {
@@ -674,13 +677,16 @@ func (e BooleanDataEntry) GetValueType() ValueType {
 	return Boolean
 }
 
+func (e BooleanDataEntry) binarySize() int {
+	return 2 + len(e.Key) + 1 + 1
+}
+
 //MarshalBinary writes a byte representation of the boolean data entry.
 func (e BooleanDataEntry) MarshalBinary() ([]byte, error) {
-	kl := 2 + len(e.Key)
-	buf := make([]byte, kl+1+1)
+	buf := make([]byte, e.binarySize())
 	pos := 0
 	PutStringWithUInt16Len(buf[pos:], e.Key)
-	pos += kl
+	pos += 2 + len(e.Key)
 	buf[pos] = byte(Boolean)
 	pos++
 	PutBool(buf[pos:], e.Value)
@@ -689,9 +695,9 @@ func (e BooleanDataEntry) MarshalBinary() ([]byte, error) {
 
 //UnmarshalBinary reads a byte representation of the data entry.
 func (e *BooleanDataEntry) UnmarshalBinary(data []byte) error {
-	const expectedLen = 2 + 1 + 1
-	if l := len(data); l < expectedLen {
-		return errors.Errorf("invalid data length for BooleanDataEntry, expected not less than %d, received %d", expectedLen, l)
+	const minLen = 2 + 1 + 1
+	if l := len(data); l < minLen {
+		return errors.Errorf("invalid data length for BooleanDataEntry, expected not less than %d, received %d", minLen, l)
 	}
 	k, err := StringWithUInt16Len(data)
 	if err != nil {
@@ -750,14 +756,16 @@ func (e BinaryDataEntry) GetValueType() ValueType {
 	return Binary
 }
 
+func (e BinaryDataEntry) binarySize() int {
+	return 2 + len(e.Key) + 1 + 2 + len(e.Value)
+}
+
 //MarshalBinary writes an entry to its byte representation.
 func (e BinaryDataEntry) MarshalBinary() ([]byte, error) {
-	kl := 2 + len(e.Key)
-	vl := 2 + len(e.Value)
-	buf := make([]byte, kl+1+vl)
+	buf := make([]byte, e.binarySize())
 	pos := 0
 	PutStringWithUInt16Len(buf[pos:], e.Key)
-	pos += kl
+	pos += 2 + len(e.Key)
 	buf[pos] = byte(Binary)
 	pos++
 	PutBytesWithUInt16Len(buf[pos:], e.Value)
@@ -766,9 +774,9 @@ func (e BinaryDataEntry) MarshalBinary() ([]byte, error) {
 
 //UnmarshalBinary reads an entry from a binary representation.
 func (e *BinaryDataEntry) UnmarshalBinary(data []byte) error {
-	const expectedLen = 2 + 1 + 2
-	if l := len(data); l < expectedLen {
-		return errors.Errorf("invalid data length for BinaryDataEntry, expected not less than %d, received %d", expectedLen, l)
+	const minLen = 2 + 1 + 2
+	if l := len(data); l < minLen {
+		return errors.Errorf("invalid data length for BinaryDataEntry, expected not less than %d, received %d", minLen, l)
 	}
 	k, err := StringWithUInt16Len(data)
 	if err != nil {
@@ -827,14 +835,16 @@ func (e StringDataEntry) GetValueType() ValueType {
 	return String
 }
 
+func (e StringDataEntry) binarySize() int {
+	return 2 + len(e.Key) + 1 + 2 + len(e.Value)
+}
+
 //MarshalBinary converts the data entry to its byte representation.
 func (e StringDataEntry) MarshalBinary() ([]byte, error) {
-	kl := 2 + len(e.Key)
-	vl := 2 + len(e.Value)
-	buf := make([]byte, kl+1+vl)
+	buf := make([]byte, e.binarySize())
 	pos := 0
 	PutStringWithUInt16Len(buf[pos:], e.Key)
-	pos += kl
+	pos += 2 + len(e.Key)
 	buf[pos] = byte(String)
 	pos++
 	PutStringWithUInt16Len(buf[pos:], e.Value)
@@ -843,9 +853,9 @@ func (e StringDataEntry) MarshalBinary() ([]byte, error) {
 
 //UnmarshalBinary reads an StringDataEntry structure from bytes.
 func (e *StringDataEntry) UnmarshalBinary(data []byte) error {
-	const expectedLen = 2 + 1 + 2
-	if l := len(data); l < expectedLen {
-		return errors.Errorf("invalid data length for StringDataEntry, expected not less than %d, received %d", expectedLen, l)
+	const minLen = 2 + 1 + 2
+	if l := len(data); l < minLen {
+		return errors.Errorf("invalid data length for StringDataEntry, expected not less than %d, received %d", minLen, l)
 	}
 	k, err := StringWithUInt16Len(data)
 	if err != nil {
