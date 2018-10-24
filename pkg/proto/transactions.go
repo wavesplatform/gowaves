@@ -56,6 +56,8 @@ const (
 	massTransferV1MinLen      = massTransferV1FixedLen + proofsMinLen
 	dataV1FixedBodyLen        = 1 + 1 + crypto.PublicKeySize + 2 + 8 + 8
 	dataV1MinLen              = dataV1FixedBodyLen + proofsMinLen
+	setScriptV1FixedBodyLen   = 1 + 1 + 1 + crypto.PublicKeySize + 1 + 2 + 8 + 8
+	setScriptV1MinLen         = 1 + setScriptV1FixedBodyLen + proofsMinLen
 )
 
 type Genesis struct {
@@ -902,7 +904,7 @@ func (tx *ExchangeV1) bodyMarshalBinary() ([]byte, error) {
 	var p uint32
 	buf := make([]byte, exchangeV1FixedBodyLen-orderMinLen*2+bol+sol)
 	buf[0] = byte(tx.Type)
-	p++
+	p += 1
 	binary.BigEndian.PutUint32(buf[p:], bol)
 	p += 4
 	binary.BigEndian.PutUint32(buf[p:], sol)
@@ -1074,7 +1076,7 @@ func (tx *LeaseV1) bodyMarshalBinary() ([]byte, error) {
 	var p uint32
 	buf := make([]byte, leaseV1BodyLen)
 	buf[0] = byte(tx.Type)
-	p++
+	p += 1
 	copy(buf[p:], tx.SenderPK[:])
 	p += crypto.PublicKeySize
 	copy(buf[p:], tx.Recipient[:])
@@ -1193,7 +1195,7 @@ func (tx *LeaseCancelV1) bodyMarshalBinary() ([]byte, error) {
 	var p uint32
 	buf := make([]byte, leaseCancelV1BodyLen)
 	buf[0] = byte(tx.Type)
-	p++
+	p += 1
 	copy(buf[p:], tx.SenderPK[:])
 	p += crypto.PublicKeySize
 	binary.BigEndian.PutUint64(buf[p:], tx.Fee)
@@ -1308,7 +1310,7 @@ func (tx *CreateAliasV1) bodyMarshalBinary() ([]byte, error) {
 	var p uint32
 	buf := make([]byte, createAliasV1FixedBodyLen+len(tx.Alias.Alias)+4)
 	buf[0] = byte(tx.Type)
-	p++
+	p += 1
 	copy(buf[p:], tx.SenderPK[:])
 	p += crypto.PublicKeySize
 	ab, err := tx.Alias.MarshalBinary()
@@ -1496,9 +1498,9 @@ func (tx *MassTransferV1) bodyMarshalBinary() ([]byte, error) {
 	bl, al := tx.bodyAndAssetLen()
 	buf := make([]byte, bl)
 	buf[p] = byte(tx.Type)
-	p++
+	p += 1
 	buf[p] = tx.Version
-	p++
+	p += 1
 	copy(buf[p:], tx.SenderPK[:])
 	p += crypto.PublicKeySize
 	ab, err := tx.Asset.MarshalBinary()
@@ -1848,6 +1850,169 @@ func (tx *DataV1) UnmarshalBinary(data []byte) error {
 	id, err := crypto.FastHash(bb)
 	if err != nil {
 		return errors.Wrap(err, "failed to unmarshal DataV1 transaction from bytes")
+	}
+	tx.ID = &id
+	return nil
+}
+
+
+//SetScriptV1 is a transaction to set smart script on an account
+type SetScriptV1 struct {
+	Type      TransactionType  `json:"type"`
+	Version   byte             `json:"version,omitempty"`
+	ID        *crypto.Digest   `json:"id,omitempty"`
+	Proofs    *ProofsV1        `json:"proofs,omitempty"`
+	ChainID   byte             `json:"-"`
+	SenderPK  crypto.PublicKey `json:"senderPublicKey"`
+	Script    []byte           `json:"script"`
+	Fee       uint64           `json:"fee"`
+	Timestamp uint64           `json:"timestamp,omitempty"`
+}
+
+//NewUnsignedSetScriptV1 creates new unsigned SetScriptV1 transaction
+func NewUnsignedSetScriptV1(chain byte, senderPK crypto.PublicKey, script []byte, fee, timestamp uint64) (*SetScriptV1, error) {
+	if fee <= 0 {
+		return nil, errors.New("fee should be positive")
+	}
+	return &SetScriptV1{Type: SetScriptTransaction, Version: 1, ChainID: chain, SenderPK: senderPK, Script: script, Fee: fee, Timestamp: timestamp}, nil
+}
+
+//NonEmptyScript returns true if transaction contains non-empty script
+func (tx *SetScriptV1) NonEmptyScript() bool {
+	return len(tx.Script) != 0
+}
+
+func (tx *SetScriptV1) bodyMarshalBinary() ([]byte, error) {
+	var p int
+	sl := len(tx.Script)
+	buf := make([]byte, setScriptV1FixedBodyLen+sl)
+	buf[p] = byte(tx.Type)
+	p++
+	buf[p] = tx.Version
+	p++
+	buf[p] = tx.ChainID
+	p++
+	copy(buf[p:], tx.SenderPK[:])
+	p += crypto.PublicKeySize
+	PutBool(buf[p:], tx.NonEmptyScript())
+	p++
+	if tx.NonEmptyScript() {
+		PutBytesWithUInt16Len(buf[p:], tx.Script)
+		p += 2 + sl
+	}
+	binary.BigEndian.PutUint64(buf[p:], tx.Fee)
+	p += 8
+	binary.BigEndian.PutUint64(buf[p:], tx.Timestamp)
+	return buf, nil
+}
+
+func (tx *SetScriptV1) bodyUnmarshalBinary(data []byte) error {
+	if l := len(data); l < setScriptV1FixedBodyLen {
+		return errors.Errorf("not enough data for SetScriptV1 transaction, expected not less then %d, received %d", setScriptV1FixedBodyLen, l)
+	}
+	tx.Type = TransactionType(data[0])
+	tx.Version = data[1]
+	tx.ChainID = data[2]
+	if tx.Type != SetScriptTransaction {
+		return errors.Errorf("unexpected transaction type %d for SetScriptV1 transaction", tx.Type)
+	}
+	if tx.Version != 1 {
+		return errors.Errorf("unexpected version %d for SetScriptV1 transaction", tx.Version)
+	}
+	data = data[3:]
+	copy(tx.SenderPK[:], data[:crypto.PublicKeySize])
+	data = data[crypto.PublicKeySize:]
+	p, err := Bool(data)
+	if err != nil {
+		return errors.Wrap(err, "failed to unmarshal SetScripV1 transaction body from bytes")
+	}
+	data = data[1:]
+	if p {
+		s, err := BytesWithUInt16Len(data)
+		if err != nil {
+			return errors.Wrap(err, "failed to unmarshal SetScriptV1 transaction body from bytes")
+		}
+		tx.Script = s
+		data = data[2+len(s):]
+	}
+	tx.Fee = binary.BigEndian.Uint64(data)
+	data = data[8:]
+	tx.Timestamp = binary.BigEndian.Uint64(data)
+	return nil
+}
+
+//Sign adds signature as a proof at first position
+func (tx *SetScriptV1) Sign(secretKey crypto.SecretKey) error {
+	b, err := tx.bodyMarshalBinary()
+	if err != nil {
+		return errors.Wrap(err, "failed to sign SetScriptV1 transaction")
+	}
+	if tx.Proofs == nil {
+		tx.Proofs = &ProofsV1{proofsVersion, make([]B58Bytes, 0)}
+	}
+	err = tx.Proofs.Sign(0, secretKey, b)
+	if err != nil {
+		return errors.Wrap(err, "failed to sign SetScriptV1 transaction")
+	}
+	d, err := crypto.FastHash(b)
+	tx.ID = &d
+	if err != nil {
+		return errors.Wrap(err, "failed to sign SetScriptV1 transaction")
+	}
+	return nil
+}
+
+//Verify checks that first proof is a valid signature
+func (tx *SetScriptV1) Verify(publicKey crypto.PublicKey) (bool, error) {
+	b, err := tx.bodyMarshalBinary()
+	if err != nil {
+		return false, errors.Wrap(err, "failed to verify signature of SetScriptV1 transaction")
+	}
+	return tx.Proofs.Verify(0, publicKey, b)
+}
+
+//MarshalBinary writes SetScriptV1 transaction to its bytes representation
+func (tx *SetScriptV1) MarshalBinary() ([]byte, error) {
+	bb, err := tx.bodyMarshalBinary()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to marshal SetScriptV1 transaction to bytes")
+	}
+	bl := len(bb)
+	pb, err := tx.Proofs.MarshalBinary()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to marshal SetScriptV1 transaction to bytes")
+	}
+	buf := make([]byte, 1+bl+len(pb))
+	copy(buf[1:], bb)
+	copy(buf[1+bl:], pb)
+	return buf, nil
+}
+
+//UnmarshalBinary reads
+func (tx *SetScriptV1) UnmarshalBinary(data []byte) error {
+	if l := len(data); l < setScriptV1MinLen {
+		return errors.Errorf("not enough data for SetScriptV1 transaction, expected not less then %d, received %d", setScriptV1MinLen, l)
+	}
+	if v := data[0]; v != 0 {
+		return errors.Errorf("unexpected first byte value %d, expected 0", v)
+	}
+	data = data[1:]
+	err := tx.bodyUnmarshalBinary(data)
+	if err != nil {
+		return errors.Wrap(err, "failed to unmarshal SetScriptV1 transaction from bytes")
+	}
+	bl := setScriptV1FixedBodyLen + len(tx.Script)
+	bb := data[:bl]
+	data = data[bl:]
+	var p ProofsV1
+	err = p.UnmarshalBinary(data)
+	if err != nil {
+		return errors.Wrap(err, "failed to unmarshal SetScriptV1 transaction from bytes")
+	}
+	tx.Proofs = &p
+	id, err := crypto.FastHash(bb)
+	if err != nil {
+		return errors.Wrap(err, "failed to unmarshal SetScriptV1 transaction from bytes")
 	}
 	tx.ID = &id
 	return nil
