@@ -21,6 +21,8 @@ type Server struct {
 	BootPeerAddrs []string
 	Listen        string
 	wg            sync.WaitGroup
+	mu            sync.Mutex
+	conns         map[*p2p.Conn]bool
 }
 
 func handleRequest(ctx context.Context, conn net.Conn) {
@@ -80,13 +82,17 @@ func dialContext(ctx context.Context, network, addr string) (net.Conn, error) {
 	return nil, errors.New("TODO")
 }
 
-func handleClient(ctx context.Context, peer string) {
+func (s *Server) handleClient(ctx context.Context, peer string) {
 	customTransport := p2p.Transport{DialContext: dialContext}
 	conn, err := p2p.NewConn(
 		p2p.WithVersion(proto.Version{Major: 0, Minor: 5, Patch: 14}),
 		p2p.WithTransport(&customTransport),
 		p2p.WithRemote("tcp", peer),
 	)
+	s.mu.Lock()
+	s.conns[conn] = true
+	s.mu.Unlock()
+
 	if err != nil {
 		zap.S().Error("failed to create a new connection: ", err)
 		return
@@ -184,13 +190,23 @@ func (m *Server) RunClients(ctx context.Context) {
 	for _, peer := range m.BootPeerAddrs {
 		m.wg.Add(1)
 		go func(peer string) {
-			handleClient(ctx, peer)
+			m.handleClient(ctx, peer)
 			m.wg.Done()
 		}(peer)
 	}
 }
 
 func (m *Server) Stop() {
+	m.mu.Lock()
+	for k := range m.conns {
+		k.Close()
+	}
+	m.mu.Unlock()
+
 	m.wg.Wait()
 	zap.S().Info("stopped server")
+}
+
+func NewServer(peers []string) *Server {
+	return &Server{BootPeerAddrs: peers, conns: make(map[*p2p.Conn]bool)}
 }

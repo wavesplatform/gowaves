@@ -27,7 +27,7 @@ var (
 
 			ctx, cancel := context.WithCancel(context.Background())
 			peers := viper.GetStringSlice("waves.network.peers")
-			s := &server.Server{BootPeerAddrs: peers}
+			s := server.NewServer(peers)
 			s.RunClients(ctx)
 			defer s.Stop()
 
