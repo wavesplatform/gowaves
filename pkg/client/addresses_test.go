@@ -6,8 +6,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"os"
-
-	//"os"
 	"testing"
 )
 

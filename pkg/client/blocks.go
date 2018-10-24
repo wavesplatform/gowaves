@@ -121,24 +121,5 @@ type Block struct {
 	Blocksize        uint64       `json:"blocksize"`
 	TransactionCount uint64       `json:"transactionCount"`
 	Fee              uint64       `json:"fee"`
-	//transactions Transaction
-	Height uint64 `json:"height"`
+	Height           uint64       `json:"height"`
 }
-
-//func (a *Blocks) Signature(ctx context.Context, signature string) (*Block, *Response, error) {
-//	req, err := http.NewRequest(
-//		"GET",
-//		fmt.Sprintf("%s/blocks/signature/%s", a.options.BaseUrl, signature),
-//		nil)
-//	if err != nil {
-//		return nil, nil, err
-//	}
-//
-//	out := new(Block)
-//	response, err := doHttp(ctx, a.options, req, out)
-//	if err != nil {
-//		return nil, response, err
-//	}
-//
-//	return out, response, nil
-//}
