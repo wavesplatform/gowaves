@@ -904,7 +904,7 @@ func (tx *ExchangeV1) bodyMarshalBinary() ([]byte, error) {
 	var p uint32
 	buf := make([]byte, exchangeV1FixedBodyLen-orderMinLen*2+bol+sol)
 	buf[0] = byte(tx.Type)
-	p += 1
+	p++
 	binary.BigEndian.PutUint32(buf[p:], bol)
 	p += 4
 	binary.BigEndian.PutUint32(buf[p:], sol)
@@ -1076,7 +1076,7 @@ func (tx *LeaseV1) bodyMarshalBinary() ([]byte, error) {
 	var p uint32
 	buf := make([]byte, leaseV1BodyLen)
 	buf[0] = byte(tx.Type)
-	p += 1
+	p++
 	copy(buf[p:], tx.SenderPK[:])
 	p += crypto.PublicKeySize
 	copy(buf[p:], tx.Recipient[:])
@@ -1195,7 +1195,7 @@ func (tx *LeaseCancelV1) bodyMarshalBinary() ([]byte, error) {
 	var p uint32
 	buf := make([]byte, leaseCancelV1BodyLen)
 	buf[0] = byte(tx.Type)
-	p += 1
+	p++
 	copy(buf[p:], tx.SenderPK[:])
 	p += crypto.PublicKeySize
 	binary.BigEndian.PutUint64(buf[p:], tx.Fee)
@@ -1310,7 +1310,7 @@ func (tx *CreateAliasV1) bodyMarshalBinary() ([]byte, error) {
 	var p uint32
 	buf := make([]byte, createAliasV1FixedBodyLen+len(tx.Alias.Alias)+4)
 	buf[0] = byte(tx.Type)
-	p += 1
+	p++
 	copy(buf[p:], tx.SenderPK[:])
 	p += crypto.PublicKeySize
 	ab, err := tx.Alias.MarshalBinary()
@@ -1498,9 +1498,9 @@ func (tx *MassTransferV1) bodyMarshalBinary() ([]byte, error) {
 	bl, al := tx.bodyAndAssetLen()
 	buf := make([]byte, bl)
 	buf[p] = byte(tx.Type)
-	p += 1
+	p++
 	buf[p] = tx.Version
-	p += 1
+	p++
 	copy(buf[p:], tx.SenderPK[:])
 	p += crypto.PublicKeySize
 	ab, err := tx.Asset.MarshalBinary()
