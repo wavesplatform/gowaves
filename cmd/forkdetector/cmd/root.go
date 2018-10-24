@@ -29,6 +29,7 @@ var (
 			peers := viper.GetStringSlice("waves.network.peers")
 			s := &server.Server{BootPeerAddrs: peers}
 			s.RunClients(ctx)
+			defer s.Stop()
 
 			var gracefulStop = make(chan os.Signal)
 			signal.Notify(gracefulStop, syscall.SIGTERM)
@@ -38,7 +39,6 @@ var (
 			case sig := <-gracefulStop:
 				cancel()
 				zap.S().Infow("Caught signal, stopping", "signal", sig)
-				os.Exit(0)
 			}
 		},
 	}

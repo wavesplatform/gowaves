@@ -8,6 +8,7 @@ import (
 	"errors"
 	"io"
 	"net"
+	"sync"
 	"time"
 
 	"go.uber.org/zap"
@@ -19,9 +20,10 @@ import (
 type Server struct {
 	BootPeerAddrs []string
 	Listen        string
+	wg            sync.WaitGroup
 }
 
-func handleRequest(conn net.Conn) {
+func handleRequest(ctx context.Context, conn net.Conn) {
 }
 
 func dialContext(ctx context.Context, network, addr string) (net.Conn, error) {
@@ -151,7 +153,7 @@ LOOP:
 	}
 }
 
-func (m *Server) Run() {
+func (m *Server) Run(ctx context.Context) {
 	if m.Listen == "" {
 		return
 	}
@@ -170,13 +172,25 @@ func (m *Server) Run() {
 			break
 		}
 
-		go handleRequest(conn)
+		m.wg.Add(1)
+		go func(conn net.Conn) {
+			handleRequest(ctx, conn)
+			m.wg.Done()
+		}(conn)
 	}
 }
 
 func (m *Server) RunClients(ctx context.Context) {
-
 	for _, peer := range m.BootPeerAddrs {
-		go handleClient(ctx, peer)
+		m.wg.Add(1)
+		go func(peer string) {
+			handleClient(ctx, peer)
+			m.wg.Done()
+		}(peer)
 	}
+}
+
+func (m *Server) Stop() {
+	m.wg.Wait()
+	zap.S().Info("stopped server")
 }
