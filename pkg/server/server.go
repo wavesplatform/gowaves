@@ -6,7 +6,6 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"net"
 	"time"
@@ -32,14 +31,22 @@ func dialContext(ctx context.Context, network, addr string) (net.Conn, error) {
 	dialer := net.Dialer{}
 
 	for i := 0; i < 20; i++ {
+		if i > 0 {
+			ticker := time.NewTimer(20 * time.Second)
+
+			select {
+			case <-ticker.C:
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			}
+		}
 		patch = uint32(i)
-		time.Sleep(20 * time.Second)
 		conn, err := dialer.DialContext(ctx, network, addr)
 		if err != nil {
 			continue
 		}
 
-		fmt.Printf("Trying to connect with version %v %v %v", major, minor, patch)
+		zap.S().Infof("Trying to connect with version %v.%v.%v", major, minor, patch)
 		handshake := proto.Handshake{Name: "wavesT",
 			Version:           proto.Version{Major: major, Minor: minor, Patch: patch},
 			NodeName:          "gowaves",
@@ -71,14 +78,18 @@ func dialContext(ctx context.Context, network, addr string) (net.Conn, error) {
 	return nil, errors.New("TODO")
 }
 
-func handleClient(peer string) {
+func handleClient(ctx context.Context, peer string) {
 	customTransport := p2p.Transport{DialContext: dialContext}
-	conn, _ := p2p.NewConn(
+	conn, err := p2p.NewConn(
 		p2p.WithVersion(proto.Version{Major: 0, Minor: 5, Patch: 14}),
 		p2p.WithTransport(&customTransport),
 		p2p.WithRemote("tcp", peer),
 	)
-	err := conn.DialContext(context.Background(), "tcp", peer)
+	if err != nil {
+		zap.S().Error("failed to create a new connection: ", err)
+		return
+	}
+	err = conn.DialContext(ctx, "tcp", peer)
 	if err != nil {
 		zap.S().Error("error while dialing: ", err)
 		return
@@ -163,10 +174,9 @@ func (m *Server) Run() {
 	}
 }
 
-func (m *Server) RunClients() {
+func (m *Server) RunClients(ctx context.Context) {
 
 	for _, peer := range m.BootPeerAddrs {
-
-		go handleClient(peer)
+		go handleClient(ctx, peer)
 	}
 }

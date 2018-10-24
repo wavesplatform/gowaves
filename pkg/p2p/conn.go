@@ -9,6 +9,9 @@ import (
 
 const retryTimeout = 30
 
+// ConnOption is a connection creation option
+type ConnOption func(*Conn) error
+
 // Conn is a connection between two waves nodes
 type Conn struct {
 	net.Conn
@@ -36,30 +39,38 @@ func (c *Conn) DialContext(ctx context.Context, network, addr string) error {
 	return nil
 }
 
-func WithRemote(network, addr string) func(*Conn) {
-	return func(c *Conn) {
+// WithRemote is an option for remote endpoint
+func WithRemote(network, addr string) ConnOption {
+	return func(c *Conn) error {
 		c.network = network
 		c.addr = addr
+		return nil
 	}
 }
 
-func WithVersion(v proto.Version) func(*Conn) {
-	return func(c *Conn) {
+// WithVersion is an option for versioning a connection
+func WithVersion(v proto.Version) ConnOption {
+	return func(c *Conn) error {
 		c.version = v
+		return nil
 	}
 }
 
-func WithTransport(t *Transport) func(*Conn) {
-	return func(c *Conn) {
+// WithTransport is an option for custom transport of the connection
+func WithTransport(t *Transport) ConnOption {
+	return func(c *Conn) error {
 		c.Transport = t
+		return nil
 	}
 }
 
 // NewConn creates a new connection
-func NewConn(options ...func(*Conn)) (*Conn, error) {
+func NewConn(options ...ConnOption) (*Conn, error) {
 	c := Conn{}
 	for _, option := range options {
-		option(&c)
+		if err := option(&c); err != nil {
+			return nil, err
+		}
 	}
 	if c.Transport == nil {
 		c.Transport = &DefaultTransport
