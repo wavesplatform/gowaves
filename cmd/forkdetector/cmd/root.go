@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/signal"
@@ -24,9 +25,11 @@ var (
 			a := viper.GetString("waves.network.bind-address")
 			fmt.Println("waves.net.bind " + a)
 
+			ctx, cancel := context.WithCancel(context.Background())
 			peers := viper.GetStringSlice("waves.network.peers")
-			s := &server.Server{BootPeerAddrs: peers}
-			s.RunClients()
+			s := server.NewServer(peers)
+			s.RunClients(ctx)
+			defer s.Stop()
 
 			var gracefulStop = make(chan os.Signal)
 			signal.Notify(gracefulStop, syscall.SIGTERM)
@@ -34,8 +37,8 @@ var (
 
 			select {
 			case sig := <-gracefulStop:
+				cancel()
 				zap.S().Infow("Caught signal, stopping", "signal", sig)
-				os.Exit(0)
 			}
 		},
 	}
