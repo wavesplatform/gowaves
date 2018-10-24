@@ -1855,7 +1855,6 @@ func (tx *DataV1) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
-
 //SetScriptV1 is a transaction to set smart script on an account
 type SetScriptV1 struct {
 	Type      TransactionType  `json:"type"`
