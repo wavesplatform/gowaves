@@ -30,13 +30,12 @@ func handleRequest(ctx context.Context, conn net.Conn) {
 
 func dialContext(ctx context.Context, network, addr string) (net.Conn, error) {
 	var major, minor, patch uint32
-	minor = 5
 
 	dialer := net.Dialer{}
 
-	for i := 0; i < 20; i++ {
-		if i > 0 {
-			ticker := time.NewTimer(20 * time.Second)
+	for i := 0xc; i < 20; i++ {
+		if i > 0xc {
+			ticker := time.NewTimer(16 * time.Minute)
 
 			select {
 			case <-ticker.C:
@@ -44,7 +43,7 @@ func dialContext(ctx context.Context, network, addr string) (net.Conn, error) {
 				return nil, ctx.Err()
 			}
 		}
-		patch = uint32(i)
+		minor = uint32(i)
 		conn, err := dialer.DialContext(ctx, network, addr)
 		if err != nil {
 			continue
