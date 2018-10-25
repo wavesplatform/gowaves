@@ -2,53 +2,105 @@ package server
 
 import (
 	"bufio"
+	"context"
 	"encoding/binary"
 	"encoding/json"
+	"errors"
 	"io"
 	"net"
+	"sync"
 	"time"
 
-	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
+
+	"github.com/wavesplatform/gowaves/pkg/p2p"
+	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
 type Server struct {
 	BootPeerAddrs []string
 	Listen        string
+	wg            sync.WaitGroup
+	mu            sync.Mutex
+	conns         map[*p2p.Conn]bool
 }
 
-func handleRequest(conn net.Conn) {
+func handleRequest(ctx context.Context, conn net.Conn) {
 }
 
-func handleClient(conn net.Conn) {
-	handshake := proto.Handshake{Name: "wavesT",
-		VersionMajor:      0x0,
-		VersionMinor:      0xe,
-		VersionPatch:      0x4,
-		NodeName:          "gowaves",
-		NodeNonce:         0x0,
-		DeclaredAddrBytes: []byte{},
-		Timestamp:         uint64(time.Now().Unix())}
+func dialContext(ctx context.Context, network, addr string) (net.Conn, error) {
+	var major, minor, patch uint32
 
-	_, err := handshake.WriteTo(conn)
+	dialer := net.Dialer{}
+
+	for i := 0xc; i < 20; i++ {
+		if i > 0xc {
+			ticker := time.NewTimer(16 * time.Minute)
+
+			select {
+			case <-ticker.C:
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			}
+		}
+		minor = uint32(i)
+		conn, err := dialer.DialContext(ctx, network, addr)
+		if err != nil {
+			continue
+		}
+
+		zap.S().Infof("Trying to connect with version %v.%v.%v", major, minor, patch)
+		handshake := proto.Handshake{Name: "wavesT",
+			Version:           proto.Version{Major: major, Minor: minor, Patch: patch},
+			NodeName:          "gowaves",
+			NodeNonce:         0x0,
+			DeclaredAddrBytes: []byte{},
+			Timestamp:         uint64(time.Now().Unix())}
+
+		_, err = handshake.WriteTo(conn)
+		if err != nil {
+			zap.S().Error("failed to send handshake: ", err)
+			continue
+		}
+		_, err = handshake.ReadFrom(conn)
+		if err != nil {
+			zap.S().Error("failed to read handshake: ", err)
+			continue
+		}
+
+		var b []byte
+		b, e := json.Marshal(handshake)
+		if e != nil {
+			return nil, err
+		}
+		js := string(b)
+		zap.S().Info("received handshake: ", js)
+
+		return conn, nil
+	}
+	return nil, errors.New("TODO")
+}
+
+func (s *Server) handleClient(ctx context.Context, peer string) {
+	customTransport := p2p.Transport{DialContext: dialContext}
+	conn, err := p2p.NewConn(
+		p2p.WithVersion(proto.Version{Major: 0, Minor: 5, Patch: 14}),
+		p2p.WithTransport(&customTransport),
+		p2p.WithRemote("tcp", peer),
+	)
+	s.mu.Lock()
+	s.conns[conn] = true
+	s.mu.Unlock()
+
 	if err != nil {
-		zap.S().Error("failed to send handshake: ", err)
+		zap.S().Error("failed to create a new connection: ", err)
 		return
 	}
-	_, err = handshake.ReadFrom(conn)
+	err = conn.DialContext(ctx, "tcp", peer)
 	if err != nil {
-		zap.S().Error("failed to read handshake: ", err)
+		zap.S().Error("error while dialing: ", err)
 		return
 	}
-
-	var b []byte
-	b, e := json.Marshal(handshake)
-	if e != nil {
-		return
-	}
-	js := string(b)
-	zap.S().Info("received handshake: ", js)
-
 	bufConnW := bufio.NewWriter(conn)
 	bufConn := bufio.NewReader(conn)
 
@@ -106,7 +158,7 @@ LOOP:
 	}
 }
 
-func (m *Server) Run() {
+func (m *Server) Run(ctx context.Context) {
 	if m.Listen == "" {
 		return
 	}
@@ -125,18 +177,35 @@ func (m *Server) Run() {
 			break
 		}
 
-		go handleRequest(conn)
+		m.wg.Add(1)
+		go func(conn net.Conn) {
+			handleRequest(ctx, conn)
+			m.wg.Done()
+		}(conn)
 	}
 }
 
-func (m *Server) RunClients() {
+func (m *Server) RunClients(ctx context.Context) {
 	for _, peer := range m.BootPeerAddrs {
-		conn, err := net.Dial("tcp", peer)
-		if err != nil {
-			zap.S().Error("failed to connect to peer: ", err)
-			continue
-		}
-
-		go handleClient(conn)
+		m.wg.Add(1)
+		go func(peer string) {
+			m.handleClient(ctx, peer)
+			m.wg.Done()
+		}(peer)
 	}
+}
+
+func (m *Server) Stop() {
+	m.mu.Lock()
+	for k := range m.conns {
+		k.Close()
+	}
+	m.mu.Unlock()
+
+	m.wg.Wait()
+	zap.S().Info("stopped server")
+}
+
+func NewServer(peers []string) *Server {
+	return &Server{BootPeerAddrs: peers, conns: make(map[*p2p.Conn]bool)}
 }

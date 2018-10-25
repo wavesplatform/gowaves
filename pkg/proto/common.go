@@ -25,6 +25,28 @@ func StringWithUInt16Len(buf []byte) (string, error) {
 	return r, nil
 }
 
+//PutBytesWithUInt16Len prepends given buf with 2 bytes of it's length.
+func PutBytesWithUInt16Len(buf []byte, data []byte) {
+	sl := uint16(len(data))
+	binary.BigEndian.PutUint16(buf, sl)
+	copy(buf[2:], data)
+}
+
+// BytesWithUInt16Len reads from buf an array of bytes of length encoded in first 2 bytes.
+func BytesWithUInt16Len(buf []byte) ([]byte, error) {
+	if l := len(buf); l < 2 {
+		return nil, fmt.Errorf("not enought data, expected not less then %d, received %d", 2, l)
+	}
+	s := binary.BigEndian.Uint16(buf[0:2])
+	buf = buf[2:]
+	if l := len(buf); l < int(s) {
+		return nil, fmt.Errorf("not enough data to read array of bytes of lenght %d, recieved only %d bytes", s, l)
+	}
+	r := make([]byte, s)
+	copy(r, buf[:s])
+	return r, nil
+}
+
 func PutBool(buf []byte, b bool) {
 	if b {
 		buf[0] = 1

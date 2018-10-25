@@ -213,7 +213,7 @@ func NewAliasFromString(s string) (*Alias, error) {
 	}
 	scheme := ps[1]
 	if len(scheme) != 1 {
-		return nil, errors.Errorf("incorrect alias scheme '%s'", scheme)
+		return nil, errors.Errorf("incorrect alias chainID '%s'", scheme)
 	}
 	return NewAlias(scheme[0], ps[2])
 }
