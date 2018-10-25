@@ -4,7 +4,10 @@ import (
 	"bytes"
 	"encoding"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"io"
 	"net"
 	"strings"
@@ -286,4 +289,50 @@ func TestProtocolMarshalling(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestPeerInfo_MarshalJSON(t *testing.T) {
+	p := PeerInfo{
+		Addr: net.ParseIP("8.8.8.8"),
+		Port: 80,
+	}
+	js, err := json.Marshal(p)
+	require.Nil(t, err)
+	assert.Equal(t, `"8.8.8.8:80"`, string(js))
+
+	// test incorrect struct
+	p = PeerInfo{}
+	js, err = json.Marshal(p)
+	require.NotNil(t, err)
+}
+
+func TestPeerInfo_UnmarshalJSON(t *testing.T) {
+	p := new(PeerInfo)
+	err := json.Unmarshal([]byte(`"/159.65.239.245:6868"`), p)
+	require.Nil(t, err)
+	assert.Equal(t, "159.65.239.245", p.Addr.String())
+	assert.Equal(t, uint16(6868), p.Port)
+}
+
+func TestPeerInfo_UnmarshalJSON_WithoutSlash(t *testing.T) {
+	p := new(PeerInfo)
+	err := json.Unmarshal([]byte(`"159.65.239.245:6868"`), p)
+	require.Nil(t, err)
+	assert.Equal(t, "159.65.239.245", p.Addr.String())
+	assert.Equal(t, uint16(6868), p.Port)
+}
+
+func TestPeerInfo_UnmarshalJSON_WithoutPort(t *testing.T) {
+	p := new(PeerInfo)
+	err := json.Unmarshal([]byte(`"/159.65.239.245"`), p)
+	require.Nil(t, err)
+	assert.Equal(t, "159.65.239.245", p.Addr.String())
+	assert.Equal(t, uint16(0), p.Port)
+}
+
+func TestPeerInfo_UnmarshalJSON_NA(t *testing.T) {
+	p := new(PeerInfo)
+	err := json.Unmarshal([]byte(`"N/A"`), p)
+	require.Nil(t, err)
+	assert.Equal(t, &PeerInfo{}, p)
 }
