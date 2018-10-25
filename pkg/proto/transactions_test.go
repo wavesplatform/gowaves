@@ -1724,3 +1724,124 @@ func TestSetScriptV1ToJSON(t *testing.T) {
 		}
 	}
 }
+
+func TestSponsorshipV1Validations(t *testing.T) {
+	tests := []struct {
+		fee uint64
+		err string
+	}{
+		{0, "fee should be positive"},
+	}
+	for _, tc := range tests {
+		spk, _ := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
+		a, _ := crypto.NewDigestFromBase58("8Nwjd2tcQWff3S9WAhBa7vLRNpNnigWqrTbahvyfMVrU")
+		_, err := NewUnsignedSponsorshipV1(spk, a, 0, tc.fee, 0)
+		assert.EqualError(t, err, tc.err)
+	}
+}
+
+func TestSponsorshipV1FromMainNet(t *testing.T) {
+	tests := []struct {
+		pk        string
+		sig       string
+		id        string
+		asset     string
+		assetFee  uint64
+		fee       uint64
+		timestamp uint64
+	}{
+		{"9hdJNctMBwRf4aWS7GMwZrZAi4PndLqG8GRjL8tZiwTm", "4WucVTUE6NusuZL6SNFtoYfGbZVab8MQcwk4xtrnkQgJFxQrQNVXRCgXXgMu7o5C6EC6iNHfGztQNKnmp3cphEEu", "9yCRXrptsYKnsfFv6E226MXXjjxSzm3kXKL2oquw3HrX", "J8shEVBrQ4BLqsuYw5j6vQGCFJGMLBxr5nu2XvUWFEAR", 10000000, 100000000, 1537922072905},
+	}
+	for _, tc := range tests {
+		spk, _ := crypto.NewPublicKeyFromBase58(tc.pk)
+		id, _ := crypto.NewDigestFromBase58(tc.id)
+		sig, _ := crypto.NewSignatureFromBase58(tc.sig)
+		a, _ := crypto.NewDigestFromBase58(tc.asset)
+		if tx, err := NewUnsignedSponsorshipV1(spk, a, tc.assetFee, tc.fee, tc.timestamp); assert.NoError(t, err) {
+			if b, err := tx.bodyMarshalBinary(); assert.NoError(t, err) {
+				if h, err := crypto.FastHash(b); assert.NoError(t, err) {
+					assert.Equal(t, id, h)
+				}
+				assert.True(t, crypto.Verify(spk, sig, b))
+			}
+		}
+	}
+}
+
+func TestSponsorshipV1BinaryRoundTrip(t *testing.T) {
+	tests := []struct {
+		asset    string
+		assetFee uint64
+		fee      uint64
+	}{
+		{"9yCRXrptsYKnsfFv6E226MXXjjxSzm3kXKL2oquw3HrX", 100, 1234567890},
+		{"J8shEVBrQ4BLqsuYw5j6vQGCFJGMLBxr5nu2XvUWFEAR", 0, 9876543210},
+	}
+	seed, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
+	sk, pk := crypto.GenerateKeyPair(seed)
+	for _, tc := range tests {
+		ts := uint64(time.Now().UnixNano() / 1000000)
+		a, _ := crypto.NewDigestFromBase58(tc.asset)
+		if tx, err := NewUnsignedSponsorshipV1(pk, a, tc.assetFee, tc.fee, ts); assert.NoError(t, err) {
+			if bb, err := tx.bodyMarshalBinary(); assert.NoError(t, err) {
+				var atx SponsorshipV1
+				if err := atx.bodyUnmarshalBinary(bb); assert.NoError(t, err) {
+					assert.Equal(t, tx.Type, atx.Type)
+					assert.Equal(t, tx.Version, atx.Version)
+					assert.Equal(t, tx.SenderPK, atx.SenderPK)
+					assert.ElementsMatch(t, tx.AssetID, atx.AssetID)
+					assert.Equal(t, tx.MinAssetFee, atx.MinAssetFee)
+					assert.Equal(t, tx.Fee, atx.Fee)
+					assert.Equal(t, tx.Timestamp, atx.Timestamp)
+				}
+			}
+			if err := tx.Sign(sk); assert.NoError(t, err) {
+				if r, err := tx.Verify(pk); assert.NoError(t, err) {
+					assert.True(t, r)
+				}
+			}
+			if b, err := tx.MarshalBinary(); assert.NoError(t, err) {
+				var atx SponsorshipV1
+				if err := atx.UnmarshalBinary(b); assert.NoError(t, err) {
+					assert.Equal(t, tx.ID, atx.ID)
+					assert.ElementsMatch(t, tx.Proofs.Proofs, atx.Proofs.Proofs)
+					assert.Equal(t, pk, atx.SenderPK)
+					assert.Equal(t, tc.asset, atx.AssetID.String())
+					assert.Equal(t, tc.assetFee, atx.MinAssetFee)
+					assert.Equal(t, tc.fee, atx.Fee)
+					assert.Equal(t, ts, atx.Timestamp)
+				}
+			}
+		}
+	}
+}
+
+func TestSponsorshipV1ToJSON(t *testing.T) {
+	tests := []struct {
+		asset    string
+		assetFee uint64
+		fee      uint64
+	}{
+		{"9yCRXrptsYKnsfFv6E226MXXjjxSzm3kXKL2oquw3HrX", 100, 1234567890},
+		{"J8shEVBrQ4BLqsuYw5j6vQGCFJGMLBxr5nu2XvUWFEAR", 0, 9876543210},
+	}
+	seed, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
+	sk, pk := crypto.GenerateKeyPair(seed)
+	for _, tc := range tests {
+		ts := uint64(time.Now().UnixNano() / 1000000)
+		a, _ := crypto.NewDigestFromBase58(tc.asset)
+		if tx, err := NewUnsignedSponsorshipV1(pk, a, tc.assetFee, tc.fee, ts); assert.NoError(t, err) {
+			if j, err := json.Marshal(tx); assert.NoError(t, err) {
+				ej := fmt.Sprintf("{\"type\":14,\"version\":1,\"senderPublicKey\":\"%s\",\"assetId\":\"%s\",\"minSponsoredAssetFee\":%d,\"fee\":%d,\"timestamp\":%d}", base58.Encode(pk[:]), tc.asset, tc.assetFee, tc.fee, ts)
+				assert.Equal(t, ej, string(j))
+				if err := tx.Sign(sk); assert.NoError(t, err) {
+					if sj, err := json.Marshal(tx); assert.NoError(t, err) {
+						esj := fmt.Sprintf("{\"type\":14,\"version\":1,\"id\":\"%s\",\"proofs\":[\"%s\"],\"senderPublicKey\":\"%s\",\"assetId\":\"%s\",\"minSponsoredAssetFee\":%d,\"fee\":%d,\"timestamp\":%d}",
+							base58.Encode(tx.ID[:]), base58.Encode(tx.Proofs.Proofs[0]), base58.Encode(pk[:]), tc.asset, tc.assetFee, tc.fee, ts)
+						assert.Equal(t, esj, string(sj))
+					}
+				}
+			}
+		}
+	}
+}
