@@ -2,12 +2,13 @@ package proto
 
 import (
 	"encoding/binary"
-	"errors"
 	"fmt"
+	"github.com/pkg/errors"
+	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"io"
 	"net"
-
-	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"strconv"
+	"strings"
 )
 
 const (
@@ -365,6 +366,61 @@ func (m *PeerInfo) UnmarshalBinary(data []byte) error {
 	m.Addr = net.IPv4(data[0], data[1], data[2], data[3])
 	m.Port = uint16(binary.BigEndian.Uint32(data[4:8]))
 
+	return nil
+}
+
+// MarshalJSON writes PeerInfo Value as JSON string
+func (m PeerInfo) MarshalJSON() ([]byte, error) {
+	var sb strings.Builder
+	if m.Addr == nil {
+		return nil, errors.New("invalid addr")
+	}
+	if m.Port == 0 {
+		return nil, errors.New("invalid port")
+	}
+	sb.WriteRune('"')
+	sb.WriteString(m.Addr.String())
+	sb.WriteRune(':')
+	sb.WriteString(strconv.Itoa(int(m.Port)))
+	sb.WriteRune('"')
+	return []byte(sb.String()), nil
+}
+
+// UnmarshalJSON reads PeerInfo from JSON string
+func (m *PeerInfo) UnmarshalJSON(value []byte) error {
+	s := string(value)
+	if s == "null" {
+		return nil
+	}
+
+	s, err := strconv.Unquote(s)
+	if err != nil {
+		errors.Wrap(err, "failed to unmarshal PeerInfo from JSON")
+	}
+
+	splitted := strings.SplitN(s, "/", 2)
+	if len(splitted) == 1 {
+		s = splitted[0]
+	} else {
+		s = splitted[1]
+	}
+
+	splitted = strings.SplitN(s, ":", 2)
+	var addr, port string
+	if len(splitted) == 1 {
+		addr = splitted[0]
+		port = "0"
+	} else {
+		addr = splitted[0]
+		port = splitted[1]
+	}
+
+	m.Addr = net.ParseIP(addr)
+	port64, err := strconv.ParseUint(port, 10, 16)
+	if err != nil {
+		errors.Wrap(err, "failed to unmarshal PeerInfo from JSON")
+	}
+	m.Port = uint16(port64)
 	return nil
 }
 
