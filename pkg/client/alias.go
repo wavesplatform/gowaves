@@ -134,5 +134,4 @@ func (a *Alias) Broadcast(ctx context.Context, broadcastReq AliasBroadcastReq) (
 	}
 
 	return out, response, nil
-
 }

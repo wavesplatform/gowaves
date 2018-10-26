@@ -48,7 +48,7 @@ func (a Consensus) GeneratingBalance(ctx context.Context, address proto.Address)
 }
 
 // Generation signature of a block with specified id
-func (a *Consensus) GenerationSignature(ctx context.Context, blockID string) (string, *Response, error) {
+func (a *Consensus) GenerationSignatureByBlock(ctx context.Context, blockID string) (string, *Response, error) {
 	if a.options.ApiKey == "" {
 		return "", nil, NoApiKeyError
 	}
@@ -123,4 +123,52 @@ func (a *Consensus) BaseTarget(ctx context.Context) (*ConsensusBaseTarget, *Resp
 	}
 
 	return out, response, nil
+}
+
+func (a *Consensus) Algo(ctx context.Context) (string, *Response, error) {
+	if a.options.ApiKey == "" {
+		return "", nil, NoApiKeyError
+	}
+
+	req, err := http.NewRequest(
+		"GET",
+		fmt.Sprintf("%s/consensus/algo", a.options.BaseUrl),
+		nil)
+	if err != nil {
+		return "", nil, err
+	}
+
+	req.Header.Set("X-API-Key", a.options.ApiKey)
+
+	out := make(map[string]string)
+	response, err := doHttp(ctx, a.options, req, &out)
+	if err != nil {
+		return "", response, err
+	}
+
+	return out["consensusAlgo"], response, nil
+}
+
+func (a *Consensus) GenerationSignature(ctx context.Context) (string, *Response, error) {
+	if a.options.ApiKey == "" {
+		return "", nil, NoApiKeyError
+	}
+
+	req, err := http.NewRequest(
+		"GET",
+		fmt.Sprintf("%s/consensus/generationsignature", a.options.BaseUrl),
+		nil)
+	if err != nil {
+		return "", nil, err
+	}
+
+	req.Header.Set("X-API-Key", a.options.ApiKey)
+
+	out := make(map[string]string)
+	response, err := doHttp(ctx, a.options, req, &out)
+	if err != nil {
+		return "", response, err
+	}
+
+	return out["generationSignature"], response, nil
 }
