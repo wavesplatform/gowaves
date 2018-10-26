@@ -30,6 +30,7 @@ type Client struct {
 	Blocks    *Blocks
 	Wallet    *Wallet
 	Alias     *Alias
+	Peers     *Peers
 }
 
 type Response struct {
@@ -70,6 +71,7 @@ func NewClient(options ...Options) (*Client, error) {
 		Blocks:    NewBlocks(opts),
 		Wallet:    NewWallet(opts),
 		Alias:     NewAlias(opts),
+		Peers:     NewPeers(opts),
 	}
 
 	return c, nil
