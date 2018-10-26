@@ -242,7 +242,7 @@ func (tx *Payment) MarshalBinary() ([]byte, error) {
 
 	}
 	buf := make([]byte, paymentBodyLen+crypto.SignatureSize)
-	copy(buf[:], b)
+	copy(buf, b)
 	copy(buf[paymentBodyLen:], tx.Signature[:])
 	return buf, nil
 }

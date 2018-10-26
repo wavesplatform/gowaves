@@ -205,7 +205,7 @@ func (h *Handshake) UnmarshalBinary(data []byte) error {
 func (h *Handshake) ReadFrom(r io.Reader) (int64, error) {
 	buf := make([]byte, 1)
 
-	nn, err := io.ReadFull(r, buf[:])
+	nn, err := io.ReadFull(r, buf)
 	if err != nil {
 		return int64(nn), err
 	}
@@ -320,7 +320,7 @@ func (m *GetPeersMessage) ReadFrom(r io.Reader) (int64, error) {
 		return int64(nn), err
 	}
 	packet := make([]byte, binary.BigEndian.Uint32(packetLen[:]))
-	n, err := io.ReadFull(r, packet[:])
+	n, err := io.ReadFull(r, packet)
 	if err != nil {
 		return int64(nn), err
 	}
@@ -494,7 +494,7 @@ func readPacket(r io.Reader) ([]byte, int64, error) {
 		return nil, int64(nn), err
 	}
 	packet := make([]byte, binary.BigEndian.Uint32(packetLen[:]))
-	n, err := io.ReadFull(r, packet[:])
+	n, err := io.ReadFull(r, packet)
 	if err != nil {
 		return nil, int64(nn + n), err
 	}

@@ -21,5 +21,6 @@ gotest:
 
 fmtcheck:
 	@gofmt -l -s $(SOURCE_DIRS) | grep ".*\.go"; if [ "$$?" = "0" ]; then exit 1; fi
+	@gocritic check-project ./
 clean:
 	rm -rf build

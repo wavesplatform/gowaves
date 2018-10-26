@@ -31,7 +31,7 @@ func (d Digest) String() string {
 
 func (d Digest) MarshalBinary() ([]byte, error) {
 	b := make([]byte, 0, DigestSize)
-	copy(b[:], d[:])
+	copy(b, d[:])
 	return b, nil
 }
 
@@ -64,7 +64,7 @@ type SecretKey [SecretKeySize]byte
 
 func (k SecretKey) MarshalBinary() ([]byte, error) {
 	b := make([]byte, 0, SecretKeySize)
-	copy(b[:], k[:])
+	copy(b, k[:])
 	return b, nil
 }
 
@@ -97,7 +97,7 @@ type PublicKey [PublicKeySize]byte
 
 func (k PublicKey) MarshalBinary() ([]byte, error) {
 	b := make([]byte, 0, PublicKeySize)
-	copy(b[:], k[:])
+	copy(b, k[:])
 	return b, nil
 }
 
@@ -130,7 +130,7 @@ type Signature [SignatureSize]byte
 
 func (s Signature) MarshalBinary() ([]byte, error) {
 	b := make([]byte, 0, SignatureSize)
-	copy(b[:], s[:])
+	copy(b, s[:])
 	return b, nil
 }
 
