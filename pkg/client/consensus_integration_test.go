@@ -1,0 +1,48 @@
+// +build integration
+
+package client
+
+import (
+	"context"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"github.com/wavesplatform/gowaves/pkg/proto"
+	"os"
+	"testing"
+)
+
+func TestConsensusIntegration_GeneratingBalance(t *testing.T) {
+	apiKey := os.Getenv("ApiKey")
+	if apiKey == "" {
+		t.Skip("no env api key provided")
+		return
+	}
+
+	addr, _ := proto.NewAddressFromString("3NBVqYXrapgJP9atQccdBPAgJPwHDKkh6A8")
+	client, _ := NewClient(Options{
+		BaseUrl: "https://testnode1.wavesnodes.com",
+		ApiKey:  apiKey,
+	})
+	_, resp, err :=
+		client.Consensus.GeneratingBalance(context.Background(), addr)
+	require.Nil(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, 200, resp.StatusCode)
+}
+
+func TestConsensusIntegration_GenerationSignature(t *testing.T) {
+	apiKey := os.Getenv("ApiKey")
+	if apiKey == "" {
+		t.Skip("no env api key provided")
+		return
+	}
+	client, _ := NewClient(Options{
+		BaseUrl: "https://testnode1.wavesnodes.com",
+		ApiKey:  apiKey,
+	})
+	_, resp, err :=
+		client.Consensus.GenerationSignature(context.Background(), "3Z9W6dX3iAqyhv2gsE1WRRd5yLYdtjojLzNSXEFZNuVs21hkuNUmhqTNLqrcGnERJMaPtrfvag4AjQpjykvQM13a")
+	require.Nil(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, 200, resp.StatusCode)
+}
