@@ -11,6 +11,7 @@ type Consensus struct {
 	options Options
 }
 
+// creates new consensus api section
 func NewConsensus(options Options) *Consensus {
 	return &Consensus{
 		options: options,
@@ -72,6 +73,7 @@ func (a *Consensus) GenerationSignatureByBlock(ctx context.Context, blockID stri
 	return out["generationSignature"], response, nil
 }
 
+// Base target of a block with specified id
 func (a *Consensus) BaseTargetByBlock(ctx context.Context, blockID string) (uint64, *Response, error) {
 	if a.options.ApiKey == "" {
 		return 0, nil, NoApiKeyError
@@ -101,6 +103,7 @@ type ConsensusBaseTarget struct {
 	Score      string `json:"score"`
 }
 
+// Base target of a last block
 func (a *Consensus) BaseTarget(ctx context.Context) (*ConsensusBaseTarget, *Response, error) {
 	if a.options.ApiKey == "" {
 		return nil, nil, NoApiKeyError
@@ -125,6 +128,7 @@ func (a *Consensus) BaseTarget(ctx context.Context) (*ConsensusBaseTarget, *Resp
 	return out, response, nil
 }
 
+// Shows which consensus algo being using
 func (a *Consensus) Algo(ctx context.Context) (string, *Response, error) {
 	if a.options.ApiKey == "" {
 		return "", nil, NoApiKeyError
@@ -149,6 +153,7 @@ func (a *Consensus) Algo(ctx context.Context) (string, *Response, error) {
 	return out["consensusAlgo"], response, nil
 }
 
+// Generation signature of a last block
 func (a *Consensus) GenerationSignature(ctx context.Context) (string, *Response, error) {
 	if a.options.ApiKey == "" {
 		return "", nil, NoApiKeyError
