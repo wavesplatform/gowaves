@@ -223,11 +223,12 @@ func (o *OrderType) UnmarshalJSON(value []byte) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to unmarshal OrderType from JSON")
 	}
-	if l := strings.ToLower(s); l == buyOrderName {
+	switch strings.ToLower(s) {
+	case buyOrderName:
 		*o = Buy
-	} else if l == sellOrderName {
+	case sellOrderName:
 		*o = Sell
-	} else {
+	default:
 		return errors.Errorf("incorrect OrderType '%s'", s)
 	}
 	return nil
