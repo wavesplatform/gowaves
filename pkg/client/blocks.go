@@ -20,6 +20,19 @@ type BlocksHeight struct {
 	Height uint64 `json:"height"`
 }
 
+func (a *Blocks) Height(ctx context.Context) (*BlocksHeight, *Response, error) {
+	req, err := http.NewRequest("GET", fmt.Sprintf("%s/blocks/height", a.options.BaseUrl), nil)
+	if err != nil {
+		return nil, nil, err
+	}
+	out := new(BlocksHeight)
+	response, err := doHttp(ctx, a.options, req, out)
+	if err != nil {
+		return nil, response, err
+	}
+	return out, response, nil
+}
+
 func (a *Blocks) HeightBySignature(ctx context.Context, signature string) (*BlocksHeight, *Response, error) {
 	req, err := http.NewRequest(
 		"GET",
