@@ -3,18 +3,23 @@ package server
 import (
 	"bufio"
 	"context"
-	"encoding/binary"
 	"encoding/json"
 	"errors"
-	"io"
+	"fmt"
 	"net"
 	"sync"
 	"time"
 
 	"go.uber.org/zap"
 
+	"github.com/mr-tron/base58/base58"
+	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/wavesplatform/gowaves/pkg/p2p"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+)
+
+const (
+	testnetGenesis = "5uqnLK3Z9eiot6FyYBfwUnbyid3abicQbAZjz38GQ1Q8XigQMxTK4C1zNkqS1SVw7FqSidbZKxWAKLVoEsp4nNqa"
 )
 
 type Server struct {
@@ -23,6 +28,9 @@ type Server struct {
 	wg            sync.WaitGroup
 	mu            sync.Mutex
 	conns         map[*p2p.Conn]bool
+	dbpath        string
+	db            *leveldb.DB
+	genesis       proto.BlockID
 }
 
 func handleRequest(ctx context.Context, conn net.Conn) {
@@ -33,8 +41,8 @@ func dialContext(ctx context.Context, network, addr string) (net.Conn, error) {
 
 	dialer := net.Dialer{}
 
-	for i := 0xc; i < 20; i++ {
-		if i > 0xc {
+	for i := 0xe; i < 20; i++ {
+		if i > 0xe {
 			ticker := time.NewTimer(16 * time.Minute)
 
 			select {
@@ -81,12 +89,20 @@ func dialContext(ctx context.Context, network, addr string) (net.Conn, error) {
 	return nil, errors.New("TODO")
 }
 
+func (s *Server) processSignatures(w bufio.Writer, r bufio.Reader, m proto.SignaturesMessage) {
+}
+
 func (s *Server) handleClient(ctx context.Context, peer string) {
+	ingress := make(chan interface{}, 1024)
+
+	zap.S().Info("handling client")
+
 	customTransport := p2p.Transport{DialContext: dialContext}
 	conn, err := p2p.NewConn(
 		p2p.WithVersion(proto.Version{Major: 0, Minor: 5, Patch: 14}),
 		p2p.WithTransport(&customTransport),
 		p2p.WithRemote("tcp", peer),
+		p2p.WithIngress(ingress),
 	)
 	s.mu.Lock()
 	s.conns[conn] = true
@@ -101,60 +117,35 @@ func (s *Server) handleClient(ctx context.Context, peer string) {
 		zap.S().Error("error while dialing: ", err)
 		return
 	}
-	bufConnW := bufio.NewWriter(conn)
-	bufConn := bufio.NewReader(conn)
 
-	var gp proto.GetPeersMessage
-	gp.WriteTo(bufConnW)
-	bufConnW.Flush()
+	conn.Run()
+
+	var gp proto.GetSignaturesMessage
+	gp.Blocks = append(gp.Blocks, s.genesis)
+
+	conn.Send() <- gp
+	defer conn.Close()
 
 LOOP:
 	for {
-		buf, err := bufConn.Peek(9)
-		if err != nil {
-			zap.S().Error("error while reading from connection: ", err)
-			break
-		}
-
-		switch msgType := buf[8]; msgType {
-		case proto.ContentIDGetPeers:
-			var gp proto.GetPeersMessage
-			_, err := gp.ReadFrom(bufConn)
-			if err != nil {
-				zap.S().Error("error while receiving GetPeersMessage: ", err)
-				break
-			}
-
-		case proto.ContentIDPeers:
-			var p proto.PeersMessage
-			_, err := p.ReadFrom(bufConn)
-			if err != nil {
-				zap.S().Error("failed to read Peers message: ", err)
-				break
-			}
-			var b []byte
-			b, e := json.Marshal(p)
-			if e != nil {
-				return
-			}
-			js := string(b)
-			zap.S().Info("Got peers", js)
-		case proto.ContentIDScore:
-			var s proto.ScoreMessage
-			_, err := s.ReadFrom(bufConn)
-			if err != nil {
-				zap.S().Error("failed to read Score message: ", err)
-				break
-			}
-		default:
-			l := binary.BigEndian.Uint32(buf[:4])
-			arr := make([]byte, l)
-			_, err := io.ReadFull(bufConn, arr)
-			if err != nil {
-				break LOOP
-			}
+		select {
+		case <-ctx.Done():
 			break LOOP
+		case m := <-ingress:
+			switch v := m.(type) {
+			case proto.SignaturesMessage:
+				var b []byte
+				b, e := json.Marshal(v)
+				if e != nil {
+					return
+				}
+				js := string(b)
+				zap.S().Info("Got signatures", js)
+			default:
+				zap.S().Infof("Got type %T", v)
+			}
 		}
+
 	}
 }
 
@@ -206,6 +197,73 @@ func (m *Server) Stop() {
 	zap.S().Info("stopped server")
 }
 
-func NewServer(peers []string) *Server {
-	return &Server{BootPeerAddrs: peers, conns: make(map[*p2p.Conn]bool)}
+type Option func(*Server) error
+
+func WithLevelDBPath(dbpath string) Option {
+	return func(s *Server) error {
+		s.dbpath = dbpath
+		return nil
+	}
+}
+
+func WithPeers(peers []string) Option {
+	return func(s *Server) error {
+		s.BootPeerAddrs = peers
+		return nil
+	}
+}
+
+func WithGenesis(gen string) Option {
+	return func(s *Server) error {
+		if gen == "" {
+			return nil
+		}
+		decoded, err := base58.Decode(gen)
+		if err != nil {
+			return err
+		}
+		copy(s.genesis[:], decoded[:len(s.genesis)])
+		return nil
+	}
+}
+
+func decodeBlockID(b string) (*proto.BlockID, error) {
+	var res proto.BlockID
+
+	decoded, err := base58.Decode(b)
+	if err != nil {
+		return nil, err
+	}
+	if len(decoded) != len(res) {
+		return nil, fmt.Errorf("unexpected blockID length: want %v have %v", len(res), len(decoded))
+	}
+	copy(res[:], decoded)
+	return &res, nil
+}
+
+func NewServer(opts ...Option) (*Server, error) {
+	s := &Server{
+		conns: make(map[*p2p.Conn]bool),
+	}
+	genesis, err := decodeBlockID(testnetGenesis)
+	if err != nil {
+		return nil, err
+	}
+	s.genesis = *genesis
+	for _, o := range opts {
+		if err := o(s); err != nil {
+			return nil, err
+		}
+	}
+
+	if s.dbpath != "" {
+		db, err := leveldb.OpenFile(s.dbpath, nil)
+		if err != nil {
+			return nil, err
+		}
+		s.db = db
+	}
+
+	zap.S().Info("staring server with genesis block", base58.Encode(s.genesis[:]))
+	return s, nil
 }

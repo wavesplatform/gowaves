@@ -4,4 +4,9 @@ waves:
     port: 6863
     node-name: "My GOWAVES node"
     peers:
-      -  "52.77.111.219:6863"
+      - "217.100.219.251:6863"
+#-  "52.77.111.219:6863"
+  blockchain:
+    genesis: "5uqnLK3Z9eiot6FyYBfwUnbyid3abicQbAZjz38GQ1Q8XigQMxTK4C1zNkqS1SVw7FqSidbZKxWAKLVoEsp4nNqa"
+  storage:
+    path: "/tmp/waves.db"

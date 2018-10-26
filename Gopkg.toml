@@ -57,6 +57,10 @@
   branch = "master"
   name = "go.uber.org/zap"
 
+[[constraint]]
+  branch = "master"
+  name = "github.com/syndtr/goleveldb"
+
 [prune]
   go-tests = true
   unused-packages = true

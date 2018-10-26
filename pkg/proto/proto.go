@@ -671,10 +671,10 @@ func (m *SignaturesMessage) UnmarshalBinary(data []byte) error {
 
 	for i := uint32(0); i < sigCount; i++ {
 		var sig BlockSignature
-		if len(data[i:]) < 64 {
+		if len(data[i*64:]) < 64 {
 			return fmt.Errorf("message too short: %v", len(data))
 		}
-		copy(sig[:], data[i:i+64])
+		copy(sig[:], data[i*64:i*64+64])
 		m.Signatures = append(m.Signatures, sig)
 	}
 

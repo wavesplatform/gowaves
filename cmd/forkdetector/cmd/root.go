@@ -27,7 +27,17 @@ var (
 
 			ctx, cancel := context.WithCancel(context.Background())
 			peers := viper.GetStringSlice("waves.network.peers")
-			s := server.NewServer(peers)
+			s, err := server.NewServer(
+				server.WithPeers(peers),
+				server.WithLevelDBPath(viper.GetString("waves.storage.path")),
+				server.WithGenesis(viper.GetString("waves.blockchain.genesis")),
+			)
+			if err != nil {
+				zap.S().Error("failed to create a new server instance ", err)
+				cancel()
+				return
+			}
+
 			s.RunClients(ctx)
 			defer s.Stop()
 
