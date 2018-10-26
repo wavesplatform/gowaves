@@ -46,3 +46,37 @@ func TestConsensusIntegration_GenerationSignature(t *testing.T) {
 	require.NotNil(t, resp)
 	assert.Equal(t, 200, resp.StatusCode)
 }
+
+func TestConsensusIntegration_BaseTargetByBlock(t *testing.T) {
+	apiKey := os.Getenv("ApiKey")
+	if apiKey == "" {
+		t.Skip("no env api key provided")
+		return
+	}
+	client, _ := NewClient(Options{
+		BaseUrl: "https://testnode1.wavesnodes.com",
+		ApiKey:  apiKey,
+	})
+	_, resp, err :=
+		client.Consensus.BaseTargetByBlock(context.Background(), "3Z9W6dX3iAqyhv2gsE1WRRd5yLYdtjojLzNSXEFZNuVs21hkuNUmhqTNLqrcGnERJMaPtrfvag4AjQpjykvQM13a")
+	require.Nil(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, 200, resp.StatusCode)
+}
+
+func TestConsensusIntegration_BaseTarget(t *testing.T) {
+	apiKey := os.Getenv("ApiKey")
+	if apiKey == "" {
+		t.Skip("no env api key provided")
+		return
+	}
+	client, _ := NewClient(Options{
+		BaseUrl: "https://testnode1.wavesnodes.com",
+		ApiKey:  apiKey,
+	})
+	_, resp, err :=
+		client.Consensus.BaseTarget(context.Background())
+	require.Nil(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, 200, resp.StatusCode)
+}

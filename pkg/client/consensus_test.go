@@ -50,3 +50,42 @@ func TestConsensus_GenerationSignature(t *testing.T) {
 	assert.NotNil(t, resp)
 	assert.Equal(t, "EL4TZk4ANnSEsZ7ndgp89BaCDmcrhBNHEJJEwQiKWxdW", body)
 }
+
+var consensusBaseTargetBlockJson = `
+{
+  "baseTarget": 737
+}`
+
+func TestConsensus_BaseTargetByBlock(t *testing.T) {
+	client, err := NewClient(Options{
+		Client: NewMockHttpRequestFromString(consensusBaseTargetBlockJson, 200),
+		ApiKey: "ApiKey",
+	})
+	require.Nil(t, err)
+	body, resp, err :=
+		client.Consensus.BaseTargetByBlock(context.Background(), "abdcddd")
+	require.Nil(t, err)
+	assert.NotNil(t, resp)
+	assert.Equal(t, uint64(737), body)
+}
+
+var consensusBaseTargetJson = `
+{
+  "baseTarget": 840,
+  "score": "15057308169423316786914"
+}
+`
+
+func TestConsensus_BaseTarget(t *testing.T) {
+	client, err := NewClient(Options{
+		Client: NewMockHttpRequestFromString(consensusBaseTargetJson, 200),
+		ApiKey: "ApiKey",
+	})
+	require.Nil(t, err)
+	body, resp, err :=
+		client.Consensus.BaseTarget(context.Background())
+	require.Nil(t, err)
+	assert.NotNil(t, resp)
+	assert.Equal(t, uint64(840), body.BaseTarget)
+	assert.Equal(t, "15057308169423316786914", body.Score)
+}
