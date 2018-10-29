@@ -109,7 +109,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	sigCnt, err := differentSignaturesCount(log, appCtx, clients, ch + 1)
+	sigCnt, err := differentSignaturesCount(log, appCtx, clients, ch+1)
 	if err != nil {
 		log.Errorf("Failed to get blocks: %s", err)
 		cancel()
@@ -130,11 +130,11 @@ func main() {
 		}
 	} else {
 		if h < refLowest {
-			log.Infof("Node '%s' is %d blocks behind the lowest reference node", node, refLowest - h)
+			log.Infof("Node '%s' is %d blocks behind the lowest reference node", node, refLowest-h)
 		} else if h == refLowest {
 			log.Infof("Node '%s' is OK", node)
 		} else {
-			log.Infof("Node '%s' is %d blocks ahead of the lowest reference node", node, refLowest - h)
+			log.Infof("Node '%s' is %d blocks ahead of the lowest reference node", node, refLowest-h)
 
 		}
 	}
