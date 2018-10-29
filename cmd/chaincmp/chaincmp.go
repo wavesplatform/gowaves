@@ -4,16 +4,17 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"github.com/pkg/errors"
-	"github.com/wavesplatform/gowaves/pkg/client"
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
 	"net/http"
 	"os"
 	"os/signal"
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/pkg/errors"
+	"github.com/wavesplatform/gowaves/pkg/client"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 const (
@@ -102,14 +103,14 @@ func main() {
 	stop := min(hs)
 	log.Infof("Lowest height: %d", stop)
 
-	ch, err := findLastCommonHeight(log, appCtx, clients, 1, stop)
+	ch, err := findLastCommonHeight(appCtx, log, clients, 1, stop)
 	if err != nil {
 		log.Errorf("Failed to find last common height: %s", err)
 		cancel()
 		os.Exit(1)
 	}
 
-	sigCnt, err := differentSignaturesCount(log, appCtx, clients, ch+1)
+	sigCnt, err := differentSignaturesCount(appCtx, log, clients, ch+1)
 	if err != nil {
 		log.Errorf("Failed to get blocks: %s", err)
 		cancel()
@@ -143,21 +144,20 @@ func main() {
 
 }
 
-func findLastCommonHeight(log *zap.SugaredLogger, rootContext context.Context, clients []*client.Client, start, stop int) (int, error) {
+func findLastCommonHeight(rootContext context.Context, log *zap.SugaredLogger, clients []*client.Client, start, stop int) (int, error) {
 	for start <= stop {
 		middle := (start + stop) / 2
 		if abs(start-stop) <= 1 {
 			return middle, nil
+		}
+		c, err := differentSignaturesCount(rootContext, log, clients, middle)
+		if err != nil {
+			return 0, errors.Wrapf(err, "failed to get blocks signatures at height %d", middle)
+		}
+		if c >= 2 {
+			stop = middle
 		} else {
-			c, err := differentSignaturesCount(log, rootContext, clients, middle)
-			if err != nil {
-				return 0, errors.Wrapf(err, "failed to get blocks signatures at height %d", middle)
-			}
-			if c >= 2 {
-				stop = middle
-			} else {
-				start = middle
-			}
+			start = middle
 		}
 	}
 	return 0, errors.New("impossible situation")
@@ -169,13 +169,14 @@ type nodeHeader struct {
 	err    error
 }
 
-func differentSignaturesCount(log *zap.SugaredLogger, rootContext context.Context, clients []*client.Client, height int) (int, error) {
+func differentSignaturesCount(rootContext context.Context, log *zap.SugaredLogger, clients []*client.Client, height int) (int, error) {
 	ch := make(chan nodeHeader, len(clients))
 	info := make(map[int]*client.Headers)
 	m := make(map[string]bool)
 	for i, c := range clients {
 		go func(id int, cl *client.Client) {
-			ctx, _ := context.WithTimeout(rootContext, time.Second*30)
+			ctx, cancel := context.WithTimeout(rootContext, time.Second*30)
+			defer cancel()
 			header, resp, err := cl.Blocks.HeadersAt(ctx, uint64(height))
 			if err != nil {
 				ch <- nodeHeader{id, header, err}
@@ -248,7 +249,8 @@ type nodeHeight struct {
 }
 
 func height(rootContext context.Context, c *client.Client, id int, ch chan nodeHeight) {
-	ctx, _ := context.WithTimeout(rootContext, time.Second*30)
+	ctx, cancel := context.WithTimeout(rootContext, time.Second*30)
+	defer cancel()
 
 	bh, resp, err := c.Blocks.Height(ctx)
 	if err != nil {
