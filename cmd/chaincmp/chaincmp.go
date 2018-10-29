@@ -125,8 +125,10 @@ func main() {
 		log.Warnf("Node '%s' on fork of length %d since block number %d", node, fl, ch)
 		if fl < 1980 {
 			log.Warnf("Node '%s' rollback is possible, do it as soon as possible!", node)
+			log.Warnf("Please, use following API methods '/debug/rollback' or '/debug/rollback-to' to rollback to last common block.")
 		} else {
 			log.Warnf("Node '%s' rollback is not available, the fork is too long, please, consider restarting the node from scratch!", node)
+			log.Warnf("Please, refer the documentation at https://docs.wavesplatform.com/en/waves-full-node/options-of-running-waves-full-node.html.")
 		}
 	} else {
 		if h < refLowest {
