@@ -93,7 +93,7 @@ func (s *Server) processSignatures(w bufio.Writer, r bufio.Reader, m proto.Signa
 }
 
 func (s *Server) handleClient(ctx context.Context, peer string) {
-	ingress := make(chan interface{}, 1024)
+	ingress := make(chan p2p.ConnMessage, 1024)
 
 	zap.S().Info("handling client")
 
@@ -132,7 +132,7 @@ LOOP:
 		case <-ctx.Done():
 			break LOOP
 		case m := <-ingress:
-			switch v := m.(type) {
+			switch v := m.Message.(type) {
 			case proto.SignaturesMessage:
 				var b []byte
 				b, e := json.Marshal(v)

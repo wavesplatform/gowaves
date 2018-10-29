@@ -16,6 +16,12 @@ import (
 
 const retryTimeout = 30
 
+// ConnMessage is a message with address of the sender
+type ConnMessage struct {
+	From    net.Addr
+	Message interface{}
+}
+
 // ConnOption is a connection creation option
 type ConnOption func(*Conn) error
 
@@ -29,7 +35,7 @@ type Conn struct {
 	network  string
 	addr     string
 	version  proto.Version
-	ingress  chan<- interface{}
+	ingress  chan<- ConnMessage
 	outgress chan interface{}
 
 	Transport *Transport
@@ -72,7 +78,7 @@ LOOP:
 				zap.S().Error("error while receiving GetPeersMessage: ", err)
 				break LOOP
 			}
-			c.ingress <- gp
+			c.ingress <- ConnMessage{c.Conn.RemoteAddr(), gp}
 		case proto.ContentIDPeers:
 			var p proto.PeersMessage
 			_, err := p.ReadFrom(bufConn)
@@ -87,7 +93,7 @@ LOOP:
 			}
 			js := string(b)
 			zap.S().Info("Got peers", js)
-			c.ingress <- p
+			c.ingress <- ConnMessage{c.Conn.RemoteAddr(), p}
 		case proto.ContentIDScore:
 			var s proto.ScoreMessage
 			_, err := s.ReadFrom(bufConn)
@@ -95,6 +101,7 @@ LOOP:
 				zap.S().Error("failed to read Score message: ", err)
 				break LOOP
 			}
+			c.ingress <- ConnMessage{c.Conn.RemoteAddr(), s}
 		case proto.ContentIDSignatures:
 			var m proto.SignaturesMessage
 			_, err := m.ReadFrom(bufConn)
@@ -102,7 +109,7 @@ LOOP:
 				zap.S().Error("failed to read Signatures message:", err)
 				break LOOP
 			}
-			c.ingress <- m
+			c.ingress <- ConnMessage{c.Conn.RemoteAddr(), m}
 		default:
 			l := binary.BigEndian.Uint32(buf[:4])
 			arr := make([]byte, l)
@@ -204,12 +211,13 @@ func WithContext(ctx context.Context) ConnOption {
 	}
 }
 
-func WithIngress(ch chan<- interface{}) ConnOption {
+func WithIngress(ch chan<- ConnMessage) ConnOption {
 	return func(c *Conn) error {
 		c.ingress = ch
 		return nil
 	}
 }
+
 func (c *Conn) Send() chan<- interface{} {
 	return c.outgress
 }
@@ -223,7 +231,7 @@ func (c *Conn) Close() {
 func NewConn(options ...ConnOption) (*Conn, error) {
 	c := Conn{}
 	c.ctx, c.cancel = context.WithCancel(context.Background())
-	c.ingress = make(chan interface{}, 1024)
+	c.ingress = make(chan ConnMessage, 1024)
 	c.outgress = make(chan interface{}, 1024)
 
 	for _, option := range options {
