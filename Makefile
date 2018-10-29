@@ -5,15 +5,15 @@ SOURCE_DIRS = cmd pkg
 
 VERSION=$(shell git describe --tags --always --dirty)
 
-ver:
-	@echo Building version: $(VERSION)
-
 .PHONY: fmtcheck dep clean build gotest
 
 all: dep build gotest fmtcheck
 
 dep:
 	dep ensure
+
+ver:
+	@echo Building version: $(VERSION)
 
 build: build/bin/forkdetector
 
