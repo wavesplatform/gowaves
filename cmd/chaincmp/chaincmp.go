@@ -125,11 +125,16 @@ func main() {
 		log.Warnf("Last common height: %d", ch)
 		log.Warnf("Node '%s' on fork of length %d since block number %d", node, fl, ch)
 		if fl < 1980 {
-			log.Warnf("Node '%s' rollback is possible, do it as soon as possible!", node)
-			log.Warnf("Please, use following API methods '/debug/rollback' or '/debug/rollback-to' to rollback to last common block.")
+			if fl < 100 {
+				log.Warnf("The fork is short and possibly the node will rollback and switch on the correct fork automatically.", node)
+				log.Warnf("But if you want to rollback manually, refer the documentation at https://docs.wavesplatform.com/en/waves-full-node/how-to-rollback-a-node.html.")
+			} else {
+				log.Warnf("Manual rollback of the node '%s' is possible, do it as soon as possible!", node)
+				log.Warnf("Please, read the documentation at https://docs.wavesplatform.com/en/waves-full-node/how-to-rollback-a-node.html.")
+			}
 		} else {
-			log.Warnf("Node '%s' rollback is not available, the fork is too long, please, consider restarting the node from scratch!", node)
-			log.Warnf("Please, refer the documentation at https://docs.wavesplatform.com/en/waves-full-node/options-of-running-waves-full-node.html.")
+			log.Warnf("Rollback of node '%s' is not available, the fork is too long, consider restarting the node from scratch!", node)
+			log.Warnf("Please, refer the documentation at https://docs.wavesplatform.com/en/waves-full-node/options-for-getting-actual-blockchain.html.")
 		}
 	} else {
 		if h < refLowest {
@@ -138,10 +143,8 @@ func main() {
 			log.Infof("Node '%s' is OK", node)
 		} else {
 			log.Infof("Node '%s' is %d blocks ahead of the lowest reference node", node, refLowest-h)
-
 		}
 	}
-
 }
 
 func findLastCommonHeight(rootContext context.Context, log *zap.SugaredLogger, clients []*client.Client, start, stop int) (int, error) {
