@@ -3,6 +3,7 @@ package client
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
@@ -42,11 +43,11 @@ func TestGuessTransaction_Genesis(t *testing.T) {
     }`
 
 	buf := bytes.NewBufferString(genesisJson)
-
-	rs, err := UnmarshalTransaction(&TransactionTypeVersion{Type: proto.TransactionType(1), Version: 0}, buf)
+	genesis := &proto.Genesis{}
+	rs, err := GuessTransactionType(&TransactionTypeVersion{Type: proto.TransactionType(1), Version: 0})
+	err = json.NewDecoder(buf).Decode(genesis)
 	require.Nil(t, err)
 	require.IsType(t, &proto.Genesis{}, rs)
-	genesis := rs.(*proto.Genesis)
 	assert.Equal(t, uint64(9999999500000000), genesis.Amount)
 }
 
@@ -116,4 +117,141 @@ func TestTransactions_Info(t *testing.T) {
 	assert.NotNil(t, resp)
 	assert.Equal(t, &id, body.(*proto.ExchangeV1).ID)
 	assert.Equal(t, "https://testnodes.wavesnodes.com/transactions/info/95DEg9uS9Ez2RoAQWsBgW8hDmHEJzWB1nMpPZdSp1JbB", resp.Request.URL.String())
+}
+
+var transactionsUnconfirmedInfoJson = `{
+  "type" : 7,
+  "id" : "DCLe9jiCYmMBeU2qMwz2SU3bnWRJ9YdCgf3gEpzeGM52",
+  "sender" : "3PJaDyprvekvPXPuAtxrapacuDJopgJRaU3",
+  "senderPublicKey" : "7kPFrHDiGw1rCm7LPszuECwWYL3dMf6iMifLRDJQZMzy",
+  "fee" : 300000,
+  "timestamp" : 1540808498538,
+  "signature" : "2hafgo3bLG2WPoWSHt9Z383o84azU4E8X5KpNctZNb3iFsYEEb5eGTbXN9XKWUJSkdufCbAbovSmTn8Mc8hj72Y9",
+  "order1" : {
+    "id" : "BaDtJVWgaU9uoS6B1agvQefpDDeWnxduJrkBuJNFE2pY",
+    "sender" : "3PKe8Y2oyGHJ9z7aooGx3wtdgNXGyzaDB4Y",
+    "senderPublicKey" : "8qfeDYoqEQvp8ukUefRV3fCeBHMQZhi1pUn7KUw56hAr",
+    "matcherPublicKey" : "7kPFrHDiGw1rCm7LPszuECwWYL3dMf6iMifLRDJQZMzy",
+    "assetPair" : {
+      "amountAsset" : null,
+      "priceAsset" : "Ft8X1v1LTa1ABafufpaCWyVj8KkaxUWE6xBhW6sNFJck"
+    },
+    "orderType" : "buy",
+    "price" : 193,
+    "amount" : 10000000000,
+    "timestamp" : 1540807822557,
+    "expiration" : 1543313422557,
+    "matcherFee" : 300000,
+    "signature" : "3EZKLzmPcxqXjczWCwzt6bS78BG1Pd8Boi2jphBFGDqkMTm2owcvXbsowpJU1oMR1QJcSyqCMuvfumyQBFc9TgjY"
+  },
+  "order2" : {
+    "id" : "7HMfCo6ixbQjZ945gKig23DP1r3xYdHmCibF3MHs7tPv",
+    "sender" : "3P72phQTwwiwc7QcNGoKA4wpUsqCuT5eMJ3",
+    "senderPublicKey" : "4gmFnncST7SjHjTpys78uCmUsMCZ8kudAmvjvqpVuYKt",
+    "matcherPublicKey" : "7kPFrHDiGw1rCm7LPszuECwWYL3dMf6iMifLRDJQZMzy",
+    "assetPair" : {
+      "amountAsset" : null,
+      "priceAsset" : "Ft8X1v1LTa1ABafufpaCWyVj8KkaxUWE6xBhW6sNFJck"
+    },
+    "orderType" : "sell",
+    "price" : 193,
+    "amount" : 8712566,
+    "timestamp" : 1540808498535,
+    "expiration" : 1543400498535,
+    "matcherFee" : 300000,
+    "signature" : "3YVvNN8kPvB127ZPoMjn9ueToB3UFf5Lrbma8HqKEqo7Mb6ABaSg33QofkPXvCf6ehFTRU4cNNunKQqTeHK75Xv9"
+  },
+  "price" : 193,
+  "amount" : 8290156,
+  "buyMatcherFee" : 248,
+  "sellMatcherFee" : 285455
+}`
+
+func TestTransactions_UnconfirmedInfo(t *testing.T) {
+	id, _ := crypto.NewDigestFromBase58("DCLe9jiCYmMBeU2qMwz2SU3bnWRJ9YdCgf3gEpzeGM52")
+	client, err := NewClient(Options{
+		Client:  NewMockHttpRequestFromString(transactionsUnconfirmedInfoJson, 200),
+		BaseUrl: "https://testnodes.wavesnodes.com",
+	})
+	require.Nil(t, err)
+	body, resp, err :=
+		client.Transactions.UnconfirmedInfo(context.Background(), id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.NotNil(t, resp)
+	assert.Equal(t, &id, body.(*proto.ExchangeV1).ID)
+	assert.Equal(t, "https://testnodes.wavesnodes.com/transactions/unconfirmed/info/DCLe9jiCYmMBeU2qMwz2SU3bnWRJ9YdCgf3gEpzeGM52", resp.Request.URL.String())
+}
+
+var transactionsByAddressJson = `
+[
+  [
+    {
+      "type": 7,
+      "id": "9ECrQ5oo3A6s4qtncRC5BCymWdVGYTV94YcSAEnbgQAj",
+      "sender": "3PJaDyprvekvPXPuAtxrapacuDJopgJRaU3",
+      "senderPublicKey": "7kPFrHDiGw1rCm7LPszuECwWYL3dMf6iMifLRDJQZMzy",
+      "fee": 300000,
+      "timestamp": 1540894037536,
+      "signature": "2sQLYgsjy3UnsbF16QpxtYafsduwx2wG9EniN5wxoKtqXo94fhDfoS7JubUwyj5Z6FskMhMZ8gxDgdwWF8jyUN75",
+      "order1": {
+        "id": "2LtVMBzxbjoX9fRNXJekjnfdwWBZGacudzD2q2ydL1X5",
+        "sender": "3PF3sfmNfcys9yBnmtAMJnWXnaDJy6DFb5g",
+        "senderPublicKey": "C8A3yxGDnUazYVhj3VXQKhLHDshgXCXg8fChGNGPQgGw",
+        "matcherPublicKey": "7kPFrHDiGw1rCm7LPszuECwWYL3dMf6iMifLRDJQZMzy",
+        "assetPair": {
+          "amountAsset": "zMFqXuoyrn5w17PFurTqxB7GsS71fp9dfk6XFwxbPCy",
+          "priceAsset": null
+        },
+        "orderType": "buy",
+        "price": 23354852576,
+        "amount": 13553323,
+        "timestamp": 1540894017293,
+        "expiration": 1540894317293,
+        "matcherFee": 300000,
+        "signature": "4jD8v1M57fqg3fPpsuru9Vwm254QrtFmyiKkxF7Y3PstXjwWSwBy1jQMisbnbAEZ42XebxiBtLGyFSb16wXtKVNU"
+      },
+      "order2": {
+        "id": "RbhFTZWEufGTcuMsRLGz3xrtEGrLgC5pdukcERMRgyU",
+        "sender": "3PMhuLKgEf2Dt1Gvc4nvEHsTpB1ywJisXhJ",
+        "senderPublicKey": "2nwZ5Cn2EAzDr6hk5K4paRBCnK1e73TPWbhRqiqEkGwZ",
+        "matcherPublicKey": "7kPFrHDiGw1rCm7LPszuECwWYL3dMf6iMifLRDJQZMzy",
+        "assetPair": {
+          "amountAsset": "zMFqXuoyrn5w17PFurTqxB7GsS71fp9dfk6XFwxbPCy",
+          "priceAsset": null
+        },
+        "orderType": "sell",
+        "price": 23354852576,
+        "amount": 6051000,
+        "timestamp": 1540894035476,
+        "expiration": 1541498835476,
+        "matcherFee": 300000,
+        "signature": "5rskUz2ki6Ma7WxpidJrvSvhqvKrifpFGtKQNBZtd6LJNCyebGc1sgaw5UAaQ7qaTYLV9wGLsL7qpRvG34DAz2MW"
+      },
+      "price": 23354852576,
+      "amount": 6051000,
+      "buyMatcherFee": 133937,
+      "sellMatcherFee": 300000,
+      "height": 1239417
+    }
+  ]
+]`
+
+func TestTransactions_TransactionsByAddress(t *testing.T) {
+	id, _ := proto.NewAddressFromString("3PJaDyprvekvPXPuAtxrapacuDJopgJRaU3")
+	client, err := NewClient(Options{
+		Client:  NewMockHttpRequestFromString(transactionsByAddressJson, 200),
+		BaseUrl: "https://testnodes.wavesnodes.com",
+	})
+	require.Nil(t, err)
+	body, resp, err :=
+		client.Transactions.TransactionsByAddress(context.Background(), id, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.NotNil(t, resp)
+	assert.Equal(t, 1, len(body))
+	assert.Equal(t, "https://testnodes.wavesnodes.com/transactions/address/3PJaDyprvekvPXPuAtxrapacuDJopgJRaU3/limit/1", resp.Request.URL.String())
+	assert.Equal(t, uint64(300000), body[0].(*proto.ExchangeV1).Fee)
 }

@@ -8,7 +8,6 @@ import (
 	"github.com/go-errors/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"io"
 	"net/http"
 )
 
@@ -20,6 +19,42 @@ func NewTransactions(options Options) *Transactions {
 	return &Transactions{
 		options: options,
 	}
+}
+
+func (a *Transactions) UnconfirmedInfo(ctx context.Context, id crypto.Digest) (proto.Transaction, *Response, error) {
+	req, err := http.NewRequest(
+		"GET",
+		fmt.Sprintf("%s/transactions/unconfirmed/info/%s", a.options.BaseUrl, id.String()),
+		nil)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	buf := new(bytes.Buffer)
+	response, err := doHttp(ctx, a.options, req, buf)
+	if err != nil {
+		return nil, response, err
+	}
+
+	b := buf.Bytes()
+
+	tt := new(TransactionTypeVersion)
+	err = json.NewDecoder(buf).Decode(tt)
+	if err != nil {
+		return nil, response, &ParseError{Err: err}
+	}
+
+	realType, err := GuessTransactionType(tt)
+	if err != nil {
+		return nil, response, &ParseError{Err: err}
+	}
+
+	err = json.Unmarshal(b, realType)
+	if err != nil {
+		return nil, response, &ParseError{Err: err}
+	}
+
+	return realType, response, nil
 }
 
 // Get the number of unconfirmed transactions in the UTX pool
@@ -67,18 +102,23 @@ func (a *Transactions) Info(ctx context.Context, id crypto.Digest) (proto.Transa
 	tt := new(TransactionTypeVersion)
 	err = json.NewDecoder(buf).Decode(tt)
 	if err != nil {
-		return nil, response, err
+		return nil, response, &ParseError{Err: err}
 	}
 
-	out, err := UnmarshalTransaction(tt, bytes.NewReader(b))
+	realType, err := GuessTransactionType(tt)
 	if err != nil {
 		return nil, response, &ParseError{Err: err}
 	}
 
-	return out, response, nil
+	err = json.Unmarshal(b, realType)
+	if err != nil {
+		return nil, response, &ParseError{Err: err}
+	}
+
+	return realType, response, nil
 }
 
-func UnmarshalTransaction(t *TransactionTypeVersion, buf io.Reader) (proto.Transaction, error) {
+func GuessTransactionType(t *TransactionTypeVersion) (proto.Transaction, error) {
 	var out proto.Transaction
 	switch t.Type {
 	case proto.GenesisTransaction: // 1
@@ -110,10 +150,56 @@ func UnmarshalTransaction(t *TransactionTypeVersion, buf io.Reader) (proto.Trans
 	case proto.SponsorshipTransaction: // 14
 		out = &proto.SponsorshipV1{}
 	}
-
 	if out == nil {
 		return nil, errors.Errorf("unknown transaction type %d version %d", t.Type, t.Version)
 	}
+	return out, nil
+}
 
-	return out, json.NewDecoder(buf).Decode(out)
+// Get list of transactions where specified address has been involved
+func (a *Transactions) TransactionsByAddress(ctx context.Context, address proto.Address, limit uint) ([]proto.Transaction, *Response, error) {
+	req, err := http.NewRequest(
+		"GET",
+		fmt.Sprintf("%s/transactions/address/%s/limit/%d", a.options.BaseUrl, address.String(), limit),
+		nil)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	buf := new(bytes.Buffer)
+	response, err := doHttp(ctx, a.options, req, buf)
+	if err != nil {
+		return nil, response, err
+	}
+	// reference to original bytes
+	b := buf.Bytes()
+
+	var tt [][]*TransactionTypeVersion
+	err = json.NewDecoder(buf).Decode(&tt)
+	if err != nil {
+		return nil, response, &ParseError{Err: err}
+	}
+
+	if len(tt) == 0 {
+		return nil, response, nil
+	}
+
+	out := make([]proto.Transaction, len(tt[0]))
+	for i, row := range tt[0] {
+		realType, err := GuessTransactionType(row)
+		if err != nil {
+			return nil, response, &ParseError{Err: err}
+		}
+		out[i] = realType
+	}
+
+	j := [][]proto.Transaction{out}
+	err = json.Unmarshal(b, &j)
+	if err != nil {
+		return nil, response, &ParseError{Err: err}
+	}
+	if len(j) == 0 {
+		return nil, response, nil
+	}
+	return out, response, nil
 }
