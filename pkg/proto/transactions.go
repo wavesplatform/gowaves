@@ -2,6 +2,7 @@ package proto
 
 import (
 	"encoding/binary"
+
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 )
@@ -2695,8 +2696,6 @@ type SponsorshipV1 struct {
 	Fee         uint64           `json:"fee"`
 	Timestamp   uint64           `json:"timestamp,omitempty"`
 }
-
-func (SponsorshipV1) Transaction() {}
 
 //NewUnsignedSponsorshipV1 creates new unsigned SponsorshipV1 transaction
 func NewUnsignedSponsorshipV1(senderPK crypto.PublicKey, assetID crypto.Digest, minAssetFee, fee, timestamp uint64) (*SponsorshipV1, error) {
