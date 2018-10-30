@@ -3,11 +3,12 @@ package proto
 import (
 	"encoding/binary"
 	"encoding/json"
+	"strconv"
+	"strings"
+
 	"github.com/mr-tron/base58/base58"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
-	"strconv"
-	"strings"
 )
 
 const (
@@ -16,6 +17,7 @@ const (
 	quotedWavesAssetName = "\"" + WavesAssetName + "\""
 	orderFixedBodyLen    = crypto.PublicKeySize + crypto.PublicKeySize + 1 + 1 + 1 + 8 + 8 + 8 + 8 + 8
 	orderMinLen          = crypto.SignatureSize + orderFixedBodyLen
+	jsonNull             = "null"
 )
 
 // B58Bytes represents bytes as Base58 string in JSON
@@ -39,12 +41,12 @@ func (b B58Bytes) MarshalJSON() ([]byte, error) {
 // UnmarshalJSON reads B58Bytes from JSON string
 func (b *B58Bytes) UnmarshalJSON(value []byte) error {
 	s := string(value)
-	if s == "null" {
+	if s == jsonNull {
 		return nil
 	}
 	s, err := strconv.Unquote(s)
 	if err != nil {
-		errors.Wrap(err, "failed to unmarshal B58Bytes from JSON")
+		return errors.Wrap(err, "failed to unmarshal B58Bytes from JSON")
 	}
 	v, err := base58.Decode(s)
 	if err != nil {
@@ -87,7 +89,7 @@ func (a OptionalAsset) MarshalJSON() ([]byte, error) {
 	if a.Present {
 		return a.ID.MarshalJSON()
 	}
-	return []byte("null"), nil
+	return []byte(jsonNull), nil
 }
 
 // UnmarshalJSON reads OptionalAsset from a JSON string Value
@@ -157,7 +159,7 @@ func (a Attachment) MarshalJSON() ([]byte, error) {
 // UnmarshalJSON reads Attachment from a JSON string Value
 func (a *Attachment) UnmarshalJSON(value []byte) error {
 	s := string(value)
-	if s == "null" {
+	if s == jsonNull {
 		return nil
 	}
 	s, err := strconv.Unquote(s)
@@ -170,17 +172,6 @@ func (a *Attachment) UnmarshalJSON(value []byte) error {
 	}
 	*a = Attachment(string(v))
 	return nil
-}
-
-//Script the type to srote executable script in SetScriptTransaction.
-type Script struct {
-	Version byte
-	Body    []byte
-}
-
-//OptionalScript can be used then the script value is optional.
-type OptionalScript struct {
-	MaybeScript *Script
 }
 
 //OrderType an alias for byte that encodes the type of Order (BUY|SELL).
@@ -216,7 +207,7 @@ func (o OrderType) MarshalJSON() ([]byte, error) {
 //UnmarshalJSON reads the OrderType value from JSON value.
 func (o *OrderType) UnmarshalJSON(value []byte) error {
 	s := string(value)
-	if s == "null" {
+	if s == jsonNull {
 		return nil
 	}
 	s, err := strconv.Unquote(s)

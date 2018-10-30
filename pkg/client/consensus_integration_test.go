@@ -4,11 +4,12 @@ package client
 
 import (
 	"context"
+	"os"
+	"testing"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"os"
-	"testing"
 )
 
 func TestConsensusIntegration_GeneratingBalance(t *testing.T) {

@@ -4,13 +4,14 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"github.com/mr-tron/base58/base58"
-	"github.com/stretchr/testify/assert"
-	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/mr-tron/base58/base58"
+	"github.com/stretchr/testify/assert"
+	"github.com/wavesplatform/gowaves/pkg/crypto"
 )
 
 func TestGenesisFromMainNet(t *testing.T) {
@@ -707,7 +708,7 @@ func TestExchangeV1FromMainNet(t *testing.T) {
 		id             string
 		amountAsset    string
 		priceAsset     string
-		buyId          string
+		buyID          string
 		buySender      string
 		buySig         string
 		buyPrice       uint64
@@ -715,7 +716,7 @@ func TestExchangeV1FromMainNet(t *testing.T) {
 		buyTs          uint64
 		buyExp         uint64
 		buyFee         uint64
-		sellId         string
+		sellID         string
 		sellSender     string
 		sellSig        string
 		sellPrice      uint64
@@ -748,12 +749,12 @@ func TestExchangeV1FromMainNet(t *testing.T) {
 		aa, _ := NewOptionalAssetFromString(tc.amountAsset)
 		pa, _ := NewOptionalAssetFromString(tc.priceAsset)
 		bo, _ := NewUnsignedOrder(buySender, mpk, *aa, *pa, Buy, tc.buyPrice, tc.buyAmount, tc.buyTs, tc.buyExp, tc.buyFee)
-		bID, _ := crypto.NewDigestFromBase58(tc.buyId)
+		bID, _ := crypto.NewDigestFromBase58(tc.buyID)
 		bSig, _ := crypto.NewSignatureFromBase58(tc.buySig)
 		bo.ID = &bID
 		bo.Signature = &bSig
 		so, _ := NewUnsignedOrder(sellSender, mpk, *aa, *pa, Sell, tc.sellPrice, tc.sellAmount, tc.sellTs, tc.sellExp, tc.sellFee)
-		sID, _ := crypto.NewDigestFromBase58(tc.sellId)
+		sID, _ := crypto.NewDigestFromBase58(tc.sellID)
 		sSig, _ := crypto.NewSignatureFromBase58(tc.sellSig)
 		so.ID = &sID
 		so.Signature = &sSig

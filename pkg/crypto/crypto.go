@@ -6,14 +6,15 @@ import (
 	"crypto/sha256"
 	"crypto/sha512"
 	"fmt"
+	"strconv"
+	"strings"
+
 	"github.com/agl/ed25519"
 	"github.com/agl/ed25519/edwards25519"
 	"github.com/mr-tron/base58/base58"
 	"github.com/pkg/errors"
 	"golang.org/x/crypto/blake2b"
 	"golang.org/x/crypto/sha3"
-	"strconv"
-	"strings"
 )
 
 const (

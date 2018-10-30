@@ -2,12 +2,15 @@ package proto
 
 import (
 	"encoding/binary"
+
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 )
 
+//TransactionType
 type TransactionType byte
 
+//All transaction types supported.
 const (
 	GenesisTransaction TransactionType = iota + 1
 	PaymentTransaction
@@ -37,6 +40,9 @@ const (
 	issueV1FixedBodyLen       = 1 + crypto.PublicKeySize + 2 + 2 + 8 + 1 + 1 + 8 + 8
 	issueV1MinBodyLen         = issueV1FixedBodyLen + 4 // 4 because of the shortest allowed Asset name of 4 bytes
 	issueV1MinLen             = 1 + crypto.SignatureSize + issueV1MinBodyLen
+	issueV2FixedBodyLen       = 1 + 1 + 1 + crypto.PublicKeySize + 2 + 2 + 8 + 1 + 1 + 8 + 8 + 1
+	issueV2MinBodyLen         = issueV2FixedBodyLen + 4 // 4 because of the shortest allowed Asset name of 4 bytes
+	issueV2MinLen             = 1 + issueV2MinBodyLen + proofsMinLen
 	transferV1FixedBodyLen    = 1 + crypto.PublicKeySize + 1 + 1 + 8 + 8 + 8 + AddressSize + 2
 	transferV1MinLen          = 1 + crypto.SignatureSize + transferV1FixedBodyLen
 	reissueV1BodyLen          = 1 + crypto.PublicKeySize + crypto.DigestSize + 8 + 1 + 8 + 8
@@ -66,6 +72,7 @@ type Transaction interface {
 	Transaction()
 }
 
+//Genesis is a transaction used to initial balances distribution. This transactions allowed only in the first block.
 type Genesis struct {
 	Type      TransactionType   `json:"type"`
 	Version   byte              `json:"version,omitempty"`
@@ -78,6 +85,8 @@ type Genesis struct {
 
 func (Genesis) Transaction() {}
 
+//NewUnsignedGenesis returns a new unsigned Genesis transaction. Actually Genesis transaction could not be signed.
+//That is why it doesn't implement Sing method. Instead it has GenerateSigID method, which calculates ID and uses it also as a signature.
 func NewUnsignedGenesis(recipient Address, amount, timestamp uint64) (*Genesis, error) {
 	if amount <= 0 {
 		return nil, errors.New("amount should be positive")
@@ -112,6 +121,7 @@ func (tx *Genesis) bodyUnmarshalBinary(data []byte) error {
 	return nil
 }
 
+//GenerateSigID calculates hash of the transaction and use it as an ID. Also doubled hash is used as a signature.
 func (tx *Genesis) GenerateSigID() error {
 	b, err := tx.bodyMarshalBinary()
 	if err != nil {
@@ -131,6 +141,7 @@ func (tx *Genesis) GenerateSigID() error {
 	return nil
 }
 
+//MarshalBinary writes transaction bytes to slice of bytes.
 func (tx *Genesis) MarshalBinary() ([]byte, error) {
 	b, err := tx.bodyMarshalBinary()
 	if err != nil {
@@ -139,6 +150,7 @@ func (tx *Genesis) MarshalBinary() ([]byte, error) {
 	return b, nil
 }
 
+//UnmarshalBinary reads transaction values from the slice of bytes.
 func (tx *Genesis) UnmarshalBinary(data []byte) error {
 	if l := len(data); l != genesisBodyLen {
 		return errors.Errorf("incorrect data lenght for Genesis transaction, expected %d, received %d", genesisBodyLen, l)
@@ -157,6 +169,7 @@ func (tx *Genesis) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
+//Payment transaction is deprecated and can be used only for validation of blockchain.
 type Payment struct {
 	Type      TransactionType   `json:"type"`
 	Version   byte              `json:"version"`
@@ -171,6 +184,7 @@ type Payment struct {
 
 func (Payment) Transaction() {}
 
+//NewUnsignedPayment creates new Payment transaction with empty Signature and ID fields.
 func NewUnsignedPayment(senderPK crypto.PublicKey, recipient Address, amount, fee, timestamp uint64) (*Payment, error) {
 	if ok, err := recipient.Validate(); !ok {
 		return nil, errors.Wrapf(err, "invalid recipient address '%s'", recipient.String())
@@ -218,6 +232,7 @@ func (tx *Payment) bodyUnmarshalBinary(data []byte) error {
 	return nil
 }
 
+//Sign calculates transaction signature and set it as an ID.
 func (tx *Payment) Sign(secretKey crypto.SecretKey) error {
 	b, err := tx.bodyMarshalBinary()
 	if err != nil {
@@ -231,6 +246,7 @@ func (tx *Payment) Sign(secretKey crypto.SecretKey) error {
 	return nil
 }
 
+//Verify checks that the Signature is valid for given public key.
 func (tx *Payment) Verify(publicKey crypto.PublicKey) (bool, error) {
 	if tx.Signature == nil {
 		return false, errors.New("empty signature")
@@ -244,6 +260,7 @@ func (tx *Payment) Verify(publicKey crypto.PublicKey) (bool, error) {
 	return crypto.Verify(publicKey, *tx.Signature, d), nil
 }
 
+//MarshalBinary returns a bytes representation of Payment transaction.
 func (tx *Payment) MarshalBinary() ([]byte, error) {
 	b, err := tx.bodyMarshalBinary()
 	if err != nil {
@@ -255,6 +272,7 @@ func (tx *Payment) MarshalBinary() ([]byte, error) {
 	return buf, nil
 }
 
+//UnmarshalBinary reads Payment transaction from its binary representation.
 func (tx *Payment) UnmarshalBinary(data []byte) error {
 	size := paymentBodyLen + crypto.SignatureSize
 	if l := len(data); l != size {
@@ -275,6 +293,7 @@ func (tx *Payment) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
+//IssueV1 transaction is a transaction to issue new asset.
 type IssueV1 struct {
 	Type        TransactionType   `json:"type"`
 	Version     byte              `json:"version,omitempty"`
@@ -292,6 +311,7 @@ type IssueV1 struct {
 
 func (IssueV1) Transaction() {}
 
+//NewUnsignedIssueV1 creates new IssueV1 transaction without signature and ID.
 func NewUnsignedIssueV1(senderPK crypto.PublicKey, name, description string, quantity uint64, decimals byte, reissuable bool, timestamp, fee uint64) (*IssueV1, error) {
 	if l := len(name); l < minAssetNameLen || l > maxAssetNameLen {
 		return nil, errors.New("incorrect number of bytes in the asset's name")
@@ -366,6 +386,7 @@ func (tx *IssueV1) bodyUnmarshalBinary(data []byte) error {
 	return nil
 }
 
+//Sign uses secretKey to sing the transaction.
 func (tx *IssueV1) Sign(secretKey crypto.SecretKey) error {
 	b, err := tx.bodyMarshalBinary()
 	if err != nil {
@@ -381,6 +402,7 @@ func (tx *IssueV1) Sign(secretKey crypto.SecretKey) error {
 	return nil
 }
 
+//Verify checks that the signature of transaction is a valid signature for given public key.
 func (tx *IssueV1) Verify(publicKey crypto.PublicKey) (bool, error) {
 	if tx.Signature == nil {
 		return false, errors.New("empty signature")
@@ -392,6 +414,7 @@ func (tx *IssueV1) Verify(publicKey crypto.PublicKey) (bool, error) {
 	return crypto.Verify(publicKey, *tx.Signature, b), nil
 }
 
+//MarshalBinary saves transaction's binary representation to slice of bytes.
 func (tx *IssueV1) MarshalBinary() ([]byte, error) {
 	sl := crypto.SignatureSize
 	b, err := tx.bodyMarshalBinary()
@@ -406,6 +429,7 @@ func (tx *IssueV1) MarshalBinary() ([]byte, error) {
 	return buf, nil
 }
 
+//UnmarshalBinary reads transaction from its binary representation.
 func (tx *IssueV1) UnmarshalBinary(data []byte) error {
 	if l := len(data); l < issueV1MinLen {
 		return errors.Errorf("not enough data for IssueV1 transaction, expected not less then %d, received %d", issueV1MinLen, l)
@@ -430,21 +454,215 @@ func (tx *IssueV1) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
-//type IssueV2 struct {
-//	Type        TransactionType  `json:"type"`
-//	Version     byte             `json:"version"`
-//	ID          *crypto.Digest   `json:"id,omitempty"`
-//	SenderPK    crypto.PublicKey `json:"senderPublicKey"`
-//	Name        string           `json:"name"`
-//	Description string           `json:"description"`
-//	Quantity    uint64           `json:"quantity"`
-//	Decimals    byte             `json:"decimals"`
-//	Reissuable  bool             `json:"reissuable"`
-//	Script      OptionalScript   `json:"script"`
-//	Timestamp   uint64           `json:"timestamp,omitempty"`
-//	Fee         uint64           `json:"fee"`
-//}
+// IssueV2 is a transaction to issue new asset, second version.
+type IssueV2 struct {
+	Type        TransactionType  `json:"type"`
+	Version     byte             `json:"version"`
+	ChainID     byte             `json:"chainId"`
+	ID          *crypto.Digest   `json:"id,omitempty"`
+	Proofs      *ProofsV1        `json:"proofs,omitempty"`
+	SenderPK    crypto.PublicKey `json:"senderPublicKey"`
+	Name        string           `json:"name"`
+	Description string           `json:"description"`
+	Quantity    uint64           `json:"quantity"`
+	Decimals    byte             `json:"decimals"`
+	Reissuable  bool             `json:"reissuable"`
+	Script      []byte           `json:"script"`
+	Fee         uint64           `json:"fee"`
+	Timestamp   uint64           `json:"timestamp,omitempty"`
+}
 
+//NewUnsignedIssueV2 creates a new IssueV2 transaction with empty Proofs.
+func NewUnsignedIssueV2(chainID byte, senderPK crypto.PublicKey, name, description string, quantity uint64, decimals byte, reissuable bool, timestamp, fee uint64) (*IssueV2, error) {
+	if l := len(name); l < minAssetNameLen || l > maxAssetNameLen {
+		return nil, errors.New("incorrect number of bytes in the asset's name")
+	}
+	if l := len(description); l > maxDescriptionLen {
+		return nil, errors.New("incorrect number of bytes in the asset's description")
+	}
+	if quantity <= 0 {
+		return nil, errors.New("quantity should be positive")
+	}
+	if decimals > maxDecimals {
+		return nil, errors.Errorf("incorrect decimals, should be no more then %d", maxDecimals)
+	}
+	if fee <= 0 {
+		return nil, errors.New("fee should be positive")
+	}
+	return &IssueV2{Type: IssueTransaction, Version: 2, ChainID: chainID, SenderPK: senderPK, Name: name, Description: description, Quantity: quantity, Decimals: decimals, Reissuable: reissuable, Timestamp: timestamp, Fee: fee}, nil
+}
+
+//NonEmptyScript returns true if the script of the transaction is not empty, otherwise false.
+func (tx *IssueV2) NonEmptyScript() bool {
+	return len(tx.Script) != 0
+}
+
+func (tx *IssueV2) bodyMarshalBinary() ([]byte, error) {
+	var pos int
+	nl := len(tx.Name)
+	dl := len(tx.Description)
+	buf := make([]byte, issueV2FixedBodyLen+nl+dl)
+	buf[0] = byte(tx.Type)
+	buf[1] = tx.Version
+	buf[2] = tx.ChainID
+	pos = 3
+	copy(buf[pos:], tx.SenderPK[:])
+	pos += crypto.PublicKeySize
+	PutStringWithUInt16Len(buf[pos:], tx.Name)
+	pos += 2 + nl
+	PutStringWithUInt16Len(buf[pos:], tx.Description)
+	pos += 2 + dl
+	binary.BigEndian.PutUint64(buf[pos:], tx.Quantity)
+	pos += 8
+	buf[pos] = tx.Decimals
+	pos++
+	PutBool(buf[pos:], tx.Reissuable)
+	pos++
+	binary.BigEndian.PutUint64(buf[pos:], tx.Fee)
+	pos += 8
+	binary.BigEndian.PutUint64(buf[pos:], tx.Timestamp)
+	pos += 8
+	if tx.NonEmptyScript() {
+		PutBytesWithUInt16Len(buf[pos:], tx.Script)
+	}
+	return buf, nil
+}
+
+func (tx *IssueV2) bodyUnmarshalBinary(data []byte) error {
+	const message = "failed to unmarshal field %q of IssueV2 transaction"
+	if l := len(data); l < issueV2MinBodyLen {
+		return errors.Errorf("not enough data for IssueV2 transaction %d, expected not less then %d", l, issueV2MinBodyLen)
+	}
+	tx.Type = TransactionType(data[0])
+	if tx.Type != IssueTransaction {
+		return errors.Errorf("unexpected transaction type %d for IssueV2 transaction", tx.Type)
+	}
+	tx.Version = data[1]
+	tx.ChainID = data[2]
+	data = data[3:]
+	copy(tx.SenderPK[:], data[:crypto.PublicKeySize])
+	data = data[crypto.PublicKeySize:]
+	var err error
+	tx.Name, err = StringWithUInt16Len(data)
+	if err != nil {
+		return errors.Wrapf(err, message, "Name")
+	}
+	data = data[2+len(tx.Name):]
+	tx.Description, err = StringWithUInt16Len(data)
+	if err != nil {
+		return errors.Wrapf(err, message, "Description")
+	}
+	data = data[2+len(tx.Description):]
+	tx.Quantity = binary.BigEndian.Uint64(data)
+	data = data[8:]
+	tx.Decimals = data[0]
+	data = data[1:]
+	tx.Reissuable, err = Bool(data)
+	if err != nil {
+		return errors.Wrapf(err, message, "Reissuable")
+	}
+	data = data[1:]
+	tx.Fee = binary.BigEndian.Uint64(data)
+	data = data[8:]
+	tx.Timestamp = binary.BigEndian.Uint64(data)
+	data = data[8:]
+	p, err := Bool(data)
+	if err != nil {
+		return errors.Wrapf(err, message, "Script")
+	}
+	data = data[1:]
+	if p {
+		s, err := BytesWithUInt16Len(data)
+		if err != nil {
+			return errors.Wrapf(err, message, "Script")
+		}
+		tx.Script = s
+	}
+	return nil
+}
+
+//Sign calculates transaction signature using given secret key.
+func (tx *IssueV2) Sign(secretKey crypto.SecretKey) error {
+	b, err := tx.bodyMarshalBinary()
+	if err != nil {
+		return errors.Wrap(err, "failed to sign IssueV2 transaction")
+	}
+	if tx.Proofs == nil {
+		tx.Proofs = &ProofsV1{proofsVersion, make([]B58Bytes, 0)}
+	}
+	err = tx.Proofs.Sign(0, secretKey, b)
+	if err != nil {
+		return errors.Wrap(err, "failed to sign SponsorshipV2 transaction")
+	}
+	d, err := crypto.FastHash(b)
+	if err != nil {
+		return errors.Wrap(err, "failed to sign IssueV2 transaction")
+	}
+	tx.ID = &d
+	return nil
+}
+
+//Verify checks that the transaction signature is valid for given public key.
+func (tx *IssueV2) Verify(publicKey crypto.PublicKey) (bool, error) {
+	b, err := tx.bodyMarshalBinary()
+	if err != nil {
+		return false, errors.Wrap(err, "failed to verify signature of IssueV2 transaction")
+	}
+	return tx.Proofs.Verify(0, publicKey, b)
+}
+
+//MarshalBinary converts transaction to its binary representation.
+func (tx *IssueV2) MarshalBinary() ([]byte, error) {
+	bb, err := tx.bodyMarshalBinary()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to marshal IssueV2 transaction to bytes")
+	}
+	bl := len(bb)
+	pb, err := tx.Proofs.MarshalBinary()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to marshal IssueV2 transaction to bytes")
+	}
+	buf := make([]byte, 1+bl+len(pb))
+	var p int
+	buf[p] = 0
+	p++
+	copy(buf[p:], bb)
+	p += bl
+	copy(buf[p:], pb)
+	return buf, nil
+}
+
+//UnmarshalBinary reads transaction from its binary representation.
+func (tx *IssueV2) UnmarshalBinary(data []byte) error {
+	if l := len(data); l < issueV2MinLen {
+		return errors.Errorf("not enough data for IssueV2 transaction, expected not less then %d, received %d", issueV2MinLen, l)
+	}
+	if v := data[0]; v != 0 {
+		return errors.Errorf("unexpected first byte value %d for IssueV2 transaction, expected 0", v)
+	}
+	data = data[1:]
+	err := tx.bodyUnmarshalBinary(data)
+	if err != nil {
+		return errors.Wrap(err, "failed to unmarshal IssueV2 transaction")
+	}
+	bl := issueV2FixedBodyLen + len(tx.Name) + len(tx.Description)
+	bb := data[:bl]
+	data = data[bl:]
+	var p ProofsV1
+	err = p.UnmarshalBinary(data)
+	if err != nil {
+		return errors.Wrap(err, "failed to unmarshal IssueV2 transaction from bytes")
+	}
+	tx.Proofs = &p
+	id, err := crypto.FastHash(bb)
+	if err != nil {
+		return errors.Wrap(err, "failed to unmarshal IssueV2 transaction from bytes")
+	}
+	tx.ID = &id
+	return nil
+}
+
+//TransferV1 transaction to transfer any token from one account to another. Version 1.
 type TransferV1 struct {
 	Type        TransactionType   `json:"type"`
 	Version     byte              `json:"version,omitempty"`
@@ -462,6 +680,7 @@ type TransferV1 struct {
 
 func (TransferV1) Transaction() {}
 
+//NewUnsignedTransferV1 creates new TransferV1 transaction without signature and ID.
 func NewUnsignedTransferV1(senderPK crypto.PublicKey, amountAsset, feeAsset OptionalAsset, timestamp, amount, fee uint64, recipient Address, attachment string) (*TransferV1, error) {
 	if amount <= 0 {
 		return nil, errors.New("amount should be positive")
@@ -553,6 +772,7 @@ func (tx *TransferV1) bodyUnmarshalBinary(data []byte) error {
 	return nil
 }
 
+//Sign calculates a signature and a digest as an ID of the transaction.
 func (tx *TransferV1) Sign(secretKey crypto.SecretKey) error {
 	b, err := tx.bodyMarshalBinary()
 	if err != nil {
@@ -568,6 +788,7 @@ func (tx *TransferV1) Sign(secretKey crypto.SecretKey) error {
 	return nil
 }
 
+//Verify use given public key to verify that the signature is valid.
 func (tx *TransferV1) Verify(publicKey crypto.PublicKey) (bool, error) {
 	if tx.Signature == nil {
 		return false, errors.New("empty signature")
@@ -579,6 +800,7 @@ func (tx *TransferV1) Verify(publicKey crypto.PublicKey) (bool, error) {
 	return crypto.Verify(publicKey, *tx.Signature, b), nil
 }
 
+//MarshalBinary saves transaction to its binary representation.
 func (tx *TransferV1) MarshalBinary() ([]byte, error) {
 	sl := crypto.SignatureSize
 	b, err := tx.bodyMarshalBinary()
@@ -593,6 +815,7 @@ func (tx *TransferV1) MarshalBinary() ([]byte, error) {
 	return buf, nil
 }
 
+//UnmarshalBinary reads transaction from its binary representation.
 func (tx *TransferV1) UnmarshalBinary(data []byte) error {
 	if l := len(data); l < transferV1MinLen {
 		return errors.Errorf("not enough data for TransferV1 transaction, expected not less then %d, received %d", transferV1MinLen, l)
@@ -617,6 +840,7 @@ func (tx *TransferV1) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
+//ReissueV1 is a transaction that allows to issue new amount of existing token, if it was issued as reissuable.
 type ReissueV1 struct {
 	Type       TransactionType   `json:"type"`
 	Version    byte              `json:"version,omitempty"`
@@ -632,6 +856,7 @@ type ReissueV1 struct {
 
 func (ReissueV1) Transaction() {}
 
+//NewUnsignedReissueV1 creates new ReissueV1 transaction without signature and ID.
 func NewUnsignedReissueV1(senderPK crypto.PublicKey, assetID crypto.Digest, quantity uint64, reissuable bool, timestamp, fee uint64) (*ReissueV1, error) {
 	if quantity <= 0 {
 		return nil, errors.New("quantity should be positive")
@@ -682,6 +907,8 @@ func (tx *ReissueV1) bodyUnmarshalBinary(data []byte) error {
 	return nil
 }
 
+//Sign use given private key to calculate signature of the transaction.
+//This function also calculates digest of transaction data and assigns it to ID field.
 func (tx *ReissueV1) Sign(secretKey crypto.SecretKey) error {
 	b, err := tx.bodyMarshalBinary()
 	if err != nil {
@@ -697,6 +924,7 @@ func (tx *ReissueV1) Sign(secretKey crypto.SecretKey) error {
 	return nil
 }
 
+//Verify checks that the signature of the transaction is valid for given public key.
 func (tx *ReissueV1) Verify(publicKey crypto.PublicKey) (bool, error) {
 	if tx.Signature == nil {
 		return false, errors.New("empty signature")
@@ -708,6 +936,7 @@ func (tx *ReissueV1) Verify(publicKey crypto.PublicKey) (bool, error) {
 	return crypto.Verify(publicKey, *tx.Signature, b), nil
 }
 
+//MarshalBinary saves the transaction to its binary representation.
 func (tx *ReissueV1) MarshalBinary() ([]byte, error) {
 	sl := crypto.SignatureSize
 	b, err := tx.bodyMarshalBinary()
@@ -722,6 +951,7 @@ func (tx *ReissueV1) MarshalBinary() ([]byte, error) {
 	return buf, nil
 }
 
+//UnmarshalBinary reads transaction from its binary representation.
 func (tx *ReissueV1) UnmarshalBinary(data []byte) error {
 	if l := len(data); l < reissueV1MinLen {
 		return errors.Errorf("not enough data for ReissueV1 transaction, expected not less then %d, received %d", reissueV1MinLen, l)
@@ -746,6 +976,7 @@ func (tx *ReissueV1) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
+//BurnV1 transaction allows to decrease the total supply of the existing asset. Asset must be reissuable.
 type BurnV1 struct {
 	Type      TransactionType   `json:"type"`
 	Version   byte              `json:"version,omitempty"`
@@ -760,6 +991,7 @@ type BurnV1 struct {
 
 func (BurnV1) Transaction() {}
 
+//NewUnsignedBurnV1 creates new BurnV1 transaction with no signature and ID.
 func NewUnsignedBurnV1(senderPK crypto.PublicKey, assetID crypto.Digest, amount, timestamp, fee uint64) (*BurnV1, error) {
 	if amount <= 0 {
 		return nil, errors.New("amount should be positive")
@@ -803,6 +1035,7 @@ func (tx *BurnV1) bodyUnmarshalBinary(data []byte) error {
 	return nil
 }
 
+//Sign calculates and sets signature and ID of the transaction.
 func (tx *BurnV1) Sign(secretKey crypto.SecretKey) error {
 	b, err := tx.bodyMarshalBinary()
 	if err != nil {
@@ -818,6 +1051,7 @@ func (tx *BurnV1) Sign(secretKey crypto.SecretKey) error {
 	return nil
 }
 
+//Verify checks that the signature of the transaction is valid for the given public key.
 func (tx *BurnV1) Verify(publicKey crypto.PublicKey) (bool, error) {
 	if tx.Signature == nil {
 		return false, errors.New("empty signature")
@@ -829,6 +1063,7 @@ func (tx *BurnV1) Verify(publicKey crypto.PublicKey) (bool, error) {
 	return crypto.Verify(publicKey, *tx.Signature, b), nil
 }
 
+//MarshalBinary saves transaction to
 func (tx *BurnV1) MarshalBinary() ([]byte, error) {
 	sl := crypto.SignatureSize
 	b, err := tx.bodyMarshalBinary()
@@ -843,6 +1078,7 @@ func (tx *BurnV1) MarshalBinary() ([]byte, error) {
 	return buf, nil
 }
 
+//UnmarshalBinary reads transaction form its binary representation.
 func (tx *BurnV1) UnmarshalBinary(data []byte) error {
 	if l := len(data); l < burnV1MinLen {
 		return errors.Errorf("not enough data for BurnV1 transaction, expected not less then %d, received %d", burnV1MinLen, l)
@@ -867,6 +1103,7 @@ func (tx *BurnV1) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
+//ExchangeV1 is a transaction to store settlement on blockchain.
 type ExchangeV1 struct {
 	Type           TransactionType   `json:"type"`
 	Version        byte              `json:"version,omitempty"`
@@ -991,6 +1228,7 @@ func (tx *ExchangeV1) bodyUnmarshalBinary(data []byte) error {
 	return nil
 }
 
+//Sing calculates ID and Signature of the transaction.
 func (tx *ExchangeV1) Sign(secretKey crypto.SecretKey) error {
 	b, err := tx.bodyMarshalBinary()
 	if err != nil {
@@ -1006,6 +1244,7 @@ func (tx *ExchangeV1) Sign(secretKey crypto.SecretKey) error {
 	return nil
 }
 
+//Verify checks that signature of the transaction is valid.
 func (tx *ExchangeV1) Verify(publicKey crypto.PublicKey) (bool, error) {
 	if tx.Signature == nil {
 		return false, errors.New("empty signature")
@@ -1017,6 +1256,7 @@ func (tx *ExchangeV1) Verify(publicKey crypto.PublicKey) (bool, error) {
 	return crypto.Verify(publicKey, *tx.Signature, b), nil
 }
 
+//MarshalBinary saves the transaction to its binary representation.
 func (tx *ExchangeV1) MarshalBinary() ([]byte, error) {
 	b, err := tx.bodyMarshalBinary()
 	if err != nil {
@@ -1029,6 +1269,7 @@ func (tx *ExchangeV1) MarshalBinary() ([]byte, error) {
 	return buf, nil
 }
 
+//UnmarshalBinary loads the transaction from its binary representation.
 func (tx *ExchangeV1) UnmarshalBinary(data []byte) error {
 	if l := len(data); l < exchangeV1MinLen {
 		return errors.Errorf("not enough data for ExchangeV1 transaction, expected not less then %d, received %d", exchangeV1MinLen, l)
@@ -1067,6 +1308,7 @@ func (tx *ExchangeV1) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
+//LeaseV1 is a transaction that allows to lease Waves to other account.
 type LeaseV1 struct {
 	Type      TransactionType   `json:"type"`
 	Version   byte              `json:"version,omitempty"`
@@ -1081,6 +1323,7 @@ type LeaseV1 struct {
 
 func (LeaseV1) Transaction() {}
 
+//NewUnsignedLeaseV1 creates new LeaseV1 transaction without signature and ID set.
 func NewUnsignedLeaseV1(senderPK crypto.PublicKey, recipient Address, amount, fee, timestamp uint64) (*LeaseV1, error) {
 	if ok, err := recipient.Validate(); !ok {
 		return nil, errors.Wrap(err, "failed to create new unsigned LeaseV1 transaction")
@@ -1133,6 +1376,7 @@ func (tx *LeaseV1) bodyUnmarshalBinary(data []byte) error {
 	return nil
 }
 
+//Sign calculates ID and Signature of the transaction.
 func (tx *LeaseV1) Sign(secretKey crypto.SecretKey) error {
 	b, err := tx.bodyMarshalBinary()
 	if err != nil {
@@ -1148,6 +1392,7 @@ func (tx *LeaseV1) Sign(secretKey crypto.SecretKey) error {
 	return nil
 }
 
+//Verify checks that the signature of the transaction is valid for the given public key.
 func (tx *LeaseV1) Verify(publicKey crypto.PublicKey) (bool, error) {
 	if tx.Signature == nil {
 		return false, errors.New("empty signature")
@@ -1159,6 +1404,7 @@ func (tx *LeaseV1) Verify(publicKey crypto.PublicKey) (bool, error) {
 	return crypto.Verify(publicKey, *tx.Signature, b), nil
 }
 
+//MarshalBinary saves the transaction to its binary representation.
 func (tx *LeaseV1) MarshalBinary() ([]byte, error) {
 	b, err := tx.bodyMarshalBinary()
 	if err != nil {
@@ -1171,6 +1417,7 @@ func (tx *LeaseV1) MarshalBinary() ([]byte, error) {
 	return buf, nil
 }
 
+//UnmarshalBinary reads the transaction from bytes slice.
 func (tx *LeaseV1) UnmarshalBinary(data []byte) error {
 	if l := len(data); l < leaseV1MinLen {
 		return errors.Errorf("not enough data for LeaseV1 transaction, expected not less then %d, received %d", leaseV1MinLen, l)
@@ -1195,6 +1442,7 @@ func (tx *LeaseV1) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
+//LeaseCancelV1 transaction can be used to cancel previously created leasing.
 type LeaseCancelV1 struct {
 	Type      TransactionType   `json:"type"`
 	Version   byte              `json:"version,omitempty"`
@@ -1208,6 +1456,7 @@ type LeaseCancelV1 struct {
 
 func (LeaseCancelV1) Transaction() {}
 
+//NewUnsignedLeaseCancelV1 creates new LeaseCancelV1 transaction structure without a signature and an ID.
 func NewUnsignedLeaseCancelV1(senderPK crypto.PublicKey, leaseID crypto.Digest, fee, timestamp uint64) (*LeaseCancelV1, error) {
 	if fee <= 0 {
 		return nil, errors.New("fee should be positive")
@@ -1265,6 +1514,7 @@ func (tx *LeaseCancelV1) Sign(secretKey crypto.SecretKey) error {
 	return nil
 }
 
+//Verify checks that signature of the transaction is valid for the given public key.
 func (tx *LeaseCancelV1) Verify(publicKey crypto.PublicKey) (bool, error) {
 	if tx.Signature == nil {
 		return false, errors.New("empty signature")
@@ -1276,6 +1526,7 @@ func (tx *LeaseCancelV1) Verify(publicKey crypto.PublicKey) (bool, error) {
 	return crypto.Verify(publicKey, *tx.Signature, b), nil
 }
 
+//MarshalBinary saves transaction to its binary representation.
 func (tx *LeaseCancelV1) MarshalBinary() ([]byte, error) {
 	b, err := tx.bodyMarshalBinary()
 	if err != nil {
@@ -1477,6 +1728,7 @@ func (e *MassTransferEntry) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
+//MassTransferV1 is a transaction that performs multiple transfers of one asset to the accounts at once.
 type MassTransferV1 struct {
 	Type       TransactionType     `json:"type"`
 	Version    byte                `json:"version,omitempty"`
@@ -1492,6 +1744,7 @@ type MassTransferV1 struct {
 
 func (MassTransferV1) Transaction() {}
 
+//NewUnsignedMassTransferV1 creates new MassTransferV1 transaction structure without signature and ID.
 func NewUnsignedMassTransferV1(senderPK crypto.PublicKey, asset OptionalAsset, transfers []MassTransferEntry, fee, timestamp uint64, attachment string) (*MassTransferV1, error) {
 	if len(transfers) == 0 {
 		return nil, errors.New("empty transfers")
@@ -1600,6 +1853,7 @@ func (tx *MassTransferV1) bodyUnmarshalBinary(data []byte) error {
 	return nil
 }
 
+//Sign calculates signature and ID of the transaction.
 func (tx *MassTransferV1) Sign(secretKey crypto.SecretKey) error {
 	b, err := tx.bodyMarshalBinary()
 	if err != nil {
@@ -1620,6 +1874,7 @@ func (tx *MassTransferV1) Sign(secretKey crypto.SecretKey) error {
 	return nil
 }
 
+//Verify checks that the signature is valid for the given public key.
 func (tx *MassTransferV1) Verify(publicKey crypto.PublicKey) (bool, error) {
 	b, err := tx.bodyMarshalBinary()
 	if err != nil {
@@ -1628,6 +1883,7 @@ func (tx *MassTransferV1) Verify(publicKey crypto.PublicKey) (bool, error) {
 	return tx.Proofs.Verify(0, publicKey, b)
 }
 
+//MarshalBinary saves the transaction to its binary representation.
 func (tx *MassTransferV1) MarshalBinary() ([]byte, error) {
 	bb, err := tx.bodyMarshalBinary()
 	if err != nil {
@@ -1645,6 +1901,7 @@ func (tx *MassTransferV1) MarshalBinary() ([]byte, error) {
 	return buf, nil
 }
 
+//UnmarshalBinary loads transaction from its binary representation.
 func (tx *MassTransferV1) UnmarshalBinary(data []byte) error {
 	if l := len(data); l < massTransferV1MinLen {
 		return errors.Errorf("not enough data for MassTransferV1 transaction, expected not less then %d, received %d", massTransferV1MinLen, l)
@@ -1812,6 +2069,7 @@ func (tx *DataV1) extractValueType(data []byte) (ValueType, error) {
 	return ValueType(data[kl+2]), nil
 }
 
+//Sign use given secret key to calculate signature of the transaction.
 func (tx *DataV1) Sign(secretKey crypto.SecretKey) error {
 	b, err := tx.bodyMarshalBinary()
 	if err != nil {
@@ -1832,6 +2090,7 @@ func (tx *DataV1) Sign(secretKey crypto.SecretKey) error {
 	return nil
 }
 
+//Verify chechs that the signature is valid for the given public key.
 func (tx *DataV1) Verify(publicKey crypto.PublicKey) (bool, error) {
 	b, err := tx.bodyMarshalBinary()
 	if err != nil {
@@ -1840,6 +2099,7 @@ func (tx *DataV1) Verify(publicKey crypto.PublicKey) (bool, error) {
 	return tx.Proofs.Verify(0, publicKey, b)
 }
 
+//MarshalBinary saves the transaction to bytes.
 func (tx *DataV1) MarshalBinary() ([]byte, error) {
 	bb, err := tx.bodyMarshalBinary()
 	if err != nil {
@@ -1857,6 +2117,7 @@ func (tx *DataV1) MarshalBinary() ([]byte, error) {
 	return buf, nil
 }
 
+//UnmarshalBinary reads the transaction from the bytes.
 func (tx *DataV1) UnmarshalBinary(data []byte) error {
 	if l := len(data); l < dataV1MinLen {
 		return errors.Errorf("not enough data for DataV1 transaction, expected not less then %d, received %d", dataV1MinLen, l)
@@ -2061,8 +2322,6 @@ type SponsorshipV1 struct {
 	Fee         uint64           `json:"fee"`
 	Timestamp   uint64           `json:"timestamp,omitempty"`
 }
-
-func (SponsorshipV1) Transaction() {}
 
 //NewUnsignedSponsorshipV1 creates new unsigned SponsorshipV1 transaction
 func NewUnsignedSponsorshipV1(senderPK crypto.PublicKey, assetID crypto.Digest, minAssetFee, fee, timestamp uint64) (*SponsorshipV1, error) {
