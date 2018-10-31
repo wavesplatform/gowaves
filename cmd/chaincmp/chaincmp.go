@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"flag"
 	"fmt"
 	"net/http"
 	"os"
@@ -12,6 +11,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	flag "github.com/spf13/pflag"
 	"github.com/wavesplatform/gowaves/pkg/client"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -30,15 +30,10 @@ func main() {
 	var reference string
 	var verbose bool
 
-	flag.StringVar(&node, "n", "", "URL of the node")
-	flag.StringVar(&node, "node", "", "URL of the node")
-	flag.StringVar(&reference, "r", defaultURL, "List of URLs of reference nodes")
-	flag.StringVar(&reference, "references", defaultURL, "List of URLs of reference nodes")
-	flag.BoolVar(&showHelp, "h", false, "Print usage information (this message) and quit")
-	flag.BoolVar(&showHelp, "help", false, "Print usage information (this message) and quit")
-	flag.BoolVar(&showVersion, "v", false, "Print version information and quit")
-	flag.BoolVar(&showVersion, "version", false, "Print version information and quit")
-	flag.BoolVar(&verbose, "vvv", false, "Logs additional information")
+	flag.StringVarP(&node, "node", "n", "", "URL of the node")
+	flag.StringVarP(&reference, "references", "r", defaultURL, "List of URLs of reference nodes")
+	flag.BoolVarP(&showHelp, "help", "h", false, "Print usage information (this message) and quit")
+	flag.BoolVarP(&showVersion, "version", "v", false, "Print version information and quit")
 	flag.BoolVar(&verbose, "verbose", false, "Logs additional information")
 	flag.Usage = showUsageAndExit
 	flag.Parse()
@@ -227,17 +222,8 @@ func min(values []int) int {
 }
 
 func showUsageAndExit() {
-	const usageText = `
-chaincmp [OPTIONS]
-
-Options:
-  -node, -n 		URL of the node
-  -compare-to, -c 	List of URLs of reference nodes
-  -help, -h			Print usage information (this message) and quit
-  -version, -v		Print version information and quit
-  -node, -n 		URL of the node used to broadcast transaction
-`
-	fmt.Fprint(os.Stdout, usageText)
+	fmt.Println("usage: chaincmp [flags]")
+	flag.PrintDefaults()
 	os.Exit(0)
 }
 
