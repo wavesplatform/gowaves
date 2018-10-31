@@ -2,13 +2,10 @@ package client
 
 import "time"
 
-// timestamp in milliseconds
-type Timestamp uint64
-
-func NewTimestampFromTime(t time.Time) Timestamp {
+func NewTimestampFromTime(t time.Time) uint64 {
 	return NewTimestampFromUnixNano(t.UnixNano())
 }
 
-func NewTimestampFromUnixNano(nano int64) Timestamp {
-	return Timestamp(nano / 1000000)
+func NewTimestampFromUnixNano(nano int64) uint64 {
+	return uint64(nano / 1000000)
 }

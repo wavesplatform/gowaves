@@ -3,12 +3,17 @@ ORGANISATION=wavesplatform
 SOURCE=$(shell find . -name '*.go' | grep -v vendor/)
 SOURCE_DIRS = cmd pkg
 
+VERSION=$(shell git describe --tags --always --dirty)
+
 .PHONY: fmtcheck dep clean build gotest
 
 all: dep build gotest fmtcheck
 
 dep:
 	dep ensure
+
+ver:
+	@echo Building version: $(VERSION)
 
 build: build/bin/forkdetector
 
@@ -23,4 +28,19 @@ fmtcheck:
 	@gofmt -l -s $(SOURCE_DIRS) | grep ".*\.go"; if [ "$$?" = "0" ]; then exit 1; fi
 	@gocritic check-project ./
 clean:
-	rm -rf build
+	@rm -rf build
+
+build-chaincmp-linux:
+	@CGO_ENABLE=0 GOOS=linux GOARCH=amd64 go build -o build/bin/linux-amd64/chaincmp -ldflags="-X main.version=$(VERSION)" ./cmd/chaincmp
+build-chaincmp-darwin:
+	@CGO_ENABLE=0 GOOS=darwin GOARCH=amd64 go build -o build/bin/darwin-amd64/chaincmp -ldflags="-X main.version=$(VERSION)" ./cmd/chaincmp
+build-chaincmp-windows:
+	@CGO_ENABLE=0 GOOS=windows GOARCH=amd64 go build -o build/bin/windows-amd64/chaincmp.exe -ldflags="-X main.version=$(VERSION)" ./cmd/chaincmp
+
+release-chaincmp: ver build-chaincmp-linux build-chaincmp-darwin build-chaincmp-windows
+
+dist-chaincmp: release-chaincmp
+	@mkdir -p build/dist
+	@cd ./build/; zip -r ./dist/chaincmp-$(VERSION) ./bin/
+
+dist: clean dist-chaincmp

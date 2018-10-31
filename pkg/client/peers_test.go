@@ -37,7 +37,7 @@ func TestPeers_All(t *testing.T) {
 	assert.Equal(t, 1, len(body))
 	assert.Equal(t, "127.0.0.1", body[0].Address.Addr.String())
 	assert.Equal(t, uint16(6868), body[0].Address.Port)
-	assert.Equal(t, Timestamp(1540383498486), body[0].LastSeen)
+	assert.Equal(t, uint64(1540383498486), body[0].LastSeen)
 }
 
 var peersConnectedJson = `
@@ -115,7 +115,7 @@ func TestPeers_Blacklisted(t *testing.T) {
 	assert.NotNil(t, resp)
 	assert.Equal(t, 1, len(body))
 	assert.Equal(t, "127.0.0.1", body[0].Hostname.Addr.String())
-	assert.Equal(t, Timestamp(1540460047473), body[0].Timestamp)
+	assert.Equal(t, uint64(1540460047473), body[0].Timestamp)
 	assert.Equal(t, "Timeout expired while waiting for handshake", body[0].Reason)
 }
 
@@ -140,7 +140,7 @@ func TestPeers_Suspended(t *testing.T) {
 	assert.NotNil(t, resp)
 	assert.Equal(t, 1, len(body))
 	assert.Equal(t, "127.0.0.1", body[0].Hostname.Addr.String())
-	assert.Equal(t, Timestamp(1540461977116), body[0].Timestamp)
+	assert.Equal(t, uint64(1540461977116), body[0].Timestamp)
 }
 
 var peersConnectJson = `

@@ -21,6 +21,7 @@ func NewTransactions(options Options) *Transactions {
 	}
 }
 
+// Get transaction that is in the UTX
 func (a *Transactions) UnconfirmedInfo(ctx context.Context, id crypto.Digest) (proto.Transaction, *Response, error) {
 	req, err := http.NewRequest(
 		"GET",
@@ -76,6 +77,49 @@ func (a *Transactions) UnconfirmedSize(ctx context.Context) (uint64, *Response, 
 	return out["size"], response, nil
 }
 
+// Get the number of unconfirmed transactions in the UTX pool
+func (a *Transactions) Unconfirmed(ctx context.Context) ([]proto.Transaction, *Response, error) {
+	req, err := http.NewRequest(
+		"GET",
+		fmt.Sprintf("%s/transactions/unconfirmed", a.options.BaseUrl),
+		nil)
+	if err != nil {
+		return nil, nil, err
+	}
+	buf := new(bytes.Buffer)
+	response, err := doHttp(ctx, a.options, req, buf)
+	if err != nil {
+		return nil, response, err
+	}
+	// reference to original bytes
+	b := buf.Bytes()
+
+	var tt []*TransactionTypeVersion
+	err = json.NewDecoder(buf).Decode(&tt)
+	if err != nil {
+		return nil, response, &ParseError{Err: err}
+	}
+
+	if len(tt) == 0 {
+		return nil, response, nil
+	}
+
+	out := make([]proto.Transaction, len(tt))
+	for i, row := range tt {
+		realType, err := GuessTransactionType(row)
+		if err != nil {
+			return nil, response, &ParseError{Err: err}
+		}
+		out[i] = realType
+	}
+
+	err = json.Unmarshal(b, &out)
+	if err != nil {
+		return nil, response, &ParseError{Err: err}
+	}
+	return out, response, nil
+}
+
 type TransactionTypeVersion struct {
 	Type    proto.TransactionType `json:"type"`
 	Version byte                  `json:"version,omitempty"`
@@ -118,6 +162,7 @@ func (a *Transactions) Info(ctx context.Context, id crypto.Digest) (proto.Transa
 	return realType, response, nil
 }
 
+// Guess transaction from type and version
 func GuessTransactionType(t *TransactionTypeVersion) (proto.Transaction, error) {
 	var out proto.Transaction
 	switch t.Type {
@@ -157,7 +202,7 @@ func GuessTransactionType(t *TransactionTypeVersion) (proto.Transaction, error) 
 }
 
 // Get list of transactions where specified address has been involved
-func (a *Transactions) TransactionsByAddress(ctx context.Context, address proto.Address, limit uint) ([]proto.Transaction, *Response, error) {
+func (a *Transactions) Address(ctx context.Context, address proto.Address, limit uint) ([]proto.Transaction, *Response, error) {
 	req, err := http.NewRequest(
 		"GET",
 		fmt.Sprintf("%s/transactions/address/%s/limit/%d", a.options.BaseUrl, address.String(), limit),

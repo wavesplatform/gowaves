@@ -32,6 +32,7 @@ type Client struct {
 	Wallet       *Wallet
 	Alias        *Alias
 	Peers        *Peers
+	Consensus    *Consensus
 	Transactions *Transactions
 }
 
@@ -74,6 +75,7 @@ func NewClient(options ...Options) (*Client, error) {
 		Wallet:       NewWallet(opts),
 		Alias:        NewAlias(opts),
 		Peers:        NewPeers(opts),
+		Consensus:    NewConsensus(opts),
 		Transactions: NewTransactions(opts),
 	}
 

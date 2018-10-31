@@ -246,7 +246,7 @@ func TestTransactions_TransactionsByAddress(t *testing.T) {
 	})
 	require.Nil(t, err)
 	body, resp, err :=
-		client.Transactions.TransactionsByAddress(context.Background(), id, 1)
+		client.Transactions.Address(context.Background(), id, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
