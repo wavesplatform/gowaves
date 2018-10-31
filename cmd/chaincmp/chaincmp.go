@@ -137,11 +137,12 @@ func main() {
 			log.Warnf("Please, refer the documentation at https://docs.wavesplatform.com/en/waves-full-node/options-for-getting-actual-blockchain.html.")
 		}
 	} else {
-		if h < refLowest {
+		switch {
+		case h < refLowest:
 			log.Infof("Node '%s' is %d blocks behind the lowest reference node", node, refLowest-h)
-		} else if h == refLowest {
+		case h == refLowest:
 			log.Infof("Node '%s' is OK", node)
-		} else {
+		default:
 			log.Infof("Node '%s' is %d blocks ahead of the lowest reference node", node, refLowest-h)
 		}
 	}
