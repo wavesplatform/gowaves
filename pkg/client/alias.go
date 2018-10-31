@@ -73,7 +73,7 @@ type CreateAliasV1 struct {
 	SenderPK  crypto.PublicKey      `json:"senderPublicKey"`
 	Alias     string                `json:"alias"`
 	Fee       uint64                `json:"fee"`
-	Timestamp Timestamp             `json:"timestamp,omitempty"`
+	Timestamp uint64                `json:"timestamp,omitempty"`
 }
 
 func (a *Alias) Create(ctx context.Context, createReq AliasCreateReq) (*CreateAliasV1, *Response, error) {
@@ -108,7 +108,7 @@ func (a *Alias) Create(ctx context.Context, createReq AliasCreateReq) (*CreateAl
 type AliasBroadcastReq struct {
 	SenderPublicKey crypto.PublicKey `json:"senderPublicKey"`
 	Fee             uint64           `json:"fee"`
-	Timestamp       Timestamp        `json:"timestamp"`
+	Timestamp       uint64           `json:"timestamp"`
 	Signature       crypto.Signature `json:"signature"`
 	Alias           string           `json:"alias"`
 }

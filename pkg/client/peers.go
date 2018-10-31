@@ -21,7 +21,7 @@ func NewPeers(options Options) *Peers {
 
 type PeerAllRow struct {
 	Address  proto.PeerInfo
-	LastSeen Timestamp `json:"lastSeen"`
+	LastSeen uint64 `json:"lastSeen"`
 }
 
 type peersAllResp struct {
@@ -91,7 +91,7 @@ func (a *Peers) Connected(ctx context.Context) ([]*PeersConnectedRow, *Response,
 
 type PeersBlacklistedRow struct {
 	Hostname  proto.PeerInfo `json:"hostname"`
-	Timestamp Timestamp      `json:"timestamp"`
+	Timestamp uint64         `json:"timestamp"`
 	Reason    string         `json:"reason"`
 }
 
@@ -121,7 +121,7 @@ func (a *Peers) Blacklisted(ctx context.Context) ([]*PeersBlacklistedRow, *Respo
 
 type PeersSuspendedRow struct {
 	Hostname  proto.PeerInfo `json:"hostname"`
-	Timestamp Timestamp      `json:"timestamp"`
+	Timestamp uint64         `json:"timestamp"`
 }
 
 func (a *Peers) Suspended(ctx context.Context) ([]*PeersSuspendedRow, *Response, error) {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/go-errors/errors"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"time"
@@ -25,13 +26,14 @@ var defaultOptions = Options{
 }
 
 type Client struct {
-	options   Options
-	Addresses *Addresses
-	Blocks    *Blocks
-	Wallet    *Wallet
-	Alias     *Alias
-	Peers     *Peers
-	Consensus *Consensus
+	options      Options
+	Addresses    *Addresses
+	Blocks       *Blocks
+	Wallet       *Wallet
+	Alias        *Alias
+	Peers        *Peers
+	Consensus    *Consensus
+	Transactions *Transactions
 }
 
 type Response struct {
@@ -67,13 +69,14 @@ func NewClient(options ...Options) (*Client, error) {
 	}
 
 	c := &Client{
-		options:   opts,
-		Addresses: NewAddresses(opts),
-		Blocks:    NewBlocks(opts),
-		Wallet:    NewWallet(opts),
-		Alias:     NewAlias(opts),
-		Peers:     NewPeers(opts),
-		Consensus: NewConsensus(opts),
+		options:      opts,
+		Addresses:    NewAddresses(opts),
+		Blocks:       NewBlocks(opts),
+		Wallet:       NewWallet(opts),
+		Alias:        NewAlias(opts),
+		Peers:        NewPeers(opts),
+		Consensus:    NewConsensus(opts),
+		Transactions: NewTransactions(opts),
 	}
 
 	return c, nil
@@ -127,9 +130,13 @@ func doHttp(ctx context.Context, options Options, req *http.Request, v interface
 	}
 
 	if v != nil {
-		err = json.NewDecoder(resp.Body).Decode(v)
-		if err != nil {
-			return response, &ParseError{Err: err}
+		if w, ok := v.(io.Writer); ok {
+			io.Copy(w, resp.Body)
+		} else {
+			err = json.NewDecoder(resp.Body).Decode(v)
+			if err != nil {
+				return response, &ParseError{Err: err}
+			}
 		}
 	}
 
