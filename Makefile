@@ -41,6 +41,8 @@ release-chaincmp: ver build-chaincmp-linux build-chaincmp-darwin build-chaincmp-
 
 dist-chaincmp: release-chaincmp
 	@mkdir -p build/dist
-	@cd ./build/; zip -r ./dist/chaincmp-$(VERSION) ./bin/
+	@cd ./build/; zip -j ./dist/chaincmp_$(VERSION)_Windows-64bit.zip ./bin/windows-amd64/*
+	@cd ./build/bin/linux-amd64/; tar pzcvf ../../dist/chaincmp_$(VERSION)_Linux-64bit.tar.gz ./*
+	@cd ./build/bin/darwin-amd64/; tar pzcvf ../../dist/chaincmp_$(VERSION)_macOS-64bit.tar.gz ./*
 
 dist: clean dist-chaincmp
