@@ -126,7 +126,7 @@ func TestAlias_Broadcast(t *testing.T) {
 	req := AliasBroadcastReq{
 		SenderPublicKey: pubKey,
 		Fee:             100000,
-		Timestamp:       Timestamp(1540301356669),
+		Timestamp:       1540301356669,
 		Signature:       signature,
 		Alias:           "12345678",
 	}
@@ -144,7 +144,7 @@ func TestAlias_Broadcast(t *testing.T) {
 		Type:      10,
 		ID:        &digest,
 		SenderPK:  pubKey,
-		Timestamp: Timestamp(1540301356669),
+		Timestamp: 1540301356669,
 		Fee:       100000,
 		Signature: &signature,
 		Alias:     "1234567",

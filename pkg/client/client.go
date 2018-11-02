@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/go-errors/errors"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"time"
@@ -32,6 +33,7 @@ type Client struct {
 	Alias     *Alias
 	Peers     *Peers
 	Consensus *Consensus
+	Transactions *Transactions
 	Utils     *Utils
 }
 
@@ -75,6 +77,7 @@ func NewClient(options ...Options) (*Client, error) {
 		Alias:     NewAlias(opts),
 		Peers:     NewPeers(opts),
 		Consensus: NewConsensus(opts),
+		Transactions: NewTransactions(opts),
 		Utils:     NewUtils(opts),
 	}
 
@@ -129,9 +132,13 @@ func doHttp(ctx context.Context, options Options, req *http.Request, v interface
 	}
 
 	if v != nil {
-		err = json.NewDecoder(resp.Body).Decode(v)
-		if err != nil {
-			return response, &ParseError{Err: err}
+		if w, ok := v.(io.Writer); ok {
+			io.Copy(w, resp.Body)
+		} else {
+			err = json.NewDecoder(resp.Body).Decode(v)
+			if err != nil {
+				return response, &ParseError{Err: err}
+			}
 		}
 	}
 

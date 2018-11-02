@@ -11,9 +11,9 @@ import (
 // nanos:	  1540296988390586000
 func TestNewTimestampFromTime(t *testing.T) {
 	now := time.Unix(0, 1540296988390586000)
-	assert.Equal(t, Timestamp(1540296988390), NewTimestampFromTime(now))
+	assert.Equal(t, uint64(1540296988390), NewTimestampFromTime(now))
 }
 
 func TestNewTimestampFromUnixNano(t *testing.T) {
-	assert.Equal(t, Timestamp(1540296988390), NewTimestampFromUnixNano(1540296988390586000))
+	assert.Equal(t, uint64(1540296988390), NewTimestampFromUnixNano(1540296988390586000))
 }

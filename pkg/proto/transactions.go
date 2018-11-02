@@ -62,6 +62,10 @@ const (
 	sponsorshipV1MinLen       = 1 + 1 + 1 + sponsorshipV1BodyLen + proofsMinLen
 )
 
+type Transaction interface {
+	Transaction()
+}
+
 type Genesis struct {
 	Type      TransactionType   `json:"type"`
 	Version   byte              `json:"version,omitempty"`
@@ -71,6 +75,8 @@ type Genesis struct {
 	Recipient Address           `json:"recipient"`
 	Amount    uint64            `json:"amount"`
 }
+
+func (Genesis) Transaction() {}
 
 func NewUnsignedGenesis(recipient Address, amount, timestamp uint64) (*Genesis, error) {
 	if amount <= 0 {
@@ -162,6 +168,8 @@ type Payment struct {
 	Fee       uint64            `json:"fee"`
 	Timestamp uint64            `json:"timestamp"`
 }
+
+func (Payment) Transaction() {}
 
 func NewUnsignedPayment(senderPK crypto.PublicKey, recipient Address, amount, fee, timestamp uint64) (*Payment, error) {
 	if ok, err := recipient.Validate(); !ok {
@@ -281,6 +289,8 @@ type IssueV1 struct {
 	Timestamp   uint64            `json:"timestamp,omitempty"`
 	Fee         uint64            `json:"fee"`
 }
+
+func (IssueV1) Transaction() {}
 
 func NewUnsignedIssueV1(senderPK crypto.PublicKey, name, description string, quantity uint64, decimals byte, reissuable bool, timestamp, fee uint64) (*IssueV1, error) {
 	if l := len(name); l < minAssetNameLen || l > maxAssetNameLen {
@@ -450,6 +460,8 @@ type TransferV1 struct {
 	Attachment  Attachment        `json:"attachment,omitempty"`
 }
 
+func (TransferV1) Transaction() {}
+
 func NewUnsignedTransferV1(senderPK crypto.PublicKey, amountAsset, feeAsset OptionalAsset, timestamp, amount, fee uint64, recipient Address, attachment string) (*TransferV1, error) {
 	if amount <= 0 {
 		return nil, errors.New("amount should be positive")
@@ -618,6 +630,8 @@ type ReissueV1 struct {
 	Fee        uint64            `json:"fee"`
 }
 
+func (ReissueV1) Transaction() {}
+
 func NewUnsignedReissueV1(senderPK crypto.PublicKey, assetID crypto.Digest, quantity uint64, reissuable bool, timestamp, fee uint64) (*ReissueV1, error) {
 	if quantity <= 0 {
 		return nil, errors.New("quantity should be positive")
@@ -744,6 +758,8 @@ type BurnV1 struct {
 	Fee       uint64            `json:"fee"`
 }
 
+func (BurnV1) Transaction() {}
+
 func NewUnsignedBurnV1(senderPK crypto.PublicKey, assetID crypto.Digest, amount, timestamp, fee uint64) (*BurnV1, error) {
 	if amount <= 0 {
 		return nil, errors.New("amount should be positive")
@@ -866,6 +882,8 @@ type ExchangeV1 struct {
 	Fee            uint64            `json:"fee"`
 	Timestamp      uint64            `json:"timestamp,omitempty"`
 }
+
+func (ExchangeV1) Transaction() {}
 
 func NewUnsignedExchangeV1(buy, sell Order, price, amount, buyMatcherFee, sellMatcherFee, fee, timestamp uint64) (*ExchangeV1, error) {
 	if buy.Signature == nil {
@@ -1061,6 +1079,8 @@ type LeaseV1 struct {
 	Timestamp uint64            `json:"timestamp,omitempty"`
 }
 
+func (LeaseV1) Transaction() {}
+
 func NewUnsignedLeaseV1(senderPK crypto.PublicKey, recipient Address, amount, fee, timestamp uint64) (*LeaseV1, error) {
 	if ok, err := recipient.Validate(); !ok {
 		return nil, errors.Wrap(err, "failed to create new unsigned LeaseV1 transaction")
@@ -1186,6 +1206,8 @@ type LeaseCancelV1 struct {
 	Timestamp uint64            `json:"timestamp,omitempty"`
 }
 
+func (LeaseCancelV1) Transaction() {}
+
 func NewUnsignedLeaseCancelV1(senderPK crypto.PublicKey, leaseID crypto.Digest, fee, timestamp uint64) (*LeaseCancelV1, error) {
 	if fee <= 0 {
 		return nil, errors.New("fee should be positive")
@@ -1300,6 +1322,8 @@ type CreateAliasV1 struct {
 	Fee       uint64            `json:"fee"`
 	Timestamp uint64            `json:"timestamp,omitempty"`
 }
+
+func (CreateAliasV1) Transaction() {}
 
 func NewUnsignedCreateAliasV1(senderPK crypto.PublicKey, alias Alias, fee, timestamp uint64) (*CreateAliasV1, error) {
 	if fee <= 0 {
@@ -1465,6 +1489,8 @@ type MassTransferV1 struct {
 	Fee        uint64              `json:"fee"`
 	Attachment Attachment          `json:"attachment,omitempty"`
 }
+
+func (MassTransferV1) Transaction() {}
 
 func NewUnsignedMassTransferV1(senderPK crypto.PublicKey, asset OptionalAsset, transfers []MassTransferEntry, fee, timestamp uint64, attachment string) (*MassTransferV1, error) {
 	if len(transfers) == 0 {
@@ -1658,6 +1684,8 @@ type DataV1 struct {
 	Fee       uint64           `json:"fee"`
 	Timestamp uint64           `json:"timestamp,omitempty"`
 }
+
+func (DataV1) Transaction() {}
 
 //NewUnsignedData creates new Data transaction without proofs.
 func NewUnsignedData(senderPK crypto.PublicKey, fee, timestamp uint64) (*DataV1, error) {
@@ -1870,6 +1898,8 @@ type SetScriptV1 struct {
 	Timestamp uint64           `json:"timestamp,omitempty"`
 }
 
+func (SetScriptV1) Transaction() {}
+
 //NewUnsignedSetScriptV1 creates new unsigned SetScriptV1 transaction.
 func NewUnsignedSetScriptV1(chain byte, senderPK crypto.PublicKey, script []byte, fee, timestamp uint64) (*SetScriptV1, error) {
 	if fee <= 0 {
@@ -2031,6 +2061,8 @@ type SponsorshipV1 struct {
 	Fee         uint64           `json:"fee"`
 	Timestamp   uint64           `json:"timestamp,omitempty"`
 }
+
+func (SponsorshipV1) Transaction() {}
 
 //NewUnsignedSponsorshipV1 creates new unsigned SponsorshipV1 transaction
 func NewUnsignedSponsorshipV1(senderPK crypto.PublicKey, assetID crypto.Digest, minAssetFee, fee, timestamp uint64) (*SponsorshipV1, error) {
