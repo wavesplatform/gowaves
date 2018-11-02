@@ -26,15 +26,15 @@ var defaultOptions = Options{
 }
 
 type Client struct {
-	options   Options
-	Addresses *Addresses
-	Blocks    *Blocks
-	Wallet    *Wallet
-	Alias     *Alias
-	Peers     *Peers
-	Consensus *Consensus
+	options      Options
+	Addresses    *Addresses
+	Blocks       *Blocks
+	Wallet       *Wallet
+	Alias        *Alias
+	Peers        *Peers
+	Consensus    *Consensus
 	Transactions *Transactions
-	Utils     *Utils
+	Utils        *Utils
 }
 
 type Response struct {
@@ -70,15 +70,15 @@ func NewClient(options ...Options) (*Client, error) {
 	}
 
 	c := &Client{
-		options:   opts,
-		Addresses: NewAddresses(opts),
-		Blocks:    NewBlocks(opts),
-		Wallet:    NewWallet(opts),
-		Alias:     NewAlias(opts),
-		Peers:     NewPeers(opts),
-		Consensus: NewConsensus(opts),
+		options:      opts,
+		Addresses:    NewAddresses(opts),
+		Blocks:       NewBlocks(opts),
+		Wallet:       NewWallet(opts),
+		Alias:        NewAlias(opts),
+		Peers:        NewPeers(opts),
+		Consensus:    NewConsensus(opts),
 		Transactions: NewTransactions(opts),
-		Utils:     NewUtils(opts),
+		Utils:        NewUtils(opts),
 	}
 
 	return c, nil
