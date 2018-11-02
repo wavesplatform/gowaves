@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/mr-tron/base58/base58"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"testing"
 )
 
@@ -241,4 +242,11 @@ func BenchmarkSecureHash(b *testing.B) {
 			}
 		})
 	}
+}
+
+func TestSecretKey_String(t *testing.T) {
+	k := "YoLY4iripseWvtMt29sc89oJnjxzodDgQ9REmEPFHkK"
+	secretKey, err := NewSecretKeyFromBase58(k)
+	require.Nil(t, err)
+	assert.Equal(t, k, secretKey.String())
 }

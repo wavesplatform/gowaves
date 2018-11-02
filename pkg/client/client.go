@@ -32,6 +32,7 @@ type Client struct {
 	Alias     *Alias
 	Peers     *Peers
 	Consensus *Consensus
+	Utils     *Utils
 }
 
 type Response struct {
@@ -74,6 +75,7 @@ func NewClient(options ...Options) (*Client, error) {
 		Alias:     NewAlias(opts),
 		Peers:     NewPeers(opts),
 		Consensus: NewConsensus(opts),
+		Utils:     NewUtils(opts),
 	}
 
 	return c, nil
