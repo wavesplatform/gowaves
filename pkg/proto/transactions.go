@@ -2,7 +2,6 @@ package proto
 
 import (
 	"encoding/binary"
-
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 )
