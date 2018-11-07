@@ -2,7 +2,6 @@ package proto
 
 import (
 	"encoding/binary"
-
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 )
@@ -458,7 +457,7 @@ func (tx *IssueV1) UnmarshalBinary(data []byte) error {
 type IssueV2 struct {
 	Type        TransactionType  `json:"type"`
 	Version     byte             `json:"version"`
-	ChainID     byte             `json:"chainId"`
+	ChainID     byte             `json:"-"`
 	ID          *crypto.Digest   `json:"id,omitempty"`
 	Proofs      *ProofsV1        `json:"proofs,omitempty"`
 	SenderPK    crypto.PublicKey `json:"senderPublicKey"`
@@ -473,7 +472,7 @@ type IssueV2 struct {
 }
 
 //NewUnsignedIssueV2 creates a new IssueV2 transaction with empty Proofs.
-func NewUnsignedIssueV2(chainID byte, senderPK crypto.PublicKey, name, description string, quantity uint64, decimals byte, reissuable bool, timestamp, fee uint64) (*IssueV2, error) {
+func NewUnsignedIssueV2(chainID byte, senderPK crypto.PublicKey, name, description string, quantity uint64, decimals byte, reissuable bool, script []byte, timestamp, fee uint64) (*IssueV2, error) {
 	if l := len(name); l < minAssetNameLen || l > maxAssetNameLen {
 		return nil, errors.New("incorrect number of bytes in the asset's name")
 	}
@@ -489,7 +488,7 @@ func NewUnsignedIssueV2(chainID byte, senderPK crypto.PublicKey, name, descripti
 	if fee <= 0 {
 		return nil, errors.New("fee should be positive")
 	}
-	return &IssueV2{Type: IssueTransaction, Version: 2, ChainID: chainID, SenderPK: senderPK, Name: name, Description: description, Quantity: quantity, Decimals: decimals, Reissuable: reissuable, Timestamp: timestamp, Fee: fee}, nil
+	return &IssueV2{Type: IssueTransaction, Version: 2, ChainID: chainID, SenderPK: senderPK, Name: name, Description: description, Quantity: quantity, Decimals: decimals, Reissuable: reissuable, Script: script, Timestamp: timestamp, Fee: fee}, nil
 }
 
 //NonEmptyScript returns true if the script of the transaction is not empty, otherwise false.
@@ -498,32 +497,38 @@ func (tx *IssueV2) NonEmptyScript() bool {
 }
 
 func (tx *IssueV2) bodyMarshalBinary() ([]byte, error) {
-	var pos int
+	var p int
 	nl := len(tx.Name)
 	dl := len(tx.Description)
-	buf := make([]byte, issueV2FixedBodyLen+nl+dl)
+	sl := len(tx.Script)
+	if sl > 0 {
+		sl += 2
+	}
+	buf := make([]byte, issueV2FixedBodyLen+nl+dl+sl)
 	buf[0] = byte(tx.Type)
 	buf[1] = tx.Version
 	buf[2] = tx.ChainID
-	pos = 3
-	copy(buf[pos:], tx.SenderPK[:])
-	pos += crypto.PublicKeySize
-	PutStringWithUInt16Len(buf[pos:], tx.Name)
-	pos += 2 + nl
-	PutStringWithUInt16Len(buf[pos:], tx.Description)
-	pos += 2 + dl
-	binary.BigEndian.PutUint64(buf[pos:], tx.Quantity)
-	pos += 8
-	buf[pos] = tx.Decimals
-	pos++
-	PutBool(buf[pos:], tx.Reissuable)
-	pos++
-	binary.BigEndian.PutUint64(buf[pos:], tx.Fee)
-	pos += 8
-	binary.BigEndian.PutUint64(buf[pos:], tx.Timestamp)
-	pos += 8
+	p = 3
+	copy(buf[p:], tx.SenderPK[:])
+	p += crypto.PublicKeySize
+	PutStringWithUInt16Len(buf[p:], tx.Name)
+	p += 2 + nl
+	PutStringWithUInt16Len(buf[p:], tx.Description)
+	p += 2 + dl
+	binary.BigEndian.PutUint64(buf[p:], tx.Quantity)
+	p += 8
+	buf[p] = tx.Decimals
+	p++
+	PutBool(buf[p:], tx.Reissuable)
+	p++
+	binary.BigEndian.PutUint64(buf[p:], tx.Fee)
+	p += 8
+	binary.BigEndian.PutUint64(buf[p:], tx.Timestamp)
+	p += 8
+	PutBool(buf[p:], tx.NonEmptyScript())
+	p++
 	if tx.NonEmptyScript() {
-		PutBytesWithUInt16Len(buf[pos:], tx.Script)
+		PutBytesWithUInt16Len(buf[p:], tx.Script)
 	}
 	return buf, nil
 }
@@ -645,7 +650,11 @@ func (tx *IssueV2) UnmarshalBinary(data []byte) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to unmarshal IssueV2 transaction")
 	}
-	bl := issueV2FixedBodyLen + len(tx.Name) + len(tx.Description)
+	sl := len(tx.Script)
+	if sl > 0 {
+		sl += 2
+	}
+	bl := issueV2FixedBodyLen + len(tx.Name) + len(tx.Description) + sl
 	bb := data[:bl]
 	data = data[bl:]
 	var p ProofsV1
