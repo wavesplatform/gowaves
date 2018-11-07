@@ -471,6 +471,8 @@ type IssueV2 struct {
 	Timestamp   uint64           `json:"timestamp,omitempty"`
 }
 
+func (IssueV2) Transaction() {}
+
 //NewUnsignedIssueV2 creates a new IssueV2 transaction with empty Proofs.
 func NewUnsignedIssueV2(chainID byte, senderPK crypto.PublicKey, name, description string, quantity uint64, decimals byte, reissuable bool, script []byte, timestamp, fee uint64) (*IssueV2, error) {
 	if l := len(name); l < minAssetNameLen || l > maxAssetNameLen {
