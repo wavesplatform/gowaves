@@ -462,12 +462,11 @@ func TestTransferV1Validations(t *testing.T) {
 		att    string
 		err    string
 	}{
-		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ", "4UY7UjzhRxKYyLh6mtiPkZpC73HFLE9DFNGKs7ju6Ai3", "4UY7UjzhRxKYyLh6mtiPkZpC73HFLE9DFNGKs7ju6Ai3", 0, 10, "The attachment", "amount should be positive"},
-		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ", "4UY7UjzhRxKYyLh6mtiPkZpC73HFLE9DFNGKs7ju6Ai3", "4UY7UjzhRxKYyLh6mtiPkZpC73HFLE9DFNGKs7ju6Ai3", 1000, 0, "The attachment", "fee should be positive"},
-		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ", "4UY7UjzhRxKYyLh6mtiPkZpC73HFLE9DFNGKs7ju6Ai3", "4UY7UjzhRxKYyLh6mtiPkZpC73HFLE9DFNGKs7ju6Ai3", 1000, 10, strings.Repeat("The attachment", 100), "attachment too long"},
-		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H86Y7SHTQ", "4UY7UjzhRxKYyLh6mtiPkZpC73HFLE9DFNGKs7ju6Ai3", "4UY7UjzhRxKYyLh6mtiPkZpC73HFLE9DFNGKs7ju6Ai3", 1000, 10, "The attachment", "invalid recipient address '3PAWwWa6GbwcJaFzwqXQN5KQm7H86Y7SHTQ': invalid Address checksum"},
+		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ", "4UY7UjzhRxKYyLh6mtiPkZpC73HFLE9DFNGKs7ju6Ai3", "4UY7UjzhRxKYyLh6mtiPkZpC73HFLE9DFNGKs7ju6Ai3", 0, 10, "The attachment", "failed to create TransferV1 transaction: amount should be positive"},
+		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ", "4UY7UjzhRxKYyLh6mtiPkZpC73HFLE9DFNGKs7ju6Ai3", "4UY7UjzhRxKYyLh6mtiPkZpC73HFLE9DFNGKs7ju6Ai3", 1000, 0, "The attachment", "failed to create TransferV1 transaction: fee should be positive"},
+		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ", "4UY7UjzhRxKYyLh6mtiPkZpC73HFLE9DFNGKs7ju6Ai3", "4UY7UjzhRxKYyLh6mtiPkZpC73HFLE9DFNGKs7ju6Ai3", 1000, 10, strings.Repeat("The attachment", 100), "failed to create TransferV1 transaction: attachment too long"},
+		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H86Y7SHTQ", "4UY7UjzhRxKYyLh6mtiPkZpC73HFLE9DFNGKs7ju6Ai3", "4UY7UjzhRxKYyLh6mtiPkZpC73HFLE9DFNGKs7ju6Ai3", 1000, 10, "The attachment", "failed to create TransferV1 transaction: invalid recipient address '3PAWwWa6GbwcJaFzwqXQN5KQm7H86Y7SHTQ': invalid Address checksum"},
 	}
-
 	spk, _ := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
 	for _, tc := range tests {
 		addr, _ := NewAddressFromString(tc.addr)
@@ -478,30 +477,65 @@ func TestTransferV1Validations(t *testing.T) {
 	}
 }
 
-func TestTransferV1SigningRoundTrip(t *testing.T) {
+func TestTransferV1BinaryRoundTrip(t *testing.T) {
 	tests := []struct {
-		scheme      byte
-		amountAsset string
-		feeAsset    string
+		scheme              byte
+		amountAsset         string
+		expectedAmountAsset string
+		feeAsset            string
+		expectedFeeAsset    string
+		amount              uint64
+		fee                 uint64
+		attachment          string
 	}{
-		{'T', "WAVES", "WAVES"},
-		{'W', "", ""},
-		{'T', "WAVES", "B1u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ"},
-		{'C', "B1u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ", "B1u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ"},
-		{'D', "B1u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ", "WAVES"},
-		{'W', "B1u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ", ""},
+		{'T', "WAVES", "WAVES", "WAVES", "WAVES", 1234, 56789, "test attachment"},
+		{'W', "", "WAVES", "", "WAVES", 1234567890, 9876543210, ""},
+		{'T', "WAVES", "WAVES", "B1u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ", "B1u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ", 121212121, 343434, "B1u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ"},
+		{'C', "B1u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ", "B1u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ", "B1u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ", "B1u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ", 12345, 67890, ""},
+		{'D', "B1u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ", "B1u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ", "WAVES", "WAVES", 567890, 1234, "xxx"},
+		{'W', "B1u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ", "B1u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ", "", "WAVES", 10, 20, ""},
 	}
 	seed, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
 	sk, pk := crypto.GenerateKeyPair(seed)
 	for _, tc := range tests {
-		ts := uint64(time.Now().Unix() * 1000)
+		ts := uint64(time.Now().UnixNano() / 1000000)
 		rcp, _ := NewAddressFromPublicKey(tc.scheme, pk)
 		aa, _ := NewOptionalAssetFromString(tc.amountAsset)
 		fa, _ := NewOptionalAssetFromString(tc.feeAsset)
-		if tx, err := NewUnsignedTransferV1(pk, *aa, *fa, ts, 100000000, 100000, rcp, "test attachment"); assert.NoError(t, err) {
+		if tx, err := NewUnsignedTransferV1(pk, *aa, *fa, ts, tc.amount, tc.fee, rcp, tc.attachment); assert.NoError(t, err) {
+			if bb, err := tx.bodyMarshalBinary(); assert.NoError(t, err) {
+				var atx TransferV1
+				if err := atx.bodyUnmarshalBinary(bb); assert.NoError(t, err) {
+					assert.Equal(t, tx.Type, atx.Type)
+					assert.Equal(t, tx.Version, atx.Version)
+					assert.Equal(t, tx.SenderPK, atx.SenderPK)
+					assert.Equal(t, tx.AmountAsset.Present, atx.AmountAsset.Present)
+					assert.ElementsMatch(t, tx.AmountAsset.ID, atx.AmountAsset.ID)
+					assert.Equal(t, tx.FeeAsset.Present, atx.FeeAsset.Present)
+					assert.ElementsMatch(t, tx.FeeAsset.ID, atx.FeeAsset.ID)
+					assert.Equal(t, tx.Amount, atx.Amount)
+					assert.Equal(t, tx.Fee, atx.Fee)
+					assert.Equal(t, tx.Timestamp, atx.Timestamp)
+					assert.Equal(t, tx.Attachment.String(), atx.Attachment.String())
+				}
+			}
 			if err := tx.Sign(sk); assert.NoError(t, err) {
 				if r, err := tx.Verify(pk); assert.NoError(t, err) {
 					assert.True(t, r)
+				}
+			}
+			if b, err := tx.MarshalBinary(); assert.NoError(t, err) {
+				var atx TransferV1
+				if err := atx.UnmarshalBinary(b); assert.NoError(t, err) {
+					assert.Equal(t, tx.ID, atx.ID)
+					assert.ElementsMatch(t, *tx.Signature, *atx.Signature)
+					assert.ElementsMatch(t, pk, atx.SenderPK)
+					assert.Equal(t, tc.expectedAmountAsset, atx.AmountAsset.String())
+					assert.Equal(t, tc.expectedFeeAsset, atx.FeeAsset.String())
+					assert.Equal(t, tc.amount, atx.Amount)
+					assert.Equal(t, tc.fee, atx.Fee)
+					assert.Equal(t, ts, atx.Timestamp)
+					assert.Equal(t, tc.attachment, atx.Attachment.String())
 				}
 			}
 		}
@@ -546,7 +580,7 @@ func TestTransferV1FromMainNet(t *testing.T) {
 	}
 }
 
-func TestTransferToJSON(t *testing.T) {
+func TestTransferV1ToJSON(t *testing.T) {
 	tests := []struct {
 		amountAsset         string
 		expectedAmountAsset string
@@ -575,6 +609,168 @@ func TestTransferToJSON(t *testing.T) {
 			if err := tx.Sign(sk); assert.NoError(t, err) {
 				if j, err := json.Marshal(tx); assert.NoError(t, err) {
 					ej := fmt.Sprintf("{\"type\":4,\"version\":1,\"id\":\"%s\",\"signature\":\"%s\",\"senderPublicKey\":\"%s\",\"assetId\":%s,\"feeAssetId\":%s,\"timestamp\":%d,\"amount\":100000000,\"fee\":100000,\"recipient\":\"3PDgLyMzNLkHF2cV1y7NhpmyS2HQjd57SWu\"%s}", base58.Encode(tx.ID[:]), base58.Encode(tx.Signature[:]), base58.Encode(pk[:]), tc.expectedAmountAsset, tc.expectedFeeAsset, ts, tc.expectedAttachment)
+					assert.Equal(t, ej, string(j))
+				}
+			}
+		}
+	}
+}
+
+func TestTransferV2Validations(t *testing.T) {
+	tests := []struct {
+		addr   string
+		aa     string
+		fa     string
+		amount uint64
+		fee    uint64
+		att    string
+		err    string
+	}{
+		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ", "4UY7UjzhRxKYyLh6mtiPkZpC73HFLE9DFNGKs7ju6Ai3", "4UY7UjzhRxKYyLh6mtiPkZpC73HFLE9DFNGKs7ju6Ai3", 0, 10, "The attachment", "failed to create TransferV2 transaction: amount should be positive"},
+		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ", "4UY7UjzhRxKYyLh6mtiPkZpC73HFLE9DFNGKs7ju6Ai3", "4UY7UjzhRxKYyLh6mtiPkZpC73HFLE9DFNGKs7ju6Ai3", 1000, 0, "The attachment", "failed to create TransferV2 transaction: fee should be positive"},
+		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ", "4UY7UjzhRxKYyLh6mtiPkZpC73HFLE9DFNGKs7ju6Ai3", "4UY7UjzhRxKYyLh6mtiPkZpC73HFLE9DFNGKs7ju6Ai3", 1000, 10, strings.Repeat("The attachment", 100), "failed to create TransferV2 transaction: attachment too long"},
+		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H86Y7SHTQ", "4UY7UjzhRxKYyLh6mtiPkZpC73HFLE9DFNGKs7ju6Ai3", "4UY7UjzhRxKYyLh6mtiPkZpC73HFLE9DFNGKs7ju6Ai3", 1000, 10, "The attachment", "failed to create TransferV2 transaction: invalid recipient address '3PAWwWa6GbwcJaFzwqXQN5KQm7H86Y7SHTQ': invalid Address checksum"},
+	}
+	spk, _ := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
+	for _, tc := range tests {
+		addr, _ := NewAddressFromString(tc.addr)
+		aa, _ := NewOptionalAssetFromString(tc.aa)
+		fa, _ := NewOptionalAssetFromString(tc.fa)
+		_, err := NewUnsignedTransferV2(spk, *aa, *fa, 0, tc.amount, tc.fee, addr, tc.att)
+		assert.EqualError(t, err, tc.err, "No expected error '%s'", tc.err)
+	}
+}
+
+func TestTransferV2FromMainNet(t *testing.T) {
+	tests := []struct {
+		id          string
+		sig         string
+		spk         string
+		rcp         string
+		amountAsset string
+		amount      uint64
+		feeAsset    string
+		fee         uint64
+		timestamp   uint64
+		attachment  string
+	}{
+		{"93H1i2jgP21Eh4Q5uzwmCYCVfGHZcAMzpC6PPbwvCSTs", "4jbfvXGiqsaKkZso6ykNMQZDARewvBjKxgaz55jF4g6tBVPgxv5qChSvBYdHRGHjUdXbG3CZ3PUNBBK3eoiuRfVt", "6tbTkJukCZ4qX13ucXVeUV2aN88t9ypi1MADZb9PfFQD", "3P5mTiUpUnb1eM19udtM8QyNLBGf6VjS19j", "GryqKQBmTZGZnbZ4efrQvNGNpeLM83djWSNJBWuhZg5H", 566, "9PVyxDPUjauYafvq83JTXvHQ8nPnxwKA7siUFcqthCDJ", 1000000000, 1541593367281, ""},
+		{"HE7jA4xjRiqdNVEP4jSXAY8FEy412MGKTD1hqWtpnYrZ", "33VU7yYd6bLrHf5VBCtR5iMpxDhMwWWdfJMSzBUw38WsSjCsKhfjerBiatDtJNpPPx8FK8cqX4kKeb5XiUhSv7ev", "6cDEgFTH9mZwuJjRubE4ZzSjrCvofzn24M7jmw5oTu5p", "3PKi8kvBCMUZnPFVRDBMzYaY49wLf7TurEe", "FGJQGTG13wKXSaYB4JJ6But7Ui3iRq5ZA9DTFsNTYJvt", 9788200000000, "", 100000, 1541593585115, "0x09F7f8d4f0e4BCC89073318759179EB1e5cFC500"},
+		{"ERhAQmKArX6Yy2iC5N9S9aV9xPhnabyhwMBXufSZkgEw", "36u5TudkkRDE6V67jydUCAE3Vh8xf7Yv5FM8M53DJHtyhjdEPJtFqLBAnEFaXUEyyV2s7qPV8DyL3nyhDJ7YBCcH", "9zMXKmq3tWJJmezrkaYjmpiD3LZkFbhiwy9AP2r4CBnC", "3PGxhF7LtybhRdZfErxBTN4ZDDJjLUQW8Rb", "", 6500000, "", 100000, 1541593775634, "Send"},
+	}
+	for _, tc := range tests {
+		id, _ := crypto.NewDigestFromBase58(tc.id)
+		sig, _ := crypto.NewSignatureFromBase58(tc.sig)
+		spk, _ := crypto.NewPublicKeyFromBase58(tc.spk)
+		rcp, _ := NewAddressFromString(tc.rcp)
+		aa, _ := NewOptionalAssetFromString(tc.amountAsset)
+		fa, _ := NewOptionalAssetFromString(tc.feeAsset)
+		if tx, err := NewUnsignedTransferV2(spk, *aa, *fa, tc.timestamp, tc.amount, tc.fee, rcp, tc.attachment); assert.NoError(t, err) {
+			if b, err := tx.bodyMarshalBinary(); assert.NoError(t, err) {
+				if h, err := crypto.FastHash(b); assert.NoError(t, err) {
+					assert.Equal(t, id, h)
+				}
+				assert.True(t, crypto.Verify(spk, sig, b))
+			}
+		}
+	}
+}
+
+func TestTransferV2BinaryRoundTrip(t *testing.T) {
+	tests := []struct {
+		scheme              byte
+		amountAsset         string
+		expectedAmountAsset string
+		feeAsset            string
+		expectedFeeAsset    string
+		amount              uint64
+		fee                 uint64
+		attachment          string
+	}{
+		{'T', "WAVES", "WAVES", "WAVES", "WAVES", 1234, 56789, "test attachment"},
+		{'W', "", "WAVES", "", "WAVES", 1234567890, 9876543210, ""},
+		{'T', "WAVES", "WAVES", "B1u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ", "B1u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ", 121212121, 343434, "B1u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ"},
+		{'C', "B1u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ", "B1u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ", "B1u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ", "B1u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ", 12345, 67890, ""},
+		{'D', "B1u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ", "B1u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ", "WAVES", "WAVES", 567890, 1234, "xxx"},
+		{'W', "B1u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ", "B1u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ", "", "WAVES", 10, 20, ""},
+	}
+	seed, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
+	sk, pk := crypto.GenerateKeyPair(seed)
+	for _, tc := range tests {
+		ts := uint64(time.Now().UnixNano() / 1000000)
+		rcp, _ := NewAddressFromPublicKey(tc.scheme, pk)
+		aa, _ := NewOptionalAssetFromString(tc.amountAsset)
+		fa, _ := NewOptionalAssetFromString(tc.feeAsset)
+		if tx, err := NewUnsignedTransferV2(pk, *aa, *fa, ts, tc.amount, tc.fee, rcp, tc.attachment); assert.NoError(t, err) {
+			if bb, err := tx.bodyMarshalBinary(); assert.NoError(t, err) {
+				var atx TransferV2
+				if err := atx.bodyUnmarshalBinary(bb); assert.NoError(t, err) {
+					assert.Equal(t, tx.Type, atx.Type)
+					assert.Equal(t, tx.Version, atx.Version)
+					assert.Equal(t, tx.SenderPK, atx.SenderPK)
+					assert.Equal(t, tx.AmountAsset.Present, atx.AmountAsset.Present)
+					assert.ElementsMatch(t, tx.AmountAsset.ID, atx.AmountAsset.ID)
+					assert.Equal(t, tx.FeeAsset.Present, atx.FeeAsset.Present)
+					assert.ElementsMatch(t, tx.FeeAsset.ID, atx.FeeAsset.ID)
+					assert.Equal(t, tx.Amount, atx.Amount)
+					assert.Equal(t, tx.Fee, atx.Fee)
+					assert.Equal(t, tx.Timestamp, atx.Timestamp)
+					assert.Equal(t, tx.Attachment.String(), atx.Attachment.String())
+				}
+			}
+			if err := tx.Sign(sk); assert.NoError(t, err) {
+				if r, err := tx.Verify(pk); assert.NoError(t, err) {
+					assert.True(t, r)
+				}
+			}
+			if b, err := tx.MarshalBinary(); assert.NoError(t, err) {
+				var atx TransferV2
+				if err := atx.UnmarshalBinary(b); assert.NoError(t, err) {
+					assert.Equal(t, tx.ID, atx.ID)
+					assert.ElementsMatch(t, tx.Proofs.Proofs, atx.Proofs.Proofs)
+					assert.Equal(t, pk, atx.SenderPK)
+					assert.Equal(t, tc.expectedAmountAsset, atx.AmountAsset.String())
+					assert.Equal(t, tc.expectedFeeAsset, atx.FeeAsset.String())
+					assert.Equal(t, tc.amount, atx.Amount)
+					assert.Equal(t, tc.fee, atx.Fee)
+					assert.Equal(t, ts, atx.Timestamp)
+					assert.Equal(t, tc.attachment, atx.Attachment.String())
+				}
+			}
+		}
+	}
+}
+
+func TestTransferV2ToJSON(t *testing.T) {
+	tests := []struct {
+		amountAsset         string
+		expectedAmountAsset string
+		feeAsset            string
+		expectedFeeAsset    string
+		attachment          string
+		expectedAttachment  string
+	}{
+		{"", "null", "", "null", "", ""},
+		{"", "null", "", "null", "blah-blah-blah", ",\"attachment\":\"dBfDSWhwLmZQy4zr2S3\""},
+		{"", "null", "B1u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ", "\"B1u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ\"", "blah-blah-blah", ",\"attachment\":\"dBfDSWhwLmZQy4zr2S3\""},
+		{"B1u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ", "\"B1u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ\"", "B1u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ", "\"B1u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ\"", "blah-blah-blah", ",\"attachment\":\"dBfDSWhwLmZQy4zr2S3\""},
+	}
+	seed, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
+	sk, pk := crypto.GenerateKeyPair(seed)
+	rcp, _ := NewAddressFromString("3PDgLyMzNLkHF2cV1y7NhpmyS2HQjd57SWu")
+	ts := uint64(time.Now().UnixNano() / 1000000)
+	for _, tc := range tests {
+		aa, _ := NewOptionalAssetFromString(tc.amountAsset)
+		fa, _ := NewOptionalAssetFromString(tc.feeAsset)
+		if tx, err := NewUnsignedTransferV2(pk, *aa, *fa, ts, 100000000, 100000, rcp, tc.attachment); assert.NoError(t, err) {
+			if j, err := json.Marshal(tx); assert.NoError(t, err) {
+				ej := fmt.Sprintf("{\"type\":4,\"version\":2,\"senderPublicKey\":\"%s\",\"assetId\":%s,\"feeAssetId\":%s,\"timestamp\":%d,\"amount\":100000000,\"fee\":100000,\"recipient\":\"3PDgLyMzNLkHF2cV1y7NhpmyS2HQjd57SWu\"%s}", base58.Encode(pk[:]), tc.expectedAmountAsset, tc.expectedFeeAsset, ts, tc.expectedAttachment)
+				assert.Equal(t, ej, string(j))
+			}
+			if err := tx.Sign(sk); assert.NoError(t, err) {
+				if j, err := json.Marshal(tx); assert.NoError(t, err) {
+					ej := fmt.Sprintf("{\"type\":4,\"version\":2,\"id\":\"%s\",\"proofs\":[\"%s\"],\"senderPublicKey\":\"%s\",\"assetId\":%s,\"feeAssetId\":%s,\"timestamp\":%d,\"amount\":100000000,\"fee\":100000,\"recipient\":\"3PDgLyMzNLkHF2cV1y7NhpmyS2HQjd57SWu\"%s}",
+						base58.Encode(tx.ID[:]), base58.Encode(tx.Proofs.Proofs[0]), base58.Encode(pk[:]), tc.expectedAmountAsset, tc.expectedFeeAsset, ts, tc.expectedAttachment)
 					assert.Equal(t, ej, string(j))
 				}
 			}
