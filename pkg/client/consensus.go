@@ -3,8 +3,9 @@ package client
 import (
 	"context"
 	"fmt"
-	"github.com/wavesplatform/gowaves/pkg/proto"
 	"net/http"
+
+	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
 type Consensus struct {
