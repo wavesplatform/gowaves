@@ -2520,6 +2520,8 @@ type SponsorshipV1 struct {
 	Timestamp   uint64           `json:"timestamp,omitempty"`
 }
 
+func (SponsorshipV1) Transaction() {}
+
 //NewUnsignedSponsorshipV1 creates new unsigned SponsorshipV1 transaction
 func NewUnsignedSponsorshipV1(senderPK crypto.PublicKey, assetID crypto.Digest, minAssetFee, fee, timestamp uint64) (*SponsorshipV1, error) {
 	if fee <= 0 {
