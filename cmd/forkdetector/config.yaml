@@ -2,10 +2,13 @@ waves:
   network:
     bind-address: "0.0.0.0"
     port: 6863
-    node-name: "My GOWAVES node"
+    node-name: "My gowavES node"
     peers:
+      - "217.100.219.254:6863"
       - "217.100.219.251:6863"
-#-  "52.77.111.219:6863"
+      - "52.77.111.219:6863"
+      - "52.28.66.217:6863"
+      - "18.194.35.238:6863"
   blockchain:
     genesis: "5uqnLK3Z9eiot6FyYBfwUnbyid3abicQbAZjz38GQ1Q8XigQMxTK4C1zNkqS1SVw7FqSidbZKxWAKLVoEsp4nNqa"
   storage:

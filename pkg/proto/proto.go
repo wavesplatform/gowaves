@@ -34,6 +34,22 @@ const (
 // BlockSignature is a signature of a formed block
 type BlockSignature crypto.Signature
 
+// BlockID represents the ID of a block
+type BlockID BlockSignature
+
+func (s *BlockID) UnmarshalJSON(data []byte) error {
+	b := crypto.Signature(*s)
+	e := b.UnmarshalJSON(data)
+	copy(s[:], b[:])
+
+	return e
+}
+
+func (s BlockID) MarshalJSON() ([]byte, error) {
+	b, e := crypto.Signature(s).MarshalJSON()
+	return b, e
+}
+
 type header struct {
 	Length        uint32
 	Magic         uint32
@@ -525,9 +541,6 @@ func (m *PeersMessage) WriteTo(w io.Writer) (int64, error) {
 	n := int64(nn)
 	return n, err
 }
-
-// BlockID represents the ID of a block
-type BlockID [64]byte
 
 // GetSignaturesMessage represents the Get Signatures request
 type GetSignaturesMessage struct {

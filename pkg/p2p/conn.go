@@ -104,9 +104,18 @@ LOOP:
 			c.ingress <- ConnMessage{c.Conn.RemoteAddr(), s}
 		case proto.ContentIDSignatures:
 			var m proto.SignaturesMessage
+			zap.S().Info("got signatures message")
 			_, err := m.ReadFrom(bufConn)
 			if err != nil {
 				zap.S().Error("failed to read Signatures message:", err)
+				break LOOP
+			}
+			c.ingress <- ConnMessage{c.Conn.RemoteAddr(), m}
+		case proto.ContentIDBlock:
+			var m proto.BlockMessage
+			_, err := m.ReadFrom(bufConn)
+			if err != nil {
+				zap.S().Error("failed to read Block message:", err)
 				break LOOP
 			}
 			c.ingress <- ConnMessage{c.Conn.RemoteAddr(), m}
@@ -118,7 +127,7 @@ LOOP:
 				zap.S().Error("failed to read default message: ", err)
 				break LOOP
 			}
-			break
+			zap.S().Info("got default message of length", l)
 		}
 	}
 }

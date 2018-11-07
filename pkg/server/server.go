@@ -1,7 +1,6 @@
 package server
 
 import (
-	"bufio"
 	"context"
 	"encoding/json"
 	"errors"
@@ -31,6 +30,7 @@ type Server struct {
 	dbpath        string
 	db            *leveldb.DB
 	genesis       proto.BlockID
+	nodeStates    map[string]*NodeState
 }
 
 func handleRequest(ctx context.Context, conn net.Conn) {
@@ -89,13 +89,134 @@ func dialContext(ctx context.Context, network, addr string) (net.Conn, error) {
 	return nil, errors.New("TODO")
 }
 
-func (s *Server) processSignatures(w bufio.Writer, r bufio.Reader, m proto.SignaturesMessage) {
+func (s *Server) doHaveAllBlocks(n *NodeState) bool {
+	for _, v := range n.pendingBlocksHave {
+		if !v {
+			return v
+		}
+	}
+	return true
+}
+
+func (s *Server) processSignatures(c *p2p.Conn, m proto.SignaturesMessage, from string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	state := s.nodeStates[from]
+	state.pendingSignatures = make([]proto.BlockSignature, len(m.Signatures))
+	copy(state.pendingSignatures, m.Signatures)
+
+	for _, sig := range m.Signatures {
+		has, err := s.db.Has(sig[:], nil)
+		state.pendingBlocksHave[sig] = false
+
+		if err != nil {
+			zap.S().Error("failed to query leveldb: ", err)
+			continue
+		}
+
+		if !has {
+			zap.S().Debug("asking for block", base58.Encode(sig[:]))
+			var blockID proto.BlockID
+			copy(blockID[:], sig[:])
+			gbm := proto.GetBlockMessage{BlockID: blockID}
+			c.Send() <- gbm
+			continue
+		}
+		state.pendingBlocksHave[sig] = true
+	}
+
+	if s.doHaveAllBlocks(state) {
+		zap.S().Info("have all blocks")
+	}
+}
+
+func (s *Server) processBlock(c *p2p.Conn, m proto.BlockMessage, from string) {
+	msg := m
+	var b proto.Block
+	b.UnmarshalBinary(msg.BlockBytes)
+	str := base58.Encode(b.BlockSignature[:])
+
+	//zap.S().Infow("got block", "block", str)
+
+	has, err := s.db.Has(b.BlockSignature[:], nil)
+
+	if err != nil {
+		zap.S().Error("failed to query leveldb", err)
+		return
+	}
+
+	if !has {
+		zap.S().Infof("block %v not found in db", str)
+		if err = s.db.Put(b.BlockSignature[:], msg.BlockBytes, nil); err != nil {
+			zap.S().Error("failed to query leveldb", err)
+		}
+	}
+
+	return
+}
+
+func (s *Server) loadState(peer string) {
+	stateBytes, err := s.db.Get([]byte(peer), nil)
+	var state NodeState
+	if err != nil {
+		s.mu.Lock()
+		defer s.mu.Unlock()
+
+		state.State = stateSyncing
+
+		state.LastKnownBlock = s.genesis
+		state.pendingBlocksHave = make(map[proto.BlockSignature]bool, 0)
+		state.Addr = peer
+
+		s.nodeStates[peer] = &state
+		zap.S().Info("storage has no info about node ", peer)
+		return
+	}
+
+	zap.S().Info("state is ", string(stateBytes))
+	if err := json.Unmarshal(stateBytes, &state); err != nil {
+		zap.S().Info("failed to parse node ", peer, " state: ", err)
+		return
+	}
+	str, err := json.Marshal(state)
+	if err != nil {
+		zap.S().Error("failed to marshal binary: ", err)
+		return
+	}
+	zap.S().Info("loaded node ", peer, " state: ", string(str))
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.nodeStates[peer] = &state
+}
+
+func (s *Server) storeState(peer string) {
+	var state *NodeState
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	state, ok := s.nodeStates[peer]
+	if !ok {
+		return
+	}
+
+	bytes, err := json.Marshal(state)
+	if err != nil {
+		zap.S().Error("failed to marshal peer state: ", err)
+		return
+	}
+	if err := s.db.Put([]byte(peer), bytes, nil); err != nil {
+		zap.S().Error("failed to store peer state in db: ", err)
+	}
 }
 
 func (s *Server) handleClient(ctx context.Context, peer string) {
 	ingress := make(chan p2p.ConnMessage, 1024)
 
 	zap.S().Info("handling client")
+
+	s.loadState(peer)
 
 	customTransport := p2p.Transport{DialContext: dialContext}
 	conn, err := p2p.NewConn(
@@ -124,29 +245,29 @@ func (s *Server) handleClient(ctx context.Context, peer string) {
 	gp.Blocks = append(gp.Blocks, s.genesis)
 
 	conn.Send() <- gp
+	conn.Send() <- gp
 	defer conn.Close()
 
 LOOP:
 	for {
 		select {
 		case <-ctx.Done():
+			zap.S().Info("stopping connection loop")
 			break LOOP
 		case m := <-ingress:
 			switch v := m.Message.(type) {
 			case proto.SignaturesMessage:
-				var b []byte
-				b, e := json.Marshal(v)
-				if e != nil {
-					return
-				}
-				js := string(b)
-				zap.S().Info("Got signatures", js)
+				s.processSignatures(conn, v, m.From.String())
+			case proto.BlockMessage:
+				s.processBlock(conn, v, m.From.String())
 			default:
 				zap.S().Infof("Got type %T", v)
 			}
 		}
 
 	}
+
+	s.storeState(peer)
 }
 
 func (m *Server) Run(ctx context.Context) {
@@ -176,7 +297,37 @@ func (m *Server) Run(ctx context.Context) {
 	}
 }
 
+func (s *Server) printPeers() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	for k, v := range s.nodeStates {
+		b, err := json.Marshal(v)
+		if err != nil {
+			zap.S().Error("failed to marshal peer state: ", k)
+			continue
+		}
+
+		zap.S().Info("node: ", k, "state: ", string(b))
+	}
+}
+func (s *Server) printStats(ctx context.Context) {
+	defer s.wg.Done()
+LOOP:
+	for {
+		select {
+		case <-ctx.Done():
+			break LOOP
+		case <-time.After(5 * time.Second):
+			s.printPeers()
+		}
+	}
+}
+
 func (m *Server) RunClients(ctx context.Context) {
+	m.wg.Add(1)
+	go m.printStats(ctx)
+
 	for _, peer := range m.BootPeerAddrs {
 		m.wg.Add(1)
 		go func(peer string) {
@@ -243,7 +394,8 @@ func decodeBlockID(b string) (*proto.BlockID, error) {
 
 func NewServer(opts ...Option) (*Server, error) {
 	s := &Server{
-		conns: make(map[*p2p.Conn]bool),
+		conns:      make(map[*p2p.Conn]bool),
+		nodeStates: make(map[string]*NodeState),
 	}
 	genesis, err := decodeBlockID(testnetGenesis)
 	if err != nil {
