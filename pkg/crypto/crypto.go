@@ -90,6 +90,10 @@ func (k *SecretKey) UnmarshalJSON(value []byte) error {
 	return nil
 }
 
+func (k SecretKey) String() string {
+	return base58.Encode(k[:])
+}
+
 func NewSecretKeyFromBase58(s string) (SecretKey, error) {
 	return array32FromBase58(s, "SecretKey")
 }
