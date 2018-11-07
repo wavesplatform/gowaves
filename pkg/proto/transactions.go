@@ -599,7 +599,7 @@ func (tx *IssueV2) Sign(secretKey crypto.SecretKey) error {
 	}
 	err = tx.Proofs.Sign(0, secretKey, b)
 	if err != nil {
-		return errors.Wrap(err, "failed to sign SponsorshipV2 transaction")
+		return errors.Wrap(err, "failed to sign IssueV2 transaction")
 	}
 	d, err := crypto.FastHash(b)
 	if err != nil {
@@ -2333,6 +2333,8 @@ type SponsorshipV1 struct {
 	Fee         uint64           `json:"fee"`
 	Timestamp   uint64           `json:"timestamp,omitempty"`
 }
+
+func (SponsorshipV1) Transaction() {}
 
 //NewUnsignedSponsorshipV1 creates new unsigned SponsorshipV1 transaction
 func NewUnsignedSponsorshipV1(senderPK crypto.PublicKey, assetID crypto.Digest, minAssetFee, fee, timestamp uint64) (*SponsorshipV1, error) {
