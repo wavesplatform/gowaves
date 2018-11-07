@@ -3,12 +3,13 @@ package proto
 import (
 	"encoding/binary"
 	"fmt"
-	"github.com/pkg/errors"
-	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"io"
 	"net"
 	"strconv"
 	"strings"
+
+	"github.com/pkg/errors"
+	"github.com/wavesplatform/gowaves/pkg/crypto"
 )
 
 const (
@@ -266,20 +267,20 @@ type GetPeersMessage struct{}
 
 // MarshalBinary encodes GetPeersMessage to binary form
 func (m *GetPeersMessage) MarshalBinary() ([]byte, error) {
-	var header header
+	var h header
 
-	header.Length = headerLength - 8
-	header.Magic = headerMagic
-	header.ContentID = ContentIDGetPeers
-	header.PayloadLength = 0
+	h.Length = headerLength - 8
+	h.Magic = headerMagic
+	h.ContentID = ContentIDGetPeers
+	h.PayloadLength = 0
 	var empty [0]byte
 	dig, err := crypto.FastHash(empty[:])
 	if err != nil {
 		return nil, err
 	}
-	copy(header.PayloadCsum[:], dig[:4])
+	copy(h.PayloadCsum[:], dig[:4])
 
-	res, err := header.MarshalBinary()
+	res, err := h.MarshalBinary()
 	if err != nil {
 		return nil, err
 	}
@@ -389,7 +390,7 @@ func (m PeerInfo) MarshalJSON() ([]byte, error) {
 // UnmarshalJSON reads PeerInfo from JSON string
 func (m *PeerInfo) UnmarshalJSON(value []byte) error {
 	s := string(value)
-	if s == "null" {
+	if s == jsonNull {
 		return nil
 	}
 
