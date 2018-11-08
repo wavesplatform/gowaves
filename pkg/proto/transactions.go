@@ -786,7 +786,7 @@ type TransferV1 struct {
 	Version   byte              `json:"version,omitempty"`
 	ID        *crypto.Digest    `json:"id,omitempty"`
 	Signature *crypto.Signature `json:"signature,omitempty"`
-	*transfer
+	transfer
 }
 
 func (TransferV1) Transaction() {}
@@ -797,7 +797,7 @@ func NewUnsignedTransferV1(senderPK crypto.PublicKey, amountAsset, feeAsset Opti
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create TransferV1 transaction")
 	}
-	return &TransferV1{Type: TransferTransaction, Version: 1, transfer: t}, nil
+	return &TransferV1{Type: TransferTransaction, Version: 1, transfer: *t}, nil
 }
 
 func (tx *TransferV1) bodyMarshalBinary() ([]byte, error) {
@@ -825,7 +825,7 @@ func (tx *TransferV1) bodyUnmarshalBinary(data []byte) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to unmarshal TransferV1 body from bytes")
 	}
-	tx.transfer = &t
+	tx.transfer = t
 	return nil
 }
 
@@ -903,7 +903,7 @@ type TransferV2 struct {
 	Version byte            `json:"version,omitempty"`
 	ID      *crypto.Digest  `json:"id,omitempty"`
 	Proofs  *ProofsV1       `json:"proofs,omitempty"`
-	*transfer
+	transfer
 }
 
 func (TransferV2) Transaction() {}
@@ -914,7 +914,7 @@ func NewUnsignedTransferV2(senderPK crypto.PublicKey, amountAsset, feeAsset Opti
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create TransferV2 transaction")
 	}
-	return &TransferV2{Type: TransferTransaction, Version: 2, transfer: t}, nil
+	return &TransferV2{Type: TransferTransaction, Version: 2, transfer: *t}, nil
 }
 
 func (tx *TransferV2) bodyMarshalBinary() ([]byte, error) {
@@ -946,7 +946,7 @@ func (tx *TransferV2) bodyUnmarshalBinary(data []byte) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to unmarshal TransferV2 body from bytes")
 	}
-	tx.transfer = &t
+	tx.transfer = t
 	return nil
 }
 
