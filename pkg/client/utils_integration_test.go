@@ -4,34 +4,30 @@ package client
 
 import (
 	"context"
-	"os"
-	"testing"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/wavesplatform/gowaves/pkg/proto"
+	"os"
+	"testing"
 )
 
-func TestConsensusIntegration_GeneratingBalance(t *testing.T) {
+func TestUtilsIntegration_Seed(t *testing.T) {
 	apiKey := os.Getenv("ApiKey")
 	if apiKey == "" {
 		t.Skip("no env api key provided")
 		return
 	}
-
-	addr, _ := proto.NewAddressFromString("3NBVqYXrapgJP9atQccdBPAgJPwHDKkh6A8")
 	client, _ := NewClient(Options{
 		BaseUrl: "https://testnode1.wavesnodes.com",
 		ApiKey:  apiKey,
 	})
 	_, resp, err :=
-		client.Consensus.GeneratingBalance(context.Background(), addr)
+		client.Utils.Seed(context.Background())
 	require.Nil(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, 200, resp.StatusCode)
 }
 
-func TestConsensusIntegration_GenerationSignatureByBlock(t *testing.T) {
+func TestUtilsIntegration_HashSecure(t *testing.T) {
 	apiKey := os.Getenv("ApiKey")
 	if apiKey == "" {
 		t.Skip("no env api key provided")
@@ -42,13 +38,13 @@ func TestConsensusIntegration_GenerationSignatureByBlock(t *testing.T) {
 		ApiKey:  apiKey,
 	})
 	_, resp, err :=
-		client.Consensus.GenerationSignatureByBlock(context.Background(), "3Z9W6dX3iAqyhv2gsE1WRRd5yLYdtjojLzNSXEFZNuVs21hkuNUmhqTNLqrcGnERJMaPtrfvag4AjQpjykvQM13a")
+		client.Utils.HashSecure(context.Background(), "xxx")
 	require.Nil(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, 200, resp.StatusCode)
 }
 
-func TestConsensusIntegration_BaseTargetByBlock(t *testing.T) {
+func TestUtilsIntegration_HashFast(t *testing.T) {
 	apiKey := os.Getenv("ApiKey")
 	if apiKey == "" {
 		t.Skip("no env api key provided")
@@ -59,13 +55,13 @@ func TestConsensusIntegration_BaseTargetByBlock(t *testing.T) {
 		ApiKey:  apiKey,
 	})
 	_, resp, err :=
-		client.Consensus.BaseTargetByBlock(context.Background(), "3Z9W6dX3iAqyhv2gsE1WRRd5yLYdtjojLzNSXEFZNuVs21hkuNUmhqTNLqrcGnERJMaPtrfvag4AjQpjykvQM13a")
+		client.Utils.HashFast(context.Background(), "xxx")
 	require.Nil(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, 200, resp.StatusCode)
 }
 
-func TestConsensusIntegration_BaseTarget(t *testing.T) {
+func TestUtilsIntegration_Time(t *testing.T) {
 	apiKey := os.Getenv("ApiKey")
 	if apiKey == "" {
 		t.Skip("no env api key provided")
@@ -76,13 +72,13 @@ func TestConsensusIntegration_BaseTarget(t *testing.T) {
 		ApiKey:  apiKey,
 	})
 	_, resp, err :=
-		client.Consensus.BaseTarget(context.Background())
+		client.Utils.Time(context.Background())
 	require.Nil(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, 200, resp.StatusCode)
 }
 
-func TestConsensusIntegration_Algo(t *testing.T) {
+func TestUtils_SeedByLength2(t *testing.T) {
 	apiKey := os.Getenv("ApiKey")
 	if apiKey == "" {
 		t.Skip("no env api key provided")
@@ -93,24 +89,29 @@ func TestConsensusIntegration_Algo(t *testing.T) {
 		ApiKey:  apiKey,
 	})
 	_, resp, err :=
-		client.Consensus.Algo(context.Background())
+		client.Utils.SeedByLength(context.Background(), 44)
 	require.Nil(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, 200, resp.StatusCode)
 }
 
-func TestConsensusIntegration_GenerationSignature(t *testing.T) {
-	apiKey := os.Getenv("ApiKey")
-	if apiKey == "" {
-		t.Skip("no env api key provided")
-		return
-	}
+func TestUtilsIntegration_ScriptCompile(t *testing.T) {
 	client, _ := NewClient(Options{
 		BaseUrl: "https://testnode1.wavesnodes.com",
-		ApiKey:  apiKey,
 	})
 	_, resp, err :=
-		client.Consensus.GenerationSignature(context.Background())
+		client.Utils.ScriptCompile(context.Background(), "1 == 1")
+	require.Nil(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, 200, resp.StatusCode)
+}
+
+func TestUtilsIntegration_ScriptEstimate(t *testing.T) {
+	client, _ := NewClient(Options{
+		BaseUrl: "https://testnode1.wavesnodes.com",
+	})
+	_, resp, err :=
+		client.Utils.ScriptEstimate(context.Background(), "base64:AQa3b8tH")
 	require.Nil(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, 200, resp.StatusCode)

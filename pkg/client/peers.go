@@ -5,8 +5,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/wavesplatform/gowaves/pkg/proto"
 	"net/http"
+
+	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
 type Peers struct {

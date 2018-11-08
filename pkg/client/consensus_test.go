@@ -2,10 +2,11 @@ package client
 
 import (
 	"context"
+	"testing"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"testing"
 )
 
 func TestNewConsensus(t *testing.T) {

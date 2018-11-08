@@ -4,13 +4,14 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"github.com/mr-tron/base58/base58"
-	"github.com/stretchr/testify/assert"
-	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/mr-tron/base58/base58"
+	"github.com/stretchr/testify/assert"
+	"github.com/wavesplatform/gowaves/pkg/crypto"
 )
 
 func TestGenesisFromMainNet(t *testing.T) {
@@ -290,6 +291,160 @@ func TestIssueV1BinaryRoundTrip(t *testing.T) {
 						assert.Equal(t, tc.reissuable, at.Reissuable)
 						assert.Equal(t, tc.ts, at.Timestamp)
 						assert.Equal(t, tc.fee, at.Fee)
+					}
+				}
+			}
+		}
+	}
+}
+
+func TestIssueV2Validations(t *testing.T) {
+	tests := []struct {
+		name     string
+		desc     string
+		quantity uint64
+		decimals byte
+		fee      uint64
+		err      string
+	}{
+		{"TKN", "This is a valid description for the token", 1000000, 2, 100000, "incorrect number of bytes in the asset's name"},
+		{"TOKEN", strings.Repeat("x", 1010), 1000000, 2, 100000, "incorrect number of bytes in the asset's description"},
+		{"TOKEN", "This is a valid description for the token", 0, 2, 100000, "quantity should be positive"},
+		{"TOKEN", "This is a valid description for the token", 100000, 12, 100000, fmt.Sprintf("incorrect decimals, should be no more then %d", maxDecimals)},
+		{"TOKEN", "This is a valid description for the token", 100000, 2, 0, "fee should be positive"},
+	}
+	for _, tc := range tests {
+		spk, _ := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
+		_, err := NewUnsignedIssueV2('T', spk, tc.name, tc.desc, tc.quantity, tc.decimals, false, []byte{}, 0, tc.fee)
+		assert.EqualError(t, err, tc.err)
+	}
+}
+
+func TestIssueV2FromMainNet(t *testing.T) {
+	tests := []struct {
+		pk         string
+		sig        string
+		id         string
+		name       string
+		desc       string
+		quantity   uint64
+		reissuable bool
+		decimals   byte
+		fee        uint64
+		timestamp  uint64
+	}{
+		{"H2WC7vaqRYfTgqQjFj9MgN2GK4VdLDqGX3pzwVmstt2S", "42aGhLG57MBVK1fmGyzw1Hpr9d5Ms9oHTqyWJJPkXVYfZNoXzZYK72EdqzdFV6UVVhDcktbMLjzMeHbG8sTK9ZG8", "5VNzokhFHssa1JeiyvHcyt7ndUSLc9NseSAwXTse6iSj", "Holacoin", "shhshs", 4555555500000000, true, 8, 100000000, 1541463569575},
+		{"E24KEJzmRZSBXUAMs3WSZvA5MwYYTYhuYU19N2iMQKMb", "43Qt3QP2ssFVTG9u9urq27AinaTrD5SyYquGV141Va2cS3cYJFqHB2WZqy3h4b4UEu6Q2zvcAVcnSoegm6awi8iQ", "4G6tscsy4MWaCV4AS8FG1R44wSQdJjzPspxrTV89TvAF", "watriom", "Purchase of goods and services in the Internet network by making a transaction in the shortest time possible and the lowest fee.", 100000000000000000, true, 8, 100000000, 1541495473339},
+		{"CLrzCSLyUkwQRvEJLGUx6eqHeXMabjsN3h9b2hYy4bSV", "3EWzu49xP7d36kTbceE1p9qZivaQK53nWAX5nnbq4ZPzLTZRmAuXEdNe3RDAWg7tLvFv317pjQHStpfwn99Aua4E", "2kpvCwZoNp93YyDBYAeY8YvzgqUG8U8jT1UjEKnUZoEY", "HitlerCoin", "國家社會主義國際所發行之貨幣\n由國家社會主義學會發行，營運\n\nThe digital currency of National Socialism International will be distributed and serviced \nby the National Socialism lnstitut", 1000000000000000000, false, 4, 100000000, 1541522692952},
+	}
+	for _, tc := range tests {
+		spk, _ := crypto.NewPublicKeyFromBase58(tc.pk)
+		id, _ := crypto.NewDigestFromBase58(tc.id)
+		sig, _ := crypto.NewSignatureFromBase58(tc.sig)
+		if tx, err := NewUnsignedIssueV2('W', spk, tc.name, tc.desc, tc.quantity, tc.decimals, tc.reissuable, []byte{}, tc.timestamp, tc.fee); assert.NoError(t, err) {
+			if b, err := tx.bodyMarshalBinary(); assert.NoError(t, err) {
+				if h, err := crypto.FastHash(b); assert.NoError(t, err) {
+					assert.Equal(t, id, h)
+				}
+				assert.True(t, crypto.Verify(spk, sig, b))
+			}
+		}
+	}
+}
+
+func TestIssueV2BinaryRoundTrip(t *testing.T) {
+	tests := []struct {
+		chain      byte
+		name       string
+		desc       string
+		quantity   uint64
+		decimals   byte
+		reissuable bool
+		script     string
+		fee        uint64
+	}{
+		{'T', "TOKEN", "This is a valid description for the token", 12345, 4, true, "AQQAAAAEaW5hbAIAAAAESW5hbAQAAAAFZWxlbmECAAAAB0xlbnVza2EEAAAABGxvdmUCAAAAC0luYWxMZW51c2thCQAAAAAAAAIJAAEsAAAAAgUAAAAEaW5hbAUAAAAFZWxlbmEFAAAABGxvdmV4ZFt5", 100000},
+		{'W', "TOKEN", "This is a valid description for the token", 100000, 8, false, "", 100000},
+		{'X', "TOKEN", "This is a valid description for the token", 9876543210, 2, true, "AQQAAAAEaW5hbAIAAAAESW5hbAQAAAAFZWxlbmECAAAAB0xlbnVza2EEAAAABGxvdmUCAAAAC0luYWxMZW51c2thCQAAAAAAAAIJAAEsAAAAAgUAAAAEaW5hbAUAAAAFZWxlbmEFAAAABGxvdmV4ZFt5", 123456},
+	}
+	seed, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
+	sk, pk := crypto.GenerateKeyPair(seed)
+	for _, tc := range tests {
+		ts := uint64(time.Now().UnixNano() / 1000000)
+		s, _ := base64.StdEncoding.DecodeString(tc.script)
+		if tx, err := NewUnsignedIssueV2(tc.chain, pk, tc.name, tc.desc, tc.quantity, tc.decimals, tc.reissuable, s, ts, tc.fee); assert.NoError(t, err) {
+			if bb, err := tx.bodyMarshalBinary(); assert.NoError(t, err) {
+				var atx IssueV2
+				if err := atx.bodyUnmarshalBinary(bb); assert.NoError(t, err) {
+					assert.Equal(t, tx.Type, atx.Type)
+					assert.Equal(t, tx.Version, atx.Version)
+					assert.Equal(t, tx.ChainID, atx.ChainID)
+					assert.Equal(t, tx.SenderPK, atx.SenderPK)
+					assert.Equal(t, tx.Name, atx.Name)
+					assert.Equal(t, tx.Description, atx.Description)
+					assert.Equal(t, tx.Quantity, atx.Quantity)
+					assert.Equal(t, tx.Decimals, atx.Decimals)
+					assert.Equal(t, tx.Reissuable, atx.Reissuable)
+					assert.ElementsMatch(t, tx.Script, atx.Script)
+					assert.Equal(t, tx.Fee, atx.Fee)
+					assert.Equal(t, tx.Timestamp, atx.Timestamp)
+				}
+			}
+			if err := tx.Sign(sk); assert.NoError(t, err) {
+				if r, err := tx.Verify(pk); assert.NoError(t, err) {
+					assert.True(t, r)
+				}
+			}
+			if b, err := tx.MarshalBinary(); assert.NoError(t, err) {
+				var atx IssueV2
+				if err := atx.UnmarshalBinary(b); assert.NoError(t, err) {
+					assert.Equal(t, tx.ID, atx.ID)
+					assert.ElementsMatch(t, tx.Proofs.Proofs, atx.Proofs.Proofs)
+					assert.Equal(t, tc.chain, atx.ChainID)
+					assert.Equal(t, tc.name, atx.Name)
+					assert.Equal(t, tc.desc, atx.Description)
+					assert.Equal(t, tc.quantity, atx.Quantity)
+					assert.Equal(t, tc.decimals, atx.Decimals)
+					assert.Equal(t, tc.reissuable, atx.Reissuable)
+					assert.Equal(t, tc.script, base64.StdEncoding.EncodeToString(atx.Script))
+					assert.Equal(t, tc.fee, atx.Fee)
+					assert.Equal(t, ts, atx.Timestamp)
+				}
+			}
+		}
+	}
+}
+
+func TestIssueV2ToJSON(t *testing.T) {
+	tests := []struct {
+		chain      byte
+		name       string
+		desc       string
+		quantity   uint64
+		decimals   byte
+		reissuable bool
+		script     string
+		fee        uint64
+	}{
+		{'T', "TOKEN", "This is a valid description for the token", 12345, 4, true, "AQQAAAAEaW5hbAIAAAAESW5hbAQAAAAFZWxlbmECAAAAB0xlbnVza2EEAAAABGxvdmUCAAAAC0luYWxMZW51c2thCQAAAAAAAAIJAAEsAAAAAgUAAAAEaW5hbAUAAAAFZWxlbmEFAAAABGxvdmV4ZFt5", 100000},
+		{'W', "SHMOKEN", "This is a valid description for the token", 100000, 8, false, "", 100000},
+		{'X', "POKEN", "This is a valid description for the token", 9876543210, 2, true, "AQQAAAAEaW5hbAIAAAAESW5hbAQAAAAFZWxlbmECAAAAB0xlbnVza2EEAAAABGxvdmUCAAAAC0luYWxMZW51c2thCQAAAAAAAAIJAAEsAAAAAgUAAAAEaW5hbAUAAAAFZWxlbmEFAAAABGxvdmV4ZFt5", 123456},
+	}
+	seed, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
+	sk, pk := crypto.GenerateKeyPair(seed)
+	for _, tc := range tests {
+		ts := uint64(time.Now().UnixNano() / 1000000)
+		s, _ := base64.StdEncoding.DecodeString(tc.script)
+		if tx, err := NewUnsignedIssueV2(tc.chain, pk, tc.name, tc.desc, tc.quantity, tc.decimals, tc.reissuable, s, ts, tc.fee); assert.NoError(t, err) {
+			if j, err := json.Marshal(tx); assert.NoError(t, err) {
+				ej := fmt.Sprintf("{\"type\":3,\"version\":2,\"senderPublicKey\":\"%s\",\"name\":\"%s\",\"description\":\"%s\",\"quantity\":%d,\"decimals\":%d,\"reissuable\":%v,\"script\":\"%s\",\"fee\":%d,\"timestamp\":%d}",
+					base58.Encode(pk[:]), tc.name, tc.desc, tc.quantity, tc.decimals, tc.reissuable, tc.script, tc.fee, ts)
+				assert.Equal(t, ej, string(j))
+				if err := tx.Sign(sk); assert.NoError(t, err) {
+					if sj, err := json.Marshal(tx); assert.NoError(t, err) {
+						esj := fmt.Sprintf("{\"type\":3,\"version\":2,\"id\":\"%s\",\"proofs\":[\"%s\"],\"senderPublicKey\":\"%s\",\"name\":\"%s\",\"description\":\"%s\",\"quantity\":%d,\"decimals\":%d,\"reissuable\":%v,\"script\":\"%s\",\"fee\":%d,\"timestamp\":%d}",
+							base58.Encode(tx.ID[:]), base58.Encode(tx.Proofs.Proofs[0]), base58.Encode(pk[:]), tc.name, tc.desc, tc.quantity, tc.decimals, tc.reissuable, tc.script, tc.fee, ts)
+						assert.Equal(t, esj, string(sj))
 					}
 				}
 			}
@@ -707,7 +862,7 @@ func TestExchangeV1FromMainNet(t *testing.T) {
 		id             string
 		amountAsset    string
 		priceAsset     string
-		buyId          string
+		buyID          string
 		buySender      string
 		buySig         string
 		buyPrice       uint64
@@ -715,7 +870,7 @@ func TestExchangeV1FromMainNet(t *testing.T) {
 		buyTs          uint64
 		buyExp         uint64
 		buyFee         uint64
-		sellId         string
+		sellID         string
 		sellSender     string
 		sellSig        string
 		sellPrice      uint64
@@ -748,12 +903,12 @@ func TestExchangeV1FromMainNet(t *testing.T) {
 		aa, _ := NewOptionalAssetFromString(tc.amountAsset)
 		pa, _ := NewOptionalAssetFromString(tc.priceAsset)
 		bo, _ := NewUnsignedOrder(buySender, mpk, *aa, *pa, Buy, tc.buyPrice, tc.buyAmount, tc.buyTs, tc.buyExp, tc.buyFee)
-		bID, _ := crypto.NewDigestFromBase58(tc.buyId)
+		bID, _ := crypto.NewDigestFromBase58(tc.buyID)
 		bSig, _ := crypto.NewSignatureFromBase58(tc.buySig)
 		bo.ID = &bID
 		bo.Signature = &bSig
 		so, _ := NewUnsignedOrder(sellSender, mpk, *aa, *pa, Sell, tc.sellPrice, tc.sellAmount, tc.sellTs, tc.sellExp, tc.sellFee)
-		sID, _ := crypto.NewDigestFromBase58(tc.sellId)
+		sID, _ := crypto.NewDigestFromBase58(tc.sellID)
 		sSig, _ := crypto.NewSignatureFromBase58(tc.sellSig)
 		so.ID = &sID
 		so.Signature = &sSig

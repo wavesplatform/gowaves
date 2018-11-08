@@ -35,6 +35,7 @@ type Client struct {
 	Consensus    *Consensus
 	Transactions *Transactions
 	Assets       *Assets
+	Utils        *Utils
 }
 
 type Response struct {
@@ -79,6 +80,7 @@ func NewClient(options ...Options) (*Client, error) {
 		Consensus:    NewConsensus(opts),
 		Transactions: NewTransactions(opts),
 		Assets:       NewAssets(opts),
+		Utils:        NewUtils(opts),
 	}
 
 	return c, nil
