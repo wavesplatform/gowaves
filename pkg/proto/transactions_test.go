@@ -784,8 +784,8 @@ func TestReissueV1Validations(t *testing.T) {
 		fee      uint64
 		err      string
 	}{
-		{0, 100000, "quantity should be positive"},
-		{100000, 0, "fee should be positive"},
+		{0, 100000, "failed to create ReissueV1 transaction: quantity should be positive"},
+		{100000, 0, "failed to create ReissueV1 transaction: fee should be positive"},
 	}
 	for _, tc := range tests {
 		spk, _ := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
@@ -844,6 +844,19 @@ func TestReissueV1BinaryRoundTrip(t *testing.T) {
 		aid, _ := crypto.NewDigestFromBase58(tc.asset)
 		ts := uint64(time.Now().UnixNano() / 1000000)
 		if tx, err := NewUnsignedReissueV1(pk, aid, tc.quantity, tc.reissuable, ts, tc.fee); assert.NoError(t, err) {
+			if bb, err := tx.bodyMarshalBinary(); assert.NoError(t, err) {
+				var atx ReissueV1
+				if err := atx.bodyUnmarshalBinary(bb); assert.NoError(t, err) {
+					assert.Equal(t, tx.Type, atx.Type)
+					assert.Equal(t, tx.Version, atx.Version)
+					assert.ElementsMatch(t, tx.SenderPK, atx.SenderPK)
+					assert.ElementsMatch(t, tx.AssetID, atx.AssetID)
+					assert.Equal(t, tx.Reissuable, atx.Reissuable)
+					assert.Equal(t, tx.Quantity, atx.Quantity)
+					assert.Equal(t, tx.Fee, atx.Fee)
+					assert.Equal(t, tx.Timestamp, atx.Timestamp)
+				}
+			}
 			if err := tx.Sign(sk); assert.NoError(t, err) {
 				if r, err := tx.Verify(pk); assert.NoError(t, err) {
 					assert.True(t, r)
@@ -852,10 +865,10 @@ func TestReissueV1BinaryRoundTrip(t *testing.T) {
 			if b, err := tx.MarshalBinary(); assert.NoError(t, err) {
 				var atx ReissueV1
 				if err := atx.UnmarshalBinary(b); assert.NoError(t, err) {
-					assert.Equal(t, tx.ID, atx.ID)
-					assert.Equal(t, tx.Signature, atx.Signature)
-					assert.Equal(t, pk, atx.SenderPK)
-					assert.Equal(t, aid, atx.AssetID)
+					assert.ElementsMatch(t, *tx.ID, *atx.ID)
+					assert.ElementsMatch(t, *tx.Signature, *atx.Signature)
+					assert.ElementsMatch(t, pk, atx.SenderPK)
+					assert.ElementsMatch(t, aid, atx.AssetID)
 					assert.Equal(t, tc.quantity, atx.Quantity)
 					assert.Equal(t, tc.reissuable, atx.Reissuable)
 					assert.Equal(t, tc.fee, atx.Fee)
@@ -888,6 +901,146 @@ func TestReissueV1ToJSON(t *testing.T) {
 				if err := tx.Sign(sk); assert.NoError(t, err) {
 					if sj, err := json.Marshal(tx); assert.NoError(t, err) {
 						esj := fmt.Sprintf("{\"type\":5,\"version\":1,\"id\":\"%s\",\"signature\":\"%s\",\"senderPublicKey\":\"%s\",\"assetId\":\"%s\",\"quantity\":%d,\"reissuable\":%v,\"timestamp\":%d,\"fee\":%d}", base58.Encode(tx.ID[:]), base58.Encode(tx.Signature[:]), base58.Encode(pk[:]), tc.asset, tc.quantity, tc.reissuable, ts, tc.fee)
+						assert.Equal(t, esj, string(sj))
+					}
+				}
+			}
+		}
+	}
+}
+
+func TestReissueV2Validations(t *testing.T) {
+	tests := []struct {
+		quantity uint64
+		fee      uint64
+		err      string
+	}{
+		{0, 100000, "failed to create ReissueV2 transaction: quantity should be positive"},
+		{100000, 0, "failed to create ReissueV2 transaction: fee should be positive"},
+	}
+	for _, tc := range tests {
+		spk, _ := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
+		aid, _ := crypto.NewDigestFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
+		_, err := NewUnsignedReissueV2('T', spk, aid, tc.quantity, false, 0, tc.fee)
+		assert.EqualError(t, err, tc.err)
+	}
+}
+
+func TestReissueV2FromMainNetAndTestNet(t *testing.T) {
+	tests := []struct {
+		chain      byte
+		pk         string
+		sig        string
+		id         string
+		asset      string
+		quantity   uint64
+		reissuable bool
+		fee        uint64
+		timestamp  uint64
+	}{
+		{'T', "FB5ErjREo817duEBBQUqUdkgoPctQJEYuG3mU7w3AYjc", "QMWAKh61ZecMLZoEFGCd3PsdnEyQLARtyArHqb6tWu9GURBdR7X7QYt7t1EK7kgUKEkt3mqAZEgke4xDcW7Quyt", "Jrj5KTbHCpiViTaJJDcPuCqAxnporJMbmPCz9qTXm5e", "HGY85s7fygwNJLfpbXC97YL4uVAsMc5U6B6WuQTdJ7TQ", 2, true, 100000000, 1541508749585},
+		{'T', "FB5ErjREo817duEBBQUqUdkgoPctQJEYuG3mU7w3AYjc", "5ZfqE2LCom6CHqG1RQP1ftkQvt68gipVfs74itnCbWxwidWPeRz6QCcppVKSXcrELqMBNjPtXnHKyZtWzhMCiG99", "BFdx9xUxXaaV3Uk31xibaCMdX9Ygh8aHC2QtZZWf2QEA", "B7REqjQshrX3n9aGQnAJtQ5NCtVZVc7KXXU4tTZGahJV", 20, true, 100000000, 1541509020176},
+		{'T', "FB5ErjREo817duEBBQUqUdkgoPctQJEYuG3mU7w3AYjc", "5rqyi1s8duEtfJebiNFcKCHWVWF4Mc8dGcC8aNDqHRBh1TrDeuwtCr2hHFGvZpE79hLFmeZdLtkvszCkaF393xrT", "UEED7c4F7rfkxtYKev5hHkRbfn4eoCuy7u5stB8WmAa", "74mTmy8ugd21bmQTd56KGT3nJHUrHyy1C4en3RGgyiuC", 10000, true, 100400000, 1541598574945},
+		{'T', "FB5ErjREo817duEBBQUqUdkgoPctQJEYuG3mU7w3AYjc", "5ZqseZWDgHsTwTBP61WT66GhSPBwQc8vSdi6KUFsMECEMAuAad3ZC8cSbcpo8qRzFcBsHcypcEuDTmg1g4ZanUbn", "42DgLrFq9Pnvaw3dwH5gym1Sn3i7FkpKHWZVaZH9YwGC", "AKd2QRLsaSFzq3JJnDo6iedUtp4CianMDJucf5M3M1Jx", 10000, true, 100400000, 1541584022814},
+		{'T', "FB5ErjREo817duEBBQUqUdkgoPctQJEYuG3mU7w3AYjc", "2dE15W7CqQJa8SLx7kFskM6JZrzYhLXv1hz6mDTU7StYB9JsTAcPdDe3VQtKtjyoURPXpqrwemBbJzqYPzf3eyQG", "7SugP79gdR2q3G2Lw4eXtuAjAxy1bDzHXhN4tJUqu8Y4", "VE6fUNmTYwkr9FABhsXvETtcejgQAEVAVcMGvp2V5Kv", 100, true, 100000000, 1541516491149},
+		{'T', "PYLg2tgZFWvcDNA9xnroZWxSwjNbc1TM6Bik8Mq2qjw", "h5snYP7ppP3xogBvaAq4a1tC6i9A5Jaf7rRYDjF8iSyrZej52E3DBhvpaP1qqAsAX36hgtMuqHRGSgyYx32YfyW", "GMkDMTujtKFz72JZLmWqwkWrhFX8AH6tuCxnLvwzDcFj", "FvzAYgre224geHwECqCk7EmiQckaSNVLiCzkKAvNtwLV", 100, true, 100400000, 1541575029371},
+		{'W', "F8ZGP4Xf5cjfHpPJHznt9BtXCrVYRcdjKHrfsu6psUGe", "5jWNY19Zc4Db1sb9oMBt6VR9xcu4U6pKJgT2c8iMPzuheDk9nJ4VrSXaKQgqhAp8vi4cEBFKopvc65JMKq65ctEH", "9wKSt9ij2YYiWgCYd84UcQiVuL6r9YurhVJ8Nikp2URy", "edgxQYrr8usWtBXKQ1Q4Nv712F5fcx6fWRqmuW3eEKz", 95000, true, 100000000, 1541512609669},
+		{'W', "7kGS1HeJ2gkfWz8FhxwAEjdTRzkJJiFGgAeNVxq1K7TZ", "AqcuR4MzuTVeKwMVxbymAeWUryGByZfxDFFGfp8GnXxoqo5h5VdbdL2Zv4R92py8T1jeCpgHqErKF938iVmhnsf", "UFVrNKhFQnZDGKLrbu6S1oPsYMhgU6fZVXSxCRyUfgY", "5siW5tqvYLnfgeXttU7F9dZ3xrE8UHVtpqT9Ye71GBuJ", 20000, true, 100000000, 1541522867378},
+		{'W', "GshF9vnYfAm2fYCTJj9rRGc2VyC1579Kq91xL2Rr8KDU", "GzTJgnicvCkJ2UHuE1h2upgiwU2FU2JfHpRJKwPNLLthsxyF3Xvv7ZAbGgXgBGMp2vcNkMrPGea7K2zERiRacKy", "HCBy6qMfDLgnbMokyDGYezttp9zdgBC8SjUjtqtuBnXv", "65UMyqN6yBmnSg8xjb3RBDsxoW5iYYc7rJeyL5rKQJ5i", 9000000000000, false, 100000000, 1541613498199},
+	}
+	for _, tc := range tests {
+		spk, _ := crypto.NewPublicKeyFromBase58(tc.pk)
+		id, _ := crypto.NewDigestFromBase58(tc.id)
+		sig, _ := crypto.NewSignatureFromBase58(tc.sig)
+		aid, _ := crypto.NewDigestFromBase58(tc.asset)
+		if tx, err := NewUnsignedReissueV2(tc.chain, spk, aid, tc.quantity, tc.reissuable, tc.timestamp, tc.fee); assert.NoError(t, err) {
+			if b, err := tx.bodyMarshalBinary(); assert.NoError(t, err) {
+				if h, err := crypto.FastHash(b); assert.NoError(t, err) {
+					assert.Equal(t, id, h)
+				}
+				assert.True(t, crypto.Verify(spk, sig, b))
+			}
+		}
+	}
+}
+
+func TestReissueV2BinaryRoundTrip(t *testing.T) {
+	tests := []struct {
+		chain      byte
+		asset      string
+		quantity   uint64
+		reissuable bool
+		fee        uint64
+	}{
+		{'T', "8LQW8f7P5d5PZM7GtZEBgaqRPGSzS3DfPuiXrURJ4AJS", 1234567890, false, 1234567890},
+		{'W', "6zf9mSeHUKRzWR6rCBWPmFPTkhg22qvwUZjTBCfxBkGJ", 9876543210, true, 9876543210},
+	}
+	seed, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
+	sk, pk := crypto.GenerateKeyPair(seed)
+	for _, tc := range tests {
+		aid, _ := crypto.NewDigestFromBase58(tc.asset)
+		ts := uint64(time.Now().UnixNano() / 1000000)
+		if tx, err := NewUnsignedReissueV2(tc.chain, pk, aid, tc.quantity, tc.reissuable, ts, tc.fee); assert.NoError(t, err) {
+			if bb, err := tx.bodyMarshalBinary(); assert.NoError(t, err) {
+				var atx ReissueV2
+				if err := atx.bodyUnmarshalBinary(bb); assert.NoError(t, err) {
+					assert.Equal(t, tx.Type, atx.Type)
+					assert.Equal(t, tx.Version, atx.Version)
+					assert.Equal(t, tx.ChainID, atx.ChainID)
+					assert.ElementsMatch(t, tx.SenderPK, atx.SenderPK)
+					assert.ElementsMatch(t, tx.AssetID, atx.AssetID)
+					assert.Equal(t, tx.Reissuable, atx.Reissuable)
+					assert.Equal(t, tx.Quantity, atx.Quantity)
+					assert.Equal(t, tx.Fee, atx.Fee)
+					assert.Equal(t, tx.Timestamp, atx.Timestamp)
+				}
+			}
+			if err := tx.Sign(sk); assert.NoError(t, err) {
+				if r, err := tx.Verify(pk); assert.NoError(t, err) {
+					assert.True(t, r)
+				}
+			}
+			if b, err := tx.MarshalBinary(); assert.NoError(t, err) {
+				var atx ReissueV2
+				if err := atx.UnmarshalBinary(b); assert.NoError(t, err) {
+					assert.Equal(t, tx.ID, atx.ID)
+					assert.ElementsMatch(t, tx.Proofs.Proofs[0], atx.Proofs.Proofs[0])
+					assert.ElementsMatch(t, pk, atx.SenderPK)
+					assert.ElementsMatch(t, aid, atx.AssetID)
+					assert.Equal(t, tc.quantity, atx.Quantity)
+					assert.Equal(t, tc.reissuable, atx.Reissuable)
+					assert.Equal(t, tc.fee, atx.Fee)
+					assert.Equal(t, ts, atx.Timestamp)
+				}
+			}
+		}
+	}
+}
+
+func TestReissueV2ToJSON(t *testing.T) {
+	tests := []struct {
+		chain      byte
+		asset      string
+		quantity   uint64
+		reissuable bool
+		fee        uint64
+	}{
+		{'T', "8LQW8f7P5d5PZM7GtZEBgaqRPGSzS3DfPuiXrURJ4AJS", 1234567890, false, 1234567890},
+		{'W', "6zf9mSeHUKRzWR6rCBWPmFPTkhg22qvwUZjTBCfxBkGJ", 9876543210, true, 9876543210},
+	}
+	seed, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
+	sk, pk := crypto.GenerateKeyPair(seed)
+	for _, tc := range tests {
+		aid, _ := crypto.NewDigestFromBase58(tc.asset)
+		ts := uint64(time.Now().Unix() * 1000)
+		if tx, err := NewUnsignedReissueV2(tc.chain, pk, aid, tc.quantity, tc.reissuable, ts, tc.fee); assert.NoError(t, err) {
+			if j, err := json.Marshal(tx); assert.NoError(t, err) {
+				ej := fmt.Sprintf("{\"type\":5,\"version\":2,\"senderPublicKey\":\"%s\",\"assetId\":\"%s\",\"quantity\":%d,\"reissuable\":%v,\"timestamp\":%d,\"fee\":%d}", base58.Encode(pk[:]), tc.asset, tc.quantity, tc.reissuable, ts, tc.fee)
+				assert.Equal(t, ej, string(j))
+				if err := tx.Sign(sk); assert.NoError(t, err) {
+					if sj, err := json.Marshal(tx); assert.NoError(t, err) {
+						esj := fmt.Sprintf("{\"type\":5,\"version\":2,\"id\":\"%s\",\"proofs\":[\"%s\"],\"senderPublicKey\":\"%s\",\"assetId\":\"%s\",\"quantity\":%d,\"reissuable\":%v,\"timestamp\":%d,\"fee\":%d}",
+							base58.Encode(tx.ID[:]), base58.Encode(tx.Proofs.Proofs[0]), base58.Encode(pk[:]), tc.asset, tc.quantity, tc.reissuable, ts, tc.fee)
 						assert.Equal(t, esj, string(sj))
 					}
 				}
