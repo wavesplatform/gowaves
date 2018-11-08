@@ -1104,7 +1104,7 @@ type ReissueV1 struct {
 	Version   byte              `json:"version,omitempty"`
 	ID        *crypto.Digest    `json:"id,omitempty"`
 	Signature *crypto.Signature `json:"signature,omitempty"`
-	*reissue
+	reissue
 }
 
 func (ReissueV1) Transaction() {}
@@ -1115,7 +1115,7 @@ func NewUnsignedReissueV1(senderPK crypto.PublicKey, assetID crypto.Digest, quan
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create ReissueV1 transaction")
 	}
-	return &ReissueV1{Type: ReissueTransaction, Version: 1, reissue: r}, nil
+	return &ReissueV1{Type: ReissueTransaction, Version: 1, reissue: *r}, nil
 }
 
 func (tx *ReissueV1) bodyMarshalBinary() ([]byte, error) {
@@ -1143,7 +1143,7 @@ func (tx *ReissueV1) bodyUnmarshalBinary(data []byte) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to unmarshal ReissueV1 transaction body")
 	}
-	tx.reissue = &r
+	tx.reissue = r
 	return nil
 }
 
@@ -1223,7 +1223,7 @@ type ReissueV2 struct {
 	ChainID byte            `json:"-"`
 	ID      *crypto.Digest  `json:"id,omitempty"`
 	Proofs  *ProofsV1       `json:"proofs,omitempty"`
-	*reissue
+	reissue
 }
 
 func (ReissueV2) Transaction() {}
@@ -1234,7 +1234,7 @@ func NewUnsignedReissueV2(chainID byte, senderPK crypto.PublicKey, assetID crypt
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create ReissueV2 transaction")
 	}
-	return &ReissueV2{Type: ReissueTransaction, Version: 2, ChainID: chainID, reissue: r}, nil
+	return &ReissueV2{Type: ReissueTransaction, Version: 2, ChainID: chainID, reissue: *r}, nil
 }
 
 func (tx *ReissueV2) bodyMarshalBinary() ([]byte, error) {
@@ -1268,7 +1268,7 @@ func (tx *ReissueV2) bodyUnmarshalBinary(data []byte) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to unmarshal ReissueV2 body from bytes")
 	}
-	tx.reissue = &r
+	tx.reissue = r
 	return nil
 }
 

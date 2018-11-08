@@ -926,8 +926,9 @@ func TestReissueV2Validations(t *testing.T) {
 	}
 }
 
-func TestReissueV2FromMainNet(t *testing.T) {
+func TestReissueV2FromMainNetAndTestNet(t *testing.T) {
 	tests := []struct {
+		chain      byte
 		pk         string
 		sig        string
 		id         string
@@ -937,18 +938,22 @@ func TestReissueV2FromMainNet(t *testing.T) {
 		fee        uint64
 		timestamp  uint64
 	}{
-		{"6zf9mSeHUKRzWR6rCBWPmFPTkhg22qvwUZjTBCfxBkGJ", "5pgvcwYtkEhHzc7dEqCgxWk26z6diBgTdM5PBdFKD9e4mtYHyZSaRmWsn9j9HtQRDUaF3NzQXiVbfU4QLu4QLQY1", "9njXqFMRo7M3gvNWnHSjV3gpKd39Ex2sWgbCTPHJXvds", "2bkjzFqTMM3cQpbgGYKE8r7J73SrXFH8YfxFBRBterLt", 1000000000000000, false, 100000000, 1537436430564},
-		{"3fnpXfr9dmMBCrbKuTX7T8LAjkhDuVv4TYDeJ8GjR6Ci", "5pBKr5qALAdUxctEmBNsgMQNYH2zJXqvYQmUfsaEF5vV4SjbKczJSxmy8gRgTrfFiiMT6FcRazTuBB95rW2MiUYo", "6SGeUizNdhLx8jEVcAtEsE7MGPHGYyvL2chdmPxDh51K", "Embs5w5pnVn9fdrieq8pYTMSjc72tagDKWT2Tytkn6KN", 100000000000000000, false, 100000000, 1529031382299},
-		{"E6hZnnfqkLXFiqu7wGkMCJHDVyyftRQsdsdoBnD8qhJT", "5xz6MRgQegYQAxvjZJzw1rgkbt752ZvMUcQcSPUyzhXLGJM9UWNUGRXgtxvq1zysC6jFWv64rFZ5wCKnMyDz3odE", "ASj5Z2NBRGHqhfN2SRELaZpw3WW7tXcb3NGWR4TCDgS1", "5WLqNPkA3oDp1hTFCeUukTL1qvFnk9Ew7DXTtCzvoCxi", 10000000, true, 100000000, 1529051550982},
-		{"3fnpXfr9dmMBCrbKuTX7T8LAjkhDuVv4TYDeJ8GjR6Ci", "2vQKaDfaLJ8uJDWux7JDDNzmpVmmoPNk1hLfUzbeFNpTfeNseBVio33TMiV96iA9GMDjBBSFFrGTKUsYEoJby7y2", "3DhpxLxUrotfXHcWKr4ivvLNVQUueJTSJL5AG4qB2E7U", "E5s6bxcRGMidPDW3QnyctDtRtxAdf5RzJE7DHvJrorCj", 99999999993000000, false, 100000000, 1529054217679},
-		{"EUpjLEaJoaM2wR6QEP5FcSfCT59EUDGVsVsRgirsvUDs", "4EuP371DiBgMSwCC5VNQdQUawy8pL85UBUd4y92QjkWhbWsKcccMaJdjdZGk9HNUctnYzgNpU5ziHUibj8Z5XAmR", "8GhZFK3kZ7N7XHwJHRgxmdyLs57TrQQP8eyWPR5Bv8g1", "ANdLVFpTmpxPsCwMZq7hHMfikSVz8LBZNykziPgnZ7sn", 7000000000000, true, 100000000, 1529071786238},
+		{'T', "FB5ErjREo817duEBBQUqUdkgoPctQJEYuG3mU7w3AYjc", "QMWAKh61ZecMLZoEFGCd3PsdnEyQLARtyArHqb6tWu9GURBdR7X7QYt7t1EK7kgUKEkt3mqAZEgke4xDcW7Quyt", "Jrj5KTbHCpiViTaJJDcPuCqAxnporJMbmPCz9qTXm5e", "HGY85s7fygwNJLfpbXC97YL4uVAsMc5U6B6WuQTdJ7TQ", 2, true, 100000000, 1541508749585},
+		{'T', "FB5ErjREo817duEBBQUqUdkgoPctQJEYuG3mU7w3AYjc", "5ZfqE2LCom6CHqG1RQP1ftkQvt68gipVfs74itnCbWxwidWPeRz6QCcppVKSXcrELqMBNjPtXnHKyZtWzhMCiG99", "BFdx9xUxXaaV3Uk31xibaCMdX9Ygh8aHC2QtZZWf2QEA", "B7REqjQshrX3n9aGQnAJtQ5NCtVZVc7KXXU4tTZGahJV", 20, true, 100000000, 1541509020176},
+		{'T', "FB5ErjREo817duEBBQUqUdkgoPctQJEYuG3mU7w3AYjc", "5rqyi1s8duEtfJebiNFcKCHWVWF4Mc8dGcC8aNDqHRBh1TrDeuwtCr2hHFGvZpE79hLFmeZdLtkvszCkaF393xrT", "UEED7c4F7rfkxtYKev5hHkRbfn4eoCuy7u5stB8WmAa", "74mTmy8ugd21bmQTd56KGT3nJHUrHyy1C4en3RGgyiuC", 10000, true, 100400000, 1541598574945},
+		{'T', "FB5ErjREo817duEBBQUqUdkgoPctQJEYuG3mU7w3AYjc", "5ZqseZWDgHsTwTBP61WT66GhSPBwQc8vSdi6KUFsMECEMAuAad3ZC8cSbcpo8qRzFcBsHcypcEuDTmg1g4ZanUbn", "42DgLrFq9Pnvaw3dwH5gym1Sn3i7FkpKHWZVaZH9YwGC", "AKd2QRLsaSFzq3JJnDo6iedUtp4CianMDJucf5M3M1Jx", 10000, true, 100400000, 1541584022814},
+		{'T', "FB5ErjREo817duEBBQUqUdkgoPctQJEYuG3mU7w3AYjc", "2dE15W7CqQJa8SLx7kFskM6JZrzYhLXv1hz6mDTU7StYB9JsTAcPdDe3VQtKtjyoURPXpqrwemBbJzqYPzf3eyQG", "7SugP79gdR2q3G2Lw4eXtuAjAxy1bDzHXhN4tJUqu8Y4", "VE6fUNmTYwkr9FABhsXvETtcejgQAEVAVcMGvp2V5Kv", 100, true, 100000000, 1541516491149},
+		{'T', "PYLg2tgZFWvcDNA9xnroZWxSwjNbc1TM6Bik8Mq2qjw", "h5snYP7ppP3xogBvaAq4a1tC6i9A5Jaf7rRYDjF8iSyrZej52E3DBhvpaP1qqAsAX36hgtMuqHRGSgyYx32YfyW", "GMkDMTujtKFz72JZLmWqwkWrhFX8AH6tuCxnLvwzDcFj", "FvzAYgre224geHwECqCk7EmiQckaSNVLiCzkKAvNtwLV", 100, true, 100400000, 1541575029371},
+		{'W', "F8ZGP4Xf5cjfHpPJHznt9BtXCrVYRcdjKHrfsu6psUGe", "5jWNY19Zc4Db1sb9oMBt6VR9xcu4U6pKJgT2c8iMPzuheDk9nJ4VrSXaKQgqhAp8vi4cEBFKopvc65JMKq65ctEH", "9wKSt9ij2YYiWgCYd84UcQiVuL6r9YurhVJ8Nikp2URy", "edgxQYrr8usWtBXKQ1Q4Nv712F5fcx6fWRqmuW3eEKz", 95000, true, 100000000, 1541512609669},
+		{'W', "7kGS1HeJ2gkfWz8FhxwAEjdTRzkJJiFGgAeNVxq1K7TZ", "AqcuR4MzuTVeKwMVxbymAeWUryGByZfxDFFGfp8GnXxoqo5h5VdbdL2Zv4R92py8T1jeCpgHqErKF938iVmhnsf", "UFVrNKhFQnZDGKLrbu6S1oPsYMhgU6fZVXSxCRyUfgY", "5siW5tqvYLnfgeXttU7F9dZ3xrE8UHVtpqT9Ye71GBuJ", 20000, true, 100000000, 1541522867378},
+		{'W', "GshF9vnYfAm2fYCTJj9rRGc2VyC1579Kq91xL2Rr8KDU", "GzTJgnicvCkJ2UHuE1h2upgiwU2FU2JfHpRJKwPNLLthsxyF3Xvv7ZAbGgXgBGMp2vcNkMrPGea7K2zERiRacKy", "HCBy6qMfDLgnbMokyDGYezttp9zdgBC8SjUjtqtuBnXv", "65UMyqN6yBmnSg8xjb3RBDsxoW5iYYc7rJeyL5rKQJ5i", 9000000000000, false, 100000000, 1541613498199},
 	}
 	for _, tc := range tests {
 		spk, _ := crypto.NewPublicKeyFromBase58(tc.pk)
 		id, _ := crypto.NewDigestFromBase58(tc.id)
 		sig, _ := crypto.NewSignatureFromBase58(tc.sig)
 		aid, _ := crypto.NewDigestFromBase58(tc.asset)
-		if tx, err := NewUnsignedReissueV2('T', spk, aid, tc.quantity, tc.reissuable, tc.timestamp, tc.fee); assert.NoError(t, err) {
+		if tx, err := NewUnsignedReissueV2(tc.chain, spk, aid, tc.quantity, tc.reissuable, tc.timestamp, tc.fee); assert.NoError(t, err) {
 			if b, err := tx.bodyMarshalBinary(); assert.NoError(t, err) {
 				if h, err := crypto.FastHash(b); assert.NoError(t, err) {
 					assert.Equal(t, id, h)
