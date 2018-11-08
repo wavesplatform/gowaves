@@ -1055,8 +1055,8 @@ func TestBurnV1Validations(t *testing.T) {
 		fee    uint64
 		err    string
 	}{
-		{0, 100000, "amount should be positive"},
-		{100000, 0, "fee should be positive"},
+		{0, 100000, "failed to create BurnV1 transaction: amount should be positive"},
+		{100000, 0, "failed to create BurnV1 transaction: fee should be positive"},
 	}
 	for _, tc := range tests {
 		spk, _ := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")

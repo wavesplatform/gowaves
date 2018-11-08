@@ -52,7 +52,8 @@ const (
 	reissueV1MinLen           = 1 + crypto.SignatureSize + reissueV1BodyLen
 	reissueV2BodyLen          = 3 + reissueLen
 	reissueV2MinLen           = 1 + reissueV2BodyLen + proofsMinLen
-	burnV1BodyLen             = 1 + crypto.PublicKeySize + crypto.DigestSize + 8 + 8 + 8
+	burnLen                   = crypto.PublicKeySize + crypto.DigestSize + 8 + 8 + 8
+	burnV1BodyLen             = 1 + burnLen
 	burnV1MinLen              = 1 + crypto.SignatureSize + burnV1BodyLen
 	exchangeV1FixedBodyLen    = 1 + 4 + 4 + orderMinLen + orderMinLen + 8 + 8 + 8 + 8 + 8 + 8
 	exchangeV1MinLen          = exchangeV1FixedBodyLen + crypto.SignatureSize
@@ -1349,62 +1350,101 @@ func (tx *ReissueV2) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
-//BurnV1 transaction allows to decrease the total supply of the existing asset. Asset must be reissuable.
-type BurnV1 struct {
-	Type      TransactionType   `json:"type"`
-	Version   byte              `json:"version,omitempty"`
-	ID        *crypto.Digest    `json:"id,omitempty"`
-	Signature *crypto.Signature `json:"signature,omitempty"`
-	SenderPK  crypto.PublicKey  `json:"senderPublicKey"`
-	AssetID   crypto.Digest     `json:"assetId"`
-	Amount    uint64            `json:"amount"`
-	Timestamp uint64            `json:"timestamp,omitempty"`
-	Fee       uint64            `json:"fee"`
+type burn struct {
+	SenderPK  crypto.PublicKey `json:"senderPublicKey"`
+	AssetID   crypto.Digest    `json:"assetId"`
+	Amount    uint64           `json:"amount"`
+	Timestamp uint64           `json:"timestamp,omitempty"`
+	Fee       uint64           `json:"fee"`
 }
 
-func (BurnV1) Transaction() {}
-
-//NewUnsignedBurnV1 creates new BurnV1 transaction with no signature and ID.
-func NewUnsignedBurnV1(senderPK crypto.PublicKey, assetID crypto.Digest, amount, timestamp, fee uint64) (*BurnV1, error) {
+func newBurn(senderPK crypto.PublicKey, assetID crypto.Digest, amount, timestamp, fee uint64) (*burn, error) {
 	if amount <= 0 {
 		return nil, errors.New("amount should be positive")
 	}
 	if fee <= 0 {
 		return nil, errors.New("fee should be positive")
 	}
-	return &BurnV1{Type: BurnTransaction, Version: 1, SenderPK: senderPK, AssetID: assetID, Amount: amount, Timestamp: timestamp, Fee: fee}, nil
+	return &burn{SenderPK: senderPK, AssetID: assetID, Amount: amount, Timestamp: timestamp, Fee: fee}, nil
+}
+
+func (b *burn) marshalBinary() ([]byte, error) {
+	buf := make([]byte, burnLen)
+	p := 0
+	copy(buf[p:], b.SenderPK[:])
+	p += crypto.PublicKeySize
+	copy(buf[p:], b.AssetID[:])
+	p += crypto.DigestSize
+	binary.BigEndian.PutUint64(buf[p:], b.Amount)
+	p += 8
+	binary.BigEndian.PutUint64(buf[p:], b.Fee)
+	p += 8
+	binary.BigEndian.PutUint64(buf[p:], b.Timestamp)
+	return buf, nil
+}
+
+func (b *burn) unmarshalBinary(data []byte) error {
+	if l := len(data); l < burnLen {
+		return errors.Errorf("%d bytes is not enough for burn, expected not less then %d", l, burnLen)
+	}
+	copy(b.SenderPK[:], data[:crypto.PublicKeySize])
+	data = data[crypto.PublicKeySize:]
+	copy(b.AssetID[:], data[:crypto.DigestSize])
+	data = data[crypto.DigestSize:]
+	b.Amount = binary.BigEndian.Uint64(data)
+	data = data[8:]
+	b.Fee = binary.BigEndian.Uint64(data)
+	data = data[8:]
+	b.Timestamp = binary.BigEndian.Uint64(data)
+	return nil
+}
+
+//BurnV1 transaction allows to decrease the total supply of the existing asset. Asset must be reissuable.
+type BurnV1 struct {
+	Type      TransactionType   `json:"type"`
+	Version   byte              `json:"version,omitempty"`
+	ID        *crypto.Digest    `json:"id,omitempty"`
+	Signature *crypto.Signature `json:"signature,omitempty"`
+	burn
+}
+
+func (BurnV1) Transaction() {}
+
+//NewUnsignedBurnV1 creates new BurnV1 transaction with no signature and ID.
+func NewUnsignedBurnV1(senderPK crypto.PublicKey, assetID crypto.Digest, amount, timestamp, fee uint64) (*BurnV1, error) {
+	b, err := newBurn(senderPK, assetID, amount, timestamp, fee)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to create BurnV1 transaction")
+	}
+	return &BurnV1{Type: BurnTransaction, Version: 1, burn: *b}, nil
 }
 
 func (tx *BurnV1) bodyMarshalBinary() ([]byte, error) {
 	buf := make([]byte, burnV1BodyLen)
 	buf[0] = byte(tx.Type)
-	copy(buf[1:], tx.SenderPK[:])
-	copy(buf[1+crypto.PublicKeySize:], tx.AssetID[:])
-	binary.BigEndian.PutUint64(buf[1+crypto.PublicKeySize+crypto.DigestSize:], tx.Amount)
-	binary.BigEndian.PutUint64(buf[9+crypto.PublicKeySize+crypto.DigestSize:], tx.Fee)
-	binary.BigEndian.PutUint64(buf[17+crypto.PublicKeySize+crypto.DigestSize:], tx.Timestamp)
+	b, err := tx.burn.marshalBinary()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to marshal BurnV1 transaction to bytes")
+	}
+	copy(buf[1:], b)
 	return buf, nil
 }
 
 func (tx *BurnV1) bodyUnmarshalBinary(data []byte) error {
-	tx.Type = TransactionType(data[0])
-	tx.Version = 1
 	if l := len(data); l < burnV1BodyLen {
-		return errors.Errorf("not enough data for BurnV1 transaction %d, expected not less then %d", l, burnV1BodyLen)
+		return errors.Errorf("%d bytes is not enough for BurnV1 transaction, expected not less then %d", l, burnV1BodyLen)
 	}
+	tx.Type = TransactionType(data[0])
 	if tx.Type != BurnTransaction {
 		return errors.Errorf("unexpected transaction type %d for BurnV1 transaction", tx.Type)
 	}
-	data = data[1:]
-	copy(tx.SenderPK[:], data[:crypto.PublicKeySize])
-	data = data[crypto.PublicKeySize:]
-	copy(tx.AssetID[:], data[:crypto.DigestSize])
-	data = data[crypto.DigestSize:]
-	tx.Amount = binary.BigEndian.Uint64(data)
-	data = data[8:]
-	tx.Fee = binary.BigEndian.Uint64(data)
-	data = data[8:]
-	tx.Timestamp = binary.BigEndian.Uint64(data)
+	tx.Version = 1
+	var b burn
+	err := b.unmarshalBinary(data[1:])
+	if err != nil {
+		return errors.Wrap(err, "failed to unmarshal BurnV1 transaction body")
+	}
+	tx.burn = b
 	return nil
 }
 
