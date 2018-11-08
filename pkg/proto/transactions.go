@@ -4,7 +4,6 @@ import (
 	"encoding/binary"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
-	"sync"
 )
 
 //TransactionType
@@ -788,14 +787,9 @@ type TransferV1 struct {
 	ID        *crypto.Digest    `json:"id,omitempty"`
 	Signature *crypto.Signature `json:"signature,omitempty"`
 	*transfer
-	once sync.Once
 }
 
 func (TransferV1) Transaction() {}
-
-func (tx *TransferV1) initTransfer() {
-	tx.transfer = &transfer{}
-}
 
 //NewUnsignedTransferV1 creates new TransferV1 transaction without signature and ID.
 func NewUnsignedTransferV1(senderPK crypto.PublicKey, amountAsset, feeAsset OptionalAsset, timestamp, amount, fee uint64, recipient Address, attachment string) (*TransferV1, error) {
@@ -803,13 +797,10 @@ func NewUnsignedTransferV1(senderPK crypto.PublicKey, amountAsset, feeAsset Opti
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create TransferV1 transaction")
 	}
-	tx := TransferV1{Type: TransferTransaction, Version: 1, transfer: t}
-	tx.once.Do(func() {})
-	return &tx, nil
+	return &TransferV1{Type: TransferTransaction, Version: 1, transfer: t}, nil
 }
 
 func (tx *TransferV1) bodyMarshalBinary() ([]byte, error) {
-	tx.once.Do(tx.initTransfer)
 	b, err := tx.transfer.marshalBinary()
 	if err != nil {
 		errors.Wrap(err, "failed to marshal TransferV1 body")
@@ -821,7 +812,6 @@ func (tx *TransferV1) bodyMarshalBinary() ([]byte, error) {
 }
 
 func (tx *TransferV1) bodyUnmarshalBinary(data []byte) error {
-	tx.once.Do(tx.initTransfer)
 	if l := len(data); l < transferV1FixedBodyLen {
 		return errors.Errorf("%d bytes is not enough for TransferV1 transaction, expected not less then %d bytes", l, transferV1FixedBodyLen)
 	}
@@ -830,11 +820,12 @@ func (tx *TransferV1) bodyUnmarshalBinary(data []byte) error {
 		return errors.Errorf("unexpected transaction type %d for TransferV1 transaction", tx.Type)
 	}
 	tx.Version = 1
-	data = data[1:]
-	err := tx.transfer.unmarshalBinary(data)
+	var t transfer
+	err := t.unmarshalBinary(data[1:])
 	if err != nil {
 		return errors.Wrap(err, "failed to unmarshal TransferV1 body from bytes")
 	}
+	tx.transfer = &t
 	return nil
 }
 
@@ -913,28 +904,20 @@ type TransferV2 struct {
 	ID      *crypto.Digest  `json:"id,omitempty"`
 	Proofs  *ProofsV1       `json:"proofs,omitempty"`
 	*transfer
-	once sync.Once
 }
 
 func (TransferV2) Transaction() {}
 
-func (tx *TransferV2) initTransfer() {
-	tx.transfer = &transfer{}
-}
-
-//NewUnsignedTransferV2 creates new TransferV1 transaction without signature and ID.
+//NewUnsignedTransferV2 creates new TransferV2 transaction without proofs and ID.
 func NewUnsignedTransferV2(senderPK crypto.PublicKey, amountAsset, feeAsset OptionalAsset, timestamp, amount, fee uint64, recipient Address, attachment string) (*TransferV2, error) {
 	t, err := newTransfer(senderPK, amountAsset, feeAsset, timestamp, amount, fee, recipient, attachment)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create TransferV2 transaction")
 	}
-	tx := TransferV2{Type: TransferTransaction, Version: 2, transfer: t}
-	tx.once.Do(func() {})
-	return &tx, nil
+	return &TransferV2{Type: TransferTransaction, Version: 2, transfer: t}, nil
 }
 
 func (tx *TransferV2) bodyMarshalBinary() ([]byte, error) {
-	tx.once.Do(tx.initTransfer)
 	b, err := tx.transfer.marshalBinary()
 	if err != nil {
 		errors.Wrap(err, "failed to marshal TransferV2 body")
@@ -947,7 +930,6 @@ func (tx *TransferV2) bodyMarshalBinary() ([]byte, error) {
 }
 
 func (tx *TransferV2) bodyUnmarshalBinary(data []byte) error {
-	tx.once.Do(tx.initTransfer)
 	if l := len(data); l < transferV2FixedBodyLen {
 		return errors.Errorf("%d bytes is not enough for TransferV2 transaction, expected not less then %d bytes", l, transferV2FixedBodyLen)
 	}
@@ -959,11 +941,12 @@ func (tx *TransferV2) bodyUnmarshalBinary(data []byte) error {
 	if v := tx.Version; v != 2 {
 		return errors.Errorf("unexpected version %d for TransferV2 transaction, expected 2", v)
 	}
-	data = data[2:]
-	err := tx.transfer.unmarshalBinary(data)
+	var t transfer
+	err := t.unmarshalBinary(data[2:])
 	if err != nil {
 		return errors.Wrap(err, "failed to unmarshal TransferV2 body from bytes")
 	}
+	tx.transfer = &t
 	return nil
 }
 
@@ -1006,7 +989,7 @@ func (tx *TransferV2) MarshalBinary() ([]byte, error) {
 	bl := len(bb)
 	pb, err := tx.Proofs.MarshalBinary()
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to marshal SponsorshipV1 transaction to bytes")
+		return nil, errors.Wrap(err, "failed to marshal TransferV2 transaction to bytes")
 	}
 	buf := make([]byte, 1+bl+len(pb))
 	buf[0] = 0
