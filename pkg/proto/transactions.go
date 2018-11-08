@@ -1540,7 +1540,7 @@ func NewUnsignedBurnV2(chainID byte, senderPK crypto.PublicKey, assetID crypto.D
 }
 
 func (tx *BurnV2) bodyMarshalBinary() ([]byte, error) {
-	buf := make([]byte, reissueV2BodyLen)
+	buf := make([]byte, burnV2BodyLen)
 	buf[0] = byte(tx.Type)
 	buf[1] = tx.Version
 	buf[2] = tx.ChainID
