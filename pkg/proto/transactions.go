@@ -1306,12 +1306,12 @@ func (tx *ReissueV2) Verify(publicKey crypto.PublicKey) (bool, error) {
 func (tx *ReissueV2) MarshalBinary() ([]byte, error) {
 	bb, err := tx.bodyMarshalBinary()
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to marshal TransferV2 transaction to bytes")
+		return nil, errors.Wrap(err, "failed to marshal ReissueV2 transaction to bytes")
 	}
 	bl := len(bb)
 	pb, err := tx.Proofs.MarshalBinary()
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to marshal SponsorshipV1 transaction to bytes")
+		return nil, errors.Wrap(err, "failed to marshal ReissueV2 transaction to bytes")
 	}
 	buf := make([]byte, 1+bl+len(pb))
 	buf[0] = 0
@@ -1323,7 +1323,7 @@ func (tx *ReissueV2) MarshalBinary() ([]byte, error) {
 //UnmarshalBinary reads ReissueV2 from its bytes representation.
 func (tx *ReissueV2) UnmarshalBinary(data []byte) error {
 	if l := len(data); l < reissueV2MinLen {
-		return errors.Errorf("not enough data for ReissueV2 transaction, expected not less then %d, received %d", transferV2MinLen, l)
+		return errors.Errorf("not enough data for ReissueV2 transaction, expected not less then %d, received %d", reissueV2MinLen, l)
 	}
 	if v := data[0]; v != 0 {
 		return errors.Errorf("unexpected first byte value %d, expected 0", v)
