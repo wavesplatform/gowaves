@@ -2009,7 +2009,7 @@ func TestCreateAliasV1Validations(t *testing.T) {
 		fee   uint64
 		err   string
 	}{
-		{"something", 0, "fee should be positive"},
+		{"something", 0, "failed to create CreateAliasV1 transaction: fee should be positive"},
 	}
 	for _, tc := range tests {
 		spk, _ := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
@@ -2067,7 +2067,7 @@ func TestCreateAliasV1BinaryRoundTrip(t *testing.T) {
 				if err := atx.bodyUnmarshalBinary(bb); assert.NoError(t, err) {
 					assert.Equal(t, tx.Type, atx.Type)
 					assert.Equal(t, tx.Version, atx.Version)
-					assert.Equal(t, tx.SenderPK, atx.SenderPK)
+					assert.ElementsMatch(t, tx.SenderPK, atx.SenderPK)
 					assert.Equal(t, tx.Alias, atx.Alias)
 					assert.Equal(t, tx.Fee, atx.Fee)
 					assert.Equal(t, tx.Timestamp, atx.Timestamp)
@@ -2081,9 +2081,9 @@ func TestCreateAliasV1BinaryRoundTrip(t *testing.T) {
 			if b, err := tx.MarshalBinary(); assert.NoError(t, err) {
 				var atx CreateAliasV1
 				if err := atx.UnmarshalBinary(b); assert.NoError(t, err) {
-					assert.Equal(t, tx.ID, atx.ID)
-					assert.Equal(t, tx.Signature, atx.Signature)
-					assert.Equal(t, pk, atx.SenderPK)
+					assert.ElementsMatch(t, *tx.ID, *atx.ID)
+					assert.ElementsMatch(t, *tx.Signature, *atx.Signature)
+					assert.ElementsMatch(t, pk, atx.SenderPK)
 					assert.Equal(t, tc.scheme, atx.Alias.Scheme)
 					assert.Equal(t, tc.alias, atx.Alias.Alias)
 					assert.Equal(t, tc.fee, atx.Fee)
@@ -2115,6 +2115,129 @@ func TestCreateAliasV1ToJSON(t *testing.T) {
 				if err := tx.Sign(sk); assert.NoError(t, err) {
 					if sj, err := json.Marshal(tx); assert.NoError(t, err) {
 						esj := fmt.Sprintf("{\"type\":10,\"version\":1,\"id\":\"%s\",\"signature\":\"%s\",\"senderPublicKey\":\"%s\",\"alias\":\"%s\",\"fee\":%d,\"timestamp\":%d}", base58.Encode(tx.ID[:]), base58.Encode(tx.Signature[:]), base58.Encode(pk[:]), a.String(), tc.fee, ts)
+						assert.Equal(t, esj, string(sj))
+					}
+				}
+			}
+		}
+	}
+}
+
+func TestCreateAliasV2Validations(t *testing.T) {
+	tests := []struct {
+		alias string
+		fee   uint64
+		err   string
+	}{
+		{"something", 0, "failed to create CreateAliasV1 transaction: fee should be positive"},
+	}
+	for _, tc := range tests {
+		spk, _ := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
+		a, _ := NewAlias('W', tc.alias)
+		_, err := NewUnsignedCreateAliasV2(spk, *a, tc.fee, 0)
+		assert.EqualError(t, err, tc.err)
+	}
+}
+
+func TestCreateAliasV2FromMainNet(t *testing.T) {
+	tests := []struct {
+		pk        string
+		sig       string
+		id        string
+		scheme    byte
+		alias     string
+		fee       uint64
+		timestamp uint64
+	}{
+		{"7F6CNQTH1CfjKtVV47RbYi6eDctyPjCNNveBP8R3xi63", "dei21qjMJtHtuvZcUcHTV5K4dxVi94SYbY13tuwPaCEkUJeduNmBBnB3MQmkDW43Tm68JtMW58eEBLMUDNQhkxy", "8FYM87cwuFwgdncwAp9qE5FYR4HryJQmyF1g6QhqbiLn", 'W', "bits_cop", 100000, 1541740849873},
+		{"B3f8VFh6T2NGT26U7rHk2grAxn5zi9iLkg4V9uxG6C8q", "56FXJ8VtXjJVv1T9QcJHUcBjaQRyxPmnAeDR9JzgSddfkx7rC6barZFSXGDxTv667ehUFxRWuhcEnd3PohkTAoYU", "9SXwLHgyxpBhU5mHc21QWe3C4cjbEbLMAZDYNyjHzGCK", 'W', "pigeon-test", 100000, 1541674542064},
+		{"91MhZvyJGnhZy9pfEMUGNKj9j7KUokeJoQQwsyqknDNG", "5J6oXXDQAEWWtRtGVfzWnb42W5mHMCB2cHNg1Zn17jgCLwkU8nshy9hhrjYf86CLF4YnWtsu1uZnpjfc2NkwSKtH", "5QmYAjGXqhym59qxNjSUYswWRvT5v321CXPZsfwnFeiw", 'W', "sexx", 100000, 1541711270800},
+	}
+	for _, tc := range tests {
+		spk, _ := crypto.NewPublicKeyFromBase58(tc.pk)
+		id, _ := crypto.NewDigestFromBase58(tc.id)
+		sig, _ := crypto.NewSignatureFromBase58(tc.sig)
+		a, _ := NewAlias(tc.scheme, tc.alias)
+		if tx, err := NewUnsignedCreateAliasV2(spk, *a, tc.fee, tc.timestamp); assert.NoError(t, err) {
+			if b, err := tx.bodyMarshalBinary(); assert.NoError(t, err) {
+				if h, err := tx.id(); assert.NoError(t, err) {
+					assert.Equal(t, id, *h)
+				}
+				assert.True(t, crypto.Verify(spk, sig, b))
+			}
+		}
+	}
+}
+
+func TestCreateAliasV2BinaryRoundTrip(t *testing.T) {
+	tests := []struct {
+		scheme byte
+		alias  string
+		fee    uint64
+	}{
+		{'W', "somealias", 1234567890},
+		{'T', "testnetalias", 9876543210},
+	}
+	seed, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
+	sk, pk := crypto.GenerateKeyPair(seed)
+	for _, tc := range tests {
+		ts := uint64(time.Now().UnixNano() / 1000000)
+		a, _ := NewAlias(tc.scheme, tc.alias)
+		if tx, err := NewUnsignedCreateAliasV2(pk, *a, tc.fee, ts); assert.NoError(t, err) {
+			if bb, err := tx.bodyMarshalBinary(); assert.NoError(t, err) {
+				var atx CreateAliasV2
+				if err := atx.bodyUnmarshalBinary(bb); assert.NoError(t, err) {
+					assert.Equal(t, tx.Type, atx.Type)
+					assert.Equal(t, tx.Version, atx.Version)
+					assert.Equal(t, tx.SenderPK, atx.SenderPK)
+					assert.Equal(t, tx.Alias, atx.Alias)
+					assert.Equal(t, tx.Fee, atx.Fee)
+					assert.Equal(t, tx.Timestamp, atx.Timestamp)
+				}
+			}
+			if err := tx.Sign(sk); assert.NoError(t, err) {
+				if r, err := tx.Verify(pk); assert.NoError(t, err) {
+					assert.True(t, r)
+				}
+			}
+			if b, err := tx.MarshalBinary(); assert.NoError(t, err) {
+				var atx CreateAliasV2
+				if err := atx.UnmarshalBinary(b); assert.NoError(t, err) {
+					assert.ElementsMatch(t, *tx.ID, *atx.ID)
+					assert.ElementsMatch(t, tx.Proofs.Proofs[0], atx.Proofs.Proofs[0])
+					assert.ElementsMatch(t, pk, atx.SenderPK)
+					assert.Equal(t, tc.scheme, atx.Alias.Scheme)
+					assert.Equal(t, tc.alias, atx.Alias.Alias)
+					assert.Equal(t, tc.fee, atx.Fee)
+					assert.Equal(t, ts, atx.Timestamp)
+				}
+			}
+		}
+	}
+}
+
+func TestCreateAliasV2ToJSON(t *testing.T) {
+	tests := []struct {
+		scheme byte
+		alias  string
+		fee    uint64
+	}{
+		{'W', "alice", 1234567890},
+		{'T', "peter", 9876543210},
+	}
+	seed, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
+	sk, pk := crypto.GenerateKeyPair(seed)
+	for _, tc := range tests {
+		a, _ := NewAlias(tc.scheme, tc.alias)
+		ts := uint64(time.Now().UnixNano() / 1000000)
+		if tx, err := NewUnsignedCreateAliasV2(pk, *a, tc.fee, ts); assert.NoError(t, err) {
+			if j, err := json.Marshal(tx); assert.NoError(t, err) {
+				ej := fmt.Sprintf("{\"type\":10,\"version\":2,\"senderPublicKey\":\"%s\",\"alias\":\"%s\",\"fee\":%d,\"timestamp\":%d}", base58.Encode(pk[:]), a.String(), tc.fee, ts)
+				assert.Equal(t, ej, string(j))
+				if err := tx.Sign(sk); assert.NoError(t, err) {
+					if sj, err := json.Marshal(tx); assert.NoError(t, err) {
+						esj := fmt.Sprintf("{\"type\":10,\"version\":2,\"id\":\"%s\",\"proofs\":[\"%s\"],\"senderPublicKey\":\"%s\",\"alias\":\"%s\",\"fee\":%d,\"timestamp\":%d}",
+							base58.Encode(tx.ID[:]), base58.Encode(tx.Proofs.Proofs[0]), base58.Encode(pk[:]), a.String(), tc.fee, ts)
 						assert.Equal(t, esj, string(sj))
 					}
 				}
