@@ -64,7 +64,7 @@ func TestMainNetOrder(t *testing.T) {
 		mpk, _ := crypto.NewPublicKeyFromBase58(tc.matcher)
 		aa, _ := NewOptionalAssetFromString(tc.amountAsset)
 		pa, _ := NewOptionalAssetFromString(tc.priceAsset)
-		if o, err := NewUnsignedOrder(spk, mpk, *aa, *pa, tc.orderType, tc.price, tc.amount, tc.timestamp, tc.expiration, tc.fee); assert.NoError(t, err) {
+		if o, err := NewUnsignedOrderV1(spk, mpk, *aa, *pa, tc.orderType, tc.price, tc.amount, tc.timestamp, tc.expiration, tc.fee); assert.NoError(t, err) {
 			if b, err := o.bodyMarshalBinary(); assert.NoError(t, err) {
 				d, _ := crypto.FastHash(b)
 				assert.Equal(t, id, d)
@@ -91,7 +91,7 @@ func TestOrderValidations(t *testing.T) {
 	aa, _ := NewOptionalAssetFromString("8LQW8f7P5d5PZM7GtZEBgaqRPGSzS3DfPuiXrURJ4AJS")
 	pa, _ := NewOptionalAssetFromString("Ft8X1v1LTa1ABafufpaCWyVj8KkaxUWE6xBhW6sNFJck")
 	for _, tc := range tests {
-		_, err := NewUnsignedOrder(spk, mpk, *aa, *pa, Buy, tc.price, tc.amount, 0, 0, tc.fee)
+		_, err := NewUnsignedOrderV1(spk, mpk, *aa, *pa, Buy, tc.price, tc.amount, 0, 0, tc.fee)
 		assert.EqualError(t, err, tc.err)
 	}
 }
@@ -119,13 +119,13 @@ func TestOrderSigningRoundTrip(t *testing.T) {
 		pa, _ := NewOptionalAssetFromString(tc.priceAsset)
 		ts := uint64(time.Now().UnixNano() / 1000000)
 		exp := ts + 100*1000
-		if o, err := NewUnsignedOrder(pk, mpk, *aa, *pa, tc.orderType, tc.price, tc.amount, ts, exp, tc.fee); assert.NoError(t, err) {
+		if o, err := NewUnsignedOrderV1(pk, mpk, *aa, *pa, tc.orderType, tc.price, tc.amount, ts, exp, tc.fee); assert.NoError(t, err) {
 			if err := o.Sign(sk); assert.NoError(t, err) {
 				if r, err := o.Verify(pk); assert.NoError(t, err) {
 					assert.True(t, r)
 				}
 				if b, err := o.MarshalBinary(); assert.NoError(t, err) {
-					var ao Order
+					var ao OrderV1
 					if err := ao.UnmarshalBinary(b); assert.NoError(t, err) {
 						assert.Equal(t, o.ID, ao.ID)
 						assert.Equal(t, o.Signature, ao.Signature)
@@ -176,7 +176,7 @@ func TestOrderToJSON(t *testing.T) {
 			pas = fmt.Sprintf("\"%s\"", pa.ID.String())
 		}
 		exp := ts + 100*1000
-		if o, err := NewUnsignedOrder(pk, mpk, *aa, *pa, tc.orderType, tc.price, tc.amount, ts, exp, tc.fee); assert.NoError(t, err) {
+		if o, err := NewUnsignedOrderV1(pk, mpk, *aa, *pa, tc.orderType, tc.price, tc.amount, ts, exp, tc.fee); assert.NoError(t, err) {
 			if j, err := json.Marshal(o); assert.NoError(t, err) {
 				ej := fmt.Sprintf("{\"senderPublicKey\":\"%s\",\"matcherPublicKey\":\"%s\",\"assetPair\":{\"amountAsset\":%s,\"priceAsset\":%s},\"orderType\":\"%s\",\"price\":%d,\"amount\":%d,\"timestamp\":%d,\"expiration\":%d,\"matcherFee\":%d}",
 					base58.Encode(pk[:]), tc.matcher, aas, pas, tc.orderType.String(), tc.price, tc.amount, ts, exp, tc.fee)

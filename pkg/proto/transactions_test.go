@@ -1298,17 +1298,17 @@ func TestExchangeV1Validations(t *testing.T) {
 	pa, _ := NewOptionalAssetFromString("FftTzae2t8r6zZJ2VzEq2pS2Le4Vx9gYGXuDsEFBTYE2")
 	id, _ := crypto.NewDigestFromBase58("AkYY8M2iEts8xc21JEzwkMSmuJtH9ABGzEYeau4xWC5R")
 	sig, _ := crypto.NewSignatureFromBase58("5pzyUowLi31yP4AEh5qzg7gRrvmsfeypiUkW84CKzc4H6UTzEF2RgGPLckBEqNbJGn5ofQXzuDmUnxwuP3utYp9L")
-	bo, _ := NewUnsignedOrder(buySender, mpk, *aa, *pa, Buy, 10, 100, 0, 0, 3)
-	sbo, _ := NewUnsignedOrder(buySender, mpk, *aa, *pa, Buy, 10, 100, 0, 0, 3)
+	bo, _ := NewUnsignedOrderV1(buySender, mpk, *aa, *pa, Buy, 10, 100, 0, 0, 3)
+	sbo, _ := NewUnsignedOrderV1(buySender, mpk, *aa, *pa, Buy, 10, 100, 0, 0, 3)
 	sbo.ID = &id
 	sbo.Signature = &sig
-	so, _ := NewUnsignedOrder(sellSender, mpk, *aa, *pa, Sell, 9, 50, 0, 0, 3)
-	sso, _ := NewUnsignedOrder(sellSender, mpk, *aa, *pa, Sell, 9, 50, 0, 0, 3)
+	so, _ := NewUnsignedOrderV1(sellSender, mpk, *aa, *pa, Sell, 9, 50, 0, 0, 3)
+	sso, _ := NewUnsignedOrderV1(sellSender, mpk, *aa, *pa, Sell, 9, 50, 0, 0, 3)
 	sso.ID = &id
 	sso.Signature = &sig
 	tests := []struct {
-		buy     Order
-		sell    Order
+		buy     OrderV1
+		sell    OrderV1
 		price   uint64
 		amount  uint64
 		buyFee  uint64
@@ -1377,12 +1377,12 @@ func TestExchangeV1FromMainNet(t *testing.T) {
 		sig, _ := crypto.NewSignatureFromBase58(tc.sig)
 		aa, _ := NewOptionalAssetFromString(tc.amountAsset)
 		pa, _ := NewOptionalAssetFromString(tc.priceAsset)
-		bo, _ := NewUnsignedOrder(buySender, mpk, *aa, *pa, Buy, tc.buyPrice, tc.buyAmount, tc.buyTs, tc.buyExp, tc.buyFee)
+		bo, _ := NewUnsignedOrderV1(buySender, mpk, *aa, *pa, Buy, tc.buyPrice, tc.buyAmount, tc.buyTs, tc.buyExp, tc.buyFee)
 		bID, _ := crypto.NewDigestFromBase58(tc.buyID)
 		bSig, _ := crypto.NewSignatureFromBase58(tc.buySig)
 		bo.ID = &bID
 		bo.Signature = &bSig
-		so, _ := NewUnsignedOrder(sellSender, mpk, *aa, *pa, Sell, tc.sellPrice, tc.sellAmount, tc.sellTs, tc.sellExp, tc.sellFee)
+		so, _ := NewUnsignedOrderV1(sellSender, mpk, *aa, *pa, Sell, tc.sellPrice, tc.sellAmount, tc.sellTs, tc.sellExp, tc.sellFee)
 		sID, _ := crypto.NewDigestFromBase58(tc.sellID)
 		sSig, _ := crypto.NewSignatureFromBase58(tc.sellSig)
 		so.ID = &sID
@@ -1407,13 +1407,13 @@ func TestExchangeV1BinaryRoundTrip(t *testing.T) {
 	pa, _ := NewOptionalAssetFromString("FftTzae2t8r6zZJ2VzEq2pS2Le4Vx9gYGXuDsEFBTYE2")
 	ts := uint64(time.Now().UnixNano() / 1000000)
 	exp := ts + 100*1000
-	bo, _ := NewUnsignedOrder(pk, mpk, *aa, *pa, Buy, 12345, 67890, ts, exp, 3)
+	bo, _ := NewUnsignedOrderV1(pk, mpk, *aa, *pa, Buy, 12345, 67890, ts, exp, 3)
 	bo.Sign(sk)
-	so, _ := NewUnsignedOrder(pk, mpk, *aa, *pa, Sell, 98765, 54321, ts, exp, 3)
+	so, _ := NewUnsignedOrderV1(pk, mpk, *aa, *pa, Sell, 98765, 54321, ts, exp, 3)
 	so.Sign(sk)
 	tests := []struct {
-		buy     Order
-		sell    Order
+		buy     OrderV1
+		sell    OrderV1
 		price   uint64
 		amount  uint64
 		buyFee  uint64
@@ -1496,10 +1496,10 @@ func TestExchangeV1ToJSON(t *testing.T) {
 		pa, _ := NewOptionalAssetFromString(tc.priceAsset)
 		ts := uint64(time.Now().UnixNano() / 1000000)
 		exp := ts + 100*1000
-		bo, _ := NewUnsignedOrder(pk, mpk, *aa, *pa, Buy, tc.buyPrice, tc.buyAmount, ts, exp, tc.fee)
+		bo, _ := NewUnsignedOrderV1(pk, mpk, *aa, *pa, Buy, tc.buyPrice, tc.buyAmount, ts, exp, tc.fee)
 		bo.Sign(sk)
 		boj, _ := json.Marshal(bo)
-		so, _ := NewUnsignedOrder(pk, mpk, *aa, *pa, Sell, tc.sellPrice, tc.sellAmount, ts, exp, tc.fee)
+		so, _ := NewUnsignedOrderV1(pk, mpk, *aa, *pa, Sell, tc.sellPrice, tc.sellAmount, ts, exp, tc.fee)
 		so.Sign(sk)
 		soj, _ := json.Marshal(so)
 		if tx, err := NewUnsignedExchangeV1(*bo, *so, tc.price, tc.amount, tc.buyFee, tc.sellFee, tc.fee, ts); assert.NoError(t, err) {
