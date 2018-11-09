@@ -1526,9 +1526,9 @@ func TestLeaseV1Validations(t *testing.T) {
 		fee     uint64
 		err     string
 	}{
-		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ", 0, 100000, "amount should be positive"},
-		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ", 100000, 0, "fee should be positive"},
-		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H86Y7SHTQ", 100000, 100000, "failed to create new unsigned LeaseV1 transaction: invalid Address checksum"},
+		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ", 0, 100000, "failed to create LeaseV1 transaction: amount should be positive"},
+		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ", 100000, 0, "failed to create LeaseV1 transaction: fee should be positive"},
+		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H86Y7SHTQ", 100000, 100000, "failed to create LeaseV1 transaction: failed to create new unsigned LeaseV1 transaction: invalid Address checksum"},
 	}
 	for _, tc := range tests {
 		spk, _ := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
@@ -1586,8 +1586,8 @@ func TestLeaseV1BinaryRoundTrip(t *testing.T) {
 				if err := atx.bodyUnmarshalBinary(bb); assert.NoError(t, err) {
 					assert.Equal(t, tx.Type, atx.Type)
 					assert.Equal(t, tx.Version, atx.Version)
-					assert.Equal(t, tx.SenderPK, atx.SenderPK)
-					assert.Equal(t, tx.Recipient, atx.Recipient)
+					assert.ElementsMatch(t, tx.SenderPK, atx.SenderPK)
+					assert.ElementsMatch(t, tx.Recipient, atx.Recipient)
 					assert.Equal(t, tx.Amount, atx.Amount)
 					assert.Equal(t, tx.Fee, atx.Fee)
 					assert.Equal(t, tx.Timestamp, atx.Timestamp)
@@ -1601,10 +1601,10 @@ func TestLeaseV1BinaryRoundTrip(t *testing.T) {
 			if b, err := tx.MarshalBinary(); assert.NoError(t, err) {
 				var atx LeaseV1
 				if err := atx.UnmarshalBinary(b); assert.NoError(t, err) {
-					assert.Equal(t, tx.ID, atx.ID)
-					assert.Equal(t, tx.Signature, atx.Signature)
-					assert.Equal(t, pk, atx.SenderPK)
-					assert.Equal(t, a, atx.Recipient)
+					assert.ElementsMatch(t, *tx.ID, *atx.ID)
+					assert.ElementsMatch(t, *tx.Signature, *atx.Signature)
+					assert.ElementsMatch(t, pk, atx.SenderPK)
+					assert.ElementsMatch(t, a, atx.Recipient)
 					assert.Equal(t, tc.amount, atx.Amount)
 					assert.Equal(t, tc.fee, atx.Fee)
 					assert.Equal(t, ts, atx.Timestamp)
@@ -1643,13 +1643,139 @@ func TestLeaseV1ToJSON(t *testing.T) {
 	}
 }
 
+func TestLeaseV2Validations(t *testing.T) {
+	tests := []struct {
+		address string
+		amount  uint64
+		fee     uint64
+		err     string
+	}{
+		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ", 0, 100000, "failed to create LeaseV2 transaction: amount should be positive"},
+		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ", 100000, 0, "failed to create LeaseV2 transaction: fee should be positive"},
+		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H86Y7SHTQ", 100000, 100000, "failed to create LeaseV2 transaction: failed to create new unsigned LeaseV1 transaction: invalid Address checksum"},
+	}
+	for _, tc := range tests {
+		spk, _ := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
+		rcp, _ := NewAddressFromString(tc.address)
+		_, err := NewUnsignedLeaseV2(spk, rcp, tc.amount, tc.fee, 0)
+		assert.EqualError(t, err, tc.err)
+	}
+}
+
+func TestLeaseV2FromMainNet(t *testing.T) {
+	tests := []struct {
+		pk        string
+		sig       string
+		id        string
+		recipient string
+		amount    uint64
+		fee       uint64
+		timestamp uint64
+	}{
+		{"rpQk8UkmB3cKZaS4NsGovw2Rg2HfuoW1FYXx5cmudSs", "4uU5oNDu9zTE4BUdUEtTGcW5cuaLpfFPjV8y1uiCRAkNYaumnBSZVN1YZaLZshQrtztVn4dvYztRa9FPsL879gi6", "8CrVEbYrcrwB8BujfmtFwqEzCr2FKmw5SHC9vL49Jrjf", "3P9DEDP5VbyXQyKtXDUt2crRPn5B7gs6ujc", 50000000000, 100000, 1541665254893},
+		{"3mMU3zgPdQY56u5oqjqESZNyVuh7RUzPBRc8jtuRvH5m", "JzJZ9HDFPwL4deFR48jYxohQk6oeouU1tPmcHEqe77QW3P2S3RLY9f12Tq3KFcNf4MWD8fqTutsXh4S8MWzvvhC", "5gzRtg5M5cbF2QzreRpwJt3TmFRHCBmtWdJDYM1g7ks4", "3P3PfgFKpfisSW6RCsbmgWXtwUH8fHAESw4", 11158462347, 100000, 1541681562021},
+	}
+	for _, tc := range tests {
+		spk, _ := crypto.NewPublicKeyFromBase58(tc.pk)
+		id, _ := crypto.NewDigestFromBase58(tc.id)
+		sig, _ := crypto.NewSignatureFromBase58(tc.sig)
+		rcp, _ := NewAddressFromString(tc.recipient)
+		if tx, err := NewUnsignedLeaseV2(spk, rcp, tc.amount, tc.fee, tc.timestamp); assert.NoError(t, err) {
+			if b, err := tx.bodyMarshalBinary(); assert.NoError(t, err) {
+				if h, err := crypto.FastHash(b); assert.NoError(t, err) {
+					assert.Equal(t, id, h)
+				}
+				assert.True(t, crypto.Verify(spk, sig, b))
+			}
+		}
+	}
+}
+
+func TestLeaseV2BinaryRoundTrip(t *testing.T) {
+	tests := []struct {
+		recipient string
+		amount    uint64
+		fee       uint64
+	}{
+		{"3P23fi1qfVw6RVDn4CH2a5nNouEtWNQ4THs", 1234567890, 1234567890},
+		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ", 9876543210, 9876543210},
+	}
+	seed, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
+	sk, pk := crypto.GenerateKeyPair(seed)
+	for _, tc := range tests {
+		a, _ := NewAddressFromString(tc.recipient)
+		ts := uint64(time.Now().UnixNano() / 1000000)
+		if tx, err := NewUnsignedLeaseV2(pk, a, tc.amount, tc.fee, ts); assert.NoError(t, err) {
+			if bb, err := tx.bodyMarshalBinary(); assert.NoError(t, err) {
+				var atx LeaseV2
+				if err := atx.bodyUnmarshalBinary(bb); assert.NoError(t, err) {
+					assert.Equal(t, tx.Type, atx.Type)
+					assert.Equal(t, tx.Version, atx.Version)
+					assert.ElementsMatch(t, tx.SenderPK, atx.SenderPK)
+					assert.ElementsMatch(t, tx.Recipient, atx.Recipient)
+					assert.Equal(t, tx.Amount, atx.Amount)
+					assert.Equal(t, tx.Fee, atx.Fee)
+					assert.Equal(t, tx.Timestamp, atx.Timestamp)
+				}
+			}
+			if err := tx.Sign(sk); assert.NoError(t, err) {
+				if r, err := tx.Verify(pk); assert.NoError(t, err) {
+					assert.True(t, r)
+				}
+			}
+			if b, err := tx.MarshalBinary(); assert.NoError(t, err) {
+				var atx LeaseV2
+				if err := atx.UnmarshalBinary(b); assert.NoError(t, err) {
+					assert.ElementsMatch(t, *tx.ID, *atx.ID)
+					assert.ElementsMatch(t, tx.Proofs.Proofs[0], atx.Proofs.Proofs[0])
+					assert.ElementsMatch(t, pk, atx.SenderPK)
+					assert.ElementsMatch(t, a, atx.Recipient)
+					assert.Equal(t, tc.amount, atx.Amount)
+					assert.Equal(t, tc.fee, atx.Fee)
+					assert.Equal(t, ts, atx.Timestamp)
+				}
+			}
+		}
+	}
+}
+
+func TestLeaseV2ToJSON(t *testing.T) {
+	tests := []struct {
+		recipient string
+		amount    uint64
+		fee       uint64
+	}{
+		{"3P23fi1qfVw6RVDn4CH2a5nNouEtWNQ4THs", 1234567890, 1234567890},
+		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ", 9876543210, 9876543210},
+	}
+	seed, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
+	sk, pk := crypto.GenerateKeyPair(seed)
+	for _, tc := range tests {
+		a, _ := NewAddressFromString(tc.recipient)
+		ts := uint64(time.Now().UnixNano() / 1000000)
+		if tx, err := NewUnsignedLeaseV2(pk, a, tc.amount, tc.fee, ts); assert.NoError(t, err) {
+			if j, err := json.Marshal(tx); assert.NoError(t, err) {
+				ej := fmt.Sprintf("{\"type\":8,\"version\":2,\"senderPublicKey\":\"%s\",\"recipient\":\"%s\",\"amount\":%d,\"fee\":%d,\"timestamp\":%d}", base58.Encode(pk[:]), tc.recipient, tc.amount, tc.fee, ts)
+				assert.Equal(t, ej, string(j))
+				if err := tx.Sign(sk); assert.NoError(t, err) {
+					if sj, err := json.Marshal(tx); assert.NoError(t, err) {
+						esj := fmt.Sprintf("{\"type\":8,\"version\":2,\"id\":\"%s\",\"proofs\":[\"%s\"],\"senderPublicKey\":\"%s\",\"recipient\":\"%s\",\"amount\":%d,\"fee\":%d,\"timestamp\":%d}",
+							base58.Encode(tx.ID[:]), base58.Encode(tx.Proofs.Proofs[0]), base58.Encode(pk[:]), tc.recipient, tc.amount, tc.fee, ts)
+						assert.Equal(t, esj, string(sj))
+					}
+				}
+			}
+		}
+	}
+}
+
 func TestLeaseCancelV1Validations(t *testing.T) {
 	tests := []struct {
 		lease string
 		fee   uint64
 		err   string
 	}{
-		{"58iiBQ9uonkDpgr3NiAYgec3K9f5KvhHEwLfZTX2k7y3", 0, "fee should be positive"},
+		{"58iiBQ9uonkDpgr3NiAYgec3K9f5KvhHEwLfZTX2k7y3", 0, "failed to create LeaseCancelV1 transaction: fee should be positive"},
 	}
 	for _, tc := range tests {
 		spk, _ := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
@@ -1705,8 +1831,8 @@ func TestLeaseCancelV1BinaryRoundTrip(t *testing.T) {
 				if err := atx.bodyUnmarshalBinary(bb); assert.NoError(t, err) {
 					assert.Equal(t, tx.Type, atx.Type)
 					assert.Equal(t, tx.Version, atx.Version)
-					assert.Equal(t, tx.SenderPK, atx.SenderPK)
-					assert.Equal(t, tx.LeaseID, atx.LeaseID)
+					assert.ElementsMatch(t, tx.SenderPK, atx.SenderPK)
+					assert.ElementsMatch(t, tx.LeaseID, atx.LeaseID)
 					assert.Equal(t, tx.Fee, atx.Fee)
 					assert.Equal(t, tx.Timestamp, atx.Timestamp)
 				}
@@ -1719,10 +1845,10 @@ func TestLeaseCancelV1BinaryRoundTrip(t *testing.T) {
 			if b, err := tx.MarshalBinary(); assert.NoError(t, err) {
 				var atx LeaseCancelV1
 				if err := atx.UnmarshalBinary(b); assert.NoError(t, err) {
-					assert.Equal(t, tx.ID, atx.ID)
-					assert.Equal(t, tx.Signature, atx.Signature)
-					assert.Equal(t, pk, atx.SenderPK)
-					assert.Equal(t, l, atx.LeaseID)
+					assert.ElementsMatch(t, *tx.ID, *atx.ID)
+					assert.ElementsMatch(t, *tx.Signature, *atx.Signature)
+					assert.ElementsMatch(t, pk, atx.SenderPK)
+					assert.ElementsMatch(t, l, atx.LeaseID)
 					assert.Equal(t, tc.fee, atx.Fee)
 					assert.Equal(t, ts, atx.Timestamp)
 				}
@@ -1751,6 +1877,124 @@ func TestLeaseCancelV1ToJSON(t *testing.T) {
 				if err := tx.Sign(sk); assert.NoError(t, err) {
 					if sj, err := json.Marshal(tx); assert.NoError(t, err) {
 						esj := fmt.Sprintf("{\"type\":9,\"version\":1,\"id\":\"%s\",\"signature\":\"%s\",\"senderPublicKey\":\"%s\",\"leaseId\":\"%s\",\"fee\":%d,\"timestamp\":%d}", base58.Encode(tx.ID[:]), base58.Encode(tx.Signature[:]), base58.Encode(pk[:]), tc.lease, tc.fee, ts)
+						assert.Equal(t, esj, string(sj))
+					}
+				}
+			}
+		}
+	}
+}
+
+func TestLeaseCancelV2Validations(t *testing.T) {
+	tests := []struct {
+		lease string
+		fee   uint64
+		err   string
+	}{
+		{"58iiBQ9uonkDpgr3NiAYgec3K9f5KvhHEwLfZTX2k7y3", 0, "failed to create LeaseCancelV2 transaction: fee should be positive"},
+	}
+	for _, tc := range tests {
+		spk, _ := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
+		l, _ := crypto.NewDigestFromBase58(tc.lease)
+		_, err := NewUnsignedLeaseCancelV2('T', spk, l, tc.fee, 0)
+		assert.EqualError(t, err, tc.err)
+	}
+}
+
+func TestLeaseCancelV2FromMainNet(t *testing.T) {
+	tests := []struct {
+		pk        string
+		sig       string
+		id        string
+		lease     string
+		fee       uint64
+		timestamp uint64
+	}{
+		{"B41okNfzZkFCc2djmbGe9EGoXnRqioXCQxUPJtZm1F74", "FLnMw7hYAaWihBVVjMzcfZWgWPTcsUNWf5bLmsihsLuXksvFtyEkNCEpfCKb7LU4PPxMH1jXVGUvLxMrFS4Pjdy", "5NUzjmfpEiXbD53Y66HpuqTis5VdcGfXj7W4jZxShrZX", "HUhpiDum9NxPwrgLwEowBCdDV7kydJ8sjNqhRSmfZVhe", 100000, 1541730662836},
+		{"GxzVYRGDT8XDvBug7f73xhkS6Grz91FDY2DHHqHTdUZL", "4Yjdwyq6unhyCsvt56wE6cQvg4Akauvi7YaQbpCe66i67ggFfgLydWXSfodhYSS3swop1Nn6PP7v3JtWfhSAJU2j", "9zeGFec5Ybiv1xUk8MVC16he67eRD6G41DXkEhReLft7", "HvPgHtKPsDhmGuT9sGM65UDSdetnwQzt4g65ffRCtFiq", 100000, 1541710975166},
+	}
+	for _, tc := range tests {
+		spk, _ := crypto.NewPublicKeyFromBase58(tc.pk)
+		id, _ := crypto.NewDigestFromBase58(tc.id)
+		sig, _ := crypto.NewSignatureFromBase58(tc.sig)
+		l, _ := crypto.NewDigestFromBase58(tc.lease)
+		if tx, err := NewUnsignedLeaseCancelV2('W', spk, l, tc.fee, tc.timestamp); assert.NoError(t, err) {
+			if b, err := tx.bodyMarshalBinary(); assert.NoError(t, err) {
+				if h, err := crypto.FastHash(b); assert.NoError(t, err) {
+					assert.Equal(t, id, h)
+				}
+				assert.True(t, crypto.Verify(spk, sig, b))
+			}
+		}
+	}
+}
+
+func TestLeaseCancelV2BinaryRoundTrip(t *testing.T) {
+	tests := []struct {
+		lease string
+		fee   uint64
+	}{
+		{"6jkoA3xzdFuowHsV3An1tc7sexsJ9kenSHeKJVCU5qNM", 1234567890},
+		{"Bc83cgvtmBbhpWHgqWPvoPMFVJCsUicocAaDReyyuqSX", 9876543210},
+	}
+	seed, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
+	sk, pk := crypto.GenerateKeyPair(seed)
+	for _, tc := range tests {
+		l, _ := crypto.NewDigestFromBase58(tc.lease)
+		ts := uint64(time.Now().UnixNano() / 1000000)
+		if tx, err := NewUnsignedLeaseCancelV2('T', pk, l, tc.fee, ts); assert.NoError(t, err) {
+			if bb, err := tx.bodyMarshalBinary(); assert.NoError(t, err) {
+				var atx LeaseCancelV2
+				if err := atx.bodyUnmarshalBinary(bb); assert.NoError(t, err) {
+					assert.Equal(t, tx.Type, atx.Type)
+					assert.Equal(t, tx.Version, atx.Version)
+					assert.ElementsMatch(t, tx.SenderPK, atx.SenderPK)
+					assert.ElementsMatch(t, tx.LeaseID, atx.LeaseID)
+					assert.Equal(t, tx.Fee, atx.Fee)
+					assert.Equal(t, tx.Timestamp, atx.Timestamp)
+				}
+			}
+			if err := tx.Sign(sk); assert.NoError(t, err) {
+				if r, err := tx.Verify(pk); assert.NoError(t, err) {
+					assert.True(t, r)
+				}
+			}
+			if b, err := tx.MarshalBinary(); assert.NoError(t, err) {
+				var atx LeaseCancelV2
+				if err := atx.UnmarshalBinary(b); assert.NoError(t, err) {
+					assert.ElementsMatch(t, *tx.ID, *atx.ID)
+					assert.ElementsMatch(t, tx.Proofs.Proofs[0], atx.Proofs.Proofs[0])
+					assert.ElementsMatch(t, pk, atx.SenderPK)
+					assert.ElementsMatch(t, l, atx.LeaseID)
+					assert.Equal(t, tc.fee, atx.Fee)
+					assert.Equal(t, ts, atx.Timestamp)
+				}
+			}
+		}
+	}
+}
+
+func TestLeaseCancelV2ToJSON(t *testing.T) {
+	tests := []struct {
+		lease string
+		fee   uint64
+	}{
+		{"6jkoA3xzdFuowHsV3An1tc7sexsJ9kenSHeKJVCU5qNM", 1234567890},
+		{"Bc83cgvtmBbhpWHgqWPvoPMFVJCsUicocAaDReyyuqSX", 9876543210},
+	}
+	seed, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
+	sk, pk := crypto.GenerateKeyPair(seed)
+	for _, tc := range tests {
+		l, _ := crypto.NewDigestFromBase58(tc.lease)
+		ts := uint64(time.Now().UnixNano() / 1000000)
+		if tx, err := NewUnsignedLeaseCancelV2('T', pk, l, tc.fee, ts); assert.NoError(t, err) {
+			if j, err := json.Marshal(tx); assert.NoError(t, err) {
+				ej := fmt.Sprintf("{\"type\":9,\"version\":2,\"senderPublicKey\":\"%s\",\"leaseId\":\"%s\",\"fee\":%d,\"timestamp\":%d}", base58.Encode(pk[:]), tc.lease, tc.fee, ts)
+				assert.Equal(t, ej, string(j))
+				if err := tx.Sign(sk); assert.NoError(t, err) {
+					if sj, err := json.Marshal(tx); assert.NoError(t, err) {
+						esj := fmt.Sprintf("{\"type\":9,\"version\":2,\"id\":\"%s\",\"proofs\":[\"%s\"],\"senderPublicKey\":\"%s\",\"leaseId\":\"%s\",\"fee\":%d,\"timestamp\":%d}",
+							base58.Encode(tx.ID[:]), base58.Encode(tx.Proofs.Proofs[0]), base58.Encode(pk[:]), tc.lease, tc.fee, ts)
 						assert.Equal(t, esj, string(sj))
 					}
 				}

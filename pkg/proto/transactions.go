@@ -59,10 +59,16 @@ const (
 	burnV2MinLen              = 1 + burnV2BodyLen + proofsMinLen
 	exchangeV1FixedBodyLen    = 1 + 4 + 4 + orderMinLen + orderMinLen + 8 + 8 + 8 + 8 + 8 + 8
 	exchangeV1MinLen          = exchangeV1FixedBodyLen + crypto.SignatureSize
-	leaseV1BodyLen            = 1 + crypto.PublicKeySize + AddressSize + 8 + 8 + 8
+	leaseLen                  = crypto.PublicKeySize + AddressSize + 8 + 8 + 8
+	leaseV1BodyLen            = 1 + leaseLen
 	leaseV1MinLen             = leaseV1BodyLen + crypto.SignatureSize
-	leaseCancelV1BodyLen      = 1 + crypto.PublicKeySize + 8 + 8 + crypto.DigestSize
+	leaseV2BodyLen            = 1 + 1 + 1 + leaseLen
+	leaseV2MinLen             = leaseV2BodyLen + proofsMinLen
+	leaseCancelLen            = crypto.PublicKeySize + 8 + 8 + crypto.DigestSize
+	leaseCancelV1BodyLen      = 1 + leaseCancelLen
 	leaseCancelV1MinLen       = leaseCancelV1BodyLen + crypto.SignatureSize
+	leaseCancelV2BodyLen      = 1 + 1 + 1 + leaseCancelLen
+	leaseCancelV2MinLen       = 1 + leaseCancelV2BodyLen + proofsMinLen
 	createAliasV1FixedBodyLen = 1 + crypto.PublicKeySize + 2 + 8 + 8
 	createAliasV1MinLen       = createAliasV1FixedBodyLen + crypto.SignatureSize
 	massTransferEntryLen      = AddressSize + 8
@@ -1856,23 +1862,15 @@ func (tx *ExchangeV1) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
-//LeaseV1 is a transaction that allows to lease Waves to other account.
-type LeaseV1 struct {
-	Type      TransactionType   `json:"type"`
-	Version   byte              `json:"version,omitempty"`
-	ID        *crypto.Digest    `json:"id,omitempty"`
-	Signature *crypto.Signature `json:"signature,omitempty"`
-	SenderPK  crypto.PublicKey  `json:"senderPublicKey"`
-	Recipient Address           `json:"recipient"`
-	Amount    uint64            `json:"amount"`
-	Fee       uint64            `json:"fee"`
-	Timestamp uint64            `json:"timestamp,omitempty"`
+type lease struct {
+	SenderPK  crypto.PublicKey `json:"senderPublicKey"`
+	Recipient Address          `json:"recipient"`
+	Amount    uint64           `json:"amount"`
+	Fee       uint64           `json:"fee"`
+	Timestamp uint64           `json:"timestamp,omitempty"`
 }
 
-func (LeaseV1) Transaction() {}
-
-//NewUnsignedLeaseV1 creates new LeaseV1 transaction without signature and ID set.
-func NewUnsignedLeaseV1(senderPK crypto.PublicKey, recipient Address, amount, fee, timestamp uint64) (*LeaseV1, error) {
+func newLease(senderPK crypto.PublicKey, recipient Address, amount, fee, timestamp uint64) (*lease, error) {
 	if ok, err := recipient.Validate(); !ok {
 		return nil, errors.Wrap(err, "failed to create new unsigned LeaseV1 transaction")
 	}
@@ -1882,45 +1880,86 @@ func NewUnsignedLeaseV1(senderPK crypto.PublicKey, recipient Address, amount, fe
 	if fee <= 0 {
 		return nil, errors.New("fee should be positive")
 	}
-	return &LeaseV1{Type: LeaseTransaction, Version: 1, SenderPK: senderPK, Recipient: recipient, Amount: amount, Fee: fee, Timestamp: timestamp}, nil
+	return &lease{SenderPK: senderPK, Recipient: recipient, Amount: amount, Fee: fee, Timestamp: timestamp}, nil
+}
+
+func (l *lease) marshalBinary() ([]byte, error) {
+	buf := make([]byte, leaseLen)
+	p := 0
+	copy(buf[p:], l.SenderPK[:])
+	p += crypto.PublicKeySize
+	copy(buf[p:], l.Recipient[:])
+	p += AddressSize
+	binary.BigEndian.PutUint64(buf[p:], l.Amount)
+	p += 8
+	binary.BigEndian.PutUint64(buf[p:], l.Fee)
+	p += 8
+	binary.BigEndian.PutUint64(buf[p:], l.Timestamp)
+	return buf, nil
+}
+
+func (l *lease) unmarshalBinary(data []byte) error {
+	if l := len(data); l < leaseLen {
+		return errors.Errorf("not enough data for lease, expected not less then %d, received %d", leaseLen, l)
+	}
+	copy(l.SenderPK[:], data[:crypto.PublicKeySize])
+	data = data[crypto.PublicKeySize:]
+	copy(l.Recipient[:], data[:AddressSize])
+	data = data[AddressSize:]
+	l.Amount = binary.BigEndian.Uint64(data)
+	data = data[8:]
+	l.Fee = binary.BigEndian.Uint64(data)
+	data = data[8:]
+	l.Timestamp = binary.BigEndian.Uint64(data)
+	return nil
+}
+
+//LeaseV1 is a transaction that allows to lease Waves to other account.
+type LeaseV1 struct {
+	Type      TransactionType   `json:"type"`
+	Version   byte              `json:"version,omitempty"`
+	ID        *crypto.Digest    `json:"id,omitempty"`
+	Signature *crypto.Signature `json:"signature,omitempty"`
+	lease
+}
+
+func (LeaseV1) Transaction() {}
+
+//NewUnsignedLeaseV1 creates new LeaseV1 transaction without signature and ID set.
+func NewUnsignedLeaseV1(senderPK crypto.PublicKey, recipient Address, amount, fee, timestamp uint64) (*LeaseV1, error) {
+	l, err := newLease(senderPK, recipient, amount, fee, timestamp)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to create LeaseV1 transaction")
+	}
+	return &LeaseV1{Type: LeaseTransaction, Version: 1, lease: *l}, nil
 }
 
 func (tx *LeaseV1) bodyMarshalBinary() ([]byte, error) {
-	var p uint32
 	buf := make([]byte, leaseV1BodyLen)
 	buf[0] = byte(tx.Type)
-	p++
-	copy(buf[p:], tx.SenderPK[:])
-	p += crypto.PublicKeySize
-	copy(buf[p:], tx.Recipient[:])
-	p += AddressSize
-	binary.BigEndian.PutUint64(buf[p:], tx.Amount)
-	p += 8
-	binary.BigEndian.PutUint64(buf[p:], tx.Fee)
-	p += 8
-	binary.BigEndian.PutUint64(buf[p:], tx.Timestamp)
+	b, err := tx.lease.marshalBinary()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to marshal LeaseV1 transaction to bytes")
+	}
+	copy(buf[1:], b)
 	return buf, nil
 }
 
 func (tx *LeaseV1) bodyUnmarshalBinary(data []byte) error {
-	tx.Type = TransactionType(data[0])
-	tx.Version = 1
 	if l := len(data); l < leaseV1BodyLen {
 		return errors.Errorf("not enough data for LeaseV1 transaction, expected not less then %d, received %d", leaseV1BodyLen, l)
 	}
+	tx.Type = TransactionType(data[0])
 	if tx.Type != LeaseTransaction {
 		return errors.Errorf("unexpected transaction type %d for LeaseV1 transaction", tx.Type)
 	}
-	data = data[1:]
-	copy(tx.SenderPK[:], data[:crypto.PublicKeySize])
-	data = data[crypto.PublicKeySize:]
-	copy(tx.Recipient[:], data[:AddressSize])
-	data = data[AddressSize:]
-	tx.Amount = binary.BigEndian.Uint64(data)
-	data = data[8:]
-	tx.Fee = binary.BigEndian.Uint64(data)
-	data = data[8:]
-	tx.Timestamp = binary.BigEndian.Uint64(data)
+	tx.Version = 1
+	var l lease
+	err := l.unmarshalBinary(data[1:])
+	if err != nil {
+		return errors.Wrap(err, "failed to unmarshal LeaseV1 transaction from bytes")
+	}
+	tx.lease = l
 	return nil
 }
 
@@ -1990,60 +2029,226 @@ func (tx *LeaseV1) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
+//LeaseV2 is a second version of the LeaseV1 transaction.
+type LeaseV2 struct {
+	Type    TransactionType `json:"type"`
+	Version byte            `json:"version,omitempty"`
+	ID      *crypto.Digest  `json:"id,omitempty"`
+	Proofs  *ProofsV1       `json:"proofs,omitempty"`
+	lease
+}
+
+func (LeaseV2) Transaction() {}
+
+//NewUnsignedLeaseV2 creates new LeaseV1 transaction without signature and ID set.
+func NewUnsignedLeaseV2(senderPK crypto.PublicKey, recipient Address, amount, fee, timestamp uint64) (*LeaseV2, error) {
+	l, err := newLease(senderPK, recipient, amount, fee, timestamp)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to create LeaseV2 transaction")
+	}
+	return &LeaseV2{Type: LeaseTransaction, Version: 2, lease: *l}, nil
+}
+
+func (tx *LeaseV2) bodyMarshalBinary() ([]byte, error) {
+	buf := make([]byte, leaseV2BodyLen)
+	buf[0] = byte(tx.Type)
+	buf[1] = tx.Version
+	buf[2] = 0 //Always zero, reserved for future extension of leasing assets.
+	b, err := tx.lease.marshalBinary()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to marshal LeaseV1 transaction to bytes")
+	}
+	copy(buf[3:], b)
+	return buf, nil
+}
+
+func (tx *LeaseV2) bodyUnmarshalBinary(data []byte) error {
+	if l := len(data); l < leaseV2BodyLen {
+		return errors.Errorf("not enough data for LeaseV2 transaction, expected not less then %d, received %d", leaseV2BodyLen, l)
+	}
+	tx.Type = TransactionType(data[0])
+	if tx.Type != LeaseTransaction {
+		return errors.Errorf("unexpected transaction type %d for LeaseV2 transaction", tx.Type)
+	}
+	tx.Version = data[1]
+	if tx.Version != 2 {
+		return errors.Errorf("unexpected version %d for LeaseV2 transaction, expected 2", tx.Version)
+	}
+	var l lease
+	err := l.unmarshalBinary(data[3:])
+	if err != nil {
+		return errors.Wrap(err, "failed to unmarshal LeaseV2 transaction from bytes")
+	}
+	tx.lease = l
+	return nil
+}
+
+//Sign adds signature as a proof at first position.
+func (tx *LeaseV2) Sign(secretKey crypto.SecretKey) error {
+	b, err := tx.bodyMarshalBinary()
+	if err != nil {
+		return errors.Wrap(err, "failed to sign LeaseV2 transaction")
+	}
+	if tx.Proofs == nil {
+		tx.Proofs = &ProofsV1{proofsVersion, make([]B58Bytes, 0)}
+	}
+	err = tx.Proofs.Sign(0, secretKey, b)
+	if err != nil {
+		return errors.Wrap(err, "failed to sign LeaseV2 transaction")
+	}
+	d, err := crypto.FastHash(b)
+	tx.ID = &d
+	if err != nil {
+		return errors.Wrap(err, "failed to sign LeaseV2 transaction")
+	}
+	return nil
+}
+
+//Verify checks that first proof is a valid signature.
+func (tx *LeaseV2) Verify(publicKey crypto.PublicKey) (bool, error) {
+	b, err := tx.bodyMarshalBinary()
+	if err != nil {
+		return false, errors.Wrap(err, "failed to verify signature of LeaseV2 transaction")
+	}
+	return tx.Proofs.Verify(0, publicKey, b)
+}
+
+//MarshalBinary saves the transaction to its binary representation.
+func (tx *LeaseV2) MarshalBinary() ([]byte, error) {
+	bb, err := tx.bodyMarshalBinary()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to marshal LeaseV2 transaction to bytes")
+	}
+	bl := len(bb)
+	pb, err := tx.Proofs.MarshalBinary()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to marshal LeaseV2 transaction to bytes")
+	}
+	buf := make([]byte, 1+bl+len(pb))
+	buf[0] = 0
+	copy(buf[1:], bb)
+	copy(buf[1+bl:], pb)
+	return buf, nil
+}
+
+//UnmarshalBinary reads the transaction from bytes slice.
+func (tx *LeaseV2) UnmarshalBinary(data []byte) error {
+	if l := len(data); l < leaseV2MinLen {
+		return errors.Errorf("not enough data for LeaseV2 transaction, expected not less then %d, received %d", leaseV2MinLen, l)
+	}
+	if v := data[0]; v != 0 {
+		return errors.Errorf("unexpected first byte value %d, expected 0", v)
+	}
+	data = data[1:]
+	err := tx.bodyUnmarshalBinary(data)
+	if err != nil {
+		return errors.Wrap(err, "failed to unmarshal LeaseV2 transaction from bytes")
+	}
+	bb := data[:leaseV2BodyLen]
+	data = data[leaseV2BodyLen:]
+	var p ProofsV1
+	err = p.UnmarshalBinary(data)
+	if err != nil {
+		return errors.Wrap(err, "failed to unmarshal LeaseV2 transaction from bytes")
+	}
+	tx.Proofs = &p
+	id, err := crypto.FastHash(bb)
+	if err != nil {
+		return errors.Wrap(err, "failed to unmarshal LeaseV2 transaction from bytes")
+	}
+	tx.ID = &id
+	return nil
+}
+
+type leaseCancel struct {
+	SenderPK  crypto.PublicKey `json:"senderPublicKey"`
+	LeaseID   crypto.Digest    `json:"leaseId"`
+	Fee       uint64           `json:"fee"`
+	Timestamp uint64           `json:"timestamp,omitempty"`
+}
+
+//NewUnsignedLeaseCancelV1 creates new LeaseCancelV1 transaction structure without a signature and an ID.
+func newLeaseCancel(senderPK crypto.PublicKey, leaseID crypto.Digest, fee, timestamp uint64) (*leaseCancel, error) {
+	if fee <= 0 {
+		return nil, errors.New("fee should be positive")
+	}
+	return &leaseCancel{SenderPK: senderPK, LeaseID: leaseID, Fee: fee, Timestamp: timestamp}, nil
+}
+
+func (lc *leaseCancel) marshalBinary() ([]byte, error) {
+	buf := make([]byte, leaseCancelLen)
+	p := 0
+	copy(buf[p:], lc.SenderPK[:])
+	p += crypto.PublicKeySize
+	binary.BigEndian.PutUint64(buf[p:], lc.Fee)
+	p += 8
+	binary.BigEndian.PutUint64(buf[p:], lc.Timestamp)
+	p += 8
+	copy(buf[p:], lc.LeaseID[:])
+	return buf, nil
+}
+
+func (lc *leaseCancel) unmarshalBinary(data []byte) error {
+	if l := len(data); l < leaseCancelLen {
+		return errors.Errorf("not enough data for leaseCancel, expected not less then %d, received %d", leaseCancelLen, l)
+	}
+	copy(lc.SenderPK[:], data[:crypto.PublicKeySize])
+	data = data[crypto.PublicKeySize:]
+	lc.Fee = binary.BigEndian.Uint64(data)
+	data = data[8:]
+	lc.Timestamp = binary.BigEndian.Uint64(data)
+	data = data[8:]
+	copy(lc.LeaseID[:], data[:crypto.DigestSize])
+	return nil
+}
+
 //LeaseCancelV1 transaction can be used to cancel previously created leasing.
 type LeaseCancelV1 struct {
 	Type      TransactionType   `json:"type"`
 	Version   byte              `json:"version,omitempty"`
 	ID        *crypto.Digest    `json:"id,omitempty"`
 	Signature *crypto.Signature `json:"signature,omitempty"`
-	SenderPK  crypto.PublicKey  `json:"senderPublicKey"`
-	LeaseID   crypto.Digest     `json:"leaseId"`
-	Fee       uint64            `json:"fee"`
-	Timestamp uint64            `json:"timestamp,omitempty"`
+	leaseCancel
 }
 
 func (LeaseCancelV1) Transaction() {}
 
 //NewUnsignedLeaseCancelV1 creates new LeaseCancelV1 transaction structure without a signature and an ID.
 func NewUnsignedLeaseCancelV1(senderPK crypto.PublicKey, leaseID crypto.Digest, fee, timestamp uint64) (*LeaseCancelV1, error) {
-	if fee <= 0 {
-		return nil, errors.New("fee should be positive")
+	lc, err := newLeaseCancel(senderPK, leaseID, fee, timestamp)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to create LeaseCancelV1 transaction")
 	}
-	return &LeaseCancelV1{Type: LeaseCancelTransaction, Version: 1, SenderPK: senderPK, LeaseID: leaseID, Fee: fee, Timestamp: timestamp}, nil
+	return &LeaseCancelV1{Type: LeaseCancelTransaction, Version: 1, leaseCancel: *lc}, nil
 }
 
 func (tx *LeaseCancelV1) bodyMarshalBinary() ([]byte, error) {
-	var p uint32
 	buf := make([]byte, leaseCancelV1BodyLen)
 	buf[0] = byte(tx.Type)
-	p++
-	copy(buf[p:], tx.SenderPK[:])
-	p += crypto.PublicKeySize
-	binary.BigEndian.PutUint64(buf[p:], tx.Fee)
-	p += 8
-	binary.BigEndian.PutUint64(buf[p:], tx.Timestamp)
-	p += 8
-	copy(buf[p:], tx.LeaseID[:])
+	b, err := tx.leaseCancel.marshalBinary()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to marshal LeaseCancelV1 to bytes")
+	}
+	copy(buf[1:], b)
 	return buf, nil
 }
 
 func (tx *LeaseCancelV1) bodyUnmarshalBinary(data []byte) error {
-	tx.Type = TransactionType(data[0])
-	tx.Version = 1
 	if l := len(data); l < leaseCancelV1BodyLen {
 		return errors.Errorf("not enough data for LeaseCancelV1 transaction, expected not less then %d, received %d", leaseCancelV1BodyLen, l)
 	}
+	tx.Type = TransactionType(data[0])
 	if tx.Type != LeaseCancelTransaction {
 		return errors.Errorf("unexpected transaction type %d for LeaseCancelV1 transaction", tx.Type)
+
 	}
-	data = data[1:]
-	copy(tx.SenderPK[:], data[:crypto.PublicKeySize])
-	data = data[crypto.PublicKeySize:]
-	tx.Fee = binary.BigEndian.Uint64(data)
-	data = data[8:]
-	tx.Timestamp = binary.BigEndian.Uint64(data)
-	data = data[8:]
-	copy(tx.LeaseID[:], data[:crypto.DigestSize])
+	tx.Version = 1
+	var lc leaseCancel
+	err := lc.unmarshalBinary(data[1:])
+	if err != nil {
+		return errors.Wrap(err, "failed to unmarshal LeaseCancelV1 from bytes")
+	}
+	tx.leaseCancel = lc
 	return nil
 }
 
@@ -2108,6 +2313,140 @@ func (tx *LeaseCancelV1) UnmarshalBinary(data []byte) error {
 		return errors.Wrap(err, "failed to unmarshal LeaseCancelV1 transaction from bytes")
 	}
 	tx.ID = &d
+	return nil
+}
+
+//LeaseCancelV2 same as LeaseCancelV1 but with proofs.
+type LeaseCancelV2 struct {
+	Type    TransactionType `json:"type"`
+	Version byte            `json:"version,omitempty"`
+	ChainID byte            `json:"-"`
+	ID      *crypto.Digest  `json:"id,omitempty"`
+	Proofs  *ProofsV1       `json:"proofs,omitempty"`
+	leaseCancel
+}
+
+func (LeaseCancelV2) Transaction() {}
+
+//NewUnsignedLeaseCancelV2 creates new LeaseCancelV2 transaction structure without a signature and an ID.
+func NewUnsignedLeaseCancelV2(chainID byte, senderPK crypto.PublicKey, leaseID crypto.Digest, fee, timestamp uint64) (*LeaseCancelV2, error) {
+	lc, err := newLeaseCancel(senderPK, leaseID, fee, timestamp)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to create LeaseCancelV2 transaction")
+	}
+	return &LeaseCancelV2{Type: LeaseCancelTransaction, Version: 2, ChainID: chainID, leaseCancel: *lc}, nil
+}
+
+func (tx *LeaseCancelV2) bodyMarshalBinary() ([]byte, error) {
+	buf := make([]byte, leaseCancelV2BodyLen)
+	buf[0] = byte(tx.Type)
+	buf[1] = tx.Version
+	buf[2] = tx.ChainID
+	b, err := tx.leaseCancel.marshalBinary()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to marshal LeaseCancelV2 to bytes")
+	}
+	copy(buf[3:], b)
+	return buf, nil
+}
+
+func (tx *LeaseCancelV2) bodyUnmarshalBinary(data []byte) error {
+	if l := len(data); l < leaseCancelV2BodyLen {
+		return errors.Errorf("not enough data for LeaseCancelV2 transaction, expected not less then %d, received %d", leaseCancelV2BodyLen, l)
+	}
+	tx.Type = TransactionType(data[0])
+	if tx.Type != LeaseCancelTransaction {
+		return errors.Errorf("unexpected transaction type %d for LeaseCancelV2 transaction", tx.Type)
+
+	}
+	tx.Version = data[1]
+	if tx.Version != 2 {
+		return errors.Errorf("unexpected version %d for LeaseCancelV2, expected 2", tx.Version)
+	}
+	tx.ChainID = data[2]
+	var lc leaseCancel
+	err := lc.unmarshalBinary(data[3:])
+	if err != nil {
+		return errors.Wrap(err, "failed to unmarshal LeaseCancelV2 from bytes")
+	}
+	tx.leaseCancel = lc
+	return nil
+}
+
+//Sign adds signature as a proof at first position.
+func (tx *LeaseCancelV2) Sign(secretKey crypto.SecretKey) error {
+	b, err := tx.bodyMarshalBinary()
+	if err != nil {
+		return errors.Wrap(err, "failed to sign LeaseCancelV2 transaction")
+	}
+	if tx.Proofs == nil {
+		tx.Proofs = &ProofsV1{proofsVersion, make([]B58Bytes, 0)}
+	}
+	err = tx.Proofs.Sign(0, secretKey, b)
+	if err != nil {
+		return errors.Wrap(err, "failed to sign LeaseCancelV2 transaction")
+	}
+	d, err := crypto.FastHash(b)
+	tx.ID = &d
+	if err != nil {
+		return errors.Wrap(err, "failed to sign LeaseCancelV2 transaction")
+	}
+	return nil
+}
+
+//Verify checks that first proof is a valid signature.
+func (tx *LeaseCancelV2) Verify(publicKey crypto.PublicKey) (bool, error) {
+	b, err := tx.bodyMarshalBinary()
+	if err != nil {
+		return false, errors.Wrap(err, "failed to verify signature of LeaseCancelV2 transaction")
+	}
+	return tx.Proofs.Verify(0, publicKey, b)
+}
+
+//MarshalBinary saves the transaction to its binary representation.
+func (tx *LeaseCancelV2) MarshalBinary() ([]byte, error) {
+	bb, err := tx.bodyMarshalBinary()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to marshal LeaseCancelV2 transaction to bytes")
+	}
+	bl := len(bb)
+	pb, err := tx.Proofs.MarshalBinary()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to marshal LeaseCancelV2 transaction to bytes")
+	}
+	buf := make([]byte, 1+bl+len(pb))
+	buf[0] = 0
+	copy(buf[1:], bb)
+	copy(buf[1+bl:], pb)
+	return buf, nil
+}
+
+//UnmarshalBinary reads the transaction from bytes slice.
+func (tx *LeaseCancelV2) UnmarshalBinary(data []byte) error {
+	if l := len(data); l < leaseCancelV2MinLen {
+		return errors.Errorf("not enough data for LeaseCancelV2 transaction, expected not less then %d, received %d", leaseCancelV2MinLen, l)
+	}
+	if v := data[0]; v != 0 {
+		return errors.Errorf("unexpected first byte value %d, expected 0", v)
+	}
+	data = data[1:]
+	err := tx.bodyUnmarshalBinary(data)
+	if err != nil {
+		return errors.Wrap(err, "failed to unmarshal LeaseCancelV2 transaction from bytes")
+	}
+	bb := data[:leaseCancelV2BodyLen]
+	data = data[leaseCancelV2BodyLen:]
+	var p ProofsV1
+	err = p.UnmarshalBinary(data)
+	if err != nil {
+		return errors.Wrap(err, "failed to unmarshal LeaseCancelV2 transaction from bytes")
+	}
+	tx.Proofs = &p
+	id, err := crypto.FastHash(bb)
+	if err != nil {
+		return errors.Wrap(err, "failed to unmarshal LeaseCancelV2 transaction from bytes")
+	}
+	tx.ID = &id
 	return nil
 }
 
