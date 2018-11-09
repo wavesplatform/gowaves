@@ -15,6 +15,7 @@ type Assets struct {
 	options Options
 }
 
+// NewAssets creates new Assets
 func NewAssets(options Options) *Assets {
 	return &Assets{
 		options: options,
@@ -114,6 +115,7 @@ func (a *Assets) Details(ctx context.Context, assetId crypto.Digest) (*AssetsDet
 
 type AssetsDistribution map[string]uint64
 
+// Asset balance distribution by account
 func (a *Assets) Distribution(ctx context.Context, assetId crypto.Digest) (AssetsDistribution, *Response, error) {
 	req, err := http.NewRequest(
 		"GET",
@@ -248,6 +250,7 @@ type AssetsSponsorReq struct {
 	Version              uint8         `json:"version"`
 }
 
+// Sponsor provided asset
 func (a *Assets) Sponsor(ctx context.Context, sponsorReq AssetsSponsorReq) (*proto.SponsorshipV1, *Response, error) {
 	if a.options.ApiKey == "" {
 		return nil, nil, NoApiKeyError
@@ -290,7 +293,7 @@ type AssetsTransferReq struct {
 }
 
 // Transfer asset to new address
-func (a *Assets) Transfer(ctx context.Context, transferReq AssetsTransferReq) (*proto.TransferV1, *Response, error) {
+func (a *Assets) Transfer(ctx context.Context, transferReq AssetsTransferReq) (*proto.TransferV2, *Response, error) {
 	if a.options.ApiKey == "" {
 		return nil, nil, NoApiKeyError
 	}
@@ -302,7 +305,7 @@ func (a *Assets) Transfer(ctx context.Context, transferReq AssetsTransferReq) (*
 
 	req, err := http.NewRequest(
 		"POST",
-		fmt.Sprintf("%s/assets/sponsor", a.options.BaseUrl),
+		fmt.Sprintf("%s/assets/transfer", a.options.BaseUrl),
 		bytes.NewReader(bts))
 	if err != nil {
 		return nil, nil, err
@@ -310,7 +313,45 @@ func (a *Assets) Transfer(ctx context.Context, transferReq AssetsTransferReq) (*
 
 	req.Header.Set("X-API-Key", a.options.ApiKey)
 
-	out := new(proto.TransferV1)
+	out := new(proto.TransferV2)
+	response, err := doHttp(ctx, a.options, req, out)
+	if err != nil {
+		return nil, response, err
+	}
+
+	return out, response, nil
+}
+
+type AssetsBurnReq struct {
+	Sender    proto.Address `json:"sender"`
+	AssetId   crypto.Digest `json:"assetId"`
+	Quantity  uint64        `json:"quantity"`
+	Fee       uint64        `json:"fee"`
+	Timestamp uint64        `json:"timestamp"`
+}
+
+// Burn some of your assets
+func (a *Assets) Burn(ctx context.Context, burnReq AssetsBurnReq) (*proto.BurnV1, *Response, error) {
+	if a.options.ApiKey == "" {
+		return nil, nil, NoApiKeyError
+	}
+
+	bts, err := json.Marshal(burnReq)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	req, err := http.NewRequest(
+		"POST",
+		fmt.Sprintf("%s/assets/burn", a.options.BaseUrl),
+		bytes.NewReader(bts))
+	if err != nil {
+		return nil, nil, err
+	}
+
+	req.Header.Set("X-API-Key", a.options.ApiKey)
+
+	out := new(proto.BurnV1)
 	response, err := doHttp(ctx, a.options, req, out)
 	if err != nil {
 		return nil, response, err

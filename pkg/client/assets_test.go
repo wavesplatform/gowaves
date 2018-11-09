@@ -66,10 +66,11 @@ func TestAssets_BalanceByAddress(t *testing.T) {
 	assert.Equal(t, "https://testnode1.wavesnodes.com/assets/balance/3NBVqYXrapgJP9atQccdBPAgJPwHDKkh6A8", resp.Request.URL.String())
 }
 
-var balanceByAddressAndAssetJson = `{
-"address": "3NBVqYXrapgJP9atQccdBPAgJPwHDKkh6A8",
-"assetId": "CMBHKDtyE8GMbZAZANNeE5n2HU4VDpsQaBLmfCw9ASbf",
-"balance": 1906756655
+var balanceByAddressAndAssetJson = `
+{
+	"address": "3NBVqYXrapgJP9atQccdBPAgJPwHDKkh6A8",
+	"assetId": "CMBHKDtyE8GMbZAZANNeE5n2HU4VDpsQaBLmfCw9ASbf",
+	"balance": 1906756655
 }`
 
 func TestAssets_BalanceByAddressAndAsset(t *testing.T) {
@@ -212,11 +213,10 @@ func TestAssets_MassTransfer(t *testing.T) {
 		client.Assets.MassTransfer(context.Background(), AssetsMassTransfersReq{})
 	require.NoError(t, err)
 	assert.NotNil(t, resp)
-	assert.EqualValues(t, 11, body.Type)
+	assert.EqualValues(t, proto.MassTransferTransaction, body.Type)
 	assert.EqualValues(t, 1, body.Version)
-	if proto.Attachment("t") != body.Attachment {
-		t.Fail()
-	}
+	att, _ := proto.NewAttachmentFromBase58("t")
+	assert.Equal(t, att, body.Attachment)
 	assert.Equal(t, "https://testnode1.wavesnodes.com/assets/masstransfer", resp.Request.URL.String())
 }
 
@@ -247,7 +247,7 @@ func TestAssets_Sponsor(t *testing.T) {
 		client.Assets.Sponsor(context.Background(), AssetsSponsorReq{})
 	require.NoError(t, err)
 	assert.NotNil(t, resp)
-	assert.EqualValues(t, 14, body.Type)
+	assert.EqualValues(t, proto.SponsorshipTransaction, body.Type)
 	assert.EqualValues(t, 1, body.Version)
 	assert.Equal(t, 1, len(body.Proofs.Proofs))
 	assert.Equal(t, "https://testnode1.wavesnodes.com/assets/sponsor", resp.Request.URL.String())
@@ -274,6 +274,7 @@ var assetsTransferJson = `
 }`
 
 func TestAssets_Transfer(t *testing.T) {
+	id, _ := crypto.NewDigestFromBase58("56X71ws8xgrBu3AF6YT2rQ3Mqvh1XZ9pTcLMsRJBvgoK")
 	client, err := NewClient(Options{
 		Client:  NewMockHttpRequestFromString(assetsTransferJson, 200),
 		BaseUrl: "https://testnode1.wavesnodes.com",
@@ -284,8 +285,42 @@ func TestAssets_Transfer(t *testing.T) {
 		client.Assets.Transfer(context.Background(), AssetsTransferReq{})
 	require.NoError(t, err)
 	assert.NotNil(t, resp)
-	assert.EqualValues(t, 14, body.Type)
+	assert.EqualValues(t, proto.TransferTransaction, body.Type)
+	assert.EqualValues(t, 2, body.Version)
+	assert.Equal(t, &id, body.ID)
+	assert.Equal(t, "https://testnode1.wavesnodes.com/assets/transfer", resp.Request.URL.String())
+}
+
+var assetsBurnJson = `
+{
+  "type": 6,
+  "id": "C36WStdMDe4EYABXc2LruPCr7MEPketGJvmaiwMvM56G",
+  "sender": "3NBVqYXrapgJP9atQccdBPAgJPwHDKkh6A8",
+  "senderPublicKey": "CRxqEuxhdZBEHX42MU4FfyJxuHmbDBTaHMhM3Uki7pLw",
+  "fee": 100000,
+  "timestamp": 1541767435814,
+  "signature": "4uY38B47h38HX62YaKLWapUK7ehueHA4iB5HxSsuiuyNvDk32zRwh7ysfpZ5YRgdyrFq5i2EEWB6ppZ3ptAJVCfE",
+  "proofs": [
+    "4uY38B47h38HX62YaKLWapUK7ehueHA4iB5HxSsuiuyNvDk32zRwh7ysfpZ5YRgdyrFq5i2EEWB6ppZ3ptAJVCfE"
+  ],
+  "chainId": null,
+  "version": 1,
+  "assetId": "CMBHKDtyE8GMbZAZANNeE5n2HU4VDpsQaBLmfCw9ASbf",
+  "amount": 1
+}`
+
+func TestAssets_Burn(t *testing.T) {
+	client, err := NewClient(Options{
+		Client:  NewMockHttpRequestFromString(assetsBurnJson, 200),
+		BaseUrl: "https://testnode1.wavesnodes.com",
+		ApiKey:  "apiKey",
+	})
+	require.Nil(t, err)
+	body, resp, err :=
+		client.Assets.Burn(context.Background(), AssetsBurnReq{})
+	require.NoError(t, err)
+	assert.NotNil(t, resp)
+	assert.EqualValues(t, proto.BurnTransaction, body.Type)
 	assert.EqualValues(t, 1, body.Version)
-	//assert.Equal(t, 1, len(body.Proofs.Proofs))
-	assert.Equal(t, "https://testnode1.wavesnodes.com/assets/sponsor", resp.Request.URL.String())
+	assert.Equal(t, "https://testnode1.wavesnodes.com/assets/burn", resp.Request.URL.String())
 }
