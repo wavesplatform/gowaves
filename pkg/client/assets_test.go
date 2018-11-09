@@ -47,7 +47,7 @@ var assetsBalanceJson = `
 }
 `
 
-func TestAssets_Balance(t *testing.T) {
+func TestAssets_BalanceByAddress(t *testing.T) {
 	d, _ := crypto.NewDigestFromBase58("CMBHKDtyE8GMbZAZANNeE5n2HU4VDpsQaBLmfCw9ASbf")
 	address, _ := proto.NewAddressFromString("3NBVqYXrapgJP9atQccdBPAgJPwHDKkh6A8")
 	client, err := NewClient(Options{
@@ -138,4 +138,154 @@ func TestAssets_Distribution(t *testing.T) {
 	assert.NotNil(t, resp)
 	assert.EqualValues(t, map[string]uint64{address: 1906756655}, body)
 	assert.Equal(t, "https://testnode1.wavesnodes.com/assets/CMBHKDtyE8GMbZAZANNeE5n2HU4VDpsQaBLmfCw9ASbf/distribution", resp.Request.URL.String())
+}
+
+var assetsIssueJson = `
+{
+  "sender": "3NBVqYXrapgJP9atQccdBPAgJPwHDKkh6A8",
+  "name": "00kk",
+  "description": "string",
+  "quantity": 100,
+  "decimals": 8,
+  "reissuable": false,
+  "fee": 100000000,
+  "timestamp": 1541669009107
+}`
+
+func TestAssets_Issue(t *testing.T) {
+	address, _ := proto.NewAddressFromString("3NBVqYXrapgJP9atQccdBPAgJPwHDKkh6A8")
+	client, err := NewClient(Options{
+		Client:  NewMockHttpRequestFromString(assetsIssueJson, 200),
+		BaseUrl: "https://testnode1.wavesnodes.com",
+		ApiKey:  "apiKey",
+	})
+	require.Nil(t, err)
+	body, resp, err :=
+		client.Assets.Issue(context.Background(), AssetsIssueReq{})
+	require.NoError(t, err)
+	assert.NotNil(t, resp)
+	assert.Equal(t, &AssetsIssue{
+		Sender:      address,
+		Name:        "00kk",
+		Description: "string",
+		Quantity:    100,
+		Decimals:    8,
+		Reissuable:  false,
+		Fee:         100000000,
+		Timestamp:   1541669009107,
+	}, body)
+	assert.Equal(t, "https://testnode1.wavesnodes.com/assets/issue", resp.Request.URL.String())
+}
+
+var assetsMassTransferJson = `
+{
+  "type": 11,
+  "id": "HaNfTNE6FHRZrpTFKkfYLfzq6jT3bD3KiAv6g7KMzKVn",
+  "sender": "3NBVqYXrapgJP9atQccdBPAgJPwHDKkh6A8",
+  "senderPublicKey": "CRxqEuxhdZBEHX42MU4FfyJxuHmbDBTaHMhM3Uki7pLw",
+  "fee": 200000,
+  "timestamp": 1541684282576,
+  "proofs": [
+    "5bEXskGGGoPg5wG8QREg8Vjop6pgm2mihZKgoos83cAC55z6JyRRbmwhRCEuFtdgBcQU6d7sEN1CEAPBTF5gUpFU"
+  ],
+  "version": 1,
+  "assetId": "CMBHKDtyE8GMbZAZANNeE5n2HU4VDpsQaBLmfCw9ASbf",
+  "attachment": "t",
+  "transferCount": 1,
+  "totalAmount": 100,
+  "transfers": [
+    {
+      "recipient": "3N5yE73RZkcdBC9jL1An3FJWGfMahqQyaQN",
+      "amount": 100
+    }
+  ]
+}`
+
+func TestAssets_MassTransfer(t *testing.T) {
+	client, err := NewClient(Options{
+		Client:  NewMockHttpRequestFromString(assetsMassTransferJson, 200),
+		BaseUrl: "https://testnode1.wavesnodes.com",
+		ApiKey:  "apiKey",
+	})
+	require.Nil(t, err)
+	body, resp, err :=
+		client.Assets.MassTransfer(context.Background(), AssetsMassTransfersReq{})
+	require.NoError(t, err)
+	assert.NotNil(t, resp)
+	assert.EqualValues(t, 11, body.Type)
+	assert.EqualValues(t, 1, body.Version)
+	if proto.Attachment("t") != body.Attachment {
+		t.Fail()
+	}
+	assert.Equal(t, "https://testnode1.wavesnodes.com/assets/masstransfer", resp.Request.URL.String())
+}
+
+var assetsSponsorJson = `
+{
+  "type": 14,
+  "id": "6EjgYrLhWyLtotiYZANA3BRuZHMpszb74Gp3BnXJLjcZ",
+  "sender": "3NBVqYXrapgJP9atQccdBPAgJPwHDKkh6A8",
+  "senderPublicKey": "CRxqEuxhdZBEHX42MU4FfyJxuHmbDBTaHMhM3Uki7pLw",
+  "fee": 100000000,
+  "timestamp": 1541691379136,
+  "proofs": [
+    "g6dcYFR6dVHNwCiKptxW3PWVFzA2GaYMGX8vtWEFXeYkEpSVq9aU1tQzoqtsj4rbbGqcW8Tt1eQxSVExLTsZ3Cg"
+  ],
+  "version": 1,
+  "assetId": "CMBHKDtyE8GMbZAZANNeE5n2HU4VDpsQaBLmfCw9ASbf",
+  "minSponsoredAssetFee": 1
+}`
+
+func TestAssets_Sponsor(t *testing.T) {
+	client, err := NewClient(Options{
+		Client:  NewMockHttpRequestFromString(assetsSponsorJson, 200),
+		BaseUrl: "https://testnode1.wavesnodes.com",
+		ApiKey:  "apiKey",
+	})
+	require.Nil(t, err)
+	body, resp, err :=
+		client.Assets.Sponsor(context.Background(), AssetsSponsorReq{})
+	require.NoError(t, err)
+	assert.NotNil(t, resp)
+	assert.EqualValues(t, 14, body.Type)
+	assert.EqualValues(t, 1, body.Version)
+	assert.Equal(t, 1, len(body.Proofs.Proofs))
+	assert.Equal(t, "https://testnode1.wavesnodes.com/assets/sponsor", resp.Request.URL.String())
+}
+
+var assetsTransferJson = `
+{
+  "type": 4,
+  "id": "56X71ws8xgrBu3AF6YT2rQ3Mqvh1XZ9pTcLMsRJBvgoK",
+  "sender": "3NBVqYXrapgJP9atQccdBPAgJPwHDKkh6A8",
+  "senderPublicKey": "CRxqEuxhdZBEHX42MU4FfyJxuHmbDBTaHMhM3Uki7pLw",
+  "fee": 1,
+  "timestamp": 1541685898570,
+  "proofs": [
+    "RxQrXF9kQx2zMTyqf2GxJY2UcKWfnxr65TDzPKCzv2qPtYciV1ZZ93313X7FfrFRLqfREsdR6gtLnuLeZR2bRZ2"
+  ],
+  "version": 2,
+  "recipient": "3N5yE73RZkcdBC9jL1An3FJWGfMahqQyaQN",
+  "assetId": "CMBHKDtyE8GMbZAZANNeE5n2HU4VDpsQaBLmfCw9ASbf",
+  "feeAssetId": "CMBHKDtyE8GMbZAZANNeE5n2HU4VDpsQaBLmfCw9ASbf",
+  "feeAsset": "CMBHKDtyE8GMbZAZANNeE5n2HU4VDpsQaBLmfCw9ASbf",
+  "amount": 1,
+  "attachment": "T"
+}`
+
+func TestAssets_Transfer(t *testing.T) {
+	client, err := NewClient(Options{
+		Client:  NewMockHttpRequestFromString(assetsTransferJson, 200),
+		BaseUrl: "https://testnode1.wavesnodes.com",
+		ApiKey:  "apiKey",
+	})
+	require.Nil(t, err)
+	body, resp, err :=
+		client.Assets.Transfer(context.Background(), AssetsTransferReq{})
+	require.NoError(t, err)
+	assert.NotNil(t, resp)
+	assert.EqualValues(t, 14, body.Type)
+	assert.EqualValues(t, 1, body.Version)
+	//assert.Equal(t, 1, len(body.Proofs.Proofs))
+	assert.Equal(t, "https://testnode1.wavesnodes.com/assets/sponsor", resp.Request.URL.String())
 }
