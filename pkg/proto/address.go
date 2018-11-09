@@ -12,10 +12,11 @@ import (
 )
 
 const (
-	headerSize   = 2
-	bodySize     = 20
-	checksumSize = 4
-	AddressSize  = headerSize + bodySize + checksumSize
+	headerSize     = 2
+	bodySize       = 20
+	checksumSize   = 4
+	AddressSize    = headerSize + bodySize + checksumSize
+	aliasFixedSize = 4
 
 	addressVersion byte = 0x01
 
@@ -164,7 +165,7 @@ func (a *Alias) UnmarshalJSON(value []byte) error {
 
 func (a *Alias) MarshalBinary() ([]byte, error) {
 	al := len(a.Alias)
-	buf := make([]byte, 4+al)
+	buf := make([]byte, aliasFixedSize+al)
 	buf[0] = a.Version
 	buf[1] = a.Scheme
 	PutStringWithUInt16Len(buf[2:], a.Alias)
@@ -173,19 +174,23 @@ func (a *Alias) MarshalBinary() ([]byte, error) {
 
 func (a *Alias) UnmarshalBinary(data []byte) error {
 	dl := len(data)
-	if dl < 2+aliasMinLength || dl > 2+aliasMaxLength {
-		return errors.Errorf("incorrect alias length %d, should be between %d and %d", dl, 2+aliasMinLength, 2+aliasMaxLength)
+	if dl < aliasFixedSize+aliasMinLength {
+		return errors.Errorf("incorrect alias length %d, should be at least %d bytes", dl, aliasFixedSize+aliasMinLength)
 	}
 	if data[0] != aliasVersion {
 		return errors.Errorf("unsupported alias version %d, expected %d", data[0], aliasVersion)
 	}
 	a.Version = data[0]
 	a.Scheme = data[1]
-	esl := int(binary.BigEndian.Uint16(data[2:4]))
-	if sl := len(data[4:]); sl != esl {
-		return errors.Errorf("incorrect alias length: encoded length %d, actual %d", esl, sl)
+	al := int(binary.BigEndian.Uint16(data[2:4]))
+	data = data[4:]
+	if al > aliasMaxLength {
+		return errors.Errorf("alias too long, received length %d is bigger then maximum allowed %d", al, aliasMaxLength)
 	}
-	s := string(data[4:])
+	if l := len(data); l < al {
+		return errors.Errorf("incorrect alias length: encoded length %d, actual %d", al, l)
+	}
+	s := string(data[:al])
 	if !correctAlphabet(&s) {
 		return errors.Errorf("unsupported symbols in alias '%s', supported symbols '%s", a.Alias, aliasAlphabet)
 	}

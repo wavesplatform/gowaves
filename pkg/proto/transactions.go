@@ -69,7 +69,8 @@ const (
 	leaseCancelV1MinLen       = leaseCancelV1BodyLen + crypto.SignatureSize
 	leaseCancelV2BodyLen      = 1 + 1 + 1 + leaseCancelLen
 	leaseCancelV2MinLen       = 1 + leaseCancelV2BodyLen + proofsMinLen
-	createAliasV1FixedBodyLen = 1 + crypto.PublicKeySize + 2 + 8 + 8
+	createAliasLen            = crypto.PublicKeySize + 2 + 8 + 8 + aliasFixedSize
+	createAliasV1FixedBodyLen = 1 + createAliasLen
 	createAliasV1MinLen       = createAliasV1FixedBodyLen + crypto.SignatureSize
 	massTransferEntryLen      = AddressSize + 8
 	massTransferV1FixedLen    = 1 + 1 + crypto.PublicKeySize + 1 + 2 + 8 + 8 + 2
@@ -2450,70 +2451,103 @@ func (tx *LeaseCancelV2) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
+type createAlias struct {
+	SenderPK  crypto.PublicKey `json:"senderPublicKey"`
+	Alias     Alias            `json:"alias"`
+	Fee       uint64           `json:"fee"`
+	Timestamp uint64           `json:"timestamp,omitempty"`
+}
+
+func newCreateAlias(senderPK crypto.PublicKey, alias Alias, fee, timestamp uint64) (*createAlias, error) {
+	if fee <= 0 {
+		return nil, errors.New("fee should be positive")
+	}
+	return &createAlias{SenderPK: senderPK, Alias: alias, Fee: fee, Timestamp: timestamp}, nil
+}
+
+func (ca *createAlias) marshalBinary() ([]byte, error) {
+	p := 0
+	buf := make([]byte, createAliasLen+len(ca.Alias.Alias))
+	copy(buf[p:], ca.SenderPK[:])
+	p += crypto.PublicKeySize
+	ab, err := ca.Alias.MarshalBinary()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to marshal createAlias to bytes")
+	}
+	al := len(ab)
+	binary.BigEndian.PutUint16(buf[p:], uint16(al))
+	p += 2
+	copy(buf[p:], ab)
+	p += al
+	binary.BigEndian.PutUint64(buf[p:], ca.Fee)
+	p += 8
+	binary.BigEndian.PutUint64(buf[p:], ca.Timestamp)
+	return buf, nil
+}
+
+func (ca *createAlias) unmarshalBinary(data []byte) error {
+	if l := len(data); l < createAliasLen {
+		return errors.Errorf("not enough data for createAlias, expected not less then %d, received %d", createAliasLen, l)
+	}
+	copy(ca.SenderPK[:], data[:crypto.PublicKeySize])
+	data = data[crypto.PublicKeySize:]
+	al := binary.BigEndian.Uint16(data)
+	data = data[2:]
+	err := ca.Alias.UnmarshalBinary(data[:al])
+	if err != nil {
+		return errors.Wrap(err, "failed to unmarshal createAlias from bytes")
+	}
+	data = data[al:]
+	ca.Fee = binary.BigEndian.Uint64(data)
+	data = data[8:]
+	ca.Timestamp = binary.BigEndian.Uint64(data)
+	return nil
+}
+
 type CreateAliasV1 struct {
 	Type      TransactionType   `json:"type"`
 	Version   byte              `json:"version,omitempty"`
 	ID        *crypto.Digest    `json:"id,omitempty"`
 	Signature *crypto.Signature `json:"signature,omitempty"`
-	SenderPK  crypto.PublicKey  `json:"senderPublicKey"`
-	Alias     Alias             `json:"alias"`
-	Fee       uint64            `json:"fee"`
-	Timestamp uint64            `json:"timestamp,omitempty"`
+	createAlias
 }
 
 func (CreateAliasV1) Transaction() {}
 
 func NewUnsignedCreateAliasV1(senderPK crypto.PublicKey, alias Alias, fee, timestamp uint64) (*CreateAliasV1, error) {
-	if fee <= 0 {
-		return nil, errors.New("fee should be positive")
+	ca, err := newCreateAlias(senderPK, alias, fee, timestamp)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to create CreateAliasV1 transaction")
 	}
-	return &CreateAliasV1{Type: CreateAliasTransaction, Version: 1, SenderPK: senderPK, Alias: alias, Fee: fee, Timestamp: timestamp}, nil
+	return &CreateAliasV1{Type: CreateAliasTransaction, Version: 1, createAlias: *ca}, nil
 }
 
 func (tx *CreateAliasV1) bodyMarshalBinary() ([]byte, error) {
-	var p uint32
-	buf := make([]byte, createAliasV1FixedBodyLen+len(tx.Alias.Alias)+4)
+	buf := make([]byte, createAliasV1FixedBodyLen+len(tx.Alias.Alias))
 	buf[0] = byte(tx.Type)
-	p++
-	copy(buf[p:], tx.SenderPK[:])
-	p += crypto.PublicKeySize
-	ab, err := tx.Alias.MarshalBinary()
+	b, err := tx.createAlias.marshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal CreateAliasV1 transaction body to bytes")
 	}
-	al := uint16(len(ab))
-	binary.BigEndian.PutUint16(buf[p:], al)
-	p += 2
-	copy(buf[p:], ab)
-	p += uint32(al)
-	binary.BigEndian.PutUint64(buf[p:], tx.Fee)
-	p += 8
-	binary.BigEndian.PutUint64(buf[p:], tx.Timestamp)
+	copy(buf[1:], b)
 	return buf, nil
 }
 
 func (tx *CreateAliasV1) bodyUnmarshalBinary(data []byte) error {
-	tx.Type = TransactionType(data[0])
-	tx.Version = 1
 	if l := len(data); l < createAliasV1FixedBodyLen {
-		return errors.Errorf("not enough data for CreateAliasV1 transaction, expected not less then %d, received %d", leaseCancelV1BodyLen, l)
+		return errors.Errorf("not enough data for CreateAliasV1 transaction, expected not less then %d, received %d", createAliasV1FixedBodyLen, l)
 	}
+	tx.Type = TransactionType(data[0])
 	if tx.Type != CreateAliasTransaction {
 		return errors.Errorf("unexpected transaction type %d for CreateAliasV1 transaction", tx.Type)
 	}
-	data = data[1:]
-	copy(tx.SenderPK[:], data[:crypto.PublicKeySize])
-	data = data[crypto.PublicKeySize:]
-	al := binary.BigEndian.Uint16(data)
-	data = data[2:]
-	err := tx.Alias.UnmarshalBinary(data[:al])
+	tx.Version = 1
+	var ca createAlias
+	err := ca.unmarshalBinary(data[1:])
 	if err != nil {
-		return errors.Wrap(err, "failed to unmarshal CreateAliasV1 transaction body from bytes")
+		return errors.Wrap(err, "failed to unmarshal CreateAliasV1 transaction from bytes")
 	}
-	data = data[al:]
-	tx.Fee = binary.BigEndian.Uint64(data)
-	data = data[8:]
-	tx.Timestamp = binary.BigEndian.Uint64(data)
+	tx.createAlias = ca
 	return nil
 }
 
@@ -2565,7 +2599,7 @@ func (tx *CreateAliasV1) UnmarshalBinary(data []byte) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to unmarshal CreateAliasV1 transaction from bytes")
 	}
-	bl := createAliasV1FixedBodyLen + 4 + len(tx.Alias.Alias)
+	bl := createAliasV1FixedBodyLen + len(tx.Alias.Alias)
 	data = data[bl:]
 	var s crypto.Signature
 	copy(s[:], data[:crypto.SignatureSize])

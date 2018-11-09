@@ -2009,7 +2009,7 @@ func TestCreateAliasV1Validations(t *testing.T) {
 		fee   uint64
 		err   string
 	}{
-		{"something", 0, "fee should be positive"},
+		{"something", 0, "failed to create CreateAliasV1 transaction: fee should be positive"},
 	}
 	for _, tc := range tests {
 		spk, _ := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
