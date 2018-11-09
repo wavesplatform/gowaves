@@ -57,7 +57,7 @@ const (
 	burnV1MinLen              = 1 + crypto.SignatureSize + burnV1BodyLen
 	burnV2BodyLen             = 1 + 1 + 1 + burnLen
 	burnV2MinLen              = 1 + burnV2BodyLen + proofsMinLen
-	exchangeV1FixedBodyLen    = 1 + 4 + 4 + orderMinLen + orderMinLen + 8 + 8 + 8 + 8 + 8 + 8
+	exchangeV1FixedBodyLen    = 1 + 4 + 4 + orderV1MinLen + orderV1MinLen + 8 + 8 + 8 + 8 + 8 + 8
 	exchangeV1MinLen          = exchangeV1FixedBodyLen + crypto.SignatureSize
 	leaseLen                  = crypto.PublicKeySize + AddressSize + 8 + 8 + 8
 	leaseV1BodyLen            = 1 + leaseLen
@@ -1716,7 +1716,7 @@ func (tx *ExchangeV1) bodyMarshalBinary() ([]byte, error) {
 	}
 	sol := uint32(len(sob))
 	var p uint32
-	buf := make([]byte, exchangeV1FixedBodyLen-orderMinLen*2+bol+sol)
+	buf := make([]byte, exchangeV1FixedBodyLen-orderV1MinLen*2+bol+sol)
 	buf[0] = byte(tx.Type)
 	p++
 	binary.BigEndian.PutUint32(buf[p:], bol)

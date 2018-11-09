@@ -82,9 +82,9 @@ func TestOrderValidations(t *testing.T) {
 		fee    uint64
 		err    string
 	}{
-		{0, 20, 30, "price should be positive"},
-		{10, 0, 30, "amount should be positive"},
-		{10, 20, 0, "matcher's fee should be positive"},
+		{0, 20, 30, "failed to create OrderV1: price should be positive"},
+		{10, 0, 30, "failed to create OrderV1: amount should be positive"},
+		{10, 20, 0, "failed to create OrderV1: matcher's fee should be positive"},
 	}
 	spk, _ := crypto.NewPublicKeyFromBase58("6s3F3S1ZmdJ2B25EqHWgNUSfeHtMaRZJ4RGEB5hgS7QM")
 	mpk, _ := crypto.NewPublicKeyFromBase58("7kPFrHDiGw1rCm7LPszuECwWYL3dMf6iMifLRDJQZMzy")
