@@ -72,6 +72,8 @@ const (
 	createAliasLen            = crypto.PublicKeySize + 2 + 8 + 8 + aliasFixedSize
 	createAliasV1FixedBodyLen = 1 + createAliasLen
 	createAliasV1MinLen       = createAliasV1FixedBodyLen + crypto.SignatureSize
+	createAliasV2FixedBodyLen = 1 + 1 + createAliasLen
+	createAliasV2MinLen       = 1 + createAliasV2FixedBodyLen + proofsMinLen
 	massTransferEntryLen      = AddressSize + 8
 	massTransferV1FixedLen    = 1 + 1 + crypto.PublicKeySize + 1 + 2 + 8 + 8 + 2
 	massTransferV1MinLen      = massTransferV1FixedLen + proofsMinLen
@@ -2504,6 +2506,22 @@ func (ca *createAlias) unmarshalBinary(data []byte) error {
 	return nil
 }
 
+func (ca *createAlias) id() (*crypto.Digest, error) {
+	ab, err := ca.Alias.MarshalBinary()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get CreateAlias transaction ID")
+	}
+	al := len(ab)
+	buf := make([]byte, 1+al)
+	buf[0] = byte(CreateAliasTransaction)
+	copy(buf[1:], ab)
+	d, err := crypto.FastHash(buf)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get CreateAlias transaction ID")
+	}
+	return &d, err
+}
+
 type CreateAliasV1 struct {
 	Type      TransactionType   `json:"type"`
 	Version   byte              `json:"version,omitempty"`
@@ -2558,9 +2576,9 @@ func (tx *CreateAliasV1) Sign(secretKey crypto.SecretKey) error {
 	}
 	s := crypto.Sign(secretKey, b)
 	tx.Signature = &s
-	tx.ID, err = tx.id()
+	tx.ID, err = tx.createAlias.id()
 	if err != nil {
-		return err
+		return errors.Wrap(err, "failed to sign CreateAliasV1 transaction")
 	}
 	return nil
 }
@@ -2604,28 +2622,136 @@ func (tx *CreateAliasV1) UnmarshalBinary(data []byte) error {
 	var s crypto.Signature
 	copy(s[:], data[:crypto.SignatureSize])
 	tx.Signature = &s
-	id, err := tx.id()
+	tx.ID, err = tx.createAlias.id()
 	if err != nil {
 		return errors.Wrap(err, "failed to unmarshal CreateAliasV1 transaction from bytes")
 	}
-	tx.ID = id
 	return nil
 }
 
-func (tx *CreateAliasV1) id() (*crypto.Digest, error) {
-	ab, err := tx.Alias.MarshalBinary()
+type CreateAliasV2 struct {
+	Type    TransactionType `json:"type"`
+	Version byte            `json:"version,omitempty"`
+	ID      *crypto.Digest  `json:"id,omitempty"`
+	Proofs  *ProofsV1       `json:"proofs,omitempty"`
+	createAlias
+}
+
+func (CreateAliasV2) Transaction() {}
+
+func NewUnsignedCreateAliasV2(senderPK crypto.PublicKey, alias Alias, fee, timestamp uint64) (*CreateAliasV2, error) {
+	ca, err := newCreateAlias(senderPK, alias, fee, timestamp)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to get CreateAliasV1 transaction ID")
+		return nil, errors.Wrap(err, "failed to create CreateAliasV1 transaction")
 	}
-	al := len(ab)
-	buf := make([]byte, 1+al)
+	return &CreateAliasV2{Type: CreateAliasTransaction, Version: 2, createAlias: *ca}, nil
+}
+
+func (tx *CreateAliasV2) bodyMarshalBinary() ([]byte, error) {
+	buf := make([]byte, createAliasV2FixedBodyLen+len(tx.Alias.Alias))
 	buf[0] = byte(tx.Type)
-	copy(buf[1:], ab)
-	d, err := crypto.FastHash(buf)
+	buf[1] = tx.Version
+	b, err := tx.createAlias.marshalBinary()
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to get CreateAliasV1 transaction ID")
+		return nil, errors.Wrap(err, "failed to marshal CreateAliasV2 transaction body to bytes")
 	}
-	return &d, err
+	copy(buf[2:], b)
+	return buf, nil
+}
+
+func (tx *CreateAliasV2) bodyUnmarshalBinary(data []byte) error {
+	if l := len(data); l < createAliasV2FixedBodyLen {
+		return errors.Errorf("not enough data for CreateAliasV2 transaction, expected not less then %d, received %d", createAliasV2FixedBodyLen, l)
+	}
+	tx.Type = TransactionType(data[0])
+	if tx.Type != CreateAliasTransaction {
+		return errors.Errorf("unexpected transaction type %d for CreateAliasV2 transaction", tx.Type)
+	}
+	tx.Version = data[1]
+	if tx.Version != 2 {
+		return errors.Errorf("unexpected version %d for CreateAliasV2 transaction", tx.Version)
+	}
+	var ca createAlias
+	err := ca.unmarshalBinary(data[2:])
+	if err != nil {
+		return errors.Wrap(err, "failed to unmarshal CreateAliasV2 transaction from bytes")
+	}
+	tx.createAlias = ca
+	return nil
+}
+
+//Sign adds signature as a proof at first position.
+func (tx *CreateAliasV2) Sign(secretKey crypto.SecretKey) error {
+	b, err := tx.bodyMarshalBinary()
+	if err != nil {
+		return errors.Wrap(err, "failed to sign CreateAliasV2 transaction")
+	}
+	if tx.Proofs == nil {
+		tx.Proofs = &ProofsV1{proofsVersion, make([]B58Bytes, 0)}
+	}
+	err = tx.Proofs.Sign(0, secretKey, b)
+	if err != nil {
+		return errors.Wrap(err, "failed to sign CreateAliasV2 transaction")
+	}
+	tx.ID, err = tx.createAlias.id()
+	if err != nil {
+		return errors.Wrap(err, "failed to sign CreateAliasV2 transaction")
+	}
+	return nil
+}
+
+//Verify checks that first proof is a valid signature.
+func (tx *CreateAliasV2) Verify(publicKey crypto.PublicKey) (bool, error) {
+	b, err := tx.bodyMarshalBinary()
+	if err != nil {
+		return false, errors.Wrap(err, "failed to verify signature of CreateAliasV2 transaction")
+	}
+	return tx.Proofs.Verify(0, publicKey, b)
+}
+
+//MarshalBinary saves the transaction to its binary representation.
+func (tx *CreateAliasV2) MarshalBinary() ([]byte, error) {
+	bb, err := tx.bodyMarshalBinary()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to marshal CreateAliasV2 transaction to bytes")
+	}
+	bl := len(bb)
+	pb, err := tx.Proofs.MarshalBinary()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to marshal CreateAliasV2 transaction to bytes")
+	}
+	buf := make([]byte, 1+bl+len(pb))
+	buf[0] = 0
+	copy(buf[1:], bb)
+	copy(buf[1+bl:], pb)
+	return buf, nil
+}
+
+//UnmarshalBinary reads the transaction from bytes slice.
+func (tx *CreateAliasV2) UnmarshalBinary(data []byte) error {
+	if l := len(data); l < createAliasV2MinLen {
+		return errors.Errorf("not enough data for CreateAliasV2 transaction, expected not less then %d, received %d", createAliasV2MinLen, l)
+	}
+	if v := data[0]; v != 0 {
+		return errors.Errorf("unexpected first byte value %d, expected 0", v)
+	}
+	data = data[1:]
+	err := tx.bodyUnmarshalBinary(data)
+	if err != nil {
+		return errors.Wrap(err, "failed to unmarshal CreateAliasV2 transaction from bytes")
+	}
+	data = data[createAliasV2FixedBodyLen+len(tx.Alias.Alias):]
+	var p ProofsV1
+	err = p.UnmarshalBinary(data)
+	if err != nil {
+		return errors.Wrap(err, "failed to unmarshal CreateAliasV2 transaction from bytes")
+	}
+	tx.Proofs = &p
+	tx.ID, err = tx.createAlias.id()
+	if err != nil {
+		return errors.Wrap(err, "failed to unmarshal CreateAliasV2 transaction from bytes")
+	}
+	return nil
 }
 
 type MassTransferEntry struct {
