@@ -98,17 +98,21 @@ func (s *Server) doHaveAllBlocks(n *NodeState) bool {
 	return true
 }
 
-func (s *Server) processSignatures(c *p2p.Conn, m proto.SignaturesMessage, from string) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+func (s *Server) processSignatures(conn *p2p.Conn, m proto.SignaturesMessage) {
+	/*
+		s.mu.Lock()
+		defer s.mu.Unlock()
 
-	state := s.nodeStates[from]
-	state.pendingSignatures = make([]proto.BlockSignature, len(m.Signatures))
-	copy(state.pendingSignatures, m.Signatures)
+		state := s.nodeStates[conn.RemoteAddr().String()]
+		state.pendingSignatures = make([]proto.BlockSignature, len(m.Signatures))
+		state.pendingBlocksHave = make(map[proto.BlockSignature]bool)
+		copy(state.pendingSignatures, m.Signatures)
+	*/
 
-	for _, sig := range m.Signatures {
+	zap.S().Info("signatures len ", len(m.Signatures))
+	for i, sig := range m.Signatures {
 		has, err := s.db.Has(sig[:], nil)
-		state.pendingBlocksHave[sig] = false
+		//state.pendingBlocksHave[sig] = false
 
 		if err != nil {
 			zap.S().Error("failed to query leveldb: ", err)
@@ -116,28 +120,44 @@ func (s *Server) processSignatures(c *p2p.Conn, m proto.SignaturesMessage, from 
 		}
 
 		if !has {
-			zap.S().Debug("asking for block", base58.Encode(sig[:]))
+			zap.S().Debug("asking for block ", i, " ", base58.Encode(sig[:]))
 			var blockID proto.BlockID
 			copy(blockID[:], sig[:])
 			gbm := proto.GetBlockMessage{BlockID: blockID}
-			c.Send() <- gbm
+			if err = conn.SendMessage(gbm); err != nil {
+				zap.S().Error("failed to send get block message ", err)
+				break
+			}
 			continue
 		}
-		state.pendingBlocksHave[sig] = true
 	}
 
-	if s.doHaveAllBlocks(state) {
-		zap.S().Info("have all blocks")
+}
+
+func (s *Server) waitForBlocks(conn *p2p.Conn) {
+	for {
+		msg, err := conn.ReadMessage()
+		if err != nil {
+			zap.S().Error("got error ", err)
+			break
+		}
+
+		switch v := msg.(type) {
+		case proto.BlockMessage:
+			s.processBlock(conn, v)
+		default:
+			zap.S().Infof("got message of type %T", v)
+		}
 	}
 }
 
-func (s *Server) processBlock(c *p2p.Conn, m proto.BlockMessage, from string) {
+func (s *Server) processBlock(c *p2p.Conn, m proto.BlockMessage) {
 	msg := m
 	var b proto.Block
 	b.UnmarshalBinary(msg.BlockBytes)
 	str := base58.Encode(b.BlockSignature[:])
 
-	//zap.S().Infow("got block", "block", str)
+	zap.S().Info("got block ", str, " from ", c.RemoteAddr().String())
 
 	has, err := s.db.Has(b.BlockSignature[:], nil)
 
@@ -211,9 +231,51 @@ func (s *Server) storeState(peer string) {
 	}
 }
 
-func (s *Server) handleClient(ctx context.Context, peer string) {
-	ingress := make(chan p2p.ConnMessage, 1024)
+func (s *Server) syncState(conn *p2p.Conn) error {
+LOOP:
+	for {
+		var gs proto.GetSignaturesMessage
+		s.mu.Lock()
+		state, ok := s.nodeStates[conn.RemoteAddr().String()]
+		s.mu.Unlock()
+		if !ok {
+			break
+		}
+		gs.Blocks = append(gs.Blocks, state.LastKnownBlock)
 
+		zap.S().Info("Asking for signatures")
+		conn.SendMessage(gs)
+		conn.SendMessage(gs)
+		for {
+			msg, err := conn.ReadMessage()
+			if err != nil {
+				break LOOP
+			}
+
+			switch v := msg.(type) {
+			case proto.SignaturesMessage:
+				zap.S().Info("got signatures message from ", conn.RemoteAddr().String())
+				s.processSignatures(conn, v)
+				zap.S().Info("waiting for blocks")
+				s.waitForBlocks(conn)
+				//break LOOP
+			default:
+				zap.S().Infof("got message of type %T", v)
+			}
+		}
+	}
+
+	return nil
+}
+
+func (s *Server) serveConn(conn *p2p.Conn) {
+	err := s.syncState(conn)
+	if err != nil {
+		zap.S().Error("stopped serving conn: ", err)
+	}
+}
+
+func (s *Server) handleClient(ctx context.Context, peer string) {
 	zap.S().Info("handling client")
 
 	s.loadState(peer)
@@ -223,7 +285,6 @@ func (s *Server) handleClient(ctx context.Context, peer string) {
 		p2p.WithVersion(proto.Version{Major: 0, Minor: 5, Patch: 14}),
 		p2p.WithTransport(&customTransport),
 		p2p.WithRemote("tcp", peer),
-		p2p.WithIngress(ingress),
 	)
 	s.mu.Lock()
 	s.conns[conn] = true
@@ -238,33 +299,13 @@ func (s *Server) handleClient(ctx context.Context, peer string) {
 		zap.S().Error("error while dialing: ", err)
 		return
 	}
-
-	conn.Run()
-
-	var gp proto.GetSignaturesMessage
-	gp.Blocks = append(gp.Blocks, s.genesis)
-
-	conn.Send() <- gp
-	conn.Send() <- gp
 	defer conn.Close()
 
-LOOP:
-	for {
-		select {
-		case <-ctx.Done():
-			zap.S().Info("stopping connection loop")
-			break LOOP
-		case m := <-ingress:
-			switch v := m.Message.(type) {
-			case proto.SignaturesMessage:
-				s.processSignatures(conn, v, m.From.String())
-			case proto.BlockMessage:
-				s.processBlock(conn, v, m.From.String())
-			default:
-				zap.S().Infof("Got type %T", v)
-			}
-		}
+	go s.serveConn(conn)
 
+	select {
+	case <-ctx.Done():
+		zap.S().Info("cancelled")
 	}
 
 	s.storeState(peer)

@@ -2,13 +2,15 @@ package proto
 
 import (
 	"encoding/binary"
+	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"net"
 	"strconv"
 	"strings"
 
-	"github.com/pkg/errors"
+	"github.com/mr-tron/base58/base58"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 )
 
@@ -331,19 +333,10 @@ func (m *GetPeersMessage) UnmarshalBinary(b []byte) error {
 
 // ReadFrom reads GetPeersMessage from io.Reader
 func (m *GetPeersMessage) ReadFrom(r io.Reader) (int64, error) {
-	var packetLen [4]byte
-	nn, err := io.ReadFull(r, packetLen[:])
+	packet, nn, err := readPacket(r)
 	if err != nil {
-		return int64(nn), err
+		return nn, err
 	}
-	packet := make([]byte, binary.BigEndian.Uint32(packetLen[:]))
-	n, err := io.ReadFull(r, packet)
-	if err != nil {
-		return int64(nn), err
-	}
-	nn += n
-	packet = append(packetLen[:], packet...)
-
 	return int64(nn), m.UnmarshalBinary(packet)
 }
 
@@ -510,13 +503,23 @@ func readPacket(r io.Reader) ([]byte, int64, error) {
 	if err != nil {
 		return nil, int64(nn), err
 	}
-	packet := make([]byte, binary.BigEndian.Uint32(packetLen[:]))
+	l := binary.BigEndian.Uint32(packetLen[:])
+	fmt.Println("packet len ", l)
+	packet := make([]byte, l)
+	for i := 0; i < len(packet); i++ {
+		packet[i] = 0x88
+	}
 	n, err := io.ReadFull(r, packet)
 	if err != nil {
 		return nil, int64(nn + n), err
 	}
 	nn += n
 	packet = append(packetLen[:], packet...)
+	packHex := hex.Dump(packet)
+	fmt.Println("PACKET ", packHex)
+	fmt.Println("LEN ", l)
+	fmt.Println("read ", n)
+	fmt.Println("read len ", len(packet))
 
 	return packet, int64(nn), nil
 }
@@ -680,14 +683,19 @@ func (m *SignaturesMessage) UnmarshalBinary(data []byte) error {
 		return fmt.Errorf("message too short %v", len(data))
 	}
 	sigCount := binary.BigEndian.Uint32(data[0:4])
+	fmt.Println("Sig count ", sigCount)
 	data = data[4:]
+	fmt.Println("len data ", len(data))
+	fmt.Println("data ", data)
 
 	for i := uint32(0); i < sigCount; i++ {
 		var sig BlockSignature
-		if len(data[i*64:]) < 64 {
+		offset := i * 64
+		if len(data[offset:]) < 64 {
 			return fmt.Errorf("message too short: %v", len(data))
 		}
-		copy(sig[:], data[i*64:i*64+64])
+		copy(sig[:], data[offset:offset+64])
+		fmt.Println("SIG ", base58.Encode(sig[:]))
 		m.Signatures = append(m.Signatures, sig)
 	}
 

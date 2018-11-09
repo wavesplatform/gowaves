@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/binary"
 	"encoding/json"
+	"errors"
 	"io"
 	"net"
 	"sync"
@@ -16,27 +17,20 @@ import (
 
 const retryTimeout = 30
 
-// ConnMessage is a message with address of the sender
-type ConnMessage struct {
-	From    net.Addr
-	Message interface{}
-}
-
 // ConnOption is a connection creation option
 type ConnOption func(*Conn) error
 
 // Conn is a connection between two waves nodes
 type Conn struct {
-	net.Conn
+	conn   net.Conn
 	ctx    context.Context
 	cancel context.CancelFunc
 	wg     sync.WaitGroup
 
-	network  string
-	addr     string
-	version  proto.Version
-	ingress  chan<- ConnMessage
-	outgress chan interface{}
+	network string
+	addr    string
+	version proto.Version
+	bufConn *bufio.Reader
 
 	Transport *Transport
 }
@@ -53,138 +47,114 @@ func (c *Conn) DialContext(ctx context.Context, network, addr string) error {
 		return err
 	}
 
-	c.Conn = conn
+	c.conn = conn
+	zap.S().Info("Creating bufio new reader")
+	c.bufConn = bufio.NewReaderSize(c.conn, 65535)
 
 	return nil
 }
 
-func (c *Conn) reader() {
-	bufConn := bufio.NewReader(c.Conn)
-	defer c.wg.Done()
+func (c *Conn) RemoteAddr() net.Addr {
+	return c.conn.RemoteAddr()
+}
 
-LOOP:
-	for {
-		buf, err := bufConn.Peek(9)
+func (c *Conn) Close() {
+	zap.S().Info("Closing connection")
+}
+
+func (c *Conn) ReadMessage() (interface{}, error) {
+	buf, err := c.bufConn.Peek(9)
+	if err != nil {
+		zap.S().Error("error while reading from connection: ", err)
+		return nil, err
+	}
+
+	switch msgType := buf[8]; msgType {
+	case proto.ContentIDGetPeers:
+		var gp proto.GetPeersMessage
+		_, err := gp.ReadFrom(c.bufConn)
 		if err != nil {
-			zap.S().Error("error while reading from connection: ", err)
-			break LOOP
+			zap.S().Error("error while receiving GetPeersMessage: ", err)
+			return nil, err
 		}
-
-		switch msgType := buf[8]; msgType {
-		case proto.ContentIDGetPeers:
-			var gp proto.GetPeersMessage
-			_, err := gp.ReadFrom(bufConn)
-			if err != nil {
-				zap.S().Error("error while receiving GetPeersMessage: ", err)
-				break LOOP
-			}
-			c.ingress <- ConnMessage{c.Conn.RemoteAddr(), gp}
-		case proto.ContentIDPeers:
-			var p proto.PeersMessage
-			_, err := p.ReadFrom(bufConn)
-			if err != nil {
-				zap.S().Error("failed to read Peers message: ", err)
-				break LOOP
-			}
-			var b []byte
-			b, e := json.Marshal(p)
-			if e != nil {
-				return
-			}
-			js := string(b)
-			zap.S().Info("Got peers", js)
-			c.ingress <- ConnMessage{c.Conn.RemoteAddr(), p}
-		case proto.ContentIDScore:
-			var s proto.ScoreMessage
-			_, err := s.ReadFrom(bufConn)
-			if err != nil {
-				zap.S().Error("failed to read Score message: ", err)
-				break LOOP
-			}
-			c.ingress <- ConnMessage{c.Conn.RemoteAddr(), s}
-		case proto.ContentIDSignatures:
-			var m proto.SignaturesMessage
-			zap.S().Info("got signatures message")
-			_, err := m.ReadFrom(bufConn)
-			if err != nil {
-				zap.S().Error("failed to read Signatures message:", err)
-				break LOOP
-			}
-			c.ingress <- ConnMessage{c.Conn.RemoteAddr(), m}
-		case proto.ContentIDBlock:
-			var m proto.BlockMessage
-			_, err := m.ReadFrom(bufConn)
-			if err != nil {
-				zap.S().Error("failed to read Block message:", err)
-				break LOOP
-			}
-			c.ingress <- ConnMessage{c.Conn.RemoteAddr(), m}
-		default:
-			l := binary.BigEndian.Uint32(buf[:4])
-			arr := make([]byte, l)
-			_, err := io.ReadFull(bufConn, arr)
-			if err != nil {
-				zap.S().Error("failed to read default message: ", err)
-				break LOOP
-			}
-			zap.S().Info("got default message of length", l)
+		return gp, nil
+	case proto.ContentIDPeers:
+		var p proto.PeersMessage
+		_, err := p.ReadFrom(c.bufConn)
+		if err != nil {
+			zap.S().Error("failed to read Peers message: ", err)
+			return nil, err
 		}
+		var b []byte
+		b, e := json.Marshal(p)
+		if e != nil {
+			return nil, err
+		}
+		js := string(b)
+		zap.S().Info("Got peers", js)
+		return p, nil
+	case proto.ContentIDScore:
+		var s proto.ScoreMessage
+		_, err := s.ReadFrom(c.bufConn)
+		if err != nil {
+			zap.S().Error("failed to read Score message: ", err)
+			return nil, err
+		}
+		return s, nil
+	case proto.ContentIDSignatures:
+		var m proto.SignaturesMessage
+		zap.S().Info("got signatures message")
+		_, err := m.ReadFrom(c.bufConn)
+		if err != nil {
+			zap.S().Error("failed to read Signatures message:", err)
+			return nil, err
+		}
+		return m, nil
+	case proto.ContentIDBlock:
+		var m proto.BlockMessage
+		_, err := m.ReadFrom(c.bufConn)
+		if err != nil {
+			zap.S().Error("failed to read Block message:", err)
+			return nil, err
+		}
+		return m, nil
+	default:
+		var packetLen [4]byte
+		_, err := io.ReadFull(c.bufConn, packetLen[:])
+		l := binary.BigEndian.Uint32(packetLen[:])
+		arr := make([]byte, l)
+		_, err = io.ReadFull(c.bufConn, arr)
+		if err != nil {
+			zap.S().Error("failed to read default message: ", err)
+			return nil, err
+		}
+		zap.S().Error("unknown message ", msgType)
+		return nil, errors.New("unknown message")
 	}
 }
 
-func (c *Conn) sendMessage(m interface{}) error {
+func (c *Conn) SendMessage(m interface{}) error {
 	var err error
 	switch v := m.(type) {
 	case proto.GetPeersMessage:
-		_, err = v.WriteTo(c.Conn)
+		_, err = v.WriteTo(c.conn)
 	case proto.PeersMessage:
-		_, err = v.WriteTo(c.Conn)
+		_, err = v.WriteTo(c.conn)
 	case proto.GetSignaturesMessage:
-		_, err = v.WriteTo(c.Conn)
+		_, err = v.WriteTo(c.conn)
 	case proto.SignaturesMessage:
-		_, err = v.WriteTo(c.Conn)
+		_, err = v.WriteTo(c.conn)
 	case proto.GetBlockMessage:
-		_, err = v.WriteTo(c.Conn)
+		_, err = v.WriteTo(c.conn)
 	case proto.BlockMessage:
-		_, err = v.WriteTo(c.Conn)
+		_, err = v.WriteTo(c.conn)
 	case proto.ScoreMessage:
-		_, err = v.WriteTo(c.Conn)
+		_, err = v.WriteTo(c.conn)
 	case proto.TransactionMessage:
-		_, err = v.WriteTo(c.Conn)
+		_, err = v.WriteTo(c.conn)
 	}
 
 	return err
-}
-
-func (c *Conn) writer() {
-	defer c.wg.Done()
-LOOP:
-	for {
-		select {
-		case m := <-c.outgress:
-			if err := c.sendMessage(m); err != nil {
-				break LOOP
-			}
-		case <-c.ctx.Done():
-			break LOOP
-		}
-	}
-}
-
-func (c *Conn) loop() {
-	defer c.wg.Done()
-	select {
-	case <-c.ctx.Done():
-	}
-	c.Conn.Close()
-}
-
-// Run runs the connection
-func (c *Conn) Run() {
-	c.wg.Add(3)
-	go c.reader()
-	go c.writer()
-	go c.loop()
 }
 
 // WithRemote is an option for remote endpoint
@@ -220,28 +190,10 @@ func WithContext(ctx context.Context) ConnOption {
 	}
 }
 
-func WithIngress(ch chan<- ConnMessage) ConnOption {
-	return func(c *Conn) error {
-		c.ingress = ch
-		return nil
-	}
-}
-
-func (c *Conn) Send() chan<- interface{} {
-	return c.outgress
-}
-
-func (c *Conn) Close() {
-	c.cancel()
-	c.wg.Wait()
-}
-
 // NewConn creates a new connection
 func NewConn(options ...ConnOption) (*Conn, error) {
 	c := Conn{}
 	c.ctx, c.cancel = context.WithCancel(context.Background())
-	c.ingress = make(chan ConnMessage, 1024)
-	c.outgress = make(chan interface{}, 1024)
 
 	for _, option := range options {
 		if err := option(&c); err != nil {
