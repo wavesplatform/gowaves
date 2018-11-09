@@ -1055,8 +1055,8 @@ func TestBurnV1Validations(t *testing.T) {
 		fee    uint64
 		err    string
 	}{
-		{0, 100000, "amount should be positive"},
-		{100000, 0, "fee should be positive"},
+		{0, 100000, "failed to create BurnV1 transaction: amount should be positive"},
+		{100000, 0, "failed to create BurnV1 transaction: fee should be positive"},
 	}
 	for _, tc := range tests {
 		spk, _ := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
@@ -1136,13 +1136,12 @@ func TestBurnV1BinaryRoundTrip(t *testing.T) {
 
 func TestBurnV1ToJSON(t *testing.T) {
 	tests := []struct {
-		asset      string
-		amount     uint64
-		reissuable bool
-		fee        uint64
+		asset  string
+		amount uint64
+		fee    uint64
 	}{
-		{"8LQW8f7P5d5PZM7GtZEBgaqRPGSzS3DfPuiXrURJ4AJS", 1234567890, false, 1234567890},
-		{"6zf9mSeHUKRzWR6rCBWPmFPTkhg22qvwUZjTBCfxBkGJ", 9876543210, true, 9876543210},
+		{"8LQW8f7P5d5PZM7GtZEBgaqRPGSzS3DfPuiXrURJ4AJS", 1234567890, 1234567890},
+		{"6zf9mSeHUKRzWR6rCBWPmFPTkhg22qvwUZjTBCfxBkGJ", 9876543210, 9876543210},
 	}
 	seed, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
 	sk, pk := crypto.GenerateKeyPair(seed)
@@ -1156,6 +1155,133 @@ func TestBurnV1ToJSON(t *testing.T) {
 				if err := tx.Sign(sk); assert.NoError(t, err) {
 					if sj, err := json.Marshal(tx); assert.NoError(t, err) {
 						esj := fmt.Sprintf("{\"type\":6,\"version\":1,\"id\":\"%s\",\"signature\":\"%s\",\"senderPublicKey\":\"%s\",\"assetId\":\"%s\",\"amount\":%d,\"timestamp\":%d,\"fee\":%d}", base58.Encode(tx.ID[:]), base58.Encode(tx.Signature[:]), base58.Encode(pk[:]), tc.asset, tc.amount, ts, tc.fee)
+						assert.Equal(t, esj, string(sj))
+					}
+				}
+			}
+		}
+	}
+}
+
+func TestBurnV2Validations(t *testing.T) {
+	tests := []struct {
+		chain  byte
+		amount uint64
+		fee    uint64
+		err    string
+	}{
+		{'T', 0, 100000, "failed to create BurnV2 transaction: amount should be positive"},
+		{'W', 100000, 0, "failed to create BurnV2 transaction: fee should be positive"},
+	}
+	for _, tc := range tests {
+		spk, _ := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
+		aid, _ := crypto.NewDigestFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
+		_, err := NewUnsignedBurnV2(tc.chain, spk, aid, tc.amount, 0, tc.fee)
+		assert.EqualError(t, err, tc.err)
+	}
+}
+
+func TestBurnV2FromMainNet(t *testing.T) {
+	tests := []struct {
+		pk        string
+		sig       string
+		id        string
+		asset     string
+		amount    uint64
+		fee       uint64
+		timestamp uint64
+	}{
+		{"GkBGp7A4PAwixahc8Uo7oiapAZuqZURhfs6HHRBr4wfC", "4qxJSzjffE5Bqhff69ZkNHFHwbh3spgrRQhzAprGmFGSUmR74PrUSrvVkkqvDAEncbgGb2wwMDZr57cVuH4jvxei", "Huikmb3ZL25RZWua427RLo2Sqq7u18nu8gpgbkDvpqBV", "BETU9FPZL4yYL7rgTL8ZjXV6QHoFrSELkhdetiykC1Wc", 935066866613, 100000, 1541550501417},
+		{"GkBGp7A4PAwixahc8Uo7oiapAZuqZURhfs6HHRBr4wfC", "3gavc4q9VoeRdu7xxM42PsTG9kurh2BJtMBtYyb1ndhFHBbzhRFnSSkRhEQyPvomb5fKAN4YH2t1rMqvBr5fH1ie", "EHeGW2T3bYnv6kvWEE4BH4zg51FYk4PJbvHiTSTQtM33", "7q8DjdQw2tpc27mos3LZJNpmCcNbXDsrqLdSpZgdq1tA", 1600363277644, 100000, 1541551098417},
+		{"B3f8VFh6T2NGT26U7rHk2grAxn5zi9iLkg4V9uxG6C8q", "2Y9T9E4xZjPZGZnEfVWPeQdTR7L9pxebuif9NmVf6q6Tc5hiByTT9PuPHDGVLZWtMiCrmih5RfUxLQ71dUY4PF4g", "Bm3QwrxZau51JSuYa8ckVSv26biAYwfeEMfwVqtnMjmH", "XjgUdDr36kHFYBCi4J3Eh3f4v4zXwquYnUGNYgRjLVX", 1, 100000, 1541675830387},
+		{"HCDzebMWj8cmKyEq4BhD6TgTnEqMbdiSwh76zrAx7j7D", "3dGMKjDiJAWUp3KG87tdnTGJAdgs99dWwhdKUyV3dq4xdsBDh9Rf1gwA64rfPyA2UVBdARRKP9bcSQv9vixzfRTe", "FsBLfdkCCGz9wDY9WmAmu1HP244Nhc1QtnzwBjCJj2bN", "A7t6CtfSLbqhgM93oz2gbUzE8MxGEqCFDYVHEMxvN17i", 47038, 100000, 1541669733714},
+	}
+	for _, tc := range tests {
+		spk, _ := crypto.NewPublicKeyFromBase58(tc.pk)
+		id, _ := crypto.NewDigestFromBase58(tc.id)
+		sig, _ := crypto.NewSignatureFromBase58(tc.sig)
+		aid, _ := crypto.NewDigestFromBase58(tc.asset)
+		if tx, err := NewUnsignedBurnV2('W', spk, aid, tc.amount, tc.timestamp, tc.fee); assert.NoError(t, err) {
+			if b, err := tx.bodyMarshalBinary(); assert.NoError(t, err) {
+				if h, err := crypto.FastHash(b); assert.NoError(t, err) {
+					assert.Equal(t, id, h)
+				}
+				assert.True(t, crypto.Verify(spk, sig, b))
+			}
+		}
+	}
+}
+
+func TestBurnV2BinaryRoundTrip(t *testing.T) {
+	tests := []struct {
+		asset  string
+		amount uint64
+		fee    uint64
+	}{
+		{"8LQW8f7P5d5PZM7GtZEBgaqRPGSzS3DfPuiXrURJ4AJS", 1234567890, 1234567890},
+		{"6zf9mSeHUKRzWR6rCBWPmFPTkhg22qvwUZjTBCfxBkGJ", 9876543210, 9876543210},
+	}
+	seed, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
+	sk, pk := crypto.GenerateKeyPair(seed)
+	for _, tc := range tests {
+		aid, _ := crypto.NewDigestFromBase58(tc.asset)
+		ts := uint64(time.Now().UnixNano() / 1000000)
+		if tx, err := NewUnsignedBurnV2('T', pk, aid, tc.amount, ts, tc.fee); assert.NoError(t, err) {
+			if bb, err := tx.bodyMarshalBinary(); assert.NoError(t, err) {
+				var atx BurnV2
+				if err := atx.bodyUnmarshalBinary(bb); assert.NoError(t, err) {
+					assert.Equal(t, tx.Type, atx.Type)
+					assert.Equal(t, tx.Version, atx.Version)
+					assert.Equal(t, tx.ChainID, atx.ChainID)
+					assert.ElementsMatch(t, tx.SenderPK, atx.SenderPK)
+					assert.ElementsMatch(t, tx.AssetID, atx.AssetID)
+					assert.Equal(t, tx.Amount, atx.Amount)
+					assert.Equal(t, tx.Fee, atx.Fee)
+					assert.Equal(t, tx.Timestamp, atx.Timestamp)
+				}
+			}
+			if err := tx.Sign(sk); assert.NoError(t, err) {
+				if r, err := tx.Verify(pk); assert.NoError(t, err) {
+					assert.True(t, r)
+				}
+			}
+			if b, err := tx.MarshalBinary(); assert.NoError(t, err) {
+				var atx BurnV2
+				if err := atx.UnmarshalBinary(b); assert.NoError(t, err) {
+					assert.Equal(t, tx.ID, atx.ID)
+					assert.ElementsMatch(t, tx.Proofs.Proofs[0], atx.Proofs.Proofs[0])
+					assert.ElementsMatch(t, pk, atx.SenderPK)
+					assert.ElementsMatch(t, aid, atx.AssetID)
+					assert.Equal(t, tc.amount, atx.Amount)
+					assert.Equal(t, tc.fee, atx.Fee)
+					assert.Equal(t, ts, atx.Timestamp)
+				}
+			}
+		}
+	}
+}
+
+func TestBurnV2ToJSON(t *testing.T) {
+	tests := []struct {
+		asset  string
+		amount uint64
+		fee    uint64
+	}{
+		{"8LQW8f7P5d5PZM7GtZEBgaqRPGSzS3DfPuiXrURJ4AJS", 1234567890, 1234567890},
+		{"6zf9mSeHUKRzWR6rCBWPmFPTkhg22qvwUZjTBCfxBkGJ", 9876543210, 9876543210},
+	}
+	seed, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
+	sk, pk := crypto.GenerateKeyPair(seed)
+	for _, tc := range tests {
+		aid, _ := crypto.NewDigestFromBase58(tc.asset)
+		ts := uint64(time.Now().Unix() * 1000)
+		if tx, err := NewUnsignedBurnV2('T', pk, aid, tc.amount, ts, tc.fee); assert.NoError(t, err) {
+			if j, err := json.Marshal(tx); assert.NoError(t, err) {
+				ej := fmt.Sprintf("{\"type\":6,\"version\":2,\"senderPublicKey\":\"%s\",\"assetId\":\"%s\",\"amount\":%d,\"timestamp\":%d,\"fee\":%d}", base58.Encode(pk[:]), tc.asset, tc.amount, ts, tc.fee)
+				assert.Equal(t, ej, string(j))
+				if err := tx.Sign(sk); assert.NoError(t, err) {
+					if sj, err := json.Marshal(tx); assert.NoError(t, err) {
+						esj := fmt.Sprintf("{\"type\":6,\"version\":2,\"id\":\"%s\",\"proofs\":[\"%s\"],\"senderPublicKey\":\"%s\",\"assetId\":\"%s\",\"amount\":%d,\"timestamp\":%d,\"fee\":%d}", base58.Encode(tx.ID[:]), base58.Encode(tx.Proofs.Proofs[0]), base58.Encode(pk[:]), tc.asset, tc.amount, ts, tc.fee)
 						assert.Equal(t, esj, string(sj))
 					}
 				}
