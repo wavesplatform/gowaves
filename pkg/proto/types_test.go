@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/mr-tron/base58/base58"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"strings"
 	"testing"
@@ -401,4 +402,10 @@ func TestStringDataEntryJSONRoundTrip(t *testing.T) {
 			}
 		}
 	}
+}
+
+func TestNewAttachmentFromBase58(t *testing.T) {
+	att, err := NewAttachmentFromBase58("t")
+	require.NoError(t, err)
+	assert.Equal(t, att, Attachment("3"))
 }

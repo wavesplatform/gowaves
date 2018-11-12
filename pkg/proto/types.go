@@ -141,6 +141,15 @@ func (a *OptionalAsset) UnmarshalBinary(data []byte) error {
 //Attachment represents the additional data stored in Transfer and MassTransfer transactions.
 type Attachment string
 
+// NewAttachmentFromBase58 creates an Attachment structure from its base58 string representation.
+func NewAttachmentFromBase58(s string) (Attachment, error) {
+	v, err := base58.Decode(s)
+	if err != nil {
+		return "", err
+	}
+	return Attachment(v), nil
+}
+
 // String returns Attachment's string representation
 func (a Attachment) String() string {
 	return string(a)
