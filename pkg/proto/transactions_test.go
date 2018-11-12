@@ -1298,17 +1298,17 @@ func TestExchangeV1Validations(t *testing.T) {
 	pa, _ := NewOptionalAssetFromString("FftTzae2t8r6zZJ2VzEq2pS2Le4Vx9gYGXuDsEFBTYE2")
 	id, _ := crypto.NewDigestFromBase58("AkYY8M2iEts8xc21JEzwkMSmuJtH9ABGzEYeau4xWC5R")
 	sig, _ := crypto.NewSignatureFromBase58("5pzyUowLi31yP4AEh5qzg7gRrvmsfeypiUkW84CKzc4H6UTzEF2RgGPLckBEqNbJGn5ofQXzuDmUnxwuP3utYp9L")
-	bo, _ := NewUnsignedOrder(buySender, mpk, *aa, *pa, Buy, 10, 100, 0, 0, 3)
-	sbo, _ := NewUnsignedOrder(buySender, mpk, *aa, *pa, Buy, 10, 100, 0, 0, 3)
+	bo, _ := NewUnsignedOrderV1(buySender, mpk, *aa, *pa, Buy, 10, 100, 0, 0, 3)
+	sbo, _ := NewUnsignedOrderV1(buySender, mpk, *aa, *pa, Buy, 10, 100, 0, 0, 3)
 	sbo.ID = &id
 	sbo.Signature = &sig
-	so, _ := NewUnsignedOrder(sellSender, mpk, *aa, *pa, Sell, 9, 50, 0, 0, 3)
-	sso, _ := NewUnsignedOrder(sellSender, mpk, *aa, *pa, Sell, 9, 50, 0, 0, 3)
+	so, _ := NewUnsignedOrderV1(sellSender, mpk, *aa, *pa, Sell, 9, 50, 0, 0, 3)
+	sso, _ := NewUnsignedOrderV1(sellSender, mpk, *aa, *pa, Sell, 9, 50, 0, 0, 3)
 	sso.ID = &id
 	sso.Signature = &sig
 	tests := []struct {
-		buy     Order
-		sell    Order
+		buy     OrderV1
+		sell    OrderV1
 		price   uint64
 		amount  uint64
 		buyFee  uint64
@@ -1377,12 +1377,12 @@ func TestExchangeV1FromMainNet(t *testing.T) {
 		sig, _ := crypto.NewSignatureFromBase58(tc.sig)
 		aa, _ := NewOptionalAssetFromString(tc.amountAsset)
 		pa, _ := NewOptionalAssetFromString(tc.priceAsset)
-		bo, _ := NewUnsignedOrder(buySender, mpk, *aa, *pa, Buy, tc.buyPrice, tc.buyAmount, tc.buyTs, tc.buyExp, tc.buyFee)
+		bo, _ := NewUnsignedOrderV1(buySender, mpk, *aa, *pa, Buy, tc.buyPrice, tc.buyAmount, tc.buyTs, tc.buyExp, tc.buyFee)
 		bID, _ := crypto.NewDigestFromBase58(tc.buyID)
 		bSig, _ := crypto.NewSignatureFromBase58(tc.buySig)
 		bo.ID = &bID
 		bo.Signature = &bSig
-		so, _ := NewUnsignedOrder(sellSender, mpk, *aa, *pa, Sell, tc.sellPrice, tc.sellAmount, tc.sellTs, tc.sellExp, tc.sellFee)
+		so, _ := NewUnsignedOrderV1(sellSender, mpk, *aa, *pa, Sell, tc.sellPrice, tc.sellAmount, tc.sellTs, tc.sellExp, tc.sellFee)
 		sID, _ := crypto.NewDigestFromBase58(tc.sellID)
 		sSig, _ := crypto.NewSignatureFromBase58(tc.sellSig)
 		so.ID = &sID
@@ -1407,13 +1407,13 @@ func TestExchangeV1BinaryRoundTrip(t *testing.T) {
 	pa, _ := NewOptionalAssetFromString("FftTzae2t8r6zZJ2VzEq2pS2Le4Vx9gYGXuDsEFBTYE2")
 	ts := uint64(time.Now().UnixNano() / 1000000)
 	exp := ts + 100*1000
-	bo, _ := NewUnsignedOrder(pk, mpk, *aa, *pa, Buy, 12345, 67890, ts, exp, 3)
+	bo, _ := NewUnsignedOrderV1(pk, mpk, *aa, *pa, Buy, 12345, 67890, ts, exp, 3)
 	bo.Sign(sk)
-	so, _ := NewUnsignedOrder(pk, mpk, *aa, *pa, Sell, 98765, 54321, ts, exp, 3)
+	so, _ := NewUnsignedOrderV1(pk, mpk, *aa, *pa, Sell, 98765, 54321, ts, exp, 3)
 	so.Sign(sk)
 	tests := []struct {
-		buy     Order
-		sell    Order
+		buy     OrderV1
+		sell    OrderV1
 		price   uint64
 		amount  uint64
 		buyFee  uint64
@@ -1428,7 +1428,7 @@ func TestExchangeV1BinaryRoundTrip(t *testing.T) {
 		if tx, err := NewUnsignedExchangeV1(tc.buy, tc.sell, tc.price, tc.amount, tc.buyFee, tc.sellFee, tc.fee, ts); assert.NoError(t, err) {
 			if bb, err := tx.bodyMarshalBinary(); assert.NoError(t, err) {
 				var atx ExchangeV1
-				if err := atx.bodyUnmarshalBinary(bb); assert.NoError(t, err) {
+				if _, err := atx.bodyUnmarshalBinary(bb); assert.NoError(t, err) {
 					assert.Equal(t, tx.Type, atx.Type)
 					assert.Equal(t, tx.Version, atx.Version)
 					assert.Equal(t, tx.SenderPK, atx.SenderPK)
@@ -1496,10 +1496,10 @@ func TestExchangeV1ToJSON(t *testing.T) {
 		pa, _ := NewOptionalAssetFromString(tc.priceAsset)
 		ts := uint64(time.Now().UnixNano() / 1000000)
 		exp := ts + 100*1000
-		bo, _ := NewUnsignedOrder(pk, mpk, *aa, *pa, Buy, tc.buyPrice, tc.buyAmount, ts, exp, tc.fee)
+		bo, _ := NewUnsignedOrderV1(pk, mpk, *aa, *pa, Buy, tc.buyPrice, tc.buyAmount, ts, exp, tc.fee)
 		bo.Sign(sk)
 		boj, _ := json.Marshal(bo)
-		so, _ := NewUnsignedOrder(pk, mpk, *aa, *pa, Sell, tc.sellPrice, tc.sellAmount, ts, exp, tc.fee)
+		so, _ := NewUnsignedOrderV1(pk, mpk, *aa, *pa, Sell, tc.sellPrice, tc.sellAmount, ts, exp, tc.fee)
 		so.Sign(sk)
 		soj, _ := json.Marshal(so)
 		if tx, err := NewUnsignedExchangeV1(*bo, *so, tc.price, tc.amount, tc.buyFee, tc.sellFee, tc.fee, ts); assert.NoError(t, err) {
@@ -1511,6 +1511,169 @@ func TestExchangeV1ToJSON(t *testing.T) {
 					if j, err := json.Marshal(tx); assert.NoError(t, err) {
 						ej := fmt.Sprintf("{\"type\":7,\"version\":1,\"id\":\"%s\",\"signature\":\"%s\",\"senderPublicKey\":\"%s\",\"order1\":%s,\"order2\":%s,\"price\":%d,\"amount\":%d,\"buyMatcherFee\":%d,\"sellMatcherFee\":%d,\"fee\":%d,\"timestamp\":%d}",
 							base58.Encode(tx.ID[:]), base58.Encode(tx.Signature[:]), base58.Encode(mpk[:]), string(boj), string(soj), tc.price, tc.amount, tc.buyFee, tc.sellFee, tc.fee, ts)
+						assert.Equal(t, ej, string(j))
+					}
+				}
+			}
+		}
+	}
+}
+
+func TestExchangeV2Validations(t *testing.T) {
+	buySender, _ := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
+	sellSender, _ := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
+	mpk, _ := crypto.NewPublicKeyFromBase58("E7zJzWVn6kwsc6zwDpxZrEFjUu3xszPZ7XcStYNprbSJ")
+	aa, _ := NewOptionalAssetFromString("3gRJoK6f7XUV7fx5jUzHoPwdb9ZdTFjtTPy2HgDinr1N")
+	pa, _ := NewOptionalAssetFromString("FftTzae2t8r6zZJ2VzEq2pS2Le4Vx9gYGXuDsEFBTYE2")
+	id, _ := crypto.NewDigestFromBase58("AkYY8M2iEts8xc21JEzwkMSmuJtH9ABGzEYeau4xWC5R")
+	sig, _ := crypto.NewSignatureFromBase58("5pzyUowLi31yP4AEh5qzg7gRrvmsfeypiUkW84CKzc4H6UTzEF2RgGPLckBEqNbJGn5ofQXzuDmUnxwuP3utYp9L")
+	sbo, _ := NewUnsignedOrderV1(buySender, mpk, *aa, *pa, Buy, 10, 100, 0, 0, 3)
+	sbo.ID = &id
+	sbo.Signature = &sig
+	sso, _ := NewUnsignedOrderV1(sellSender, mpk, *aa, *pa, Sell, 9, 50, 0, 0, 3)
+	sso.ID = &id
+	sso.Signature = &sig
+	tests := []struct {
+		buy     Order
+		sell    Order
+		price   uint64
+		amount  uint64
+		buyFee  uint64
+		sellFee uint64
+		fee     uint64
+		err     string
+	}{
+		{*sbo, *sso, 0, 456, 789, 987, 654, "price should be positive"},
+		{*sbo, *sso, 123, 0, 789, 987, 654, "amount should be positive"},
+		{*sbo, *sso, 123, 456, 0, 987, 654, "buy matcher's fee should be positive"},
+		{*sbo, *sso, 123, 456, 789, 0, 654, "sell matcher's fee should be positive"},
+		{*sbo, *sso, 123, 456, 789, 987, 0, "fee should be positive"},
+	}
+	for _, tc := range tests {
+		_, err := NewUnsignedExchangeV2(tc.buy, tc.sell, tc.price, tc.amount, tc.buyFee, tc.sellFee, tc.fee, 0)
+		assert.EqualError(t, err, tc.err, fmt.Sprintf("expected error: %s", tc.err))
+	}
+}
+
+func TestExchangeV2BinaryRoundTrip(t *testing.T) {
+	seedA, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
+	sk, pk := crypto.GenerateKeyPair(seedA)
+	seedB, _ := base58.Decode("8cLFt3NHL13H5JCBBgbJDkjjcPseZ1YNtqMWnZS1B2n9")
+	msk, mpk := crypto.GenerateKeyPair(seedB)
+	aa, _ := NewOptionalAssetFromString("3gRJoK6f7XUV7fx5jUzHoPwdb9ZdTFjtTPy2HgDinr1N")
+	pa, _ := NewOptionalAssetFromString("FftTzae2t8r6zZJ2VzEq2pS2Le4Vx9gYGXuDsEFBTYE2")
+	ts := uint64(time.Now().UnixNano() / 1000000)
+	exp := ts + 100*1000
+	bo1, _ := NewUnsignedOrderV1(pk, mpk, *aa, *pa, Buy, 12345, 67890, ts, exp, 3)
+	bo1.Sign(sk)
+	so1, _ := NewUnsignedOrderV1(pk, mpk, *aa, *pa, Sell, 98765, 54321, ts, exp, 3)
+	so1.Sign(sk)
+	bo2, _ := NewUnsignedOrderV2(pk, mpk, *aa, *pa, Buy, 12345, 67890, ts, exp, 3)
+	bo2.Sign(sk)
+	so2, _ := NewUnsignedOrderV2(pk, mpk, *aa, *pa, Sell, 98765, 54321, ts, exp, 3)
+	so2.Sign(sk)
+	tests := []struct {
+		buy     Order
+		sell    Order
+		price   uint64
+		amount  uint64
+		buyFee  uint64
+		sellFee uint64
+		fee     uint64
+	}{
+		{*bo1, *so1, 123, 456, 789, 987, 654},
+		{*bo2, *so2, 987654321, 544321, 9876, 8765, 13245},
+		{*bo1, *so2, 123, 456, 789, 987, 654},
+		{*bo2, *so1, 987654321, 544321, 9876, 8765, 13245},
+	}
+	for _, tc := range tests {
+		ts := uint64(time.Now().UnixNano() / 1000000)
+		if tx, err := NewUnsignedExchangeV2(tc.buy, tc.sell, tc.price, tc.amount, tc.buyFee, tc.sellFee, tc.fee, ts); assert.NoError(t, err) {
+			if bb, err := tx.bodyMarshalBinary(); assert.NoError(t, err) {
+				var atx ExchangeV2
+				if _, err := atx.bodyUnmarshalBinary(bb); assert.NoError(t, err) {
+					assert.Equal(t, tx.Type, atx.Type)
+					assert.Equal(t, tx.Version, atx.Version)
+					assert.ElementsMatch(t, tx.SenderPK, atx.SenderPK)
+					assert.Equal(t, tx.BuyOrder, atx.BuyOrder)
+					assert.Equal(t, tx.SellOrder, atx.SellOrder)
+					assert.Equal(t, tx.Price, atx.Price)
+					assert.Equal(t, tx.Amount, atx.Amount)
+					assert.Equal(t, tx.BuyMatcherFee, atx.BuyMatcherFee)
+					assert.Equal(t, tx.SellMatcherFee, atx.SellMatcherFee)
+					assert.Equal(t, tx.Fee, atx.Fee)
+					assert.Equal(t, tx.Timestamp, atx.Timestamp)
+				}
+			}
+			if err := tx.Sign(msk); assert.NoError(t, err) {
+				if r, err := tx.Verify(mpk); assert.NoError(t, err) {
+					assert.True(t, r)
+				}
+			}
+			if b, err := tx.MarshalBinary(); assert.NoError(t, err) {
+				var atx ExchangeV2
+				if err := atx.UnmarshalBinary(b); assert.NoError(t, err) {
+					assert.Equal(t, tx.Type, atx.Type)
+					assert.Equal(t, tx.Version, atx.Version)
+					assert.ElementsMatch(t, *tx.ID, *atx.ID)
+					assert.ElementsMatch(t, tx.Proofs.Proofs[0], atx.Proofs.Proofs[0])
+					assert.Equal(t, mpk, atx.SenderPK)
+					assert.Equal(t, tc.buy, atx.BuyOrder)
+					assert.Equal(t, tc.sell, atx.SellOrder)
+					assert.Equal(t, tc.price, atx.Price)
+					assert.Equal(t, tc.amount, atx.Amount)
+					assert.Equal(t, tc.buyFee, atx.BuyMatcherFee)
+					assert.Equal(t, tc.sellFee, atx.SellMatcherFee)
+					assert.Equal(t, tc.fee, atx.Fee)
+					assert.Equal(t, ts, atx.Timestamp)
+				}
+			}
+		}
+	}
+}
+
+func TestExchangeV2ToJSON(t *testing.T) {
+	seedA, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
+	sk, pk := crypto.GenerateKeyPair(seedA)
+	seedB, _ := base58.Decode("8cLFt3NHL13H5JCBBgbJDkjjcPseZ1YNtqMWnZS1B2n9")
+	msk, mpk := crypto.GenerateKeyPair(seedB)
+	tests := []struct {
+		amountAsset string
+		priceAsset  string
+		buyPrice    uint64
+		buyAmount   uint64
+		sellPrice   uint64
+		sellAmount  uint64
+		price       uint64
+		amount      uint64
+		buyFee      uint64
+		sellFee     uint64
+		fee         uint64
+	}{
+		{"3gRJoK6f7XUV7fx5jUzHoPwdb9ZdTFjtTPy2HgDinr1N", "FftTzae2t8r6zZJ2VzEq2pS2Le4Vx9gYGXuDsEFBTYE2", 100, 10, 110, 20, 110, 10, 30000, 15000, 30000},
+		{"3gRJoK6f7XUV7fx5jUzHoPwdb9ZdTFjtTPy2HgDinr1N", "WAVES", 100, 10, 110, 20, 110, 10, 30000, 15000, 30000},
+		{"FftTzae2t8r6zZJ2VzEq2pS2Le4Vx9gYGXuDsEFBTYE2", "WAVES", 100, 10, 110, 20, 110, 10, 30000, 15000, 30000},
+	}
+	for _, tc := range tests {
+		aa, _ := NewOptionalAssetFromString(tc.amountAsset)
+		pa, _ := NewOptionalAssetFromString(tc.priceAsset)
+		ts := uint64(time.Now().UnixNano() / 1000000)
+		exp := ts + 100*1000
+		bo, _ := NewUnsignedOrderV2(pk, mpk, *aa, *pa, Buy, tc.buyPrice, tc.buyAmount, ts, exp, tc.fee)
+		bo.Sign(sk)
+		boj, _ := json.Marshal(bo)
+		so, _ := NewUnsignedOrderV2(pk, mpk, *aa, *pa, Sell, tc.sellPrice, tc.sellAmount, ts, exp, tc.fee)
+		so.Sign(sk)
+		soj, _ := json.Marshal(so)
+		if tx, err := NewUnsignedExchangeV2(*bo, *so, tc.price, tc.amount, tc.buyFee, tc.sellFee, tc.fee, ts); assert.NoError(t, err) {
+			if j, err := json.Marshal(tx); assert.NoError(t, err) {
+				ej := fmt.Sprintf("{\"type\":7,\"version\":2,\"senderPublicKey\":\"%s\",\"order1\":%s,\"order2\":%s,\"price\":%d,\"amount\":%d,\"buyMatcherFee\":%d,\"sellMatcherFee\":%d,\"fee\":%d,\"timestamp\":%d}",
+					base58.Encode(mpk[:]), string(boj), string(soj), tc.price, tc.amount, tc.buyFee, tc.sellFee, tc.fee, ts)
+				assert.Equal(t, ej, string(j))
+				if err := tx.Sign(msk); assert.NoError(t, err) {
+					if j, err := json.Marshal(tx); assert.NoError(t, err) {
+						ej := fmt.Sprintf("{\"type\":7,\"version\":2,\"id\":\"%s\",\"proofs\":[\"%s\"],\"senderPublicKey\":\"%s\",\"order1\":%s,\"order2\":%s,\"price\":%d,\"amount\":%d,\"buyMatcherFee\":%d,\"sellMatcherFee\":%d,\"fee\":%d,\"timestamp\":%d}",
+							base58.Encode(tx.ID[:]), base58.Encode(tx.Proofs.Proofs[0]), base58.Encode(mpk[:]), string(boj), string(soj), tc.price, tc.amount, tc.buyFee, tc.sellFee, tc.fee, ts)
 						assert.Equal(t, ej, string(j))
 					}
 				}
