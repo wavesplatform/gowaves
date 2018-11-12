@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"net/http"
 	"os"
 	"os/signal"
@@ -171,7 +172,7 @@ type nodeHeader struct {
 func differentSignaturesCount(rootContext context.Context, log *zap.SugaredLogger, clients []*client.Client, height int) (int, error) {
 	ch := make(chan nodeHeader, len(clients))
 	info := make(map[int]*client.Headers)
-	m := make(map[string]bool)
+	m := make(map[crypto.Signature]bool)
 	for i, c := range clients {
 		go func(id int, cl *client.Client) {
 			ctx, cancel := context.WithTimeout(rootContext, time.Second*30)

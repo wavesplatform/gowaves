@@ -3,6 +3,8 @@ package client
 import (
 	"context"
 	"fmt"
+	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/proto"
 	"net/http"
 )
 
@@ -52,16 +54,16 @@ func (a *Blocks) HeightBySignature(ctx context.Context, signature string) (*Bloc
 }
 
 type Headers struct {
-	Version          uint64       `json:"version"`
-	Timestamp        uint64       `json:"timestamp"`
-	Reference        string       `json:"reference"`
-	NxtConsensus     NxtConsensus `json:"nxt-consensus"`
-	Features         []uint64     `json:"features"`
-	Generator        string       `json:"generator"`
-	Signature        string       `json:"signature"`
-	Blocksize        uint64       `json:"blocksize"`
-	TransactionCount uint64       `json:"transactionCount"`
-	Height           uint64       `json:"height"`
+	Version          uint64           `json:"version"`
+	Timestamp        uint64           `json:"timestamp"`
+	Reference        crypto.Signature `json:"reference"`
+	NxtConsensus     NxtConsensus     `json:"nxt-consensus"`
+	Features         []uint64         `json:"features"`
+	Generator        proto.Address    `json:"generator"`
+	Signature        crypto.Signature `json:"signature"`
+	Blocksize        uint64           `json:"blocksize"`
+	TransactionCount uint64           `json:"transactionCount"`
+	Height           uint64           `json:"height"`
 }
 
 type NxtConsensus struct {

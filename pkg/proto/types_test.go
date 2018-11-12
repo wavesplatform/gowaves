@@ -65,7 +65,7 @@ func TestMainNetOrder(t *testing.T) {
 		mpk, _ := crypto.NewPublicKeyFromBase58(tc.matcher)
 		aa, _ := NewOptionalAssetFromString(tc.amountAsset)
 		pa, _ := NewOptionalAssetFromString(tc.priceAsset)
-		if o, err := NewUnsignedOrder(spk, mpk, *aa, *pa, tc.orderType, tc.price, tc.amount, tc.timestamp, tc.expiration, tc.fee); assert.NoError(t, err) {
+		if o, err := NewUnsignedOrderV1(spk, mpk, *aa, *pa, tc.orderType, tc.price, tc.amount, tc.timestamp, tc.expiration, tc.fee); assert.NoError(t, err) {
 			if b, err := o.bodyMarshalBinary(); assert.NoError(t, err) {
 				d, _ := crypto.FastHash(b)
 				assert.Equal(t, id, d)
@@ -76,28 +76,28 @@ func TestMainNetOrder(t *testing.T) {
 	}
 }
 
-func TestOrderValidations(t *testing.T) {
+func TestOrderV1Validations(t *testing.T) {
 	tests := []struct {
 		price  uint64
 		amount uint64
 		fee    uint64
 		err    string
 	}{
-		{0, 20, 30, "price should be positive"},
-		{10, 0, 30, "amount should be positive"},
-		{10, 20, 0, "matcher's fee should be positive"},
+		{0, 20, 30, "failed to create OrderV1: price should be positive"},
+		{10, 0, 30, "failed to create OrderV1: amount should be positive"},
+		{10, 20, 0, "failed to create OrderV1: matcher's fee should be positive"},
 	}
 	spk, _ := crypto.NewPublicKeyFromBase58("6s3F3S1ZmdJ2B25EqHWgNUSfeHtMaRZJ4RGEB5hgS7QM")
 	mpk, _ := crypto.NewPublicKeyFromBase58("7kPFrHDiGw1rCm7LPszuECwWYL3dMf6iMifLRDJQZMzy")
 	aa, _ := NewOptionalAssetFromString("8LQW8f7P5d5PZM7GtZEBgaqRPGSzS3DfPuiXrURJ4AJS")
 	pa, _ := NewOptionalAssetFromString("Ft8X1v1LTa1ABafufpaCWyVj8KkaxUWE6xBhW6sNFJck")
 	for _, tc := range tests {
-		_, err := NewUnsignedOrder(spk, mpk, *aa, *pa, Buy, tc.price, tc.amount, 0, 0, tc.fee)
+		_, err := NewUnsignedOrderV1(spk, mpk, *aa, *pa, Buy, tc.price, tc.amount, 0, 0, tc.fee)
 		assert.EqualError(t, err, tc.err)
 	}
 }
 
-func TestOrderSigningRoundTrip(t *testing.T) {
+func TestOrderV1SigningRoundTrip(t *testing.T) {
 	tests := []struct {
 		seed        string
 		matcher     string
@@ -120,13 +120,13 @@ func TestOrderSigningRoundTrip(t *testing.T) {
 		pa, _ := NewOptionalAssetFromString(tc.priceAsset)
 		ts := uint64(time.Now().UnixNano() / 1000000)
 		exp := ts + 100*1000
-		if o, err := NewUnsignedOrder(pk, mpk, *aa, *pa, tc.orderType, tc.price, tc.amount, ts, exp, tc.fee); assert.NoError(t, err) {
+		if o, err := NewUnsignedOrderV1(pk, mpk, *aa, *pa, tc.orderType, tc.price, tc.amount, ts, exp, tc.fee); assert.NoError(t, err) {
 			if err := o.Sign(sk); assert.NoError(t, err) {
 				if r, err := o.Verify(pk); assert.NoError(t, err) {
 					assert.True(t, r)
 				}
 				if b, err := o.MarshalBinary(); assert.NoError(t, err) {
-					var ao Order
+					var ao OrderV1
 					if err := ao.UnmarshalBinary(b); assert.NoError(t, err) {
 						assert.Equal(t, o.ID, ao.ID)
 						assert.Equal(t, o.Signature, ao.Signature)
@@ -146,7 +146,7 @@ func TestOrderSigningRoundTrip(t *testing.T) {
 	}
 }
 
-func TestOrderToJSON(t *testing.T) {
+func TestOrderV1ToJSON(t *testing.T) {
 	tests := []struct {
 		seed        string
 		matcher     string
@@ -177,7 +177,7 @@ func TestOrderToJSON(t *testing.T) {
 			pas = fmt.Sprintf("\"%s\"", pa.ID.String())
 		}
 		exp := ts + 100*1000
-		if o, err := NewUnsignedOrder(pk, mpk, *aa, *pa, tc.orderType, tc.price, tc.amount, ts, exp, tc.fee); assert.NoError(t, err) {
+		if o, err := NewUnsignedOrderV1(pk, mpk, *aa, *pa, tc.orderType, tc.price, tc.amount, ts, exp, tc.fee); assert.NoError(t, err) {
 			if j, err := json.Marshal(o); assert.NoError(t, err) {
 				ej := fmt.Sprintf("{\"senderPublicKey\":\"%s\",\"matcherPublicKey\":\"%s\",\"assetPair\":{\"amountAsset\":%s,\"priceAsset\":%s},\"orderType\":\"%s\",\"price\":%d,\"amount\":%d,\"timestamp\":%d,\"expiration\":%d,\"matcherFee\":%d}",
 					base58.Encode(pk[:]), tc.matcher, aas, pas, tc.orderType.String(), tc.price, tc.amount, ts, exp, tc.fee)
@@ -186,6 +186,124 @@ func TestOrderToJSON(t *testing.T) {
 					if j, err := json.Marshal(o); assert.NoError(t, err) {
 						ej := fmt.Sprintf("{\"id\":\"%s\",\"signature\":\"%s\",\"senderPublicKey\":\"%s\",\"matcherPublicKey\":\"%s\",\"assetPair\":{\"amountAsset\":%s,\"priceAsset\":%s},\"orderType\":\"%s\",\"price\":%d,\"amount\":%d,\"timestamp\":%d,\"expiration\":%d,\"matcherFee\":%d}",
 							base58.Encode(o.ID[:]), base58.Encode(o.Signature[:]), base58.Encode(pk[:]), tc.matcher, aas, pas, tc.orderType.String(), tc.price, tc.amount, ts, exp, tc.fee)
+						assert.Equal(t, ej, string(j))
+					}
+				}
+			}
+		}
+	}
+}
+
+func TestOrderV2Validations(t *testing.T) {
+	tests := []struct {
+		price  uint64
+		amount uint64
+		fee    uint64
+		err    string
+	}{
+		{0, 20, 30, "failed to create OrderV2: price should be positive"},
+		{10, 0, 30, "failed to create OrderV2: amount should be positive"},
+		{10, 20, 0, "failed to create OrderV2: matcher's fee should be positive"},
+	}
+	spk, _ := crypto.NewPublicKeyFromBase58("6s3F3S1ZmdJ2B25EqHWgNUSfeHtMaRZJ4RGEB5hgS7QM")
+	mpk, _ := crypto.NewPublicKeyFromBase58("7kPFrHDiGw1rCm7LPszuECwWYL3dMf6iMifLRDJQZMzy")
+	aa, _ := NewOptionalAssetFromString("8LQW8f7P5d5PZM7GtZEBgaqRPGSzS3DfPuiXrURJ4AJS")
+	pa, _ := NewOptionalAssetFromString("Ft8X1v1LTa1ABafufpaCWyVj8KkaxUWE6xBhW6sNFJck")
+	for _, tc := range tests {
+		_, err := NewUnsignedOrderV2(spk, mpk, *aa, *pa, Buy, tc.price, tc.amount, 0, 0, tc.fee)
+		assert.EqualError(t, err, tc.err)
+	}
+}
+
+func TestOrderV2SigningRoundTrip(t *testing.T) {
+	tests := []struct {
+		seed        string
+		matcher     string
+		amountAsset string
+		priceAsset  string
+		orderType   OrderType
+		amount      uint64
+		price       uint64
+		fee         uint64
+	}{
+		{"3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc", "7kPFrHDiGw1rCm7LPszuECwWYL3dMf6iMifLRDJQZMzy", "8LQW8f7P5d5PZM7GtZEBgaqRPGSzS3DfPuiXrURJ4AJS", "2bkjzFqTMM3cQpbgGYKE8r7J73SrXFH8YfxFBRBterLt", Sell, 1000, 100, 10},
+		{"3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc", "7kPFrHDiGw1rCm7LPszuECwWYL3dMf6iMifLRDJQZMzy", "WAVES", "2bkjzFqTMM3cQpbgGYKE8r7J73SrXFH8YfxFBRBterLt", Buy, 1, 1, 1},
+		{"3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc", "7kPFrHDiGw1rCm7LPszuECwWYL3dMf6iMifLRDJQZMzy", "8LQW8f7P5d5PZM7GtZEBgaqRPGSzS3DfPuiXrURJ4AJS", "WAVES", Sell, 2, 2, 2},
+	}
+	for _, tc := range tests {
+		seed, _ := base58.Decode(tc.seed)
+		sk, pk := crypto.GenerateKeyPair(seed)
+		mpk, _ := crypto.NewPublicKeyFromBase58(tc.matcher)
+		aa, _ := NewOptionalAssetFromString(tc.amountAsset)
+		pa, _ := NewOptionalAssetFromString(tc.priceAsset)
+		ts := uint64(time.Now().UnixNano() / 1000000)
+		exp := ts + 100*1000
+		if o, err := NewUnsignedOrderV2(pk, mpk, *aa, *pa, tc.orderType, tc.price, tc.amount, ts, exp, tc.fee); assert.NoError(t, err) {
+			if err := o.Sign(sk); assert.NoError(t, err) {
+				if r, err := o.Verify(pk); assert.NoError(t, err) {
+					assert.True(t, r)
+				}
+				if b, err := o.MarshalBinary(); assert.NoError(t, err) {
+					var ao OrderV2
+					if err := ao.UnmarshalBinary(b); assert.NoError(t, err) {
+						assert.ElementsMatch(t, *o.ID, *ao.ID)
+						assert.ElementsMatch(t, o.Proofs.Proofs[0], ao.Proofs.Proofs[0])
+						assert.ElementsMatch(t, o.SenderPK, ao.SenderPK)
+						assert.ElementsMatch(t, o.MatcherPK, ao.MatcherPK)
+						assert.Equal(t, o.AssetPair, ao.AssetPair)
+						assert.Equal(t, o.OrderType, ao.OrderType)
+						assert.Equal(t, o.Price, ao.Price)
+						assert.Equal(t, o.Amount, ao.Amount)
+						assert.Equal(t, o.Timestamp, ao.Timestamp)
+						assert.Equal(t, o.Expiration, ao.Expiration)
+						assert.Equal(t, o.MatcherFee, ao.MatcherFee)
+					}
+				}
+			}
+		}
+	}
+}
+
+func TestOrderV2ToJSON(t *testing.T) {
+	tests := []struct {
+		seed        string
+		matcher     string
+		amountAsset string
+		priceAsset  string
+		orderType   OrderType
+		amount      uint64
+		price       uint64
+		fee         uint64
+	}{
+		{"3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc", "7kPFrHDiGw1rCm7LPszuECwWYL3dMf6iMifLRDJQZMzy", "8LQW8f7P5d5PZM7GtZEBgaqRPGSzS3DfPuiXrURJ4AJS", "2bkjzFqTMM3cQpbgGYKE8r7J73SrXFH8YfxFBRBterLt", Sell, 1000, 100, 10},
+		{"3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc", "7kPFrHDiGw1rCm7LPszuECwWYL3dMf6iMifLRDJQZMzy", "WAVES", "2bkjzFqTMM3cQpbgGYKE8r7J73SrXFH8YfxFBRBterLt", Buy, 1, 1, 1},
+		{"3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc", "7kPFrHDiGw1rCm7LPszuECwWYL3dMf6iMifLRDJQZMzy", "8LQW8f7P5d5PZM7GtZEBgaqRPGSzS3DfPuiXrURJ4AJS", "WAVES", Sell, 2, 2, 2},
+	}
+	for _, tc := range tests {
+		seed, _ := base58.Decode(tc.seed)
+		sk, pk := crypto.GenerateKeyPair(seed)
+		mpk, _ := crypto.NewPublicKeyFromBase58(tc.matcher)
+		aa, _ := NewOptionalAssetFromString(tc.amountAsset)
+		pa, _ := NewOptionalAssetFromString(tc.priceAsset)
+		ts := uint64(time.Now().UnixNano() / 1000000)
+		aas := "null"
+		if aa.Present {
+			aas = fmt.Sprintf("\"%s\"", aa.ID.String())
+		}
+		pas := "null"
+		if pa.Present {
+			pas = fmt.Sprintf("\"%s\"", pa.ID.String())
+		}
+		exp := ts + 100*1000
+		if o, err := NewUnsignedOrderV2(pk, mpk, *aa, *pa, tc.orderType, tc.price, tc.amount, ts, exp, tc.fee); assert.NoError(t, err) {
+			if j, err := json.Marshal(o); assert.NoError(t, err) {
+				ej := fmt.Sprintf("{\"version\":2,\"senderPublicKey\":\"%s\",\"matcherPublicKey\":\"%s\",\"assetPair\":{\"amountAsset\":%s,\"priceAsset\":%s},\"orderType\":\"%s\",\"price\":%d,\"amount\":%d,\"timestamp\":%d,\"expiration\":%d,\"matcherFee\":%d}",
+					base58.Encode(pk[:]), tc.matcher, aas, pas, tc.orderType.String(), tc.price, tc.amount, ts, exp, tc.fee)
+				assert.Equal(t, ej, string(j))
+				if err := o.Sign(sk); assert.NoError(t, err) {
+					if j, err := json.Marshal(o); assert.NoError(t, err) {
+						ej := fmt.Sprintf("{\"version\":2,\"id\":\"%s\",\"proofs\":[\"%s\"],\"senderPublicKey\":\"%s\",\"matcherPublicKey\":\"%s\",\"assetPair\":{\"amountAsset\":%s,\"priceAsset\":%s},\"orderType\":\"%s\",\"price\":%d,\"amount\":%d,\"timestamp\":%d,\"expiration\":%d,\"matcherFee\":%d}",
+							base58.Encode(o.ID[:]), base58.Encode(o.Proofs.Proofs[0]), base58.Encode(pk[:]), tc.matcher, aas, pas, tc.orderType.String(), tc.price, tc.amount, ts, exp, tc.fee)
 						assert.Equal(t, ej, string(j))
 					}
 				}
