@@ -12,9 +12,9 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/mr-tron/base58/base58"
-	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/wavesplatform/gowaves/pkg/p2p"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/db"
 )
 
 const (
@@ -28,7 +28,7 @@ type Server struct {
 	mu            sync.Mutex
 	conns         map[*p2p.Conn]bool
 	dbpath        string
-	db            *leveldb.DB
+	db            *db.WavesDB
 	genesis       proto.BlockID
 	nodeStates    map[string]*NodeState
 }
@@ -89,8 +89,13 @@ func dialContext(ctx context.Context, network, addr string) (net.Conn, error) {
 	return nil, errors.New("TODO")
 }
 
-func (s *Server) doHaveAllBlocks(n *NodeState) bool {
-	for _, v := range n.pendingBlocksHave {
+func (s *Server) doHaveAllBlocks(conn *p2p.Conn) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	state := s.nodeStates[conn.RemoteAddr().String()]
+
+	for _, v := range state.pendingBlocksHave {
 		if !v {
 			return v
 		}
@@ -98,22 +103,46 @@ func (s *Server) doHaveAllBlocks(n *NodeState) bool {
 	return true
 }
 
-func (s *Server) processSignatures(conn *p2p.Conn, m proto.SignaturesMessage) {
-	/*
-		s.mu.Lock()
-		defer s.mu.Unlock()
+func (s *Server) addPendingBlock(conn *p2p.Conn, block proto.BlockID, have bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
-		state := s.nodeStates[conn.RemoteAddr().String()]
-		state.pendingSignatures = make([]proto.BlockSignature, len(m.Signatures))
-		state.pendingBlocksHave = make(map[proto.BlockSignature]bool)
-		copy(state.pendingSignatures, m.Signatures)
-	*/
+	state := s.nodeStates[conn.RemoteAddr().String()]
+
+	state.pendingBlocksHave[block] = have
+}
+
+func (s *Server) clearWaitingState(conn *p2p.Conn) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	state := s.nodeStates[conn.RemoteAddr().String()]
+
+	state.pendingSignatures = make([]proto.BlockID, 0, 128)
+	state.pendingBlocksHave = make(map[proto.BlockID]bool)
+}
+
+func (s *Server) receivedBlock(conn *p2p.Conn, block proto.Block) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	state := s.nodeStates[conn.RemoteAddr().String()]
+
+	if _, ok := state.pendingBlocksHave[block.BlockSignature]; ok {
+		state.pendingBlocksHave[block.BlockSignature] = true
+	}
+}
+
+func (s *Server) processSignatures(conn *p2p.Conn, m proto.SignaturesMessage) {
+	s.clearWaitingState(conn)
 
 	zap.S().Info("signatures len ", len(m.Signatures))
+	zap.S().Info("signatures from ", base58.Encode(m.Signatures[0][:]), " ", base58.Encode(m.Signatures[len(m.Signatures)-1][:]))
 	for i, sig := range m.Signatures {
-		has, err := s.db.Has(sig[:], nil)
+		has, err := s.db.Has(sig)
 		//state.pendingBlocksHave[sig] = false
 
+		s.addPendingBlock(conn, sig, has)
 		if err != nil {
 			zap.S().Error("failed to query leveldb: ", err)
 			continue
@@ -128,14 +157,14 @@ func (s *Server) processSignatures(conn *p2p.Conn, m proto.SignaturesMessage) {
 				zap.S().Error("failed to send get block message ", err)
 				break
 			}
-			continue
+
 		}
 	}
 
 }
 
 func (s *Server) waitForBlocks(conn *p2p.Conn) {
-	for {
+	for !s.doHaveAllBlocks(conn) {
 		msg, err := conn.ReadMessage()
 		if err != nil {
 			zap.S().Error("got error ", err)
@@ -149,6 +178,8 @@ func (s *Server) waitForBlocks(conn *p2p.Conn) {
 			zap.S().Infof("got message of type %T", v)
 		}
 	}
+
+	zap.S().Info("received all blocks")
 }
 
 func (s *Server) processBlock(c *p2p.Conn, m proto.BlockMessage) {
@@ -159,7 +190,7 @@ func (s *Server) processBlock(c *p2p.Conn, m proto.BlockMessage) {
 
 	zap.S().Info("got block ", str, " from ", c.RemoteAddr().String())
 
-	has, err := s.db.Has(b.BlockSignature[:], nil)
+	has, err := s.db.Has(b.BlockSignature)
 
 	if err != nil {
 		zap.S().Error("failed to query leveldb", err)
@@ -168,16 +199,23 @@ func (s *Server) processBlock(c *p2p.Conn, m proto.BlockMessage) {
 
 	if !has {
 		zap.S().Infof("block %v not found in db", str)
-		if err = s.db.Put(b.BlockSignature[:], msg.BlockBytes, nil); err != nil {
-			zap.S().Error("failed to query leveldb", err)
+		if err = s.db.Put(&b); err != nil {
+			switch err {
+			case db.ErrBlockOrphaned:
+				zap.S().Error("the block is orphaned, cannot write to db")
+			default:
+				zap.S().Error("failed to query leveldb", err)
+			}
 		}
 	}
+
+	s.receivedBlock(c, b)
 
 	return
 }
 
 func (s *Server) loadState(peer string) {
-	stateBytes, err := s.db.Get([]byte(peer), nil)
+	stateBytes, err := s.db.GetRaw([]byte(peer))
 	var state NodeState
 	if err != nil {
 		s.mu.Lock()
@@ -186,7 +224,7 @@ func (s *Server) loadState(peer string) {
 		state.State = stateSyncing
 
 		state.LastKnownBlock = s.genesis
-		state.pendingBlocksHave = make(map[proto.BlockSignature]bool, 0)
+		state.pendingBlocksHave = make(map[proto.BlockID]bool, 0)
 		state.Addr = peer
 
 		s.nodeStates[peer] = &state
@@ -226,9 +264,10 @@ func (s *Server) storeState(peer string) {
 		zap.S().Error("failed to marshal peer state: ", err)
 		return
 	}
-	if err := s.db.Put([]byte(peer), bytes, nil); err != nil {
+	if err := s.db.PutRaw([]byte(peer), bytes); err != nil {
 		zap.S().Error("failed to store peer state in db: ", err)
 	}
+	zap.S().Info("stored state ", peer, " ", string(bytes))
 }
 
 func (s *Server) syncState(conn *p2p.Conn) error {
@@ -256,8 +295,11 @@ LOOP:
 			case proto.SignaturesMessage:
 				zap.S().Info("got signatures message from ", conn.RemoteAddr().String())
 				s.processSignatures(conn, v)
-				zap.S().Info("waiting for blocks")
-				s.waitForBlocks(conn)
+				if !s.doHaveAllBlocks(conn) {
+					s.waitForBlocks(conn)
+				} else {
+					zap.S().Info("have all blocks")
+				}
 				//break LOOP
 			default:
 				zap.S().Infof("got message of type %T", v)
@@ -448,7 +490,7 @@ func NewServer(opts ...Option) (*Server, error) {
 	}
 
 	if s.dbpath != "" {
-		db, err := leveldb.OpenFile(s.dbpath, nil)
+		db, err := db.NewDB(s.dbpath, s.genesis)
 		if err != nil {
 			return nil, err
 		}
