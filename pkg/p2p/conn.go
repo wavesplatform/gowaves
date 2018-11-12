@@ -60,6 +60,7 @@ func (c *Conn) RemoteAddr() net.Addr {
 
 func (c *Conn) Close() {
 	zap.S().Info("Closing connection")
+	c.conn.Close()
 }
 
 func (c *Conn) ReadMessage() (interface{}, error) {
