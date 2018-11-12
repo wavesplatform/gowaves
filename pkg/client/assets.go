@@ -341,9 +341,14 @@ func (a *Assets) Burn(ctx context.Context, burnReq AssetsBurnReq) (*proto.BurnV1
 		return nil, nil, err
 	}
 
+	url, err := joinUrl(a.options.BaseUrl, "/assets/burn")
+	if err != nil {
+		return nil, nil, err
+	}
+
 	req, err := http.NewRequest(
 		"POST",
-		fmt.Sprintf("%s/assets/burn", a.options.BaseUrl),
+		url.String(),
 		bytes.NewReader(bts))
 	if err != nil {
 		return nil, nil, err

@@ -7,6 +7,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"time"
 )
 
@@ -145,4 +146,18 @@ func doHttp(ctx context.Context, options Options, req *http.Request, v interface
 	}
 
 	return response, err
+}
+
+func joinUrl(baseRaw string, pathRaw string) (*url.URL, error) {
+	base, err := url.Parse(baseRaw)
+	if err != nil {
+		return nil, err
+	}
+
+	path, err := url.Parse(pathRaw)
+	if err != nil {
+		return nil, err
+	}
+
+	return base.ResolveReference(path), nil
 }
