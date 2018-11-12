@@ -233,6 +233,12 @@ type AssetPair struct {
 	PriceAsset  OptionalAsset `json:"priceAsset"`
 }
 
+type Order interface {
+	GetVersion() byte
+	GetOrderType() OrderType
+	GetMatcherPK() crypto.PublicKey
+}
+
 type order struct {
 	SenderPK   crypto.PublicKey `json:"senderPublicKey"`
 	MatcherPK  crypto.PublicKey `json:"matcherPublicKey"`
@@ -358,6 +364,18 @@ func NewUnsignedOrderV1(senderPK, matcherPK crypto.PublicKey, amountAsset, price
 	return &OrderV1{order: *o}, nil
 }
 
+func (o OrderV1) GetVersion() byte {
+	return 1
+}
+
+func (o OrderV1) GetOrderType() OrderType {
+	return o.OrderType
+}
+
+func (o OrderV1) GetMatcherPK() crypto.PublicKey {
+	return o.MatcherPK
+}
+
 func (o *OrderV1) bodyMarshalBinary() ([]byte, error) {
 	return o.order.marshalBinary()
 }
@@ -454,6 +472,18 @@ func NewUnsignedOrderV2(senderPK, matcherPK crypto.PublicKey, amountAsset, price
 	return &OrderV2{Version: 2, order: *o}, nil
 }
 
+func (o OrderV2) GetVersion() byte {
+	return o.Version
+}
+
+func (o OrderV2) GetOrderType() OrderType {
+	return o.OrderType
+}
+
+func (o OrderV2) GetMatcherPK() crypto.PublicKey {
+	return o.MatcherPK
+}
+
 func (o *OrderV2) bodyMarshalBinary() ([]byte, error) {
 	aal := 0
 	if o.AssetPair.AmountAsset.Present {
@@ -547,7 +577,7 @@ func (o *OrderV2) UnmarshalBinary(data []byte) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to unmarshal OrderV2")
 	}
-	bl += orderLen
+	bl += orderV2FixedBodyLen
 	if o.AssetPair.AmountAsset.Present {
 		bl += crypto.DigestSize
 	}
