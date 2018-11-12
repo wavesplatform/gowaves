@@ -209,7 +209,7 @@ var tests = []protocolMarshallingTest{
 		"00000051  12345678          14         00000044      5474fb17   00000001 01000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000",
 	},
 	{
-		&SignaturesMessage{[]BlockSignature{{0x13}}},
+		&SignaturesMessage{[]BlockID{{0x13}}},
 		//P. Len |    Magic | ContentID | Payload Length | PayloadCsum | Payload
 		"00000051  12345678          15         00000044      5e0c8bee   00000001 13000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000",
 	},
@@ -239,7 +239,7 @@ var tests = []protocolMarshallingTest{
 		"0000000f  12345678          19         00000002      0e5751c0   6642",
 	},
 	{
-		&CheckPointMessage{[]CheckpointItem{{0xdeadbeef, BlockSignature{0x10, 0x11}}}},
+		&CheckPointMessage{[]CheckpointItem{{0xdeadbeef, BlockID{0x10, 0x11}}}},
 		//P. Len |    Magic | ContentID | Payload Length | PayloadCsum | Payload
 		"00000059  12345678          64         0000004c      fcb6b02a   00000001 00000000 deadbeef 10110000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000",
 	},

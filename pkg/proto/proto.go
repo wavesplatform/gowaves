@@ -32,10 +32,8 @@ const (
 )
 
 // BlockSignature is a signature of a formed block
-type BlockSignature crypto.Signature
-
 // BlockID represents the ID of a block
-type BlockID BlockSignature
+type BlockID crypto.Signature
 
 func (s *BlockID) UnmarshalJSON(data []byte) error {
 	b := crypto.Signature(*s)
@@ -625,7 +623,7 @@ func (m *GetSignaturesMessage) WriteTo(w io.Writer) (int64, error) {
 
 // SignaturesMessage represents Signatures message
 type SignaturesMessage struct {
-	Signatures []BlockSignature
+	Signatures []BlockID
 }
 
 // MarshalBinary encodes SignaturesMessage to binary form
@@ -678,7 +676,7 @@ func (m *SignaturesMessage) UnmarshalBinary(data []byte) error {
 	data = data[4:]
 
 	for i := uint32(0); i < sigCount; i++ {
-		var sig BlockSignature
+		var sig BlockID
 		offset := i * 64
 		if len(data[offset:]) < 64 {
 			return fmt.Errorf("message too short: %v", len(data))
@@ -977,7 +975,7 @@ func (m *TransactionMessage) WriteTo(w io.Writer) (int64, error) {
 // CheckpointItem represents a Checkpoint
 type CheckpointItem struct {
 	Height    uint64
-	Signature BlockSignature
+	Signature BlockID
 }
 
 // CheckPointMessage represents a CheckPoint message
