@@ -24,10 +24,10 @@ func TestUtils_Seed(t *testing.T) {
 		ApiKey:  "ApiKey",
 		BaseUrl: "https://testnode1.wavesnodes.com",
 	})
-	require.Nil(t, err)
+	require.NoError(t, err)
 	body, resp, err :=
 		client.Utils.Seed(context.Background())
-	require.Nil(t, err)
+	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, "33sJ3mEWyeZ3w004CPChfJvgapbPr88e6XV01Wd2cjyy", body)
 	assert.Equal(t, "https://testnode1.wavesnodes.com/utils/seed", resp.Request.URL.String())
@@ -47,10 +47,10 @@ func TestUtils_HashSecure(t *testing.T) {
 		ApiKey:  "ApiKey",
 		BaseUrl: "https://testnode1.wavesnodes.com",
 	})
-	require.Nil(t, err)
+	require.NoError(t, err)
 	body, resp, err :=
 		client.Utils.HashSecure(context.Background(), "xxx")
-	require.Nil(t, err)
+	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, &UtilsHashSecure{
 		Message: "xxx",
@@ -66,10 +66,10 @@ func TestUtils_HashFast(t *testing.T) {
 		ApiKey:  "ApiKey",
 		BaseUrl: "https://testnode1.wavesnodes.com",
 	})
-	require.Nil(t, err)
+	require.NoError(t, err)
 	body, resp, err :=
 		client.Utils.HashFast(context.Background(), "xxx")
-	require.Nil(t, err)
+	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, &UtilsHashFast{
 		Message: "xxx",
@@ -92,10 +92,10 @@ func TestUtils_Time(t *testing.T) {
 		ApiKey:  "ApiKey",
 		BaseUrl: "https://testnode1.wavesnodes.com",
 	})
-	require.Nil(t, err)
+	require.NoError(t, err)
 	body, resp, err :=
 		client.Utils.Time(context.Background())
-	require.Nil(t, err)
+	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, &UtilsTime{
 		System: 1540980020056,
@@ -112,18 +112,16 @@ var utilsSignJson = `
 }`
 
 func TestUtils_Sign(t *testing.T) {
-	secretKey, err := crypto.NewSecretKeyFromBase58("YoLY4iripseWvtMt29sc89oJnjxzodDgQ9REmEPFHkK")
-	require.Nil(t, err)
-
+	secretKey, _ := crypto.NewSecretKeyFromBase58("YoLY4iripseWvtMt29sc89oJnjxzodDgQ9REmEPFHkK")
 	client, err := NewClient(Options{
 		Client:  NewMockHttpRequestFromString(utilsSignJson, 200),
 		ApiKey:  "ApiKey",
 		BaseUrl: "https://testnode1.wavesnodes.com",
 	})
-	require.Nil(t, err)
+	require.NoError(t, err)
 	body, resp, err :=
 		client.Utils.Sign(context.Background(), secretKey, "123124122421")
-	require.Nil(t, err)
+	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, &UtilsSign{
 		Message:   "123124122421",
@@ -139,10 +137,10 @@ func TestUtils_SeedByLength(t *testing.T) {
 		ApiKey:  "ApiKey",
 		BaseUrl: "https://testnode1.wavesnodes.com",
 	})
-	require.Nil(t, err)
+	require.NoError(t, err)
 	body, resp, err :=
 		client.Utils.SeedByLength(context.Background(), 44)
-	require.Nil(t, err)
+	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, "33sJ3mEWyeZ3w004CPChfJvgapbPr88e6XV01Wd2cjyy", body)
 	assert.Equal(t, "https://testnode1.wavesnodes.com/utils/seed/44", resp.Request.URL.String())
@@ -160,10 +158,10 @@ func TestUtils_ScriptCompile(t *testing.T) {
 		Client:  NewMockHttpRequestFromString(utilsScriptCompileJson, 200),
 		BaseUrl: "https://testnode1.wavesnodes.com",
 	})
-	require.Nil(t, err)
+	require.NoError(t, err)
 	body, resp, err :=
 		client.Utils.ScriptCompile(context.Background(), "true")
-	require.Nil(t, err)
+	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, &UtilsScriptCompile{
 		Script:     "base64:AQa3b8tH",
@@ -186,10 +184,10 @@ func TestUtils_ScriptEstimate(t *testing.T) {
 		Client:  NewMockHttpRequestFromString(utilsScriptEstimateJson, 200),
 		BaseUrl: "https://testnode1.wavesnodes.com",
 	})
-	require.Nil(t, err)
+	require.NoError(t, err)
 	body, resp, err :=
 		client.Utils.ScriptEstimate(context.Background(), "base64:AQa3b8tH")
-	require.Nil(t, err)
+	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, &UtilsScriptEstimate{
 		Script:     "base64:AQa3b8tH",
