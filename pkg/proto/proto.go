@@ -2,7 +2,6 @@ package proto
 
 import (
 	"encoding/binary"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -10,7 +9,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/mr-tron/base58/base58"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 )
 
@@ -504,7 +502,6 @@ func readPacket(r io.Reader) ([]byte, int64, error) {
 		return nil, int64(nn), err
 	}
 	l := binary.BigEndian.Uint32(packetLen[:])
-	fmt.Println("packet len ", l)
 	packet := make([]byte, l)
 	for i := 0; i < len(packet); i++ {
 		packet[i] = 0x88
@@ -515,11 +512,6 @@ func readPacket(r io.Reader) ([]byte, int64, error) {
 	}
 	nn += n
 	packet = append(packetLen[:], packet...)
-	packHex := hex.Dump(packet)
-	fmt.Println("PACKET ", packHex)
-	fmt.Println("LEN ", l)
-	fmt.Println("read ", n)
-	fmt.Println("read len ", len(packet))
 
 	return packet, int64(nn), nil
 }
@@ -683,10 +675,7 @@ func (m *SignaturesMessage) UnmarshalBinary(data []byte) error {
 		return fmt.Errorf("message too short %v", len(data))
 	}
 	sigCount := binary.BigEndian.Uint32(data[0:4])
-	fmt.Println("Sig count ", sigCount)
 	data = data[4:]
-	fmt.Println("len data ", len(data))
-	fmt.Println("data ", data)
 
 	for i := uint32(0); i < sigCount; i++ {
 		var sig BlockSignature
@@ -695,7 +684,6 @@ func (m *SignaturesMessage) UnmarshalBinary(data []byte) error {
 			return fmt.Errorf("message too short: %v", len(data))
 		}
 		copy(sig[:], data[offset:offset+64])
-		fmt.Println("SIG ", base58.Encode(sig[:]))
 		m.Signatures = append(m.Signatures, sig)
 	}
 
