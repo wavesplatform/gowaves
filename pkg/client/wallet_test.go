@@ -4,23 +4,25 @@ import (
 	"context"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"os"
 	"testing"
 )
 
-func TestWallet_Seed(t *testing.T) {
-	apiKey := os.Getenv("ApiKey")
-	if apiKey == "" {
-		t.Skip("no env api key provided")
-		return
-	}
+var walletSeedJson = `
+{
+  "seed": "Nu2uaGvo5SJXG1aoai9ZGKYbJ7PEZppGVc6ogFkRHAv"
+}`
 
-	client, err := NewClient(Options{BaseUrl: "https://testnode1.wavesnodes.com", ApiKey: apiKey})
-	require.Nil(t, err)
+func TestWallet_Seed(t *testing.T) {
+	client, err := NewClient(Options{
+		BaseUrl: "https://testnode1.wavesnodes.com",
+		ApiKey:  "apiKEy",
+		Client:  NewMockHttpRequestFromString(walletSeedJson, 200),
+	})
+	require.NoError(t, err)
 	body, resp, err :=
 		client.Wallet.Seed(context.Background())
-
-	assert.Nil(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, resp)
-	assert.NotEqual(t, "", body)
+	assert.Equal(t, "Nu2uaGvo5SJXG1aoai9ZGKYbJ7PEZppGVc6ogFkRHAv", body)
+	assert.Equal(t, "https://testnode1.wavesnodes.com/wallet/seed", resp.Request.URL.String())
 }
