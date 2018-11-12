@@ -286,20 +286,18 @@ func (s *Server) handleClient(ctx context.Context, peer string) {
 		p2p.WithTransport(&customTransport),
 		p2p.WithRemote("tcp", peer),
 	)
-	s.mu.Lock()
-	s.conns[conn] = true
-	s.mu.Unlock()
-
 	if err != nil {
 		zap.S().Error("failed to create a new connection: ", err)
 		return
 	}
-	err = conn.DialContext(ctx, "tcp", peer)
-	if err != nil {
+	if err = conn.DialContext(ctx, "tcp", peer); err != nil {
 		zap.S().Error("error while dialing: ", err)
 		return
 	}
 	defer conn.Close()
+	s.mu.Lock()
+	s.conns[conn] = true
+	s.mu.Unlock()
 
 	go s.serveConn(conn)
 
