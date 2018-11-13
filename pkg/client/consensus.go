@@ -30,9 +30,14 @@ func (a Consensus) GeneratingBalance(ctx context.Context, address proto.Address)
 		return nil, nil, NoApiKeyError
 	}
 
+	url, err := joinUrl(a.options.BaseUrl, fmt.Sprintf("/consensus/generatingbalance/%s", address.String()))
+	if err != nil {
+		return nil, nil, err
+	}
+
 	req, err := http.NewRequest(
 		"GET",
-		fmt.Sprintf("%s/consensus/generatingbalance/%s", a.options.BaseUrl, address.String()),
+		url.String(),
 		nil)
 	if err != nil {
 		return nil, nil, err
@@ -55,9 +60,14 @@ func (a *Consensus) GenerationSignatureByBlock(ctx context.Context, blockID stri
 		return "", nil, NoApiKeyError
 	}
 
+	url, err := joinUrl(a.options.BaseUrl, fmt.Sprintf("/consensus/generationsignature/%s", blockID))
+	if err != nil {
+		return "", nil, err
+	}
+
 	req, err := http.NewRequest(
 		"GET",
-		fmt.Sprintf("%s/consensus/generationsignature/%s", a.options.BaseUrl, blockID),
+		url.String(),
 		nil)
 	if err != nil {
 		return "", nil, err
@@ -80,9 +90,14 @@ func (a *Consensus) BaseTargetByBlock(ctx context.Context, blockID string) (uint
 		return 0, nil, NoApiKeyError
 	}
 
+	url, err := joinUrl(a.options.BaseUrl, fmt.Sprintf("/consensus/basetarget/%s", blockID))
+	if err != nil {
+		return 0, nil, err
+	}
+
 	req, err := http.NewRequest(
 		"GET",
-		fmt.Sprintf("%s/consensus/basetarget/%s", a.options.BaseUrl, blockID),
+		url.String(),
 		nil)
 	if err != nil {
 		return 0, nil, err
@@ -110,9 +125,14 @@ func (a *Consensus) BaseTarget(ctx context.Context) (*ConsensusBaseTarget, *Resp
 		return nil, nil, NoApiKeyError
 	}
 
+	url, err := joinUrl(a.options.BaseUrl, "/consensus/basetarget")
+	if err != nil {
+		return nil, nil, err
+	}
+
 	req, err := http.NewRequest(
 		"GET",
-		fmt.Sprintf("%s/consensus/basetarget", a.options.BaseUrl),
+		url.String(),
 		nil)
 	if err != nil {
 		return nil, nil, err
@@ -135,9 +155,14 @@ func (a *Consensus) Algo(ctx context.Context) (string, *Response, error) {
 		return "", nil, NoApiKeyError
 	}
 
+	url, err := joinUrl(a.options.BaseUrl, "/consensus/algo")
+	if err != nil {
+		return "", nil, err
+	}
+
 	req, err := http.NewRequest(
 		"GET",
-		fmt.Sprintf("%s/consensus/algo", a.options.BaseUrl),
+		url.String(),
 		nil)
 	if err != nil {
 		return "", nil, err
@@ -160,9 +185,14 @@ func (a *Consensus) GenerationSignature(ctx context.Context) (string, *Response,
 		return "", nil, NoApiKeyError
 	}
 
+	url, err := joinUrl(a.options.BaseUrl, "/consensus/generationsignature")
+	if err != nil {
+		return "", nil, err
+	}
+
 	req, err := http.NewRequest(
 		"GET",
-		fmt.Sprintf("%s/consensus/generationsignature", a.options.BaseUrl),
+		url.String(),
 		nil)
 	if err != nil {
 		return "", nil, err

@@ -100,7 +100,7 @@ func TestConsensus_Algo(t *testing.T) {
 	client, err := NewClient(Options{
 		Client:  NewMockHttpRequestFromString(consensusAlgoJson, 200),
 		ApiKey:  "ApiKey",
-		BaseUrl: "https://testnode1.wavesnodes.com",
+		BaseUrl: "https://testnode1.wavesnodes.com/",
 	})
 	require.Nil(t, err)
 	body, resp, err :=
@@ -120,7 +120,7 @@ func TestConsensus_GenerationSignature(t *testing.T) {
 	client, _ := NewClient(Options{
 		Client:  NewMockHttpRequestFromString(consensusGenerationSignatureJson, 200),
 		ApiKey:  "ApiKey",
-		BaseUrl: "https://testnode1.wavesnodes.com",
+		BaseUrl: "https://testnode1.wavesnodes.com/",
 	})
 	body, resp, err :=
 		client.Consensus.GenerationSignature(context.Background())

@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
 	"net/http"
 
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -34,9 +33,14 @@ func (a *Peers) All(ctx context.Context) ([]*PeerAllRow, *Response, error) {
 		return nil, nil, NoApiKeyError
 	}
 
+	url, err := joinUrl(a.options.BaseUrl, "/peers/all")
+	if err != nil {
+		return nil, nil, err
+	}
+
 	req, err := http.NewRequest(
 		"GET",
-		fmt.Sprintf("%s/peers/all", a.options.BaseUrl),
+		url.String(),
 		nil)
 	if err != nil {
 		return nil, nil, err
@@ -71,9 +75,14 @@ func (a *Peers) Connected(ctx context.Context) ([]*PeersConnectedRow, *Response,
 		return nil, nil, NoApiKeyError
 	}
 
+	url, err := joinUrl(a.options.BaseUrl, "/peers/connected")
+	if err != nil {
+		return nil, nil, err
+	}
+
 	req, err := http.NewRequest(
 		"GET",
-		fmt.Sprintf("%s/peers/connected", a.options.BaseUrl),
+		url.String(),
 		nil)
 	if err != nil {
 		return nil, nil, err
@@ -101,9 +110,14 @@ func (a *Peers) Blacklisted(ctx context.Context) ([]*PeersBlacklistedRow, *Respo
 		return nil, nil, NoApiKeyError
 	}
 
+	url, err := joinUrl(a.options.BaseUrl, "/peers/blacklisted")
+	if err != nil {
+		return nil, nil, err
+	}
+
 	req, err := http.NewRequest(
 		"GET",
-		fmt.Sprintf("%s/peers/blacklisted", a.options.BaseUrl),
+		url.String(),
 		nil)
 	if err != nil {
 		return nil, nil, err
@@ -130,9 +144,14 @@ func (a *Peers) Suspended(ctx context.Context) ([]*PeersSuspendedRow, *Response,
 		return nil, nil, NoApiKeyError
 	}
 
+	url, err := joinUrl(a.options.BaseUrl, "/peers/suspended")
+	if err != nil {
+		return nil, nil, err
+	}
+
 	req, err := http.NewRequest(
 		"GET",
-		fmt.Sprintf("%s/peers/suspended", a.options.BaseUrl),
+		url.String(),
 		nil)
 	if err != nil {
 		return nil, nil, err
@@ -159,6 +178,11 @@ func (a *Peers) Connect(ctx context.Context, host string, port uint16) (*PeersCo
 		return nil, nil, NoApiKeyError
 	}
 
+	url, err := joinUrl(a.options.BaseUrl, "/peers/connect")
+	if err != nil {
+		return nil, nil, err
+	}
+
 	bts, err := json.Marshal(map[string]interface{}{"host": host, "port": port})
 	if err != nil {
 		return nil, nil, err
@@ -166,7 +190,7 @@ func (a *Peers) Connect(ctx context.Context, host string, port uint16) (*PeersCo
 
 	req, err := http.NewRequest(
 		"POST",
-		fmt.Sprintf("%s/peers/connect", a.options.BaseUrl),
+		url.String(),
 		bytes.NewReader(bts))
 	if err != nil {
 		return nil, nil, err
@@ -188,9 +212,14 @@ func (a *Peers) ClearBlacklist(ctx context.Context) (string, *Response, error) {
 		return "", nil, NoApiKeyError
 	}
 
+	url, err := joinUrl(a.options.BaseUrl, "/peers/clearblacklist")
+	if err != nil {
+		return "", nil, err
+	}
+
 	req, err := http.NewRequest(
 		"POST",
-		fmt.Sprintf("%s/peers/clearblacklist", a.options.BaseUrl),
+		url.String(),
 		nil)
 	if err != nil {
 		return "", nil, err

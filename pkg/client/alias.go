@@ -22,9 +22,14 @@ func NewAlias(options Options) *Alias {
 }
 
 func (a *Alias) Get(ctx context.Context, alias string) (proto.Address, *Response, error) {
+	url, err := joinUrl(a.options.BaseUrl, fmt.Sprintf("/alias/by-alias/%s", alias))
+	if err != nil {
+		return proto.Address{}, nil, err
+	}
+
 	req, err := http.NewRequest(
 		"GET",
-		fmt.Sprintf("%s/alias/by-alias/%s", a.options.BaseUrl, alias),
+		url.String(),
 		nil)
 	if err != nil {
 		return proto.Address{}, nil, err
@@ -42,9 +47,14 @@ func (a *Alias) Get(ctx context.Context, alias string) (proto.Address, *Response
 }
 
 func (a *Alias) GetByAddress(ctx context.Context, address proto.Address) ([]*proto.Alias, *Response, error) {
+	url, err := joinUrl(a.options.BaseUrl, fmt.Sprintf("/alias/by-address/%s", address.String()))
+	if err != nil {
+		return nil, nil, err
+	}
+
 	req, err := http.NewRequest(
 		"GET",
-		fmt.Sprintf("%s/alias/by-address/%s", a.options.BaseUrl, address.String()),
+		url.String(),
 		nil)
 	if err != nil {
 		return nil, nil, err
@@ -82,6 +92,11 @@ func (a *Alias) Create(ctx context.Context, createReq AliasCreateReq) (*CreateAl
 		return nil, nil, NoApiKeyError
 	}
 
+	url, err := joinUrl(a.options.BaseUrl, "/alias/create")
+	if err != nil {
+		return nil, nil, err
+	}
+
 	bts, err := json.Marshal(createReq)
 	if err != nil {
 		return nil, nil, err
@@ -89,7 +104,7 @@ func (a *Alias) Create(ctx context.Context, createReq AliasCreateReq) (*CreateAl
 
 	req, err := http.NewRequest(
 		"POST",
-		fmt.Sprintf("%s/alias/create", a.options.BaseUrl),
+		url.String(),
 		bytes.NewReader(bts))
 	if err != nil {
 		return nil, nil, err
@@ -120,9 +135,14 @@ func (a *Alias) Broadcast(ctx context.Context, broadcastReq AliasBroadcastReq) (
 		return nil, nil, err
 	}
 
+	url, err := joinUrl(a.options.BaseUrl, "/alias/broadcast/create")
+	if err != nil {
+		return nil, nil, err
+	}
+
 	req, err := http.NewRequest(
 		"POST",
-		fmt.Sprintf("%s/alias/broadcast/create", a.options.BaseUrl),
+		url.String(),
 		bytes.NewReader(bts))
 	if err != nil {
 		return nil, nil, err
