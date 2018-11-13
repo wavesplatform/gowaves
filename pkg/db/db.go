@@ -4,7 +4,6 @@ import (
 	"encoding/binary"
 	"errors"
 
-	_ "github.com/mr-tron/base58/base58"
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
@@ -12,28 +11,6 @@ import (
 const (
 	heightSuffix = "h"
 )
-
-/*
-	switch {
-	case b.BlockSignature == s.genesis:
-		height = 1
-	default:
-		heightBytes, err := s.db.Get(heightKey)
-		if err != nil {
-			zap.S().Info("height not found for ", str)
-			return
-		}
-		if len(heightBytes) != 8 {
-			zap.S().Info("len is ", len(heightBytes))
-			return
-		}
-		height = binary.BigEndian.Uint64(heightBytes)
-		height++
-	}
-	var heightBytes [8]byte
-	binary.BigEndian.PutUint64(heightBytes[:], height)
-	heightKey = append(b.BlockSignature[:], []byte("h")...)
-*/
 
 var ErrBlockOrphaned = errors.New("block orphaned")
 
