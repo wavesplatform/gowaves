@@ -30,6 +30,7 @@ func (b *Block) MarshalBinary() ([]byte, error) {
 	binary.BigEndian.PutUint32(res[117:121], b.TransactionBlockLength)
 	res = append(res, b.Transactions...)
 	res = append(res, b.GenPublicKey[:]...)
+	res = append(res, b.BlockSignature[:]...)
 
 	return res, nil
 }
@@ -43,7 +44,10 @@ func (b *Block) UnmarshalBinary(data []byte) error {
 	b.BaseTarget = binary.BigEndian.Uint64(data[77:85])
 	copy(b.GenSignature[:], data[85:117])
 	b.TransactionBlockLength = binary.BigEndian.Uint32(data[117:121])
-	copy(b.Transactions, data[121:])
+	transBytes := data[121 : 121+len(data[121:])-32-64]
+	b.Transactions = make([]byte, len(transBytes))
+	copy(b.Transactions, transBytes)
+	copy(b.GenPublicKey[:], data[len(data)-64-32:len(data)-64])
 	copy(b.BlockSignature[:], data[len(data)-64:])
 
 	return nil
