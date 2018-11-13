@@ -20,6 +20,8 @@ const retryTimeout = 30
 // ConnOption is a connection creation option
 type ConnOption func(*Conn) error
 
+var ErrUnknownMessage = errors.New("unknown message")
+
 // Conn is a connection between two waves nodes
 type Conn struct {
 	conn   net.Conn
@@ -130,7 +132,7 @@ func (c *Conn) ReadMessage() (interface{}, error) {
 			return nil, err
 		}
 		zap.S().Error("unknown message ", msgType)
-		return nil, errors.New("unknown message")
+		return nil, ErrUnknownMessage
 	}
 }
 

@@ -89,98 +89,21 @@ func dialContext(ctx context.Context, network, addr string) (net.Conn, error) {
 	return nil, errors.New("TODO")
 }
 
-func (s *Server) doHaveAllBlocks(conn *p2p.Conn) bool {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	state := s.nodeStates[conn.RemoteAddr().String()]
-
-	for _, v := range state.pendingBlocksHave {
-		if !v {
-			return v
-		}
-	}
-	return true
-}
-
-func (s *Server) addPendingBlock(conn *p2p.Conn, block proto.BlockID, have bool) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	state := s.nodeStates[conn.RemoteAddr().String()]
-
-	state.pendingBlocksHave[block] = have
-}
-
-func (s *Server) clearWaitingState(conn *p2p.Conn) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	state := s.nodeStates[conn.RemoteAddr().String()]
-
-	state.orphanedBlocks = make(map[proto.BlockID]*proto.Block)
-	state.pendingBlocksHave = make(map[proto.BlockID]bool)
-}
-
-func (s *Server) addOrphaned(conn *p2p.Conn, block *proto.Block) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	state := s.nodeStates[conn.RemoteAddr().String()]
-
-	state.orphanedBlocks[block.Parent] = block
-}
-
-func (s *Server) receivedBlock(conn *p2p.Conn, block *proto.Block) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	state := s.nodeStates[conn.RemoteAddr().String()]
-
-	for {
-		if _, ok := state.pendingBlocksHave[block.BlockSignature]; ok {
-			state.pendingBlocksHave[block.BlockSignature] = true
-		}
-
-		orphan, ok := state.orphanedBlocks[block.BlockSignature]
-		if !ok {
-			break
-		}
-		if err := s.db.Put(orphan); err != nil {
-			break
-		}
-		delete(state.orphanedBlocks, block.BlockSignature)
-		zap.S().Info("inserted orphaned block ", base58.Encode(orphan.BlockSignature[:]), " with parent ", base58.Encode(block.BlockSignature[:]))
-		block = orphan
-	}
-}
-
-func (s *Server) waitingForBlock(conn *p2p.Conn, b proto.BlockID) bool {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	state := s.nodeStates[conn.RemoteAddr().String()]
-	_, ok := state.pendingBlocksHave[b]
-
-	return ok
-}
-func (s *Server) processSignatures(conn *p2p.Conn, m proto.SignaturesMessage) {
-	s.clearWaitingState(conn)
+func (s *Server) processSignatures(conn *p2p.Conn, m proto.SignaturesMessage) []proto.BlockID {
+	unknownBlocks := make([]proto.BlockID, 0, len(m.Signatures))
 
 	zap.S().Info("signatures len ", len(m.Signatures))
 	zap.S().Info("signatures from ", base58.Encode(m.Signatures[0][:]), " ", base58.Encode(m.Signatures[len(m.Signatures)-1][:]))
-	for i, sig := range m.Signatures {
+	for _, sig := range m.Signatures {
 		has, err := s.db.Has(sig)
-		//state.pendingBlocksHave[sig] = false
-
-		s.addPendingBlock(conn, sig, has)
 		if err != nil {
 			zap.S().Error("failed to query leveldb: ", err)
 			continue
 		}
 
 		if !has {
-			zap.S().Debug("asking for block ", i, " ", base58.Encode(sig[:]))
+			unknownBlocks = append(unknownBlocks, sig)
+			//zap.S().Debug("asking for block ", i, " ", base58.Encode(sig[:]))
 			var blockID proto.BlockID
 			copy(blockID[:], sig[:])
 			gbm := proto.GetBlockMessage{BlockID: blockID}
@@ -188,67 +111,41 @@ func (s *Server) processSignatures(conn *p2p.Conn, m proto.SignaturesMessage) {
 				zap.S().Error("failed to send get block message ", err)
 				break
 			}
-
 		}
 	}
 
+	return unknownBlocks
 }
 
-func (s *Server) waitForBlocks(conn *p2p.Conn) {
-	for !s.doHaveAllBlocks(conn) {
+func (s *Server) waitForBlocks(conn *p2p.Conn, blocks []proto.BlockID) (*blockBatch, error) {
+	batch, err := NewBatch(blocks)
+	if err != nil {
+		return nil, err
+	}
+
+	for !batch.haveAll() {
 		msg, err := conn.ReadMessage()
-		if err != nil {
+		if err != nil && err != p2p.ErrUnknownMessage {
 			zap.S().Error("got error ", err)
-			break
+			return nil, err
 		}
 
 		switch v := msg.(type) {
 		case proto.BlockMessage:
-			s.processBlock(conn, v)
+			var b proto.Block
+			if err = b.UnmarshalBinary(v.BlockBytes); err != nil {
+				zap.S().Info("failed to unmarshal block ", err)
+				continue
+			}
+			batch.addBlock(&b)
 		default:
 			zap.S().Infof("got message of type %T", v)
 		}
 	}
 
 	zap.S().Info("received all blocks")
-}
 
-func (s *Server) processBlock(c *p2p.Conn, m proto.BlockMessage) {
-	msg := m
-	var b proto.Block
-	b.UnmarshalBinary(msg.BlockBytes)
-	str := base58.Encode(b.BlockSignature[:])
-
-	zap.S().Info("got block ", str, " from ", c.RemoteAddr().String())
-
-	if !s.waitingForBlock(c, b.BlockSignature) {
-		return
-	}
-
-	has, err := s.db.Has(b.BlockSignature)
-
-	if err != nil {
-		zap.S().Error("failed to query leveldb", err)
-		return
-	}
-
-	if !has {
-		zap.S().Infof("block %v not found in db", str)
-		if err = s.db.Put(&b); err != nil {
-			switch err {
-			case db.ErrBlockOrphaned:
-				s.addOrphaned(c, &b)
-				zap.S().Info("the block is orphaned, cannot write to db")
-			default:
-				zap.S().Error("failed to query leveldb", err)
-			}
-			return
-		}
-	}
-
-	s.receivedBlock(c, &b)
-
-	return
+	return batch, nil
 }
 
 func (s *Server) loadState(peer string) {
@@ -261,7 +158,6 @@ func (s *Server) loadState(peer string) {
 		state.State = stateSyncing
 
 		state.LastKnownBlock = s.genesis
-		state.pendingBlocksHave = make(map[proto.BlockID]bool, 0)
 		state.Addr = peer
 
 		s.nodeStates[peer] = &state
@@ -307,37 +203,82 @@ func (s *Server) storeState(peer string) {
 	zap.S().Info("stored state ", peer, " ", string(bytes))
 }
 
+func (s *Server) lastKnownBlock(conn *p2p.Conn) proto.BlockID {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	state := s.nodeStates[conn.RemoteAddr().String()]
+	return state.LastKnownBlock
+}
+
+func (s *Server) setLastKnownBlock(conn *p2p.Conn, block proto.BlockID) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	state := s.nodeStates[conn.RemoteAddr().String()]
+	state.LastKnownBlock = block
+}
+
+func (s *Server) processBatch(batch []*proto.Block) error {
+	for _, block := range batch {
+		if err := s.db.Put(block); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func (s *Server) syncState(conn *p2p.Conn) error {
 LOOP:
 	for {
 		var gs proto.GetSignaturesMessage
 		s.mu.Lock()
 		state, ok := s.nodeStates[conn.RemoteAddr().String()]
-		s.mu.Unlock()
 		if !ok {
 			break
 		}
-		gs.Blocks = append(gs.Blocks, state.LastKnownBlock)
+		gs.Blocks = make([]proto.BlockID, 1)
+		gs.Blocks[0] = state.LastKnownBlock
+		s.mu.Unlock()
 
 		zap.S().Info("Asking for signatures")
 		conn.SendMessage(gs)
-		conn.SendMessage(gs)
+LOOP2:
 		for {
 			msg, err := conn.ReadMessage()
-			if err != nil {
+			if err != nil && err != p2p.ErrUnknownMessage {
 				break LOOP
 			}
 
 			switch v := msg.(type) {
 			case proto.SignaturesMessage:
 				zap.S().Info("got signatures message from ", conn.RemoteAddr().String())
-				s.processSignatures(conn, v)
-				if !s.doHaveAllBlocks(conn) {
-					s.waitForBlocks(conn)
-				} else {
+				unknown := s.processSignatures(conn, v)
+				if len(unknown) == 0 {
 					zap.S().Info("have all blocks")
+					break
 				}
-				//break LOOP
+
+				batch, err := s.waitForBlocks(conn, unknown)
+				if err != nil {
+					break LOOP
+				}
+
+				orBatch, err := batch.orderedBatch()
+				if err != nil {
+					zap.S().Error(err)
+				}
+				zap.S().Info("batch of length ", len(orBatch), " first block ",
+				base58.Encode(orBatch[0].BlockSignature[:]), " last block ",
+				base58.Encode(orBatch[len(orBatch) - 1].BlockSignature[:]))
+
+				err = s.processBatch(orBatch)
+				if err != nil {
+					zap.S().Info("failed to process batch: ", err)
+				}
+				s.setLastKnownBlock(conn, orBatch[len(orBatch)-1].BlockSignature)
+				break LOOP2
 			default:
 				zap.S().Infof("got message of type %T", v)
 			}

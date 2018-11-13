@@ -14,7 +14,4 @@ type NodeState struct {
 	Addr           string        `json:"addr"`
 	LastKnownBlock proto.BlockID `json:"last_known_block"`
 	KnownVersion   proto.Version `json:"known_versoin"`
-
-	pendingBlocksHave map[proto.BlockID]bool
-	orphanedBlocks    map[proto.BlockID]*proto.Block
 }
