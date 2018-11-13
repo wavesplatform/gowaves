@@ -133,6 +133,10 @@ func NewPublicKeyFromBase58(s string) (PublicKey, error) {
 
 type Signature [SignatureSize]byte
 
+func (s Signature) String() string {
+	return base58.Encode(s[:])
+}
+
 func (s Signature) MarshalBinary() ([]byte, error) {
 	b := make([]byte, 0, SignatureSize)
 	copy(b, s[:])
