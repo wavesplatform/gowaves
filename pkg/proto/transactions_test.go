@@ -1555,6 +1555,70 @@ func TestExchangeV2Validations(t *testing.T) {
 	}
 }
 
+func TestExchangeV2FromTestNet(t *testing.T) {
+	tests := []struct {
+		matcher        string
+		sig            string
+		id             string
+		amountAsset    string
+		priceAsset     string
+		buyID          string
+		buySender      string
+		buySig         string
+		buyPrice       uint64
+		buyAmount      uint64
+		buyTs          uint64
+		buyExp         uint64
+		buyFee         uint64
+		sellID         string
+		sellSender     string
+		sellSig        string
+		sellPrice      uint64
+		sellAmount     uint64
+		sellTs         uint64
+		sellExp        uint64
+		sellFee        uint64
+		price          uint64
+		amount         uint64
+		buyMatcherFee  uint64
+		sellMatcherFee uint64
+		fee            uint64
+		timestamp      uint64
+	}{
+		{"8QUAqtTckM5B8gvcuP7mMswat9SjKUuafJMusEoSn1Gy", "4xTXXWYfjYkeTqrodaNqDhWjRSJSfTWNi7dPXWbKi4BtqS9vQotr9ovYT2g67aBYsgKtHaWfup6AaPV1BGZaihPn", "H8rykXmgXeaP9CEPdkRd5iAThwhGQxpNnou1cvNBmhjw", "DWgwcZTMhSvnyYCoWLRUXXSH1RSkzThXLJhww9gwkqdn", "WAVES",
+			"AMunMc338taaSC5hEbVwy4FCQp7BJnDzDj1h9prX2ftW", "FB5ErjREo817duEBBQUqUdkgoPctQJEYuG3mU7w3AYjc", "5THpubijxUjMchUBnMN6xzDjLZLbu2PTkLvM5imLqqxCtxhnG4bdQsxnscdjBut4uhi4HWV8h948aYmtegAApqx6", 1400000000, 100000, 1542025349897, 1544530949898, 300000,
+			"Gu1GTAyz3mxZwNrcMkS8j742gb4iHg9yUj8Y6QRNfG4F", "FB5ErjREo817duEBBQUqUdkgoPctQJEYuG3mU7w3AYjc", "2EcB3XkoHsUTdALPvhRhTHHj3eJBfESeYRAQ2wJmEpahCMRXyMY5KLUR4gf5YtHCKSmhEXJxrwa2V2JA8esZArtt", 1400000000, 100000, 1542025338886, 1544530938886, 300000,
+			1400000000, 100000, 300000, 300000, 300000, 1542025350044},
+	}
+	for _, tc := range tests {
+		buySender, _ := crypto.NewPublicKeyFromBase58(tc.buySender)
+		sellSender, _ := crypto.NewPublicKeyFromBase58(tc.sellSender)
+		mpk, _ := crypto.NewPublicKeyFromBase58(tc.matcher)
+		id, _ := crypto.NewDigestFromBase58(tc.id)
+		sig, _ := crypto.NewSignatureFromBase58(tc.sig)
+		aa, _ := NewOptionalAssetFromString(tc.amountAsset)
+		pa, _ := NewOptionalAssetFromString(tc.priceAsset)
+		bo, _ := NewUnsignedOrderV1(buySender, mpk, *aa, *pa, Buy, tc.buyPrice, tc.buyAmount, tc.buyTs, tc.buyExp, tc.buyFee)
+		bID, _ := crypto.NewDigestFromBase58(tc.buyID)
+		bSig, _ := crypto.NewSignatureFromBase58(tc.buySig)
+		bo.ID = &bID
+		bo.Signature = &bSig
+		so, _ := NewUnsignedOrderV1(sellSender, mpk, *aa, *pa, Sell, tc.sellPrice, tc.sellAmount, tc.sellTs, tc.sellExp, tc.sellFee)
+		sID, _ := crypto.NewDigestFromBase58(tc.sellID)
+		sSig, _ := crypto.NewSignatureFromBase58(tc.sellSig)
+		so.ID = &sID
+		so.Signature = &sSig
+		if tx, err := NewUnsignedExchangeV2(*bo, *so, tc.price, tc.amount, tc.buyMatcherFee, tc.sellMatcherFee, tc.fee, tc.timestamp); assert.NoError(t, err) {
+			if b, err := tx.bodyMarshalBinary(); assert.NoError(t, err) {
+				if h, err := crypto.FastHash(b); assert.NoError(t, err) {
+					assert.Equal(t, id, h)
+				}
+				assert.True(t, crypto.Verify(mpk, sig, b))
+			}
+		}
+	}
+}
+
 func TestExchangeV2BinaryRoundTrip(t *testing.T) {
 	seedA, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
 	sk, pk := crypto.GenerateKeyPair(seedA)
