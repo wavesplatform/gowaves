@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
 	"strings"
@@ -19,7 +20,8 @@ import (
 )
 
 const (
-	defaultURL = "https://nodes.wavesnodes.com"
+	defaultURL    = "https://nodes.wavesnodes.com"
+	defaultScheme = "http"
 )
 
 var version string
@@ -30,12 +32,14 @@ func main() {
 	var node string
 	var reference string
 	var verbose bool
+	var silent bool
 
 	flag.StringVarP(&node, "node", "n", "", "URL of the node")
 	flag.StringVarP(&reference, "references", "r", defaultURL, "A list of space-separated URLs of reference nodes, for example \"http://127.0.0.1:6869 https://nodes.wavesnodes.com\"")
 	flag.BoolVarP(&showHelp, "help", "h", false, "Print usage information (this message) and quit")
 	flag.BoolVarP(&showVersion, "version", "v", false, "Print version information and quit")
-	flag.BoolVar(&verbose, "verbose", false, "Logs additional information")
+	flag.BoolVar(&verbose, "verbose", false, "Logs additional information; incompatible with \"silent\"")
+	flag.BoolVar(&silent, "silent", false, "Produce no output except this help message; incompatible with \"verbose\"")
 	flag.Usage = showUsageAndExit
 	flag.Parse()
 
@@ -45,11 +49,16 @@ func main() {
 	if showVersion {
 		showVersionAndExit()
 	}
-
+	if silent && verbose {
+		showUsageAndExit()
+	}
 	al := zap.NewAtomicLevel()
 	ec := zap.NewDevelopmentEncoderConfig()
 	if verbose {
 		al.SetLevel(zap.DebugLevel)
+	}
+	if silent {
+		al.SetLevel(zap.FatalLevel)
 	}
 	logger := zap.New(zapcore.NewCore(zapcore.NewConsoleEncoder(ec), zapcore.Lock(os.Stdout), al))
 	defer logger.Sync()
@@ -69,7 +78,21 @@ func main() {
 	if node == "" || len(strings.Fields(node)) > 1 {
 		showUsageAndExit()
 	}
+	var err error
+	node, err = checkAndUpdateURL(node)
+	if err != nil {
+		log.Errorf("Incorrect node's URL: %s", err.Error())
+		os.Exit(2)
+	}
 	other := strings.Fields(reference)
+	for i, u := range other {
+		u, err = checkAndUpdateURL(u)
+		if err != nil {
+			log.Error("Incorrect reference's URL: %s", err.Error())
+			os.Exit(2)
+		}
+		other[i] = u
+	}
 
 	log.Debugf("Node to check: %s", node)
 	log.Debugf("Reference nodes (%d): %s", len(other), other)
@@ -83,7 +106,7 @@ func main() {
 		if err != nil {
 			log.Errorf("Failed to create client for URL '%s': %s", u, err)
 			cancel()
-			os.Exit(1)
+			os.Exit(2)
 		}
 		clients[i] = c
 	}
@@ -91,6 +114,8 @@ func main() {
 	hs, err := heights(appCtx, clients)
 	if err != nil {
 		log.Errorf("Failed to retrieve heights from all nodes: %s", err)
+		cancel()
+		os.Exit(2)
 	}
 	for i, h := range hs {
 		log.Debugf("%d: Height = %d", i, h)
@@ -103,14 +128,14 @@ func main() {
 	if err != nil {
 		log.Errorf("Failed to find last common height: %s", err)
 		cancel()
-		os.Exit(1)
+		os.Exit(2)
 	}
 
 	sigCnt, err := differentSignaturesCount(appCtx, log, clients, ch+1)
 	if err != nil {
 		log.Errorf("Failed to get blocks: %s", err)
 		cancel()
-		os.Exit(1)
+		os.Exit(2)
 	}
 
 	h := hs[0]
@@ -122,8 +147,11 @@ func main() {
 		log.Warnf("Node '%s' on fork of length %d since block number %d", node, fl, ch)
 		if fl < 1980 {
 			if fl < 100 {
-				log.Warnf("The fork is short and possibly the node will rollback and switch on the correct fork automatically.", node)
+				log.Warn("The fork is short and possibly the node will rollback and switch on the correct fork automatically.")
 				log.Warnf("But if you want to rollback manually, refer the documentation at https://docs.wavesplatform.com/en/waves-full-node/how-to-rollback-a-node.html.")
+				if fl < 10 {
+					os.Exit(0)
+				}
 			} else {
 				log.Warnf("Manual rollback of the node '%s' is possible, do it as soon as possible!", node)
 				log.Warnf("Please, read the documentation at https://docs.wavesplatform.com/en/waves-full-node/how-to-rollback-a-node.html.")
@@ -132,6 +160,7 @@ func main() {
 			log.Warnf("Rollback of node '%s' is not available, the fork is too long, consider restarting the node from scratch!", node)
 			log.Warnf("Please, refer the documentation at https://docs.wavesplatform.com/en/waves-full-node/options-for-getting-actual-blockchain.html.")
 		}
+		os.Exit(1)
 	} else {
 		switch {
 		case h < refLowest:
@@ -141,7 +170,28 @@ func main() {
 		default:
 			log.Infof("Node '%s' is %d blocks ahead of the lowest reference node", node, refLowest-h)
 		}
+		os.Exit(0)
 	}
+}
+
+func checkAndUpdateURL(s string) (string, error) {
+	var u *url.URL
+	var err error
+	if strings.Contains(s, "//") {
+		u, err = url.Parse(s)
+	} else {
+		u, err = url.Parse("//" + s)
+	}
+	if err != nil {
+		return "", errors.Wrapf(err, "failed to parse URL '%s'", s)
+	}
+	if u.Scheme == "" {
+		u.Scheme = defaultScheme
+	}
+	if u.Scheme != "http" && u.Scheme != "https" {
+		return "", errors.Errorf("unsupported URL scheme '%s'", u.Scheme)
+	}
+	return u.String(), nil
 }
 
 func findLastCommonHeight(rootContext context.Context, log *zap.SugaredLogger, clients []*client.Client, start, stop int) (int, error) {
@@ -200,7 +250,7 @@ func differentSignaturesCount(rootContext context.Context, log *zap.SugaredLogge
 	for i := 0; i < len(info); i++ {
 		v := info[i]
 		t := time.Unix(0, int64(v.Timestamp*1000000))
-		log.Debugf("id: %d, h: %d, block: %s, generator: %s, time: %s", i, v.Height, v.Signature, v.Generator, t.String())
+		log.Debugf("id: %d, h: %d, block: %s, generator: %s, time: %s", i, v.Height, v.Signature.String(), v.Generator.String(), t.String())
 	}
 	return len(m), nil
 }
@@ -243,13 +293,9 @@ func height(rootContext context.Context, c *client.Client, id int, ch chan nodeH
 	ctx, cancel := context.WithTimeout(rootContext, time.Second*30)
 	defer cancel()
 
-	bh, resp, err := c.Blocks.Height(ctx)
+	bh, _, err := c.Blocks.Height(ctx)
 	if err != nil {
 		ch <- nodeHeight{id, 0, err}
-		return
-	}
-	if c := resp.StatusCode; c != 200 {
-		ch <- nodeHeight{id, 0, errors.Errorf("unexpected response code %d", c)}
 		return
 	}
 	ch <- nodeHeight{id, int(bh.Height), nil}
