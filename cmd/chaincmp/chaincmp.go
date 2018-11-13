@@ -106,7 +106,7 @@ func main() {
 		if err != nil {
 			log.Errorf("Failed to create client for URL '%s': %s", u, err)
 			cancel()
-			os.Exit(1)
+			os.Exit(2)
 		}
 		clients[i] = c
 	}
@@ -114,6 +114,8 @@ func main() {
 	hs, err := heights(appCtx, clients)
 	if err != nil {
 		log.Errorf("Failed to retrieve heights from all nodes: %s", err)
+		cancel()
+		os.Exit(2)
 	}
 	for i, h := range hs {
 		log.Debugf("%d: Height = %d", i, h)
@@ -126,14 +128,14 @@ func main() {
 	if err != nil {
 		log.Errorf("Failed to find last common height: %s", err)
 		cancel()
-		os.Exit(1)
+		os.Exit(2)
 	}
 
 	sigCnt, err := differentSignaturesCount(appCtx, log, clients, ch+1)
 	if err != nil {
 		log.Errorf("Failed to get blocks: %s", err)
 		cancel()
-		os.Exit(1)
+		os.Exit(2)
 	}
 
 	h := hs[0]
@@ -147,6 +149,9 @@ func main() {
 			if fl < 100 {
 				log.Warn("The fork is short and possibly the node will rollback and switch on the correct fork automatically.")
 				log.Warnf("But if you want to rollback manually, refer the documentation at https://docs.wavesplatform.com/en/waves-full-node/how-to-rollback-a-node.html.")
+				if fl < 10 {
+					os.Exit(0)
+				}
 			} else {
 				log.Warnf("Manual rollback of the node '%s' is possible, do it as soon as possible!", node)
 				log.Warnf("Please, read the documentation at https://docs.wavesplatform.com/en/waves-full-node/how-to-rollback-a-node.html.")
