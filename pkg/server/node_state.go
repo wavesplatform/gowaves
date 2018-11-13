@@ -16,5 +16,5 @@ type NodeState struct {
 	KnownVersion   proto.Version `json:"known_versoin"`
 
 	pendingBlocksHave map[proto.BlockID]bool
-	pendingSignatures []proto.BlockID
+	orphanedBlocks    map[proto.BlockID]*proto.Block
 }

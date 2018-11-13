@@ -12,9 +12,9 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/mr-tron/base58/base58"
+	"github.com/wavesplatform/gowaves/pkg/db"
 	"github.com/wavesplatform/gowaves/pkg/p2p"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"github.com/wavesplatform/gowaves/pkg/db"
 )
 
 const (
@@ -118,21 +118,52 @@ func (s *Server) clearWaitingState(conn *p2p.Conn) {
 
 	state := s.nodeStates[conn.RemoteAddr().String()]
 
-	state.pendingSignatures = make([]proto.BlockID, 0, 128)
+	state.orphanedBlocks = make(map[proto.BlockID]*proto.Block)
 	state.pendingBlocksHave = make(map[proto.BlockID]bool)
 }
 
-func (s *Server) receivedBlock(conn *p2p.Conn, block proto.Block) {
+func (s *Server) addOrphaned(conn *p2p.Conn, block *proto.Block) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	state := s.nodeStates[conn.RemoteAddr().String()]
 
-	if _, ok := state.pendingBlocksHave[block.BlockSignature]; ok {
-		state.pendingBlocksHave[block.BlockSignature] = true
+	state.orphanedBlocks[block.Parent] = block
+}
+
+func (s *Server) receivedBlock(conn *p2p.Conn, block *proto.Block) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	state := s.nodeStates[conn.RemoteAddr().String()]
+
+	for {
+		if _, ok := state.pendingBlocksHave[block.BlockSignature]; ok {
+			state.pendingBlocksHave[block.BlockSignature] = true
+		}
+
+		orphan, ok := state.orphanedBlocks[block.BlockSignature]
+		if !ok {
+			break
+		}
+		if err := s.db.Put(orphan); err != nil {
+			break
+		}
+		delete(state.orphanedBlocks, block.BlockSignature)
+		zap.S().Info("inserted orphaned block ", base58.Encode(orphan.BlockSignature[:]), " with parent ", base58.Encode(block.BlockSignature[:]))
+		block = orphan
 	}
 }
 
+func (s *Server) waitingForBlock(conn *p2p.Conn, b proto.BlockID) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	state := s.nodeStates[conn.RemoteAddr().String()]
+	_, ok := state.pendingBlocksHave[b]
+
+	return ok
+}
 func (s *Server) processSignatures(conn *p2p.Conn, m proto.SignaturesMessage) {
 	s.clearWaitingState(conn)
 
@@ -190,6 +221,10 @@ func (s *Server) processBlock(c *p2p.Conn, m proto.BlockMessage) {
 
 	zap.S().Info("got block ", str, " from ", c.RemoteAddr().String())
 
+	if !s.waitingForBlock(c, b.BlockSignature) {
+		return
+	}
+
 	has, err := s.db.Has(b.BlockSignature)
 
 	if err != nil {
@@ -202,14 +237,16 @@ func (s *Server) processBlock(c *p2p.Conn, m proto.BlockMessage) {
 		if err = s.db.Put(&b); err != nil {
 			switch err {
 			case db.ErrBlockOrphaned:
-				zap.S().Error("the block is orphaned, cannot write to db")
+				s.addOrphaned(c, &b)
+				zap.S().Info("the block is orphaned, cannot write to db")
 			default:
 				zap.S().Error("failed to query leveldb", err)
 			}
+			return
 		}
 	}
 
-	s.receivedBlock(c, b)
+	s.receivedBlock(c, &b)
 
 	return
 }
