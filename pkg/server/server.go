@@ -6,11 +6,13 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/http"
 	"sync"
 	"time"
 
 	"go.uber.org/zap"
 
+	"github.com/gorilla/mux"
 	"github.com/mr-tron/base58/base58"
 	"github.com/wavesplatform/gowaves/pkg/db"
 	"github.com/wavesplatform/gowaves/pkg/p2p"
@@ -31,6 +33,10 @@ type Server struct {
 	db            *db.WavesDB
 	genesis       proto.BlockID
 	nodeStates    map[string]*NodeState
+
+	apiAddr string
+	router  *mux.Router
+	server  *http.Server
 }
 
 func handleRequest(ctx context.Context, conn net.Conn) {
@@ -244,7 +250,7 @@ LOOP:
 
 		zap.S().Info("Asking for signatures")
 		conn.SendMessage(gs)
-LOOP2:
+	LOOP2:
 		for {
 			msg, err := conn.ReadMessage()
 			if err != nil && err != p2p.ErrUnknownMessage {
@@ -270,8 +276,8 @@ LOOP2:
 					zap.S().Error(err)
 				}
 				zap.S().Info("batch of length ", len(orBatch), " first block ",
-				base58.Encode(orBatch[0].BlockSignature[:]), " last block ",
-				base58.Encode(orBatch[len(orBatch) - 1].BlockSignature[:]))
+					base58.Encode(orBatch[0].BlockSignature[:]), " last block ",
+					base58.Encode(orBatch[len(orBatch)-1].BlockSignature[:]))
 
 				err = s.processBatch(orBatch)
 				if err != nil {
@@ -370,6 +376,7 @@ func (s *Server) printPeers() {
 		zap.S().Info("node: ", k, "state: ", string(b))
 	}
 }
+
 func (s *Server) printStats(ctx context.Context) {
 	defer s.wg.Done()
 LOOP:
@@ -403,11 +410,21 @@ func (m *Server) Stop() {
 	}
 	m.mu.Unlock()
 
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+	m.server.Shutdown(ctx)
 	m.wg.Wait()
 	zap.S().Info("stopped server")
 }
 
 type Option func(*Server) error
+
+func WithBindAddr(addr string) Option {
+	return func(s *Server) error {
+		s.apiAddr = addr
+		return nil
+	}
+}
 
 func WithLevelDBPath(dbpath string) Option {
 	return func(s *Server) error {
@@ -451,6 +468,95 @@ func decodeBlockID(b string) (*proto.BlockID, error) {
 	return &res, nil
 }
 
+func (s *Server) getBlock(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	id, ok := vars["sig"]
+	if !ok {
+		respondWithError(w, http.StatusBadRequest, "no block signature specified")
+		return
+	}
+
+	decoded, err := base58.Decode(id)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "invalid block signature")
+		return
+	}
+	var blockId proto.BlockID
+	copy(blockId[:], decoded)
+	block, err := s.db.Get(blockId)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "block not found")
+		return
+	}
+	respondWithJSON(w, http.StatusOK, block)
+}
+
+func (s *Server) getNodes(w http.ResponseWriter, r *http.Request) {
+	s.mu.Lock()
+	addrs := make([]string, 0, len(s.nodeStates))
+	for _, state := range s.nodeStates {
+		addrs = append(addrs, state.Addr)
+	}
+	s.mu.Unlock()
+	respondWithJSON(w, http.StatusOK, addrs)
+}
+
+func (s *Server) getNode(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	addr, ok := vars["addr"]
+	if !ok {
+		respondWithError(w, http.StatusBadRequest, "no node addr specified")
+		return
+	}
+	s.mu.Lock()
+
+	state, ok := s.nodeStates[addr]
+	if !ok {
+		respondWithError(w, http.StatusBadRequest, "no such node")
+		return
+	}
+	stateCopy := *state
+	s.mu.Unlock()
+
+	respondWithJSON(w, http.StatusOK, stateCopy)
+}
+
+func respondWithError(w http.ResponseWriter, code int, message string) {
+	respondWithJSON(w, code, map[string]string{"error": message})
+}
+
+func respondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
+	response, _ := json.Marshal(payload)
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(code)
+	w.Write(response)
+}
+
+func (s *Server) initRoutes() {
+	s.router.HandleFunc("/blocks/signature/{sig:[a-zA-Z0-9]{88}}", s.getBlock).Methods("GET")
+	s.router.HandleFunc("/nodes", s.getNodes).Methods("GET")
+	s.router.HandleFunc("/node/{addr}", s.getNode).Methods("GET")
+}
+
+func (s *Server) startREST() {
+	srv := &http.Server{
+		Addr:         "0.0.0.0:8080",
+		WriteTimeout: time.Second * 5,
+		ReadTimeout:  time.Second * 5,
+		IdleTimeout:  time.Second * 60,
+		Handler:      s.router,
+	}
+	s.server = srv
+
+	go func() {
+		zap.S().Info("starting REST API on ", ":8080")
+		if err := srv.ListenAndServe(); err != nil {
+			zap.S().Error(err)
+		}
+	}()
+}
+
 func NewServer(opts ...Option) (*Server, error) {
 	s := &Server{
 		conns:      make(map[*p2p.Conn]bool),
@@ -474,6 +580,10 @@ func NewServer(opts ...Option) (*Server, error) {
 		}
 		s.db = db
 	}
+
+	s.router = mux.NewRouter()
+	s.initRoutes()
+	s.startREST()
 
 	zap.S().Info("staring server with genesis block", base58.Encode(s.genesis[:]))
 	return s, nil
