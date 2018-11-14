@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"net/http"
@@ -291,6 +292,54 @@ func (a *Blocks) Last(ctx context.Context) (*Block, *Response, error) {
 	}
 
 	out := new(Block)
+	response, err := doHttp(ctx, a.options, req, &out)
+	if err != nil {
+		return nil, response, err
+	}
+
+	return out, response, nil
+}
+
+func (a *Blocks) Seq(ctx context.Context, from, to uint64) ([]*Block, *Response, error) {
+	if from > to {
+		return nil, nil, errors.New("invalid arguments")
+	}
+
+	url, err := joinUrl(a.options.BaseUrl, fmt.Sprintf("/blocks/seq/%d/%d", from, to))
+	if err != nil {
+		return nil, nil, err
+	}
+
+	req, err := http.NewRequest("GET", url.String(), nil)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	var out []*Block
+	response, err := doHttp(ctx, a.options, req, &out)
+	if err != nil {
+		return nil, response, err
+	}
+
+	return out, response, nil
+}
+
+func (a *Blocks) Address(ctx context.Context, addr proto.Address, from, to uint64) ([]*Block, *Response, error) {
+	if from > to {
+		return nil, nil, errors.New("invalid arguments")
+	}
+
+	url, err := joinUrl(a.options.BaseUrl, fmt.Sprintf("/blocks/address/%s/%d/%d", addr.String(), from, to))
+	if err != nil {
+		return nil, nil, err
+	}
+
+	req, err := http.NewRequest("GET", url.String(), nil)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	var out []*Block
 	response, err := doHttp(ctx, a.options, req, &out)
 	if err != nil {
 		return nil, response, err

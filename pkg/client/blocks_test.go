@@ -2,12 +2,15 @@ package client
 
 import (
 	"context"
+	"testing"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"testing"
 )
+
+var addr, _ = proto.NewAddressFromString("3N5GRqzDBhjVXnCn44baHcz2GoZy5qLxtTh")
 
 var blocksHeightBySignatureJson = `
 {
@@ -389,4 +392,122 @@ func TestBlocks_Last(t *testing.T) {
 	require.Equal(t, 0, len(body.Transactions))
 	assert.EqualValues(t, 375501, body.Height)
 	assert.Equal(t, "https://testnode1.wavesnodes.com/blocks/last", resp.Request.URL.String())
+}
+
+var blocksSeqJson = `
+[
+  {
+    "version": 1,
+    "timestamp": 1460678400000,
+    "reference": "67rpwLCuS5DGA8KGZXKsVQ7dnPb9goRLoKfgGbLfQg9WoLUgNY77E2jT11fem3coV9nAkguBACzrU1iyZM4B8roQ",
+    "nxt-consensus": {
+      "base-target": 153722867,
+      "generation-signature": "11111111111111111111111111111111"
+    },
+    "generator": "3Mp6FarByk73bgv3CFnbrzMzWgLmMHAJnj2",
+    "signature": "5uqnLK3Z9eiot6FyYBfwUnbyid3abicQbAZjz38GQ1Q8XigQMxTK4C1zNkqS1SVw7FqSidbZKxWAKLVoEsp4nNqa",
+    "blocksize": 453,
+    "transactionCount": 5,
+    "fee": 0,
+    "transactions": [
+      {
+        "type": 1,
+        "id": "5G66c9GPn2egiM4bQBBF3gCkHS8sQZupRvWCpWKWGQTRRbtqdtZJ5Mt29exbHTDZW2RWygVKZ3oBNg4RwezN7wmA",
+        "fee": 0,
+        "timestamp": 1478000000000,
+        "signature": "5G66c9GPn2egiM4bQBBF3gCkHS8sQZupRvWCpWKWGQTRRbtqdtZJ5Mt29exbHTDZW2RWygVKZ3oBNg4RwezN7wmA",
+        "recipient": "3My3KZgFQ3CrVHgz6vGRt8687sH4oAA1qp8",
+        "amount": 400000000000000
+      },
+      {
+        "type": 1,
+        "id": "3zpi4i5SeCoaiCBn1iuTUvCc5aahvtabqXBTrCXy1Y3ujUbJo56VVv6n4HQtcwiFapvg3BKV6stb5QkxsBrudTKZ",
+        "fee": 0,
+        "timestamp": 1478000000000,
+        "signature": "3zpi4i5SeCoaiCBn1iuTUvCc5aahvtabqXBTrCXy1Y3ujUbJo56VVv6n4HQtcwiFapvg3BKV6stb5QkxsBrudTKZ",
+        "recipient": "3NBVqYXrapgJP9atQccdBPAgJPwHDKkh6A8",
+        "amount": 200000000000000
+      },
+      {
+        "type": 1,
+        "id": "3obfFPvsWXv2RyMYxjTT7owYGcpSGuSAm8fQVXeX5wErWYsgNSPPnQoFVV6nzuwm3RwGCbm8dfgvqwK9S8fVMpye",
+        "fee": 0,
+        "timestamp": 1478000000000,
+        "signature": "3obfFPvsWXv2RyMYxjTT7owYGcpSGuSAm8fQVXeX5wErWYsgNSPPnQoFVV6nzuwm3RwGCbm8dfgvqwK9S8fVMpye",
+        "recipient": "3N5GRqzDBhjVXnCn44baHcz2GoZy5qLxtTh",
+        "amount": 200000000000000
+      },
+      {
+        "type": 1,
+        "id": "3TdE9G7V7fwED35981aGsWFM6aesxSS4W1XPfEx6p5xacwHLu7Kvf67Wzg73kgyU9gSFp1KsmPWqkFhaaR2S1fhp",
+        "fee": 0,
+        "timestamp": 1478000000000,
+        "signature": "3TdE9G7V7fwED35981aGsWFM6aesxSS4W1XPfEx6p5xacwHLu7Kvf67Wzg73kgyU9gSFp1KsmPWqkFhaaR2S1fhp",
+        "recipient": "3NCBMxgdghg4tUhEEffSXy11L6hUi6fcBpd",
+        "amount": 200000000000000
+      },
+      {
+        "type": 1,
+        "id": "4hTrr7fqkujsGSH8AFN1qw7fJdfmKgwzoq3ByCCJwduHkgZPQZe1KgzG6oPBZXMuNr5ZQ6ErDSTiz2KGtxtkHpA5",
+        "fee": 0,
+        "timestamp": 1478000000000,
+        "signature": "4hTrr7fqkujsGSH8AFN1qw7fJdfmKgwzoq3ByCCJwduHkgZPQZe1KgzG6oPBZXMuNr5ZQ6ErDSTiz2KGtxtkHpA5",
+        "recipient": "3N18z4B8kyyQ96PhN5eyhCAbg4j49CgwZJx",
+        "amount": 9000000000000000
+      }
+    ],
+    "height": 1
+  }
+]`
+
+func TestBlocks_Seq(t *testing.T) {
+	client, err := NewClient(Options{
+		BaseUrl: "https://testnode1.wavesnodes.com/",
+		Client:  NewMockHttpRequestFromString(blocksSeqJson, 200),
+	})
+	require.Nil(t, err)
+	body, resp, err :=
+		client.Blocks.Seq(context.Background(), 1, 1)
+	require.NoError(t, err)
+	assert.NotNil(t, resp)
+	require.Equal(t, 5, len(body[0].Transactions))
+	assert.Equal(t, "https://testnode1.wavesnodes.com/blocks/seq/1/1", resp.Request.URL.String())
+}
+
+func TestNewBlocks(t *testing.T) {
+	require.NotNil(t, NewBlocks(defaultOptions))
+}
+
+var blocksAddressJson = `
+[
+  {
+    "version": 2,
+    "timestamp": 1485530045905,
+    "reference": "5B3tXxSPp8tmsP9QmD7TJjKTahgpcn7B4dTGpL1xh1A4rRpBMmpfAHVqYbMVCeMu8V3A1GvbGTFcpNVFjQdzjZxv",
+    "nxt-consensus": {
+      "base-target": 911,
+      "generation-signature": "BXCMHMGpJzWPYxtt4m46DfVjoqHh3vnxmLmM66Zwb45x"
+    },
+    "generator": "3My3KZgFQ3CrVHgz6vGRt8687sH4oAA1qp8",
+    "signature": "58yLiAeypuMr9og5WUfnWCygAo5ViL8RGjWfmht96oqxAyCkRxzmFKPa1QwvotF7t8Pkk2VHLYanKrwRiXTioVRc",
+    "blocksize": 218,
+    "transactionCount": 0,
+    "fee": 0,
+    "transactions": [],
+    "height": 312
+  }
+]`
+
+func TestBlocks_Address(t *testing.T) {
+	client, err := NewClient(Options{
+		BaseUrl: "https://testnode1.wavesnodes.com/",
+		Client:  NewMockHttpRequestFromString(blocksAddressJson, 200),
+	})
+	require.Nil(t, err)
+	body, resp, err :=
+		client.Blocks.Address(context.Background(), addr, 1, 1)
+	require.NoError(t, err)
+	assert.NotNil(t, resp)
+	require.Equal(t, 1, len(body))
+	assert.Equal(t, "https://testnode1.wavesnodes.com/blocks/address/3N5GRqzDBhjVXnCn44baHcz2GoZy5qLxtTh/1/1", resp.Request.URL.String())
 }
