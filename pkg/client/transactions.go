@@ -101,37 +101,13 @@ func (a *Transactions) Unconfirmed(ctx context.Context) ([]proto.Transaction, *R
 	if err != nil {
 		return nil, nil, err
 	}
-	buf := new(bytes.Buffer)
-	response, err := doHttp(ctx, a.options, req, buf)
+
+	out := TransactionsField{}
+	response, err := doHttp(ctx, a.options, req, &out)
 	if err != nil {
 		return nil, response, err
 	}
-	// reference to original bytes
-	b := buf.Bytes()
 
-	var tt []*TransactionTypeVersion
-	err = json.NewDecoder(buf).Decode(&tt)
-	if err != nil {
-		return nil, response, &ParseError{Err: err}
-	}
-
-	if len(tt) == 0 {
-		return nil, response, nil
-	}
-
-	out := make([]proto.Transaction, len(tt))
-	for i, row := range tt {
-		realType, err := GuessTransactionType(row)
-		if err != nil {
-			return nil, response, &ParseError{Err: err}
-		}
-		out[i] = realType
-	}
-
-	err = json.Unmarshal(b, &out)
-	if err != nil {
-		return nil, response, &ParseError{Err: err}
-	}
 	return out, response, nil
 }
 
@@ -236,40 +212,13 @@ func (a *Transactions) Address(ctx context.Context, address proto.Address, limit
 		return nil, nil, err
 	}
 
-	buf := new(bytes.Buffer)
-	response, err := doHttp(ctx, a.options, req, buf)
+	var out []TransactionsField
+	response, err := doHttp(ctx, a.options, req, &out)
 	if err != nil {
 		return nil, response, err
 	}
-	// reference to original bytes
-	b := buf.Bytes()
-
-	var tt [][]*TransactionTypeVersion
-	err = json.NewDecoder(buf).Decode(&tt)
-	if err != nil {
-		return nil, response, &ParseError{Err: err}
-	}
-
-	if len(tt) == 0 {
+	if len(out) == 0 {
 		return nil, response, nil
 	}
-
-	out := make([]proto.Transaction, len(tt[0]))
-	for i, row := range tt[0] {
-		realType, err := GuessTransactionType(row)
-		if err != nil {
-			return nil, response, &ParseError{Err: err}
-		}
-		out[i] = realType
-	}
-
-	j := [][]proto.Transaction{out}
-	err = json.Unmarshal(b, &j)
-	if err != nil {
-		return nil, response, &ParseError{Err: err}
-	}
-	if len(j) == 0 {
-		return nil, response, nil
-	}
-	return out, response, nil
+	return out[0], response, nil
 }

@@ -1,7 +1,6 @@
 package client
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -153,22 +152,36 @@ func (a *Blocks) HeadersSeq(ctx context.Context, from uint64, to uint64) ([]*Hea
 
 type Block struct {
 	Headers
-	Fee          uint64              `json:"fee"`
-	Transactions []proto.Transaction `json:"transactions"`
+	Fee          uint64            `json:"fee"`
+	Transactions TransactionsField `json:"transactions"`
 }
 
-//type TransactionsField []proto.Transaction
+type TransactionsField []proto.Transaction
 
-//type innerBlock = Block
-//
-//func (b *Block) UnmarshalJSON(data []byte) error {
-//	block, err := parseBlock(data)
-//	if err != nil {
-//		return err
-//	}
-//	*b = *block
-//	return nil
-//}
+func (b *TransactionsField) UnmarshalJSON(data []byte) error {
+	var tt []*TransactionTypeVersion
+	err := json.Unmarshal(data, &tt)
+	if err != nil {
+		return err
+	}
+
+	transactions := make([]proto.Transaction, len(tt))
+	for i, row := range tt {
+		realType, err := GuessTransactionType(row)
+		if err != nil {
+			return err
+		}
+		transactions[i] = realType
+	}
+
+	err = json.Unmarshal(data, &transactions)
+	if err != nil {
+		return err
+	}
+	*b = transactions
+
+	return nil
+}
 
 // Get block at specified height
 func (a *Blocks) At(ctx context.Context, height uint64) (*Block, *Response, error) {
@@ -185,29 +198,18 @@ func (a *Blocks) At(ctx context.Context, height uint64) (*Block, *Response, erro
 		return nil, nil, err
 	}
 
-	//out := new(Block)
-	//response, err := doHttp(ctx, a.options, req, out)
-	//if err != nil {
-	//	return nil, response, err
-	//}
-	//
-	//out, err := parseBlock(buf.Bytes())
-	//if err != nil {
-	//	return nil, response, &ParseError{Err: err}
-	//}
-	//return out, response, nil
-
-	buf := new(bytes.Buffer)
-	response, err := doHttp(ctx, a.options, req, buf)
+	out := new(Block)
+	response, err := doHttp(ctx, a.options, req, out)
 	if err != nil {
 		return nil, response, err
 	}
-
-	out, err := parseBlock(buf.Bytes())
+	//
+	//out, err := parseBlock(buf.Bytes())
 	if err != nil {
 		return nil, response, &ParseError{Err: err}
 	}
 	return out, response, nil
+
 }
 
 func (a *Blocks) Delay(ctx context.Context, signature crypto.Signature, blockNum uint64) (uint64, *Response, error) {
@@ -251,47 +253,47 @@ func (a *Blocks) Signature(ctx context.Context, signature crypto.Signature) (*Bl
 		return nil, nil, err
 	}
 
-	buf := new(bytes.Buffer)
-	response, err := doHttp(ctx, a.options, req, buf)
+	out := new(Block)
+	response, err := doHttp(ctx, a.options, req, &out)
 	if err != nil {
 		return nil, response, err
 	}
 
-	out, err := parseBlock(buf.Bytes())
-	if err != nil {
-		return nil, response, &ParseError{Err: err}
-	}
+	//out, err := parseBlock(buf.Bytes())
+	//if err != nil {
+	//	return nil, response, &ParseError{Err: err}
+	//}
 	return out, response, nil
 }
 
-func parseBlock(b []byte) (*Block, error) {
-	type tempTransactions struct {
-		Transactions []*TransactionTypeVersion `json:"transactions"`
-	}
-
-	tt := new(tempTransactions)
-	err := json.Unmarshal(b, tt)
-	if err != nil {
-		return nil, err
-	}
-
-	transactions := make([]proto.Transaction, len(tt.Transactions))
-	for i, row := range tt.Transactions {
-		realType, err := GuessTransactionType(row)
-		if err != nil {
-			return nil, err
-		}
-		transactions[i] = realType
-	}
-
-	out := &Block{
-		Transactions: transactions,
-	}
-
-	err = json.Unmarshal(b, out)
-	if err != nil {
-		return nil, err
-	}
-
-	return out, nil
-}
+//func parseBlock(b []byte) (*Block, error) {
+//	type tempTransactions struct {
+//		Transactions []*TransactionTypeVersion `json:"transactions"`
+//	}
+//
+//	tt := new(tempTransactions)
+//	err := json.Unmarshal(b, tt)
+//	if err != nil {
+//		return nil, err
+//	}
+//
+//	transactions := make([]proto.Transaction, len(tt.Transactions))
+//	for i, row := range tt.Transactions {
+//		realType, err := GuessTransactionType(row)
+//		if err != nil {
+//			return nil, err
+//		}
+//		transactions[i] = realType
+//	}
+//
+//	out := &Block{
+//		Transactions: transactions,
+//	}
+//
+//	err = json.Unmarshal(b, out)
+//	if err != nil {
+//		return nil, err
+//	}
+//
+//	return out, nil
+//}
