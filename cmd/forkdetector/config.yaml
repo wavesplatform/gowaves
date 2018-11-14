@@ -9,7 +9,7 @@ waves:
             # - "52.77.111.219:6863"
             #- "52.28.66.217:6863"
             - "18.194.35.238:6863"
-    blockchain:
+  blockchain:
     genesis: "5uqnLK3Z9eiot6FyYBfwUnbyid3abicQbAZjz38GQ1Q8XigQMxTK4C1zNkqS1SVw7FqSidbZKxWAKLVoEsp4nNqa"
   storage:
     path: "/tmp/waves.db"

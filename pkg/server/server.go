@@ -19,10 +19,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
-const (
-	testnetGenesis = "5uqnLK3Z9eiot6FyYBfwUnbyid3abicQbAZjz38GQ1Q8XigQMxTK4C1zNkqS1SVw7FqSidbZKxWAKLVoEsp4nNqa"
-)
-
 type Server struct {
 	BootPeerAddrs []string
 	Listen        string
@@ -562,11 +558,7 @@ func NewServer(opts ...Option) (*Server, error) {
 		conns:      make(map[*p2p.Conn]bool),
 		nodeStates: make(map[string]*NodeState),
 	}
-	genesis, err := decodeBlockID(testnetGenesis)
-	if err != nil {
-		return nil, err
-	}
-	s.genesis = *genesis
+
 	for _, o := range opts {
 		if err := o(s); err != nil {
 			return nil, err
