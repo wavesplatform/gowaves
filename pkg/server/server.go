@@ -541,7 +541,7 @@ func (s *Server) initRoutes() {
 
 func (s *Server) startREST() {
 	srv := &http.Server{
-		Addr:         "0.0.0.0:8080",
+		Addr:         s.apiAddr,
 		WriteTimeout: time.Second * 5,
 		ReadTimeout:  time.Second * 5,
 		IdleTimeout:  time.Second * 60,
@@ -550,7 +550,7 @@ func (s *Server) startREST() {
 	s.server = srv
 
 	go func() {
-		zap.S().Info("starting REST API on ", ":8080")
+		zap.S().Info("starting REST API on ", s.apiAddr)
 		if err := srv.ListenAndServe(); err != nil {
 			zap.S().Error(err)
 		}

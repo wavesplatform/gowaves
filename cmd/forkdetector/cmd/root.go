@@ -22,15 +22,13 @@ var (
 		Run: func(cmd *cobra.Command, args []string) {
 			logger, _ := zap.NewDevelopment()
 			zap.ReplaceGlobals(logger)
-			a := viper.GetString("waves.network.bind-address")
-			fmt.Println("waves.net.bind " + a)
 
 			ctx, cancel := context.WithCancel(context.Background())
-			peers := viper.GetStringSlice("waves.network.peers")
 			s, err := server.NewServer(
-				server.WithPeers(peers),
+				server.WithPeers(viper.GetStringSlice("waves.network.peers")),
 				server.WithLevelDBPath(viper.GetString("waves.storage.path")),
 				server.WithGenesis(viper.GetString("waves.blockchain.genesis")),
+				server.WithBindAddr(viper.GetString("waves.network.bind-address")),
 			)
 			if err != nil {
 				zap.S().Error("failed to create a new server instance ", err)
