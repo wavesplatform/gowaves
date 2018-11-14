@@ -1,7 +1,9 @@
 package client
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -150,15 +152,146 @@ func (a *Blocks) HeadersSeq(ctx context.Context, from uint64, to uint64) ([]*Hea
 }
 
 type Block struct {
-	Version          uint64       `json:"version"`
-	Timestamp        uint64       `json:"timestamp"`
-	Reference        string       `json:"reference"`
-	NxtConsensus     NxtConsensus `json:"nxt-consensus"`
-	Features         []uint64     `json:"features"`
-	Generator        string       `json:"generator"`
-	Signature        string       `json:"signature"`
-	Blocksize        uint64       `json:"blocksize"`
-	TransactionCount uint64       `json:"transactionCount"`
-	Fee              uint64       `json:"fee"`
-	Height           uint64       `json:"height"`
+	Headers
+	Fee          uint64              `json:"fee"`
+	Transactions []proto.Transaction `json:"transactions"`
+}
+
+//type TransactionsField []proto.Transaction
+
+//type innerBlock = Block
+//
+//func (b *Block) UnmarshalJSON(data []byte) error {
+//	block, err := parseBlock(data)
+//	if err != nil {
+//		return err
+//	}
+//	*b = *block
+//	return nil
+//}
+
+// Get block at specified height
+func (a *Blocks) At(ctx context.Context, height uint64) (*Block, *Response, error) {
+	url, err := joinUrl(a.options.BaseUrl, fmt.Sprintf("/blocks/at/%d", height))
+	if err != nil {
+		return nil, nil, err
+	}
+
+	req, err := http.NewRequest(
+		"GET",
+		url.String(),
+		nil)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	//out := new(Block)
+	//response, err := doHttp(ctx, a.options, req, out)
+	//if err != nil {
+	//	return nil, response, err
+	//}
+	//
+	//out, err := parseBlock(buf.Bytes())
+	//if err != nil {
+	//	return nil, response, &ParseError{Err: err}
+	//}
+	//return out, response, nil
+
+	buf := new(bytes.Buffer)
+	response, err := doHttp(ctx, a.options, req, buf)
+	if err != nil {
+		return nil, response, err
+	}
+
+	out, err := parseBlock(buf.Bytes())
+	if err != nil {
+		return nil, response, &ParseError{Err: err}
+	}
+	return out, response, nil
+}
+
+func (a *Blocks) Delay(ctx context.Context, signature crypto.Signature, blockNum uint64) (uint64, *Response, error) {
+	url, err := joinUrl(a.options.BaseUrl, fmt.Sprintf("/blocks/delay/%s/%d", signature.String(), blockNum))
+	if err != nil {
+		return 0, nil, err
+	}
+
+	req, err := http.NewRequest(
+		"GET",
+		url.String(),
+		nil)
+	if err != nil {
+		return 0, nil, err
+	}
+
+	out := struct {
+		Delay uint64 `json:"delay"`
+	}{}
+
+	response, err := doHttp(ctx, a.options, req, &out)
+	if err != nil {
+		return 0, response, err
+	}
+
+	return out.Delay, response, nil
+}
+
+// Get block by its signature
+func (a *Blocks) Signature(ctx context.Context, signature crypto.Signature) (*Block, *Response, error) {
+	url, err := joinUrl(a.options.BaseUrl, fmt.Sprintf("/blocks/signature/%s", signature.String()))
+	if err != nil {
+		return nil, nil, err
+	}
+
+	req, err := http.NewRequest(
+		"GET",
+		url.String(),
+		nil)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	buf := new(bytes.Buffer)
+	response, err := doHttp(ctx, a.options, req, buf)
+	if err != nil {
+		return nil, response, err
+	}
+
+	out, err := parseBlock(buf.Bytes())
+	if err != nil {
+		return nil, response, &ParseError{Err: err}
+	}
+	return out, response, nil
+}
+
+func parseBlock(b []byte) (*Block, error) {
+	type tempTransactions struct {
+		Transactions []*TransactionTypeVersion `json:"transactions"`
+	}
+
+	tt := new(tempTransactions)
+	err := json.Unmarshal(b, tt)
+	if err != nil {
+		return nil, err
+	}
+
+	transactions := make([]proto.Transaction, len(tt.Transactions))
+	for i, row := range tt.Transactions {
+		realType, err := GuessTransactionType(row)
+		if err != nil {
+			return nil, err
+		}
+		transactions[i] = realType
+	}
+
+	out := &Block{
+		Transactions: transactions,
+	}
+
+	err = json.Unmarshal(b, out)
+	if err != nil {
+		return nil, err
+	}
+
+	return out, nil
 }

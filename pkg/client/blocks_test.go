@@ -144,3 +144,95 @@ func TestBlocks_HeadersSeq(t *testing.T) {
 	assert.Equal(t, 1, len(body))
 	assert.Equal(t, "https://testnode1.wavesnodes.com/blocks/headers/seq/375500/375500", resp.Request.URL.String())
 }
+
+var blocksAtJson = `
+{
+  "version": 2,
+  "timestamp": 1485530465594,
+  "reference": "5Vwh1KEGqiBVG9ExuSKZwgwSEPbiU6CxvqL7TmtbpXd1eLQd3G4barxB161qLC3sDoVkTGwrhZEFtCBLqaRde5jt",
+  "nxt-consensus": {
+    "base-target": 450,
+    "generation-signature": "AC94D2n1koQrY5NUtCHSfdeorxU213JNkLfJvRujmE1U"
+  },
+  "generator": "3My3KZgFQ3CrVHgz6vGRt8687sH4oAA1qp8",
+  "signature": "2WKKGrsL4kyqWPST9ZL4if198V9qYP5NMa92rv9mxGW56iqhseqaQYv15A74ThwtwZC2idj8C5px1b35oyQLzUKt",
+  "blocksize": 1402,
+  "transactionCount": 1,
+  "fee": 615366,
+  "transactions": [
+    {
+      "type": 4,
+      "id": "FYyDuMdFsJJinXcZhwdXvgnNgXKv7WnFiADxEAK2bE3j",
+      "sender": "3Mv61qe6egMSjRDZiiuvJDnf3Q1qW9tTZDB",
+      "senderPublicKey": "FkoFqtAeibv2E6Y86ZDRfAkZz61LwUMjLAP2gmS1j7xe",
+      "fee": 189598,
+      "timestamp": 1485530441535,
+      "signature": "4AjgBor9GpaMd7sRg7XDMpLrTZam23XMuh7rWqTFKAzTaK3h7gPbLJQQWfWG5dM8yoZjyNDFFoLLPth4esRBz94w",
+      "proofs": [
+        "4AjgBor9GpaMd7sRg7XDMpLrTZam23XMuh7rWqTFKAzTaK3h7gPbLJQQWfWG5dM8yoZjyNDFFoLLPth4esRBz94w"
+      ],
+      "version": 1,
+      "recipient": "3N5jhcA7R98AUN12ee9pB7unvnAKfzb3nen",
+      "assetId": null,
+      "feeAssetId": null,
+      "feeAsset": null,
+      "amount": 26,
+      "attachment": "2escpYDq9RFWKxNYpyuAUdJ23N5wHBzybbE8zKJAREzppTvpZsDkCaSdyaJ6cmS7x2YmLTVRUwcyt43zWrWMrjS5MS3ZT8UMYHorETm8HUP5vuPkVzp5EQyukKCWSwKuw2GerfKm2qyHjBQnEXHt3Yx1ifydFLVN8xhg5qmJpe8hKBEFPnURto71hhMQCqU6"
+    }],
+  "height": 330
+}`
+
+func TestBlocks_At(t *testing.T) {
+	client, err := NewClient(Options{
+		BaseUrl: "https://testnode1.wavesnodes.com",
+		Client:  NewMockHttpRequestFromString(blocksAtJson, 200),
+	})
+	require.Nil(t, err)
+	body, resp, err :=
+		client.Blocks.At(context.Background(), 330)
+	require.NoError(t, err)
+	assert.NotNil(t, resp)
+	require.Equal(t, 1, len(body.Transactions))
+	assert.EqualValues(t, proto.TransferTransaction, body.Transactions[0].(*proto.TransferV1).Type)
+	assert.EqualValues(t, 330, body.Height)
+	assert.Equal(t, "2WKKGrsL4kyqWPST9ZL4if198V9qYP5NMa92rv9mxGW56iqhseqaQYv15A74ThwtwZC2idj8C5px1b35oyQLzUKt", body.Signature.String())
+	assert.Equal(t, "https://testnode1.wavesnodes.com/blocks/at/330", resp.Request.URL.String())
+}
+
+var blocksDelayJson = `
+{
+  "delay": 33510
+}`
+
+func TestBlocks_Delay(t *testing.T) {
+	sign, _ := crypto.NewSignatureFromBase58("2WKKGrsL4kyqWPST9ZL4if198V9qYP5NMa92rv9mxGW56iqhseqaQYv15A74ThwtwZC2idj8C5px1b35oyQLzUKt")
+	client, err := NewClient(Options{
+		BaseUrl: "https://testnode1.wavesnodes.com",
+		Client:  NewMockHttpRequestFromString(blocksDelayJson, 200),
+	})
+	require.Nil(t, err)
+	body, resp, err :=
+		client.Blocks.Delay(context.Background(), sign, 1)
+	require.NoError(t, err)
+	assert.NotNil(t, resp)
+	assert.EqualValues(t, 33510, body)
+	assert.Equal(t, "https://testnode1.wavesnodes.com/blocks/delay/2WKKGrsL4kyqWPST9ZL4if198V9qYP5NMa92rv9mxGW56iqhseqaQYv15A74ThwtwZC2idj8C5px1b35oyQLzUKt/1", resp.Request.URL.String())
+}
+
+func TestBlocks_Signature(t *testing.T) {
+	sign, _ := crypto.NewSignatureFromBase58("2WKKGrsL4kyqWPST9ZL4if198V9qYP5NMa92rv9mxGW56iqhseqaQYv15A74ThwtwZC2idj8C5px1b35oyQLzUKt")
+	client, err := NewClient(Options{
+		BaseUrl: "https://testnode1.wavesnodes.com",
+		Client:  NewMockHttpRequestFromString(blocksAtJson, 200),
+	})
+	require.Nil(t, err)
+	body, resp, err :=
+		client.Blocks.Signature(context.Background(), sign)
+	require.NoError(t, err)
+	assert.NotNil(t, resp)
+	require.Equal(t, 1, len(body.Transactions))
+	assert.EqualValues(t, proto.TransferTransaction, body.Transactions[0].(*proto.TransferV1).Type)
+	assert.EqualValues(t, 330, body.Height)
+	assert.Equal(t, "2WKKGrsL4kyqWPST9ZL4if198V9qYP5NMa92rv9mxGW56iqhseqaQYv15A74ThwtwZC2idj8C5px1b35oyQLzUKt", body.Signature.String())
+	assert.Equal(t, "https://testnode1.wavesnodes.com/blocks/signature/2WKKGrsL4kyqWPST9ZL4if198V9qYP5NMa92rv9mxGW56iqhseqaQYv15A74ThwtwZC2idj8C5px1b35oyQLzUKt", resp.Request.URL.String())
+}
