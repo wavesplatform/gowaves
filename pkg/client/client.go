@@ -37,6 +37,7 @@ type Client struct {
 	Transactions *Transactions
 	Assets       *Assets
 	Utils        *Utils
+	Leasing      *Leasing
 }
 
 type Response struct {
@@ -82,6 +83,7 @@ func NewClient(options ...Options) (*Client, error) {
 		Transactions: NewTransactions(opts),
 		Assets:       NewAssets(opts),
 		Utils:        NewUtils(opts),
+		Leasing:      NewLeasing(opts),
 	}
 
 	return c, nil
