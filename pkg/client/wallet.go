@@ -2,7 +2,6 @@ package client
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 )
 
@@ -21,9 +20,14 @@ func (a *Wallet) Seed(ctx context.Context) (string, *Response, error) {
 		return "", nil, NoApiKeyError
 	}
 
+	url, err := joinUrl(a.options.BaseUrl, "/wallet/seed")
+	if err != nil {
+		return "", nil, err
+	}
+
 	req, err := http.NewRequest(
 		"GET",
-		fmt.Sprintf("%s/wallet/seed", a.options.BaseUrl),
+		url.String(),
 		nil)
 	if err != nil {
 		return "", nil, err

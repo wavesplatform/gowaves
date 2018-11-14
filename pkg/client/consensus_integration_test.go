@@ -42,7 +42,7 @@ func TestConsensusIntegration_GenerationSignatureByBlock(t *testing.T) {
 		ApiKey:  apiKey,
 	})
 	_, resp, err :=
-		client.Consensus.GenerationSignatureByBlock(context.Background(), "3Z9W6dX3iAqyhv2gsE1WRRd5yLYdtjojLzNSXEFZNuVs21hkuNUmhqTNLqrcGnERJMaPtrfvag4AjQpjykvQM13a")
+		client.Consensus.GenerationSignatureByBlock(context.Background(), "4rnYtWNE8WV4heso4q86Uwbcf1XZR5ShfszaKzyRg7aELP2Su3sFUhcCrQCyBA9SbE4T8pkd2AnLKnwBHwhUKaDq")
 	require.Nil(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, 200, resp.StatusCode)
@@ -59,7 +59,7 @@ func TestConsensusIntegration_BaseTargetByBlock(t *testing.T) {
 		ApiKey:  apiKey,
 	})
 	_, resp, err :=
-		client.Consensus.BaseTargetByBlock(context.Background(), "3Z9W6dX3iAqyhv2gsE1WRRd5yLYdtjojLzNSXEFZNuVs21hkuNUmhqTNLqrcGnERJMaPtrfvag4AjQpjykvQM13a")
+		client.Consensus.BaseTargetByBlock(context.Background(), "4rnYtWNE8WV4heso4q86Uwbcf1XZR5ShfszaKzyRg7aELP2Su3sFUhcCrQCyBA9SbE4T8pkd2AnLKnwBHwhUKaDq")
 	require.Nil(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, 200, resp.StatusCode)

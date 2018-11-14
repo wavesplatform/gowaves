@@ -312,7 +312,7 @@ var assetsBurnJson = `
 func TestAssets_Burn(t *testing.T) {
 	client, err := NewClient(Options{
 		Client:  NewMockHttpRequestFromString(assetsBurnJson, 200),
-		BaseUrl: "https://testnode1.wavesnodes.com",
+		BaseUrl: "https://testnode1.wavesnodes.com/",
 		ApiKey:  "apiKey",
 	})
 	require.Nil(t, err)

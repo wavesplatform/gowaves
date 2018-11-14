@@ -21,7 +21,7 @@ var addressesBalanceDetailsJson = `
 func TestAddresses_BalanceDetails(t *testing.T) {
 	address, _ := proto.NewAddressFromString("3NBVqYXrapgJP9atQccdBPAgJPwHDKkh6A8")
 	client, err := NewClient(Options{
-		BaseUrl: "https://testnode1.wavesnodes.com",
+		BaseUrl: "https://testnode1.wavesnodes.com/",
 		Client:  NewMockHttpRequestFromString(addressesBalanceDetailsJson, 200),
 	})
 	require.NoError(t, err)
@@ -51,7 +51,7 @@ var addressesScriptInfoJson = `
 func TestAddresses_ScriptInfo(t *testing.T) {
 	address, _ := proto.NewAddressFromString("3NBVqYXrapgJP9atQccdBPAgJPwHDKkh6A8")
 	client, err := NewClient(Options{
-		BaseUrl: "https://testnode1.wavesnodes.com",
+		BaseUrl: "https://testnode1.wavesnodes.com/",
 		Client:  NewMockHttpRequestFromString(addressesScriptInfoJson, 200),
 	})
 	require.NoError(t, err)
@@ -75,7 +75,7 @@ var addressesAddressesJson = `
 func TestAddresses_Addresses(t *testing.T) {
 	address, _ := proto.NewAddressFromString("3MzemqBzJ9h844PparHU1EzGC5SQmtH5pNp")
 	client, err := NewClient(Options{
-		BaseUrl: "https://testnode1.wavesnodes.com",
+		BaseUrl: "https://testnode1.wavesnodes.com/",
 		Client:  NewMockHttpRequestFromString(addressesAddressesJson, 200),
 	})
 	require.NoError(t, err)
@@ -96,7 +96,7 @@ var addressesValidateJson = `
 func TestAddresses_Validate(t *testing.T) {
 	address, _ := proto.NewAddressFromString("3P3oWUH9oXRqiByBG7g9hYSDpCFxcT2wTBS")
 	client, err := NewClient(Options{
-		BaseUrl: "https://testnode1.wavesnodes.com",
+		BaseUrl: "https://testnode1.wavesnodes.com/",
 		Client:  NewMockHttpRequestFromString(addressesValidateJson, 200),
 	})
 	require.NoError(t, err)
@@ -121,7 +121,7 @@ var addressesBalanceJson = `
 func TestAddresses_Balance(t *testing.T) {
 	address, _ := proto.NewAddressFromString("3NBVqYXrapgJP9atQccdBPAgJPwHDKkh6A8")
 	client, err := NewClient(Options{
-		BaseUrl: "https://testnode1.wavesnodes.com",
+		BaseUrl: "https://testnode1.wavesnodes.com/",
 		Client:  NewMockHttpRequestFromString(addressesBalanceJson, 200),
 	})
 	require.NoError(t, err)
@@ -147,7 +147,7 @@ var addressesEffectiveBalance = `
 func TestAddresses_EffectiveBalance(t *testing.T) {
 	address, _ := proto.NewAddressFromString("3NBVqYXrapgJP9atQccdBPAgJPwHDKkh6A8")
 	client, err := NewClient(Options{
-		BaseUrl: "https://testnode1.wavesnodes.com",
+		BaseUrl: "https://testnode1.wavesnodes.com/",
 		Client:  NewMockHttpRequestFromString(addressesEffectiveBalance, 200),
 	})
 	require.NoError(t, err)
@@ -173,7 +173,7 @@ func TestAddresses_PublicKey(t *testing.T) {
 	pubKey := "AF9HLq2Rsv2fVfLPtsWxT7Y3S9ZTv6Mw4ZTp8K8LNdEp"
 	address, _ := proto.NewAddressFromString("3Mr5af3Y7r7gQej3tRtugYbKaPr5qYps2ei")
 	client, err := NewClient(Options{
-		BaseUrl: "https://testnode1.wavesnodes.com",
+		BaseUrl: "https://testnode1.wavesnodes.com/",
 		Client:  NewMockHttpRequestFromString(addressPublicKeyJson, 200),
 	})
 	body, resp, err :=
@@ -199,7 +199,7 @@ func TestAddresses_SignText(t *testing.T) {
 	sign, _ := crypto.NewSignatureFromBase58("RP742bUjfrzWcXhnmkbim2dWk9mSUcPcmn77EcsD5t2TBUZqZGe8Vk211hAYbW4FNxWtWqcCmR1Trv8gUXKN6if")
 	text := "some-text"
 	client, err := NewClient(Options{
-		BaseUrl: "https://testnode1.wavesnodes.com",
+		BaseUrl: "https://testnode1.wavesnodes.com/",
 		ApiKey:  "ApiKey",
 		Client:  NewMockHttpRequestFromString(addressSignTextJson, 200),
 	})
@@ -234,7 +234,7 @@ func TestAddresses_VerifyText(t *testing.T) {
 		Signature: sign,
 	}
 	client, err := NewClient(Options{
-		BaseUrl: "https://testnode1.wavesnodes.com",
+		BaseUrl: "https://testnode1.wavesnodes.com/",
 		ApiKey:  "apiKey",
 		Client:  NewMockHttpRequestFromString(addressVerifyTextJson, 200),
 	})
@@ -258,7 +258,7 @@ func TestAddresses_BalanceAfterConfirmations(t *testing.T) {
 	address, _ := proto.NewAddressFromString("3NBVqYXrapgJP9atQccdBPAgJPwHDKkh6A8")
 	confirmations := uint64(1)
 	client, err := NewClient(Options{
-		BaseUrl: "https://testnode1.wavesnodes.com",
+		BaseUrl: "https://testnode1.wavesnodes.com/",
 		Client:  NewMockHttpRequestFromString(addressBalanceAfterConfirmationsJson, 200),
 	})
 	require.NoError(t, err)

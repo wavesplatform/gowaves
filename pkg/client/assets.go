@@ -39,9 +39,14 @@ type AssetsBalance struct {
 
 // Provides detailed information about given asset
 func (a *Assets) BalanceByAddress(ctx context.Context, address proto.Address) (*AssetsBalances, *Response, error) {
+	url, err := joinUrl(a.options.BaseUrl, fmt.Sprintf("/assets/balance/%s", address.String()))
+	if err != nil {
+		return nil, nil, err
+	}
+
 	req, err := http.NewRequest(
 		"GET",
-		fmt.Sprintf("%s/assets/balance/%s", a.options.BaseUrl, address.String()),
+		url.String(),
 		nil)
 	if err != nil {
 		return nil, nil, err
@@ -64,9 +69,14 @@ type AssetsBalanceAndAsset struct {
 
 // Account's balance by given asset
 func (a *Assets) BalanceByAddressAndAsset(ctx context.Context, address proto.Address, assetId crypto.Digest) (*AssetsBalanceAndAsset, *Response, error) {
+	url, err := joinUrl(a.options.BaseUrl, fmt.Sprintf("/assets/balance/%s/%s", address.String(), assetId.String()))
+	if err != nil {
+		return nil, nil, err
+	}
+
 	req, err := http.NewRequest(
 		"GET",
-		fmt.Sprintf("%s/assets/balance/%s/%s", a.options.BaseUrl, address.String(), assetId.String()),
+		url.String(),
 		nil)
 	if err != nil {
 		return nil, nil, err
@@ -96,9 +106,14 @@ type AssetsDetail struct {
 
 // Provides detailed information about given asset
 func (a *Assets) Details(ctx context.Context, assetId crypto.Digest) (*AssetsDetail, *Response, error) {
+	url, err := joinUrl(a.options.BaseUrl, fmt.Sprintf("/assets/details/%s", assetId.String()))
+	if err != nil {
+		return nil, nil, err
+	}
+
 	req, err := http.NewRequest(
 		"GET",
-		fmt.Sprintf("%s/assets/details/%s", a.options.BaseUrl, assetId.String()),
+		url.String(),
 		nil)
 	if err != nil {
 		return nil, nil, err
@@ -117,9 +132,14 @@ type AssetsDistribution map[string]uint64
 
 // Asset balance distribution by account
 func (a *Assets) Distribution(ctx context.Context, assetId crypto.Digest) (AssetsDistribution, *Response, error) {
+	url, err := joinUrl(a.options.BaseUrl, fmt.Sprintf("/assets/%s/distribution", assetId.String()))
+	if err != nil {
+		return nil, nil, err
+	}
+
 	req, err := http.NewRequest(
 		"GET",
-		fmt.Sprintf("%s/assets/%s/distribution", a.options.BaseUrl, assetId.String()),
+		url.String(),
 		nil)
 	if err != nil {
 		return nil, nil, err
@@ -162,6 +182,11 @@ func (a *Assets) Issue(ctx context.Context, issueReq AssetsIssueReq) (*AssetsIss
 		return nil, nil, NoApiKeyError
 	}
 
+	url, err := joinUrl(a.options.BaseUrl, "/assets/issue")
+	if err != nil {
+		return nil, nil, err
+	}
+
 	if issueReq.Timestamp == 0 {
 		issueReq.Timestamp = NewTimestampFromTime(time.Now())
 	}
@@ -173,7 +198,7 @@ func (a *Assets) Issue(ctx context.Context, issueReq AssetsIssueReq) (*AssetsIss
 
 	req, err := http.NewRequest(
 		"POST",
-		fmt.Sprintf("%s/assets/issue", a.options.BaseUrl),
+		url.String(),
 		bytes.NewReader(bts))
 	if err != nil {
 		return nil, nil, err
@@ -211,6 +236,11 @@ func (a *Assets) MassTransfer(ctx context.Context, transfersReq AssetsMassTransf
 		return nil, nil, NoApiKeyError
 	}
 
+	url, err := joinUrl(a.options.BaseUrl, "/assets/masstransfer")
+	if err != nil {
+		return nil, nil, err
+	}
+
 	if transfersReq.Timestamp == 0 {
 		transfersReq.Timestamp = NewTimestampFromTime(time.Now())
 	}
@@ -225,7 +255,7 @@ func (a *Assets) MassTransfer(ctx context.Context, transfersReq AssetsMassTransf
 
 	req, err := http.NewRequest(
 		"POST",
-		fmt.Sprintf("%s/assets/masstransfer", a.options.BaseUrl),
+		url.String(),
 		bytes.NewReader(bts))
 	if err != nil {
 		return nil, nil, err
@@ -256,6 +286,11 @@ func (a *Assets) Sponsor(ctx context.Context, sponsorReq AssetsSponsorReq) (*pro
 		return nil, nil, NoApiKeyError
 	}
 
+	url, err := joinUrl(a.options.BaseUrl, "/assets/sponsor")
+	if err != nil {
+		return nil, nil, err
+	}
+
 	bts, err := json.Marshal(sponsorReq)
 	if err != nil {
 		return nil, nil, err
@@ -263,7 +298,7 @@ func (a *Assets) Sponsor(ctx context.Context, sponsorReq AssetsSponsorReq) (*pro
 
 	req, err := http.NewRequest(
 		"POST",
-		fmt.Sprintf("%s/assets/sponsor", a.options.BaseUrl),
+		url.String(),
 		bytes.NewReader(bts))
 	if err != nil {
 		return nil, nil, err
@@ -298,6 +333,11 @@ func (a *Assets) Transfer(ctx context.Context, transferReq AssetsTransferReq) (*
 		return nil, nil, NoApiKeyError
 	}
 
+	url, err := joinUrl(a.options.BaseUrl, "/assets/transfer")
+	if err != nil {
+		return nil, nil, err
+	}
+
 	bts, err := json.Marshal(transferReq)
 	if err != nil {
 		return nil, nil, err
@@ -305,7 +345,7 @@ func (a *Assets) Transfer(ctx context.Context, transferReq AssetsTransferReq) (*
 
 	req, err := http.NewRequest(
 		"POST",
-		fmt.Sprintf("%s/assets/transfer", a.options.BaseUrl),
+		url.String(),
 		bytes.NewReader(bts))
 	if err != nil {
 		return nil, nil, err
@@ -341,9 +381,14 @@ func (a *Assets) Burn(ctx context.Context, burnReq AssetsBurnReq) (*proto.BurnV1
 		return nil, nil, err
 	}
 
+	url, err := joinUrl(a.options.BaseUrl, "/assets/burn")
+	if err != nil {
+		return nil, nil, err
+	}
+
 	req, err := http.NewRequest(
 		"POST",
-		fmt.Sprintf("%s/assets/burn", a.options.BaseUrl),
+		url.String(),
 		bytes.NewReader(bts))
 	if err != nil {
 		return nil, nil, err

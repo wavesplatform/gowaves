@@ -136,7 +136,7 @@ func TestAlias_Broadcast(t *testing.T) {
 	require.Nil(t, err)
 
 	client, err := NewClient(Options{
-		BaseUrl: "https://testnode1.wavesnodes.com",
+		BaseUrl: "https://testnode1.wavesnodes.com/",
 		Client:  NewMockHttpRequestFromString(broadcastResp, 200),
 	})
 

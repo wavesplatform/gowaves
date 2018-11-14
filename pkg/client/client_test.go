@@ -68,3 +68,9 @@ func TestMockHttpRequest(t *testing.T) {
 	assert.Equal(t, url, resp.Request.URL.String())
 	assert.Equal(t, "123456", resp.Request.Header.Get("ApiKey"))
 }
+
+func TestJoinUrl(t *testing.T) {
+	url, err := joinUrl("https://wavesplatform.com", "path")
+	require.NoError(t, err)
+	assert.Equal(t, "https://wavesplatform.com/path", url.String())
+}

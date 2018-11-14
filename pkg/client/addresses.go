@@ -31,9 +31,14 @@ type AddressesBalance struct {
 
 // Balance returns account's balance by its address
 func (a *Addresses) Balance(ctx context.Context, address proto.Address) (*AddressesBalance, *Response, error) {
+	url, err := joinUrl(a.options.BaseUrl, fmt.Sprintf("addresses/balance/%s", address.String()))
+	if err != nil {
+		return nil, nil, err
+	}
+
 	req, err := http.NewRequest(
 		"GET",
-		fmt.Sprintf("%s/addresses/balance/%s", a.options.BaseUrl, address.String()),
+		url.String(),
 		nil)
 	if err != nil {
 		return nil, nil, err
@@ -58,9 +63,14 @@ type AddressesBalanceDetails struct {
 
 // BalanceDetails returns account's detail balance by its address
 func (a *Addresses) BalanceDetails(ctx context.Context, address proto.Address) (*AddressesBalanceDetails, *Response, error) {
+	url, err := joinUrl(a.options.BaseUrl, fmt.Sprintf("/addresses/balance/details/%s", address.String()))
+	if err != nil {
+		return nil, nil, err
+	}
+
 	req, err := http.NewRequest(
 		"GET",
-		fmt.Sprintf("%s/addresses/balance/details/%s", a.options.BaseUrl, address.String()),
+		url.String(),
 		nil)
 	if err != nil {
 		return nil, nil, err
@@ -83,9 +93,14 @@ type AddressesScriptInfo struct {
 
 // ScriptInfo gets account's script information
 func (a *Addresses) ScriptInfo(ctx context.Context, address proto.Address) (*AddressesScriptInfo, *Response, error) {
+	url, err := joinUrl(a.options.BaseUrl, fmt.Sprintf("/addresses/scriptInfo/%s", address.String()))
+	if err != nil {
+		return nil, nil, err
+	}
+
 	req, err := http.NewRequest(
 		"GET",
-		fmt.Sprintf("%s/addresses/scriptInfo/%s", a.options.BaseUrl, address.String()),
+		url.String(),
 		nil)
 	if err != nil {
 		return nil, nil, err
@@ -102,9 +117,13 @@ func (a *Addresses) ScriptInfo(ctx context.Context, address proto.Address) (*Add
 
 // Get wallet accounts addresses
 func (a *Addresses) Addresses(ctx context.Context) ([]proto.Address, *Response, error) {
+	url, err := joinUrl(a.options.BaseUrl, "/addresses")
+	if err != nil {
+		return nil, nil, err
+	}
 	req, err := http.NewRequest(
 		"GET",
-		fmt.Sprintf("%s/addresses", a.options.BaseUrl),
+		url.String(),
 		nil)
 	if err != nil {
 		return nil, nil, err
@@ -126,9 +145,13 @@ type AddressesValidate struct {
 
 // Check whether address is valid or not
 func (a *Addresses) Validate(ctx context.Context, address proto.Address) (*AddressesValidate, *Response, error) {
+	url, err := joinUrl(a.options.BaseUrl, fmt.Sprintf("/addresses/validate/%s", address.String()))
+	if err != nil {
+		return nil, nil, err
+	}
 	req, err := http.NewRequest(
 		"GET",
-		fmt.Sprintf("%s/addresses/validate/%s", a.options.BaseUrl, address.String()),
+		url.String(),
 		nil)
 	if err != nil {
 		return nil, nil, err
@@ -151,9 +174,13 @@ type AddressesEffectiveBalance struct {
 
 // Account's balance
 func (a *Addresses) EffectiveBalance(ctx context.Context, address proto.Address) (*AddressesEffectiveBalance, *Response, error) {
+	url, err := joinUrl(a.options.BaseUrl, fmt.Sprintf("/addresses/effectiveBalance/%s", address.String()))
+	if err != nil {
+		return nil, nil, err
+	}
 	req, err := http.NewRequest(
 		"GET",
-		fmt.Sprintf("%s/addresses/effectiveBalance/%s", a.options.BaseUrl, address.String()),
+		url.String(),
 		nil)
 	if err != nil {
 		return nil, nil, err
@@ -174,9 +201,13 @@ type addressesPublicKey struct {
 
 // Generate address from public key
 func (a *Addresses) PublicKey(ctx context.Context, publicKey string) (*proto.Address, *Response, error) {
+	url, err := joinUrl(a.options.BaseUrl, fmt.Sprintf("/addresses/publicKey/%s", publicKey))
+	if err != nil {
+		return nil, nil, err
+	}
 	req, err := http.NewRequest(
 		"GET",
-		fmt.Sprintf("%s/addresses/publicKey/%s", a.options.BaseUrl, publicKey),
+		url.String(),
 		nil)
 	if err != nil {
 		return nil, nil, err
@@ -207,9 +238,14 @@ func (a *Addresses) SignText(ctx context.Context, address proto.Address, message
 		return nil, nil, NoApiKeyError
 	}
 
+	url, err := joinUrl(a.options.BaseUrl, fmt.Sprintf("/addresses/signText/%s", address.String()))
+	if err != nil {
+		return nil, nil, err
+	}
+
 	req, err := http.NewRequest(
 		"POST",
-		fmt.Sprintf("%s/addresses/signText/%s", a.options.BaseUrl, address.String()),
+		url.String(),
 		strings.NewReader(message))
 	if err != nil {
 		return nil, nil, err
@@ -242,6 +278,11 @@ func (a *Addresses) VerifyText(ctx context.Context, address proto.Address, body 
 		return false, nil, NoApiKeyError
 	}
 
+	url, err := joinUrl(a.options.BaseUrl, fmt.Sprintf("/addresses/verifyText/%s", address.String()))
+	if err != nil {
+		return false, nil, err
+	}
+
 	bodyBytes, err := json.Marshal(body)
 	if err != nil {
 		return false, nil, err
@@ -249,7 +290,7 @@ func (a *Addresses) VerifyText(ctx context.Context, address proto.Address, body 
 
 	req, err := http.NewRequest(
 		"POST",
-		fmt.Sprintf("%s/addresses/verifyText/%s", a.options.BaseUrl, address.String()),
+		url.String(),
 		bytes.NewReader(bodyBytes))
 	if err != nil {
 		return false, nil, err
@@ -277,9 +318,14 @@ type BalanceAfterConfirmations struct {
 func (a *Addresses) BalanceAfterConfirmations(
 	ctx context.Context, address proto.Address, confirmations uint64) (*BalanceAfterConfirmations, *Response, error) {
 
+	url, err := joinUrl(a.options.BaseUrl, fmt.Sprintf("/addresses/balance/%s/%d", address.String(), confirmations))
+	if err != nil {
+		return nil, nil, err
+	}
+
 	req, err := http.NewRequest(
 		"GET",
-		fmt.Sprintf("%s/addresses/balance/%s/%d", a.options.BaseUrl, address.String(), confirmations),
+		url.String(),
 		nil)
 	if err != nil {
 		return nil, nil, err

@@ -23,9 +23,14 @@ func NewTransactions(options Options) *Transactions {
 
 // Get transaction that is in the UTX
 func (a *Transactions) UnconfirmedInfo(ctx context.Context, id crypto.Digest) (proto.Transaction, *Response, error) {
+	url, err := joinUrl(a.options.BaseUrl, fmt.Sprintf("/transactions/unconfirmed/info/%s", id.String()))
+	if err != nil {
+		return nil, nil, err
+	}
+
 	req, err := http.NewRequest(
 		"GET",
-		fmt.Sprintf("%s/transactions/unconfirmed/info/%s", a.options.BaseUrl, id.String()),
+		url.String(),
 		nil)
 	if err != nil {
 		return nil, nil, err
@@ -60,9 +65,14 @@ func (a *Transactions) UnconfirmedInfo(ctx context.Context, id crypto.Digest) (p
 
 // Get the number of unconfirmed transactions in the UTX pool
 func (a *Transactions) UnconfirmedSize(ctx context.Context) (uint64, *Response, error) {
+	url, err := joinUrl(a.options.BaseUrl, "/transactions/unconfirmed/size")
+	if err != nil {
+		return 0, nil, err
+	}
+
 	req, err := http.NewRequest(
 		"GET",
-		fmt.Sprintf("%s/transactions/unconfirmed/size", a.options.BaseUrl),
+		url.String(),
 		nil)
 	if err != nil {
 		return 0, nil, err
@@ -79,9 +89,14 @@ func (a *Transactions) UnconfirmedSize(ctx context.Context) (uint64, *Response, 
 
 // Get the number of unconfirmed transactions in the UTX pool
 func (a *Transactions) Unconfirmed(ctx context.Context) ([]proto.Transaction, *Response, error) {
+	url, err := joinUrl(a.options.BaseUrl, "/transactions/unconfirmed")
+	if err != nil {
+		return nil, nil, err
+	}
+
 	req, err := http.NewRequest(
 		"GET",
-		fmt.Sprintf("%s/transactions/unconfirmed", a.options.BaseUrl),
+		url.String(),
 		nil)
 	if err != nil {
 		return nil, nil, err
@@ -127,9 +142,14 @@ type TransactionTypeVersion struct {
 
 // Get transaction info
 func (a *Transactions) Info(ctx context.Context, id crypto.Digest) (proto.Transaction, *Response, error) {
+	url, err := joinUrl(a.options.BaseUrl, fmt.Sprintf("/transactions/info/%s", id.String()))
+	if err != nil {
+		return nil, nil, err
+	}
+
 	req, err := http.NewRequest(
 		"GET",
-		fmt.Sprintf("%s/transactions/info/%s", a.options.BaseUrl, id.String()),
+		url.String(),
 		nil)
 	if err != nil {
 		return nil, nil, err
@@ -203,9 +223,14 @@ func GuessTransactionType(t *TransactionTypeVersion) (proto.Transaction, error) 
 
 // Get list of transactions where specified address has been involved
 func (a *Transactions) Address(ctx context.Context, address proto.Address, limit uint) ([]proto.Transaction, *Response, error) {
+	url, err := joinUrl(a.options.BaseUrl, fmt.Sprintf("/transactions/address/%s/limit/%d", address.String(), limit))
+	if err != nil {
+		return nil, nil, err
+	}
+
 	req, err := http.NewRequest(
 		"GET",
-		fmt.Sprintf("%s/transactions/address/%s/limit/%d", a.options.BaseUrl, address.String(), limit),
+		url.String(),
 		nil)
 	if err != nil {
 		return nil, nil, err

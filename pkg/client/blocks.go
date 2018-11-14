@@ -23,7 +23,12 @@ type BlocksHeight struct {
 }
 
 func (a *Blocks) Height(ctx context.Context) (*BlocksHeight, *Response, error) {
-	req, err := http.NewRequest("GET", fmt.Sprintf("%s/blocks/height", a.options.BaseUrl), nil)
+	url, err := joinUrl(a.options.BaseUrl, "/blocks/height")
+	if err != nil {
+		return nil, nil, err
+	}
+
+	req, err := http.NewRequest("GET", url.String(), nil)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -36,9 +41,13 @@ func (a *Blocks) Height(ctx context.Context) (*BlocksHeight, *Response, error) {
 }
 
 func (a *Blocks) HeightBySignature(ctx context.Context, signature string) (*BlocksHeight, *Response, error) {
+	url, err := joinUrl(a.options.BaseUrl, fmt.Sprintf("/blocks/height/%s", signature))
+	if err != nil {
+		return nil, nil, err
+	}
 	req, err := http.NewRequest(
 		"GET",
-		fmt.Sprintf("%s/blocks/height/%s", a.options.BaseUrl, signature),
+		url.String(),
 		nil)
 	if err != nil {
 		return nil, nil, err
@@ -72,9 +81,14 @@ type NxtConsensus struct {
 }
 
 func (a *Blocks) HeadersAt(ctx context.Context, height uint64) (*Headers, *Response, error) {
+	url, err := joinUrl(a.options.BaseUrl, fmt.Sprintf("/blocks/headers/at/%d", height))
+	if err != nil {
+		return nil, nil, err
+	}
+
 	req, err := http.NewRequest(
 		"GET",
-		fmt.Sprintf("%s/blocks/headers/at/%d", a.options.BaseUrl, height),
+		url.String(),
 		nil)
 	if err != nil {
 		return nil, nil, err
@@ -90,9 +104,14 @@ func (a *Blocks) HeadersAt(ctx context.Context, height uint64) (*Headers, *Respo
 }
 
 func (a *Blocks) HeadersLast(ctx context.Context) (*Headers, *Response, error) {
+	url, err := joinUrl(a.options.BaseUrl, "/blocks/headers/last")
+	if err != nil {
+		return nil, nil, err
+	}
+
 	req, err := http.NewRequest(
 		"GET",
-		fmt.Sprintf("%s/blocks/headers/last", a.options.BaseUrl),
+		url.String(),
 		nil)
 	if err != nil {
 		return nil, nil, err
@@ -108,9 +127,14 @@ func (a *Blocks) HeadersLast(ctx context.Context) (*Headers, *Response, error) {
 }
 
 func (a *Blocks) HeadersSeq(ctx context.Context, from uint64, to uint64) ([]*Headers, *Response, error) {
+	url, err := joinUrl(a.options.BaseUrl, fmt.Sprintf("/blocks/headers/seq/%d/%d", from, to))
+	if err != nil {
+		return nil, nil, err
+	}
+
 	req, err := http.NewRequest(
 		"GET",
-		fmt.Sprintf("%s/blocks/headers/seq/%d/%d", a.options.BaseUrl, from, to),
+		url.String(),
 		nil)
 	if err != nil {
 		return nil, nil, err
