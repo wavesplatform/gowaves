@@ -30,10 +30,7 @@ func (a *Utils) Seed(ctx context.Context) (string, *Response, error) {
 		return "", nil, err
 	}
 
-	req, err := http.NewRequest(
-		"GET",
-		url.String(),
-		nil)
+	req, err := http.NewRequest("GET", url.String(), nil)
 	if err != nil {
 		return "", nil, err
 	}
@@ -65,10 +62,7 @@ func (a *Utils) HashSecure(ctx context.Context, message string) (*UtilsHashSecur
 		return nil, nil, err
 	}
 
-	req, err := http.NewRequest(
-		"POST",
-		url.String(),
-		strings.NewReader(message))
+	req, err := http.NewRequest("POST", url.String(), strings.NewReader(message))
 	if err != nil {
 		return nil, nil, err
 	}
@@ -100,10 +94,7 @@ func (a *Utils) HashFast(ctx context.Context, message string) (*UtilsHashFast, *
 		return nil, nil, err
 	}
 
-	req, err := http.NewRequest(
-		"POST",
-		url.String(),
-		strings.NewReader(message))
+	req, err := http.NewRequest("POST", url.String(), strings.NewReader(message))
 	if err != nil {
 		return nil, nil, err
 	}
@@ -135,10 +126,7 @@ func (a *Utils) Time(ctx context.Context) (*UtilsTime, *Response, error) {
 		return nil, nil, err
 	}
 
-	req, err := http.NewRequest(
-		"GET",
-		url.String(),
-		nil)
+	req, err := http.NewRequest("GET", url.String(), nil)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -170,10 +158,7 @@ func (a *Utils) Sign(ctx context.Context, secretKey crypto.SecretKey, message st
 		return nil, nil, err
 	}
 
-	req, err := http.NewRequest(
-		"POST",
-		url.String(),
-		strings.NewReader(message))
+	req, err := http.NewRequest("POST", url.String(), strings.NewReader(message))
 	if err != nil {
 		return nil, nil, err
 	}
@@ -200,10 +185,7 @@ func (a *Utils) SeedByLength(ctx context.Context, length uint16) (string, *Respo
 		return "", nil, err
 	}
 
-	req, err := http.NewRequest(
-		"GET",
-		url.String(),
-		nil)
+	req, err := http.NewRequest("GET", url.String(), nil)
 	if err != nil {
 		return "", nil, err
 	}
@@ -232,10 +214,7 @@ func (a *Utils) ScriptCompile(ctx context.Context, code string) (*UtilsScriptCom
 		return nil, nil, err
 	}
 
-	req, err := http.NewRequest(
-		"POST",
-		url.String(),
-		strings.NewReader(code))
+	req, err := http.NewRequest("POST", url.String(), strings.NewReader(code))
 	if err != nil {
 		return nil, nil, err
 	}
@@ -263,10 +242,7 @@ func (a *Utils) ScriptEstimate(ctx context.Context, base64code string) (*UtilsSc
 		return nil, nil, err
 	}
 
-	req, err := http.NewRequest(
-		"POST",
-		url.String(),
-		strings.NewReader(base64code))
+	req, err := http.NewRequest("POST", url.String(), strings.NewReader(base64code))
 	if err != nil {
 		return nil, nil, err
 	}

@@ -236,3 +236,157 @@ func TestBlocks_Signature(t *testing.T) {
 	assert.Equal(t, "2WKKGrsL4kyqWPST9ZL4if198V9qYP5NMa92rv9mxGW56iqhseqaQYv15A74ThwtwZC2idj8C5px1b35oyQLzUKt", body.Signature.String())
 	assert.Equal(t, "https://testnode1.wavesnodes.com/blocks/signature/2WKKGrsL4kyqWPST9ZL4if198V9qYP5NMa92rv9mxGW56iqhseqaQYv15A74ThwtwZC2idj8C5px1b35oyQLzUKt", resp.Request.URL.String())
 }
+
+var blocksHeightJson = `
+{
+  "height": 375491
+}`
+
+func TestBlocks_Height(t *testing.T) {
+	client, err := NewClient(Options{
+		BaseUrl: "https://testnode1.wavesnodes.com",
+		Client:  NewMockHttpRequestFromString(blocksHeightJson, 200),
+	})
+	require.Nil(t, err)
+	body, resp, err :=
+		client.Blocks.Height(context.Background())
+	require.NoError(t, err)
+	assert.NotNil(t, resp)
+	require.EqualValues(t, 375491, body.Height)
+	assert.Equal(t, "https://testnode1.wavesnodes.com/blocks/height", resp.Request.URL.String())
+}
+
+func TestBlocks_Child(t *testing.T) {
+	sign, _ := crypto.NewSignatureFromBase58("2WKKGrsL4kyqWPST9ZL4if198V9qYP5NMa92rv9mxGW56iqhseqaQYv15A74ThwtwZC2idj8C5px1b35oyQLzUKt")
+	client, err := NewClient(Options{
+		BaseUrl: "https://testnode1.wavesnodes.com",
+		Client:  NewMockHttpRequestFromString(blocksAtJson, 200),
+	})
+	require.Nil(t, err)
+	body, resp, err :=
+		client.Blocks.Child(context.Background(), sign)
+	require.NoError(t, err)
+	assert.NotNil(t, resp)
+	require.Equal(t, 1, len(body.Transactions))
+	assert.EqualValues(t, proto.TransferTransaction, body.Transactions[0].(*proto.TransferV1).Type)
+	assert.EqualValues(t, 330, body.Height)
+	assert.Equal(t, "2WKKGrsL4kyqWPST9ZL4if198V9qYP5NMa92rv9mxGW56iqhseqaQYv15A74ThwtwZC2idj8C5px1b35oyQLzUKt", body.Signature.String())
+	assert.Equal(t, "https://testnode1.wavesnodes.com/blocks/child/2WKKGrsL4kyqWPST9ZL4if198V9qYP5NMa92rv9mxGW56iqhseqaQYv15A74ThwtwZC2idj8C5px1b35oyQLzUKt", resp.Request.URL.String())
+}
+
+var blocksFirstJson = `
+{
+  "version": 1,
+  "timestamp": 1460678400000,
+  "reference": "67rpwLCuS5DGA8KGZXKsVQ7dnPb9goRLoKfgGbLfQg9WoLUgNY77E2jT11fem3coV9nAkguBACzrU1iyZM4B8roQ",
+  "nxt-consensus": {
+    "base-target": 153722867,
+    "generation-signature": "11111111111111111111111111111111"
+  },
+  "generator": "3Mp6FarByk73bgv3CFnbrzMzWgLmMHAJnj2",
+  "signature": "5uqnLK3Z9eiot6FyYBfwUnbyid3abicQbAZjz38GQ1Q8XigQMxTK4C1zNkqS1SVw7FqSidbZKxWAKLVoEsp4nNqa",
+  "blocksize": 453,
+  "transactionCount": 5,
+  "fee": 0,
+  "transactions": [
+    {
+      "type": 1,
+      "id": "5G66c9GPn2egiM4bQBBF3gCkHS8sQZupRvWCpWKWGQTRRbtqdtZJ5Mt29exbHTDZW2RWygVKZ3oBNg4RwezN7wmA",
+      "fee": 0,
+      "timestamp": 1478000000000,
+      "signature": "5G66c9GPn2egiM4bQBBF3gCkHS8sQZupRvWCpWKWGQTRRbtqdtZJ5Mt29exbHTDZW2RWygVKZ3oBNg4RwezN7wmA",
+      "recipient": "3My3KZgFQ3CrVHgz6vGRt8687sH4oAA1qp8",
+      "amount": 400000000000000
+    },
+    {
+      "type": 1,
+      "id": "3zpi4i5SeCoaiCBn1iuTUvCc5aahvtabqXBTrCXy1Y3ujUbJo56VVv6n4HQtcwiFapvg3BKV6stb5QkxsBrudTKZ",
+      "fee": 0,
+      "timestamp": 1478000000000,
+      "signature": "3zpi4i5SeCoaiCBn1iuTUvCc5aahvtabqXBTrCXy1Y3ujUbJo56VVv6n4HQtcwiFapvg3BKV6stb5QkxsBrudTKZ",
+      "recipient": "3NBVqYXrapgJP9atQccdBPAgJPwHDKkh6A8",
+      "amount": 200000000000000
+    },
+    {
+      "type": 1,
+      "id": "3obfFPvsWXv2RyMYxjTT7owYGcpSGuSAm8fQVXeX5wErWYsgNSPPnQoFVV6nzuwm3RwGCbm8dfgvqwK9S8fVMpye",
+      "fee": 0,
+      "timestamp": 1478000000000,
+      "signature": "3obfFPvsWXv2RyMYxjTT7owYGcpSGuSAm8fQVXeX5wErWYsgNSPPnQoFVV6nzuwm3RwGCbm8dfgvqwK9S8fVMpye",
+      "recipient": "3N5GRqzDBhjVXnCn44baHcz2GoZy5qLxtTh",
+      "amount": 200000000000000
+    },
+    {
+      "type": 1,
+      "id": "3TdE9G7V7fwED35981aGsWFM6aesxSS4W1XPfEx6p5xacwHLu7Kvf67Wzg73kgyU9gSFp1KsmPWqkFhaaR2S1fhp",
+      "fee": 0,
+      "timestamp": 1478000000000,
+      "signature": "3TdE9G7V7fwED35981aGsWFM6aesxSS4W1XPfEx6p5xacwHLu7Kvf67Wzg73kgyU9gSFp1KsmPWqkFhaaR2S1fhp",
+      "recipient": "3NCBMxgdghg4tUhEEffSXy11L6hUi6fcBpd",
+      "amount": 200000000000000
+    },
+    {
+      "type": 1,
+      "id": "4hTrr7fqkujsGSH8AFN1qw7fJdfmKgwzoq3ByCCJwduHkgZPQZe1KgzG6oPBZXMuNr5ZQ6ErDSTiz2KGtxtkHpA5",
+      "fee": 0,
+      "timestamp": 1478000000000,
+      "signature": "4hTrr7fqkujsGSH8AFN1qw7fJdfmKgwzoq3ByCCJwduHkgZPQZe1KgzG6oPBZXMuNr5ZQ6ErDSTiz2KGtxtkHpA5",
+      "recipient": "3N18z4B8kyyQ96PhN5eyhCAbg4j49CgwZJx",
+      "amount": 9000000000000000
+    }
+  ],
+  "height": 1
+}`
+
+func TestBlocks_First(t *testing.T) {
+	client, err := NewClient(Options{
+		BaseUrl: "https://testnode1.wavesnodes.com",
+		Client:  NewMockHttpRequestFromString(blocksFirstJson, 200),
+	})
+	require.Nil(t, err)
+	body, resp, err :=
+		client.Blocks.First(context.Background())
+	require.NoError(t, err)
+	assert.NotNil(t, resp)
+	require.Equal(t, 5, len(body.Transactions))
+	assert.EqualValues(t, proto.GenesisTransaction, body.Transactions[0].(*proto.Genesis).Type)
+	assert.EqualValues(t, 1, body.Height)
+	assert.Equal(t, "5uqnLK3Z9eiot6FyYBfwUnbyid3abicQbAZjz38GQ1Q8XigQMxTK4C1zNkqS1SVw7FqSidbZKxWAKLVoEsp4nNqa", body.Signature.String())
+	assert.Equal(t, "https://testnode1.wavesnodes.com/blocks/first", resp.Request.URL.String())
+}
+
+var blocksLastJson = `
+{
+  "version": 3,
+  "timestamp": 1542205356696,
+  "reference": "z3TKjQhwhgntPm8zCwUjFzJK62k7K67rnZwgH9x8eGFajxSBrtpvFqEScUQA94vUWg6TNF4Hdt7fdAvHF1USW2X",
+  "nxt-consensus": {
+    "base-target": 750,
+    "generation-signature": "4Lbbqe1D14ByNyq2Ej2D9BKoGMLrn7pD46HfvevqPZVY"
+  },
+  "features": [
+    9
+  ],
+  "generator": "3MxTeL8dKLUGh9B1A2aaZxQ8BLL22bDdm6G",
+  "signature": "3oNX2yLcKcPszzzA5CBMeNrt3p8i87AZ3eMZivkFzCut2ahGh95LZsoAQon6Qjs9XqfnTh9cTUC44o7WKWE47KzS",
+  "blocksize": 227,
+  "transactionCount": 0,
+  "fee": 0,
+  "transactions": [],
+  "height": 375501
+}`
+
+func TestBlocks_Last(t *testing.T) {
+	client, err := NewClient(Options{
+		BaseUrl: "https://testnode1.wavesnodes.com",
+		Client:  NewMockHttpRequestFromString(blocksLastJson, 200),
+	})
+	require.Nil(t, err)
+	body, resp, err :=
+		client.Blocks.Last(context.Background())
+	require.NoError(t, err)
+	assert.NotNil(t, resp)
+	require.Equal(t, 0, len(body.Transactions))
+	assert.EqualValues(t, 375501, body.Height)
+	assert.Equal(t, "https://testnode1.wavesnodes.com/blocks/last", resp.Request.URL.String())
+}

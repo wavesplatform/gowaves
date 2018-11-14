@@ -15,6 +15,7 @@ type Transactions struct {
 	options Options
 }
 
+// Creates new transaction api section
 func NewTransactions(options Options) *Transactions {
 	return &Transactions{
 		options: options,
@@ -28,39 +29,29 @@ func (a *Transactions) UnconfirmedInfo(ctx context.Context, id crypto.Digest) (p
 		return nil, nil, err
 	}
 
-	req, err := http.NewRequest(
-		"GET",
-		url.String(),
-		nil)
+	req, err := http.NewRequest("GET", url.String(), nil)
 	if err != nil {
 		return nil, nil, err
 	}
 
 	buf := new(bytes.Buffer)
+	buf.WriteRune('[')
 	response, err := doHttp(ctx, a.options, req, buf)
 	if err != nil {
 		return nil, response, err
 	}
-
-	b := buf.Bytes()
-
-	tt := new(TransactionTypeVersion)
-	err = json.NewDecoder(buf).Decode(tt)
+	buf.WriteRune(']')
+	out := TransactionsField{}
+	err = json.Unmarshal(buf.Bytes(), &out)
 	if err != nil {
 		return nil, response, &ParseError{Err: err}
 	}
 
-	realType, err := GuessTransactionType(tt)
-	if err != nil {
-		return nil, response, &ParseError{Err: err}
+	if len(out) == 0 {
+		return nil, response, errors.New("invalid transaction")
 	}
 
-	err = json.Unmarshal(b, realType)
-	if err != nil {
-		return nil, response, &ParseError{Err: err}
-	}
-
-	return realType, response, nil
+	return out[0], response, nil
 }
 
 // Get the number of unconfirmed transactions in the UTX pool
@@ -70,10 +61,7 @@ func (a *Transactions) UnconfirmedSize(ctx context.Context) (uint64, *Response, 
 		return 0, nil, err
 	}
 
-	req, err := http.NewRequest(
-		"GET",
-		url.String(),
-		nil)
+	req, err := http.NewRequest("GET", url.String(), nil)
 	if err != nil {
 		return 0, nil, err
 	}
@@ -94,10 +82,7 @@ func (a *Transactions) Unconfirmed(ctx context.Context) ([]proto.Transaction, *R
 		return nil, nil, err
 	}
 
-	req, err := http.NewRequest(
-		"GET",
-		url.String(),
-		nil)
+	req, err := http.NewRequest("GET", url.String(), nil)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -123,39 +108,29 @@ func (a *Transactions) Info(ctx context.Context, id crypto.Digest) (proto.Transa
 		return nil, nil, err
 	}
 
-	req, err := http.NewRequest(
-		"GET",
-		url.String(),
-		nil)
+	req, err := http.NewRequest("GET", url.String(), nil)
 	if err != nil {
 		return nil, nil, err
 	}
 
 	buf := new(bytes.Buffer)
+	buf.WriteRune('[')
 	response, err := doHttp(ctx, a.options, req, buf)
 	if err != nil {
 		return nil, response, err
 	}
-
-	b := buf.Bytes()
-
-	tt := new(TransactionTypeVersion)
-	err = json.NewDecoder(buf).Decode(tt)
+	buf.WriteRune(']')
+	out := TransactionsField{}
+	err = json.Unmarshal(buf.Bytes(), &out)
 	if err != nil {
 		return nil, response, &ParseError{Err: err}
 	}
 
-	realType, err := GuessTransactionType(tt)
-	if err != nil {
-		return nil, response, &ParseError{Err: err}
+	if len(out) == 0 {
+		return nil, response, errors.New("invalid transaction ")
 	}
 
-	err = json.Unmarshal(b, realType)
-	if err != nil {
-		return nil, response, &ParseError{Err: err}
-	}
-
-	return realType, response, nil
+	return out[0], response, nil
 }
 
 // Guess transaction from type and version
@@ -204,10 +179,7 @@ func (a *Transactions) Address(ctx context.Context, address proto.Address, limit
 		return nil, nil, err
 	}
 
-	req, err := http.NewRequest(
-		"GET",
-		url.String(),
-		nil)
+	req, err := http.NewRequest("GET", url.String(), nil)
 	if err != nil {
 		return nil, nil, err
 	}

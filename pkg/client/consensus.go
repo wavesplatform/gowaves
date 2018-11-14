@@ -35,9 +35,7 @@ func (a Consensus) GeneratingBalance(ctx context.Context, address proto.Address)
 		return nil, nil, err
 	}
 
-	req, err := http.NewRequest(
-		"GET",
-		url.String(),
+	req, err := http.NewRequest("GET", url.String(),
 		nil)
 	if err != nil {
 		return nil, nil, err
@@ -65,10 +63,7 @@ func (a *Consensus) GenerationSignatureByBlock(ctx context.Context, blockID stri
 		return "", nil, err
 	}
 
-	req, err := http.NewRequest(
-		"GET",
-		url.String(),
-		nil)
+	req, err := http.NewRequest("GET", url.String(), nil)
 	if err != nil {
 		return "", nil, err
 	}
@@ -95,10 +90,7 @@ func (a *Consensus) BaseTargetByBlock(ctx context.Context, blockID string) (uint
 		return 0, nil, err
 	}
 
-	req, err := http.NewRequest(
-		"GET",
-		url.String(),
-		nil)
+	req, err := http.NewRequest("GET", url.String(), nil)
 	if err != nil {
 		return 0, nil, err
 	}
@@ -130,10 +122,7 @@ func (a *Consensus) BaseTarget(ctx context.Context) (*ConsensusBaseTarget, *Resp
 		return nil, nil, err
 	}
 
-	req, err := http.NewRequest(
-		"GET",
-		url.String(),
-		nil)
+	req, err := http.NewRequest("GET", url.String(), nil)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -160,10 +149,7 @@ func (a *Consensus) Algo(ctx context.Context) (string, *Response, error) {
 		return "", nil, err
 	}
 
-	req, err := http.NewRequest(
-		"GET",
-		url.String(),
-		nil)
+	req, err := http.NewRequest("GET", url.String(), nil)
 	if err != nil {
 		return "", nil, err
 	}
@@ -190,10 +176,7 @@ func (a *Consensus) GenerationSignature(ctx context.Context) (string, *Response,
 		return "", nil, err
 	}
 
-	req, err := http.NewRequest(
-		"GET",
-		url.String(),
-		nil)
+	req, err := http.NewRequest("GET", url.String(), nil)
 	if err != nil {
 		return "", nil, err
 	}

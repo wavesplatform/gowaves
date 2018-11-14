@@ -26,10 +26,7 @@ func (a *Leasing) Active(ctx context.Context, address proto.Address) ([]*proto.L
 		return nil, nil, err
 	}
 
-	req, err := http.NewRequest(
-		"GET",
-		url.String(),
-		nil)
+	req, err := http.NewRequest("GET", url.String(), nil)
 	if err != nil {
 		return nil, nil, err
 	}

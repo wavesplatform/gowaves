@@ -46,10 +46,7 @@ func (a *Blocks) HeightBySignature(ctx context.Context, signature string) (*Bloc
 	if err != nil {
 		return nil, nil, err
 	}
-	req, err := http.NewRequest(
-		"GET",
-		url.String(),
-		nil)
+	req, err := http.NewRequest("GET", url.String(), nil)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -87,10 +84,7 @@ func (a *Blocks) HeadersAt(ctx context.Context, height uint64) (*Headers, *Respo
 		return nil, nil, err
 	}
 
-	req, err := http.NewRequest(
-		"GET",
-		url.String(),
-		nil)
+	req, err := http.NewRequest("GET", url.String(), nil)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -110,10 +104,7 @@ func (a *Blocks) HeadersLast(ctx context.Context) (*Headers, *Response, error) {
 		return nil, nil, err
 	}
 
-	req, err := http.NewRequest(
-		"GET",
-		url.String(),
-		nil)
+	req, err := http.NewRequest("GET", url.String(), nil)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -133,10 +124,7 @@ func (a *Blocks) HeadersSeq(ctx context.Context, from uint64, to uint64) ([]*Hea
 		return nil, nil, err
 	}
 
-	req, err := http.NewRequest(
-		"GET",
-		url.String(),
-		nil)
+	req, err := http.NewRequest("GET", url.String(), nil)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -190,10 +178,7 @@ func (a *Blocks) At(ctx context.Context, height uint64) (*Block, *Response, erro
 		return nil, nil, err
 	}
 
-	req, err := http.NewRequest(
-		"GET",
-		url.String(),
-		nil)
+	req, err := http.NewRequest("GET", url.String(), nil)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -203,13 +188,11 @@ func (a *Blocks) At(ctx context.Context, height uint64) (*Block, *Response, erro
 	if err != nil {
 		return nil, response, err
 	}
-	//
-	//out, err := parseBlock(buf.Bytes())
+
 	if err != nil {
 		return nil, response, &ParseError{Err: err}
 	}
 	return out, response, nil
-
 }
 
 func (a *Blocks) Delay(ctx context.Context, signature crypto.Signature, blockNum uint64) (uint64, *Response, error) {
@@ -218,10 +201,7 @@ func (a *Blocks) Delay(ctx context.Context, signature crypto.Signature, blockNum
 		return 0, nil, err
 	}
 
-	req, err := http.NewRequest(
-		"GET",
-		url.String(),
-		nil)
+	req, err := http.NewRequest("GET", url.String(), nil)
 	if err != nil {
 		return 0, nil, err
 	}
@@ -245,10 +225,7 @@ func (a *Blocks) Signature(ctx context.Context, signature crypto.Signature) (*Bl
 		return nil, nil, err
 	}
 
-	req, err := http.NewRequest(
-		"GET",
-		url.String(),
-		nil)
+	req, err := http.NewRequest("GET", url.String(), nil)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -259,41 +236,65 @@ func (a *Blocks) Signature(ctx context.Context, signature crypto.Signature) (*Bl
 		return nil, response, err
 	}
 
-	//out, err := parseBlock(buf.Bytes())
-	//if err != nil {
-	//	return nil, response, &ParseError{Err: err}
-	//}
 	return out, response, nil
 }
 
-//func parseBlock(b []byte) (*Block, error) {
-//	type tempTransactions struct {
-//		Transactions []*TransactionTypeVersion `json:"transactions"`
-//	}
-//
-//	tt := new(tempTransactions)
-//	err := json.Unmarshal(b, tt)
-//	if err != nil {
-//		return nil, err
-//	}
-//
-//	transactions := make([]proto.Transaction, len(tt.Transactions))
-//	for i, row := range tt.Transactions {
-//		realType, err := GuessTransactionType(row)
-//		if err != nil {
-//			return nil, err
-//		}
-//		transactions[i] = realType
-//	}
-//
-//	out := &Block{
-//		Transactions: transactions,
-//	}
-//
-//	err = json.Unmarshal(b, out)
-//	if err != nil {
-//		return nil, err
-//	}
-//
-//	return out, nil
-//}
+func (a *Blocks) Child(ctx context.Context, signature crypto.Signature) (*Block, *Response, error) {
+	url, err := joinUrl(a.options.BaseUrl, fmt.Sprintf("/blocks/child/%s", signature.String()))
+	if err != nil {
+		return nil, nil, err
+	}
+
+	req, err := http.NewRequest("GET", url.String(), nil)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	out := new(Block)
+	response, err := doHttp(ctx, a.options, req, &out)
+	if err != nil {
+		return nil, response, err
+	}
+
+	return out, response, nil
+}
+
+func (a *Blocks) First(ctx context.Context) (*Block, *Response, error) {
+	url, err := joinUrl(a.options.BaseUrl, "/blocks/first")
+	if err != nil {
+		return nil, nil, err
+	}
+
+	req, err := http.NewRequest("GET", url.String(), nil)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	out := new(Block)
+	response, err := doHttp(ctx, a.options, req, &out)
+	if err != nil {
+		return nil, response, err
+	}
+
+	return out, response, nil
+}
+
+func (a *Blocks) Last(ctx context.Context) (*Block, *Response, error) {
+	url, err := joinUrl(a.options.BaseUrl, "/blocks/last")
+	if err != nil {
+		return nil, nil, err
+	}
+
+	req, err := http.NewRequest("GET", url.String(), nil)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	out := new(Block)
+	response, err := doHttp(ctx, a.options, req, &out)
+	if err != nil {
+		return nil, response, err
+	}
+
+	return out, response, nil
+}

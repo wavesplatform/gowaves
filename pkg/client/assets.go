@@ -44,10 +44,7 @@ func (a *Assets) BalanceByAddress(ctx context.Context, address proto.Address) (*
 		return nil, nil, err
 	}
 
-	req, err := http.NewRequest(
-		"GET",
-		url.String(),
-		nil)
+	req, err := http.NewRequest("GET", url.String(), nil)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -74,10 +71,7 @@ func (a *Assets) BalanceByAddressAndAsset(ctx context.Context, address proto.Add
 		return nil, nil, err
 	}
 
-	req, err := http.NewRequest(
-		"GET",
-		url.String(),
-		nil)
+	req, err := http.NewRequest("GET", url.String(), nil)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -111,10 +105,7 @@ func (a *Assets) Details(ctx context.Context, assetId crypto.Digest) (*AssetsDet
 		return nil, nil, err
 	}
 
-	req, err := http.NewRequest(
-		"GET",
-		url.String(),
-		nil)
+	req, err := http.NewRequest("GET", url.String(), nil)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -137,10 +128,7 @@ func (a *Assets) Distribution(ctx context.Context, assetId crypto.Digest) (Asset
 		return nil, nil, err
 	}
 
-	req, err := http.NewRequest(
-		"GET",
-		url.String(),
-		nil)
+	req, err := http.NewRequest("GET", url.String(), nil)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -197,8 +185,7 @@ func (a *Assets) Issue(ctx context.Context, issueReq AssetsIssueReq) (*AssetsIss
 	}
 
 	req, err := http.NewRequest(
-		"POST",
-		url.String(),
+		"POST", url.String(),
 		bytes.NewReader(bts))
 	if err != nil {
 		return nil, nil, err
@@ -254,8 +241,7 @@ func (a *Assets) MassTransfer(ctx context.Context, transfersReq AssetsMassTransf
 	}
 
 	req, err := http.NewRequest(
-		"POST",
-		url.String(),
+		"POST", url.String(),
 		bytes.NewReader(bts))
 	if err != nil {
 		return nil, nil, err
@@ -297,8 +283,7 @@ func (a *Assets) Sponsor(ctx context.Context, sponsorReq AssetsSponsorReq) (*pro
 	}
 
 	req, err := http.NewRequest(
-		"POST",
-		url.String(),
+		"POST", url.String(),
 		bytes.NewReader(bts))
 	if err != nil {
 		return nil, nil, err
@@ -344,8 +329,7 @@ func (a *Assets) Transfer(ctx context.Context, transferReq AssetsTransferReq) (*
 	}
 
 	req, err := http.NewRequest(
-		"POST",
-		url.String(),
+		"POST", url.String(),
 		bytes.NewReader(bts))
 	if err != nil {
 		return nil, nil, err
@@ -387,8 +371,7 @@ func (a *Assets) Burn(ctx context.Context, burnReq AssetsBurnReq) (*proto.BurnV1
 	}
 
 	req, err := http.NewRequest(
-		"POST",
-		url.String(),
+		"POST", url.String(),
 		bytes.NewReader(bts))
 	if err != nil {
 		return nil, nil, err
