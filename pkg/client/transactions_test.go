@@ -310,12 +310,10 @@ func TestTransactions_Unconfirmed(t *testing.T) {
 		Client:  NewMockHttpRequestFromString(transactionUnconfirmedJson, 200),
 		BaseUrl: "https://testnodes.wavesnodes.com",
 	})
-	require.Nil(t, err)
+	require.NoError(t, err)
 	body, resp, err :=
 		client.Transactions.Unconfirmed(context.Background())
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	assert.NotNil(t, resp)
 	assert.Equal(t, 1, len(body))
 	assert.Equal(t, "https://testnodes.wavesnodes.com/transactions/unconfirmed", resp.Request.URL.String())

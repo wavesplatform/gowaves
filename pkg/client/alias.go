@@ -27,10 +27,7 @@ func (a *Alias) Get(ctx context.Context, alias string) (proto.Address, *Response
 		return proto.Address{}, nil, err
 	}
 
-	req, err := http.NewRequest(
-		"GET",
-		url.String(),
-		nil)
+	req, err := http.NewRequest("GET", url.String(), nil)
 	if err != nil {
 		return proto.Address{}, nil, err
 	}
@@ -52,10 +49,7 @@ func (a *Alias) GetByAddress(ctx context.Context, address proto.Address) ([]*pro
 		return nil, nil, err
 	}
 
-	req, err := http.NewRequest(
-		"GET",
-		url.String(),
-		nil)
+	req, err := http.NewRequest("GET", url.String(), nil)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -103,8 +97,7 @@ func (a *Alias) Create(ctx context.Context, createReq AliasCreateReq) (*CreateAl
 	}
 
 	req, err := http.NewRequest(
-		"POST",
-		url.String(),
+		"POST", url.String(),
 		bytes.NewReader(bts))
 	if err != nil {
 		return nil, nil, err
@@ -141,8 +134,7 @@ func (a *Alias) Broadcast(ctx context.Context, broadcastReq AliasBroadcastReq) (
 	}
 
 	req, err := http.NewRequest(
-		"POST",
-		url.String(),
+		"POST", url.String(),
 		bytes.NewReader(bts))
 	if err != nil {
 		return nil, nil, err

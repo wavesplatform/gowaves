@@ -38,10 +38,7 @@ func (a *Peers) All(ctx context.Context) ([]*PeerAllRow, *Response, error) {
 		return nil, nil, err
 	}
 
-	req, err := http.NewRequest(
-		"GET",
-		url.String(),
-		nil)
+	req, err := http.NewRequest("GET", url.String(), nil)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -80,10 +77,7 @@ func (a *Peers) Connected(ctx context.Context) ([]*PeersConnectedRow, *Response,
 		return nil, nil, err
 	}
 
-	req, err := http.NewRequest(
-		"GET",
-		url.String(),
-		nil)
+	req, err := http.NewRequest("GET", url.String(), nil)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -115,10 +109,7 @@ func (a *Peers) Blacklisted(ctx context.Context) ([]*PeersBlacklistedRow, *Respo
 		return nil, nil, err
 	}
 
-	req, err := http.NewRequest(
-		"GET",
-		url.String(),
-		nil)
+	req, err := http.NewRequest("GET", url.String(), nil)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -149,10 +140,7 @@ func (a *Peers) Suspended(ctx context.Context) ([]*PeersSuspendedRow, *Response,
 		return nil, nil, err
 	}
 
-	req, err := http.NewRequest(
-		"GET",
-		url.String(),
-		nil)
+	req, err := http.NewRequest("GET", url.String(), nil)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -188,10 +176,7 @@ func (a *Peers) Connect(ctx context.Context, host string, port uint16) (*PeersCo
 		return nil, nil, err
 	}
 
-	req, err := http.NewRequest(
-		"POST",
-		url.String(),
-		bytes.NewReader(bts))
+	req, err := http.NewRequest("POST", url.String(), bytes.NewReader(bts))
 	if err != nil {
 		return nil, nil, err
 	}
@@ -217,10 +202,7 @@ func (a *Peers) ClearBlacklist(ctx context.Context) (string, *Response, error) {
 		return "", nil, err
 	}
 
-	req, err := http.NewRequest(
-		"POST",
-		url.String(),
-		nil)
+	req, err := http.NewRequest("POST", url.String(), nil)
 	if err != nil {
 		return "", nil, err
 	}

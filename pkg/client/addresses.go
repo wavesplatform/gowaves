@@ -36,10 +36,7 @@ func (a *Addresses) Balance(ctx context.Context, address proto.Address) (*Addres
 		return nil, nil, err
 	}
 
-	req, err := http.NewRequest(
-		"GET",
-		url.String(),
-		nil)
+	req, err := http.NewRequest("GET", url.String(), nil)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -68,10 +65,7 @@ func (a *Addresses) BalanceDetails(ctx context.Context, address proto.Address) (
 		return nil, nil, err
 	}
 
-	req, err := http.NewRequest(
-		"GET",
-		url.String(),
-		nil)
+	req, err := http.NewRequest("GET", url.String(), nil)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -98,10 +92,7 @@ func (a *Addresses) ScriptInfo(ctx context.Context, address proto.Address) (*Add
 		return nil, nil, err
 	}
 
-	req, err := http.NewRequest(
-		"GET",
-		url.String(),
-		nil)
+	req, err := http.NewRequest("GET", url.String(), nil)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -121,10 +112,7 @@ func (a *Addresses) Addresses(ctx context.Context) ([]proto.Address, *Response, 
 	if err != nil {
 		return nil, nil, err
 	}
-	req, err := http.NewRequest(
-		"GET",
-		url.String(),
-		nil)
+	req, err := http.NewRequest("GET", url.String(), nil)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -149,10 +137,7 @@ func (a *Addresses) Validate(ctx context.Context, address proto.Address) (*Addre
 	if err != nil {
 		return nil, nil, err
 	}
-	req, err := http.NewRequest(
-		"GET",
-		url.String(),
-		nil)
+	req, err := http.NewRequest("GET", url.String(), nil)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -178,10 +163,7 @@ func (a *Addresses) EffectiveBalance(ctx context.Context, address proto.Address)
 	if err != nil {
 		return nil, nil, err
 	}
-	req, err := http.NewRequest(
-		"GET",
-		url.String(),
-		nil)
+	req, err := http.NewRequest("GET", url.String(), nil)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -205,10 +187,7 @@ func (a *Addresses) PublicKey(ctx context.Context, publicKey string) (*proto.Add
 	if err != nil {
 		return nil, nil, err
 	}
-	req, err := http.NewRequest(
-		"GET",
-		url.String(),
-		nil)
+	req, err := http.NewRequest("GET", url.String(), nil)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -244,8 +223,7 @@ func (a *Addresses) SignText(ctx context.Context, address proto.Address, message
 	}
 
 	req, err := http.NewRequest(
-		"POST",
-		url.String(),
+		"POST", url.String(),
 		strings.NewReader(message))
 	if err != nil {
 		return nil, nil, err
@@ -289,8 +267,7 @@ func (a *Addresses) VerifyText(ctx context.Context, address proto.Address, body 
 	}
 
 	req, err := http.NewRequest(
-		"POST",
-		url.String(),
+		"POST", url.String(),
 		bytes.NewReader(bodyBytes))
 	if err != nil {
 		return false, nil, err
@@ -323,10 +300,7 @@ func (a *Addresses) BalanceAfterConfirmations(
 		return nil, nil, err
 	}
 
-	req, err := http.NewRequest(
-		"GET",
-		url.String(),
-		nil)
+	req, err := http.NewRequest("GET", url.String(), nil)
 	if err != nil {
 		return nil, nil, err
 	}

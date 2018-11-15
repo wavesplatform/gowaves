@@ -25,10 +25,7 @@ func (a *Wallet) Seed(ctx context.Context) (string, *Response, error) {
 		return "", nil, err
 	}
 
-	req, err := http.NewRequest(
-		"GET",
-		url.String(),
-		nil)
+	req, err := http.NewRequest("GET", url.String(), nil)
 	if err != nil {
 		return "", nil, err
 	}
