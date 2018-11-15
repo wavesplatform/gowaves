@@ -76,6 +76,10 @@ func (a *Debug) Info(ctx context.Context) (*DebugInfo, *Response, error) {
 
 // Get sizes and full hashes for last blocks
 func (a *Debug) Blocks(ctx context.Context, howMany uint64) ([]map[uint64]string, *Response, error) {
+	if a.options.ApiKey == "" {
+		return nil, nil, NoApiKeyError
+	}
+
 	url, err := joinUrl(a.options.BaseUrl, fmt.Sprintf("/debug/blocks/%d", howMany))
 	if err != nil {
 		return nil, nil, err
@@ -85,6 +89,8 @@ func (a *Debug) Blocks(ctx context.Context, howMany uint64) ([]map[uint64]string
 	if err != nil {
 		return nil, nil, err
 	}
+
+	req.Header.Set("X-API-Key", a.options.ApiKey)
 
 	var out []map[uint64]string
 	response, err := doHttp(ctx, a.options, req, &out)
