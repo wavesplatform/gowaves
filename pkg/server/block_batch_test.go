@@ -15,15 +15,15 @@ type batchTest struct {
 var tests = []batchTest{
 	{
 		blocks: []proto.Block{
-			proto.Block{
+			{
 				BlockSignature: proto.BlockID{1},
 				Parent:         proto.BlockID{0},
 			},
-			proto.Block{
+			{
 				BlockSignature: proto.BlockID{2},
 				Parent:         proto.BlockID{1},
 			},
-			proto.Block{
+			{
 				BlockSignature: proto.BlockID{3},
 				Parent:         proto.BlockID{2},
 			},
@@ -32,14 +32,14 @@ var tests = []batchTest{
 	},
 	{
 		blocks: []proto.Block{
-			proto.Block{
+			{
 				BlockSignature: proto.BlockID{1},
 				Parent:         proto.BlockID{0},
 			},
-			proto.Block{
+			{
 				BlockSignature: proto.BlockID{3},
 				Parent:         proto.BlockID{2},
-			}, proto.Block{
+			}, {
 				BlockSignature: proto.BlockID{2},
 				Parent:         proto.BlockID{1},
 			},
@@ -48,11 +48,11 @@ var tests = []batchTest{
 	},
 	{
 		blocks: []proto.Block{
-			proto.Block{
+			{
 				BlockSignature: proto.BlockID{1},
 				Parent:         proto.BlockID{0},
 			},
-			proto.Block{
+			{
 				BlockSignature: proto.BlockID{3},
 				Parent:         proto.BlockID{2},
 			},
