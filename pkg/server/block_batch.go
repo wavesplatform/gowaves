@@ -6,6 +6,10 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
+var batchIncomplete error = errors.New("batch incomplete")
+var noSuchBlock error = errors.New("no such block")
+var batchEmpty error = errors.New("batch empty")
+
 type blockBatch struct {
 	pendingBlocksHave map[proto.BlockID]bool
 	orphanedBlocks    map[proto.BlockID]*proto.Block
@@ -38,7 +42,7 @@ func (b *blockBatch) contains(block proto.BlockID) bool {
 
 func (b *blockBatch) addBlock(block *proto.Block) error {
 	if !b.contains(block.BlockSignature) {
-		return errors.New("batch does not contain block")
+		return noSuchBlock
 	}
 LOOP:
 	for {
@@ -54,7 +58,6 @@ LOOP:
 			}
 			b.inPlaceBlocks[block.BlockSignature] = block
 		}
-
 		b.pendingBlocksHave[block.BlockSignature] = true
 		orphan, ok := b.orphanedBlocks[block.BlockSignature]
 		if !ok {
@@ -84,7 +87,7 @@ func (b *blockBatch) orderedBatch() ([]*proto.Block, error) {
 
 	block, ok := b.inPlaceBlocks[b.ancestor]
 	if !ok {
-		return nil, errors.New("not found")
+		return nil, batchIncomplete
 	}
 	batch = append(batch, block)
 	for {
@@ -96,12 +99,16 @@ func (b *blockBatch) orderedBatch() ([]*proto.Block, error) {
 		batch = append(batch, block)
 	}
 
+	if len(batch) != len(b.pendingBlocksHave) {
+		return nil, batchIncomplete
+	}
+
 	return batch, nil
 }
 
 func NewBatch(batch []proto.BlockID) (*blockBatch, error) {
 	if len(batch) == 0 {
-		return nil, errors.New("empty batch")
+		return nil, batchEmpty
 	}
 
 	b := &blockBatch{
