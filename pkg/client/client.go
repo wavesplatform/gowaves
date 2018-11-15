@@ -11,6 +11,8 @@ import (
 	"time"
 )
 
+const ApiKeyHeader = "X-API-Key"
+
 type Doer interface {
 	Do(req *http.Request) (*http.Response, error)
 }
@@ -38,6 +40,7 @@ type Client struct {
 	Assets       *Assets
 	Utils        *Utils
 	Leasing      *Leasing
+	Debug        *Debug
 }
 
 type Response struct {
@@ -84,6 +87,7 @@ func NewClient(options ...Options) (*Client, error) {
 		Assets:       NewAssets(opts),
 		Utils:        NewUtils(opts),
 		Leasing:      NewLeasing(opts),
+		Debug:        NewDebug(opts),
 	}
 
 	return c, nil
