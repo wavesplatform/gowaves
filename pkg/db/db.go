@@ -81,6 +81,14 @@ func (w *WavesDB) Get(block proto.BlockID) (*proto.Block, error) {
 		return nil, err
 	}
 
+	heightKey := append(block[:], []byte(heightSuffix)...)
+	heightBytes, err := w.db.Get(heightKey, nil)
+	if err != nil {
+		return nil, err
+	}
+	height := binary.BigEndian.Uint64(heightBytes)
+	res.Height = height
+
 	return &res, nil
 }
 
