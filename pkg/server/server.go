@@ -258,9 +258,13 @@ LOOP:
 			case proto.SignaturesMessage:
 				zap.S().Info("got signatures message from ", conn.RemoteAddr().String())
 				unknown := s.processSignatures(conn, v)
+				if len(v.Signatures) == 1 {
+					break LOOP
+				}
 				if len(unknown) == 0 {
 					zap.S().Info("have all blocks")
-					break
+					s.setLastKnownBlock(conn, v.Signatures[len(v.Signatures)-1])
+					break LOOP2
 				}
 
 				batch, err := s.waitForBlocks(conn, unknown)
