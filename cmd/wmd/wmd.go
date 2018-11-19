@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"flag"
+	"github.com/pkg/errors"
+	"github.com/wavesplatform/gowaves/cmd/wmd/internal"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"net/url"
@@ -14,8 +16,9 @@ import (
 
 func main() {
 	var (
-		node     = flag.String("node", "http://127.0.0.1:6869", "URL of node API. Default value http://127.0.0.1:6869.")
-		logLevel = flag.String("log-level", "INFO", "Logging level. Supported levels: DEBUG, INFO, WARN, ERROR, FATAL. Default logging level INFO.")
+		logLevel   = flag.String("log-level", "INFO", "Logging level. Supported levels: DEBUG, INFO, WARN, ERROR, FATAL. Default logging level INFO.")
+		importFile = flag.String("import-file", "", "Path to binary blockchain file to import.")
+		node       = flag.String("node", "http://127.0.0.1:6869", "URL of node API. Default value http://127.0.0.1:6869.")
 	)
 	flag.Parse()
 
@@ -30,6 +33,13 @@ func main() {
 
 	appCtx, cancel := context.WithCancel(context.Background())
 
+	err = importBlockchainIfNeeded(appCtx, log, *importFile)
+	if err != nil {
+		log.Errorf("Initial blockchain import failed: %s", err.Error())
+	} else {
+		os.Exit(0)
+	}
+
 	var gracefulStop = make(chan os.Signal)
 	signal.Notify(gracefulStop, syscall.SIGTERM)
 	signal.Notify(gracefulStop, syscall.SIGINT)
@@ -41,6 +51,20 @@ func main() {
 		shutdown()
 	}
 
+}
+
+func importBlockchainIfNeeded(ctx context.Context, log *zap.SugaredLogger, n string) error {
+	if n != "" {
+		if _, err := os.Stat(n); os.IsNotExist(err) {
+			return errors.Wrapf(err, "failed to import blockchain file '%s'", n)
+		}
+		i := internal.NewImporter(ctx, log)
+		err := i.Import(n)
+		if err != nil {
+			return errors.Wrapf(err, "failed to import blockchain file '%s'", n)
+		}
+	}
+	return nil
 }
 
 func setupLogger(level string) (*zap.Logger, *zap.SugaredLogger) {

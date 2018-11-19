@@ -22,6 +22,7 @@ func (s *Sycronizer) Start(ctx context.Context, node url.URL, storage *Storage) 
 	if sh > nh {
 		return errors.Errorf("impossible state: stored height %d is more than node's height", sh, nh)
 	}
+	return nil
 }
 
 func (s *Sycronizer) Stop() {
