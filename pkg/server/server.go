@@ -295,8 +295,43 @@ LOOP:
 	return nil
 }
 
+func (s *Server) updateState(conn *p2p.Conn) error {
+	for {
+		msg, err := conn.ReadMessage()
+
+		if err != nil && err != p2p.ErrUnknownMessage {
+			zap.S().Info("failed to receive message ", err)
+			break
+		}
+
+		switch v := msg.(type) {
+		case proto.BlockMessage:
+			var b proto.Block
+			if err = b.UnmarshalBinary(v.BlockBytes); err != nil {
+				zap.S().Info("failed to unmarshal block ", err)
+				continue
+			}
+			lastKnown := s.lastKnownBlock(conn)
+			last, _ := s.db.Get(lastKnown)
+			if b.Parent == last.BlockSignature {
+				s.db.Put(&b)
+				s.setLastKnownBlock(conn, b.BlockSignature)
+			}
+		default:
+			zap.S().Infof("got message %T", msg)
+		}
+	}
+
+	return nil
+}
+
 func (s *Server) serveConn(conn *p2p.Conn) {
 	err := s.syncState(conn)
+	if err != nil {
+		zap.S().Error("stopped serving conn: ", err)
+	}
+
+	err = s.updateState(conn)
 	if err != nil {
 		zap.S().Error("stopped serving conn: ", err)
 	}
