@@ -8,6 +8,7 @@ import (
 	"io"
 	"net"
 	"sync"
+	"time"
 
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
@@ -21,10 +22,11 @@ var ErrUnknownMessage = errors.New("unknown message")
 
 // Conn is a connection between two waves nodes
 type Conn struct {
-	conn   net.Conn
-	ctx    context.Context
-	cancel context.CancelFunc
-	wg     sync.WaitGroup
+	conn    net.Conn
+	timeout time.Duration
+	ctx     context.Context
+	cancel  context.CancelFunc
+	wg      sync.WaitGroup
 
 	network string
 	addr    string
@@ -115,6 +117,16 @@ func (c *Conn) ReadMessage() (interface{}, error) {
 	}
 }
 
+// ReadWithDeadline reads a message with a deadline
+func (c *Conn) ReadWithDeadline(deadLine time.Time) (interface{}, error) {
+	c.conn.SetReadDeadline(deadLine)
+	defer c.conn.SetReadDeadline(time.Time{})
+
+	msg, err := c.ReadMessage()
+
+	return msg, err
+}
+
 func (c *Conn) SendMessage(m interface{}) error {
 	var err error
 	switch v := m.(type) {
@@ -186,5 +198,6 @@ func NewConn(options ...ConnOption) (*Conn, error) {
 		c.Transport = &DefaultTransport
 	}
 
+	c.timeout = time.Second * 3
 	return &c, nil
 }

@@ -232,6 +232,22 @@ func (s *Server) processBatch(batch []*proto.Block) error {
 	return nil
 }
 
+func (s *Server) jumpBack(conn *p2p.Conn, n int) {
+	last := s.lastKnownBlock(conn)
+
+	for i := 0; i < n; i++ {
+		lastB, err := s.db.Get(last)
+		if err != nil {
+			last = s.genesis
+			break
+		}
+		last = lastB.Parent
+	}
+
+	zap.S().Info("unwinded back to block ", base58.Encode(last[:]))
+	s.setLastKnownBlock(conn, last)
+}
+
 func (s *Server) syncState(conn *p2p.Conn) error {
 LOOP:
 	for {
@@ -247,9 +263,17 @@ LOOP:
 
 		zap.S().Info("Asking for signatures")
 		conn.SendMessage(gs)
+		sigDeadLine := time.Now().Add(time.Second * 10)
 	LOOP2:
 		for {
-			msg, err := conn.ReadMessage()
+			msg, err := conn.ReadWithDeadline(sigDeadLine)
+			if netE, ok := err.(net.Error); ok {
+				if netE.Timeout() {
+					zap.S().Info("signatures request timed out")
+					s.jumpBack(conn, 10)
+					break
+				}
+			}
 			if err != nil && err != p2p.ErrUnknownMessage {
 				break LOOP
 			}
@@ -316,7 +340,12 @@ func (s *Server) updateState(conn *p2p.Conn) error {
 			if b.Parent == last.BlockSignature {
 				s.db.Put(&b)
 				s.setLastKnownBlock(conn, b.BlockSignature)
+				continue
 			}
+
+			s.jumpBack(conn, 10)
+
+			s.syncState(conn)
 		default:
 			zap.S().Infof("got message %T", msg)
 		}
