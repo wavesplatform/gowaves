@@ -4,13 +4,10 @@ import (
 	"bufio"
 	"context"
 	"encoding/binary"
-	"encoding/json"
 	"errors"
 	"io"
 	"net"
 	"sync"
-
-	"go.uber.org/zap"
 
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
@@ -50,7 +47,6 @@ func (c *Conn) DialContext(ctx context.Context, network, addr string) error {
 	}
 
 	c.conn = conn
-	zap.S().Info("Creating bufio new reader")
 	c.bufConn = bufio.NewReaderSize(c.conn, 65535)
 
 	return nil
@@ -61,14 +57,12 @@ func (c *Conn) RemoteAddr() net.Addr {
 }
 
 func (c *Conn) Close() {
-	zap.S().Info("Closing connection")
 	c.conn.Close()
 }
 
 func (c *Conn) ReadMessage() (interface{}, error) {
 	buf, err := c.bufConn.Peek(9)
 	if err != nil {
-		zap.S().Error("error while reading from connection: ", err)
 		return nil, err
 	}
 
@@ -77,7 +71,6 @@ func (c *Conn) ReadMessage() (interface{}, error) {
 		var gp proto.GetPeersMessage
 		_, err := gp.ReadFrom(c.bufConn)
 		if err != nil {
-			zap.S().Error("error while receiving GetPeersMessage: ", err)
 			return nil, err
 		}
 		return gp, nil
@@ -85,31 +78,20 @@ func (c *Conn) ReadMessage() (interface{}, error) {
 		var p proto.PeersMessage
 		_, err := p.ReadFrom(c.bufConn)
 		if err != nil {
-			zap.S().Error("failed to read Peers message: ", err)
 			return nil, err
 		}
-		var b []byte
-		b, e := json.Marshal(p)
-		if e != nil {
-			return nil, err
-		}
-		js := string(b)
-		zap.S().Info("Got peers", js)
 		return p, nil
 	case proto.ContentIDScore:
 		var s proto.ScoreMessage
 		_, err := s.ReadFrom(c.bufConn)
 		if err != nil {
-			zap.S().Error("failed to read Score message: ", err)
 			return nil, err
 		}
 		return s, nil
 	case proto.ContentIDSignatures:
 		var m proto.SignaturesMessage
-		zap.S().Info("got signatures message")
 		_, err := m.ReadFrom(c.bufConn)
 		if err != nil {
-			zap.S().Error("failed to read Signatures message:", err)
 			return nil, err
 		}
 		return m, nil
@@ -117,7 +99,6 @@ func (c *Conn) ReadMessage() (interface{}, error) {
 		var m proto.BlockMessage
 		_, err := m.ReadFrom(c.bufConn)
 		if err != nil {
-			zap.S().Error("failed to read Block message:", err)
 			return nil, err
 		}
 		return m, nil
@@ -128,10 +109,8 @@ func (c *Conn) ReadMessage() (interface{}, error) {
 		arr := make([]byte, l)
 		_, err = io.ReadFull(c.bufConn, arr)
 		if err != nil {
-			zap.S().Error("failed to read default message: ", err)
 			return nil, err
 		}
-		zap.S().Error("unknown message ", msgType)
 		return nil, ErrUnknownMessage
 	}
 }
