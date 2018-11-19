@@ -10,7 +10,7 @@ import (
 type Block struct {
 	Version                uint8
 	Timestamp              uint64
-	Parent                 BlockID
+	Parent                 crypto.Signature
 	ConsensusBlockLength   uint32
 	BaseTarget             uint64
 	GenSignature           crypto.Digest
@@ -18,7 +18,7 @@ type Block struct {
 	TransactionCount       uint8
 	Transactions           []byte
 	GenPublicKey           crypto.PublicKey
-	BlockSignature         BlockID
+	BlockSignature         crypto.Signature
 
 	Height uint64
 }

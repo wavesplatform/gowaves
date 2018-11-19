@@ -3,6 +3,7 @@ package server
 import (
 	"errors"
 
+	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
@@ -11,10 +12,10 @@ var noSuchBlock error = errors.New("no such block")
 var batchEmpty error = errors.New("batch empty")
 
 type blockBatch struct {
-	pendingBlocksHave map[proto.BlockID]bool
-	orphanedBlocks    map[proto.BlockID]*proto.Block
-	inPlaceBlocks     map[proto.BlockID]*proto.Block
-	ancestor          proto.BlockID
+	pendingBlocksHave map[crypto.Signature]bool
+	orphanedBlocks    map[crypto.Signature]*proto.Block
+	inPlaceBlocks     map[crypto.Signature]*proto.Block
+	ancestor          crypto.Signature
 }
 
 func (b *blockBatch) haveAll() bool {
@@ -27,7 +28,7 @@ func (b *blockBatch) haveAll() bool {
 	return true
 }
 
-func (b *blockBatch) addPendingBlock(block proto.BlockID, have bool) {
+func (b *blockBatch) addPendingBlock(block crypto.Signature, have bool) {
 	b.pendingBlocksHave[block] = have
 }
 
@@ -35,7 +36,7 @@ func (b *blockBatch) addOrphaned(block *proto.Block) {
 	b.orphanedBlocks[block.Parent] = block
 }
 
-func (b *blockBatch) contains(block proto.BlockID) bool {
+func (b *blockBatch) contains(block crypto.Signature) bool {
 	_, ok := b.pendingBlocksHave[block]
 	return ok
 }
@@ -73,7 +74,7 @@ LOOP:
 
 func (b *blockBatch) orderedBatch() ([]*proto.Block, error) {
 	batch := make([]*proto.Block, 0, len(b.inPlaceBlocks))
-	byParent := make(map[proto.BlockID]*proto.Block)
+	byParent := make(map[crypto.Signature]*proto.Block)
 
 	for id, block := range b.inPlaceBlocks {
 		if id == b.ancestor {
@@ -106,16 +107,16 @@ func (b *blockBatch) orderedBatch() ([]*proto.Block, error) {
 	return batch, nil
 }
 
-func NewBatch(batch []proto.BlockID) (*blockBatch, error) {
+func NewBatch(batch []crypto.Signature) (*blockBatch, error) {
 	if len(batch) == 0 {
 		return nil, batchEmpty
 	}
 
 	b := &blockBatch{
 		ancestor:          batch[0],
-		pendingBlocksHave: make(map[proto.BlockID]bool),
-		orphanedBlocks:    make(map[proto.BlockID]*proto.Block),
-		inPlaceBlocks:     make(map[proto.BlockID]*proto.Block),
+		pendingBlocksHave: make(map[crypto.Signature]bool),
+		orphanedBlocks:    make(map[crypto.Signature]*proto.Block),
+		inPlaceBlocks:     make(map[crypto.Signature]*proto.Block),
 	}
 
 	for _, block := range batch {

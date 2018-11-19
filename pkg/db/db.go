@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	"github.com/syndtr/goleveldb/leveldb"
+	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
@@ -15,7 +16,7 @@ const (
 var ErrBlockOrphaned = errors.New("block orphaned")
 
 type WavesDB struct {
-	genesis proto.BlockID
+	genesis crypto.Signature
 	db      *leveldb.DB
 }
 
@@ -27,7 +28,7 @@ func (w *WavesDB) PutRaw(key, value []byte) error {
 	return w.db.Put(key, value, nil)
 }
 
-func (w *WavesDB) Has(block proto.BlockID) (bool, error) {
+func (w *WavesDB) Has(block crypto.Signature) (bool, error) {
 	return w.db.Has(block[:], nil)
 }
 
@@ -71,7 +72,7 @@ func (w *WavesDB) Put(block *proto.Block) error {
 	return nil
 }
 
-func (w *WavesDB) Get(block proto.BlockID) (*proto.Block, error) {
+func (w *WavesDB) Get(block crypto.Signature) (*proto.Block, error) {
 	bytes, err := w.db.Get(block[:], nil)
 	if err != nil {
 		return nil, err
@@ -92,7 +93,7 @@ func (w *WavesDB) Get(block proto.BlockID) (*proto.Block, error) {
 	return &res, nil
 }
 
-func NewDB(path string, genesis proto.BlockID) (*WavesDB, error) {
+func NewDB(path string, genesis crypto.Signature) (*WavesDB, error) {
 	db, err := leveldb.OpenFile(path, nil)
 	if err != nil {
 		return nil, err

@@ -31,23 +31,6 @@ const (
 	ContentIDCheckpoint    = 0x64
 )
 
-// BlockSignature is a signature of a formed block
-// BlockID represents the ID of a block
-type BlockID crypto.Signature
-
-func (s *BlockID) UnmarshalJSON(data []byte) error {
-	b := crypto.Signature(*s)
-	e := b.UnmarshalJSON(data)
-	copy(s[:], b[:])
-
-	return e
-}
-
-func (s BlockID) MarshalJSON() ([]byte, error) {
-	b, e := crypto.Signature(s).MarshalJSON()
-	return b, e
-}
-
 type header struct {
 	Length        uint32
 	Magic         uint32
@@ -537,7 +520,7 @@ func (m *PeersMessage) WriteTo(w io.Writer) (int64, error) {
 
 // GetSignaturesMessage represents the Get Signatures request
 type GetSignaturesMessage struct {
-	Blocks []BlockID
+	Blocks []crypto.Signature
 }
 
 // MarshalBinary encodes GetSignaturesMessage to binary form
@@ -589,7 +572,7 @@ func (m *GetSignaturesMessage) UnmarshalBinary(data []byte) error {
 	data = data[4:]
 
 	for i := uint32(0); i < blockCount; i++ {
-		var b BlockID
+		var b crypto.Signature
 		if len(data[i:]) < 64 {
 			return fmt.Errorf("message too short %v", len(data))
 		}
@@ -623,7 +606,7 @@ func (m *GetSignaturesMessage) WriteTo(w io.Writer) (int64, error) {
 
 // SignaturesMessage represents Signatures message
 type SignaturesMessage struct {
-	Signatures []BlockID
+	Signatures []crypto.Signature
 }
 
 // MarshalBinary encodes SignaturesMessage to binary form
@@ -676,7 +659,7 @@ func (m *SignaturesMessage) UnmarshalBinary(data []byte) error {
 	data = data[4:]
 
 	for i := uint32(0); i < sigCount; i++ {
-		var sig BlockID
+		var sig crypto.Signature
 		offset := i * 64
 		if len(data[offset:]) < 64 {
 			return fmt.Errorf("message too short: %v", len(data))
@@ -711,7 +694,7 @@ func (m *SignaturesMessage) WriteTo(w io.Writer) (int64, error) {
 
 // GetBlockMessage represents GetBlock message
 type GetBlockMessage struct {
-	BlockID BlockID
+	BlockID crypto.Signature
 }
 
 // MarshalBinary encodes GetBlockMessage to binary form
@@ -975,7 +958,7 @@ func (m *TransactionMessage) WriteTo(w io.Writer) (int64, error) {
 // CheckpointItem represents a Checkpoint
 type CheckpointItem struct {
 	Height    uint64
-	Signature BlockID
+	Signature crypto.Signature
 }
 
 // CheckPointMessage represents a CheckPoint message

@@ -14,6 +14,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/mr-tron/base58/base58"
+	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/db"
 	"github.com/wavesplatform/gowaves/pkg/p2p"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -27,7 +28,7 @@ type Server struct {
 	conns         map[*p2p.Conn]bool
 	dbpath        string
 	db            *db.WavesDB
-	genesis       proto.BlockID
+	genesis       crypto.Signature
 	nodeStates    map[string]*NodeState
 
 	apiAddr string
@@ -91,8 +92,8 @@ func dialContext(ctx context.Context, network, addr string) (net.Conn, error) {
 	return nil, errors.New("TODO")
 }
 
-func (s *Server) processSignatures(conn *p2p.Conn, m proto.SignaturesMessage) []proto.BlockID {
-	unknownBlocks := make([]proto.BlockID, 0, len(m.Signatures))
+func (s *Server) processSignatures(conn *p2p.Conn, m proto.SignaturesMessage) []crypto.Signature {
+	unknownBlocks := make([]crypto.Signature, 0, len(m.Signatures))
 
 	zap.S().Info("signatures len ", len(m.Signatures))
 	zap.S().Info("signatures from ", base58.Encode(m.Signatures[0][:]), " ", base58.Encode(m.Signatures[len(m.Signatures)-1][:]))
@@ -106,7 +107,7 @@ func (s *Server) processSignatures(conn *p2p.Conn, m proto.SignaturesMessage) []
 		if !has {
 			unknownBlocks = append(unknownBlocks, sig)
 			//zap.S().Debug("asking for block ", i, " ", base58.Encode(sig[:]))
-			var blockID proto.BlockID
+			var blockID crypto.Signature
 			copy(blockID[:], sig[:])
 			gbm := proto.GetBlockMessage{BlockID: blockID}
 			if err = conn.SendMessage(gbm); err != nil {
@@ -119,7 +120,7 @@ func (s *Server) processSignatures(conn *p2p.Conn, m proto.SignaturesMessage) []
 	return unknownBlocks
 }
 
-func (s *Server) waitForBlocks(conn *p2p.Conn, blocks []proto.BlockID) (*blockBatch, error) {
+func (s *Server) waitForBlocks(conn *p2p.Conn, blocks []crypto.Signature) (*blockBatch, error) {
 	batch, err := NewBatch(blocks)
 	if err != nil {
 		return nil, err
@@ -205,7 +206,7 @@ func (s *Server) storeState(peer string) {
 	zap.S().Info("stored state ", peer, " ", string(bytes))
 }
 
-func (s *Server) lastKnownBlock(conn *p2p.Conn) proto.BlockID {
+func (s *Server) lastKnownBlock(conn *p2p.Conn) crypto.Signature {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -213,7 +214,7 @@ func (s *Server) lastKnownBlock(conn *p2p.Conn) proto.BlockID {
 	return state.LastKnownBlock
 }
 
-func (s *Server) setLastKnownBlock(conn *p2p.Conn, block proto.BlockID) {
+func (s *Server) setLastKnownBlock(conn *p2p.Conn, block crypto.Signature) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -240,7 +241,7 @@ LOOP:
 		if !ok {
 			break
 		}
-		gs.Blocks = make([]proto.BlockID, 1)
+		gs.Blocks = make([]crypto.Signature, 1)
 		gs.Blocks[0] = state.LastKnownBlock
 		s.mu.Unlock()
 
@@ -450,8 +451,8 @@ func WithGenesis(gen string) Option {
 	}
 }
 
-func decodeBlockID(b string) (*proto.BlockID, error) {
-	var res proto.BlockID
+func decodeBlockID(b string) (*crypto.Signature, error) {
+	var res crypto.Signature
 
 	decoded, err := base58.Decode(b)
 	if err != nil {
@@ -477,9 +478,9 @@ func (s *Server) getBlock(w http.ResponseWriter, r *http.Request) {
 		respondWithError(w, http.StatusBadRequest, "invalid block signature")
 		return
 	}
-	var blockId proto.BlockID
-	copy(blockId[:], decoded)
-	block, err := s.db.Get(blockId)
+	var blockID crypto.Signature
+	copy(blockID[:], decoded)
+	block, err := s.db.Get(blockID)
 	if err != nil {
 		respondWithError(w, http.StatusBadRequest, "block not found")
 		return

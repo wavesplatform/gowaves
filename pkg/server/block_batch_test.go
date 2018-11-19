@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
@@ -16,16 +17,16 @@ var tests = []batchTest{
 	{
 		blocks: []proto.Block{
 			{
-				BlockSignature: proto.BlockID{1},
-				Parent:         proto.BlockID{0},
+				BlockSignature: crypto.Signature{1},
+				Parent:         crypto.Signature{0},
 			},
 			{
-				BlockSignature: proto.BlockID{2},
-				Parent:         proto.BlockID{1},
+				BlockSignature: crypto.Signature{2},
+				Parent:         crypto.Signature{1},
 			},
 			{
-				BlockSignature: proto.BlockID{3},
-				Parent:         proto.BlockID{2},
+				BlockSignature: crypto.Signature{3},
+				Parent:         crypto.Signature{2},
 			},
 		},
 		expErr: nil,
@@ -33,15 +34,15 @@ var tests = []batchTest{
 	{
 		blocks: []proto.Block{
 			{
-				BlockSignature: proto.BlockID{1},
-				Parent:         proto.BlockID{0},
+				BlockSignature: crypto.Signature{1},
+				Parent:         crypto.Signature{0},
 			},
 			{
-				BlockSignature: proto.BlockID{3},
-				Parent:         proto.BlockID{2},
+				BlockSignature: crypto.Signature{3},
+				Parent:         crypto.Signature{2},
 			}, {
-				BlockSignature: proto.BlockID{2},
-				Parent:         proto.BlockID{1},
+				BlockSignature: crypto.Signature{2},
+				Parent:         crypto.Signature{1},
 			},
 		},
 		expErr: nil,
@@ -49,12 +50,12 @@ var tests = []batchTest{
 	{
 		blocks: []proto.Block{
 			{
-				BlockSignature: proto.BlockID{1},
-				Parent:         proto.BlockID{0},
+				BlockSignature: crypto.Signature{1},
+				Parent:         crypto.Signature{0},
 			},
 			{
-				BlockSignature: proto.BlockID{3},
-				Parent:         proto.BlockID{2},
+				BlockSignature: crypto.Signature{3},
+				Parent:         crypto.Signature{2},
 			},
 		},
 		expErr: batchIncomplete,
@@ -65,7 +66,7 @@ func TestBatch(t *testing.T) {
 	for i, test := range tests {
 		t.Run(fmt.Sprintf("%d", i), func(t *testing.T) {
 			err := func() error {
-				ids := make([]proto.BlockID, 0, len(test.blocks))
+				ids := make([]crypto.Signature, 0, len(test.blocks))
 				for _, block := range test.blocks {
 					ids = append(ids, block.BlockSignature)
 				}
