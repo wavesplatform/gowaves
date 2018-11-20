@@ -30,7 +30,6 @@ type Conn struct {
 
 	network string
 	addr    string
-	version proto.Version
 	bufConn *bufio.Reader
 
 	Transport *Transport
@@ -156,14 +155,6 @@ func WithRemote(network, addr string) ConnOption {
 	return func(c *Conn) error {
 		c.network = network
 		c.addr = addr
-		return nil
-	}
-}
-
-// WithVersion is an option for versioning a connection
-func WithVersion(v proto.Version) ConnOption {
-	return func(c *Conn) error {
-		c.version = v
 		return nil
 	}
 }
