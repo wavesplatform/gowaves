@@ -39,57 +39,64 @@ type Server struct {
 func handleRequest(ctx context.Context, conn net.Conn) {
 }
 
-func dialContext(ctx context.Context, network, addr string) (net.Conn, error) {
-	var major, minor, patch uint32
+func (s *Server) dialContext(v proto.Version) func(ctx context.Context, network, addr string) (net.Conn, error) {
+	return func(ctx context.Context, network, addr string) (net.Conn, error) {
+		var major, minor, patch uint32
 
-	dialer := net.Dialer{}
+		major = v.Major
+		minor = v.Minor
+		patch = v.Patch
+		dialer := net.Dialer{}
 
-	for i := 0xe; i < 20; i++ {
-		if i > 0xe {
-			ticker := time.NewTimer(16 * time.Minute)
+		for i := minor; i > 0; i-- {
+			if i < v.Minor {
+				ticker := time.NewTimer(16 * time.Minute)
 
-			select {
-			case <-ticker.C:
-			case <-ctx.Done():
-				return nil, ctx.Err()
+				select {
+				case <-ticker.C:
+				case <-ctx.Done():
+					return nil, ctx.Err()
+				}
 			}
-		}
-		minor = uint32(i)
-		conn, err := dialer.DialContext(ctx, network, addr)
-		if err != nil {
-			continue
-		}
+			minor = uint32(i)
+			zap.S().Infof("Trying to connect with version %v.%v.%v", major, minor, patch)
+			conn, err := dialer.DialContext(ctx, network, addr)
+			if err != nil {
+				continue
+			}
 
-		zap.S().Infof("Trying to connect with version %v.%v.%v", major, minor, patch)
-		handshake := proto.Handshake{Name: "wavesT",
-			Version:           proto.Version{Major: major, Minor: minor, Patch: patch},
-			NodeName:          "gowaves",
-			NodeNonce:         0x0,
-			DeclaredAddrBytes: []byte{},
-			Timestamp:         uint64(time.Now().Unix())}
+			handshake := proto.Handshake{Name: "wavesT",
+				Version:           proto.Version{Major: major, Minor: minor, Patch: patch},
+				NodeName:          "gowaves",
+				NodeNonce:         0x0,
+				DeclaredAddrBytes: []byte{},
+				Timestamp:         uint64(time.Now().Unix())}
 
-		_, err = handshake.WriteTo(conn)
-		if err != nil {
-			zap.S().Error("failed to send handshake: ", err)
-			continue
-		}
-		_, err = handshake.ReadFrom(conn)
-		if err != nil {
-			zap.S().Error("failed to read handshake: ", err)
-			continue
-		}
+			_, err = handshake.WriteTo(conn)
+			if err != nil {
+				zap.S().Error("failed to send handshake: ", err)
+				continue
+			}
+			_, err = handshake.ReadFrom(conn)
+			if err != nil {
+				zap.S().Error("failed to read handshake: ", err)
+				continue
+			}
 
-		var b []byte
-		b, e := json.Marshal(handshake)
-		if e != nil {
-			return nil, err
-		}
-		js := string(b)
-		zap.S().Info("received handshake: ", js)
+			s.setKnownVersion(addr, handshake.Version)
 
-		return conn, nil
+			var b []byte
+			b, e := json.Marshal(handshake)
+			if e != nil {
+				return nil, err
+			}
+			js := string(b)
+			zap.S().Info("received handshake: ", js)
+
+			return conn, nil
+		}
+		return nil, errors.New("TODO")
 	}
-	return nil, errors.New("TODO")
 }
 
 func (s *Server) processSignatures(conn *p2p.Conn, m proto.SignaturesMessage) []crypto.Signature {
@@ -222,6 +229,14 @@ func (s *Server) setLastKnownBlock(conn *p2p.Conn, block crypto.Signature) {
 	state.LastKnownBlock = block
 }
 
+func (s *Server) setKnownVersion(addr string, v proto.Version) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	state := s.nodeStates[addr]
+	state.KnownVersion = v
+}
+
 func (s *Server) processBatch(batch []*proto.Block) error {
 	for _, block := range batch {
 		if err := s.db.Put(block); err != nil {
@@ -323,7 +338,10 @@ func (s *Server) updateState(conn *p2p.Conn) error {
 	for {
 		msg, err := conn.ReadMessage()
 
-		if err != nil && err != p2p.ErrUnknownMessage {
+		if err != nil {
+			if err == p2p.ErrUnknownMessage {
+				continue
+			}
 			zap.S().Info("failed to receive message ", err)
 			break
 		}
@@ -354,50 +372,83 @@ func (s *Server) updateState(conn *p2p.Conn) error {
 	return nil
 }
 
-func (s *Server) serveConn(conn *p2p.Conn) {
+func (s *Server) serveConn(conn *p2p.Conn) error {
 	err := s.syncState(conn)
 	if err != nil {
 		zap.S().Error("stopped serving conn: ", err)
+		return err
 	}
 
 	err = s.updateState(conn)
 	if err != nil {
 		zap.S().Error("stopped serving conn: ", err)
+		return err
 	}
+
+	return nil
 }
 
-func (s *Server) handleClient(ctx context.Context, peer string) {
-	zap.S().Info("handling client")
+func (s *Server) addConnection(conn *p2p.Conn) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.conns[conn] = true
+}
+
+func (s *Server) delConnection(conn *p2p.Conn) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	delete(s.conns, conn)
+}
+
+func (s *Server) newConnection(ctx context.Context, peer string) error {
+	zap.S().Info("handling client", peer)
 
 	s.loadState(peer)
+	defer s.storeState(peer)
 
-	customTransport := p2p.Transport{DialContext: dialContext}
+	customTransport := p2p.Transport{DialContext: s.dialContext(proto.Version{Major: 0, Minor: 15, Patch: 1})}
 	conn, err := p2p.NewConn(
-		p2p.WithVersion(proto.Version{Major: 0, Minor: 5, Patch: 14}),
 		p2p.WithTransport(&customTransport),
 		p2p.WithRemote("tcp", peer),
 	)
 	if err != nil {
 		zap.S().Error("failed to create a new connection: ", err)
-		return
+		return err
 	}
 	if err = conn.DialContext(ctx, "tcp", peer); err != nil {
 		zap.S().Error("error while dialing: ", err)
-		return
+		return err
 	}
+	s.addConnection(conn)
 	defer conn.Close()
-	s.mu.Lock()
-	s.conns[conn] = true
-	s.mu.Unlock()
+	defer s.delConnection(conn)
 
-	go s.serveConn(conn)
-
-	select {
-	case <-ctx.Done():
-		zap.S().Info("cancelled")
+	if err = s.serveConn(conn); err != nil {
+		return err
 	}
 
-	s.storeState(peer)
+	return nil
+}
+
+func (s *Server) handleClient(ctx context.Context, peer string) {
+	for {
+		res := make(chan error, 1)
+		go func() {
+			err := s.newConnection(ctx, peer)
+			res <- err
+		}()
+
+		select {
+		case <-ctx.Done():
+			return
+		case err := <-res:
+			if err != nil {
+				zap.S().Error("connection to peer ", peer, " failed: ", err)
+			}
+		}
+	}
 }
 
 func (m *Server) Run(ctx context.Context) {
