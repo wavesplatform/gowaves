@@ -20,7 +20,7 @@ func (s *Sycronizer) Start(ctx context.Context, node url.URL, storage *Storage) 
 	bh, _, err := s.bc.Height(ctx)
 	nh := int(bh.Height)
 	if sh > nh {
-		return errors.Errorf("impossible state: stored height %d is more than node's height", sh, nh)
+		return errors.Errorf("impossible state: stored height %d is more than node's height %d", sh, nh)
 	}
 	return nil
 }

@@ -21,8 +21,8 @@ type Importer struct {
 	storage     *Storage
 }
 
-func NewImporter(ctx context.Context, log *zap.SugaredLogger) *Importer {
-	return &Importer{rootContext: ctx, log: log}
+func NewImporter(ctx context.Context, log *zap.SugaredLogger, storage *Storage) *Importer {
+	return &Importer{rootContext: ctx, log: log, storage: storage}
 }
 
 type task struct {
@@ -65,7 +65,7 @@ func (im *Importer) Import(n string) error {
 		workers[i] = im.worker(tasks)
 	}
 
-	txs := make([]proto.ExchangeV1, 0)
+	total := 0
 	for r := range im.collect(workers...) {
 		select {
 		case <-im.rootContext.Done():
@@ -76,13 +76,24 @@ func (im *Importer) Import(n string) error {
 			case r.error != nil:
 				im.log.Errorf("Failed to collect transactions for block at height %d: %s", r.height, r.error.Error())
 			case len(r.txs) > 0:
-				txs = append(txs, r.txs...)
-				im.log.Infof("Collected %d transaction at height %d", len(r.txs), r.height)
+				err := im.storage.PutBlock(r.id, r.height)
+				if err != nil {
+					im.log.Errorf("Failed to update storage: %s", err.Error())
+				}
+				trades := make([]Trade, 0)
+				for _, tx := range r.txs {
+					t := NewTradeFromExchangeV1(tx)
+					trades = append(trades, t)
+				}
+				err = im.storage.PutTrades(r.height, trades)
+				c := len(r.txs)
+				total += c
+				im.log.Infof("Collected %d transaction at height %d", c, r.height)
 			}
 		}
 	}
 
-	im.log.Warnf("Total ExchangeV1 transactions count: %d", len(txs))
+	im.log.Warnf("Total ExchangeV1 transactions count: %d", total)
 
 	return nil
 }
