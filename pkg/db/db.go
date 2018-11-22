@@ -28,6 +28,10 @@ func (w *WavesDB) PutRaw(key, value []byte) error {
 	return w.db.Put(key, value, nil)
 }
 
+func (w *WavesDB) DelRaw(key []byte) error {
+	return w.db.Delete(key, nil)
+}
+
 func (w *WavesDB) Has(block crypto.Signature) (bool, error) {
 	return w.db.Has(block[:], nil)
 }

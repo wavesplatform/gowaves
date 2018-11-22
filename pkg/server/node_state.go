@@ -6,12 +6,12 @@ import (
 )
 
 const (
-	stateSyncing = iota
-	stateUpdating
+	stateConnecting = "connecting"
+	stateConnected  = "connected"
 )
 
 type NodeState struct {
-	State          uint8            `json:"state"`
+	State          string           `json:"state"`
 	Addr           string           `json:"addr"`
 	LastKnownBlock crypto.Signature `json:"last_known_block"`
 	KnownVersion   proto.Version    `json:"known_versoin"`

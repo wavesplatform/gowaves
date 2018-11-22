@@ -358,6 +358,16 @@ func (m *PeerInfo) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
+// String() implements Stringer interface for PeerInfo
+func (m PeerInfo) String() string {
+	var sb strings.Builder
+	sb.WriteString(m.Addr.String())
+	sb.WriteRune(':')
+	sb.WriteString(strconv.Itoa(int(m.Port)))
+
+	return sb.String()
+}
+
 // MarshalJSON writes PeerInfo Value as JSON string
 func (m PeerInfo) MarshalJSON() ([]byte, error) {
 	var sb strings.Builder
