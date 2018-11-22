@@ -14,6 +14,7 @@ import (
 	"github.com/mr-tron/base58/base58"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/db"
+	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
 type Server struct {
@@ -23,6 +24,7 @@ type Server struct {
 	db            *db.WavesDB
 	genesis       crypto.Signature
 	peers         map[string]*Peer
+	newPeers      chan proto.PeerInfo
 
 	apiAddr string
 	router  *mux.Router
@@ -74,18 +76,44 @@ func (s *Server) printStats(ctx context.Context) {
 	}
 }
 
+func (s *Server) updatePeers(ctx context.Context) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case peer, ok := <-s.newPeers:
+			if !ok {
+				return
+			}
+			if _, ok := s.peers[peer.String()]; !ok {
+				zap.S().Info("received new peer: ", peer.String())
+				p, err := NewPeer(s.genesis, s.db,
+					WithAddr(peer.String()),
+					WithPeersChan(s.newPeers))
+				if err != nil {
+					continue
+				}
+				s.peers[peer.String()] = p
+			}
+		}
+	}
+}
+
 func (s *Server) RunClients(ctx context.Context) {
 	go s.printStats(ctx)
 
 	s.ctx = ctx
 	for _, addr := range s.BootPeerAddrs {
 		fmt.Println(addr)
-		peer, err := NewPeer(s.genesis, s.db, WithAddr(addr))
+		peer, err := NewPeer(s.genesis, s.db,
+			WithAddr(addr),
+			WithPeersChan(s.newPeers))
 		if err != nil {
 			continue
 		}
 		s.peers[addr] = peer
 	}
+	go s.updatePeers(ctx)
 }
 
 func (s *Server) Stop() {
@@ -262,6 +290,7 @@ func NewServer(opts ...Option) (*Server, error) {
 		s.db = db
 	}
 
+	s.newPeers = make(chan proto.PeerInfo, 1024)
 	s.router = mux.NewRouter()
 	s.initRoutes()
 	s.startREST()

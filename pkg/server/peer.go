@@ -323,6 +323,9 @@ func (p *Peer) getPeers() error {
 		}
 		if v, ok := msg.(proto.PeersMessage); ok {
 			for _, peer := range v.Peers {
+				if p.peers != nil {
+					p.peers <- peer
+				}
 				addr := peer.String()
 				zap.S().Info(addr)
 			}
@@ -431,7 +434,11 @@ func WithConn(conn *p2p.Conn) PeerOption {
 }
 
 // WithPeersChan configures peer with a channel to send peer infos to
-func WithPeersChan() {
+func WithPeersChan(c chan proto.PeerInfo) PeerOption {
+	return func(p *Peer) error {
+		p.peers = c
+		return nil
+	}
 }
 
 // NewPeer creates a new peer
