@@ -13,7 +13,7 @@ type Sycronizer struct {
 }
 
 func (s *Sycronizer) Start(ctx context.Context, node url.URL, storage *Storage) error {
-	sh, err := storage.GetHeight()
+	sh, err := storage.GetLastHeight()
 	if err != nil {
 		return errors.Wrap(err, "failed to get stored height")
 	}

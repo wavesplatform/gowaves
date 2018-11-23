@@ -2,6 +2,7 @@ package internal
 
 import (
 	"encoding/binary"
+	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
@@ -65,4 +66,30 @@ func (t *Trade) MarshalBinary() ([]byte, error) {
 	p += 8
 	binary.BigEndian.PutUint64(buf[p:], t.Timestamp)
 	return buf, nil
+}
+
+func (t *Trade) UnmarshalBinary(data []byte) error {
+	if l := len(data); l < TradeSize {
+		return errors.Errorf("%d bytes is not enough for Trade, expected %d", l, TradeSize)
+	}
+	copy(t.AmountAsset[:], data[:crypto.DigestSize])
+	data = data[crypto.DigestSize:]
+	copy(t.PriceAsset[:], data[:crypto.DigestSize])
+	data = data[crypto.DigestSize:]
+	copy(t.TransactionID[:], data[:crypto.DigestSize])
+	data = data[crypto.DigestSize:]
+	t.OrderType = proto.OrderType(data[0])
+	data = data[1:]
+	copy(t.Buyer[:], data[:crypto.PublicKeySize])
+	data = data[crypto.PublicKeySize:]
+	copy(t.Seller[:], data[:crypto.PublicKeySize])
+	data = data[crypto.PublicKeySize:]
+	copy(t.Matcher[:], data[:crypto.PublicKeySize])
+	data = data[crypto.PublicKeySize:]
+	t.Price = binary.BigEndian.Uint64(data)
+	data = data[8:]
+	t.Amount = binary.BigEndian.Uint64(data)
+	data = data[8:]
+	t.Timestamp = binary.BigEndian.Uint64(data)
+	return nil
 }

@@ -8,12 +8,12 @@ import (
 
 func TestStartOfTheDay(t *testing.T) {
 	ts := uint64(1542711020 * Second)
-	assert.Equal(t, 1542672000*Second, int(StartOfTheDay(ts)))
+	assert.Equal(t, 1542672000*Second, int(startOfTheDay(ts)))
 }
 
 func TestStartOfTheFrame(t *testing.T) {
 	ts := uint64(1542711749 * Second)
-	assert.Equal(t, 1542711600000, int(StartOfTheFrame(ts)))
+	assert.Equal(t, 1542711600000, int(timeFrame(ts)))
 }
 
 func TestCandle_UpdateFromTrade(t *testing.T) {

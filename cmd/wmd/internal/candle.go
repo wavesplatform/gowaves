@@ -3,17 +3,48 @@ package internal
 import (
 	"encoding/binary"
 	"github.com/pkg/errors"
+	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"math/big"
 )
 
 const (
-	CandleSize = 6 * 8
-	Second     = 1000
-	Minute     = 60 * Second
-	TimeFrame  = 5 * Minute
-	Hour       = 60 * Minute
-	Day        = 24 * Hour
+	CandleKeySize = 2*crypto.DigestSize + 8
+	CandleSize    = 6 * 8
+	Second        = 1000
+	Minute        = 60 * Second
+	TimeFrame     = 5 * Minute
+	Hour          = 60 * Minute
+	Day           = 24 * Hour
 )
+
+type CandleKey struct {
+	AmountAsset crypto.Digest
+	PriceAsset  crypto.Digest
+	TimeFrame   uint64
+}
+
+func (k *CandleKey) MarshalBinary() ([]byte, error) {
+	buf := make([]byte, CandleKeySize)
+	p := 0
+	copy(buf[p:], k.AmountAsset[:])
+	p += crypto.DigestSize
+	copy(buf[p:], k.PriceAsset[:])
+	p += crypto.DigestSize
+	binary.BigEndian.PutUint64(buf[p:], k.TimeFrame)
+	return buf, nil
+}
+
+func (k *CandleKey) UnmarshalBinary(data []byte) error {
+	if l := len(data); l < CandleKeySize {
+		return errors.Errorf("%d bytes is not enough data for CandleKey, expected %d", l, CandleKeySize)
+	}
+	copy(k.AmountAsset[:], data[:crypto.DigestSize])
+	data = data[crypto.DigestSize:]
+	copy(k.PriceAsset[:], data[:crypto.DigestSize])
+	data = data[crypto.DigestSize:]
+	k.TimeFrame = binary.BigEndian.Uint64(data)
+	return nil
+}
 
 type Candle struct {
 	Open         uint64
@@ -27,7 +58,7 @@ type Candle struct {
 }
 
 func NewCandle(ts uint64) Candle {
-	b := StartOfTheFrame(ts)
+	b := timeFrame(ts)
 	return Candle{minTimestamp: b + TimeFrame, maxTimestamp: b}
 }
 
@@ -112,12 +143,12 @@ func (c *Candle) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
-func StartOfTheDay(ts uint64) uint64 {
+func startOfTheDay(ts uint64) uint64 {
 	return (ts / Day) * Day
 }
 
-func StartOfTheFrame(ts uint64) uint64 {
-	b := StartOfTheDay(ts)
+func timeFrame(ts uint64) uint64 {
+	b := startOfTheDay(ts)
 	off := (ts - b) / TimeFrame
 	return b + off*TimeFrame
 }

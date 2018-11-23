@@ -39,22 +39,28 @@ type result struct {
 
 func (im *Importer) Import(n string) error {
 	start := time.Now()
+
 	defer func() {
 		elapsed := time.Since(start)
-		im.log.Warnf("Import took %s", elapsed)
+		im.log.Infof("Import took %s", elapsed)
 	}()
 
 	f, err := os.Open(n)
 	if err != nil {
 		return errors.Wrapf(err, "failed to open blockchain file '%s'", n)
 	}
-	defer f.Close()
+	defer func() {
+		err = f.Close()
+		if err != nil {
+			im.log.Errorf("Failed to close blockchain file: %s", err.Error())
+		}
+	}()
 
 	st, err := f.Stat()
 	if err != nil {
 		return errors.Wrap(err, "failed to get file info")
 	}
-	im.log.Warnf("Importing blockchain file '%s' of size %d bytes", n, st.Size())
+	im.log.Infof("Importing blockchain file '%s' of size %d bytes", n, st.Size())
 
 	tasks := im.readBlocks(f)
 
@@ -66,34 +72,38 @@ func (im *Importer) Import(n string) error {
 	}
 
 	total := 0
+	thousands := 0
 	for r := range im.collect(workers...) {
 		select {
 		case <-im.rootContext.Done():
 			im.log.Errorf("Aborted")
 			break
 		default:
-			switch {
-			case r.error != nil:
+			if r.error != nil {
 				im.log.Errorf("Failed to collect transactions for block at height %d: %s", r.height, r.error.Error())
-			case len(r.txs) > 0:
-				err := im.storage.PutBlock(r.id, r.height)
-				if err != nil {
-					im.log.Errorf("Failed to update storage: %s", err.Error())
-				}
-				trades := make([]Trade, 0)
-				for _, tx := range r.txs {
-					t := NewTradeFromExchangeV1(tx)
-					trades = append(trades, t)
-				}
-				err = im.storage.PutTrades(r.height, trades)
-				c := len(r.txs)
-				total += c
-				im.log.Infof("Collected %d transaction at height %d", c, r.height)
+				break
 			}
+			trades := make([]Trade, 0)
+			for _, tx := range r.txs {
+				t := NewTradeFromExchangeV1(tx)
+				trades = append(trades, t)
+			}
+			err := im.storage.PutBlock(r.height, r.id, trades)
+			if err != nil {
+				im.log.Errorf("Failed to update storage: %s", err.Error())
+			}
+			c := len(r.txs)
+			total += c
+			th := total / 1000
+			if th > thousands {
+				im.log.Infof("Imported %d transactions so far", total)
+				thousands = th
+			}
+			im.log.Debugf("Collected %d transaction at height %d, total transactions so far %d", c, r.height, total)
 		}
 	}
 
-	im.log.Warnf("Total ExchangeV1 transactions count: %d", total)
+	im.log.Infof("Total exchange transactions count: %d", total)
 
 	return nil
 }
@@ -145,7 +155,14 @@ func (im *Importer) readBlocks(f io.Reader) <-chan task {
 					im.log.Errorf("Block %s has invalid signature. Aborting.", t.block.BlockSignature.String())
 					return
 				}
-				out <- t
+				ok, err := im.storage.ShouldImportBlock(h, t.block.BlockSignature)
+				if err != nil {
+					im.log.Errorf("Failed to check block in DB: %s", err.Error())
+					return
+				}
+				if ok {
+					out <- t
+				}
 			}
 		}
 	}()
@@ -157,7 +174,7 @@ func (im *Importer) worker(tasks <-chan task) <-chan result {
 	results := make(chan result)
 
 	processTask := func(t task) result {
-		r := result{height: t.height}
+		r := result{height: t.height, id: t.block.BlockSignature}
 		r.txs, r.error = im.parseTransactions(t.block)
 		return r
 	}
