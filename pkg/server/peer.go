@@ -264,6 +264,9 @@ LOOP:
 				}
 				p.state.LastKnownBlock = orBatch[len(orBatch)-1].BlockSignature
 				break LOOP2
+			case proto.GetPeersMessage:
+				var b proto.PeersMessage
+				p.conn.SendMessage(b)
 			default:
 				zap.S().Infof("got message of type %T", v)
 			}
@@ -303,6 +306,9 @@ func (p *Peer) updateState() error {
 			p.jumpBack(10)
 
 			p.syncState()
+		case proto.GetPeersMessage:
+			var b proto.PeersMessage
+			p.conn.SendMessage(b)
 		default:
 			zap.S().Infof("got message %T", msg)
 		}
