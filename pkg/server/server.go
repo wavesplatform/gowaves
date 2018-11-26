@@ -1,169 +1,43 @@
 package server
 
 import (
-	"bufio"
 	"context"
-	"encoding/binary"
 	"encoding/json"
-	"errors"
-	"io"
+	"fmt"
 	"net"
-	"sync"
+	"net/http"
 	"time"
 
 	"go.uber.org/zap"
 
-	"github.com/wavesplatform/gowaves/pkg/p2p"
+	"github.com/gorilla/mux"
+	"github.com/mr-tron/base58/base58"
+	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/db"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
 type Server struct {
 	BootPeerAddrs []string
 	Listen        string
-	wg            sync.WaitGroup
-	mu            sync.Mutex
-	conns         map[*p2p.Conn]bool
+	dbpath        string
+	db            *db.WavesDB
+	genesis       crypto.Signature
+	peers         map[string]*Peer
+	newPeers      chan proto.PeerInfo
+
+	apiAddr string
+	router  *mux.Router
+	server  *http.Server
+	ctx     context.Context
 }
 
-func handleRequest(ctx context.Context, conn net.Conn) {
-}
-
-func dialContext(ctx context.Context, network, addr string) (net.Conn, error) {
-	var major, minor, patch uint32
-
-	dialer := net.Dialer{}
-
-	for i := 0xc; i < 20; i++ {
-		if i > 0xc {
-			ticker := time.NewTimer(16 * time.Minute)
-
-			select {
-			case <-ticker.C:
-			case <-ctx.Done():
-				return nil, ctx.Err()
-			}
-		}
-		minor = uint32(i)
-		conn, err := dialer.DialContext(ctx, network, addr)
-		if err != nil {
-			continue
-		}
-
-		zap.S().Infof("Trying to connect with version %v.%v.%v", major, minor, patch)
-		handshake := proto.Handshake{Name: "wavesT",
-			Version:           proto.Version{Major: major, Minor: minor, Patch: patch},
-			NodeName:          "gowaves",
-			NodeNonce:         0x0,
-			DeclaredAddrBytes: []byte{},
-			Timestamp:         uint64(time.Now().Unix())}
-
-		_, err = handshake.WriteTo(conn)
-		if err != nil {
-			zap.S().Error("failed to send handshake: ", err)
-			continue
-		}
-		_, err = handshake.ReadFrom(conn)
-		if err != nil {
-			zap.S().Error("failed to read handshake: ", err)
-			continue
-		}
-
-		var b []byte
-		b, e := json.Marshal(handshake)
-		if e != nil {
-			return nil, err
-		}
-		js := string(b)
-		zap.S().Info("received handshake: ", js)
-
-		return conn, nil
-	}
-	return nil, errors.New("TODO")
-}
-
-func (s *Server) handleClient(ctx context.Context, peer string) {
-	customTransport := p2p.Transport{DialContext: dialContext}
-	conn, err := p2p.NewConn(
-		p2p.WithVersion(proto.Version{Major: 0, Minor: 5, Patch: 14}),
-		p2p.WithTransport(&customTransport),
-		p2p.WithRemote("tcp", peer),
-	)
-	s.mu.Lock()
-	s.conns[conn] = true
-	s.mu.Unlock()
-
-	if err != nil {
-		zap.S().Error("failed to create a new connection: ", err)
-		return
-	}
-	err = conn.DialContext(ctx, "tcp", peer)
-	if err != nil {
-		zap.S().Error("error while dialing: ", err)
-		return
-	}
-	bufConnW := bufio.NewWriter(conn)
-	bufConn := bufio.NewReader(conn)
-
-	var gp proto.GetPeersMessage
-	gp.WriteTo(bufConnW)
-	bufConnW.Flush()
-
-LOOP:
-	for {
-		buf, err := bufConn.Peek(9)
-		if err != nil {
-			zap.S().Error("error while reading from connection: ", err)
-			break
-		}
-
-		switch msgType := buf[8]; msgType {
-		case proto.ContentIDGetPeers:
-			var gp proto.GetPeersMessage
-			_, err := gp.ReadFrom(bufConn)
-			if err != nil {
-				zap.S().Error("error while receiving GetPeersMessage: ", err)
-				break
-			}
-
-		case proto.ContentIDPeers:
-			var p proto.PeersMessage
-			_, err := p.ReadFrom(bufConn)
-			if err != nil {
-				zap.S().Error("failed to read Peers message: ", err)
-				break
-			}
-			var b []byte
-			b, e := json.Marshal(p)
-			if e != nil {
-				return
-			}
-			js := string(b)
-			zap.S().Info("Got peers", js)
-		case proto.ContentIDScore:
-			var s proto.ScoreMessage
-			_, err := s.ReadFrom(bufConn)
-			if err != nil {
-				zap.S().Error("failed to read Score message: ", err)
-				break
-			}
-		default:
-			l := binary.BigEndian.Uint32(buf[:4])
-			arr := make([]byte, l)
-			_, err := io.ReadFull(bufConn, arr)
-			if err != nil {
-				break LOOP
-			}
-			break LOOP
-		}
-	}
-}
-
-func (m *Server) Run(ctx context.Context) {
-	if m.Listen == "" {
+func (s *Server) Run(ctx context.Context) {
+	if s.Listen == "" {
 		return
 	}
 
-	l, err := net.Listen("tcp", m.Listen)
+	l, err := net.Listen("tcp", s.Listen)
 
 	if err != nil {
 		return
@@ -171,41 +45,256 @@ func (m *Server) Run(ctx context.Context) {
 	defer l.Close()
 
 	for {
-		conn, err := l.Accept()
+		_, err := l.Accept()
 		if err != nil {
 			zap.S().Error("error while accepting connections: ", err)
 			break
 		}
-
-		m.wg.Add(1)
-		go func(conn net.Conn) {
-			handleRequest(ctx, conn)
-			m.wg.Done()
-		}(conn)
 	}
 }
 
-func (m *Server) RunClients(ctx context.Context) {
-	for _, peer := range m.BootPeerAddrs {
-		m.wg.Add(1)
-		go func(peer string) {
-			m.handleClient(ctx, peer)
-			m.wg.Done()
-		}(peer)
+func (s *Server) printPeers() {
+	for k, v := range s.peers {
+		b, err := json.Marshal(v.State())
+		if err != nil {
+			zap.S().Error("failed to marshal peer state: ", k)
+			continue
+		}
+
+		zap.S().Info("node: ", k, "state: ", string(b))
 	}
 }
 
-func (m *Server) Stop() {
-	m.mu.Lock()
-	for k := range m.conns {
-		k.Close()
+func (s *Server) printStats(ctx context.Context) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(5 * time.Second):
+			s.printPeers()
+		}
 	}
-	m.mu.Unlock()
+}
 
-	m.wg.Wait()
+func (s *Server) updatePeers(ctx context.Context) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case peer, ok := <-s.newPeers:
+			if !ok {
+				return
+			}
+			if _, ok := s.peers[peer.String()]; !ok {
+				zap.S().Info("received new peer: ", peer.String())
+				p, err := NewPeer(s.genesis, s.db,
+					WithAddr(peer.String()),
+					WithPeersChan(s.newPeers))
+				if err != nil {
+					continue
+				}
+				s.peers[peer.String()] = p
+			}
+		}
+	}
+}
+
+func (s *Server) RunClients(ctx context.Context) {
+	go s.printStats(ctx)
+
+	s.ctx = ctx
+	for _, addr := range s.BootPeerAddrs {
+		fmt.Println(addr)
+		peer, err := NewPeer(s.genesis, s.db,
+			WithAddr(addr),
+			WithPeersChan(s.newPeers))
+		if err != nil {
+			continue
+		}
+		s.peers[addr] = peer
+	}
+	go s.updatePeers(ctx)
+}
+
+func (s *Server) Stop() {
+	for _, peer := range s.peers {
+		peer.Stop()
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+	s.server.Shutdown(ctx)
 	zap.S().Info("stopped server")
 }
 
-func NewServer(peers []string) *Server {
-	return &Server{BootPeerAddrs: peers, conns: make(map[*p2p.Conn]bool)}
+type Option func(*Server) error
+
+func WithBindAddr(addr string) Option {
+	return func(s *Server) error {
+		s.apiAddr = addr
+		return nil
+	}
+}
+
+func WithLevelDBPath(dbpath string) Option {
+	return func(s *Server) error {
+		s.dbpath = dbpath
+		return nil
+	}
+}
+
+func WithPeers(peers []string) Option {
+	return func(s *Server) error {
+		s.BootPeerAddrs = peers
+		return nil
+	}
+}
+
+func WithGenesis(gen string) Option {
+	return func(s *Server) error {
+		if gen == "" {
+			return nil
+		}
+		decoded, err := base58.Decode(gen)
+		if err != nil {
+			return err
+		}
+		copy(s.genesis[:], decoded[:len(s.genesis)])
+		return nil
+	}
+}
+
+func decodeBlockID(b string) (*crypto.Signature, error) {
+	var res crypto.Signature
+
+	decoded, err := base58.Decode(b)
+	if err != nil {
+		return nil, err
+	}
+	if len(decoded) != len(res) {
+		return nil, fmt.Errorf("unexpected blockID length: want %v have %v", len(res), len(decoded))
+	}
+	copy(res[:], decoded)
+	return &res, nil
+}
+
+func (s *Server) getBlock(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	id, ok := vars["sig"]
+	if !ok {
+		respondWithError(w, http.StatusBadRequest, "no block signature specified")
+		return
+	}
+
+	decoded, err := base58.Decode(id)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "invalid block signature")
+		return
+	}
+	var blockID crypto.Signature
+	copy(blockID[:], decoded)
+	block, err := s.db.Get(blockID)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "block not found")
+		return
+	}
+	respondWithJSON(w, http.StatusOK, block)
+}
+
+func (s *Server) getNodes(w http.ResponseWriter, r *http.Request) {
+	addrs := make([]string, 0, len(s.peers))
+	for addr := range s.peers {
+		addrs = append(addrs, addr)
+	}
+	respondWithJSON(w, http.StatusOK, addrs)
+}
+
+func (s *Server) getNodesVerbose(w http.ResponseWriter, r *http.Request) {
+	states := make([]NodeState, 0, len(s.peers))
+	for _, peer := range s.peers {
+		states = append(states, peer.State())
+	}
+	respondWithJSON(w, http.StatusOK, states)
+}
+
+func (s *Server) getNode(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	addr, ok := vars["addr"]
+	if !ok {
+		respondWithError(w, http.StatusBadRequest, "no node addr specified")
+		return
+	}
+
+	peer, ok := s.peers[addr]
+	if !ok {
+		respondWithError(w, http.StatusBadRequest, "no such node")
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, peer.State())
+}
+
+func respondWithError(w http.ResponseWriter, code int, message string) {
+	respondWithJSON(w, code, map[string]string{"error": message})
+}
+
+func respondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
+	response, _ := json.Marshal(payload)
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(code)
+	w.Write(response)
+}
+
+func (s *Server) initRoutes() {
+	s.router.HandleFunc("/blocks/signature/{sig:[a-zA-Z0-9]{88}}", s.getBlock).Methods("GET")
+	s.router.HandleFunc("/nodes", s.getNodes).Methods("GET")
+	s.router.HandleFunc("/node/{addr}", s.getNode).Methods("GET")
+	s.router.HandleFunc("/nodes/verbose", s.getNodesVerbose).Methods("GET")
+}
+
+func (s *Server) startREST() {
+	srv := &http.Server{
+		Addr:         s.apiAddr,
+		WriteTimeout: time.Second * 5,
+		ReadTimeout:  time.Second * 5,
+		IdleTimeout:  time.Second * 60,
+		Handler:      s.router,
+	}
+	s.server = srv
+
+	go func() {
+		zap.S().Info("starting REST API on ", s.apiAddr)
+		if err := srv.ListenAndServe(); err != nil {
+			zap.S().Error(err)
+		}
+	}()
+}
+
+func NewServer(opts ...Option) (*Server, error) {
+	s := &Server{
+		peers: make(map[string]*Peer),
+	}
+
+	for _, o := range opts {
+		if err := o(s); err != nil {
+			return nil, err
+		}
+	}
+
+	if s.dbpath != "" {
+		db, err := db.NewDB(s.dbpath, s.genesis)
+		if err != nil {
+			return nil, err
+		}
+		s.db = db
+	}
+
+	s.newPeers = make(chan proto.PeerInfo, 1024)
+	s.router = mux.NewRouter()
+	s.initRoutes()
+	s.startREST()
+
+	zap.S().Info("staring server with genesis block", base58.Encode(s.genesis[:]))
+	return s, nil
 }

@@ -31,9 +31,6 @@ const (
 	ContentIDCheckpoint    = 0x64
 )
 
-// BlockSignature is a signature of a formed block
-type BlockSignature crypto.Signature
-
 type header struct {
 	Length        uint32
 	Magic         uint32
@@ -315,19 +312,10 @@ func (m *GetPeersMessage) UnmarshalBinary(b []byte) error {
 
 // ReadFrom reads GetPeersMessage from io.Reader
 func (m *GetPeersMessage) ReadFrom(r io.Reader) (int64, error) {
-	var packetLen [4]byte
-	nn, err := io.ReadFull(r, packetLen[:])
+	packet, nn, err := readPacket(r)
 	if err != nil {
-		return int64(nn), err
+		return nn, err
 	}
-	packet := make([]byte, binary.BigEndian.Uint32(packetLen[:]))
-	n, err := io.ReadFull(r, packet)
-	if err != nil {
-		return int64(nn), err
-	}
-	nn += n
-	packet = append(packetLen[:], packet...)
-
 	return int64(nn), m.UnmarshalBinary(packet)
 }
 
@@ -368,6 +356,16 @@ func (m *PeerInfo) UnmarshalBinary(data []byte) error {
 	m.Port = uint16(binary.BigEndian.Uint32(data[4:8]))
 
 	return nil
+}
+
+// String() implements Stringer interface for PeerInfo
+func (m PeerInfo) String() string {
+	var sb strings.Builder
+	sb.WriteString(m.Addr.String())
+	sb.WriteRune(':')
+	sb.WriteString(strconv.Itoa(int(m.Port)))
+
+	return sb.String()
 }
 
 // MarshalJSON writes PeerInfo Value as JSON string
@@ -494,7 +492,11 @@ func readPacket(r io.Reader) ([]byte, int64, error) {
 	if err != nil {
 		return nil, int64(nn), err
 	}
-	packet := make([]byte, binary.BigEndian.Uint32(packetLen[:]))
+	l := binary.BigEndian.Uint32(packetLen[:])
+	packet := make([]byte, l)
+	for i := 0; i < len(packet); i++ {
+		packet[i] = 0x88
+	}
 	n, err := io.ReadFull(r, packet)
 	if err != nil {
 		return nil, int64(nn + n), err
@@ -526,12 +528,9 @@ func (m *PeersMessage) WriteTo(w io.Writer) (int64, error) {
 	return n, err
 }
 
-// BlockID represents the ID of a block
-type BlockID [64]byte
-
 // GetSignaturesMessage represents the Get Signatures request
 type GetSignaturesMessage struct {
-	Blocks []BlockID
+	Blocks []crypto.Signature
 }
 
 // MarshalBinary encodes GetSignaturesMessage to binary form
@@ -583,7 +582,7 @@ func (m *GetSignaturesMessage) UnmarshalBinary(data []byte) error {
 	data = data[4:]
 
 	for i := uint32(0); i < blockCount; i++ {
-		var b BlockID
+		var b crypto.Signature
 		if len(data[i:]) < 64 {
 			return fmt.Errorf("message too short %v", len(data))
 		}
@@ -617,7 +616,7 @@ func (m *GetSignaturesMessage) WriteTo(w io.Writer) (int64, error) {
 
 // SignaturesMessage represents Signatures message
 type SignaturesMessage struct {
-	Signatures []BlockSignature
+	Signatures []crypto.Signature
 }
 
 // MarshalBinary encodes SignaturesMessage to binary form
@@ -670,11 +669,12 @@ func (m *SignaturesMessage) UnmarshalBinary(data []byte) error {
 	data = data[4:]
 
 	for i := uint32(0); i < sigCount; i++ {
-		var sig BlockSignature
-		if len(data[i:]) < 64 {
+		var sig crypto.Signature
+		offset := i * 64
+		if len(data[offset:]) < 64 {
 			return fmt.Errorf("message too short: %v", len(data))
 		}
-		copy(sig[:], data[i:i+64])
+		copy(sig[:], data[offset:offset+64])
 		m.Signatures = append(m.Signatures, sig)
 	}
 
@@ -704,7 +704,7 @@ func (m *SignaturesMessage) WriteTo(w io.Writer) (int64, error) {
 
 // GetBlockMessage represents GetBlock message
 type GetBlockMessage struct {
-	BlockID BlockID
+	BlockID crypto.Signature
 }
 
 // MarshalBinary encodes GetBlockMessage to binary form
@@ -968,7 +968,7 @@ func (m *TransactionMessage) WriteTo(w io.Writer) (int64, error) {
 // CheckpointItem represents a Checkpoint
 type CheckpointItem struct {
 	Height    uint64
-	Signature BlockSignature
+	Signature crypto.Signature
 }
 
 // CheckPointMessage represents a CheckPoint message
