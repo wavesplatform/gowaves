@@ -7,6 +7,7 @@ import (
 	"github.com/go-chi/chi/middleware"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/cmd/wmd/internal"
+	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"net/http"
@@ -19,11 +20,13 @@ import (
 
 func main() {
 	var (
-		logLevel   = flag.String("log-level", "INFO", "Logging level. Supported levels: DEBUG, INFO, WARN, ERROR, FATAL. Default logging level INFO.")
-		importFile = flag.String("import-file", "", "Path to binary blockchain file to import.")
-		node       = flag.String("node", "http://127.0.0.1:6869", "URL of node API. Default value http://127.0.0.1:6869.")
-		address    = flag.String("address", ":6990", "Local network address to bind HTTP API of the service.")
-		db         = flag.String("db", "", "Path to data base.")
+		logLevel    = flag.String("log-level", "INFO", "Logging level. Supported levels: DEBUG, INFO, WARN, ERROR, FATAL. Default logging level INFO.")
+		importFile  = flag.String("import-file", "", "Path to binary blockchain file to import.")
+		node        = flag.String("node", "http://127.0.0.1:6869", "URL of node API. Default value http://127.0.0.1:6869.")
+		address     = flag.String("address", ":6990", "Local network address to bind HTTP API of the service.")
+		db          = flag.String("db", "", "Path to data base.")
+		matcher     = flag.String("matcher", "7kPFrHDiGw1rCm7LPszuECwWYL3dMf6iMifLRDJQZMzy", "Matcher's public key in form of Base58 string.")
+		symbolsFile = flag.String("symbols", "", "Path to file of symbols substitutions.")
 	)
 	flag.Parse()
 
@@ -60,26 +63,37 @@ func main() {
 		}
 	}()
 
+	matcherPK, err := crypto.NewPublicKeyFromBase58(*matcher)
+	if err != nil {
+		log.Errorf("Incorrect matcher's address: %s", err.Error())
+		shutdown()
+	}
+
+	symbols, err := internal.ImportSymbols(*symbolsFile)
+	if err != nil {
+		log.Errorf("Failed to load symbols substitutions: %s", err.Error())
+		shutdown()
+	}
+	log.Debugf("Imported %d of symbols substitution", symbols.Count())
+
 	h, err := storage.GetLastHeight()
 	if err != nil {
 		log.Warnf("Failed to get current height: %s", err.Error())
 	}
 	log.Infof("Last stored height: %d", h)
 
-	err = importBlockchainIfNeeded(appCtx, log, *importFile, &storage)
+	err = importBlockchainIfNeeded(appCtx, log, *importFile, &storage, matcherPK)
 	if err != nil {
 		log.Errorf("Initial blockchain import failed: %s", err.Error())
-	} else {
-		os.Exit(0)
 	}
 
-	df := internal.DataFeedAPI{Storage: &storage}
+	df := internal.DataFeedAPI{Storage: &storage, Symbols: symbols}
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
-	r.Use(middleware.Logger)
+	r.Use(internal.Logger(logger))
 	r.Use(middleware.Recoverer)
-	r.Mount("/datafeed", df.Routes())
+	r.Mount("/api", df.Routes())
 	err = http.ListenAndServe(*address, r)
 	if err != nil {
 		log.Fatalf("Failed to bind API: %s", err.Error())
@@ -99,12 +113,12 @@ func main() {
 
 }
 
-func importBlockchainIfNeeded(ctx context.Context, log *zap.SugaredLogger, n string, storage *internal.Storage) error {
+func importBlockchainIfNeeded(ctx context.Context, log *zap.SugaredLogger, n string, storage *internal.Storage, matcher crypto.PublicKey) error {
 	if n != "" {
 		if _, err := os.Stat(n); os.IsNotExist(err) {
 			return errors.Wrapf(err, "failed to import blockchain file '%s'", n)
 		}
-		i := internal.NewImporter(ctx, log, storage)
+		i := internal.NewImporter(ctx, log, storage, matcher)
 		err := i.Import(n)
 		if err != nil {
 			return errors.Wrapf(err, "failed to import blockchain file '%s'", n)

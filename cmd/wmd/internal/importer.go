@@ -2,6 +2,7 @@ package internal
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"encoding/binary"
 	"github.com/pkg/errors"
@@ -19,10 +20,11 @@ type Importer struct {
 	rootContext context.Context
 	log         *zap.SugaredLogger
 	storage     *Storage
+	matcher     crypto.PublicKey
 }
 
-func NewImporter(ctx context.Context, log *zap.SugaredLogger, storage *Storage) *Importer {
-	return &Importer{rootContext: ctx, log: log, storage: storage}
+func NewImporter(ctx context.Context, log *zap.SugaredLogger, storage *Storage, matcher crypto.PublicKey) *Importer {
+	return &Importer{rootContext: ctx, log: log, storage: storage, matcher: matcher}
 }
 
 type task struct {
@@ -85,8 +87,10 @@ func (im *Importer) Import(n string) error {
 			}
 			trades := make([]Trade, 0)
 			for _, tx := range r.txs {
-				t := NewTradeFromExchangeV1(tx)
-				trades = append(trades, t)
+				if bytes.Equal(im.matcher[:], tx.SenderPK[:]) {
+					t := NewTradeFromExchangeV1(tx)
+					trades = append(trades, t)
+				}
 			}
 			err := im.storage.PutBlock(r.height, r.id, trades)
 			if err != nil {

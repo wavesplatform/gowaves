@@ -177,7 +177,8 @@ func (s *Storage) Rollback(height int) error {
 		return errors.Errorf("rollback is impossible, current height %d is not lower then given %d", max, height)
 	}
 	for h := max; h > height; h-- {
-		v, err := s.db.Get(uint32Key(BlockAtHeightKeyPrefix, uint32(h)), defaultReadOptions)
+		hk := uint32Key(BlockAtHeightKeyPrefix, uint32(h))
+		v, err := s.db.Get(hk, defaultReadOptions)
 		var bi blockInfo
 		err = bi.unmarshalBinary(v)
 		if err != nil {
@@ -195,8 +196,8 @@ func (s *Storage) Rollback(height int) error {
 		}
 		removeTrades(batch, trades)
 		batch.Delete(signatureKey(BlockTradesKeyPrefix, bi.ID))
-		batch.Delete(uint32Key(BlockAtHeightKeyPrefix, uint32(height)))
-		updateLastHeight(batch, h)
+		batch.Delete(hk)
+		updateLastHeight(batch, h-1)
 		err = s.db.Write(batch, defaultWriteOptions)
 		if err != nil {
 			return errors.Wrapf(err, "rollback failure at height %d", h)
