@@ -1814,7 +1814,7 @@ func TestLeaseV1BinaryRoundTrip(t *testing.T) {
 					assert.Equal(t, tx.Type, atx.Type)
 					assert.Equal(t, tx.Version, atx.Version)
 					assert.ElementsMatch(t, tx.SenderPK, atx.SenderPK)
-					assert.ElementsMatch(t, tx.Recipient, atx.Recipient)
+					assert.ElementsMatch(t, *tx.Recipient.Address, *atx.Recipient.Address)
 					assert.Equal(t, tx.Amount, atx.Amount)
 					assert.Equal(t, tx.Fee, atx.Fee)
 					assert.Equal(t, tx.Timestamp, atx.Timestamp)
@@ -1831,7 +1831,7 @@ func TestLeaseV1BinaryRoundTrip(t *testing.T) {
 					assert.ElementsMatch(t, *tx.ID, *atx.ID)
 					assert.ElementsMatch(t, *tx.Signature, *atx.Signature)
 					assert.ElementsMatch(t, pk, atx.SenderPK)
-					assert.ElementsMatch(t, a, atx.Recipient)
+					assert.ElementsMatch(t, a, *atx.Recipient.Address)
 					assert.Equal(t, tc.amount, atx.Amount)
 					assert.Equal(t, tc.fee, atx.Fee)
 					assert.Equal(t, ts, atx.Timestamp)
@@ -1939,7 +1939,7 @@ func TestLeaseV2BinaryRoundTrip(t *testing.T) {
 					assert.Equal(t, tx.Type, atx.Type)
 					assert.Equal(t, tx.Version, atx.Version)
 					assert.ElementsMatch(t, tx.SenderPK, atx.SenderPK)
-					assert.ElementsMatch(t, tx.Recipient, atx.Recipient)
+					assert.ElementsMatch(t, *tx.Recipient.Address, *atx.Recipient.Address)
 					assert.Equal(t, tx.Amount, atx.Amount)
 					assert.Equal(t, tx.Fee, atx.Fee)
 					assert.Equal(t, tx.Timestamp, atx.Timestamp)
@@ -1956,7 +1956,7 @@ func TestLeaseV2BinaryRoundTrip(t *testing.T) {
 					assert.ElementsMatch(t, *tx.ID, *atx.ID)
 					assert.ElementsMatch(t, tx.Proofs.Proofs[0], atx.Proofs.Proofs[0])
 					assert.ElementsMatch(t, pk, atx.SenderPK)
-					assert.ElementsMatch(t, a, atx.Recipient)
+					assert.ElementsMatch(t, a, *atx.Recipient.Address)
 					assert.Equal(t, tc.amount, atx.Amount)
 					assert.Equal(t, tc.fee, atx.Fee)
 					assert.Equal(t, ts, atx.Timestamp)
@@ -2482,10 +2482,10 @@ func TestMassTransferV1Validations(t *testing.T) {
 		attachment string
 		err        string
 	}{
-		{"HmNSH2g1SWYHzuX1G4VCjL63TFs7PXDjsTAHzrAhSRCK", []MassTransferEntry{{addr, 100}}, 0, "", "fee should be positive"},
+		{"HmNSH2g1SWYHzuX1G4VCjL63TFs7PXDjsTAHzrAhSRCK", []MassTransferEntry{{NewRecipientFromAddress(addr), 100}}, 0, "", "fee should be positive"},
 		{"HmNSH2g1SWYHzuX1G4VCjL63TFs7PXDjsTAHzrAhSRCK", []MassTransferEntry{}, 10, "", "empty transfers"},
-		{"HmNSH2g1SWYHzuX1G4VCjL63TFs7PXDjsTAHzrAhSRCK", []MassTransferEntry{{addr, 0}, {addr, 20}}, 20, "", "at least one of the transfers has non-positive amount"},
-		{"HmNSH2g1SWYHzuX1G4VCjL63TFs7PXDjsTAHzrAhSRCK", []MassTransferEntry{{addr, 10}, {addr, 20}}, 30, strings.Repeat("blah-blah", 30), "attachment too long"},
+		{"HmNSH2g1SWYHzuX1G4VCjL63TFs7PXDjsTAHzrAhSRCK", []MassTransferEntry{{NewRecipientFromAddress(addr), 0}, {NewRecipientFromAddress(addr), 20}}, 20, "", "at least one of the transfers has non-positive amount"},
+		{"HmNSH2g1SWYHzuX1G4VCjL63TFs7PXDjsTAHzrAhSRCK", []MassTransferEntry{{NewRecipientFromAddress(addr), 10}, {NewRecipientFromAddress(addr), 20}}, 30, strings.Repeat("blah-blah", 30), "attachment too long"},
 	}
 	for _, tc := range tests {
 		spk, _ := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
@@ -2518,7 +2518,7 @@ func TestMassTransferV1FromMainNet(t *testing.T) {
 		for i, as := range tc.addresses {
 			addr, _ := NewAddressFromString(as)
 			amount := tc.amounts[i]
-			transfers[i] = MassTransferEntry{addr, amount}
+			transfers[i] = MassTransferEntry{NewRecipientFromAddress(addr), amount}
 		}
 		if tx, err := NewUnsignedMassTransferV1(spk, *a, transfers, tc.fee, tc.timestamp, tc.attachment); assert.NoError(t, err) {
 			if b, err := tx.bodyMarshalBinary(); assert.NoError(t, err) {
@@ -2539,9 +2539,9 @@ func TestMassTransferV1BinaryRoundTrip(t *testing.T) {
 		fee        uint64
 		attachment string
 	}{
-		{"HmNSH2g1SWYHzuX1G4VCjL63TFs7PXDjsTAHzrAhSRCK", []MassTransferEntry{{addr, 9876543210}}, 1234567890, "this is the attachment"},
-		{"HmNSH2g1SWYHzuX1G4VCjL63TFs7PXDjsTAHzrAhSRCK", []MassTransferEntry{{addr, 12345}, {addr, 67890}}, 987654321, ""},
-		{"WAVES", []MassTransferEntry{{addr, 12345}, {addr, 67890}}, 987654321, ""},
+		{"HmNSH2g1SWYHzuX1G4VCjL63TFs7PXDjsTAHzrAhSRCK", []MassTransferEntry{{NewRecipientFromAddress(addr), 9876543210}}, 1234567890, "this is the attachment"},
+		{"HmNSH2g1SWYHzuX1G4VCjL63TFs7PXDjsTAHzrAhSRCK", []MassTransferEntry{{NewRecipientFromAddress(addr), 12345}, {NewRecipientFromAddress(addr), 67890}}, 987654321, ""},
+		{"WAVES", []MassTransferEntry{{NewRecipientFromAddress(addr), 12345}, {NewRecipientFromAddress(addr), 67890}}, 987654321, ""},
 	}
 	seed, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
 	sk, pk := crypto.GenerateKeyPair(seed)
@@ -2594,9 +2594,9 @@ func TestMassTransferV1ToJSON(t *testing.T) {
 		attachment         string
 		expectedAttachment string
 	}{
-		{"HmNSH2g1SWYHzuX1G4VCjL63TFs7PXDjsTAHzrAhSRCK", "\"HmNSH2g1SWYHzuX1G4VCjL63TFs7PXDjsTAHzrAhSRCK\"", []MassTransferEntry{{addr, 9876543210}}, 1234567890, "blah-blah-blah", ",\"attachment\":\"dBfDSWhwLmZQy4zr2S3\""},
-		{"HmNSH2g1SWYHzuX1G4VCjL63TFs7PXDjsTAHzrAhSRCK", "\"HmNSH2g1SWYHzuX1G4VCjL63TFs7PXDjsTAHzrAhSRCK\"", []MassTransferEntry{{addr, 12345}, {addr, 67890}}, 987654321, "", ""},
-		{"", "null", []MassTransferEntry{{addr, 12345}, {addr, 67890}}, 987654321, "", ""},
+		{"HmNSH2g1SWYHzuX1G4VCjL63TFs7PXDjsTAHzrAhSRCK", "\"HmNSH2g1SWYHzuX1G4VCjL63TFs7PXDjsTAHzrAhSRCK\"", []MassTransferEntry{{NewRecipientFromAddress(addr), 9876543210}}, 1234567890, "blah-blah-blah", ",\"attachment\":\"dBfDSWhwLmZQy4zr2S3\""},
+		{"HmNSH2g1SWYHzuX1G4VCjL63TFs7PXDjsTAHzrAhSRCK", "\"HmNSH2g1SWYHzuX1G4VCjL63TFs7PXDjsTAHzrAhSRCK\"", []MassTransferEntry{{NewRecipientFromAddress(addr), 12345}, {NewRecipientFromAddress(addr), 67890}}, 987654321, "", ""},
+		{"", "null", []MassTransferEntry{{NewRecipientFromAddress(addr), 12345}, {NewRecipientFromAddress(addr), 67890}}, 987654321, "", ""},
 	}
 	seed, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
 	sk, pk := crypto.GenerateKeyPair(seed)
@@ -2854,6 +2854,7 @@ func TestSetScriptV1FromMainNet(t *testing.T) {
 		timestamp uint64
 	}{
 		{"3LZmDK7vuSBsDmFLxJ4qihZynUz8JF9e88dNu5fsus5p", "V45jPG1nuEnwaYb9jTKQCJpRskJQvtkBcnZ45WjZUbVdNTi1KijVikJkDfMNcEdSBF8oGDYZiWpVTdLSn76mV57", "8Nwjd2tcQWff3S9WAhBa7vLRNpNnigWqrTbahvyfMVrU", 'W', "AQQAAAAEaW5hbAIAAAAESW5hbAQAAAAFZWxlbmECAAAAB0xlbnVza2EEAAAABGxvdmUCAAAAC0luYWxMZW51c2thCQAAAAAAAAIJAAEsAAAAAgUAAAAEaW5hbAUAAAAFZWxlbmEFAAAABGxvdmV4ZFt5", 2082496, 1537973512182},
+		{"2M25DqL2W4rGFLCFadgATboS8EPqyWAN3DjH12AH5Kdr", "2WwvBAosGg1WN8g8f2xXqxXt8rz8Yzgdh1cFEYPrks674ryEtqKXMT8YmBrTLHGSSNgGaP5y19A1XGcLd7L5UCMb", "6uZcgYxmC33ziqUAKo1uyxhFARoQEWczf6jgM8Ns8jZa", 'W', "", 1400000, 1539693546199},
 	}
 	for _, tc := range tests {
 		spk, _ := crypto.NewPublicKeyFromBase58(tc.pk)
