@@ -81,7 +81,7 @@ func show(opts Opts) {
 		return
 	}
 
-	addr, err := proto.NewAddressFromPublicKey(proto.TestNetScheme, pub)
+	addr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, pub)
 	if err != nil {
 		fmt.Printf("Err: %s\n", err.Error())
 		return
