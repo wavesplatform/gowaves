@@ -42,7 +42,7 @@ const (
 	issueV2FixedBodyLen       = 1 + 1 + 1 + crypto.PublicKeySize + 2 + 2 + 8 + 1 + 1 + 8 + 8 + 1
 	issueV2MinBodyLen         = issueV2FixedBodyLen + 4 // 4 because of the shortest allowed Asset name of 4 bytes
 	issueV2MinLen             = 1 + issueV2MinBodyLen + proofsMinLen
-	transferLen               = crypto.PublicKeySize + 1 + 1 + 8 + 8 + 8 + AddressSize + 2
+	transferLen               = crypto.PublicKeySize + 1 + 1 + 8 + 8 + 8 + 2
 	transferV1FixedBodyLen    = 1 + transferLen
 	transferV1MinLen          = 1 + crypto.SignatureSize + transferV1FixedBodyLen
 	transferV2FixedBodyLen    = 1 + 1 + transferLen
@@ -54,14 +54,14 @@ const (
 	reissueV2MinLen           = 1 + reissueV2BodyLen + proofsMinLen
 	burnLen                   = crypto.PublicKeySize + crypto.DigestSize + 8 + 8 + 8
 	burnV1BodyLen             = 1 + burnLen
-	burnV1MinLen              = 1 + crypto.SignatureSize + burnV1BodyLen
+	burnV1Len                 = burnV1BodyLen + crypto.SignatureSize
 	burnV2BodyLen             = 1 + 1 + 1 + burnLen
-	burnV2MinLen              = 1 + burnV2BodyLen + proofsMinLen
+	burnV2Len                 = 1 + burnV2BodyLen + proofsMinLen
 	exchangeV1FixedBodyLen    = 1 + 4 + 4 + 8 + 8 + 8 + 8 + 8 + 8
 	exchangeV1MinLen          = exchangeV1FixedBodyLen + orderV1MinLen + orderV1MinLen + crypto.SignatureSize
 	exchangeV2FixedBodyLen    = 1 + 1 + 1 + 4 + 4 + 8 + 8 + 8 + 8 + 8 + 8
 	exchangeV2MinLen          = exchangeV2FixedBodyLen + orderV2MinLen + orderV2MinLen + proofsMinLen
-	leaseLen                  = crypto.PublicKeySize + AddressSize + 8 + 8 + 8
+	leaseLen                  = crypto.PublicKeySize + 8 + 8 + 8
 	leaseV1BodyLen            = 1 + leaseLen
 	leaseV1MinLen             = leaseV1BodyLen + crypto.SignatureSize
 	leaseV2BodyLen            = 1 + 1 + 1 + leaseLen
@@ -76,12 +76,12 @@ const (
 	createAliasV1MinLen       = createAliasV1FixedBodyLen + crypto.SignatureSize
 	createAliasV2FixedBodyLen = 1 + 1 + createAliasLen
 	createAliasV2MinLen       = 1 + createAliasV2FixedBodyLen + proofsMinLen
-	massTransferEntryLen      = AddressSize + 8
+	massTransferEntryLen      = 8
 	massTransferV1FixedLen    = 1 + 1 + crypto.PublicKeySize + 1 + 2 + 8 + 8 + 2
 	massTransferV1MinLen      = massTransferV1FixedLen + proofsMinLen
 	dataV1FixedBodyLen        = 1 + 1 + crypto.PublicKeySize + 2 + 8 + 8
 	dataV1MinLen              = dataV1FixedBodyLen + proofsMinLen
-	setScriptV1FixedBodyLen   = 1 + 1 + 1 + crypto.PublicKeySize + 1 + 2 + 8 + 8
+	setScriptV1FixedBodyLen   = 1 + 1 + 1 + crypto.PublicKeySize + 1 + 8 + 8
 	setScriptV1MinLen         = 1 + setScriptV1FixedBodyLen + proofsMinLen
 	sponsorshipV1BodyLen      = 1 + 1 + crypto.PublicKeySize + crypto.DigestSize + 8 + 8 + 8
 	sponsorshipV1MinLen       = 1 + 1 + 1 + sponsorshipV1BodyLen + proofsMinLen
@@ -700,7 +700,7 @@ type transfer struct {
 	Timestamp   uint64           `json:"timestamp,omitempty"`
 	Amount      uint64           `json:"amount"`
 	Fee         uint64           `json:"fee"`
-	Recipient   Address          `json:"recipient"`
+	Recipient   Recipient        `json:"recipient"`
 	Attachment  Attachment       `json:"attachment,omitempty"`
 }
 
@@ -717,7 +717,7 @@ func newTransfer(senderPK crypto.PublicKey, amountAsset, feeAsset OptionalAsset,
 	if ok, err := recipient.Validate(); !ok {
 		return nil, errors.Wrapf(err, "invalid recipient address '%s'", recipient.String())
 	}
-	return &transfer{SenderPK: senderPK, AmountAsset: amountAsset, FeeAsset: feeAsset, Timestamp: timestamp, Amount: amount, Fee: fee, Recipient: recipient, Attachment: Attachment(attachment)}, nil
+	return &transfer{SenderPK: senderPK, AmountAsset: amountAsset, FeeAsset: feeAsset, Timestamp: timestamp, Amount: amount, Fee: fee, Recipient: NewRecipientFromAddress(recipient), Attachment: Attachment(attachment)}, nil
 }
 
 func (tx *transfer) marshalBinary() ([]byte, error) {
@@ -730,8 +730,13 @@ func (tx *transfer) marshalBinary() ([]byte, error) {
 	if tx.FeeAsset.Present {
 		fal += crypto.DigestSize
 	}
+	rb, err := tx.Recipient.MarshalBinary()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to marshal transfer body")
+	}
+	rl := len(rb)
 	atl := len(tx.Attachment)
-	buf := make([]byte, transferLen+aal+fal+atl)
+	buf := make([]byte, transferLen+aal+fal+atl+rl)
 	copy(buf[p:], tx.SenderPK[:])
 	p += crypto.PublicKeySize
 	aab, err := tx.AmountAsset.MarshalBinary()
@@ -752,8 +757,8 @@ func (tx *transfer) marshalBinary() ([]byte, error) {
 	p += 8
 	binary.BigEndian.PutUint64(buf[p:], tx.Fee)
 	p += 8
-	copy(buf[p:], tx.Recipient[:])
-	p += AddressSize
+	copy(buf[p:], rb)
+	p += rl
 	PutStringWithUInt16Len(buf[p:], tx.Attachment.String())
 	return buf, nil
 }
@@ -787,8 +792,11 @@ func (tx *transfer) unmarshalBinary(data []byte) error {
 	data = data[8:]
 	tx.Fee = binary.BigEndian.Uint64(data)
 	data = data[8:]
-	copy(tx.Recipient[:], data[:AddressSize])
-	data = data[AddressSize:]
+	err = tx.Recipient.UnmarshalBinary(data)
+	if err != nil {
+		return errors.Wrap(err, "failed to unmarshal transfer body from bytes")
+	}
+	data = data[tx.Recipient.len:]
 	a, err := StringWithUInt16Len(data)
 	if err != nil {
 		return errors.Wrap(err, "failed to unmarshal transfer body from bytes")
@@ -820,7 +828,7 @@ func NewUnsignedTransferV1(senderPK crypto.PublicKey, amountAsset, feeAsset Opti
 func (tx *TransferV1) bodyMarshalBinary() ([]byte, error) {
 	b, err := tx.transfer.marshalBinary()
 	if err != nil {
-		errors.Wrap(err, "failed to marshal TransferV1 body")
+		return nil, errors.Wrap(err, "failed to marshal TransferV1 body")
 	}
 	buf := make([]byte, 1+len(b))
 	buf[0] = byte(tx.Type)
@@ -1037,7 +1045,8 @@ func (tx *TransferV2) UnmarshalBinary(data []byte) error {
 		fal += crypto.DigestSize
 	}
 	atl := len(tx.Attachment)
-	bl := transferV2FixedBodyLen + aal + fal + atl
+	rl := tx.Recipient.len
+	bl := transferV2FixedBodyLen + aal + fal + atl + rl
 	bb := data[:bl]
 	data = data[bl:]
 	var p ProofsV1
@@ -1491,37 +1500,29 @@ func (tx *BurnV1) Verify(publicKey crypto.PublicKey) (bool, error) {
 
 //MarshalBinary saves transaction to
 func (tx *BurnV1) MarshalBinary() ([]byte, error) {
-	sl := crypto.SignatureSize
 	b, err := tx.bodyMarshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal BurnV1 transaction to bytes")
 	}
-	bl := len(b)
-	buf := make([]byte, 1+sl+bl)
-	buf[0] = byte(tx.Type)
-	copy(buf[1:], tx.Signature[:])
-	copy(buf[1+sl:], b)
+	buf := make([]byte, burnV1Len)
+	copy(buf, b)
+	copy(buf[burnV1BodyLen:], tx.Signature[:])
 	return buf, nil
 }
 
 //UnmarshalBinary reads transaction form its binary representation.
 func (tx *BurnV1) UnmarshalBinary(data []byte) error {
-	if l := len(data); l < burnV1MinLen {
-		return errors.Errorf("not enough data for BurnV1 transaction, expected not less then %d, received %d", burnV1MinLen, l)
+	if l := len(data); l < burnV1Len {
+		return errors.Errorf("not enough data for BurnV1 transaction, expected not less then %d, received %d", burnV1Len, l)
 	}
-	if data[0] != byte(BurnTransaction) {
-		return errors.Errorf("incorrect transaction type %d for BurnV1 transaction", data[0])
-	}
-	data = data[1:]
-	var s crypto.Signature
-	copy(s[:], data[:crypto.SignatureSize])
-	tx.Signature = &s
-	data = data[crypto.SignatureSize:]
-	err := tx.bodyUnmarshalBinary(data)
+	err := tx.bodyUnmarshalBinary(data[:burnV1BodyLen])
 	if err != nil {
 		return errors.Wrap(err, "failed to unmarshal BurnV1 transaction")
 	}
-	d, err := crypto.FastHash(data)
+	var s crypto.Signature
+	copy(s[:], data[burnV1BodyLen:burnV1BodyLen+crypto.SignatureSize])
+	tx.Signature = &s
+	d, err := crypto.FastHash(data[:burnV1BodyLen])
 	if err != nil {
 		return errors.Wrap(err, "failed to hash BurnV1 transaction")
 	}
@@ -1635,7 +1636,7 @@ func (tx *BurnV2) MarshalBinary() ([]byte, error) {
 
 //UnmarshalBinary reads BurnV2 from its bytes representation.
 func (tx *BurnV2) UnmarshalBinary(data []byte) error {
-	if l := len(data); l < burnV2MinLen {
+	if l := len(data); l < burnV2Len {
 		return errors.Errorf("not enough data for BurnV2 transaction, expected not less then %d, received %d", burnV2BodyLen, l)
 	}
 	if v := data[0]; v != 0 {
@@ -2127,7 +2128,7 @@ func (tx *ExchangeV2) UnmarshalBinary(data []byte) error {
 
 type lease struct {
 	SenderPK  crypto.PublicKey `json:"senderPublicKey"`
-	Recipient Address          `json:"recipient"`
+	Recipient Recipient        `json:"recipient"`
 	Amount    uint64           `json:"amount"`
 	Fee       uint64           `json:"fee"`
 	Timestamp uint64           `json:"timestamp,omitempty"`
@@ -2143,16 +2144,21 @@ func newLease(senderPK crypto.PublicKey, recipient Address, amount, fee, timesta
 	if fee <= 0 {
 		return nil, errors.New("fee should be positive")
 	}
-	return &lease{SenderPK: senderPK, Recipient: recipient, Amount: amount, Fee: fee, Timestamp: timestamp}, nil
+	return &lease{SenderPK: senderPK, Recipient: NewRecipientFromAddress(recipient), Amount: amount, Fee: fee, Timestamp: timestamp}, nil
 }
 
 func (l *lease) marshalBinary() ([]byte, error) {
-	buf := make([]byte, leaseLen)
+	rl := l.Recipient.len
+	buf := make([]byte, leaseLen+rl)
 	p := 0
 	copy(buf[p:], l.SenderPK[:])
 	p += crypto.PublicKeySize
-	copy(buf[p:], l.Recipient[:])
-	p += AddressSize
+	rb, err := l.Recipient.MarshalBinary()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to marshal lease to bytes")
+	}
+	copy(buf[p:], rb)
+	p += rl
 	binary.BigEndian.PutUint64(buf[p:], l.Amount)
 	p += 8
 	binary.BigEndian.PutUint64(buf[p:], l.Fee)
@@ -2167,8 +2173,11 @@ func (l *lease) unmarshalBinary(data []byte) error {
 	}
 	copy(l.SenderPK[:], data[:crypto.PublicKeySize])
 	data = data[crypto.PublicKeySize:]
-	copy(l.Recipient[:], data[:AddressSize])
-	data = data[AddressSize:]
+	err := l.Recipient.UnmarshalBinary(data)
+	if err != nil {
+		return errors.Wrap(err, "failed to unmarshal lease from bytes")
+	}
+	data = data[l.Recipient.len:]
 	l.Amount = binary.BigEndian.Uint64(data)
 	data = data[8:]
 	l.Fee = binary.BigEndian.Uint64(data)
@@ -2198,7 +2207,8 @@ func NewUnsignedLeaseV1(senderPK crypto.PublicKey, recipient Address, amount, fe
 }
 
 func (tx *LeaseV1) bodyMarshalBinary() ([]byte, error) {
-	buf := make([]byte, leaseV1BodyLen)
+	rl := tx.Recipient.len
+	buf := make([]byte, leaseV1BodyLen+rl)
 	buf[0] = byte(tx.Type)
 	b, err := tx.lease.marshalBinary()
 	if err != nil {
@@ -2279,8 +2289,9 @@ func (tx *LeaseV1) UnmarshalBinary(data []byte) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to unmarshal LeaseV1 transaction from bytes")
 	}
-	b := data[:leaseV1BodyLen]
-	data = data[leaseV1BodyLen:]
+	bl := leaseV1BodyLen + tx.Recipient.len
+	b := data[:bl]
+	data = data[bl:]
 	var s crypto.Signature
 	copy(s[:], data[:crypto.SignatureSize])
 	tx.Signature = &s
@@ -2313,7 +2324,8 @@ func NewUnsignedLeaseV2(senderPK crypto.PublicKey, recipient Address, amount, fe
 }
 
 func (tx *LeaseV2) bodyMarshalBinary() ([]byte, error) {
-	buf := make([]byte, leaseV2BodyLen)
+	rl := tx.Recipient.len
+	buf := make([]byte, leaseV2BodyLen+rl)
 	buf[0] = byte(tx.Type)
 	buf[1] = tx.Version
 	buf[2] = 0 //Always zero, reserved for future extension of leasing assets.
@@ -2407,8 +2419,9 @@ func (tx *LeaseV2) UnmarshalBinary(data []byte) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to unmarshal LeaseV2 transaction from bytes")
 	}
-	bb := data[:leaseV2BodyLen]
-	data = data[leaseV2BodyLen:]
+	bl := leaseV2BodyLen + tx.Recipient.len
+	bb := data[:bl]
+	data = data[bl:]
 	var p ProofsV1
 	err = p.UnmarshalBinary(data)
 	if err != nil {
@@ -3015,14 +3028,19 @@ func (tx *CreateAliasV2) UnmarshalBinary(data []byte) error {
 }
 
 type MassTransferEntry struct {
-	Recipient Address `json:"recipient"`
-	Amount    uint64  `json:"amount"`
+	Recipient Recipient `json:"recipient"`
+	Amount    uint64    `json:"amount"`
 }
 
 func (e *MassTransferEntry) MarshalBinary() ([]byte, error) {
-	buf := make([]byte, massTransferEntryLen)
-	copy(buf[0:], e.Recipient[:])
-	binary.BigEndian.PutUint64(buf[AddressSize:], e.Amount)
+	rb, err := e.Recipient.MarshalBinary()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to marshal MassTransferEntry")
+	}
+	rl := e.Recipient.len
+	buf := make([]byte, massTransferEntryLen+rl)
+	copy(buf, rb)
+	binary.BigEndian.PutUint64(buf[rl:], e.Amount)
 	return buf, nil
 }
 
@@ -3030,8 +3048,11 @@ func (e *MassTransferEntry) UnmarshalBinary(data []byte) error {
 	if l := len(data); l < massTransferEntryLen {
 		return errors.Errorf("not enough data to unmarshal MassTransferEntry from byte, expected %d, received %d bytes", massTransferEntryLen, l)
 	}
-	copy(e.Recipient[:], data[0:AddressSize])
-	e.Amount = binary.BigEndian.Uint64(data[AddressSize:])
+	err := e.Recipient.UnmarshalBinary(data)
+	if err != nil {
+		return errors.Wrap(err, "failed to unmarshal MassTransferEntry from bytes")
+	}
+	e.Amount = binary.BigEndian.Uint64(data[e.Recipient.len:])
 	return nil
 }
 
@@ -3076,8 +3097,12 @@ func (tx *MassTransferV1) bodyAndAssetLen() (int, int) {
 	if tx.Asset.Present {
 		l += crypto.DigestSize
 	}
+	rls := 0
+	for _, e := range tx.Transfers {
+		rls += e.Recipient.len
+	}
 	al := len(tx.Attachment)
-	return massTransferV1FixedLen + l + n*massTransferEntryLen + al, l
+	return massTransferV1FixedLen + l + n*massTransferEntryLen + rls + al, l
 }
 
 func (tx *MassTransferV1) bodyMarshalBinary() ([]byte, error) {
@@ -3105,7 +3130,7 @@ func (tx *MassTransferV1) bodyMarshalBinary() ([]byte, error) {
 			return nil, errors.Wrap(err, "failed to marshal MassTransferV1 transaction body to bytes")
 		}
 		copy(buf[p:], tb)
-		p += massTransferEntryLen
+		p += massTransferEntryLen + t.Recipient.len
 	}
 	binary.BigEndian.PutUint64(buf[p:], tx.Timestamp)
 	p += 8
@@ -3130,7 +3155,10 @@ func (tx *MassTransferV1) bodyUnmarshalBinary(data []byte) error {
 	data = data[2:]
 	copy(tx.SenderPK[:], data[:crypto.PublicKeySize])
 	data = data[crypto.PublicKeySize:]
-	tx.Asset.UnmarshalBinary(data)
+	err := tx.Asset.UnmarshalBinary(data)
+	if err != nil {
+		return errors.Wrap(err, "failed to unmarshal MassTransferV1 from bytes")
+	}
 	data = data[1:]
 	if tx.Asset.Present {
 		data = data[crypto.DigestSize:]
@@ -3144,7 +3172,7 @@ func (tx *MassTransferV1) bodyUnmarshalBinary(data []byte) error {
 		if err != nil {
 			return errors.Wrap(err, "failed to unmarshal MassTransferV1 transaction body from bytes")
 		}
-		data = data[massTransferEntryLen:]
+		data = data[massTransferEntryLen+e.Recipient.len:]
 		entries = append(entries, e)
 	}
 	tx.Transfers = entries
@@ -3356,7 +3384,10 @@ func (tx *DataV1) bodyUnmarshalBinary(data []byte) error {
 			return errors.Wrap(err, "failed to unmarshal DataV1 transaction body from bytes")
 		}
 		data = data[e.binarySize():]
-		tx.AppendEntry(e)
+		err = tx.AppendEntry(e)
+		if err != nil {
+			return errors.Wrap(err, "failed to unmarshal DataV1 transaction body from bytes")
+		}
 	}
 	tx.Timestamp = binary.BigEndian.Uint64(data)
 	data = data[8:]
@@ -3418,9 +3449,10 @@ func (tx *DataV1) MarshalBinary() ([]byte, error) {
 		return nil, errors.Wrap(err, "failed to marshal DataV1 transaction to bytes")
 	}
 	pl := len(pb)
-	buf := make([]byte, bl+pl)
-	copy(buf[0:], bb)
-	copy(buf[bl:], pb)
+	buf := make([]byte, 1+bl+pl)
+	buf[0] = 0
+	copy(buf[1:], bb)
+	copy(buf[1+bl:], pb)
 	return buf, nil
 }
 
@@ -3429,16 +3461,16 @@ func (tx *DataV1) UnmarshalBinary(data []byte) error {
 	if l := len(data); l < dataV1MinLen {
 		return errors.Errorf("not enough data for DataV1 transaction, expected not less then %d, received %d", dataV1MinLen, l)
 	}
-	if data[0] != byte(DataTransaction) {
-		return errors.Errorf("incorrect transaction type %d for DataV1 transaction", data[0])
+	if data[0] != 0 {
+		return errors.Errorf("unexpected first byte %d for DataV1 transaction", data[0])
 	}
-	err := tx.bodyUnmarshalBinary(data)
+	err := tx.bodyUnmarshalBinary(data[1:])
 	if err != nil {
 		return errors.Wrap(err, "failed to unmarshal DataV1 transaction from bytes")
 	}
 	bl := dataV1FixedBodyLen + tx.entriesLen()
-	bb := data[:bl]
-	data = data[bl:]
+	bb := data[1 : 1+bl]
+	data = data[1+bl:]
 	var p ProofsV1
 	err = p.UnmarshalBinary(data)
 	if err != nil {
@@ -3483,7 +3515,10 @@ func (tx *SetScriptV1) NonEmptyScript() bool {
 
 func (tx *SetScriptV1) bodyMarshalBinary() ([]byte, error) {
 	var p int
-	sl := len(tx.Script)
+	sl := 0
+	if tx.NonEmptyScript() {
+		sl = len(tx.Script) + 2
+	}
 	buf := make([]byte, setScriptV1FixedBodyLen+sl)
 	buf[p] = byte(tx.Type)
 	p++
@@ -3497,7 +3532,7 @@ func (tx *SetScriptV1) bodyMarshalBinary() ([]byte, error) {
 	p++
 	if tx.NonEmptyScript() {
 		PutBytesWithUInt16Len(buf[p:], tx.Script)
-		p += 2 + sl
+		p += sl
 	}
 	binary.BigEndian.PutUint64(buf[p:], tx.Fee)
 	p += 8
@@ -3600,7 +3635,11 @@ func (tx *SetScriptV1) UnmarshalBinary(data []byte) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to unmarshal SetScriptV1 transaction from bytes")
 	}
-	bl := setScriptV1FixedBodyLen + len(tx.Script)
+	sl := 0
+	if tx.NonEmptyScript() {
+		sl = len(tx.Script) + 2
+	}
+	bl := setScriptV1FixedBodyLen + sl
 	bb := data[:bl]
 	data = data[bl:]
 	var p ProofsV1
