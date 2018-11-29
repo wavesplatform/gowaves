@@ -86,8 +86,8 @@ func NewAddressFromString(s string) (Address, error) {
 
 func NewAddressFromBytes(b []byte) (Address, error) {
 	var a Address
-	if l := len(b); l != AddressSize {
-		return a, fmt.Errorf("incorrect array length %d, expected %d", l, AddressSize)
+	if l := len(b); l < AddressSize {
+		return a, fmt.Errorf("insufficient array length %d, expected atleast %d", l, AddressSize)
 	}
 	copy(a[:], b[:AddressSize])
 	if ok, err := a.Validate(); !ok {
@@ -239,4 +239,81 @@ func correctAlphabet(s *string) bool {
 		}
 	}
 	return true
+}
+
+type Recipient struct {
+	Address *Address
+	Alias   *Alias
+	len     int
+}
+
+func NewRecipientFromAddress(a Address) Recipient {
+	return Recipient{Address: &a, len: AddressSize}
+}
+
+func NewRecipientFromAlias(a Alias) Recipient {
+	return Recipient{Alias: &a, len: aliasFixedSize + len(a.Alias)}
+}
+
+func (r Recipient) MarshalJSON() ([]byte, error) {
+	if r.Alias != nil {
+		return r.Alias.MarshalJSON()
+	}
+	return r.Address.MarshalJSON()
+}
+
+func (r *Recipient) UnmarshalJSON(value []byte) error {
+	s := string(value)
+	if strings.Index(s, aliasPrefix) != -1 {
+		var a Alias
+		err := a.UnmarshalJSON(value)
+		if err != nil {
+			return errors.Wrap(err, "failed to unmarshal Recipient from JSON")
+		}
+		r.Alias = &a
+	}
+	var a Address
+	err := a.UnmarshalJSON(value)
+	if err != nil {
+		return errors.Wrap(err, "failed to unmarshal Recipient from JSON")
+	}
+	return nil
+}
+
+func (r *Recipient) MarshalBinary() ([]byte, error) {
+	if r.Alias != nil {
+		return r.Alias.MarshalBinary()
+	}
+	return r.Address[:], nil
+}
+
+func (r *Recipient) UnmarshalBinary(data []byte) error {
+	switch v := data[0]; v {
+	case addressVersion:
+		a, err := NewAddressFromBytes(data)
+		if err != nil {
+			return errors.Wrap(err, "failed to unmarshal Recipient from bytes")
+		}
+		r.Address = &a
+		r.len = AddressSize
+		return nil
+	case aliasVersion:
+		var a Alias
+		err := a.UnmarshalBinary(data)
+		if err != nil {
+			return errors.Wrap(err, "failed to unmarshal Recipient from bytes")
+		}
+		r.Alias = &a
+		r.len = aliasFixedSize + len(a.Alias)
+		return nil
+	default:
+		return errors.Errorf("unsupported Recipient version %d", v)
+	}
+}
+
+func (r *Recipient) String() string {
+	if r.Alias != nil {
+		return r.Alias.String()
+	}
+	return r.Address.String()
 }

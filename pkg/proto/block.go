@@ -15,8 +15,8 @@ type Block struct {
 	BaseTarget             uint64
 	GenSignature           crypto.Digest
 	TransactionBlockLength uint32
-	TransactionCount       uint8
-	Transactions           []byte
+	TransactionCount       int
+	Transactions           []byte `json:"-"`
 	GenPublicKey           crypto.PublicKey
 	BlockSignature         crypto.Signature
 
@@ -48,12 +48,19 @@ func (b *Block) UnmarshalBinary(data []byte) error {
 	b.ConsensusBlockLength = binary.BigEndian.Uint32(data[73:77])
 	b.BaseTarget = binary.BigEndian.Uint64(data[77:85])
 	copy(b.GenSignature[:], data[85:117])
-
 	b.TransactionBlockLength = binary.BigEndian.Uint32(data[117:121])
-	b.TransactionCount = data[121]
-	transBytes := data[122 : 121+b.TransactionBlockLength]
-	b.Transactions = make([]byte, len(transBytes))
-	copy(b.Transactions, transBytes)
+	if b.Version == 3 {
+		b.TransactionCount = int(binary.BigEndian.Uint32(data[121:125]))
+		transBytes := data[125 : 125+b.TransactionBlockLength]
+		b.Transactions = make([]byte, len(transBytes))
+		copy(b.Transactions, transBytes)
+	} else {
+		b.TransactionCount = int(data[121])
+		transBytes := data[122 : 122+b.TransactionBlockLength]
+		b.Transactions = make([]byte, len(transBytes))
+		copy(b.Transactions, transBytes)
+	}
+
 	copy(b.GenPublicKey[:], data[len(data)-64-32:len(data)-64])
 	copy(b.BlockSignature[:], data[len(data)-64:])
 
