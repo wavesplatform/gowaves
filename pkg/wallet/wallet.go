@@ -66,7 +66,7 @@ func Decode(walletData []byte, password []byte) (*Wallet, error) {
 	format := WalletFormat{}
 	err = json.Unmarshal(bts, &format)
 	if err != nil {
-		return nil, errors.Wrap(err, "invalid wallet format")
+		return nil, errors.New("invalid password")
 	}
 	return &Wallet{
 		format: format,

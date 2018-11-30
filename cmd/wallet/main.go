@@ -33,7 +33,7 @@ func main() {
 	opts := Opts{}
 
 	flag.BoolVarP(&opts.Force, "force", "f", false, "Overwrite existing wallet")
-	flag.StringVarP(&opts.PathToWallet, "path", "p", "", "Path to wallet")
+	flag.StringVarP(&opts.PathToWallet, "wallet", "w", "", "Path to wallet")
 
 	flag.Parse()
 
@@ -51,6 +51,11 @@ func main() {
 
 func show(opts Opts) {
 	walletPath := getWalletPath(opts.PathToWallet)
+	if !exists(walletPath) {
+		fmt.Println("Err: wallet not found")
+		return
+	}
+
 	fmt.Print("Enter password: ")
 	pass, err := gopass.GetPasswd()
 	if err != nil {

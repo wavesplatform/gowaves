@@ -43,7 +43,7 @@ func transferTransaction() {
 	opts := Opts{}
 
 	f := flag.NewFlagSet("transfer", flag.ExitOnError)
-	f.StringVarP(&opts.PathToWallet, "path", "p", "", "Path to wallet")
+	f.StringVarP(&opts.PathToWallet, "wallet", "w", "", "Path to wallet")
 	f.Uint64VarP(&opts.Amount, "amount", "a", 0, "Amount of waves to send")
 	f.Uint64Var(&opts.Fee, "fee", 100000, "Fee, optional")
 	f.StringVarP(&opts.Recipient, "recipient", "r", "", "Address of recipient")

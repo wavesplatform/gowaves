@@ -4,8 +4,8 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
-	"crypto/sha256"
 	"fmt"
+	"golang.org/x/crypto/argon2"
 	"io"
 )
 
@@ -14,8 +14,10 @@ type crypt struct {
 }
 
 func NewCrypt(key []byte) *crypt {
+	salt := []byte("E84265D411C08F99E092AE237F4EC250B2F20B2EAB7CFB2FCB0857880983DF44")
+	pass := argon2.IDKey(key, salt, 4, 64*1024, 4, 32)
 	return &crypt{
-		key: sha5000(key),
+		key: pass,
 	}
 }
 
@@ -50,19 +52,4 @@ func (a *crypt) Decrypt(ciphertext []byte) ([]byte, error) {
 	cipher.NewCFBDecrypter(block, iv).XORKeyStream(ciphertext, ciphertext)
 
 	return ciphertext, nil
-}
-
-func _sha256(b []byte) []byte {
-	h := sha256.New()
-	h.Write(b)
-	return h.Sum(nil)
-}
-
-func sha5000(b []byte) []byte {
-	out := make([]byte, len(b))
-	copy(out, b)
-	for i := 0; i < 5000; i++ {
-		out = _sha256(out)
-	}
-	return out
 }
