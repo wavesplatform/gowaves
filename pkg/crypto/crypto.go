@@ -30,6 +30,12 @@ func (d Digest) String() string {
 	return base58.Encode(d[:])
 }
 
+func (d Digest) Bytes() []byte {
+	out := make([]byte, len(d))
+	copy(out, d[:])
+	return out
+}
+
 func (d Digest) MarshalBinary() ([]byte, error) {
 	b := make([]byte, 0, DigestSize)
 	copy(b, d[:])
@@ -125,6 +131,10 @@ func (k *PublicKey) UnmarshalJSON(value []byte) error {
 	}
 	copy(k[:], b[:PublicKeySize])
 	return nil
+}
+
+func (k *PublicKey) String() string {
+	return base58.Encode(k[:])
 }
 
 func NewPublicKeyFromBase58(s string) (PublicKey, error) {
