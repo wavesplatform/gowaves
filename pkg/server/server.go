@@ -45,11 +45,20 @@ func (s *Server) Run(ctx context.Context) {
 	defer l.Close()
 
 	for {
-		_, err := l.Accept()
+		conn, err := l.Accept()
 		if err != nil {
 			zap.S().Error("error while accepting connections: ", err)
 			break
 		}
+		p, err := NewPeer(s.genesis, s.db,
+			WithConn(conn),
+			WithPeersChan(s.newPeers),
+			WithDeclAddr(s.Listen))
+		if err != nil {
+			zap.S().Error("error accepting a new connection ", err)
+			continue
+		}
+		s.peers[conn.RemoteAddr().String()] = p
 	}
 }
 
@@ -89,7 +98,8 @@ func (s *Server) updatePeers(ctx context.Context) {
 				zap.S().Info("received new peer: ", peer.String())
 				p, err := NewPeer(s.genesis, s.db,
 					WithAddr(peer.String()),
-					WithPeersChan(s.newPeers))
+					WithPeersChan(s.newPeers),
+					WithDeclAddr(s.Listen))
 				if err != nil {
 					continue
 				}
@@ -107,13 +117,15 @@ func (s *Server) RunClients(ctx context.Context) {
 		fmt.Println(addr)
 		peer, err := NewPeer(s.genesis, s.db,
 			WithAddr(addr),
-			WithPeersChan(s.newPeers))
+			WithPeersChan(s.newPeers),
+			WithDeclAddr(s.Listen))
 		if err != nil {
 			continue
 		}
 		s.peers[addr] = peer
 	}
 	go s.updatePeers(ctx)
+	go s.Run(ctx)
 }
 
 func (s *Server) Stop() {
@@ -129,9 +141,16 @@ func (s *Server) Stop() {
 
 type Option func(*Server) error
 
-func WithBindAddr(addr string) Option {
+func WithRestAddr(addr string) Option {
 	return func(s *Server) error {
 		s.apiAddr = addr
+		return nil
+	}
+}
+
+func WithDeclaredAddr(addr string) Option {
+	return func(s *Server) error {
+		s.Listen = addr
 		return nil
 	}
 }

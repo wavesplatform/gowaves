@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"net"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -28,11 +30,12 @@ import (
 // When using as a server connection, it is created with an existing *p2p.Conn
 // that was previously accepted on a listening server
 type Peer struct {
-	addr    string
-	conn    *p2p.Conn
-	db      *db.WavesDB
-	state   NodeState
-	genesis crypto.Signature
+	addr     string
+	conn     *p2p.Conn
+	db       *db.WavesDB
+	state    NodeState
+	genesis  crypto.Signature
+	declAddr proto.PeerInfo
 
 	peers chan proto.PeerInfo
 
@@ -67,11 +70,16 @@ func (p *Peer) dialContext(v proto.Version) func(ctx context.Context, network, a
 				continue
 			}
 
+			bytes, err := p.declAddr.MarshalBinary()
+			if err != nil {
+				return nil, err
+			}
+
 			handshake := proto.Handshake{Name: "wavesT",
 				Version:           proto.Version{Major: major, Minor: minor, Patch: patch},
 				NodeName:          "gowaves",
 				NodeNonce:         0x0,
-				DeclaredAddrBytes: []byte{},
+				DeclaredAddrBytes: bytes,
 				Timestamp:         uint64(time.Now().Unix())}
 
 			_, err = handshake.WriteTo(conn)
@@ -92,6 +100,34 @@ func (p *Peer) dialContext(v proto.Version) func(ctx context.Context, network, a
 		return nil, errors.New("failed to dial peer")
 	}
 
+}
+
+func (p *Peer) handshake(conn net.Conn) error {
+	var handshake proto.Handshake
+	_, err := handshake.ReadFrom(conn)
+	if err != nil {
+		zap.S().Error("failed to read handshake: ", err)
+		return err
+	}
+
+	bytes, err := p.declAddr.MarshalBinary()
+	if err != nil {
+		return err
+	}
+
+	handshake.NodeName = "gowaves"
+	handshake.NodeNonce = 0
+	handshake.DeclaredAddrBytes = bytes
+	handshake.Timestamp = uint64(time.Now().Unix())
+
+	_, err = handshake.WriteTo(conn)
+	if err != nil {
+		zap.S().Error("failed to send handshake: ", err)
+		return err
+	}
+
+	p.state.KnownVersion = handshake.Version
+	return nil
 }
 
 func (p *Peer) connect() error {
@@ -432,9 +468,15 @@ func WithAddr(addr string) PeerOption {
 }
 
 // WithConn configures peer with an existing connection
-func WithConn(conn *p2p.Conn) PeerOption {
+func WithConn(conn net.Conn) PeerOption {
 	return func(p *Peer) error {
-		p.conn = conn
+		p.handshake(conn)
+		c, err := p2p.NewConn(p2p.WithNetConn(conn))
+		if err != nil {
+			return err
+		}
+
+		p.conn = c
 		return nil
 	}
 }
@@ -443,6 +485,25 @@ func WithConn(conn *p2p.Conn) PeerOption {
 func WithPeersChan(c chan proto.PeerInfo) PeerOption {
 	return func(p *Peer) error {
 		p.peers = c
+		return nil
+	}
+}
+
+func WithDeclAddr(addr string) PeerOption {
+	return func(p *Peer) error {
+		var declAddr proto.PeerInfo
+		split := strings.Split(addr, ":")
+		if len(split) != 2 {
+			zap.S().Error("addr ", addr)
+			return errors.New("addr in wrong format: " + addr)
+		}
+		declAddr.Addr = net.ParseIP(split[0])
+		port, err := strconv.ParseInt(split[1], 10, 16)
+		if err != nil {
+			return err
+		}
+		declAddr.Port = uint16(port)
+		p.declAddr = declAddr
 		return nil
 	}
 }
