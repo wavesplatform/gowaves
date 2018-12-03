@@ -29,7 +29,7 @@ func NewImporter(ctx context.Context, log *zap.SugaredLogger, storage *Storage, 
 
 type task struct {
 	height int
-	block  Block
+	block  proto.Block
 }
 
 type result struct {
@@ -106,9 +106,7 @@ func (im *Importer) Import(n string) error {
 			im.log.Debugf("Collected %d transaction at height %d, total transactions so far %d", c, r.height, total)
 		}
 	}
-
 	im.log.Infof("Total exchange transactions count: %d", total)
-
 	return nil
 }
 
@@ -179,7 +177,7 @@ func (im *Importer) worker(tasks <-chan task) <-chan result {
 
 	processTask := func(t task) result {
 		r := result{height: t.height, id: t.block.BlockSignature}
-		r.txs, r.error = im.parseTransactions(t.block)
+		r.txs, r.error = im.extractTransactions(t.block.Transactions, t.block.TransactionCount)
 		return r
 	}
 
@@ -224,17 +222,6 @@ func (im *Importer) collect(channels ...<-chan result) <-chan result {
 	}()
 
 	return multiplexedStream
-}
-
-func (im *Importer) parseTransactions(b Block) ([]proto.ExchangeV1, error) {
-	switch b.Version {
-	case 3:
-		n := binary.BigEndian.Uint32(b.Transactions[:4])
-		return im.extractTransactions(b.Transactions[4:], int(n))
-	default:
-		n := b.Transactions[0]
-		return im.extractTransactions(b.Transactions[1:], int(n))
-	}
 }
 
 func (im *Importer) extractTransactions(d []byte, n int) ([]proto.ExchangeV1, error) {

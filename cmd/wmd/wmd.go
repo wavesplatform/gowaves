@@ -21,12 +21,13 @@ import (
 func main() {
 	var (
 		logLevel    = flag.String("log-level", "INFO", "Logging level. Supported levels: DEBUG, INFO, WARN, ERROR, FATAL. Default logging level INFO.")
-		importFile  = flag.String("import-file", "", "Path to binary blockchain file to import.")
+		importFile  = flag.String("import-file", "", "Path to binary blockchain file to import before starting synchronization.")
 		node        = flag.String("node", "http://127.0.0.1:6869", "URL of node API. Default value http://127.0.0.1:6869.")
 		address     = flag.String("address", ":6990", "Local network address to bind HTTP API of the service.")
 		db          = flag.String("db", "", "Path to data base.")
 		matcher     = flag.String("matcher", "7kPFrHDiGw1rCm7LPszuECwWYL3dMf6iMifLRDJQZMzy", "Matcher's public key in form of Base58 string.")
 		symbolsFile = flag.String("symbols", "", "Path to file of symbols substitutions.")
+		rollback    = flag.Int("rollback", 0, "The height to rollback to before importing file or staring synchronization.")
 	)
 	flag.Parse()
 
@@ -62,6 +63,21 @@ func main() {
 			log.Errorf("Failed to close Storage: %s", err.Error())
 		}
 	}()
+
+	if *rollback != 0 {
+		rh, err := storage.FindCorrectRollbackHeight(*rollback)
+		if err != nil {
+			log.Errorf("Failed to find the correct height of rollback: %s", err.Error())
+			shutdown()
+		}
+		log.Infof("Nearest correct height of rollback: %d", rh)
+		err = storage.Rollback(rh)
+		if err != nil {
+			log.Errorf("Failed to rollback to height %d: %s", rh, err.Error())
+			shutdown()
+		}
+		log.Infof("Successfully rolled back to height %d", rh)
+	}
 
 	matcherPK, err := crypto.NewPublicKeyFromBase58(*matcher)
 	if err != nil {
