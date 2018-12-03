@@ -175,6 +175,14 @@ func WithContext(ctx context.Context) ConnOption {
 	}
 }
 
+func WithNetConn(conn net.Conn) ConnOption {
+	return func(c *Conn) error {
+		c.conn = conn
+		c.bufConn = bufio.NewReaderSize(c.conn, 65535)
+		return nil
+	}
+}
+
 // NewConn creates a new connection
 func NewConn(options ...ConnOption) (*Conn, error) {
 	c := Conn{}

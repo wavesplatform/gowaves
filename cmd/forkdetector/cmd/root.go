@@ -28,7 +28,8 @@ var (
 				server.WithPeers(viper.GetStringSlice("waves.network.peers")),
 				server.WithLevelDBPath(viper.GetString("waves.storage.path")),
 				server.WithGenesis(viper.GetString("waves.blockchain.genesis")),
-				server.WithBindAddr(viper.GetString("waves.network.bind-address")),
+				server.WithRestAddr(viper.GetString("waves.network.rest-address")),
+				server.WithDeclaredAddr(viper.GetString("waves.network.declared-address")),
 			)
 			if err != nil {
 				zap.S().Error("failed to create a new server instance ", err)
