@@ -7,8 +7,6 @@ branches:
 before_install:
   - curl -L -s https://github.com/golang/dep/releases/download/v0.5.0/dep-linux-amd64 -o $GOPATH/bin/dep
   - chmod +x $GOPATH/bin/dep
-  - go get -v github.com/go-lintpack/lintpack/...
-  - go get -v github.com/go-critic/go-critic/... && lintpack build -o $GOPATH/bin/gocritic -linter.name='gocritic' github.com/go-critic/go-critic/checkers
 
 script:
   - make
