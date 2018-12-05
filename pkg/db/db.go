@@ -59,7 +59,6 @@ func (w *WavesDB) putBlockAtHeight(block *proto.Block) error {
 		if err != nil {
 			return err
 		}
-		//fmt.Println("bytes ", string(bytes), " key ", blocksAtHeightKey)
 
 		return w.db.Put(blocksAtHeightKey, bytes, nil)
 	}
