@@ -9,6 +9,7 @@ before_install:
   - chmod +x $GOPATH/bin/dep
   - go get -v github.com/go-lintpack/lintpack/...
   - go get -v github.com/go-critic/go-critic/...
+  - ls -l /tmp/
   - lintpack build -o $GOPATH/bin/gocritic -linter.name='gocritic' github.com/go-critic/go-critic/checkers
 
 script:
