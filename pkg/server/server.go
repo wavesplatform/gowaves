@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"strconv"
 	"time"
 
 	"go.uber.org/zap"
@@ -253,6 +254,28 @@ func (s *Server) getNode(w http.ResponseWriter, r *http.Request) {
 	respondWithJSON(w, http.StatusOK, peer.State())
 }
 
+func (s *Server) getBlocksAtHeight(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	h, ok := vars["height"]
+	if !ok {
+		respondWithError(w, http.StatusBadRequest, "no height specified")
+		return
+	}
+	height, err := strconv.ParseUint(h, 10, 64)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "wrong height format"+err.Error())
+		return
+	}
+
+	blocks, err := s.db.GetBlocksAtHeight(height)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "failed to get blocks at height"+err.Error())
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, blocks)
+}
+
 func respondWithError(w http.ResponseWriter, code int, message string) {
 	respondWithJSON(w, code, map[string]string{"error": message})
 }
@@ -267,6 +290,7 @@ func respondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
 
 func (s *Server) initRoutes() {
 	s.router.HandleFunc("/blocks/signature/{sig:[a-zA-Z0-9]{88}}", s.getBlock).Methods("GET")
+	s.router.HandleFunc("/blocks/at/height/{height}", s.getBlocksAtHeight).Methods("GET")
 	s.router.HandleFunc("/nodes", s.getNodes).Methods("GET")
 	s.router.HandleFunc("/node/{addr}", s.getNode).Methods("GET")
 	s.router.HandleFunc("/nodes/verbose", s.getNodesVerbose).Methods("GET")
