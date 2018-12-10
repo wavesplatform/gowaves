@@ -33,10 +33,11 @@ type task struct {
 }
 
 type result struct {
-	height int
-	id     crypto.Signature
-	txs    []proto.ExchangeV1
-	error  error
+	height  int
+	id      crypto.Signature
+	trades  []Trade
+	updates []AssetUpdate
+	error   error
 }
 
 func (im *Importer) Import(n string) error {
@@ -85,20 +86,13 @@ func (im *Importer) Import(n string) error {
 				im.log.Errorf("Failed to collect transactions for block at height %d: %s", r.height, r.error.Error())
 				break
 			}
-			trades := make([]Trade, 0)
-			for _, tx := range r.txs {
-				if bytes.Equal(im.matcher[:], tx.SenderPK[:]) {
-					t := NewTradeFromExchangeV1(tx)
-					trades = append(trades, t)
-				}
-			}
-			err := im.storage.PutBlock(r.height, r.id, trades)
+			err := im.storage.PutBlock(r.height, r.id, r.trades, r.updates)
 			if err != nil {
 				im.log.Errorf("Failed to update storage: %s", err.Error())
 			}
-			c := len(r.txs)
+			c := len(r.trades)
 			total += c
-			th := total / 1000
+			th := total / 10000
 			if th > thousands {
 				im.log.Infof("Imported %d transactions so far", total)
 				thousands = th
@@ -177,7 +171,7 @@ func (im *Importer) worker(tasks <-chan task) <-chan result {
 
 	processTask := func(t task) result {
 		r := result{height: t.height, id: t.block.BlockSignature}
-		r.txs, r.error = im.extractTransactions(t.block.Transactions, t.block.TransactionCount)
+		r.trades, r.updates, r.error = im.extractTransactions(t.block.Transactions, t.block.TransactionCount)
 		return r
 	}
 
@@ -224,26 +218,119 @@ func (im *Importer) collect(channels ...<-chan result) <-chan result {
 	return multiplexedStream
 }
 
-func (im *Importer) extractTransactions(d []byte, n int) ([]proto.ExchangeV1, error) {
-	r := make([]proto.ExchangeV1, 0)
+func (im *Importer) extractTransactions(d []byte, n int) ([]Trade, []AssetUpdate, error) {
+	trades := make([]Trade, 0)
+	updates := make([]AssetUpdate, 0)
 	for i := 0; i < n; i++ {
 		s := int(binary.BigEndian.Uint32(d[0:4]))
-		txb := d[4:s]
-		if txb[0] == byte(proto.ExchangeTransaction) {
-			var tx proto.ExchangeV1
+		txb := d[4:s+4]
+		switch txb[0] {
+		case 0:
+			switch txb[1] {
+			case byte(proto.IssueTransaction):
+				var tx proto.IssueV2
+				err := tx.UnmarshalBinary(txb)
+				if err != nil {
+					return nil, nil, errors.Wrap(err, "failed to extract IssueV2 transactions")
+				}
+				u, err := AssetUpdateFromIssueV2(tx, im.storage.Scheme)
+				if err != nil {
+					return nil, nil, errors.Wrap(err, "failed to extract IssueV2 transactions")
+				}
+				updates = append(updates, u)
+			case byte(proto.ReissueTransaction):
+				var tx proto.ReissueV2
+				err := tx.UnmarshalBinary(txb)
+				if err != nil {
+					return nil, nil, errors.Wrap(err, "failed to extract ReissueV2 transactions")
+				}
+				u := AssetUpdateFromReissueV2(tx)
+				updates = append(updates, u)
+			case byte(proto.BurnTransaction):
+				var tx proto.BurnV2
+				err := tx.UnmarshalBinary(txb)
+				if err != nil {
+					return nil, nil, errors.Wrap(err, "failed to extract BurnV2 transactions")
+				}
+				u := AssetUpdateFromBurnV2(tx)
+				updates = append(updates, u)
+			case byte(proto.ExchangeTransaction):
+				var tx proto.ExchangeV2
+				err := tx.UnmarshalBinary(txb)
+				if err != nil {
+					return nil, nil, errors.Wrap(err, "failed to extract ExchangeV2 transactions")
+				}
+				if bytes.Equal(im.matcher[:], tx.SenderPK[:]) {
+					t, err := NewTradeFromExchangeV2(tx)
+					if err != nil {
+						return nil, nil, errors.Wrap(err, "failed to extract ExchangeV2 transaction")
+					}
+					trades = append(trades, t)
+				}
+			}
+		case byte(proto.IssueTransaction):
+			var tx proto.IssueV1
 			err := tx.UnmarshalBinary(txb)
 			if err != nil {
-				return nil, errors.Wrap(err, "failed to extract ExchangeV1 transactions")
+				return nil, nil, errors.Wrap(err, "failed to extract IssueV1 transactions")
 			}
 			if ok, err := tx.Verify(tx.SenderPK); !ok {
 				if err != nil {
-					return nil, errors.Wrap(err, "failed to verify ExchangeV1 transaction signature")
+					return nil, nil, errors.Wrap(err, "failed to verify IssueV1 transaction signature")
 				}
-				return nil, errors.Errorf("Transaction %s has invalid signature", tx.ID.String())
+				return nil, nil, errors.Errorf("Transaction %s has invalid signature", tx.ID.String())
 			}
-			r = append(r, tx)
+			u, err := AssetUpdateFromIssueV1(tx, im.storage.Scheme)
+			if err != nil {
+				return nil, nil, errors.Wrap(err, "failed to extract IssueV1 transaction")
+			}
+			updates = append(updates, u)
+		case byte(proto.ReissueTransaction):
+			var tx proto.ReissueV1
+			err := tx.UnmarshalBinary(txb)
+			if err != nil {
+				return nil, nil, errors.Wrap(err, "failed to extract ReissueV1 transactions")
+			}
+			if ok, err := tx.Verify(tx.SenderPK); !ok {
+				if err != nil {
+					return nil, nil, errors.Wrap(err, "failed to verify ReissueV1 transaction signature")
+				}
+				return nil, nil, errors.Errorf("Transaction %s has invalid signature", tx.ID.String())
+			}
+			u := AssetUpdateFromReissueV1(tx)
+			updates = append(updates, u)
+		case byte(proto.BurnTransaction):
+			var tx proto.BurnV1
+			err := tx.UnmarshalBinary(txb)
+			if err != nil {
+				return nil, nil, errors.Wrap(err, "failed to extract BurnV1 transactions")
+			}
+			if ok, err := tx.Verify(tx.SenderPK); !ok {
+				if err != nil {
+					return nil, nil, errors.Wrap(err, "failed to verify BurnV1 transaction signature")
+				}
+				return nil, nil, errors.Errorf("Transaction %s has invalid signature", tx.ID.String())
+			}
+			u := AssetUpdateFromBurnV1(tx)
+			updates = append(updates, u)
+		case byte(proto.ExchangeTransaction):
+			var tx proto.ExchangeV1
+			err := tx.UnmarshalBinary(txb)
+			if err != nil {
+				return nil, nil, errors.Wrap(err, "failed to extract ExchangeV1 transactions")
+			}
+			if ok, err := tx.Verify(tx.SenderPK); !ok {
+				if err != nil {
+					return nil, nil, errors.Wrap(err, "failed to verify ExchangeV1 transaction signature")
+				}
+				return nil, nil, errors.Errorf("Transaction %s has invalid signature", tx.ID.String())
+			}
+			if bytes.Equal(im.matcher[:], tx.SenderPK[:]) {
+				t := NewTradeFromExchangeV1(tx)
+				trades = append(trades, t)
+			}
 		}
 		d = d[4+s:]
 	}
-	return r, nil
+	return trades, updates, nil
 }

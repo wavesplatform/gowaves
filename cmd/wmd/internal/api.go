@@ -2,11 +2,23 @@ package internal
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
 	"go.uber.org/zap"
 	"net/http"
+	"strconv"
 	"time"
+)
+
+const (
+	amountAssetPlaceholder = "AmountAsset"
+	priceAssetPlaceholder  = "PriceAsset"
+	limitPlaceholder       = "Limit"
+	addressPlaceHolder     = "Address"
+	timeFramePlaceholder   = "TimeFrame"
+	fromPlaceholder        = "From"
+	toPlaceholder          = "To"
 )
 
 // Logger is a middleware that logs the start and end of each request, along
@@ -35,8 +47,13 @@ func Logger(l *zap.Logger) func(next http.Handler) http.Handler {
 }
 
 type DataFeedAPI struct {
+	log     *zap.SugaredLogger
 	Storage *Storage
 	Symbols *Symbols
+}
+
+func NewDataFeedAPI(log *zap.SugaredLogger, storage *Storage, symbols *Symbols) *DataFeedAPI {
+	return &DataFeedAPI{log: log, Storage: storage, Symbols: symbols}
 }
 
 func (a *DataFeedAPI) Routes() chi.Router {
@@ -45,11 +62,12 @@ func (a *DataFeedAPI) Routes() chi.Router {
 	r.Get("/symbols", a.GetSymbols)
 	r.Get("/markets", a.Markets)
 	r.Get("/tickers", a.Tickers)
-	r.Get("/ticker/{AmountAsset}/{PriceAsset}", a.Ticker)
-	r.Get("/trades/{AmountAsset}/{PriceAsset}/{limit}", a.LastTrades)
-	r.Get("/trades/{AmountAsset}/{PriceAsset}/{p1}/{p2}", a.Trades)
-	r.Get("/candles/{AmountAsset}/{PriceAsset}/{TimeFrame}/{limit}", a.LastCandles)
-	r.Get("/candles/{AmountAsset}/{PriceAsset}/{TimeFrame}/{from}/{to}", a.Candles)
+	r.Get(fmt.Sprintf("/ticker/{%s}/{%s}", amountAssetPlaceholder, priceAssetPlaceholder), a.Ticker)
+	r.Get(fmt.Sprintf("/trades/{%s}/{%s}/{%s}", amountAssetPlaceholder, priceAssetPlaceholder, limitPlaceholder), a.Trades)
+	r.Get(fmt.Sprintf("/trades/{%s}/{%s}/{%s:\\d+}/{%s:\\d+}", amountAssetPlaceholder, priceAssetPlaceholder, fromPlaceholder, toPlaceholder), a.TradesRange)
+	r.Get(fmt.Sprintf("/trades/{%s}/{%s}/{%s:[1-9A-Za-z]+}/{%s:\\d+}", amountAssetPlaceholder, priceAssetPlaceholder, addressPlaceHolder, limitPlaceholder), a.TradesByAddress)
+	r.Get(fmt.Sprintf("/candles/{%s}/{%s}/{%s:\\d+}/{%s:\\d+}", amountAssetPlaceholder, priceAssetPlaceholder, timeFramePlaceholder, limitPlaceholder), a.Candles)
+	r.Get(fmt.Sprintf("/candles/{%s}/{%s}/{%s:\\d+}/{%s:\\d+}/{%s:\\d+}", amountAssetPlaceholder, priceAssetPlaceholder, timeFramePlaceholder, fromPlaceholder, toPlaceholder), a.CandlesRange)
 	return r
 }
 
@@ -65,7 +83,10 @@ func (a *DataFeedAPI) GetSymbols(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	w.Write(js)
+	_, err = w.Write(js)
+	if err != nil {
+		a.log.Errorf("Failed to send reply: %s", err.Error())
+	}
 }
 
 func (a *DataFeedAPI) Markets(w http.ResponseWriter, r *http.Request) {
@@ -80,18 +101,103 @@ func (a *DataFeedAPI) Ticker(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func (a *DataFeedAPI) LastTrades(w http.ResponseWriter, r *http.Request) {
-
-}
-
 func (a *DataFeedAPI) Trades(w http.ResponseWriter, r *http.Request) {
+	aa := chi.URLParam(r, amountAssetPlaceholder)
+	amountAsset, err := a.Symbols.ParseTicker(aa)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Bad request: %s", err.Error()), http.StatusBadRequest)
+		return
+	}
+	pa := chi.URLParam(r, priceAssetPlaceholder)
+	priceAsset, err := a.Symbols.ParseTicker(pa)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Bad request: %s", err.Error()), http.StatusBadRequest)
+		return
+	}
+	limit, err := strconv.Atoi(chi.URLParam(r, limitPlaceholder))
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Bad request: %s", err.Error()), http.StatusBadRequest)
+		return
+	}
+	if limit < 1 || limit > 1000 {
+		http.Error(w, fmt.Sprintf("Bad request: %d is invalid limit value, allowed between 1 and 1000", limit), http.StatusBadRequest)
+		return
 
+	}
+	trades, err := a.Storage.TradeInfos(amountAsset, priceAsset, limit)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	js, err := json.Marshal(trades)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_, err = w.Write(js)
+	if err != nil {
+		a.log.Errorf("Failed to send reply: %s", err.Error())
+	}
 }
 
-func (a *DataFeedAPI) LastCandles(w http.ResponseWriter, r *http.Request) {
+func (a *DataFeedAPI) TradesRange(w http.ResponseWriter, r *http.Request) {
+	aa := chi.URLParam(r, amountAssetPlaceholder)
+	amountAsset, err := a.Symbols.ParseTicker(aa)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Bad request: %s", err.Error()), http.StatusBadRequest)
+		return
+	}
+	pa := chi.URLParam(r, priceAssetPlaceholder)
+	priceAsset, err := a.Symbols.ParseTicker(pa)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Bad request: %s", err.Error()), http.StatusBadRequest)
+		return
+	}
+	f, err := strconv.Atoi(chi.URLParam(r, fromPlaceholder))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+	}
+	t, err := strconv.Atoi(chi.URLParam(r, toPlaceholder))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+	}
+	trades, err := a.Storage.TradeInfosRange(amountAsset, priceAsset, uint64(f), uint64(t))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	js, err := json.Marshal(trades)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_, err = w.Write(js)
+	if err != nil {
+		a.log.Errorf("Failed to send reply: %s", err.Error())
+	}
+}
 
+func (a *DataFeedAPI) TradesByAddress(w http.ResponseWriter, r *http.Request) {
+	aa := chi.URLParam(r, amountAssetPlaceholder)
+	pa := chi.URLParam(r, priceAssetPlaceholder)
+	ad := chi.URLParam(r, addressPlaceHolder)
+	l, err := strconv.Atoi(chi.URLParam(r, limitPlaceholder))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+	}
+	a.log.Infof("TradesByAddress for %s/%s for %s with limit %d", aa, pa, ad, l)
+	_, err = w.Write([]byte("OK"))
+	if err != nil {
+		a.log.Errorf("Failed to send reply: %s", err.Error())
+	}
 }
 
 func (a *DataFeedAPI) Candles(w http.ResponseWriter, r *http.Request) {
+
+}
+
+func (a *DataFeedAPI) CandlesRange(w http.ResponseWriter, r *http.Request) {
 
 }

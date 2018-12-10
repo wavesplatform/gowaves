@@ -26,6 +26,7 @@ func main() {
 		address     = flag.String("address", ":6990", "Local network address to bind HTTP API of the service.")
 		db          = flag.String("db", "", "Path to data base.")
 		matcher     = flag.String("matcher", "7kPFrHDiGw1rCm7LPszuECwWYL3dMf6iMifLRDJQZMzy", "Matcher's public key in form of Base58 string.")
+		scheme      = flag.String("scheme", "W", "Blockchain scheme symbol. Defaults to 'W'.")
 		symbolsFile = flag.String("symbols", "", "Path to file of symbols substitutions.")
 		rollback    = flag.Int("rollback", 0, "The height to rollback to before importing file or staring synchronization.")
 	)
@@ -39,6 +40,11 @@ func main() {
 		}
 	}()
 
+	if len(*scheme) != 1 {
+		log.Fatalf("Incorrect blockchain scheme symbol '%s', expected one character.", *scheme)
+		shutdown()
+	}
+
 	_, err := url.Parse(*node)
 	if err != nil {
 		log.Errorf("Failed to parse node API address: %s", err.Error())
@@ -51,7 +57,7 @@ func main() {
 		log.Error("No data base path specified")
 		shutdown()
 	}
-	storage := internal.Storage{Path: *db}
+	storage := internal.Storage{Path: *db, Scheme: (*scheme)[0]}
 	err = storage.Open()
 	if err != nil {
 		log.Errorf("Failed to open storage: %s", err.Error())
@@ -103,7 +109,7 @@ func main() {
 		log.Errorf("Initial blockchain import failed: %s", err.Error())
 	}
 
-	df := internal.DataFeedAPI{Storage: &storage, Symbols: symbols}
+	df := internal.NewDataFeedAPI(log, &storage, symbols)
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)

@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/proto"
 	"os"
 	"sort"
 	"strings"
@@ -51,6 +52,22 @@ func (s *Symbols) All() []Substitution {
 	}
 	sort.Sort(BySymbols(r))
 	return r
+}
+
+func (s *Symbols) ParseTicker(ticker string) (crypto.Digest, error) {
+	ticker = strings.ToUpper(ticker)
+	if ticker == proto.WavesAssetName {
+		return crypto.Digest{}, nil
+	}
+	id, err := crypto.NewDigestFromBase58(ticker)
+	if err != nil {
+		id, ok := s.tickers[ticker]
+		if !ok {
+			return crypto.Digest{}, errors.Errorf("unknown ticker or invalid asset ID '%s'", ticker)
+		}
+		return id, nil
+	}
+	return id, nil
 }
 
 func ImportSymbols(name string) (*Symbols, error) {
