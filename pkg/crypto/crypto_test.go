@@ -250,3 +250,27 @@ func TestSecretKey_String(t *testing.T) {
 	require.Nil(t, err)
 	assert.Equal(t, k, secretKey.String())
 }
+
+func TestNewPublicKeyFromBytes(t *testing.T) {
+	pkStr := "J3pmMgPHKhaTdi74UENsEXfmetxjCGkYdqWW3rphowYa"
+	pk1, err := NewPublicKeyFromBase58(pkStr)
+	require.NoError(t, err)
+
+	pk2, err := NewPublicKeyFromBytes(pk1.Bytes())
+	require.NoError(t, err)
+
+	assert.Equal(t, pkStr, pk2.String())
+	assert.Equal(t, pkStr, pk1.String())
+}
+
+func TestNewSignatureFromBytes(t *testing.T) {
+	sig := "3eT3sT2zYGpsStNPzMCFosJrCjPzyBvMKWRKaD9vrGQwAourFddCjgKfoqQ4ZDkMU24KjK6bUfExjcB9UFkg1GEf"
+	s1, err := NewSignatureFromBase58(sig)
+	require.NoError(t, err)
+
+	s2, err := NewSignatureFromBytes(s1.Bytes())
+	require.NoError(t, err)
+
+	assert.Equal(t, sig, s2.String())
+	assert.Equal(t, sig, s1.String())
+}

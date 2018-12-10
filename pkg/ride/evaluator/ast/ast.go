@@ -22,7 +22,20 @@ func (a Exprs) Write(w io.Writer) {
 }
 
 func (a Exprs) Evaluate(s Scope) (Expr, error) {
-	return nil, errors.New("call Evaluate of Exprs")
+	return nil, errors.New("Exprs Evaluate")
+}
+
+func (a Exprs) Eval(s Scope) (Exprs, error) {
+	out := make(Exprs, len(a))
+	for i, row := range a {
+		rs, err := row.Evaluate(s.Clone())
+		if err != nil {
+			return nil, err
+		}
+		out[i] = rs
+	}
+
+	return out, nil
 }
 
 func (a Exprs) Eq(other Expr) (bool, error) {
@@ -151,7 +164,7 @@ type NativeFunction struct {
 	Argv       Exprs
 }
 
-func NewNativeFunction(id int16, argc int, argv []Expr) *NativeFunction {
+func NewNativeFunction(id int16, argc int, argv Exprs) *NativeFunction {
 	return &NativeFunction{
 		FunctionID: id,
 		Argc:       argc,
@@ -160,16 +173,19 @@ func NewNativeFunction(id int16, argc int, argv []Expr) *NativeFunction {
 }
 
 func (a *NativeFunction) Write(w io.Writer) {
-	fmt.Fprintf(w, "FUNCTION_%d(", a.FunctionID)
 
-	for i, arg := range a.Argv {
-		arg.Write(w)
-		if i < len(a.Argv)-1 {
-			fmt.Fprint(w, ", ")
-		}
-	}
+	writeNativeFunction(w, a.FunctionID, a.Argv)
 
-	fmt.Fprintf(w, ")")
+	//fmt.Fprintf(w, "FUNCTION_%d(", a.FunctionID)
+	//
+	//for i, arg := range a.Argv {
+	//	arg.Write(w)
+	//	if i < len(a.Argv)-1 {
+	//		fmt.Fprint(w, ", ")
+	//	}
+	//}
+	//
+	//fmt.Fprintf(w, ")")
 }
 
 func (a *NativeFunction) Evaluate(s Scope) (Expr, error) {

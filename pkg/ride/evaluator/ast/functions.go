@@ -3,20 +3,23 @@ package ast
 import (
 	"fmt"
 	"github.com/pkg/errors"
+	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"io"
 )
 
-func mapEval(e Exprs, s Scope) (Exprs, error) {
-	out := make(Exprs, len(e))
-	for i, row := range e {
-		rs, err := row.Evaluate(s.Clone())
-		if err != nil {
-			return nil, errors.Wrapf(err, "error evaluate %d param", i)
-		}
-		out[i] = rs
-	}
-
-	return out, nil
-}
+//
+//func mapEval(e Exprs, s Scope) (Exprs, error) {
+//	out := make(Exprs, len(e))
+//	for i, row := range e {
+//		rs, err := row.Evaluate(s.Clone())
+//		if err != nil {
+//			return nil, errors.Wrapf(err, "error evaluate %d param", i)
+//		}
+//		out[i] = rs
+//	}
+//
+//	return out, nil
+//}
 
 func NativeGtLong(s Scope, e Exprs) (Expr, error) {
 	return mathLong("NativeGtLong", func(i int64, i2 int64) Expr {
@@ -148,7 +151,7 @@ func mathLong(funcName string, f func(int64, int64) Expr, s Scope, e Exprs) (Exp
 		return nil, errors.Errorf("%s: invalid params, expected 2, passed %d", funcName, l)
 	}
 
-	rs, err := mapEval(e, s)
+	rs, err := e.Eval(s)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
@@ -166,12 +169,46 @@ func mathLong(funcName string, f func(int64, int64) Expr, s Scope, e Exprs) (Exp
 	return f(first.Value, second.Value), nil
 }
 
-func Native500(s Scope, e Exprs) (Expr, error) {
+// bytes
+// signature
+// public key
+func NativeSigVerify(s Scope, e Exprs) (Expr, error) {
+	if l := len(e); l != 3 {
+		return nil, errors.Errorf("NativeSigVerify: invalid params, expected 2, passed %d", l)
+	}
 
-	//e[0]
+	rs, err := e.Eval(s)
+	if err != nil {
+		return nil, errors.Wrap(err, "NativeSigVerify")
+	}
 
-	fmt.Printf("%T %T %T", e[0], e[1], e[2])
-	return NewBoolean(false), nil
+	bytesExpr, ok := rs[0].(*BytesExpr)
+	if !ok {
+		return nil, errors.Errorf("NativeSigVerify: first argument expects to be *BytesExpr, found %T", rs[0])
+	}
+
+	signatureExpr, ok := rs[1].(*BytesExpr)
+	if !ok {
+		return nil, errors.Errorf("NativeSigVerify: second argument expects to be *BytesExpr, found %T", rs[1])
+	}
+
+	pkExpr, ok := rs[2].(*BytesExpr)
+	if !ok {
+		return nil, errors.Errorf("NativeSigVerify: third argument expects to be *BytesExpr, found %T", rs[2])
+	}
+
+	pk, err := crypto.NewPublicKeyFromBytes(pkExpr.bytes)
+	if err != nil {
+		return nil, errors.Wrap(err, "NativeSigVerify")
+	}
+
+	signature, err := crypto.NewSignatureFromBytes(signatureExpr.bytes)
+	if err != nil {
+		return nil, errors.Wrap(err, "NativeSigVerify")
+	}
+
+	out := crypto.Verify(pk, signature, bytesExpr.bytes)
+	return NewBoolean(out), nil
 }
 
 func USER_THROW(s Scope, e Exprs) (Expr, error) {
@@ -199,4 +236,44 @@ func UserAddressFromString(s Scope, e Exprs) (Expr, error) {
 	}
 
 	return addr, nil
+}
+
+func writeNativeFunction(w io.Writer, id int16, e Exprs) {
+
+	switch id {
+	case 0:
+		e[0].Write(w)
+		fmt.Fprint(w, " == ")
+		e[1].Write(w)
+	case 103:
+		e[0].Write(w)
+		fmt.Fprint(w, " >= ")
+		e[1].Write(w)
+
+	case 401:
+		e[0].Write(w)
+		fmt.Fprint(w, "[")
+		e[1].Write(w)
+		fmt.Fprint(w, "]")
+	case 500:
+		fmt.Fprint(w, "sigVerify(")
+		e[0].Write(w)
+		fmt.Fprint(w, ", ")
+		e[1].Write(w)
+		fmt.Fprint(w, ", ")
+		e[2].Write(w)
+		fmt.Fprint(w, ")")
+	default:
+		fmt.Fprintf(w, "FUNCTION_%d(", id)
+
+		for i, arg := range e {
+			arg.Write(w)
+			if i < len(e)-1 {
+				fmt.Fprint(w, ", ")
+			}
+		}
+
+		fmt.Fprintf(w, ")")
+	}
+
 }

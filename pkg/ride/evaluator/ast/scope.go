@@ -88,7 +88,7 @@ func NewFuncScope() *FuncScope {
 	funcs[401] = NativeGetList
 
 	// TODO
-	funcs[500] = Native500
+	funcs[500] = NativeSigVerify
 
 	userFuncs := make(map[string]Callable)
 	userFuncs["throw"] = USER_THROW
