@@ -33,7 +33,7 @@ const (
 
 type Address [AddressSize]byte
 
-func (a *Address) String() string {
+func (a Address) String() string {
 	return base58.Encode(a[:])
 }
 
