@@ -3,6 +3,7 @@ package ast
 import (
 	"bytes"
 	"fmt"
+	"github.com/mr-tron/base58/base58"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"io"
@@ -159,7 +160,7 @@ func NewNativeFunction(id int16, argc int, argv []Expr) *NativeFunction {
 }
 
 func (a *NativeFunction) Write(w io.Writer) {
-	fmt.Fprintf(w, "FUNCTION(")
+	fmt.Fprintf(w, "FUNCTION_%d(", a.FunctionID)
 
 	for i, arg := range a.Argv {
 		arg.Write(w)
@@ -222,7 +223,14 @@ func (a *UserFunction) Eq(other Expr) (bool, error) {
 }
 
 type RefExpr struct {
-	Name string
+	Name   string
+	cached bool
+	cache  RefCache
+}
+
+type RefCache struct {
+	Expr Expr
+	Err  error
 }
 
 func (a *RefExpr) Write(w io.Writer) {
@@ -230,12 +238,25 @@ func (a *RefExpr) Write(w io.Writer) {
 }
 
 func (a *RefExpr) Evaluate(s Scope) (Expr, error) {
+
+	if a.cached {
+		return a.cache.Expr, a.cache.Err
+	}
+
 	expr, ok := s.Value(a.Name)
 	if !ok {
 		return nil, errors.Errorf("RefExpr evaluate: not found expr by name %s", a.Name)
 	}
 
-	return expr.Evaluate(s.Clone())
+	rs, err := expr.Evaluate(s.Clone())
+
+	a.cache = RefCache{
+		Expr: rs,
+		Err:  err,
+	}
+	a.cached = true
+
+	return a.cache.Expr, a.cache.Err
 }
 
 func (a *RefExpr) Eq(other Expr) (bool, error) {
@@ -257,9 +278,15 @@ func NewIf(cond, trueExpr, falseExpr Expr) *IfExpr {
 }
 
 func (a *IfExpr) Write(w io.Writer) {
+
+	fmt.Fprint(w, "if ( ")
+	a.Condition.Write(w)
+	fmt.Fprint(w, " ) { ")
 	a.True.Write(w)
-	fmt.Fprint(w, " || ")
+	fmt.Fprint(w, " } else { ")
 	a.False.Write(w)
+	fmt.Fprint(w, " }  ")
+
 }
 
 func (a *IfExpr) Evaluate(s Scope) (Expr, error) {
@@ -296,7 +323,7 @@ func NewBytes(b []byte) *BytesExpr {
 }
 
 func (a *BytesExpr) Write(w io.Writer) {
-	w.Write(a.bytes)
+	fmt.Fprint(w, "base58'", base58.Encode(a.bytes), "'")
 }
 
 func (a *BytesExpr) Evaluate(s Scope) (Expr, error) {

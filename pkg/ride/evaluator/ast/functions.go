@@ -1,6 +1,9 @@
 package ast
 
-import "github.com/pkg/errors"
+import (
+	"fmt"
+	"github.com/pkg/errors"
+)
 
 func mapEval(e Exprs, s Scope) (Exprs, error) {
 	out := make(Exprs, len(e))
@@ -161,6 +164,14 @@ func mathLong(funcName string, f func(int64, int64) Expr, s Scope, e Exprs) (Exp
 	}
 
 	return f(first.Value, second.Value), nil
+}
+
+func Native500(s Scope, e Exprs) (Expr, error) {
+
+	//e[0]
+
+	fmt.Printf("%T %T %T", e[0], e[1], e[2])
+	return NewBoolean(false), nil
 }
 
 func USER_THROW(s Scope, e Exprs) (Expr, error) {

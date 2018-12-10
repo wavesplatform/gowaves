@@ -72,13 +72,19 @@ func TestEval(t *testing.T) {
 }
 
 func BenchmarkEval(b *testing.B) {
-	base64 := "AQQAAAABeAkBAAAAEWFkZHJlc3NGcm9tU3RyaW5nAAAAAQIAAAAjM1BKYUR5cHJ2ZWt2UFhQdUF0eHJhcGFjdURKb3BnSlJhVTMEAAAAAXkFAAAAAXgJAAAAAAAAAgUAAAABeAUAAAABeUI01Gg="
+	base64 := "AQQAAAABeAkBAAAAEWFkZHJlc3NGcm9tU3RyaW5nAAAAAQIAAAAjM1BKYUR5cHJ2ZWt2UFhQdUF0eHJhcGFjdURKb3BnSlJhVTMEAAAAAWEFAAAAAXgEAAAAAWIFAAAAAWEEAAAAAWMFAAAAAWIEAAAAAWQFAAAAAWMEAAAAAWUFAAAAAWQEAAAAAWYFAAAAAWUJAAAAAAAAAgUAAAABZgUAAAABZS5FHzs="
 	_ = `
 let x = addressFromString("3PJaDyprvekvPXPuAtxrapacuDJopgJRaU3")
 
-let y = x
+let a = x
+let b = a
+let c = b
+let d = c
+let e = d
+let f = e
 
-x == y
+f == e
+
 `
 
 	s := defaultScope()
@@ -90,9 +96,5 @@ x == y
 		e, _ := BuildAst(r)
 		b.StartTimer()
 		_, _ = Eval(e, s)
-		//if err != nil {
-		//	panic(err)
-		//}
 	}
-
 }

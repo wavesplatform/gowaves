@@ -87,6 +87,9 @@ func NewFuncScope() *FuncScope {
 
 	funcs[401] = NativeGetList
 
+	// TODO
+	funcs[500] = Native500
+
 	userFuncs := make(map[string]Callable)
 	userFuncs["throw"] = USER_THROW
 	userFuncs["addressFromString"] = UserAddressFromString
