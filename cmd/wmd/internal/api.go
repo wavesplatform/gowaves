@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
+	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
 	"net/http"
 	"strconv"
@@ -181,14 +182,45 @@ func (a *DataFeedAPI) TradesRange(w http.ResponseWriter, r *http.Request) {
 
 func (a *DataFeedAPI) TradesByAddress(w http.ResponseWriter, r *http.Request) {
 	aa := chi.URLParam(r, amountAssetPlaceholder)
-	pa := chi.URLParam(r, priceAssetPlaceholder)
-	ad := chi.URLParam(r, addressPlaceHolder)
-	l, err := strconv.Atoi(chi.URLParam(r, limitPlaceholder))
+	amountAsset, err := a.Symbols.ParseTicker(aa)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("Bad request: %s", err.Error()), http.StatusBadRequest)
+		return
 	}
-	a.log.Infof("TradesByAddress for %s/%s for %s with limit %d", aa, pa, ad, l)
-	_, err = w.Write([]byte("OK"))
+	pa := chi.URLParam(r, priceAssetPlaceholder)
+	priceAsset, err := a.Symbols.ParseTicker(pa)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Bad request: %s", err.Error()), http.StatusBadRequest)
+		return
+	}
+	limit, err := strconv.Atoi(chi.URLParam(r, limitPlaceholder))
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Bad request: %s", err.Error()), http.StatusBadRequest)
+		return
+	}
+	if limit < 1 || limit > 1000 {
+		http.Error(w, fmt.Sprintf("Bad request: %d is invalid limit value, allowed between 1 and 1000", limit), http.StatusBadRequest)
+		return
+
+	}
+	ad := chi.URLParam(r, addressPlaceHolder)
+	address, err := proto.NewAddressFromString(ad)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Bad request: %s", err.Error()), http.StatusBadRequest)
+		return
+	}
+	trades, err := a.Storage.TradeInfosByAddress(amountAsset, priceAsset, address, limit)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	js, err := json.Marshal(trades)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_, err = w.Write(js)
 	if err != nil {
 		a.log.Errorf("Failed to send reply: %s", err.Error())
 	}
