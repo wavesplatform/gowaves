@@ -1,7 +1,8 @@
-package ast
+package parser
 
 import (
 	"github.com/pkg/errors"
+	. "github.com/wavesplatform/gowaves/pkg/ride/evaluator/ast"
 	. "github.com/wavesplatform/gowaves/pkg/ride/evaluator/reader"
 )
 

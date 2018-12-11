@@ -13,6 +13,12 @@ const InstanceFieldName = "$instance"
 
 var ErrThrow = errors.New("throw")
 
+type Expr interface {
+	Write(io.Writer)
+	Evaluate(Scope) (Expr, error)
+	Eq(Expr) (bool, error)
+}
+
 type Exprs []Expr
 
 func (a Exprs) Write(w io.Writer) {
