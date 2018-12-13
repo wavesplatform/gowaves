@@ -3,48 +3,17 @@ package internal
 import (
 	"encoding/binary"
 	"github.com/pkg/errors"
-	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"math/big"
 )
 
 const (
-	CandleKeySize = 2*crypto.DigestSize + 8
-	CandleSize    = 6 * 8
-	Second        = 1000
-	Minute        = 60 * Second
-	TimeFrame     = 5 * Minute
-	Hour          = 60 * Minute
-	Day           = 24 * Hour
+	CandleSize = 8 * 8
+	Second     = 1000
+	Minute     = 60 * Second
+	TimeFrame  = 5 * Minute
+	Hour       = 60 * Minute
+	Day        = 24 * Hour
 )
-
-type CandleKey struct {
-	AmountAsset crypto.Digest
-	PriceAsset  crypto.Digest
-	TimeFrame   uint64
-}
-
-func (k *CandleKey) MarshalBinary() ([]byte, error) {
-	buf := make([]byte, CandleKeySize)
-	p := 0
-	copy(buf[p:], k.AmountAsset[:])
-	p += crypto.DigestSize
-	copy(buf[p:], k.PriceAsset[:])
-	p += crypto.DigestSize
-	binary.BigEndian.PutUint64(buf[p:], k.TimeFrame)
-	return buf, nil
-}
-
-func (k *CandleKey) UnmarshalBinary(data []byte) error {
-	if l := len(data); l < CandleKeySize {
-		return errors.Errorf("%d bytes is not enough data for CandleKey, expected %d", l, CandleKeySize)
-	}
-	copy(k.AmountAsset[:], data[:crypto.DigestSize])
-	data = data[crypto.DigestSize:]
-	copy(k.PriceAsset[:], data[:crypto.DigestSize])
-	data = data[crypto.DigestSize:]
-	k.TimeFrame = binary.BigEndian.Uint64(data)
-	return nil
-}
 
 type Candle struct {
 	Open         uint64
@@ -63,11 +32,11 @@ func NewCandle(ts uint64) Candle {
 }
 
 func (c *Candle) UpdateFromTrade(t Trade) {
-	if t.Timestamp < c.minTimestamp {
+	if c.minTimestamp == 0 || t.Timestamp < c.minTimestamp {
 		c.Open = t.Price
 		c.minTimestamp = t.Timestamp
 	}
-	if t.Timestamp > c.maxTimestamp {
+	if c.maxTimestamp == 0 || t.Timestamp > c.maxTimestamp {
 		c.Close = t.Price
 		c.maxTimestamp = t.Timestamp
 	}
@@ -108,6 +77,45 @@ func (c *Candle) UpdateFromTrade(t Trade) {
 	}
 }
 
+func (c *Candle) Combine(x Candle) {
+	if c.minTimestamp == 0 || x.minTimestamp < c.minTimestamp {
+		c.Open = x.Open
+		c.minTimestamp = x.minTimestamp
+	}
+	if x.maxTimestamp > c.maxTimestamp {
+		c.Close = x.Close
+		c.maxTimestamp = x.maxTimestamp
+	}
+	if x.High > c.High {
+		c.High = x.High
+	}
+	if c.Low == 0 || x.Low < c.Low {
+		c.Low = x.Low
+	}
+	if x.Volume > 0 {
+		var a1 big.Int
+		var v1 big.Int
+		var a2 big.Int
+		var v2 big.Int
+		a1.SetUint64(c.Average)
+		v1.SetUint64(c.Volume)
+		a2.SetUint64(x.Average)
+		v2.SetUint64(x.Volume)
+		var tv big.Int
+		tv.Add(&v1, &v2)
+		var a1v1 big.Int
+		a1v1.Mul(&a1, &v1)
+		var a2v2 big.Int
+		a2v2.Mul(&a2, &v2)
+		var s big.Int
+		s.Add(&a1v1, &a2v2)
+		var r big.Int
+		r.Div(&s, &tv)
+		c.Average = r.Uint64()
+		c.Volume = tv.Uint64()
+	}
+}
+
 func (c *Candle) MarshalBinary() ([]byte, error) {
 	buf := make([]byte, CandleSize)
 	p := 0
@@ -122,6 +130,10 @@ func (c *Candle) MarshalBinary() ([]byte, error) {
 	binary.BigEndian.PutUint64(buf[p:], c.Average)
 	p += 8
 	binary.BigEndian.PutUint64(buf[p:], c.Volume)
+	p += 8
+	binary.BigEndian.PutUint64(buf[p:], c.minTimestamp)
+	p += 8
+	binary.BigEndian.PutUint64(buf[p:], c.maxTimestamp)
 	return buf, nil
 }
 
@@ -140,6 +152,10 @@ func (c *Candle) UnmarshalBinary(data []byte) error {
 	c.Average = binary.BigEndian.Uint64(data)
 	data = data[8:]
 	c.Volume = binary.BigEndian.Uint64(data)
+	data = data[8:]
+	c.minTimestamp = binary.BigEndian.Uint64(data)
+	data = data[8:]
+	c.maxTimestamp = binary.BigEndian.Uint64(data)
 	return nil
 }
 

@@ -8,14 +8,20 @@ import (
 )
 
 const (
-	AssetInfoSize = crypto.DigestSize + 1 + 1 + proto.AddressSize + 2
+	AssetInfoSize = crypto.DigestSize + 1 + 1 + crypto.PublicKeySize + 2
 	AssetDiffSize = 1 + 1 + 8 + 8
+)
+
+var (
+	wavesID        = crypto.Digest{}
+	lastID         = crypto.Digest{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff}
+	wavesAssetInfo = AssetInfo{ID: wavesID, Name: "WAVES", Issuer: crypto.PublicKey{}, Decimals: 8, Reissuable: false}
 )
 
 type AssetInfo struct {
 	ID         crypto.Digest
 	Name       string
-	Issuer     proto.Address
+	Issuer     crypto.PublicKey
 	Decimals   uint8
 	Reissuable bool
 }
@@ -28,7 +34,7 @@ func (a *AssetInfo) marshalBinary() []byte {
 	proto.PutStringWithUInt16Len(buf[p:], a.Name)
 	p += 2 + len(a.Name)
 	copy(buf[p:], a.Issuer[:])
-	p += proto.AddressSize
+	p += crypto.PublicKeySize
 	buf[p] = a.Decimals
 	p++
 	proto.PutBool(buf[p:], a.Reissuable)
@@ -47,11 +53,8 @@ func (a *AssetInfo) unmarshalBinary(data []byte) error {
 	}
 	a.Name = s
 	data = data[2+len(s):]
-	copy(a.Issuer[:], data[:proto.AddressSize])
-	if ok, _ := a.Issuer.Validate(); !ok {
-		return errors.New("invalid Issuer address")
-	}
-	data = data[proto.AddressSize:]
+	copy(a.Issuer[:], data[:crypto.PublicKeySize])
+	data = data[crypto.PublicKeySize:]
 	a.Decimals = data[0]
 	data = data[1:]
 	a.Reissuable, err = proto.Bool(data)
@@ -105,24 +108,16 @@ func (d *AssetDiff) unmarshalBinary(data []byte) error {
 	return nil
 }
 
-func AssetUpdateFromIssueV1(tx proto.IssueV1, scheme byte) (AssetUpdate, error) {
-	ad, err := proto.NewAddressFromPublicKey(scheme, tx.SenderPK)
-	if err != nil {
-		return AssetUpdate{}, err
-	}
-	info := AssetInfo{ID: *tx.ID, Name: tx.Name, Issuer: ad, Decimals: tx.Decimals, Reissuable: tx.Reissuable}
+func AssetUpdateFromIssueV1(tx proto.IssueV1) AssetUpdate {
+	info := AssetInfo{ID: *tx.ID, Name: tx.Name, Issuer: tx.SenderPK, Decimals: tx.Decimals, Reissuable: tx.Reissuable}
 	diff := AssetDiff{Created: true, Disabled: !tx.Reissuable, Issued: tx.Quantity}
-	return AssetUpdate{Info: info, Diff: diff}, nil
+	return AssetUpdate{Info: info, Diff: diff}
 }
 
-func AssetUpdateFromIssueV2(tx proto.IssueV2, scheme byte) (AssetUpdate, error) {
-	ad, err := proto.NewAddressFromPublicKey(scheme, tx.SenderPK)
-	if err != nil {
-		return AssetUpdate{}, err
-	}
-	info := AssetInfo{ID: *tx.ID, Name: tx.Name, Issuer: ad, Decimals: tx.Decimals, Reissuable: tx.Reissuable}
+func AssetUpdateFromIssueV2(tx proto.IssueV2) AssetUpdate {
+	info := AssetInfo{ID: *tx.ID, Name: tx.Name, Issuer: tx.SenderPK, Decimals: tx.Decimals, Reissuable: tx.Reissuable}
 	diff := AssetDiff{Created: true, Disabled: !tx.Reissuable, Issued: tx.Quantity}
-	return AssetUpdate{Info: info, Diff: diff}, nil
+	return AssetUpdate{Info: info, Diff: diff}
 }
 
 func AssetUpdateFromReissueV1(tx proto.ReissueV1) AssetUpdate {
@@ -139,4 +134,10 @@ func AssetUpdateFromBurnV1(tx proto.BurnV1) AssetUpdate {
 
 func AssetUpdateFromBurnV2(tx proto.BurnV2) AssetUpdate {
 	return AssetUpdate{Info: AssetInfo{ID: tx.AssetID}, Diff: AssetDiff{Burned: tx.Amount}}
+}
+
+type BalanceDiff struct {
+	pk     crypto.PublicKey
+	asset  crypto.Digest
+	change int64
 }

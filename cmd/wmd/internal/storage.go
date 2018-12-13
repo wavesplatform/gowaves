@@ -11,6 +11,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"math"
+	"time"
 )
 
 const (
@@ -18,13 +19,17 @@ const (
 	BlockAtHeightKeyPrefix
 	TradesKeyPrefix
 	CandlesKeyPrefix
+	CandlesSecondKeyPrefix
 	BlockTradesKeyPrefix
 	EarliestHeightKeyPrefix
 	PairTradesKeyPrefix
-	PairAddressKeyPrefix
+	PairPublicKeyTradesKeyPrefix
 	AssetInfoKeyPrefix
 	AssetStateKeyPrefix
 	AssetDiffsKeyPrefix
+	PublicKeyToAddressKeyPrefix
+	AddressToPublicKeyKeyPrefix
+	MarketsKeyPrefix
 )
 
 const (
@@ -37,35 +42,67 @@ var (
 	lastHeightKey       = []byte{LastHeightKeyPrefix}
 )
 
+type pairKey struct {
+	prefix      byte
+	amountAsset crypto.Digest
+	priceAsset  crypto.Digest
+}
+
+func (k pairKey) bytes() []byte {
+	buf := make([]byte, 1+2*crypto.DigestSize)
+	buf[0] = k.prefix
+	copy(buf[1:], k.amountAsset[:])
+	copy(buf[1+crypto.DigestSize:], k.priceAsset[:])
+	return buf
+}
+
 type pairTimestampKey struct {
+	prefix      byte
 	amountAsset crypto.Digest
 	priceAsset  crypto.Digest
 	ts          uint64
 }
 
 func (k pairTimestampKey) bytes() []byte {
-	buf := make([]byte, 1+crypto.DigestSize+crypto.DigestSize+8)
-	buf[0] = PairTradesKeyPrefix
+	buf := make([]byte, 1+2*crypto.DigestSize+8)
+	buf[0] = k.prefix
 	copy(buf[1:], k.amountAsset[:])
 	copy(buf[1+crypto.DigestSize:], k.priceAsset[:])
 	binary.BigEndian.PutUint64(buf[1+2*crypto.DigestSize:], k.ts)
 	return buf
 }
 
-type pairAddressTimestampKey struct {
+type pairPublicKeyTimestampKey struct {
+	prefix      byte
 	amountAsset crypto.Digest
 	priceAsset  crypto.Digest
-	address     proto.Address
+	pk          crypto.PublicKey
 	ts          uint64
 }
 
-func (k pairAddressTimestampKey) bytes() []byte {
-	buf := make([]byte, 1+2*crypto.DigestSize+proto.AddressSize+8)
-	buf[0] = PairAddressKeyPrefix
+func (k pairPublicKeyTimestampKey) bytes() []byte {
+	buf := make([]byte, 1+2*crypto.DigestSize+crypto.PublicKeySize+8)
+	buf[0] = k.prefix
 	copy(buf[1:], k.amountAsset[:])
 	copy(buf[1+crypto.DigestSize:], k.priceAsset[:])
-	copy(buf[1+2*crypto.DigestSize:], k.address[:])
-	binary.BigEndian.PutUint64(buf[1+2*crypto.DigestSize+proto.AddressSize:], k.ts)
+	copy(buf[1+2*crypto.DigestSize:], k.pk[:])
+	binary.BigEndian.PutUint64(buf[1+2*crypto.DigestSize+crypto.PublicKeySize:], k.ts)
+	return buf
+}
+
+type timestampPairKey struct {
+	prefix      byte
+	ts          uint64
+	amountAsset crypto.Digest
+	priceAsset  crypto.Digest
+}
+
+func (k timestampPairKey) bytes() []byte {
+	buf := make([]byte, 1+8+2*crypto.DigestSize)
+	buf[0] = k.prefix
+	binary.BigEndian.PutUint64(buf[1:], k.ts)
+	copy(buf[1+8:], k.amountAsset[:])
+	copy(buf[1+8+crypto.DigestSize:], k.priceAsset[:])
 	return buf
 }
 
@@ -195,11 +232,6 @@ func (s *Storage) GetLastHeight() (int, error) {
 	return int(binary.BigEndian.Uint32(v)), nil
 }
 
-var (
-	wavesID        = *(new(crypto.Digest))
-	wavesAssetInfo = AssetInfo{ID: wavesID, Name: "WAVES", Issuer: *(new(proto.Address)), Decimals: 8, Reissuable: false}
-)
-
 func (s *Storage) readAssetInfo(asset crypto.Digest) (*AssetInfo, error) {
 	if bytes.Equal(asset[:], wavesID[:]) {
 		return &wavesAssetInfo, nil
@@ -229,17 +261,9 @@ func (s *Storage) readTrade(id crypto.Digest) (*Trade, error) {
 	return &t, nil
 }
 
-func (s *Storage) TradeInfos(amountAsset, priceAsset crypto.Digest, limit int) ([]TradeInfo, error) {
-	aa, err := s.readAssetInfo(amountAsset)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to load trades")
-	}
-	pa, err := s.readAssetInfo(priceAsset)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to load trades")
-	}
-	sk := pairTimestampKey{amountAsset, priceAsset, 0}
-	ek := pairTimestampKey{amountAsset, priceAsset, math.MaxUint64}
+func (s *Storage) Trades(amountAsset, priceAsset crypto.Digest, limit int) ([]Trade, error) {
+	sk := pairTimestampKey{PairTradesKeyPrefix, amountAsset, priceAsset, 0}
+	ek := pairTimestampKey{PairTradesKeyPrefix, amountAsset, priceAsset, math.MaxUint64}
 	it := s.db.NewIterator(&ldbUtil.Range{Start: sk.bytes(), Limit: ek.bytes()}, defaultReadOptions)
 	c := 0
 	var trades []Trade
@@ -270,108 +294,126 @@ func (s *Storage) TradeInfos(amountAsset, priceAsset crypto.Digest, limit int) (
 			}
 		}
 	}
-	return convertToTradesInfosAndReverse(trades, s.Scheme, aa.Decimals, pa.Decimals)
+	return trades, nil
 }
 
-func convertToTradesInfosAndReverse(trades []Trade, scheme byte, amountAssetDecimals, priceAssetDecimals byte) ([]TradeInfo, error) {
-	var r []TradeInfo
-	//for i := len(trades) - 1; i >= 0; i-- {
-	for i := 0; i < len(trades); i++ {
-		ti, err := NewTradeInfo(trades[i], scheme, uint(amountAssetDecimals), uint(priceAssetDecimals))
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to load trades")
+func (s *Storage) TradeInfosRange(amountAsset, priceAsset crypto.Digest, from, to uint64) ([]Trade, error) {
+	sk := pairTimestampKey{PairTradesKeyPrefix, amountAsset, priceAsset, from}
+	ek := pairTimestampKey{PairTradesKeyPrefix, amountAsset, priceAsset, to + 1}
+	it := s.db.NewIterator(&ldbUtil.Range{Start: sk.bytes(), Limit: ek.bytes()}, defaultReadOptions)
+	c := 0
+	var trades []Trade
+	if it.Last() {
+		for {
+			if c >= defaultTradesLimit {
+				break
+			}
+			b := it.Value()
+			var ids digests
+			err := ids.unmarshalBinary(b)
+			if err != nil {
+				return nil, errors.Wrap(err, "failed to load trades")
+			}
+			for _, id := range ids {
+				t, err := s.readTrade(id)
+				if err != nil {
+					return nil, errors.Wrap(err, "failed to load trades")
+				}
+				if c == defaultTradesLimit {
+					break
+				}
+				trades = append(trades, *t)
+				c++
+			}
+			if !it.Prev() {
+				break
+			}
 		}
-		r = append(r, *ti)
+	}
+	return trades, nil
+}
+
+func (s *Storage) TradesByPublicKey(amountAsset, priceAsset crypto.Digest, pk crypto.PublicKey, limit int) ([]Trade, error) {
+	sk := pairPublicKeyTimestampKey{PairPublicKeyTradesKeyPrefix, amountAsset, priceAsset, pk, 0}
+	ek := pairPublicKeyTimestampKey{PairPublicKeyTradesKeyPrefix, amountAsset, priceAsset, pk, math.MaxUint64}
+	it := s.db.NewIterator(&ldbUtil.Range{Start: sk.bytes(), Limit: ek.bytes()}, defaultReadOptions)
+	c := 0
+	var trades []Trade
+	if it.Last() {
+		for {
+			if c >= defaultTradesLimit {
+				break
+			}
+			b := it.Value()
+			var ids digests
+			err := ids.unmarshalBinary(b)
+			if err != nil {
+				return nil, errors.Wrap(err, "failed to load trades")
+			}
+			for _, id := range ids {
+				t, err := s.readTrade(id)
+				if err != nil {
+					return nil, errors.Wrap(err, "failed to load trades")
+				}
+				if c == defaultTradesLimit {
+					break
+				}
+				trades = append(trades, *t)
+				c++
+			}
+			if !it.Prev() {
+				break
+			}
+		}
+	}
+	return trades, nil
+}
+
+func (s *Storage) DayCandle(amountAsset, priceAsset crypto.Digest) (Candle, error) {
+	stop := (time.Now().Unix() / 300) * 300
+	start := stop - 288*300
+	cs, err := s.candles(amountAsset, priceAsset, uint64(start*1000), uint64(stop*1000))
+	if err != nil {
+		return Candle{}, errors.Wrap(err, "failed to build DayCandle")
+	}
+	var r Candle
+	for _, c := range cs {
+		r.Combine(c)
 	}
 	return r, nil
 }
 
-func (s *Storage) TradeInfosRange(amountAsset, priceAsset crypto.Digest, from, to uint64) ([]TradeInfo, error) {
-	aa, err := s.readAssetInfo(amountAsset)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to load trades")
-	}
-	pa, err := s.readAssetInfo(priceAsset)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to load trades")
-	}
-	sk := pairTimestampKey{amountAsset, priceAsset, from}
-	ek := pairTimestampKey{amountAsset, priceAsset, to + 1}
+func (s *Storage) candles(amountAsset, priceAsset crypto.Digest, start, stop uint64) ([]Candle, error) {
+	sk := pairTimestampKey{CandlesSecondKeyPrefix, amountAsset, priceAsset, start}
+	ek := pairTimestampKey{CandlesSecondKeyPrefix, amountAsset, priceAsset, stop}
+	r := make([]Candle, 0)
 	it := s.db.NewIterator(&ldbUtil.Range{Start: sk.bytes(), Limit: ek.bytes()}, defaultReadOptions)
-	c := 0
-	var trades []Trade
-	if it.Last() {
-		for {
-			if c >= defaultTradesLimit {
-				break
-			}
-			b := it.Value()
-			var ids digests
-			err := ids.unmarshalBinary(b)
-			if err != nil {
-				return nil, errors.Wrap(err, "failed to load trades")
-			}
-			for _, id := range ids {
-				t, err := s.readTrade(id)
-				if err != nil {
-					return nil, errors.Wrap(err, "failed to load trades")
-				}
-				if c == defaultTradesLimit {
-					break
-				}
-				trades = append(trades, *t)
-				c++
-			}
-			if !it.Prev() {
-				break
-			}
+	var c Candle
+	for it.Next() {
+		k := it.Value()
+		b, err := s.db.Get(k, defaultReadOptions)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to collect candles")
 		}
+		err = c.UnmarshalBinary(b)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to collect candles")
+		}
+		r = append(r, c)
 	}
-	return convertToTradesInfosAndReverse(trades, s.Scheme, aa.Decimals, pa.Decimals)
+	return r, nil
 }
 
-func (s *Storage) TradeInfosByAddress(amountAsset, priceAsset crypto.Digest, address proto.Address, limit int) ([]TradeInfo, error) {
-	aa, err := s.readAssetInfo(amountAsset)
+func (s *Storage) PublicKey(address proto.Address) (crypto.PublicKey, error) {
+	b, err := s.db.Get(addressKey(AddressToPublicKeyKeyPrefix, address), defaultReadOptions)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to load trades")
+		return crypto.PublicKey{}, errors.Wrap(err, "failed to find PublicKey for Address")
 	}
-	pa, err := s.readAssetInfo(priceAsset)
+	pk, err := crypto.NewPublicKeyFromBytes(b)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to load trades")
+		return crypto.PublicKey{}, errors.Wrap(err, "failed to find PublicKey for Address")
 	}
-	sk := pairAddressTimestampKey{amountAsset, priceAsset, address, 0}
-	ek := pairAddressTimestampKey{amountAsset, priceAsset, address, math.MaxUint64}
-	it := s.db.NewIterator(&ldbUtil.Range{Start: sk.bytes(), Limit: ek.bytes()}, defaultReadOptions)
-	c := 0
-	var trades []Trade
-	if it.Last() {
-		for {
-			if c >= defaultTradesLimit {
-				break
-			}
-			b := it.Value()
-			var ids digests
-			err := ids.unmarshalBinary(b)
-			if err != nil {
-				return nil, errors.Wrap(err, "failed to load trades")
-			}
-			for _, id := range ids {
-				t, err := s.readTrade(id)
-				if err != nil {
-					return nil, errors.Wrap(err, "failed to load trades")
-				}
-				if c == defaultTradesLimit {
-					break
-				}
-				trades = append(trades, *t)
-				c++
-			}
-			if !it.Prev() {
-				break
-			}
-		}
-	}
-	return convertToTradesInfosAndReverse(trades, s.Scheme, aa.Decimals, pa.Decimals)
+	return pk, nil
 }
 
 func (s *Storage) ShouldImportBlock(height int, block crypto.Signature) (bool, error) {
@@ -399,6 +441,28 @@ func (s *Storage) ShouldImportBlock(height int, block crypto.Signature) (bool, e
 		return false, errors.Wrapf(err, "failed to Rollback to height %d", height-1)
 	}
 	return true, nil
+}
+
+func (s *Storage) Markets() (map[MarketID]MarketData, error) {
+	sk := pairKey{MarketsKeyPrefix, wavesID, wavesID}
+	ek := pairKey{MarketsKeyPrefix, lastID, lastID}
+	it := s.db.NewIterator(&ldbUtil.Range{Start: sk.bytes(), Limit: ek.bytes()}, defaultReadOptions)
+	r := make(map[MarketID]MarketData, 0)
+	for it.Next() {
+		k := it.Key()
+		var m MarketID
+		err := m.UnmarshalBinary(k[1:])
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to collect markets")
+		}
+		var md MarketData
+		err = md.UnmarshalBinary(it.Value())
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to collect markets")
+		}
+		r[m] = md
+	}
+	return r, nil
 }
 
 func (s *Storage) loadAssetStates(updates []AssetUpdate) (map[crypto.Digest]AssetState, error) {
@@ -456,23 +520,19 @@ func (s *Storage) PutBlock(height int, block crypto.Signature, trades []Trade, a
 		return wrapError(err)
 	}
 
-	candles := map[CandleKey]Candle{}
-
+	candles := map[timestampPairKey]Candle{}
+	markets := map[pairKey]MarketData{}
 	affectedTimeFrames := make([]uint64, 0)
 	for _, t := range trades {
 		tf := timeFrame(t.Timestamp)
 		if !contains(affectedTimeFrames, tf) {
 			affectedTimeFrames = append(affectedTimeFrames, tf)
 		}
-		ck := CandleKey{t.AmountAsset, t.PriceAsset, tf}
+		ck := timestampPairKey{CandlesKeyPrefix, tf, t.AmountAsset, t.PriceAsset}
 		var c Candle
 		c, ok := candles[ck]
 		if !ok {
-			ckb, err := ck.MarshalBinary()
-			if err != nil {
-				return wrapError(err)
-			}
-			cb, err := s.db.Get(ckb, defaultReadOptions)
+			cb, err := s.db.Get(ck.bytes(), defaultReadOptions)
 			if err != nil {
 				if err != ldbErrors.ErrNotFound {
 					return wrapError(err)
@@ -487,6 +547,24 @@ func (s *Storage) PutBlock(height int, block crypto.Signature, trades []Trade, a
 		}
 		c.UpdateFromTrade(t)
 		candles[ck] = c
+		mk := pairKey{MarketsKeyPrefix, t.AmountAsset, t.PriceAsset}
+		m, ok := markets[mk]
+		if !ok {
+			mb, err := s.db.Get(mk.bytes(), defaultReadOptions)
+			if err != nil {
+				if err != ldbErrors.ErrNotFound {
+					return wrapError(err)
+				}
+				m = MarketData{}
+			} else {
+				err = m.UnmarshalBinary(mb)
+				if err != nil {
+					return wrapError(err)
+				}
+			}
+		}
+		m.UpdateFromTrade(t)
+		markets[mk] = m
 	}
 
 	batch := new(leveldb.Batch)
@@ -514,15 +592,21 @@ func (s *Storage) PutBlock(height int, block crypto.Signature, trades []Trade, a
 		batch.Put(k1, v1)
 	}
 	for ck, cv := range candles {
-		k, err := ck.MarshalBinary()
-		if err != nil {
-			return wrapError(err)
-		}
 		v, err := cv.MarshalBinary()
 		if err != nil {
 			return wrapError(err)
 		}
-		batch.Put(k, v)
+		ckb := ck.bytes()
+		batch.Put(ckb, v)
+		ck2 := pairTimestampKey{CandlesSecondKeyPrefix, ck.amountAsset, ck.priceAsset, ck.ts}
+		batch.Put(ck2.bytes(), ckb)
+	}
+	for mk, mv := range markets {
+		vb, err := mv.MarshalBinary()
+		if err != nil {
+			return wrapError(err)
+		}
+		batch.Put(mk.bytes(), vb)
 	}
 	err = s.db.Write(batch, defaultWriteOptions)
 	if err != nil {
@@ -531,11 +615,50 @@ func (s *Storage) PutBlock(height int, block crypto.Signature, trades []Trade, a
 	return nil
 }
 
+func putAddress(batch *leveldb.Batch, pk crypto.PublicKey, scheme byte) error {
+	a, err := proto.NewAddressFromPublicKey(scheme, pk)
+	if err != nil {
+		return err
+	}
+	batch.Put(publicKeyKey(PublicKeyToAddressKeyPrefix, pk), a[:])
+	batch.Put(addressKey(AddressToPublicKeyKeyPrefix, a), pk[:])
+	return nil
+}
+
+func (s *Storage) address(pk crypto.PublicKey) (proto.Address, error) {
+	b, err := s.db.Get(publicKeyKey(PublicKeyToAddressKeyPrefix, pk), defaultReadOptions)
+	if err != nil {
+		return proto.Address{}, err
+	}
+	a, err := proto.NewAddressFromBytes(b)
+	if err != nil {
+		return proto.Address{}, err
+	}
+	return a, nil
+}
+
+func (s *Storage) checkAddress(pk crypto.PublicKey) bool {
+	ok, _ := s.db.Has(publicKeyKey(PublicKeyToAddressKeyPrefix, pk), defaultReadOptions)
+	return ok
+}
+
 func (s *Storage) putTrades(batch *leveldb.Batch, trades []Trade) error {
 	d1 := map[pairTimestampKey]digests{}
-	d2 := map[pairAddressTimestampKey]digests{}
+	d2 := map[pairPublicKeyTimestampKey]digests{}
 	for _, t := range trades {
-		k1 := pairTimestampKey{t.AmountAsset, t.PriceAsset, t.Timestamp}
+		if !s.checkAddress(t.Buyer) {
+			err := putAddress(batch, t.Buyer, s.Scheme)
+			if err != nil {
+				return err
+			}
+		}
+		if !s.checkAddress(t.Seller) {
+			err := putAddress(batch, t.Seller, s.Scheme)
+			if err != nil {
+				return err
+			}
+		}
+		k1 := pairTimestampKey{PairTradesKeyPrefix, t.AmountAsset, t.PriceAsset, t.Timestamp}
 		v, ok := d1[k1]
 		if ok {
 			v = append(v, t.TransactionID)
@@ -543,15 +666,7 @@ func (s *Storage) putTrades(batch *leveldb.Batch, trades []Trade) error {
 			v = digests{t.TransactionID}
 		}
 		d1[k1] = v
-		sa, err := proto.NewAddressFromPublicKey(s.Scheme, t.Seller)
-		if err != nil {
-			return errors.Wrap(err, "failed to put trades")
-		}
-		ba, err := proto.NewAddressFromPublicKey(s.Scheme, t.Buyer)
-		if err != nil {
-			return errors.Wrap(err, "failed to put trades")
-		}
-		k2 := pairAddressTimestampKey{t.AmountAsset, t.PriceAsset, sa, t.Timestamp}
+		k2 := pairPublicKeyTimestampKey{PairPublicKeyTradesKeyPrefix, t.AmountAsset, t.PriceAsset, t.Seller, t.Timestamp}
 		v, ok = d2[k2]
 		if ok {
 			v = append(v, t.TransactionID)
@@ -559,7 +674,7 @@ func (s *Storage) putTrades(batch *leveldb.Batch, trades []Trade) error {
 			v = digests{t.TransactionID}
 		}
 		d2[k2] = v
-		k3 := pairAddressTimestampKey{t.AmountAsset, t.PriceAsset, ba, t.Timestamp}
+		k3 := pairPublicKeyTimestampKey{PairPublicKeyTradesKeyPrefix, t.AmountAsset, t.PriceAsset, t.Buyer, t.Timestamp}
 		v, ok = d2[k3]
 		if ok {
 			v = append(v, t.TransactionID)
@@ -693,9 +808,9 @@ func (s *Storage) getTrades(block crypto.Signature) ([]Trade, error) {
 }
 
 func (s *Storage) removeCandlesAfter(batch *leveldb.Batch, tf uint64) error {
-	start := uint64Key(CandlesKeyPrefix, tf)
+	start := timestampPairKey{CandlesKeyPrefix, tf, crypto.Digest{}, crypto.Digest{}}
 	end := []byte{CandlesKeyPrefix + 1}
-	it := s.db.NewIterator(&ldbUtil.Range{Start: start, Limit: end}, defaultReadOptions)
+	it := s.db.NewIterator(&ldbUtil.Range{Start: start.bytes(), Limit: end}, defaultReadOptions)
 	for it.Next() {
 		batch.Delete(it.Key())
 	}
@@ -779,6 +894,20 @@ func digestKey(prefix byte, key crypto.Digest) []byte {
 	k := make([]byte, 1+crypto.DigestSize)
 	k[0] = prefix
 	copy(k[1:], key[:])
+	return k
+}
+
+func publicKeyKey(prefix byte, pk crypto.PublicKey) []byte {
+	k := make([]byte, 1+crypto.PublicKeySize)
+	k[0] = prefix
+	copy(k[1:], pk[:])
+	return k
+}
+
+func addressKey(prefix byte, address proto.Address) []byte {
+	k := make([]byte, 1+proto.AddressSize)
+	k[0] = prefix
+	copy(k[1:], address[:])
 	return k
 }
 

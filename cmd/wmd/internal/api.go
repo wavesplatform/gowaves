@@ -8,7 +8,9 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
 	"net/http"
+	"sort"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -51,6 +53,7 @@ type DataFeedAPI struct {
 	log     *zap.SugaredLogger
 	Storage *Storage
 	Symbols *Symbols
+	Scheme  byte
 }
 
 func NewDataFeedAPI(log *zap.SugaredLogger, storage *Storage, symbols *Symbols) *DataFeedAPI {
@@ -91,7 +94,44 @@ func (a *DataFeedAPI) GetSymbols(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *DataFeedAPI) Markets(w http.ResponseWriter, r *http.Request) {
+	markets, err := a.Storage.Markets()
+	if err !=nil {
+		http.Error(w, fmt.Sprintf("Failed to collect Markets: %s", err.Error()), http.StatusInternalServerError)
+		return
+	}
+	mis := make([]MarketInfo, 0, len(markets))
+	for m, md := range markets {
+		c, err := a.Storage.DayCandle(m.AmountAsset, m.PriceAsset)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Failed to load DayCandle: %s", err.Error()), http.StatusInternalServerError)
+			return
+		}
+		aai, err := a.Storage.readAssetInfo(m.AmountAsset)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Failed to load AssetInfo: %s", err.Error()), http.StatusInternalServerError)
+			return
+		}
+		pai, err := a.Storage.readAssetInfo(m.PriceAsset)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Failed to load AssetInfo: %s", err.Error()), http.StatusInternalServerError)
+			return
+		}
+		ti := a.convertToTickerInfo(aai, pai, c)
 
+		mi := NewMarketInfo(ti, md)
+		mis = append(mis, mi)
+	}
+	sort.Sort(ByMarkets(mis))
+	js, err := json.Marshal(mis)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to marshal TickerInfo to JSON: %s", err.Error()), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_, err = w.Write(js)
+	if err != nil {
+		a.log.Errorf("Failed to send reply: %s", err.Error())
+	}
 }
 
 func (a *DataFeedAPI) Tickers(w http.ResponseWriter, r *http.Request) {
@@ -99,7 +139,44 @@ func (a *DataFeedAPI) Tickers(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *DataFeedAPI) Ticker(w http.ResponseWriter, r *http.Request) {
-
+	aa := chi.URLParam(r, amountAssetPlaceholder)
+	amountAsset, err := a.Symbols.ParseTicker(aa)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Bad request: %s", err.Error()), http.StatusBadRequest)
+		return
+	}
+	pa := chi.URLParam(r, priceAssetPlaceholder)
+	priceAsset, err := a.Symbols.ParseTicker(pa)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Bad request: %s", err.Error()), http.StatusBadRequest)
+		return
+	}
+	c, err := a.Storage.DayCandle(amountAsset, priceAsset)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to load DayCandle: %s", err.Error()), http.StatusInternalServerError)
+		return
+	}
+	aai, err := a.Storage.readAssetInfo(amountAsset)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to load AssetInfo: %s", err.Error()), http.StatusInternalServerError)
+		return
+	}
+	pai, err := a.Storage.readAssetInfo(priceAsset)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to load AssetInfo: %s", err.Error()), http.StatusInternalServerError)
+		return
+	}
+	ti := a.convertToTickerInfo(aai, pai, c)
+	js, err := json.Marshal(ti)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to marshal TickerInfo to JSON: %s", err.Error()), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_, err = w.Write(js)
+	if err != nil {
+		a.log.Errorf("Failed to send reply: %s", err.Error())
+	}
 }
 
 func (a *DataFeedAPI) Trades(w http.ResponseWriter, r *http.Request) {
@@ -125,14 +202,29 @@ func (a *DataFeedAPI) Trades(w http.ResponseWriter, r *http.Request) {
 		return
 
 	}
-	trades, err := a.Storage.TradeInfos(amountAsset, priceAsset, limit)
+	aai, err := a.Storage.readAssetInfo(amountAsset)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, fmt.Sprintf("Failed to load AssetInfo: %s", err.Error()), http.StatusInternalServerError)
 		return
 	}
-	js, err := json.Marshal(trades)
+	pai, err := a.Storage.readAssetInfo(priceAsset)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, fmt.Sprintf("Failed to load AssetInfo: %s", err.Error()), http.StatusInternalServerError)
+		return
+	}
+	ts, err := a.Storage.Trades(amountAsset, priceAsset, limit)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to load Trades: %s", err.Error()), http.StatusInternalServerError)
+		return
+	}
+	tis, err := a.convertToTradesInfos(ts, aai.Decimals, pai.Decimals)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to convert Trades: %s", err.Error()), http.StatusInternalServerError)
+		return
+	}
+	js, err := json.Marshal(tis)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to marshal TradesInfos to JSON: %s", err.Error()), http.StatusInternalServerError)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -163,14 +255,28 @@ func (a *DataFeedAPI) TradesRange(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 	}
+	aai, err := a.Storage.readAssetInfo(amountAsset)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to load AssetInfo: %s", err.Error()), http.StatusInternalServerError)
+		return
+	}
+	pai, err := a.Storage.readAssetInfo(priceAsset)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to load AssetInfo: %s", err.Error()), http.StatusInternalServerError)
+		return
+	}
 	trades, err := a.Storage.TradeInfosRange(amountAsset, priceAsset, uint64(f), uint64(t))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	js, err := json.Marshal(trades)
+	tis, err := a.convertToTradesInfos(trades, aai.Decimals, pai.Decimals)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, fmt.Sprintf("Failed to convert trades: %s", err.Error()), http.StatusInternalServerError)
+	}
+	js, err := json.Marshal(tis)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to marshal TradeInfos: %s", err.Error()), http.StatusInternalServerError)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -209,14 +315,34 @@ func (a *DataFeedAPI) TradesByAddress(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Bad request: %s", err.Error()), http.StatusBadRequest)
 		return
 	}
-	trades, err := a.Storage.TradeInfosByAddress(amountAsset, priceAsset, address, limit)
+	pk, err := a.Storage.PublicKey(address)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, fmt.Sprintf("Failed to find PublicKey for Address: %s", err.Error()), http.StatusInternalServerError)
 		return
 	}
-	js, err := json.Marshal(trades)
+	ts, err := a.Storage.TradesByPublicKey(amountAsset, priceAsset, pk, limit)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, fmt.Sprintf("Failed to load Trades: %s", err.Error()), http.StatusInternalServerError)
+		return
+	}
+	aai, err := a.Storage.readAssetInfo(amountAsset)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to load AssetInfo: %s", err.Error()), http.StatusInternalServerError)
+		return
+	}
+	pai, err := a.Storage.readAssetInfo(priceAsset)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to load AssetInfo: %s", err.Error()), http.StatusInternalServerError)
+		return
+	}
+	tis, err := a.convertToTradesInfos(ts, aai.Decimals, pai.Decimals)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to convert to TradeInfos: %s", err.Error()), http.StatusInternalServerError)
+		return
+	}
+	js, err := json.Marshal(tis)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to marshal TradesInfos to JSON: %s", err.Error()), http.StatusInternalServerError)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -232,4 +358,32 @@ func (a *DataFeedAPI) Candles(w http.ResponseWriter, r *http.Request) {
 
 func (a *DataFeedAPI) CandlesRange(w http.ResponseWriter, r *http.Request) {
 
+}
+
+func (a *DataFeedAPI) convertToTradesInfos(trades []Trade, amountAssetDecimals, priceAssetDecimals byte) ([]TradeInfo, error) {
+	var r []TradeInfo
+	for i := 0; i < len(trades); i++ {
+		ti, err := NewTradeInfo(trades[i], a.Scheme, uint(amountAssetDecimals), uint(priceAssetDecimals))
+		if err != nil {
+			return nil, err
+		}
+		r = append(r, *ti)
+	}
+	return r, nil
+}
+
+func (a *DataFeedAPI) convertToTickerInfo(aa, pa *AssetInfo, c Candle) TickerInfo {
+	var sb strings.Builder
+	aat, ok := a.Symbols.tokens[aa.ID]
+	if ok {
+		sb.WriteString(aat)
+		pat, ok := a.Symbols.tokens[pa.ID]
+		if ok {
+			sb.WriteRune('/')
+			sb.WriteString(pat)
+		} else {
+			sb.Reset()
+		}
+	}
+	return NewTickerInfo(sb.String(), *aa, *pa, c)
 }

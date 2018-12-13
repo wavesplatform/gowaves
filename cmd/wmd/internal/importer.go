@@ -223,7 +223,7 @@ func (im *Importer) extractTransactions(d []byte, n int) ([]Trade, []AssetUpdate
 	updates := make([]AssetUpdate, 0)
 	for i := 0; i < n; i++ {
 		s := int(binary.BigEndian.Uint32(d[0:4]))
-		txb := d[4:s+4]
+		txb := d[4 : s+4]
 		switch txb[0] {
 		case 0:
 			switch txb[1] {
@@ -233,11 +233,18 @@ func (im *Importer) extractTransactions(d []byte, n int) ([]Trade, []AssetUpdate
 				if err != nil {
 					return nil, nil, errors.Wrap(err, "failed to extract IssueV2 transactions")
 				}
-				u, err := AssetUpdateFromIssueV2(tx, im.storage.Scheme)
-				if err != nil {
-					return nil, nil, errors.Wrap(err, "failed to extract IssueV2 transactions")
-				}
+				u := AssetUpdateFromIssueV2(tx)
 				updates = append(updates, u)
+			case byte(proto.TransferTransaction):
+				var tx proto.TransferV2
+				err := tx.UnmarshalBinary(txb)
+				if err != nil {
+					return nil, nil, errors.Wrap(err, "failed to extract TransferV2 transaction")
+				}
+				//TODO: balance changes
+				if tx.AmountAsset.Present || tx.FeeAsset.Present {
+					//fmt.Println("TRANSFER 2:", "AMOUNT:", tx.AmountAsset.ID.String(), "FEE:", tx.FeeAsset.ID.String())
+				}
 			case byte(proto.ReissueTransaction):
 				var tx proto.ReissueV2
 				err := tx.UnmarshalBinary(txb)
@@ -267,6 +274,15 @@ func (im *Importer) extractTransactions(d []byte, n int) ([]Trade, []AssetUpdate
 					}
 					trades = append(trades, t)
 				}
+				//TODO: balance changes
+			case byte(proto.SponsorshipTransaction):
+				var tx proto.SponsorshipV1
+				err := tx.UnmarshalBinary(txb)
+				if err != nil {
+					return nil, nil, errors.Wrap(err, "failed to extract SponsorshipV1 transaction")
+				}
+				//TODO: trigger fee receiver
+				//fmt.Println("SPONSOR:", tx.AssetID.String())
 			}
 		case byte(proto.IssueTransaction):
 			var tx proto.IssueV1
@@ -280,11 +296,18 @@ func (im *Importer) extractTransactions(d []byte, n int) ([]Trade, []AssetUpdate
 				}
 				return nil, nil, errors.Errorf("Transaction %s has invalid signature", tx.ID.String())
 			}
-			u, err := AssetUpdateFromIssueV1(tx, im.storage.Scheme)
-			if err != nil {
-				return nil, nil, errors.Wrap(err, "failed to extract IssueV1 transaction")
-			}
+			u := AssetUpdateFromIssueV1(tx)
 			updates = append(updates, u)
+		case byte(proto.TransferTransaction):
+			var tx proto.TransferV1
+			err := tx.UnmarshalBinary(txb)
+			if err != nil {
+				return nil, nil, errors.Wrap(err, "failed to extract TransferV1 transaction")
+			}
+			//TODO:balance changes
+			if tx.AmountAsset.Present || tx.FeeAsset.Present {
+				//fmt.Println("TRANSFER 1:", "AMOUNT:", tx.AmountAsset.ID.String(), "FEE:", tx.FeeAsset.ID.String())
+			}
 		case byte(proto.ReissueTransaction):
 			var tx proto.ReissueV1
 			err := tx.UnmarshalBinary(txb)
@@ -328,6 +351,17 @@ func (im *Importer) extractTransactions(d []byte, n int) ([]Trade, []AssetUpdate
 			if bytes.Equal(im.matcher[:], tx.SenderPK[:]) {
 				t := NewTradeFromExchangeV1(tx)
 				trades = append(trades, t)
+			}
+			//TODO: balance changes
+		case byte(proto.MassTransferTransaction):
+			var tx proto.MassTransferV1
+			err := tx.UnmarshalBinary(txb)
+			if err != nil {
+				return nil, nil, errors.Wrap(err, "failed to extract MassTransferV1 transaction")
+			}
+			//TODO: balance changes
+			if tx.Asset.Present {
+				//fmt.Println("MASS TRANSFER 1:", "ASSET:", tx.Asset.ID.String())
 			}
 		}
 		d = d[4+s:]

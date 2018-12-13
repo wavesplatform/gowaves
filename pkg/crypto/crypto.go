@@ -155,11 +155,11 @@ func NewPublicKeyFromBase58(s string) (PublicKey, error) {
 }
 
 func NewPublicKeyFromBytes(b []byte) (PublicKey, error) {
-	if len(b) != PublicKeySize {
-		return PublicKey{}, errors.New("invalid public key size")
+	var pk PublicKey
+	if l := len(b); l < PublicKeySize {
+		return pk, fmt.Errorf("insufficient array length %d, expected atleast %d", l, PublicKeySize)
 	}
-	pk := PublicKey{}
-	copy(pk[:], b[:])
+	copy(pk[:], b[:PublicKeySize])
 	return pk, nil
 }
 
