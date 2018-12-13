@@ -89,6 +89,7 @@ const (
 
 type Transaction interface {
 	Transaction()
+	GetID() []byte
 }
 
 //Genesis is a transaction used to initial balances distribution. This transactions allowed only in the first block.
@@ -103,6 +104,9 @@ type Genesis struct {
 }
 
 func (Genesis) Transaction() {}
+func (tx Genesis) GetID() []byte {
+	return tx.ID.Bytes()
+}
 
 //NewUnsignedGenesis returns a new unsigned Genesis transaction. Actually Genesis transaction could not be signed.
 //That is why it doesn't implement Sing method. Instead it has GenerateSigID method, which calculates ID and uses it also as a signature.
@@ -202,6 +206,9 @@ type Payment struct {
 }
 
 func (Payment) Transaction() {}
+func (tx Payment) GetID() []byte {
+	return tx.ID.Bytes()
+}
 
 //NewUnsignedPayment creates new Payment transaction with empty Signature and ID fields.
 func NewUnsignedPayment(senderPK crypto.PublicKey, recipient Address, amount, fee, timestamp uint64) (*Payment, error) {
@@ -329,6 +336,9 @@ type IssueV1 struct {
 }
 
 func (IssueV1) Transaction() {}
+func (tx IssueV1) GetID() []byte {
+	return tx.ID.Bytes()
+}
 
 //NewUnsignedIssueV1 creates new IssueV1 transaction without signature and ID.
 func NewUnsignedIssueV1(senderPK crypto.PublicKey, name, description string, quantity uint64, decimals byte, reissuable bool, timestamp, fee uint64) (*IssueV1, error) {
@@ -815,6 +825,9 @@ type TransferV1 struct {
 }
 
 func (TransferV1) Transaction() {}
+func (tx TransferV1) GetID() []byte {
+	return tx.ID.Bytes()
+}
 
 //NewUnsignedTransferV1 creates new TransferV1 transaction without signature and ID.
 func NewUnsignedTransferV1(senderPK crypto.PublicKey, amountAsset, feeAsset OptionalAsset, timestamp, amount, fee uint64, recipient Address, attachment string) (*TransferV1, error) {
@@ -1131,6 +1144,9 @@ type ReissueV1 struct {
 }
 
 func (ReissueV1) Transaction() {}
+func (tx ReissueV1) GetID() []byte {
+	return tx.ID.Bytes()
+}
 
 //NewUnsignedReissueV1 creates new ReissueV1 transaction without signature and ID.
 func NewUnsignedReissueV1(senderPK crypto.PublicKey, assetID crypto.Digest, quantity uint64, reissuable bool, timestamp, fee uint64) (*ReissueV1, error) {
@@ -1431,6 +1447,9 @@ type BurnV1 struct {
 }
 
 func (BurnV1) Transaction() {}
+func (tx BurnV1) GetID() []byte {
+	return tx.ID.Bytes()
+}
 
 //NewUnsignedBurnV1 creates new BurnV1 transaction with no signature and ID.
 func NewUnsignedBurnV1(senderPK crypto.PublicKey, assetID crypto.Digest, amount, timestamp, fee uint64) (*BurnV1, error) {
@@ -1681,6 +1700,9 @@ type ExchangeV1 struct {
 }
 
 func (ExchangeV1) Transaction() {}
+func (tx ExchangeV1) GetID() []byte {
+	return tx.ID.Bytes()
+}
 
 func NewUnsignedExchangeV1(buy, sell OrderV1, price, amount, buyMatcherFee, sellMatcherFee, fee, timestamp uint64) (*ExchangeV1, error) {
 	if buy.Signature == nil {
@@ -2196,6 +2218,9 @@ type LeaseV1 struct {
 }
 
 func (LeaseV1) Transaction() {}
+func (tx LeaseV1) GetID() []byte {
+	return tx.ID.Bytes()
+}
 
 //NewUnsignedLeaseV1 creates new LeaseV1 transaction without signature and ID set.
 func NewUnsignedLeaseV1(senderPK crypto.PublicKey, recipient Address, amount, fee, timestamp uint64) (*LeaseV1, error) {
@@ -2488,6 +2513,9 @@ type LeaseCancelV1 struct {
 }
 
 func (LeaseCancelV1) Transaction() {}
+func (tx LeaseCancelV1) GetID() []byte {
+	return tx.ID.Bytes()
+}
 
 //NewUnsignedLeaseCancelV1 creates new LeaseCancelV1 transaction structure without a signature and an ID.
 func NewUnsignedLeaseCancelV1(senderPK crypto.PublicKey, leaseID crypto.Digest, fee, timestamp uint64) (*LeaseCancelV1, error) {
@@ -2804,6 +2832,9 @@ type CreateAliasV1 struct {
 }
 
 func (CreateAliasV1) Transaction() {}
+func (tx CreateAliasV1) GetID() []byte {
+	return tx.ID.Bytes()
+}
 
 func NewUnsignedCreateAliasV1(senderPK crypto.PublicKey, alias Alias, fee, timestamp uint64) (*CreateAliasV1, error) {
 	ca, err := newCreateAlias(senderPK, alias, fee, timestamp)
@@ -3071,6 +3102,9 @@ type MassTransferV1 struct {
 }
 
 func (MassTransferV1) Transaction() {}
+func (tx MassTransferV1) GetID() []byte {
+	return tx.ID.Bytes()
+}
 
 //NewUnsignedMassTransferV1 creates new MassTransferV1 transaction structure without signature and ID.
 func NewUnsignedMassTransferV1(senderPK crypto.PublicKey, asset OptionalAsset, transfers []MassTransferEntry, fee, timestamp uint64, attachment string) (*MassTransferV1, error) {
@@ -3278,6 +3312,9 @@ type DataV1 struct {
 }
 
 func (DataV1) Transaction() {}
+func (tx DataV1) GetID() []byte {
+	return tx.ID.Bytes()
+}
 
 //NewUnsignedData creates new Data transaction without proofs.
 func NewUnsignedData(senderPK crypto.PublicKey, fee, timestamp uint64) (*DataV1, error) {
@@ -3499,6 +3536,9 @@ type SetScriptV1 struct {
 }
 
 func (SetScriptV1) Transaction() {}
+func (tx SetScriptV1) GetID() []byte {
+	return tx.ID.Bytes()
+}
 
 //NewUnsignedSetScriptV1 creates new unsigned SetScriptV1 transaction.
 func NewUnsignedSetScriptV1(chain byte, senderPK crypto.PublicKey, script []byte, fee, timestamp uint64) (*SetScriptV1, error) {
@@ -3670,6 +3710,9 @@ type SponsorshipV1 struct {
 }
 
 func (SponsorshipV1) Transaction() {}
+func (tx SponsorshipV1) GetID() []byte {
+	return tx.ID.Bytes()
+}
 
 //NewUnsignedSponsorshipV1 creates new unsigned SponsorshipV1 transaction
 func NewUnsignedSponsorshipV1(senderPK crypto.PublicKey, assetID crypto.Digest, minAssetFee, fee, timestamp uint64) (*SponsorshipV1, error) {

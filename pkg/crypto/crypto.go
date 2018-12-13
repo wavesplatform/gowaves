@@ -187,7 +187,7 @@ func (s *Signature) UnmarshalJSON(value []byte) error {
 	return nil
 }
 
-func (s *Signature) Bytes() []byte {
+func (s Signature) Bytes() []byte {
 	return s[:]
 }
 

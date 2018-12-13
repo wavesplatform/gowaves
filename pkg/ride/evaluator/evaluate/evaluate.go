@@ -8,7 +8,8 @@ import (
 func Eval(e ast.Expr, s ast.Scope) (bool, error) {
 	rs, err := e.Evaluate(s)
 	if err != nil {
-		if err == ast.ErrThrow {
+		if _, ok := err.(ast.Throw); ok {
+			// maybe log error
 			return false, nil
 		}
 		return false, err

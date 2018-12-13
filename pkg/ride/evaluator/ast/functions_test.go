@@ -1,10 +1,20 @@
 package ast
 
 import (
+	"encoding/hex"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/state"
+	"math"
 	"testing"
+	"time"
 )
+
+func Params(params ...Expr) Exprs {
+	return NewExprs(params...)
+}
 
 func TestNativeSumLong(t *testing.T) {
 	params1 := Exprs{NewLong(5), NewLong(4)}
@@ -70,6 +80,11 @@ func TestNativeDivLong(t *testing.T) {
 	params2 := Exprs{NewLong(5), NewBoolean(true)}
 	_, err = NativeDivLong(newEmptyScope(), params2)
 	require.Error(t, err)
+
+	// zero division
+	params3 := Exprs{NewLong(9), NewLong(0)}
+	_, err = NativeDivLong(newEmptyScope(), params3)
+	require.Error(t, err)
 }
 
 func TestUserAddressFromString(t *testing.T) {
@@ -78,4 +93,236 @@ func TestUserAddressFromString(t *testing.T) {
 	require.NoError(t, err)
 	addr, _ := NewAddressFromString("3PJaDyprvekvPXPuAtxrapacuDJopgJRaU3")
 	assert.Equal(t, addr, rs)
+}
+
+func TestNativeKeccak256(t *testing.T) {
+	str := "64617461"
+	data, err := hex.DecodeString(str)
+	require.NoError(t, err)
+	result := "8f54f1c2d0eb5771cd5bf67a6689fcd6eed9444d91a39e5ef32a9b4ae5ca14ff"
+	rs, err := NativeKeccak256(newEmptyScope(), NewExprs(NewBytes(data)))
+	require.NoError(t, err)
+
+	expected, err := hex.DecodeString(result)
+	require.NoError(t, err)
+	assert.Equal(t, NewBytes(expected), rs)
+}
+
+func TestNativeBlake2b256(t *testing.T) {
+	str := "64617461"
+	data, err := hex.DecodeString(str)
+	require.NoError(t, err)
+	result := "a035872d6af8639ede962dfe7536b0c150b590f3234a922fb7064cd11971b58e"
+	rs, err := NativeBlake2b256(newEmptyScope(), NewExprs(NewBytes(data)))
+	require.NoError(t, err)
+
+	expected, err := hex.DecodeString(result)
+	require.NoError(t, err)
+	assert.Equal(t, NewBytes(expected), rs)
+}
+
+func TestNativeSha256(t *testing.T) {
+	data := "123"
+	result := "A665A45920422F9D417E4867EFDC4FB8A04A1F3FFF1FA07E998E86F7F7A27AE3"
+	rs, err := NativeSha256(newEmptyScope(), NewExprs(NewBytes([]byte(data))))
+	require.NoError(t, err)
+
+	expected, err := hex.DecodeString(result)
+	require.NoError(t, err)
+	assert.Equal(t, NewBytes(expected), rs)
+}
+
+func TestNativeTransactionHeightByID(t *testing.T) {
+	sign, err := crypto.NewSignatureFromBase58("hVTTxvgCuezXDsZgh3rDreHzf4AULe5LB1J7zveRbBD4nz3Bzb9yJ2aXKchD4Ls3y2fvYAxnpHXx54S9ZghRx67")
+	require.NoError(t, err)
+
+	scope := newScopeWithState(&state.MockState{
+		TransactionsHeightByID: map[crypto.Signature]uint64{sign: 15},
+	})
+
+	rs, err :=
+		NativeTransactionHeightByID(scope, NewExprs(NewBytes(sign.Bytes())))
+	require.NoError(t, err)
+	assert.Equal(t, NewLong(15), rs)
+}
+
+func TestNativeTransactionByID(t *testing.T) {
+	sign, err := crypto.NewSignatureFromBase58("hVTTxvgCuezXDsZgh3rDreHzf4AULe5LB1J7zveRbBD4nz3Bzb9yJ2aXKchD4Ls3y2fvYAxnpHXx54S9ZghRx67")
+	require.NoError(t, err)
+
+	seed := "abcde"
+	secret, public := crypto.GenerateKeyPair([]byte(seed))
+	sender, _ := proto.NewAddressFromPublicKey(proto.MainNetScheme, public)
+
+	transferV1, err := proto.NewUnsignedTransferV1(
+		public,
+		proto.OptionalAsset{},
+		proto.OptionalAsset{},
+		uint64(time.Now().Unix()),
+		1,
+		10000,
+		sender,
+		"",
+	)
+	require.NoError(t, err)
+	require.NoError(t, transferV1.Sign(secret))
+
+	scope := newScopeWithState(&state.MockState{
+		TransactionsByID: map[crypto.Signature]proto.Transaction{sign: transferV1},
+	})
+
+	tx, err := NativeTransactionByID(scope, NewExprs(NewBytes(sign.Bytes())))
+	require.NoError(t, err)
+	switch v := tx.(type) {
+	case *ObjectExpr:
+		addr, _ := v.Get("sender")
+		expected := NewAddressFromProtoAddress(sender)
+		assert.Equal(t, expected, addr)
+	default:
+		t.Fail()
+	}
+}
+
+func TestNativeSizeBytes(t *testing.T) {
+	rs, err := NativeSizeBytes(newEmptyScope(), NewExprs(NewBytes([]byte("abc"))))
+	require.NoError(t, err)
+	assert.Equal(t, NewLong(3), rs)
+}
+
+func TestNativeTake(t *testing.T) {
+	rs, err := NativeTakeBytes(newEmptyScope(), NewExprs(NewBytes([]byte("abc")), NewLong(2)))
+	require.NoError(t, err)
+	assert.Equal(t, NewBytes([]byte("ab")), rs)
+
+	_, err = NativeTakeBytes(newEmptyScope(), NewExprs(NewBytes([]byte("abc")), NewLong(4)))
+	require.Error(t, err)
+}
+
+func TestNativeDropBytes(t *testing.T) {
+	rs, err := NativeDropBytes(newEmptyScope(), NewExprs(NewBytes([]byte("abcdef")), NewLong(2)))
+	require.NoError(t, err)
+	assert.Equal(t, NewBytes([]byte("cdef")), rs)
+
+	_, err = NativeDropBytes(newEmptyScope(), NewExprs(NewBytes([]byte("abc")), NewLong(4)))
+	require.Error(t, err)
+}
+
+func TestNativeConcatBytes(t *testing.T) {
+	rs, err := NativeConcatBytes(newEmptyScope(), NewExprs(NewBytes([]byte("abc")), NewBytes([]byte("def"))))
+	require.NoError(t, err)
+	assert.Equal(t, NewBytes([]byte("abcdef")), rs)
+}
+
+func TestNativeConcatStrings(t *testing.T) {
+	rs, err := NativeConcatStrings(newEmptyScope(), NewExprs(NewString("abc"), NewString("def")))
+	require.NoError(t, err)
+	assert.Equal(t, NewString("abcdef"), rs)
+}
+
+func TestNativeTakeStrings(t *testing.T) {
+	rs, err := NativeTakeStrings(newEmptyScope(), NewExprs(NewString("abcdef"), NewLong(3)))
+	require.NoError(t, err)
+	assert.Equal(t, NewString("abc"), rs)
+
+	rs2, err := NativeTakeStrings(newEmptyScope(), NewExprs(NewString("привет"), NewLong(3)))
+	require.NoError(t, err)
+	assert.Equal(t, NewString("при"), rs2)
+}
+
+func TestNativeDropStrings(t *testing.T) {
+	rs, err := NativeDropStrings(newEmptyScope(), NewExprs(NewString("abcdef"), NewLong(4)))
+	require.NoError(t, err)
+	assert.Equal(t, NewString("ef"), rs)
+
+	rs2, err := NativeDropStrings(newEmptyScope(), NewExprs(NewString("привет"), NewLong(4)))
+	require.NoError(t, err)
+	assert.Equal(t, NewString("ет"), rs2)
+}
+
+func TestNativeSizeString(t *testing.T) {
+	rs2, err := NativeSizeString(newEmptyScope(), NewExprs(NewString("привет")))
+	require.NoError(t, err)
+	assert.Equal(t, NewLong(6), rs2)
+}
+
+func TestNativeSizeList(t *testing.T) {
+	rs, err := NativeSizeList(newEmptyScope(), Params(NewExprs(NewLong(1))))
+	require.NoError(t, err)
+	assert.Equal(t, NewLong(1), rs)
+}
+
+func TestNativeLongToBytes(t *testing.T) {
+	rs, err := NativeSizeList(newEmptyScope(), NewExprs(NewExprs(NewLong(1))))
+	require.NoError(t, err)
+	assert.Equal(t, NewLong(1), rs)
+}
+
+func TestNativeThrow(t *testing.T) {
+	rs, err := NativeThrow(newEmptyScope(), NewExprs(NewString("mess")))
+	require.Nil(t, rs)
+	assert.Equal(t, "mess", err.Error())
+}
+
+func TestNativeModLong(t *testing.T) {
+	rs, err := NativeModLong(newEmptyScope(), NewExprs(NewLong(-10), NewLong(6)))
+	require.NoError(t, err)
+	assert.Equal(t, NewLong(2), rs)
+}
+
+func TestModDivision(t *testing.T) {
+	assert.EqualValues(t, 4, modDivision(10, 6))
+	assert.EqualValues(t, 2, modDivision(-10, 6))
+	assert.EqualValues(t, -2, modDivision(10, -6))
+	assert.EqualValues(t, -4, modDivision(-10, -6))
+}
+
+func TestNativeFractionLong(t *testing.T) {
+	// works with big integers
+	rs1, err := NativeFractionLong(newEmptyScope(), NewExprs(NewLong(math.MaxInt64), NewLong(4), NewLong(6)))
+	require.NoError(t, err)
+	assert.Equal(t, NewLong(6148914691236517204), rs1)
+
+	// and works with usual integers
+	rs2, err := NativeFractionLong(newEmptyScope(), NewExprs(NewLong(8), NewLong(4), NewLong(2)))
+	require.NoError(t, err)
+	assert.Equal(t, NewLong(16), rs2)
+
+	// overflow
+	_, err = NativeFractionLong(newEmptyScope(), NewExprs(NewLong(math.MaxInt64), NewLong(4), NewLong(1)))
+	require.Error(t, err)
+
+	// zero division
+	_, err = NativeFractionLong(newEmptyScope(), NewExprs(NewLong(math.MaxInt64), NewLong(4), NewLong(0)))
+	require.Error(t, err)
+}
+
+func TestNativeStringToBytes(t *testing.T) {
+	rs, err := NativeStringToBytes(newEmptyScope(), NewExprs(NewString("привет")))
+	require.NoError(t, err)
+	assert.Equal(t, NewBytes([]byte("привет")), rs)
+}
+
+func TestNativeBooleanToBytes(t *testing.T) {
+	rs1, err := NativeBooleanToBytes(newEmptyScope(), Params(NewBoolean(true)))
+	require.NoError(t, err)
+	assert.Equal(t, NewBytes([]byte{1}), rs1)
+	rs2, err := NativeBooleanToBytes(newEmptyScope(), Params(NewBoolean(false)))
+	require.NoError(t, err)
+	assert.Equal(t, NewBytes([]byte{0}), rs2)
+}
+
+func TestNativeLongToString(t *testing.T) {
+	rs1, err := NativeLongToString(newEmptyScope(), Params(NewLong(100500)))
+	require.NoError(t, err)
+	assert.Equal(t, NewString("100500"), rs1)
+}
+
+func TestNativeBooleanToString(t *testing.T) {
+	rs1, err := NativeBooleanToString(newEmptyScope(), Params(NewBoolean(true)))
+	require.NoError(t, err)
+	assert.Equal(t, NewString("true"), rs1)
+
+	rs2, err := NativeBooleanToString(newEmptyScope(), Params(NewBoolean(false)))
+	require.NoError(t, err)
+	assert.Equal(t, NewString("false"), rs2)
 }

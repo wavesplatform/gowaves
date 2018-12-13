@@ -2,11 +2,17 @@ package ast
 
 import (
 	"github.com/stretchr/testify/assert"
+	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/state"
 	"testing"
 )
 
 func newEmptyScope() Scope {
-	return NewScope(EmptyFuncScope(), nil)
+	return NewScope(proto.MainNetScheme, state.MockState{}, EmptyFuncScope(), nil)
+}
+
+func newScopeWithState(s state.State) Scope {
+	return NewScope(proto.MainNetScheme, s, EmptyFuncScope(), nil)
 }
 
 func TestFuncScope_Clone(t *testing.T) {
@@ -33,4 +39,9 @@ func TestFuncScope_Clone(t *testing.T) {
 	_, ok := parent.Value("y")
 	assert.Equal(t, false, ok)
 
+}
+
+func TestScopeImpl_Scheme(t *testing.T) {
+	s := newEmptyScope()
+	assert.Equal(t, proto.MainNetScheme, s.Scheme())
 }

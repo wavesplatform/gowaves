@@ -1,25 +1,33 @@
 package ast
 
+import "github.com/wavesplatform/gowaves/pkg/state"
+
 type Scope interface {
 	Clone() Scope
 	AddValue(name string, expr Expr)
 	FuncByShort(int16) (Callable, bool)
 	FuncByName(string) (Callable, bool)
 	Value(string) (Expr, bool)
+	State() state.State
+	Scheme() byte
 }
 
 type ScopeImpl struct {
 	parent    Scope
 	funcs     *FuncScope
 	variables map[string]Expr
+	state     state.State
+	scheme    byte
 }
 
 type Callable func(Scope, Exprs) (Expr, error)
 
-func NewScope(f *FuncScope, variables map[string]Expr) *ScopeImpl {
+func NewScope(scheme byte, state state.State, f *FuncScope, variables map[string]Expr) *ScopeImpl {
 	return &ScopeImpl{
 		funcs:     f,
 		variables: variables,
+		state:     state,
+		scheme:    scheme,
 	}
 }
 
@@ -27,7 +35,12 @@ func (a *ScopeImpl) Clone() Scope {
 	return &ScopeImpl{
 		funcs:  a.funcs.Clone(),
 		parent: a,
+		state:  a.state,
 	}
+}
+
+func (a *ScopeImpl) State() state.State {
+	return a.state
 }
 
 func (a *ScopeImpl) FuncByShort(id int16) (Callable, bool) {
@@ -61,6 +74,10 @@ func (a *ScopeImpl) Value(name string) (Expr, bool) {
 	}
 }
 
+func (a *ScopeImpl) Scheme() byte {
+	return a.scheme
+}
+
 type FuncScope struct {
 	funcs     map[int16]Callable
 	userFuncs map[string]Callable
@@ -79,19 +96,41 @@ func NewFuncScope() *FuncScope {
 
 	funcs[0] = NativeEq
 	funcs[1] = NativeIsinstanceof
+	funcs[2] = NativeThrow
 
 	funcs[100] = NativeSumLong
 	funcs[101] = NativeSubLong
 	funcs[102] = NativeGtLong
 	funcs[103] = NativeGeLong
+	funcs[104] = NativeMulLong
+	funcs[105] = NativeDivLong
+	funcs[106] = NativeModLong
+	funcs[107] = NativeFractionLong
 
+	funcs[200] = NativeSizeBytes
+	funcs[201] = NativeTakeBytes
+	funcs[202] = NativeDropBytes
+	funcs[203] = NativeConcatBytes
+
+	funcs[300] = NativeConcatStrings
+	funcs[303] = NativeTakeStrings
+	funcs[304] = NativeDropStrings
+	funcs[305] = NativeSizeString
+
+	funcs[400] = NativeSizeList
 	funcs[401] = NativeGetList
+	funcs[410] = NativeLongToBytes
+	funcs[411] = NativeStringToBytes
+	funcs[412] = NativeBooleanToBytes
+	funcs[420] = NativeLongToString
+	funcs[421] = NativeBooleanToString
 
-	// TODO
 	funcs[500] = NativeSigVerify
 
+	funcs[1001] = NativeTransactionHeightByID
+
 	userFuncs := make(map[string]Callable)
-	userFuncs["throw"] = USER_THROW
+	userFuncs["throw"] = UserThrow
 	userFuncs["addressFromString"] = UserAddressFromString
 
 	return &FuncScope{

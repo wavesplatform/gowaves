@@ -11,7 +11,7 @@ import (
 
 const InstanceFieldName = "$instance"
 
-var ErrThrow = errors.New("throw")
+//var ErrThrow = errors.New("throw")
 
 type Expr interface {
 	Write(io.Writer)
@@ -31,7 +31,7 @@ func (a Exprs) Evaluate(s Scope) (Expr, error) {
 	return nil, errors.New("Exprs Evaluate")
 }
 
-func (a Exprs) Eval(s Scope) (Exprs, error) {
+func (a Exprs) EvaluateAll(s Scope) (Exprs, error) {
 	out := make(Exprs, len(a))
 	for i, row := range a {
 		rs, err := row.Evaluate(s.Clone())
@@ -462,7 +462,7 @@ func NewString(value string) *StringExpr {
 }
 
 func (a *StringExpr) Write(w io.Writer) {
-	fmt.Fprint(w, a.Value)
+	fmt.Fprint(w, `"`, a.Value, `"`)
 }
 
 func (a *StringExpr) Evaluate(s Scope) (Expr, error) {
@@ -500,4 +500,8 @@ func (a Address) Eq(other Expr) (bool, error) {
 func NewAddressFromString(s string) (Address, error) {
 	addr, err := proto.NewAddressFromString(s)
 	return Address(addr), err
+}
+
+func NewAddressFromProtoAddress(a proto.Address) Address {
+	return Address(a)
 }
