@@ -271,6 +271,8 @@ func (r *Recipient) UnmarshalJSON(value []byte) error {
 			return errors.Wrap(err, "failed to unmarshal Recipient from JSON")
 		}
 		r.Alias = &a
+		r.len = aliasFixedSize + len(a.Alias)
+		return nil
 	}
 	var a Address
 	err := a.UnmarshalJSON(value)
@@ -278,6 +280,7 @@ func (r *Recipient) UnmarshalJSON(value []byte) error {
 		return errors.Wrap(err, "failed to unmarshal Recipient from JSON")
 	}
 	r.Address = &a
+	r.len = AddressSize
 	return nil
 }
 
