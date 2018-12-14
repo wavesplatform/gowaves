@@ -1012,6 +1012,9 @@ func (tx *TransferV2) MarshalBinary() ([]byte, error) {
 		return nil, errors.Wrap(err, "failed to marshal TransferV2 transaction to bytes")
 	}
 	bl := len(bb)
+	if tx.Proofs == nil {
+		return nil, errors.Errorf("failed to marshal TransferV2 transaction to bytes: no proofs")
+	}
 	pb, err := tx.Proofs.MarshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal TransferV2 transaction to bytes")

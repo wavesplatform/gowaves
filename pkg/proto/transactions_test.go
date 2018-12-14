@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"github.com/stretchr/testify/require"
 	"strconv"
 	"strings"
 	"testing"
@@ -676,6 +677,58 @@ func TestTransferV2FromMainNet(t *testing.T) {
 	}
 }
 
+func TestTransferV2JSONRoundTrip(t *testing.T) {
+	tests := []struct {
+		scheme              byte
+		amountAsset         string
+		expectedAmountAsset string
+		feeAsset            string
+		expectedFeeAsset    string
+		amount              uint64
+		fee                 uint64
+		attachment          string
+	}{
+		{'T', "WAVES", "WAVES", "WAVES", "WAVES", 1234, 56789, "test attachment"},
+		{'W', "", "WAVES", "", "WAVES", 1234567890, 9876543210, ""},
+		{'T', "WAVES", "WAVES", "B1u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ", "B1u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ", 121212121, 343434, "B1u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ"},
+		{'C', "B1u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ", "B1u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ", "B1u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ", "B1u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ", 12345, 67890, ""},
+		{'D', "B1u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ", "B1u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ", "WAVES", "WAVES", 567890, 1234, "xxx"},
+		{'W', "B1u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ", "B1u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ", "", "WAVES", 10, 20, ""},
+	}
+	seed, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
+	sk, pk := crypto.GenerateKeyPair(seed)
+	for _, tc := range tests {
+		ts := uint64(time.Now().UnixNano() / 1000000)
+		rcp, err := NewAddressFromPublicKey(tc.scheme, pk)
+		require.NoError(t, err)
+		aa, _ := NewOptionalAssetFromString(tc.amountAsset)
+		fa, _ := NewOptionalAssetFromString(tc.feeAsset)
+		if tx, err := NewUnsignedTransferV2(pk, *aa, *fa, ts, tc.amount, tc.fee, rcp, tc.attachment); assert.NoError(t, err) {
+			if err := tx.Sign(sk); assert.NoError(t, err) {
+				if js, err := json.Marshal(tx); assert.NoError(t, err) {
+					tx2 := &TransferV2{}
+					if err := json.Unmarshal(js, tx2); assert.NoError(t, err) {
+						assert.Equal(t, tx.Type, tx2.Type)
+						assert.Equal(t, tx.Version, tx2.Version)
+						assert.Equal(t, tx.SenderPK, tx2.SenderPK)
+						assert.Equal(t, tx.Recipient, tx2.Recipient)
+						assert.Equal(t, tx.AmountAsset.Present, tx2.AmountAsset.Present)
+						assert.ElementsMatch(t, tx.AmountAsset.ID, tx2.AmountAsset.ID)
+						assert.Equal(t, tx.FeeAsset.Present, tx2.FeeAsset.Present)
+						assert.ElementsMatch(t, tx.FeeAsset.ID, tx2.FeeAsset.ID)
+						assert.Equal(t, tx.Amount, tx2.Amount)
+						assert.Equal(t, tx.Fee, tx2.Fee)
+						assert.Equal(t, tx.Timestamp, tx2.Timestamp)
+						assert.Equal(t, tx.Attachment.String(), tx2.Attachment.String())
+						_, err := tx2.MarshalBinary()
+						assert.NoError(t, err)
+					}
+				}
+			}
+		}
+	}
+}
+
 func TestTransferV2BinaryRoundTrip(t *testing.T) {
 	tests := []struct {
 		scheme              byte
@@ -708,6 +761,7 @@ func TestTransferV2BinaryRoundTrip(t *testing.T) {
 					assert.Equal(t, tx.Type, atx.Type)
 					assert.Equal(t, tx.Version, atx.Version)
 					assert.Equal(t, tx.SenderPK, atx.SenderPK)
+					assert.Equal(t, tx.Recipient, atx.Recipient)
 					assert.Equal(t, tx.AmountAsset.Present, atx.AmountAsset.Present)
 					assert.ElementsMatch(t, tx.AmountAsset.ID, atx.AmountAsset.ID)
 					assert.Equal(t, tx.FeeAsset.Present, atx.FeeAsset.Present)

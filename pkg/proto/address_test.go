@@ -2,6 +2,7 @@ package proto
 
 import (
 	"crypto/rand"
+	"encoding/json"
 	"github.com/mr-tron/base58/base58"
 	"github.com/stretchr/testify/assert"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
@@ -29,6 +30,44 @@ func TestAddressFromPublicKey(t *testing.T) {
 			if address, err := NewAddressFromPublicKey(tc.scheme, pk); assert.NoError(t, err) {
 				assert.Equal(t, tc.address, address.String())
 			}
+		}
+	}
+}
+
+func TestRecipientJSONRoundTrip(t *testing.T) {
+	tests := []struct {
+		publicKey string
+		scheme    byte
+		alias     string
+	}{
+		{"5CnGfSjguYfzWzaRmbxzCbF5qRNGTXEvayytSANkqQ6A", MainNetScheme, ""},
+		{"BstqhtQjQN9X78i6mEpaNnf6cMsZZRDVHNv3CqguXbxq", TestNetScheme, ""},
+		{"", MainNetScheme, "alias1"},
+		{"", TestNetScheme, "alias2"},
+	}
+	for _, tc := range tests {
+		var r Recipient
+		switch {
+		case tc.publicKey != "":
+			if pk, err := crypto.NewPublicKeyFromBase58(tc.publicKey); assert.NoError(t, err) {
+				if a, err := NewAddressFromPublicKey(tc.scheme, pk); assert.NoError(t, err) {
+					r = NewRecipientFromAddress(a)
+				}
+			}
+		case tc.alias != "":
+			if al, err := NewAlias(tc.scheme, tc.alias); assert.NoError(t, err) {
+				r = NewRecipientFromAlias(*al)
+			}
+		default:
+			assert.Fail(t, "incorrect test")
+		}
+		if js, err := json.Marshal(r); assert.NoError(t, err) {
+			r2 := &Recipient{}
+			err := json.Unmarshal(js, r2)
+			assert.NoError(t, err)
+			assert.Equal(t, r.len, r2.len)
+			assert.Equal(t, r.Alias, r2.Alias)
+			assert.Equal(t, r.Address, r2.Address)
 		}
 	}
 }
