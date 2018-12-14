@@ -655,6 +655,9 @@ func (tx *IssueV2) MarshalBinary() ([]byte, error) {
 		return nil, errors.Wrap(err, "failed to marshal IssueV2 transaction to bytes")
 	}
 	bl := len(bb)
+	if tx.Proofs == nil {
+		return nil, errors.New("failed to marshal IssueV2 transaction to bytes: no proofs")
+	}
 	pb, err := tx.Proofs.MarshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal IssueV2 transaction to bytes")
@@ -1028,6 +1031,9 @@ func (tx *TransferV2) MarshalBinary() ([]byte, error) {
 		return nil, errors.Wrap(err, "failed to marshal TransferV2 transaction to bytes")
 	}
 	bl := len(bb)
+	if tx.Proofs == nil {
+		return nil, errors.New("failed to marshal TransferV2 transaction to bytes: no proofs")
+	}
 	pb, err := tx.Proofs.MarshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal TransferV2 transaction to bytes")
@@ -1351,6 +1357,9 @@ func (tx *ReissueV2) MarshalBinary() ([]byte, error) {
 		return nil, errors.Wrap(err, "failed to marshal ReissueV2 transaction to bytes")
 	}
 	bl := len(bb)
+	if tx.Proofs == nil {
+		return nil, errors.New("failed to marshal ReissueV2 transaction to bytes: no proofs")
+	}
 	pb, err := tx.Proofs.MarshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal ReissueV2 transaction to bytes")
@@ -1645,6 +1654,9 @@ func (tx *BurnV2) MarshalBinary() ([]byte, error) {
 		return nil, errors.Wrap(err, "failed to marshal BurnV2 transaction to bytes")
 	}
 	bl := len(bb)
+	if tx.Proofs == nil {
+		return nil, errors.New("failed to marshal BurnV2 transaction to bytes: no proofs")
+	}
 	pb, err := tx.Proofs.MarshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal BurnV2 transaction to bytes")
@@ -2116,6 +2128,9 @@ func (tx *ExchangeV2) MarshalBinary() ([]byte, error) {
 		return nil, errors.Wrap(err, "failed to marshal ExchangeV2 transaction to bytes")
 	}
 	bl := len(bb)
+	if tx.Proofs == nil {
+		return nil, errors.New("failed to marshal ExchangeV2 transaction to bytes: no proofs")
+	}
 	pb, err := tx.Proofs.MarshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal ExchangeV2 transaction to bytes")
@@ -2423,6 +2438,9 @@ func (tx *LeaseV2) MarshalBinary() ([]byte, error) {
 		return nil, errors.Wrap(err, "failed to marshal LeaseV2 transaction to bytes")
 	}
 	bl := len(bb)
+	if tx.Proofs == nil {
+		return nil, errors.New("failed to marshal LeaseV2 transaction to bytes: no proofs")
+	}
 	pb, err := tx.Proofs.MarshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal LeaseV2 transaction to bytes")
@@ -2717,6 +2735,9 @@ func (tx *LeaseCancelV2) MarshalBinary() ([]byte, error) {
 		return nil, errors.Wrap(err, "failed to marshal LeaseCancelV2 transaction to bytes")
 	}
 	bl := len(bb)
+	if tx.Proofs == nil {
+		return nil, errors.New("failed to marshal LeaseCancelV2 transaction to bytes: no proofs")
+	}
 	pb, err := tx.Proofs.MarshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal LeaseCancelV2 transaction to bytes")
@@ -3023,6 +3044,9 @@ func (tx *CreateAliasV2) MarshalBinary() ([]byte, error) {
 		return nil, errors.Wrap(err, "failed to marshal CreateAliasV2 transaction to bytes")
 	}
 	bl := len(bb)
+	if tx.Proofs == nil {
+		return nil, errors.New("failed to marshal CreateAliasV2 transaction to bytes: no proofs")
+	}
 	pb, err := tx.Proofs.MarshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal CreateAliasV2 transaction to bytes")
@@ -3262,6 +3286,9 @@ func (tx *MassTransferV1) MarshalBinary() ([]byte, error) {
 		return nil, errors.Wrap(err, "failed to marshal MassTransferV1 transaction to bytes")
 	}
 	bl := len(bb)
+	if tx.Proofs == nil {
+		return nil, errors.New("failed to marshal MassTransferV1 transaction to bytes: no proofs")
+	}
 	pb, err := tx.Proofs.MarshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal MassTransferV1 transaction to bytes")
@@ -3484,6 +3511,9 @@ func (tx *DataV1) MarshalBinary() ([]byte, error) {
 		return nil, errors.Wrap(err, "failed to marshal DataV1 transaction to bytes")
 	}
 	bl := len(bb)
+	if tx.Proofs == nil {
+		return nil, errors.New("failed to marshal DataV1 transaction to bytes: no proofs")
+	}
 	pb, err := tx.Proofs.MarshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal DataV1 transaction to bytes")
@@ -3655,6 +3685,9 @@ func (tx *SetScriptV1) MarshalBinary() ([]byte, error) {
 		return nil, errors.Wrap(err, "failed to marshal SetScriptV1 transaction to bytes")
 	}
 	bl := len(bb)
+	if tx.Proofs == nil {
+		return nil, errors.New("failed to marshal SetScriptV1 transaction to bytes: no proofs")
+	}
 	pb, err := tx.Proofs.MarshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal SetScriptV1 transaction to bytes")
@@ -3806,6 +3839,9 @@ func (tx *SponsorshipV1) MarshalBinary() ([]byte, error) {
 		return nil, errors.Wrap(err, "failed to marshal SponsorshipV1 transaction to bytes")
 	}
 	bl := len(bb)
+	if tx.Proofs == nil {
+		return nil, errors.New("failed to marshal SponsorshipV1 transaction to bytes: no proofs")
+	}
 	pb, err := tx.Proofs.MarshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal SponsorshipV1 transaction to bytes")
