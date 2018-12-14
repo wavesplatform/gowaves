@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"fmt"
+	"github.com/mr-tron/base58/base58"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"io"
@@ -240,7 +241,7 @@ func mathLong(funcName string, f func(int64, int64) (Expr, error), s Scope, e Ex
 	return f(first.Value, second.Value)
 }
 
-// bytes
+// Value
 // signature
 // public key
 func NativeSigVerify(s Scope, e Exprs) (Expr, error) {
@@ -270,17 +271,17 @@ func NativeSigVerify(s Scope, e Exprs) (Expr, error) {
 		return nil, errors.Errorf("%s: third argument expects to be *BytesExpr, found %T", funcName, rs[2])
 	}
 
-	pk, err := crypto.NewPublicKeyFromBytes(pkExpr.bytes)
+	pk, err := crypto.NewPublicKeyFromBytes(pkExpr.Value)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
 
-	signature, err := crypto.NewSignatureFromBytes(signatureExpr.bytes)
+	signature, err := crypto.NewSignatureFromBytes(signatureExpr.Value)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
 
-	out := crypto.Verify(pk, signature, bytesExpr.bytes)
+	out := crypto.Verify(pk, signature, bytesExpr.Value)
 	return NewBoolean(out), nil
 }
 
@@ -299,7 +300,7 @@ func NativeKeccak256(s Scope, e Exprs) (Expr, error) {
 		return nil, errors.Errorf("NativeKeccak256: expected first argument to be *BytesExpr, found %T", val)
 	}
 
-	d := crypto.Keccak256(bts.bytes)
+	d := crypto.Keccak256(bts.Value)
 	return NewBytes(d.Bytes()), nil
 }
 
@@ -318,7 +319,7 @@ func NativeBlake2b256(s Scope, e Exprs) (Expr, error) {
 		return nil, errors.Errorf("NativeBlake2b256: expected first argument to be *BytesExpr, found %T", val)
 	}
 
-	d, err := crypto.FastHash(bts.bytes)
+	d, err := crypto.FastHash(bts.Value)
 	if err != nil {
 		return nil, errors.Wrap(err, "NativeBlake2b256")
 	}
@@ -341,7 +342,7 @@ func NativeSha256(s Scope, e Exprs) (Expr, error) {
 	}
 
 	h := sha256.New()
-	h.Write(bts.bytes)
+	h.Write(bts.Value)
 	d := h.Sum(nil)
 
 	return NewBytes(d), nil
@@ -364,7 +365,7 @@ func NativeTransactionHeightByID(s Scope, e Exprs) (Expr, error) {
 		return nil, errors.Errorf("%s: expected first argument to be *BytesExpr, got %T", funcName, rs)
 	}
 
-	sign, err := crypto.NewSignatureFromBytes(bts.bytes)
+	sign, err := crypto.NewSignatureFromBytes(bts.Value)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
@@ -394,7 +395,7 @@ func NativeTransactionByID(s Scope, e Exprs) (Expr, error) {
 		return nil, errors.Errorf("%s: expected first argument to be *BytesExpr, got %T", funcName, rs)
 	}
 
-	sign, err := crypto.NewSignatureFromBytes(bts.bytes)
+	sign, err := crypto.NewSignatureFromBytes(bts.Value)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
@@ -429,7 +430,7 @@ func NativeSizeBytes(s Scope, e Exprs) (Expr, error) {
 		return nil, errors.Errorf("%s expected first argument to be *BytesExpr, found %T", funcName, rs)
 	}
 
-	return NewLong(int64(len(bts.bytes))), nil
+	return NewLong(int64(len(bts.Value))), nil
 }
 
 func NativeTakeBytes(s Scope, e Exprs) (Expr, error) {
@@ -456,12 +457,12 @@ func NativeTakeBytes(s Scope, e Exprs) (Expr, error) {
 
 	l := int(length.Value)
 
-	if l >= len(bts.bytes) {
+	if l >= len(bts.Value) {
 		return nil, errors.Errorf("%s index %d out of range", funcName, length.Value)
 	}
 
 	out := make([]byte, l)
-	copy(out, bts.bytes[:l])
+	copy(out, bts.Value[:l])
 
 	return NewBytes(out), nil
 }
@@ -490,12 +491,12 @@ func NativeDropBytes(s Scope, e Exprs) (Expr, error) {
 
 	l := int(length.Value)
 
-	if l >= len(bts.bytes) {
+	if l >= len(bts.Value) {
 		return nil, errors.Errorf("%s index %d out of range", funcName, length.Value)
 	}
 
-	out := make([]byte, len(bts.bytes)-l)
-	copy(out, bts.bytes[l:])
+	out := make([]byte, len(bts.Value)-l)
+	copy(out, bts.Value[l:])
 
 	return NewBytes(out), nil
 }
@@ -522,15 +523,15 @@ func NativeConcatBytes(s Scope, e Exprs) (Expr, error) {
 		return nil, errors.Errorf("%s expected second argument to be *BytesExpr, found %T", funcName, rs[1])
 	}
 
-	l := len(prefix.bytes) + len(suffix.bytes)
+	l := len(prefix.Value) + len(suffix.Value)
 
 	if l > MaxBytesResult {
 		return nil, errors.Errorf("%s byte length %d is greater than max %d", funcName, l, MaxBytesResult)
 	}
 
 	out := make([]byte, l)
-	out = append(out[:0], prefix.bytes...)
-	out = append(out[:len(prefix.bytes)], suffix.bytes...)
+	out = append(out[:0], prefix.Value...)
+	out = append(out[:len(prefix.Value)], suffix.Value...)
 
 	return NewBytes(out), nil
 }
@@ -821,6 +822,51 @@ func NativeBooleanToString(s Scope, e Exprs) (Expr, error) {
 	}
 }
 
+func NativeToBase58(s Scope, e Exprs) (Expr, error) {
+	funcName := "NativeToBase58"
+
+	if l := len(e); l != 1 {
+		return nil, errors.Errorf("%s: invalid params, expected 1, passed %d", funcName, l)
+	}
+
+	first, err := e[0].Evaluate(s.Clone())
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+
+	b, ok := first.(*BytesExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: expected first argument to be *BytesExpr, found %T", funcName, first)
+	}
+
+	return NewString(base58.Encode(b.Value)), nil
+}
+
+func NativeFromBase58(s Scope, e Exprs) (Expr, error) {
+	funcName := "NativeFromBase58"
+
+	if l := len(e); l != 1 {
+		return nil, errors.Errorf("%s: invalid params, expected 1, passed %d", funcName, l)
+	}
+
+	first, err := e[0].Evaluate(s.Clone())
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+
+	str, ok := first.(*StringExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: expected first argument to be *StringExpr, found %T", funcName, first)
+	}
+
+	rs, err := base58.Decode(str.Value)
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+
+	return NewBytes(rs), nil
+}
+
 func UserThrow(s Scope, e Exprs) (Expr, error) {
 	return nil, Throw{Message: DefaultThrowMessage}
 }
@@ -846,6 +892,27 @@ func UserAddressFromString(s Scope, e Exprs) (Expr, error) {
 	}
 
 	return addr, nil
+}
+
+// !=
+func UserFunctionNeq(s Scope, e Exprs) (Expr, error) {
+	funcName := "UserFunctionNeq"
+
+	if l := len(e); l != 2 {
+		return nil, errors.Errorf("%s: invalid params, expected 2, passed %d", funcName, l)
+	}
+
+	rs, err := e.EvaluateAll(s.Clone())
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+
+	eq, err := rs[0].Eq(rs[1])
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+
+	return NewBoolean(!eq), nil
 }
 
 func writeNativeFunction(w io.Writer, id int16, e Exprs) {
@@ -900,6 +967,26 @@ func writeNativeFunction(w io.Writer, id int16, e Exprs) {
 		e[1].Write(w)
 		fmt.Fprint(w, ", ")
 		e[2].Write(w)
+		fmt.Fprint(w, ")")
+	case 501:
+		fmt.Fprint(w, "keccak256(")
+		e[0].Write(w)
+		fmt.Fprint(w, ")")
+	case 502:
+		fmt.Fprint(w, "blake2b256(")
+		e[0].Write(w)
+		fmt.Fprint(w, ")")
+	case 503:
+		fmt.Fprint(w, "sha256(")
+		e[0].Write(w)
+		fmt.Fprint(w, ")")
+	case 600:
+		fmt.Fprint(w, "toBase58String(")
+		e[0].Write(w)
+		fmt.Fprint(w, ")")
+	case 601:
+		fmt.Fprint(w, "fromBase58String(")
+		e[0].Write(w)
 		fmt.Fprint(w, ")")
 
 	case 1000:

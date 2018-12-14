@@ -326,3 +326,15 @@ func TestNativeBooleanToString(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, NewString("false"), rs2)
 }
+
+func TestNativeToBase58(t *testing.T) {
+	rs1, err := NativeToBase58(newEmptyScope(), Params(NewBytes([]byte("hello"))))
+	require.NoError(t, err)
+	assert.Equal(t, NewString("Cn8eVZg"), rs1)
+}
+
+func TestNativeFromBase58(t *testing.T) {
+	rs1, err := NativeFromBase58(newEmptyScope(), Params(NewString("abcde")))
+	require.NoError(t, err)
+	assert.Equal(t, NewBytes([]uint8{0x16, 0xa9, 0x5c, 0x99}), rs1)
+}

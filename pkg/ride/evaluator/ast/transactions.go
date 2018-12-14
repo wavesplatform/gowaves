@@ -39,7 +39,7 @@ func NewVariablesFromTransaction(scheme byte, t proto.Transaction) (map[string]E
 		out["sender"] = NewAddressFromProtoAddress(addr)
 		out["amount"] = NewLong(int64(tx.Amount))
 		out["timestamp"] = NewLong(int64(tx.Timestamp))
-		bts, err := tx.MarshalBinary()
+		bts, err := tx.BodyMarshalBinary()
 		if err != nil {
 			return nil, errors.Wrap(err, funcName)
 		}

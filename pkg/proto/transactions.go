@@ -961,7 +961,7 @@ func NewUnsignedTransferV2(senderPK crypto.PublicKey, amountAsset, feeAsset Opti
 	return &TransferV2{Type: TransferTransaction, Version: 2, transfer: *t}, nil
 }
 
-func (tx *TransferV2) bodyMarshalBinary() ([]byte, error) {
+func (tx *TransferV2) BodyMarshalBinary() ([]byte, error) {
 	b, err := tx.transfer.marshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal TransferV2 body")
@@ -973,7 +973,7 @@ func (tx *TransferV2) bodyMarshalBinary() ([]byte, error) {
 	return buf, nil
 }
 
-func (tx *TransferV2) bodyUnmarshalBinary(data []byte) error {
+func (tx *TransferV2) BodyUnmarshalBinary(data []byte) error {
 	if l := len(data); l < transferV2FixedBodyLen {
 		return errors.Errorf("%d bytes is not enough for TransferV2 transaction, expected not less then %d bytes", l, transferV2FixedBodyLen)
 	}
@@ -996,7 +996,7 @@ func (tx *TransferV2) bodyUnmarshalBinary(data []byte) error {
 
 //Sign adds signature as a proof at first position.
 func (tx *TransferV2) Sign(secretKey crypto.SecretKey) error {
-	b, err := tx.bodyMarshalBinary()
+	b, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return errors.Wrap(err, "failed to sign TransferV2 transaction")
 	}
@@ -1017,7 +1017,7 @@ func (tx *TransferV2) Sign(secretKey crypto.SecretKey) error {
 
 //Verify checks that first proof is a valid signature.
 func (tx *TransferV2) Verify(publicKey crypto.PublicKey) (bool, error) {
-	b, err := tx.bodyMarshalBinary()
+	b, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return false, errors.Wrap(err, "failed to verify signature of TransferV2 transaction")
 	}
@@ -1026,7 +1026,7 @@ func (tx *TransferV2) Verify(publicKey crypto.PublicKey) (bool, error) {
 
 //MarshalBinary writes TransferV2 transaction to its bytes representation.
 func (tx *TransferV2) MarshalBinary() ([]byte, error) {
-	bb, err := tx.bodyMarshalBinary()
+	bb, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal TransferV2 transaction to bytes")
 	}
@@ -1054,7 +1054,7 @@ func (tx *TransferV2) UnmarshalBinary(data []byte) error {
 		return errors.Errorf("unexpected first byte value %d, expected 0", v)
 	}
 	data = data[1:]
-	err := tx.bodyUnmarshalBinary(data)
+	err := tx.BodyUnmarshalBinary(data)
 	if err != nil {
 		return errors.Wrap(err, "failed to unmarshal TransferV2 transaction from bytes")
 	}

@@ -53,7 +53,7 @@ func NewExprs(e ...Expr) Exprs {
 }
 
 type Block struct {
-	Let  *Let
+	Let  *LetExpr
 	Body Expr
 }
 
@@ -72,18 +72,18 @@ func (a *Block) Eq(other Expr) (bool, error) {
 	return false, errors.Errorf("trying to compare %T with %T", a, other)
 }
 
-type Let struct {
+type LetExpr struct {
 	Name  string
 	Value Expr
 }
 
-func (a *Let) Write(w io.Writer) {
+func (a *LetExpr) Write(w io.Writer) {
 	fmt.Fprintf(w, "let %s = ", a.Name)
 	a.Value.Write(w)
 }
 
-func NewLet(name string, value Expr) *Let {
-	return &Let{
+func NewLet(name string, value Expr) *LetExpr {
+	return &LetExpr{
 		Name:  name,
 		Value: value,
 	}
@@ -179,19 +179,7 @@ func NewNativeFunction(id int16, argc int, argv Exprs) *NativeFunction {
 }
 
 func (a *NativeFunction) Write(w io.Writer) {
-
 	writeNativeFunction(w, a.FunctionID, a.Argv)
-
-	//fmt.Fprintf(w, "FUNCTION_%d(", a.FunctionID)
-	//
-	//for i, arg := range a.Argv {
-	//	arg.Write(w)
-	//	if i < len(a.Argv)-1 {
-	//		fmt.Fprint(w, ", ")
-	//	}
-	//}
-	//
-	//fmt.Fprintf(w, ")")
 }
 
 func (a *NativeFunction) Evaluate(s Scope) (Expr, error) {
@@ -222,6 +210,14 @@ func NewUserFunction(name string, argc int, argv Exprs) *UserFunction {
 }
 
 func (a *UserFunction) Write(w io.Writer) {
+
+	if a.Name == "!=" {
+		a.Argv[0].Write(w)
+		fmt.Fprint(w, " != ")
+		a.Argv[1].Write(w)
+		return
+	}
+
 	fmt.Fprint(w, a.Name)
 	for i, arg := range a.Argv {
 		arg.Write(w)
@@ -335,17 +331,17 @@ func (a *IfExpr) Eq(other Expr) (bool, error) {
 }
 
 type BytesExpr struct {
-	bytes []byte
+	Value []byte
 }
 
 func NewBytes(b []byte) *BytesExpr {
 	return &BytesExpr{
-		bytes: b,
+		Value: b,
 	}
 }
 
 func (a *BytesExpr) Write(w io.Writer) {
-	fmt.Fprint(w, "base58'", base58.Encode(a.bytes), "'")
+	fmt.Fprint(w, "base58'", base58.Encode(a.Value), "'")
 }
 
 func (a *BytesExpr) Evaluate(s Scope) (Expr, error) {
@@ -358,7 +354,7 @@ func (a *BytesExpr) Eq(other Expr) (bool, error) {
 		return false, errors.Errorf("trying to compare %T with %T", a, other)
 	}
 
-	return bytes.Equal(a.bytes, b.bytes), nil
+	return bytes.Equal(a.Value, b.Value), nil
 }
 
 type GetterExpr struct {

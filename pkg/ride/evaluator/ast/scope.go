@@ -126,12 +126,19 @@ func NewFuncScope() *FuncScope {
 	funcs[421] = NativeBooleanToString
 
 	funcs[500] = NativeSigVerify
+	funcs[501] = NativeKeccak256
+	funcs[502] = NativeBlake2b256
+	funcs[503] = NativeSha256
+
+	funcs[600] = NativeToBase58
+	funcs[601] = NativeFromBase58
 
 	funcs[1001] = NativeTransactionHeightByID
 
 	userFuncs := make(map[string]Callable)
 	userFuncs["throw"] = UserThrow
 	userFuncs["addressFromString"] = UserAddressFromString
+	userFuncs["!="] = UserFunctionNeq
 
 	return &FuncScope{
 		funcs:     funcs,
