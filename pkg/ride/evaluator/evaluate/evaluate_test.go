@@ -2,6 +2,7 @@ package evaluate
 
 import (
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/state"
@@ -14,13 +15,59 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/ride/evaluator/reader"
 )
 
+const seed = "test test"
+
+func newTransferTransaction(seed string) *proto.TransferV2 {
+
+	js := `{"type":4,"version":2,"id":"CqjGMbrd5bFmLAv2mUSdphEJSgVWkWa6ZtcMkKmgH2ax","proofs":["5W7hjPpgmmhxevCt4A7y9F8oNJ4V9w2g8jhQgx2qGmBTNsP1p1MpQeKF3cvZULwJ7vQthZfSx2BhL6TWkHSVLzvq"],"senderPublicKey":"14ovLL9a6xbBfftyxGNLKMdbnzGgnaFQjmgUJGdho6nY","assetId":null,"feeAssetId":null,"timestamp":1544715621,"amount":15,"fee":10000,"recipient":"3P2USE3iYK5w7jNahAUHTytNbVRccGZwQH3"}`
+
+	tv2 := &proto.TransferV2{}
+
+	err := json.Unmarshal([]byte(js), tv2)
+	if err != nil {
+		panic(err)
+	}
+	return tv2
+
+	//secret, public := crypto.GenerateKeyPair([]byte(seed))
+	//
+	//addr, _ := proto.NewAddressFromPublicKey(proto.MainNetScheme, public)
+	//
+	//t, err := proto.NewUnsignedTransferV2(
+	//	public,
+	//	proto.OptionalAsset{},
+	//	proto.OptionalAsset{},
+	//	uint64(1544715621),
+	//	15,
+	//	10000,
+	//	addr,
+	//	"")
+	//
+	//if err != nil {
+	//	panic(err)
+	//}
+	//
+	//err = t.Sign(secret)
+	//if err != nil {
+	//	panic(err)
+	//}
+	//return t
+}
+
 func defaultScope() Scope {
 	predefObject := make(map[string]Expr)
-	predefObject["tx"] = NewObject(map[string]Expr{
-		"id":              NewBytes([]byte{33}),
-		"proofs":          Exprs([]Expr{NewBytes([]byte{33})}),
-		InstanceFieldName: NewString("MassTransferTransaction"),
-	})
+	t := newTransferTransaction("test test")
+
+	vars, err := NewVariablesFromTransaction(proto.MainNetScheme, t)
+	if err != nil {
+		panic(err)
+	}
+
+	js, _ := json.Marshal(t)
+	fmt.Println(string(js))
+
+	predefObject["tx"] = NewObject(vars)
+
 	predefObject["height"] = NewLong(5)
 	return NewScope(proto.MainNetScheme, state.MockState{}, NewFuncScope(), predefObject)
 }
@@ -53,7 +100,7 @@ func TestEval(t *testing.T) {
 		{`let x =  throw(); true`, `AQQAAAABeAkBAAAABXRocm93AAAAAAa7bgf4`, true},
 		{`let x =  throw();true || x`, `AQQAAAABeAkBAAAABXRocm93AAAAAAMGBgUAAAABeKRnLds=`, true},
 		{`tx.id == base58''`, `AQkAAAAAAAACCAUAAAACdHgAAAACaWQBAAAAAJBtD70=`, false},
-		{`tx.id == base58'a'`, `AQkAAAAAAAACCAUAAAACdHgAAAACaWQBAAAAASHuubwr`, true},
+		{`tx.id == base58'CqjGMbrd5bFmLAv2mUSdphEJSgVWkWa6ZtcMkKmgH2ax'`, `AQkAAAAAAAACCAUAAAACdHgAAAACaWQBAAAAIK/sOVMfQLb6FHT+QbJpYq4m7jlQoC3GPCMpxfHPeT5F5CUKdw==`, true},
 		{`let x = tx.id == base58'a';true`, `AQQAAAABeAkAAAAAAAACCAUAAAACdHgAAAACaWQBAAAAASEGjR0kcA==`, true},
 		{`tx.proofs[0] == base58'a'`, `AQkAAAAAAAACCQABkQAAAAIIBQAAAAJ0eAAAAAZwcm9vZnMAAAAAAAAAAAABAAAAASEdRfFh`, true},
 		{longScript, `AQQAAAAHJG1hdGNoMAUAAAACdHgDAwkAAAEAAAACBQAAAAckbWF0Y2gwAgAAABNFeGNoYW5nZVRyYW5zYWN0aW9uBgMJAAABAAAAAgUAAAAHJG1hdGNoMAIAAAAXTWFzc1RyYW5zZmVyVHJhbnNhY3Rpb24GCQAAAQAAAAIFAAAAByRtYXRjaDACAAAAE1RyYW5zZmVyVHJhbnNhY3Rpb24EAAAAAXQFAAAAByRtYXRjaDAGB6Ilvok=`, true},
@@ -68,7 +115,7 @@ func TestEval(t *testing.T) {
 		require.NoError(t, err)
 
 		rs, err := Eval(exprs, defaultScope())
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, c.Result, rs, fmt.Sprintf("script: %s", c.Name))
 	}
 
@@ -142,6 +189,8 @@ func TestFunctions(t *testing.T) {
 		{412, `BOOLEAN_TO_BYTES`, `toBytes(true) == base58'2'`, `AQkAAAAAAAACCQABnAAAAAEGAQAAAAEBJRrQbw==`, true},
 		{420, `LONG_TO_STRING`, `toString(5) == "5"`, `AQkAAAAAAAACCQABpAAAAAEAAAAAAAAAAAUCAAAAATXPb5tR`, true},
 		{421, `BOOLEAN_TO_STRING`, `toString(true) == "true"`, `AQkAAAAAAAACCQABpQAAAAEGAgAAAAR0cnVlL6ZrWg==`, true},
+
+		{500, `SIGVERIFY`, `toString(true) == "true"`, `AQkAAAAAAAACCQABpQAAAAEGAgAAAAR0cnVlL6ZrWg==`, true},
 	}
 
 	for _, c := range conds {

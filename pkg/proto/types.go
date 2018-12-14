@@ -58,6 +58,10 @@ func (b *B58Bytes) UnmarshalJSON(value []byte) error {
 	return nil
 }
 
+func (b B58Bytes) Bytes() []byte {
+	return b
+}
+
 // OptionalAsset represents an optional asset identification
 type OptionalAsset struct {
 	Present bool

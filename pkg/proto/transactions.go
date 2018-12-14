@@ -945,6 +945,9 @@ type TransferV2 struct {
 }
 
 func (TransferV2) Transaction() {}
+func (tx TransferV2) GetID() []byte {
+	return tx.ID.Bytes()
+}
 
 //NewUnsignedTransferV2 creates new TransferV2 transaction without proofs and ID.
 func NewUnsignedTransferV2(senderPK crypto.PublicKey, amountAsset, feeAsset OptionalAsset, timestamp, amount, fee uint64, recipient Address, attachment string) (*TransferV2, error) {

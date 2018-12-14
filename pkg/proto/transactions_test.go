@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"github.com/stretchr/testify/require"
 	"strconv"
 	"strings"
 	"testing"
@@ -672,6 +673,14 @@ func TestTransferV2FromMainNet(t *testing.T) {
 				}
 				assert.True(t, crypto.Verify(spk, sig, b))
 			}
+
+			js, err := json.Marshal(tx)
+			require.NoError(t, err)
+			tx2 := &TransferV2{}
+			err = json.Unmarshal(js, tx2)
+			require.NoError(t, err)
+			_, err = tx2.MarshalBinary()
+			require.NoError(t, err)
 		}
 	}
 }

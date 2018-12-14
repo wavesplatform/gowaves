@@ -244,38 +244,40 @@ func mathLong(funcName string, f func(int64, int64) (Expr, error), s Scope, e Ex
 // signature
 // public key
 func NativeSigVerify(s Scope, e Exprs) (Expr, error) {
+	funcName := "NativeSigVerify"
+
 	if l := len(e); l != 3 {
-		return nil, errors.Errorf("NativeSigVerify: invalid params, expected 2, passed %d", l)
+		return nil, errors.Errorf("%s: invalid params, expected 2, passed %d", funcName, l)
 	}
 
 	rs, err := e.EvaluateAll(s)
 	if err != nil {
-		return nil, errors.Wrap(err, "NativeSigVerify")
+		return nil, errors.Wrap(err, funcName)
 	}
 
 	bytesExpr, ok := rs[0].(*BytesExpr)
 	if !ok {
-		return nil, errors.Errorf("NativeSigVerify: first argument expects to be *BytesExpr, found %T", rs[0])
+		return nil, errors.Errorf("%s: first argument expects to be *BytesExpr, found %T", funcName, rs[0])
 	}
 
 	signatureExpr, ok := rs[1].(*BytesExpr)
 	if !ok {
-		return nil, errors.Errorf("NativeSigVerify: second argument expects to be *BytesExpr, found %T", rs[1])
+		return nil, errors.Errorf("%s: second argument expects to be *BytesExpr, found %T", funcName, rs[1])
 	}
 
 	pkExpr, ok := rs[2].(*BytesExpr)
 	if !ok {
-		return nil, errors.Errorf("NativeSigVerify: third argument expects to be *BytesExpr, found %T", rs[2])
+		return nil, errors.Errorf("%s: third argument expects to be *BytesExpr, found %T", funcName, rs[2])
 	}
 
 	pk, err := crypto.NewPublicKeyFromBytes(pkExpr.bytes)
 	if err != nil {
-		return nil, errors.Wrap(err, "NativeSigVerify")
+		return nil, errors.Wrap(err, funcName)
 	}
 
 	signature, err := crypto.NewSignatureFromBytes(signatureExpr.bytes)
 	if err != nil {
-		return nil, errors.Wrap(err, "NativeSigVerify")
+		return nil, errors.Wrap(err, funcName)
 	}
 
 	out := crypto.Verify(pk, signature, bytesExpr.bytes)
