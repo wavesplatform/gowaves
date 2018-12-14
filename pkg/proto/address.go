@@ -277,6 +277,7 @@ func (r *Recipient) UnmarshalJSON(value []byte) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to unmarshal Recipient from JSON")
 	}
+	r.Address = &a
 	return nil
 }
 
