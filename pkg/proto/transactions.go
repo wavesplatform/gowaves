@@ -945,7 +945,7 @@ func NewUnsignedTransferV2(senderPK crypto.PublicKey, amountAsset, feeAsset Opti
 func (tx *TransferV2) bodyMarshalBinary() ([]byte, error) {
 	b, err := tx.transfer.marshalBinary()
 	if err != nil {
-		errors.Wrap(err, "failed to marshal TransferV2 body")
+		return nil, errors.Wrap(err, "failed to marshal TransferV2 body")
 	}
 	buf := make([]byte, 2+len(b))
 	buf[0] = byte(tx.Type)
@@ -1267,7 +1267,7 @@ func (tx *ReissueV2) bodyMarshalBinary() ([]byte, error) {
 	buf[2] = tx.ChainID
 	b, err := tx.reissue.marshalBinary()
 	if err != nil {
-		errors.Wrap(err, "failed to marshal ReissueV2 body")
+		return nil, errors.Wrap(err, "failed to marshal ReissueV2 body")
 	}
 	copy(buf[3:], b)
 	return buf, nil
@@ -1558,7 +1558,7 @@ func (tx *BurnV2) bodyMarshalBinary() ([]byte, error) {
 	buf[2] = tx.ChainID
 	b, err := tx.burn.marshalBinary()
 	if err != nil {
-		errors.Wrap(err, "failed to marshal BurnV2 body")
+		return nil, errors.Wrap(err, "failed to marshal BurnV2 body")
 	}
 	copy(buf[3:], b)
 	return buf, nil
