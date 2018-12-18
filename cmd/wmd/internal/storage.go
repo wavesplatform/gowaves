@@ -33,7 +33,7 @@ const (
 )
 
 const (
-	defaultTradesLimit = 1000
+	maxLimit = 1000
 )
 
 var (
@@ -72,6 +72,22 @@ func (k pairTimestampKey) bytes() []byte {
 	return buf
 }
 
+type pairTimeFrameKey struct {
+	prefix      byte
+	amountAsset crypto.Digest
+	priceAsset  crypto.Digest
+	timeFrame   uint32
+}
+
+func (k pairTimeFrameKey) bytes() []byte {
+	buf := make([]byte, 1+2*crypto.DigestSize+4)
+	buf[0] = k.prefix
+	copy(buf[1:], k.amountAsset[:])
+	copy(buf[1+crypto.DigestSize:], k.priceAsset[:])
+	binary.BigEndian.PutUint32(buf[1+2*crypto.DigestSize:], k.timeFrame)
+	return buf
+}
+
 type pairPublicKeyTimestampKey struct {
 	prefix      byte
 	amountAsset crypto.Digest
@@ -90,19 +106,36 @@ func (k pairPublicKeyTimestampKey) bytes() []byte {
 	return buf
 }
 
-type timestampPairKey struct {
+//type timestampPairKey struct {
+//	prefix      byte
+//	ts          uint64
+//	amountAsset crypto.Digest
+//	priceAsset  crypto.Digest
+//}
+//TODO:remove
+//
+//func (k timestampPairKey) bytes() []byte {
+//	buf := make([]byte, 1+8+2*crypto.DigestSize)
+//	buf[0] = k.prefix
+//	binary.BigEndian.PutUint64(buf[1:], k.ts)
+//	copy(buf[1+8:], k.amountAsset[:])
+//	copy(buf[1+8+crypto.DigestSize:], k.priceAsset[:])
+//	return buf
+//}
+
+type timeFramePairKey struct {
 	prefix      byte
-	ts          uint64
+	tf          uint32
 	amountAsset crypto.Digest
 	priceAsset  crypto.Digest
 }
 
-func (k timestampPairKey) bytes() []byte {
-	buf := make([]byte, 1+8+2*crypto.DigestSize)
+func (k timeFramePairKey) bytes() []byte {
+	buf := make([]byte, 1+4+2*crypto.DigestSize)
 	buf[0] = k.prefix
-	binary.BigEndian.PutUint64(buf[1:], k.ts)
-	copy(buf[1+8:], k.amountAsset[:])
-	copy(buf[1+8+crypto.DigestSize:], k.priceAsset[:])
+	binary.BigEndian.PutUint32(buf[1:], k.tf)
+	copy(buf[1+4:], k.amountAsset[:])
+	copy(buf[1+4+crypto.DigestSize:], k.priceAsset[:])
 	return buf
 }
 
@@ -138,28 +171,28 @@ func (l *digests) unmarshalBinary(data []byte) error {
 type blockInfo struct {
 	Empty             bool
 	ID                crypto.Signature
-	EarliestTimeFrame uint64
+	EarliestTimeFrame uint32
 }
 
 func (b *blockInfo) marshalBinary() []byte {
-	buf := make([]byte, crypto.SignatureSize+1+8)
+	buf := make([]byte, crypto.SignatureSize+1+4)
 	if b.Empty {
 		buf[0] = 1
 	} else {
 		buf[0] = 0
 	}
 	copy(buf[1:], b.ID[:])
-	binary.BigEndian.PutUint64(buf[1+crypto.SignatureSize:], b.EarliestTimeFrame)
+	binary.BigEndian.PutUint32(buf[1+crypto.SignatureSize:], b.EarliestTimeFrame)
 	return buf
 }
 
 func (b *blockInfo) unmarshalBinary(data []byte) error {
-	if len(data) != crypto.SignatureSize+1+8 {
+	if len(data) != crypto.SignatureSize+1+4 {
 		return errors.New("incorrect data for blockInfo")
 	}
 	b.Empty = data[0] == 1
 	copy(b.ID[:], data[1:])
-	b.EarliestTimeFrame = binary.BigEndian.Uint64(data[1+crypto.SignatureSize:])
+	b.EarliestTimeFrame = binary.BigEndian.Uint32(data[1+crypto.SignatureSize:])
 	return nil
 }
 
@@ -262,8 +295,8 @@ func (s *Storage) readTrade(id crypto.Digest) (*Trade, error) {
 }
 
 func (s *Storage) Trades(amountAsset, priceAsset crypto.Digest, limit int) ([]Trade, error) {
-	sk := pairTimestampKey{PairTradesKeyPrefix, amountAsset, priceAsset, 0}
-	ek := pairTimestampKey{PairTradesKeyPrefix, amountAsset, priceAsset, math.MaxUint64}
+	sk := pairTimeFrameKey{PairTradesKeyPrefix, amountAsset, priceAsset, 0}
+	ek := pairTimeFrameKey{PairTradesKeyPrefix, amountAsset, priceAsset, math.MaxUint32}
 	it := s.db.NewIterator(&ldbUtil.Range{Start: sk.bytes(), Limit: ek.bytes()}, defaultReadOptions)
 	c := 0
 	var trades []Trade
@@ -297,7 +330,7 @@ func (s *Storage) Trades(amountAsset, priceAsset crypto.Digest, limit int) ([]Tr
 	return trades, nil
 }
 
-func (s *Storage) TradeInfosRange(amountAsset, priceAsset crypto.Digest, from, to uint64) ([]Trade, error) {
+func (s *Storage) TradesRange(amountAsset, priceAsset crypto.Digest, from, to uint64) ([]Trade, error) {
 	sk := pairTimestampKey{PairTradesKeyPrefix, amountAsset, priceAsset, from}
 	ek := pairTimestampKey{PairTradesKeyPrefix, amountAsset, priceAsset, to + 1}
 	it := s.db.NewIterator(&ldbUtil.Range{Start: sk.bytes(), Limit: ek.bytes()}, defaultReadOptions)
@@ -305,7 +338,7 @@ func (s *Storage) TradeInfosRange(amountAsset, priceAsset crypto.Digest, from, t
 	var trades []Trade
 	if it.Last() {
 		for {
-			if c >= defaultTradesLimit {
+			if c >= maxLimit {
 				break
 			}
 			b := it.Value()
@@ -319,7 +352,7 @@ func (s *Storage) TradeInfosRange(amountAsset, priceAsset crypto.Digest, from, t
 				if err != nil {
 					return nil, errors.Wrap(err, "failed to load trades")
 				}
-				if c == defaultTradesLimit {
+				if c == maxLimit {
 					break
 				}
 				trades = append(trades, *t)
@@ -333,6 +366,15 @@ func (s *Storage) TradeInfosRange(amountAsset, priceAsset crypto.Digest, from, t
 	return trades, nil
 }
 
+func (s *Storage) CandlesRange(amountAsset, priceAsset crypto.Digest, from, to uint32, timeFrameScale int) ([]Candle, error) {
+	limit := timeFrameScale * maxLimit
+	cs, err := s.candles(amountAsset, priceAsset, from, to+uint32(timeFrameScale), limit)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to load candles")
+	}
+	return cs, nil
+}
+
 func (s *Storage) TradesByPublicKey(amountAsset, priceAsset crypto.Digest, pk crypto.PublicKey, limit int) ([]Trade, error) {
 	sk := pairPublicKeyTimestampKey{PairPublicKeyTradesKeyPrefix, amountAsset, priceAsset, pk, 0}
 	ek := pairPublicKeyTimestampKey{PairPublicKeyTradesKeyPrefix, amountAsset, priceAsset, pk, math.MaxUint64}
@@ -341,7 +383,7 @@ func (s *Storage) TradesByPublicKey(amountAsset, priceAsset crypto.Digest, pk cr
 	var trades []Trade
 	if it.Last() {
 		for {
-			if c >= defaultTradesLimit {
+			if c >= maxLimit {
 				break
 			}
 			b := it.Value()
@@ -355,7 +397,7 @@ func (s *Storage) TradesByPublicKey(amountAsset, priceAsset crypto.Digest, pk cr
 				if err != nil {
 					return nil, errors.Wrap(err, "failed to load trades")
 				}
-				if c == defaultTradesLimit {
+				if c == maxLimit {
 					break
 				}
 				trades = append(trades, *t)
@@ -370,25 +412,27 @@ func (s *Storage) TradesByPublicKey(amountAsset, priceAsset crypto.Digest, pk cr
 }
 
 func (s *Storage) DayCandle(amountAsset, priceAsset crypto.Digest) (Candle, error) {
-	stop := (time.Now().Unix() / 300) * 300
-	start := stop - 288*300
-	cs, err := s.candles(amountAsset, priceAsset, uint64(start*1000), uint64(stop*1000))
+	sts := uint64(time.Now().Unix() * 1000)
+	ttf := timeFrameFromTimestampMS(sts)
+	ftf := scaleTimeFrame(ttf, 288)
+	cs, err := s.candles(amountAsset, priceAsset, ftf, ttf, math.MaxInt32)
 	if err != nil {
 		return Candle{}, errors.Wrap(err, "failed to build DayCandle")
 	}
-	var r Candle
+	r := NewCandle(timestampMSFromTimeFrame(ftf))
 	for _, c := range cs {
 		r.Combine(c)
 	}
 	return r, nil
 }
 
-func (s *Storage) candles(amountAsset, priceAsset crypto.Digest, start, stop uint64) ([]Candle, error) {
-	sk := pairTimestampKey{CandlesSecondKeyPrefix, amountAsset, priceAsset, start}
-	ek := pairTimestampKey{CandlesSecondKeyPrefix, amountAsset, priceAsset, stop}
+func (s *Storage) candles(amountAsset, priceAsset crypto.Digest, start, stop uint32, limit int) ([]Candle, error) {
+	sk := pairTimeFrameKey{CandlesSecondKeyPrefix, amountAsset, priceAsset, start}
+	ek := pairTimeFrameKey{CandlesSecondKeyPrefix, amountAsset, priceAsset, stop}
 	r := make([]Candle, 0)
 	it := s.db.NewIterator(&ldbUtil.Range{Start: sk.bytes(), Limit: ek.bytes()}, defaultReadOptions)
 	var c Candle
+	i := 0
 	for it.Next() {
 		k := it.Value()
 		b, err := s.db.Get(k, defaultReadOptions)
@@ -400,6 +444,10 @@ func (s *Storage) candles(amountAsset, priceAsset crypto.Digest, start, stop uin
 			return nil, errors.Wrap(err, "failed to collect candles")
 		}
 		r = append(r, c)
+		i++
+		if i == limit {
+			break
+		}
 	}
 	return r, nil
 }
@@ -520,15 +568,15 @@ func (s *Storage) PutBlock(height int, block crypto.Signature, trades []Trade, a
 		return wrapError(err)
 	}
 
-	candles := map[timestampPairKey]Candle{}
+	candles := map[timeFramePairKey]Candle{}
 	markets := map[pairKey]MarketData{}
-	affectedTimeFrames := make([]uint64, 0)
+	affectedTimeFrames := make([]uint32, 0)
 	for _, t := range trades {
-		tf := timeFrame(t.Timestamp)
+		tf := timeFrameFromTimestampMS(t.Timestamp)
 		if !contains(affectedTimeFrames, tf) {
 			affectedTimeFrames = append(affectedTimeFrames, tf)
 		}
-		ck := timestampPairKey{CandlesKeyPrefix, tf, t.AmountAsset, t.PriceAsset}
+		ck := timeFramePairKey{CandlesKeyPrefix, tf, t.AmountAsset, t.PriceAsset}
 		var c Candle
 		c, ok := candles[ck]
 		if !ok {
@@ -598,7 +646,7 @@ func (s *Storage) PutBlock(height int, block crypto.Signature, trades []Trade, a
 		}
 		ckb := ck.bytes()
 		batch.Put(ckb, v)
-		ck2 := pairTimestampKey{CandlesSecondKeyPrefix, ck.amountAsset, ck.priceAsset, ck.ts}
+		ck2 := pairTimeFrameKey{CandlesSecondKeyPrefix, ck.amountAsset, ck.priceAsset, ck.tf}
 		batch.Put(ck2.bytes(), ckb)
 	}
 	for mk, mv := range markets {
@@ -701,7 +749,7 @@ func (s *Storage) FindCorrectRollbackHeight(height int) (int, error) {
 		return height, nil
 	}
 	etf := bi.EarliestTimeFrame
-	k := uint64Key(EarliestHeightKeyPrefix, etf)
+	k := uint32Key(EarliestHeightKeyPrefix, etf)
 	b, err := s.db.Get(k, defaultReadOptions)
 	if err != nil {
 		return 0, errors.Wrapf(err, "failed to get earliest height for time frame %d", etf)
@@ -807,8 +855,8 @@ func (s *Storage) getTrades(block crypto.Signature) ([]Trade, error) {
 	return r, nil
 }
 
-func (s *Storage) removeCandlesAfter(batch *leveldb.Batch, tf uint64) error {
-	start := timestampPairKey{CandlesKeyPrefix, tf, crypto.Digest{}, crypto.Digest{}}
+func (s *Storage) removeCandlesAfter(batch *leveldb.Batch, tf uint32) error {
+	start := timeFramePairKey{CandlesKeyPrefix, tf, crypto.Digest{}, crypto.Digest{}}
 	end := []byte{CandlesKeyPrefix + 1}
 	it := s.db.NewIterator(&ldbUtil.Range{Start: start.bytes(), Limit: end}, defaultReadOptions)
 	for it.Next() {
@@ -818,9 +866,9 @@ func (s *Storage) removeCandlesAfter(batch *leveldb.Batch, tf uint64) error {
 	return it.Error()
 }
 
-func (s *Storage) removeEarliestTimeFrames(batch *leveldb.Batch, etf uint64) error {
-	start := uint64Key(EarliestHeightKeyPrefix, etf)
-	end := uint64Key(EarliestHeightKeyPrefix, math.MaxUint64)
+func (s *Storage) removeEarliestTimeFrames(batch *leveldb.Batch, etf uint32) error {
+	start := uint32Key(EarliestHeightKeyPrefix, etf)
+	end := uint32Key(EarliestHeightKeyPrefix, math.MaxUint32)
 	it := s.db.NewIterator(&ldbUtil.Range{Start: start, Limit: end}, defaultReadOptions)
 	for it.Next() {
 		batch.Delete(it.Key())
@@ -829,9 +877,9 @@ func (s *Storage) removeEarliestTimeFrames(batch *leveldb.Batch, etf uint64) err
 	return it.Error()
 }
 
-func (s *Storage) updateAffectedTimeFrames(batch *leveldb.Batch, timeFrames []uint64, height int) error {
+func (s *Storage) updateAffectedTimeFrames(batch *leveldb.Batch, timeFrames []uint32, height int) error {
 	for _, tf := range timeFrames {
-		k := uint64Key(EarliestHeightKeyPrefix, tf)
+		k := uint32Key(EarliestHeightKeyPrefix, tf)
 		b, err := s.db.Get(k, defaultReadOptions)
 		h := math.MaxInt32
 		if err != nil && err != ldbErrors.ErrNotFound {
@@ -849,7 +897,7 @@ func (s *Storage) updateAffectedTimeFrames(batch *leveldb.Batch, timeFrames []ui
 	return nil
 }
 
-func putBlockInfo(batch *leveldb.Batch, height int, block crypto.Signature, empty bool, earliestTimeFrame uint64) {
+func putBlockInfo(batch *leveldb.Batch, height int, block crypto.Signature, empty bool, earliestTimeFrame uint32) {
 	k := uint32Key(BlockAtHeightKeyPrefix, uint32(height))
 	bi := blockInfo{empty, block, earliestTimeFrame}
 	v := bi.marshalBinary()
@@ -866,14 +914,14 @@ func putTradesIDs(batch *leveldb.Batch, block crypto.Signature, trades []Trade) 
 	batch.Put(k, v)
 }
 
-func youngestTimeFrame(trades []Trade) uint64 {
+func youngestTimeFrame(trades []Trade) uint32 {
 	ts := uint64(math.MaxUint64)
 	for _, t := range trades {
 		if t.Timestamp < ts {
 			ts = t.Timestamp
 		}
 	}
-	return timeFrame(ts)
+	return timeFrameFromTimestampMS(ts)
 }
 
 func uint32Key(prefix byte, key uint32) []byte {
@@ -883,12 +931,13 @@ func uint32Key(prefix byte, key uint32) []byte {
 	return k
 }
 
-func uint64Key(prefix byte, key uint64) []byte {
-	k := make([]byte, 9)
-	k[0] = prefix
-	binary.BigEndian.PutUint64(k[1:], key)
-	return k
-}
+//func uint64Key(prefix byte, key uint64) []byte {
+//	k := make([]byte, 9)
+//	k[0] = prefix
+//	binary.BigEndian.PutUint64(k[1:], key)
+//	return k
+//}
+// TODO: remove
 
 func digestKey(prefix byte, key crypto.Digest) []byte {
 	k := make([]byte, 1+crypto.DigestSize)
@@ -944,7 +993,7 @@ func updateLastHeight(batch *leveldb.Batch, height int) {
 	batch.Put(lastHeightKey, v)
 }
 
-func contains(a []uint64, v uint64) bool {
+func contains(a []uint32, v uint32) bool {
 	for _, x := range a {
 		if v == x {
 			return true
@@ -953,8 +1002,8 @@ func contains(a []uint64, v uint64) bool {
 	return false
 }
 
-func min(a []uint64) uint64 {
-	r := uint64(math.MaxUint64)
+func min(a []uint32) uint32 {
+	r := uint32(math.MaxUint32)
 	for _, x := range a {
 		if x < r {
 			r = x

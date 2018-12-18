@@ -63,3 +63,28 @@ func NewTickerInfo(symbol string, amountAsset, priceAsset AssetInfo, candle Cand
 		Timestamp:                    ts,
 	}
 }
+
+type ByTickers []TickerInfo
+
+func (a ByTickers) Len() int {
+	return len(a)
+}
+
+func (a ByTickers) Swap(i, j int) {
+	a[i], a[j] = a[j], a[i]
+}
+
+func (a ByTickers) Less(i, j int) bool {
+	x := a[i].Symbol
+	y := a[j].Symbol
+	switch {
+	case x == "" && y != "":
+		return false
+	case x != "" && y == "":
+		return true
+	case x != "" && y != "":
+		return x < y
+	default:
+		return false
+	}
+}

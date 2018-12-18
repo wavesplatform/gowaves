@@ -3,16 +3,16 @@ package internal
 import (
 	"encoding/binary"
 	"github.com/pkg/errors"
+	"math"
 	"math/big"
 )
 
 const (
-	CandleSize = 8 * 8
-	Second     = 1000
-	Minute     = 60 * Second
-	TimeFrame  = 5 * Minute
-	Hour       = 60 * Minute
-	Day        = 24 * Hour
+	CandleSize       = 8 * 8
+	Second           = 1000
+	Minute           = 60 * Second
+	DefaultTimeFrame = 5
+	TimeFrame        = DefaultTimeFrame * Minute
 )
 
 type Candle struct {
@@ -27,7 +27,7 @@ type Candle struct {
 }
 
 func NewCandle(ts uint64) Candle {
-	b := timeFrame(ts)
+	b := timestampMSFromTimeFrame(timeFrameFromTimestampMS(ts))
 	return Candle{minTimestamp: b + TimeFrame, maxTimestamp: b}
 }
 
@@ -159,12 +159,85 @@ func (c *Candle) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
-func startOfTheDay(ts uint64) uint64 {
-	return (ts / Day) * Day
+func timeFrameFromTimestampMS(ts uint64) uint32 {
+	return uint32(ts / TimeFrame)
 }
 
-func timeFrame(ts uint64) uint64 {
-	b := startOfTheDay(ts)
-	off := (ts - b) / TimeFrame
-	return b + off*TimeFrame
+func timestampMSFromTimeFrame(tf uint32) uint64 {
+	return uint64(tf) * TimeFrame
+}
+
+func scaleTimeFrame(tf uint32, scale int) uint32 {
+	s := uint32(scale)
+	return (tf / s) * s
+}
+
+type CandleInfo struct {
+	Timestamp   uint64  `json:"timestamp"`
+	Open        Decimal `json:"open"`
+	High        Decimal `json:"high"`
+	Low         Decimal `json:"low"`
+	Close       Decimal `json:"close"`
+	Average     Decimal `json:"vwap"`
+	Volume      Decimal `json:"volume"`
+	PriceVolume Decimal `json:"priceVolume"`
+	Confirmed   bool    `json:"confirmed"`
+}
+
+func EmptyCandleInfo(amountAssetDecimals, priceAssetDecimals uint, timestamp uint64) CandleInfo {
+	return CandleInfo{
+		Timestamp:   timestamp,
+		Open:        Decimal{0, priceAssetDecimals},
+		High:        Decimal{0, priceAssetDecimals},
+		Low:         Decimal{0, priceAssetDecimals},
+		Close:       Decimal{0, priceAssetDecimals},
+		Average:     Decimal{0, priceAssetDecimals},
+		Volume:      Decimal{0, amountAssetDecimals},
+		PriceVolume: Decimal{0, priceAssetDecimals},
+		Confirmed:   true,
+	}
+}
+
+func CandleInfoFromCandle(candle Candle, amountAssetDecimals, priceAssetDecimals uint, timeFrameScale int) CandleInfo {
+	tf := scaleTimeFrame(timeFrameFromTimestampMS(candle.minTimestamp), timeFrameScale)
+	pv := priceVolume(candle.Average, candle.Volume, amountAssetDecimals)
+	return CandleInfo{
+		Timestamp:   timestampMSFromTimeFrame(tf),
+		Open:        Decimal{candle.Open, priceAssetDecimals},
+		High:        Decimal{candle.High, priceAssetDecimals},
+		Low:         Decimal{candle.Low, priceAssetDecimals},
+		Close:       Decimal{candle.Close, priceAssetDecimals},
+		Average:     Decimal{candle.Average, priceAssetDecimals},
+		Volume:      Decimal{candle.Volume, amountAssetDecimals},
+		PriceVolume: Decimal{pv, priceAssetDecimals},
+		Confirmed:   true,
+	}
+}
+
+func priceVolume(average, volume uint64, amountAssetDecimals uint) uint64 {
+	var a big.Int
+	var v big.Int
+	var av big.Int
+	var s big.Int
+	var pv big.Int
+	a.SetUint64(average)
+	v.SetUint64(volume)
+	av.Mul(&a, &v)
+	s.SetUint64(uint64(math.Pow10(int(amountAssetDecimals))))
+	pv.Div(&av, &s)
+	return pv.Uint64()
+}
+
+type ByTimestampBackward []CandleInfo
+
+func (a ByTimestampBackward) Len() int {
+	return len(a)
+}
+
+func (a ByTimestampBackward) Swap(i, j int) {
+	a[i], a[j] = a[j], a[i]
+}
+
+func (a ByTimestampBackward) Less(i, j int) bool {
+	return a[i].Timestamp > a[j].Timestamp
 }
