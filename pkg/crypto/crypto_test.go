@@ -274,3 +274,14 @@ func TestNewSignatureFromBytes(t *testing.T) {
 	assert.Equal(t, sig, s2.String())
 	assert.Equal(t, sig, s1.String())
 }
+
+func TestNewDigestFromBytes(t *testing.T) {
+	s := "BXBUNddxTGTQc3G4qHYn5E67SBwMj18zLncUr871iuRD"
+	d, err := NewDigestFromBase58(s)
+	require.NoError(t, err)
+
+	d2, err := NewDigestFromBytes(d.Bytes())
+	require.NoError(t, err)
+
+	assert.Equal(t, s, d2.String())
+}

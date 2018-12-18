@@ -3377,7 +3377,7 @@ func (tx *DataV1) entriesLen() int {
 	return r
 }
 
-func (tx *DataV1) bodyMarshalBinary() ([]byte, error) {
+func (tx *DataV1) BodyMarshalBinary() ([]byte, error) {
 	var p int
 	n := len(tx.Entries)
 	el := tx.entriesLen()
@@ -3476,7 +3476,7 @@ func (tx *DataV1) extractValueType(data []byte) (ValueType, error) {
 
 //Sign use given secret key to calculate signature of the transaction.
 func (tx *DataV1) Sign(secretKey crypto.SecretKey) error {
-	b, err := tx.bodyMarshalBinary()
+	b, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return errors.Wrap(err, "failed to sign DataV1 transaction")
 	}
@@ -3497,7 +3497,7 @@ func (tx *DataV1) Sign(secretKey crypto.SecretKey) error {
 
 //Verify chechs that the signature is valid for the given public key.
 func (tx *DataV1) Verify(publicKey crypto.PublicKey) (bool, error) {
-	b, err := tx.bodyMarshalBinary()
+	b, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return false, errors.Wrap(err, "failed to verify signature of DataV1 transaction")
 	}
@@ -3506,7 +3506,7 @@ func (tx *DataV1) Verify(publicKey crypto.PublicKey) (bool, error) {
 
 //MarshalBinary saves the transaction to bytes.
 func (tx *DataV1) MarshalBinary() ([]byte, error) {
-	bb, err := tx.bodyMarshalBinary()
+	bb, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal DataV1 transaction to bytes")
 	}

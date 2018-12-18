@@ -132,8 +132,14 @@ func NewFuncScope() *FuncScope {
 
 	funcs[600] = NativeToBase58
 	funcs[601] = NativeFromBase58
+	funcs[602] = NativeToBse64String
+	funcs[603] = NativeFromBase64String
 
+	funcs[1000] = NativeTransactionByID
 	funcs[1001] = NativeTransactionHeightByID
+	funcs[1003] = NativeAssetBalance
+
+	funcs[1040] = NativeDataLongFromArray
 
 	userFuncs := make(map[string]Callable)
 	userFuncs["throw"] = UserThrow

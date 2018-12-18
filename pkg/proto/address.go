@@ -128,7 +128,7 @@ type Alias struct {
 	Alias   string
 }
 
-func (a *Alias) String() string {
+func (a Alias) String() string {
 	sb := new(strings.Builder)
 	sb.WriteString(aliasPrefix)
 	sb.WriteRune(':')

@@ -67,6 +67,15 @@ func NewDigestFromBase58(s string) (Digest, error) {
 	return array32FromBase58(s, "Digest")
 }
 
+func NewDigestFromBytes(b []byte) (Digest, error) {
+	if len(b) != 32 {
+		return Digest{}, errors.New("invalid digest len")
+	}
+	var r [32]byte
+	copy(r[:], b)
+	return r, nil
+}
+
 type SecretKey [SecretKeySize]byte
 
 func (k SecretKey) MarshalBinary() ([]byte, error) {

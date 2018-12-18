@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"testing"
@@ -42,7 +43,18 @@ func defaultScope() Scope {
 	predefObject["tx"] = NewObject(vars)
 
 	predefObject["height"] = NewLong(5)
-	return NewScope(proto.MainNetScheme, state.MockState{}, NewFuncScope(), predefObject)
+
+	addr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, t.SenderPK)
+	if err != nil {
+		panic(err)
+	}
+
+	state := state.MockState{
+		//TransactionsHeightByID: map[string]uint64{},
+		AssetsByID: map[string]uint64{addr.String() + "BXBUNddxTGTQc3G4qHYn5E67SBwMj18zLncUr871iuRD": 5},
+	}
+
+	return NewScope(proto.MainNetScheme, state, NewFuncScope(), predefObject)
 }
 
 func decode(s string) []byte {
@@ -77,6 +89,7 @@ func TestEval(t *testing.T) {
 		{`let x = tx.id == base58'a';true`, `AQQAAAABeAkAAAAAAAACCAUAAAACdHgAAAACaWQBAAAAASEGjR0kcA==`, true},
 		{`tx.proofs[0] == base58'5W7hjPpgmmhxevCt4A7y9F8oNJ4V9w2g8jhQgx2qGmBTNsP1p1MpQeKF3cvZULwJ7vQthZfSx2BhL6TWkHSVLzvq'`, `AQkAAAAAAAACCQABkQAAAAIIBQAAAAJ0eAAAAAZwcm9vZnMAAAAAAAAAAAABAAAAQOEtF8V5p+9JHReO90FmBf+yKZW1lLJGBsnkZww94TJ8bNcxWIKfohMXm4BsKKIBUTXLaS6Vcgyw1UTNN5iICQ719Fxf`, true},
 		{longScript, `AQQAAAAHJG1hdGNoMAUAAAACdHgDAwkAAAEAAAACBQAAAAckbWF0Y2gwAgAAABNFeGNoYW5nZVRyYW5zYWN0aW9uBgMJAAABAAAAAgUAAAAHJG1hdGNoMAIAAAAXTWFzc1RyYW5zZmVyVHJhbnNhY3Rpb24GCQAAAQAAAAIFAAAAByRtYXRjaDACAAAAE1RyYW5zZmVyVHJhbnNhY3Rpb24EAAAAAXQFAAAAByRtYXRjaDAGB6Ilvok=`, true},
+		{`match transactionById(tx.id) {case  t: Unit => true case _ => false }`, `AQQAAAAHJG1hdGNoMAkAA+gAAAABCAUAAAACdHgAAAACaWQDCQAAAQAAAAIFAAAAByRtYXRjaDACAAAABFVuaXQEAAAAAXQFAAAAByRtYXRjaDAGB1+iIek=`, true},
 	}
 
 	for _, c := range conds {
@@ -170,6 +183,12 @@ func TestFunctions(t *testing.T) {
 
 		{600, `TOBASE58`, `toBase58String(base58'a') == "a"`, `AQkAAAAAAAACCQACWAAAAAEBAAAAASECAAAAAWFcT4nY`, true},
 		{601, `FROMBASE58`, `fromBase58String("a") == base58'a'`, `AQkAAAAAAAACCQACWQAAAAECAAAAAWEBAAAAASEB1Qmd`, true},
+		{602, `TOBASE64`, `toBase64String(fromBase64String("a")) == toBase64String(fromBase64String("a"))`, `AQkAAAAAAAACCQACWgAAAAEJAAJbAAAAAQIAAAAIQVFhM2I4dEgJAAJaAAAAAQkAAlsAAAABAgAAAAhBUWEzYjh0SCEu9/Q=`, true},
+		{603, `FROMBASE64`, `toBase64String(fromBase64String("a")) == toBase64String(fromBase64String("a"))`, `AQkAAAAAAAACCQACWgAAAAEJAAJbAAAAAQIAAAAIQVFhM2I4dEgJAAJaAAAAAQkAAlsAAAABAgAAAAhBUWEzYjh0SCEu9/Q=`, true},
+
+		{1000, `GETTRANSACTIONBYID`, `match transactionById(tx.id) {case  t: Unit => true case _ => false }`, `AQQAAAAHJG1hdGNoMAkAA+gAAAABCAUAAAACdHgAAAACaWQDCQAAAQAAAAIFAAAAByRtYXRjaDACAAAABFVuaXQEAAAAAXQFAAAAByRtYXRjaDAGB1+iIek=`, true},
+		{1001, `TRANSACTIONHEIGHTBYID`, `transactionHeightById(base58'aaaa') == 5`, `AQkAAAAAAAACCQAD6QAAAAEBAAAAA2P4ZwAAAAAAAAAABSLhRM4=`, false},
+		{1003, `ACCOUNTASSETBALANCE`, `assetBalance(tx.sender, base58'BXBUNddxTGTQc3G4qHYn5E67SBwMj18zLncUr871iuRD') == 5`, `AQkAAAAAAAACCQAD6wAAAAIIBQAAAAJ0eAAAAAZzZW5kZXIBAAAAIJxQIls8iGUc1935JolBz6bYc37eoPDtScOAM0lTNhY0AAAAAAAAAAAFjp6PBg==`, true},
 	}
 
 	for _, c := range conds {
@@ -180,6 +199,60 @@ func TestFunctions(t *testing.T) {
 		require.NoError(t, err)
 
 		rs, err := Eval(exprs, defaultScope())
+		assert.NoError(t, err)
+		assert.Equal(t, c.Result, rs, fmt.Sprintf("func name: %s, code: %d, script: %s", c.FuncName, c.FuncCode, c.Code))
+	}
+}
+
+func TestDataFunctions(t *testing.T) {
+	secret, public := crypto.GenerateKeyPair([]byte(seed))
+	data, _ := proto.NewUnsignedData(public, 10000, 1544715621)
+
+	require.NoError(t, data.AppendEntry(proto.IntegerDataEntry{
+		Key:   "integer",
+		Value: 100500,
+	}))
+	require.NoError(t, data.AppendEntry(proto.BooleanDataEntry{
+		Key:   "boolean",
+		Value: true,
+	}))
+	require.NoError(t, data.AppendEntry(proto.BinaryDataEntry{
+		Key:   "binary",
+		Value: []byte("hello"),
+	}))
+	require.NoError(t, data.AppendEntry(proto.StringDataEntry{
+		Key:   "string",
+		Value: "world",
+	}))
+
+	require.NoError(t, data.Sign(secret))
+
+	vars, err := NewVariablesFromTransaction(proto.MainNetScheme, data)
+	require.NoError(t, err)
+
+	predefObject := make(map[string]Expr)
+	predefObject["tx"] = NewObject(vars)
+
+	scope := NewScope(proto.MainNetScheme, state.MockState{}, NewFuncScope(), predefObject)
+
+	conds := []struct {
+		FuncCode int
+		FuncName string
+		Code     string
+		Base64   string
+		Result   bool
+	}{
+		{1040, "DATA_LONG_FROM_ARRAY", `match tx {case t: DataTransaction => getInteger(t.data, "integer") == 100500 case _ => false}`, `AQQAAAAHJG1hdGNoMAUAAAACdHgDCQAAAQAAAAIFAAAAByRtYXRjaDACAAAAD0RhdGFUcmFuc2FjdGlvbgQAAAABdAUAAAAHJG1hdGNoMAkAAAAAAAACCQAEEAAAAAIIBQAAAAF0AAAABGRhdGECAAAAB2ludGVnZXIAAAAAAAABiJQHp2oJqg==`, true},
+	}
+
+	for _, c := range conds {
+		reader, err := reader.NewReaderFromBase64(c.Base64)
+		require.NoError(t, err)
+
+		exprs, err := BuildAst(reader)
+		require.NoError(t, err)
+
+		rs, err := Eval(exprs, scope)
 		assert.NoError(t, err)
 		assert.Equal(t, c.Result, rs, fmt.Sprintf("func name: %s, code: %d, script: %s", c.FuncName, c.FuncCode, c.Code))
 	}

@@ -2723,7 +2723,7 @@ func TestDataV1FromMainNet(t *testing.T) {
 				e := StringDataEntry{k, tc.values[i]}
 				tx.AppendEntry(e)
 			}
-			if b, err := tx.bodyMarshalBinary(); assert.NoError(t, err) {
+			if b, err := tx.BodyMarshalBinary(); assert.NoError(t, err) {
 				if h, err := crypto.FastHash(b); assert.NoError(t, err) {
 					assert.Equal(t, id, h)
 				}
@@ -2766,7 +2766,7 @@ func TestDataV1BinaryRoundTrip(t *testing.T) {
 				err := tx.AppendEntry(e)
 				assert.NoError(t, err)
 			}
-			if bb, err := tx.bodyMarshalBinary(); assert.NoError(t, err) {
+			if bb, err := tx.BodyMarshalBinary(); assert.NoError(t, err) {
 				var atx DataV1
 				if err := atx.bodyUnmarshalBinary(bb); assert.NoError(t, err) {
 					assert.Equal(t, tx.Type, atx.Type)

@@ -52,6 +52,40 @@ func NewVariablesFromTransaction(scheme byte, t proto.Transaction) (map[string]E
 		}
 		out["proofs"] = proofs
 		return out, nil
+	case *proto.DataV1:
+		addr, err := proto.NewAddressFromPublicKey(scheme, tx.SenderPK)
+		if err != nil {
+			return nil, errors.Wrap(err, funcName)
+		}
+		out["sender"] = NewAddressFromProtoAddress(addr)
+		out["timestamp"] = NewLong(int64(tx.Timestamp))
+		bts, err := tx.BodyMarshalBinary()
+		if err != nil {
+			return nil, errors.Wrap(err, funcName)
+		}
+		out["bodyBytes"] = NewBytes(bts)
+		proofs := Exprs{}
+		for _, row := range tx.Proofs.Proofs {
+			proofs = append(proofs, NewBytes(row.Bytes()))
+		}
+		out["proofs"] = proofs
+
+		//dataEntries := Exprs{}
+		//for _, row := range tx.Entries {
+		//	switch r := row.(type) {
+		//	case proto.IntegerDataEntry:
+		//		dataEntries = append(dataEntries, NewLong(r.Value))
+		//	case proto.StringDataEntry:
+		//		dataEntries = append(dataEntries, NewString(r.Value))
+		//	case proto.BooleanDataEntry:
+		//		dataEntries = append(dataEntries, NewBoolean(r.Value))
+		//	case proto.BinaryDataEntry:
+		//		dataEntries = append(dataEntries, NewBytes(r.Value))
+		//	}
+		//}
+		out["data"] = NewDataEntryList(tx.Entries)
+		out[InstanceFieldName] = NewString("DataTransaction")
+		return out, nil
 	default:
 		return nil, errors.Errorf("NewVariablesFromTransaction not implemented for %T", tx)
 	}

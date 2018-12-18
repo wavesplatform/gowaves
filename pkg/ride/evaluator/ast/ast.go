@@ -17,6 +17,7 @@ type Expr interface {
 	Write(io.Writer)
 	Evaluate(Scope) (Expr, error)
 	Eq(Expr) (bool, error)
+	InstanceOf() string
 }
 
 type Exprs []Expr
@@ -48,6 +49,10 @@ func (a Exprs) Eq(other Expr) (bool, error) {
 	return false, errors.Errorf("trying to compare %T with %T", a, other)
 }
 
+func (a Exprs) InstanceOf() string {
+	return "Exprs"
+}
+
 func NewExprs(e ...Expr) Exprs {
 	return e
 }
@@ -70,6 +75,10 @@ func (a *Block) Evaluate(s Scope) (Expr, error) {
 
 func (a *Block) Eq(other Expr) (bool, error) {
 	return false, errors.Errorf("trying to compare %T with %T", a, other)
+}
+
+func (a *Block) InstanceOf() string {
+	return "Block"
 }
 
 type LetExpr struct {
@@ -115,6 +124,10 @@ func (a *LongExpr) Eq(other Expr) (bool, error) {
 	return a.Value == b.Value, nil
 }
 
+func (a *LongExpr) InstanceOf() string {
+	return "Long"
+}
+
 type BooleanExpr struct {
 	Value bool
 }
@@ -142,6 +155,10 @@ func (a *BooleanExpr) Eq(other Expr) (bool, error) {
 	return a.Value == b.Value, nil
 }
 
+func (a *BooleanExpr) InstanceOf() string {
+	return "Boolean"
+}
+
 type FuncCall struct {
 	Func Expr
 }
@@ -156,6 +173,10 @@ func (a *FuncCall) Evaluate(s Scope) (Expr, error) {
 
 func (a *FuncCall) Eq(other Expr) (bool, error) {
 	return false, errors.Errorf("trying to compare %T with %T", a, other)
+}
+
+func (a *FuncCall) InstanceOf() string {
+	return "FuncCall"
 }
 
 func NewFuncCall(f Expr) *FuncCall {
@@ -193,6 +214,10 @@ func (a *NativeFunction) Evaluate(s Scope) (Expr, error) {
 
 func (a *NativeFunction) Eq(other Expr) (bool, error) {
 	return false, errors.Errorf("trying to compare %T with %T", a, other)
+}
+
+func (a *NativeFunction) InstanceOf() string {
+	return "NativeFunction"
 }
 
 type UserFunction struct {
@@ -240,6 +265,10 @@ func (a *UserFunction) Eq(other Expr) (bool, error) {
 	return false, errors.Errorf("trying to compare %T with %T", a, other)
 }
 
+func (a *UserFunction) InstanceOf() string {
+	return "UserFunction"
+}
+
 type RefExpr struct {
 	Name   string
 	cached bool
@@ -279,6 +308,10 @@ func (a *RefExpr) Evaluate(s Scope) (Expr, error) {
 
 func (a *RefExpr) Eq(other Expr) (bool, error) {
 	return false, errors.Errorf("trying to compare %T with %T", a, other)
+}
+
+func (a *RefExpr) InstanceOf() string {
+	return "Ref"
 }
 
 type IfExpr struct {
@@ -330,6 +363,10 @@ func (a *IfExpr) Eq(other Expr) (bool, error) {
 	return false, errors.Errorf("trying to compare %T with %T", a, other)
 }
 
+func (a *IfExpr) InstanceOf() string {
+	return "If"
+}
+
 type BytesExpr struct {
 	Value []byte
 }
@@ -355,6 +392,10 @@ func (a *BytesExpr) Eq(other Expr) (bool, error) {
 	}
 
 	return bytes.Equal(a.Value, b.Value), nil
+}
+
+func (a *BytesExpr) InstanceOf() string {
+	return "Bytes"
 }
 
 type GetterExpr struct {
@@ -394,8 +435,13 @@ func (a *GetterExpr) Eq(other Expr) (bool, error) {
 	return false, errors.Errorf("trying to compare %T with %T", a, other)
 }
 
+func (a *GetterExpr) InstanceOf() string {
+	return "Getter"
+}
+
 type ObjectExpr struct {
-	fields map[string]Expr
+	fields     map[string]Expr
+	instanceOf string
 }
 
 func NewObject(fields map[string]Expr) *ObjectExpr {
@@ -447,6 +493,13 @@ func (a *ObjectExpr) Get(name string) (Expr, error) {
 	return out, nil
 }
 
+func (a *ObjectExpr) InstanceOf() string {
+	if s, ok := a.fields[InstanceFieldName].(*StringExpr); ok {
+		return s.Value
+	}
+	return ""
+}
+
 type StringExpr struct {
 	Value string
 }
@@ -474,30 +527,144 @@ func (a *StringExpr) Eq(other Expr) (bool, error) {
 	return a.Value == b.Value, nil
 }
 
-type Address proto.Address
+func (a *StringExpr) InstanceOf() string {
+	return "String"
+}
 
-func (a Address) Write(w io.Writer) {
+type AddressExpr proto.Address
+
+func (a AddressExpr) Write(w io.Writer) {
 	fmt.Fprint(w, proto.Address(a).String())
 }
 
-func (a Address) Evaluate(s Scope) (Expr, error) {
+func (a AddressExpr) Evaluate(s Scope) (Expr, error) {
 	return a, nil
 }
 
-func (a Address) Eq(other Expr) (bool, error) {
-	b, ok := other.(Address)
+func (a AddressExpr) Eq(other Expr) (bool, error) {
+	b, ok := other.(AddressExpr)
 	if !ok {
-		return false, errors.Errorf("trying to compare Address with %T", other)
+		return false, errors.Errorf("trying to compare AddressExpr with %T", other)
 	}
 
 	return bytes.Equal(a[:], b[:]), nil
 }
 
-func NewAddressFromString(s string) (Address, error) {
-	addr, err := proto.NewAddressFromString(s)
-	return Address(addr), err
+func (a AddressExpr) InstanceOf() string {
+	return "AddressExpr"
 }
 
-func NewAddressFromProtoAddress(a proto.Address) Address {
-	return Address(a)
+func NewAddressFromString(s string) (AddressExpr, error) {
+	addr, err := proto.NewAddressFromString(s)
+	return AddressExpr(addr), err
+}
+
+func NewAddressFromProtoAddress(a proto.Address) AddressExpr {
+	return AddressExpr(a)
+}
+
+type Unit struct {
+}
+
+func (a Unit) Write(w io.Writer) {
+	_, _ = fmt.Fprint(w, "Unit")
+}
+
+func (a Unit) Evaluate(s Scope) (Expr, error) {
+	return a, nil
+}
+
+func (a Unit) Eq(other Expr) (bool, error) {
+	if other.InstanceOf() == a.InstanceOf() {
+		return true, nil
+	}
+	return false, nil
+}
+
+func (a Unit) InstanceOf() string {
+	return "Unit"
+}
+
+type AliasExpr proto.Alias
+
+func (a AliasExpr) Write(w io.Writer) {
+	_, _ = fmt.Fprint(w, "Alias")
+}
+
+func (a AliasExpr) Evaluate(s Scope) (Expr, error) {
+	return a, nil
+}
+
+func (a AliasExpr) Eq(other Expr) (bool, error) {
+	if b, ok := other.(AliasExpr); ok {
+		return proto.Alias(a).String() == proto.Alias(b).String(), nil
+	}
+
+	return false, errors.Errorf("trying to compare %T with %T", a, other)
+}
+
+func (a AliasExpr) InstanceOf() string {
+	return "Alias"
+}
+
+func NewAliasFromProtoAlias(a proto.Alias) AliasExpr {
+	return AliasExpr(a)
+}
+
+type DataEntryListExpr struct {
+	source []proto.DataEntry
+	cached bool
+	data   map[string]proto.DataEntry
+}
+
+func (a DataEntryListExpr) Write(w io.Writer) {
+	_, _ = fmt.Fprint(w, "Alias")
+}
+
+func (a DataEntryListExpr) Evaluate(s Scope) (Expr, error) {
+	return a, nil
+}
+
+func (a DataEntryListExpr) Eq(other Expr) (bool, error) {
+	return false, errors.Errorf("trying to compare %T with %T", a, other)
+}
+
+func (a DataEntryListExpr) InstanceOf() string {
+	return "DataEntryList"
+}
+
+func (a *DataEntryListExpr) Get(key string, valueType proto.ValueType) Expr {
+	if !a.cached {
+		a.cache()
+	}
+	rs, ok := a.data[key]
+	if ok {
+		if rs.GetValueType() == valueType {
+			switch valueType {
+			case proto.Integer:
+				return NewLong(rs.(proto.IntegerDataEntry).Value)
+			case proto.String:
+				return NewString(rs.(proto.StringDataEntry).Value)
+			case proto.Boolean:
+				return NewBoolean(rs.(proto.BooleanDataEntry).Value)
+			case proto.Binary:
+				return NewBytes(rs.(proto.BinaryDataEntry).Value)
+			}
+		}
+	}
+	return Unit{}
+}
+
+func (a *DataEntryListExpr) cache() {
+	a.data = make(map[string]proto.DataEntry)
+	for _, row := range a.source {
+		a.data[row.GetKey()] = row
+	}
+	a.cached = true
+}
+
+func NewDataEntryList(d []proto.DataEntry) *DataEntryListExpr {
+	return &DataEntryListExpr{
+		source: d,
+	}
 }

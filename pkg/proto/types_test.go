@@ -527,3 +527,26 @@ func TestNewAttachmentFromBase58(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, att, Attachment("3"))
 }
+
+func TestNewOptionalAssetFromBytes(t *testing.T) {
+	d, err := crypto.NewDigestFromBase58("BXBUNddxTGTQc3G4qHYn5E67SBwMj18zLncUr871iuRD")
+	require.NoError(t, err)
+
+	asset1, err := NewOptionalAssetFromBytes(d.Bytes())
+	require.NoError(t, err)
+	assert.Equal(t, d.String(), asset1.ID.String())
+	assert.True(t, asset1.Present)
+
+	asset2, err := NewOptionalAssetFromBytes([]byte{})
+	require.NoError(t, err)
+	assert.False(t, asset2.Present)
+}
+
+func TestNewOptionalAssetFromDigest(t *testing.T) {
+	d, err := crypto.NewDigestFromBase58("BXBUNddxTGTQc3G4qHYn5E67SBwMj18zLncUr871iuRD")
+	require.NoError(t, err)
+
+	asset1, err := NewOptionalAssetFromDigest(d)
+	require.NoError(t, err)
+	assert.True(t, asset1.Present)
+}

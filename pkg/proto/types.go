@@ -82,6 +82,22 @@ func NewOptionalAssetFromString(s string) (*OptionalAsset, error) {
 	}
 }
 
+func NewOptionalAssetFromBytes(b []byte) (*OptionalAsset, error) {
+	if len(b) == 0 {
+		return &OptionalAsset{}, nil
+	}
+
+	a, err := crypto.NewDigestFromBytes(b)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to create OptionalAsset from Base58 string")
+	}
+	return &OptionalAsset{Present: true, ID: a}, nil
+}
+
+func NewOptionalAssetFromDigest(d crypto.Digest) (*OptionalAsset, error) {
+	return &OptionalAsset{Present: true, ID: d}, nil
+}
+
 // String method converts OptionalAsset to its text representation
 func (a OptionalAsset) String() string {
 	if a.Present {

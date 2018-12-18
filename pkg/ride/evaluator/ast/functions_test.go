@@ -137,7 +137,7 @@ func TestNativeTransactionHeightByID(t *testing.T) {
 	require.NoError(t, err)
 
 	scope := newScopeWithState(&state.MockState{
-		TransactionsHeightByID: map[crypto.Signature]uint64{sign: 15},
+		TransactionsHeightByID: map[string]uint64{sign.String(): 15},
 	})
 
 	rs, err :=
@@ -168,7 +168,7 @@ func TestNativeTransactionByID(t *testing.T) {
 	require.NoError(t, transferV1.Sign(secret))
 
 	scope := newScopeWithState(&state.MockState{
-		TransactionsByID: map[crypto.Signature]proto.Transaction{sign: transferV1},
+		TransactionsByID: map[string]proto.Transaction{sign.String(): transferV1},
 	})
 
 	tx, err := NativeTransactionByID(scope, NewExprs(NewBytes(sign.Bytes())))
@@ -337,4 +337,49 @@ func TestNativeFromBase58(t *testing.T) {
 	rs1, err := NativeFromBase58(newEmptyScope(), Params(NewString("abcde")))
 	require.NoError(t, err)
 	assert.Equal(t, NewBytes([]uint8{0x16, 0xa9, 0x5c, 0x99}), rs1)
+}
+
+func TestNativeFromBase64String(t *testing.T) {
+	rs1, err := NativeFromBase64String(newEmptyScope(), Params(NewString("AQa3b8tH")))
+	require.NoError(t, err)
+	assert.Equal(t, NewBytes([]uint8{0x1, 0x6, 0xb7, 0x6f, 0xcb, 0x47}), rs1)
+}
+
+func TestNativeToBse64String(t *testing.T) {
+	rs1, err := NativeToBse64String(newEmptyScope(), Params(NewBytes([]uint8{0x1, 0x6, 0xb7, 0x6f, 0xcb, 0x47})))
+	require.NoError(t, err)
+	assert.Equal(t, NewString("AQa3b8tH"), rs1)
+}
+
+func TestNativeAssetBalance_FromAddress(t *testing.T) {
+	s := state.MockState{
+		AssetsByID: map[string]uint64{"3N2YHKSnQTUmka4pocTt71HwSSAiUWBcojK" + "BXBUNddxTGTQc3G4qHYn5E67SBwMj18zLncUr871iuRD": 5},
+	}
+
+	addr, err := proto.NewAddressFromString("3N2YHKSnQTUmka4pocTt71HwSSAiUWBcojK")
+	require.NoError(t, err)
+
+	d, err := crypto.NewDigestFromBase58("BXBUNddxTGTQc3G4qHYn5E67SBwMj18zLncUr871iuRD")
+	require.NoError(t, err)
+
+	rs, err := NativeAssetBalance(newScopeWithState(s), Params(NewAddressFromProtoAddress(addr), NewBytes(d.Bytes())))
+	require.NoError(t, err)
+	assert.Equal(t, NewLong(5), rs)
+}
+
+func TestNativeAssetBalance_FromAlias(t *testing.T) {
+	s := state.MockState{
+		AssetsByID: map[string]uint64{"alias:W:test" + "BXBUNddxTGTQc3G4qHYn5E67SBwMj18zLncUr871iuRD": 5},
+	}
+	scope := newScopeWithState(s)
+
+	alias, err := proto.NewAlias(scope.Scheme(), "test")
+	require.NoError(t, err)
+
+	d, err := crypto.NewDigestFromBase58("BXBUNddxTGTQc3G4qHYn5E67SBwMj18zLncUr871iuRD")
+	require.NoError(t, err)
+
+	rs, err := NativeAssetBalance(scope, Params(NewAliasFromProtoAlias(*alias), NewBytes(d.Bytes())))
+	require.NoError(t, err)
+	assert.Equal(t, NewLong(5), rs)
 }

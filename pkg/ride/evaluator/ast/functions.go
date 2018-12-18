@@ -2,11 +2,14 @@ package ast
 
 import (
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/binary"
 	"fmt"
 	"github.com/mr-tron/base58/base58"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/state"
 	"io"
 	"math/big"
 	"unicode/utf8"
@@ -102,8 +105,10 @@ func NativeGetList(s Scope, e Exprs) (Expr, error) {
 }
 
 func NativeIsinstanceof(s Scope, e Exprs) (Expr, error) {
+	funcName := "NativeIsinstanceof"
+
 	if l := len(e); l != 2 {
-		return nil, errors.Errorf("NATIVE_GET_LIST: invalid params, expected 2, passed %d", l)
+		return nil, errors.Errorf("%s: invalid params, expected 2, passed %d", funcName, l)
 	}
 
 	first, err := e[0].Evaluate(s.Clone())
@@ -116,27 +121,27 @@ func NativeIsinstanceof(s Scope, e Exprs) (Expr, error) {
 		return nil, err
 	}
 
-	obj, ok := first.(*ObjectExpr)
-	if !ok {
-		return nil, errors.Errorf("NATIVE_ISINSTANCEOF: expected first agrumant to be *ObjectExpr, got %T", first)
-	}
+	//obj, ok := first.(*ObjectExpr)
+	//if !ok {
+	//	return nil, errors.Errorf("%s: expected first argument to be *ObjectExpr, got %T", funcName, first)
+	//}
 
 	str, ok := second.(*StringExpr)
 	if !ok {
-		return nil, errors.Errorf("NATIVE_ISINSTANCEOF: expected secod agrumant to be *StringExpr, got %T", second)
+		return nil, errors.Errorf("%s: expected second argument to be *StringExpr, got %T", funcName, second)
 	}
 
-	val, err := obj.Get(InstanceFieldName)
-	if err != nil {
-		return nil, errors.Wrap(err, "NATIVE_ISINSTANCEOF")
-	}
+	strVal := first.InstanceOf()
+	//if err != nil {
+	//	return nil, errors.Wrap(err, funcName)
+	//}
 
-	strVal, ok := val.(*StringExpr)
-	if !ok {
-		return nil, errors.Errorf("NATIVE_ISINSTANCEOF: object field %s should be *StringExpr, but found %T", InstanceFieldName, val)
-	}
+	//strVal, ok := val.(*StringExpr)
+	//if !ok {
+	//	return nil, errors.Errorf("%s: object field %s should be *StringExpr, but found %T", funcName, InstanceFieldName, val)
+	//}
 
-	return NewBoolean(strVal.Value == str.Value), nil
+	return NewBoolean(strVal == str.Value), nil
 }
 
 func NativeSumLong(s Scope, e Exprs) (Expr, error) {
@@ -365,13 +370,11 @@ func NativeTransactionHeightByID(s Scope, e Exprs) (Expr, error) {
 		return nil, errors.Errorf("%s: expected first argument to be *BytesExpr, got %T", funcName, rs)
 	}
 
-	sign, err := crypto.NewSignatureFromBytes(bts.Value)
+	height, err := s.State().TransactionHeightByID(bts.Value)
 	if err != nil {
-		return nil, errors.Wrap(err, funcName)
-	}
-
-	height, err := s.State().TransactionHeightByID(&sign)
-	if err != nil {
+		if err == state.ErrNotFound {
+			return Unit{}, nil
+		}
 		return nil, errors.Wrap(err, funcName)
 	}
 
@@ -395,13 +398,11 @@ func NativeTransactionByID(s Scope, e Exprs) (Expr, error) {
 		return nil, errors.Errorf("%s: expected first argument to be *BytesExpr, got %T", funcName, rs)
 	}
 
-	sign, err := crypto.NewSignatureFromBytes(bts.Value)
+	tx, err := s.State().TransactionByID(bts.Value)
 	if err != nil {
-		return nil, errors.Wrap(err, funcName)
-	}
-
-	tx, err := s.State().TransactionByID(&sign)
-	if err != nil {
+		if err == state.ErrNotFound {
+			return Unit{}, nil
+		}
 		return nil, errors.Wrap(err, funcName)
 	}
 
@@ -756,6 +757,52 @@ func NativeBooleanToBytes(s Scope, e Exprs) (Expr, error) {
 	}
 }
 
+func NativeAssetBalance(s Scope, e Exprs) (Expr, error) {
+	funcName := "NativeAssetBalance"
+
+	if l := len(e); l != 2 {
+		return nil, errors.Errorf("%s: invalid params, expected 2, passed %d", funcName, l)
+	}
+
+	addressOrAliasExpr, err := e[0].Evaluate(s.Clone())
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+
+	assetId, err := e[1].Evaluate(s.Clone())
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+
+	r := proto.Recipient{}
+
+	switch a := addressOrAliasExpr.(type) {
+	case AddressExpr:
+		r = proto.NewRecipientFromAddress(proto.Address(a))
+	case AliasExpr:
+		r = proto.NewRecipientFromAlias(proto.Alias(a))
+	default:
+		// TODO fix alias
+		return nil, errors.Errorf("%s first argument expected to be AddressExpr or AliasExpr, found %T", funcName, addressOrAliasExpr)
+	}
+
+	if _, ok := assetId.(Unit); ok {
+		return NewLong(int64(s.State().AssetBalance(r, &proto.OptionalAsset{}))), nil
+	}
+
+	assetBts, ok := assetId.(*BytesExpr)
+	if !ok {
+		return nil, errors.Errorf("%s expected second argument to be *BytesExpr, found %T", funcName, assetId)
+	}
+
+	asset, err := proto.NewOptionalAssetFromBytes(assetBts.Value)
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+
+	return NewLong(int64(s.State().AssetBalance(r, asset))), nil
+}
+
 func NativeThrow(s Scope, e Exprs) (Expr, error) {
 	funcName := "NativeThrow"
 
@@ -867,6 +914,82 @@ func NativeFromBase58(s Scope, e Exprs) (Expr, error) {
 	return NewBytes(rs), nil
 }
 
+func NativeFromBase64String(s Scope, e Exprs) (Expr, error) {
+	funcName := "NativeFromBase64String"
+
+	if l := len(e); l != 1 {
+		return nil, errors.Errorf("%s: invalid params, expected 1, passed %d", funcName, l)
+	}
+
+	first, err := e[0].Evaluate(s.Clone())
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+
+	str, ok := first.(*StringExpr)
+	if !ok {
+		return nil, errors.Errorf("%s expected first argument to be *StringExpr, found %T", funcName, first)
+	}
+
+	decoded, err := base64.StdEncoding.DecodeString(str.Value)
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+
+	return NewBytes(decoded), nil
+}
+
+func NativeToBse64String(s Scope, e Exprs) (Expr, error) {
+	funcName := "NativeToBse64String"
+
+	if l := len(e); l != 1 {
+		return nil, errors.Errorf("%s: invalid params, expected 1, passed %d", funcName, l)
+	}
+
+	first, err := e[0].Evaluate(s.Clone())
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+
+	str, ok := first.(*BytesExpr)
+	if !ok {
+		return nil, errors.Errorf("%s expected first argument to be *BytesExpr, found %T", funcName, first)
+	}
+
+	encoded := base64.StdEncoding.EncodeToString(str.Value)
+	return NewString(encoded), nil
+}
+
+func NativeDataLongFromArray(s Scope, e Exprs) (Expr, error) {
+	funcName := "NativeDataLongFromArray"
+
+	if l := len(e); l != 2 {
+		return nil, errors.Errorf("%s: invalid params, expected 2, passed %d", funcName, l)
+	}
+
+	lstExpr, err := e[0].Evaluate(s.Clone())
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+
+	keyExpr, err := e[1].Evaluate(s.Clone())
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+
+	lst, ok := lstExpr.(*DataEntryListExpr)
+	if !ok {
+		return nil, errors.Errorf("%s expected first argument to be *DataEntryListExpr, found %T", funcName, lstExpr)
+	}
+
+	key, ok := keyExpr.(*StringExpr)
+	if !ok {
+		return nil, errors.Errorf("%s expected second argument to be *StringExpr, found %T", funcName, keyExpr)
+	}
+
+	return lst.Get(key.Value, proto.Integer), nil
+}
+
 func UserThrow(s Scope, e Exprs) (Expr, error) {
 	return nil, Throw{Message: DefaultThrowMessage}
 }
@@ -922,6 +1045,12 @@ func writeNativeFunction(w io.Writer, id int16, e Exprs) {
 		e[0].Write(w)
 		fmt.Fprint(w, " == ")
 		e[1].Write(w)
+	case 1:
+		fmt.Fprint(w, "_isInstanceOf(")
+		e[0].Write(w)
+		fmt.Fprint(w, ", ")
+		e[1].Write(w)
+		fmt.Fprint(w, ")")
 	case 2:
 		fmt.Fprint(w, "throw(")
 		e[0].Write(w)
@@ -996,6 +1125,12 @@ func writeNativeFunction(w io.Writer, id int16, e Exprs) {
 	case 1001:
 		fmt.Fprint(w, "transactionHeightById(")
 		e[0].Write(w)
+		fmt.Fprint(w, ")")
+	case 1003:
+		fmt.Fprint(w, "assetBalance(")
+		e[0].Write(w)
+		fmt.Fprint(w, ", ")
+		e[1].Write(w)
 		fmt.Fprint(w, ")")
 	default:
 		fmt.Fprintf(w, "FUNCTION_%d(", id)
