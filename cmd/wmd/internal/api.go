@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
+	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
 	"net/http"
@@ -56,6 +57,12 @@ type DataFeedAPI struct {
 	Scheme  byte
 }
 
+type status struct {
+	CurrentHeight int              `json:"current_height"`
+	LastBlockID   crypto.Signature `json:"last_block_id"`
+	LastTradeID   crypto.Digest    `json:"last_trade_id"`
+}
+
 func NewDataFeedAPI(log *zap.SugaredLogger, storage *Storage, symbols *Symbols) *DataFeedAPI {
 	return &DataFeedAPI{log: log, Storage: storage, Symbols: symbols}
 }
@@ -76,7 +83,28 @@ func (a *DataFeedAPI) Routes() chi.Router {
 }
 
 func (a *DataFeedAPI) Status(w http.ResponseWriter, r *http.Request) {
-
+	h, err := a.Storage.GetLastHeight()
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to complete request: %s", err.Error()), http.StatusInternalServerError)
+		return
+	}
+	bi, err := a.Storage.BlockInfo(h)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to complete request: %s", err.Error()), http.StatusInternalServerError)
+		return
+	}
+	t, err := a.Storage.LastTrade()
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to complete request: %s", err.Error()), http.StatusInternalServerError)
+		return
+	}
+	s := status{CurrentHeight: h, LastBlockID: bi.ID, LastTradeID: t.TransactionID}
+	err = json.NewEncoder(w).Encode(s)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to marshal status to JSON: %s", err.Error()), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
 }
 
 func (a *DataFeedAPI) GetSymbols(w http.ResponseWriter, r *http.Request) {
@@ -360,6 +388,84 @@ func (a *DataFeedAPI) TradesByAddress(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *DataFeedAPI) Candles(w http.ResponseWriter, r *http.Request) {
+	aa := chi.URLParam(r, amountAssetPlaceholder)
+	amountAsset, err := a.Symbols.ParseTicker(aa)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Bad request: %s", err.Error()), http.StatusBadRequest)
+		return
+	}
+	pa := chi.URLParam(r, priceAssetPlaceholder)
+	priceAsset, err := a.Symbols.ParseTicker(pa)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Bad request: %s", err.Error()), http.StatusBadRequest)
+		return
+	}
+	tf, err := strconv.Atoi(chi.URLParam(r, timeFramePlaceholder))
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Bad request: %s", err.Error()), http.StatusBadRequest)
+	}
+	if tf != 5 && tf != 15 && tf != 30 && tf != 60 && tf != 240 && tf != 1440 {
+		http.Error(w, fmt.Sprintf("Bad request: incorrect time frame %d, allowed values: 5, 15, 30, 60, 240 and 1440 minutes", tf), http.StatusBadRequest)
+	}
+	limit, err := strconv.Atoi(chi.URLParam(r, limitPlaceholder))
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Bad request: %s", err.Error()), http.StatusBadRequest)
+		return
+	}
+	if limit < 1 || limit > 1000 {
+		http.Error(w, fmt.Sprintf("Bad request: %d is invalid limit value, allowed between 1 and 1000", limit), http.StatusBadRequest)
+		return
+
+	}
+	aai, err := a.Storage.readAssetInfo(amountAsset)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to load AssetInfo: %s", err.Error()), http.StatusInternalServerError)
+		return
+	}
+	pai, err := a.Storage.readAssetInfo(priceAsset)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to load AssetInfo: %s", err.Error()), http.StatusInternalServerError)
+		return
+	}
+	tfs := tf / DefaultTimeFrame
+	ttf := timeFrameFromTimestampMS(uint64(time.Now().Unix() * 1000))
+	ftf := ttf - uint32((limit-1)*tfs)
+	cis := make(map[uint32]CandleInfo)
+	for x := scaleTimeFrame(ftf, tfs); x <= scaleTimeFrame(ttf, tfs); x += uint32(tfs) {
+		cis[x] = EmptyCandleInfo(uint(aai.Decimals), uint(pai.Decimals), timestampMSFromTimeFrame(x))
+	}
+	candles, err := a.Storage.CandlesRange(amountAsset, priceAsset, ftf, ttf, tfs)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to collect Candles: %s", err.Error()), http.StatusInternalServerError)
+		return
+	}
+	csm := make(map[uint32]Candle)
+	for _, c := range candles {
+		ctf := scaleTimeFrame(timeFrameFromTimestampMS(c.minTimestamp), tfs)
+		if cc, ok := csm[ctf]; !ok {
+			csm[ctf] = c
+		} else {
+			cc.Combine(c)
+			csm[ctf] = cc
+		}
+	}
+	res := make(ByTimestampBackward, len(cis))
+	i := 0
+	for k, v := range cis {
+		if c, ok := csm[k]; ok {
+			res[i] = CandleInfoFromCandle(c, uint(aai.Decimals), uint(pai.Decimals), tfs)
+		} else {
+			res[i] = v
+		}
+		i++
+	}
+	sort.Sort(res)
+	err = json.NewEncoder(w).Encode(res)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to marshal CandleInfos to JSON: %s", err.Error()), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
 
 }
 

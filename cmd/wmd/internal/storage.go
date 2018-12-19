@@ -188,7 +188,7 @@ func (b *blockInfo) marshalBinary() []byte {
 
 func (b *blockInfo) unmarshalBinary(data []byte) error {
 	if len(data) != crypto.SignatureSize+1+4 {
-		return errors.New("incorrect data for blockInfo")
+		return errors.New("incorrect data for BlockInfo")
 	}
 	b.Empty = data[0] == 1
 	copy(b.ID[:], data[1:])
@@ -265,6 +265,20 @@ func (s *Storage) GetLastHeight() (int, error) {
 	return int(binary.BigEndian.Uint32(v)), nil
 }
 
+func (s *Storage) LastTrade() (Trade, error) {
+	var t Trade
+	it := s.db.NewIterator(&ldbUtil.Range{Start: []byte{TradesKeyPrefix}, Limit: []byte{TradesKeyPrefix + 1}}, defaultReadOptions)
+	if it.Last() {
+		b := it.Value()
+		err := t.UnmarshalBinary(b)
+		if err != nil {
+			return t, errors.Wrap(err, "failed to get last Trade")
+		}
+	}
+	it.Release()
+	return t, it.Error()
+}
+
 func (s *Storage) readAssetInfo(asset crypto.Digest) (*AssetInfo, error) {
 	if bytes.Equal(asset[:], wavesID[:]) {
 		return &wavesAssetInfo, nil
@@ -327,7 +341,8 @@ func (s *Storage) Trades(amountAsset, priceAsset crypto.Digest, limit int) ([]Tr
 			}
 		}
 	}
-	return trades, nil
+	it.Release()
+	return trades, it.Error()
 }
 
 func (s *Storage) TradesRange(amountAsset, priceAsset crypto.Digest, from, to uint64) ([]Trade, error) {
@@ -363,7 +378,8 @@ func (s *Storage) TradesRange(amountAsset, priceAsset crypto.Digest, from, to ui
 			}
 		}
 	}
-	return trades, nil
+	it.Release()
+	return trades, it.Error()
 }
 
 func (s *Storage) CandlesRange(amountAsset, priceAsset crypto.Digest, from, to uint32, timeFrameScale int) ([]Candle, error) {
@@ -408,7 +424,8 @@ func (s *Storage) TradesByPublicKey(amountAsset, priceAsset crypto.Digest, pk cr
 			}
 		}
 	}
-	return trades, nil
+	it.Release()
+	return trades, it.Error()
 }
 
 func (s *Storage) DayCandle(amountAsset, priceAsset crypto.Digest) (Candle, error) {
@@ -449,7 +466,8 @@ func (s *Storage) candles(amountAsset, priceAsset crypto.Digest, start, stop uin
 			break
 		}
 	}
-	return r, nil
+	it.Release()
+	return r, it.Error()
 }
 
 func (s *Storage) PublicKey(address proto.Address) (crypto.PublicKey, error) {
@@ -510,7 +528,8 @@ func (s *Storage) Markets() (map[MarketID]MarketData, error) {
 		}
 		r[m] = md
 	}
-	return r, nil
+	it.Release()
+	return r, it.Error()
 }
 
 func (s *Storage) loadAssetStates(updates []AssetUpdate) (map[crypto.Digest]AssetState, error) {
@@ -771,7 +790,7 @@ func (s *Storage) Rollback(height int) error {
 		return errors.Errorf("Rollback is impossible, current height %d is not lower then given %d", max, height)
 	}
 	for h := max; h > height; h-- {
-		bi, err := s.blockInfo(h)
+		bi, err := s.BlockInfo(h)
 		if err != nil {
 			return errors.Wrapf(err, "Rollback failure at height %d", h)
 		}
@@ -804,7 +823,7 @@ func (s *Storage) Rollback(height int) error {
 }
 
 func (s *Storage) findFirstNonEmptyBlock(height int) (bool, blockInfo, error) {
-	bi, err := s.blockInfo(height)
+	bi, err := s.BlockInfo(height)
 	if err != nil {
 		if err != ldbErrors.ErrNotFound {
 			return false, blockInfo{}, err
@@ -817,7 +836,7 @@ func (s *Storage) findFirstNonEmptyBlock(height int) (bool, blockInfo, error) {
 	return s.findFirstNonEmptyBlock(height - 1)
 }
 
-func (s *Storage) blockInfo(height int) (blockInfo, error) {
+func (s *Storage) BlockInfo(height int) (blockInfo, error) {
 	k := uint32Key(BlockAtHeightKeyPrefix, uint32(height))
 	v, err := s.db.Get(k, defaultReadOptions)
 	if err != nil {
@@ -826,7 +845,7 @@ func (s *Storage) blockInfo(height int) (blockInfo, error) {
 	var bi blockInfo
 	err = bi.unmarshalBinary(v)
 	if err != nil {
-		return blockInfo{}, errors.Wrapf(err, "Rollback failure at height %d", height)
+		return blockInfo{}, errors.Wrapf(err, "failed to get info about block at height %d", height)
 	}
 	return bi, nil
 }
