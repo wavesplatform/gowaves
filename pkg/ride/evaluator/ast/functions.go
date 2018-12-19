@@ -962,7 +962,25 @@ func NativeToBse64String(s Scope, e Exprs) (Expr, error) {
 
 func NativeDataLongFromArray(s Scope, e Exprs) (Expr, error) {
 	funcName := "NativeDataLongFromArray"
+	return dataFromArray(funcName, s, e, proto.Integer)
+}
 
+func NativeDataBooleanFromArray(s Scope, e Exprs) (Expr, error) {
+	funcName := "NativeDataBooleanFromArray"
+	return dataFromArray(funcName, s, e, proto.Boolean)
+}
+
+func NativeDataStringFromArray(s Scope, e Exprs) (Expr, error) {
+	funcName := "NativeDataBooleanFromArray"
+	return dataFromArray(funcName, s, e, proto.String)
+}
+
+func NativeDataBinaryFromArray(s Scope, e Exprs) (Expr, error) {
+	funcName := "NativeDataBooleanFromArray"
+	return dataFromArray(funcName, s, e, proto.Binary)
+}
+
+func dataFromArray(funcName string, s Scope, e Exprs, valueType proto.ValueType) (Expr, error) {
 	if l := len(e); l != 2 {
 		return nil, errors.Errorf("%s: invalid params, expected 2, passed %d", funcName, l)
 	}
@@ -987,7 +1005,7 @@ func NativeDataLongFromArray(s Scope, e Exprs) (Expr, error) {
 		return nil, errors.Errorf("%s expected second argument to be *StringExpr, found %T", funcName, keyExpr)
 	}
 
-	return lst.Get(key.Value, proto.Integer), nil
+	return lst.Get(key.Value, valueType), nil
 }
 
 func UserThrow(s Scope, e Exprs) (Expr, error) {

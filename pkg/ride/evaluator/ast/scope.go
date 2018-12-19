@@ -140,6 +140,9 @@ func NewFuncScope() *FuncScope {
 	funcs[1003] = NativeAssetBalance
 
 	funcs[1040] = NativeDataLongFromArray
+	funcs[1041] = NativeDataBooleanFromArray
+	funcs[1042] = NativeDataBinaryFromArray
+	funcs[1043] = NativeDataStringFromArray
 
 	userFuncs := make(map[string]Callable)
 	userFuncs["throw"] = UserThrow

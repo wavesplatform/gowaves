@@ -383,3 +383,45 @@ func TestNativeAssetBalance_FromAlias(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, NewLong(5), rs)
 }
+
+func TestNativeDataFromArray(t *testing.T) {
+
+	var dataEntries []proto.DataEntry
+	dataEntries = append(dataEntries, proto.IntegerDataEntry{
+		Key:   "integer",
+		Value: 100500,
+	})
+	dataEntries = append(dataEntries, proto.BooleanDataEntry{
+		Key:   "boolean",
+		Value: true,
+	})
+	dataEntries = append(dataEntries, proto.BinaryDataEntry{
+		Key:   "binary",
+		Value: []byte("hello"),
+	})
+	dataEntries = append(dataEntries, proto.StringDataEntry{
+		Key:   "string",
+		Value: "world",
+	})
+
+	rs1, err := NativeDataLongFromArray(newEmptyScope(), Params(NewDataEntryList(dataEntries), NewString("integer")))
+	require.NoError(t, err)
+	assert.Equal(t, NewLong(100500), rs1)
+
+	rs2, err := NativeDataBooleanFromArray(newEmptyScope(), Params(NewDataEntryList(dataEntries), NewString("boolean")))
+	require.NoError(t, err)
+	assert.Equal(t, NewBoolean(true), rs2)
+
+	rs3, err := NativeDataStringFromArray(newEmptyScope(), Params(NewDataEntryList(dataEntries), NewString("string")))
+	require.NoError(t, err)
+	assert.Equal(t, NewString("world"), rs3)
+
+	rs4, err := NativeDataBinaryFromArray(newEmptyScope(), Params(NewDataEntryList(dataEntries), NewString("binary")))
+	require.NoError(t, err)
+	assert.Equal(t, NewBytes([]byte("hello")), rs4)
+
+	// test no value
+	rs5, err := NativeDataBinaryFromArray(newEmptyScope(), Params(NewDataEntryList(dataEntries), NewString("unknown")))
+	require.NoError(t, err)
+	assert.Equal(t, Unit{}, rs5)
+}

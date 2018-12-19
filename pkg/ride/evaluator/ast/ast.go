@@ -621,7 +621,7 @@ func (a DataEntryListExpr) Write(w io.Writer) {
 	_, _ = fmt.Fprint(w, "Alias")
 }
 
-func (a DataEntryListExpr) Evaluate(s Scope) (Expr, error) {
+func (a *DataEntryListExpr) Evaluate(s Scope) (Expr, error) {
 	return a, nil
 }
 
