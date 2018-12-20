@@ -92,10 +92,10 @@ func TestAddressFromBytes(t *testing.T) {
 
 func BenchmarkNewWavesAddressFromPublicKey(b *testing.B) {
 	seed := make([]byte, 32)
-	rand.Read(seed)
+	_, _ = rand.Read(seed)
 	_, pk := crypto.GenerateKeyPair(seed)
 	for n := 0; n < b.N; n++ {
-		NewAddressFromPublicKey(MainNetScheme, pk)
+		_, _ = NewAddressFromPublicKey(MainNetScheme, pk)
 	}
 }
 

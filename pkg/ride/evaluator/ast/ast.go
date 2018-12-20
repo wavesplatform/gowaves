@@ -11,8 +11,6 @@ import (
 
 const InstanceFieldName = "$instance"
 
-//var ErrThrow = errors.New("throw")
-
 type Expr interface {
 	Write(io.Writer)
 	Evaluate(Scope) (Expr, error)
@@ -64,7 +62,7 @@ type Block struct {
 
 func (a *Block) Write(w io.Writer) {
 	a.Let.Write(w)
-	fmt.Fprintf(w, "\n")
+	_, _ = fmt.Fprintf(w, "\n")
 	a.Body.Write(w)
 }
 
@@ -87,7 +85,7 @@ type LetExpr struct {
 }
 
 func (a *LetExpr) Write(w io.Writer) {
-	fmt.Fprintf(w, "let %s = ", a.Name)
+	_, _ = fmt.Fprintf(w, "let %s = ", a.Name)
 	a.Value.Write(w)
 }
 
@@ -109,7 +107,7 @@ func NewLong(value int64) *LongExpr {
 }
 
 func (a *LongExpr) Write(w io.Writer) {
-	fmt.Fprintf(w, "%d", a.Value)
+	_, _ = fmt.Fprintf(w, "%d", a.Value)
 }
 
 func (a *LongExpr) Evaluate(Scope) (Expr, error) {
@@ -143,7 +141,7 @@ func (a *BooleanExpr) Evaluate(scope Scope) (Expr, error) {
 }
 
 func (a *BooleanExpr) Write(w io.Writer) {
-	fmt.Fprint(w, a.Value)
+	_, _ = fmt.Fprint(w, a.Value)
 }
 
 func (a *BooleanExpr) Eq(other Expr) (bool, error) {
@@ -235,21 +233,11 @@ func NewUserFunction(name string, argc int, argv Exprs) *UserFunction {
 }
 
 func (a *UserFunction) Write(w io.Writer) {
-
 	if a.Name == "!=" {
-		a.Argv[0].Write(w)
-		fmt.Fprint(w, " != ")
-		a.Argv[1].Write(w)
+		infix(w, " != ", a.Argv)
 		return
 	}
-
-	fmt.Fprint(w, a.Name)
-	for i, arg := range a.Argv {
-		arg.Write(w)
-		if i < len(a.Argv)-1 {
-			fmt.Fprint(w, ", ")
-		}
-	}
+	classic(w, a.Name, a.Argv)
 }
 
 func (a *UserFunction) Evaluate(s Scope) (Expr, error) {
@@ -281,7 +269,7 @@ type RefCache struct {
 }
 
 func (a *RefExpr) Write(w io.Writer) {
-	fmt.Fprint(w, a.Name)
+	_, _ = fmt.Fprint(w, a.Name)
 }
 
 func (a *RefExpr) Evaluate(s Scope) (Expr, error) {
@@ -329,19 +317,16 @@ func NewIf(cond, trueExpr, falseExpr Expr) *IfExpr {
 }
 
 func (a *IfExpr) Write(w io.Writer) {
-
-	fmt.Fprint(w, "if ( ")
+	_, _ = fmt.Fprint(w, "if ( ")
 	a.Condition.Write(w)
-	fmt.Fprint(w, " ) { ")
+	_, _ = fmt.Fprint(w, " ) { ")
 	a.True.Write(w)
-	fmt.Fprint(w, " } else { ")
+	_, _ = fmt.Fprint(w, " } else { ")
 	a.False.Write(w)
-	fmt.Fprint(w, " }  ")
-
+	_, _ = fmt.Fprint(w, " }  ")
 }
 
 func (a *IfExpr) Evaluate(s Scope) (Expr, error) {
-
 	cond, err := a.Condition.Evaluate(s.Clone())
 	if err != nil {
 		return nil, err
@@ -378,7 +363,7 @@ func NewBytes(b []byte) *BytesExpr {
 }
 
 func (a *BytesExpr) Write(w io.Writer) {
-	fmt.Fprint(w, "base58'", base58.Encode(a.Value), "'")
+	_, _ = fmt.Fprint(w, "base58'", base58.Encode(a.Value), "'")
 }
 
 func (a *BytesExpr) Evaluate(s Scope) (Expr, error) {
@@ -412,7 +397,7 @@ func NewGetterExpr(object Expr, key string) *GetterExpr {
 
 func (a *GetterExpr) Write(w io.Writer) {
 	a.Object.Write(w)
-	fmt.Fprint(w, ".", a.Key)
+	_, _ = fmt.Fprint(w, ".", a.Key)
 }
 
 func (a *GetterExpr) Evaluate(s Scope) (Expr, error) {
@@ -451,7 +436,7 @@ func NewObject(fields map[string]Expr) *ObjectExpr {
 }
 
 func (a *ObjectExpr) Write(w io.Writer) {
-	fmt.Fprint(w, "object")
+	_, _ = fmt.Fprint(w, "object")
 }
 
 func (a *ObjectExpr) Evaluate(s Scope) (Expr, error) {
@@ -511,7 +496,7 @@ func NewString(value string) *StringExpr {
 }
 
 func (a *StringExpr) Write(w io.Writer) {
-	fmt.Fprint(w, `"`, a.Value, `"`)
+	_, _ = fmt.Fprint(w, `"`, a.Value, `"`)
 }
 
 func (a *StringExpr) Evaluate(s Scope) (Expr, error) {
@@ -534,7 +519,7 @@ func (a *StringExpr) InstanceOf() string {
 type AddressExpr proto.Address
 
 func (a AddressExpr) Write(w io.Writer) {
-	fmt.Fprint(w, proto.Address(a).String())
+	_, _ = fmt.Fprint(w, proto.Address(a).String())
 }
 
 func (a AddressExpr) Evaluate(s Scope) (Expr, error) {

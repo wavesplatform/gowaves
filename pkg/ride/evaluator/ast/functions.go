@@ -51,6 +51,7 @@ func NativeGeLong(s Scope, e Exprs) (Expr, error) {
 	}, s, e)
 }
 
+// Equality
 func NativeEq(s Scope, e Exprs) (Expr, error) {
 	if l := len(e); l != 2 {
 		return nil, errors.Errorf("NativeEq: invalid params, expected 2, passed %d", l)
@@ -69,6 +70,7 @@ func NativeEq(s Scope, e Exprs) (Expr, error) {
 	return NewBoolean(b), err
 }
 
+// Get list element by position
 func NativeGetList(s Scope, e Exprs) (Expr, error) {
 	funcName := "NativeGetList"
 
@@ -101,11 +103,11 @@ func NativeGetList(s Scope, e Exprs) (Expr, error) {
 	}
 
 	return lst[lng.Value], nil
-
 }
 
-func NativeIsinstanceof(s Scope, e Exprs) (Expr, error) {
-	funcName := "NativeIsinstanceof"
+// Internal function to check value type
+func NativeIsInstanceof(s Scope, e Exprs) (Expr, error) {
+	funcName := "NativeIsInstanceof"
 
 	if l := len(e); l != 2 {
 		return nil, errors.Errorf("%s: invalid params, expected 2, passed %d", funcName, l)
@@ -121,47 +123,37 @@ func NativeIsinstanceof(s Scope, e Exprs) (Expr, error) {
 		return nil, err
 	}
 
-	//obj, ok := first.(*ObjectExpr)
-	//if !ok {
-	//	return nil, errors.Errorf("%s: expected first argument to be *ObjectExpr, got %T", funcName, first)
-	//}
-
 	str, ok := second.(*StringExpr)
 	if !ok {
 		return nil, errors.Errorf("%s: expected second argument to be *StringExpr, got %T", funcName, second)
 	}
 
 	strVal := first.InstanceOf()
-	//if err != nil {
-	//	return nil, errors.Wrap(err, funcName)
-	//}
-
-	//strVal, ok := val.(*StringExpr)
-	//if !ok {
-	//	return nil, errors.Errorf("%s: object field %s should be *StringExpr, but found %T", funcName, InstanceFieldName, val)
-	//}
-
 	return NewBoolean(strVal == str.Value), nil
 }
 
+// Integer sum
 func NativeSumLong(s Scope, e Exprs) (Expr, error) {
 	return mathLong("NativeSumLong", func(i int64, i2 int64) (Expr, error) {
 		return NewLong(i + i2), nil
 	}, s, e)
 }
 
+// Integer substitution
 func NativeSubLong(s Scope, e Exprs) (Expr, error) {
 	return mathLong("NativeSubLong", func(i int64, i2 int64) (Expr, error) {
 		return NewLong(i - i2), nil
 	}, s, e)
 }
 
+// Integer multiplication
 func NativeMulLong(s Scope, e Exprs) (Expr, error) {
 	return mathLong("NativeMulLong", func(i int64, i2 int64) (Expr, error) {
 		return NewLong(i * i2), nil
 	}, s, e)
 }
 
+// Integer devision
 func NativeDivLong(s Scope, e Exprs) (Expr, error) {
 	return mathLong("NativeDivLong", func(i int64, i2 int64) (Expr, error) {
 		if i2 == 0 {
@@ -171,6 +163,7 @@ func NativeDivLong(s Scope, e Exprs) (Expr, error) {
 	}, s, e)
 }
 
+// Modulo
 func NativeModLong(s Scope, e Exprs) (Expr, error) {
 	return mathLong("NativeDivLong", func(i int64, i2 int64) (Expr, error) {
 		if i2 == 0 {
@@ -246,9 +239,8 @@ func mathLong(funcName string, f func(int64, int64) (Expr, error), s Scope, e Ex
 	return f(first.Value, second.Value)
 }
 
-// Value
-// signature
-// public key
+// Check signature
+// accepts Value, signature and public key
 func NativeSigVerify(s Scope, e Exprs) (Expr, error) {
 	funcName := "NativeSigVerify"
 
@@ -290,6 +282,7 @@ func NativeSigVerify(s Scope, e Exprs) (Expr, error) {
 	return NewBoolean(out), nil
 }
 
+// 256 bit Keccak256
 func NativeKeccak256(s Scope, e Exprs) (Expr, error) {
 	if l := len(e); l != 1 {
 		return nil, errors.Errorf("NativeKeccak256: invalid params, expected 1, passed %d", l)
@@ -309,6 +302,7 @@ func NativeKeccak256(s Scope, e Exprs) (Expr, error) {
 	return NewBytes(d.Bytes()), nil
 }
 
+// 256 bit BLAKE
 func NativeBlake2b256(s Scope, e Exprs) (Expr, error) {
 	if l := len(e); l != 1 {
 		return nil, errors.Errorf("NativeBlake2b256: invalid params, expected 1, passed %d", l)
@@ -331,6 +325,7 @@ func NativeBlake2b256(s Scope, e Exprs) (Expr, error) {
 	return NewBytes(d.Bytes()), nil
 }
 
+// 256 bit SHA-2
 func NativeSha256(s Scope, e Exprs) (Expr, error) {
 	if l := len(e); l != 1 {
 		return nil, errors.Errorf("NativeSha256: invalid params, expected 1, passed %d", l)
@@ -353,6 +348,7 @@ func NativeSha256(s Scope, e Exprs) (Expr, error) {
 	return NewBytes(d), nil
 }
 
+// Рeight when transaction was stored to blockchain
 func NativeTransactionHeightByID(s Scope, e Exprs) (Expr, error) {
 	funcName := "NativeTransactionHeightByID"
 
@@ -381,6 +377,7 @@ func NativeTransactionHeightByID(s Scope, e Exprs) (Expr, error) {
 	return NewLong(int64(height)), nil
 }
 
+// Lookup transaction
 func NativeTransactionByID(s Scope, e Exprs) (Expr, error) {
 	funcName := "NativeTransactionByID"
 
@@ -414,6 +411,7 @@ func NativeTransactionByID(s Scope, e Exprs) (Expr, error) {
 	return NewObject(vars), nil
 }
 
+// Size of bytes vector
 func NativeSizeBytes(s Scope, e Exprs) (Expr, error) {
 	funcName := "NativeSizeBytes"
 
@@ -434,6 +432,7 @@ func NativeSizeBytes(s Scope, e Exprs) (Expr, error) {
 	return NewLong(int64(len(bts.Value))), nil
 }
 
+// Take firsts bytes
 func NativeTakeBytes(s Scope, e Exprs) (Expr, error) {
 	funcName := "NativeTakeBytes"
 
@@ -468,6 +467,7 @@ func NativeTakeBytes(s Scope, e Exprs) (Expr, error) {
 	return NewBytes(out), nil
 }
 
+// Skip firsts bytes
 func NativeDropBytes(s Scope, e Exprs) (Expr, error) {
 	funcName := "NativeDropBytes"
 
@@ -502,6 +502,7 @@ func NativeDropBytes(s Scope, e Exprs) (Expr, error) {
 	return NewBytes(out), nil
 }
 
+// Limited bytes concatenation
 func NativeConcatBytes(s Scope, e Exprs) (Expr, error) {
 	funcName := "NativeDropBytes"
 
@@ -537,6 +538,7 @@ func NativeConcatBytes(s Scope, e Exprs) (Expr, error) {
 	return NewBytes(out), nil
 }
 
+// Limited strings concatenation
 func NativeConcatStrings(s Scope, e Exprs) (Expr, error) {
 	funcName := "NativeConcatStrings"
 
@@ -574,6 +576,7 @@ func NativeConcatStrings(s Scope, e Exprs) (Expr, error) {
 	return NewString(out), nil
 }
 
+// Take string prefix
 func NativeTakeStrings(s Scope, e Exprs) (Expr, error) {
 	funcName := "NativeTakeStrings"
 
@@ -610,6 +613,7 @@ func NativeTakeStrings(s Scope, e Exprs) (Expr, error) {
 	return NewString(string(out)), nil
 }
 
+// Remove string prefix
 func NativeDropStrings(s Scope, e Exprs) (Expr, error) {
 	funcName := "NativeDropStrings"
 
@@ -646,6 +650,7 @@ func NativeDropStrings(s Scope, e Exprs) (Expr, error) {
 	return NewString(string(out)), nil
 }
 
+// String size in characters
 func NativeSizeString(s Scope, e Exprs) (Expr, error) {
 	funcName := "NativeSizeBytes"
 
@@ -666,6 +671,7 @@ func NativeSizeString(s Scope, e Exprs) (Expr, error) {
 	return NewLong(int64(utf8.RuneCountInString(str.Value))), nil
 }
 
+// Size of list
 func NativeSizeList(s Scope, e Exprs) (Expr, error) {
 	funcName := "NativeSizeList"
 
@@ -691,6 +697,7 @@ func NativeSizeList(s Scope, e Exprs) (Expr, error) {
 	return NewLong(int64(len(lst))), nil
 }
 
+// Long to big endian bytes
 func NativeLongToBytes(s Scope, e Exprs) (Expr, error) {
 	funcName := "NativeLongToBytes"
 
@@ -713,6 +720,7 @@ func NativeLongToBytes(s Scope, e Exprs) (Expr, error) {
 	return NewBytes(out), nil
 }
 
+// String to bytes representation
 func NativeStringToBytes(s Scope, e Exprs) (Expr, error) {
 	funcName := "NativeStringToBytes"
 
@@ -733,6 +741,7 @@ func NativeStringToBytes(s Scope, e Exprs) (Expr, error) {
 	return NewBytes([]byte(str.Value)), nil
 }
 
+// Boolean to bytes representation (1 - true, 0 - false)
 func NativeBooleanToBytes(s Scope, e Exprs) (Expr, error) {
 	funcName := "NativeBooleanToBytes"
 
@@ -757,6 +766,7 @@ func NativeBooleanToBytes(s Scope, e Exprs) (Expr, error) {
 	}
 }
 
+// Asset balance for account
 func NativeAssetBalance(s Scope, e Exprs) (Expr, error) {
 	funcName := "NativeAssetBalance"
 
@@ -782,7 +792,6 @@ func NativeAssetBalance(s Scope, e Exprs) (Expr, error) {
 	case AliasExpr:
 		r = proto.NewRecipientFromAlias(proto.Alias(a))
 	default:
-		// TODO fix alias
 		return nil, errors.Errorf("%s first argument expected to be AddressExpr or AliasExpr, found %T", funcName, addressOrAliasExpr)
 	}
 
@@ -803,6 +812,7 @@ func NativeAssetBalance(s Scope, e Exprs) (Expr, error) {
 	return NewLong(int64(s.State().AssetBalance(r, asset))), nil
 }
 
+// Fail script
 func NativeThrow(s Scope, e Exprs) (Expr, error) {
 	funcName := "NativeThrow"
 
@@ -825,6 +835,7 @@ func NativeThrow(s Scope, e Exprs) (Expr, error) {
 	}
 }
 
+// String representation
 func NativeLongToString(s Scope, e Exprs) (Expr, error) {
 	funcName := "NativeLongToString"
 
@@ -845,6 +856,7 @@ func NativeLongToString(s Scope, e Exprs) (Expr, error) {
 	return NewString(fmt.Sprintf("%d", long.Value)), nil
 }
 
+// String representation
 func NativeBooleanToString(s Scope, e Exprs) (Expr, error) {
 	funcName := "NativeBooleanToString"
 
@@ -869,6 +881,7 @@ func NativeBooleanToString(s Scope, e Exprs) (Expr, error) {
 	}
 }
 
+// Base58 encode
 func NativeToBase58(s Scope, e Exprs) (Expr, error) {
 	funcName := "NativeToBase58"
 
@@ -889,6 +902,7 @@ func NativeToBase58(s Scope, e Exprs) (Expr, error) {
 	return NewString(base58.Encode(b.Value)), nil
 }
 
+// Base58 decode
 func NativeFromBase58(s Scope, e Exprs) (Expr, error) {
 	funcName := "NativeFromBase58"
 
@@ -914,6 +928,7 @@ func NativeFromBase58(s Scope, e Exprs) (Expr, error) {
 	return NewBytes(rs), nil
 }
 
+// Base64 decode
 func NativeFromBase64String(s Scope, e Exprs) (Expr, error) {
 	funcName := "NativeFromBase64String"
 
@@ -939,6 +954,7 @@ func NativeFromBase64String(s Scope, e Exprs) (Expr, error) {
 	return NewBytes(decoded), nil
 }
 
+// Base64 encode
 func NativeToBse64String(s Scope, e Exprs) (Expr, error) {
 	funcName := "NativeToBse64String"
 
@@ -960,21 +976,25 @@ func NativeToBse64String(s Scope, e Exprs) (Expr, error) {
 	return NewString(encoded), nil
 }
 
+// Get integer from data of DataTransaction
 func NativeDataLongFromArray(s Scope, e Exprs) (Expr, error) {
 	funcName := "NativeDataLongFromArray"
 	return dataFromArray(funcName, s, e, proto.Integer)
 }
 
+// Get boolean from data of DataTransaction
 func NativeDataBooleanFromArray(s Scope, e Exprs) (Expr, error) {
 	funcName := "NativeDataBooleanFromArray"
 	return dataFromArray(funcName, s, e, proto.Boolean)
 }
 
+// Get string from data of DataTransaction
 func NativeDataStringFromArray(s Scope, e Exprs) (Expr, error) {
 	funcName := "NativeDataBooleanFromArray"
 	return dataFromArray(funcName, s, e, proto.String)
 }
 
+// Get bytes from data of DataTransaction
 func NativeDataBinaryFromArray(s Scope, e Exprs) (Expr, error) {
 	funcName := "NativeDataBooleanFromArray"
 	return dataFromArray(funcName, s, e, proto.Binary)
@@ -1008,10 +1028,12 @@ func dataFromArray(funcName string, s Scope, e Exprs, valueType proto.ValueType)
 	return lst.Get(key.Value, valueType), nil
 }
 
-func UserThrow(s Scope, e Exprs) (Expr, error) {
+// Fail script without message (default will be used)
+func UserThrow(_ Scope, _ Exprs) (Expr, error) {
 	return nil, Throw{Message: DefaultThrowMessage}
 }
 
+// Decode account address
 func UserAddressFromString(s Scope, e Exprs) (Expr, error) {
 	if l := len(e); l != 1 {
 		return nil, errors.Errorf("UserAddressFromString: invalid params, expected 1, passed %d", l)
@@ -1056,111 +1078,69 @@ func UserFunctionNeq(s Scope, e Exprs) (Expr, error) {
 	return NewBoolean(!eq), nil
 }
 
+func classic(w io.Writer, name string, e Exprs) {
+	_, _ = fmt.Fprintf(w, "%s(", name)
+	last := len(e) - 1
+	for i := 0; i < len(e); i++ {
+		e[i].Write(w)
+		if last != i {
+			_, _ = fmt.Fprint(w, ", ")
+		}
+	}
+	_, _ = fmt.Fprint(w, ")")
+}
+
+func infix(w io.Writer, name string, e Exprs) {
+	e[0].Write(w)
+	_, _ = fmt.Fprintf(w, " %s ", name)
+	e[1].Write(w)
+}
+
 func writeNativeFunction(w io.Writer, id int16, e Exprs) {
 
 	switch id {
 	case 0:
-		e[0].Write(w)
-		fmt.Fprint(w, " == ")
-		e[1].Write(w)
+		infix(w, "==", e)
 	case 1:
-		fmt.Fprint(w, "_isInstanceOf(")
-		e[0].Write(w)
-		fmt.Fprint(w, ", ")
-		e[1].Write(w)
-		fmt.Fprint(w, ")")
+		classic(w, "_isInstanceOf", e)
 	case 2:
-		fmt.Fprint(w, "throw(")
-		e[0].Write(w)
-		fmt.Fprint(w, ")")
+		classic(w, "throw", e)
 	case 103:
-		e[0].Write(w)
-		fmt.Fprint(w, " >= ")
-		e[1].Write(w)
-
+		infix(w, ">=", e)
 	case 200:
-		fmt.Fprint(w, "size(")
-		e[0].Write(w)
-		fmt.Fprint(w, ")")
-	case 203:
-		e[0].Write(w)
-		fmt.Fprint(w, " + ")
-		e[1].Write(w)
-	case 300:
-		e[0].Write(w)
-		fmt.Fprint(w, " + ")
-		e[1].Write(w)
+		classic(w, "size", e)
+	case 203, 300:
+		infix(w, "+", e)
 	case 305:
-		fmt.Fprint(w, "size(")
-		e[0].Write(w)
-		fmt.Fprint(w, ")")
+		classic(w, "size", e)
 	case 401:
 		e[0].Write(w)
-		fmt.Fprint(w, "[")
+		_, _ = fmt.Fprint(w, "[")
 		e[1].Write(w)
-		fmt.Fprint(w, "]")
+		_, _ = fmt.Fprint(w, "]")
 	case 410, 411, 412:
-		fmt.Fprint(w, "toBytes(")
-		e[0].Write(w)
-		fmt.Fprint(w, ")")
+		classic(w, "toBytes", e)
 	case 420, 421:
-		fmt.Fprint(w, "toString(")
-		e[0].Write(w)
-		fmt.Fprint(w, ")")
+		classic(w, "toString", e)
 	case 500:
-		fmt.Fprint(w, "sigVerify(")
-		e[0].Write(w)
-		fmt.Fprint(w, ", ")
-		e[1].Write(w)
-		fmt.Fprint(w, ", ")
-		e[2].Write(w)
-		fmt.Fprint(w, ")")
+		classic(w, "sigVerify", e)
 	case 501:
-		fmt.Fprint(w, "keccak256(")
-		e[0].Write(w)
-		fmt.Fprint(w, ")")
+		classic(w, "keccak256", e)
 	case 502:
-		fmt.Fprint(w, "blake2b256(")
-		e[0].Write(w)
-		fmt.Fprint(w, ")")
+		classic(w, "blake2b256", e)
 	case 503:
-		fmt.Fprint(w, "sha256(")
-		e[0].Write(w)
-		fmt.Fprint(w, ")")
+		classic(w, "sha256", e)
 	case 600:
-		fmt.Fprint(w, "toBase58String(")
-		e[0].Write(w)
-		fmt.Fprint(w, ")")
+		classic(w, "toBase58String", e)
 	case 601:
-		fmt.Fprint(w, "fromBase58String(")
-		e[0].Write(w)
-		fmt.Fprint(w, ")")
-
+		classic(w, "fromBase58String", e)
 	case 1000:
-		fmt.Fprint(w, "transactionById(")
-		e[0].Write(w)
-		fmt.Fprint(w, ")")
+		classic(w, "transactionById", e)
 	case 1001:
-		fmt.Fprint(w, "transactionHeightById(")
-		e[0].Write(w)
-		fmt.Fprint(w, ")")
+		classic(w, "transactionHeightById", e)
 	case 1003:
-		fmt.Fprint(w, "assetBalance(")
-		e[0].Write(w)
-		fmt.Fprint(w, ", ")
-		e[1].Write(w)
-		fmt.Fprint(w, ")")
+		classic(w, "assetBalance", e)
 	default:
-		fmt.Fprintf(w, "FUNCTION_%d(", id)
-
-		for i, arg := range e {
-			arg.Write(w)
-			if i < len(e)-1 {
-				fmt.Fprint(w, ", ")
-			}
-		}
-
-		fmt.Fprintf(w, ")")
+		classic(w, fmt.Sprintf("FUNCTION_%d(", id), e)
 	}
-
 }

@@ -252,19 +252,19 @@ func TestNativeSizeList(t *testing.T) {
 }
 
 func TestNativeLongToBytes(t *testing.T) {
-	rs, err := NativeSizeList(newEmptyScope(), NewExprs(NewExprs(NewLong(1))))
+	rs, err := NativeLongToBytes(newEmptyScope(), Params(NewLong(1)))
 	require.NoError(t, err)
-	assert.Equal(t, NewLong(1), rs)
+	assert.Equal(t, NewBytes([]byte{0, 0, 0, 0, 0, 0, 0, 1}), rs)
 }
 
 func TestNativeThrow(t *testing.T) {
-	rs, err := NativeThrow(newEmptyScope(), NewExprs(NewString("mess")))
+	rs, err := NativeThrow(newEmptyScope(), Params(NewString("mess")))
 	require.Nil(t, rs)
 	assert.Equal(t, "mess", err.Error())
 }
 
 func TestNativeModLong(t *testing.T) {
-	rs, err := NativeModLong(newEmptyScope(), NewExprs(NewLong(-10), NewLong(6)))
+	rs, err := NativeModLong(newEmptyScope(), Params(NewLong(-10), NewLong(6)))
 	require.NoError(t, err)
 	assert.Equal(t, NewLong(2), rs)
 }
@@ -278,7 +278,7 @@ func TestModDivision(t *testing.T) {
 
 func TestNativeFractionLong(t *testing.T) {
 	// works with big integers
-	rs1, err := NativeFractionLong(newEmptyScope(), NewExprs(NewLong(math.MaxInt64), NewLong(4), NewLong(6)))
+	rs1, err := NativeFractionLong(newEmptyScope(), Params(NewLong(math.MaxInt64), NewLong(4), NewLong(6)))
 	require.NoError(t, err)
 	assert.Equal(t, NewLong(6148914691236517204), rs1)
 

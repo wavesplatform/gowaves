@@ -1,7 +1,6 @@
 package evaluate
 
 import (
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"github.com/mr-tron/base58/base58"
@@ -58,14 +57,6 @@ func defaultScope() Scope {
 	}
 
 	return NewScope(proto.MainNetScheme, state, NewFuncScope(), predefObject)
-}
-
-func decode(s string) []byte {
-	decoded, err := base64.StdEncoding.DecodeString(s)
-	if err != nil {
-		panic(err)
-	}
-	return decoded
 }
 
 var longScript = `match tx {

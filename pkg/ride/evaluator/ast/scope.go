@@ -95,7 +95,7 @@ func NewFuncScope() *FuncScope {
 	funcs := make(map[int16]Callable)
 
 	funcs[0] = NativeEq
-	funcs[1] = NativeIsinstanceof
+	funcs[1] = NativeIsInstanceof
 	funcs[2] = NativeThrow
 
 	funcs[100] = NativeSumLong
