@@ -51,12 +51,17 @@ func defaultScope() Scope {
 		panic(err)
 	}
 
-	state := state.MockState{
-		//TransactionsHeightByID: map[string]uint64{},
-		AssetsByID: map[string]uint64{addr.String() + "BXBUNddxTGTQc3G4qHYn5E67SBwMj18zLncUr871iuRD": 5},
+	am := state.MockAccount{
+		Assets: map[string]uint64{"BXBUNddxTGTQc3G4qHYn5E67SBwMj18zLncUr871iuRD": 5},
 	}
 
-	return NewScope(proto.MainNetScheme, state, NewFuncScope(), predefObject)
+	s := state.MockState{
+		//TransactionsHeightByID: map[string]uint64{},
+		//AssetsByID: map[string]uint64{addr.String() + "BXBUNddxTGTQc3G4qHYn5E67SBwMj18zLncUr871iuRD": 5},
+		Accounts: map[string]state.Account{addr.String(): &am},
+	}
+
+	return NewScope(proto.MainNetScheme, s, NewFuncScope(), predefObject)
 }
 
 var longScript = `match tx {

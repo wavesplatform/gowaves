@@ -39,6 +39,10 @@ func floorDiv(x int64, y int64) int64 {
 	return r
 }
 
+func Params(params ...Expr) Exprs {
+	return NewExprs(params...)
+}
+
 func NativeGtLong(s Scope, e Exprs) (Expr, error) {
 	return mathLong("NativeGtLong", func(i int64, i2 int64) (Expr, error) {
 		return NewBoolean(i > i2), nil
@@ -796,7 +800,7 @@ func NativeAssetBalance(s Scope, e Exprs) (Expr, error) {
 	}
 
 	if _, ok := assetId.(Unit); ok {
-		return NewLong(int64(s.State().AssetBalance(r, &proto.OptionalAsset{}))), nil
+		return NewLong(int64(s.State().Account(r).AssetBalance(&proto.OptionalAsset{}))), nil
 	}
 
 	assetBts, ok := assetId.(*BytesExpr)
@@ -809,7 +813,7 @@ func NativeAssetBalance(s Scope, e Exprs) (Expr, error) {
 		return nil, errors.Wrap(err, funcName)
 	}
 
-	return NewLong(int64(s.State().AssetBalance(r, asset))), nil
+	return NewLong(int64(s.State().Account(r).AssetBalance(asset))), nil
 }
 
 // Fail script
@@ -978,26 +982,22 @@ func NativeToBse64String(s Scope, e Exprs) (Expr, error) {
 
 // Get integer from data of DataTransaction
 func NativeDataLongFromArray(s Scope, e Exprs) (Expr, error) {
-	funcName := "NativeDataLongFromArray"
-	return dataFromArray(funcName, s, e, proto.Integer)
+	return dataFromArray("NativeDataLongFromArray", s, e, proto.Integer)
 }
 
 // Get boolean from data of DataTransaction
 func NativeDataBooleanFromArray(s Scope, e Exprs) (Expr, error) {
-	funcName := "NativeDataBooleanFromArray"
-	return dataFromArray(funcName, s, e, proto.Boolean)
+	return dataFromArray("NativeDataBooleanFromArray", s, e, proto.Boolean)
 }
 
 // Get string from data of DataTransaction
 func NativeDataStringFromArray(s Scope, e Exprs) (Expr, error) {
-	funcName := "NativeDataBooleanFromArray"
-	return dataFromArray(funcName, s, e, proto.String)
+	return dataFromArray("NativeDataBooleanFromArray", s, e, proto.String)
 }
 
 // Get bytes from data of DataTransaction
 func NativeDataBinaryFromArray(s Scope, e Exprs) (Expr, error) {
-	funcName := "NativeDataBooleanFromArray"
-	return dataFromArray(funcName, s, e, proto.Binary)
+	return dataFromArray("NativeDataBooleanFromArray", s, e, proto.Binary)
 }
 
 func dataFromArray(funcName string, s Scope, e Exprs, valueType proto.ValueType) (Expr, error) {
@@ -1026,6 +1026,51 @@ func dataFromArray(funcName string, s Scope, e Exprs, valueType proto.ValueType)
 	}
 
 	return lst.Get(key.Value, valueType), nil
+}
+
+// Get integer from account state
+func NativeDataLongFromState(s Scope, e Exprs) (Expr, error) {
+	return dataFromState("NativeDataLongFromState", s, e, proto.Integer)
+}
+
+// Get bool from account state
+func NativeDataBooleanFromState(s Scope, e Exprs) (Expr, error) {
+	return dataFromState("NativeDataBooleanFromState", s, e, proto.Boolean)
+}
+
+// Get bytes from account state
+func NativeDataBytesFromState(s Scope, e Exprs) (Expr, error) {
+	return dataFromState("NativeDataBytesFromState", s, e, proto.Binary)
+}
+
+// Get string from account state
+func NativeDataStringFromState(s Scope, e Exprs) (Expr, error) {
+	return dataFromState("NativeDataStringFromState", s, e, proto.String)
+}
+
+func dataFromState(funcName string, s Scope, e Exprs, valueType proto.ValueType) (Expr, error) {
+	if l := len(e); l != 2 {
+		return nil, errors.Errorf("%s: invalid params, expected 2, passed %d", funcName, l)
+	}
+
+	addOrAliasExpr, err := e[0].Evaluate(s.Clone())
+	if err != nil {
+		return nil, err
+	}
+
+	if alias, ok := addOrAliasExpr.(AliasExpr); ok {
+		r := proto.NewRecipientFromAlias(proto.Alias(alias))
+		acc := s.State().Account(r)
+		return dataFromArray(funcName, s.Clone(), Params(NewDataEntryList(acc.Data()), e[1]), valueType)
+	}
+
+	if addr, ok := addOrAliasExpr.(AddressExpr); ok {
+		r := proto.NewRecipientFromAddress(proto.Address(addr))
+		acc := s.State().Account(r)
+		return dataFromArray(funcName, s.Clone(), Params(NewDataEntryList(acc.Data()), e[1]), valueType)
+	}
+
+	return nil, errors.Errorf("%s expected addOrAliasExpr argument to be AliasExpr or AddressExpr, found %T", funcName, addOrAliasExpr)
 }
 
 // Fail script without message (default will be used)

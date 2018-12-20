@@ -1,6 +1,13 @@
 package ast
 
-import "github.com/wavesplatform/gowaves/pkg/state"
+import (
+	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/state"
+)
+
+type Account interface {
+	Data() []proto.DataEntry
+}
 
 type Scope interface {
 	Clone() Scope
@@ -143,6 +150,11 @@ func NewFuncScope() *FuncScope {
 	funcs[1041] = NativeDataBooleanFromArray
 	funcs[1042] = NativeDataBinaryFromArray
 	funcs[1043] = NativeDataStringFromArray
+
+	funcs[1050] = NativeDataLongFromState
+	funcs[1051] = NativeDataBooleanFromState
+	funcs[1052] = NativeDataBytesFromState
+	funcs[1053] = NativeDataStringFromState
 
 	userFuncs := make(map[string]Callable)
 	userFuncs["throw"] = UserThrow

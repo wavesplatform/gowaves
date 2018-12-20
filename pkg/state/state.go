@@ -8,16 +8,23 @@ import (
 
 var ErrNotFound = errors.New("Not found")
 
+type Account interface {
+	Data() []proto.DataEntry
+	AssetBalance(*proto.OptionalAsset) uint64
+}
+
 type State interface {
 	TransactionByID([]byte) (proto.Transaction, error)
 	TransactionHeightByID([]byte) (uint64, error)
-	AssetBalance(proto.Recipient, *proto.OptionalAsset) uint64
+	//AssetBalance(proto.Recipient, *proto.OptionalAsset) uint64
+	Account(proto.Recipient) Account
 }
 
 type MockState struct {
 	TransactionsByID       map[string]proto.Transaction
 	TransactionsHeightByID map[string]uint64
-	AssetsByID             map[string]uint64 // addr + asset
+	Accounts               map[string]Account // recipient to account
+	//AssetsByID             map[string]uint64 // addr + asset
 }
 
 func (a MockState) TransactionByID(b []byte) (proto.Transaction, error) {
@@ -36,6 +43,22 @@ func (a MockState) TransactionHeightByID(b []byte) (uint64, error) {
 	return h, nil
 }
 
-func (a MockState) AssetBalance(recp proto.Recipient, asset *proto.OptionalAsset) uint64 {
-	return a.AssetsByID[recp.String()+asset.String()]
+func (a MockState) Account(r proto.Recipient) Account {
+	return a.Accounts[r.String()]
+}
+
+//func (a MockState) AssetBalance(recp proto.Recipient, asset *proto.OptionalAsset) uint64 {
+//	return a.AssetsByID[recp.String()+asset.String()]
+//}
+
+type MockAccount struct {
+	Assets      map[string]uint64
+	DataEntries []proto.DataEntry
+}
+
+func (a *MockAccount) Data() []proto.DataEntry {
+	return a.DataEntries
+}
+func (a *MockAccount) AssetBalance(p *proto.OptionalAsset) uint64 {
+	return a.Assets[p.String()]
 }

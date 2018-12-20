@@ -12,10 +12,6 @@ import (
 	"time"
 )
 
-func Params(params ...Expr) Exprs {
-	return NewExprs(params...)
-}
-
 func TestNativeSumLong(t *testing.T) {
 	params1 := Exprs{NewLong(5), NewLong(4)}
 	rs, err := NativeSumLong(newEmptyScope(), params1)
@@ -352,8 +348,12 @@ func TestNativeToBse64String(t *testing.T) {
 }
 
 func TestNativeAssetBalance_FromAddress(t *testing.T) {
+	am := state.MockAccount{
+		Assets: map[string]uint64{"BXBUNddxTGTQc3G4qHYn5E67SBwMj18zLncUr871iuRD": 5},
+	}
+
 	s := state.MockState{
-		AssetsByID: map[string]uint64{"3N2YHKSnQTUmka4pocTt71HwSSAiUWBcojK" + "BXBUNddxTGTQc3G4qHYn5E67SBwMj18zLncUr871iuRD": 5},
+		Accounts: map[string]state.Account{"3N2YHKSnQTUmka4pocTt71HwSSAiUWBcojK": &am},
 	}
 
 	addr, err := proto.NewAddressFromString("3N2YHKSnQTUmka4pocTt71HwSSAiUWBcojK")
@@ -368,9 +368,14 @@ func TestNativeAssetBalance_FromAddress(t *testing.T) {
 }
 
 func TestNativeAssetBalance_FromAlias(t *testing.T) {
-	s := state.MockState{
-		AssetsByID: map[string]uint64{"alias:W:test" + "BXBUNddxTGTQc3G4qHYn5E67SBwMj18zLncUr871iuRD": 5},
+	am := state.MockAccount{
+		Assets: map[string]uint64{"BXBUNddxTGTQc3G4qHYn5E67SBwMj18zLncUr871iuRD": 5},
 	}
+
+	s := state.MockState{
+		Accounts: map[string]state.Account{"alias:W:test": &am},
+	}
+
 	scope := newScopeWithState(s)
 
 	alias, err := proto.NewAlias(scope.Scheme(), "test")
@@ -424,4 +429,53 @@ func TestNativeDataFromArray(t *testing.T) {
 	rs5, err := NativeDataBinaryFromArray(newEmptyScope(), Params(NewDataEntryList(dataEntries), NewString("unknown")))
 	require.NoError(t, err)
 	assert.Equal(t, Unit{}, rs5)
+}
+
+func TestNativeDataFromState(t *testing.T) {
+	saddr := "3N9WtaPoD1tMrDZRG26wA142Byd35tLhnLU"
+	addr, err := NewAddressFromString(saddr)
+	require.NoError(t, err)
+
+	var dataEntries []proto.DataEntry
+	dataEntries = append(dataEntries, proto.IntegerDataEntry{
+		Key:   "integer",
+		Value: 100500,
+	})
+	dataEntries = append(dataEntries, proto.BooleanDataEntry{
+		Key:   "boolean",
+		Value: true,
+	})
+	dataEntries = append(dataEntries, proto.BinaryDataEntry{
+		Key:   "binary",
+		Value: []byte("hello"),
+	})
+	dataEntries = append(dataEntries, proto.StringDataEntry{
+		Key:   "string",
+		Value: "world",
+	})
+
+	am := state.MockAccount{
+		DataEntries: dataEntries,
+	}
+
+	s := state.MockState{
+		Accounts: map[string]state.Account{saddr: &am},
+	}
+
+	rs1, err := NativeDataLongFromState(newScopeWithState(s), Params(addr, NewString("integer")))
+	require.NoError(t, err)
+	assert.Equal(t, NewLong(100500), rs1)
+
+	rs2, err := NativeDataBooleanFromState(newScopeWithState(s), Params(addr, NewString("boolean")))
+	require.NoError(t, err)
+	assert.Equal(t, NewBoolean(true), rs2)
+
+	rs3, err := NativeDataBytesFromState(newScopeWithState(s), Params(addr, NewString("binary")))
+	require.NoError(t, err)
+	assert.Equal(t, NewBytes([]byte("hello")), rs3)
+
+	rs4, err := NativeDataStringFromState(newScopeWithState(s), Params(addr, NewString("string")))
+	require.NoError(t, err)
+	assert.Equal(t, NewString("world"), rs4)
+
 }
