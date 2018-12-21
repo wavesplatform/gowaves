@@ -619,6 +619,10 @@ func NativeTakeStrings(s Scope, e Exprs) (Expr, error) {
 		return nil, errors.Errorf("%s index %d out of range", funcName, l)
 	}
 
+	if l < 0 {
+		return nil, errors.Errorf("%s index %d out of range", funcName, l)
+	}
+
 	out := make([]rune, l)
 	copy(out, runeStr[:l])
 
@@ -653,6 +657,10 @@ func NativeDropStrings(s Scope, e Exprs) (Expr, error) {
 	l := int(length.Value)
 
 	if l >= runeLen {
+		return nil, errors.Errorf("%s index %d out of range", funcName, l)
+	}
+
+	if l < 0 {
 		return nil, errors.Errorf("%s index %d out of range", funcName, l)
 	}
 
@@ -1209,7 +1217,47 @@ func UserTakeRightBytes(s Scope, e Exprs) (Expr, error) {
 	return NativeDropBytes(s.Clone(), Params(e[0], takeLeft))
 }
 
-func classic(w io.Writer, name string, e Exprs) {
+func UserTakeRightString(s Scope, e Exprs) (Expr, error) {
+	funcName := "UserTakeRightString"
+
+	if l := len(e); l != 2 {
+		return nil, errors.Errorf("%s: invalid params, expected 2, passed %d", funcName, l)
+	}
+
+	length, err := NativeSizeString(s.Clone(), Params(e[0]))
+	if err != nil {
+		return nil, err
+	}
+
+	takeLeft, err := NativeSubLong(s.Clone(), Params(length, e[1]))
+	if err != nil {
+		return nil, err
+	}
+
+	return NativeDropStrings(s.Clone(), Params(e[0], takeLeft))
+}
+
+func UserDropRightString(s Scope, e Exprs) (Expr, error) {
+	funcName := "UserDropRightString"
+
+	if l := len(e); l != 2 {
+		return nil, errors.Errorf("%s: invalid params, expected 2, passed %d", funcName, l)
+	}
+
+	length, err := NativeSizeString(s.Clone(), Params(e[0]))
+	if err != nil {
+		return nil, err
+	}
+
+	takeLeft, err := NativeSubLong(s.Clone(), Params(length, e[1]))
+	if err != nil {
+		return nil, err
+	}
+
+	return NativeTakeStrings(s.Clone(), Params(e[0], takeLeft))
+}
+
+func prefix(w io.Writer, name string, e Exprs) {
 	_, _ = fmt.Fprintf(w, "%s(", name)
 	last := len(e) - 1
 	for i := 0; i < len(e); i++ {
@@ -1233,45 +1281,45 @@ func writeNativeFunction(w io.Writer, id int16, e Exprs) {
 	case 0:
 		infix(w, "==", e)
 	case 1:
-		classic(w, "_isInstanceOf", e)
+		prefix(w, "_isInstanceOf", e)
 	case 2:
-		classic(w, "throw", e)
+		prefix(w, "throw", e)
 	case 103:
 		infix(w, ">=", e)
 	case 200:
-		classic(w, "size", e)
+		prefix(w, "size", e)
 	case 203, 300:
 		infix(w, "+", e)
 	case 305:
-		classic(w, "size", e)
+		prefix(w, "size", e)
 	case 401:
 		e[0].Write(w)
 		_, _ = fmt.Fprint(w, "[")
 		e[1].Write(w)
 		_, _ = fmt.Fprint(w, "]")
 	case 410, 411, 412:
-		classic(w, "toBytes", e)
+		prefix(w, "toBytes", e)
 	case 420, 421:
-		classic(w, "toString", e)
+		prefix(w, "toString", e)
 	case 500:
-		classic(w, "sigVerify", e)
+		prefix(w, "sigVerify", e)
 	case 501:
-		classic(w, "keccak256", e)
+		prefix(w, "keccak256", e)
 	case 502:
-		classic(w, "blake2b256", e)
+		prefix(w, "blake2b256", e)
 	case 503:
-		classic(w, "sha256", e)
+		prefix(w, "sha256", e)
 	case 600:
-		classic(w, "toBase58String", e)
+		prefix(w, "toBase58String", e)
 	case 601:
-		classic(w, "fromBase58String", e)
+		prefix(w, "fromBase58String", e)
 	case 1000:
-		classic(w, "transactionById", e)
+		prefix(w, "transactionById", e)
 	case 1001:
-		classic(w, "transactionHeightById", e)
+		prefix(w, "transactionHeightById", e)
 	case 1003:
-		classic(w, "assetBalance", e)
+		prefix(w, "assetBalance", e)
 	default:
-		classic(w, fmt.Sprintf("FUNCTION_%d(", id), e)
+		prefix(w, fmt.Sprintf("FUNCTION_%d(", id), e)
 	}
 }

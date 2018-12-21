@@ -521,3 +521,21 @@ func TestUserTakeRight(t *testing.T) {
 	_, err = UserTakeRightBytes(newEmptyScope(), Params(NewBytes([]byte("hello")), NewLong(5)))
 	require.NoError(t, err)
 }
+
+func TestUserTakeRightString(t *testing.T) {
+	rs1, err := UserTakeRightString(newEmptyScope(), Params(NewString("hello"), NewLong(2)))
+	require.NoError(t, err)
+	assert.Equal(t, NewString("lo"), rs1)
+
+	_, err = UserTakeRightString(newEmptyScope(), Params(NewString("hello"), NewLong(20)))
+	require.Error(t, err)
+}
+
+func TestUserDropRightString(t *testing.T) {
+	rs1, err := UserDropRightString(newEmptyScope(), Params(NewString("hello"), NewLong(2)))
+	require.NoError(t, err)
+	assert.Equal(t, NewString("hel"), rs1)
+
+	_, err = UserDropRightString(newEmptyScope(), Params(NewString("hello"), NewLong(20)))
+	require.Error(t, err)
+}

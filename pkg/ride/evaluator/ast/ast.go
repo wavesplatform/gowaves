@@ -237,7 +237,7 @@ func (a *UserFunction) Write(w io.Writer) {
 		infix(w, " != ", a.Argv)
 		return
 	}
-	classic(w, a.Name, a.Argv)
+	prefix(w, a.Name, a.Argv)
 }
 
 func (a *UserFunction) Evaluate(s Scope) (Expr, error) {
