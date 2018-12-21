@@ -163,7 +163,7 @@ func NewFuncScope() *FuncScope {
 	userFuncs["isDefined"] = UserIsDefined
 	userFuncs["extract"] = UserExtract
 	userFuncs["dropRightBytes"] = UserDropRightBytes
-	userFuncs["takeRight"] = UserTakeRightBytes
+	userFuncs["takeRightBytes"] = UserTakeRightBytes
 
 	return &FuncScope{
 		funcs:     funcs,
