@@ -570,6 +570,10 @@ func (a Unit) InstanceOf() string {
 	return "Unit"
 }
 
+func NewUnit() Unit {
+	return Unit{}
+}
+
 type AliasExpr proto.Alias
 
 func (a AliasExpr) Write(w io.Writer) {

@@ -465,6 +465,10 @@ func NativeTakeBytes(s Scope, e Exprs) (Expr, error) {
 		return nil, errors.Errorf("%s index %d out of range", funcName, length.Value)
 	}
 
+	if l < 0 {
+		return nil, errors.Errorf("%s index %d out of range", funcName, length.Value)
+	}
+
 	out := make([]byte, l)
 	copy(out, bts.Value[:l])
 
@@ -497,6 +501,10 @@ func NativeDropBytes(s Scope, e Exprs) (Expr, error) {
 	l := int(length.Value)
 
 	if l >= len(bts.Value) {
+		return nil, errors.Errorf("%s index %d out of range", funcName, length.Value)
+	}
+
+	if l < 0 {
 		return nil, errors.Errorf("%s index %d out of range", funcName, length.Value)
 	}
 
@@ -1121,6 +1129,84 @@ func UserFunctionNeq(s Scope, e Exprs) (Expr, error) {
 	}
 
 	return NewBoolean(!eq), nil
+}
+
+func UserIsDefined(s Scope, e Exprs) (Expr, error) {
+	funcName := "UserIsDefined"
+
+	if l := len(e); l != 1 {
+		return nil, errors.Errorf("%s: invalid params, expected 1, passed %d", funcName, l)
+	}
+
+	val, err := e[0].Evaluate(s.Clone())
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+
+	if val.InstanceOf() == (Unit{}).InstanceOf() {
+		return NewBoolean(false), nil
+	}
+
+	return NewBoolean(true), nil
+}
+
+func UserExtract(s Scope, e Exprs) (Expr, error) {
+	funcName := "UserIsDefined"
+
+	if l := len(e); l != 1 {
+		return nil, errors.Errorf("%s: invalid params, expected 1, passed %d", funcName, l)
+	}
+
+	val, err := e[0].Evaluate(s.Clone())
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+
+	if val.InstanceOf() == (Unit{}).InstanceOf() {
+		return NativeThrow(s.Clone(), Params(NewString("extract() called on unit value")))
+	}
+
+	return val, nil
+}
+
+func UserDropRightBytes(s Scope, e Exprs) (Expr, error) {
+	funcName := "UserDropRightBytes"
+
+	if l := len(e); l != 2 {
+		return nil, errors.Errorf("%s: invalid params, expected 2, passed %d", funcName, l)
+	}
+
+	length, err := NativeSizeBytes(s.Clone(), Params(e[0]))
+	if err != nil {
+		return nil, err
+	}
+
+	takeLeft, err := NativeSubLong(s.Clone(), Params(length, e[1]))
+	if err != nil {
+		return nil, err
+	}
+
+	return NativeTakeBytes(s.Clone(), Params(e[0], takeLeft))
+}
+
+func UserTakeRightBytes(s Scope, e Exprs) (Expr, error) {
+	funcName := "UserTakeRightBytes"
+
+	if l := len(e); l != 2 {
+		return nil, errors.Errorf("%s: invalid params, expected 2, passed %d", funcName, l)
+	}
+
+	length, err := NativeSizeBytes(s.Clone(), Params(e[0]))
+	if err != nil {
+		return nil, err
+	}
+
+	takeLeft, err := NativeSubLong(s.Clone(), Params(length, e[1]))
+	if err != nil {
+		return nil, err
+	}
+
+	return NativeDropBytes(s.Clone(), Params(e[0], takeLeft))
 }
 
 func classic(w io.Writer, name string, e Exprs) {

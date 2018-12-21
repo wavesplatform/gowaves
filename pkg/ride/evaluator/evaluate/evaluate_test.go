@@ -259,3 +259,23 @@ func TestDataFunctions(t *testing.T) {
 		assert.Equal(t, c.Result, rs, fmt.Sprintf("func name: %s, code: %d, script: %s", c.FuncName, c.FuncCode, c.Code))
 	}
 }
+
+func Benchmark_Verify(b *testing.B) {
+	b.ReportAllocs()
+	t := newTransferTransaction()
+	body, err := t.BodyMarshalBinary()
+	if err != nil {
+		b.Fail()
+	}
+	sig, err := crypto.NewSignatureFromBytes(t.Proofs.Proofs[0])
+	if err != nil {
+		b.Fail()
+	}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		rs := crypto.Verify(t.SenderPK, sig, body)
+		if !rs {
+			b.Fail()
+		}
+	}
+}

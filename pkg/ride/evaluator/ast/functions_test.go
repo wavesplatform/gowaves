@@ -477,5 +477,47 @@ func TestNativeDataFromState(t *testing.T) {
 	rs4, err := NativeDataStringFromState(newScopeWithState(s), Params(addr, NewString("string")))
 	require.NoError(t, err)
 	assert.Equal(t, NewString("world"), rs4)
+}
 
+func TestUserIsDefined(t *testing.T) {
+	rs1, err := UserIsDefined(newEmptyScope(), Params(NewString("")))
+	require.NoError(t, err)
+	assert.Equal(t, NewBoolean(true), rs1)
+
+	rs2, err := UserIsDefined(newEmptyScope(), Params(NewUnit()))
+	require.NoError(t, err)
+	assert.Equal(t, NewBoolean(false), rs2)
+}
+
+func TestUserExtract(t *testing.T) {
+	rs1, err := UserExtract(newEmptyScope(), Params(NewString("")))
+	require.NoError(t, err)
+	assert.Equal(t, NewString(""), rs1)
+
+	_, err = UserExtract(newEmptyScope(), Params(NewUnit()))
+	require.EqualError(t, err, "extract() called on unit value")
+}
+
+func TestUserDropRightBytes(t *testing.T) {
+	rs1, err := UserDropRightBytes(newEmptyScope(), Params(NewBytes([]byte("hello")), NewLong(2)))
+	require.NoError(t, err)
+	assert.Equal(t, NewBytes([]byte("hel")), rs1)
+
+	_, err = UserDropRightBytes(newEmptyScope(), Params(NewBytes([]byte("hello")), NewLong(10)))
+	require.Error(t, err)
+
+	_, err = UserDropRightBytes(newEmptyScope(), Params(NewBytes([]byte("hello")), NewLong(5)))
+	require.NoError(t, err)
+}
+
+func TestUserTakeRight(t *testing.T) {
+	rs1, err := UserTakeRightBytes(newEmptyScope(), Params(NewBytes([]byte("hello")), NewLong(2)))
+	require.NoError(t, err)
+	assert.Equal(t, NewBytes([]byte("lo")), rs1)
+
+	_, err = UserTakeRightBytes(newEmptyScope(), Params(NewBytes([]byte("hello")), NewLong(10)))
+	require.Error(t, err)
+
+	_, err = UserTakeRightBytes(newEmptyScope(), Params(NewBytes([]byte("hello")), NewLong(5)))
+	require.NoError(t, err)
 }

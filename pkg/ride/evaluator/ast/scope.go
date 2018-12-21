@@ -160,6 +160,10 @@ func NewFuncScope() *FuncScope {
 	userFuncs["throw"] = UserThrow
 	userFuncs["addressFromString"] = UserAddressFromString
 	userFuncs["!="] = UserFunctionNeq
+	userFuncs["isDefined"] = UserIsDefined
+	userFuncs["extract"] = UserExtract
+	userFuncs["dropRightBytes"] = UserDropRightBytes
+	userFuncs["takeRight"] = UserTakeRightBytes
 
 	return &FuncScope{
 		funcs:     funcs,
