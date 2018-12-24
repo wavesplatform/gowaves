@@ -2,6 +2,7 @@ package ast
 
 import (
 	"encoding/hex"
+	"fmt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
@@ -538,4 +539,71 @@ func TestUserDropRightString(t *testing.T) {
 
 	_, err = UserDropRightString(newEmptyScope(), Params(NewString("hello"), NewLong(20)))
 	require.Error(t, err)
+}
+
+func TestUserUnaryMinus(t *testing.T) {
+	rs1, err := UserUnaryMinus(newEmptyScope(), Params(NewLong(2)))
+	require.NoError(t, err)
+	assert.Equal(t, NewLong(-2), rs1)
+}
+
+func TestUserUnaryNot(t *testing.T) {
+	rs1, err := UserUnaryNot(newEmptyScope(), Params(NewBoolean(true)))
+	require.NoError(t, err)
+	assert.Equal(t, NewBoolean(false), rs1)
+}
+
+func TestUserAddressFromPublicKey(t *testing.T) {
+	s := "14ovLL9a6xbBfftyxGNLKMdbnzGgnaFQjmgUJGdho6nY"
+	pub, err := crypto.NewPublicKeyFromBase58(s)
+	require.NoError(t, err)
+	addr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, pub)
+	require.NoError(t, err)
+
+	fmt.Println(proto.NewAddressFromPublicKey(proto.MainNetScheme, pub))
+	fmt.Println(proto.NewAddressFromPublicKey(proto.TestNetScheme, pub))
+
+	rs, err := UserAddressFromPublicKey(newEmptyScope(), Params(NewBytes(pub.Bytes())))
+	require.NoError(t, err)
+	assert.Equal(t, NewAddressFromProtoAddress(addr), rs)
+}
+
+func TestNativeAddressFromRecipient(t *testing.T) {
+	a := "3N9WtaPoD1tMrDZRG26wA142Byd35tLhnLU"
+	addr, err := proto.NewAddressFromString(a)
+	require.NoError(t, err)
+
+	r := proto.NewRecipientFromAddress(addr)
+
+	acc := state.MockAccount{
+		AddressField: addr,
+	}
+
+	s := state.MockState{
+		Accounts: map[string]state.Account{r.String(): &acc},
+	}
+
+	rs, err := NativeAddressFromRecipient(newScopeWithState(s), Params(NewRecipientFromProtoRecipient(proto.NewRecipientFromAddress(addr))))
+	require.NoError(t, err)
+	assert.Equal(t, NewAddressFromProtoAddress(addr), rs)
+}
+
+func TestUserAddress(t *testing.T) {
+	s := "3N9WtaPoD1tMrDZRG26wA142Byd35tLhnLU"
+	addr, err := proto.NewAddressFromString(s)
+	require.NoError(t, err)
+
+	rs1, err := UserAddress(newEmptyScope(), Params(NewBytes(addr.Bytes())))
+	require.NoError(t, err)
+	assert.Equal(t, NewAddressFromProtoAddress(addr), rs1)
+}
+
+func TestUserAlias(t *testing.T) {
+	s := "alias:T:testme"
+	alias, err := proto.NewAliasFromString(s)
+	require.NoError(t, err)
+
+	rs1, err := UserAlias(newEmptyScope(), Params(NewString(s)))
+	require.NoError(t, err)
+	assert.Equal(t, NewAliasFromProtoAlias(*alias), rs1)
 }

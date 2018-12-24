@@ -425,8 +425,7 @@ func (a *GetterExpr) InstanceOf() string {
 }
 
 type ObjectExpr struct {
-	fields     map[string]Expr
-	instanceOf string
+	fields map[string]Expr
 }
 
 func NewObject(fields map[string]Expr) *ObjectExpr {
@@ -644,6 +643,30 @@ func (a *DataEntryListExpr) Get(key string, valueType proto.ValueType) Expr {
 	return Unit{}
 }
 
+func (a *DataEntryListExpr) GetByIndex(index int, valueType proto.ValueType) Expr {
+	if index > len(a.source)-1 {
+		return NewUnit()
+	}
+
+	rs := a.source[index]
+	if rs.GetValueType() != valueType {
+		return NewUnit()
+	}
+
+	switch valueType {
+	case proto.Integer:
+		return NewLong(rs.(proto.IntegerDataEntry).Value)
+	case proto.String:
+		return NewString(rs.(proto.StringDataEntry).Value)
+	case proto.Boolean:
+		return NewBoolean(rs.(proto.BooleanDataEntry).Value)
+	case proto.Binary:
+		return NewBytes(rs.(proto.BinaryDataEntry).Value)
+	default:
+		return NewUnit()
+	}
+}
+
 func (a *DataEntryListExpr) cache() {
 	a.data = make(map[string]proto.DataEntry)
 	for _, row := range a.source {
@@ -656,4 +679,26 @@ func NewDataEntryList(d []proto.DataEntry) *DataEntryListExpr {
 	return &DataEntryListExpr{
 		source: d,
 	}
+}
+
+type RecipientExpr proto.Recipient
+
+func NewRecipientFromProtoRecipient(a proto.Recipient) RecipientExpr {
+	return RecipientExpr(a)
+}
+
+func (a RecipientExpr) Evaluate(s Scope) (Expr, error) {
+	return a, nil
+}
+
+func (a RecipientExpr) Write(w io.Writer) {
+	_, _ = fmt.Fprint(w, "RecipientExpr")
+}
+
+func (a RecipientExpr) Eq(other Expr) (bool, error) {
+	return false, errors.Errorf("trying to compare %T with %T", a, other)
+}
+
+func (a RecipientExpr) InstanceOf() string {
+	return "RecipientExpr"
 }

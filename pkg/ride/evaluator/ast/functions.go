@@ -110,8 +110,8 @@ func NativeGetList(s Scope, e Exprs) (Expr, error) {
 }
 
 // Internal function to check value type
-func NativeIsInstanceof(s Scope, e Exprs) (Expr, error) {
-	funcName := "NativeIsInstanceof"
+func NativeIsInstanceOf(s Scope, e Exprs) (Expr, error) {
+	funcName := "NativeIsInstanceOf"
 
 	if l := len(e); l != 2 {
 		return nil, errors.Errorf("%s: invalid params, expected 2, passed %d", funcName, l)
@@ -1089,6 +1089,26 @@ func dataFromState(funcName string, s Scope, e Exprs, valueType proto.ValueType)
 	return nil, errors.Errorf("%s expected addOrAliasExpr argument to be AliasExpr or AddressExpr, found %T", funcName, addOrAliasExpr)
 }
 
+func NativeAddressFromRecipient(s Scope, e Exprs) (Expr, error) {
+	funcName := "NativeAddressFromRecipient"
+
+	if l := len(e); l != 1 {
+		return nil, errors.Errorf("%s: invalid params, expected 1, passed %d", funcName, l)
+	}
+
+	first, err := e[0].Evaluate(s.Clone())
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+
+	recipient, ok := first.(RecipientExpr)
+	if !ok {
+		return nil, errors.Errorf("%s expected first argument to be RecipientExpr, found %T", funcName, recipient)
+	}
+
+	return NewAddressFromProtoAddress(s.State().Account(proto.Recipient(recipient)).Address()), nil
+}
+
 // Fail script without message (default will be used)
 func UserThrow(_ Scope, _ Exprs) (Expr, error) {
 	return nil, Throw{Message: DefaultThrowMessage}
@@ -1257,6 +1277,162 @@ func UserDropRightString(s Scope, e Exprs) (Expr, error) {
 	return NativeTakeStrings(s.Clone(), Params(e[0], takeLeft))
 }
 
+func UserUnaryMinus(s Scope, e Exprs) (Expr, error) {
+	return NativeSubLong(s, append(Exprs{NewLong(0)}, e...))
+}
+
+func UserUnaryNot(s Scope, e Exprs) (Expr, error) {
+	funcName := "UserUnaryNot"
+
+	if l := len(e); l != 1 {
+		return nil, errors.Errorf("%s: invalid params, expected 1, passed %d", funcName, l)
+	}
+
+	first, err := e[0].Evaluate(s.Clone())
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+
+	boolExpr, ok := first.(*BooleanExpr)
+	if !ok {
+		return nil, errors.Errorf("%s expected first argument to be *BooleanExpr, found %T", funcName, first)
+	}
+
+	return NewBoolean(!boolExpr.Value), nil
+}
+
+func dataFromArrayByIndex(funcName string, s Scope, e Exprs, valueType proto.ValueType) (Expr, error) {
+	if l := len(e); l != 2 {
+		return nil, errors.Errorf("%s: invalid params, expected 2, passed %d", funcName, l)
+	}
+
+	lstExpr, err := e[0].Evaluate(s.Clone())
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+
+	indexExpr, err := e[1].Evaluate(s.Clone())
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+
+	lst, ok := lstExpr.(*DataEntryListExpr)
+	if !ok {
+		return nil, errors.Errorf("%s expected first argument to be *DataEntryListExpr, found %T", funcName, lstExpr)
+	}
+
+	key, ok := indexExpr.(*LongExpr)
+	if !ok {
+		return nil, errors.Errorf("%s expected second argument to be *LongExpr, found %T", funcName, indexExpr)
+	}
+
+	return lst.GetByIndex(int(key.Value), valueType), nil
+}
+
+func UserDataIntegerFromArrayByIndex(s Scope, e Exprs) (Expr, error) {
+	funcName := "UserDataIntegerFromArrayByIndex"
+	return dataFromArrayByIndex(funcName, s, e, proto.Integer)
+}
+
+func UserDataBooleanFromArrayByIndex(s Scope, e Exprs) (Expr, error) {
+	funcName := "UserDataBooleanFromArrayByIndex"
+	return dataFromArrayByIndex(funcName, s, e, proto.Boolean)
+}
+
+func UserDataBinaryFromArrayByIndex(s Scope, e Exprs) (Expr, error) {
+	funcName := "UserDataBinaryFromArrayByIndex"
+	return dataFromArrayByIndex(funcName, s, e, proto.Binary)
+}
+
+func UserDataStringFromArrayByIndex(s Scope, e Exprs) (Expr, error) {
+	funcName := "UserDataStringFromArrayByIndex"
+	return dataFromArrayByIndex(funcName, s, e, proto.String)
+}
+
+func UserAddressFromPublicKey(s Scope, e Exprs) (Expr, error) {
+	funcName := "UserAddressFromPublicKey"
+
+	if l := len(e); l != 1 {
+		return nil, errors.Errorf("%s: invalid params, expected 2, passed %d", funcName, l)
+	}
+
+	publicKeyExpr, err := e[0].Evaluate(s.Clone())
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+
+	bts, ok := publicKeyExpr.(*BytesExpr)
+	if !ok {
+		return nil, errors.Errorf("%s expected first argument to be *BytesExpr, found %T", funcName, publicKeyExpr)
+	}
+
+	public, err := crypto.NewPublicKeyFromBytes(bts.Value)
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+
+	addr, err := proto.NewAddressFromPublicKey(s.Scheme(), public)
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+
+	return NewAddressFromProtoAddress(addr), nil
+}
+
+// type constructor
+func UserAddress(s Scope, e Exprs) (Expr, error) {
+	funcName := "UserAddress"
+
+	if l := len(e); l != 1 {
+		return nil, errors.Errorf("%s: invalid params, expected 1, passed %d", funcName, l)
+	}
+
+	first, err := e[0].Evaluate(s.Clone())
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+
+	bts, ok := first.(*BytesExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: first argument expected to be *BytesExpr, found %T", funcName, first)
+	}
+
+	addr, err := proto.NewAddressFromBytes(bts.Value)
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+
+	return NewAddressFromProtoAddress(addr), nil
+}
+
+func UserAlias(s Scope, e Exprs) (Expr, error) {
+	funcName := "UserAlias"
+
+	if l := len(e); l != 1 {
+		return nil, errors.Errorf("%s: invalid params, expected 1, passed %d", funcName, l)
+	}
+
+	first, err := e[0].Evaluate(s.Clone())
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+
+	str, ok := first.(*StringExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: first argument expected to be *BytesExpr, found %T", funcName, first)
+	}
+
+	alias, err := proto.NewAliasFromString(str.Value)
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	return NewAliasFromProtoAlias(*alias), nil
+}
+
+func UserWavesBalance(s Scope, e Exprs) (Expr, error) {
+	return NativeAssetBalance(s, append(e, NewUnit()))
+}
+
 func prefix(w io.Writer, name string, e Exprs) {
 	_, _ = fmt.Fprintf(w, "%s(", name)
 	last := len(e) - 1
@@ -1319,6 +1495,8 @@ func writeNativeFunction(w io.Writer, id int16, e Exprs) {
 		prefix(w, "transactionHeightById", e)
 	case 1003:
 		prefix(w, "assetBalance", e)
+	case 1060:
+		prefix(w, "addressFromRecipient", e)
 	default:
 		prefix(w, fmt.Sprintf("FUNCTION_%d(", id), e)
 	}

@@ -69,20 +69,6 @@ func NewVariablesFromTransaction(scheme byte, t proto.Transaction) (map[string]E
 			proofs = append(proofs, NewBytes(row.Bytes()))
 		}
 		out["proofs"] = proofs
-
-		//dataEntries := Exprs{}
-		//for _, row := range tx.Entries {
-		//	switch r := row.(type) {
-		//	case proto.IntegerDataEntry:
-		//		dataEntries = append(dataEntries, NewLong(r.Value))
-		//	case proto.StringDataEntry:
-		//		dataEntries = append(dataEntries, NewString(r.Value))
-		//	case proto.BooleanDataEntry:
-		//		dataEntries = append(dataEntries, NewBoolean(r.Value))
-		//	case proto.BinaryDataEntry:
-		//		dataEntries = append(dataEntries, NewBytes(r.Value))
-		//	}
-		//}
 		out["data"] = NewDataEntryList(tx.Entries)
 		out[InstanceFieldName] = NewString("DataTransaction")
 		return out, nil

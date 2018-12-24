@@ -11,6 +11,7 @@ var ErrNotFound = errors.New("Not found")
 type Account interface {
 	Data() []proto.DataEntry
 	AssetBalance(*proto.OptionalAsset) uint64
+	Address() proto.Address
 }
 
 type State interface {
@@ -46,8 +47,9 @@ func (a MockState) Account(r proto.Recipient) Account {
 }
 
 type MockAccount struct {
-	Assets      map[string]uint64
-	DataEntries []proto.DataEntry
+	Assets       map[string]uint64
+	DataEntries  []proto.DataEntry
+	AddressField proto.Address
 }
 
 func (a *MockAccount) Data() []proto.DataEntry {
@@ -55,4 +57,8 @@ func (a *MockAccount) Data() []proto.DataEntry {
 }
 func (a *MockAccount) AssetBalance(p *proto.OptionalAsset) uint64 {
 	return a.Assets[p.String()]
+}
+
+func (a *MockAccount) Address() proto.Address {
+	return a.AddressField
 }

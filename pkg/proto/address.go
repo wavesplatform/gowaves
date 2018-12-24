@@ -112,6 +112,10 @@ func (a *Address) Validate() (bool, error) {
 	return true, nil
 }
 
+func (a Address) Bytes() []byte {
+	return a[:]
+}
+
 func addressChecksum(b []byte) ([]byte, error) {
 	h, err := crypto.SecureHash(b)
 	if err != nil {

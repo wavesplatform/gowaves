@@ -102,7 +102,7 @@ func NewFuncScope() *FuncScope {
 	funcs := make(map[int16]Callable)
 
 	funcs[0] = NativeEq
-	funcs[1] = NativeIsInstanceof
+	funcs[1] = NativeIsInstanceOf
 	funcs[2] = NativeThrow
 
 	funcs[100] = NativeSumLong
@@ -156,6 +156,8 @@ func NewFuncScope() *FuncScope {
 	funcs[1052] = NativeDataBytesFromState
 	funcs[1053] = NativeDataStringFromState
 
+	funcs[1060] = NativeAddressFromRecipient
+
 	userFuncs := make(map[string]Callable)
 	userFuncs["throw"] = UserThrow
 	userFuncs["addressFromString"] = UserAddressFromString
@@ -166,6 +168,20 @@ func NewFuncScope() *FuncScope {
 	userFuncs["takeRightBytes"] = UserTakeRightBytes
 	userFuncs["takeRight"] = UserTakeRightString
 	userFuncs["dropRight"] = UserDropRightString
+	userFuncs["!"] = UserUnaryNot
+	userFuncs["-"] = UserUnaryMinus
+
+	userFuncs["getInteger"] = UserDataIntegerFromArrayByIndex
+	userFuncs["getBoolean"] = UserDataBooleanFromArrayByIndex
+	userFuncs["getBinary"] = UserDataBinaryFromArrayByIndex
+	userFuncs["getString"] = UserDataStringFromArrayByIndex
+
+	userFuncs["addressFromPublicKey"] = UserAddressFromPublicKey
+	userFuncs["wavesBalance"] = UserWavesBalance
+
+	// type constructors
+	userFuncs["Address"] = UserAddress
+	userFuncs["Alias"] = UserAlias
 
 	return &FuncScope{
 		funcs:     funcs,
