@@ -33,7 +33,7 @@ const (
 
 type Address [AddressSize]byte
 
-func (a *Address) String() string {
+func (a Address) String() string {
 	return base58.Encode(a[:])
 }
 
@@ -112,6 +112,10 @@ func (a *Address) Validate() (bool, error) {
 	return true, nil
 }
 
+func (a Address) Bytes() []byte {
+	return a[:]
+}
+
 func addressChecksum(b []byte) ([]byte, error) {
 	h, err := crypto.SecureHash(b)
 	if err != nil {
@@ -128,7 +132,7 @@ type Alias struct {
 	Alias   string
 }
 
-func (a *Alias) String() string {
+func (a Alias) String() string {
 	sb := new(strings.Builder)
 	sb.WriteString(aliasPrefix)
 	sb.WriteRune(':')

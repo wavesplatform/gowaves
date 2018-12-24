@@ -667,7 +667,7 @@ func TestTransferV2FromMainNet(t *testing.T) {
 		aa, _ := NewOptionalAssetFromString(tc.amountAsset)
 		fa, _ := NewOptionalAssetFromString(tc.feeAsset)
 		if tx, err := NewUnsignedTransferV2(spk, *aa, *fa, tc.timestamp, tc.amount, tc.fee, rcp, tc.attachment); assert.NoError(t, err) {
-			if b, err := tx.bodyMarshalBinary(); assert.NoError(t, err) {
+			if b, err := tx.BodyMarshalBinary(); assert.NoError(t, err) {
 				if h, err := crypto.FastHash(b); assert.NoError(t, err) {
 					assert.Equal(t, id, h)
 				}
@@ -755,9 +755,9 @@ func TestTransferV2BinaryRoundTrip(t *testing.T) {
 		aa, _ := NewOptionalAssetFromString(tc.amountAsset)
 		fa, _ := NewOptionalAssetFromString(tc.feeAsset)
 		if tx, err := NewUnsignedTransferV2(pk, *aa, *fa, ts, tc.amount, tc.fee, rcp, tc.attachment); assert.NoError(t, err) {
-			if bb, err := tx.bodyMarshalBinary(); assert.NoError(t, err) {
+			if bb, err := tx.BodyMarshalBinary(); assert.NoError(t, err) {
 				var atx TransferV2
-				if err := atx.bodyUnmarshalBinary(bb); assert.NoError(t, err) {
+				if err := atx.BodyUnmarshalBinary(bb); assert.NoError(t, err) {
 					assert.Equal(t, tx.Type, atx.Type)
 					assert.Equal(t, tx.Version, atx.Version)
 					assert.Equal(t, tx.SenderPK, atx.SenderPK)
@@ -2723,7 +2723,7 @@ func TestDataV1FromMainNet(t *testing.T) {
 				e := StringDataEntry{k, tc.values[i]}
 				tx.AppendEntry(e)
 			}
-			if b, err := tx.bodyMarshalBinary(); assert.NoError(t, err) {
+			if b, err := tx.BodyMarshalBinary(); assert.NoError(t, err) {
 				if h, err := crypto.FastHash(b); assert.NoError(t, err) {
 					assert.Equal(t, id, h)
 				}
@@ -2766,7 +2766,7 @@ func TestDataV1BinaryRoundTrip(t *testing.T) {
 				err := tx.AppendEntry(e)
 				assert.NoError(t, err)
 			}
-			if bb, err := tx.bodyMarshalBinary(); assert.NoError(t, err) {
+			if bb, err := tx.BodyMarshalBinary(); assert.NoError(t, err) {
 				var atx DataV1
 				if err := atx.bodyUnmarshalBinary(bb); assert.NoError(t, err) {
 					assert.Equal(t, tx.Type, atx.Type)

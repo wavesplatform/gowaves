@@ -3,7 +3,7 @@ package client
 import (
 	"context"
 	"encoding/json"
-	"github.com/go-errors/errors"
+	"github.com/pkg/errors"
 	"io"
 	"io/ioutil"
 	"net/http"

@@ -58,6 +58,10 @@ func (b *B58Bytes) UnmarshalJSON(value []byte) error {
 	return nil
 }
 
+func (b B58Bytes) Bytes() []byte {
+	return b
+}
+
 // OptionalAsset represents an optional asset identification
 type OptionalAsset struct {
 	Present bool
@@ -76,6 +80,22 @@ func NewOptionalAssetFromString(s string) (*OptionalAsset, error) {
 		}
 		return &OptionalAsset{Present: true, ID: a}, nil
 	}
+}
+
+func NewOptionalAssetFromBytes(b []byte) (*OptionalAsset, error) {
+	if len(b) == 0 {
+		return &OptionalAsset{}, nil
+	}
+
+	a, err := crypto.NewDigestFromBytes(b)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to create OptionalAsset from Base58 string")
+	}
+	return &OptionalAsset{Present: true, ID: a}, nil
+}
+
+func NewOptionalAssetFromDigest(d crypto.Digest) (*OptionalAsset, error) {
+	return &OptionalAsset{Present: true, ID: d}, nil
 }
 
 // String method converts OptionalAsset to its text representation

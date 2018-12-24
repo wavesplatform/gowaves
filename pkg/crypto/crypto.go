@@ -67,6 +67,15 @@ func NewDigestFromBase58(s string) (Digest, error) {
 	return array32FromBase58(s, "Digest")
 }
 
+func NewDigestFromBytes(b []byte) (Digest, error) {
+	if len(b) != 32 {
+		return Digest{}, errors.New("invalid digest len")
+	}
+	var r [32]byte
+	copy(r[:], b)
+	return r, nil
+}
+
 type SecretKey [SecretKeySize]byte
 
 func (k SecretKey) MarshalBinary() ([]byte, error) {
@@ -137,8 +146,21 @@ func (k *PublicKey) String() string {
 	return base58.Encode(k[:])
 }
 
+func (k *PublicKey) Bytes() []byte {
+	return k[:]
+}
+
 func NewPublicKeyFromBase58(s string) (PublicKey, error) {
 	return array32FromBase58(s, "PublicKey")
+}
+
+func NewPublicKeyFromBytes(b []byte) (PublicKey, error) {
+	if len(b) != PublicKeySize {
+		return PublicKey{}, errors.New("invalid public key size")
+	}
+	pk := PublicKey{}
+	copy(pk[:], b[:])
+	return pk, nil
 }
 
 type Signature [SignatureSize]byte
@@ -174,8 +196,21 @@ func (s *Signature) UnmarshalJSON(value []byte) error {
 	return nil
 }
 
+func (s Signature) Bytes() []byte {
+	return s[:]
+}
+
 func NewSignatureFromBase58(s string) (Signature, error) {
 	return array64FromBase58(s, "Signature")
+}
+
+func NewSignatureFromBytes(b []byte) (Signature, error) {
+	if len(b) != SignatureSize {
+		return Signature{}, errors.New("invalid signature size")
+	}
+	s := Signature{}
+	copy(s[:], b[:])
+	return s, nil
 }
 
 func Keccak256(data []byte) Digest {
