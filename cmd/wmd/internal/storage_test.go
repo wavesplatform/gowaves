@@ -8,13 +8,13 @@ import (
 
 func TestBlockInfoBinaryRoundTrip(t *testing.T) {
 	var s crypto.Signature
-	bi := blockInfo{
+	bi := BlockInfo{
 		Empty:             false,
 		ID:                s,
 		EarliestTimeFrame: 12345,
 	}
 	b := bi.marshalBinary()
-	var ab blockInfo
+	var ab BlockInfo
 	err := ab.unmarshalBinary(b)
 	assert.NoError(t, err)
 	assert.Equal(t, bi.EarliestTimeFrame, ab.EarliestTimeFrame)

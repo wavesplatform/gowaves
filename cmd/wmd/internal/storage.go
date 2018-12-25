@@ -5,9 +5,8 @@ import (
 	"encoding/binary"
 	"github.com/pkg/errors"
 	"github.com/syndtr/goleveldb/leveldb"
-	ldbErrors "github.com/syndtr/goleveldb/leveldb/errors"
 	"github.com/syndtr/goleveldb/leveldb/opt"
-	ldbUtil "github.com/syndtr/goleveldb/leveldb/util"
+	"github.com/syndtr/goleveldb/leveldb/util"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"math"
@@ -30,6 +29,8 @@ const (
 	PublicKeyToAddressKeyPrefix
 	AddressToPublicKeyKeyPrefix
 	MarketsKeyPrefix
+	AliasToAddressKeyPrefix
+	AliasHistoryKeyPrefix
 )
 
 const (
@@ -106,23 +107,6 @@ func (k pairPublicKeyTimestampKey) bytes() []byte {
 	return buf
 }
 
-//type timestampPairKey struct {
-//	prefix      byte
-//	ts          uint64
-//	amountAsset crypto.Digest
-//	priceAsset  crypto.Digest
-//}
-//TODO:remove
-//
-//func (k timestampPairKey) bytes() []byte {
-//	buf := make([]byte, 1+8+2*crypto.DigestSize)
-//	buf[0] = k.prefix
-//	binary.BigEndian.PutUint64(buf[1:], k.ts)
-//	copy(buf[1+8:], k.amountAsset[:])
-//	copy(buf[1+8+crypto.DigestSize:], k.priceAsset[:])
-//	return buf
-//}
-
 type timeFramePairKey struct {
 	prefix      byte
 	tf          uint32
@@ -168,13 +152,13 @@ func (l *digests) unmarshalBinary(data []byte) error {
 	return nil
 }
 
-type blockInfo struct {
+type BlockInfo struct {
 	Empty             bool
 	ID                crypto.Signature
 	EarliestTimeFrame uint32
 }
 
-func (b *blockInfo) marshalBinary() []byte {
+func (b *BlockInfo) marshalBinary() []byte {
 	buf := make([]byte, crypto.SignatureSize+1+4)
 	if b.Empty {
 		buf[0] = 1
@@ -186,7 +170,7 @@ func (b *blockInfo) marshalBinary() []byte {
 	return buf
 }
 
-func (b *blockInfo) unmarshalBinary(data []byte) error {
+func (b *BlockInfo) unmarshalBinary(data []byte) error {
 	if len(data) != crypto.SignatureSize+1+4 {
 		return errors.New("incorrect data for BlockInfo")
 	}
@@ -254,7 +238,7 @@ func (s *Storage) Close() error {
 func (s *Storage) GetLastHeight() (int, error) {
 	v, err := s.db.Get(lastHeightKey, defaultReadOptions)
 	if err != nil {
-		if err != ldbErrors.ErrNotFound {
+		if err != leveldb.ErrNotFound {
 			return 0, errors.Wrap(err, "failed to get Height")
 		}
 		return 0, nil
@@ -267,7 +251,7 @@ func (s *Storage) GetLastHeight() (int, error) {
 
 func (s *Storage) LastTrade() (Trade, error) {
 	var t Trade
-	it := s.db.NewIterator(&ldbUtil.Range{Start: []byte{TradesKeyPrefix}, Limit: []byte{TradesKeyPrefix + 1}}, defaultReadOptions)
+	it := s.db.NewIterator(&util.Range{Start: []byte{TradesKeyPrefix}, Limit: []byte{TradesKeyPrefix + 1}}, defaultReadOptions)
 	if it.Last() {
 		b := it.Value()
 		err := t.UnmarshalBinary(b)
@@ -311,7 +295,7 @@ func (s *Storage) readTrade(id crypto.Digest) (*Trade, error) {
 func (s *Storage) Trades(amountAsset, priceAsset crypto.Digest, limit int) ([]Trade, error) {
 	sk := pairTimeFrameKey{PairTradesKeyPrefix, amountAsset, priceAsset, 0}
 	ek := pairTimeFrameKey{PairTradesKeyPrefix, amountAsset, priceAsset, math.MaxUint32}
-	it := s.db.NewIterator(&ldbUtil.Range{Start: sk.bytes(), Limit: ek.bytes()}, defaultReadOptions)
+	it := s.db.NewIterator(&util.Range{Start: sk.bytes(), Limit: ek.bytes()}, defaultReadOptions)
 	c := 0
 	var trades []Trade
 	if it.Last() {
@@ -348,7 +332,7 @@ func (s *Storage) Trades(amountAsset, priceAsset crypto.Digest, limit int) ([]Tr
 func (s *Storage) TradesRange(amountAsset, priceAsset crypto.Digest, from, to uint64) ([]Trade, error) {
 	sk := pairTimestampKey{PairTradesKeyPrefix, amountAsset, priceAsset, from}
 	ek := pairTimestampKey{PairTradesKeyPrefix, amountAsset, priceAsset, to + 1}
-	it := s.db.NewIterator(&ldbUtil.Range{Start: sk.bytes(), Limit: ek.bytes()}, defaultReadOptions)
+	it := s.db.NewIterator(&util.Range{Start: sk.bytes(), Limit: ek.bytes()}, defaultReadOptions)
 	c := 0
 	var trades []Trade
 	if it.Last() {
@@ -394,7 +378,7 @@ func (s *Storage) CandlesRange(amountAsset, priceAsset crypto.Digest, from, to u
 func (s *Storage) TradesByPublicKey(amountAsset, priceAsset crypto.Digest, pk crypto.PublicKey, limit int) ([]Trade, error) {
 	sk := pairPublicKeyTimestampKey{PairPublicKeyTradesKeyPrefix, amountAsset, priceAsset, pk, 0}
 	ek := pairPublicKeyTimestampKey{PairPublicKeyTradesKeyPrefix, amountAsset, priceAsset, pk, math.MaxUint64}
-	it := s.db.NewIterator(&ldbUtil.Range{Start: sk.bytes(), Limit: ek.bytes()}, defaultReadOptions)
+	it := s.db.NewIterator(&util.Range{Start: sk.bytes(), Limit: ek.bytes()}, defaultReadOptions)
 	c := 0
 	var trades []Trade
 	if it.Last() {
@@ -447,7 +431,7 @@ func (s *Storage) candles(amountAsset, priceAsset crypto.Digest, start, stop uin
 	sk := pairTimeFrameKey{CandlesSecondKeyPrefix, amountAsset, priceAsset, start}
 	ek := pairTimeFrameKey{CandlesSecondKeyPrefix, amountAsset, priceAsset, stop}
 	r := make([]Candle, 0)
-	it := s.db.NewIterator(&ldbUtil.Range{Start: sk.bytes(), Limit: ek.bytes()}, defaultReadOptions)
+	it := s.db.NewIterator(&util.Range{Start: sk.bytes(), Limit: ek.bytes()}, defaultReadOptions)
 	var c Candle
 	i := 0
 	for it.Next() {
@@ -485,12 +469,12 @@ func (s *Storage) PublicKey(address proto.Address) (crypto.PublicKey, error) {
 func (s *Storage) ShouldImportBlock(height int, block crypto.Signature) (bool, error) {
 	v, err := s.db.Get(uint32Key(BlockAtHeightKeyPrefix, uint32(height)), defaultReadOptions)
 	if err != nil {
-		if err != ldbErrors.ErrNotFound {
+		if err != leveldb.ErrNotFound {
 			return false, errors.Wrapf(err, "failed to check existence of block '%s'", block.String())
 		}
 		return true, nil
 	}
-	var bi blockInfo
+	var bi BlockInfo
 	err = bi.unmarshalBinary(v)
 	if err != nil {
 		return false, errors.Wrapf(err, "failed to check existence of block '%s'", block.String())
@@ -512,7 +496,7 @@ func (s *Storage) ShouldImportBlock(height int, block crypto.Signature) (bool, e
 func (s *Storage) Markets() (map[MarketID]MarketData, error) {
 	sk := pairKey{MarketsKeyPrefix, wavesID, wavesID}
 	ek := pairKey{MarketsKeyPrefix, lastID, lastID}
-	it := s.db.NewIterator(&ldbUtil.Range{Start: sk.bytes(), Limit: ek.bytes()}, defaultReadOptions)
+	it := s.db.NewIterator(&util.Range{Start: sk.bytes(), Limit: ek.bytes()}, defaultReadOptions)
 	r := make(map[MarketID]MarketData, 0)
 	for it.Next() {
 		k := it.Key()
@@ -532,7 +516,7 @@ func (s *Storage) Markets() (map[MarketID]MarketData, error) {
 	return r, it.Error()
 }
 
-func (s *Storage) loadAssetStates(updates []AssetUpdate) (map[crypto.Digest]AssetState, error) {
+func (s *Storage) loadAssetStates(updates []StateUpdate) (map[crypto.Digest]AssetState, error) {
 	r := make(map[crypto.Digest]AssetState)
 	for _, u := range updates {
 		_, ok := r[u.Info.ID]
@@ -541,7 +525,7 @@ func (s *Storage) loadAssetStates(updates []AssetUpdate) (map[crypto.Digest]Asse
 			k := digestKey(AssetStateKeyPrefix, u.Info.ID)
 			v, err := s.db.Get(k, defaultReadOptions)
 			if err != nil {
-				if err != ldbErrors.ErrNotFound {
+				if err != leveldb.ErrNotFound {
 					return nil, errors.Wrap(err, "failed to load AssetState")
 				}
 				state = AssetState{}
@@ -557,7 +541,7 @@ func (s *Storage) loadAssetStates(updates []AssetUpdate) (map[crypto.Digest]Asse
 	return r, nil
 }
 
-func updateAssets(states map[crypto.Digest]AssetState, batch *leveldb.Batch, height int, updates []AssetUpdate) {
+func updateAssets(states map[crypto.Digest]AssetState, batch *leveldb.Batch, height int, updates []StateUpdate) {
 	diffs := make(map[crypto.Digest]AssetDiff)
 	for _, u := range updates {
 		if u.Diff.Created {
@@ -577,12 +561,17 @@ func updateAssets(states map[crypto.Digest]AssetState, batch *leveldb.Batch, hei
 	}
 }
 
-func (s *Storage) PutBlock(height int, block crypto.Signature, trades []Trade, assetUpdates []AssetUpdate) error {
+func (s *Storage) PutBlock(height int, block crypto.Signature, trades []Trade, stateUpdates []StateUpdate, aliasBinds []AliasBind) error {
 	wrapError := func(err error) error {
 		return errors.Wrapf(err, "failed to store block '%s' at height %d", block.String(), height)
 	}
 
-	assets, err := s.loadAssetStates(assetUpdates)
+	snapshot, err := s.db.GetSnapshot()
+	if err != nil {
+		return wrapError(err)
+	}
+
+	assets, err := s.loadAssetStates(stateUpdates)
 	if err != nil {
 		return wrapError(err)
 	}
@@ -601,7 +590,7 @@ func (s *Storage) PutBlock(height int, block crypto.Signature, trades []Trade, a
 		if !ok {
 			cb, err := s.db.Get(ck.bytes(), defaultReadOptions)
 			if err != nil {
-				if err != ldbErrors.ErrNotFound {
+				if err != leveldb.ErrNotFound {
 					return wrapError(err)
 				}
 				c = NewCandle(t.Timestamp)
@@ -619,7 +608,7 @@ func (s *Storage) PutBlock(height int, block crypto.Signature, trades []Trade, a
 		if !ok {
 			mb, err := s.db.Get(mk.bytes(), defaultReadOptions)
 			if err != nil {
-				if err != ldbErrors.ErrNotFound {
+				if err != leveldb.ErrNotFound {
 					return wrapError(err)
 				}
 				m = MarketData{}
@@ -635,7 +624,11 @@ func (s *Storage) PutBlock(height int, block crypto.Signature, trades []Trade, a
 	}
 
 	batch := new(leveldb.Batch)
-	updateAssets(assets, batch, height, assetUpdates)
+	err = PutAliasesStateUpdate(snapshot, batch, uint32(height), aliasBinds)
+	if err != nil {
+		return wrapError(err)
+	}
+	updateAssets(assets, batch, height, stateUpdates)
 	n := len(trades)
 	updateLastHeight(batch, height)
 	mtf := min(affectedTimeFrames)
@@ -822,13 +815,13 @@ func (s *Storage) Rollback(height int) error {
 	return nil
 }
 
-func (s *Storage) findFirstNonEmptyBlock(height int) (bool, blockInfo, error) {
+func (s *Storage) findFirstNonEmptyBlock(height int) (bool, BlockInfo, error) {
 	bi, err := s.BlockInfo(height)
 	if err != nil {
-		if err != ldbErrors.ErrNotFound {
-			return false, blockInfo{}, err
+		if err != leveldb.ErrNotFound {
+			return false, BlockInfo{}, err
 		}
-		return false, blockInfo{}, nil
+		return false, BlockInfo{}, nil
 	}
 	if !bi.Empty {
 		return true, bi, nil
@@ -836,16 +829,16 @@ func (s *Storage) findFirstNonEmptyBlock(height int) (bool, blockInfo, error) {
 	return s.findFirstNonEmptyBlock(height - 1)
 }
 
-func (s *Storage) BlockInfo(height int) (blockInfo, error) {
+func (s *Storage) BlockInfo(height int) (BlockInfo, error) {
 	k := uint32Key(BlockAtHeightKeyPrefix, uint32(height))
 	v, err := s.db.Get(k, defaultReadOptions)
 	if err != nil {
-		return blockInfo{}, errors.Wrapf(err, "failed to get info about block at height %d", height)
+		return BlockInfo{}, errors.Wrapf(err, "failed to get info about block at height %d", height)
 	}
-	var bi blockInfo
+	var bi BlockInfo
 	err = bi.unmarshalBinary(v)
 	if err != nil {
-		return blockInfo{}, errors.Wrapf(err, "failed to get info about block at height %d", height)
+		return BlockInfo{}, errors.Wrapf(err, "failed to get info about block at height %d", height)
 	}
 	return bi, nil
 }
@@ -853,7 +846,7 @@ func (s *Storage) BlockInfo(height int) (blockInfo, error) {
 func (s *Storage) getTrades(block crypto.Signature) ([]Trade, error) {
 	k := signatureKey(BlockTradesKeyPrefix, block)
 	v, err := s.db.Get(k, defaultReadOptions)
-	if err != nil && err != ldbErrors.ErrNotFound {
+	if err != nil && err != leveldb.ErrNotFound {
 		return []Trade{}, errors.Wrap(err, "failed to collect Trades")
 	}
 	n := len(v) / crypto.DigestSize
@@ -877,7 +870,7 @@ func (s *Storage) getTrades(block crypto.Signature) ([]Trade, error) {
 func (s *Storage) removeCandlesAfter(batch *leveldb.Batch, tf uint32) error {
 	start := timeFramePairKey{CandlesKeyPrefix, tf, crypto.Digest{}, crypto.Digest{}}
 	end := []byte{CandlesKeyPrefix + 1}
-	it := s.db.NewIterator(&ldbUtil.Range{Start: start.bytes(), Limit: end}, defaultReadOptions)
+	it := s.db.NewIterator(&util.Range{Start: start.bytes(), Limit: end}, defaultReadOptions)
 	for it.Next() {
 		batch.Delete(it.Key())
 	}
@@ -888,7 +881,7 @@ func (s *Storage) removeCandlesAfter(batch *leveldb.Batch, tf uint32) error {
 func (s *Storage) removeEarliestTimeFrames(batch *leveldb.Batch, etf uint32) error {
 	start := uint32Key(EarliestHeightKeyPrefix, etf)
 	end := uint32Key(EarliestHeightKeyPrefix, math.MaxUint32)
-	it := s.db.NewIterator(&ldbUtil.Range{Start: start, Limit: end}, defaultReadOptions)
+	it := s.db.NewIterator(&util.Range{Start: start, Limit: end}, defaultReadOptions)
 	for it.Next() {
 		batch.Delete(it.Key())
 	}
@@ -901,7 +894,7 @@ func (s *Storage) updateAffectedTimeFrames(batch *leveldb.Batch, timeFrames []ui
 		k := uint32Key(EarliestHeightKeyPrefix, tf)
 		b, err := s.db.Get(k, defaultReadOptions)
 		h := math.MaxInt32
-		if err != nil && err != ldbErrors.ErrNotFound {
+		if err != nil && err != leveldb.ErrNotFound {
 			return err
 		}
 		if len(b) > 0 {
@@ -918,7 +911,7 @@ func (s *Storage) updateAffectedTimeFrames(batch *leveldb.Batch, timeFrames []ui
 
 func putBlockInfo(batch *leveldb.Batch, height int, block crypto.Signature, empty bool, earliestTimeFrame uint32) {
 	k := uint32Key(BlockAtHeightKeyPrefix, uint32(height))
-	bi := blockInfo{empty, block, earliestTimeFrame}
+	bi := BlockInfo{empty, block, earliestTimeFrame}
 	v := bi.marshalBinary()
 	batch.Put(k, v)
 }
@@ -949,14 +942,6 @@ func uint32Key(prefix byte, key uint32) []byte {
 	binary.BigEndian.PutUint32(k[1:], key)
 	return k
 }
-
-//func uint64Key(prefix byte, key uint64) []byte {
-//	k := make([]byte, 9)
-//	k[0] = prefix
-//	binary.BigEndian.PutUint64(k[1:], key)
-//	return k
-//}
-// TODO: remove
 
 func digestKey(prefix byte, key crypto.Digest) []byte {
 	k := make([]byte, 1+crypto.DigestSize)
