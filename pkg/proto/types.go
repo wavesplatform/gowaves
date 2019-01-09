@@ -197,6 +197,12 @@ func (a *Attachment) UnmarshalJSON(value []byte) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to unmarshal Attachment from JSON")
 	}
+
+	if s == "" {
+		*a = Attachment("")
+		return nil
+	}
+
 	v, err := base58.Decode(s)
 	if err != nil {
 		return errors.Wrap(err, "failed to decode Attachment from JSON Value")
