@@ -194,3 +194,27 @@ func (a *Transactions) Address(ctx context.Context, address proto.Address, limit
 	}
 	return out[0], response, nil
 }
+
+// Broadcast a signed transaction
+func (a *Transactions) Broadcast(ctx context.Context, transaction proto.Transaction) (*Response, error) {
+	url, err := joinUrl(a.options.BaseUrl, "/transactions/broadcast")
+	if err != nil {
+		return nil, err
+	}
+
+	bts, err := json.Marshal(transaction)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", url.String(), bytes.NewReader(bts))
+	if err != nil {
+		return nil, err
+	}
+
+	response, err := doHttp(ctx, a.options, req, nil)
+	if err != nil {
+		return response, err
+	}
+	return response, nil
+}
