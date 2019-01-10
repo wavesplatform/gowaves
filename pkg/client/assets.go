@@ -300,52 +300,6 @@ func (a *Assets) Sponsor(ctx context.Context, sponsorReq AssetsSponsorReq) (*pro
 	return out, response, nil
 }
 
-type AssetsTransferReq struct {
-	Version    uint8            `json:"version"`
-	AssetId    crypto.Digest    `json:"assetId"`
-	Amount     uint64           `json:"amount"`
-	FeeAssetId crypto.Digest    `json:"feeAssetId"`
-	Fee        uint64           `json:"fee"`
-	Sender     proto.Address    `json:"sender"`
-	Attachment proto.Attachment `json:"attachment"`
-	Recipient  proto.Address    `json:"recipient"`
-	Timestamp  uint64           `json:"timestamp"`
-}
-
-// Transfer asset to new address
-func (a *Assets) Transfer(ctx context.Context, transferReq AssetsTransferReq) (*proto.TransferV2, *Response, error) {
-	if a.options.ApiKey == "" {
-		return nil, nil, NoApiKeyError
-	}
-
-	url, err := joinUrl(a.options.BaseUrl, "/assets/transfer")
-	if err != nil {
-		return nil, nil, err
-	}
-
-	bts, err := json.Marshal(transferReq)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	req, err := http.NewRequest(
-		"POST", url.String(),
-		bytes.NewReader(bts))
-	if err != nil {
-		return nil, nil, err
-	}
-
-	req.Header.Set("X-API-Key", a.options.ApiKey)
-
-	out := new(proto.TransferV2)
-	response, err := doHttp(ctx, a.options, req, out)
-	if err != nil {
-		return nil, response, err
-	}
-
-	return out, response, nil
-}
-
 type AssetsBurnReq struct {
 	Sender    proto.Address `json:"sender"`
 	AssetId   crypto.Digest `json:"assetId"`
