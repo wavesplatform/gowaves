@@ -528,6 +528,21 @@ func TestNewAttachmentFromBase58(t *testing.T) {
 	assert.Equal(t, att, Attachment("3"))
 }
 
+func TestAttachment_UnmarshalJSON(t *testing.T) {
+	a := Attachment("")
+	err := a.UnmarshalJSON([]byte("null"))
+	require.NoError(t, err)
+	assert.Equal(t, "", a.String())
+
+	err = a.UnmarshalJSON([]byte(`"8Gbmq3u18PmPbWcobY"`))
+	require.NoError(t, err)
+	assert.Equal(t, "WELCOME BONUS", a.String())
+
+	err = a.UnmarshalJSON([]byte(`""`))
+	require.NoError(t, err)
+	assert.Equal(t, "", a.String())
+}
+
 func TestNewOptionalAssetFromBytes(t *testing.T) {
 	d, err := crypto.NewDigestFromBase58("BXBUNddxTGTQc3G4qHYn5E67SBwMj18zLncUr871iuRD")
 	require.NoError(t, err)
