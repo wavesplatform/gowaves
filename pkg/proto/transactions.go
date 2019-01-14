@@ -25,6 +25,7 @@ const (
 	DataTransaction
 	SetScriptTransaction
 	SponsorshipTransaction
+	SetAssetScriptTransaction
 )
 
 const (
@@ -34,57 +35,59 @@ const (
 	minAssetNameLen          = 4
 	maxDecimals              = 8
 
-	genesisBodyLen            = 1 + 8 + AddressSize + 8
-	paymentBodyLen            = 1 + 8 + crypto.PublicKeySize + AddressSize + 8 + 8
-	issueV1FixedBodyLen       = 1 + crypto.PublicKeySize + 2 + 2 + 8 + 1 + 1 + 8 + 8
-	issueV1MinBodyLen         = issueV1FixedBodyLen + 4 // 4 because of the shortest allowed Asset name of 4 bytes
-	issueV1MinLen             = 1 + crypto.SignatureSize + issueV1MinBodyLen
-	issueV2FixedBodyLen       = 1 + 1 + 1 + crypto.PublicKeySize + 2 + 2 + 8 + 1 + 1 + 8 + 8 + 1
-	issueV2MinBodyLen         = issueV2FixedBodyLen + 4 // 4 because of the shortest allowed Asset name of 4 bytes
-	issueV2MinLen             = 1 + issueV2MinBodyLen + proofsMinLen
-	transferLen               = crypto.PublicKeySize + 1 + 1 + 8 + 8 + 8 + 2
-	transferV1FixedBodyLen    = 1 + transferLen
-	transferV1MinLen          = 1 + crypto.SignatureSize + transferV1FixedBodyLen
-	transferV2FixedBodyLen    = 1 + 1 + transferLen
-	transferV2MinLen          = 1 + transferV2FixedBodyLen + proofsMinLen
-	reissueLen                = crypto.PublicKeySize + crypto.DigestSize + 8 + 1 + 8 + 8
-	reissueV1BodyLen          = 1 + reissueLen
-	reissueV1MinLen           = 1 + crypto.SignatureSize + reissueV1BodyLen
-	reissueV2BodyLen          = 3 + reissueLen
-	reissueV2MinLen           = 1 + reissueV2BodyLen + proofsMinLen
-	burnLen                   = crypto.PublicKeySize + crypto.DigestSize + 8 + 8 + 8
-	burnV1BodyLen             = 1 + burnLen
-	burnV1Len                 = burnV1BodyLen + crypto.SignatureSize
-	burnV2BodyLen             = 1 + 1 + 1 + burnLen
-	burnV2Len                 = 1 + burnV2BodyLen + proofsMinLen
-	exchangeV1FixedBodyLen    = 1 + 4 + 4 + 8 + 8 + 8 + 8 + 8 + 8
-	exchangeV1MinLen          = exchangeV1FixedBodyLen + orderV1MinLen + orderV1MinLen + crypto.SignatureSize
-	exchangeV2FixedBodyLen    = 1 + 1 + 1 + 4 + 4 + 8 + 8 + 8 + 8 + 8 + 8
-	exchangeV2MinLen          = exchangeV2FixedBodyLen + orderV2MinLen + orderV2MinLen + proofsMinLen
-	leaseLen                  = crypto.PublicKeySize + 8 + 8 + 8
-	leaseV1BodyLen            = 1 + leaseLen
-	leaseV1MinLen             = leaseV1BodyLen + crypto.SignatureSize
-	leaseV2BodyLen            = 1 + 1 + 1 + leaseLen
-	leaseV2MinLen             = leaseV2BodyLen + proofsMinLen
-	leaseCancelLen            = crypto.PublicKeySize + 8 + 8 + crypto.DigestSize
-	leaseCancelV1BodyLen      = 1 + leaseCancelLen
-	leaseCancelV1MinLen       = leaseCancelV1BodyLen + crypto.SignatureSize
-	leaseCancelV2BodyLen      = 1 + 1 + 1 + leaseCancelLen
-	leaseCancelV2MinLen       = 1 + leaseCancelV2BodyLen + proofsMinLen
-	createAliasLen            = crypto.PublicKeySize + 2 + 8 + 8 + aliasFixedSize
-	createAliasV1FixedBodyLen = 1 + createAliasLen
-	createAliasV1MinLen       = createAliasV1FixedBodyLen + crypto.SignatureSize
-	createAliasV2FixedBodyLen = 1 + 1 + createAliasLen
-	createAliasV2MinLen       = 1 + createAliasV2FixedBodyLen + proofsMinLen
-	massTransferEntryLen      = 8
-	massTransferV1FixedLen    = 1 + 1 + crypto.PublicKeySize + 1 + 2 + 8 + 8 + 2
-	massTransferV1MinLen      = massTransferV1FixedLen + proofsMinLen
-	dataV1FixedBodyLen        = 1 + 1 + crypto.PublicKeySize + 2 + 8 + 8
-	dataV1MinLen              = dataV1FixedBodyLen + proofsMinLen
-	setScriptV1FixedBodyLen   = 1 + 1 + 1 + crypto.PublicKeySize + 1 + 8 + 8
-	setScriptV1MinLen         = 1 + setScriptV1FixedBodyLen + proofsMinLen
-	sponsorshipV1BodyLen      = 1 + 1 + crypto.PublicKeySize + crypto.DigestSize + 8 + 8 + 8
-	sponsorshipV1MinLen       = 1 + 1 + 1 + sponsorshipV1BodyLen + proofsMinLen
+	genesisBodyLen               = 1 + 8 + AddressSize + 8
+	paymentBodyLen               = 1 + 8 + crypto.PublicKeySize + AddressSize + 8 + 8
+	issueV1FixedBodyLen          = 1 + crypto.PublicKeySize + 2 + 2 + 8 + 1 + 1 + 8 + 8
+	issueV1MinBodyLen            = issueV1FixedBodyLen + 4 // 4 because of the shortest allowed Asset name of 4 bytes
+	issueV1MinLen                = 1 + crypto.SignatureSize + issueV1MinBodyLen
+	issueV2FixedBodyLen          = 1 + 1 + 1 + crypto.PublicKeySize + 2 + 2 + 8 + 1 + 1 + 8 + 8 + 1
+	issueV2MinBodyLen            = issueV2FixedBodyLen + 4 // 4 because of the shortest allowed Asset name of 4 bytes
+	issueV2MinLen                = 1 + issueV2MinBodyLen + proofsMinLen
+	transferLen                  = crypto.PublicKeySize + 1 + 1 + 8 + 8 + 8 + 2
+	transferV1FixedBodyLen       = 1 + transferLen
+	transferV1MinLen             = 1 + crypto.SignatureSize + transferV1FixedBodyLen
+	transferV2FixedBodyLen       = 1 + 1 + transferLen
+	transferV2MinLen             = 1 + transferV2FixedBodyLen + proofsMinLen
+	reissueLen                   = crypto.PublicKeySize + crypto.DigestSize + 8 + 1 + 8 + 8
+	reissueV1BodyLen             = 1 + reissueLen
+	reissueV1MinLen              = 1 + crypto.SignatureSize + reissueV1BodyLen
+	reissueV2BodyLen             = 3 + reissueLen
+	reissueV2MinLen              = 1 + reissueV2BodyLen + proofsMinLen
+	burnLen                      = crypto.PublicKeySize + crypto.DigestSize + 8 + 8 + 8
+	burnV1BodyLen                = 1 + burnLen
+	burnV1Len                    = burnV1BodyLen + crypto.SignatureSize
+	burnV2BodyLen                = 1 + 1 + 1 + burnLen
+	burnV2Len                    = 1 + burnV2BodyLen + proofsMinLen
+	exchangeV1FixedBodyLen       = 1 + 4 + 4 + 8 + 8 + 8 + 8 + 8 + 8
+	exchangeV1MinLen             = exchangeV1FixedBodyLen + orderV1MinLen + orderV1MinLen + crypto.SignatureSize
+	exchangeV2FixedBodyLen       = 1 + 1 + 1 + 4 + 4 + 8 + 8 + 8 + 8 + 8 + 8
+	exchangeV2MinLen             = exchangeV2FixedBodyLen + orderV2MinLen + orderV2MinLen + proofsMinLen
+	leaseLen                     = crypto.PublicKeySize + 8 + 8 + 8
+	leaseV1BodyLen               = 1 + leaseLen
+	leaseV1MinLen                = leaseV1BodyLen + crypto.SignatureSize
+	leaseV2BodyLen               = 1 + 1 + 1 + leaseLen
+	leaseV2MinLen                = leaseV2BodyLen + proofsMinLen
+	leaseCancelLen               = crypto.PublicKeySize + 8 + 8 + crypto.DigestSize
+	leaseCancelV1BodyLen         = 1 + leaseCancelLen
+	leaseCancelV1MinLen          = leaseCancelV1BodyLen + crypto.SignatureSize
+	leaseCancelV2BodyLen         = 1 + 1 + 1 + leaseCancelLen
+	leaseCancelV2MinLen          = 1 + leaseCancelV2BodyLen + proofsMinLen
+	createAliasLen               = crypto.PublicKeySize + 2 + 8 + 8 + aliasFixedSize
+	createAliasV1FixedBodyLen    = 1 + createAliasLen
+	createAliasV1MinLen          = createAliasV1FixedBodyLen + crypto.SignatureSize
+	createAliasV2FixedBodyLen    = 1 + 1 + createAliasLen
+	createAliasV2MinLen          = 1 + createAliasV2FixedBodyLen + proofsMinLen
+	massTransferEntryLen         = 8
+	massTransferV1FixedLen       = 1 + 1 + crypto.PublicKeySize + 1 + 2 + 8 + 8 + 2
+	massTransferV1MinLen         = massTransferV1FixedLen + proofsMinLen
+	dataV1FixedBodyLen           = 1 + 1 + crypto.PublicKeySize + 2 + 8 + 8
+	dataV1MinLen                 = dataV1FixedBodyLen + proofsMinLen
+	setScriptV1FixedBodyLen      = 1 + 1 + 1 + crypto.PublicKeySize + 1 + 8 + 8
+	setScriptV1MinLen            = 1 + setScriptV1FixedBodyLen + proofsMinLen
+	sponsorshipV1BodyLen         = 1 + 1 + crypto.PublicKeySize + crypto.DigestSize + 8 + 8 + 8
+	sponsorshipV1MinLen          = 1 + 1 + 1 + sponsorshipV1BodyLen + proofsMinLen
+	setAssetScriptV1FixedBodyLen = 1 + 1 + 1 + crypto.PublicKeySize + crypto.DigestSize + 8 + 8 + 1
+	setAssetScriptV1MinLen       = 1 + setScriptV1FixedBodyLen + proofsMinLen
 )
 
 type Transaction interface {
@@ -3569,6 +3572,7 @@ type SetScriptV1 struct {
 }
 
 func (SetScriptV1) Transaction() {}
+
 func (tx SetScriptV1) GetID() []byte {
 	return tx.ID.Bytes()
 }
@@ -3888,6 +3892,190 @@ func (tx *SponsorshipV1) UnmarshalBinary(data []byte) error {
 	id, err := crypto.FastHash(bb)
 	if err != nil {
 		return errors.Wrap(err, "failed to unmarshal SponsorshipV1 transaction from bytes")
+	}
+	tx.ID = &id
+	return nil
+}
+
+//SetAssetScriptV1 is a transaction to set smart script on an asset.
+type SetAssetScriptV1 struct {
+	Type      TransactionType  `json:"type"`
+	Version   byte             `json:"version,omitempty"`
+	ID        *crypto.Digest   `json:"id,omitempty"`
+	Proofs    *ProofsV1        `json:"proofs,omitempty"`
+	ChainID   byte             `json:"-"`
+	SenderPK  crypto.PublicKey `json:"senderPublicKey"`
+	AssetID   crypto.Digest    `json:"assetId"`
+	Script    []byte           `json:"script"`
+	Fee       uint64           `json:"fee"`
+	Timestamp uint64           `json:"timestamp,omitempty"`
+}
+
+func (SetAssetScriptV1) Transaction() {}
+
+func (tx SetAssetScriptV1) GetID() []byte {
+	return tx.ID.Bytes()
+}
+
+//NewUnsignedSetAssetScriptV1 creates new unsigned SetAssetScriptV1 transaction.
+func NewUnsignedSetAssetScriptV1(chain byte, senderPK crypto.PublicKey, assetID crypto.Digest, script []byte, fee, timestamp uint64) (*SetAssetScriptV1, error) {
+	if fee <= 0 {
+		return nil, errors.New("fee should be positive")
+	}
+	return &SetAssetScriptV1{Type: SetAssetScriptTransaction, Version: 1, ChainID: chain, SenderPK: senderPK, AssetID: assetID, Script: script, Fee: fee, Timestamp: timestamp}, nil
+}
+
+//NonEmptyScript returns true if transaction contains non-empty script.
+func (tx *SetAssetScriptV1) NonEmptyScript() bool {
+	return len(tx.Script) != 0
+}
+
+func (tx *SetAssetScriptV1) bodyMarshalBinary() ([]byte, error) {
+	var p int
+	sl := 0
+	if tx.NonEmptyScript() {
+		sl = len(tx.Script) + 2
+	}
+	buf := make([]byte, setAssetScriptV1FixedBodyLen+sl)
+	buf[p] = byte(tx.Type)
+	p++
+	buf[p] = tx.Version
+	p++
+	buf[p] = tx.ChainID
+	p++
+	copy(buf[p:], tx.SenderPK[:])
+	p += crypto.PublicKeySize
+	copy(buf[p:], tx.AssetID[:])
+	p += crypto.DigestSize
+	binary.BigEndian.PutUint64(buf[p:], tx.Fee)
+	p += 8
+	binary.BigEndian.PutUint64(buf[p:], tx.Timestamp)
+	p += 8
+	PutBool(buf[p:], tx.NonEmptyScript())
+	p++
+	if tx.NonEmptyScript() {
+		PutBytesWithUInt16Len(buf[p:], tx.Script)
+	}
+	return buf, nil
+}
+
+func (tx *SetAssetScriptV1) bodyUnmarshalBinary(data []byte) error {
+	if l := len(data); l < setAssetScriptV1FixedBodyLen {
+		return errors.Errorf("not enough data for SetAssetScriptV1 transaction, expected not less then %d, received %d", setAssetScriptV1FixedBodyLen, l)
+	}
+	tx.Type = TransactionType(data[0])
+	tx.Version = data[1]
+	tx.ChainID = data[2]
+	if tx.Type != SetAssetScriptTransaction {
+		return errors.Errorf("unexpected transaction type %d for SetAssetScriptV1 transaction", tx.Type)
+	}
+	if tx.Version != 1 {
+		return errors.Errorf("unexpected version %d for SetAssetScriptV1 transaction", tx.Version)
+	}
+	data = data[3:]
+	copy(tx.SenderPK[:], data[:crypto.PublicKeySize])
+	data = data[crypto.PublicKeySize:]
+	copy(tx.AssetID[:], data[:crypto.DigestSize])
+	data = data[crypto.DigestSize:]
+	tx.Fee = binary.BigEndian.Uint64(data)
+	data = data[8:]
+	tx.Timestamp = binary.BigEndian.Uint64(data)
+	data = data[8:]
+	p, err := Bool(data)
+	if err != nil {
+		return errors.Wrap(err, "failed to unmarshal SetAssetScripV1 transaction body from bytes")
+	}
+	data = data[1:]
+	if p {
+		s, err := BytesWithUInt16Len(data)
+		if err != nil {
+			return errors.Wrap(err, "failed to unmarshal SetAssetScriptV1 transaction body from bytes")
+		}
+		tx.Script = s
+		data = data[2+len(s):]
+	}
+	return nil
+}
+
+//Sign adds signature as a proof at first position.
+func (tx *SetAssetScriptV1) Sign(secretKey crypto.SecretKey) error {
+	b, err := tx.bodyMarshalBinary()
+	if err != nil {
+		return errors.Wrap(err, "failed to sign SetAssetScriptV1 transaction")
+	}
+	if tx.Proofs == nil {
+		tx.Proofs = &ProofsV1{proofsVersion, make([]B58Bytes, 0)}
+	}
+	err = tx.Proofs.Sign(0, secretKey, b)
+	if err != nil {
+		return errors.Wrap(err, "failed to sign SetAssetScriptV1 transaction")
+	}
+	d, err := crypto.FastHash(b)
+	tx.ID = &d
+	if err != nil {
+		return errors.Wrap(err, "failed to sign SetAssetScriptV1 transaction")
+	}
+	return nil
+}
+
+//Verify checks that first proof is a valid signature.
+func (tx *SetAssetScriptV1) Verify(publicKey crypto.PublicKey) (bool, error) {
+	b, err := tx.bodyMarshalBinary()
+	if err != nil {
+		return false, errors.Wrap(err, "failed to verify signature of SetAssetScriptV1 transaction")
+	}
+	return tx.Proofs.Verify(0, publicKey, b)
+}
+
+//MarshalBinary writes SetAssetScriptV1 transaction to its bytes representation.
+func (tx *SetAssetScriptV1) MarshalBinary() ([]byte, error) {
+	bb, err := tx.bodyMarshalBinary()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to marshal SetAssetScriptV1 transaction to bytes")
+	}
+	bl := len(bb)
+	if tx.Proofs == nil {
+		return nil, errors.New("failed to marshal SetAssetScriptV1 transaction to bytes: no proofs")
+	}
+	pb, err := tx.Proofs.MarshalBinary()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to marshal SetAssetScriptV1 transaction to bytes")
+	}
+	buf := make([]byte, 1+bl+len(pb))
+	copy(buf[1:], bb)
+	copy(buf[1+bl:], pb)
+	return buf, nil
+}
+
+//UnmarshalBinary reads SetAssetScriptV1 transaction from its binary representation.
+func (tx *SetAssetScriptV1) UnmarshalBinary(data []byte) error {
+	if l := len(data); l < setAssetScriptV1MinLen {
+		return errors.Errorf("not enough data for SetAssetScriptV1 transaction, expected not less then %d, received %d", setAssetScriptV1MinLen, l)
+	}
+	if v := data[0]; v != 0 {
+		return errors.Errorf("unexpected first byte value %d, expected 0", v)
+	}
+	data = data[1:]
+	err := tx.bodyUnmarshalBinary(data)
+	if err != nil {
+		return errors.Wrap(err, "failed to unmarshal SetAssetScriptV1 transaction from bytes")
+	}
+	sl := 0
+	if tx.NonEmptyScript() {
+		sl = len(tx.Script) + 2
+	}
+	bl := setAssetScriptV1FixedBodyLen + sl
+	bb := data[:bl]
+	data = data[bl:]
+	var p ProofsV1
+	err = p.UnmarshalBinary(data)
+	if err != nil {
+		return errors.Wrap(err, "failed to unmarshal SetAssetScriptV1 transaction from bytes")
+	}
+	tx.Proofs = &p
+	id, err := crypto.FastHash(bb)
+	if err != nil {
+		return errors.Wrap(err, "failed to unmarshal SetAssetScriptV1 transaction from bytes")
 	}
 	tx.ID = &id
 	return nil
