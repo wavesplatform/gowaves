@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/mr-tron/base58/base58"
 	"github.com/pkg/errors"
@@ -1102,4 +1103,12 @@ func (e *StringDataEntry) UnmarshalJSON(value []byte) error {
 	e.Key = tmp.K
 	e.Value = tmp.V
 	return nil
+}
+
+func NewTimestampFromTime(t time.Time) uint64 {
+	return NewTimestampFromUnixNano(t.UnixNano())
+}
+
+func NewTimestampFromUnixNano(nano int64) uint64 {
+	return uint64(nano / 1000000)
 }

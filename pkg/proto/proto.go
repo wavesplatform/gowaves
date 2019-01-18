@@ -1,6 +1,7 @@
 package proto
 
 import (
+	"encoding"
 	"encoding/binary"
 	"fmt"
 	"io"
@@ -30,6 +31,13 @@ const (
 	ContentIDTransaction   = 0x19
 	ContentIDCheckpoint    = 0x64
 )
+
+type Message interface {
+	io.ReaderFrom
+	io.WriterTo
+	encoding.BinaryUnmarshaler
+	encoding.BinaryMarshaler
+}
 
 type header struct {
 	Length        uint32
@@ -336,6 +344,23 @@ type PeerInfo struct {
 	Port uint16
 }
 
+func NewPeerInfoFromString(addr string) (PeerInfo, error) {
+	strs := strings.Split(addr, ":")
+	if len(strs) != 2 {
+		return PeerInfo{}, errors.Errorf("invalid addr %s", addr)
+	}
+
+	ip := net.ParseIP(string(strs[0]))
+	port, err := strconv.ParseUint(strs[1], 10, 64)
+	if err != nil {
+		return PeerInfo{}, errors.Errorf("invalid port %s", strs[1])
+	}
+	return PeerInfo{
+		Addr: ip,
+		Port: uint16(port),
+	}, nil
+}
+
 // MarshalBinary encodes PeerInfo message to binary form
 func (m *PeerInfo) MarshalBinary() ([]byte, error) {
 	buffer := make([]byte, 8)
@@ -394,7 +419,7 @@ func (m *PeerInfo) UnmarshalJSON(value []byte) error {
 
 	s, err := strconv.Unquote(s)
 	if err != nil {
-		errors.Wrap(err, "failed to unmarshal PeerInfo from JSON")
+		return errors.Wrap(err, "failed to unmarshal PeerInfo from JSON")
 	}
 
 	splitted := strings.SplitN(s, "/", 2)
@@ -417,7 +442,7 @@ func (m *PeerInfo) UnmarshalJSON(value []byte) error {
 	m.Addr = net.ParseIP(addr)
 	port64, err := strconv.ParseUint(port, 10, 16)
 	if err != nil {
-		errors.Wrap(err, "failed to unmarshal PeerInfo from JSON")
+		return errors.Wrap(err, "failed to unmarshal PeerInfo from JSON")
 	}
 	m.Port = uint16(port64)
 	return nil

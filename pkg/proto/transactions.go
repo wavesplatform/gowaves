@@ -502,6 +502,9 @@ type IssueV2 struct {
 }
 
 func (IssueV2) Transaction() {}
+func (tx IssueV2) GetID() []byte {
+	return tx.ID.Bytes()
+}
 
 //NewUnsignedIssueV2 creates a new IssueV2 transaction with empty Proofs.
 func NewUnsignedIssueV2(chainID byte, senderPK crypto.PublicKey, name, description string, quantity uint64, decimals byte, reissuable bool, script []byte, timestamp, fee uint64) (*IssueV2, error) {
@@ -1275,6 +1278,9 @@ type ReissueV2 struct {
 }
 
 func (ReissueV2) Transaction() {}
+func (tx ReissueV2) GetID() []byte {
+	return tx.ID.Bytes()
+}
 
 //NewUnsignedReissueV2 creates new ReissueV2 transaction without signature and ID.
 func NewUnsignedReissueV2(chainID byte, senderPK crypto.PublicKey, assetID crypto.Digest, quantity uint64, reissuable bool, timestamp, fee uint64) (*ReissueV2, error) {
@@ -1572,6 +1578,9 @@ type BurnV2 struct {
 }
 
 func (BurnV2) Transaction() {}
+func (tx BurnV2) GetID() []byte {
+	return tx.ID.Bytes()
+}
 
 //NewUnsignedBurnV2 creates new BurnV2 transaction without proofs and ID.
 func NewUnsignedBurnV2(chainID byte, senderPK crypto.PublicKey, assetID crypto.Digest, amount, timestamp, fee uint64) (*BurnV2, error) {
@@ -1910,6 +1919,9 @@ type ExchangeV2 struct {
 }
 
 func (ExchangeV2) Transaction() {}
+func (tx ExchangeV2) GetID() []byte {
+	return tx.ID.Bytes()
+}
 
 func NewUnsignedExchangeV2(buy, sell Order, price, amount, buyMatcherFee, sellMatcherFee, fee, timestamp uint64) (*ExchangeV2, error) {
 	if amount <= 0 {
@@ -2356,6 +2368,9 @@ type LeaseV2 struct {
 }
 
 func (LeaseV2) Transaction() {}
+func (tx LeaseV2) GetID() []byte {
+	return tx.ID.Bytes()
+}
 
 //NewUnsignedLeaseV2 creates new LeaseV1 transaction without signature and ID set.
 func NewUnsignedLeaseV2(senderPK crypto.PublicKey, recipient Address, amount, fee, timestamp uint64) (*LeaseV2, error) {
@@ -2652,6 +2667,9 @@ type LeaseCancelV2 struct {
 }
 
 func (LeaseCancelV2) Transaction() {}
+func (tx LeaseCancelV2) GetID() []byte {
+	return tx.ID.Bytes()
+}
 
 //NewUnsignedLeaseCancelV2 creates new LeaseCancelV2 transaction structure without a signature and an ID.
 func NewUnsignedLeaseCancelV2(chainID byte, senderPK crypto.PublicKey, leaseID crypto.Digest, fee, timestamp uint64) (*LeaseCancelV2, error) {
@@ -2966,6 +2984,9 @@ type CreateAliasV2 struct {
 }
 
 func (CreateAliasV2) Transaction() {}
+func (tx CreateAliasV2) GetID() []byte {
+	return tx.ID.Bytes()
+}
 
 func NewUnsignedCreateAliasV2(senderPK crypto.PublicKey, alias Alias, fee, timestamp uint64) (*CreateAliasV2, error) {
 	ca, err := newCreateAlias(senderPK, alias, fee, timestamp)

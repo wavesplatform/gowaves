@@ -308,6 +308,13 @@ func TestPeerInfo_MarshalJSON(t *testing.T) {
 	require.NotNil(t, err)
 }
 
+func TestNewPeerInfoFromString(t *testing.T) {
+	rs, err := NewPeerInfoFromString("34.253.153.4:6868")
+	require.NoError(t, err)
+	assert.Equal(t, "34.253.153.4", rs.Addr.String())
+	assert.EqualValues(t, 6868, rs.Port)
+}
+
 func TestPeerInfo_UnmarshalJSON(t *testing.T) {
 	p := new(PeerInfo)
 	err := json.Unmarshal([]byte(`"/159.65.239.245:6868"`), p)
