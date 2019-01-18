@@ -7,6 +7,7 @@ import (
 	"github.com/go-chi/chi/middleware"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/cmd/wmd/internal"
+	"github.com/wavesplatform/gowaves/cmd/wmd/internal/state"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -57,7 +58,8 @@ func main() {
 		log.Error("No data base path specified")
 		shutdown()
 	}
-	storage := internal.Storage{Path: *db, Scheme: (*scheme)[0]}
+	sch := (byte)((*scheme)[0])
+	storage := state.Storage{Path: *db, Scheme: sch}
 	err = storage.Open()
 	if err != nil {
 		log.Errorf("Failed to open storage: %s", err.Error())
@@ -104,7 +106,7 @@ func main() {
 	}
 	log.Infof("Last stored height: %d", h)
 
-	err = importBlockchainIfNeeded(appCtx, log, *importFile, &storage, matcherPK)
+	err = importBlockchainIfNeeded(appCtx, log, *importFile, sch, &storage, matcherPK)
 	if err != nil {
 		log.Errorf("Initial blockchain import failed: %s", err.Error())
 	}
@@ -135,12 +137,12 @@ func main() {
 
 }
 
-func importBlockchainIfNeeded(ctx context.Context, log *zap.SugaredLogger, n string, storage *internal.Storage, matcher crypto.PublicKey) error {
+func importBlockchainIfNeeded(ctx context.Context, log *zap.SugaredLogger, n string, scheme byte, storage *state.Storage, matcher crypto.PublicKey) error {
 	if n != "" {
 		if _, err := os.Stat(n); os.IsNotExist(err) {
 			return errors.Wrapf(err, "failed to import blockchain file '%s'", n)
 		}
-		i := internal.NewImporter(ctx, log, storage, matcher)
+		i := internal.NewImporter(ctx, log, scheme, storage, matcher)
 		err := i.Import(n)
 		if err != nil {
 			return errors.Wrapf(err, "failed to import blockchain file '%s'", n)

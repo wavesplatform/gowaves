@@ -27,7 +27,7 @@ type Candle struct {
 }
 
 func NewCandle(ts uint64) Candle {
-	b := timestampMSFromTimeFrame(timeFrameFromTimestampMS(ts))
+	b := TimestampMSFromTimeFrame(TimeFrameFromTimestampMS(ts))
 	return Candle{minTimestamp: b + TimeFrame, maxTimestamp: b}
 }
 
@@ -159,15 +159,15 @@ func (c *Candle) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
-func timeFrameFromTimestampMS(ts uint64) uint32 {
+func TimeFrameFromTimestampMS(ts uint64) uint32 {
 	return uint32(ts / TimeFrame)
 }
 
-func timestampMSFromTimeFrame(tf uint32) uint64 {
+func TimestampMSFromTimeFrame(tf uint32) uint64 {
 	return uint64(tf) * TimeFrame
 }
 
-func scaleTimeFrame(tf uint32, scale int) uint32 {
+func ScaleTimeFrame(tf uint32, scale int) uint32 {
 	s := uint32(scale)
 	return (tf / s) * s
 }
@@ -199,10 +199,10 @@ func EmptyCandleInfo(amountAssetDecimals, priceAssetDecimals uint, timestamp uin
 }
 
 func CandleInfoFromCandle(candle Candle, amountAssetDecimals, priceAssetDecimals uint, timeFrameScale int) CandleInfo {
-	tf := scaleTimeFrame(timeFrameFromTimestampMS(candle.minTimestamp), timeFrameScale)
+	tf := ScaleTimeFrame(TimeFrameFromTimestampMS(candle.minTimestamp), timeFrameScale)
 	pv := priceVolume(candle.Average, candle.Volume, amountAssetDecimals)
 	return CandleInfo{
-		Timestamp:   timestampMSFromTimeFrame(tf),
+		Timestamp:   TimestampMSFromTimeFrame(tf),
 		Open:        Decimal{candle.Open, priceAssetDecimals},
 		High:        Decimal{candle.High, priceAssetDecimals},
 		Low:         Decimal{candle.Low, priceAssetDecimals},

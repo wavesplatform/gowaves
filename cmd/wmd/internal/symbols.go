@@ -74,7 +74,7 @@ func ImportSymbols(name string) (*Symbols, error) {
 	wrapError := func(err error) error {
 		return errors.Wrapf(err, "failed to import symbols from file '%s'", name)
 	}
-	r := &Symbols{map[string]crypto.Digest{proto.WavesAssetName: wavesID}, map[crypto.Digest]string{wavesID: proto.WavesAssetName}}
+	r := &Symbols{map[string]crypto.Digest{proto.WavesAssetName: WavesID}, map[crypto.Digest]string{WavesID: proto.WavesAssetName}}
 	f, err := os.Open(name)
 	if err != nil {
 		return nil, wrapError(err)

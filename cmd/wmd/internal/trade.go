@@ -12,16 +12,16 @@ const (
 )
 
 type Trade struct {
-	AmountAsset   crypto.Digest    `json:"-"`
-	PriceAsset    crypto.Digest    `json:"-"`
-	TransactionID crypto.Digest    `json:"id"`
-	OrderType     proto.OrderType  `json:"type"`
-	Buyer         crypto.PublicKey `json:"buyer"`
-	Seller        crypto.PublicKey `json:"seller"`
-	Matcher       crypto.PublicKey `json:"matcher"`
-	Price         uint64           `json:"price"`
-	Amount        uint64           `json:"amount"`
-	Timestamp     uint64           `json:"timestamp"`
+	AmountAsset   crypto.Digest
+	PriceAsset    crypto.Digest
+	TransactionID crypto.Digest
+	OrderType     proto.OrderType
+	Buyer         crypto.PublicKey
+	Seller        crypto.PublicKey
+	Matcher       crypto.PublicKey
+	Price         uint64
+	Amount        uint64
+	Timestamp     uint64
 }
 
 func NewTradeFromExchangeV1(tx proto.ExchangeV1) Trade {
@@ -159,6 +159,7 @@ func (t *Trade) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
+// TradeInfo is an API representation of the Trade
 type TradeInfo struct {
 	Timestamp uint64          `json:"timestamp"`
 	ID        crypto.Digest   `json:"id"`

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
+	"github.com/wavesplatform/gowaves/cmd/wmd/internal/state"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
@@ -52,7 +53,7 @@ func Logger(l *zap.Logger) func(next http.Handler) http.Handler {
 
 type DataFeedAPI struct {
 	log     *zap.SugaredLogger
-	Storage *Storage
+	Storage *state.Storage
 	Symbols *Symbols
 	Scheme  byte
 }
@@ -63,7 +64,7 @@ type status struct {
 	LastTradeID   crypto.Digest    `json:"last_trade_id"`
 }
 
-func NewDataFeedAPI(log *zap.SugaredLogger, storage *Storage, symbols *Symbols) *DataFeedAPI {
+func NewDataFeedAPI(log *zap.SugaredLogger, storage *state.Storage, symbols *Symbols) *DataFeedAPI {
 	return &DataFeedAPI{log: log, Storage: storage, Symbols: symbols}
 }
 
@@ -130,12 +131,12 @@ func (a *DataFeedAPI) Markets(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, fmt.Sprintf("Failed to load DayCandle: %s", err.Error()), http.StatusInternalServerError)
 			return
 		}
-		aai, err := a.Storage.readAssetInfo(m.AmountAsset)
+		aai, err := a.Storage.ReadAssetInfo(m.AmountAsset)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("Failed to load AssetInfo: %s", err.Error()), http.StatusInternalServerError)
 			return
 		}
-		pai, err := a.Storage.readAssetInfo(m.PriceAsset)
+		pai, err := a.Storage.ReadAssetInfo(m.PriceAsset)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("Failed to load AssetInfo: %s", err.Error()), http.StatusInternalServerError)
 			return
@@ -167,12 +168,12 @@ func (a *DataFeedAPI) Tickers(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, fmt.Sprintf("Failed to load DayCandle: %s", err.Error()), http.StatusInternalServerError)
 			return
 		}
-		aai, err := a.Storage.readAssetInfo(m.AmountAsset)
+		aai, err := a.Storage.ReadAssetInfo(m.AmountAsset)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("Failed to load AssetInfo: %s", err.Error()), http.StatusInternalServerError)
 			return
 		}
-		pai, err := a.Storage.readAssetInfo(m.PriceAsset)
+		pai, err := a.Storage.ReadAssetInfo(m.PriceAsset)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("Failed to load AssetInfo: %s", err.Error()), http.StatusInternalServerError)
 			return
@@ -207,12 +208,12 @@ func (a *DataFeedAPI) Ticker(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Failed to load DayCandle: %s", err.Error()), http.StatusInternalServerError)
 		return
 	}
-	aai, err := a.Storage.readAssetInfo(amountAsset)
+	aai, err := a.Storage.ReadAssetInfo(amountAsset)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to load AssetInfo: %s", err.Error()), http.StatusInternalServerError)
 		return
 	}
-	pai, err := a.Storage.readAssetInfo(priceAsset)
+	pai, err := a.Storage.ReadAssetInfo(priceAsset)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to load AssetInfo: %s", err.Error()), http.StatusInternalServerError)
 		return
@@ -249,12 +250,12 @@ func (a *DataFeedAPI) Trades(w http.ResponseWriter, r *http.Request) {
 		return
 
 	}
-	aai, err := a.Storage.readAssetInfo(amountAsset)
+	aai, err := a.Storage.ReadAssetInfo(amountAsset)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to load AssetInfo: %s", err.Error()), http.StatusInternalServerError)
 		return
 	}
-	pai, err := a.Storage.readAssetInfo(priceAsset)
+	pai, err := a.Storage.ReadAssetInfo(priceAsset)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to load AssetInfo: %s", err.Error()), http.StatusInternalServerError)
 		return
@@ -298,12 +299,12 @@ func (a *DataFeedAPI) TradesRange(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Bad request: %s", err.Error()), http.StatusBadRequest)
 	}
-	aai, err := a.Storage.readAssetInfo(amountAsset)
+	aai, err := a.Storage.ReadAssetInfo(amountAsset)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to load AssetInfo: %s", err.Error()), http.StatusInternalServerError)
 		return
 	}
-	pai, err := a.Storage.readAssetInfo(priceAsset)
+	pai, err := a.Storage.ReadAssetInfo(priceAsset)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to load AssetInfo: %s", err.Error()), http.StatusInternalServerError)
 		return
@@ -364,12 +365,12 @@ func (a *DataFeedAPI) TradesByAddress(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Failed to load Trades: %s", err.Error()), http.StatusInternalServerError)
 		return
 	}
-	aai, err := a.Storage.readAssetInfo(amountAsset)
+	aai, err := a.Storage.ReadAssetInfo(amountAsset)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to load AssetInfo: %s", err.Error()), http.StatusInternalServerError)
 		return
 	}
-	pai, err := a.Storage.readAssetInfo(priceAsset)
+	pai, err := a.Storage.ReadAssetInfo(priceAsset)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to load AssetInfo: %s", err.Error()), http.StatusInternalServerError)
 		return
@@ -417,22 +418,22 @@ func (a *DataFeedAPI) Candles(w http.ResponseWriter, r *http.Request) {
 		return
 
 	}
-	aai, err := a.Storage.readAssetInfo(amountAsset)
+	aai, err := a.Storage.ReadAssetInfo(amountAsset)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to load AssetInfo: %s", err.Error()), http.StatusInternalServerError)
 		return
 	}
-	pai, err := a.Storage.readAssetInfo(priceAsset)
+	pai, err := a.Storage.ReadAssetInfo(priceAsset)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to load AssetInfo: %s", err.Error()), http.StatusInternalServerError)
 		return
 	}
 	tfs := tf / DefaultTimeFrame
-	ttf := timeFrameFromTimestampMS(uint64(time.Now().Unix() * 1000))
+	ttf := TimeFrameFromTimestampMS(uint64(time.Now().Unix() * 1000))
 	ftf := ttf - uint32((limit-1)*tfs)
 	cis := make(map[uint32]CandleInfo)
-	for x := scaleTimeFrame(ftf, tfs); x <= scaleTimeFrame(ttf, tfs); x += uint32(tfs) {
-		cis[x] = EmptyCandleInfo(uint(aai.Decimals), uint(pai.Decimals), timestampMSFromTimeFrame(x))
+	for x := ScaleTimeFrame(ftf, tfs); x <= ScaleTimeFrame(ttf, tfs); x += uint32(tfs) {
+		cis[x] = EmptyCandleInfo(uint(aai.Decimals), uint(pai.Decimals), TimestampMSFromTimeFrame(x))
 	}
 	candles, err := a.Storage.CandlesRange(amountAsset, priceAsset, ftf, ttf, tfs)
 	if err != nil {
@@ -441,7 +442,7 @@ func (a *DataFeedAPI) Candles(w http.ResponseWriter, r *http.Request) {
 	}
 	csm := make(map[uint32]Candle)
 	for _, c := range candles {
-		ctf := scaleTimeFrame(timeFrameFromTimestampMS(c.minTimestamp), tfs)
+		ctf := ScaleTimeFrame(TimeFrameFromTimestampMS(c.minTimestamp), tfs)
 		if cc, ok := csm[ctf]; !ok {
 			csm[ctf] = c
 		} else {
@@ -500,22 +501,22 @@ func (a *DataFeedAPI) CandlesRange(w http.ResponseWriter, r *http.Request) {
 	if f > t {
 		http.Error(w, fmt.Sprintf("Bad request: start of the range %d should be less than %d", f, t), http.StatusBadRequest)
 	}
-	aai, err := a.Storage.readAssetInfo(amountAsset)
+	aai, err := a.Storage.ReadAssetInfo(amountAsset)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to load AssetInfo: %s", err.Error()), http.StatusInternalServerError)
 		return
 	}
-	pai, err := a.Storage.readAssetInfo(priceAsset)
+	pai, err := a.Storage.ReadAssetInfo(priceAsset)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to load AssetInfo: %s", err.Error()), http.StatusInternalServerError)
 		return
 	}
-	ftf := timeFrameFromTimestampMS(f)
-	ttf := timeFrameFromTimestampMS(t)
+	ftf := TimeFrameFromTimestampMS(f)
+	ttf := TimeFrameFromTimestampMS(t)
 	tfs := tf / DefaultTimeFrame
 	cis := make(map[uint32]CandleInfo)
-	for x := scaleTimeFrame(ftf, tfs); x <= scaleTimeFrame(ttf, tfs); x += uint32(tfs) {
-		cis[x] = EmptyCandleInfo(uint(aai.Decimals), uint(pai.Decimals), timestampMSFromTimeFrame(x))
+	for x := ScaleTimeFrame(ftf, tfs); x <= ScaleTimeFrame(ttf, tfs); x += uint32(tfs) {
+		cis[x] = EmptyCandleInfo(uint(aai.Decimals), uint(pai.Decimals), TimestampMSFromTimeFrame(x))
 	}
 	candles, err := a.Storage.CandlesRange(amountAsset, priceAsset, ftf, ttf, tfs)
 	if err != nil {
@@ -524,7 +525,7 @@ func (a *DataFeedAPI) CandlesRange(w http.ResponseWriter, r *http.Request) {
 	}
 	csm := make(map[uint32]Candle)
 	for _, c := range candles {
-		ctf := scaleTimeFrame(timeFrameFromTimestampMS(c.minTimestamp), tfs)
+		ctf := ScaleTimeFrame(TimeFrameFromTimestampMS(c.minTimestamp), tfs)
 		if cc, ok := csm[ctf]; !ok {
 			csm[ctf] = c
 		} else {

@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/binary"
 	"github.com/pkg/errors"
+	"github.com/wavesplatform/gowaves/cmd/wmd/internal/state"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
@@ -20,11 +21,12 @@ type Importer struct {
 	rootContext context.Context
 	log         *zap.SugaredLogger
 	storage     *Storage
+	scheme      byte
 	matcher     crypto.PublicKey
 }
 
-func NewImporter(ctx context.Context, log *zap.SugaredLogger, storage *Storage, matcher crypto.PublicKey) *Importer {
-	return &Importer{rootContext: ctx, log: log, storage: storage, matcher: matcher}
+func NewImporter(ctx context.Context, log *zap.SugaredLogger, scheme byte, storage *Storage, matcher crypto.PublicKey) *Importer {
+	return &Importer{rootContext: ctx, log: log, scheme: scheme, storage: storage, matcher: matcher}
 }
 
 type task struct {
@@ -33,12 +35,14 @@ type task struct {
 }
 
 type result struct {
-	height  int
-	id      crypto.Signature
-	trades  []Trade
-	updates []StateUpdate
-	aliases []AliasBind
-	error   error
+	height   int
+	id       crypto.Signature
+	trades   []Trade
+	issues   []state.IssueChange
+	assets   []state.AssetChange
+	accounts []state.AccountChange
+	aliases  []state.AliasBind
+	error    error
 }
 
 func (im *Importer) Import(n string) error {
@@ -87,7 +91,7 @@ func (im *Importer) Import(n string) error {
 				im.log.Errorf("Failed to collect transactions for block at height %d: %s", r.height, r.error.Error())
 				break
 			}
-			err := im.storage.PutBlock(r.height, r.id, r.trades, r.updates, r.aliases)
+			err := im.storage.PutBlock(r.height, r.id, r.trades, r.changes, r.aliases)
 			if err != nil {
 				im.log.Errorf("Failed to update storage: %s", err.Error())
 			}
@@ -172,7 +176,7 @@ func (im *Importer) worker(tasks <-chan task) <-chan result {
 
 	processTask := func(t task) result {
 		r := result{height: t.height, id: t.block.BlockSignature}
-		r.trades, r.updates, r.aliases, r.error = im.extractTransactions(t.block.Transactions, t.block.TransactionCount, t.block.GenPublicKey)
+		r.trades, r.changes, r.aliases, r.error = im.extractTransactions(t.block.Transactions, t.block.TransactionCount, t.block.GenPublicKey)
 		return r
 	}
 
@@ -219,10 +223,16 @@ func (im *Importer) collect(channels ...<-chan result) <-chan result {
 	return multiplexedStream
 }
 
-func (im *Importer) extractTransactions(d []byte, n int, miner crypto.PublicKey) ([]Trade, []StateUpdate, []AliasBind, error) {
+func (im *Importer) extractTransactions(d []byte, n int, miner crypto.PublicKey) ([]Trade, []state.IssueChange, []state.AssetChange, []state.AccountChange, []state.AliasBind, error) {
+	wrapErr := func(err error, transaction string) error {
+		return errors.Wrapf(err, "failed to extract %s transaction", transaction)
+	}
+
 	trades := make([]Trade, 0)
-	updates := make([]StateUpdate, 0)
-	binds := make([]AliasBind, 0)
+	accountChanges := make([]state.AccountChange, 0)
+	assetChanges := make([]state.AssetChange, 0)
+	issueChanges := make([]state.IssueChange, 0)
+	binds := make([]state.AliasBind, 0)
 	for i := 0; i < n; i++ {
 		s := int(binary.BigEndian.Uint32(d[0:4]))
 		txb := d[4 : s+4]
@@ -233,144 +243,191 @@ func (im *Importer) extractTransactions(d []byte, n int, miner crypto.PublicKey)
 				var tx proto.IssueV2
 				err := tx.UnmarshalBinary(txb)
 				if err != nil {
-					return nil, nil, nil, errors.Wrap(err, "failed to extract IssueV2 transactions")
+					return nil, nil, nil, nil, nil, wrapErr(err, "IssueV2")
 				}
-				updates = append(updates, StateUpdateFromIssueV2(tx))
+				ic, ac, err := state.FromIssueV2(im.scheme, tx)
+				if err != nil {
+					return nil, nil, nil, nil, nil, wrapErr(err, "IssueV2")
+				}
+				issueChanges = append(issueChanges, ic)
+				accountChanges = append(accountChanges, ac)
 			case byte(proto.TransferTransaction):
 				var tx proto.TransferV2
 				err := tx.UnmarshalBinary(txb)
 				if err != nil {
-					return nil, nil, nil, errors.Wrap(err, "failed to extract TransferV2 transaction")
+					return nil, nil, nil, nil, nil, wrapErr(err, "TransferV2")
 				}
 				if tx.AmountAsset.Present || tx.FeeAsset.Present {
-					updates = append(updates, StateUpdatesFromTransferV2(tx, miner)...)
+					u, err := state.FromTransferV2(im.scheme, tx, miner)
+					if err != nil {
+						return nil, nil, nil, nil, nil, wrapErr(err, "TransferV2")
+					}
+					accountChanges = append(accountChanges, u...)
 				}
 			case byte(proto.ReissueTransaction):
 				var tx proto.ReissueV2
 				err := tx.UnmarshalBinary(txb)
 				if err != nil {
-					return nil, nil, nil, errors.Wrap(err, "failed to extract ReissueV2 transactions")
+					return nil, nil, nil, nil, nil, wrapErr(err, "ReissueV2")
 				}
-				updates = append(updates, StateUpdateFromReissueV2(tx))
+				as, ac, err := state.FromReissueV2(im.scheme, tx)
+				if err != nil {
+					return nil, nil, nil, nil, nil, wrapErr(err, "ReissueV2")
+				}
+				assetChanges = append(assetChanges, as)
+				accountChanges = append(accountChanges, ac)
 			case byte(proto.BurnTransaction):
 				var tx proto.BurnV2
 				err := tx.UnmarshalBinary(txb)
 				if err != nil {
-					return nil, nil, nil, errors.Wrap(err, "failed to extract BurnV2 transactions")
+					return nil, nil, nil, nil, nil, wrapErr(err, "BurnV2")
 				}
-				updates = append(updates, StateUpdateFromBurnV2(tx))
+				as, ac, err := state.FromBurnV2(im.scheme, tx)
+				if err != nil {
+					return nil, nil, nil, nil, nil, wrapErr(err, "BurnV2")
+				}
+				assetChanges = append(assetChanges, as)
+				accountChanges = append(accountChanges, ac)
 			case byte(proto.ExchangeTransaction):
 				var tx proto.ExchangeV2
 				err := tx.UnmarshalBinary(txb)
 				if err != nil {
-					return nil, nil, nil, errors.Wrap(err, "failed to extract ExchangeV2 transactions")
+					return nil, nil, nil, nil, nil, wrapErr(err, "ExchangeV2")
 				}
 				if bytes.Equal(im.matcher[:], tx.SenderPK[:]) {
 					t, err := NewTradeFromExchangeV2(tx)
 					if err != nil {
-						return nil, nil, nil, errors.Wrap(err, "failed to extract ExchangeV2 transaction")
+						return nil, nil, nil, nil, nil, wrapErr(err, "ExchangeV2")
 					}
 					trades = append(trades, t)
 				}
-				updates = append(updates, StateUpdatesFromExchangeV2(tx)...)
+				ac, err := state.FromExchangeV2(im.scheme, tx)
+				if err != nil {
+					return nil, nil, nil, nil, nil, wrapErr(err, "ExchangeV2")
+				}
+				accountChanges = append(accountChanges, ac...)
 			case byte(proto.SponsorshipTransaction):
 				var tx proto.SponsorshipV1
 				err := tx.UnmarshalBinary(txb)
 				if err != nil {
-					return nil, nil, nil, errors.Wrap(err, "failed to extract SponsorshipV1 transaction")
+					return nil, nil, nil, nil, nil, wrapErr(err, "SponsorshipV1")
 				}
-				updates = append(updates, StateUpdateFromSponsorshipV1(tx))
+				assetChanges = append(assetChanges, state.ChangeFromSponsorshipV1(tx))
 			case byte(proto.CreateAliasTransaction):
 				var tx proto.CreateAliasV2
 				err := tx.UnmarshalBinary(txb)
 				if err != nil {
-					return nil, nil, nil, errors.Wrap(err, "failed to extract CreateAliasV2 transaction")
+					return nil, nil, nil, nil, nil, wrapErr(err, "CreateAliasV2")
 				}
-				binds = append(binds, StateUpdateFromCreateAliasV2(tx))
+				binds = append(binds, state.AliasBindFromCreateAliasV2(tx))
 			}
 		case byte(proto.IssueTransaction):
 			var tx proto.IssueV1
 			err := tx.UnmarshalBinary(txb)
 			if err != nil {
-				return nil, nil, nil, errors.Wrap(err, "failed to extract IssueV1 transactions")
+				return nil, nil, nil, nil, nil, wrapErr(err, "IssueV1")
 			}
 			if ok, err := tx.Verify(tx.SenderPK); !ok {
 				if err != nil {
-					return nil, nil, nil, errors.Wrap(err, "failed to verify IssueV1 transaction signature")
+					return nil, nil, nil, nil, nil, wrapErr(err, "IssueV1")
 				}
-				return nil, nil, nil, errors.Errorf("Transaction %s has invalid signature", tx.ID.String())
+				return nil, nil, nil, nil, nil, wrapErr(errors.Errorf("Transaction %s has invalid signature", tx.ID.String()), "IssueV1")
 			}
-			updates = append(updates, StateUpdateFromIssueV1(tx))
+			ic, ac, err := state.FromIssueV1(im.scheme, tx)
+			if err != nil {
+				return nil, nil, nil, nil, nil, wrapErr(err, "IssueV1")
+			}
+			issueChanges = append(issueChanges, ic)
+			accountChanges = append(accountChanges, ac)
 		case byte(proto.TransferTransaction):
 			var tx proto.TransferV1
 			err := tx.UnmarshalBinary(txb)
 			if err != nil {
-				return nil, nil, nil, errors.Wrap(err, "failed to extract TransferV1 transaction")
+				return nil, nil, nil, nil, nil, wrapErr(err, "TransferV1")
 			}
 			if tx.AmountAsset.Present || tx.FeeAsset.Present {
-				updates = append(updates, StateUpdatesFromTransferV1(tx, miner)...)
+				ac, err := state.FromTransferV1(im.scheme, tx, miner)
+				if err != nil {
+					return nil, nil, nil, nil, nil, wrapErr(err, "TransferV1")
+				}
+				accountChanges = append(accountChanges, ac...)
 			}
 		case byte(proto.ReissueTransaction):
 			var tx proto.ReissueV1
 			err := tx.UnmarshalBinary(txb)
 			if err != nil {
-				return nil, nil, nil, errors.Wrap(err, "failed to extract ReissueV1 transactions")
+				return nil, nil, nil, nil, nil, wrapErr(err, "ReissueV1")
 			}
 			if ok, err := tx.Verify(tx.SenderPK); !ok {
 				if err != nil {
-					return nil, nil, nil, errors.Wrap(err, "failed to verify ReissueV1 transaction signature")
+					return nil, nil, nil, nil, nil, wrapErr(err, "ReissueV1")
 				}
-				return nil, nil, nil, errors.Errorf("Transaction %s has invalid signature", tx.ID.String())
+				return nil, nil, nil, nil, nil, wrapErr(errors.Errorf("Transaction %s has invalid signature", tx.ID.String()), "ReissueV1")
 			}
-			updates = append(updates, StateUpdateFromReissueV1(tx))
+			as, ac, err := state.FromReissueV1(im.scheme, tx)
+			if err != nil {
+				return nil, nil, nil, nil, nil, wrapErr(err, "ReissueV1")
+			}
+			assetChanges = append(assetChanges, as)
+			accountChanges = append(accountChanges, ac)
 		case byte(proto.BurnTransaction):
 			var tx proto.BurnV1
 			err := tx.UnmarshalBinary(txb)
 			if err != nil {
-				return nil, nil, nil, errors.Wrap(err, "failed to extract BurnV1 transactions")
+				return nil, nil, nil, nil, nil, wrapErr(err, "BurnV1")
 			}
 			if ok, err := tx.Verify(tx.SenderPK); !ok {
 				if err != nil {
-					return nil, nil, nil, errors.Wrap(err, "failed to verify BurnV1 transaction signature")
+					return nil, nil, nil, nil, nil, wrapErr(err, "BurnV1")
 				}
-				return nil, nil, nil, errors.Errorf("Transaction %s has invalid signature", tx.ID.String())
+				return nil, nil, nil, nil, nil, wrapErr(errors.Errorf("Transaction %s has invalid signature", tx.ID.String()), "BurnV1")
 			}
-			updates = append(updates, StateUpdateFromBurnV1(tx))
+			as, ac, err := state.FromBurnV1(im.scheme, tx)
+			assetChanges = append(assetChanges, as)
+			accountChanges = append(accountChanges, ac)
 		case byte(proto.ExchangeTransaction):
 			var tx proto.ExchangeV1
 			err := tx.UnmarshalBinary(txb)
 			if err != nil {
-				return nil, nil, nil, errors.Wrap(err, "failed to extract ExchangeV1 transactions")
+				return nil, nil, nil, nil, nil, wrapErr(err, "ExchangeV1")
 			}
 			if ok, err := tx.Verify(tx.SenderPK); !ok {
 				if err != nil {
-					return nil, nil, nil, errors.Wrap(err, "failed to verify ExchangeV1 transaction signature")
+					return nil, nil, nil, nil, nil, wrapErr(err, "ExchangeV1")
 				}
-				return nil, nil, nil, errors.Errorf("Transaction %s has invalid signature", tx.ID.String())
+				return nil, nil, nil, nil, nil, wrapErr(errors.Errorf("Transaction %s has invalid signature", tx.ID.String()), "ExchangeV1")
 			}
 			if bytes.Equal(im.matcher[:], tx.SenderPK[:]) {
 				t := NewTradeFromExchangeV1(tx)
 				trades = append(trades, t)
 			}
-			updates = append(updates, StateUpdatesFromExchangeV1(tx)...)
+			ac, err := state.FromExchangeV1(im.scheme, tx)
+			if err != nil {
+				return nil, nil, nil, nil, nil, wrapErr(err, "ExchangeV1")
+			}
+			accountChanges = append(accountChanges, ac...)
 		case byte(proto.MassTransferTransaction):
 			var tx proto.MassTransferV1
 			err := tx.UnmarshalBinary(txb)
 			if err != nil {
-				return nil, nil, nil, errors.Wrap(err, "failed to extract MassTransferV1 transaction")
+				return nil, nil, nil, nil, nil, wrapErr(err, "MassTransferV1")
 			}
 			if tx.Asset.Present {
-				updates = append(updates, StateUpdateFromMassTransferV1(tx))
+				ac, err := state.FromMassTransferV1(im.scheme, tx)
+				if err != nil {
+					return nil, nil, nil, nil, nil, wrapErr(err, "MassTransferV1")
+				}
+				accountChanges = append(accountChanges, ac...)
 			}
 		case byte(proto.CreateAliasTransaction):
 			var tx proto.CreateAliasV1
 			err := tx.UnmarshalBinary(txb)
 			if err != nil {
-				return nil, nil, nil, errors.Wrap(err, "failed to extract CreateAliasV1 transaction")
+				return nil, nil, nil, nil, nil, wrapErr(err, "CreateAliasV1")
 			}
-			binds = append(binds, StateUpdateFromCreateAliasV1(tx))
+			binds = append(binds, state.AliasBindFromCreateAliasV1(tx))
 		}
 		d = d[4+s:]
 	}
-	return trades, updates, binds, nil
+	return trades, issueChanges, assetChanges, accountChanges, binds, nil
 }

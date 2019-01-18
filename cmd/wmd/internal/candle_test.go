@@ -8,20 +8,20 @@ import (
 
 func TestStartOfTheFrame(t *testing.T) {
 	ts := uint64(1542711749 * Second)
-	assert.Equal(t, 1542711600000, int(timestampMSFromTimeFrame(timeFrameFromTimestampMS(ts))))
+	assert.Equal(t, 1542711600000, int(TimestampMSFromTimeFrame(TimeFrameFromTimestampMS(ts))))
 }
 
 func TestScaleTimeFrame(t *testing.T) {
 	ts := uint64(1545138821 * Second)
-	tf := timeFrameFromTimestampMS(ts)
+	tf := TimeFrameFromTimestampMS(ts)
 	assert.Equal(t, 5150462, int(tf))
-	assert.Equal(t, 5150460, int(scaleTimeFrame(tf, 3)))
-	assert.Equal(t, 5150460, int(scaleTimeFrame(tf, 6)))
+	assert.Equal(t, 5150460, int(ScaleTimeFrame(tf, 3)))
+	assert.Equal(t, 5150460, int(ScaleTimeFrame(tf, 6)))
 	ts = 1545139620 * Second
-	tf = timeFrameFromTimestampMS(ts)
+	tf = TimeFrameFromTimestampMS(ts)
 	assert.Equal(t, 5150465, int(tf))
-	assert.Equal(t, 5150463, int(scaleTimeFrame(tf, 3)))
-	assert.Equal(t, 5150460, int(scaleTimeFrame(tf, 6)))
+	assert.Equal(t, 5150463, int(ScaleTimeFrame(tf, 3)))
+	assert.Equal(t, 5150460, int(ScaleTimeFrame(tf, 6)))
 }
 
 func TestCandle_UpdateFromTrade(t *testing.T) {
