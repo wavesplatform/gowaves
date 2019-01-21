@@ -2,11 +2,8 @@ package state
 
 import (
 	"github.com/mr-tron/base58/base58"
-	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
-
-var ErrNotFound = errors.New("Not found")
 
 type Account interface {
 	Data() []proto.DataEntry

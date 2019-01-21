@@ -90,6 +90,12 @@ const (
 	setAssetScriptV1MinLen       = 1 + setScriptV1FixedBodyLen + proofsMinLen
 )
 
+type TransactionExtended interface {
+	Transaction
+	MarshalBinary() ([]byte, error)
+	UnmarshalBinary([]byte) error
+}
+
 type Transaction interface {
 	Transaction()
 	GetID() []byte
