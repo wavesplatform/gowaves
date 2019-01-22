@@ -138,16 +138,38 @@ func (s *BlockManager) GetBlock(blockID crypto.Signature) (*proto.Block, error) 
 	return &block, nil
 }
 
-func (s *BlockManager) checkTransaction(block *proto.Block, tx proto.Transaction) error {
+func (s *BlockManager) checkTransaction(block *proto.Block, tx proto.Transaction, initialisation bool) error {
 	switch v := tx.(type) {
 	case proto.Genesis:
 		if block.BlockSignature == s.genesis {
+			if !initialisation {
+				return errors.New("Trying to add genesis transaction in new block")
+			}
 			// TODO: what to check here?
 			return nil
 		} else {
 			return errors.New("Tried to add genesis transaction inside of non-genesis block")
 		}
 	case proto.Payment:
+		if !initialisation {
+			return errors.New("Trying to add payment transaction in new block")
+		}
+		// Verify the signature first.
+		ok, err := v.Verify(v.SenderPK)
+		if err != nil {
+			return errors.Wrap(err, "Failed to verify transaction signature")
+		}
+		if !ok {
+			return errors.New("Invalid transaction signature")
+		}
+		// Check amount and fee lower bound.
+		if v.Amount < 0 {
+			return errors.New("Negative amount in transaction")
+		}
+		if v.Fee < 0 {
+			return errors.New("Negative fee in transaction")
+		}
+		// Verify the amount spent (amount and fee upper bound).
 		totalAmount := v.Fee + v.Amount
 		senderAddr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, v.SenderPK)
 		if err != nil {
@@ -167,6 +189,21 @@ func (s *BlockManager) checkTransaction(block *proto.Block, tx proto.Transaction
 		}
 		return nil
 	case proto.TransferV1:
+		ok, err := v.Verify(v.SenderPK)
+		if err != nil {
+			return errors.Wrap(err, "Failed to verify transaction signature")
+		}
+		if !ok {
+			return errors.New("Invalid transaction signature")
+		}
+		// Check amount and fee lower bound.
+		if v.Amount < 0 {
+			return errors.New("Negative amount in transaction")
+		}
+		if v.Fee < 0 {
+			return errors.New("Negative fee in transaction")
+		}
+		// Verify the amount spent (amount and fee upper bound).
 		senderAddr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, v.SenderPK)
 		if err != nil {
 			return errors.Wrap(err, "Could not get address from public key")
@@ -185,6 +222,21 @@ func (s *BlockManager) checkTransaction(block *proto.Block, tx proto.Transaction
 		}
 		return nil
 	case proto.TransferV2:
+		ok, err := v.Verify(v.SenderPK)
+		if err != nil {
+			return errors.Wrap(err, "Failed to verify transaction signature")
+		}
+		if !ok {
+			return errors.New("Invalid transaction signature")
+		}
+		// Check amount and fee lower bound.
+		if v.Amount < 0 {
+			return errors.New("Negative amount in transaction")
+		}
+		if v.Fee < 0 {
+			return errors.New("Negative fee in transaction")
+		}
+		// Verify the amount spent (amount and fee upper bound).
 		senderAddr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, v.SenderPK)
 		if err != nil {
 			return errors.Wrap(err, "Could not get address from public key")
@@ -329,7 +381,7 @@ func (s *BlockManager) performTransaction(block *proto.Block, tx proto.Transacti
 	}
 }
 
-func (s *BlockManager) AddNewBlock(block *proto.Block) error {
+func (s *BlockManager) AddNewBlock(block *proto.Block, initialisation bool) error {
 	// Save block header to storage.
 	headerBytes, err := block.MarshalHeaderToBinary()
 	if err != nil {
@@ -346,7 +398,7 @@ func (s *BlockManager) AddNewBlock(block *proto.Block) error {
 		if err != nil {
 			return err
 		}
-		if err = s.checkTransaction(block, tx); err != nil {
+		if err = s.checkTransaction(block, tx, initialisation); err != nil {
 			return errors.Wrap(err, "Incorrect transaction inside of the block")
 		}
 		if err = s.performTransaction(block, tx); err != nil {
@@ -354,11 +406,6 @@ func (s *BlockManager) AddNewBlock(block *proto.Block) error {
 		}
 	}
 	return nil
-}
-
-func (s *BlockManager) InitAddNewBlock(block *proto.Block) error {
-	// TODO: think what's the difference with normal AddNewBlock().
-	return s.AddNewBlock(block)
 }
 
 func (s *BlockManager) RollbackTo(removalEdge crypto.Signature) error {
