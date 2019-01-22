@@ -35,26 +35,14 @@ type BlockReadWriter interface {
 	RemoveBlocks(removalEdge crypto.Signature) error
 }
 
-type AccountsState interface {
-	Account(proto.Recipient) (AccountManipulator, error)
-	SetAccount(AccountManipulator) error
-	RollbackTo(crypto.Signature) error
-}
-
-type AccountManipulator interface {
-	SetAssetBalance(*proto.OptionalAsset, uint64)
-	AssetBalance(*proto.OptionalAsset) uint64
-	Address() proto.Address
-}
-
 type BlockManager struct {
 	genesis       crypto.Signature
-	accountsState AccountsState
+	accountsState proto.AccountsState
 	rw            BlockReadWriter
 	cancel        context.CancelFunc
 }
 
-func NewBlockManager(genesis crypto.Signature, state AccountsState, rw BlockReadWriter) (*BlockManager, error) {
+func NewBlockManager(genesis crypto.Signature, state proto.AccountsState, rw BlockReadWriter) (*BlockManager, error) {
 	stor := &BlockManager{genesis: genesis, accountsState: state, rw: rw}
 	return stor, nil
 }
@@ -75,127 +63,6 @@ func (s *BlockManager) GetBlock(blockID crypto.Signature) (*proto.Block, error) 
 	block.Transactions = make([]byte, block.TransactionBlockLength)
 	copy(block.Transactions, transactions)
 	return &block, nil
-}
-
-func (s *BlockManager) checkTransaction(block *proto.Block, tx proto.Transaction, initialisation bool) error {
-	switch v := tx.(type) {
-	case proto.Genesis:
-		if block.BlockSignature == s.genesis {
-			if !initialisation {
-				return errors.New("Trying to add genesis transaction in new block")
-			}
-			// TODO: what to check here?
-			return nil
-		} else {
-			return errors.New("Tried to add genesis transaction inside of non-genesis block")
-		}
-	case proto.Payment:
-		if !initialisation {
-			return errors.New("Trying to add payment transaction in new block")
-		}
-		// Verify the signature first.
-		ok, err := v.Verify(v.SenderPK)
-		if err != nil {
-			return errors.Wrap(err, "Failed to verify transaction signature")
-		}
-		if !ok {
-			return errors.New("Invalid transaction signature")
-		}
-		// Check amount and fee lower bound.
-		if v.Amount < 0 {
-			return errors.New("Negative amount in transaction")
-		}
-		if v.Fee < 0 {
-			return errors.New("Negative fee in transaction")
-		}
-		// Verify the amount spent (amount and fee upper bound).
-		totalAmount := v.Fee + v.Amount
-		senderAddr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, v.SenderPK)
-		if err != nil {
-			return errors.Wrap(err, "Could not get address from public key")
-		}
-		sender, err := s.accountsState.Account(proto.NewRecipientFromAddress(senderAddr))
-		if err != nil {
-			return err
-		}
-		wavesAsset, err := proto.NewOptionalAssetFromString(proto.WavesAssetName)
-		if err != nil {
-			return err
-		}
-		balance := sender.AssetBalance(wavesAsset)
-		if balance < totalAmount {
-			return errors.New("Transaction verification failed: spending more than current balance.")
-		}
-		return nil
-	case proto.TransferV1:
-		ok, err := v.Verify(v.SenderPK)
-		if err != nil {
-			return errors.Wrap(err, "Failed to verify transaction signature")
-		}
-		if !ok {
-			return errors.New("Invalid transaction signature")
-		}
-		// Check amount and fee lower bound.
-		if v.Amount < 0 {
-			return errors.New("Negative amount in transaction")
-		}
-		if v.Fee < 0 {
-			return errors.New("Negative fee in transaction")
-		}
-		// Verify the amount spent (amount and fee upper bound).
-		senderAddr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, v.SenderPK)
-		if err != nil {
-			return errors.Wrap(err, "Could not get address from public key")
-		}
-		sender, err := s.accountsState.Account(proto.NewRecipientFromAddress(senderAddr))
-		if err != nil {
-			return err
-		}
-		feeBalance := sender.AssetBalance(&v.FeeAsset)
-		amountBalance := sender.AssetBalance(&v.AmountAsset)
-		if amountBalance < v.Amount {
-			return errors.New("Invalid transaction: not enough to pay the amount provided")
-		}
-		if feeBalance < v.Fee {
-			return errors.New("Invalid transaction: not eough to pay the fee provided")
-		}
-		return nil
-	case proto.TransferV2:
-		ok, err := v.Verify(v.SenderPK)
-		if err != nil {
-			return errors.Wrap(err, "Failed to verify transaction signature")
-		}
-		if !ok {
-			return errors.New("Invalid transaction signature")
-		}
-		// Check amount and fee lower bound.
-		if v.Amount < 0 {
-			return errors.New("Negative amount in transaction")
-		}
-		if v.Fee < 0 {
-			return errors.New("Negative fee in transaction")
-		}
-		// Verify the amount spent (amount and fee upper bound).
-		senderAddr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, v.SenderPK)
-		if err != nil {
-			return errors.Wrap(err, "Could not get address from public key")
-		}
-		sender, err := s.accountsState.Account(proto.NewRecipientFromAddress(senderAddr))
-		if err != nil {
-			return err
-		}
-		feeBalance := sender.AssetBalance(&v.FeeAsset)
-		amountBalance := sender.AssetBalance(&v.AmountAsset)
-		if amountBalance < v.Amount {
-			return errors.New("Invalid transaction: not enough to pay the amount provided")
-		}
-		if feeBalance < v.Fee {
-			return errors.New("Invalid transaction: not eough to pay the fee provided")
-		}
-		return nil
-	default:
-		return errors.Errorf("Transaction type %T is not supported\n", v)
-	}
 }
 
 func (s *BlockManager) performTransaction(block *proto.Block, tx proto.Transaction) error {
@@ -337,7 +204,11 @@ func (s *BlockManager) AddNewBlock(block *proto.Block, initialisation bool) erro
 		if err != nil {
 			return err
 		}
-		if err = s.checkTransaction(block, tx, initialisation); err != nil {
+		tv, err := proto.NewTransactionValidator(s.genesis, s.accountsState)
+		if err != nil {
+			return err
+		}
+		if err = tv.ValidateTransaction(block, tx, initialisation); err != nil {
 			return errors.Wrap(err, "Incorrect transaction inside of the block")
 		}
 		if err = s.performTransaction(block, tx); err != nil {
