@@ -2,6 +2,8 @@ package proto
 
 import (
 	"encoding/binary"
+	"reflect"
+
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 )
@@ -90,6 +92,36 @@ const (
 	setAssetScriptV1MinLen       = 1 + setScriptV1FixedBodyLen + proofsMinLen
 )
 
+var (
+	bytesToTransactionsV2 = map[TransactionType]reflect.Type{
+		IssueTransaction:          reflect.TypeOf(IssueV2{}),
+		TransferTransaction:       reflect.TypeOf(TransferV2{}),
+		ReissueTransaction:        reflect.TypeOf(ReissueV2{}),
+		BurnTransaction:           reflect.TypeOf(BurnV2{}),
+		ExchangeTransaction:       reflect.TypeOf(ExchangeV2{}),
+		LeaseTransaction:          reflect.TypeOf(LeaseV2{}),
+		LeaseCancelTransaction:    reflect.TypeOf(LeaseCancelV2{}),
+		CreateAliasTransaction:    reflect.TypeOf(CreateAliasV2{}),
+		SetScriptTransaction:      reflect.TypeOf(SetScriptV1{}),
+		SponsorshipTransaction:    reflect.TypeOf(SponsorshipV1{}),
+		SetAssetScriptTransaction: reflect.TypeOf(SetAssetScriptV1{}),
+	}
+
+	bytesToTransactionsV1 = map[TransactionType]reflect.Type{
+		GenesisTransaction:      reflect.TypeOf(Genesis{}),
+		PaymentTransaction:      reflect.TypeOf(Payment{}),
+		IssueTransaction:        reflect.TypeOf(IssueV1{}),
+		TransferTransaction:     reflect.TypeOf(TransferV1{}),
+		ReissueTransaction:      reflect.TypeOf(ReissueV1{}),
+		BurnTransaction:         reflect.TypeOf(BurnV1{}),
+		ExchangeTransaction:     reflect.TypeOf(ExchangeV1{}),
+		LeaseTransaction:        reflect.TypeOf(LeaseV1{}),
+		LeaseCancelTransaction:  reflect.TypeOf(LeaseCancelV1{}),
+		CreateAliasTransaction:  reflect.TypeOf(CreateAliasV1{}),
+		MassTransferTransaction: reflect.TypeOf(MassTransferV1{}),
+	}
+)
+
 type TransactionExtended interface {
 	Transaction
 	MarshalBinary() ([]byte, error)
@@ -99,6 +131,39 @@ type TransactionExtended interface {
 type Transaction interface {
 	Transaction()
 	GetID() []byte
+}
+
+func BytesToTransaction(tx []byte) (Transaction, error) {
+	if len(tx) < 2 {
+		return nil, errors.New("Invalid size of transation's bytes slice")
+	}
+	if tx[0] == 0 {
+		transactionType, ok := bytesToTransactionsV2[TransactionType(tx[1])]
+		if !ok {
+			return nil, errors.New("Invalid transaction type")
+		}
+		transaction, ok := reflect.New(transactionType).Interface().(TransactionExtended)
+		if !ok {
+			panic("This transaction type does not implement marshal/unmarshal functions")
+		}
+		if err := transaction.UnmarshalBinary(tx); err != nil {
+			return nil, errors.Wrap(err, "Failed to unmarshal transaction")
+		}
+		return Transaction(transaction), nil
+	} else {
+		transactionType, ok := bytesToTransactionsV1[TransactionType(tx[0])]
+		if !ok {
+			return nil, errors.New("Invalid transaction type")
+		}
+		transaction, ok := reflect.New(transactionType).Interface().(TransactionExtended)
+		if !ok {
+			panic("This transaction type does not implement marshal/unmarshal functions")
+		}
+		if err := transaction.UnmarshalBinary(tx); err != nil {
+			return nil, errors.Wrap(err, "Failed to unmarshal transaction")
+		}
+		return Transaction(transaction), nil
+	}
 }
 
 //Genesis is a transaction used to initial balances distribution. This transactions allowed only in the first block.

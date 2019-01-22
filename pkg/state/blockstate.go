@@ -3,39 +3,11 @@ package state
 import (
 	"context"
 	"encoding/binary"
-	"reflect"
 
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
-
-var bytesToTransactionsV2 = map[proto.TransactionType]reflect.Type{
-	proto.IssueTransaction:          reflect.TypeOf(proto.IssueV2{}),
-	proto.TransferTransaction:       reflect.TypeOf(proto.TransferV2{}),
-	proto.ReissueTransaction:        reflect.TypeOf(proto.ReissueV2{}),
-	proto.BurnTransaction:           reflect.TypeOf(proto.BurnV2{}),
-	proto.ExchangeTransaction:       reflect.TypeOf(proto.ExchangeV2{}),
-	proto.LeaseTransaction:          reflect.TypeOf(proto.LeaseV2{}),
-	proto.LeaseCancelTransaction:    reflect.TypeOf(proto.LeaseCancelV2{}),
-	proto.CreateAliasTransaction:    reflect.TypeOf(proto.CreateAliasV2{}),
-	proto.SetScriptTransaction:      reflect.TypeOf(proto.SetScriptV1{}),
-	proto.SponsorshipTransaction:    reflect.TypeOf(proto.SponsorshipV1{}),
-	proto.SetAssetScriptTransaction: reflect.TypeOf(proto.SetAssetScriptV1{}),
-}
-var bytesToTransactionsV1 = map[proto.TransactionType]reflect.Type{
-	proto.GenesisTransaction:      reflect.TypeOf(proto.Genesis{}),
-	proto.PaymentTransaction:      reflect.TypeOf(proto.Payment{}),
-	proto.IssueTransaction:        reflect.TypeOf(proto.IssueV1{}),
-	proto.TransferTransaction:     reflect.TypeOf(proto.TransferV1{}),
-	proto.ReissueTransaction:      reflect.TypeOf(proto.ReissueV1{}),
-	proto.BurnTransaction:         reflect.TypeOf(proto.BurnV1{}),
-	proto.ExchangeTransaction:     reflect.TypeOf(proto.ExchangeV1{}),
-	proto.LeaseTransaction:        reflect.TypeOf(proto.LeaseV1{}),
-	proto.LeaseCancelTransaction:  reflect.TypeOf(proto.LeaseCancelV1{}),
-	proto.CreateAliasTransaction:  reflect.TypeOf(proto.CreateAliasV1{}),
-	proto.MassTransferTransaction: reflect.TypeOf(proto.MassTransferV1{}),
-}
 
 var ErrNotFound = errors.New("Not found")
 
@@ -80,39 +52,6 @@ type BlockManager struct {
 	accountsState AccountsState
 	rw            BlockReadWriter
 	cancel        context.CancelFunc
-}
-
-func BytesToTransaction(tx []byte) (proto.Transaction, error) {
-	if len(tx) < 2 {
-		return nil, errors.New("Invalid size of transation's bytes slice")
-	}
-	if tx[0] == 0 {
-		transactionType, ok := bytesToTransactionsV2[proto.TransactionType(tx[1])]
-		if !ok {
-			return nil, errors.New("Invalid transaction type")
-		}
-		transaction, ok := reflect.New(transactionType).Interface().(proto.TransactionExtended)
-		if !ok {
-			panic("This transaction type does not implement marshal/unmarshal functions")
-		}
-		if err := transaction.UnmarshalBinary(tx); err != nil {
-			return nil, errors.Wrap(err, "Failed to unmarshal transaction")
-		}
-		return proto.Transaction(transaction), nil
-	} else {
-		transactionType, ok := bytesToTransactionsV1[proto.TransactionType(tx[0])]
-		if !ok {
-			return nil, errors.New("Invalid transaction type")
-		}
-		transaction, ok := reflect.New(transactionType).Interface().(proto.TransactionExtended)
-		if !ok {
-			panic("This transaction type does not implement marshal/unmarshal functions")
-		}
-		if err := transaction.UnmarshalBinary(tx); err != nil {
-			return nil, errors.Wrap(err, "Failed to unmarshal transaction")
-		}
-		return proto.Transaction(transaction), nil
-	}
 }
 
 func NewBlockManager(genesis crypto.Signature, state AccountsState, rw BlockReadWriter) (*BlockManager, error) {
@@ -392,7 +331,7 @@ func (s *BlockManager) AddNewBlock(block *proto.Block, initialisation bool) erro
 	for i := 0; i < block.TransactionCount; i++ {
 		n := int(binary.BigEndian.Uint32(transactions[0:4]))
 		txBytes := transactions[4 : n+4]
-		tx, err := BytesToTransaction(txBytes)
+		tx, err := proto.BytesToTransaction(txBytes)
 		// Save transaction to storage.
 		s.rw.WriteTransaction(tx.GetID(), txBytes)
 		if err != nil {
