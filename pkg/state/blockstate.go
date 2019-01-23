@@ -27,6 +27,7 @@ type BlockManagerTask struct {
 }
 
 type BlockReadWriter interface {
+	NewBlock(blockID crypto.Signature) error
 	WriteTransaction(txID []byte, tx []byte) error
 	WriteBlockHeader(blockID crypto.Signature, header []byte) error
 	ReadTransaction(txID []byte) ([]byte, error)
@@ -201,7 +202,12 @@ func (s *BlockManager) AddNewBlock(block *proto.Block, initialisation bool) erro
 	if err != nil {
 		return err
 	}
-	s.rw.WriteBlockHeader(block.BlockSignature, headerBytes)
+	if err := s.rw.WriteBlockHeader(block.BlockSignature, headerBytes); err != nil {
+		return err
+	}
+	if err := s.rw.NewBlock(block.BlockSignature); err != nil {
+		return err
+	}
 	transactions := block.Transactions
 	for i := 0; i < block.TransactionCount; i++ {
 		n := int(binary.BigEndian.Uint32(transactions[0:4]))
