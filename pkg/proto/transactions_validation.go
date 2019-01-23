@@ -6,7 +6,7 @@ import (
 )
 
 type AccountsState interface {
-	Account(Recipient) (AccountManipulator, error)
+	Account(Address) (AccountManipulator, error)
 	SetAccount(AccountManipulator) error
 	RollbackTo(crypto.Signature) error
 }
@@ -63,7 +63,7 @@ func (tv *TransactionValidator) ValidateTransaction(block *Block, tx Transaction
 		if err != nil {
 			return errors.Wrap(err, "Could not get address from public key")
 		}
-		sender, err := tv.state.Account(NewRecipientFromAddress(senderAddr))
+		sender, err := tv.state.Account(senderAddr)
 		if err != nil {
 			return err
 		}
@@ -96,7 +96,7 @@ func (tv *TransactionValidator) ValidateTransaction(block *Block, tx Transaction
 		if err != nil {
 			return errors.Wrap(err, "Could not get address from public key")
 		}
-		sender, err := tv.state.Account(NewRecipientFromAddress(senderAddr))
+		sender, err := tv.state.Account(senderAddr)
 		if err != nil {
 			return err
 		}
@@ -129,7 +129,7 @@ func (tv *TransactionValidator) ValidateTransaction(block *Block, tx Transaction
 		if err != nil {
 			return errors.Wrap(err, "Could not get address from public key")
 		}
-		sender, err := tv.state.Account(NewRecipientFromAddress(senderAddr))
+		sender, err := tv.state.Account(senderAddr)
 		if err != nil {
 			return err
 		}

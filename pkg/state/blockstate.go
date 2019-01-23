@@ -27,9 +27,9 @@ type BlockManagerTask struct {
 }
 
 type BlockReadWriter interface {
-	WriteTransaction(transactionID []byte, tx []byte) error
+	WriteTransaction(txID []byte, tx []byte) error
 	WriteBlockHeader(blockID crypto.Signature, header []byte) error
-	ReadTransaction(transactionID crypto.Signature) ([]byte, error)
+	ReadTransaction(txID []byte) ([]byte, error)
 	ReadBlockHeader(blockID crypto.Signature) ([]byte, error)
 	ReadTransactionsBlock(blockID crypto.Signature) ([]byte, error)
 	RemoveBlocks(removalEdge crypto.Signature) error
@@ -72,7 +72,7 @@ func (s *BlockManager) performTransaction(block *proto.Block, tx proto.Transacti
 	}
 	switch v := tx.(type) {
 	case proto.Genesis:
-		receiver, err := s.accountsState.Account(proto.NewRecipientFromAddress(v.Recipient))
+		receiver, err := s.accountsState.Account(v.Recipient)
 		if err != nil {
 			return err
 		}
@@ -84,11 +84,11 @@ func (s *BlockManager) performTransaction(block *proto.Block, tx proto.Transacti
 		if err != nil {
 			return err
 		}
-		sender, err := s.accountsState.Account(proto.NewRecipientFromAddress(senderAddr))
+		sender, err := s.accountsState.Account(senderAddr)
 		if err != nil {
 			return err
 		}
-		receiver, err := s.accountsState.Account(proto.NewRecipientFromAddress(v.Recipient))
+		receiver, err := s.accountsState.Account(v.Recipient)
 		if err != nil {
 			return err
 		}
@@ -96,7 +96,7 @@ func (s *BlockManager) performTransaction(block *proto.Block, tx proto.Transacti
 		if err != nil {
 			return err
 		}
-		miner, err := s.accountsState.Account(proto.NewRecipientFromAddress(minerAddr))
+		miner, err := s.accountsState.Account(minerAddr)
 		if err != nil {
 			return err
 		}
@@ -115,11 +115,15 @@ func (s *BlockManager) performTransaction(block *proto.Block, tx proto.Transacti
 		if err != nil {
 			return err
 		}
-		sender, err := s.accountsState.Account(proto.NewRecipientFromAddress(senderAddr))
+		sender, err := s.accountsState.Account(senderAddr)
 		if err != nil {
 			return err
 		}
-		receiver, err := s.accountsState.Account(v.Recipient)
+		if v.Recipient.Address == nil {
+			// TODO implement
+			return errors.New("Alias without address is not supported yet")
+		}
+		receiver, err := s.accountsState.Account(*v.Recipient.Address)
 		if err != nil {
 			return err
 		}
@@ -127,7 +131,7 @@ func (s *BlockManager) performTransaction(block *proto.Block, tx proto.Transacti
 		if err != nil {
 			return err
 		}
-		miner, err := s.accountsState.Account(proto.NewRecipientFromAddress(minerAddr))
+		miner, err := s.accountsState.Account(minerAddr)
 		if err != nil {
 			return err
 		}
@@ -151,11 +155,15 @@ func (s *BlockManager) performTransaction(block *proto.Block, tx proto.Transacti
 		if err != nil {
 			return err
 		}
-		sender, err := s.accountsState.Account(proto.NewRecipientFromAddress(senderAddr))
+		sender, err := s.accountsState.Account(senderAddr)
 		if err != nil {
 			return err
 		}
-		receiver, err := s.accountsState.Account(v.Recipient)
+		if v.Recipient.Address == nil {
+			// TODO implement
+			return errors.New("Alias without address is not supported yet")
+		}
+		receiver, err := s.accountsState.Account(*v.Recipient.Address)
 		if err != nil {
 			return err
 		}
@@ -163,7 +171,7 @@ func (s *BlockManager) performTransaction(block *proto.Block, tx proto.Transacti
 		if err != nil {
 			return err
 		}
-		miner, err := s.accountsState.Account(proto.NewRecipientFromAddress(minerAddr))
+		miner, err := s.accountsState.Account(minerAddr)
 		if err != nil {
 			return err
 		}
