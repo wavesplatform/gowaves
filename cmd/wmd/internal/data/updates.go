@@ -1,4 +1,4 @@
-package state
+package data
 
 import (
 	"github.com/pkg/errors"
@@ -43,15 +43,6 @@ type AccountChange struct {
 	Asset   crypto.Digest
 	In      uint64
 	Out     uint64
-}
-
-func (u *AccountChange) Combine(other AccountChange) error {
-	if u.Account != other.Account {
-		return errors.New("failed to combine AccountChange with incompatible accounts")
-	}
-	u.In = u.In + other.In
-	u.Out = u.Out + other.Out
-	return nil
 }
 
 type IssueChange struct {
@@ -290,23 +281,23 @@ func FromMassTransferV1(scheme byte, tx proto.MassTransferV1) ([]AccountChange, 
 	return nil, nil
 }
 
-func ChangeFromSponsorshipV1(tx proto.SponsorshipV1) AssetChange {
+func FromSponsorshipV1(tx proto.SponsorshipV1) AssetChange {
 	return AssetChange{AssetID: tx.AssetID, SetSponsored: true, Sponsored: tx.MinAssetFee > 0}
 }
 
-func AliasBindFromCreateAliasV1(tx proto.CreateAliasV1) AliasBind {
+func FromCreateAliasV1(tx proto.CreateAliasV1) AliasBind {
 	ad, _ := proto.NewAddressFromPublicKey(tx.Alias.Scheme, tx.SenderPK)
 	return AliasBind{Alias: tx.Alias, Address: ad}
 }
 
-func AliasBindFromCreateAliasV2(tx proto.CreateAliasV2) AliasBind {
+func FromCreateAliasV2(tx proto.CreateAliasV2) AliasBind {
 	ad, _ := proto.NewAddressFromPublicKey(tx.Alias.Scheme, tx.SenderPK)
 	return AliasBind{Alias: tx.Alias, Address: ad}
 }
 
-var (
-	pc = big.NewInt(PriceConstant)
-)
+const PriceConstant = 100000000
+
+var pc = big.NewInt(PriceConstant)
 
 func adjustAmount(amount, price uint64) uint64 {
 	var a big.Int

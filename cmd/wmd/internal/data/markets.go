@@ -1,4 +1,4 @@
-package internal
+package data
 
 import (
 	"encoding/binary"
@@ -7,26 +7,21 @@ import (
 	"time"
 )
 
-const (
-	MarketIDSize   = 2 * crypto.DigestSize
-	MarketDataSize = 8 + 8 + 4
-)
-
 type MarketID struct {
 	AmountAsset crypto.Digest
 	PriceAsset  crypto.Digest
 }
 
 func (id *MarketID) MarshalBinary() ([]byte, error) {
-	buf := make([]byte, MarketIDSize)
+	buf := make([]byte, 2*crypto.DigestSize)
 	copy(buf, id.AmountAsset[:])
 	copy(buf[crypto.DigestSize:], id.PriceAsset[:])
 	return buf, nil
 }
 
 func (id *MarketID) UnmarshalBinary(data []byte) error {
-	if l := len(data); l < MarketIDSize {
-		return errors.Errorf("%d is not enough bytes for MarketID, expected %d", l, MarketIDSize)
+	if l := len(data); l < 2*crypto.DigestSize {
+		return errors.Errorf("%d is not enough bytes for MarketID", l)
 	}
 	copy(id.AmountAsset[:], data[:crypto.DigestSize])
 	data = data[crypto.DigestSize:]
@@ -34,33 +29,13 @@ func (id *MarketID) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
-type MarketData struct {
+type Market struct {
 	FirstTradeTimestamp uint64
 	LastTradeTimestamp  uint64
 	TotalTradesCount    int
 }
 
-func (md *MarketData) MarshalBinary() ([]byte, error) {
-	buf := make([]byte, MarketDataSize)
-	binary.BigEndian.PutUint64(buf, md.FirstTradeTimestamp)
-	binary.BigEndian.PutUint64(buf[8:], md.LastTradeTimestamp)
-	binary.BigEndian.PutUint32(buf[8+8:], uint32(md.TotalTradesCount))
-	return buf, nil
-}
-
-func (md *MarketData) UnmarshalBinary(data []byte) error {
-	if l := len(data); l < MarketDataSize {
-		return errors.Errorf("%d is not enough bytes for MarketData, expected %d", l, MarketDataSize)
-	}
-	md.FirstTradeTimestamp = binary.BigEndian.Uint64(data)
-	data = data[8:]
-	md.LastTradeTimestamp = binary.BigEndian.Uint64(data)
-	data = data[8:]
-	md.TotalTradesCount = int(binary.BigEndian.Uint32(data))
-	return nil
-}
-
-func (md *MarketData) UpdateFromTrade(t Trade) {
+func (md *Market) UpdateFromTrade(t Trade) {
 	if md.FirstTradeTimestamp == 0 || md.FirstTradeTimestamp > t.Timestamp {
 		md.FirstTradeTimestamp = t.Timestamp
 	}
@@ -70,6 +45,26 @@ func (md *MarketData) UpdateFromTrade(t Trade) {
 	md.TotalTradesCount++
 }
 
+func (md *Market) MarshalBinary() ([]byte, error) {
+	buf := make([]byte, 8+8+4)
+	binary.BigEndian.PutUint64(buf, md.FirstTradeTimestamp)
+	binary.BigEndian.PutUint64(buf[8:], md.LastTradeTimestamp)
+	binary.BigEndian.PutUint32(buf[8+8:], uint32(md.TotalTradesCount))
+	return buf, nil
+}
+
+func (md *Market) UnmarshalBinary(data []byte) error {
+	if l := len(data); l < 8+8+4 {
+		return errors.Errorf("%d is not enough bytes for Market", l)
+	}
+	md.FirstTradeTimestamp = binary.BigEndian.Uint64(data)
+	data = data[8:]
+	md.LastTradeTimestamp = binary.BigEndian.Uint64(data)
+	data = data[8:]
+	md.TotalTradesCount = int(binary.BigEndian.Uint32(data))
+	return nil
+}
+
 type MarketInfo struct {
 	TickerInfo
 	TotalTrades   int    `json:"totalTrades"`
@@ -77,7 +72,7 @@ type MarketInfo struct {
 	LastTradeDay  uint64 `json:"lastTradeDay"`
 }
 
-func NewMarketInfo(ticker TickerInfo, md MarketData) MarketInfo {
+func NewMarketInfo(ticker TickerInfo, md Market) MarketInfo {
 	return MarketInfo{
 		TickerInfo:    ticker,
 		TotalTrades:   md.TotalTradesCount,
@@ -121,5 +116,3 @@ func (a ByMarkets) Less(i, j int) bool {
 		return false
 	}
 }
-
-

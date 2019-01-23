@@ -3,16 +3,13 @@ package state
 import (
 	"github.com/stretchr/testify/assert"
 	"github.com/syndtr/goleveldb/leveldb"
+	"github.com/wavesplatform/gowaves/cmd/wmd/internal/data"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"testing"
 )
 
-const (
-	scheme byte = 'T'
-)
-
 func TestAliasState(t *testing.T) {
-	db, closeDB := openDB(t, "alias-state-db")
+	db, closeDB := openDB(t, "wmd-alias-state-db")
 	defer closeDB()
 
 	alias1, err := proto.NewAlias(scheme, "alias1")
@@ -27,9 +24,9 @@ func TestAliasState(t *testing.T) {
 	assert.NoError(t, err)
 	addr3, err := proto.NewAddressFromString("3N5GRqzDBhjVXnCn44baHcz2GoZy5qLxtTh")
 	assert.NoError(t, err)
-	u1 := []AliasBind{{Alias: *alias1, Address: addr1}}
-	u2 := []AliasBind{{Alias: *alias2, Address: addr2}}
-	u3 := []AliasBind{{Alias: *alias3, Address: addr3}}
+	u1 := []data.AliasBind{{Alias: *alias1, Address: addr1}}
+	u2 := []data.AliasBind{{Alias: *alias2, Address: addr2}}
+	u3 := []data.AliasBind{{Alias: *alias3, Address: addr3}}
 
 	snapshot, err := db.GetSnapshot()
 	assert.NoError(t, err)

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
+	"github.com/wavesplatform/gowaves/cmd/wmd/internal/data"
 	"github.com/wavesplatform/gowaves/cmd/wmd/internal/state"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -54,17 +55,16 @@ func Logger(l *zap.Logger) func(next http.Handler) http.Handler {
 type DataFeedAPI struct {
 	log     *zap.SugaredLogger
 	Storage *state.Storage
-	Symbols *Symbols
+	Symbols *data.Symbols
 	Scheme  byte
 }
 
 type status struct {
 	CurrentHeight int              `json:"current_height"`
 	LastBlockID   crypto.Signature `json:"last_block_id"`
-	LastTradeID   crypto.Digest    `json:"last_trade_id"`
 }
 
-func NewDataFeedAPI(log *zap.SugaredLogger, storage *state.Storage, symbols *Symbols) *DataFeedAPI {
+func NewDataFeedAPI(log *zap.SugaredLogger, storage *state.Storage, symbols *data.Symbols) *DataFeedAPI {
 	return &DataFeedAPI{log: log, Storage: storage, Symbols: symbols}
 }
 
@@ -84,22 +84,17 @@ func (a *DataFeedAPI) Routes() chi.Router {
 }
 
 func (a *DataFeedAPI) Status(w http.ResponseWriter, r *http.Request) {
-	h, err := a.Storage.GetLastHeight()
+	h, err := a.Storage.Height()
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to complete request: %s", err.Error()), http.StatusInternalServerError)
 		return
 	}
-	bi, err := a.Storage.BlockInfo(h)
+	blockID, err := a.Storage.BlockID(h)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to complete request: %s", err.Error()), http.StatusInternalServerError)
 		return
 	}
-	t, err := a.Storage.LastTrade()
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to complete request: %s", err.Error()), http.StatusInternalServerError)
-		return
-	}
-	s := status{CurrentHeight: h, LastBlockID: bi.ID, LastTradeID: t.TransactionID}
+	s := status{CurrentHeight: h, LastBlockID: blockID}
 	err = json.NewEncoder(w).Encode(s)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to marshal status to JSON: %s", err.Error()), http.StatusInternalServerError)
@@ -124,29 +119,29 @@ func (a *DataFeedAPI) Markets(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Failed to collect Markets: %s", err.Error()), http.StatusInternalServerError)
 		return
 	}
-	mis := make([]MarketInfo, 0, len(markets))
+	mis := make([]data.MarketInfo, 0, len(markets))
 	for m, md := range markets {
 		c, err := a.Storage.DayCandle(m.AmountAsset, m.PriceAsset)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("Failed to load DayCandle: %s", err.Error()), http.StatusInternalServerError)
 			return
 		}
-		aai, err := a.Storage.ReadAssetInfo(m.AmountAsset)
+		aai, err := a.Storage.AssetInfo(m.AmountAsset)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("Failed to load AssetInfo: %s", err.Error()), http.StatusInternalServerError)
 			return
 		}
-		pai, err := a.Storage.ReadAssetInfo(m.PriceAsset)
+		pai, err := a.Storage.AssetInfo(m.PriceAsset)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("Failed to load AssetInfo: %s", err.Error()), http.StatusInternalServerError)
 			return
 		}
 		ti := a.convertToTickerInfo(aai, pai, c)
 
-		mi := NewMarketInfo(ti, md)
+		mi := data.NewMarketInfo(ti, md)
 		mis = append(mis, mi)
 	}
-	sort.Sort(ByMarkets(mis))
+	sort.Sort(data.ByMarkets(mis))
 	err = json.NewEncoder(w).Encode(mis)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to marshal Markets to JSON: %s", err.Error()), http.StatusInternalServerError)
@@ -161,19 +156,19 @@ func (a *DataFeedAPI) Tickers(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Failed to collect Tickers: %s", err), http.StatusInternalServerError)
 		return
 	}
-	tis := make([]TickerInfo, 0, len(markets))
+	tis := make([]data.TickerInfo, 0, len(markets))
 	for m := range markets {
 		c, err := a.Storage.DayCandle(m.AmountAsset, m.PriceAsset)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("Failed to load DayCandle: %s", err.Error()), http.StatusInternalServerError)
 			return
 		}
-		aai, err := a.Storage.ReadAssetInfo(m.AmountAsset)
+		aai, err := a.Storage.AssetInfo(m.AmountAsset)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("Failed to load AssetInfo: %s", err.Error()), http.StatusInternalServerError)
 			return
 		}
-		pai, err := a.Storage.ReadAssetInfo(m.PriceAsset)
+		pai, err := a.Storage.AssetInfo(m.PriceAsset)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("Failed to load AssetInfo: %s", err.Error()), http.StatusInternalServerError)
 			return
@@ -181,7 +176,7 @@ func (a *DataFeedAPI) Tickers(w http.ResponseWriter, r *http.Request) {
 		ti := a.convertToTickerInfo(aai, pai, c)
 		tis = append(tis, ti)
 	}
-	sort.Sort(ByTickers(tis))
+	sort.Sort(data.ByTickers(tis))
 	err = json.NewEncoder(w).Encode(tis)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to marshal Tickers to JSON: %s", err.Error()), http.StatusInternalServerError)
@@ -208,12 +203,12 @@ func (a *DataFeedAPI) Ticker(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Failed to load DayCandle: %s", err.Error()), http.StatusInternalServerError)
 		return
 	}
-	aai, err := a.Storage.ReadAssetInfo(amountAsset)
+	aai, err := a.Storage.AssetInfo(amountAsset)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to load AssetInfo: %s", err.Error()), http.StatusInternalServerError)
 		return
 	}
-	pai, err := a.Storage.ReadAssetInfo(priceAsset)
+	pai, err := a.Storage.AssetInfo(priceAsset)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to load AssetInfo: %s", err.Error()), http.StatusInternalServerError)
 		return
@@ -250,12 +245,12 @@ func (a *DataFeedAPI) Trades(w http.ResponseWriter, r *http.Request) {
 		return
 
 	}
-	aai, err := a.Storage.ReadAssetInfo(amountAsset)
+	aai, err := a.Storage.AssetInfo(amountAsset)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to load AssetInfo: %s", err.Error()), http.StatusInternalServerError)
 		return
 	}
-	pai, err := a.Storage.ReadAssetInfo(priceAsset)
+	pai, err := a.Storage.AssetInfo(priceAsset)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to load AssetInfo: %s", err.Error()), http.StatusInternalServerError)
 		return
@@ -299,12 +294,12 @@ func (a *DataFeedAPI) TradesRange(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Bad request: %s", err.Error()), http.StatusBadRequest)
 	}
-	aai, err := a.Storage.ReadAssetInfo(amountAsset)
+	aai, err := a.Storage.AssetInfo(amountAsset)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to load AssetInfo: %s", err.Error()), http.StatusInternalServerError)
 		return
 	}
-	pai, err := a.Storage.ReadAssetInfo(priceAsset)
+	pai, err := a.Storage.AssetInfo(priceAsset)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to load AssetInfo: %s", err.Error()), http.StatusInternalServerError)
 		return
@@ -355,24 +350,19 @@ func (a *DataFeedAPI) TradesByAddress(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Bad request: %s", err.Error()), http.StatusBadRequest)
 		return
 	}
-	pk, err := a.Storage.PublicKey(address)
+	aai, err := a.Storage.AssetInfo(amountAsset)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to find PublicKey for Address: %s", err.Error()), http.StatusInternalServerError)
+		http.Error(w, fmt.Sprintf("Failed to load AssetInfo: %s", err.Error()), http.StatusInternalServerError)
 		return
 	}
-	ts, err := a.Storage.TradesByPublicKey(amountAsset, priceAsset, pk, limit)
+	pai, err := a.Storage.AssetInfo(priceAsset)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to load AssetInfo: %s", err.Error()), http.StatusInternalServerError)
+		return
+	}
+	ts, err := a.Storage.TradesByAddress(amountAsset, priceAsset, address, limit)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to load Trades: %s", err.Error()), http.StatusInternalServerError)
-		return
-	}
-	aai, err := a.Storage.ReadAssetInfo(amountAsset)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to load AssetInfo: %s", err.Error()), http.StatusInternalServerError)
-		return
-	}
-	pai, err := a.Storage.ReadAssetInfo(priceAsset)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to load AssetInfo: %s", err.Error()), http.StatusInternalServerError)
 		return
 	}
 	tis, err := a.convertToTradesInfos(ts, aai.Decimals, pai.Decimals)
@@ -418,31 +408,31 @@ func (a *DataFeedAPI) Candles(w http.ResponseWriter, r *http.Request) {
 		return
 
 	}
-	aai, err := a.Storage.ReadAssetInfo(amountAsset)
+	aai, err := a.Storage.AssetInfo(amountAsset)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to load AssetInfo: %s", err.Error()), http.StatusInternalServerError)
 		return
 	}
-	pai, err := a.Storage.ReadAssetInfo(priceAsset)
+	pai, err := a.Storage.AssetInfo(priceAsset)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to load AssetInfo: %s", err.Error()), http.StatusInternalServerError)
 		return
 	}
-	tfs := tf / DefaultTimeFrame
-	ttf := TimeFrameFromTimestampMS(uint64(time.Now().Unix() * 1000))
+	tfs := tf / data.DefaultTimeFrame
+	ttf := data.TimeFrameFromTimestampMS(uint64(time.Now().Unix() * 1000))
 	ftf := ttf - uint32((limit-1)*tfs)
-	cis := make(map[uint32]CandleInfo)
-	for x := ScaleTimeFrame(ftf, tfs); x <= ScaleTimeFrame(ttf, tfs); x += uint32(tfs) {
-		cis[x] = EmptyCandleInfo(uint(aai.Decimals), uint(pai.Decimals), TimestampMSFromTimeFrame(x))
+	cis := make(map[uint32]data.CandleInfo)
+	for x := data.ScaleTimeFrame(ftf, tfs); x <= data.ScaleTimeFrame(ttf, tfs); x += uint32(tfs) {
+		cis[x] = data.EmptyCandleInfo(uint(aai.Decimals), uint(pai.Decimals), data.TimestampMSFromTimeFrame(x))
 	}
 	candles, err := a.Storage.CandlesRange(amountAsset, priceAsset, ftf, ttf, tfs)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to collect Candles: %s", err.Error()), http.StatusInternalServerError)
 		return
 	}
-	csm := make(map[uint32]Candle)
+	csm := make(map[uint32]data.Candle)
 	for _, c := range candles {
-		ctf := ScaleTimeFrame(TimeFrameFromTimestampMS(c.minTimestamp), tfs)
+		ctf := data.ScaleTimeFrame(data.TimeFrameFromTimestampMS(c.MinTimestamp), tfs)
 		if cc, ok := csm[ctf]; !ok {
 			csm[ctf] = c
 		} else {
@@ -450,11 +440,11 @@ func (a *DataFeedAPI) Candles(w http.ResponseWriter, r *http.Request) {
 			csm[ctf] = cc
 		}
 	}
-	res := make(ByTimestampBackward, len(cis))
+	res := make(data.ByTimestampBackward, len(cis))
 	i := 0
 	for k, v := range cis {
 		if c, ok := csm[k]; ok {
-			res[i] = CandleInfoFromCandle(c, uint(aai.Decimals), uint(pai.Decimals), tfs)
+			res[i] = data.CandleInfoFromCandle(c, uint(aai.Decimals), uint(pai.Decimals), tfs)
 		} else {
 			res[i] = v
 		}
@@ -501,31 +491,31 @@ func (a *DataFeedAPI) CandlesRange(w http.ResponseWriter, r *http.Request) {
 	if f > t {
 		http.Error(w, fmt.Sprintf("Bad request: start of the range %d should be less than %d", f, t), http.StatusBadRequest)
 	}
-	aai, err := a.Storage.ReadAssetInfo(amountAsset)
+	aai, err := a.Storage.AssetInfo(amountAsset)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to load AssetInfo: %s", err.Error()), http.StatusInternalServerError)
 		return
 	}
-	pai, err := a.Storage.ReadAssetInfo(priceAsset)
+	pai, err := a.Storage.AssetInfo(priceAsset)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to load AssetInfo: %s", err.Error()), http.StatusInternalServerError)
 		return
 	}
-	ftf := TimeFrameFromTimestampMS(f)
-	ttf := TimeFrameFromTimestampMS(t)
-	tfs := tf / DefaultTimeFrame
-	cis := make(map[uint32]CandleInfo)
-	for x := ScaleTimeFrame(ftf, tfs); x <= ScaleTimeFrame(ttf, tfs); x += uint32(tfs) {
-		cis[x] = EmptyCandleInfo(uint(aai.Decimals), uint(pai.Decimals), TimestampMSFromTimeFrame(x))
+	ftf := data.TimeFrameFromTimestampMS(f)
+	ttf := data.TimeFrameFromTimestampMS(t)
+	tfs := tf / data.DefaultTimeFrame
+	cis := make(map[uint32]data.CandleInfo)
+	for x := data.ScaleTimeFrame(ftf, tfs); x <= data.ScaleTimeFrame(ttf, tfs); x += uint32(tfs) {
+		cis[x] = data.EmptyCandleInfo(uint(aai.Decimals), uint(pai.Decimals), data.TimestampMSFromTimeFrame(x))
 	}
 	candles, err := a.Storage.CandlesRange(amountAsset, priceAsset, ftf, ttf, tfs)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to collect Candles: %s", err.Error()), http.StatusInternalServerError)
 		return
 	}
-	csm := make(map[uint32]Candle)
+	csm := make(map[uint32]data.Candle)
 	for _, c := range candles {
-		ctf := ScaleTimeFrame(TimeFrameFromTimestampMS(c.minTimestamp), tfs)
+		ctf := data.ScaleTimeFrame(data.TimeFrameFromTimestampMS(c.MinTimestamp), tfs)
 		if cc, ok := csm[ctf]; !ok {
 			csm[ctf] = c
 		} else {
@@ -533,11 +523,11 @@ func (a *DataFeedAPI) CandlesRange(w http.ResponseWriter, r *http.Request) {
 			csm[ctf] = cc
 		}
 	}
-	res := make(ByTimestampBackward, len(cis))
+	res := make(data.ByTimestampBackward, len(cis))
 	i := 0
 	for k, v := range cis {
 		if c, ok := csm[k]; ok {
-			res[i] = CandleInfoFromCandle(c, uint(aai.Decimals), uint(pai.Decimals), tfs)
+			res[i] = data.CandleInfoFromCandle(c, uint(aai.Decimals), uint(pai.Decimals), tfs)
 		} else {
 			res[i] = v
 		}
@@ -552,24 +542,21 @@ func (a *DataFeedAPI) CandlesRange(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 }
 
-func (a *DataFeedAPI) convertToTradesInfos(trades []Trade, amountAssetDecimals, priceAssetDecimals byte) ([]TradeInfo, error) {
-	var r []TradeInfo
+func (a *DataFeedAPI) convertToTradesInfos(trades []data.Trade, amountAssetDecimals, priceAssetDecimals byte) ([]data.TradeInfo, error) {
+	var r []data.TradeInfo
 	for i := 0; i < len(trades); i++ {
-		ti, err := NewTradeInfo(trades[i], a.Scheme, uint(amountAssetDecimals), uint(priceAssetDecimals))
-		if err != nil {
-			return nil, err
-		}
-		r = append(r, *ti)
+		ti := data.NewTradeInfo(trades[i], uint(amountAssetDecimals), uint(priceAssetDecimals))
+		r = append(r, ti)
 	}
 	return r, nil
 }
 
-func (a *DataFeedAPI) convertToTickerInfo(aa, pa *AssetInfo, c Candle) TickerInfo {
+func (a *DataFeedAPI) convertToTickerInfo(aa, pa *data.AssetInfo, c data.Candle) data.TickerInfo {
 	var sb strings.Builder
-	aat, ok := a.Symbols.tokens[aa.ID]
+	aat, ok := a.Symbols.Tokens()[aa.ID]
 	if ok {
 		sb.WriteString(aat)
-		pat, ok := a.Symbols.tokens[pa.ID]
+		pat, ok := a.Symbols.Tokens()[pa.ID]
 		if ok {
 			sb.WriteRune('/')
 			sb.WriteString(pat)
@@ -577,5 +564,5 @@ func (a *DataFeedAPI) convertToTickerInfo(aa, pa *AssetInfo, c Candle) TickerInf
 			sb.Reset()
 		}
 	}
-	return NewTickerInfo(sb.String(), *aa, *pa, c)
+	return data.NewTickerInfo(sb.String(), *aa, *pa, c)
 }

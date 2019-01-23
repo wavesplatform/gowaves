@@ -3,6 +3,7 @@ package state
 import (
 	"encoding/binary"
 	"github.com/syndtr/goleveldb/leveldb"
+	"github.com/wavesplatform/gowaves/cmd/wmd/internal/data"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
@@ -12,7 +13,9 @@ type blockState struct {
 	aliasBindings map[proto.Alias]proto.Address
 	balances      map[assetBalanceKey]uint64
 	issuers       map[assetIssuerKey]struct{}
-	assets        map[assetInfoKey]assetInfo
+	assets        map[assetKey]asset
+	candles       map[candleKey]data.Candle
+	markets       map[marketKey]data.Market
 }
 
 func newBlockState(snapshot *leveldb.Snapshot) *blockState {
@@ -21,7 +24,9 @@ func newBlockState(snapshot *leveldb.Snapshot) *blockState {
 		aliasBindings: make(map[proto.Alias]proto.Address),
 		balances:      make(map[assetBalanceKey]uint64),
 		issuers:       make(map[assetIssuerKey]struct{}),
-		assets:        make(map[assetInfoKey]assetInfo),
+		assets:        make(map[assetKey]asset),
+		candles:       make(map[candleKey]data.Candle),
+		markets:       make(map[marketKey]data.Market),
 	}
 }
 
@@ -29,13 +34,13 @@ func (s *blockState) addressByAlias(alias proto.Alias) (proto.Address, bool, err
 	var a proto.Address
 	a, ok := s.aliasBindings[alias]
 	if !ok {
-		k := aliasKey{prefix: AliasToAddressKeyPrefix, alias: alias}
+		k := aliasKey{prefix: aliasToAddressKeyPrefix, alias: alias}
 		b, err := s.snapshot.Get(k.bytes(), nil)
 		if err != nil {
 			if err != leveldb.ErrNotFound {
-				return EmptyAddress, false, err
+				return emptyAddress, false, err
 			}
-			return EmptyAddress, false, nil
+			return emptyAddress, false, nil
 		}
 		a, err = proto.NewAddressFromBytes(b)
 		if err != nil {
@@ -77,23 +82,64 @@ func (s *blockState) balance(address proto.Address, asset crypto.Digest) (uint64
 	return b, k, nil
 }
 
-func (s *blockState) assetInfo(asset crypto.Digest) (assetInfo, bool, error) {
-	k := assetInfoKey{asset: asset}
-	var ai assetInfo
-	ai, ok := s.assets[k]
+func (s *blockState) assetInfo(assetID crypto.Digest) (asset, bool, error) {
+	k := assetKey{asset: assetID}
+	var a asset
+	a, ok := s.assets[k]
 	if !ok {
 		b, err := s.snapshot.Get(k.bytes(), nil)
 		if err != nil {
 			if err != leveldb.ErrNotFound {
-				return assetInfo{}, false, err
+				return asset{}, false, err
 			}
-			return assetInfo{}, false, nil
+			return asset{}, false, nil
 		}
-		err = ai.fromBytes(b)
+		err = a.fromBytes(b)
 		if err != nil {
-			return assetInfo{}, false, err
+			return asset{}, false, err
 		}
 
 	}
-	return ai, true, nil
+	return a, true, nil
+}
+
+func (s *blockState) candle(amountAsset, priceAsset crypto.Digest, timeFrame uint32) (data.Candle, candleKey, error) {
+	k := candleKey{amountAsset: amountAsset, priceAsset: priceAsset, timeFrame: timeFrame}
+	var c data.Candle
+	c, ok := s.candles[k]
+	if !ok {
+		b, err := s.snapshot.Get(k.bytes(), nil)
+		if err != nil {
+			if err != leveldb.ErrNotFound {
+				return data.Candle{}, k, err
+			}
+			c = data.NewCandleFromTimeFrame(timeFrame)
+			return c, k, nil
+		}
+		err = c.UnmarshalBinary(b)
+		if err != nil {
+			return data.Candle{}, k, err
+		}
+	}
+	return c, k, nil
+}
+
+func (s *blockState) market(amountAsset, priceAsset crypto.Digest) (data.Market, marketKey, error) {
+	k := marketKey{amountAsset: amountAsset, priceAsset: priceAsset}
+	var m data.Market
+	m, ok := s.markets[k]
+	if !ok {
+		b, err := s.snapshot.Get(k.bytes(), nil)
+		if err != nil {
+			if err != leveldb.ErrNotFound {
+				return data.Market{}, k, err
+			}
+			return m, k, nil
+		}
+		err = m.UnmarshalBinary(b)
+		if err != nil {
+			return data.Market{}, k, err
+		}
+	}
+	return m, k, nil
 }

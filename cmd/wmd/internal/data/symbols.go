@@ -1,4 +1,4 @@
-package internal
+package data
 
 import (
 	"bufio"
@@ -52,6 +52,10 @@ func (s *Symbols) All() []Substitution {
 	}
 	sort.Sort(BySymbols(r))
 	return r
+}
+
+func (s *Symbols) Tokens() map[crypto.Digest]string {
+	return s.tokens
 }
 
 func (s *Symbols) ParseTicker(ticker string) (crypto.Digest, error) {

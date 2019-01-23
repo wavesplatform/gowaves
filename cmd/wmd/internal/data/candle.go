@@ -1,4 +1,4 @@
-package internal
+package data
 
 import (
 	"encoding/binary"
@@ -22,23 +22,28 @@ type Candle struct {
 	Close        uint64
 	Average      uint64
 	Volume       uint64
-	minTimestamp uint64
-	maxTimestamp uint64
+	MinTimestamp uint64
+	MaxTimestamp uint64
 }
 
-func NewCandle(ts uint64) Candle {
+func NewCandleFromTimestamp(ts uint64) Candle {
 	b := TimestampMSFromTimeFrame(TimeFrameFromTimestampMS(ts))
-	return Candle{minTimestamp: b + TimeFrame, maxTimestamp: b}
+	return Candle{MinTimestamp: b + TimeFrame, MaxTimestamp: b} //Initialize in opposite to support update
+}
+
+func NewCandleFromTimeFrame(tf uint32) Candle {
+	b := TimestampMSFromTimeFrame(tf)
+	return Candle{MinTimestamp:b + TimeFrame, MaxTimestamp: b} //Initialize in opposite to support update
 }
 
 func (c *Candle) UpdateFromTrade(t Trade) {
-	if c.minTimestamp == 0 || t.Timestamp < c.minTimestamp {
+	if c.MinTimestamp == 0 || t.Timestamp < c.MinTimestamp {
 		c.Open = t.Price
-		c.minTimestamp = t.Timestamp
+		c.MinTimestamp = t.Timestamp
 	}
-	if c.maxTimestamp == 0 || t.Timestamp > c.maxTimestamp {
+	if c.MaxTimestamp == 0 || t.Timestamp > c.MaxTimestamp {
 		c.Close = t.Price
-		c.maxTimestamp = t.Timestamp
+		c.MaxTimestamp = t.Timestamp
 	}
 	if t.Price > c.High {
 		c.High = t.Price
@@ -78,13 +83,13 @@ func (c *Candle) UpdateFromTrade(t Trade) {
 }
 
 func (c *Candle) Combine(x Candle) {
-	if c.minTimestamp == 0 || x.minTimestamp < c.minTimestamp {
+	if c.MinTimestamp == 0 || x.MinTimestamp < c.MinTimestamp {
 		c.Open = x.Open
-		c.minTimestamp = x.minTimestamp
+		c.MinTimestamp = x.MinTimestamp
 	}
-	if x.maxTimestamp > c.maxTimestamp {
+	if x.MaxTimestamp > c.MaxTimestamp {
 		c.Close = x.Close
-		c.maxTimestamp = x.maxTimestamp
+		c.MaxTimestamp = x.MaxTimestamp
 	}
 	if x.High > c.High {
 		c.High = x.High
@@ -131,9 +136,9 @@ func (c *Candle) MarshalBinary() ([]byte, error) {
 	p += 8
 	binary.BigEndian.PutUint64(buf[p:], c.Volume)
 	p += 8
-	binary.BigEndian.PutUint64(buf[p:], c.minTimestamp)
+	binary.BigEndian.PutUint64(buf[p:], c.MinTimestamp)
 	p += 8
-	binary.BigEndian.PutUint64(buf[p:], c.maxTimestamp)
+	binary.BigEndian.PutUint64(buf[p:], c.MaxTimestamp)
 	return buf, nil
 }
 
@@ -153,9 +158,9 @@ func (c *Candle) UnmarshalBinary(data []byte) error {
 	data = data[8:]
 	c.Volume = binary.BigEndian.Uint64(data)
 	data = data[8:]
-	c.minTimestamp = binary.BigEndian.Uint64(data)
+	c.MinTimestamp = binary.BigEndian.Uint64(data)
 	data = data[8:]
-	c.maxTimestamp = binary.BigEndian.Uint64(data)
+	c.MaxTimestamp = binary.BigEndian.Uint64(data)
 	return nil
 }
 
@@ -199,7 +204,7 @@ func EmptyCandleInfo(amountAssetDecimals, priceAssetDecimals uint, timestamp uin
 }
 
 func CandleInfoFromCandle(candle Candle, amountAssetDecimals, priceAssetDecimals uint, timeFrameScale int) CandleInfo {
-	tf := ScaleTimeFrame(TimeFrameFromTimestampMS(candle.minTimestamp), timeFrameScale)
+	tf := ScaleTimeFrame(TimeFrameFromTimestampMS(candle.MinTimestamp), timeFrameScale)
 	pv := priceVolume(candle.Average, candle.Volume, amountAssetDecimals)
 	return CandleInfo{
 		Timestamp:   TimestampMSFromTimeFrame(tf),

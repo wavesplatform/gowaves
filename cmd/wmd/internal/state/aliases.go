@@ -6,13 +6,13 @@ import (
 	"github.com/pkg/errors"
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/util"
+	"github.com/wavesplatform/gowaves/cmd/wmd/internal/data"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"math"
 )
 
 var (
-	EmptyAddress   = proto.Address{}
-	//EmptyPublicKey = crypto.PublicKey{}
+	emptyAddress   = proto.Address{}
 )
 
 type aliasKey struct {
@@ -64,28 +64,28 @@ func (c *aliasChange) fromBytes(data []byte) error {
 	return nil
 }
 
-func putAliasesStateUpdate(bs *blockState, batch *leveldb.Batch, height uint32, binds []AliasBind) error {
+func putAliasesStateUpdate(bs *blockState, batch *leveldb.Batch, height uint32, binds []data.AliasBind) error {
 	for _, bind := range binds {
-		bk := aliasKey{AliasToAddressKeyPrefix, bind.Alias}
+		bk := aliasKey{aliasToAddressKeyPrefix, bind.Alias}
 		batch.Put(bk.bytes(), bind.Address[:])
 		pa, ok, err := bs.addressByAlias(bind.Alias)
 		if err != nil {
 			return errors.Wrap(err, "failed to updated aliases")
 		}
 		if !ok {
-			pa = EmptyAddress
+			pa = emptyAddress
 		}
 		ch := aliasChange{prev: pa, curr: bind.Address}
-		hk := aliasHistoryKey{AliasHistoryKeyPrefix, height, bind.Alias}
+		hk := aliasHistoryKey{aliasHistoryKeyPrefix, height, bind.Alias}
 		bs.aliasBindings[bind.Alias] = bind.Address
 		batch.Put(hk.bytes(), ch.bytes())
 	}
 	return nil
 }
 
-func rollbackAliases(snapshot *leveldb.Snapshot, batch *leveldb.Batch, height uint32) error {
-	s := uint32Key{AliasHistoryKeyPrefix, height}
-	l := uint32Key{AliasHistoryKeyPrefix, math.MaxInt32}
+func rollbackAliases(snapshot *leveldb.Snapshot, batch *leveldb.Batch, removeHeight uint32) error {
+	s := uint32Key{aliasHistoryKeyPrefix, removeHeight}
+	l := uint32Key{aliasHistoryKeyPrefix, math.MaxInt32}
 	it := snapshot.NewIterator(&util.Range{Start: s.bytes(), Limit: l.bytes()}, nil)
 	remove := make([]proto.Alias, 0)
 	downgrade := make(map[proto.Alias]proto.Address)
@@ -103,10 +103,11 @@ func rollbackAliases(snapshot *leveldb.Snapshot, batch *leveldb.Batch, height ui
 			if err != nil {
 				return errors.Wrap(err, "failed to rollback aliases")
 			}
-			if !bytes.Equal(d.prev[:], EmptyAddress[:]) {
+			if !bytes.Equal(d.prev[:], emptyAddress[:]) {
 				downgrade[a] = d.prev
 			} else {
 				remove = append(remove, a)
+				delete(downgrade, a)
 			}
 			batch.Delete(key)
 			if !it.Prev() {
@@ -115,13 +116,13 @@ func rollbackAliases(snapshot *leveldb.Snapshot, batch *leveldb.Batch, height ui
 		}
 	}
 	it.Release()
-	for _, a := range remove {
-		k := aliasKey{AliasToAddressKeyPrefix, a}
-		batch.Delete(k.bytes())
-	}
 	for al, ad := range downgrade {
-		k := aliasKey{AliasToAddressKeyPrefix, al}
+		k := aliasKey{aliasToAddressKeyPrefix, al}
 		batch.Put(k.bytes(), ad[:])
+	}
+	for _, a := range remove {
+		k := aliasKey{aliasToAddressKeyPrefix, a}
+		batch.Delete(k.bytes())
 	}
 	return it.Error()
 }

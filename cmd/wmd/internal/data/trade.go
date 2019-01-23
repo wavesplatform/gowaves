@@ -1,4 +1,4 @@
-package internal
+package data
 
 import (
 	"encoding/binary"
@@ -16,38 +16,52 @@ type Trade struct {
 	PriceAsset    crypto.Digest
 	TransactionID crypto.Digest
 	OrderType     proto.OrderType
-	Buyer         crypto.PublicKey
-	Seller        crypto.PublicKey
-	Matcher       crypto.PublicKey
+	Buyer         proto.Address
+	Seller        proto.Address
+	Matcher       proto.Address
 	Price         uint64
 	Amount        uint64
 	Timestamp     uint64
 }
 
-func NewTradeFromExchangeV1(tx proto.ExchangeV1) Trade {
+func NewTradeFromExchangeV1(scheme byte, tx proto.ExchangeV1) (Trade, error) {
+	wrapError := func(err error) error { return errors.Wrap(err, "failed to convert ExchangeV1 to Trade") }
 	orderType := 1
 	if tx.BuyOrder.Timestamp > tx.SellOrder.Timestamp {
 		orderType = 0
+	}
+	b, err := proto.NewAddressFromPublicKey(scheme, tx.BuyOrder.SenderPK)
+	if err != nil {
+		return Trade{}, wrapError(err)
+	}
+	s, err := proto.NewAddressFromPublicKey(scheme, tx.SellOrder.SenderPK)
+	if err != nil {
+		return Trade{}, wrapError(err)
+	}
+	m, err := proto.NewAddressFromPublicKey(scheme, tx.SenderPK)
+	if err != nil {
+		return Trade{}, wrapError(err)
 	}
 	return Trade{
 		AmountAsset:   tx.BuyOrder.AssetPair.AmountAsset.ID,
 		PriceAsset:    tx.BuyOrder.AssetPair.PriceAsset.ID,
 		TransactionID: *tx.ID,
 		OrderType:     proto.OrderType(orderType),
-		Buyer:         tx.BuyOrder.SenderPK,
-		Seller:        tx.SellOrder.SenderPK,
-		Matcher:       tx.SenderPK,
+		Buyer:         b,
+		Seller:        s,
+		Matcher:       m,
 		Price:         tx.Price,
 		Amount:        tx.Amount,
 		Timestamp:     tx.Timestamp,
-	}
+	}, nil
 }
 
-func NewTradeFromExchangeV2(tx proto.ExchangeV2) (Trade, error) {
+func NewTradeFromExchangeV2(scheme byte, tx proto.ExchangeV2) (Trade, error) {
+	wrapError := func(err error) error { return errors.Wrap(err, "failed to convert ExchangeV2 to Trade") }
 	var buyTS, sellTS uint64
-	var buySender, sellSender crypto.PublicKey
+	var buyer, seller, matcher proto.Address
+	var err error
 	var amountAsset, priceAsset crypto.Digest
-
 	switch tx.BuyOrder.GetVersion() {
 	case 1:
 		o, ok := tx.BuyOrder.(proto.OrderV1)
@@ -55,7 +69,10 @@ func NewTradeFromExchangeV2(tx proto.ExchangeV2) (Trade, error) {
 			return Trade{}, errors.New("failed to create Trade from ExchangeV2, incorrect BuyOrder version")
 		}
 		buyTS = o.Timestamp
-		buySender = o.SenderPK
+		buyer, err = proto.NewAddressFromPublicKey(scheme, o.SenderPK)
+		if err != nil {
+			return Trade{}, wrapError(err)
+		}
 		amountAsset = o.AssetPair.AmountAsset.ID
 		priceAsset = o.AssetPair.PriceAsset.ID
 	case 2:
@@ -64,7 +81,10 @@ func NewTradeFromExchangeV2(tx proto.ExchangeV2) (Trade, error) {
 			return Trade{}, errors.New("failed to create Trade from ExchangeV2, incorrect BuyOrder version")
 		}
 		buyTS = o.Timestamp
-		buySender = o.SenderPK
+		buyer, err = proto.NewAddressFromPublicKey(scheme, o.SenderPK)
+		if err != nil {
+			return Trade{}, wrapError(err)
+		}
 		amountAsset = o.AssetPair.AmountAsset.ID
 		priceAsset = o.AssetPair.PriceAsset.ID
 	default:
@@ -77,31 +97,39 @@ func NewTradeFromExchangeV2(tx proto.ExchangeV2) (Trade, error) {
 			return Trade{}, errors.New("failed to create Trade from ExchangeV2, incorrect SellOrder version")
 		}
 		sellTS = o.Timestamp
-		sellSender = o.SenderPK
+		seller, err = proto.NewAddressFromPublicKey(scheme, o.SenderPK)
+		if err != nil {
+			return Trade{}, wrapError(err)
+		}
 	case 2:
 		o, ok := tx.SellOrder.(proto.OrderV2)
 		if !ok {
 			return Trade{}, errors.New("failed to create Trade from ExchangeV2, incorrect SellOrder version")
 		}
 		buyTS = o.Timestamp
-		sellSender = o.SenderPK
+		seller, err = proto.NewAddressFromPublicKey(scheme, o.SenderPK)
+		if err != nil {
+			return Trade{}, wrapError(err)
+		}
 	default:
 		return Trade{}, errors.New("unsupported version of SellOrder")
 	}
-
 	orderType := 1
 	if buyTS > sellTS {
 		orderType = 0
 	}
-
+	matcher, err = proto.NewAddressFromPublicKey(scheme, tx.SenderPK)
+	if err != nil {
+		return Trade{}, wrapError(err)
+	}
 	return Trade{
 		AmountAsset:   amountAsset,
 		PriceAsset:    priceAsset,
 		TransactionID: *tx.ID,
 		OrderType:     proto.OrderType(orderType),
-		Buyer:         buySender,
-		Seller:        sellSender,
-		Matcher:       tx.SenderPK,
+		Buyer:         buyer,
+		Seller:        seller,
+		Matcher:       matcher,
 		Price:         tx.Price,
 		Amount:        tx.Amount,
 		Timestamp:     tx.Timestamp,
@@ -172,28 +200,16 @@ type TradeInfo struct {
 	Matcher   proto.Address   `json:"matcher"`
 }
 
-func NewTradeInfo(trade Trade, scheme byte, amountAssetPrecision, priceAssetPrecision uint) (*TradeInfo, error) {
-	b, err := proto.NewAddressFromPublicKey(scheme, trade.Buyer)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to make an Address of the Buyer")
-	}
-	s, err := proto.NewAddressFromPublicKey(scheme, trade.Seller)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to make an Address of the Seller")
-	}
-	m, err := proto.NewAddressFromPublicKey(scheme, trade.Matcher)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to make an Address of the Matcher")
-	}
-	return &TradeInfo{
+func NewTradeInfo(trade Trade, amountAssetPrecision, priceAssetPrecision uint) TradeInfo {
+	return TradeInfo{
 		Timestamp: trade.Timestamp,
 		ID:        trade.TransactionID,
 		Confirmed: true,
 		OrderType: trade.OrderType,
 		Price:     *NewDecimal(trade.Price, priceAssetPrecision),
 		Amount:    *NewDecimal(trade.Amount, amountAssetPrecision),
-		Buyer:     b,
-		Seller:    s,
-		Matcher:   m,
-	}, nil
+		Buyer:     trade.Buyer,
+		Seller:    trade.Seller,
+		Matcher:   trade.Matcher,
+	}
 }

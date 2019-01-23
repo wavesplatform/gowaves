@@ -7,6 +7,7 @@ import (
 	"github.com/go-chi/chi/middleware"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/cmd/wmd/internal"
+	"github.com/wavesplatform/gowaves/cmd/wmd/internal/data"
 	"github.com/wavesplatform/gowaves/cmd/wmd/internal/state"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"go.uber.org/zap"
@@ -73,7 +74,7 @@ func main() {
 	}()
 
 	if *rollback != 0 {
-		rh, err := storage.FindCorrectRollbackHeight(*rollback)
+		rh, err := storage.SafeRollbackHeight(*rollback)
 		if err != nil {
 			log.Errorf("Failed to find the correct height of rollback: %s", err.Error())
 			shutdown()
@@ -93,14 +94,14 @@ func main() {
 		shutdown()
 	}
 
-	symbols, err := internal.ImportSymbols(*symbolsFile)
+	symbols, err := data.ImportSymbols(*symbolsFile)
 	if err != nil {
 		log.Errorf("Failed to load symbols substitutions: %s", err.Error())
 		shutdown()
 	}
 	log.Debugf("Imported %d of symbols substitution", symbols.Count())
 
-	h, err := storage.GetLastHeight()
+	h, err := storage.Height()
 	if err != nil {
 		log.Warnf("Failed to get current height: %s", err.Error())
 	}

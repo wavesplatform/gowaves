@@ -1,9 +1,13 @@
 package state
 
 import (
-	"encoding/binary"
+	"bytes"
 	"github.com/pkg/errors"
+	"github.com/wavesplatform/gowaves/cmd/wmd/internal/data"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/proto"
+	"math"
+	"time"
 )
 
 import (
@@ -31,174 +35,139 @@ func (s *Storage) Close() error {
 	return s.db.Close()
 }
 
-func (s *Storage) PutBlockState(height int, aliasBinds []AliasBind) error {
-	//	wrapError := func(err error) error {
-	//		return errors.Wrapf(err, "failed to store block's state at height %d", height)
-	//	}
-	//
-	//	snapshot, err := s.db.GetSnapshot()
-	//	if err != nil {
-	//		return wrapError(err)
-	//	}
-	//	bs := newBlockState(snapshot)
-	//	batch := new(leveldb.Batch)
-	//	putAliasesStateUpdate(bs, batch, uint32(height), aliasBinds)
-	//
-	//	assets, err := s.loadAssetStates(stateUpdates)
-	//	if err != nil {
-	//		return wrapError(err)
-	//	}
-	//
-	//	candles := map[timeFramePairKey]Candle{}
-	//	markets := map[pairKey]MarketData{}
-	//	affectedTimeFrames := make([]uint32, 0)
-	//	for _, t := range trades {
-	//		tf := TimeFrameFromTimestampMS(t.Timestamp)
-	//		if !contains(affectedTimeFrames, tf) {
-	//			affectedTimeFrames = append(affectedTimeFrames, tf)
-	//		}
-	//		ck := timeFramePairKey{CandlesKeyPrefix, tf, t.AmountAsset, t.PriceAsset}
-	//		var c Candle
-	//		c, ok := candles[ck]
-	//		if !ok {
-	//			cb, err := s.db.Get(ck.bytes(), defaultReadOptions)
-	//			if err != nil {
-	//				if err != leveldb.ErrNotFound {
-	//					return wrapError(err)
-	//				}
-	//				c = NewCandle(t.Timestamp)
-	//			} else {
-	//				err = c.UnmarshalBinary(cb)
-	//				if err != nil {
-	//					return wrapError(err)
-	//				}
-	//			}
-	//		}
-	//		c.UpdateFromTrade(t)
-	//		candles[ck] = c
-	//		mk := pairKey{MarketsKeyPrefix, t.AmountAsset, t.PriceAsset}
-	//		m, ok := markets[mk]
-	//		if !ok {
-	//			mb, err := s.db.Get(mk.bytes(), defaultReadOptions)
-	//			if err != nil {
-	//				if err != leveldb.ErrNotFound {
-	//					return wrapError(err)
-	//				}
-	//				m = MarketData{}
-	//			} else {
-	//				err = m.UnmarshalBinary(mb)
-	//				if err != nil {
-	//					return wrapError(err)
-	//				}
-	//			}
-	//		}
-	//		m.UpdateFromTrade(t)
-	//		markets[mk] = m
-	//	}
-	//
-	//	updateAssets(assets, batch, height, stateUpdates)
-	//	n := len(trades)
-	//	updateLastHeight(batch, height)
-	//	mtf := min(affectedTimeFrames)
-	//	putBlockInfo(batch, height, block, n == 0, mtf)
-	//	putTradesIDs(batch, block, trades)
-	//	err = s.putTrades(batch, trades)
-	//	if err != nil {
-	//		return wrapError(err)
-	//	}
-	//	err = s.updateAffectedTimeFrames(batch, affectedTimeFrames, height)
-	//	if err != nil {
-	//		return wrapError(err)
-	//	}
-	//	for _, t := range trades {
-	//		k1 := digestKey(TradesKeyPrefix, t.TransactionID)
-	//		v1 := make([]byte, TradeSize)
-	//		v1, err := t.MarshalBinary()
-	//		if err != nil {
-	//			return wrapError(err)
-	//		}
-	//		batch.Put(k1, v1)
-	//	}
-	//	for ck, cv := range candles {
-	//		v, err := cv.MarshalBinary()
-	//		if err != nil {
-	//			return wrapError(err)
-	//		}
-	//		ckb := ck.bytes()
-	//		batch.Put(ckb, v)
-	//		ck2 := pairTimeFrameKey{CandlesSecondKeyPrefix, ck.amountAsset, ck.priceAsset, ck.tf}
-	//		batch.Put(ck2.bytes(), ckb)
-	//	}
-	//	for mk, mv := range markets {
-	//		vb, err := mv.MarshalBinary()
-	//		if err != nil {
-	//			return wrapError(err)
-	//		}
-	//		batch.Put(mk.bytes(), vb)
-	//	}
-	//	err = s.db.Write(batch, defaultWriteOptions)
-	//	if err != nil {
-	//		return errors.Wrapf(err, "failed to store block '%s' at height %d", block.String(), height)
-	//	}
-	return nil
+const (
+	maxLimit = 1000
+)
+
+func (s *Storage) Height() (int, error) {
+	snapshot, err := s.db.GetSnapshot()
+	if err != nil {
+		return 0, err
+	}
+	defer snapshot.Release()
+	return height(snapshot)
 }
 
-//
-//const (
-//	maxLimit = 1000
-//)
+func (s *Storage) AssetInfo(asset crypto.Digest) (*data.AssetInfo, error) {
+	if bytes.Equal(asset[:], data.WavesID[:]) {
+		return &data.WavesAssetInfo, nil
+	}
+	snapshot, err := s.db.GetSnapshot()
+	if err != nil {
+		return nil, err
+	}
+	defer snapshot.Release()
+	bs := newBlockState(snapshot)
+	a, ok, err := bs.assetInfo(asset)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to read AssetInfo")
+	}
+	if !ok {
+		return nil, errors.Errorf("failed to locate asset '%s'", asset.String())
+	}
+	return &data.AssetInfo{
+		ID:         asset,
+		Name:       a.name,
+		Issuer:     a.issuer,
+		Decimals:   a.decimals,
+		Reissuable: a.reissuable,
+		Supply:     a.supply,
+	}, nil
+}
+
+func (s *Storage) Trades(amountAsset, priceAsset crypto.Digest, limit int) ([]data.Trade, error) {
+	snapshot, err := s.db.GetSnapshot()
+	if err != nil {
+		return nil, err
+	}
+	defer snapshot.Release()
+	return trades(snapshot, amountAsset, priceAsset, 0, math.MaxInt32, limit)
+}
+
+func (s *Storage) TradesRange(amountAsset, priceAsset crypto.Digest, from, to uint64) ([]data.Trade, error) {
+	f := data.TimeFrameFromTimestampMS(from)
+	t := data.TimeFrameFromTimestampMS(to)
+	snapshot, err := s.db.GetSnapshot()
+	if err != nil {
+		return nil, err
+	}
+	defer snapshot.Release()
+	return trades(snapshot, amountAsset, priceAsset, f, t, maxLimit)
+}
+
+func (s *Storage) TradesByAddress(amountAsset, priceAsset crypto.Digest, address proto.Address, limit int) ([]data.Trade, error) {
+	snapshot, err := s.db.GetSnapshot()
+	if err != nil {
+		return nil, err
+	}
+	defer snapshot.Release()
+	return addressTrades(snapshot, amountAsset, priceAsset, address, limit)
+}
+
+func (s *Storage) CandlesRange(amountAsset, priceAsset crypto.Digest, from, to uint32, timeFrameScale int) ([]data.Candle, error) {
+	limit := timeFrameScale * maxLimit
+	snapshot, err := s.db.GetSnapshot()
+	if err != nil {
+		return nil, err
+	}
+	defer snapshot.Release()
+	return candles(snapshot, amountAsset, priceAsset, from, to+uint32(timeFrameScale), limit)
+}
+
+func (s *Storage) DayCandle(amountAsset, priceAsset crypto.Digest) (data.Candle, error) {
+	sts := uint64(time.Now().Unix() * 1000)
+	ttf := data.TimeFrameFromTimestampMS(sts)
+	ftf := data.ScaleTimeFrame(ttf, 288)
+	snapshot, err := s.db.GetSnapshot()
+	if err != nil {
+		return data.Candle{}, err
+	}
+	defer snapshot.Release()
+	cs, err := candles(snapshot, amountAsset, priceAsset, ftf, ttf, math.MaxInt32)
+	if err != nil {
+		return data.Candle{}, err
+	}
+	r := data.NewCandleFromTimestamp(data.TimestampMSFromTimeFrame(ftf))
+	for _, c := range cs {
+		r.Combine(c)
+	}
+	return r, nil
+}
+
+func (s *Storage) HasBlock(height int, block crypto.Signature) (bool, error) {
+	snapshot, err := s.db.GetSnapshot()
+	if err != nil {
+		return false, err
+	}
+	defer snapshot.Release()
+	return hasBlock(snapshot, uint32(height), block)
+}
+
+func (s *Storage) Markets() (map[data.MarketID]data.Market, error) {
+	snapshot, err := s.db.GetSnapshot()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to collect markets")
+	}
+	defer snapshot.Release()
+	return marketsMap(snapshot)
+}
+
+func (s *Storage) BlockID(height int) (crypto.Signature, error) {
+	snapshot, err := s.db.GetSnapshot()
+	if err != nil {
+		return crypto.Signature{}, err
+	}
+	defer snapshot.Release()
+	bi, err := block(snapshot, uint32(height))
+	return bi.block, nil
+}
+
 //
 //var (
 //	defaultReadOptions  = &opt.ReadOptions{}
 //	defaultWriteOptions = &opt.WriteOptions{}
 //	lastHeightKey       = []byte{LastHeightKeyPrefix}
 //)
-//
-//type pairKey struct {
-//	prefix      byte
-//	amountAsset crypto.Digest
-//	priceAsset  crypto.Digest
-//}
-//
-//func (k pairKey) bytes() []byte {
-//	buf := make([]byte, 1+2*crypto.DigestSize)
-//	buf[0] = k.prefix
-//	copy(buf[1:], k.amountAsset[:])
-//	copy(buf[1+crypto.DigestSize:], k.priceAsset[:])
-//	return buf
-//}
-//
-//type pairTimestampKey struct {
-//	prefix      byte
-//	amountAsset crypto.Digest
-//	priceAsset  crypto.Digest
-//	ts          uint64
-//}
-//
-//func (k pairTimestampKey) bytes() []byte {
-//	buf := make([]byte, 1+2*crypto.DigestSize+8)
-//	buf[0] = k.prefix
-//	copy(buf[1:], k.amountAsset[:])
-//	copy(buf[1+crypto.DigestSize:], k.priceAsset[:])
-//	binary.BigEndian.PutUint64(buf[1+2*crypto.DigestSize:], k.ts)
-//	return buf
-//}
-//
-//type pairTimeFrameKey struct {
-//	prefix      byte
-//	amountAsset crypto.Digest
-//	priceAsset  crypto.Digest
-//	timeFrame   uint32
-//}
-//
-//func (k pairTimeFrameKey) bytes() []byte {
-//	buf := make([]byte, 1+2*crypto.DigestSize+4)
-//	buf[0] = k.prefix
-//	copy(buf[1:], k.amountAsset[:])
-//	copy(buf[1+crypto.DigestSize:], k.priceAsset[:])
-//	binary.BigEndian.PutUint32(buf[1+2*crypto.DigestSize:], k.timeFrame)
-//	return buf
-//}
 //
 //type pairPublicKeyTimestampKey struct {
 //	prefix      byte
@@ -263,354 +232,118 @@ func (s *Storage) PutBlockState(height int, aliasBinds []AliasBind) error {
 //	return nil
 //}
 //
-type BlockInfo struct {
-	Empty             bool
-	ID                crypto.Signature
-	EarliestTimeFrame uint32
-}
-
-func (b *BlockInfo) marshalBinary() []byte {
-	buf := make([]byte, crypto.SignatureSize+1+4)
-	if b.Empty {
-		buf[0] = 1
-	} else {
-		buf[0] = 0
-	}
-	copy(buf[1:], b.ID[:])
-	binary.BigEndian.PutUint32(buf[1+crypto.SignatureSize:], b.EarliestTimeFrame)
-	return buf
-}
-
-func (b *BlockInfo) unmarshalBinary(data []byte) error {
-	if len(data) != crypto.SignatureSize+1+4 {
-		return errors.New("incorrect data for BlockInfo")
-	}
-	b.Empty = data[0] == 1
-	copy(b.ID[:], data[1:])
-	b.EarliestTimeFrame = binary.BigEndian.Uint32(data[1+crypto.SignatureSize:])
-	return nil
-}
-
-//type AssetState struct {
-//	Reissuable    bool
-//	Supply        uint64
-//	IssuerBalance uint64
-//}
-//
-//func (a *AssetState) Update(diff AssetChange) *AssetState {
-//	if diff.Reissuable {
-//		a.Reissuable = false
+//func (s *Storage) PutBlockState(height int, aliasBinds []data.AliasBind) error {
+//	wrapError := func(err error) error {
+//		return errors.Wrapf(err, "failed to store block's state at height %d", height)
 //	}
-//	a.Supply += diff.Issued
-//	a.Supply -= diff.Burned
-//	return a
-//}
 //
-//func (a *AssetState) marshalBinary() []byte {
-//	buf := make([]byte, 1+8+8)
-//	if a.Reissuable {
-//		buf[0] = 1
+//	snapshot, err := s.db.GetSnapshot()
+//	if err != nil {
+//		return wrapError(err)
 //	}
-//	binary.BigEndian.PutUint64(buf[1:], a.Supply)
-//	binary.BigEndian.PutUint64(buf[1+8:], a.IssuerBalance)
-//	return buf
-//}
+//	bs := newBlockState(snapshot)
+//	batch := new(leveldb.Batch)
+//	putAliasesStateUpdate(bs, batch, uint32(height), aliasBinds)
 //
-//func (a *AssetState) unmarshalBinary(data []byte) error {
-//	if l := len(data); l < 1+8+8 {
-//		return errors.Errorf("%d is not enough bytes for AssetState, expected %d", l, 1+8+8)
+//	assets, err := s.loadAssetStates(stateUpdates)
+//	if err != nil {
+//		return wrapError(err)
 //	}
-//	a.Reissuable = data[0] == 1
-//	a.Supply = binary.BigEndian.Uint64(data[1:])
-//	a.IssuerBalance = binary.BigEndian.Uint64(data[1+8:])
-//	return nil
-//}
 //
-func (s *Storage) GetLastHeight() (int, error) {
-	//	v, err := s.db.Get(lastHeightKey, defaultReadOptions)
-	//	if err != nil {
-	//		if err != leveldb.ErrNotFound {
-	//			return 0, errors.Wrap(err, "failed to get Height")
-	//		}
-	//		return 0, nil
-	//	}
-	//	if l := len(v); l != 4 {
-	//		return 0, errors.Errorf("%d is incorrect length for Height value, expected 4", l)
-	//	}
-	//	return int(binary.BigEndian.Uint32(v)), nil
-	return 0, nil
-}
-
-//func (s *Storage) LastTrade() (Trade, error) {
-//	var t Trade
-//	it := s.db.NewIterator(&util.Range{Start: []byte{TradesKeyPrefix}, Limit: []byte{TradesKeyPrefix + 1}}, defaultReadOptions)
-//	if it.Last() {
-//		b := it.Value()
-//		err := t.UnmarshalBinary(b)
-//		if err != nil {
-//			return t, errors.Wrap(err, "failed to get last Trade")
+//	candles := map[timeFramePairKey]Candle{}
+//	markets := map[pairKey]Market{}
+//	affectedTimeFrames := make([]uint32, 0)
+//	for _, t := range trades {
+//		tf := TimeFrameFromTimestampMS(t.Timestamp)
+//		if !contains(affectedTimeFrames, tf) {
+//			affectedTimeFrames = append(affectedTimeFrames, tf)
 //		}
-//	}
-//	it.Release()
-//	return t, it.Error()
-//}
-//
-//func (s *Storage) ReadAssetInfo(asset crypto.Digest) (*AssetInfo, error) {
-//	if bytes.Equal(asset[:], WavesID[:]) {
-//		return &WavesAssetInfo, nil
-//	}
-//	k := DigestKey{AssetInfoKeyPrefix, asset}
-//	b, err := s.db.Get(k.bytes(), defaultReadOptions)
-//	if err != nil {
-//		return nil, errors.Wrap(err, "failed to read AssetInfo")
-//	}
-//	var i AssetInfo
-//	err = i.UnmarshalBinary(b)
-//	if err != nil {
-//		return nil, errors.Wrap(err, "failed to read AssetInfo")
-//	}
-//	return &i, nil
-//}
-//
-//func (s *Storage) readTrade(id crypto.Digest) (*Trade, error) {
-//	k := DigestKey{TradesKeyPrefix, id}
-//	b, err := s.db.Get(k.bytes(), defaultReadOptions)
-//	if err != nil {
-//		return nil, errors.Wrap(err, "failed to read Trade")
-//	}
-//	var t Trade
-//	err = t.UnmarshalBinary(b)
-//	if err != nil {
-//		return nil, errors.Wrap(err, "failed to read Trade")
-//	}
-//	return &t, nil
-//}
-//
-//func (s *Storage) Trades(amountAsset, priceAsset crypto.Digest, limit int) ([]Trade, error) {
-//	sk := pairTimeFrameKey{PairTradesKeyPrefix, amountAsset, priceAsset, 0}
-//	ek := pairTimeFrameKey{PairTradesKeyPrefix, amountAsset, priceAsset, math.MaxUint32}
-//	it := s.db.NewIterator(&util.Range{Start: sk.bytes(), Limit: ek.bytes()}, defaultReadOptions)
-//	c := 0
-//	var trades []Trade
-//	if it.Last() {
-//		for {
-//			if c >= limit {
-//				break
-//			}
-//			b := it.Value()
-//			var ids digests
-//			err := ids.unmarshalBinary(b)
+//		ck := timeFramePairKey{CandlesKeyPrefix, tf, t.AmountAsset, t.PriceAsset}
+//		var c Candle
+//		c, ok := candles[ck]
+//		if !ok {
+//			cb, err := s.db.Get(ck.bytes(), defaultReadOptions)
 //			if err != nil {
-//				return nil, errors.Wrap(err, "failed to load trades")
-//			}
-//			for _, id := range ids {
-//				t, err := s.readTrade(id)
+//				if err != leveldb.ErrNotFound {
+//					return wrapError(err)
+//				}
+//				c = NewCandleFromTimestamp(t.Timestamp)
+//			} else {
+//				err = c.UnmarshalBinary(cb)
 //				if err != nil {
-//					return nil, errors.Wrap(err, "failed to load trades")
+//					return wrapError(err)
 //				}
-//				if c == limit {
-//					break
-//				}
-//				trades = append(trades, *t)
-//				c++
-//			}
-//			if !it.Prev() {
-//				break
 //			}
 //		}
-//	}
-//	it.Release()
-//	return trades, it.Error()
-//}
-//
-//func (s *Storage) TradesRange(amountAsset, priceAsset crypto.Digest, from, to uint64) ([]Trade, error) {
-//	sk := pairTimestampKey{PairTradesKeyPrefix, amountAsset, priceAsset, from}
-//	ek := pairTimestampKey{PairTradesKeyPrefix, amountAsset, priceAsset, to + 1}
-//	it := s.db.NewIterator(&util.Range{Start: sk.bytes(), Limit: ek.bytes()}, defaultReadOptions)
-//	c := 0
-//	var trades []Trade
-//	if it.Last() {
-//		for {
-//			if c >= maxLimit {
-//				break
-//			}
-//			b := it.Value()
-//			var ids digests
-//			err := ids.unmarshalBinary(b)
+//		c.UpdateFromTrade(t)
+//		candles[ck] = c
+//		mk := pairKey{marketKeyPrefix, t.AmountAsset, t.PriceAsset}
+//		m, ok := markets[mk]
+//		if !ok {
+//			mb, err := s.db.Get(mk.bytes(), defaultReadOptions)
 //			if err != nil {
-//				return nil, errors.Wrap(err, "failed to load trades")
-//			}
-//			for _, id := range ids {
-//				t, err := s.readTrade(id)
+//				if err != leveldb.ErrNotFound {
+//					return wrapError(err)
+//				}
+//				m = Market{}
+//			} else {
+//				err = m.UnmarshalBinary(mb)
 //				if err != nil {
-//					return nil, errors.Wrap(err, "failed to load trades")
+//					return wrapError(err)
 //				}
-//				if c == maxLimit {
-//					break
-//				}
-//				trades = append(trades, *t)
-//				c++
-//			}
-//			if !it.Prev() {
-//				break
 //			}
 //		}
+//		m.UpdateFromTrade(t)
+//		markets[mk] = m
 //	}
-//	it.Release()
-//	return trades, it.Error()
-//}
 //
-//func (s *Storage) CandlesRange(amountAsset, priceAsset crypto.Digest, from, to uint32, timeFrameScale int) ([]Candle, error) {
-//	limit := timeFrameScale * maxLimit
-//	cs, err := s.candles(amountAsset, priceAsset, from, to+uint32(timeFrameScale), limit)
+//	updateAssets(assets, batch, height, stateUpdates)
+//	n := len(trades)
+//	updateLastHeight(batch, height)
+//	mtf := min(affectedTimeFrames)
+//	putBlockInfo(batch, height, block, n == 0, mtf)
+//	putTradesIDs(batch, block, trades)
+//	err = s.putTrades(batch, trades)
 //	if err != nil {
-//		return nil, errors.Wrap(err, "failed to load candles")
+//		return wrapError(err)
 //	}
-//	return cs, nil
-//}
-//
-//func (s *Storage) TradesByPublicKey(amountAsset, priceAsset crypto.Digest, pk crypto.PublicKey, limit int) ([]Trade, error) {
-//	sk := pairPublicKeyTimestampKey{PairPublicKeyTradesKeyPrefix, amountAsset, priceAsset, pk, 0}
-//	ek := pairPublicKeyTimestampKey{PairPublicKeyTradesKeyPrefix, amountAsset, priceAsset, pk, math.MaxUint64}
-//	it := s.db.NewIterator(&util.Range{Start: sk.bytes(), Limit: ek.bytes()}, defaultReadOptions)
-//	c := 0
-//	var trades []Trade
-//	if it.Last() {
-//		for {
-//			if c >= maxLimit {
-//				break
-//			}
-//			b := it.Value()
-//			var ids digests
-//			err := ids.unmarshalBinary(b)
-//			if err != nil {
-//				return nil, errors.Wrap(err, "failed to load trades")
-//			}
-//			for _, id := range ids {
-//				t, err := s.readTrade(id)
-//				if err != nil {
-//					return nil, errors.Wrap(err, "failed to load trades")
-//				}
-//				if c == maxLimit {
-//					break
-//				}
-//				trades = append(trades, *t)
-//				c++
-//			}
-//			if !it.Prev() {
-//				break
-//			}
-//		}
-//	}
-//	it.Release()
-//	return trades, it.Error()
-//}
-//
-//func (s *Storage) DayCandle(amountAsset, priceAsset crypto.Digest) (Candle, error) {
-//	sts := uint64(time.Now().Unix() * 1000)
-//	ttf := TimeFrameFromTimestampMS(sts)
-//	ftf := ScaleTimeFrame(ttf, 288)
-//	cs, err := s.candles(amountAsset, priceAsset, ftf, ttf, math.MaxInt32)
+//	err = s.updateAffectedTimeFrames(batch, affectedTimeFrames, height)
 //	if err != nil {
-//		return Candle{}, errors.Wrap(err, "failed to build DayCandle")
+//		return wrapError(err)
 //	}
-//	r := NewCandle(TimestampMSFromTimeFrame(ftf))
-//	for _, c := range cs {
-//		r.Combine(c)
-//	}
-//	return r, nil
-//}
-//
-//func (s *Storage) candles(amountAsset, priceAsset crypto.Digest, start, stop uint32, limit int) ([]Candle, error) {
-//	sk := pairTimeFrameKey{CandlesSecondKeyPrefix, amountAsset, priceAsset, start}
-//	ek := pairTimeFrameKey{CandlesSecondKeyPrefix, amountAsset, priceAsset, stop}
-//	r := make([]Candle, 0)
-//	it := s.db.NewIterator(&util.Range{Start: sk.bytes(), Limit: ek.bytes()}, defaultReadOptions)
-//	var c Candle
-//	i := 0
-//	for it.Next() {
-//		k := it.Value()
-//		b, err := s.db.Get(k, defaultReadOptions)
+//	for _, t := range trades {
+//		k1 := digestKey(tradeKeyPrefix, t.TransactionID)
+//		v1 := make([]byte, TradeSize)
+//		v1, err := t.MarshalBinary()
 //		if err != nil {
-//			return nil, errors.Wrap(err, "failed to collect candles")
+//			return wrapError(err)
 //		}
-//		err = c.UnmarshalBinary(b)
+//		batch.Put(k1, v1)
+//	}
+//	for ck, cv := range candles {
+//		v, err := cv.MarshalBinary()
 //		if err != nil {
-//			return nil, errors.Wrap(err, "failed to collect candles")
+//			return wrapError(err)
 //		}
-//		r = append(r, c)
-//		i++
-//		if i == limit {
-//			break
-//		}
+//		ckb := ck.bytes()
+//		batch.Put(ckb, v)
+//		ck2 := candleKey{candleKeyPrefix, ck.amountAsset, ck.priceAsset, ck.tf}
+//		batch.Put(ck2.bytes(), ckb)
 //	}
-//	it.Release()
-//	return r, it.Error()
-//}
-//
-//func (s *Storage) PublicKey(address proto.Address) (crypto.PublicKey, error) {
-//	b, err := s.db.Get(addressKey(AddressToPublicKeyKeyPrefix, address), defaultReadOptions)
-//	if err != nil {
-//		return crypto.PublicKey{}, errors.Wrap(err, "failed to find PublicKey for address")
-//	}
-//	pk, err := crypto.NewPublicKeyFromBytes(b)
-//	if err != nil {
-//		return crypto.PublicKey{}, errors.Wrap(err, "failed to find PublicKey for address")
-//	}
-//	return pk, nil
-//}
-//
-//func (s *Storage) ShouldImportBlock(height int, block crypto.Signature) (bool, error) {
-//	k := uint32Key{BlockAtHeightKeyPrefix, uint32(height)}
-//	v, err := s.db.Get(k.bytes(), defaultReadOptions)
-//	if err != nil {
-//		if err != leveldb.ErrNotFound {
-//			return false, errors.Wrapf(err, "failed to check existence of block '%s'", block.String())
-//		}
-//		return true, nil
-//	}
-//	var bi BlockInfo
-//	err = bi.unmarshalBinary(v)
-//	if err != nil {
-//		return false, errors.Wrapf(err, "failed to check existence of block '%s'", block.String())
-//	}
-//	if bytes.Equal(bi.ID[:], block[:]) {
-//		return false, nil
-//	}
-//	rollbackHeight, err := s.FindCorrectRollbackHeight(height - 1)
-//	if err != nil {
-//		return false, errors.Wrapf(err, "failed to find correct Rollback height while applying block '%s'", block.String())
-//	}
-//	err = s.Rollback(rollbackHeight)
-//	if err != nil {
-//		return false, errors.Wrapf(err, "failed to Rollback to height %d", height-1)
-//	}
-//	return true, nil
-//}
-//
-//func (s *Storage) Markets() (map[MarketID]MarketData, error) {
-//	sk := pairKey{MarketsKeyPrefix, WavesID, WavesID}
-//	ek := pairKey{MarketsKeyPrefix, LastID, LastID}
-//	it := s.db.NewIterator(&util.Range{Start: sk.bytes(), Limit: ek.bytes()}, defaultReadOptions)
-//	r := make(map[MarketID]MarketData, 0)
-//	for it.Next() {
-//		k := it.Key()
-//		var m MarketID
-//		err := m.UnmarshalBinary(k[1:])
+//	for mk, mv := range markets {
+//		vb, err := mv.MarshalBinary()
 //		if err != nil {
-//			return nil, errors.Wrap(err, "failed to collect markets")
+//			return wrapError(err)
 //		}
-//		var md MarketData
-//		err = md.UnmarshalBinary(it.Value())
-//		if err != nil {
-//			return nil, errors.Wrap(err, "failed to collect markets")
-//		}
-//		r[m] = md
+//		batch.Put(mk.bytes(), vb)
 //	}
-//	it.Release()
-//	return r, it.Error()
+//	err = s.db.Write(batch, defaultWriteOptions)
+//	if err != nil {
+//		return errors.Wrapf(err, "failed to store block '%s' at height %d", block.String(), height)
+//	}
+//return nil
 //}
-//
+
 //func (s *Storage) loadAssetStates(updates []Change) (map[crypto.Digest]AssetState, error) {
 //	r := make(map[crypto.Digest]AssetState)
 //	for _, u := range updates {
@@ -640,7 +373,7 @@ func (s *Storage) GetLastHeight() (int, error) {
 //	diffs := make(map[crypto.Digest]AssetChange)
 //	for _, u := range updates {
 //		if u.Diff.Created {
-//			b := DigestKey{AssetInfoKeyPrefix, u.Info.ID}
+//			b := DigestKey{assetKeyPrefix, u.Info.ID}
 //			batch.Put(b.bytes(), u.Info.marshalBinary())
 //		}
 //		state := states[u.Info.ID]
@@ -657,117 +390,117 @@ func (s *Storage) GetLastHeight() (int, error) {
 //	}
 //}
 //
-//func (s *Storage) PutBlock(height int, block crypto.Signature, trades []Trade, stateUpdates []Change, aliasBinds []AliasBind) error {
-//	wrapError := func(err error) error {
-//		return errors.Wrapf(err, "failed to store block '%s' at height %d", block.String(), height)
-//	}
-//
-//	//snapshot, err := s.db.GetSnapshot()
-//	//if err != nil {
-//	//	return wrapError(err)
-//	//}
-//
-//	assets, err := s.loadAssetStates(stateUpdates)
-//	if err != nil {
-//		return wrapError(err)
-//	}
-//
-//	candles := map[timeFramePairKey]Candle{}
-//	markets := map[pairKey]MarketData{}
-//	affectedTimeFrames := make([]uint32, 0)
-//	for _, t := range trades {
-//		tf := TimeFrameFromTimestampMS(t.Timestamp)
-//		if !contains(affectedTimeFrames, tf) {
-//			affectedTimeFrames = append(affectedTimeFrames, tf)
-//		}
-//		ck := timeFramePairKey{CandlesKeyPrefix, tf, t.AmountAsset, t.PriceAsset}
-//		var c Candle
-//		c, ok := candles[ck]
-//		if !ok {
-//			cb, err := s.db.Get(ck.bytes(), defaultReadOptions)
-//			if err != nil {
-//				if err != leveldb.ErrNotFound {
-//					return wrapError(err)
-//				}
-//				c = NewCandle(t.Timestamp)
-//			} else {
-//				err = c.UnmarshalBinary(cb)
-//				if err != nil {
-//					return wrapError(err)
-//				}
-//			}
-//		}
-//		c.UpdateFromTrade(t)
-//		candles[ck] = c
-//		mk := pairKey{MarketsKeyPrefix, t.AmountAsset, t.PriceAsset}
-//		m, ok := markets[mk]
-//		if !ok {
-//			mb, err := s.db.Get(mk.bytes(), defaultReadOptions)
-//			if err != nil {
-//				if err != leveldb.ErrNotFound {
-//					return wrapError(err)
-//				}
-//				m = MarketData{}
-//			} else {
-//				err = m.UnmarshalBinary(mb)
-//				if err != nil {
-//					return wrapError(err)
-//				}
-//			}
-//		}
-//		m.UpdateFromTrade(t)
-//		markets[mk] = m
-//	}
-//
-//	batch := new(leveldb.Batch)
-//	//putAliasesStateUpdate(snapshot, batch, uint32(height), aliasBinds)
-//	updateAssets(assets, batch, height, stateUpdates)
-//	n := len(trades)
-//	updateLastHeight(batch, height)
-//	mtf := min(affectedTimeFrames)
-//	putBlockInfo(batch, height, block, n == 0, mtf)
-//	putTradesIDs(batch, block, trades)
-//	err = s.putTrades(batch, trades)
-//	if err != nil {
-//		return wrapError(err)
-//	}
-//	err = s.updateAffectedTimeFrames(batch, affectedTimeFrames, height)
-//	if err != nil {
-//		return wrapError(err)
-//	}
-//	for _, t := range trades {
-//		k1 := DigestKey{TradesKeyPrefix, t.TransactionID}
-//		v1 := make([]byte, TradeSize)
-//		v1, err := t.MarshalBinary()
-//		if err != nil {
-//			return wrapError(err)
-//		}
-//		batch.Put(k1.bytes(), v1)
-//	}
-//	for ck, cv := range candles {
-//		v, err := cv.MarshalBinary()
-//		if err != nil {
-//			return wrapError(err)
-//		}
-//		ckb := ck.bytes()
-//		batch.Put(ckb, v)
-//		ck2 := pairTimeFrameKey{CandlesSecondKeyPrefix, ck.amountAsset, ck.priceAsset, ck.tf}
-//		batch.Put(ck2.bytes(), ckb)
-//	}
-//	for mk, mv := range markets {
-//		vb, err := mv.MarshalBinary()
-//		if err != nil {
-//			return wrapError(err)
-//		}
-//		batch.Put(mk.bytes(), vb)
-//	}
-//	err = s.db.Write(batch, defaultWriteOptions)
-//	if err != nil {
-//		return errors.Wrapf(err, "failed to store block '%s' at height %d", block.String(), height)
-//	}
-//	return nil
-//}
-//
+func (s *Storage) PutBlock(height int, block crypto.Signature, trades []data.Trade, issues []data.IssueChange, assets []data.AssetChange, accounts []data.AccountChange, aliases []data.AliasBind) error {
+	//	wrapError := func(err error) error {
+	//		return errors.Wrapf(err, "failed to store block '%s' at height %d", block.String(), height)
+	//	}
+	//
+	//	//snapshot, err := s.db.GetSnapshot()
+	//	//if err != nil {
+	//	//	return wrapError(err)
+	//	//}
+	//
+	//	assets, err := s.loadAssetStates(stateUpdates)
+	//	if err != nil {
+	//		return wrapError(err)
+	//	}
+	//
+	//	candles := map[timeFramePairKey]Candle{}
+	//	markets := map[pairKey]Market{}
+	//	affectedTimeFrames := make([]uint32, 0)
+	//	for _, t := range trades {
+	//		tf := TimeFrameFromTimestampMS(t.Timestamp)
+	//		if !contains(affectedTimeFrames, tf) {
+	//			affectedTimeFrames = append(affectedTimeFrames, tf)
+	//		}
+	//		ck := timeFramePairKey{CandlesKeyPrefix, tf, t.AmountAsset, t.PriceAsset}
+	//		var c Candle
+	//		c, ok := candles[ck]
+	//		if !ok {
+	//			cb, err := s.db.Get(ck.bytes(), defaultReadOptions)
+	//			if err != nil {
+	//				if err != leveldb.ErrNotFound {
+	//					return wrapError(err)
+	//				}
+	//				c = NewCandleFromTimestamp(t.Timestamp)
+	//			} else {
+	//				err = c.UnmarshalBinary(cb)
+	//				if err != nil {
+	//					return wrapError(err)
+	//				}
+	//			}
+	//		}
+	//		c.UpdateFromTrade(t)
+	//		candles[ck] = c
+	//		mk := pairKey{marketKeyPrefix, t.AmountAsset, t.PriceAsset}
+	//		m, ok := markets[mk]
+	//		if !ok {
+	//			mb, err := s.db.Get(mk.bytes(), defaultReadOptions)
+	//			if err != nil {
+	//				if err != leveldb.ErrNotFound {
+	//					return wrapError(err)
+	//				}
+	//				m = Market{}
+	//			} else {
+	//				err = m.UnmarshalBinary(mb)
+	//				if err != nil {
+	//					return wrapError(err)
+	//				}
+	//			}
+	//		}
+	//		m.UpdateFromTrade(t)
+	//		markets[mk] = m
+	//	}
+	//
+	//	batch := new(leveldb.Batch)
+	//	//putAliasesStateUpdate(snapshot, batch, uint32(height), aliasBinds)
+	//	updateAssets(assets, batch, height, stateUpdates)
+	//	n := len(trades)
+	//	updateLastHeight(batch, height)
+	//	mtf := min(affectedTimeFrames)
+	//	putBlockInfo(batch, height, block, n == 0, mtf)
+	//	putTradesIDs(batch, block, trades)
+	//	err = s.putTrades(batch, trades)
+	//	if err != nil {
+	//		return wrapError(err)
+	//	}
+	//	err = s.updateAffectedTimeFrames(batch, affectedTimeFrames, height)
+	//	if err != nil {
+	//		return wrapError(err)
+	//	}
+	//	for _, t := range trades {
+	//		k1 := DigestKey{tradeKeyPrefix, t.TransactionID}
+	//		v1 := make([]byte, TradeSize)
+	//		v1, err := t.MarshalBinary()
+	//		if err != nil {
+	//			return wrapError(err)
+	//		}
+	//		batch.Put(k1.bytes(), v1)
+	//	}
+	//	for ck, cv := range candles {
+	//		v, err := cv.MarshalBinary()
+	//		if err != nil {
+	//			return wrapError(err)
+	//		}
+	//		ckb := ck.bytes()
+	//		batch.Put(ckb, v)
+	//		ck2 := candleKey{candleKeyPrefix, ck.amountAsset, ck.priceAsset, ck.tf}
+	//		batch.Put(ck2.bytes(), ckb)
+	//	}
+	//	for mk, mv := range markets {
+	//		vb, err := mv.MarshalBinary()
+	//		if err != nil {
+	//			return wrapError(err)
+	//		}
+	//		batch.Put(mk.bytes(), vb)
+	//	}
+	//	err = s.db.Write(batch, defaultWriteOptions)
+	//	if err != nil {
+	//		return errors.Wrapf(err, "failed to store block '%s' at height %d", block.String(), height)
+	//	}
+	return nil
+}
+
 //func putAddress(batch *leveldb.Batch, pk crypto.PublicKey, scheme byte) error {
 //	a, err := proto.NewAddressFromPublicKey(scheme, pk)
 //	if err != nil {
@@ -811,7 +544,7 @@ func (s *Storage) GetLastHeight() (int, error) {
 //				return err
 //			}
 //		}
-//		k1 := pairTimestampKey{PairTradesKeyPrefix, t.AmountAsset, t.PriceAsset, t.Timestamp}
+//		k1 := pairTimestampKey{marketTradesKeyPrefix, t.AmountAsset, t.PriceAsset, t.Timestamp}
 //		v, ok := d1[k1]
 //		if ok {
 //			v = append(v, t.TransactionID)
@@ -845,7 +578,7 @@ func (s *Storage) GetLastHeight() (int, error) {
 //	return nil
 //}
 //
-func (s *Storage) FindCorrectRollbackHeight(height int) (int, error) {
+func (s *Storage) SafeRollbackHeight(toHeight int) (int, error) {
 	//	ok, bi, err := s.findFirstNonEmptyBlock(height)
 	//	if err != nil {
 	//		return 0, errors.Wrap(err, "failed to find first non empty block")
@@ -863,78 +596,66 @@ func (s *Storage) FindCorrectRollbackHeight(height int) (int, error) {
 	//	if eh >= height {
 	//		return height, nil
 	//	} else {
-	//		return s.FindCorrectRollbackHeight(eh)
+	//		return s.SafeRollbackHeight(eh)
 	//	}
 	return 0, nil
 }
 
-func (s *Storage) Rollback(height int) error {
-	//	max, err := s.GetLastHeight()
-	//	if err != nil {
-	//		return errors.Wrap(err, "failed to Rollback")
-	//	}
-	//	if height >= max {
-	//		return errors.Errorf("Rollback is impossible, current height %d is not lower then given %d", max, height)
-	//	}
-	//	for h := max; h > height; h-- {
-	//		bi, err := s.BlockInfo(h)
-	//		if err != nil {
-	//			return errors.Wrapf(err, "Rollback failure at height %d", h)
-	//		}
-	//		trades, err := s.getTrades(bi.ID)
-	//		if err != nil {
-	//			return errors.Wrapf(err, "Rollback failure at height %d", h)
-	//		}
-	//		batch := new(leveldb.Batch)
-	//		err = s.removeCandlesAfter(batch, youngestTimeFrame(trades))
-	//		if err != nil {
-	//			batch.Reset()
-	//			return errors.Wrapf(err, "rollback failure at height %d", h)
-	//		}
-	//		removeTrades(batch, trades)
-	//		err = s.removeEarliestTimeFrames(batch, bi.EarliestTimeFrame)
-	//		if err != nil {
-	//			batch.Reset()
-	//			return errors.Wrapf(err, "rollback failure at height %d", h)
-	//		}
-	//		batch.Delete(signatureKey(BlockTradesKeyPrefix, bi.ID))
-	//		hk := uint32Key{BlockAtHeightKeyPrefix, uint32(h)}
-	//		batch.Delete(hk.bytes())
-	//		updateLastHeight(batch, h-1)
-	//		err = s.db.Write(batch, defaultWriteOptions)
-	//		if err != nil {
-	//			return errors.Wrapf(err, "Rollback failure at height %d", h)
-	//		}
-	//	}
+func (s *Storage) Rollback(toHeight int) error {
+	wrapError := func(err error) error { return errors.Wrapf(err, "failed to rollback to height %d", toHeight) }
+	snapshot, err := s.db.GetSnapshot()
+	if err != nil {
+		return wrapError(err)
+	}
+	defer snapshot.Release()
+	max, err := height(snapshot)
+	if err != nil {
+		return wrapError(err)
+	}
+	if toHeight >= max {
+		return wrapError(errors.Errorf("nothing to rollback, current height is %d", max))
+	}
+	batch := new(leveldb.Batch)
+	removeHeight := uint32(toHeight + 1)
+	err = rollbackTrades(snapshot, batch, removeHeight)
+	if err != nil {
+		return wrapError(err)
+	}
+	err = rollbackAssetInfos(snapshot, batch, removeHeight)
+	if err != nil {
+		return wrapError(err)
+	}
+	err = rollbackBalances(snapshot, batch, removeHeight)
+	if err != nil {
+		return wrapError(err)
+	}
+	err = rollbackAliases(snapshot, batch, removeHeight)
+	if err != nil {
+		return wrapError(err)
+	}
+	err = rollbackBlocks(snapshot, batch, removeHeight)
+	if err != nil {
+		return wrapError(err)
+	}
+	err = s.db.Write(batch, nil)
+	if err != nil {
+		return wrapError(err)
+	}
 	return nil
 }
 
-//func (s *Storage) findFirstNonEmptyBlock(height int) (bool, BlockInfo, error) {
-//	bi, err := s.BlockInfo(height)
+//func (s *Storage) findFirstNonEmptyBlock(height int) (bool, blockInfo, error) {
+//	bi, err := s.blockInfo(height)
 //	if err != nil {
 //		if err != leveldb.ErrNotFound {
-//			return false, BlockInfo{}, err
+//			return false, blockInfo{}, err
 //		}
-//		return false, BlockInfo{}, nil
+//		return false, blockInfo{}, nil
 //	}
 //	if !bi.Empty {
 //		return true, bi, nil
 //	}
 //	return s.findFirstNonEmptyBlock(height - 1)
-//}
-//
-//func (s *Storage) BlockInfo(height int) (BlockInfo, error) {
-//	k := uint32Key{BlockAtHeightKeyPrefix, uint32(height)}
-//	v, err := s.db.Get(k.bytes(), defaultReadOptions)
-//	if err != nil {
-//		return BlockInfo{}, errors.Wrapf(err, "failed to get info about block at height %d", height)
-//	}
-//	var bi BlockInfo
-//	err = bi.unmarshalBinary(v)
-//	if err != nil {
-//		return BlockInfo{}, errors.Wrapf(err, "failed to get info about block at height %d", height)
-//	}
-//	return bi, nil
 //}
 //
 //func (s *Storage) getTrades(block crypto.Signature) ([]Trade, error) {
@@ -948,7 +669,7 @@ func (s *Storage) Rollback(height int) error {
 //	tid := make([]byte, crypto.DigestSize)
 //	for i := 0; i < n; i++ {
 //		copy(tid, v[i*crypto.DigestSize:])
-//		tk := prepend(TradesKeyPrefix, tid)
+//		tk := prepend(tradeKeyPrefix, tid)
 //		tv, err := s.db.Get(tk, defaultReadOptions)
 //		if err != nil {
 //			return []Trade{}, errors.Wrap(err, "failed to collect Trades")
@@ -1004,8 +725,8 @@ func (s *Storage) Rollback(height int) error {
 //}
 //
 //func putBlockInfo(batch *leveldb.Batch, height int, block crypto.Signature, empty bool, earliestTimeFrame uint32) {
-//	k := uint32Key{BlockAtHeightKeyPrefix, uint32(height)}
-//	bi := BlockInfo{empty, block, earliestTimeFrame}
+//	k := uint32Key{blockInfoKeyPrefix, uint32(height)}
+//	bi := blockInfo{empty, block, earliestTimeFrame}
 //	v := bi.marshalBinary()
 //	batch.Put(k.bytes(), v)
 //}
@@ -1039,7 +760,7 @@ func (s *Storage) Rollback(height int) error {
 //
 //func removeTrades(batch *leveldb.Batch, trades []Trade) {
 //	for _, t := range trades {
-//		k := DigestKey{TradesKeyPrefix, t.TransactionID}
+//		k := DigestKey{tradeKeyPrefix, t.TransactionID}
 //		batch.Delete(k.bytes())
 //	}
 //}

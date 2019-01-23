@@ -1,4 +1,4 @@
-package internal
+package data
 
 import (
 	"github.com/pkg/errors"

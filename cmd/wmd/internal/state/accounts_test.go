@@ -3,42 +3,31 @@ package state
 import (
 	"github.com/stretchr/testify/assert"
 	"github.com/syndtr/goleveldb/leveldb"
-	"github.com/syndtr/goleveldb/leveldb/opt"
+	"github.com/wavesplatform/gowaves/cmd/wmd/internal/data"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"os"
-	"path/filepath"
 	"testing"
 )
 
-func openDB(t *testing.T, name string) (*leveldb.DB, func()) {
-	path := filepath.Join(os.TempDir(), name)
-	opts := opt.Options{ErrorIfExist: true}
-	db, err := leveldb.OpenFile(path, &opts)
-	assert.NoError(t, err)
-	return db, func() {
-		err = db.Close()
-		assert.NoError(t, err)
-		err = os.RemoveAll(path)
-		assert.NoError(t, err)
-	}
-}
-
 func TestSingleAccountsState(t *testing.T) {
-	db, closeDB := openDB(t, "account-state-db")
+	db, closeDB := openDB(t, "wmd-account-state-db")
 	defer closeDB()
 
-	addr1, err := proto.NewAddressFromString("3N1746xR1R4hzWF2GXcMXS7mH9cm8yq6oZR")
+	pk1, err := crypto.NewPublicKeyFromBase58("3Janbh2r7ZQjiUM3sWVswVGHWyQB2TPxm348QvuX5v6c")
 	assert.NoError(t, err)
-	acc1 := Account{Address: addr1}
+	addr1, err := proto.NewAddressFromPublicKey(scheme, pk1)
+	assert.NoError(t, err)
+	acc1 := data.Account{Address: addr1}
 	asset1, err := crypto.NewDigestFromBase58("3Janbh2r7ZQjiUM3sWVswVGHWyQB2TPxm348QvuX5v6c")
 	assert.NoError(t, err)
-	u1 := []AccountChange{{Account: acc1, Asset: asset1, In: 100, Out: 0}}
+	u0 := []data.IssueChange{{AssetID: asset1, Name: "asset1", Issuer: pk1, Decimals: 0, Reissuable: true, Quantity: 100}}
+	u1 := []data.AccountChange{{Account: acc1, Asset: asset1, In: 100, Out: 0}}
 	snapshot, err := db.GetSnapshot()
 	assert.NoError(t, err)
 	batch := new(leveldb.Batch)
 	bs := newBlockState(snapshot)
-	bs.issuers[assetIssuerKey{address: addr1, asset: asset1}] = struct{}{}
+	err = putIssues(bs, batch, scheme, 1, u0)
+	assert.NoError(t, err)
 	err = putBalancesStateUpdate(bs, batch, 1, u1)
 	assert.NoError(t, err)
 	err = db.Write(batch, nil)
@@ -50,12 +39,11 @@ func TestSingleAccountsState(t *testing.T) {
 		assert.Equal(t, 100, int(b))
 	}
 
-	u2 := []AccountChange{{Account: acc1, Asset: asset1, In: 0, Out: 50}}
+	u2 := []data.AccountChange{{Account: acc1, Asset: asset1, In: 0, Out: 50}}
 	snapshot, err = db.GetSnapshot()
 	assert.NoError(t, err)
 	batch = new(leveldb.Batch)
 	bs = newBlockState(snapshot)
-	bs.issuers[assetIssuerKey{address: addr1, asset: asset1}] = struct{}{}
 	err = putBalancesStateUpdate(bs, batch, 2, u2)
 	assert.NoError(t, err)
 	err = db.Write(batch, nil)
@@ -67,12 +55,11 @@ func TestSingleAccountsState(t *testing.T) {
 		assert.Equal(t, 50, int(b))
 	}
 
-	u3 := []AccountChange{{Account: acc1, Asset: asset1, In: 0, Out: 50}}
+	u3 := []data.AccountChange{{Account: acc1, Asset: asset1, In: 0, Out: 50}}
 	snapshot, err = db.GetSnapshot()
 	assert.NoError(t, err)
 	batch = new(leveldb.Batch)
 	bs = newBlockState(snapshot)
-	bs.issuers[assetIssuerKey{address: addr1, asset: asset1}] = struct{}{}
 	err = putBalancesStateUpdate(bs, batch, 3, u3)
 	assert.NoError(t, err)
 	err = db.Write(batch, nil)
@@ -101,7 +88,7 @@ func TestSingleAccountsState(t *testing.T) {
 }
 
 func TestMultipleAccountState(t *testing.T) {
-	db, closeDB := openDB(t, "account-state-db")
+	db, closeDB := openDB(t, "wmd-account-state-db")
 	defer closeDB()
 
 	asset1, err := crypto.NewDigestFromBase58("3Janbh2r7ZQjiUM3sWVswVGHWyQB2TPxm348QvuX5v6c")
@@ -109,33 +96,41 @@ func TestMultipleAccountState(t *testing.T) {
 	asset2, err := crypto.NewDigestFromBase58("HzfaJp8YQWLvQG4FkUxq2Q7iYWMYQ2k8UF89vVJAjWPj")
 	assert.NoError(t, err)
 
-	addr1, err := proto.NewAddressFromString("3N1746xR1R4hzWF2GXcMXS7mH9cm8yq6oZR")
+	pk1, err := crypto.NewPublicKeyFromBase58("3Janbh2r7ZQjiUM3sWVswVGHWyQB2TPxm348QvuX5v6c")
 	assert.NoError(t, err)
-	acc1 := Account{Address: addr1}
+	addr1, err := proto.NewAddressFromPublicKey(scheme, pk1)
+	assert.NoError(t, err)
+	acc1 := data.Account{Address: addr1}
 
 	alias2, err := proto.NewAlias(scheme, "alias2")
 	assert.NoError(t, err)
-	addr2, err := proto.NewAddressFromString("3NB1Yz7fH1bJ2gVDjyJnuyKNTdMFARkKEpV")
+	pk2, err := crypto.NewPublicKeyFromBase58("HzfaJp8YQWLvQG4FkUxq2Q7iYWMYQ2k8UF89vVJAjWPj")
 	assert.NoError(t, err)
-	acc2 := Account{Alias: *alias2}
+	addr2, err := proto.NewAddressFromPublicKey(scheme, pk2)
+	assert.NoError(t, err)
+	acc2 := data.Account{Alias: *alias2}
 
-	u0 := []AliasBind{{Alias: *alias2, Address: addr2}}
+	u01 := []data.AliasBind{{Alias: *alias2, Address: addr2}}
+	u02 := []data.IssueChange{
+		{AssetID: asset1, Name: "asset1", Issuer: pk1, Decimals: 0, Reissuable: true, Quantity: 1000},
+		{AssetID: asset2, Name: "asset2", Issuer: pk2, Decimals: 0, Reissuable: false, Quantity: 2000},
+	}
 	snapshot, err := db.GetSnapshot()
 	assert.NoError(t, err)
 	batch := new(leveldb.Batch)
 	bs := newBlockState(snapshot)
-	err = putAliasesStateUpdate(bs, batch, 1, u0)
+	err = putAliasesStateUpdate(bs, batch, 1, u01)
+	assert.NoError(t, err)
+	err = putIssues(bs, batch, scheme, 1, u02)
 	assert.NoError(t, err)
 	err = db.Write(batch, nil)
 	assert.NoError(t, err)
 
-	u1 := []AccountChange{{Account: acc1, Asset: asset1, In: 1000, Out: 0}, {Account: acc2, Asset: asset2, In: 2000, Out: 0}}
+	u1 := []data.AccountChange{{Account: acc1, Asset: asset1, In: 1000, Out: 0}, {Account: acc2, Asset: asset2, In: 2000, Out: 0}}
 	snapshot, err = db.GetSnapshot()
 	assert.NoError(t, err)
 	batch = new(leveldb.Batch)
 	bs = newBlockState(snapshot)
-	bs.issuers[assetIssuerKey{address: addr1, asset: asset1}] = struct{}{}
-	bs.issuers[assetIssuerKey{address: addr2, asset: asset2}] = struct{}{}
 	err = putBalancesStateUpdate(bs, batch, 2, u1)
 	assert.NoError(t, err)
 	err = db.Write(batch, nil)
@@ -150,7 +145,7 @@ func TestMultipleAccountState(t *testing.T) {
 		assert.Equal(t, 2000, int(b))
 	}
 
-	u2 := []AccountChange{
+	u2 := []data.AccountChange{
 		{Account: acc1, Asset: asset1, In: 0, Out: 50},
 		{Account: acc2, Asset: asset1, In: 50, Out: 0},
 		{Account: acc2, Asset: asset2, In: 0, Out: 100},
@@ -160,8 +155,6 @@ func TestMultipleAccountState(t *testing.T) {
 	assert.NoError(t, err)
 	batch = new(leveldb.Batch)
 	bs = newBlockState(snapshot)
-	bs.issuers[assetIssuerKey{address: addr1, asset: asset1}] = struct{}{}
-	bs.issuers[assetIssuerKey{address: addr2, asset: asset2}] = struct{}{}
 	err = putBalancesStateUpdate(bs, batch, 3, u2)
 	assert.NoError(t, err)
 	err = db.Write(batch, nil)
@@ -182,12 +175,11 @@ func TestMultipleAccountState(t *testing.T) {
 		assert.Equal(t, 0, int(b))
 	}
 
-	u3 := []AccountChange{{Account: acc1, Asset: asset1, In: 0, Out: 50}}
+	u3 := []data.AccountChange{{Account: acc1, Asset: asset1, In: 0, Out: 50}}
 	snapshot, err = db.GetSnapshot()
 	assert.NoError(t, err)
 	batch = new(leveldb.Batch)
 	bs = newBlockState(snapshot)
-	bs.issuers[assetIssuerKey{address: addr1, asset: asset1}] = struct{}{}
 	err = putBalancesStateUpdate(bs, batch, 4, u3)
 	assert.NoError(t, err)
 	err = db.Write(batch, nil)
@@ -220,8 +212,8 @@ func TestMultipleAccountState(t *testing.T) {
 func TestAssetInfoBytesRoundTrip(t *testing.T) {
 	pk, err := crypto.NewPublicKeyFromBase58("3Janbh2r7ZQjiUM3sWVswVGHWyQB2TPxm348QvuX5v6c")
 	assert.NoError(t, err)
-	ai := assetInfo{name: "asset", issuer: pk, decimals: 8, reissuable: true, sponsored: true, supply: 123456}
-	var ai2 assetInfo
+	ai := asset{name: "asset", issuer: pk, decimals: 8, reissuable: true, sponsored: true, supply: 123456}
+	var ai2 asset
 	err = ai2.fromBytes(ai.bytes())
 	assert.NoError(t, err)
 	assert.Equal(t, ai.name, ai2.name)
@@ -233,7 +225,7 @@ func TestAssetInfoBytesRoundTrip(t *testing.T) {
 }
 
 func TestAssetInfoIssueReissueRollback1(t *testing.T) {
-	db, closeDB := openDB(t, "asset-state-db")
+	db, closeDB := openDB(t, "wmd-asset-state-db")
 	defer closeDB()
 
 	asset1, err := crypto.NewDigestFromBase58("3Janbh2r7ZQjiUM3sWVswVGHWyQB2TPxm348QvuX5v6c")
@@ -244,7 +236,7 @@ func TestAssetInfoIssueReissueRollback1(t *testing.T) {
 	addr1, err := proto.NewAddressFromPublicKey(scheme, pk1)
 	assert.NoError(t, err)
 
-	u1 := []IssueChange{{AssetID: asset1, Name: "asset1", Issuer: pk1, Decimals: 2, Quantity: 100000, Reissuable: true}}
+	u1 := []data.IssueChange{{AssetID: asset1, Name: "asset1", Issuer: pk1, Decimals: 2, Quantity: 100000, Reissuable: true}}
 	snapshot, err := db.GetSnapshot()
 	assert.NoError(t, err)
 	batch := new(leveldb.Batch)
@@ -269,7 +261,7 @@ func TestAssetInfoIssueReissueRollback1(t *testing.T) {
 		assert.Equal(t, 100000, int(ai.supply))
 	}
 
-	u2 := []AssetChange{{AssetID: asset1, SetReissuable:true, Reissuable: false, Issued: 10000}}
+	u2 := []data.AssetChange{{AssetID: asset1, SetReissuable: true, Reissuable: false, Issued: 10000}}
 	snapshot, err = db.GetSnapshot()
 	assert.NoError(t, err)
 	batch = new(leveldb.Batch)
@@ -294,8 +286,7 @@ func TestAssetInfoIssueReissueRollback1(t *testing.T) {
 		assert.Equal(t, 110000, int(ai.supply))
 	}
 
-
-	u3 := []AssetChange{{AssetID: asset1, Burned:5000}, {AssetID:asset1, SetSponsored:true, Sponsored:true}}
+	u3 := []data.AssetChange{{AssetID: asset1, Burned: 5000}, {AssetID: asset1, SetSponsored: true, Sponsored: true}}
 	snapshot, err = db.GetSnapshot()
 	assert.NoError(t, err)
 	batch = new(leveldb.Batch)

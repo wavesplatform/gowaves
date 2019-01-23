@@ -3,17 +3,18 @@ package internal
 import (
 	"context"
 	"github.com/pkg/errors"
+	"github.com/wavesplatform/gowaves/cmd/wmd/internal/state"
 	"github.com/wavesplatform/gowaves/pkg/client"
 	"net/url"
 )
 
-type Sycronizer struct {
+type Synchronizer struct {
 	u  url.URL
 	bc client.Blocks
 }
 
-func (s *Sycronizer) Start(ctx context.Context, node url.URL, storage *Storage) error {
-	sh, err := storage.GetLastHeight()
+func (s *Synchronizer) Start(ctx context.Context, node url.URL, storage *state.Storage) error {
+	sh, err := storage.Height()
 	if err != nil {
 		return errors.Wrap(err, "failed to get stored height")
 	}
@@ -25,6 +26,6 @@ func (s *Sycronizer) Start(ctx context.Context, node url.URL, storage *Storage) 
 	return nil
 }
 
-func (s *Sycronizer) Stop() {
+func (s *Synchronizer) Stop() {
 
 }

@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/binary"
 	"github.com/pkg/errors"
+	"github.com/wavesplatform/gowaves/cmd/wmd/internal/data"
 	"github.com/wavesplatform/gowaves/cmd/wmd/internal/state"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -20,12 +21,12 @@ import (
 type Importer struct {
 	rootContext context.Context
 	log         *zap.SugaredLogger
-	storage     *Storage
+	storage     *state.Storage
 	scheme      byte
 	matcher     crypto.PublicKey
 }
 
-func NewImporter(ctx context.Context, log *zap.SugaredLogger, scheme byte, storage *Storage, matcher crypto.PublicKey) *Importer {
+func NewImporter(ctx context.Context, log *zap.SugaredLogger, scheme byte, storage *state.Storage, matcher crypto.PublicKey) *Importer {
 	return &Importer{rootContext: ctx, log: log, scheme: scheme, storage: storage, matcher: matcher}
 }
 
@@ -37,11 +38,11 @@ type task struct {
 type result struct {
 	height   int
 	id       crypto.Signature
-	trades   []Trade
-	issues   []state.IssueChange
-	assets   []state.AssetChange
-	accounts []state.AccountChange
-	aliases  []state.AliasBind
+	trades   []data.Trade
+	issues   []data.IssueChange
+	assets   []data.AssetChange
+	accounts []data.AccountChange
+	aliases  []data.AliasBind
 	error    error
 }
 
@@ -91,7 +92,7 @@ func (im *Importer) Import(n string) error {
 				im.log.Errorf("Failed to collect transactions for block at height %d: %s", r.height, r.error.Error())
 				break
 			}
-			err := im.storage.PutBlock(r.height, r.id, r.trades, r.changes, r.aliases)
+			err := im.storage.PutBlock(r.height, r.id, r.trades, r.issues, r.assets, r.accounts, r.aliases)
 			if err != nil {
 				im.log.Errorf("Failed to update storage: %s", err.Error())
 			}
@@ -156,12 +157,12 @@ func (im *Importer) readBlocks(f io.Reader) <-chan task {
 					im.log.Errorf("Block %s has invalid signature. Aborting.", t.block.BlockSignature.String())
 					return
 				}
-				ok, err := im.storage.ShouldImportBlock(h, t.block.BlockSignature)
+				blockExists, err := im.storage.HasBlock(h, t.block.BlockSignature)
 				if err != nil {
-					im.log.Errorf("Failed to check block in DB: %s", err.Error())
+					im.log.Errorf("Failed to check block existence: %s", err.Error())
 					return
 				}
-				if ok {
+				if !blockExists {
 					out <- t
 				}
 			}
@@ -176,7 +177,7 @@ func (im *Importer) worker(tasks <-chan task) <-chan result {
 
 	processTask := func(t task) result {
 		r := result{height: t.height, id: t.block.BlockSignature}
-		r.trades, r.changes, r.aliases, r.error = im.extractTransactions(t.block.Transactions, t.block.TransactionCount, t.block.GenPublicKey)
+		r.trades, r.issues, r.assets, r.accounts, r.aliases, r.error = im.extractTransactions(t.block.Transactions, t.block.TransactionCount, t.block.GenPublicKey)
 		return r
 	}
 
@@ -223,16 +224,16 @@ func (im *Importer) collect(channels ...<-chan result) <-chan result {
 	return multiplexedStream
 }
 
-func (im *Importer) extractTransactions(d []byte, n int, miner crypto.PublicKey) ([]Trade, []state.IssueChange, []state.AssetChange, []state.AccountChange, []state.AliasBind, error) {
+func (im *Importer) extractTransactions(d []byte, n int, miner crypto.PublicKey) ([]data.Trade, []data.IssueChange, []data.AssetChange, []data.AccountChange, []data.AliasBind, error) {
 	wrapErr := func(err error, transaction string) error {
 		return errors.Wrapf(err, "failed to extract %s transaction", transaction)
 	}
 
-	trades := make([]Trade, 0)
-	accountChanges := make([]state.AccountChange, 0)
-	assetChanges := make([]state.AssetChange, 0)
-	issueChanges := make([]state.IssueChange, 0)
-	binds := make([]state.AliasBind, 0)
+	trades := make([]data.Trade, 0)
+	accountChanges := make([]data.AccountChange, 0)
+	assetChanges := make([]data.AssetChange, 0)
+	issueChanges := make([]data.IssueChange, 0)
+	binds := make([]data.AliasBind, 0)
 	for i := 0; i < n; i++ {
 		s := int(binary.BigEndian.Uint32(d[0:4]))
 		txb := d[4 : s+4]
@@ -245,7 +246,7 @@ func (im *Importer) extractTransactions(d []byte, n int, miner crypto.PublicKey)
 				if err != nil {
 					return nil, nil, nil, nil, nil, wrapErr(err, "IssueV2")
 				}
-				ic, ac, err := state.FromIssueV2(im.scheme, tx)
+				ic, ac, err := data.FromIssueV2(im.scheme, tx)
 				if err != nil {
 					return nil, nil, nil, nil, nil, wrapErr(err, "IssueV2")
 				}
@@ -258,7 +259,7 @@ func (im *Importer) extractTransactions(d []byte, n int, miner crypto.PublicKey)
 					return nil, nil, nil, nil, nil, wrapErr(err, "TransferV2")
 				}
 				if tx.AmountAsset.Present || tx.FeeAsset.Present {
-					u, err := state.FromTransferV2(im.scheme, tx, miner)
+					u, err := data.FromTransferV2(im.scheme, tx, miner)
 					if err != nil {
 						return nil, nil, nil, nil, nil, wrapErr(err, "TransferV2")
 					}
@@ -270,7 +271,7 @@ func (im *Importer) extractTransactions(d []byte, n int, miner crypto.PublicKey)
 				if err != nil {
 					return nil, nil, nil, nil, nil, wrapErr(err, "ReissueV2")
 				}
-				as, ac, err := state.FromReissueV2(im.scheme, tx)
+				as, ac, err := data.FromReissueV2(im.scheme, tx)
 				if err != nil {
 					return nil, nil, nil, nil, nil, wrapErr(err, "ReissueV2")
 				}
@@ -282,7 +283,7 @@ func (im *Importer) extractTransactions(d []byte, n int, miner crypto.PublicKey)
 				if err != nil {
 					return nil, nil, nil, nil, nil, wrapErr(err, "BurnV2")
 				}
-				as, ac, err := state.FromBurnV2(im.scheme, tx)
+				as, ac, err := data.FromBurnV2(im.scheme, tx)
 				if err != nil {
 					return nil, nil, nil, nil, nil, wrapErr(err, "BurnV2")
 				}
@@ -295,13 +296,13 @@ func (im *Importer) extractTransactions(d []byte, n int, miner crypto.PublicKey)
 					return nil, nil, nil, nil, nil, wrapErr(err, "ExchangeV2")
 				}
 				if bytes.Equal(im.matcher[:], tx.SenderPK[:]) {
-					t, err := NewTradeFromExchangeV2(tx)
+					t, err := data.NewTradeFromExchangeV2(im.scheme, tx)
 					if err != nil {
 						return nil, nil, nil, nil, nil, wrapErr(err, "ExchangeV2")
 					}
 					trades = append(trades, t)
 				}
-				ac, err := state.FromExchangeV2(im.scheme, tx)
+				ac, err := data.FromExchangeV2(im.scheme, tx)
 				if err != nil {
 					return nil, nil, nil, nil, nil, wrapErr(err, "ExchangeV2")
 				}
@@ -312,14 +313,14 @@ func (im *Importer) extractTransactions(d []byte, n int, miner crypto.PublicKey)
 				if err != nil {
 					return nil, nil, nil, nil, nil, wrapErr(err, "SponsorshipV1")
 				}
-				assetChanges = append(assetChanges, state.ChangeFromSponsorshipV1(tx))
+				assetChanges = append(assetChanges, data.FromSponsorshipV1(tx))
 			case byte(proto.CreateAliasTransaction):
 				var tx proto.CreateAliasV2
 				err := tx.UnmarshalBinary(txb)
 				if err != nil {
 					return nil, nil, nil, nil, nil, wrapErr(err, "CreateAliasV2")
 				}
-				binds = append(binds, state.AliasBindFromCreateAliasV2(tx))
+				binds = append(binds, data.FromCreateAliasV2(tx))
 			}
 		case byte(proto.IssueTransaction):
 			var tx proto.IssueV1
@@ -333,7 +334,7 @@ func (im *Importer) extractTransactions(d []byte, n int, miner crypto.PublicKey)
 				}
 				return nil, nil, nil, nil, nil, wrapErr(errors.Errorf("Transaction %s has invalid signature", tx.ID.String()), "IssueV1")
 			}
-			ic, ac, err := state.FromIssueV1(im.scheme, tx)
+			ic, ac, err := data.FromIssueV1(im.scheme, tx)
 			if err != nil {
 				return nil, nil, nil, nil, nil, wrapErr(err, "IssueV1")
 			}
@@ -346,7 +347,7 @@ func (im *Importer) extractTransactions(d []byte, n int, miner crypto.PublicKey)
 				return nil, nil, nil, nil, nil, wrapErr(err, "TransferV1")
 			}
 			if tx.AmountAsset.Present || tx.FeeAsset.Present {
-				ac, err := state.FromTransferV1(im.scheme, tx, miner)
+				ac, err := data.FromTransferV1(im.scheme, tx, miner)
 				if err != nil {
 					return nil, nil, nil, nil, nil, wrapErr(err, "TransferV1")
 				}
@@ -364,7 +365,7 @@ func (im *Importer) extractTransactions(d []byte, n int, miner crypto.PublicKey)
 				}
 				return nil, nil, nil, nil, nil, wrapErr(errors.Errorf("Transaction %s has invalid signature", tx.ID.String()), "ReissueV1")
 			}
-			as, ac, err := state.FromReissueV1(im.scheme, tx)
+			as, ac, err := data.FromReissueV1(im.scheme, tx)
 			if err != nil {
 				return nil, nil, nil, nil, nil, wrapErr(err, "ReissueV1")
 			}
@@ -382,7 +383,7 @@ func (im *Importer) extractTransactions(d []byte, n int, miner crypto.PublicKey)
 				}
 				return nil, nil, nil, nil, nil, wrapErr(errors.Errorf("Transaction %s has invalid signature", tx.ID.String()), "BurnV1")
 			}
-			as, ac, err := state.FromBurnV1(im.scheme, tx)
+			as, ac, err := data.FromBurnV1(im.scheme, tx)
 			assetChanges = append(assetChanges, as)
 			accountChanges = append(accountChanges, ac)
 		case byte(proto.ExchangeTransaction):
@@ -398,10 +399,13 @@ func (im *Importer) extractTransactions(d []byte, n int, miner crypto.PublicKey)
 				return nil, nil, nil, nil, nil, wrapErr(errors.Errorf("Transaction %s has invalid signature", tx.ID.String()), "ExchangeV1")
 			}
 			if bytes.Equal(im.matcher[:], tx.SenderPK[:]) {
-				t := NewTradeFromExchangeV1(tx)
+				t, err := data.NewTradeFromExchangeV1(im.scheme, tx)
+				if err != nil {
+					return nil, nil, nil, nil, nil, wrapErr(err, "ExchangeV1")
+				}
 				trades = append(trades, t)
 			}
-			ac, err := state.FromExchangeV1(im.scheme, tx)
+			ac, err := data.FromExchangeV1(im.scheme, tx)
 			if err != nil {
 				return nil, nil, nil, nil, nil, wrapErr(err, "ExchangeV1")
 			}
@@ -413,7 +417,7 @@ func (im *Importer) extractTransactions(d []byte, n int, miner crypto.PublicKey)
 				return nil, nil, nil, nil, nil, wrapErr(err, "MassTransferV1")
 			}
 			if tx.Asset.Present {
-				ac, err := state.FromMassTransferV1(im.scheme, tx)
+				ac, err := data.FromMassTransferV1(im.scheme, tx)
 				if err != nil {
 					return nil, nil, nil, nil, nil, wrapErr(err, "MassTransferV1")
 				}
@@ -425,7 +429,7 @@ func (im *Importer) extractTransactions(d []byte, n int, miner crypto.PublicKey)
 			if err != nil {
 				return nil, nil, nil, nil, nil, wrapErr(err, "CreateAliasV1")
 			}
-			binds = append(binds, state.AliasBindFromCreateAliasV1(tx))
+			binds = append(binds, data.FromCreateAliasV1(tx))
 		}
 		d = d[4+s:]
 	}

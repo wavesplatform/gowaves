@@ -6,6 +6,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/util"
+	"github.com/wavesplatform/gowaves/cmd/wmd/internal/data"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"math"
@@ -18,7 +19,7 @@ type assetBalanceKey struct {
 
 func (k *assetBalanceKey) bytes() []byte {
 	buf := make([]byte, 1+proto.AddressSize+crypto.DigestSize)
-	buf[0] = AssetBalanceKeyPrefix
+	buf[0] = assetBalanceKeyPrefix
 	copy(buf[1:], k.address[:])
 	copy(buf[1+proto.AddressSize:], k.asset[:])
 	return buf
@@ -32,7 +33,7 @@ type assetBalanceHistoryKey struct {
 
 func (k *assetBalanceHistoryKey) bytes() []byte {
 	buf := make([]byte, 1+4+proto.AddressSize+crypto.DigestSize)
-	buf[0] = AssetBalanceHistoryKeyPrefix
+	buf[0] = assetBalanceHistoryKeyPrefix
 	binary.BigEndian.PutUint32(buf[1:], k.height)
 	copy(buf[1+4:], k.address[:])
 	copy(buf[1+4+proto.AddressSize:], k.asset[:])
@@ -52,21 +53,21 @@ func (k *assetBalanceHistoryKey) fromBytes(data []byte) error {
 	return nil
 }
 
-type balanceChange struct {
+type balanceDiff struct {
 	prev uint64
 	curr uint64
 }
 
-func (c *balanceChange) bytes() []byte {
+func (c *balanceDiff) bytes() []byte {
 	buf := make([]byte, 8+8)
 	binary.BigEndian.PutUint64(buf, c.prev)
 	binary.BigEndian.PutUint64(buf[8:], c.curr)
 	return buf
 }
 
-func (c *balanceChange) fromBytes(data []byte) error {
+func (c *balanceDiff) fromBytes(data []byte) error {
 	if l := len(data); l < 8+8 {
-		return errors.Errorf("%d is not enough bytes for balanceChange", l)
+		return errors.Errorf("%d is not enough bytes for balanceDiff", l)
 	}
 	c.prev = binary.BigEndian.Uint64(data)
 	data = data[8:]
@@ -81,50 +82,49 @@ type assetIssuerKey struct {
 
 func (k *assetIssuerKey) bytes() []byte {
 	buf := make([]byte, 1+proto.AddressSize+crypto.DigestSize)
-	buf[0] = AssetIssuerKeyPrefix
+	buf[0] = assetIssuerKeyPrefix
 	copy(buf[1:], k.address[:])
 	copy(buf[1+proto.AddressSize:], k.asset[:])
 	return buf
 }
 
-type assetInfoKey struct {
+type assetKey struct {
 	asset crypto.Digest
 }
 
-func (k *assetInfoKey) bytes() []byte {
+func (k *assetKey) bytes() []byte {
 	buf := make([]byte, 1+crypto.DigestSize)
-	buf[0] = AssetInfoKeyPrefix
+	buf[0] = assetKeyPrefix
 	copy(buf[1:], k.asset[:])
 	return buf
 }
 
-type assetInfoHistoryKey struct {
+type assetHistoryKey struct {
 	height uint32
 	asset  crypto.Digest
 }
 
-func (k *assetInfoHistoryKey) bytes() []byte {
+func (k *assetHistoryKey) bytes() []byte {
 	buf := make([]byte, 1+4+crypto.DigestSize)
-	buf[0] = AssetInfoHistoryKeyPrefix
+	buf[0] = assetInfoHistoryKeyPrefix
 	binary.BigEndian.PutUint32(buf[1:], k.height)
 	copy(buf[5:], k.asset[:])
 	return buf
 }
 
-func (k *assetInfoHistoryKey) fromBytes(data []byte) error {
+func (k *assetHistoryKey) fromBytes(data []byte) error {
 	if l := len(data); l < 1+4+crypto.DigestSize {
-		return errors.Errorf("%d is not enough bytes for assetInfoHistoryKey", l)
+		return errors.Errorf("%d is not enough bytes for assetHistoryKey", l)
 	}
-	if data[0] != AssetInfoHistoryKeyPrefix {
-		return errors.Errorf("%d invalid prefix for assetInfoHistoryKey", data[0])
+	if data[0] != assetInfoHistoryKeyPrefix {
+		return errors.Errorf("%d invalid prefix for assetHistoryKey", data[0])
 	}
 	k.height = binary.BigEndian.Uint32(data[1:])
 	copy(k.asset[:], data[5:5+crypto.DigestSize])
 	return nil
 }
 
-// assetInfo is the structure to store asset's description in the state.
-type assetInfo struct {
+type asset struct {
 	name       string
 	issuer     crypto.PublicKey
 	decimals   uint8
@@ -135,11 +135,11 @@ type assetInfo struct {
 
 const assetInfoSize = 2 + crypto.PublicKeySize + 1 + 1 + 1 + 8
 
-func newAssetInfoFromIssueChange(ch IssueChange) assetInfo {
-	return assetInfo{name: ch.Name, issuer: ch.Issuer, decimals: ch.Decimals, reissuable: ch.Reissuable, sponsored: false, supply: ch.Quantity}
+func newAssetInfoFromIssueChange(ch data.IssueChange) asset {
+	return asset{name: ch.Name, issuer: ch.Issuer, decimals: ch.Decimals, reissuable: ch.Reissuable, sponsored: false, supply: ch.Quantity}
 }
 
-func (a *assetInfo) bytes() []byte {
+func (a *asset) bytes() []byte {
 	nl := len(a.name)
 	buf := make([]byte, assetInfoSize+nl)
 	var p int
@@ -157,13 +157,13 @@ func (a *assetInfo) bytes() []byte {
 	return buf
 }
 
-func (a *assetInfo) fromBytes(data []byte) error {
+func (a *asset) fromBytes(data []byte) error {
 	if l := len(data); l < assetInfoSize {
-		return errors.Errorf("%d bytes is not enough for assetInfo", l)
+		return errors.Errorf("%d bytes is not enough for asset", l)
 	}
 	s, err := proto.StringWithUInt16Len(data)
 	if err != nil {
-		return errors.Wrap(err, "failed to unmarshal assetInfo from bytes")
+		return errors.Wrap(err, "failed to unmarshal asset from bytes")
 	}
 	a.name = s
 	data = data[2+len(s):]
@@ -173,25 +173,25 @@ func (a *assetInfo) fromBytes(data []byte) error {
 	data = data[1:]
 	a.reissuable, err = proto.Bool(data)
 	if err != nil {
-		return errors.Wrap(err, "failed to unmarshal assetInfo from bytes")
+		return errors.Wrap(err, "failed to unmarshal asset from bytes")
 	}
 	data = data[1:]
 	a.sponsored, err = proto.Bool(data)
 	if err != nil {
-		return errors.Wrap(err, "failed to unmarshal assetInfo from bytes")
+		return errors.Wrap(err, "failed to unmarshal asset from bytes")
 	}
 	data = data[1:]
 	a.supply = binary.BigEndian.Uint64(data)
 	return nil
 }
 
-type assetInfoHistory struct {
+type assetHistory struct {
 	supply     uint64
 	reissuable bool
 	sponsored  bool
 }
 
-func (v *assetInfoHistory) bytes() []byte {
+func (v *assetHistory) bytes() []byte {
 	buf := make([]byte, 8+1+1)
 	binary.BigEndian.PutUint64(buf, v.supply)
 	if v.reissuable {
@@ -203,9 +203,9 @@ func (v *assetInfoHistory) bytes() []byte {
 	return buf
 }
 
-func (v *assetInfoHistory) fromBytes(data []byte) error {
+func (v *assetHistory) fromBytes(data []byte) error {
 	if l := len(data); l < 8+1+1 {
-		return errors.Errorf("%d is not enough bytes for assetInfoHistory", l)
+		return errors.Errorf("%d is not enough bytes for assetHistory", l)
 	}
 	v.supply = binary.BigEndian.Uint64(data)
 	v.reissuable = data[8] == 1
@@ -213,7 +213,7 @@ func (v *assetInfoHistory) fromBytes(data []byte) error {
 	return nil
 }
 
-func putIssues(bs *blockState, batch *leveldb.Batch, scheme byte, height uint32, updates []IssueChange) error {
+func putIssues(bs *blockState, batch *leveldb.Batch, scheme byte, height uint32, updates []data.IssueChange) error {
 	for _, u := range updates {
 		addr, err := proto.NewAddressFromPublicKey(scheme, u.Issuer)
 		if err != nil {
@@ -228,8 +228,8 @@ func putIssues(bs *blockState, batch *leveldb.Batch, scheme byte, height uint32,
 			batch.Put(ik.bytes(), nil)
 			bs.issuers[ik] = struct{}{}
 		}
-		k := assetInfoKey{asset: u.AssetID}
-		hk := assetInfoHistoryKey{asset: u.AssetID, height: height}
+		k := assetKey{asset: u.AssetID}
+		hk := assetHistoryKey{asset: u.AssetID, height: height}
 		ai := newAssetInfoFromIssueChange(u)
 		batch.Put(k.bytes(), ai.bytes())
 		batch.Put(hk.bytes(), nil) // put here empty value to show that where was nothing before
@@ -238,16 +238,16 @@ func putIssues(bs *blockState, batch *leveldb.Batch, scheme byte, height uint32,
 	return nil
 }
 
-func putAssetChanges(bs *blockState, batch *leveldb.Batch, height uint32, updates []AssetChange) error {
-	historyUpdated := make(map[assetInfoHistoryKey]struct{})
+func putAssetChanges(bs *blockState, batch *leveldb.Batch, height uint32, updates []data.AssetChange) error {
+	historyUpdated := make(map[assetHistoryKey]struct{})
 	for _, u := range updates {
-		var k assetInfoKey
-		var hk assetInfoHistoryKey
-		var ai assetInfo
-		var aih assetInfoHistory
+		var k assetKey
+		var hk assetHistoryKey
+		var ai asset
+		var aih assetHistory
 
-		k = assetInfoKey{asset: u.AssetID}
-		hk = assetInfoHistoryKey{asset: u.AssetID, height: height}
+		k = assetKey{asset: u.AssetID}
+		hk = assetHistoryKey{asset: u.AssetID, height: height}
 		ai, ok, err := bs.assetInfo(u.AssetID)
 		if err != nil {
 			return errors.Wrapf(err, "failed to update assets")
@@ -257,7 +257,7 @@ func putAssetChanges(bs *blockState, batch *leveldb.Batch, height uint32, update
 		}
 		//Update history only for the first change at the height
 		if _, ok := historyUpdated[hk]; !ok {
-			aih = assetInfoHistory{supply: ai.supply, reissuable: ai.reissuable, sponsored: ai.sponsored}
+			aih = assetHistory{supply: ai.supply, reissuable: ai.reissuable, sponsored: ai.sponsored}
 			batch.Put(hk.bytes(), aih.bytes())
 			historyUpdated[hk] = struct{}{}
 		}
@@ -275,28 +275,29 @@ func putAssetChanges(bs *blockState, batch *leveldb.Batch, height uint32, update
 	return nil
 }
 
-func rollbackAssetInfos(snapshot *leveldb.Snapshot, batch *leveldb.Batch, height uint32) error {
+func rollbackAssetInfos(snapshot *leveldb.Snapshot, batch *leveldb.Batch, removeHeight uint32) error {
 	wrapError := func(err error) error {
 		return errors.Wrapf(err, "failed to rollback AssetInfos")
 	}
-	s := uint32Key{AssetInfoHistoryKeyPrefix, height}
-	l := uint32Key{AssetInfoHistoryKeyPrefix, math.MaxInt32}
+	s := uint32Key{assetInfoHistoryKeyPrefix, removeHeight}
+	l := uint32Key{assetInfoHistoryKeyPrefix, math.MaxInt32}
 	it := snapshot.NewIterator(&util.Range{Start: s.bytes(), Limit: l.bytes()}, nil)
-	downgrade := make(map[assetInfoKey]assetInfo)
-	remove := make([]assetInfoKey, 0)
+	downgrade := make(map[assetKey]asset)
+	remove := make([]assetKey, 0)
 	if it.Last() {
 		for {
-			var hk assetInfoHistoryKey
-			var k assetInfoKey
+			var hk assetHistoryKey
+			var k assetKey
 			err := hk.fromBytes(it.Key())
 			if err != nil {
 				return wrapError(err)
 			}
-			k = assetInfoKey{asset: hk.asset}
+			k = assetKey{asset: hk.asset}
 			if len(it.Value()) == 0 {
 				remove = append(remove, k)
+				delete(downgrade, k)
 			} else {
-				var aih assetInfoHistory
+				var aih assetHistory
 				err := aih.fromBytes(it.Value())
 				if err != nil {
 					return wrapError(err)
@@ -305,7 +306,7 @@ func rollbackAssetInfos(snapshot *leveldb.Snapshot, batch *leveldb.Batch, height
 				if err != nil {
 					return wrapError(err)
 				}
-				var ai assetInfo
+				var ai asset
 				err = ai.fromBytes(b)
 				if err != nil {
 					return wrapError(err)
@@ -330,11 +331,11 @@ func rollbackAssetInfos(snapshot *leveldb.Snapshot, batch *leveldb.Batch, height
 	return nil
 }
 
-func putBalancesStateUpdate(bs *blockState, batch *leveldb.Batch, height uint32, updates []AccountChange) error {
+func putBalancesStateUpdate(bs *blockState, batch *leveldb.Batch, height uint32, updates []data.AccountChange) error {
 	for _, u := range updates {
 		// get the address bytes from the account or from state
 		var addr proto.Address
-		if !bytes.Equal(u.Account.Address[:], EmptyAddress[:]) {
+		if !bytes.Equal(u.Account.Address[:], emptyAddress[:]) {
 			addr = u.Account.Address
 		} else {
 			a, ok, err := bs.addressByAlias(u.Account.Alias)
@@ -358,7 +359,7 @@ func putBalancesStateUpdate(bs *blockState, batch *leveldb.Batch, height uint32,
 				return errors.Wrapf(err, "failed to get the balance")
 			}
 			// update the balance
-			ch := balanceChange{prev: balance}
+			ch := balanceDiff{prev: balance}
 			balance += u.In
 			balance -= u.Out
 			ch.curr = balance
@@ -374,9 +375,9 @@ func putBalancesStateUpdate(bs *blockState, batch *leveldb.Batch, height uint32,
 	return nil
 }
 
-func rollbackBalances(snapshot *leveldb.Snapshot, batch *leveldb.Batch, height uint32) error {
-	s := uint32Key{AssetBalanceHistoryKeyPrefix, height}
-	l := uint32Key{AssetBalanceHistoryKeyPrefix, math.MaxInt32}
+func rollbackBalances(snapshot *leveldb.Snapshot, batch *leveldb.Batch, removeHeight uint32) error {
+	s := uint32Key{assetBalanceHistoryKeyPrefix, removeHeight}
+	l := uint32Key{assetBalanceHistoryKeyPrefix, math.MaxInt32}
 	it := snapshot.NewIterator(&util.Range{Start: s.bytes(), Limit: l.bytes()}, nil)
 	downgrade := make(map[assetBalanceKey]uint64)
 	if it.Last() {
@@ -388,7 +389,7 @@ func rollbackBalances(snapshot *leveldb.Snapshot, batch *leveldb.Batch, height u
 				return errors.Wrapf(err, "failed to rollback balances")
 			}
 			k = assetBalanceKey{address: hk.address, asset: hk.asset}
-			var c balanceChange
+			var c balanceDiff
 			err = c.fromBytes(it.Value())
 			if err != nil {
 				return errors.Wrap(err, "failed to rollback balances")
