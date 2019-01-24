@@ -162,6 +162,11 @@ func (s *Storage) BlockID(height int) (crypto.Signature, error) {
 	return bi.block, nil
 }
 
+func (s *Storage) IssuerBalance(asset crypto.Digest) (uint64, error) {
+	//TODO: implement
+	return 0, nil
+}
+
 //
 //var (
 //	defaultReadOptions  = &opt.ReadOptions{}

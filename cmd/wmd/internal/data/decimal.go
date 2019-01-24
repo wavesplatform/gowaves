@@ -8,7 +8,10 @@ import (
 	"strings"
 )
 
-const delimiter = "."
+const (
+	delimiter    = "."
+	infiniteText = "\"infinite\""
+)
 
 type Decimal struct {
 	value uint64
@@ -137,4 +140,40 @@ func parsePart(s string) (uint64, error) {
 		return 0, errors.Errorf("value '%s' should be positive", s)
 	}
 	return i, nil
+}
+
+func (d *Decimal) ToInfiniteDecimal(infinite bool) InfiniteDecimal {
+	return InfiniteDecimal{Decimal: *d, Infinite: infinite}
+}
+
+type InfiniteDecimal struct {
+	Decimal
+	Infinite bool
+}
+
+func (d InfiniteDecimal) MarshalJSON() ([]byte, error) {
+	if d.Infinite {
+		return []byte(infiniteText), nil
+	}
+	return d.Decimal.MarshalJSON()
+}
+
+func (d *InfiniteDecimal) UnmarshalJSON(value []byte) error {
+	s := string(value)
+	if s == infiniteText {
+		d.Infinite = true
+		return nil
+	}
+	return d.Decimal.UnmarshalJSON(value)
+}
+
+func (d *InfiniteDecimal) String() string {
+	if d.Infinite {
+		s, err := strconv.Unquote(infiniteText)
+		if err != nil {
+			return infiniteText
+		}
+		return s
+	}
+	return d.Decimal.String()
 }

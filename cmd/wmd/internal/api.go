@@ -136,8 +136,17 @@ func (a *DataFeedAPI) Markets(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, fmt.Sprintf("Failed to load AssetInfo: %s", err.Error()), http.StatusInternalServerError)
 			return
 		}
-		ti := a.convertToTickerInfo(aai, pai, c)
-
+		aab, err := a.Storage.IssuerBalance(m.AmountAsset)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Failed to get issuer's balance: %s", err.Error()), http.StatusInternalServerError)
+			return
+		}
+		pab, err := a.Storage.IssuerBalance(m.PriceAsset)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Failed to get issuer's balance: %s", err.Error()), http.StatusInternalServerError)
+			return
+		}
+		ti := a.convertToTickerInfo(aai, pai, aab, pab, c)
 		mi := data.NewMarketInfo(ti, md)
 		mis = append(mis, mi)
 	}
@@ -173,7 +182,17 @@ func (a *DataFeedAPI) Tickers(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, fmt.Sprintf("Failed to load AssetInfo: %s", err.Error()), http.StatusInternalServerError)
 			return
 		}
-		ti := a.convertToTickerInfo(aai, pai, c)
+		aab, err := a.Storage.IssuerBalance(m.AmountAsset)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Failed to get issuer's balance: %s", err.Error()), http.StatusInternalServerError)
+			return
+		}
+		pab, err := a.Storage.IssuerBalance(m.PriceAsset)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Failed to get issuer's balance: %s", err.Error()), http.StatusInternalServerError)
+			return
+		}
+		ti := a.convertToTickerInfo(aai, pai, aab, pab, c)
 		tis = append(tis, ti)
 	}
 	sort.Sort(data.ByTickers(tis))
@@ -213,7 +232,17 @@ func (a *DataFeedAPI) Ticker(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Failed to load AssetInfo: %s", err.Error()), http.StatusInternalServerError)
 		return
 	}
-	ti := a.convertToTickerInfo(aai, pai, c)
+	aab, err := a.Storage.IssuerBalance(amountAsset)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to get issuer's balance: %s", err.Error()), http.StatusInternalServerError)
+		return
+	}
+	pab, err := a.Storage.IssuerBalance(priceAsset)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to get issuer's balance: %s", err.Error()), http.StatusInternalServerError)
+		return
+	}
+	ti := a.convertToTickerInfo(aai, pai, aab, pab, c)
 	err = json.NewEncoder(w).Encode(ti)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to marshal Ticker to JSON: %s", err.Error()), http.StatusInternalServerError)
@@ -551,7 +580,7 @@ func (a *DataFeedAPI) convertToTradesInfos(trades []data.Trade, amountAssetDecim
 	return r, nil
 }
 
-func (a *DataFeedAPI) convertToTickerInfo(aa, pa *data.AssetInfo, c data.Candle) data.TickerInfo {
+func (a *DataFeedAPI) convertToTickerInfo(aa, pa *data.AssetInfo, aaBalance, paBalance uint64, c data.Candle) data.TickerInfo {
 	var sb strings.Builder
 	aat, ok := a.Symbols.Tokens()[aa.ID]
 	if ok {
@@ -564,5 +593,5 @@ func (a *DataFeedAPI) convertToTickerInfo(aa, pa *data.AssetInfo, c data.Candle)
 			sb.Reset()
 		}
 	}
-	return data.NewTickerInfo(sb.String(), *aa, *pa, c)
+	return data.NewTickerInfo(sb.String(), *aa, *pa, aaBalance, paBalance, c)
 }
