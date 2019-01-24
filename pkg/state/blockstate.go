@@ -27,7 +27,8 @@ type BlockManagerTask struct {
 }
 
 type BlockReadWriter interface {
-	NewBlock(blockID crypto.Signature) error
+	StartBlock(blockID crypto.Signature) error
+	FinishBlock(blockID crypto.Signature) error
 	WriteTransaction(txID []byte, tx []byte) error
 	WriteBlockHeader(blockID crypto.Signature, header []byte) error
 	ReadTransaction(txID []byte) ([]byte, error)
@@ -197,15 +198,16 @@ func (s *BlockManager) performTransaction(block *proto.Block, tx proto.Transacti
 }
 
 func (s *BlockManager) AddNewBlock(block *proto.Block, initialisation bool) error {
+	// Indicate new block for storage.
+	if err := s.rw.StartBlock(block.BlockSignature); err != nil {
+		return err
+	}
 	// Save block header to storage.
 	headerBytes, err := block.MarshalHeaderToBinary()
 	if err != nil {
 		return err
 	}
 	if err := s.rw.WriteBlockHeader(block.BlockSignature, headerBytes); err != nil {
-		return err
-	}
-	if err := s.rw.NewBlock(block.BlockSignature); err != nil {
 		return err
 	}
 	transactions := block.Transactions
@@ -228,6 +230,9 @@ func (s *BlockManager) AddNewBlock(block *proto.Block, initialisation bool) erro
 		if err = s.performTransaction(block, tx); err != nil {
 			return errors.Wrap(err, "Failed to perform the transaction")
 		}
+	}
+	if err := s.rw.FinishBlock(block.BlockSignature); err != nil {
+		return err
 	}
 	return nil
 }
