@@ -162,9 +162,18 @@ func (s *Storage) BlockID(height int) (crypto.Signature, error) {
 	return bi.block, nil
 }
 
-func (s *Storage) IssuerBalance(asset crypto.Digest) (uint64, error) {
-	//TODO: implement
-	return 0, nil
+func (s *Storage) IssuerBalance(issuer proto.Address, asset crypto.Digest) (uint64, error) {
+	snapshot, err := s.db.GetSnapshot()
+	if err != nil {
+		return 0, err
+	}
+	defer snapshot.Release()
+	bs := newBlockState(snapshot)
+	b, _, err := bs.balance(issuer, asset)
+	if err != nil {
+		return 0, err
+	}
+	return b, nil
 }
 
 //

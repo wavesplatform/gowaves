@@ -136,12 +136,12 @@ func (a *DataFeedAPI) Markets(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, fmt.Sprintf("Failed to load AssetInfo: %s", err.Error()), http.StatusInternalServerError)
 			return
 		}
-		aab, err := a.Storage.IssuerBalance(m.AmountAsset)
+		aab, err := a.getIssuerBalance(aai.Issuer, m.AmountAsset)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("Failed to get issuer's balance: %s", err.Error()), http.StatusInternalServerError)
 			return
 		}
-		pab, err := a.Storage.IssuerBalance(m.PriceAsset)
+		pab, err := a.getIssuerBalance(pai.Issuer, m.PriceAsset)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("Failed to get issuer's balance: %s", err.Error()), http.StatusInternalServerError)
 			return
@@ -182,12 +182,12 @@ func (a *DataFeedAPI) Tickers(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, fmt.Sprintf("Failed to load AssetInfo: %s", err.Error()), http.StatusInternalServerError)
 			return
 		}
-		aab, err := a.Storage.IssuerBalance(m.AmountAsset)
+		aab, err := a.getIssuerBalance(aai.Issuer, m.AmountAsset)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("Failed to get issuer's balance: %s", err.Error()), http.StatusInternalServerError)
 			return
 		}
-		pab, err := a.Storage.IssuerBalance(m.PriceAsset)
+		pab, err := a.getIssuerBalance(pai.Issuer, m.PriceAsset)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("Failed to get issuer's balance: %s", err.Error()), http.StatusInternalServerError)
 			return
@@ -232,12 +232,12 @@ func (a *DataFeedAPI) Ticker(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Failed to load AssetInfo: %s", err.Error()), http.StatusInternalServerError)
 		return
 	}
-	aab, err := a.Storage.IssuerBalance(amountAsset)
+	aab, err := a.getIssuerBalance(aai.Issuer, amountAsset)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to get issuer's balance: %s", err.Error()), http.StatusInternalServerError)
 		return
 	}
-	pab, err := a.Storage.IssuerBalance(priceAsset)
+	pab, err := a.getIssuerBalance(pai.Issuer, priceAsset)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to get issuer's balance: %s", err.Error()), http.StatusInternalServerError)
 		return
@@ -594,4 +594,16 @@ func (a *DataFeedAPI) convertToTickerInfo(aa, pa *data.AssetInfo, aaBalance, paB
 		}
 	}
 	return data.NewTickerInfo(sb.String(), *aa, *pa, aaBalance, paBalance, c)
+}
+
+func (a *DataFeedAPI) getIssuerBalance(issuer crypto.PublicKey, asset crypto.Digest) (uint64, error) {
+	address, err := proto.NewAddressFromPublicKey(a.Scheme, issuer)
+	if err != nil {
+		return 0, err
+	}
+	balance, err := a.Storage.IssuerBalance(address, asset)
+	if err != nil {
+		return 0, err
+	}
+	return balance, nil
 }
