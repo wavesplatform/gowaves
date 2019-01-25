@@ -35,6 +35,7 @@ type BlockReadWriter interface {
 	ReadBlockHeader(blockID crypto.Signature) ([]byte, error)
 	ReadTransactionsBlock(blockID crypto.Signature) ([]byte, error)
 	RemoveBlocks(removalEdge crypto.Signature) error
+	BlockIDByHeight(height uint64) (crypto.Signature, error)
 }
 
 type BlockManager struct {
@@ -65,6 +66,14 @@ func (s *BlockManager) GetBlock(blockID crypto.Signature) (*proto.Block, error) 
 	block.Transactions = make([]byte, block.TransactionBlockLength)
 	copy(block.Transactions, transactions)
 	return &block, nil
+}
+
+func (s *BlockManager) GetBlock(height uint64) (*proto.Block, error) {
+	blockID, err := s.rw.BlockIDByHeight(height)
+	if err != nil {
+		return nil, err
+	}
+	return s.GetBlock(blockID)
 }
 
 func (s *BlockManager) performTransaction(block *proto.Block, tx proto.Transaction) error {

@@ -87,7 +87,7 @@ func NewBlockReadWriter(dir string, offsetLen, headerOffsetLen int, keyVal KeyVa
 	}, nil
 }
 
-func (rw *BlockReadWriter) blockIDByHeight(height uint64) (crypto.Signature, error) {
+func (rw *BlockReadWriter) BlockIDByHeight(height uint64) (crypto.Signature, error) {
 	idBytes := make([]byte, crypto.SignatureSize)
 	readPos := int64(height * crypto.SignatureSize)
 	var res crypto.Signature
