@@ -1,4 +1,4 @@
-package state
+package storage
 
 import (
 	"github.com/wavesplatform/gowaves/pkg/proto"

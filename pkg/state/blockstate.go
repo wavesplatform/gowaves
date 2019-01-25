@@ -74,123 +74,155 @@ func (s *BlockManager) performTransaction(block *proto.Block, tx proto.Transacti
 	}
 	switch v := tx.(type) {
 	case proto.Genesis:
-		receiver, err := s.accountsState.Account(v.Recipient)
+		receiverBalance, err := s.accountsState.AccountBalance(v.Recipient, wavesAsset)
 		if err != nil {
 			return err
 		}
-		newReceiverBalance := receiver.AssetBalance(wavesAsset) + v.Amount
-		receiver.SetAssetBalance(wavesAsset, newReceiverBalance)
+		newReceiverBalance := receiverBalance + v.Amount
+		if err := s.accountsState.SetAccountBalance(v.Recipient, wavesAsset, newReceiverBalance); err != nil {
+			return err
+		}
 		return nil
 	case proto.Payment:
 		senderAddr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, v.SenderPK)
 		if err != nil {
 			return err
 		}
-		sender, err := s.accountsState.Account(senderAddr)
-		if err != nil {
-			return err
-		}
-		receiver, err := s.accountsState.Account(v.Recipient)
-		if err != nil {
-			return err
-		}
 		minerAddr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, block.GenPublicKey)
 		if err != nil {
 			return err
 		}
-		miner, err := s.accountsState.Account(minerAddr)
+		senderBalance, err := s.accountsState.AccountBalance(senderAddr, wavesAsset)
 		if err != nil {
 			return err
 		}
-		newSenderBalance := sender.AssetBalance(wavesAsset) - v.Amount - v.Fee
+		newSenderBalance := senderBalance - v.Amount - v.Fee
 		if newSenderBalance < 0 {
 			panic("Transaction results in negative balance after validation")
 		}
-		sender.SetAssetBalance(wavesAsset, newSenderBalance)
-		newReceiverBalance := receiver.AssetBalance(wavesAsset) + v.Amount
-		receiver.SetAssetBalance(wavesAsset, newReceiverBalance)
-		newMinerBalance := miner.AssetBalance(wavesAsset) + v.Fee
-		miner.SetAssetBalance(wavesAsset, newMinerBalance)
+		if err := s.accountsState.SetAccountBalance(senderAddr, wavesAsset, newSenderBalance); err != nil {
+			return err
+		}
+		receiverBalance, err := s.accountsState.AccountBalance(v.Recipient, wavesAsset)
+		if err != nil {
+			return err
+		}
+		newReceiverBalance := receiverBalance + v.Amount
+		if err := s.accountsState.SetAccountBalance(v.Recipient, wavesAsset, newReceiverBalance); err != nil {
+			return err
+		}
+		minerBalance, err := s.accountsState.AccountBalance(minerAddr, wavesAsset)
+		if err != nil {
+			return err
+		}
+		newMinerBalance := minerBalance + v.Fee
+		if err := s.accountsState.SetAccountBalance(minerAddr, wavesAsset, newMinerBalance); err != nil {
+			return err
+		}
 		return nil
 	case proto.TransferV1:
 		senderAddr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, v.SenderPK)
 		if err != nil {
 			return err
 		}
-		sender, err := s.accountsState.Account(senderAddr)
-		if err != nil {
-			return err
-		}
 		if v.Recipient.Address == nil {
 			// TODO implement
 			return errors.New("Alias without address is not supported yet")
-		}
-		receiver, err := s.accountsState.Account(*v.Recipient.Address)
-		if err != nil {
-			return err
 		}
 		minerAddr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, block.GenPublicKey)
 		if err != nil {
 			return err
 		}
-		miner, err := s.accountsState.Account(minerAddr)
+		senderFeeBalance, err := s.accountsState.AccountBalance(senderAddr, &v.FeeAsset)
 		if err != nil {
 			return err
 		}
-		newSenderFeeBalance := sender.AssetBalance(&v.FeeAsset) - v.Fee
+		newSenderFeeBalance := senderFeeBalance - v.Fee
 		if newSenderFeeBalance < 0 {
 			panic("Transaction results in negative balance after validation")
 		}
-		newSenderAmountBalance := sender.AssetBalance(&v.AmountAsset) - v.Amount
+		senderAmountBalance, err := s.accountsState.AccountBalance(senderAddr, &v.AmountAsset)
+		if err != nil {
+			return err
+		}
+		newSenderAmountBalance := senderAmountBalance - v.Amount
 		if newSenderAmountBalance < 0 {
 			panic("Transaction results in negative balance after validation")
 		}
-		sender.SetAssetBalance(&v.FeeAsset, newSenderFeeBalance)
-		sender.SetAssetBalance(&v.AmountAsset, newSenderAmountBalance)
-		newReceiverBalance := receiver.AssetBalance(&v.AmountAsset) + v.Amount
-		receiver.SetAssetBalance(&v.AmountAsset, newReceiverBalance)
-		newMinerBalance := miner.AssetBalance(&v.FeeAsset) + v.Fee
-		miner.SetAssetBalance(&v.FeeAsset, newMinerBalance)
+		if err := s.accountsState.SetAccountBalance(senderAddr, &v.FeeAsset, newSenderFeeBalance); err != nil {
+			return err
+		}
+		if err := s.accountsState.SetAccountBalance(senderAddr, &v.AmountAsset, newSenderAmountBalance); err != nil {
+			return err
+		}
+		receiverBalance, err := s.accountsState.AccountBalance(*v.Recipient.Address, &v.AmountAsset)
+		if err != nil {
+			return err
+		}
+		newReceiverBalance := receiverBalance + v.Amount
+		if err := s.accountsState.SetAccountBalance(*v.Recipient.Address, &v.AmountAsset, newReceiverBalance); err != nil {
+			return err
+		}
+		minerBalance, err := s.accountsState.AccountBalance(minerAddr, &v.FeeAsset)
+		if err != nil {
+			return err
+		}
+		newMinerBalance := minerBalance + v.Fee
+		if err := s.accountsState.SetAccountBalance(minerAddr, &v.FeeAsset, newMinerBalance); err != nil {
+			return err
+		}
 		return nil
 	case proto.TransferV2:
 		senderAddr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, v.SenderPK)
 		if err != nil {
 			return err
 		}
-		sender, err := s.accountsState.Account(senderAddr)
-		if err != nil {
-			return err
-		}
 		if v.Recipient.Address == nil {
 			// TODO implement
 			return errors.New("Alias without address is not supported yet")
-		}
-		receiver, err := s.accountsState.Account(*v.Recipient.Address)
-		if err != nil {
-			return err
 		}
 		minerAddr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, block.GenPublicKey)
 		if err != nil {
 			return err
 		}
-		miner, err := s.accountsState.Account(minerAddr)
+		senderFeeBalance, err := s.accountsState.AccountBalance(senderAddr, &v.FeeAsset)
 		if err != nil {
 			return err
 		}
-		newSenderFeeBalance := sender.AssetBalance(&v.FeeAsset) - v.Fee
+		newSenderFeeBalance := senderFeeBalance - v.Fee
 		if newSenderFeeBalance < 0 {
 			panic("Transaction results in negative balance after validation")
 		}
-		newSenderAmountBalance := sender.AssetBalance(&v.AmountAsset) - v.Amount
+		senderAmountBalance, err := s.accountsState.AccountBalance(senderAddr, &v.AmountAsset)
+		if err != nil {
+			return err
+		}
+		newSenderAmountBalance := senderAmountBalance - v.Amount
 		if newSenderAmountBalance < 0 {
 			panic("Transaction results in negative balance after validation")
 		}
-		sender.SetAssetBalance(&v.FeeAsset, newSenderFeeBalance)
-		sender.SetAssetBalance(&v.AmountAsset, newSenderAmountBalance)
-		newReceiverBalance := receiver.AssetBalance(&v.AmountAsset) + v.Amount
-		receiver.SetAssetBalance(&v.AmountAsset, newReceiverBalance)
-		newMinerBalance := miner.AssetBalance(&v.FeeAsset) + v.Fee
-		miner.SetAssetBalance(&v.FeeAsset, newMinerBalance)
+		if err := s.accountsState.SetAccountBalance(senderAddr, &v.FeeAsset, newSenderFeeBalance); err != nil {
+			return err
+		}
+		if err := s.accountsState.SetAccountBalance(senderAddr, &v.AmountAsset, newSenderAmountBalance); err != nil {
+			return err
+		}
+		receiverBalance, err := s.accountsState.AccountBalance(*v.Recipient.Address, &v.AmountAsset)
+		if err != nil {
+			return err
+		}
+		newReceiverBalance := receiverBalance + v.Amount
+		if err := s.accountsState.SetAccountBalance(*v.Recipient.Address, &v.AmountAsset, newReceiverBalance); err != nil {
+			return err
+		}
+		minerBalance, err := s.accountsState.AccountBalance(minerAddr, &v.FeeAsset)
+		if err != nil {
+			return err
+		}
+		newMinerBalance := minerBalance + v.Fee
+		if err := s.accountsState.SetAccountBalance(minerAddr, &v.FeeAsset, newMinerBalance); err != nil {
+			return err
+		}
 		return nil
 	default:
 		return errors.Errorf("Transaction type %T is not supported\n", v)

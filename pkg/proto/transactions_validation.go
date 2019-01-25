@@ -6,15 +6,9 @@ import (
 )
 
 type AccountsState interface {
-	Account(Address) (AccountManipulator, error)
-	SetAccount(AccountManipulator) error
+	AccountBalance(Address, *OptionalAsset) (uint64, error)
+	SetAccountBalance(Address, *OptionalAsset, uint64) error
 	RollbackTo(crypto.Signature) error
-}
-
-type AccountManipulator interface {
-	SetAssetBalance(*OptionalAsset, uint64)
-	AssetBalance(*OptionalAsset) uint64
-	Address() Address
 }
 
 type TransactionValidator struct {
@@ -63,15 +57,14 @@ func (tv *TransactionValidator) ValidateTransaction(block *Block, tx Transaction
 		if err != nil {
 			return errors.Wrap(err, "Could not get address from public key")
 		}
-		sender, err := tv.state.Account(senderAddr)
-		if err != nil {
-			return err
-		}
 		wavesAsset, err := NewOptionalAssetFromString(WavesAssetName)
 		if err != nil {
 			return err
 		}
-		balance := sender.AssetBalance(wavesAsset)
+		balance, err := tv.state.AccountBalance(senderAddr, wavesAsset)
+		if err != nil {
+			return err
+		}
 		if balance < totalAmount {
 			return errors.New("Transaction verification failed: spending more than current balance.")
 		}
@@ -96,12 +89,14 @@ func (tv *TransactionValidator) ValidateTransaction(block *Block, tx Transaction
 		if err != nil {
 			return errors.Wrap(err, "Could not get address from public key")
 		}
-		sender, err := tv.state.Account(senderAddr)
+		feeBalance, err := tv.state.AccountBalance(senderAddr, &v.FeeAsset)
 		if err != nil {
 			return err
 		}
-		feeBalance := sender.AssetBalance(&v.FeeAsset)
-		amountBalance := sender.AssetBalance(&v.AmountAsset)
+		amountBalance, err := tv.state.AccountBalance(senderAddr, &v.AmountAsset)
+		if err != nil {
+			return err
+		}
 		if amountBalance < v.Amount {
 			return errors.New("Invalid transaction: not enough to pay the amount provided")
 		}
@@ -129,12 +124,14 @@ func (tv *TransactionValidator) ValidateTransaction(block *Block, tx Transaction
 		if err != nil {
 			return errors.Wrap(err, "Could not get address from public key")
 		}
-		sender, err := tv.state.Account(senderAddr)
+		feeBalance, err := tv.state.AccountBalance(senderAddr, &v.FeeAsset)
 		if err != nil {
 			return err
 		}
-		feeBalance := sender.AssetBalance(&v.FeeAsset)
-		amountBalance := sender.AssetBalance(&v.AmountAsset)
+		amountBalance, err := tv.state.AccountBalance(senderAddr, &v.AmountAsset)
+		if err != nil {
+			return err
+		}
 		if amountBalance < v.Amount {
 			return errors.New("Invalid transaction: not enough to pay the amount provided")
 		}
