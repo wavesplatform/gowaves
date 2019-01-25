@@ -5,69 +5,40 @@ import (
 	"encoding/binary"
 	"github.com/pkg/errors"
 	"github.com/syndtr/goleveldb/leveldb"
+	"github.com/syndtr/goleveldb/leveldb/util"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"math"
 )
 
-type heightKey struct{}
+var heightKeyBytes = []byte{heightKeyPrefix}
 
-func (k *heightKey) bytes() []byte {
-	buf := make([]byte, 1)
-	buf[0] = heightKeyPrefix
-	return buf
-}
-
-type blockInfoKey struct {
-	height uint32
-}
-
-func (k *blockInfoKey) bytes() []byte {
-	buf := make([]byte, 1+4)
-	buf[0] = blockInfoKeyPrefix
-	binary.BigEndian.PutUint32(buf[1:], k.height)
-	return buf
-}
-
-type blockInfo struct {
-	block             crypto.Signature
-	empty             bool
-	earliestTimeFrame uint32
-}
-
-func (b *blockInfo) bytes() []byte {
-	buf := make([]byte, crypto.SignatureSize+1+4)
-	copy(buf, b.block[:])
-	if b.empty {
-		buf[crypto.SignatureSize] = 1
-	} else {
-		buf[crypto.SignatureSize] = 0
-	}
-	binary.BigEndian.PutUint32(buf[crypto.SignatureSize+1:], b.earliestTimeFrame)
-	return buf
-}
-
-func (b *blockInfo) fromBytes(data []byte) error {
-	if l := len(data); l < crypto.SignatureSize+1+4 {
-		return errors.Errorf("%d is not enough bytes for for blockInfo", l)
-	}
-	copy(b.block[:], data[:crypto.SignatureSize])
-	b.empty = data[crypto.SignatureSize] == 1
-	b.earliestTimeFrame = binary.BigEndian.Uint32(data[crypto.SignatureSize+1:])
-	return nil
-}
-
-func putBlock(bs *blockState, batch *leveldb.Batch, height uint32, block crypto.Signature) error {
-	//TODO: implement
+func putBlock(batch *leveldb.Batch, height uint32, block crypto.Signature) error {
+	updateHeight(batch, height)
+	k := uint32Key{prefix: blockKeyPrefix, key: height}
+	batch.Put(k.bytes(), block[:])
 	return nil
 }
 
 func rollbackBlocks(snapshot *leveldb.Snapshot, batch *leveldb.Batch, removeHeight uint32) error {
-	//TODO: implement
+	s := uint32Key{prefix: blockKeyPrefix, key: removeHeight}
+	l := uint32Key{prefix: blockKeyPrefix, key: math.MaxUint32}
+	it := snapshot.NewIterator(&util.Range{Start: s.bytes(), Limit: l.bytes()}, nil)
+	for it.Next() {
+		batch.Delete(it.Key())
+	}
+	it.Release()
+	updateHeight(batch, removeHeight-1)
 	return nil
 }
 
+func updateHeight(batch *leveldb.Batch, height uint32) {
+	hv := make([]byte, 4)
+	binary.BigEndian.PutUint32(hv, height)
+	batch.Put(heightKeyBytes, hv)
+}
+
 func height(snapshot *leveldb.Snapshot) (int, error) {
-	k := heightKey{}
-	b, err := snapshot.Get(k.bytes(), nil)
+	b, err := snapshot.Get(heightKeyBytes, nil)
 	if err != nil {
 		return 0, errors.Wrap(err, "failed to get current height")
 	}
@@ -75,35 +46,29 @@ func height(snapshot *leveldb.Snapshot) (int, error) {
 	return h, nil
 }
 
-func block(snapshot *leveldb.Snapshot, height uint32) (blockInfo, error) {
+func block(snapshot *leveldb.Snapshot, height uint32) (crypto.Signature, error) {
 	wrapError := func(err error) error { return errors.Wrapf(err, "failed to locate block at height %d", height) }
-	k := blockInfoKey{height}
+	k := uint32Key{prefix: blockKeyPrefix, key: height}
 	b, err := snapshot.Get(k.bytes(), nil)
 	if err != nil {
-		return blockInfo{}, wrapError(err)
+		return crypto.Signature{}, wrapError(err)
 	}
-	var bi blockInfo
-	err = bi.fromBytes(b)
-	if err != nil {
-		return blockInfo{}, wrapError(err)
+	if len(b) < crypto.SignatureSize {
+		return crypto.Signature{}, wrapError(errors.New("not enough bytes for block signature"))
 	}
-	return bi, nil
+	var bs crypto.Signature
+	copy(bs[:], b)
+	return bs, nil
 }
 
 func hasBlock(snapshot *leveldb.Snapshot, height uint32, id crypto.Signature) (bool, error) {
 	wrapError := func(err error) error { return errors.Wrapf(err, "failed to locate block '%s' at height %d", id.String(), height) }
-	k := blockInfoKey{height}
-	b, err := snapshot.Get(k.bytes(), nil)
+	b, err := block(snapshot, height)
 	if err != nil {
 		return false, wrapError(err)
 	}
-	var bi blockInfo
-	err = bi.fromBytes(b)
-	if err != nil {
-		return false, wrapError(err)
-	}
-	if !bytes.Equal(id[:], bi.block[:]) {
-		return false, wrapError(errors.Errorf("different block signature '%s' at height %d", bi.block.String(), height))
+	if !bytes.Equal(id[:], b[:]) {
+		return false, wrapError(errors.Errorf("different block signature '%s' at height %d", b.String(), height))
 	}
 	return true, nil
 }

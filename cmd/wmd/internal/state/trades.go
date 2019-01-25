@@ -96,6 +96,8 @@ func (k *marketTradePartialKey) bytes() []byte {
 func putTrades(bs *blockState, batch *leveldb.Batch, height uint32, trades []data.Trade) error {
 	wrapError := func(err error) error { return errors.Wrap(err, "failed to put trades") }
 	marketsUpdated := make(map[marketHistoryKey]struct{})
+	var earliestTimeFrame uint32 = math.MaxUint32
+	affectedTimeFrames := make([]uint32, 0)
 	for _, t := range trades {
 		tk := tradeKey{t.TransactionID}
 		b1, err := t.MarshalBinary()
@@ -105,7 +107,13 @@ func putTrades(bs *blockState, batch *leveldb.Batch, height uint32, trades []dat
 		thk := tradeHistoryKey{height: height, trade: t.TransactionID}
 		batch.Put(tk.bytes(), b1)
 		batch.Put(thk.bytes(), nil)
+
 		tf := data.TimeFrameFromTimestampMS(t.Timestamp)
+		if tf < earliestTimeFrame {
+			earliestTimeFrame = tf
+		}
+		affectedTimeFrames = append(affectedTimeFrames, tf)
+
 		tk2 := marketTradeKey{amountAsset: t.AmountAsset, priceAsset: t.PriceAsset, timeFrame: tf, tradeID: t.TransactionID}
 		batch.Put(tk2.bytes(), nil)
 		tk3 := addressTradesKey{amountAsset: t.AmountAsset, priceAsset: t.PriceAsset, address: t.Buyer, trade: t.TransactionID}
@@ -149,6 +157,16 @@ func putTrades(bs *blockState, batch *leveldb.Batch, height uint32, trades []dat
 			return wrapError(err)
 		}
 		batch.Put(mk.bytes(), mb)
+	}
+	if len(trades) != 0 { // If block is non-empty should update earliestTimeFrame
+		tfk := uint32Key{prefix: earliestTimeFrameKeyPrefix, key: height}
+		v := make([]byte, 4)
+		binary.BigEndian.PutUint32(v, earliestTimeFrame)
+		batch.Put(tfk.bytes(), v)
+		err := updateEarliestHeights(bs, batch, affectedTimeFrames, height)
+		if err != nil {
+			return wrapError(err)
+		}
 	}
 	return nil
 }
@@ -195,10 +213,6 @@ func rollbackTrades(snapshot *leveldb.Snapshot, batch *leveldb.Batch, removeHeig
 		}
 	}
 	it.Release()
-	err := it.Error()
-	if err != nil {
-		return wrapError(err)
-	}
 	//remove candles affected by trades at height, if they are not removed yet
 	tf := data.TimeFrameFromTimestampMS(minTradeTimestamp)
 	s = uint32Key{prefix: candleHistoryKeyPrefix, key: tf}
@@ -215,10 +229,6 @@ func rollbackTrades(snapshot *leveldb.Snapshot, batch *leveldb.Batch, removeHeig
 		batch.Delete(ck.bytes())
 	}
 	it.Release()
-	err = it.Error()
-	if err != nil {
-		return wrapError(err)
-	}
 	//bring back or remove previous state of markets
 	downgradeMarkets := make(map[marketKey]data.Market)
 	removeMarkets := make([]marketKey, 0)
@@ -252,10 +262,17 @@ func rollbackTrades(snapshot *leveldb.Snapshot, batch *leveldb.Batch, removeHeig
 		}
 	}
 	it.Release()
-	err = it.Error()
-	if err != nil {
-		return wrapError(err)
+	//remove time frames
+	s = uint32Key{prefix: earliestTimeFrameKeyPrefix, key: removeHeight}
+	l = uint32Key{prefix: earliestTimeFrameKeyPrefix, key: math.MaxUint32}
+	it = snapshot.NewIterator(&util.Range{Start: s.bytes(), Limit: l.bytes()}, nil)
+	for it.Next() {
+		tf := binary.BigEndian.Uint32(it.Value())
+		batch.Delete(it.Key())
+		tfk := uint32Key{prefix: earliestHeightKeyPrefix, key: tf}
+		batch.Delete(tfk.bytes())
 	}
+	it.Release()
 	for k, v := range downgradeMarkets {
 		b, err := v.MarshalBinary()
 		if err != nil {
@@ -317,7 +334,7 @@ func trades(snapshot *leveldb.Snapshot, amountAsset, priceAsset crypto.Digest, f
 		}
 	}
 	it.Release()
-	return trades, wrapError(it.Error())
+	return trades, nil
 }
 
 type addressTradesKey struct {
@@ -382,7 +399,7 @@ func addressTrades(snapshot *leveldb.Snapshot, amountAsset, priceAsset crypto.Di
 		}
 	}
 	it.Release()
-	return trades, wrapError(it.Error())
+	return trades, nil
 }
 
 type candleKey struct {
@@ -447,7 +464,7 @@ func candles(snapshot *leveldb.Snapshot, amountAsset, priceAsset crypto.Digest, 
 		}
 	}
 	it.Release()
-	return r, it.Error()
+	return r, nil
 }
 
 type marketKey struct {
@@ -512,5 +529,43 @@ func marketsMap(snapshot *leveldb.Snapshot) (map[data.MarketID]data.Market, erro
 		r[m] = md
 	}
 	it.Release()
-	return r, wrapError(it.Error())
+	return r, nil
+}
+
+func earliestTimeFrame(snapshot *leveldb.Snapshot, height uint32) (uint32, bool) {
+	s := uint32Key{prefix: earliestTimeFrameKeyPrefix, key: height}
+	l := uint32Key{prefix: earliestTimeFrameKeyPrefix, key: math.MaxInt32}
+	it := snapshot.NewIterator(&util.Range{Start: s.bytes(), Limit: l.bytes()}, nil)
+	defer it.Release()
+	if it.Next() {
+		tf := binary.BigEndian.Uint32(it.Value())
+		return tf, true
+	}
+	return 0, false
+}
+
+func updateEarliestHeights(bs *blockState, batch *leveldb.Batch, timeFrames []uint32, height uint32) error {
+	for _, tf := range timeFrames {
+		h, k, err := bs.earliestHeight(tf)
+		if err != nil {
+			return err
+		}
+		if height < h {
+			bs.earliestHeights[k] = height
+			v := make([]byte, 4)
+			binary.BigEndian.PutUint32(v, height)
+			batch.Put(k.bytes(), v)
+		}
+	}
+	return nil
+}
+
+func earliestAffectedHeight(snapshot *leveldb.Snapshot, timeFrame uint32) (uint32, error) {
+	k := uint32Key{prefix: earliestHeightKeyPrefix, key: timeFrame}
+	b, err := snapshot.Get(k.bytes(), nil)
+	if err != nil {
+		return 0, err
+	}
+	h := binary.BigEndian.Uint32(b)
+	return h, nil
 }

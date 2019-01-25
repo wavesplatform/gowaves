@@ -213,8 +213,8 @@ func (v *assetHistory) fromBytes(data []byte) error {
 	return nil
 }
 
-func putIssues(bs *blockState, batch *leveldb.Batch, scheme byte, height uint32, updates []data.IssueChange) error {
-	for _, u := range updates {
+func putIssues(bs *blockState, batch *leveldb.Batch, scheme byte, height uint32, issueChanges []data.IssueChange) error {
+	for _, u := range issueChanges {
 		addr, err := proto.NewAddressFromPublicKey(scheme, u.Issuer)
 		if err != nil {
 			return errors.Wrapf(err, "failed to create an address from the public key")
@@ -238,9 +238,9 @@ func putIssues(bs *blockState, batch *leveldb.Batch, scheme byte, height uint32,
 	return nil
 }
 
-func putAssetChanges(bs *blockState, batch *leveldb.Batch, height uint32, updates []data.AssetChange) error {
+func putAssets(bs *blockState, batch *leveldb.Batch, height uint32, assetChanges []data.AssetChange) error {
 	historyUpdated := make(map[assetHistoryKey]struct{})
-	for _, u := range updates {
+	for _, u := range assetChanges {
 		var k assetKey
 		var hk assetHistoryKey
 		var ai asset
@@ -275,7 +275,7 @@ func putAssetChanges(bs *blockState, batch *leveldb.Batch, height uint32, update
 	return nil
 }
 
-func rollbackAssetInfos(snapshot *leveldb.Snapshot, batch *leveldb.Batch, removeHeight uint32) error {
+func rollbackAssets(snapshot *leveldb.Snapshot, batch *leveldb.Batch, removeHeight uint32) error {
 	wrapError := func(err error) error {
 		return errors.Wrapf(err, "failed to rollback AssetInfos")
 	}
@@ -331,8 +331,8 @@ func rollbackAssetInfos(snapshot *leveldb.Snapshot, batch *leveldb.Batch, remove
 	return nil
 }
 
-func putBalancesStateUpdate(bs *blockState, batch *leveldb.Batch, height uint32, updates []data.AccountChange) error {
-	for _, u := range updates {
+func putAccounts(bs *blockState, batch *leveldb.Batch, height uint32, accountChanges []data.AccountChange) error {
+	for _, u := range accountChanges {
 		// get the address bytes from the account or from state
 		var addr proto.Address
 		if !bytes.Equal(u.Account.Address[:], emptyAddress[:]) {
@@ -375,7 +375,7 @@ func putBalancesStateUpdate(bs *blockState, batch *leveldb.Batch, height uint32,
 	return nil
 }
 
-func rollbackBalances(snapshot *leveldb.Snapshot, batch *leveldb.Batch, removeHeight uint32) error {
+func rollbackAccounts(snapshot *leveldb.Snapshot, batch *leveldb.Batch, removeHeight uint32) error {
 	s := uint32Key{assetBalanceHistoryKeyPrefix, removeHeight}
 	l := uint32Key{assetBalanceHistoryKeyPrefix, math.MaxInt32}
 	it := snapshot.NewIterator(&util.Range{Start: s.bytes(), Limit: l.bytes()}, nil)
@@ -406,5 +406,5 @@ func rollbackBalances(snapshot *leveldb.Snapshot, batch *leveldb.Batch, removeHe
 		binary.BigEndian.PutUint64(buf, v)
 		batch.Put(k.bytes(), buf)
 	}
-	return it.Error()
+	return nil
 }

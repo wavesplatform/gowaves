@@ -7,7 +7,7 @@ import (
 
 const (
 	heightKeyPrefix byte = iota
-	blockInfoKeyPrefix
+	blockKeyPrefix
 
 	candleKeyPrefix
 	candleHistoryKeyPrefix
@@ -16,6 +16,9 @@ const (
 	tradeHistoryKeyPrefix
 	marketTradesKeyPrefix
 	addressTradesKeyPrefix
+
+	earliestTimeFrameKeyPrefix
+	earliestHeightKeyPrefix
 
 	assetKeyPrefix
 	assetInfoHistoryKeyPrefix

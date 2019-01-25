@@ -53,6 +53,10 @@ func TestTradesState1(t *testing.T) {
 		em := data.Market{FirstTradeTimestamp: ts1, LastTradeTimestamp: ts1, TotalTradesCount: 1}
 		mk := data.MarketID{AmountAsset: aa, PriceAsset: pa}
 		assert.Equal(t, em, msm[mk])
+		etf, ok := earliestTimeFrame(snapshot, 1)
+		sh, err := earliestAffectedHeight(snapshot, etf)
+		assert.True(t, ok)
+		assert.Equal(t, 1, int(sh))
 	}
 
 	tID2, err := randomDigest()
@@ -88,6 +92,10 @@ func TestTradesState1(t *testing.T) {
 		em := data.Market{FirstTradeTimestamp: ts1, LastTradeTimestamp: ts2, TotalTradesCount: 2}
 		mk := data.MarketID{AmountAsset: aa, PriceAsset: pa}
 		assert.Equal(t, em, msm[mk])
+		etf, ok := earliestTimeFrame(snapshot, 2)
+		sh, err := earliestAffectedHeight(snapshot, etf)
+		assert.True(t, ok)
+		assert.Equal(t, 1, int(sh))
 	}
 
 	tID3, err := randomDigest()
@@ -131,6 +139,10 @@ func TestTradesState1(t *testing.T) {
 		em := data.Market{FirstTradeTimestamp: ts1, LastTradeTimestamp: ts4, TotalTradesCount: 4}
 		mk := data.MarketID{AmountAsset: aa, PriceAsset: pa}
 		assert.Equal(t, em, msm[mk])
+		etf, ok := earliestTimeFrame(snapshot, 3)
+		sh, err := earliestAffectedHeight(snapshot, etf)
+		assert.True(t, ok)
+		assert.Equal(t, 3, int(sh))
 	}
 
 	snapshot, err = db.GetSnapshot()
@@ -161,6 +173,10 @@ func TestTradesState1(t *testing.T) {
 		em := data.Market{FirstTradeTimestamp: ts1, LastTradeTimestamp: ts2, TotalTradesCount: 2}
 		mk := data.MarketID{AmountAsset: aa, PriceAsset: pa}
 		assert.Equal(t, em, msm[mk])
+		etf, ok := earliestTimeFrame(snapshot, 2)
+		sh, err := earliestAffectedHeight(snapshot, etf)
+		assert.True(t, ok)
+		assert.Equal(t, 1, int(sh))
 	}
 
 	snapshot, err = db.GetSnapshot()
@@ -182,6 +198,10 @@ func TestTradesState1(t *testing.T) {
 		msm, err := marketsMap(snapshot)
 		assert.NoError(t, err)
 		assert.Equal(t, 0, len(msm))
+		etf, ok := earliestTimeFrame(snapshot, 1)
+		sh, err := earliestAffectedHeight(snapshot, etf)
+		assert.False(t, ok)
+		assert.Equal(t, 0, int(sh))
 	}
 }
 

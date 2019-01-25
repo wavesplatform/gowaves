@@ -6,27 +6,30 @@ import (
 	"github.com/wavesplatform/gowaves/cmd/wmd/internal/data"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"math"
 )
 
 type blockState struct {
-	snapshot      *leveldb.Snapshot
-	aliasBindings map[proto.Alias]proto.Address
-	balances      map[assetBalanceKey]uint64
-	issuers       map[assetIssuerKey]struct{}
-	assets        map[assetKey]asset
-	candles       map[candleKey]data.Candle
-	markets       map[marketKey]data.Market
+	snapshot        *leveldb.Snapshot
+	aliasBindings   map[proto.Alias]proto.Address
+	balances        map[assetBalanceKey]uint64
+	issuers         map[assetIssuerKey]struct{}
+	assets          map[assetKey]asset
+	candles         map[candleKey]data.Candle
+	markets         map[marketKey]data.Market
+	earliestHeights map[uint32Key]uint32
 }
 
 func newBlockState(snapshot *leveldb.Snapshot) *blockState {
 	return &blockState{
-		snapshot:      snapshot,
-		aliasBindings: make(map[proto.Alias]proto.Address),
-		balances:      make(map[assetBalanceKey]uint64),
-		issuers:       make(map[assetIssuerKey]struct{}),
-		assets:        make(map[assetKey]asset),
-		candles:       make(map[candleKey]data.Candle),
-		markets:       make(map[marketKey]data.Market),
+		snapshot:        snapshot,
+		aliasBindings:   make(map[proto.Alias]proto.Address),
+		balances:        make(map[assetBalanceKey]uint64),
+		issuers:         make(map[assetIssuerKey]struct{}),
+		assets:          make(map[assetKey]asset),
+		candles:         make(map[candleKey]data.Candle),
+		markets:         make(map[marketKey]data.Market),
+		earliestHeights: make(map[uint32Key]uint32),
 	}
 }
 
@@ -142,4 +145,21 @@ func (s *blockState) market(amountAsset, priceAsset crypto.Digest) (data.Market,
 		}
 	}
 	return m, k, nil
+}
+
+func (s *blockState) earliestHeight(timeFrame uint32) (uint32, uint32Key, error) {
+	k := uint32Key{prefix: earliestHeightKeyPrefix, key: timeFrame}
+	var eh uint32
+	eh, ok := s.earliestHeights[k]
+	if !ok {
+		b, err := s.snapshot.Get(k.bytes(), nil)
+		if err != nil {
+			if err != leveldb.ErrNotFound {
+				return 0, k, err
+			}
+			return math.MaxUint32, k, nil
+		}
+		eh = binary.BigEndian.Uint32(b)
+	}
+	return eh, k, nil
 }

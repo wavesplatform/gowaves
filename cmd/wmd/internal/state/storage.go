@@ -39,6 +39,231 @@ const (
 	maxLimit = 1000
 )
 
+func (s *Storage) PutTrades(height int, block crypto.Signature, trades []data.Trade) error {
+	wrapError := func(err error) error {
+		return errors.Wrapf(err, "failed to store trades of block '%s' at height %d", block.String(), height)
+	}
+	snapshot, err := s.db.GetSnapshot()
+	if err != nil {
+		return wrapError(err)
+	}
+	defer snapshot.Release()
+	bs := newBlockState(snapshot)
+	batch := new(leveldb.Batch)
+	err = putTrades(bs, batch, uint32(height), trades)
+	if err != nil {
+		return wrapError(err)
+	}
+	err = s.db.Write(batch, nil)
+	if err != nil {
+		return wrapError(err)
+	}
+	return nil
+}
+
+func (s *Storage) PutBalances(height int, block crypto.Signature, issues []data.IssueChange, assets []data.AssetChange, accounts []data.AccountChange, aliases []data.AliasBind) error {
+	h := uint32(height)
+	wrapError := func(err error) error {
+		return errors.Wrapf(err, "failed to store block '%s' at height %d", block.String(), height)
+	}
+	snapshot, err := s.db.GetSnapshot()
+	if err != nil {
+		return wrapError(err)
+	}
+	defer snapshot.Release()
+	bs := newBlockState(snapshot)
+	batch := new(leveldb.Batch)
+	err = putAliases(bs, batch, h, aliases)
+	if err != nil {
+		return wrapError(err)
+	}
+	err = putIssues(bs, batch, s.Scheme, h, issues)
+	if err != nil {
+		return wrapError(err)
+	}
+	err = putAssets(bs, batch, h, assets)
+	if err != nil {
+		return wrapError(err)
+	}
+	err = putAccounts(bs, batch, h, accounts)
+	if err != nil {
+		return wrapError(err)
+	}
+	err = putBlock(batch, h, block)
+	if err != nil {
+		return wrapError(err)
+	}
+	err = s.db.Write(batch, nil)
+	if err != nil {
+		return wrapError(err)
+	}
+	return nil
+
+	//
+	//	assets, err := s.loadAssetStates(stateUpdates)
+	//	if err != nil {
+	//		return wrapError(err)
+	//	}
+	//
+	//	candles := map[timeFramePairKey]Candle{}
+	//	markets := map[pairKey]Market{}
+	//	affectedTimeFrames := make([]uint32, 0)
+	//	for _, t := range trades {
+	//		tf := TimeFrameFromTimestampMS(t.Timestamp)
+	//		if !contains(affectedTimeFrames, tf) {
+	//			affectedTimeFrames = append(affectedTimeFrames, tf)
+	//		}
+	//		ck := timeFramePairKey{CandlesKeyPrefix, tf, t.AmountAsset, t.PriceAsset}
+	//		var c Candle
+	//		c, ok := candles[ck]
+	//		if !ok {
+	//			cb, err := s.db.Get(ck.bytes(), defaultReadOptions)
+	//			if err != nil {
+	//				if err != leveldb.ErrNotFound {
+	//					return wrapError(err)
+	//				}
+	//				c = NewCandleFromTimestamp(t.Timestamp)
+	//			} else {
+	//				err = c.UnmarshalBinary(cb)
+	//				if err != nil {
+	//					return wrapError(err)
+	//				}
+	//			}
+	//		}
+	//		c.UpdateFromTrade(t)
+	//		candles[ck] = c
+	//		mk := pairKey{marketKeyPrefix, t.AmountAsset, t.PriceAsset}
+	//		m, ok := markets[mk]
+	//		if !ok {
+	//			mb, err := s.db.Get(mk.bytes(), defaultReadOptions)
+	//			if err != nil {
+	//				if err != leveldb.ErrNotFound {
+	//					return wrapError(err)
+	//				}
+	//				m = Market{}
+	//			} else {
+	//				err = m.UnmarshalBinary(mb)
+	//				if err != nil {
+	//					return wrapError(err)
+	//				}
+	//			}
+	//		}
+	//		m.UpdateFromTrade(t)
+	//		markets[mk] = m
+	//	}
+	//
+	//	batch := new(leveldb.Batch)
+	//	//putAliases(snapshot, batch, uint32(height), aliasBinds)
+	//	updateAssets(assets, batch, height, stateUpdates)
+	//	n := len(trades)
+	//	updateLastHeight(batch, height)
+	//	mtf := min(affectedTimeFrames)
+	//	putBlockInfo(batch, height, block, n == 0, mtf)
+	//	putTradesIDs(batch, block, trades)
+	//	err = s.putTrades(batch, trades)
+	//	if err != nil {
+	//		return wrapError(err)
+	//	}
+	//	err = s.updateAffectedTimeFrames(batch, affectedTimeFrames, height)
+	//	if err != nil {
+	//		return wrapError(err)
+	//	}
+	//	for _, t := range trades {
+	//		k1 := DigestKey{tradeKeyPrefix, t.TransactionID}
+	//		v1 := make([]byte, TradeSize)
+	//		v1, err := t.MarshalBinary()
+	//		if err != nil {
+	//			return wrapError(err)
+	//		}
+	//		batch.Put(k1.bytes(), v1)
+	//	}
+	//	for ck, cv := range candles {
+	//		v, err := cv.MarshalBinary()
+	//		if err != nil {
+	//			return wrapError(err)
+	//		}
+	//		ckb := ck.bytes()
+	//		batch.Put(ckb, v)
+	//		ck2 := candleKey{candleKeyPrefix, ck.amountAsset, ck.priceAsset, ck.tf}
+	//		batch.Put(ck2.bytes(), ckb)
+	//	}
+	//	for mk, mv := range markets {
+	//		vb, err := mv.MarshalBinary()
+	//		if err != nil {
+	//			return wrapError(err)
+	//		}
+	//		batch.Put(mk.bytes(), vb)
+	//	}
+	//	err = s.db.Write(batch, defaultWriteOptions)
+	//	if err != nil {
+	//		return errors.Wrapf(err, "failed to store block '%s' at height %d", block.String(), height)
+	//	}
+}
+
+func (s *Storage) SafeRollbackHeight(height int) (int, error) {
+	snapshot, err := s.db.GetSnapshot()
+	if err != nil {
+		return 0, err
+	}
+	defer snapshot.Release()
+	tf, ok := earliestTimeFrame(snapshot, uint32(height))
+	if !ok {
+		return height, nil
+	}
+	eh, err := earliestAffectedHeight(snapshot, tf)
+	if err != nil {
+		return 0, err
+	}
+	if int(eh) >= height {
+		return height, nil
+	} else {
+		return s.SafeRollbackHeight(int(eh))
+	}
+}
+
+func (s *Storage) Rollback(removeHeight int) error {
+	wrapError := func(err error) error { return errors.Wrapf(err, "failed to rollback to height %d", removeHeight) }
+	snapshot, err := s.db.GetSnapshot()
+	if err != nil {
+		return wrapError(err)
+	}
+	defer snapshot.Release()
+	max, err := height(snapshot)
+	if err != nil {
+		return wrapError(err)
+	}
+	if removeHeight >= max {
+		return wrapError(errors.Errorf("nothing to rollback, current height is %d", max))
+	}
+	batch := new(leveldb.Batch)
+	rh := uint32(removeHeight)
+	err = rollbackTrades(snapshot, batch, rh)
+	if err != nil {
+		return wrapError(err)
+	}
+	err = rollbackAccounts(snapshot, batch, rh)
+	if err != nil {
+		return wrapError(err)
+	}
+	err = rollbackAssets(snapshot, batch, rh)
+	if err != nil {
+		return wrapError(err)
+	}
+	err = rollbackAliases(snapshot, batch, rh)
+	if err != nil {
+		return wrapError(err)
+	}
+	err = rollbackBlocks(snapshot, batch, rh)
+	if err != nil {
+		return wrapError(err)
+	}
+	err = s.db.Write(batch, nil)
+	if err != nil {
+		return wrapError(err)
+	}
+	return nil
+}
+
 func (s *Storage) Height() (int, error) {
 	snapshot, err := s.db.GetSnapshot()
 	if err != nil {
@@ -158,8 +383,8 @@ func (s *Storage) BlockID(height int) (crypto.Signature, error) {
 		return crypto.Signature{}, err
 	}
 	defer snapshot.Release()
-	bi, err := block(snapshot, uint32(height))
-	return bi.block, nil
+	b, err := block(snapshot, uint32(height))
+	return b, nil
 }
 
 func (s *Storage) IssuerBalance(issuer proto.Address, asset crypto.Digest) (uint64, error) {
@@ -257,7 +482,7 @@ func (s *Storage) IssuerBalance(issuer proto.Address, asset crypto.Digest) (uint
 //	}
 //	bs := newBlockState(snapshot)
 //	batch := new(leveldb.Batch)
-//	putAliasesStateUpdate(bs, batch, uint32(height), aliasBinds)
+//	putAliases(bs, batch, uint32(height), aliasBinds)
 //
 //	assets, err := s.loadAssetStates(stateUpdates)
 //	if err != nil {
@@ -404,116 +629,6 @@ func (s *Storage) IssuerBalance(issuer proto.Address, asset crypto.Digest) (uint
 //	}
 //}
 //
-func (s *Storage) PutBlock(height int, block crypto.Signature, trades []data.Trade, issues []data.IssueChange, assets []data.AssetChange, accounts []data.AccountChange, aliases []data.AliasBind) error {
-	//	wrapError := func(err error) error {
-	//		return errors.Wrapf(err, "failed to store block '%s' at height %d", block.String(), height)
-	//	}
-	//
-	//	//snapshot, err := s.db.GetSnapshot()
-	//	//if err != nil {
-	//	//	return wrapError(err)
-	//	//}
-	//
-	//	assets, err := s.loadAssetStates(stateUpdates)
-	//	if err != nil {
-	//		return wrapError(err)
-	//	}
-	//
-	//	candles := map[timeFramePairKey]Candle{}
-	//	markets := map[pairKey]Market{}
-	//	affectedTimeFrames := make([]uint32, 0)
-	//	for _, t := range trades {
-	//		tf := TimeFrameFromTimestampMS(t.Timestamp)
-	//		if !contains(affectedTimeFrames, tf) {
-	//			affectedTimeFrames = append(affectedTimeFrames, tf)
-	//		}
-	//		ck := timeFramePairKey{CandlesKeyPrefix, tf, t.AmountAsset, t.PriceAsset}
-	//		var c Candle
-	//		c, ok := candles[ck]
-	//		if !ok {
-	//			cb, err := s.db.Get(ck.bytes(), defaultReadOptions)
-	//			if err != nil {
-	//				if err != leveldb.ErrNotFound {
-	//					return wrapError(err)
-	//				}
-	//				c = NewCandleFromTimestamp(t.Timestamp)
-	//			} else {
-	//				err = c.UnmarshalBinary(cb)
-	//				if err != nil {
-	//					return wrapError(err)
-	//				}
-	//			}
-	//		}
-	//		c.UpdateFromTrade(t)
-	//		candles[ck] = c
-	//		mk := pairKey{marketKeyPrefix, t.AmountAsset, t.PriceAsset}
-	//		m, ok := markets[mk]
-	//		if !ok {
-	//			mb, err := s.db.Get(mk.bytes(), defaultReadOptions)
-	//			if err != nil {
-	//				if err != leveldb.ErrNotFound {
-	//					return wrapError(err)
-	//				}
-	//				m = Market{}
-	//			} else {
-	//				err = m.UnmarshalBinary(mb)
-	//				if err != nil {
-	//					return wrapError(err)
-	//				}
-	//			}
-	//		}
-	//		m.UpdateFromTrade(t)
-	//		markets[mk] = m
-	//	}
-	//
-	//	batch := new(leveldb.Batch)
-	//	//putAliasesStateUpdate(snapshot, batch, uint32(height), aliasBinds)
-	//	updateAssets(assets, batch, height, stateUpdates)
-	//	n := len(trades)
-	//	updateLastHeight(batch, height)
-	//	mtf := min(affectedTimeFrames)
-	//	putBlockInfo(batch, height, block, n == 0, mtf)
-	//	putTradesIDs(batch, block, trades)
-	//	err = s.putTrades(batch, trades)
-	//	if err != nil {
-	//		return wrapError(err)
-	//	}
-	//	err = s.updateAffectedTimeFrames(batch, affectedTimeFrames, height)
-	//	if err != nil {
-	//		return wrapError(err)
-	//	}
-	//	for _, t := range trades {
-	//		k1 := DigestKey{tradeKeyPrefix, t.TransactionID}
-	//		v1 := make([]byte, TradeSize)
-	//		v1, err := t.MarshalBinary()
-	//		if err != nil {
-	//			return wrapError(err)
-	//		}
-	//		batch.Put(k1.bytes(), v1)
-	//	}
-	//	for ck, cv := range candles {
-	//		v, err := cv.MarshalBinary()
-	//		if err != nil {
-	//			return wrapError(err)
-	//		}
-	//		ckb := ck.bytes()
-	//		batch.Put(ckb, v)
-	//		ck2 := candleKey{candleKeyPrefix, ck.amountAsset, ck.priceAsset, ck.tf}
-	//		batch.Put(ck2.bytes(), ckb)
-	//	}
-	//	for mk, mv := range markets {
-	//		vb, err := mv.MarshalBinary()
-	//		if err != nil {
-	//			return wrapError(err)
-	//		}
-	//		batch.Put(mk.bytes(), vb)
-	//	}
-	//	err = s.db.Write(batch, defaultWriteOptions)
-	//	if err != nil {
-	//		return errors.Wrapf(err, "failed to store block '%s' at height %d", block.String(), height)
-	//	}
-	return nil
-}
 
 //func putAddress(batch *leveldb.Batch, pk crypto.PublicKey, scheme byte) error {
 //	a, err := proto.NewAddressFromPublicKey(scheme, pk)
@@ -592,71 +707,6 @@ func (s *Storage) PutBlock(height int, block crypto.Signature, trades []data.Tra
 //	return nil
 //}
 //
-func (s *Storage) SafeRollbackHeight(toHeight int) (int, error) {
-	//	ok, bi, err := s.findFirstNonEmptyBlock(height)
-	//	if err != nil {
-	//		return 0, errors.Wrap(err, "failed to find first non empty block")
-	//	}
-	//	if !ok {
-	//		return height, nil
-	//	}
-	//	etf := bi.EarliestTimeFrame
-	//	k := uint32Key{EarliestHeightKeyPrefix, etf}
-	//	b, err := s.db.Get(k.bytes(), defaultReadOptions)
-	//	if err != nil {
-	//		return 0, errors.Wrapf(err, "failed to get earliest height for time frame %d", etf)
-	//	}
-	//	eh := int(binary.BigEndian.Uint32(b))
-	//	if eh >= height {
-	//		return height, nil
-	//	} else {
-	//		return s.SafeRollbackHeight(eh)
-	//	}
-	return 0, nil
-}
-
-func (s *Storage) Rollback(toHeight int) error {
-	wrapError := func(err error) error { return errors.Wrapf(err, "failed to rollback to height %d", toHeight) }
-	snapshot, err := s.db.GetSnapshot()
-	if err != nil {
-		return wrapError(err)
-	}
-	defer snapshot.Release()
-	max, err := height(snapshot)
-	if err != nil {
-		return wrapError(err)
-	}
-	if toHeight >= max {
-		return wrapError(errors.Errorf("nothing to rollback, current height is %d", max))
-	}
-	batch := new(leveldb.Batch)
-	removeHeight := uint32(toHeight + 1)
-	err = rollbackTrades(snapshot, batch, removeHeight)
-	if err != nil {
-		return wrapError(err)
-	}
-	err = rollbackAssetInfos(snapshot, batch, removeHeight)
-	if err != nil {
-		return wrapError(err)
-	}
-	err = rollbackBalances(snapshot, batch, removeHeight)
-	if err != nil {
-		return wrapError(err)
-	}
-	err = rollbackAliases(snapshot, batch, removeHeight)
-	if err != nil {
-		return wrapError(err)
-	}
-	err = rollbackBlocks(snapshot, batch, removeHeight)
-	if err != nil {
-		return wrapError(err)
-	}
-	err = s.db.Write(batch, nil)
-	if err != nil {
-		return wrapError(err)
-	}
-	return nil
-}
 
 //func (s *Storage) findFirstNonEmptyBlock(height int) (bool, blockInfo, error) {
 //	bi, err := s.blockInfo(height)

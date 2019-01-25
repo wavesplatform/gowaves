@@ -64,7 +64,7 @@ func (c *aliasChange) fromBytes(data []byte) error {
 	return nil
 }
 
-func putAliasesStateUpdate(bs *blockState, batch *leveldb.Batch, height uint32, binds []data.AliasBind) error {
+func putAliases(bs *blockState, batch *leveldb.Batch, height uint32, binds []data.AliasBind) error {
 	for _, bind := range binds {
 		bk := aliasKey{aliasToAddressKeyPrefix, bind.Alias}
 		batch.Put(bk.bytes(), bind.Address[:])
@@ -124,5 +124,5 @@ func rollbackAliases(snapshot *leveldb.Snapshot, batch *leveldb.Batch, removeHei
 		k := aliasKey{aliasToAddressKeyPrefix, a}
 		batch.Delete(k.bytes())
 	}
-	return it.Error()
+	return nil
 }
