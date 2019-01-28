@@ -280,6 +280,14 @@ func (s *StateManager) AddNewBlock(block *proto.Block, initialisation bool) erro
 	return nil
 }
 
+func (s *StateManager) RollbackToHeight(height uint64) error {
+	blockID, err := s.rw.BlockIDByHeight(height)
+	if err != nil {
+		return err
+	}
+	return s.RollbackTo(blockID)
+}
+
 func (s *StateManager) RollbackTo(removalEdge crypto.Signature) error {
 	// Remove blocks.
 	s.rw.RemoveBlocks(removalEdge)
