@@ -27,7 +27,6 @@ func (tv *TransactionValidator) ValidateTransaction(block *Block, tx Transaction
 			if !initialisation {
 				return errors.New("Trying to add genesis transaction in new block")
 			}
-			// TODO: what to check here?
 			return nil
 		} else {
 			return errors.New("Tried to add genesis transaction inside of non-genesis block")

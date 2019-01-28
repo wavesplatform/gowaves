@@ -14,6 +14,7 @@ import (
 )
 
 type KeyValue interface {
+	Has(key []byte) (bool, error)
 	Put(key []byte, val []byte) error
 	Get(key []byte) ([]byte, error)
 	Delete(key []byte) error

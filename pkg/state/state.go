@@ -18,7 +18,7 @@ const (
 	RemoveBlocks
 )
 
-type BlockManagerTask struct {
+type StateManagerTask struct {
 	Type TaskType
 	// For block addition.
 	Block *proto.Block
@@ -38,19 +38,19 @@ type BlockReadWriter interface {
 	BlockIDByHeight(height uint64) (crypto.Signature, error)
 }
 
-type BlockManager struct {
+type StateManager struct {
 	genesis       crypto.Signature
 	accountsState proto.AccountsState
 	rw            BlockReadWriter
 	cancel        context.CancelFunc
 }
 
-func NewBlockManager(genesis crypto.Signature, state proto.AccountsState, rw BlockReadWriter) (*BlockManager, error) {
-	stor := &BlockManager{genesis: genesis, accountsState: state, rw: rw}
+func NewStateManager(genesis crypto.Signature, state proto.AccountsState, rw BlockReadWriter) (*StateManager, error) {
+	stor := &StateManager{genesis: genesis, accountsState: state, rw: rw}
 	return stor, nil
 }
 
-func (s *BlockManager) GetBlock(blockID crypto.Signature) (*proto.Block, error) {
+func (s *StateManager) GetBlock(blockID crypto.Signature) (*proto.Block, error) {
 	headerBytes, err := s.rw.ReadBlockHeader(blockID)
 	if err != nil {
 		return nil, err
@@ -68,7 +68,7 @@ func (s *BlockManager) GetBlock(blockID crypto.Signature) (*proto.Block, error) 
 	return &block, nil
 }
 
-func (s *BlockManager) GetBlock(height uint64) (*proto.Block, error) {
+func (s *StateManager) GetBlockByHeight(height uint64) (*proto.Block, error) {
 	blockID, err := s.rw.BlockIDByHeight(height)
 	if err != nil {
 		return nil, err
@@ -76,7 +76,7 @@ func (s *BlockManager) GetBlock(height uint64) (*proto.Block, error) {
 	return s.GetBlock(blockID)
 }
 
-func (s *BlockManager) performTransaction(block *proto.Block, tx proto.Transaction) error {
+func (s *StateManager) performTransaction(block *proto.Block, tx proto.Transaction) error {
 	wavesAsset, err := proto.NewOptionalAssetFromString(proto.WavesAssetName)
 	if err != nil {
 		return err
@@ -238,7 +238,7 @@ func (s *BlockManager) performTransaction(block *proto.Block, tx proto.Transacti
 	}
 }
 
-func (s *BlockManager) AddNewBlock(block *proto.Block, initialisation bool) error {
+func (s *StateManager) AddNewBlock(block *proto.Block, initialisation bool) error {
 	// Indicate new block for storage.
 	if err := s.rw.StartBlock(block.BlockSignature); err != nil {
 		return err
@@ -257,7 +257,9 @@ func (s *BlockManager) AddNewBlock(block *proto.Block, initialisation bool) erro
 		txBytes := transactions[4 : n+4]
 		tx, err := proto.BytesToTransaction(txBytes)
 		// Save transaction to storage.
-		s.rw.WriteTransaction(tx.GetID(), txBytes)
+		if err := s.rw.WriteTransaction(tx.GetID(), txBytes); err != nil {
+			return err
+		}
 		if err != nil {
 			return err
 		}
@@ -278,7 +280,7 @@ func (s *BlockManager) AddNewBlock(block *proto.Block, initialisation bool) erro
 	return nil
 }
 
-func (s *BlockManager) RollbackTo(removalEdge crypto.Signature) error {
+func (s *StateManager) RollbackTo(removalEdge crypto.Signature) error {
 	// Remove blocks.
 	s.rw.RemoveBlocks(removalEdge)
 	// Rollback accounts state.
