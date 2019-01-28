@@ -3,28 +3,28 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/gorilla/mux"
+	"github.com/wavesplatform/gowaves/pkg/libs/bytespool"
+	"github.com/wavesplatform/gowaves/pkg/network/conn"
 	"github.com/wavesplatform/gowaves/pkg/network/peer"
-	"github.com/wavesplatform/gowaves/pkg/network/peer/connection"
 	"github.com/wavesplatform/gowaves/pkg/network/retransmit"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"net"
-	"time"
+	"go.uber.org/zap"
+	"log"
+	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
 )
 
-type Connector struct {
-	addr string
-	v    proto.Version
-}
-
-func (a Connector) Connect(readFromRemoteCh chan []byte, writeToRemoteCh chan []byte, infoCh chan interface{}) context.CancelFunc {
-	ctx := context.Background()
-	ctx, cancel := context.WithCancel(ctx)
-	_ = connection.NewConnection(ctx, a.addr, a.v, readFromRemoteCh, writeToRemoteCh, infoCh)
-	return cancel
-}
-
 // filter only transactions and
-func receiveFromRemoteCallbackfunc(b []byte, id peer.UniqID, resendTo chan peer.IdentifiedMessage) {
+func receiveFromRemoteCallbackfunc(b []byte, id string, resendTo chan peer.ProtoMessage, pool conn.Pool) {
+
+	defer func() {
+		pool.Put(b)
+	}()
+
+	zap.S().Debugf("receiveFromRemoteCallbackfunc, len bytes %d", len(b))
 
 	if len(b) < 9 {
 		return
@@ -40,7 +40,7 @@ func receiveFromRemoteCallbackfunc(b []byte, id peer.UniqID, resendTo chan peer.
 			return
 		}
 
-		mess := peer.IdentifiedMessage{
+		mess := peer.ProtoMessage{
 			ID:      id,
 			Message: m,
 		}
@@ -52,49 +52,92 @@ func receiveFromRemoteCallbackfunc(b []byte, id peer.UniqID, resendTo chan peer.
 
 	case proto.ContentIDPeers:
 		fmt.Println("got proto.ContentIDPeers message", id)
+
+		m := &proto.PeersMessage{}
+		err := m.UnmarshalBinary(b)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+
+		mess := peer.ProtoMessage{
+			ID:      id,
+			Message: m,
+		}
+
+		select {
+		case resendTo <- mess:
+		default:
+		}
+
 	case proto.ContentIDGetPeers:
+		fmt.Println("retransmitter got proto.ContentIDGetPeers message from ", id)
+		m := &proto.GetPeersMessage{}
+		err := m.UnmarshalBinary(b)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+
+		mess := peer.ProtoMessage{
+			ID:      id,
+			Message: m,
+		}
+
+		select {
+		case resendTo <- mess:
+		default:
+		}
 	default:
 		fmt.Println("bytes id ", b[8])
 		return
 	}
 }
 
-func errorhandlerFunc(*retransmit.PeerInfo, *retransmit.Retransmitter) {
-	fmt.Println("called errorhandlerFunc")
-}
-
 func main() {
 
-	ctx := context.Background()
+	logger, _ := zap.NewDevelopment()
+	zap.ReplaceGlobals(logger)
 
-	outgoingSpawner := func(addr string, incomeCh chan peer.IdentifiedMessage, infoCh chan peer.IdentifiedInfo) peer.Peer {
+	ctx, cancel := context.WithCancel(context.Background())
 
-		v := proto.Version{
-			Major: 0,
-			Minor: 15,
-			Patch: 0,
-		}
+	pool := bytespool.NewBytesPool(32, 2*1024*1024)
 
-		connector := Connector{
-			addr: addr,
-			v:    v,
-		}
-
-		c := peer.NewPeer(ctx, incomeCh, connector, peer.UniqID(addr), addr, receiveFromRemoteCallbackfunc, infoCh)
-		go c.Run()
-		return c
-	}
-
-	incomingSpawner := func(conn net.Conn, income chan peer.IdentifiedMessage, infoCh chan peer.IdentifiedInfo) peer.Peer {
-		return peer.NewIncomingPeer(conn, receiveFromRemoteCallbackfunc, income, infoCh)
-	}
-
-	r := retransmit.NewRetransmitter(ctx, outgoingSpawner, incomingSpawner, errorhandlerFunc)
+	r := retransmit.NewRetransmitter(ctx, peer.RunOutgoingPeer, peer.RunIncomingPeer, receiveFromRemoteCallbackfunc, pool)
 
 	go r.Run()
 
-	//r.AddAddress("195.201.172.78:6868")
-	r.AddAddress("34.253.153.4:6868")
+	//r.AddAddress("34.253.153.4:6868")
+	//r.AddAddress("52.214.55.18:6868")
+	r.AddAddress("mainnet-aws-ca-1.wavesnodes.com:6868")
 
-	<-time.After(100 * time.Minute)
+	httpServer := retransmit.NewHttpServer(r)
+
+	router := mux.NewRouter()
+	router.HandleFunc("/active", httpServer.ActiveConnections)
+	router.HandleFunc("/known", httpServer.KnownPeers)
+	http.Handle("/", router)
+
+	srv := http.Server{
+		Handler: router,
+		Addr:    "127.0.0.1:8000",
+	}
+
+	go func() {
+		err := srv.ListenAndServe()
+		if err != nil {
+			zap.S().Error(err)
+		}
+	}()
+
+	var gracefulStop = make(chan os.Signal)
+	signal.Notify(gracefulStop, syscall.SIGTERM)
+	signal.Notify(gracefulStop, syscall.SIGINT)
+
+	select {
+	case sig := <-gracefulStop:
+		_ = srv.Shutdown(ctx)
+		cancel()
+		zap.S().Infow("Caught signal, stopping", "signal", sig)
+	}
 }

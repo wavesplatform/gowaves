@@ -2,138 +2,139 @@ package peer
 
 import (
 	"context"
-	"errors"
-	"fmt"
+	"github.com/wavesplatform/gowaves/pkg/network/conn"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"go.uber.org/zap"
+	"net"
+	"time"
 )
 
-type UniqID string
-type Address string
-
-type Direction int
-
-const Incoming Direction = 1
-const Outgoing Direction = 2
-
-type IdentifiedMessage struct {
-	ID      UniqID
-	Message proto.Message
+type OutgoingPeerParams struct {
+	Ctx                       context.Context
+	Address                   string
+	Parent                    Parent
+	ReceiveFromRemoteCallback ReceiveFromRemoteCallback
+	Pool                      conn.Pool
+	DeclAddr                  proto.PeerInfo
 }
-
-type IdentifiedInfo struct {
-	ID    UniqID
-	Value interface{}
-}
-
-type SendToRemoteCallback func(proto.Message, chan []byte)
-
-type ReceiveFromRemoteCallback func(b []byte, id UniqID, resendTo chan IdentifiedMessage)
 
 type OutgoingPeer struct {
-	ctx                       context.Context
-	resendToParentCh          chan IdentifiedMessage
-	address                   string
-	cancel                    context.CancelFunc
-	reconnectChan             chan struct{}
-	connector                 Connector
-	receiveFromRemoteCallback ReceiveFromRemoteCallback
-	infoCh                    chan interface{}
-	writeToRemoteCh           chan []byte
-	id                        UniqID
-	parentInfoChan            chan IdentifiedInfo
-	direction                 Direction
+	params     OutgoingPeerParams
+	ctx        context.Context
+	cancel     context.CancelFunc
+	remote     remote
+	connection conn.Connection
 }
 
-func NewPeer(
-	ctx context.Context,
-	resendToParentCh chan IdentifiedMessage,
-	connector Connector,
-	id UniqID,
-	address string,
-	receiveFromRemoteCallback ReceiveFromRemoteCallback,
-	parentInfoChan chan IdentifiedInfo) *OutgoingPeer {
-
-	c2, cancel := context.WithCancel(ctx)
-
-	fmt.Println("starting new client")
-
-	return &OutgoingPeer{
-		ctx:                       c2,
-		cancel:                    cancel,
-		resendToParentCh:          resendToParentCh,
-		address:                   address,
-		connector:                 connector,
-		receiveFromRemoteCallback: receiveFromRemoteCallback,
-		infoCh:                    make(chan interface{}, 100),
-		writeToRemoteCh:           make(chan []byte, 10),
-		id:                        id,
-		reconnectChan:             make(chan struct{}, 1),
-		parentInfoChan:            parentInfoChan,
-		direction:                 Outgoing,
+func RunOutgoingPeer(params OutgoingPeerParams) {
+	ctx, cancel := context.WithCancel(params.Ctx)
+	remote := newRemote()
+	p := OutgoingPeer{
+		params: params,
+		ctx:    ctx,
+		cancel: cancel,
+		remote: remote,
 	}
+
+	connection, version, err := p.connect(remote, params.DeclAddr)
+	if err != nil {
+		zap.S().Error(err)
+		return
+	}
+	p.connection = connection
+
+	connected := InfoMessage{
+		ID: params.Address,
+		Value: &Connected{
+			Peer:    &p,
+			Version: version,
+		},
+	}
+	params.Parent.ParentInfoChan <- connected
+	zap.S().Debugf("connected %s", params.Address)
+
+	handle(handlerParams{
+		ctx:                       ctx,
+		address:                   params.Address,
+		connection:                p.connection,
+		remote:                    remote,
+		receiveFromRemoteCallback: params.ReceiveFromRemoteCallback,
+		parent:                    params.Parent,
+		pool:                      params.Pool,
+	})
 }
 
-func (a *OutgoingPeer) Run() {
-	readFromRemoteCh := make(chan []byte, 10)
+func (a *OutgoingPeer) connect(remote remote, declAddr proto.PeerInfo) (conn.Connection, proto.Version, error) {
+	possibleVersions := []uint32{15, 14, 16}
+	index := 0
 
-	cancel := a.connector.Connect(readFromRemoteCh, a.writeToRemoteCh, a.infoCh)
 	for {
-		select {
-		case <-a.ctx.Done():
-			cancel()
-			return
-
-		case bts := <-readFromRemoteCh:
-			a.receiveFromRemoteCallback(bts, a.id, a.resendToParentCh)
-
-		case <-a.reconnectChan:
-			cancel()
-			cancel = a.connector.Connect(readFromRemoteCh, a.writeToRemoteCh, a.infoCh)
-
-		case err := <-a.infoCh:
-			a.parentInfoChan <- IdentifiedInfo{
-				ID:    a.id,
-				Value: err,
+		c, err := net.Dial("tcp", a.params.Address)
+		if err != nil {
+			zap.S().Infof("failed to connect, %s id %s", err, a.params.Address)
+			select {
+			case <-a.ctx.Done():
+				return nil, proto.Version{}, a.ctx.Err()
+			case <-time.After(5 * time.Minute):
+				continue
 			}
 		}
-	}
-}
 
-func (a *OutgoingPeer) Stop() {
-	a.cancel()
+		bytes, err := declAddr.MarshalBinary()
+		if err != nil {
+			zap.S().Error(err)
+			return nil, proto.Version{}, err
+		}
+
+		handshake := proto.Handshake{
+			Name:              "wavesW",
+			Version:           proto.Version{Major: 0, Minor: possibleVersions[index%len(possibleVersions)], Patch: 0},
+			NodeName:          "gowaves",
+			NodeNonce:         0x0,
+			DeclaredAddrBytes: bytes,
+			Timestamp:         proto.NewTimestampFromTime(time.Now()),
+		}
+
+		_, err = handshake.WriteTo(c)
+		if err != nil {
+			zap.S().Error("failed to send handshake: ", err)
+			continue
+		}
+		_, err = handshake.ReadFrom(c)
+		if err != nil {
+			zap.S().Error("failed to read handshake: ", err)
+			index += 1
+			continue
+		}
+
+		return conn.WrapConnection(c, a.params.Pool, remote.toCh, remote.fromCh, remote.errCh),
+			proto.Version{Major: 0, Minor: possibleVersions[index%len(possibleVersions)]},
+			nil
+
+	}
 }
 
 func (a *OutgoingPeer) SendMessage(m proto.Message) {
 	b, err := m.MarshalBinary()
 	if err != nil {
-		a.infoCh <- err
+		zap.S().Error(err)
 		return
 	}
 	select {
-	case a.writeToRemoteCh <- b:
+	case a.remote.toCh <- b:
 	default:
+		zap.S().Warnf("can't send bytes to remote, chan is full id %s", a.params.Address)
 	}
-}
-
-func (a *OutgoingPeer) Reconnect() error {
-	if a.direction == Incoming {
-		return errors.New("trying to reconnect to incoming connection")
-	}
-	select {
-	case a.reconnectChan <- struct{}{}:
-	default:
-	}
-	return nil
 }
 
 func (a *OutgoingPeer) Direction() Direction {
-	return a.direction
+	return Outgoing
 }
 
 func (a *OutgoingPeer) Close() {
 	a.cancel()
 }
 
-func (a *OutgoingPeer) ID() UniqID {
-	return a.id
+func (a *OutgoingPeer) ID() string {
+	return a.params.Address
 }

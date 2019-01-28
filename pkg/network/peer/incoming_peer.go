@@ -1,77 +1,121 @@
 package peer
 
 import (
-	"fmt"
-	"github.com/pkg/errors"
+	"context"
+	"github.com/wavesplatform/gowaves/pkg/network/conn"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"go.uber.org/zap"
 	"net"
+	"time"
 )
 
 type IncomingPeer struct {
-	conn                      net.Conn
-	sendToRemoteMessage       chan proto.Message
-	parentInfoChan            chan IdentifiedInfo
-	receiveFromRemoteCallback ReceiveFromRemoteCallback
-	resendToParentCh          chan IdentifiedMessage
-	closeCh                   chan struct{}
+	params  IncomingPeerParams
+	conn    conn.Connection
+	remote  remote
+	address string
+	cancel  context.CancelFunc
 }
 
-func NewIncomingPeer(c net.Conn, receiveFromRemoteCallback ReceiveFromRemoteCallback, resendToParentCh chan IdentifiedMessage, parentInfoChan chan IdentifiedInfo) *IncomingPeer {
-	peer := &IncomingPeer{
-		conn:                      c,
-		parentInfoChan:            parentInfoChan,
-		receiveFromRemoteCallback: receiveFromRemoteCallback,
-		resendToParentCh:          resendToParentCh,
-		closeCh:                   make(chan struct{}),
+type IncomingPeerParams struct {
+	Ctx                       context.Context
+	Conn                      net.Conn
+	ReceiveFromRemoteCallback ReceiveFromRemoteCallback
+	Parent                    Parent
+	DeclAddr                  proto.PeerInfo
+	Pool                      conn.Pool
+}
+
+func RunIncomingPeer(params IncomingPeerParams) {
+	c := params.Conn
+	bytes, err := params.DeclAddr.MarshalBinary()
+	if err != nil {
+		zap.S().Error(err)
+		c.Close()
+		return
 	}
-	go peer.run()
-	return peer
+
+	readHandshake := proto.Handshake{}
+	_, err = readHandshake.ReadFrom(c)
+	if err != nil {
+		zap.S().Error("failed to read handshake: ", err)
+		c.Close()
+		return
+	}
+
+	writeHandshake := proto.Handshake{
+		Name:              "wavesW",
+		Version:           proto.Version{Major: 0, Minor: 15, Patch: 0},
+		NodeName:          "gowaves",
+		NodeNonce:         0x0,
+		DeclaredAddrBytes: bytes,
+		Timestamp:         proto.NewTimestampFromTime(time.Now()),
+	}
+
+	_, err = writeHandshake.WriteTo(c)
+	if err != nil {
+		zap.S().Error("failed to write handshake: ", err)
+		c.Close()
+		return
+	}
+
+	remote := newRemote()
+
+	connection := conn.WrapConnection(c, params.Pool, remote.toCh, remote.fromCh, remote.errCh)
+
+	_, cancel := context.WithCancel(params.Ctx)
+
+	peer := &IncomingPeer{
+		params:  params,
+		conn:    connection,
+		remote:  remote,
+		address: c.RemoteAddr().String(),
+		cancel:  cancel,
+	}
+
+	out := InfoMessage{
+		ID: c.RemoteAddr().String(),
+		Value: &Connected{
+			Peer:    peer,
+			Version: readHandshake.Version,
+		},
+	}
+	params.Parent.ParentInfoChan <- out
+	peer.run()
 }
 
 func (a *IncomingPeer) run() {
-	readFromRemoteCh := make(chan []byte, 10)
-	for {
-		select {
-		case <-a.closeCh:
-			a.conn.Close()
-			return
-		case mess := <-a.sendToRemoteMessage:
-			b, err := mess.MarshalBinary()
-			if err != nil {
-				fmt.Println(err)
-				continue
-			}
-			_, err = a.conn.Write(b)
-			if err != nil {
-				ii := IdentifiedInfo{
-					ID:    a.ID(),
-					Value: err,
-				}
-				select {
-				case a.parentInfoChan <- ii:
-				default:
-				}
-			}
-		case bts := <-readFromRemoteCh:
-			a.receiveFromRemoteCallback(bts, a.ID(), a.resendToParentCh)
-		}
+	handleParams := handlerParams{
+		connection:                a.conn,
+		ctx:                       a.params.Ctx,
+		remote:                    a.remote,
+		receiveFromRemoteCallback: a.params.ReceiveFromRemoteCallback,
+		address:                   a.address,
+		parent:                    a.params.Parent,
+		pool:                      a.params.Pool,
 	}
-}
-
-func (a *IncomingPeer) Reconnect() error {
-	return errors.New("can't reconnect incoming peer")
+	handle(handleParams)
 }
 
 func (a *IncomingPeer) Close() {
-	close(a.closeCh)
+	a.cancel()
 }
 
 func (a *IncomingPeer) SendMessage(m proto.Message) {
-
+	b, err := m.MarshalBinary()
+	if err != nil {
+		zap.S().Error(err)
+		return
+	}
+	select {
+	case a.remote.toCh <- b:
+	default:
+		zap.S().Warnf("can't send bytes to remote, chan is full id %s", a.address)
+	}
 }
 
-func (a *IncomingPeer) ID() UniqID {
-	return UniqID(a.conn.RemoteAddr().String())
+func (a *IncomingPeer) ID() string {
+	return a.address
 }
 
 func (a *IncomingPeer) Direction() Direction {
