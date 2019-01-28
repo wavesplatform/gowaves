@@ -266,7 +266,7 @@ func (rw *BlockReadWriter) RemoveBlocks(removalEdge crypto.Signature) error {
 	if _, err := rw.headers.Seek(headerEnd, 0); err != nil {
 		return err
 	}
-	// Remove blockIDs from blocHeight2ID.
+	// Remove blockIDs from blockHeight2ID.
 	newHeight := binary.LittleEndian.Uint64(blockInfo[len(blockInfo)-8:])
 	newOffset := int64(newHeight * crypto.SignatureSize)
 	if err := rw.blockHeight2ID.Truncate(newOffset); err != nil {

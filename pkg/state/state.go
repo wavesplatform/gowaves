@@ -256,11 +256,11 @@ func (s *StateManager) AddNewBlock(block *proto.Block, initialisation bool) erro
 		n := int(binary.BigEndian.Uint32(transactions[0:4]))
 		txBytes := transactions[4 : n+4]
 		tx, err := proto.BytesToTransaction(txBytes)
-		// Save transaction to storage.
-		if err := s.rw.WriteTransaction(tx.GetID(), txBytes); err != nil {
+		if err != nil {
 			return err
 		}
-		if err != nil {
+		// Save transaction to storage.
+		if err := s.rw.WriteTransaction(tx.GetID(), txBytes); err != nil {
 			return err
 		}
 		tv, err := proto.NewTransactionValidator(s.genesis, s.accountsState)
