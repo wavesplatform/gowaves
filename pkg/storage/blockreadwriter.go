@@ -15,9 +15,10 @@ import (
 
 type KeyValue interface {
 	Has(key []byte) (bool, error)
-	Put(key []byte, val []byte) error
+	Put(key, val []byte) error
 	Get(key []byte) ([]byte, error)
 	Delete(key []byte) error
+	Flush() error
 }
 
 type BlockReadWriter struct {
@@ -118,6 +119,9 @@ func (rw *BlockReadWriter) FinishBlock(blockID crypto.Signature) error {
 	val := append(rw.blockBounds, rw.headerBounds...)
 	val = append(val, rw.heightBuf...)
 	if err := rw.idKeyVal.Put(blockID[:], val); err != nil {
+		return err
+	}
+	if err := rw.idKeyVal.Flush(); err != nil {
 		return err
 	}
 	return nil
