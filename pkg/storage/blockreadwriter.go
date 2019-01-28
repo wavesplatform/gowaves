@@ -114,19 +114,6 @@ func NewBlockReadWriter(dir string, offsetLen, headerOffsetLen int, keyVal KeyVa
 	}, nil
 }
 
-func (rw *BlockReadWriter) BlockIDByHeight(height uint64) (crypto.Signature, error) {
-	idBytes := make([]byte, crypto.SignatureSize)
-	readPos := int64(height * crypto.SignatureSize)
-	var res crypto.Signature
-	if n, err := rw.blockHeight2ID.ReadAt(idBytes, readPos); err != nil {
-		return res, err
-	} else if n != crypto.SignatureSize {
-		return res, errors.New("blockIDByHeight(): invalid id size")
-	}
-	copy(res[:], idBytes)
-	return res, nil
-}
-
 func (rw *BlockReadWriter) StartBlock(blockID crypto.Signature) error {
 	if _, err := rw.blockHeight2ID.Write(blockID[:]); err != nil {
 		return err
@@ -178,6 +165,21 @@ func (rw *BlockReadWriter) WriteBlockHeader(blockID crypto.Signature, header []b
 		return errors.Errorf("offsetLen is not enough for this offset: %d > %d", rw.headersLen, rw.offsetEnd)
 	}
 	return nil
+}
+
+func (rw *BlockReadWriter) BlockIDByHeight(height uint64) (crypto.Signature, error) {
+	rw.mtx.RLock()
+	defer rw.mtx.RUnlock()
+	idBytes := make([]byte, crypto.SignatureSize)
+	readPos := int64(height * crypto.SignatureSize)
+	var res crypto.Signature
+	if n, err := rw.blockHeight2ID.ReadAt(idBytes, readPos); err != nil {
+		return res, err
+	} else if n != crypto.SignatureSize {
+		return res, errors.New("blockIDByHeight(): invalid id size")
+	}
+	copy(res[:], idBytes)
+	return res, nil
 }
 
 func (rw *BlockReadWriter) ReadTransaction(txID []byte) ([]byte, error) {
