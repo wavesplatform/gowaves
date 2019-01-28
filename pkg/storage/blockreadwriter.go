@@ -49,21 +49,43 @@ type BlockReadWriter struct {
 	mtx sync.RWMutex
 }
 
+func openOrCreate(path string) (*os.File, uint64, error) {
+	if _, err := os.Stat(path); err == nil {
+		file, err := os.Open(path)
+		if err != nil {
+			return nil, 0, err
+		}
+		stat, err := os.Stat(path)
+		if err != nil {
+			return nil, 0, err
+		}
+		return file, uint64(stat.Size()), nil
+	} else if os.IsNotExist(err) {
+		file, err := os.Create(path)
+		if err != nil {
+			return nil, 0, err
+		}
+		return file, 0, nil
+	} else {
+		return nil, 0, err
+	}
+}
+
 func NewBlockReadWriter(dir string, offsetLen, headerOffsetLen int, keyVal KeyValue) (*BlockReadWriter, error) {
 	if contentList, err := ioutil.ReadDir(dir); err != nil {
 		return nil, errors.Wrap(err, "Error when reading output dir")
 	} else if len(contentList) != 0 {
 		return nil, errors.Errorf("Output dir is not empty")
 	}
-	blockchain, err := os.Create(path.Join(dir, "blockchain"))
+	blockchain, blockchainSize, err := openOrCreate(path.Join(dir, "blockchain"))
 	if err != nil {
 		return nil, err
 	}
-	headers, err := os.Create(path.Join(dir, "headers"))
+	headers, headersSize, err := openOrCreate(path.Join(dir, "headers"))
 	if err != nil {
 		return nil, err
 	}
-	blockHeight2ID, err := os.Create(path.Join(dir, "block_height_to_id"))
+	blockHeight2ID, blockHeight2IDSize, err := openOrCreate(path.Join(dir, "block_height_to_id"))
 	if err != nil {
 		return nil, err
 	}
@@ -84,6 +106,9 @@ func NewBlockReadWriter(dir string, offsetLen, headerOffsetLen int, keyVal KeyVa
 		blockBounds:     make([]byte, offsetLen*2),
 		heightBuf:       make([]byte, 8),
 		offsetEnd:       uint64(1<<uint(8*offsetLen) - 1),
+		blockchainLen:   blockchainSize,
+		headersLen:      headersSize,
+		height:          blockHeight2IDSize / crypto.SignatureSize,
 		offsetLen:       offsetLen,
 		headerOffsetLen: headerOffsetLen,
 	}, nil
