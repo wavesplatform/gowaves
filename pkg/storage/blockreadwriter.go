@@ -8,7 +8,6 @@ import (
 	"path"
 	"sync"
 
-	"github.com/golang/snappy"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 )
@@ -33,7 +32,6 @@ type BlockReadWriter struct {
 	blockHeight2ID *os.File
 
 	blockchainBuf *bufio.Writer
-	compressedBuf []byte
 
 	blockBounds  []byte
 	txBounds     []byte
@@ -136,12 +134,14 @@ func (rw *BlockReadWriter) FinishBlock(blockID crypto.Signature) error {
 	if err := rw.idKeyVal.Flush(); err != nil {
 		return err
 	}
+	if err := rw.blockchainBuf.Flush(); err != nil {
+		return err
+	}
 	return nil
 }
 
 func (rw *BlockReadWriter) WriteTransaction(txID []byte, tx []byte) error {
-	rw.compressedBuf = snappy.Encode(rw.compressedBuf, tx)
-	if _, err := rw.blockchainBuf.Write(rw.compressedBuf); err != nil {
+	if _, err := rw.blockchainBuf.Write(tx); err != nil {
 		return err
 	}
 	binary.LittleEndian.PutUint64(rw.txBounds[:rw.offsetLen], rw.blockchainLen)
@@ -288,6 +288,9 @@ func (rw *BlockReadWriter) RemoveBlocks(removalEdge crypto.Signature) error {
 }
 
 func (rw *BlockReadWriter) Close() error {
+	if err := rw.idKeyVal.Flush(); err != nil {
+		return err
+	}
 	if err := rw.blockchainBuf.Flush(); err != nil {
 		return err
 	}
