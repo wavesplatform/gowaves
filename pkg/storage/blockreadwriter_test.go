@@ -15,6 +15,7 @@ import (
 	"testing"
 
 	"github.com/pkg/errors"
+	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
@@ -25,6 +26,7 @@ const (
 
 var (
 	blockchainPath = flag.String("blockchain-path", "", "Path to binary blockchain file.")
+	nBlocks        = flag.Int("blocks-number", 1000, "Number of blocks to test on.")
 
 	cached_blocks []*proto.Block
 )
@@ -79,39 +81,24 @@ func readRealBlocks(nBlocks int) ([]*proto.Block, error) {
 		if err = block.UnmarshalBinary(bb); err != nil {
 			return nil, err
 		}
+		if !crypto.Verify(block.GenPublicKey, block.BlockSignature, bb[:len(bb)-crypto.SignatureSize]) {
+			return nil, errors.Errorf("Block %d has invalid signature", i)
+		}
 		blocks = append(blocks, &block)
 	}
 	cached_blocks = blocks
 	return blocks, nil
 }
 
-func createBlockReadWriter(offsetLen, headerOffsetLen int) (*BlockReadWriter, error) {
-	// TODO remove (clean) all the temp dirs.
-	dbDir, err := ioutil.TempDir("", "db_dir")
-	if err != nil {
-		return nil, err
-	}
+func createBlockReadWriter(dbDir, rwDir string, offsetLen, headerOffsetLen int) (*BlockReadWriter, error) {
 	keyVal, err := keyvalue.NewKeyVal(dbDir, BATCH_SIZE)
-	if err != nil {
-		return nil, err
-	}
-	rwDir, err := ioutil.TempDir("", "rw_dir")
 	if err != nil {
 		return nil, err
 	}
 	return NewBlockReadWriter(rwDir, offsetLen, headerOffsetLen, keyVal)
 }
 
-func TestReadWrite(t *testing.T) {
-	rw, err := createBlockReadWriter(8, 8)
-	if err != nil {
-		t.Fatalf("createBlockReadWriter: %v", err)
-	}
-	blocks, err := readRealBlocks(10)
-	if err != nil {
-		t.Fatalf("Can not read blocks from blockchain file: %v", err)
-	}
-	block := blocks[5]
+func testSingleBlock(rw *BlockReadWriter, block *proto.Block, t *testing.T) {
 	blockID := block.BlockSignature
 	if err := rw.StartBlock(blockID); err != nil {
 		t.Fatalf("StartBlock(): %v", err)
@@ -123,17 +110,18 @@ func TestReadWrite(t *testing.T) {
 	if err := rw.WriteBlockHeader(blockID, headerBytes); err != nil {
 		t.Fatalf("WriteBlockHeader(): %v", err)
 	}
-	transactions := block.Transactions
+	transaction := block.Transactions
 	for i := 0; i < block.TransactionCount; i++ {
-		n := int(binary.BigEndian.Uint32(transactions[0:4]))
-		txBytes := transactions[4 : n+4]
+		n := int(binary.BigEndian.Uint32(transaction[0:4]))
+		txBytes := transaction[4 : n+4]
 		tx, err := proto.BytesToTransaction(txBytes)
 		if err != nil {
 			t.Fatalf("Can not unmarshal tx: %v", err)
 		}
-		if err := rw.WriteTransaction(tx.GetID(), txBytes); err != nil {
+		if err := rw.WriteTransaction(tx.GetID(), transaction[:n+4]); err != nil {
 			t.Fatalf("WriteTransaction(): %v", err)
 		}
+		transaction = transaction[4+n:]
 	}
 	if err := rw.FinishBlock(blockID); err != nil {
 		t.Fatalf("FinishBlock(): %v", err)
@@ -149,8 +137,39 @@ func TestReadWrite(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ReadTransactionsBlock(): %v", err)
 	}
-	if bytes.Compare(transactions, resTransactions) != 0 {
+	if bytes.Compare(block.Transactions[:len(block.Transactions)-1], resTransactions) != 0 {
 		t.Error("Transaction bytes are not equal.")
+	}
+}
+
+func TestReadWrite(t *testing.T) {
+	dbDir, err := ioutil.TempDir("", "db_dir")
+	if err != nil {
+		t.Fatalf("Can not create dir for test data: %v", err)
+	}
+	rwDir, err := ioutil.TempDir("", "rw_dir")
+	if err != nil {
+		t.Fatalf("Can not create dir for test data: %v", err)
+	}
+	rw, err := createBlockReadWriter(dbDir, rwDir, 8, 8)
+	if err != nil {
+		t.Fatalf("createBlockReadWriter: %v", err)
+	}
+	blocks, err := readRealBlocks(*nBlocks)
+	if err != nil {
+		t.Fatalf("Can not read blocks from blockchain file: %v", err)
+	}
+	for _, block := range blocks {
+		testSingleBlock(rw, block, t)
+	}
+	if err := rw.Close(); err != nil {
+		t.Fatalf("Failed to close BlockReadWriter: %v", err)
+	}
+	if err := os.RemoveAll(dbDir); err != nil {
+		t.Fatalf("Failed to clean test data dirs: %v", err)
+	}
+	if err := os.RemoveAll(rwDir); err != nil {
+		t.Fatalf("Failed to clean test data dirs: %v", err)
 	}
 }
 
