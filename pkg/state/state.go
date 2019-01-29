@@ -1,7 +1,6 @@
 package state
 
 import (
-	"context"
 	"encoding/binary"
 
 	"github.com/pkg/errors"
@@ -42,7 +41,6 @@ type StateManager struct {
 	genesis       crypto.Signature
 	accountsState proto.AccountsState
 	rw            BlockReadWriter
-	cancel        context.CancelFunc
 }
 
 func NewStateManager(genesis crypto.Signature, state proto.AccountsState, rw BlockReadWriter) (*StateManager, error) {
