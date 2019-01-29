@@ -46,29 +46,35 @@ func height(snapshot *leveldb.Snapshot) (int, error) {
 	return h, nil
 }
 
-func block(snapshot *leveldb.Snapshot, height uint32) (crypto.Signature, error) {
+func block(snapshot *leveldb.Snapshot, height uint32) (crypto.Signature, bool, error) {
 	wrapError := func(err error) error { return errors.Wrapf(err, "failed to locate block at height %d", height) }
 	k := uint32Key{prefix: blockKeyPrefix, key: height}
 	b, err := snapshot.Get(k.bytes(), nil)
 	if err != nil {
-		return crypto.Signature{}, wrapError(err)
+		if err != leveldb.ErrNotFound {
+			return crypto.Signature{}, false, wrapError(err)
+		}
+		return crypto.Signature{}, false, nil
 	}
 	if len(b) < crypto.SignatureSize {
-		return crypto.Signature{}, wrapError(errors.New("not enough bytes for block signature"))
+		return crypto.Signature{}, false, wrapError(errors.New("not enough bytes for block signature"))
 	}
 	var bs crypto.Signature
 	copy(bs[:], b)
-	return bs, nil
+	return bs, true, nil
 }
 
 func hasBlock(snapshot *leveldb.Snapshot, height uint32, id crypto.Signature) (bool, error) {
 	wrapError := func(err error) error { return errors.Wrapf(err, "failed to locate block '%s' at height %d", id.String(), height) }
-	b, err := block(snapshot, height)
+	b, ok, err := block(snapshot, height)
 	if err != nil {
 		return false, wrapError(err)
 	}
-	if !bytes.Equal(id[:], b[:]) {
-		return false, wrapError(errors.Errorf("different block signature '%s' at height %d", b.String(), height))
+	if ok {
+		if !bytes.Equal(id[:], b[:]) {
+			return false, wrapError(errors.Errorf("different block signature '%s' at height %d", b.String(), height))
+		}
+		return true, nil
 	}
-	return true, nil
+	return false, nil
 }

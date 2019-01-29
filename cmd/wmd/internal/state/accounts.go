@@ -31,7 +31,7 @@ type assetBalanceHistoryKey struct {
 	asset   crypto.Digest
 }
 
-func (k *assetBalanceHistoryKey) bytes() []byte {
+func (k assetBalanceHistoryKey) bytes() []byte {
 	buf := make([]byte, 1+4+proto.AddressSize+crypto.DigestSize)
 	buf[0] = assetBalanceHistoryKeyPrefix
 	binary.BigEndian.PutUint32(buf[1:], k.height)
@@ -58,7 +58,7 @@ type balanceDiff struct {
 	curr uint64
 }
 
-func (c *balanceDiff) bytes() []byte {
+func (c balanceDiff) bytes() []byte {
 	buf := make([]byte, 8+8)
 	binary.BigEndian.PutUint64(buf, c.prev)
 	binary.BigEndian.PutUint64(buf[8:], c.curr)
@@ -104,7 +104,7 @@ type assetHistoryKey struct {
 	asset  crypto.Digest
 }
 
-func (k *assetHistoryKey) bytes() []byte {
+func (k assetHistoryKey) bytes() []byte {
 	buf := make([]byte, 1+4+crypto.DigestSize)
 	buf[0] = assetInfoHistoryKeyPrefix
 	binary.BigEndian.PutUint32(buf[1:], k.height)
@@ -143,7 +143,7 @@ func newAssetInfoFromIssueChange(scheme byte, ch data.IssueChange) (asset, error
 	return asset{name: ch.Name, issuer: a, decimals: ch.Decimals, reissuable: ch.Reissuable, sponsored: false, supply: ch.Quantity}, nil
 }
 
-func (a *asset) bytes() []byte {
+func (a asset) bytes() []byte {
 	nl := len(a.name)
 	buf := make([]byte, assetInfoSize+nl)
 	var p int
@@ -195,7 +195,7 @@ type assetHistory struct {
 	sponsored  bool
 }
 
-func (v *assetHistory) bytes() []byte {
+func (v assetHistory) bytes() []byte {
 	buf := make([]byte, 8+1+1)
 	binary.BigEndian.PutUint64(buf, v.supply)
 	if v.reissuable {

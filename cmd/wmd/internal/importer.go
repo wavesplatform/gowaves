@@ -13,8 +13,6 @@ import (
 	"go.uber.org/zap"
 	"io"
 	"os"
-	"runtime"
-	"sync"
 	"time"
 )
 
@@ -73,16 +71,9 @@ func (im *Importer) Import(n string) error {
 
 	tasks := im.readBlocks(f)
 
-	numWorkers := runtime.NumCPU()
-	im.log.Debugf("Number of workers: %d", numWorkers)
-	workers := make([]<-chan result, numWorkers)
-	for i := 0; i < numWorkers; i++ {
-		workers[i] = im.worker(tasks)
-	}
-
 	total := 0
 	thousands := 0
-	for r := range im.collect(workers...) {
+	for r := range im.worker(tasks) {
 		select {
 		case <-im.rootContext.Done():
 			im.log.Errorf("Aborted")
@@ -92,15 +83,19 @@ func (im *Importer) Import(n string) error {
 				im.log.Errorf("Failed to collect transactions for block at height %d: %s", r.height, r.error.Error())
 				break
 			}
-			err := im.storage.PutBlock(r.height, r.id, r.trades, r.issues, r.assets, r.accounts, r.aliases)
+			err := im.storage.PutBalances(r.height, r.id, r.issues, r.assets, r.accounts, r.aliases)
 			if err != nil {
-				im.log.Errorf("Failed to update storage: %s", err.Error())
+				im.log.Errorf("Failed to update state: %s", err.Error())
+			}
+			err = im.storage.PutTrades(r.height, r.id, r.trades)
+			if err != nil {
+				im.log.Errorf("Failed to update state: %s", err.Error())
 			}
 			c := len(r.trades)
 			total += c
 			th := total / 10000
 			if th > thousands {
-				im.log.Infof("Imported %d transactions so far", total)
+				im.log.Infof("Imported %d transactions at height %d so far", total, r.height)
 				thousands = th
 			}
 			im.log.Debugf("Collected %d transaction at height %d, total transactions so far %d", c, r.height, total)
@@ -193,35 +188,6 @@ func (im *Importer) worker(tasks <-chan task) <-chan result {
 	}()
 
 	return results
-}
-
-func (im *Importer) collect(channels ...<-chan result) <-chan result {
-	ctx := im.rootContext
-	var wg sync.WaitGroup
-	multiplexedStream := make(chan result)
-
-	multiplex := func(c <-chan result) {
-		defer wg.Done()
-		for i := range c {
-			select {
-			case <-ctx.Done():
-				return
-			case multiplexedStream <- i:
-			}
-		}
-	}
-
-	wg.Add(len(channels))
-	for _, c := range channels {
-		go multiplex(c)
-	}
-
-	go func() {
-		wg.Wait()
-		close(multiplexedStream)
-	}()
-
-	return multiplexedStream
 }
 
 func (im *Importer) extractTransactions(d []byte, n int, miner crypto.PublicKey) ([]data.Trade, []data.IssueChange, []data.AssetChange, []data.AccountChange, []data.AliasBind, error) {

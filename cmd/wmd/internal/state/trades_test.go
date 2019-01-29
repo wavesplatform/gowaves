@@ -2,6 +2,7 @@ package state
 
 import (
 	"crypto/rand"
+	"encoding/binary"
 	"github.com/stretchr/testify/assert"
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/wavesplatform/gowaves/cmd/wmd/internal/data"
@@ -15,8 +16,11 @@ func TestTradesState1(t *testing.T) {
 	defer closeDB()
 
 	b, err := proto.NewAddressFromString("3P4KdaNYJq7BBcsgrsAPArc66LyLQAQvJc2")
+	assert.NoError(t, err)
 	s, err := proto.NewAddressFromString("3PAmhzHgxzxqVttGFRgVCFUFHoGHqmuchec")
+	assert.NoError(t, err)
 	m, err := proto.NewAddressFromString("3PJaDyprvekvPXPuAtxrapacuDJopgJRaU3")
+	assert.NoError(t, err)
 	aa := data.WavesID
 	pa, err := crypto.NewDigestFromBase58("3Janbh2r7ZQjiUM3sWVswVGHWyQB2TPxm348QvuX5v6c")
 	assert.NoError(t, err)
@@ -203,6 +207,59 @@ func TestTradesState1(t *testing.T) {
 		assert.False(t, ok)
 		assert.Equal(t, 0, int(sh))
 	}
+}
+
+func TestAddressTradesKeyBinaryRoundTrip(t *testing.T) {
+	addr, err := proto.NewAddressFromString("3PAmhzHgxzxqVttGFRgVCFUFHoGHqmuchec")
+	assert.NoError(t, err)
+	aa, err := randomDigest()
+	assert.NoError(t, err)
+	pa, err := randomDigest()
+	assert.NoError(t, err)
+	tr, err := randomDigest()
+	assert.NoError(t, err)
+	k := addressTradesKey{amountAsset: aa, priceAsset: pa, address: addr, trade: tr}
+	b := k.bytes()
+	var k2 addressTradesKey
+	err = k2.fromBytes(b)
+	assert.NoError(t, err)
+	assert.Equal(t, k, k2)
+	assert.ElementsMatch(t, aa, k2.amountAsset)
+	assert.ElementsMatch(t, pa, k2.priceAsset)
+	assert.ElementsMatch(t, addr, k2.address)
+	assert.ElementsMatch(t, tr, k2.trade)
+}
+
+func TestMarketsTradesKeyBinaryRoundTrip(t *testing.T) {
+	aa, err := randomDigest()
+	assert.NoError(t, err)
+	pa, err := randomDigest()
+	assert.NoError(t, err)
+	tr, err := randomDigest()
+	assert.NoError(t, err)
+	k := marketTradeKey{amountAsset:aa, priceAsset:pa, timeFrame:12345, trade:tr}
+	b := k.bytes()
+	var k2 marketTradeKey
+	err = k2.fromBytes(b)
+	assert.NoError(t, err)
+	assert.Equal(t, k, k2)
+	assert.ElementsMatch(t, aa, k2.amountAsset)
+	assert.ElementsMatch(t, pa, k2.priceAsset)
+	assert.Equal(t, 12345, int(k2.timeFrame))
+	assert.ElementsMatch(t, tr, k2.trade)
+}
+
+func TestMarketTradesPartialKeyBytes(t *testing.T) {
+	aa, err := randomDigest()
+	assert.NoError(t, err)
+	pa, err := randomDigest()
+	assert.NoError(t, err)
+	k := marketTradePartialKey{amountAsset: aa, priceAsset: pa, timeFrame: 12345}
+	b := k.bytes()
+	assert.Equal(t, marketTradesKeyPrefix, b[0])
+	assert.ElementsMatch(t, aa, b[1:1+crypto.DigestSize])
+	assert.ElementsMatch(t, pa, b[1+crypto.DigestSize:1+2*crypto.DigestSize])
+	assert.Equal(t, 12345, int(binary.BigEndian.Uint32(b[1+2*crypto.DigestSize:])))
 }
 
 func randomDigest() (crypto.Digest, error) {

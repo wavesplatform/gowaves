@@ -27,7 +27,7 @@ type tradeHistoryKey struct {
 	trade  crypto.Digest
 }
 
-func (k *tradeHistoryKey) bytes() []byte {
+func (k tradeHistoryKey) bytes() []byte {
 	buf := make([]byte, 1+4+crypto.DigestSize)
 	buf[0] = tradeHistoryKeyPrefix
 	binary.BigEndian.PutUint32(buf[1:], k.height)
@@ -51,16 +51,16 @@ type marketTradeKey struct {
 	amountAsset crypto.Digest
 	priceAsset  crypto.Digest
 	timeFrame   uint32
-	tradeID     crypto.Digest
+	trade       crypto.Digest
 }
 
-func (k *marketTradeKey) bytes() []byte {
+func (k marketTradeKey) bytes() []byte {
 	buf := make([]byte, 1+2*crypto.DigestSize+4+crypto.DigestSize)
 	buf[0] = marketTradesKeyPrefix
 	copy(buf[1:], k.amountAsset[:])
 	copy(buf[1+crypto.DigestSize:], k.priceAsset[:])
 	binary.BigEndian.PutUint32(buf[1+2*crypto.DigestSize:], k.timeFrame)
-	copy(buf[1+2*crypto.DigestSize+4:], k.tradeID[:])
+	copy(buf[1+2*crypto.DigestSize+4:], k.trade[:])
 	return buf
 }
 
@@ -74,7 +74,7 @@ func (k *marketTradeKey) fromBytes(data []byte) error {
 	copy(k.amountAsset[:], data[1:1+crypto.DigestSize])
 	copy(k.priceAsset[:], data[1+crypto.DigestSize:1+2*crypto.DigestSize])
 	k.timeFrame = binary.BigEndian.Uint32(data[1+2*crypto.DigestSize:])
-	copy(k.tradeID[:], data[1+2*crypto.DigestSize+4:1+2*crypto.DigestSize+4+crypto.DigestSize])
+	copy(k.trade[:], data[1+2*crypto.DigestSize+4:1+2*crypto.DigestSize+4+crypto.DigestSize])
 	return nil
 }
 
@@ -114,7 +114,7 @@ func putTrades(bs *blockState, batch *leveldb.Batch, height uint32, trades []dat
 		}
 		affectedTimeFrames = append(affectedTimeFrames, tf)
 
-		tk2 := marketTradeKey{amountAsset: t.AmountAsset, priceAsset: t.PriceAsset, timeFrame: tf, tradeID: t.TransactionID}
+		tk2 := marketTradeKey{amountAsset: t.AmountAsset, priceAsset: t.PriceAsset, timeFrame: tf, trade: t.TransactionID}
 		batch.Put(tk2.bytes(), nil)
 		tk3 := addressTradesKey{amountAsset: t.AmountAsset, priceAsset: t.PriceAsset, address: t.Buyer, trade: t.TransactionID}
 		batch.Put(tk3.bytes(), nil)
@@ -201,7 +201,7 @@ func rollbackTrades(snapshot *leveldb.Snapshot, batch *leveldb.Batch, removeHeig
 			batch.Delete(thk.bytes())
 			batch.Delete(tk.bytes())
 			tf := data.TimeFrameFromTimestampMS(t.Timestamp)
-			tk2 := marketTradeKey{amountAsset: t.AmountAsset, priceAsset: t.PriceAsset, timeFrame: tf, tradeID: t.TransactionID}
+			tk2 := marketTradeKey{amountAsset: t.AmountAsset, priceAsset: t.PriceAsset, timeFrame: tf, trade: t.TransactionID}
 			batch.Delete(tk2.bytes())
 			tk3 := addressTradesKey{amountAsset: t.AmountAsset, priceAsset: t.PriceAsset, address: t.Buyer, trade: t.TransactionID}
 			batch.Delete(tk3.bytes())
@@ -319,7 +319,7 @@ func trades(snapshot *leveldb.Snapshot, amountAsset, priceAsset crypto.Digest, f
 			if err != nil {
 				return nil, wrapError(err)
 			}
-			t, err := trade(snapshot, k.tradeID)
+			t, err := trade(snapshot, k.trade)
 			if err != nil {
 				return nil, wrapError(err)
 			}
@@ -354,7 +354,7 @@ func (k addressTradesKey) bytes() []byte {
 	return buf
 }
 
-func (k addressTradesKey) fromBytes(data []byte) error {
+func (k *addressTradesKey) fromBytes(data []byte) error {
 	if l := len(data); l < 1+3*crypto.DigestSize+proto.AddressSize {
 		return errors.Errorf("%d is not enough bytes for addressTradesKey", l)
 	}
@@ -486,7 +486,7 @@ type marketHistoryKey struct {
 	priceAsset  crypto.Digest
 }
 
-func (k *marketHistoryKey) bytes() []byte {
+func (k marketHistoryKey) bytes() []byte {
 	buf := make([]byte, 1+4+2*crypto.DigestSize)
 	buf[0] = marketHistoryKeyPrefix
 	binary.BigEndian.PutUint32(buf[1:], k.height)
