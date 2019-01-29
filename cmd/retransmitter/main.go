@@ -4,13 +4,13 @@ import (
 	"context"
 	"fmt"
 	"github.com/gorilla/mux"
+	"github.com/spf13/afero"
 	"github.com/wavesplatform/gowaves/pkg/libs/bytespool"
 	"github.com/wavesplatform/gowaves/pkg/network/conn"
 	"github.com/wavesplatform/gowaves/pkg/network/peer"
 	"github.com/wavesplatform/gowaves/pkg/network/retransmit"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
-	"log"
 	"net/http"
 	"os"
 	"os/signal"
@@ -101,9 +101,17 @@ func main() {
 
 	ctx, cancel := context.WithCancel(context.Background())
 
+	fs := afero.NewOsFs()
+
+	knownPeers, err := retransmit.NewKnownPeersFileBased(fs, "known_peers.json")
+	if err != nil {
+		zap.S().Error(err)
+		return
+	}
+
 	pool := bytespool.NewBytesPool(32, 2*1024*1024)
 
-	r := retransmit.NewRetransmitter(ctx, peer.RunOutgoingPeer, peer.RunIncomingPeer, receiveFromRemoteCallbackfunc, pool)
+	r := retransmit.NewRetransmitter(ctx, knownPeers, peer.RunOutgoingPeer, peer.RunIncomingPeer, receiveFromRemoteCallbackfunc, pool)
 
 	go r.Run()
 

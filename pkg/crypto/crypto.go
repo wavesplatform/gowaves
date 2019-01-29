@@ -109,6 +109,12 @@ func (k SecretKey) String() string {
 	return base58.Encode(k[:])
 }
 
+func (k SecretKey) Bytes() []byte {
+	out := make([]byte, len(k))
+	copy(out, k[:])
+	return out
+}
+
 func NewSecretKeyFromBase58(s string) (SecretKey, error) {
 	return array32FromBase58(s, "SecretKey")
 }
