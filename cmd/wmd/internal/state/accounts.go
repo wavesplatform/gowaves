@@ -126,17 +126,21 @@ func (k *assetHistoryKey) fromBytes(data []byte) error {
 
 type asset struct {
 	name       string
-	issuer     crypto.PublicKey
+	issuer     proto.Address
 	decimals   uint8
 	reissuable bool
 	sponsored  bool
 	supply     uint64
 }
 
-const assetInfoSize = 2 + crypto.PublicKeySize + 1 + 1 + 1 + 8
+const assetInfoSize = 2 + proto.AddressSize + 1 + 1 + 1 + 8
 
-func newAssetInfoFromIssueChange(ch data.IssueChange) asset {
-	return asset{name: ch.Name, issuer: ch.Issuer, decimals: ch.Decimals, reissuable: ch.Reissuable, sponsored: false, supply: ch.Quantity}
+func newAssetInfoFromIssueChange(scheme byte, ch data.IssueChange) (asset, error) {
+	a, err := proto.NewAddressFromPublicKey(scheme, ch.Issuer)
+	if err != nil {
+		return asset{}, err
+	}
+	return asset{name: ch.Name, issuer: a, decimals: ch.Decimals, reissuable: ch.Reissuable, sponsored: false, supply: ch.Quantity}, nil
 }
 
 func (a *asset) bytes() []byte {
@@ -146,7 +150,7 @@ func (a *asset) bytes() []byte {
 	proto.PutStringWithUInt16Len(buf[p:], a.name)
 	p += 2 + nl
 	copy(buf[p:], a.issuer[:])
-	p += crypto.PublicKeySize
+	p += proto.AddressSize
 	buf[p] = a.decimals
 	p++
 	proto.PutBool(buf[p:], a.reissuable)
@@ -167,8 +171,8 @@ func (a *asset) fromBytes(data []byte) error {
 	}
 	a.name = s
 	data = data[2+len(s):]
-	copy(a.issuer[:], data[:crypto.PublicKeySize])
-	data = data[crypto.PublicKeySize:]
+	copy(a.issuer[:], data[:proto.AddressSize])
+	data = data[proto.AddressSize:]
 	a.decimals = data[0]
 	data = data[1:]
 	a.reissuable, err = proto.Bool(data)
@@ -215,24 +219,23 @@ func (v *assetHistory) fromBytes(data []byte) error {
 
 func putIssues(bs *blockState, batch *leveldb.Batch, scheme byte, height uint32, issueChanges []data.IssueChange) error {
 	for _, u := range issueChanges {
-		addr, err := proto.NewAddressFromPublicKey(scheme, u.Issuer)
+		ai, err := newAssetInfoFromIssueChange(scheme, u)
 		if err != nil {
-			return errors.Wrapf(err, "failed to create an address from the public key")
+			return errors.Wrapf(err, "failed to put issue")
 		}
-		ok, err := bs.isIssuer(addr, u.AssetID)
+		ok, err := bs.isIssuer(ai.issuer, u.AssetID)
 		if err != nil {
-			return errors.Wrapf(err, "failed to find that the address '%s' issued asset '%s'", addr.String(), u.AssetID.String())
+			return errors.Wrapf(err, "failed to find that the address '%s' issued asset '%s'", ai.issuer.String(), u.AssetID.String())
 		}
 		if !ok {
-			ik := assetIssuerKey{address: addr, asset: u.AssetID}
+			ik := assetIssuerKey{address: ai.issuer, asset: u.AssetID}
 			batch.Put(ik.bytes(), nil)
 			bs.issuers[ik] = struct{}{}
 		}
 		k := assetKey{asset: u.AssetID}
 		hk := assetHistoryKey{asset: u.AssetID, height: height}
-		ai := newAssetInfoFromIssueChange(u)
 		batch.Put(k.bytes(), ai.bytes())
-		batch.Put(hk.bytes(), nil) // put here empty value to show that where was nothing before
+		batch.Put(hk.bytes(), nil) // put empty value to show that there was nothing before
 		bs.assets[k] = ai
 	}
 	return nil
@@ -332,6 +335,27 @@ func rollbackAssets(snapshot *leveldb.Snapshot, batch *leveldb.Batch, removeHeig
 }
 
 func putAccounts(bs *blockState, batch *leveldb.Batch, height uint32, accountChanges []data.AccountChange) error {
+	updateBalanceAndHistory := func(addr proto.Address, asset crypto.Digest, in, out uint64) error {
+		//get current state of balance
+		balance, k, err := bs.balance(addr, asset)
+		if err != nil {
+			return errors.Wrapf(err, "failed to get the balance")
+		}
+		// update the balance
+		ch := balanceDiff{prev: balance}
+		balance += in
+		balance -= out
+		ch.curr = balance
+		// put new state of the balance
+		buf := make([]byte, 8)
+		binary.BigEndian.PutUint64(buf, balance)
+		batch.Put(k.bytes(), buf)
+		hk := assetBalanceHistoryKey{height: height, asset: asset, address: addr}
+		batch.Put(hk.bytes(), ch.bytes())
+		bs.balances[k] = balance
+		return nil
+	}
+
 	for _, u := range accountChanges {
 		// get the address bytes from the account or from state
 		var addr proto.Address
@@ -347,29 +371,29 @@ func putAccounts(bs *blockState, batch *leveldb.Batch, height uint32, accountCha
 			}
 			addr = a
 		}
-		// filter issuers only
 		ok, err := bs.isIssuer(addr, u.Asset)
 		if err != nil {
 			return errors.Wrapf(err, "failed to find that the address '%s' issued asset '%s'", addr.String(), u.Asset.String())
 		}
-		if ok {
-			//get current balance
-			balance, k, err := bs.balance(addr, u.Asset)
+		if ok { //This is an issuer's account
+			err := updateBalanceAndHistory(addr, u.Asset, u.In, u.Out)
 			if err != nil {
-				return errors.Wrapf(err, "failed to get the balance")
+				return errors.Wrapf(err, "failed to update balance of address '%s' for asset '%s'", addr.String(), u.Asset.String())
 			}
-			// update the balance
-			ch := balanceDiff{prev: balance}
-			balance += u.In
-			balance -= u.Out
-			ch.curr = balance
-			// put new state of the balance
-			buf := make([]byte, 8)
-			binary.BigEndian.PutUint64(buf, balance)
-			batch.Put(k.bytes(), buf)
-			hk := assetBalanceHistoryKey{height: height, asset: u.Asset, address: addr}
-			batch.Put(hk.bytes(), ch.bytes())
-			bs.balances[k] = balance
+		} else { //This is not an issuer's account, but maybe this is a sponsored asset
+			if u.MinersReward { // in this case if this also a miner's reward
+				a, ok, err := bs.assetInfo(u.Asset)
+				if err != nil {
+					return errors.Wrapf(err, "failed to get the sponsorship for '%s'", u.Asset.String())
+				}
+				if !ok {
+					return errors.Errorf("no asset info for an asset '%s'", u.Asset.String())
+				}
+				if a.sponsored {
+					err := updateBalanceAndHistory(a.issuer, u.Asset, u.In, u.Out)
+					return errors.Wrapf(err, "failed to update balance of address '%s' for asset '%s'", a.issuer.String(), u.Asset.String())
+				}
+			}
 		}
 	}
 	return nil

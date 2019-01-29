@@ -291,12 +291,12 @@ func (s *Storage) AssetInfo(asset crypto.Digest) (*data.AssetInfo, error) {
 		return nil, errors.Errorf("failed to locate asset '%s'", asset.String())
 	}
 	return &data.AssetInfo{
-		ID:         asset,
-		Name:       a.name,
-		Issuer:     a.issuer,
-		Decimals:   a.decimals,
-		Reissuable: a.reissuable,
-		Supply:     a.supply,
+		ID:            asset,
+		Name:          a.name,
+		IssuerAddress: a.issuer,
+		Decimals:      a.decimals,
+		Reissuable:    a.reissuable,
+		Supply:        a.supply,
 	}, nil
 }
 

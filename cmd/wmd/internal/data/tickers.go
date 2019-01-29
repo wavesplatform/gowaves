@@ -1,21 +1,31 @@
 package data
 
 import (
+	"bytes"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"math"
 	"math/big"
 	"time"
 )
 
+type AssetID crypto.Digest
+
+func (v AssetID) MarshalJSON() ([]byte, error) {
+	if bytes.Equal(v[:], WavesID[:]) {
+		return []byte("\"WAVES\""), nil
+	}
+	return crypto.Digest(v).MarshalJSON()
+}
+
 type TickerInfo struct {
 	Symbol                       string          `json:"symbol"`
-	AmountAssetID                crypto.Digest   `json:"amountAssetID"`
+	AmountAssetID                AssetID         `json:"amountAssetID"`
 	AmountAssetName              string          `json:"amountAssetName"`
 	AmountAssetDecimals          byte            `json:"amountAssetDecimals"`
 	AmountAssetTotalSupply       Decimal         `json:"amountAssetTotalSupply"`
 	AmountAssetMaxSupply         InfiniteDecimal `json:"amountAssetMaxSupply"`
 	AmountAssetCirculatingSupply Decimal         `json:"amountAssetCirculatingSupply"`
-	PriceAssetID                 crypto.Digest   `json:"priceAssetID"`
+	PriceAssetID                 AssetID         `json:"priceAssetID"`
 	PriceAssetName               string          `json:"priceAssetName"`
 	PriceAssetDecimals           byte            `json:"priceAssetDecimals"`
 	PriceAssetTotalSupply        Decimal         `json:"priceAssetTotalSupply"`
@@ -47,13 +57,13 @@ func NewTickerInfo(symbol string, amountAsset, priceAsset AssetInfo, amountAsset
 	paCirculatingSupply := Decimal{value: priceAsset.Supply - priceAssetIssuerBalance, scale: uint(priceAsset.Decimals)}
 	return TickerInfo{
 		Symbol:                       symbol,
-		AmountAssetID:                amountAsset.ID,
+		AmountAssetID:                AssetID(amountAsset.ID),
 		AmountAssetName:              amountAsset.Name,
 		AmountAssetDecimals:          amountAsset.Decimals,
 		AmountAssetTotalSupply:       aaSupply,
 		AmountAssetMaxSupply:         aaMaxSupply,
 		AmountAssetCirculatingSupply: aaCirculatingSupply,
-		PriceAssetID:                 priceAsset.ID,
+		PriceAssetID:                 AssetID(priceAsset.ID),
 		PriceAssetName:               priceAsset.Name,
 		PriceAssetDecimals:           priceAsset.Decimals,
 		PriceAssetTotalSupply:        paSupply,

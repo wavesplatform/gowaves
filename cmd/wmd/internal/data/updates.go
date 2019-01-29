@@ -39,10 +39,11 @@ func (a *Account) SetFromRecipient(r proto.Recipient) error {
 }
 
 type AccountChange struct {
-	Account Account
-	Asset   crypto.Digest
-	In      uint64
-	Out     uint64
+	Account      Account
+	Asset        crypto.Digest
+	In           uint64
+	Out          uint64
+	MinersReward bool
 }
 
 type IssueChange struct {
@@ -142,7 +143,7 @@ func FromTransferV1(scheme byte, tx proto.TransferV1, miner crypto.PublicKey) ([
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to convert TransferV1 to Change")
 		}
-		ch2 := AccountChange{Asset: tx.FeeAsset.ID, In: tx.Fee}
+		ch2 := AccountChange{Asset: tx.FeeAsset.ID, In: tx.Fee, MinersReward: true}
 		err = ch2.Account.SetFromPublicKey(scheme, miner)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to convert TransferV1 to Change")
@@ -175,7 +176,7 @@ func FromTransferV2(scheme byte, tx proto.TransferV2, miner crypto.PublicKey) ([
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to convert TransferV1 to Change")
 		}
-		ch2 := AccountChange{Asset: tx.FeeAsset.ID, In: tx.Fee}
+		ch2 := AccountChange{Asset: tx.FeeAsset.ID, In: tx.Fee, MinersReward: true}
 		err = ch2.Account.SetFromPublicKey(scheme, miner)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to convert TransferV1 to Change")

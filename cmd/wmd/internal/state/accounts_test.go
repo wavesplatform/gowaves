@@ -212,7 +212,9 @@ func TestMultipleAccountState(t *testing.T) {
 func TestAssetInfoBytesRoundTrip(t *testing.T) {
 	pk, err := crypto.NewPublicKeyFromBase58("3Janbh2r7ZQjiUM3sWVswVGHWyQB2TPxm348QvuX5v6c")
 	assert.NoError(t, err)
-	ai := asset{name: "asset", issuer: pk, decimals: 8, reissuable: true, sponsored: true, supply: 123456}
+	addr, err := proto.NewAddressFromPublicKey(scheme, pk)
+	assert.NoError(t, err)
+	ai := asset{name: "asset", issuer: addr, decimals: 8, reissuable: true, sponsored: true, supply: 123456}
 	var ai2 asset
 	err = ai2.fromBytes(ai.bytes())
 	assert.NoError(t, err)
@@ -254,7 +256,7 @@ func TestAssetInfoIssueReissueRollback1(t *testing.T) {
 		assert.NoError(t, err)
 		assert.True(t, ok)
 		assert.Equal(t, "asset1", ai.name)
-		assert.Equal(t, pk1, ai.issuer)
+		assert.Equal(t, addr1, ai.issuer)
 		assert.Equal(t, 2, int(ai.decimals))
 		assert.Equal(t, true, ai.reissuable)
 		assert.Equal(t, false, ai.sponsored)
@@ -279,7 +281,7 @@ func TestAssetInfoIssueReissueRollback1(t *testing.T) {
 		assert.NoError(t, err)
 		assert.True(t, ok)
 		assert.Equal(t, "asset1", ai.name)
-		assert.Equal(t, pk1, ai.issuer)
+		assert.Equal(t, addr1, ai.issuer)
 		assert.Equal(t, 2, int(ai.decimals))
 		assert.Equal(t, false, ai.reissuable)
 		assert.Equal(t, false, ai.sponsored)
@@ -304,7 +306,7 @@ func TestAssetInfoIssueReissueRollback1(t *testing.T) {
 		assert.NoError(t, err)
 		assert.True(t, ok)
 		assert.Equal(t, "asset1", ai.name)
-		assert.Equal(t, pk1, ai.issuer)
+		assert.Equal(t, addr1, ai.issuer)
 		assert.Equal(t, 2, int(ai.decimals))
 		assert.Equal(t, false, ai.reissuable)
 		assert.Equal(t, true, ai.sponsored)
@@ -327,7 +329,7 @@ func TestAssetInfoIssueReissueRollback1(t *testing.T) {
 		assert.NoError(t, err)
 		assert.True(t, ok)
 		assert.Equal(t, "asset1", ai.name)
-		assert.Equal(t, pk1, ai.issuer)
+		assert.Equal(t, addr1, ai.issuer)
 		assert.Equal(t, 2, int(ai.decimals))
 		assert.Equal(t, false, ai.reissuable)
 		assert.Equal(t, false, ai.sponsored)
@@ -350,10 +352,227 @@ func TestAssetInfoIssueReissueRollback1(t *testing.T) {
 		assert.NoError(t, err)
 		assert.True(t, ok)
 		assert.Equal(t, "asset1", ai.name)
-		assert.Equal(t, pk1, ai.issuer)
+		assert.Equal(t, addr1, ai.issuer)
 		assert.Equal(t, 2, int(ai.decimals))
 		assert.Equal(t, true, ai.reissuable)
 		assert.Equal(t, false, ai.sponsored)
 		assert.Equal(t, 100000, int(ai.supply))
+	}
+}
+
+func TestSponsorshipOneAccountAsMinerAndIssuer(t *testing.T) {
+	db, closeDB := openDB(t, "wmd-asset-state-db")
+	defer closeDB()
+
+	asset, err := crypto.NewDigestFromBase58("3Janbh2r7ZQjiUM3sWVswVGHWyQB2TPxm348QvuX5v6c")
+	assert.NoError(t, err)
+
+	pk, err := crypto.NewPublicKeyFromBase58("Hoox6WK7gxNFUYYUKz4oR1iGs7QxTWYPAjgs6RhbDLAL")
+	assert.NoError(t, err)
+	addr, err := proto.NewAddressFromPublicKey(scheme, pk)
+	assert.NoError(t, err)
+	acc := data.Account{Address: addr}
+
+	u11 := []data.IssueChange{{AssetID: asset, Name: "asset", Issuer: pk, Decimals: 0, Quantity: 1000, Reissuable: false}}
+	u12 := []data.AccountChange{{Account: acc, Asset: asset, In: 1000, Out: 0}}
+	snapshot, err := db.GetSnapshot()
+	assert.NoError(t, err)
+	batch := new(leveldb.Batch)
+	bs := newBlockState(snapshot)
+	err = putIssues(bs, batch, scheme, 1, u11)
+	assert.NoError(t, err)
+	err = putAccounts(bs, batch, 1, u12)
+	assert.NoError(t, err)
+	err = db.Write(batch, nil)
+	assert.NoError(t, err)
+	if snapshot, err := db.GetSnapshot(); assert.NoError(t, err) {
+		bs = newBlockState(snapshot)
+		ok, err := bs.isIssuer(addr, asset)
+		assert.NoError(t, err)
+		assert.True(t, ok)
+		ai, ok, err := bs.assetInfo(asset)
+		assert.NoError(t, err)
+		assert.True(t, ok)
+		assert.Equal(t, addr, ai.issuer)
+		assert.Equal(t, false, ai.sponsored)
+		b, _, err := bs.balance(addr, asset)
+		assert.NoError(t, err)
+		assert.Equal(t, 1000, int(b))
+	}
+
+	u2 := []data.AccountChange{{Account: acc, Asset: asset, In: 0, Out: 100}, {Account: acc, Asset: asset, In: 0, Out: 1}, {Account: acc, Asset: asset, In: 1, Out: 0, MinersReward: true}}
+	snapshot, err = db.GetSnapshot()
+	assert.NoError(t, err)
+	batch = new(leveldb.Batch)
+	bs = newBlockState(snapshot)
+	err = putAccounts(bs, batch, 2, u2)
+	assert.NoError(t, err)
+	err = db.Write(batch, nil)
+	assert.NoError(t, err)
+	if snapshot, err := db.GetSnapshot(); assert.NoError(t, err) {
+		bs = newBlockState(snapshot)
+		b, _, err := bs.balance(addr, asset)
+		assert.NoError(t, err)
+		assert.Equal(t, 900, int(b))
+	}
+
+	u3 := []data.AssetChange{{AssetID: asset, SetSponsored: true, Sponsored: true}}
+	snapshot, err = db.GetSnapshot()
+	assert.NoError(t, err)
+	batch = new(leveldb.Batch)
+	bs = newBlockState(snapshot)
+	err = putAssets(bs, batch, 3, u3)
+	assert.NoError(t, err)
+	err = db.Write(batch, nil)
+	assert.NoError(t, err)
+	if snapshot, err := db.GetSnapshot(); assert.NoError(t, err) {
+		bs = newBlockState(snapshot)
+		ai, ok, err := bs.assetInfo(asset)
+		assert.NoError(t, err)
+		assert.True(t, ok)
+		assert.Equal(t, addr, ai.issuer)
+		assert.Equal(t, true, ai.sponsored)
+	}
+
+	u4 := []data.AccountChange{{Account: acc, Asset: asset, In: 0, Out: 100}, {Account: acc, Asset: asset, In: 0, Out: 1}, {Account: acc, Asset: asset, In: 1, Out: 0, MinersReward: true}}
+	snapshot, err = db.GetSnapshot()
+	assert.NoError(t, err)
+	batch = new(leveldb.Batch)
+	bs = newBlockState(snapshot)
+	err = putAccounts(bs, batch, 4, u4)
+	assert.NoError(t, err)
+	err = db.Write(batch, nil)
+	assert.NoError(t, err)
+	if snapshot, err := db.GetSnapshot(); assert.NoError(t, err) {
+		bs = newBlockState(snapshot)
+		b, _, err := bs.balance(addr, asset)
+		assert.NoError(t, err)
+		assert.Equal(t, 800, int(b))
+	}
+}
+
+func TestSponsorshipIssuerNotMiner(t *testing.T) {
+	db, closeDB := openDB(t, "wmd-asset-state-db")
+	defer closeDB()
+
+	asset, err := crypto.NewDigestFromBase58("3Janbh2r7ZQjiUM3sWVswVGHWyQB2TPxm348QvuX5v6c")
+	assert.NoError(t, err)
+	pk1, err := crypto.NewPublicKeyFromBase58("Hoox6WK7gxNFUYYUKz4oR1iGs7QxTWYPAjgs6RhbDLAL")
+	assert.NoError(t, err)
+	addr1, err := proto.NewAddressFromPublicKey(scheme, pk1)
+	assert.NoError(t, err)
+	acc1 := data.Account{Address: addr1}
+	pk2, err := crypto.NewPublicKeyFromBase58("HzfaJp8YQWLvQG4FkUxq2Q7iYWMYQ2k8UF89vVJAjWPj")
+	assert.NoError(t, err)
+	addr2, err := proto.NewAddressFromPublicKey(scheme, pk2)
+	assert.NoError(t, err)
+	acc2 := data.Account{Address: addr2}
+
+	u11 := []data.IssueChange{{AssetID: asset, Name: "asset", Issuer: pk1, Decimals: 0, Quantity: 1000, Reissuable: false}}
+	u12 := []data.AccountChange{{Account: acc1, Asset: asset, In: 1000, Out: 0}}
+	snapshot, err := db.GetSnapshot()
+	assert.NoError(t, err)
+	batch := new(leveldb.Batch)
+	bs := newBlockState(snapshot)
+	err = putIssues(bs, batch, scheme, 1, u11)
+	assert.NoError(t, err)
+	err = putAccounts(bs, batch, 1, u12)
+	assert.NoError(t, err)
+	err = db.Write(batch, nil)
+	assert.NoError(t, err)
+	if snapshot, err := db.GetSnapshot(); assert.NoError(t, err) {
+		bs = newBlockState(snapshot)
+		ok, err := bs.isIssuer(addr1, asset)
+		assert.NoError(t, err)
+		assert.True(t, ok)
+		ok, err = bs.isIssuer(addr2, asset)
+		assert.NoError(t, err)
+		assert.False(t, ok)
+		ai, ok, err := bs.assetInfo(asset)
+		assert.NoError(t, err)
+		assert.True(t, ok)
+		assert.Equal(t, addr1, ai.issuer)
+		assert.Equal(t, false, ai.sponsored)
+		b, _, err := bs.balance(addr1, asset)
+		assert.NoError(t, err)
+		assert.Equal(t, 1000, int(b))
+		b, _, err = bs.balance(addr2, asset)
+		assert.NoError(t, err)
+		assert.Equal(t, 0, int(b))
+	}
+
+	u2 := []data.AccountChange{{Account: acc1, Asset: asset, In: 0, Out: 100}, {Account: acc1, Asset: asset, In: 0, Out: 1}, {Account: acc2, Asset: asset, In: 1, Out: 0, MinersReward: true}}
+	snapshot, err = db.GetSnapshot()
+	assert.NoError(t, err)
+	batch = new(leveldb.Batch)
+	bs = newBlockState(snapshot)
+	err = putAccounts(bs, batch, 2, u2)
+	assert.NoError(t, err)
+	err = db.Write(batch, nil)
+	assert.NoError(t, err)
+	if snapshot, err := db.GetSnapshot(); assert.NoError(t, err) {
+		bs = newBlockState(snapshot)
+		b, _, err := bs.balance(addr1, asset)
+		assert.NoError(t, err)
+		assert.Equal(t, 899, int(b))
+		b, _, err = bs.balance(addr2, asset)
+		assert.NoError(t, err)
+		assert.Equal(t, 0, int(b))
+	}
+
+	u3 := []data.AssetChange{{AssetID: asset, SetSponsored: true, Sponsored: true}}
+	snapshot, err = db.GetSnapshot()
+	assert.NoError(t, err)
+	batch = new(leveldb.Batch)
+	bs = newBlockState(snapshot)
+	err = putAssets(bs, batch, 3, u3)
+	assert.NoError(t, err)
+	err = db.Write(batch, nil)
+	assert.NoError(t, err)
+	if snapshot, err := db.GetSnapshot(); assert.NoError(t, err) {
+		bs = newBlockState(snapshot)
+		ai, ok, err := bs.assetInfo(asset)
+		assert.NoError(t, err)
+		assert.True(t, ok)
+		assert.Equal(t, addr1, ai.issuer)
+		assert.Equal(t, true, ai.sponsored)
+	}
+
+	u4 := []data.AccountChange{{Account: acc1, Asset: asset, In: 0, Out: 100}, {Account: acc1, Asset: asset, In: 0, Out: 1}, {Account: acc2, Asset: asset, In: 1, Out: 0, MinersReward: true}}
+	snapshot, err = db.GetSnapshot()
+	assert.NoError(t, err)
+	batch = new(leveldb.Batch)
+	bs = newBlockState(snapshot)
+	err = putAccounts(bs, batch, 4, u4)
+	assert.NoError(t, err)
+	err = db.Write(batch, nil)
+	assert.NoError(t, err)
+	if snapshot, err := db.GetSnapshot(); assert.NoError(t, err) {
+		bs = newBlockState(snapshot)
+		b, _, err := bs.balance(addr1, asset)
+		assert.NoError(t, err)
+		assert.Equal(t, 799, int(b))
+		b, _, err = bs.balance(addr2, asset)
+		assert.NoError(t, err)
+		assert.Equal(t, 0, int(b))
+	}
+
+	u5 := []data.AccountChange{{Account: acc2, Asset: asset, In: 0, Out: 100}, {Account: acc2, Asset: asset, In: 0, Out: 1}, {Account: acc2, Asset: asset, In: 1, Out: 0, MinersReward: true}}
+	snapshot, err = db.GetSnapshot()
+	assert.NoError(t, err)
+	batch = new(leveldb.Batch)
+	bs = newBlockState(snapshot)
+	err = putAccounts(bs, batch, 5, u5)
+	assert.NoError(t, err)
+	err = db.Write(batch, nil)
+	assert.NoError(t, err)
+	if snapshot, err := db.GetSnapshot(); assert.NoError(t, err) {
+		bs = newBlockState(snapshot)
+		b, _, err := bs.balance(addr1, asset)
+		assert.NoError(t, err)
+		assert.Equal(t, 800, int(b))
+		b, _, err = bs.balance(addr2, asset)
+		assert.NoError(t, err)
+		assert.Equal(t, 0, int(b))
 	}
 }
