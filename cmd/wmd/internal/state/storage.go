@@ -210,14 +210,12 @@ func (s *Storage) Trades(amountAsset, priceAsset crypto.Digest, limit int) ([]da
 }
 
 func (s *Storage) TradesRange(amountAsset, priceAsset crypto.Digest, from, to uint64) ([]data.Trade, error) {
-	f := data.TimeFrameFromTimestampMS(from)
-	t := data.TimeFrameFromTimestampMS(to)
 	snapshot, err := s.db.GetSnapshot()
 	if err != nil {
 		return nil, err
 	}
 	defer snapshot.Release()
-	return trades(snapshot, amountAsset, priceAsset, f, t, maxLimit)
+	return trades(snapshot, amountAsset, priceAsset, from, to, maxLimit)
 }
 
 func (s *Storage) TradesByAddress(amountAsset, priceAsset crypto.Digest, address proto.Address, limit int) ([]data.Trade, error) {

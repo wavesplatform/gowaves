@@ -213,3 +213,17 @@ func NewTradeInfo(trade Trade, amountAssetPrecision, priceAssetPrecision uint) T
 		Matcher:   trade.Matcher,
 	}
 }
+
+type TradesByTimestampBackward []TradeInfo
+
+func (a TradesByTimestampBackward) Len() int {
+	return len(a)
+}
+
+func (a TradesByTimestampBackward) Swap(i, j int) {
+	a[i], a[j] = a[j], a[i]
+}
+
+func (a TradesByTimestampBackward) Less(i, j int) bool {
+	return a[i].Timestamp > a[j].Timestamp
+}

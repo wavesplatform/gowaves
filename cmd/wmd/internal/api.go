@@ -295,6 +295,7 @@ func (a *DataFeedAPI) Trades(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Failed to convert Trades: %s", err.Error()), http.StatusInternalServerError)
 		return
 	}
+	sort.Sort(data.TradesByTimestampBackward(tis))
 	err = json.NewEncoder(w).Encode(tis)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to marshal Trades to JSON: %s", err.Error()), http.StatusInternalServerError)
@@ -335,11 +336,14 @@ func (a *DataFeedAPI) TradesRange(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	trades, err := a.Storage.TradesRange(amountAsset, priceAsset, uint64(f), uint64(t))
+	fmt.Println(trades)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Bad request: %s", err.Error()), http.StatusInternalServerError)
 		return
 	}
 	tis, err := a.convertToTradesInfos(trades, aai.Decimals, pai.Decimals)
+	sort.Sort(data.TradesByTimestampBackward(tis))
+	fmt.Println(tis)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to convert trades: %s", err.Error()), http.StatusInternalServerError)
 	}
@@ -396,6 +400,7 @@ func (a *DataFeedAPI) TradesByAddress(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	tis, err := a.convertToTradesInfos(ts, aai.Decimals, pai.Decimals)
+	sort.Sort(data.TradesByTimestampBackward(tis))
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to convert to TradeInfos: %s", err.Error()), http.StatusInternalServerError)
 		return
@@ -470,7 +475,7 @@ func (a *DataFeedAPI) Candles(w http.ResponseWriter, r *http.Request) {
 			csm[ctf] = cc
 		}
 	}
-	res := make(data.ByTimestampBackward, len(cis))
+	res := make(data.ByCandlesTimestampBackward, len(cis))
 	i := 0
 	for k, v := range cis {
 		if c, ok := csm[k]; ok {
@@ -553,7 +558,7 @@ func (a *DataFeedAPI) CandlesRange(w http.ResponseWriter, r *http.Request) {
 			csm[ctf] = cc
 		}
 	}
-	res := make(data.ByTimestampBackward, len(cis))
+	res := make(data.ByCandlesTimestampBackward, len(cis))
 	i := 0
 	for k, v := range cis {
 		if c, ok := csm[k]; ok {

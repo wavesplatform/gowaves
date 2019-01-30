@@ -233,16 +233,16 @@ func priceVolume(average, volume uint64, amountAssetDecimals uint) uint64 {
 	return pv.Uint64()
 }
 
-type ByTimestampBackward []CandleInfo
+type ByCandlesTimestampBackward []CandleInfo
 
-func (a ByTimestampBackward) Len() int {
+func (a ByCandlesTimestampBackward) Len() int {
 	return len(a)
 }
 
-func (a ByTimestampBackward) Swap(i, j int) {
+func (a ByCandlesTimestampBackward) Swap(i, j int) {
 	a[i], a[j] = a[j], a[i]
 }
 
-func (a ByTimestampBackward) Less(i, j int) bool {
+func (a ByCandlesTimestampBackward) Less(i, j int) bool {
 	return a[i].Timestamp > a[j].Timestamp
 }

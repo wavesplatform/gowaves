@@ -300,11 +300,12 @@ func trade(snapshot *leveldb.Snapshot, id crypto.Digest) (data.Trade, error) {
 	return t, nil
 }
 
-func trades(snapshot *leveldb.Snapshot, amountAsset, priceAsset crypto.Digest, from, to uint32, limit int) ([]data.Trade, error) {
+func trades(snapshot *leveldb.Snapshot, amountAsset, priceAsset crypto.Digest, from, to uint64, limit int) ([]data.Trade, error) {
 	wrapError := func(err error) error { return errors.Wrap(err, "failed to load trades") }
-
-	s := marketTradePartialKey{amountAsset, priceAsset, from}
-	l := marketTradePartialKey{amountAsset, priceAsset, to + 1}
+	f := data.TimeFrameFromTimestampMS(from)
+	t := data.TimeFrameFromTimestampMS(to)
+	s := marketTradePartialKey{amountAsset, priceAsset, f}
+	l := marketTradePartialKey{amountAsset, priceAsset, t + 1}
 	it := snapshot.NewIterator(&util.Range{Start: s.bytes(), Limit: l.bytes()}, nil)
 	c := 0
 	var trades []data.Trade
@@ -323,11 +324,10 @@ func trades(snapshot *leveldb.Snapshot, amountAsset, priceAsset crypto.Digest, f
 			if err != nil {
 				return nil, wrapError(err)
 			}
-			if c == limit {
-				break
+			if t.Timestamp >= from && t.Timestamp <= to {
+				trades = append(trades, t)
+				c++
 			}
-			trades = append(trades, t)
-			c++
 			if !it.Prev() {
 				break
 			}
