@@ -3,6 +3,7 @@ package proto
 import (
 	"encoding/binary"
 
+	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 )
 
@@ -91,12 +92,18 @@ func (b *Block) UnmarshalBinary(data []byte) error {
 	b.TransactionBlockLength = binary.BigEndian.Uint32(data[117:121])
 	if b.Version == 3 {
 		b.TransactionCount = int(binary.BigEndian.Uint32(data[121:125]))
-		transBytes := data[125 : 125+b.TransactionBlockLength]
+		if b.TransactionBlockLength < 4 {
+			return errors.New("TransactionBlockLength is too small")
+		}
+		transBytes := data[125 : 125+b.TransactionBlockLength-4]
 		b.Transactions = make([]byte, len(transBytes))
 		copy(b.Transactions, transBytes)
 	} else {
 		b.TransactionCount = int(data[121])
-		transBytes := data[122 : 122+b.TransactionBlockLength]
+		if b.TransactionBlockLength < 1 {
+			return errors.New("TransactionBlockLength is too small")
+		}
+		transBytes := data[122 : 122+b.TransactionBlockLength-1]
 		b.Transactions = make([]byte, len(transBytes))
 		copy(b.Transactions, transBytes)
 	}

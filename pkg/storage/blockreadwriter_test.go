@@ -155,7 +155,7 @@ func testSingleBlock(t *testing.T, rw *BlockReadWriter, block *proto.Block) {
 	if err != nil {
 		t.Fatalf("ReadTransactionsBlock(): %v", err)
 	}
-	if bytes.Compare(block.Transactions[:len(block.Transactions)-1], resTransactions) != 0 {
+	if bytes.Compare(block.Transactions, resTransactions) != 0 {
 		t.Error("Transaction bytes are not equal.")
 	}
 }
@@ -203,7 +203,7 @@ func writeBlocks(ctx context.Context, rw *BlockReadWriter, blocks []*proto.Block
 			close(readTasks)
 			return err
 		}
-		task = &ReadTask{Type: ReadBlock, BlockID: blockID, CorrectResult: block.Transactions[:len(block.Transactions)-1]}
+		task = &ReadTask{Type: ReadBlock, BlockID: blockID, CorrectResult: block.Transactions}
 		tasksBuf = append(tasksBuf, task)
 		for _, task := range tasksBuf {
 			select {
