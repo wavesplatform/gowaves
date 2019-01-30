@@ -29,18 +29,27 @@ func (tv *TransactionValidator) IsSupported(tx Transaction) bool {
 	case Payment:
 		return true
 	case TransferV1:
-		// Only Waves for now.
 		if v.FeeAsset.Present || v.AmountAsset.Present {
+			// Only Waves for now.
+			return false
+		}
+		if v.Recipient.Address == nil {
+			// Aliases without specified address are not supported yet.
 			return false
 		}
 		return true
 	case TransferV2:
-		// Only Waves for now.
 		if v.FeeAsset.Present || v.AmountAsset.Present {
+			// Only Waves for now.
+			return false
+		}
+		if v.Recipient.Address == nil {
+			// Aliases without specified address are not supported yet.
 			return false
 		}
 		return true
 	default:
+		// Other types of transactions are not supported.
 		return false
 	}
 }
