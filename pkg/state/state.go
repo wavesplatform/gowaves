@@ -289,14 +289,16 @@ func (s *StateManager) AcceptAndVerifyBlockBinary(data []byte, initialisation bo
 	if !crypto.Verify(block.GenPublicKey, block.BlockSignature, data[:len(data)-crypto.SignatureSize]) {
 		return errors.New("Invalid block signature.")
 	}
-	// Check parent.
-	height := s.rw.CurrentHeight()
-	parent, err := s.GetBlockByHeight(height)
-	if err != nil {
-		return err
-	}
-	if parent.BlockSignature != block.Parent {
-		return errors.New("Incorrect parent.")
+	if block.BlockSignature != s.genesis {
+		// Check parent.
+		height := s.rw.CurrentHeight()
+		parent, err := s.GetBlockByHeight(height)
+		if err != nil {
+			return err
+		}
+		if parent.BlockSignature != block.Parent {
+			return errors.New("Incorrect parent.")
+		}
 	}
 	return s.addNewBlock(&block, initialisation)
 }
