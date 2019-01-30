@@ -272,21 +272,25 @@ func TestSimpleReadWrite(t *testing.T) {
 	if err != nil {
 		t.Fatalf("createBlockReadWriter: %v", err)
 	}
+
+	defer func() {
+		if err := rw.Close(); err != nil {
+			t.Fatalf("Failed to close BlockReadWriter: %v", err)
+		}
+		if err := os.RemoveAll(dbDir); err != nil {
+			t.Fatalf("Failed to clean test data dirs: %v", err)
+		}
+		if err := os.RemoveAll(rwDir); err != nil {
+			t.Fatalf("Failed to clean test data dirs: %v", err)
+		}
+	}()
+
 	blocks, err := readRealBlocks(t, *nBlocks)
 	if err != nil {
 		t.Fatalf("Can not read blocks from blockchain file: %v", err)
 	}
 	for _, block := range blocks {
 		testSingleBlock(t, rw, block)
-	}
-	if err := rw.Close(); err != nil {
-		t.Fatalf("Failed to close BlockReadWriter: %v", err)
-	}
-	if err := os.RemoveAll(dbDir); err != nil {
-		t.Fatalf("Failed to clean test data dirs: %v", err)
-	}
-	if err := os.RemoveAll(rwDir); err != nil {
-		t.Fatalf("Failed to clean test data dirs: %v", err)
 	}
 }
 
@@ -304,6 +308,19 @@ func TestSimultaneousRWDelete(t *testing.T) {
 	if err != nil {
 		t.Fatalf("createBlockReadWriter: %v", err)
 	}
+
+	defer func() {
+		if err := rw.Close(); err != nil {
+			t.Fatalf("Failed to close BlockReadWriter: %v", err)
+		}
+		if err := os.RemoveAll(dbDir); err != nil {
+			t.Fatalf("Failed to clean test data dirs: %v", err)
+		}
+		if err := os.RemoveAll(rwDir); err != nil {
+			t.Fatalf("Failed to clean test data dirs: %v", err)
+		}
+	}()
+
 	blocks, err := readRealBlocks(t, *nBlocks)
 	if err != nil {
 		t.Fatalf("Can not read blocks from blockchain file: %v", err)
@@ -342,14 +359,5 @@ func TestSimultaneousRWDelete(t *testing.T) {
 	wg.Wait()
 	if errCounter != 0 {
 		t.Fatalf("Reader/writer error.")
-	}
-	if err := rw.Close(); err != nil {
-		t.Fatalf("Failed to close BlockReadWriter: %v", err)
-	}
-	if err := os.RemoveAll(dbDir); err != nil {
-		t.Fatalf("Failed to clean test data dirs: %v", err)
-	}
-	if err := os.RemoveAll(rwDir); err != nil {
-		t.Fatalf("Failed to clean test data dirs: %v", err)
 	}
 }
