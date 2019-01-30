@@ -20,6 +20,29 @@ func NewTransactionValidator(genesis crypto.Signature, state AccountsState) (*Tr
 	return &TransactionValidator{genesis: genesis, state: state}, nil
 }
 
+func (tv *TransactionValidator) IsSupported(tx Transaction) bool {
+	switch v := tx.(type) {
+	case Genesis:
+		return true
+	case Payment:
+		return true
+	case TransferV1:
+		// Only Waves for now.
+		if v.FeeAsset.Present || v.AmountAsset.Present {
+			return false
+		}
+		return true
+	case TransferV2:
+		// Only Waves for now.
+		if v.FeeAsset.Present || v.AmountAsset.Present {
+			return false
+		}
+		return true
+	default:
+		return false
+	}
+}
+
 func (tv *TransactionValidator) ValidateTransaction(block *Block, tx Transaction, initialisation bool) error {
 	switch v := tx.(type) {
 	case Genesis:

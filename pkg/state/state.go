@@ -265,11 +265,14 @@ func (s *StateManager) AddNewBlock(block *proto.Block, initialisation bool) erro
 		if err != nil {
 			return err
 		}
-		if err = tv.ValidateTransaction(block, tx, initialisation); err != nil {
-			return errors.Wrap(err, "Incorrect transaction inside of the block")
-		}
-		if err = s.performTransaction(block, tx); err != nil {
-			return errors.Wrap(err, "Failed to perform the transaction")
+		if tv.IsSupported(tx) {
+			// Genesis, Payment, TransferV1 and TransferV2 Waves-only for now.
+			if err = tv.ValidateTransaction(block, tx, initialisation); err != nil {
+				return errors.Wrap(err, "Incorrect transaction inside of the block")
+			}
+			if err = s.performTransaction(block, tx); err != nil {
+				return errors.Wrap(err, "Failed to perform the transaction")
+			}
 		}
 	}
 	if err := s.rw.FinishBlock(block.BlockSignature); err != nil {
