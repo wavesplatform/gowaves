@@ -206,7 +206,7 @@ func (s *Storage) Trades(amountAsset, priceAsset crypto.Digest, limit int) ([]da
 		return nil, err
 	}
 	defer snapshot.Release()
-	return trades(snapshot, amountAsset, priceAsset, 0, math.MaxInt32, limit)
+	return trades(snapshot, amountAsset, priceAsset, 0, math.MaxInt64, limit)
 }
 
 func (s *Storage) TradesRange(amountAsset, priceAsset crypto.Digest, from, to uint64) ([]data.Trade, error) {
