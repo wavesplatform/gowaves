@@ -292,7 +292,7 @@ func (s *StateManager) AcceptAndVerifyBlockBinary(data []byte, initialisation bo
 	if block.BlockSignature != s.genesis {
 		// Check parent.
 		height := s.rw.CurrentHeight()
-		parent, err := s.GetBlockByHeight(height)
+		parent, err := s.GetBlockByHeight(height-1)
 		if err != nil {
 			return err
 		}
