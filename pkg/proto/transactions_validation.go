@@ -6,8 +6,10 @@ import (
 )
 
 type AccountsState interface {
-	AccountBalance(Address, *OptionalAsset) (uint64, error)
-	SetAccountBalance(Address, *OptionalAsset, uint64) error
+	// nil asset means Waves.
+	AccountBalance(addr Address, asset []byte) (uint64, error)
+	// nil asset means Waves.
+	SetAccountBalance(addr Address, asset []byte, balance uint64) error
 	RollbackTo(crypto.Signature) error
 }
 
@@ -79,11 +81,7 @@ func (tv *TransactionValidator) ValidateTransaction(block *Block, tx Transaction
 		if err != nil {
 			return errors.Wrap(err, "Could not get address from public key")
 		}
-		wavesAsset, err := NewOptionalAssetFromString(WavesAssetName)
-		if err != nil {
-			return err
-		}
-		balance, err := tv.state.AccountBalance(senderAddr, wavesAsset)
+		balance, err := tv.state.AccountBalance(senderAddr, nil)
 		if err != nil {
 			return err
 		}
@@ -111,11 +109,11 @@ func (tv *TransactionValidator) ValidateTransaction(block *Block, tx Transaction
 		if err != nil {
 			return errors.Wrap(err, "Could not get address from public key")
 		}
-		feeBalance, err := tv.state.AccountBalance(senderAddr, &v.FeeAsset)
+		feeBalance, err := tv.state.AccountBalance(senderAddr, v.FeeAsset.ToID())
 		if err != nil {
 			return err
 		}
-		amountBalance, err := tv.state.AccountBalance(senderAddr, &v.AmountAsset)
+		amountBalance, err := tv.state.AccountBalance(senderAddr, v.AmountAsset.ToID())
 		if err != nil {
 			return err
 		}
@@ -146,11 +144,11 @@ func (tv *TransactionValidator) ValidateTransaction(block *Block, tx Transaction
 		if err != nil {
 			return errors.Wrap(err, "Could not get address from public key")
 		}
-		feeBalance, err := tv.state.AccountBalance(senderAddr, &v.FeeAsset)
+		feeBalance, err := tv.state.AccountBalance(senderAddr, v.FeeAsset.ToID())
 		if err != nil {
 			return err
 		}
-		amountBalance, err := tv.state.AccountBalance(senderAddr, &v.AmountAsset)
+		amountBalance, err := tv.state.AccountBalance(senderAddr, v.AmountAsset.ToID())
 		if err != nil {
 			return err
 		}

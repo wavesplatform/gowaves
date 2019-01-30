@@ -75,18 +75,14 @@ func (s *StateManager) GetBlockByHeight(height uint64) (*proto.Block, error) {
 }
 
 func (s *StateManager) performTransaction(block *proto.Block, tx proto.Transaction) error {
-	wavesAsset, err := proto.NewOptionalAssetFromString(proto.WavesAssetName)
-	if err != nil {
-		return err
-	}
 	switch v := tx.(type) {
 	case proto.Genesis:
-		receiverBalance, err := s.accountsState.AccountBalance(v.Recipient, wavesAsset)
+		receiverBalance, err := s.accountsState.AccountBalance(v.Recipient, nil)
 		if err != nil {
 			return err
 		}
 		newReceiverBalance := receiverBalance + v.Amount
-		if err := s.accountsState.SetAccountBalance(v.Recipient, wavesAsset, newReceiverBalance); err != nil {
+		if err := s.accountsState.SetAccountBalance(v.Recipient, nil, newReceiverBalance); err != nil {
 			return err
 		}
 		return nil
@@ -99,7 +95,7 @@ func (s *StateManager) performTransaction(block *proto.Block, tx proto.Transacti
 		if err != nil {
 			return err
 		}
-		senderBalance, err := s.accountsState.AccountBalance(senderAddr, wavesAsset)
+		senderBalance, err := s.accountsState.AccountBalance(senderAddr, nil)
 		if err != nil {
 			return err
 		}
@@ -107,23 +103,23 @@ func (s *StateManager) performTransaction(block *proto.Block, tx proto.Transacti
 		if newSenderBalance < 0 {
 			panic("Transaction results in negative balance after validation")
 		}
-		if err := s.accountsState.SetAccountBalance(senderAddr, wavesAsset, newSenderBalance); err != nil {
+		if err := s.accountsState.SetAccountBalance(senderAddr, nil, newSenderBalance); err != nil {
 			return err
 		}
-		receiverBalance, err := s.accountsState.AccountBalance(v.Recipient, wavesAsset)
+		receiverBalance, err := s.accountsState.AccountBalance(v.Recipient, nil)
 		if err != nil {
 			return err
 		}
 		newReceiverBalance := receiverBalance + v.Amount
-		if err := s.accountsState.SetAccountBalance(v.Recipient, wavesAsset, newReceiverBalance); err != nil {
+		if err := s.accountsState.SetAccountBalance(v.Recipient, nil, newReceiverBalance); err != nil {
 			return err
 		}
-		minerBalance, err := s.accountsState.AccountBalance(minerAddr, wavesAsset)
+		minerBalance, err := s.accountsState.AccountBalance(minerAddr, nil)
 		if err != nil {
 			return err
 		}
 		newMinerBalance := minerBalance + v.Fee
-		if err := s.accountsState.SetAccountBalance(minerAddr, wavesAsset, newMinerBalance); err != nil {
+		if err := s.accountsState.SetAccountBalance(minerAddr, nil, newMinerBalance); err != nil {
 			return err
 		}
 		return nil
@@ -140,7 +136,7 @@ func (s *StateManager) performTransaction(block *proto.Block, tx proto.Transacti
 		if err != nil {
 			return err
 		}
-		senderFeeBalance, err := s.accountsState.AccountBalance(senderAddr, &v.FeeAsset)
+		senderFeeBalance, err := s.accountsState.AccountBalance(senderAddr, v.FeeAsset.ToID())
 		if err != nil {
 			return err
 		}
@@ -148,7 +144,7 @@ func (s *StateManager) performTransaction(block *proto.Block, tx proto.Transacti
 		if newSenderFeeBalance < 0 {
 			panic("Transaction results in negative balance after validation")
 		}
-		senderAmountBalance, err := s.accountsState.AccountBalance(senderAddr, &v.AmountAsset)
+		senderAmountBalance, err := s.accountsState.AccountBalance(senderAddr, v.AmountAsset.ToID())
 		if err != nil {
 			return err
 		}
@@ -156,26 +152,26 @@ func (s *StateManager) performTransaction(block *proto.Block, tx proto.Transacti
 		if newSenderAmountBalance < 0 {
 			panic("Transaction results in negative balance after validation")
 		}
-		if err := s.accountsState.SetAccountBalance(senderAddr, &v.FeeAsset, newSenderFeeBalance); err != nil {
+		if err := s.accountsState.SetAccountBalance(senderAddr, v.FeeAsset.ToID(), newSenderFeeBalance); err != nil {
 			return err
 		}
-		if err := s.accountsState.SetAccountBalance(senderAddr, &v.AmountAsset, newSenderAmountBalance); err != nil {
+		if err := s.accountsState.SetAccountBalance(senderAddr, v.AmountAsset.ToID(), newSenderAmountBalance); err != nil {
 			return err
 		}
-		receiverBalance, err := s.accountsState.AccountBalance(*v.Recipient.Address, &v.AmountAsset)
+		receiverBalance, err := s.accountsState.AccountBalance(*v.Recipient.Address, v.AmountAsset.ToID())
 		if err != nil {
 			return err
 		}
 		newReceiverBalance := receiverBalance + v.Amount
-		if err := s.accountsState.SetAccountBalance(*v.Recipient.Address, &v.AmountAsset, newReceiverBalance); err != nil {
+		if err := s.accountsState.SetAccountBalance(*v.Recipient.Address, v.AmountAsset.ToID(), newReceiverBalance); err != nil {
 			return err
 		}
-		minerBalance, err := s.accountsState.AccountBalance(minerAddr, &v.FeeAsset)
+		minerBalance, err := s.accountsState.AccountBalance(minerAddr, v.FeeAsset.ToID())
 		if err != nil {
 			return err
 		}
 		newMinerBalance := minerBalance + v.Fee
-		if err := s.accountsState.SetAccountBalance(minerAddr, &v.FeeAsset, newMinerBalance); err != nil {
+		if err := s.accountsState.SetAccountBalance(minerAddr, v.FeeAsset.ToID(), newMinerBalance); err != nil {
 			return err
 		}
 		return nil
@@ -192,7 +188,7 @@ func (s *StateManager) performTransaction(block *proto.Block, tx proto.Transacti
 		if err != nil {
 			return err
 		}
-		senderFeeBalance, err := s.accountsState.AccountBalance(senderAddr, &v.FeeAsset)
+		senderFeeBalance, err := s.accountsState.AccountBalance(senderAddr, v.FeeAsset.ToID())
 		if err != nil {
 			return err
 		}
@@ -200,7 +196,7 @@ func (s *StateManager) performTransaction(block *proto.Block, tx proto.Transacti
 		if newSenderFeeBalance < 0 {
 			panic("Transaction results in negative balance after validation")
 		}
-		senderAmountBalance, err := s.accountsState.AccountBalance(senderAddr, &v.AmountAsset)
+		senderAmountBalance, err := s.accountsState.AccountBalance(senderAddr, v.AmountAsset.ToID())
 		if err != nil {
 			return err
 		}
@@ -208,26 +204,26 @@ func (s *StateManager) performTransaction(block *proto.Block, tx proto.Transacti
 		if newSenderAmountBalance < 0 {
 			panic("Transaction results in negative balance after validation")
 		}
-		if err := s.accountsState.SetAccountBalance(senderAddr, &v.FeeAsset, newSenderFeeBalance); err != nil {
+		if err := s.accountsState.SetAccountBalance(senderAddr, v.FeeAsset.ToID(), newSenderFeeBalance); err != nil {
 			return err
 		}
-		if err := s.accountsState.SetAccountBalance(senderAddr, &v.AmountAsset, newSenderAmountBalance); err != nil {
+		if err := s.accountsState.SetAccountBalance(senderAddr, v.AmountAsset.ToID(), newSenderAmountBalance); err != nil {
 			return err
 		}
-		receiverBalance, err := s.accountsState.AccountBalance(*v.Recipient.Address, &v.AmountAsset)
+		receiverBalance, err := s.accountsState.AccountBalance(*v.Recipient.Address, v.AmountAsset.ToID())
 		if err != nil {
 			return err
 		}
 		newReceiverBalance := receiverBalance + v.Amount
-		if err := s.accountsState.SetAccountBalance(*v.Recipient.Address, &v.AmountAsset, newReceiverBalance); err != nil {
+		if err := s.accountsState.SetAccountBalance(*v.Recipient.Address, v.AmountAsset.ToID(), newReceiverBalance); err != nil {
 			return err
 		}
-		minerBalance, err := s.accountsState.AccountBalance(minerAddr, &v.FeeAsset)
+		minerBalance, err := s.accountsState.AccountBalance(minerAddr, v.FeeAsset.ToID())
 		if err != nil {
 			return err
 		}
 		newMinerBalance := minerBalance + v.Fee
-		if err := s.accountsState.SetAccountBalance(minerAddr, &v.FeeAsset, newMinerBalance); err != nil {
+		if err := s.accountsState.SetAccountBalance(minerAddr, v.FeeAsset.ToID(), newMinerBalance); err != nil {
 			return err
 		}
 		return nil
