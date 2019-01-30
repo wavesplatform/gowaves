@@ -36,6 +36,7 @@ type BlockReadWriter interface {
 	ReadTransactionsBlock(blockID crypto.Signature) ([]byte, error)
 	RemoveBlocks(removalEdge crypto.Signature) error
 	BlockIDByHeight(height uint64) (crypto.Signature, error)
+	CurrentHeight() uint64
 }
 
 type StateManager struct {
@@ -233,7 +234,7 @@ func (s *StateManager) performTransaction(block *proto.Block, tx proto.Transacti
 	}
 }
 
-func (s *StateManager) AddNewBlock(block *proto.Block, initialisation bool) error {
+func (s *StateManager) addNewBlock(block *proto.Block, initialisation bool) error {
 	// Indicate new block for storage.
 	if err := s.rw.StartBlock(block.BlockSignature); err != nil {
 		return err
@@ -277,6 +278,27 @@ func (s *StateManager) AddNewBlock(block *proto.Block, initialisation bool) erro
 		return err
 	}
 	return nil
+}
+
+func (s *StateManager) AcceptAndVerifyBlockBinary(data []byte, initialisation bool) error {
+	var block proto.Block
+	if err := block.UnmarshalBinary(data); err != nil {
+		return err
+	}
+	// Check block signature.
+	if !crypto.Verify(block.GenPublicKey, block.BlockSignature, data[:len(data)-crypto.SignatureSize]) {
+		return errors.New("Invalid block signature.")
+	}
+	// Check parent.
+	height := s.rw.CurrentHeight()
+	parent, err := s.GetBlockByHeight(height)
+	if err != nil {
+		return err
+	}
+	if parent.BlockSignature != block.Parent {
+		return errors.New("Incorrect parent.")
+	}
+	return s.addNewBlock(&block, initialisation)
 }
 
 func (s *StateManager) RollbackToHeight(height uint64) error {
