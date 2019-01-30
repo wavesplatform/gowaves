@@ -245,6 +245,10 @@ func (s *StateManager) AddNewBlock(block *proto.Block, initialisation bool) erro
 	if err := s.rw.WriteBlockHeader(block.BlockSignature, headerBytes); err != nil {
 		return err
 	}
+	tv, err := proto.NewTransactionValidator(s.genesis, s.accountsState)
+	if err != nil {
+		return err
+	}
 	transactions := block.Transactions
 	for i := 0; i < block.TransactionCount; i++ {
 		n := int(binary.BigEndian.Uint32(transactions[0:4]))
@@ -254,11 +258,7 @@ func (s *StateManager) AddNewBlock(block *proto.Block, initialisation bool) erro
 			return err
 		}
 		// Save transaction to storage.
-		if err := s.rw.WriteTransaction(tx.GetID(), txBytes); err != nil {
-			return err
-		}
-		tv, err := proto.NewTransactionValidator(s.genesis, s.accountsState)
-		if err != nil {
+		if err := s.rw.WriteTransaction(tx.GetID(), transactions[:n+4]); err != nil {
 			return err
 		}
 		if tv.IsSupported(tx) {
@@ -270,6 +270,7 @@ func (s *StateManager) AddNewBlock(block *proto.Block, initialisation bool) erro
 				return errors.Wrap(err, "Failed to perform the transaction")
 			}
 		}
+		transactions = transactions[4+n:]
 	}
 	if err := s.rw.FinishBlock(block.BlockSignature); err != nil {
 		return err
