@@ -1,6 +1,7 @@
 package keyvalue
 
 import (
+	"github.com/pkg/errors"
 	"github.com/syndtr/goleveldb/leveldb"
 )
 
@@ -10,12 +11,17 @@ type KeyVal struct {
 	maxBatchSize int
 }
 
+// 0 maxBatchSize means disable batch and write directly to the database instead.
 func NewKeyVal(path string, maxBatchSize int) (*KeyVal, error) {
 	db, err := leveldb.OpenFile(path, nil)
 	if err != nil {
 		return nil, err
 	}
-	return &KeyVal{db: db, batch: new(leveldb.Batch), maxBatchSize: maxBatchSize}, nil
+	var batch *leveldb.Batch
+	if maxBatchSize > 0 {
+		batch = new(leveldb.Batch)
+	}
+	return &KeyVal{db: db, batch: batch, maxBatchSize: maxBatchSize}, nil
 }
 
 func (k *KeyVal) Get(key []byte) ([]byte, error) {
@@ -31,9 +37,15 @@ func (k *KeyVal) Delete(key []byte) error {
 }
 
 func (k *KeyVal) Put(key, val []byte) error {
-	k.batch.Put(key, val)
-	if k.batch.Len() >= k.maxBatchSize {
-		if err := k.Flush(); err != nil {
+	if k.batch != nil {
+		k.batch.Put(key, val)
+		if k.batch.Len() >= k.maxBatchSize {
+			if err := k.Flush(); err != nil {
+				return err
+			}
+		}
+	} else {
+		if err := k.db.Put(key, val, nil); err != nil {
 			return err
 		}
 	}
@@ -41,6 +53,9 @@ func (k *KeyVal) Put(key, val []byte) error {
 }
 
 func (k *KeyVal) Flush() error {
+	if k.batch == nil {
+		return errors.New("No batch to flush.")
+	}
 	if err := k.db.Write(k.batch, nil); err != nil {
 		return err
 	}
