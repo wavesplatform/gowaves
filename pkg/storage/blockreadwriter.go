@@ -134,6 +134,8 @@ func (rw *BlockReadWriter) StartBlock(blockID crypto.Signature) error {
 }
 
 func (rw *BlockReadWriter) FinishBlock(blockID crypto.Signature) error {
+	rw.mtx.Lock()
+	defer rw.mtx.Unlock()
 	binary.LittleEndian.PutUint64(rw.blockBounds[rw.offsetLen:], rw.blockchainLen)
 	binary.LittleEndian.PutUint64(rw.headerBounds[rw.headerOffsetLen:], rw.headersLen)
 	binary.LittleEndian.PutUint64(rw.heightBuf, rw.height)
@@ -201,6 +203,8 @@ func (rw *BlockReadWriter) BlockIDByHeight(height uint64) (crypto.Signature, err
 }
 
 func (rw *BlockReadWriter) CurrentHeight() uint64 {
+	rw.mtx.RLock()
+	defer rw.mtx.RUnlock()
 	return rw.height
 }
 
