@@ -15,6 +15,7 @@ import (
 	"runtime"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
@@ -116,7 +117,7 @@ func createBlockReadWriter(dbDir, rwDir string, offsetLen, headerOffsetLen int) 
 	return NewBlockReadWriter(rwDir, offsetLen, headerOffsetLen, keyVal)
 }
 
-func testSingleBlock(t *testing.T, rw *BlockReadWriter, block *proto.Block) {
+func writeBlock(t *testing.T, rw *BlockReadWriter, block *proto.Block) {
 	blockID := block.BlockSignature
 	if err := rw.StartBlock(blockID); err != nil {
 		t.Fatalf("StartBlock(): %v", err)
@@ -144,9 +145,18 @@ func testSingleBlock(t *testing.T, rw *BlockReadWriter, block *proto.Block) {
 	if err := rw.FinishBlock(blockID); err != nil {
 		t.Fatalf("FinishBlock(): %v", err)
 	}
+}
+
+func testSingleBlock(t *testing.T, rw *BlockReadWriter, block *proto.Block) {
+	writeBlock(t, rw, block)
+	blockID := block.BlockSignature
 	resHeaderBytes, err := rw.ReadBlockHeader(blockID)
 	if err != nil {
 		t.Fatalf("ReadBlockHeader(): %v", err)
+	}
+	headerBytes, err := block.MarshalHeaderToBinary()
+	if err != nil {
+		t.Fatalf("MarshalHeaderToBinary(): %v", err)
 	}
 	if bytes.Compare(headerBytes, resHeaderBytes) != 0 {
 		t.Error("Header bytes are not equal.")
@@ -294,8 +304,7 @@ func TestSimpleReadWrite(t *testing.T) {
 	}
 }
 
-func TestSimultaneousRWDelete(t *testing.T) {
-	// TODO test deletion.
+func TestSimultaneousReadWrite(t *testing.T) {
 	dbDir, err := ioutil.TempDir(os.TempDir(), "db_dir")
 	if err != nil {
 		t.Fatalf("Can not create dir for test data: %v", err)
@@ -359,5 +368,75 @@ func TestSimultaneousRWDelete(t *testing.T) {
 	wg.Wait()
 	if errCounter != 0 {
 		t.Fatalf("Reader/writer error.")
+	}
+}
+
+func TestSimultaneousReadDelete(t *testing.T) {
+	dbDir, err := ioutil.TempDir(os.TempDir(), "db_dir")
+	if err != nil {
+		t.Fatalf("Can not create dir for test data: %v", err)
+	}
+	rwDir, err := ioutil.TempDir(os.TempDir(), "rw_dir")
+	if err != nil {
+		t.Fatalf("Can not create dir for test data: %v", err)
+	}
+	rw, err := createBlockReadWriter(dbDir, rwDir, 8, 8)
+	if err != nil {
+		t.Fatalf("createBlockReadWriter: %v", err)
+	}
+
+	defer func() {
+		if err := rw.Close(); err != nil {
+			t.Fatalf("Failed to close BlockReadWriter: %v", err)
+		}
+		if err := os.RemoveAll(dbDir); err != nil {
+			t.Fatalf("Failed to clean test data dirs: %v", err)
+		}
+		if err := os.RemoveAll(rwDir); err != nil {
+			t.Fatalf("Failed to clean test data dirs: %v", err)
+		}
+	}()
+
+	blocks, err := readRealBlocks(t, 10000)
+	if err != nil {
+		t.Fatalf("Can not read blocks from blockchain file: %v", err)
+	}
+
+	for _, block := range blocks {
+		writeBlock(t, rw, block)
+	}
+	idToTest := blocks[999].BlockSignature
+	prevId := blocks[998].BlockSignature
+
+	var wg sync.WaitGroup
+	var removeErr error
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		// Give some time to start reading before deleting.
+		time.Sleep(time.Second)
+		removeErr = rw.RemoveBlocks(prevId)
+	}()
+	for {
+		_, err = rw.ReadBlockHeader(idToTest)
+		if err != nil {
+			if err.Error() == "leveldb: not found" {
+				// Successfully removed.
+				break
+			}
+			t.Fatalf("ReadBlockHeader(): %v", err)
+		}
+		_, err = rw.ReadTransactionsBlock(idToTest)
+		if err != nil {
+			if err.Error() == "leveldb: not found" {
+				// Successfully removed.
+				break
+			}
+			t.Fatalf("ReadTransactionsBlock(): %v", err)
+		}
+	}
+	wg.Wait()
+	if removeErr != nil {
+		t.Fatalf("Failed to remove blocks: %v", err)
 	}
 }
