@@ -8,9 +8,6 @@ import (
 type AccountsState interface {
 	// nil asset means Waves.
 	AccountBalance(addr Address, asset []byte) (uint64, error)
-	// nil asset means Waves.
-	SetAccountBalance(addr Address, asset []byte, balance uint64) error
-	RollbackTo(crypto.Signature) error
 }
 
 type TransactionValidator struct {
