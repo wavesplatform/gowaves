@@ -5,11 +5,9 @@ import (
 	"bytes"
 	"context"
 	"encoding/binary"
-	"flag"
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -26,22 +24,13 @@ import (
 const (
 	BATCH_SIZE             = 1000
 	TASKS_CHAN_BUFFER_SIZE = 20
+	READERS_NUMBER         = 20
+	BLOCKS_NUMBER          = 9900
 )
 
 var (
-	blockchainPath = flag.String("blockchain-path", "", "Path to binary blockchain file.")
-	nBlocks        = flag.Int("blocks-number", 1000, "Number of blocks to test on.")
-	nReaders       = flag.Int("readers-number", 20, "Number of simultaneous readers.")
-
 	cached_blocks []*proto.Block
 )
-
-func init() {
-	flag.Parse()
-	if len(*blockchainPath) == 0 {
-		log.Fatal("You must specify blockchain-path for testing.")
-	}
-}
 
 type ReadCommandType byte
 
@@ -72,7 +61,11 @@ func readRealBlocks(t *testing.T, nBlocks int) ([]*proto.Block, error) {
 	if len(cached_blocks) >= nBlocks {
 		return cached_blocks[:nBlocks], nil
 	}
-	f, err := os.Open(*blockchainPath)
+	dir, err := getLocalDir()
+	if err != nil {
+		return nil, err
+	}
+	f, err := os.Open(filepath.Join(dir, "testdata", "blocks"))
 	if err != nil {
 		return nil, err
 	}
@@ -295,7 +288,7 @@ func TestSimpleReadWrite(t *testing.T) {
 		}
 	}()
 
-	blocks, err := readRealBlocks(t, *nBlocks)
+	blocks, err := readRealBlocks(t, BLOCKS_NUMBER)
 	if err != nil {
 		t.Fatalf("Can not read blocks from blockchain file: %v", err)
 	}
@@ -330,7 +323,7 @@ func TestSimultaneousReadWrite(t *testing.T) {
 		}
 	}()
 
-	blocks, err := readRealBlocks(t, *nBlocks)
+	blocks, err := readRealBlocks(t, BLOCKS_NUMBER)
 	if err != nil {
 		t.Fatalf("Can not read blocks from blockchain file: %v", err)
 	}
@@ -351,7 +344,7 @@ func TestSimultaneousReadWrite(t *testing.T) {
 			cancel()
 		}
 	}()
-	for i := 0; i < *nReaders; i++ {
+	for i := 0; i < READERS_NUMBER; i++ {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
@@ -397,7 +390,7 @@ func TestSimultaneousReadDelete(t *testing.T) {
 		}
 	}()
 
-	blocks, err := readRealBlocks(t, 10000)
+	blocks, err := readRealBlocks(t, BLOCKS_NUMBER)
 	if err != nil {
 		t.Fatalf("Can not read blocks from blockchain file: %v", err)
 	}
@@ -405,8 +398,8 @@ func TestSimultaneousReadDelete(t *testing.T) {
 	for _, block := range blocks {
 		writeBlock(t, rw, block)
 	}
-	idToTest := blocks[999].BlockSignature
-	prevId := blocks[998].BlockSignature
+	idToTest := blocks[BLOCKS_NUMBER-1].BlockSignature
+	prevId := blocks[BLOCKS_NUMBER-2].BlockSignature
 
 	var wg sync.WaitGroup
 	var removeErr error
