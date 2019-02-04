@@ -2,6 +2,7 @@ package internal
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/go-chi/chi"
@@ -53,38 +54,76 @@ func Logger(l *zap.Logger) func(next http.Handler) http.Handler {
 	}
 }
 
-type DataFeedAPI struct {
-	log     *zap.SugaredLogger
-	Storage *state.Storage
-	Symbols *data.Symbols
-	Scheme  byte
-}
-
 type status struct {
 	CurrentHeight int              `json:"current_height"`
 	LastBlockID   crypto.Signature `json:"last_block_id"`
 }
 
-func NewDataFeedAPI(log *zap.SugaredLogger, storage *state.Storage, symbols *data.Symbols) *DataFeedAPI {
-	return &DataFeedAPI{log: log, Storage: storage, Symbols: symbols}
+type DataFeedAPI struct {
+	interrupt <-chan struct{}
+	done      chan struct{}
+	log       *zap.SugaredLogger
+	Storage   *state.Storage
+	Symbols   *data.Symbols
 }
 
-func (a *DataFeedAPI) Routes() chi.Router {
+func NewDataFeedAPI(interrupt <-chan struct{}, logger *zap.Logger, storage *state.Storage, address string, symbols *data.Symbols) *DataFeedAPI {
+	a := DataFeedAPI{interrupt: interrupt, done: make(chan struct{}), log: logger.Sugar(), Storage: storage, Symbols: symbols}
 	r := chi.NewRouter()
-	r.Get("/status", a.Status)
-	r.Get("/symbols", a.GetSymbols)
-	r.Get("/markets", a.Markets)
-	r.Get("/tickers", a.Tickers)
-	r.Get(fmt.Sprintf("/ticker/{%s}/{%s}", amountAssetPlaceholder, priceAssetPlaceholder), a.Ticker)
-	r.Get(fmt.Sprintf("/trades/{%s}/{%s}/{%s}", amountAssetPlaceholder, priceAssetPlaceholder, limitPlaceholder), a.Trades)
-	r.Get(fmt.Sprintf("/trades/{%s}/{%s}/{%s:\\d+}/{%s:\\d+}", amountAssetPlaceholder, priceAssetPlaceholder, fromPlaceholder, toPlaceholder), a.TradesRange)
-	r.Get(fmt.Sprintf("/trades/{%s}/{%s}/{%s:[1-9A-Za-z]+}/{%s:\\d+}", amountAssetPlaceholder, priceAssetPlaceholder, addressPlaceHolder, limitPlaceholder), a.TradesByAddress)
-	r.Get(fmt.Sprintf("/candles/{%s}/{%s}/{%s:\\d+}/{%s:\\d+}", amountAssetPlaceholder, priceAssetPlaceholder, timeFramePlaceholder, limitPlaceholder), a.Candles)
-	r.Get(fmt.Sprintf("/candles/{%s}/{%s}/{%s:\\d+}/{%s:\\d+}/{%s:\\d+}", amountAssetPlaceholder, priceAssetPlaceholder, timeFramePlaceholder, fromPlaceholder, toPlaceholder), a.CandlesRange)
+	r.Use(middleware.RequestID)
+	r.Use(middleware.RealIP)
+	r.Use(Logger(logger))
+	r.Use(middleware.Recoverer)
+	r.Use(middleware.SetHeader("Content-Type", "application/json"))
+	r.Use(middleware.DefaultCompress)
+	r.Mount("/api", a.routes())
+	apiServer := &http.Server{Addr: address, Handler: r}
+	go func() {
+		err := apiServer.ListenAndServe()
+		if err != nil && err != http.ErrServerClosed {
+			a.log.Fatalf("Failed to start API: %v", err)
+			return
+		}
+	}()
+	go func() {
+		for {
+			select {
+			case <-a.interrupt:
+				a.log.Info("Shutting down API...")
+				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				err := apiServer.Shutdown(ctx)
+				if err != nil {
+					a.log.Errorf("Failed to shutdown API server: %v", err)
+				}
+				cancel()
+				close(a.done)
+				return
+			}
+		}
+	}()
+	return &a
+}
+
+func (a *DataFeedAPI) Done() <-chan struct{} {
+	return a.done
+}
+
+func (a *DataFeedAPI) routes() chi.Router {
+	r := chi.NewRouter()
+	r.Get("/status", a.status)
+	r.Get("/symbols", a.getSymbols)
+	r.Get("/markets", a.markets)
+	r.Get("/tickers", a.tickers)
+	r.Get(fmt.Sprintf("/ticker/{%s}/{%s}", amountAssetPlaceholder, priceAssetPlaceholder), a.ticker)
+	r.Get(fmt.Sprintf("/trades/{%s}/{%s}/{%s}", amountAssetPlaceholder, priceAssetPlaceholder, limitPlaceholder), a.trades)
+	r.Get(fmt.Sprintf("/trades/{%s}/{%s}/{%s:\\d+}/{%s:\\d+}", amountAssetPlaceholder, priceAssetPlaceholder, fromPlaceholder, toPlaceholder), a.tradesRange)
+	r.Get(fmt.Sprintf("/trades/{%s}/{%s}/{%s:[1-9A-Za-z]+}/{%s:\\d+}", amountAssetPlaceholder, priceAssetPlaceholder, addressPlaceHolder, limitPlaceholder), a.tradesByAddress)
+	r.Get(fmt.Sprintf("/candles/{%s}/{%s}/{%s:\\d+}/{%s:\\d+}", amountAssetPlaceholder, priceAssetPlaceholder, timeFramePlaceholder, limitPlaceholder), a.candles)
+	r.Get(fmt.Sprintf("/candles/{%s}/{%s}/{%s:\\d+}/{%s:\\d+}/{%s:\\d+}", amountAssetPlaceholder, priceAssetPlaceholder, timeFramePlaceholder, fromPlaceholder, toPlaceholder), a.candlesRange)
 	return r
 }
 
-func (a *DataFeedAPI) Status(w http.ResponseWriter, r *http.Request) {
+func (a *DataFeedAPI) status(w http.ResponseWriter, r *http.Request) {
 	h, err := a.Storage.Height()
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to complete request: %s", err.Error()), http.StatusInternalServerError)
@@ -101,20 +140,18 @@ func (a *DataFeedAPI) Status(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Failed to marshal status to JSON: %s", err.Error()), http.StatusInternalServerError)
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
 }
 
-func (a *DataFeedAPI) GetSymbols(w http.ResponseWriter, r *http.Request) {
+func (a *DataFeedAPI) getSymbols(w http.ResponseWriter, r *http.Request) {
 	s := a.Symbols.All()
 	err := json.NewEncoder(w).Encode(s)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to marshal Symbols to JSON: %s", err.Error()), http.StatusInternalServerError)
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
 }
 
-func (a *DataFeedAPI) Markets(w http.ResponseWriter, r *http.Request) {
+func (a *DataFeedAPI) markets(w http.ResponseWriter, r *http.Request) {
 	markets, err := a.Storage.Markets()
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to collect Markets: %s", err.Error()), http.StatusInternalServerError)
@@ -157,10 +194,9 @@ func (a *DataFeedAPI) Markets(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Failed to marshal Markets to JSON: %s", err.Error()), http.StatusInternalServerError)
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
 }
 
-func (a *DataFeedAPI) Tickers(w http.ResponseWriter, r *http.Request) {
+func (a *DataFeedAPI) tickers(w http.ResponseWriter, r *http.Request) {
 	markets, err := a.Storage.Markets()
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to collect Tickers: %s", err), http.StatusInternalServerError)
@@ -202,10 +238,9 @@ func (a *DataFeedAPI) Tickers(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Failed to marshal Tickers to JSON: %s", err.Error()), http.StatusInternalServerError)
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
 }
 
-func (a *DataFeedAPI) Ticker(w http.ResponseWriter, r *http.Request) {
+func (a *DataFeedAPI) ticker(w http.ResponseWriter, r *http.Request) {
 	aa := chi.URLParam(r, amountAssetPlaceholder)
 	amountAsset, err := a.Symbols.ParseTicker(aa)
 	if err != nil {
@@ -249,10 +284,9 @@ func (a *DataFeedAPI) Ticker(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Failed to marshal Ticker to JSON: %s", err.Error()), http.StatusInternalServerError)
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
 }
 
-func (a *DataFeedAPI) Trades(w http.ResponseWriter, r *http.Request) {
+func (a *DataFeedAPI) trades(w http.ResponseWriter, r *http.Request) {
 	aa := chi.URLParam(r, amountAssetPlaceholder)
 	amountAsset, err := a.Symbols.ParseTicker(aa)
 	if err != nil {
@@ -301,10 +335,9 @@ func (a *DataFeedAPI) Trades(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Failed to marshal Trades to JSON: %s", err.Error()), http.StatusInternalServerError)
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
 }
 
-func (a *DataFeedAPI) TradesRange(w http.ResponseWriter, r *http.Request) {
+func (a *DataFeedAPI) tradesRange(w http.ResponseWriter, r *http.Request) {
 	aa := chi.URLParam(r, amountAssetPlaceholder)
 	amountAsset, err := a.Symbols.ParseTicker(aa)
 	if err != nil {
@@ -336,14 +369,12 @@ func (a *DataFeedAPI) TradesRange(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	trades, err := a.Storage.TradesRange(amountAsset, priceAsset, uint64(f), uint64(t))
-	fmt.Println(trades)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Bad request: %s", err.Error()), http.StatusInternalServerError)
 		return
 	}
 	tis, err := a.convertToTradesInfos(trades, aai.Decimals, pai.Decimals)
 	sort.Sort(data.TradesByTimestampBackward(tis))
-	fmt.Println(tis)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to convert trades: %s", err.Error()), http.StatusInternalServerError)
 	}
@@ -352,10 +383,9 @@ func (a *DataFeedAPI) TradesRange(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Failed to marshal Trades to JSON: %s", err.Error()), http.StatusInternalServerError)
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
 }
 
-func (a *DataFeedAPI) TradesByAddress(w http.ResponseWriter, r *http.Request) {
+func (a *DataFeedAPI) tradesByAddress(w http.ResponseWriter, r *http.Request) {
 	aa := chi.URLParam(r, amountAssetPlaceholder)
 	amountAsset, err := a.Symbols.ParseTicker(aa)
 	if err != nil {
@@ -410,10 +440,9 @@ func (a *DataFeedAPI) TradesByAddress(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Failed to marshal Trades to JSON: %s", err.Error()), http.StatusInternalServerError)
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
 }
 
-func (a *DataFeedAPI) Candles(w http.ResponseWriter, r *http.Request) {
+func (a *DataFeedAPI) candles(w http.ResponseWriter, r *http.Request) {
 	aa := chi.URLParam(r, amountAssetPlaceholder)
 	amountAsset, err := a.Symbols.ParseTicker(aa)
 	if err != nil {
@@ -491,11 +520,10 @@ func (a *DataFeedAPI) Candles(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Failed to marshal CandleInfos to JSON: %s", err.Error()), http.StatusInternalServerError)
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
 
 }
 
-func (a *DataFeedAPI) CandlesRange(w http.ResponseWriter, r *http.Request) {
+func (a *DataFeedAPI) candlesRange(w http.ResponseWriter, r *http.Request) {
 	aa := chi.URLParam(r, amountAssetPlaceholder)
 	amountAsset, err := a.Symbols.ParseTicker(aa)
 	if err != nil {
@@ -574,7 +602,6 @@ func (a *DataFeedAPI) CandlesRange(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Failed to marshal CandleInfos to JSON: %s", err.Error()), http.StatusInternalServerError)
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
 }
 
 func (a *DataFeedAPI) convertToTradesInfos(trades []data.Trade, amountAssetDecimals, priceAssetDecimals byte) ([]data.TradeInfo, error) {

@@ -3,7 +3,6 @@ package internal
 import (
 	"bufio"
 	"bytes"
-	"context"
 	"encoding/binary"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/cmd/wmd/internal/data"
@@ -17,15 +16,15 @@ import (
 )
 
 type Importer struct {
-	rootContext context.Context
-	log         *zap.SugaredLogger
-	storage     *state.Storage
-	scheme      byte
-	matcher     crypto.PublicKey
+	interruptChannel <-chan struct{}
+	log              *zap.SugaredLogger
+	storage          *state.Storage
+	scheme           byte
+	matcher          crypto.PublicKey
 }
 
-func NewImporter(ctx context.Context, log *zap.SugaredLogger, scheme byte, storage *state.Storage, matcher crypto.PublicKey) *Importer {
-	return &Importer{rootContext: ctx, log: log, scheme: scheme, storage: storage, matcher: matcher}
+func NewImporter(interrupt <-chan struct{}, log *zap.SugaredLogger, scheme byte, storage *state.Storage, matcher crypto.PublicKey) *Importer {
+	return &Importer{interruptChannel: interrupt, log: log, scheme: scheme, storage: storage, matcher: matcher}
 }
 
 type task struct {
@@ -75,7 +74,7 @@ func (im *Importer) Import(n string) error {
 	thousands := 0
 	for r := range im.worker(tasks) {
 		select {
-		case <-im.rootContext.Done():
+		case <-im.interruptChannel:
 			im.log.Errorf("Aborted")
 			break
 		default:
@@ -115,7 +114,7 @@ func (im *Importer) readBlocks(f io.Reader) <-chan task {
 		buf := make([]byte, 2*1024*1024)
 		for {
 			select {
-			case <-im.rootContext.Done():
+			case <-im.interruptChannel:
 				im.log.Warnf("Block reading aborted")
 				return
 			default:
@@ -167,7 +166,6 @@ func (im *Importer) readBlocks(f io.Reader) <-chan task {
 }
 
 func (im *Importer) worker(tasks <-chan task) <-chan result {
-	ctx := im.rootContext
 	results := make(chan result)
 
 	processTask := func(t task) result {
@@ -180,7 +178,7 @@ func (im *Importer) worker(tasks <-chan task) <-chan result {
 		defer close(results)
 		for t := range tasks {
 			select {
-			case <-ctx.Done():
+			case <-im.interruptChannel:
 				return
 			case results <- processTask(t):
 			}
