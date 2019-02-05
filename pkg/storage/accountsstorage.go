@@ -28,13 +28,13 @@ type Iterator interface {
 	Release()
 }
 
-type AccountKeyVal interface {
+type IterableKeyVal interface {
 	KeyValue
 	NewKeyIterator(prefix []byte) (Iterator, error)
 }
 
 type AccountsStorage struct {
-	globalStor  AccountKeyVal // AddrIndex+AssetIndex -> [(blockID, balance), (blockID, balance), ...]
+	globalStor  KeyValue // AddrIndex+AssetIndex -> [(blockID, balance), (blockID, balance), ...]
 	addr2Index  KeyValue
 	asset2Index KeyValue
 	validIDs    map[crypto.Signature]struct{}
@@ -70,39 +70,41 @@ func initIndexStores(addr2Index, asset2Index KeyValue) error {
 	if !has {
 		lastBuf := make([]byte, 4)
 		binary.LittleEndian.PutUint32(lastBuf, 0)
-		if err := addr2Index.Put(lastKey, lastBuf); err != nil {
+		if err := asset2Index.Put(lastKey, lastBuf); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func NewAccountsStorage(globalStor AccountKeyVal, addr2Index, asset2Index KeyValue, blockIdsFile string) (*AccountsStorage, error) {
-	blockIDs, err := os.Open(blockIdsFile)
-	if err != nil {
-		return nil, errors.Errorf("Failed to open block IDs file: %v\n", err)
-	}
+func NewAccountsStorage(globalStor, addr2Index, asset2Index KeyValue, blockIdsFile string) (*AccountsStorage, error) {
 	validIDs := make(map[crypto.Signature]struct{})
-	idBuf := make([]byte, crypto.SignatureSize)
-	r := bufio.NewReader(blockIDs)
-	// Copy block IDs to in-memory map.
-	for {
-		if n, err := io.ReadFull(r, idBuf); err != nil {
-			if err != io.EOF {
-				return nil, errors.Errorf("Can not read block IDs from file: %v\n", err)
-			}
-			break
-		} else if n != crypto.SignatureSize {
-			return nil, errors.New("Can not read ID of proper size from file")
-		}
-		blockID, err := toBlockID(idBuf)
+	if blockIdsFile != "" {
+		blockIDs, err := os.Open(blockIdsFile)
 		if err != nil {
-			return nil, err
+			return nil, errors.Errorf("Failed to open block IDs file: %v\n", err)
 		}
-		validIDs[blockID] = Empty
-	}
-	if err := blockIDs.Close(); err != nil {
-		return nil, errors.Errorf("Failed to close block IDs file: %v\n", err)
+		idBuf := make([]byte, crypto.SignatureSize)
+		r := bufio.NewReader(blockIDs)
+		// Copy block IDs to in-memory map.
+		for {
+			if n, err := io.ReadFull(r, idBuf); err != nil {
+				if err != io.EOF {
+					return nil, errors.Errorf("Can not read block IDs from file: %v\n", err)
+				}
+				break
+			} else if n != crypto.SignatureSize {
+				return nil, errors.New("Can not read ID of proper size from file")
+			}
+			blockID, err := toBlockID(idBuf)
+			if err != nil {
+				return nil, err
+			}
+			validIDs[blockID] = Empty
+		}
+		if err := blockIDs.Close(); err != nil {
+			return nil, errors.Errorf("Failed to close block IDs file: %v\n", err)
+		}
 	}
 	if err := initIndexStores(addr2Index, asset2Index); err != nil {
 		return nil, errors.Errorf("Failed to initialise index store: %v\n", err)
@@ -136,6 +138,13 @@ func (s *AccountsStorage) getKey(addr proto.Address, asset []byte) ([]byte, erro
 		if err := s.addr2Index.Put(lastKey, addrIndex); err != nil {
 			return nil, err
 		}
+		if err := s.addr2Index.Put(addr[:], addrIndex); err != nil {
+			return nil, err
+		}
+	}
+	if asset == nil {
+		// Waves.
+		return addrIndex, nil
 	}
 	has, err = s.asset2Index.Has(asset)
 	if err != nil {
@@ -155,6 +164,9 @@ func (s *AccountsStorage) getKey(addr proto.Address, asset []byte) ([]byte, erro
 		lastVal := binary.LittleEndian.Uint32(last)
 		binary.LittleEndian.PutUint32(assetIndex, lastVal+1)
 		if err := s.asset2Index.Put(lastKey, assetIndex); err != nil {
+			return nil, err
+		}
+		if err := s.asset2Index.Put(asset, assetIndex); err != nil {
 			return nil, err
 		}
 	}
@@ -195,13 +207,15 @@ func (s *AccountsStorage) AccountBalance(addr proto.Address, asset []byte) (uint
 		// TODO: think about this scenario.
 		return 0, nil
 	}
-	has, err = s.asset2Index.Has(asset)
-	if err != nil {
-		return 0, errors.Errorf("Failed to check if asset exists: %v\n", err)
-	}
-	if !has {
-		// TODO: think about this scenario.
-		return 0, nil
+	if asset != nil {
+		has, err = s.asset2Index.Has(asset)
+		if err != nil {
+			return 0, errors.Errorf("Failed to check if asset exists: %v\n", err)
+		}
+		if !has {
+			// TODO: think about this scenario.
+			return 0, nil
+		}
 	}
 	key, err := s.getKey(addr, asset)
 	if err != nil {
