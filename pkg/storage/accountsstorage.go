@@ -173,29 +173,29 @@ func (s *AccountsStorage) getKey(addr proto.Address, asset []byte) ([]byte, erro
 	return append(addrIndex, assetIndex...), nil
 }
 
-func (s *AccountsStorage) filterState(stateKey []byte, state []byte) error {
+func (s *AccountsStorage) filterState(stateKey []byte, state []byte) ([]byte, error) {
 	for i := len(state); i >= RECORD_SIZE; i -= RECORD_SIZE {
 		record := state[i-RECORD_SIZE : i]
 		idBytes := record[len(record)-crypto.SignatureSize:]
 		blockID, err := toBlockID(idBytes)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		if _, ok := s.validIDs[blockID]; ok {
-			return nil
+			return state, nil
 		} else {
 			// Erase invalid (outdated due to rollbacks) record.
 			state = state[:i-RECORD_SIZE]
 			if err := s.globalStor.Put(stateKey, state); err != nil {
-				return err
+				return nil, err
 			}
 		}
 	}
 	// If we are here, there were no valid records in state, so it should be removed.
 	if err := s.globalStor.Delete(stateKey); err != nil {
-		return err
+		return nil, err
 	}
-	return nil
+	return state, nil
 }
 
 func (s *AccountsStorage) AccountBalance(addr proto.Address, asset []byte) (uint64, error) {
@@ -226,7 +226,8 @@ func (s *AccountsStorage) AccountBalance(addr proto.Address, asset []byte) (uint
 		return 0, errors.Errorf("Failed to get state for given key: %v\n", err)
 	}
 	// Delete invalid records.
-	if err := s.filterState(key, state); err != nil {
+	state, err = s.filterState(key, state)
+	if err != nil {
 		return 0, errors.Errorf("Failed to filter state: %v\n", err)
 	}
 	if len(state) == 0 {
@@ -265,7 +266,8 @@ func (s *AccountsStorage) SetAccountBalance(addr proto.Address, asset []byte, ba
 			return err
 		}
 		// Delete invalid records.
-		if err := s.filterState(key, state); err != nil {
+		state, err = s.filterState(key, state)
+		if err != nil {
 			return err
 		}
 		if len(state) >= RECORD_SIZE {

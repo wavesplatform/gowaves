@@ -11,6 +11,10 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
+const (
+	TOTAL_BLOCKS_NUMBER = 200
+)
+
 func createDbDirs() (string, string, string, error) {
 	dbDir0, err := ioutil.TempDir(os.TempDir(), "dbDir0")
 	if err != nil {
@@ -55,18 +59,26 @@ func createAccountsStorage(dbDir0, dbDir1, dbDir2 string) (*AccountsStorage, err
 	return NewAccountsStorage(globalStor, addr2Index, asset2Index, "")
 }
 
-func genAddr(magicNumber int) proto.Address {
+func genAsset(fillWith byte) []byte {
+	asset := make([]byte, crypto.DigestSize, crypto.DigestSize)
+	for i := 0; i < crypto.DigestSize; i++ {
+		asset[i] = fillWith
+	}
+	return asset
+}
+
+func genAddr(fillWith byte) proto.Address {
 	var addr proto.Address
 	for i := 0; i < proto.AddressSize; i++ {
-		addr[i] = byte(magicNumber)
+		addr[i] = fillWith
 	}
 	return addr
 }
 
-func genBlockID(magicNumber int) crypto.Signature {
+func genBlockID(fillWith byte) crypto.Signature {
 	var blockID crypto.Signature
 	for i := 0; i < crypto.SignatureSize; i++ {
-		blockID[i] = byte(magicNumber)
+		blockID[i] = fillWith
 	}
 	return blockID
 }
@@ -123,4 +135,57 @@ func TestBalances(t *testing.T) {
 }
 
 func TestRollbackBlock(t *testing.T) {
+	dbDir0, dbDir1, dbDir2, err := createDbDirs()
+	if err != nil {
+		t.Fatalf("Can not create database directories: %v\n", err)
+	}
+	stor, err := createAccountsStorage(dbDir0, dbDir1, dbDir2)
+	if err != nil {
+		t.Fatalf("Can not create AccountsStorage: %v\n", err)
+	}
+	addr0 := genAddr(0)
+	addr1 := genAddr(1)
+	asset1 := genAsset(1)
+	for i := 0; i < TOTAL_BLOCKS_NUMBER; i++ {
+		blockID := genBlockID(byte(i))
+		if err := stor.SetAccountBalance(addr0, nil, uint64(i), blockID); err != nil {
+			t.Fatalf("Faied to set account balance: %v\n", err)
+		}
+		if err := stor.SetAccountBalance(addr1, nil, uint64(i/2), blockID); err != nil {
+			t.Fatalf("Faied to set account balance: %v\n", err)
+		}
+		if err := stor.SetAccountBalance(addr1, asset1, uint64(i/3), blockID); err != nil {
+			t.Fatalf("Faied to set account balance: %v\n", err)
+		}
+	}
+	for i := TOTAL_BLOCKS_NUMBER - 1; i > 0; i-- {
+		balance0, err := stor.AccountBalance(addr0, nil)
+		if err != nil {
+			t.Fatalf("Failed to retrieve account balance: %v\n", err)
+		}
+		balance1, err := stor.AccountBalance(addr1, nil)
+		if err != nil {
+			t.Fatalf("Failed to retrieve account balance: %v\n", err)
+		}
+		asset1Balance, err := stor.AccountBalance(addr1, asset1)
+		if err != nil {
+			t.Fatalf("Failed to retrieve account balance: %v\n", err)
+		}
+		// Check balances.
+		if balance0 != uint64(i) {
+			t.Errorf("Invalid balance: %d and %d\n", balance0, i)
+		}
+		if balance1 != uint64(i/2) {
+			t.Errorf("Invalid balance: %d and %d\n", balance1, i/2)
+		}
+		if asset1Balance != uint64(i/3) {
+			t.Errorf("Invalid balance: %d and %d\n", asset1Balance, i/3)
+		}
+		// Undo block.
+		blockID := genBlockID(byte(i))
+		if err := stor.RollbackBlock(blockID); err != nil {
+			t.Fatalf("Failed to rollback block: %v\n", err)
+		}
+	}
+	defer cleanDbDirs(dbDir0, dbDir1, dbDir2, t)
 }
