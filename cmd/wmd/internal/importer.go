@@ -284,7 +284,11 @@ func (im *Importer) extractTransactions(d []byte, n int, miner crypto.PublicKey)
 				if err != nil {
 					return nil, nil, nil, nil, nil, wrapErr(err, "CreateAliasV2")
 				}
-				binds = append(binds, data.FromCreateAliasV2(tx))
+				b, err := data.FromCreateAliasV2(im.scheme, tx)
+				if err != nil {
+					return nil, nil, nil, nil, nil, wrapErr(err, "CreateAliasV2")
+				}
+				binds = append(binds, b)
 			}
 		case byte(proto.IssueTransaction):
 			var tx proto.IssueV1
@@ -393,7 +397,11 @@ func (im *Importer) extractTransactions(d []byte, n int, miner crypto.PublicKey)
 			if err != nil {
 				return nil, nil, nil, nil, nil, wrapErr(err, "CreateAliasV1")
 			}
-			binds = append(binds, data.FromCreateAliasV1(tx))
+			b, err := data.FromCreateAliasV1(im.scheme, tx)
+			if err != nil {
+				return nil, nil, nil, nil, nil, wrapErr(err, "CreateAliasV1")
+			}
+			binds = append(binds, b)
 		}
 		d = d[4+s:]
 	}

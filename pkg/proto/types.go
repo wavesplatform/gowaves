@@ -268,6 +268,10 @@ type AssetPair struct {
 	PriceAsset  OptionalAsset `json:"priceAsset"`
 }
 
+type OrderVersion struct {
+	Version byte `json:"version"`
+}
+
 type Order interface {
 	GetVersion() byte
 	GetOrderType() OrderType
@@ -1107,5 +1111,58 @@ func (e *StringDataEntry) UnmarshalJSON(value []byte) error {
 	}
 	e.Key = tmp.K
 	e.Value = tmp.V
+	return nil
+}
+
+//DataEntryType is the assistive structure used to get the type of DataEntry while unmarshal form JSON.
+type DataEntryType struct {
+	Type string `json:"type"`
+}
+
+func guessDataEntryType(dataEntryType DataEntryType) (DataEntry, error) {
+	var r DataEntry
+	switch dataEntryType.Type {
+	case "integer":
+		r = &IntegerDataEntry{}
+	case "boolean":
+		r = &BooleanDataEntry{}
+	case "binary":
+		r = &BinaryDataEntry{}
+	case "string":
+		r = &StringDataEntry{}
+	}
+	if r == nil {
+		return nil, errors.Errorf("unknown value type '%s' of DataEntry", dataEntryType.Type)
+	}
+	return r, nil
+}
+
+// DataEntries the slice of various entries of DataTransaction
+type DataEntries []DataEntry
+
+// UnmarshalJSOL special method to unmarshal DataEntries from JSON with detection of real type of each entry.
+func (e *DataEntries) UnmarshalJSON(data []byte) error {
+	wrapError := func(err error) error { return errors.Wrap(err, "failed to unmarshal DataEntries from JSON") }
+
+	var ets []DataEntryType
+	err := json.Unmarshal(data, &ets)
+	if err != nil {
+		return wrapError(err)
+	}
+
+	entries := make([]DataEntry, len(ets))
+	for i, row := range ets {
+		et, err := guessDataEntryType(row)
+		if err != nil {
+			return wrapError(err)
+		}
+		entries[i] = et
+	}
+
+	err = json.Unmarshal(data, &entries)
+	if err != nil {
+		return wrapError(err)
+	}
+	*e = entries
 	return nil
 }

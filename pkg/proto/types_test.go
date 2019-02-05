@@ -522,6 +522,38 @@ func TestStringDataEntryJSONRoundTrip(t *testing.T) {
 	}
 }
 
+func TestDataEntriesUnmarshalJSON(t *testing.T) {
+	tests := []struct {
+		json     string
+		expected DataEntries
+	}{
+		{"[{\"key\":\"k1\",\"type\":\"integer\",\"value\":12345}]",
+			DataEntries{&IntegerDataEntry{Key: "k1", Value: 12345}},
+		},
+		{"[{\"key\":\"k1\",\"type\":\"integer\",\"value\":12345},{\"key\":\"k2\",\"type\":\"boolean\",\"value\":true}]",
+			DataEntries{&IntegerDataEntry{Key: "k1", Value: 12345}, &BooleanDataEntry{Key: "k2", Value: true}},
+		},
+		{"[{\"key\":\"k1\",\"type\":\"integer\",\"value\":12345},{\"key\":\"k2\",\"type\":\"boolean\",\"value\":true},{\"key\":\"k3\",\"type\":\"binary\",\"value\":\"JH9xFB0dBYAX9BohYq06cMrtwta9mEoaj0aSVpLApyc=\"}]",
+			DataEntries{&IntegerDataEntry{Key: "k1", Value: 12345}, &BooleanDataEntry{Key: "k2", Value: true}, &BinaryDataEntry{Key: "k3", Value: B58Bytes{0x24, 0x7f, 0x71, 0x14, 0x1d, 0x1d, 0x05, 0x80, 0x17, 0xf4, 0x1a, 0x21, 0x62, 0xad, 0x3a, 0x70, 0xca, 0xed, 0xc2, 0xd6, 0xbd, 0x98, 0x4a, 0x1a, 0x8f, 0x46, 0x92, 0x56, 0x92, 0xc0, 0xa7, 0x27}}},
+		},
+		{"[{\"key\":\"k4\",\"type\":\"string\",\"value\":\"blah-blah\"}]",
+			DataEntries{&StringDataEntry{Key: "k4", Value: "blah-blah"}},
+		},
+		{"[{\"key\":\"k1\",\"type\":\"integer\",\"value\":12345},{\"key\":\"k2\",\"type\":\"boolean\",\"value\":true},{\"key\":\"k3\",\"type\":\"binary\",\"value\":\"JH9xFB0dBYAX9BohYq06cMrtwta9mEoaj0aSVpLApyc=\"},{\"key\":\"k4\",\"type\":\"string\",\"value\":\"blah-blah\"}]",
+			DataEntries{&IntegerDataEntry{Key: "k1", Value: 12345}, &BooleanDataEntry{Key: "k2", Value: true}, &BinaryDataEntry{Key: "k3", Value: B58Bytes{0x24, 0x7f, 0x71, 0x14, 0x1d, 0x1d, 0x05, 0x80, 0x17, 0xf4, 0x1a, 0x21, 0x62, 0xad, 0x3a, 0x70, 0xca, 0xed, 0xc2, 0xd6, 0xbd, 0x98, 0x4a, 0x1a, 0x8f, 0x46, 0x92, 0x56, 0x92, 0xc0, 0xa7, 0x27}}, &StringDataEntry{Key: "k4", Value: "blah-blah"}},
+		},
+	}
+	for _, tc := range tests {
+		var entries DataEntries
+		if err := entries.UnmarshalJSON([]byte(tc.json)); assert.NoError(t, err) {
+			if b, err := json.Marshal(entries); assert.NoError(t, err) {
+				assert.Equal(t, tc.json, string(b))
+			}
+			assert.ElementsMatch(t, tc.expected, entries)
+		}
+	}
+}
+
 func TestNewAttachmentFromBase58(t *testing.T) {
 	att, err := NewAttachmentFromBase58("t")
 	require.NoError(t, err)

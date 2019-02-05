@@ -51,7 +51,7 @@ func TestGuessTransaction_Genesis(t *testing.T) {
 	assert.Equal(t, uint64(9999999500000000), genesis.Amount)
 }
 
-var transactionInfoPayment = `
+var transactionInfoExchange = `
 {
   "type": 7,
   "id": "95DEg9uS9Ez2RoAQWsBgW8hDmHEJzWB1nMpPZdSp1JbB",
@@ -105,7 +105,7 @@ var transactionInfoPayment = `
 func TestTransactions_Info(t *testing.T) {
 	id, _ := crypto.NewDigestFromBase58("95DEg9uS9Ez2RoAQWsBgW8hDmHEJzWB1nMpPZdSp1JbB")
 	client, err := NewClient(Options{
-		Client:  NewMockHttpRequestFromString(transactionInfoPayment, 200),
+		Client:  NewMockHttpRequestFromString(transactionInfoExchange, 200),
 		BaseUrl: "https://testnodes.wavesnodes.com",
 	})
 	require.Nil(t, err)
@@ -117,6 +117,57 @@ func TestTransactions_Info(t *testing.T) {
 	assert.NotNil(t, resp)
 	assert.Equal(t, &id, body.(*proto.ExchangeV1).ID)
 	assert.Equal(t, "https://testnodes.wavesnodes.com/transactions/info/95DEg9uS9Ez2RoAQWsBgW8hDmHEJzWB1nMpPZdSp1JbB", resp.Request.URL.String())
+}
+
+var dataTransaction = `
+{
+	"type": 12,
+	"id": "74r5tx5BuhnYP3YQ5jo3RwDcH89gaDEdEc9bjUKPiSa8",
+	"sender": "3P9QNCmT3Q44zRYXBwKN3azBta9azGqrscm",
+	"senderPublicKey": "J48ygzZLEdcR2GbWjjy9eFJDs57Poz6ZajGEyygSMV26",
+	"fee": 10000000,
+	"timestamp": 1548739929686,
+	"proofs": [
+		"2bB5ysJXYBumJiLMbQ3o2gqxES5gydQ4bni3aWGiXwBaBDvLEpDNFLgKuj6UnhtS4LUS9R6yVoSVFoT94RCBvzo",
+		"3PPgSrFX52vYbAtTVrz8nHjmcv3LQhYd3mP"
+	],
+	"version": 1,
+	"data": [
+		{
+			"key": "lastPayment",
+			"type": "string",
+			"value": "GenCSKr8UFrZXrbQ8oAG7W8PDgUY7pe7hrbRmJACuMkS"
+		},
+		{
+			"key": "heightToGetMoney",
+			"type": "integer",
+			"value": 1372374
+		},
+		{
+			"key": "GenCSKr8UFrZXrbQ8oAG7W8PDgUY7pe7hrbRmJACuMkS",
+			"type": "string",
+			"value": "used"
+		}
+	]
+}
+`
+
+func TestTransactionInfoDataTransaction(t *testing.T) {
+	id, _ := crypto.NewDigestFromBase58("74r5tx5BuhnYP3YQ5jo3RwDcH89gaDEdEc9bjUKPiSa8")
+	client, err := NewClient(Options{
+		Client:  NewMockHttpRequestFromString(dataTransaction, 200),
+		BaseUrl: "https://testnodes.wavesnodes.com",
+	})
+	require.Nil(t, err)
+	body, resp, err :=
+		client.Transactions.Info(context.Background(), id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.NotNil(t, resp)
+	assert.Equal(t, &id, body.(*proto.DataV1).ID)
+	assert.Equal(t, "https://testnodes.wavesnodes.com/transactions/info/74r5tx5BuhnYP3YQ5jo3RwDcH89gaDEdEc9bjUKPiSa8", resp.Request.URL.String())
+
 }
 
 var transactionsUnconfirmedInfoJson = `{

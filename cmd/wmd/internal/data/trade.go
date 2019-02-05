@@ -62,58 +62,28 @@ func NewTradeFromExchangeV2(scheme byte, tx proto.ExchangeV2) (Trade, error) {
 	var buyer, seller, matcher proto.Address
 	var err error
 	var amountAsset, priceAsset crypto.Digest
-	switch tx.BuyOrder.GetVersion() {
-	case 1:
-		o, ok := tx.BuyOrder.(proto.OrderV1)
-		if !ok {
-			return Trade{}, errors.New("failed to create Trade from ExchangeV2, incorrect BuyOrder version")
-		}
-		buyTS = o.Timestamp
-		buyer, err = proto.NewAddressFromPublicKey(scheme, o.SenderPK)
-		if err != nil {
-			return Trade{}, wrapError(err)
-		}
-		amountAsset = o.AssetPair.AmountAsset.ID
-		priceAsset = o.AssetPair.PriceAsset.ID
-	case 2:
-		o, ok := tx.BuyOrder.(proto.OrderV2)
-		if !ok {
-			return Trade{}, errors.New("failed to create Trade from ExchangeV2, incorrect BuyOrder version")
-		}
-		buyTS = o.Timestamp
-		buyer, err = proto.NewAddressFromPublicKey(scheme, o.SenderPK)
-		if err != nil {
-			return Trade{}, wrapError(err)
-		}
-		amountAsset = o.AssetPair.AmountAsset.ID
-		priceAsset = o.AssetPair.PriceAsset.ID
-	default:
-		return Trade{}, errors.New("unsupported version of BuyOrder")
+
+	ap, pk, buyTS, err := extractOrderParameters(tx.BuyOrder)
+	if err != nil {
+		return Trade{}, wrapError(err)
 	}
-	switch tx.SellOrder.GetVersion() {
-	case 1:
-		o, ok := tx.SellOrder.(proto.OrderV1)
-		if !ok {
-			return Trade{}, errors.New("failed to create Trade from ExchangeV2, incorrect SellOrder version")
-		}
-		sellTS = o.Timestamp
-		seller, err = proto.NewAddressFromPublicKey(scheme, o.SenderPK)
-		if err != nil {
-			return Trade{}, wrapError(err)
-		}
-	case 2:
-		o, ok := tx.SellOrder.(proto.OrderV2)
-		if !ok {
-			return Trade{}, errors.New("failed to create Trade from ExchangeV2, incorrect SellOrder version")
-		}
-		buyTS = o.Timestamp
-		seller, err = proto.NewAddressFromPublicKey(scheme, o.SenderPK)
-		if err != nil {
-			return Trade{}, wrapError(err)
-		}
-	default:
-		return Trade{}, errors.New("unsupported version of SellOrder")
+	buyer, err = proto.NewAddressFromPublicKey(scheme, pk)
+	if err != nil {
+		return Trade{}, wrapError(err)
 	}
+	amountAsset = ap.AmountAsset.ID
+	priceAsset = ap.PriceAsset.ID
+
+	ap, pk, sellTS, err = extractOrderParameters(tx.SellOrder)
+	if err != nil {
+		return Trade{}, wrapError(err)
+	}
+	seller, err = proto.NewAddressFromPublicKey(scheme, pk)
+	if err != nil {
+		return Trade{}, wrapError(err)
+	}
+	amountAsset = ap.AmountAsset.ID
+	priceAsset = ap.PriceAsset.ID
 	orderType := 1
 	if buyTS > sellTS {
 		orderType = 0
