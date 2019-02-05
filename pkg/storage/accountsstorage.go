@@ -13,6 +13,7 @@ import (
 
 const (
 	ROLLBACK_MAX_BLOCKS = 2000
+	RECORD_SIZE         = crypto.SignatureSize + 8
 )
 
 var (
@@ -40,6 +41,15 @@ type AccountsStorage struct {
 }
 
 var Empty struct{}
+
+func toBlockID(bytes []byte) (crypto.Signature, error) {
+	var res crypto.Signature
+	if len(bytes) != crypto.SignatureSize {
+		return res, errors.New("Failed to convert bytes to block ID: invalid length of bytes.")
+	}
+	copy(res[:], bytes)
+	return res, nil
+}
 
 func initIndexStores(addr2Index, asset2Index KeyValue) error {
 	has, err := addr2Index.Has(lastKey)
@@ -85,8 +95,10 @@ func NewAccountsStorage(globalStor AccountKeyVal, addr2Index, asset2Index KeyVal
 		} else if n != crypto.SignatureSize {
 			return nil, errors.New("Can not read ID of proper size from file")
 		}
-		var blockID crypto.Signature
-		copy(blockID[:], idBuf)
+		blockID, err := toBlockID(idBuf)
+		if err != nil {
+			return nil, err
+		}
 		validIDs[blockID] = Empty
 	}
 	if err := blockIDs.Close(); err != nil {
@@ -150,17 +162,18 @@ func (s *AccountsStorage) getKey(addr proto.Address, asset []byte) ([]byte, erro
 }
 
 func (s *AccountsStorage) filterState(stateKey []byte, state []byte) error {
-	recordSize := crypto.SignatureSize + 8
-	for i := len(state); i >= recordSize; i -= recordSize {
-		record := state[i-recordSize : i]
+	for i := len(state); i >= RECORD_SIZE; i -= RECORD_SIZE {
+		record := state[i-RECORD_SIZE : i]
 		idBytes := record[len(record)-crypto.SignatureSize:]
-		var blockID crypto.Signature
-		copy(blockID[:], idBytes)
+		blockID, err := toBlockID(idBytes)
+		if err != nil {
+			return err
+		}
 		if _, ok := s.validIDs[blockID]; ok {
 			return nil
 		} else {
 			// Erase invalid (outdated due to rollbacks) record.
-			state = state[:i-recordSize]
+			state = state[:i-RECORD_SIZE]
 			if err := s.globalStor.Put(stateKey, state); err != nil {
 				return err
 			}
@@ -219,6 +232,7 @@ func (s *AccountsStorage) SetAccountBalance(addr proto.Address, asset []byte, ba
 	if _, ok := s.validIDs[blockID]; !ok {
 		s.validIDs[blockID] = Empty
 	}
+	// Prepare new record.
 	balanceBuf := make([]byte, 8)
 	binary.LittleEndian.PutUint64(balanceBuf, balance)
 	newRecord := append(balanceBuf, blockID[:]...)
@@ -226,9 +240,13 @@ func (s *AccountsStorage) SetAccountBalance(addr proto.Address, asset []byte, ba
 	if err != nil {
 		return err
 	}
-	if has {
+	var state []byte
+	if !has {
+		// New state.
+		state = newRecord
+	} else {
 		// Get current state.
-		state, err := s.globalStor.Get(key)
+		state, err = s.globalStor.Get(key)
 		if err != nil {
 			return err
 		}
@@ -236,16 +254,27 @@ func (s *AccountsStorage) SetAccountBalance(addr proto.Address, asset []byte, ba
 		if err := s.filterState(key, state); err != nil {
 			return err
 		}
-		// Append new record to the end.
-		state = append(state, newRecord...)
-		if err := s.globalStor.Put(key, state); err != nil {
-			return err
+		if len(state) >= RECORD_SIZE {
+			lastRecord := state[len(state)-RECORD_SIZE:]
+			idBytes := lastRecord[len(lastRecord)-crypto.SignatureSize:]
+			lastBlockID, err := toBlockID(idBytes)
+			if err != nil {
+				return err
+			}
+			if lastBlockID == blockID {
+				// If the last record is the same block, rewrite it.
+				copy(state[len(state)-RECORD_SIZE:], newRecord)
+			} else {
+				// Append new record to the end.
+				state = append(state, newRecord...)
+			}
+		} else {
+			// State is empty after filtering, new record is the first one.
+			state = newRecord
 		}
-	} else {
-		// Add first record (new state).
-		if err := s.globalStor.Put(key, newRecord); err != nil {
-			return err
-		}
+	}
+	if err := s.globalStor.Put(key, state); err != nil {
+		return err
 	}
 	return nil
 }
