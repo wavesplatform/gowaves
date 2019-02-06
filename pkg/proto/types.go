@@ -1020,7 +1020,7 @@ func (e BinaryDataEntry) MarshalJSON() ([]byte, error) {
 	return json.Marshal(&struct {
 		K string `json:"key"`
 		T string `json:"type"`
-		V []byte `json:"value"`
+		V Script `json:"value"`
 	}{e.Key, e.GetValueType().String(), e.Value})
 }
 
@@ -1029,7 +1029,7 @@ func (e *BinaryDataEntry) UnmarshalJSON(value []byte) error {
 	tmp := struct {
 		K string `json:"key"`
 		T string `json:"type"`
-		V []byte `json:"value"`
+		V Script `json:"value"`
 	}{}
 	if err := json.Unmarshal(value, &tmp); err != nil {
 		return errors.Wrap(err, "failed to deserialize binary data entry from JSON")
@@ -1172,6 +1172,7 @@ func (e *DataEntries) UnmarshalJSON(data []byte) error {
 }
 
 const scriptPrefix = "base64:"
+
 var scriptPrefixBytes = []byte(scriptPrefix)
 
 type Script []byte
@@ -1202,7 +1203,7 @@ func (s *Script) UnmarshalJSON(value []byte) error {
 	if value[0] != '"' || value[len(value)-1] != '"' {
 		return wrapError(errors.New("no quotes"))
 	}
-	value = value[1:len(value)-1]
+	value = value[1 : len(value)-1]
 	if !bytes.Equal(value[0:7], scriptPrefixBytes) {
 		return wrapError(errors.New("no prefix"))
 	}

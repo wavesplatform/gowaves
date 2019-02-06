@@ -3001,6 +3001,7 @@ func TestDataV1ToJSON(t *testing.T) {
 					sb.WriteRune('"')
 					sb.WriteString(",\"value\":")
 					sb.WriteRune('"')
+					sb.WriteString("base64:")
 					sb.WriteString(base64.StdEncoding.EncodeToString(v))
 					sb.WriteRune('"')
 				case String:
