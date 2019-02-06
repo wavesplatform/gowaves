@@ -21,11 +21,11 @@ func NewTransactionValidator(genesis crypto.Signature, state AccountsState) (*Tr
 
 func (tv *TransactionValidator) IsSupported(tx Transaction) bool {
 	switch v := tx.(type) {
-	case Genesis:
+	case *Genesis:
 		return true
-	case Payment:
+	case *Payment:
 		return true
-	case TransferV1:
+	case *TransferV1:
 		if v.FeeAsset.Present || v.AmountAsset.Present {
 			// Only Waves for now.
 			return false
@@ -35,7 +35,7 @@ func (tv *TransactionValidator) IsSupported(tx Transaction) bool {
 			return false
 		}
 		return true
-	case TransferV2:
+	case *TransferV2:
 		if v.FeeAsset.Present || v.AmountAsset.Present {
 			// Only Waves for now.
 			return false
@@ -53,7 +53,7 @@ func (tv *TransactionValidator) IsSupported(tx Transaction) bool {
 
 func (tv *TransactionValidator) ValidateTransaction(block *Block, tx Transaction, initialisation bool) error {
 	switch v := tx.(type) {
-	case Genesis:
+	case *Genesis:
 		if block.BlockSignature == tv.genesis {
 			if !initialisation {
 				return errors.New("Trying to add genesis transaction in new block")
@@ -62,7 +62,7 @@ func (tv *TransactionValidator) ValidateTransaction(block *Block, tx Transaction
 		} else {
 			return errors.New("Tried to add genesis transaction inside of non-genesis block")
 		}
-	case Payment:
+	case *Payment:
 		if !initialisation {
 			return errors.New("Trying to add payment transaction in new block")
 		}
@@ -75,10 +75,10 @@ func (tv *TransactionValidator) ValidateTransaction(block *Block, tx Transaction
 			return errors.New("Invalid transaction signature")
 		}
 		// Check amount and fee lower bound.
-		if v.Amount < 0 {
+		if v.Amount <= 0 {
 			return errors.New("Negative amount in transaction")
 		}
-		if v.Fee < 0 {
+		if v.Fee <= 0 {
 			return errors.New("Negative fee in transaction")
 		}
 		// Verify the amount spent (amount and fee upper bound).
@@ -95,7 +95,7 @@ func (tv *TransactionValidator) ValidateTransaction(block *Block, tx Transaction
 			return errors.New("Transaction verification failed: spending more than current balance.")
 		}
 		return nil
-	case TransferV1:
+	case *TransferV1:
 		ok, err := v.Verify(v.SenderPK)
 		if err != nil {
 			return errors.Wrap(err, "Failed to verify transaction signature")
@@ -104,10 +104,10 @@ func (tv *TransactionValidator) ValidateTransaction(block *Block, tx Transaction
 			return errors.New("Invalid transaction signature")
 		}
 		// Check amount and fee lower bound.
-		if v.Amount < 0 {
+		if v.Amount <= 0 {
 			return errors.New("Negative amount in transaction")
 		}
-		if v.Fee < 0 {
+		if v.Fee <= 0 {
 			return errors.New("Negative fee in transaction")
 		}
 		// Verify the amount spent (amount and fee upper bound).
@@ -130,7 +130,7 @@ func (tv *TransactionValidator) ValidateTransaction(block *Block, tx Transaction
 			return errors.New("Invalid transaction: not eough to pay the fee provided")
 		}
 		return nil
-	case TransferV2:
+	case *TransferV2:
 		ok, err := v.Verify(v.SenderPK)
 		if err != nil {
 			return errors.Wrap(err, "Failed to verify transaction signature")
@@ -139,10 +139,10 @@ func (tv *TransactionValidator) ValidateTransaction(block *Block, tx Transaction
 			return errors.New("Invalid transaction signature")
 		}
 		// Check amount and fee lower bound.
-		if v.Amount < 0 {
+		if v.Amount <= 0 {
 			return errors.New("Negative amount in transaction")
 		}
-		if v.Fee < 0 {
+		if v.Fee <= 0 {
 			return errors.New("Negative fee in transaction")
 		}
 		// Verify the amount spent (amount and fee upper bound).

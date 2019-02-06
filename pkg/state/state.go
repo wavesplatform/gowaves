@@ -77,7 +77,7 @@ func (s *StateManager) GetBlockByHeight(height uint64) (*proto.Block, error) {
 func (s *StateManager) performTransaction(block *proto.Block, tx proto.Transaction) error {
 	blockID := block.BlockSignature
 	switch v := tx.(type) {
-	case proto.Genesis:
+	case *proto.Genesis:
 		receiverBalance, err := s.accountsStorage.AccountBalance(v.Recipient, nil)
 		if err != nil {
 			return err
@@ -87,7 +87,7 @@ func (s *StateManager) performTransaction(block *proto.Block, tx proto.Transacti
 			return err
 		}
 		return nil
-	case proto.Payment:
+	case *proto.Payment:
 		senderAddr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, v.SenderPK)
 		if err != nil {
 			return err
@@ -124,7 +124,7 @@ func (s *StateManager) performTransaction(block *proto.Block, tx proto.Transacti
 			return err
 		}
 		return nil
-	case proto.TransferV1:
+	case *proto.TransferV1:
 		senderAddr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, v.SenderPK)
 		if err != nil {
 			return err
@@ -176,7 +176,7 @@ func (s *StateManager) performTransaction(block *proto.Block, tx proto.Transacti
 			return err
 		}
 		return nil
-	case proto.TransferV2:
+	case *proto.TransferV2:
 		senderAddr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, v.SenderPK)
 		if err != nil {
 			return err
