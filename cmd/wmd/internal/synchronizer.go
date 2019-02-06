@@ -138,7 +138,12 @@ func (s *Synchronizer) applyBlocks(start, end int) error {
 	return nil
 }
 
+var emptySignature = crypto.Signature{}
+
 func (s *Synchronizer) applyBlock(height int, id crypto.Signature, txs client.TransactionsField, count int, miner proto.Address) error {
+	if bytes.Equal(id[:], emptySignature[:]) {
+		return errors.Errorf("Empty block signature at height: %d", height)
+	}
 	s.log.Infof("Applying block '%s' at %d containing %d transactions", id.String(), height, count)
 	trades, issues, assets, accounts, aliases, err := s.extractTransactions(txs, miner)
 	if err != nil {

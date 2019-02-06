@@ -319,7 +319,7 @@ func (a *DataFeedAPI) trades(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Failed to load AssetInfo: %s", err.Error()), http.StatusInternalServerError)
 		return
 	}
-	ts, err := a.Storage.Trades(amountAsset, priceAsset, limit)
+	ts, err := a.Storage.Trades(amountAsset, priceAsset, 2*limit)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to load Trades: %s", err.Error()), http.StatusInternalServerError)
 		return
@@ -330,7 +330,7 @@ func (a *DataFeedAPI) trades(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	sort.Sort(data.TradesByTimestampBackward(tis))
-	err = json.NewEncoder(w).Encode(tis)
+	err = json.NewEncoder(w).Encode(tis[:limit])
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to marshal Trades to JSON: %s", err.Error()), http.StatusInternalServerError)
 		return
