@@ -30,16 +30,14 @@ type Synchronizer struct {
 	ticker    *time.Ticker
 }
 
-const (
-	heightCheckInterval = 1
-)
-
-func NewSynchronizer(interrupt <-chan struct{}, log *zap.SugaredLogger, storage *state.Storage, scheme byte, matcher crypto.PublicKey, node url.URL) (*Synchronizer, error) {
+func NewSynchronizer(interrupt <-chan struct{}, log *zap.SugaredLogger, storage *state.Storage, scheme byte, matcher crypto.PublicKey, node url.URL, interval int) (*Synchronizer, error) {
 	c, err := client.NewClient(client.Options{BaseUrl: node.String(), Client: &http.Client{}})
 	if err != nil {
 		return nil, errors.Wrapf(err, "Failed to create new synchronizer")
 	}
-	t := time.NewTicker(time.Duration(heightCheckInterval) * time.Second)
+	d := time.Duration(interval) * time.Second
+	t := time.NewTicker(d)
+	log.Infof("Synchronization interval set to %v", d)
 	done := make(chan struct{})
 	s := Synchronizer{interrupt: interrupt, done: done, client: c, log: log, storage: storage, scheme: scheme, matcher: matcher, mu: new(sync.RWMutex), active: false, ticker: t}
 	go s.run()

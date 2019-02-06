@@ -21,7 +21,10 @@ import (
 
 var version = "0.0.0"
 
-const defaultScheme = "http"
+const (
+	defaultScheme = "http"
+	defaultSyncInterval = 10
+)
 
 func run() error {
 	// Parse command line parameters and set up configuration
@@ -29,6 +32,7 @@ func run() error {
 		logLevel       = flag.String("log-level", "INFO", "Logging level. Supported levels: DEBUG, INFO, WARN, ERROR, FATAL. Default logging level INFO.")
 		importFile     = flag.String("import-file", "", "Path to binary blockchain file to import before starting synchronization.")
 		node           = flag.String("node", "http://127.0.0.1:6869", "URL of node API. Default value http://127.0.0.1:6869.")
+		interval       = flag.Int("sync-interval", defaultSyncInterval, "Synchronization interval, seconds.")
 		address        = flag.String("address", ":6990", "Local network address to bind HTTP API of the service.")
 		db             = flag.String("db", "", "Path to data base.")
 		matcher        = flag.String("matcher", "7kPFrHDiGw1rCm7LPszuECwWYL3dMf6iMifLRDJQZMzy", "Matcher's public key in form of Base58 string.")
@@ -98,6 +102,10 @@ func run() error {
 	if err != nil {
 		log.Errorf("Failed to parse node's API address: %s", err.Error())
 		return err
+	}
+
+	if *interval <= 0 {
+		*interval = defaultSyncInterval
 	}
 
 	if *db == "" {
@@ -197,7 +205,7 @@ func run() error {
 
 	var synchronizerDone <-chan struct{}
 	if url != nil {
-		s, err := internal.NewSynchronizer(interrupt, log, &storage, sch, matcherPK, *url)
+		s, err := internal.NewSynchronizer(interrupt, log, &storage, sch, matcherPK, *url, *interval)
 		if err != nil {
 			log.Errorf("Failed to start synchronization: %v", err)
 			return err
