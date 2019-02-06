@@ -5,14 +5,13 @@ import (
 	"encoding/binary"
 	"flag"
 	"io"
-	"io/ioutil"
 	"log"
 	"os"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
-	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"github.com/wavesplatform/gowaves/pkg/storage"
+	"github.com/wavesplatform/gowaves/pkg/util"
 )
 
 const (
@@ -57,14 +56,6 @@ func Import(nBlocks int, manager *state.StateManager) error {
 	return nil
 }
 
-func createBlockReadWriter(dbDir, rwDir string, offsetLen, headerOffsetLen int) (*storage.BlockReadWriter, error) {
-	keyVal, err := keyvalue.NewKeyVal(dbDir, *batchSize)
-	if err != nil {
-		return nil, err
-	}
-	return storage.NewBlockReadWriter(rwDir, offsetLen, headerOffsetLen, keyVal)
-}
-
 func main() {
 	flag.Parse()
 	if len(*blockchainPath) == 0 {
@@ -73,28 +64,27 @@ func main() {
 	if len(*genesisSig) == 0 {
 		log.Fatalf("You must specify genesis-sig option.")
 	}
-
-	dbDir, err := ioutil.TempDir(os.TempDir(), "db_dir")
+	rw, rwPath, err := storage.CreateTestBlockReadWriter(*batchSize, 8, 8)
 	if err != nil {
-		log.Fatalf("Can not create dir for test data: %v\n", err)
+		log.Fatalf("CreateTesBlockReadWriter: %v\n", err)
 	}
-	rwDir, err := ioutil.TempDir(os.TempDir(), "rw_dir")
+	idsFile, err := rw.BlockIdsFilePath()
 	if err != nil {
-		log.Fatalf("Can not create dir for test data: %v\n", err)
+		log.Fatalf("Failed to get path of ids file: %v\n", err)
 	}
-	rw, err := createBlockReadWriter(dbDir, rwDir, 8, 8)
+	stor, storPath, err := storage.CreateTestAccountsStorage(idsFile)
 	if err != nil {
-		log.Fatalf("createBlockReadWriter: %v\n", err)
+		log.Fatalf("CreateTestAccountStorage: %v\n", err)
 	}
 
 	defer func() {
 		if err := rw.Close(); err != nil {
 			log.Fatalf("Failed to close BlockReadWriter: %v\n", err)
 		}
-		if err := os.RemoveAll(dbDir); err != nil {
+		if err := util.CleanTemporaryDirs(rwPath); err != nil {
 			log.Fatalf("Failed to clean data dirs: %v\n", err)
 		}
-		if err := os.RemoveAll(rwDir); err != nil {
+		if err := util.CleanTemporaryDirs(storPath); err != nil {
 			log.Fatalf("Failed to clean data dirs: %v\n", err)
 		}
 	}()
@@ -103,7 +93,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to decode genesis signature: %v\n", err)
 	}
-	manager, err := state.NewStateManager(genesis, nil, rw)
+	manager, err := state.NewStateManager(genesis, stor, rw)
 	if err != nil {
 		log.Fatalf("Failed to create state manager.\n")
 	}
