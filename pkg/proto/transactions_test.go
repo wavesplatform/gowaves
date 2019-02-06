@@ -427,15 +427,16 @@ func TestIssueV2ToJSON(t *testing.T) {
 		script     string
 		fee        uint64
 	}{
-		{'T', "TOKEN", "This is a valid description for the token", 12345, 4, true, "AQQAAAAEaW5hbAIAAAAESW5hbAQAAAAFZWxlbmECAAAAB0xlbnVza2EEAAAABGxvdmUCAAAAC0luYWxMZW51c2thCQAAAAAAAAIJAAEsAAAAAgUAAAAEaW5hbAUAAAAFZWxlbmEFAAAABGxvdmV4ZFt5", 100000},
-		{'W', "SHMOKEN", "This is a valid description for the token", 100000, 8, false, "", 100000},
-		{'X', "POKEN", "This is a valid description for the token", 9876543210, 2, true, "AQQAAAAEaW5hbAIAAAAESW5hbAQAAAAFZWxlbmECAAAAB0xlbnVza2EEAAAABGxvdmUCAAAAC0luYWxMZW51c2thCQAAAAAAAAIJAAEsAAAAAgUAAAAEaW5hbAUAAAAFZWxlbmEFAAAABGxvdmV4ZFt5", 123456},
+		{'T', "TOKEN", "This is a valid description for the token", 12345, 4, true, "base64:AQQAAAAEaW5hbAIAAAAESW5hbAQAAAAFZWxlbmECAAAAB0xlbnVza2EEAAAABGxvdmUCAAAAC0luYWxMZW51c2thCQAAAAAAAAIJAAEsAAAAAgUAAAAEaW5hbAUAAAAFZWxlbmEFAAAABGxvdmV4ZFt5", 100000},
+		{'W', "SHMOKEN", "This is a valid description for the token", 100000, 8, false, "base64:", 100000},
+		{'X', "POKEN", "This is a valid description for the token", 9876543210, 2, true, "base64:AQQAAAAEaW5hbAIAAAAESW5hbAQAAAAFZWxlbmECAAAAB0xlbnVza2EEAAAABGxvdmUCAAAAC0luYWxMZW51c2thCQAAAAAAAAIJAAEsAAAAAgUAAAAEaW5hbAUAAAAFZWxlbmEFAAAABGxvdmV4ZFt5", 123456},
 	}
 	seed, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
 	sk, pk := crypto.GenerateKeyPair(seed)
 	for _, tc := range tests {
 		ts := uint64(time.Now().UnixNano() / 1000000)
-		s, _ := base64.StdEncoding.DecodeString(tc.script)
+		s, err := base64.StdEncoding.DecodeString(tc.script[7:])
+		require.NoError(t, err)
 		if tx, err := NewUnsignedIssueV2(tc.chain, pk, tc.name, tc.desc, tc.quantity, tc.decimals, tc.reissuable, s, ts, tc.fee); assert.NoError(t, err) {
 			if j, err := json.Marshal(tx); assert.NoError(t, err) {
 				ej := fmt.Sprintf("{\"type\":3,\"version\":2,\"senderPublicKey\":\"%s\",\"name\":\"%s\",\"description\":\"%s\",\"quantity\":%d,\"decimals\":%d,\"reissuable\":%v,\"script\":\"%s\",\"fee\":%d,\"timestamp\":%d}",
@@ -3170,14 +3171,15 @@ func TestSetScriptV1ToJSON(t *testing.T) {
 		script  string
 		fee     uint64
 	}{
-		{'W', "AQQAAAAEaW5hbAIAAAAESW5hbAQAAAAFZWxlbmECAAAAB0xlbnVza2EEAAAABGxvdmUCAAAAC0luYWxMZW51c2thCQAAAAAAAAIJAAEsAAAAAgUAAAAEaW5hbAUAAAAFZWxlbmEFAAAABGxvdmV4ZFt5", 1234567890},
-		{'T', "", 9876543210},
+		{'W', "base64:AQQAAAAEaW5hbAIAAAAESW5hbAQAAAAFZWxlbmECAAAAB0xlbnVza2EEAAAABGxvdmUCAAAAC0luYWxMZW51c2thCQAAAAAAAAIJAAEsAAAAAgUAAAAEaW5hbAUAAAAFZWxlbmEFAAAABGxvdmV4ZFt5", 1234567890},
+		{'T', "base64:", 9876543210},
 	}
 	seed, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
 	sk, pk := crypto.GenerateKeyPair(seed)
 	for _, tc := range tests {
 		ts := uint64(time.Now().UnixNano() / 1000000)
-		s, _ := base64.StdEncoding.DecodeString(tc.script)
+		s, err := base64.StdEncoding.DecodeString(tc.script[7:])
+		require.NoError(t, err)
 		if tx, err := NewUnsignedSetScriptV1(tc.chainID, pk, s, tc.fee, ts); assert.NoError(t, err) {
 			if j, err := json.Marshal(tx); assert.NoError(t, err) {
 				ej := fmt.Sprintf("{\"type\":13,\"version\":1,\"senderPublicKey\":\"%s\",\"script\":\"%s\",\"fee\":%d,\"timestamp\":%d}", base58.Encode(pk[:]), tc.script, tc.fee, ts)
@@ -3423,15 +3425,17 @@ func TestSetAssetScriptV1ToJSON(t *testing.T) {
 		script  string
 		fee     uint64
 	}{
-		{'W', "J8shEVBrQ4BLqsuYw5j6vQGCFJGMLBxr5nu2XvUWFEAR", "AQQAAAAEaW5hbAIAAAAESW5hbAQAAAAFZWxlbmECAAAAB0xlbnVza2EEAAAABGxvdmUCAAAAC0luYWxMZW51c2thCQAAAAAAAAIJAAEsAAAAAgUAAAAEaW5hbAUAAAAFZWxlbmEFAAAABGxvdmV4ZFt5", 1234567890},
-		{'T', "9yCRXrptsYKnsfFv6E226MXXjjxSzm3kXKL2oquw3HrX", "", 9876543210},
+		{'W', "J8shEVBrQ4BLqsuYw5j6vQGCFJGMLBxr5nu2XvUWFEAR", "base64:AQQAAAAEaW5hbAIAAAAESW5hbAQAAAAFZWxlbmECAAAAB0xlbnVza2EEAAAABGxvdmUCAAAAC0luYWxMZW51c2thCQAAAAAAAAIJAAEsAAAAAgUAAAAEaW5hbAUAAAAFZWxlbmEFAAAABGxvdmV4ZFt5", 1234567890},
+		{'T', "9yCRXrptsYKnsfFv6E226MXXjjxSzm3kXKL2oquw3HrX", "base64:", 9876543210},
 	}
 	seed, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
 	sk, pk := crypto.GenerateKeyPair(seed)
 	for _, tc := range tests {
 		ts := uint64(time.Now().UnixNano() / 1000000)
-		a, _ := crypto.NewDigestFromBase58(tc.asset)
-		s, _ := base64.StdEncoding.DecodeString(tc.script)
+		a, err := crypto.NewDigestFromBase58(tc.asset)
+		require.NoError(t, err)
+		s, err := base64.StdEncoding.DecodeString(tc.script[7:])
+		require.NoError(t, err)
 		if tx, err := NewUnsignedSetAssetScriptV1(tc.chainID, pk, a, s, tc.fee, ts); assert.NoError(t, err) {
 			if j, err := json.Marshal(tx); assert.NoError(t, err) {
 				ej := fmt.Sprintf("{\"type\":15,\"version\":1,\"senderPublicKey\":\"%s\",\"assetId\":\"%s\",\"script\":\"%s\",\"fee\":%d,\"timestamp\":%d}", base58.Encode(pk[:]), tc.asset, tc.script, tc.fee, ts)

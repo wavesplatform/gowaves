@@ -503,7 +503,7 @@ type IssueV2 struct {
 	Quantity    uint64           `json:"quantity"`
 	Decimals    byte             `json:"decimals"`
 	Reissuable  bool             `json:"reissuable"`
-	Script      []byte           `json:"script"`
+	Script      Script           `json:"script"`
 	Fee         uint64           `json:"fee"`
 	Timestamp   uint64           `json:"timestamp,omitempty"`
 }
@@ -3717,7 +3717,7 @@ type SetScriptV1 struct {
 	Proofs    *ProofsV1        `json:"proofs,omitempty"`
 	ChainID   byte             `json:"-"`
 	SenderPK  crypto.PublicKey `json:"senderPublicKey"`
-	Script    []byte           `json:"script"`
+	Script    Script           `json:"script"`
 	Fee       uint64           `json:"fee"`
 	Timestamp uint64           `json:"timestamp,omitempty"`
 }
@@ -4058,7 +4058,7 @@ type SetAssetScriptV1 struct {
 	ChainID   byte             `json:"-"`
 	SenderPK  crypto.PublicKey `json:"senderPublicKey"`
 	AssetID   crypto.Digest    `json:"assetId"`
-	Script    []byte           `json:"script"`
+	Script    Script           `json:"script"`
 	Fee       uint64           `json:"fee"`
 	Timestamp uint64           `json:"timestamp,omitempty"`
 }

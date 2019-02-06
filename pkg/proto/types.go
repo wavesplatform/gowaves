@@ -1,6 +1,8 @@
 package proto
 
 import (
+	"bytes"
+	"encoding/base64"
 	"encoding/binary"
 	"encoding/json"
 	"strconv"
@@ -21,6 +23,8 @@ const (
 	orderV2MinLen        = orderV2FixedBodyLen + proofsMinLen
 	jsonNull             = "null"
 )
+
+var jsonNullBytes = []byte{0x6e, 0x75, 0x6c, 0x6c}
 
 // B58Bytes represents bytes as Base58 string in JSON
 type B58Bytes []byte
@@ -1164,5 +1168,50 @@ func (e *DataEntries) UnmarshalJSON(data []byte) error {
 		return wrapError(err)
 	}
 	*e = entries
+	return nil
+}
+
+const scriptPrefix = "base64:"
+var scriptPrefixBytes = []byte(scriptPrefix)
+
+type Script []byte
+
+// String gives a string representation of Script bytes, script bytes encoded as BASE64 with prefix
+func (s Script) String() string {
+	sb := strings.Builder{}
+	sb.WriteString(scriptPrefix)
+	sb.WriteString(base64.StdEncoding.EncodeToString(s))
+	return sb.String()
+}
+
+// MarshalJSON writes Script as JSON
+func (s Script) MarshalJSON() ([]byte, error) {
+	var sb strings.Builder
+	sb.WriteRune('"')
+	sb.WriteString(s.String())
+	sb.WriteRune('"')
+	return []byte(sb.String()), nil
+}
+
+// UnmarshalJSON reads Script from it's JSON representation
+func (s *Script) UnmarshalJSON(value []byte) error {
+	wrapError := func(err error) error { return errors.Wrap(err, "failed to unmarshal Script from JSON") }
+	if bytes.Equal(value, jsonNullBytes) {
+		return nil
+	}
+	if value[0] != '"' || value[len(value)-1] != '"' {
+		return wrapError(errors.New("no quotes"))
+	}
+	value = value[1:len(value)-1]
+	if !bytes.Equal(value[0:7], scriptPrefixBytes) {
+		return wrapError(errors.New("no prefix"))
+	}
+	value = value[7:]
+	sb := make([]byte, base64.StdEncoding.DecodedLen(len(value)))
+	n, err := base64.StdEncoding.Decode(sb, value)
+	if err != nil {
+		return errors.Wrap(err, "failed to unmarshal Script form JSON")
+	}
+	*s = Script(sb[:n])
 	return nil
 }
