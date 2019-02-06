@@ -22,7 +22,7 @@ import (
 var version = "0.0.0"
 
 const (
-	defaultScheme = "http"
+	defaultScheme       = "http"
 	defaultSyncInterval = 10
 )
 
@@ -33,6 +33,7 @@ func run() error {
 		importFile     = flag.String("import-file", "", "Path to binary blockchain file to import before starting synchronization.")
 		node           = flag.String("node", "http://127.0.0.1:6869", "URL of node API. Default value http://127.0.0.1:6869.")
 		interval       = flag.Int("sync-interval", defaultSyncInterval, "Synchronization interval, seconds.")
+		lag            = flag.Int("lag", 1, "Synchronization lag behind the node, blocks. Default value 1 block.")
 		address        = flag.String("address", ":6990", "Local network address to bind HTTP API of the service.")
 		db             = flag.String("db", "", "Path to data base.")
 		matcher        = flag.String("matcher", "7kPFrHDiGw1rCm7LPszuECwWYL3dMf6iMifLRDJQZMzy", "Matcher's public key in form of Base58 string.")
@@ -98,7 +99,7 @@ func run() error {
 	}
 	sch := (byte)((*scheme)[0])
 
-	url, err := parseNodeURL(*node)
+	u, err := parseNodeURL(*node)
 	if err != nil {
 		log.Errorf("Failed to parse node's API address: %s", err.Error())
 		return err
@@ -106,6 +107,9 @@ func run() error {
 
 	if *interval <= 0 {
 		*interval = defaultSyncInterval
+	}
+	if *lag <= 0 {
+		*lag = 1
 	}
 
 	if *db == "" {
@@ -134,7 +138,7 @@ func run() error {
 	}
 
 	if *rollback != 0 {
-		log.Infof("Rollback to height %d was requested, rolling back...")
+		log.Infof("Rollback to height %d was requested, rolling back...", *rollback)
 		rh, err := storage.SafeRollbackHeight(*rollback)
 		if err != nil {
 			log.Errorf("Failed to find the correct height of rollback: %v", err)
@@ -204,8 +208,8 @@ func run() error {
 	}
 
 	var synchronizerDone <-chan struct{}
-	if url != nil {
-		s, err := internal.NewSynchronizer(interrupt, log, &storage, sch, matcherPK, *url, *interval)
+	if u != nil {
+		s, err := internal.NewSynchronizer(interrupt, log, &storage, sch, matcherPK, *u, *interval, *lag)
 		if err != nil {
 			log.Errorf("Failed to start synchronization: %v", err)
 			return err

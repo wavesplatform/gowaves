@@ -2,6 +2,7 @@ package data
 
 import (
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"testing"
@@ -33,10 +34,10 @@ func TestTradeBinaryRoundTrip(t *testing.T) {
 		ts := uint64(time.Now().UnixNano() / 1000000)
 		tr := Trade{AmountAsset: aa, PriceAsset: pa, TransactionID: id, Buyer: ba, Seller: sa, Matcher: ma, Price: tc.price, Amount: tc.amount, Timestamp: ts}
 		b, err := tr.MarshalBinary()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		var atr Trade
 		err = atr.UnmarshalBinary(b)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.ElementsMatch(t, aa, atr.AmountAsset)
 		assert.ElementsMatch(t, pa, atr.PriceAsset)
 		assert.ElementsMatch(t, id, atr.TransactionID)

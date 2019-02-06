@@ -28,9 +28,10 @@ type Synchronizer struct {
 	mu        *sync.RWMutex
 	active    bool
 	ticker    *time.Ticker
+	lag       int
 }
 
-func NewSynchronizer(interrupt <-chan struct{}, log *zap.SugaredLogger, storage *state.Storage, scheme byte, matcher crypto.PublicKey, node url.URL, interval int) (*Synchronizer, error) {
+func NewSynchronizer(interrupt <-chan struct{}, log *zap.SugaredLogger, storage *state.Storage, scheme byte, matcher crypto.PublicKey, node url.URL, interval int, lag int) (*Synchronizer, error) {
 	c, err := client.NewClient(client.Options{BaseUrl: node.String(), Client: &http.Client{}})
 	if err != nil {
 		return nil, errors.Wrapf(err, "Failed to create new synchronizer")
@@ -39,7 +40,7 @@ func NewSynchronizer(interrupt <-chan struct{}, log *zap.SugaredLogger, storage 
 	t := time.NewTicker(d)
 	log.Infof("Synchronization interval set to %v", d)
 	done := make(chan struct{})
-	s := Synchronizer{interrupt: interrupt, done: done, client: c, log: log, storage: storage, scheme: scheme, matcher: matcher, mu: new(sync.RWMutex), active: false, ticker: t}
+	s := Synchronizer{interrupt: interrupt, done: done, client: c, log: log, storage: storage, scheme: scheme, matcher: matcher, mu: new(sync.RWMutex), active: false, ticker: t, lag: lag}
 	go s.run()
 	return &s, nil
 }
@@ -84,6 +85,7 @@ func (s *Synchronizer) run() {
 
 func (s *Synchronizer) synchronize() {
 	rh, err := s.nodeHeight()
+	rh = rh - s.lag
 	if err != nil {
 		s.log.Error("Failed to synchronize with node", err)
 		return
@@ -112,7 +114,7 @@ func (s *Synchronizer) synchronize() {
 				s.log.Errorf("Failed to rollback: %v", err)
 				return
 			}
-			ch = rollbackHeight
+			ch = rollbackHeight - 1
 		}
 		err = s.applyBlocks(ch+1, rh)
 		if err != nil && !strings.Contains(err.Error(), "Invalid status code") {
@@ -122,7 +124,7 @@ func (s *Synchronizer) synchronize() {
 }
 
 func (s *Synchronizer) applyBlocks(start, end int) error {
-	s.log.Infof("Synchronizing %d blocks starting from height %d", end-start, start)
+	s.log.Infof("Synchronizing %d blocks starting from height %d", end-start+1, start)
 	for h := start; h <= end; h++ {
 		b, err := s.nodeBlock(h)
 		if err != nil {

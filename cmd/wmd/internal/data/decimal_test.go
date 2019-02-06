@@ -2,6 +2,7 @@ package data
 
 import (
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"testing"
 )
 
@@ -164,9 +165,9 @@ func TestDecimalRescale4(t *testing.T) {
 
 func TestDecimalMarshalJSON(t *testing.T) {
 	a, err := NewDecimalFromString("0.123456789")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	s, err := a.MarshalJSON()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.ElementsMatch(t, []byte("\"0.123456789\""), s)
 }
 
@@ -174,39 +175,39 @@ func TestDecimalUnmarshalJSON(t *testing.T) {
 	js := "\"12345.67890\""
 	var a Decimal
 	err := a.UnmarshalJSON([]byte(js))
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, "12345.67890", a.String())
 }
 
 func TestInfiniteDecimalString1(t *testing.T) {
 	d, err := NewDecimalFromString("12345.6789")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	a := d.ToInfiniteDecimal(false)
 	assert.Equal(t, "12345.6789", a.String())
 }
 
 func TestInfiniteDecimalString2(t *testing.T) {
 	d, err := NewDecimalFromString("12345.6789")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	a := d.ToInfiniteDecimal(true)
 	assert.Equal(t, "infinite", a.String())
 }
 
 func TestInfiniteDecimalMarshalJSON1(t *testing.T) {
 	d, err := NewDecimalFromString("123.4567890")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	a := d.ToInfiniteDecimal(false)
 	js, err:= a.MarshalJSON()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.ElementsMatch(t, []byte("\"123.4567890\""), js)
 }
 
 func TestInfiniteDecimalMarshalJSON2(t *testing.T) {
 	d, err := NewDecimalFromString("123.4567890")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	a := d.ToInfiniteDecimal(true)
 	js, err:= a.MarshalJSON()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.ElementsMatch(t, []byte("\"infinite\""), js)
 }
 
@@ -214,7 +215,7 @@ func TestInfiniteDecimalUnmarshalJSON1(t *testing.T) {
 	js := "\"12345.67890\""
 	var a InfiniteDecimal
 	err := a.UnmarshalJSON([]byte(js))
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, "12345.67890", a.String())
 }
 
@@ -222,7 +223,7 @@ func TestInfiniteDecimalUnmarshalJSON2(t *testing.T) {
 	js := "\"infinite\""
 	var a InfiniteDecimal
 	err := a.UnmarshalJSON([]byte(js))
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, "infinite", a.String())
 }
 

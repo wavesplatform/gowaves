@@ -132,7 +132,7 @@ func (s *Storage) Rollback(removeHeight int) error {
 	if err != nil {
 		return wrapError(err)
 	}
-	if removeHeight >= max {
+	if removeHeight > max {
 		return wrapError(errors.Errorf("nothing to rollback, current height is %d", max))
 	}
 	batch := new(leveldb.Batch)
