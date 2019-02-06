@@ -7,7 +7,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -17,8 +16,8 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
-	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/util"
 )
 
 const (
@@ -100,14 +99,6 @@ func readRealBlocks(t *testing.T, nBlocks int) ([]*proto.Block, error) {
 	}
 	cached_blocks = blocks
 	return blocks, nil
-}
-
-func createBlockReadWriter(dbDir, rwDir string, offsetLen, headerOffsetLen int) (*BlockReadWriter, error) {
-	keyVal, err := keyvalue.NewKeyVal(dbDir, BATCH_SIZE)
-	if err != nil {
-		return nil, err
-	}
-	return NewBlockReadWriter(rwDir, offsetLen, headerOffsetLen, keyVal)
 }
 
 func writeBlock(t *testing.T, rw *BlockReadWriter, block *proto.Block) {
@@ -263,27 +254,16 @@ func testReader(rw *BlockReadWriter, readTasks <-chan *ReadTask) error {
 }
 
 func TestSimpleReadWrite(t *testing.T) {
-	dbDir, err := ioutil.TempDir(os.TempDir(), "db_dir")
+	rw, path, err := CreateTestBlockReadWriter(BATCH_SIZE, 8, 8)
 	if err != nil {
-		t.Fatalf("Can not create dir for test data: %v", err)
-	}
-	rwDir, err := ioutil.TempDir(os.TempDir(), "rw_dir")
-	if err != nil {
-		t.Fatalf("Can not create dir for test data: %v", err)
-	}
-	rw, err := createBlockReadWriter(dbDir, rwDir, 8, 8)
-	if err != nil {
-		t.Fatalf("createBlockReadWriter: %v", err)
+		t.Fatalf("CreateTestBlockReadWriter: %v", err)
 	}
 
 	defer func() {
 		if err := rw.Close(); err != nil {
 			t.Fatalf("Failed to close BlockReadWriter: %v", err)
 		}
-		if err := os.RemoveAll(dbDir); err != nil {
-			t.Fatalf("Failed to clean test data dirs: %v", err)
-		}
-		if err := os.RemoveAll(rwDir); err != nil {
+		if err := util.CleanTemporaryDirs(path); err != nil {
 			t.Fatalf("Failed to clean test data dirs: %v", err)
 		}
 	}()
@@ -298,27 +278,16 @@ func TestSimpleReadWrite(t *testing.T) {
 }
 
 func TestSimultaneousReadWrite(t *testing.T) {
-	dbDir, err := ioutil.TempDir(os.TempDir(), "db_dir")
+	rw, path, err := CreateTestBlockReadWriter(BATCH_SIZE, 8, 8)
 	if err != nil {
-		t.Fatalf("Can not create dir for test data: %v", err)
-	}
-	rwDir, err := ioutil.TempDir(os.TempDir(), "rw_dir")
-	if err != nil {
-		t.Fatalf("Can not create dir for test data: %v", err)
-	}
-	rw, err := createBlockReadWriter(dbDir, rwDir, 8, 8)
-	if err != nil {
-		t.Fatalf("createBlockReadWriter: %v", err)
+		t.Fatalf("CreateTestBlockReadWriter: %v", err)
 	}
 
 	defer func() {
 		if err := rw.Close(); err != nil {
 			t.Fatalf("Failed to close BlockReadWriter: %v", err)
 		}
-		if err := os.RemoveAll(dbDir); err != nil {
-			t.Fatalf("Failed to clean test data dirs: %v", err)
-		}
-		if err := os.RemoveAll(rwDir); err != nil {
+		if err := util.CleanTemporaryDirs(path); err != nil {
 			t.Fatalf("Failed to clean test data dirs: %v", err)
 		}
 	}()
@@ -365,27 +334,16 @@ func TestSimultaneousReadWrite(t *testing.T) {
 }
 
 func TestSimultaneousReadDelete(t *testing.T) {
-	dbDir, err := ioutil.TempDir(os.TempDir(), "db_dir")
+	rw, path, err := CreateTestBlockReadWriter(BATCH_SIZE, 8, 8)
 	if err != nil {
-		t.Fatalf("Can not create dir for test data: %v", err)
-	}
-	rwDir, err := ioutil.TempDir(os.TempDir(), "rw_dir")
-	if err != nil {
-		t.Fatalf("Can not create dir for test data: %v", err)
-	}
-	rw, err := createBlockReadWriter(dbDir, rwDir, 8, 8)
-	if err != nil {
-		t.Fatalf("createBlockReadWriter: %v", err)
+		t.Fatalf("CreateTestBlockReadWriter: %v", err)
 	}
 
 	defer func() {
 		if err := rw.Close(); err != nil {
 			t.Fatalf("Failed to close BlockReadWriter: %v", err)
 		}
-		if err := os.RemoveAll(dbDir); err != nil {
-			t.Fatalf("Failed to clean test data dirs: %v", err)
-		}
-		if err := os.RemoveAll(rwDir); err != nil {
+		if err := util.CleanTemporaryDirs(path); err != nil {
 			t.Fatalf("Failed to clean test data dirs: %v", err)
 		}
 	}()

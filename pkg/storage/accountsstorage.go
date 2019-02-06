@@ -4,10 +4,12 @@ import (
 	"bufio"
 	"encoding/binary"
 	"io"
+	"io/ioutil"
 	"os"
 
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
@@ -24,7 +26,7 @@ type Iterator interface {
 	Key() []byte
 	Value() []byte
 	Next() bool
-	Erorr() error
+	Error() error
 	Release()
 }
 
@@ -75,6 +77,42 @@ func initIndexStores(addr2Index, asset2Index KeyValue) error {
 		}
 	}
 	return nil
+}
+
+// The data is stored in temporary dirs.
+// It is caller's responsibility to remove them, the path list is returned.
+func CreateTestAccountsStorage(blockIdsFile string) (*AccountsStorage, []string, error) {
+	res := make([]string, 3)
+	dbDir0, err := ioutil.TempDir(os.TempDir(), "dbDir0")
+	if err != nil {
+		return nil, res, err
+	}
+	globalStor, err := keyvalue.NewKeyVal(dbDir0, 0)
+	if err != nil {
+		return nil, res, err
+	}
+	dbDir1, err := ioutil.TempDir(os.TempDir(), "dbDir1")
+	if err != nil {
+		return nil, res, err
+	}
+	addr2Index, err := keyvalue.NewKeyVal(dbDir1, 1)
+	if err != nil {
+		return nil, res, err
+	}
+	dbDir2, err := ioutil.TempDir(os.TempDir(), "dbDir2")
+	if err != nil {
+		return nil, res, err
+	}
+	asset2Index, err := keyvalue.NewKeyVal(dbDir2, 0)
+	if err != nil {
+		return nil, res, err
+	}
+	stor, err := NewAccountsStorage(globalStor, addr2Index, asset2Index, blockIdsFile)
+	if err != nil {
+		return nil, res, err
+	}
+	res = []string{dbDir0, dbDir1, dbDir2}
+	return stor, res, nil
 }
 
 func NewAccountsStorage(globalStor, addr2Index, asset2Index KeyValue, blockIdsFile string) (*AccountsStorage, error) {

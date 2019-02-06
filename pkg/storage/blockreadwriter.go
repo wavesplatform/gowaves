@@ -10,6 +10,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 )
 
 type KeyValue interface {
@@ -72,6 +73,30 @@ func openOrCreate(path string) (*os.File, uint64, error) {
 	} else {
 		return nil, 0, err
 	}
+}
+
+// The data is stored in temporary dirs.
+// It is caller's responsibility to remove them, the path list is returned.
+func CreateTestBlockReadWriter(batchSize, offsetLen, headerOffsetLen int) (*BlockReadWriter, []string, error) {
+	res := make([]string, 2)
+	dbDir, err := ioutil.TempDir(os.TempDir(), "db_dir")
+	if err != nil {
+		return nil, res, err
+	}
+	keyVal, err := keyvalue.NewKeyVal(dbDir, batchSize)
+	if err != nil {
+		return nil, res, err
+	}
+	rwDir, err := ioutil.TempDir(os.TempDir(), "rw_dir")
+	if err != nil {
+		return nil, res, err
+	}
+	rw, err := NewBlockReadWriter(rwDir, offsetLen, headerOffsetLen, keyVal)
+	if err != nil {
+		return nil, res, err
+	}
+	res = []string{dbDir, rwDir}
+	return rw, res, nil
 }
 
 func NewBlockReadWriter(dir string, offsetLen, headerOffsetLen int, keyVal KeyValue) (*BlockReadWriter, error) {
