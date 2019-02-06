@@ -108,8 +108,8 @@ func run() error {
 	if *interval <= 0 {
 		*interval = defaultSyncInterval
 	}
-	if *lag <= 0 {
-		*lag = 1
+	if *lag < 0 {
+		*lag = 0
 	}
 
 	if *db == "" {
