@@ -151,7 +151,7 @@ func (b *TransactionsField) UnmarshalJSON(data []byte) error {
 	var tt []*TransactionTypeVersion
 	err := json.Unmarshal(data, &tt)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "TransactionTypeVersion unmarshal")
 	}
 
 	transactions := make([]proto.Transaction, len(tt))
@@ -165,7 +165,7 @@ func (b *TransactionsField) UnmarshalJSON(data []byte) error {
 
 	err = json.Unmarshal(data, &transactions)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "transactions list unmarshal")
 	}
 	*b = transactions
 
