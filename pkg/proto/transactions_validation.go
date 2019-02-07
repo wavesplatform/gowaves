@@ -51,10 +51,10 @@ func (tv *TransactionValidator) IsSupported(tx Transaction) bool {
 	}
 }
 
-func (tv *TransactionValidator) ValidateTransaction(block *Block, tx Transaction, initialisation bool) error {
+func (tv *TransactionValidator) ValidateTransaction(blockID crypto.Signature, tx Transaction, initialisation bool) error {
 	switch v := tx.(type) {
 	case *Genesis:
-		if block.BlockSignature == tv.genesis {
+		if blockID == tv.genesis {
 			if !initialisation {
 				return errors.New("Trying to add genesis transaction in new block")
 			}
@@ -92,7 +92,7 @@ func (tv *TransactionValidator) ValidateTransaction(block *Block, tx Transaction
 			return err
 		}
 		if balance < totalAmount {
-			return errors.New("Transaction verification failed: spending more than current balance.")
+			return errors.Errorf("Transaction verification failed: balance is %d, trying to spend %d", balance, totalAmount)
 		}
 		return nil
 	case *TransferV1:

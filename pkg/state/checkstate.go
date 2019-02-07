@@ -9,17 +9,10 @@ import (
 	"os"
 
 	"github.com/pkg/errors"
-	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/storage"
 	"github.com/wavesplatform/gowaves/pkg/util"
 )
-
-type Record struct {
-	Address       proto.Address `json:"address"`
-	Balance       uint64        `json:"balance"`
-	Confirmations uint64        `json:"confirmations"`
-}
 
 func importAndApply(blockchain *os.File, nBlocks int, manager *StateManager) error {
 	sb := make([]byte, 4)
@@ -42,24 +35,28 @@ func importAndApply(blockchain *os.File, nBlocks int, manager *StateManager) err
 }
 
 func decodeAndCheckBalances(stor *storage.AccountsStorage, balances *os.File) error {
+	var state map[string]uint64
 	jsonParser := json.NewDecoder(balances)
-	for jsonParser.More() {
-		var record Record
-		if err := jsonParser.Decode(&record); err != nil {
-			return errors.Errorf("Failed to decode record: %d\n", err)
+	if err := jsonParser.Decode(&state); err != nil {
+		return errors.Errorf("Failed to decode state: %v\n", err)
+	}
+	for addrStr, properBalance := range state {
+		addr, err := proto.NewAddressFromString(addrStr)
+		if err != nil {
+			return errors.Errorf("Faied to convert string to address: %v\n", err)
 		}
-		balance, err := stor.AccountBalance(record.Address, nil)
+		balance, err := stor.AccountBalance(addr, nil)
 		if err != nil {
 			return errors.Errorf("Failed to get balance: %v\n", err)
 		}
-		if balance != record.Balance {
-			return errors.Errorf("Balances for address %v differ: %d and %d\n", record.Address, record.Balance, balance)
+		if balance != properBalance {
+			return errors.Errorf("Balances for address %v differ: %d and %d\n", addr, properBalance, balance)
 		}
 	}
 	return nil
 }
 
-func CheckState(blockchainPath, balancesPath string, batchSize, nBlocks int, genesisSig string) error {
+func CheckState(blockchainPath, balancesPath string, batchSize, nBlocks int) error {
 	blockchain, err := os.Open(blockchainPath)
 	if err != nil {
 		return errors.Errorf("Failed to open blockchain file: %v\n", err)
@@ -89,13 +86,9 @@ func CheckState(blockchainPath, balancesPath string, batchSize, nBlocks int, gen
 		}
 	}()
 
-	genesis, err := crypto.NewSignatureFromBase58(genesisSig)
+	manager, err := NewStateManager(stor, rw)
 	if err != nil {
-		return errors.Errorf("Failed to decode genesis signature: %v\n", err)
-	}
-	manager, err := NewStateManager(genesis, stor, rw)
-	if err != nil {
-		return errors.Errorf("Failed to create state manager.\n")
+		return errors.Errorf("Failed to create state manager: %v.\n", err)
 	}
 	if err := importAndApply(blockchain, nBlocks, manager); err != nil {
 		return errors.Errorf("Failed to import: %v\n", err)
@@ -109,7 +102,10 @@ func CheckState(blockchainPath, balancesPath string, batchSize, nBlocks int, gen
 			return errors.Errorf("Failed to open balances file: %v\n", err)
 		}
 		if err := decodeAndCheckBalances(stor, balances); err != nil {
-			return errors.Errorf("Failer to close balances file: %v\n", err)
+			return errors.Errorf("Balance checker: %v\n", err)
+		}
+		if err := balances.Close(); err != nil {
+			return errors.Errorf("Failed to close balances file: %v\n", err)
 		}
 	}
 	return nil

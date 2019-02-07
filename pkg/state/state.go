@@ -43,9 +43,36 @@ type StateManager struct {
 	rw              BlockReadWriter
 }
 
-func NewStateManager(genesis crypto.Signature, accountsStor *storage.AccountsStorage, rw BlockReadWriter) (*StateManager, error) {
+func NewStateManager(accountsStor *storage.AccountsStorage, rw BlockReadWriter) (*StateManager, error) {
+	genesis, err := crypto.NewSignatureFromBase58(GENESIS_SIGNATURE)
+	if err != nil {
+		return nil, errors.Errorf("Failed to get genesis signature from string: %v\n", err)
+	}
 	stor := &StateManager{genesis: genesis, accountsStorage: accountsStor, rw: rw}
+	if err = stor.applyGenesis(); err != nil {
+		return nil, err
+	}
 	return stor, nil
+}
+
+func (s *StateManager) applyGenesis() error {
+	tv, err := proto.NewTransactionValidator(s.genesis, s.accountsStorage)
+	if err != nil {
+		return err
+	}
+	genesisTx, err := generateGenesisTransactions()
+	if err != nil {
+		return err
+	}
+	for _, tx := range genesisTx {
+		if err := tv.ValidateTransaction(s.genesis, &tx, true); err != nil {
+			return errors.Wrap(err, "Invalid genesis transaction")
+		}
+		if err := s.performGenesisTransaction(tx); err != nil {
+			return errors.Wrap(err, "Failed to perform genesis transaction")
+		}
+	}
+	return nil
 }
 
 func (s *StateManager) GetBlock(blockID crypto.Signature) (*proto.Block, error) {
@@ -74,19 +101,21 @@ func (s *StateManager) GetBlockByHeight(height uint64) (*proto.Block, error) {
 	return s.GetBlock(blockID)
 }
 
+func (s *StateManager) performGenesisTransaction(tx proto.Genesis) error {
+	receiverBalance, err := s.accountsStorage.AccountBalance(tx.Recipient, nil)
+	if err != nil {
+		return err
+	}
+	newReceiverBalance := receiverBalance + tx.Amount
+	if err := s.accountsStorage.SetAccountBalance(tx.Recipient, nil, newReceiverBalance, s.genesis); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (s *StateManager) performTransaction(block *proto.Block, tx proto.Transaction) error {
 	blockID := block.BlockSignature
 	switch v := tx.(type) {
-	case *proto.Genesis:
-		receiverBalance, err := s.accountsStorage.AccountBalance(v.Recipient, nil)
-		if err != nil {
-			return err
-		}
-		newReceiverBalance := receiverBalance + v.Amount
-		if err := s.accountsStorage.SetAccountBalance(v.Recipient, nil, newReceiverBalance, blockID); err != nil {
-			return err
-		}
-		return nil
 	case *proto.Payment:
 		senderAddr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, v.SenderPK)
 		if err != nil {
@@ -264,7 +293,7 @@ func (s *StateManager) addNewBlock(block *proto.Block, initialisation bool) erro
 		}
 		if tv.IsSupported(tx) && (s.accountsStorage != nil) {
 			// Genesis, Payment, TransferV1 and TransferV2 Waves-only for now.
-			if err = tv.ValidateTransaction(block, tx, initialisation); err != nil {
+			if err = tv.ValidateTransaction(block.BlockSignature, tx, initialisation); err != nil {
 				return errors.Wrap(err, "Incorrect transaction inside of the block")
 			}
 			if err = s.performTransaction(block, tx); err != nil {
@@ -288,12 +317,14 @@ func (s *StateManager) AcceptAndVerifyBlockBinary(data []byte, initialisation bo
 	if !crypto.Verify(block.GenPublicKey, block.BlockSignature, data[:len(data)-crypto.SignatureSize]) {
 		return errors.New("Invalid block signature.")
 	}
-	if block.BlockSignature != s.genesis {
-		// Check parent.
-		height := s.rw.CurrentHeight()
-		if height == 0 {
-			return errors.New("Invalid genesis signature.")
+	// Check parent.
+	height := s.rw.CurrentHeight()
+	if height == 0 {
+		// First block.
+		if block.Parent != s.genesis {
+			return errors.New("Incorrect parent.")
 		}
+	} else {
 		parent, err := s.GetBlockByHeight(height - 1)
 		if err != nil {
 			return err
@@ -320,7 +351,7 @@ func (s *StateManager) RollbackTo(removalEdge crypto.Signature) error {
 	}
 	if s.accountsStorage != nil {
 		// Rollback accounts storage.
-		for height := s.rw.CurrentHeight(); height >= 0; height-- {
+		for height := s.rw.CurrentHeight(); height > 0; height-- {
 			blockID, err := s.rw.BlockIDByHeight(height)
 			if err != nil {
 				return err
