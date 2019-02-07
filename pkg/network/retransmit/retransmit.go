@@ -6,6 +6,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/network/conn"
 	"github.com/wavesplatform/gowaves/pkg/network/peer"
+	"github.com/wavesplatform/gowaves/pkg/network/retransmit/utils"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
 	"net"
@@ -14,42 +15,33 @@ import (
 
 var invalidTransaction = errors.New("invalid transaction")
 
-type PeerInfo struct {
-	Peer      peer.Peer
-	CreatedAt time.Time
-	Status    int
-	Version   proto.Version
-	LastError struct {
-		At    time.Time
-		Error error
-	}
-}
-
-// This function knows how to create new client and encapsulates logic of creating new client inside
+// This function knows how to create outgoing client and encapsulates logic of creating client inside
 type PeerOutgoingSpawner func(peer.OutgoingPeerParams)
 
-// This function knows how to create new client and encapsulates logic of creating new client inside
+// This function knows how to create incoming client and encapsulates logic of creating client inside
 type PeerIncomingSpawner func(peer.IncomingPeerParams)
 
+// Base struct that makes transaction transmit
 type Retransmitter struct {
 	spawner                   PeerOutgoingSpawner
 	incomingSpawner           PeerIncomingSpawner
-	connectedPeers            *Addr2Peers
+	connectedPeers            *utils.Addr2Peers
 	income                    chan peer.ProtoMessage
 	outgoing                  chan peer.ProtoMessage
 	tl                        *TransactionList
 	infoCh                    chan peer.InfoMessage
-	ctx                       context.Context
-	knownPeers                *KnownPeers
+	knownPeers                *utils.KnownPeers
 	declAddr                  proto.PeerInfo
 	receiveFromRemoteCallback peer.ReceiveFromRemoteCallback
 	pool                      conn.Pool
-	spawnedPeers              *SpawnedPeers
+	spawnedPeers              *utils.SpawnedPeers
+	counter                   *utils.Counter
 }
 
-func NewRetransmitter(ctx context.Context, knownPeers *KnownPeers, outgoingSpawner PeerOutgoingSpawner, incomingSpawner PeerIncomingSpawner, ReceiveFromRemoteCallback peer.ReceiveFromRemoteCallback, pool conn.Pool) *Retransmitter {
+// creates new Retransmitter
+func NewRetransmitter(declAddr proto.PeerInfo, knownPeers *utils.KnownPeers, outgoingSpawner PeerOutgoingSpawner, incomingSpawner PeerIncomingSpawner, ReceiveFromRemoteCallback peer.ReceiveFromRemoteCallback, pool conn.Pool) *Retransmitter {
 	return &Retransmitter{
-		ctx:                       ctx,
+		declAddr:                  declAddr,
 		knownPeers:                knownPeers,
 		spawner:                   outgoingSpawner,
 		incomingSpawner:           incomingSpawner,
@@ -57,37 +49,36 @@ func NewRetransmitter(ctx context.Context, knownPeers *KnownPeers, outgoingSpawn
 		pool:                      pool,
 
 		income:         make(chan peer.ProtoMessage, 100),
-		connectedPeers: NewAddr2Peers(),
+		connectedPeers: utils.NewAddr2Peers(),
 		outgoing:       make(chan peer.ProtoMessage, 10),
 		infoCh:         make(chan peer.InfoMessage, 100),
-		tl:             NewTransactionList(6000),
-		spawnedPeers:   NewSpawnedPeers(),
+		tl:             NewTransactionList(500),
+		spawnedPeers:   utils.NewSpawnedPeers(),
+		counter:        utils.NewCounter(),
 	}
 }
 
-func (a *Retransmitter) Run() {
+// this function starts main process of transaction transmitting
+func (a *Retransmitter) Run(ctx context.Context) {
 
-	go a.serveSendAllMyKnownPeers()
-	go a.askPeersAboutKnownPeers()
-	go a.periodicallySpawnPeers()
+	go a.serveSendAllMyKnownPeers(ctx, 5*time.Minute)
+	go a.askPeersAboutKnownPeers(ctx, 1*time.Minute)
+	go a.periodicallySpawnPeers(ctx)
 
 	for {
 		select {
-		case <-a.ctx.Done():
+		case <-ctx.Done():
 			a.knownPeers.Stop()
-			a.connectedPeers.Each(func(id string, p *PeerInfo) {
+			a.connectedPeers.Each(func(id string, p *utils.PeerInfo) {
 				p.Peer.Close()
 			})
 			return
 		case incomeMessage := <-a.income:
-
-			//fmt.Println("retransmitter got income message ", incomeMessage)
-
 			switch t := incomeMessage.Message.(type) {
 			case *proto.TransactionMessage:
 				transaction, err := getTransaction(t)
 				if err != nil {
-					fmt.Println(err)
+					zap.S().Error(err, incomeMessage.ID, t)
 					continue
 				}
 
@@ -102,17 +93,19 @@ func (a *Retransmitter) Run() {
 			case *proto.GetPeersMessage:
 				a.handleGetPeersMess(incomeMessage.ID)
 			case *proto.PeersMessage:
-				fmt.Println("got *proto.PeersMessage")
+				zap.S().Debugf("got *proto.PeersMessage, from %s len=%d", incomeMessage.ID, len(t.Peers))
 				for _, p := range t.Peers {
-					a.knownPeers.Add(p.String(), proto.Version{})
+					a.knownPeers.Add(p, proto.Version{})
 				}
 			default:
 				zap.S().Warnf("got unknown incomeMessage.Message of type %T\n", incomeMessage.Message)
 			}
 		case out := <-a.outgoing:
-			a.connectedPeers.Each(func(id string, c *PeerInfo) {
+			a.counter.IncUniqueTransaction()
+			a.connectedPeers.Each(func(id string, c *utils.PeerInfo) {
 				if id != out.ID {
 					c.Peer.SendMessage(out.Message)
+					a.counter.IncEachTransaction()
 				}
 			})
 		case info := <-a.infoCh:
@@ -120,14 +113,17 @@ func (a *Retransmitter) Run() {
 			case error:
 				zap.S().Infof("got error message %s from %s", t, info.ID)
 				a.errorHandler(info.ID, t)
-			case proto.Version:
-				a.connectedPeers.Get(info.ID).Version = t
 			case *peer.Connected:
-				a.connectedPeers.Add(info.ID, &PeerInfo{
-					Version: t.Version,
-					Peer:    t.Peer,
+				a.connectedPeers.Add(info.ID, &utils.PeerInfo{
+					Version:    t.Version,
+					Peer:       t.Peer,
+					DeclAddr:   t.DeclAddr,
+					RemoteAddr: t.RemoteAddr,
+					LocalAddr:  t.LocalAddr,
 				})
-				a.knownPeers.Add(info.ID, t.Version)
+				if !t.DeclAddr.Empty() {
+					a.knownPeers.Add(t.DeclAddr, t.Version)
+				}
 			default:
 				zap.S().Warnf("got unknown info message of type %T\n", info.Value)
 			}
@@ -140,21 +136,26 @@ func (a *Retransmitter) errorHandler(id string, e error) {
 	if p != nil {
 		p.Peer.Close()
 		a.connectedPeers.Delete(id)
-		a.knownPeers.Add(id, p.Version)
 	}
 }
 
-func (a *Retransmitter) AddAddress(addr string) {
-	zap.S().Debug("incomeAddrCh", addr)
+func (a *Retransmitter) AddAddress(ctx context.Context, addr string) {
+	p, err := proto.NewPeerInfoFromString(addr)
+	if err != nil {
+		zap.S().Error(err)
+		return
+	}
+
+	a.knownPeers.Add(p, proto.Version{})
 	if !a.connectedPeers.Exists(addr) && !a.spawnedPeers.Exists(addr) {
-		go a.spawnOutgoingPeer(addr)
+		go a.spawnOutgoingPeer(ctx, addr)
 		a.spawnedPeers.Add(addr)
 	}
 }
 
 func (a *Retransmitter) handleGetPeersMess(id string) {
 	zap.S().Debug("call retransmitter handleGetPeersMess")
-	p := a.connectedPeers.Addresses()
+	p := a.knownPeers.Addresses()
 	pm := proto.PeersMessage{
 		Peers: p,
 	}
@@ -164,69 +165,81 @@ func (a *Retransmitter) handleGetPeersMess(id string) {
 	}
 }
 
-// every 5 minutes we should send known peers list
-func (a *Retransmitter) serveSendAllMyKnownPeers() {
+// send known peers list
+func (a *Retransmitter) serveSendAllMyKnownPeers(ctx context.Context, interval time.Duration) {
 	for {
 		select {
-		case <-time.After(5 * time.Minute):
+		case <-time.After(interval):
 			addrs := a.connectedPeers.Addresses()
-			pm := proto.PeersMessage{
-				Peers: addrs,
+			pm := proto.PeersMessage{}
+			for _, addr := range addrs {
+				parsed, err := proto.NewPeerInfoFromString(addr)
+				if err != nil {
+					zap.S().Warn(err)
+					continue
+				}
+				pm.Peers = append(pm.Peers, parsed)
 			}
-			a.connectedPeers.Each(func(id string, p *PeerInfo) {
+			a.connectedPeers.Each(func(id string, p *utils.PeerInfo) {
 				p.Peer.SendMessage(&pm)
 			})
-		case <-a.ctx.Done():
+		case <-ctx.Done():
 			return
 		}
 	}
 }
 
-func (a *Retransmitter) askPeersAboutKnownPeers() {
+// ask peers about knows addresses
+func (a *Retransmitter) askPeersAboutKnownPeers(ctx context.Context, interval time.Duration) {
 	for {
-		<-time.After(1 * time.Minute)
-		zap.S().Debug("ask about peers")
-		a.connectedPeers.Each(func(id string, p *PeerInfo) {
-			p.Peer.SendMessage(&proto.GetPeersMessage{})
-		})
+		select {
+		case <-time.After(interval):
+			zap.S().Debug("ask about peers")
+			a.connectedPeers.Each(func(id string, p *utils.PeerInfo) {
+				p.Peer.SendMessage(&proto.GetPeersMessage{})
+			})
+		case <-ctx.Done():
+			return
+		}
 	}
 }
 
 // listen incoming connections on provided address
-func (a *Retransmitter) Server(listenAddr string) error {
-	addr, err := proto.NewPeerInfoFromString(listenAddr)
+func (a *Retransmitter) Server(ctx context.Context, listenAddr string) error {
+	_, err := proto.NewPeerInfoFromString(listenAddr)
 	if err != nil {
 		return err
 	}
-	a.declAddr = addr
-	go a.serve(listenAddr)
+	go a.serve(ctx, listenAddr)
 	return nil
 }
 
-func (a *Retransmitter) spawnOutgoingPeer(addr string) {
+func (a *Retransmitter) spawnOutgoingPeer(ctx context.Context, addr string) {
 	parent := peer.Parent{
-		ResendToParentCh: a.income,
-		ParentInfoChan:   a.infoCh,
+		MessageCh: a.income,
+		InfoCh:    a.infoCh,
 	}
 
 	params := peer.OutgoingPeerParams{
-		Ctx:                       a.ctx,
+		Ctx:                       ctx,
 		Address:                   addr,
 		Parent:                    parent,
 		ReceiveFromRemoteCallback: a.receiveFromRemoteCallback,
 		Pool:                      a.pool,
 		DeclAddr:                  a.declAddr,
+		SpawnedPeers:              a.spawnedPeers,
 	}
 
 	a.spawner(params)
 }
 
-func (a *Retransmitter) serve(listenAddr string) {
+func (a *Retransmitter) serve(ctx context.Context, listenAddr string) {
 	lst, err := net.Listen("tcp", listenAddr)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
+	zap.S().Infof("started listen on %s", listenAddr)
 
 	for {
 		c, err := lst.Accept()
@@ -236,12 +249,12 @@ func (a *Retransmitter) serve(listenAddr string) {
 		}
 
 		parent := peer.Parent{
-			ResendToParentCh: a.income,
-			ParentInfoChan:   a.infoCh,
+			MessageCh: a.income,
+			InfoCh:    a.infoCh,
 		}
 
 		params := peer.IncomingPeerParams{
-			Ctx:                       a.ctx,
+			Ctx:                       ctx,
 			Conn:                      c,
 			ReceiveFromRemoteCallback: a.receiveFromRemoteCallback,
 			Parent:                    parent,
@@ -253,25 +266,41 @@ func (a *Retransmitter) serve(listenAddr string) {
 	}
 }
 
-func (a *Retransmitter) ActiveConnections() *Addr2Peers {
+// returns active connections
+func (a *Retransmitter) ActiveConnections() *utils.Addr2Peers {
 	return a.connectedPeers
 }
 
-func (a *Retransmitter) KnownPeers() *KnownPeers {
+// returns knows peers
+func (a *Retransmitter) KnownPeers() *utils.KnownPeers {
 	return a.knownPeers
 }
 
-func (a *Retransmitter) periodicallySpawnPeers() {
+// returns currently spawned peers
+func (a *Retransmitter) SpawnedPeers() *utils.SpawnedPeers {
+	return a.spawnedPeers
+}
+
+func (a *Retransmitter) Counter() *utils.Counter {
+	return a.counter
+}
+
+func (a *Retransmitter) periodicallySpawnPeers(ctx context.Context) {
 	for {
 		select {
-		case <-time.After(10 * time.Minute):
+		case <-time.After(1 * time.Minute):
 			peers := a.knownPeers.GetAll()
 			for _, addr := range peers {
+				if a.connectedPeers.Exists(addr) {
+					continue
+				}
+
 				if !a.spawnedPeers.Exists(addr) {
-					a.spawnOutgoingPeer(addr)
+					a.spawnedPeers.Add(addr)
+					go a.spawnOutgoingPeer(ctx, addr)
 				}
 			}
-		case <-a.ctx.Done():
+		case <-ctx.Done():
 			return
 		}
 	}

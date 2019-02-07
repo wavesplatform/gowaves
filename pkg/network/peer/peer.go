@@ -32,8 +32,11 @@ type InfoMessage struct {
 }
 
 type Connected struct {
-	Peer    Peer
-	Version proto.Version
+	Peer       Peer
+	Version    proto.Version
+	DeclAddr   proto.PeerInfo
+	LocalAddr  string
+	RemoteAddr string
 }
 
 type ReceiveFromRemoteCallback func(b []byte, address string, resendTo chan ProtoMessage, pool conn.Pool)
@@ -53,8 +56,15 @@ func newRemote() remote {
 }
 
 type Parent struct {
-	ResendToParentCh chan ProtoMessage
-	ParentInfoChan   chan InfoMessage
+	MessageCh chan ProtoMessage
+	InfoCh    chan InfoMessage
+}
+
+func newParent() Parent {
+	return Parent{
+		MessageCh: make(chan ProtoMessage, 10),
+		InfoCh:    make(chan InfoMessage, 10),
+	}
 }
 
 type Peer interface {

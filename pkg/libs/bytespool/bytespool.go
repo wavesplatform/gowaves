@@ -80,3 +80,7 @@ func (a *BytesPool) Allocations() uint64 {
 	a.mu.Unlock()
 	return out
 }
+
+func (a *BytesPool) BytesLen() int {
+	return a.bytesLen
+}

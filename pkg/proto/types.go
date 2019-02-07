@@ -149,7 +149,7 @@ func (a *OptionalAsset) UnmarshalBinary(data []byte) error {
 	var err error
 	a.Present, err = Bool(data)
 	if err != nil {
-		errors.Wrap(err, "failed to unmarshal OptionalAsset")
+		return errors.Wrap(err, "failed to unmarshal OptionalAsset")
 	}
 	if a.Present {
 		data = data[1:]

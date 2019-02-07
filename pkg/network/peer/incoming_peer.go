@@ -2,6 +2,7 @@ package peer
 
 import (
 	"context"
+	"fmt"
 	"github.com/wavesplatform/gowaves/pkg/network/conn"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
@@ -10,11 +11,11 @@ import (
 )
 
 type IncomingPeer struct {
-	params  IncomingPeerParams
-	conn    conn.Connection
-	remote  remote
-	address string
-	cancel  context.CancelFunc
+	params   IncomingPeerParams
+	conn     conn.Connection
+	remote   remote
+	uniqueID string
+	cancel   context.CancelFunc
 }
 
 type IncomingPeerParams struct {
@@ -43,9 +44,14 @@ func RunIncomingPeer(params IncomingPeerParams) {
 		return
 	}
 
+	id := fmt.Sprintf("incoming connection %s -> %s", c.RemoteAddr().String(), c.LocalAddr().String())
+
+	zap.S().Infof("readed handshake from %s %+v", id, readHandshake)
+
 	writeHandshake := proto.Handshake{
-		Name:              "wavesW",
-		Version:           proto.Version{Major: 0, Minor: 15, Patch: 0},
+		Name: "wavesW",
+		// pass the same minor version as received
+		Version:           proto.Version{Major: 0, Minor: readHandshake.Version.Minor, Patch: 0},
 		NodeName:          "gowaves",
 		NodeNonce:         0x0,
 		DeclaredAddrBytes: bytes,
@@ -66,21 +72,30 @@ func RunIncomingPeer(params IncomingPeerParams) {
 	_, cancel := context.WithCancel(params.Ctx)
 
 	peer := &IncomingPeer{
-		params:  params,
-		conn:    connection,
-		remote:  remote,
-		address: c.RemoteAddr().String(),
-		cancel:  cancel,
+		params:   params,
+		conn:     connection,
+		remote:   remote,
+		uniqueID: fmt.Sprintf("incoming connection %s -> %s", c.RemoteAddr().String(), c.LocalAddr().String()),
+		cancel:   cancel,
+	}
+
+	decl := proto.PeerInfo{}
+	err = decl.UnmarshalBinary(readHandshake.DeclaredAddrBytes)
+	if err != nil {
+		zap.S().Errorf("err: %s %s, readhandshake %+v", err, c.RemoteAddr().String(), readHandshake)
 	}
 
 	out := InfoMessage{
-		ID: c.RemoteAddr().String(),
+		ID: peer.uniqueID,
 		Value: &Connected{
-			Peer:    peer,
-			Version: readHandshake.Version,
+			Peer:       peer,
+			Version:    readHandshake.Version,
+			DeclAddr:   decl,
+			RemoteAddr: c.RemoteAddr().String(),
+			LocalAddr:  c.LocalAddr().String(),
 		},
 	}
-	params.Parent.ParentInfoChan <- out
+	params.Parent.InfoCh <- out
 	peer.run()
 }
 
@@ -90,7 +105,7 @@ func (a *IncomingPeer) run() {
 		ctx:                       a.params.Ctx,
 		remote:                    a.remote,
 		receiveFromRemoteCallback: a.params.ReceiveFromRemoteCallback,
-		address:                   a.address,
+		uniqueID:                  a.uniqueID,
 		parent:                    a.params.Parent,
 		pool:                      a.params.Pool,
 	}
@@ -110,12 +125,12 @@ func (a *IncomingPeer) SendMessage(m proto.Message) {
 	select {
 	case a.remote.toCh <- b:
 	default:
-		zap.S().Warnf("can't send bytes to remote, chan is full id %s", a.address)
+		zap.S().Warnf("can't send bytes to remote, chan is full id %s", a.uniqueID)
 	}
 }
 
 func (a *IncomingPeer) ID() string {
-	return a.address
+	return a.uniqueID
 }
 
 func (a *IncomingPeer) Direction() Direction {

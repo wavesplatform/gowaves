@@ -293,6 +293,24 @@ func TestProtocolMarshalling(t *testing.T) {
 	}
 }
 
+func TestTransactionMessage_UnmarshalBinary(t *testing.T) {
+
+	p := TransactionMessage{
+		Transaction: []byte("transaction"),
+	}
+
+	bts, err := p.MarshalBinary()
+	require.NoError(t, err)
+
+	otherBts := make([]byte, len(bts)+100)
+	copy(otherBts, bts)
+
+	p2 := TransactionMessage{}
+	err = p2.UnmarshalBinary(otherBts)
+	require.NoError(t, err)
+	assert.Equal(t, []byte("transaction"), p2.Transaction)
+}
+
 func TestPeerInfo_MarshalJSON(t *testing.T) {
 	p := PeerInfo{
 		Addr: net.ParseIP("8.8.8.8"),

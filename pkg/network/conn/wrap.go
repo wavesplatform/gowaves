@@ -37,11 +37,10 @@ func wrapConnection(params wrapParams) Connection {
 		conn:   params.conn,
 	}
 
-	bufReader := bufio.NewReaderSize(params.conn, size)
-	bufWriter := bufio.NewWriterSize(params.conn, size)
+	bufReader := bufio.NewReaderSize(params.conn, params.pool.BytesLen())
 
 	go params.recvFunc(params.pool, bufReader, params.fromRemoteCh, params.errCh)
-	go params.sendFunc(bufWriter, ctx, params.toRemoteCh, params.errCh)
+	go params.sendFunc(params.conn, ctx, params.toRemoteCh, params.errCh)
 
 	return impl
 }

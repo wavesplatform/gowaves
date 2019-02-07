@@ -267,6 +267,12 @@ func (h *Handshake) WriteTo(w io.Writer) (int64, error) {
 	return n, err
 }
 
+func (h *Handshake) PeerInfo() (PeerInfo, error) {
+	p := PeerInfo{}
+	err := p.UnmarshalBinary(h.DeclaredAddrBytes)
+	return p, err
+}
+
 // GetPeersMessage implements the GetPeers message from the waves protocol
 type GetPeersMessage struct{}
 
@@ -448,6 +454,18 @@ func (m *PeerInfo) UnmarshalJSON(value []byte) error {
 	return nil
 }
 
+func (m *PeerInfo) Empty() bool {
+	if m.Addr == nil || m.Addr.String() == "0.0.0.0" {
+		return true
+	}
+
+	if m.Port == 0 {
+		return true
+	}
+
+	return false
+}
+
 // PeersMessage represents the peers message
 type PeersMessage struct {
 	Peers []PeerInfo
@@ -530,6 +548,32 @@ func readPacket(r io.Reader) ([]byte, int64, error) {
 	packet = append(packetLen[:], packet...)
 
 	return packet, int64(nn), nil
+}
+
+func ReadPacket(buf []byte, r io.Reader) (int64, error) {
+	packetLen := buf[:4]
+	//zap.S().Infof("==1packetLen %d %d", len(packetLen), packetLen)
+	nn, err := io.ReadFull(r, packetLen)
+	if err != nil {
+		return int64(nn), err
+	}
+	l := binary.BigEndian.Uint32(packetLen)
+	//zap.S().Infof("==2packetLen %d", l)
+	buf = buf[4:]
+	packet := buf[:l]
+	//zap.S().Infof("==3packet length %d", len(packet))
+	//packet := make([]byte, l)
+	//for i := 0; i < len(packet); i++ {
+	//	packet[i] = 0x88
+	//}
+	n, err := io.ReadFull(r, packet)
+	if err != nil {
+		return int64(nn + n), err
+	}
+	nn += n
+	//packet = append(packetLen[:], packet...)
+
+	return int64(nn), nil
 }
 
 // ReadFrom reads PeersMessage from io.Reader
@@ -926,7 +970,7 @@ func (m *ScoreMessage) WriteTo(w io.Writer) (int64, error) {
 	return n, err
 }
 
-// TransactionMessage represents Transaction message
+// TransactionMessage represents TransactionsSend message
 type TransactionMessage struct {
 	Transaction []byte
 }
@@ -964,9 +1008,8 @@ func (m *TransactionMessage) UnmarshalBinary(data []byte) error {
 	if h.ContentID != ContentIDTransaction {
 		return fmt.Errorf("wrong ContentID in header: %x", h.ContentID)
 	}
-
-	m.Transaction = data[17:]
-
+	m.Transaction = make([]byte, h.PayloadLength)
+	copy(m.Transaction, data[headerLength:headerLength+h.PayloadLength])
 	return nil
 }
 

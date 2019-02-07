@@ -6,11 +6,12 @@ import (
 
 const idSize = 16
 
+// sended transactions cache
 type TransactionList struct {
 	index int
 	size  int
 	lst   []*proto.Transaction
-	id2t  map[[idSize]byte]proto.Transaction
+	id2t  map[[idSize]byte]struct{}
 }
 
 func NewTransactionList(size int) *TransactionList {
@@ -18,7 +19,7 @@ func NewTransactionList(size int) *TransactionList {
 		size:  size,
 		lst:   make([]*proto.Transaction, size),
 		index: 0,
-		id2t:  make(map[[idSize]byte]proto.Transaction),
+		id2t:  make(map[[idSize]byte]struct{}),
 	}
 }
 
@@ -29,7 +30,7 @@ func (a *TransactionList) Add(transaction proto.Transaction) {
 
 	b := [idSize]byte{}
 	copy(b[:], transaction.GetID())
-	a.id2t[b] = transaction
+	a.id2t[b] = struct{}{}
 	a.clearOldTransaction(transaction)
 }
 

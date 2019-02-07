@@ -3,18 +3,21 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/gorilla/mux"
 	"github.com/spf13/afero"
+	flag "github.com/spf13/pflag"
 	"github.com/wavesplatform/gowaves/pkg/libs/bytespool"
 	"github.com/wavesplatform/gowaves/pkg/network/conn"
 	"github.com/wavesplatform/gowaves/pkg/network/peer"
 	"github.com/wavesplatform/gowaves/pkg/network/retransmit"
+	"github.com/wavesplatform/gowaves/pkg/network/retransmit/httpserver"
+	"github.com/wavesplatform/gowaves/pkg/network/retransmit/utils"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
-	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
+	"time"
 )
 
 // filter only transactions and
@@ -24,21 +27,20 @@ func receiveFromRemoteCallbackfunc(b []byte, id string, resendTo chan peer.Proto
 		pool.Put(b)
 	}()
 
-	zap.S().Debugf("receiveFromRemoteCallbackfunc, len bytes %d", len(b))
-
 	if len(b) < 9 {
 		return
 	}
 
 	switch b[8] {
 	case proto.ContentIDTransaction:
-
 		m := &proto.TransactionMessage{}
 		err := m.UnmarshalBinary(b)
 		if err != nil {
-			fmt.Println(err)
+			zap.S().Error(err, id, b)
 			return
 		}
+
+		zap.S().Debugf("got transaction from %s", id)
 
 		mess := peer.ProtoMessage{
 			ID:      id,
@@ -48,11 +50,10 @@ func receiveFromRemoteCallbackfunc(b []byte, id string, resendTo chan peer.Proto
 		select {
 		case resendTo <- mess:
 		default:
+			zap.S().Warnf("failed to resend to parent, channel is full", id)
 		}
 
 	case proto.ContentIDPeers:
-		fmt.Println("got proto.ContentIDPeers message", id)
-
 		m := &proto.PeersMessage{}
 		err := m.UnmarshalBinary(b)
 		if err != nil {
@@ -89,47 +90,85 @@ func receiveFromRemoteCallbackfunc(b []byte, id string, resendTo chan peer.Proto
 		default:
 		}
 	default:
-		fmt.Println("bytes id ", b[8])
+		zap.S().Info("bytes id ", b[8])
 		return
 	}
 }
 
 func main() {
 
-	logger, _ := zap.NewDevelopment()
+	// delay before exit
+	defer func() {
+		<-time.After(1 * time.Second)
+	}()
+
+	var err error
+
+	cfg := zap.NewDevelopmentConfig()
+	logger, err := cfg.Build()
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
 	zap.ReplaceGlobals(logger)
+
+	var bind string
+	var decl string
+	var addresses string
+	flag.StringVarP(&bind, "bind", "b", "", "Local address listen on")
+	flag.StringVarP(&decl, "decl", "d", "", "Declared Address")
+	flag.StringVarP(&addresses, "addresses", "a", "", "Addresses connect to")
+	flag.Parse()
+
+	declAddr := proto.PeerInfo{}
+	if decl != "" {
+		declAddr, err = proto.NewPeerInfoFromString(decl)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 
 	fs := afero.NewOsFs()
 
-	knownPeers, err := retransmit.NewKnownPeersFileBased(fs, "known_peers.json")
+	storage, err := utils.NewFileBasedStorage(fs, "known_peers.json")
 	if err != nil {
 		zap.S().Error(err)
+		cancel()
+		return
+	}
+
+	knownPeers, err := utils.NewKnownPeers(storage)
+	if err != nil {
+		zap.S().Error(err)
+		cancel()
 		return
 	}
 
 	pool := bytespool.NewBytesPool(32, 2*1024*1024)
 
-	r := retransmit.NewRetransmitter(ctx, knownPeers, peer.RunOutgoingPeer, peer.RunIncomingPeer, receiveFromRemoteCallbackfunc, pool)
+	r := retransmit.NewRetransmitter(declAddr, knownPeers, peer.RunOutgoingPeer, peer.RunIncomingPeer, receiveFromRemoteCallbackfunc, pool)
 
-	go r.Run()
+	go r.Run(ctx)
 
-	//r.AddAddress("34.253.153.4:6868")
-	//r.AddAddress("52.214.55.18:6868")
-	r.AddAddress("mainnet-aws-ca-1.wavesnodes.com:6868")
-
-	httpServer := retransmit.NewHttpServer(r)
-
-	router := mux.NewRouter()
-	router.HandleFunc("/active", httpServer.ActiveConnections)
-	router.HandleFunc("/known", httpServer.KnownPeers)
-	http.Handle("/", router)
-
-	srv := http.Server{
-		Handler: router,
-		Addr:    "127.0.0.1:8000",
+	for _, a := range strings.Split(addresses, ",") {
+		a = strings.Trim(a, " ")
+		if a != "" {
+			r.AddAddress(ctx, a)
+		}
 	}
+
+	if bind != "" {
+		err = r.Server(ctx, bind)
+		if err != nil {
+			zap.S().Error(err)
+			return
+		}
+	}
+
+	srv := httpserver.NewHttpServer(r)
 
 	go func() {
 		err := srv.ListenAndServe()
@@ -144,8 +183,8 @@ func main() {
 
 	select {
 	case sig := <-gracefulStop:
+		zap.S().Infow("Caught signal, stopping", "signal", sig)
 		_ = srv.Shutdown(ctx)
 		cancel()
-		zap.S().Infow("Caught signal, stopping", "signal", sig)
 	}
 }

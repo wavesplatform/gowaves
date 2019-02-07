@@ -7,7 +7,7 @@ import (
 
 type handlerParams struct {
 	ctx                       context.Context
-	address                   string
+	uniqueID                  string
 	connection                conn.Connection
 	remote                    remote
 	receiveFromRemoteCallback ReceiveFromRemoteCallback
@@ -15,6 +15,7 @@ type handlerParams struct {
 	pool                      conn.Pool
 }
 
+// for handle doesn't matter outgoing or incoming connection, it just send and receive messages
 func handle(params handlerParams) {
 	for {
 		select {
@@ -23,14 +24,14 @@ func handle(params handlerParams) {
 			return
 
 		case bts := <-params.remote.fromCh:
-			params.receiveFromRemoteCallback(bts, params.address, params.parent.ResendToParentCh, params.pool)
+			params.receiveFromRemoteCallback(bts, params.uniqueID, params.parent.MessageCh, params.pool)
 
 		case err := <-params.remote.errCh:
 			out := InfoMessage{
-				ID:    params.address,
+				ID:    params.uniqueID,
 				Value: err,
 			}
-			params.parent.ParentInfoChan <- out
+			params.parent.InfoCh <- out
 		}
 	}
 }

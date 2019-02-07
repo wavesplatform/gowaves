@@ -1,6 +1,7 @@
 package conn
 
 import (
+	"encoding/binary"
 	"github.com/magiconair/properties/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/libs/bytespool"
@@ -10,6 +11,7 @@ import (
 	"time"
 )
 
+//test that we receiving bytes
 func TestWrapConnection(t *testing.T) {
 	logger, _ := zap.NewDevelopment()
 	zap.ReplaceGlobals(logger)
@@ -20,7 +22,9 @@ func TestWrapConnection(t *testing.T) {
 		for {
 			conn, err := listener.Accept()
 			require.NoError(t, err)
-			_, _ = conn.Write([]byte("aaaaa"))
+			out := make([]byte, 4)
+			binary.BigEndian.PutUint32(out, 0)
+			_, _ = conn.Write(out)
 			_ = conn.Close()
 		}
 	}()
@@ -33,6 +37,6 @@ func TestWrapConnection(t *testing.T) {
 	wrapped := WrapConnection(conn, pool, nil, ch, nil)
 
 	<-time.After(100 * time.Millisecond)
-	assert.Equal(t, []byte("aaaaa"), (<-ch)[:5])
+	assert.Equal(t, []byte{0, 0, 0, 0}, (<-ch)[:4])
 	require.NoError(t, wrapped.Close())
 }

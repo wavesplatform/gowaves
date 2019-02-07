@@ -2,9 +2,12 @@ package retransmit
 
 import (
 	"context"
-	"github.com/magiconair/properties/assert"
+	"github.com/stretchr/testify/assert"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/libs/bytespool"
 	"github.com/wavesplatform/gowaves/pkg/network/peer"
+	"github.com/wavesplatform/gowaves/pkg/network/retransmit/utils"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"testing"
 	"time"
@@ -34,11 +37,8 @@ func (a *mockPeer) SendMessage(m proto.Message) {
 	a.SendMessageCalledWith = append(a.SendMessageCalledWith, m)
 }
 
-func (a mockPeer) ID() peer.UniqID {
-	return peer.UniqID(a.addr)
-}
-func errorHandler(peer.UniqID, error, *PeerInfo, *Retransmitter) {
-
+func (a mockPeer) ID() string {
+	return a.addr
 }
 
 func createTransaction() *proto.TransferV2 {
@@ -67,23 +67,34 @@ func createTransaction() *proto.TransferV2 {
 }
 
 func TestClientRecvTransaction(t *testing.T) {
+	ctx := context.Background()
 	transaction := createTransaction()
 	bts, _ := transaction.MarshalBinary()
 
 	addrToCh := make(map[string]*mockPeer)
 
-	outgoingSpawner := func(addr string, incomeCh chan peer.ProtoMessage, infoCh chan peer.InfoMessage) {
-		addrToCh[addr] = &mockPeer{
-			addr:     addr,
-			incomeCh: incomeCh,
+	outgoingSpawner := func(params peer.OutgoingPeerParams) {
+		addrToCh[params.Address] = &mockPeer{
+			addr:     params.Address,
+			incomeCh: params.Parent.MessageCh,
+		}
+
+		params.Parent.InfoCh <- peer.InfoMessage{
+			ID: params.Address,
+			Value: &peer.Connected{
+				Peer: addrToCh[params.Address],
+			},
 		}
 	}
 
-	r := NewRetransmitter(context.Background(), outgoingSpawner, nil, errorHandler)
-	go r.Run()
+	knownPeers, _ := utils.NewKnownPeers(utils.NoOnStorage{})
+	pool := bytespool.NewBytesPool(1, 2*1024*1024)
 
-	r.AddAddress("127.0.0.1:100")
-	r.AddAddress("127.0.0.1:101")
+	r := NewRetransmitter(proto.PeerInfo{}, knownPeers, outgoingSpawner, nil, nil, pool)
+	go r.Run(ctx)
+
+	r.AddAddress(ctx, "127.0.0.1:100")
+	r.AddAddress(ctx, "127.0.0.1:101")
 
 	<-time.After(10 * time.Millisecond)
 

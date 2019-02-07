@@ -2,6 +2,7 @@ package conn
 
 import (
 	"context"
+	"github.com/wavesplatform/gowaves/pkg/proto"
 	"io"
 	"net"
 	"strings"
@@ -12,15 +13,17 @@ import (
 type Pool interface {
 	Get() []byte
 	Put([]byte)
+	BytesLen() int
 }
 
 // size of incoming message, 2 megabytes
-const size = 1024 * 1024 * 2
+//const size = 1024 * 1024 * 2
 
 type Dialer func(network string, addr string) (net.Conn, error)
 
 type Connection interface {
 	io.Closer
+	Conn() net.Conn
 }
 
 func handleErr(err error, errCh chan<- error) {
@@ -50,11 +53,11 @@ func recvFromRemote(pool Pool, reader io.Reader, fromRemoteCh chan []byte, errCh
 
 	for {
 		b := pool.Get()
-		n, err := reader.Read(b)
+		n, err := proto.ReadPacket(b, reader)
 		// we got message, that may be greater than out max network message
 		// better log this
-		if n == size {
-			zap.S().Warnf("incoming message(%d bytes) may be greater than expected (%d bytes)", n, size)
+		if n == int64(pool.BytesLen()) {
+			zap.S().Warnf("incoming message(%d bytes) may be greater than expected (%d bytes) %s", n, pool.BytesLen())
 		}
 
 		if err != nil {
@@ -83,4 +86,8 @@ type ConnectionImpl struct {
 func (a *ConnectionImpl) Close() error {
 	a.cancel()
 	return a.conn.Close()
+}
+
+func (a *ConnectionImpl) Conn() net.Conn {
+	return a.conn
 }

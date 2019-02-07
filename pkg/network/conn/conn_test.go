@@ -22,14 +22,13 @@ func sendfunc(i *uint64) func(conn io.Writer, ctx context.Context, toRemoteCh ch
 }
 
 func recvfunc(i *uint64) func(pool Pool, reader io.Reader, fromRemoteCh chan []byte, errCh chan error) {
-
 	return func(pool Pool, reader io.Reader, fromRemoteCh chan []byte, errCh chan error) {
-
 		defer atomic.AddUint64(i, 1)
 		recvFromRemote(pool, reader, fromRemoteCh, errCh)
 	}
 }
 
+// check on calling close method spawned goroutines exited
 func TestConnectionImpl_Close(t *testing.T) {
 	logger, _ := zap.NewDevelopment()
 	zap.ReplaceGlobals(logger)
@@ -41,12 +40,11 @@ func TestConnectionImpl_Close(t *testing.T) {
 		for {
 			conn, err := listener.Accept()
 			require.NoError(t, err)
-			_, _ = conn.Write([]byte("aaaaa"))
 			_ = conn.Close()
 		}
 	}()
 
-	c := NewConnector(net.Dial, bytespool.NewBytesPool(32, size))
+	c := NewConnector(net.Dial, bytespool.NewBytesPool(32, 2*1024*1024))
 
 	counter := uint64(0)
 
@@ -62,8 +60,6 @@ func TestConnectionImpl_Close(t *testing.T) {
 
 	conn, err := c.dial(params)
 	require.NoError(t, err)
-	assert.Equal(t, []byte("aaaaa"), (<-params.fromRemoteCh)[:5])
-
 	require.NoError(t, conn.Close())
 	<-time.After(10 * time.Millisecond)
 	assert.EqualValues(t, 2, counter)
