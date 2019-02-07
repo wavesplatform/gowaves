@@ -22,23 +22,10 @@ var (
 	lastKey = []byte("last") // For addr2Index, asset2Index.
 )
 
-type Iterator interface {
-	Key() []byte
-	Value() []byte
-	Next() bool
-	Error() error
-	Release()
-}
-
-type IterableKeyVal interface {
-	KeyValue
-	NewKeyIterator(prefix []byte) (Iterator, error)
-}
-
 type AccountsStorage struct {
-	globalStor  KeyValue // AddrIndex+AssetIndex -> [(blockID, balance), (blockID, balance), ...]
-	addr2Index  KeyValue
-	asset2Index KeyValue
+	globalStor  keyvalue.IterableKeyVal // AddrIndex+AssetIndex -> [(blockID, balance), (blockID, balance), ...]
+	addr2Index  keyvalue.IterableKeyVal
+	asset2Index keyvalue.IterableKeyVal
 	validIDs    map[crypto.Signature]struct{}
 }
 
@@ -53,7 +40,7 @@ func toBlockID(bytes []byte) (crypto.Signature, error) {
 	return res, nil
 }
 
-func initIndexStores(addr2Index, asset2Index KeyValue) error {
+func initIndexStores(addr2Index, asset2Index keyvalue.KeyValue) error {
 	has, err := addr2Index.Has(lastKey)
 	if err != nil {
 		return err
@@ -115,7 +102,7 @@ func CreateTestAccountsStorage(blockIdsFile string) (*AccountsStorage, []string,
 	return stor, res, nil
 }
 
-func NewAccountsStorage(globalStor, addr2Index, asset2Index KeyValue, blockIdsFile string) (*AccountsStorage, error) {
+func NewAccountsStorage(globalStor, addr2Index, asset2Index keyvalue.IterableKeyVal, blockIdsFile string) (*AccountsStorage, error) {
 	validIDs := make(map[crypto.Signature]struct{})
 	if blockIdsFile != "" {
 		blockIDs, err := os.Open(blockIdsFile)
@@ -234,6 +221,34 @@ func (s *AccountsStorage) filterState(stateKey []byte, state []byte) ([]byte, er
 		return nil, err
 	}
 	return state, nil
+}
+
+func (s *AccountsStorage) WavesAddressesNumber() (uint64, error) {
+	iter, err := s.addr2Index.NewKeyIterator(nil)
+	if err != nil {
+		return 0, err
+	}
+	addressesNumber := uint64(0)
+	for iter.Next() {
+		if string(iter.Key()) != string(lastKey) {
+			addr, err := proto.NewAddressFromBytes(iter.Key())
+			if err != nil {
+				return 0, err
+			}
+			balance, err := s.AccountBalance(addr, nil)
+			if err != nil {
+				return 0, err
+			}
+			if balance > 0 {
+				addressesNumber++
+			}
+		}
+	}
+	iter.Release()
+	if err := iter.Error(); err != nil {
+		return 0, err
+	}
+	return addressesNumber, nil
 }
 
 func (s *AccountsStorage) AccountBalance(addr proto.Address, asset []byte) (uint64, error) {

@@ -40,6 +40,14 @@ func decodeAndCheckBalances(stor *storage.AccountsStorage, balances *os.File) er
 	if err := jsonParser.Decode(&state); err != nil {
 		return errors.Errorf("Failed to decode state: %v\n", err)
 	}
+	addressesNumber, err := stor.WavesAddressesNumber()
+	if err != nil {
+		return errors.Errorf("Failed to get number of waves addresses: %v\n", err)
+	}
+	properAddressesNumber := uint64(len(state))
+	if properAddressesNumber != addressesNumber {
+		return errors.Errorf("Number of addresses differ: %d and %d\n", properAddressesNumber, addressesNumber)
+	}
 	for addrStr, properBalance := range state {
 		addr, err := proto.NewAddressFromString(addrStr)
 		if err != nil {

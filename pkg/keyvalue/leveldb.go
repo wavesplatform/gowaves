@@ -3,6 +3,7 @@ package keyvalue
 import (
 	"github.com/pkg/errors"
 	"github.com/syndtr/goleveldb/leveldb"
+	"github.com/syndtr/goleveldb/leveldb/util"
 )
 
 type KeyVal struct {
@@ -61,4 +62,12 @@ func (k *KeyVal) Flush() error {
 	}
 	k.batch.Reset()
 	return nil
+}
+
+func (k *KeyVal) NewKeyIterator(prefix []byte) (Iterator, error) {
+	if prefix != nil {
+		return k.db.NewIterator(util.BytesPrefix(prefix), nil), nil
+	} else {
+		return k.db.NewIterator(nil, nil), nil
+	}
 }

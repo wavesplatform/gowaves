@@ -13,17 +13,9 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 )
 
-type KeyValue interface {
-	Has(key []byte) (bool, error)
-	Put(key, val []byte) error
-	Get(key []byte) ([]byte, error)
-	Delete(key []byte) error
-	Flush() error
-}
-
 type BlockReadWriter struct {
-	// KeyValue to store ID --> offset in blockchain for blocks and transactions.
-	idKeyVal KeyValue
+	// keyvalue.KeyValue to store ID --> offset in blockchain for blocks and transactions.
+	idKeyVal keyvalue.KeyValue
 
 	// Series of transactions.
 	blockchain *os.File
@@ -99,7 +91,7 @@ func CreateTestBlockReadWriter(batchSize, offsetLen, headerOffsetLen int) (*Bloc
 	return rw, res, nil
 }
 
-func NewBlockReadWriter(dir string, offsetLen, headerOffsetLen int, keyVal KeyValue) (*BlockReadWriter, error) {
+func NewBlockReadWriter(dir string, offsetLen, headerOffsetLen int, keyVal keyvalue.KeyValue) (*BlockReadWriter, error) {
 	if contentList, err := ioutil.ReadDir(dir); err != nil {
 		return nil, errors.Wrap(err, "Error when reading output dir")
 	} else if len(contentList) != 0 {
