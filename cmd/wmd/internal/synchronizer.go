@@ -108,7 +108,7 @@ func (s *Synchronizer) synchronize() {
 				s.log.Errorf("Failed to get rollback height: %v", err)
 				return
 			}
-			s.log.Infof("Rolling back to safe height %d", rollbackHeight)
+			s.log.Warnf("Rolling back to safe height %d", rollbackHeight)
 			err = s.storage.Rollback(rollbackHeight)
 			if err != nil {
 				s.log.Errorf("Failed to rollback: %v", err)

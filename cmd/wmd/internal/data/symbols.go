@@ -59,12 +59,12 @@ func (s *Symbols) Tokens() map[crypto.Digest]string {
 }
 
 func (s *Symbols) ParseTicker(ticker string) (crypto.Digest, error) {
-	ticker = strings.ToUpper(ticker)
-	if ticker == proto.WavesAssetName {
-		return crypto.Digest{}, nil
-	}
 	id, err := crypto.NewDigestFromBase58(ticker)
 	if err != nil {
+		ticker = strings.ToUpper(ticker)
+		if ticker == proto.WavesAssetName {
+			return crypto.Digest{}, nil
+		}
 		id, ok := s.tickers[ticker]
 		if !ok {
 			return crypto.Digest{}, errors.Errorf("unknown ticker or invalid asset ID '%s'", ticker)
