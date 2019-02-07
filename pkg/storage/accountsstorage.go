@@ -216,10 +216,6 @@ func (s *AccountsStorage) filterState(stateKey []byte, state []byte) ([]byte, er
 			}
 		}
 	}
-	// If we are here, there were no valid records in state, so it should be removed.
-	if err := s.globalStor.Delete(stateKey); err != nil {
-		return nil, err
-	}
 	return state, nil
 }
 
@@ -349,9 +345,6 @@ func (s *AccountsStorage) SetAccountBalance(addr proto.Address, asset []byte, ba
 }
 
 func (s *AccountsStorage) RollbackBlock(blockID crypto.Signature) error {
-	if _, ok := s.validIDs[blockID]; !ok {
-		return errors.New("BlockID is not present")
-	}
 	delete(s.validIDs, blockID)
 	return nil
 }

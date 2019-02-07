@@ -345,16 +345,12 @@ func (s *StateManager) RollbackToHeight(height uint64) error {
 }
 
 func (s *StateManager) RollbackTo(removalEdge crypto.Signature) error {
-	// Remove blocks from block storage.
-	if err := s.rw.RemoveBlocks(removalEdge); err != nil {
-		return errors.Errorf("Failed to remove blocks from block storage: %v", err)
-	}
 	if s.accountsStorage != nil {
 		// Rollback accounts storage.
-		for height := s.rw.CurrentHeight(); height > 0; height-- {
+		for height := s.rw.CurrentHeight() - 1; height > 0; height-- {
 			blockID, err := s.rw.BlockIDByHeight(height)
 			if err != nil {
-				return err
+				return errors.Errorf("Failed to get block ID by height: %v\n", err)
 			}
 			if blockID == removalEdge {
 				return nil
@@ -364,6 +360,10 @@ func (s *StateManager) RollbackTo(removalEdge crypto.Signature) error {
 			}
 		}
 		return errors.New("Could not find removalEdge.")
+	}
+	// Remove blocks from block storage.
+	if err := s.rw.RemoveBlocks(removalEdge); err != nil {
+		return errors.Errorf("Failed to remove blocks from block storage: %v", err)
 	}
 	return nil
 }
