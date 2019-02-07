@@ -64,7 +64,7 @@ func readRealBlocks(t *testing.T, nBlocks int) ([]*proto.Block, error) {
 	if err != nil {
 		return nil, err
 	}
-	f, err := os.Open(filepath.Join(dir, "testdata", "blocks"))
+	f, err := os.Open(filepath.Join(dir, "testdata", "blocks-10000"))
 	if err != nil {
 		return nil, err
 	}
