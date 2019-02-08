@@ -33,7 +33,7 @@ func NewCandleFromTimestamp(ts uint64) Candle {
 
 func NewCandleFromTimeFrame(tf uint32) Candle {
 	b := TimestampMSFromTimeFrame(tf)
-	return Candle{MinTimestamp:b + TimeFrame, MaxTimestamp: b} //Initialize in opposite to support update
+	return Candle{MinTimestamp: b + TimeFrame, MaxTimestamp: b} //Initialize in opposite to support update
 }
 
 func (c *Candle) UpdateFromTrade(t Trade) {

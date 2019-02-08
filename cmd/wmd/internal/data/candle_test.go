@@ -26,9 +26,9 @@ func TestScaleTimeFrame(t *testing.T) {
 
 func TestCandle_UpdateFromTrade(t *testing.T) {
 	ts1 := uint64(1542712337 * Second)
-	tr1 := Trade{Timestamp: ts1, Price: 1234567, Amount:0}
+	tr1 := Trade{Timestamp: ts1, Price: 1234567, Amount: 0}
 	ts2 := uint64(1542712237 * Second)
-	tr2 := Trade{Timestamp: ts2, Price: 7654321, Amount:0}
+	tr2 := Trade{Timestamp: ts2, Price: 7654321, Amount: 0}
 	c := NewCandleFromTimestamp(tr1.Timestamp)
 	assert.Equal(t, 1542712200000, int(c.MaxTimestamp))
 	assert.Equal(t, 1542712500000, int(c.MinTimestamp))
@@ -60,6 +60,6 @@ func TestCandle_UpdateFromTrade2(t *testing.T) {
 	assert.Equal(t, int(a), int(c.Volume))
 	assert.Equal(t, int(p), int(c.Average))
 	c.UpdateFromTrade(tr2)
-	assert.Equal(t, int(a + a), int(c.Volume))
+	assert.Equal(t, int(a+a), int(c.Volume))
 	assert.Equal(t, int(p), int(c.Average))
 }

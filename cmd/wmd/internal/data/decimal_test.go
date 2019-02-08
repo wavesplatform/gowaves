@@ -197,7 +197,7 @@ func TestInfiniteDecimalMarshalJSON1(t *testing.T) {
 	d, err := NewDecimalFromString("123.4567890")
 	require.NoError(t, err)
 	a := d.ToInfiniteDecimal(false)
-	js, err:= a.MarshalJSON()
+	js, err := a.MarshalJSON()
 	require.NoError(t, err)
 	assert.ElementsMatch(t, []byte("\"123.4567890\""), js)
 }
@@ -206,7 +206,7 @@ func TestInfiniteDecimalMarshalJSON2(t *testing.T) {
 	d, err := NewDecimalFromString("123.4567890")
 	require.NoError(t, err)
 	a := d.ToInfiniteDecimal(true)
-	js, err:= a.MarshalJSON()
+	js, err := a.MarshalJSON()
 	require.NoError(t, err)
 	assert.ElementsMatch(t, []byte("\"infinite\""), js)
 }
@@ -226,4 +226,3 @@ func TestInfiniteDecimalUnmarshalJSON2(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "infinite", a.String())
 }
-

@@ -12,7 +12,7 @@ import (
 )
 
 var (
-	emptyAddress   = proto.Address{}
+	emptyAddress = proto.Address{}
 )
 
 type aliasKey struct {

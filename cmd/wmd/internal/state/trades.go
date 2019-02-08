@@ -301,7 +301,9 @@ func trade(snapshot *leveldb.Snapshot, id crypto.Digest) (data.Trade, error) {
 }
 
 func trades(snapshot *leveldb.Snapshot, amountAsset, priceAsset crypto.Digest, from, to uint64, limit int) ([]data.Trade, error) {
-	wrapError := func(err error) error { return errors.Wrap(err, "failed to load trades") }
+	wrapError := func(err error) error {
+		return errors.Wrap(err, "failed to load trades")
+	}
 	f := data.TimeFrameFromTimestampMS(from)
 	t := data.TimeFrameFromTimestampMS(to)
 	s := marketTradePartialKey{amountAsset, priceAsset, f}
@@ -369,8 +371,9 @@ func (k *addressTradesKey) fromBytes(data []byte) error {
 }
 
 func addressTrades(snapshot *leveldb.Snapshot, amountAsset, priceAsset crypto.Digest, address proto.Address, limit int) ([]data.Trade, error) {
-	wrapError := func(err error) error { return errors.Wrapf(err, "failed to collect trades for address '%s'", address.String()) }
-
+	wrapError := func(err error) error {
+		return errors.Wrapf(err, "failed to collect trades for address '%s'", address.String())
+	}
 	s := addressTradesKey{amountAsset, priceAsset, address, minDigest}
 	l := addressTradesKey{amountAsset, priceAsset, address, maxDigest}
 	it := snapshot.NewIterator(&util.Range{Start: s.bytes(), Limit: l.bytes()}, nil)

@@ -88,7 +88,7 @@ func TimeFromMilliseconds(ms uint64) time.Time {
 }
 
 func StartOfTheDayMilliseconds(ts uint64) uint64 {
-	return uint64(TimeFromMilliseconds(ts).Truncate(24 * time.Hour).UnixNano() / 1000000)
+	return uint64(TimeFromMilliseconds(ts).Truncate(24*time.Hour).UnixNano() / 1000000)
 }
 
 type ByMarkets []MarketInfo

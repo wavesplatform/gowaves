@@ -238,7 +238,7 @@ func TestMarketsTradesKeyBinaryRoundTrip(t *testing.T) {
 	require.NoError(t, err)
 	tr, err := randomDigest()
 	require.NoError(t, err)
-	k := marketTradeKey{amountAsset:aa, priceAsset:pa, timeFrame:12345, trade:tr}
+	k := marketTradeKey{amountAsset: aa, priceAsset: pa, timeFrame: 12345, trade: tr}
 	b := k.bytes()
 	var k2 marketTradeKey
 	err = k2.fromBytes(b)

@@ -47,7 +47,9 @@ func height(snapshot *leveldb.Snapshot) (int, error) {
 }
 
 func block(snapshot *leveldb.Snapshot, height uint32) (crypto.Signature, bool, error) {
-	wrapError := func(err error) error { return errors.Wrapf(err, "failed to locate block at height %d", height) }
+	wrapError := func(err error) error {
+		return errors.Wrapf(err, "failed to locate block at height %d", height)
+	}
 	k := uint32Key{prefix: blockKeyPrefix, key: height}
 	b, err := snapshot.Get(k.bytes(), nil)
 	if err != nil {
@@ -65,7 +67,9 @@ func block(snapshot *leveldb.Snapshot, height uint32) (crypto.Signature, bool, e
 }
 
 func hasBlock(snapshot *leveldb.Snapshot, height uint32, id crypto.Signature) (bool, error) {
-	wrapError := func(err error) error { return errors.Wrapf(err, "failed to locate block '%s' at height %d", id.String(), height) }
+	wrapError := func(err error) error {
+		return errors.Wrapf(err, "failed to locate block '%s' at height %d", id.String(), height)
+	}
 	b, ok, err := block(snapshot, height)
 	if err != nil {
 		return false, wrapError(err)
