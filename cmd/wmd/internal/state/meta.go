@@ -40,6 +40,9 @@ func updateHeight(batch *leveldb.Batch, height uint32) {
 func height(snapshot *leveldb.Snapshot) (int, error) {
 	b, err := snapshot.Get(heightKeyBytes, nil)
 	if err != nil {
+		if err == leveldb.ErrNotFound {
+			return 0, nil
+		}
 		return 0, errors.Wrap(err, "failed to get current height")
 	}
 	h := int(binary.BigEndian.Uint32(b))

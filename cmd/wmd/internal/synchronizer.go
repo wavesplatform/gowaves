@@ -219,7 +219,7 @@ func (s *Synchronizer) findLastCommonHeight(start, stop int) (int, error) {
 			start = middle
 		}
 	}
-	return 0, errors.New("impossible situation")
+	return 1, nil //Pretend that we know the genesis block
 }
 
 func (s *Synchronizer) equalSignatures(height int) (bool, error) {
