@@ -48,11 +48,16 @@ func (b B58Bytes) MarshalJSON() ([]byte, error) {
 func (b *B58Bytes) UnmarshalJSON(value []byte) error {
 	s := string(value)
 	if s == jsonNull {
+		*b = nil
 		return nil
 	}
 	s, err := strconv.Unquote(s)
 	if err != nil {
 		return errors.Wrap(err, "failed to unmarshal B58Bytes from JSON")
+	}
+	if s == "" {
+		*b = nil
+		return nil
 	}
 	v, err := base58.Decode(s)
 	if err != nil {
@@ -682,7 +687,12 @@ func (p *ProofsV1) UnmarshalJSON(value []byte) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to unmarshal ProofsV1 from JSON")
 	}
-	p.Proofs = tmp
+	p.Version = proofsVersion
+	for _, v := range tmp {
+		if v != nil {
+			p.Proofs = append(p.Proofs, v)
+		}
+	}
 	return nil
 }
 
