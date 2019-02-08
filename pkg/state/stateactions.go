@@ -2,6 +2,7 @@ package state
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/binary"
 	"encoding/json"
 	"io"
@@ -12,7 +13,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/storage"
 )
 
-func Apply(blockchainPath string, nBlocks int, manager *StateManager) error {
+func Apply(blockchainPath string, nBlocks int, manager *StateManager, checkBlocks bool) error {
 	blockchain, err := os.Open(blockchainPath)
 	if err != nil {
 		return errors.Errorf("Failed to open blockchain file: %v\n", err)
@@ -31,6 +32,19 @@ func Apply(blockchainPath string, nBlocks int, manager *StateManager) error {
 		}
 		if err := manager.AcceptAndVerifyBlockBinary(block, true); err != nil {
 			return err
+		}
+		if checkBlocks {
+			savedBlock, err := manager.GetBlockByHeight(uint64(i))
+			if err != nil {
+				return err
+			}
+			savedBlockBytes, err := savedBlock.MarshalBinary()
+			if err != nil {
+				return err
+			}
+			if bytes.Compare(block, savedBlockBytes) != 0 {
+				return errors.New("Accepted and returned blocks differ\n")
+			}
 		}
 	}
 	if err := blockchain.Close(); err != nil {

@@ -63,7 +63,7 @@ func TestBlockAcceptAndRollback(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create state manager: %v.\n", err)
 	}
-	if err := Apply(blocksPath, BLOCKS_NUMBER, manager); err != nil {
+	if err := Apply(blocksPath, BLOCKS_NUMBER, manager, true); err != nil {
 		t.Fatalf("Failed to import: %v\n", err)
 	}
 	if err := CheckBalances(balancesPath0, stor); err != nil {

@@ -53,7 +53,7 @@ func main() {
 		log.Fatalf("Failed to create state manager: %v.\n", err)
 	}
 	start := time.Now()
-	if err := state.Apply(*blockchainPath, *nBlocks, manager); err != nil {
+	if err := state.Apply(*blockchainPath, *nBlocks, manager, false); err != nil {
 		log.Fatalf("Failed to apply blocks: %v\n", err)
 	}
 	elapsed := time.Since(start)
