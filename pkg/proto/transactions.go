@@ -123,15 +123,11 @@ var (
 	}
 )
 
-type TransactionExtended interface {
-	Transaction
-	MarshalBinary() ([]byte, error)
-	UnmarshalBinary([]byte) error
-}
-
 type Transaction interface {
 	Transaction()
 	GetID() []byte
+	MarshalBinary() ([]byte, error)
+	UnmarshalBinary([]byte) error
 }
 
 func BytesToTransaction(tx []byte) (Transaction, error) {
@@ -143,7 +139,7 @@ func BytesToTransaction(tx []byte) (Transaction, error) {
 		if !ok {
 			return nil, errors.New("Invalid transaction type")
 		}
-		transaction, ok := reflect.New(transactionType).Interface().(TransactionExtended)
+		transaction, ok := reflect.New(transactionType).Interface().(Transaction)
 		if !ok {
 			panic("This transaction type does not implement marshal/unmarshal functions")
 		}
@@ -156,14 +152,14 @@ func BytesToTransaction(tx []byte) (Transaction, error) {
 		if !ok {
 			return nil, errors.New("Invalid transaction type")
 		}
-		transaction, ok := reflect.New(transactionType).Interface().(TransactionExtended)
+		transaction, ok := reflect.New(transactionType).Interface().(Transaction)
 		if !ok {
 			panic("This transaction type does not implement marshal/unmarshal functions")
 		}
 		if err := transaction.UnmarshalBinary(tx); err != nil {
 			return nil, errors.Wrap(err, "Failed to unmarshal transaction")
 		}
-		return Transaction(transaction), nil
+		return transaction, nil
 	}
 }
 
