@@ -88,7 +88,7 @@ func (s *StateManager) GetBlock(blockID crypto.Signature) (*proto.Block, error) 
 	if err := block.UnmarshalHeaderFromBinary(headerBytes); err != nil {
 		return nil, err
 	}
-	block.Transactions = make([]byte, block.TransactionBlockLength)
+	block.Transactions = make([]byte, len(transactions))
 	copy(block.Transactions, transactions)
 	return &block, nil
 }
@@ -353,13 +353,12 @@ func (s *StateManager) RollbackTo(removalEdge crypto.Signature) error {
 				return errors.Errorf("Failed to get block ID by height: %v\n", err)
 			}
 			if blockID == removalEdge {
-				return nil
+				break
 			}
 			if err := s.accountsStorage.RollbackBlock(blockID); err != nil {
 				return errors.Errorf("Failed to rollback accounts storage: %v", err)
 			}
 		}
-		return errors.New("Could not find removalEdge.")
 	}
 	// Remove blocks from block storage.
 	if err := s.rw.RemoveBlocks(removalEdge); err != nil {

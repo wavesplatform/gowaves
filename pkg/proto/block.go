@@ -32,6 +32,13 @@ func (b *BlockHeader) MarshalHeaderToBinary() ([]byte, error) {
 	binary.BigEndian.PutUint64(res[77:85], b.BaseTarget)
 	copy(res[85:117], b.GenSignature[:])
 	binary.BigEndian.PutUint32(res[117:121], b.TransactionBlockLength)
+	if b.Version == 3 {
+		countBuf := make([]byte, 4)
+		binary.BigEndian.PutUint32(countBuf, uint32(b.TransactionCount))
+		res = append(res, countBuf...)
+	} else {
+		res = append(res, byte(b.TransactionCount))
+	}
 	res = append(res, b.GenPublicKey[:]...)
 	res = append(res, b.BlockSignature[:]...)
 
@@ -74,6 +81,13 @@ func (b *Block) MarshalBinary() ([]byte, error) {
 	binary.BigEndian.PutUint64(res[77:85], b.BaseTarget)
 	copy(res[85:117], b.GenSignature[:])
 	binary.BigEndian.PutUint32(res[117:121], b.TransactionBlockLength)
+	if b.Version == 3 {
+		countBuf := make([]byte, 4)
+		binary.BigEndian.PutUint32(countBuf, uint32(b.TransactionCount))
+		res = append(res, countBuf...)
+	} else {
+		res = append(res, byte(b.TransactionCount))
+	}
 	res = append(res, b.Transactions...)
 	res = append(res, b.GenPublicKey[:]...)
 	res = append(res, b.BlockSignature[:]...)
