@@ -619,10 +619,10 @@ func TestProofsV1UnmarshalJSON(t *testing.T) {
 			[]B58Bytes{},
 		},
 		{"[\"\"]",
-			[]B58Bytes{},
+			[]B58Bytes{{}},
 		},
 		{"[\"\", \"\"]",
-			[]B58Bytes{},
+			[]B58Bytes{{}, {}},
 		},
 		{
 			"[\"2PPJhhHz2sCoFtJ3Dx3fTDzRXEC6Zm76kQMF7m5aqeL1XjFRysMircz7Cy5zJc77BrYTbEG9pgY4MMRVjv1S1hGx\"]",
