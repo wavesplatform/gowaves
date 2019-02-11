@@ -22,5 +22,6 @@ out/
 
 *.lock
 *.txt
+!cmd/wmd/symbols.txt
 *.json
 .DS_Store

@@ -427,15 +427,16 @@ func TestIssueV2ToJSON(t *testing.T) {
 		script     string
 		fee        uint64
 	}{
-		{'T', "TOKEN", "This is a valid description for the token", 12345, 4, true, "AQQAAAAEaW5hbAIAAAAESW5hbAQAAAAFZWxlbmECAAAAB0xlbnVza2EEAAAABGxvdmUCAAAAC0luYWxMZW51c2thCQAAAAAAAAIJAAEsAAAAAgUAAAAEaW5hbAUAAAAFZWxlbmEFAAAABGxvdmV4ZFt5", 100000},
-		{'W', "SHMOKEN", "This is a valid description for the token", 100000, 8, false, "", 100000},
-		{'X', "POKEN", "This is a valid description for the token", 9876543210, 2, true, "AQQAAAAEaW5hbAIAAAAESW5hbAQAAAAFZWxlbmECAAAAB0xlbnVza2EEAAAABGxvdmUCAAAAC0luYWxMZW51c2thCQAAAAAAAAIJAAEsAAAAAgUAAAAEaW5hbAUAAAAFZWxlbmEFAAAABGxvdmV4ZFt5", 123456},
+		{'T', "TOKEN", "This is a valid description for the token", 12345, 4, true, "base64:AQQAAAAEaW5hbAIAAAAESW5hbAQAAAAFZWxlbmECAAAAB0xlbnVza2EEAAAABGxvdmUCAAAAC0luYWxMZW51c2thCQAAAAAAAAIJAAEsAAAAAgUAAAAEaW5hbAUAAAAFZWxlbmEFAAAABGxvdmV4ZFt5", 100000},
+		{'W', "SHMOKEN", "This is a valid description for the token", 100000, 8, false, "base64:", 100000},
+		{'X', "POKEN", "This is a valid description for the token", 9876543210, 2, true, "base64:AQQAAAAEaW5hbAIAAAAESW5hbAQAAAAFZWxlbmECAAAAB0xlbnVza2EEAAAABGxvdmUCAAAAC0luYWxMZW51c2thCQAAAAAAAAIJAAEsAAAAAgUAAAAEaW5hbAUAAAAFZWxlbmEFAAAABGxvdmV4ZFt5", 123456},
 	}
 	seed, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
 	sk, pk := crypto.GenerateKeyPair(seed)
 	for _, tc := range tests {
 		ts := uint64(time.Now().UnixNano() / 1000000)
-		s, _ := base64.StdEncoding.DecodeString(tc.script)
+		s, err := base64.StdEncoding.DecodeString(tc.script[7:])
+		require.NoError(t, err)
 		if tx, err := NewUnsignedIssueV2(tc.chain, pk, tc.name, tc.desc, tc.quantity, tc.decimals, tc.reissuable, s, ts, tc.fee); assert.NoError(t, err) {
 			if j, err := json.Marshal(tx); assert.NoError(t, err) {
 				ej := fmt.Sprintf("{\"type\":3,\"version\":2,\"senderPublicKey\":\"%s\",\"name\":\"%s\",\"description\":\"%s\",\"quantity\":%d,\"decimals\":%d,\"reissuable\":%v,\"script\":\"%s\",\"fee\":%d,\"timestamp\":%d}",
@@ -1800,6 +1801,156 @@ func TestExchangeV2ToJSON(t *testing.T) {
 	}
 }
 
+func TestExchangeV2FromJSON1(t *testing.T) {
+	var js = `
+{
+      "type": 7,
+      "id": "7umRMoUZfYinCM9jFyAmn9FaPL8Pf5D45mDucDJobpmW",
+      "sender": "3PJaDyprvekvPXPuAtxrapacuDJopgJRaU3",
+      "senderPublicKey": "7kPFrHDiGw1rCm7LPszuECwWYL3dMf6iMifLRDJQZMzy",
+      "fee": 300000,
+      "timestamp": 1548739881830,
+      "proofs": [
+        "5bCn1xwHp1uWVSTZLjVZDBH2MmA7jVz8uyQ29pECFW1o16CDo3QUX1uYBiB6z7QqaBn2G8sjL3DQuNQpRZRLbU8f"
+      ],
+      "version": 2,
+      "order1": {
+        "version": 2,
+        "id": "4DAhJFiZzDnFxiQUPpb1kiMkzNbmyYkfnqXCov9JDLnK",
+        "sender": "3P2vp33vwNGir7ixeCR4APTj48kRn8PhHpv",
+        "senderPublicKey": "BM8y823b3wRqTSakixu6oQ6kw8YypKy8STgirAmPFuTW",
+        "matcherPublicKey": "7kPFrHDiGw1rCm7LPszuECwWYL3dMf6iMifLRDJQZMzy",
+        "assetPair": {
+          "amountAsset": "EZFN36KbtnZTS5TTfDETfcEcjWxU1QguBS9drBRUpDwh",
+          "priceAsset": null
+        },
+        "orderType": "buy",
+        "amount": 4000000000000000,
+        "price": 105,
+        "timestamp": 1548739881077,
+        "expiration": 1551245481076,
+        "matcherFee": 300000,
+        "signature": "4cAxQCehMHzK7acVwBt6NTw6b3buejtwMMRLkWkTMcsKA81LoMmdyTmpBTVt9n9m1zy4Wxh69w2gQ3pbom31R2Zc",
+        "proofs": [
+          "4cAxQCehMHzK7acVwBt6NTw6b3buejtwMMRLkWkTMcsKA81LoMmdyTmpBTVt9n9m1zy4Wxh69w2gQ3pbom31R2Zc"
+        ]
+      },
+      "order2": {
+        "version": 1,
+        "id": "CHVi236M3Zmngd3sisHhWSZs5kSy5bmhZsoyaVeqoZrp",
+        "sender": "3PNeE51To42hYSUkefzNLQfGdpAqRCbiUnw",
+        "senderPublicKey": "DGB3jLytA97M2kYDPNUFtVkpXprmzgEa3kBpGGpkqi3r",
+        "matcherPublicKey": "7kPFrHDiGw1rCm7LPszuECwWYL3dMf6iMifLRDJQZMzy",
+        "assetPair": {
+          "amountAsset": "EZFN36KbtnZTS5TTfDETfcEcjWxU1QguBS9drBRUpDwh",
+          "priceAsset": null
+        },
+        "orderType": "sell",
+        "amount": 10000000000000000,
+        "price": 105,
+        "timestamp": 1548191511217,
+        "expiration": 1550697111217,
+        "matcherFee": 300000,
+        "signature": "5CRoPU8YkGyRddvn2GZifTPaqiw56JAXvy4Jy79SvkyZB7eS6DMEqxsD7eKd4EERhyJQwggTLMN7tdXzbF95apA1",
+        "proofs": [
+          "5CRoPU8YkGyRddvn2GZifTPaqiw56JAXvy4Jy79SvkyZB7eS6DMEqxsD7eKd4EERhyJQwggTLMN7tdXzbF95apA1"
+        ]
+      },
+      "amount": 2107478007619048,
+      "price": 105,
+      "buyMatcherFee": 158060,
+      "sellMatcherFee": 63224
+    }
+`
+	var tx ExchangeV2
+	err := tx.UnmarshalJSON([]byte(js))
+	assert.NoError(t, err)
+	assert.Equal(t, ExchangeTransaction, tx.Type)
+	assert.Equal(t, 2, int(tx.Version))
+	assert.Equal(t, 2, int(tx.BuyOrder.GetVersion()))
+	assert.Equal(t, 1, int(tx.SellOrder.GetVersion()))
+	bo, ok := tx.BuyOrder.(*OrderV2)
+	assert.True(t, ok)
+	assert.NotNil(t, bo)
+	so, ok := tx.SellOrder.(*OrderV1)
+	assert.True(t, ok)
+	assert.NotNil(t, so)
+}
+
+func TestExchangeV2FromJSON2(t *testing.T) {
+	var js = `
+{
+      "type": 7,
+      "id": "HgmxEboQEgLgEK7tneqoXjg1pY7pWNazzfJ2hN2pKjAd",
+      "sender": "3PJaDyprvekvPXPuAtxrapacuDJopgJRaU3",
+      "senderPublicKey": "7kPFrHDiGw1rCm7LPszuECwWYL3dMf6iMifLRDJQZMzy",
+      "fee": 300000,
+      "timestamp": 1548739898607,
+      "proofs": [
+        "uKXSzjvM2Re6iJ1Pg24yYPvakBSfuyde6rW4QpP6SgwEfrNk5mWfMF29n3CHsBGi8VnzB7dsrSVvKVfhtZi9enN"
+      ],
+      "version": 2,
+      "order1": {
+        "version": 1,
+        "id": "qs2XukcRkodoi2h2RgVq7Z45g7b7DEHkXtoQCvcLAes",
+        "sender": "3PJbKNtRUr5HgwoZvSaWjAVbDWKpyetqYES",
+        "senderPublicKey": "67JC7CAy46JmdTARj6Z6KxWMyRRZLdkuQbSFQJZm34XU",
+        "matcherPublicKey": "7kPFrHDiGw1rCm7LPszuECwWYL3dMf6iMifLRDJQZMzy",
+        "assetPair": {
+          "amountAsset": "AFKQxw7A5WrzW2LMDoSoJhcSQ2rLGsepZbWMLsKKBQ2K",
+          "priceAsset": "474jTeYx2r2Va35794tCScAXWJG9hU2HcgxzMowaZUnu"
+        },
+        "orderType": "buy",
+        "amount": 167410000,
+        "price": 220000,
+        "timestamp": 1548739898192,
+        "expiration": 1551245498192,
+        "matcherFee": 300000,
+        "signature": "2wJE9MfhBzTEXjG8ioGDJjgUKjKgune63jL8G58QYexNEeX1nP3fzQDD1aZszXUbozSFnsvPgKowohXCmJXhh3iz",
+        "proofs": [
+          "2wJE9MfhBzTEXjG8ioGDJjgUKjKgune63jL8G58QYexNEeX1nP3fzQDD1aZszXUbozSFnsvPgKowohXCmJXhh3iz"
+        ]
+      },
+      "order2": {
+        "version": 1,
+        "id": "9znwY8X56WZfgUH27biZUKfi493wVCLJT8c5fc6G5o2C",
+        "sender": "3PJbKNtRUr5HgwoZvSaWjAVbDWKpyetqYES",
+        "senderPublicKey": "67JC7CAy46JmdTARj6Z6KxWMyRRZLdkuQbSFQJZm34XU",
+        "matcherPublicKey": "7kPFrHDiGw1rCm7LPszuECwWYL3dMf6iMifLRDJQZMzy",
+        "assetPair": {
+          "amountAsset": "AFKQxw7A5WrzW2LMDoSoJhcSQ2rLGsepZbWMLsKKBQ2K",
+          "priceAsset": "474jTeYx2r2Va35794tCScAXWJG9hU2HcgxzMowaZUnu"
+        },
+        "orderType": "sell",
+        "amount": 167410000,
+        "price": 220000,
+        "timestamp": 1548739880836,
+        "expiration": 1551245480836,
+        "matcherFee": 300000,
+        "signature": "uSj6KYx8H5hun4CzRzL4F3iCrekDseLnX5A4EYsokaPtRQF2WvVQENfRX6DpT4pjWrM2oQmghZ9ecb5j4EYXkuq",
+        "proofs": [
+          "uSj6KYx8H5hun4CzRzL4F3iCrekDseLnX5A4EYsokaPtRQF2WvVQENfRX6DpT4pjWrM2oQmghZ9ecb5j4EYXkuq"
+        ]
+      },
+      "amount": 167410000,
+      "price": 220000,
+      "buyMatcherFee": 300000,
+      "sellMatcherFee": 300000
+    }
+`
+	var tx ExchangeV2
+	err := json.Unmarshal([]byte(js), &tx)
+	assert.NoError(t, err)
+	assert.Equal(t, ExchangeTransaction, tx.Type)
+	assert.Equal(t, 2, int(tx.Version))
+	bo, ok := tx.BuyOrder.(*OrderV1)
+	assert.True(t, ok)
+	assert.NotNil(t, bo)
+	so, ok := tx.SellOrder.(*OrderV1)
+	assert.True(t, ok)
+	assert.NotNil(t, so)
+}
+
 func TestLeaseV1Validations(t *testing.T) {
 	tests := []struct {
 		address string
@@ -2850,6 +3001,7 @@ func TestDataV1ToJSON(t *testing.T) {
 					sb.WriteRune('"')
 					sb.WriteString(",\"value\":")
 					sb.WriteRune('"')
+					sb.WriteString("base64:")
 					sb.WriteString(base64.StdEncoding.EncodeToString(v))
 					sb.WriteRune('"')
 				case String:
@@ -2879,6 +3031,46 @@ func TestDataV1ToJSON(t *testing.T) {
 			}
 		}
 	}
+}
+
+func TestDataV1FromJSON(t *testing.T) {
+	var js = `
+{
+	"type": 12,
+	"id": "74r5tx5BuhnYP3YQ5jo3RwDcH89gaDEdEc9bjUKPiSa8",
+	"sender": "3P9QNCmT3Q44zRYXBwKN3azBta9azGqrscm",
+	"senderPublicKey": "J48ygzZLEdcR2GbWjjy9eFJDs57Poz6ZajGEyygSMV26",
+	"fee": 10000000,
+	"timestamp": 1548739929686,
+	"proofs": [
+		"2bB5ysJXYBumJiLMbQ3o2gqxES5gydQ4bni3aWGiXwBaBDvLEpDNFLgKuj6UnhtS4LUS9R6yVoSVFoT94RCBvzo",
+		"3PPgSrFX52vYbAtTVrz8nHjmcv3LQhYd3mP"
+	],
+	"version": 1,
+	"data": [
+		{
+			"key": "lastPayment",
+			"type": "string",
+			"value": "GenCSKr8UFrZXrbQ8oAG7W8PDgUY7pe7hrbRmJACuMkS"
+		},
+		{
+			"key": "heightToGetMoney",
+			"type": "integer",
+			"value": 1372374
+		},
+		{
+			"key": "GenCSKr8UFrZXrbQ8oAG7W8PDgUY7pe7hrbRmJACuMkS",
+			"type": "string",
+			"value": "used"
+		}
+	]
+}
+`
+	var tx DataV1
+	err := json.Unmarshal([]byte(js), &tx)
+	assert.NoError(t, err)
+	assert.Equal(t, DataTransaction, tx.Type)
+	assert.Equal(t, 1, int(tx.Version))
 }
 
 func TestSetScriptV1Validations(t *testing.T) {
@@ -2980,14 +3172,15 @@ func TestSetScriptV1ToJSON(t *testing.T) {
 		script  string
 		fee     uint64
 	}{
-		{'W', "AQQAAAAEaW5hbAIAAAAESW5hbAQAAAAFZWxlbmECAAAAB0xlbnVza2EEAAAABGxvdmUCAAAAC0luYWxMZW51c2thCQAAAAAAAAIJAAEsAAAAAgUAAAAEaW5hbAUAAAAFZWxlbmEFAAAABGxvdmV4ZFt5", 1234567890},
-		{'T', "", 9876543210},
+		{'W', "base64:AQQAAAAEaW5hbAIAAAAESW5hbAQAAAAFZWxlbmECAAAAB0xlbnVza2EEAAAABGxvdmUCAAAAC0luYWxMZW51c2thCQAAAAAAAAIJAAEsAAAAAgUAAAAEaW5hbAUAAAAFZWxlbmEFAAAABGxvdmV4ZFt5", 1234567890},
+		{'T', "base64:", 9876543210},
 	}
 	seed, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
 	sk, pk := crypto.GenerateKeyPair(seed)
 	for _, tc := range tests {
 		ts := uint64(time.Now().UnixNano() / 1000000)
-		s, _ := base64.StdEncoding.DecodeString(tc.script)
+		s, err := base64.StdEncoding.DecodeString(tc.script[7:])
+		require.NoError(t, err)
 		if tx, err := NewUnsignedSetScriptV1(tc.chainID, pk, s, tc.fee, ts); assert.NoError(t, err) {
 			if j, err := json.Marshal(tx); assert.NoError(t, err) {
 				ej := fmt.Sprintf("{\"type\":13,\"version\":1,\"senderPublicKey\":\"%s\",\"script\":\"%s\",\"fee\":%d,\"timestamp\":%d}", base58.Encode(pk[:]), tc.script, tc.fee, ts)
@@ -3233,15 +3426,17 @@ func TestSetAssetScriptV1ToJSON(t *testing.T) {
 		script  string
 		fee     uint64
 	}{
-		{'W', "J8shEVBrQ4BLqsuYw5j6vQGCFJGMLBxr5nu2XvUWFEAR", "AQQAAAAEaW5hbAIAAAAESW5hbAQAAAAFZWxlbmECAAAAB0xlbnVza2EEAAAABGxvdmUCAAAAC0luYWxMZW51c2thCQAAAAAAAAIJAAEsAAAAAgUAAAAEaW5hbAUAAAAFZWxlbmEFAAAABGxvdmV4ZFt5", 1234567890},
-		{'T', "9yCRXrptsYKnsfFv6E226MXXjjxSzm3kXKL2oquw3HrX", "", 9876543210},
+		{'W', "J8shEVBrQ4BLqsuYw5j6vQGCFJGMLBxr5nu2XvUWFEAR", "base64:AQQAAAAEaW5hbAIAAAAESW5hbAQAAAAFZWxlbmECAAAAB0xlbnVza2EEAAAABGxvdmUCAAAAC0luYWxMZW51c2thCQAAAAAAAAIJAAEsAAAAAgUAAAAEaW5hbAUAAAAFZWxlbmEFAAAABGxvdmV4ZFt5", 1234567890},
+		{'T', "9yCRXrptsYKnsfFv6E226MXXjjxSzm3kXKL2oquw3HrX", "base64:", 9876543210},
 	}
 	seed, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
 	sk, pk := crypto.GenerateKeyPair(seed)
 	for _, tc := range tests {
 		ts := uint64(time.Now().UnixNano() / 1000000)
-		a, _ := crypto.NewDigestFromBase58(tc.asset)
-		s, _ := base64.StdEncoding.DecodeString(tc.script)
+		a, err := crypto.NewDigestFromBase58(tc.asset)
+		require.NoError(t, err)
+		s, err := base64.StdEncoding.DecodeString(tc.script[7:])
+		require.NoError(t, err)
 		if tx, err := NewUnsignedSetAssetScriptV1(tc.chainID, pk, a, s, tc.fee, ts); assert.NoError(t, err) {
 			if j, err := json.Marshal(tx); assert.NoError(t, err) {
 				ej := fmt.Sprintf("{\"type\":15,\"version\":1,\"senderPublicKey\":\"%s\",\"assetId\":\"%s\",\"script\":\"%s\",\"fee\":%d,\"timestamp\":%d}", base58.Encode(pk[:]), tc.asset, tc.script, tc.fee, ts)
