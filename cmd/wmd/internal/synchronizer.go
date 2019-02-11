@@ -74,6 +74,9 @@ func (s *Synchronizer) run() {
 			s.ticker.Stop()
 			return
 		case <-s.ticker.C:
+			if s.interrupted() {
+				return
+			}
 			s.mu.RLock()
 			if s.active {
 				s.synchronize()
@@ -81,6 +84,15 @@ func (s *Synchronizer) run() {
 			s.mu.RUnlock()
 		}
 	}
+}
+
+func (s *Synchronizer) interrupted() bool {
+	select {
+	case <-s.interrupt:
+		return true
+	default:
+	}
+	return false
 }
 
 func (s *Synchronizer) synchronize() {
@@ -119,6 +131,7 @@ func (s *Synchronizer) synchronize() {
 		err = s.applyBlocks(ch+1, rh)
 		if err != nil && !strings.Contains(err.Error(), "Invalid status code") {
 			s.log.Errorf("Failed to apply blocks: %v", err)
+			return
 		}
 	}
 }
@@ -126,6 +139,9 @@ func (s *Synchronizer) synchronize() {
 func (s *Synchronizer) applyBlocks(start, end int) error {
 	s.log.Infof("Synchronizing %d blocks starting from height %d", end-start+1, start)
 	for h := start; h <= end; h++ {
+		if s.interrupted() {
+			return errors.New("synchronization was interrupted")
+		}
 		b, err := s.nodeBlock(h)
 		if err != nil {
 			return err
@@ -191,35 +207,28 @@ func (s *Synchronizer) nodeBlock(height int) (*client.Block, error) {
 }
 
 func (s *Synchronizer) findLastCommonHeight(start, stop int) (int, error) {
-	abs := func(x int) int {
-		if x < 0 {
-			return -x
-		}
-		return x
-	}
-	mid := func(a, b int) int {
-		if a%b != 0 {
-			return ((a + b) / 2) + 1
-		} else {
-			return (a + b) / 2
-		}
-	}
+	var r int
 	for start <= stop {
-		middle := mid(start, stop)
-		if abs(start-stop) <= 1 {
-			return middle, nil
+		if s.interrupted() {
+			return 0, errors.New("binary search was interrupted")
 		}
-		c, err := s.equalSignatures(middle)
+		middle := (start + stop) / 2
+		ok, err := s.equalSignatures(middle)
 		if err != nil {
 			return 0, errors.Wrapf(err, "failed to compare blocks signatures at height %d", middle)
 		}
-		if !c {
-			stop = middle
+		if !ok {
+			stop = middle - 1
+			r = stop
 		} else {
-			start = middle
+			start = middle + 1
+			r = middle
 		}
 	}
-	return 1, nil //Pretend that we know the genesis block
+	if r == 0 {
+		r = 1 //Pretend that we know the genesis block
+	}
+	return r, nil
 }
 
 func (s *Synchronizer) equalSignatures(height int) (bool, error) {
