@@ -123,6 +123,18 @@ func (s *StateManager) GetBlockByHeight(height uint64) (*proto.Block, error) {
 	return s.GetBlock(blockID)
 }
 
+func (s *StateManager) Height() (uint64, error) {
+	return s.rw.CurrentHeight(), nil
+}
+
+func (s *StateManager) BlockIDToHeight(blockID crypto.Signature) (uint64, error) {
+	return s.rw.HeightByBlockID(blockID)
+}
+
+func (s *StateManager) HeightToBlockID(height uint64) (crypto.Signature, error) {
+	return s.rw.BlockIDByHeight(height)
+}
+
 func (s *StateManager) performGenesisTransaction(tx proto.Genesis) error {
 	receiverBalance, err := s.accountsStorage.AccountBalance(tx.Recipient, nil)
 	if err != nil {

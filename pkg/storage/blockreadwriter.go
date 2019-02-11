@@ -196,6 +196,17 @@ func (rw *BlockReadWriter) BlockIDByHeight(height uint64) (crypto.Signature, err
 	return res, nil
 }
 
+func (rw *BlockReadWriter) HeightByBlockID(blockID crypto.Signature) (uint64, error) {
+	rw.mtx.RLock()
+	defer rw.mtx.RUnlock()
+	blockInfo, err := rw.idKeyVal.Get(blockID[:])
+	if err != nil {
+		return 0, err
+	}
+	height := binary.LittleEndian.Uint64(blockInfo[len(blockInfo)-16 : len(blockInfo)-8])
+	return height, nil
+}
+
 func (rw *BlockReadWriter) CurrentHeight() uint64 {
 	rw.mtx.RLock()
 	defer rw.mtx.RUnlock()
