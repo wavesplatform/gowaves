@@ -115,9 +115,6 @@ func (a *HttpServer) counter(rw http.ResponseWriter, r *http.Request) {
 }
 
 func (a *HttpServer) ListenAndServe() error {
-
-	//httpServer := retransmit.NewHttpServer(a.retransmitter)
-
 	router := mux.NewRouter()
 	router.HandleFunc("/active", a.ActiveConnections)
 	router.HandleFunc("/known", a.KnownPeers)

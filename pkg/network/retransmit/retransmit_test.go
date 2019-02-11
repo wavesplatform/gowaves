@@ -88,9 +88,10 @@ func TestClientRecvTransaction(t *testing.T) {
 	}
 
 	knownPeers, _ := utils.NewKnownPeers(utils.NoOnStorage{})
+	counter := utils.NewCounter(ctx)
 	pool := bytespool.NewBytesPool(1, 2*1024*1024)
 
-	r := NewRetransmitter(proto.PeerInfo{}, knownPeers, outgoingSpawner, nil, nil, pool)
+	r := NewRetransmitter(proto.PeerInfo{}, knownPeers, counter, outgoingSpawner, nil, nil, pool)
 	go r.Run(ctx)
 
 	r.AddAddress(ctx, "127.0.0.1:100")

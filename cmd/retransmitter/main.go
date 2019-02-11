@@ -21,7 +21,7 @@ import (
 )
 
 // filter only transactions and
-func receiveFromRemoteCallbackfunc(b []byte, id string, resendTo chan peer.ProtoMessage, pool conn.Pool) {
+func receiveFromRemoteCallbackFunc(b []byte, id string, resendTo chan peer.ProtoMessage, pool conn.Pool) {
 
 	defer func() {
 		pool.Put(b)
@@ -69,6 +69,7 @@ func receiveFromRemoteCallbackfunc(b []byte, id string, resendTo chan peer.Proto
 		select {
 		case resendTo <- mess:
 		default:
+			zap.S().Warnf("failed to resend to parent, channel is full", id)
 		}
 
 	case proto.ContentIDGetPeers:
@@ -88,6 +89,7 @@ func receiveFromRemoteCallbackfunc(b []byte, id string, resendTo chan peer.Proto
 		select {
 		case resendTo <- mess:
 		default:
+			zap.S().Warnf("failed to resend to parent, channel is full", id)
 		}
 	default:
 		zap.S().Info("bytes id ", b[8])
@@ -147,9 +149,10 @@ func main() {
 		return
 	}
 
+	counter := utils.NewCounter(ctx)
 	pool := bytespool.NewBytesPool(32, 2*1024*1024)
 
-	r := retransmit.NewRetransmitter(declAddr, knownPeers, peer.RunOutgoingPeer, peer.RunIncomingPeer, receiveFromRemoteCallbackfunc, pool)
+	r := retransmit.NewRetransmitter(declAddr, knownPeers, counter, peer.RunOutgoingPeer, peer.RunIncomingPeer, receiveFromRemoteCallbackFunc, pool)
 
 	go r.Run(ctx)
 
@@ -161,7 +164,7 @@ func main() {
 	}
 
 	if bind != "" {
-		err = r.Server(ctx, bind)
+		err = r.ServeInconingConnections(ctx, bind)
 		if err != nil {
 			zap.S().Error(err)
 			return

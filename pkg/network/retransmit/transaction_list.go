@@ -6,7 +6,7 @@ import (
 
 const idSize = 16
 
-// sended transactions cache
+// transactions cache
 type TransactionList struct {
 	index int
 	size  int

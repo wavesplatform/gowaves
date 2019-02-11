@@ -39,7 +39,7 @@ type Retransmitter struct {
 }
 
 // creates new Retransmitter
-func NewRetransmitter(declAddr proto.PeerInfo, knownPeers *utils.KnownPeers, outgoingSpawner PeerOutgoingSpawner, incomingSpawner PeerIncomingSpawner, ReceiveFromRemoteCallback peer.ReceiveFromRemoteCallback, pool conn.Pool) *Retransmitter {
+func NewRetransmitter(declAddr proto.PeerInfo, knownPeers *utils.KnownPeers, counter *utils.Counter, outgoingSpawner PeerOutgoingSpawner, incomingSpawner PeerIncomingSpawner, ReceiveFromRemoteCallback peer.ReceiveFromRemoteCallback, pool conn.Pool) *Retransmitter {
 	return &Retransmitter{
 		declAddr:                  declAddr,
 		knownPeers:                knownPeers,
@@ -54,7 +54,7 @@ func NewRetransmitter(declAddr proto.PeerInfo, knownPeers *utils.KnownPeers, out
 		infoCh:         make(chan peer.InfoMessage, 100),
 		tl:             NewTransactionList(500),
 		spawnedPeers:   utils.NewSpawnedPeers(),
-		counter:        utils.NewCounter(),
+		counter:        counter,
 	}
 }
 
@@ -205,7 +205,7 @@ func (a *Retransmitter) askPeersAboutKnownPeers(ctx context.Context, interval ti
 }
 
 // listen incoming connections on provided address
-func (a *Retransmitter) Server(ctx context.Context, listenAddr string) error {
+func (a *Retransmitter) ServeInconingConnections(ctx context.Context, listenAddr string) error {
 	_, err := proto.NewPeerInfoFromString(listenAddr)
 	if err != nil {
 		return err
