@@ -12,11 +12,11 @@ import (
 )
 
 type mockConnection struct {
-	closeCalledTime int
+	closeCalledTimes int
 }
 
 func (a *mockConnection) Close() error {
-	a.closeCalledTime += 1
+	a.closeCalledTimes += 1
 	return nil
 }
 
@@ -36,7 +36,7 @@ func TestHHandleStopContext(t *testing.T) {
 		connection: conn,
 	})
 
-	assert.Equal(t, 1, conn.closeCalledTime)
+	assert.Equal(t, 1, conn.closeCalledTimes)
 }
 
 func TestHandleReceive(t *testing.T) {

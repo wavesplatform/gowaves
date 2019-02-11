@@ -42,7 +42,6 @@ func (a *Connector) dial(params dialParams) (Connection, error) {
 	}
 
 	bufReader := bufio.NewReaderSize(conn, 2*1024*1024)
-	//bufWriter := bufio.NewWriterSize(conn, size)
 
 	go params.recvFunc(a.pool, bufReader, params.fromRemoteCh, params.errCh)
 	go params.sendFunc(conn, ctx, params.toRemoteCh, params.errCh)

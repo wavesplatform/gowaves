@@ -16,9 +16,6 @@ type Pool interface {
 	BytesLen() int
 }
 
-// size of incoming message, 2 megabytes
-//const size = 1024 * 1024 * 2
-
 type Dialer func(network string, addr string) (net.Conn, error)
 
 type Connection interface {
