@@ -9,41 +9,13 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/storage"
 )
 
-type TaskType byte
-
-const (
-	AddBlock TaskType = iota
-	RemoveBlocks
-)
-
-type StateManagerTask struct {
-	Type TaskType
-	// For block addition.
-	Block *proto.Block
-	// For blocks rollback.
-	RemovalEdge crypto.Signature
-}
-
-type BlockReadWriter interface {
-	StartBlock(blockID crypto.Signature) error
-	FinishBlock(blockID crypto.Signature) error
-	WriteTransaction(txID []byte, tx []byte) error
-	WriteBlockHeader(blockID crypto.Signature, header []byte) error
-	ReadTransaction(txID []byte) ([]byte, error)
-	ReadBlockHeader(blockID crypto.Signature) ([]byte, error)
-	ReadTransactionsBlock(blockID crypto.Signature) ([]byte, error)
-	RemoveBlocks(removalEdge crypto.Signature) error
-	BlockIDByHeight(height uint64) (crypto.Signature, error)
-	CurrentHeight() uint64
-}
-
 type StateManager struct {
 	genesis         crypto.Signature
 	accountsStorage *storage.AccountsStorage
-	rw              BlockReadWriter
+	rw              *storage.BlockReadWriter
 }
 
-func NewStateManager(accountsStor *storage.AccountsStorage, rw BlockReadWriter) (*StateManager, error) {
+func NewStateManager(accountsStor *storage.AccountsStorage, rw *storage.BlockReadWriter) (*StateManager, error) {
 	genesis, err := crypto.NewSignatureFromBase58(GENESIS_SIGNATURE)
 	if err != nil {
 		return nil, errors.Errorf("Failed to get genesis signature from string: %v\n", err)
