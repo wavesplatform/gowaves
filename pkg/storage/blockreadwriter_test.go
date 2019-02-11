@@ -7,6 +7,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -16,6 +17,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/util"
 )
@@ -99,6 +101,28 @@ func readRealBlocks(t *testing.T, nBlocks int) ([]*proto.Block, error) {
 	}
 	cached_blocks = blocks
 	return blocks, nil
+}
+
+func createBlockReadWriter(batchSize, offsetLen, headerOffsetLen int) (*BlockReadWriter, []string, error) {
+	res := make([]string, 2)
+	dbDir, err := ioutil.TempDir(os.TempDir(), "db_dir")
+	if err != nil {
+		return nil, res, err
+	}
+	keyVal, err := keyvalue.NewKeyVal(dbDir, batchSize)
+	if err != nil {
+		return nil, res, err
+	}
+	rwDir, err := ioutil.TempDir(os.TempDir(), "rw_dir")
+	if err != nil {
+		return nil, res, err
+	}
+	rw, err := NewBlockReadWriter(rwDir, offsetLen, headerOffsetLen, keyVal)
+	if err != nil {
+		return nil, res, err
+	}
+	res = []string{dbDir, rwDir}
+	return rw, res, nil
 }
 
 func writeBlock(t *testing.T, rw *BlockReadWriter, block *proto.Block) {
@@ -254,9 +278,9 @@ func testReader(rw *BlockReadWriter, readTasks <-chan *ReadTask) error {
 }
 
 func TestSimpleReadWrite(t *testing.T) {
-	rw, path, err := CreateTestBlockReadWriter(BATCH_SIZE, 8, 8)
+	rw, path, err := createBlockReadWriter(BATCH_SIZE, 8, 8)
 	if err != nil {
-		t.Fatalf("CreateTestBlockReadWriter: %v", err)
+		t.Fatalf("createBlockReadWriter: %v", err)
 	}
 
 	defer func() {
@@ -278,9 +302,9 @@ func TestSimpleReadWrite(t *testing.T) {
 }
 
 func TestSimultaneousReadWrite(t *testing.T) {
-	rw, path, err := CreateTestBlockReadWriter(BATCH_SIZE, 8, 8)
+	rw, path, err := createBlockReadWriter(BATCH_SIZE, 8, 8)
 	if err != nil {
-		t.Fatalf("CreateTestBlockReadWriter: %v", err)
+		t.Fatalf("createBlockReadWriter: %v", err)
 	}
 
 	defer func() {
@@ -334,9 +358,9 @@ func TestSimultaneousReadWrite(t *testing.T) {
 }
 
 func TestSimultaneousReadDelete(t *testing.T) {
-	rw, path, err := CreateTestBlockReadWriter(BATCH_SIZE, 8, 8)
+	rw, path, err := createBlockReadWriter(BATCH_SIZE, 8, 8)
 	if err != nil {
-		t.Fatalf("CreateTestBlockReadWriter: %v", err)
+		t.Fatalf("createBlockReadWriter: %v", err)
 	}
 
 	defer func() {

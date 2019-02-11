@@ -1,12 +1,27 @@
 package state
 
 import (
+	"bufio"
+	"bytes"
 	"encoding/binary"
+	"encoding/json"
+	"io"
+	"os"
+	"path/filepath"
 
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/storage"
+)
+
+const (
+	BLOCKS_STOR_DIR          = "blocks_storage"
+	BLOCKS_STOR_KEYVAL_DIR   = "blocks_storage_keyvalue"
+	ACCOUNTS_STOR_GLOBAL_DIR = "accounts_stor_global"
+	ACCOUNTS_STOR_ADDR_DIR   = "accounts_stor_addr"
+	ACCOUNTS_STOR_ASSET_DIR  = "accounts_stor_assets"
 )
 
 type StateManager struct {
@@ -15,16 +30,51 @@ type StateManager struct {
 	rw              *storage.BlockReadWriter
 }
 
-func NewStateManager(accountsStor *storage.AccountsStorage, rw *storage.BlockReadWriter) (*StateManager, error) {
+type BlockStorageParams struct {
+	OffsetLen, HeaderOffsetLen int
+	BatchSize                  int
+}
+
+func DefaultBlockStorageParams() BlockStorageParams {
+	return BlockStorageParams{OffsetLen: 8, HeaderOffsetLen: 8, BatchSize: 1000}
+}
+
+func NewStateManager(dataDir string, params BlockStorageParams) (*StateManager, error) {
 	genesis, err := crypto.NewSignatureFromBase58(GENESIS_SIGNATURE)
 	if err != nil {
 		return nil, errors.Errorf("Failed to get genesis signature from string: %v\n", err)
 	}
-	stor := &StateManager{genesis: genesis, accountsStorage: accountsStor, rw: rw}
-	if err = stor.applyGenesis(); err != nil {
+	blockStorageKeyValDir := filepath.Join(dataDir, BLOCKS_STOR_KEYVAL_DIR)
+	blockStorageKeyVal, err := keyvalue.NewKeyVal(blockStorageKeyValDir, params.BatchSize)
+	blockStorageDir := filepath.Join(dataDir, BLOCKS_STOR_DIR)
+	if _, err := os.Stat(blockStorageDir); os.IsNotExist(err) {
+		if err := os.Mkdir(blockStorageDir, 0755); err != nil {
+			return nil, errors.Errorf("Failed to create blocks directory: %v\n", err)
+		}
+	}
+	rw, err := storage.NewBlockReadWriter(blockStorageDir, params.OffsetLen, params.HeaderOffsetLen, blockStorageKeyVal)
+	if err != nil {
+		return nil, errors.Errorf("Failed to create block storage: %v\n", err)
+	}
+	dbDir0 := filepath.Join(dataDir, ACCOUNTS_STOR_GLOBAL_DIR)
+	globalStor, err := keyvalue.NewKeyVal(dbDir0, 0)
+	dbDir1 := filepath.Join(dataDir, ACCOUNTS_STOR_ASSET_DIR)
+	addr2Index, err := keyvalue.NewKeyVal(dbDir1, 0)
+	dbDir2 := filepath.Join(dataDir, ACCOUNTS_STOR_ADDR_DIR)
+	asset2Index, err := keyvalue.NewKeyVal(dbDir2, 0)
+	idsFile, err := rw.BlockIdsFilePath()
+	if err != nil {
+		return nil, errors.Errorf("Failed to get block ids file's path: %v\n", err)
+	}
+	accountsStor, err := storage.NewAccountsStorage(globalStor, addr2Index, asset2Index, idsFile)
+	if err != nil {
+		return nil, errors.Errorf("Failed to create accounts storage: %v\n", err)
+	}
+	state := &StateManager{genesis: genesis, accountsStorage: accountsStor, rw: rw}
+	if err = state.applyGenesis(); err != nil {
 		return nil, err
 	}
-	return stor, nil
+	return state, nil
 }
 
 func (s *StateManager) applyGenesis() error {
@@ -335,6 +385,90 @@ func (s *StateManager) RollbackTo(removalEdge crypto.Signature) error {
 	// Remove blocks from block storage.
 	if err := s.rw.RemoveBlocks(removalEdge); err != nil {
 		return errors.Errorf("Failed to remove blocks from block storage: %v", err)
+	}
+	return nil
+}
+
+func (s *StateManager) ApplyFromFile(blockchainPath string, nBlocks int, checkBlocks bool) error {
+	blockchain, err := os.Open(blockchainPath)
+	if err != nil {
+		return errors.Errorf("Failed to open blockchain file: %v\n", err)
+	}
+	sb := make([]byte, 4)
+	buf := make([]byte, 2*1024*1024)
+	r := bufio.NewReader(blockchain)
+	for i := 0; i < nBlocks; i++ {
+		if _, err := io.ReadFull(r, sb); err != nil {
+			return err
+		}
+		size := binary.BigEndian.Uint32(sb)
+		block := buf[:size]
+		if _, err := io.ReadFull(r, block); err != nil {
+			return err
+		}
+		if err := s.AcceptAndVerifyBlockBinary(block, true); err != nil {
+			return err
+		}
+		if checkBlocks {
+			savedBlock, err := s.GetBlockByHeight(uint64(i))
+			if err != nil {
+				return err
+			}
+			savedBlockBytes, err := savedBlock.MarshalBinary()
+			if err != nil {
+				return err
+			}
+			if bytes.Compare(block, savedBlockBytes) != 0 {
+				return errors.New("Accepted and returned blocks differ\n")
+			}
+		}
+	}
+	if err := blockchain.Close(); err != nil {
+		return errors.Errorf("Failed to close blockchain file: %v\n", err)
+	}
+	return nil
+}
+
+func (s *StateManager) CheckBalances(balancesPath string) error {
+	balances, err := os.Open(balancesPath)
+	if err != nil {
+		return errors.Errorf("Failed to open balances file: %v\n", err)
+	}
+	var state map[string]uint64
+	jsonParser := json.NewDecoder(balances)
+	if err := jsonParser.Decode(&state); err != nil {
+		return errors.Errorf("Failed to decode state: %v\n", err)
+	}
+	addressesNumber, err := s.accountsStorage.WavesAddressesNumber()
+	if err != nil {
+		return errors.Errorf("Failed to get number of waves addresses: %v\n", err)
+	}
+	properAddressesNumber := uint64(len(state))
+	if properAddressesNumber != addressesNumber {
+		return errors.Errorf("Number of addresses differ: %d and %d\n", properAddressesNumber, addressesNumber)
+	}
+	for addrStr, properBalance := range state {
+		addr, err := proto.NewAddressFromString(addrStr)
+		if err != nil {
+			return errors.Errorf("Faied to convert string to address: %v\n", err)
+		}
+		balance, err := s.accountsStorage.AccountBalance(addr, nil)
+		if err != nil {
+			return errors.Errorf("Failed to get balance: %v\n", err)
+		}
+		if balance != properBalance {
+			return errors.Errorf("Balances for address %v differ: %d and %d\n", addr, properBalance, balance)
+		}
+	}
+	if err := balances.Close(); err != nil {
+		return errors.Errorf("Failed to close balances file: %v\n", err)
+	}
+	return nil
+}
+
+func (s *StateManager) Close() error {
+	if err := s.rw.Close(); err != nil {
+		return err
 	}
 	return nil
 }

@@ -3,7 +3,6 @@ package storage
 import (
 	"bufio"
 	"encoding/binary"
-	"io/ioutil"
 	"os"
 	"path"
 	"sync"
@@ -67,36 +66,7 @@ func openOrCreate(path string) (*os.File, uint64, error) {
 	}
 }
 
-// The data is stored in temporary dirs.
-// It is caller's responsibility to remove them, the path list is returned.
-func CreateTestBlockReadWriter(batchSize, offsetLen, headerOffsetLen int) (*BlockReadWriter, []string, error) {
-	res := make([]string, 2)
-	dbDir, err := ioutil.TempDir(os.TempDir(), "db_dir")
-	if err != nil {
-		return nil, res, err
-	}
-	keyVal, err := keyvalue.NewKeyVal(dbDir, batchSize)
-	if err != nil {
-		return nil, res, err
-	}
-	rwDir, err := ioutil.TempDir(os.TempDir(), "rw_dir")
-	if err != nil {
-		return nil, res, err
-	}
-	rw, err := NewBlockReadWriter(rwDir, offsetLen, headerOffsetLen, keyVal)
-	if err != nil {
-		return nil, res, err
-	}
-	res = []string{dbDir, rwDir}
-	return rw, res, nil
-}
-
 func NewBlockReadWriter(dir string, offsetLen, headerOffsetLen int, keyVal keyvalue.KeyValue) (*BlockReadWriter, error) {
-	if contentList, err := ioutil.ReadDir(dir); err != nil {
-		return nil, errors.Wrap(err, "Error when reading output dir")
-	} else if len(contentList) != 0 {
-		return nil, errors.Errorf("Output dir is not empty")
-	}
 	blockchain, blockchainSize, err := openOrCreate(path.Join(dir, "blockchain"))
 	if err != nil {
 		return nil, err
