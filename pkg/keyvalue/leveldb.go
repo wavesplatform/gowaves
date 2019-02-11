@@ -7,22 +7,20 @@ import (
 )
 
 type KeyVal struct {
-	db           *leveldb.DB
-	batch        *leveldb.Batch
-	maxBatchSize int
+	db    *leveldb.DB
+	batch *leveldb.Batch
 }
 
-// 0 maxBatchSize means disable batch and write directly to the database instead.
-func NewKeyVal(path string, maxBatchSize int) (*KeyVal, error) {
+func NewKeyVal(path string, withBatch bool) (*KeyVal, error) {
 	db, err := leveldb.OpenFile(path, nil)
 	if err != nil {
 		return nil, err
 	}
 	var batch *leveldb.Batch
-	if maxBatchSize > 0 {
+	if withBatch {
 		batch = new(leveldb.Batch)
 	}
-	return &KeyVal{db: db, batch: batch, maxBatchSize: maxBatchSize}, nil
+	return &KeyVal{db: db, batch: batch}, nil
 }
 
 func (k *KeyVal) Get(key []byte) ([]byte, error) {
@@ -40,11 +38,6 @@ func (k *KeyVal) Delete(key []byte) error {
 func (k *KeyVal) Put(key, val []byte) error {
 	if k.batch != nil {
 		k.batch.Put(key, val)
-		if k.batch.Len() >= k.maxBatchSize {
-			if err := k.Flush(); err != nil {
-				return err
-			}
-		}
 	} else {
 		if err := k.db.Put(key, val, nil); err != nil {
 			return err

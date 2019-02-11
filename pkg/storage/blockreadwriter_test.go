@@ -23,7 +23,6 @@ import (
 )
 
 const (
-	BATCH_SIZE             = 1000
 	TASKS_CHAN_BUFFER_SIZE = 20
 	READERS_NUMBER         = 20
 	BLOCKS_NUMBER          = 9900
@@ -103,13 +102,13 @@ func readRealBlocks(t *testing.T, nBlocks int) ([]*proto.Block, error) {
 	return blocks, nil
 }
 
-func createBlockReadWriter(batchSize, offsetLen, headerOffsetLen int) (*BlockReadWriter, []string, error) {
+func createBlockReadWriter(offsetLen, headerOffsetLen int) (*BlockReadWriter, []string, error) {
 	res := make([]string, 2)
 	dbDir, err := ioutil.TempDir(os.TempDir(), "db_dir")
 	if err != nil {
 		return nil, res, err
 	}
-	keyVal, err := keyvalue.NewKeyVal(dbDir, batchSize)
+	keyVal, err := keyvalue.NewKeyVal(dbDir, true)
 	if err != nil {
 		return nil, res, err
 	}
@@ -278,7 +277,7 @@ func testReader(rw *BlockReadWriter, readTasks <-chan *ReadTask) error {
 }
 
 func TestSimpleReadWrite(t *testing.T) {
-	rw, path, err := createBlockReadWriter(BATCH_SIZE, 8, 8)
+	rw, path, err := createBlockReadWriter(8, 8)
 	if err != nil {
 		t.Fatalf("createBlockReadWriter: %v", err)
 	}
@@ -302,7 +301,7 @@ func TestSimpleReadWrite(t *testing.T) {
 }
 
 func TestSimultaneousReadWrite(t *testing.T) {
-	rw, path, err := createBlockReadWriter(BATCH_SIZE, 8, 8)
+	rw, path, err := createBlockReadWriter(8, 8)
 	if err != nil {
 		t.Fatalf("createBlockReadWriter: %v", err)
 	}
@@ -358,7 +357,7 @@ func TestSimultaneousReadWrite(t *testing.T) {
 }
 
 func TestSimultaneousReadDelete(t *testing.T) {
-	rw, path, err := createBlockReadWriter(BATCH_SIZE, 8, 8)
+	rw, path, err := createBlockReadWriter(8, 8)
 	if err != nil {
 		t.Fatalf("createBlockReadWriter: %v", err)
 	}

@@ -21,7 +21,7 @@ func createAccountsStorage(blockIdsFile string) (*AccountsStorage, []string, err
 	if err != nil {
 		return nil, res, err
 	}
-	globalStor, err := keyvalue.NewKeyVal(dbDir0, 0)
+	globalStor, err := keyvalue.NewKeyVal(dbDir0, false)
 	if err != nil {
 		return nil, res, err
 	}
@@ -29,7 +29,7 @@ func createAccountsStorage(blockIdsFile string) (*AccountsStorage, []string, err
 	if err != nil {
 		return nil, res, err
 	}
-	addr2Index, err := keyvalue.NewKeyVal(dbDir1, 1)
+	addr2Index, err := keyvalue.NewKeyVal(dbDir1, false)
 	if err != nil {
 		return nil, res, err
 	}
@@ -37,7 +37,7 @@ func createAccountsStorage(blockIdsFile string) (*AccountsStorage, []string, err
 	if err != nil {
 		return nil, res, err
 	}
-	asset2Index, err := keyvalue.NewKeyVal(dbDir2, 0)
+	asset2Index, err := keyvalue.NewKeyVal(dbDir2, false)
 	if err != nil {
 		return nil, res, err
 	}

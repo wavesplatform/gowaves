@@ -32,11 +32,10 @@ type StateManager struct {
 
 type BlockStorageParams struct {
 	OffsetLen, HeaderOffsetLen int
-	BatchSize                  int
 }
 
 func DefaultBlockStorageParams() BlockStorageParams {
-	return BlockStorageParams{OffsetLen: 8, HeaderOffsetLen: 8, BatchSize: 1000}
+	return BlockStorageParams{OffsetLen: 8, HeaderOffsetLen: 8}
 }
 
 func NewStateManager(dataDir string, params BlockStorageParams) (*StateManager, error) {
@@ -45,7 +44,7 @@ func NewStateManager(dataDir string, params BlockStorageParams) (*StateManager, 
 		return nil, errors.Errorf("Failed to get genesis signature from string: %v\n", err)
 	}
 	blockStorageKeyValDir := filepath.Join(dataDir, BLOCKS_STOR_KEYVAL_DIR)
-	blockStorageKeyVal, err := keyvalue.NewKeyVal(blockStorageKeyValDir, params.BatchSize)
+	blockStorageKeyVal, err := keyvalue.NewKeyVal(blockStorageKeyValDir, true)
 	blockStorageDir := filepath.Join(dataDir, BLOCKS_STOR_DIR)
 	if _, err := os.Stat(blockStorageDir); os.IsNotExist(err) {
 		if err := os.Mkdir(blockStorageDir, 0755); err != nil {
@@ -57,11 +56,11 @@ func NewStateManager(dataDir string, params BlockStorageParams) (*StateManager, 
 		return nil, errors.Errorf("Failed to create block storage: %v\n", err)
 	}
 	dbDir0 := filepath.Join(dataDir, ACCOUNTS_STOR_GLOBAL_DIR)
-	globalStor, err := keyvalue.NewKeyVal(dbDir0, 0)
+	globalStor, err := keyvalue.NewKeyVal(dbDir0, false)
 	dbDir1 := filepath.Join(dataDir, ACCOUNTS_STOR_ASSET_DIR)
-	addr2Index, err := keyvalue.NewKeyVal(dbDir1, 0)
+	addr2Index, err := keyvalue.NewKeyVal(dbDir1, false)
 	dbDir2 := filepath.Join(dataDir, ACCOUNTS_STOR_ADDR_DIR)
-	asset2Index, err := keyvalue.NewKeyVal(dbDir2, 0)
+	asset2Index, err := keyvalue.NewKeyVal(dbDir2, false)
 	idsFile, err := rw.BlockIdsFilePath()
 	if err != nil {
 		return nil, errors.Errorf("Failed to get block ids file's path: %v\n", err)

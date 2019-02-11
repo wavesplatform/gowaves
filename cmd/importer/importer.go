@@ -15,7 +15,6 @@ var (
 	blockchainPath = flag.String("blockchain-path", "", "Path to binary blockchain file.")
 	balancesPath   = flag.String("balances-path", "", "Path to JSON with correct balances after applying blocks.")
 	nBlocks        = flag.Int("blocks-number", 1000, "Number of blocks to import.")
-	batchSize      = flag.Int("batch-size", 1000, "Size of key value batch.")
 )
 
 func main() {
