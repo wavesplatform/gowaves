@@ -168,12 +168,16 @@ func (a *Alias) UnmarshalJSON(value []byte) error {
 }
 
 func (a *Alias) MarshalBinary() ([]byte, error) {
+	return a.Bytes(), nil
+}
+
+func (a *Alias) Bytes() []byte {
 	al := len(a.Alias)
 	buf := make([]byte, aliasFixedSize+al)
 	buf[0] = a.Version
 	buf[1] = a.Scheme
 	PutStringWithUInt16Len(buf[2:], a.Alias)
-	return buf, nil
+	return buf
 }
 
 func (a *Alias) UnmarshalBinary(data []byte) error {

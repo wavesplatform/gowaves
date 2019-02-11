@@ -142,21 +142,61 @@ func GuessTransactionType(t *TransactionTypeVersion) (proto.Transaction, error) 
 	case proto.PaymentTransaction: // 2
 		out = &proto.Payment{}
 	case proto.IssueTransaction: // 3
-		out = &proto.IssueV1{}
+		switch t.Version {
+		case 2:
+			out = &proto.IssueV2{}
+		default:
+			out = &proto.IssueV1{}
+		}
 	case proto.TransferTransaction: // 4
-		out = &proto.TransferV1{}
+		switch t.Version {
+		case 2:
+			out = &proto.TransferV2{}
+		default:
+			out = &proto.TransferV1{}
+		}
 	case proto.ReissueTransaction: // 5
-		out = &proto.ReissueV1{}
+		switch t.Version {
+		case 2:
+			out = &proto.ReissueV2{}
+		default:
+			out = &proto.ReissueV1{}
+		}
 	case proto.BurnTransaction: // 6
-		out = &proto.BurnV1{}
+		switch t.Version {
+		case 2:
+			out = &proto.BurnV2{}
+		default:
+			out = &proto.BurnV1{}
+		}
 	case proto.ExchangeTransaction: // 7
-		out = &proto.ExchangeV1{}
+		switch t.Version {
+		case 2:
+			out = &proto.ExchangeV2{}
+		default:
+			out = &proto.ExchangeV1{}
+		}
 	case proto.LeaseTransaction: // 8
-		out = &proto.LeaseV1{}
+		switch t.Version {
+		case 2:
+			out = &proto.LeaseV2{}
+		default:
+			out = &proto.LeaseV1{}
+		}
 	case proto.LeaseCancelTransaction: // 9
-		out = &proto.LeaseCancelV1{}
+		switch t.Version {
+		case 2:
+			out = &proto.LeaseCancelV2{}
+		default:
+			out = &proto.LeaseCancelV1{}
+		}
 	case proto.CreateAliasTransaction: // 10
-		out = &proto.CreateAliasV1{}
+		switch t.Version {
+		case 2:
+			out = &proto.CreateAliasV2{}
+		default:
+			out = &proto.CreateAliasV1{}
+		}
 	case proto.MassTransferTransaction: // 11
 		out = &proto.MassTransferV1{}
 	case proto.DataTransaction: // 12
@@ -165,6 +205,8 @@ func GuessTransactionType(t *TransactionTypeVersion) (proto.Transaction, error) 
 		out = &proto.SetScriptV1{}
 	case proto.SponsorshipTransaction: // 14
 		out = &proto.SponsorshipV1{}
+	case proto.SetAssetScriptTransaction:
+		out = &proto.SetAssetScriptV1{}
 	}
 	if out == nil {
 		return nil, errors.Errorf("unknown transaction type %d version %d", t.Type, t.Version)

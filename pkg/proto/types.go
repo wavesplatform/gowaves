@@ -1,6 +1,8 @@
 package proto
 
 import (
+	"bytes"
+	"encoding/base64"
 	"encoding/binary"
 	"encoding/json"
 	"strconv"
@@ -21,6 +23,8 @@ const (
 	orderV2MinLen        = orderV2FixedBodyLen + proofsMinLen
 	jsonNull             = "null"
 )
+
+var jsonNullBytes = []byte{0x6e, 0x75, 0x6c, 0x6c}
 
 // B58Bytes represents bytes as Base58 string in JSON
 type B58Bytes []byte
@@ -44,11 +48,16 @@ func (b B58Bytes) MarshalJSON() ([]byte, error) {
 func (b *B58Bytes) UnmarshalJSON(value []byte) error {
 	s := string(value)
 	if s == jsonNull {
+		*b = nil
 		return nil
 	}
 	s, err := strconv.Unquote(s)
 	if err != nil {
 		return errors.Wrap(err, "failed to unmarshal B58Bytes from JSON")
+	}
+	if s == "" {
+		*b = B58Bytes([]byte{})
+		return nil
 	}
 	v, err := base58.Decode(s)
 	if err != nil {
@@ -266,6 +275,10 @@ func (o *OrderType) UnmarshalJSON(value []byte) error {
 type AssetPair struct {
 	AmountAsset OptionalAsset `json:"amountAsset"`
 	PriceAsset  OptionalAsset `json:"priceAsset"`
+}
+
+type OrderVersion struct {
+	Version byte `json:"version"`
 }
 
 type Order interface {
@@ -674,6 +687,7 @@ func (p *ProofsV1) UnmarshalJSON(value []byte) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to unmarshal ProofsV1 from JSON")
 	}
+	p.Version = proofsVersion
 	p.Proofs = tmp
 	return nil
 }
@@ -1012,7 +1026,7 @@ func (e BinaryDataEntry) MarshalJSON() ([]byte, error) {
 	return json.Marshal(&struct {
 		K string `json:"key"`
 		T string `json:"type"`
-		V []byte `json:"value"`
+		V Script `json:"value"`
 	}{e.Key, e.GetValueType().String(), e.Value})
 }
 
@@ -1021,7 +1035,7 @@ func (e *BinaryDataEntry) UnmarshalJSON(value []byte) error {
 	tmp := struct {
 		K string `json:"key"`
 		T string `json:"type"`
-		V []byte `json:"value"`
+		V Script `json:"value"`
 	}{}
 	if err := json.Unmarshal(value, &tmp); err != nil {
 		return errors.Wrap(err, "failed to deserialize binary data entry from JSON")
@@ -1107,5 +1121,104 @@ func (e *StringDataEntry) UnmarshalJSON(value []byte) error {
 	}
 	e.Key = tmp.K
 	e.Value = tmp.V
+	return nil
+}
+
+//DataEntryType is the assistive structure used to get the type of DataEntry while unmarshal form JSON.
+type DataEntryType struct {
+	Type string `json:"type"`
+}
+
+func guessDataEntryType(dataEntryType DataEntryType) (DataEntry, error) {
+	var r DataEntry
+	switch dataEntryType.Type {
+	case "integer":
+		r = &IntegerDataEntry{}
+	case "boolean":
+		r = &BooleanDataEntry{}
+	case "binary":
+		r = &BinaryDataEntry{}
+	case "string":
+		r = &StringDataEntry{}
+	}
+	if r == nil {
+		return nil, errors.Errorf("unknown value type '%s' of DataEntry", dataEntryType.Type)
+	}
+	return r, nil
+}
+
+// DataEntries the slice of various entries of DataTransaction
+type DataEntries []DataEntry
+
+// UnmarshalJSOL special method to unmarshal DataEntries from JSON with detection of real type of each entry.
+func (e *DataEntries) UnmarshalJSON(data []byte) error {
+	wrapError := func(err error) error { return errors.Wrap(err, "failed to unmarshal DataEntries from JSON") }
+
+	var ets []DataEntryType
+	err := json.Unmarshal(data, &ets)
+	if err != nil {
+		return wrapError(err)
+	}
+
+	entries := make([]DataEntry, len(ets))
+	for i, row := range ets {
+		et, err := guessDataEntryType(row)
+		if err != nil {
+			return wrapError(err)
+		}
+		entries[i] = et
+	}
+
+	err = json.Unmarshal(data, &entries)
+	if err != nil {
+		return wrapError(err)
+	}
+	*e = entries
+	return nil
+}
+
+const scriptPrefix = "base64:"
+
+var scriptPrefixBytes = []byte(scriptPrefix)
+
+type Script []byte
+
+// String gives a string representation of Script bytes, script bytes encoded as BASE64 with prefix
+func (s Script) String() string {
+	sb := strings.Builder{}
+	sb.WriteString(scriptPrefix)
+	sb.WriteString(base64.StdEncoding.EncodeToString(s))
+	return sb.String()
+}
+
+// MarshalJSON writes Script as JSON
+func (s Script) MarshalJSON() ([]byte, error) {
+	var sb strings.Builder
+	sb.WriteRune('"')
+	sb.WriteString(s.String())
+	sb.WriteRune('"')
+	return []byte(sb.String()), nil
+}
+
+// UnmarshalJSON reads Script from it's JSON representation
+func (s *Script) UnmarshalJSON(value []byte) error {
+	wrapError := func(err error) error { return errors.Wrap(err, "failed to unmarshal Script from JSON") }
+	if bytes.Equal(value, jsonNullBytes) {
+		return nil
+	}
+	if value[0] != '"' || value[len(value)-1] != '"' {
+		return wrapError(errors.New("no quotes"))
+	}
+	value = value[1 : len(value)-1]
+	if !bytes.Equal(value[0:7], scriptPrefixBytes) {
+		return wrapError(errors.New("no prefix"))
+	}
+	value = value[7:]
+	sb := make([]byte, base64.StdEncoding.DecodedLen(len(value)))
+	n, err := base64.StdEncoding.Decode(sb, value)
+	if err != nil {
+		return errors.Wrap(err, "failed to unmarshal Script form JSON")
+	}
+	*s = Script(sb[:n])
 	return nil
 }
