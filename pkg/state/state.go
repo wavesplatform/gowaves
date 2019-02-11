@@ -71,9 +71,6 @@ func NewStateManager(dataDir string, params BlockStorageParams) (*StateManager, 
 		return nil, errors.Errorf("Failed to create accounts storage: %v\n", err)
 	}
 	state := &StateManager{genesis: genesis, accountsStorage: accountsStor, rw: rw}
-	if err = state.applyGenesis(); err != nil {
-		return nil, err
-	}
 	return state, nil
 }
 
@@ -354,6 +351,13 @@ func (s *StateManager) AcceptAndVerifyBlockBinary(data []byte, initialisation bo
 	// Check parent.
 	height := s.rw.CurrentHeight()
 	if height == 0 {
+		if initialisation {
+			if err := s.applyGenesis(); err != nil {
+				return err
+			}
+		} else {
+			return errors.New("Zero height in non-initialisation mode.")
+		}
 		// First block.
 		if block.Parent != s.genesis {
 			return errors.New("Incorrect parent.")
