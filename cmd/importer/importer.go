@@ -8,6 +8,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/wavesplatform/gowaves/pkg/importer"
 	"github.com/wavesplatform/gowaves/pkg/state"
 )
 
@@ -41,13 +42,13 @@ func main() {
 	}()
 
 	start := time.Now()
-	if err := manager.ApplyFromFile(*blockchainPath, *nBlocks, false); err != nil {
+	if err := importer.ApplyFromFile(manager, *blockchainPath, *nBlocks, false); err != nil {
 		log.Fatalf("Failed to apply blocks: %v\n", err)
 	}
 	elapsed := time.Since(start)
 	fmt.Printf("Import took %s\n", elapsed)
 	if len(*balancesPath) != 0 {
-		if err := manager.CheckBalances(*balancesPath); err != nil {
+		if err := importer.CheckBalances(manager, *balancesPath); err != nil {
 			log.Fatalf("CheckBalances(): %v\n", err)
 		}
 	}

@@ -1,11 +1,7 @@
 package state
 
 import (
-	"bufio"
-	"bytes"
 	"encoding/binary"
-	"encoding/json"
-	"io"
 	"os"
 	"path/filepath"
 
@@ -129,6 +125,14 @@ func (s *StateManager) BlockIDToHeight(blockID crypto.Signature) (uint64, error)
 
 func (s *StateManager) HeightToBlockID(height uint64) (crypto.Signature, error) {
 	return s.rw.BlockIDByHeight(height)
+}
+
+func (s *StateManager) AccountBalance(addr proto.Address, asset []byte) (uint64, error) {
+	return s.accountsStorage.AccountBalance(addr, asset)
+}
+
+func (s *StateManager) WavesAddressesNumber() (uint64, error) {
+	return s.accountsStorage.WavesAddressesNumber()
 }
 
 func (s *StateManager) performGenesisTransaction(tx proto.Genesis) error {
@@ -400,83 +404,6 @@ func (s *StateManager) RollbackTo(removalEdge crypto.Signature) error {
 	// Remove blocks from block storage.
 	if err := s.rw.RemoveBlocks(removalEdge); err != nil {
 		return errors.Errorf("Failed to remove blocks from block storage: %v", err)
-	}
-	return nil
-}
-
-func (s *StateManager) ApplyFromFile(blockchainPath string, nBlocks int, checkBlocks bool) error {
-	blockchain, err := os.Open(blockchainPath)
-	if err != nil {
-		return errors.Errorf("Failed to open blockchain file: %v\n", err)
-	}
-	sb := make([]byte, 4)
-	buf := make([]byte, 2*1024*1024)
-	r := bufio.NewReader(blockchain)
-	for i := 0; i < nBlocks; i++ {
-		if _, err := io.ReadFull(r, sb); err != nil {
-			return err
-		}
-		size := binary.BigEndian.Uint32(sb)
-		block := buf[:size]
-		if _, err := io.ReadFull(r, block); err != nil {
-			return err
-		}
-		if err := s.AcceptAndVerifyBlockBinary(block, true); err != nil {
-			return err
-		}
-		if checkBlocks {
-			savedBlock, err := s.GetBlockByHeight(uint64(i))
-			if err != nil {
-				return err
-			}
-			savedBlockBytes, err := savedBlock.MarshalBinary()
-			if err != nil {
-				return err
-			}
-			if bytes.Compare(block, savedBlockBytes) != 0 {
-				return errors.New("Accepted and returned blocks differ\n")
-			}
-		}
-	}
-	if err := blockchain.Close(); err != nil {
-		return errors.Errorf("Failed to close blockchain file: %v\n", err)
-	}
-	return nil
-}
-
-func (s *StateManager) CheckBalances(balancesPath string) error {
-	balances, err := os.Open(balancesPath)
-	if err != nil {
-		return errors.Errorf("Failed to open balances file: %v\n", err)
-	}
-	var state map[string]uint64
-	jsonParser := json.NewDecoder(balances)
-	if err := jsonParser.Decode(&state); err != nil {
-		return errors.Errorf("Failed to decode state: %v\n", err)
-	}
-	addressesNumber, err := s.accountsStorage.WavesAddressesNumber()
-	if err != nil {
-		return errors.Errorf("Failed to get number of waves addresses: %v\n", err)
-	}
-	properAddressesNumber := uint64(len(state))
-	if properAddressesNumber != addressesNumber {
-		return errors.Errorf("Number of addresses differ: %d and %d\n", properAddressesNumber, addressesNumber)
-	}
-	for addrStr, properBalance := range state {
-		addr, err := proto.NewAddressFromString(addrStr)
-		if err != nil {
-			return errors.Errorf("Faied to convert string to address: %v\n", err)
-		}
-		balance, err := s.accountsStorage.AccountBalance(addr, nil)
-		if err != nil {
-			return errors.Errorf("Failed to get balance: %v\n", err)
-		}
-		if balance != properBalance {
-			return errors.Errorf("Balances for address %v differ: %d and %d\n", addr, properBalance, balance)
-		}
-	}
-	if err := balances.Close(); err != nil {
-		return errors.Errorf("Failed to close balances file: %v\n", err)
 	}
 	return nil
 }

@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/pkg/errors"
+	"github.com/wavesplatform/gowaves/pkg/importer"
 )
 
 const (
@@ -52,24 +53,24 @@ func TestBlockAcceptAndRollback(t *testing.T) {
 		}
 	}()
 
-	if err := manager.ApplyFromFile(blocksPath, BLOCKS_NUMBER, true); err != nil {
+	if err := importer.ApplyFromFile(manager, blocksPath, BLOCKS_NUMBER, true); err != nil {
 		t.Fatalf("Failed to import: %v\n", err)
 	}
-	if err := manager.CheckBalances(balancesPath0); err != nil {
+	if err := importer.CheckBalances(manager, balancesPath0); err != nil {
 		t.Fatalf("CheckBalances(): %v\n", err)
 	}
 
 	if err := manager.RollbackToHeight(FIRST_HEIGHT); err != nil {
 		t.Fatalf("Rollback(): %v\n", err)
 	}
-	if err := manager.CheckBalances(balancesPath1); err != nil {
+	if err := importer.CheckBalances(manager, balancesPath1); err != nil {
 		t.Fatalf("CheckBalances(): %v\n", err)
 	}
 
 	if err := manager.RollbackToHeight(SECOND_HEIGHT); err != nil {
 		t.Fatalf("Rollback(): %v\n", err)
 	}
-	if err := manager.CheckBalances(balancesPath2); err != nil {
+	if err := importer.CheckBalances(manager, balancesPath2); err != nil {
 		t.Fatalf("CheckBalances(): %v\n", err)
 	}
 }
