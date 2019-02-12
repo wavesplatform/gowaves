@@ -491,10 +491,15 @@ func WithPeersChan(c chan proto.PeerInfo) PeerOption {
 
 func WithDeclAddr(addr string) PeerOption {
 	return func(p *Peer) error {
+
+		if addr == "" {
+			return nil
+		}
+
 		var declAddr proto.PeerInfo
 		split := strings.Split(addr, ":")
 		if len(split) != 2 {
-			zap.S().Error("addr ", addr)
+			zap.S().Errorf("addr %s", addr)
 			return errors.New("addr in wrong format: " + addr)
 		}
 		declAddr.Addr = net.ParseIP(split[0])
