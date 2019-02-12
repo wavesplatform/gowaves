@@ -23,9 +23,12 @@ var (
 			logger, _ := zap.NewDevelopment()
 			zap.ReplaceGlobals(logger)
 
+			peers := viper.GetStringSlice("waves.network.peers")
+			zap.S().Info(peers)
+
 			ctx, cancel := context.WithCancel(context.Background())
 			s, err := server.NewServer(
-				server.WithPeers(viper.GetStringSlice("waves.network.peers")),
+				server.WithPeers(peers),
 				server.WithLevelDBPath(viper.GetString("waves.storage.path")),
 				server.WithGenesis(viper.GetString("waves.blockchain.genesis")),
 				server.WithRestAddr(viper.GetString("waves.network.rest-address")),
