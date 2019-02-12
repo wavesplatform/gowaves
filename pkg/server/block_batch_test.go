@@ -17,32 +17,22 @@ var tests = []batchTest{
 	{
 		blocks: []proto.Block{
 			{
-				BlockSignature: crypto.Signature{1},
-				Parent:         crypto.Signature{0},
+				BlockHeader: proto.BlockHeader{
+					BlockSignature: crypto.Signature{1},
+					Parent:         crypto.Signature{0},
+				},
 			},
 			{
-				BlockSignature: crypto.Signature{2},
-				Parent:         crypto.Signature{1},
+				BlockHeader: proto.BlockHeader{
+					BlockSignature: crypto.Signature{2},
+					Parent:         crypto.Signature{1},
+				},
 			},
 			{
-				BlockSignature: crypto.Signature{3},
-				Parent:         crypto.Signature{2},
-			},
-		},
-		expErr: nil,
-	},
-	{
-		blocks: []proto.Block{
-			{
-				BlockSignature: crypto.Signature{1},
-				Parent:         crypto.Signature{0},
-			},
-			{
-				BlockSignature: crypto.Signature{3},
-				Parent:         crypto.Signature{2},
-			}, {
-				BlockSignature: crypto.Signature{2},
-				Parent:         crypto.Signature{1},
+				BlockHeader: proto.BlockHeader{
+					BlockSignature: crypto.Signature{3},
+					Parent:         crypto.Signature{2},
+				},
 			},
 		},
 		expErr: nil,
@@ -50,12 +40,39 @@ var tests = []batchTest{
 	{
 		blocks: []proto.Block{
 			{
-				BlockSignature: crypto.Signature{1},
-				Parent:         crypto.Signature{0},
+				BlockHeader: proto.BlockHeader{
+					BlockSignature: crypto.Signature{1},
+					Parent:         crypto.Signature{0},
+				},
 			},
 			{
-				BlockSignature: crypto.Signature{3},
-				Parent:         crypto.Signature{2},
+				BlockHeader: proto.BlockHeader{
+					BlockSignature: crypto.Signature{3},
+					Parent:         crypto.Signature{2},
+				},
+			},
+			{
+				BlockHeader: proto.BlockHeader{
+					BlockSignature: crypto.Signature{2},
+					Parent:         crypto.Signature{1},
+				},
+			},
+		},
+		expErr: nil,
+	},
+	{
+		blocks: []proto.Block{
+			{
+				BlockHeader: proto.BlockHeader{
+					BlockSignature: crypto.Signature{1},
+					Parent:         crypto.Signature{0},
+				},
+			},
+			{
+				BlockHeader: proto.BlockHeader{
+					BlockSignature: crypto.Signature{3},
+					Parent:         crypto.Signature{2},
+				},
 			},
 		},
 		expErr: batchIncomplete,

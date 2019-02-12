@@ -169,6 +169,13 @@ func (a *OptionalAsset) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
+func (a *OptionalAsset) ToID() []byte {
+	if a.Present {
+		return a.ID[:]
+	}
+	return nil
+}
+
 //Attachment represents the additional data stored in Transfer and MassTransfer transactions.
 type Attachment string
 
