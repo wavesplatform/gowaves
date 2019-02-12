@@ -133,32 +133,32 @@ type Transaction interface {
 
 func BytesToTransaction(tx []byte) (Transaction, error) {
 	if len(tx) < 2 {
-		return nil, errors.New("Invalid size of transation's bytes slice")
+		return nil, errors.New("invalid size of transation's bytes slice")
 	}
 	if tx[0] == 0 {
 		transactionType, ok := bytesToTransactionsV2[TransactionType(tx[1])]
 		if !ok {
-			return nil, errors.New("Invalid transaction type")
+			return nil, errors.New("invalid transaction type")
 		}
 		transaction, ok := reflect.New(transactionType).Interface().(Transaction)
 		if !ok {
 			panic("This transaction type does not implement marshal/unmarshal functions")
 		}
 		if err := transaction.UnmarshalBinary(tx); err != nil {
-			return nil, errors.Wrap(err, "Failed to unmarshal transaction")
+			return nil, errors.Wrap(err, "failed to unmarshal transaction")
 		}
 		return Transaction(transaction), nil
 	} else {
 		transactionType, ok := bytesToTransactionsV1[TransactionType(tx[0])]
 		if !ok {
-			return nil, errors.New("Invalid transaction type")
+			return nil, errors.New("invalid transaction type")
 		}
 		transaction, ok := reflect.New(transactionType).Interface().(Transaction)
 		if !ok {
 			panic("This transaction type does not implement marshal/unmarshal functions")
 		}
 		if err := transaction.UnmarshalBinary(tx); err != nil {
-			return nil, errors.Wrap(err, "Failed to unmarshal transaction")
+			return nil, errors.Wrap(err, "failed to unmarshal transaction")
 		}
 		return transaction, nil
 	}

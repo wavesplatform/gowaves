@@ -115,7 +115,7 @@ func (rw *BlockReadWriter) BlockIdsFilePath() (string, error) {
 	if rw.blockHeight2ID != nil {
 		return rw.blockHeight2ID.Name(), nil
 	}
-	return "", errors.New("Block IDs file is not set.")
+	return "", errors.New("block IDs file is not set")
 }
 
 func (rw *BlockReadWriter) StartBlock(blockID crypto.Signature) error {

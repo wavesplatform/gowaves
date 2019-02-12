@@ -59,11 +59,11 @@ func NewStateManager(dataDir string, params BlockStorageParams) (*StateManager, 
 	asset2Index, err := keyvalue.NewKeyVal(dbDir2, false)
 	idsFile, err := rw.BlockIdsFilePath()
 	if err != nil {
-		return nil, errors.Errorf("Failed to get block ids file's path: %v\n", err)
+		return nil, errors.Errorf("failed to get block ids file's path: %v\n", err)
 	}
 	accountsStor, err := storage.NewAccountsStorage(globalStor, addr2Index, asset2Index, idsFile)
 	if err != nil {
-		return nil, errors.Errorf("Failed to create accounts storage: %v\n", err)
+		return nil, errors.Errorf("failed to create accounts storage: %v\n", err)
 	}
 	state := &StateManager{genesis: genesis, accountsStorage: accountsStor, rw: rw}
 	return state, nil
@@ -80,10 +80,10 @@ func (s *StateManager) applyGenesis() error {
 	}
 	for _, tx := range genesisTx {
 		if err := tv.ValidateTransaction(s.genesis, &tx, true); err != nil {
-			return errors.Wrap(err, "Invalid genesis transaction")
+			return errors.Wrap(err, "invalid genesis transaction")
 		}
 		if err := s.performGenesisTransaction(tx); err != nil {
-			return errors.Wrap(err, "Failed to perform genesis transaction")
+			return errors.Wrap(err, "failed to perform genesis transaction")
 		}
 	}
 	return nil
@@ -194,7 +194,7 @@ func (s *StateManager) performTransaction(block *proto.Block, tx proto.Transacti
 		}
 		if v.Recipient.Address == nil {
 			// TODO implement
-			return errors.New("Alias without address is not supported yet")
+			return errors.New("alias without address is not supported yet")
 		}
 		minerAddr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, block.GenPublicKey)
 		if err != nil {
@@ -246,7 +246,7 @@ func (s *StateManager) performTransaction(block *proto.Block, tx proto.Transacti
 		}
 		if v.Recipient.Address == nil {
 			// TODO implement
-			return errors.New("Alias without address is not supported yet")
+			return errors.New("alias without address is not supported yet")
 		}
 		minerAddr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, block.GenPublicKey)
 		if err != nil {
@@ -292,7 +292,7 @@ func (s *StateManager) performTransaction(block *proto.Block, tx proto.Transacti
 		}
 		return nil
 	default:
-		return errors.Errorf("Transaction type %T is not supported\n", v)
+		return errors.Errorf("transaction type %T is not supported\n", v)
 	}
 }
 
@@ -328,10 +328,10 @@ func (s *StateManager) addNewBlock(block *proto.Block, initialisation bool) erro
 		if tv.IsSupported(tx) && (s.accountsStorage != nil) {
 			// Genesis, Payment, TransferV1 and TransferV2 Waves-only for now.
 			if err = tv.ValidateTransaction(block.BlockSignature, tx, initialisation); err != nil {
-				return errors.Wrap(err, "Incorrect transaction inside of the block")
+				return errors.Wrap(err, "incorrect transaction inside of the block")
 			}
 			if err = s.performTransaction(block, tx); err != nil {
-				return errors.Wrap(err, "Failed to perform the transaction")
+				return errors.Wrap(err, "failed to perform the transaction")
 			}
 		}
 		transactions = transactions[4+n:]
@@ -349,7 +349,7 @@ func (s *StateManager) AcceptAndVerifyBlockBinary(data []byte, initialisation bo
 	}
 	// Check block signature.
 	if !crypto.Verify(block.GenPublicKey, block.BlockSignature, data[:len(data)-crypto.SignatureSize]) {
-		return errors.New("Invalid block signature.")
+		return errors.New("invalid block signature")
 	}
 	// Check parent.
 	height := s.rw.CurrentHeight()
@@ -359,11 +359,11 @@ func (s *StateManager) AcceptAndVerifyBlockBinary(data []byte, initialisation bo
 				return err
 			}
 		} else {
-			return errors.New("Zero height in non-initialisation mode.")
+			return errors.New("zero height in non-initialisation mode")
 		}
 		// First block.
 		if block.Parent != s.genesis {
-			return errors.New("Incorrect parent.")
+			return errors.New("incorrect parent")
 		}
 	} else {
 		parent, err := s.GetBlockByHeight(height - 1)
@@ -371,7 +371,7 @@ func (s *StateManager) AcceptAndVerifyBlockBinary(data []byte, initialisation bo
 			return err
 		}
 		if parent.BlockSignature != block.Parent {
-			return errors.New("Incorrect parent.")
+			return errors.New("incorrect parent")
 		}
 	}
 	return s.addNewBlock(&block, initialisation)
@@ -391,19 +391,19 @@ func (s *StateManager) RollbackTo(removalEdge crypto.Signature) error {
 		for height := s.rw.CurrentHeight() - 1; height > 0; height-- {
 			blockID, err := s.rw.BlockIDByHeight(height)
 			if err != nil {
-				return errors.Errorf("Failed to get block ID by height: %v\n", err)
+				return errors.Errorf("failed to get block ID by height: %v\n", err)
 			}
 			if blockID == removalEdge {
 				break
 			}
 			if err := s.accountsStorage.RollbackBlock(blockID); err != nil {
-				return errors.Errorf("Failed to rollback accounts storage: %v", err)
+				return errors.Errorf("failed to rollback accounts storage: %v", err)
 			}
 		}
 	}
 	// Remove blocks from block storage.
 	if err := s.rw.RemoveBlocks(removalEdge); err != nil {
-		return errors.Errorf("Failed to remove blocks from block storage: %v", err)
+		return errors.Errorf("failed to remove blocks from block storage: %v", err)
 	}
 	return nil
 }

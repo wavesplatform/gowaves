@@ -22,7 +22,7 @@ type State interface {
 func ApplyFromFile(st State, blockchainPath string, nBlocks int, checkBlocks bool) error {
 	blockchain, err := os.Open(blockchainPath)
 	if err != nil {
-		return errors.Errorf("Failed to open blockchain file: %v\n", err)
+		return errors.Errorf("failed to open blockchain file: %v\n", err)
 	}
 	sb := make([]byte, 4)
 	buf := make([]byte, 2*1024*1024)
@@ -49,12 +49,12 @@ func ApplyFromFile(st State, blockchainPath string, nBlocks int, checkBlocks boo
 				return err
 			}
 			if bytes.Compare(block, savedBlockBytes) != 0 {
-				return errors.New("Accepted and returned blocks differ\n")
+				return errors.New("accepted and returned blocks differ\n")
 			}
 		}
 	}
 	if err := blockchain.Close(); err != nil {
-		return errors.Errorf("Failed to close blockchain file: %v\n", err)
+		return errors.Errorf("failed to close blockchain file: %v\n", err)
 	}
 	return nil
 }
@@ -62,36 +62,36 @@ func ApplyFromFile(st State, blockchainPath string, nBlocks int, checkBlocks boo
 func CheckBalances(st State, balancesPath string) error {
 	balances, err := os.Open(balancesPath)
 	if err != nil {
-		return errors.Errorf("Failed to open balances file: %v\n", err)
+		return errors.Errorf("failed to open balances file: %v\n", err)
 	}
 	var state map[string]uint64
 	jsonParser := json.NewDecoder(balances)
 	if err := jsonParser.Decode(&state); err != nil {
-		return errors.Errorf("Failed to decode state: %v\n", err)
+		return errors.Errorf("failed to decode state: %v\n", err)
 	}
 	addressesNumber, err := st.WavesAddressesNumber()
 	if err != nil {
-		return errors.Errorf("Failed to get number of waves addresses: %v\n", err)
+		return errors.Errorf("failed to get number of waves addresses: %v\n", err)
 	}
 	properAddressesNumber := uint64(len(state))
 	if properAddressesNumber != addressesNumber {
-		return errors.Errorf("Number of addresses differ: %d and %d\n", properAddressesNumber, addressesNumber)
+		return errors.Errorf("number of addresses differ: %d and %d\n", properAddressesNumber, addressesNumber)
 	}
 	for addrStr, properBalance := range state {
 		addr, err := proto.NewAddressFromString(addrStr)
 		if err != nil {
-			return errors.Errorf("Faied to convert string to address: %v\n", err)
+			return errors.Errorf("faied to convert string to address: %v\n", err)
 		}
 		balance, err := st.AccountBalance(addr, nil)
 		if err != nil {
-			return errors.Errorf("Failed to get balance: %v\n", err)
+			return errors.Errorf("failed to get balance: %v\n", err)
 		}
 		if balance != properBalance {
-			return errors.Errorf("Balances for address %v differ: %d and %d\n", addr, properBalance, balance)
+			return errors.Errorf("balances for address %v differ: %d and %d\n", addr, properBalance, balance)
 		}
 	}
 	if err := balances.Close(); err != nil {
-		return errors.Errorf("Failed to close balances file: %v\n", err)
+		return errors.Errorf("failed to close balances file: %v\n", err)
 	}
 	return nil
 }

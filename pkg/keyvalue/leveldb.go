@@ -48,7 +48,7 @@ func (k *KeyVal) Put(key, val []byte) error {
 
 func (k *KeyVal) Flush() error {
 	if k.batch == nil {
-		return errors.New("No batch to flush.")
+		return errors.New("no batch to flush")
 	}
 	if err := k.db.Write(k.batch, nil); err != nil {
 		return err

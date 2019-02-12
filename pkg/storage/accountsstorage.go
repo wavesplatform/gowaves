@@ -33,7 +33,7 @@ var Empty struct{}
 func toBlockID(bytes []byte) (crypto.Signature, error) {
 	var res crypto.Signature
 	if len(bytes) != crypto.SignatureSize {
-		return res, errors.New("Failed to convert bytes to block ID: invalid length of bytes.")
+		return res, errors.New("failed to convert bytes to block ID: invalid length of bytes")
 	}
 	copy(res[:], bytes)
 	return res, nil
@@ -70,7 +70,7 @@ func NewAccountsStorage(globalStor, addr2Index, asset2Index keyvalue.IterableKey
 	if blockIdsFile != "" {
 		blockIDs, err := os.Open(blockIdsFile)
 		if err != nil {
-			return nil, errors.Errorf("Failed to open block IDs file: %v\n", err)
+			return nil, errors.Errorf("failed to open block IDs file: %v\n", err)
 		}
 		idBuf := make([]byte, crypto.SignatureSize)
 		r := bufio.NewReader(blockIDs)
@@ -78,11 +78,11 @@ func NewAccountsStorage(globalStor, addr2Index, asset2Index keyvalue.IterableKey
 		for {
 			if n, err := io.ReadFull(r, idBuf); err != nil {
 				if err != io.EOF {
-					return nil, errors.Errorf("Can not read block IDs from file: %v\n", err)
+					return nil, errors.Errorf("can not read block IDs from file: %v\n", err)
 				}
 				break
 			} else if n != crypto.SignatureSize {
-				return nil, errors.New("Can not read ID of proper size from file")
+				return nil, errors.New("can not read ID of proper size from file")
 			}
 			blockID, err := toBlockID(idBuf)
 			if err != nil {
@@ -91,11 +91,11 @@ func NewAccountsStorage(globalStor, addr2Index, asset2Index keyvalue.IterableKey
 			validIDs[blockID] = Empty
 		}
 		if err := blockIDs.Close(); err != nil {
-			return nil, errors.Errorf("Failed to close block IDs file: %v\n", err)
+			return nil, errors.Errorf("failed to close block IDs file: %v\n", err)
 		}
 	}
 	if err := initIndexStores(addr2Index, asset2Index); err != nil {
-		return nil, errors.Errorf("Failed to initialise index store: %v\n", err)
+		return nil, errors.Errorf("failed to initialise index store: %v\n", err)
 	}
 	return &AccountsStorage{
 		globalStor:  globalStor,
@@ -213,7 +213,7 @@ func (s *AccountsStorage) WavesAddressesNumber() (uint64, error) {
 func (s *AccountsStorage) AccountBalance(addr proto.Address, asset []byte) (uint64, error) {
 	has, err := s.addr2Index.Has(addr[:])
 	if err != nil {
-		return 0, errors.Errorf("Failed to check if address exists: %v\n", err)
+		return 0, errors.Errorf("failed to check if address exists: %v\n", err)
 	}
 	if !has {
 		// TODO: think about this scenario.
@@ -222,7 +222,7 @@ func (s *AccountsStorage) AccountBalance(addr proto.Address, asset []byte) (uint
 	if asset != nil {
 		has, err = s.asset2Index.Has(asset)
 		if err != nil {
-			return 0, errors.Errorf("Failed to check if asset exists: %v\n", err)
+			return 0, errors.Errorf("failed to check if asset exists: %v\n", err)
 		}
 		if !has {
 			// TODO: think about this scenario.
@@ -231,16 +231,16 @@ func (s *AccountsStorage) AccountBalance(addr proto.Address, asset []byte) (uint
 	}
 	key, err := s.getKey(addr, asset)
 	if err != nil {
-		return 0, errors.Errorf("Failed to get key from address and asset: %v\n", err)
+		return 0, errors.Errorf("failed to get key from address and asset: %v\n", err)
 	}
 	state, err := s.globalStor.Get(key)
 	if err != nil {
-		return 0, errors.Errorf("Failed to get state for given key: %v\n", err)
+		return 0, errors.Errorf("failed to get state for given key: %v\n", err)
 	}
 	// Delete invalid records.
 	state, err = s.filterState(key, state)
 	if err != nil {
-		return 0, errors.Errorf("Failed to filter state: %v\n", err)
+		return 0, errors.Errorf("failed to filter state: %v\n", err)
 	}
 	if len(state) == 0 {
 		// There were no valid records, so the state is empty after filtering.
@@ -251,10 +251,49 @@ func (s *AccountsStorage) AccountBalance(addr proto.Address, asset []byte) (uint
 	return balance, nil
 }
 
+func (s *AccountsStorage) newState(newRecord []byte, key []byte, blockID crypto.Signature) ([]byte, error) {
+	has, err := s.globalStor.Has(key)
+	if err != nil {
+		return nil, err
+	}
+	if !has {
+		// New state.
+		return newRecord, nil
+	}
+	// Get current state.
+	state, err := s.globalStor.Get(key)
+	if err != nil {
+		return nil, err
+	}
+	// Delete invalid records.
+	state, err = s.filterState(key, state)
+	if err != nil {
+		return nil, err
+	}
+	if len(state) < RECORD_SIZE {
+		// State is empty after filtering, new record is the first one.
+		return newRecord, nil
+	}
+	lastRecord := state[len(state)-RECORD_SIZE:]
+	idBytes := lastRecord[len(lastRecord)-crypto.SignatureSize:]
+	lastBlockID, err := toBlockID(idBytes)
+	if err != nil {
+		return nil, err
+	}
+	if lastBlockID == blockID {
+		// If the last record is the same block, rewrite it.
+		copy(state[len(state)-RECORD_SIZE:], newRecord)
+	} else {
+		// Append new record to the end.
+		state = append(state, newRecord...)
+	}
+	return state, nil
+}
+
 func (s *AccountsStorage) SetAccountBalance(addr proto.Address, asset []byte, balance uint64, blockID crypto.Signature) error {
 	key, err := s.getKey(addr, asset)
 	if err != nil {
-		return errors.Errorf("Failed to get key from address and asset: %v", err)
+		return errors.Errorf("failed to get key from address and asset: %v", err)
 	}
 	if _, ok := s.validIDs[blockID]; !ok {
 		s.validIDs[blockID] = Empty
@@ -263,43 +302,9 @@ func (s *AccountsStorage) SetAccountBalance(addr proto.Address, asset []byte, ba
 	balanceBuf := make([]byte, 8)
 	binary.LittleEndian.PutUint64(balanceBuf, balance)
 	newRecord := append(balanceBuf, blockID[:]...)
-	has, err := s.globalStor.Has(key)
+	state, err := s.newState(newRecord, key, blockID)
 	if err != nil {
 		return err
-	}
-	var state []byte
-	if !has {
-		// New state.
-		state = newRecord
-	} else {
-		// Get current state.
-		state, err = s.globalStor.Get(key)
-		if err != nil {
-			return err
-		}
-		// Delete invalid records.
-		state, err = s.filterState(key, state)
-		if err != nil {
-			return err
-		}
-		if len(state) >= RECORD_SIZE {
-			lastRecord := state[len(state)-RECORD_SIZE:]
-			idBytes := lastRecord[len(lastRecord)-crypto.SignatureSize:]
-			lastBlockID, err := toBlockID(idBytes)
-			if err != nil {
-				return err
-			}
-			if lastBlockID == blockID {
-				// If the last record is the same block, rewrite it.
-				copy(state[len(state)-RECORD_SIZE:], newRecord)
-			} else {
-				// Append new record to the end.
-				state = append(state, newRecord...)
-			}
-		} else {
-			// State is empty after filtering, new record is the first one.
-			state = newRecord
-		}
 	}
 	if err := s.globalStor.Put(key, state); err != nil {
 		return err
