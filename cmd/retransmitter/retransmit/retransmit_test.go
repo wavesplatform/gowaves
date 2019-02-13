@@ -4,7 +4,7 @@ import (
 	"context"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/wavesplatform/gowaves/cmd/retransmitter/retransmitansmit/utils"
+	"github.com/wavesplatform/gowaves/cmd/retransmitter/retransmit/utils"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/libs/bytespool"
 	"github.com/wavesplatform/gowaves/pkg/network/peer"
@@ -73,7 +73,7 @@ func TestClientRecvTransaction(t *testing.T) {
 
 	addrToCh := make(map[string]*mockPeer)
 
-	outgoingSpawner := func(params peer.OutgoingPeerParams) {
+	outgoingSpawner := func(ctx context.Context, params peer.OutgoingPeerParams) {
 		addrToCh[params.Address] = &mockPeer{
 			addr:     params.Address,
 			incomeCh: params.Parent.MessageCh,
@@ -91,7 +91,7 @@ func TestClientRecvTransaction(t *testing.T) {
 	counter := utils.NewCounter(ctx)
 	pool := bytespool.NewBytesPool(1, 2*1024*1024)
 
-	r := NewRetransmitter(proto.PeerInfo{}, knownPeers, counter, outgoingSpawner, nil, nil, pool)
+	r := NewRetransmitter("wavesD", proto.PeerInfo{}, knownPeers, counter, outgoingSpawner, nil, nil, pool)
 	go r.Run(ctx)
 
 	r.AddAddress(ctx, "127.0.0.1:100")

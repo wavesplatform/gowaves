@@ -10,10 +10,6 @@ import (
 	"time"
 )
 
-type NoOpDeleter struct{}
-
-func (NoOpDeleter) Delete(string) {}
-
 type OutgoingPeerParams struct {
 	Address                   string
 	WavesNetwork              string

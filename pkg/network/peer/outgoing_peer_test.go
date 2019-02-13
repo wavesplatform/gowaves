@@ -88,15 +88,13 @@ func TestOutgoingPeer_SendMessage(t *testing.T) {
 	}
 
 	params := OutgoingPeerParams{
-		Ctx:                       ctx,
 		Address:                   server.Addr().String(),
 		Parent:                    parent,
 		ReceiveFromRemoteCallback: callback,
 		Pool:                      bytespool.NewBytesPool(10, 2*1024*1024),
 		DeclAddr:                  proto.PeerInfo{},
-		SpawnedPeers:              NoOpDeleter{},
 	}
-	go RunOutgoingPeer(params)
+	go RunOutgoingPeer(ctx, params)
 
 	select {
 	case <-time.After(10 * time.Millisecond):
