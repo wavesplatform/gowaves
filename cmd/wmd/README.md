@@ -34,7 +34,7 @@ usage: wmd [flags]
   -db               Path to data base folder. No default value.
   -matcher          Matcher's public key in form of Base58 string. Defaults to 7kPFrHDiGw1rCm7LPszuECwWYL3dMf6iMifLRDJQZMzy.
   -scheme           Blockchain scheme symbol. Defaults to 'W'.
-  -symbols          Path to file of symbols substitutions. No default value.
+  -symbols          Path to file of symbol substitutions. No default value.
   -rollback         The height to rollback to before importing a blockchain file or staring the synchronization. Default value is 0 (no rollback).
 
 ```
