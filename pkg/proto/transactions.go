@@ -92,6 +92,7 @@ const (
 
 type Transaction interface {
 	Transaction()
+	MarshalBinary() ([]byte, error)
 	GetID() []byte
 }
 
