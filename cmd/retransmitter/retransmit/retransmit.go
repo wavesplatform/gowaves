@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 	"github.com/pkg/errors"
+	"github.com/wavesplatform/gowaves/cmd/retransmitter/retransmit/utils"
 	"github.com/wavesplatform/gowaves/pkg/network/conn"
 	"github.com/wavesplatform/gowaves/pkg/network/peer"
-	"github.com/wavesplatform/gowaves/pkg/network/retransmit/utils"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
 	"net"
@@ -16,10 +16,10 @@ import (
 var invalidTransaction = errors.New("invalid transaction")
 
 // This function knows how to create outgoing client and encapsulates logic of creating client inside
-type PeerOutgoingSpawner func(peer.OutgoingPeerParams)
+type PeerOutgoingSpawner func(context.Context, peer.OutgoingPeerParams)
 
 // This function knows how to create incoming client and encapsulates logic of creating client inside
-type PeerIncomingSpawner func(peer.IncomingPeerParams)
+type PeerIncomingSpawner func(context.Context, peer.IncomingPeerParams)
 
 // Base struct that makes transaction transmit
 type Retransmitter struct {
@@ -36,10 +36,11 @@ type Retransmitter struct {
 	pool                      conn.Pool
 	spawnedPeers              *utils.SpawnedPeers
 	counter                   *utils.Counter
+	wavesNetwork              string
 }
 
 // creates new Retransmitter
-func NewRetransmitter(declAddr proto.PeerInfo, knownPeers *utils.KnownPeers, counter *utils.Counter, outgoingSpawner PeerOutgoingSpawner, incomingSpawner PeerIncomingSpawner, ReceiveFromRemoteCallback peer.ReceiveFromRemoteCallback, pool conn.Pool) *Retransmitter {
+func NewRetransmitter(wavesNetwork string, declAddr proto.PeerInfo, knownPeers *utils.KnownPeers, counter *utils.Counter, outgoingSpawner PeerOutgoingSpawner, incomingSpawner PeerIncomingSpawner, ReceiveFromRemoteCallback peer.ReceiveFromRemoteCallback, pool conn.Pool) *Retransmitter {
 	return &Retransmitter{
 		declAddr:                  declAddr,
 		knownPeers:                knownPeers,
@@ -47,6 +48,7 @@ func NewRetransmitter(declAddr proto.PeerInfo, knownPeers *utils.KnownPeers, cou
 		incomingSpawner:           incomingSpawner,
 		receiveFromRemoteCallback: ReceiveFromRemoteCallback,
 		pool:                      pool,
+		wavesNetwork:              wavesNetwork,
 
 		income:         make(chan peer.ProtoMessage, 100),
 		connectedPeers: utils.NewAddr2Peers(),
@@ -170,15 +172,8 @@ func (a *Retransmitter) serveSendAllMyKnownPeers(ctx context.Context, interval t
 	for {
 		select {
 		case <-time.After(interval):
-			addrs := a.connectedPeers.Addresses()
-			pm := proto.PeersMessage{}
-			for _, addr := range addrs {
-				parsed, err := proto.NewPeerInfoFromString(addr)
-				if err != nil {
-					zap.S().Warn(err)
-					continue
-				}
-				pm.Peers = append(pm.Peers, parsed)
+			pm := proto.PeersMessage{
+				Peers: a.knownPeers.Addresses(),
 			}
 			a.connectedPeers.Each(func(id string, p *utils.PeerInfo) {
 				p.Peer.SendMessage(&pm)
@@ -205,7 +200,7 @@ func (a *Retransmitter) askPeersAboutKnownPeers(ctx context.Context, interval ti
 }
 
 // listen incoming connections on provided address
-func (a *Retransmitter) ServeInconingConnections(ctx context.Context, listenAddr string) error {
+func (a *Retransmitter) ServeIncomingConnections(ctx context.Context, listenAddr string) error {
 	_, err := proto.NewPeerInfoFromString(listenAddr)
 	if err != nil {
 		return err
@@ -215,22 +210,24 @@ func (a *Retransmitter) ServeInconingConnections(ctx context.Context, listenAddr
 }
 
 func (a *Retransmitter) spawnOutgoingPeer(ctx context.Context, addr string) {
+	// unsubscribe from spawned peer on exit
+	defer a.spawnedPeers.Delete(addr)
+
 	parent := peer.Parent{
 		MessageCh: a.income,
 		InfoCh:    a.infoCh,
 	}
 
 	params := peer.OutgoingPeerParams{
-		Ctx:                       ctx,
 		Address:                   addr,
+		WavesNetwork:              a.wavesNetwork,
 		Parent:                    parent,
 		ReceiveFromRemoteCallback: a.receiveFromRemoteCallback,
 		Pool:                      a.pool,
 		DeclAddr:                  a.declAddr,
-		SpawnedPeers:              a.spawnedPeers,
 	}
 
-	a.spawner(params)
+	a.spawner(ctx, params)
 }
 
 func (a *Retransmitter) serve(ctx context.Context, listenAddr string) {
@@ -254,7 +251,7 @@ func (a *Retransmitter) serve(ctx context.Context, listenAddr string) {
 		}
 
 		params := peer.IncomingPeerParams{
-			Ctx:                       ctx,
+			WavesNetwork:              a.wavesNetwork,
 			Conn:                      c,
 			ReceiveFromRemoteCallback: a.receiveFromRemoteCallback,
 			Parent:                    parent,
@@ -262,7 +259,7 @@ func (a *Retransmitter) serve(ctx context.Context, listenAddr string) {
 			Pool:                      a.pool,
 		}
 
-		go a.incomingSpawner(params)
+		go a.incomingSpawner(ctx, params)
 	}
 }
 

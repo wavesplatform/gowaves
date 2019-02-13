@@ -7,7 +7,7 @@ import (
 
 type handlerParams struct {
 	ctx                       context.Context
-	uniqueID                  string
+	id                        string
 	connection                conn.Connection
 	remote                    remote
 	receiveFromRemoteCallback ReceiveFromRemoteCallback
@@ -24,11 +24,11 @@ func handle(params handlerParams) {
 			return
 
 		case bts := <-params.remote.fromCh:
-			params.receiveFromRemoteCallback(bts, params.uniqueID, params.parent.MessageCh, params.pool)
+			params.receiveFromRemoteCallback(bts, params.id, params.parent.MessageCh, params.pool)
 
 		case err := <-params.remote.errCh:
 			out := InfoMessage{
-				ID:    params.uniqueID,
+				ID:    params.id,
 				Value: err,
 			}
 			params.parent.InfoCh <- out

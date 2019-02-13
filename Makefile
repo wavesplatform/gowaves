@@ -45,3 +45,8 @@ dist-chaincmp: release-chaincmp
 	@cd ./build/bin/darwin-amd64/; tar pzcvf ../../dist/chaincmp_$(VERSION)_macOS-64bit.tar.gz ./*
 
 dist: clean dist-chaincmp
+
+
+
+build-retransmitter-linux:
+	@CGO_ENABLE=0 GOOS=linux GOARCH=amd64 go build -o build/bin/linux-amd64/retransmitter -ldflags="-X main.version=$(VERSION)" ./cmd/retransmitter

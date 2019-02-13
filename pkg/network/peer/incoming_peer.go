@@ -19,7 +19,7 @@ type IncomingPeer struct {
 }
 
 type IncomingPeerParams struct {
-	Ctx                       context.Context
+	WavesNetwork              string
 	Conn                      net.Conn
 	ReceiveFromRemoteCallback ReceiveFromRemoteCallback
 	Parent                    Parent
@@ -27,7 +27,7 @@ type IncomingPeerParams struct {
 	Pool                      conn.Pool
 }
 
-func RunIncomingPeer(params IncomingPeerParams) {
+func RunIncomingPeer(ctx context.Context, params IncomingPeerParams) {
 	c := params.Conn
 	bytes, err := params.DeclAddr.MarshalBinary()
 	if err != nil {
@@ -44,15 +44,21 @@ func RunIncomingPeer(params IncomingPeerParams) {
 		return
 	}
 
-	id := fmt.Sprintf("incoming connection %s -> %s", c.RemoteAddr().String(), c.LocalAddr().String())
+	select {
+	case <-ctx.Done():
+		c.Close()
+		return
+	default:
+	}
 
-	zap.S().Infof("readed handshake from %s %+v", id, readHandshake)
+	id := fmt.Sprintf("incoming connection %s -> %s", c.RemoteAddr().String(), c.LocalAddr().String())
+	zap.S().Infof("read handshake from %s %+v", id, readHandshake)
 
 	writeHandshake := proto.Handshake{
-		Name: "wavesW",
+		Name: params.WavesNetwork,
 		// pass the same minor version as received
 		Version:           proto.Version{Major: 0, Minor: readHandshake.Version.Minor, Patch: 0},
-		NodeName:          "gowaves",
+		NodeName:          "retransmitter",
 		NodeNonce:         0x0,
 		DeclaredAddrBytes: bytes,
 		Timestamp:         proto.NewTimestampFromTime(time.Now()),
@@ -65,11 +71,16 @@ func RunIncomingPeer(params IncomingPeerParams) {
 		return
 	}
 
+	select {
+	case <-ctx.Done():
+		c.Close()
+		return
+	default:
+	}
+
 	remote := newRemote()
-
 	connection := conn.WrapConnection(c, params.Pool, remote.toCh, remote.fromCh, remote.errCh)
-
-	_, cancel := context.WithCancel(params.Ctx)
+	ctx, cancel := context.WithCancel(ctx)
 
 	peer := &IncomingPeer{
 		params:   params,
@@ -96,16 +107,16 @@ func RunIncomingPeer(params IncomingPeerParams) {
 		},
 	}
 	params.Parent.InfoCh <- out
-	peer.run()
+	peer.run(ctx)
 }
 
-func (a *IncomingPeer) run() {
+func (a *IncomingPeer) run(ctx context.Context) {
 	handleParams := handlerParams{
 		connection:                a.conn,
-		ctx:                       a.params.Ctx,
+		ctx:                       ctx,
 		remote:                    a.remote,
 		receiveFromRemoteCallback: a.params.ReceiveFromRemoteCallback,
-		uniqueID:                  a.uniqueID,
+		id:                        a.uniqueID,
 		parent:                    a.params.Parent,
 		pool:                      a.params.Pool,
 	}

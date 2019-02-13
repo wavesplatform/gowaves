@@ -4,11 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/gorilla/mux"
-	"github.com/wavesplatform/gowaves/pkg/network/retransmit"
-	"github.com/wavesplatform/gowaves/pkg/network/retransmit/utils"
+	"github.com/wavesplatform/gowaves/cmd/retransmitter/retransmit"
+	"github.com/wavesplatform/gowaves/cmd/retransmitter/retransmit/utils"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
 	"net/http"
+	"net/http/pprof"
 	"sort"
 )
 
@@ -120,6 +121,18 @@ func (a *HttpServer) ListenAndServe() error {
 	router.HandleFunc("/known", a.KnownPeers)
 	router.HandleFunc("/spawned", a.Spawned)
 	router.HandleFunc("/counter", a.counter)
+
+	// Register pprof handlers
+	router.HandleFunc("/debug/pprof/", pprof.Index)
+	router.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
+	router.HandleFunc("/debug/pprof/profile", pprof.Profile)
+	router.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
+
+	router.Handle("/debug/pprof/goroutine", pprof.Handler("goroutine"))
+	router.Handle("/debug/pprof/heap", pprof.Handler("heap"))
+	router.Handle("/debug/pprof/threadcreate", pprof.Handler("threadcreate"))
+	router.Handle("/debug/pprof/block", pprof.Handler("block"))
+
 	http.Handle("/", router)
 
 	a.srv = http.Server{

@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"github.com/spf13/afero"
 	flag "github.com/spf13/pflag"
+	"github.com/wavesplatform/gowaves/cmd/retransmitter/retransmit"
+	"github.com/wavesplatform/gowaves/cmd/retransmitter/retransmit/httpserver"
+	"github.com/wavesplatform/gowaves/cmd/retransmitter/retransmit/utils"
 	"github.com/wavesplatform/gowaves/pkg/libs/bytespool"
 	"github.com/wavesplatform/gowaves/pkg/network/conn"
 	"github.com/wavesplatform/gowaves/pkg/network/peer"
-	"github.com/wavesplatform/gowaves/pkg/network/retransmit"
-	"github.com/wavesplatform/gowaves/pkg/network/retransmit/httpserver"
-	"github.com/wavesplatform/gowaves/pkg/network/retransmit/utils"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
 	"os"
@@ -117,10 +117,19 @@ func main() {
 	var bind string
 	var decl string
 	var addresses string
+	var wavesNetwork string
 	flag.StringVarP(&bind, "bind", "b", "", "Local address listen on")
 	flag.StringVarP(&decl, "decl", "d", "", "Declared Address")
 	flag.StringVarP(&addresses, "addresses", "a", "", "Addresses connect to")
+	flag.StringVarP(&wavesNetwork, "wavesnetwork", "n", "", "Required, waves network, should be wavesW or wavesT or wavesD")
 	flag.Parse()
+
+	switch wavesNetwork {
+	case "wavesW", "wavesT", "wavesD":
+	default:
+		zap.S().Errorf("expected waves network to be wavesW or wavesT or wavesD, found %s", wavesNetwork)
+		return
+	}
 
 	declAddr := proto.PeerInfo{}
 	if decl != "" {
@@ -152,7 +161,15 @@ func main() {
 	counter := utils.NewCounter(ctx)
 	pool := bytespool.NewBytesPool(32, 2*1024*1024)
 
-	r := retransmit.NewRetransmitter(declAddr, knownPeers, counter, peer.RunOutgoingPeer, peer.RunIncomingPeer, receiveFromRemoteCallbackFunc, pool)
+	r := retransmit.NewRetransmitter(
+		wavesNetwork,
+		declAddr,
+		knownPeers,
+		counter,
+		peer.RunOutgoingPeer,
+		peer.RunIncomingPeer,
+		receiveFromRemoteCallbackFunc,
+		pool)
 
 	go r.Run(ctx)
 
@@ -164,7 +181,7 @@ func main() {
 	}
 
 	if bind != "" {
-		err = r.ServeInconingConnections(ctx, bind)
+		err = r.ServeIncomingConnections(ctx, bind)
 		if err != nil {
 			zap.S().Error(err)
 			return

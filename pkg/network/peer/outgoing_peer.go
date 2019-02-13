@@ -10,46 +10,36 @@ import (
 	"time"
 )
 
-type spawnedDeleter interface {
-	Delete(string)
-}
-
 type NoOpDeleter struct{}
 
 func (NoOpDeleter) Delete(string) {}
 
 type OutgoingPeerParams struct {
-	Ctx                       context.Context
 	Address                   string
+	WavesNetwork              string
 	Parent                    Parent
 	ReceiveFromRemoteCallback ReceiveFromRemoteCallback
 	Pool                      conn.Pool
 	DeclAddr                  proto.PeerInfo
-	SpawnedPeers              spawnedDeleter
 }
 
 type OutgoingPeer struct {
 	params     OutgoingPeerParams
-	ctx        context.Context
 	cancel     context.CancelFunc
 	remote     remote
 	connection conn.Connection
 }
 
-func RunOutgoingPeer(params OutgoingPeerParams) {
-	// unsubscribe from spawned peer on exit
-	defer params.SpawnedPeers.Delete(params.Address)
-
-	ctx, cancel := context.WithCancel(params.Ctx)
+func RunOutgoingPeer(ctx context.Context, params OutgoingPeerParams) {
+	ctx, cancel := context.WithCancel(ctx)
 	remote := newRemote()
 	p := OutgoingPeer{
 		params: params,
-		ctx:    ctx,
 		cancel: cancel,
 		remote: remote,
 	}
 
-	connection, handshake, err := p.connect(remote, params.DeclAddr)
+	connection, handshake, err := p.connect(ctx, params.WavesNetwork, remote, params.DeclAddr)
 	if err != nil {
 		zap.S().Error(err, params.Address)
 		return
@@ -77,7 +67,7 @@ func RunOutgoingPeer(params OutgoingPeerParams) {
 
 	handle(handlerParams{
 		ctx:                       ctx,
-		uniqueID:                  params.Address,
+		id:                        params.Address,
 		connection:                p.connection,
 		remote:                    remote,
 		receiveFromRemoteCallback: params.ReceiveFromRemoteCallback,
@@ -86,7 +76,7 @@ func RunOutgoingPeer(params OutgoingPeerParams) {
 	})
 }
 
-func (a *OutgoingPeer) connect(remote remote, declAddr proto.PeerInfo) (conn.Connection, *proto.Handshake, error) {
+func (a *OutgoingPeer) connect(ctx context.Context, wavesNetwork string, remote remote, declAddr proto.PeerInfo) (conn.Connection, *proto.Handshake, error) {
 	possibleVersions := []uint32{15, 14, 16}
 	index := 0
 
@@ -96,8 +86,8 @@ func (a *OutgoingPeer) connect(remote remote, declAddr proto.PeerInfo) (conn.Con
 		if err != nil {
 			zap.S().Infof("failed to connect, %s id %s", err, a.params.Address)
 			select {
-			case <-a.ctx.Done():
-				return nil, nil, a.ctx.Err()
+			case <-ctx.Done():
+				return nil, nil, ctx.Err()
 			case <-time.After(5 * time.Minute):
 				continue
 			}
@@ -110,9 +100,9 @@ func (a *OutgoingPeer) connect(remote remote, declAddr proto.PeerInfo) (conn.Con
 		}
 
 		handshake := proto.Handshake{
-			Name:              "wavesW",
+			Name:              wavesNetwork,
 			Version:           proto.Version{Major: 0, Minor: possibleVersions[index%len(possibleVersions)], Patch: 0},
-			NodeName:          "gowaves",
+			NodeName:          "retransmitter",
 			NodeNonce:         0x0,
 			DeclaredAddrBytes: bytes,
 			Timestamp:         proto.NewTimestampFromTime(time.Now()),
@@ -123,13 +113,21 @@ func (a *OutgoingPeer) connect(remote remote, declAddr proto.PeerInfo) (conn.Con
 			zap.S().Error("failed to send handshake: ", err, a.params.Address)
 			continue
 		}
+
+		select {
+		case <-ctx.Done():
+			c.Close()
+			return nil, nil, ctx.Err()
+		default:
+		}
+
 		_, err = handshake.ReadFrom(c)
 		if err != nil {
 			zap.S().Debugf("failed to read handshake: %s %s", err, a.params.Address)
 			index += 1
 			select {
-			case <-a.ctx.Done():
-				return nil, nil, a.ctx.Err()
+			case <-ctx.Done():
+				return nil, nil, ctx.Err()
 			case <-time.After(5 * time.Minute):
 				continue
 			}
