@@ -38,7 +38,7 @@ func run() error {
 		db             = flag.String("db", "", "Path to data base folder. No default value.")
 		matcher        = flag.String("matcher", "7kPFrHDiGw1rCm7LPszuECwWYL3dMf6iMifLRDJQZMzy", "Matcher's public key in form of Base58 string.")
 		scheme         = flag.String("scheme", "W", "Blockchain scheme symbol. Defaults to 'W'.")
-		symbolsFile    = flag.String("symbols", "", "Path to file of symbols substitutions. No default value.")
+		symbolsFile    = flag.String("symbols", "", "Path to file of symbol substitutions. No default value.")
 		rollback       = flag.Int("rollback", 0, "The height to rollback to before importing a blockchain file or staring the synchronization. Default value is 0 (no rollback).")
 		profilerPort   = flag.Int("profiler-port", 0, "Start HTTP profiler on given port (port must be between 1024 and 65535)")
 		cpuProfileFile = flag.String("cpu-profile", "", "Write CPU profile to the specified file")
@@ -165,10 +165,10 @@ func run() error {
 
 	symbols, err := data.ImportSymbols(*symbolsFile)
 	if err != nil {
-		log.Errorf("Failed to load symbols substitutions: %v", err)
+		log.Errorf("Failed to load symbol substitutions: %v", err)
 		return nil
 	}
-	log.Infof("Imported %d of symbols substitution", symbols.Count())
+	log.Infof("Imported %d of symbol substitutions", symbols.Count())
 
 	h, err := storage.Height()
 	if err != nil {
@@ -215,7 +215,6 @@ func run() error {
 			return err
 		}
 		synchronizerDone = s.Done()
-		s.Resume()
 	}
 
 	if apiDone != nil {
