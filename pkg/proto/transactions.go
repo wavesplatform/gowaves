@@ -2,6 +2,9 @@ package proto
 
 import (
 	"encoding/binary"
+	"encoding/json"
+	"reflect"
+
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 )
@@ -90,10 +93,74 @@ const (
 	setAssetScriptV1MinLen       = 1 + setScriptV1FixedBodyLen + proofsMinLen
 )
 
+var (
+	bytesToTransactionsV2 = map[TransactionType]reflect.Type{
+		IssueTransaction:          reflect.TypeOf(IssueV2{}),
+		TransferTransaction:       reflect.TypeOf(TransferV2{}),
+		ReissueTransaction:        reflect.TypeOf(ReissueV2{}),
+		BurnTransaction:           reflect.TypeOf(BurnV2{}),
+		ExchangeTransaction:       reflect.TypeOf(ExchangeV2{}),
+		LeaseTransaction:          reflect.TypeOf(LeaseV2{}),
+		LeaseCancelTransaction:    reflect.TypeOf(LeaseCancelV2{}),
+		CreateAliasTransaction:    reflect.TypeOf(CreateAliasV2{}),
+		DataTransaction:           reflect.TypeOf(DataV1{}),
+		SetScriptTransaction:      reflect.TypeOf(SetScriptV1{}),
+		SponsorshipTransaction:    reflect.TypeOf(SponsorshipV1{}),
+		SetAssetScriptTransaction: reflect.TypeOf(SetAssetScriptV1{}),
+	}
+
+	bytesToTransactionsV1 = map[TransactionType]reflect.Type{
+		GenesisTransaction:      reflect.TypeOf(Genesis{}),
+		PaymentTransaction:      reflect.TypeOf(Payment{}),
+		IssueTransaction:        reflect.TypeOf(IssueV1{}),
+		TransferTransaction:     reflect.TypeOf(TransferV1{}),
+		ReissueTransaction:      reflect.TypeOf(ReissueV1{}),
+		BurnTransaction:         reflect.TypeOf(BurnV1{}),
+		ExchangeTransaction:     reflect.TypeOf(ExchangeV1{}),
+		LeaseTransaction:        reflect.TypeOf(LeaseV1{}),
+		LeaseCancelTransaction:  reflect.TypeOf(LeaseCancelV1{}),
+		CreateAliasTransaction:  reflect.TypeOf(CreateAliasV1{}),
+		MassTransferTransaction: reflect.TypeOf(MassTransferV1{}),
+	}
+)
+
 type Transaction interface {
-	Transaction()
-	MarshalBinary() ([]byte, error)
 	GetID() []byte
+	MarshalBinary() ([]byte, error)
+	UnmarshalBinary([]byte) error
+}
+
+func BytesToTransaction(tx []byte) (Transaction, error) {
+	if len(tx) < 2 {
+		return nil, errors.New("invalid size of transation's bytes slice")
+	}
+	if tx[0] == 0 {
+		transactionType, ok := bytesToTransactionsV2[TransactionType(tx[1])]
+		if !ok {
+			return nil, errors.New("invalid transaction type")
+		}
+		transaction, ok := reflect.New(transactionType).Interface().(Transaction)
+		if !ok {
+			panic("This transaction type does not implement marshal/unmarshal functions")
+		}
+		if err := transaction.UnmarshalBinary(tx); err != nil {
+			return nil, errors.Wrap(err, "failed to unmarshal transaction")
+		}
+		return Transaction(transaction), nil
+	} else {
+		transactionType, ok := bytesToTransactionsV1[TransactionType(tx[0])]
+		if !ok {
+			return nil, errors.New("invalid transaction type")
+		}
+		transaction, ok := reflect.New(transactionType).Interface().(Transaction)
+		if !ok {
+			panic("This transaction type does not implement marshal/unmarshal functions")
+		}
+		if err := transaction.UnmarshalBinary(tx); err != nil {
+			return nil, errors.Wrap(err, "failed to unmarshal transaction")
+		}
+		return transaction, nil
+	}
 }
 
 //Genesis is a transaction used to initial balances distribution. This transactions allowed only in the first block.
@@ -107,7 +174,6 @@ type Genesis struct {
 	Amount    uint64            `json:"amount"`
 }
 
-func (Genesis) Transaction() {}
 func (tx Genesis) GetID() []byte {
 	return tx.ID.Bytes()
 }
@@ -209,7 +275,6 @@ type Payment struct {
 	Timestamp uint64            `json:"timestamp"`
 }
 
-func (Payment) Transaction() {}
 func (tx Payment) GetID() []byte {
 	return tx.ID.Bytes()
 }
@@ -339,7 +404,6 @@ type IssueV1 struct {
 	Fee         uint64            `json:"fee"`
 }
 
-func (IssueV1) Transaction() {}
 func (tx IssueV1) GetID() []byte {
 	return tx.ID.Bytes()
 }
@@ -500,12 +564,11 @@ type IssueV2 struct {
 	Quantity    uint64           `json:"quantity"`
 	Decimals    byte             `json:"decimals"`
 	Reissuable  bool             `json:"reissuable"`
-	Script      []byte           `json:"script"`
+	Script      Script           `json:"script"`
 	Fee         uint64           `json:"fee"`
 	Timestamp   uint64           `json:"timestamp,omitempty"`
 }
 
-func (IssueV2) Transaction() {}
 func (tx IssueV2) GetID() []byte {
 	return tx.ID.Bytes()
 }
@@ -834,7 +897,6 @@ type TransferV1 struct {
 	transfer
 }
 
-func (TransferV1) Transaction() {}
 func (tx TransferV1) GetID() []byte {
 	return tx.ID.Bytes()
 }
@@ -954,7 +1016,6 @@ type TransferV2 struct {
 	transfer
 }
 
-func (TransferV2) Transaction() {}
 func (tx TransferV2) GetID() []byte {
 	return tx.ID.Bytes()
 }
@@ -1159,7 +1220,6 @@ type ReissueV1 struct {
 	reissue
 }
 
-func (ReissueV1) Transaction() {}
 func (tx ReissueV1) GetID() []byte {
 	return tx.ID.Bytes()
 }
@@ -1281,7 +1341,6 @@ type ReissueV2 struct {
 	reissue
 }
 
-func (ReissueV2) Transaction() {}
 func (tx ReissueV2) GetID() []byte {
 	return tx.ID.Bytes()
 }
@@ -1468,7 +1527,6 @@ type BurnV1 struct {
 	burn
 }
 
-func (BurnV1) Transaction() {}
 func (tx BurnV1) GetID() []byte {
 	return tx.ID.Bytes()
 }
@@ -1581,7 +1639,6 @@ type BurnV2 struct {
 	burn
 }
 
-func (BurnV2) Transaction() {}
 func (tx BurnV2) GetID() []byte {
 	return tx.ID.Bytes()
 }
@@ -1727,7 +1784,6 @@ type ExchangeV1 struct {
 	Timestamp      uint64            `json:"timestamp,omitempty"`
 }
 
-func (ExchangeV1) Transaction() {}
 func (tx ExchangeV1) GetID() []byte {
 	return tx.ID.Bytes()
 }
@@ -1922,7 +1978,6 @@ type ExchangeV2 struct {
 	Timestamp      uint64           `json:"timestamp,omitempty"`
 }
 
-func (ExchangeV2) Transaction() {}
 func (tx ExchangeV2) GetID() []byte {
 	return tx.ID.Bytes()
 }
@@ -2182,6 +2237,63 @@ func (tx *ExchangeV2) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
+func (tx *ExchangeV2) UnmarshalJSON(data []byte) error {
+	guessOrderVersion := func(version byte) Order {
+		var r Order
+		switch version {
+		case 2:
+			r = &OrderV2{}
+		default:
+			r = &OrderV1{}
+		}
+		return r
+	}
+
+	orderVersions := struct {
+		BuyOrderVersion  OrderVersion `json:"order1"`
+		SellOrderVersion OrderVersion `json:"order2"`
+	}{}
+	if err := json.Unmarshal(data, &orderVersions); err != nil {
+		return errors.Wrap(err, "failed to unmarshal orders versions of ExchangeV2 transaction from JSON")
+	}
+	tmp := struct {
+		Type           TransactionType  `json:"type"`
+		Version        byte             `json:"version,omitempty"`
+		ID             *crypto.Digest   `json:"id,omitempty"`
+		Proofs         *ProofsV1        `json:"proofs,omitempty"`
+		SenderPK       crypto.PublicKey `json:"senderPublicKey"`
+		BuyOrder       Order            `json:"order1"`
+		SellOrder      Order            `json:"order2"`
+		Price          uint64           `json:"price"`
+		Amount         uint64           `json:"amount"`
+		BuyMatcherFee  uint64           `json:"buyMatcherFee"`
+		SellMatcherFee uint64           `json:"sellMatcherFee"`
+		Fee            uint64           `json:"fee"`
+		Timestamp      uint64           `json:"timestamp,omitempty"`
+	}{}
+	tmp.BuyOrder = guessOrderVersion(orderVersions.BuyOrderVersion.Version)
+	tmp.SellOrder = guessOrderVersion(orderVersions.SellOrderVersion.Version)
+
+	err := json.Unmarshal(data, &tmp)
+	if err != nil {
+		return errors.Wrap(err, "failed to unmarshal ExchangeV2 from JSON")
+	}
+	tx.Type = tmp.Type
+	tx.Version = tmp.Version
+	tx.ID = tmp.ID
+	tx.Proofs = tmp.Proofs
+	tx.SenderPK = tmp.SenderPK
+	tx.BuyOrder = tmp.BuyOrder
+	tx.SellOrder = tmp.SellOrder
+	tx.Price = tmp.Price
+	tx.Amount = tmp.Amount
+	tx.BuyMatcherFee = tmp.BuyMatcherFee
+	tx.SellMatcherFee = tmp.SellMatcherFee
+	tx.Fee = tmp.Fee
+	tx.Timestamp = tmp.Timestamp
+	return nil
+}
+
 type lease struct {
 	SenderPK  crypto.PublicKey `json:"senderPublicKey"`
 	Recipient Recipient        `json:"recipient"`
@@ -2251,7 +2363,6 @@ type LeaseV1 struct {
 	lease
 }
 
-func (LeaseV1) Transaction() {}
 func (tx LeaseV1) GetID() []byte {
 	return tx.ID.Bytes()
 }
@@ -2371,7 +2482,6 @@ type LeaseV2 struct {
 	lease
 }
 
-func (LeaseV2) Transaction() {}
 func (tx LeaseV2) GetID() []byte {
 	return tx.ID.Bytes()
 }
@@ -2552,7 +2662,6 @@ type LeaseCancelV1 struct {
 	leaseCancel
 }
 
-func (LeaseCancelV1) Transaction() {}
 func (tx LeaseCancelV1) GetID() []byte {
 	return tx.ID.Bytes()
 }
@@ -2670,7 +2779,6 @@ type LeaseCancelV2 struct {
 	leaseCancel
 }
 
-func (LeaseCancelV2) Transaction() {}
 func (tx LeaseCancelV2) GetID() []byte {
 	return tx.ID.Bytes()
 }
@@ -2877,7 +2985,6 @@ type CreateAliasV1 struct {
 	createAlias
 }
 
-func (CreateAliasV1) Transaction() {}
 func (tx CreateAliasV1) GetID() []byte {
 	return tx.ID.Bytes()
 }
@@ -2979,6 +3086,32 @@ func (tx *CreateAliasV1) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
+func (tx *CreateAliasV1) UnmarshalJSON(data []byte) error {
+	tmp := struct {
+		Type      TransactionType   `json:"type"`
+		Version   byte              `json:"version,omitempty"`
+		ID        *crypto.Digest    `json:"id,omitempty"`
+		Signature *crypto.Signature `json:"signature,omitempty"`
+		SenderPK  crypto.PublicKey  `json:"senderPublicKey"`
+		Alias     string            `json:"alias"`
+		Fee       uint64            `json:"fee"`
+		Timestamp uint64            `json:"timestamp,omitempty"`
+	}{}
+	err := json.Unmarshal(data, &tmp)
+	if err != nil {
+		return errors.Wrap(err, "failed to unmarshal CreateAliasV1 from JSON")
+	}
+	tx.Type = tmp.Type
+	tx.Version = tmp.Version
+	tx.ID = tmp.ID
+	tx.Signature = tmp.Signature
+	tx.SenderPK = tmp.SenderPK
+	tx.Alias = Alias{aliasVersion, TestNetScheme, tmp.Alias}
+	tx.Fee = tmp.Fee
+	tx.Timestamp = tmp.Timestamp
+	return nil
+}
+
 type CreateAliasV2 struct {
 	Type    TransactionType `json:"type"`
 	Version byte            `json:"version,omitempty"`
@@ -2987,7 +3120,6 @@ type CreateAliasV2 struct {
 	createAlias
 }
 
-func (CreateAliasV2) Transaction() {}
 func (tx CreateAliasV2) GetID() []byte {
 	return tx.ID.Bytes()
 }
@@ -3110,6 +3242,32 @@ func (tx *CreateAliasV2) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
+func (tx *CreateAliasV2) UnmarshalJSON(data []byte) error {
+	tmp := struct {
+		Type      TransactionType  `json:"type"`
+		Version   byte             `json:"version,omitempty"`
+		ID        *crypto.Digest   `json:"id,omitempty"`
+		Proofs    *ProofsV1        `json:"proofs,omitempty"`
+		SenderPK  crypto.PublicKey `json:"senderPublicKey"`
+		Alias     string           `json:"alias"`
+		Fee       uint64           `json:"fee"`
+		Timestamp uint64           `json:"timestamp,omitempty"`
+	}{}
+	err := json.Unmarshal(data, &tmp)
+	if err != nil {
+		return errors.Wrap(err, "failed to unmarshal CreateAliasV1 from JSON")
+	}
+	tx.Type = tmp.Type
+	tx.Version = tmp.Version
+	tx.ID = tmp.ID
+	tx.Proofs = tmp.Proofs
+	tx.SenderPK = tmp.SenderPK
+	tx.Alias = Alias{aliasVersion, TestNetScheme, tmp.Alias}
+	tx.Fee = tmp.Fee
+	tx.Timestamp = tmp.Timestamp
+	return nil
+}
+
 type MassTransferEntry struct {
 	Recipient Recipient `json:"recipient"`
 	Amount    uint64    `json:"amount"`
@@ -3153,7 +3311,6 @@ type MassTransferV1 struct {
 	Attachment Attachment          `json:"attachment,omitempty"`
 }
 
-func (MassTransferV1) Transaction() {}
 func (tx MassTransferV1) GetID() []byte {
 	return tx.ID.Bytes()
 }
@@ -3361,12 +3518,11 @@ type DataV1 struct {
 	ID        *crypto.Digest   `json:"id,omitempty"`
 	Proofs    *ProofsV1        `json:"proofs,omitempty"`
 	SenderPK  crypto.PublicKey `json:"senderPublicKey"`
-	Entries   []DataEntry      `json:"data"`
+	Entries   DataEntries      `json:"data"`
 	Fee       uint64           `json:"fee"`
 	Timestamp uint64           `json:"timestamp,omitempty"`
 }
 
-func (DataV1) Transaction() {}
 func (tx DataV1) GetID() []byte {
 	return tx.ID.Bytes()
 }
@@ -3588,12 +3744,10 @@ type SetScriptV1 struct {
 	Proofs    *ProofsV1        `json:"proofs,omitempty"`
 	ChainID   byte             `json:"-"`
 	SenderPK  crypto.PublicKey `json:"senderPublicKey"`
-	Script    []byte           `json:"script"`
+	Script    Script           `json:"script"`
 	Fee       uint64           `json:"fee"`
 	Timestamp uint64           `json:"timestamp,omitempty"`
 }
-
-func (SetScriptV1) Transaction() {}
 
 func (tx SetScriptV1) GetID() []byte {
 	return tx.ID.Bytes()
@@ -3771,7 +3925,6 @@ type SponsorshipV1 struct {
 	Timestamp   uint64           `json:"timestamp,omitempty"`
 }
 
-func (SponsorshipV1) Transaction() {}
 func (tx SponsorshipV1) GetID() []byte {
 	return tx.ID.Bytes()
 }
@@ -3928,12 +4081,10 @@ type SetAssetScriptV1 struct {
 	ChainID   byte             `json:"-"`
 	SenderPK  crypto.PublicKey `json:"senderPublicKey"`
 	AssetID   crypto.Digest    `json:"assetId"`
-	Script    []byte           `json:"script"`
+	Script    Script           `json:"script"`
 	Fee       uint64           `json:"fee"`
 	Timestamp uint64           `json:"timestamp,omitempty"`
 }
-
-func (SetAssetScriptV1) Transaction() {}
 
 func (tx SetAssetScriptV1) GetID() []byte {
 	return tx.ID.Bytes()

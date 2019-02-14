@@ -237,6 +237,18 @@ func (s *Server) getNodesVerbose(w http.ResponseWriter, r *http.Request) {
 	respondWithJSON(w, http.StatusOK, states)
 }
 
+var info = `
+<a href="/nodes">/nodes</a><br/>
+<a href="/nodes/verbose">/nodes/verbose</a><br/>
+<a href="/node/{addr}">/node/{addr}</a><br/>
+<a href="/blocks/at/height/{height}">/blocks/at/height/{height}</a><br/>
+<a href="/blocks/signature/{sig:[a-zA-Z0-9]{88}}">/blocks/signature/{sig:[a-zA-Z0-9]{88}}</a>
+`
+
+func (s *Server) getInfo(w http.ResponseWriter, r *http.Request) {
+	w.Write([]byte(info))
+}
+
 func (s *Server) getNode(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	addr, ok := vars["addr"]
@@ -294,6 +306,7 @@ func (s *Server) initRoutes() {
 	s.router.HandleFunc("/nodes", s.getNodes).Methods("GET")
 	s.router.HandleFunc("/node/{addr}", s.getNode).Methods("GET")
 	s.router.HandleFunc("/nodes/verbose", s.getNodesVerbose).Methods("GET")
+	s.router.HandleFunc("/", s.getInfo).Methods("GET")
 }
 
 func (s *Server) startREST() {

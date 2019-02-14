@@ -1,20 +1,25 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"os"
+
 	"github.com/alecthomas/kong"
-	"github.com/segmentio/objconv/json"
 	"github.com/spf13/afero"
 	"github.com/wavesplatform/gowaves/pkg/client"
+	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
-	"io/ioutil"
 )
 
 var Cli struct {
 	Json struct {
 		File string `kong:"short='f',help='From file.',required"`
-		//Output string `kong:"short='o',help='File output.'"`
 	} `kong:"cmd,help='Convert from json to binary'"`
+	Bytes struct {
+		File string `kong:"short='f',help='From file.',required"`
+	} `kong:"cmd,help='Convert from binary to json'"`
 }
 
 func init() {
@@ -24,10 +29,11 @@ func init() {
 
 func main() {
 	ctx := kong.Parse(&Cli)
-	//zap.S().Info(ctx.Command())
 	switch ctx.Command() {
 	case "json":
 		serveJson()
+	case "bytes":
+		serveBinary()
 	default:
 		zap.S().Error(ctx.Command())
 		return
@@ -56,6 +62,7 @@ func serveJson() {
 
 	err = json.Unmarshal(b, realType)
 	if err != nil {
+		fmt.Println(err)
 		zap.S().Error(err)
 		return
 	}
@@ -65,21 +72,37 @@ func serveJson() {
 		zap.S().Error(err)
 		return
 	}
+	_, _ = os.Stdout.Write(bts)
+}
 
-	fmt.Print(bts)
+func serveBinary() {
+	b, err := inputBytes(Cli.Bytes.File)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	trans, err := proto.BytesToTransaction(b)
+	if err != nil {
+		zap.S().Error(err)
+		return
+	}
+
+	js, err := json.Marshal(trans)
+	if err != nil {
+		fmt.Println(err)
+		zap.S().Error(err)
+		return
+	}
+	_, _ = os.Stdout.Write(js)
 }
 
 func inputBytes(path string) ([]byte, error) {
 	fs := afero.NewOsFs()
-
-	//if path != "" {
 	f, err := fs.Open(path)
 	if err != nil {
 		return nil, err
 	}
 	defer f.Close()
-
 	return ioutil.ReadAll(f)
-	//}
-
 }

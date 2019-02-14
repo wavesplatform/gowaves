@@ -11,6 +11,10 @@
 # Output of the go coverage tool, specifically when used with LiteIDE
 *.out
 
+# Vim
+*.swo
+*.swp
+
 .idea/
 vendor/
 build/
@@ -18,5 +22,6 @@ out/
 
 *.lock
 *.txt
+!cmd/wmd/symbols.txt
 *.json
 .DS_Store

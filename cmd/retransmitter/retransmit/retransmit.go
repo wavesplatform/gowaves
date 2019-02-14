@@ -3,14 +3,15 @@ package retransmit
 import (
 	"context"
 	"fmt"
+	"net"
+	"time"
+
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/cmd/retransmitter/retransmit/utils"
 	"github.com/wavesplatform/gowaves/pkg/network/conn"
 	"github.com/wavesplatform/gowaves/pkg/network/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
-	"net"
-	"time"
 )
 
 var invalidTransaction = errors.New("invalid transaction")
@@ -316,77 +317,77 @@ func getTransaction(message proto.Message) (proto.Transaction, error) {
 				if err != nil {
 					return nil, err
 				}
-				return tx, nil
+				return &tx, nil
 			case byte(proto.TransferTransaction):
 				var tx proto.TransferV2
 				err := tx.UnmarshalBinary(txb)
 				if err != nil {
 					return nil, err
 				}
-				return tx, nil
+				return &tx, nil
 			case byte(proto.ReissueTransaction):
 				var tx proto.ReissueV2
 				err := tx.UnmarshalBinary(txb)
 				if err != nil {
 					return nil, err
 				}
-				return tx, nil
+				return &tx, nil
 			case byte(proto.BurnTransaction):
 				var tx proto.BurnV2
 				err := tx.UnmarshalBinary(txb)
 				if err != nil {
 					return nil, err
 				}
-				return tx, nil
+				return &tx, nil
 			case byte(proto.ExchangeTransaction):
 				var tx proto.ExchangeV2
 				err := tx.UnmarshalBinary(txb)
 				if err != nil {
 					return nil, err
 				}
-				return tx, nil
+				return &tx, nil
 			case byte(proto.LeaseTransaction):
 				var tx proto.LeaseV2
 				err := tx.UnmarshalBinary(txb)
 				if err != nil {
 					return nil, err
 				}
-				return tx, nil
+				return &tx, nil
 			case byte(proto.LeaseCancelTransaction):
 				var tx proto.LeaseCancelV2
 				err := tx.UnmarshalBinary(txb)
 				if err != nil {
 					return nil, err
 				}
-				return tx, nil
+				return &tx, nil
 			case byte(proto.CreateAliasTransaction):
 				var tx proto.CreateAliasV2
 				err := tx.UnmarshalBinary(txb)
 				if err != nil {
 					return nil, err
 				}
-				return tx, nil
+				return &tx, nil
 			case byte(proto.DataTransaction):
 				var tx proto.DataV1
 				err := tx.UnmarshalBinary(txb)
 				if err != nil {
 					return nil, err
 				}
-				return tx, nil
+				return &tx, nil
 			case byte(proto.SetScriptTransaction):
 				var tx proto.SetScriptV1
 				err := tx.UnmarshalBinary(txb)
 				if err != nil {
 					return nil, err
 				}
-				return tx, nil
+				return &tx, nil
 			case byte(proto.SponsorshipTransaction):
 				var tx proto.SponsorshipV1
 				err := tx.UnmarshalBinary(txb)
 				if err != nil {
 					return nil, err
 				}
-				return tx, nil
+				return &tx, nil
 			default:
 				return nil, errors.New("unknown transaction")
 			}
@@ -405,7 +406,7 @@ func getTransaction(message proto.Message) (proto.Transaction, error) {
 			if !valid {
 				return nil, invalidTransaction
 			}
-			return tx, nil
+			return &tx, nil
 
 		case byte(proto.TransferTransaction):
 			var tx proto.TransferV1
@@ -421,7 +422,7 @@ func getTransaction(message proto.Message) (proto.Transaction, error) {
 			if !valid {
 				return nil, invalidTransaction
 			}
-			return tx, nil
+			return &tx, nil
 		case byte(proto.ReissueTransaction):
 			var tx proto.ReissueV1
 			err := tx.UnmarshalBinary(txb)
@@ -436,7 +437,7 @@ func getTransaction(message proto.Message) (proto.Transaction, error) {
 			if !valid {
 				return nil, invalidTransaction
 			}
-			return tx, nil
+			return &tx, nil
 		case byte(proto.BurnTransaction):
 			var tx proto.BurnV1
 			err := tx.UnmarshalBinary(txb)
@@ -451,7 +452,7 @@ func getTransaction(message proto.Message) (proto.Transaction, error) {
 			if !valid {
 				return nil, invalidTransaction
 			}
-			return tx, nil
+			return &tx, nil
 		case byte(proto.ExchangeTransaction):
 			var tx proto.ExchangeV1
 			err := tx.UnmarshalBinary(txb)
@@ -466,7 +467,7 @@ func getTransaction(message proto.Message) (proto.Transaction, error) {
 			if !valid {
 				return nil, invalidTransaction
 			}
-			return tx, nil
+			return &tx, nil
 		case byte(proto.LeaseTransaction):
 			var tx proto.LeaseV1
 			err := tx.UnmarshalBinary(txb)
@@ -481,7 +482,7 @@ func getTransaction(message proto.Message) (proto.Transaction, error) {
 			if !valid {
 				return nil, invalidTransaction
 			}
-			return tx, nil
+			return &tx, nil
 		case byte(proto.LeaseCancelTransaction):
 			var tx proto.LeaseCancelV1
 			err := tx.UnmarshalBinary(txb)
@@ -496,7 +497,7 @@ func getTransaction(message proto.Message) (proto.Transaction, error) {
 			if !valid {
 				return nil, invalidTransaction
 			}
-			return tx, nil
+			return &tx, nil
 		case byte(proto.CreateAliasTransaction):
 			var tx proto.CreateAliasV1
 			err := tx.UnmarshalBinary(txb)
@@ -511,7 +512,7 @@ func getTransaction(message proto.Message) (proto.Transaction, error) {
 			if !valid {
 				return nil, invalidTransaction
 			}
-			return tx, nil
+			return &tx, nil
 		case byte(proto.MassTransferTransaction):
 			var tx proto.MassTransferV1
 			err := tx.UnmarshalBinary(txb)
@@ -526,9 +527,8 @@ func getTransaction(message proto.Message) (proto.Transaction, error) {
 			if !valid {
 				return nil, invalidTransaction
 			}
-			return tx, nil
+			return &tx, nil
 		}
-
 	}
 	return nil, errors.New("unknown transaction")
 }

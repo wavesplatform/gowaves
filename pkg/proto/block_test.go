@@ -19,7 +19,31 @@ var blockTests = []blockTest{
 	},
 }
 
-func TestBlockMarshaling(t *testing.T) {
+func TestBlockHeaderUnmarshaling(t *testing.T) {
+	for i, v := range blockTests {
+		t.Run(fmt.Sprintf("%v", i), func(t *testing.T) {
+			decoded, err := hex.DecodeString(v.hexEncoded)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var b BlockHeader
+			if err = b.UnmarshalHeaderFromBinary(decoded); err != nil {
+				t.Fatal(err)
+			}
+
+			bytes, err := json.Marshal(b)
+			if err != nil {
+				t.Fatal(err)
+			}
+			str := string(bytes)
+			if str != v.jsonEncoded {
+				t.Error("unmarshaled to wrong json document:\nhave: ", str, "\nwant: ", v.jsonEncoded)
+			}
+		})
+	}
+}
+
+func TestBlockUnmarshaling(t *testing.T) {
 	for i, v := range blockTests {
 		t.Run(fmt.Sprintf("%v", i), func(t *testing.T) {
 			decoded, err := hex.DecodeString(v.hexEncoded)
