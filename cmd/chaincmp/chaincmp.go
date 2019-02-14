@@ -9,7 +9,6 @@ import (
 	"os"
 	"os/signal"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/pkg/errors"
@@ -24,9 +23,36 @@ const (
 	defaultScheme = "http"
 )
 
-var version string
+var (
+	version              = "v0.0.0"
+	interruptSignals     = []os.Signal{os.Interrupt}
+	errInvalidParameters = errors.New("invalid parameters")
+	errUserTermination   = errors.New("user termination")
+	errFailure           = errors.New("operation failure")
+	errFork              = errors.New("the node is on fork")
+	errUnavailable       = errors.New("remote service is unavailable")
+)
 
 func main() {
+	err := run()
+	if err != nil {
+		switch err {
+		case errInvalidParameters:
+			showUsageAndExit()
+			os.Exit(2)
+		case errUserTermination:
+			os.Exit(130)
+		case errFork:
+			os.Exit(1)
+		case errUnavailable:
+			os.Exit(69)
+		case errFailure:
+			os.Exit(70)
+		}
+	}
+}
+
+func run() error {
 	var showHelp bool
 	var showVersion bool
 	var node string
@@ -40,56 +66,43 @@ func main() {
 	flag.BoolVarP(&showVersion, "version", "v", false, "Print version information and quit")
 	flag.BoolVar(&verbose, "verbose", false, "Logs additional information; incompatible with \"silent\"")
 	flag.BoolVar(&silent, "silent", false, "Produce no output except this help message; incompatible with \"verbose\"")
-	flag.Usage = showUsageAndExit
 	flag.Parse()
 
 	if showHelp {
 		showUsageAndExit()
+		return nil
 	}
 	if showVersion {
-		showVersionAndExit()
+		fmt.Printf("chaincmp %s\n", version)
+		return nil
 	}
+
 	if silent && verbose {
-		showUsageAndExit()
+		return errInvalidParameters
 	}
-	al := zap.NewAtomicLevel()
-	ec := zap.NewDevelopmentEncoderConfig()
-	if verbose {
-		al.SetLevel(zap.DebugLevel)
-	}
-	if silent {
-		al.SetLevel(zap.FatalLevel)
-	}
-	logger := zap.New(zapcore.NewCore(zapcore.NewConsoleEncoder(ec), zapcore.Lock(os.Stdout), al))
-	defer logger.Sync()
-	log := logger.Sugar()
-
-	appCtx, cancel := context.WithCancel(context.Background())
-
-	sigCh := make(chan os.Signal)
-	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
-	go func() {
-		<-sigCh
-		cancel()
-		log.Infof("Shutting down")
-		os.Exit(1)
+	logger, log := setupLogger(silent, verbose)
+	defer func() {
+		err := logger.Sync()
+		if err != nil && err == os.ErrInvalid {
+			log.Fatalf("Failed to close logging subsystem: %s", err.Error())
+		}
 	}()
 
 	if node == "" || len(strings.Fields(node)) > 1 {
-		showUsageAndExit()
+		log.Errorf("Invalid node's URL '%s'", node)
+		return errInvalidParameters
 	}
-	var err error
-	node, err = checkAndUpdateURL(node)
+	node, err := checkAndUpdateURL(node)
 	if err != nil {
 		log.Errorf("Incorrect node's URL: %s", err.Error())
-		os.Exit(2)
+		return errInvalidParameters
 	}
 	other := strings.Fields(reference)
 	for i, u := range other {
 		u, err = checkAndUpdateURL(u)
 		if err != nil {
 			log.Error("Incorrect reference's URL: %s", err.Error())
-			os.Exit(2)
+			return errInvalidParameters
 		}
 		other[i] = u
 	}
@@ -100,22 +113,25 @@ func main() {
 	urls := append([]string{node}, other...)
 	log.Debugf("Requesting height from %d nodes", len(urls))
 
+	interrupt := interruptListener(log)
+
 	clients := make([]*client.Client, len(urls))
 	for i, u := range urls {
 		c, err := client.NewClient(client.Options{BaseUrl: u, Client: &http.Client{}})
 		if err != nil {
 			log.Errorf("Failed to create client for URL '%s': %s", u, err)
-			cancel()
-			os.Exit(2)
+			return errFailure
 		}
 		clients[i] = c
 	}
 
-	hs, err := heights(appCtx, clients)
+	hs, err := heights(interrupt, clients)
 	if err != nil {
 		log.Errorf("Failed to retrieve heights from all nodes: %s", err)
-		cancel()
-		os.Exit(2)
+		if interrupted(interrupt) {
+			return errUserTermination
+		}
+		return errUnavailable
 	}
 	for i, h := range hs {
 		log.Debugf("%d: Height = %d", i, h)
@@ -124,53 +140,50 @@ func main() {
 	stop := min(hs)
 	log.Infof("Lowest height: %d", stop)
 
-	ch, err := findLastCommonHeight(appCtx, log, clients, 1, stop)
+	ch, err := findLastCommonHeight(interrupt, log, clients, 1, stop)
 	if err != nil {
 		log.Errorf("Failed to find last common height: %s", err)
-		cancel()
-		os.Exit(2)
-	}
-
-	sigCnt, err := differentSignaturesCount(appCtx, log, clients, ch+1)
-	if err != nil {
-		log.Errorf("Failed to get blocks: %s", err)
-		cancel()
-		os.Exit(2)
+		if interrupted(interrupt) {
+			return errUserTermination
+		}
+		return err
 	}
 
 	h := hs[0]
+	log.Debugf("Node height: %d", h)
 	refLowest := min(hs[1:])
-	if sigCnt != 1 {
+	log.Debugf("The lowest height of reference nodes: %d", refLowest)
+
+	switch {
+	case ch == h && ch < refLowest: // The node is behind the reference nodes
+		log.Infof("Node '%s' is %d blocks behind the lowest reference node", node, refLowest-h)
+		return nil
+	case ch == refLowest && ch < h: // The node is ahead of the reference nodes
+		log.Infof("Node '%s' is %d blocks ahead of the lowest reference node", node, h-refLowest)
+		return nil
+	case ch < h && ch < refLowest:
 		fl := h - ch
-		log.Warnf("Node '%s' is on fork!!!", node)
-		log.Warnf("Last common height: %d", ch)
-		log.Warnf("Node '%s' on fork of length %d since block number %d", node, fl, ch)
-		if fl < 1980 {
-			if fl < 100 {
-				log.Warn("The fork is short and possibly the node will rollback and switch on the correct fork automatically.")
-				log.Warnf("But if you want to rollback manually, refer the documentation at https://docs.wavesplatform.com/en/waves-full-node/how-to-rollback-a-node.html.")
-				if fl < 10 {
-					os.Exit(0)
-				}
-			} else {
-				log.Warnf("Manual rollback of the node '%s' is possible, do it as soon as possible!", node)
-				log.Warnf("Please, read the documentation at https://docs.wavesplatform.com/en/waves-full-node/how-to-rollback-a-node.html.")
-			}
-		} else {
-			log.Warnf("Rollback of node '%s' is not available, the fork is too long, consider restarting the node from scratch!", node)
-			log.Warnf("Please, refer the documentation at https://docs.wavesplatform.com/en/waves-full-node/options-for-getting-actual-blockchain.html.")
-		}
-		os.Exit(1)
-	} else {
+		log.Warnf("Node '%s' is on fork of length %d blocks since last common block at height %d", node, fl, ch)
 		switch {
-		case h < refLowest:
-			log.Infof("Node '%s' is %d blocks behind the lowest reference node", node, refLowest-h)
-		case h == refLowest:
-			log.Infof("Node '%s' is OK", node)
+		case fl < 10:
+			log.Infof("The fork is very short, highly likely the node is OK")
+			return nil
+		case fl < 100:
+			log.Warn("The fork is short and possibly the node will rollback and switch on the correct fork automatically")
+			log.Warnf("But if you want to rollback manually, refer the documentation at https://docs.wavesplatform.com/en/waves-full-node/how-to-rollback-a-node.html")
+			return errFork
+		case fl < 1980:
+			log.Warnf("Manual rollback of the node '%s' is possible, do it as soon as possible!", node)
+			log.Warnf("Please, read the documentation at https://docs.wavesplatform.com/en/waves-full-node/how-to-rollback-a-node.html")
+			return errFork
 		default:
-			log.Infof("Node '%s' is %d blocks ahead of the lowest reference node", node, refLowest-h)
+			log.Warnf("Rollback of node '%s' is not an option, the fork is too long, consider restarting the node from scratch!", node)
+			log.Warnf("Please, refer the documentation at https://docs.wavesplatform.com/en/waves-full-node/options-for-getting-actual-blockchain.html")
+			return errFork
 		}
-		os.Exit(0)
+	default:
+		log.Infof("Node '%s' is OK", node)
+		return nil
 	}
 }
 
@@ -194,23 +207,26 @@ func checkAndUpdateURL(s string) (string, error) {
 	return u.String(), nil
 }
 
-func findLastCommonHeight(rootContext context.Context, log *zap.SugaredLogger, clients []*client.Client, start, stop int) (int, error) {
+func findLastCommonHeight(interrupt <-chan struct{}, log *zap.SugaredLogger, clients []*client.Client, start, stop int) (int, error) {
+	var r int
 	for start <= stop {
-		middle := (start + stop) / 2
-		if abs(start-stop) <= 1 {
-			return middle, nil
+		if interrupted(interrupt) {
+			return 0, errUserTermination
 		}
-		c, err := differentSignaturesCount(rootContext, log, clients, middle)
+		middle := (start + stop) / 2
+		c, err := differentSignaturesCount(log, clients, middle)
 		if err != nil {
 			return 0, errors.Wrapf(err, "failed to get blocks signatures at height %d", middle)
 		}
 		if c >= 2 {
-			stop = middle
+			stop = middle - 1
+			r = stop
 		} else {
-			start = middle
+			start = middle + 1
+			r = middle
 		}
 	}
-	return 0, errors.New("impossible situation")
+	return r, nil
 }
 
 type nodeHeader struct {
@@ -219,13 +235,13 @@ type nodeHeader struct {
 	err    error
 }
 
-func differentSignaturesCount(rootContext context.Context, log *zap.SugaredLogger, clients []*client.Client, height int) (int, error) {
+func differentSignaturesCount(log *zap.SugaredLogger, clients []*client.Client, height int) (int, error) {
 	ch := make(chan nodeHeader, len(clients))
 	info := make(map[int]*client.Headers)
 	m := make(map[crypto.Signature]bool)
 	for i, c := range clients {
 		go func(id int, cl *client.Client) {
-			ctx, cancel := context.WithTimeout(rootContext, time.Second*30)
+			ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
 			defer cancel()
 			header, resp, err := cl.Blocks.HeadersAt(ctx, uint64(height))
 			if err != nil {
@@ -255,13 +271,6 @@ func differentSignaturesCount(rootContext context.Context, log *zap.SugaredLogge
 	return len(m), nil
 }
 
-func abs(x int) int {
-	if x < 0 {
-		return -x
-	}
-	return x
-}
-
 func min(values []int) int {
 	r := values[0]
 	for _, v := range values {
@@ -273,14 +282,9 @@ func min(values []int) int {
 }
 
 func showUsageAndExit() {
-	fmt.Println("usage: chaincmp [flags]")
+	//fmt.Println()
+	fmt.Fprintf(os.Stderr, "\nUsage of chaincmp %s\n", version)
 	flag.PrintDefaults()
-	os.Exit(0)
-}
-
-func showVersionAndExit() {
-	fmt.Printf("chaincmp %s\n", version)
-	os.Exit(0)
 }
 
 type nodeHeight struct {
@@ -289,9 +293,16 @@ type nodeHeight struct {
 	err    error
 }
 
-func height(rootContext context.Context, c *client.Client, id int, ch chan nodeHeight) {
-	ctx, cancel := context.WithTimeout(rootContext, time.Second*30)
+func height(interrupt <-chan struct{}, c *client.Client, id int, ch chan nodeHeight) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
 	defer cancel()
+
+	go func() {
+		select {
+		case <-interrupt:
+			cancel()
+		}
+	}()
 
 	bh, _, err := c.Blocks.Height(ctx)
 	if err != nil {
@@ -301,12 +312,12 @@ func height(rootContext context.Context, c *client.Client, id int, ch chan nodeH
 	ch <- nodeHeight{id, int(bh.Height), nil}
 }
 
-func heights(rootContext context.Context, clients []*client.Client) ([]int, error) {
+func heights(interrupt <-chan struct{}, clients []*client.Client) ([]int, error) {
 	ch := make(chan nodeHeight, len(clients))
 	heights := make(map[int]int)
 
 	for i, c := range clients {
-		go height(rootContext, c, i, ch)
+		go height(interrupt, c, i, ch)
 	}
 
 	for range clients {
@@ -322,4 +333,48 @@ func heights(rootContext context.Context, clients []*client.Client) ([]int, erro
 		r[i] = heights[i]
 	}
 	return r, nil
+}
+
+func setupLogger(silent, verbose bool) (*zap.Logger, *zap.SugaredLogger) {
+	al := zap.NewAtomicLevel()
+	al.SetLevel(zap.InfoLevel)
+	if silent {
+		al.SetLevel(zap.FatalLevel)
+	}
+	if verbose {
+		al.SetLevel(zap.DebugLevel)
+	}
+	ec := zap.NewDevelopmentEncoderConfig()
+	logger := zap.New(zapcore.NewCore(zapcore.NewConsoleEncoder(ec), zapcore.Lock(os.Stdout), al))
+	return logger, logger.Sugar()
+}
+
+func interruptListener(log *zap.SugaredLogger) <-chan struct{} {
+	r := make(chan struct{})
+
+	go func() {
+		signals := make(chan os.Signal, 1)
+		signal.Notify(signals, interruptSignals...)
+		select {
+		case sig := <-signals:
+			log.Infof("Caught signal '%s', shutting down...", sig)
+		}
+		close(r)
+		for {
+			select {
+			case sig := <-signals:
+				log.Infof("Caught signal '%s' again, already shutting down", sig)
+			}
+		}
+	}()
+	return r
+}
+
+func interrupted(interrupt <-chan struct{}) bool {
+	select {
+	case <-interrupt:
+		return true
+	default:
+	}
+	return false
 }
