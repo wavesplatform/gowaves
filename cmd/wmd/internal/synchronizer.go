@@ -13,7 +13,6 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-	"sync"
 	"time"
 )
 
@@ -25,8 +24,6 @@ type Synchronizer struct {
 	storage   *state.Storage
 	scheme    byte
 	matcher   crypto.PublicKey
-	mu        *sync.RWMutex
-	active    bool
 	ticker    *time.Ticker
 	lag       int
 }
@@ -40,25 +37,9 @@ func NewSynchronizer(interrupt <-chan struct{}, log *zap.SugaredLogger, storage 
 	t := time.NewTicker(d)
 	log.Infof("Synchronization interval set to %v", d)
 	done := make(chan struct{})
-	s := Synchronizer{interrupt: interrupt, done: done, client: c, log: log, storage: storage, scheme: scheme, matcher: matcher, mu: new(sync.RWMutex), active: false, ticker: t, lag: lag}
+	s := Synchronizer{interrupt: interrupt, done: done, client: c, log: log, storage: storage, scheme: scheme, matcher: matcher, ticker: t, lag: lag}
 	go s.run()
 	return &s, nil
-}
-
-func (s *Synchronizer) Pause() {
-	s.mu.Lock()
-	if s.active {
-		s.active = false
-	}
-	s.mu.Unlock()
-}
-
-func (s *Synchronizer) Resume() {
-	s.mu.Lock()
-	if !s.active {
-		s.active = true
-	}
-	s.mu.Unlock()
 }
 
 func (s *Synchronizer) Done() <-chan struct{} {
@@ -70,18 +51,11 @@ func (s *Synchronizer) run() {
 	for {
 		select {
 		case <-s.interrupt:
-			s.log.Info("Shutting down synchronizer...")
 			s.ticker.Stop()
+			s.log.Info("Shutting down synchronizer...")
 			return
 		case <-s.ticker.C:
-			if s.interrupted() {
-				return
-			}
-			s.mu.RLock()
-			if s.active {
-				s.synchronize()
-			}
-			s.mu.RUnlock()
+			s.synchronize()
 		}
 	}
 }
@@ -105,6 +79,9 @@ func (s *Synchronizer) synchronize() {
 	lh, err := s.storage.Height()
 	if err != nil {
 		s.log.Errorf("Failed to synchronize with node: %v", err)
+		return
+	}
+	if s.interrupted() {
 		return
 	}
 	if rh > lh {
