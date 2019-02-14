@@ -35,7 +35,15 @@ For the scripting purposes the `--silent` flag is useful.
 ./chaincmp -n http://127.0.0.1:6869 --silent
 ```
 
-In this case utility omits the output and produces only result code. If node is on the same fork it will exit with the 0 result code. 
-If the node is on fork utility exits with 1 result code. In case of incorrect parameters or network errors it will exit with 2 result code.
+In this case the utility omits the output and produces only result code.
 
-To get more information about differences between chains use `--verbose` flag. In verbose mode `chaincmp` prints the IDs of compared blocks. 
+To get more information about differences between chains use `--verbose` flag. In verbose mode `chaincmp` prints the IDs of compared blocks.  
+
+## Result codes
+
+* Result code `0` - Everything is OK, the node is on the same fork as the reference nodes or on the very short fork of length less then 10 blocks that probably will be resolved automatically soon. 
+* Result code `1` - The node is on fork, please, read the error messages for the instructions of how to handle with the situation.
+* Result code `2` - The code means that some of command line parameters were incorrect.
+* Result code `69` - Some of the nodes are unavailable of could not be reached by network.
+* Result code `70` - Internal error
+* Result code `130` - The programm was terminated by user (Ctrl-C).
