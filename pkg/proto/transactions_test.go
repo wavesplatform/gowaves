@@ -833,6 +833,27 @@ func TestTransferV2ToJSON(t *testing.T) {
 	}
 }
 
+func TestTransferV2FromJSON(t *testing.T) {
+	var js = `{"senderPublicKey":"9uVCXj92oiUdtMWkwSLyKXRnHju81m3aGRzU2ZhJ91nF","recipient":"3FcSgww3tKZ7feQVmcnPFmRxsjqBodYz63x","amount":1,"assetId":null,"fee":100000,"feeAssetId":null,"attachment":"bQbp","timestamp":1549972745180,"proofs":["45yF4TTn9CtyJbH7BPVZYK92DFhuHCCDCn9fuEuFrcDhG7Fa4SbsmHi2ouQKw8u1AxkqsrPbeEPqiNHZfFw35Z3M"],"version":2,"type":4}`
+	spk, err := crypto.NewPublicKeyFromBase58("9uVCXj92oiUdtMWkwSLyKXRnHju81m3aGRzU2ZhJ91nF")
+	require.NoError(t, err)
+	addr, err := NewAddressFromString("3FcSgww3tKZ7feQVmcnPFmRxsjqBodYz63x")
+	require.NoError(t, err)
+	var tx TransferV2
+	err = json.Unmarshal([]byte(js), &tx)
+	require.NoError(t, err)
+	assert.Equal(t, TransferTransaction, tx.Type)
+	assert.Equal(t, 2, int(tx.Version))
+	assert.Equal(t, uint64(1549972745180), tx.Timestamp)
+	assert.Equal(t, 100000, int(tx.Fee))
+	assert.Equal(t, 1, int(tx.Amount))
+	assert.False(t, tx.AmountAsset.Present)
+	assert.False(t, tx.FeeAsset.Present)
+	assert.Equal(t, 1, len(tx.Proofs.Proofs))
+	assert.ElementsMatch(t, spk[:], tx.SenderPK[:])
+	assert.ElementsMatch(t, addr[:], tx.Recipient.Address[:])
+}
+
 func TestReissueV1Validations(t *testing.T) {
 	tests := []struct {
 		quantity uint64
