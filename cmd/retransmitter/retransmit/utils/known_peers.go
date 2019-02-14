@@ -198,10 +198,10 @@ func (a *KnownPeers) Stop() {
 	if err != nil {
 		zap.S().Error(err)
 	}
-	_ = a.storage.Close
+	a.storage.Close()
 }
 
 func (a *KnownPeers) exitWithoutSave() {
 	a.cancel()
-	_ = a.storage.Close
+	a.storage.Close()
 }

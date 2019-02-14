@@ -2,7 +2,6 @@ package retransmit
 
 import (
 	"context"
-	"fmt"
 	"net"
 	"time"
 
@@ -234,7 +233,7 @@ func (a *Retransmitter) spawnOutgoingPeer(ctx context.Context, addr string) {
 func (a *Retransmitter) serve(ctx context.Context, listenAddr string) {
 	lst, err := net.Listen("tcp", listenAddr)
 	if err != nil {
-		fmt.Println(err)
+		zap.S().Error(err)
 		return
 	}
 	zap.S().Infof("started listen on %s", listenAddr)
@@ -242,7 +241,7 @@ func (a *Retransmitter) serve(ctx context.Context, listenAddr string) {
 	for {
 		c, err := lst.Accept()
 		if err != nil {
-			fmt.Println(err)
+			zap.S().Error(err)
 			continue
 		}
 

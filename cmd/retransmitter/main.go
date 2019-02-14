@@ -20,7 +20,7 @@ import (
 	"time"
 )
 
-// filter only transactions and
+// filter transactions, ContentIDPeers, ContentIDGetPeers
 func receiveFromRemoteCallbackFunc(b []byte, id string, resendTo chan peer.ProtoMessage, pool conn.Pool) {
 
 	defer func() {

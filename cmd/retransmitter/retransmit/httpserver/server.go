@@ -3,14 +3,15 @@ package httpserver
 import (
 	"context"
 	"encoding/json"
+	"net/http"
+	"net/http/pprof"
+	"sort"
+
 	"github.com/gorilla/mux"
 	"github.com/wavesplatform/gowaves/cmd/retransmitter/retransmit"
 	"github.com/wavesplatform/gowaves/cmd/retransmitter/retransmit/utils"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
-	"net/http"
-	"net/http/pprof"
-	"sort"
 )
 
 type HttpServer struct {
@@ -99,7 +100,6 @@ func (a *HttpServer) Spawned(rw http.ResponseWriter, r *http.Request) {
 }
 
 func (a *HttpServer) counter(rw http.ResponseWriter, r *http.Request) {
-
 	c := a.retransmitter.Counter()
 	out := c.Get()
 	zap.S().Info(out)
