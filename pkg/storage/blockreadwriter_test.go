@@ -24,8 +24,8 @@ import (
 
 const (
 	TASKS_CHAN_BUFFER_SIZE = 20
-	READERS_NUMBER         = 20
-	BLOCKS_NUMBER          = 9900
+	READERS_NUMBER         = 5
+	BLOCKS_NUMBER          = 1000
 )
 
 var (
@@ -152,6 +152,9 @@ func writeBlock(t *testing.T, rw *BlockReadWriter, block *proto.Block) {
 	if err := rw.FinishBlock(blockID); err != nil {
 		t.Fatalf("FinishBlock(): %v", err)
 	}
+	if err := rw.Db.Flush(); err != nil {
+		t.Fatalf("Failed to flush DB: %v", err)
+	}
 }
 
 func testSingleBlock(t *testing.T, rw *BlockReadWriter, block *proto.Block) {
@@ -217,6 +220,10 @@ func writeBlocks(ctx context.Context, rw *BlockReadWriter, blocks []*proto.Block
 			transaction = transaction[4+n:]
 		}
 		if err := rw.FinishBlock(blockID); err != nil {
+			close(readTasks)
+			return err
+		}
+		if err := rw.Db.Flush(); err != nil {
 			close(readTasks)
 			return err
 		}
@@ -286,6 +293,9 @@ func TestSimpleReadWrite(t *testing.T) {
 		if err := rw.Close(); err != nil {
 			t.Fatalf("Failed to close BlockReadWriter: %v", err)
 		}
+		if err := rw.Db.Close(); err != nil {
+			t.Fatalf("Failed to close DB: %v", err)
+		}
 		if err := util.CleanTemporaryDirs(path); err != nil {
 			t.Fatalf("Failed to clean test data dirs: %v", err)
 		}
@@ -309,6 +319,9 @@ func TestSimultaneousReadWrite(t *testing.T) {
 	defer func() {
 		if err := rw.Close(); err != nil {
 			t.Fatalf("Failed to close BlockReadWriter: %v", err)
+		}
+		if err := rw.Db.Close(); err != nil {
+			t.Fatalf("Failed to close DB: %v", err)
 		}
 		if err := util.CleanTemporaryDirs(path); err != nil {
 			t.Fatalf("Failed to clean test data dirs: %v", err)
@@ -366,6 +379,9 @@ func TestSimultaneousReadDelete(t *testing.T) {
 		if err := rw.Close(); err != nil {
 			t.Fatalf("Failed to close BlockReadWriter: %v", err)
 		}
+		if err := rw.Db.Close(); err != nil {
+			t.Fatalf("Failed to close DB: %v", err)
+		}
 		if err := util.CleanTemporaryDirs(path); err != nil {
 			t.Fatalf("Failed to clean test data dirs: %v", err)
 		}
@@ -389,7 +405,7 @@ func TestSimultaneousReadDelete(t *testing.T) {
 		defer wg.Done()
 		// Give some time to start reading before deleting.
 		time.Sleep(time.Second)
-		removeErr = rw.RemoveBlocks(prevId)
+		removeErr = rw.Rollback(prevId, true)
 	}()
 	for {
 		_, err = rw.ReadBlockHeader(idToTest)

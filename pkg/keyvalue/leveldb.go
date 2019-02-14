@@ -35,6 +35,13 @@ func (k *KeyVal) Delete(key []byte) error {
 	return k.db.Delete(key, nil)
 }
 
+func (k *KeyVal) PutDirectly(key, val []byte) error {
+	if err := k.db.Put(key, val, nil); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (k *KeyVal) Put(key, val []byte) error {
 	if k.batch != nil {
 		k.batch.Put(key, val)
@@ -63,4 +70,8 @@ func (k *KeyVal) NewKeyIterator(prefix []byte) (Iterator, error) {
 	} else {
 		return k.db.NewIterator(nil, nil), nil
 	}
+}
+
+func (k *KeyVal) Close() error {
+	return k.db.Close()
 }

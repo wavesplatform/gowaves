@@ -1,10 +1,7 @@
 package storage
 
 import (
-	"bufio"
 	"encoding/binary"
-	"io"
-	"os"
 
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
@@ -17,18 +14,11 @@ const (
 	RECORD_SIZE         = crypto.SignatureSize + 8
 )
 
-var (
-	lastKey = []byte("last") // For addr2Index, asset2Index.
-)
-
 type AccountsStorage struct {
-	globalStor  keyvalue.IterableKeyVal // AddrIndex+AssetIndex -> [(blockID, balance), (blockID, balance), ...]
-	addr2Index  keyvalue.IterableKeyVal
-	asset2Index keyvalue.IterableKeyVal
-	validIDs    map[crypto.Signature]struct{}
+	Db keyvalue.IterableKeyVal
 }
 
-var Empty struct{}
+var Empty = []byte{}
 
 func toBlockID(bytes []byte) (crypto.Signature, error) {
 	var res crypto.Signature
@@ -39,168 +29,84 @@ func toBlockID(bytes []byte) (crypto.Signature, error) {
 	return res, nil
 }
 
-func initIndexStores(addr2Index, asset2Index keyvalue.KeyValue) error {
-	has, err := addr2Index.Has(lastKey)
+func NewAccountsStorage(db keyvalue.IterableKeyVal) (*AccountsStorage, error) {
+	has, err := db.Has([]byte{proto.DbHeightKeyPrefix})
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if !has {
-		lastBuf := make([]byte, 8)
-		binary.LittleEndian.PutUint64(lastBuf, 0)
-		if err := addr2Index.Put(lastKey, lastBuf); err != nil {
-			return err
+		heightBuf := make([]byte, 8)
+		binary.LittleEndian.PutUint64(heightBuf, 0)
+		if err := db.PutDirectly([]byte{proto.DbHeightKeyPrefix}, heightBuf); err != nil {
+			return nil, err
 		}
 	}
-	has, err = asset2Index.Has(lastKey)
-	if err != nil {
-		return err
-	}
-	if !has {
-		lastBuf := make([]byte, 4)
-		binary.LittleEndian.PutUint32(lastBuf, 0)
-		if err := asset2Index.Put(lastKey, lastBuf); err != nil {
+	return &AccountsStorage{Db: db}, nil
+}
+
+func (s *AccountsStorage) SetHeight(height uint64, directly bool) error {
+	dbHeightBytes := make([]byte, 8)
+	binary.LittleEndian.PutUint64(dbHeightBytes, height)
+	if directly {
+		if err := s.Db.PutDirectly([]byte{proto.DbHeightKeyPrefix}, dbHeightBytes); err != nil {
+			return err
+		}
+	} else {
+		if err := s.Db.Put([]byte{proto.DbHeightKeyPrefix}, dbHeightBytes); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func NewAccountsStorage(globalStor, addr2Index, asset2Index keyvalue.IterableKeyVal, blockIdsFile string) (*AccountsStorage, error) {
-	validIDs := make(map[crypto.Signature]struct{})
-	if blockIdsFile != "" {
-		blockIDs, err := os.Open(blockIdsFile)
-		if err != nil {
-			return nil, errors.Errorf("failed to open block IDs file: %v\n", err)
-		}
-		idBuf := make([]byte, crypto.SignatureSize)
-		r := bufio.NewReader(blockIDs)
-		// Copy block IDs to in-memory map.
-		for {
-			if n, err := io.ReadFull(r, idBuf); err != nil {
-				if err != io.EOF {
-					return nil, errors.Errorf("can not read block IDs from file: %v\n", err)
-				}
-				break
-			} else if n != crypto.SignatureSize {
-				return nil, errors.New("can not read ID of proper size from file")
-			}
-			blockID, err := toBlockID(idBuf)
-			if err != nil {
-				return nil, err
-			}
-			validIDs[blockID] = Empty
-		}
-		if err := blockIDs.Close(); err != nil {
-			return nil, errors.Errorf("failed to close block IDs file: %v\n", err)
-		}
+func (s *AccountsStorage) GetHeight() (uint64, error) {
+	dbHeightBytes, err := s.Db.Get([]byte{proto.DbHeightKeyPrefix})
+	if err != nil {
+		return 0, err
 	}
-	if err := initIndexStores(addr2Index, asset2Index); err != nil {
-		return nil, errors.Errorf("failed to initialise index store: %v\n", err)
-	}
-	return &AccountsStorage{
-		globalStor:  globalStor,
-		addr2Index:  addr2Index,
-		asset2Index: asset2Index,
-		validIDs:    validIDs,
-	}, nil
+	return binary.LittleEndian.Uint64(dbHeightBytes), nil
 }
 
-func (s *AccountsStorage) getKey(addr proto.Address, asset []byte) ([]byte, error) {
-	has, err := s.addr2Index.Has(addr[:])
-	if err != nil {
-		return nil, err
-	}
-	addrIndex := make([]byte, 8)
-	if has {
-		addrIndex, err = s.addr2Index.Get(addr[:])
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		last, err := s.addr2Index.Get(lastKey)
-		if err != nil {
-			return nil, err
-		}
-		lastVal := binary.LittleEndian.Uint64(last)
-		binary.LittleEndian.PutUint64(addrIndex, lastVal+1)
-		if err := s.addr2Index.Put(lastKey, addrIndex); err != nil {
-			return nil, err
-		}
-		if err := s.addr2Index.Put(addr[:], addrIndex); err != nil {
-			return nil, err
-		}
-	}
-	if asset == nil {
-		// Waves.
-		return addrIndex, nil
-	}
-	has, err = s.asset2Index.Has(asset)
-	if err != nil {
-		return nil, err
-	}
-	assetIndex := make([]byte, 4)
-	if has {
-		assetIndex, err = s.asset2Index.Get(asset)
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		last, err := s.asset2Index.Get(lastKey)
-		if err != nil {
-			return nil, err
-		}
-		lastVal := binary.LittleEndian.Uint32(last)
-		binary.LittleEndian.PutUint32(assetIndex, lastVal+1)
-		if err := s.asset2Index.Put(lastKey, assetIndex); err != nil {
-			return nil, err
-		}
-		if err := s.asset2Index.Put(asset, assetIndex); err != nil {
-			return nil, err
-		}
-	}
-	return append(addrIndex, assetIndex...), nil
-}
-
-func (s *AccountsStorage) filterState(stateKey []byte, state []byte) ([]byte, error) {
-	for i := len(state); i >= RECORD_SIZE; i -= RECORD_SIZE {
-		record := state[i-RECORD_SIZE : i]
+func (s *AccountsStorage) filterHistory(historyKey []byte, history []byte) ([]byte, error) {
+	for i := len(history); i >= RECORD_SIZE; i -= RECORD_SIZE {
+		record := history[i-RECORD_SIZE : i]
 		idBytes := record[len(record)-crypto.SignatureSize:]
 		blockID, err := toBlockID(idBytes)
 		if err != nil {
 			return nil, err
 		}
-		if _, ok := s.validIDs[blockID]; ok {
-			return state, nil
+		key := proto.BlockIdKey{BlockID: blockID}
+		has, err := s.Db.Has(key.Bytes())
+		if err != nil {
+			return nil, err
+		}
+		if has {
+			// Is valid block.
+			return history, nil
 		} else {
 			// Erase invalid (outdated due to rollbacks) record.
-			state = state[:i-RECORD_SIZE]
-			if err := s.globalStor.Put(stateKey, state); err != nil {
+			history = history[:i-RECORD_SIZE]
+			if err := s.Db.Put(historyKey, history); err != nil {
 				return nil, err
 			}
 		}
 	}
-	return state, nil
+	return history, nil
 }
 
-func (s *AccountsStorage) WavesAddressesNumber() (uint64, error) {
-	iter, err := s.addr2Index.NewKeyIterator(nil)
+func (s *AccountsStorage) AddressesNumber() (uint64, error) {
+	iter, err := s.Db.NewKeyIterator([]byte{proto.BalanceKeyPrefix})
 	if err != nil {
 		return 0, err
 	}
 	addressesNumber := uint64(0)
 	for iter.Next() {
-		if string(iter.Key()) != string(lastKey) {
-			addr, err := proto.NewAddressFromBytes(iter.Key())
-			if err != nil {
-				return 0, err
-			}
-			balance, err := s.AccountBalance(addr, nil)
-			if err != nil {
-				return 0, err
-			}
-			if balance > 0 {
-				addressesNumber++
-			}
+		balance, err := s.AccountBalance(iter.Key())
+		if err != nil {
+			return 0, err
+		}
+		if balance > 0 {
+			addressesNumber++
 		}
 	}
 	iter.Release()
@@ -210,71 +116,57 @@ func (s *AccountsStorage) WavesAddressesNumber() (uint64, error) {
 	return addressesNumber, nil
 }
 
-func (s *AccountsStorage) AccountBalance(addr proto.Address, asset []byte) (uint64, error) {
-	has, err := s.addr2Index.Has(addr[:])
+func (s *AccountsStorage) AccountBalance(balanceKey []byte) (uint64, error) {
+	has, err := s.Db.Has(balanceKey)
 	if err != nil {
-		return 0, errors.Errorf("failed to check if address exists: %v\n", err)
+		return 0, errors.Errorf("failed to check if balance key exists: %v\n", err)
 	}
 	if !has {
 		// TODO: think about this scenario.
 		return 0, nil
 	}
-	if asset != nil {
-		has, err = s.asset2Index.Has(asset)
-		if err != nil {
-			return 0, errors.Errorf("failed to check if asset exists: %v\n", err)
-		}
-		if !has {
-			// TODO: think about this scenario.
-			return 0, nil
-		}
-	}
-	key, err := s.getKey(addr, asset)
+	history, err := s.Db.Get(balanceKey)
 	if err != nil {
-		return 0, errors.Errorf("failed to get key from address and asset: %v\n", err)
-	}
-	state, err := s.globalStor.Get(key)
-	if err != nil {
-		return 0, errors.Errorf("failed to get state for given key: %v\n", err)
+		return 0, errors.Errorf("failed to get history for given key: %v\n", err)
 	}
 	// Delete invalid records.
-	state, err = s.filterState(key, state)
+	history, err = s.filterHistory(balanceKey, history)
 	if err != nil {
-		return 0, errors.Errorf("failed to filter state: %v\n", err)
+		return 0, errors.Errorf("failed to filter history: %v\n", err)
 	}
-	if len(state) == 0 {
-		// There were no valid records, so the state is empty after filtering.
+	if len(history) == 0 {
+		// There were no valid records, so the history is empty after filtering.
 		return 0, nil
 	}
-	balanceEnd := len(state) - crypto.SignatureSize
-	balance := binary.LittleEndian.Uint64(state[balanceEnd-8 : balanceEnd])
+	balanceEnd := len(history) - crypto.SignatureSize
+	balance := binary.LittleEndian.Uint64(history[balanceEnd-8 : balanceEnd])
 	return balance, nil
 }
 
-func (s *AccountsStorage) newState(newRecord []byte, key []byte, blockID crypto.Signature) ([]byte, error) {
-	has, err := s.globalStor.Has(key)
+func (s *AccountsStorage) newHistory(newRecord []byte, key []byte, blockID crypto.Signature) ([]byte, error) {
+	has, err := s.Db.Has(key)
 	if err != nil {
 		return nil, err
 	}
 	if !has {
-		// New state.
+		// New history.
 		return newRecord, nil
 	}
-	// Get current state.
-	state, err := s.globalStor.Get(key)
+	// Get current history.
+	history, err := s.Db.Get(key)
 	if err != nil {
 		return nil, err
 	}
 	// Delete invalid records.
-	state, err = s.filterState(key, state)
+	history, err = s.filterHistory(key, history)
 	if err != nil {
 		return nil, err
 	}
-	if len(state) < RECORD_SIZE {
-		// State is empty after filtering, new record is the first one.
+	if len(history) < RECORD_SIZE {
+		// History is empty after filtering, new record is the first one.
 		return newRecord, nil
 	}
-	lastRecord := state[len(state)-RECORD_SIZE:]
+	lastRecord := history[len(history)-RECORD_SIZE:]
 	idBytes := lastRecord[len(lastRecord)-crypto.SignatureSize:]
 	lastBlockID, err := toBlockID(idBytes)
 	if err != nil {
@@ -282,37 +174,62 @@ func (s *AccountsStorage) newState(newRecord []byte, key []byte, blockID crypto.
 	}
 	if lastBlockID == blockID {
 		// If the last record is the same block, rewrite it.
-		copy(state[len(state)-RECORD_SIZE:], newRecord)
+		copy(history[len(history)-RECORD_SIZE:], newRecord)
 	} else {
 		// Append new record to the end.
-		state = append(state, newRecord...)
+		history = append(history, newRecord...)
 	}
-	return state, nil
+	return history, nil
 }
 
-func (s *AccountsStorage) SetAccountBalance(addr proto.Address, asset []byte, balance uint64, blockID crypto.Signature) error {
-	key, err := s.getKey(addr, asset)
-	if err != nil {
-		return errors.Errorf("failed to get key from address and asset: %v", err)
-	}
-	if _, ok := s.validIDs[blockID]; !ok {
-		s.validIDs[blockID] = Empty
+func (s *AccountsStorage) SetAccountBalance(balanceKey []byte, balance uint64, blockID crypto.Signature) error {
+	// Add block to valid blocks.
+	key := proto.BlockIdKey{BlockID: blockID}
+	if err := s.Db.Put(key.Bytes(), Empty); err != nil {
+		return err
 	}
 	// Prepare new record.
 	balanceBuf := make([]byte, 8)
 	binary.LittleEndian.PutUint64(balanceBuf, balance)
 	newRecord := append(balanceBuf, blockID[:]...)
-	state, err := s.newState(newRecord, key, blockID)
+	// Add it to history with filtering.
+	history, err := s.newHistory(newRecord, balanceKey, blockID)
 	if err != nil {
 		return err
 	}
-	if err := s.globalStor.Put(key, state); err != nil {
+	if err := s.Db.Put(balanceKey, history); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (s *AccountsStorage) RollbackBlock(blockID crypto.Signature) error {
-	delete(s.validIDs, blockID)
+	// Decrease DB's height (for sync/recovery).
+	height, err := s.GetHeight()
+	if err != nil {
+		return err
+	}
+	if err := s.SetHeight(height-1, true); err != nil {
+		return err
+	}
+	key := proto.BlockIdKey{BlockID: blockID}
+	if err := s.Db.Delete(key.Bytes()); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *AccountsStorage) FinishBlock() error {
+	// Increase DB's height (for sync/recovery).
+	height, err := s.GetHeight()
+	if err != nil {
+		return err
+	}
+	if err := s.SetHeight(height+1, false); err != nil {
+		return err
+	}
+	if err := s.Db.Flush(); err != nil {
+		return err
+	}
 	return nil
 }

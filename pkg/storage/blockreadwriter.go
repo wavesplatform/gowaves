@@ -10,11 +10,11 @@ import (
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
+	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
 type BlockReadWriter struct {
-	// keyvalue.KeyValue to store ID --> offset in blockchain for blocks and transactions.
-	idKeyVal keyvalue.KeyValue
+	Db keyvalue.KeyValue
 
 	// Series of transactions.
 	blockchain *os.File
@@ -26,6 +26,7 @@ type BlockReadWriter struct {
 	txIDs *os.File
 
 	blockchainBuf *bufio.Writer
+	txIDsBuf      *bufio.Writer
 
 	blockBounds  []byte
 	txBounds     []byte
@@ -45,24 +46,35 @@ type BlockReadWriter struct {
 }
 
 func openOrCreate(path string) (*os.File, uint64, error) {
-	if _, err := os.Stat(path); err == nil {
-		file, err := os.Open(path)
-		if err != nil {
-			return nil, 0, err
-		}
-		stat, err := os.Stat(path)
-		if err != nil {
-			return nil, 0, err
-		}
-		return file, uint64(stat.Size()), nil
-	} else if os.IsNotExist(err) {
-		file, err := os.Create(path)
-		if err != nil {
-			return nil, 0, err
-		}
-		return file, 0, nil
-	} else {
+	file, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0755)
+	if err != nil {
 		return nil, 0, err
+	}
+	stat, err := os.Stat(path)
+	if err != nil {
+		return nil, 0, err
+	}
+	return file, uint64(stat.Size()), nil
+}
+
+func initHeight(db keyvalue.KeyValue) (uint64, error) {
+	has, err := db.Has([]byte{proto.RwHeightKeyPrefix})
+	if err != nil {
+		return 0, err
+	}
+	if !has {
+		heightBuf := make([]byte, 8)
+		binary.LittleEndian.PutUint64(heightBuf, 0)
+		if err := db.PutDirectly([]byte{proto.RwHeightKeyPrefix}, heightBuf); err != nil {
+			return 0, err
+		}
+		return 0, nil
+	} else {
+		heightBytes, err := db.Get([]byte{proto.RwHeightKeyPrefix})
+		if err != nil {
+			return 0, err
+		}
+		return binary.LittleEndian.Uint64(heightBytes), nil
 	}
 }
 
@@ -75,7 +87,7 @@ func NewBlockReadWriter(dir string, offsetLen, headerOffsetLen int, keyVal keyva
 	if err != nil {
 		return nil, err
 	}
-	blockHeight2ID, blockHeight2IDSize, err := openOrCreate(path.Join(dir, "block_height_to_id"))
+	blockHeight2ID, _, err := openOrCreate(path.Join(dir, "block_height_to_id"))
 	if err != nil {
 		return nil, err
 	}
@@ -89,13 +101,18 @@ func NewBlockReadWriter(dir string, offsetLen, headerOffsetLen int, keyVal keyva
 	if headerOffsetLen > 8 {
 		return nil, errors.New("headerOffsetLen is too large")
 	}
+	height, err := initHeight(keyVal)
+	if err != nil {
+		return nil, err
+	}
 	return &BlockReadWriter{
-		idKeyVal:        keyVal,
+		Db:              keyVal,
 		blockchain:      blockchain,
 		headers:         headers,
 		blockHeight2ID:  blockHeight2ID,
 		txIDs:           txIDs,
 		blockchainBuf:   bufio.NewWriter(blockchain),
+		txIDsBuf:        bufio.NewWriter(txIDs),
 		txBounds:        make([]byte, offsetLen*2),
 		headerBounds:    make([]byte, headerOffsetLen*2),
 		blockBounds:     make([]byte, offsetLen*2),
@@ -104,18 +121,50 @@ func NewBlockReadWriter(dir string, offsetLen, headerOffsetLen int, keyVal keyva
 		offsetEnd:       uint64(1<<uint(8*offsetLen) - 1),
 		blockchainLen:   blockchainSize,
 		headersLen:      headersSize,
-		height:          blockHeight2IDSize / crypto.SignatureSize,
+		height:          height,
 		txNumber:        txIDsSize / crypto.DigestSize,
 		offsetLen:       offsetLen,
 		headerOffsetLen: headerOffsetLen,
 	}, nil
 }
 
-func (rw *BlockReadWriter) BlockIdsFilePath() (string, error) {
-	if rw.blockHeight2ID != nil {
-		return rw.blockHeight2ID.Name(), nil
+func (rw *BlockReadWriter) SetHeight(height uint64, directly bool) error {
+	rwHeightBytes := make([]byte, 8)
+	binary.LittleEndian.PutUint64(rwHeightBytes, height)
+	if directly {
+		if err := rw.Db.PutDirectly([]byte{proto.RwHeightKeyPrefix}, rwHeightBytes); err != nil {
+			return err
+		}
+	} else {
+		if err := rw.Db.Put([]byte{proto.RwHeightKeyPrefix}, rwHeightBytes); err != nil {
+			return err
+		}
 	}
-	return "", errors.New("block IDs file is not set")
+	return nil
+}
+
+func (rw *BlockReadWriter) GetHeight() (uint64, error) {
+	rwHeightBytes, err := rw.Db.Get([]byte{proto.RwHeightKeyPrefix})
+	if err != nil {
+		return 0, err
+	}
+	return binary.LittleEndian.Uint64(rwHeightBytes), nil
+}
+
+func (rw *BlockReadWriter) SyncFiles() error {
+	if err := rw.blockchain.Sync(); err != nil {
+		return err
+	}
+	if err := rw.headers.Sync(); err != nil {
+		return err
+	}
+	if err := rw.blockHeight2ID.Sync(); err != nil {
+		return err
+	}
+	if err := rw.txIDs.Sync(); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (rw *BlockReadWriter) StartBlock(blockID crypto.Signature) error {
@@ -128,24 +177,35 @@ func (rw *BlockReadWriter) StartBlock(blockID crypto.Signature) error {
 }
 
 func (rw *BlockReadWriter) FinishBlock(blockID crypto.Signature) error {
-	rw.mtx.Lock()
-	defer rw.mtx.Unlock()
 	binary.LittleEndian.PutUint64(rw.blockBounds[rw.offsetLen:], rw.blockchainLen)
 	binary.LittleEndian.PutUint64(rw.headerBounds[rw.headerOffsetLen:], rw.headersLen)
 	binary.LittleEndian.PutUint64(rw.heightBuf, rw.height)
-	rw.height++
 	val := append(rw.blockBounds, rw.headerBounds...)
 	val = append(val, rw.heightBuf...)
 	val = append(val, rw.txNumberBuf...)
-	if err := rw.idKeyVal.Put(blockID[:], val); err != nil {
-		return err
-	}
-	if err := rw.idKeyVal.Flush(); err != nil {
+	key := proto.BlockOffsetKey{BlockID: blockID}
+	if err := rw.Db.Put(key.Bytes(), val); err != nil {
 		return err
 	}
 	if err := rw.blockchainBuf.Flush(); err != nil {
 		return err
 	}
+	if err := rw.txIDsBuf.Flush(); err != nil {
+		return err
+	}
+	if err := rw.SyncFiles(); err != nil {
+		return err
+	}
+	height, err := rw.GetHeight()
+	if err != nil {
+		return err
+	}
+	if err := rw.SetHeight(height+1, false); err != nil {
+		return err
+	}
+	rw.mtx.Lock()
+	rw.height++
+	rw.mtx.Unlock()
 	return nil
 }
 
@@ -159,10 +219,11 @@ func (rw *BlockReadWriter) WriteTransaction(txID []byte, tx []byte) error {
 		return errors.Errorf("offsetLen is not enough for this offset: %d > %d", rw.blockchainLen, rw.offsetEnd)
 	}
 	binary.LittleEndian.PutUint64(rw.txBounds[rw.offsetLen:], rw.blockchainLen)
-	if err := rw.idKeyVal.Put(txID, rw.txBounds); err != nil {
+	key := proto.TxOffsetKey{TxID: txID}
+	if err := rw.Db.Put(key.Bytes(), rw.txBounds); err != nil {
 		return err
 	}
-	if _, err := rw.txIDs.Write(txID); err != nil {
+	if _, err := rw.txIDsBuf.Write(txID); err != nil {
 		return err
 	}
 	rw.txNumber++
@@ -199,7 +260,8 @@ func (rw *BlockReadWriter) BlockIDByHeight(height uint64) (crypto.Signature, err
 func (rw *BlockReadWriter) HeightByBlockID(blockID crypto.Signature) (uint64, error) {
 	rw.mtx.RLock()
 	defer rw.mtx.RUnlock()
-	blockInfo, err := rw.idKeyVal.Get(blockID[:])
+	key := proto.BlockOffsetKey{BlockID: blockID}
+	blockInfo, err := rw.Db.Get(key.Bytes())
 	if err != nil {
 		return 0, err
 	}
@@ -216,7 +278,8 @@ func (rw *BlockReadWriter) CurrentHeight() uint64 {
 func (rw *BlockReadWriter) ReadTransaction(txID []byte) ([]byte, error) {
 	rw.mtx.RLock()
 	defer rw.mtx.RUnlock()
-	txBounds, err := rw.idKeyVal.Get(txID)
+	key := proto.TxOffsetKey{TxID: txID}
+	txBounds, err := rw.Db.Get(key.Bytes())
 	if err != nil {
 		return nil, err
 	}
@@ -235,7 +298,8 @@ func (rw *BlockReadWriter) ReadTransaction(txID []byte) ([]byte, error) {
 func (rw *BlockReadWriter) ReadBlockHeader(blockID crypto.Signature) ([]byte, error) {
 	rw.mtx.RLock()
 	defer rw.mtx.RUnlock()
-	blockInfo, err := rw.idKeyVal.Get(blockID[:])
+	key := proto.BlockOffsetKey{BlockID: blockID}
+	blockInfo, err := rw.Db.Get(key.Bytes())
 	if err != nil {
 		return nil, err
 	}
@@ -255,7 +319,8 @@ func (rw *BlockReadWriter) ReadBlockHeader(blockID crypto.Signature) ([]byte, er
 func (rw *BlockReadWriter) ReadTransactionsBlock(blockID crypto.Signature) ([]byte, error) {
 	rw.mtx.RLock()
 	defer rw.mtx.RUnlock()
-	blockInfo, err := rw.idKeyVal.Get(blockID[:])
+	key := proto.BlockOffsetKey{BlockID: blockID}
+	blockInfo, err := rw.Db.Get(key.Bytes())
 	if err != nil {
 		return nil, err
 	}
@@ -284,7 +349,12 @@ func (rw *BlockReadWriter) cleanIDs(newHeight, newTxNumber uint64) error {
 		} else if n != crypto.SignatureSize {
 			return errors.New("cleanIDs(): invalid id size")
 		}
-		if err := rw.idKeyVal.Delete(idBytes); err != nil {
+		blockID, err := toBlockID(idBytes)
+		if err != nil {
+			return err
+		}
+		key := proto.BlockOffsetKey{BlockID: blockID}
+		if err := rw.Db.Delete(key.Bytes()); err != nil {
 			return err
 		}
 		offset--
@@ -300,35 +370,33 @@ func (rw *BlockReadWriter) cleanIDs(newHeight, newTxNumber uint64) error {
 		} else if n != crypto.DigestSize {
 			return errors.New("cleanIDs(): invalid id size")
 		}
-		if err := rw.idKeyVal.Delete(idBytes); err != nil {
+		key := proto.TxOffsetKey{TxID: idBytes}
+		if err := rw.Db.Delete(key.Bytes()); err != nil {
 			return err
 		}
 		offset--
 	}
-	// Remove blockIDs from blockHeight2ID file.
-	newOffset := int64(newHeight * crypto.SignatureSize)
-	if err := rw.blockHeight2ID.Truncate(newOffset); err != nil {
-		return err
-	}
-	if _, err := rw.blockHeight2ID.Seek(newOffset, 0); err != nil {
-		return err
-	}
-	// Remove txIDs from txIDs file.
-	newOffset = int64(newTxNumber * crypto.DigestSize)
-	if err := rw.txIDs.Truncate(newOffset); err != nil {
-		return err
-	}
-	if _, err := rw.txIDs.Seek(newOffset, 0); err != nil {
-		return err
-	}
 	return nil
 }
 
-func (rw *BlockReadWriter) RemoveBlocks(removalEdge crypto.Signature) error {
+func (rw *BlockReadWriter) Rollback(removalEdge crypto.Signature, cleanIDs bool) error {
 	rw.mtx.Lock()
 	defer rw.mtx.Unlock()
-	blockInfo, err := rw.idKeyVal.Get(removalEdge[:])
+	key := proto.BlockOffsetKey{BlockID: removalEdge}
+	blockInfo, err := rw.Db.Get(key.Bytes())
 	if err != nil {
+		return err
+	}
+	newHeight := binary.LittleEndian.Uint64(blockInfo[len(blockInfo)-16:len(blockInfo)-8]) + 1
+	// Set new height first of all.
+	height, err := rw.GetHeight()
+	if err != nil {
+		return err
+	}
+	if height < newHeight {
+		return errors.New("new height is greater than current height")
+	}
+	if err := rw.SetHeight(newHeight, true); err != nil {
 		return err
 	}
 	// Remove transactions.
@@ -349,29 +417,41 @@ func (rw *BlockReadWriter) RemoveBlocks(removalEdge crypto.Signature) error {
 	if _, err := rw.headers.Seek(headerEnd, 0); err != nil {
 		return err
 	}
-	newHeight := binary.LittleEndian.Uint64(blockInfo[len(blockInfo)-16:len(blockInfo)-8]) + 1
 	newTxNumber := binary.LittleEndian.Uint64(blockInfo[len(blockInfo)-8:]) + 1
-	// Clean IDs of blocks and transactions.
-	if err := rw.cleanIDs(newHeight, newTxNumber); err != nil {
-		return nil
+	if cleanIDs {
+		// Clean IDs of blocks and transactions.
+		if err := rw.cleanIDs(newHeight, newTxNumber); err != nil {
+			return nil
+		}
+	}
+	// Remove blockIDs from blockHeight2ID file.
+	newOffset := int64(newHeight * crypto.SignatureSize)
+	if err := rw.blockHeight2ID.Truncate(newOffset); err != nil {
+		return err
+	}
+	if _, err := rw.blockHeight2ID.Seek(newOffset, 0); err != nil {
+		return err
+	}
+	// Remove txIDs from txIDs file.
+	newOffset = int64(newTxNumber * crypto.DigestSize)
+	if err := rw.txIDs.Truncate(newOffset); err != nil {
+		return err
+	}
+	if _, err := rw.txIDs.Seek(newOffset, 0); err != nil {
+		return err
 	}
 	// Decrease counters.
 	rw.blockchainLen = uint64(blockEnd)
 	rw.headersLen = uint64(headerEnd)
 	rw.height = newHeight
 	rw.txNumber = newTxNumber
-	// Reset buffer.
+	// Reset buffers.
 	rw.blockchainBuf.Reset(rw.blockchain)
+	rw.txIDsBuf.Reset(rw.txIDs)
 	return nil
 }
 
 func (rw *BlockReadWriter) Close() error {
-	if err := rw.idKeyVal.Flush(); err != nil {
-		return err
-	}
-	if err := rw.blockchainBuf.Flush(); err != nil {
-		return err
-	}
 	if err := rw.blockchain.Close(); err != nil {
 		return err
 	}

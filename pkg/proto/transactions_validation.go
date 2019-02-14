@@ -7,7 +7,7 @@ import (
 
 type AccountsState interface {
 	// nil asset means Waves.
-	AccountBalance(addr Address, asset []byte) (uint64, error)
+	AccountBalance(key []byte) (uint64, error)
 }
 
 type TransactionValidator struct {
@@ -87,7 +87,8 @@ func (tv *TransactionValidator) ValidateTransaction(blockID crypto.Signature, tx
 		if err != nil {
 			return errors.Wrap(err, "could not get address from public key")
 		}
-		balance, err := tv.state.AccountBalance(senderAddr, nil)
+		senderKey := BalanceKey{Address: senderAddr}
+		balance, err := tv.state.AccountBalance(senderKey.Bytes())
 		if err != nil {
 			return err
 		}
@@ -115,11 +116,13 @@ func (tv *TransactionValidator) ValidateTransaction(blockID crypto.Signature, tx
 		if err != nil {
 			return errors.Wrap(err, "Could not get address from public key")
 		}
-		feeBalance, err := tv.state.AccountBalance(senderAddr, v.FeeAsset.ToID())
+		senderFeeKey := BalanceKey{Address: senderAddr, Asset: v.FeeAsset.ToID()}
+		feeBalance, err := tv.state.AccountBalance(senderFeeKey.Bytes())
 		if err != nil {
 			return err
 		}
-		amountBalance, err := tv.state.AccountBalance(senderAddr, v.AmountAsset.ToID())
+		senderAmountKey := BalanceKey{Address: senderAddr, Asset: v.AmountAsset.ToID()}
+		amountBalance, err := tv.state.AccountBalance(senderAmountKey.Bytes())
 		if err != nil {
 			return err
 		}
@@ -150,11 +153,13 @@ func (tv *TransactionValidator) ValidateTransaction(blockID crypto.Signature, tx
 		if err != nil {
 			return errors.Wrap(err, "could not get address from public key")
 		}
-		feeBalance, err := tv.state.AccountBalance(senderAddr, v.FeeAsset.ToID())
+		senderFeeKey := BalanceKey{Address: senderAddr, Asset: v.FeeAsset.ToID()}
+		feeBalance, err := tv.state.AccountBalance(senderFeeKey.Bytes())
 		if err != nil {
 			return err
 		}
-		amountBalance, err := tv.state.AccountBalance(senderAddr, v.AmountAsset.ToID())
+		senderAmountKey := BalanceKey{Address: senderAddr, Asset: v.AmountAsset.ToID()}
+		amountBalance, err := tv.state.AccountBalance(senderAmountKey.Bytes())
 		if err != nil {
 			return err
 		}

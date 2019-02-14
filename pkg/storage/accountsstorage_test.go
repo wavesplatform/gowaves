@@ -15,37 +15,21 @@ const (
 	TOTAL_BLOCKS_NUMBER = 200
 )
 
-func createAccountsStorage(blockIdsFile string) (*AccountsStorage, []string, error) {
-	res := make([]string, 3)
+func createAccountsStorage() (*AccountsStorage, []string, error) {
+	res := make([]string, 1)
 	dbDir0, err := ioutil.TempDir(os.TempDir(), "dbDir0")
 	if err != nil {
 		return nil, res, err
 	}
-	globalStor, err := keyvalue.NewKeyVal(dbDir0, false)
+	globalStor, err := keyvalue.NewKeyVal(dbDir0, true)
 	if err != nil {
 		return nil, res, err
 	}
-	dbDir1, err := ioutil.TempDir(os.TempDir(), "dbDir1")
+	stor, err := NewAccountsStorage(globalStor)
 	if err != nil {
 		return nil, res, err
 	}
-	addr2Index, err := keyvalue.NewKeyVal(dbDir1, false)
-	if err != nil {
-		return nil, res, err
-	}
-	dbDir2, err := ioutil.TempDir(os.TempDir(), "dbDir2")
-	if err != nil {
-		return nil, res, err
-	}
-	asset2Index, err := keyvalue.NewKeyVal(dbDir2, false)
-	if err != nil {
-		return nil, res, err
-	}
-	stor, err := NewAccountsStorage(globalStor, addr2Index, asset2Index, blockIdsFile)
-	if err != nil {
-		return nil, res, err
-	}
-	res = []string{dbDir0, dbDir1, dbDir2}
+	res = []string{dbDir0}
 	return stor, res, nil
 }
 
@@ -74,12 +58,15 @@ func genBlockID(fillWith byte) crypto.Signature {
 }
 
 func TestBalances(t *testing.T) {
-	stor, path, err := createAccountsStorage("")
+	stor, path, err := createAccountsStorage()
 	if err != nil {
 		t.Fatalf("Can not create AccountsStorage: %v\n", err)
 	}
 
 	defer func() {
+		if err := stor.Db.Close(); err != nil {
+			t.Fatalf("Failed to close DB: %v", err)
+		}
 		if err := util.CleanTemporaryDirs(path); err != nil {
 			t.Fatalf("Failed to clean test data dirs: %v", err)
 		}
@@ -89,10 +76,14 @@ func TestBalances(t *testing.T) {
 	balance := uint64(100)
 	blockID := genBlockID(0)
 	addr := genAddr(1)
-	if err := stor.SetAccountBalance(addr, nil, balance, blockID); err != nil {
+	key := proto.BalanceKey{Address: addr}
+	if err := stor.SetAccountBalance(key.Bytes(), balance, blockID); err != nil {
 		t.Fatalf("Faied to set account balance:%v\n", err)
 	}
-	newBalance, err := stor.AccountBalance(addr, nil)
+	if err := stor.Db.Flush(); err != nil {
+		t.Fatalf("Failed to flush DB: %v\n", err)
+	}
+	newBalance, err := stor.AccountBalance(key.Bytes())
 	if err != nil {
 		t.Fatalf("Failed to retrieve account balance: %v\n", err)
 	}
@@ -101,10 +92,13 @@ func TestBalances(t *testing.T) {
 	}
 	// Set balance in same block.
 	balance = 2500
-	if err := stor.SetAccountBalance(addr, nil, balance, blockID); err != nil {
+	if err := stor.SetAccountBalance(key.Bytes(), balance, blockID); err != nil {
 		t.Fatalf("Faied to set account balance:%v\n", err)
 	}
-	newBalance, err = stor.AccountBalance(addr, nil)
+	if err := stor.Db.Flush(); err != nil {
+		t.Fatalf("Failed to flush DB: %v\n", err)
+	}
+	newBalance, err = stor.AccountBalance(key.Bytes())
 	if err != nil {
 		t.Fatalf("Failed to retrieve account balance: %v\n", err)
 	}
@@ -114,10 +108,13 @@ func TestBalances(t *testing.T) {
 	// Set balance in new block.
 	balance = 10
 	blockID = genBlockID(1)
-	if err := stor.SetAccountBalance(addr, nil, balance, blockID); err != nil {
+	if err := stor.SetAccountBalance(key.Bytes(), balance, blockID); err != nil {
 		t.Fatalf("Faied to set account balance:%v\n", err)
 	}
-	newBalance, err = stor.AccountBalance(addr, nil)
+	if err := stor.Db.Flush(); err != nil {
+		t.Fatalf("Failed to flush DB: %v\n", err)
+	}
+	newBalance, err = stor.AccountBalance(key.Bytes())
 	if err != nil {
 		t.Fatalf("Failed to retrieve account balance: %v\n", err)
 	}
@@ -127,12 +124,15 @@ func TestBalances(t *testing.T) {
 }
 
 func TestRollbackBlock(t *testing.T) {
-	stor, path, err := createAccountsStorage("")
+	stor, path, err := createAccountsStorage()
 	if err != nil {
 		t.Fatalf("Can not create AccountsStorage: %v\n", err)
 	}
 
 	defer func() {
+		if err := stor.Db.Close(); err != nil {
+			t.Fatalf("Failed to close DB: %v", err)
+		}
 		if err := util.CleanTemporaryDirs(path); err != nil {
 			t.Fatalf("Failed to clean test data dirs: %v", err)
 		}
@@ -143,26 +143,35 @@ func TestRollbackBlock(t *testing.T) {
 	asset1 := genAsset(1)
 	for i := 0; i < TOTAL_BLOCKS_NUMBER; i++ {
 		blockID := genBlockID(byte(i))
-		if err := stor.SetAccountBalance(addr0, nil, uint64(i), blockID); err != nil {
+		key := proto.BalanceKey{Address: addr0}
+		if err := stor.SetAccountBalance(key.Bytes(), uint64(i), blockID); err != nil {
 			t.Fatalf("Faied to set account balance: %v\n", err)
 		}
-		if err := stor.SetAccountBalance(addr1, nil, uint64(i/2), blockID); err != nil {
+		key = proto.BalanceKey{Address: addr1}
+		if err := stor.SetAccountBalance(key.Bytes(), uint64(i/2), blockID); err != nil {
 			t.Fatalf("Faied to set account balance: %v\n", err)
 		}
-		if err := stor.SetAccountBalance(addr1, asset1, uint64(i/3), blockID); err != nil {
+		key = proto.BalanceKey{Address: addr1, Asset: asset1}
+		if err := stor.SetAccountBalance(key.Bytes(), uint64(i/3), blockID); err != nil {
 			t.Fatalf("Faied to set account balance: %v\n", err)
+		}
+		if err := stor.FinishBlock(); err != nil {
+			t.Fatalf("FinishBlock(): %v\n", err)
 		}
 	}
 	for i := TOTAL_BLOCKS_NUMBER - 1; i > 0; i-- {
-		balance0, err := stor.AccountBalance(addr0, nil)
+		key := proto.BalanceKey{Address: addr0}
+		balance0, err := stor.AccountBalance(key.Bytes())
 		if err != nil {
 			t.Fatalf("Failed to retrieve account balance: %v\n", err)
 		}
-		balance1, err := stor.AccountBalance(addr1, nil)
+		key = proto.BalanceKey{Address: addr1}
+		balance1, err := stor.AccountBalance(key.Bytes())
 		if err != nil {
 			t.Fatalf("Failed to retrieve account balance: %v\n", err)
 		}
-		asset1Balance, err := stor.AccountBalance(addr1, asset1)
+		key = proto.BalanceKey{Address: addr1, Asset: asset1}
+		asset1Balance, err := stor.AccountBalance(key.Bytes())
 		if err != nil {
 			t.Fatalf("Failed to retrieve account balance: %v\n", err)
 		}
@@ -179,7 +188,7 @@ func TestRollbackBlock(t *testing.T) {
 		// Undo block.
 		blockID := genBlockID(byte(i))
 		if err := stor.RollbackBlock(blockID); err != nil {
-			t.Fatalf("Failed to rollback block: %v\n", err)
+			t.Fatalf("Failed to rollback block: %v %d\n", err, i)
 		}
 	}
 }
