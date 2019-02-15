@@ -158,7 +158,6 @@ func main() {
 		return
 	}
 
-	counter := utils.NewCounter(ctx)
 	pool := bytespool.NewBytesPool(32, 2*1024*1024)
 
 	r := retransmit.NewRetransmitter(
@@ -176,7 +175,7 @@ func main() {
 	for _, a := range strings.Split(addresses, ",") {
 		a = strings.Trim(a, " ")
 		if a != "" {
-			r.AddAddress(ctx, a)
+			r.Address(ctx, a)
 		}
 	}
 

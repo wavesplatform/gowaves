@@ -62,7 +62,7 @@ func TestHandleError(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	remote := newRemote()
-	parent := newParent()
+	parent := NewParent()
 	go handle(handlerParams{
 		ctx:        ctx,
 		connection: &mockConnection{},

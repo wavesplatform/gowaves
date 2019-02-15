@@ -46,11 +46,11 @@ func sendToRemote(conn io.Writer, ctx context.Context, toRemoteCh chan []byte, e
 	}
 }
 
-func recvFromRemote(pool Pool, reader io.Reader, fromRemoteCh chan []byte, errCh chan error) {
+func recvFromRemote(pool Pool, conn io.Reader, fromRemoteCh chan []byte, errCh chan error) {
 
 	for {
 		b := pool.Get()
-		n, err := proto.ReadPacket(b, reader)
+		n, err := proto.ReadPacket(b, conn)
 		// we got message, that may be greater than out max network message
 		// better log this
 		if n == int64(pool.BytesLen()) {

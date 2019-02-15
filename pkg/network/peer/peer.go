@@ -60,10 +60,10 @@ type Parent struct {
 	InfoCh    chan InfoMessage
 }
 
-func newParent() Parent {
+func NewParent() Parent {
 	return Parent{
-		MessageCh: make(chan ProtoMessage, 10),
-		InfoCh:    make(chan InfoMessage, 10),
+		MessageCh: make(chan ProtoMessage, 100),
+		InfoCh:    make(chan InfoMessage, 100),
 	}
 }
 

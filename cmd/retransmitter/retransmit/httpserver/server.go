@@ -8,18 +8,24 @@ import (
 	"sort"
 
 	"github.com/gorilla/mux"
-	"github.com/wavesplatform/gowaves/cmd/retransmitter/retransmit"
 	"github.com/wavesplatform/gowaves/cmd/retransmitter/retransmit/utils"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
 )
 
 type HttpServer struct {
-	retransmitter *retransmit.Retransmitter
+	retransmitter Retransmitter
 	srv           http.Server
 }
 
-func NewHttpServer(r *retransmit.Retransmitter) *HttpServer {
+type Retransmitter interface {
+	Counter() *utils.Counter
+	KnownPeers() *utils.KnownPeers
+	SpawnedPeers() *utils.SpawnedPeers
+	ActiveConnections() *utils.Addr2Peers
+}
+
+func NewHttpServer(r Retransmitter) *HttpServer {
 	return &HttpServer{
 		retransmitter: r,
 	}

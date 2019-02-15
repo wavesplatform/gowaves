@@ -1,5 +1,7 @@
 package conn
 
+// TODO seems that file not used anymore
+
 import (
 	"bufio"
 	"context"
