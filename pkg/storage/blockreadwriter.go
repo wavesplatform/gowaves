@@ -360,22 +360,26 @@ func (rw *BlockReadWriter) cleanIDs(newHeight, newTxNumber uint64) error {
 		offset--
 	}
 	// Clean transaction IDs.
-	offset = rw.txNumber
-	txIdsToRemove := int(rw.txNumber - newTxNumber)
-	for i := 0; i < txIdsToRemove; i++ {
-		readPos := int64((offset - 1) * crypto.DigestSize)
-		idBytes := make([]byte, crypto.DigestSize)
-		if n, err := rw.txIDs.ReadAt(idBytes, readPos); err != nil {
-			return err
-		} else if n != crypto.DigestSize {
-			return errors.New("cleanIDs(): invalid id size")
+	// TODO this doesn't work now because size of IDs of Payment transactions differs from the rest.
+	// One of possible solutions is to use unique (and small - 8 bytes) indices here (serial numbers).
+	/*
+		offset = rw.txNumber
+		txIdsToRemove := int(rw.txNumber - newTxNumber)
+		for i := 0; i < txIdsToRemove; i++ {
+			readPos := int64((offset - 1) * crypto.DigestSize)
+			idBytes := make([]byte, crypto.DigestSize)
+			if n, err := rw.txIDs.ReadAt(idBytes, readPos); err != nil {
+				return err
+			} else if n != crypto.DigestSize {
+				return errors.New("cleanIDs(): invalid id size")
+			}
+			key := proto.TxOffsetKey{TxID: idBytes}
+			if err := rw.Db.Delete(key.Bytes()); err != nil {
+				return err
+			}
+			offset--
 		}
-		key := proto.TxOffsetKey{TxID: idBytes}
-		if err := rw.Db.Delete(key.Bytes()); err != nil {
-			return err
-		}
-		offset--
-	}
+	*/
 	return nil
 }
 
@@ -421,7 +425,7 @@ func (rw *BlockReadWriter) Rollback(removalEdge crypto.Signature, cleanIDs bool)
 	if cleanIDs {
 		// Clean IDs of blocks and transactions.
 		if err := rw.cleanIDs(newHeight, newTxNumber); err != nil {
-			return nil
+			return err
 		}
 	}
 	// Remove blockIDs from blockHeight2ID file.
