@@ -68,7 +68,8 @@ func (s *AccountsStorage) GetHeight() (uint64, error) {
 }
 
 func (s *AccountsStorage) filterHistory(historyKey []byte, history []byte) ([]byte, error) {
-	for i := len(history); i >= RECORD_SIZE; i -= RECORD_SIZE {
+	historySize := len(history)
+	for i := historySize; i >= RECORD_SIZE; i -= RECORD_SIZE {
 		record := history[i-RECORD_SIZE : i]
 		idBytes := record[len(record)-crypto.SignatureSize:]
 		blockID, err := toBlockID(idBytes)
@@ -82,13 +83,15 @@ func (s *AccountsStorage) filterHistory(historyKey []byte, history []byte) ([]by
 		}
 		if has {
 			// Is valid block.
-			return history, nil
-		} else {
-			// Erase invalid (outdated due to rollbacks) record.
-			history = history[:i-RECORD_SIZE]
-			if err := s.Db.Put(historyKey, history); err != nil {
-				return nil, err
-			}
+			break
+		}
+		// Erase invalid (outdated due to rollbacks) record.
+		history = history[:i-RECORD_SIZE]
+	}
+	if len(history) != historySize {
+		// Some records were removed, so we need to update the DB.
+		if err := s.Db.PutDirectly(historyKey, history); err != nil {
+			return nil, err
 		}
 	}
 	return history, nil
