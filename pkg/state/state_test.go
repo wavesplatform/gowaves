@@ -53,7 +53,7 @@ func TestBlockAcceptAndRollback(t *testing.T) {
 		}
 	}()
 
-	if err := importer.ApplyFromFile(manager, blocksPath, BLOCKS_NUMBER, true); err != nil {
+	if err := importer.ApplyFromFile(manager, blocksPath, BLOCKS_NUMBER, 0, true); err != nil {
 		t.Fatalf("Failed to import: %v\n", err)
 	}
 	if err := importer.CheckBalances(manager, balancesPath0); err != nil {

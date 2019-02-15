@@ -19,7 +19,7 @@ type State interface {
 	AccountBalance(addr proto.Address, asset []byte) (uint64, error)
 }
 
-func ApplyFromFile(st State, blockchainPath string, nBlocks int, checkBlocks bool) error {
+func ApplyFromFile(st State, blockchainPath string, nBlocks, startHeight uint64, checkBlocks bool) error {
 	blockchain, err := os.Open(blockchainPath)
 	if err != nil {
 		return errors.Errorf("failed to open blockchain file: %v\n", err)
@@ -27,7 +27,8 @@ func ApplyFromFile(st State, blockchainPath string, nBlocks int, checkBlocks boo
 	sb := make([]byte, 4)
 	buf := make([]byte, 2*1024*1024)
 	r := bufio.NewReader(blockchain)
-	for i := 0; i < nBlocks; i++ {
+	height := uint64(0)
+	for i := uint64(0); i < nBlocks; i++ {
 		if _, err := io.ReadFull(r, sb); err != nil {
 			return err
 		}
@@ -36,22 +37,25 @@ func ApplyFromFile(st State, blockchainPath string, nBlocks int, checkBlocks boo
 		if _, err := io.ReadFull(r, block); err != nil {
 			return err
 		}
-		if err := st.AcceptAndVerifyBlockBinary(block, true); err != nil {
-			return err
-		}
-		if checkBlocks {
-			savedBlock, err := st.GetBlockByHeight(uint64(i))
-			if err != nil {
+		if height >= startHeight {
+			if err := st.AcceptAndVerifyBlockBinary(block, true); err != nil {
 				return err
 			}
-			savedBlockBytes, err := savedBlock.MarshalBinary()
-			if err != nil {
-				return err
-			}
-			if bytes.Compare(block, savedBlockBytes) != 0 {
-				return errors.New("accepted and returned blocks differ\n")
+			if checkBlocks {
+				savedBlock, err := st.GetBlockByHeight(uint64(i))
+				if err != nil {
+					return err
+				}
+				savedBlockBytes, err := savedBlock.MarshalBinary()
+				if err != nil {
+					return err
+				}
+				if bytes.Compare(block, savedBlockBytes) != 0 {
+					return errors.New("accepted and returned blocks differ\n")
+				}
 			}
 		}
+		height++
 	}
 	if err := blockchain.Close(); err != nil {
 		return errors.Errorf("failed to close blockchain file: %v\n", err)
