@@ -62,5 +62,5 @@ func TestConnectionImpl_Close(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, conn.Close())
 	<-time.After(10 * time.Millisecond)
-	assert.EqualValues(t, 2, counter)
+	assert.EqualValues(t, 2, atomic.LoadUint64(&counter))
 }

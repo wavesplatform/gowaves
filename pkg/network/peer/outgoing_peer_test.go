@@ -2,22 +2,36 @@ package peer
 
 import (
 	"context"
+	"net"
+	"sync"
+	"testing"
+	"time"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/zap"
-
 	"github.com/wavesplatform/gowaves/pkg/libs/bytespool"
 	"github.com/wavesplatform/gowaves/pkg/network/conn"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"net"
-	"testing"
-	"time"
+	"go.uber.org/zap"
 )
 
 type server struct {
 	conn        net.Conn
 	l           net.Listener
 	readedBytes [][]byte
+	mu          sync.Mutex
+}
+
+func (a *server) addReadBytes(b []byte) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.readedBytes = append(a.readedBytes, b)
+}
+
+func (a *server) GetReadBytes() [][]byte {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.readedBytes
 }
 
 func runServerAsync(listen string) *server {
@@ -59,7 +73,7 @@ func (a *server) listen(l net.Listener) {
 			zap.S().Error(err)
 			return
 		}
-		a.readedBytes = append(a.readedBytes, b)
+		a.addReadBytes(b)
 	}
 }
 
@@ -111,8 +125,8 @@ func TestOutgoingPeer_SendMessage(t *testing.T) {
 	case <-time.After(10 * time.Millisecond):
 	}
 
-	assert.Equal(t, 1, len(server.readedBytes), "server should have exactly 1 message")
+	assert.Equal(t, 1, len(server.GetReadBytes()), "server should have exactly 1 message")
 	getPeersM := proto.GetPeersMessage{}
-	err := getPeersM.UnmarshalBinary(server.readedBytes[0])
+	err := getPeersM.UnmarshalBinary(server.GetReadBytes()[0])
 	require.NoError(t, err, "message should be of type proto.GetPeersMessage and unmarshal correctly")
 }

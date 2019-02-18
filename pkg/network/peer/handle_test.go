@@ -2,11 +2,12 @@ package peer
 
 import (
 	"context"
-	"github.com/go-errors/errors"
 	"net"
+	"sync/atomic"
 	"testing"
 	"time"
 
+	"github.com/go-errors/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/wavesplatform/gowaves/pkg/network/conn"
 )
@@ -42,20 +43,20 @@ func TestHHandleStopContext(t *testing.T) {
 func TestHandleReceive(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	called := false
+	called := int32(0)
 	c := &mockConnection{}
 	remote := newRemote()
 	go handle(handlerParams{
 		ctx:        ctx,
 		connection: c,
 		receiveFromRemoteCallback: func(b []byte, address string, resendTo chan ProtoMessage, pool conn.Pool) {
-			called = true
+			atomic.AddInt32(&called, 1)
 		},
 		remote: remote,
 	})
 	remote.fromCh <- []byte{}
 	<-time.After(5 * time.Millisecond)
-	assert.True(t, called)
+	assert.EqualValues(t, 1, atomic.LoadInt32(&called))
 }
 
 func TestHandleError(t *testing.T) {
