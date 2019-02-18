@@ -22,7 +22,6 @@ import (
 
 // filter transactions, ContentIDPeers, ContentIDGetPeers
 func receiveFromRemoteCallbackFunc(b []byte, id string, resendTo chan peer.ProtoMessage, pool conn.Pool) {
-
 	defer func() {
 		pool.Put(b)
 	}()
@@ -98,7 +97,6 @@ func receiveFromRemoteCallbackFunc(b []byte, id string, resendTo chan peer.Proto
 }
 
 func main() {
-
 	// delay before exit
 	defer func() {
 		<-time.After(1 * time.Second)

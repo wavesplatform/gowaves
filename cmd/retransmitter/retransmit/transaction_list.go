@@ -10,14 +10,14 @@ const idSize = 16
 type TransactionList struct {
 	index int
 	size  int
-	lst   []*proto.Transaction
+	lst   [][idSize]byte
 	id2t  map[[idSize]byte]struct{}
 }
 
 func NewTransactionList(size int) *TransactionList {
 	return &TransactionList{
 		size:  size,
-		lst:   make([]*proto.Transaction, size),
+		lst:   make([][idSize]byte, size),
 		index: 0,
 		id2t:  make(map[[idSize]byte]struct{}),
 	}
@@ -27,22 +27,17 @@ func (a *TransactionList) Add(transaction proto.Transaction) {
 	if a.Exists(transaction) {
 		return
 	}
-
 	b := [idSize]byte{}
 	copy(b[:], transaction.GetID())
 	a.id2t[b] = struct{}{}
-	a.clearOldTransaction(transaction)
+	a.replaceOldTransaction(transaction)
 }
 
-func (a *TransactionList) clearOldTransaction(transaction proto.Transaction) {
+func (a *TransactionList) replaceOldTransaction(transaction proto.Transaction) {
 	curIdx := a.index % a.size
 	curTransaction := a.lst[curIdx]
-	if curTransaction != nil {
-		b := [idSize]byte{}
-		copy(b[:], (*curTransaction).GetID())
-		delete(a.id2t, b)
-	}
-	a.lst[curIdx] = &transaction
+	delete(a.id2t, curTransaction)
+	copy(a.lst[curIdx][:], transaction.GetID())
 	a.index += 1
 }
 
