@@ -1,7 +1,6 @@
 package utils
 
 import (
-	"context"
 	"sort"
 	"sync"
 	"time"
@@ -26,31 +25,35 @@ type Count struct {
 type Counter struct {
 	mu                     sync.Mutex
 	resendTransactionCount map[string]Count
+	interrupt              chan struct{}
 }
 
-func NewCounter(ctx context.Context) *Counter {
+func NewCounter() *Counter {
 	c := &Counter{
 		resendTransactionCount: make(map[string]Count),
+		interrupt:              make(chan struct{}),
 	}
-	go c.clearBackground(ctx, time.Hour)
+	go c.clearBackground(c.interrupt, time.NewTicker(1*time.Hour))
 	return c
 }
 
 // collect how many transaction we send (or tried to send) in an hour
 func (a *Counter) IncEachTransaction() {
 	a.mu.Lock()
-	cnt := a.resendTransactionCount[time.Now().Format("2006-01-02T15")]
+	t := time.Now().Format("2006-01-02T15")
+	cnt := a.resendTransactionCount[t]
 	cnt.TransactionsSend += 1
-	a.resendTransactionCount[time.Now().Format("2006-01-02T15")] = cnt
+	a.resendTransactionCount[t] = cnt
 	a.mu.Unlock()
 }
 
 // collect how many unique transaction we received
 func (a *Counter) IncUniqueTransaction() {
 	a.mu.Lock()
-	cnt := a.resendTransactionCount[time.Now().Format("2006-01-02T15")]
+	t := time.Now().Format("2006-01-02T15")
+	cnt := a.resendTransactionCount[t]
 	cnt.UniqueTransaction += 1
-	a.resendTransactionCount[time.Now().Format("2006-01-02T15")] = cnt
+	a.resendTransactionCount[t] = cnt
 	a.mu.Unlock()
 }
 
@@ -68,14 +71,13 @@ func (a *Counter) Get() []Response {
 	return out
 }
 
-func (a *Counter) clearBackground(ctx context.Context, duration time.Duration) {
+func (a *Counter) clearBackground(interrupt chan struct{}, ticker *time.Ticker) {
 	for {
 		select {
-		case <-time.After(duration):
+		case <-ticker.C:
 			a.clear(100)
-		case <-ctx.Done():
+		case <-interrupt:
 			return
-
 		}
 	}
 }
@@ -88,4 +90,8 @@ func (a *Counter) clear(count int) {
 		delete(a.resendTransactionCount, last.Time)
 		a.mu.Unlock()
 	}
+}
+
+func (a *Counter) Stop() {
+	close(a.interrupt)
 }

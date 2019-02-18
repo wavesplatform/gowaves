@@ -3,79 +3,14 @@ package utils
 import (
 	"context"
 	"encoding/json"
-	"io/ioutil"
-	"os"
 	"sync"
 	"time"
 
-	"github.com/spf13/afero"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
 )
 
 const defaultInterval = 5 * time.Minute
-
-type Storage interface {
-	Save([]byte) error
-	Read() ([]byte, error)
-	Close()
-}
-
-type FileBasedStorage struct {
-	f afero.File
-}
-
-func NewFileBasedStorage(fs afero.Fs, pathToFile string) (*FileBasedStorage, error) {
-	f, err := fs.OpenFile(pathToFile, os.O_RDWR|os.O_CREATE, 0644)
-	if err != nil {
-		return nil, err
-	}
-
-	return &FileBasedStorage{
-		f: f,
-	}, nil
-}
-
-func (a *FileBasedStorage) Save(b []byte) error {
-	err := a.f.Truncate(0)
-	if err != nil {
-		return err
-	}
-	_, err = a.f.Seek(0, 0)
-	if err != nil {
-		return err
-	}
-
-	_, err = a.f.Write(b)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (a *FileBasedStorage) Read() ([]byte, error) {
-	bts, err := ioutil.ReadAll(a.f)
-	if err != nil {
-		return nil, err
-	}
-	return bts, nil
-}
-
-func (a *FileBasedStorage) Close() {
-	_ = a.f.Close()
-}
-
-type NoOnStorage struct{}
-
-func (a NoOnStorage) Read() ([]byte, error) {
-	return []byte{}, nil
-}
-
-func (a NoOnStorage) Save(b []byte) error {
-	return nil
-}
-
-func (a NoOnStorage) Close() {}
 
 type KnownPeers struct {
 	knownPeers map[string]proto.Version
@@ -85,7 +20,7 @@ type KnownPeers struct {
 }
 
 func NewKnownPeers(storage Storage) (*KnownPeers, error) {
-	return NewKnownPeersInterval(storage, defaultInterval)
+	return NewKnownPeersInterval(storage, time.NewTicker(defaultInterval))
 }
 
 type JsonKnowPeerRow struct {
@@ -93,7 +28,7 @@ type JsonKnowPeerRow struct {
 	Version proto.Version
 }
 
-func NewKnownPeersInterval(storage Storage, saveInterval time.Duration) (*KnownPeers, error) {
+func NewKnownPeersInterval(storage Storage, saveInterval *time.Ticker) (*KnownPeers, error) {
 	bts, err := storage.Read()
 	if err != nil {
 		return nil, err
@@ -119,10 +54,10 @@ func NewKnownPeersInterval(storage Storage, saveInterval time.Duration) (*KnownP
 	return a, nil
 }
 
-func (a *KnownPeers) periodicallySave(ctx context.Context, interval time.Duration) {
+func (a *KnownPeers) periodicallySave(ctx context.Context, ticker *time.Ticker) {
 	for {
 		select {
-		case <-time.After(interval):
+		case <-ticker.C:
 			err := a.save()
 			if err != nil {
 				zap.S().Error(err)
@@ -198,10 +133,5 @@ func (a *KnownPeers) Stop() {
 	if err != nil {
 		zap.S().Error(err)
 	}
-	a.storage.Close()
-}
-
-func (a *KnownPeers) exitWithoutSave() {
-	a.cancel()
 	a.storage.Close()
 }

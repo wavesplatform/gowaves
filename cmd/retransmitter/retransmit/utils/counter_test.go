@@ -1,17 +1,14 @@
 package utils
 
 import (
-	"context"
-	"github.com/magiconair/properties/assert"
-	"github.com/stretchr/testify/require"
 	"testing"
+
+	"github.com/magiconair/properties/assert"
 )
 
 func TestCounter_IncEachTransaction(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	c := NewCounter(ctx)
-	require.NotNil(t, c)
+	c := NewCounter()
+	defer c.Stop()
 
 	assert.Equal(t, 0, len(c.Get()))
 	c.IncEachTransaction()
@@ -19,10 +16,8 @@ func TestCounter_IncEachTransaction(t *testing.T) {
 }
 
 func TestCounter_IncUniqueTransaction(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	c := NewCounter(ctx)
-	require.NotNil(t, c)
+	c := NewCounter()
+	defer c.Stop()
 
 	assert.Equal(t, 0, len(c.Get()))
 	c.IncUniqueTransaction()

@@ -158,25 +158,22 @@ func main() {
 		return
 	}
 
-	counter := utils.NewCounter(ctx)
 	pool := bytespool.NewBytesPool(32, 2*1024*1024)
 
-	r := retransmit.NewRetransmitter(
-		wavesNetwork,
-		declAddr,
-		knownPeers,
-		counter,
-		peer.RunOutgoingPeer,
-		peer.RunIncomingPeer,
-		receiveFromRemoteCallbackFunc,
-		pool)
+	parent := peer.NewParent()
+
+	spawner := retransmit.NewPeerSpawner(pool, receiveFromRemoteCallbackFunc, parent, wavesNetwork, declAddr)
+
+	behaviour := retransmit.NewBehaviour(knownPeers, spawner)
+
+	r := retransmit.NewRetransmitter(behaviour, parent)
 
 	go r.Run(ctx)
 
 	for _, a := range strings.Split(addresses, ",") {
 		a = strings.Trim(a, " ")
 		if a != "" {
-			r.AddAddress(ctx, a)
+			r.Address(ctx, a)
 		}
 	}
 
@@ -188,7 +185,7 @@ func main() {
 		}
 	}
 
-	srv := httpserver.NewHttpServer(r)
+	srv := httpserver.NewHttpServer(behaviour)
 
 	go func() {
 		err := srv.ListenAndServe()
