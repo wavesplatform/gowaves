@@ -14,8 +14,8 @@ import (
 const (
 	BATCH_SIZE    = 1000
 	BLOCKS_NUMBER = 1000
-	FIRST_HEIGHT  = 900
-	SECOND_HEIGHT = 30
+	FIRST_HEIGHT  = 902
+	SECOND_HEIGHT = 32
 )
 
 func getLocalDir() (string, error) {
@@ -53,7 +53,7 @@ func TestBlockAcceptAndRollback(t *testing.T) {
 		}
 	}()
 
-	if err := importer.ApplyFromFile(manager, blocksPath, BLOCKS_NUMBER, 0, true); err != nil {
+	if err := importer.ApplyFromFile(manager, blocksPath, BLOCKS_NUMBER, 1, true); err != nil {
 		t.Fatalf("Failed to import: %v\n", err)
 	}
 	if err := importer.CheckBalances(manager, balancesPath0); err != nil {

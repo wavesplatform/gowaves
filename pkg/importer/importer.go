@@ -31,7 +31,7 @@ func ApplyFromFile(st State, blockchainPath string, nBlocks, startHeight uint64,
 	sb := make([]byte, 4)
 	var buf [maxBlockSize]byte
 	r := bufio.NewReader(blockchain)
-	for height := uint64(0); height < nBlocks; height++ {
+	for height := uint64(1); height <= nBlocks; height++ {
 		if _, err := io.ReadFull(r, sb); err != nil {
 			return err
 		}
@@ -45,7 +45,7 @@ func ApplyFromFile(st State, blockchainPath string, nBlocks, startHeight uint64,
 				return err
 			}
 			if checkBlocks {
-				savedBlock, err := st.GetBlockByHeight(height)
+				savedBlock, err := st.GetBlockByHeight(height + 1)
 				if err != nil {
 					return err
 				}

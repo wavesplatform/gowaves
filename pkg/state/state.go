@@ -81,7 +81,7 @@ func (stor *BalancesStorage) SetAccountBalance(key []byte, balance uint64) error
 }
 
 type StateManager struct {
-	genesis         crypto.Signature
+	genesis         proto.Block
 	db              keyvalue.KeyValue
 	accountsStorage *AccountsStorage
 	rw              *BlockReadWriter
@@ -123,7 +123,7 @@ func syncDbAndStorage(db keyvalue.KeyValue, stor *AccountsStorage, rw *BlockRead
 }
 
 func NewStateManager(dataDir string, params BlockStorageParams) (*StateManager, error) {
-	genesis, err := crypto.NewSignatureFromBase58(genesisSignature)
+	genesisSig, err := crypto.NewSignatureFromBase58(genesisSignature)
 	if err != nil {
 		return nil, errors.Errorf("failed to get genesis signature from string: %v\n", err)
 	}
@@ -139,13 +139,21 @@ func NewStateManager(dataDir string, params BlockStorageParams) (*StateManager, 
 	if err != nil {
 		return nil, errors.Errorf("failed to create block storage: %v\n", err)
 	}
-	accountsStor, err := NewAccountsStorage(genesis, db)
+	accountsStor, err := NewAccountsStorage(genesisSig, db)
 	if err != nil {
 		return nil, errors.Errorf("failed to create accounts storage: %v\n", err)
 	}
 	accountsStor.SetRollbackMax(rollbackMaxBlocks, rw)
 	if err := syncDbAndStorage(db, accountsStor, rw); err != nil {
 		return nil, errors.Errorf("failed to sync block storage and DB: %v\n", err)
+	}
+	genesis := proto.Block{
+		BlockHeader: proto.BlockHeader{
+			Version:        1,
+			Timestamp:      1460678400000,
+			BlockSignature: genesisSig,
+			Height:         1,
+		},
 	}
 	state := &StateManager{genesis: genesis, db: db, accountsStorage: accountsStor, rw: rw}
 	return state, nil
@@ -156,7 +164,7 @@ func (s *StateManager) applyGenesis() error {
 	if err != nil {
 		return err
 	}
-	tv, err := NewTransactionValidator(s.genesis, balancesStor)
+	tv, err := NewTransactionValidator(s.genesis.BlockSignature, balancesStor)
 	if err != nil {
 		return err
 	}
@@ -165,7 +173,7 @@ func (s *StateManager) applyGenesis() error {
 		return err
 	}
 	for _, tx := range genesisTx {
-		if err := tv.ValidateTransaction(s.genesis, &tx, true); err != nil {
+		if err := tv.ValidateTransaction(s.genesis.BlockSignature, &tx, true); err != nil {
 			return errors.Wrap(err, "invalid genesis transaction")
 		}
 		if err := s.performGenesisTransaction(tx, balancesStor); err != nil {
@@ -173,7 +181,7 @@ func (s *StateManager) applyGenesis() error {
 		}
 	}
 	// Write transactions from local balances storage into DB batch.
-	if err := s.addChangesToBatch(balancesStor, s.genesis); err != nil {
+	if err := s.addChangesToBatch(balancesStor, s.genesis.BlockSignature); err != nil {
 		return err
 	}
 	// Write batch to DB.
@@ -184,6 +192,9 @@ func (s *StateManager) applyGenesis() error {
 }
 
 func (s *StateManager) GetBlock(blockID crypto.Signature) (*proto.Block, error) {
+	if blockID == s.genesis.BlockSignature {
+		return &s.genesis, nil
+	}
 	headerBytes, err := s.rw.ReadBlockHeader(blockID)
 	if err != nil {
 		return nil, err
@@ -202,7 +213,10 @@ func (s *StateManager) GetBlock(blockID crypto.Signature) (*proto.Block, error) 
 }
 
 func (s *StateManager) GetBlockByHeight(height uint64) (*proto.Block, error) {
-	blockID, err := s.rw.BlockIDByHeight(height)
+	if height == 1 {
+		return &s.genesis, nil
+	}
+	blockID, err := s.rw.BlockIDByHeight(height - 2)
 	if err != nil {
 		return nil, err
 	}
@@ -210,15 +224,29 @@ func (s *StateManager) GetBlockByHeight(height uint64) (*proto.Block, error) {
 }
 
 func (s *StateManager) Height() (uint64, error) {
-	return s.rw.CurrentHeight()
+	height, err := s.rw.CurrentHeight()
+	if err != nil {
+		return 0, err
+	}
+	return height + 1, nil
 }
 
 func (s *StateManager) BlockIDToHeight(blockID crypto.Signature) (uint64, error) {
-	return s.rw.HeightByBlockID(blockID)
+	if blockID == s.genesis.BlockSignature {
+		return 1, nil
+	}
+	height, err := s.rw.HeightByBlockID(blockID)
+	if err != nil {
+		return 0, err
+	}
+	return height + 2, nil
 }
 
 func (s *StateManager) HeightToBlockID(height uint64) (crypto.Signature, error) {
-	return s.rw.BlockIDByHeight(height)
+	if height == 1 {
+		return s.genesis.BlockSignature, nil
+	}
+	return s.rw.BlockIDByHeight(height - 2)
 }
 
 func (s *StateManager) AccountBalance(addr proto.Address, asset []byte) (uint64, error) {
@@ -433,7 +461,7 @@ func (s *StateManager) addNewBlock(block *proto.Block, initialisation bool) erro
 	if err != nil {
 		return err
 	}
-	tv, err := NewTransactionValidator(s.genesis, balancesStor)
+	tv, err := NewTransactionValidator(s.genesis.BlockSignature, balancesStor)
 	if err != nil {
 		return err
 	}
@@ -486,11 +514,13 @@ func (s *StateManager) AcceptAndVerifyBlockBinary(data []byte, initialisation bo
 		return errors.New("invalid block signature")
 	}
 	// Check parent.
-	height, err := s.rw.CurrentHeight()
+	height, err := s.Height()
 	if err != nil {
 		return err
 	}
-	if height == 0 {
+	// Heights start from 1.
+	height += 1
+	if height == 2 {
 		if initialisation {
 			if err := s.applyGenesis(); err != nil {
 				return err
@@ -498,24 +528,22 @@ func (s *StateManager) AcceptAndVerifyBlockBinary(data []byte, initialisation bo
 		} else {
 			return errors.New("zero height in non-initialisation mode")
 		}
-		// First block.
-		if block.Parent != s.genesis {
-			return errors.New("incorrect parent")
-		}
-	} else {
-		parent, err := s.GetBlockByHeight(height - 1)
-		if err != nil {
-			return err
-		}
-		if parent.BlockSignature != block.Parent {
-			return errors.New("incorrect parent")
-		}
+	}
+	parent, err := s.GetBlockByHeight(height - 1)
+	if err != nil {
+		return err
+	}
+	if parent.BlockSignature != block.Parent {
+		return errors.New("incorrect parent")
 	}
 	return s.addNewBlock(&block, initialisation)
 }
 
 func (s *StateManager) RollbackToHeight(height uint64) error {
-	blockID, err := s.rw.BlockIDByHeight(height)
+	if height < 2 {
+		return errors.New("minimum block to rollback to is the first block")
+	}
+	blockID, err := s.rw.BlockIDByHeight(height - 2)
 	if err != nil {
 		return err
 	}
