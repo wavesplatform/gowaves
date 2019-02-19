@@ -2,7 +2,6 @@ package ast
 
 import (
 	"encoding/hex"
-	"fmt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
@@ -559,9 +558,6 @@ func TestUserAddressFromPublicKey(t *testing.T) {
 	require.NoError(t, err)
 	addr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, pub)
 	require.NoError(t, err)
-
-	fmt.Println(proto.NewAddressFromPublicKey(proto.MainNetScheme, pub))
-	fmt.Println(proto.NewAddressFromPublicKey(proto.TestNetScheme, pub))
 
 	rs, err := UserAddressFromPublicKey(newEmptyScope(), Params(NewBytes(pub.Bytes())))
 	require.NoError(t, err)

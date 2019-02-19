@@ -1,6 +1,7 @@
 package proto
 
 import (
+	"encoding"
 	"encoding/binary"
 	"fmt"
 	"io"
@@ -30,6 +31,13 @@ const (
 	ContentIDTransaction   = 0x19
 	ContentIDCheckpoint    = 0x64
 )
+
+type Message interface {
+	io.ReaderFrom
+	io.WriterTo
+	encoding.BinaryUnmarshaler
+	encoding.BinaryMarshaler
+}
 
 type header struct {
 	Length        uint32
@@ -259,6 +267,12 @@ func (h *Handshake) WriteTo(w io.Writer) (int64, error) {
 	return n, err
 }
 
+func (h *Handshake) PeerInfo() (PeerInfo, error) {
+	p := PeerInfo{}
+	err := p.UnmarshalBinary(h.DeclaredAddrBytes)
+	return p, err
+}
+
 // GetPeersMessage implements the GetPeers message from the waves protocol
 type GetPeersMessage struct{}
 
@@ -336,6 +350,23 @@ type PeerInfo struct {
 	Port uint16
 }
 
+func NewPeerInfoFromString(addr string) (PeerInfo, error) {
+	strs := strings.Split(addr, ":")
+	if len(strs) != 2 {
+		return PeerInfo{}, errors.Errorf("invalid addr %s", addr)
+	}
+
+	ip := net.ParseIP(string(strs[0]))
+	port, err := strconv.ParseUint(strs[1], 10, 64)
+	if err != nil {
+		return PeerInfo{}, errors.Errorf("invalid port %s", strs[1])
+	}
+	return PeerInfo{
+		Addr: ip,
+		Port: uint16(port),
+	}, nil
+}
+
 // MarshalBinary encodes PeerInfo message to binary form
 func (m *PeerInfo) MarshalBinary() ([]byte, error) {
 	buffer := make([]byte, 8)
@@ -394,7 +425,7 @@ func (m *PeerInfo) UnmarshalJSON(value []byte) error {
 
 	s, err := strconv.Unquote(s)
 	if err != nil {
-		errors.Wrap(err, "failed to unmarshal PeerInfo from JSON")
+		return errors.Wrap(err, "failed to unmarshal PeerInfo from JSON")
 	}
 
 	splitted := strings.SplitN(s, "/", 2)
@@ -417,10 +448,22 @@ func (m *PeerInfo) UnmarshalJSON(value []byte) error {
 	m.Addr = net.ParseIP(addr)
 	port64, err := strconv.ParseUint(port, 10, 16)
 	if err != nil {
-		errors.Wrap(err, "failed to unmarshal PeerInfo from JSON")
+		return errors.Wrap(err, "failed to unmarshal PeerInfo from JSON")
 	}
 	m.Port = uint16(port64)
 	return nil
+}
+
+func (m *PeerInfo) Empty() bool {
+	if m.Addr == nil || m.Addr.String() == "0.0.0.0" {
+		return true
+	}
+
+	if m.Port == 0 {
+		return true
+	}
+
+	return false
 }
 
 // PeersMessage represents the peers message
@@ -505,6 +548,32 @@ func readPacket(r io.Reader) ([]byte, int64, error) {
 	packet = append(packetLen[:], packet...)
 
 	return packet, int64(nn), nil
+}
+
+func ReadPacket(buf []byte, r io.Reader) (int64, error) {
+	packetLen := buf[:4]
+	//zap.S().Infof("==1packetLen %d %d", len(packetLen), packetLen)
+	nn, err := io.ReadFull(r, packetLen)
+	if err != nil {
+		return int64(nn), err
+	}
+	l := binary.BigEndian.Uint32(packetLen)
+	//zap.S().Infof("==2packetLen %d", l)
+	buf = buf[4:]
+	packet := buf[:l]
+	//zap.S().Infof("==3packet length %d", len(packet))
+	//packet := make([]byte, l)
+	//for i := 0; i < len(packet); i++ {
+	//	packet[i] = 0x88
+	//}
+	n, err := io.ReadFull(r, packet)
+	if err != nil {
+		return int64(nn + n), err
+	}
+	nn += n
+	//packet = append(packetLen[:], packet...)
+
+	return int64(nn), nil
 }
 
 // ReadFrom reads PeersMessage from io.Reader
@@ -901,7 +970,7 @@ func (m *ScoreMessage) WriteTo(w io.Writer) (int64, error) {
 	return n, err
 }
 
-// TransactionMessage represents Transaction message
+// TransactionMessage represents TransactionsSend message
 type TransactionMessage struct {
 	Transaction []byte
 }
@@ -939,9 +1008,8 @@ func (m *TransactionMessage) UnmarshalBinary(data []byte) error {
 	if h.ContentID != ContentIDTransaction {
 		return fmt.Errorf("wrong ContentID in header: %x", h.ContentID)
 	}
-
-	m.Transaction = data[17:]
-
+	m.Transaction = make([]byte, h.PayloadLength)
+	copy(m.Transaction, data[headerLength:headerLength+h.PayloadLength])
 	return nil
 }
 

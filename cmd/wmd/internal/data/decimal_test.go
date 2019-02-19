@@ -1,9 +1,10 @@
 package data
 
 import (
+	"testing"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"testing"
 )
 
 func TestDecimalString1(t *testing.T) {

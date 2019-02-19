@@ -293,6 +293,24 @@ func TestProtocolMarshalling(t *testing.T) {
 	}
 }
 
+func TestTransactionMessage_UnmarshalBinary(t *testing.T) {
+
+	p := TransactionMessage{
+		Transaction: []byte("transaction"),
+	}
+
+	bts, err := p.MarshalBinary()
+	require.NoError(t, err)
+
+	otherBts := make([]byte, len(bts)+100)
+	copy(otherBts, bts)
+
+	p2 := TransactionMessage{}
+	err = p2.UnmarshalBinary(otherBts)
+	require.NoError(t, err)
+	assert.Equal(t, []byte("transaction"), p2.Transaction)
+}
+
 func TestPeerInfo_MarshalJSON(t *testing.T) {
 	p := PeerInfo{
 		Addr: net.ParseIP("8.8.8.8"),
@@ -306,6 +324,13 @@ func TestPeerInfo_MarshalJSON(t *testing.T) {
 	p = PeerInfo{}
 	js, err = json.Marshal(p)
 	require.NotNil(t, err)
+}
+
+func TestNewPeerInfoFromString(t *testing.T) {
+	rs, err := NewPeerInfoFromString("34.253.153.4:6868")
+	require.NoError(t, err)
+	assert.Equal(t, "34.253.153.4", rs.Addr.String())
+	assert.EqualValues(t, 6868, rs.Port)
 }
 
 func TestPeerInfo_UnmarshalJSON(t *testing.T) {

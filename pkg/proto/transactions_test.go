@@ -4,14 +4,15 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"github.com/stretchr/testify/require"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/mr-tron/base58/base58"
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 )
 
@@ -3472,4 +3473,121 @@ func TestSetAssetScriptV1ToJSON(t *testing.T) {
 			}
 		}
 	}
+}
+
+func BenchmarkBytesToTransaction_WithReflection(b *testing.B) {
+	b.ReportAllocs()
+	bts := []byte{0, 4, 2, 132, 79, 148, 251, 4, 38, 180, 107, 148, 225, 225, 107, 146, 125, 26, 243, 25, 35, 202, 83, 226, 142, 64, 8, 106, 72, 250, 228, 237, 132, 90, 16, 0, 0, 0, 0, 1, 104, 225, 147, 43, 220, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 134, 160, 1, 68, 152, 220, 142, 172, 155, 208, 202, 105, 149, 210, 120, 159, 30, 146, 64, 212, 101, 147, 228, 250, 36, 56, 81, 55, 0, 3, 102, 111, 111, 1, 0, 1, 0, 64, 154, 86, 48, 50, 47, 58, 64, 254, 146, 85, 72, 252, 23, 49, 64, 40, 34, 104, 117, 225, 126, 65, 235, 225, 38, 13, 114, 120, 7, 30, 240, 209, 37, 144, 166, 15, 14, 241, 232, 101, 103, 82, 232, 163, 165, 82, 96, 52, 132, 191, 194, 160, 155, 237, 106, 43, 82, 203, 125, 122, 219, 35, 186, 8}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, err := BytesToTransaction(bts)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkBytesToTransaction_WithoutReflection(b *testing.B) {
+	b.ReportAllocs()
+	bts := []byte{0, 4, 2, 132, 79, 148, 251, 4, 38, 180, 107, 148, 225, 225, 107, 146, 125, 26, 243, 25, 35, 202, 83, 226, 142, 64, 8, 106, 72, 250, 228, 237, 132, 90, 16, 0, 0, 0, 0, 1, 104, 225, 147, 43, 220, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 134, 160, 1, 68, 152, 220, 142, 172, 155, 208, 202, 105, 149, 210, 120, 159, 30, 146, 64, 212, 101, 147, 228, 250, 36, 56, 81, 55, 0, 3, 102, 111, 111, 1, 0, 1, 0, 64, 154, 86, 48, 50, 47, 58, 64, 254, 146, 85, 72, 252, 23, 49, 64, 40, 34, 104, 117, 225, 126, 65, 235, 225, 38, 13, 114, 120, 7, 30, 240, 209, 37, 144, 166, 15, 14, 241, 232, 101, 103, 82, 232, 163, 165, 82, 96, 52, 132, 191, 194, 160, 155, 237, 106, 43, 82, 203, 125, 122, 219, 35, 186, 8}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, err := getTransaction(bts)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func getTransaction(txb []byte) (Transaction, error) {
+	switch txb[0] {
+	case 0:
+		switch txb[1] {
+		case byte(IssueTransaction):
+			var tx IssueV2
+			err := tx.UnmarshalBinary(txb)
+			return &tx, err
+		case byte(TransferTransaction):
+			var tx TransferV2
+			err := tx.UnmarshalBinary(txb)
+			return &tx, err
+		case byte(ReissueTransaction):
+			var tx ReissueV2
+			err := tx.UnmarshalBinary(txb)
+			return &tx, err
+		case byte(BurnTransaction):
+			var tx BurnV2
+			err := tx.UnmarshalBinary(txb)
+			return &tx, err
+		case byte(ExchangeTransaction):
+			var tx ExchangeV2
+			err := tx.UnmarshalBinary(txb)
+			return &tx, err
+		case byte(LeaseTransaction):
+			var tx LeaseV2
+			err := tx.UnmarshalBinary(txb)
+			return &tx, err
+		case byte(LeaseCancelTransaction):
+			var tx LeaseCancelV2
+			err := tx.UnmarshalBinary(txb)
+			return &tx, err
+		case byte(CreateAliasTransaction):
+			var tx CreateAliasV2
+			err := tx.UnmarshalBinary(txb)
+			return &tx, err
+		case byte(DataTransaction):
+			var tx DataV1
+			err := tx.UnmarshalBinary(txb)
+			return &tx, err
+		case byte(SetScriptTransaction):
+			var tx SetScriptV1
+			err := tx.UnmarshalBinary(txb)
+			return &tx, err
+		case byte(SponsorshipTransaction):
+			var tx SponsorshipV1
+			err := tx.UnmarshalBinary(txb)
+			return &tx, err
+		default:
+			return nil, errors.New("unknown transaction")
+		}
+
+	case byte(IssueTransaction):
+		var tx IssueV1
+		err := tx.UnmarshalBinary(txb)
+		return &tx, err
+
+	case byte(TransferTransaction):
+		var tx TransferV1
+		err := tx.UnmarshalBinary(txb)
+		return &tx, err
+	case byte(ReissueTransaction):
+		var tx ReissueV1
+		err := tx.UnmarshalBinary(txb)
+		return &tx, err
+	case byte(BurnTransaction):
+		var tx BurnV1
+		err := tx.UnmarshalBinary(txb)
+		return &tx, err
+	case byte(ExchangeTransaction):
+		var tx ExchangeV1
+		err := tx.UnmarshalBinary(txb)
+		return &tx, err
+	case byte(LeaseTransaction):
+		var tx LeaseV1
+		err := tx.UnmarshalBinary(txb)
+		return &tx, err
+	case byte(LeaseCancelTransaction):
+		var tx LeaseCancelV1
+		err := tx.UnmarshalBinary(txb)
+		return &tx, err
+	case byte(CreateAliasTransaction):
+		var tx CreateAliasV1
+		err := tx.UnmarshalBinary(txb)
+		return &tx, err
+	case byte(MassTransferTransaction):
+		var tx MassTransferV1
+		err := tx.UnmarshalBinary(txb)
+		return &tx, err
+	}
+	return nil, errors.New("unknown transaction")
 }

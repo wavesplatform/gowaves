@@ -125,7 +125,6 @@ var (
 )
 
 type Transaction interface {
-	Transaction()
 	GetID() []byte
 	MarshalBinary() ([]byte, error)
 	UnmarshalBinary([]byte) error
@@ -174,8 +173,6 @@ type Genesis struct {
 	Recipient Address           `json:"recipient"`
 	Amount    uint64            `json:"amount"`
 }
-
-func (Genesis) Transaction() {}
 
 func (tx Genesis) GetID() []byte {
 	return tx.ID.Bytes()
@@ -277,8 +274,6 @@ type Payment struct {
 	Fee       uint64            `json:"fee"`
 	Timestamp uint64            `json:"timestamp"`
 }
-
-func (Payment) Transaction() {}
 
 func (tx Payment) GetID() []byte {
 	return tx.ID.Bytes()
@@ -408,8 +403,6 @@ type IssueV1 struct {
 	Timestamp   uint64            `json:"timestamp,omitempty"`
 	Fee         uint64            `json:"fee"`
 }
-
-func (IssueV1) Transaction() {}
 
 func (tx IssueV1) GetID() []byte {
 	return tx.ID.Bytes()
@@ -575,8 +568,6 @@ type IssueV2 struct {
 	Fee         uint64           `json:"fee"`
 	Timestamp   uint64           `json:"timestamp,omitempty"`
 }
-
-func (IssueV2) Transaction() {}
 
 func (tx IssueV2) GetID() []byte {
 	return tx.ID.Bytes()
@@ -906,8 +897,6 @@ type TransferV1 struct {
 	transfer
 }
 
-func (TransferV1) Transaction() {}
-
 func (tx TransferV1) GetID() []byte {
 	return tx.ID.Bytes()
 }
@@ -1026,8 +1015,6 @@ type TransferV2 struct {
 	Proofs  *ProofsV1       `json:"proofs,omitempty"`
 	transfer
 }
-
-func (TransferV2) Transaction() {}
 
 func (tx TransferV2) GetID() []byte {
 	return tx.ID.Bytes()
@@ -1233,8 +1220,6 @@ type ReissueV1 struct {
 	reissue
 }
 
-func (ReissueV1) Transaction() {}
-
 func (tx ReissueV1) GetID() []byte {
 	return tx.ID.Bytes()
 }
@@ -1355,8 +1340,6 @@ type ReissueV2 struct {
 	Proofs  *ProofsV1       `json:"proofs,omitempty"`
 	reissue
 }
-
-func (ReissueV2) Transaction() {}
 
 func (tx ReissueV2) GetID() []byte {
 	return tx.ID.Bytes()
@@ -1544,8 +1527,6 @@ type BurnV1 struct {
 	burn
 }
 
-func (BurnV1) Transaction() {}
-
 func (tx BurnV1) GetID() []byte {
 	return tx.ID.Bytes()
 }
@@ -1657,8 +1638,6 @@ type BurnV2 struct {
 	Proofs  *ProofsV1       `json:"proofs,omitempty"`
 	burn
 }
-
-func (BurnV2) Transaction() {}
 
 func (tx BurnV2) GetID() []byte {
 	return tx.ID.Bytes()
@@ -1804,8 +1783,6 @@ type ExchangeV1 struct {
 	Fee            uint64            `json:"fee"`
 	Timestamp      uint64            `json:"timestamp,omitempty"`
 }
-
-func (ExchangeV1) Transaction() {}
 
 func (tx ExchangeV1) GetID() []byte {
 	return tx.ID.Bytes()
@@ -2000,8 +1977,6 @@ type ExchangeV2 struct {
 	Fee            uint64           `json:"fee"`
 	Timestamp      uint64           `json:"timestamp,omitempty"`
 }
-
-func (ExchangeV2) Transaction() {}
 
 func (tx ExchangeV2) GetID() []byte {
 	return tx.ID.Bytes()
@@ -2388,8 +2363,6 @@ type LeaseV1 struct {
 	lease
 }
 
-func (LeaseV1) Transaction() {}
-
 func (tx LeaseV1) GetID() []byte {
 	return tx.ID.Bytes()
 }
@@ -2508,8 +2481,6 @@ type LeaseV2 struct {
 	Proofs  *ProofsV1       `json:"proofs,omitempty"`
 	lease
 }
-
-func (LeaseV2) Transaction() {}
 
 func (tx LeaseV2) GetID() []byte {
 	return tx.ID.Bytes()
@@ -2691,8 +2662,6 @@ type LeaseCancelV1 struct {
 	leaseCancel
 }
 
-func (LeaseCancelV1) Transaction() {}
-
 func (tx LeaseCancelV1) GetID() []byte {
 	return tx.ID.Bytes()
 }
@@ -2809,8 +2778,6 @@ type LeaseCancelV2 struct {
 	Proofs  *ProofsV1       `json:"proofs,omitempty"`
 	leaseCancel
 }
-
-func (LeaseCancelV2) Transaction() {}
 
 func (tx LeaseCancelV2) GetID() []byte {
 	return tx.ID.Bytes()
@@ -3018,8 +2985,6 @@ type CreateAliasV1 struct {
 	createAlias
 }
 
-func (CreateAliasV1) Transaction() {}
-
 func (tx CreateAliasV1) GetID() []byte {
 	return tx.ID.Bytes()
 }
@@ -3154,8 +3119,6 @@ type CreateAliasV2 struct {
 	Proofs  *ProofsV1       `json:"proofs,omitempty"`
 	createAlias
 }
-
-func (CreateAliasV2) Transaction() {}
 
 func (tx CreateAliasV2) GetID() []byte {
 	return tx.ID.Bytes()
@@ -3347,8 +3310,6 @@ type MassTransferV1 struct {
 	Fee        uint64              `json:"fee"`
 	Attachment Attachment          `json:"attachment,omitempty"`
 }
-
-func (MassTransferV1) Transaction() {}
 
 func (tx MassTransferV1) GetID() []byte {
 	return tx.ID.Bytes()
@@ -3561,8 +3522,6 @@ type DataV1 struct {
 	Fee       uint64           `json:"fee"`
 	Timestamp uint64           `json:"timestamp,omitempty"`
 }
-
-func (DataV1) Transaction() {}
 
 func (tx DataV1) GetID() []byte {
 	return tx.ID.Bytes()
@@ -3790,8 +3749,6 @@ type SetScriptV1 struct {
 	Timestamp uint64           `json:"timestamp,omitempty"`
 }
 
-func (SetScriptV1) Transaction() {}
-
 func (tx SetScriptV1) GetID() []byte {
 	return tx.ID.Bytes()
 }
@@ -3968,8 +3925,6 @@ type SponsorshipV1 struct {
 	Timestamp   uint64           `json:"timestamp,omitempty"`
 }
 
-func (SponsorshipV1) Transaction() {}
-
 func (tx SponsorshipV1) GetID() []byte {
 	return tx.ID.Bytes()
 }
@@ -4130,8 +4085,6 @@ type SetAssetScriptV1 struct {
 	Fee       uint64           `json:"fee"`
 	Timestamp uint64           `json:"timestamp,omitempty"`
 }
-
-func (SetAssetScriptV1) Transaction() {}
 
 func (tx SetAssetScriptV1) GetID() []byte {
 	return tx.ID.Bytes()
