@@ -211,7 +211,7 @@ func (s *StateManager) GetBlockByHeight(height uint64) (*proto.Block, error) {
 }
 
 func (s *StateManager) Height() (uint64, error) {
-	return s.rw.CurrentHeight(), nil
+	return s.rw.CurrentHeight()
 }
 
 func (s *StateManager) BlockIDToHeight(blockID crypto.Signature) (uint64, error) {
@@ -487,7 +487,10 @@ func (s *StateManager) AcceptAndVerifyBlockBinary(data []byte, initialisation bo
 		return errors.New("invalid block signature")
 	}
 	// Check parent.
-	height := s.rw.CurrentHeight()
+	height, err := s.rw.CurrentHeight()
+	if err != nil {
+		return err
+	}
 	if height == 0 {
 		if initialisation {
 			if err := s.applyGenesis(); err != nil {
@@ -522,7 +525,11 @@ func (s *StateManager) RollbackToHeight(height uint64) error {
 
 func (s *StateManager) RollbackTo(removalEdge crypto.Signature) error {
 	// Rollback accounts storage.
-	for height := s.rw.CurrentHeight() - 1; height > 0; height-- {
+	curHeight, err := s.rw.CurrentHeight()
+	if err != nil {
+		return err
+	}
+	for height := curHeight - 1; height > 0; height-- {
 		blockID, err := s.rw.BlockIDByHeight(height)
 		if err != nil {
 			return errors.Errorf("failed to get block ID by height: %v\n", err)
