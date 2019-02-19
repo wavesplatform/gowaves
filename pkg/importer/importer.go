@@ -12,22 +12,26 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
+const (
+	maxBlockSize = 2 * 1024 * 1024
+)
+
 type State interface {
 	AcceptAndVerifyBlockBinary(block []byte, initialisation bool) error
 	GetBlockByHeight(height uint64) (*proto.Block, error)
-	WavesAddressesNumber() (uint64, error)
+	AddressesNumber() (uint64, error)
 	AccountBalance(addr proto.Address, asset []byte) (uint64, error)
 }
 
-func ApplyFromFile(st State, blockchainPath string, nBlocks int, checkBlocks bool) error {
+func ApplyFromFile(st State, blockchainPath string, nBlocks, startHeight uint64, checkBlocks bool) error {
 	blockchain, err := os.Open(blockchainPath)
 	if err != nil {
 		return errors.Errorf("failed to open blockchain file: %v\n", err)
 	}
 	sb := make([]byte, 4)
-	buf := make([]byte, 2*1024*1024)
+	var buf [maxBlockSize]byte
 	r := bufio.NewReader(blockchain)
-	for i := 0; i < nBlocks; i++ {
+	for height := uint64(0); height < nBlocks; height++ {
 		if _, err := io.ReadFull(r, sb); err != nil {
 			return err
 		}
@@ -36,20 +40,22 @@ func ApplyFromFile(st State, blockchainPath string, nBlocks int, checkBlocks boo
 		if _, err := io.ReadFull(r, block); err != nil {
 			return err
 		}
-		if err := st.AcceptAndVerifyBlockBinary(block, true); err != nil {
-			return err
-		}
-		if checkBlocks {
-			savedBlock, err := st.GetBlockByHeight(uint64(i))
-			if err != nil {
+		if height >= startHeight {
+			if err := st.AcceptAndVerifyBlockBinary(block, true); err != nil {
 				return err
 			}
-			savedBlockBytes, err := savedBlock.MarshalBinary()
-			if err != nil {
-				return err
-			}
-			if bytes.Compare(block, savedBlockBytes) != 0 {
-				return errors.New("accepted and returned blocks differ\n")
+			if checkBlocks {
+				savedBlock, err := st.GetBlockByHeight(height)
+				if err != nil {
+					return err
+				}
+				savedBlockBytes, err := savedBlock.MarshalBinary()
+				if err != nil {
+					return err
+				}
+				if bytes.Compare(block, savedBlockBytes) != 0 {
+					return errors.New("accepted and returned blocks differ\n")
+				}
 			}
 		}
 	}
@@ -69,7 +75,7 @@ func CheckBalances(st State, balancesPath string) error {
 	if err := jsonParser.Decode(&state); err != nil {
 		return errors.Errorf("failed to decode state: %v\n", err)
 	}
-	addressesNumber, err := st.WavesAddressesNumber()
+	addressesNumber, err := st.AddressesNumber()
 	if err != nil {
 		return errors.Errorf("failed to get number of waves addresses: %v\n", err)
 	}

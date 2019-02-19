@@ -15,17 +15,22 @@ import (
 var (
 	blockchainPath = flag.String("blockchain-path", "", "Path to binary blockchain file.")
 	balancesPath   = flag.String("balances-path", "", "Path to JSON with correct balances after applying blocks.")
+	dataDirPath    = flag.String("data-path", "", "Path to directory with previously created state.")
 	nBlocks        = flag.Int("blocks-number", 1000, "Number of blocks to import.")
 )
 
 func main() {
 	flag.Parse()
-	if len(*blockchainPath) == 0 {
+	if *blockchainPath == "" {
 		log.Fatalf("You must specify blockchain-path option.")
 	}
-	dataDir, err := ioutil.TempDir(os.TempDir(), "dataDir")
-	if err != nil {
-		log.Fatalf("Faied to create temp dir for data: %v\n", err)
+	dataDir := *dataDirPath
+	if dataDir == "" {
+		tempDir, err := ioutil.TempDir(os.TempDir(), "dataDir")
+		if err != nil {
+			log.Fatalf("Faied to create temp dir for data: %v\n", err)
+		}
+		dataDir = tempDir
 	}
 	manager, err := state.NewStateManager(dataDir, state.DefaultBlockStorageParams())
 	if err != nil {
@@ -36,13 +41,19 @@ func main() {
 		if err := manager.Close(); err != nil {
 			log.Fatalf("Failed to close StateManager: %v\n", err)
 		}
-		if err := os.RemoveAll(dataDir); err != nil {
-			log.Fatalf("Failed to clean data dir: %v\n", err)
+		if *dataDirPath == "" {
+			if err := os.RemoveAll(dataDir); err != nil {
+				log.Fatalf("Failed to clean data dir: %v\n", err)
+			}
 		}
 	}()
 
+	height, err := manager.Height()
+	if err != nil {
+		log.Fatalf("Failed to get current height: %v\n", err)
+	}
 	start := time.Now()
-	if err := importer.ApplyFromFile(manager, *blockchainPath, *nBlocks, false); err != nil {
+	if err := importer.ApplyFromFile(manager, *blockchainPath, uint64(*nBlocks), height, false); err != nil {
 		log.Fatalf("Failed to apply blocks: %v\n", err)
 	}
 	elapsed := time.Since(start)

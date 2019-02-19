@@ -1,4 +1,4 @@
-package storage
+package state
 
 import (
 	"bufio"
@@ -10,7 +10,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"runtime"
 	"sync"
 	"testing"
 	"time"
@@ -23,9 +22,9 @@ import (
 )
 
 const (
-	TASKS_CHAN_BUFFER_SIZE = 20
-	READERS_NUMBER         = 20
-	BLOCKS_NUMBER          = 9900
+	tasksChanBufferSize = 20
+	readersNumber       = 5
+	blocksNumber        = 1000
 )
 
 var (
@@ -47,14 +46,6 @@ type ReadTask struct {
 	BlockID       crypto.Signature
 	Height        uint64
 	CorrectResult []byte
-}
-
-func getLocalDir() (string, error) {
-	_, filename, _, ok := runtime.Caller(0)
-	if !ok {
-		return "", errors.Errorf("Unable to find current package file")
-	}
-	return filepath.Dir(filename), nil
 }
 
 func readRealBlocks(t *testing.T, nBlocks int) ([]*proto.Block, error) {
@@ -152,6 +143,9 @@ func writeBlock(t *testing.T, rw *BlockReadWriter, block *proto.Block) {
 	if err := rw.FinishBlock(blockID); err != nil {
 		t.Fatalf("FinishBlock(): %v", err)
 	}
+	if err := rw.Db.Flush(); err != nil {
+		t.Fatalf("Failed to flush DB: %v", err)
+	}
 }
 
 func testSingleBlock(t *testing.T, rw *BlockReadWriter, block *proto.Block) {
@@ -217,6 +211,10 @@ func writeBlocks(ctx context.Context, rw *BlockReadWriter, blocks []*proto.Block
 			transaction = transaction[4+n:]
 		}
 		if err := rw.FinishBlock(blockID); err != nil {
+			close(readTasks)
+			return err
+		}
+		if err := rw.Db.Flush(); err != nil {
 			close(readTasks)
 			return err
 		}
@@ -286,12 +284,15 @@ func TestSimpleReadWrite(t *testing.T) {
 		if err := rw.Close(); err != nil {
 			t.Fatalf("Failed to close BlockReadWriter: %v", err)
 		}
+		if err := rw.Db.Close(); err != nil {
+			t.Fatalf("Failed to close DB: %v", err)
+		}
 		if err := util.CleanTemporaryDirs(path); err != nil {
 			t.Fatalf("Failed to clean test data dirs: %v", err)
 		}
 	}()
 
-	blocks, err := readRealBlocks(t, BLOCKS_NUMBER)
+	blocks, err := readRealBlocks(t, blocksNumber)
 	if err != nil {
 		t.Fatalf("Can not read blocks from blockchain file: %v", err)
 	}
@@ -310,12 +311,15 @@ func TestSimultaneousReadWrite(t *testing.T) {
 		if err := rw.Close(); err != nil {
 			t.Fatalf("Failed to close BlockReadWriter: %v", err)
 		}
+		if err := rw.Db.Close(); err != nil {
+			t.Fatalf("Failed to close DB: %v", err)
+		}
 		if err := util.CleanTemporaryDirs(path); err != nil {
 			t.Fatalf("Failed to clean test data dirs: %v", err)
 		}
 	}()
 
-	blocks, err := readRealBlocks(t, BLOCKS_NUMBER)
+	blocks, err := readRealBlocks(t, blocksNumber)
 	if err != nil {
 		t.Fatalf("Can not read blocks from blockchain file: %v", err)
 	}
@@ -323,7 +327,7 @@ func TestSimultaneousReadWrite(t *testing.T) {
 	var wg sync.WaitGroup
 	ctx, cancel := context.WithCancel(context.Background())
 	errCounter := 0
-	readTasks := make(chan *ReadTask, TASKS_CHAN_BUFFER_SIZE)
+	readTasks := make(chan *ReadTask, tasksChanBufferSize)
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
@@ -336,7 +340,7 @@ func TestSimultaneousReadWrite(t *testing.T) {
 			cancel()
 		}
 	}()
-	for i := 0; i < READERS_NUMBER; i++ {
+	for i := 0; i < readersNumber; i++ {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
@@ -366,12 +370,15 @@ func TestSimultaneousReadDelete(t *testing.T) {
 		if err := rw.Close(); err != nil {
 			t.Fatalf("Failed to close BlockReadWriter: %v", err)
 		}
+		if err := rw.Db.Close(); err != nil {
+			t.Fatalf("Failed to close DB: %v", err)
+		}
 		if err := util.CleanTemporaryDirs(path); err != nil {
 			t.Fatalf("Failed to clean test data dirs: %v", err)
 		}
 	}()
 
-	blocks, err := readRealBlocks(t, BLOCKS_NUMBER)
+	blocks, err := readRealBlocks(t, blocksNumber)
 	if err != nil {
 		t.Fatalf("Can not read blocks from blockchain file: %v", err)
 	}
@@ -379,8 +386,8 @@ func TestSimultaneousReadDelete(t *testing.T) {
 	for _, block := range blocks {
 		writeBlock(t, rw, block)
 	}
-	idToTest := blocks[BLOCKS_NUMBER-1].BlockSignature
-	prevId := blocks[BLOCKS_NUMBER-2].BlockSignature
+	idToTest := blocks[blocksNumber-1].BlockSignature
+	prevId := blocks[blocksNumber-2].BlockSignature
 
 	var wg sync.WaitGroup
 	var removeErr error
@@ -389,7 +396,7 @@ func TestSimultaneousReadDelete(t *testing.T) {
 		defer wg.Done()
 		// Give some time to start reading before deleting.
 		time.Sleep(time.Second)
-		removeErr = rw.RemoveBlocks(prevId)
+		removeErr = rw.Rollback(prevId, true)
 	}()
 	for {
 		_, err = rw.ReadBlockHeader(idToTest)

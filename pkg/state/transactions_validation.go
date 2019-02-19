@@ -1,13 +1,14 @@
-package proto
+package state
 
 import (
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
 type AccountsState interface {
 	// nil asset means Waves.
-	AccountBalance(addr Address, asset []byte) (uint64, error)
+	AccountBalance(key []byte) (uint64, error)
 }
 
 type TransactionValidator struct {
@@ -19,13 +20,13 @@ func NewTransactionValidator(genesis crypto.Signature, state AccountsState) (*Tr
 	return &TransactionValidator{genesis: genesis, state: state}, nil
 }
 
-func (tv *TransactionValidator) IsSupported(tx Transaction) bool {
+func (tv *TransactionValidator) IsSupported(tx proto.Transaction) bool {
 	switch v := tx.(type) {
-	case *Genesis:
+	case *proto.Genesis:
 		return true
-	case *Payment:
+	case *proto.Payment:
 		return true
-	case *TransferV1:
+	case *proto.TransferV1:
 		if v.FeeAsset.Present || v.AmountAsset.Present {
 			// Only Waves for now.
 			return false
@@ -35,7 +36,7 @@ func (tv *TransactionValidator) IsSupported(tx Transaction) bool {
 			return false
 		}
 		return true
-	case *TransferV2:
+	case *proto.TransferV2:
 		if v.FeeAsset.Present || v.AmountAsset.Present {
 			// Only Waves for now.
 			return false
@@ -51,9 +52,9 @@ func (tv *TransactionValidator) IsSupported(tx Transaction) bool {
 	}
 }
 
-func (tv *TransactionValidator) ValidateTransaction(blockID crypto.Signature, tx Transaction, initialisation bool) error {
+func (tv *TransactionValidator) ValidateTransaction(blockID crypto.Signature, tx proto.Transaction, initialisation bool) error {
 	switch v := tx.(type) {
-	case *Genesis:
+	case *proto.Genesis:
 		if blockID == tv.genesis {
 			if !initialisation {
 				return errors.New("trying to add genesis transaction in new block")
@@ -62,7 +63,7 @@ func (tv *TransactionValidator) ValidateTransaction(blockID crypto.Signature, tx
 		} else {
 			return errors.New("tried to add genesis transaction inside of non-genesis block")
 		}
-	case *Payment:
+	case *proto.Payment:
 		if !initialisation {
 			return errors.New("trying to add payment transaction in new block")
 		}
@@ -83,11 +84,12 @@ func (tv *TransactionValidator) ValidateTransaction(blockID crypto.Signature, tx
 		}
 		// Verify the amount spent (amount and fee upper bound).
 		totalAmount := v.Fee + v.Amount
-		senderAddr, err := NewAddressFromPublicKey(MainNetScheme, v.SenderPK)
+		senderAddr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, v.SenderPK)
 		if err != nil {
 			return errors.Wrap(err, "could not get address from public key")
 		}
-		balance, err := tv.state.AccountBalance(senderAddr, nil)
+		senderKey := BalanceKey{Address: senderAddr}
+		balance, err := tv.state.AccountBalance(senderKey.Bytes())
 		if err != nil {
 			return err
 		}
@@ -95,7 +97,7 @@ func (tv *TransactionValidator) ValidateTransaction(blockID crypto.Signature, tx
 			return errors.Errorf("transaction verification failed: balance is %d, trying to spend %d", balance, totalAmount)
 		}
 		return nil
-	case *TransferV1:
+	case *proto.TransferV1:
 		ok, err := v.Verify(v.SenderPK)
 		if err != nil {
 			return errors.Wrap(err, "failed to verify transaction signature")
@@ -111,15 +113,17 @@ func (tv *TransactionValidator) ValidateTransaction(blockID crypto.Signature, tx
 			return errors.New("negative fee in transaction")
 		}
 		// Verify the amount spent (amount and fee upper bound).
-		senderAddr, err := NewAddressFromPublicKey(MainNetScheme, v.SenderPK)
+		senderAddr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, v.SenderPK)
 		if err != nil {
 			return errors.Wrap(err, "Could not get address from public key")
 		}
-		feeBalance, err := tv.state.AccountBalance(senderAddr, v.FeeAsset.ToID())
+		senderFeeKey := BalanceKey{Address: senderAddr, Asset: v.FeeAsset.ToID()}
+		feeBalance, err := tv.state.AccountBalance(senderFeeKey.Bytes())
 		if err != nil {
 			return err
 		}
-		amountBalance, err := tv.state.AccountBalance(senderAddr, v.AmountAsset.ToID())
+		senderAmountKey := BalanceKey{Address: senderAddr, Asset: v.AmountAsset.ToID()}
+		amountBalance, err := tv.state.AccountBalance(senderAmountKey.Bytes())
 		if err != nil {
 			return err
 		}
@@ -130,7 +134,7 @@ func (tv *TransactionValidator) ValidateTransaction(blockID crypto.Signature, tx
 			return errors.New("invalid transaction: not eough to pay the fee provided")
 		}
 		return nil
-	case *TransferV2:
+	case *proto.TransferV2:
 		ok, err := v.Verify(v.SenderPK)
 		if err != nil {
 			return errors.Wrap(err, "failed to verify transaction signature")
@@ -146,15 +150,17 @@ func (tv *TransactionValidator) ValidateTransaction(blockID crypto.Signature, tx
 			return errors.New("negative fee in transaction")
 		}
 		// Verify the amount spent (amount and fee upper bound).
-		senderAddr, err := NewAddressFromPublicKey(MainNetScheme, v.SenderPK)
+		senderAddr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, v.SenderPK)
 		if err != nil {
 			return errors.Wrap(err, "could not get address from public key")
 		}
-		feeBalance, err := tv.state.AccountBalance(senderAddr, v.FeeAsset.ToID())
+		senderFeeKey := BalanceKey{Address: senderAddr, Asset: v.FeeAsset.ToID()}
+		feeBalance, err := tv.state.AccountBalance(senderFeeKey.Bytes())
 		if err != nil {
 			return err
 		}
-		amountBalance, err := tv.state.AccountBalance(senderAddr, v.AmountAsset.ToID())
+		senderAmountKey := BalanceKey{Address: senderAddr, Asset: v.AmountAsset.ToID()}
+		amountBalance, err := tv.state.AccountBalance(senderAmountKey.Bytes())
 		if err != nil {
 			return err
 		}

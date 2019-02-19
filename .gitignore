@@ -15,6 +15,9 @@
 *.swo
 *.swp
 
+# Profiling
+*.prof
+
 .idea/
 vendor/
 build/
