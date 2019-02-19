@@ -45,12 +45,13 @@ func (h *header) Equal(d comparable) bool {
 	return *h == *p
 }
 
+// TODO remove this
 func (h *Handshake) Equal(d comparable) bool {
 	p, ok := d.(*Handshake)
 	if !ok {
 		return false
 	}
-	return h.Name == p.Name && h.Version.Major == p.Version.Major &&
+	return h.AppName == p.AppName && h.Version.Major == p.Version.Major &&
 		h.Version.Minor == p.Version.Minor && h.Version.Patch == p.Version.Patch &&
 		h.NodeName == p.NodeName &&
 		h.NodeNonce == p.NodeNonce &&
@@ -362,4 +363,61 @@ func TestPeerInfo_UnmarshalJSON_NA(t *testing.T) {
 	err := json.Unmarshal([]byte(`"N/A"`), p)
 	require.Nil(t, err)
 	assert.Equal(t, &PeerInfo{}, p)
+}
+
+func TestHandshake_ReadFrom(t *testing.T) {
+	b := []byte{6, 119, 97, 118, 101, 115, 84, 0, 0, 0, 0, 0, 0, 0, 13, 0, 0, 0, 2, 11, 78, 111, 100, 101, 45, 53, 49, 52, 49, 55, 56, 0, 0, 0, 0, 0, 7, 216, 130, 0, 0, 0, 0 /*timestamp*/, 0, 0, 0, 0, 0, 0, 0, 0}
+	h := Handshake{}
+	_, err := h.ReadFrom(bytes.NewReader(b))
+	require.NoError(t, err)
+	assert.Equal(t, "wavesT", h.AppName)
+	assert.Equal(t, Version{Minor: 13, Patch: 2}, h.Version)
+	assert.Equal(t, "Node-514178", h.NodeName)
+	assert.Equal(t, []byte(nil), h.DeclaredAddrBytes)
+}
+
+func TestHandshake_ReadFrom2(t *testing.T) {
+	b := []byte{
+		6, 119, 97, 118, 101, 115, 84, // app name
+		0, 0, 0, 0, 0, 0, 0, 15, 0, 0, 0, 2, // version
+		23, 116, 101, 115, 116, 110, 111, 100, 101, 49, 46, 119, 97, 118, 101, 115, 110, 111, 100, 101, 46, 110, 101, 116, // node name
+		0, 0, 0, 0, 0, 9, 101, 17, // nonce
+		0, 0, 0, 8 /*length*/, 217, 100, 219, 251, 0, 0, 26, 207,
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
+	h := Handshake{}
+	_, err := h.ReadFrom(bytes.NewReader(b))
+	require.NoError(t, err)
+	assert.Equal(t, "wavesT", h.AppName)
+	assert.Equal(t, Version{Minor: 15, Patch: 2}, h.Version)
+	assert.Equal(t, "testnode1.wavesnode.net", h.NodeName)
+	assert.EqualValues(t, 615697, h.NodeNonce)
+	info, err := h.PeerInfo()
+	require.NoError(t, err)
+	assert.Equal(t, PeerInfo{Addr: net.IPv4(217, 100, 219, 251), Port: 6863}, info)
+	assert.EqualValues(t, 0, h.Timestamp)
+}
+
+func TestHandshake_RoundTrip(t *testing.T) {
+
+	declAddr := PeerInfo{Addr: net.IPv4(217, 100, 219, 251), Port: 6863}
+	declByte, _ := declAddr.MarshalBinary()
+
+	h1 := Handshake{
+		AppName:           "wavesT",
+		Version:           Version{Minor: 15, Patch: 2},
+		NodeName:          "testnode1.wavesnode.net",
+		NodeNonce:         615697,
+		DeclaredAddrBytes: declByte,
+		Timestamp:         222233,
+	}
+
+	bts, _ := h1.MarshalBinary()
+
+	h2 := Handshake{}
+	h2.UnmarshalBinary(bts)
+	assert.Equal(t, h1, h2)
+
+	h3 := Handshake{}
+	h3.ReadFrom(bytes.NewReader(bts))
+	assert.Equal(t, h1, h3)
 }

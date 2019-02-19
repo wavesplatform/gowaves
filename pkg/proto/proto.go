@@ -84,7 +84,7 @@ type Version struct {
 
 // Handshake is the handshake structure of the waves protocol
 type Handshake struct {
-	Name              string
+	AppName           string
 	Version           Version
 	NodeName          string
 	NodeNonce         uint64
@@ -93,12 +93,12 @@ type Handshake struct {
 }
 
 func (h *Handshake) marshalBinaryName() ([]byte, error) {
-	if len(h.Name) > 255 {
+	if len(h.AppName) > 255 {
 		return nil, errors.New("handshake application name too long")
 	}
-	data := make([]byte, len(h.Name)+1)
-	data[0] = byte(len(h.Name))
-	copy(data[1:1+len(h.Name)], h.Name)
+	data := make([]byte, len(h.AppName)+1)
+	data[0] = byte(len(h.AppName))
+	copy(data[1:1+len(h.AppName)], h.AppName)
 
 	return data, nil
 }
@@ -172,7 +172,7 @@ func (h *Handshake) UnmarshalBinary(data []byte) error {
 	if len(data) < int(appNameLen) {
 		return errors.New("data too short")
 	}
-	h.Name = string(data[:appNameLen])
+	h.AppName = string(data[:appNameLen])
 	data = data[appNameLen:]
 	if len(data) < 13 {
 		return errors.New("data too short")
@@ -207,53 +207,129 @@ func (h *Handshake) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
+func (h *Handshake) readApplicationName(buf []byte, r io.Reader) (int, error) {
+	n, err := io.ReadFull(r, buf[0:1])
+	if err != nil {
+		return 0, err
+	}
+
+	length := uint(buf[0])
+	n2, err := io.ReadFull(r, buf[1:1+length])
+	if err != nil {
+		return 0, err
+	}
+
+	return n + n2, nil
+}
+
+func (h *Handshake) readVersion(buf []byte, r io.Reader) (int, error) {
+	n, err := io.ReadFull(r, buf[:12])
+	if err != nil {
+		return 0, err
+	}
+	return n, nil
+}
+
+func (h *Handshake) readNodeName(buf []byte, r io.Reader) (int, error) {
+	n, err := io.ReadFull(r, buf[0:1])
+	if err != nil {
+		return 0, err
+	}
+
+	length := uint(buf[0])
+	n2, err := io.ReadFull(r, buf[1:1+length])
+	if err != nil {
+		return 0, err
+	}
+
+	return n + n2, nil
+}
+
+func (h *Handshake) readNonce(buf []byte, r io.Reader) (int, error) {
+	n, err := io.ReadFull(r, buf[:8])
+	if err != nil {
+		return 0, err
+	}
+	return n, nil
+}
+
+func (h *Handshake) readDeclAddr(buf []byte, r io.Reader) (int, error) {
+	n, err := io.ReadFull(r, buf[:4])
+	if err != nil {
+		return n, err
+	}
+
+	addrlen := binary.BigEndian.Uint32(buf[:4])
+	if addrlen > 8 {
+		return n, errors.Errorf("invalid declared address length, expected 0 or 8, got %d", addrlen)
+	}
+
+	if addrlen == 0 {
+		return n, nil
+	}
+
+	n2, err := io.ReadFull(r, buf[4:4+addrlen])
+	if err != nil {
+		return n + n2, err
+	}
+
+	return n + n2, nil
+}
+
+func (h *Handshake) readTimestamp(buf []byte, r io.Reader) (int, error) {
+	n, err := io.ReadFull(r, buf[:8])
+	if err != nil {
+		return n, err
+	}
+
+	return n, nil
+}
+
 // ReadFrom reads Handshake from io.Reader
 func (h *Handshake) ReadFrom(r io.Reader) (int64, error) {
-	buf := make([]byte, 1)
-
-	nn, err := io.ReadFull(r, buf)
+	// max header size based on fields
+	buf := [556]byte{}
+	nn, err := h.readApplicationName(buf[:], r)
 	if err != nil {
 		return int64(nn), err
 	}
 
-	buf = append(buf, make([]byte, uint(buf[0]))...)
-	n, err := io.ReadFull(r, buf[1:])
+	n, err := h.readVersion(buf[nn:], r)
 	if err != nil {
-		return int64(n + nn), err
+		return 0, err
 	}
-	nn += n
-	tmp := make([]byte, 13)
-	n, err = io.ReadFull(r, tmp)
-	if err != nil {
-		return int64(n + nn), err
-	}
-	buf = append(buf, tmp...)
-	nn += n
-	tmp = make([]byte, uint(tmp[12]))
-	n, err = io.ReadFull(r, tmp)
-	if err != nil {
-		return int64(n + nn), err
-	}
-	buf = append(buf, tmp...)
-	nn += n
-	tmp = make([]byte, 12)
-	n, err = io.ReadFull(r, tmp)
-	if err != nil {
-		return int64(n + nn), err
-	}
-	buf = append(buf, tmp...)
-	nn += n
-	addrlen := binary.BigEndian.Uint32(tmp[8:12])
-	buf = append(buf, tmp...)
-	tmp = make([]byte, addrlen+8)
-	n, err = io.ReadFull(r, tmp)
-	if err != nil {
-		return int64(n + nn), err
-	}
-	buf = append(buf, tmp...)
+
 	nn += n
 
-	return int64(nn), h.UnmarshalBinary(buf)
+	n, err = h.readNodeName(buf[nn:], r)
+	if err != nil {
+		return int64(n + nn), err
+	}
+
+	nn += n
+
+	n, err = h.readNonce(buf[nn:], r)
+	if err != nil {
+		return int64(n + nn), err
+	}
+
+	nn += n
+
+	n, err = h.readDeclAddr(buf[nn:], r)
+	if err != nil {
+		return int64(n + nn), err
+	}
+
+	nn += n
+
+	n, err = h.readTimestamp(buf[nn:], r)
+	if err != nil {
+		return int64(n + nn), err
+	}
+
+	nn += n
+
+	return int64(nn), h.UnmarshalBinary(buf[:])
 }
 
 // WriteTo writes Handshake to io.Writer

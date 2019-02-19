@@ -44,13 +44,16 @@ func TestConnectionImpl_Close(t *testing.T) {
 		}
 	}()
 
-	c := NewConnector(net.Dial, bytespool.NewBytesPool(32, 2*1024*1024))
+	c, err := net.Dial("tcp", listener.Addr().String())
+	require.NoError(t, err)
+	pool := bytespool.NewBytesPool(32, 2*1024*1024)
 
 	counter := uint64(0)
 
-	params := dialParams{
-		addr:         listener.Addr().String(),
-		network:      "tcp",
+	params := wrapParams{
+
+		conn:         c,
+		pool:         pool,
 		toRemoteCh:   nil,
 		fromRemoteCh: make(chan []byte, 2),
 		errCh:        nil,
@@ -58,7 +61,7 @@ func TestConnectionImpl_Close(t *testing.T) {
 		recvFunc:     recvfunc(&counter),
 	}
 
-	conn, err := c.dial(params)
+	conn := wrapConnection(params)
 	require.NoError(t, err)
 	require.NoError(t, conn.Close())
 	<-time.After(10 * time.Millisecond)

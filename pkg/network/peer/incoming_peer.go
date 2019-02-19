@@ -55,7 +55,7 @@ func RunIncomingPeer(ctx context.Context, params IncomingPeerParams) {
 	zap.S().Infof("read handshake from %s %+v", id, readHandshake)
 
 	writeHandshake := proto.Handshake{
-		Name: params.WavesNetwork,
+		AppName: params.WavesNetwork,
 		// pass the same minor version as received
 		Version:           proto.Version{Major: 0, Minor: readHandshake.Version.Minor, Patch: 0},
 		NodeName:          "retransmitter",
