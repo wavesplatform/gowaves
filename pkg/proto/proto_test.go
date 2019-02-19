@@ -394,7 +394,7 @@ func TestHandshake_ReadFrom2(t *testing.T) {
 	info, err := h.PeerInfo()
 	require.NoError(t, err)
 	assert.Equal(t, PeerInfo{Addr: net.IPv4(217, 100, 219, 251), Port: 6863}, info)
-	assert.Equal(t, 0, h.Timestamp)
+	assert.EqualValues(t, 0, h.Timestamp)
 }
 
 func TestHandshake_RoundTrip(t *testing.T) {
