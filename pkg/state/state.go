@@ -9,7 +9,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"github.com/wavesplatform/gowaves/pkg/storage"
 )
 
 const (
@@ -22,12 +21,12 @@ type WavesBalanceKey [1 + proto.AddressSize]byte
 type AssetBalanceKey [1 + proto.AddressSize + crypto.DigestSize]byte
 
 type BalancesStorage struct {
-	global *storage.AccountsStorage
+	global *AccountsStorage
 	assets map[AssetBalanceKey]uint64
 	waves  map[WavesBalanceKey]uint64
 }
 
-func NewBalancesStorage(global *storage.AccountsStorage) (*BalancesStorage, error) {
+func NewBalancesStorage(global *AccountsStorage) (*BalancesStorage, error) {
 	return &BalancesStorage{
 		global: global,
 		assets: make(map[AssetBalanceKey]uint64),
@@ -84,8 +83,8 @@ func (stor *BalancesStorage) SetAccountBalance(key []byte, balance uint64) error
 type StateManager struct {
 	genesis         crypto.Signature
 	db              keyvalue.KeyValue
-	accountsStorage *storage.AccountsStorage
-	rw              *storage.BlockReadWriter
+	accountsStorage *AccountsStorage
+	rw              *BlockReadWriter
 }
 
 type BlockStorageParams struct {
@@ -96,13 +95,13 @@ func DefaultBlockStorageParams() BlockStorageParams {
 	return BlockStorageParams{OffsetLen: 8, HeaderOffsetLen: 8}
 }
 
-func sync(db keyvalue.KeyValue, stor *storage.AccountsStorage, rw *storage.BlockReadWriter) error {
-	dbHeightBytes, err := db.Get([]byte{proto.DbHeightKeyPrefix})
+func syncDbAndStorage(db keyvalue.KeyValue, stor *AccountsStorage, rw *BlockReadWriter) error {
+	dbHeightBytes, err := db.Get([]byte{DbHeightKeyPrefix})
 	if err != nil {
 		return err
 	}
 	dbHeight := binary.LittleEndian.Uint64(dbHeightBytes)
-	rwHeighBytes, err := db.Get([]byte{proto.RwHeightKeyPrefix})
+	rwHeighBytes, err := db.Get([]byte{RwHeightKeyPrefix})
 	if err != nil {
 		return err
 	}
@@ -136,16 +135,16 @@ func NewStateManager(dataDir string, params BlockStorageParams) (*StateManager, 
 	}
 	dbDir := filepath.Join(dataDir, keyvalueDir)
 	db, err := keyvalue.NewKeyVal(dbDir, true)
-	rw, err := storage.NewBlockReadWriter(blockStorageDir, params.OffsetLen, params.HeaderOffsetLen, db)
+	rw, err := NewBlockReadWriter(blockStorageDir, params.OffsetLen, params.HeaderOffsetLen, db)
 	if err != nil {
 		return nil, errors.Errorf("failed to create block storage: %v\n", err)
 	}
-	accountsStor, err := storage.NewAccountsStorage(genesis, db)
+	accountsStor, err := NewAccountsStorage(genesis, db)
 	if err != nil {
 		return nil, errors.Errorf("failed to create accounts storage: %v\n", err)
 	}
 	accountsStor.SetRollbackMax(rollbackMaxBlocks, rw)
-	if err := sync(db, accountsStor, rw); err != nil {
+	if err := syncDbAndStorage(db, accountsStor, rw); err != nil {
 		return nil, errors.Errorf("failed to sync block storage and DB: %v\n", err)
 	}
 	state := &StateManager{genesis: genesis, db: db, accountsStorage: accountsStor, rw: rw}
@@ -157,7 +156,7 @@ func (s *StateManager) applyGenesis() error {
 	if err != nil {
 		return err
 	}
-	tv, err := proto.NewTransactionValidator(s.genesis, balancesStor)
+	tv, err := NewTransactionValidator(s.genesis, balancesStor)
 	if err != nil {
 		return err
 	}
@@ -223,7 +222,7 @@ func (s *StateManager) HeightToBlockID(height uint64) (crypto.Signature, error) 
 }
 
 func (s *StateManager) AccountBalance(addr proto.Address, asset []byte) (uint64, error) {
-	key := proto.BalanceKey{Address: addr, Asset: asset}
+	key := BalanceKey{Address: addr, Asset: asset}
 	return s.accountsStorage.AccountBalance(key.Bytes())
 }
 
@@ -232,7 +231,7 @@ func (s *StateManager) AddressesNumber() (uint64, error) {
 }
 
 func (s *StateManager) performGenesisTransaction(tx proto.Genesis, stor *BalancesStorage) error {
-	key := proto.BalanceKey{Address: tx.Recipient}
+	key := BalanceKey{Address: tx.Recipient}
 	receiverBalance, err := stor.AccountBalance(key.Bytes())
 	if err != nil {
 		return err
@@ -255,7 +254,7 @@ func (s *StateManager) performTransaction(block *proto.Block, tx proto.Transacti
 		if err != nil {
 			return err
 		}
-		senderKey := proto.BalanceKey{Address: senderAddr}
+		senderKey := BalanceKey{Address: senderAddr}
 		senderBalance, err := stor.AccountBalance(senderKey.Bytes())
 		if err != nil {
 			return err
@@ -267,7 +266,7 @@ func (s *StateManager) performTransaction(block *proto.Block, tx proto.Transacti
 		if err := stor.SetAccountBalance(senderKey.Bytes(), newSenderBalance); err != nil {
 			return err
 		}
-		receiverKey := proto.BalanceKey{Address: v.Recipient}
+		receiverKey := BalanceKey{Address: v.Recipient}
 		receiverBalance, err := stor.AccountBalance(receiverKey.Bytes())
 		if err != nil {
 			return err
@@ -276,7 +275,7 @@ func (s *StateManager) performTransaction(block *proto.Block, tx proto.Transacti
 		if err := stor.SetAccountBalance(receiverKey.Bytes(), newReceiverBalance); err != nil {
 			return err
 		}
-		minerKey := proto.BalanceKey{Address: minerAddr}
+		minerKey := BalanceKey{Address: minerAddr}
 		minerBalance, err := stor.AccountBalance(minerKey.Bytes())
 		if err != nil {
 			return err
@@ -299,8 +298,8 @@ func (s *StateManager) performTransaction(block *proto.Block, tx proto.Transacti
 		if err != nil {
 			return err
 		}
-		senderFeeKey := proto.BalanceKey{Address: senderAddr, Asset: v.FeeAsset.ToID()}
-		senderAmountKey := proto.BalanceKey{Address: senderAddr, Asset: v.AmountAsset.ToID()}
+		senderFeeKey := BalanceKey{Address: senderAddr, Asset: v.FeeAsset.ToID()}
+		senderAmountKey := BalanceKey{Address: senderAddr, Asset: v.AmountAsset.ToID()}
 		senderFeeBalance, err := stor.AccountBalance(senderFeeKey.Bytes())
 		if err != nil {
 			return err
@@ -323,7 +322,7 @@ func (s *StateManager) performTransaction(block *proto.Block, tx proto.Transacti
 		if err := stor.SetAccountBalance(senderAmountKey.Bytes(), newSenderAmountBalance); err != nil {
 			return err
 		}
-		receiverKey := proto.BalanceKey{Address: *v.Recipient.Address, Asset: v.AmountAsset.ToID()}
+		receiverKey := BalanceKey{Address: *v.Recipient.Address, Asset: v.AmountAsset.ToID()}
 		receiverBalance, err := stor.AccountBalance(receiverKey.Bytes())
 		if err != nil {
 			return err
@@ -332,7 +331,7 @@ func (s *StateManager) performTransaction(block *proto.Block, tx proto.Transacti
 		if err := stor.SetAccountBalance(receiverKey.Bytes(), newReceiverBalance); err != nil {
 			return err
 		}
-		minerKey := proto.BalanceKey{Address: minerAddr, Asset: v.FeeAsset.ToID()}
+		minerKey := BalanceKey{Address: minerAddr, Asset: v.FeeAsset.ToID()}
 		minerBalance, err := stor.AccountBalance(minerKey.Bytes())
 		if err != nil {
 			return err
@@ -355,8 +354,8 @@ func (s *StateManager) performTransaction(block *proto.Block, tx proto.Transacti
 		if err != nil {
 			return err
 		}
-		senderFeeKey := proto.BalanceKey{Address: senderAddr, Asset: v.FeeAsset.ToID()}
-		senderAmountKey := proto.BalanceKey{Address: senderAddr, Asset: v.AmountAsset.ToID()}
+		senderFeeKey := BalanceKey{Address: senderAddr, Asset: v.FeeAsset.ToID()}
+		senderAmountKey := BalanceKey{Address: senderAddr, Asset: v.AmountAsset.ToID()}
 		senderFeeBalance, err := stor.AccountBalance(senderFeeKey.Bytes())
 		if err != nil {
 			return err
@@ -379,7 +378,7 @@ func (s *StateManager) performTransaction(block *proto.Block, tx proto.Transacti
 		if err := stor.SetAccountBalance(senderAmountKey.Bytes(), newSenderAmountBalance); err != nil {
 			return err
 		}
-		receiverKey := proto.BalanceKey{Address: *v.Recipient.Address, Asset: v.AmountAsset.ToID()}
+		receiverKey := BalanceKey{Address: *v.Recipient.Address, Asset: v.AmountAsset.ToID()}
 		receiverBalance, err := stor.AccountBalance(receiverKey.Bytes())
 		if err != nil {
 			return err
@@ -388,7 +387,7 @@ func (s *StateManager) performTransaction(block *proto.Block, tx proto.Transacti
 		if err := stor.SetAccountBalance(receiverKey.Bytes(), newReceiverBalance); err != nil {
 			return err
 		}
-		minerKey := proto.BalanceKey{Address: minerAddr, Asset: v.FeeAsset.ToID()}
+		minerKey := BalanceKey{Address: minerAddr, Asset: v.FeeAsset.ToID()}
 		minerBalance, err := stor.AccountBalance(minerKey.Bytes())
 		if err != nil {
 			return err
@@ -434,7 +433,7 @@ func (s *StateManager) addNewBlock(block *proto.Block, initialisation bool) erro
 	if err != nil {
 		return err
 	}
-	tv, err := proto.NewTransactionValidator(s.genesis, balancesStor)
+	tv, err := NewTransactionValidator(s.genesis, balancesStor)
 	if err != nil {
 		return err
 	}

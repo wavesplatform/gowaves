@@ -1,4 +1,4 @@
-package storage
+package state
 
 import (
 	"bufio"
@@ -52,19 +52,19 @@ func openOrCreate(path string) (*os.File, uint64, error) {
 }
 
 func initHeight(db keyvalue.KeyValue) (uint64, error) {
-	has, err := db.Has([]byte{proto.RwHeightKeyPrefix})
+	has, err := db.Has([]byte{RwHeightKeyPrefix})
 	if err != nil {
 		return 0, err
 	}
 	if !has {
 		heightBuf := make([]byte, 8)
 		binary.LittleEndian.PutUint64(heightBuf, 0)
-		if err := db.PutDirectly([]byte{proto.RwHeightKeyPrefix}, heightBuf); err != nil {
+		if err := db.PutDirectly([]byte{RwHeightKeyPrefix}, heightBuf); err != nil {
 			return 0, err
 		}
 		return 0, nil
 	} else {
-		heightBytes, err := db.Get([]byte{proto.RwHeightKeyPrefix})
+		heightBytes, err := db.Get([]byte{RwHeightKeyPrefix})
 		if err != nil {
 			return 0, err
 		}
@@ -116,11 +116,11 @@ func (rw *BlockReadWriter) SetHeight(height uint64, directly bool) error {
 	rwHeightBytes := make([]byte, 8)
 	binary.LittleEndian.PutUint64(rwHeightBytes, height)
 	if directly {
-		if err := rw.Db.PutDirectly([]byte{proto.RwHeightKeyPrefix}, rwHeightBytes); err != nil {
+		if err := rw.Db.PutDirectly([]byte{RwHeightKeyPrefix}, rwHeightBytes); err != nil {
 			return err
 		}
 	} else {
-		if err := rw.Db.Put([]byte{proto.RwHeightKeyPrefix}, rwHeightBytes); err != nil {
+		if err := rw.Db.Put([]byte{RwHeightKeyPrefix}, rwHeightBytes); err != nil {
 			return err
 		}
 	}
@@ -128,7 +128,7 @@ func (rw *BlockReadWriter) SetHeight(height uint64, directly bool) error {
 }
 
 func (rw *BlockReadWriter) GetHeight() (uint64, error) {
-	rwHeightBytes, err := rw.Db.Get([]byte{proto.RwHeightKeyPrefix})
+	rwHeightBytes, err := rw.Db.Get([]byte{RwHeightKeyPrefix})
 	if err != nil {
 		return 0, err
 	}
@@ -167,7 +167,7 @@ func (rw *BlockReadWriter) FinishBlock(blockID crypto.Signature) error {
 	binary.LittleEndian.PutUint64(rw.heightBuf, height)
 	val := append(rw.blockBounds, rw.headerBounds...)
 	val = append(val, rw.heightBuf...)
-	key := proto.BlockOffsetKey{BlockID: blockID}
+	key := BlockOffsetKey{BlockID: blockID}
 	if err := rw.Db.Put(key.Bytes(), val); err != nil {
 		return err
 	}
@@ -193,7 +193,7 @@ func (rw *BlockReadWriter) WriteTransaction(txID []byte, tx []byte) error {
 		return errors.Errorf("offsetLen is not enough for this offset: %d > %d", rw.blockchainLen, rw.offsetEnd)
 	}
 	binary.LittleEndian.PutUint64(rw.txBounds[rw.offsetLen:], rw.blockchainLen)
-	key := proto.TxOffsetKey{TxID: txID}
+	key := TxOffsetKey{TxID: txID}
 	if err := rw.Db.Put(key.Bytes(), rw.txBounds); err != nil {
 		return err
 	}
@@ -229,7 +229,7 @@ func (rw *BlockReadWriter) BlockIDByHeight(height uint64) (crypto.Signature, err
 func (rw *BlockReadWriter) HeightByBlockID(blockID crypto.Signature) (uint64, error) {
 	rw.mtx.RLock()
 	defer rw.mtx.RUnlock()
-	key := proto.BlockOffsetKey{BlockID: blockID}
+	key := BlockOffsetKey{BlockID: blockID}
 	blockInfo, err := rw.Db.Get(key.Bytes())
 	if err != nil {
 		return 0, err
@@ -249,7 +249,7 @@ func (rw *BlockReadWriter) CurrentHeight() (uint64, error) {
 func (rw *BlockReadWriter) ReadTransaction(txID []byte) ([]byte, error) {
 	rw.mtx.RLock()
 	defer rw.mtx.RUnlock()
-	key := proto.TxOffsetKey{TxID: txID}
+	key := TxOffsetKey{TxID: txID}
 	txBounds, err := rw.Db.Get(key.Bytes())
 	if err != nil {
 		return nil, err
@@ -269,7 +269,7 @@ func (rw *BlockReadWriter) ReadTransaction(txID []byte) ([]byte, error) {
 func (rw *BlockReadWriter) ReadBlockHeader(blockID crypto.Signature) ([]byte, error) {
 	rw.mtx.RLock()
 	defer rw.mtx.RUnlock()
-	key := proto.BlockOffsetKey{BlockID: blockID}
+	key := BlockOffsetKey{BlockID: blockID}
 	blockInfo, err := rw.Db.Get(key.Bytes())
 	if err != nil {
 		return nil, err
@@ -290,7 +290,7 @@ func (rw *BlockReadWriter) ReadBlockHeader(blockID crypto.Signature) ([]byte, er
 func (rw *BlockReadWriter) ReadTransactionsBlock(blockID crypto.Signature) ([]byte, error) {
 	rw.mtx.RLock()
 	defer rw.mtx.RUnlock()
-	key := proto.BlockOffsetKey{BlockID: blockID}
+	key := BlockOffsetKey{BlockID: blockID}
 	blockInfo, err := rw.Db.Get(key.Bytes())
 	if err != nil {
 		return nil, err
@@ -328,7 +328,7 @@ func (rw *BlockReadWriter) cleanIDs(oldHeight, newBlockchainLen uint64) error {
 		if err != nil {
 			return err
 		}
-		key := proto.BlockOffsetKey{BlockID: blockID}
+		key := BlockOffsetKey{BlockID: blockID}
 		if err := rw.Db.Delete(key.Bytes()); err != nil {
 			return err
 		}
@@ -352,7 +352,7 @@ func (rw *BlockReadWriter) cleanIDs(oldHeight, newBlockchainLen uint64) error {
 		if err != nil {
 			return err
 		}
-		key := proto.TxOffsetKey{TxID: tx.GetID()}
+		key := TxOffsetKey{TxID: tx.GetID()}
 		if err := rw.Db.Delete(key.Bytes()); err != nil {
 			return err
 		}
@@ -363,7 +363,7 @@ func (rw *BlockReadWriter) cleanIDs(oldHeight, newBlockchainLen uint64) error {
 func (rw *BlockReadWriter) Rollback(removalEdge crypto.Signature, cleanIDs bool) error {
 	rw.mtx.Lock()
 	defer rw.mtx.Unlock()
-	key := proto.BlockOffsetKey{BlockID: removalEdge}
+	key := BlockOffsetKey{BlockID: removalEdge}
 	blockInfo, err := rw.Db.Get(key.Bytes())
 	if err != nil {
 		return err

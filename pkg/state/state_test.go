@@ -31,7 +31,7 @@ func TestBlockAcceptAndRollback(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to get local dir: %v\n", err)
 	}
-	blocksPath := filepath.Join(dir, "..", "storage", "testdata", "blocks-10000")
+	blocksPath := filepath.Join(dir, "testdata", "blocks-10000")
 	balancesPath0 := filepath.Join(dir, "testdata", "accounts-1000")
 	balancesPath1 := filepath.Join(dir, "testdata", "accounts-900")
 	balancesPath2 := filepath.Join(dir, "testdata", "accounts-30")

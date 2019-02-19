@@ -1,7 +1,8 @@
-package proto
+package state
 
 import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
 const (
@@ -23,19 +24,19 @@ const (
 )
 
 type BalanceKey struct {
-	Address Address
+	Address proto.Address
 	Asset   []byte
 }
 
 func (k *BalanceKey) Bytes() []byte {
 	if k.Asset != nil {
-		buf := make([]byte, 1+AddressSize+crypto.DigestSize)
+		buf := make([]byte, 1+proto.AddressSize+crypto.DigestSize)
 		buf[0] = BalanceKeyPrefix
 		copy(buf[1:], k.Address[:])
-		copy(buf[1+AddressSize:], k.Asset)
+		copy(buf[1+proto.AddressSize:], k.Asset)
 		return buf
 	} else {
-		buf := make([]byte, 1+AddressSize)
+		buf := make([]byte, 1+proto.AddressSize)
 		buf[0] = BalanceKeyPrefix
 		copy(buf[1:], k.Address[:])
 		return buf

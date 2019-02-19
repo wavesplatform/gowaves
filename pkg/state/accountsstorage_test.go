@@ -1,4 +1,4 @@
-package storage
+package state
 
 import (
 	"io/ioutil"
@@ -12,7 +12,6 @@ import (
 )
 
 const (
-	genesisSignature  = "FSH8eAAzZNqnG8xgTZtz5xuLqXySsXgAjmFEC25hXMbEufiGjqWPnGCZFt6gLiVLJny16ipxRNAkkzjjhqTjBE2"
 	totalBlocksNumber = 200
 )
 
@@ -81,7 +80,7 @@ func TestBalances(t *testing.T) {
 	balance := uint64(100)
 	blockID := genBlockID(0)
 	addr := genAddr(1)
-	key := proto.BalanceKey{Address: addr}
+	key := BalanceKey{Address: addr}
 	if err := stor.SetAccountBalance(key.Bytes(), balance, blockID); err != nil {
 		t.Fatalf("Faied to set account balance:%v\n", err)
 	}
@@ -148,15 +147,15 @@ func TestRollbackBlock(t *testing.T) {
 	asset1 := genAsset(1)
 	for i := 0; i < totalBlocksNumber; i++ {
 		blockID := genBlockID(byte(i))
-		key := proto.BalanceKey{Address: addr0}
+		key := BalanceKey{Address: addr0}
 		if err := stor.SetAccountBalance(key.Bytes(), uint64(i), blockID); err != nil {
 			t.Fatalf("Faied to set account balance: %v\n", err)
 		}
-		key = proto.BalanceKey{Address: addr1}
+		key = BalanceKey{Address: addr1}
 		if err := stor.SetAccountBalance(key.Bytes(), uint64(i/2), blockID); err != nil {
 			t.Fatalf("Faied to set account balance: %v\n", err)
 		}
-		key = proto.BalanceKey{Address: addr1, Asset: asset1}
+		key = BalanceKey{Address: addr1, Asset: asset1}
 		if err := stor.SetAccountBalance(key.Bytes(), uint64(i/3), blockID); err != nil {
 			t.Fatalf("Faied to set account balance: %v\n", err)
 		}
@@ -165,17 +164,17 @@ func TestRollbackBlock(t *testing.T) {
 		}
 	}
 	for i := totalBlocksNumber - 1; i > 0; i-- {
-		key := proto.BalanceKey{Address: addr0}
+		key := BalanceKey{Address: addr0}
 		balance0, err := stor.AccountBalance(key.Bytes())
 		if err != nil {
 			t.Fatalf("Failed to retrieve account balance: %v\n", err)
 		}
-		key = proto.BalanceKey{Address: addr1}
+		key = BalanceKey{Address: addr1}
 		balance1, err := stor.AccountBalance(key.Bytes())
 		if err != nil {
 			t.Fatalf("Failed to retrieve account balance: %v\n", err)
 		}
-		key = proto.BalanceKey{Address: addr1, Asset: asset1}
+		key = BalanceKey{Address: addr1, Asset: asset1}
 		asset1Balance, err := stor.AccountBalance(key.Bytes())
 		if err != nil {
 			t.Fatalf("Failed to retrieve account balance: %v\n", err)

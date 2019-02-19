@@ -1,4 +1,4 @@
-package storage
+package state
 
 import (
 	"encoding/binary"
@@ -6,7 +6,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
-	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
 const (
@@ -36,14 +35,14 @@ func toBlockID(bytes []byte) (crypto.Signature, error) {
 }
 
 func NewAccountsStorage(genesis crypto.Signature, db keyvalue.IterableKeyVal) (*AccountsStorage, error) {
-	has, err := db.Has([]byte{proto.DbHeightKeyPrefix})
+	has, err := db.Has([]byte{DbHeightKeyPrefix})
 	if err != nil {
 		return nil, err
 	}
 	if !has {
 		heightBuf := make([]byte, 8)
 		binary.LittleEndian.PutUint64(heightBuf, 0)
-		if err := db.PutDirectly([]byte{proto.DbHeightKeyPrefix}, heightBuf); err != nil {
+		if err := db.PutDirectly([]byte{DbHeightKeyPrefix}, heightBuf); err != nil {
 			return nil, err
 		}
 	}
@@ -59,11 +58,11 @@ func (s *AccountsStorage) SetHeight(height uint64, directly bool) error {
 	dbHeightBytes := make([]byte, 8)
 	binary.LittleEndian.PutUint64(dbHeightBytes, height)
 	if directly {
-		if err := s.Db.PutDirectly([]byte{proto.DbHeightKeyPrefix}, dbHeightBytes); err != nil {
+		if err := s.Db.PutDirectly([]byte{DbHeightKeyPrefix}, dbHeightBytes); err != nil {
 			return err
 		}
 	} else {
-		if err := s.Db.Put([]byte{proto.DbHeightKeyPrefix}, dbHeightBytes); err != nil {
+		if err := s.Db.Put([]byte{DbHeightKeyPrefix}, dbHeightBytes); err != nil {
 			return err
 		}
 	}
@@ -71,7 +70,7 @@ func (s *AccountsStorage) SetHeight(height uint64, directly bool) error {
 }
 
 func (s *AccountsStorage) GetHeight() (uint64, error) {
-	dbHeightBytes, err := s.Db.Get([]byte{proto.DbHeightKeyPrefix})
+	dbHeightBytes, err := s.Db.Get([]byte{DbHeightKeyPrefix})
 	if err != nil {
 		return 0, err
 	}
@@ -123,7 +122,7 @@ func (s *AccountsStorage) filterHistory(historyKey []byte, history []byte) ([]by
 		if err != nil {
 			return nil, err
 		}
-		key := proto.BlockIdKey{BlockID: blockID}
+		key := BlockIdKey{BlockID: blockID}
 		has, err := s.Db.Has(key.Bytes())
 		if err != nil {
 			return nil, err
@@ -145,7 +144,7 @@ func (s *AccountsStorage) filterHistory(historyKey []byte, history []byte) ([]by
 }
 
 func (s *AccountsStorage) AddressesNumber() (uint64, error) {
-	iter, err := s.Db.NewKeyIterator([]byte{proto.BalanceKeyPrefix})
+	iter, err := s.Db.NewKeyIterator([]byte{BalanceKeyPrefix})
 	if err != nil {
 		return 0, err
 	}
@@ -241,7 +240,7 @@ func (s *AccountsStorage) newHistory(newRecord []byte, key []byte, blockID crypt
 
 func (s *AccountsStorage) SetAccountBalance(balanceKey []byte, balance uint64, blockID crypto.Signature) error {
 	// Add block to valid blocks.
-	key := proto.BlockIdKey{BlockID: blockID}
+	key := BlockIdKey{BlockID: blockID}
 	if err := s.Db.Put(key.Bytes(), Empty); err != nil {
 		return err
 	}
@@ -269,7 +268,7 @@ func (s *AccountsStorage) RollbackBlock(blockID crypto.Signature) error {
 	if err := s.SetHeight(height-1, true); err != nil {
 		return err
 	}
-	key := proto.BlockIdKey{BlockID: blockID}
+	key := BlockIdKey{BlockID: blockID}
 	if err := s.Db.Delete(key.Bytes()); err != nil {
 		return err
 	}

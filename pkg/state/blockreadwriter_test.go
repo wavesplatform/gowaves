@@ -1,4 +1,4 @@
-package storage
+package state
 
 import (
 	"bufio"
@@ -10,7 +10,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"runtime"
 	"sync"
 	"testing"
 	"time"
@@ -47,14 +46,6 @@ type ReadTask struct {
 	BlockID       crypto.Signature
 	Height        uint64
 	CorrectResult []byte
-}
-
-func getLocalDir() (string, error) {
-	_, filename, _, ok := runtime.Caller(0)
-	if !ok {
-		return "", errors.Errorf("Unable to find current package file")
-	}
-	return filepath.Dir(filename), nil
 }
 
 func readRealBlocks(t *testing.T, nBlocks int) ([]*proto.Block, error) {
