@@ -6,6 +6,8 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"github.com/wavesplatform/gowaves/cmd/forkdetector/internal/server"
+	"go.uber.org/zap"
 )
 
 var (
