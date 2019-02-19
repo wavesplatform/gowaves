@@ -7,7 +7,6 @@ import (
 	"os"
 
 	"github.com/alecthomas/kong"
-	"github.com/spf13/afero"
 	"github.com/wavesplatform/gowaves/pkg/client"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
@@ -98,8 +97,7 @@ func serveBinary() {
 }
 
 func inputBytes(path string) ([]byte, error) {
-	fs := afero.NewOsFs()
-	f, err := fs.Open(path)
+	f, err := os.Open(path)
 	if err != nil {
 		return nil, err
 	}

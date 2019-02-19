@@ -460,7 +460,7 @@ func (tx *IssueV1) bodyUnmarshalBinary(data []byte) error {
 	var err error
 	tx.Name, err = StringWithUInt16Len(data)
 	if err != nil {
-		return errors.Wrap(err, "failed to unmarshal Name")
+		return errors.Wrap(err, "failed to unmarshal AppName")
 	}
 	data = data[2+len(tx.Name):]
 	tx.Description, err = StringWithUInt16Len(data)
@@ -652,7 +652,7 @@ func (tx *IssueV2) bodyUnmarshalBinary(data []byte) error {
 	var err error
 	tx.Name, err = StringWithUInt16Len(data)
 	if err != nil {
-		return errors.Wrapf(err, message, "Name")
+		return errors.Wrapf(err, message, "AppName")
 	}
 	data = data[2+len(tx.Name):]
 	tx.Description, err = StringWithUInt16Len(data)

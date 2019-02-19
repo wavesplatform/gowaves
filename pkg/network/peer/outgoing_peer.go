@@ -45,7 +45,7 @@ func RunOutgoingPeer(ctx context.Context, params OutgoingPeerParams) {
 	version := handshake.Version
 	declAddr, err := handshake.PeerInfo()
 	if err != nil {
-		zap.S().Error(err, params.Address)
+		zap.S().Info(err, params.Address)
 	}
 
 	connected := InfoMessage{
@@ -96,7 +96,7 @@ func (a *OutgoingPeer) connect(ctx context.Context, wavesNetwork string, remote 
 		}
 
 		handshake := proto.Handshake{
-			Name:              wavesNetwork,
+			AppName:           wavesNetwork,
 			Version:           proto.Version{Major: 0, Minor: possibleVersions[index%len(possibleVersions)], Patch: 0},
 			NodeName:          "retransmitter",
 			NodeNonce:         0x0,

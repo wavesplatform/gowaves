@@ -79,7 +79,7 @@ func (a *Addr2Peers) Get(id string) *PeerInfo {
 
 // delete address
 func (a *Addr2Peers) Delete(address string) {
-	a.lock.RLock()
+	a.lock.Lock()
 	delete(a.addr2peer, address)
-	a.lock.RUnlock()
+	a.lock.Unlock()
 }
