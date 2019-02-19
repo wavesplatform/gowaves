@@ -12,6 +12,10 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
+const (
+	maxBlockSize = 2 * 1024 * 1024
+)
+
 type State interface {
 	AcceptAndVerifyBlockBinary(block []byte, initialisation bool) error
 	GetBlockByHeight(height uint64) (*proto.Block, error)
@@ -25,7 +29,7 @@ func ApplyFromFile(st State, blockchainPath string, nBlocks, startHeight uint64,
 		return errors.Errorf("failed to open blockchain file: %v\n", err)
 	}
 	sb := make([]byte, 4)
-	buf := make([]byte, 2*1024*1024)
+	var buf [maxBlockSize]byte
 	r := bufio.NewReader(blockchain)
 	for height := uint64(0); height < nBlocks; height++ {
 		if _, err := io.ReadFull(r, sb); err != nil {
