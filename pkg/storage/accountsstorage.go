@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	RECORD_SIZE = crypto.SignatureSize + 8
+	recordSize = crypto.SignatureSize + 8
 )
 
 type ID2Height interface {
@@ -81,9 +81,9 @@ func (s *AccountsStorage) GetHeight() (uint64, error) {
 func (s *AccountsStorage) cutHistory(historyKey []byte, history []byte) ([]byte, error) {
 	historySize := len(history)
 	// Always leave at least 1 record.
-	last := historySize - RECORD_SIZE
-	for i := 0; i < last; i += RECORD_SIZE {
-		record := history[i : i+RECORD_SIZE]
+	last := historySize - recordSize
+	for i := 0; i < last; i += recordSize {
+		record := history[i : i+recordSize]
 		idBytes := record[len(record)-crypto.SignatureSize:]
 		blockID, err := toBlockID(idBytes)
 		if err != nil {
@@ -99,7 +99,7 @@ func (s *AccountsStorage) cutHistory(historyKey []byte, history []byte) ([]byte,
 				return nil, err
 			}
 			if currentHeight-blockHeight > uint64(s.rollbackMax) {
-				history = history[i+RECORD_SIZE:]
+				history = history[i+recordSize:]
 			} else {
 				break
 			}
@@ -116,8 +116,8 @@ func (s *AccountsStorage) cutHistory(historyKey []byte, history []byte) ([]byte,
 
 func (s *AccountsStorage) filterHistory(historyKey []byte, history []byte) ([]byte, error) {
 	historySize := len(history)
-	for i := historySize; i >= RECORD_SIZE; i -= RECORD_SIZE {
-		record := history[i-RECORD_SIZE : i]
+	for i := historySize; i >= recordSize; i -= recordSize {
+		record := history[i-recordSize : i]
 		idBytes := record[len(record)-crypto.SignatureSize:]
 		blockID, err := toBlockID(idBytes)
 		if err != nil {
@@ -133,7 +133,7 @@ func (s *AccountsStorage) filterHistory(historyKey []byte, history []byte) ([]by
 			break
 		}
 		// Erase invalid (outdated due to rollbacks) record.
-		history = history[:i-RECORD_SIZE]
+		history = history[:i-recordSize]
 	}
 	if len(history) != historySize {
 		// Some records were removed, so we need to update the DB.
@@ -219,11 +219,11 @@ func (s *AccountsStorage) newHistory(newRecord []byte, key []byte, blockID crypt
 			return nil, err
 		}
 	}
-	if len(history) < RECORD_SIZE {
+	if len(history) < recordSize {
 		// History is empty after filtering, new record is the first one.
 		return newRecord, nil
 	}
-	lastRecord := history[len(history)-RECORD_SIZE:]
+	lastRecord := history[len(history)-recordSize:]
 	idBytes := lastRecord[len(lastRecord)-crypto.SignatureSize:]
 	lastBlockID, err := toBlockID(idBytes)
 	if err != nil {
@@ -231,7 +231,7 @@ func (s *AccountsStorage) newHistory(newRecord []byte, key []byte, blockID crypt
 	}
 	if lastBlockID == blockID {
 		// If the last record is the same block, rewrite it.
-		copy(history[len(history)-RECORD_SIZE:], newRecord)
+		copy(history[len(history)-recordSize:], newRecord)
 	} else {
 		// Append new record to the end.
 		history = append(history, newRecord...)

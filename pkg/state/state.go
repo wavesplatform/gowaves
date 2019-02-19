@@ -13,9 +13,9 @@ import (
 )
 
 const (
-	ROLLBACK_MAX_BLOCKS = 4000
-	BLOCKS_STOR_DIR     = "blocks_storage"
-	KEYVALUE_DIR        = "keyvalue"
+	rollbackMaxBlocks = 4000
+	blocksStorDir     = "blocks_storage"
+	keyvalueDir       = "keyvalue"
 )
 
 type WavesBalanceKey [1 + proto.AddressSize]byte
@@ -124,17 +124,17 @@ func sync(db keyvalue.KeyValue, stor *storage.AccountsStorage, rw *storage.Block
 }
 
 func NewStateManager(dataDir string, params BlockStorageParams) (*StateManager, error) {
-	genesis, err := crypto.NewSignatureFromBase58(GENESIS_SIGNATURE)
+	genesis, err := crypto.NewSignatureFromBase58(genesisSignature)
 	if err != nil {
 		return nil, errors.Errorf("failed to get genesis signature from string: %v\n", err)
 	}
-	blockStorageDir := filepath.Join(dataDir, BLOCKS_STOR_DIR)
+	blockStorageDir := filepath.Join(dataDir, blocksStorDir)
 	if _, err := os.Stat(blockStorageDir); os.IsNotExist(err) {
 		if err := os.Mkdir(blockStorageDir, 0755); err != nil {
 			return nil, errors.Errorf("failed to create blocks directory: %v\n", err)
 		}
 	}
-	dbDir := filepath.Join(dataDir, KEYVALUE_DIR)
+	dbDir := filepath.Join(dataDir, keyvalueDir)
 	db, err := keyvalue.NewKeyVal(dbDir, true)
 	rw, err := storage.NewBlockReadWriter(blockStorageDir, params.OffsetLen, params.HeaderOffsetLen, db)
 	if err != nil {
@@ -144,7 +144,7 @@ func NewStateManager(dataDir string, params BlockStorageParams) (*StateManager, 
 	if err != nil {
 		return nil, errors.Errorf("failed to create accounts storage: %v\n", err)
 	}
-	accountsStor.SetRollbackMax(ROLLBACK_MAX_BLOCKS, rw)
+	accountsStor.SetRollbackMax(rollbackMaxBlocks, rw)
 	if err := sync(db, accountsStor, rw); err != nil {
 		return nil, errors.Errorf("failed to sync block storage and DB: %v\n", err)
 	}

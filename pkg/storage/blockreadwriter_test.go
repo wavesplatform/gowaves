@@ -23,9 +23,9 @@ import (
 )
 
 const (
-	TASKS_CHAN_BUFFER_SIZE = 20
-	READERS_NUMBER         = 5
-	BLOCKS_NUMBER          = 1000
+	tasksChanBufferSize = 20
+	readersNumber       = 5
+	blocksNumber        = 1000
 )
 
 var (
@@ -301,7 +301,7 @@ func TestSimpleReadWrite(t *testing.T) {
 		}
 	}()
 
-	blocks, err := readRealBlocks(t, BLOCKS_NUMBER)
+	blocks, err := readRealBlocks(t, blocksNumber)
 	if err != nil {
 		t.Fatalf("Can not read blocks from blockchain file: %v", err)
 	}
@@ -328,7 +328,7 @@ func TestSimultaneousReadWrite(t *testing.T) {
 		}
 	}()
 
-	blocks, err := readRealBlocks(t, BLOCKS_NUMBER)
+	blocks, err := readRealBlocks(t, blocksNumber)
 	if err != nil {
 		t.Fatalf("Can not read blocks from blockchain file: %v", err)
 	}
@@ -336,7 +336,7 @@ func TestSimultaneousReadWrite(t *testing.T) {
 	var wg sync.WaitGroup
 	ctx, cancel := context.WithCancel(context.Background())
 	errCounter := 0
-	readTasks := make(chan *ReadTask, TASKS_CHAN_BUFFER_SIZE)
+	readTasks := make(chan *ReadTask, tasksChanBufferSize)
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
@@ -349,7 +349,7 @@ func TestSimultaneousReadWrite(t *testing.T) {
 			cancel()
 		}
 	}()
-	for i := 0; i < READERS_NUMBER; i++ {
+	for i := 0; i < readersNumber; i++ {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
@@ -387,7 +387,7 @@ func TestSimultaneousReadDelete(t *testing.T) {
 		}
 	}()
 
-	blocks, err := readRealBlocks(t, BLOCKS_NUMBER)
+	blocks, err := readRealBlocks(t, blocksNumber)
 	if err != nil {
 		t.Fatalf("Can not read blocks from blockchain file: %v", err)
 	}
@@ -395,8 +395,8 @@ func TestSimultaneousReadDelete(t *testing.T) {
 	for _, block := range blocks {
 		writeBlock(t, rw, block)
 	}
-	idToTest := blocks[BLOCKS_NUMBER-1].BlockSignature
-	prevId := blocks[BLOCKS_NUMBER-2].BlockSignature
+	idToTest := blocks[blocksNumber-1].BlockSignature
+	prevId := blocks[blocksNumber-2].BlockSignature
 
 	var wg sync.WaitGroup
 	var removeErr error

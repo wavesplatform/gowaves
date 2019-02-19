@@ -12,8 +12,8 @@ import (
 )
 
 const (
-	GENESIS_SIGNATURE   = "FSH8eAAzZNqnG8xgTZtz5xuLqXySsXgAjmFEC25hXMbEufiGjqWPnGCZFt6gLiVLJny16ipxRNAkkzjjhqTjBE2"
-	TOTAL_BLOCKS_NUMBER = 200
+	genesisSignature  = "FSH8eAAzZNqnG8xgTZtz5xuLqXySsXgAjmFEC25hXMbEufiGjqWPnGCZFt6gLiVLJny16ipxRNAkkzjjhqTjBE2"
+	totalBlocksNumber = 200
 )
 
 func createAccountsStorage() (*AccountsStorage, []string, error) {
@@ -26,7 +26,7 @@ func createAccountsStorage() (*AccountsStorage, []string, error) {
 	if err != nil {
 		return nil, res, err
 	}
-	genesis, err := crypto.NewSignatureFromBase58(GENESIS_SIGNATURE)
+	genesis, err := crypto.NewSignatureFromBase58(genesisSignature)
 	if err != nil {
 		return nil, res, err
 	}
@@ -146,7 +146,7 @@ func TestRollbackBlock(t *testing.T) {
 	addr0 := genAddr(0)
 	addr1 := genAddr(1)
 	asset1 := genAsset(1)
-	for i := 0; i < TOTAL_BLOCKS_NUMBER; i++ {
+	for i := 0; i < totalBlocksNumber; i++ {
 		blockID := genBlockID(byte(i))
 		key := proto.BalanceKey{Address: addr0}
 		if err := stor.SetAccountBalance(key.Bytes(), uint64(i), blockID); err != nil {
@@ -164,7 +164,7 @@ func TestRollbackBlock(t *testing.T) {
 			t.Fatalf("FinishBlock(): %v\n", err)
 		}
 	}
-	for i := TOTAL_BLOCKS_NUMBER - 1; i > 0; i-- {
+	for i := totalBlocksNumber - 1; i > 0; i-- {
 		key := proto.BalanceKey{Address: addr0}
 		balance0, err := stor.AccountBalance(key.Bytes())
 		if err != nil {
