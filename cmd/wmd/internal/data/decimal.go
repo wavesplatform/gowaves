@@ -1,11 +1,12 @@
 package data
 
 import (
-	"github.com/pkg/errors"
 	"math"
 	"math/big"
 	"strconv"
 	"strings"
+
+	"github.com/pkg/errors"
 )
 
 const (

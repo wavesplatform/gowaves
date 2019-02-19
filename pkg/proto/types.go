@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/mr-tron/base58/base58"
 	"github.com/pkg/errors"
@@ -157,7 +158,7 @@ func (a *OptionalAsset) UnmarshalBinary(data []byte) error {
 	var err error
 	a.Present, err = Bool(data)
 	if err != nil {
-		errors.Wrap(err, "failed to unmarshal OptionalAsset")
+		return errors.Wrap(err, "failed to unmarshal OptionalAsset")
 	}
 	if a.Present {
 		data = data[1:]
@@ -1228,4 +1229,12 @@ func (s *Script) UnmarshalJSON(value []byte) error {
 	}
 	*s = Script(sb[:n])
 	return nil
+}
+
+func NewTimestampFromTime(t time.Time) uint64 {
+	return NewTimestampFromUnixNano(t.UnixNano())
+}
+
+func NewTimestampFromUnixNano(nano int64) uint64 {
+	return uint64(nano / 1000000)
 }

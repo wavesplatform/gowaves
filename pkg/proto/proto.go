@@ -1,6 +1,7 @@
 package proto
 
 import (
+	"encoding"
 	"encoding/binary"
 	"fmt"
 	"io"
@@ -30,6 +31,13 @@ const (
 	ContentIDTransaction   = 0x19
 	ContentIDCheckpoint    = 0x64
 )
+
+type Message interface {
+	io.ReaderFrom
+	io.WriterTo
+	encoding.BinaryUnmarshaler
+	encoding.BinaryMarshaler
+}
 
 type header struct {
 	Length        uint32
@@ -76,7 +84,7 @@ type Version struct {
 
 // Handshake is the handshake structure of the waves protocol
 type Handshake struct {
-	Name              string
+	AppName           string
 	Version           Version
 	NodeName          string
 	NodeNonce         uint64
@@ -85,12 +93,12 @@ type Handshake struct {
 }
 
 func (h *Handshake) marshalBinaryName() ([]byte, error) {
-	if len(h.Name) > 255 {
+	if len(h.AppName) > 255 {
 		return nil, errors.New("handshake application name too long")
 	}
-	data := make([]byte, len(h.Name)+1)
-	data[0] = byte(len(h.Name))
-	copy(data[1:1+len(h.Name)], h.Name)
+	data := make([]byte, len(h.AppName)+1)
+	data[0] = byte(len(h.AppName))
+	copy(data[1:1+len(h.AppName)], h.AppName)
 
 	return data, nil
 }
@@ -164,7 +172,7 @@ func (h *Handshake) UnmarshalBinary(data []byte) error {
 	if len(data) < int(appNameLen) {
 		return errors.New("data too short")
 	}
-	h.Name = string(data[:appNameLen])
+	h.AppName = string(data[:appNameLen])
 	data = data[appNameLen:]
 	if len(data) < 13 {
 		return errors.New("data too short")
@@ -199,53 +207,129 @@ func (h *Handshake) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
+func (h *Handshake) readApplicationName(buf []byte, r io.Reader) (int, error) {
+	n, err := io.ReadFull(r, buf[0:1])
+	if err != nil {
+		return 0, err
+	}
+
+	length := uint(buf[0])
+	n2, err := io.ReadFull(r, buf[1:1+length])
+	if err != nil {
+		return 0, err
+	}
+
+	return n + n2, nil
+}
+
+func (h *Handshake) readVersion(buf []byte, r io.Reader) (int, error) {
+	n, err := io.ReadFull(r, buf[:12])
+	if err != nil {
+		return 0, err
+	}
+	return n, nil
+}
+
+func (h *Handshake) readNodeName(buf []byte, r io.Reader) (int, error) {
+	n, err := io.ReadFull(r, buf[0:1])
+	if err != nil {
+		return 0, err
+	}
+
+	length := uint(buf[0])
+	n2, err := io.ReadFull(r, buf[1:1+length])
+	if err != nil {
+		return 0, err
+	}
+
+	return n + n2, nil
+}
+
+func (h *Handshake) readNonce(buf []byte, r io.Reader) (int, error) {
+	n, err := io.ReadFull(r, buf[:8])
+	if err != nil {
+		return 0, err
+	}
+	return n, nil
+}
+
+func (h *Handshake) readDeclAddr(buf []byte, r io.Reader) (int, error) {
+	n, err := io.ReadFull(r, buf[:4])
+	if err != nil {
+		return n, err
+	}
+
+	addrlen := binary.BigEndian.Uint32(buf[:4])
+	if addrlen > 8 {
+		return n, errors.Errorf("invalid declared address length, expected 0 or 8, got %d", addrlen)
+	}
+
+	if addrlen == 0 {
+		return n, nil
+	}
+
+	n2, err := io.ReadFull(r, buf[4:4+addrlen])
+	if err != nil {
+		return n + n2, err
+	}
+
+	return n + n2, nil
+}
+
+func (h *Handshake) readTimestamp(buf []byte, r io.Reader) (int, error) {
+	n, err := io.ReadFull(r, buf[:8])
+	if err != nil {
+		return n, err
+	}
+
+	return n, nil
+}
+
 // ReadFrom reads Handshake from io.Reader
 func (h *Handshake) ReadFrom(r io.Reader) (int64, error) {
-	buf := make([]byte, 1)
-
-	nn, err := io.ReadFull(r, buf)
+	// max header size based on fields
+	buf := [556]byte{}
+	nn, err := h.readApplicationName(buf[:], r)
 	if err != nil {
 		return int64(nn), err
 	}
 
-	buf = append(buf, make([]byte, uint(buf[0]))...)
-	n, err := io.ReadFull(r, buf[1:])
+	n, err := h.readVersion(buf[nn:], r)
 	if err != nil {
-		return int64(n + nn), err
+		return 0, err
 	}
-	nn += n
-	tmp := make([]byte, 13)
-	n, err = io.ReadFull(r, tmp)
-	if err != nil {
-		return int64(n + nn), err
-	}
-	buf = append(buf, tmp...)
-	nn += n
-	tmp = make([]byte, uint(tmp[12]))
-	n, err = io.ReadFull(r, tmp)
-	if err != nil {
-		return int64(n + nn), err
-	}
-	buf = append(buf, tmp...)
-	nn += n
-	tmp = make([]byte, 12)
-	n, err = io.ReadFull(r, tmp)
-	if err != nil {
-		return int64(n + nn), err
-	}
-	buf = append(buf, tmp...)
-	nn += n
-	addrlen := binary.BigEndian.Uint32(tmp[8:12])
-	buf = append(buf, tmp...)
-	tmp = make([]byte, addrlen+8)
-	n, err = io.ReadFull(r, tmp)
-	if err != nil {
-		return int64(n + nn), err
-	}
-	buf = append(buf, tmp...)
+
 	nn += n
 
-	return int64(nn), h.UnmarshalBinary(buf)
+	n, err = h.readNodeName(buf[nn:], r)
+	if err != nil {
+		return int64(n + nn), err
+	}
+
+	nn += n
+
+	n, err = h.readNonce(buf[nn:], r)
+	if err != nil {
+		return int64(n + nn), err
+	}
+
+	nn += n
+
+	n, err = h.readDeclAddr(buf[nn:], r)
+	if err != nil {
+		return int64(n + nn), err
+	}
+
+	nn += n
+
+	n, err = h.readTimestamp(buf[nn:], r)
+	if err != nil {
+		return int64(n + nn), err
+	}
+
+	nn += n
+
+	return int64(nn), h.UnmarshalBinary(buf[:])
 }
 
 // WriteTo writes Handshake to io.Writer
@@ -257,6 +341,12 @@ func (h *Handshake) WriteTo(w io.Writer) (int64, error) {
 	nn, err := w.Write(buf)
 	n := int64(nn)
 	return n, err
+}
+
+func (h *Handshake) PeerInfo() (PeerInfo, error) {
+	p := PeerInfo{}
+	err := p.UnmarshalBinary(h.DeclaredAddrBytes)
+	return p, err
 }
 
 // GetPeersMessage implements the GetPeers message from the waves protocol
@@ -336,6 +426,23 @@ type PeerInfo struct {
 	Port uint16
 }
 
+func NewPeerInfoFromString(addr string) (PeerInfo, error) {
+	strs := strings.Split(addr, ":")
+	if len(strs) != 2 {
+		return PeerInfo{}, errors.Errorf("invalid addr %s", addr)
+	}
+
+	ip := net.ParseIP(string(strs[0]))
+	port, err := strconv.ParseUint(strs[1], 10, 64)
+	if err != nil {
+		return PeerInfo{}, errors.Errorf("invalid port %s", strs[1])
+	}
+	return PeerInfo{
+		Addr: ip,
+		Port: uint16(port),
+	}, nil
+}
+
 // MarshalBinary encodes PeerInfo message to binary form
 func (m *PeerInfo) MarshalBinary() ([]byte, error) {
 	buffer := make([]byte, 8)
@@ -394,7 +501,7 @@ func (m *PeerInfo) UnmarshalJSON(value []byte) error {
 
 	s, err := strconv.Unquote(s)
 	if err != nil {
-		errors.Wrap(err, "failed to unmarshal PeerInfo from JSON")
+		return errors.Wrap(err, "failed to unmarshal PeerInfo from JSON")
 	}
 
 	splitted := strings.SplitN(s, "/", 2)
@@ -417,10 +524,22 @@ func (m *PeerInfo) UnmarshalJSON(value []byte) error {
 	m.Addr = net.ParseIP(addr)
 	port64, err := strconv.ParseUint(port, 10, 16)
 	if err != nil {
-		errors.Wrap(err, "failed to unmarshal PeerInfo from JSON")
+		return errors.Wrap(err, "failed to unmarshal PeerInfo from JSON")
 	}
 	m.Port = uint16(port64)
 	return nil
+}
+
+func (m *PeerInfo) Empty() bool {
+	if m.Addr == nil || m.Addr.String() == "0.0.0.0" {
+		return true
+	}
+
+	if m.Port == 0 {
+		return true
+	}
+
+	return false
 }
 
 // PeersMessage represents the peers message
@@ -505,6 +624,32 @@ func readPacket(r io.Reader) ([]byte, int64, error) {
 	packet = append(packetLen[:], packet...)
 
 	return packet, int64(nn), nil
+}
+
+func ReadPacket(buf []byte, r io.Reader) (int64, error) {
+	packetLen := buf[:4]
+	//zap.S().Infof("==1packetLen %d %d", len(packetLen), packetLen)
+	nn, err := io.ReadFull(r, packetLen)
+	if err != nil {
+		return int64(nn), err
+	}
+	l := binary.BigEndian.Uint32(packetLen)
+	//zap.S().Infof("==2packetLen %d", l)
+	buf = buf[4:]
+	packet := buf[:l]
+	//zap.S().Infof("==3packet length %d", len(packet))
+	//packet := make([]byte, l)
+	//for i := 0; i < len(packet); i++ {
+	//	packet[i] = 0x88
+	//}
+	n, err := io.ReadFull(r, packet)
+	if err != nil {
+		return int64(nn + n), err
+	}
+	nn += n
+	//packet = append(packetLen[:], packet...)
+
+	return int64(nn), nil
 }
 
 // ReadFrom reads PeersMessage from io.Reader
@@ -901,7 +1046,7 @@ func (m *ScoreMessage) WriteTo(w io.Writer) (int64, error) {
 	return n, err
 }
 
-// TransactionMessage represents Transaction message
+// TransactionMessage represents TransactionsSend message
 type TransactionMessage struct {
 	Transaction []byte
 }
@@ -939,9 +1084,8 @@ func (m *TransactionMessage) UnmarshalBinary(data []byte) error {
 	if h.ContentID != ContentIDTransaction {
 		return fmt.Errorf("wrong ContentID in header: %x", h.ContentID)
 	}
-
-	m.Transaction = data[17:]
-
+	m.Transaction = make([]byte, h.PayloadLength)
+	copy(m.Transaction, data[headerLength:headerLength+h.PayloadLength])
 	return nil
 }
 

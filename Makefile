@@ -63,3 +63,8 @@ dist-wmd: release-wmd
 	@cd ./build/bin/darwin-amd64/; tar pzcvf ../../dist/wmd_$(VERSION)_macOS-64bit.tar.gz ./wmd*
 
 dist: clean dist-chaincmp dist-wmd
+
+
+
+build-retransmitter-linux:
+	@CGO_ENABLE=0 GOOS=linux GOARCH=amd64 go build -o build/bin/linux-amd64/retransmitter -ldflags="-X main.version=$(VERSION)" ./cmd/retransmitter

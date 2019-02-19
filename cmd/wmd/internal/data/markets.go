@@ -2,9 +2,10 @@ package data
 
 import (
 	"encoding/binary"
+	"time"
+
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
-	"time"
 )
 
 type MarketID struct {

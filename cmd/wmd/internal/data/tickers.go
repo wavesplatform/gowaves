@@ -2,10 +2,11 @@ package data
 
 import (
 	"bytes"
-	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"math"
 	"math/big"
 	"time"
+
+	"github.com/wavesplatform/gowaves/pkg/crypto"
 )
 
 type AssetID crypto.Digest

@@ -75,7 +75,7 @@ func (p *Peer) dialContext(v proto.Version) func(ctx context.Context, network, a
 				return nil, err
 			}
 
-			handshake := proto.Handshake{Name: "wavesT",
+			handshake := proto.Handshake{AppName: "wavesT",
 				Version:           proto.Version{Major: major, Minor: minor, Patch: patch},
 				NodeName:          "gowaves",
 				NodeNonce:         0x0,
