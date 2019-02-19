@@ -12,6 +12,7 @@ import (
 )
 
 const (
+	GENESIS_SIGNATURE   = "FSH8eAAzZNqnG8xgTZtz5xuLqXySsXgAjmFEC25hXMbEufiGjqWPnGCZFt6gLiVLJny16ipxRNAkkzjjhqTjBE2"
 	TOTAL_BLOCKS_NUMBER = 200
 )
 
@@ -25,7 +26,11 @@ func createAccountsStorage() (*AccountsStorage, []string, error) {
 	if err != nil {
 		return nil, res, err
 	}
-	stor, err := NewAccountsStorage(globalStor)
+	genesis, err := crypto.NewSignatureFromBase58(GENESIS_SIGNATURE)
+	if err != nil {
+		return nil, res, err
+	}
+	stor, err := NewAccountsStorage(genesis, globalStor)
 	if err != nil {
 		return nil, res, err
 	}

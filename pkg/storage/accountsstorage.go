@@ -10,12 +10,18 @@ import (
 )
 
 const (
-	ROLLBACK_MAX_BLOCKS = 2000
-	RECORD_SIZE         = crypto.SignatureSize + 8
+	RECORD_SIZE = crypto.SignatureSize + 8
 )
 
+type ID2Height interface {
+	HeightByBlockID(blockID crypto.Signature) (uint64, error)
+}
+
 type AccountsStorage struct {
-	Db keyvalue.IterableKeyVal
+	genesis     crypto.Signature
+	Db          keyvalue.IterableKeyVal
+	id2Height   ID2Height
+	rollbackMax int
 }
 
 var Empty = []byte{}
@@ -29,7 +35,7 @@ func toBlockID(bytes []byte) (crypto.Signature, error) {
 	return res, nil
 }
 
-func NewAccountsStorage(db keyvalue.IterableKeyVal) (*AccountsStorage, error) {
+func NewAccountsStorage(genesis crypto.Signature, db keyvalue.IterableKeyVal) (*AccountsStorage, error) {
 	has, err := db.Has([]byte{proto.DbHeightKeyPrefix})
 	if err != nil {
 		return nil, err
@@ -41,7 +47,12 @@ func NewAccountsStorage(db keyvalue.IterableKeyVal) (*AccountsStorage, error) {
 			return nil, err
 		}
 	}
-	return &AccountsStorage{Db: db}, nil
+	return &AccountsStorage{genesis: genesis, Db: db}, nil
+}
+
+func (s *AccountsStorage) SetRollbackMax(rollbackMax int, id2Height ID2Height) {
+	s.rollbackMax = rollbackMax
+	s.id2Height = id2Height
 }
 
 func (s *AccountsStorage) SetHeight(height uint64, directly bool) error {
@@ -65,6 +76,42 @@ func (s *AccountsStorage) GetHeight() (uint64, error) {
 		return 0, err
 	}
 	return binary.LittleEndian.Uint64(dbHeightBytes), nil
+}
+
+func (s *AccountsStorage) cutHistory(historyKey []byte, history []byte) ([]byte, error) {
+	historySize := len(history)
+	// Always leave at least 1 record.
+	last := historySize - RECORD_SIZE
+	for i := 0; i < last; i += RECORD_SIZE {
+		record := history[i : i+RECORD_SIZE]
+		idBytes := record[len(record)-crypto.SignatureSize:]
+		blockID, err := toBlockID(idBytes)
+		if err != nil {
+			return nil, err
+		}
+		if blockID != s.genesis {
+			blockHeight, err := s.id2Height.HeightByBlockID(blockID)
+			if err != nil {
+				return nil, err
+			}
+			currentHeight, err := s.GetHeight()
+			if err != nil {
+				return nil, err
+			}
+			if currentHeight-blockHeight > uint64(s.rollbackMax) {
+				history = history[i+RECORD_SIZE:]
+			} else {
+				break
+			}
+		}
+	}
+	if len(history) != historySize {
+		// Some records were removed, so we need to update the DB.
+		if err := s.Db.PutDirectly(historyKey, history); err != nil {
+			return nil, err
+		}
+	}
+	return history, nil
 }
 
 func (s *AccountsStorage) filterHistory(historyKey []byte, history []byte) ([]byte, error) {
@@ -160,10 +207,17 @@ func (s *AccountsStorage) newHistory(newRecord []byte, key []byte, blockID crypt
 	if err != nil {
 		return nil, err
 	}
-	// Delete invalid records.
+	// Delete invalid (because of rollback) records.
 	history, err = s.filterHistory(key, history)
 	if err != nil {
 		return nil, err
+	}
+	if s.rollbackMax != 0 {
+		// Remove records which are too far in the past.
+		history, err = s.cutHistory(key, history)
+		if err != nil {
+			return nil, err
+		}
 	}
 	if len(history) < RECORD_SIZE {
 		// History is empty after filtering, new record is the first one.

@@ -27,8 +27,7 @@ func ApplyFromFile(st State, blockchainPath string, nBlocks, startHeight uint64,
 	sb := make([]byte, 4)
 	buf := make([]byte, 2*1024*1024)
 	r := bufio.NewReader(blockchain)
-	height := uint64(0)
-	for i := uint64(0); i < nBlocks; i++ {
+	for height := uint64(0); height < nBlocks; height++ {
 		if _, err := io.ReadFull(r, sb); err != nil {
 			return err
 		}
@@ -42,7 +41,7 @@ func ApplyFromFile(st State, blockchainPath string, nBlocks, startHeight uint64,
 				return err
 			}
 			if checkBlocks {
-				savedBlock, err := st.GetBlockByHeight(uint64(i))
+				savedBlock, err := st.GetBlockByHeight(height)
 				if err != nil {
 					return err
 				}
@@ -55,7 +54,6 @@ func ApplyFromFile(st State, blockchainPath string, nBlocks, startHeight uint64,
 				}
 			}
 		}
-		height++
 	}
 	if err := blockchain.Close(); err != nil {
 		return errors.Errorf("failed to close blockchain file: %v\n", err)

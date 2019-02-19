@@ -13,8 +13,9 @@ import (
 )
 
 const (
-	BLOCKS_STOR_DIR = "blocks_storage"
-	KEYVALUE_DIR    = "keyvalue"
+	ROLLBACK_MAX_BLOCKS = 4000
+	BLOCKS_STOR_DIR     = "blocks_storage"
+	KEYVALUE_DIR        = "keyvalue"
 )
 
 type WavesBalanceKey [1 + proto.AddressSize]byte
@@ -139,10 +140,11 @@ func NewStateManager(dataDir string, params BlockStorageParams) (*StateManager, 
 	if err != nil {
 		return nil, errors.Errorf("failed to create block storage: %v\n", err)
 	}
-	accountsStor, err := storage.NewAccountsStorage(db)
+	accountsStor, err := storage.NewAccountsStorage(genesis, db)
 	if err != nil {
 		return nil, errors.Errorf("failed to create accounts storage: %v\n", err)
 	}
+	accountsStor.SetRollbackMax(ROLLBACK_MAX_BLOCKS, rw)
 	if err := sync(db, accountsStor, rw); err != nil {
 		return nil, errors.Errorf("failed to sync block storage and DB: %v\n", err)
 	}
