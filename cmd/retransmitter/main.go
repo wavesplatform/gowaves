@@ -93,7 +93,6 @@ func receiveFromRemoteCallbackFunc(b []byte, id string, resendTo chan peer.Proto
 			zap.S().Warnf("failed to resend to parent, channel is full", id)
 		}
 	default:
-		zap.S().Info("bytes id ", b[8])
 		return
 	}
 }
