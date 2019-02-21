@@ -15,6 +15,7 @@ const (
 	blocksToImport = 1000
 	firstHeight    = 901
 	secondHeight   = 31
+	thirdHeight    = 1
 )
 
 func getLocalDir() (string, error) {
@@ -34,6 +35,7 @@ func TestBlockAcceptAndRollback(t *testing.T) {
 	balancesPath0 := filepath.Join(dir, "testdata", "accounts-1001")
 	balancesPath1 := filepath.Join(dir, "testdata", "accounts-901")
 	balancesPath2 := filepath.Join(dir, "testdata", "accounts-31")
+	balancesPath3 := filepath.Join(dir, "testdata", "accounts-1")
 	dataDir, err := ioutil.TempDir(os.TempDir(), "dataDir")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir for data: %v\n", err)
@@ -70,6 +72,14 @@ func TestBlockAcceptAndRollback(t *testing.T) {
 		t.Fatalf("Rollback(): %v\n", err)
 	}
 	if err := importer.CheckBalances(manager, balancesPath2); err != nil {
+		t.Fatalf("CheckBalances(): %v\n", err)
+	}
+
+	// Remove all but genesis.
+	if err := manager.RollbackToHeight(thirdHeight); err != nil {
+		t.Fatalf("Rollback(): %v\n", err)
+	}
+	if err := importer.CheckBalances(manager, balancesPath3); err != nil {
 		t.Fatalf("CheckBalances(): %v\n", err)
 	}
 }

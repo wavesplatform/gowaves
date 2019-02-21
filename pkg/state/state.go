@@ -115,7 +115,7 @@ func syncDbAndStorage(db keyvalue.KeyValue, stor *AccountsStorage, rw *BlockRead
 		panic("Impossible to sync: DB is ahead of block storage; remove data dir and restart the node.")
 	}
 	if dbHeight == 0 {
-		if err := rw.Reset(); err != nil {
+		if err := rw.Reset(false); err != nil {
 			return errors.Errorf("failed to reset block storage: %v", err)
 		}
 	} else {
@@ -552,14 +552,32 @@ func (s *StateManager) AddBlocks(blocks [][]byte, initialisation bool) error {
 }
 
 func (s *StateManager) RollbackToHeight(height uint64) error {
-	if height < 2 {
+	if height < 1 {
 		return errors.New("minimum block to rollback to is the first block")
+	} else if height == 1 {
+		// Rollback accounts storage.
+		curHeight, err := s.rw.CurrentHeight()
+		if err != nil {
+			return err
+		}
+		for h := curHeight; h > 0; h-- {
+			blockID, err := s.rw.BlockIDByHeight(h - 1)
+			if err != nil {
+				return errors.Errorf("failed to get block ID by height: %v\n", err)
+			}
+			if err := s.accountsStorage.RollbackBlock(blockID); err != nil {
+				return errors.Errorf("failed to rollback accounts storage: %v", err)
+			}
+		}
+		// Remove blocks from block storage.
+		return s.rw.Reset(true)
+	} else {
+		blockID, err := s.rw.BlockIDByHeight(height - 2)
+		if err != nil {
+			return err
+		}
+		return s.RollbackTo(blockID)
 	}
-	blockID, err := s.rw.BlockIDByHeight(height - 2)
-	if err != nil {
-		return err
-	}
-	return s.RollbackTo(blockID)
 }
 
 func (s *StateManager) RollbackTo(removalEdge crypto.Signature) error {
@@ -568,8 +586,8 @@ func (s *StateManager) RollbackTo(removalEdge crypto.Signature) error {
 	if err != nil {
 		return err
 	}
-	for height := curHeight - 1; height > 0; height-- {
-		blockID, err := s.rw.BlockIDByHeight(height)
+	for height := curHeight; height > 0; height-- {
+		blockID, err := s.rw.BlockIDByHeight(height - 1)
 		if err != nil {
 			return errors.Errorf("failed to get block ID by height: %v\n", err)
 		}

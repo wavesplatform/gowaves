@@ -351,12 +351,22 @@ func (rw *BlockReadWriter) cleanIDs(oldHeight, newBlockchainLen uint64) error {
 	return nil
 }
 
-func (rw *BlockReadWriter) Reset() error {
+func (rw *BlockReadWriter) Reset(cleanIDs bool) error {
 	rw.mtx.Lock()
 	defer rw.mtx.Unlock()
 	// Set new height first of all.
 	if err := rw.SetHeight(0, true); err != nil {
 		return err
+	}
+	oldHeight, err := rw.GetHeight()
+	if err != nil {
+		return err
+	}
+	if cleanIDs {
+		// Clean IDs of blocks and transactions.
+		if err := rw.cleanIDs(oldHeight, 0); err != nil {
+			return err
+		}
 	}
 	// Remove transactions.
 	if err := rw.blockchain.Truncate(0); err != nil {
