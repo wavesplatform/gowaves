@@ -2,11 +2,11 @@ package conn
 
 import (
 	"context"
-	"github.com/wavesplatform/gowaves/pkg/proto"
 	"io"
 	"net"
 	"strings"
 
+	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
 )
 
@@ -47,7 +47,6 @@ func sendToRemote(conn io.Writer, ctx context.Context, toRemoteCh chan []byte, e
 }
 
 func recvFromRemote(pool Pool, conn io.Reader, fromRemoteCh chan []byte, errCh chan error) {
-
 	for {
 		b := pool.Get()
 		n, err := proto.ReadPacket(b, conn)
@@ -59,17 +58,21 @@ func recvFromRemote(pool Pool, conn io.Reader, fromRemoteCh chan []byte, errCh c
 
 		if err != nil {
 			if err == io.EOF {
+				pool.Put(b)
 				return
 			}
 			if strings.Contains(err.Error(), "use of closed network connection") {
+				pool.Put(b)
 				return
 			}
 			handleErr(err, errCh)
+			pool.Put(b)
 			continue
 		}
 		select {
 		case fromRemoteCh <- b:
 		default:
+			pool.Put(b)
 			zap.S().Warnf("recvFromRemote send bytes failed, chan is full")
 		}
 	}

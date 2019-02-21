@@ -56,3 +56,24 @@ func TestBytesPool_Get_Put(t *testing.T) {
 	pool.Get()
 	assert.EqualValues(t, 1, pool.Allocations())
 }
+
+func TestBytesPool_Stat(t *testing.T) {
+	pool := NewBytesPool(32, size)
+
+	allocations, puts, gets := pool.Stat()
+	assert.EqualValues(t, 0, allocations)
+	assert.EqualValues(t, 0, puts)
+	assert.EqualValues(t, 0, gets)
+
+	pool.Put(pool.Get())
+	allocations, puts, gets = pool.Stat()
+	assert.EqualValues(t, 1, allocations)
+	assert.EqualValues(t, 1, puts)
+	assert.EqualValues(t, 1, gets)
+
+	pool.Put(pool.Get())
+	allocations, puts, gets = pool.Stat()
+	assert.EqualValues(t, 1, allocations)
+	assert.EqualValues(t, 2, puts)
+	assert.EqualValues(t, 2, gets)
+}
