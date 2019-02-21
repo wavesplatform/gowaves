@@ -204,10 +204,14 @@ func (s *AccountsStorage) GetHeight() (uint64, error) {
 
 func (s *AccountsStorage) cutHistory(historyKey []byte, history []byte) ([]byte, error) {
 	historySize := len(history)
+	currentHeight, err := s.GetHeight()
+	if err != nil {
+		return nil, err
+	}
 	// Always leave at least 1 record.
 	last := historySize - recordSize
-	for i := 0; i < last; i += recordSize {
-		record := history[i : i+recordSize]
+	for i := last; i >= recordSize; i -= recordSize {
+		record := history[i-recordSize : i]
 		idBytes := record[len(record)-crypto.SignatureSize:]
 		blockID, err := toBlockID(idBytes)
 		if err != nil {
@@ -218,15 +222,12 @@ func (s *AccountsStorage) cutHistory(historyKey []byte, history []byte) ([]byte,
 			if err != nil {
 				return nil, err
 			}
-			currentHeight, err := s.GetHeight()
-			if err != nil {
-				return nil, err
+			if currentHeight-blockHeight <= uint64(s.rollbackMax) {
+				// Is needed for rollback.
+				continue
 			}
-			if currentHeight-blockHeight > uint64(s.rollbackMax) {
-				history = history[i+recordSize:]
-			} else {
-				break
-			}
+			history = history[i:]
+			break
 		}
 	}
 	if len(history) != historySize {
