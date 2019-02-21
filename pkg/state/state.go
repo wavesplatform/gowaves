@@ -15,10 +15,13 @@ const (
 	rollbackMaxBlocks = 4000
 	blocksStorDir     = "blocks_storage"
 	keyvalueDir       = "keyvalue"
+
+	wavesBalanceKeySize = 1 + proto.AddressSize
+	assetBalanceKeySize = 1 + proto.AddressSize + crypto.DigestSize
 )
 
-type WavesBalanceKey [1 + proto.AddressSize]byte
-type AssetBalanceKey [1 + proto.AddressSize + crypto.DigestSize]byte
+type WavesBalanceKey [wavesBalanceKeySize]byte
+type AssetBalanceKey [assetBalanceKeySize]byte
 
 type BalancesStorage struct {
 	global *AccountsStorage
@@ -36,11 +39,10 @@ func NewBalancesStorage(global *AccountsStorage) (*BalancesStorage, error) {
 
 func (stor *BalancesStorage) AccountBalance(key []byte) (uint64, error) {
 	size := len(key)
-	if size == 1+proto.AddressSize {
+	if size == wavesBalanceKeySize {
 		var wavesKey WavesBalanceKey
 		copy(wavesKey[:], key)
-		_, ok := stor.waves[wavesKey]
-		if !ok {
+		if _, ok := stor.waves[wavesKey]; !ok {
 			balance, err := stor.global.AccountBalance(key)
 			if err != nil {
 				return 0, err
@@ -48,11 +50,10 @@ func (stor *BalancesStorage) AccountBalance(key []byte) (uint64, error) {
 			stor.waves[wavesKey] = balance
 		}
 		return stor.waves[wavesKey], nil
-	} else if size == 1+proto.AddressSize+crypto.DigestSize {
+	} else if size == assetBalanceKeySize {
 		var assetKey AssetBalanceKey
 		copy(assetKey[:], key)
-		_, ok := stor.assets[assetKey]
-		if !ok {
+		if _, ok := stor.assets[assetKey]; !ok {
 			balance, err := stor.global.AccountBalance(key)
 			if err != nil {
 				return 0, err
@@ -64,18 +65,21 @@ func (stor *BalancesStorage) AccountBalance(key []byte) (uint64, error) {
 	return 0, errors.New("invalid key size")
 }
 
-func (stor *BalancesStorage) SetAccountBalance(key []byte, balance uint64) error {
+func (stor *BalancesStorage) SetAccountBalance(key []byte, balance uint64, blockID crypto.Signature) error {
 	size := len(key)
-	if size == 1+proto.AddressSize {
+	if size == wavesBalanceKeySize {
 		var wavesKey WavesBalanceKey
 		copy(wavesKey[:], key)
 		stor.waves[wavesKey] = balance
-	} else if size == 1+proto.AddressSize+crypto.DigestSize {
+	} else if size == assetBalanceKeySize {
 		var assetKey AssetBalanceKey
 		copy(assetKey[:], key)
 		stor.assets[assetKey] = balance
 	} else {
 		return errors.New("invalid key size")
+	}
+	if err := stor.global.SetAccountBalance(key, balance, blockID); err != nil {
+		return errors.Errorf("failed to add changes to batch: %v\n", err)
 	}
 	return nil
 }
@@ -110,7 +114,11 @@ func syncDbAndStorage(db keyvalue.KeyValue, stor *AccountsStorage, rw *BlockRead
 		// This should never happen, because we update block storage before writing changes into DB.
 		panic("Impossible to sync: DB is ahead of block storage; remove data dir and restart the node.")
 	}
-	if dbHeight > 0 {
+	if dbHeight == 0 {
+		if err := rw.Reset(); err != nil {
+			return errors.Errorf("failed to reset block storage: %v", err)
+		}
+	} else {
 		last, err := rw.BlockIDByHeight(dbHeight - 1)
 		if err != nil {
 			return err
@@ -156,6 +164,15 @@ func NewStateManager(dataDir string, params BlockStorageParams) (*StateManager, 
 		},
 	}
 	state := &StateManager{genesis: genesis, db: db, accountsStorage: accountsStor, rw: rw}
+	height, err := state.Height()
+	if err != nil {
+		return nil, errors.Errorf("failed to get height: %v\n", err)
+	}
+	if height == 1 {
+		if err := state.applyGenesis(); err != nil {
+			return nil, errors.Errorf("failed to apply genesis: %v\n", err)
+		}
+	}
 	return state, nil
 }
 
@@ -180,12 +197,7 @@ func (s *StateManager) applyGenesis() error {
 			return errors.Wrap(err, "failed to perform genesis transaction")
 		}
 	}
-	// Write transactions from local balances storage into DB batch.
-	if err := s.addChangesToBatch(balancesStor, s.genesis.BlockSignature); err != nil {
-		return err
-	}
-	// Write batch to DB.
-	if err := s.db.Flush(); err != nil {
+	if err := s.accountsStorage.Flush(); err != nil {
 		return err
 	}
 	return nil
@@ -265,13 +277,14 @@ func (s *StateManager) performGenesisTransaction(tx proto.Genesis, stor *Balance
 		return err
 	}
 	newReceiverBalance := receiverBalance + tx.Amount
-	if err := stor.SetAccountBalance(key.Bytes(), newReceiverBalance); err != nil {
+	if err := stor.SetAccountBalance(key.Bytes(), newReceiverBalance, s.genesis.BlockSignature); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (s *StateManager) performTransaction(block *proto.Block, tx proto.Transaction, stor *BalancesStorage) error {
+	blockID := block.BlockSignature
 	switch v := tx.(type) {
 	case *proto.Payment:
 		senderAddr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, v.SenderPK)
@@ -291,7 +304,7 @@ func (s *StateManager) performTransaction(block *proto.Block, tx proto.Transacti
 		if newSenderBalance < 0 {
 			panic("Transaction results in negative balance after validation")
 		}
-		if err := stor.SetAccountBalance(senderKey.Bytes(), newSenderBalance); err != nil {
+		if err := stor.SetAccountBalance(senderKey.Bytes(), newSenderBalance, blockID); err != nil {
 			return err
 		}
 		receiverKey := BalanceKey{Address: v.Recipient}
@@ -300,7 +313,7 @@ func (s *StateManager) performTransaction(block *proto.Block, tx proto.Transacti
 			return err
 		}
 		newReceiverBalance := receiverBalance + v.Amount
-		if err := stor.SetAccountBalance(receiverKey.Bytes(), newReceiverBalance); err != nil {
+		if err := stor.SetAccountBalance(receiverKey.Bytes(), newReceiverBalance, blockID); err != nil {
 			return err
 		}
 		minerKey := BalanceKey{Address: minerAddr}
@@ -309,7 +322,7 @@ func (s *StateManager) performTransaction(block *proto.Block, tx proto.Transacti
 			return err
 		}
 		newMinerBalance := minerBalance + v.Fee
-		if err := stor.SetAccountBalance(minerKey.Bytes(), newMinerBalance); err != nil {
+		if err := stor.SetAccountBalance(minerKey.Bytes(), newMinerBalance, blockID); err != nil {
 			return err
 		}
 		return nil
@@ -344,10 +357,10 @@ func (s *StateManager) performTransaction(block *proto.Block, tx proto.Transacti
 		if newSenderAmountBalance < 0 {
 			panic("Transaction results in negative balance after validation")
 		}
-		if err := stor.SetAccountBalance(senderFeeKey.Bytes(), newSenderFeeBalance); err != nil {
+		if err := stor.SetAccountBalance(senderFeeKey.Bytes(), newSenderFeeBalance, blockID); err != nil {
 			return err
 		}
-		if err := stor.SetAccountBalance(senderAmountKey.Bytes(), newSenderAmountBalance); err != nil {
+		if err := stor.SetAccountBalance(senderAmountKey.Bytes(), newSenderAmountBalance, blockID); err != nil {
 			return err
 		}
 		receiverKey := BalanceKey{Address: *v.Recipient.Address, Asset: v.AmountAsset.ToID()}
@@ -356,7 +369,7 @@ func (s *StateManager) performTransaction(block *proto.Block, tx proto.Transacti
 			return err
 		}
 		newReceiverBalance := receiverBalance + v.Amount
-		if err := stor.SetAccountBalance(receiverKey.Bytes(), newReceiverBalance); err != nil {
+		if err := stor.SetAccountBalance(receiverKey.Bytes(), newReceiverBalance, blockID); err != nil {
 			return err
 		}
 		minerKey := BalanceKey{Address: minerAddr, Asset: v.FeeAsset.ToID()}
@@ -365,7 +378,7 @@ func (s *StateManager) performTransaction(block *proto.Block, tx proto.Transacti
 			return err
 		}
 		newMinerBalance := minerBalance + v.Fee
-		if err := stor.SetAccountBalance(minerKey.Bytes(), newMinerBalance); err != nil {
+		if err := stor.SetAccountBalance(minerKey.Bytes(), newMinerBalance, blockID); err != nil {
 			return err
 		}
 		return nil
@@ -400,10 +413,10 @@ func (s *StateManager) performTransaction(block *proto.Block, tx proto.Transacti
 		if newSenderAmountBalance < 0 {
 			panic("Transaction results in negative balance after validation")
 		}
-		if err := stor.SetAccountBalance(senderFeeKey.Bytes(), newSenderFeeBalance); err != nil {
+		if err := stor.SetAccountBalance(senderFeeKey.Bytes(), newSenderFeeBalance, blockID); err != nil {
 			return err
 		}
-		if err := stor.SetAccountBalance(senderAmountKey.Bytes(), newSenderAmountBalance); err != nil {
+		if err := stor.SetAccountBalance(senderAmountKey.Bytes(), newSenderAmountBalance, blockID); err != nil {
 			return err
 		}
 		receiverKey := BalanceKey{Address: *v.Recipient.Address, Asset: v.AmountAsset.ToID()}
@@ -412,7 +425,7 @@ func (s *StateManager) performTransaction(block *proto.Block, tx proto.Transacti
 			return err
 		}
 		newReceiverBalance := receiverBalance + v.Amount
-		if err := stor.SetAccountBalance(receiverKey.Bytes(), newReceiverBalance); err != nil {
+		if err := stor.SetAccountBalance(receiverKey.Bytes(), newReceiverBalance, blockID); err != nil {
 			return err
 		}
 		minerKey := BalanceKey{Address: minerAddr, Asset: v.FeeAsset.ToID()}
@@ -421,7 +434,7 @@ func (s *StateManager) performTransaction(block *proto.Block, tx proto.Transacti
 			return err
 		}
 		newMinerBalance := minerBalance + v.Fee
-		if err := stor.SetAccountBalance(minerKey.Bytes(), newMinerBalance); err != nil {
+		if err := stor.SetAccountBalance(minerKey.Bytes(), newMinerBalance, blockID); err != nil {
 			return err
 		}
 		return nil
@@ -430,21 +443,16 @@ func (s *StateManager) performTransaction(block *proto.Block, tx proto.Transacti
 	}
 }
 
-func (s *StateManager) addChangesToBatch(stor *BalancesStorage, blockID crypto.Signature) error {
-	for key, balance := range stor.waves {
-		if err := s.accountsStorage.SetAccountBalance(key[:], balance, blockID); err != nil {
-			return err
-		}
+func (s *StateManager) topBlock() (*proto.Block, error) {
+	height, err := s.Height()
+	if err != nil {
+		return nil, err
 	}
-	for key, balance := range stor.assets {
-		if err := s.accountsStorage.SetAccountBalance(key[:], balance, blockID); err != nil {
-			return err
-		}
-	}
-	return nil
+	// Heights start from 1.
+	return s.GetBlockByHeight(height)
 }
 
-func (s *StateManager) addNewBlock(block *proto.Block, initialisation bool) error {
+func (s *StateManager) addNewBlock(block *proto.Block, stor *BalancesStorage, initialisation bool) error {
 	// Indicate new block for storage.
 	if err := s.rw.StartBlock(block.BlockSignature); err != nil {
 		return err
@@ -457,11 +465,7 @@ func (s *StateManager) addNewBlock(block *proto.Block, initialisation bool) erro
 	if err := s.rw.WriteBlockHeader(block.BlockSignature, headerBytes); err != nil {
 		return err
 	}
-	balancesStor, err := NewBalancesStorage(s.accountsStorage)
-	if err != nil {
-		return err
-	}
-	tv, err := NewTransactionValidator(s.genesis.BlockSignature, balancesStor)
+	tv, err := NewTransactionValidator(s.genesis.BlockSignature, stor)
 	if err != nil {
 		return err
 	}
@@ -483,60 +487,68 @@ func (s *StateManager) addNewBlock(block *proto.Block, initialisation bool) erro
 			if err = tv.ValidateTransaction(block.BlockSignature, tx, initialisation); err != nil {
 				return errors.Wrap(err, "incorrect transaction inside of the block")
 			}
-			if err = s.performTransaction(block, tx, balancesStor); err != nil {
+			if err = s.performTransaction(block, tx, stor); err != nil {
 				return errors.Wrap(err, "failed to perform the transaction")
 			}
 		}
 		transactions = transactions[4+n:]
 	}
-	// Write transactions from local balances storage into DB batch.
-	if err := s.addChangesToBatch(balancesStor, block.BlockSignature); err != nil {
-		return err
-	}
-	// Flush all buffers in BlockReadWriter.
 	if err := s.rw.FinishBlock(block.BlockSignature); err != nil {
-		return err
-	}
-	// Write batch to DB.
-	if err := s.accountsStorage.FinishBlock(); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (s *StateManager) AcceptAndVerifyBlockBinary(data []byte, initialisation bool) error {
+func (s *StateManager) unmarshalAndCheck(blockBytes []byte, parentSig crypto.Signature, initialisation bool) (*proto.Block, error) {
 	var block proto.Block
-	if err := block.UnmarshalBinary(data); err != nil {
-		return err
+	if err := block.UnmarshalBinary(blockBytes); err != nil {
+		return nil, err
 	}
 	// Check block signature.
-	if !crypto.Verify(block.GenPublicKey, block.BlockSignature, data[:len(data)-crypto.SignatureSize]) {
-		return errors.New("invalid block signature")
+	if !crypto.Verify(block.GenPublicKey, block.BlockSignature, blockBytes[:len(blockBytes)-crypto.SignatureSize]) {
+		return nil, errors.New("invalid block signature")
 	}
 	// Check parent.
-	height, err := s.Height()
+	if parentSig != block.Parent {
+		return nil, errors.New("incorrect parent")
+	}
+	return &block, nil
+}
+
+func (s *StateManager) AddBlocks(blocks [][]byte, initialisation bool) error {
+	blocksNumber := len(blocks)
+	parent, err := s.topBlock()
 	if err != nil {
 		return err
 	}
-	// Heights start from 1.
-	height += 1
-	if height == 2 {
-		if initialisation {
-			if err := s.applyGenesis(); err != nil {
-				return err
-			}
-		} else {
-			return errors.New("zero height in non-initialisation mode")
+	parentSig := parent.BlockSignature
+	balancesStor, err := NewBalancesStorage(s.accountsStorage)
+	if err != nil {
+		return err
+	}
+	for _, blockBytes := range blocks {
+		block, err := s.unmarshalAndCheck(blockBytes, parentSig, initialisation)
+		if err != nil {
+			return err
 		}
+		if err := s.addNewBlock(block, balancesStor, initialisation); err != nil {
+			return err
+		}
+		parentSig = block.BlockSignature
 	}
-	parent, err := s.GetBlockByHeight(height - 1)
-	if err != nil {
+	if err := s.rw.UpdateHeight(blocksNumber); err != nil {
 		return err
 	}
-	if parent.BlockSignature != block.Parent {
-		return errors.New("incorrect parent")
+	if err := s.rw.Flush(); err != nil {
+		return err
 	}
-	return s.addNewBlock(&block, initialisation)
+	if err := s.accountsStorage.UpdateHeight(blocksNumber); err != nil {
+		return err
+	}
+	if err := s.accountsStorage.Flush(); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (s *StateManager) RollbackToHeight(height uint64) error {

@@ -12,10 +12,9 @@ import (
 )
 
 const (
-	BATCH_SIZE    = 1000
-	BLOCKS_NUMBER = 1000
-	FIRST_HEIGHT  = 902
-	SECOND_HEIGHT = 32
+	blocksToImport = 1000
+	firstHeight    = 902
+	secondHeight   = 32
 )
 
 func getLocalDir() (string, error) {
@@ -53,21 +52,21 @@ func TestBlockAcceptAndRollback(t *testing.T) {
 		}
 	}()
 
-	if err := importer.ApplyFromFile(manager, blocksPath, BLOCKS_NUMBER, 1, true); err != nil {
+	if err := importer.ApplyFromFile(manager, blocksPath, blocksToImport, 1); err != nil {
 		t.Fatalf("Failed to import: %v\n", err)
 	}
 	if err := importer.CheckBalances(manager, balancesPath0); err != nil {
 		t.Fatalf("CheckBalances(): %v\n", err)
 	}
 
-	if err := manager.RollbackToHeight(FIRST_HEIGHT); err != nil {
+	if err := manager.RollbackToHeight(firstHeight); err != nil {
 		t.Fatalf("Rollback(): %v\n", err)
 	}
 	if err := importer.CheckBalances(manager, balancesPath1); err != nil {
 		t.Fatalf("CheckBalances(): %v\n", err)
 	}
 
-	if err := manager.RollbackToHeight(SECOND_HEIGHT); err != nil {
+	if err := manager.RollbackToHeight(secondHeight); err != nil {
 		t.Fatalf("Rollback(): %v\n", err)
 	}
 	if err := importer.CheckBalances(manager, balancesPath2); err != nil {

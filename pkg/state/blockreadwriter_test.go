@@ -143,6 +143,12 @@ func writeBlock(t *testing.T, rw *BlockReadWriter, block *proto.Block) {
 	if err := rw.FinishBlock(blockID); err != nil {
 		t.Fatalf("FinishBlock(): %v", err)
 	}
+	if err := rw.UpdateHeight(1); err != nil {
+		t.Fatalf("Failed to update height: %v", err)
+	}
+	if err := rw.Flush(); err != nil {
+		t.Fatalf("Failed to flush: %v", err)
+	}
 	if err := rw.Db.Flush(); err != nil {
 		t.Fatalf("Failed to flush DB: %v", err)
 	}
@@ -211,6 +217,14 @@ func writeBlocks(ctx context.Context, rw *BlockReadWriter, blocks []*proto.Block
 			transaction = transaction[4+n:]
 		}
 		if err := rw.FinishBlock(blockID); err != nil {
+			close(readTasks)
+			return err
+		}
+		if err := rw.UpdateHeight(1); err != nil {
+			close(readTasks)
+			return err
+		}
+		if err := rw.Flush(); err != nil {
 			close(readTasks)
 			return err
 		}

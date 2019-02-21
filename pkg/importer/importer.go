@@ -2,7 +2,6 @@ package importer
 
 import (
 	"bufio"
-	"bytes"
 	"encoding/binary"
 	"encoding/json"
 	"io"
@@ -13,49 +12,41 @@ import (
 )
 
 const (
-	maxBlockSize = 2 * 1024 * 1024
+	blocksBatchSize = 500
 )
 
 type State interface {
-	AcceptAndVerifyBlockBinary(block []byte, initialisation bool) error
-	GetBlockByHeight(height uint64) (*proto.Block, error)
+	AddBlocks(blocks [][]byte, initialisation bool) error
 	AddressesNumber() (uint64, error)
 	AccountBalance(addr proto.Address, asset []byte) (uint64, error)
 }
 
-func ApplyFromFile(st State, blockchainPath string, nBlocks, startHeight uint64, checkBlocks bool) error {
+func ApplyFromFile(st State, blockchainPath string, nBlocks, startHeight uint64) error {
 	blockchain, err := os.Open(blockchainPath)
 	if err != nil {
 		return errors.Errorf("failed to open blockchain file: %v\n", err)
 	}
 	sb := make([]byte, 4)
-	var buf [maxBlockSize]byte
+	var blocks [blocksBatchSize][]byte
+	blocksIndex := 0
 	r := bufio.NewReader(blockchain)
 	for height := uint64(1); height <= nBlocks; height++ {
 		if _, err := io.ReadFull(r, sb); err != nil {
 			return err
 		}
 		size := binary.BigEndian.Uint32(sb)
-		block := buf[:size]
+		block := make([]byte, size)
 		if _, err := io.ReadFull(r, block); err != nil {
 			return err
 		}
 		if height >= startHeight {
-			if err := st.AcceptAndVerifyBlockBinary(block, true); err != nil {
-				return err
-			}
-			if checkBlocks {
-				savedBlock, err := st.GetBlockByHeight(height + 1)
-				if err != nil {
+			blocks[blocksIndex] = block
+			blocksIndex++
+			if blocksIndex == blocksBatchSize || height == nBlocks {
+				if err := st.AddBlocks(blocks[:blocksIndex], true); err != nil {
 					return err
 				}
-				savedBlockBytes, err := savedBlock.MarshalBinary()
-				if err != nil {
-					return err
-				}
-				if bytes.Compare(block, savedBlockBytes) != 0 {
-					return errors.New("accepted and returned blocks differ\n")
-				}
+				blocksIndex = 0
 			}
 		}
 	}
