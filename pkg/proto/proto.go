@@ -617,27 +617,18 @@ func readPacket(r io.Reader) ([]byte, int64, error) {
 
 func ReadPacket(buf []byte, r io.Reader) (int64, error) {
 	packetLen := buf[:4]
-	//zap.S().Infof("==1packetLen %d %d", len(packetLen), packetLen)
 	nn, err := io.ReadFull(r, packetLen)
 	if err != nil {
 		return int64(nn), err
 	}
 	l := binary.BigEndian.Uint32(packetLen)
-	//zap.S().Infof("==2packetLen %d", l)
 	buf = buf[4:]
 	packet := buf[:l]
-	//zap.S().Infof("==3packet length %d", len(packet))
-	//packet := make([]byte, l)
-	//for i := 0; i < len(packet); i++ {
-	//	packet[i] = 0x88
-	//}
 	n, err := io.ReadFull(r, packet)
 	if err != nil {
 		return int64(nn + n), err
 	}
 	nn += n
-	//packet = append(packetLen[:], packet...)
-
 	return int64(nn), nil
 }
 
