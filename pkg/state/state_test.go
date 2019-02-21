@@ -13,8 +13,8 @@ import (
 
 const (
 	blocksToImport = 1000
-	firstHeight    = 902
-	secondHeight   = 32
+	firstHeight    = 901
+	secondHeight   = 31
 )
 
 func getLocalDir() (string, error) {
@@ -31,9 +31,9 @@ func TestBlockAcceptAndRollback(t *testing.T) {
 		t.Fatalf("Failed to get local dir: %v\n", err)
 	}
 	blocksPath := filepath.Join(dir, "testdata", "blocks-10000")
-	balancesPath0 := filepath.Join(dir, "testdata", "accounts-1000")
-	balancesPath1 := filepath.Join(dir, "testdata", "accounts-900")
-	balancesPath2 := filepath.Join(dir, "testdata", "accounts-30")
+	balancesPath0 := filepath.Join(dir, "testdata", "accounts-1001")
+	balancesPath1 := filepath.Join(dir, "testdata", "accounts-901")
+	balancesPath2 := filepath.Join(dir, "testdata", "accounts-31")
 	dataDir, err := ioutil.TempDir(os.TempDir(), "dataDir")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir for data: %v\n", err)
