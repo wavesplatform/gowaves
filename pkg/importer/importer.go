@@ -1,11 +1,9 @@
 package importer
 
 import (
-	"bufio"
-	"bytes"
 	"encoding/binary"
 	"encoding/json"
-	"io"
+	"log"
 	"os"
 
 	"github.com/pkg/errors"
@@ -13,54 +11,59 @@ import (
 )
 
 const (
-	maxBlockSize = 2 * 1024 * 1024
+	blocksBatchSize = 500
+	maxBlockSize    = 2 * 1024 * 1024
 )
 
 type State interface {
-	AcceptAndVerifyBlockBinary(block []byte, initialisation bool) error
-	GetBlockByHeight(height uint64) (*proto.Block, error)
+	AddBlocks(blocks [][]byte, initialisation bool) error
 	AddressesNumber() (uint64, error)
 	AccountBalance(addr proto.Address, asset []byte) (uint64, error)
 }
 
-func ApplyFromFile(st State, blockchainPath string, nBlocks, startHeight uint64, checkBlocks bool) error {
+func ApplyFromFile(st State, blockchainPath string, nBlocks, startHeight uint64) error {
 	blockchain, err := os.Open(blockchainPath)
 	if err != nil {
 		return errors.Errorf("failed to open blockchain file: %v\n", err)
 	}
+
+	defer func() {
+		if err := blockchain.Close(); err != nil {
+			log.Fatalf("Failed to close blockchain file: %v\n", err)
+		}
+	}()
+
 	sb := make([]byte, 4)
-	var buf [maxBlockSize]byte
-	r := bufio.NewReader(blockchain)
-	for height := uint64(0); height < nBlocks; height++ {
-		if _, err := io.ReadFull(r, sb); err != nil {
+	var blocks [blocksBatchSize][]byte
+	blocksIndex := 0
+	readPos := int64(0)
+	for height := uint64(1); height <= nBlocks; height++ {
+		if _, err := blockchain.ReadAt(sb, readPos); err != nil {
 			return err
 		}
 		size := binary.BigEndian.Uint32(sb)
-		block := buf[:size]
-		if _, err := io.ReadFull(r, block); err != nil {
+		if size > maxBlockSize || size <= 0 {
+			return errors.New("corrupted blockchain file: invalid block size")
+		}
+		readPos += 4
+		if height < startHeight {
+			readPos += int64(size)
+			continue
+		}
+		block := make([]byte, size)
+		if _, err := blockchain.ReadAt(block, readPos); err != nil {
 			return err
 		}
-		if height >= startHeight {
-			if err := st.AcceptAndVerifyBlockBinary(block, true); err != nil {
-				return err
-			}
-			if checkBlocks {
-				savedBlock, err := st.GetBlockByHeight(height)
-				if err != nil {
-					return err
-				}
-				savedBlockBytes, err := savedBlock.MarshalBinary()
-				if err != nil {
-					return err
-				}
-				if bytes.Compare(block, savedBlockBytes) != 0 {
-					return errors.New("accepted and returned blocks differ\n")
-				}
-			}
+		readPos += int64(size)
+		blocks[blocksIndex] = block
+		blocksIndex++
+		if blocksIndex != blocksBatchSize && height != nBlocks {
+			continue
 		}
-	}
-	if err := blockchain.Close(); err != nil {
-		return errors.Errorf("failed to close blockchain file: %v\n", err)
+		if err := st.AddBlocks(blocks[:blocksIndex], true); err != nil {
+			return err
+		}
+		blocksIndex = 0
 	}
 	return nil
 }

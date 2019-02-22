@@ -53,7 +53,7 @@ func main() {
 		log.Fatalf("Failed to get current height: %v\n", err)
 	}
 	start := time.Now()
-	if err := importer.ApplyFromFile(manager, *blockchainPath, uint64(*nBlocks), height, false); err != nil {
+	if err := importer.ApplyFromFile(manager, *blockchainPath, uint64(*nBlocks), height); err != nil {
 		log.Fatalf("Failed to apply blocks: %v\n", err)
 	}
 	elapsed := time.Since(start)
