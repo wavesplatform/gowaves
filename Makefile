@@ -68,3 +68,9 @@ dist: clean dist-chaincmp dist-wmd
 
 build-retransmitter-linux:
 	@CGO_ENABLE=0 GOOS=linux GOARCH=amd64 go build -o build/bin/linux-amd64/retransmitter -ldflags="-X main.version=$(VERSION)" ./cmd/retransmitter
+build-retransmitter-darwin:
+	@CGO_ENABLE=0 GOOS=darwin GOARCH=amd64 go build -o build/bin/darwin-amd64/retransmitter -ldflags="-X main.version=$(VERSION)" ./cmd/retransmitter
+build-retransmitter-windows:
+	@CGO_ENABLE=0 GOOS=windows GOARCH=amd64 go build -o build/bin/windows-amd64/retransmitter.exe -ldflags="-X main.version=$(VERSION)" ./cmd/retransmitter
+
+release-retransmitter: ver build-retransmitter-linux build-retransmitter-darwin build-retransmitter-windows

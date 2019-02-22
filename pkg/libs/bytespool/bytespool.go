@@ -12,6 +12,8 @@ type BytesPool struct {
 	arr         [][]byte
 	mu          sync.Mutex
 	allocations uint64
+	putCalled   uint64
+	getCalled   uint64
 }
 
 // poolSize is the maximum number of elements can be stored in pool
@@ -37,6 +39,7 @@ func NewBytesPool(poolSize int, bytesLength int) *BytesPool {
 // Notice, there is no memory zeroing or cleanup is made, bytes returns as they are
 func (a *BytesPool) Get() []byte {
 	a.mu.Lock()
+	a.getCalled += 1
 	// no more elements are free, we should allocate another bytes slice
 	if a.index == -1 {
 		out := a.alloc(a.bytesLen)
@@ -44,6 +47,7 @@ func (a *BytesPool) Get() []byte {
 		return out
 	}
 	bts := a.arr[a.index]
+	a.arr[a.index] = nil
 	a.index--
 	a.mu.Unlock()
 	return bts
@@ -52,6 +56,9 @@ func (a *BytesPool) Get() []byte {
 // Put bytes back to the pool.
 // If the length of provided bytes not equal defined, just ignore them.
 func (a *BytesPool) Put(bts []byte) {
+	a.mu.Lock()
+	a.putCalled += 1
+	a.mu.Unlock()
 	// something unexpected passed
 	if len(bts) != a.bytesLen {
 		zap.S().Warnf("BytesPool Put expected bytesLen %d, passed %d", a.bytesLen, len(bts))
@@ -83,4 +90,10 @@ func (a *BytesPool) Allocations() uint64 {
 
 func (a *BytesPool) BytesLen() int {
 	return a.bytesLen
+}
+
+func (a *BytesPool) Stat() (allocations, puts, gets uint64) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.allocations, a.putCalled, a.getCalled
 }

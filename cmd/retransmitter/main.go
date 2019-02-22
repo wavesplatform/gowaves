@@ -3,6 +3,13 @@ package main
 import (
 	"context"
 	"fmt"
+	"os"
+	"os/signal"
+	"runtime/pprof"
+	"strings"
+	"syscall"
+	"time"
+
 	"github.com/spf13/afero"
 	flag "github.com/spf13/pflag"
 	"github.com/wavesplatform/gowaves/cmd/retransmitter/retransmit"
@@ -13,11 +20,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/network/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
-	"os"
-	"os/signal"
-	"strings"
-	"syscall"
-	"time"
 )
 
 // filter transactions, ContentIDPeers, ContentIDGetPeers
@@ -39,7 +41,7 @@ func receiveFromRemoteCallbackFunc(b []byte, id string, resendTo chan peer.Proto
 			return
 		}
 
-		zap.S().Debugf("got transaction from %s", id)
+		zap.S().Debugf("transaction from %s", id)
 
 		mess := peer.ProtoMessage{
 			ID:      id,
@@ -91,9 +93,26 @@ func receiveFromRemoteCallbackFunc(b []byte, id string, resendTo chan peer.Proto
 			zap.S().Warnf("failed to resend to parent, channel is full", id)
 		}
 	default:
-		zap.S().Info("bytes id ", b[8])
 		return
 	}
+}
+
+func cpuProfile(filename string) func() {
+	f, err := os.Create(filename)
+	if err != nil {
+		zap.S().Fatal(err)
+	}
+	pprof.StartCPUProfile(f)
+	return pprof.StopCPUProfile
+}
+
+func memProfile(filename string) {
+	f, err := os.Create(filename)
+	if err != nil {
+		zap.S().Fatal(err)
+	}
+	pprof.WriteHeapProfile(f)
+	f.Close()
 }
 
 func main() {
@@ -116,11 +135,19 @@ func main() {
 	var decl string
 	var addresses string
 	var wavesNetwork string
+	var cpuprofile string
+	var memprofile string
 	flag.StringVarP(&bind, "bind", "b", "", "Local address listen on")
 	flag.StringVarP(&decl, "decl", "d", "", "Declared Address")
 	flag.StringVarP(&addresses, "addresses", "a", "", "Addresses connect to")
 	flag.StringVarP(&wavesNetwork, "wavesnetwork", "n", "", "Required, waves network, should be wavesW or wavesT or wavesD")
+	flag.StringVarP(&cpuprofile, "cpuprofile", "", "", "write cpu profile to file")
+	flag.StringVarP(&memprofile, "memprofile", "", "", "write memory profile to this file")
 	flag.Parse()
+
+	if cpuprofile != "" {
+		defer cpuProfile(cpuprofile)()
+	}
 
 	switch wavesNetwork {
 	case "wavesW", "wavesT", "wavesD":
@@ -156,7 +183,7 @@ func main() {
 		return
 	}
 
-	pool := bytespool.NewBytesPool(32, 2*1024*1024)
+	pool := bytespool.NewBytesPool(96, 2*1024*1024)
 
 	parent := peer.NewParent()
 
@@ -179,6 +206,7 @@ func main() {
 		err = r.ServeIncomingConnections(ctx, bind)
 		if err != nil {
 			zap.S().Error(err)
+			cancel()
 			return
 		}
 	}
@@ -192,12 +220,27 @@ func main() {
 		}
 	}()
 
+	go func() {
+		for {
+			select {
+			case <-time.After(2 * time.Second):
+				allocations, puts, gets := pool.Stat()
+				zap.S().Info("allocations: ", allocations, " puts: ", puts, " gets: ", gets)
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+
 	var gracefulStop = make(chan os.Signal)
 	signal.Notify(gracefulStop, syscall.SIGTERM)
 	signal.Notify(gracefulStop, syscall.SIGINT)
 
 	select {
 	case sig := <-gracefulStop:
+		if memprofile != "" {
+			memProfile(memprofile)
+		}
 		zap.S().Infow("Caught signal, stopping", "signal", sig)
 		_ = srv.Shutdown(ctx)
 		cancel()

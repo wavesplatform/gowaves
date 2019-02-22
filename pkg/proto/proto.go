@@ -1,6 +1,7 @@
 package proto
 
 import (
+	"bytes"
 	"encoding"
 	"encoding/binary"
 	"fmt"
@@ -32,6 +33,8 @@ const (
 	ContentIDCheckpoint    = 0x64
 )
 
+var HashOfEmptyPayload = [4]byte{14, 87, 81, 192}
+
 type Message interface {
 	io.ReaderFrom
 	io.WriterTo
@@ -60,8 +63,8 @@ func (h *header) MarshalBinary() ([]byte, error) {
 }
 
 func (h *header) UnmarshalBinary(data []byte) error {
-	if len(data) < headerLength-4 {
-		return fmt.Errorf("data is to short to unmarshal header: %d", len(data))
+	if len(data) < headerLength {
+		return fmt.Errorf("data is to short to unmarshal header: len=%d", len(data))
 	}
 	h.Length = binary.BigEndian.Uint32(data[0:4])
 	h.Magic = binary.BigEndian.Uint32(data[4:8])
@@ -70,10 +73,7 @@ func (h *header) UnmarshalBinary(data []byte) error {
 	}
 	h.ContentID = data[8]
 	h.PayloadLength = binary.BigEndian.Uint32(data[9:13])
-	if len(data) == headerLength {
-		copy(h.PayloadCsum[:], data[13:17])
-	}
-
+	copy(h.PayloadCsum[:], data[13:17])
 	return nil
 }
 
@@ -343,6 +343,7 @@ func (h *Handshake) WriteTo(w io.Writer) (int64, error) {
 	return n, err
 }
 
+// PeerInfo tries convert declared address bytes into PeerInfo
 func (h *Handshake) PeerInfo() (PeerInfo, error) {
 	p := PeerInfo{}
 	err := p.UnmarshalBinary(h.DeclaredAddrBytes)
@@ -355,24 +356,12 @@ type GetPeersMessage struct{}
 // MarshalBinary encodes GetPeersMessage to binary form
 func (m *GetPeersMessage) MarshalBinary() ([]byte, error) {
 	var h header
-
 	h.Length = headerLength - 8
 	h.Magic = headerMagic
 	h.ContentID = ContentIDGetPeers
 	h.PayloadLength = 0
-	var empty [0]byte
-	dig, err := crypto.FastHash(empty[:])
-	if err != nil {
-		return nil, err
-	}
-	copy(h.PayloadCsum[:], dig[:4])
-
-	res, err := h.MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
-
-	return res[:headerLength-4], nil
+	copy(h.PayloadCsum[:], HashOfEmptyPayload[:])
+	return h.MarshalBinary()
 }
 
 // UnmarshalBinary decodes GetPeersMessage from binary form
@@ -628,27 +617,18 @@ func readPacket(r io.Reader) ([]byte, int64, error) {
 
 func ReadPacket(buf []byte, r io.Reader) (int64, error) {
 	packetLen := buf[:4]
-	//zap.S().Infof("==1packetLen %d %d", len(packetLen), packetLen)
 	nn, err := io.ReadFull(r, packetLen)
 	if err != nil {
 		return int64(nn), err
 	}
 	l := binary.BigEndian.Uint32(packetLen)
-	//zap.S().Infof("==2packetLen %d", l)
 	buf = buf[4:]
 	packet := buf[:l]
-	//zap.S().Infof("==3packet length %d", len(packet))
-	//packet := make([]byte, l)
-	//for i := 0; i < len(packet); i++ {
-	//	packet[i] = 0x88
-	//}
 	n, err := io.ReadFull(r, packet)
 	if err != nil {
 		return int64(nn + n), err
 	}
 	nn += n
-	//packet = append(packetLen[:], packet...)
-
 	return int64(nn), nil
 }
 
@@ -1058,7 +1038,7 @@ func (m *TransactionMessage) MarshalBinary() ([]byte, error) {
 	h.Magic = headerMagic
 	h.ContentID = ContentIDTransaction
 	h.PayloadLength = uint32(len(m.Transaction))
-	dig, err := crypto.FastHash([]byte{})
+	dig, err := crypto.FastHash(m.Transaction)
 	if err != nil {
 		return nil, err
 	}
@@ -1078,14 +1058,20 @@ func (m *TransactionMessage) UnmarshalBinary(data []byte) error {
 	if err := h.UnmarshalBinary(data); err != nil {
 		return err
 	}
-	if h.Magic != headerMagic {
-		return fmt.Errorf("wrong magic in header: %x", h.Magic)
-	}
 	if h.ContentID != ContentIDTransaction {
 		return fmt.Errorf("wrong ContentID in header: %x", h.ContentID)
 	}
+	// TODO check max length
 	m.Transaction = make([]byte, h.PayloadLength)
 	copy(m.Transaction, data[headerLength:headerLength+h.PayloadLength])
+	dig, err := crypto.FastHash(m.Transaction)
+	if err != nil {
+		return err
+	}
+
+	if !bytes.Equal(dig[:4], h.PayloadCsum[:]) {
+		return fmt.Errorf("invalid checksum: expected %x, found %x", dig[:4], h.PayloadCsum[:])
+	}
 	return nil
 }
 
