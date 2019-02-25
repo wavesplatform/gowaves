@@ -2,7 +2,6 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/cmd/forkdetector/internal"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
@@ -19,13 +18,16 @@ var (
 )
 
 type configuration struct {
-	internal.NetworkConfig
-	internal.APIConfig
-	logLevel       string
-	db             string
-	scheme         byte
-	genesis        crypto.Signature
-	initialVersion proto.Version
+	logLevel     string
+	dbPath       string
+	scheme       byte
+	genesis      crypto.Signature
+	apiBind      string
+	netBind      string
+	announcement string
+	nodeName     string
+	versions     []proto.Version
+	seedPeers    []string
 }
 
 func main() {
@@ -55,21 +57,28 @@ func run() error {
 
 	log.Infof("Waves Fork Detector %s", version)
 
-	apiDone := internal.StartForkDetectorAPI(interrupt, logger, cfg.APIConfig)
+	storage, err := internal.NewStorage(cfg.dbPath, log, cfg.genesis)
+	if err != nil {
+		log.Errorf("Failed to open Storage: %v", err)
+		return err
+	}
+
+	apiDone := internal.StartForkDetectorAPI(interrupt, logger, cfg.apiBind)
 	if interruptRequested(interrupt) {
 		return nil
 	}
 
-	serverDone, err := internal.StartNetworkServer(interrupt, log, )
+	dispatcher := internal.NewDispatcher(interrupt, log, storage, cfg.announcement, cfg.nodeName, cfg.scheme)
+	dispatcherDone, err := dispatcher.Start(cfg.netBind, cfg.seedPeers)
 	if err != nil {
-		log.Errorf("Failed to start synchronization: %v", err)
+		log.Errorf("Failed to start peers dispatcher: %v", err)
 		return err
 	}
 
 	<-apiDone
 	log.Info("API shutdown complete")
-	<-serverDone
-	log.Info("Network server shutdown complete")
+	<-dispatcherDone
+	log.Info("Peers dispatcher shutdown complete")
 
 	<-interrupt
 	return nil
@@ -81,7 +90,7 @@ func parseConfiguration() (*configuration, error) {
 		db              = flag.String("db", "", "Path to database folder. No default value.")
 		scheme          = flag.String("scheme", "W", "Blockchain scheme symbol. Defaults to \"W\" - MainNet scheme.")
 		genesis         = flag.String("genesis", "5uqnLK3Z9eiot6FyYBfwUnbyid3abicQbAZjz38GQ1Q8XigQMxTK4C1zNkqS1SVw7FqSidbZKxWAKLVoEsp4nNqa", "Genesis block signature in BASE58 encoding. Default value is MainNet's genesis block signature.")
-		initialVersion  = flag.String("initial-version", "", "Version to start discovering with. It has format \"MAJOR.MINOR.PATCH\". No default value.")
+		versions        = flag.String("versions", "0.16 0.15 0.14 0.13 0.10 0.9 0.8 0.7 0.6 0.3", "Space separated list of known node's versions. By default all MainNet versions are supported.")
 		apiBindAddress  = flag.String("api-bind", ":8080", "Local network address to bind the HTTP API of the service on. Default value is \":8080\".")
 		netBindAddress  = flag.String("net-bind", ":6868", "Local network address to bind the network server. Default value is \":6868 \".")
 		netName         = flag.String("net-name", "Fork Detector", "Name of the node to identify on the network. Default value is \"Fork Detector\".")
@@ -101,42 +110,35 @@ func parseConfiguration() (*configuration, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "invalid genesis block signature")
 	}
-	iv, err := proto.NewVersionFromString(*initialVersion)
+	vs, err := splitVersions(*versions)
 	if err != nil {
-		return nil, errors.Wrapf(err, "invalid initial version")
+		return nil, errors.Wrap(err, "invalid versions")
 	}
-	apiCfg := internal.APIConfig{}
-	if *apiBindAddress != "" {
-		apiCfg.On = true
-		apiCfg.Bind = *apiBindAddress
-	}
-	netCfg := internal.NetworkConfig{}
 	if *netBindAddress == "" {
 		return nil, errors.Errorf("invalid bind address for network server '%s'", *netBindAddress)
 	}
-	netCfg.Bind = *netBindAddress
 	if l := len(*netName); l <= 0 || l > 255 {
 		return nil, errors.Errorf("invalid network name '%s'", *netName)
 	}
-	netCfg.Name = *netName
 	addr, err := validateNetworkAddress(*declaredAddress)
 	if err != nil {
 		return nil, errors.Wrapf(err, "invalid declared address")
 	}
-	netCfg.DeclaredAddress = addr
 	peers, err := splitPeers(*seedPeers)
 	if err != nil {
 		return nil, errors.Wrapf(err, "invalid seed peers list")
 	}
-	netCfg.Peers = peers
 	cfg := &configuration{
-		NetworkConfig:  netCfg,
-		APIConfig:      apiCfg,
-		db:             *db,
-		logLevel:       *logLevel,
-		scheme:         (byte)((*scheme)[0]),
-		genesis:        sig,
-		initialVersion: *iv,
+		dbPath:       *db,
+		logLevel:     *logLevel,
+		scheme:       (byte)((*scheme)[0]),
+		genesis:      sig,
+		versions:     vs,
+		seedPeers:    peers,
+		nodeName:     *netName,
+		apiBind:      *apiBindAddress,
+		netBind:      *netBindAddress,
+		announcement: addr,
 	}
 	return cfg, nil
 }
@@ -159,6 +161,19 @@ func splitPeers(s string) ([]string, error) {
 		if err != nil {
 			return nil, errors.Wrapf(err, "invalid address '%s'", a)
 		}
+	}
+	return r, nil
+}
+
+func splitVersions(s string) ([]proto.Version, error) {
+	fields := strings.Fields(s)
+	r := make([]proto.Version, 0, len(fields))
+	for _, f := range fields {
+		v, err := proto.NewVersionFromString(f)
+		if err != nil {
+			return nil, errors.Wrapf(err, "invalid version '%s'", f)
+		}
+		r = append(r, *v)
 	}
 	return r, nil
 }

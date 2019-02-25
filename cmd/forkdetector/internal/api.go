@@ -34,11 +34,6 @@ func Logger(l *zap.Logger) func(next http.Handler) http.Handler {
 	}
 }
 
-type APIConfig struct {
-	On   bool
-	Bind string
-}
-
 type status struct {
 	ShortForksCount     int `json:"short_forks_count"`
 	LongForksCount      int `json:"long_forks_count"`
@@ -51,9 +46,9 @@ type api struct {
 	log       *zap.SugaredLogger
 }
 
-func StartForkDetectorAPI(interrupt <-chan struct{}, logger *zap.Logger, cfg APIConfig) <-chan struct{} {
+func StartForkDetectorAPI(interrupt <-chan struct{}, logger *zap.Logger, bind string) <-chan struct{} {
 	done := make(chan struct{})
-	if !cfg.On {
+	if bind == "" {
 		close(done)
 		return done
 	}
@@ -66,7 +61,7 @@ func StartForkDetectorAPI(interrupt <-chan struct{}, logger *zap.Logger, cfg API
 	r.Use(middleware.SetHeader("Content-Type", "application/json"))
 	r.Use(middleware.DefaultCompress)
 	r.Mount("/api", a.routes())
-	apiServer := &http.Server{Addr: cfg.Bind, Handler: r}
+	apiServer := &http.Server{Addr: bind, Handler: r}
 	go func() {
 		err := apiServer.ListenAndServe()
 		if err != nil && err != http.ErrServerClosed {
@@ -105,12 +100,12 @@ func (a *api) routes() chi.Router {
 }
 
 func (a *api) status(w http.ResponseWriter, r *http.Request) {
-	//h, err := a.Storage.Height()
+	//h, err := a.storage.Height()
 	//if err != nil {
 	//	http.Error(w, fmt.Sprintf("Failed to complete request: %s", err.Error()), http.StatusInternalServerError)
 	//	return
 	//}
-	//blockID, err := a.Storage.BlockID(h)
+	//blockID, err := a.storage.BlockID(h)
 	//if err != nil {
 	//	http.Error(w, fmt.Sprintf("Failed to complete request: %s", err.Error()), http.StatusInternalServerError)
 	//	return
