@@ -208,9 +208,8 @@ func (s *AccountsStorage) cutHistory(historyKey []byte, history []byte) ([]byte,
 	if err != nil {
 		return nil, err
 	}
-	// Always leave at least 1 record.
-	last := historySize - recordSize
-	for i := last; i >= recordSize; i -= recordSize {
+	firstNeeded := 0
+	for i := recordSize; i <= historySize; i += recordSize {
 		record := history[i-recordSize : i]
 		idBytes := record[len(record)-crypto.SignatureSize:]
 		blockID, err := toBlockID(idBytes)
@@ -222,15 +221,16 @@ func (s *AccountsStorage) cutHistory(historyKey []byte, history []byte) ([]byte,
 			if err != nil {
 				return nil, err
 			}
-			if currentHeight-blockHeight <= uint64(s.rollbackMax) {
-				// Is needed for rollback.
+			if currentHeight-blockHeight > uint64(s.rollbackMax) {
+				// 1 record BEFORE rollbackMax blocks is needed.
+				firstNeeded = i - recordSize
 				continue
 			}
-			history = history[i:]
 			break
 		}
 	}
-	if len(history) != historySize {
+	if firstNeeded != 0 {
+		history = history[firstNeeded:]
 		// Some records were removed, so we need to update the DB.
 		if err := s.Db.PutDirectly(historyKey, history); err != nil {
 			return nil, err
