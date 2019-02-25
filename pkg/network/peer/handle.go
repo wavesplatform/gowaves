@@ -2,13 +2,14 @@ package peer
 
 import (
 	"context"
+	"github.com/wavesplatform/gowaves/pkg/libs/bytespool"
 
 	"github.com/wavesplatform/gowaves/pkg/network/conn"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
 )
 
-func bytesToMessage(b []byte, id string, resendTo chan ProtoMessage, pool conn.Pool) {
+func bytesToMessage(b []byte, id string, resendTo chan ProtoMessage, pool bytespool.Pool) {
 	defer func() {
 		pool.Put(b)
 	}()
@@ -37,7 +38,7 @@ type handlerParams struct {
 	connection conn.Connection
 	remote     remote
 	parent     Parent
-	pool       conn.Pool
+	pool       bytespool.Pool
 }
 
 // for handle doesn't matter outgoing or incoming connection, it just send and receive messages

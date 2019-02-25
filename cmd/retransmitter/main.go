@@ -116,7 +116,7 @@ func main() {
 		return
 	}
 
-	pool := bytespool.NewBytesPool(96, 15*1024) // 15KB
+	pool := bytespool.NewNewStats(bytespool.NewBytesPool(96, 15*1024)) // 15KB
 
 	parent := peer.NewParent()
 

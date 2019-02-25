@@ -37,6 +37,8 @@ type ActiveConnection struct {
 	RemoteAddr string        `json:"remote_addr"`
 	LocalAddr  string        `json:"local_addr"`
 	Version    proto.Version `json:"version"`
+	AppName    string        `json:"app_name"`
+	NodeName   string        `json:"node_name"`
 }
 
 type ActiveConnections []ActiveConnection
@@ -62,6 +64,8 @@ func (a *HttpServer) ActiveConnections(rw http.ResponseWriter, r *http.Request) 
 			RemoteAddr: p.RemoteAddr,
 			LocalAddr:  p.LocalAddr,
 			Version:    p.Version,
+			AppName:    p.AppName,
+			NodeName:   p.NodeName,
 		})
 	})
 

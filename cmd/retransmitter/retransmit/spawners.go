@@ -4,6 +4,7 @@ import (
 	"context"
 	"net"
 
+	"github.com/wavesplatform/gowaves/pkg/libs/bytespool"
 	"github.com/wavesplatform/gowaves/pkg/network/conn"
 	"github.com/wavesplatform/gowaves/pkg/network/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -15,14 +16,14 @@ type PeerSpawner interface {
 }
 
 type PeerOutgoingSpawnerImpl struct {
-	pool         conn.Pool
+	pool         bytespool.Pool
 	parent       peer.Parent
 	wavesNetwork string
 	declAddr     proto.PeerInfo
 	skipFunc     conn.SkipFilter
 }
 
-func NewPeerSpawner(pool conn.Pool, skipFunc conn.SkipFilter, parent peer.Parent, WavesNetwork string, declAddr proto.PeerInfo) *PeerOutgoingSpawnerImpl {
+func NewPeerSpawner(pool bytespool.Pool, skipFunc conn.SkipFilter, parent peer.Parent, WavesNetwork string, declAddr proto.PeerInfo) *PeerOutgoingSpawnerImpl {
 	return &PeerOutgoingSpawnerImpl{
 		pool:         pool,
 		skipFunc:     skipFunc,

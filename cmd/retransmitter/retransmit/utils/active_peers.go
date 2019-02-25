@@ -17,6 +17,8 @@ type PeerInfo struct {
 	DeclAddr   proto.PeerInfo
 	RemoteAddr string
 	LocalAddr  string
+	AppName    string
+	NodeName   string
 	LastError  struct {
 		At    time.Time
 		Error error

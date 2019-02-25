@@ -1,7 +1,7 @@
 package peer
 
 import (
-	"github.com/wavesplatform/gowaves/pkg/network/conn"
+	"github.com/wavesplatform/gowaves/pkg/libs/bytespool"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
@@ -35,11 +35,13 @@ type Connected struct {
 	Peer       Peer
 	Version    proto.Version
 	DeclAddr   proto.PeerInfo
+	AppName    string
+	NodeName   string
 	LocalAddr  string
 	RemoteAddr string
 }
 
-type ReceiveFromRemoteCallback func(b []byte, address string, resendTo chan ProtoMessage, pool conn.Pool)
+type ReceiveFromRemoteCallback func(b []byte, address string, resendTo chan ProtoMessage, pool bytespool.Pool)
 
 type remote struct {
 	toCh   chan []byte

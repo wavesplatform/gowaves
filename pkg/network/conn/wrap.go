@@ -3,6 +3,7 @@ package conn
 import (
 	"bufio"
 	"context"
+	. "github.com/wavesplatform/gowaves/pkg/libs/bytespool"
 	"io"
 	"net"
 )

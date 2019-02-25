@@ -2,6 +2,7 @@ package conn
 
 import (
 	"context"
+	"github.com/wavesplatform/gowaves/pkg/libs/bytespool"
 	"io"
 	"io/ioutil"
 	"net"
@@ -10,12 +11,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
 )
-
-type Pool interface {
-	Get() []byte
-	Put([]byte)
-	BytesLen() int
-}
 
 type Dialer func(network string, addr string) (net.Conn, error)
 
@@ -64,12 +59,13 @@ func nonRecoverableError(err error) bool {
 // if returned type is `true`, then network message will be skipped.
 type SkipFilter func(proto.Header) bool
 
-func recvFromRemote(pool Pool, conn io.Reader, fromRemoteCh chan []byte, errCh chan error, skip SkipFilter) {
+func recvFromRemote(pool bytespool.Pool, conn io.Reader, fromRemoteCh chan []byte, errCh chan error, skip SkipFilter) {
 	for {
 		header := proto.Header{}
 		_, err := header.ReadFrom(conn)
 		if err != nil {
 			if nonRecoverableError(err) {
+				handleErr(err, errCh)
 				return
 			}
 			continue
@@ -78,6 +74,7 @@ func recvFromRemote(pool Pool, conn io.Reader, fromRemoteCh chan []byte, errCh c
 		if skip(header) {
 			_, err = io.CopyN(ioutil.Discard, conn, int64(header.PayloadLength))
 			if nonRecoverableError(err) {
+				handleErr(err, errCh)
 				return
 			}
 			continue
@@ -87,6 +84,7 @@ func recvFromRemote(pool Pool, conn io.Reader, fromRemoteCh chan []byte, errCh c
 		if messageIsTooLong {
 			_, err = io.CopyN(ioutil.Discard, conn, int64(header.PayloadLength))
 			if nonRecoverableError(err) {
+				handleErr(err, errCh)
 				return
 			}
 			continue
@@ -101,6 +99,7 @@ func recvFromRemote(pool Pool, conn io.Reader, fromRemoteCh chan []byte, errCh c
 		if err != nil {
 			pool.Put(b)
 			if nonRecoverableError(err) {
+				handleErr(err, errCh)
 				return
 			}
 			handleErr(err, errCh)

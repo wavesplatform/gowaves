@@ -3,6 +3,7 @@ package peer
 import (
 	"context"
 	"fmt"
+	"github.com/wavesplatform/gowaves/pkg/libs/bytespool"
 	"github.com/wavesplatform/gowaves/pkg/network/conn"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
@@ -19,13 +20,12 @@ type IncomingPeer struct {
 }
 
 type IncomingPeerParams struct {
-	WavesNetwork              string
-	Conn                      net.Conn
-	ReceiveFromRemoteCallback ReceiveFromRemoteCallback
-	Parent                    Parent
-	DeclAddr                  proto.PeerInfo
-	Pool                      conn.Pool
-	Skip                      conn.SkipFilter
+	WavesNetwork string
+	Conn         net.Conn
+	Parent       Parent
+	DeclAddr     proto.PeerInfo
+	Pool         bytespool.Pool
+	Skip         conn.SkipFilter
 }
 
 func RunIncomingPeer(ctx context.Context, params IncomingPeerParams) {
@@ -103,6 +103,8 @@ func RunIncomingPeer(ctx context.Context, params IncomingPeerParams) {
 			DeclAddr:   decl,
 			RemoteAddr: c.RemoteAddr().String(),
 			LocalAddr:  c.LocalAddr().String(),
+			AppName:    readHandshake.AppName,
+			NodeName:   readHandshake.NodeName,
 		},
 	}
 	params.Parent.InfoCh <- out

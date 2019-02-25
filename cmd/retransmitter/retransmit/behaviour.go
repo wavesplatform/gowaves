@@ -84,6 +84,8 @@ func (a *BehaviourImpl) InfoMessage(info peer.InfoMessage) {
 			DeclAddr:   t.DeclAddr,
 			RemoteAddr: t.RemoteAddr,
 			LocalAddr:  t.LocalAddr,
+			AppName:    t.AppName,
+			NodeName:   t.NodeName,
 		})
 		if !t.DeclAddr.Empty() {
 			a.knownPeers.Add(t.DeclAddr, t.Version)
