@@ -17,6 +17,7 @@ type OutgoingPeerParams struct {
 	ReceiveFromRemoteCallback ReceiveFromRemoteCallback
 	Pool                      conn.Pool
 	DeclAddr                  proto.PeerInfo
+	Skip                      conn.SkipFilter
 }
 
 type OutgoingPeer struct {
@@ -27,6 +28,11 @@ type OutgoingPeer struct {
 }
 
 func RunOutgoingPeer(ctx context.Context, params OutgoingPeerParams) {
+	if params.DeclAddr.String() == params.Address {
+		zap.S().Errorf("trying to connect to myself")
+		return
+	}
+
 	ctx, cancel := context.WithCancel(ctx)
 	remote := newRemote()
 	p := OutgoingPeer{
@@ -62,13 +68,12 @@ func RunOutgoingPeer(ctx context.Context, params OutgoingPeerParams) {
 	zap.S().Debugf("connected %s", params.Address)
 
 	handle(handlerParams{
-		ctx:                       ctx,
-		id:                        params.Address,
-		connection:                p.connection,
-		remote:                    remote,
-		receiveFromRemoteCallback: params.ReceiveFromRemoteCallback,
-		parent:                    params.Parent,
-		pool:                      params.Pool,
+		ctx:        ctx,
+		id:         params.Address,
+		connection: p.connection,
+		remote:     remote,
+		parent:     params.Parent,
+		pool:       params.Pool,
 	})
 }
 
@@ -128,7 +133,7 @@ func (a *OutgoingPeer) connect(ctx context.Context, wavesNetwork string, remote 
 				continue
 			}
 		}
-		return conn.WrapConnection(c, a.params.Pool, remote.toCh, remote.fromCh, remote.errCh), &handshake, nil
+		return conn.WrapConnection(c, a.params.Pool, remote.toCh, remote.fromCh, remote.errCh, a.params.Skip), &handshake, nil
 	}
 
 	return nil, nil, errors.Errorf("can't connect 20 times")

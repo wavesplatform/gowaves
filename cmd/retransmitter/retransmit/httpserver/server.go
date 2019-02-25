@@ -10,7 +10,6 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/wavesplatform/gowaves/cmd/retransmitter/retransmit/utils"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"go.uber.org/zap"
 )
 
 type HttpServer struct {
@@ -108,7 +107,6 @@ func (a *HttpServer) Spawned(rw http.ResponseWriter, r *http.Request) {
 func (a *HttpServer) counter(rw http.ResponseWriter, r *http.Request) {
 	c := a.retransmitter.Counter()
 	out := c.Get()
-	zap.S().Info(out)
 	bts, err := json.Marshal(out)
 	if err != nil {
 		rw.WriteHeader(http.StatusInternalServerError)
@@ -118,7 +116,6 @@ func (a *HttpServer) counter(rw http.ResponseWriter, r *http.Request) {
 
 	rw.WriteHeader(http.StatusOK)
 	rw.Write(bts)
-
 }
 
 func (a *HttpServer) ListenAndServe() error {

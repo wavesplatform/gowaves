@@ -1,6 +1,7 @@
 package conn
 
 import (
+	"bytes"
 	"context"
 	"io"
 	"net"
@@ -11,6 +12,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/libs/bytespool"
+	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/util/byte_helpers"
 	"go.uber.org/zap"
 )
 
@@ -21,10 +24,10 @@ func sendfunc(i *uint64) func(conn io.Writer, ctx context.Context, toRemoteCh ch
 	}
 }
 
-func recvfunc(i *uint64) func(pool Pool, reader io.Reader, fromRemoteCh chan []byte, errCh chan error) {
-	return func(pool Pool, reader io.Reader, fromRemoteCh chan []byte, errCh chan error) {
+func recvfunc(i *uint64) func(pool Pool, reader io.Reader, fromRemoteCh chan []byte, errCh chan error, skip SkipFilter) {
+	return func(pool Pool, reader io.Reader, fromRemoteCh chan []byte, errCh chan error, skip SkipFilter) {
 		defer atomic.AddUint64(i, 1)
-		recvFromRemote(pool, reader, fromRemoteCh, errCh)
+		recvFromRemote(pool, reader, fromRemoteCh, errCh, skip)
 	}
 }
 
@@ -66,4 +69,20 @@ func TestConnectionImpl_Close(t *testing.T) {
 	require.NoError(t, conn.Close())
 	<-time.After(10 * time.Millisecond)
 	assert.EqualValues(t, 2, atomic.LoadUint64(&counter))
+}
+
+func TestRecvFromRemote_Transaction(t *testing.T) {
+	logger, _ := zap.NewDevelopment()
+	zap.ReplaceGlobals(logger)
+
+	messBytes := byte_helpers.TransferV1.MessageBytes
+	pool := bytespool.NewBytesPool(32, 15*1024)
+	fromRemoteCh := make(chan []byte, 2)
+
+	recvFromRemote(pool, bytes.NewReader(messBytes), fromRemoteCh, nil, func(headerBytes proto.Header) bool {
+		return false
+	})
+
+	retBytes := <-fromRemoteCh
+	assert.Equal(t, messBytes, retBytes[:len(messBytes)])
 }
