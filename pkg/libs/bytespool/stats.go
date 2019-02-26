@@ -9,7 +9,7 @@ type Stats struct {
 	mu        sync.Mutex
 }
 
-func NewNewStats(pool *BytesPool) *Stats {
+func NewStats(pool *BytesPool) *Stats {
 	return &Stats{
 		pool: pool,
 	}

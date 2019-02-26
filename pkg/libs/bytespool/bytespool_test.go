@@ -59,7 +59,7 @@ func TestBytesPool_Get_Put(t *testing.T) {
 }
 
 func TestBytesPool_Stat(t *testing.T) {
-	pool := NewNewStats(NewBytesPool(32, size))
+	pool := NewStats(NewBytesPool(32, size))
 
 	allocations, puts, gets := pool.Stat()
 	assert.EqualValues(t, 0, allocations)
