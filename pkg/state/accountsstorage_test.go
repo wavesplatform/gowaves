@@ -84,8 +84,8 @@ func TestBalances(t *testing.T) {
 	if err := stor.SetAccountBalance(key.Bytes(), balance, blockID); err != nil {
 		t.Fatalf("Faied to set account balance:%v\n", err)
 	}
-	if err := stor.Db.Flush(); err != nil {
-		t.Fatalf("Failed to flush DB: %v\n", err)
+	if err := stor.Flush(); err != nil {
+		t.Fatalf("Flush(): %v\n", err)
 	}
 	newBalance, err := stor.AccountBalance(key.Bytes())
 	if err != nil {
@@ -99,8 +99,8 @@ func TestBalances(t *testing.T) {
 	if err := stor.SetAccountBalance(key.Bytes(), balance, blockID); err != nil {
 		t.Fatalf("Faied to set account balance:%v\n", err)
 	}
-	if err := stor.Db.Flush(); err != nil {
-		t.Fatalf("Failed to flush DB: %v\n", err)
+	if err := stor.Flush(); err != nil {
+		t.Fatalf("Flush(): %v\n", err)
 	}
 	newBalance, err = stor.AccountBalance(key.Bytes())
 	if err != nil {
@@ -115,7 +115,7 @@ func TestBalances(t *testing.T) {
 	if err := stor.SetAccountBalance(key.Bytes(), balance, blockID); err != nil {
 		t.Fatalf("Faied to set account balance:%v\n", err)
 	}
-	if err := stor.Db.Flush(); err != nil {
+	if err := stor.Flush(); err != nil {
 		t.Fatalf("Failed to flush DB: %v\n", err)
 	}
 	newBalance, err = stor.AccountBalance(key.Bytes())
@@ -159,8 +159,8 @@ func TestRollbackBlock(t *testing.T) {
 		if err := stor.SetAccountBalance(key.Bytes(), uint64(i/3), blockID); err != nil {
 			t.Fatalf("Faied to set account balance: %v\n", err)
 		}
-		if err := stor.FinishBlock(); err != nil {
-			t.Fatalf("FinishBlock(): %v\n", err)
+		if err := stor.Flush(); err != nil {
+			t.Fatalf("Flush(): %v\n", err)
 		}
 	}
 	for i := totalBlocksNumber - 1; i > 0; i-- {
