@@ -2,13 +2,14 @@ package peer
 
 import (
 	"context"
+	"net"
+	"time"
+
 	"github.com/go-errors/errors"
 	"github.com/wavesplatform/gowaves/pkg/libs/bytespool"
 	"github.com/wavesplatform/gowaves/pkg/network/conn"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
-	"net"
-	"time"
 )
 
 type OutgoingPeerParams struct {
@@ -164,4 +165,8 @@ func (a *OutgoingPeer) Close() {
 
 func (a *OutgoingPeer) ID() string {
 	return a.params.Address
+}
+
+func (a *OutgoingPeer) Connection() conn.Connection {
+	return a.connection
 }

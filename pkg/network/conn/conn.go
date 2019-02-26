@@ -2,13 +2,14 @@ package conn
 
 import (
 	"context"
-	"github.com/wavesplatform/gowaves/pkg/libs/bytespool"
 	"io"
 	"io/ioutil"
 	"net"
 	"strings"
 
+	"github.com/wavesplatform/gowaves/pkg/libs/bytespool"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"go.uber.org/atomic"
 	"go.uber.org/zap"
 )
 
@@ -17,6 +18,8 @@ type Dialer func(network string, addr string) (net.Conn, error)
 type Connection interface {
 	io.Closer
 	Conn() net.Conn
+	SendClosed() bool
+	ReceiveClosed() bool
 }
 
 func handleErr(err error, errCh chan<- error) {
@@ -28,7 +31,8 @@ func handleErr(err error, errCh chan<- error) {
 }
 
 // send to remote
-func sendToRemote(conn io.Writer, ctx context.Context, toRemoteCh chan []byte, errCh chan error) {
+func sendToRemote(closed *atomic.Bool, conn io.Writer, ctx context.Context, toRemoteCh chan []byte, errCh chan error) {
+	defer closed.Store(true)
 	for {
 		select {
 		case <-ctx.Done():
@@ -59,7 +63,8 @@ func nonRecoverableError(err error) bool {
 // if returned type is `true`, then network message will be skipped.
 type SkipFilter func(proto.Header) bool
 
-func recvFromRemote(pool bytespool.Pool, conn io.Reader, fromRemoteCh chan []byte, errCh chan error, skip SkipFilter) {
+func recvFromRemote(stopped *atomic.Bool, pool bytespool.Pool, conn io.Reader, fromRemoteCh chan []byte, errCh chan error, skip SkipFilter) {
+	defer stopped.Store(true)
 	for {
 		header := proto.Header{}
 		_, err := header.ReadFrom(conn)
@@ -115,8 +120,10 @@ func recvFromRemote(pool bytespool.Pool, conn io.Reader, fromRemoteCh chan []byt
 }
 
 type ConnectionImpl struct {
-	conn   net.Conn
-	cancel context.CancelFunc
+	sendClosed    *atomic.Bool
+	receiveClosed *atomic.Bool
+	conn          net.Conn
+	cancel        context.CancelFunc
 }
 
 func (a *ConnectionImpl) Close() error {
@@ -126,4 +133,12 @@ func (a *ConnectionImpl) Close() error {
 
 func (a *ConnectionImpl) Conn() net.Conn {
 	return a.conn
+}
+
+func (a *ConnectionImpl) SendClosed() bool {
+	return a.sendClosed.Load()
+}
+
+func (a *ConnectionImpl) ReceiveClosed() bool {
+	return a.receiveClosed.Load()
 }

@@ -3,12 +3,13 @@ package peer
 import (
 	"context"
 	"fmt"
+	"net"
+	"time"
+
 	"github.com/wavesplatform/gowaves/pkg/libs/bytespool"
 	"github.com/wavesplatform/gowaves/pkg/network/conn"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
-	"net"
-	"time"
 )
 
 type IncomingPeer struct {
@@ -146,4 +147,8 @@ func (a *IncomingPeer) ID() string {
 
 func (a *IncomingPeer) Direction() Direction {
 	return Incoming
+}
+
+func (a *IncomingPeer) Connection() conn.Connection {
+	return a.conn
 }

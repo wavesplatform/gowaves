@@ -17,6 +17,14 @@ type mockConnection struct {
 	closeCalledTimes int
 }
 
+func (a *mockConnection) SendClosed() bool {
+	panic("implement me")
+}
+
+func (a *mockConnection) ReceiveClosed() bool {
+	panic("implement me")
+}
+
 func (a *mockConnection) Close() error {
 	a.closeCalledTimes += 1
 	return nil

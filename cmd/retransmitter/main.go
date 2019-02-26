@@ -126,7 +126,7 @@ func main() {
 
 	r := retransmit.NewRetransmitter(behaviour, parent)
 
-	go r.Run(ctx)
+	r.Run(ctx)
 
 	for _, a := range strings.Split(addresses, ",") {
 		a = strings.Trim(a, " ")

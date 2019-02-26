@@ -2,6 +2,7 @@ package peer
 
 import (
 	"github.com/wavesplatform/gowaves/pkg/libs/bytespool"
+	"github.com/wavesplatform/gowaves/pkg/network/conn"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
@@ -74,4 +75,5 @@ type Peer interface {
 	Close()
 	SendMessage(proto.Message)
 	ID() string
+	Connection() conn.Connection
 }

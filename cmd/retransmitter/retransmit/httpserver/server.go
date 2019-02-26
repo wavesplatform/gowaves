@@ -31,14 +31,16 @@ func NewHttpServer(r Retransmitter) *HttpServer {
 }
 
 type ActiveConnection struct {
-	Addr       string        `json:"addr"`
-	DeclAddr   string        `json:"decl_addr"`
-	Direction  string        `json:"direction"`
-	RemoteAddr string        `json:"remote_addr"`
-	LocalAddr  string        `json:"local_addr"`
-	Version    proto.Version `json:"version"`
-	AppName    string        `json:"app_name"`
-	NodeName   string        `json:"node_name"`
+	Addr          string        `json:"addr"`
+	DeclAddr      string        `json:"decl_addr"`
+	Direction     string        `json:"direction"`
+	RemoteAddr    string        `json:"remote_addr"`
+	LocalAddr     string        `json:"local_addr"`
+	Version       proto.Version `json:"version"`
+	AppName       string        `json:"app_name"`
+	NodeName      string        `json:"node_name"`
+	SendClosed    bool          `json:"send_closed"`
+	ReceiveClosed bool          `json:"receive_closed"`
 }
 
 type ActiveConnections []ActiveConnection
@@ -57,15 +59,18 @@ func (a *HttpServer) ActiveConnections(rw http.ResponseWriter, r *http.Request) 
 	var out ActiveConnections
 	addr2peer := a.retransmitter.ActiveConnections()
 	addr2peer.Each(func(id string, p *utils.PeerInfo) {
+		c := p.Peer.Connection()
 		out = append(out, ActiveConnection{
-			Addr:       id,
-			Direction:  p.Peer.Direction().String(),
-			DeclAddr:   p.DeclAddr.String(),
-			RemoteAddr: p.RemoteAddr,
-			LocalAddr:  p.LocalAddr,
-			Version:    p.Version,
-			AppName:    p.AppName,
-			NodeName:   p.NodeName,
+			Addr:          id,
+			Direction:     p.Peer.Direction().String(),
+			DeclAddr:      p.DeclAddr.String(),
+			RemoteAddr:    p.RemoteAddr,
+			LocalAddr:     p.LocalAddr,
+			Version:       p.Version,
+			AppName:       p.AppName,
+			NodeName:      p.NodeName,
+			SendClosed:    c.SendClosed(),
+			ReceiveClosed: c.ReceiveClosed(),
 		})
 	})
 
