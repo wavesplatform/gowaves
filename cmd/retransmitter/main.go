@@ -16,86 +16,10 @@ import (
 	"github.com/wavesplatform/gowaves/cmd/retransmitter/retransmit/httpserver"
 	"github.com/wavesplatform/gowaves/cmd/retransmitter/retransmit/utils"
 	"github.com/wavesplatform/gowaves/pkg/libs/bytespool"
-	"github.com/wavesplatform/gowaves/pkg/network/conn"
 	"github.com/wavesplatform/gowaves/pkg/network/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
 )
-
-// filter transactions, ContentIDPeers, ContentIDGetPeers
-func receiveFromRemoteCallbackFunc(b []byte, id string, resendTo chan peer.ProtoMessage, pool conn.Pool) {
-	defer func() {
-		pool.Put(b)
-	}()
-
-	if len(b) < 9 {
-		return
-	}
-
-	switch b[8] {
-	case proto.ContentIDTransaction:
-		m := &proto.TransactionMessage{}
-		err := m.UnmarshalBinary(b)
-		if err != nil {
-			zap.S().Error(err, id, b)
-			return
-		}
-
-		zap.S().Debugf("transaction from %s", id)
-
-		mess := peer.ProtoMessage{
-			ID:      id,
-			Message: m,
-		}
-
-		select {
-		case resendTo <- mess:
-		default:
-			zap.S().Warnf("failed to resend to parent, channel is full", id)
-		}
-
-	case proto.ContentIDPeers:
-		m := &proto.PeersMessage{}
-		err := m.UnmarshalBinary(b)
-		if err != nil {
-			fmt.Println(err)
-			return
-		}
-
-		mess := peer.ProtoMessage{
-			ID:      id,
-			Message: m,
-		}
-
-		select {
-		case resendTo <- mess:
-		default:
-			zap.S().Warnf("failed to resend to parent, channel is full", id)
-		}
-
-	case proto.ContentIDGetPeers:
-		fmt.Println("retransmitter got proto.ContentIDGetPeers message from ", id)
-		m := &proto.GetPeersMessage{}
-		err := m.UnmarshalBinary(b)
-		if err != nil {
-			fmt.Println(err)
-			return
-		}
-
-		mess := peer.ProtoMessage{
-			ID:      id,
-			Message: m,
-		}
-
-		select {
-		case resendTo <- mess:
-		default:
-			zap.S().Warnf("failed to resend to parent, channel is full", id)
-		}
-	default:
-		return
-	}
-}
 
 func cpuProfile(filename string) func() {
 	f, err := os.Create(filename)
@@ -113,6 +37,15 @@ func memProfile(filename string) {
 	}
 	pprof.WriteHeapProfile(f)
 	f.Close()
+}
+
+func skipUselessMessages(header proto.Header) bool {
+	switch header.ContentID {
+	case proto.ContentIDTransaction, proto.ContentIDPeers, proto.ContentIDGetPeers:
+		return false
+	default:
+		return true
+	}
 }
 
 func main() {
@@ -183,17 +116,17 @@ func main() {
 		return
 	}
 
-	pool := bytespool.NewBytesPool(96, 2*1024*1024)
+	pool := bytespool.NewStats(bytespool.NewBytesPool(96, 15*1024)) // 15KB
 
 	parent := peer.NewParent()
 
-	spawner := retransmit.NewPeerSpawner(pool, receiveFromRemoteCallbackFunc, parent, wavesNetwork, declAddr)
+	spawner := retransmit.NewPeerSpawner(pool, skipUselessMessages, parent, wavesNetwork, declAddr)
 
 	behaviour := retransmit.NewBehaviour(knownPeers, spawner)
 
 	r := retransmit.NewRetransmitter(behaviour, parent)
 
-	go r.Run(ctx)
+	r.Run(ctx)
 
 	for _, a := range strings.Split(addresses, ",") {
 		a = strings.Trim(a, " ")

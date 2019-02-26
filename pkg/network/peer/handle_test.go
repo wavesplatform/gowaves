@@ -3,17 +3,26 @@ package peer
 import (
 	"context"
 	"net"
-	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/go-errors/errors"
 	"github.com/stretchr/testify/assert"
-	"github.com/wavesplatform/gowaves/pkg/network/conn"
+	"github.com/wavesplatform/gowaves/pkg/libs/bytespool"
+	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/util/byte_helpers"
 )
 
 type mockConnection struct {
 	closeCalledTimes int
+}
+
+func (a *mockConnection) SendClosed() bool {
+	panic("implement me")
+}
+
+func (a *mockConnection) ReceiveClosed() bool {
+	panic("implement me")
 }
 
 func (a *mockConnection) Close() error {
@@ -43,20 +52,18 @@ func TestHHandleStopContext(t *testing.T) {
 func TestHandleReceive(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	called := int32(0)
 	c := &mockConnection{}
 	remote := newRemote()
+	parent := NewParent()
 	go handle(handlerParams{
 		ctx:        ctx,
 		connection: c,
-		receiveFromRemoteCallback: func(b []byte, address string, resendTo chan ProtoMessage, pool conn.Pool) {
-			atomic.AddInt32(&called, 1)
-		},
-		remote: remote,
+		parent:     parent,
+		remote:     remote,
+		pool:       bytespool.NewBytesPool(1, 15*1024),
 	})
-	remote.fromCh <- []byte{}
-	<-time.After(5 * time.Millisecond)
-	assert.EqualValues(t, 1, atomic.LoadInt32(&called))
+	remote.fromCh <- byte_helpers.TransferV1.MessageBytes
+	assert.IsType(t, &proto.TransactionMessage{}, (<-parent.MessageCh).Message)
 }
 
 func TestHandleError(t *testing.T) {

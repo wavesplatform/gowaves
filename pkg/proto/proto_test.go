@@ -37,8 +37,8 @@ type protocolMarshallingTest struct {
 	testEncoded string
 }
 
-func (h *header) Equal(d comparable) bool {
-	p, ok := d.(*header)
+func (h *Header) Equal(d comparable) bool {
+	p, ok := d.(*Header)
 	if !ok {
 		return false
 	}
@@ -186,7 +186,7 @@ var tests = []protocolMarshallingTest{
 	{
 		&GetPeersMessage{},
 		//P. Len |    Magic | ContentID | Payload Length | PayloadCsum | Payload
-		"00000009  12345678     01         00000000          0e5751c0    ",
+		"00000009  12345678     01         00000000              ",
 	},
 	{
 		&PeersMessage{[]PeerInfo{

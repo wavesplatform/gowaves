@@ -3,6 +3,7 @@ package retransmit
 import (
 	"context"
 	"net"
+	"runtime"
 	"time"
 
 	"github.com/pkg/errors"
@@ -34,16 +35,33 @@ func (a *Retransmitter) Run(ctx context.Context) {
 	go a.askPeersAboutKnownPeers(ctx, time.NewTicker(1*time.Minute))
 	go a.periodicallySpawnPeers(ctx, time.NewTicker(1*time.Minute))
 
-	for {
-		select {
-		case <-ctx.Done():
-			a.behaviour.Stop()
-			return
-		case incomeMessage := <-a.parent.MessageCh:
-			a.behaviour.ProtoMessage(incomeMessage)
-		case info := <-a.parent.InfoCh:
-			a.behaviour.InfoMessage(info)
-		}
+	// handle messages simultaneously
+	for i := 0; i < runtime.GOMAXPROCS(0); i++ {
+		go func() {
+			for {
+				select {
+				case <-ctx.Done():
+					a.behaviour.Stop()
+					return
+				case incomeMessage := <-a.parent.MessageCh:
+					a.behaviour.ProtoMessage(incomeMessage)
+				}
+			}
+		}()
+	}
+
+	// handle errors simultaneously
+	for i := 0; i < runtime.GOMAXPROCS(0); i++ {
+		go func() {
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case info := <-a.parent.InfoCh:
+					a.behaviour.InfoMessage(info)
+				}
+			}
+		}()
 	}
 }
 

@@ -1,8 +1,9 @@
 package bytespool
 
 import (
-	"github.com/stretchr/testify/assert"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 const size = 2 * 1024 * 1024
@@ -58,7 +59,7 @@ func TestBytesPool_Get_Put(t *testing.T) {
 }
 
 func TestBytesPool_Stat(t *testing.T) {
-	pool := NewBytesPool(32, size)
+	pool := NewStats(NewBytesPool(32, size))
 
 	allocations, puts, gets := pool.Stat()
 	assert.EqualValues(t, 0, allocations)

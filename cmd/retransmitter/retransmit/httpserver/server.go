@@ -10,7 +10,6 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/wavesplatform/gowaves/cmd/retransmitter/retransmit/utils"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"go.uber.org/zap"
 )
 
 type HttpServer struct {
@@ -32,12 +31,16 @@ func NewHttpServer(r Retransmitter) *HttpServer {
 }
 
 type ActiveConnection struct {
-	Addr       string        `json:"addr"`
-	DeclAddr   string        `json:"decl_addr"`
-	Direction  string        `json:"direction"`
-	RemoteAddr string        `json:"remote_addr"`
-	LocalAddr  string        `json:"local_addr"`
-	Version    proto.Version `json:"version"`
+	Addr          string        `json:"addr"`
+	DeclAddr      string        `json:"decl_addr"`
+	Direction     string        `json:"direction"`
+	RemoteAddr    string        `json:"remote_addr"`
+	LocalAddr     string        `json:"local_addr"`
+	Version       proto.Version `json:"version"`
+	AppName       string        `json:"app_name"`
+	NodeName      string        `json:"node_name"`
+	SendClosed    bool          `json:"send_closed"`
+	ReceiveClosed bool          `json:"receive_closed"`
 }
 
 type ActiveConnections []ActiveConnection
@@ -56,13 +59,18 @@ func (a *HttpServer) ActiveConnections(rw http.ResponseWriter, r *http.Request) 
 	var out ActiveConnections
 	addr2peer := a.retransmitter.ActiveConnections()
 	addr2peer.Each(func(id string, p *utils.PeerInfo) {
+		c := p.Peer.Connection()
 		out = append(out, ActiveConnection{
-			Addr:       id,
-			Direction:  p.Peer.Direction().String(),
-			DeclAddr:   p.DeclAddr.String(),
-			RemoteAddr: p.RemoteAddr,
-			LocalAddr:  p.LocalAddr,
-			Version:    p.Version,
+			Addr:          id,
+			Direction:     p.Peer.Direction().String(),
+			DeclAddr:      p.DeclAddr.String(),
+			RemoteAddr:    p.RemoteAddr,
+			LocalAddr:     p.LocalAddr,
+			Version:       p.Version,
+			AppName:       p.AppName,
+			NodeName:      p.NodeName,
+			SendClosed:    c.SendClosed(),
+			ReceiveClosed: c.ReceiveClosed(),
 		})
 	})
 
@@ -108,7 +116,6 @@ func (a *HttpServer) Spawned(rw http.ResponseWriter, r *http.Request) {
 func (a *HttpServer) counter(rw http.ResponseWriter, r *http.Request) {
 	c := a.retransmitter.Counter()
 	out := c.Get()
-	zap.S().Info(out)
 	bts, err := json.Marshal(out)
 	if err != nil {
 		rw.WriteHeader(http.StatusInternalServerError)
@@ -118,7 +125,6 @@ func (a *HttpServer) counter(rw http.ResponseWriter, r *http.Request) {
 
 	rw.WriteHeader(http.StatusOK)
 	rw.Write(bts)
-
 }
 
 func (a *HttpServer) ListenAndServe() error {
