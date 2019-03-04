@@ -5,6 +5,42 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
+type StateErrorType byte
+
+const (
+	// Unmarshal error of block or transaction.
+	DeserializationError StateErrorType = iota + 1
+	TxValidationError
+	BlockValidationError
+	RollbackError
+	// Errors occurring while getting data from database.
+	RetrievalError
+	// Errors occurring while updating/modifying state data.
+	ModificationError
+	// DB or block storage Close() error.
+	ClosureError
+	// Minor technical errors which shouldn't ever happen.
+	Other
+)
+
+type StateError struct {
+	errorType     StateErrorType
+	originalError error
+}
+
+func (err StateError) Error() string {
+	return err.originalError.Error()
+}
+
+func ErrorType(err error) StateErrorType {
+	switch e := err.(type) {
+	case StateError:
+		return e.errorType
+	default:
+		return 0
+	}
+}
+
 // State represents overall Node's state.
 // Data retrievals (e.g. account balances), as well as modifiers (like adding or rolling back blocks)
 // should all be made using this interface.
