@@ -17,28 +17,20 @@ const (
 	keyvalueDir       = "keyvalue"
 )
 
-type StateManager struct {
+type stateManager struct {
 	genesis         proto.Block
 	db              keyvalue.KeyValue
-	accountsStorage *AccountsStorage
-	rw              *BlockReadWriter
+	accountsStorage *accountsStorage
+	rw              *blockReadWriter
 }
 
-type BlockStorageParams struct {
-	OffsetLen, HeaderOffsetLen int
-}
-
-func DefaultBlockStorageParams() BlockStorageParams {
-	return BlockStorageParams{OffsetLen: 8, HeaderOffsetLen: 8}
-}
-
-func syncDbAndStorage(db keyvalue.KeyValue, stor *AccountsStorage, rw *BlockReadWriter) error {
-	dbHeightBytes, err := db.Get([]byte{DbHeightKeyPrefix})
+func syncDbAndStorage(db keyvalue.KeyValue, stor *accountsStorage, rw *blockReadWriter) error {
+	dbHeightBytes, err := db.Get([]byte{dbHeightKeyPrefix})
 	if err != nil {
 		return err
 	}
 	dbHeight := binary.LittleEndian.Uint64(dbHeightBytes)
-	rwHeighBytes, err := db.Get([]byte{RwHeightKeyPrefix})
+	rwHeighBytes, err := db.Get([]byte{rwHeightKeyPrefix})
 	if err != nil {
 		return err
 	}
@@ -48,22 +40,22 @@ func syncDbAndStorage(db keyvalue.KeyValue, stor *AccountsStorage, rw *BlockRead
 		panic("Impossible to sync: DB is ahead of block storage; remove data dir and restart the node.")
 	}
 	if dbHeight == 0 {
-		if err := rw.Reset(false); err != nil {
+		if err := rw.reset(false); err != nil {
 			return errors.Errorf("failed to reset block storage: %v", err)
 		}
 	} else {
-		last, err := rw.BlockIDByHeight(dbHeight - 1)
+		last, err := rw.blockIDByHeight(dbHeight - 1)
 		if err != nil {
 			return err
 		}
-		if err := rw.Rollback(last, false); err != nil {
+		if err := rw.rollback(last, false); err != nil {
 			return errors.Errorf("failed to remove blocks from block storage: %v", err)
 		}
 	}
 	return nil
 }
 
-func NewStateManager(dataDir string, params BlockStorageParams) (*StateManager, error) {
+func newStateManager(dataDir string, params BlockStorageParams) (*stateManager, error) {
 	genesisSig, err := crypto.NewSignatureFromBase58(genesisSignature)
 	if err != nil {
 		return nil, errors.Errorf("failed to get genesis signature from string: %v\n", err)
@@ -76,15 +68,15 @@ func NewStateManager(dataDir string, params BlockStorageParams) (*StateManager, 
 	}
 	dbDir := filepath.Join(dataDir, keyvalueDir)
 	db, err := keyvalue.NewKeyVal(dbDir, true)
-	rw, err := NewBlockReadWriter(blockStorageDir, params.OffsetLen, params.HeaderOffsetLen, db)
+	rw, err := newBlockReadWriter(blockStorageDir, params.OffsetLen, params.HeaderOffsetLen, db)
 	if err != nil {
 		return nil, errors.Errorf("failed to create block storage: %v\n", err)
 	}
-	accountsStor, err := NewAccountsStorage(genesisSig, db)
+	accountsStor, err := newAccountsStorage(genesisSig, db)
 	if err != nil {
 		return nil, errors.Errorf("failed to create accounts storage: %v\n", err)
 	}
-	accountsStor.SetRollbackMax(rollbackMaxBlocks, rw)
+	accountsStor.setRollbackMax(rollbackMaxBlocks, rw)
 	if err := syncDbAndStorage(db, accountsStor, rw); err != nil {
 		return nil, errors.Errorf("failed to sync block storage and DB: %v\n", err)
 	}
@@ -96,7 +88,7 @@ func NewStateManager(dataDir string, params BlockStorageParams) (*StateManager, 
 			Height:         1,
 		},
 	}
-	state := &StateManager{genesis: genesis, db: db, accountsStorage: accountsStor, rw: rw}
+	state := &stateManager{genesis: genesis, db: db, accountsStorage: accountsStor, rw: rw}
 	height, err := state.Height()
 	if err != nil {
 		return nil, errors.Errorf("failed to get height: %v\n", err)
@@ -109,7 +101,7 @@ func NewStateManager(dataDir string, params BlockStorageParams) (*StateManager, 
 	return state, nil
 }
 
-func (s *StateManager) applyGenesis() error {
+func (s *stateManager) applyGenesis() error {
 	tv, err := newTransactionValidator(s.genesis.BlockSignature, s.accountsStorage, proto.MainNetScheme)
 	if err != nil {
 		return err
@@ -126,21 +118,21 @@ func (s *StateManager) applyGenesis() error {
 	if err := tv.performTransactions(); err != nil {
 		return err
 	}
-	if err := s.accountsStorage.Flush(); err != nil {
+	if err := s.accountsStorage.flush(); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (s *StateManager) GetBlock(blockID crypto.Signature) (*proto.Block, error) {
+func (s *stateManager) GetBlock(blockID crypto.Signature) (*proto.Block, error) {
 	if blockID == s.genesis.BlockSignature {
 		return &s.genesis, nil
 	}
-	headerBytes, err := s.rw.ReadBlockHeader(blockID)
+	headerBytes, err := s.rw.readBlockHeader(blockID)
 	if err != nil {
 		return nil, err
 	}
-	transactions, err := s.rw.ReadTransactionsBlock(blockID)
+	transactions, err := s.rw.readTransactionsBlock(blockID)
 	if err != nil {
 		return nil, err
 	}
@@ -153,53 +145,53 @@ func (s *StateManager) GetBlock(blockID crypto.Signature) (*proto.Block, error) 
 	return &block, nil
 }
 
-func (s *StateManager) GetBlockByHeight(height uint64) (*proto.Block, error) {
+func (s *stateManager) GetBlockByHeight(height uint64) (*proto.Block, error) {
 	if height == 1 {
 		return &s.genesis, nil
 	}
-	blockID, err := s.rw.BlockIDByHeight(height - 2)
+	blockID, err := s.rw.blockIDByHeight(height - 2)
 	if err != nil {
 		return nil, err
 	}
 	return s.GetBlock(blockID)
 }
 
-func (s *StateManager) Height() (uint64, error) {
-	height, err := s.rw.CurrentHeight()
+func (s *stateManager) Height() (uint64, error) {
+	height, err := s.rw.currentHeight()
 	if err != nil {
 		return 0, err
 	}
 	return height + 1, nil
 }
 
-func (s *StateManager) BlockIDToHeight(blockID crypto.Signature) (uint64, error) {
+func (s *stateManager) BlockIDToHeight(blockID crypto.Signature) (uint64, error) {
 	if blockID == s.genesis.BlockSignature {
 		return 1, nil
 	}
-	height, err := s.rw.HeightByBlockID(blockID)
+	height, err := s.rw.heightToBlockID(blockID)
 	if err != nil {
 		return 0, err
 	}
 	return height + 2, nil
 }
 
-func (s *StateManager) HeightToBlockID(height uint64) (crypto.Signature, error) {
+func (s *stateManager) HeightToBlockID(height uint64) (crypto.Signature, error) {
 	if height == 1 {
 		return s.genesis.BlockSignature, nil
 	}
-	return s.rw.BlockIDByHeight(height - 2)
+	return s.rw.blockIDByHeight(height - 2)
 }
 
-func (s *StateManager) AccountBalance(addr proto.Address, asset []byte) (uint64, error) {
-	key := BalanceKey{Address: addr, Asset: asset}
-	return s.accountsStorage.AccountBalance(key.Bytes())
+func (s *stateManager) AccountBalance(addr proto.Address, asset []byte) (uint64, error) {
+	key := balanceKey{address: addr, asset: asset}
+	return s.accountsStorage.accountBalance(key.bytes())
 }
 
-func (s *StateManager) AddressesNumber() (uint64, error) {
-	return s.accountsStorage.AddressesNumber()
+func (s *stateManager) AddressesNumber() (uint64, error) {
+	return s.accountsStorage.addressesNumber()
 }
 
-func (s *StateManager) topBlock() (*proto.Block, error) {
+func (s *stateManager) topBlock() (*proto.Block, error) {
 	height, err := s.Height()
 	if err != nil {
 		return nil, err
@@ -208,9 +200,9 @@ func (s *StateManager) topBlock() (*proto.Block, error) {
 	return s.GetBlockByHeight(height)
 }
 
-func (s *StateManager) addNewBlock(tv *transactionValidator, block *proto.Block, initialisation bool) error {
+func (s *stateManager) addNewBlock(tv *transactionValidator, block *proto.Block, initialisation bool) error {
 	// Indicate new block for storage.
-	if err := s.rw.StartBlock(block.BlockSignature); err != nil {
+	if err := s.rw.startBlock(block.BlockSignature); err != nil {
 		return err
 	}
 	// Save block header to storage.
@@ -218,7 +210,7 @@ func (s *StateManager) addNewBlock(tv *transactionValidator, block *proto.Block,
 	if err != nil {
 		return err
 	}
-	if err := s.rw.WriteBlockHeader(block.BlockSignature, headerBytes); err != nil {
+	if err := s.rw.writeBlockHeader(block.BlockSignature, headerBytes); err != nil {
 		return err
 	}
 	transactions := block.Transactions
@@ -231,7 +223,7 @@ func (s *StateManager) addNewBlock(tv *transactionValidator, block *proto.Block,
 			return err
 		}
 		// Save transaction to storage.
-		if err := s.rw.WriteTransaction(tx.GetID(), transactions[:n+4]); err != nil {
+		if err := s.rw.writeTransaction(tx.GetID(), transactions[:n+4]); err != nil {
 			return err
 		}
 		if tv.isSupported(tx) {
@@ -242,13 +234,13 @@ func (s *StateManager) addNewBlock(tv *transactionValidator, block *proto.Block,
 		}
 		transactions = transactions[4+n:]
 	}
-	if err := s.rw.FinishBlock(block.BlockSignature); err != nil {
+	if err := s.rw.finishBlock(block.BlockSignature); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (s *StateManager) unmarshalAndCheck(blockBytes []byte, parentSig crypto.Signature, initialisation bool) (*proto.Block, error) {
+func (s *stateManager) unmarshalAndCheck(blockBytes []byte, parentSig crypto.Signature, initialisation bool) (*proto.Block, error) {
 	var block proto.Block
 	if err := block.UnmarshalBinary(blockBytes); err != nil {
 		return nil, err
@@ -264,7 +256,21 @@ func (s *StateManager) unmarshalAndCheck(blockBytes []byte, parentSig crypto.Sig
 	return &block, nil
 }
 
-func (s *StateManager) AddBlocks(blocks [][]byte, initialisation bool) error {
+func (s *stateManager) AddBlock(block []byte) error {
+	blocks := make([][]byte, 1)
+	blocks[0] = block
+	return s.addBlocks(blocks, false)
+}
+
+func (s *stateManager) AddNewBlocks(blocks [][]byte) error {
+	return s.addBlocks(blocks, false)
+}
+
+func (s *stateManager) AddOldBlocks(blocks [][]byte) error {
+	return s.addBlocks(blocks, true)
+}
+
+func (s *stateManager) addBlocks(blocks [][]byte, initialisation bool) error {
 	blocksNumber := len(blocks)
 	parent, err := s.topBlock()
 	if err != nil {
@@ -288,43 +294,43 @@ func (s *StateManager) AddBlocks(blocks [][]byte, initialisation bool) error {
 	if err := tv.performTransactions(); err != nil {
 		return err
 	}
-	if err := s.rw.UpdateHeight(blocksNumber); err != nil {
+	if err := s.rw.updateHeight(blocksNumber); err != nil {
 		return err
 	}
-	if err := s.rw.Flush(); err != nil {
+	if err := s.rw.flush(); err != nil {
 		return err
 	}
-	if err := s.accountsStorage.UpdateHeight(blocksNumber); err != nil {
+	if err := s.accountsStorage.updateHeight(blocksNumber); err != nil {
 		return err
 	}
-	if err := s.accountsStorage.Flush(); err != nil {
+	if err := s.accountsStorage.flush(); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (s *StateManager) RollbackToHeight(height uint64) error {
+func (s *stateManager) RollbackToHeight(height uint64) error {
 	if height < 1 {
 		return errors.New("minimum block to rollback to is the first block")
 	} else if height == 1 {
 		// Rollback accounts storage.
-		curHeight, err := s.rw.CurrentHeight()
+		curHeight, err := s.rw.currentHeight()
 		if err != nil {
 			return err
 		}
 		for h := curHeight; h > 0; h-- {
-			blockID, err := s.rw.BlockIDByHeight(h - 1)
+			blockID, err := s.rw.blockIDByHeight(h - 1)
 			if err != nil {
 				return errors.Errorf("failed to get block ID by height: %v\n", err)
 			}
-			if err := s.accountsStorage.RollbackBlock(blockID); err != nil {
+			if err := s.accountsStorage.rollbackBlock(blockID); err != nil {
 				return errors.Errorf("failed to rollback accounts storage: %v", err)
 			}
 		}
 		// Remove blocks from block storage.
-		return s.rw.Reset(true)
+		return s.rw.reset(true)
 	} else {
-		blockID, err := s.rw.BlockIDByHeight(height - 2)
+		blockID, err := s.rw.blockIDByHeight(height - 2)
 		if err != nil {
 			return err
 		}
@@ -332,33 +338,33 @@ func (s *StateManager) RollbackToHeight(height uint64) error {
 	}
 }
 
-func (s *StateManager) RollbackTo(removalEdge crypto.Signature) error {
+func (s *stateManager) RollbackTo(removalEdge crypto.Signature) error {
 	// Rollback accounts storage.
-	curHeight, err := s.rw.CurrentHeight()
+	curHeight, err := s.rw.currentHeight()
 	if err != nil {
 		return err
 	}
 	for height := curHeight; height > 0; height-- {
-		blockID, err := s.rw.BlockIDByHeight(height - 1)
+		blockID, err := s.rw.blockIDByHeight(height - 1)
 		if err != nil {
 			return errors.Errorf("failed to get block ID by height: %v\n", err)
 		}
 		if blockID == removalEdge {
 			break
 		}
-		if err := s.accountsStorage.RollbackBlock(blockID); err != nil {
+		if err := s.accountsStorage.rollbackBlock(blockID); err != nil {
 			return errors.Errorf("failed to rollback accounts storage: %v", err)
 		}
 	}
 	// Remove blocks from block storage.
-	if err := s.rw.Rollback(removalEdge, true); err != nil {
+	if err := s.rw.rollback(removalEdge, true); err != nil {
 		return errors.Errorf("failed to remove blocks from block storage: %v", err)
 	}
 	return nil
 }
 
-func (s *StateManager) Close() error {
-	if err := s.rw.Close(); err != nil {
+func (s *stateManager) Close() error {
+	if err := s.rw.close(); err != nil {
 		return err
 	}
 	if err := s.db.Close(); err != nil {

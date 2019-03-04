@@ -8,10 +8,10 @@ import (
 )
 
 func newEmptyScope() Scope {
-	return NewScope(proto.MainNetScheme, state.MockState{}, EmptyFuncScope(), nil)
+	return NewScope(proto.MainNetScheme, state.MockStateImpl{}, EmptyFuncScope(), nil)
 }
 
-func newScopeWithState(s state.State) Scope {
+func newScopeWithState(s state.MockState) Scope {
 	return NewScope(proto.MainNetScheme, s, EmptyFuncScope(), nil)
 }
 

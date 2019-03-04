@@ -40,14 +40,14 @@ func TestBlockAcceptAndRollback(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temp dir for data: %v\n", err)
 	}
-	manager, err := NewStateManager(dataDir, DefaultBlockStorageParams())
+	manager, err := newStateManager(dataDir, DefaultBlockStorageParams())
 	if err != nil {
 		t.Fatalf("Failed to create state manager: %v.\n", err)
 	}
 
 	defer func() {
 		if err := manager.Close(); err != nil {
-			t.Fatalf("Failed to close StateManager: %v\n", err)
+			t.Fatalf("Failed to close stateManager: %v\n", err)
 		}
 		if err := os.RemoveAll(dataDir); err != nil {
 			t.Fatalf("Failed to clean dara dir: %v\n", err)

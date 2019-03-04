@@ -77,15 +77,15 @@ func (ch *balanceChanges) update(balanceDiff int64, blockID crypto.Signature, ch
 	return nil
 }
 
-type ByKey []balanceChanges
+type byKey []balanceChanges
 
-func (k ByKey) Len() int {
+func (k byKey) Len() int {
 	return len(k)
 }
-func (k ByKey) Swap(i, j int) {
+func (k byKey) Swap(i, j int) {
 	k[i], k[j] = k[j], k[i]
 }
-func (k ByKey) Less(i, j int) bool {
+func (k byKey) Less(i, j int) bool {
 	return bytes.Compare(k[i].key, k[j].key) == -1
 }
 
@@ -93,14 +93,14 @@ type wavesBalanceKey [wavesBalanceKeySize]byte
 type assetBalanceKey [assetBalanceKeySize]byte
 
 type changesStorage struct {
-	accounts  *AccountsStorage
+	accounts  *accountsStorage
 	deltas    []balanceChanges
 	wavesKeys map[wavesBalanceKey]int // waves key --> index in deltas.
 	assetKeys map[assetBalanceKey]int // asset key --> index in deltas.
 	lastIndex int
 }
 
-func newChangesStorage(accounts *AccountsStorage) (*changesStorage, error) {
+func newChangesStorage(accounts *accountsStorage) (*changesStorage, error) {
 	return &changesStorage{
 		accounts:  accounts,
 		wavesKeys: make(map[wavesBalanceKey]int),
@@ -140,9 +140,9 @@ func (bs *changesStorage) applyDeltas() error {
 	// sorted by keys, and the idea is to read in sorted order.
 	// We save a lot of time on disk's seek time.
 	// TODO: if DB supported MultiGet() operation, this would probably be even faster.
-	sort.Sort(ByKey(bs.deltas))
+	sort.Sort(byKey(bs.deltas))
 	for _, delta := range bs.deltas {
-		balance, err := bs.accounts.AccountBalance(delta.key)
+		balance, err := bs.accounts.accountBalance(delta.key)
 		if err != nil {
 			return errors.Errorf("failed to retrieve account balance: %v\n", err)
 		}
@@ -159,7 +159,7 @@ func (bs *changesStorage) applyDeltas() error {
 			if err != nil {
 				return errors.Errorf("failed to add balances: %v\n", err)
 			}
-			if err := bs.accounts.SetAccountBalance(delta.key, uint64(newBalance), change.blockID); err != nil {
+			if err := bs.accounts.setAccountBalance(delta.key, uint64(newBalance), change.blockID); err != nil {
 				return errors.Errorf("failed to set account balance: %v\n", err)
 			}
 		}
@@ -179,7 +179,7 @@ type transactionValidator struct {
 
 func newTransactionValidator(
 	genesis crypto.Signature,
-	accounts *AccountsStorage,
+	accounts *accountsStorage,
 	netScheme byte,
 ) (*transactionValidator, error) {
 	stor, err := newChangesStorage(accounts)
@@ -284,9 +284,9 @@ func (tv *transactionValidator) validateGenesis(tx *proto.Genesis, block *proto.
 	if ok, err := tv.checkTimestamps(tx.Timestamp, block.Timestamp); !ok {
 		return false, errors.Wrap(err, "invalid timestamp")
 	}
-	key := BalanceKey{Address: tx.Recipient}
+	key := balanceKey{address: tx.Recipient}
 	receiverBalanceDiff := int64(tx.Amount)
-	if ok, err := tv.addChanges(key.Bytes(), receiverBalanceDiff, block); !ok {
+	if ok, err := tv.addChanges(key.bytes(), receiverBalanceDiff, block); !ok {
 		return false, err
 	}
 	return true, nil
@@ -301,15 +301,15 @@ func (tv *transactionValidator) validatePayment(tx *proto.Payment, block *proto.
 	if err != nil {
 		return false, err
 	}
-	senderKey := BalanceKey{Address: senderAddr}
+	senderKey := balanceKey{address: senderAddr}
 	senderBalanceDiff := -int64(tx.Amount) - int64(tx.Fee)
-	if ok, err := tv.addChanges(senderKey.Bytes(), senderBalanceDiff, block); !ok {
+	if ok, err := tv.addChanges(senderKey.bytes(), senderBalanceDiff, block); !ok {
 		return false, err
 	}
 	// Update receiver.
-	receiverKey := BalanceKey{Address: tx.Recipient}
+	receiverKey := balanceKey{address: tx.Recipient}
 	receiverBalanceDiff := int64(tx.Amount)
-	if ok, err := tv.addChanges(receiverKey.Bytes(), receiverBalanceDiff, block); !ok {
+	if ok, err := tv.addChanges(receiverKey.bytes(), receiverBalanceDiff, block); !ok {
 		return false, err
 	}
 	// Update miner.
@@ -317,9 +317,9 @@ func (tv *transactionValidator) validatePayment(tx *proto.Payment, block *proto.
 	if err != nil {
 		return false, err
 	}
-	minerKey := BalanceKey{Address: minerAddr}
+	minerKey := balanceKey{address: minerAddr}
 	minerBalanceDiff := int64(tx.Fee)
-	if ok, err := tv.addChanges(minerKey.Bytes(), minerBalanceDiff, block); !ok {
+	if ok, err := tv.addChanges(minerKey.bytes(), minerBalanceDiff, block); !ok {
 		return false, err
 	}
 	return true, nil
@@ -334,14 +334,14 @@ func (tv *transactionValidator) validateTransferV1(tx *proto.TransferV1, block *
 	if err != nil {
 		return false, err
 	}
-	senderFeeKey := BalanceKey{Address: senderAddr, Asset: tx.FeeAsset.ToID()}
+	senderFeeKey := balanceKey{address: senderAddr, asset: tx.FeeAsset.ToID()}
 	senderFeeBalanceDiff := -int64(tx.Fee)
-	if ok, err := tv.addChanges(senderFeeKey.Bytes(), senderFeeBalanceDiff, block); !ok {
+	if ok, err := tv.addChanges(senderFeeKey.bytes(), senderFeeBalanceDiff, block); !ok {
 		return false, err
 	}
-	senderAmountKey := BalanceKey{Address: senderAddr, Asset: tx.AmountAsset.ToID()}
+	senderAmountKey := balanceKey{address: senderAddr, asset: tx.AmountAsset.ToID()}
 	senderAmountBalanceDiff := -int64(tx.Amount)
-	if ok, err := tv.addChanges(senderAmountKey.Bytes(), senderAmountBalanceDiff, block); !ok {
+	if ok, err := tv.addChanges(senderAmountKey.bytes(), senderAmountBalanceDiff, block); !ok {
 		return false, err
 	}
 	// Update receiver.
@@ -349,9 +349,9 @@ func (tv *transactionValidator) validateTransferV1(tx *proto.TransferV1, block *
 		// TODO implement
 		return false, errors.New("alias without address is not supported yet")
 	}
-	receiverKey := BalanceKey{Address: *tx.Recipient.Address, Asset: tx.AmountAsset.ToID()}
+	receiverKey := balanceKey{address: *tx.Recipient.Address, asset: tx.AmountAsset.ToID()}
 	receiverBalanceDiff := int64(tx.Amount)
-	if ok, err := tv.addChanges(receiverKey.Bytes(), receiverBalanceDiff, block); !ok {
+	if ok, err := tv.addChanges(receiverKey.bytes(), receiverBalanceDiff, block); !ok {
 		return false, err
 	}
 	// Update miner.
@@ -359,9 +359,9 @@ func (tv *transactionValidator) validateTransferV1(tx *proto.TransferV1, block *
 	if err != nil {
 		return false, err
 	}
-	minerKey := BalanceKey{Address: minerAddr, Asset: tx.FeeAsset.ToID()}
+	minerKey := balanceKey{address: minerAddr, asset: tx.FeeAsset.ToID()}
 	minerBalanceDiff := int64(tx.Fee)
-	if ok, err := tv.addChanges(minerKey.Bytes(), minerBalanceDiff, block); !ok {
+	if ok, err := tv.addChanges(minerKey.bytes(), minerBalanceDiff, block); !ok {
 		return false, err
 	}
 	return true, nil
@@ -376,14 +376,14 @@ func (tv *transactionValidator) validateTransferV2(tx *proto.TransferV2, block *
 	if err != nil {
 		return false, err
 	}
-	senderFeeKey := BalanceKey{Address: senderAddr, Asset: tx.FeeAsset.ToID()}
+	senderFeeKey := balanceKey{address: senderAddr, asset: tx.FeeAsset.ToID()}
 	senderFeeBalanceDiff := -int64(tx.Fee)
-	if ok, err := tv.addChanges(senderFeeKey.Bytes(), senderFeeBalanceDiff, block); !ok {
+	if ok, err := tv.addChanges(senderFeeKey.bytes(), senderFeeBalanceDiff, block); !ok {
 		return false, err
 	}
-	senderAmountKey := BalanceKey{Address: senderAddr, Asset: tx.AmountAsset.ToID()}
+	senderAmountKey := balanceKey{address: senderAddr, asset: tx.AmountAsset.ToID()}
 	senderAmountBalanceDiff := -int64(tx.Amount)
-	if ok, err := tv.addChanges(senderAmountKey.Bytes(), senderAmountBalanceDiff, block); !ok {
+	if ok, err := tv.addChanges(senderAmountKey.bytes(), senderAmountBalanceDiff, block); !ok {
 		return false, err
 	}
 	// Update receiver.
@@ -391,9 +391,9 @@ func (tv *transactionValidator) validateTransferV2(tx *proto.TransferV2, block *
 		// TODO implement
 		return false, errors.New("alias without address is not supported yet")
 	}
-	receiverKey := BalanceKey{Address: *tx.Recipient.Address, Asset: tx.AmountAsset.ToID()}
+	receiverKey := balanceKey{address: *tx.Recipient.Address, asset: tx.AmountAsset.ToID()}
 	receiverBalanceDiff := int64(tx.Amount)
-	if ok, err := tv.addChanges(receiverKey.Bytes(), receiverBalanceDiff, block); !ok {
+	if ok, err := tv.addChanges(receiverKey.bytes(), receiverBalanceDiff, block); !ok {
 		return false, err
 	}
 	// Update miner.
@@ -401,9 +401,9 @@ func (tv *transactionValidator) validateTransferV2(tx *proto.TransferV2, block *
 	if err != nil {
 		return false, err
 	}
-	minerKey := BalanceKey{Address: minerAddr, Asset: tx.FeeAsset.ToID()}
+	minerKey := balanceKey{address: minerAddr, asset: tx.FeeAsset.ToID()}
 	minerBalanceDiff := int64(tx.Fee)
-	if ok, err := tv.addChanges(minerKey.Bytes(), minerBalanceDiff, block); !ok {
+	if ok, err := tv.addChanges(minerKey.bytes(), minerBalanceDiff, block); !ok {
 		return false, err
 	}
 	return true, nil

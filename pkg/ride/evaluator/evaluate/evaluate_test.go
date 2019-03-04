@@ -54,7 +54,7 @@ func defaultScope() Scope {
 		Assets: map[string]uint64{"BXBUNddxTGTQc3G4qHYn5E67SBwMj18zLncUr871iuRD": 5},
 	}
 
-	s := state.MockState{
+	s := state.MockStateImpl{
 		//TransactionsHeightByID: map[string]uint64{},
 		//AssetsByID: map[string]uint64{addr.String() + "BXBUNddxTGTQc3G4qHYn5E67SBwMj18zLncUr871iuRD": 5},
 		Accounts: map[string]state.Account{addr.String(): &am},
@@ -231,7 +231,7 @@ func TestDataFunctions(t *testing.T) {
 	predefObject := make(map[string]Expr)
 	predefObject["tx"] = NewObject(vars)
 
-	scope := NewScope(proto.MainNetScheme, state.MockState{}, NewFuncScope(), predefObject)
+	scope := NewScope(proto.MainNetScheme, state.MockStateImpl{}, NewFuncScope(), predefObject)
 
 	conds := []struct {
 		FuncCode int
