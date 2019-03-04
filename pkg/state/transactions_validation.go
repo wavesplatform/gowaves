@@ -293,9 +293,6 @@ func (tv *transactionValidator) validateGenesis(tx *proto.Genesis, block *proto.
 }
 
 func (tv *transactionValidator) validatePayment(tx *proto.Payment, block *proto.Block, initialisation bool) (bool, error) {
-	if !initialisation {
-		return false, errors.New("payment transaction is only allowed in old blocks")
-	}
 	if ok, err := tv.checkTimestamps(tx.Timestamp, block.Timestamp); !ok {
 		return false, errors.Wrap(err, "invalid timestamp")
 	}

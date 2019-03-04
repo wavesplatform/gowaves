@@ -15,9 +15,12 @@ import (
 )
 
 const (
-	headerLength  = 17
-	headerMagic   = 0x12345678
-	headerCsumLen = 4
+	MaxHeaderLength = 17
+	headerMagic     = 0x12345678
+	headerCsumLen   = 4
+
+	HeaderSizeWithPayload    = 17
+	HeaderSizeWithoutPayload = 13
 )
 
 // Constants for message IDs
@@ -31,9 +34,9 @@ const (
 	ContentIDScore         = 0x18
 	ContentIDTransaction   = 0x19
 	ContentIDCheckpoint    = 0x64
-)
 
-var HashOfEmptyPayload = [4]byte{14, 87, 81, 192}
+	HeaderContentIDPosition = 8
+)
 
 type Message interface {
 	io.ReaderFrom
@@ -42,7 +45,7 @@ type Message interface {
 	encoding.BinaryMarshaler
 }
 
-type header struct {
+type Header struct {
 	Length        uint32
 	Magic         uint32
 	ContentID     uint8
@@ -50,21 +53,42 @@ type header struct {
 	PayloadCsum   [headerCsumLen]byte
 }
 
-func (h *header) MarshalBinary() ([]byte, error) {
-	data := make([]byte, 17)
-
-	binary.BigEndian.PutUint32(data[0:4], h.Length)
-	binary.BigEndian.PutUint32(data[4:8], headerMagic)
-	data[8] = h.ContentID
-	binary.BigEndian.PutUint32(data[9:13], h.PayloadLength)
-	copy(data[13:17], h.PayloadCsum[:])
-
+func (h *Header) MarshalBinary() ([]byte, error) {
+	data := make([]byte, h.HeaderLength())
+	h.Copy(data)
 	return data, nil
 }
 
-func (h *header) UnmarshalBinary(data []byte) error {
-	if len(data) < headerLength {
-		return fmt.Errorf("data is to short to unmarshal header: len=%d", len(data))
+func (h *Header) HeaderLength() uint32 {
+	if h.PayloadLength > 0 {
+		return HeaderSizeWithPayload
+	}
+	return HeaderSizeWithoutPayload
+}
+
+func (h *Header) ReadFrom(r io.Reader) (int64, error) {
+	body := [HeaderSizeWithPayload]byte{}
+	n, err := io.ReadFull(r, body[:HeaderSizeWithoutPayload])
+	if err != nil {
+		return int64(n), err
+	}
+
+	payloadLength := binary.BigEndian.Uint32(body[9:13])
+	nn := 0
+	if payloadLength > 0 {
+		nn, err = io.ReadFull(r, body[HeaderSizeWithoutPayload:HeaderSizeWithPayload])
+		if err != nil {
+			return int64(n), err
+		}
+		return int64(n + nn), h.UnmarshalBinary(body[:])
+	}
+
+	return int64(n + nn), h.UnmarshalBinary(body[:HeaderSizeWithoutPayload])
+}
+
+func (h *Header) UnmarshalBinary(data []byte) error {
+	if len(data) < HeaderSizeWithoutPayload {
+		return fmt.Errorf("data is to short to unmarshal Header: len=%d", len(data))
 	}
 	h.Length = binary.BigEndian.Uint32(data[0:4])
 	h.Magic = binary.BigEndian.Uint32(data[4:8])
@@ -73,8 +97,23 @@ func (h *header) UnmarshalBinary(data []byte) error {
 	}
 	h.ContentID = data[8]
 	h.PayloadLength = binary.BigEndian.Uint32(data[9:13])
-	copy(h.PayloadCsum[:], data[13:17])
+	if h.PayloadLength > 0 {
+		copy(h.PayloadCsum[:], data[13:17])
+	}
+
 	return nil
+}
+
+func (h *Header) Copy(data []byte) int {
+	binary.BigEndian.PutUint32(data[0:4], h.Length)
+	binary.BigEndian.PutUint32(data[4:8], headerMagic)
+	data[8] = h.ContentID
+	binary.BigEndian.PutUint32(data[9:13], h.PayloadLength)
+	if h.PayloadLength > 0 {
+		copy(data[13:17], h.PayloadCsum[:])
+		return HeaderSizeWithPayload
+	}
+	return HeaderSizeWithoutPayload
 }
 
 // Version represents the version of the protocol
@@ -287,7 +326,7 @@ func (h *Handshake) readTimestamp(buf []byte, r io.Reader) (int, error) {
 
 // ReadFrom reads Handshake from io.Reader
 func (h *Handshake) ReadFrom(r io.Reader) (int64, error) {
-	// max header size based on fields
+	// max Header size based on fields
 	buf := [556]byte{}
 	nn, err := h.readApplicationName(buf[:], r)
 	if err != nil {
@@ -355,30 +394,23 @@ type GetPeersMessage struct{}
 
 // MarshalBinary encodes GetPeersMessage to binary form
 func (m *GetPeersMessage) MarshalBinary() ([]byte, error) {
-	var h header
-	h.Length = headerLength - 8
+	var h Header
+	h.Length = MaxHeaderLength - 8
 	h.Magic = headerMagic
 	h.ContentID = ContentIDGetPeers
 	h.PayloadLength = 0
-	copy(h.PayloadCsum[:], HashOfEmptyPayload[:])
 	return h.MarshalBinary()
 }
 
 // UnmarshalBinary decodes GetPeersMessage from binary form
 func (m *GetPeersMessage) UnmarshalBinary(b []byte) error {
-	var header header
+	var header Header
 
 	err := header.UnmarshalBinary(b)
 	if err != nil {
 		return err
 	}
 
-	if header.Length != headerLength-8 {
-		return fmt.Errorf("getpeers message length is unexpected: want %v have %v", headerLength, header.Length)
-	}
-	if header.Magic != headerMagic {
-		return fmt.Errorf("getpeers message magic is unexpected: want %x have %x", headerMagic, header.Magic)
-	}
 	if header.ContentID != ContentIDGetPeers {
 		return fmt.Errorf("getpeers message ContentID is unexpected: want %x have %x", ContentIDGetPeers, header.ContentID)
 	}
@@ -538,7 +570,7 @@ type PeersMessage struct {
 
 // MarshalBinary encodes PeersMessage message to binary form
 func (m *PeersMessage) MarshalBinary() ([]byte, error) {
-	var h header
+	var h Header
 	body := make([]byte, 4)
 
 	binary.BigEndian.PutUint32(body[0:4], uint32(len(m.Peers)))
@@ -551,7 +583,7 @@ func (m *PeersMessage) MarshalBinary() ([]byte, error) {
 		body = append(body, peer...)
 	}
 
-	h.Length = headerLength + uint32(len(body)) - 4
+	h.Length = MaxHeaderLength + uint32(len(body)) - 4
 	h.Magic = headerMagic
 	h.ContentID = ContentIDPeers
 	h.PayloadLength = uint32(len(body))
@@ -573,11 +605,11 @@ func (m *PeersMessage) MarshalBinary() ([]byte, error) {
 
 // UnmarshalBinary decodes PeersMessage from binary form
 func (m *PeersMessage) UnmarshalBinary(data []byte) error {
-	var header header
+	var header Header
 	if err := header.UnmarshalBinary(data); err != nil {
 		return err
 	}
-	data = data[headerLength:]
+	data = data[MaxHeaderLength:]
 	if len(data) < 4 {
 		return errors.New("peers message has insufficient length")
 	}
@@ -632,6 +664,14 @@ func ReadPacket(buf []byte, r io.Reader) (int64, error) {
 	return int64(nn), nil
 }
 
+func ReadPayload(buf []byte, r io.Reader) (int64, error) {
+	nn, err := io.ReadFull(r, buf)
+	if err != nil {
+		return int64(nn), err
+	}
+	return int64(nn), nil
+}
+
 // ReadFrom reads PeersMessage from io.Reader
 func (m *PeersMessage) ReadFrom(r io.Reader) (int64, error) {
 	packet, nn, err := readPacket(r)
@@ -666,8 +706,8 @@ func (m *GetSignaturesMessage) MarshalBinary() ([]byte, error) {
 		body = append(body, b[:]...)
 	}
 
-	var h header
-	h.Length = headerLength + uint32(len(body)) - 4
+	var h Header
+	h.Length = MaxHeaderLength + uint32(len(body)) - 4
 	h.Magic = headerMagic
 	h.ContentID = ContentIDGetSignatures
 	h.PayloadLength = uint32(len(body))
@@ -689,15 +729,15 @@ func (m *GetSignaturesMessage) MarshalBinary() ([]byte, error) {
 
 // UnmarshalBinary decodes GetSignaturesMessage from binary form
 func (m *GetSignaturesMessage) UnmarshalBinary(data []byte) error {
-	var h header
+	var h Header
 	if err := h.UnmarshalBinary(data); err != nil {
 		return err
 	}
 	if h.Magic != headerMagic {
-		return fmt.Errorf("wrong magic in header: %x", h.Magic)
+		return fmt.Errorf("wrong magic in Header: %x", h.Magic)
 	}
 	if h.ContentID != ContentIDGetSignatures {
-		return fmt.Errorf("wrong ContentID in header: %x", h.ContentID)
+		return fmt.Errorf("wrong ContentID in Header: %x", h.ContentID)
 	}
 	data = data[17:]
 	if len(data) < 4 {
@@ -752,8 +792,8 @@ func (m *SignaturesMessage) MarshalBinary() ([]byte, error) {
 		body = append(body, b[:]...)
 	}
 
-	var h header
-	h.Length = headerLength + uint32(len(body)) - 4
+	var h Header
+	h.Length = MaxHeaderLength + uint32(len(body)) - 4
 	h.Magic = headerMagic
 	h.ContentID = ContentIDSignatures
 	h.PayloadLength = uint32(len(body))
@@ -775,16 +815,16 @@ func (m *SignaturesMessage) MarshalBinary() ([]byte, error) {
 
 // UnmarshalBinary decodes SignaturesMessage from binary form
 func (m *SignaturesMessage) UnmarshalBinary(data []byte) error {
-	var h header
+	var h Header
 
 	if err := h.UnmarshalBinary(data); err != nil {
 		return err
 	}
 	if h.Magic != headerMagic {
-		return fmt.Errorf("wrong magic in header: %x", h.Magic)
+		return fmt.Errorf("wrong magic in Header: %x", h.Magic)
 	}
 	if h.ContentID != ContentIDSignatures {
-		return fmt.Errorf("wrong ContentID in header: %x", h.ContentID)
+		return fmt.Errorf("wrong ContentID in Header: %x", h.ContentID)
 	}
 	data = data[17:]
 	if len(data) < 4 {
@@ -837,8 +877,8 @@ func (m *GetBlockMessage) MarshalBinary() ([]byte, error) {
 	body := make([]byte, 0, 64)
 	body = append(body, m.BlockID[:]...)
 
-	var h header
-	h.Length = headerLength + uint32(len(body)) - 4
+	var h Header
+	h.Length = MaxHeaderLength + uint32(len(body)) - 4
 	h.Magic = headerMagic
 	h.ContentID = ContentIDGetBlock
 	h.PayloadLength = uint32(len(body))
@@ -855,16 +895,16 @@ func (m *GetBlockMessage) MarshalBinary() ([]byte, error) {
 
 // UnmarshalBinary decodes GetBlockMessage from binary form
 func (m *GetBlockMessage) UnmarshalBinary(data []byte) error {
-	var h header
+	var h Header
 	if err := h.UnmarshalBinary(data); err != nil {
 		return err
 	}
 
 	if h.Magic != headerMagic {
-		return fmt.Errorf("wrong magic in header: %x", h.Magic)
+		return fmt.Errorf("wrong magic in Header: %x", h.Magic)
 	}
 	if h.ContentID != ContentIDGetBlock {
-		return fmt.Errorf("wrong ContentID in header: %x", h.ContentID)
+		return fmt.Errorf("wrong ContentID in Header: %x", h.ContentID)
 	}
 	data = data[17:]
 	if len(data) < 64 {
@@ -904,8 +944,8 @@ type BlockMessage struct {
 
 // MarshalBinary encodes BlockMessage to binary form
 func (m *BlockMessage) MarshalBinary() ([]byte, error) {
-	var h header
-	h.Length = headerLength + uint32(len(m.BlockBytes)) - 4
+	var h Header
+	h.Length = MaxHeaderLength + uint32(len(m.BlockBytes)) - 4
 	h.Magic = headerMagic
 	h.ContentID = ContentIDBlock
 	h.PayloadLength = uint32(len(m.BlockBytes))
@@ -925,15 +965,15 @@ func (m *BlockMessage) MarshalBinary() ([]byte, error) {
 
 // UnmarshalBinary decodes BlockMessage from binary from
 func (m *BlockMessage) UnmarshalBinary(data []byte) error {
-	var h header
+	var h Header
 	if err := h.UnmarshalBinary(data); err != nil {
 		return err
 	}
 	if h.Magic != headerMagic {
-		return fmt.Errorf("wrong magic in header: %x", h.Magic)
+		return fmt.Errorf("wrong magic in Header: %x", h.Magic)
 	}
 	if h.ContentID != ContentIDBlock {
-		return fmt.Errorf("wrong ContentID in header: %x", h.ContentID)
+		return fmt.Errorf("wrong ContentID in Header: %x", h.ContentID)
 	}
 
 	m.BlockBytes = data[17:]
@@ -969,8 +1009,8 @@ type ScoreMessage struct {
 
 // MarshalBinary encodes ScoreMessage to binary form
 func (m *ScoreMessage) MarshalBinary() ([]byte, error) {
-	var h header
-	h.Length = headerLength + uint32(len(m.Score)) - 4
+	var h Header
+	h.Length = MaxHeaderLength + uint32(len(m.Score)) - 4
 	h.Magic = headerMagic
 	h.ContentID = ContentIDScore
 	h.PayloadLength = uint32(len(m.Score))
@@ -990,15 +1030,15 @@ func (m *ScoreMessage) MarshalBinary() ([]byte, error) {
 
 // UnmarshalBinary decodes ScoreMessage from binary form
 func (m *ScoreMessage) UnmarshalBinary(data []byte) error {
-	var h header
+	var h Header
 	if err := h.UnmarshalBinary(data); err != nil {
 		return err
 	}
 	if h.Magic != headerMagic {
-		return fmt.Errorf("wrong magic in header: %x", h.Magic)
+		return fmt.Errorf("wrong magic in Header: %x", h.Magic)
 	}
 	if h.ContentID != ContentIDScore {
-		return fmt.Errorf("wrong ContentID in header: %x", h.ContentID)
+		return fmt.Errorf("wrong ContentID in Header: %x", h.ContentID)
 	}
 
 	m.Score = data[17:]
@@ -1033,8 +1073,8 @@ type TransactionMessage struct {
 
 // MarshalBinary encodes TransactionMessage to binary form
 func (m *TransactionMessage) MarshalBinary() ([]byte, error) {
-	var h header
-	h.Length = headerLength + uint32(len(m.Transaction)) - 4
+	var h Header
+	h.Length = MaxHeaderLength + uint32(len(m.Transaction)) - 4
 	h.Magic = headerMagic
 	h.ContentID = ContentIDTransaction
 	h.PayloadLength = uint32(len(m.Transaction))
@@ -1054,16 +1094,16 @@ func (m *TransactionMessage) MarshalBinary() ([]byte, error) {
 
 // UnmarshalBinary decodes TransactionMessage from binary form
 func (m *TransactionMessage) UnmarshalBinary(data []byte) error {
-	var h header
+	var h Header
 	if err := h.UnmarshalBinary(data); err != nil {
 		return err
 	}
 	if h.ContentID != ContentIDTransaction {
-		return fmt.Errorf("wrong ContentID in header: %x", h.ContentID)
+		return fmt.Errorf("wrong ContentID in Header: %x", h.ContentID)
 	}
 	// TODO check max length
 	m.Transaction = make([]byte, h.PayloadLength)
-	copy(m.Transaction, data[headerLength:headerLength+h.PayloadLength])
+	copy(m.Transaction, data[MaxHeaderLength:MaxHeaderLength+h.PayloadLength])
 	dig, err := crypto.FastHash(m.Transaction)
 	if err != nil {
 		return err
@@ -1118,8 +1158,8 @@ func (m *CheckPointMessage) MarshalBinary() ([]byte, error) {
 		body = append(body, c.Signature[:]...)
 	}
 
-	var h header
-	h.Length = headerLength + uint32(len(body)) - 4
+	var h Header
+	h.Length = MaxHeaderLength + uint32(len(body)) - 4
 	h.Magic = headerMagic
 	h.ContentID = ContentIDCheckpoint
 	h.PayloadLength = uint32(len(body))
@@ -1141,7 +1181,7 @@ func (m *CheckPointMessage) MarshalBinary() ([]byte, error) {
 
 // UnmarshalBinary decodes CheckPointMessage from binary form
 func (m *CheckPointMessage) UnmarshalBinary(data []byte) error {
-	var h header
+	var h Header
 	if err := h.UnmarshalBinary(data); err != nil {
 		return err
 	}
@@ -1190,4 +1230,28 @@ func (m *CheckPointMessage) WriteTo(w io.Writer) (int64, error) {
 	nn, err := w.Write(buf)
 	n := int64(nn)
 	return n, err
+}
+
+// UnmarshalMessage tries unmarshal bytes to proper type
+func UnmarshalMessage(b []byte) (Message, error) {
+	if len(b) < HeaderSizeWithoutPayload {
+		return nil, errors.Errorf("message is too short")
+	}
+
+	var m Message
+	switch b[HeaderContentIDPosition] {
+	case ContentIDTransaction:
+		m = &TransactionMessage{}
+	case ContentIDGetPeers:
+		m = &GetPeersMessage{}
+	case ContentIDPeers:
+		m = &PeersMessage{}
+	default:
+		return nil, errors.Errorf(
+			"received unknown content id byte %d (%x)", b[HeaderContentIDPosition], b[HeaderContentIDPosition])
+	}
+
+	err := m.UnmarshalBinary(b)
+	return m, err
+
 }

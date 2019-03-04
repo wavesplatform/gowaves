@@ -1,14 +1,16 @@
 package conn
 
 import (
-	"encoding/binary"
-	"github.com/magiconair/properties/assert"
-	"github.com/stretchr/testify/require"
-	"github.com/wavesplatform/gowaves/pkg/libs/bytespool"
-	"go.uber.org/zap"
 	"net"
 	"testing"
 	"time"
+
+	"github.com/magiconair/properties/assert"
+	"github.com/stretchr/testify/require"
+	"github.com/wavesplatform/gowaves/pkg/libs/bytespool"
+	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/util/byte_helpers"
+	"go.uber.org/zap"
 )
 
 //test that we receiving bytes
@@ -22,9 +24,7 @@ func TestWrapConnection(t *testing.T) {
 		for {
 			conn, err := listener.Accept()
 			require.NoError(t, err)
-			out := make([]byte, 4)
-			binary.BigEndian.PutUint32(out, 0)
-			_, _ = conn.Write(out)
+			_, _ = conn.Write(byte_helpers.TransferV1.MessageBytes)
 			_ = conn.Close()
 		}
 	}()
@@ -34,9 +34,16 @@ func TestWrapConnection(t *testing.T) {
 
 	pool := bytespool.NewBytesPool(1, 1024)
 	ch := make(chan []byte, 1)
-	wrapped := WrapConnection(conn, pool, nil, ch, nil)
+	wrapped := WrapConnection(conn, pool, nil, ch, nil, func(bytes proto.Header) bool {
+		return false
+	})
 
-	<-time.After(100 * time.Millisecond)
-	assert.Equal(t, []byte{0, 0, 0, 0}, (<-ch)[:4])
-	require.NoError(t, wrapped.Close())
+	select {
+	case <-time.After(10 * time.Millisecond):
+		t.Fatalf("no value arrived in 10ms")
+	case m := <-ch:
+		assert.Equal(t, []byte{0, 0, 0, 165, 18, 52, 86, 120}, m[:8])
+		require.NoError(t, wrapped.Close())
+	}
+
 }

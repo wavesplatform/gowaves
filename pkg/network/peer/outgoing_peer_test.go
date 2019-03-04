@@ -10,7 +10,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/libs/bytespool"
-	"github.com/wavesplatform/gowaves/pkg/network/conn"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
 )
@@ -86,10 +85,6 @@ func (a *server) stop() {
 	a.conn.Close()
 }
 
-func callback(b []byte, address string, resendTo chan ProtoMessage, pool conn.Pool) {
-	panic("call callback")
-}
-
 func TestOutgoingPeer_SendMessage(t *testing.T) {
 	server := runServerAsync("127.0.0.1:")
 	defer server.stop()
@@ -102,11 +97,10 @@ func TestOutgoingPeer_SendMessage(t *testing.T) {
 	}
 
 	params := OutgoingPeerParams{
-		Address:                   server.Addr().String(),
-		Parent:                    parent,
-		ReceiveFromRemoteCallback: callback,
-		Pool:                      bytespool.NewBytesPool(10, 2*1024*1024),
-		DeclAddr:                  proto.PeerInfo{},
+		Address:  server.Addr().String(),
+		Parent:   parent,
+		Pool:     bytespool.NewBytesPool(10, 2*1024*1024),
+		DeclAddr: proto.PeerInfo{},
 	}
 	go RunOutgoingPeer(ctx, params)
 

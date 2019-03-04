@@ -3,11 +3,13 @@ package peer
 import (
 	"context"
 	"fmt"
+	"net"
+	"time"
+
+	"github.com/wavesplatform/gowaves/pkg/libs/bytespool"
 	"github.com/wavesplatform/gowaves/pkg/network/conn"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
-	"net"
-	"time"
 )
 
 type IncomingPeer struct {
@@ -19,12 +21,12 @@ type IncomingPeer struct {
 }
 
 type IncomingPeerParams struct {
-	WavesNetwork              string
-	Conn                      net.Conn
-	ReceiveFromRemoteCallback ReceiveFromRemoteCallback
-	Parent                    Parent
-	DeclAddr                  proto.PeerInfo
-	Pool                      conn.Pool
+	WavesNetwork string
+	Conn         net.Conn
+	Parent       Parent
+	DeclAddr     proto.PeerInfo
+	Pool         bytespool.Pool
+	Skip         conn.SkipFilter
 }
 
 func RunIncomingPeer(ctx context.Context, params IncomingPeerParams) {
@@ -79,7 +81,7 @@ func RunIncomingPeer(ctx context.Context, params IncomingPeerParams) {
 	}
 
 	remote := newRemote()
-	connection := conn.WrapConnection(c, params.Pool, remote.toCh, remote.fromCh, remote.errCh)
+	connection := conn.WrapConnection(c, params.Pool, remote.toCh, remote.fromCh, remote.errCh, params.Skip)
 	ctx, cancel := context.WithCancel(ctx)
 
 	peer := &IncomingPeer{
@@ -91,10 +93,8 @@ func RunIncomingPeer(ctx context.Context, params IncomingPeerParams) {
 	}
 
 	decl := proto.PeerInfo{}
-	err = decl.UnmarshalBinary(readHandshake.DeclaredAddrBytes)
-	if err != nil {
-		zap.S().Errorf("err: %s %s, readhandshake %+v", err, c.RemoteAddr().String(), readHandshake)
-	}
+	_ = decl.UnmarshalBinary(readHandshake.DeclaredAddrBytes)
+	zap.S().Debugf("%s, readhandshake %+v", c.RemoteAddr().String(), readHandshake)
 
 	out := InfoMessage{
 		ID: peer.uniqueID,
@@ -104,6 +104,8 @@ func RunIncomingPeer(ctx context.Context, params IncomingPeerParams) {
 			DeclAddr:   decl,
 			RemoteAddr: c.RemoteAddr().String(),
 			LocalAddr:  c.LocalAddr().String(),
+			AppName:    readHandshake.AppName,
+			NodeName:   readHandshake.NodeName,
 		},
 	}
 	params.Parent.InfoCh <- out
@@ -112,13 +114,12 @@ func RunIncomingPeer(ctx context.Context, params IncomingPeerParams) {
 
 func (a *IncomingPeer) run(ctx context.Context) {
 	handleParams := handlerParams{
-		connection:                a.conn,
-		ctx:                       ctx,
-		remote:                    a.remote,
-		receiveFromRemoteCallback: a.params.ReceiveFromRemoteCallback,
-		id:                        a.uniqueID,
-		parent:                    a.params.Parent,
-		pool:                      a.params.Pool,
+		connection: a.conn,
+		ctx:        ctx,
+		remote:     a.remote,
+		id:         a.uniqueID,
+		parent:     a.params.Parent,
+		pool:       a.params.Pool,
 	}
 	handle(handleParams)
 }
@@ -146,4 +147,8 @@ func (a *IncomingPeer) ID() string {
 
 func (a *IncomingPeer) Direction() Direction {
 	return Incoming
+}
+
+func (a *IncomingPeer) Connection() conn.Connection {
+	return a.conn
 }

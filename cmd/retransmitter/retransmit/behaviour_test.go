@@ -7,8 +7,10 @@ import (
 	"github.com/wavesplatform/gowaves/cmd/retransmitter/retransmit"
 	"github.com/wavesplatform/gowaves/cmd/retransmitter/retransmit/utils"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/network/conn"
 	"github.com/wavesplatform/gowaves/pkg/network/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/util/byte_helpers"
 )
 
 var seed = []byte("test test")
@@ -28,6 +30,10 @@ func (mockPeer) Reconnect() error {
 }
 
 func (mockPeer) Close() {
+	panic("implement me")
+}
+
+func (mockPeer) Connection() conn.Connection {
 	panic("implement me")
 }
 
@@ -67,8 +73,6 @@ func createTransaction() *proto.TransferV2 {
 // check if first connected peer sends new transaction, then second receive
 // if we send again same transaction, nothing will arrive
 func TestClientRecvTransaction(t *testing.T) {
-	bts, _ := createTransaction().MarshalBinary()
-
 	knownPeers, _ := utils.NewKnownPeers(utils.NoOnStorage{})
 
 	behaviour := retransmit.NewBehaviour(knownPeers, nil)
@@ -102,7 +106,7 @@ func TestClientRecvTransaction(t *testing.T) {
 	protomess := peer.ProtoMessage{
 		ID: peer1.addr,
 		Message: &proto.TransactionMessage{
-			Transaction: bts,
+			Transaction: byte_helpers.TransferV1.TransactionBytes,
 		},
 	}
 

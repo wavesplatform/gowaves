@@ -1,6 +1,8 @@
 package retransmit
 
 import (
+	"sync"
+
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
@@ -12,6 +14,7 @@ type TransactionList struct {
 	size  int
 	lst   [][idSize]byte
 	id2t  map[[idSize]byte]struct{}
+	mu    sync.RWMutex
 }
 
 func NewTransactionList(size int) *TransactionList {
@@ -24,7 +27,9 @@ func NewTransactionList(size int) *TransactionList {
 }
 
 func (a *TransactionList) Add(transaction proto.Transaction) {
-	if a.Exists(transaction) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.exists(transaction) {
 		return
 	}
 	b := [idSize]byte{}
@@ -33,6 +38,7 @@ func (a *TransactionList) Add(transaction proto.Transaction) {
 	a.replaceOldTransaction(transaction)
 }
 
+// non thread safe
 func (a *TransactionList) replaceOldTransaction(transaction proto.Transaction) {
 	curIdx := a.index % a.size
 	curTransaction := a.lst[curIdx]
@@ -42,6 +48,13 @@ func (a *TransactionList) replaceOldTransaction(transaction proto.Transaction) {
 }
 
 func (a *TransactionList) Exists(transaction proto.Transaction) bool {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	return a.exists(transaction)
+}
+
+// non thread safe
+func (a *TransactionList) exists(transaction proto.Transaction) bool {
 	b := [idSize]byte{}
 	copy(b[:], transaction.GetID())
 	_, ok := a.id2t[b]
@@ -49,5 +62,7 @@ func (a *TransactionList) Exists(transaction proto.Transaction) bool {
 }
 
 func (a *TransactionList) Len() int {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
 	return len(a.id2t)
 }
