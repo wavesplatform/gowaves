@@ -27,6 +27,14 @@ func (pd PeerDesignation) String() string {
 	return sb.String()
 }
 
+func (pd PeerDesignation) MarshalJSON() ([]byte, error)  {
+	sb := strings.Builder{}
+	sb.WriteRune('"')
+	sb.WriteString(pd.String())
+	sb.WriteRune('"')
+	return []byte(sb.String()), nil
+}
+
 type PeerForkInfo struct {
 	Peer PeerDesignation `json:"peer"`
 	Lag  int             `json:"lag"`

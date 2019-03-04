@@ -519,23 +519,6 @@ func wrapper(sn *leveldb.Snapshot, block crypto.Signature) (blockWrapper, bool, 
 	return w, true, nil
 }
 
-func link(sn *leveldb.Snapshot, peer PeerDesignation) (peerLink, bool, error) {
-	k := newPeerLinkKey(peer)
-	v, err := sn.Get(k.bytes(), nil)
-	if err != nil {
-		if err == leveldb.ErrNotFound {
-			return peerLink{}, false, nil
-		}
-		return peerLink{}, false, errors.Wrap(err, "failed to get peerLink")
-	}
-	var l peerLink
-	err = l.fromBytes(v)
-	if err != nil {
-		return peerLink{}, false, errors.Wrap(err, "failed to unmarshal peerLink")
-	}
-	return l, true, nil
-}
-
 func putLink(batch *leveldb.Batch, peer PeerDesignation, link peerLink) {
 	k := newPeerLinkKey(peer)
 	batch.Put(k.bytes(), link.bytes())
