@@ -48,21 +48,20 @@ type status struct {
 
 type api struct {
 	interrupt <-chan struct{}
-	log       *zap.SugaredLogger
 	storage   *storage
 }
 
-func StartForkDetectorAPI(interrupt <-chan struct{}, logger *zap.Logger, storage *storage, bind string) <-chan struct{} {
+func StartForkDetectorAPI(interrupt <-chan struct{}, storage *storage, bind string) <-chan struct{} {
 	done := make(chan struct{})
 	if bind == "" {
 		close(done)
 		return done
 	}
-	a := api{interrupt: interrupt, log: logger.Sugar(), storage: storage}
+	a := api{interrupt: interrupt, storage: storage}
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
-	r.Use(Logger(logger))
+	r.Use(Logger(zap.L()))
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.SetHeader("Content-Type", "application/json"))
 	r.Use(middleware.DefaultCompress)
@@ -71,7 +70,7 @@ func StartForkDetectorAPI(interrupt <-chan struct{}, logger *zap.Logger, storage
 	go func() {
 		err := apiServer.ListenAndServe()
 		if err != nil && err != http.ErrServerClosed {
-			a.log.Fatalf("Failed to start API: %v", err)
+			zap.S().Fatalf("Failed to start API: %v", err)
 			return
 		}
 	}()
@@ -79,11 +78,11 @@ func StartForkDetectorAPI(interrupt <-chan struct{}, logger *zap.Logger, storage
 		for {
 			select {
 			case <-a.interrupt:
-				a.log.Info("Shutting down API...")
+				zap.S().Info("Shutting down API...")
 				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 				err := apiServer.Shutdown(ctx)
 				if err != nil {
-					a.log.Errorf("Failed to shutdown API server: %v", err)
+					zap.S().Errorf("Failed to shutdown API server: %v", err)
 				}
 				cancel()
 				close(done)

@@ -14,7 +14,6 @@ import (
 
 type Dispatcher struct {
 	storage      *storage
-	log          *zap.SugaredLogger
 	announcement string
 	name         string
 	scheme       byte
@@ -23,10 +22,9 @@ type Dispatcher struct {
 	done         chan struct{}
 }
 
-func NewDispatcher(interrupt <-chan struct{}, log *zap.SugaredLogger, storage *storage, announcement, name string, scheme byte) *Dispatcher {
+func NewDispatcher(interrupt <-chan struct{}, storage *storage, announcement, name string, scheme byte) *Dispatcher {
 	return &Dispatcher{
 		storage:      storage,
-		log:          log,
 		announcement: announcement,
 		name:         name,
 		scheme:       scheme,

@@ -43,27 +43,21 @@ func run() error {
 		flag.Usage()
 		return err
 	}
-	logger, log := setupLogger(cfg.logLevel)
-	defer func() {
-		err := logger.Sync()
-		if err != nil && err == os.ErrInvalid {
-			log.Fatalf("Failed to close logging subsystem: %s", err.Error())
-		}
-	}()
+	setupLogger(cfg.logLevel)
 
 	// Get a channel that will be closed on shutdown signals (CTRL-C) or shutdown request
-	interrupt := interruptListener(log)
-	defer log.Info("Shutdown complete")
+	interrupt := interruptListener()
+	defer zap.S().Info("Shutdown complete")
 
-	log.Infof("Waves Fork Detector %s", version)
+	zap.S().Infof("Waves Fork Detector %s", version)
 
 	storage, err := internal.NewStorage(cfg.dbPath, cfg.genesis)
 	if err != nil {
-		log.Errorf("Failed to open Storage: %v", err)
+		zap.S().Errorf("Failed to open Storage: %v", err)
 		return err
 	}
 
-	apiDone := internal.StartForkDetectorAPI(interrupt, logger, storage, cfg.apiBind)
+	apiDone := internal.StartForkDetectorAPI(interrupt, storage, cfg.apiBind)
 	if interruptRequested(interrupt) {
 		return nil
 	}
@@ -71,14 +65,14 @@ func run() error {
 	dispatcher := internal.NewDispatcher(interrupt, log, storage, cfg.announcement, cfg.nodeName, cfg.scheme)
 	dispatcherDone, err := dispatcher.Start(cfg.netBind, cfg.seedPeers)
 	if err != nil {
-		log.Errorf("Failed to start peers dispatcher: %v", err)
+		zap.S().Errorf("Failed to start peers dispatcher: %v", err)
 		return err
 	}
 
 	<-apiDone
-	log.Info("API shutdown complete")
+	zap.S().Info("API shutdown complete")
 	<-dispatcherDone
-	log.Info("Peers dispatcher shutdown complete")
+	zap.S().Info("Peers dispatcher shutdown complete")
 
 	<-interrupt
 	return nil
@@ -196,5 +190,6 @@ func setupLogger(level string) (*zap.Logger, *zap.SugaredLogger) {
 	}
 	ec := zap.NewDevelopmentEncoderConfig()
 	logger := zap.New(zapcore.NewCore(zapcore.NewConsoleEncoder(ec), zapcore.Lock(os.Stdout), al))
+	zap.ReplaceGlobals(logger)
 	return logger, logger.Sugar()
 }
