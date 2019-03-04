@@ -15,74 +15,7 @@ const (
 	rollbackMaxBlocks = 4000
 	blocksStorDir     = "blocks_storage"
 	keyvalueDir       = "keyvalue"
-
-	wavesBalanceKeySize = 1 + proto.AddressSize
-	assetBalanceKeySize = 1 + proto.AddressSize + crypto.DigestSize
 )
-
-type WavesBalanceKey [wavesBalanceKeySize]byte
-type AssetBalanceKey [assetBalanceKeySize]byte
-
-type BalancesStorage struct {
-	global *AccountsStorage
-	assets map[AssetBalanceKey]uint64
-	waves  map[WavesBalanceKey]uint64
-}
-
-func NewBalancesStorage(global *AccountsStorage) (*BalancesStorage, error) {
-	return &BalancesStorage{
-		global: global,
-		assets: make(map[AssetBalanceKey]uint64),
-		waves:  make(map[WavesBalanceKey]uint64),
-	}, nil
-}
-
-func (stor *BalancesStorage) AccountBalance(key []byte) (uint64, error) {
-	size := len(key)
-	if size == wavesBalanceKeySize {
-		var wavesKey WavesBalanceKey
-		copy(wavesKey[:], key)
-		if _, ok := stor.waves[wavesKey]; !ok {
-			balance, err := stor.global.AccountBalance(key)
-			if err != nil {
-				return 0, err
-			}
-			stor.waves[wavesKey] = balance
-		}
-		return stor.waves[wavesKey], nil
-	} else if size == assetBalanceKeySize {
-		var assetKey AssetBalanceKey
-		copy(assetKey[:], key)
-		if _, ok := stor.assets[assetKey]; !ok {
-			balance, err := stor.global.AccountBalance(key)
-			if err != nil {
-				return 0, err
-			}
-			stor.assets[assetKey] = balance
-		}
-		return stor.assets[assetKey], nil
-	}
-	return 0, errors.New("invalid key size")
-}
-
-func (stor *BalancesStorage) SetAccountBalance(key []byte, balance uint64, blockID crypto.Signature) error {
-	size := len(key)
-	if size == wavesBalanceKeySize {
-		var wavesKey WavesBalanceKey
-		copy(wavesKey[:], key)
-		stor.waves[wavesKey] = balance
-	} else if size == assetBalanceKeySize {
-		var assetKey AssetBalanceKey
-		copy(assetKey[:], key)
-		stor.assets[assetKey] = balance
-	} else {
-		return errors.New("invalid key size")
-	}
-	if err := stor.global.SetAccountBalance(key, balance, blockID); err != nil {
-		return errors.Errorf("failed to add changes to batch: %v\n", err)
-	}
-	return nil
-}
 
 type StateManager struct {
 	genesis         proto.Block
@@ -177,11 +110,7 @@ func NewStateManager(dataDir string, params BlockStorageParams) (*StateManager, 
 }
 
 func (s *StateManager) applyGenesis() error {
-	balancesStor, err := NewBalancesStorage(s.accountsStorage)
-	if err != nil {
-		return err
-	}
-	tv, err := NewTransactionValidator(s.genesis.BlockSignature, balancesStor)
+	tv, err := newTransactionValidator(s.genesis.BlockSignature, s.accountsStorage, proto.MainNetScheme)
 	if err != nil {
 		return err
 	}
@@ -190,12 +119,12 @@ func (s *StateManager) applyGenesis() error {
 		return err
 	}
 	for _, tx := range genesisTx {
-		if err := tv.ValidateTransaction(s.genesis.BlockSignature, &tx, true); err != nil {
-			return errors.Wrap(err, "invalid genesis transaction")
+		if err := tv.validateTransaction(&s.genesis, &tx, true); err != nil {
+			return err
 		}
-		if err := s.performGenesisTransaction(tx, balancesStor); err != nil {
-			return errors.Wrap(err, "failed to perform genesis transaction")
-		}
+	}
+	if err := tv.performTransactions(); err != nil {
+		return err
 	}
 	if err := s.accountsStorage.Flush(); err != nil {
 		return err
@@ -270,179 +199,6 @@ func (s *StateManager) AddressesNumber() (uint64, error) {
 	return s.accountsStorage.AddressesNumber()
 }
 
-func (s *StateManager) performGenesisTransaction(tx proto.Genesis, stor *BalancesStorage) error {
-	key := BalanceKey{Address: tx.Recipient}
-	receiverBalance, err := stor.AccountBalance(key.Bytes())
-	if err != nil {
-		return err
-	}
-	newReceiverBalance := receiverBalance + tx.Amount
-	if err := stor.SetAccountBalance(key.Bytes(), newReceiverBalance, s.genesis.BlockSignature); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (s *StateManager) performTransaction(block *proto.Block, tx proto.Transaction, stor *BalancesStorage) error {
-	blockID := block.BlockSignature
-	switch v := tx.(type) {
-	case *proto.Payment:
-		senderAddr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, v.SenderPK)
-		if err != nil {
-			return err
-		}
-		minerAddr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, block.GenPublicKey)
-		if err != nil {
-			return err
-		}
-		senderKey := BalanceKey{Address: senderAddr}
-		senderBalance, err := stor.AccountBalance(senderKey.Bytes())
-		if err != nil {
-			return err
-		}
-		newSenderBalance := senderBalance - v.Amount - v.Fee
-		if newSenderBalance < 0 {
-			panic("Transaction results in negative balance after validation")
-		}
-		if err := stor.SetAccountBalance(senderKey.Bytes(), newSenderBalance, blockID); err != nil {
-			return err
-		}
-		receiverKey := BalanceKey{Address: v.Recipient}
-		receiverBalance, err := stor.AccountBalance(receiverKey.Bytes())
-		if err != nil {
-			return err
-		}
-		newReceiverBalance := receiverBalance + v.Amount
-		if err := stor.SetAccountBalance(receiverKey.Bytes(), newReceiverBalance, blockID); err != nil {
-			return err
-		}
-		minerKey := BalanceKey{Address: minerAddr}
-		minerBalance, err := stor.AccountBalance(minerKey.Bytes())
-		if err != nil {
-			return err
-		}
-		newMinerBalance := minerBalance + v.Fee
-		if err := stor.SetAccountBalance(minerKey.Bytes(), newMinerBalance, blockID); err != nil {
-			return err
-		}
-		return nil
-	case *proto.TransferV1:
-		senderAddr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, v.SenderPK)
-		if err != nil {
-			return err
-		}
-		if v.Recipient.Address == nil {
-			// TODO implement
-			return errors.New("alias without address is not supported yet")
-		}
-		minerAddr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, block.GenPublicKey)
-		if err != nil {
-			return err
-		}
-		senderFeeKey := BalanceKey{Address: senderAddr, Asset: v.FeeAsset.ToID()}
-		senderAmountKey := BalanceKey{Address: senderAddr, Asset: v.AmountAsset.ToID()}
-		senderFeeBalance, err := stor.AccountBalance(senderFeeKey.Bytes())
-		if err != nil {
-			return err
-		}
-		newSenderFeeBalance := senderFeeBalance - v.Fee
-		if newSenderFeeBalance < 0 {
-			panic("Transaction results in negative balance after validation")
-		}
-		senderAmountBalance, err := stor.AccountBalance(senderAmountKey.Bytes())
-		if err != nil {
-			return err
-		}
-		newSenderAmountBalance := senderAmountBalance - v.Amount
-		if newSenderAmountBalance < 0 {
-			panic("Transaction results in negative balance after validation")
-		}
-		if err := stor.SetAccountBalance(senderFeeKey.Bytes(), newSenderFeeBalance, blockID); err != nil {
-			return err
-		}
-		if err := stor.SetAccountBalance(senderAmountKey.Bytes(), newSenderAmountBalance, blockID); err != nil {
-			return err
-		}
-		receiverKey := BalanceKey{Address: *v.Recipient.Address, Asset: v.AmountAsset.ToID()}
-		receiverBalance, err := stor.AccountBalance(receiverKey.Bytes())
-		if err != nil {
-			return err
-		}
-		newReceiverBalance := receiverBalance + v.Amount
-		if err := stor.SetAccountBalance(receiverKey.Bytes(), newReceiverBalance, blockID); err != nil {
-			return err
-		}
-		minerKey := BalanceKey{Address: minerAddr, Asset: v.FeeAsset.ToID()}
-		minerBalance, err := stor.AccountBalance(minerKey.Bytes())
-		if err != nil {
-			return err
-		}
-		newMinerBalance := minerBalance + v.Fee
-		if err := stor.SetAccountBalance(minerKey.Bytes(), newMinerBalance, blockID); err != nil {
-			return err
-		}
-		return nil
-	case *proto.TransferV2:
-		senderAddr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, v.SenderPK)
-		if err != nil {
-			return err
-		}
-		if v.Recipient.Address == nil {
-			// TODO implement
-			return errors.New("alias without address is not supported yet")
-		}
-		minerAddr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, block.GenPublicKey)
-		if err != nil {
-			return err
-		}
-		senderFeeKey := BalanceKey{Address: senderAddr, Asset: v.FeeAsset.ToID()}
-		senderAmountKey := BalanceKey{Address: senderAddr, Asset: v.AmountAsset.ToID()}
-		senderFeeBalance, err := stor.AccountBalance(senderFeeKey.Bytes())
-		if err != nil {
-			return err
-		}
-		newSenderFeeBalance := senderFeeBalance - v.Fee
-		if newSenderFeeBalance < 0 {
-			panic("Transaction results in negative balance after validation")
-		}
-		senderAmountBalance, err := stor.AccountBalance(senderAmountKey.Bytes())
-		if err != nil {
-			return err
-		}
-		newSenderAmountBalance := senderAmountBalance - v.Amount
-		if newSenderAmountBalance < 0 {
-			panic("Transaction results in negative balance after validation")
-		}
-		if err := stor.SetAccountBalance(senderFeeKey.Bytes(), newSenderFeeBalance, blockID); err != nil {
-			return err
-		}
-		if err := stor.SetAccountBalance(senderAmountKey.Bytes(), newSenderAmountBalance, blockID); err != nil {
-			return err
-		}
-		receiverKey := BalanceKey{Address: *v.Recipient.Address, Asset: v.AmountAsset.ToID()}
-		receiverBalance, err := stor.AccountBalance(receiverKey.Bytes())
-		if err != nil {
-			return err
-		}
-		newReceiverBalance := receiverBalance + v.Amount
-		if err := stor.SetAccountBalance(receiverKey.Bytes(), newReceiverBalance, blockID); err != nil {
-			return err
-		}
-		minerKey := BalanceKey{Address: minerAddr, Asset: v.FeeAsset.ToID()}
-		minerBalance, err := stor.AccountBalance(minerKey.Bytes())
-		if err != nil {
-			return err
-		}
-		newMinerBalance := minerBalance + v.Fee
-		if err := stor.SetAccountBalance(minerKey.Bytes(), newMinerBalance, blockID); err != nil {
-			return err
-		}
-		return nil
-	default:
-		return errors.Errorf("transaction type %T is not supported\n", v)
-	}
-}
-
 func (s *StateManager) topBlock() (*proto.Block, error) {
 	height, err := s.Height()
 	if err != nil {
@@ -452,7 +208,7 @@ func (s *StateManager) topBlock() (*proto.Block, error) {
 	return s.GetBlockByHeight(height)
 }
 
-func (s *StateManager) addNewBlock(block *proto.Block, stor *BalancesStorage, initialisation bool) error {
+func (s *StateManager) addNewBlock(tv *transactionValidator, block *proto.Block, initialisation bool) error {
 	// Indicate new block for storage.
 	if err := s.rw.StartBlock(block.BlockSignature); err != nil {
 		return err
@@ -463,10 +219,6 @@ func (s *StateManager) addNewBlock(block *proto.Block, stor *BalancesStorage, in
 		return err
 	}
 	if err := s.rw.WriteBlockHeader(block.BlockSignature, headerBytes); err != nil {
-		return err
-	}
-	tv, err := NewTransactionValidator(s.genesis.BlockSignature, stor)
-	if err != nil {
 		return err
 	}
 	transactions := block.Transactions
@@ -482,13 +234,10 @@ func (s *StateManager) addNewBlock(block *proto.Block, stor *BalancesStorage, in
 		if err := s.rw.WriteTransaction(tx.GetID(), transactions[:n+4]); err != nil {
 			return err
 		}
-		if tv.IsSupported(tx) && (s.accountsStorage != nil) {
+		if tv.isSupported(tx) {
 			// Genesis, Payment, TransferV1 and TransferV2 Waves-only for now.
-			if err = tv.ValidateTransaction(block.BlockSignature, tx, initialisation); err != nil {
-				return errors.Wrap(err, "incorrect transaction inside of the block")
-			}
-			if err = s.performTransaction(block, tx, stor); err != nil {
-				return errors.Wrap(err, "failed to perform the transaction")
+			if err = tv.validateTransaction(block, tx, initialisation); err != nil {
+				return err
 			}
 		}
 		transactions = transactions[4+n:]
@@ -522,7 +271,7 @@ func (s *StateManager) AddBlocks(blocks [][]byte, initialisation bool) error {
 		return err
 	}
 	parentSig := parent.BlockSignature
-	balancesStor, err := NewBalancesStorage(s.accountsStorage)
+	tv, err := newTransactionValidator(s.genesis.BlockSignature, s.accountsStorage, proto.MainNetScheme)
 	if err != nil {
 		return err
 	}
@@ -531,10 +280,13 @@ func (s *StateManager) AddBlocks(blocks [][]byte, initialisation bool) error {
 		if err != nil {
 			return err
 		}
-		if err := s.addNewBlock(block, balancesStor, initialisation); err != nil {
+		if err := s.addNewBlock(tv, block, initialisation); err != nil {
 			return err
 		}
 		parentSig = block.BlockSignature
+	}
+	if err := tv.performTransactions(); err != nil {
+		return err
 	}
 	if err := s.rw.UpdateHeight(blocksNumber); err != nil {
 		return err

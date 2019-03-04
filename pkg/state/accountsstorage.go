@@ -44,15 +44,15 @@ func filterHistory(db keyvalue.KeyValue, historyKey []byte, history []byte) ([]b
 
 type localStor struct {
 	db     keyvalue.KeyValue
-	waves  map[WavesBalanceKey][]byte
-	assets map[AssetBalanceKey][]byte
+	waves  map[wavesBalanceKey][]byte
+	assets map[assetBalanceKey][]byte
 }
 
 func newLocalStor(db keyvalue.KeyValue) (*localStor, error) {
 	return &localStor{
 		db:     db,
-		waves:  make(map[WavesBalanceKey][]byte),
-		assets: make(map[AssetBalanceKey][]byte),
+		waves:  make(map[wavesBalanceKey][]byte),
+		assets: make(map[assetBalanceKey][]byte),
 	}, nil
 }
 
@@ -81,7 +81,7 @@ func (s *localStor) retrieveHistoryFromDb(key []byte) ([]byte, error) {
 func (s *localStor) getHistory(key []byte) ([]byte, error) {
 	size := len(key)
 	if size == wavesBalanceKeySize {
-		var wavesKey WavesBalanceKey
+		var wavesKey wavesBalanceKey
 		copy(wavesKey[:], key)
 		if _, ok := s.waves[wavesKey]; !ok {
 			history, err := s.retrieveHistoryFromDb(key)
@@ -92,7 +92,7 @@ func (s *localStor) getHistory(key []byte) ([]byte, error) {
 		}
 		return s.waves[wavesKey], nil
 	} else if size == assetBalanceKeySize {
-		var assetKey AssetBalanceKey
+		var assetKey assetBalanceKey
 		copy(assetKey[:], key)
 		if _, ok := s.assets[assetKey]; !ok {
 			history, err := s.retrieveHistoryFromDb(key)
@@ -110,11 +110,11 @@ func (s *localStor) getHistory(key []byte) ([]byte, error) {
 func (s *localStor) setHistory(key []byte, history []byte) error {
 	size := len(key)
 	if size == wavesBalanceKeySize {
-		var wavesKey WavesBalanceKey
+		var wavesKey wavesBalanceKey
 		copy(wavesKey[:], key)
 		s.waves[wavesKey] = history
 	} else if size == assetBalanceKeySize {
-		var assetKey AssetBalanceKey
+		var assetKey assetBalanceKey
 		copy(assetKey[:], key)
 		s.assets[assetKey] = history
 	} else {
@@ -124,8 +124,8 @@ func (s *localStor) setHistory(key []byte, history []byte) error {
 }
 
 func (s *localStor) reset() {
-	s.waves = make(map[WavesBalanceKey][]byte)
-	s.assets = make(map[AssetBalanceKey][]byte)
+	s.waves = make(map[wavesBalanceKey][]byte)
+	s.assets = make(map[assetBalanceKey][]byte)
 }
 
 type ID2Height interface {
