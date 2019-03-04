@@ -4,17 +4,27 @@ import (
 	"encoding/binary"
 	"github.com/pkg/errors"
 	"github.com/syndtr/goleveldb/leveldb"
+	"github.com/syndtr/goleveldb/leveldb/util"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"go.uber.org/zap"
 	"net"
+	"sort"
 )
 
 const (
-	peersPrefix uint8 = iota // All seen peers
-	nodesPrefix              // Only public nodes
-	blockKeyPrefix
-	heightKeyPrefix
+	peersPrefix byte = iota
+	forkCounterPrefix
+	forkHeadersPrefix
+	blockWrappersPrefix
+	blocksPrefix
+	heightsPrefix
+	linksPrefix
+)
+
+var (
+	forkCounterKey = []byte{forkCounterPrefix}
+	zeroSignature  = crypto.Signature{}
+	maxSignature   = crypto.Signature{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff}
 )
 
 type peerKey struct {
@@ -41,27 +51,141 @@ func (k *peerKey) fromByte(data []byte) error {
 	return nil
 }
 
+func newPeerLinkKey(d PeerDesignation) peerKey {
+	return peerKey{prefix: linksPrefix, ip: d.Address.To4(), nonce: d.Nonce}
+}
+
+func newPeerInfoKey(d PeerDesignation) peerKey {
+	return peerKey{prefix: peersPrefix, ip: d.Address.To4(), nonce: d.Nonce}
+}
+
+type signatureKey struct {
+	prefix    byte
+	signature crypto.Signature
+}
+
+func (k signatureKey) bytes() []byte {
+	buf := make([]byte, 1+crypto.SignatureSize)
+	buf[0] = k.prefix
+	copy(buf[1:], k.signature[:])
+	return buf
+}
+
+func newBlockWrapperKey(block crypto.Signature) signatureKey {
+	return signatureKey{prefix: blockWrappersPrefix, signature: block}
+}
+
+func newBlockKey(block crypto.Signature) signatureKey {
+	return signatureKey{prefix: blocksPrefix, signature: block}
+}
+
+type forkHeaderKey uint32
+
+func (k forkHeaderKey) bytes() []byte {
+	buf := make([]byte, 1+4)
+	buf[0] = forkHeadersPrefix
+	binary.BigEndian.PutUint32(buf[1:], uint32(k))
+	return buf
+}
+
+type forkHeader struct {
+	height uint32
+	length uint32
+	last   crypto.Signature
+	common crypto.Signature
+}
+
+func (h forkHeader) bytes() []byte {
+	buf := make([]byte, 4+4+2*crypto.SignatureSize)
+	binary.BigEndian.PutUint32(buf, h.height)
+	binary.BigEndian.PutUint32(buf[4:], h.length)
+	copy(buf[4+4:], h.last[:])
+	copy(buf[4+4+crypto.SignatureSize:], h.common[:])
+	return buf
+}
+
+func (h *forkHeader) fromBytes(data []byte) error {
+	if l := len(data); l < 4+4+2*crypto.SignatureSize {
+		return errors.Errorf("%d is not enough bytes for forkHeader", l)
+	}
+	h.height = binary.BigEndian.Uint32(data[:4])
+	h.length = binary.BigEndian.Uint32(data[4:8])
+	copy(h.last[:], data[8:8+crypto.SignatureSize])
+	copy(h.common[:], data[8+crypto.SignatureSize:8+2*crypto.SignatureSize])
+	return nil
+}
+
+type blockWrapper struct {
+	height uint32
+	fork   uint32
+	parent crypto.Signature
+}
+
+func (w blockWrapper) bytes() []byte {
+	buf := make([]byte, 4+4+crypto.SignatureSize)
+	binary.BigEndian.PutUint32(buf, w.height)
+	binary.BigEndian.PutUint32(buf[4:], w.fork)
+	copy(buf[8:], w.parent[:])
+	return buf
+}
+
+func (w *blockWrapper) fromBytes(data []byte) error {
+	if l := len(data); l < 4+4+crypto.SignatureSize {
+		return errors.Errorf("%d is not enough bytes for blockWrapper", l)
+	}
+	w.height = binary.BigEndian.Uint32(data[0:4])
+	w.fork = binary.BigEndian.Uint32(data[4:8])
+	copy(w.parent[:], data[8:8+crypto.SignatureSize])
+	return nil
+}
+
+type peerLink struct {
+	fork   uint32
+	height uint32
+	block  crypto.Signature
+}
+
+func (l peerLink) bytes() []byte {
+	buf := make([]byte, 4+4+crypto.SignatureSize)
+	binary.BigEndian.PutUint32(buf, l.fork)
+	binary.BigEndian.PutUint32(buf[4:], l.height)
+	copy(buf[4+4:], l.block[:])
+	return buf
+}
+
+func (l *peerLink) fromBytes(data []byte) error {
+	if l := len(data); l < 4+4+crypto.SignatureSize {
+		return errors.Errorf("%d is not enough bytes for peerLink", l)
+	}
+	l.fork = binary.BigEndian.Uint32(data[0:4])
+	l.height = binary.BigEndian.Uint32(data[4:8])
+	copy(l.block[:], data[8:8+crypto.SignatureSize])
+	return nil
+}
+
 type peerInfo struct {
-	port    uint16
-	name    string
-	version proto.Version
-	block   crypto.Signature
-	last    uint64
+	port      uint16
+	name      string
+	version   proto.Version
+	last      uint64
+	connected bool
+	public    bool
+	failures  uint8
+	error     string
 }
 
 func (i peerInfo) bytes() []byte {
 	nameLen := len(i.name)
-	buf := make([]byte, 2+1+nameLen+3*4+crypto.SignatureSize+8)
+	buf := make([]byte, 2+1+nameLen+3*4+8)
 	binary.BigEndian.PutUint16(buf, i.port)
 	proto.PutStringWithUInt8Len(buf[2:], i.name)
 	putVersion(buf[2+1+nameLen:], i.version)
-	copy(buf[2+1+nameLen+3*4:], i.block[:])
-	binary.BigEndian.PutUint64(buf[2+1+nameLen+3*4+crypto.SignatureSize:], i.last)
+	binary.BigEndian.PutUint64(buf[2+1+nameLen+3*4:], i.last)
 	return buf
 }
 
 func (i *peerInfo) fromBytes(data []byte) error {
-	if l := len(data); l < 2+1+3*4+crypto.SignatureSize+8 {
+	if l := len(data); l < 2+1+3*4+8 {
 		return errors.Errorf("%d is not enough bytes for peerInfo", l)
 	}
 	i.port = binary.BigEndian.Uint16(data)
@@ -77,16 +201,8 @@ func (i *peerInfo) fromBytes(data []byte) error {
 		return errors.Wrap(err, "failed to unmarshal peerInfo")
 	}
 	data = data[3*4:]
-	copy(i.block[:], data[:crypto.SignatureSize])
-	data = data[crypto.SignatureSize:]
 	i.last = binary.BigEndian.Uint64(data)
 	return nil
-}
-
-type nodeInfo struct {
-	peerInfo
-	failures uint8
-	error    string
 }
 
 type heightBlockKey struct {
@@ -94,26 +210,145 @@ type heightBlockKey struct {
 	block  crypto.Signature
 }
 
+func (k heightBlockKey) bytes() []byte {
+	buf := make([]byte, 1+4+crypto.SignatureSize)
+	buf[0] = heightsPrefix
+	binary.BigEndian.PutUint32(buf[1:], k.height)
+	copy(buf[1+4:], k.block[:])
+	return buf
+}
+
+func (k *heightBlockKey) fromBytes(data []byte) error {
+	if l := len(data); l < 1+4+crypto.SignatureSize {
+		return errors.Errorf("%d is not enough bytes for heightBlockKey", l)
+	}
+	if data[0] != heightsPrefix {
+		return errors.New("invalid heightBlockKey prefix")
+	}
+	k.height = binary.BigEndian.Uint32(data[1:])
+	copy(k.block[:], data[1+4:1+4+crypto.SignatureSize])
+	return nil
+}
+
 type storage struct {
 	db      *leveldb.DB
-	log     *zap.SugaredLogger
 	genesis crypto.Signature
 }
 
-func NewStorage(path string, log *zap.SugaredLogger, genesis crypto.Signature) (*storage, error) {
+func NewStorage(path string, genesis crypto.Signature) (*storage, error) {
 	db, err := leveldb.OpenFile(path, nil)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to open storage")
 	}
-	return &storage{db: db, log: log, genesis: genesis}, nil
+	return &storage{db: db, genesis: genesis}, nil
 }
 
 func (s *storage) Close() error {
 	return s.db.Close()
 }
 
-func (s *storage) PutPeer(ip net.IP, nonce uint64, info peerInfo) error {
-	k := peerKey{prefix: peersPrefix, ip: ip, nonce: nonce}
+func (s *storage) handleBlock(block proto.Block, peer PeerDesignation) error {
+	wrapError := func(err error) error {
+		return errors.Wrap(err, "failed to append new block")
+	}
+	sn, err := s.db.GetSnapshot()
+	if err != nil {
+		return wrapError(err)
+	}
+	defer sn.Release()
+	batch := new(leveldb.Batch)
+
+	// Check that the block is actually new
+	w, ok, err := wrapper(sn, block.BlockSignature)
+	if err != nil {
+		return wrapError(err)
+	}
+	if ok {
+		// The block is already known, just update link
+		link := peerLink{fork: w.fork, height: w.height, block: block.BlockSignature}
+		putLink(batch, peer, link)
+		err = s.db.Write(batch, nil)
+		if err != nil {
+			return wrapError(err)
+		}
+		return nil
+	}
+	fid, h, err := putNewBlock(sn, batch, block, s.genesis)
+	if err != nil {
+		return wrapError(err)
+	}
+	link := peerLink{fork: fid, height: h, block: block.BlockSignature}
+	putLink(batch, peer, link)
+	err = s.db.Write(batch, nil)
+	if err != nil {
+		return wrapError(err)
+	}
+	return nil
+}
+
+func (s *storage) parentedForks() ([]Fork, error) {
+	wrapError := func(err error) error {
+		return errors.Wrap(err, "failed to collect parented forks")
+	}
+
+	sn, err := s.db.GetSnapshot()
+	if err != nil {
+		return nil, wrapError(err)
+	}
+	defer sn.Release()
+
+	it := sn.NewIterator(&util.Range{Start: []byte{linksPrefix}, Limit: []byte{linksPrefix + 1}}, nil)
+	defer it.Release()
+
+	m := make(map[uint32]Fork, 0)
+	for it.Next() {
+		var k peerKey
+		err = k.fromByte(it.Key())
+		if err != nil {
+			return nil, wrapError(err)
+		}
+		pd := NewPeerDesignation(k.ip.To4(), k.nonce)
+
+		var link peerLink
+		err = link.fromBytes(it.Value())
+		if err != nil {
+			return nil, wrapError(err)
+		}
+
+		f, ok := m[link.fork]
+		if !ok {
+			f = Fork{}
+			fh, err := header(sn, link.fork)
+			if err != nil {
+				return nil, wrapError(err)
+			}
+			f.HeadBlock = fh.last
+			f.CommonBlock = fh.common
+			f.Height = int(fh.height)
+			f.Length = int(fh.length)
+		}
+		lag := f.Height - int(link.height)
+		f.Peers = append(f.Peers, NewPeerForkInfo(pd, lag))
+		m[link.fork] = f
+	}
+	r := make([]Fork, len(m))
+	i := 0
+	for _, f := range m {
+		r[i] = f
+		i++
+	}
+	sort.Sort(ForkByHeightLengthAndPeersCount(r))
+	r[0].Longest = true
+	return r, nil
+}
+
+func (s *storage) peers() ([]PeerDescription, error) {
+	//TODO: implement with actual peers online
+	return nil, nil
+}
+
+func (s *storage) putPeer(ip net.IP, nonce uint64, info peerInfo) error {
+	k := peerKey{ip: ip, nonce: nonce}
 	err := s.db.Put(k.bytes(), info.bytes(), nil)
 	if err != nil {
 		return errors.Wrap(err, "failed to put peer")
@@ -121,47 +356,116 @@ func (s *storage) PutPeer(ip net.IP, nonce uint64, info peerInfo) error {
 	return nil
 }
 
-func (s *storage) PutPeers(peers []peer) error {
-	return nil
-}
+func putNewBlock(sn *leveldb.Snapshot, batch *leveldb.Batch, block proto.Block, genesis crypto.Signature) (fork uint32, height uint32, err error) {
+	bb, err := block.MarshalBinary()
+	if err != nil {
+		return 0, 0, errors.Wrap(err, "failed to marshal new block")
+	}
+	batch.Put(newBlockKey(block.BlockSignature).bytes(), bb)
 
-func (s *storage) GetPeers() ([]peer, error) {
-	return nil, nil
-}
+	if block.BlockSignature == genesis {
+		// update wrapper
+		w := blockWrapper{height: 1, fork: 0, parent: zeroSignature}
+		batch.Put(newBlockWrapperKey(block.BlockSignature).bytes(), w.bytes())
+		// update last fork id
+		updateLastForkID(batch, 0)
+		// put fork header
+		fh := forkHeader{height: 1, length: 1, last: block.BlockSignature, common: block.BlockSignature}
+		batch.Put(forkHeaderKey(0).bytes(), fh.bytes())
+		// update blocks at height
+		k := heightBlockKey{height: 1, block: block.BlockSignature}
+		batch.Put(k.bytes(), nil)
+		return 0, 1, nil
+	}
 
-func (s *storage) PutBlock(block proto.Block) error {
-	/*	sn, err := s.db.GetSnapshot()
+	var nw blockWrapper
+	pw, ok, err := wrapper(sn, block.Parent)
+	if err != nil {
+		return 0, 0, errors.Wrap(err, "failed to put new block")
+	}
+	if !ok {
+		return 0, 0, errors.Errorf("no wrapper for parent block '%s'", block.Parent)
+	}
+	pc := forksCountAtHeight(sn, pw.height)
+	height = pw.height + 1
+	c := forksCountAtHeight(sn, height)
+	var fh forkHeader
+	if c < pc { // continue fork
+		nw = blockWrapper{height: height, fork: pw.fork, parent: block.Parent}
+		fork = pw.fork
+		fh, err = header(sn, fork)
 		if err != nil {
-			return errors.Wrap(err, "failed to put block in storage")
+			return 0, 0, errors.Wrap(err, "failed to put new block")
 		}
-		var height uint32
-		switch {
-		case block.BlockSignature == s.genesis:
-			height = 1
-		default:
-			height, err := s.getHeight(block.Parent)
-			if err != nil {
-				return errors.Wrap(err, "failed to find parent's height")
-			}
-			height++
+		fh.height = height
+		fh.last = block.BlockSignature
+		fh.length = fh.length + 1
+	} else { // new fork
+		fork, err = numberOfForks(sn)
+		if err != nil {
+			return 0, 0, errors.Wrap(err, "failed to put new block")
 		}
-		batch := new(leveldb.Batch)
-		k := heightBlockKey{height: height, block: block.BlockSignature}
-		v := block
-	*///batch.Put(k.bytes(), )
-	return nil
+		fork++
+		updateLastForkID(batch, fork)
+		nw = blockWrapper{height: height, fork: fork, parent: block.Parent}
+		fh = forkHeader{height: height, length: 1, last: block.BlockSignature, common: nw.parent}
+	}
+	// Store fork header
+	batch.Put(forkHeaderKey(fork).bytes(), fh.bytes())
+	// Store the blockWrapper
+	batch.Put(newBlockWrapperKey(block.BlockSignature).bytes(), nw.bytes())
+	// update blocks at height
+	k2 := heightBlockKey{height: height, block: block.BlockSignature}
+	batch.Put(k2.bytes(), nil)
+	return fork, height, nil
 }
 
-func (s *storage) GetBlock(id crypto.Signature) (*proto.Block, error) {
+func (s *storage) block(id crypto.Signature) (*proto.Block, bool, error) {
+	sn, err := s.db.GetSnapshot()
+	if err != nil {
+		return nil, false, errors.Wrap(err, "failed to get block")
+	}
+	defer sn.Release()
+
+	k := newBlockKey(id)
+	v, err := sn.Get(k.bytes(), nil)
+	if err != nil {
+		if err != leveldb.ErrNotFound {
+			return nil, false, errors.Wrap(err, "failed to get block")
+		}
+		return nil, false, nil
+	}
+	var b proto.Block
+	err = b.UnmarshalBinary(v)
+	if err != nil {
+		return nil, false, errors.Wrap(err, "failed to get block")
+	}
+	return &b, true, nil
+}
+
+func (s *storage) blocks(height uint32) ([]crypto.Signature, error) {
+	//TODO: implement with existing method for counting blocks at height
+	sn, err := s.db.GetSnapshot()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to collect blocks")
+	}
+	st := heightBlockKey{height: height, block: zeroSignature}
+	lm := heightBlockKey{height: height, block: maxSignature}
+	it := sn.NewIterator(&util.Range{Start: st.bytes(), Limit: lm.bytes()}, nil)
+	r := make([]crypto.Signature, 0)
+	for it.Next() {
+		var k heightBlockKey
+		err = k.fromBytes(it.Key())
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to collect blocks")
+		}
+		r = append(r, k.block)
+	}
+	return r, nil
+}
+
+func (s *storage) fork(ip net.IP) ([]NodeForkInfo, error) {
 	return nil, nil
-}
-
-func (s *storage) GetBlocks() ([]proto.Block, error) {
-	return nil, nil
-}
-
-func (s *storage) getHeight(id crypto.Signature) (uint32, error) {
-	return 0, nil
 }
 
 func putVersion(buf []byte, v proto.Version) {
@@ -179,4 +483,86 @@ func readVersion(data []byte) (proto.Version, error) {
 	v.Minor = binary.BigEndian.Uint32(data[4:])
 	v.Patch = binary.BigEndian.Uint32(data[8:])
 	return v, nil
+}
+
+func numberOfForks(sn *leveldb.Snapshot) (uint32, error) {
+	v, err := sn.Get(forkCounterKey, nil)
+	if err != nil {
+		if err == leveldb.ErrNotFound {
+			return 0, nil
+		}
+		return 0, errors.Wrap(err, "failed to get the number of parentedForks")
+	}
+	return binary.BigEndian.Uint32(v), nil
+}
+
+func updateLastForkID(batch *leveldb.Batch, n uint32) {
+	buf := make([]byte, 4)
+	binary.BigEndian.PutUint32(buf, n)
+	batch.Put(forkCounterKey, buf)
+}
+
+func wrapper(sn *leveldb.Snapshot, block crypto.Signature) (blockWrapper, bool, error) {
+	k := newBlockWrapperKey(block)
+	v, err := sn.Get(k.bytes(), nil)
+	if err != nil {
+		if err == leveldb.ErrNotFound {
+			return blockWrapper{}, false, nil
+		}
+		return blockWrapper{}, false, errors.Wrap(err, "failed to locate the blockWrapper")
+	}
+	var w blockWrapper
+	err = w.fromBytes(v)
+	if err != nil {
+		return blockWrapper{}, false, errors.Wrap(err, "failed to unmarshal the blockWrapper")
+	}
+	return w, true, nil
+}
+
+func link(sn *leveldb.Snapshot, peer PeerDesignation) (peerLink, bool, error) {
+	k := newPeerLinkKey(peer)
+	v, err := sn.Get(k.bytes(), nil)
+	if err != nil {
+		if err == leveldb.ErrNotFound {
+			return peerLink{}, false, nil
+		}
+		return peerLink{}, false, errors.Wrap(err, "failed to get peerLink")
+	}
+	var l peerLink
+	err = l.fromBytes(v)
+	if err != nil {
+		return peerLink{}, false, errors.Wrap(err, "failed to unmarshal peerLink")
+	}
+	return l, true, nil
+}
+
+func putLink(batch *leveldb.Batch, peer PeerDesignation, link peerLink) {
+	k := newPeerLinkKey(peer)
+	batch.Put(k.bytes(), link.bytes())
+}
+
+func forksCountAtHeight(sn *leveldb.Snapshot, height uint32) int {
+	st := heightBlockKey{height: height, block: zeroSignature}
+	lm := heightBlockKey{height: height, block: maxSignature}
+	it := sn.NewIterator(&util.Range{Start: st.bytes(), Limit: lm.bytes()}, nil)
+	defer it.Release()
+	n := 0
+	for it.Next() {
+		n++
+	}
+	return n
+}
+
+func header(sn *leveldb.Snapshot, fork uint32) (forkHeader, error) {
+	k := forkHeaderKey(fork)
+	v, err := sn.Get(k.bytes(), nil)
+	if err != nil {
+		return forkHeader{}, errors.Wrap(err, "failed to get forkHeader")
+	}
+	var fh forkHeader
+	err = fh.fromBytes(v)
+	if err != nil {
+		return forkHeader{}, errors.Wrap(err, "failed to unmarshal forkHeader")
+	}
+	return fh, nil
 }

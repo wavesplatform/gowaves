@@ -115,7 +115,7 @@ func (s *server) getDoneChanLocked() chan struct{} {
 	return s.done
 }
 
-type peer struct {
+type peerHandler struct {
 	conn net.Conn
 	r    *bufio.Reader
 	w    *bufio.Writer

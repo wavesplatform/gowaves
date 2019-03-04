@@ -2,10 +2,15 @@ package internal
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
+	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"go.uber.org/zap"
+	"net"
 	"net/http"
+	"strconv"
 	"time"
 )
 
@@ -44,15 +49,16 @@ type status struct {
 type api struct {
 	interrupt <-chan struct{}
 	log       *zap.SugaredLogger
+	storage   *storage
 }
 
-func StartForkDetectorAPI(interrupt <-chan struct{}, logger *zap.Logger, bind string) <-chan struct{} {
+func StartForkDetectorAPI(interrupt <-chan struct{}, logger *zap.Logger, storage *storage, bind string) <-chan struct{} {
 	done := make(chan struct{})
 	if bind == "" {
 		close(done)
 		return done
 	}
-	a := api{interrupt: interrupt, log: logger.Sugar()}
+	a := api{interrupt: interrupt, log: logger.Sugar(), storage: storage}
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
@@ -92,50 +98,133 @@ func (a *api) routes() chi.Router {
 	r := chi.NewRouter()
 	r.Get("/status", a.status)
 	r.Get("/peers", a.peers)
-	r.Get("/forks", a.forks)
+	r.Get("/parentedForks", a.forks)
 	r.Get("/node/{address}", a.node)
-	r.Get("/height/{height:\\d+}", a.height)
+	r.Get("/height/{height:\\d+}", a.blocksAtHeight)
 	r.Get("/block/{id:[a-km-zA-HJ-NP-Z1-9]+}", a.block)
 	return r
 }
 
 func (a *api) status(w http.ResponseWriter, r *http.Request) {
-	//h, err := a.storage.Height()
-	//if err != nil {
-	//	http.Error(w, fmt.Sprintf("Failed to complete request: %s", err.Error()), http.StatusInternalServerError)
-	//	return
-	//}
-	//blockID, err := a.storage.BlockID(h)
-	//if err != nil {
-	//	http.Error(w, fmt.Sprintf("Failed to complete request: %s", err.Error()), http.StatusInternalServerError)
-	//	return
-	//}
-	//s := status{CurrentHeight: h, LastBlockID: blockID}
-	//err = json.NewEncoder(w).Encode(s)
-	//if err != nil {
-	//	http.Error(w, fmt.Sprintf("Failed to marshal status to JSON: %s", err.Error()), http.StatusInternalServerError)
-	//	return
-	//}
-	http.Error(w, "not implemented", http.StatusNotImplemented)
+	forks, err := a.storage.parentedForks()
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to complete request: %v", err), http.StatusInternalServerError)
+		return
+	}
+	short, long := countForksByLength(forks)
+	peers, err := a.storage.peers()
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to complete request: %v", err), http.StatusInternalServerError)
+		return
+	}
+	s := status{ShortForksCount: short, LongForksCount: long, ConnectedNodesCount: connectedPeersCount(peers), KnowNodesCount: len(peers)}
+	err = json.NewEncoder(w).Encode(s)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to marshal status to JSON: %v", err), http.StatusInternalServerError)
+		return
+	}
 }
 
 func (a *api) peers(w http.ResponseWriter, r *http.Request) {
-	http.Error(w, "not implemented", http.StatusNotImplemented)
+	peers, err := a.storage.peers()
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to complete request: %v", err), http.StatusInternalServerError)
+		return
+	}
+	err = json.NewEncoder(w).Encode(peers)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to marshal status to JSON: %v", err), http.StatusInternalServerError)
+		return
+	}
 }
 
 func (a *api) forks(w http.ResponseWriter, r *http.Request) {
-	http.Error(w, "not implemented", http.StatusNotImplemented)
+	forks, err := a.storage.parentedForks()
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to complete request: %v", err), http.StatusInternalServerError)
+		return
+	}
+	err = json.NewEncoder(w).Encode(forks)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to marshal status to JSON: %v", err), http.StatusInternalServerError)
+		return
+	}
 }
 
 func (a *api) node(w http.ResponseWriter, r *http.Request) {
-	//addr := chi.URLParam(r, "address")
-	http.Error(w, "not implemented", http.StatusNotImplemented)
+	addr := chi.URLParam(r, "address")
+	ip := net.ParseIP(addr)
+	if ip == nil {
+		http.Error(w, fmt.Sprintf("Invalid IP address '%s'", addr), http.StatusBadRequest)
+		return
+	}
+	fork, err := a.storage.fork(ip)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to complete request: %v", err), http.StatusInternalServerError)
+		return
+	}
+	err = json.NewEncoder(w).Encode(fork)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to marshal status to JSON: %v", err), http.StatusInternalServerError)
+		return
+	}
 }
 
-func (a *api) height(w http.ResponseWriter, r *http.Request) {
-	http.Error(w, "not implemented", http.StatusNotImplemented)
+func (a *api) blocksAtHeight(w http.ResponseWriter, r *http.Request) {
+	p := chi.URLParam(r, "height")
+	h, err := strconv.Atoi(p)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Invalid height: %v", err), http.StatusBadRequest)
+		return
+	}
+	blocks, err := a.storage.blocks(uint32(h))
+	err = json.NewEncoder(w).Encode(blocks)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to marshal status to JSON: %v", err), http.StatusInternalServerError)
+		return
+	}
 }
 
 func (a *api) block(w http.ResponseWriter, r *http.Request) {
-	http.Error(w, "not implemented", http.StatusNotImplemented)
+	//TODO: This method doesn't return the whole block with transactions.
+	//		It should be reimplemented with the complete JSON representation of block or using upcoming protobufs.
+	p := chi.URLParam(r, "id")
+	sig, err := crypto.NewSignatureFromBase58(p)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Invalid block signature: %v", err), http.StatusBadRequest)
+		return
+	}
+	block, ok, err := a.storage.block(sig)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to complete request: %v", err), http.StatusInternalServerError)
+		return
+	}
+	if !ok {
+		http.Error(w, "Block not found", http.StatusNotFound)
+	}
+	err = json.NewEncoder(w).Encode(block)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to marshal status to JSON: %v", err), http.StatusInternalServerError)
+		return
+	}
+}
+
+func countForksByLength(forks []Fork) (int, int) {
+	r := 0
+	for _, f := range forks {
+		if f.Length < 10 {
+			r++
+		}
+	}
+	return r, len(forks) - r
+}
+
+func connectedPeersCount(peers []PeerDescription) int {
+	r := 0
+	for _, p := range peers {
+		if p.Connected {
+			r++
+		}
+	}
+	return r
 }

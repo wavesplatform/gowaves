@@ -57,13 +57,13 @@ func run() error {
 
 	log.Infof("Waves Fork Detector %s", version)
 
-	storage, err := internal.NewStorage(cfg.dbPath, log, cfg.genesis)
+	storage, err := internal.NewStorage(cfg.dbPath, cfg.genesis)
 	if err != nil {
 		log.Errorf("Failed to open Storage: %v", err)
 		return err
 	}
 
-	apiDone := internal.StartForkDetectorAPI(interrupt, logger, cfg.apiBind)
+	apiDone := internal.StartForkDetectorAPI(interrupt, logger, storage, cfg.apiBind)
 	if interruptRequested(interrupt) {
 		return nil
 	}
