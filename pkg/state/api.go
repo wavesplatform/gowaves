@@ -46,8 +46,8 @@ func ErrorType(err error) StateErrorType {
 // should all be made using this interface.
 type State interface {
 	// Block getters.
-	GetBlock(blockID crypto.Signature) (*proto.Block, error)
-	GetBlockByHeight(height uint64) (*proto.Block, error)
+	Block(blockID crypto.Signature) (*proto.Block, error)
+	BlockByHeight(height uint64) (*proto.Block, error)
 	// Height returns current blockchain height.
 	Height() (uint64, error)
 	// Height <---> blockID converters.

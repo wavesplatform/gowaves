@@ -128,14 +128,14 @@ func (s *localStor) reset() {
 	s.assets = make(map[assetBalanceKey][]byte)
 }
 
-type iD2Height interface {
+type idToHeight interface {
 	heightToBlockID(blockID crypto.Signature) (uint64, error)
 }
 
 type accountsStorage struct {
 	genesis     crypto.Signature
 	db          keyvalue.IterableKeyVal
-	id2Height   iD2Height
+	idToHeight  idToHeight
 	rollbackMax int
 	localStor   *localStor
 }
@@ -174,9 +174,9 @@ func newAccountsStorage(genesis crypto.Signature, db keyvalue.IterableKeyVal) (*
 	}, nil
 }
 
-func (s *accountsStorage) setRollbackMax(rollbackMax int, id2Height iD2Height) {
+func (s *accountsStorage) setRollbackMax(rollbackMax int, idToHeight idToHeight) {
 	s.rollbackMax = rollbackMax
-	s.id2Height = id2Height
+	s.idToHeight = idToHeight
 }
 
 func (s *accountsStorage) setHeight(height uint64, directly bool) error {
@@ -217,7 +217,7 @@ func (s *accountsStorage) cutHistory(historyKey []byte, history []byte) ([]byte,
 			return nil, err
 		}
 		if blockID != s.genesis {
-			blockHeight, err := s.id2Height.heightToBlockID(blockID)
+			blockHeight, err := s.idToHeight.heightToBlockID(blockID)
 			if err != nil {
 				return nil, err
 			}
