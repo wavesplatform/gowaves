@@ -32,14 +32,14 @@ func main() {
 		}
 		dataDir = tempDir
 	}
-	manager, err := state.NewStateManager(dataDir, state.DefaultBlockStorageParams())
+	state, err := state.NewState(dataDir, state.DefaultBlockStorageParams())
 	if err != nil {
-		log.Fatalf("Failed to create state manager: %v.\n", err)
+		log.Fatalf("Failed to create state: %v.\n", err)
 	}
 
 	defer func() {
-		if err := manager.Close(); err != nil {
-			log.Fatalf("Failed to close StateManager: %v\n", err)
+		if err := state.Close(); err != nil {
+			log.Fatalf("Failed to close State: %v\n", err)
 		}
 		if *dataDirPath == "" {
 			if err := os.RemoveAll(dataDir); err != nil {
@@ -48,18 +48,18 @@ func main() {
 		}
 	}()
 
-	height, err := manager.Height()
+	height, err := state.Height()
 	if err != nil {
 		log.Fatalf("Failed to get current height: %v\n", err)
 	}
 	start := time.Now()
-	if err := importer.ApplyFromFile(manager, *blockchainPath, uint64(*nBlocks), height); err != nil {
+	if err := importer.ApplyFromFile(state, *blockchainPath, uint64(*nBlocks), height); err != nil {
 		log.Fatalf("Failed to apply blocks: %v\n", err)
 	}
 	elapsed := time.Since(start)
 	fmt.Printf("Import took %s\n", elapsed)
 	if len(*balancesPath) != 0 {
-		if err := importer.CheckBalances(manager, *balancesPath); err != nil {
+		if err := importer.CheckBalances(state, *balancesPath); err != nil {
 			log.Fatalf("CheckBalances(): %v\n", err)
 		}
 	}

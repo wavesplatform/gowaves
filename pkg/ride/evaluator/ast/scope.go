@@ -15,7 +15,7 @@ type Scope interface {
 	FuncByShort(int16) (Callable, bool)
 	FuncByName(string) (Callable, bool)
 	Value(string) (Expr, bool)
-	State() state.State
+	State() state.MockState
 	Scheme() byte
 }
 
@@ -23,13 +23,13 @@ type ScopeImpl struct {
 	parent    Scope
 	funcs     *FuncScope
 	variables map[string]Expr
-	state     state.State
+	state     state.MockState
 	scheme    byte
 }
 
 type Callable func(Scope, Exprs) (Expr, error)
 
-func NewScope(scheme byte, state state.State, f *FuncScope, variables map[string]Expr) *ScopeImpl {
+func NewScope(scheme byte, state state.MockState, f *FuncScope, variables map[string]Expr) *ScopeImpl {
 	return &ScopeImpl{
 		funcs:     f,
 		variables: variables,
@@ -46,7 +46,7 @@ func (a *ScopeImpl) Clone() Scope {
 	}
 }
 
-func (a *ScopeImpl) State() state.State {
+func (a *ScopeImpl) State() state.MockState {
 	return a.state
 }
 

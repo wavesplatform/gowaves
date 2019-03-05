@@ -16,7 +16,8 @@ const (
 )
 
 type State interface {
-	AddBlocks(blocks [][]byte, initialisation bool) error
+	AddNewBlocks(blocks [][]byte) error
+	AddOldBlocks(blocks [][]byte) error
 	AddressesNumber() (uint64, error)
 	AccountBalance(addr proto.Address, asset []byte) (uint64, error)
 }
@@ -60,7 +61,7 @@ func ApplyFromFile(st State, blockchainPath string, nBlocks, startHeight uint64)
 		if blocksIndex != blocksBatchSize && height != nBlocks {
 			continue
 		}
-		if err := st.AddBlocks(blocks[:blocksIndex], true); err != nil {
+		if err := st.AddOldBlocks(blocks[:blocksIndex]); err != nil {
 			return err
 		}
 		blocksIndex = 0

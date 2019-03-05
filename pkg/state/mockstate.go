@@ -14,19 +14,19 @@ type Account interface {
 	Address() proto.Address
 }
 
-type State interface {
+type MockState interface {
 	TransactionByID([]byte) (proto.Transaction, error)
 	TransactionHeightByID([]byte) (uint64, error)
 	Account(proto.Recipient) Account
 }
 
-type MockState struct {
+type MockStateImpl struct {
 	TransactionsByID       map[string]proto.Transaction
 	TransactionsHeightByID map[string]uint64
 	Accounts               map[string]Account // recipient to account
 }
 
-func (a MockState) TransactionByID(b []byte) (proto.Transaction, error) {
+func (a MockStateImpl) TransactionByID(b []byte) (proto.Transaction, error) {
 	t, ok := a.TransactionsByID[base58.Encode(b)]
 	if !ok {
 		return nil, ErrNotFound
@@ -34,7 +34,7 @@ func (a MockState) TransactionByID(b []byte) (proto.Transaction, error) {
 	return t, nil
 }
 
-func (a MockState) TransactionHeightByID(b []byte) (uint64, error) {
+func (a MockStateImpl) TransactionHeightByID(b []byte) (uint64, error) {
 	h, ok := a.TransactionsHeightByID[base58.Encode(b)]
 	if !ok {
 		return 0, ErrNotFound
@@ -42,7 +42,7 @@ func (a MockState) TransactionHeightByID(b []byte) (uint64, error) {
 	return h, nil
 }
 
-func (a MockState) Account(r proto.Recipient) Account {
+func (a MockStateImpl) Account(r proto.Recipient) Account {
 	return a.Accounts[r.String()]
 }
 

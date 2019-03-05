@@ -21,8 +21,8 @@ func filterHistory(db keyvalue.KeyValue, historyKey []byte, history []byte) ([]b
 		if err != nil {
 			return nil, err
 		}
-		key := BlockIdKey{BlockID: blockID}
-		has, err := db.Has(key.Bytes())
+		key := blockIdKey{blockID: blockID}
+		has, err := db.Has(key.bytes())
 		if err != nil {
 			return nil, err
 		}
@@ -128,14 +128,14 @@ func (s *localStor) reset() {
 	s.assets = make(map[assetBalanceKey][]byte)
 }
 
-type ID2Height interface {
-	HeightByBlockID(blockID crypto.Signature) (uint64, error)
+type idToHeight interface {
+	heightToBlockID(blockID crypto.Signature) (uint64, error)
 }
 
-type AccountsStorage struct {
+type accountsStorage struct {
 	genesis     crypto.Signature
-	Db          keyvalue.IterableKeyVal
-	id2Height   ID2Height
+	db          keyvalue.IterableKeyVal
+	idToHeight  idToHeight
 	rollbackMax int
 	localStor   *localStor
 }
@@ -151,15 +151,15 @@ func toBlockID(bytes []byte) (crypto.Signature, error) {
 	return res, nil
 }
 
-func NewAccountsStorage(genesis crypto.Signature, db keyvalue.IterableKeyVal) (*AccountsStorage, error) {
-	has, err := db.Has([]byte{DbHeightKeyPrefix})
+func newAccountsStorage(genesis crypto.Signature, db keyvalue.IterableKeyVal) (*accountsStorage, error) {
+	has, err := db.Has([]byte{dbHeightKeyPrefix})
 	if err != nil {
 		return nil, err
 	}
 	if !has {
 		heightBuf := make([]byte, 8)
 		binary.LittleEndian.PutUint64(heightBuf, 0)
-		if err := db.PutDirectly([]byte{DbHeightKeyPrefix}, heightBuf); err != nil {
+		if err := db.PutDirectly([]byte{dbHeightKeyPrefix}, heightBuf); err != nil {
 			return nil, err
 		}
 	}
@@ -167,44 +167,44 @@ func NewAccountsStorage(genesis crypto.Signature, db keyvalue.IterableKeyVal) (*
 	if err != nil {
 		return nil, err
 	}
-	return &AccountsStorage{
+	return &accountsStorage{
 		genesis:   genesis,
-		Db:        db,
+		db:        db,
 		localStor: localStor,
 	}, nil
 }
 
-func (s *AccountsStorage) SetRollbackMax(rollbackMax int, id2Height ID2Height) {
+func (s *accountsStorage) setRollbackMax(rollbackMax int, idToHeight idToHeight) {
 	s.rollbackMax = rollbackMax
-	s.id2Height = id2Height
+	s.idToHeight = idToHeight
 }
 
-func (s *AccountsStorage) SetHeight(height uint64, directly bool) error {
+func (s *accountsStorage) setHeight(height uint64, directly bool) error {
 	dbHeightBytes := make([]byte, 8)
 	binary.LittleEndian.PutUint64(dbHeightBytes, height)
 	if directly {
-		if err := s.Db.PutDirectly([]byte{DbHeightKeyPrefix}, dbHeightBytes); err != nil {
+		if err := s.db.PutDirectly([]byte{dbHeightKeyPrefix}, dbHeightBytes); err != nil {
 			return err
 		}
 	} else {
-		if err := s.Db.Put([]byte{DbHeightKeyPrefix}, dbHeightBytes); err != nil {
+		if err := s.db.Put([]byte{dbHeightKeyPrefix}, dbHeightBytes); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (s *AccountsStorage) GetHeight() (uint64, error) {
-	dbHeightBytes, err := s.Db.Get([]byte{DbHeightKeyPrefix})
+func (s *accountsStorage) getHeight() (uint64, error) {
+	dbHeightBytes, err := s.db.Get([]byte{dbHeightKeyPrefix})
 	if err != nil {
 		return 0, err
 	}
 	return binary.LittleEndian.Uint64(dbHeightBytes), nil
 }
 
-func (s *AccountsStorage) cutHistory(historyKey []byte, history []byte) ([]byte, error) {
+func (s *accountsStorage) cutHistory(historyKey []byte, history []byte) ([]byte, error) {
 	historySize := len(history)
-	currentHeight, err := s.GetHeight()
+	currentHeight, err := s.getHeight()
 	if err != nil {
 		return nil, err
 	}
@@ -217,7 +217,7 @@ func (s *AccountsStorage) cutHistory(historyKey []byte, history []byte) ([]byte,
 			return nil, err
 		}
 		if blockID != s.genesis {
-			blockHeight, err := s.id2Height.HeightByBlockID(blockID)
+			blockHeight, err := s.idToHeight.heightToBlockID(blockID)
 			if err != nil {
 				return nil, err
 			}
@@ -232,21 +232,21 @@ func (s *AccountsStorage) cutHistory(historyKey []byte, history []byte) ([]byte,
 	if firstNeeded != 0 {
 		history = history[firstNeeded:]
 		// Some records were removed, so we need to update the DB.
-		if err := s.Db.PutDirectly(historyKey, history); err != nil {
+		if err := s.db.PutDirectly(historyKey, history); err != nil {
 			return nil, err
 		}
 	}
 	return history, nil
 }
 
-func (s *AccountsStorage) AddressesNumber() (uint64, error) {
-	iter, err := s.Db.NewKeyIterator([]byte{BalanceKeyPrefix})
+func (s *accountsStorage) addressesNumber() (uint64, error) {
+	iter, err := s.db.NewKeyIterator([]byte{balanceKeyPrefix})
 	if err != nil {
 		return 0, err
 	}
 	addressesNumber := uint64(0)
 	for iter.Next() {
-		balance, err := s.AccountBalance(iter.Key())
+		balance, err := s.accountBalance(iter.Key())
 		if err != nil {
 			return 0, err
 		}
@@ -261,8 +261,8 @@ func (s *AccountsStorage) AddressesNumber() (uint64, error) {
 	return addressesNumber, nil
 }
 
-func (s *AccountsStorage) AccountBalance(balanceKey []byte) (uint64, error) {
-	has, err := s.Db.Has(balanceKey)
+func (s *accountsStorage) accountBalance(balanceKey []byte) (uint64, error) {
+	has, err := s.db.Has(balanceKey)
 	if err != nil {
 		return 0, errors.Errorf("failed to check if balance key exists: %v\n", err)
 	}
@@ -270,12 +270,12 @@ func (s *AccountsStorage) AccountBalance(balanceKey []byte) (uint64, error) {
 		// TODO: think about this scenario.
 		return 0, nil
 	}
-	history, err := s.Db.Get(balanceKey)
+	history, err := s.db.Get(balanceKey)
 	if err != nil {
 		return 0, errors.Errorf("failed to get history for given key: %v\n", err)
 	}
 	// Delete invalid records.
-	history, err = filterHistory(s.Db, balanceKey, history)
+	history, err = filterHistory(s.db, balanceKey, history)
 	if err != nil {
 		return 0, errors.Errorf("failed to filter history: %v\n", err)
 	}
@@ -295,7 +295,7 @@ func (s *AccountsStorage) AccountBalance(balanceKey []byte) (uint64, error) {
 	return balance, nil
 }
 
-func (s *AccountsStorage) newHistory(newRecord []byte, key []byte, blockID crypto.Signature) ([]byte, error) {
+func (s *accountsStorage) newHistory(newRecord []byte, key []byte, blockID crypto.Signature) ([]byte, error) {
 	// Get current history.
 	history, err := s.localStor.getHistory(key)
 	if err != nil {
@@ -321,10 +321,10 @@ func (s *AccountsStorage) newHistory(newRecord []byte, key []byte, blockID crypt
 	return history, nil
 }
 
-func (s *AccountsStorage) SetAccountBalance(balanceKey []byte, balance uint64, blockID crypto.Signature) error {
+func (s *accountsStorage) setAccountBalance(balanceKey []byte, balance uint64, blockID crypto.Signature) error {
 	// Add block to valid blocks.
-	key := BlockIdKey{BlockID: blockID}
-	if err := s.Db.Put(key.Bytes(), Empty); err != nil {
+	key := blockIdKey{blockID: blockID}
+	if err := s.db.Put(key.bytes(), Empty); err != nil {
 		return err
 	}
 	// Prepare new record.
@@ -342,30 +342,30 @@ func (s *AccountsStorage) SetAccountBalance(balanceKey []byte, balance uint64, b
 	return nil
 }
 
-func (s *AccountsStorage) RollbackBlock(blockID crypto.Signature) error {
+func (s *accountsStorage) rollbackBlock(blockID crypto.Signature) error {
 	// Decrease DB's height (for sync/recovery).
-	height, err := s.GetHeight()
+	height, err := s.getHeight()
 	if err != nil {
 		return err
 	}
-	if err := s.SetHeight(height-1, true); err != nil {
+	if err := s.setHeight(height-1, true); err != nil {
 		return err
 	}
-	key := BlockIdKey{BlockID: blockID}
-	if err := s.Db.Delete(key.Bytes()); err != nil {
+	key := blockIdKey{blockID: blockID}
+	if err := s.db.Delete(key.bytes()); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (s *AccountsStorage) addChangesToBatch() error {
+func (s *accountsStorage) addChangesToBatch() error {
 	for key, history := range s.localStor.waves {
-		if err := s.Db.Put(key[:], history); err != nil {
+		if err := s.db.Put(key[:], history); err != nil {
 			return err
 		}
 	}
 	for key, history := range s.localStor.assets {
-		if err := s.Db.Put(key[:], history); err != nil {
+		if err := s.db.Put(key[:], history); err != nil {
 			return err
 		}
 	}
@@ -373,23 +373,23 @@ func (s *AccountsStorage) addChangesToBatch() error {
 	return nil
 }
 
-func (s *AccountsStorage) UpdateHeight(heightChange int) error {
+func (s *accountsStorage) updateHeight(heightChange int) error {
 	// Increase DB's height (for sync/recovery).
-	height, err := s.GetHeight()
+	height, err := s.getHeight()
 	if err != nil {
 		return err
 	}
-	if err := s.SetHeight(height+uint64(heightChange), false); err != nil {
+	if err := s.setHeight(height+uint64(heightChange), false); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (s *AccountsStorage) Flush() error {
+func (s *accountsStorage) flush() error {
 	if err := s.addChangesToBatch(); err != nil {
 		return err
 	}
-	if err := s.Db.Flush(); err != nil {
+	if err := s.db.Flush(); err != nil {
 		return err
 	}
 	return nil

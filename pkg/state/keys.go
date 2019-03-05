@@ -7,71 +7,71 @@ import (
 
 const (
 	// Balances (main state).
-	BalanceKeyPrefix byte = iota
+	balanceKeyPrefix byte = iota
 
 	// Valid block IDs.
-	BlockIdKeyPrefix
+	blockIdKeyPrefix
 
 	// For block storage.
 	// IDs of blocks and transactions --> offsets in files.
-	BlockOffsetKeyPrefix
-	TxOffsetKeyPrefix
+	blockOffsetKeyPrefix
+	txOffsetKeyPrefix
 
-	// Min height of BlockReadWriter's files.
-	RwHeightKeyPrefix
+	// Min height of blockReadWriter's files.
+	rwHeightKeyPrefix
 	// Height of main db.
-	DbHeightKeyPrefix
+	dbHeightKeyPrefix
 )
 
-type BalanceKey struct {
-	Address proto.Address
-	Asset   []byte
+type balanceKey struct {
+	address proto.Address
+	asset   []byte
 }
 
-func (k *BalanceKey) Bytes() []byte {
-	if k.Asset != nil {
+func (k *balanceKey) bytes() []byte {
+	if k.asset != nil {
 		buf := make([]byte, 1+proto.AddressSize+crypto.DigestSize)
-		buf[0] = BalanceKeyPrefix
-		copy(buf[1:], k.Address[:])
-		copy(buf[1+proto.AddressSize:], k.Asset)
+		buf[0] = balanceKeyPrefix
+		copy(buf[1:], k.address[:])
+		copy(buf[1+proto.AddressSize:], k.asset)
 		return buf
 	} else {
 		buf := make([]byte, 1+proto.AddressSize)
-		buf[0] = BalanceKeyPrefix
-		copy(buf[1:], k.Address[:])
+		buf[0] = balanceKeyPrefix
+		copy(buf[1:], k.address[:])
 		return buf
 	}
 }
 
-type BlockIdKey struct {
-	BlockID crypto.Signature
+type blockIdKey struct {
+	blockID crypto.Signature
 }
 
-func (k *BlockIdKey) Bytes() []byte {
+func (k *blockIdKey) bytes() []byte {
 	buf := make([]byte, 1+crypto.SignatureSize)
-	buf[0] = BlockIdKeyPrefix
-	copy(buf[1:], k.BlockID[:])
+	buf[0] = blockIdKeyPrefix
+	copy(buf[1:], k.blockID[:])
 	return buf
 }
 
-type BlockOffsetKey struct {
-	BlockID crypto.Signature
+type blockOffsetKey struct {
+	blockID crypto.Signature
 }
 
-func (k *BlockOffsetKey) Bytes() []byte {
+func (k *blockOffsetKey) bytes() []byte {
 	buf := make([]byte, 1+crypto.SignatureSize)
-	buf[0] = BlockOffsetKeyPrefix
-	copy(buf[1:], k.BlockID[:])
+	buf[0] = blockOffsetKeyPrefix
+	copy(buf[1:], k.blockID[:])
 	return buf
 }
 
-type TxOffsetKey struct {
-	TxID []byte
+type txOffsetKey struct {
+	txID []byte
 }
 
-func (k *TxOffsetKey) Bytes() []byte {
+func (k *txOffsetKey) bytes() []byte {
 	buf := make([]byte, 1+crypto.DigestSize)
-	buf[0] = TxOffsetKeyPrefix
-	copy(buf[1:], k.TxID)
+	buf[0] = txOffsetKeyPrefix
+	copy(buf[1:], k.txID)
 	return buf
 }

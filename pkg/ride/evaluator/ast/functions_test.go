@@ -132,7 +132,7 @@ func TestNativeTransactionHeightByID(t *testing.T) {
 	sign, err := crypto.NewSignatureFromBase58("hVTTxvgCuezXDsZgh3rDreHzf4AULe5LB1J7zveRbBD4nz3Bzb9yJ2aXKchD4Ls3y2fvYAxnpHXx54S9ZghRx67")
 	require.NoError(t, err)
 
-	scope := newScopeWithState(&state.MockState{
+	scope := newScopeWithState(&state.MockStateImpl{
 		TransactionsHeightByID: map[string]uint64{sign.String(): 15},
 	})
 
@@ -163,7 +163,7 @@ func TestNativeTransactionByID(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, transferV1.Sign(secret))
 
-	scope := newScopeWithState(&state.MockState{
+	scope := newScopeWithState(&state.MockStateImpl{
 		TransactionsByID: map[string]proto.Transaction{sign.String(): transferV1},
 	})
 
@@ -352,7 +352,7 @@ func TestNativeAssetBalance_FromAddress(t *testing.T) {
 		Assets: map[string]uint64{"BXBUNddxTGTQc3G4qHYn5E67SBwMj18zLncUr871iuRD": 5},
 	}
 
-	s := state.MockState{
+	s := state.MockStateImpl{
 		Accounts: map[string]state.Account{"3N2YHKSnQTUmka4pocTt71HwSSAiUWBcojK": &am},
 	}
 
@@ -372,7 +372,7 @@ func TestNativeAssetBalance_FromAlias(t *testing.T) {
 		Assets: map[string]uint64{"BXBUNddxTGTQc3G4qHYn5E67SBwMj18zLncUr871iuRD": 5},
 	}
 
-	s := state.MockState{
+	s := state.MockStateImpl{
 		Accounts: map[string]state.Account{"alias:W:test": &am},
 	}
 
@@ -458,7 +458,7 @@ func TestNativeDataFromState(t *testing.T) {
 		DataEntries: dataEntries,
 	}
 
-	s := state.MockState{
+	s := state.MockStateImpl{
 		Accounts: map[string]state.Account{saddr: &am},
 	}
 
@@ -575,7 +575,7 @@ func TestNativeAddressFromRecipient(t *testing.T) {
 		AddressField: addr,
 	}
 
-	s := state.MockState{
+	s := state.MockStateImpl{
 		Accounts: map[string]state.Account{r.String(): &acc},
 	}
 
