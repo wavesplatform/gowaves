@@ -434,6 +434,14 @@ func (s *stateManager) ScoreAtHeight(height uint64) (*big.Int, error) {
 	return score, nil
 }
 
+func (s *stateManager) CurrentScore() (*big.Int, error) {
+	height, err := s.Height()
+	if err != nil {
+		return nil, StateError{errorType: RetrievalError, originalError: err}
+	}
+	return s.ScoreAtHeight(height)
+}
+
 func (s *stateManager) Close() error {
 	if err := s.rw.close(); err != nil {
 		return StateError{errorType: ClosureError, originalError: err}

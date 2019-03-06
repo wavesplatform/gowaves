@@ -96,5 +96,12 @@ func TestBlockAcceptAndRollback(t *testing.T) {
 		if score.Cmp(tc.score) != 0 {
 			t.Errorf("Scores are not equal.")
 		}
+		height, err := manager.Height()
+		if err != nil {
+			t.Fatalf("Height(): %v\n", err)
+		}
+		if height != tc.height {
+			t.Errorf("Height after rollback is not correct.")
+		}
 	}
 }
