@@ -1,6 +1,8 @@
 package state
 
 import (
+	"math/big"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
@@ -71,6 +73,10 @@ type State interface {
 	// Rollback functionality.
 	RollbackToHeight(height uint64) error
 	RollbackTo(removalEdge crypto.Signature) error
+	// Get cumulative blocks score at given height.
+	ScoreAtHeight(height uint64) (*big.Int, error)
+	// Get current blockchain score (at top height).
+	CurrentScore() (*big.Int, error)
 
 	Close() error
 }

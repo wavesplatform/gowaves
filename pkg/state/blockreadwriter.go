@@ -217,7 +217,7 @@ func (rw *blockReadWriter) blockIDByHeight(height uint64) (crypto.Signature, err
 	return res, nil
 }
 
-func (rw *blockReadWriter) heightToBlockID(blockID crypto.Signature) (uint64, error) {
+func (rw *blockReadWriter) heightByBlockID(blockID crypto.Signature) (uint64, error) {
 	rw.mtx.RLock()
 	defer rw.mtx.RUnlock()
 	key := blockOffsetKey{blockID: blockID}
@@ -227,6 +227,10 @@ func (rw *blockReadWriter) heightToBlockID(blockID crypto.Signature) (uint64, er
 	}
 	height := binary.LittleEndian.Uint64(blockInfo[len(blockInfo)-8:])
 	return height, nil
+}
+
+func (rw *blockReadWriter) recentHeight() uint64 {
+	return rw.height
 }
 
 func (rw *blockReadWriter) currentHeight() (uint64, error) {
