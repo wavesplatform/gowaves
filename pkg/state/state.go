@@ -2,6 +2,7 @@ package state
 
 import (
 	"encoding/binary"
+	"math/big"
 	"os"
 	"path/filepath"
 
@@ -20,6 +21,7 @@ const (
 type stateManager struct {
 	genesis  proto.Block
 	db       keyvalue.KeyValue
+	scores   *scores
 	accounts *accountsStorage
 	rw       *blockReadWriter
 }
@@ -68,6 +70,10 @@ func newStateManager(dataDir string, params BlockStorageParams) (*stateManager, 
 	}
 	dbDir := filepath.Join(dataDir, keyvalueDir)
 	db, err := keyvalue.NewKeyVal(dbDir, true)
+	scores, err := newScores(db)
+	if err != nil {
+		return nil, StateError{errorType: Other, originalError: errors.Errorf("failed to create scores: %v\n", err)}
+	}
 	rw, err := newBlockReadWriter(blockStorageDir, params.OffsetLen, params.HeaderOffsetLen, db)
 	if err != nil {
 		return nil, StateError{errorType: Other, originalError: errors.Errorf("failed to create block storage: %v\n", err)}
@@ -84,11 +90,12 @@ func newStateManager(dataDir string, params BlockStorageParams) (*stateManager, 
 		BlockHeader: proto.BlockHeader{
 			Version:        1,
 			Timestamp:      1460678400000,
+			BaseTarget:     153722867,
 			BlockSignature: genesisSig,
 			Height:         1,
 		},
 	}
-	state := &stateManager{genesis: genesis, db: db, accounts: accountsStor, rw: rw}
+	state := &stateManager{genesis: genesis, db: db, scores: scores, accounts: accountsStor, rw: rw}
 	height, err := state.Height()
 	if err != nil {
 		return nil, StateError{errorType: RetrievalError, originalError: err}
@@ -102,6 +109,14 @@ func newStateManager(dataDir string, params BlockStorageParams) (*stateManager, 
 }
 
 func (s *stateManager) applyGenesis() error {
+	// Add score of genesis block.
+	genesisScore, err := calculateScore(s.genesis.BaseTarget)
+	if err != nil {
+		return err
+	}
+	if err := s.scores.addScore(&big.Int{}, genesisScore, 1); err != nil {
+		return err
+	}
 	tv, err := newTransactionValidator(s.genesis.BlockSignature, s.accounts, proto.MainNetScheme)
 	if err != nil {
 		return err
@@ -168,7 +183,7 @@ func (s *stateManager) BlockIDToHeight(blockID crypto.Signature) (uint64, error)
 	if blockID == s.genesis.BlockSignature {
 		return 1, nil
 	}
-	height, err := s.rw.heightToBlockID(blockID)
+	height, err := s.rw.heightByBlockID(blockID)
 	if err != nil {
 		return 0, StateError{errorType: RetrievalError, originalError: err}
 	}
@@ -293,11 +308,28 @@ func (s *stateManager) addBlocks(blocks [][]byte, initialisation bool) error {
 	if err != nil {
 		return StateError{errorType: Other, originalError: err}
 	}
+	height, err := s.Height()
+	if err != nil {
+		return StateError{errorType: RetrievalError, originalError: err}
+	}
+	prevScore, err := s.scores.score(height)
+	if err != nil {
+		return StateError{errorType: RetrievalError, originalError: err}
+	}
 	for _, blockBytes := range blocks {
 		block, err := s.unmarshalAndCheck(blockBytes, parentSig, initialisation)
 		if err != nil {
 			return StateError{errorType: DeserializationError, originalError: err}
 		}
+		// Add score.
+		score, err := calculateScore(block.BaseTarget)
+		if err != nil {
+			return StateError{errorType: Other, originalError: err}
+		}
+		if err := s.scores.addScore(prevScore, score, s.rw.recentHeight()+2); err != nil {
+			return StateError{errorType: ModificationError, originalError: err}
+		}
+		prevScore = score
 		if err := s.addNewBlock(tv, block, initialisation); err != nil {
 			return StateError{errorType: TxValidationError, originalError: err}
 		}
@@ -322,14 +354,15 @@ func (s *stateManager) addBlocks(blocks [][]byte, initialisation bool) error {
 }
 
 func (s *stateManager) RollbackToHeight(height uint64) error {
+	// Rollback accounts storage.
+	curHeight, err := s.rw.currentHeight()
+	if err != nil {
+		return StateError{errorType: RetrievalError, originalError: err}
+	}
+	oldHeight := curHeight + 1
 	if height < 1 {
 		return StateError{errorType: RollbackError, originalError: errors.New("minimum block to rollback to is the first block")}
 	} else if height == 1 {
-		// Rollback accounts storage.
-		curHeight, err := s.rw.currentHeight()
-		if err != nil {
-			return StateError{errorType: RetrievalError, originalError: err}
-		}
 		for h := curHeight; h > 0; h-- {
 			blockID, err := s.rw.blockIDByHeight(h - 1)
 			if err != nil {
@@ -352,6 +385,10 @@ func (s *stateManager) RollbackToHeight(height uint64) error {
 			return StateError{errorType: RollbackError, originalError: err}
 		}
 	}
+	// Remove scores of deleted blocks.
+	if err := s.scores.rollback(height, oldHeight); err != nil {
+		return StateError{errorType: RollbackError, originalError: err}
+	}
 	return nil
 }
 
@@ -361,6 +398,7 @@ func (s *stateManager) RollbackTo(removalEdge crypto.Signature) error {
 	if err != nil {
 		return StateError{errorType: RetrievalError, originalError: err}
 	}
+	oldHeight := curHeight + 1
 	for height := curHeight; height > 0; height-- {
 		blockID, err := s.rw.blockIDByHeight(height - 1)
 		if err != nil {
@@ -377,7 +415,31 @@ func (s *stateManager) RollbackTo(removalEdge crypto.Signature) error {
 	if err := s.rw.rollback(removalEdge, true); err != nil {
 		return StateError{errorType: RollbackError, originalError: err}
 	}
+	// Remove scores of deleted blocks.
+	newHeight, err := s.Height()
+	if err != nil {
+		return StateError{errorType: RetrievalError, originalError: err}
+	}
+	if err := s.scores.rollback(newHeight, oldHeight); err != nil {
+		return StateError{errorType: RollbackError, originalError: err}
+	}
 	return nil
+}
+
+func (s *stateManager) ScoreAtHeight(height uint64) (*big.Int, error) {
+	score, err := s.scores.score(height)
+	if err != nil {
+		return nil, StateError{errorType: RetrievalError, originalError: err}
+	}
+	return score, nil
+}
+
+func (s *stateManager) CurrentScore() (*big.Int, error) {
+	height, err := s.Height()
+	if err != nil {
+		return nil, StateError{errorType: RetrievalError, originalError: err}
+	}
+	return s.ScoreAtHeight(height)
 }
 
 func (s *stateManager) Close() error {

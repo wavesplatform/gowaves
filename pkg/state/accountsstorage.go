@@ -129,7 +129,7 @@ func (s *localStor) reset() {
 }
 
 type idToHeight interface {
-	heightToBlockID(blockID crypto.Signature) (uint64, error)
+	heightByBlockID(blockID crypto.Signature) (uint64, error)
 }
 
 type accountsStorage struct {
@@ -217,7 +217,7 @@ func (s *accountsStorage) cutHistory(historyKey []byte, history []byte) ([]byte,
 			return nil, err
 		}
 		if blockID != s.genesis {
-			blockHeight, err := s.idToHeight.heightToBlockID(blockID)
+			blockHeight, err := s.idToHeight.heightByBlockID(blockID)
 			if err != nil {
 				return nil, err
 			}

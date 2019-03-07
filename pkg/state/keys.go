@@ -1,6 +1,8 @@
 package state
 
 import (
+	"encoding/binary"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
@@ -21,6 +23,9 @@ const (
 	rwHeightKeyPrefix
 	// Height of main db.
 	dbHeightKeyPrefix
+
+	// Score at height.
+	scoreKeyPrefix
 )
 
 type balanceKey struct {
@@ -73,5 +78,16 @@ func (k *txOffsetKey) bytes() []byte {
 	buf := make([]byte, 1+crypto.DigestSize)
 	buf[0] = txOffsetKeyPrefix
 	copy(buf[1:], k.txID)
+	return buf
+}
+
+type scoreKey struct {
+	height uint64
+}
+
+func (k *scoreKey) bytes() []byte {
+	buf := make([]byte, 9)
+	buf[0] = scoreKeyPrefix
+	binary.LittleEndian.PutUint64(buf[1:], k.height)
 	return buf
 }
