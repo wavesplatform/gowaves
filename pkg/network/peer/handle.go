@@ -28,36 +28,36 @@ func bytesToMessage(b []byte, id string, resendTo chan ProtoMessage, pool bytesp
 	select {
 	case resendTo <- mess:
 	default:
-		zap.L().Warn("failed to resend to parent, channel is full", zap.String("id", id))
+		zap.L().Warn("failed to resend to Parent, channel is full", zap.String("ID", id))
 	}
 }
 
-type handlerParams struct {
-	ctx        context.Context
-	id         string
-	connection conn.Connection
-	remote     remote
-	parent     Parent
-	pool       bytespool.Pool
+type HandlerParams struct {
+	Ctx        context.Context
+	ID         string
+	Connection conn.Connection
+	Remote     Remote
+	Parent     Parent
+	Pool       bytespool.Pool
 }
 
-// for handle doesn't matter outgoing or incoming connection, it just send and receive messages
-func handle(params handlerParams) {
+// for Handle doesn't matter outgoing or incoming Connection, it just send and receive messages
+func Handle(params HandlerParams) error {
 	for {
 		select {
-		case <-params.ctx.Done():
-			_ = params.connection.Close()
-			return
+		case <-params.Ctx.Done():
+			_ = params.Connection.Close()
+			return params.Ctx.Err()
 
-		case bts := <-params.remote.fromCh:
-			bytesToMessage(bts, params.id, params.parent.MessageCh, params.pool)
+		case bts := <-params.Remote.FromCh:
+			bytesToMessage(bts, params.ID, params.Parent.MessageCh, params.Pool)
 
-		case err := <-params.remote.errCh:
+		case err := <-params.Remote.ErrCh:
 			out := InfoMessage{
-				ID:    params.id,
+				ID:    params.ID,
 				Value: err,
 			}
-			params.parent.InfoCh <- out
+			params.Parent.InfoCh <- out
 		}
 	}
 }

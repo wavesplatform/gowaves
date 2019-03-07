@@ -41,9 +41,9 @@ func TestHHandleStopContext(t *testing.T) {
 		cancel()
 	}()
 	conn := &mockConnection{}
-	handle(handlerParams{
-		ctx:        ctx,
-		connection: conn,
+	Handle(HandlerParams{
+		Ctx:        ctx,
+		Connection: conn,
 	})
 
 	assert.Equal(t, 1, conn.closeCalledTimes)
@@ -53,32 +53,32 @@ func TestHandleReceive(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	c := &mockConnection{}
-	remote := newRemote()
+	remote := NewRemote()
 	parent := NewParent()
-	go handle(handlerParams{
-		ctx:        ctx,
-		connection: c,
-		parent:     parent,
-		remote:     remote,
-		pool:       bytespool.NewBytesPool(1, 15*1024),
+	go Handle(HandlerParams{
+		Ctx:        ctx,
+		Connection: c,
+		Parent:     parent,
+		Remote:     remote,
+		Pool:       bytespool.NewBytesPool(1, 15*1024),
 	})
-	remote.fromCh <- byte_helpers.TransferV1.MessageBytes
+	remote.FromCh <- byte_helpers.TransferV1.MessageBytes
 	assert.IsType(t, &proto.TransactionMessage{}, (<-parent.MessageCh).Message)
 }
 
 func TestHandleError(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	remote := newRemote()
+	remote := NewRemote()
 	parent := NewParent()
-	go handle(handlerParams{
-		ctx:        ctx,
-		connection: &mockConnection{},
-		remote:     remote,
-		parent:     parent,
+	go Handle(HandlerParams{
+		Ctx:        ctx,
+		Connection: &mockConnection{},
+		Remote:     remote,
+		Parent:     parent,
 	})
 	err := errors.New("error")
-	remote.errCh <- err
+	remote.ErrCh <- err
 	<-time.After(5 * time.Millisecond)
 	assert.Equal(t, err, (<-parent.InfoCh).Value)
 }

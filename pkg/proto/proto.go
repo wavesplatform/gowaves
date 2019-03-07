@@ -441,6 +441,15 @@ func (m *GetPeersMessage) WriteTo(w io.Writer) (int64, error) {
 	return n, err
 }
 
+type IpPort struct {
+	Addr net.IP
+	Port uint16
+}
+
+func (a IpPort) String() string {
+	return fmt.Sprintf("%s:%d", a.Addr.String(), a.Port)
+}
+
 // PeerInfo represents the address of a single peer
 type PeerInfo struct {
 	Addr net.IP
@@ -1041,8 +1050,8 @@ func (m *ScoreMessage) UnmarshalBinary(data []byte) error {
 		return fmt.Errorf("wrong ContentID in Header: %x", h.ContentID)
 	}
 
-	m.Score = data[17:]
-
+	m.Score = make([]byte, h.PayloadLength)
+	copy(m.Score, data[17:17+h.PayloadLength])
 	return nil
 }
 
@@ -1240,15 +1249,28 @@ func UnmarshalMessage(b []byte) (Message, error) {
 
 	var m Message
 	switch b[HeaderContentIDPosition] {
-	case ContentIDTransaction:
-		m = &TransactionMessage{}
 	case ContentIDGetPeers:
 		m = &GetPeersMessage{}
 	case ContentIDPeers:
 		m = &PeersMessage{}
+	case ContentIDGetSignatures:
+		m = &GetSignaturesMessage{}
+	case ContentIDSignatures:
+		m = &SignaturesMessage{}
+	case ContentIDGetBlock:
+		m = &GetBlockMessage{}
+	case ContentIDBlock:
+		m = &BlockMessage{}
+	case ContentIDScore:
+		m = &ScoreMessage{}
+	case ContentIDTransaction:
+		m = &TransactionMessage{}
+	case ContentIDCheckpoint:
+		m = &CheckPointMessage{}
+
 	default:
 		return nil, errors.Errorf(
-			"received unknown content id byte %d (%x)", b[HeaderContentIDPosition], b[HeaderContentIDPosition])
+			"received unknown content id byte %d 0x%x", b[HeaderContentIDPosition], b[HeaderContentIDPosition])
 	}
 
 	err := m.UnmarshalBinary(b)

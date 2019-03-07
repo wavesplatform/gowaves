@@ -1,4 +1,4 @@
-package peer
+package network
 
 import (
 	"context"
@@ -15,7 +15,7 @@ import (
 type IncomingPeer struct {
 	params   IncomingPeerParams
 	conn     conn.Connection
-	remote   remote
+	remote   Remote
 	uniqueID string
 	cancel   context.CancelFunc
 }
@@ -53,7 +53,7 @@ func RunIncomingPeer(ctx context.Context, params IncomingPeerParams) {
 	default:
 	}
 
-	id := fmt.Sprintf("incoming connection %s -> %s", c.RemoteAddr().String(), c.LocalAddr().String())
+	id := fmt.Sprintf("incoming Connection %s -> %s", c.RemoteAddr().String(), c.LocalAddr().String())
 	zap.S().Infof("read handshake from %s %+v", id, readHandshake)
 
 	writeHandshake := proto.Handshake{
@@ -80,15 +80,15 @@ func RunIncomingPeer(ctx context.Context, params IncomingPeerParams) {
 	default:
 	}
 
-	remote := newRemote()
-	connection := conn.WrapConnection(c, params.Pool, remote.toCh, remote.fromCh, remote.errCh, params.Skip)
+	remote := NewRemote()
+	connection := conn.WrapConnection(c, params.Pool, remote.ToCh, remote.FromCh, remote.ErrCh, params.Skip)
 	ctx, cancel := context.WithCancel(ctx)
 
 	peer := &IncomingPeer{
 		params:   params,
 		conn:     connection,
 		remote:   remote,
-		uniqueID: fmt.Sprintf("incoming connection %s -> %s", c.RemoteAddr().String(), c.LocalAddr().String()),
+		uniqueID: fmt.Sprintf("incoming Connection %s -> %s", c.RemoteAddr().String(), c.LocalAddr().String()),
 		cancel:   cancel,
 	}
 
@@ -113,15 +113,15 @@ func RunIncomingPeer(ctx context.Context, params IncomingPeerParams) {
 }
 
 func (a *IncomingPeer) run(ctx context.Context) {
-	handleParams := handlerParams{
-		connection: a.conn,
-		ctx:        ctx,
-		remote:     a.remote,
-		id:         a.uniqueID,
-		parent:     a.params.Parent,
-		pool:       a.params.Pool,
+	handleParams := HandlerParams{
+		Connection: a.conn,
+		Ctx:        ctx,
+		Remote:     a.remote,
+		ID:         a.uniqueID,
+		Parent:     a.params.Parent,
+		Pool:       a.params.Pool,
 	}
-	handle(handleParams)
+	Handle(handleParams)
 }
 
 func (a *IncomingPeer) Close() {
@@ -135,9 +135,9 @@ func (a *IncomingPeer) SendMessage(m proto.Message) {
 		return
 	}
 	select {
-	case a.remote.toCh <- b:
+	case a.remote.ToCh <- b:
 	default:
-		zap.S().Warnf("can't send bytes to remote, chan is full id %s", a.uniqueID)
+		zap.S().Warnf("can't send bytes to Remote, chan is full ID %s", a.uniqueID)
 	}
 }
 

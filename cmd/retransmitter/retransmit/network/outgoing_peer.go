@@ -1,4 +1,4 @@
-package peer
+package network
 
 import (
 	"context"
@@ -24,7 +24,7 @@ type OutgoingPeerParams struct {
 type OutgoingPeer struct {
 	params     OutgoingPeerParams
 	cancel     context.CancelFunc
-	remote     remote
+	remote     Remote
 	connection conn.Connection
 }
 
@@ -35,7 +35,7 @@ func RunOutgoingPeer(ctx context.Context, params OutgoingPeerParams) {
 	}
 
 	ctx, cancel := context.WithCancel(ctx)
-	remote := newRemote()
+	remote := NewRemote()
 	p := OutgoingPeer{
 		params: params,
 		cancel: cancel,
@@ -70,17 +70,17 @@ func RunOutgoingPeer(ctx context.Context, params OutgoingPeerParams) {
 	params.Parent.InfoCh <- connected
 	zap.S().Debugf("connected %s", params.Address)
 
-	handle(handlerParams{
-		ctx:        ctx,
-		id:         params.Address,
-		connection: p.connection,
-		remote:     remote,
-		parent:     params.Parent,
-		pool:       params.Pool,
+	Handle(HandlerParams{
+		Ctx:        ctx,
+		ID:         params.Address,
+		Connection: p.connection,
+		Remote:     remote,
+		Parent:     params.Parent,
+		Pool:       params.Pool,
 	})
 }
 
-func (a *OutgoingPeer) connect(ctx context.Context, wavesNetwork string, remote remote, declAddr proto.PeerInfo) (conn.Connection, *proto.Handshake, error) {
+func (a *OutgoingPeer) connect(ctx context.Context, wavesNetwork string, remote Remote, declAddr proto.PeerInfo) (conn.Connection, *proto.Handshake, error) {
 	possibleVersions := []uint32{15, 14, 16}
 	index := 0
 
@@ -88,7 +88,7 @@ func (a *OutgoingPeer) connect(ctx context.Context, wavesNetwork string, remote 
 
 		c, err := net.Dial("tcp", a.params.Address)
 		if err != nil {
-			zap.S().Infof("failed to connect, %s id %s", err, a.params.Address)
+			zap.S().Infof("failed to connect, %s ID %s", err, a.params.Address)
 			select {
 			case <-ctx.Done():
 				return nil, nil, ctx.Err()
@@ -136,7 +136,7 @@ func (a *OutgoingPeer) connect(ctx context.Context, wavesNetwork string, remote 
 				continue
 			}
 		}
-		return conn.WrapConnection(c, a.params.Pool, remote.toCh, remote.fromCh, remote.errCh, a.params.Skip), &handshake, nil
+		return conn.WrapConnection(c, a.params.Pool, remote.ToCh, remote.FromCh, remote.ErrCh, a.params.Skip), &handshake, nil
 	}
 
 	return nil, nil, errors.Errorf("can't connect 20 times")
@@ -149,9 +149,9 @@ func (a *OutgoingPeer) SendMessage(m proto.Message) {
 		return
 	}
 	select {
-	case a.remote.toCh <- b:
+	case a.remote.ToCh <- b:
 	default:
-		zap.S().Warnf("can't send bytes to remote, chan is full id %s", a.params.Address)
+		zap.S().Warnf("can't send bytes to Remote, chan is full ID %s", a.params.Address)
 	}
 }
 
