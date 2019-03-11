@@ -190,7 +190,7 @@ func (s *stateManager) BlockIDToHeight(blockID crypto.Signature) (uint64, error)
 	if err != nil {
 		return 0, StateError{errorType: RetrievalError, originalError: err}
 	}
-	return height + 2, nil
+	return height, nil
 }
 
 func (s *stateManager) HeightToBlockID(height uint64) (crypto.Signature, error) {
@@ -347,7 +347,7 @@ func (s *stateManager) addBlocks(blocks [][]byte, initialisation bool) error {
 		if err != nil {
 			return StateError{errorType: Other, originalError: err}
 		}
-		if err := s.scores.addScore(prevScore, score, s.rw.recentHeight()+2); err != nil {
+		if err := s.scores.addScore(prevScore, score, s.rw.recentHeight()); err != nil {
 			return StateError{errorType: ModificationError, originalError: err}
 		}
 		prevScore = score

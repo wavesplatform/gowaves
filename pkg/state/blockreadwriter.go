@@ -225,7 +225,7 @@ func (rw *blockReadWriter) heightByBlockID(blockID crypto.Signature) (uint64, er
 		return 0, err
 	}
 	height := binary.LittleEndian.Uint64(blockInfo[len(blockInfo)-8:])
-	return height, nil
+	return height + 2, nil
 }
 
 // Similar to heightByBlockID() but returns height for new blocks as well (ones which haven't been saved to DB yet).
@@ -240,11 +240,11 @@ func (rw *blockReadWriter) heightByNewBlockID(blockID crypto.Signature) (uint64,
 		return 0, errors.New("not found")
 	}
 	height := binary.LittleEndian.Uint64(info[len(info)-8:])
-	return height, nil
+	return height + 2, nil
 }
 
 func (rw *blockReadWriter) recentHeight() uint64 {
-	return rw.height
+	return rw.height + 2
 }
 
 func (rw *blockReadWriter) currentHeight() (uint64, error) {
