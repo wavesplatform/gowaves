@@ -15,7 +15,7 @@ const (
 	totalBlocksNumber = 200
 )
 
-func createAccountsStorage() (*accountsStorage, []string, error) {
+func createAccountsStorage(id2Height idToHeight) (*accountsStorage, []string, error) {
 	res := make([]string, 1)
 	dbDir0, err := ioutil.TempDir(os.TempDir(), "dbDir0")
 	if err != nil {
@@ -29,7 +29,7 @@ func createAccountsStorage() (*accountsStorage, []string, error) {
 	if err != nil {
 		return nil, res, err
 	}
-	stor, err := newAccountsStorage(genesis, globalStor)
+	stor, err := newAccountsStorage(genesis, globalStor, id2Height)
 	if err != nil {
 		return nil, res, err
 	}
@@ -62,7 +62,11 @@ func getBlockID(fillWith byte) crypto.Signature {
 }
 
 func TestBalances(t *testing.T) {
-	stor, path, err := createAccountsStorage()
+	rw, path0, err := createBlockReadWriter(8, 8)
+	if err != nil {
+		t.Fatalf("createBlockReadWriter(): %v\n", err)
+	}
+	stor, path1, err := createAccountsStorage(rw)
 	if err != nil {
 		t.Fatalf("Can not create accountsStorage: %v\n", err)
 	}
@@ -71,7 +75,7 @@ func TestBalances(t *testing.T) {
 		if err := stor.db.Close(); err != nil {
 			t.Fatalf("Failed to close DB: %v", err)
 		}
-		if err := util.CleanTemporaryDirs(path); err != nil {
+		if err := util.CleanTemporaryDirs(append(path0, path1...)); err != nil {
 			t.Fatalf("Failed to clean test data dirs: %v", err)
 		}
 	}()
@@ -128,7 +132,11 @@ func TestBalances(t *testing.T) {
 }
 
 func TestRollbackBlock(t *testing.T) {
-	stor, path, err := createAccountsStorage()
+	rw, path0, err := createBlockReadWriter(8, 8)
+	if err != nil {
+		t.Fatalf("createBlockReadWriter(): %v\n", err)
+	}
+	stor, path1, err := createAccountsStorage(rw)
 	if err != nil {
 		t.Fatalf("Can not create accountsStorage: %v\n", err)
 	}
@@ -137,7 +145,7 @@ func TestRollbackBlock(t *testing.T) {
 		if err := stor.db.Close(); err != nil {
 			t.Fatalf("Failed to close DB: %v", err)
 		}
-		if err := util.CleanTemporaryDirs(path); err != nil {
+		if err := util.CleanTemporaryDirs(append(path0, path1...)); err != nil {
 			t.Fatalf("Failed to clean test data dirs: %v", err)
 		}
 	}()

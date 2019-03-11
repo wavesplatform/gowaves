@@ -153,7 +153,7 @@ func toBlockID(bytes []byte) (crypto.Signature, error) {
 	return res, nil
 }
 
-func newAccountsStorage(genesis crypto.Signature, db keyvalue.IterableKeyVal) (*accountsStorage, error) {
+func newAccountsStorage(genesis crypto.Signature, db keyvalue.IterableKeyVal, idToHeight idToHeight) (*accountsStorage, error) {
 	has, err := db.Has([]byte{dbHeightKeyPrefix})
 	if err != nil {
 		return nil, err
@@ -170,15 +170,15 @@ func newAccountsStorage(genesis crypto.Signature, db keyvalue.IterableKeyVal) (*
 		return nil, err
 	}
 	return &accountsStorage{
-		genesis:   genesis,
-		db:        db,
-		localStor: localStor,
+		genesis:    genesis,
+		db:         db,
+		idToHeight: idToHeight,
+		localStor:  localStor,
 	}, nil
 }
 
-func (s *accountsStorage) setRollbackMax(rollbackMax int, idToHeight idToHeight) {
+func (s *accountsStorage) setRollbackMax(rollbackMax int) {
 	s.rollbackMax = rollbackMax
-	s.idToHeight = idToHeight
 }
 
 func (s *accountsStorage) setHeight(height uint64, directly bool) error {

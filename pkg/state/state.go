@@ -81,11 +81,11 @@ func newStateManager(dataDir string, params BlockStorageParams) (*stateManager, 
 	if err != nil {
 		return nil, StateError{errorType: Other, originalError: errors.Errorf("failed to create block storage: %v\n", err)}
 	}
-	accountsStor, err := newAccountsStorage(genesisSig, db)
+	accountsStor, err := newAccountsStorage(genesisSig, db, rw)
 	if err != nil {
 		return nil, StateError{errorType: Other, originalError: errors.Errorf("failed to create accounts storage: %v\n", err)}
 	}
-	accountsStor.setRollbackMax(rollbackMaxBlocks, rw)
+	accountsStor.setRollbackMax(rollbackMaxBlocks)
 	if err := syncDbAndStorage(accountsStor, rw); err != nil {
 		return nil, StateError{errorType: Other, originalError: errors.Errorf("failed to sync block storage and DB: %v\n", err)}
 	}
