@@ -2,6 +2,7 @@ package state
 
 import (
 	"encoding/binary"
+	"math"
 
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
@@ -130,6 +131,7 @@ func (s *localStor) reset() {
 
 type idToHeight interface {
 	heightByBlockID(blockID crypto.Signature) (uint64, error)
+	heightByNewBlockID(blockID crypto.Signature) (uint64, error)
 }
 
 type accountsStorage struct {
@@ -259,6 +261,46 @@ func (s *accountsStorage) addressesNumber() (uint64, error) {
 		return 0, err
 	}
 	return addressesNumber, nil
+}
+
+// minBalanceInRange() is used to get min miner's effective balance, so it includes blocks which
+// have not been flushed to DB yet (and are currently stored in memory).
+func (s *accountsStorage) minBalanceInRange(balanceKey []byte, startHeight, endHeight uint64) (uint64, error) {
+	history, err := s.localStor.getHistory(balanceKey)
+	if err != nil {
+		return 0, err
+	}
+	minBalance := uint64(math.MaxUint64)
+	for i := len(history); i >= recordSize; i -= recordSize {
+		record := history[i-recordSize : i]
+		balanceEnd := len(record) - crypto.SignatureSize
+		idBytes := record[balanceEnd:]
+		blockID, err := toBlockID(idBytes)
+		if err != nil {
+			return 0, err
+		}
+		if blockID == s.genesis {
+			break
+		}
+		height, err := s.idToHeight.heightByNewBlockID(blockID)
+		if err != nil {
+			return 0, err
+		}
+		if height > endHeight {
+			continue
+		}
+		if height < startHeight {
+			break
+		}
+		balance := binary.LittleEndian.Uint64(record[balanceEnd-8 : balanceEnd])
+		if balance < minBalance {
+			minBalance = balance
+		}
+	}
+	if minBalance == math.MaxUint64 {
+		return 0, errors.New("invalid height range or unknown address")
+	}
+	return minBalance, nil
 }
 
 func (s *accountsStorage) accountBalance(balanceKey []byte) (uint64, error) {

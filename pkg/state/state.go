@@ -359,6 +359,7 @@ func (s *stateManager) addBlocks(blocks [][]byte, initialisation bool) error {
 	if err := tv.performTransactions(); err != nil {
 		return StateError{errorType: TxValidationError, originalError: err}
 	}
+
 	if err := s.rw.updateHeight(blocksNumber); err != nil {
 		return StateError{errorType: ModificationError, originalError: err}
 	}

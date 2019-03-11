@@ -25,6 +25,8 @@ type blockReadWriter struct {
 
 	blockchainBuf *bufio.Writer
 
+	blockInfo map[blockOffsetKey][]byte
+
 	blockBounds  []byte
 	txBounds     []byte
 	headerBounds []byte
@@ -102,6 +104,7 @@ func newBlockReadWriter(dir string, offsetLen, headerOffsetLen int, keyVal keyva
 		headers:         headers,
 		blockHeight2ID:  blockHeight2ID,
 		blockchainBuf:   bufio.NewWriter(blockchain),
+		blockInfo:       make(map[blockOffsetKey][]byte),
 		txBounds:        make([]byte, offsetLen*2),
 		headerBounds:    make([]byte, headerOffsetLen*2),
 		blockBounds:     make([]byte, offsetLen*2),
@@ -167,9 +170,7 @@ func (rw *blockReadWriter) finishBlock(blockID crypto.Signature) error {
 	val := append(rw.blockBounds, rw.headerBounds...)
 	val = append(val, rw.heightBuf...)
 	key := blockOffsetKey{blockID: blockID}
-	if err := rw.db.Put(key.bytes(), val); err != nil {
-		return err
-	}
+	rw.blockInfo[key] = val
 	rw.height++
 	return nil
 }
@@ -224,6 +225,21 @@ func (rw *blockReadWriter) heightByBlockID(blockID crypto.Signature) (uint64, er
 		return 0, err
 	}
 	height := binary.LittleEndian.Uint64(blockInfo[len(blockInfo)-8:])
+	return height, nil
+}
+
+// Similar to heightByBlockID() but returns height for new blocks as well (ones which haven't been saved to DB yet).
+func (rw *blockReadWriter) heightByNewBlockID(blockID crypto.Signature) (uint64, error) {
+	// Try to get it from DB first.
+	if height, err := rw.heightByBlockID(blockID); err == nil {
+		return height, nil
+	}
+	key := blockOffsetKey{blockID: blockID}
+	info, ok := rw.blockInfo[key]
+	if !ok {
+		return 0, errors.New("not found")
+	}
+	height := binary.LittleEndian.Uint64(info[len(info)-8:])
 	return height, nil
 }
 
@@ -475,6 +491,7 @@ func (rw *blockReadWriter) updateHeight(heightChange int) error {
 func (rw *blockReadWriter) reset() {
 	rw.db.ResetBatch()
 	rw.blockchainBuf.Reset(rw.blockchain)
+	rw.blockInfo = make(map[blockOffsetKey][]byte)
 }
 
 func (rw *blockReadWriter) flush() error {
@@ -484,6 +501,12 @@ func (rw *blockReadWriter) flush() error {
 	if err := rw.syncFiles(); err != nil {
 		return err
 	}
+	for key, info := range rw.blockInfo {
+		if err := rw.db.Put(key.bytes(), info); err != nil {
+			return err
+		}
+	}
+	rw.blockInfo = make(map[blockOffsetKey][]byte)
 	return nil
 }
 
