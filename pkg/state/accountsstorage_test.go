@@ -61,6 +61,71 @@ func getBlockID(fillWith byte) crypto.Signature {
 	return blockID
 }
 
+func TestMinBalanceInRange(t *testing.T) {
+	rw, path0, err := createBlockReadWriter(8, 8)
+	if err != nil {
+		t.Fatalf("createBlockReadWriter(): %v\n", err)
+	}
+	stor, path1, err := createAccountsStorage(rw)
+	if err != nil {
+		t.Fatalf("Can not create accountsStorage: %v\n", err)
+	}
+
+	defer func() {
+		if err := stor.db.Close(); err != nil {
+			t.Fatalf("Failed to close DB: %v", err)
+		}
+		if err := util.CleanTemporaryDirs(append(path0, path1...)); err != nil {
+			t.Fatalf("Failed to clean test data dirs: %v", err)
+		}
+	}()
+
+	key := balanceKey{address: genAddr(1)}
+	for i := 2; i < totalBlocksNumber; i++ {
+		blockID := getBlockID(byte(i))
+		if err := rw.startBlock(blockID); err != nil {
+			t.Fatalf("startBlock(): %v\n", err)
+		}
+		if err := stor.setAccountBalance(key.bytes(), uint64(i), blockID); err != nil {
+			t.Fatalf("Faied to set account balance: %v\n", err)
+		}
+		if err := rw.finishBlock(blockID); err != nil {
+			t.Fatalf("finishBlock(): %v\n", err)
+		}
+	}
+	minBalance, err := stor.minBalanceInRange(key.bytes(), 2, totalBlocksNumber)
+	if err != nil {
+		t.Fatalf("minBalanceInRange(): %v\n", err)
+	}
+	if minBalance != 2 {
+		t.Errorf("Invalid minimum balance in range: need %d, got %d.", 2, minBalance)
+	}
+	minBalance, err = stor.minBalanceInRange(key.bytes(), 100, 150)
+	if err != nil {
+		t.Fatalf("minBalanceInRange(): %v\n", err)
+	}
+	if minBalance != 100 {
+		t.Errorf("Invalid minimum balance in range: need %d, got %d.", 100, minBalance)
+	}
+	if err := stor.flush(); err != nil {
+		t.Fatalf("flush(): %v\n", err)
+	}
+	minBalance, err = stor.minBalanceInRange(key.bytes(), 2, totalBlocksNumber)
+	if err != nil {
+		t.Fatalf("minBalanceInRange(): %v\n", err)
+	}
+	if minBalance != 2 {
+		t.Errorf("Invalid minimum balance in range: need %d, got %d.", 2, minBalance)
+	}
+	minBalance, err = stor.minBalanceInRange(key.bytes(), 100, 150)
+	if err != nil {
+		t.Fatalf("minBalanceInRange(): %v\n", err)
+	}
+	if minBalance != 100 {
+		t.Errorf("Invalid minimum balance in range: need %d, got %d.", 100, minBalance)
+	}
+}
+
 func TestBalances(t *testing.T) {
 	rw, path0, err := createBlockReadWriter(8, 8)
 	if err != nil {
