@@ -33,7 +33,7 @@ type blockReadWriter struct {
 	// offsetEnd is common for headers and the blockchain, since the limit for any offset length is 8 bytes.
 	offsetEnd                 uint64
 	blockchainLen, headersLen uint64
-	// Total number of transactions.
+
 	offsetLen, headerOffsetLen int
 	height                     uint64
 
@@ -218,8 +218,6 @@ func (rw *blockReadWriter) blockIDByHeight(height uint64) (crypto.Signature, err
 }
 
 func (rw *blockReadWriter) heightByBlockID(blockID crypto.Signature) (uint64, error) {
-	rw.mtx.RLock()
-	defer rw.mtx.RUnlock()
 	key := blockOffsetKey{blockID: blockID}
 	blockInfo, err := rw.db.Get(key.bytes())
 	if err != nil {
@@ -355,7 +353,7 @@ func (rw *blockReadWriter) cleanIDs(oldHeight, newBlockchainLen uint64) error {
 	return nil
 }
 
-func (rw *blockReadWriter) reset(cleanIDs bool) error {
+func (rw *blockReadWriter) rollbackToGenesis(cleanIDs bool) error {
 	rw.mtx.Lock()
 	defer rw.mtx.Unlock()
 	// Set new height first of all.
@@ -394,6 +392,7 @@ func (rw *blockReadWriter) reset(cleanIDs bool) error {
 		return err
 	}
 	// Decrease counters.
+	rw.height = 0
 	rw.blockchainLen = 0
 	rw.headersLen = 0
 	// Reset buffers.
@@ -454,6 +453,7 @@ func (rw *blockReadWriter) rollback(removalEdge crypto.Signature, cleanIDs bool)
 		return err
 	}
 	// Decrease counters.
+	rw.height = newHeight
 	rw.blockchainLen = blockEnd
 	rw.headersLen = headerEnd
 	// Reset buffers.
@@ -470,6 +470,11 @@ func (rw *blockReadWriter) updateHeight(heightChange int) error {
 		return err
 	}
 	return nil
+}
+
+func (rw *blockReadWriter) reset() {
+	rw.db.ResetBatch()
+	rw.blockchainBuf.Reset(rw.blockchain)
 }
 
 func (rw *blockReadWriter) flush() error {

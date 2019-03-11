@@ -6,6 +6,7 @@ type KeyValue interface {
 	PutDirectly(key, val []byte) error
 	Get(key []byte) ([]byte, error)
 	Delete(key []byte) error
+	ResetBatch()
 	Flush() error
 	Close() error
 }

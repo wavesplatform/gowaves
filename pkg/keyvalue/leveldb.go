@@ -53,6 +53,10 @@ func (k *KeyVal) Put(key, val []byte) error {
 	return nil
 }
 
+func (k *KeyVal) ResetBatch() {
+	k.batch.Reset()
+}
+
 func (k *KeyVal) Flush() error {
 	if k.batch == nil {
 		return errors.New("no batch to flush")

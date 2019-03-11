@@ -26,23 +26,26 @@ type stateManager struct {
 	rw       *blockReadWriter
 }
 
-func syncDbAndStorage(db keyvalue.KeyValue, stor *accountsStorage, rw *blockReadWriter) error {
-	dbHeightBytes, err := db.Get([]byte{dbHeightKeyPrefix})
+func syncDbAndStorage(stor *accountsStorage, rw *blockReadWriter) error {
+	// Reset the accounts storage and rw (they shouldn't have anything in memory after sync).
+	stor.reset()
+	rw.reset()
+	dbHeightBytes, err := stor.db.Get([]byte{dbHeightKeyPrefix})
 	if err != nil {
 		return err
 	}
 	dbHeight := binary.LittleEndian.Uint64(dbHeightBytes)
-	rwHeighBytes, err := db.Get([]byte{rwHeightKeyPrefix})
+	rwHeightBytes, err := stor.db.Get([]byte{rwHeightKeyPrefix})
 	if err != nil {
 		return err
 	}
-	rwHeight := binary.LittleEndian.Uint64(rwHeighBytes)
+	rwHeight := binary.LittleEndian.Uint64(rwHeightBytes)
 	if rwHeight < dbHeight {
 		// This should never happen, because we update block storage before writing changes into DB.
 		panic("Impossible to sync: DB is ahead of block storage; remove data dir and restart the node.")
 	}
 	if dbHeight == 0 {
-		if err := rw.reset(false); err != nil {
+		if err := rw.rollbackToGenesis(false); err != nil {
 			return errors.Errorf("failed to reset block storage: %v", err)
 		}
 	} else {
@@ -83,7 +86,7 @@ func newStateManager(dataDir string, params BlockStorageParams) (*stateManager, 
 		return nil, StateError{errorType: Other, originalError: errors.Errorf("failed to create accounts storage: %v\n", err)}
 	}
 	accountsStor.setRollbackMax(rollbackMaxBlocks, rw)
-	if err := syncDbAndStorage(db, accountsStor, rw); err != nil {
+	if err := syncDbAndStorage(accountsStor, rw); err != nil {
 		return nil, StateError{errorType: Other, originalError: errors.Errorf("failed to sync block storage and DB: %v\n", err)}
 	}
 	genesis := proto.Block{
@@ -286,15 +289,33 @@ func (s *stateManager) unmarshalAndCheck(blockBytes []byte, parentSig crypto.Sig
 func (s *stateManager) AddBlock(block []byte) error {
 	blocks := make([][]byte, 1)
 	blocks[0] = block
-	return s.addBlocks(blocks, false)
+	if err := s.addBlocks(blocks, false); err != nil {
+		if err := syncDbAndStorage(s.accounts, s.rw); err != nil {
+			panic("Failed to add blocks and can not rollback to previous state after failure.")
+		}
+		return err
+	}
+	return nil
 }
 
 func (s *stateManager) AddNewBlocks(blocks [][]byte) error {
-	return s.addBlocks(blocks, false)
+	if err := s.addBlocks(blocks, false); err != nil {
+		if err := syncDbAndStorage(s.accounts, s.rw); err != nil {
+			panic("Failed to add blocks and can not rollback to previous state after failure.")
+		}
+		return err
+	}
+	return nil
 }
 
 func (s *stateManager) AddOldBlocks(blocks [][]byte) error {
-	return s.addBlocks(blocks, true)
+	if err := s.addBlocks(blocks, true); err != nil {
+		if err := syncDbAndStorage(s.accounts, s.rw); err != nil {
+			panic("Failed to add blocks and can not rollback to previous state after failure.")
+		}
+		return err
+	}
+	return nil
 }
 
 func (s *stateManager) addBlocks(blocks [][]byte, initialisation bool) error {
@@ -373,7 +394,7 @@ func (s *stateManager) RollbackToHeight(height uint64) error {
 			}
 		}
 		// Remove blocks from block storage.
-		if err := s.rw.reset(true); err != nil {
+		if err := s.rw.rollbackToGenesis(true); err != nil {
 			return StateError{errorType: RollbackError, originalError: err}
 		}
 	} else {

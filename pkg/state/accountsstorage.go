@@ -385,6 +385,11 @@ func (s *accountsStorage) updateHeight(heightChange int) error {
 	return nil
 }
 
+func (s *accountsStorage) reset() {
+	s.db.ResetBatch()
+	s.localStor.reset()
+}
+
 func (s *accountsStorage) flush() error {
 	if err := s.addChangesToBatch(); err != nil {
 		return err
