@@ -10,6 +10,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/importer"
+	"github.com/wavesplatform/gowaves/pkg/settings"
 )
 
 const (
@@ -48,7 +49,7 @@ func TestBlockAcceptAndRollback(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temp dir for data: %v\n", err)
 	}
-	manager, err := newStateManager(dataDir, DefaultBlockStorageParams())
+	manager, err := newStateManager(dataDir, DefaultBlockStorageParams(), settings.MainNetSettings)
 	if err != nil {
 		t.Fatalf("Failed to create state manager: %v.\n", err)
 	}

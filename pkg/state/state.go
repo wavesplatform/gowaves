@@ -10,6 +10,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/settings"
 )
 
 const (
@@ -19,11 +20,14 @@ const (
 )
 
 type stateManager struct {
-	genesis  proto.Block
-	db       keyvalue.KeyValue
+	genesis proto.Block
+	db      keyvalue.KeyValue
+
 	scores   *scores
 	accounts *accountsStorage
 	rw       *blockReadWriter
+
+	settings *settings.BlockchainSettings
 }
 
 func syncDbAndStorage(stor *accountsStorage, rw *blockReadWriter) error {
@@ -60,7 +64,7 @@ func syncDbAndStorage(stor *accountsStorage, rw *blockReadWriter) error {
 	return nil
 }
 
-func newStateManager(dataDir string, params BlockStorageParams) (*stateManager, error) {
+func newStateManager(dataDir string, params BlockStorageParams, settings *settings.BlockchainSettings) (*stateManager, error) {
 	genesisSig, err := crypto.NewSignatureFromBase58(genesisSignature)
 	if err != nil {
 		return nil, StateError{errorType: Other, originalError: errors.Errorf("failed to get genesis signature from string: %v\n", err)}
@@ -98,7 +102,7 @@ func newStateManager(dataDir string, params BlockStorageParams) (*stateManager, 
 			Height:         1,
 		},
 	}
-	state := &stateManager{genesis: genesis, db: db, scores: scores, accounts: accountsStor, rw: rw}
+	state := &stateManager{genesis: genesis, db: db, scores: scores, accounts: accountsStor, rw: rw, settings: settings}
 	height, err := state.Height()
 	if err != nil {
 		return nil, StateError{errorType: RetrievalError, originalError: err}
@@ -120,7 +124,7 @@ func (s *stateManager) applyGenesis() error {
 	if err := s.scores.addScore(&big.Int{}, genesisScore, 1); err != nil {
 		return err
 	}
-	tv, err := newTransactionValidator(s.genesis.BlockSignature, s.accounts, proto.MainNetScheme)
+	tv, err := newTransactionValidator(s.genesis.BlockSignature, s.accounts, s.settings)
 	if err != nil {
 		return err
 	}
@@ -129,7 +133,7 @@ func (s *stateManager) applyGenesis() error {
 		return err
 	}
 	for _, tx := range genesisTx {
-		if err := tv.validateTransaction(&s.genesis, &tx, true); err != nil {
+		if err := tv.validateTransaction(&s.genesis, nil, &tx, true); err != nil {
 			return err
 		}
 	}
@@ -230,7 +234,7 @@ func (s *stateManager) topBlock() (*proto.Block, error) {
 	return s.BlockByHeight(height)
 }
 
-func (s *stateManager) addNewBlock(tv *transactionValidator, block *proto.Block, initialisation bool) error {
+func (s *stateManager) addNewBlock(tv *transactionValidator, block, parent *proto.Block, initialisation bool) error {
 	// Indicate new block for storage.
 	if err := s.rw.startBlock(block.BlockSignature); err != nil {
 		return err
@@ -258,7 +262,7 @@ func (s *stateManager) addNewBlock(tv *transactionValidator, block *proto.Block,
 		}
 		if tv.isSupported(tx) {
 			// Genesis, Payment, TransferV1 and TransferV2 Waves-only for now.
-			if err = tv.validateTransaction(block, tx, initialisation); err != nil {
+			if err = tv.validateTransaction(block, parent, tx, initialisation); err != nil {
 				return err
 			}
 		}
@@ -324,8 +328,7 @@ func (s *stateManager) addBlocks(blocks [][]byte, initialisation bool) error {
 	if err != nil {
 		return StateError{errorType: RetrievalError, originalError: err}
 	}
-	parentSig := parent.BlockSignature
-	tv, err := newTransactionValidator(s.genesis.BlockSignature, s.accounts, proto.MainNetScheme)
+	tv, err := newTransactionValidator(s.genesis.BlockSignature, s.accounts, s.settings)
 	if err != nil {
 		return StateError{errorType: Other, originalError: err}
 	}
@@ -338,7 +341,7 @@ func (s *stateManager) addBlocks(blocks [][]byte, initialisation bool) error {
 		return StateError{errorType: RetrievalError, originalError: err}
 	}
 	for _, blockBytes := range blocks {
-		block, err := s.unmarshalAndCheck(blockBytes, parentSig, initialisation)
+		block, err := s.unmarshalAndCheck(blockBytes, parent.BlockSignature, initialisation)
 		if err != nil {
 			return StateError{errorType: DeserializationError, originalError: err}
 		}
@@ -351,10 +354,10 @@ func (s *stateManager) addBlocks(blocks [][]byte, initialisation bool) error {
 			return StateError{errorType: ModificationError, originalError: err}
 		}
 		prevScore = score
-		if err := s.addNewBlock(tv, block, initialisation); err != nil {
+		if err := s.addNewBlock(tv, block, parent, initialisation); err != nil {
 			return StateError{errorType: TxValidationError, originalError: err}
 		}
-		parentSig = block.BlockSignature
+		parent = block
 	}
 	if err := tv.performTransactions(); err != nil {
 		return StateError{errorType: TxValidationError, originalError: err}
@@ -462,6 +465,15 @@ func (s *stateManager) CurrentScore() (*big.Int, error) {
 		return nil, StateError{errorType: RetrievalError, originalError: err}
 	}
 	return s.ScoreAtHeight(height)
+}
+
+func (s *stateManager) EffectiveBalance(addr proto.Address, startHeight, endHeight uint64) (uint64, error) {
+	key := balanceKey{address: addr}
+	effectiveBalance, err := s.accounts.minBalanceInRange(key.bytes(), startHeight, endHeight)
+	if err != nil {
+		return 0, StateError{errorType: RetrievalError, originalError: err}
+	}
+	return effectiveBalance, nil
 }
 
 func (s *stateManager) Close() error {
