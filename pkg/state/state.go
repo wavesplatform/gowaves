@@ -476,6 +476,10 @@ func (s *stateManager) EffectiveBalance(addr proto.Address, startHeight, endHeig
 	return effectiveBalance, nil
 }
 
+func (s *stateManager) BlockchainSettings() (*settings.BlockchainSettings, error) {
+	return s.settings, nil
+}
+
 func (s *stateManager) Close() error {
 	if err := s.rw.close(); err != nil {
 		return StateError{errorType: ClosureError, originalError: err}
