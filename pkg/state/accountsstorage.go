@@ -2,6 +2,7 @@ package state
 
 import (
 	"encoding/binary"
+	"log"
 	"math"
 
 	"github.com/pkg/errors"
@@ -246,6 +247,13 @@ func (s *accountsStorage) addressesNumber() (uint64, error) {
 	if err != nil {
 		return 0, err
 	}
+	defer func() {
+		iter.Release()
+		if err := iter.Error(); err != nil {
+			log.Fatalf("Iterator error: %v", err)
+		}
+	}()
+
 	addressesNumber := uint64(0)
 	for iter.Next() {
 		balance, err := s.accountBalance(iter.Key())
@@ -255,10 +263,6 @@ func (s *accountsStorage) addressesNumber() (uint64, error) {
 		if balance > 0 {
 			addressesNumber++
 		}
-	}
-	iter.Release()
-	if err := iter.Error(); err != nil {
-		return 0, err
 	}
 	return addressesNumber, nil
 }
