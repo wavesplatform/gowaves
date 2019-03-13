@@ -29,6 +29,8 @@ type BlockchainSettings struct {
 	MaxTxTimeForwardOffset uint64
 
 	AddressSchemeCharacter byte
+
+	AverageBlockDelaySeconds uint64
 }
 
 var (
@@ -46,6 +48,8 @@ var (
 		MaxTxTimeForwardOffset: 90 * 60000,
 
 		AddressSchemeCharacter: proto.MainNetScheme,
+
+		AverageBlockDelaySeconds: 60,
 	}
 
 	TestNetSettings = &BlockchainSettings{
@@ -62,6 +66,8 @@ var (
 		MaxTxTimeForwardOffset: 90 * 60000,
 
 		AddressSchemeCharacter: proto.TestNetScheme,
+
+		AverageBlockDelaySeconds: 60,
 	}
 )
 
