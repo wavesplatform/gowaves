@@ -28,7 +28,7 @@ const (
 )
 
 var (
-	cached_blocks []*proto.Block
+	cachedBlocks []*proto.Block
 )
 
 type readCommandType byte
@@ -49,8 +49,8 @@ type readTask struct {
 }
 
 func readRealBlocks(t *testing.T, nBlocks int) ([]*proto.Block, error) {
-	if len(cached_blocks) >= nBlocks {
-		return cached_blocks[:nBlocks], nil
+	if len(cachedBlocks) >= nBlocks {
+		return cachedBlocks[:nBlocks], nil
 	}
 	dir, err := getLocalDir()
 	if err != nil {
@@ -89,7 +89,7 @@ func readRealBlocks(t *testing.T, nBlocks int) ([]*proto.Block, error) {
 		}
 		blocks = append(blocks, &block)
 	}
-	cached_blocks = blocks
+	cachedBlocks = blocks
 	return blocks, nil
 }
 
