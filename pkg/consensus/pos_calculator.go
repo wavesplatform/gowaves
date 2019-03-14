@@ -1,6 +1,7 @@
 package consensus
 
 import (
+	"bytes"
 	"math"
 	"math/big"
 
@@ -11,6 +12,15 @@ import (
 const (
 	nxtPosHeightDiffForHit  = 1
 	fairPosHeightDiffForHit = 100
+	hitSize                 = 8
+)
+
+var (
+	// Fair PoS values.
+	maxSignature = bytes.Repeat([]byte{0xff}, hitSize)
+	c1           = float64(70000)
+	c2           = float64(0x5E17)
+	tMin         = float64(5000)
 )
 
 func generatorSignature(signature crypto.Digest, pk crypto.PublicKey) (crypto.Digest, error) {
@@ -22,7 +32,7 @@ func generatorSignature(signature crypto.Digest, pk crypto.PublicKey) (crypto.Di
 
 func hit(generatorSig []byte) (*big.Int, error) {
 	var hit big.Int
-	hit.SetBytes(generatorSig)
+	hit.SetBytes(generatorSig[:hitSize])
 	return &hit, nil
 }
 
@@ -90,7 +100,18 @@ func (calc *fairPosCalculator) calculateBaseTarget(
 }
 
 func (calc *fairPosCalculator) calculateDelay(hit *big.Int, parentTarget, balance uint64) (uint64, error) {
-	return 0, errors.New("Not implemented")
+	var maxHit big.Int
+	maxHit.SetBytes(maxSignature)
+	var maxHitFloat big.Float
+	maxHitFloat.SetInt(&maxHit)
+	var hitFloat big.Float
+	hitFloat.SetInt(hit)
+	var quo big.Float
+	quo.Quo(&hitFloat, &maxHitFloat)
+	h, _ := quo.Float64()
+	parentTargetF := float64(parentTarget)
+	balanceF := float64(balance)
+	return uint64(tMin + c1*math.Log(1-c2*math.Log(h)/parentTargetF/balanceF)), nil
 }
 
 func posAlgo(height uint64) (posCalculator, error) {

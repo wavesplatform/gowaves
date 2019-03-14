@@ -1,25 +1,37 @@
 package consensus
 
 import (
+	"time"
+
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"github.com/wavesplatform/gowaves/pkg/state"
+	"github.com/wavesplatform/gowaves/pkg/settings"
 )
 
 const (
+	// Depth for generating balance calculation (in number of blocks).
 	firstDepth  = 50
 	secondDepth = 1000
+	// Maximum forward offset (to the future) for block timestamps.
+	// In milliseconds.
+	maxTimeDrift = 100
 )
 
+type stateInfoProvider interface {
+	BlockchainSettings() (*settings.BlockchainSettings, error)
+	BlockByHeight(height uint64) (*proto.Block, error)
+	EffectiveBalance(addr proto.Address, startHeight, endHeight uint64) (uint64, error)
+}
+
 type ConsensusValidator struct {
-	state       state.State
+	state       stateInfoProvider
 	startHeight uint64
 	// Headers to validate.
 	headers []*proto.BlockHeader
 }
 
-func NewConsensusValidator(state state.State) (*ConsensusValidator, error) {
+func NewConsensusValidator(state stateInfoProvider) (*ConsensusValidator, error) {
 	return &ConsensusValidator{state: state}, nil
 }
 
@@ -47,7 +59,7 @@ func (cv *ConsensusValidator) generatingBalance(height uint64, addr proto.Addres
 	if height >= settings.GenerationBalanceDepthFrom50To1000AfterHeight {
 		depth = secondDepth
 	}
-	balance, err := cv.state.EffectiveBalance(addr, height, height-depth)
+	balance, err := cv.state.EffectiveBalance(addr, height-depth, height)
 	if err != nil {
 		return 0, errors.Errorf("failed to get effective balance: %v\n", err)
 	}
@@ -117,11 +129,16 @@ func (cv *ConsensusValidator) validateBlockDelay(height uint64, headerNum int) e
 	}
 	minTimestamp := parent.Timestamp + delay
 	if header.Timestamp <= minTimestamp {
-		return errors.New("invalid header timestamp: less than min valid timestamp")
+		return errors.New("invalid block timestamp: less than min valid timestamp")
 	}
 	return nil
 }
 
 func (cv *ConsensusValidator) validateBlockTimestamp(block *proto.BlockHeader) error {
-	return errors.New("not implemented")
+	// Milliseconds.
+	currentTime := uint64(time.Now().UnixNano() / 1000)
+	if block.Timestamp-currentTime > uint64(maxTimeDrift) {
+		return errors.New("block from future error: block's timestamp is too far in the future")
+	}
+	return nil
 }
