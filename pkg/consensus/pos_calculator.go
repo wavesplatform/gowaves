@@ -5,7 +5,6 @@ import (
 	"math"
 	"math/big"
 
-	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 )
 
@@ -13,15 +12,36 @@ const (
 	nxtPosHeightDiffForHit  = 1
 	fairPosHeightDiffForHit = 100
 	hitSize                 = 8
+	minBaseTarget           = 9
 )
 
 var (
+	// Nxt values.
+	minBlockDelaySeconds = 53
+	maxBlockDelaySeconds = 67
+	baseTargetGamma      = 64
+	meanCalculationDepth = 3
 	// Fair PoS values.
 	maxSignature = bytes.Repeat([]byte{0xff}, hitSize)
 	c1           = float64(70000)
 	c2           = float64(0x5E17)
 	tMin         = float64(5000)
 )
+
+func normalize(value, targetBlockDelaySeconds uint64) float64 {
+	return float64(value*targetBlockDelaySeconds) / 60
+}
+
+func normalizeBaseTarget(baseTarget, targetBlockDelaySeconds uint64) uint64 {
+	maxBaseTarget := math.MaxUint64 / targetBlockDelaySeconds
+	if baseTarget <= minBaseTarget {
+		return minBaseTarget
+	}
+	if baseTarget >= maxBaseTarget {
+		return maxBaseTarget
+	}
+	return baseTarget
+}
 
 func generatorSignature(signature crypto.Digest, pk crypto.PublicKey) (crypto.Digest, error) {
 	s := make([]byte, crypto.DigestSize*2)
@@ -64,7 +84,24 @@ func (calc *nxtPosCalculator) calculateBaseTarget(
 	greatGrandParentTimestamp uint64,
 	currentTimestamp uint64,
 ) (uint64, error) {
-	return 0, errors.New("Not implemented")
+	if prevHeight%2 == 0 {
+		meanBlockDelay := currentTimestamp - parentTimestamp
+		if greatGrandParentTimestamp > 0 {
+			meanBlockDelay = ((currentTimestamp - greatGrandParentTimestamp) / uint64(meanCalculationDepth)) / 1000
+		}
+		minBlockDelay := normalize(uint64(minBlockDelaySeconds), targetBlockDelaySeconds)
+		maxBlockDelay := normalize(uint64(maxBlockDelaySeconds), targetBlockDelaySeconds)
+		baseTargetGammaV := normalize(uint64(baseTargetGamma), targetBlockDelaySeconds)
+		var baseTarget uint64
+		if meanBlockDelay > targetBlockDelaySeconds {
+			baseTarget = prevTarget * uint64(math.Min(float64(meanBlockDelay), maxBlockDelay)/float64(targetBlockDelaySeconds))
+		} else {
+			baseTarget = prevTarget - prevTarget*uint64(baseTargetGammaV*(float64(targetBlockDelaySeconds)-math.Max(float64(meanBlockDelay), minBlockDelay))/float64(targetBlockDelaySeconds*100))
+		}
+		return normalizeBaseTarget(baseTarget, targetBlockDelaySeconds), nil
+	} else {
+		return prevTarget, nil
+	}
 }
 
 func (calc *nxtPosCalculator) calculateDelay(hit *big.Int, parentTarget, balance uint64) (uint64, error) {
@@ -96,7 +133,19 @@ func (calc *fairPosCalculator) calculateBaseTarget(
 	greatGrandParentTimestamp uint64,
 	currentTimestamp uint64,
 ) (uint64, error) {
-	return 0, errors.New("Not implemented")
+	maxDelay := normalize(90, targetBlockDelaySeconds)
+	minDelay := normalize(30, targetBlockDelaySeconds)
+	if greatGrandParentTimestamp == 0 {
+		return prevTarget, nil
+	}
+	average := float64(currentTimestamp-greatGrandParentTimestamp) / 3 / 1000
+	if average > maxDelay {
+		return (prevTarget + uint64(math.Max(1, float64(prevTarget/100)))), nil
+	} else if average < minDelay {
+		return (prevTarget - uint64(math.Max(1, float64(prevTarget/100)))), nil
+	} else {
+		return prevTarget, nil
+	}
 }
 
 func (calc *fairPosCalculator) calculateDelay(hit *big.Int, parentTarget, balance uint64) (uint64, error) {
@@ -118,4 +167,9 @@ func posAlgo(height uint64) (posCalculator, error) {
 	// TODO: support features concept.
 	// Always return Nxt for now, since FairPos appeared later.
 	return &nxtPosCalculator{}, nil
+}
+
+func fairPosActivated(height uint64) bool {
+	// TODO: support features activation.
+	return false
 }
