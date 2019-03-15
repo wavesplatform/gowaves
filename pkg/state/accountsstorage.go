@@ -283,17 +283,19 @@ func (s *accountsStorage) minBalanceInRange(balanceKey []byte, startHeight, endH
 		if err != nil {
 			return 0, err
 		}
-		if blockID == s.genesis {
-			break
-		}
-		height, err := s.idToHeight.heightByNewBlockID(blockID)
-		if err != nil {
-			return 0, err
+		// Set height to genesis by default.
+		height := uint64(1)
+		if blockID != s.genesis {
+			// Change height if needed.
+			height, err = s.idToHeight.heightByNewBlockID(blockID)
+			if err != nil {
+				return 0, err
+			}
 		}
 		if height > endHeight {
 			continue
 		}
-		if height < startHeight {
+		if height < startHeight && minBalance != math.MaxUint64 {
 			break
 		}
 		balance := binary.LittleEndian.Uint64(record[balanceEnd-8 : balanceEnd])

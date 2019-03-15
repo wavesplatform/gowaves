@@ -32,7 +32,7 @@ type ConsensusValidator struct {
 	settings    *settings.BlockchainSettings
 	startHeight uint64
 	// Headers to validate.
-	headers []*proto.BlockHeader
+	headers []proto.BlockHeader
 }
 
 func NewConsensusValidator(state stateInfoProvider) (*ConsensusValidator, error) {
@@ -51,11 +51,12 @@ func (cv *ConsensusValidator) headerByHeight(height uint64) (*proto.BlockHeader,
 		}
 		return &block.BlockHeader, nil
 	}
-	return cv.headers[height-cv.startHeight], nil
+	return &cv.headers[height-cv.startHeight], nil
 }
 
-func (cv *ConsensusValidator) validateHeaders(headers []*proto.BlockHeader, startHeight uint64) error {
+func (cv *ConsensusValidator) ValidateHeaders(headers []proto.BlockHeader, startHeight uint64) error {
 	cv.startHeight = startHeight
+	cv.headers = headers
 	for i, header := range headers {
 		height := startHeight + uint64(i)
 		parent, err := cv.headerByHeight(height - 1)
@@ -69,19 +70,19 @@ func (cv *ConsensusValidator) validateHeaders(headers []*proto.BlockHeader, star
 				return errors.Wrap(err, "failed to retrieve block's great grandparent")
 			}
 		}
-		if err := cv.validateBlockTimestamp(header); err != nil {
+		if err := cv.validateBlockTimestamp(&header); err != nil {
 			return errors.Wrap(err, "block timestamp validation failed")
 		}
 		if err := cv.validateBlockDelay(height); err != nil {
 			return errors.Wrap(err, "block delay validation failed")
 		}
-		if err := cv.validateGeneratorSignature(height, header); err != nil {
+		if err := cv.validateGeneratorSignature(height, &header); err != nil {
 			return errors.Wrap(err, "block generator signature validation failed")
 		}
-		if err := cv.validateBaseTarget(height, header, parent, greatGrandParent); err != nil {
+		if err := cv.validateBaseTarget(height, &header, parent, greatGrandParent); err != nil {
 			return errors.Wrap(err, "base target validation failed")
 		}
-		if err := cv.validateBlockVersion(height, header); err != nil {
+		if err := cv.validateBlockVersion(height, &header); err != nil {
 			return errors.Wrap(err, "block version validation failed")
 		}
 	}
@@ -113,7 +114,11 @@ func (cv *ConsensusValidator) generatingBalance(height uint64, addr proto.Addres
 	if height >= cv.settings.GenerationBalanceDepthFrom50To1000AfterHeight {
 		depth = secondDepth
 	}
-	balance, err := cv.state.EffectiveBalance(addr, height-depth, height)
+	bottomLimit := height - depth
+	if height < 1+depth {
+		bottomLimit = 1
+	}
+	balance, err := cv.state.EffectiveBalance(addr, bottomLimit, height)
 	if err != nil {
 		return 0, errors.Errorf("failed to get effective balance: %v\n", err)
 	}
@@ -162,7 +167,7 @@ func (cv *ConsensusValidator) validateBaseTarget(height uint64, block, parent, g
 	}
 	expectedTarget, err := pos.calculateBaseTarget(
 		cv.settings.AverageBlockDelaySeconds,
-		height,
+		height-1,
 		parent.BaseTarget,
 		parent.Timestamp,
 		greatGrandParentTimestamp,
@@ -187,7 +192,7 @@ func (cv *ConsensusValidator) validateGeneratorSignature(height uint64, block *p
 		return errors.Errorf("failed to calculate generator signature: %v\n", err)
 	}
 	if expectedGenSig != block.GenSignature {
-		return errors.Errorf("vlidation failed: invalid generation signature")
+		return errors.Errorf("validation failed: invalid generation signature")
 	}
 	return nil
 }
@@ -201,7 +206,7 @@ func (cv *ConsensusValidator) validBlockDelay(height uint64, pk crypto.PublicKey
 	if err != nil {
 		return 0, err
 	}
-	genSig, err := generatorSignature(header.GenSignature, header.GenPublicKey)
+	genSig, err := generatorSignature(header.GenSignature, pk)
 	if err != nil {
 		return 0, err
 	}
@@ -226,7 +231,7 @@ func (cv *ConsensusValidator) validateBlockDelay(height uint64) error {
 		return errors.Errorf("failed to get effective balance: %v\n", err)
 	}
 	if err := cv.validateEffectiveBalance(header, effectiveBalance, height); err != nil {
-		return errors.Errorf("invalid generating balanc: %v\n", err)
+		return errors.Errorf("invalid generating balance: %v\n", err)
 	}
 	delay, err := cv.validBlockDelay(height, header.GenPublicKey, parent.BaseTarget, effectiveBalance)
 	if err != nil {
@@ -234,15 +239,15 @@ func (cv *ConsensusValidator) validateBlockDelay(height uint64) error {
 	}
 	minTimestamp := parent.Timestamp + delay
 	if header.Timestamp <= minTimestamp {
-		return errors.New("invalid block timestamp: less than min valid timestamp")
+		return errors.Errorf("invalid block timestamp %d: less than min valid timestamp %d", header.Timestamp, minTimestamp)
 	}
 	return nil
 }
 
 func (cv *ConsensusValidator) validateBlockTimestamp(block *proto.BlockHeader) error {
 	// Milliseconds.
-	currentTime := uint64(time.Now().UnixNano() / 1000)
-	if block.Timestamp-currentTime > uint64(maxTimeDrift) {
+	currentTime := time.Now().UnixNano() / 1000
+	if int64(block.Timestamp)-currentTime > maxTimeDrift {
 		return errors.New("block from future error: block's timestamp is too far in the future")
 	}
 	return nil

@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 
 	"github.com/pkg/errors"
+	"github.com/wavesplatform/gowaves/pkg/consensus"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -28,6 +29,7 @@ type stateManager struct {
 	rw       *blockReadWriter
 
 	settings *settings.BlockchainSettings
+	cv       *consensus.ConsensusValidator
 }
 
 func syncDbAndStorage(stor *accountsStorage, rw *blockReadWriter) error {
@@ -93,7 +95,34 @@ func newStateManager(dataDir string, params BlockStorageParams, settings *settin
 	if err := syncDbAndStorage(accountsStor, rw); err != nil {
 		return nil, StateError{errorType: Other, originalError: errors.Errorf("failed to sync block storage and DB: %v\n", err)}
 	}
-	genesis := proto.Block{
+	state := &stateManager{
+		db:       db,
+		scores:   scores,
+		accounts: accountsStor,
+		rw:       rw,
+		settings: settings,
+	}
+	height, err := state.Height()
+	if err != nil {
+		return nil, StateError{errorType: RetrievalError, originalError: err}
+	}
+	if height == 1 {
+		if err := state.applyGenesis(genesisSig); err != nil {
+			return nil, StateError{errorType: ModificationError, originalError: errors.Errorf("failed to apply genesis: %v\n", err)}
+		}
+	}
+	cv, err := consensus.NewConsensusValidator(state)
+	if err != nil {
+		return nil, StateError{errorType: Other, originalError: err}
+	}
+	state.cv = cv
+	return state, nil
+}
+
+func (s *stateManager) applyGenesis(genesisSig crypto.Signature) error {
+	// Set genesis block itself.
+	// TODO: MainNet's genesis is hard coded for now, support settings.BlockchainSettings.
+	s.genesis = proto.Block{
 		BlockHeader: proto.BlockHeader{
 			Version:        1,
 			Timestamp:      1460678400000,
@@ -102,20 +131,6 @@ func newStateManager(dataDir string, params BlockStorageParams, settings *settin
 			Height:         1,
 		},
 	}
-	state := &stateManager{genesis: genesis, db: db, scores: scores, accounts: accountsStor, rw: rw, settings: settings}
-	height, err := state.Height()
-	if err != nil {
-		return nil, StateError{errorType: RetrievalError, originalError: err}
-	}
-	if height == 1 {
-		if err := state.applyGenesis(); err != nil {
-			return nil, StateError{errorType: ModificationError, originalError: errors.Errorf("failed to apply genesis: %v\n", err)}
-		}
-	}
-	return state, nil
-}
-
-func (s *stateManager) applyGenesis() error {
 	// Add score of genesis block.
 	genesisScore, err := calculateScore(s.genesis.BaseTarget)
 	if err != nil {
@@ -124,6 +139,7 @@ func (s *stateManager) applyGenesis() error {
 	if err := s.scores.addScore(&big.Int{}, genesisScore, 1); err != nil {
 		return err
 	}
+	// Perform and validate genesis transactions.
 	tv, err := newTransactionValidator(s.genesis.BlockSignature, s.accounts, s.settings)
 	if err != nil {
 		return err
@@ -274,6 +290,26 @@ func (s *stateManager) addNewBlock(tv *transactionValidator, block, parent *prot
 	return nil
 }
 
+// Perform all the actions necessary in order to finish adding block(s).
+func (s *stateManager) finishAddingBlocksBatch(headers []proto.BlockHeader, startHeight uint64, blocksNumber int) error {
+	if err := s.cv.ValidateHeaders(headers, startHeight); err != nil {
+		return StateError{errorType: BlockValidationError, originalError: err}
+	}
+	if err := s.rw.updateHeight(blocksNumber); err != nil {
+		return StateError{errorType: ModificationError, originalError: err}
+	}
+	if err := s.rw.flush(); err != nil {
+		return StateError{errorType: ModificationError, originalError: err}
+	}
+	if err := s.accounts.updateHeight(blocksNumber); err != nil {
+		return StateError{errorType: ModificationError, originalError: err}
+	}
+	if err := s.accounts.flush(); err != nil {
+		return StateError{errorType: ModificationError, originalError: err}
+	}
+	return nil
+}
+
 func (s *stateManager) unmarshalAndCheck(blockBytes []byte, parentSig crypto.Signature, initialisation bool) (*proto.Block, error) {
 	var block proto.Block
 	if err := block.UnmarshalBinary(blockBytes); err != nil {
@@ -340,7 +376,8 @@ func (s *stateManager) addBlocks(blocks [][]byte, initialisation bool) error {
 	if err != nil {
 		return StateError{errorType: RetrievalError, originalError: err}
 	}
-	for _, blockBytes := range blocks {
+	headers := make([]proto.BlockHeader, blocksNumber)
+	for i, blockBytes := range blocks {
 		block, err := s.unmarshalAndCheck(blockBytes, parent.BlockSignature, initialisation)
 		if err != nil {
 			return StateError{errorType: DeserializationError, originalError: err}
@@ -357,25 +394,13 @@ func (s *stateManager) addBlocks(blocks [][]byte, initialisation bool) error {
 		if err := s.addNewBlock(tv, block, parent, initialisation); err != nil {
 			return StateError{errorType: TxValidationError, originalError: err}
 		}
+		headers[i] = block.BlockHeader
 		parent = block
 	}
 	if err := tv.performTransactions(); err != nil {
 		return StateError{errorType: TxValidationError, originalError: err}
 	}
-
-	if err := s.rw.updateHeight(blocksNumber); err != nil {
-		return StateError{errorType: ModificationError, originalError: err}
-	}
-	if err := s.rw.flush(); err != nil {
-		return StateError{errorType: ModificationError, originalError: err}
-	}
-	if err := s.accounts.updateHeight(blocksNumber); err != nil {
-		return StateError{errorType: ModificationError, originalError: err}
-	}
-	if err := s.accounts.flush(); err != nil {
-		return StateError{errorType: ModificationError, originalError: err}
-	}
-	return nil
+	return s.finishAddingBlocksBatch(headers, height+1, blocksNumber)
 }
 
 func (s *stateManager) RollbackToHeight(height uint64) error {

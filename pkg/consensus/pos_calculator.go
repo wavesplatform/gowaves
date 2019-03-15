@@ -51,8 +51,12 @@ func generatorSignature(signature crypto.Digest, pk crypto.PublicKey) (crypto.Di
 }
 
 func hit(generatorSig []byte) (*big.Int, error) {
+	s := generatorSig[:hitSize]
+	for i, j := 0, len(s)-1; i < j; i, j = i+1, j-1 {
+		s[i], s[j] = s[j], s[i]
+	}
 	var hit big.Int
-	hit.SetBytes(generatorSig[:hitSize])
+	hit.SetBytes(s)
 	return &hit, nil
 }
 
@@ -85,20 +89,22 @@ func (calc *nxtPosCalculator) calculateBaseTarget(
 	currentTimestamp uint64,
 ) (uint64, error) {
 	if prevHeight%2 == 0 {
-		meanBlockDelay := currentTimestamp - parentTimestamp
+		meanBlockDelay := (currentTimestamp - parentTimestamp) / 1000
 		if greatGrandParentTimestamp > 0 {
 			meanBlockDelay = ((currentTimestamp - greatGrandParentTimestamp) / uint64(meanCalculationDepth)) / 1000
 		}
 		minBlockDelay := normalize(uint64(minBlockDelaySeconds), targetBlockDelaySeconds)
 		maxBlockDelay := normalize(uint64(maxBlockDelaySeconds), targetBlockDelaySeconds)
 		baseTargetGammaV := normalize(uint64(baseTargetGamma), targetBlockDelaySeconds)
-		var baseTarget uint64
+		var baseTargetF float64
 		if meanBlockDelay > targetBlockDelaySeconds {
-			baseTarget = prevTarget * uint64(math.Min(float64(meanBlockDelay), maxBlockDelay)/float64(targetBlockDelaySeconds))
+			baseTargetF = float64(prevTarget) * math.Min(float64(meanBlockDelay), maxBlockDelay) / float64(targetBlockDelaySeconds)
 		} else {
-			baseTarget = prevTarget - prevTarget*uint64(baseTargetGammaV*(float64(targetBlockDelaySeconds)-math.Max(float64(meanBlockDelay), minBlockDelay))/float64(targetBlockDelaySeconds*100))
+			baseTargetF = float64(prevTarget) - float64(prevTarget)*baseTargetGammaV*(float64(targetBlockDelaySeconds)-math.Max(float64(meanBlockDelay), minBlockDelay))/float64(targetBlockDelaySeconds*100)
 		}
-		return normalizeBaseTarget(baseTarget, targetBlockDelaySeconds), nil
+		baseTarget := uint64(baseTargetF)
+		target := normalizeBaseTarget(baseTarget, targetBlockDelaySeconds)
+		return target, nil
 	} else {
 		return prevTarget, nil
 	}
@@ -115,7 +121,8 @@ func (calc *nxtPosCalculator) calculateDelay(hit *big.Int, parentTarget, balance
 	var quo big.Float
 	quo.Quo(&hitFloat, &targetFloat)
 	ratio, _ := quo.Float64()
-	return uint64(math.Ceil(ratio)) * 1000, nil
+	delay := uint64(math.Ceil(ratio)) * 1000
+	return delay, nil
 }
 
 type fairPosCalculator struct {
