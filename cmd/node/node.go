@@ -3,6 +3,11 @@ package main
 import (
 	"context"
 	"github.com/alecthomas/kong"
+	"github.com/wavesplatform/gowaves/pkg/api"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/wavesplatform/gowaves/pkg/libs/bytespool"
 	"github.com/wavesplatform/gowaves/pkg/network/peer"
@@ -31,7 +36,7 @@ func noSkip(_ proto.Header) bool {
 }
 
 func main() {
-	ctx := context.Background()
+	ctx, cancel := context.WithCancel(context.Background())
 
 	var cli Cli
 	kong.Parse(&cli)
@@ -49,7 +54,8 @@ func main() {
 		return
 	}
 
-	pool := bytespool.NewBytesPool(64, 2*1024*2014)
+	//pool := bytespool.NewBytesPool(64, 2*1024*2014)
+	pool := bytespool.NewNoOpBytesPool(2 * 1024 * 2014)
 
 	//sig, _ := crypto.NewSignatureFromBase58("FSH8eAAzZNqnG8xgTZtz5xuLqXySsXgAjmFEC25hXMbEufiGjqWPnGCZFt6gLiVLJny16ipxRNAkkzjjhqTjBE2")
 	//
@@ -61,7 +67,7 @@ func main() {
 
 	peerSpawnerimpl := node.NewPeerSpawner(pool, noSkip, parent, cli.Run.WavesNetwork, proto.PeerInfo{}, "gowaves", 100500)
 
-	peerManager := node.NewPeerManager(peerSpawnerimpl)
+	peerManager := node.NewPeerManager(peerSpawnerimpl, state)
 
 	n := node.NewNode(state, peerManager)
 
@@ -74,6 +80,32 @@ func main() {
 		}
 	}
 
-	select {}
+	webApi := api.NewNodeApi(state)
+	go func() {
+		err := api.Run(ctx, "0.0.0.0:8085", webApi)
+		if err != nil {
+			zap.S().Error("Failed to start API: %v", err)
+		}
+	}()
+
+	var gracefulStop = make(chan os.Signal)
+	signal.Notify(gracefulStop, syscall.SIGTERM)
+	signal.Notify(gracefulStop, syscall.SIGINT)
+
+	select {
+	case sig := <-gracefulStop:
+		//if memprofile != "" {
+		//	memProfile(memprofile)
+		//}
+		n.Close()
+
+		zap.S().Infow("Caught signal, stopping", "signal", sig)
+		//_ = srv.Shutdown(ctx)
+		cancel()
+
+		<-time.After(2 * time.Second)
+	}
+
+	//select {}
 
 }

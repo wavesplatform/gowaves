@@ -26,6 +26,9 @@ const (
 
 	// Score at height.
 	scoreKeyPrefix
+
+	// Known peers
+	knownPeersPrefix
 )
 
 type balanceKey struct {

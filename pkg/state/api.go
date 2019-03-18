@@ -78,6 +78,10 @@ type State interface {
 	// Get current blockchain score (at top height).
 	CurrentScore() (*big.Int, error)
 
+	//Create or replace Peers
+	SavePeers([]KnownPeer) error
+	Peers() ([]KnownPeer, error)
+
 	Close() error
 }
 

@@ -24,6 +24,11 @@ type stateManager struct {
 	scores   *scores
 	accounts *accountsStorage
 	rw       *blockReadWriter
+	peers    *peerStorage
+}
+
+func (s *stateManager) Peers() ([]KnownPeer, error) {
+	return s.peers.peers()
 }
 
 func syncDbAndStorage(db keyvalue.KeyValue, stor *accountsStorage, rw *blockReadWriter) error {
@@ -86,6 +91,11 @@ func newStateManager(dataDir string, params BlockStorageParams) (*stateManager, 
 	if err := syncDbAndStorage(db, accountsStor, rw); err != nil {
 		return nil, StateError{errorType: Other, originalError: errors.Errorf("failed to sync block storage and DB: %v\n", err)}
 	}
+	peerStorage := newPeerStorage(db)
+	//if err != nil {
+	//	return nil, StateError{errorType: Other, originalError: errors.Errorf("failed to create peers storage: %v\n", err)}
+	//}
+
 	genesis := proto.Block{
 		BlockHeader: proto.BlockHeader{
 			Version:        1,
@@ -95,7 +105,14 @@ func newStateManager(dataDir string, params BlockStorageParams) (*stateManager, 
 			Height:         1,
 		},
 	}
-	state := &stateManager{genesis: genesis, db: db, scores: scores, accounts: accountsStor, rw: rw}
+	state := &stateManager{
+		genesis:  genesis,
+		db:       db,
+		scores:   scores,
+		accounts: accountsStor,
+		rw:       rw,
+		peers:    peerStorage,
+	}
 	height, err := state.Height()
 	if err != nil {
 		return nil, StateError{errorType: RetrievalError, originalError: err}
@@ -440,6 +457,11 @@ func (s *stateManager) CurrentScore() (*big.Int, error) {
 		return nil, StateError{errorType: RetrievalError, originalError: err}
 	}
 	return s.ScoreAtHeight(height)
+}
+
+func (s *stateManager) SavePeers(peers []KnownPeer) error {
+	return s.peers.savePeers(peers)
+
 }
 
 func (s *stateManager) Close() error {

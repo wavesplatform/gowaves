@@ -8,6 +8,8 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"go.uber.org/zap"
+	"math/big"
+	"reflect"
 	"time"
 )
 
@@ -22,24 +24,64 @@ type Node struct {
 	peerManager  PeerManager
 	stateManager state.State
 	subscribe    *Subscribe
+	sync         *StateSync
 }
 
 func NewNode(stateManager state.State, peerManager PeerManager) *Node {
+	s := NewSubscribeService()
 	return &Node{
 		stateManager: stateManager,
 		peerManager:  peerManager,
+		subscribe:    s,
+		sync:         NewStateSync(stateManager, peerManager, s),
 	}
 }
 
 func (a *Node) HandleProtoMessage(mess peer.ProtoMessage) {
+
+	zap.S().Info("arrived ", reflect.TypeOf(mess.Message))
+
 	switch t := mess.Message.(type) {
+	case *proto.PeersMessage:
+		a.handlePeersMessage(mess.ID, t)
+	case *proto.GetPeersMessage:
+		a.handleGetPeersMessage(mess.ID, t)
 	case *proto.GetBlockMessage:
 		a.handleBlockBySignatureMessage(mess.ID, t.BlockID)
 	case *proto.ScoreMessage:
 		a.handleScoreMessage(mess.ID, t.Score)
+	case *proto.BlockMessage:
+		a.handleBlockMessage(mess.ID, t)
+	case *proto.SignaturesMessage:
+		//a.handleSignaturesMessage()
+		a.subscribe.Receive(mess.ID, t)
+	case *proto.TransactionMessage:
+	// nothing to do with transactions
+	// no utx pool exists
+	case *proto.MicroBlockMessage:
+	// skip to better times
+
 	default:
-		zap.S().Error("unknown proto Message", mess)
+		zap.S().Errorf("unknown proto Message %+v", mess.Message)
 	}
+}
+
+func (a *Node) handlePeersMessage(id string, peers *proto.PeersMessage) {
+	a.peerManager.UpdateKnownPeers(peers.Peers)
+}
+
+func (a *Node) handleGetPeersMessage(id string, m *proto.GetPeersMessage) {
+	rs, err := a.peerManager.KnownPeers()
+	if err != nil {
+		zap.L().Error("failed got known peers", zap.Error(err))
+		return
+	}
+	p, ok := a.peerManager.Connected(id)
+	if !ok {
+		// peer gone offline, skip
+		return
+	}
+	p.SendMessage(&proto.PeersMessage{Peers: rs})
 }
 
 func (a *Node) HandleInfoMessage(m peer.InfoMessage) {
@@ -51,7 +93,9 @@ func (a *Node) HandleInfoMessage(m peer.InfoMessage) {
 
 // TODO implement
 func (a *Node) Close() {
-	panic("implement me")
+	a.peerManager.Close()
+	a.stateManager.Close()
+	a.sync.Close()
 }
 
 func (a *Node) handleNewConnection(peer peer.Peer) {
@@ -93,103 +137,39 @@ func (a *Node) handleBlockBySignatureMessage(peer string, sig crypto.Signature) 
 }
 
 // called every n seconds, handle change runtime state
-func (a *Node) Tick() {
+func (a *Node) SyncState() {
 	for {
-		p, score, ok := a.peerManager.PeerWithHighestScore()
-		if !ok {
-			// no peers, skip
-			return
-		}
-
-		if score == 0 {
+		err := a.sync.Sync()
+		if err != nil {
+			zap.S().Error(err)
+			// wait only on errors
 			time.Sleep(5 * time.Second)
-			continue
 		}
-
-		// TODO check if we have highest score
-
-		p.SendMessage(&proto.GetSignaturesMessage{})
-
-		messCh, unsubscribe := a.subscribe.Subscribe(p, &proto.SignaturesMessage{})
-
-		var mess *proto.SignaturesMessage
-
-		select {
-		case <-time.After(15 * time.Second):
-		// TODO handle timeout
-		case received := <-messCh:
-			//a.subscribe.Unsubscribe(p, &proto.SignaturesMessage{})
-			unsubscribe()
-			mess = received.(*proto.SignaturesMessage)
-		}
-
-		blockSignatures := BlockSignatures{}
-
-		applyBlock(mess, blockSignatures, p, a)
-
-		//?, ? := a.findMaxCommonBlock(mess.Signatures)
-
-		//for _, i := range mess.Signatures {
-		//}
-
-		//if err != nil {
-		//	if err == TimeoutErr {
-		//		// TODO handle timeout
-		//	}
-		//}
-
-		//ask.Subscribe(15*time.Second)
-		//
-		//a.subscribe.Clear(ask)
-		//
-		//if ask.Timeout() {
-		//	// TODO handle timeout
-		//}
-		//
-		//m := ask.Get().(*proto.SignaturesMessage{})
-
 	}
 }
 
 func (a *Node) handleScoreMessage(peerID string, score []byte) {
-	zap.S().Info("got score messge, bytes ", score)
+	b := new(big.Int)
+	b.SetBytes(score)
+	a.peerManager.UpdateScore(peerID, b)
 }
 
-func applyBlock(mess *proto.SignaturesMessage, blockSignatures BlockSignatures, p peer.Peer, a *Node) {
-	subscribeCh, unsubscribe := a.subscribe.Subscribe(p, &proto.BlockMessage{})
-	defer unsubscribe()
-	for _, sig := range mess.Signatures {
-		if !blockSignatures.Exists(sig) {
-			p.SendMessage(&proto.GetBlockMessage{BlockID: sig})
+func (a *Node) handleBlockMessage(peerID string, mess proto.Message) {
+	// nothing to do
+	// TODO check is any work required
 
-			// wait for block with expected signature
-			timeout := time.After(30 * time.Second)
-			for {
-				select {
-				case <-timeout:
-				// TODO HANDLE timeout
-
-				case blockMessage := <-subscribeCh:
-					bts := blockMessage.(*proto.BlockMessage).BlockBytes
-					blockSignature, err := proto.BlockGetSignature(bts)
-					if err != nil {
-						zap.S().Error(err)
-						continue
-					}
-
-					if blockSignature != sig {
-						continue
-					}
-
-					err = a.stateManager.AddBlock(bts)
-					if err != nil {
-						// TODO handle error
-					}
-					break
-				}
-			}
-		}
+	block := proto.Block{}
+	err := block.UnmarshalBinary(mess.(*proto.BlockMessage).BlockBytes)
+	if err != nil {
+		zap.S().Error(err)
 	}
+
+	rs, _ := proto.BlockGetSignature(mess.(*proto.BlockMessage).BlockBytes)
+	//zap.S().Infof("%+v", block)
+	zap.S().Infof("proto.BlockGetSignature %+v", rs)
+
+	a.subscribe.Receive(peerID, mess)
+
 }
 
 //func RunIncomeConnectionsServer(ctx context.Context, n *Node, c Config, s PeerSpawner) {
@@ -211,6 +191,8 @@ func applyBlock(mess *proto.SignaturesMessage, blockSignatures BlockSignatures, 
 //}
 
 func RunNode(ctx context.Context, n *Node, p peer.Parent) {
+
+	go n.SyncState()
 
 	// info messages
 	go func() {
@@ -236,6 +218,10 @@ func RunNode(ctx context.Context, n *Node, p peer.Parent) {
 type BlockSignatures struct {
 	signatures []crypto.Signature
 	unique     map[crypto.Signature]struct{}
+}
+
+func (a *BlockSignatures) Signatures() []crypto.Signature {
+	return a.signatures
 }
 
 func NewBlockSignatures(signatures []crypto.Signature) *BlockSignatures {

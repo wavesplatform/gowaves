@@ -1,8 +1,11 @@
 package state
 
 import (
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"io/ioutil"
 	"math/big"
+	"net"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -104,4 +107,39 @@ func TestBlockAcceptAndRollback(t *testing.T) {
 			t.Errorf("Height after rollback is not correct.")
 		}
 	}
+}
+
+func TestStateManager_SavePeers(t *testing.T) {
+	dataDir, err := ioutil.TempDir(os.TempDir(), "dataDir")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir for data: %v\n", err)
+	}
+	defer os.RemoveAll(dataDir)
+
+	manager, err := newStateManager(dataDir, DefaultBlockStorageParams())
+	if err != nil {
+		t.Fatalf("Failed to create state manager: %v.\n", err)
+	}
+	defer manager.Close()
+
+	peers, err := manager.Peers()
+	require.NoError(t, err)
+	assert.Len(t, peers, 0)
+
+	peers = []KnownPeer{
+		{
+			IP:   net.IPv4(127, 0, 0, 1).To4(),
+			Port: 65535,
+		},
+		{
+			IP:   net.IPv4(83, 127, 1, 254).To4(),
+			Port: 80,
+		},
+	}
+	require.NoError(t, manager.SavePeers(peers))
+
+	// check that peers saved
+	peers2, err := manager.Peers()
+	require.NoError(t, err)
+	assert.Len(t, peers2, 2)
 }

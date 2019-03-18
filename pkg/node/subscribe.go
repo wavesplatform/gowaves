@@ -33,21 +33,24 @@ func NewSubscribeService() *Subscribe {
 //	}
 //}
 
-func (a *Subscribe) Receive(p peer.Peer, responseMessage proto.Message) {
+//Receive tries to apply block to any listener, if no one accepted return `false`, otherwise `true`
+func (a *Subscribe) Receive(id string, responseMessage proto.Message) bool {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	name := name(p, responseMessage)
+	name := name(id, responseMessage)
 	if ch, ok := a.running[name]; ok {
 		ch <- responseMessage
+		return true
 	}
+	return false
 }
 
 func (a *Subscribe) add(p peer.Peer, responseMessage proto.Message) (chan proto.Message, func()) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	name := name(p, responseMessage) //fmt.Sprintf("%s-%s", p.ID(), reflect.TypeOf(responseMessage).String())
+	name := name(p.ID(), responseMessage) //fmt.Sprintf("%s-%s", p.ID(), reflect.TypeOf(responseMessage).String())
 
 	unsubscribe := func() {
 		a.mu.Lock()
@@ -60,8 +63,8 @@ func (a *Subscribe) add(p peer.Peer, responseMessage proto.Message) (chan proto.
 	return ch, unsubscribe
 }
 
-func (a *Subscribe) Exists(p peer.Peer, responseMessage proto.Message) bool {
-	name := name(p, responseMessage)
+func (a *Subscribe) Exists(id string, responseMessage proto.Message) bool {
+	name := name(id, responseMessage)
 	a.mu.Lock()
 	_, ok := a.running[name]
 	a.mu.Unlock()
@@ -72,8 +75,8 @@ func (a *Subscribe) Subscribe(p peer.Peer, responseMessage proto.Message) (chan 
 	return a.add(p, responseMessage)
 }
 
-func name(p peer.Peer, responseMessage proto.Message) string {
-	return fmt.Sprintf("%s-%s", p.ID(), reflect.TypeOf(responseMessage).String())
+func name(id string, responseMessage proto.Message) string {
+	return fmt.Sprintf("%s-%s", id, reflect.TypeOf(responseMessage).String())
 }
 
 const Waiting = 0

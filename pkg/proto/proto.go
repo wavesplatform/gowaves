@@ -33,6 +33,7 @@ const (
 	ContentIDBlock         = 0x17
 	ContentIDScore         = 0x18
 	ContentIDTransaction   = 0x19
+	ContentIDMicroblock    = 0x1A
 	ContentIDCheckpoint    = 0x64
 
 	HeaderContentIDPosition = 8
@@ -129,6 +130,51 @@ type Handshake struct {
 	NodeNonce         uint64
 	DeclaredAddrBytes []byte
 	Timestamp         uint64
+}
+
+type U8String struct {
+	S string
+}
+
+// MarshalBinary encodes U8String to binary form
+func (a U8String) MarshalBinary() ([]byte, error) {
+	l := len(a.S)
+	if l > 255 {
+		return nil, errors.New("too long string")
+	}
+
+	data := make([]byte, l+1)
+	data[0] = byte(l)
+	copy(data[1:1+l], a.S)
+	return data, nil
+}
+
+// MarshalBinary encodes U8String to binary form
+func (a U8String) WriteTo(w io.Writer) (int, error) {
+	l := len(a.S)
+	if l > 255 {
+		return 0, errors.New("too long string")
+	}
+
+	data := make([]byte, l+1)
+	data[0] = byte(l)
+	copy(data[1:1+l], a.S)
+	return w.Write(data)
+}
+
+func (a *U8String) ReadFrom(r io.Reader) error {
+	size := make([]byte, 1)
+	_, err := r.Read(size)
+	if err != nil {
+		return err
+	}
+	str := make([]byte, size[0])
+	_, err = r.Read(str)
+	if err != nil {
+		return err
+	}
+	a.S = string(str)
+	return nil
 }
 
 func (h *Handshake) marshalBinaryName() ([]byte, error) {
@@ -985,7 +1031,8 @@ func (m *BlockMessage) UnmarshalBinary(data []byte) error {
 		return fmt.Errorf("wrong ContentID in Header: %x", h.ContentID)
 	}
 
-	m.BlockBytes = data[17:]
+	m.BlockBytes = make([]byte, h.PayloadLength)
+	copy(m.BlockBytes, data[17:17+h.PayloadLength])
 
 	return nil
 }
@@ -1155,6 +1202,26 @@ type CheckPointMessage struct {
 	Checkpoints []CheckpointItem
 }
 
+// CheckPointMessage represents a CheckPoint message
+type MicroBlockMessage struct {
+}
+
+func (*MicroBlockMessage) ReadFrom(r io.Reader) (n int64, err error) {
+	panic("implement me")
+}
+
+func (*MicroBlockMessage) WriteTo(w io.Writer) (n int64, err error) {
+	panic("implement me")
+}
+
+func (*MicroBlockMessage) UnmarshalBinary(data []byte) error {
+	return nil
+}
+
+func (*MicroBlockMessage) MarshalBinary() (data []byte, err error) {
+	panic("implement me")
+}
+
 // MarshalBinary encodes CheckPointMessage to binary form
 func (m *CheckPointMessage) MarshalBinary() ([]byte, error) {
 	body := make([]byte, 4, 4+len(m.Checkpoints)*72+100)
@@ -1267,7 +1334,8 @@ func UnmarshalMessage(b []byte) (Message, error) {
 		m = &TransactionMessage{}
 	case ContentIDCheckpoint:
 		m = &CheckPointMessage{}
-
+	case ContentIDMicroblock:
+		m = &MicroBlockMessage{}
 	default:
 		return nil, errors.Errorf(
 			"received unknown content id byte %d 0x%x", b[HeaderContentIDPosition], b[HeaderContentIDPosition])
@@ -1276,4 +1344,29 @@ func UnmarshalMessage(b []byte) (Message, error) {
 	err := m.UnmarshalBinary(b)
 	return m, err
 
+}
+
+type BulkMessage []Message
+
+func (BulkMessage) ReadFrom(r io.Reader) (n int64, err error) {
+	panic("implement me")
+}
+
+func (BulkMessage) WriteTo(w io.Writer) (n int64, err error) {
+	panic("implement me")
+}
+
+func (BulkMessage) UnmarshalBinary(data []byte) error {
+	panic("implement me")
+}
+
+func (a BulkMessage) MarshalBinary() (data []byte, err error) {
+	var out bytes.Buffer
+	for _, row := range a {
+		_, err := row.WriteTo(&out)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return out.Bytes(), nil
 }
