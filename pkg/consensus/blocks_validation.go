@@ -44,14 +44,14 @@ func NewConsensusValidator(state stateInfoProvider) (*ConsensusValidator, error)
 }
 
 func (cv *ConsensusValidator) headerByHeight(height uint64) (*proto.BlockHeader, error) {
-	if height < cv.startHeight {
+	if height <= cv.startHeight {
 		block, err := cv.state.BlockByHeight(height)
 		if err != nil {
 			return nil, err
 		}
 		return &block.BlockHeader, nil
 	}
-	return &cv.headers[height-cv.startHeight], nil
+	return &cv.headers[height-cv.startHeight-1], nil
 }
 
 func (cv *ConsensusValidator) ValidateHeaders(headers []proto.BlockHeader, startHeight uint64) error {
@@ -59,13 +59,13 @@ func (cv *ConsensusValidator) ValidateHeaders(headers []proto.BlockHeader, start
 	cv.headers = headers
 	for i, header := range headers {
 		height := startHeight + uint64(i)
-		parent, err := cv.headerByHeight(height - 1)
+		parent, err := cv.headerByHeight(height)
 		if err != nil {
 			return errors.Wrap(err, "failed to retrieve block's parent")
 		}
 		var greatGrandParent *proto.BlockHeader
-		if height > 3 {
-			greatGrandParent, err = cv.headerByHeight(height - 3)
+		if height > 2 {
+			greatGrandParent, err = cv.headerByHeight(height - 2)
 			if err != nil {
 				return errors.Wrap(err, "failed to retrieve block's great grandparent")
 			}
@@ -73,7 +73,7 @@ func (cv *ConsensusValidator) ValidateHeaders(headers []proto.BlockHeader, start
 		if err := cv.validateBlockTimestamp(&header); err != nil {
 			return errors.Wrap(err, "block timestamp validation failed")
 		}
-		if err := cv.validateBlockDelay(height); err != nil {
+		if err := cv.validateBlockDelay(height, &header); err != nil {
 			return errors.Wrap(err, "block delay validation failed")
 		}
 		if err := cv.validateGeneratorSignature(height, &header); err != nil {
@@ -94,8 +94,8 @@ func smallerMinimalGeneratingBalanceActivated(height uint64) bool {
 	return false
 }
 
-func (cv *ConsensusValidator) validateEffectiveBalance(block *proto.BlockHeader, balance, height uint64) error {
-	if block.Timestamp < cv.settings.MinimalGeneratingBalanceCheckAfterTime {
+func (cv *ConsensusValidator) validateEffectiveBalance(header *proto.BlockHeader, balance, height uint64) error {
+	if header.Timestamp < cv.settings.MinimalGeneratingBalanceCheckAfterTime {
 		return nil
 	}
 	if smallerMinimalGeneratingBalanceActivated(height) {
@@ -133,8 +133,8 @@ func (cv *ConsensusValidator) minerGeneratingBalance(height uint64, header *prot
 	return cv.generatingBalance(height, minerAddr)
 }
 
-func (cv *ConsensusValidator) validateBlockVersion(height uint64, block *proto.BlockHeader) error {
-	if block.Version == proto.GenesisBlockVersion || block.Version == proto.PlainBlockVersion {
+func (cv *ConsensusValidator) validateBlockVersion(height uint64, header *proto.BlockHeader) error {
+	if header.Version == proto.GenesisBlockVersion || header.Version == proto.PlainBlockVersion {
 		return nil
 	}
 	if height < cv.settings.BlockVersion3AfterHeight {
@@ -153,8 +153,8 @@ func (cv *ConsensusValidator) checkTargetLimit(height, target uint64) error {
 	return nil
 }
 
-func (cv *ConsensusValidator) validateBaseTarget(height uint64, block, parent, greatGrandParent *proto.BlockHeader) error {
-	if err := cv.checkTargetLimit(height, block.BaseTarget); err != nil {
+func (cv *ConsensusValidator) validateBaseTarget(height uint64, header, parent, greatGrandParent *proto.BlockHeader) error {
+	if err := cv.checkTargetLimit(height, header.BaseTarget); err != nil {
 		return err
 	}
 	pos, err := posAlgo(height)
@@ -167,32 +167,32 @@ func (cv *ConsensusValidator) validateBaseTarget(height uint64, block, parent, g
 	}
 	expectedTarget, err := pos.calculateBaseTarget(
 		cv.settings.AverageBlockDelaySeconds,
-		height-1,
+		height,
 		parent.BaseTarget,
 		parent.Timestamp,
 		greatGrandParentTimestamp,
-		block.Timestamp,
+		header.Timestamp,
 	)
 	if err != nil {
 		return err
 	}
-	if expectedTarget != block.BaseTarget {
+	if expectedTarget != header.BaseTarget {
 		return errors.New("declared base target does not match calculated base target")
 	}
 	return nil
 }
 
-func (cv *ConsensusValidator) validateGeneratorSignature(height uint64, block *proto.BlockHeader) error {
-	last, err := cv.headerByHeight(height - 1)
+func (cv *ConsensusValidator) validateGeneratorSignature(height uint64, header *proto.BlockHeader) error {
+	last, err := cv.headerByHeight(height)
 	if err != nil {
 		return errors.Errorf("failed to get last block header: %v\n", err)
 	}
-	expectedGenSig, err := generatorSignature(last.GenSignature, block.GenPublicKey)
+	expectedGenSig, err := generatorSignature(last.GenSignature, header.GenPublicKey)
 	if err != nil {
 		return errors.Errorf("failed to calculate generator signature: %v\n", err)
 	}
-	if expectedGenSig != block.GenSignature {
-		return errors.Errorf("validation failed: invalid generation signature")
+	if expectedGenSig != header.GenSignature {
+		return errors.Errorf("invalid generation signature")
 	}
 	return nil
 }
@@ -217,12 +217,8 @@ func (cv *ConsensusValidator) validBlockDelay(height uint64, pk crypto.PublicKey
 	return pos.calculateDelay(hit, parentTarget, effectiveBalance)
 }
 
-func (cv *ConsensusValidator) validateBlockDelay(height uint64) error {
-	header, err := cv.headerByHeight(height)
-	if err != nil {
-		return errors.Errorf("failed to get header by height: %v\n", err)
-	}
-	parent, err := cv.headerByHeight(height - 1)
+func (cv *ConsensusValidator) validateBlockDelay(height uint64, header *proto.BlockHeader) error {
+	parent, err := cv.headerByHeight(height)
 	if err != nil {
 		return errors.Errorf("failed to get parent by height: %v\n", err)
 	}
@@ -238,16 +234,16 @@ func (cv *ConsensusValidator) validateBlockDelay(height uint64) error {
 		return errors.Errorf("failed to calculate valid block delay: %v\n", err)
 	}
 	minTimestamp := parent.Timestamp + delay
-	if header.Timestamp <= minTimestamp {
+	if header.Timestamp < minTimestamp {
 		return errors.Errorf("invalid block timestamp %d: less than min valid timestamp %d", header.Timestamp, minTimestamp)
 	}
 	return nil
 }
 
-func (cv *ConsensusValidator) validateBlockTimestamp(block *proto.BlockHeader) error {
+func (cv *ConsensusValidator) validateBlockTimestamp(header *proto.BlockHeader) error {
 	// Milliseconds.
 	currentTime := time.Now().UnixNano() / 1000
-	if int64(block.Timestamp)-currentTime > maxTimeDrift {
+	if int64(header.Timestamp)-currentTime > maxTimeDrift {
 		return errors.New("block from future error: block's timestamp is too far in the future")
 	}
 	return nil

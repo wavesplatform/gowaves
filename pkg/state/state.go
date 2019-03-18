@@ -400,7 +400,7 @@ func (s *stateManager) addBlocks(blocks [][]byte, initialisation bool) error {
 	if err := tv.performTransactions(); err != nil {
 		return StateError{errorType: TxValidationError, originalError: err}
 	}
-	return s.finishAddingBlocksBatch(headers, height+1, blocksNumber)
+	return s.finishAddingBlocksBatch(headers, height, blocksNumber)
 }
 
 func (s *stateManager) RollbackToHeight(height uint64) error {

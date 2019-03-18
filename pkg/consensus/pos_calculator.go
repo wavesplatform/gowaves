@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	nxtPosHeightDiffForHit  = 1
+	nxtPosHeightDiffForHit  = 0
 	fairPosHeightDiffForHit = 100
 	hitSize                 = 8
 	minBaseTarget           = 9
@@ -24,7 +24,7 @@ var (
 	// Fair PoS values.
 	maxSignature = bytes.Repeat([]byte{0xff}, hitSize)
 	c1           = float64(70000)
-	c2           = float64(0x5E17)
+	c2           = float64(500000000000000000)
 	tMin         = float64(5000)
 )
 
@@ -165,9 +165,9 @@ func (calc *fairPosCalculator) calculateDelay(hit *big.Int, parentTarget, balanc
 	var quo big.Float
 	quo.Quo(&hitFloat, &maxHitFloat)
 	h, _ := quo.Float64()
-	parentTargetF := float64(parentTarget)
-	balanceF := float64(balance)
-	return uint64(tMin + c1*math.Log(1-c2*math.Log(h)/parentTargetF/balanceF)), nil
+	log := math.Log(1 - c2*math.Log(h)/float64(parentTarget)/float64(balance))
+	res := uint64(tMin + c1*log)
+	return res, nil
 }
 
 func posAlgo(height uint64) (posCalculator, error) {
