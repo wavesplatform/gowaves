@@ -13,19 +13,20 @@ const (
 	fairPosHeightDiffForHit = 100
 	hitSize                 = 8
 	minBaseTarget           = 9
-)
 
-var (
 	// Nxt values.
 	minBlockDelaySeconds = 53
 	maxBlockDelaySeconds = 67
 	baseTargetGamma      = 64
 	meanCalculationDepth = 3
 	// Fair PoS values.
+	c1   = float64(70000)
+	c2   = float64(500000000000000000)
+	tMin = float64(5000)
+)
+
+var (
 	maxSignature = bytes.Repeat([]byte{0xff}, hitSize)
-	c1           = float64(70000)
-	c2           = float64(500000000000000000)
-	tMin         = float64(5000)
 )
 
 func normalize(value, targetBlockDelaySeconds uint64) float64 {
