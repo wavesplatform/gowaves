@@ -10,7 +10,7 @@ import (
 )
 
 type PeerSpawner interface {
-	SpawnOutgoing(ctx context.Context, address string, version proto.Version) error
+	SpawnOutgoing(ctx context.Context, addr proto.NodeAddr) error
 	//SpawnIncoming(ctx context.Context, c net.Conn)
 }
 
@@ -22,9 +22,10 @@ type PeerSpawnerImpl struct {
 	skipFunc     conn.SkipFilter
 	nodeName     string
 	nodeNonce    uint64
+	version      proto.Version
 }
 
-func NewPeerSpawner(pool bytespool.Pool, skipFunc conn.SkipFilter, parent peer.Parent, WavesNetwork string, declAddr proto.PeerInfo, nodeName string, nodeNonce uint64) *PeerSpawnerImpl {
+func NewPeerSpawner(pool bytespool.Pool, skipFunc conn.SkipFilter, parent peer.Parent, WavesNetwork string, declAddr proto.PeerInfo, nodeName string, nodeNonce uint64, version proto.Version) *PeerSpawnerImpl {
 	return &PeerSpawnerImpl{
 		pool:         pool,
 		skipFunc:     skipFunc,
@@ -33,10 +34,11 @@ func NewPeerSpawner(pool bytespool.Pool, skipFunc conn.SkipFilter, parent peer.P
 		declAddr:     declAddr,
 		nodeName:     nodeName,
 		nodeNonce:    nodeNonce,
+		version:      version,
 	}
 }
 
-func (a *PeerSpawnerImpl) SpawnOutgoing(ctx context.Context, address string, version proto.Version) error {
+func (a *PeerSpawnerImpl) SpawnOutgoing(ctx context.Context, address proto.NodeAddr) error {
 	params := outgoing.EstablishParams{
 		Address:      address,
 		WavesNetwork: a.wavesNetwork,
@@ -48,9 +50,7 @@ func (a *PeerSpawnerImpl) SpawnOutgoing(ctx context.Context, address string, ver
 		NodeNonce:    a.nodeNonce,
 	}
 
-	return outgoing.EstablishConnection(ctx, params, version)
-
-	//peer.RunOutgoingPeer(ctx, params)
+	return outgoing.EstablishConnection(ctx, params, a.version)
 }
 
 //

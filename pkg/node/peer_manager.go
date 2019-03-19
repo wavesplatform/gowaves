@@ -30,9 +30,10 @@ type PeerManager interface {
 	AddConnected(p peer.Peer)
 	PeerWithHighestScore() (peer.Peer, *big.Int, bool)
 	UpdateScore(id string, score *big.Int)
-	UpdateKnownPeers([]proto.PeerInfo) error
-	KnownPeers() ([]proto.PeerInfo, error)
+	UpdateKnownPeers([]proto.NodeAddr) error
+	KnownPeers() ([]proto.NodeAddr, error)
 	Close()
+	SpawnOutgoingConnections(context.Context)
 }
 
 type PeerManagerImpl struct {
@@ -41,6 +42,7 @@ type PeerManagerImpl struct {
 	knownPeers map[string]proto.Version
 	mu         sync.RWMutex
 	state      state.State
+	spawned    map[proto.NodeAddr]struct{}
 }
 
 func NewPeerManager(spawner PeerSpawner, state state.State) *PeerManagerImpl {
@@ -104,26 +106,23 @@ func (a *PeerManagerImpl) Banned(id string) bool {
 }
 
 func (a *PeerManagerImpl) AddAddress(ctx context.Context, addr string) {
-	go a.spawner.SpawnOutgoing(ctx, addr, defaultVersion)
+	go a.spawner.SpawnOutgoing(ctx, proto.NodeAddrFromString(addr))
 }
 
-func (a *PeerManagerImpl) UpdateKnownPeers(known []proto.PeerInfo) error {
+func (a *PeerManagerImpl) UpdateKnownPeers(known []proto.NodeAddr) error {
 	if len(known) == 0 {
 		return nil
 	}
 
 	peers := make([]state.KnownPeer, len(known))
 	for idx, p := range known {
-		peers[idx] = state.KnownPeer{
-			IP:   p.Addr,
-			Port: p.Port,
-		}
+		peers[idx] = state.KnownPeer(p)
 	}
 
 	return a.state.SavePeers(peers)
 }
 
-func (a *PeerManagerImpl) KnownPeers() ([]proto.PeerInfo, error) {
+func (a *PeerManagerImpl) KnownPeers() ([]proto.NodeAddr, error) {
 	rs, err := a.state.Peers()
 	if err != nil {
 		return nil, err
@@ -133,12 +132,9 @@ func (a *PeerManagerImpl) KnownPeers() ([]proto.PeerInfo, error) {
 		return nil, nil
 	}
 
-	out := make([]proto.PeerInfo, len(rs))
+	out := make([]proto.NodeAddr, len(rs))
 	for idx, p := range rs {
-		out[idx] = proto.PeerInfo{
-			Addr: p.IP,
-			Port: p.Port,
-		}
+		out[idx] = proto.NodeAddr(p)
 	}
 
 	return out, nil
@@ -150,4 +146,55 @@ func (a *PeerManagerImpl) Close() {
 		v.peer.Close()
 	}
 	a.mu.Unlock()
+}
+
+func (a *PeerManagerImpl) SpawnOutgoingConnections(ctx context.Context) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	known, err := a.KnownPeers()
+	if err != nil {
+		zap.S().Error(err)
+		return
+	}
+
+	active := map[proto.NodeAddr]struct{}{}
+	for _, p := range a.active {
+		if p.peer.Direction() == peer.Outgoing {
+			active[p.peer.RemoteAddr()] = struct{}{}
+		} else {
+			if len(p.peer.Handshake().DeclaredAddrBytes) > 0 {
+				nodeAddr := proto.NodeAddrFromDeclaredAddrBytes(p.peer.Handshake().DeclaredAddrBytes)
+				if !nodeAddr.Empty() {
+					active[nodeAddr] = struct{}{}
+				}
+			}
+		}
+	}
+
+	for _, addr := range known {
+		if _, ok := active[addr]; ok {
+			continue
+		}
+
+		if _, ok := a.spawned[addr]; ok {
+			continue
+		}
+
+		a.spawned[addr] = struct{}{}
+
+		go func(addr proto.NodeAddr) {
+			defer a.RemoveSpawned(addr)
+			err := a.spawner.SpawnOutgoing(ctx, addr)
+			if err != nil {
+				zap.S().Error(err)
+			}
+		}(addr)
+	}
+}
+
+func (a *PeerManagerImpl) RemoveSpawned(addr proto.NodeAddr) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	delete(a.spawned, addr)
 }

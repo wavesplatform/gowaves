@@ -6,6 +6,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/network/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
+	"net"
 	"strings"
 )
 
@@ -67,4 +68,9 @@ func (a *PeerImpl) Handshake() proto.Handshake {
 func id(addr string, nonce uint64) string {
 	a := strings.Split(addr, ":")[0]
 	return fmt.Sprintf("%s-%d", a, nonce)
+}
+
+func (a *PeerImpl) RemoteAddr() proto.NodeAddr {
+	addr := a.Connection().Conn().RemoteAddr().(*net.TCPAddr)
+	return proto.NodeAddrFromTCPAddr(addr)
 }

@@ -9,6 +9,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"go.uber.org/zap"
 	"math/big"
+	"net"
 	"reflect"
 	"time"
 )
@@ -67,7 +68,16 @@ func (a *Node) HandleProtoMessage(mess peer.ProtoMessage) {
 }
 
 func (a *Node) handlePeersMessage(id string, peers *proto.PeersMessage) {
-	a.peerManager.UpdateKnownPeers(peers.Peers)
+
+	var prs []proto.NodeAddr
+	for _, p := range peers.Peers {
+		prs = append(prs, proto.NewNodeAddr(p.Addr, p.Port))
+	}
+
+	err := a.peerManager.UpdateKnownPeers(prs)
+	if err != nil {
+		zap.S().Error(err)
+	}
 }
 
 func (a *Node) handleGetPeersMessage(id string, m *proto.GetPeersMessage) {
@@ -81,7 +91,16 @@ func (a *Node) handleGetPeersMessage(id string, m *proto.GetPeersMessage) {
 		// peer gone offline, skip
 		return
 	}
-	p.SendMessage(&proto.PeersMessage{Peers: rs})
+
+	var out []proto.PeerInfo
+	for _, r := range rs {
+		out = append(out, proto.PeerInfo{
+			Addr: net.IP(r.IP[:]),
+			Port: r.Port,
+		})
+	}
+
+	p.SendMessage(&proto.PeersMessage{Peers: out})
 }
 
 func (a *Node) HandleInfoMessage(m peer.InfoMessage) {
@@ -158,41 +177,38 @@ func (a *Node) handleBlockMessage(peerID string, mess proto.Message) {
 	// nothing to do
 	// TODO check is any work required
 
-	block := proto.Block{}
-	err := block.UnmarshalBinary(mess.(*proto.BlockMessage).BlockBytes)
-	if err != nil {
-		zap.S().Error(err)
-	}
-
-	rs, _ := proto.BlockGetSignature(mess.(*proto.BlockMessage).BlockBytes)
-	//zap.S().Infof("%+v", block)
-	zap.S().Infof("proto.BlockGetSignature %+v", rs)
+	//block := proto.Block{}
+	//err := block.UnmarshalBinary(mess.(*proto.BlockMessage).BlockBytes)
+	//if err != nil {
+	//	zap.S().Error(err)
+	//}
+	//
+	//rs, _ := proto.BlockGetSignature(mess.(*proto.BlockMessage).BlockBytes)
+	////zap.S().Infof("%+v", block)
+	//zap.S().Infof("proto.BlockGetSignature %+v", rs)
 
 	a.subscribe.Receive(peerID, mess)
 
 }
 
-//func RunIncomeConnectionsServer(ctx context.Context, n *Node, c Config, s PeerSpawner) {
-//	l, err := net.Listen("tcp", c.Listen)
-//	if err != nil {
-//		zap.S().Error(err)
-//		return
-//	}
-//
-//	for {
-//		c, err := l.Accept()
-//		if err != nil {
-//			zap.S().Error(err)
-//			continue
-//		}
-//
-//		go s.SpawnIncoming(ctx, c)
-//	}
-//}
+func (a *Node) SpawnOutgoingConnections(ctx context.Context) {
+	a.peerManager.SpawnOutgoingConnections(ctx)
+}
 
 func RunNode(ctx context.Context, n *Node, p peer.Parent) {
 
 	go n.SyncState()
+
+	go func() {
+		for {
+			n.SpawnOutgoingConnections(ctx)
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(1 * time.Minute):
+			}
+		}
+	}()
 
 	// info messages
 	go func() {

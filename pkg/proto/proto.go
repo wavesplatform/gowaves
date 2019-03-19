@@ -487,13 +487,78 @@ func (m *GetPeersMessage) WriteTo(w io.Writer) (int64, error) {
 	return n, err
 }
 
-type IpPort struct {
-	Addr net.IP
+type StaticIP [net.IPv6len]byte
+
+func (a StaticIP) String() string {
+	return net.IP(a[:]).String()
+}
+
+func ToStaticIP(ip net.IP) StaticIP {
+	out := StaticIP{}
+	copy(out[:], ip.To16())
+	return out
+}
+
+type NodeAddr struct {
+	IP   StaticIP
 	Port uint16
 }
 
-func (a IpPort) String() string {
-	return fmt.Sprintf("%s:%d", a.Addr.String(), a.Port)
+func NodeAddrFromString(s string) NodeAddr {
+	host, port, err := net.SplitHostPort(s)
+	if err != nil {
+		return NodeAddr{}
+	}
+	ip := net.ParseIP(host)
+	p, _ := strconv.ParseUint(port, 10, 64)
+	return NewNodeAddr(ip, uint16(p))
+}
+
+func NewNodeAddr(ip net.IP, port uint16) NodeAddr {
+	out := NodeAddr{}
+	copy(out.IP[:], ip.To16())
+	out.Port = port
+	return out
+}
+
+func NodeAddrFromDeclaredAddrBytes(data []byte) NodeAddr {
+	if len(data) < 8 {
+		return NodeAddr{}
+	}
+	ip := net.IPv4(data[0], data[1], data[2], data[3])
+	out := NodeAddr{
+		Port: uint16(binary.BigEndian.Uint32(data[4:8])),
+	}
+
+	copy(out.IP[:], ip)
+	return out
+}
+
+func NodeAddrFromBytes(data []byte) NodeAddr {
+
+	if len(data) < net.IPv6len+4 {
+		return NodeAddr{}
+	}
+
+	out := NodeAddr{}
+	copy(out.IP[:], data)
+	out.Port = uint16(binary.BigEndian.Uint32(data[net.IPv6len : net.IPv6len+4]))
+	return out
+}
+
+func NodeAddrFromTCPAddr(a *net.TCPAddr) NodeAddr {
+	out := NodeAddr{}
+	copy(out.IP[:], a.IP.To16())
+	out.Port = uint16(a.Port)
+	return out
+}
+
+func (a NodeAddr) Empty() bool {
+	return bytes.Equal(a.IP[:], net.IPv6zero) && a.Port == 0
+}
+
+func (a NodeAddr) String() string {
+	return fmt.Sprintf("%s:%d", a.IP.String(), a.Port)
 }
 
 // PeerInfo represents the address of a single peer

@@ -3,29 +3,25 @@ package state
 import (
 	"encoding/binary"
 	"github.com/go-errors/errors"
-	"net"
+	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
 const KnownPeerKeyLength = 1 + 16 + 2
 
 type KnownPeerKey [KnownPeerKeyLength]byte
 
-type KnownPeer struct {
-	IP   net.IP
-	Port uint16
-}
+type KnownPeer proto.NodeAddr
 
 func (a *KnownPeer) key() KnownPeerKey {
 	key := KnownPeerKey{}
 	key[0] = knownPeersPrefix
-	copy(key[1:17], a.IP)
+	copy(key[1:17], a.IP[:])
 	binary.BigEndian.PutUint16(key[17:], a.Port)
 	return key
 }
 
 func (a *KnownPeer) FromKey(k KnownPeerKey) error {
-	a.IP = net.IPv4(0, 0, 0, 0)
-	copy(a.IP, k[1:17])
+	copy(a.IP[:], k[1:17])
 	a.Port = binary.BigEndian.Uint16(k[17:])
 	return nil
 }

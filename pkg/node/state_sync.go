@@ -3,7 +3,7 @@ package node
 import (
 	"github.com/go-errors/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
-	"github.com/wavesplatform/gowaves/pkg/network/peer"
+	. "github.com/wavesplatform/gowaves/pkg/network/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"go.uber.org/zap"
@@ -29,34 +29,19 @@ func NewStateSync(stateManager state.State, peerManager PeerManager, subscribe *
 var TimeoutErr = errors.Errorf("Timeout")
 
 func (a *StateSync) Sync() error {
-	//for {
-	p, score, ok := a.peerManager.PeerWithHighestScore()
-	if !ok || score.String() == "0" {
-		// no peers, skip
-		zap.S().Info("no peers, skip ", score.String())
-		//time.Sleep(5 * time.Second)
-		return errors.Errorf("no score found")
-	}
 
-	// TODO check if we have highest score
-
-	//
-	sigs, err := a.lastSignatures()
+	p, err := a.getPeerWithHighestScore()
 	if err != nil {
-		zap.S().Error(err)
 		return err
 	}
 
-	send := &proto.GetSignaturesMessage{
-		Blocks: sigs.Signatures(),
+	sigs, err := a.askSignatures(p)
+	if err != nil {
+		return err
 	}
-	//zap.S().Info("Sended signatures", send)
-
-	p.SendMessage(send)
 
 	messCh, unsubscribe := a.subscribe.Subscribe(p, &proto.SignaturesMessage{})
-
-	//var mess *proto.SignaturesMessage
+	defer unsubscribe()
 
 	select {
 	case <-a.interrupt:
@@ -66,36 +51,46 @@ func (a *StateSync) Sync() error {
 		zap.S().Info("timeout waiting &proto.SignaturesMessage{}")
 		return TimeoutErr
 	case received := <-messCh:
-		//a.subscribe.Unsubscribe(p, &proto.SignaturesMessage{})
 		zap.S().Info("received signatures", received)
-		unsubscribe()
 		mess := received.(*proto.SignaturesMessage)
 		applyBlock2(mess, sigs, p, a.subscribe, a.stateManager)
 	}
 
-	//?, ? := a.findMaxCommonBlock(mess.Signatures)
-
-	//for _, i := range mess.Signatures {
-	//}
-
-	//if err != nil {
-	//	if err == TimeoutErr {
-	//		// TODO handle timeout
-	//	}
-	//}
-
-	//ask.Subscribe(15*time.Second)
-	//
-	//a.subscribe.Clear(ask)
-	//
-	//if ask.Timeout() {
-	//	// TODO handle timeout
-	//}
-	//
-	//m := ask.Get().(*proto.SignaturesMessage{})
-
-	//}
 	return nil
+}
+
+func (a *StateSync) askSignatures(p Peer) (*BlockSignatures, error) {
+	sigs, err := a.lastSignatures()
+	if err != nil {
+		zap.S().Error(err)
+		return nil, err
+	}
+
+	send := &proto.GetSignaturesMessage{
+		Blocks: sigs.Signatures(),
+	}
+	p.SendMessage(send)
+	return sigs, nil
+}
+
+func (a *StateSync) getPeerWithHighestScore() (Peer, error) {
+	p, score, ok := a.peerManager.PeerWithHighestScore()
+	if !ok || score.String() == "0" {
+		// no peers, skip
+		zap.S().Info("no peers, skip ", score.String())
+		return nil, errors.Errorf("no score found")
+	}
+
+	// compare my score with highest known
+	myScore, err := a.stateManager.CurrentScore()
+	if err != nil {
+		return nil, err
+	}
+
+	if myScore.Cmp(score) >= 0 {
+		return nil, errors.Errorf("we have highest score, nothing to do")
+	}
+	return p, nil
 }
 
 func (a *StateSync) lastSignatures() (*BlockSignatures, error) {
@@ -130,7 +125,7 @@ func (a *StateSync) Close() {
 	close(a.interrupt)
 }
 
-func applyBlock(mess *proto.SignaturesMessage, blockSignatures *BlockSignatures, p peer.Peer, subscribe *Subscribe, stateManager state.State) {
+func applyBlock(mess *proto.SignaturesMessage, blockSignatures *BlockSignatures, p Peer, subscribe *Subscribe, stateManager state.State) {
 	subscribeCh, unsubscribe := subscribe.Subscribe(p, &proto.BlockMessage{})
 	defer unsubscribe()
 	for _, sig := range mess.Signatures {
@@ -170,7 +165,7 @@ func applyBlock(mess *proto.SignaturesMessage, blockSignatures *BlockSignatures,
 	}
 }
 
-func applyBlock2(receivedSignatures *proto.SignaturesMessage, blockSignatures *BlockSignatures, p peer.Peer, subscribe *Subscribe, stateManager state.State) {
+func applyBlock2(receivedSignatures *proto.SignaturesMessage, blockSignatures *BlockSignatures, p Peer, subscribe *Subscribe, stateManager state.State) {
 
 	var sigs []crypto.Signature
 	for _, sig := range receivedSignatures.Signatures {
@@ -276,7 +271,7 @@ func applyBlock2(receivedSignatures *proto.SignaturesMessage, blockSignatures *B
 	//}
 }
 
-func sendBulk(sigs []crypto.Signature, p peer.Peer) {
+func sendBulk(sigs []crypto.Signature, p Peer) {
 	bulkMessages := proto.BulkMessage{}
 	for _, sig := range sigs {
 		bulkMessages = append(bulkMessages, &proto.GetBlockMessage{BlockID: sig})

@@ -13,7 +13,7 @@ import (
 )
 
 type EstablishParams struct {
-	Address      string
+	Address      proto.NodeAddr
 	WavesNetwork string
 	Parent       peer.Parent
 	Pool         bytespool.Pool
@@ -32,7 +32,7 @@ func EstablishConnection(ctx context.Context, params EstablishParams, v proto.Ve
 		remote: remote,
 	}
 
-	c, err := net.Dial("tcp", params.Address)
+	c, err := net.Dial("tcp", params.Address.String())
 	if err != nil {
 		return err
 	}
@@ -47,7 +47,7 @@ func EstablishConnection(ctx context.Context, params EstablishParams, v proto.Ve
 	peerImpl := peers.NewPeerImpl(*handshake, connection, peer.Outgoing, remote)
 
 	connected := peer.InfoMessage{
-		ID: params.Address,
+		ID: params.Address.String(),
 		Value: &peers.Connected{
 			Peer: peerImpl,
 		},
@@ -112,7 +112,4 @@ func (a *connector) connect(ctx context.Context, c net.Conn, v proto.Version) (c
 		}
 	}
 	return conn.WrapConnection(c, a.params.Pool, a.remote.ToCh, a.remote.FromCh, a.remote.ErrCh, a.params.Skip), &handshake, nil
-	//}
-
-	//return nil, nil, errors.Errorf("can't connect 20 times")
 }

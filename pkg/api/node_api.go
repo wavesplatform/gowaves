@@ -50,6 +50,7 @@ func NewNodeApi(state state.State) *NodeApi {
 func (a *NodeApi) routes() chi.Router {
 	r := chi.NewRouter()
 	r.Get("/blocks/last", a.BlocksLast)
+	r.Get("/blocks/first", a.BlocksFirst)
 	//r.Get("/symbols", a.getSymbols)
 	//r.Get("/markets", a.markets)
 	//r.Get("/tickers", a.tickers)
@@ -81,6 +82,20 @@ func (a *NodeApi) BlocksLast(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	block.Height = height
+	err = json.NewEncoder(w).Encode(block)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to marshal status to JSON: %s", err.Error()), http.StatusInternalServerError)
+		return
+	}
+}
+
+func (a *NodeApi) BlocksFirst(w http.ResponseWriter, r *http.Request) {
+	block, err := a.state.BlockByHeight(1)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to complete request: %s", err.Error()), http.StatusInternalServerError)
+		return
+	}
+	block.Height = 1
 	err = json.NewEncoder(w).Encode(block)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to marshal status to JSON: %s", err.Error()), http.StatusInternalServerError)

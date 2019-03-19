@@ -11,6 +11,10 @@ type mockPeer struct {
 	messages []proto.Message
 }
 
+func (a *mockPeer) RemoteAddr() proto.NodeAddr {
+	panic("implement me")
+}
+
 func (*mockPeer) Direction() peer.Direction {
 	panic("implement me")
 }

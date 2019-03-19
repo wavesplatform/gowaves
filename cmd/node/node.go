@@ -18,11 +18,13 @@ import (
 	"strings"
 )
 
+var version = proto.Version{0, 15, 1}
+
 type Cli struct {
 	Run struct {
 		WavesNetwork string `kong:"wavesnetwork,short='n',help='Waves network.',required"`
 		Addresses    string `kong:"address,short='a',help='Addresses connect to.'"`
-		Version      string `kong:"version,short='v',help='Version,(0.15.1).',required"`
+		//Version      string `kong:"version,short='v',help='Version,(0.15.1).',required"`
 	} `kong:"cmd,help='Run node'"`
 }
 
@@ -65,7 +67,7 @@ func main() {
 
 	parent := peer.NewParent()
 
-	peerSpawnerimpl := node.NewPeerSpawner(pool, noSkip, parent, cli.Run.WavesNetwork, proto.PeerInfo{}, "gowaves", 100500)
+	peerSpawnerimpl := node.NewPeerSpawner(pool, noSkip, parent, cli.Run.WavesNetwork, proto.PeerInfo{}, "gowaves", 100500, version)
 
 	peerManager := node.NewPeerManager(peerSpawnerimpl, state)
 

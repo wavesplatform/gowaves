@@ -64,4 +64,5 @@ type Peer interface {
 	ID() string
 	Connection() conn.Connection
 	Handshake() proto.Handshake
+	RemoteAddr() proto.NodeAddr
 }
