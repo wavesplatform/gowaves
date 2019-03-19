@@ -28,7 +28,7 @@ const (
 )
 
 var (
-	cachedBlocks []*proto.Block
+	cachedBlocks []proto.Block
 )
 
 type readCommandType byte
@@ -48,7 +48,7 @@ type readTask struct {
 	correctResult []byte
 }
 
-func readRealBlocks(t *testing.T, nBlocks int) ([]*proto.Block, error) {
+func readRealBlocks(t *testing.T, nBlocks int) ([]proto.Block, error) {
 	if len(cachedBlocks) >= nBlocks {
 		return cachedBlocks[:nBlocks], nil
 	}
@@ -70,7 +70,7 @@ func readRealBlocks(t *testing.T, nBlocks int) ([]*proto.Block, error) {
 	sb := make([]byte, 4)
 	buf := make([]byte, 2*1024*1024)
 	r := bufio.NewReader(f)
-	var blocks []*proto.Block
+	var blocks []proto.Block
 	for i := 0; i < nBlocks; i++ {
 		if _, err := io.ReadFull(r, sb); err != nil {
 			return nil, err
@@ -87,7 +87,7 @@ func readRealBlocks(t *testing.T, nBlocks int) ([]*proto.Block, error) {
 		if !crypto.Verify(block.GenPublicKey, block.BlockSignature, bb[:len(bb)-crypto.SignatureSize]) {
 			return nil, errors.Errorf("Block %d has invalid signature", i)
 		}
-		blocks = append(blocks, &block)
+		blocks = append(blocks, block)
 	}
 	cachedBlocks = blocks
 	return blocks, nil
@@ -177,7 +177,7 @@ func testSingleBlock(t *testing.T, rw *blockReadWriter, block *proto.Block) {
 	}
 }
 
-func writeBlocks(ctx context.Context, rw *blockReadWriter, blocks []*proto.Block, readTasks chan<- *readTask) error {
+func writeBlocks(ctx context.Context, rw *blockReadWriter, blocks []proto.Block, readTasks chan<- *readTask) error {
 	height := 0
 	for _, block := range blocks {
 		var tasksBuf []*readTask
@@ -311,7 +311,7 @@ func TestSimpleReadWrite(t *testing.T) {
 		t.Fatalf("Can not read blocks from blockchain file: %v", err)
 	}
 	for _, block := range blocks {
-		testSingleBlock(t, rw, block)
+		testSingleBlock(t, rw, &block)
 	}
 }
 
@@ -398,7 +398,7 @@ func TestSimultaneousReadDelete(t *testing.T) {
 	}
 
 	for _, block := range blocks {
-		writeBlock(t, rw, block)
+		writeBlock(t, rw, &block)
 	}
 	idToTest := blocks[blocksNumber-1].BlockSignature
 	prevId := blocks[blocksNumber-2].BlockSignature

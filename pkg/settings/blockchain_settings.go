@@ -52,6 +52,7 @@ var (
 		AddressSchemeCharacter: proto.MainNetScheme,
 
 		AverageBlockDelaySeconds: 60,
+		MaxBaseTarget:            200,
 	}
 
 	TestNetSettings = &BlockchainSettings{
@@ -70,6 +71,7 @@ var (
 		AddressSchemeCharacter: proto.TestNetScheme,
 
 		AverageBlockDelaySeconds: 60,
+		MaxBaseTarget:            200,
 	}
 )
 
