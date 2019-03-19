@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"github.com/go-errors/errors"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"net"
 )
 
 const KnownPeerKeyLength = 1 + 16 + 2
@@ -11,6 +12,10 @@ const KnownPeerKeyLength = 1 + 16 + 2
 type KnownPeerKey [KnownPeerKeyLength]byte
 
 type KnownPeer proto.NodeAddr
+
+func NewKnownPeer(ip net.IP, port uint16) KnownPeer {
+	return KnownPeer(proto.NewNodeAddr(ip, port))
+}
 
 func (a *KnownPeer) key() KnownPeerKey {
 	key := KnownPeerKey{}

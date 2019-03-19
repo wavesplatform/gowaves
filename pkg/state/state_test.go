@@ -1,8 +1,10 @@
 package state
 
 import (
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/wavesplatform/gowaves/pkg/importer"
 	"io/ioutil"
 	"math/big"
 	"net"
@@ -10,9 +12,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"testing"
-
-	"github.com/pkg/errors"
-	"github.com/wavesplatform/gowaves/pkg/importer"
 )
 
 const (
@@ -127,14 +126,8 @@ func TestStateManager_SavePeers(t *testing.T) {
 	assert.Len(t, peers, 0)
 
 	peers = []KnownPeer{
-		{
-			IP:   net.IPv4(127, 0, 0, 1).To4(),
-			Port: 65535,
-		},
-		{
-			IP:   net.IPv4(83, 127, 1, 254).To4(),
-			Port: 80,
-		},
+		NewKnownPeer(net.IPv4(127, 0, 0, 1), 65535),
+		NewKnownPeer(net.IPv4(83, 127, 1, 254).To4(), 80),
 	}
 	require.NoError(t, manager.SavePeers(peers))
 
