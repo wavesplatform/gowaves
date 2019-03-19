@@ -2,7 +2,7 @@ package ast
 
 import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"github.com/wavesplatform/gowaves/pkg/state"
+	"github.com/wavesplatform/gowaves/pkg/ride/mockstate"
 )
 
 type Account interface {
@@ -15,7 +15,7 @@ type Scope interface {
 	FuncByShort(int16) (Callable, bool)
 	FuncByName(string) (Callable, bool)
 	Value(string) (Expr, bool)
-	State() state.MockState
+	State() mockstate.MockState
 	Scheme() byte
 }
 
@@ -23,13 +23,13 @@ type ScopeImpl struct {
 	parent    Scope
 	funcs     *FuncScope
 	variables map[string]Expr
-	state     state.MockState
+	state     mockstate.MockState
 	scheme    byte
 }
 
 type Callable func(Scope, Exprs) (Expr, error)
 
-func NewScope(scheme byte, state state.MockState, f *FuncScope, variables map[string]Expr) *ScopeImpl {
+func NewScope(scheme byte, state mockstate.MockState, f *FuncScope, variables map[string]Expr) *ScopeImpl {
 	return &ScopeImpl{
 		funcs:     f,
 		variables: variables,
@@ -46,7 +46,7 @@ func (a *ScopeImpl) Clone() Scope {
 	}
 }
 
-func (a *ScopeImpl) State() state.MockState {
+func (a *ScopeImpl) State() mockstate.MockState {
 	return a.state
 }
 

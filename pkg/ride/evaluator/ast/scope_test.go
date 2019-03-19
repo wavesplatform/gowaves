@@ -3,15 +3,15 @@ package ast
 import (
 	"github.com/stretchr/testify/assert"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"github.com/wavesplatform/gowaves/pkg/state"
+	"github.com/wavesplatform/gowaves/pkg/ride/mockstate"
 	"testing"
 )
 
 func newEmptyScope() Scope {
-	return NewScope(proto.MainNetScheme, state.MockStateImpl{}, EmptyFuncScope(), nil)
+	return NewScope(proto.MainNetScheme, mockstate.MockStateImpl{}, EmptyFuncScope(), nil)
 }
 
-func newScopeWithState(s state.MockState) Scope {
+func newScopeWithState(s mockstate.MockState) Scope {
 	return NewScope(proto.MainNetScheme, s, EmptyFuncScope(), nil)
 }
 
