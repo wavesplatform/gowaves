@@ -21,7 +21,11 @@ func createAccountsStorage(id2Height idToHeight) (*accountsStorage, []string, er
 	if err != nil {
 		return nil, res, err
 	}
-	globalStor, err := keyvalue.NewKeyVal(dbDir0, true)
+	db, err := keyvalue.NewKeyVal(dbDir0)
+	if err != nil {
+		return nil, res, err
+	}
+	dbBatch, err := db.NewBatch()
 	if err != nil {
 		return nil, res, err
 	}
@@ -29,7 +33,7 @@ func createAccountsStorage(id2Height idToHeight) (*accountsStorage, []string, er
 	if err != nil {
 		return nil, res, err
 	}
-	stor, err := newAccountsStorage(genesis, globalStor, id2Height)
+	stor, err := newAccountsStorage(genesis, db, dbBatch, id2Height)
 	if err != nil {
 		return nil, res, err
 	}

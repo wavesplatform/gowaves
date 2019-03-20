@@ -23,6 +23,7 @@ const (
 type stateManager struct {
 	genesis proto.Block
 	db      keyvalue.KeyValue
+	dbBatch keyvalue.Batch
 
 	scores   *scores
 	accounts *accountsStorage
@@ -77,17 +78,28 @@ func newStateManager(dataDir string, params BlockStorageParams, settings *settin
 			return nil, StateError{errorType: Other, originalError: errors.Errorf("failed to create blocks directory: %v\n", err)}
 		}
 	}
+	// Initialize database.
 	dbDir := filepath.Join(dataDir, keyvalueDir)
-	db, err := keyvalue.NewKeyVal(dbDir, true)
-	scores, err := newScores(db)
+	db, err := keyvalue.NewKeyVal(dbDir)
+	if err != nil {
+		return nil, StateError{errorType: Other, originalError: errors.Errorf("failed to create db: %v\n", err)}
+	}
+	dbBatch, err := db.NewBatch()
+	if err != nil {
+		return nil, StateError{errorType: Other, originalError: errors.Errorf("failed to create db batch: %v\n", err)}
+	}
+	// scores is storage for blocks score.
+	scores, err := newScores(db, dbBatch)
 	if err != nil {
 		return nil, StateError{errorType: Other, originalError: errors.Errorf("failed to create scores: %v\n", err)}
 	}
-	rw, err := newBlockReadWriter(blockStorageDir, params.OffsetLen, params.HeaderOffsetLen, db)
+	// rw is storage for blocks.
+	rw, err := newBlockReadWriter(blockStorageDir, params.OffsetLen, params.HeaderOffsetLen, db, dbBatch)
 	if err != nil {
 		return nil, StateError{errorType: Other, originalError: errors.Errorf("failed to create block storage: %v\n", err)}
 	}
-	accountsStor, err := newAccountsStorage(genesisSig, db, rw)
+	// accountsStor is storage for accounts balances.
+	accountsStor, err := newAccountsStorage(genesisSig, db, dbBatch, rw)
 	if err != nil {
 		return nil, StateError{errorType: Other, originalError: errors.Errorf("failed to create accounts storage: %v\n", err)}
 	}
@@ -102,6 +114,7 @@ func newStateManager(dataDir string, params BlockStorageParams, settings *settin
 		rw:       rw,
 		settings: settings,
 	}
+	// If the storage is new (data dir does not contain any data), genesis block must be applied.
 	height, err := state.Height()
 	if err != nil {
 		return nil, StateError{errorType: RetrievalError, originalError: err}
@@ -111,6 +124,7 @@ func newStateManager(dataDir string, params BlockStorageParams, settings *settin
 			return nil, StateError{errorType: ModificationError, originalError: errors.Errorf("failed to apply genesis: %v\n", err)}
 		}
 	}
+	// Consensus validator is needed to check block headers.
 	cv, err := consensus.NewConsensusValidator(state)
 	if err != nil {
 		return nil, StateError{errorType: Other, originalError: err}

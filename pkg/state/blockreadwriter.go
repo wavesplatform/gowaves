@@ -14,7 +14,8 @@ import (
 )
 
 type blockReadWriter struct {
-	db keyvalue.KeyValue
+	db      keyvalue.KeyValue
+	dbBatch keyvalue.Batch
 
 	// Series of transactions.
 	blockchain *os.File
@@ -62,7 +63,7 @@ func initHeight(db keyvalue.KeyValue) (uint64, error) {
 	if !has {
 		heightBuf := make([]byte, 8)
 		binary.LittleEndian.PutUint64(heightBuf, 0)
-		if err := db.PutDirectly([]byte{rwHeightKeyPrefix}, heightBuf); err != nil {
+		if err := db.Put([]byte{rwHeightKeyPrefix}, heightBuf); err != nil {
 			return 0, err
 		}
 		return 0, nil
@@ -75,7 +76,13 @@ func initHeight(db keyvalue.KeyValue) (uint64, error) {
 	}
 }
 
-func newBlockReadWriter(dir string, offsetLen, headerOffsetLen int, keyVal keyvalue.KeyValue) (*blockReadWriter, error) {
+func newBlockReadWriter(
+	dir string,
+	offsetLen int,
+	headerOffsetLen int,
+	db keyvalue.KeyValue,
+	dbBatch keyvalue.Batch,
+) (*blockReadWriter, error) {
 	blockchain, blockchainSize, err := openOrCreate(path.Join(dir, "blockchain"))
 	if err != nil {
 		return nil, err
@@ -94,12 +101,13 @@ func newBlockReadWriter(dir string, offsetLen, headerOffsetLen int, keyVal keyva
 	if headerOffsetLen > 8 {
 		return nil, errors.New("headerOffsetLen is too large")
 	}
-	height, err := initHeight(keyVal)
+	height, err := initHeight(db)
 	if err != nil {
 		return nil, err
 	}
 	return &blockReadWriter{
-		db:              keyVal,
+		db:              db,
+		dbBatch:         dbBatch,
 		blockchain:      blockchain,
 		headers:         headers,
 		blockHeight2ID:  blockHeight2ID,
@@ -122,13 +130,11 @@ func (rw *blockReadWriter) setHeight(height uint64, directly bool) error {
 	rwHeightBytes := make([]byte, 8)
 	binary.LittleEndian.PutUint64(rwHeightBytes, height)
 	if directly {
-		if err := rw.db.PutDirectly([]byte{rwHeightKeyPrefix}, rwHeightBytes); err != nil {
-			return err
-		}
-	} else {
 		if err := rw.db.Put([]byte{rwHeightKeyPrefix}, rwHeightBytes); err != nil {
 			return err
 		}
+	} else {
+		rw.dbBatch.Put([]byte{rwHeightKeyPrefix}, rwHeightBytes)
 	}
 	return nil
 }
@@ -186,9 +192,7 @@ func (rw *blockReadWriter) writeTransaction(txID []byte, tx []byte) error {
 	}
 	binary.LittleEndian.PutUint64(rw.txBounds[rw.offsetLen:], rw.blockchainLen)
 	key := txOffsetKey{txID: txID}
-	if err := rw.db.Put(key.bytes(), rw.txBounds); err != nil {
-		return err
-	}
+	rw.dbBatch.Put(key.bytes(), rw.txBounds)
 	return nil
 }
 
@@ -489,7 +493,7 @@ func (rw *blockReadWriter) updateHeight(heightChange int) error {
 }
 
 func (rw *blockReadWriter) reset() {
-	rw.db.ResetBatch()
+	rw.dbBatch.Reset()
 	rw.blockchainBuf.Reset(rw.blockchain)
 	rw.blockInfo = make(map[blockOffsetKey][]byte)
 }
@@ -502,9 +506,7 @@ func (rw *blockReadWriter) flush() error {
 		return err
 	}
 	for key, info := range rw.blockInfo {
-		if err := rw.db.Put(key.bytes(), info); err != nil {
-			return err
-		}
+		rw.dbBatch.Put(key.bytes(), info)
 	}
 	rw.blockInfo = make(map[blockOffsetKey][]byte)
 	return nil

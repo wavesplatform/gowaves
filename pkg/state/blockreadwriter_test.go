@@ -99,7 +99,11 @@ func createBlockReadWriter(offsetLen, headerOffsetLen int) (*blockReadWriter, []
 	if err != nil {
 		return nil, res, err
 	}
-	keyVal, err := keyvalue.NewKeyVal(dbDir, true)
+	db, err := keyvalue.NewKeyVal(dbDir)
+	if err != nil {
+		return nil, res, err
+	}
+	dbBatch, err := db.NewBatch()
 	if err != nil {
 		return nil, res, err
 	}
@@ -107,7 +111,7 @@ func createBlockReadWriter(offsetLen, headerOffsetLen int) (*blockReadWriter, []
 	if err != nil {
 		return nil, res, err
 	}
-	rw, err := newBlockReadWriter(rwDir, offsetLen, headerOffsetLen, keyVal)
+	rw, err := newBlockReadWriter(rwDir, offsetLen, headerOffsetLen, db, dbBatch)
 	if err != nil {
 		return nil, res, err
 	}
@@ -149,7 +153,7 @@ func writeBlock(t *testing.T, rw *blockReadWriter, block *proto.Block) {
 	if err := rw.flush(); err != nil {
 		t.Fatalf("Failed to flush: %v", err)
 	}
-	if err := rw.db.Flush(); err != nil {
+	if err := rw.db.Flush(rw.dbBatch); err != nil {
 		t.Fatalf("Failed to flush DB: %v", err)
 	}
 }
@@ -228,7 +232,7 @@ func writeBlocks(ctx context.Context, rw *blockReadWriter, blocks []proto.Block,
 			close(readTasks)
 			return err
 		}
-		if err := rw.db.Flush(); err != nil {
+		if err := rw.db.Flush(rw.dbBatch); err != nil {
 			close(readTasks)
 			return err
 		}
