@@ -337,7 +337,7 @@ func (rw *blockReadWriter) cleanIDs(oldHeight, newBlockchainLen uint64) error {
 		} else if n != crypto.SignatureSize {
 			return errors.New("cleanIDs(): invalid id size")
 		}
-		blockID, err := toBlockID(idBytes)
+		blockID, err := crypto.NewSignatureFromBytes(idBytes)
 		if err != nil {
 			return err
 		}

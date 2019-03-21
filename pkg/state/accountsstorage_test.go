@@ -15,7 +15,7 @@ const (
 	totalBlocksNumber = 200
 )
 
-func createAccountsStorage(id2Height idToHeight) (*accountsStorage, []string, error) {
+func createAccountsStorage(rw *blockReadWriter) (*accountsStorage, []string, error) {
 	res := make([]string, 1)
 	dbDir0, err := ioutil.TempDir(os.TempDir(), "dbDir0")
 	if err != nil {
@@ -33,7 +33,7 @@ func createAccountsStorage(id2Height idToHeight) (*accountsStorage, []string, er
 	if err != nil {
 		return nil, res, err
 	}
-	stor, err := newAccountsStorage(genesis, db, dbBatch, id2Height)
+	stor, err := newAccountsStorage(genesis, db, dbBatch, rw)
 	if err != nil {
 		return nil, res, err
 	}

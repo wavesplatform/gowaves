@@ -14,28 +14,30 @@ const (
 	recordSize = crypto.SignatureSize + 8
 )
 
-func filterHistory(db keyvalue.KeyValue, historyKey []byte, history []byte) ([]byte, error) {
-	historySize := len(history)
-	for i := historySize; i >= recordSize; i -= recordSize {
-		record := history[i-recordSize : i]
-		idBytes := record[len(record)-crypto.SignatureSize:]
-		blockID, err := toBlockID(idBytes)
-		if err != nil {
-			return nil, err
-		}
-		key := blockIdKey{blockID: blockID}
-		has, err := db.Has(key.bytes())
-		if err != nil {
-			return nil, err
-		}
-		if has {
-			// Is valid block.
-			break
-		}
-		// Erase invalid (outdated due to rollbacks) record.
-		history = history[:i-recordSize]
+func idToKey(id []byte) ([]byte, error) {
+	sig, err := crypto.NewSignatureFromBytes(id)
+	if err != nil {
+		return nil, err
 	}
-	if len(history) != historySize {
+	key := blockIdKey{blockID: sig}
+	return key.bytes(), nil
+}
+
+func filterHistory(db keyvalue.KeyValue, historyKey []byte) ([]byte, error) {
+	fmt, err := newHistoryFormatter(recordSize, crypto.SignatureSize)
+	if err != nil {
+		return nil, err
+	}
+	history, err := db.Get(historyKey)
+	if err != nil {
+		return nil, err
+	}
+	prevSize := len(history)
+	history, err = fmt.filter(history, db, idToKey)
+	if err != nil {
+		return nil, err
+	}
+	if len(history) != prevSize {
 		// Some records were removed, so we need to update the DB.
 		if err := db.Put(historyKey, history); err != nil {
 			return nil, err
@@ -44,124 +46,28 @@ func filterHistory(db keyvalue.KeyValue, historyKey []byte, history []byte) ([]b
 	return history, nil
 }
 
-type localStor struct {
-	db     keyvalue.KeyValue
-	waves  map[wavesBalanceKey][]byte
-	assets map[assetBalanceKey][]byte
-}
-
-func newLocalStor(db keyvalue.KeyValue) (*localStor, error) {
-	return &localStor{
-		db:     db,
-		waves:  make(map[wavesBalanceKey][]byte),
-		assets: make(map[assetBalanceKey][]byte),
-	}, nil
-}
-
-func (s *localStor) retrieveHistoryFromDb(key []byte) ([]byte, error) {
-	has, err := s.db.Has(key)
-	if err != nil {
-		return nil, err
-	}
-	if !has {
-		// New history.
-		return nil, nil
-	}
-	// Get current history.
-	history, err := s.db.Get(key)
-	if err != nil {
-		return nil, err
-	}
-	// Delete invalid (because of rollback) records.
-	history, err = filterHistory(s.db, key, history)
-	if err != nil {
-		return nil, err
-	}
-	return history, nil
-}
-
-func (s *localStor) getHistory(key []byte) ([]byte, error) {
-	size := len(key)
-	if size == wavesBalanceKeySize {
-		var wavesKey wavesBalanceKey
-		copy(wavesKey[:], key)
-		if _, ok := s.waves[wavesKey]; !ok {
-			history, err := s.retrieveHistoryFromDb(key)
-			if err != nil {
-				return nil, err
-			}
-			s.waves[wavesKey] = history
-		}
-		return s.waves[wavesKey], nil
-	} else if size == assetBalanceKeySize {
-		var assetKey assetBalanceKey
-		copy(assetKey[:], key)
-		if _, ok := s.assets[assetKey]; !ok {
-			history, err := s.retrieveHistoryFromDb(key)
-			if err != nil {
-				return nil, err
-			}
-			s.assets[assetKey] = history
-		}
-		return s.assets[assetKey], nil
-	} else {
-		return nil, errors.New("invalid key size")
-	}
-}
-
-func (s *localStor) setHistory(key []byte, history []byte) error {
-	size := len(key)
-	if size == wavesBalanceKeySize {
-		var wavesKey wavesBalanceKey
-		copy(wavesKey[:], key)
-		s.waves[wavesKey] = history
-	} else if size == assetBalanceKeySize {
-		var assetKey assetBalanceKey
-		copy(assetKey[:], key)
-		s.assets[assetKey] = history
-	} else {
-		return errors.New("invalid key size")
-	}
-	return nil
-}
-
-func (s *localStor) reset() {
-	s.waves = make(map[wavesBalanceKey][]byte)
-	s.assets = make(map[assetBalanceKey][]byte)
-}
-
-type idToHeight interface {
-	heightByBlockID(blockID crypto.Signature) (uint64, error)
-	heightByNewBlockID(blockID crypto.Signature) (uint64, error)
-}
-
 type accountsStorage struct {
 	genesis crypto.Signature
 
 	db        keyvalue.IterableKeyVal
 	dbBatch   keyvalue.Batch
-	localStor *localStor
+	localStor *localStorage
 
-	idToHeight  idToHeight
+	// rw is used to get height by ID.
+	rw          *blockReadWriter
 	rollbackMax int
+
+	// fmt is used for operations on balances history.
+	fmt *historyFormatter
 }
 
 var Empty = []byte{}
-
-func toBlockID(bytes []byte) (crypto.Signature, error) {
-	var res crypto.Signature
-	if len(bytes) != crypto.SignatureSize {
-		return res, errors.New("failed to convert bytes to block ID: invalid length of bytes")
-	}
-	copy(res[:], bytes)
-	return res, nil
-}
 
 func newAccountsStorage(
 	genesis crypto.Signature,
 	db keyvalue.IterableKeyVal,
 	dbBatch keyvalue.Batch,
-	idToHeight idToHeight,
+	rw *blockReadWriter,
 ) (*accountsStorage, error) {
 	has, err := db.Has([]byte{dbHeightKeyPrefix})
 	if err != nil {
@@ -174,21 +80,34 @@ func newAccountsStorage(
 			return nil, err
 		}
 	}
-	localStor, err := newLocalStor(db)
+	localStor, err := newLocalStorage(db, filterHistory)
+	if err != nil {
+		return nil, err
+	}
+	fmt, err := newHistoryFormatter(recordSize, crypto.SignatureSize)
 	if err != nil {
 		return nil, err
 	}
 	return &accountsStorage{
-		genesis:    genesis,
-		db:         db,
-		dbBatch:    dbBatch,
-		idToHeight: idToHeight,
-		localStor:  localStor,
+		genesis:   genesis,
+		db:        db,
+		dbBatch:   dbBatch,
+		rw:        rw,
+		localStor: localStor,
+		fmt:       fmt,
 	}, nil
 }
 
 func (s *accountsStorage) setRollbackMax(rollbackMax int) {
 	s.rollbackMax = rollbackMax
+}
+
+func (s *accountsStorage) idToHeight(id []byte) (uint64, error) {
+	sig, err := crypto.NewSignatureFromBytes(id)
+	if err != nil {
+		return 0, err
+	}
+	return s.rw.heightByBlockID(sig)
 }
 
 func (s *accountsStorage) setHeight(height uint64, directly bool) error {
@@ -213,34 +132,17 @@ func (s *accountsStorage) getHeight() (uint64, error) {
 }
 
 func (s *accountsStorage) cutHistory(historyKey []byte, history []byte) ([]byte, error) {
-	historySize := len(history)
+	prevSize := len(history)
 	currentHeight, err := s.getHeight()
 	if err != nil {
 		return nil, err
 	}
-	firstNeeded := 0
-	for i := recordSize; i <= historySize; i += recordSize {
-		record := history[i-recordSize : i]
-		idBytes := record[len(record)-crypto.SignatureSize:]
-		blockID, err := toBlockID(idBytes)
-		if err != nil {
-			return nil, err
-		}
-		if blockID != s.genesis {
-			blockHeight, err := s.idToHeight.heightByBlockID(blockID)
-			if err != nil {
-				return nil, err
-			}
-			if currentHeight-blockHeight > uint64(s.rollbackMax) {
-				// 1 record BEFORE rollbackMax blocks is needed.
-				firstNeeded = i - recordSize
-				continue
-			}
-			break
-		}
+
+	history, err = s.fmt.cut(history, s.idToHeight, currentHeight, s.genesis[:])
+	if err != nil {
+		return nil, err
 	}
-	if firstNeeded != 0 {
-		history = history[firstNeeded:]
+	if len(history) != prevSize {
 		// Some records were removed, so we need to update the DB.
 		if err := s.db.Put(historyKey, history); err != nil {
 			return nil, err
@@ -277,7 +179,7 @@ func (s *accountsStorage) addressesNumber() (uint64, error) {
 // minBalanceInRange() is used to get min miner's effective balance, so it includes blocks which
 // have not been flushed to DB yet (and are currently stored in memory).
 func (s *accountsStorage) minBalanceInRange(balanceKey []byte, startHeight, endHeight uint64) (uint64, error) {
-	history, err := s.localStor.getHistory(balanceKey)
+	history, err := s.localStor.record(balanceKey)
 	if err != nil {
 		return 0, err
 	}
@@ -286,7 +188,7 @@ func (s *accountsStorage) minBalanceInRange(balanceKey []byte, startHeight, endH
 		record := history[i-recordSize : i]
 		balanceEnd := len(record) - crypto.SignatureSize
 		idBytes := record[balanceEnd:]
-		blockID, err := toBlockID(idBytes)
+		blockID, err := crypto.NewSignatureFromBytes(idBytes)
 		if err != nil {
 			return 0, err
 		}
@@ -294,7 +196,7 @@ func (s *accountsStorage) minBalanceInRange(balanceKey []byte, startHeight, endH
 		height := uint64(1)
 		if blockID != s.genesis {
 			// Change height if needed.
-			height, err = s.idToHeight.heightByNewBlockID(blockID)
+			height, err = s.rw.heightByNewBlockID(blockID)
 			if err != nil {
 				return 0, err
 			}
@@ -325,12 +227,8 @@ func (s *accountsStorage) accountBalance(balanceKey []byte) (uint64, error) {
 		// TODO: think about this scenario.
 		return 0, nil
 	}
-	history, err := s.db.Get(balanceKey)
-	if err != nil {
-		return 0, errors.Errorf("failed to get history for given key: %v\n", err)
-	}
 	// Delete invalid records.
-	history, err = filterHistory(s.db, balanceKey, history)
+	history, err := filterHistory(s.db, balanceKey)
 	if err != nil {
 		return 0, errors.Errorf("failed to filter history: %v\n", err)
 	}
@@ -345,35 +243,21 @@ func (s *accountsStorage) accountBalance(balanceKey []byte) (uint64, error) {
 		// There were no valid records, so the history is empty after filtering.
 		return 0, nil
 	}
-	balanceEnd := len(history) - crypto.SignatureSize
-	balance := binary.LittleEndian.Uint64(history[balanceEnd-8 : balanceEnd])
+	record, err := s.fmt.getLatest(history)
+	if err != nil {
+		return 0, err
+	}
+	balance := binary.LittleEndian.Uint64(record[:len(record)-crypto.SignatureSize])
 	return balance, nil
 }
 
-func (s *accountsStorage) newHistory(newRecord []byte, key []byte, blockID crypto.Signature) ([]byte, error) {
+func (s *accountsStorage) newHistory(newRecord []byte, key []byte) ([]byte, error) {
 	// Get current history.
-	history, err := s.localStor.getHistory(key)
+	history, err := s.localStor.record(key)
 	if err != nil {
 		return nil, err
 	}
-	if len(history) < recordSize {
-		// History is empty, new record is the first one.
-		return newRecord, nil
-	}
-	lastRecord := history[len(history)-recordSize:]
-	idBytes := lastRecord[len(lastRecord)-crypto.SignatureSize:]
-	lastBlockID, err := toBlockID(idBytes)
-	if err != nil {
-		return nil, err
-	}
-	if lastBlockID == blockID {
-		// If the last record is the same block, rewrite it.
-		copy(history[len(history)-recordSize:], newRecord)
-	} else {
-		// Append new record to the end.
-		history = append(history, newRecord...)
-	}
-	return history, nil
+	return s.fmt.addRecord(history, newRecord)
 }
 
 func (s *accountsStorage) setAccountBalance(balanceKey []byte, balance uint64, blockID crypto.Signature) error {
@@ -385,11 +269,11 @@ func (s *accountsStorage) setAccountBalance(balanceKey []byte, balance uint64, b
 	binary.LittleEndian.PutUint64(balanceBuf, balance)
 	newRecord := append(balanceBuf, blockID[:]...)
 	// Add it to history.
-	history, err := s.newHistory(newRecord, balanceKey, blockID)
+	history, err := s.newHistory(newRecord, balanceKey)
 	if err != nil {
 		return err
 	}
-	if err := s.localStor.setHistory(balanceKey, history); err != nil {
+	if err := s.localStor.setRecord(balanceKey, history); err != nil {
 		return err
 	}
 	return nil
@@ -411,17 +295,6 @@ func (s *accountsStorage) rollbackBlock(blockID crypto.Signature) error {
 	return nil
 }
 
-func (s *accountsStorage) addChangesToBatch() error {
-	for key, history := range s.localStor.waves {
-		s.dbBatch.Put(key[:], history)
-	}
-	for key, history := range s.localStor.assets {
-		s.dbBatch.Put(key[:], history)
-	}
-	s.localStor.reset()
-	return nil
-}
-
 func (s *accountsStorage) updateHeight(heightChange int) error {
 	// Increase DB's height (for sync/recovery).
 	height, err := s.getHeight()
@@ -440,11 +313,12 @@ func (s *accountsStorage) reset() {
 }
 
 func (s *accountsStorage) flush() error {
-	if err := s.addChangesToBatch(); err != nil {
+	if err := s.localStor.addToBatch(s.dbBatch); err != nil {
 		return err
 	}
 	if err := s.db.Flush(s.dbBatch); err != nil {
 		return err
 	}
+	s.reset()
 	return nil
 }
