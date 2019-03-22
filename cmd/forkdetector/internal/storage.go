@@ -12,13 +12,13 @@ import (
 )
 
 const (
-	peersPrefix byte = iota
-	forkCounterPrefix
+	forkCounterPrefix byte = iota
 	forkHeadersPrefix
 	blockWrappersPrefix
 	blocksPrefix
 	heightsPrefix
 	linksPrefix
+	publicAddressesPrefix
 )
 
 var (
@@ -53,10 +53,6 @@ func (k *peerKey) fromByte(data []byte) error {
 
 func newPeerLinkKey(d PeerDesignation) peerKey {
 	return peerKey{prefix: linksPrefix, ip: d.Address.To4(), nonce: d.Nonce}
-}
-
-func newPeerInfoKey(d PeerDesignation) peerKey {
-	return peerKey{prefix: peersPrefix, ip: d.Address.To4(), nonce: d.Nonce}
 }
 
 type signatureKey struct {
@@ -163,48 +159,6 @@ func (l *peerLink) fromBytes(data []byte) error {
 	return nil
 }
 
-type peerInfo struct {
-	port      uint16
-	name      string
-	version   proto.Version
-	last      uint64
-	connected bool
-	public    bool
-	failures  uint8
-	error     string
-}
-
-func (i peerInfo) bytes() []byte {
-	nameLen := len(i.name)
-	buf := make([]byte, 2+1+nameLen+3*4+8)
-	binary.BigEndian.PutUint16(buf, i.port)
-	proto.PutStringWithUInt8Len(buf[2:], i.name)
-	putVersion(buf[2+1+nameLen:], i.version)
-	binary.BigEndian.PutUint64(buf[2+1+nameLen+3*4:], i.last)
-	return buf
-}
-
-func (i *peerInfo) fromBytes(data []byte) error {
-	if l := len(data); l < 2+1+3*4+8 {
-		return errors.Errorf("%d is not enough bytes for peerInfo", l)
-	}
-	i.port = binary.BigEndian.Uint16(data)
-	data = data[2:]
-	var err error
-	i.name, err = proto.StringWithUInt8Len(data)
-	if err != nil {
-		return errors.Wrap(err, "failed to unmarshal peerInfo")
-	}
-	data = data[1+len(i.name):]
-	i.version, err = readVersion(data)
-	if err != nil {
-		return errors.Wrap(err, "failed to unmarshal peerInfo")
-	}
-	data = data[3*4:]
-	i.last = binary.BigEndian.Uint64(data)
-	return nil
-}
-
 type heightBlockKey struct {
 	height uint32
 	block  crypto.Signature
@@ -228,6 +182,18 @@ func (k *heightBlockKey) fromBytes(data []byte) error {
 	k.height = binary.BigEndian.Uint32(data[1:])
 	copy(k.block[:], data[1+4:1+4+crypto.SignatureSize])
 	return nil
+}
+
+type publicAddressKey struct {
+	addr net.TCPAddr
+}
+
+func (k *publicAddressKey) bytes() []byte {
+	buf := make([]byte, 1+net.IPv6len+2)
+	buf[0] = publicAddressesPrefix
+	copy(buf[1:], k.addr.IP)
+	binary.BigEndian.PutUint16(buf[1+net.IPv6len:], uint16(k.addr.Port))
+	return buf
 }
 
 type storage struct {
@@ -342,16 +308,44 @@ func (s *storage) parentedForks() ([]Fork, error) {
 	return r, nil
 }
 
-func (s *storage) peers() ([]PeerDescription, error) {
-	//TODO: implement with actual peers online
-	return nil, nil
+func (s *storage) publicAddresses() ([]PublicAddress, error) {
+	sn, err := s.db.GetSnapshot()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to collect public addresses")
+	}
+	st := []byte{publicAddressesPrefix}
+	lm := []byte{publicAddressesPrefix + 1}
+	it := sn.NewIterator(&util.Range{Start: st, Limit: lm}, nil)
+	r := make([]PublicAddress, 0)
+	for it.Next() {
+		var v PublicAddress
+		err = v.UnmarshalBinary(it.Value())
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to collect public addresses")
+		}
+		r = append(r, v)
+	}
+	return r, nil
 }
 
-func (s *storage) putPeer(ip net.IP, nonce uint64, info peerInfo) error {
-	k := peerKey{ip: ip, nonce: nonce}
-	err := s.db.Put(k.bytes(), info.bytes(), nil)
+func (s *storage) hasPublicAddress(a net.TCPAddr) (bool, error) {
+	k := publicAddressKey{addr: a}
+	ok, err := s.db.Has(k.bytes(), nil)
 	if err != nil {
-		return errors.Wrap(err, "failed to put peer")
+		return false, errors.Wrap(err, "failed to check public address presence")
+	}
+	return ok, nil
+}
+
+func (s *storage) putPublicAddress(pa PublicAddress) error {
+	k := publicAddressKey{addr: pa.address}
+	v, err := pa.MarshalBinary()
+	if err != nil {
+		return errors.Wrap(err, "failed to store public address")
+	}
+	err = s.db.Put(k.bytes(), v, nil)
+	if err != nil {
+		return errors.Wrap(err, "failed to store public address")
 	}
 	return nil
 }
@@ -466,23 +460,6 @@ func (s *storage) blocks(height uint32) ([]crypto.Signature, error) {
 
 func (s *storage) fork(ip net.IP) ([]NodeForkInfo, error) {
 	return nil, nil
-}
-
-func putVersion(buf []byte, v proto.Version) {
-	binary.BigEndian.PutUint32(buf, v.Major)
-	binary.BigEndian.PutUint32(buf[4:], v.Minor)
-	binary.BigEndian.PutUint32(buf[8:], v.Patch)
-}
-
-func readVersion(data []byte) (proto.Version, error) {
-	if l := len(data); l < 3*4 {
-		return proto.Version{}, errors.Errorf("%d is not enough bytes for Version", l)
-	}
-	var v proto.Version
-	v.Major = binary.BigEndian.Uint32(data)
-	v.Minor = binary.BigEndian.Uint32(data[4:])
-	v.Patch = binary.BigEndian.Uint32(data[8:])
-	return v, nil
 }
 
 func numberOfForks(sn *leveldb.Snapshot) (uint32, error) {

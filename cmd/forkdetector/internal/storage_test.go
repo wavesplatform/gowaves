@@ -35,31 +35,6 @@ func TestPeerKeyBinaryRoundTrip(t *testing.T) {
 	}
 }
 
-func TestPeerInfoBinaryRoundTrip(t *testing.T) {
-	tests := []struct {
-		port    uint16
-		name    string
-		version string
-		last    uint64
-	}{
-		{12345, "super node", "1.2.3", 1234567890},
-		{0, "", "0.0.0", 1234567890},
-	}
-	for _, tc := range tests {
-		v, err := proto.NewVersionFromString(tc.version)
-		require.NoError(t, err)
-		i := peerInfo{port: tc.port, name: tc.name, version: *v, last: tc.last}
-		b := i.bytes()
-		var ai peerInfo
-		if err := ai.fromBytes(b); assert.NoError(t, err) {
-			assert.Equal(t, tc.port, ai.port)
-			assert.Equal(t, tc.name, ai.name)
-			assert.Equal(t, *v, ai.version)
-			assert.Equal(t, tc.last, ai.last)
-		}
-	}
-}
-
 func TestOneFork(t *testing.T) {
 	db, closeDB := openDB(t, "fd-1-fork")
 	defer closeDB()
@@ -190,9 +165,6 @@ func TestTwoForks(t *testing.T) {
 	bs32, err := crypto.NewSignatureFromBase58("3w11ByGnPqjY1t3xF867JH1QWpQfJN9X532jXBMbfBhRa48itrb5QfLQGbxKjTyvogZ29yh3xvGCQoeFgqfoR2Xs")
 	require.NoError(t, err)
 	b32 := proto.Block{BlockHeader: proto.BlockHeader{Parent: bs2, BlockSignature: bs32}}
-	//bs42, err := crypto.NewSignatureFromBase58("4dqeSQwy63YM5krVJV96ypdVJCjTrhrHLZBH8d38fvNAQhLfLWJ4JTk31tDxRQbgWL2QqnLqGHenPZwGwmE4WAku")
-	//require.NoError(t, err)
-	//b42 := proto.Block{BlockHeader: proto.BlockHeader{Parent: bs32, BlockSignature: bs42}}
 
 	storage := storage{db: db, genesis: gs}
 

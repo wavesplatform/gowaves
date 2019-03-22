@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
+	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"go.uber.org/zap"
 	"net"
@@ -49,13 +50,43 @@ type status struct {
 type api struct {
 	interrupt <-chan struct{}
 	storage   *storage
+	srv       *http.Server
 }
 
-func StartForkDetectorAPI(interrupt <-chan struct{}, storage *storage, bind string) <-chan struct{} {
-	done := make(chan struct{})
+type PublicAddressInfo struct {
+	Address         string    `json:"address"`
+	Version         string    `json:"version"`
+	Status          string    `json:"status"`
+	Attempts        int       `json:"attempts"`
+	NextAttemptTime time.Time `json:"next_attempt_time"`
+}
+
+func newInfoFromPublicAddress(pa PublicAddress) PublicAddressInfo {
+	status := "UNKNOWN"
+	switch pa.state {
+	case NewPublicAddress:
+		status = "NEW"
+	case HostilePublicAddress:
+		status = "HOSTILE"
+	case GreetedPublicAddress:
+		status = "GREETED"
+	case RespondingPublicAddress:
+		status = "RESPONDING"
+	case DiscardedPublicAddress:
+		status = "DISCARDED"
+	}
+	return PublicAddressInfo{
+		Address:         pa.address.String(),
+		Version:         pa.version.String(),
+		Status:          status,
+		Attempts:        pa.attempts,
+		NextAttemptTime: pa.nextAttempt,
+	}
+}
+
+func NewAPI(interrupt <-chan struct{}, storage *storage, bind string) (*api, error) {
 	if bind == "" {
-		close(done)
-		return done
+		return nil, errors.New("empty address to bin")
 	}
 	a := api{interrupt: interrupt, storage: storage}
 	r := chi.NewRouter()
@@ -66,21 +97,32 @@ func StartForkDetectorAPI(interrupt <-chan struct{}, storage *storage, bind stri
 	r.Use(middleware.SetHeader("Content-Type", "application/json"))
 	r.Use(middleware.DefaultCompress)
 	r.Mount("/api", a.routes())
-	apiServer := &http.Server{Addr: bind, Handler: r}
+	a.srv = &http.Server{Addr: bind, Handler: r}
+	return &a, nil
+}
+
+func (a *api) Start() <-chan struct{} {
+	done := make(chan struct{})
 	go func() {
-		err := apiServer.ListenAndServe()
+		err := a.srv.ListenAndServe()
 		if err != nil && err != http.ErrServerClosed {
 			zap.S().Fatalf("Failed to start API: %v", err)
+			close(done)
 			return
 		}
 	}()
+	select {
+	case <-done:
+		return done
+	default:
+	}
 	go func() {
 		for {
 			select {
 			case <-a.interrupt:
-				zap.S().Info("Shutting down API...")
+				zap.S().Debug("Shutting down API...")
 				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-				err := apiServer.Shutdown(ctx)
+				err := a.srv.Shutdown(ctx)
 				if err != nil {
 					zap.S().Errorf("Failed to shutdown API server: %v", err)
 				}
@@ -96,7 +138,7 @@ func StartForkDetectorAPI(interrupt <-chan struct{}, storage *storage, bind stri
 func (a *api) routes() chi.Router {
 	r := chi.NewRouter()
 	r.Get("/status", a.status)
-	r.Get("/peers", a.peers)
+	r.Get("/addresses", a.addresses)
 	r.Get("/parentedForks", a.forks)
 	r.Get("/node/{address}", a.node)
 	r.Get("/height/{height:\\d+}", a.blocksAtHeight)
@@ -111,12 +153,12 @@ func (a *api) status(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	short, long := countForksByLength(forks)
-	peers, err := a.storage.peers()
+	pas, err := a.storage.publicAddresses()
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to complete request: %v", err), http.StatusInternalServerError)
 		return
 	}
-	s := status{ShortForksCount: short, LongForksCount: long, ConnectedNodesCount: connectedPeersCount(peers), KnowNodesCount: len(peers)}
+	s := status{ShortForksCount: short, LongForksCount: long, ConnectedNodesCount: 0, KnowNodesCount: len(pas)}
 	err = json.NewEncoder(w).Encode(s)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to marshal status to JSON: %v", err), http.StatusInternalServerError)
@@ -124,13 +166,18 @@ func (a *api) status(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (a *api) peers(w http.ResponseWriter, r *http.Request) {
-	peers, err := a.storage.peers()
+func (a *api) addresses(w http.ResponseWriter, r *http.Request) {
+	pas, err := a.storage.publicAddresses()
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to complete request: %v", err), http.StatusInternalServerError)
 		return
 	}
-	err = json.NewEncoder(w).Encode(peers)
+	infos := make([]PublicAddressInfo, len(pas))
+	for i, pa := range pas {
+		info := newInfoFromPublicAddress(pa)
+		infos[i] = info
+	}
+	err = json.NewEncoder(w).Encode(infos)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to marshal status to JSON: %v", err), http.StatusInternalServerError)
 		return
@@ -216,14 +263,4 @@ func countForksByLength(forks []Fork) (int, int) {
 		}
 	}
 	return r, len(forks) - r
-}
-
-func connectedPeersCount(peers []PeerDescription) int {
-	r := 0
-	for _, p := range peers {
-		if p.Connected {
-			r++
-		}
-	}
-	return r
 }

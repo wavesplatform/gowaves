@@ -2,15 +2,19 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/cmd/forkdetector/internal"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+	"math/rand"
 	"net"
 	"os"
+	"strconv"
 	"strings"
+	"time"
 )
 
 var (
@@ -25,9 +29,10 @@ type configuration struct {
 	apiBind      string
 	netBind      string
 	announcement string
-	nodeName     string
+	name         string
+	nonce        uint64
 	versions     []proto.Version
-	seedPeers    []string
+	seedPeers    []net.TCPAddr
 }
 
 func main() {
@@ -40,6 +45,7 @@ func main() {
 func run() error {
 	cfg, err := parseConfiguration()
 	if err != nil {
+		fmt.Println("Invalid parameters:", err)
 		flag.Usage()
 		return err
 	}
@@ -57,24 +63,61 @@ func run() error {
 		return err
 	}
 
-	apiDone := internal.StartForkDetectorAPI(interrupt, storage, cfg.apiBind)
 	if interruptRequested(interrupt) {
 		return nil
 	}
 
-	dispatcher := internal.NewDispatcher(interrupt, log, storage, cfg.announcement, cfg.nodeName, cfg.scheme)
-	dispatcherDone, err := dispatcher.Start(cfg.netBind, cfg.seedPeers)
+	registry := internal.NewPublicAddressRegistry(storage, 10*time.Minute, 24*time.Hour, cfg.versions)
+	na, err := registry.RegisterNewAddresses(cfg.seedPeers)
 	if err != nil {
-		zap.S().Errorf("Failed to start peers dispatcher: %v", err)
+		zap.S().Errorf("Failed to initialize seed peers: %v", err)
+		return err
+	}
+	zap.S().Infof("%d new seed addresses were registered", na)
+
+	api, err := internal.NewAPI(interrupt, storage, cfg.apiBind)
+	if err != nil {
+		zap.S().Errorf("Failed to create API server: %v", err)
+		return err
+	}
+	apiDone := api.Start()
+
+	if interruptRequested(interrupt) {
+		return nil
+	}
+
+	server, err := internal.NewServer(interrupt, cfg.netBind)
+	if err != nil {
+		zap.S().Errorf("Failed to start network server: %v", err)
 		return err
 	}
 
-	<-apiDone
-	zap.S().Info("API shutdown complete")
-	<-dispatcherDone
-	zap.S().Info("Peers dispatcher shutdown complete")
+	dispatcher, err := internal.NewDispatcher(interrupt, registry, server.GetConnections(), cfg.announcement, cfg.name, cfg.nonce, cfg.scheme, cfg.versions)
+	if err != nil {
+		zap.S().Errorf("Failed to initialize dispatcher: %v", err)
+		return err
+	}
+	dispatcherDone := dispatcher.Start()
+
+	if interruptRequested(interrupt) {
+		return nil
+	}
+
+	serverDone := server.Start()
+
+	if interruptRequested(interrupt) {
+		return nil
+	}
 
 	<-interrupt
+
+	<-apiDone
+	zap.S().Debug("API shutdown complete")
+	<-dispatcherDone
+	zap.S().Debug("Dispatcher shutdown complete")
+	<-serverDone
+	zap.S().Debug("Network server shutdown complete")
+
 	return nil
 }
 
@@ -88,6 +131,7 @@ func parseConfiguration() (*configuration, error) {
 		apiBindAddress  = flag.String("api-bind", ":8080", "Local network address to bind the HTTP API of the service on. Default value is \":8080\".")
 		netBindAddress  = flag.String("net-bind", ":6868", "Local network address to bind the network server. Default value is \":6868 \".")
 		netName         = flag.String("net-name", "Fork Detector", "Name of the node to identify on the network. Default value is \"Fork Detector\".")
+		netNonce        = flag.Int("net-nonce", 0, "Nonce part of the node's identity on the network. Default value is 0, which means the nonce will be randomly generated.")
 		declaredAddress = flag.String("declared-address", "", "The network address of the node publicly accessible for incoming connections. Empty default value (no publicly visible address).")
 		seedPeers       = flag.String("seed-peers",
 			"13.228.86.201:6868 13.229.0.149:6868 18.195.170.147:6868 34.253.153.4:6868 35.156.19.4:6868 52.50.69.247:6868 52.52.46.76:6868 52.57.147.71:6868 52.214.55.18:6868 54.176.190.226:6868",
@@ -114,9 +158,18 @@ func parseConfiguration() (*configuration, error) {
 	if l := len(*netName); l <= 0 || l > 255 {
 		return nil, errors.Errorf("invalid network name '%s'", *netName)
 	}
-	addr, err := validateNetworkAddress(*declaredAddress)
-	if err != nil {
-		return nil, errors.Wrapf(err, "invalid declared address")
+	nonce := uint64(*netNonce)
+	if nonce == 0 {
+		nonce = generateNonce()
+	}
+	var addr string
+	if *declaredAddress == "" {
+		addr = ""
+	} else {
+		addr, err = validateNetworkAddress(*declaredAddress)
+		if err != nil {
+			return nil, errors.Wrapf(err, "invalid declared address")
+		}
 	}
 	peers, err := splitPeers(*seedPeers)
 	if err != nil {
@@ -129,7 +182,8 @@ func parseConfiguration() (*configuration, error) {
 		genesis:      sig,
 		versions:     vs,
 		seedPeers:    peers,
-		nodeName:     *netName,
+		name:         *netName,
+		nonce:        nonce,
 		apiBind:      *apiBindAddress,
 		netBind:      *netBindAddress,
 		announcement: addr,
@@ -148,13 +202,20 @@ func validateNetworkAddress(s string) (string, error) {
 	return net.JoinHostPort(h, p), nil
 }
 
-func splitPeers(s string) ([]string, error) {
-	r := strings.Fields(s)
-	for _, a := range r {
-		_, err := validateNetworkAddress(a)
+func splitPeers(s string) ([]net.TCPAddr, error) {
+	sp := strings.Fields(s)
+	r := make([]net.TCPAddr, 0)
+	for _, ma := range sp {
+		h, p, err := net.SplitHostPort(ma)
 		if err != nil {
-			return nil, errors.Wrapf(err, "invalid address '%s'", a)
+			return nil, errors.Wrapf(err, "invalid address '%s'", ma)
 		}
+		pn, err := strconv.Atoi(p)
+		if err != nil {
+			return nil, errors.Wrapf(err, "invalid address '%s'", ma)
+		}
+		a := net.TCPAddr{IP: net.ParseIP(h), Port: pn}
+		r = append(r, a)
 	}
 	return r, nil
 }
@@ -192,4 +253,8 @@ func setupLogger(level string) (*zap.Logger, *zap.SugaredLogger) {
 	logger := zap.New(zapcore.NewCore(zapcore.NewConsoleEncoder(ec), zapcore.Lock(os.Stdout), al))
 	zap.ReplaceGlobals(logger)
 	return logger, logger.Sugar()
+}
+
+func generateNonce() uint64 {
+	return uint64(rand.Int63n(1000000))
 }
