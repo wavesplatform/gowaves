@@ -2,6 +2,8 @@ package state
 
 import (
 	"encoding/binary"
+	"log"
+	"math"
 
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
@@ -35,7 +37,7 @@ func filterHistory(db keyvalue.KeyValue, historyKey []byte, history []byte) ([]b
 	}
 	if len(history) != historySize {
 		// Some records were removed, so we need to update the DB.
-		if err := db.PutDirectly(historyKey, history); err != nil {
+		if err := db.Put(historyKey, history); err != nil {
 			return nil, err
 		}
 	}
@@ -130,14 +132,18 @@ func (s *localStor) reset() {
 
 type idToHeight interface {
 	heightByBlockID(blockID crypto.Signature) (uint64, error)
+	heightByNewBlockID(blockID crypto.Signature) (uint64, error)
 }
 
 type accountsStorage struct {
-	genesis     crypto.Signature
-	db          keyvalue.IterableKeyVal
+	genesis crypto.Signature
+
+	db        keyvalue.IterableKeyVal
+	dbBatch   keyvalue.Batch
+	localStor *localStor
+
 	idToHeight  idToHeight
 	rollbackMax int
-	localStor   *localStor
 }
 
 var Empty = []byte{}
@@ -151,7 +157,12 @@ func toBlockID(bytes []byte) (crypto.Signature, error) {
 	return res, nil
 }
 
-func newAccountsStorage(genesis crypto.Signature, db keyvalue.IterableKeyVal) (*accountsStorage, error) {
+func newAccountsStorage(
+	genesis crypto.Signature,
+	db keyvalue.IterableKeyVal,
+	dbBatch keyvalue.Batch,
+	idToHeight idToHeight,
+) (*accountsStorage, error) {
 	has, err := db.Has([]byte{dbHeightKeyPrefix})
 	if err != nil {
 		return nil, err
@@ -159,7 +170,7 @@ func newAccountsStorage(genesis crypto.Signature, db keyvalue.IterableKeyVal) (*
 	if !has {
 		heightBuf := make([]byte, 8)
 		binary.LittleEndian.PutUint64(heightBuf, 0)
-		if err := db.PutDirectly([]byte{dbHeightKeyPrefix}, heightBuf); err != nil {
+		if err := db.Put([]byte{dbHeightKeyPrefix}, heightBuf); err != nil {
 			return nil, err
 		}
 	}
@@ -168,28 +179,27 @@ func newAccountsStorage(genesis crypto.Signature, db keyvalue.IterableKeyVal) (*
 		return nil, err
 	}
 	return &accountsStorage{
-		genesis:   genesis,
-		db:        db,
-		localStor: localStor,
+		genesis:    genesis,
+		db:         db,
+		dbBatch:    dbBatch,
+		idToHeight: idToHeight,
+		localStor:  localStor,
 	}, nil
 }
 
-func (s *accountsStorage) setRollbackMax(rollbackMax int, idToHeight idToHeight) {
+func (s *accountsStorage) setRollbackMax(rollbackMax int) {
 	s.rollbackMax = rollbackMax
-	s.idToHeight = idToHeight
 }
 
 func (s *accountsStorage) setHeight(height uint64, directly bool) error {
 	dbHeightBytes := make([]byte, 8)
 	binary.LittleEndian.PutUint64(dbHeightBytes, height)
 	if directly {
-		if err := s.db.PutDirectly([]byte{dbHeightKeyPrefix}, dbHeightBytes); err != nil {
-			return err
-		}
-	} else {
 		if err := s.db.Put([]byte{dbHeightKeyPrefix}, dbHeightBytes); err != nil {
 			return err
 		}
+	} else {
+		s.dbBatch.Put([]byte{dbHeightKeyPrefix}, dbHeightBytes)
 	}
 	return nil
 }
@@ -232,7 +242,7 @@ func (s *accountsStorage) cutHistory(historyKey []byte, history []byte) ([]byte,
 	if firstNeeded != 0 {
 		history = history[firstNeeded:]
 		// Some records were removed, so we need to update the DB.
-		if err := s.db.PutDirectly(historyKey, history); err != nil {
+		if err := s.db.Put(historyKey, history); err != nil {
 			return nil, err
 		}
 	}
@@ -244,6 +254,13 @@ func (s *accountsStorage) addressesNumber() (uint64, error) {
 	if err != nil {
 		return 0, err
 	}
+	defer func() {
+		iter.Release()
+		if err := iter.Error(); err != nil {
+			log.Fatalf("Iterator error: %v", err)
+		}
+	}()
+
 	addressesNumber := uint64(0)
 	for iter.Next() {
 		balance, err := s.accountBalance(iter.Key())
@@ -254,11 +271,49 @@ func (s *accountsStorage) addressesNumber() (uint64, error) {
 			addressesNumber++
 		}
 	}
-	iter.Release()
-	if err := iter.Error(); err != nil {
+	return addressesNumber, nil
+}
+
+// minBalanceInRange() is used to get min miner's effective balance, so it includes blocks which
+// have not been flushed to DB yet (and are currently stored in memory).
+func (s *accountsStorage) minBalanceInRange(balanceKey []byte, startHeight, endHeight uint64) (uint64, error) {
+	history, err := s.localStor.getHistory(balanceKey)
+	if err != nil {
 		return 0, err
 	}
-	return addressesNumber, nil
+	minBalance := uint64(math.MaxUint64)
+	for i := len(history); i >= recordSize; i -= recordSize {
+		record := history[i-recordSize : i]
+		balanceEnd := len(record) - crypto.SignatureSize
+		idBytes := record[balanceEnd:]
+		blockID, err := toBlockID(idBytes)
+		if err != nil {
+			return 0, err
+		}
+		// Set height to genesis by default.
+		height := uint64(1)
+		if blockID != s.genesis {
+			// Change height if needed.
+			height, err = s.idToHeight.heightByNewBlockID(blockID)
+			if err != nil {
+				return 0, err
+			}
+		}
+		if height > endHeight {
+			continue
+		}
+		if height < startHeight && minBalance != math.MaxUint64 {
+			break
+		}
+		balance := binary.LittleEndian.Uint64(record[balanceEnd-8 : balanceEnd])
+		if balance < minBalance {
+			minBalance = balance
+		}
+	}
+	if minBalance == math.MaxUint64 {
+		return 0, errors.New("invalid height range or unknown address")
+	}
+	return minBalance, nil
 }
 
 func (s *accountsStorage) accountBalance(balanceKey []byte) (uint64, error) {
@@ -324,9 +379,7 @@ func (s *accountsStorage) newHistory(newRecord []byte, key []byte, blockID crypt
 func (s *accountsStorage) setAccountBalance(balanceKey []byte, balance uint64, blockID crypto.Signature) error {
 	// Add block to valid blocks.
 	key := blockIdKey{blockID: blockID}
-	if err := s.db.Put(key.bytes(), Empty); err != nil {
-		return err
-	}
+	s.dbBatch.Put(key.bytes(), Empty)
 	// Prepare new record.
 	balanceBuf := make([]byte, 8)
 	binary.LittleEndian.PutUint64(balanceBuf, balance)
@@ -360,14 +413,10 @@ func (s *accountsStorage) rollbackBlock(blockID crypto.Signature) error {
 
 func (s *accountsStorage) addChangesToBatch() error {
 	for key, history := range s.localStor.waves {
-		if err := s.db.Put(key[:], history); err != nil {
-			return err
-		}
+		s.dbBatch.Put(key[:], history)
 	}
 	for key, history := range s.localStor.assets {
-		if err := s.db.Put(key[:], history); err != nil {
-			return err
-		}
+		s.dbBatch.Put(key[:], history)
 	}
 	s.localStor.reset()
 	return nil
@@ -385,11 +434,16 @@ func (s *accountsStorage) updateHeight(heightChange int) error {
 	return nil
 }
 
+func (s *accountsStorage) reset() {
+	s.dbBatch.Reset()
+	s.localStor.reset()
+}
+
 func (s *accountsStorage) flush() error {
 	if err := s.addChangesToBatch(); err != nil {
 		return err
 	}
-	if err := s.db.Flush(); err != nil {
+	if err := s.db.Flush(s.dbBatch); err != nil {
 		return err
 	}
 	return nil

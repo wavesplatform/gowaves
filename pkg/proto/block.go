@@ -7,9 +7,17 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 )
 
+type BlockVersion byte
+
+const (
+	GenesisBlockVersion BlockVersion = iota + 1
+	PlainBlockVersion
+	NgBlockVersion
+)
+
 // Block info (except transactions)
 type BlockHeader struct {
-	Version                uint8
+	Version                BlockVersion
 	Timestamp              uint64
 	Parent                 crypto.Signature
 	ConsensusBlockLength   uint32
@@ -25,14 +33,14 @@ type BlockHeader struct {
 
 func (b *BlockHeader) MarshalHeaderToBinary() ([]byte, error) {
 	res := make([]byte, 1+8+64+4+8+32+4)
-	res[0] = b.Version
+	res[0] = byte(b.Version)
 	binary.BigEndian.PutUint64(res[1:9], b.Timestamp)
 	copy(res[9:], b.Parent[:])
 	binary.BigEndian.PutUint32(res[73:77], b.ConsensusBlockLength)
 	binary.BigEndian.PutUint64(res[77:85], b.BaseTarget)
 	copy(res[85:117], b.GenSignature[:])
 	binary.BigEndian.PutUint32(res[117:121], b.TransactionBlockLength)
-	if b.Version == 3 {
+	if b.Version == NgBlockVersion {
 		countBuf := make([]byte, 4)
 		binary.BigEndian.PutUint32(countBuf, uint32(b.TransactionCount))
 		res = append(res, countBuf...)
@@ -46,14 +54,14 @@ func (b *BlockHeader) MarshalHeaderToBinary() ([]byte, error) {
 }
 
 func (b *BlockHeader) UnmarshalHeaderFromBinary(data []byte) error {
-	b.Version = data[0]
+	b.Version = BlockVersion(data[0])
 	b.Timestamp = binary.BigEndian.Uint64(data[1:9])
 	copy(b.Parent[:], data[9:73])
 	b.ConsensusBlockLength = binary.BigEndian.Uint32(data[73:77])
 	b.BaseTarget = binary.BigEndian.Uint64(data[77:85])
 	copy(b.GenSignature[:], data[85:117])
 	b.TransactionBlockLength = binary.BigEndian.Uint32(data[117:121])
-	if b.Version == 3 {
+	if b.Version == NgBlockVersion {
 		b.TransactionCount = int(binary.BigEndian.Uint32(data[121:125]))
 	} else {
 		b.TransactionCount = int(data[121])
@@ -74,14 +82,14 @@ type Block struct {
 // MarshalBinary encodes Block to binary form
 func (b *Block) MarshalBinary() ([]byte, error) {
 	res := make([]byte, 1+8+64+4+8+32+4)
-	res[0] = b.Version
+	res[0] = byte(b.Version)
 	binary.BigEndian.PutUint64(res[1:9], b.Timestamp)
 	copy(res[9:], b.Parent[:])
 	binary.BigEndian.PutUint32(res[73:77], b.ConsensusBlockLength)
 	binary.BigEndian.PutUint64(res[77:85], b.BaseTarget)
 	copy(res[85:117], b.GenSignature[:])
 	binary.BigEndian.PutUint32(res[117:121], b.TransactionBlockLength)
-	if b.Version == 3 {
+	if b.Version == NgBlockVersion {
 		countBuf := make([]byte, 4)
 		binary.BigEndian.PutUint32(countBuf, uint32(b.TransactionCount))
 		res = append(res, countBuf...)
@@ -97,14 +105,14 @@ func (b *Block) MarshalBinary() ([]byte, error) {
 
 // UnmarshalBinary decodes Block from binary form
 func (b *Block) UnmarshalBinary(data []byte) error {
-	b.Version = data[0]
+	b.Version = BlockVersion(data[0])
 	b.Timestamp = binary.BigEndian.Uint64(data[1:9])
 	copy(b.Parent[:], data[9:73])
 	b.ConsensusBlockLength = binary.BigEndian.Uint32(data[73:77])
 	b.BaseTarget = binary.BigEndian.Uint64(data[77:85])
 	copy(b.GenSignature[:], data[85:117])
 	b.TransactionBlockLength = binary.BigEndian.Uint32(data[117:121])
-	if b.Version == 3 {
+	if b.Version == NgBlockVersion {
 		b.TransactionCount = int(binary.BigEndian.Uint32(data[121:125]))
 		if b.TransactionBlockLength < 4 {
 			return errors.New("TransactionBlockLength is too small")

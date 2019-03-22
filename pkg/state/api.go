@@ -5,6 +5,7 @@ import (
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/settings"
 )
 
 type StateErrorType byte
@@ -77,6 +78,10 @@ type State interface {
 	ScoreAtHeight(height uint64) (*big.Int, error)
 	// Get current blockchain score (at top height).
 	CurrentScore() (*big.Int, error)
+	// Miner's effective balance in given height range.
+	EffectiveBalance(addr proto.Address, startHeight, endHeight uint64) (uint64, error)
+	// Retrieve current blockchain settings.
+	BlockchainSettings() (*settings.BlockchainSettings, error)
 
 	Close() error
 }
@@ -86,8 +91,10 @@ type State interface {
 // and state will try to sync and use it in this case.
 // params are block storage parameters, they specify lengths of byte offsets for headers and transactions.
 // Use state.DefaultBlockStorageParams() to create default parameters.
-func NewState(dataDir string, params BlockStorageParams) (State, error) {
-	return newStateManager(dataDir, params)
+// Settings are blockchain settings, you can use settings.MainNetSettings, ...
+// (TODO: settings.TestNetSettings and custom settings aren't yet supported).
+func NewState(dataDir string, params BlockStorageParams, settings *settings.BlockchainSettings) (State, error) {
+	return newStateManager(dataDir, params, settings)
 }
 
 type BlockStorageParams struct {

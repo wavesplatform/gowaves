@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/wavesplatform/gowaves/pkg/importer"
+	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/state"
 )
 
@@ -32,7 +33,7 @@ func main() {
 		}
 		dataDir = tempDir
 	}
-	state, err := state.NewState(dataDir, state.DefaultBlockStorageParams())
+	state, err := state.NewState(dataDir, state.DefaultBlockStorageParams(), settings.MainNetSettings)
 	if err != nil {
 		log.Fatalf("Failed to create state: %v.\n", err)
 	}

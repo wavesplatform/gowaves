@@ -9,7 +9,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"github.com/wavesplatform/gowaves/pkg/state"
+	"github.com/wavesplatform/gowaves/pkg/ride/mockstate"
 	"io"
 	"math/big"
 	"unicode/utf8"
@@ -372,7 +372,7 @@ func NativeTransactionHeightByID(s Scope, e Exprs) (Expr, error) {
 
 	height, err := s.State().TransactionHeightByID(bts.Value)
 	if err != nil {
-		if err == state.ErrNotFound {
+		if err == mockstate.ErrNotFound {
 			return Unit{}, nil
 		}
 		return nil, errors.Wrap(err, funcName)
@@ -401,7 +401,7 @@ func NativeTransactionByID(s Scope, e Exprs) (Expr, error) {
 
 	tx, err := s.State().TransactionByID(bts.Value)
 	if err != nil {
-		if err == state.ErrNotFound {
+		if err == mockstate.ErrNotFound {
 			return Unit{}, nil
 		}
 		return nil, errors.Wrap(err, funcName)

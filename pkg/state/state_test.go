@@ -10,6 +10,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/importer"
+	"github.com/wavesplatform/gowaves/pkg/settings"
 )
 
 const (
@@ -48,7 +49,7 @@ func TestBlockAcceptAndRollback(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temp dir for data: %v\n", err)
 	}
-	manager, err := newStateManager(dataDir, DefaultBlockStorageParams())
+	manager, err := newStateManager(dataDir, DefaultBlockStorageParams(), settings.MainNetSettings)
 	if err != nil {
 		t.Fatalf("Failed to create state manager: %v.\n", err)
 	}
@@ -68,6 +69,13 @@ func TestBlockAcceptAndRollback(t *testing.T) {
 		}
 	}()
 
+	// Test what happens in case of failure: we add blocks starting from wrong height.
+	// State should be rolled back to previous state and ready to use after.
+	wrongStartHeight := uint64(100)
+	if err := importer.ApplyFromFile(manager, blocksPath, blocksToImport, wrongStartHeight); err == nil {
+		t.Errorf("Import starting from wrong height must fail but it doesn't.")
+	}
+	// Test normal import.
 	if err := importer.ApplyFromFile(manager, blocksPath, blocksToImport, 1); err != nil {
 		t.Fatalf("Failed to import: %v\n", err)
 	}

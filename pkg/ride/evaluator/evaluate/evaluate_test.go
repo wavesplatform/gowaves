@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"github.com/wavesplatform/gowaves/pkg/state"
+	"github.com/wavesplatform/gowaves/pkg/ride/mockstate"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -50,14 +50,14 @@ func defaultScope() Scope {
 		panic(err)
 	}
 
-	am := state.MockAccount{
+	am := mockstate.MockAccount{
 		Assets: map[string]uint64{"BXBUNddxTGTQc3G4qHYn5E67SBwMj18zLncUr871iuRD": 5},
 	}
 
-	s := state.MockStateImpl{
+	s := mockstate.MockStateImpl{
 		//TransactionsHeightByID: map[string]uint64{},
 		//AssetsByID: map[string]uint64{addr.String() + "BXBUNddxTGTQc3G4qHYn5E67SBwMj18zLncUr871iuRD": 5},
-		Accounts: map[string]state.Account{addr.String(): &am},
+		Accounts: map[string]mockstate.Account{addr.String(): &am},
 	}
 
 	return NewScope(proto.MainNetScheme, s, NewFuncScope(), predefObject)
@@ -231,7 +231,7 @@ func TestDataFunctions(t *testing.T) {
 	predefObject := make(map[string]Expr)
 	predefObject["tx"] = NewObject(vars)
 
-	scope := NewScope(proto.MainNetScheme, state.MockStateImpl{}, NewFuncScope(), predefObject)
+	scope := NewScope(proto.MainNetScheme, mockstate.MockStateImpl{}, NewFuncScope(), predefObject)
 
 	conds := []struct {
 		FuncCode int

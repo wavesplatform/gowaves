@@ -7,20 +7,11 @@ import (
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/util"
 )
 
 const (
-	maxTxAndBlockDiff     = 2 * 60 * 60
-	maxTimeForUnconfirmed = 90 * 60
-
-	// Timestamps when different checks become relevant.
-	checkTimForUnconfirmedMainNet = 1479168000000
-	negativeBalanceCheckMainNet   = 1479168000000
-	negativeBalanceCheckTestNet   = 1477958400000
-	checkTxChangesSortedMainNet   = 1479416400000
-	checkTxChangesSortedTestNet   = 1479416400000
-
 	wavesBalanceKeySize = 1 + proto.AddressSize
 	assetBalanceKeySize = 1 + proto.AddressSize + crypto.DigestSize
 )
@@ -172,21 +163,21 @@ func (bs *changesStorage) applyDeltas() error {
 }
 
 type transactionValidator struct {
-	genesis   crypto.Signature
-	stor      *changesStorage
-	netScheme byte
+	genesis  crypto.Signature
+	stor     *changesStorage
+	settings *settings.BlockchainSettings
 }
 
 func newTransactionValidator(
 	genesis crypto.Signature,
 	accounts *accountsStorage,
-	netScheme byte,
+	settings *settings.BlockchainSettings,
 ) (*transactionValidator, error) {
 	stor, err := newChangesStorage(accounts)
 	if err != nil {
 		return nil, errors.Errorf("failed to create balances storage: %v\n", err)
 	}
-	return &transactionValidator{genesis: genesis, stor: stor, netScheme: netScheme}, nil
+	return &transactionValidator{genesis: genesis, stor: stor, settings: settings}, nil
 }
 
 func (tv *transactionValidator) isSupported(tx proto.Transaction) bool {
@@ -221,42 +212,23 @@ func (tv *transactionValidator) isSupported(tx proto.Transaction) bool {
 	}
 }
 
-func (tv *transactionValidator) checkUnconfirmedTime(timestamp uint64) bool {
-	if tv.netScheme == proto.TestNetScheme {
-		return true
-	}
-	if tv.netScheme == proto.MainNetScheme {
-		return timestamp > checkTimForUnconfirmedMainNet
-	}
-	return false
+func (tv *transactionValidator) checkFromFuture(timestamp uint64) bool {
+	return timestamp > tv.settings.TxFromFutureCheckAfterTime
 }
 
 func (tv *transactionValidator) checkNegativeBalance(timestamp uint64) bool {
-	if tv.netScheme == proto.MainNetScheme {
-		return timestamp > negativeBalanceCheckMainNet
-	}
-	if tv.netScheme == proto.TestNetScheme {
-		return timestamp > negativeBalanceCheckTestNet
-	}
-	return false
+	return timestamp > tv.settings.NegativeBalanceCheckAfterTime
 }
 
 func (tv *transactionValidator) checkTxChangesSorted(timestamp uint64) bool {
-	if tv.netScheme == proto.MainNetScheme {
-		return timestamp > checkTxChangesSortedMainNet
-	}
-	if tv.netScheme == proto.TestNetScheme {
-		return timestamp > checkTxChangesSortedTestNet
-	}
-	return false
+	return timestamp > tv.settings.TxChangesSortedCheckAfterTime
 }
 
-func (tv *transactionValidator) checkTimestamps(txTimestamp, blockTimestamp uint64) (bool, error) {
-	// TODO: clarify why this constant (from docs) isn't correct.
-	//if txTimestamp < blockTimestamp-maxTxAndBlockDiff {
-	//	return false, errors.New("early transaction creation time")
-	//}
-	if tv.checkUnconfirmedTime(blockTimestamp) && txTimestamp > blockTimestamp+maxTimeForUnconfirmed {
+func (tv *transactionValidator) checkTimestamps(txTimestamp, blockTimestamp, prevBlockTimestamp uint64) (bool, error) {
+	if txTimestamp < prevBlockTimestamp-tv.settings.MaxTxTimeBackOffset {
+		return false, errors.New("early transaction creation time")
+	}
+	if tv.checkFromFuture(blockTimestamp) && txTimestamp > blockTimestamp+tv.settings.MaxTxTimeForwardOffset {
 		return false, errors.New("late transaction creation time")
 	}
 	return true, nil
@@ -281,9 +253,6 @@ func (tv *transactionValidator) validateGenesis(tx *proto.Genesis, block *proto.
 	if !initialisation {
 		return false, errors.New("genesis transaction in non-initialisation mode")
 	}
-	if ok, err := tv.checkTimestamps(tx.Timestamp, block.Timestamp); !ok {
-		return false, errors.Wrap(err, "invalid timestamp")
-	}
 	key := balanceKey{address: tx.Recipient}
 	receiverBalanceDiff := int64(tx.Amount)
 	if ok, err := tv.addChanges(key.bytes(), receiverBalanceDiff, block); !ok {
@@ -292,12 +261,12 @@ func (tv *transactionValidator) validateGenesis(tx *proto.Genesis, block *proto.
 	return true, nil
 }
 
-func (tv *transactionValidator) validatePayment(tx *proto.Payment, block *proto.Block, initialisation bool) (bool, error) {
-	if ok, err := tv.checkTimestamps(tx.Timestamp, block.Timestamp); !ok {
+func (tv *transactionValidator) validatePayment(tx *proto.Payment, block, parent *proto.Block, initialisation bool) (bool, error) {
+	if ok, err := tv.checkTimestamps(tx.Timestamp, block.Timestamp, parent.Timestamp); !ok {
 		return false, errors.Wrap(err, "invalid timestamp")
 	}
 	// Update sender.
-	senderAddr, err := proto.NewAddressFromPublicKey(tv.netScheme, tx.SenderPK)
+	senderAddr, err := proto.NewAddressFromPublicKey(tv.settings.AddressSchemeCharacter, tx.SenderPK)
 	if err != nil {
 		return false, err
 	}
@@ -313,7 +282,7 @@ func (tv *transactionValidator) validatePayment(tx *proto.Payment, block *proto.
 		return false, err
 	}
 	// Update miner.
-	minerAddr, err := proto.NewAddressFromPublicKey(tv.netScheme, block.GenPublicKey)
+	minerAddr, err := proto.NewAddressFromPublicKey(tv.settings.AddressSchemeCharacter, block.GenPublicKey)
 	if err != nil {
 		return false, err
 	}
@@ -325,12 +294,12 @@ func (tv *transactionValidator) validatePayment(tx *proto.Payment, block *proto.
 	return true, nil
 }
 
-func (tv *transactionValidator) validateTransferV1(tx *proto.TransferV1, block *proto.Block, initialisation bool) (bool, error) {
-	if ok, err := tv.checkTimestamps(tx.Timestamp, block.Timestamp); !ok {
+func (tv *transactionValidator) validateTransferV1(tx *proto.TransferV1, block, parent *proto.Block, initialisation bool) (bool, error) {
+	if ok, err := tv.checkTimestamps(tx.Timestamp, block.Timestamp, parent.Timestamp); !ok {
 		return false, errors.Wrap(err, "invalid timestamp")
 	}
 	// Update sender.
-	senderAddr, err := proto.NewAddressFromPublicKey(tv.netScheme, tx.SenderPK)
+	senderAddr, err := proto.NewAddressFromPublicKey(tv.settings.AddressSchemeCharacter, tx.SenderPK)
 	if err != nil {
 		return false, err
 	}
@@ -355,7 +324,7 @@ func (tv *transactionValidator) validateTransferV1(tx *proto.TransferV1, block *
 		return false, err
 	}
 	// Update miner.
-	minerAddr, err := proto.NewAddressFromPublicKey(tv.netScheme, block.GenPublicKey)
+	minerAddr, err := proto.NewAddressFromPublicKey(tv.settings.AddressSchemeCharacter, block.GenPublicKey)
 	if err != nil {
 		return false, err
 	}
@@ -367,12 +336,12 @@ func (tv *transactionValidator) validateTransferV1(tx *proto.TransferV1, block *
 	return true, nil
 }
 
-func (tv *transactionValidator) validateTransferV2(tx *proto.TransferV2, block *proto.Block, initialisation bool) (bool, error) {
-	if ok, err := tv.checkTimestamps(tx.Timestamp, block.Timestamp); !ok {
+func (tv *transactionValidator) validateTransferV2(tx *proto.TransferV2, block, parent *proto.Block, initialisation bool) (bool, error) {
+	if ok, err := tv.checkTimestamps(tx.Timestamp, block.Timestamp, parent.Timestamp); !ok {
 		return false, errors.Wrap(err, "invalid timestamp")
 	}
 	// Update sender.
-	senderAddr, err := proto.NewAddressFromPublicKey(tv.netScheme, tx.SenderPK)
+	senderAddr, err := proto.NewAddressFromPublicKey(tv.settings.AddressSchemeCharacter, tx.SenderPK)
 	if err != nil {
 		return false, err
 	}
@@ -397,7 +366,7 @@ func (tv *transactionValidator) validateTransferV2(tx *proto.TransferV2, block *
 		return false, err
 	}
 	// Update miner.
-	minerAddr, err := proto.NewAddressFromPublicKey(tv.netScheme, block.GenPublicKey)
+	minerAddr, err := proto.NewAddressFromPublicKey(tv.settings.AddressSchemeCharacter, block.GenPublicKey)
 	if err != nil {
 		return false, err
 	}
@@ -409,22 +378,22 @@ func (tv *transactionValidator) validateTransferV2(tx *proto.TransferV2, block *
 	return true, nil
 }
 
-func (tv *transactionValidator) validateTransaction(block *proto.Block, tx proto.Transaction, initialisation bool) error {
+func (tv *transactionValidator) validateTransaction(block, parent *proto.Block, tx proto.Transaction, initialisation bool) error {
 	switch v := tx.(type) {
 	case *proto.Genesis:
 		if ok, err := tv.validateGenesis(v, block, initialisation); !ok {
 			return errors.Wrap(err, "genesis validation failed")
 		}
 	case *proto.Payment:
-		if ok, err := tv.validatePayment(v, block, initialisation); !ok {
+		if ok, err := tv.validatePayment(v, block, parent, initialisation); !ok {
 			return errors.Wrap(err, "payment validation failed")
 		}
 	case *proto.TransferV1:
-		if ok, err := tv.validateTransferV1(v, block, initialisation); !ok {
+		if ok, err := tv.validateTransferV1(v, block, parent, initialisation); !ok {
 			return errors.Wrap(err, "transferv1 validation failed")
 		}
 	case *proto.TransferV2:
-		if ok, err := tv.validateTransferV2(v, block, initialisation); !ok {
+		if ok, err := tv.validateTransferV2(v, block, parent, initialisation); !ok {
 			return errors.Wrap(err, "transferv2 validation failed")
 		}
 	default:

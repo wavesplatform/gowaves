@@ -21,18 +21,17 @@ func calculateScore(baseTarget uint64) (*big.Int, error) {
 }
 
 type scores struct {
-	db keyvalue.KeyValue
+	db      keyvalue.KeyValue
+	dbBatch keyvalue.Batch
 }
 
-func newScores(db keyvalue.KeyValue) (*scores, error) {
-	return &scores{db: db}, nil
+func newScores(db keyvalue.KeyValue, dbBatch keyvalue.Batch) (*scores, error) {
+	return &scores{db: db, dbBatch: dbBatch}, nil
 }
 
 func (s *scores) saveScoreToDb(score *big.Int, height uint64) error {
 	key := scoreKey{height: height}
-	if err := s.db.Put(key.bytes(), score.Bytes()); err != nil {
-		return err
-	}
+	s.dbBatch.Put(key.bytes(), score.Bytes())
 	return nil
 }
 

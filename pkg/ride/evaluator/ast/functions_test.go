@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"github.com/wavesplatform/gowaves/pkg/state"
+	"github.com/wavesplatform/gowaves/pkg/ride/mockstate"
 	"math"
 	"testing"
 	"time"
@@ -132,7 +132,7 @@ func TestNativeTransactionHeightByID(t *testing.T) {
 	sign, err := crypto.NewSignatureFromBase58("hVTTxvgCuezXDsZgh3rDreHzf4AULe5LB1J7zveRbBD4nz3Bzb9yJ2aXKchD4Ls3y2fvYAxnpHXx54S9ZghRx67")
 	require.NoError(t, err)
 
-	scope := newScopeWithState(&state.MockStateImpl{
+	scope := newScopeWithState(&mockstate.MockStateImpl{
 		TransactionsHeightByID: map[string]uint64{sign.String(): 15},
 	})
 
@@ -163,7 +163,7 @@ func TestNativeTransactionByID(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, transferV1.Sign(secret))
 
-	scope := newScopeWithState(&state.MockStateImpl{
+	scope := newScopeWithState(&mockstate.MockStateImpl{
 		TransactionsByID: map[string]proto.Transaction{sign.String(): transferV1},
 	})
 
@@ -348,12 +348,12 @@ func TestNativeToBse64String(t *testing.T) {
 }
 
 func TestNativeAssetBalance_FromAddress(t *testing.T) {
-	am := state.MockAccount{
+	am := mockstate.MockAccount{
 		Assets: map[string]uint64{"BXBUNddxTGTQc3G4qHYn5E67SBwMj18zLncUr871iuRD": 5},
 	}
 
-	s := state.MockStateImpl{
-		Accounts: map[string]state.Account{"3N2YHKSnQTUmka4pocTt71HwSSAiUWBcojK": &am},
+	s := mockstate.MockStateImpl{
+		Accounts: map[string]mockstate.Account{"3N2YHKSnQTUmka4pocTt71HwSSAiUWBcojK": &am},
 	}
 
 	addr, err := proto.NewAddressFromString("3N2YHKSnQTUmka4pocTt71HwSSAiUWBcojK")
@@ -368,12 +368,12 @@ func TestNativeAssetBalance_FromAddress(t *testing.T) {
 }
 
 func TestNativeAssetBalance_FromAlias(t *testing.T) {
-	am := state.MockAccount{
+	am := mockstate.MockAccount{
 		Assets: map[string]uint64{"BXBUNddxTGTQc3G4qHYn5E67SBwMj18zLncUr871iuRD": 5},
 	}
 
-	s := state.MockStateImpl{
-		Accounts: map[string]state.Account{"alias:W:test": &am},
+	s := mockstate.MockStateImpl{
+		Accounts: map[string]mockstate.Account{"alias:W:test": &am},
 	}
 
 	scope := newScopeWithState(s)
@@ -454,12 +454,12 @@ func TestNativeDataFromState(t *testing.T) {
 		Value: "world",
 	})
 
-	am := state.MockAccount{
+	am := mockstate.MockAccount{
 		DataEntries: dataEntries,
 	}
 
-	s := state.MockStateImpl{
-		Accounts: map[string]state.Account{saddr: &am},
+	s := mockstate.MockStateImpl{
+		Accounts: map[string]mockstate.Account{saddr: &am},
 	}
 
 	rs1, err := NativeDataLongFromState(newScopeWithState(s), Params(addr, NewString("integer")))
@@ -571,12 +571,12 @@ func TestNativeAddressFromRecipient(t *testing.T) {
 
 	r := proto.NewRecipientFromAddress(addr)
 
-	acc := state.MockAccount{
+	acc := mockstate.MockAccount{
 		AddressField: addr,
 	}
 
-	s := state.MockStateImpl{
-		Accounts: map[string]state.Account{r.String(): &acc},
+	s := mockstate.MockStateImpl{
+		Accounts: map[string]mockstate.Account{r.String(): &acc},
 	}
 
 	rs, err := NativeAddressFromRecipient(newScopeWithState(s), Params(NewRecipientFromProtoRecipient(proto.NewRecipientFromAddress(addr))))

@@ -1,4 +1,4 @@
-package state
+package mockstate
 
 import (
 	"github.com/mr-tron/base58/base58"

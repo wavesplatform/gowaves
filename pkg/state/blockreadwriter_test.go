@@ -28,7 +28,7 @@ const (
 )
 
 var (
-	cached_blocks []*proto.Block
+	cachedBlocks []proto.Block
 )
 
 type readCommandType byte
@@ -48,9 +48,9 @@ type readTask struct {
 	correctResult []byte
 }
 
-func readRealBlocks(t *testing.T, nBlocks int) ([]*proto.Block, error) {
-	if len(cached_blocks) >= nBlocks {
-		return cached_blocks[:nBlocks], nil
+func readRealBlocks(t *testing.T, nBlocks int) ([]proto.Block, error) {
+	if len(cachedBlocks) >= nBlocks {
+		return cachedBlocks[:nBlocks], nil
 	}
 	dir, err := getLocalDir()
 	if err != nil {
@@ -70,7 +70,7 @@ func readRealBlocks(t *testing.T, nBlocks int) ([]*proto.Block, error) {
 	sb := make([]byte, 4)
 	buf := make([]byte, 2*1024*1024)
 	r := bufio.NewReader(f)
-	var blocks []*proto.Block
+	var blocks []proto.Block
 	for i := 0; i < nBlocks; i++ {
 		if _, err := io.ReadFull(r, sb); err != nil {
 			return nil, err
@@ -87,9 +87,9 @@ func readRealBlocks(t *testing.T, nBlocks int) ([]*proto.Block, error) {
 		if !crypto.Verify(block.GenPublicKey, block.BlockSignature, bb[:len(bb)-crypto.SignatureSize]) {
 			return nil, errors.Errorf("Block %d has invalid signature", i)
 		}
-		blocks = append(blocks, &block)
+		blocks = append(blocks, block)
 	}
-	cached_blocks = blocks
+	cachedBlocks = blocks
 	return blocks, nil
 }
 
@@ -99,7 +99,11 @@ func createBlockReadWriter(offsetLen, headerOffsetLen int) (*blockReadWriter, []
 	if err != nil {
 		return nil, res, err
 	}
-	keyVal, err := keyvalue.NewKeyVal(dbDir, true)
+	db, err := keyvalue.NewKeyVal(dbDir)
+	if err != nil {
+		return nil, res, err
+	}
+	dbBatch, err := db.NewBatch()
 	if err != nil {
 		return nil, res, err
 	}
@@ -107,7 +111,7 @@ func createBlockReadWriter(offsetLen, headerOffsetLen int) (*blockReadWriter, []
 	if err != nil {
 		return nil, res, err
 	}
-	rw, err := newBlockReadWriter(rwDir, offsetLen, headerOffsetLen, keyVal)
+	rw, err := newBlockReadWriter(rwDir, offsetLen, headerOffsetLen, db, dbBatch)
 	if err != nil {
 		return nil, res, err
 	}
@@ -149,7 +153,7 @@ func writeBlock(t *testing.T, rw *blockReadWriter, block *proto.Block) {
 	if err := rw.flush(); err != nil {
 		t.Fatalf("Failed to flush: %v", err)
 	}
-	if err := rw.db.Flush(); err != nil {
+	if err := rw.db.Flush(rw.dbBatch); err != nil {
 		t.Fatalf("Failed to flush DB: %v", err)
 	}
 }
@@ -177,7 +181,7 @@ func testSingleBlock(t *testing.T, rw *blockReadWriter, block *proto.Block) {
 	}
 }
 
-func writeBlocks(ctx context.Context, rw *blockReadWriter, blocks []*proto.Block, readTasks chan<- *readTask) error {
+func writeBlocks(ctx context.Context, rw *blockReadWriter, blocks []proto.Block, readTasks chan<- *readTask) error {
 	height := 0
 	for _, block := range blocks {
 		var tasksBuf []*readTask
@@ -228,7 +232,7 @@ func writeBlocks(ctx context.Context, rw *blockReadWriter, blocks []*proto.Block
 			close(readTasks)
 			return err
 		}
-		if err := rw.db.Flush(); err != nil {
+		if err := rw.db.Flush(rw.dbBatch); err != nil {
 			close(readTasks)
 			return err
 		}
@@ -311,7 +315,7 @@ func TestSimpleReadWrite(t *testing.T) {
 		t.Fatalf("Can not read blocks from blockchain file: %v", err)
 	}
 	for _, block := range blocks {
-		testSingleBlock(t, rw, block)
+		testSingleBlock(t, rw, &block)
 	}
 }
 
@@ -398,7 +402,7 @@ func TestSimultaneousReadDelete(t *testing.T) {
 	}
 
 	for _, block := range blocks {
-		writeBlock(t, rw, block)
+		writeBlock(t, rw, &block)
 	}
 	idToTest := blocks[blocksNumber-1].BlockSignature
 	prevId := blocks[blocksNumber-2].BlockSignature
