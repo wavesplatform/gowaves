@@ -78,8 +78,6 @@ type State interface {
 	ScoreAtHeight(height uint64) (*big.Int, error)
 	// Get current blockchain score (at top height).
 	CurrentScore() (*big.Int, error)
-	// Miner's effective balance in given height range.
-	EffectiveBalance(addr proto.Address, startHeight, endHeight uint64) (uint64, error)
 	// Retrieve current blockchain settings.
 	BlockchainSettings() (*settings.BlockchainSettings, error)
 

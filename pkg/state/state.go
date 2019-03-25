@@ -22,8 +22,7 @@ const (
 
 type stateManager struct {
 	genesis proto.Block
-	db      keyvalue.KeyValue
-	dbBatch keyvalue.Batch
+	stateDB *stateDB
 
 	scores   *scores
 	accounts *accountsStorage
@@ -31,40 +30,6 @@ type stateManager struct {
 
 	settings *settings.BlockchainSettings
 	cv       *consensus.ConsensusValidator
-}
-
-func syncDbAndStorage(stor *accountsStorage, rw *blockReadWriter) error {
-	// Reset the accounts storage and rw (they shouldn't have anything in memory after sync).
-	stor.reset()
-	rw.reset()
-	dbHeightBytes, err := stor.db.Get([]byte{dbHeightKeyPrefix})
-	if err != nil {
-		return err
-	}
-	dbHeight := binary.LittleEndian.Uint64(dbHeightBytes)
-	rwHeightBytes, err := stor.db.Get([]byte{rwHeightKeyPrefix})
-	if err != nil {
-		return err
-	}
-	rwHeight := binary.LittleEndian.Uint64(rwHeightBytes)
-	if rwHeight < dbHeight {
-		// This should never happen, because we update block storage before writing changes into DB.
-		panic("Impossible to sync: DB is ahead of block storage; remove data dir and restart the node.")
-	}
-	if dbHeight == 0 {
-		if err := rw.rollbackToGenesis(false); err != nil {
-			return errors.Errorf("failed to reset block storage: %v", err)
-		}
-	} else {
-		last, err := rw.blockIDByHeight(dbHeight - 1)
-		if err != nil {
-			return err
-		}
-		if err := rw.rollback(last, false); err != nil {
-			return errors.Errorf("failed to remove blocks from block storage: %v", err)
-		}
-	}
-	return nil
 }
 
 func newStateManager(dataDir string, params BlockStorageParams, settings *settings.BlockchainSettings) (*stateManager, error) {
@@ -88,10 +53,19 @@ func newStateManager(dataDir string, params BlockStorageParams, settings *settin
 	if err != nil {
 		return nil, StateError{errorType: Other, originalError: errors.Errorf("failed to create db batch: %v\n", err)}
 	}
+	stateDB, err := newStateDB(db, dbBatch)
+	if err != nil {
+		return nil, StateError{errorType: Other, originalError: errors.Errorf("failed to create stateDB: %v\n", err)}
+	}
 	// scores is storage for blocks score.
 	scores, err := newScores(db, dbBatch)
 	if err != nil {
 		return nil, StateError{errorType: Other, originalError: errors.Errorf("failed to create scores: %v\n", err)}
+	}
+	state := &stateManager{
+		stateDB:  stateDB,
+		scores:   scores,
+		settings: settings,
 	}
 	// rw is storage for blocks.
 	rw, err := newBlockReadWriter(blockStorageDir, params.OffsetLen, params.HeaderOffsetLen, db, dbBatch)
@@ -99,21 +73,21 @@ func newStateManager(dataDir string, params BlockStorageParams, settings *settin
 		return nil, StateError{errorType: Other, originalError: errors.Errorf("failed to create block storage: %v\n", err)}
 	}
 	// accountsStor is storage for accounts balances.
-	accountsStor, err := newAccountsStorage(genesisSig, db, dbBatch, rw)
+	accountsStor, err := newAccountsStorage(db, dbBatch, state, state)
 	if err != nil {
 		return nil, StateError{errorType: Other, originalError: errors.Errorf("failed to create accounts storage: %v\n", err)}
 	}
-	accountsStor.setRollbackMax(rollbackMaxBlocks)
-	if err := syncDbAndStorage(accountsStor, rw); err != nil {
+	if err := stateDB.syncRw(rw); err != nil {
 		return nil, StateError{errorType: Other, originalError: errors.Errorf("failed to sync block storage and DB: %v\n", err)}
 	}
-	state := &stateManager{
-		db:       db,
-		scores:   scores,
-		accounts: accountsStor,
-		rw:       rw,
-		settings: settings,
+	// Consensus validator is needed to check block headers.
+	cv, err := consensus.NewConsensusValidator(state)
+	if err != nil {
+		return nil, StateError{errorType: Other, originalError: err}
 	}
+	state.cv = cv
+	state.accounts = accountsStor
+	state.rw = rw
 	// If the storage is new (data dir does not contain any data), genesis block must be applied.
 	height, err := state.Height()
 	if err != nil {
@@ -124,12 +98,6 @@ func newStateManager(dataDir string, params BlockStorageParams, settings *settin
 			return nil, StateError{errorType: ModificationError, originalError: errors.Errorf("failed to apply genesis: %v\n", err)}
 		}
 	}
-	// Consensus validator is needed to check block headers.
-	cv, err := consensus.NewConsensusValidator(state)
-	if err != nil {
-		return nil, StateError{errorType: Other, originalError: err}
-	}
-	state.cv = cv
 	return state, nil
 }
 
@@ -144,6 +112,10 @@ func (s *stateManager) applyGenesis(genesisSig crypto.Signature) error {
 			BlockSignature: genesisSig,
 			Height:         1,
 		},
+	}
+	// Add genesis to list of valid blocks, so DB will know about it.
+	if err := s.stateDB.addBlock(genesisSig); err != nil {
+		return err
 	}
 	// Add score of genesis block.
 	genesisScore, err := calculateScore(s.genesis.BaseTarget)
@@ -170,8 +142,11 @@ func (s *stateManager) applyGenesis(genesisSig crypto.Signature) error {
 	if err := tv.performTransactions(); err != nil {
 		return err
 	}
-	if err := s.accounts.flush(); err != nil {
-		return err
+	if err := s.flush(); err != nil {
+		return StateError{errorType: ModificationError, originalError: err}
+	}
+	if err := s.reset(); err != nil {
+		return StateError{errorType: ModificationError, originalError: err}
 	}
 	return nil
 }
@@ -227,6 +202,17 @@ func (s *stateManager) BlockIDToHeight(blockID crypto.Signature) (uint64, error)
 	return height, nil
 }
 
+func (s *stateManager) NewBlockIDToHeight(blockID crypto.Signature) (uint64, error) {
+	if blockID == s.genesis.BlockSignature {
+		return 1, nil
+	}
+	height, err := s.rw.heightByNewBlockID(blockID)
+	if err != nil {
+		return 0, StateError{errorType: RetrievalError, originalError: err}
+	}
+	return height, nil
+}
+
 func (s *stateManager) HeightToBlockID(height uint64) (crypto.Signature, error) {
 	if height == 1 {
 		return s.genesis.BlockSignature, nil
@@ -265,6 +251,9 @@ func (s *stateManager) topBlock() (*proto.Block, error) {
 }
 
 func (s *stateManager) addNewBlock(tv *transactionValidator, block, parent *proto.Block, initialisation bool) error {
+	if err := s.stateDB.addBlock(block.BlockSignature); err != nil {
+		return err
+	}
 	// Indicate new block for storage.
 	if err := s.rw.startBlock(block.BlockSignature); err != nil {
 		return err
@@ -304,22 +293,22 @@ func (s *stateManager) addNewBlock(tv *transactionValidator, block, parent *prot
 	return nil
 }
 
-// Perform all the actions necessary in order to finish adding block(s).
-func (s *stateManager) finishAddingBlocksBatch(headers []proto.BlockHeader, startHeight uint64, blocksNumber int) error {
-	if err := s.cv.ValidateHeaders(headers, startHeight); err != nil {
-		return StateError{errorType: BlockValidationError, originalError: err}
-	}
-	if err := s.rw.updateHeight(blocksNumber); err != nil {
-		return StateError{errorType: ModificationError, originalError: err}
-	}
+func (s *stateManager) reset() error {
+	s.rw.reset()
+	s.accounts.reset()
+	s.stateDB.reset()
+	return nil
+}
+
+func (s *stateManager) flush() error {
 	if err := s.rw.flush(); err != nil {
-		return StateError{errorType: ModificationError, originalError: err}
-	}
-	if err := s.accounts.updateHeight(blocksNumber); err != nil {
-		return StateError{errorType: ModificationError, originalError: err}
+		return err
 	}
 	if err := s.accounts.flush(); err != nil {
-		return StateError{errorType: ModificationError, originalError: err}
+		return err
+	}
+	if err := s.stateDB.flush(); err != nil {
+		return err
 	}
 	return nil
 }
@@ -340,11 +329,21 @@ func (s *stateManager) unmarshalAndCheck(blockBytes []byte, parentSig crypto.Sig
 	return &block, nil
 }
 
+func (s *stateManager) undoBlockAddition() error {
+	if err := s.reset(); err != nil {
+		return err
+	}
+	if err := s.stateDB.syncRw(s.rw); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (s *stateManager) AddBlock(block []byte) error {
 	blocks := make([][]byte, 1)
 	blocks[0] = block
 	if err := s.addBlocks(blocks, false); err != nil {
-		if err := syncDbAndStorage(s.accounts, s.rw); err != nil {
+		if err := s.undoBlockAddition(); err != nil {
 			panic("Failed to add blocks and can not rollback to previous state after failure.")
 		}
 		return err
@@ -354,7 +353,7 @@ func (s *stateManager) AddBlock(block []byte) error {
 
 func (s *stateManager) AddNewBlocks(blocks [][]byte) error {
 	if err := s.addBlocks(blocks, false); err != nil {
-		if err := syncDbAndStorage(s.accounts, s.rw); err != nil {
+		if err := s.undoBlockAddition(); err != nil {
 			panic("Failed to add blocks and can not rollback to previous state after failure.")
 		}
 		return err
@@ -364,7 +363,7 @@ func (s *stateManager) AddNewBlocks(blocks [][]byte) error {
 
 func (s *stateManager) AddOldBlocks(blocks [][]byte) error {
 	if err := s.addBlocks(blocks, true); err != nil {
-		if err := syncDbAndStorage(s.accounts, s.rw); err != nil {
+		if err := s.undoBlockAddition(); err != nil {
 			panic("Failed to add blocks and can not rollback to previous state after failure.")
 		}
 		return err
@@ -414,7 +413,16 @@ func (s *stateManager) addBlocks(blocks [][]byte, initialisation bool) error {
 	if err := tv.performTransactions(); err != nil {
 		return StateError{errorType: TxValidationError, originalError: err}
 	}
-	return s.finishAddingBlocksBatch(headers, height, blocksNumber)
+	if err := s.cv.ValidateHeaders(headers, height); err != nil {
+		return StateError{errorType: BlockValidationError, originalError: err}
+	}
+	if err := s.flush(); err != nil {
+		return StateError{errorType: ModificationError, originalError: err}
+	}
+	if err := s.reset(); err != nil {
+		return StateError{errorType: ModificationError, originalError: err}
+	}
+	return nil
 }
 
 func (s *stateManager) RollbackToHeight(height uint64) error {
@@ -432,7 +440,7 @@ func (s *stateManager) RollbackToHeight(height uint64) error {
 			if err != nil {
 				return StateError{errorType: RetrievalError, originalError: err}
 			}
-			if err := s.accounts.rollbackBlock(blockID); err != nil {
+			if err := s.stateDB.rollbackBlock(blockID); err != nil {
 				return StateError{errorType: RollbackError, originalError: err}
 			}
 		}
@@ -471,7 +479,7 @@ func (s *stateManager) RollbackTo(removalEdge crypto.Signature) error {
 		if blockID == removalEdge {
 			break
 		}
-		if err := s.accounts.rollbackBlock(blockID); err != nil {
+		if err := s.stateDB.rollbackBlock(blockID); err != nil {
 			return StateError{errorType: RollbackError, originalError: err}
 		}
 	}
@@ -519,11 +527,19 @@ func (s *stateManager) BlockchainSettings() (*settings.BlockchainSettings, error
 	return s.settings, nil
 }
 
+func (s *stateManager) RollbackMax() uint64 {
+	return rollbackMaxBlocks
+}
+
+func (s *stateManager) IsValidBlock(blockID crypto.Signature) (bool, error) {
+	return s.stateDB.isValidBlock(blockID)
+}
+
 func (s *stateManager) Close() error {
 	if err := s.rw.close(); err != nil {
 		return StateError{errorType: ClosureError, originalError: err}
 	}
-	if err := s.db.Close(); err != nil {
+	if err := s.stateDB.close(); err != nil {
 		return StateError{errorType: ClosureError, originalError: err}
 	}
 	return nil
