@@ -85,7 +85,7 @@ func (s *balances) addressesNumber() (uint64, error) {
 // minBalanceInRange() is used to get min miner's effective balance, so it includes blocks which
 // have not been flushed to DB yet (and are currently stored in memory).
 func (s *balances) minBalanceInRange(balanceKey []byte, startHeight, endHeight uint64) (uint64, error) {
-	history, err := s.fullHistory(balanceKey)
+	history, err := fullHistory(balanceKey, s.db, s.localStor, s.fmt)
 	if err != nil {
 		return 0, err
 	}
@@ -170,42 +170,8 @@ func (s *balances) reset() {
 	s.localStor = make(map[string][]byte)
 }
 
-// fullHistory returns combination of history from DB and the local storage (if any).
-func (s *balances) fullHistory(key []byte) ([]byte, error) {
-	newHist, _ := s.localStor[string(key)]
-	has, err := s.db.Has(key)
-	if err != nil {
-		return nil, err
-	}
-	if !has {
-		// New history
-		return newHist, nil
-	}
-	prevHist, err := s.db.Get(key)
-	if err != nil {
-		return nil, err
-	}
-	prevHist, err = s.fmt.Normalize(prevHist)
-	if err != nil {
-		return nil, err
-	}
-	return append(prevHist, newHist...), nil
-}
-
-func (s *balances) addToBatch() error {
-	for keyStr := range s.localStor {
-		key := []byte(keyStr)
-		newRecord, err := s.fullHistory(key)
-		if err != nil {
-			return err
-		}
-		s.dbBatch.Put(key, newRecord)
-	}
-	return nil
-}
-
 func (s *balances) flush() error {
-	if err := s.addToBatch(); err != nil {
+	if err := addHistoryToBatch(s.db, s.dbBatch, s.localStor, s.fmt); err != nil {
 		return err
 	}
 	return nil
