@@ -50,6 +50,7 @@ type status struct {
 type api struct {
 	interrupt <-chan struct{}
 	storage   *storage
+	registry  *PeerRegistry
 	srv       *http.Server
 }
 
@@ -84,11 +85,11 @@ func newInfoFromPublicAddress(pa PublicAddress) PublicAddressInfo {
 	}
 }
 
-func NewAPI(interrupt <-chan struct{}, storage *storage, bind string) (*api, error) {
+func NewAPI(interrupt <-chan struct{}, storage *storage, registry *PeerRegistry, bind string) (*api, error) {
 	if bind == "" {
 		return nil, errors.New("empty address to bin")
 	}
-	a := api{interrupt: interrupt, storage: storage}
+	a := api{interrupt: interrupt, storage: storage, registry: registry}
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
@@ -139,6 +140,7 @@ func (a *api) routes() chi.Router {
 	r := chi.NewRouter()
 	r.Get("/status", a.status)
 	r.Get("/addresses", a.addresses)
+	r.Get("/peers", a.peers)
 	r.Get("/parentedForks", a.forks)
 	r.Get("/node/{address}", a.node)
 	r.Get("/height/{height:\\d+}", a.blocksAtHeight)
@@ -179,7 +181,16 @@ func (a *api) addresses(w http.ResponseWriter, r *http.Request) {
 	}
 	err = json.NewEncoder(w).Encode(infos)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to marshal status to JSON: %v", err), http.StatusInternalServerError)
+		http.Error(w, fmt.Sprintf("Failed to marshal addresses to JSON: %v", err), http.StatusInternalServerError)
+		return
+	}
+}
+
+func (a *api) peers(w http.ResponseWriter, r *http.Request) {
+	peers := a.registry.Peers()
+	err := json.NewEncoder(w).Encode(peers)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to marshal peers to JSON: %v", err), http.StatusInternalServerError)
 		return
 	}
 }

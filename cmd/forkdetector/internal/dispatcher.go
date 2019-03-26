@@ -25,7 +25,9 @@ const (
 
 type dispatcher struct {
 	interrupt            <-chan struct{}
-	registry             *PublicAddressRegistry
+	storage              *storage
+	addressRegistry      *PublicAddressRegistry
+	peerRegistry         *PeerRegistry
 	connections          <-chan net.Conn
 	addresses            chan []net.TCPAddr
 	declaredAddressBytes []byte
@@ -34,35 +36,31 @@ type dispatcher struct {
 	scheme               byte
 	mu                   sync.Mutex
 	handlers             map[string]*handler
-	versions             []proto.Version
 }
 
-func NewDispatcher(interrupt <-chan struct{}, registry *PublicAddressRegistry, connections <-chan net.Conn, announcement, name string, nonce uint64, scheme byte, versions []proto.Version) (*dispatcher, error) {
+func NewDispatcher(interrupt <-chan struct{}, storage *storage, addressRegistry *PublicAddressRegistry, peerRegistry *PeerRegistry, connections <-chan net.Conn, announcement *PeerAddr, name string, nonce uint64, scheme byte) (*dispatcher, error) {
 	if connections == nil {
 		return nil, errors.New("invalid connections channel")
 	}
 
 	dab := make([]byte, 0)
-	if announcement != "" {
+	if announcement != nil {
 		var err error
-		da, err := proto.NewPeerAddressFromString(announcement)
-		if err != nil {
-			return nil, errors.Wrap(err, "invalid declared address")
-		}
-		dab, err = da.MarshalBinary()
+		dab, err = announcement.MarshalBinary()
 		if err != nil {
 			return nil, errors.Wrap(err, "invalid declared address")
 		}
 	}
 	return &dispatcher{
 		interrupt:            interrupt,
-		registry:             registry,
+		storage:              storage,
+		addressRegistry:      addressRegistry,
+		peerRegistry:         peerRegistry,
 		connections:          connections,
 		declaredAddressBytes: dab,
 		name:                 name,
 		nonce:                nonce,
 		scheme:               scheme,
-		versions:             versions,
 		mu:                   sync.Mutex{},
 		handlers:             make(map[string]*handler),
 	}, nil
@@ -80,7 +78,7 @@ func (d *dispatcher) Start() <-chan struct{} {
 				close(done)
 				return
 			case <-reconnectTicker.C:
-				pas, err := d.registry.FeasibleAddresses()
+				pas, err := d.addressRegistry.FeasibleAddresses()
 				if err != nil {
 					zap.S().Warnf("Failed to pickup peers to connect: %v", err)
 					continue
@@ -93,7 +91,7 @@ func (d *dispatcher) Start() <-chan struct{} {
 				go d.handleIncoming(conn)
 			case addresses := <-d.getAddressesChanLocked():
 				go func() {
-					n, err := d.registry.RegisterNewAddresses(addresses)
+					n, err := d.addressRegistry.RegisterNewAddresses(addresses)
 					if err != nil {
 						zap.S().Warnf("Failed to add new addresses: %v", err)
 					}
@@ -114,7 +112,7 @@ func (d *dispatcher) dial(pa PublicAddress) {
 	default:
 		conn, err := net.DialTimeout("tcp", pa.address.String(), dialingTimeout)
 		if err != nil {
-			err = d.registry.Discard(&pa)
+			err = d.addressRegistry.Discard(&pa)
 			if err != nil {
 				zap.S().Warnf("Failed to discard address '%s': %v", pa, err)
 				return
@@ -127,7 +125,7 @@ func (d *dispatcher) dial(pa PublicAddress) {
 		err = conn.SetWriteDeadline(time.Now().Add(writeTimeout))
 		if err != nil {
 			zap.S().Warnf("Failed to set write timeout: %v", err)
-			err := d.registry.Connected(&pa)
+			err := d.addressRegistry.Connected(&pa)
 			if err != nil {
 				zap.S().Warnf("Failed to update public address's state: %v", err)
 			}
@@ -136,7 +134,7 @@ func (d *dispatcher) dial(pa PublicAddress) {
 		_, err = rqh.WriteTo(conn)
 		if IsConnectionClosed(err) {
 			zap.S().Warnf("Connection to '%s' was closed during sending handshake: %v", conn.RemoteAddr(), err)
-			err := d.registry.Connected(&pa)
+			err := d.addressRegistry.Connected(&pa)
 			if err != nil {
 				zap.S().Warnf("Failed to update public address's state: %v", err)
 			}
@@ -154,7 +152,7 @@ func (d *dispatcher) dial(pa PublicAddress) {
 		err = conn.SetReadDeadline(time.Now().Add(readTimeout))
 		if err != nil {
 			zap.S().Warnf("Failed to set read timeout: %v", err)
-			err := d.registry.Connected(&pa)
+			err := d.addressRegistry.Connected(&pa)
 			if err != nil {
 				zap.S().Warnf("Failed to update public address's state: %v", err)
 			}
@@ -165,34 +163,48 @@ func (d *dispatcher) dial(pa PublicAddress) {
 		if err != nil {
 			if IsConnectionClosed(err) {
 				zap.S().Warnf("Connection to '%s' was closed during receiving handshake: %v", conn.RemoteAddr(), err)
-				err := d.registry.Connected(&pa)
+				err := d.addressRegistry.Connected(&pa)
 				if err != nil {
 					zap.S().Warnf("Failed to update public address's state: %v", err)
 				}
 				return
 			}
 			zap.S().Warnf("Failed to read handshake from node '%s': %v", conn.RemoteAddr(), err)
-			err := d.registry.Hostile(&pa)
+			err := d.addressRegistry.Hostile(&pa)
 			if err != nil {
 				zap.S().Warnf("Failed to update public address's state: %v", err)
 			}
 			return
 		}
 		if rph.AppName[len(rph.AppName)-1] != d.scheme {
-			err = d.registry.Hostile(&pa)
+			err = d.addressRegistry.Hostile(&pa)
 			zap.S().Debugf("Node '%s' has different blockchain scheme: %s", conn.RemoteAddr(), rph.AppName)
 			if err != nil {
 				zap.S().Warnf("Failed to update public address's state: %v", err)
 			}
 			return
 		}
-		err = d.registry.Greeted(&pa, rph.Version)
+		err = d.addressRegistry.Greeted(&pa, rph.Version)
 		if err != nil {
 			zap.S().Warnf("Failed to update public address's state: %v", err)
 			return
 		}
-		d.register(NewHandler(d.interrupt, conn, d.addresses))
-		zap.S().Infof("Successful handshake with '%s'", conn.RemoteAddr())
+		pd := NewPeerDesignation(pa.address.IP, rph.NodeNonce)
+		description, err := NewPeerDescription(conn.RemoteAddr(), rph)
+		if err != nil {
+			zap.S().Errorf("Failed to create a description of the peer: %v", err)
+		}
+		if d.peerRegistry.HasPeer(pd) {
+			zap.S().Debugf("Already connected with '%s', disconnecting...", conn.RemoteAddr())
+			err := conn.Close()
+			if err != nil {
+				zap.S().Warnf("Failed to close connection with '%s': %v", conn.RemoteAddr(), err)
+			}
+			return
+		}
+		h := NewHandler(d.interrupt, conn, d.storage, pd, d.addresses)
+		d.peerRegistry.Register(pd, *description, h)
+		zap.S().Infof("Successful connection to '%s'", conn.RemoteAddr())
 	}
 }
 
@@ -234,8 +246,8 @@ func (d *dispatcher) handleIncoming(conn net.Conn) {
 		return
 	}
 	if da, err := in.DeclaredAddress(); err == nil {
-		a := net.TCPAddr{IP: da.Addr, Port: int(da.Port)}
-		ok, err := d.registry.RegisterNewAddress(a, in.Version)
+		a := PeerAddr(net.TCPAddr{IP: da.Addr, Port: int(da.Port)})
+		ok, err := d.addressRegistry.RegisterNewAddress(a, in.Version)
 		if err != nil {
 			zap.S().Warnf("Failed to register received declared address '%s': %v", da.String(), err)
 		}
@@ -243,17 +255,26 @@ func (d *dispatcher) handleIncoming(conn net.Conn) {
 			zap.S().Infof("New public address '%s' was registered", da.String())
 		}
 	}
-	h := NewHandler(d.interrupt, conn, d.addresses)
-	d.register(h)
-}
-
-func (d *dispatcher) register(h *handler) {
-	d.mu.Lock()
-	defer d.mu.Unlock()
-
-	if _, ok := d.handlers[h.conn.RemoteAddr().String()]; !ok {
-		d.handlers[h.conn.RemoteAddr().String()] = h
+	tcpAddr, ok := conn.RemoteAddr().(*net.TCPAddr)
+	if !ok {
+		zap.S().Errorf("Not a TCP address '%s'", conn.RemoteAddr())
+		return
 	}
+	pd := NewPeerDesignation(tcpAddr.IP, in.NodeNonce)
+	if d.peerRegistry.HasPeer(pd) {
+		zap.S().Debugf("Already connected with '%s', disconnecting...", conn.RemoteAddr())
+		err := conn.Close()
+		if err != nil {
+			zap.S().Warnf("Failed to close connection with '%s': %v", conn.RemoteAddr(), err)
+		}
+		return
+	}
+	description, err := NewPeerDescription(conn.RemoteAddr(), in)
+	if err != nil {
+		zap.S().Errorf("Failed to create a description of the peer: %v", err)
+	}
+	h := NewHandler(d.interrupt, conn, d.storage, pd, d.addresses)
+	d.peerRegistry.Register(pd, *description, h)
 }
 
 func (d *dispatcher) getAddressesChan() chan<- []net.TCPAddr {

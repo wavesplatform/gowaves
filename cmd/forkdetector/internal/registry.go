@@ -4,7 +4,7 @@ import (
 	"encoding/binary"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"hash/fnv"
+	"go.uber.org/zap"
 	"net"
 	"sort"
 	"strconv"
@@ -24,7 +24,7 @@ const (
 )
 
 type PublicAddress struct {
-	address     net.TCPAddr
+	address     PeerAddr
 	state       PublicAddressState
 	attempts    int
 	nextAttempt time.Time
@@ -63,41 +63,44 @@ func (a PublicAddress) String() string {
 }
 
 func (a PublicAddress) MarshalBinary() ([]byte, error) {
-	buf := make([]byte, net.IPv6len+2+1+4+timeBinarySize+3*4)
-	copy(buf, a.address.IP)
-	binary.BigEndian.PutUint16(buf[net.IPv6len:], uint16(a.address.Port))
-	buf[net.IPv6len+2] = byte(a.state)
-	binary.BigEndian.PutUint32(buf[net.IPv6len+2+1:], uint32(a.attempts))
+	buf := make([]byte, PeerAddrLen+1+4+timeBinarySize+3*4)
+	ab, err := a.address.MarshalBinary()
+	copy(buf, ab)
+	buf[PeerAddrLen] = byte(a.state)
+	binary.BigEndian.PutUint32(buf[PeerAddrLen+1:], uint32(a.attempts))
 	tb, err := a.nextAttempt.MarshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal PublicAddress to bytes")
 	}
-	copy(buf[net.IPv6len+2+1+4:], tb)
-	binary.BigEndian.PutUint32(buf[net.IPv6len+2+1+4+timeBinarySize:], a.version.Major)
-	binary.BigEndian.PutUint32(buf[net.IPv6len+2+1+4+timeBinarySize+4:], a.version.Minor)
-	binary.BigEndian.PutUint32(buf[net.IPv6len+2+1+4+timeBinarySize+4+4:], a.version.Patch)
+	copy(buf[PeerAddrLen+1+4:], tb)
+	binary.BigEndian.PutUint32(buf[PeerAddrLen+1+4+timeBinarySize:], a.version.Major)
+	binary.BigEndian.PutUint32(buf[PeerAddrLen+1+4+timeBinarySize+4:], a.version.Minor)
+	binary.BigEndian.PutUint32(buf[PeerAddrLen+1+4+timeBinarySize+4+4:], a.version.Patch)
 	return buf, nil
 }
 
 func (a *PublicAddress) UnmarshalBinary(data []byte) error {
-	if l := len(data); l < net.IPv6len+2+1+4+timeBinarySize+3*4 {
+	if l := len(data); l < PeerAddrLen+1+4+timeBinarySize+3*4 {
 		return errors.Errorf("%d is not enough bytes for PublicAddress", l)
 	}
-	a.address.IP = make([]byte, net.IPv6len)
-	copy(a.address.IP, data[0:net.IPv6len])
-	a.address.Port = int(binary.BigEndian.Uint16(data[net.IPv6len:]))
-	a.state = PublicAddressState(data[net.IPv6len+2])
-	a.attempts = int(binary.BigEndian.Uint32(data[net.IPv6len+2+1:]))
+	var addr PeerAddr
+	err := addr.UnmarshalBinary(data[:PeerAddrLen])
+	if err != nil {
+		return errors.Wrap(err, "failed to unmarshal PublicAddress")
+	}
+	a.address = addr
+	a.state = PublicAddressState(data[PeerAddrLen])
+	a.attempts = int(binary.BigEndian.Uint32(data[PeerAddrLen+1:]))
 	t := time.Time{}
-	err := t.UnmarshalBinary(data[net.IPv6len+2+1+4 : net.IPv6len+2+1+4+timeBinarySize])
+	err = t.UnmarshalBinary(data[PeerAddrLen+1+4 : PeerAddrLen+1+4+timeBinarySize])
 	if err != nil {
 		return errors.Wrap(err, "failed to unmarshal announcement")
 	}
 	a.nextAttempt = t
 	var v proto.Version
-	v.Major = binary.BigEndian.Uint32(data[net.IPv6len+2+1+4+timeBinarySize:])
-	v.Minor = binary.BigEndian.Uint32(data[net.IPv6len+2+1+4+timeBinarySize+4:])
-	v.Patch = binary.BigEndian.Uint32(data[net.IPv6len+2+1+4+timeBinarySize+4+4:])
+	v.Major = binary.BigEndian.Uint32(data[PeerAddrLen+1+4+timeBinarySize:])
+	v.Minor = binary.BigEndian.Uint32(data[PeerAddrLen+1+4+timeBinarySize+4:])
+	v.Patch = binary.BigEndian.Uint32(data[PeerAddrLen+1+4+timeBinarySize+4+4:])
 	a.version = v
 	return nil
 }
@@ -132,13 +135,13 @@ func (r *PublicAddressRegistry) RegisterNewAddresses(addresses []net.TCPAddr) (i
 	defer r.mu.Unlock()
 	added := 0
 	for _, a := range addresses {
-		ok, err := r.storage.hasPublicAddress(a)
+		ok, err := r.storage.hasPublicAddress(PeerAddr(a))
 		if err != nil {
 			return added, errors.Wrap(err, "failed to register new public addresses")
 		}
 		if !ok {
 			pa := PublicAddress{
-				address:     a,
+				address:     PeerAddr(a),
 				state:       NewPublicAddress,
 				attempts:    0,
 				nextAttempt: time.Time{},
@@ -154,7 +157,7 @@ func (r *PublicAddressRegistry) RegisterNewAddresses(addresses []net.TCPAddr) (i
 	return added, nil
 }
 
-func (r *PublicAddressRegistry) RegisterNewAddress(a net.TCPAddr, v proto.Version) (bool, error) {
+func (r *PublicAddressRegistry) RegisterNewAddress(a PeerAddr, v proto.Version) (bool, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	ok, err := r.storage.hasPublicAddress(a)
@@ -187,7 +190,7 @@ func (r *PublicAddressRegistry) FeasibleAddresses() ([]PublicAddress, error) {
 	}
 	filtered := pas[:0]
 	for _, pa := range pas {
-		if _, ok := r.operating[r.hashTCPAddr(pa.address)]; ok {
+		if _, ok := r.operating[pa.address.Hash()]; ok {
 			continue
 		}
 		if pa.state == HostilePublicAddress {
@@ -200,7 +203,7 @@ func (r *PublicAddressRegistry) FeasibleAddresses() ([]PublicAddress, error) {
 			continue
 		}
 		filtered = append(filtered, pa)
-		r.operating[r.hashTCPAddr(pa.address)] = struct{}{}
+		r.operating[pa.address.Hash()] = struct{}{}
 	}
 	return filtered, nil
 }
@@ -208,7 +211,7 @@ func (r *PublicAddressRegistry) FeasibleAddresses() ([]PublicAddress, error) {
 func (r *PublicAddressRegistry) Discard(pa *PublicAddress) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	delete(r.operating, r.hashTCPAddr(pa.address))
+	delete(r.operating, pa.address.Hash())
 	pa.state = DiscardedPublicAddress
 	pa.attempts = pa.attempts + 1
 	pa.nextAttempt = time.Now().Add(r.banDuration)
@@ -222,7 +225,7 @@ func (r *PublicAddressRegistry) Discard(pa *PublicAddress) error {
 func (r *PublicAddressRegistry) Hostile(pa *PublicAddress) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	delete(r.operating, r.hashTCPAddr(pa.address))
+	delete(r.operating, pa.address.Hash())
 	pa.state = HostilePublicAddress
 	pa.nextAttempt = time.Time{}
 	err := r.storage.putPublicAddress(*pa)
@@ -235,7 +238,7 @@ func (r *PublicAddressRegistry) Hostile(pa *PublicAddress) error {
 func (r *PublicAddressRegistry) Connected(pa *PublicAddress) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	delete(r.operating, r.hashTCPAddr(pa.address))
+	delete(r.operating, pa.address.Hash())
 	pa.state = RespondingPublicAddress
 	pa.version = r.nextVersion(pa.version)
 	pa.nextAttempt = time.Now().Add(r.coolDownDuration)
@@ -284,18 +287,55 @@ func (r *PublicAddressRegistry) nextVersion(v proto.Version) proto.Version {
 	return r.versions[i+1]
 }
 
-func (r *PublicAddressRegistry) hashTCPAddr(a net.TCPAddr) uint64 {
-	hash := fnv.New64()
-	hash.Reset()
-	_, err := hash.Write(a.IP)
-	if err != nil {
-		panic("err should be always nil")
+type peer struct {
+	description PeerDescription
+	handler     *handler
+}
+
+type PeerRegistry struct {
+	peers     map[uint64]peer
+	mu        sync.Mutex
+}
+
+func NewPeerRegistry(self *PeerDesignation) *PeerRegistry {
+	pm := make(map[uint64]peer)
+	if self != nil {
+		zap.S().Debug("Self peer is not nil")
+		pm[self.Hash()] = peer{description: PeerDescription{Name: "Self"}}
 	}
-	buf := make([]byte, 2)
-	binary.BigEndian.PutUint16(buf, uint16(a.Port))
-	_, err = hash.Write(buf)
-	if err != nil {
-		panic("err should be always nil")
+	return &PeerRegistry{peers: pm, mu: sync.Mutex{}}
+}
+
+func (r *PeerRegistry) HasPeer(id PeerDesignation) bool {
+	_, ok := r.peers[id.Hash()]
+	return  ok
+}
+
+func (r *PeerRegistry) Peers() []PeerDescription {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	ps := make([]PeerDescription, 0, len(r.peers))
+	for _, v := range r.peers {
+		ps = append(ps, v.description)
 	}
-	return hash.Sum64()
+	return ps
+}
+
+func (r *PeerRegistry) Register(id PeerDesignation, desc PeerDescription, h *handler) bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if _, ok := r.peers[id.Hash()]; !ok {
+		r.peers[id.Hash()] = peer{description: desc, handler: h}
+		return true
+	}
+	return false
+}
+
+func (r *PeerRegistry) Unregister(pd PeerDesignation) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if _, ok := r.peers[pd.Hash()]; ok {
+		delete(r.peers, pd.Hash())
+	}
 }

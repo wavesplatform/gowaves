@@ -3,12 +3,16 @@ package internal
 import (
 	"bufio"
 	"encoding/binary"
+	"github.com/go-errors/errors"
+	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/atomic"
 	"go.uber.org/zap"
 	"io"
 	"io/ioutil"
+	"math/big"
 	"net"
+	"sync"
 	"time"
 )
 
@@ -18,21 +22,26 @@ const (
 	defaultWriteTimeout  = 30 * time.Second
 	headerMagicBytes     = 0x12345678
 	maxMessageSize       = 2 * 1024 * 1024 // 2 MB
+	signaturesBatchLen   = 101
 )
 
 type handler struct {
 	interrupt      <-chan struct{}
 	conn           net.Conn
+	id             PeerDesignation
+	loader         *blockLoader
 	closed         *atomic.Bool
 	peersRequested *atomic.Bool
 	addresses      chan<- []net.TCPAddr
 }
 
-func NewHandler(interrupt <-chan struct{}, conn net.Conn, addresses chan<- []net.TCPAddr) *handler {
+func NewHandler(interrupt <-chan struct{}, conn net.Conn, storage *storage, id PeerDesignation, addresses chan<- []net.TCPAddr) *handler {
 	zap.S().Debugf("Creating handler for connection to '%s'", conn.RemoteAddr())
 	h := &handler{
 		interrupt:      interrupt,
 		conn:           conn,
+		id:             id,
+		loader:         newBlockLoader(storage),
 		closed:         atomic.NewBool(false),
 		peersRequested: atomic.NewBool(false),
 		addresses:      addresses,
@@ -114,6 +123,7 @@ func (h *handler) read() {
 				zap.S().Warnf("Failed to unmarshal GetPeers message from '%s': %v", h.conn.RemoteAddr(), err)
 			}
 			zap.S().Debugf("Received GetPeers message from '%s'", h.conn.RemoteAddr())
+			h.replyWithPeers()
 		case proto.ContentIDPeers:
 			h.peersRequested.Store(false)
 			mb, err := h.readMessage(r, size)
@@ -134,6 +144,81 @@ func (h *handler) read() {
 				addresses[i] = net.TCPAddr{IP: p.Addr, Port: int(p.Port)}
 			}
 			h.addresses <- addresses
+		case proto.ContentIDScore:
+			mb, err := h.readMessage(r, size)
+			if err != nil {
+				zap.S().Warnf("Failed to read Score message from '%s': %v", h.conn.RemoteAddr(), err)
+				if IsConnectionClosed(err) {
+					return
+				}
+				continue
+			}
+			var s proto.ScoreMessage
+			err = s.UnmarshalBinary(mb)
+			if err != nil {
+				zap.S().Warnf("Failed to unmarshal Score message from '%s': %v", h.conn.RemoteAddr(), err)
+			}
+			zap.S().Debugf("Received Score message from '%s'", h.conn.RemoteAddr())
+			score := big.NewInt(0).SetBytes(s.Score)
+			zap.S().Debugf("New score of '%s' is %s", h.conn.RemoteAddr(), score.String())
+			go h.requestBlockSignatures()
+		case proto.ContentIDSignatures:
+			mb, err := h.readMessage(r, size)
+			if err != nil {
+				zap.S().Warnf("Failed to read Signatures message from '%s': %v", h.conn.RemoteAddr(), err)
+				if IsConnectionClosed(err) {
+					return
+				}
+				continue
+			}
+			var m proto.SignaturesMessage
+			err = m.UnmarshalBinary(mb)
+			if err != nil {
+				zap.S().Warnf("Failed to unmarshal Signatures message from '%s': %v", h.conn.RemoteAddr(), err)
+			}
+			zap.S().Debugf("Received Signatures message with %d block signatures from '%s'", len(m.Signatures), h.conn.RemoteAddr())
+			err = h.loader.appendSignatures(m.Signatures)
+			if err != nil {
+				zap.S().Warnf("Failed to append signature from '%s': %v", h.conn.RemoteAddr(), err)
+				continue
+			}
+			h.requestBlock(h.loader.pending()[0])
+		case proto.ContentIDBlock:
+			mb, err := h.readMessage(r, size)
+			if err != nil {
+				zap.S().Warnf("Failed to read Block message from '%s': %v", h.conn.RemoteAddr(), err)
+				if IsConnectionClosed(err) {
+					return
+				}
+				continue
+			}
+			var m proto.BlockMessage
+			err = m.UnmarshalBinary(mb)
+			if err != nil {
+				zap.S().Warnf("Failed to unmarshal Block message from '%s': %v", h.conn.RemoteAddr(), err)
+			}
+			zap.S().Debugf("Received Block message from '%s'", h.conn.RemoteAddr())
+			// Applying block
+			var b proto.Block
+			err = b.UnmarshalBinary(m.BlockBytes)
+			if err != nil {
+				zap.S().Warnf("Failed to unmarshal block received from '%s': %v", h.conn.RemoteAddr(), err)
+				return
+			}
+			appended := h.loader.appendBlock(b)
+			if !appended {
+				zap.S().Debugf("Unrequested block %s from '%s' was dropped", b.BlockSignature.String(), h.conn.RemoteAddr())
+				continue
+			}
+			if h.loader.hasPending() {
+				h.requestBlock(h.loader.pending()[0])
+				continue
+			}
+			err = h.loader.dump(h.id)
+			if err != nil {
+				zap.S().Warnf("Failed to dump blocks received from '%s': %v", h.conn.RemoteAddr(), err)
+			}
+			go h.requestBlockSignatures()
 		default:
 			err := h.dropMessage(r, size)
 			if err != nil {
@@ -187,6 +272,76 @@ func (h *handler) sendGetPeers() {
 	}
 }
 
+func (h *handler) replyWithPeers() {
+	err := h.conn.SetWriteDeadline(time.Now().Add(defaultWriteTimeout))
+	if err != nil {
+		zap.S().Warnf("Failed to set write timout on the connection to '%s': %v", h.conn.RemoteAddr(), err)
+		return
+	}
+	rq := proto.PeersMessage{}
+	b, err := rq.MarshalBinary()
+	if err != nil {
+		zap.S().Warnf("Failed to marshal Peers message to bytes: %v", err)
+		return
+	}
+	err = writeToConn(h.conn, b)
+	if err != nil {
+		zap.S().Errorf("Failed to send Peers message to '%s': %v", h.conn.RemoteAddr(), err)
+		return
+	}
+	zap.S().Debugf("Replied to '%s' with empty peers message", h.conn.RemoteAddr())
+}
+
+func (h *handler) requestBlockSignatures() {
+	if h.loader.hasPending() {
+		zap.S().Warn("Handler [%s] has pending blocks to receive from '%s'", h.id.String(), h.conn.RemoteAddr())
+		return
+	}
+	fs, err := h.loader.front(h.id)
+	if err != nil {
+		zap.S().Warnf("Failed to request block signatures from '%s': %v", h.conn.RemoteAddr(), err)
+		return
+	}
+	zap.S().Debugf("Sending %d known block signatures to '%s'", len(fs), h.conn.RemoteAddr())
+	err = h.conn.SetWriteDeadline(time.Now().Add(defaultWriteTimeout))
+	if err != nil {
+		zap.S().Warnf("Failed to set write timout on the connection to '%s': %v", h.conn.RemoteAddr(), err)
+		return
+	}
+	m := proto.GetSignaturesMessage{Blocks: fs}
+	b, err := m.MarshalBinary()
+	if err != nil {
+		zap.S().Warnf("Failed to marshal GetSignatures message to bytes: %v", err)
+		return
+	}
+	err = writeToConn(h.conn, b)
+	if err != nil {
+		zap.S().Errorf("Failed to send GetSignatures message to '%s': %v", h.conn.RemoteAddr(), err)
+		return
+	}
+	zap.S().Debugf("Requested new block signatures from '%s'", h.conn.RemoteAddr())
+}
+
+func (h *handler) requestBlock(s crypto.Signature) {
+	err := h.conn.SetWriteDeadline(time.Now().Add(defaultWriteTimeout))
+	if err != nil {
+		zap.S().Warnf("Failed to set write timout on the connection to '%s': %v", h.conn.RemoteAddr(), err)
+		return
+	}
+	m := proto.GetBlockMessage{BlockID: s}
+	b, err := m.MarshalBinary()
+	if err != nil {
+		zap.S().Warnf("Failed to marshal GetBlock message to bytes: %v", err)
+		return
+	}
+	err = writeToConn(h.conn, b)
+	if err != nil {
+		zap.S().Errorf("Failed to send GetBlock message to '%s': %v", h.conn.RemoteAddr(), err)
+		return
+	}
+	zap.S().Debugf("Block %s requested from '%s'", s.String(), h.conn.RemoteAddr())
+}
+
 func writeToConn(conn net.Conn, data []byte) error {
 	var start, c int
 	var err error
@@ -207,4 +362,138 @@ func (h *handler) close() {
 	if err != nil {
 		zap.S().Warnf("Failed to close connection to '%s': %v", h.conn.RemoteAddr(), err)
 	}
+}
+
+type blockLoader struct {
+	storage *storage
+	mu      sync.Mutex
+	present []crypto.Signature
+	upfront []crypto.Signature
+	blocks  map[crypto.Signature]proto.Block
+}
+
+func newBlockLoader(storage *storage) *blockLoader {
+	return &blockLoader{
+		storage: storage,
+		mu:      sync.Mutex{},
+	}
+}
+
+func (l *blockLoader) front(id PeerDesignation) ([]crypto.Signature, error) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	f, err := l.storage.frontBlocks(id, signaturesBatchLen)
+	if err != nil {
+		return nil, err
+	}
+	l.present = make([]crypto.Signature, len(f))
+	copy(l.present, f)
+	l.upfront = nil
+	l.blocks = nil
+	return f, nil
+}
+
+func (l *blockLoader) appendSignatures(signatures []crypto.Signature) error {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	common := intersect(l.present, signatures)
+	if len(common) == 0 {
+		return errors.New("no common block signatures")
+	}
+	l.present = nil
+	r := skip(signatures, common)
+	l.upfront = make([]crypto.Signature, len(r))
+	copy(l.upfront, r)
+	l.blocks = make(map[crypto.Signature]proto.Block)
+	return nil
+}
+
+func (l *blockLoader) appendBlock(b proto.Block) bool {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	bs := b.BlockSignature
+	for _, s := range l.upfront {
+		if bs == s {
+			l.blocks[bs] = b
+			return true
+		}
+	}
+	return false
+}
+
+func (l *blockLoader) hasPending() bool {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	for _, s := range l.upfront {
+		if _, ok := l.blocks[s]; !ok {
+			return true
+		}
+	}
+	return false
+}
+
+func (l *blockLoader) pending() []crypto.Signature {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	r := make([]crypto.Signature, 0)
+	for _, s := range l.upfront {
+		if _, ok := l.blocks[s]; !ok {
+			r = append(r, s)
+		}
+	}
+	return r
+}
+
+func (l *blockLoader) dump(id PeerDesignation) error {
+	for _, s := range l.upfront {
+		b, ok := l.blocks[s]
+		if !ok {
+			return errors.Errorf("block %s was not loaded", s)
+		}
+		err := l.storage.handleBlock(b, id)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func intersect(a, b []crypto.Signature) []crypto.Signature {
+	r := make([]crypto.Signature, 0)
+	for i := 0; i < len(a); i++ {
+		e := a[i]
+		if contains(b, e) {
+			r = append(r, e)
+		}
+	}
+	return r
+}
+
+func contains(a []crypto.Signature, e crypto.Signature) bool {
+	for i := 0; i < len(a); i++ {
+		if a[i] == e {
+			return true
+		}
+	}
+	return false
+}
+
+func skip(a, c []crypto.Signature) []crypto.Signature {
+	var i int
+	for i = 0; i < len(a); i++ {
+		if !contains(c, a[i]) {
+			break
+		}
+	}
+	return a[i:]
+}
+
+func filter(a []crypto.Signature, f func(s crypto.Signature) bool) []crypto.Signature {
+	b := a[:0]
+	for _, x := range a {
+		if f(x) {
+			b = append(b, x)
+		}
+	}
+	return b
 }

@@ -7,6 +7,7 @@ import (
 	"github.com/syndtr/goleveldb/leveldb/util"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"go.uber.org/zap"
 	"net"
 	"sort"
 )
@@ -185,14 +186,17 @@ func (k *heightBlockKey) fromBytes(data []byte) error {
 }
 
 type publicAddressKey struct {
-	addr net.TCPAddr
+	addr PeerAddr
 }
 
 func (k *publicAddressKey) bytes() []byte {
-	buf := make([]byte, 1+net.IPv6len+2)
+	buf := make([]byte, 1+PeerAddrLen)
 	buf[0] = publicAddressesPrefix
-	copy(buf[1:], k.addr.IP)
-	binary.BigEndian.PutUint16(buf[1+net.IPv6len:], uint16(k.addr.Port))
+	b, err := k.addr.MarshalBinary()
+	if err != nil {
+		panic("no error expected")
+	}
+	copy(buf[1:], b)
 	return buf
 }
 
@@ -202,11 +206,37 @@ type storage struct {
 }
 
 func NewStorage(path string, genesis crypto.Signature) (*storage, error) {
+	wrapError := func(err error) error {
+		return errors.Wrap(err, "failed to open storage")
+	}
 	db, err := leveldb.OpenFile(path, nil)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to open storage")
+		return nil, wrapError(err)
 	}
-	return &storage{db: db, genesis: genesis}, nil
+	s := &storage{db: db, genesis: genesis}
+
+	sn, err := s.db.GetSnapshot()
+	if err != nil {
+		return nil, wrapError(err)
+	}
+	defer sn.Release()
+	_, ok, err := wrapper(sn, genesis)
+	if err != nil {
+		return nil, wrapError(err)
+	}
+	if !ok {
+		batch := new(leveldb.Batch)
+		_, _, err := putGenesisBlockWrapper(batch, genesis)
+		if err != nil {
+			return nil, wrapError(err)
+		}
+		err = db.Write(batch, nil)
+		if err != nil {
+			return nil, wrapError(err)
+		}
+		zap.S().Infof("Genesis block %s appended", genesis)
+	}
+	return s, nil
 }
 
 func (s *storage) Close() error {
@@ -328,7 +358,7 @@ func (s *storage) publicAddresses() ([]PublicAddress, error) {
 	return r, nil
 }
 
-func (s *storage) hasPublicAddress(a net.TCPAddr) (bool, error) {
+func (s *storage) hasPublicAddress(a PeerAddr) (bool, error) {
 	k := publicAddressKey{addr: a}
 	ok, err := s.db.Has(k.bytes(), nil)
 	if err != nil {
@@ -350,6 +380,21 @@ func (s *storage) putPublicAddress(pa PublicAddress) error {
 	return nil
 }
 
+func putGenesisBlockWrapper(batch *leveldb.Batch, genesis crypto.Signature) (fork uint32, height uint32, err error) {
+	// update wrapper
+	w := blockWrapper{height: 1, fork: 0, parent: zeroSignature}
+	batch.Put(newBlockWrapperKey(genesis).bytes(), w.bytes())
+	// update last fork id
+	updateLastForkID(batch, 0)
+	// put fork header
+	fh := forkHeader{height: 1, length: 1, last: genesis, common: genesis}
+	batch.Put(forkHeaderKey(0).bytes(), fh.bytes())
+	// update blocks at height
+	k := heightBlockKey{height: 1, block: genesis}
+	batch.Put(k.bytes(), nil)
+	return 0, 1, nil
+}
+
 func putNewBlock(sn *leveldb.Snapshot, batch *leveldb.Batch, block proto.Block, genesis crypto.Signature) (fork uint32, height uint32, err error) {
 	bb, err := block.MarshalBinary()
 	if err != nil {
@@ -358,18 +403,7 @@ func putNewBlock(sn *leveldb.Snapshot, batch *leveldb.Batch, block proto.Block, 
 	batch.Put(newBlockKey(block.BlockSignature).bytes(), bb)
 
 	if block.BlockSignature == genesis {
-		// update wrapper
-		w := blockWrapper{height: 1, fork: 0, parent: zeroSignature}
-		batch.Put(newBlockWrapperKey(block.BlockSignature).bytes(), w.bytes())
-		// update last fork id
-		updateLastForkID(batch, 0)
-		// put fork header
-		fh := forkHeader{height: 1, length: 1, last: block.BlockSignature, common: block.BlockSignature}
-		batch.Put(forkHeaderKey(0).bytes(), fh.bytes())
-		// update blocks at height
-		k := heightBlockKey{height: 1, block: block.BlockSignature}
-		batch.Put(k.bytes(), nil)
-		return 0, 1, nil
+		return putGenesisBlockWrapper(batch, block.BlockSignature)
 	}
 
 	var nw blockWrapper
@@ -459,7 +493,63 @@ func (s *storage) blocks(height uint32) ([]crypto.Signature, error) {
 }
 
 func (s *storage) fork(ip net.IP) ([]NodeForkInfo, error) {
+	//TODO: implement
 	return nil, nil
+}
+
+func (s *storage) frontBlocks(peer PeerDesignation, n int) ([]crypto.Signature, error) {
+	wrapError := func(err error) error {
+		return errors.Wrap(err, "failed to get front blocks signatures")
+	}
+
+	sn, err := s.db.GetSnapshot()
+	if err != nil {
+		return nil, wrapError(err)
+	}
+	defer sn.Release()
+
+	k := newPeerLinkKey(peer)
+	v, err := sn.Get(k.bytes(), nil)
+	if err != nil {
+		if err == leveldb.ErrNotFound {
+			// No link between peer and fork head, starting to request blocks from new peer
+			return []crypto.Signature{s.genesis}, nil
+		}
+		return nil, wrapError(err)
+	}
+	var link peerLink
+	err = link.fromBytes(v)
+	if err != nil {
+		return nil, wrapError(err)
+	}
+
+	signatures := make([]crypto.Signature, n)
+	signatures[0] = link.block
+	for i := 1; i < n; i++ {
+		ps, err := parent(sn, signatures[i-1])
+		signatures[i] = ps
+		if err != nil {
+			return nil, wrapError(err)
+		}
+		if ps == s.genesis {
+			return signatures[:i+1], nil
+		}
+	}
+	return signatures, nil
+}
+
+func parent(sn *leveldb.Snapshot, sig crypto.Signature) (crypto.Signature, error) {
+	k := newBlockKey(sig)
+	v, err := sn.Get(k.bytes(), nil)
+	if err != nil {
+		return crypto.Signature{}, err
+	}
+	var b proto.Block
+	err = b.UnmarshalBinary(v)
+	if err != nil {
+		return crypto.Signature{}, err
+	}
+	return b.Parent, nil
 }
 
 func numberOfForks(sn *leveldb.Snapshot) (uint32, error) {
