@@ -25,7 +25,7 @@ type stateManager struct {
 	stateDB *stateDB
 
 	scores   *scores
-	accounts *accountsStorage
+	balances *balances
 	rw       *blockReadWriter
 
 	settings *settings.BlockchainSettings
@@ -72,10 +72,10 @@ func newStateManager(dataDir string, params BlockStorageParams, settings *settin
 	if err != nil {
 		return nil, StateError{errorType: Other, originalError: errors.Errorf("failed to create block storage: %v\n", err)}
 	}
-	// accountsStor is storage for accounts balances.
-	accountsStor, err := newAccountsStorage(db, dbBatch, state, state)
+	// balances is storage for balances of accounts.
+	balances, err := newBalances(db, dbBatch, state, state)
 	if err != nil {
-		return nil, StateError{errorType: Other, originalError: errors.Errorf("failed to create accounts storage: %v\n", err)}
+		return nil, StateError{errorType: Other, originalError: errors.Errorf("failed to create balances storage: %v\n", err)}
 	}
 	if err := stateDB.syncRw(rw); err != nil {
 		return nil, StateError{errorType: Other, originalError: errors.Errorf("failed to sync block storage and DB: %v\n", err)}
@@ -86,7 +86,7 @@ func newStateManager(dataDir string, params BlockStorageParams, settings *settin
 		return nil, StateError{errorType: Other, originalError: err}
 	}
 	state.cv = cv
-	state.accounts = accountsStor
+	state.balances = balances
 	state.rw = rw
 	// If the storage is new (data dir does not contain any data), genesis block must be applied.
 	height, err := state.Height()
@@ -126,7 +126,7 @@ func (s *stateManager) applyGenesis(genesisSig crypto.Signature) error {
 		return err
 	}
 	// Perform and validate genesis transactions.
-	tv, err := newTransactionValidator(s.genesis.BlockSignature, s.accounts, s.settings)
+	tv, err := newTransactionValidator(s.genesis.BlockSignature, s.balances, s.settings)
 	if err != nil {
 		return err
 	}
@@ -226,7 +226,7 @@ func (s *stateManager) HeightToBlockID(height uint64) (crypto.Signature, error) 
 
 func (s *stateManager) AccountBalance(addr proto.Address, asset []byte) (uint64, error) {
 	key := balanceKey{address: addr, asset: asset}
-	balance, err := s.accounts.accountBalance(key.bytes())
+	balance, err := s.balances.accountBalance(key.bytes())
 	if err != nil {
 		return 0, StateError{errorType: RetrievalError, originalError: err}
 	}
@@ -234,7 +234,7 @@ func (s *stateManager) AccountBalance(addr proto.Address, asset []byte) (uint64,
 }
 
 func (s *stateManager) AddressesNumber() (uint64, error) {
-	res, err := s.accounts.addressesNumber()
+	res, err := s.balances.addressesNumber()
 	if err != nil {
 		return 0, StateError{errorType: RetrievalError, originalError: err}
 	}
@@ -295,7 +295,7 @@ func (s *stateManager) addNewBlock(tv *transactionValidator, block, parent *prot
 
 func (s *stateManager) reset() error {
 	s.rw.reset()
-	s.accounts.reset()
+	s.balances.reset()
 	s.stateDB.reset()
 	return nil
 }
@@ -304,7 +304,7 @@ func (s *stateManager) flush() error {
 	if err := s.rw.flush(); err != nil {
 		return err
 	}
-	if err := s.accounts.flush(); err != nil {
+	if err := s.balances.flush(); err != nil {
 		return err
 	}
 	if err := s.stateDB.flush(); err != nil {
@@ -377,7 +377,7 @@ func (s *stateManager) addBlocks(blocks [][]byte, initialisation bool) error {
 	if err != nil {
 		return StateError{errorType: RetrievalError, originalError: err}
 	}
-	tv, err := newTransactionValidator(s.genesis.BlockSignature, s.accounts, s.settings)
+	tv, err := newTransactionValidator(s.genesis.BlockSignature, s.balances, s.settings)
 	if err != nil {
 		return StateError{errorType: Other, originalError: err}
 	}
@@ -426,7 +426,6 @@ func (s *stateManager) addBlocks(blocks [][]byte, initialisation bool) error {
 }
 
 func (s *stateManager) RollbackToHeight(height uint64) error {
-	// Rollback accounts storage.
 	curHeight, err := s.rw.currentHeight()
 	if err != nil {
 		return StateError{errorType: RetrievalError, originalError: err}
@@ -465,7 +464,6 @@ func (s *stateManager) RollbackToHeight(height uint64) error {
 }
 
 func (s *stateManager) RollbackTo(removalEdge crypto.Signature) error {
-	// Rollback accounts storage.
 	curHeight, err := s.rw.currentHeight()
 	if err != nil {
 		return StateError{errorType: RetrievalError, originalError: err}
@@ -516,7 +514,7 @@ func (s *stateManager) CurrentScore() (*big.Int, error) {
 
 func (s *stateManager) EffectiveBalance(addr proto.Address, startHeight, endHeight uint64) (uint64, error) {
 	key := balanceKey{address: addr}
-	effectiveBalance, err := s.accounts.minBalanceInRange(key.bytes(), startHeight, endHeight)
+	effectiveBalance, err := s.balances.minBalanceInRange(key.bytes(), startHeight, endHeight)
 	if err != nil {
 		return 0, StateError{errorType: RetrievalError, originalError: err}
 	}

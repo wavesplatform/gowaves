@@ -84,16 +84,16 @@ type wavesBalanceKey [wavesBalanceKeySize]byte
 type assetBalanceKey [assetBalanceKeySize]byte
 
 type changesStorage struct {
-	accounts  *accountsStorage
+	balances  *balances
 	deltas    []balanceChanges
 	wavesKeys map[wavesBalanceKey]int // waves key --> index in deltas.
 	assetKeys map[assetBalanceKey]int // asset key --> index in deltas.
 	lastIndex int
 }
 
-func newChangesStorage(accounts *accountsStorage) (*changesStorage, error) {
+func newChangesStorage(balances *balances) (*changesStorage, error) {
 	return &changesStorage{
-		accounts:  accounts,
+		balances:  balances,
 		wavesKeys: make(map[wavesBalanceKey]int),
 		assetKeys: make(map[assetBalanceKey]int),
 	}, nil
@@ -133,7 +133,7 @@ func (bs *changesStorage) applyDeltas() error {
 	// TODO: if DB supported MultiGet() operation, this would probably be even faster.
 	sort.Sort(byKey(bs.deltas))
 	for _, delta := range bs.deltas {
-		balance, err := bs.accounts.accountBalance(delta.key)
+		balance, err := bs.balances.accountBalance(delta.key)
 		if err != nil {
 			return errors.Errorf("failed to retrieve account balance: %v\n", err)
 		}
@@ -150,7 +150,7 @@ func (bs *changesStorage) applyDeltas() error {
 			if err != nil {
 				return errors.Errorf("failed to add balances: %v\n", err)
 			}
-			if err := bs.accounts.setAccountBalance(delta.key, uint64(newBalance), change.blockID); err != nil {
+			if err := bs.balances.setAccountBalance(delta.key, uint64(newBalance), change.blockID); err != nil {
 				return errors.Errorf("failed to set account balance: %v\n", err)
 			}
 		}
@@ -170,10 +170,10 @@ type transactionValidator struct {
 
 func newTransactionValidator(
 	genesis crypto.Signature,
-	accounts *accountsStorage,
+	balances *balances,
 	settings *settings.BlockchainSettings,
 ) (*transactionValidator, error) {
-	stor, err := newChangesStorage(accounts)
+	stor, err := newChangesStorage(balances)
 	if err != nil {
 		return nil, errors.Errorf("failed to create balances storage: %v\n", err)
 	}

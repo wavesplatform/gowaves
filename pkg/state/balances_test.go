@@ -43,7 +43,7 @@ func (m *mock) RollbackMax() uint64 {
 	return rollbackMaxBlocks
 }
 
-func createAccountsStorage(rw *blockReadWriter) (*accountsStorage, []string, error) {
+func createBalances(rw *blockReadWriter) (*balances, []string, error) {
 	res := make([]string, 1)
 	dbDir0, err := ioutil.TempDir(os.TempDir(), "dbDir0")
 	if err != nil {
@@ -58,7 +58,7 @@ func createAccountsStorage(rw *blockReadWriter) (*accountsStorage, []string, err
 		return nil, res, err
 	}
 	m := &mock{rw: rw}
-	stor, err := newAccountsStorage(db, dbBatch, m, m)
+	stor, err := newBalances(db, dbBatch, m, m)
 	if err != nil {
 		return nil, res, err
 	}
@@ -90,7 +90,7 @@ func getBlockID(fillWith byte) crypto.Signature {
 	return blockID
 }
 
-func flush(t *testing.T, stor *accountsStorage, rw *blockReadWriter) {
+func flush(t *testing.T, stor *balances, rw *blockReadWriter) {
 	if err := rw.flush(); err != nil {
 		t.Fatalf("rw.flush(): %v\n", err)
 	}
@@ -121,9 +121,9 @@ func TestMinBalanceInRange(t *testing.T) {
 	if err != nil {
 		t.Fatalf("createBlockReadWriter(): %v\n", err)
 	}
-	stor, path1, err := createAccountsStorage(rw)
+	stor, path1, err := createBalances(rw)
 	if err != nil {
-		t.Fatalf("Can not create accountsStorage: %v\n", err)
+		t.Fatalf("Can not create balances: %v\n", err)
 	}
 
 	defer func() {
@@ -165,9 +165,9 @@ func TestBalances(t *testing.T) {
 	if err != nil {
 		t.Fatalf("createBlockReadWriter(): %v\n", err)
 	}
-	stor, path1, err := createAccountsStorage(rw)
+	stor, path1, err := createBalances(rw)
 	if err != nil {
-		t.Fatalf("Can not create accountsStorage: %v\n", err)
+		t.Fatalf("Can not create balances: %v\n", err)
 	}
 
 	defer func() {

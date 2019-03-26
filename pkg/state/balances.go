@@ -26,7 +26,7 @@ type heightInfo interface {
 	RollbackMax() uint64
 }
 
-type accountsStorage struct {
+type balances struct {
 	db      keyvalue.IterableKeyVal
 	dbBatch keyvalue.Batch
 	// Local storage for history, is moved to batch after all the changes are made.
@@ -38,17 +38,17 @@ type accountsStorage struct {
 	fmt *history.HistoryFormatter
 }
 
-func newAccountsStorage(
+func newBalances(
 	db keyvalue.IterableKeyVal,
 	dbBatch keyvalue.Batch,
 	hInfo heightInfo,
 	bInfo blockInfo,
-) (*accountsStorage, error) {
+) (*balances, error) {
 	fmt, err := history.NewHistoryFormatter(recordSize, crypto.SignatureSize, hInfo, bInfo)
 	if err != nil {
 		return nil, err
 	}
-	return &accountsStorage{
+	return &balances{
 		db:        db,
 		dbBatch:   dbBatch,
 		localStor: make(map[string][]byte),
@@ -57,7 +57,7 @@ func newAccountsStorage(
 	}, nil
 }
 
-func (s *accountsStorage) addressesNumber() (uint64, error) {
+func (s *balances) addressesNumber() (uint64, error) {
 	iter, err := s.db.NewKeyIterator([]byte{balanceKeyPrefix})
 	if err != nil {
 		return 0, err
@@ -84,7 +84,7 @@ func (s *accountsStorage) addressesNumber() (uint64, error) {
 
 // minBalanceInRange() is used to get min miner's effective balance, so it includes blocks which
 // have not been flushed to DB yet (and are currently stored in memory).
-func (s *accountsStorage) minBalanceInRange(balanceKey []byte, startHeight, endHeight uint64) (uint64, error) {
+func (s *balances) minBalanceInRange(balanceKey []byte, startHeight, endHeight uint64) (uint64, error) {
 	history, err := s.fullHistory(balanceKey)
 	if err != nil {
 		return 0, err
@@ -122,7 +122,7 @@ func (s *accountsStorage) minBalanceInRange(balanceKey []byte, startHeight, endH
 	return minBalance, nil
 }
 
-func (s *accountsStorage) accountBalance(balanceKey []byte) (uint64, error) {
+func (s *balances) accountBalance(balanceKey []byte) (uint64, error) {
 	has, err := s.db.Has(balanceKey)
 	if err != nil {
 		return 0, errors.Errorf("failed to check if balance key exists: %v\n", err)
@@ -151,7 +151,7 @@ func (s *accountsStorage) accountBalance(balanceKey []byte) (uint64, error) {
 	return balance, nil
 }
 
-func (s *accountsStorage) setAccountBalance(balanceKey []byte, balance uint64, blockID crypto.Signature) error {
+func (s *balances) setAccountBalance(balanceKey []byte, balance uint64, blockID crypto.Signature) error {
 	// Prepare new record.
 	balanceBuf := make([]byte, 8)
 	binary.LittleEndian.PutUint64(balanceBuf, balance)
@@ -166,12 +166,12 @@ func (s *accountsStorage) setAccountBalance(balanceKey []byte, balance uint64, b
 	return nil
 }
 
-func (s *accountsStorage) reset() {
+func (s *balances) reset() {
 	s.localStor = make(map[string][]byte)
 }
 
 // fullHistory returns combination of history from DB and the local storage (if any).
-func (s *accountsStorage) fullHistory(key []byte) ([]byte, error) {
+func (s *balances) fullHistory(key []byte) ([]byte, error) {
 	newHist, _ := s.localStor[string(key)]
 	has, err := s.db.Has(key)
 	if err != nil {
@@ -192,7 +192,7 @@ func (s *accountsStorage) fullHistory(key []byte) ([]byte, error) {
 	return append(prevHist, newHist...), nil
 }
 
-func (s *accountsStorage) addToBatch() error {
+func (s *balances) addToBatch() error {
 	for keyStr := range s.localStor {
 		key := []byte(keyStr)
 		newRecord, err := s.fullHistory(key)
@@ -204,7 +204,7 @@ func (s *accountsStorage) addToBatch() error {
 	return nil
 }
 
-func (s *accountsStorage) flush() error {
+func (s *balances) flush() error {
 	if err := s.addToBatch(); err != nil {
 		return err
 	}
