@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	rollbackMaxBlocks = 4000
+	rollbackMaxBlocks = 2000
 	blocksStorDir     = "blocks_storage"
 	keyvalueDir       = "keyvalue"
 )
@@ -425,50 +425,47 @@ func (s *stateManager) addBlocks(blocks [][]byte, initialisation bool) error {
 	return nil
 }
 
+func (s *stateManager) checkRollbackInput(blockID crypto.Signature) error {
+	height, err := s.BlockIDToHeight(blockID)
+	if err != nil {
+		return err
+	}
+	maxHeight, err := s.Height()
+	if err != nil {
+		return err
+	}
+	minRollbackHeight, err := s.stateDB.getRollbackMinHeight()
+	if err != nil {
+		return err
+	}
+	if height < minRollbackHeight || height > maxHeight {
+		return errors.New("invalid height")
+	}
+	return nil
+}
+
 func (s *stateManager) RollbackToHeight(height uint64) error {
-	curHeight, err := s.rw.currentHeight()
+	blockID, err := s.HeightToBlockID(height)
 	if err != nil {
 		return StateError{errorType: RetrievalError, originalError: err}
 	}
-	oldHeight := curHeight + 1
-	if height < 1 {
-		return StateError{errorType: RollbackError, originalError: errors.New("minimum block to rollback to is the first block")}
-	} else if height == 1 {
-		for h := curHeight; h > 0; h-- {
-			blockID, err := s.rw.blockIDByHeight(h - 1)
-			if err != nil {
-				return StateError{errorType: RetrievalError, originalError: err}
-			}
-			if err := s.stateDB.rollbackBlock(blockID); err != nil {
-				return StateError{errorType: RollbackError, originalError: err}
-			}
-		}
-		// Remove blocks from block storage.
-		if err := s.rw.rollbackToGenesis(true); err != nil {
-			return StateError{errorType: RollbackError, originalError: err}
-		}
-	} else {
-		blockID, err := s.rw.blockIDByHeight(height - 2)
-		if err != nil {
-			return StateError{errorType: RetrievalError, originalError: err}
-		}
-		if err := s.RollbackTo(blockID); err != nil {
-			return StateError{errorType: RollbackError, originalError: err}
-		}
+	if err := s.checkRollbackInput(blockID); err != nil {
+		return StateError{errorType: InvalidInputError, originalError: err}
 	}
-	// Remove scores of deleted blocks.
-	if err := s.scores.rollback(height, oldHeight); err != nil {
+	if err := s.RollbackTo(blockID); err != nil {
 		return StateError{errorType: RollbackError, originalError: err}
 	}
 	return nil
 }
 
 func (s *stateManager) RollbackTo(removalEdge crypto.Signature) error {
+	if err := s.checkRollbackInput(removalEdge); err != nil {
+		return StateError{errorType: InvalidInputError, originalError: err}
+	}
 	curHeight, err := s.rw.currentHeight()
 	if err != nil {
 		return StateError{errorType: RetrievalError, originalError: err}
 	}
-	oldHeight := curHeight + 1
 	for height := curHeight; height > 0; height-- {
 		blockID, err := s.rw.blockIDByHeight(height - 1)
 		if err != nil {
@@ -481,17 +478,25 @@ func (s *stateManager) RollbackTo(removalEdge crypto.Signature) error {
 			return StateError{errorType: RollbackError, originalError: err}
 		}
 	}
-	// Remove blocks from block storage.
-	if err := s.rw.rollback(removalEdge, true); err != nil {
-		return StateError{errorType: RollbackError, originalError: err}
-	}
 	// Remove scores of deleted blocks.
 	newHeight, err := s.Height()
 	if err != nil {
 		return StateError{errorType: RetrievalError, originalError: err}
 	}
+	oldHeight := curHeight + 1
 	if err := s.scores.rollback(newHeight, oldHeight); err != nil {
 		return StateError{errorType: RollbackError, originalError: err}
+	}
+	if removalEdge == s.genesis.BlockSignature {
+		// Remove blocks from block storage.
+		if err := s.rw.rollbackToGenesis(true); err != nil {
+			return StateError{errorType: RollbackError, originalError: err}
+		}
+	} else {
+		// Remove blocks from block storage.
+		if err := s.rw.rollback(removalEdge, true); err != nil {
+			return StateError{errorType: RollbackError, originalError: err}
+		}
 	}
 	return nil
 }

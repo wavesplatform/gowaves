@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	// Balances (main state).
+	// Balances.
 	balanceKeyPrefix byte = iota
 
 	// Valid block IDs.
@@ -19,6 +19,8 @@ const (
 	blockOffsetKeyPrefix
 	txOffsetKeyPrefix
 
+	// Minimum height to which rollback is possible.
+	rollbackMinHeightKeyPrefix
 	// Min height of blockReadWriter's files.
 	rwHeightKeyPrefix
 	// Height of main db.

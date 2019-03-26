@@ -20,6 +20,7 @@ const (
 	RetrievalError
 	// Errors occurring while updating/modifying state data.
 	ModificationError
+	InvalidInputError
 	// DB or block storage Close() error.
 	ClosureError
 	// Minor technical errors which shouldn't ever happen.

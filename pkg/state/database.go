@@ -20,14 +20,24 @@ type stateDB struct {
 }
 
 func newStateDB(db keyvalue.KeyValue, dbBatch keyvalue.Batch) (*stateDB, error) {
+	heightBuf := make([]byte, 8)
 	has, err := db.Has([]byte{dbHeightKeyPrefix})
 	if err != nil {
 		return nil, err
 	}
 	if !has {
-		heightBuf := make([]byte, 8)
 		binary.LittleEndian.PutUint64(heightBuf, 0)
 		if err := db.Put([]byte{dbHeightKeyPrefix}, heightBuf); err != nil {
+			return nil, err
+		}
+	}
+	has, err = db.Has([]byte{rollbackMinHeightKeyPrefix})
+	if err != nil {
+		return nil, err
+	}
+	if !has {
+		binary.LittleEndian.PutUint64(heightBuf, 1)
+		if err := db.Put([]byte{rollbackMinHeightKeyPrefix}, heightBuf); err != nil {
 			return nil, err
 		}
 	}
@@ -98,6 +108,21 @@ func (s *stateDB) rollbackBlock(blockID crypto.Signature) error {
 	return nil
 }
 
+func (s *stateDB) setRollbackMinHeight(height uint64) error {
+	heightBytes := make([]byte, 8)
+	binary.LittleEndian.PutUint64(heightBytes, height)
+	s.dbBatch.Put([]byte{rollbackMinHeightKeyPrefix}, heightBytes)
+	return nil
+}
+
+func (s *stateDB) getRollbackMinHeight() (uint64, error) {
+	heightBytes, err := s.db.Get([]byte{rollbackMinHeightKeyPrefix})
+	if err != nil {
+		return 0, err
+	}
+	return binary.LittleEndian.Uint64(heightBytes), nil
+}
+
 func (s *stateDB) setHeight(height uint64, directly bool) error {
 	dbHeightBytes := make([]byte, 8)
 	binary.LittleEndian.PutUint64(dbHeightBytes, height)
@@ -119,12 +144,31 @@ func (s *stateDB) getHeight() (uint64, error) {
 	return binary.LittleEndian.Uint64(dbHeightBytes), nil
 }
 
+func (s *stateDB) calculateNewRollbackMinHeight(newHeight uint64) (uint64, error) {
+	prevRollbackMinHeight, err := s.getRollbackMinHeight()
+	if err != nil {
+		return 0, err
+	}
+	if newHeight-prevRollbackMinHeight < rollbackMaxBlocks {
+		return prevRollbackMinHeight, nil
+	}
+	return newHeight - rollbackMaxBlocks, nil
+}
+
 func (s *stateDB) flush() error {
-	height, err := s.getHeight()
+	prevHeight, err := s.getHeight()
 	if err != nil {
 		return err
 	}
-	if err := s.setHeight(height+uint64(s.heightChange), false); err != nil {
+	newHeight := prevHeight + uint64(s.heightChange)
+	if err := s.setHeight(newHeight, false); err != nil {
+		return err
+	}
+	newRollbackMinHeight, err := s.calculateNewRollbackMinHeight(newHeight)
+	if err != nil {
+		return err
+	}
+	if err := s.setRollbackMinHeight(newRollbackMinHeight); err != nil {
 		return err
 	}
 	if err := s.db.Flush(s.dbBatch); err != nil {
