@@ -28,8 +28,8 @@ func NewHistoryFormatter(recordSize, idSize int, hInfo heightInfo, bInfo blockIn
 	if recordSize <= 0 || idSize <= 0 {
 		return nil, errors.New("invalid record or id size")
 	}
-	if recordSize <= idSize {
-		return nil, errors.New("recordSize is <= idSize")
+	if recordSize < idSize {
+		return nil, errors.New("recordSize is < idSize")
 	}
 	return &HistoryFormatter{recordSize: recordSize, idSize: idSize, hInfo: hInfo, bInfo: bInfo}, nil
 }
