@@ -24,6 +24,7 @@ type stateManager struct {
 	genesis proto.Block
 	stateDB *stateDB
 
+	assets   *assets
 	scores   *scores
 	balances *balances
 	rw       *blockReadWriter
@@ -80,11 +81,17 @@ func newStateManager(dataDir string, params BlockStorageParams, settings *settin
 	if err := stateDB.syncRw(rw); err != nil {
 		return nil, StateError{errorType: Other, originalError: errors.Errorf("failed to sync block storage and DB: %v\n", err)}
 	}
+	// assets is storage for assets info.
+	assets, err := newAssets(db, dbBatch, state, state)
+	if err != nil {
+		return nil, StateError{errorType: Other, originalError: errors.Errorf("failed to create assets storage: %v\n", err)}
+	}
 	// Consensus validator is needed to check block headers.
 	cv, err := consensus.NewConsensusValidator(state)
 	if err != nil {
 		return nil, StateError{errorType: Other, originalError: err}
 	}
+	state.assets = assets
 	state.cv = cv
 	state.balances = balances
 	state.rw = rw
@@ -126,7 +133,7 @@ func (s *stateManager) applyGenesis(genesisSig crypto.Signature) error {
 		return err
 	}
 	// Perform and validate genesis transactions.
-	tv, err := newTransactionValidator(s.genesis.BlockSignature, s.balances, s.settings)
+	tv, err := newTransactionValidator(s.genesis.BlockSignature, s.balances, s.assets, s.settings)
 	if err != nil {
 		return err
 	}
@@ -377,7 +384,7 @@ func (s *stateManager) addBlocks(blocks [][]byte, initialisation bool) error {
 	if err != nil {
 		return StateError{errorType: RetrievalError, originalError: err}
 	}
-	tv, err := newTransactionValidator(s.genesis.BlockSignature, s.balances, s.settings)
+	tv, err := newTransactionValidator(s.genesis.BlockSignature, s.balances, s.assets, s.settings)
 	if err != nil {
 		return StateError{errorType: Other, originalError: err}
 	}

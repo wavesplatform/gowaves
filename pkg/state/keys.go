@@ -28,6 +28,9 @@ const (
 
 	// Score at height.
 	scoreKeyPrefix
+	// Assets.
+	assetConstKeyPrefix
+	assetHistKeyPrefix
 )
 
 type balanceKey struct {
@@ -91,5 +94,27 @@ func (k *scoreKey) bytes() []byte {
 	buf := make([]byte, 9)
 	buf[0] = scoreKeyPrefix
 	binary.LittleEndian.PutUint64(buf[1:], k.height)
+	return buf
+}
+
+type assetConstKey struct {
+	assetID crypto.Digest
+}
+
+func (k *assetConstKey) bytes() []byte {
+	buf := make([]byte, 1+crypto.DigestSize)
+	buf[0] = assetConstKeyPrefix
+	copy(buf[1:], k.assetID[:])
+	return buf
+}
+
+type assetHistKey struct {
+	assetID crypto.Digest
+}
+
+func (k *assetHistKey) bytes() []byte {
+	buf := make([]byte, 1+crypto.DigestSize)
+	buf[0] = assetHistKeyPrefix
+	copy(buf[1:], k.assetID[:])
 	return buf
 }

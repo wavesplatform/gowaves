@@ -163,21 +163,28 @@ func (bs *changesStorage) applyDeltas() error {
 }
 
 type transactionValidator struct {
-	genesis  crypto.Signature
-	stor     *changesStorage
-	settings *settings.BlockchainSettings
+	genesis         crypto.Signature
+	balancesChanges *changesStorage
+	assets          *assets
+	settings        *settings.BlockchainSettings
 }
 
 func newTransactionValidator(
 	genesis crypto.Signature,
 	balances *balances,
+	assets *assets,
 	settings *settings.BlockchainSettings,
 ) (*transactionValidator, error) {
-	stor, err := newChangesStorage(balances)
+	balancesChanges, err := newChangesStorage(balances)
 	if err != nil {
-		return nil, errors.Errorf("failed to create balances storage: %v\n", err)
+		return nil, errors.Errorf("failed to create balances changes storage: %v\n", err)
 	}
-	return &transactionValidator{genesis: genesis, stor: stor, settings: settings}, nil
+	return &transactionValidator{
+		genesis:         genesis,
+		balancesChanges: balancesChanges,
+		assets:          assets,
+		settings:        settings,
+	}, nil
 }
 
 func (tv *transactionValidator) isSupported(tx proto.Transaction) bool {
@@ -235,7 +242,7 @@ func (tv *transactionValidator) checkTimestamps(txTimestamp, blockTimestamp, pre
 }
 
 func (tv *transactionValidator) addChanges(key []byte, diff int64, block *proto.Block) (bool, error) {
-	changes, err := tv.stor.balanceChanges(key)
+	changes, err := tv.balancesChanges.balanceChanges(key)
 	if err != nil {
 		return false, errors.Wrap(err, "can not retrieve balance changes")
 	}
@@ -403,5 +410,5 @@ func (tv *transactionValidator) validateTransaction(block, parent *proto.Block, 
 }
 
 func (tv *transactionValidator) performTransactions() error {
-	return tv.stor.applyDeltas()
+	return tv.balancesChanges.applyDeltas()
 }

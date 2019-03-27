@@ -15,15 +15,18 @@ const (
 	totalBlocksNumber = 200
 )
 
-type mock struct {
-	rw *blockReadWriter
+type mockBlockInfo struct {
 }
 
-func (m *mock) IsValidBlock(blockID crypto.Signature) (bool, error) {
+func (m *mockBlockInfo) IsValidBlock(blockID crypto.Signature) (bool, error) {
 	return true, nil
 }
 
-func (m *mock) Height() (uint64, error) {
+type mockHeightInfo struct {
+	rw *blockReadWriter
+}
+
+func (m *mockHeightInfo) Height() (uint64, error) {
 	height, err := m.rw.currentHeight()
 	if err != nil {
 		return 0, err
@@ -31,15 +34,15 @@ func (m *mock) Height() (uint64, error) {
 	return height + 2, nil
 }
 
-func (m *mock) BlockIDToHeight(blockID crypto.Signature) (uint64, error) {
+func (m *mockHeightInfo) BlockIDToHeight(blockID crypto.Signature) (uint64, error) {
 	return m.rw.heightByBlockID(blockID)
 }
 
-func (m *mock) NewBlockIDToHeight(blockID crypto.Signature) (uint64, error) {
+func (m *mockHeightInfo) NewBlockIDToHeight(blockID crypto.Signature) (uint64, error) {
 	return m.rw.heightByNewBlockID(blockID)
 }
 
-func (m *mock) RollbackMax() uint64 {
+func (m *mockHeightInfo) RollbackMax() uint64 {
 	return rollbackMaxBlocks
 }
 
@@ -57,8 +60,7 @@ func createBalances(rw *blockReadWriter) (*balances, []string, error) {
 	if err != nil {
 		return nil, res, err
 	}
-	m := &mock{rw: rw}
-	stor, err := newBalances(db, dbBatch, m, m)
+	stor, err := newBalances(db, dbBatch, &mockHeightInfo{rw: rw}, &mockBlockInfo{})
 	if err != nil {
 		return nil, res, err
 	}

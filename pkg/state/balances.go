@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	recordSize = crypto.SignatureSize + 8
+	balancesRecordSize = crypto.SignatureSize + 8
 )
 
 type blockInfo interface {
@@ -44,7 +44,7 @@ func newBalances(
 	hInfo heightInfo,
 	bInfo blockInfo,
 ) (*balances, error) {
-	fmt, err := history.NewHistoryFormatter(recordSize, crypto.SignatureSize, hInfo, bInfo)
+	fmt, err := history.NewHistoryFormatter(balancesRecordSize, crypto.SignatureSize, hInfo, bInfo)
 	if err != nil {
 		return nil, err
 	}
@@ -90,8 +90,8 @@ func (s *balances) minBalanceInRange(balanceKey []byte, startHeight, endHeight u
 		return 0, err
 	}
 	minBalance := uint64(math.MaxUint64)
-	for i := len(history); i >= recordSize; i -= recordSize {
-		record := history[i-recordSize : i]
+	for i := len(history); i >= balancesRecordSize; i -= balancesRecordSize {
+		record := history[i-balancesRecordSize : i]
 		idBytes, err := s.fmt.GetID(record)
 		if err != nil {
 			return 0, err
