@@ -160,7 +160,8 @@ func (a *api) status(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Failed to complete request: %v", err), http.StatusInternalServerError)
 		return
 	}
-	s := status{ShortForksCount: short, LongForksCount: long, ConnectedNodesCount: 0, KnowNodesCount: len(pas)}
+	ps := a.registry.Peers()
+	s := status{ShortForksCount: short, LongForksCount: long, ConnectedNodesCount: len(ps), KnowNodesCount: len(pas)}
 	err = json.NewEncoder(w).Encode(s)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to marshal status to JSON: %v", err), http.StatusInternalServerError)

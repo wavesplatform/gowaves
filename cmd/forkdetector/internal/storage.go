@@ -282,6 +282,35 @@ func (s *storage) handleBlock(block proto.Block, peer PeerDesignation) error {
 	return nil
 }
 
+func (s *storage) appendBlockSignature(sig crypto.Signature, peer PeerDesignation) (bool, error) {
+	wrapError := func(err error) error {
+		return errors.Wrap(err, "failed to append new block signature")
+	}
+	sn, err := s.db.GetSnapshot()
+	if err != nil {
+		return false, wrapError(err)
+	}
+	defer sn.Release()
+	batch := new(leveldb.Batch)
+
+	// Check that the block is already exist
+	w, ok, err := wrapper(sn, sig)
+	if err != nil {
+		return false, wrapError(err)
+	}
+	if ok {
+		// The block is already known, update the peer link
+		link := peerLink{fork: w.fork, height: w.height, block: sig}
+		putLink(batch, peer, link)
+		err = s.db.Write(batch, nil)
+		if err != nil {
+			return false, wrapError(err)
+		}
+		return true, nil
+	}
+	return false, nil
+}
+
 func (s *storage) parentedForks() ([]Fork, error) {
 	wrapError := func(err error) error {
 		return errors.Wrap(err, "failed to collect parented forks")

@@ -28,23 +28,23 @@ const (
 type handler struct {
 	interrupt      <-chan struct{}
 	conn           net.Conn
-	id             PeerDesignation
 	loader         *blockLoader
 	closed         *atomic.Bool
 	peersRequested *atomic.Bool
 	addresses      chan<- []net.TCPAddr
+	v              proto.Version
 }
 
-func NewHandler(interrupt <-chan struct{}, conn net.Conn, storage *storage, id PeerDesignation, addresses chan<- []net.TCPAddr) *handler {
+func NewHandler(interrupt <-chan struct{}, conn net.Conn, storage *storage, id PeerDesignation, addresses chan<- []net.TCPAddr, v proto.Version) *handler {
 	zap.S().Debugf("Creating handler for connection to '%s'", conn.RemoteAddr())
 	h := &handler{
 		interrupt:      interrupt,
 		conn:           conn,
-		id:             id,
-		loader:         newBlockLoader(storage),
+		loader:         newBlockLoader(storage, id),
 		closed:         atomic.NewBool(false),
 		peersRequested: atomic.NewBool(false),
 		addresses:      addresses,
+		v:              v,
 	}
 	go h.handle()
 	go h.read()
@@ -177,12 +177,20 @@ func (h *handler) read() {
 				zap.S().Warnf("Failed to unmarshal Signatures message from '%s': %v", h.conn.RemoteAddr(), err)
 			}
 			zap.S().Debugf("Received Signatures message with %d block signatures from '%s'", len(m.Signatures), h.conn.RemoteAddr())
+			if len(m.Signatures) > 2 && m.Signatures[0] == m.Signatures[1] {
+				zap.S().Warnf("REPEATED FIRST SIG: %s, '%s', %s", m.Signatures[0].String(), h.conn.RemoteAddr(), h.v.String())
+			}
 			err = h.loader.appendSignatures(m.Signatures)
 			if err != nil {
 				zap.S().Warnf("Failed to append signature from '%s': %v", h.conn.RemoteAddr(), err)
 				continue
 			}
-			h.requestBlock(h.loader.pending()[0])
+			if h.loader.hasPending() {
+				h.requestBlock(h.loader.pending()[0])
+			} else {
+				zap.S().Infof("No blocks to request from '%s', requesting more signatures...", h.conn.RemoteAddr())
+				h.requestBlockSignatures()
+			}
 		case proto.ContentIDBlock:
 			mb, err := h.readMessage(r, size)
 			if err != nil {
@@ -214,7 +222,7 @@ func (h *handler) read() {
 				h.requestBlock(h.loader.pending()[0])
 				continue
 			}
-			err = h.loader.dump(h.id)
+			err = h.loader.dump()
 			if err != nil {
 				zap.S().Warnf("Failed to dump blocks received from '%s': %v", h.conn.RemoteAddr(), err)
 			}
@@ -294,10 +302,10 @@ func (h *handler) replyWithPeers() {
 
 func (h *handler) requestBlockSignatures() {
 	if h.loader.hasPending() {
-		zap.S().Warn("Handler [%s] has pending blocks to receive from '%s'", h.id.String(), h.conn.RemoteAddr())
+		zap.S().Warn("There are pending blocks to receive from '%s'", h.conn.RemoteAddr())
 		return
 	}
-	fs, err := h.loader.front(h.id)
+	fs, err := h.loader.front()
 	if err != nil {
 		zap.S().Warnf("Failed to request block signatures from '%s': %v", h.conn.RemoteAddr(), err)
 		return
@@ -366,23 +374,25 @@ func (h *handler) close() {
 
 type blockLoader struct {
 	storage *storage
+	id      PeerDesignation
 	mu      sync.Mutex
 	present []crypto.Signature
 	upfront []crypto.Signature
 	blocks  map[crypto.Signature]proto.Block
 }
 
-func newBlockLoader(storage *storage) *blockLoader {
+func newBlockLoader(storage *storage, id PeerDesignation) *blockLoader {
 	return &blockLoader{
 		storage: storage,
+		id:      id,
 		mu:      sync.Mutex{},
 	}
 }
 
-func (l *blockLoader) front(id PeerDesignation) ([]crypto.Signature, error) {
+func (l *blockLoader) front() ([]crypto.Signature, error) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	f, err := l.storage.frontBlocks(id, signaturesBatchLen)
+	f, err := l.storage.frontBlocks(l.id, signaturesBatchLen)
 	if err != nil {
 		return nil, err
 	}
@@ -402,6 +412,18 @@ func (l *blockLoader) appendSignatures(signatures []crypto.Signature) error {
 	}
 	l.present = nil
 	r := skip(signatures, common)
+	known := make([]crypto.Signature, 0)
+	for _, s := range r {
+		ok, err := l.storage.appendBlockSignature(s, l.id)
+		if err != nil {
+			return err
+		}
+		if !ok {
+			break
+		}
+		known = append(known, s)
+	}
+	r = skip(r, known)
 	l.upfront = make([]crypto.Signature, len(r))
 	copy(l.upfront, r)
 	l.blocks = make(map[crypto.Signature]proto.Block)
@@ -444,13 +466,13 @@ func (l *blockLoader) pending() []crypto.Signature {
 	return r
 }
 
-func (l *blockLoader) dump(id PeerDesignation) error {
+func (l *blockLoader) dump() error {
 	for _, s := range l.upfront {
 		b, ok := l.blocks[s]
 		if !ok {
 			return errors.Errorf("block %s was not loaded", s)
 		}
-		err := l.storage.handleBlock(b, id)
+		err := l.storage.handleBlock(b, l.id)
 		if err != nil {
 			return err
 		}
@@ -486,14 +508,4 @@ func skip(a, c []crypto.Signature) []crypto.Signature {
 		}
 	}
 	return a[i:]
-}
-
-func filter(a []crypto.Signature, f func(s crypto.Signature) bool) []crypto.Signature {
-	b := a[:0]
-	for _, x := range a {
-		if f(x) {
-			b = append(b, x)
-		}
-	}
-	return b
 }

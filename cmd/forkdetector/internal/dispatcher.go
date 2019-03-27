@@ -202,7 +202,7 @@ func (d *dispatcher) dial(pa PublicAddress) {
 			}
 			return
 		}
-		h := NewHandler(d.interrupt, conn, d.storage, pd, d.addresses)
+		h := NewHandler(d.interrupt, conn, d.storage, pd, d.addresses, rph.Version)
 		d.peerRegistry.Register(pd, *description, h)
 		zap.S().Infof("Successful connection to '%s'", conn.RemoteAddr())
 	}
@@ -273,7 +273,7 @@ func (d *dispatcher) handleIncoming(conn net.Conn) {
 	if err != nil {
 		zap.S().Errorf("Failed to create a description of the peer: %v", err)
 	}
-	h := NewHandler(d.interrupt, conn, d.storage, pd, d.addresses)
+	h := NewHandler(d.interrupt, conn, d.storage, pd, d.addresses, in.Version)
 	d.peerRegistry.Register(pd, *description, h)
 }
 
