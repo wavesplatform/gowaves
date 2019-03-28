@@ -141,7 +141,7 @@ type assetReissueChange struct {
 }
 
 func (a *assets) reissueAsset(assetID crypto.Digest, ch *assetReissueChange) error {
-	info, err := a.newestAssetInfo(assetID)
+	info, err := a.newestAssetRecord(assetID)
 	if err != nil {
 		return errors.Errorf("failed to get asset info: %v\n", err)
 	}
@@ -160,7 +160,7 @@ type assetBurnChange struct {
 }
 
 func (a *assets) burnAsset(assetID crypto.Digest, ch *assetBurnChange) error {
-	info, err := a.newestAssetInfo(assetID)
+	info, err := a.newestAssetRecord(assetID)
 	if err != nil {
 		return errors.Errorf("failed to get asset info: %v\n", err)
 	}
@@ -195,13 +195,9 @@ func (a *assets) lastRecord(history []byte) (*assetHistoryRecord, error) {
 	return &record, nil
 }
 
-// Newest asset info (from local storage, or from DB if given asset has not been changed).
+// Newest asset record (from local storage, or from DB if given asset has not been changed).
 // This is needed for transactions validation.
-func (a *assets) newestAssetInfo(assetID crypto.Digest) (*assetInfo, error) {
-	constInfo, err := a.constInfo(assetID)
-	if err != nil {
-		return nil, err
-	}
+func (a *assets) newestAssetRecord(assetID crypto.Digest) (*assetHistoryRecord, error) {
 	histKey := assetHistKey{assetID: assetID}
 	history, err := fullHistory(histKey.bytes(), a.db, a.localStor, a.fmt)
 	if err != nil {
@@ -211,7 +207,7 @@ func (a *assets) newestAssetInfo(assetID crypto.Digest) (*assetInfo, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &assetInfo{assetConstInfo: *constInfo, assetHistoryRecord: *record}, nil
+	return record, nil
 }
 
 // "Stable" asset info from database.
