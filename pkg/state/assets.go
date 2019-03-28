@@ -124,7 +124,7 @@ func (a *assets) addNewRecord(assetID crypto.Digest, record *assetHistoryRecord)
 	return nil
 }
 
-func (a *assets) issueAsset(assetID crypto.Digest, asset *assetInfo, blockID crypto.Signature) error {
+func (a *assets) issueAsset(assetID crypto.Digest, asset *assetInfo) error {
 	assetConstBytes, err := asset.assetConstInfo.marshalBinary()
 	if err != nil {
 		return errors.Errorf("failed to marshal asset const info: %v\n", err)

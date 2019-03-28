@@ -22,8 +22,12 @@ type blockInfo interface {
 type heightInfo interface {
 	Height() (uint64, error)
 	BlockIDToHeight(blockID crypto.Signature) (uint64, error)
-	NewBlockIDToHeight(blockID crypto.Signature) (uint64, error)
 	RollbackMax() uint64
+}
+
+type heightInfoExt interface {
+	heightInfo
+	NewBlockIDToHeight(blockID crypto.Signature) (uint64, error)
 }
 
 type balances struct {
@@ -33,7 +37,7 @@ type balances struct {
 	// The motivation for this is inability to read from DB batch.
 	localStor map[string][]byte
 
-	hInfo heightInfo
+	hInfo heightInfoExt
 	// fmt is used for operations on balances history.
 	fmt *history.HistoryFormatter
 }
@@ -41,7 +45,7 @@ type balances struct {
 func newBalances(
 	db keyvalue.IterableKeyVal,
 	dbBatch keyvalue.Batch,
-	hInfo heightInfo,
+	hInfo heightInfoExt,
 	bInfo blockInfo,
 ) (*balances, error) {
 	fmt, err := history.NewHistoryFormatter(balancesRecordSize, crypto.SignatureSize, hInfo, bInfo)

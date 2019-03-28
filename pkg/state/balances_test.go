@@ -129,6 +129,9 @@ func TestMinBalanceInRange(t *testing.T) {
 	}
 
 	defer func() {
+		if err := rw.db.Close(); err != nil {
+			t.Fatalf("Failed to close DB: %v", err)
+		}
 		if err := stor.db.Close(); err != nil {
 			t.Fatalf("Failed to close DB: %v", err)
 		}
@@ -173,6 +176,9 @@ func TestBalances(t *testing.T) {
 	}
 
 	defer func() {
+		if err := rw.db.Close(); err != nil {
+			t.Fatalf("Failed to close DB: %v", err)
+		}
 		if err := stor.db.Close(); err != nil {
 			t.Fatalf("Failed to close DB: %v", err)
 		}
