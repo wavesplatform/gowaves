@@ -120,7 +120,7 @@ func (cv *ConsensusValidator) generatingBalance(height uint64, addr proto.Addres
 	}
 	balance, err := cv.state.EffectiveBalance(addr, bottomLimit, height)
 	if err != nil {
-		return 0, errors.Errorf("failed to get effective balance: %v\n", err)
+		return 0, err
 	}
 	return balance, nil
 }

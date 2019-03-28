@@ -19,7 +19,7 @@ func StringWithUInt16Len(buf []byte) (string, error) {
 	s := binary.BigEndian.Uint16(buf[0:2])
 	buf = buf[2:]
 	if l := len(buf); l < int(s) {
-		return "", fmt.Errorf("not enough data to read sting of lenght %d, recieved only %d bytes", s, l)
+		return "", fmt.Errorf("not enough data to read sting of length %d, recieved only %d bytes", s, l)
 	}
 	r := string(buf[:s])
 	return r, nil

@@ -84,16 +84,16 @@ type wavesBalanceKey [wavesBalanceKeySize]byte
 type assetBalanceKey [assetBalanceKeySize]byte
 
 type changesStorage struct {
-	accounts  *accountsStorage
+	balances  *balances
 	deltas    []balanceChanges
 	wavesKeys map[wavesBalanceKey]int // waves key --> index in deltas.
 	assetKeys map[assetBalanceKey]int // asset key --> index in deltas.
 	lastIndex int
 }
 
-func newChangesStorage(accounts *accountsStorage) (*changesStorage, error) {
+func newChangesStorage(balances *balances) (*changesStorage, error) {
 	return &changesStorage{
-		accounts:  accounts,
+		balances:  balances,
 		wavesKeys: make(map[wavesBalanceKey]int),
 		assetKeys: make(map[assetBalanceKey]int),
 	}, nil
@@ -133,7 +133,7 @@ func (bs *changesStorage) applyDeltas() error {
 	// TODO: if DB supported MultiGet() operation, this would probably be even faster.
 	sort.Sort(byKey(bs.deltas))
 	for _, delta := range bs.deltas {
-		balance, err := bs.accounts.accountBalance(delta.key)
+		balance, err := bs.balances.accountBalance(delta.key)
 		if err != nil {
 			return errors.Errorf("failed to retrieve account balance: %v\n", err)
 		}
@@ -150,7 +150,7 @@ func (bs *changesStorage) applyDeltas() error {
 			if err != nil {
 				return errors.Errorf("failed to add balances: %v\n", err)
 			}
-			if err := bs.accounts.setAccountBalance(delta.key, uint64(newBalance), change.blockID); err != nil {
+			if err := bs.balances.setAccountBalance(delta.key, uint64(newBalance), change.blockID); err != nil {
 				return errors.Errorf("failed to set account balance: %v\n", err)
 			}
 		}
@@ -163,21 +163,28 @@ func (bs *changesStorage) applyDeltas() error {
 }
 
 type transactionValidator struct {
-	genesis  crypto.Signature
-	stor     *changesStorage
-	settings *settings.BlockchainSettings
+	genesis         crypto.Signature
+	balancesChanges *changesStorage
+	assets          *assets
+	settings        *settings.BlockchainSettings
 }
 
 func newTransactionValidator(
 	genesis crypto.Signature,
-	accounts *accountsStorage,
+	balances *balances,
+	assets *assets,
 	settings *settings.BlockchainSettings,
 ) (*transactionValidator, error) {
-	stor, err := newChangesStorage(accounts)
+	balancesChanges, err := newChangesStorage(balances)
 	if err != nil {
-		return nil, errors.Errorf("failed to create balances storage: %v\n", err)
+		return nil, errors.Errorf("failed to create balances changes storage: %v\n", err)
 	}
-	return &transactionValidator{genesis: genesis, stor: stor, settings: settings}, nil
+	return &transactionValidator{
+		genesis:         genesis,
+		balancesChanges: balancesChanges,
+		assets:          assets,
+		settings:        settings,
+	}, nil
 }
 
 func (tv *transactionValidator) isSupported(tx proto.Transaction) bool {
@@ -235,7 +242,7 @@ func (tv *transactionValidator) checkTimestamps(txTimestamp, blockTimestamp, pre
 }
 
 func (tv *transactionValidator) addChanges(key []byte, diff int64, block *proto.Block) (bool, error) {
-	changes, err := tv.stor.balanceChanges(key)
+	changes, err := tv.balancesChanges.balanceChanges(key)
 	if err != nil {
 		return false, errors.Wrap(err, "can not retrieve balance changes")
 	}
@@ -403,5 +410,5 @@ func (tv *transactionValidator) validateTransaction(block, parent *proto.Block, 
 }
 
 func (tv *transactionValidator) performTransactions() error {
-	return tv.stor.applyDeltas()
+	return tv.balancesChanges.applyDeltas()
 }

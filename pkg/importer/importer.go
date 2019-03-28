@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	blocksBatchSize = 500
+	blocksBatchSize = 250
 	maxBlockSize    = 2 * 1024 * 1024
 )
 

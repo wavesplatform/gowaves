@@ -241,7 +241,7 @@ func (rw *blockReadWriter) heightByNewBlockID(blockID crypto.Signature) (uint64,
 	key := blockOffsetKey{blockID: blockID}
 	info, ok := rw.blockInfo[key]
 	if !ok {
-		return 0, errors.New("not found")
+		return 0, errors.New("block not found")
 	}
 	height := binary.LittleEndian.Uint64(info[len(info)-8:])
 	return height + 2, nil
@@ -337,7 +337,7 @@ func (rw *blockReadWriter) cleanIDs(oldHeight, newBlockchainLen uint64) error {
 		} else if n != crypto.SignatureSize {
 			return errors.New("cleanIDs(): invalid id size")
 		}
-		blockID, err := toBlockID(idBytes)
+		blockID, err := crypto.NewSignatureFromBytes(idBytes)
 		if err != nil {
 			return err
 		}
@@ -481,19 +481,7 @@ func (rw *blockReadWriter) rollback(removalEdge crypto.Signature, cleanIDs bool)
 	return nil
 }
 
-func (rw *blockReadWriter) updateHeight(heightChange int) error {
-	height, err := rw.getHeight()
-	if err != nil {
-		return err
-	}
-	if err := rw.setHeight(height+uint64(heightChange), false); err != nil {
-		return err
-	}
-	return nil
-}
-
 func (rw *blockReadWriter) reset() {
-	rw.dbBatch.Reset()
 	rw.blockchainBuf.Reset(rw.blockchain)
 	rw.blockInfo = make(map[blockOffsetKey][]byte)
 }
@@ -508,7 +496,9 @@ func (rw *blockReadWriter) flush() error {
 	for key, info := range rw.blockInfo {
 		rw.dbBatch.Put(key.bytes(), info)
 	}
-	rw.blockInfo = make(map[blockOffsetKey][]byte)
+	if err := rw.setHeight(rw.height, false); err != nil {
+		return err
+	}
 	return nil
 }
 
