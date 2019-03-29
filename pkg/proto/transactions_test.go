@@ -1982,7 +1982,7 @@ func TestLeaseV1Validations(t *testing.T) {
 	}{
 		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ", 0, 100000, "failed to create LeaseV1 transaction: amount should be positive"},
 		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ", 100000, 0, "failed to create LeaseV1 transaction: fee should be positive"},
-		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H86Y7SHTQ", 100000, 100000, "failed to create LeaseV1 transaction: failed to create new unsigned LeaseV1 transaction: invalid Address checksum"},
+		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H86Y7SHTQ", 100000, 100000, "failed to create LeaseV1 transaction: failed to create new unsigned Lease transaction: invalid Address checksum"},
 	}
 	for _, tc := range tests {
 		spk, _ := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
@@ -2106,7 +2106,7 @@ func TestLeaseV2Validations(t *testing.T) {
 	}{
 		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ", 0, 100000, "failed to create LeaseV2 transaction: amount should be positive"},
 		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ", 100000, 0, "failed to create LeaseV2 transaction: fee should be positive"},
-		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H86Y7SHTQ", 100000, 100000, "failed to create LeaseV2 transaction: failed to create new unsigned LeaseV1 transaction: invalid Address checksum"},
+		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H86Y7SHTQ", 100000, 100000, "failed to create LeaseV2 transaction: failed to create new unsigned Lease transaction: invalid Address checksum"},
 	}
 	for _, tc := range tests {
 		spk, _ := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
