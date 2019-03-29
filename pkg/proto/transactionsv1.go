@@ -59,6 +59,42 @@ func (tx IssueV1) GetID() []byte {
 	return tx.ID.Bytes()
 }
 
+func (tx IssueV1) GetSenderPK() crypto.PublicKey {
+	return tx.SenderPK
+}
+
+func (tx IssueV1) GetName() string {
+	return tx.Name
+}
+
+func (tx IssueV1) GetDescription() string {
+	return tx.Description
+}
+
+func (tx IssueV1) GetQuantity() uint64 {
+	return tx.Quantity
+}
+
+func (tx IssueV1) GetDecimals() byte {
+	return tx.Decimals
+}
+
+func (tx IssueV1) GetReissuable() bool {
+	return tx.Reissuable
+}
+
+func (tx IssueV1) GetScript() Script {
+	return Script{}
+}
+
+func (tx IssueV1) GetTimestamp() uint64 {
+	return tx.Timestamp
+}
+
+func (tx IssueV1) GetFee() uint64 {
+	return tx.Fee
+}
+
 //NewUnsignedIssueV1 creates new IssueV1 transaction without signature and ID.
 func NewUnsignedIssueV1(senderPK crypto.PublicKey, name, description string, quantity uint64, decimals byte, reissuable bool, timestamp, fee uint64) (*IssueV1, error) {
 	if l := len(name); l < minAssetNameLen || l > maxAssetNameLen {
@@ -571,6 +607,41 @@ type ExchangeV1 struct {
 
 func (tx ExchangeV1) GetID() []byte {
 	return tx.ID.Bytes()
+}
+
+func (tx ExchangeV1) GetSenderPK() crypto.PublicKey {
+	return tx.SenderPK
+}
+
+func (tx ExchangeV1) GetBuyOrder() (OrderBody, error) {
+	return tx.BuyOrder.OrderBody, nil
+}
+
+func (tx ExchangeV1) GetSellOrder() (OrderBody, error) {
+	return tx.SellOrder.OrderBody, nil
+}
+
+func (tx ExchangeV1) GetPrice() uint64 {
+	return tx.Price
+}
+
+func (tx ExchangeV1) GetAmount() uint64 {
+	return tx.Amount
+}
+
+func (tx ExchangeV1) GetBuyMatcherFee() uint64 {
+	return tx.BuyMatcherFee
+}
+
+func (tx ExchangeV1) GetSellMatcherFee() uint64 {
+	return tx.SellMatcherFee
+}
+func (tx ExchangeV1) GetFee() uint64 {
+	return tx.Fee
+}
+
+func (tx ExchangeV1) GetTimestamp() uint64 {
+	return tx.Timestamp
 }
 
 func NewUnsignedExchangeV1(buy, sell OrderV1, price, amount, buyMatcherFee, sellMatcherFee, fee, timestamp uint64) (*ExchangeV1, error) {

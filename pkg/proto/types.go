@@ -295,7 +295,26 @@ type Order interface {
 	GetMatcherPK() crypto.PublicKey
 }
 
-type order struct {
+func OrderToOrderBody(o Order) (OrderBody, error) {
+	switch o.GetVersion() {
+	case 1:
+		o, ok := o.(OrderV1)
+		if !ok {
+			return OrderBody{}, errors.New("failed to cast an order version 1 to OrderV1")
+		}
+		return o.OrderBody, nil
+	case 2:
+		o, ok := o.(OrderV2)
+		if !ok {
+			return OrderBody{}, errors.New("failed to cast an order version 2 to OrderV2")
+		}
+		return o.OrderBody, nil
+	default:
+		return OrderBody{}, errors.New("invalid order version")
+	}
+}
+
+type OrderBody struct {
 	SenderPK   crypto.PublicKey `json:"senderPublicKey"`
 	MatcherPK  crypto.PublicKey `json:"matcherPublicKey"`
 	AssetPair  AssetPair        `json:"assetPair"`
@@ -307,7 +326,7 @@ type order struct {
 	MatcherFee uint64           `json:"matcherFee"`
 }
 
-func newOrder(senderPK, matcherPK crypto.PublicKey, amountAsset, priceAsset OptionalAsset, orderType OrderType, price, amount, timestamp, expiration, matcherFee uint64) (*order, error) {
+func NewOrderBody(senderPK, matcherPK crypto.PublicKey, amountAsset, priceAsset OptionalAsset, orderType OrderType, price, amount, timestamp, expiration, matcherFee uint64) (*OrderBody, error) {
 	if price <= 0 {
 		return nil, errors.New("price should be positive")
 	}
@@ -318,10 +337,10 @@ func newOrder(senderPK, matcherPK crypto.PublicKey, amountAsset, priceAsset Opti
 		return nil, errors.New("matcher's fee should be positive")
 	}
 	//TODO: Add expiration validation
-	return &order{SenderPK: senderPK, MatcherPK: matcherPK, AssetPair: AssetPair{AmountAsset: amountAsset, PriceAsset: priceAsset}, OrderType: orderType, Price: price, Amount: amount, Timestamp: timestamp, Expiration: expiration, MatcherFee: matcherFee}, nil
+	return &OrderBody{SenderPK: senderPK, MatcherPK: matcherPK, AssetPair: AssetPair{AmountAsset: amountAsset, PriceAsset: priceAsset}, OrderType: orderType, Price: price, Amount: amount, Timestamp: timestamp, Expiration: expiration, MatcherFee: matcherFee}, nil
 }
 
-func (o *order) marshalBinary() ([]byte, error) {
+func (o *OrderBody) marshalBinary() ([]byte, error) {
 	var p int
 	aal := 0
 	if o.AssetPair.AmountAsset.Present {
@@ -338,13 +357,13 @@ func (o *order) marshalBinary() ([]byte, error) {
 	p += crypto.PublicKeySize
 	aa, err := o.AssetPair.AmountAsset.MarshalBinary()
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed marshal order to bytes")
+		return nil, errors.Wrapf(err, "failed marshal OrderBody to bytes")
 	}
 	copy(buf[p:], aa)
 	p += 1 + aal
 	pa, err := o.AssetPair.PriceAsset.MarshalBinary()
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed marshal order to bytes")
+		return nil, errors.Wrapf(err, "failed marshal OrderBody to bytes")
 	}
 	copy(buf[p:], pa)
 	p += 1 + pal
@@ -362,9 +381,9 @@ func (o *order) marshalBinary() ([]byte, error) {
 	return buf, nil
 }
 
-func (o *order) unmarshalBinary(data []byte) error {
+func (o *OrderBody) unmarshalBinary(data []byte) error {
 	if l := len(data); l < orderLen {
-		return errors.Errorf("not enough data for order, expected not less then %d, received %d", orderLen, l)
+		return errors.Errorf("not enough data for OrderBody, expected not less then %d, received %d", orderLen, l)
 	}
 	copy(o.SenderPK[:], data[:crypto.PublicKeySize])
 	data = data[crypto.PublicKeySize:]
@@ -373,7 +392,7 @@ func (o *order) unmarshalBinary(data []byte) error {
 	var err error
 	err = o.AssetPair.AmountAsset.UnmarshalBinary(data)
 	if err != nil {
-		return errors.Wrap(err, "failed to unmarshal order from bytes")
+		return errors.Wrap(err, "failed to unmarshal OrderBody from bytes")
 	}
 	data = data[1:]
 	if o.AssetPair.AmountAsset.Present {
@@ -381,7 +400,7 @@ func (o *order) unmarshalBinary(data []byte) error {
 	}
 	err = o.AssetPair.PriceAsset.UnmarshalBinary(data)
 	if err != nil {
-		return errors.Wrap(err, "failed to unmarshal order from bytes")
+		return errors.Wrap(err, "failed to unmarshal OrderBody from bytes")
 	}
 	data = data[1:]
 	if o.AssetPair.PriceAsset.Present {
@@ -408,16 +427,16 @@ func (o *order) unmarshalBinary(data []byte) error {
 type OrderV1 struct {
 	ID        *crypto.Digest    `json:"id,omitempty"`
 	Signature *crypto.Signature `json:"signature,omitempty"`
-	order
+	OrderBody
 }
 
 //NewUnsignedOrderV1 creates the new unsigned order.
 func NewUnsignedOrderV1(senderPK, matcherPK crypto.PublicKey, amountAsset, priceAsset OptionalAsset, orderType OrderType, price, amount, timestamp, expiration, matcherFee uint64) (*OrderV1, error) {
-	o, err := newOrder(senderPK, matcherPK, amountAsset, priceAsset, orderType, price, amount, timestamp, expiration, matcherFee)
+	o, err := NewOrderBody(senderPK, matcherPK, amountAsset, priceAsset, orderType, price, amount, timestamp, expiration, matcherFee)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create OrderV1")
 	}
-	return &OrderV1{order: *o}, nil
+	return &OrderV1{OrderBody: *o}, nil
 }
 
 func (o OrderV1) GetVersion() byte {
@@ -433,11 +452,11 @@ func (o OrderV1) GetMatcherPK() crypto.PublicKey {
 }
 
 func (o *OrderV1) bodyMarshalBinary() ([]byte, error) {
-	return o.order.marshalBinary()
+	return o.OrderBody.marshalBinary()
 }
 
 func (o *OrderV1) bodyUnmarshalBinary(data []byte) error {
-	return o.order.unmarshalBinary(data)
+	return o.OrderBody.unmarshalBinary(data)
 }
 
 //Sign adds a signature to the order.
@@ -516,16 +535,16 @@ type OrderV2 struct {
 	Version byte           `json:"version"`
 	ID      *crypto.Digest `json:"id,omitempty"`
 	Proofs  *ProofsV1      `json:"proofs,omitempty"`
-	order
+	OrderBody
 }
 
 //NewUnsignedOrderV2 creates the new unsigned order.
 func NewUnsignedOrderV2(senderPK, matcherPK crypto.PublicKey, amountAsset, priceAsset OptionalAsset, orderType OrderType, price, amount, timestamp, expiration, matcherFee uint64) (*OrderV2, error) {
-	o, err := newOrder(senderPK, matcherPK, amountAsset, priceAsset, orderType, price, amount, timestamp, expiration, matcherFee)
+	o, err := NewOrderBody(senderPK, matcherPK, amountAsset, priceAsset, orderType, price, amount, timestamp, expiration, matcherFee)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create OrderV2")
 	}
-	return &OrderV2{Version: 2, order: *o}, nil
+	return &OrderV2{Version: 2, OrderBody: *o}, nil
 }
 
 func (o OrderV2) GetVersion() byte {
@@ -551,7 +570,7 @@ func (o *OrderV2) bodyMarshalBinary() ([]byte, error) {
 	}
 	buf := make([]byte, orderV2FixedBodyLen+aal+pal)
 	buf[0] = o.Version
-	b, err := o.order.marshalBinary()
+	b, err := o.OrderBody.marshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal OrderV1 to bytes")
 	}
@@ -567,12 +586,12 @@ func (o *OrderV2) bodyUnmarshalBinary(data []byte) error {
 	if o.Version != 2 {
 		return errors.Errorf("unexpected version %d for OrderV2, expected 2", o.Version)
 	}
-	var oo order
+	var oo OrderBody
 	err := oo.unmarshalBinary(data[1:])
 	if err != nil {
 		return errors.Wrap(err, "failed to unmarshal OrderV2 from bytes")
 	}
-	o.order = oo
+	o.OrderBody = oo
 	return nil
 }
 

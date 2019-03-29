@@ -454,6 +454,19 @@ func (tx *Transfer) unmarshalBinary(data []byte) error {
 	return nil
 }
 
+type Issue interface {
+	GetID() *crypto.Digest
+	GetSenderPK() crypto.PublicKey
+	GetName() string
+	GetDescription() string
+	GetQuantity() uint64
+	GetDecimals() byte
+	GetReissuable() bool
+	GetScript() Script
+	GetTimestamp() uint64
+	GetFree() uint64
+}
+
 type Reissue struct {
 	SenderPK   crypto.PublicKey `json:"senderPublicKey"`
 	AssetID    crypto.Digest    `json:"assetId"`
@@ -510,6 +523,19 @@ func (tx *Reissue) unmarshalBinary(data []byte) error {
 	data = data[8:]
 	tx.Timestamp = binary.BigEndian.Uint64(data)
 	return nil
+}
+
+type Exchange interface {
+	GetID() *crypto.Digest
+	GetSenderPK() crypto.PublicKey
+	GetBuyOder() OrderBody
+	GetSellOrder() OrderBody
+	GetPrice() uint64
+	GetAmount() uint64
+	GetBuyMatcherFee() uint64
+	GetSellMatcherFee() uint64
+	GetFee() uint64
+	GetTimestamp() uint64
 }
 
 type Burn struct {
