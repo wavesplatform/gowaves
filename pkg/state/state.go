@@ -286,11 +286,9 @@ func (s *stateManager) addNewBlock(tv *transactionValidator, block, parent *prot
 		if err := s.rw.writeTransaction(tx.GetID(), transactions[:n+4]); err != nil {
 			return err
 		}
-		if tv.isSupported(tx) {
-			// Genesis, Payment, TransferV1 and TransferV2 Waves-only for now.
-			if err = tv.validateTransaction(block, parent, tx, initialisation); err != nil {
-				return err
-			}
+		// Validate transaction against state.
+		if err = tv.validateTransaction(block, parent, tx, initialisation); err != nil {
+			return err
 		}
 		transactions = transactions[4+n:]
 	}
