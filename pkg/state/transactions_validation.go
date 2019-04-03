@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	priceConstant = 10e8
+	priceConstant = 10e7
 
 	wavesBalanceKeySize = 1 + proto.AddressSize
 	assetBalanceKeySize = 1 + proto.AddressSize + crypto.DigestSize
@@ -271,9 +271,26 @@ func (tv *transactionValidator) validatePayment(tx *proto.Payment, block, parent
 	return true, nil
 }
 
+func (tv *transactionValidator) checkAsset(asset *proto.OptionalAsset) error {
+	if !asset.Present {
+		// Waves always valid.
+		return nil
+	}
+	if _, err := tv.assets.newestAssetRecord(asset.ID); err != nil {
+		return errors.New("unknown asset")
+	}
+	return nil
+}
+
 func (tv *transactionValidator) validateTransfer(tx *proto.Transfer, block, parent *proto.Block, initialisation bool) (bool, error) {
 	if ok, err := tv.checkTimestamps(tx.Timestamp, block.Timestamp, parent.Timestamp); !ok {
 		return false, errors.Wrap(err, "invalid timestamp")
+	}
+	if err := tv.checkAsset(&tx.AmountAsset); err != nil {
+		return false, err
+	}
+	if err := tv.checkAsset(&tx.FeeAsset); err != nil {
+		return false, err
 	}
 	// Update sender.
 	senderAddr, err := proto.NewAddressFromPublicKey(tv.settings.AddressSchemeCharacter, tx.SenderPK)
@@ -374,7 +391,7 @@ func (tv *transactionValidator) validateReissue(tx *proto.Reissue, block, parent
 	if err != nil {
 		return false, err
 	}
-	if !record.reissuable {
+	if (block.Timestamp > tv.settings.InvalidReissueInSameBlockUntilTime) && !record.reissuable {
 		return false, errors.New("attempt to reissue asset which is not reissuable")
 	}
 	// Modify asset.
@@ -458,7 +475,6 @@ func (tv *transactionValidator) validateExchange(tx proto.Exchange, block, paren
 	if ok, err := tv.checkTimestamps(tx.GetTimestamp(), block.Timestamp, parent.Timestamp); !ok {
 		return false, errors.Wrap(err, "invalid timestamp")
 	}
-	// Perform exchange.
 	buyOrder, err := tx.GetBuyOrder()
 	if err != nil {
 		return false, err
@@ -467,30 +483,48 @@ func (tv *transactionValidator) validateExchange(tx proto.Exchange, block, paren
 	if err != nil {
 		return false, err
 	}
-	priceDiff := int64(tx.GetAmount() * tx.GetPrice() / priceConstant)
+	// Check assets.
+	if err := tv.checkAsset(&sellOrder.AssetPair.AmountAsset); err != nil {
+		return false, err
+	}
+	if err := tv.checkAsset(&sellOrder.AssetPair.PriceAsset); err != nil {
+		return false, err
+	}
+	// Perform exchange.
+	priceDiff := int64(tx.GetAmount() * (tx.GetPrice() / priceConstant))
 	amountDiff := int64(tx.GetAmount())
 	senderAddr, err := proto.NewAddressFromPublicKey(tv.settings.AddressSchemeCharacter, sellOrder.SenderPK)
 	if err != nil {
 		return false, err
 	}
-	senderPriceKey := balanceKey{address: senderAddr, asset: sellOrder.AssetPair.PriceAsset.ID[:]}
-	senderAmountKey := balanceKey{address: senderAddr, asset: sellOrder.AssetPair.AmountAsset.ID[:]}
+	senderPriceKey := balanceKey{address: senderAddr, asset: sellOrder.AssetPair.PriceAsset.ToID()}
 	if ok, err := tv.addChanges(senderPriceKey.bytes(), priceDiff, block); !ok {
 		return false, err
 	}
+	senderAmountKey := balanceKey{address: senderAddr, asset: sellOrder.AssetPair.AmountAsset.ToID()}
 	if ok, err := tv.addChanges(senderAmountKey.bytes(), -amountDiff, block); !ok {
+		return false, err
+	}
+	senderFeeKey := balanceKey{address: senderAddr}
+	senderFeeDiff := -int64(tx.GetSellMatcherFee())
+	if ok, err := tv.addChanges(senderFeeKey.bytes(), senderFeeDiff, block); !ok {
 		return false, err
 	}
 	receiverAddr, err := proto.NewAddressFromPublicKey(tv.settings.AddressSchemeCharacter, buyOrder.SenderPK)
 	if err != nil {
 		return false, err
 	}
-	receiverPriceKey := balanceKey{address: receiverAddr, asset: sellOrder.AssetPair.PriceAsset.ID[:]}
-	receiverAmountKey := balanceKey{address: receiverAddr, asset: sellOrder.AssetPair.AmountAsset.ID[:]}
+	receiverPriceKey := balanceKey{address: receiverAddr, asset: sellOrder.AssetPair.PriceAsset.ToID()}
 	if ok, err := tv.addChanges(receiverPriceKey.bytes(), -priceDiff, block); !ok {
 		return false, err
 	}
+	receiverAmountKey := balanceKey{address: receiverAddr, asset: sellOrder.AssetPair.AmountAsset.ToID()}
 	if ok, err := tv.addChanges(receiverAmountKey.bytes(), amountDiff, block); !ok {
+		return false, err
+	}
+	receiverFeeKey := balanceKey{address: receiverAddr}
+	receiverFeeDiff := -int64(tx.GetBuyMatcherFee())
+	if ok, err := tv.addChanges(receiverFeeKey.bytes(), receiverFeeDiff, block); !ok {
 		return false, err
 	}
 	// Update matcher.
