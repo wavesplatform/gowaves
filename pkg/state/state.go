@@ -240,8 +240,8 @@ func (s *stateManager) AccountBalance(addr proto.Address, asset []byte) (uint64,
 	return balance, nil
 }
 
-func (s *stateManager) AddressesNumber() (uint64, error) {
-	res, err := s.balances.addressesNumber()
+func (s *stateManager) AddressesNumber(wavesOnly bool) (uint64, error) {
+	res, err := s.balances.addressesNumber(wavesOnly)
 	if err != nil {
 		return 0, StateError{errorType: RetrievalError, originalError: err}
 	}
