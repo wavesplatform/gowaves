@@ -2172,3 +2172,24 @@ func (tx *SetAssetScriptV1) UnmarshalBinary(data []byte) error {
 	tx.ID = &id
 	return nil
 }
+
+type OptionalPayment struct {
+	PaymentPresent bool
+	Amount         uint64
+	Asset          OptionalAsset
+}
+
+type InvokeScriptV1 struct {
+	Type            TransactionType  `json:"type"`
+	Version         byte             `json:"version,omitempty"`
+	ID              *crypto.Digest   `json:"id,omitempty"`
+	Proofs          *ProofsV1        `json:"proofs,omitempty"`
+	ChainID         byte             `json:"-"`
+	SenderPK        crypto.PublicKey `json:"senderPublicKey"`
+	ContractAddress Recipient        `json:"contractAddress"`
+	FunctionCall    Script           `json:"functionCall"`
+	Payment         OptionalPayment  `json:"payment"`
+	FeeAssetID
+	Fee             uint64           `json:"fee"`
+	Timestamp       uint64           `json:"timestamp,omitempty"`
+}
