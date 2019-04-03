@@ -55,7 +55,11 @@ func main() {
 	}
 	start := time.Now()
 	if err := importer.ApplyFromFile(state, *blockchainPath, uint64(*nBlocks), height); err != nil {
-		log.Fatalf("Failed to apply blocks: %v\n", err)
+		height, err1 := state.Height()
+		if err1 != nil {
+			log.Fatalf("Failed to get current height: %v\n", err1)
+		}
+		log.Fatalf("Failed to apply blocks at height %d: %v\n", height, err)
 	}
 	elapsed := time.Since(start)
 	fmt.Printf("Import took %s\n", elapsed)
