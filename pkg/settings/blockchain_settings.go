@@ -22,6 +22,8 @@ type BlockchainSettings struct {
 	NegativeBalanceCheckAfterTime          uint64
 	TxChangesSortedCheckAfterTime          uint64
 	TxFromFutureCheckAfterTime             uint64
+	UnissedAssetUntilTime                  uint64
+	InvalidReissueInSameBlockUntilTime     uint64
 	MinimalGeneratingBalanceCheckAfterTime uint64
 
 	// Diff in milliseconds.
@@ -44,6 +46,8 @@ var (
 		NegativeBalanceCheckAfterTime:          1479168000000,
 		TxChangesSortedCheckAfterTime:          1479416400000,
 		TxFromFutureCheckAfterTime:             1479168000000,
+		UnissedAssetUntilTime:                  1479416400000,
+		InvalidReissueInSameBlockUntilTime:     1492768800000,
 		MinimalGeneratingBalanceCheckAfterTime: 1479168000000,
 
 		MaxTxTimeBackOffset:    120 * 60000,
@@ -63,6 +67,8 @@ var (
 		NegativeBalanceCheckAfterTime:          1477958400000,
 		TxChangesSortedCheckAfterTime:          1479416400000,
 		TxFromFutureCheckAfterTime:             1478100000000,
+		UnissedAssetUntilTime:                  1479416400000,
+		InvalidReissueInSameBlockUntilTime:     1492560000000,
 		MinimalGeneratingBalanceCheckAfterTime: 0,
 
 		MaxTxTimeBackOffset:    120 * 60000,
