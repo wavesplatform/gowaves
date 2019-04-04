@@ -27,8 +27,12 @@ func (m *mock) BlockIDToHeight(blockID crypto.Signature) (uint64, error) {
 	return 0, nil
 }
 
+func (m *mock) NewBlockIDToHeight(blockID crypto.Signature) (uint64, error) {
+	return 0, nil
+}
+
 func (m *mock) RollbackMax() uint64 {
-	return 1
+	return rollbackMaxBlocks
 }
 
 func flushAssets(t *testing.T, assets *assets) {
