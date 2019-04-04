@@ -300,6 +300,7 @@ func (s *stateManager) addNewBlock(tv *transactionValidator, block, parent *prot
 
 func (s *stateManager) reset() error {
 	s.rw.reset()
+	s.assets.reset()
 	s.balances.reset()
 	s.stateDB.reset()
 	return nil
@@ -307,6 +308,9 @@ func (s *stateManager) reset() error {
 
 func (s *stateManager) flush() error {
 	if err := s.rw.flush(); err != nil {
+		return err
+	}
+	if err := s.assets.flush(); err != nil {
 		return err
 	}
 	if err := s.balances.flush(); err != nil {
