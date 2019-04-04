@@ -157,11 +157,16 @@ func (bs *changesStorage) applyDeltas() error {
 			}
 		}
 	}
-	// Reset (free memory).
+	bs.reset()
+	return nil
+}
+
+func (bs *changesStorage) reset() {
 	bs.deltas = nil
+	bs.lastIndex = 0
 	bs.wavesKeys = make(map[wavesBalanceKey]int)
 	bs.assetKeys = make(map[assetBalanceKey]int)
-	return nil
+
 }
 
 type transactionValidator struct {
@@ -612,4 +617,8 @@ func (tv *transactionValidator) validateTransaction(block, parent *proto.Block, 
 
 func (tv *transactionValidator) performTransactions() error {
 	return tv.balancesChanges.applyDeltas()
+}
+
+func (tv *transactionValidator) reset() {
+	tv.balancesChanges.reset()
 }
