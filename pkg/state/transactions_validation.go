@@ -54,10 +54,6 @@ func (ch *balanceChanges) update(balanceDiff int64, blockID crypto.Signature, ch
 	newChange := change{blockID: blockID, diff: newDiff}
 	if blockID != lastID {
 		ch.balanceDiffs = append(ch.balanceDiffs, newChange)
-		// Check cumulative diff for previous block.
-		if prevDiff < ch.minBalanceDiff {
-			ch.minBalanceDiff = prevDiff
-		}
 	} else {
 		ch.balanceDiffs[last] = newChange
 	}
@@ -151,6 +147,9 @@ func (bs *changesStorage) applyDeltas() error {
 			newBalance, err := util.AddInt64(int64(balance), change.diff)
 			if err != nil {
 				return errors.Errorf("failed to add balances: %v\n", err)
+			}
+			if newBalance < 0 {
+				return errors.New("validation failed: negative balance")
 			}
 			if err := bs.balances.setAccountBalance(delta.key, uint64(newBalance), change.blockID); err != nil {
 				return errors.Errorf("failed to set account balance: %v\n", err)
