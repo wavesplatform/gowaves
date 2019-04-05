@@ -20,7 +20,7 @@ var (
 	blockID1 = "FSH8eAAzZNqnG8xgTZtz5xuLqXySsXgAjmFEC25hXMbEufiGjqWPnGCZFt6gLiVLJny16ipxRNAkkzjjhqTjBE3"
 
 	matcherPK     = "AfZtLRQxLNYH5iradMkTeuXGe71uAiATVbr8DpXEEQa6"
-	matckerAddr   = "3P9MUoSW7jfHNVFcq84rurfdWZYZuvVghVi"
+	matcherAddr   = "3P9MUoSW7jfHNVFcq84rurfdWZYZuvVghVi"
 	minerPK       = "AfZtLRQxLNYH5iradMkTeuXGe71uAiATVbr8DpXEEQa7"
 	minerAddr     = "3PP2ywCpyvC57rN4vUZhJjQrmGMTWnjFKi7"
 	senderPK      = "AfZtLRQxLNYH5iradMkTeuXGe71uAiATVbr8DpXEEQa8"
@@ -801,4 +801,108 @@ func TestValidateBurnV2(t *testing.T) {
 	info, err := to.assets.assetInfo(asset.ID)
 	assert.NoError(t, err, "assetInfo() failed")
 	assert.Equal(t, *assetInfo, *info, "invalid asset info after performing BurnV2 transaction")
+}
+
+func createExchangeV1(t *testing.T) *proto.ExchangeV1 {
+	buySender, _ := crypto.NewPublicKeyFromBase58(recipientPK)
+	sellSender, _ := crypto.NewPublicKeyFromBase58(senderPK)
+	mpk, _ := crypto.NewPublicKeyFromBase58(matcherPK)
+	a, _ := proto.NewOptionalAssetFromString(assetStr)
+	pa, _ := proto.NewOptionalAssetFromString("")
+	sig, _ := crypto.NewSignatureFromBase58("5pzyUowLi31yP4AEh5qzg7gRrvmsfeypiUkW84CKzc4H6UTzEF2RgGPLckBEqNbJGn5ofQXzuDmUnxwuP3utYp9L")
+	bo, _ := proto.NewUnsignedOrderV1(buySender, mpk, *a, *pa, proto.Buy, 10e8, 100, 0, 0, 3)
+	bo.Signature = &sig
+	so, _ := proto.NewUnsignedOrderV1(sellSender, mpk, *a, *pa, proto.Sell, 10e8, 100, 0, 0, 3)
+	so.Signature = &sig
+	tx, err := proto.NewUnsignedExchangeV1(*bo, *so, bo.Price, bo.Amount, 1, 2, 1, timestamp1)
+	assert.NoError(t, err, "NewUnsignedExchangeV1() failed")
+	return tx
+}
+
+func TestValidateExchangeV1(t *testing.T) {
+	to, path := createTestObjects(t)
+
+	defer func() {
+		err := to.assets.db.Close()
+		assert.NoError(t, err, "db.Close() failed")
+		err = util.CleanTemporaryDirs(path)
+		assert.NoError(t, err, "failed to clean test data dirs")
+	}()
+
+	// Create assets.
+	asset, err := proto.NewOptionalAssetFromString(assetStr)
+	assert.NoError(t, err, "NewOptionalAssetFromString() failed")
+	createAsset(t, to, asset)
+	tx := createExchangeV1(t)
+
+	price := tx.Price * tx.Amount / priceConstant
+	// Set proper balances and check result state.
+	balanceDiffs := []balanceDiff{
+		{recipientAddr, assetStr, 0, tx.Amount},
+		{recipientAddr, "", price + tx.BuyMatcherFee, 0},
+		{senderAddr, assetStr, tx.Amount, 0},
+		{senderAddr, "", tx.SellMatcherFee, price},
+		{minerAddr, "", 0, tx.Fee},
+		{matcherAddr, "", tx.Fee, tx.SellMatcherFee + tx.BuyMatcherFee},
+	}
+	setBalances(t, to, balanceDiffs)
+	blocks := []block{{timestamp0, blockID0}}
+	validateTx(t, to.tv, tx, blocks, true)
+	err = to.tv.performTransactions()
+	assert.NoError(t, err, "performTransactions() failed")
+	flushBalances(t, to.balances)
+	flushAssets(t, to.assets)
+	checkBalances(t, to.balances, balanceDiffs)
+}
+
+func createExchangeV2(t *testing.T) *proto.ExchangeV2 {
+	buySender, _ := crypto.NewPublicKeyFromBase58(recipientPK)
+	sellSender, _ := crypto.NewPublicKeyFromBase58(senderPK)
+	mpk, _ := crypto.NewPublicKeyFromBase58(matcherPK)
+	a, _ := proto.NewOptionalAssetFromString(assetStr)
+	pa, _ := proto.NewOptionalAssetFromString("")
+	sig, _ := crypto.NewSignatureFromBase58("5pzyUowLi31yP4AEh5qzg7gRrvmsfeypiUkW84CKzc4H6UTzEF2RgGPLckBEqNbJGn5ofQXzuDmUnxwuP3utYp9L")
+	bo, _ := proto.NewUnsignedOrderV1(buySender, mpk, *a, *pa, proto.Buy, 10e8, 100, 0, 0, 3)
+	bo.Signature = &sig
+	so, _ := proto.NewUnsignedOrderV1(sellSender, mpk, *a, *pa, proto.Sell, 10e8, 100, 0, 0, 3)
+	so.Signature = &sig
+	tx, err := proto.NewUnsignedExchangeV2(*bo, *so, bo.Price, bo.Amount, 1, 2, 1, timestamp1)
+	assert.NoError(t, err, "NewUnsignedExchangeV2() failed")
+	return tx
+}
+
+func TestValidateExchangeV2(t *testing.T) {
+	to, path := createTestObjects(t)
+
+	defer func() {
+		err := to.assets.db.Close()
+		assert.NoError(t, err, "db.Close() failed")
+		err = util.CleanTemporaryDirs(path)
+		assert.NoError(t, err, "failed to clean test data dirs")
+	}()
+
+	// Create assets.
+	asset, err := proto.NewOptionalAssetFromString(assetStr)
+	assert.NoError(t, err, "NewOptionalAssetFromString() failed")
+	createAsset(t, to, asset)
+	tx := createExchangeV2(t)
+
+	price := tx.Price * tx.Amount / priceConstant
+	// Set proper balances and check result state.
+	balanceDiffs := []balanceDiff{
+		{recipientAddr, assetStr, 0, tx.Amount},
+		{recipientAddr, "", price + tx.BuyMatcherFee, 0},
+		{senderAddr, assetStr, tx.Amount, 0},
+		{senderAddr, "", tx.SellMatcherFee, price},
+		{minerAddr, "", 0, tx.Fee},
+		{matcherAddr, "", tx.Fee, tx.SellMatcherFee + tx.BuyMatcherFee},
+	}
+	setBalances(t, to, balanceDiffs)
+	blocks := []block{{timestamp0, blockID0}}
+	validateTx(t, to.tv, tx, blocks, true)
+	err = to.tv.performTransactions()
+	assert.NoError(t, err, "performTransactions() failed")
+	flushBalances(t, to.balances)
+	flushAssets(t, to.assets)
+	checkBalances(t, to.balances, balanceDiffs)
 }
