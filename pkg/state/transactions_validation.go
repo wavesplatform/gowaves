@@ -2,6 +2,7 @@ package state
 
 import (
 	"bytes"
+	"math/big"
 	"sort"
 
 	"github.com/pkg/errors"
@@ -495,7 +496,16 @@ func (tv *transactionValidator) validateExchange(tx proto.Exchange, block, paren
 		return false, err
 	}
 	// Perform exchange.
-	priceDiff := int64(tx.GetAmount() * (tx.GetPrice() / priceConstant))
+	var val, amount, price big.Int
+	priceConst := big.NewInt(priceConstant)
+	amount.SetUint64(tx.GetAmount())
+	price.SetUint64(tx.GetPrice())
+	val.Mul(&amount, &price)
+	val.Quo(&val, priceConst)
+	if !val.IsInt64() {
+		return false, errors.New("price * amount exceeds MaxInt64")
+	}
+	priceDiff := val.Int64()
 	amountDiff := int64(tx.GetAmount())
 	senderAddr, err := proto.NewAddressFromPublicKey(tv.settings.AddressSchemeCharacter, sellOrder.SenderPK)
 	if err != nil {
