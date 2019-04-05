@@ -67,9 +67,7 @@ func createAssets() (*assets, []string, error) {
 	return stor, res, nil
 }
 
-func createAssetInfo(t *testing.T, reissuable bool, blockID crypto.Signature) (*assetInfo, crypto.Digest) {
-	assetID, err := crypto.NewDigestFromBytes(bytes.Repeat([]byte{0xff}, crypto.DigestSize))
-	assert.NoError(t, err, "failed to create digest from bytes")
+func createAssetInfo(t *testing.T, reissuable bool, blockID crypto.Signature, assetID crypto.Digest) *assetInfo {
 	asset := &assetInfo{
 		assetConstInfo: assetConstInfo{
 			name:        "asset",
@@ -82,7 +80,7 @@ func createAssetInfo(t *testing.T, reissuable bool, blockID crypto.Signature) (*
 			blockID:    blockID,
 		},
 	}
-	return asset, assetID
+	return asset
 }
 
 func TestIssueAsset(t *testing.T) {
@@ -98,7 +96,9 @@ func TestIssueAsset(t *testing.T) {
 
 	blockID, err := crypto.NewSignatureFromBytes(bytes.Repeat([]byte{0xff}, crypto.SignatureSize))
 	assert.NoError(t, err, "failed to create signature from bytes")
-	asset, assetID := createAssetInfo(t, false, blockID)
+	assetID, err := crypto.NewDigestFromBytes(bytes.Repeat([]byte{0xff}, crypto.DigestSize))
+	assert.NoError(t, err, "failed to create digest from bytes")
+	asset := createAssetInfo(t, false, blockID, assetID)
 	err = assets.issueAsset(assetID, asset)
 	assert.NoError(t, err, "failed to issue asset")
 	record, err := assets.newestAssetRecord(assetID)
@@ -127,7 +127,9 @@ func TestReissueAsset(t *testing.T) {
 
 	blockID, err := crypto.NewSignatureFromBytes(bytes.Repeat([]byte{0xff}, crypto.SignatureSize))
 	assert.NoError(t, err, "failed to create signature from bytes")
-	asset, assetID := createAssetInfo(t, true, blockID)
+	assetID, err := crypto.NewDigestFromBytes(bytes.Repeat([]byte{0xff}, crypto.DigestSize))
+	assert.NoError(t, err, "failed to create digest from bytes")
+	asset := createAssetInfo(t, true, blockID, assetID)
 	err = assets.issueAsset(assetID, asset)
 	assert.NoError(t, err, "failed to issue asset")
 	err = assets.reissueAsset(assetID, &assetReissueChange{false, 1, blockID})
@@ -155,7 +157,9 @@ func TestBurnAsset(t *testing.T) {
 
 	blockID, err := crypto.NewSignatureFromBytes(bytes.Repeat([]byte{0xff}, crypto.SignatureSize))
 	assert.NoError(t, err, "failed to create signature from bytes")
-	asset, assetID := createAssetInfo(t, false, blockID)
+	assetID, err := crypto.NewDigestFromBytes(bytes.Repeat([]byte{0xff}, crypto.DigestSize))
+	assert.NoError(t, err, "failed to create digest from bytes")
+	asset := createAssetInfo(t, false, blockID, assetID)
 	err = assets.issueAsset(assetID, asset)
 	assert.NoError(t, err, "failed to issue asset")
 	err = assets.burnAsset(assetID, &assetBurnChange{1, blockID})
