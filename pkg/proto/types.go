@@ -5,13 +5,12 @@ import (
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/json"
-	"strconv"
-	"strings"
-	"time"
-
 	"github.com/mr-tron/base58/base58"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/ride/evaluator/reader"
+	"strconv"
+	"strings"
 )
 
 const (
@@ -23,6 +22,10 @@ const (
 	orderV1MinLen        = crypto.SignatureSize + orderLen
 	orderV2MinLen        = orderV2FixedBodyLen + proofsMinLen
 	jsonNull             = "null"
+	integerArgumentLen   = 1 + 8
+	booleanArgumentLen   = 1 + 1
+	binaryArgumentMinLen = 1 + 2
+	stringArgumentMinLen = 1 + 2
 )
 
 var jsonNullBytes = []byte{0x6e, 0x75, 0x6c, 0x6c}
@@ -1250,10 +1253,384 @@ func (s *Script) UnmarshalJSON(value []byte) error {
 	return nil
 }
 
-func NewTimestampFromTime(t time.Time) uint64 {
-	return NewTimestampFromUnixNano(t.UnixNano())
+type Argument interface {
+	GetValueType() ValueType
+	MarshalBinary() ([]byte, error)
+	binarySize() int
 }
 
-func NewTimestampFromUnixNano(nano int64) uint64 {
-	return uint64(nano / 1000000)
+//DataEntryType is the assistive structure used to get the type of DataEntry while unmarshal form JSON.
+type ArgumentType struct {
+	Type string `json:"type"`
+}
+
+func guessArgumentType(argumentType ArgumentType) (Argument, error) {
+	var r Argument
+	switch argumentType.Type {
+	case "integer":
+		r = &IntegerArgument{}
+	case "boolean":
+		r = &BooleanArgument{}
+	case "binary":
+		r = &BinaryArgument{}
+	case "string":
+		r = &StringArgument{}
+	}
+	if r == nil {
+		return nil, errors.Errorf("unknown value type '%s' of Argument", argumentType.Type)
+	}
+	return r, nil
+}
+
+type Arguments []Argument
+
+func (a Arguments) MarshalJSON() ([]byte, error) {
+	//TODO: implement
+	return nil, nil
+}
+
+func (a *Arguments) UnmarshalJSON(data []byte) error {
+	wrapError := func(err error) error { return errors.Wrap(err, "failed to unmarshal Arguments from JSON") }
+
+	var ats []ArgumentType
+	err := json.Unmarshal(data, &ats)
+	if err != nil {
+		return wrapError(err)
+	}
+
+	arguments := make([]Argument, len(ats))
+	for i, row := range ats {
+		arg, err := guessArgumentType(row)
+		if err != nil {
+			return wrapError(err)
+		}
+		arguments[i] = arg
+	}
+
+	err = json.Unmarshal(data, &arguments)
+	if err != nil {
+		return wrapError(err)
+	}
+	*a = arguments
+	return nil
+}
+
+func (a Arguments) MarshalBinary() ([]byte, error) {
+	//TODO: implement
+	return nil, nil
+}
+
+func (a *Arguments) UnmarshalBinary(data []byte) error {
+	//TODO: implement
+	return nil
+}
+
+type IntegerArgument struct {
+	Value int64
+}
+
+//GetValueType returns the value type of the entry.
+func (a IntegerArgument) GetValueType() ValueType {
+	return Integer
+}
+
+func (a IntegerArgument) binarySize() int {
+	return integerArgumentLen
+}
+
+//MarshalBinary marshals the integer argument in its bytes representation.
+func (a IntegerArgument) MarshalBinary() ([]byte, error) {
+	buf := make([]byte, a.binarySize())
+	pos := 0
+	buf[pos] = byte(Integer)
+	pos++
+	binary.BigEndian.PutUint64(buf[pos:], uint64(a.Value))
+	return buf, nil
+}
+
+//UnmarshalBinary reads binary representation of integer argument to the structure.
+func (a *IntegerArgument) UnmarshalBinary(data []byte) error {
+	if l := len(data); l < integerArgumentLen {
+		return errors.Errorf("invalid data length for IntegerArgument, expected not less than %d, received %d", integerArgumentLen, l)
+	}
+	if t := data[0]; t != byte(Integer) {
+		return errors.Errorf("unexpected value type %d for IntegerArgument, expected %d", t, Integer)
+	}
+	a.Value = int64(binary.BigEndian.Uint64(data[1:]))
+	return nil
+}
+
+//MarshalJSON writes a JSON representation of integer argument.
+func (a IntegerArgument) MarshalJSON() ([]byte, error) {
+	return json.Marshal(&struct {
+		T string `json:"type"`
+		V int    `json:"value"`
+	}{a.GetValueType().String(), int(a.Value)})
+}
+
+//UnmarshalJSON reads an integer argument from its JSON representation.
+func (a *IntegerArgument) UnmarshalJSON(value []byte) error {
+	tmp := struct {
+		T string `json:"type"`
+		V int    `json:"value"`
+	}{}
+	if err := json.Unmarshal(value, &tmp); err != nil {
+		return errors.Wrap(err, "failed to deserialize integer argument from JSON")
+	}
+	a.Value = int64(tmp.V)
+	return nil
+}
+
+//BooleanArgument represents a key-value pair that stores a bool value.
+type BooleanArgument struct {
+	Value bool
+}
+
+//GetValueType returns the data type (Boolean) of the argument.
+func (a BooleanArgument) GetValueType() ValueType {
+	return Boolean
+}
+
+func (a BooleanArgument) binarySize() int {
+	return booleanArgumentLen
+}
+
+//MarshalBinary writes a byte representation of the boolean data entry.
+func (a BooleanArgument) MarshalBinary() ([]byte, error) {
+	buf := make([]byte, a.binarySize())
+	pos := 0
+	buf[pos] = byte(Boolean)
+	pos++
+	PutBool(buf[pos:], a.Value)
+	return buf, nil
+}
+
+//UnmarshalBinary reads a byte representation of the data entry.
+func (a *BooleanArgument) UnmarshalBinary(data []byte) error {
+	if l := len(data); l < booleanArgumentLen {
+		return errors.Errorf("invalid data length for BooleanArgument, expected not less than %d, received %d", booleanArgumentLen, l)
+	}
+	if t := data[0]; t != byte(Boolean) {
+		return errors.Errorf("unexpected value type %d for BooleanArgument, expected %d", t, Boolean)
+	}
+	v, err := Bool(data[1:])
+	if err != nil {
+		return errors.Wrap(err, "failed to unmarshal BooleanArgument from bytes")
+	}
+	a.Value = v
+	return nil
+}
+
+//MarshalJSON writes the argument to a JSON representation.
+func (a BooleanArgument) MarshalJSON() ([]byte, error) {
+	return json.Marshal(&struct {
+		T string `json:"type"`
+		V bool   `json:"value"`
+	}{a.GetValueType().String(), a.Value})
+}
+
+//UnmarshalJSON reads the entry from its JSON representation.
+func (a *BooleanArgument) UnmarshalJSON(value []byte) error {
+	tmp := struct {
+		T string `json:"type"`
+		V bool   `json:"value"`
+	}{}
+	if err := json.Unmarshal(value, &tmp); err != nil {
+		return errors.Wrap(err, "failed to deserialize boolean argument from JSON")
+	}
+	a.Value = tmp.V
+	return nil
+}
+
+//BinaryArgument represents an argument that stores binary value.
+type BinaryArgument struct {
+	Key   string
+	Value []byte
+}
+
+//GetValueType returns the type of value (Binary) stored in an argument.
+func (a BinaryArgument) GetValueType() ValueType {
+	return Binary
+}
+
+func (a BinaryArgument) binarySize() int {
+	return binaryArgumentMinLen + len(a.Value)
+}
+
+//MarshalBinary writes an argument to its byte representation.
+func (a BinaryArgument) MarshalBinary() ([]byte, error) {
+	buf := make([]byte, a.binarySize())
+	pos := 0
+	buf[pos] = byte(Binary)
+	pos++
+	PutBytesWithUInt16Len(buf[pos:], a.Value)
+	return buf, nil
+}
+
+//UnmarshalBinary reads an argument from a binary representation.
+func (a *BinaryArgument) UnmarshalBinary(data []byte) error {
+	if l := len(data); l < binaryArgumentMinLen {
+		return errors.Errorf("invalid data length for BinaryArgument, expected not less than %d, received %d", binaryArgumentMinLen, l)
+	}
+	if t := data[0]; t != byte(Binary) {
+		return errors.Errorf("unexpected value type %d for BinaryArgument, expected %d", t, Binary)
+	}
+	v, err := BytesWithUInt16Len(data[1:])
+	if err != nil {
+		return errors.Wrap(err, "failed to unmarshal BinaryArgument from bytes")
+	}
+	a.Value = v
+	return nil
+}
+
+//MarshalJSON converts an argument to its JSON representation. Note that BASE64 is used to represent the binary value.
+func (a BinaryArgument) MarshalJSON() ([]byte, error) {
+	return json.Marshal(&struct {
+		T string `json:"type"`
+		V Script `json:"value"`
+	}{a.GetValueType().String(), a.Value})
+}
+
+//UnmarshalJSON converts JSON to a BinaryArgument structure. Value should be stored as BASE64 sting in JSON.
+func (a *BinaryArgument) UnmarshalJSON(value []byte) error {
+	tmp := struct {
+		T string `json:"type"`
+		V Script `json:"value"`
+	}{}
+	if err := json.Unmarshal(value, &tmp); err != nil {
+		return errors.Wrap(err, "failed to deserialize binary data entry from JSON")
+	}
+	a.Value = tmp.V
+	return nil
+}
+
+//StringArgument structure is an argument that store a string value.
+type StringArgument struct {
+	Value string
+}
+
+//GetValueType returns the type of value of the argument.
+func (a StringArgument) GetValueType() ValueType {
+	return String
+}
+
+func (a StringArgument) binarySize() int {
+	return 1 + 2 + len(a.Value)
+}
+
+//MarshalBinary converts the argument to its byte representation.
+func (a StringArgument) MarshalBinary() ([]byte, error) {
+	buf := make([]byte, a.binarySize())
+	pos := 0
+	buf[pos] = byte(String)
+	pos++
+	PutStringWithUInt16Len(buf[pos:], a.Value)
+	return buf, nil
+}
+
+//UnmarshalBinary reads an StringArgument structure from bytes.
+func (a *StringArgument) UnmarshalBinary(data []byte) error {
+	if l := len(data); l < stringArgumentMinLen {
+		return errors.Errorf("invalid data length for StringArgument, expected not less than %d, received %d", stringArgumentMinLen, l)
+	}
+	if t := data[0]; t != byte(String) {
+		return errors.Errorf("unexpected value type %d for StringArgument, expected %d", t, String)
+	}
+	v, err := StringWithUInt16Len(data[1:])
+	if err != nil {
+		return errors.Wrap(err, "failed to unmarshal StringArgument from bytes")
+	}
+	a.Value = v
+	return nil
+}
+
+//MarshalJSON writes the entry to its JSON representation.
+func (a StringArgument) MarshalJSON() ([]byte, error) {
+	return json.Marshal(&struct {
+		T string `json:"type"`
+		V string `json:"value"`
+	}{a.GetValueType().String(), a.Value})
+}
+
+//UnmarshalJSON reads the entry from JSON.
+func (a *StringArgument) UnmarshalJSON(value []byte) error {
+	tmp := struct {
+		T string `json:"type"`
+		V string `json:"value"`
+	}{}
+	if err := json.Unmarshal(value, &tmp); err != nil {
+		return errors.Wrap(err, "failed to deserialize string data entry from JSON")
+	}
+	a.Value = tmp.V
+	return nil
+}
+
+// FunctionCall structure represents the description of function called in the InvokeScript transaction.
+type FunctionCall struct {
+	FunctionName string    `json:"function"`
+	Arguments    Arguments `json:"args"`
+	len          int       `json:"-"` //TODO: implement initialization and calculation
+}
+
+func (c FunctionCall) MarshalBinary() ([]byte, error) {
+	ab, err := c.Arguments.MarshalBinary()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to marshal FunctionCall to bytes")
+	}
+	buf := make([]byte, 1+1+4+len(c.FunctionName)+len(ab))
+	buf[0] = reader.E_FUNCALL
+	buf[1] = reader.FH_USER
+	PutStringWithUInt32Len(buf[2:], c.FunctionName)
+	copy(buf[2+4+len(c.FunctionName):], ab)
+	return buf, nil
+}
+
+func (c *FunctionCall) UnmarshalBinary(data []byte) error {
+	//TODO: implement
+	return nil
+}
+
+type ScriptPayment struct {
+	Amount uint64        `json:"amount"`
+	Asset  OptionalAsset `json:"assetId"`
+}
+
+func (p ScriptPayment) MarshalBinary() ([]byte, error) {
+	ab, err := p.Asset.MarshalBinary()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to serialize ScriptPayment to bytes")
+	}
+	buf := make([]byte, 8+len(ab))
+	binary.BigEndian.PutUint64(buf, p.Amount)
+	copy(buf[8:], ab)
+	return buf, nil
+}
+
+func (p *ScriptPayment) UnmarshalBinary(data []byte) error {
+	if l := len(data); l < 8+1 {
+		return errors.Errorf("%d is not enough bytes for ScriptPayment", l)
+	}
+	p.Amount = binary.BigEndian.Uint64(data[:8])
+	var a OptionalAsset
+	err := a.UnmarshalBinary(data[8:])
+	if err != nil {
+		return errors.Wrap(err, "failed to deserialize ScriptPayment from bytes")
+	}
+	p.Asset = a
+	return nil
+}
+
+type ScriptPayments struct {
+	payments []ScriptPayment
+	len      int `json:"-"`
+}
+
+func (sps ScriptPayments) MarshalBinary() ([]byte, error) {
+	//TODO: implement
+	return nil, nil
+}
+
+func (sps *ScriptPayments) UnmarshalBinary(data []byte) error {
+	//TODO: implement
+	return nil
 }
