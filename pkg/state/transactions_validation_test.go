@@ -654,5 +654,151 @@ func TestValidateReissueV2(t *testing.T) {
 	// Check asset info.
 	info, err := to.assets.assetInfo(asset.ID)
 	assert.NoError(t, err, "assetInfo() failed")
-	assert.Equal(t, *assetInfo, *info, "invalid asset info after performing ReissueV1 transaction")
+	assert.Equal(t, *assetInfo, *info, "invalid asset info after performing ReissueV2 transaction")
+}
+
+func createBurnV1(t *testing.T, assetID crypto.Digest) *proto.BurnV1 {
+	spk, err := crypto.NewPublicKeyFromBase58(senderPK)
+	assert.NoError(t, err, "NewPublicKeyFromBase58() failed")
+	tx, err := proto.NewUnsignedBurnV1(spk, assetID, 1, timestamp1, 1)
+	assert.NoError(t, err, "NewUnsignedBurnV1() failed")
+	return tx
+}
+
+func TestValidateBurnV1(t *testing.T) {
+	to, path := createTestObjects(t)
+
+	defer func() {
+		err := to.assets.db.Close()
+		assert.NoError(t, err, "db.Close() failed")
+		err = util.CleanTemporaryDirs(path)
+		assert.NoError(t, err, "failed to clean test data dirs")
+	}()
+
+	// Create asset.
+	asset, err := proto.NewOptionalAssetFromString(assetStr)
+	assert.NoError(t, err, "NewOptionalAssetFromString() failed")
+	assetInfo := createAsset(t, to, asset)
+	tx := createBurnV1(t, asset.ID)
+	// Burn asset.
+	assetInfo.quantity = assetInfo.quantity - tx.Amount
+
+	balanceKey := key(t, senderAddr, assetStr)
+
+	// Set insufficient balance for sender and check failure.
+	setBalance(t, to, balanceKey, tx.Amount-1)
+	blocks := []block{{timestamp1, blockID0}}
+	validateTx(t, to.tv, tx, blocks, true)
+	err = to.tv.performTransactions()
+	assert.Error(t, err, "performTransactions() did not fail with insufficient balance")
+	to.reset()
+
+	// Set insufficient balance for sender with multiple txs in same block.
+	setBalance(t, to, balanceKey, tx.Amount*2-1)
+	blocks = []block{{timestamp1, blockID0}, {timestamp1, blockID0}}
+	validateTx(t, to.tv, tx, blocks, true)
+	err = to.tv.performTransactions()
+	assert.Error(t, err, "performTransactions() did not fail with insufficient balance")
+	to.reset()
+
+	// Set insufficient balance for sender with multiple txs in different blocks.
+	setBalance(t, to, balanceKey, tx.Amount*2-1)
+	blocks = []block{{timestamp1, blockID0}, {timestamp1, blockID1}}
+	validateTx(t, to.tv, tx, blocks, true)
+	err = to.tv.performTransactions()
+	assert.Error(t, err, "performTransactions() did not fail with insufficient balance")
+	to.reset()
+
+	// Set proper balances and check result state.
+	balanceDiffs := []balanceDiff{
+		{senderAddr, asset.String(), tx.Amount, 0},
+		{senderAddr, "", tx.Fee, 0},
+		{minerAddr, "", 0, tx.Fee},
+	}
+	setBalances(t, to, balanceDiffs)
+	blocks = []block{{timestamp0, blockID0}}
+	validateTx(t, to.tv, tx, blocks, true)
+	err = to.tv.performTransactions()
+	assert.NoError(t, err, "performTransactions() failed")
+	flushBalances(t, to.balances)
+	flushAssets(t, to.assets)
+	checkBalances(t, to.balances, balanceDiffs)
+
+	// Check asset info.
+	info, err := to.assets.assetInfo(asset.ID)
+	assert.NoError(t, err, "assetInfo() failed")
+	assert.Equal(t, *assetInfo, *info, "invalid asset info after performing BurnV1 transaction")
+}
+
+func createBurnV2(t *testing.T, assetID crypto.Digest) *proto.BurnV2 {
+	spk, err := crypto.NewPublicKeyFromBase58(senderPK)
+	assert.NoError(t, err, "NewPublicKeyFromBase58() failed")
+	tx, err := proto.NewUnsignedBurnV2('W', spk, assetID, 1, timestamp1, 1)
+	assert.NoError(t, err, "NewUnsignedBurnV2() failed")
+	return tx
+}
+
+func TestValidateBurnV2(t *testing.T) {
+	to, path := createTestObjects(t)
+
+	defer func() {
+		err := to.assets.db.Close()
+		assert.NoError(t, err, "db.Close() failed")
+		err = util.CleanTemporaryDirs(path)
+		assert.NoError(t, err, "failed to clean test data dirs")
+	}()
+
+	// Create asset.
+	asset, err := proto.NewOptionalAssetFromString(assetStr)
+	assert.NoError(t, err, "NewOptionalAssetFromString() failed")
+	assetInfo := createAsset(t, to, asset)
+	tx := createBurnV2(t, asset.ID)
+	// Burn asset.
+	assetInfo.quantity = assetInfo.quantity - tx.Amount
+
+	balanceKey := key(t, senderAddr, assetStr)
+
+	// Set insufficient balance for sender and check failure.
+	setBalance(t, to, balanceKey, tx.Amount-1)
+	blocks := []block{{timestamp1, blockID0}}
+	validateTx(t, to.tv, tx, blocks, true)
+	err = to.tv.performTransactions()
+	assert.Error(t, err, "performTransactions() did not fail with insufficient balance")
+	to.reset()
+
+	// Set insufficient balance for sender with multiple txs in same block.
+	setBalance(t, to, balanceKey, tx.Amount*2-1)
+	blocks = []block{{timestamp1, blockID0}, {timestamp1, blockID0}}
+	validateTx(t, to.tv, tx, blocks, true)
+	err = to.tv.performTransactions()
+	assert.Error(t, err, "performTransactions() did not fail with insufficient balance")
+	to.reset()
+
+	// Set insufficient balance for sender with multiple txs in different blocks.
+	setBalance(t, to, balanceKey, tx.Amount*2-1)
+	blocks = []block{{timestamp1, blockID0}, {timestamp1, blockID1}}
+	validateTx(t, to.tv, tx, blocks, true)
+	err = to.tv.performTransactions()
+	assert.Error(t, err, "performTransactions() did not fail with insufficient balance")
+	to.reset()
+
+	// Set proper balances and check result state.
+	balanceDiffs := []balanceDiff{
+		{senderAddr, asset.String(), tx.Amount, 0},
+		{senderAddr, "", tx.Fee, 0},
+		{minerAddr, "", 0, tx.Fee},
+	}
+	setBalances(t, to, balanceDiffs)
+	blocks = []block{{timestamp0, blockID0}}
+	validateTx(t, to.tv, tx, blocks, true)
+	err = to.tv.performTransactions()
+	assert.NoError(t, err, "performTransactions() failed")
+	flushBalances(t, to.balances)
+	flushAssets(t, to.assets)
+	checkBalances(t, to.balances, balanceDiffs)
+
+	// Check asset info.
+	info, err := to.assets.assetInfo(asset.ID)
+	assert.NoError(t, err, "assetInfo() failed")
+	assert.Equal(t, *assetInfo, *info, "invalid asset info after performing BurnV2 transaction")
 }
