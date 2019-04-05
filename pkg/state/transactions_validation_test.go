@@ -3,6 +3,7 @@ package state
 import (
 	"testing"
 
+	"github.com/mr-tron/base58/base58"
 	"github.com/stretchr/testify/assert"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -405,7 +406,7 @@ func TestValidateTransferV2(t *testing.T) {
 	setBalance(t, to, balanceKey, tx1.Amount)
 	blocks = []block{{timestamp0, blockID0}}
 	// Transfer to same address leads to temp negative balance.
-	validateTx(t, to.tv, tx1, blocks, false)
+	validateTx(t, to.tv, tx1, blocks, true)
 	err = to.tv.performTransactions()
 	assert.Error(t, err, "performTransactions() did not fail with negative balance")
 	to.reset()
@@ -414,7 +415,7 @@ func TestValidateTransferV2(t *testing.T) {
 	setBalance(t, to, balanceKey, tx1.Amount)
 	blocks = []block{{timestamp1, blockID0}}
 	// Transfer to same address leads to temp negative balance.
-	validateTx(t, to.tv, tx1, blocks, false)
+	validateTx(t, to.tv, tx1, blocks, true)
 	err = to.tv.performTransactions()
 	assert.NoError(t, err, "performTransactions() failed with negative balance but it was allowed for this block")
 	to.reset()
@@ -433,4 +434,128 @@ func TestValidateTransferV2(t *testing.T) {
 	flushBalances(t, to.balances)
 	flushAssets(t, to.assets)
 	checkBalances(t, to.balances, balanceDiffs)
+}
+
+func createIssueV1(t *testing.T) *proto.IssueV1 {
+	spk, err := crypto.NewPublicKeyFromBase58(senderPK)
+	assert.NoError(t, err, "NewPublicKeyFromBase58() failed")
+	tx, err := proto.NewUnsignedIssueV1(spk, "name", "description", 10, 7, true, timestamp1, 1)
+	assert.NoError(t, err, "NewUnsignedIssueV1() failed")
+	seed, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
+	sk, _ := crypto.GenerateKeyPair(seed)
+	err = tx.Sign(sk)
+	assert.NoError(t, err, "Sign() failed")
+	return tx
+}
+
+func TestValidateIssueV1(t *testing.T) {
+	to, path := createTestObjects(t)
+
+	defer func() {
+		err := to.assets.db.Close()
+		assert.NoError(t, err, "db.Close() failed")
+		err = util.CleanTemporaryDirs(path)
+		assert.NoError(t, err, "failed to clean test data dirs")
+	}()
+
+	tx := createIssueV1(t)
+
+	blockID, err := crypto.NewSignatureFromBase58(blockID0)
+	assert.NoError(t, err, "NewSignatureFromBase58() failed")
+	assetInfo := assetInfo{
+		assetConstInfo: assetConstInfo{
+			name:        tx.Name,
+			description: tx.Description,
+			decimals:    int8(tx.Decimals),
+		},
+		assetHistoryRecord: assetHistoryRecord{
+			quantity:   tx.Quantity,
+			reissuable: tx.Reissuable,
+			blockID:    blockID,
+		},
+	}
+
+	asset, err := proto.NewOptionalAssetFromDigest(*tx.ID)
+	assert.NoError(t, err, "NewOptionalAssetFromString() failed")
+	// Set proper balances and check result state.
+	balanceDiffs := []balanceDiff{
+		{senderAddr, asset.String(), 0, tx.Quantity},
+		{senderAddr, "", tx.Fee, 0},
+		{minerAddr, "", 0, tx.Fee},
+	}
+	setBalances(t, to, balanceDiffs)
+	blocks := []block{{timestamp0, blockID0}}
+	validateTx(t, to.tv, tx, blocks, true)
+	err = to.tv.performTransactions()
+	assert.NoError(t, err, "performTransactions() failed")
+	flushBalances(t, to.balances)
+	flushAssets(t, to.assets)
+	checkBalances(t, to.balances, balanceDiffs)
+
+	// Check asset info.
+	info, err := to.assets.assetInfo(asset.ID)
+	assert.NoError(t, err, "assetInfo() failed")
+	assert.Equal(t, assetInfo, *info, "invalid asset info after performing IssueV1 transaction")
+}
+
+func createIssueV2(t *testing.T) *proto.IssueV2 {
+	spk, err := crypto.NewPublicKeyFromBase58(senderPK)
+	assert.NoError(t, err, "NewPublicKeyFromBase58() failed")
+	tx, err := proto.NewUnsignedIssueV2('W', spk, "name", "description", 10, 7, true, []byte{}, timestamp1, 1)
+	assert.NoError(t, err, "NewUnsignedIssueV2() failed")
+	seed, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
+	sk, _ := crypto.GenerateKeyPair(seed)
+	err = tx.Sign(sk)
+	assert.NoError(t, err, "Sign() failed")
+	return tx
+}
+
+func TestValidateIssueV2(t *testing.T) {
+	to, path := createTestObjects(t)
+
+	defer func() {
+		err := to.assets.db.Close()
+		assert.NoError(t, err, "db.Close() failed")
+		err = util.CleanTemporaryDirs(path)
+		assert.NoError(t, err, "failed to clean test data dirs")
+	}()
+
+	tx := createIssueV2(t)
+
+	blockID, err := crypto.NewSignatureFromBase58(blockID0)
+	assert.NoError(t, err, "NewSignatureFromBase58() failed")
+	assetInfo := assetInfo{
+		assetConstInfo: assetConstInfo{
+			name:        tx.Name,
+			description: tx.Description,
+			decimals:    int8(tx.Decimals),
+		},
+		assetHistoryRecord: assetHistoryRecord{
+			quantity:   tx.Quantity,
+			reissuable: tx.Reissuable,
+			blockID:    blockID,
+		},
+	}
+
+	asset, err := proto.NewOptionalAssetFromDigest(*tx.ID)
+	assert.NoError(t, err, "NewOptionalAssetFromString() failed")
+	// Set proper balances and check result state.
+	balanceDiffs := []balanceDiff{
+		{senderAddr, asset.String(), 0, tx.Quantity},
+		{senderAddr, "", tx.Fee, 0},
+		{minerAddr, "", 0, tx.Fee},
+	}
+	setBalances(t, to, balanceDiffs)
+	blocks := []block{{timestamp0, blockID0}}
+	validateTx(t, to.tv, tx, blocks, true)
+	err = to.tv.performTransactions()
+	assert.NoError(t, err, "performTransactions() failed")
+	flushBalances(t, to.balances)
+	flushAssets(t, to.assets)
+	checkBalances(t, to.balances, balanceDiffs)
+
+	// Check asset info.
+	info, err := to.assets.assetInfo(asset.ID)
+	assert.NoError(t, err, "assetInfo() failed")
+	assert.Equal(t, assetInfo, *info, "invalid asset info after performing IssueV1 transaction")
 }
