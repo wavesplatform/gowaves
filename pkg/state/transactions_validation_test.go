@@ -257,13 +257,14 @@ func TestValidatePayment(t *testing.T) {
 	checkBalances(t, to.balances, balanceDiffs)
 }
 
-func createAsset(t *testing.T, to *testObjects, asset *proto.OptionalAsset) {
+func createAsset(t *testing.T, to *testObjects, asset *proto.OptionalAsset) *assetInfo {
 	blockID, err := crypto.NewSignatureFromBase58(blockID0)
 	assert.NoError(t, err, "NewSignatureFromBase58() failed")
 	assetInfo := createAssetInfo(t, true, blockID, asset.ID)
 	err = to.assets.issueAsset(asset.ID, assetInfo)
 	assert.NoError(t, err, "issueAset() failed")
 	flushAssets(t, to.assets)
+	return assetInfo
 }
 
 func createTransferV1(t *testing.T, to *testObjects, recipientAddr string) *proto.TransferV1 {
@@ -557,5 +558,101 @@ func TestValidateIssueV2(t *testing.T) {
 	// Check asset info.
 	info, err := to.assets.assetInfo(asset.ID)
 	assert.NoError(t, err, "assetInfo() failed")
-	assert.Equal(t, assetInfo, *info, "invalid asset info after performing IssueV1 transaction")
+	assert.Equal(t, assetInfo, *info, "invalid asset info after performing IssueV2 transaction")
+}
+
+func createReissueV1(t *testing.T, assetID crypto.Digest) *proto.ReissueV1 {
+	spk, err := crypto.NewPublicKeyFromBase58(senderPK)
+	assert.NoError(t, err, "NewPublicKeyFromBase58() failed")
+	tx, err := proto.NewUnsignedReissueV1(spk, assetID, 1, false, timestamp1, 1)
+	assert.NoError(t, err, "NewUnsignedReissueV1() failed")
+	return tx
+}
+
+func TestValidateReissueV1(t *testing.T) {
+	to, path := createTestObjects(t)
+
+	defer func() {
+		err := to.assets.db.Close()
+		assert.NoError(t, err, "db.Close() failed")
+		err = util.CleanTemporaryDirs(path)
+		assert.NoError(t, err, "failed to clean test data dirs")
+	}()
+
+	// Create asset.
+	asset, err := proto.NewOptionalAssetFromString(assetStr)
+	assert.NoError(t, err, "NewOptionalAssetFromString() failed")
+	assetInfo := createAsset(t, to, asset)
+	tx := createReissueV1(t, asset.ID)
+	// Reissue asset.
+	assetInfo.reissuable = tx.Reissuable
+	assetInfo.quantity = assetInfo.quantity + tx.Quantity
+
+	// Set proper balances and check result state.
+	balanceDiffs := []balanceDiff{
+		{senderAddr, asset.String(), 0, tx.Quantity},
+		{senderAddr, "", tx.Fee, 0},
+		{minerAddr, "", 0, tx.Fee},
+	}
+	setBalances(t, to, balanceDiffs)
+	blocks := []block{{timestamp0, blockID0}}
+	validateTx(t, to.tv, tx, blocks, true)
+	err = to.tv.performTransactions()
+	assert.NoError(t, err, "performTransactions() failed")
+	flushBalances(t, to.balances)
+	flushAssets(t, to.assets)
+	checkBalances(t, to.balances, balanceDiffs)
+
+	// Check asset info.
+	info, err := to.assets.assetInfo(asset.ID)
+	assert.NoError(t, err, "assetInfo() failed")
+	assert.Equal(t, *assetInfo, *info, "invalid asset info after performing ReissueV1 transaction")
+}
+
+func createReissueV2(t *testing.T, assetID crypto.Digest) *proto.ReissueV2 {
+	spk, err := crypto.NewPublicKeyFromBase58(senderPK)
+	assert.NoError(t, err, "NewPublicKeyFromBase58() failed")
+	tx, err := proto.NewUnsignedReissueV2('W', spk, assetID, 1, false, timestamp1, 1)
+	assert.NoError(t, err, "NewUnsignedReissueV2() failed")
+	return tx
+}
+
+func TestValidateReissueV2(t *testing.T) {
+	to, path := createTestObjects(t)
+
+	defer func() {
+		err := to.assets.db.Close()
+		assert.NoError(t, err, "db.Close() failed")
+		err = util.CleanTemporaryDirs(path)
+		assert.NoError(t, err, "failed to clean test data dirs")
+	}()
+
+	// Create asset.
+	asset, err := proto.NewOptionalAssetFromString(assetStr)
+	assert.NoError(t, err, "NewOptionalAssetFromString() failed")
+	assetInfo := createAsset(t, to, asset)
+	tx := createReissueV2(t, asset.ID)
+	// Reissue asset.
+	assetInfo.reissuable = tx.Reissuable
+	assetInfo.quantity = assetInfo.quantity + tx.Quantity
+
+	// Set proper balances and check result state.
+	balanceDiffs := []balanceDiff{
+		{senderAddr, asset.String(), 0, tx.Quantity},
+		{senderAddr, "", tx.Fee, 0},
+		{minerAddr, "", 0, tx.Fee},
+	}
+	setBalances(t, to, balanceDiffs)
+	blocks := []block{{timestamp0, blockID0}}
+	validateTx(t, to.tv, tx, blocks, true)
+	err = to.tv.performTransactions()
+	assert.NoError(t, err, "performTransactions() failed")
+	flushBalances(t, to.balances)
+	flushAssets(t, to.assets)
+	checkBalances(t, to.balances, balanceDiffs)
+
+	// Check asset info.
+	info, err := to.assets.assetInfo(asset.ID)
+	assert.NoError(t, err, "assetInfo() failed")
+	assert.Equal(t, *assetInfo, *info, "invalid asset info after performing ReissueV1 transaction")
 }
