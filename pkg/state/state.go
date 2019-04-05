@@ -34,10 +34,6 @@ type stateManager struct {
 }
 
 func newStateManager(dataDir string, params BlockStorageParams, settings *settings.BlockchainSettings) (*stateManager, error) {
-	genesisSig, err := crypto.NewSignatureFromBase58(genesisSignature)
-	if err != nil {
-		return nil, StateError{errorType: Other, originalError: errors.Errorf("failed to get genesis signature from string: %v\n", err)}
-	}
 	blockStorageDir := filepath.Join(dataDir, blocksStorDir)
 	if _, err := os.Stat(blockStorageDir); os.IsNotExist(err) {
 		if err := os.Mkdir(blockStorageDir, 0755); err != nil {
@@ -100,6 +96,11 @@ func newStateManager(dataDir string, params BlockStorageParams, settings *settin
 	if err != nil {
 		return nil, StateError{errorType: RetrievalError, originalError: err}
 	}
+	genesisSig, err := crypto.NewSignatureFromBase58(genesisSignature)
+	if err != nil {
+		return nil, StateError{errorType: Other, originalError: errors.Errorf("failed to get genesis signature from string: %v\n", err)}
+	}
+	state.setGenesis(genesisSig)
 	if height == 1 {
 		if err := state.applyGenesis(genesisSig); err != nil {
 			return nil, StateError{errorType: ModificationError, originalError: errors.Errorf("failed to apply genesis: %v\n", err)}
@@ -108,7 +109,7 @@ func newStateManager(dataDir string, params BlockStorageParams, settings *settin
 	return state, nil
 }
 
-func (s *stateManager) applyGenesis(genesisSig crypto.Signature) error {
+func (s *stateManager) setGenesis(genesisSig crypto.Signature) {
 	// Set genesis block itself.
 	// TODO: MainNet's genesis is hard coded for now, support settings.BlockchainSettings.
 	s.genesis = proto.Block{
@@ -120,6 +121,9 @@ func (s *stateManager) applyGenesis(genesisSig crypto.Signature) error {
 			Height:         1,
 		},
 	}
+}
+
+func (s *stateManager) applyGenesis(genesisSig crypto.Signature) error {
 	// Add genesis to list of valid blocks, so DB will know about it.
 	if err := s.stateDB.addBlock(genesisSig); err != nil {
 		return err
