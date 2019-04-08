@@ -61,7 +61,8 @@ type State interface {
 	// nil asset = Waves.
 	AccountBalance(addr proto.Address, asset []byte) (uint64, error)
 	// AddressesNumber returns total number of addresses in state.
-	AddressesNumber() (uint64, error)
+	// Set wavesOnly to true to only get number of addresses which have Waves.
+	AddressesNumber(wavesOnly bool) (uint64, error)
 	// AddBlock adds single block to state.
 	// It's not recommended to use this function when you are able to accumulate big blocks batch,
 	// since it's much more efficient to add many blocks at once.

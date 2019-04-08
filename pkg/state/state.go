@@ -34,10 +34,6 @@ type stateManager struct {
 }
 
 func newStateManager(dataDir string, params BlockStorageParams, settings *settings.BlockchainSettings) (*stateManager, error) {
-	genesisSig, err := crypto.NewSignatureFromBase58(genesisSignature)
-	if err != nil {
-		return nil, StateError{errorType: Other, originalError: errors.Errorf("failed to get genesis signature from string: %v\n", err)}
-	}
 	blockStorageDir := filepath.Join(dataDir, blocksStorDir)
 	if _, err := os.Stat(blockStorageDir); os.IsNotExist(err) {
 		if err := os.Mkdir(blockStorageDir, 0755); err != nil {
@@ -100,6 +96,11 @@ func newStateManager(dataDir string, params BlockStorageParams, settings *settin
 	if err != nil {
 		return nil, StateError{errorType: RetrievalError, originalError: err}
 	}
+	genesisSig, err := crypto.NewSignatureFromBase58(genesisSignature)
+	if err != nil {
+		return nil, StateError{errorType: Other, originalError: errors.Errorf("failed to get genesis signature from string: %v\n", err)}
+	}
+	state.setGenesis(genesisSig)
 	if height == 1 {
 		if err := state.applyGenesis(genesisSig); err != nil {
 			return nil, StateError{errorType: ModificationError, originalError: errors.Errorf("failed to apply genesis: %v\n", err)}
@@ -108,7 +109,7 @@ func newStateManager(dataDir string, params BlockStorageParams, settings *settin
 	return state, nil
 }
 
-func (s *stateManager) applyGenesis(genesisSig crypto.Signature) error {
+func (s *stateManager) setGenesis(genesisSig crypto.Signature) {
 	// Set genesis block itself.
 	// TODO: MainNet's genesis is hard coded for now, support settings.BlockchainSettings.
 	s.genesis = proto.Block{
@@ -120,6 +121,9 @@ func (s *stateManager) applyGenesis(genesisSig crypto.Signature) error {
 			Height:         1,
 		},
 	}
+}
+
+func (s *stateManager) applyGenesis(genesisSig crypto.Signature) error {
 	// Add genesis to list of valid blocks, so DB will know about it.
 	if err := s.stateDB.addBlock(genesisSig); err != nil {
 		return err
@@ -240,8 +244,8 @@ func (s *stateManager) AccountBalance(addr proto.Address, asset []byte) (uint64,
 	return balance, nil
 }
 
-func (s *stateManager) AddressesNumber() (uint64, error) {
-	res, err := s.balances.addressesNumber()
+func (s *stateManager) AddressesNumber(wavesOnly bool) (uint64, error) {
+	res, err := s.balances.addressesNumber(wavesOnly)
 	if err != nil {
 		return 0, StateError{errorType: RetrievalError, originalError: err}
 	}
@@ -286,11 +290,9 @@ func (s *stateManager) addNewBlock(tv *transactionValidator, block, parent *prot
 		if err := s.rw.writeTransaction(tx.GetID(), transactions[:n+4]); err != nil {
 			return err
 		}
-		if tv.isSupported(tx) {
-			// Genesis, Payment, TransferV1 and TransferV2 Waves-only for now.
-			if err = tv.validateTransaction(block, parent, tx, initialisation); err != nil {
-				return err
-			}
+		// Validate transaction against state.
+		if err = tv.validateTransaction(block, parent, tx, initialisation); err != nil {
+			return err
 		}
 		transactions = transactions[4+n:]
 	}
@@ -302,6 +304,7 @@ func (s *stateManager) addNewBlock(tv *transactionValidator, block, parent *prot
 
 func (s *stateManager) reset() error {
 	s.rw.reset()
+	s.assets.reset()
 	s.balances.reset()
 	s.stateDB.reset()
 	return nil
@@ -309,6 +312,9 @@ func (s *stateManager) reset() error {
 
 func (s *stateManager) flush() error {
 	if err := s.rw.flush(); err != nil {
+		return err
+	}
+	if err := s.assets.flush(); err != nil {
 		return err
 	}
 	if err := s.balances.flush(); err != nil {

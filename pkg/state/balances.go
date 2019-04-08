@@ -61,7 +61,7 @@ func newBalances(
 	}, nil
 }
 
-func (s *balances) addressesNumber() (uint64, error) {
+func (s *balances) addressesNumber(wavesOnly bool) (uint64, error) {
 	iter, err := s.db.NewKeyIterator([]byte{balanceKeyPrefix})
 	if err != nil {
 		return 0, err
@@ -75,6 +75,10 @@ func (s *balances) addressesNumber() (uint64, error) {
 
 	addressesNumber := uint64(0)
 	for iter.Next() {
+		key := iter.Key()
+		if wavesOnly && len(key) > wavesBalanceKeySize {
+			continue
+		}
 		balance, err := s.accountBalance(iter.Key())
 		if err != nil {
 			return 0, err

@@ -455,7 +455,7 @@ func (tx *Transfer) unmarshalBinary(data []byte) error {
 }
 
 type Issue interface {
-	GetID() *crypto.Digest
+	GetID() []byte
 	GetSenderPK() crypto.PublicKey
 	GetName() string
 	GetDescription() string
@@ -464,7 +464,7 @@ type Issue interface {
 	GetReissuable() bool
 	GetScript() Script
 	GetTimestamp() uint64
-	GetFree() uint64
+	GetFee() uint64
 }
 
 type Reissue struct {
@@ -526,10 +526,10 @@ func (tx *Reissue) unmarshalBinary(data []byte) error {
 }
 
 type Exchange interface {
-	GetID() *crypto.Digest
+	GetID() []byte
 	GetSenderPK() crypto.PublicKey
-	GetBuyOder() OrderBody
-	GetSellOrder() OrderBody
+	GetBuyOrder() (OrderBody, error)
+	GetSellOrder() (OrderBody, error)
 	GetPrice() uint64
 	GetAmount() uint64
 	GetBuyMatcherFee() uint64

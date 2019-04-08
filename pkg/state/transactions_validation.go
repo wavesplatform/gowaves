@@ -2,6 +2,7 @@ package state
 
 import (
 	"bytes"
+	"math/big"
 	"sort"
 
 	"github.com/pkg/errors"
@@ -12,6 +13,8 @@ import (
 )
 
 const (
+	priceConstant = 10e7
+
 	wavesBalanceKeySize = 1 + proto.AddressSize
 	assetBalanceKeySize = 1 + proto.AddressSize + crypto.DigestSize
 )
@@ -52,10 +55,6 @@ func (ch *balanceChanges) update(balanceDiff int64, blockID crypto.Signature, ch
 	newChange := change{blockID: blockID, diff: newDiff}
 	if blockID != lastID {
 		ch.balanceDiffs = append(ch.balanceDiffs, newChange)
-		// Check cumulative diff for previous block.
-		if prevDiff < ch.minBalanceDiff {
-			ch.minBalanceDiff = prevDiff
-		}
 	} else {
 		ch.balanceDiffs[last] = newChange
 	}
@@ -150,16 +149,24 @@ func (bs *changesStorage) applyDeltas() error {
 			if err != nil {
 				return errors.Errorf("failed to add balances: %v\n", err)
 			}
+			if newBalance < 0 {
+				return errors.New("validation failed: negative balance")
+			}
 			if err := bs.balances.setAccountBalance(delta.key, uint64(newBalance), change.blockID); err != nil {
 				return errors.Errorf("failed to set account balance: %v\n", err)
 			}
 		}
 	}
-	// Reset (free memory).
+	bs.reset()
+	return nil
+}
+
+func (bs *changesStorage) reset() {
 	bs.deltas = nil
+	bs.lastIndex = 0
 	bs.wavesKeys = make(map[wavesBalanceKey]int)
 	bs.assetKeys = make(map[assetBalanceKey]int)
-	return nil
+
 }
 
 type transactionValidator struct {
@@ -185,38 +192,6 @@ func newTransactionValidator(
 		assets:          assets,
 		settings:        settings,
 	}, nil
-}
-
-func (tv *transactionValidator) isSupported(tx proto.Transaction) bool {
-	switch v := tx.(type) {
-	case *proto.Genesis:
-		return true
-	case *proto.Payment:
-		return true
-	case *proto.TransferV1:
-		if v.FeeAsset.Present || v.AmountAsset.Present {
-			// Only Waves for now.
-			return false
-		}
-		if v.Recipient.Address == nil {
-			// Aliases without specified address are not supported yet.
-			return false
-		}
-		return true
-	case *proto.TransferV2:
-		if v.FeeAsset.Present || v.AmountAsset.Present {
-			// Only Waves for now.
-			return false
-		}
-		if v.Recipient.Address == nil {
-			// Aliases without specified address are not supported yet.
-			return false
-		}
-		return true
-	default:
-		// Other types of transactions are not supported.
-		return false
-	}
 }
 
 func (tv *transactionValidator) checkFromFuture(timestamp uint64) bool {
@@ -301,9 +276,26 @@ func (tv *transactionValidator) validatePayment(tx *proto.Payment, block, parent
 	return true, nil
 }
 
-func (tv *transactionValidator) validateTransferV1(tx *proto.TransferV1, block, parent *proto.Block, initialisation bool) (bool, error) {
+func (tv *transactionValidator) checkAsset(asset *proto.OptionalAsset) error {
+	if !asset.Present {
+		// Waves always valid.
+		return nil
+	}
+	if _, err := tv.assets.newestAssetRecord(asset.ID); err != nil {
+		return errors.New("unknown asset")
+	}
+	return nil
+}
+
+func (tv *transactionValidator) validateTransfer(tx *proto.Transfer, block, parent *proto.Block, initialisation bool) (bool, error) {
 	if ok, err := tv.checkTimestamps(tx.Timestamp, block.Timestamp, parent.Timestamp); !ok {
 		return false, errors.Wrap(err, "invalid timestamp")
+	}
+	if err := tv.checkAsset(&tx.AmountAsset); err != nil {
+		return false, err
+	}
+	if err := tv.checkAsset(&tx.FeeAsset); err != nil {
+		return false, err
 	}
 	// Update sender.
 	senderAddr, err := proto.NewAddressFromPublicKey(tv.settings.AddressSchemeCharacter, tx.SenderPK)
@@ -343,33 +335,43 @@ func (tv *transactionValidator) validateTransferV1(tx *proto.TransferV1, block, 
 	return true, nil
 }
 
-func (tv *transactionValidator) validateTransferV2(tx *proto.TransferV2, block, parent *proto.Block, initialisation bool) (bool, error) {
-	if ok, err := tv.checkTimestamps(tx.Timestamp, block.Timestamp, parent.Timestamp); !ok {
+func (tv *transactionValidator) validateIssue(tx proto.Issue, block, parent *proto.Block, initialisation bool) (bool, error) {
+	if ok, err := tv.checkTimestamps(tx.GetTimestamp(), block.Timestamp, parent.Timestamp); !ok {
 		return false, errors.Wrap(err, "invalid timestamp")
 	}
-	// Update sender.
-	senderAddr, err := proto.NewAddressFromPublicKey(tv.settings.AddressSchemeCharacter, tx.SenderPK)
+	// Create new asset.
+	info := &assetInfo{
+		assetConstInfo: assetConstInfo{
+			name:        tx.GetName(),
+			description: tx.GetDescription(),
+			decimals:    int8(tx.GetDecimals()),
+		},
+		assetHistoryRecord: assetHistoryRecord{
+			quantity:   tx.GetQuantity(),
+			reissuable: tx.GetReissuable(),
+			blockID:    block.BlockSignature,
+		},
+	}
+	assetID, err := crypto.NewDigestFromBytes(tx.GetID())
 	if err != nil {
 		return false, err
 	}
-	senderFeeKey := balanceKey{address: senderAddr, asset: tx.FeeAsset.ToID()}
-	senderFeeBalanceDiff := -int64(tx.Fee)
+	if err := tv.assets.issueAsset(assetID, info); err != nil {
+		return false, errors.Wrap(err, "failed to issue asset")
+	}
+	// Update sender.
+	senderAddr, err := proto.NewAddressFromPublicKey(tv.settings.AddressSchemeCharacter, tx.GetSenderPK())
+	if err != nil {
+		return false, err
+	}
+	senderFeeKey := balanceKey{address: senderAddr}
+	senderFeeBalanceDiff := -int64(tx.GetFee())
 	if ok, err := tv.addChanges(senderFeeKey.bytes(), senderFeeBalanceDiff, block); !ok {
 		return false, err
 	}
-	senderAmountKey := balanceKey{address: senderAddr, asset: tx.AmountAsset.ToID()}
-	senderAmountBalanceDiff := -int64(tx.Amount)
-	if ok, err := tv.addChanges(senderAmountKey.bytes(), senderAmountBalanceDiff, block); !ok {
-		return false, err
-	}
-	// Update receiver.
-	if tx.Recipient.Address == nil {
-		// TODO implement
-		return false, errors.New("alias without address is not supported yet")
-	}
-	receiverKey := balanceKey{address: *tx.Recipient.Address, asset: tx.AmountAsset.ToID()}
-	receiverBalanceDiff := int64(tx.Amount)
-	if ok, err := tv.addChanges(receiverKey.bytes(), receiverBalanceDiff, block); !ok {
+	senderAssetKey := balanceKey{address: senderAddr, asset: assetID[:]}
+	senderAssetBalanceDiff := int64(tx.GetQuantity())
+	if ok, err := tv.addChanges(senderAssetKey.bytes(), senderAssetBalanceDiff, block); !ok {
 		return false, err
 	}
 	// Update miner.
@@ -377,8 +379,189 @@ func (tv *transactionValidator) validateTransferV2(tx *proto.TransferV2, block, 
 	if err != nil {
 		return false, err
 	}
-	minerKey := balanceKey{address: minerAddr, asset: tx.FeeAsset.ToID()}
+	minerKey := balanceKey{address: minerAddr}
+	minerBalanceDiff := int64(tx.GetFee())
+	if ok, err := tv.addChanges(minerKey.bytes(), minerBalanceDiff, block); !ok {
+		return false, err
+	}
+	return true, nil
+}
+
+func (tv *transactionValidator) validateReissue(tx *proto.Reissue, block, parent *proto.Block, initialisation bool) (bool, error) {
+	if ok, err := tv.checkTimestamps(tx.Timestamp, block.Timestamp, parent.Timestamp); !ok {
+		return false, errors.Wrap(err, "invalid timestamp")
+	}
+	// Check if it's "legal" to modify given asset.
+	record, err := tv.assets.newestAssetRecord(tx.AssetID)
+	if err != nil {
+		return false, err
+	}
+	if (block.Timestamp > tv.settings.InvalidReissueInSameBlockUntilTime) && !record.reissuable {
+		return false, errors.New("attempt to reissue asset which is not reissuable")
+	}
+	// Modify asset.
+	change := &assetReissueChange{
+		reissuable: tx.Reissuable,
+		diff:       tx.Quantity,
+		blockID:    block.BlockSignature,
+	}
+	if err := tv.assets.reissueAsset(tx.AssetID, change); err != nil {
+		return false, errors.Wrap(err, "failed to reissue asset")
+	}
+	// Update sender.
+	senderAddr, err := proto.NewAddressFromPublicKey(tv.settings.AddressSchemeCharacter, tx.SenderPK)
+	if err != nil {
+		return false, err
+	}
+	senderFeeKey := balanceKey{address: senderAddr}
+	senderFeeBalanceDiff := -int64(tx.Fee)
+	if ok, err := tv.addChanges(senderFeeKey.bytes(), senderFeeBalanceDiff, block); !ok {
+		return false, err
+	}
+	senderAssetKey := balanceKey{address: senderAddr, asset: tx.AssetID[:]}
+	senderAssetBalanceDiff := int64(tx.Quantity)
+	if ok, err := tv.addChanges(senderAssetKey.bytes(), senderAssetBalanceDiff, block); !ok {
+		return false, err
+	}
+	// Update miner.
+	minerAddr, err := proto.NewAddressFromPublicKey(tv.settings.AddressSchemeCharacter, block.GenPublicKey)
+	if err != nil {
+		return false, err
+	}
+	minerKey := balanceKey{address: minerAddr}
 	minerBalanceDiff := int64(tx.Fee)
+	if ok, err := tv.addChanges(minerKey.bytes(), minerBalanceDiff, block); !ok {
+		return false, err
+	}
+	return true, nil
+}
+
+func (tv *transactionValidator) validateBurn(tx *proto.Burn, block, parent *proto.Block, initialisation bool) (bool, error) {
+	if ok, err := tv.checkTimestamps(tx.Timestamp, block.Timestamp, parent.Timestamp); !ok {
+		return false, errors.Wrap(err, "invalid timestamp")
+	}
+	// Modify asset.
+	change := &assetBurnChange{
+		diff:    tx.Amount,
+		blockID: block.BlockSignature,
+	}
+	if err := tv.assets.burnAsset(tx.AssetID, change); err != nil {
+		return false, errors.Wrap(err, "failed to burn asset")
+	}
+	// Update sender.
+	senderAddr, err := proto.NewAddressFromPublicKey(tv.settings.AddressSchemeCharacter, tx.SenderPK)
+	if err != nil {
+		return false, err
+	}
+	senderFeeKey := balanceKey{address: senderAddr}
+	senderFeeBalanceDiff := -int64(tx.Fee)
+	if ok, err := tv.addChanges(senderFeeKey.bytes(), senderFeeBalanceDiff, block); !ok {
+		return false, err
+	}
+	senderAssetKey := balanceKey{address: senderAddr, asset: tx.AssetID[:]}
+	senderAssetBalanceDiff := -int64(tx.Amount)
+	if ok, err := tv.addChanges(senderAssetKey.bytes(), senderAssetBalanceDiff, block); !ok {
+		return false, err
+	}
+	// Update miner.
+	minerAddr, err := proto.NewAddressFromPublicKey(tv.settings.AddressSchemeCharacter, block.GenPublicKey)
+	if err != nil {
+		return false, err
+	}
+	minerKey := balanceKey{address: minerAddr}
+	minerBalanceDiff := int64(tx.Fee)
+	if ok, err := tv.addChanges(minerKey.bytes(), minerBalanceDiff, block); !ok {
+		return false, err
+	}
+	return true, nil
+}
+
+func (tv *transactionValidator) validateExchange(tx proto.Exchange, block, parent *proto.Block, initialisation bool) (bool, error) {
+	if ok, err := tv.checkTimestamps(tx.GetTimestamp(), block.Timestamp, parent.Timestamp); !ok {
+		return false, errors.Wrap(err, "invalid timestamp")
+	}
+	buyOrder, err := tx.GetBuyOrder()
+	if err != nil {
+		return false, err
+	}
+	sellOrder, err := tx.GetSellOrder()
+	if err != nil {
+		return false, err
+	}
+	// Check assets.
+	if err := tv.checkAsset(&sellOrder.AssetPair.AmountAsset); err != nil {
+		return false, err
+	}
+	if err := tv.checkAsset(&sellOrder.AssetPair.PriceAsset); err != nil {
+		return false, err
+	}
+	// Perform exchange.
+	var val, amount, price big.Int
+	priceConst := big.NewInt(priceConstant)
+	amount.SetUint64(tx.GetAmount())
+	price.SetUint64(tx.GetPrice())
+	val.Mul(&amount, &price)
+	val.Quo(&val, priceConst)
+	if !val.IsInt64() {
+		return false, errors.New("price * amount exceeds MaxInt64")
+	}
+	priceDiff := val.Int64()
+	amountDiff := int64(tx.GetAmount())
+	senderAddr, err := proto.NewAddressFromPublicKey(tv.settings.AddressSchemeCharacter, sellOrder.SenderPK)
+	if err != nil {
+		return false, err
+	}
+	senderPriceKey := balanceKey{address: senderAddr, asset: sellOrder.AssetPair.PriceAsset.ToID()}
+	if ok, err := tv.addChanges(senderPriceKey.bytes(), priceDiff, block); !ok {
+		return false, err
+	}
+	senderAmountKey := balanceKey{address: senderAddr, asset: sellOrder.AssetPair.AmountAsset.ToID()}
+	if ok, err := tv.addChanges(senderAmountKey.bytes(), -amountDiff, block); !ok {
+		return false, err
+	}
+	senderFeeKey := balanceKey{address: senderAddr}
+	senderFeeDiff := -int64(tx.GetSellMatcherFee())
+	if ok, err := tv.addChanges(senderFeeKey.bytes(), senderFeeDiff, block); !ok {
+		return false, err
+	}
+	receiverAddr, err := proto.NewAddressFromPublicKey(tv.settings.AddressSchemeCharacter, buyOrder.SenderPK)
+	if err != nil {
+		return false, err
+	}
+	receiverPriceKey := balanceKey{address: receiverAddr, asset: sellOrder.AssetPair.PriceAsset.ToID()}
+	if ok, err := tv.addChanges(receiverPriceKey.bytes(), -priceDiff, block); !ok {
+		return false, err
+	}
+	receiverAmountKey := balanceKey{address: receiverAddr, asset: sellOrder.AssetPair.AmountAsset.ToID()}
+	if ok, err := tv.addChanges(receiverAmountKey.bytes(), amountDiff, block); !ok {
+		return false, err
+	}
+	receiverFeeKey := balanceKey{address: receiverAddr}
+	receiverFeeDiff := -int64(tx.GetBuyMatcherFee())
+	if ok, err := tv.addChanges(receiverFeeKey.bytes(), receiverFeeDiff, block); !ok {
+		return false, err
+	}
+	// Update matcher.
+	matcherAddr, err := proto.NewAddressFromPublicKey(tv.settings.AddressSchemeCharacter, buyOrder.MatcherPK)
+	if err != nil {
+		return false, err
+	}
+	matcherKey := balanceKey{address: matcherAddr}
+	matcherFee, err := util.AddInt64(int64(tx.GetBuyMatcherFee()), int64(tx.GetSellMatcherFee()))
+	if err != nil {
+		return false, err
+	}
+	matcherBalanceDiff := matcherFee - int64(tx.GetFee())
+	if ok, err := tv.addChanges(matcherKey.bytes(), matcherBalanceDiff, block); !ok {
+		return false, err
+	}
+	// Update miner.
+	minerAddr, err := proto.NewAddressFromPublicKey(tv.settings.AddressSchemeCharacter, block.GenPublicKey)
+	if err != nil {
+		return false, err
+	}
+	minerKey := balanceKey{address: minerAddr}
+	minerBalanceDiff := int64(tx.GetFee())
 	if ok, err := tv.addChanges(minerKey.bytes(), minerBalanceDiff, block); !ok {
 		return false, err
 	}
@@ -396,12 +579,44 @@ func (tv *transactionValidator) validateTransaction(block, parent *proto.Block, 
 			return errors.Wrap(err, "payment validation failed")
 		}
 	case *proto.TransferV1:
-		if ok, err := tv.validateTransferV1(v, block, parent, initialisation); !ok {
+		if ok, err := tv.validateTransfer(&v.Transfer, block, parent, initialisation); !ok {
 			return errors.Wrap(err, "transferv1 validation failed")
 		}
 	case *proto.TransferV2:
-		if ok, err := tv.validateTransferV2(v, block, parent, initialisation); !ok {
+		if ok, err := tv.validateTransfer(&v.Transfer, block, parent, initialisation); !ok {
 			return errors.Wrap(err, "transferv2 validation failed")
+		}
+	case *proto.IssueV1:
+		if ok, err := tv.validateIssue(v, block, parent, initialisation); !ok {
+			return errors.Wrap(err, "issuev1 validation failed")
+		}
+	case *proto.IssueV2:
+		if ok, err := tv.validateIssue(v, block, parent, initialisation); !ok {
+			return errors.Wrap(err, "issuev2 validation failed")
+		}
+	case *proto.ReissueV1:
+		if ok, err := tv.validateReissue(&v.Reissue, block, parent, initialisation); !ok {
+			return errors.Wrap(err, "reissuev1 validation failed")
+		}
+	case *proto.ReissueV2:
+		if ok, err := tv.validateReissue(&v.Reissue, block, parent, initialisation); !ok {
+			return errors.Wrap(err, "reissuev2 validation failed")
+		}
+	case *proto.BurnV1:
+		if ok, err := tv.validateBurn(&v.Burn, block, parent, initialisation); !ok {
+			return errors.Wrap(err, "burnv1 validation failed")
+		}
+	case *proto.BurnV2:
+		if ok, err := tv.validateBurn(&v.Burn, block, parent, initialisation); !ok {
+			return errors.Wrap(err, "burnv2 validation failed")
+		}
+	case *proto.ExchangeV1:
+		if ok, err := tv.validateExchange(v, block, parent, initialisation); !ok {
+			return errors.Wrap(err, "exchangev1 validation failed")
+		}
+	case *proto.ExchangeV2:
+		if ok, err := tv.validateExchange(v, block, parent, initialisation); !ok {
+			return errors.Wrap(err, "exchange2 validation failed")
 		}
 	default:
 		return errors.Errorf("transaction type %T is not supported\n", v)
@@ -411,4 +626,8 @@ func (tv *transactionValidator) validateTransaction(block, parent *proto.Block, 
 
 func (tv *transactionValidator) performTransactions() error {
 	return tv.balancesChanges.applyDeltas()
+}
+
+func (tv *transactionValidator) reset() {
+	tv.balancesChanges.reset()
 }
