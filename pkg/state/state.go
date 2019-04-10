@@ -114,9 +114,11 @@ func (s *stateManager) setGenesis(genesisSig crypto.Signature) {
 	// TODO: MainNet's genesis is hard coded for now, support settings.BlockchainSettings.
 	s.genesis = proto.Block{
 		BlockHeader: proto.BlockHeader{
-			Version:        1,
-			Timestamp:      1460678400000,
-			BaseTarget:     153722867,
+			Version:   1,
+			Timestamp: 1460678400000,
+			NxtConsensus: proto.NxtConsensus{
+				BaseTarget: 153722867,
+			},
 			BlockSignature: genesisSig,
 			Height:         1,
 		},
