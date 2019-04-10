@@ -31,7 +31,7 @@ type BlockHeader struct {
 	Features               []int16          `json:"features,omitempty"`
 	ConsensusBlockLength   uint32           `json:"-"`
 	NxtConsensus           `json:"nxt-consensus"`
-	TransactionBlockLength uint32           `json:"-"`
+	TransactionBlockLength uint32           `json:"transactionBlockLength,omitempty"`
 	TransactionCount       int              `json:"transactionCount"`
 	GenPublicKey           crypto.PublicKey `json:"-"`
 	BlockSignature         crypto.Signature `json:"signature"`

@@ -12,8 +12,7 @@ const (
 	Custom
 )
 
-type BlockchainSettings struct {
-	Type BlockchainType
+type FunctionalitySettings struct {
 	// Heights when some of rules change.
 	GenerationBalanceDepthFrom50To1000AfterHeight uint64
 	BlockVersion3AfterHeight                      uint64
@@ -37,48 +36,58 @@ type BlockchainSettings struct {
 	MaxBaseTarget uint64
 }
 
+type BlockchainSettings struct {
+	FunctionalitySettings
+	Type BlockchainType
+	// GenesisCfgPath is path to JSON file with complete representation of genesis block.
+	// Leave this field blank for MainNet/TestNet, it is only used for custom blockchains.
+	GenesisCfgPath string
+}
+
 var (
 	MainNetSettings = &BlockchainSettings{
 		Type: MainNet,
-		GenerationBalanceDepthFrom50To1000AfterHeight: 232000,
-		BlockVersion3AfterHeight:                      795000,
+		FunctionalitySettings: FunctionalitySettings{
+			GenerationBalanceDepthFrom50To1000AfterHeight: 232000,
+			BlockVersion3AfterHeight:                      795000,
 
-		NegativeBalanceCheckAfterTime:          1479168000000,
-		TxChangesSortedCheckAfterTime:          1479416400000,
-		TxFromFutureCheckAfterTime:             1479168000000,
-		UnissedAssetUntilTime:                  1479416400000,
-		InvalidReissueInSameBlockUntilTime:     1492768800000,
-		MinimalGeneratingBalanceCheckAfterTime: 1479168000000,
+			NegativeBalanceCheckAfterTime:          1479168000000,
+			TxChangesSortedCheckAfterTime:          1479416400000,
+			TxFromFutureCheckAfterTime:             1479168000000,
+			UnissedAssetUntilTime:                  1479416400000,
+			InvalidReissueInSameBlockUntilTime:     1492768800000,
+			MinimalGeneratingBalanceCheckAfterTime: 1479168000000,
 
-		MaxTxTimeBackOffset:    120 * 60000,
-		MaxTxTimeForwardOffset: 90 * 60000,
+			MaxTxTimeBackOffset:    120 * 60000,
+			MaxTxTimeForwardOffset: 90 * 60000,
 
-		AddressSchemeCharacter: proto.MainNetScheme,
+			AddressSchemeCharacter: proto.MainNetScheme,
 
-		AverageBlockDelaySeconds: 60,
-		MaxBaseTarget:            200,
+			AverageBlockDelaySeconds: 60,
+			MaxBaseTarget:            200,
+		},
 	}
 
 	TestNetSettings = &BlockchainSettings{
 		Type: TestNet,
-		GenerationBalanceDepthFrom50To1000AfterHeight: 0,
-		BlockVersion3AfterHeight:                      161700,
+		FunctionalitySettings: FunctionalitySettings{
+			GenerationBalanceDepthFrom50To1000AfterHeight: 0,
+			BlockVersion3AfterHeight:                      161700,
 
-		NegativeBalanceCheckAfterTime:          1477958400000,
-		TxChangesSortedCheckAfterTime:          1479416400000,
-		TxFromFutureCheckAfterTime:             1478100000000,
-		UnissedAssetUntilTime:                  1479416400000,
-		InvalidReissueInSameBlockUntilTime:     1492560000000,
-		MinimalGeneratingBalanceCheckAfterTime: 0,
+			NegativeBalanceCheckAfterTime:          1477958400000,
+			TxChangesSortedCheckAfterTime:          1479416400000,
+			TxFromFutureCheckAfterTime:             1478100000000,
+			UnissedAssetUntilTime:                  1479416400000,
+			InvalidReissueInSameBlockUntilTime:     1492560000000,
+			MinimalGeneratingBalanceCheckAfterTime: 0,
 
-		MaxTxTimeBackOffset:    120 * 60000,
-		MaxTxTimeForwardOffset: 90 * 60000,
+			MaxTxTimeBackOffset:    120 * 60000,
+			MaxTxTimeForwardOffset: 90 * 60000,
 
-		AddressSchemeCharacter: proto.TestNetScheme,
+			AddressSchemeCharacter: proto.TestNetScheme,
 
-		AverageBlockDelaySeconds: 60,
-		MaxBaseTarget:            200,
+			AverageBlockDelaySeconds: 60,
+			MaxBaseTarget:            200,
+		},
 	}
 )
-
-// TODO: add config support for custom blockchains, add genesis block settings.

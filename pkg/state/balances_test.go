@@ -31,7 +31,7 @@ func (m *mockHeightInfo) Height() (uint64, error) {
 	if err != nil {
 		return 0, err
 	}
-	return height + 2, nil
+	return height, nil
 }
 
 func (m *mockHeightInfo) BlockIDToHeight(blockID crypto.Signature) (uint64, error) {
@@ -141,7 +141,7 @@ func TestMinBalanceInRange(t *testing.T) {
 	}()
 
 	key := balanceKey{address: genAddr(1)}
-	for i := 2; i < totalBlocksNumber; i++ {
+	for i := 1; i < totalBlocksNumber; i++ {
 		blockID := getBlockID(byte(i))
 		addBlock(t, rw, blockID)
 		if err := stor.setAccountBalance(key.bytes(), uint64(i), blockID); err != nil {
@@ -149,12 +149,12 @@ func TestMinBalanceInRange(t *testing.T) {
 		}
 	}
 	flush(t, stor, rw)
-	minBalance, err := stor.minBalanceInRange(key.bytes(), 2, totalBlocksNumber)
+	minBalance, err := stor.minBalanceInRange(key.bytes(), 1, totalBlocksNumber)
 	if err != nil {
 		t.Fatalf("minBalanceInRange(): %v\n", err)
 	}
-	if minBalance != 2 {
-		t.Errorf("Invalid minimum balance in range: need %d, got %d.", 2, minBalance)
+	if minBalance != 1 {
+		t.Errorf("Invalid minimum balance in range: need %d, got %d.", 1, minBalance)
 	}
 	minBalance, err = stor.minBalanceInRange(key.bytes(), 100, 150)
 	if err != nil {
