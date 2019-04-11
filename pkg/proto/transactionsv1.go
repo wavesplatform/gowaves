@@ -2269,7 +2269,7 @@ func (tx *InvokeScriptV1) bodyUnmarshalBinary(data []byte) error {
 	data = data[3:]
 	copy(tx.SenderPK[:], data[:crypto.PublicKeySize])
 	data = data[crypto.PublicKeySize:]
-	scriptAddress :=  Address{}
+	scriptAddress := Address{}
 	copy(scriptAddress[:], data[:AddressSize])
 	tx.ScriptAddress = scriptAddress
 	data = data[AddressSize:]
