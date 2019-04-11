@@ -51,10 +51,6 @@ func (s *stateDB) syncRw(rw *blockReadWriter) error {
 		return err
 	}
 	dbHeight := binary.LittleEndian.Uint64(dbHeightBytes)
-	if dbHeight > 0 {
-		// Subtract 1 from dbHeight, because it takes genesis into account.
-		dbHeight = dbHeight - 1
-	}
 	rwHeightBytes, err := s.db.Get([]byte{rwHeightKeyPrefix})
 	if err != nil {
 		return err
@@ -65,11 +61,11 @@ func (s *stateDB) syncRw(rw *blockReadWriter) error {
 		panic("Impossible to sync: DB is ahead of block storage; remove data dir and restart the node.")
 	}
 	if dbHeight == 0 {
-		if err := rw.rollbackToGenesis(false); err != nil {
-			return errors.Errorf("failed to reset block storage: %v", err)
+		if err := rw.removeEverything(false); err != nil {
+			return err
 		}
 	} else {
-		last, err := rw.blockIDByHeight(dbHeight - 1)
+		last, err := rw.blockIDByHeight(dbHeight)
 		if err != nil {
 			return err
 		}

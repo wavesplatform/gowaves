@@ -2,9 +2,11 @@ package state
 
 import (
 	"encoding/binary"
+	"encoding/json"
 	"math/big"
 	"os"
 	"path/filepath"
+	"runtime"
 
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/consensus"
@@ -19,6 +21,32 @@ const (
 	blocksStorDir     = "blocks_storage"
 	keyvalueDir       = "keyvalue"
 )
+
+func getLocalDir() (string, error) {
+	_, filename, _, ok := runtime.Caller(0)
+	if !ok {
+		return "", errors.Errorf("Unable to find current package file")
+	}
+	return filepath.Dir(filename), nil
+}
+
+func genesisFilePath(s *settings.BlockchainSettings) (string, error) {
+	dir, err := getLocalDir()
+	if err != nil {
+		return "", err
+	}
+	switch s.Type {
+	case settings.MainNet:
+		return filepath.Join(dir, "genesis", "mainnet.json"), nil
+	case settings.TestNet:
+		return filepath.Join(dir, "genesis", "testnet.json"), nil
+	default:
+		if _, err := os.Stat(s.GenesisCfgPath); err != nil {
+			return "", err
+		}
+		return s.GenesisCfgPath, nil
+	}
+}
 
 type stateManager struct {
 	genesis proto.Block
@@ -87,47 +115,38 @@ func newStateManager(dataDir string, params BlockStorageParams, settings *settin
 	if err != nil {
 		return nil, StateError{errorType: Other, originalError: err}
 	}
+	// Set fields which depend on state.
 	state.assets = assets
 	state.cv = cv
 	state.balances = balances
 	state.rw = rw
-	// If the storage is new (data dir does not contain any data), genesis block must be applied.
-	height, err := state.Height()
+	// Handle genesis block.
+	genesisPath, err := genesisFilePath(settings)
 	if err != nil {
-		return nil, StateError{errorType: RetrievalError, originalError: err}
+		return nil, StateError{errorType: Other, originalError: err}
 	}
-	genesisSig, err := crypto.NewSignatureFromBase58(genesisSignature)
-	if err != nil {
-		return nil, StateError{errorType: Other, originalError: errors.Errorf("failed to get genesis signature from string: %v\n", err)}
-	}
-	state.setGenesis(genesisSig)
-	if height == 1 {
-		if err := state.applyGenesis(genesisSig); err != nil {
-			return nil, StateError{errorType: ModificationError, originalError: errors.Errorf("failed to apply genesis: %v\n", err)}
-		}
+	if err := state.handleGenesisBlock(genesisPath); err != nil {
+		return nil, StateError{errorType: Other, originalError: err}
 	}
 	return state, nil
 }
 
-func (s *stateManager) setGenesis(genesisSig crypto.Signature) {
-	// Set genesis block itself.
-	// TODO: MainNet's genesis is hard coded for now, support settings.BlockchainSettings.
-	s.genesis = proto.Block{
-		BlockHeader: proto.BlockHeader{
-			Version:        1,
-			Timestamp:      1460678400000,
-			BaseTarget:     153722867,
-			BlockSignature: genesisSig,
-			Height:         1,
-		},
+func (s *stateManager) setGenesisBlock(genesisCfgPath string) error {
+	genesisFile, err := os.Open(genesisCfgPath)
+	if err != nil {
+		return errors.Errorf("failed to open genesis file: %v\n", err)
 	}
+	jsonParser := json.NewDecoder(genesisFile)
+	if err := jsonParser.Decode(&s.genesis); err != nil {
+		return errors.Errorf("failed to parse JSON of genesis block: %v\n", err)
+	}
+	if err := genesisFile.Close(); err != nil {
+		return errors.Errorf("failed to close genesis file: %v\n", err)
+	}
+	return nil
 }
 
-func (s *stateManager) applyGenesis(genesisSig crypto.Signature) error {
-	// Add genesis to list of valid blocks, so DB will know about it.
-	if err := s.stateDB.addBlock(genesisSig); err != nil {
-		return err
-	}
+func (s *stateManager) addGenesisBlock() error {
 	// Add score of genesis block.
 	genesisScore, err := calculateScore(s.genesis.BaseTarget)
 	if err != nil {
@@ -136,19 +155,12 @@ func (s *stateManager) applyGenesis(genesisSig crypto.Signature) error {
 	if err := s.scores.addScore(&big.Int{}, genesisScore, 1); err != nil {
 		return err
 	}
-	// Perform and validate genesis transactions.
 	tv, err := newTransactionValidator(s.genesis.BlockSignature, s.balances, s.assets, s.settings)
 	if err != nil {
 		return err
 	}
-	genesisTx, err := generateGenesisTransactions()
-	if err != nil {
+	if err := s.addNewBlock(tv, &s.genesis, nil, true); err != nil {
 		return err
-	}
-	for _, tx := range genesisTx {
-		if err := tv.validateTransaction(&s.genesis, nil, &tx, true); err != nil {
-			return err
-		}
 	}
 	if err := tv.performTransactions(); err != nil {
 		return err
@@ -162,10 +174,24 @@ func (s *stateManager) applyGenesis(genesisSig crypto.Signature) error {
 	return nil
 }
 
-func (s *stateManager) Block(blockID crypto.Signature) (*proto.Block, error) {
-	if blockID == s.genesis.BlockSignature {
-		return &s.genesis, nil
+func (s *stateManager) handleGenesisBlock(genesisCfgPath string) error {
+	height, err := s.Height()
+	if err != nil {
+		return err
 	}
+	if err := s.setGenesisBlock(genesisCfgPath); err != nil {
+		return err
+	}
+	// If the storage is new (data dir does not contain any data), genesis block must be applied.
+	if height == 0 {
+		if err := s.addGenesisBlock(); err != nil {
+			return errors.Errorf("failed to apply/save genesis: %v\n", err)
+		}
+	}
+	return nil
+}
+
+func (s *stateManager) Block(blockID crypto.Signature) (*proto.Block, error) {
 	headerBytes, err := s.rw.readBlockHeader(blockID)
 	if err != nil {
 		return nil, StateError{errorType: RetrievalError, originalError: err}
@@ -184,10 +210,7 @@ func (s *stateManager) Block(blockID crypto.Signature) (*proto.Block, error) {
 }
 
 func (s *stateManager) BlockByHeight(height uint64) (*proto.Block, error) {
-	if height == 1 {
-		return &s.genesis, nil
-	}
-	blockID, err := s.rw.blockIDByHeight(height - 2)
+	blockID, err := s.rw.blockIDByHeight(height)
 	if err != nil {
 		return nil, StateError{errorType: RetrievalError, originalError: err}
 	}
@@ -199,13 +222,10 @@ func (s *stateManager) Height() (uint64, error) {
 	if err != nil {
 		return 0, StateError{errorType: RetrievalError, originalError: err}
 	}
-	return height + 1, nil
+	return height, nil
 }
 
 func (s *stateManager) BlockIDToHeight(blockID crypto.Signature) (uint64, error) {
-	if blockID == s.genesis.BlockSignature {
-		return 1, nil
-	}
 	height, err := s.rw.heightByBlockID(blockID)
 	if err != nil {
 		return 0, StateError{errorType: RetrievalError, originalError: err}
@@ -214,9 +234,6 @@ func (s *stateManager) BlockIDToHeight(blockID crypto.Signature) (uint64, error)
 }
 
 func (s *stateManager) NewBlockIDToHeight(blockID crypto.Signature) (uint64, error) {
-	if blockID == s.genesis.BlockSignature {
-		return 1, nil
-	}
 	height, err := s.rw.heightByNewBlockID(blockID)
 	if err != nil {
 		return 0, StateError{errorType: RetrievalError, originalError: err}
@@ -225,10 +242,7 @@ func (s *stateManager) NewBlockIDToHeight(blockID crypto.Signature) (uint64, err
 }
 
 func (s *stateManager) HeightToBlockID(height uint64) (crypto.Signature, error) {
-	if height == 1 {
-		return s.genesis.BlockSignature, nil
-	}
-	id, err := s.rw.blockIDByHeight(height - 2)
+	id, err := s.rw.blockIDByHeight(height)
 	if err != nil {
 		return crypto.Signature{}, StateError{errorType: RetrievalError, originalError: err}
 	}
@@ -480,7 +494,7 @@ func (s *stateManager) RollbackTo(removalEdge crypto.Signature) error {
 		return StateError{errorType: RetrievalError, originalError: err}
 	}
 	for height := curHeight; height > 0; height-- {
-		blockID, err := s.rw.blockIDByHeight(height - 1)
+		blockID, err := s.rw.blockIDByHeight(height)
 		if err != nil {
 			return StateError{errorType: RetrievalError, originalError: err}
 		}
@@ -500,16 +514,9 @@ func (s *stateManager) RollbackTo(removalEdge crypto.Signature) error {
 	if err := s.scores.rollback(newHeight, oldHeight); err != nil {
 		return StateError{errorType: RollbackError, originalError: err}
 	}
-	if removalEdge == s.genesis.BlockSignature {
-		// Remove blocks from block storage.
-		if err := s.rw.rollbackToGenesis(true); err != nil {
-			return StateError{errorType: RollbackError, originalError: err}
-		}
-	} else {
-		// Remove blocks from block storage.
-		if err := s.rw.rollback(removalEdge, true); err != nil {
-			return StateError{errorType: RollbackError, originalError: err}
-		}
+	// Remove blocks from block storage.
+	if err := s.rw.rollback(removalEdge, true); err != nil {
+		return StateError{errorType: RollbackError, originalError: err}
 	}
 	return nil
 }

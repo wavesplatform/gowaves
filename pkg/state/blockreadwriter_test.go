@@ -179,7 +179,7 @@ func testSingleBlock(t *testing.T, rw *blockReadWriter, block *proto.Block) {
 }
 
 func writeBlocks(ctx context.Context, rw *blockReadWriter, blocks []proto.Block, readTasks chan<- *readTask) error {
-	height := 0
+	height := 1
 	for _, block := range blocks {
 		var tasksBuf []*readTask
 		blockID := block.BlockSignature

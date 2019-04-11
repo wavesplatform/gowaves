@@ -96,11 +96,6 @@ func (a *Transactions) Unconfirmed(ctx context.Context) ([]proto.Transaction, *R
 	return out, response, nil
 }
 
-type TransactionTypeVersion struct {
-	Type    proto.TransactionType `json:"type"`
-	Version byte                  `json:"version,omitempty"`
-}
-
 // Get transaction info
 func (a *Transactions) Info(ctx context.Context, id crypto.Digest) (proto.Transaction, *Response, error) {
 	url, err := joinUrl(a.options.BaseUrl, fmt.Sprintf("/transactions/info/%s", id.String()))
@@ -131,89 +126,6 @@ func (a *Transactions) Info(ctx context.Context, id crypto.Digest) (proto.Transa
 	}
 
 	return out[0], response, nil
-}
-
-// Guess transaction from type and version
-func GuessTransactionType(t *TransactionTypeVersion) (proto.Transaction, error) {
-	var out proto.Transaction
-	switch t.Type {
-	case proto.GenesisTransaction: // 1
-		out = &proto.Genesis{}
-	case proto.PaymentTransaction: // 2
-		out = &proto.Payment{}
-	case proto.IssueTransaction: // 3
-		switch t.Version {
-		case 2:
-			out = &proto.IssueV2{}
-		default:
-			out = &proto.IssueV1{}
-		}
-	case proto.TransferTransaction: // 4
-		switch t.Version {
-		case 2:
-			out = &proto.TransferV2{}
-		default:
-			out = &proto.TransferV1{}
-		}
-	case proto.ReissueTransaction: // 5
-		switch t.Version {
-		case 2:
-			out = &proto.ReissueV2{}
-		default:
-			out = &proto.ReissueV1{}
-		}
-	case proto.BurnTransaction: // 6
-		switch t.Version {
-		case 2:
-			out = &proto.BurnV2{}
-		default:
-			out = &proto.BurnV1{}
-		}
-	case proto.ExchangeTransaction: // 7
-		switch t.Version {
-		case 2:
-			out = &proto.ExchangeV2{}
-		default:
-			out = &proto.ExchangeV1{}
-		}
-	case proto.LeaseTransaction: // 8
-		switch t.Version {
-		case 2:
-			out = &proto.LeaseV2{}
-		default:
-			out = &proto.LeaseV1{}
-		}
-	case proto.LeaseCancelTransaction: // 9
-		switch t.Version {
-		case 2:
-			out = &proto.LeaseCancelV2{}
-		default:
-			out = &proto.LeaseCancelV1{}
-		}
-	case proto.CreateAliasTransaction: // 10
-		switch t.Version {
-		case 2:
-			out = &proto.CreateAliasV2{}
-		default:
-			out = &proto.CreateAliasV1{}
-		}
-	case proto.MassTransferTransaction: // 11
-		out = &proto.MassTransferV1{}
-	case proto.DataTransaction: // 12
-		out = &proto.DataV1{}
-	case proto.SetScriptTransaction: // 13
-		out = &proto.SetScriptV1{}
-	case proto.SponsorshipTransaction: // 14
-		out = &proto.SponsorshipV1{}
-	case proto.SetAssetScriptTransaction: // 15
-		out = &proto.SetAssetScriptV1{}
-	case proto.InvokeScriptTransaction: // 16
-		out = &proto.InvokeScriptV1{}
-	}
-	if out == nil {
-		return nil, errors.Errorf("unknown transaction type %d version %d", t.Type, t.Version)
-	}
-	return out, nil
 }
 
 // Get list of transactions where specified address has been involved

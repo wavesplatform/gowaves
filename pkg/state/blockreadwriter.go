@@ -210,6 +210,8 @@ func (rw *blockReadWriter) writeBlockHeader(blockID crypto.Signature, header []b
 func (rw *blockReadWriter) blockIDByHeight(height uint64) (crypto.Signature, error) {
 	rw.mtx.RLock()
 	defer rw.mtx.RUnlock()
+	// For blockReadWriter, heights start from 0.
+	height -= 1
 	idBytes := make([]byte, crypto.SignatureSize)
 	readPos := int64(height * crypto.SignatureSize)
 	var res crypto.Signature
@@ -229,7 +231,7 @@ func (rw *blockReadWriter) heightByBlockID(blockID crypto.Signature) (uint64, er
 		return 0, err
 	}
 	height := binary.LittleEndian.Uint64(blockInfo[len(blockInfo)-8:])
-	return height + 2, nil
+	return height + 1, nil
 }
 
 // Similar to heightByBlockID() but returns height for new blocks as well (ones which haven't been saved to DB yet).
@@ -244,11 +246,11 @@ func (rw *blockReadWriter) heightByNewBlockID(blockID crypto.Signature) (uint64,
 		return 0, errors.New("block not found")
 	}
 	height := binary.LittleEndian.Uint64(info[len(info)-8:])
-	return height + 2, nil
+	return height + 1, nil
 }
 
 func (rw *blockReadWriter) recentHeight() uint64 {
-	return rw.height + 2
+	return rw.height + 1
 }
 
 func (rw *blockReadWriter) currentHeight() (uint64, error) {
@@ -373,7 +375,7 @@ func (rw *blockReadWriter) cleanIDs(oldHeight, newBlockchainLen uint64) error {
 	return nil
 }
 
-func (rw *blockReadWriter) rollbackToGenesis(cleanIDs bool) error {
+func (rw *blockReadWriter) removeEverything(cleanIDs bool) error {
 	rw.mtx.Lock()
 	defer rw.mtx.Unlock()
 	// Set new height first of all.

@@ -91,8 +91,7 @@ type State interface {
 // and state will try to sync and use it in this case.
 // params are block storage parameters, they specify lengths of byte offsets for headers and transactions.
 // Use state.DefaultBlockStorageParams() to create default parameters.
-// Settings are blockchain settings, you can use settings.MainNetSettings, ...
-// (TODO: settings.TestNetSettings and custom settings aren't yet supported).
+// Settings are blockchain settings (settings.MainNetSettings, settings.TestNetSettings or custom settings).
 func NewState(dataDir string, params BlockStorageParams, settings *settings.BlockchainSettings) (State, error) {
 	return newStateManager(dataDir, params, settings)
 }

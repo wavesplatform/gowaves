@@ -1,0 +1,59 @@
+{
+  "version": 1,
+  "timestamp": 1460678400000,
+  "reference": "67rpwLCuS5DGA8KGZXKsVQ7dnPb9goRLoKfgGbLfQg9WoLUgNY77E2jT11fem3coV9nAkguBACzrU1iyZM4B8roQ",
+  "nxt-consensus": {
+    "base-target": 153722867,
+    "generation-signature": "11111111111111111111111111111111"
+  },
+  "signature": "5uqnLK3Z9eiot6FyYBfwUnbyid3abicQbAZjz38GQ1Q8XigQMxTK4C1zNkqS1SVw7FqSidbZKxWAKLVoEsp4nNqa",
+  "transactionBlockLength": 236,
+  "transactionCount": 5,
+  "transactions": [
+    {
+      "type": 1,
+      "id": "5G66c9GPn2egiM4bQBBF3gCkHS8sQZupRvWCpWKWGQTRRbtqdtZJ5Mt29exbHTDZW2RWygVKZ3oBNg4RwezN7wmA",
+      "fee": 0,
+      "timestamp": 1478000000000,
+      "signature": "5G66c9GPn2egiM4bQBBF3gCkHS8sQZupRvWCpWKWGQTRRbtqdtZJ5Mt29exbHTDZW2RWygVKZ3oBNg4RwezN7wmA",
+      "recipient": "3My3KZgFQ3CrVHgz6vGRt8687sH4oAA1qp8",
+      "amount": 400000000000000
+    },
+    {
+      "type": 1,
+      "id": "3zpi4i5SeCoaiCBn1iuTUvCc5aahvtabqXBTrCXy1Y3ujUbJo56VVv6n4HQtcwiFapvg3BKV6stb5QkxsBrudTKZ",
+      "fee": 0,
+      "timestamp": 1478000000000,
+      "signature": "3zpi4i5SeCoaiCBn1iuTUvCc5aahvtabqXBTrCXy1Y3ujUbJo56VVv6n4HQtcwiFapvg3BKV6stb5QkxsBrudTKZ",
+      "recipient": "3NBVqYXrapgJP9atQccdBPAgJPwHDKkh6A8",
+      "amount": 200000000000000
+    },
+    {
+      "type": 1,
+      "id": "3obfFPvsWXv2RyMYxjTT7owYGcpSGuSAm8fQVXeX5wErWYsgNSPPnQoFVV6nzuwm3RwGCbm8dfgvqwK9S8fVMpye",
+      "fee": 0,
+      "timestamp": 1478000000000,
+      "signature": "3obfFPvsWXv2RyMYxjTT7owYGcpSGuSAm8fQVXeX5wErWYsgNSPPnQoFVV6nzuwm3RwGCbm8dfgvqwK9S8fVMpye",
+      "recipient": "3N5GRqzDBhjVXnCn44baHcz2GoZy5qLxtTh",
+      "amount": 200000000000000
+    },
+    {
+      "type": 1,
+      "id": "3TdE9G7V7fwED35981aGsWFM6aesxSS4W1XPfEx6p5xacwHLu7Kvf67Wzg73kgyU9gSFp1KsmPWqkFhaaR2S1fhp",
+      "fee": 0,
+      "timestamp": 1478000000000,
+      "signature": "3TdE9G7V7fwED35981aGsWFM6aesxSS4W1XPfEx6p5xacwHLu7Kvf67Wzg73kgyU9gSFp1KsmPWqkFhaaR2S1fhp",
+      "recipient": "3NCBMxgdghg4tUhEEffSXy11L6hUi6fcBpd",
+      "amount": 200000000000000
+    },
+    {
+      "type": 1,
+      "id": "4hTrr7fqkujsGSH8AFN1qw7fJdfmKgwzoq3ByCCJwduHkgZPQZe1KgzG6oPBZXMuNr5ZQ6ErDSTiz2KGtxtkHpA5",
+      "fee": 0,
+      "timestamp": 1478000000000,
+      "signature": "4hTrr7fqkujsGSH8AFN1qw7fJdfmKgwzoq3ByCCJwduHkgZPQZe1KgzG6oPBZXMuNr5ZQ6ErDSTiz2KGtxtkHpA5",
+      "recipient": "3N18z4B8kyyQ96PhN5eyhCAbg4j49CgwZJx",
+      "amount": 9000000000000000
+    }
+  ]
+}

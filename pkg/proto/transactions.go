@@ -119,6 +119,94 @@ func BytesToTransaction(tx []byte) (Transaction, error) {
 	}
 }
 
+type TransactionTypeVersion struct {
+	Type    TransactionType `json:"type"`
+	Version byte            `json:"version,omitempty"`
+}
+
+// Guess transaction from type and version
+func GuessTransactionType(t *TransactionTypeVersion) (Transaction, error) {
+	var out Transaction
+	switch t.Type {
+	case GenesisTransaction: // 1
+		out = &Genesis{}
+	case PaymentTransaction: // 2
+		out = &Payment{}
+	case IssueTransaction: // 3
+		switch t.Version {
+		case 2:
+			out = &IssueV2{}
+		default:
+			out = &IssueV1{}
+		}
+	case TransferTransaction: // 4
+		switch t.Version {
+		case 2:
+			out = &TransferV2{}
+		default:
+			out = &TransferV1{}
+		}
+	case ReissueTransaction: // 5
+		switch t.Version {
+		case 2:
+			out = &ReissueV2{}
+		default:
+			out = &ReissueV1{}
+		}
+	case BurnTransaction: // 6
+		switch t.Version {
+		case 2:
+			out = &BurnV2{}
+		default:
+			out = &BurnV1{}
+		}
+	case ExchangeTransaction: // 7
+		switch t.Version {
+		case 2:
+			out = &ExchangeV2{}
+		default:
+			out = &ExchangeV1{}
+		}
+	case LeaseTransaction: // 8
+		switch t.Version {
+		case 2:
+			out = &LeaseV2{}
+		default:
+			out = &LeaseV1{}
+		}
+	case LeaseCancelTransaction: // 9
+		switch t.Version {
+		case 2:
+			out = &LeaseCancelV2{}
+		default:
+			out = &LeaseCancelV1{}
+		}
+	case CreateAliasTransaction: // 10
+		switch t.Version {
+		case 2:
+			out = &CreateAliasV2{}
+		default:
+			out = &CreateAliasV1{}
+		}
+	case MassTransferTransaction: // 11
+		out = &MassTransferV1{}
+	case DataTransaction: // 12
+		out = &DataV1{}
+	case SetScriptTransaction: // 13
+		out = &SetScriptV1{}
+	case SponsorshipTransaction: // 14
+		out = &SponsorshipV1{}
+	case SetAssetScriptTransaction: // 15
+		out = &SetAssetScriptV1{}
+	case InvokeScriptTransaction: // 16
+		out = &InvokeScriptV1{}
+	}
+	if out == nil {
+		return nil, errors.Errorf("unknown transaction type %d version %d", t.Type, t.Version)
+	}
+	return out, nil
+}
+
 //Genesis is a transaction used to initial balances distribution. This transactions allowed only in the first block.
 type Genesis struct {
 	Type      TransactionType   `json:"type"`
