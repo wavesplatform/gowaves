@@ -65,7 +65,7 @@ func (s *stateDB) syncRw(rw *blockReadWriter) error {
 			return err
 		}
 	} else {
-		last, err := rw.blockIDByHeight(dbHeight - 1)
+		last, err := rw.blockIDByHeight(dbHeight)
 		if err != nil {
 			return err
 		}

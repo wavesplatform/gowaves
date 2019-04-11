@@ -1,8 +1,6 @@
 package state
 
 import (
-	"fmt"
-
 	"encoding/binary"
 	"encoding/json"
 	"math/big"
@@ -142,7 +140,6 @@ func (s *stateManager) setGenesisBlock(genesisCfgPath string) error {
 	if err := jsonParser.Decode(&s.genesis); err != nil {
 		return errors.Errorf("failed to parse JSON of genesis block: %v\n", err)
 	}
-	fmt.Printf("len(transactions): %d\n", len(s.genesis.Transactions))
 	if err := genesisFile.Close(); err != nil {
 		return errors.Errorf("failed to close genesis file: %v\n", err)
 	}
@@ -213,7 +210,7 @@ func (s *stateManager) Block(blockID crypto.Signature) (*proto.Block, error) {
 }
 
 func (s *stateManager) BlockByHeight(height uint64) (*proto.Block, error) {
-	blockID, err := s.rw.blockIDByHeight(height - 1)
+	blockID, err := s.rw.blockIDByHeight(height)
 	if err != nil {
 		return nil, StateError{errorType: RetrievalError, originalError: err}
 	}
@@ -245,7 +242,7 @@ func (s *stateManager) NewBlockIDToHeight(blockID crypto.Signature) (uint64, err
 }
 
 func (s *stateManager) HeightToBlockID(height uint64) (crypto.Signature, error) {
-	id, err := s.rw.blockIDByHeight(height - 1)
+	id, err := s.rw.blockIDByHeight(height)
 	if err != nil {
 		return crypto.Signature{}, StateError{errorType: RetrievalError, originalError: err}
 	}
@@ -497,7 +494,7 @@ func (s *stateManager) RollbackTo(removalEdge crypto.Signature) error {
 		return StateError{errorType: RetrievalError, originalError: err}
 	}
 	for height := curHeight; height > 0; height-- {
-		blockID, err := s.rw.blockIDByHeight(height - 1)
+		blockID, err := s.rw.blockIDByHeight(height)
 		if err != nil {
 			return StateError{errorType: RetrievalError, originalError: err}
 		}

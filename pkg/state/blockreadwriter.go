@@ -210,6 +210,8 @@ func (rw *blockReadWriter) writeBlockHeader(blockID crypto.Signature, header []b
 func (rw *blockReadWriter) blockIDByHeight(height uint64) (crypto.Signature, error) {
 	rw.mtx.RLock()
 	defer rw.mtx.RUnlock()
+	// For blockReadWriter, heights start from 0.
+	height -= 1
 	idBytes := make([]byte, crypto.SignatureSize)
 	readPos := int64(height * crypto.SignatureSize)
 	var res crypto.Signature
