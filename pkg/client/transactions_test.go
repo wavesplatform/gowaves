@@ -1,9 +1,7 @@
 package client
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
@@ -29,26 +27,6 @@ func TestTransactions_UnconfirmedSize(t *testing.T) {
 	assert.NotNil(t, resp)
 	assert.Equal(t, uint64(4), body)
 	assert.Equal(t, "https://testnodes.wavesnodes.com/transactions/unconfirmed/size", resp.Request.URL.String())
-}
-
-func TestGuessTransaction_Genesis(t *testing.T) {
-	genesisJson := `    {
-      "type": 1,
-      "id": "2DVtfgXjpMeFf2PQCqvwxAiaGbiDsxDjSdNQkc5JQ74eWxjWFYgwvqzC4dn7iB1AhuM32WxEiVi1SGijsBtYQwn8",
-      "fee": 0,
-      "timestamp": 1465742577614,
-      "signature": "2DVtfgXjpMeFf2PQCqvwxAiaGbiDsxDjSdNQkc5JQ74eWxjWFYgwvqzC4dn7iB1AhuM32WxEiVi1SGijsBtYQwn8",
-      "recipient": "3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ",
-      "amount": 9999999500000000
-    }`
-
-	buf := bytes.NewBufferString(genesisJson)
-	genesis := &proto.Genesis{}
-	rs, err := GuessTransactionType(&TransactionTypeVersion{Type: proto.TransactionType(1), Version: 0})
-	err = json.NewDecoder(buf).Decode(genesis)
-	require.Nil(t, err)
-	require.IsType(t, &proto.Genesis{}, rs)
-	assert.Equal(t, uint64(9999999500000000), genesis.Amount)
 }
 
 var transactionInfoExchange = `

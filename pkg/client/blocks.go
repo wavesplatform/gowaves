@@ -148,7 +148,7 @@ type Block struct {
 type TransactionsField []proto.Transaction
 
 func (b *TransactionsField) UnmarshalJSON(data []byte) error {
-	var tt []*TransactionTypeVersion
+	var tt []*proto.TransactionTypeVersion
 	err := json.Unmarshal(data, &tt)
 	if err != nil {
 		return errors.Wrap(err, "TransactionTypeVersion unmarshal")
@@ -156,7 +156,7 @@ func (b *TransactionsField) UnmarshalJSON(data []byte) error {
 
 	transactions := make([]proto.Transaction, len(tt))
 	for i, row := range tt {
-		realType, err := GuessTransactionType(row)
+		realType, err := proto.GuessTransactionType(row)
 		if err != nil {
 			return err
 		}

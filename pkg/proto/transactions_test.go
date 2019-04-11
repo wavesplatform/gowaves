@@ -1,6 +1,7 @@
 package proto
 
 import (
+	"bytes"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -15,6 +16,26 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 )
+
+func TestGuessTransaction_Genesis(t *testing.T) {
+	genesisJson := `    {
+      "type": 1,
+      "id": "2DVtfgXjpMeFf2PQCqvwxAiaGbiDsxDjSdNQkc5JQ74eWxjWFYgwvqzC4dn7iB1AhuM32WxEiVi1SGijsBtYQwn8",
+      "fee": 0,
+      "timestamp": 1465742577614,
+      "signature": "2DVtfgXjpMeFf2PQCqvwxAiaGbiDsxDjSdNQkc5JQ74eWxjWFYgwvqzC4dn7iB1AhuM32WxEiVi1SGijsBtYQwn8",
+      "recipient": "3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ",
+      "amount": 9999999500000000
+    }`
+
+	buf := bytes.NewBufferString(genesisJson)
+	genesis := &Genesis{}
+	rs, err := GuessTransactionType(&TransactionTypeVersion{Type: TransactionType(1), Version: 0})
+	err = json.NewDecoder(buf).Decode(genesis)
+	require.Nil(t, err)
+	require.IsType(t, &Genesis{}, rs)
+	assert.Equal(t, uint64(9999999500000000), genesis.Amount)
+}
 
 func TestGenesisFromMainNet(t *testing.T) {
 	tests := []struct {
@@ -3467,6 +3488,178 @@ func TestSetAssetScriptV1ToJSON(t *testing.T) {
 					if sj, err := json.Marshal(tx); assert.NoError(t, err) {
 						esj := fmt.Sprintf("{\"type\":15,\"version\":1,\"id\":\"%s\",\"proofs\":[\"%s\"],\"senderPublicKey\":\"%s\",\"assetId\":\"%s\",\"script\":\"%s\",\"fee\":%d,\"timestamp\":%d}",
 							base58.Encode(tx.ID[:]), base58.Encode(tx.Proofs.Proofs[0]), base58.Encode(pk[:]), tc.asset, tc.script, tc.fee, ts)
+						assert.Equal(t, esj, string(sj))
+					}
+				}
+			}
+		}
+	}
+}
+
+func TestInvokeScriptV1Validations(t *testing.T) {
+	a1, err := NewOptionalAssetFromString("BXBUNddxTGTQc3G4qHYn5E67SBwMj18zLncUr871iuRD")
+	require.NoError(t, err)
+	a2, err := NewOptionalAssetFromString("WAVES")
+	require.NoError(t, err)
+
+	tests := []struct {
+		sps ScriptPayments
+		fee uint64
+		err string
+	}{
+		{ScriptPayments{}, 0, "fee should be positive"},
+		{ScriptPayments{{12345, *a1}}, 0, "fee should be positive"},
+		{ScriptPayments{{12345, *a1}, {67890, *a2}}, 10000, "no more than one payment is allowed"},
+	}
+	for _, tc := range tests {
+		spk, _ := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
+		ad, _ := NewAddressFromString("3MrDis17gyNSusZDg8Eo1PuFnm5SQMda3gu")
+		fc := FunctionCall{Name: "foo", Arguments: Arguments{}}
+		_, err := NewUnsignedInvokeScriptV1('T', spk, ad, fc, tc.sps, *a2, tc.fee, 12345)
+		assert.EqualError(t, err, tc.err)
+	}
+}
+
+func TestInvokeScriptV1FromTestNet(t *testing.T) {
+	tests := []struct {
+		pk        string
+		sig       string
+		id        string
+		scheme    byte
+		addr      string
+		fc        string
+		fee       uint64
+		timestamp uint64
+	}{
+		{"2AqMAWBPbTxYdHoE9vsELWTrCFjhEJdKAACt5UEjFGLu", "KXrLyY5dU4wFtg17cEbMq4sg5aYokepZQ4x4PkGgpU3ZA7waJt5S9wi8sL9bGbgzvUgLfEZhbirb8G59jjzH76w", "2rPStE939HsiBxgWfDKM4fALEc8Bhbbg7SaEdVJ8MLS4", 'T', "3MqznbvHM2CqEVG6HKpWQmmXrWWHgBmFcAJ", "{\"function\":\"foo\",\"args\":[{\"type\":\"integer\",\"value\":42}]}", 500000, 1553873984919},
+	}
+	for _, tc := range tests {
+		spk, _ := crypto.NewPublicKeyFromBase58(tc.pk)
+		id, _ := crypto.NewDigestFromBase58(tc.id)
+		sig, _ := crypto.NewSignatureFromBase58(tc.sig)
+		wa, _ := NewOptionalAssetFromString("WAVES")
+		a, err := NewAddressFromString(tc.addr)
+		require.NoError(t, err)
+		fc := FunctionCall{}
+		err = json.Unmarshal([]byte(tc.fc), &fc)
+		require.NoError(t, err)
+		if tx, err := NewUnsignedInvokeScriptV1(tc.scheme, spk, a, fc, ScriptPayments{}, *wa, tc.fee, tc.timestamp); assert.NoError(t, err) {
+			if b, err := tx.bodyMarshalBinary(); assert.NoError(t, err) {
+				if h, err := crypto.FastHash(b); assert.NoError(t, err) {
+					assert.Equal(t, id, h)
+				}
+				assert.True(t, crypto.Verify(spk, sig, b))
+			}
+		}
+	}
+}
+
+func TestInvokeScriptV1BinaryRoundTrip(t *testing.T) {
+	tests := []struct {
+		chainID  byte
+		address  string
+		fc       string
+		payments string
+		feeAsset string
+		fee      uint64
+	}{
+		{'W', "3PLANf4MgtNN5v6k4NNnyx2m4zKJiw1tF9v", "{\"function\":\"foo\",\"args\":[{\"type\":\"integer\",\"value\":12345}]}", "[{\"amount\":12345,\"assetId\":\"BXBUNddxTGTQc3G4qHYn5E67SBwMj18zLncUr871iuRD\"}]", "J8shEVBrQ4BLqsuYw5j6vQGCFJGMLBxr5nu2XvUWFEAR", 1234567890},
+		{'T', "3MrDis17gyNSusZDg8Eo1PuFnm5SQMda3gu", "{\"function\":\"bar\",\"args\":[{\"type\":\"boolean\",\"value\":true}]}", "[{\"amount\":67890,\"assetId\":null}]", "9yCRXrptsYKnsfFv6E226MXXjjxSzm3kXKL2oquw3HrX", 9876543210},
+		{'T', "3MrDis17gyNSusZDg8Eo1PuFnm5SQMda3gu", "{\"function\":\"foobar1\",\"args\":[]}", "[{\"amount\":12345,\"assetId\":\"BXBUNddxTGTQc3G4qHYn5E67SBwMj18zLncUr871iuRD\"}]", "WAVES", 9876543210},
+	}
+	seed, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
+	sk, pk := crypto.GenerateKeyPair(seed)
+	for _, tc := range tests {
+		ts := uint64(time.Now().UnixNano() / 1000000)
+		a, err := NewOptionalAssetFromString(tc.feeAsset)
+		require.NoError(t, err)
+		ad, err := NewAddressFromString(tc.address)
+		require.NoError(t, err)
+		fc := FunctionCall{}
+		err = json.Unmarshal([]byte(tc.fc), &fc)
+		require.NoError(t, err)
+		sps := ScriptPayments{}
+		err = json.Unmarshal([]byte(tc.payments), &sps)
+		require.NoError(t, err)
+		if tx, err := NewUnsignedInvokeScriptV1(tc.chainID, pk, ad, fc, sps, *a, tc.fee, ts); assert.NoError(t, err) {
+			if bb, err := tx.bodyMarshalBinary(); assert.NoError(t, err) {
+				var atx InvokeScriptV1
+				if err := atx.bodyUnmarshalBinary(bb); assert.NoError(t, err) {
+					assert.Equal(t, tx.Type, atx.Type)
+					assert.Equal(t, tx.Version, atx.Version)
+					assert.Equal(t, tx.SenderPK, atx.SenderPK)
+					assert.Equal(t, tx.ChainID, atx.ChainID)
+					assert.Equal(t, tx.ScriptAddress, atx.ScriptAddress)
+					assert.Equal(t, tx.FunctionCall, atx.FunctionCall)
+					assert.Equal(t, tx.Payments, atx.Payments)
+					assert.Equal(t, tx.FeeAsset, atx.FeeAsset)
+					assert.Equal(t, tx.Fee, atx.Fee)
+					assert.Equal(t, tx.Timestamp, atx.Timestamp)
+				}
+			}
+			if err := tx.Sign(sk); assert.NoError(t, err) {
+				if r, err := tx.Verify(pk); assert.NoError(t, err) {
+					assert.True(t, r)
+				}
+			}
+			if b, err := tx.MarshalBinary(); assert.NoError(t, err) {
+				var atx InvokeScriptV1
+				if err := atx.UnmarshalBinary(b); assert.NoError(t, err) {
+					assert.Equal(t, tx.ID, atx.ID)
+					assert.ElementsMatch(t, tx.Proofs.Proofs, atx.Proofs.Proofs)
+					assert.Equal(t, pk, atx.SenderPK)
+					assert.Equal(t, tc.chainID, atx.ChainID)
+					assert.Equal(t, *a, atx.FeeAsset)
+					assert.Equal(t, ad, atx.ScriptAddress)
+					assert.Equal(t, sps, atx.Payments)
+					assert.Equal(t, fc, atx.FunctionCall)
+					assert.Equal(t, tc.fee, atx.Fee)
+					assert.Equal(t, ts, atx.Timestamp)
+				}
+			}
+		}
+	}
+}
+
+func TestInvokeScriptV1ToJSON(t *testing.T) {
+	tests := []struct {
+		chainID  byte
+		address  string
+		fc       string
+		payments string
+		feeAsset string
+		fee      uint64
+	}{
+		{'W', "3PLANf4MgtNN5v6k4NNnyx2m4zKJiw1tF9v", "{\"function\":\"foo\",\"args\":[{\"type\":\"integer\",\"value\":12345}]}", "[{\"amount\":12345,\"assetId\":\"BXBUNddxTGTQc3G4qHYn5E67SBwMj18zLncUr871iuRD\"}]", "J8shEVBrQ4BLqsuYw5j6vQGCFJGMLBxr5nu2XvUWFEAR", 1234567890},
+		{'T', "3MrDis17gyNSusZDg8Eo1PuFnm5SQMda3gu", "{\"function\":\"bar\",\"args\":[{\"type\":\"boolean\",\"value\":true}]}", "[{\"amount\":67890,\"assetId\":null}]", "9yCRXrptsYKnsfFv6E226MXXjjxSzm3kXKL2oquw3HrX", 9876543210},
+		{'T', "3MrDis17gyNSusZDg8Eo1PuFnm5SQMda3gu", "{\"function\":\"foobar1\",\"args\":[]}", "[{\"amount\":12345,\"assetId\":\"BXBUNddxTGTQc3G4qHYn5E67SBwMj18zLncUr871iuRD\"}]", "WAVES", 9876543210},
+	}
+	seed, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
+	sk, pk := crypto.GenerateKeyPair(seed)
+	for _, tc := range tests {
+		ts := uint64(time.Now().UnixNano() / 1000000)
+		a, err := NewOptionalAssetFromString(tc.feeAsset)
+		require.NoError(t, err)
+		ad, err := NewAddressFromString(tc.address)
+		require.NoError(t, err)
+		fc := FunctionCall{}
+		err = json.Unmarshal([]byte(tc.fc), &fc)
+		require.NoError(t, err)
+		sps := ScriptPayments{}
+		err = json.Unmarshal([]byte(tc.payments), &sps)
+		require.NoError(t, err)
+		feeAssetIDJSON := fmt.Sprintf("\"%s\"", tc.feeAsset)
+		if tc.feeAsset == "WAVES" {
+			feeAssetIDJSON = "null"
+		}
+		if tx, err := NewUnsignedInvokeScriptV1(tc.chainID, pk, ad, fc, sps, *a, tc.fee, ts); assert.NoError(t, err) {
+			if j, err := json.Marshal(tx); assert.NoError(t, err) {
+				ej := fmt.Sprintf("{\"type\":16,\"version\":1,\"senderPublicKey\":\"%s\",\"dappAddress\":\"%s\",\"call\":%s,\"payment\":%s,\"feeAssetId\":%s,\"fee\":%d,\"timestamp\":%d}", base58.Encode(pk[:]), tc.address, tc.fc, tc.payments, feeAssetIDJSON, tc.fee, ts)
+				assert.Equal(t, ej, string(j))
+				if err := tx.Sign(sk); assert.NoError(t, err) {
+					if sj, err := json.Marshal(tx); assert.NoError(t, err) {
+						esj := fmt.Sprintf("{\"type\":16,\"version\":1,\"id\":\"%s\",\"proofs\":[\"%s\"],\"senderPublicKey\":\"%s\",\"dappAddress\":\"%s\",\"call\":%s,\"payment\":%s,\"feeAssetId\":%s,\"fee\":%d,\"timestamp\":%d}",
+							base58.Encode(tx.ID[:]), base58.Encode(tx.Proofs.Proofs[0]), base58.Encode(pk[:]), tc.address, tc.fc, tc.payments, feeAssetIDJSON, tc.fee, ts)
 						assert.Equal(t, esj, string(sj))
 					}
 				}
