@@ -24,7 +24,8 @@ type Cli struct {
 	Run struct {
 		WavesNetwork string `kong:"wavesnetwork,short='n',help='Waves network.',required"`
 		Addresses    string `kong:"address,short='a',help='Addresses connect to.'"`
-		//Version      string `kong:"version,short='v',help='Version,(0.15.1).',required"`
+		DeclAddr     string `kong:"decladdr,short='d',help='Address listen on.'"`
+		HttpAddr     string `kong:"httpaddr,short='w',help='Http addr bind on.'"`
 	} `kong:"cmd,help='Run node'"`
 }
 
@@ -56,22 +57,18 @@ func main() {
 		return
 	}
 
+	declAddr := proto.NewTCPAddrFromString(cli.Run.DeclAddr)
+
 	//pool := bytespool.NewBytesPool(64, 2*1024*2014)
 	pool := bytespool.NewNoOpBytesPool(2 * 1024 * 2014)
 
-	//sig, _ := crypto.NewSignatureFromBase58("FSH8eAAzZNqnG8xgTZtz5xuLqXySsXgAjmFEC25hXMbEufiGjqWPnGCZFt6gLiVLJny16ipxRNAkkzjjhqTjBE2")
-	//
-	//zap.S().Info(state.Height())
-	//zap.S().Info(state.BlockByHeight(1))
-	//zap.S().Info(state.Block(sig))
-
 	parent := peer.NewParent()
 
-	peerSpawnerimpl := node.NewPeerSpawner(pool, noSkip, parent, cli.Run.WavesNetwork, proto.PeerInfo{}, "gowaves", 100500, version)
+	peerSpawnerimpl := node.NewPeerSpawner(pool, noSkip, parent, cli.Run.WavesNetwork, declAddr, "gowaves", 100500, version)
 
 	peerManager := node.NewPeerManager(peerSpawnerimpl, state)
 
-	n := node.NewNode(state, peerManager)
+	n := node.NewNode(state, peerManager, declAddr)
 
 	go node.RunNode(ctx, n, parent)
 
@@ -82,9 +79,9 @@ func main() {
 		}
 	}
 
-	webApi := api.NewNodeApi(state)
+	webApi := api.NewNodeApi(state, n, peerManager)
 	go func() {
-		err := api.Run(ctx, "0.0.0.0:8085", webApi)
+		err := api.Run(ctx, cli.Run.HttpAddr, webApi)
 		if err != nil {
 			zap.S().Error("Failed to start API: %v", err)
 		}
@@ -96,18 +93,13 @@ func main() {
 
 	select {
 	case sig := <-gracefulStop:
-		//if memprofile != "" {
-		//	memProfile(memprofile)
-		//}
+
 		n.Close()
 
 		zap.S().Infow("Caught signal, stopping", "signal", sig)
-		//_ = srv.Shutdown(ctx)
 		cancel()
 
 		<-time.After(2 * time.Second)
 	}
-
-	//select {}
 
 }

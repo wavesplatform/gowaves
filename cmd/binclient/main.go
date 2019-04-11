@@ -57,19 +57,19 @@ func main() {
 	}
 
 	handshake := proto.Handshake{
-		AppName:           Cli.WavesNetwork,
-		Version:           version,
-		NodeName:          "nodename",
-		NodeNonce:         0x0,
-		DeclaredAddrBytes: []byte{},
-		Timestamp:         proto.NewTimestampFromTime(time.Now()),
+		AppName:      Cli.WavesNetwork,
+		Version:      version,
+		NodeName:     "nodename",
+		NodeNonce:    0x0,
+		DeclaredAddr: proto.HandshakeTCPAddr{},
+		Timestamp:    proto.NewTimestampFromTime(time.Now()),
 	}
 
-	bts, err := handshake.MarshalBinary()
-	if err != nil {
-		zap.S().Error(err)
-		return
-	}
+	//bts, err := handshake.MarshalBinary()
+	//if err != nil {
+	//	zap.S().Error(err)
+	//	return
+	//}
 
 	conn, err := net.Dial("tcp", Cli.Address)
 	if err != nil {
@@ -79,7 +79,9 @@ func main() {
 
 	defer conn.Close()
 
-	_, err = conn.Write(bts)
+	_, err = handshake.WriteTo(conn)
+
+	//_, err = conn.Write(bts)
 	if err != nil {
 		zap.S().Error(err)
 		return
@@ -99,7 +101,7 @@ func main() {
 		expectedContentID := byte(0x15)
 
 		for {
-			bts, err = readPacket(conn)
+			bts, err := readPacket(conn)
 			if err != nil {
 				zap.S().Error(err)
 				return
@@ -120,14 +122,14 @@ func main() {
 		Blocks: []crypto.Signature{sig},
 	}
 
-	bts, err = sigs.MarshalBinary()
-	if err != nil {
-		zap.S().Error(err)
-		return
-	}
+	//bts, err = sigs.MarshalBinary()
+	//if err != nil {
+	//	zap.S().Error(err)
+	//	return
+	//}
 
 	zap.S().Info("writing GetSignaturesMessage bytes")
-	_, err = conn.Write(bts)
+	_, err = sigs.WriteTo(conn)
 	if err != nil {
 		zap.S().Error(err)
 		return

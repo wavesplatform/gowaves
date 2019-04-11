@@ -17,7 +17,7 @@ type OutgoingPeerParams struct {
 	WavesNetwork string
 	Parent       Parent
 	Pool         bytespool.Pool
-	DeclAddr     proto.PeerInfo
+	DeclAddr     proto.PeerInfoInfoMessage
 	Skip         conn.SkipFilter
 }
 
@@ -104,12 +104,12 @@ func (a *OutgoingPeer) connect(ctx context.Context, wavesNetwork string, remote 
 		}
 
 		handshake := proto.Handshake{
-			AppName:           wavesNetwork,
-			Version:           proto.Version{Major: 0, Minor: possibleVersions[index%len(possibleVersions)], Patch: 0},
-			NodeName:          "retransmitter",
-			NodeNonce:         0x0,
-			DeclaredAddrBytes: bytes,
-			Timestamp:         proto.NewTimestampFromTime(time.Now()),
+			AppName:      wavesNetwork,
+			Version:      proto.Version{Major: 0, Minor: possibleVersions[index%len(possibleVersions)], Patch: 0},
+			NodeName:     "retransmitter",
+			NodeNonce:    0x0,
+			DeclaredAddr: bytes,
+			Timestamp:    proto.NewTimestampFromTime(time.Now()),
 		}
 
 		_, err = handshake.WriteTo(c)

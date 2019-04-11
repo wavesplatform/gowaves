@@ -3,28 +3,28 @@ package node
 import (
 	"github.com/go-errors/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
-	"github.com/wavesplatform/gowaves/pkg/network/peer"
+	//"github.com/wavesplatform/gowaves/pkg/network/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"sync"
 )
 
 type blockBytes []byte
 
-type OptimisticBlockLoader struct {
-	s *Subscribe
-}
-
-func NewOptimisticBlockLoader(s *Subscribe) *OptimisticBlockLoader {
-	return &OptimisticBlockLoader{
-		s: s,
-	}
-}
-
-func (a *OptimisticBlockLoader) Load(p peer.Peer, blockSignatures *BlockSignatures) chan blockBytes {
-
-	//ch, cancel := a.s.Subscribe(p, &proto.BlockMessage{})
-	panic("implement me")
-}
+//type OptimisticBlockLoader struct {
+//	s *Subscribe
+//}
+//
+//func NewOptimisticBlockLoader(s *Subscribe) *OptimisticBlockLoader {
+//	return &OptimisticBlockLoader{
+//		s: s,
+//	}
+//}
+//
+//func (a *OptimisticBlockLoader) Load(p peer.Peer, blockSignatures *Signatures) chan blockBytes {
+//
+//	//ch, cancel := a.s.Subscribe(p, &proto.BlockMessage{})
+//	panic("implement me")
+//}
 
 type expectedBlocks struct {
 	curPosition     int

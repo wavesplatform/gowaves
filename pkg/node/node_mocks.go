@@ -14,7 +14,7 @@ type mockPeer struct {
 	messages []proto.Message
 }
 
-func (a *mockPeer) RemoteAddr() proto.NodeAddr {
+func (a *mockPeer) RemoteAddr() proto.TCPAddr {
 	panic("implement me")
 }
 
@@ -22,7 +22,7 @@ func (*mockPeer) Direction() peer.Direction {
 	panic("implement me")
 }
 
-func (*mockPeer) Close() {
+func (*mockPeer) Close() error {
 	panic("implement me")
 }
 
@@ -160,7 +160,7 @@ func (*mockPeerManager) SpawnOutgoingConnections(ctx context.Context) {
 	panic("implement me")
 }
 
-func (*mockPeerManager) UpdateKnownPeers([]proto.NodeAddr) error {
+func (*mockPeerManager) UpdateKnownPeers([]proto.TCPAddr) error {
 	panic("implement me")
 }
 
@@ -188,6 +188,6 @@ func (a *mockPeerManager) Connected(id string) (peer.Peer, bool) {
 	return p, ok
 }
 
-func (a *mockPeerManager) KnownPeers() ([]proto.NodeAddr, error) {
+func (a *mockPeerManager) KnownPeers() ([]proto.TCPAddr, error) {
 	panic("implement me")
 }

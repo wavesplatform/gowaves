@@ -39,7 +39,7 @@ type Remote struct {
 
 func NewRemote() Remote {
 	return Remote{
-		ToCh:   make(chan []byte, 10),
+		ToCh:   make(chan []byte, 150),
 		FromCh: make(chan []byte, 150),
 		ErrCh:  make(chan error, 10),
 	}
@@ -59,10 +59,10 @@ func NewParent() Parent {
 
 type Peer interface {
 	Direction() Direction
-	Close()
+	Close() error
 	SendMessage(proto.Message)
 	ID() string
 	Connection() conn.Connection
 	Handshake() proto.Handshake
-	RemoteAddr() proto.NodeAddr
+	RemoteAddr() proto.TCPAddr
 }

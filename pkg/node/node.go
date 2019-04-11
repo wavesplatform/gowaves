@@ -7,6 +7,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/node/peers"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/state"
+	"github.com/wavesplatform/gowaves/pkg/util"
 	"go.uber.org/zap"
 	"math/big"
 	"net"
@@ -26,15 +27,17 @@ type Node struct {
 	stateManager state.State
 	subscribe    *Subscribe
 	sync         *StateSync
+	declAddr     proto.TCPAddr
 }
 
-func NewNode(stateManager state.State, peerManager PeerManager) *Node {
+func NewNode(stateManager state.State, peerManager PeerManager, declAddr proto.TCPAddr) *Node {
 	s := NewSubscribeService()
 	return &Node{
 		stateManager: stateManager,
 		peerManager:  peerManager,
 		subscribe:    s,
 		sync:         NewStateSync(stateManager, peerManager, s),
+		declAddr:     declAddr,
 	}
 }
 
@@ -47,15 +50,17 @@ func (a *Node) HandleProtoMessage(mess peer.ProtoMessage) {
 		a.handlePeersMessage(mess.ID, t)
 	case *proto.GetPeersMessage:
 		a.handleGetPeersMessage(mess.ID, t)
-	case *proto.GetBlockMessage:
-		a.handleBlockBySignatureMessage(mess.ID, t.BlockID)
 	case *proto.ScoreMessage:
 		a.handleScoreMessage(mess.ID, t.Score)
 	case *proto.BlockMessage:
 		a.handleBlockMessage(mess.ID, t)
+	case *proto.GetBlockMessage:
+		a.handleBlockBySignatureMessage(mess.ID, t.BlockID)
 	case *proto.SignaturesMessage:
 		//a.handleSignaturesMessage()
 		a.subscribe.Receive(mess.ID, t)
+	case *proto.GetSignaturesMessage:
+		a.handleGetSignaturesMessage(mess.ID, t)
 	case *proto.TransactionMessage:
 	// nothing to do with transactions
 	// no utx pool exists
@@ -68,10 +73,9 @@ func (a *Node) HandleProtoMessage(mess peer.ProtoMessage) {
 }
 
 func (a *Node) handlePeersMessage(id string, peers *proto.PeersMessage) {
-
-	var prs []proto.NodeAddr
+	var prs []proto.TCPAddr
 	for _, p := range peers.Peers {
-		prs = append(prs, proto.NewNodeAddr(p.Addr, p.Port))
+		prs = append(prs, proto.NewTCPAddr(p.Addr, int(p.Port)))
 	}
 
 	err := a.peerManager.UpdateKnownPeers(prs)
@@ -96,7 +100,7 @@ func (a *Node) handleGetPeersMessage(id string, m *proto.GetPeersMessage) {
 	for _, r := range rs {
 		out = append(out, proto.PeerInfo{
 			Addr: net.IP(r.IP[:]),
-			Port: r.Port,
+			Port: uint16(r.Port),
 		})
 	}
 
@@ -107,7 +111,18 @@ func (a *Node) HandleInfoMessage(m peer.InfoMessage) {
 	switch t := m.Value.(type) {
 	case *peers.Connected:
 		a.handleNewConnection(t.Peer)
+	case error:
+		a.handlePeerError(m.ID, t)
 	}
+}
+
+func (a *Node) AskPeers() {
+	a.peerManager.AskPeers()
+}
+
+func (a *Node) handlePeerError(id string, err error) {
+	zap.S().Debug(err)
+	a.peerManager.Disconnect(id)
 }
 
 // TODO implement
@@ -130,6 +145,19 @@ func (a *Node) handleNewConnection(peer peer.Peer) {
 	}
 
 	a.peerManager.AddConnected(peer)
+
+	// send score to new connected
+	go func() {
+		score, err := a.stateManager.CurrentScore()
+		if err != nil {
+			zap.S().Error(err)
+			return
+		}
+
+		peer.SendMessage(&proto.ScoreMessage{
+			Score: score.Bytes(),
+		})
+	}()
 }
 
 func (a *Node) handleBlockBySignatureMessage(peer string, sig crypto.Signature) {
@@ -174,25 +202,56 @@ func (a *Node) handleScoreMessage(peerID string, score []byte) {
 }
 
 func (a *Node) handleBlockMessage(peerID string, mess proto.Message) {
-	// nothing to do
-	// TODO check is any work required
-
-	//block := proto.Block{}
-	//err := block.UnmarshalBinary(mess.(*proto.BlockMessage).BlockBytes)
-	//if err != nil {
-	//	zap.S().Error(err)
-	//}
-	//
-	//rs, _ := proto.BlockGetSignature(mess.(*proto.BlockMessage).BlockBytes)
-	////zap.S().Infof("%+v", block)
-	//zap.S().Infof("proto.BlockGetSignature %+v", rs)
-
+	defer util.TimeTrack(time.Now(), "handleBlockMessage")
 	a.subscribe.Receive(peerID, mess)
+}
 
+func (a *Node) handleGetSignaturesMessage(peerID string, mess *proto.GetSignaturesMessage) {
+	defer util.TimeTrack(time.Now(), "handleGetSignaturesMessage")
+	p, ok := a.peerManager.Connected(peerID)
+	if !ok {
+		return
+	}
+
+	for _, sig := range mess.Blocks {
+
+		block, err := a.stateManager.Block(sig)
+		if err != nil {
+			continue
+		}
+
+		if block.BlockSignature != sig {
+			panic("signature error")
+		}
+
+		sendSignatures(block, a.stateManager, p)
+		return
+	}
 }
 
 func (a *Node) SpawnOutgoingConnections(ctx context.Context) {
 	a.peerManager.SpawnOutgoingConnections(ctx)
+}
+
+func (a *Node) Serve(ctx context.Context) error {
+	if a.declAddr.Empty() {
+		return nil
+	}
+
+	l, err := net.Listen("tcp", a.declAddr.String())
+	if err != nil {
+		return err
+	}
+
+	for {
+		conn, err := l.Accept()
+		if err != nil {
+			zap.S().Error(err)
+			continue
+		}
+
+		go a.peerManager.SpawnIncomingConnection(ctx, conn)
+	}
 }
 
 func RunNode(ctx context.Context, n *Node, p peer.Parent) {
@@ -210,14 +269,33 @@ func RunNode(ctx context.Context, n *Node, p peer.Parent) {
 		}
 	}()
 
+	go func() {
+		<-time.After(10 * time.Second)
+		n.AskPeers()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(4 * time.Minute):
+				n.AskPeers()
+			}
+		}
+	}()
+
 	// info messages
 	go func() {
-		select {
-		case <-ctx.Done():
-			return
-		case m := <-p.InfoCh:
-			n.HandleInfoMessage(m)
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case m := <-p.InfoCh:
+				n.HandleInfoMessage(m)
+			}
 		}
+	}()
+
+	go func() {
+		n.Serve(ctx)
 	}()
 
 	for {
@@ -231,28 +309,28 @@ func RunNode(ctx context.Context, n *Node, p peer.Parent) {
 
 }
 
-type BlockSignatures struct {
+type Signatures struct {
 	signatures []crypto.Signature
 	unique     map[crypto.Signature]struct{}
 }
 
-func (a *BlockSignatures) Signatures() []crypto.Signature {
+func (a *Signatures) Signatures() []crypto.Signature {
 	return a.signatures
 }
 
-func NewBlockSignatures(signatures []crypto.Signature) *BlockSignatures {
+func NewSignatures(signatures []crypto.Signature) *Signatures {
 	unique := make(map[crypto.Signature]struct{})
 	for _, v := range signatures {
 		unique[v] = struct{}{}
 	}
 
-	return &BlockSignatures{
+	return &Signatures{
 		signatures: signatures,
 		unique:     unique,
 	}
 }
 
-func (a *BlockSignatures) Exists(sig crypto.Signature) bool {
+func (a *Signatures) Exists(sig crypto.Signature) bool {
 	_, ok := a.unique[sig]
 	return ok
 }

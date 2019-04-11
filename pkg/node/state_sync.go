@@ -1,12 +1,16 @@
 package node
 
 import (
+	"context"
+	"fmt"
 	"github.com/go-errors/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	. "github.com/wavesplatform/gowaves/pkg/network/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/state"
+	"github.com/wavesplatform/gowaves/pkg/util/cancellable"
 	"go.uber.org/zap"
+	"math/big"
 	"time"
 )
 
@@ -35,13 +39,13 @@ func (a *StateSync) Sync() error {
 		return err
 	}
 
+	messCh, unsubscribe := a.subscribe.Subscribe(p, &proto.SignaturesMessage{})
+	defer unsubscribe()
+
 	sigs, err := a.askSignatures(p)
 	if err != nil {
 		return err
 	}
-
-	messCh, unsubscribe := a.subscribe.Subscribe(p, &proto.SignaturesMessage{})
-	defer unsubscribe()
 
 	select {
 	case <-a.interrupt:
@@ -51,15 +55,16 @@ func (a *StateSync) Sync() error {
 		zap.S().Info("timeout waiting &proto.SignaturesMessage{}")
 		return TimeoutErr
 	case received := <-messCh:
+
 		zap.S().Info("received signatures", received)
 		mess := received.(*proto.SignaturesMessage)
-		applyBlock2(mess, sigs, p, a.subscribe, a.stateManager)
+		applyBlock2(mess, sigs, p, a.subscribe, a.stateManager, a.peerManager)
 	}
 
 	return nil
 }
 
-func (a *StateSync) askSignatures(p Peer) (*BlockSignatures, error) {
+func (a *StateSync) askSignatures(p Peer) (*Signatures, error) {
 	sigs, err := a.lastSignatures()
 	if err != nil {
 		zap.S().Error(err)
@@ -93,7 +98,7 @@ func (a *StateSync) getPeerWithHighestScore() (Peer, error) {
 	return p, nil
 }
 
-func (a *StateSync) lastSignatures() (*BlockSignatures, error) {
+func (a *StateSync) lastSignatures() (*Signatures, error) {
 	var signatures []crypto.Signature
 
 	// getting signatures
@@ -118,54 +123,14 @@ func (a *StateSync) lastSignatures() (*BlockSignatures, error) {
 		signatures = append(signatures, sig)
 		height -= 1
 	}
-	return NewBlockSignatures(signatures), nil
+	return NewSignatures(signatures), nil
 }
 
 func (a *StateSync) Close() {
 	close(a.interrupt)
 }
 
-func applyBlock(mess *proto.SignaturesMessage, blockSignatures *BlockSignatures, p Peer, subscribe *Subscribe, stateManager state.State) {
-	subscribeCh, unsubscribe := subscribe.Subscribe(p, &proto.BlockMessage{})
-	defer unsubscribe()
-	for _, sig := range mess.Signatures {
-		if !blockSignatures.Exists(sig) {
-			p.SendMessage(&proto.GetBlockMessage{BlockID: sig})
-
-			// wait for block with expected signature
-			timeout := time.After(30 * time.Second)
-			for {
-				select {
-				case <-timeout:
-					// TODO HANDLE timeout
-					zap.S().Error("timeout getting block", sig)
-					return
-
-				case blockMessage := <-subscribeCh:
-					bts := blockMessage.(*proto.BlockMessage).BlockBytes
-					blockSignature, err := proto.BlockGetSignature(bts)
-					if err != nil {
-						zap.S().Error(err)
-						continue
-					}
-
-					if blockSignature != sig {
-						continue
-					}
-
-					err = stateManager.AddBlock(bts)
-					if err != nil {
-						zap.S().Error(err)
-						// TODO handle error
-					}
-					break
-				}
-			}
-		}
-	}
-}
-
-func applyBlock2(receivedSignatures *proto.SignaturesMessage, blockSignatures *BlockSignatures, p Peer, subscribe *Subscribe, stateManager state.State) {
+func applyBlock2(receivedSignatures *proto.SignaturesMessage, blockSignatures *Signatures, p Peer, subscribe *Subscribe, stateManager state.State, peerManager PeerManager) {
 
 	var sigs []crypto.Signature
 	for _, sig := range receivedSignatures.Signatures {
@@ -205,30 +170,39 @@ func applyBlock2(receivedSignatures *proto.SignaturesMessage, blockSignatures *B
 
 		timeout := time.After(30 * time.Second)
 
+		// ask block again after 5 second
+		cancel := cancellable.After(5*time.Second, func(c context.Context) {
+			p.SendMessage(&proto.GetBlockMessage{BlockID: sigs[i]})
+		})
+
+		zap.S().Info("waiting for sig  ", sigs[i])
+
 		select {
 		case <-timeout:
 			// TODO HANDLE timeout
 			zap.S().Error("timeout getting block", sigs[i])
+			cancel()
 			return
 
 		case bts := <-ch:
-			//bts := blockMessage.(*proto.BlockMessage).BlockBytes
-			//blockSignature, err := proto.BlockGetSignature(bts)
-			//if err != nil {
-			//	zap.S().Error(err)
-			//	continue
-			//}
-
-			//if blockSignature != sig {
-			//	continue
-			//}
-
+			cancel()
 			err := stateManager.AddBlock(bts)
 			if err != nil {
+
+				fmt.Println(bts)
+
 				zap.S().Error(err)
-				// TODO handle error
+				continue
 			}
-			break
+
+			cur, err := stateManager.CurrentScore()
+			if err == nil {
+				peerManager.EachConnected(func(peer Peer, i *big.Int) {
+					peer.SendMessage(&proto.ScoreMessage{
+						Score: cur.Bytes(),
+					})
+				})
+			}
 		}
 	}
 

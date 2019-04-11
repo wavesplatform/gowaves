@@ -36,8 +36,8 @@ func (a *PeerImpl) Direction() peer.Direction {
 	return a.direction
 }
 
-func (a *PeerImpl) Close() {
-	a.conn.Close()
+func (a *PeerImpl) Close() error {
+	return a.conn.Close()
 }
 
 func (a *PeerImpl) SendMessage(m proto.Message) {
@@ -70,7 +70,7 @@ func id(addr string, nonce uint64) string {
 	return fmt.Sprintf("%s-%d", a, nonce)
 }
 
-func (a *PeerImpl) RemoteAddr() proto.NodeAddr {
+func (a *PeerImpl) RemoteAddr() proto.TCPAddr {
 	addr := a.Connection().Conn().RemoteAddr().(*net.TCPAddr)
-	return proto.NodeAddrFromTCPAddr(addr)
+	return proto.TCPAddr(*addr)
 }

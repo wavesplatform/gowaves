@@ -13,11 +13,11 @@ import (
 )
 
 type EstablishParams struct {
-	Address      proto.NodeAddr
+	Address      proto.TCPAddr
 	WavesNetwork string
 	Parent       peer.Parent
 	Pool         bytespool.Pool
-	DeclAddr     proto.PeerInfo
+	DeclAddr     proto.TCPAddr
 	Skip         conn.SkipFilter
 	NodeName     string
 	NodeNonce    uint64
@@ -73,22 +73,16 @@ type connector struct {
 }
 
 func (a *connector) connect(ctx context.Context, c net.Conn, v proto.Version) (conn.Connection, *proto.Handshake, error) {
-	bytes, err := a.params.DeclAddr.MarshalBinary()
-	if err != nil {
-		zap.S().Error(err)
-		return nil, nil, err
-	}
-
 	handshake := proto.Handshake{
-		AppName:           a.params.WavesNetwork,
-		Version:           v,
-		NodeName:          a.params.NodeName,
-		NodeNonce:         a.params.NodeNonce,
-		DeclaredAddrBytes: bytes,
-		Timestamp:         proto.NewTimestampFromTime(time.Now()),
+		AppName:      a.params.WavesNetwork,
+		Version:      v,
+		NodeName:     a.params.NodeName,
+		NodeNonce:    a.params.NodeNonce,
+		DeclaredAddr: proto.HandshakeTCPAddr(a.params.DeclAddr),
+		Timestamp:    proto.NewTimestampFromTime(time.Now()),
 	}
 
-	_, err = handshake.WriteTo(c)
+	_, err := handshake.WriteTo(c)
 	if err != nil {
 		zap.S().Error("failed to send handshake: ", err, a.params.Address)
 		return nil, nil, err
