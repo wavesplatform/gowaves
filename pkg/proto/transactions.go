@@ -62,6 +62,7 @@ var (
 		SetScriptTransaction:      reflect.TypeOf(SetScriptV1{}),
 		SponsorshipTransaction:    reflect.TypeOf(SponsorshipV1{}),
 		SetAssetScriptTransaction: reflect.TypeOf(SetAssetScriptV1{}),
+		InvokeScriptTransaction:   reflect.TypeOf(InvokeScriptV1{}),
 	}
 
 	bytesToTransactionsV1 = map[TransactionType]reflect.Type{
