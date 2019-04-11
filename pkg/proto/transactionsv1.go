@@ -37,7 +37,7 @@ const (
 	sponsorshipV1MinLen          = 1 + 1 + 1 + sponsorshipV1BodyLen + proofsMinLen
 	setAssetScriptV1FixedBodyLen = 1 + 1 + 1 + crypto.PublicKeySize + crypto.DigestSize + 8 + 8 + 1
 	setAssetScriptV1MinLen       = 1 + setScriptV1FixedBodyLen + proofsMinLen
-	invokeScriptV1FixedBodyLen   = 1 + 1 + 1 + crypto.PublicKeySize + 8 + 8
+	invokeScriptV1FixedBodyLen   = 1 + 1 + 1 + crypto.PublicKeySize + AddressSize + 8 + 8
 	invokeScriptV1MinLen         = 1 + invokeScriptV1FixedBodyLen + proofsMinLen
 )
 
@@ -2182,7 +2182,7 @@ type InvokeScriptV1 struct {
 	Proofs        *ProofsV1        `json:"proofs,omitempty"`
 	ChainID       byte             `json:"-"`
 	SenderPK      crypto.PublicKey `json:"senderPublicKey"`
-	ScriptAddress Recipient        `json:"dappAddress"`
+	ScriptAddress Address          `json:"dappAddress"`
 	FunctionCall  FunctionCall     `json:"call"`
 	Payments      ScriptPayments   `json:"payment"`
 	FeeAsset      OptionalAsset    `json:"feeAssetId"`
@@ -2195,11 +2195,11 @@ func (tx InvokeScriptV1) GetID() []byte {
 }
 
 //NewUnsignedSetAssetScriptV1 creates new unsigned SetAssetScriptV1 transaction.
-func NewUnsignedInvokeScriptV1(chain byte, senderPK crypto.PublicKey, scriptAddress Recipient, call FunctionCall, payments ScriptPayments, feeAsset OptionalAsset, fee, timestamp uint64) (*InvokeScriptV1, error) {
+func NewUnsignedInvokeScriptV1(chain byte, senderPK crypto.PublicKey, scriptAddress Address, call FunctionCall, payments ScriptPayments, feeAsset OptionalAsset, fee, timestamp uint64) (*InvokeScriptV1, error) {
 	if fee <= 0 {
 		return nil, errors.New("fee should be positive")
 	}
-	if len(payments.payments) > 1 {
+	if len(payments) > 1 {
 		return nil, errors.New("no more than one payment is allowed")
 	}
 	return &InvokeScriptV1{
@@ -2217,24 +2217,8 @@ func NewUnsignedInvokeScriptV1(chain byte, senderPK crypto.PublicKey, scriptAddr
 }
 
 func (tx *InvokeScriptV1) bodyMarshalBinary() ([]byte, error) {
-	var p int
-	fcb, err := tx.FunctionCall.MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
-	psb, err := tx.Payments.MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
-	sab, err := tx.ScriptAddress.MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
-	fab, err := tx.FeeAsset.MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
-	buf := make([]byte, invokeScriptV1FixedBodyLen+len(fcb)+len(psb)+len(sab)+len(fab))
+	p := 0
+	buf := make([]byte, invokeScriptV1FixedBodyLen+tx.FunctionCall.binarySize()+tx.Payments.binarySize()+tx.FeeAsset.binarySize())
 	buf[p] = byte(tx.Type)
 	p++
 	buf[p] = tx.Version
@@ -2243,14 +2227,26 @@ func (tx *InvokeScriptV1) bodyMarshalBinary() ([]byte, error) {
 	p++
 	copy(buf[p:], tx.SenderPK[:])
 	p += crypto.PublicKeySize
-	copy(buf[p:], sab)
-	p += len(sab)
+	copy(buf[p:], tx.ScriptAddress[:])
+	p += AddressSize
+	fcb, err := tx.FunctionCall.MarshalBinary()
+	if err != nil {
+		return nil, err
+	}
 	copy(buf[p:], fcb)
 	p += len(fcb)
+	psb, err := tx.Payments.MarshalBinary()
+	if err != nil {
+		return nil, err
+	}
 	copy(buf[p:], psb)
 	p += len(psb)
 	binary.BigEndian.PutUint64(buf[p:], tx.Fee)
 	p += 8
+	fab, err := tx.FeeAsset.MarshalBinary()
+	if err != nil {
+		return nil, err
+	}
 	copy(buf[p:], fab)
 	p += len(fab)
 	binary.BigEndian.PutUint64(buf[p:], tx.Timestamp)
@@ -2273,27 +2269,24 @@ func (tx *InvokeScriptV1) bodyUnmarshalBinary(data []byte) error {
 	data = data[3:]
 	copy(tx.SenderPK[:], data[:crypto.PublicKeySize])
 	data = data[crypto.PublicKeySize:]
-	var scriptAddress Recipient
-	err := scriptAddress.UnmarshalBinary(data)
-	if err != nil {
-		return err
-	}
+	scriptAddress :=  Address{}
+	copy(scriptAddress[:], data[:AddressSize])
 	tx.ScriptAddress = scriptAddress
-	data = data[scriptAddress.len:]
-	var functionCall FunctionCall
-	err = functionCall.UnmarshalBinary(data)
+	data = data[AddressSize:]
+	functionCall := FunctionCall{}
+	err := functionCall.UnmarshalBinary(data)
 	if err != nil {
 		return err
 	}
 	tx.FunctionCall = functionCall
-	data = data[functionCall.len:]
+	data = data[functionCall.binarySize():]
 	payments := ScriptPayments{}
 	err = payments.UnmarshalBinary(data)
 	if err != nil {
 		return err
 	}
 	tx.Payments = payments
-	data = data[payments.len:]
+	data = data[payments.binarySize():]
 	tx.Fee = binary.BigEndian.Uint64(data)
 	data = data[8:]
 	var asset OptionalAsset
@@ -2302,6 +2295,7 @@ func (tx *InvokeScriptV1) bodyUnmarshalBinary(data []byte) error {
 		return err
 	}
 	tx.FeeAsset = asset
+	data = data[asset.binarySize():]
 	tx.Timestamp = binary.BigEndian.Uint64(data)
 	return nil
 }
@@ -2369,11 +2363,7 @@ func (tx *InvokeScriptV1) UnmarshalBinary(data []byte) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to unmarshal InvokeScriptV1 transaction from bytes")
 	}
-	fal := 0
-	if tx.FeeAsset.Present {
-		fal += crypto.DigestSize
-	}
-	bl := invokeScriptV1FixedBodyLen + tx.ScriptAddress.len + tx.FunctionCall.len + tx.Payments.len + fal
+	bl := invokeScriptV1FixedBodyLen + tx.FunctionCall.binarySize() + tx.Payments.binarySize() + tx.FeeAsset.binarySize()
 	bb := data[:bl]
 	data = data[bl:]
 	var p ProofsV1

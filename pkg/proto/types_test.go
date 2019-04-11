@@ -420,11 +420,12 @@ func TestBinaryDataEntryBinaryRoundTrip(t *testing.T) {
 		value string
 	}{
 		{"some key", "3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc"},
-		{"empty value", ""},
-		{"", ""},
+		{"empty value", "1"},
+		{"", "1"},
 	}
 	for _, tc := range tests {
-		bv, _ := base58.Decode(tc.value)
+		bv, err := base58.Decode(tc.value)
+		require.NoError(t, err)
 		v := BinaryDataEntry{tc.key, bv}
 		if b, err := v.MarshalBinary(); assert.NoError(t, err) {
 			var av BinaryDataEntry
@@ -444,11 +445,12 @@ func TestBinaryDataEntryJSONRoundTrip(t *testing.T) {
 		value string
 	}{
 		{"some key", "3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc"},
-		{"empty value", ""},
-		{"", ""},
+		{"empty value", "1"},
+		{"", "1"},
 	}
 	for _, tc := range tests {
-		bv, _ := base58.Decode(tc.value)
+		bv, err := base58.Decode(tc.value)
+		require.NoError(t, err)
 		v := BinaryDataEntry{tc.key, bv}
 		if b, err := v.MarshalJSON(); assert.NoError(t, err) {
 			js := string(b)
@@ -539,7 +541,7 @@ func TestDataEntriesUnmarshalJSON(t *testing.T) {
 		},
 	}
 	for _, tc := range tests {
-		var entries DataEntries
+		entries := DataEntries{}
 		if err := entries.UnmarshalJSON([]byte(tc.json)); assert.NoError(t, err) {
 			if b, err := json.Marshal(entries); assert.NoError(t, err) {
 				assert.Equal(t, tc.json, string(b))
@@ -635,6 +637,364 @@ func TestProofsV1UnmarshalJSON(t *testing.T) {
 			assert.Equal(t, 1, int(p.Version))
 			assert.Equal(t, len(tc.expected), len(p.Proofs))
 			assert.ElementsMatch(t, tc.expected, p.Proofs)
+		}
+	}
+}
+
+func TestIntegerArgumentBinarySize(t *testing.T) {
+	tests := []int64{12345, -9876543210, 1234567890, 0}
+	for _, tc := range tests {
+		v := IntegerArgument{tc}
+		assert.Equal(t, 9, v.binarySize())
+	}
+}
+
+func TestBooleanArgumentBinarySize(t *testing.T) {
+	tests := []bool{true, false}
+	for _, tc := range tests {
+		v := BooleanArgument{tc}
+		assert.Equal(t, 2, v.binarySize())
+	}
+}
+
+func TestBinaryArgumentBinarySize(t *testing.T) {
+	tests := []string{"3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc", "", "111111111111111"}
+	for _, tc := range tests {
+		bv, _ := base58.Decode(tc)
+		v := BinaryArgument{bv}
+		assert.Equal(t, 1+4+len(bv), v.binarySize())
+	}
+}
+
+func TestStringArgumentBinarySize(t *testing.T) {
+	tests := []string{"some value string", "", strings.Repeat("value-", 100)}
+	for _, tc := range tests {
+		v := StringArgument{tc}
+		assert.Equal(t, 1+4+len(tc), v.binarySize())
+	}
+
+}
+
+func TestIntegerArgumentBinaryRoundTrip(t *testing.T) {
+	tests := []int64{12345, -9876543210, 1234567890, 0}
+	for _, tc := range tests {
+		v := IntegerArgument{tc}
+		if b, err := v.MarshalBinary(); assert.NoError(t, err) {
+			var av IntegerArgument
+			if err := av.UnmarshalBinary(b); assert.NoError(t, err) {
+				assert.Equal(t, tc, av.Value)
+				assert.Equal(t, Integer, av.GetValueType())
+			}
+		}
+	}
+}
+
+func TestIntegerArgumentJSONRoundTrip(t *testing.T) {
+	tests := []int64{12345, -9876543210, 1234567890, 0}
+	for _, tc := range tests {
+		v := IntegerArgument{tc}
+		if b, err := v.MarshalJSON(); assert.NoError(t, err) {
+			js := string(b)
+			ejs := fmt.Sprintf("{\"type\":\"integer\",\"value\":%d}", tc)
+			assert.Equal(t, ejs, js)
+			var av IntegerArgument
+			if err := av.UnmarshalJSON(b); assert.NoError(t, err) {
+				assert.Equal(t, tc, av.Value)
+				assert.Equal(t, Integer, av.GetValueType())
+			}
+		}
+	}
+}
+
+func TestBooleanArgumentBinaryRoundTrip(t *testing.T) {
+	tests := []bool{true, false}
+	for _, tc := range tests {
+		v := BooleanArgument{tc}
+		if b, err := v.MarshalBinary(); assert.NoError(t, err) {
+			var av BooleanArgument
+			if err := av.UnmarshalBinary(b); assert.NoError(t, err) {
+				assert.Equal(t, tc, av.Value)
+				assert.Equal(t, Boolean, av.GetValueType())
+			}
+		}
+	}
+}
+
+func TestBooleanArgumentJSONRoundTrip(t *testing.T) {
+	tests := []bool{true, false}
+	for _, tc := range tests {
+		v := BooleanArgument{tc}
+		if b, err := v.MarshalJSON(); assert.NoError(t, err) {
+			js := string(b)
+			ejs := fmt.Sprintf("{\"type\":\"boolean\",\"value\":%v}", tc)
+			assert.Equal(t, ejs, js)
+			var av BooleanArgument
+			if err := av.UnmarshalJSON(b); assert.NoError(t, err) {
+				assert.Equal(t, tc, av.Value)
+				assert.Equal(t, Boolean, av.GetValueType())
+			}
+		}
+	}
+}
+
+func TestBinaryArgumentBinaryRoundTrip(t *testing.T) {
+	tests := []string{"3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc", "", "111111111111111"}
+	for _, tc := range tests {
+		bv, _ := base58.Decode(tc)
+		v := BinaryArgument{bv}
+		if b, err := v.MarshalBinary(); assert.NoError(t, err) {
+			var av BinaryArgument
+			if err := av.UnmarshalBinary(b); assert.NoError(t, err) {
+				assert.ElementsMatch(t, bv, av.Value)
+				assert.Equal(t, Binary, av.GetValueType())
+			}
+		}
+	}
+}
+
+func TestBinaryArgumentJSONRoundTrip(t *testing.T) {
+	tests := []string{"3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc", "1", "111111111111111"}
+	for _, tc := range tests {
+		bv, err := base58.Decode(tc)
+		require.NoError(t, err)
+		v := BinaryArgument{bv}
+		if b, err := v.MarshalJSON(); assert.NoError(t, err) {
+			js := string(b)
+			s := fmt.Sprintf("\"base64:%s\"", base64.StdEncoding.EncodeToString(bv))
+			ejs := fmt.Sprintf("{\"type\":\"binary\",\"value\":%s}", s)
+			assert.Equal(t, ejs, js)
+			var av BinaryArgument
+			if err := av.UnmarshalJSON(b); assert.NoError(t, err) {
+				assert.ElementsMatch(t, bv, av.Value)
+				assert.Equal(t, Binary, av.GetValueType())
+			}
+		}
+	}
+}
+
+func TestStringArgumentBinaryRoundTrip(t *testing.T) {
+	tests := []string{"some value string", "", strings.Repeat("value-", 100)}
+	for _, tc := range tests {
+		v := StringArgument{tc}
+		if b, err := v.MarshalBinary(); assert.NoError(t, err) {
+			var av StringArgument
+			if err := av.UnmarshalBinary(b); assert.NoError(t, err) {
+				assert.Equal(t, tc, av.Value)
+				assert.Equal(t, String, av.GetValueType())
+			}
+		}
+	}
+}
+
+func TestStringArgumentJSONRoundTrip(t *testing.T) {
+	tests := []string{"some value string", "", strings.Repeat("value-", 100)}
+	for _, tc := range tests {
+		v := StringArgument{tc}
+		if b, err := v.MarshalJSON(); assert.NoError(t, err) {
+			js := string(b)
+			ejs := fmt.Sprintf("{\"type\":\"string\",\"value\":\"%s\"}", tc)
+			assert.Equal(t, ejs, js)
+			var av StringArgument
+			if err := av.UnmarshalJSON(b); assert.NoError(t, err) {
+				assert.Equal(t, tc, av.Value)
+				assert.Equal(t, String, av.GetValueType())
+			}
+		}
+	}
+}
+
+func TestArgumentsJSONRoundTrip(t *testing.T) {
+	tests := []struct {
+		js   string
+		args Arguments
+	}{
+		{"[{\"type\":\"integer\",\"value\":12345}]",
+			Arguments{&IntegerArgument{Value: 12345}},
+		},
+		{"[{\"type\":\"integer\",\"value\":12345},{\"type\":\"boolean\",\"value\":true}]",
+			Arguments{&IntegerArgument{Value: 12345}, &BooleanArgument{Value: true}},
+		},
+		{"[{\"type\":\"integer\",\"value\":12345},{\"type\":\"boolean\",\"value\":true},{\"type\":\"binary\",\"value\":\"base64:JH9xFB0dBYAX9BohYq06cMrtwta9mEoaj0aSVpLApyc=\"}]",
+			Arguments{&IntegerArgument{Value: 12345}, &BooleanArgument{Value: true}, &BinaryArgument{Value: B58Bytes{0x24, 0x7f, 0x71, 0x14, 0x1d, 0x1d, 0x05, 0x80, 0x17, 0xf4, 0x1a, 0x21, 0x62, 0xad, 0x3a, 0x70, 0xca, 0xed, 0xc2, 0xd6, 0xbd, 0x98, 0x4a, 0x1a, 0x8f, 0x46, 0x92, 0x56, 0x92, 0xc0, 0xa7, 0x27}}},
+		},
+		{"[{\"type\":\"string\",\"value\":\"blah-blah\"}]",
+			Arguments{&StringArgument{Value: "blah-blah"}},
+		},
+		{"[{\"type\":\"integer\",\"value\":12345},{\"type\":\"boolean\",\"value\":true},{\"type\":\"binary\",\"value\":\"base64:JH9xFB0dBYAX9BohYq06cMrtwta9mEoaj0aSVpLApyc=\"},{\"type\":\"string\",\"value\":\"blah-blah\"}]",
+			Arguments{&IntegerArgument{Value: 12345}, &BooleanArgument{Value: true}, &BinaryArgument{Value: B58Bytes{0x24, 0x7f, 0x71, 0x14, 0x1d, 0x1d, 0x05, 0x80, 0x17, 0xf4, 0x1a, 0x21, 0x62, 0xad, 0x3a, 0x70, 0xca, 0xed, 0xc2, 0xd6, 0xbd, 0x98, 0x4a, 0x1a, 0x8f, 0x46, 0x92, 0x56, 0x92, 0xc0, 0xa7, 0x27}}, &StringArgument{Value: "blah-blah"}},
+		},
+	}
+	for _, tc := range tests {
+		if b, err := json.Marshal(tc.args); assert.NoError(t, err) {
+			assert.Equal(t, tc.js, string(b))
+			args := Arguments{}
+			if err := json.Unmarshal(b, &args); assert.NoError(t, err) {
+				assert.ElementsMatch(t, tc.args, args)
+			}
+		}
+	}
+}
+
+func TestArgumentsBinaryRoundTrip(t *testing.T) {
+	tests := []Arguments{
+		{&IntegerArgument{Value: 12345}},
+		{&IntegerArgument{Value: 12345}, &BooleanArgument{Value: true}},
+		{&IntegerArgument{Value: 12345}, &BooleanArgument{Value: true}, &BinaryArgument{Value: B58Bytes{0x24, 0x7f, 0x71, 0x14, 0x1d, 0x1d, 0x05, 0x80, 0x17, 0xf4, 0x1a, 0x21, 0x62, 0xad, 0x3a, 0x70, 0xca, 0xed, 0xc2, 0xd6, 0xbd, 0x98, 0x4a, 0x1a, 0x8f, 0x46, 0x92, 0x56, 0x92, 0xc0, 0xa7, 0x27}}},
+		{&StringArgument{Value: "blah-blah"}},
+		{&IntegerArgument{Value: 12345}, &BooleanArgument{Value: true}, &BinaryArgument{Value: B58Bytes{0x24, 0x7f, 0x71, 0x14, 0x1d, 0x1d, 0x05, 0x80, 0x17, 0xf4, 0x1a, 0x21, 0x62, 0xad, 0x3a, 0x70, 0xca, 0xed, 0xc2, 0xd6, 0xbd, 0x98, 0x4a, 0x1a, 0x8f, 0x46, 0x92, 0x56, 0x92, 0xc0, 0xa7, 0x27}}, &StringArgument{Value: "blah-blah"}},
+	}
+	for _, tc := range tests {
+		if b, err := tc.MarshalBinary(); assert.NoError(t, err) {
+			args := Arguments{}
+			if err := args.UnmarshalBinary(b); assert.NoError(t, err) {
+				assert.ElementsMatch(t, tc, args)
+			}
+		}
+	}
+}
+
+func TestScriptPaymentBinaryRoundTrip(t *testing.T) {
+	tests := []struct {
+		asset  string
+		amount uint64
+	}{
+		{"BXBUNddxTGTQc3G4qHYn5E67SBwMj18zLncUr871iuRD", 12345},
+		{"BXBUNddxTGTQc3G4qHYn5E67SBwMj18zLncUr871iuRD", 98765},
+		{"WAVES", 9876543210},
+		{"", 0},
+		{"", 1234567890},
+	}
+	for _, tc := range tests {
+		a, err := NewOptionalAssetFromString(tc.asset)
+		require.NoError(t, err)
+		sp := ScriptPayment{Asset: *a, Amount: tc.amount}
+		if b, err := sp.MarshalBinary(); assert.NoError(t, err) {
+			var av ScriptPayment
+			if err := av.UnmarshalBinary(b); assert.NoError(t, err) {
+				assert.Equal(t, sp, av)
+			}
+		}
+	}
+}
+
+func TestScriptPaymentJSONRoundTrip(t *testing.T) {
+	tests := []struct {
+		asset  string
+		amount uint64
+		js     string
+	}{
+		{"BXBUNddxTGTQc3G4qHYn5E67SBwMj18zLncUr871iuRD", 12345, "{\"amount\":12345,\"assetId\":\"BXBUNddxTGTQc3G4qHYn5E67SBwMj18zLncUr871iuRD\"}"},
+		{"BXBUNddxTGTQc3G4qHYn5E67SBwMj18zLncUr871iuRD", 98765, "{\"amount\":98765,\"assetId\":\"BXBUNddxTGTQc3G4qHYn5E67SBwMj18zLncUr871iuRD\"}"},
+		{"WAVES", 9876543210, "{\"amount\":9876543210,\"assetId\":null}"},
+		{"", 0, "{\"amount\":0,\"assetId\":null}"},
+		{"", 1234567890, "{\"amount\":1234567890,\"assetId\":null}"},
+	}
+	for _, tc := range tests {
+		a, err := NewOptionalAssetFromString(tc.asset)
+		require.NoError(t, err)
+		sp := ScriptPayment{Asset: *a, Amount: tc.amount}
+		if b, err := json.Marshal(sp); assert.NoError(t, err) {
+			assert.Equal(t, tc.js, string(b))
+			var av ScriptPayment
+			if err := json.Unmarshal(b, &av); assert.NoError(t, err) {
+				assert.Equal(t, sp, av)
+			}
+		}
+	}
+}
+
+func TestScriptPaymentsBinaryRoundTrip(t *testing.T) {
+	a1, err := NewOptionalAssetFromString("BXBUNddxTGTQc3G4qHYn5E67SBwMj18zLncUr871iuRD")
+	require.NoError(t, err)
+	a2, err := NewOptionalAssetFromString("WAVES")
+	require.NoError(t, err)
+	tests := []ScriptPayments{
+		{{Asset: *a1, Amount: 12345}},
+		{{Asset: *a2, Amount: 67890}},
+		{{Asset: *a1, Amount: 12345}, {Asset: *a2, Amount: 67890}},
+		{{Asset: *a2, Amount: 67890}, {Asset: *a1, Amount: 12345}},
+		{{Asset: *a1, Amount: 0}, {Asset: *a1, Amount: 67890}},
+		{{Asset: *a2, Amount: 0}, {Asset: *a2, Amount: 12345}},
+	}
+	for _, tc := range tests {
+		if b, err := tc.MarshalBinary(); assert.NoError(t, err) {
+			av := ScriptPayments{}
+			if err := av.UnmarshalBinary(b); assert.NoError(t, err) {
+				assert.Equal(t, tc, av)
+			}
+		}
+	}
+}
+
+func TestScriptsPaymentsJSONRoundTrip(t *testing.T) {
+	a1, err := NewOptionalAssetFromString("BXBUNddxTGTQc3G4qHYn5E67SBwMj18zLncUr871iuRD")
+	require.NoError(t, err)
+	a2, err := NewOptionalAssetFromString("WAVES")
+	require.NoError(t, err)
+	tests := []struct {
+		payments ScriptPayments
+		js       string
+	}{
+		{payments: ScriptPayments{{Asset: *a1, Amount: 12345}}, js: "[{\"amount\":12345,\"assetId\":\"BXBUNddxTGTQc3G4qHYn5E67SBwMj18zLncUr871iuRD\"}]"},
+		{payments: ScriptPayments{{Asset: *a2, Amount: 67890}}, js: "[{\"amount\":67890,\"assetId\":null}]"},
+		{payments: ScriptPayments{{Asset: *a1, Amount: 12345}, {Asset: *a2, Amount: 67890}}, js: "[{\"amount\":12345,\"assetId\":\"BXBUNddxTGTQc3G4qHYn5E67SBwMj18zLncUr871iuRD\"},{\"amount\":67890,\"assetId\":null}]"},
+		{payments: ScriptPayments{{Asset: *a2, Amount: 67890}, {Asset: *a1, Amount: 12345}}, js: "[{\"amount\":67890,\"assetId\":null},{\"amount\":12345,\"assetId\":\"BXBUNddxTGTQc3G4qHYn5E67SBwMj18zLncUr871iuRD\"}]"},
+		{payments: ScriptPayments{{Asset: *a1, Amount: 0}, {Asset: *a1, Amount: 67890}}, js: "[{\"amount\":0,\"assetId\":\"BXBUNddxTGTQc3G4qHYn5E67SBwMj18zLncUr871iuRD\"},{\"amount\":67890,\"assetId\":\"BXBUNddxTGTQc3G4qHYn5E67SBwMj18zLncUr871iuRD\"}]"},
+		{payments: ScriptPayments{{Asset: *a2, Amount: 0}, {Asset: *a2, Amount: 12345}}, js: "[{\"amount\":0,\"assetId\":null},{\"amount\":12345,\"assetId\":null}]"},
+	}
+	for _, tc := range tests {
+		if b, err := json.Marshal(tc.payments); assert.NoError(t, err) {
+			assert.Equal(t, string(b), tc.js)
+			av := ScriptPayments{}
+			if err := json.Unmarshal(b, &av); assert.NoError(t, err) {
+				assert.Equal(t, tc.payments, av)
+			}
+		}
+	}
+}
+
+func TestFunctionCallBinaryRoundTrip(t *testing.T) {
+	tests := []FunctionCall{
+		{Name: "foo", Arguments: Arguments{&IntegerArgument{Value: 12345}}},
+		{Name: "bar", Arguments: Arguments{&BooleanArgument{Value: true}}},
+		{Name: "baz", Arguments: Arguments{&BinaryArgument{Value: B58Bytes{0x24, 0x7f, 0x71, 0x14, 0x1d, 0x1d, 0x05, 0x80, 0x17, 0xf4, 0x1a, 0x21, 0x62, 0xad, 0x3a, 0x70, 0xca, 0xed, 0xc2, 0xd6, 0xbd, 0x98, 0x4a, 0x1a, 0x8f, 0x46, 0x92, 0x56, 0x92, 0xc0, 0xa7, 0x27}}}},
+		{Name: "foobar0", Arguments: Arguments{&StringArgument{Value: "blah-blah"}}},
+		{Name: "foobar1", Arguments: Arguments{}},
+		{Name: "foobar2", Arguments: Arguments{&IntegerArgument{Value: 12345}, &BooleanArgument{Value: true}}},
+		{Name: "foobar3", Arguments: Arguments{&IntegerArgument{Value: 12345}, &BooleanArgument{Value: true}, &BinaryArgument{Value: B58Bytes{0x24, 0x7f, 0x71, 0x14, 0x1d, 0x1d, 0x05, 0x80, 0x17, 0xf4, 0x1a, 0x21, 0x62, 0xad, 0x3a, 0x70, 0xca, 0xed, 0xc2, 0xd6, 0xbd, 0x98, 0x4a, 0x1a, 0x8f, 0x46, 0x92, 0x56, 0x92, 0xc0, 0xa7, 0x27}}}},
+		{Name: "foobar4", Arguments: Arguments{&IntegerArgument{Value: 12345}, &BooleanArgument{Value: true}, &BinaryArgument{Value: B58Bytes{0x24, 0x7f, 0x71, 0x14, 0x1d, 0x1d, 0x05, 0x80, 0x17, 0xf4, 0x1a, 0x21, 0x62, 0xad, 0x3a, 0x70, 0xca, 0xed, 0xc2, 0xd6, 0xbd, 0x98, 0x4a, 0x1a, 0x8f, 0x46, 0x92, 0x56, 0x92, 0xc0, 0xa7, 0x27}}, &StringArgument{Value: "blah-blah"}}},
+	}
+	for _, tc := range tests {
+		if b, err := tc.MarshalBinary(); assert.NoError(t, err) {
+			fc := FunctionCall{}
+			if err := fc.UnmarshalBinary(b); assert.NoError(t, err) {
+				assert.Equal(t, tc, fc)
+			}
+		}
+	}
+}
+
+func TestFunctionCallJSONRoundTrip(t *testing.T) {
+	tests := []struct {
+		fc FunctionCall
+		js string
+	}{
+		{fc: FunctionCall{Name: "foo", Arguments: Arguments{&IntegerArgument{Value: 12345}}}, js: "{\"function\":\"foo\",\"args\":[{\"type\":\"integer\",\"value\":12345}]}"},
+		{fc: FunctionCall{Name: "bar", Arguments: Arguments{&BooleanArgument{Value: true}}}, js: "{\"function\":\"bar\",\"args\":[{\"type\":\"boolean\",\"value\":true}]}"},
+		{fc: FunctionCall{Name: "baz", Arguments: Arguments{&BinaryArgument{Value: B58Bytes{0x24, 0x7f, 0x71, 0x14, 0x1d, 0x1d, 0x05, 0x80, 0x17, 0xf4, 0x1a, 0x21, 0x62, 0xad, 0x3a, 0x70, 0xca, 0xed, 0xc2, 0xd6, 0xbd, 0x98, 0x4a, 0x1a, 0x8f, 0x46, 0x92, 0x56, 0x92, 0xc0, 0xa7, 0x27}}}}, js: "{\"function\":\"baz\",\"args\":[{\"type\":\"binary\",\"value\":\"base64:JH9xFB0dBYAX9BohYq06cMrtwta9mEoaj0aSVpLApyc=\"}]}"},
+		{fc: FunctionCall{Name: "foobar0", Arguments: Arguments{&StringArgument{Value: "blah-blah"}}}, js: "{\"function\":\"foobar0\",\"args\":[{\"type\":\"string\",\"value\":\"blah-blah\"}]}"},
+		{fc: FunctionCall{Name: "foobar1", Arguments: Arguments{}}, js: "{\"function\":\"foobar1\",\"args\":[]}"},
+		{fc: FunctionCall{Name: "foobar2", Arguments: Arguments{&IntegerArgument{Value: 12345}, &BooleanArgument{Value: true}}}, js: "{\"function\":\"foobar2\",\"args\":[{\"type\":\"integer\",\"value\":12345},{\"type\":\"boolean\",\"value\":true}]}"},
+		{fc: FunctionCall{Name: "foobar3", Arguments: Arguments{&IntegerArgument{Value: 12345}, &BooleanArgument{Value: true}, &BinaryArgument{Value: B58Bytes{0x24, 0x7f, 0x71, 0x14, 0x1d, 0x1d, 0x05, 0x80, 0x17, 0xf4, 0x1a, 0x21, 0x62, 0xad, 0x3a, 0x70, 0xca, 0xed, 0xc2, 0xd6, 0xbd, 0x98, 0x4a, 0x1a, 0x8f, 0x46, 0x92, 0x56, 0x92, 0xc0, 0xa7, 0x27}}}}, js: "{\"function\":\"foobar3\",\"args\":[{\"type\":\"integer\",\"value\":12345},{\"type\":\"boolean\",\"value\":true},{\"type\":\"binary\",\"value\":\"base64:JH9xFB0dBYAX9BohYq06cMrtwta9mEoaj0aSVpLApyc=\"}]}"},
+		{fc: FunctionCall{Name: "foobar4", Arguments: Arguments{&IntegerArgument{Value: 12345}, &BooleanArgument{Value: true}, &BinaryArgument{Value: B58Bytes{0x24, 0x7f, 0x71, 0x14, 0x1d, 0x1d, 0x05, 0x80, 0x17, 0xf4, 0x1a, 0x21, 0x62, 0xad, 0x3a, 0x70, 0xca, 0xed, 0xc2, 0xd6, 0xbd, 0x98, 0x4a, 0x1a, 0x8f, 0x46, 0x92, 0x56, 0x92, 0xc0, 0xa7, 0x27}}, &StringArgument{Value: "blah-blah"}}}, js: "{\"function\":\"foobar4\",\"args\":[{\"type\":\"integer\",\"value\":12345},{\"type\":\"boolean\",\"value\":true},{\"type\":\"binary\",\"value\":\"base64:JH9xFB0dBYAX9BohYq06cMrtwta9mEoaj0aSVpLApyc=\"},{\"type\":\"string\",\"value\":\"blah-blah\"}]}"},
+	}
+	for _, tc := range tests {
+		if b, err := json.Marshal(tc.fc); assert.NoError(t, err) {
+			assert.Equal(t, tc.js, string(b))
+			fc := FunctionCall{}
+			if err := json.Unmarshal(b, &fc); assert.NoError(t, err) {
+				assert.Equal(t, tc.fc, fc)
+			}
 		}
 	}
 }

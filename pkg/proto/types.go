@@ -24,8 +24,8 @@ const (
 	jsonNull             = "null"
 	integerArgumentLen   = 1 + 8
 	booleanArgumentLen   = 1 + 1
-	binaryArgumentMinLen = 1 + 2
-	stringArgumentMinLen = 1 + 2
+	binaryArgumentMinLen = 1 + 4
+	stringArgumentMinLen = 1 + 4
 )
 
 var jsonNullBytes = []byte{0x6e, 0x75, 0x6c, 0x6c}
@@ -144,13 +144,17 @@ func (a *OptionalAsset) UnmarshalJSON(value []byte) error {
 	return nil
 }
 
-//MarshalBinary marshals the optional asset to its binary representation.
-func (a *OptionalAsset) MarshalBinary() ([]byte, error) {
+func (a OptionalAsset) binarySize() int {
 	s := 1
 	if a.Present {
 		s += crypto.DigestSize
 	}
-	buf := make([]byte, s)
+	return s
+}
+
+//MarshalBinary marshals the optional asset to its binary representation.
+func (a OptionalAsset) MarshalBinary() ([]byte, error) {
+	buf := make([]byte, a.binarySize())
 	PutBool(buf, a.Present)
 	copy(buf[1:], a.ID[:])
 	return buf, nil
@@ -1284,11 +1288,12 @@ func guessArgumentType(argumentType ArgumentType) (Argument, error) {
 
 type Arguments []Argument
 
-func (a Arguments) MarshalJSON() ([]byte, error) {
-	//TODO: implement
-	return nil, nil
+//Append adds an argument to the Arguments list.
+func (a *Arguments) Append(arg Argument) {
+	*a = append(*a, arg)
 }
 
+//UnmarshalJSON custom JSON deserialization method.
 func (a *Arguments) UnmarshalJSON(data []byte) error {
 	wrapError := func(err error) error { return errors.Wrap(err, "failed to unmarshal Arguments from JSON") }
 
@@ -1316,13 +1321,65 @@ func (a *Arguments) UnmarshalJSON(data []byte) error {
 }
 
 func (a Arguments) MarshalBinary() ([]byte, error) {
-	//TODO: implement
-	return nil, nil
+	buf := make([]byte, a.binarySize())
+	p := 0
+	binary.BigEndian.PutUint32(buf, uint32(len(a)))
+	p += 4
+	for _, arg := range a {
+		b, err := arg.MarshalBinary()
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to marshal Arguments to bytes")
+		}
+		copy(buf[p:], b)
+		p += len(b)
+	}
+	return buf, nil
 }
 
 func (a *Arguments) UnmarshalBinary(data []byte) error {
-	//TODO: implement
+	if l := len(data); l < 4 {
+		return errors.Errorf("%d is not enough bytes for Arguments", l)
+	}
+	n := binary.BigEndian.Uint32(data[:4])
+	data = data[4:]
+	for i := 0; i < int(n); i++ {
+		var arg Argument
+		var err error
+		switch ValueType(data[0]) {
+		case Integer:
+			var ia IntegerArgument
+			err = ia.UnmarshalBinary(data)
+			arg = &ia
+		case Boolean:
+			var ba BooleanArgument
+			err = ba.UnmarshalBinary(data)
+			arg = &ba
+		case Binary:
+			var ba BinaryArgument
+			err = ba.UnmarshalBinary(data)
+			arg = &ba
+		case String:
+			var sa StringArgument
+			err = sa.UnmarshalBinary(data)
+			arg = &sa
+		default:
+			return errors.Errorf("unsupported argument type %d", data[0])
+		}
+		if err != nil {
+			return errors.Wrap(err, "failed unmarshal Arguments from bytes")
+		}
+		a.Append(arg)
+		data = data[arg.binarySize():]
+	}
 	return nil
+}
+
+func (a Arguments) binarySize() int {
+	r := 4
+	for _, arg := range a {
+		r += arg.binarySize()
+	}
+	return r
 }
 
 type IntegerArgument struct {
@@ -1444,7 +1501,6 @@ func (a *BooleanArgument) UnmarshalJSON(value []byte) error {
 
 //BinaryArgument represents an argument that stores binary value.
 type BinaryArgument struct {
-	Key   string
 	Value []byte
 }
 
@@ -1463,7 +1519,7 @@ func (a BinaryArgument) MarshalBinary() ([]byte, error) {
 	pos := 0
 	buf[pos] = byte(Binary)
 	pos++
-	PutBytesWithUInt16Len(buf[pos:], a.Value)
+	PutBytesWithUInt32Len(buf[pos:], a.Value)
 	return buf, nil
 }
 
@@ -1475,7 +1531,7 @@ func (a *BinaryArgument) UnmarshalBinary(data []byte) error {
 	if t := data[0]; t != byte(Binary) {
 		return errors.Errorf("unexpected value type %d for BinaryArgument, expected %d", t, Binary)
 	}
-	v, err := BytesWithUInt16Len(data[1:])
+	v, err := BytesWithUInt32Len(data[1:])
 	if err != nil {
 		return errors.Wrap(err, "failed to unmarshal BinaryArgument from bytes")
 	}
@@ -1515,7 +1571,7 @@ func (a StringArgument) GetValueType() ValueType {
 }
 
 func (a StringArgument) binarySize() int {
-	return 1 + 2 + len(a.Value)
+	return stringArgumentMinLen + len(a.Value)
 }
 
 //MarshalBinary converts the argument to its byte representation.
@@ -1524,7 +1580,7 @@ func (a StringArgument) MarshalBinary() ([]byte, error) {
 	pos := 0
 	buf[pos] = byte(String)
 	pos++
-	PutStringWithUInt16Len(buf[pos:], a.Value)
+	PutStringWithUInt32Len(buf[pos:], a.Value)
 	return buf, nil
 }
 
@@ -1536,7 +1592,7 @@ func (a *StringArgument) UnmarshalBinary(data []byte) error {
 	if t := data[0]; t != byte(String) {
 		return errors.Errorf("unexpected value type %d for StringArgument, expected %d", t, String)
 	}
-	v, err := StringWithUInt16Len(data[1:])
+	v, err := StringWithUInt32Len(data[1:])
 	if err != nil {
 		return errors.Wrap(err, "failed to unmarshal StringArgument from bytes")
 	}
@@ -1567,27 +1623,51 @@ func (a *StringArgument) UnmarshalJSON(value []byte) error {
 
 // FunctionCall structure represents the description of function called in the InvokeScript transaction.
 type FunctionCall struct {
-	FunctionName string    `json:"function"`
-	Arguments    Arguments `json:"args"`
-	len          int       `json:"-"` //TODO: implement initialization and calculation
+	Name      string    `json:"function"`
+	Arguments Arguments `json:"args"`
 }
 
 func (c FunctionCall) MarshalBinary() ([]byte, error) {
+	buf := make([]byte, c.binarySize())
+	buf[0] = reader.E_FUNCALL
+	buf[1] = reader.FH_USER
+	PutStringWithUInt32Len(buf[2:], c.Name)
 	ab, err := c.Arguments.MarshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal FunctionCall to bytes")
 	}
-	buf := make([]byte, 1+1+4+len(c.FunctionName)+len(ab))
-	buf[0] = reader.E_FUNCALL
-	buf[1] = reader.FH_USER
-	PutStringWithUInt32Len(buf[2:], c.FunctionName)
-	copy(buf[2+4+len(c.FunctionName):], ab)
+	copy(buf[2+4+len(c.Name):], ab)
 	return buf, nil
 }
 
 func (c *FunctionCall) UnmarshalBinary(data []byte) error {
-	//TODO: implement
+	if l := len(data); l < 1+1+4 {
+		return errors.Errorf("%d is not enough bytes of FunctionCall", l)
+	}
+	if data[0] != reader.E_FUNCALL {
+		return errors.Errorf("unexpected expression type %d, expected E_FUNCALL", data[0])
+	}
+	if data[1] != reader.FH_USER {
+		return errors.Errorf("unexpected function type %d, expected a user function", data[1])
+	}
+	var err error
+	data = data[2:]
+	c.Name, err = StringWithUInt32Len(data)
+	if err != nil {
+		return errors.Wrap(err, "failed to unmarshal FunctionCall from bytes")
+	}
+	data = data[4+len(c.Name):]
+	args := Arguments{}
+	err = args.UnmarshalBinary(data)
+	if err != nil {
+		return errors.Wrap(err, "failed to unmarshal FunctionCall from bytes")
+	}
+	c.Arguments = args
 	return nil
+}
+
+func (c FunctionCall) binarySize() int {
+	return 1 + 1 + 4 + len(c.Name) + c.Arguments.binarySize()
 }
 
 type ScriptPayment struct {
@@ -1596,11 +1676,11 @@ type ScriptPayment struct {
 }
 
 func (p ScriptPayment) MarshalBinary() ([]byte, error) {
+	buf := make([]byte, p.binarySize())
 	ab, err := p.Asset.MarshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to serialize ScriptPayment to bytes")
 	}
-	buf := make([]byte, 8+len(ab))
 	binary.BigEndian.PutUint64(buf, p.Amount)
 	copy(buf[8:], ab)
 	return buf, nil
@@ -1620,17 +1700,54 @@ func (p *ScriptPayment) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
-type ScriptPayments struct {
-	payments []ScriptPayment
-	len      int `json:"-"`
+func (p *ScriptPayment) binarySize() int {
+	return p.Asset.binarySize() + 8
+}
+
+type ScriptPayments []ScriptPayment
+
+func (sps *ScriptPayments) Append(sp ScriptPayment) {
+	*sps = append(*sps, sp)
 }
 
 func (sps ScriptPayments) MarshalBinary() ([]byte, error) {
-	//TODO: implement
-	return nil, nil
+	buf := make([]byte, sps.binarySize())
+	p := 0
+	binary.BigEndian.PutUint16(buf[p:], uint16(len(sps)))
+	p += 2
+	for _, sp := range sps {
+		b, err := sp.MarshalBinary()
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to marshal ScriptPayments to bytes")
+		}
+		copy(buf[p:], b)
+		p += len(b)
+	}
+	return buf, nil
 }
 
 func (sps *ScriptPayments) UnmarshalBinary(data []byte) error {
-	//TODO: implement
+	if l := len(data); l < 2 {
+		return errors.Errorf("%d is not enough bytes for ScriptPayments", l)
+	}
+	n := binary.BigEndian.Uint16(data)
+	data = data[2:]
+	for i := 0; i < int(n); i++ {
+		var sp ScriptPayment
+		err := sp.UnmarshalBinary(data)
+		if err != nil {
+			return errors.Wrap(err, "failed to unmarshal ScriptPayments from bytes")
+		}
+		sps.Append(sp)
+		data = data[sp.binarySize():]
+	}
 	return nil
+}
+
+func (sps ScriptPayments) binarySize() int {
+	s := 2
+	for _, p := range sps {
+		s += p.binarySize()
+	}
+	return s
 }
