@@ -205,8 +205,10 @@ func GuessTransactionType(t *TransactionTypeVersion) (proto.Transaction, error) 
 		out = &proto.SetScriptV1{}
 	case proto.SponsorshipTransaction: // 14
 		out = &proto.SponsorshipV1{}
-	case proto.SetAssetScriptTransaction:
+	case proto.SetAssetScriptTransaction: // 15
 		out = &proto.SetAssetScriptV1{}
+	case proto.InvokeScriptTransaction: // 16
+		out = &proto.InvokeScriptV1{}
 	}
 	if out == nil {
 		return nil, errors.Errorf("unknown transaction type %d version %d", t.Type, t.Version)

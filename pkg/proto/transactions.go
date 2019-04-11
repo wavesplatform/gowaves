@@ -13,21 +13,22 @@ type TransactionType byte
 
 //All transaction types supported.
 const (
-	GenesisTransaction TransactionType = iota + 1
-	PaymentTransaction
-	IssueTransaction
-	TransferTransaction
-	ReissueTransaction
-	BurnTransaction
-	ExchangeTransaction
-	LeaseTransaction
-	LeaseCancelTransaction
-	CreateAliasTransaction
-	MassTransferTransaction
-	DataTransaction
-	SetScriptTransaction
-	SponsorshipTransaction
-	SetAssetScriptTransaction
+	GenesisTransaction        TransactionType = iota + 1 // 1 - Genesis transaction
+	PaymentTransaction                                   // 2 - Payment transaction
+	IssueTransaction                                     // 3 - Issue transaction
+	TransferTransaction                                  // 4 - Transfer transaction
+	ReissueTransaction                                   // 5 - Reissue transaction
+	BurnTransaction                                      // 6 - Burn transaction
+	ExchangeTransaction                                  // 7 - Exchange transaction
+	LeaseTransaction                                     // 8 - Lease transaction
+	LeaseCancelTransaction                               // 9 - LeaseCancel transaction
+	CreateAliasTransaction                               // 10 - CreateAlias transaction
+	MassTransferTransaction                              // 11 - MassTransfer transaction
+	DataTransaction                                      // 12 - Data transaction
+	SetScriptTransaction                                 // 13 - SetScript transaction
+	SponsorshipTransaction                               // 14 - Sponsorship transaction
+	SetAssetScriptTransaction                            // 15 - SetAssetScript transaction
+	InvokeScriptTransaction                              // 16 - InvokeScript transaction
 )
 
 const (
@@ -61,6 +62,7 @@ var (
 		SetScriptTransaction:      reflect.TypeOf(SetScriptV1{}),
 		SponsorshipTransaction:    reflect.TypeOf(SponsorshipV1{}),
 		SetAssetScriptTransaction: reflect.TypeOf(SetAssetScriptV1{}),
+		InvokeScriptTransaction:   reflect.TypeOf(InvokeScriptV1{}),
 	}
 
 	bytesToTransactionsV1 = map[TransactionType]reflect.Type{
