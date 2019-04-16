@@ -2,6 +2,7 @@ package node
 
 import (
 	"github.com/stretchr/testify/assert"
+	"github.com/wavesplatform/gowaves/pkg/p2p/mock"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"testing"
 )
@@ -9,7 +10,7 @@ import (
 func TestSubscribe(t *testing.T) {
 	service := NewSubscribeService()
 	m := &proto.GetSignaturesMessage{}
-	p := &mockPeer{}
+	p := mock.NewPeer()
 
 	if service.Exists(p.ID(), m) {
 		t.Error("no subscribes should exists right now")

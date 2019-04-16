@@ -7,7 +7,6 @@ import (
 	"os"
 
 	"github.com/alecthomas/kong"
-	"github.com/wavesplatform/gowaves/pkg/client"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
 )
@@ -46,14 +45,14 @@ func serveJson() {
 		return
 	}
 
-	tt := client.TransactionTypeVersion{}
+	tt := proto.TransactionTypeVersion{}
 	err = json.Unmarshal(b, &tt)
 	if err != nil {
 		zap.S().Error(err)
 		return
 	}
 
-	realType, err := client.GuessTransactionType(&tt)
+	realType, err := proto.GuessTransactionType(&tt)
 	if err != nil {
 		zap.S().Error(err)
 		return

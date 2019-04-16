@@ -7,20 +7,19 @@ import (
 )
 
 type KeyVal struct {
-	db    *leveldb.DB
-	batch *leveldb.Batch
+	db *leveldb.DB
 }
 
-func NewKeyVal(path string, withBatch bool) (*KeyVal, error) {
+func NewKeyVal(path string) (*KeyVal, error) {
 	db, err := leveldb.OpenFile(path, nil)
 	if err != nil {
 		return nil, err
 	}
-	var batch *leveldb.Batch
-	if withBatch {
-		batch = new(leveldb.Batch)
-	}
-	return &KeyVal{db: db, batch: batch}, nil
+	return &KeyVal{db: db}, nil
+}
+
+func (k *KeyVal) NewBatch() (Batch, error) {
+	return new(leveldb.Batch), nil
 }
 
 func (k *KeyVal) Get(key []byte) ([]byte, error) {
@@ -35,32 +34,22 @@ func (k *KeyVal) Delete(key []byte) error {
 	return k.db.Delete(key, nil)
 }
 
-func (k *KeyVal) PutDirectly(key, val []byte) error {
+func (k *KeyVal) Put(key, val []byte) error {
 	if err := k.db.Put(key, val, nil); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (k *KeyVal) Put(key, val []byte) error {
-	if k.batch != nil {
-		k.batch.Put(key, val)
-	} else {
-		if err := k.db.Put(key, val, nil); err != nil {
-			return err
-		}
+func (k *KeyVal) Flush(batch Batch) error {
+	b, ok := batch.(*leveldb.Batch)
+	if !ok {
+		return errors.New("can't convert batch to leveldb.Batch")
 	}
-	return nil
-}
-
-func (k *KeyVal) Flush() error {
-	if k.batch == nil {
-		return errors.New("no batch to flush")
-	}
-	if err := k.db.Write(k.batch, nil); err != nil {
+	if err := k.db.Write(b, nil); err != nil {
 		return err
 	}
-	k.batch.Reset()
+	batch.Reset()
 	return nil
 }
 

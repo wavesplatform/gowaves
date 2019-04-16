@@ -1,16 +1,15 @@
 package state
 
 import (
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"github.com/wavesplatform/gowaves/pkg/proto"
 	"net"
 	"testing"
 )
 
 func TestKnownPeer(t *testing.T) {
-	p := NewKnownPeer(net.IPv4(127, 0, 0, 1), 65535)
-	assert.Equal(t, net.IPv4(127, 0, 0, 1), p.Addr())
-	assert.Equal(t, 65535, p.Port())
-	k := p.key()
-	p2 := NewKnownPeerFromKey(k)
-	assert.Equal(t, p, p2)
+	p := proto.NewTCPAddr(net.IPv4(127, 0, 0, 1), 65535)
+	k := IntoBytes(p)
+	p2, _ := FromBytes(k)
+	require.Equal(t, p, p2)
 }

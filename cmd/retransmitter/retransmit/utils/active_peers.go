@@ -2,38 +2,19 @@ package utils
 
 import (
 	"sync"
-	"time"
 
-	"github.com/wavesplatform/gowaves/pkg/network/peer"
-	"github.com/wavesplatform/gowaves/pkg/proto"
+	. "github.com/wavesplatform/gowaves/pkg/p2p/peer"
 )
-
-// struct contains all possible information about peer
-type PeerInfo struct {
-	Peer       peer.Peer
-	CreatedAt  time.Time
-	Status     int
-	Version    proto.Version
-	DeclAddr   proto.PeerInfo
-	RemoteAddr string
-	LocalAddr  string
-	AppName    string
-	NodeName   string
-	LastError  struct {
-		At    time.Time
-		Error error
-	}
-}
 
 // Active peers
 type Addr2Peers struct {
-	addr2peer map[string]*PeerInfo
+	addr2peer map[string]Peer
 	lock      sync.RWMutex
 }
 
 func NewAddr2Peers() *Addr2Peers {
 	return &Addr2Peers{
-		addr2peer: make(map[string]*PeerInfo),
+		addr2peer: make(map[string]Peer),
 	}
 }
 
@@ -46,9 +27,9 @@ func (a *Addr2Peers) Exists(address string) bool {
 }
 
 // add address to known list
-func (a *Addr2Peers) Add(address string, info *PeerInfo) {
+func (a *Addr2Peers) Add(address string, peer Peer) {
 	a.lock.Lock()
-	a.addr2peer[address] = info
+	a.addr2peer[address] = peer
 	a.lock.Unlock()
 }
 
@@ -64,7 +45,7 @@ func (a *Addr2Peers) Addresses() []string {
 }
 
 // execute function with each address
-func (a *Addr2Peers) Each(f func(id string, p *PeerInfo)) {
+func (a *Addr2Peers) Each(f func(id string, p Peer)) {
 	a.lock.RLock()
 	defer a.lock.RUnlock()
 	for id, p := range a.addr2peer {
@@ -73,7 +54,7 @@ func (a *Addr2Peers) Each(f func(id string, p *PeerInfo)) {
 }
 
 // returns *PeerInfo by address, nil if not found
-func (a *Addr2Peers) Get(id string) *PeerInfo {
+func (a *Addr2Peers) Get(id string) Peer {
 	a.lock.RLock()
 	defer a.lock.RUnlock()
 	return a.addr2peer[id]

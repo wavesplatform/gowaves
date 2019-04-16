@@ -1,28 +1,23 @@
-package peers
+package peer
 
 import (
 	"fmt"
-	"github.com/wavesplatform/gowaves/pkg/network/conn"
-	"github.com/wavesplatform/gowaves/pkg/network/peer"
+	"github.com/wavesplatform/gowaves/pkg/p2p/conn"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
 	"net"
 	"strings"
 )
 
-type Connected struct {
-	Peer peer.Peer
-}
-
 type PeerImpl struct {
 	handshake proto.Handshake
 	conn      conn.Connection
-	direction peer.Direction
-	remote    peer.Remote
+	direction Direction
+	remote    Remote
 	id        string
 }
 
-func NewPeerImpl(handshake proto.Handshake, conn conn.Connection, direction peer.Direction, remote peer.Remote) *PeerImpl {
+func NewPeerImpl(handshake proto.Handshake, conn conn.Connection, direction Direction, remote Remote) *PeerImpl {
 	return &PeerImpl{
 		handshake: handshake,
 		conn:      conn,
@@ -32,7 +27,7 @@ func NewPeerImpl(handshake proto.Handshake, conn conn.Connection, direction peer
 	}
 }
 
-func (a *PeerImpl) Direction() peer.Direction {
+func (a *PeerImpl) Direction() Direction {
 	return a.direction
 }
 

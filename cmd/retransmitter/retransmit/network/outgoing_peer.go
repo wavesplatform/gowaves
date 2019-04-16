@@ -2,12 +2,13 @@ package network
 
 import (
 	"context"
+	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"net"
 	"time"
 
 	"github.com/go-errors/errors"
 	"github.com/wavesplatform/gowaves/pkg/libs/bytespool"
-	"github.com/wavesplatform/gowaves/pkg/network/conn"
+	"github.com/wavesplatform/gowaves/pkg/p2p/conn"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
 )
@@ -15,17 +16,18 @@ import (
 type OutgoingPeerParams struct {
 	Address      string
 	WavesNetwork string
-	Parent       Parent
+	Parent       peer.Parent
 	Pool         bytespool.Pool
-	DeclAddr     proto.PeerInfoInfoMessage
+	DeclAddr     proto.TCPAddr
 	Skip         conn.SkipFilter
 }
 
 type OutgoingPeer struct {
 	params     OutgoingPeerParams
 	cancel     context.CancelFunc
-	remote     Remote
+	remote     peer.Remote
 	connection conn.Connection
+	handshake  proto.Handshake
 }
 
 func RunOutgoingPeer(ctx context.Context, params OutgoingPeerParams) {
@@ -35,7 +37,7 @@ func RunOutgoingPeer(ctx context.Context, params OutgoingPeerParams) {
 	}
 
 	ctx, cancel := context.WithCancel(ctx)
-	remote := NewRemote()
+	remote := peer.NewRemote()
 	p := OutgoingPeer{
 		params: params,
 		cancel: cancel,
@@ -48,29 +50,18 @@ func RunOutgoingPeer(ctx context.Context, params OutgoingPeerParams) {
 		return
 	}
 	p.connection = connection
+	p.handshake = *handshake
 
-	version := handshake.Version
-	declAddr, err := handshake.PeerInfo()
-	if err != nil {
-		zap.S().Info(err, params.Address)
-	}
-
-	connected := InfoMessage{
+	connected := peer.InfoMessage{
 		ID: params.Address,
-		Value: &Connected{
-			Peer:       &p,
-			Version:    version,
-			DeclAddr:   declAddr,
-			RemoteAddr: connection.Conn().RemoteAddr().String(),
-			LocalAddr:  connection.Conn().LocalAddr().String(),
-			AppName:    handshake.AppName,
-			NodeName:   handshake.NodeName,
+		Value: &peer.Connected{
+			Peer: &p,
 		},
 	}
 	params.Parent.InfoCh <- connected
 	zap.S().Debugf("connected %s", params.Address)
 
-	Handle(HandlerParams{
+	peer.Handle(peer.HandlerParams{
 		Ctx:        ctx,
 		ID:         params.Address,
 		Connection: p.connection,
@@ -80,7 +71,7 @@ func RunOutgoingPeer(ctx context.Context, params OutgoingPeerParams) {
 	})
 }
 
-func (a *OutgoingPeer) connect(ctx context.Context, wavesNetwork string, remote Remote, declAddr proto.PeerInfo) (conn.Connection, *proto.Handshake, error) {
+func (a *OutgoingPeer) connect(ctx context.Context, wavesNetwork string, remote peer.Remote, declAddr proto.TCPAddr) (conn.Connection, *proto.Handshake, error) {
 	possibleVersions := []uint32{15, 14, 16}
 	index := 0
 
@@ -97,18 +88,12 @@ func (a *OutgoingPeer) connect(ctx context.Context, wavesNetwork string, remote 
 			}
 		}
 
-		bytes, err := declAddr.MarshalBinary()
-		if err != nil {
-			zap.S().Error(err)
-			return nil, nil, err
-		}
-
 		handshake := proto.Handshake{
 			AppName:      wavesNetwork,
 			Version:      proto.Version{Major: 0, Minor: possibleVersions[index%len(possibleVersions)], Patch: 0},
 			NodeName:     "retransmitter",
 			NodeNonce:    0x0,
-			DeclaredAddr: bytes,
+			DeclaredAddr: proto.HandshakeTCPAddr(declAddr),
 			Timestamp:    proto.NewTimestampFromTime(time.Now()),
 		}
 
@@ -155,12 +140,13 @@ func (a *OutgoingPeer) SendMessage(m proto.Message) {
 	}
 }
 
-func (a *OutgoingPeer) Direction() Direction {
-	return Outgoing
+func (a *OutgoingPeer) Direction() peer.Direction {
+	return peer.Outgoing
 }
 
-func (a *OutgoingPeer) Close() {
+func (a *OutgoingPeer) Close() error {
 	a.cancel()
+	return nil
 }
 
 func (a *OutgoingPeer) ID() string {
@@ -169,4 +155,12 @@ func (a *OutgoingPeer) ID() string {
 
 func (a *OutgoingPeer) Connection() conn.Connection {
 	return a.connection
+}
+
+func (a *OutgoingPeer) Handshake() proto.Handshake {
+	return a.handshake
+}
+
+func (a *OutgoingPeer) RemoteAddr() proto.TCPAddr {
+	return proto.TCPAddr(*a.connection.Conn().RemoteAddr().(*net.TCPAddr))
 }

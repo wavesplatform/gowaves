@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"github.com/go-errors/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
-	. "github.com/wavesplatform/gowaves/pkg/network/peer"
+	. "github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"github.com/wavesplatform/gowaves/pkg/util/cancellable"

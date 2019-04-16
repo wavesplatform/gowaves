@@ -2,7 +2,6 @@ package proto
 
 import (
 	"bytes"
-	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -438,37 +437,4 @@ func TestHandshakeTCPAddr_Empty(t *testing.T) {
 	require.True(t, a.Empty())
 	b := NewHandshakeTCPAddr(net.IPv4(127, 0, 0, 1), 10)
 	require.False(t, b.Empty())
-}
-
-func TestBlock1111(t *testing.T) {
-	b := []byte{
-		1,
-		0, 0, 1, 84, 23, 55, 152, 0,
-		0, 0, 0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 0,
-
-		0, 0, 0, 0, // ConsensusBlockLength
-
-		0, 0, 0, 0, 9, 41, 159, 243, // BaseTarget
-
-		0, 0, 0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 0, // GenSignature
-
-		0, 0, 0, 0, // ???TransactionBlockLength
-
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 12, 114, 235, 224, 250, 104, 107, 8, 62, 10, 48, 229, 92, 147, 71, 95, 108, 227, 39, 116, 214, 164, 41, 30, 10, 47, 42, 67, 48, 65, 155, 14, 211, 219, 160, 216, 86, 241, 200, 107, 76, 8, 154, 135, 44, 26, 196, 143, 56, 37, 47, 55, 127, 55, 114, 123, 48, 15, 235, 89, 95, 103, 45, 139}
-	block := Block{}
-	err := block.UnmarshalBinary(b)
-	assert.NoError(t, err)
-	bb := []byte{0, 0, 1, 84, 23, 55, 152, 0}
-	rs := binary.BigEndian.Uint64(bb)
-	t.Log(rs)
 }

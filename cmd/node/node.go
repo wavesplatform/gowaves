@@ -4,14 +4,15 @@ import (
 	"context"
 	"github.com/alecthomas/kong"
 	"github.com/wavesplatform/gowaves/pkg/api"
+	"github.com/wavesplatform/gowaves/pkg/settings"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
 	"github.com/wavesplatform/gowaves/pkg/libs/bytespool"
-	"github.com/wavesplatform/gowaves/pkg/network/peer"
 	"github.com/wavesplatform/gowaves/pkg/node"
+	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"go.uber.org/zap"
@@ -44,7 +45,7 @@ func main() {
 	var cli Cli
 	kong.Parse(&cli)
 
-	state, err := state.NewState("./", state.DefaultBlockStorageParams())
+	state, err := state.NewState("./", state.DefaultBlockStorageParams(), settings.MainNetSettings)
 	if err != nil {
 		zap.S().Error(err)
 		return

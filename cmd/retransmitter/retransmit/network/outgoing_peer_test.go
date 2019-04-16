@@ -2,6 +2,7 @@ package network
 
 import (
 	"context"
+	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"net"
 	"sync"
 	"testing"
@@ -91,16 +92,16 @@ func TestOutgoingPeer_SendMessage(t *testing.T) {
 
 	ctx := context.Background()
 
-	parent := Parent{
-		MessageCh: make(chan ProtoMessage, 10),
-		InfoCh:    make(chan InfoMessage, 10),
+	parent := peer.Parent{
+		MessageCh: make(chan peer.ProtoMessage, 10),
+		InfoCh:    make(chan peer.InfoMessage, 10),
 	}
 
 	params := OutgoingPeerParams{
 		Address:  server.Addr().String(),
 		Parent:   parent,
 		Pool:     bytespool.NewBytesPool(10, 2*1024*1024),
-		DeclAddr: proto.PeerInfo{},
+		DeclAddr: proto.TCPAddr{},
 	}
 	go RunOutgoingPeer(ctx, params)
 
@@ -109,7 +110,7 @@ func TestOutgoingPeer_SendMessage(t *testing.T) {
 		t.Error("no message arrived in 100ms")
 		return
 	case m := <-parent.InfoCh:
-		connected := m.Value.(*Connected)
+		connected := m.Value.(*peer.Connected)
 		connected.Peer.SendMessage(&proto.GetPeersMessage{})
 	}
 	// waiting 10ms for error messages, no errors should arrive

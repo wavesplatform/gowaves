@@ -3,44 +3,13 @@ package node
 import (
 	"context"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
-	"github.com/wavesplatform/gowaves/pkg/network/conn"
-	"github.com/wavesplatform/gowaves/pkg/network/peer"
+	"github.com/wavesplatform/gowaves/pkg/p2p/mock"
+	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"github.com/wavesplatform/gowaves/pkg/state"
+	"github.com/wavesplatform/gowaves/pkg/settings"
 	"math/big"
+	"net"
 )
-
-type mockPeer struct {
-	messages []proto.Message
-}
-
-func (a *mockPeer) RemoteAddr() proto.TCPAddr {
-	panic("implement me")
-}
-
-func (*mockPeer) Direction() peer.Direction {
-	panic("implement me")
-}
-
-func (*mockPeer) Close() error {
-	panic("implement me")
-}
-
-func (a *mockPeer) SendMessage(m proto.Message) {
-	a.messages = append(a.messages, m)
-}
-
-func (*mockPeer) ID() string {
-	return "mocked"
-}
-
-func (*mockPeer) Connection() conn.Connection {
-	panic("implement me")
-}
-
-func (*mockPeer) Handshake() proto.Handshake {
-	panic("implement me")
-}
 
 type mockStateManager struct {
 	sig2Block map[crypto.Signature]*proto.Block
@@ -70,7 +39,7 @@ func (a *mockStateManager) AccountBalance(addr proto.Address, asset []byte) (uin
 	panic("implement me")
 }
 
-func (a *mockStateManager) AddressesNumber() (uint64, error) {
+func (a *mockStateManager) AddressesNumber(wavesonly bool) (uint64, error) {
 	panic("implement me")
 }
 
@@ -102,11 +71,11 @@ func (a *mockStateManager) CurrentScore() (*big.Int, error) {
 	panic("implement me")
 }
 
-func (a *mockStateManager) SavePeers([]state.KnownPeer) error {
+func (a *mockStateManager) SavePeers([]proto.TCPAddr) error {
 	panic("implement me")
 }
 
-func (a *mockStateManager) Peers() ([]state.KnownPeer, error) {
+func (a *mockStateManager) Peers() ([]proto.TCPAddr, error) {
 	panic("implement me")
 }
 
@@ -115,6 +84,10 @@ func (a *mockStateManager) Close() error {
 }
 
 func (a *mockStateManager) AddBlocks(blocks [][]byte, initialisation bool) error {
+	panic("implement me")
+}
+
+func (a *mockStateManager) BlockchainSettings() (*settings.BlockchainSettings, error) {
 	panic("implement me")
 }
 
@@ -172,9 +145,25 @@ func (*mockPeerManager) AddConnected(p peer.Peer) {
 	panic("implement me")
 }
 
-func NewMockPeerWithDefaultPeer() (*mockPeerManager, string, *mockPeer) {
+func (*mockPeerManager) AskPeers() {
+	panic("implement me")
+}
+
+func (*mockPeerManager) Disconnect(string) {
+	panic("implement me")
+}
+
+func (*mockPeerManager) EachConnected(func(peer.Peer, *big.Int)) {
+	panic("implement me")
+}
+
+func (*mockPeerManager) SpawnIncomingConnection(ctx context.Context, n net.Conn) {
+	panic("implement me")
+}
+
+func NewMockPeerManagerWithDefaultPeer() (*mockPeerManager, string, *mock.MockPeer) {
 	peerName := "peer"
-	p := &mockPeer{}
+	p := mock.NewPeer()
 	m := make(map[string]peer.Peer)
 	m[peerName] = p
 

@@ -1,4 +1,4 @@
-package peers
+package peer
 
 import (
 	"github.com/magiconair/properties/assert"

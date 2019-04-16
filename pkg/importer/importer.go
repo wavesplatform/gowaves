@@ -11,14 +11,14 @@ import (
 )
 
 const (
-	blocksBatchSize = 500
+	blocksBatchSize = 250
 	maxBlockSize    = 2 * 1024 * 1024
 )
 
 type State interface {
 	AddNewBlocks(blocks [][]byte) error
 	AddOldBlocks(blocks [][]byte) error
-	AddressesNumber() (uint64, error)
+	AddressesNumber(wavesOnly bool) (uint64, error)
 	AccountBalance(addr proto.Address, asset []byte) (uint64, error)
 }
 
@@ -79,7 +79,7 @@ func CheckBalances(st State, balancesPath string) error {
 	if err := jsonParser.Decode(&state); err != nil {
 		return errors.Errorf("failed to decode state: %v\n", err)
 	}
-	addressesNumber, err := st.AddressesNumber()
+	addressesNumber, err := st.AddressesNumber(true)
 	if err != nil {
 		return errors.Errorf("failed to get number of waves addresses: %v\n", err)
 	}

@@ -3,9 +3,8 @@ package outgoing
 import (
 	"context"
 	"github.com/wavesplatform/gowaves/pkg/libs/bytespool"
-	"github.com/wavesplatform/gowaves/pkg/network/conn"
-	"github.com/wavesplatform/gowaves/pkg/network/peer"
-	"github.com/wavesplatform/gowaves/pkg/node/peers"
+	"github.com/wavesplatform/gowaves/pkg/p2p/conn"
+	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
 	"net"
@@ -44,11 +43,11 @@ func EstablishConnection(ctx context.Context, params EstablishParams, v proto.Ve
 	}
 	p.connection = connection
 
-	peerImpl := peers.NewPeerImpl(*handshake, connection, peer.Outgoing, remote)
+	peerImpl := peer.NewPeerImpl(*handshake, connection, peer.Outgoing, remote)
 
 	connected := peer.InfoMessage{
 		ID: params.Address.String(),
-		Value: &peers.Connected{
+		Value: &peer.Connected{
 			Peer: peerImpl,
 		},
 	}

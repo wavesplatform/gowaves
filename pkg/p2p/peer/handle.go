@@ -4,7 +4,7 @@ import (
 	"context"
 	"github.com/wavesplatform/gowaves/pkg/libs/bytespool"
 
-	"github.com/wavesplatform/gowaves/pkg/network/conn"
+	"github.com/wavesplatform/gowaves/pkg/p2p/conn"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
 )

@@ -2,6 +2,7 @@ package state
 
 import (
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
+	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
 type peerStorage struct {
@@ -14,28 +15,38 @@ func newPeerStorage(db keyvalue.IterableKeyVal) *peerStorage {
 	}
 }
 
-func (a *peerStorage) savePeers(peers []KnownPeer) error {
+func (a *peerStorage) savePeers(peers []proto.TCPAddr) error {
+	if len(peers) == 0 {
+		return nil
+	}
+
+	batch, err := a.db.NewBatch()
+	if err != nil {
+		return StateError{errorType: ModificationError, originalError: err}
+	}
+
 	for _, p := range peers {
-		k := p.key()
-		err := a.db.PutDirectly(k[:], nil)
-		if err != nil {
-			return StateError{errorType: ModificationError, originalError: err}
-		}
+		k := IntoBytes(p)
+		batch.Put(k[:], nil)
+	}
+
+	err = a.db.Flush(batch)
+	if err != nil {
+		return err
 	}
 	return nil
 }
 
-func (a *peerStorage) peers() ([]KnownPeer, error) {
+func (a *peerStorage) peers() ([]proto.TCPAddr, error) {
 	iter, err := a.db.NewKeyIterator([]byte{knownPeersPrefix})
 	if err != nil {
 		return nil, err
 	}
 	defer iter.Release()
 
-	var peers []KnownPeer
+	var peers []proto.TCPAddr
 	for iter.Next() {
-		p := KnownPeer{}
-		err = p.UnmarshalBinary(iter.Key())
+		p, err := FromBytes(iter.Key())
 		if err != nil {
 			return nil, err
 		}

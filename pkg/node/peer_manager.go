@@ -2,7 +2,7 @@ package node
 
 import (
 	"context"
-	"github.com/wavesplatform/gowaves/pkg/network/peer"
+	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"go.uber.org/zap"
@@ -44,7 +44,10 @@ type PeerManager interface {
 	Close()
 	SpawnOutgoingConnections(context.Context)
 	SpawnIncomingConnection(ctx context.Context, conn net.Conn)
+
+	// for all connected node send GetPeersMessage
 	AskPeers()
+
 	Disconnect(id string)
 }
 
@@ -127,12 +130,7 @@ func (a *PeerManagerImpl) UpdateKnownPeers(known []proto.TCPAddr) error {
 		return nil
 	}
 
-	peers := make([]state.KnownPeer, len(known))
-	for idx, p := range known {
-		peers[idx] = state.NewKnownPeerFromTcpAddr(p)
-	}
-
-	return a.state.SavePeers(peers)
+	return a.state.SavePeers(known)
 }
 
 func (a *PeerManagerImpl) KnownPeers() ([]proto.TCPAddr, error) {
@@ -147,7 +145,7 @@ func (a *PeerManagerImpl) KnownPeers() ([]proto.TCPAddr, error) {
 
 	out := make([]proto.TCPAddr, len(rs))
 	for idx, p := range rs {
-		out[idx] = proto.NewTCPAddr(p.Addr(), p.Port())
+		out[idx] = p
 	}
 
 	return out, nil

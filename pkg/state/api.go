@@ -5,6 +5,7 @@ import (
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/settings"
 )
 
 type StateErrorType byte
@@ -19,6 +20,7 @@ const (
 	RetrievalError
 	// Errors occurring while updating/modifying state data.
 	ModificationError
+	InvalidInputError
 	// DB or block storage Close() error.
 	ClosureError
 	// Minor technical errors which shouldn't ever happen.
@@ -59,7 +61,8 @@ type State interface {
 	// nil asset = Waves.
 	AccountBalance(addr proto.Address, asset []byte) (uint64, error)
 	// AddressesNumber returns total number of addresses in state.
-	AddressesNumber() (uint64, error)
+	// Set wavesOnly to true to only get number of addresses which have Waves.
+	AddressesNumber(wavesOnly bool) (uint64, error)
 	// AddBlock adds single block to state.
 	// It's not recommended to use this function when you are able to accumulate big blocks batch,
 	// since it's much more efficient to add many blocks at once.
@@ -77,10 +80,12 @@ type State interface {
 	ScoreAtHeight(height uint64) (*big.Int, error)
 	// Get current blockchain score (at top height).
 	CurrentScore() (*big.Int, error)
+	// Retrieve current blockchain settings.
+	BlockchainSettings() (*settings.BlockchainSettings, error)
 
 	//Create or replace Peers
-	SavePeers([]KnownPeer) error
-	Peers() ([]KnownPeer, error)
+	SavePeers([]proto.TCPAddr) error
+	Peers() ([]proto.TCPAddr, error)
 
 	Close() error
 }
@@ -90,8 +95,9 @@ type State interface {
 // and state will try to sync and use it in this case.
 // params are block storage parameters, they specify lengths of byte offsets for headers and transactions.
 // Use state.DefaultBlockStorageParams() to create default parameters.
-func NewState(dataDir string, params BlockStorageParams) (State, error) {
-	return newStateManager(dataDir, params)
+// Settings are blockchain settings (settings.MainNetSettings, settings.TestNetSettings or custom settings).
+func NewState(dataDir string, params BlockStorageParams, settings *settings.BlockchainSettings) (State, error) {
+	return newStateManager(dataDir, params, settings)
 }
 
 type BlockStorageParams struct {

@@ -2,130 +2,157 @@ package state
 
 import (
 	"encoding/binary"
+	"encoding/json"
 	"math/big"
 	"os"
 	"path/filepath"
+	"runtime"
 
 	"github.com/pkg/errors"
+	"github.com/wavesplatform/gowaves/pkg/consensus"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/settings"
 )
 
 const (
-	rollbackMaxBlocks = 4000
+	rollbackMaxBlocks = 2000
 	blocksStorDir     = "blocks_storage"
 	keyvalueDir       = "keyvalue"
 )
 
-type stateManager struct {
-	genesis  proto.Block
-	db       keyvalue.KeyValue
-	scores   *scores
-	accounts *accountsStorage
-	rw       *blockReadWriter
-	peers    *peerStorage
+func getLocalDir() (string, error) {
+	_, filename, _, ok := runtime.Caller(0)
+	if !ok {
+		return "", errors.Errorf("Unable to find current package file")
+	}
+	return filepath.Dir(filename), nil
 }
 
-func (s *stateManager) Peers() ([]KnownPeer, error) {
+func genesisFilePath(s *settings.BlockchainSettings) (string, error) {
+	dir, err := getLocalDir()
+	if err != nil {
+		return "", err
+	}
+	switch s.Type {
+	case settings.MainNet:
+		return filepath.Join(dir, "genesis", "mainnet.json"), nil
+	case settings.TestNet:
+		return filepath.Join(dir, "genesis", "testnet.json"), nil
+	default:
+		if _, err := os.Stat(s.GenesisCfgPath); err != nil {
+			return "", err
+		}
+		return s.GenesisCfgPath, nil
+	}
+}
+
+type stateManager struct {
+	genesis proto.Block
+	stateDB *stateDB
+
+	assets   *assets
+	scores   *scores
+	balances *balances
+	rw       *blockReadWriter
+	peers    *peerStorage
+
+	settings *settings.BlockchainSettings
+	cv       *consensus.ConsensusValidator
+}
+
+func (s *stateManager) Peers() ([]proto.TCPAddr, error) {
 	return s.peers.peers()
 }
 
-func syncDbAndStorage(db keyvalue.KeyValue, stor *accountsStorage, rw *blockReadWriter) error {
-	dbHeightBytes, err := db.Get([]byte{dbHeightKeyPrefix})
-	if err != nil {
-		return err
-	}
-	dbHeight := binary.LittleEndian.Uint64(dbHeightBytes)
-	rwHeighBytes, err := db.Get([]byte{rwHeightKeyPrefix})
-	if err != nil {
-		return err
-	}
-	rwHeight := binary.LittleEndian.Uint64(rwHeighBytes)
-	if rwHeight < dbHeight {
-		// This should never happen, because we update block storage before writing changes into DB.
-		panic("Impossible to sync: DB is ahead of block storage; remove data dir and restart the node.")
-	}
-	if dbHeight == 0 {
-		if err := rw.reset(false); err != nil {
-			return errors.Errorf("failed to reset block storage: %v", err)
-		}
-	} else {
-		last, err := rw.blockIDByHeight(dbHeight - 1)
-		if err != nil {
-			return err
-		}
-		if err := rw.rollback(last, false); err != nil {
-			return errors.Errorf("failed to remove blocks from block storage: %v", err)
-		}
-	}
-	return nil
-}
-
-func newStateManager(dataDir string, params BlockStorageParams) (*stateManager, error) {
-	genesisSig, err := crypto.NewSignatureFromBase58(genesisSignature)
-	if err != nil {
-		return nil, StateError{errorType: Other, originalError: errors.Errorf("failed to get genesis signature from string: %v\n", err)}
-	}
+func newStateManager(dataDir string, params BlockStorageParams, settings *settings.BlockchainSettings) (*stateManager, error) {
 	blockStorageDir := filepath.Join(dataDir, blocksStorDir)
 	if _, err := os.Stat(blockStorageDir); os.IsNotExist(err) {
 		if err := os.Mkdir(blockStorageDir, 0755); err != nil {
 			return nil, StateError{errorType: Other, originalError: errors.Errorf("failed to create blocks directory: %v\n", err)}
 		}
 	}
+	// Initialize database.
 	dbDir := filepath.Join(dataDir, keyvalueDir)
-	db, err := keyvalue.NewKeyVal(dbDir, true)
-	scores, err := newScores(db)
+	db, err := keyvalue.NewKeyVal(dbDir)
+	if err != nil {
+		return nil, StateError{errorType: Other, originalError: errors.Errorf("failed to create db: %v\n", err)}
+	}
+	dbBatch, err := db.NewBatch()
+	if err != nil {
+		return nil, StateError{errorType: Other, originalError: errors.Errorf("failed to create db batch: %v\n", err)}
+	}
+	stateDB, err := newStateDB(db, dbBatch)
+	if err != nil {
+		return nil, StateError{errorType: Other, originalError: errors.Errorf("failed to create stateDB: %v\n", err)}
+	}
+	// scores is storage for blocks score.
+	scores, err := newScores(db, dbBatch)
 	if err != nil {
 		return nil, StateError{errorType: Other, originalError: errors.Errorf("failed to create scores: %v\n", err)}
 	}
-	rw, err := newBlockReadWriter(blockStorageDir, params.OffsetLen, params.HeaderOffsetLen, db)
+	state := &stateManager{
+		stateDB:  stateDB,
+		scores:   scores,
+		settings: settings,
+		peers:    newPeerStorage(db),
+	}
+	// rw is storage for blocks.
+	rw, err := newBlockReadWriter(blockStorageDir, params.OffsetLen, params.HeaderOffsetLen, db, dbBatch)
 	if err != nil {
 		return nil, StateError{errorType: Other, originalError: errors.Errorf("failed to create block storage: %v\n", err)}
 	}
-	accountsStor, err := newAccountsStorage(genesisSig, db)
+	// balances is storage for balances of accounts.
+	balances, err := newBalances(db, dbBatch, state, state)
 	if err != nil {
-		return nil, StateError{errorType: Other, originalError: errors.Errorf("failed to create accounts storage: %v\n", err)}
+		return nil, StateError{errorType: Other, originalError: errors.Errorf("failed to create balances storage: %v\n", err)}
 	}
-	accountsStor.setRollbackMax(rollbackMaxBlocks, rw)
-	if err := syncDbAndStorage(db, accountsStor, rw); err != nil {
+	if err := stateDB.syncRw(rw); err != nil {
 		return nil, StateError{errorType: Other, originalError: errors.Errorf("failed to sync block storage and DB: %v\n", err)}
 	}
-	peerStorage := newPeerStorage(db)
-	//if err != nil {
-	//	return nil, StateError{errorType: Other, originalError: errors.Errorf("failed to create peers storage: %v\n", err)}
-	//}
-
-	genesis := proto.Block{
-		BlockHeader: proto.BlockHeader{
-			Version:        1,
-			Timestamp:      1460678400000,
-			BaseTarget:     153722867,
-			BlockSignature: genesisSig,
-			Height:         1,
-		},
-	}
-	state := &stateManager{
-		genesis:  genesis,
-		db:       db,
-		scores:   scores,
-		accounts: accountsStor,
-		rw:       rw,
-		peers:    peerStorage,
-	}
-	height, err := state.Height()
+	// assets is storage for assets info.
+	assets, err := newAssets(db, dbBatch, state, state)
 	if err != nil {
-		return nil, StateError{errorType: RetrievalError, originalError: err}
+		return nil, StateError{errorType: Other, originalError: errors.Errorf("failed to create assets storage: %v\n", err)}
 	}
-	if height == 1 {
-		if err := state.applyGenesis(); err != nil {
-			return nil, StateError{errorType: ModificationError, originalError: errors.Errorf("failed to apply genesis: %v\n", err)}
-		}
+	// Consensus validator is needed to check block headers.
+	cv, err := consensus.NewConsensusValidator(state)
+	if err != nil {
+		return nil, StateError{errorType: Other, originalError: err}
+	}
+	// Set fields which depend on state.
+	state.assets = assets
+	state.cv = cv
+	state.balances = balances
+	state.rw = rw
+	// Handle genesis block.
+	genesisPath, err := genesisFilePath(settings)
+	if err != nil {
+		return nil, StateError{errorType: Other, originalError: err}
+	}
+	if err := state.handleGenesisBlock(genesisPath); err != nil {
+		return nil, StateError{errorType: Other, originalError: err}
 	}
 	return state, nil
 }
 
-func (s *stateManager) applyGenesis() error {
+func (s *stateManager) setGenesisBlock(genesisCfgPath string) error {
+	genesisFile, err := os.Open(genesisCfgPath)
+	if err != nil {
+		return errors.Errorf("failed to open genesis file: %v\n", err)
+	}
+	jsonParser := json.NewDecoder(genesisFile)
+	if err := jsonParser.Decode(&s.genesis); err != nil {
+		return errors.Errorf("failed to parse JSON of genesis block: %v\n", err)
+	}
+	if err := genesisFile.Close(); err != nil {
+		return errors.Errorf("failed to close genesis file: %v\n", err)
+	}
+	return nil
+}
+
+func (s *stateManager) addGenesisBlock() error {
 	// Add score of genesis block.
 	genesisScore, err := calculateScore(s.genesis.BaseTarget)
 	if err != nil {
@@ -134,32 +161,43 @@ func (s *stateManager) applyGenesis() error {
 	if err := s.scores.addScore(&big.Int{}, genesisScore, 1); err != nil {
 		return err
 	}
-	tv, err := newTransactionValidator(s.genesis.BlockSignature, s.accounts, proto.MainNetScheme)
+	tv, err := newTransactionValidator(s.genesis.BlockSignature, s.balances, s.assets, s.settings)
 	if err != nil {
 		return err
 	}
-	genesisTx, err := generateGenesisTransactions()
-	if err != nil {
+	if err := s.addNewBlock(tv, &s.genesis, nil, true); err != nil {
 		return err
-	}
-	for _, tx := range genesisTx {
-		if err := tv.validateTransaction(&s.genesis, &tx, true); err != nil {
-			return err
-		}
 	}
 	if err := tv.performTransactions(); err != nil {
 		return err
 	}
-	if err := s.accounts.flush(); err != nil {
+	if err := s.flush(); err != nil {
+		return StateError{errorType: ModificationError, originalError: err}
+	}
+	if err := s.reset(); err != nil {
+		return StateError{errorType: ModificationError, originalError: err}
+	}
+	return nil
+}
+
+func (s *stateManager) handleGenesisBlock(genesisCfgPath string) error {
+	height, err := s.Height()
+	if err != nil {
 		return err
+	}
+	if err := s.setGenesisBlock(genesisCfgPath); err != nil {
+		return err
+	}
+	// If the storage is new (data dir does not contain any data), genesis block must be applied.
+	if height == 0 {
+		if err := s.addGenesisBlock(); err != nil {
+			return errors.Errorf("failed to apply/save genesis: %v\n", err)
+		}
 	}
 	return nil
 }
 
 func (s *stateManager) Block(blockID crypto.Signature) (*proto.Block, error) {
-	if blockID == s.genesis.BlockSignature {
-		return &s.genesis, nil
-	}
 	headerBytes, err := s.rw.readBlockHeader(blockID)
 	if err != nil {
 		return nil, StateError{errorType: RetrievalError, originalError: err}
@@ -178,10 +216,7 @@ func (s *stateManager) Block(blockID crypto.Signature) (*proto.Block, error) {
 }
 
 func (s *stateManager) BlockByHeight(height uint64) (*proto.Block, error) {
-	if height == 1 {
-		return &s.genesis, nil
-	}
-	blockID, err := s.rw.blockIDByHeight(height - 2)
+	blockID, err := s.rw.blockIDByHeight(height)
 	if err != nil {
 		return nil, StateError{errorType: RetrievalError, originalError: err}
 	}
@@ -193,25 +228,27 @@ func (s *stateManager) Height() (uint64, error) {
 	if err != nil {
 		return 0, StateError{errorType: RetrievalError, originalError: err}
 	}
-	return height + 1, nil
+	return height, nil
 }
 
 func (s *stateManager) BlockIDToHeight(blockID crypto.Signature) (uint64, error) {
-	if blockID == s.genesis.BlockSignature {
-		return 1, nil
-	}
 	height, err := s.rw.heightByBlockID(blockID)
 	if err != nil {
 		return 0, StateError{errorType: RetrievalError, originalError: err}
 	}
-	return height + 2, nil
+	return height, nil
+}
+
+func (s *stateManager) NewBlockIDToHeight(blockID crypto.Signature) (uint64, error) {
+	height, err := s.rw.heightByNewBlockID(blockID)
+	if err != nil {
+		return 0, StateError{errorType: RetrievalError, originalError: err}
+	}
+	return height, nil
 }
 
 func (s *stateManager) HeightToBlockID(height uint64) (crypto.Signature, error) {
-	if height == 1 {
-		return s.genesis.BlockSignature, nil
-	}
-	id, err := s.rw.blockIDByHeight(height - 2)
+	id, err := s.rw.blockIDByHeight(height)
 	if err != nil {
 		return crypto.Signature{}, StateError{errorType: RetrievalError, originalError: err}
 	}
@@ -220,15 +257,15 @@ func (s *stateManager) HeightToBlockID(height uint64) (crypto.Signature, error) 
 
 func (s *stateManager) AccountBalance(addr proto.Address, asset []byte) (uint64, error) {
 	key := balanceKey{address: addr, asset: asset}
-	balance, err := s.accounts.accountBalance(key.bytes())
+	balance, err := s.balances.accountBalance(key.bytes())
 	if err != nil {
 		return 0, StateError{errorType: RetrievalError, originalError: err}
 	}
 	return balance, nil
 }
 
-func (s *stateManager) AddressesNumber() (uint64, error) {
-	res, err := s.accounts.addressesNumber()
+func (s *stateManager) AddressesNumber(wavesOnly bool) (uint64, error) {
+	res, err := s.balances.addressesNumber(wavesOnly)
 	if err != nil {
 		return 0, StateError{errorType: RetrievalError, originalError: err}
 	}
@@ -244,7 +281,10 @@ func (s *stateManager) topBlock() (*proto.Block, error) {
 	return s.BlockByHeight(height)
 }
 
-func (s *stateManager) addNewBlock(tv *transactionValidator, block *proto.Block, initialisation bool) error {
+func (s *stateManager) addNewBlock(tv *transactionValidator, block, parent *proto.Block, initialisation bool) error {
+	if err := s.stateDB.addBlock(block.BlockSignature); err != nil {
+		return err
+	}
 	// Indicate new block for storage.
 	if err := s.rw.startBlock(block.BlockSignature); err != nil {
 		return err
@@ -270,15 +310,37 @@ func (s *stateManager) addNewBlock(tv *transactionValidator, block *proto.Block,
 		if err := s.rw.writeTransaction(tx.GetID(), transactions[:n+4]); err != nil {
 			return err
 		}
-		if tv.isSupported(tx) {
-			// Genesis, Payment, TransferV1 and TransferV2 Waves-only for now.
-			if err = tv.validateTransaction(block, tx, initialisation); err != nil {
-				return err
-			}
+		// Validate transaction against state.
+		if err = tv.validateTransaction(block, parent, tx, initialisation); err != nil {
+			return err
 		}
 		transactions = transactions[4+n:]
 	}
 	if err := s.rw.finishBlock(block.BlockSignature); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *stateManager) reset() error {
+	s.rw.reset()
+	s.assets.reset()
+	s.balances.reset()
+	s.stateDB.reset()
+	return nil
+}
+
+func (s *stateManager) flush() error {
+	if err := s.rw.flush(); err != nil {
+		return err
+	}
+	if err := s.assets.flush(); err != nil {
+		return err
+	}
+	if err := s.balances.flush(); err != nil {
+		return err
+	}
+	if err := s.stateDB.flush(); err != nil {
 		return err
 	}
 	return nil
@@ -300,18 +362,46 @@ func (s *stateManager) unmarshalAndCheck(blockBytes []byte, parentSig crypto.Sig
 	return &block, nil
 }
 
+func (s *stateManager) undoBlockAddition() error {
+	if err := s.reset(); err != nil {
+		return err
+	}
+	if err := s.stateDB.syncRw(s.rw); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (s *stateManager) AddBlock(block []byte) error {
 	blocks := make([][]byte, 1)
 	blocks[0] = block
-	return s.addBlocks(blocks, false)
+	if err := s.addBlocks(blocks, false); err != nil {
+		if err := s.undoBlockAddition(); err != nil {
+			panic("Failed to add blocks and can not rollback to previous state after failure.")
+		}
+		return err
+	}
+	return nil
 }
 
 func (s *stateManager) AddNewBlocks(blocks [][]byte) error {
-	return s.addBlocks(blocks, false)
+	if err := s.addBlocks(blocks, false); err != nil {
+		if err := s.undoBlockAddition(); err != nil {
+			panic("Failed to add blocks and can not rollback to previous state after failure.")
+		}
+		return err
+	}
+	return nil
 }
 
 func (s *stateManager) AddOldBlocks(blocks [][]byte) error {
-	return s.addBlocks(blocks, true)
+	if err := s.addBlocks(blocks, true); err != nil {
+		if err := s.undoBlockAddition(); err != nil {
+			panic("Failed to add blocks and can not rollback to previous state after failure.")
+		}
+		return err
+	}
+	return nil
 }
 
 func (s *stateManager) addBlocks(blocks [][]byte, initialisation bool) error {
@@ -320,8 +410,7 @@ func (s *stateManager) addBlocks(blocks [][]byte, initialisation bool) error {
 	if err != nil {
 		return StateError{errorType: RetrievalError, originalError: err}
 	}
-	parentSig := parent.BlockSignature
-	tv, err := newTransactionValidator(s.genesis.BlockSignature, s.accounts, proto.MainNetScheme)
+	tv, err := newTransactionValidator(s.genesis.BlockSignature, s.balances, s.assets, s.settings)
 	if err != nil {
 		return StateError{errorType: Other, originalError: err}
 	}
@@ -333,8 +422,9 @@ func (s *stateManager) addBlocks(blocks [][]byte, initialisation bool) error {
 	if err != nil {
 		return StateError{errorType: RetrievalError, originalError: err}
 	}
-	for _, blockBytes := range blocks {
-		block, err := s.unmarshalAndCheck(blockBytes, parentSig, initialisation)
+	headers := make([]proto.BlockHeader, blocksNumber)
+	for i, blockBytes := range blocks {
+		block, err := s.unmarshalAndCheck(blockBytes, parent.BlockSignature, initialisation)
 		if err != nil {
 			return StateError{errorType: DeserializationError, originalError: err}
 		}
@@ -343,101 +433,95 @@ func (s *stateManager) addBlocks(blocks [][]byte, initialisation bool) error {
 		if err != nil {
 			return StateError{errorType: Other, originalError: err}
 		}
-		if err := s.scores.addScore(prevScore, score, s.rw.recentHeight()+2); err != nil {
+		if err := s.scores.addScore(prevScore, score, s.rw.recentHeight()); err != nil {
 			return StateError{errorType: ModificationError, originalError: err}
 		}
 		prevScore = score
-		if err := s.addNewBlock(tv, block, initialisation); err != nil {
+		if err := s.addNewBlock(tv, block, parent, initialisation); err != nil {
 			return StateError{errorType: TxValidationError, originalError: err}
 		}
-		parentSig = block.BlockSignature
+		headers[i] = block.BlockHeader
+		parent = block
 	}
 	if err := tv.performTransactions(); err != nil {
 		return StateError{errorType: TxValidationError, originalError: err}
 	}
-	if err := s.rw.updateHeight(blocksNumber); err != nil {
+	if err := s.cv.ValidateHeaders(headers, height); err != nil {
+		return StateError{errorType: BlockValidationError, originalError: err}
+	}
+	if err := s.flush(); err != nil {
 		return StateError{errorType: ModificationError, originalError: err}
 	}
-	if err := s.rw.flush(); err != nil {
-		return StateError{errorType: ModificationError, originalError: err}
-	}
-	if err := s.accounts.updateHeight(blocksNumber); err != nil {
-		return StateError{errorType: ModificationError, originalError: err}
-	}
-	if err := s.accounts.flush(); err != nil {
+	if err := s.reset(); err != nil {
 		return StateError{errorType: ModificationError, originalError: err}
 	}
 	return nil
 }
 
+func (s *stateManager) checkRollbackInput(blockID crypto.Signature) error {
+	height, err := s.BlockIDToHeight(blockID)
+	if err != nil {
+		return err
+	}
+	maxHeight, err := s.Height()
+	if err != nil {
+		return err
+	}
+	minRollbackHeight, err := s.stateDB.getRollbackMinHeight()
+	if err != nil {
+		return err
+	}
+	if height < minRollbackHeight || height > maxHeight {
+		return errors.New("invalid height")
+	}
+	return nil
+}
+
 func (s *stateManager) RollbackToHeight(height uint64) error {
-	// Rollback accounts storage.
-	curHeight, err := s.rw.currentHeight()
+	blockID, err := s.HeightToBlockID(height)
 	if err != nil {
 		return StateError{errorType: RetrievalError, originalError: err}
 	}
-	oldHeight := curHeight + 1
-	if height < 1 {
-		return StateError{errorType: RollbackError, originalError: errors.New("minimum block to rollback to is the first block")}
-	} else if height == 1 {
-		for h := curHeight; h > 0; h-- {
-			blockID, err := s.rw.blockIDByHeight(h - 1)
-			if err != nil {
-				return StateError{errorType: RetrievalError, originalError: err}
-			}
-			if err := s.accounts.rollbackBlock(blockID); err != nil {
-				return StateError{errorType: RollbackError, originalError: err}
-			}
-		}
-		// Remove blocks from block storage.
-		if err := s.rw.reset(true); err != nil {
-			return StateError{errorType: RollbackError, originalError: err}
-		}
-	} else {
-		blockID, err := s.rw.blockIDByHeight(height - 2)
-		if err != nil {
-			return StateError{errorType: RetrievalError, originalError: err}
-		}
-		if err := s.RollbackTo(blockID); err != nil {
-			return StateError{errorType: RollbackError, originalError: err}
-		}
+	if err := s.checkRollbackInput(blockID); err != nil {
+		return StateError{errorType: InvalidInputError, originalError: err}
 	}
-	// Remove scores of deleted blocks.
-	if err := s.scores.rollback(height, oldHeight); err != nil {
+	if err := s.RollbackTo(blockID); err != nil {
 		return StateError{errorType: RollbackError, originalError: err}
 	}
 	return nil
 }
 
 func (s *stateManager) RollbackTo(removalEdge crypto.Signature) error {
-	// Rollback accounts storage.
+	if err := s.checkRollbackInput(removalEdge); err != nil {
+		return StateError{errorType: InvalidInputError, originalError: err}
+	}
 	curHeight, err := s.rw.currentHeight()
 	if err != nil {
 		return StateError{errorType: RetrievalError, originalError: err}
 	}
-	oldHeight := curHeight + 1
 	for height := curHeight; height > 0; height-- {
-		blockID, err := s.rw.blockIDByHeight(height - 1)
+		blockID, err := s.rw.blockIDByHeight(height)
 		if err != nil {
 			return StateError{errorType: RetrievalError, originalError: err}
 		}
 		if blockID == removalEdge {
 			break
 		}
-		if err := s.accounts.rollbackBlock(blockID); err != nil {
+		if err := s.stateDB.rollbackBlock(blockID); err != nil {
 			return StateError{errorType: RollbackError, originalError: err}
 		}
-	}
-	// Remove blocks from block storage.
-	if err := s.rw.rollback(removalEdge, true); err != nil {
-		return StateError{errorType: RollbackError, originalError: err}
 	}
 	// Remove scores of deleted blocks.
 	newHeight, err := s.Height()
 	if err != nil {
 		return StateError{errorType: RetrievalError, originalError: err}
 	}
+	oldHeight := curHeight + 1
 	if err := s.scores.rollback(newHeight, oldHeight); err != nil {
+		return StateError{errorType: RollbackError, originalError: err}
+	}
+	// Remove blocks from block storage.
+	if err := s.rw.rollback(removalEdge, true); err != nil {
 		return StateError{errorType: RollbackError, originalError: err}
 	}
 	return nil
@@ -459,7 +543,28 @@ func (s *stateManager) CurrentScore() (*big.Int, error) {
 	return s.ScoreAtHeight(height)
 }
 
-func (s *stateManager) SavePeers(peers []KnownPeer) error {
+func (s *stateManager) EffectiveBalance(addr proto.Address, startHeight, endHeight uint64) (uint64, error) {
+	key := balanceKey{address: addr}
+	effectiveBalance, err := s.balances.minBalanceInRange(key.bytes(), startHeight, endHeight)
+	if err != nil {
+		return 0, StateError{errorType: RetrievalError, originalError: err}
+	}
+	return effectiveBalance, nil
+}
+
+func (s *stateManager) BlockchainSettings() (*settings.BlockchainSettings, error) {
+	return s.settings, nil
+}
+
+func (s *stateManager) RollbackMax() uint64 {
+	return rollbackMaxBlocks
+}
+
+func (s *stateManager) IsValidBlock(blockID crypto.Signature) (bool, error) {
+	return s.stateDB.isValidBlock(blockID)
+}
+
+func (s *stateManager) SavePeers(peers []proto.TCPAddr) error {
 	return s.peers.savePeers(peers)
 
 }
@@ -468,7 +573,7 @@ func (s *stateManager) Close() error {
 	if err := s.rw.close(); err != nil {
 		return StateError{errorType: ClosureError, originalError: err}
 	}
-	if err := s.db.Close(); err != nil {
+	if err := s.stateDB.close(); err != nil {
 		return StateError{errorType: ClosureError, originalError: err}
 	}
 	return nil

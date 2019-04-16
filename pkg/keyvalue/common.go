@@ -1,13 +1,19 @@
 package keyvalue
 
 type KeyValue interface {
+	NewBatch() (Batch, error)
 	Has(key []byte) (bool, error)
 	Put(key, val []byte) error
-	PutDirectly(key, val []byte) error
 	Get(key []byte) ([]byte, error)
 	Delete(key []byte) error
-	Flush() error
+	Flush(batch Batch) error
 	Close() error
+}
+
+type Batch interface {
+	Delete(key []byte)
+	Put(key, val []byte)
+	Reset()
 }
 
 type Iterator interface {

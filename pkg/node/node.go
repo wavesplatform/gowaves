@@ -3,8 +3,7 @@ package node
 import (
 	"context"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
-	"github.com/wavesplatform/gowaves/pkg/network/peer"
-	"github.com/wavesplatform/gowaves/pkg/node/peers"
+	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"github.com/wavesplatform/gowaves/pkg/util"
@@ -109,7 +108,7 @@ func (a *Node) handleGetPeersMessage(id string, m *proto.GetPeersMessage) {
 
 func (a *Node) HandleInfoMessage(m peer.InfoMessage) {
 	switch t := m.Value.(type) {
-	case *peers.Connected:
+	case *peer.Connected:
 		a.handleNewConnection(t.Peer)
 	case error:
 		a.handlePeerError(m.ID, t)
@@ -334,7 +333,3 @@ func (a *Signatures) Exists(sig crypto.Signature) bool {
 	_, ok := a.unique[sig]
 	return ok
 }
-
-//type Runtime struct {
-//
-//}

@@ -3,9 +3,8 @@ package incoming
 import (
 	"context"
 	"github.com/wavesplatform/gowaves/pkg/libs/bytespool"
-	"github.com/wavesplatform/gowaves/pkg/network/conn"
-	"github.com/wavesplatform/gowaves/pkg/network/peer"
-	"github.com/wavesplatform/gowaves/pkg/node/peers"
+	"github.com/wavesplatform/gowaves/pkg/p2p/conn"
+	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
 	"net"
@@ -93,11 +92,11 @@ func RunIncomingPeer(ctx context.Context, params IncomingPeerParams) error {
 	//_ = decl.UnmarshalBinary(readHandshake.DeclaredAddr)
 	zap.S().Debugf("%s, readhandshake %+v", c.RemoteAddr().String(), readHandshake)
 
-	peerImpl := peers.NewPeerImpl(readHandshake, connection, peer.Incoming, remote)
+	peerImpl := peer.NewPeerImpl(readHandshake, connection, peer.Incoming, remote)
 
 	out := peer.InfoMessage{
 		ID: peerImpl.ID(),
-		Value: &peers.Connected{
+		Value: &peer.Connected{
 			Peer: peerImpl,
 		},
 	}

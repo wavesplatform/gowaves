@@ -730,6 +730,10 @@ func (a IpPort) Port() int {
 	return int(b)
 }
 
+func (a IpPort) ToTcpAddr() TCPAddr {
+	return NewTCPAddr(a.Addr(), a.Port())
+}
+
 //func NodeAddrFromString(s string) NodeAddr {
 //	host, port, err := net.SplitHostPort(s)
 //	if err != nil {

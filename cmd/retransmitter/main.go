@@ -16,7 +16,7 @@ import (
 	"github.com/wavesplatform/gowaves/cmd/retransmitter/retransmit/httpserver"
 	"github.com/wavesplatform/gowaves/cmd/retransmitter/retransmit/utils"
 	"github.com/wavesplatform/gowaves/pkg/libs/bytespool"
-	"github.com/wavesplatform/gowaves/pkg/network/peer"
+	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
 )
@@ -89,13 +89,9 @@ func main() {
 		return
 	}
 
-	declAddr := proto.PeerInfo{}
+	declAddr := proto.TCPAddr{}
 	if decl != "" {
-		declAddr, err = proto.NewPeerInfoFromString(decl)
-		if err != nil {
-			fmt.Println(err)
-			return
-		}
+		declAddr = proto.NewTCPAddrFromString(decl)
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())

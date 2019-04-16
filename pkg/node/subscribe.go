@@ -2,7 +2,7 @@ package node
 
 import (
 	"fmt"
-	"github.com/wavesplatform/gowaves/pkg/network/peer"
+	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"reflect"
 	"sync"

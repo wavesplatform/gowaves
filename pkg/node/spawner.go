@@ -3,10 +3,10 @@ package node
 import (
 	"context"
 	"github.com/wavesplatform/gowaves/pkg/libs/bytespool"
-	"github.com/wavesplatform/gowaves/pkg/network/conn"
-	"github.com/wavesplatform/gowaves/pkg/network/peer"
-	"github.com/wavesplatform/gowaves/pkg/node/peers/incoming"
-	"github.com/wavesplatform/gowaves/pkg/node/peers/outgoing"
+	"github.com/wavesplatform/gowaves/pkg/p2p/conn"
+	"github.com/wavesplatform/gowaves/pkg/p2p/incoming"
+	"github.com/wavesplatform/gowaves/pkg/p2p/outgoing"
+	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"net"
 )
