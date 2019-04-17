@@ -1,8 +1,10 @@
 package node
 
 import (
-	"context"
 	"fmt"
+	"math/big"
+	"time"
+
 	"github.com/go-errors/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	. "github.com/wavesplatform/gowaves/pkg/p2p/peer"
@@ -10,8 +12,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"github.com/wavesplatform/gowaves/pkg/util/cancellable"
 	"go.uber.org/zap"
-	"math/big"
-	"time"
 )
 
 type StateSync struct {
@@ -171,7 +171,7 @@ func applyBlock2(receivedSignatures *proto.SignaturesMessage, blockSignatures *S
 		timeout := time.After(30 * time.Second)
 
 		// ask block again after 5 second
-		cancel := cancellable.After(5*time.Second, func(c context.Context) {
+		cancel := cancellable.After(5*time.Second, func() {
 			p.SendMessage(&proto.GetBlockMessage{BlockID: sigs[i]})
 		})
 
