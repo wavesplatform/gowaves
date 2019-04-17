@@ -142,7 +142,7 @@ type Alias struct {
 	Alias   string
 }
 
-// NewAliasFromString creates an Alias from its string representation and checks that the result is a valid Alias.
+// NewAliasFromString creates an Alias from its string representation. Function does not check that the result is a valid Alias.
 // String representation of an Alias should have a following format: "alias:<scheme>:<alias>". Scheme should be represented with a one-byte ASCII symbol.
 func NewAliasFromString(s string) (*Alias, error) {
 	ps := strings.Split(s, ":")
@@ -157,10 +157,6 @@ func NewAliasFromString(s string) (*Alias, error) {
 		return nil, errors.Errorf("incorrect alias chainID '%s'", scheme)
 	}
 	a := Alias{Version: aliasVersion, Scheme: scheme[0], Alias: ps[2]}
-	ok, err := a.Valid()
-	if !ok {
-		return nil, err
-	}
 	return &a, nil
 }
 

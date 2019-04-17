@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	issueV1FixedBodyLen          = 1 + crypto.PublicKeySize + 2 + 2 + 8 + 1 + 1 + 8 + 8
+	issueV1FixedBodyLen          = 1 + issueLen
 	issueV1MinBodyLen            = issueV1FixedBodyLen + 4 // 4 because of the shortest allowed Asset name of 4 bytes
 	issueV1MinLen                = 1 + crypto.SignatureSize + issueV1MinBodyLen
 	transferV1FixedBodyLen       = 1 + transferLen
@@ -43,65 +43,57 @@ const (
 
 //IssueV1 transaction is a transaction to issue new asset.
 type IssueV1 struct {
-	Type        TransactionType   `json:"type"`
-	Version     byte              `json:"version,omitempty"`
-	ID          *crypto.Digest    `json:"id,omitempty"`
-	Signature   *crypto.Signature `json:"signature,omitempty"`
-	SenderPK    crypto.PublicKey  `json:"senderPublicKey"`
-	Name        string            `json:"name"`
-	Description string            `json:"description"`
-	Quantity    uint64            `json:"quantity"`
-	Decimals    byte              `json:"decimals"`
-	Reissuable  bool              `json:"reissuable"`
-	Timestamp   uint64            `json:"timestamp,omitempty"`
-	Fee         uint64            `json:"fee"`
+	Type      TransactionType   `json:"type"`
+	Version   byte              `json:"version,omitempty"`
+	ID        *crypto.Digest    `json:"id,omitempty"`
+	Signature *crypto.Signature `json:"signature,omitempty"`
+	Issue
 }
 
 func (tx IssueV1) GetID() []byte {
 	return tx.ID.Bytes()
 }
 
-func (tx IssueV1) GetSenderPK() crypto.PublicKey {
-	return tx.SenderPK
-}
-
-func (tx IssueV1) GetName() string {
-	return tx.Name
-}
-
-func (tx IssueV1) GetDescription() string {
-	return tx.Description
-}
-
-func (tx IssueV1) GetQuantity() uint64 {
-	return tx.Quantity
-}
-
-func (tx IssueV1) GetDecimals() byte {
-	return tx.Decimals
-}
-
-func (tx IssueV1) GetReissuable() bool {
-	return tx.Reissuable
-}
-
-func (tx IssueV1) GetScript() Script {
-	return Script{}
-}
-
-func (tx IssueV1) GetTimestamp() uint64 {
-	return tx.Timestamp
-}
-
-func (tx IssueV1) GetFee() uint64 {
-	return tx.Fee
-}
+//func (tx IssueV1) GetSenderPK() crypto.PublicKey {
+//	return tx.SenderPK
+//}
+//
+//func (tx IssueV1) GetName() string {
+//	return tx.Name
+//}
+//
+//func (tx IssueV1) GetDescription() string {
+//	return tx.Description
+//}
+//
+//func (tx IssueV1) GetQuantity() uint64 {
+//	return tx.Quantity
+//}
+//
+//func (tx IssueV1) GetDecimals() byte {
+//	return tx.Decimals
+//}
+//
+//func (tx IssueV1) GetReissuable() bool {
+//	return tx.Reissuable
+//}
+//
+//func (tx IssueV1) GetScript() Script {
+//	return Script{}
+//}
+//
+//func (tx IssueV1) GetTimestamp() uint64 {
+//	return tx.Timestamp
+//}
+//
+//func (tx IssueV1) GetFee() uint64 {
+//	return tx.Fee
+//}
+//TODO: remove this
 
 //NewUnsignedIssueV1 creates new IssueV1 transaction without signature and ID.
 func NewUnsignedIssueV1(senderPK crypto.PublicKey, name, description string, quantity uint64, decimals byte, reissuable bool, timestamp, fee uint64) *IssueV1 {
-	return &IssueV1{
-		Type:        IssueTransaction,
-		Version:     1,
+	i := Issue{
 		SenderPK:    senderPK,
 		Name:        name,
 		Description: description,
@@ -111,80 +103,35 @@ func NewUnsignedIssueV1(senderPK crypto.PublicKey, name, description string, qua
 		Timestamp:   timestamp,
 		Fee:         fee,
 	}
-}
-
-func (tx IssueV1) Valid() (bool, error) {
-	//TODO: implement
-	//if l := len(name); l < minAssetNameLen || l > maxAssetNameLen {
-	//	return nil, errors.New("incorrect number of bytes in the asset's name")
-	//}
-	//if l := len(description); l > maxDescriptionLen {
-	//	return nil, errors.New("incorrect number of bytes in the asset's description")
-	//}
-	//if quantity <= 0 {
-	//	return nil, errors.New("quantity should be positive")
-	//}
-	//if decimals > maxDecimals {
-	//	return nil, errors.Errorf("incorrect decimals, should be no more then %d", maxDecimals)
-	//}
-	//if fee <= 0 {
-	//	return nil, errors.New("fee should be positive")
-	//}
-	return true, nil
+	return &IssueV1{Type: IssueTransaction, Version: 1, Issue: i}
 }
 
 func (tx *IssueV1) bodyMarshalBinary() ([]byte, error) {
-	kl := crypto.PublicKeySize
-	nl := len(tx.Name)
-	dl := len(tx.Description)
-	buf := make([]byte, issueV1FixedBodyLen+nl+dl)
+	b, err := tx.Issue.marshalBinary()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to marshal IssueV1 body")
+	}
+	buf := make([]byte, 1+len(b))
 	buf[0] = byte(tx.Type)
-	copy(buf[1:], tx.SenderPK[:])
-	PutStringWithUInt16Len(buf[1+kl:], tx.Name)
-	PutStringWithUInt16Len(buf[3+kl+nl:], tx.Description)
-	binary.BigEndian.PutUint64(buf[5+kl+nl+dl:], tx.Quantity)
-	buf[13+kl+nl+dl] = tx.Decimals
-	PutBool(buf[14+kl+nl+dl:], tx.Reissuable)
-	binary.BigEndian.PutUint64(buf[15+kl+nl+dl:], tx.Fee)
-	binary.BigEndian.PutUint64(buf[23+kl+nl+dl:], tx.Timestamp)
+	copy(buf[1:], b)
 	return buf, nil
 }
 
 func (tx *IssueV1) bodyUnmarshalBinary(data []byte) error {
-	tx.Type = TransactionType(data[0])
-	tx.Version = 1
-	if l := len(data); l < issueV1MinBodyLen {
-		return errors.Errorf("not enough data for IssueV1 transaction %d, expected not less then %d", l, issueV1MinBodyLen)
+	if l := len(data); l < issueV1FixedBodyLen {
+		return errors.Errorf("%d bytes is not enough for IssueV1 transaction, expected not less then %d bytes", l, issueV1FixedBodyLen)
 	}
+	tx.Type = TransactionType(data[0])
 	if tx.Type != IssueTransaction {
 		return errors.Errorf("unexpected transaction type %d for IssueV1 transaction", tx.Type)
 	}
-	data = data[1:]
-	copy(tx.SenderPK[:], data[:crypto.PublicKeySize])
-	data = data[crypto.PublicKeySize:]
-	var err error
-	tx.Name, err = StringWithUInt16Len(data)
+	tx.Version = 1
+	var i Issue
+	err := i.unmarshalBinary(data[1:])
 	if err != nil {
-		return errors.Wrap(err, "failed to unmarshal AppName")
+		return errors.Wrap(err, "failed to unmarshal IssueV1 body from bytes")
 	}
-	data = data[2+len(tx.Name):]
-	tx.Description, err = StringWithUInt16Len(data)
-	if err != nil {
-		return errors.Wrap(err, "failed to unmarshal Description")
-	}
-	data = data[2+len(tx.Description):]
-	tx.Quantity = binary.BigEndian.Uint64(data)
-	data = data[8:]
-	tx.Decimals = data[0]
-	data = data[1:]
-	tx.Reissuable, err = Bool(data)
-	if err != nil {
-		return errors.Wrap(err, "failed to unmarshal Reissuable")
-	}
-	data = data[1:]
-	tx.Fee = binary.BigEndian.Uint64(data)
-	data = data[8:]
-	tx.Timestamp = binary.BigEndian.Uint64(data)
+	tx.Issue = i
 	return nil
 }
 
@@ -234,7 +181,7 @@ func (tx *IssueV1) MarshalBinary() ([]byte, error) {
 //UnmarshalBinary reads transaction from its binary representation.
 func (tx *IssueV1) UnmarshalBinary(data []byte) error {
 	if l := len(data); l < issueV1MinLen {
-		return errors.Errorf("not enough data for IssueV1 transaction, expected not less then %d, received %d", issueV1MinLen, l)
+		return errors.Errorf("%d is not enough data for IssueV1 transaction, expected not less then %d", l, issueV1MinLen)
 	}
 	if data[0] != byte(IssueTransaction) {
 		return errors.Errorf("incorrect transaction type %d for IssueV1 transaction", data[0])
@@ -282,10 +229,6 @@ func NewUnsignedTransferV1(senderPK crypto.PublicKey, amountAsset, feeAsset Opti
 		Attachment:  Attachment(attachment),
 	}
 	return &TransferV1{Type: TransferTransaction, Version: 1, Transfer: t}
-}
-
-func (tx TransferV1) Valid() (bool, error) {
-	return tx.Transfer.Valid()
 }
 
 func (tx *TransferV1) bodyMarshalBinary() ([]byte, error) {

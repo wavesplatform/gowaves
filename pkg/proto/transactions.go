@@ -41,6 +41,7 @@ const (
 
 	genesisBodyLen = 1 + 8 + AddressSize + 8
 	paymentBodyLen = 1 + 8 + crypto.PublicKeySize + AddressSize + 8 + 8
+	issueLen       = crypto.PublicKeySize + 2 + 2 + 8 + 1 + 1 + 8 + 8
 	transferLen    = crypto.PublicKeySize + 1 + 1 + 8 + 8 + 8 + 2
 	reissueLen     = crypto.PublicKeySize + crypto.DigestSize + 8 + 1 + 8 + 8
 	burnLen        = crypto.PublicKeySize + crypto.DigestSize + 8 + 8 + 8
@@ -233,7 +234,7 @@ func NewUnsignedGenesis(recipient Address, amount, timestamp uint64) *Genesis {
 
 //Valid checks the validity of transaction parameters and it's signature.
 func (tx Genesis) Valid() (bool, error) {
-	if tx.Amount < 0 {
+	if tx.Amount <= 0 {
 		return false, errors.New("amount should be positive")
 	}
 	if !validJVMLong(tx.Amount) {
@@ -335,8 +336,8 @@ func (tx Payment) GetID() []byte {
 }
 
 //NewUnsignedPayment creates new Payment transaction with empty Signature and ID fields.
-func NewUnsignedPayment(senderPK crypto.PublicKey, recipient Address, amount, fee, timestamp uint64) (*Payment, error) {
-	return &Payment{Type: PaymentTransaction, Version: 1, SenderPK: senderPK, Recipient: recipient, Amount: amount, Fee: fee, Timestamp: timestamp}, nil
+func NewUnsignedPayment(senderPK crypto.PublicKey, recipient Address, amount, fee, timestamp uint64) *Payment {
+	return &Payment{Type: PaymentTransaction, Version: 1, SenderPK: senderPK, Recipient: recipient, Amount: amount, Fee: fee, Timestamp: timestamp}
 }
 
 func (tx Payment) Valid() (bool, error) {
@@ -453,6 +454,97 @@ func (tx *Payment) UnmarshalBinary(data []byte) error {
 	copy(s[:], data[:crypto.SignatureSize])
 	tx.Signature = &s
 	tx.ID = &s
+	return nil
+}
+
+type Issue struct {
+	SenderPK    crypto.PublicKey `json:"senderPublicKey"`
+	Name        string           `json:"name"`
+	Description string           `json:"description"`
+	Quantity    uint64           `json:"quantity"`
+	Decimals    byte             `json:"decimals"`
+	Reissuable  bool             `json:"reissuable"`
+	Timestamp   uint64           `json:"timestamp,omitempty"`
+	Fee         uint64           `json:"fee"`
+}
+
+func (i Issue) Valid() (bool, error) {
+	if i.Quantity <= 0 {
+		return false, errors.New("quantity should be positive")
+	}
+	if !validJVMLong(i.Quantity) {
+		return false, errors.New("quantity is too big")
+	}
+	if i.Fee <= 0 {
+		return false, errors.New("fee should be positive")
+	}
+	if !validJVMLong(i.Fee) {
+		return false, errors.New("fee is too big")
+	}
+	if l := len(i.Name); l < minAssetNameLen || l > maxAssetNameLen {
+		return false, errors.New("incorrect number of bytes in the asset's name")
+	}
+	if l := len(i.Description); l > maxDescriptionLen {
+		return false, errors.New("incorrect number of bytes in the asset's description")
+	}
+	if i.Decimals > maxDecimals {
+		return false, errors.Errorf("incorrect decimals, should be no more then %d", maxDecimals)
+	}
+	return true, nil
+}
+
+func (i Issue) marshalBinary() ([]byte, error) {
+	nl := len(i.Name)
+	dl := len(i.Description)
+	buf := make([]byte, issueLen+nl+dl)
+	p := 0
+	copy(buf[p:], i.SenderPK[:])
+	p += crypto.PublicKeySize
+	PutStringWithUInt16Len(buf[p:], i.Name)
+	p += 2 + nl
+	PutStringWithUInt16Len(buf[p:], i.Description)
+	p += 2 + dl
+	binary.BigEndian.PutUint64(buf[p:], i.Quantity)
+	p += 8
+	buf[p] = i.Decimals
+	p++
+	PutBool(buf[p:], i.Reissuable)
+	p++
+	binary.BigEndian.PutUint64(buf[p:], i.Fee)
+	p += 8
+	binary.BigEndian.PutUint64(buf[p:], i.Timestamp)
+	return buf, nil
+}
+
+func (i *Issue) unmarshalBinary(data []byte) error {
+	if l := len(data); l < issueLen {
+		return errors.Errorf("%d is not enough bytes for Issue, expected not less then %d", l, issueLen)
+	}
+	copy(i.SenderPK[:], data[:crypto.PublicKeySize])
+	data = data[crypto.PublicKeySize:]
+	var err error
+	i.Name, err = StringWithUInt16Len(data)
+	if err != nil {
+		return errors.Wrap(err, "failed to unmarshal Name")
+	}
+	data = data[2+len(i.Name):]
+	i.Description, err = StringWithUInt16Len(data)
+	if err != nil {
+		return errors.Wrap(err, "failed to unmarshal Description")
+	}
+	data = data[2+len(i.Description):]
+	i.Quantity = binary.BigEndian.Uint64(data)
+	data = data[8:]
+	i.Decimals = data[0]
+	data = data[1:]
+	i.Reissuable, err = Bool(data)
+	if err != nil {
+		return errors.Wrap(err, "failed to unmarshal Reissuable")
+	}
+	data = data[1:]
+	i.Fee = binary.BigEndian.Uint64(data)
+	data = data[8:]
+	i.Timestamp = binary.BigEndian.Uint64(data)
 	return nil
 }
 
@@ -577,18 +669,19 @@ func (tr *Transfer) unmarshalBinary(data []byte) error {
 	return nil
 }
 
-type Issue interface {
-	GetID() []byte
-	GetSenderPK() crypto.PublicKey
-	GetName() string
-	GetDescription() string
-	GetQuantity() uint64
-	GetDecimals() byte
-	GetReissuable() bool
-	GetScript() Script
-	GetTimestamp() uint64
-	GetFee() uint64
-}
+//type Issue interface {
+//	GetID() []byte
+//	GetSenderPK() crypto.PublicKey
+//	GetName() string
+//	GetDescription() string
+//	GetQuantity() uint64
+//	GetDecimals() byte
+//	GetReissuable() bool
+//	GetScript() Script
+//	GetTimestamp() uint64
+//	GetFee() uint64
+//}
+//TODO: remove this
 
 type Reissue struct {
 	SenderPK   crypto.PublicKey `json:"senderPublicKey"`

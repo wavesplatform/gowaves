@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 	"testing"
@@ -73,17 +74,18 @@ func TestGenesisFromMainNet(t *testing.T) {
 
 func TestGenesisValidations(t *testing.T) {
 	tests := []struct {
-		recipient string
-		amount    uint64
-		err       string
+		address string
+		amount  uint64
+		err     string
 	}{
-		{"", 0, "amount should be positive"},
-		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H86Y7SHTQ", 1000, "invalid recipient address '3PAWwWa6GbwcJaFzwqXQN5KQm7H86Y7SHTQ': invalid Address checksum"},
-		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ", maxLongValue + 100, "9223372036854775907 overflows JVM long"},
+		{"3PLrCnhKyX5iFbGDxbqqMvea5VAqxMcinPW", 0, "amount should be positive"},
+		{"3PLrCnhKyX5iFbGDxbqqMvea5VAqxMcinPV", 1000, "invalid recipient address '3PLrCnhKyX5iFbGDxbqqMvea5VAqxMcinPV': invalid Address checksum"},
+		{"3PLrCnhKyX5iFbGDxbqqMvea5VAqxMcinPW", maxLongValue + 100, "amount is too big"},
 	}
 	for _, tc := range tests {
-		rcp, _ := NewAddressFromString(tc.recipient)
-		tx := NewUnsignedGenesis(rcp, tc.amount, 0)
+		addr, err := addressFromString(tc.address)
+		require.NoError(t, err)
+		tx := NewUnsignedGenesis(addr, tc.amount, 0)
 		assert.NotNil(t, tx)
 		v, err := tx.Valid()
 		assert.False(t, v)
@@ -114,7 +116,7 @@ func TestPaymentFromMainNet(t *testing.T) {
 		amount    uint64
 		fee       uint64
 	}{
-		{"2ZojhAw3r8DhiHD6gRJ2dXNpuErAd4iaoj5NSWpfYrqppxpYkcXBHzSAWTkAGX5d3EeuAUS8rZ4vnxnDSbJU8MkM", 1465754870341, "AfZtLRQxLNYH5iradMkTeuXGe71uAiATVbr8DpXEEQa7", "3PP2ywCpyvC57rN4vUZhJjQrmGMTWnjFKi7", 20999990, 1},
+		{"2ZojhAw3r8DhiHD6gRJ2dXNpuErAd4iaoj5NSWpfYrqppxpYkcXBHzSAWTkAGX5d3EeuAUS8rZ4vnxnDSbJU8MkM", 1465754870341, "AfZtLRQxLNYH5iradMkTeuXGe71uAiATVbr8DpXEEQa7", "3P7NaMWCosRTbVwTfiiU6M6tHpQ6DuNFtYp", 20999990, 1},
 		{"5cQLvZVUZqYcC75u5vXydpPoxKeazyiNtKgtz4DSyQboDSyefxcQEihwN9er772DbFDuaBRDLQHbT9CJiezk8sba", 1465825839722, "vAyFRfGG225MjUXo2VXhLfh2F6utsGkG782HuKi5fRp", "3P9v6SjRKUZPZMG1aL2oTznGZHBvNr21EQS", 99999999, 1},
 		{"396pxC3YjVMjYQF7S9Xk3ntCjEJz4ip91ckux6ni4qpNEHbkyzqhSeYzyiVaUUM94uc21nGe8qwurGFDdzynrCHZ", 1466531340683, "2DAbbF2XuQPc3ePzKdxncsdMUzjSjEGC4nHx7kA3s1jm", "3PFrwqFZpoTzwKYq8NUALrtALP1oDvixt8z", 49310900000000, 1},
 	}
@@ -122,48 +124,54 @@ func TestPaymentFromMainNet(t *testing.T) {
 		sig, _ := crypto.NewSignatureFromBase58(tc.sig)
 		spk, _ := crypto.NewPublicKeyFromBase58(tc.spk)
 		if rcp, err := NewAddressFromString(tc.recipient); assert.NoError(t, err) {
-			if tx, err := NewUnsignedPayment(spk, rcp, tc.amount, tc.fee, tc.timestamp); assert.NoError(t, err) {
-				assert.Equal(t, tc.spk, base58.Encode(tx.SenderPK[:]))
-				assert.Equal(t, tc.amount, tx.Amount)
-				assert.Equal(t, tc.recipient, tx.Recipient.String())
-				assert.Equal(t, tc.timestamp, tx.Timestamp)
-				assert.Equal(t, tc.fee, tx.Fee)
-				b, err := tx.bodyMarshalBinary()
-				assert.NoError(t, err)
-				var at Payment
-				err = at.bodyUnmarshalBinary(b)
-				assert.NoError(t, err)
-				assert.Equal(t, *tx, at)
-				tx.Signature = &sig
-				tx.ID = &sig
-				vr, err := tx.Verify(spk)
-				require.NoError(t, err)
-				assert.True(t, vr)
-				b, _ = tx.MarshalBinary()
-				err = at.UnmarshalBinary(b)
-				assert.NoError(t, err)
-				assert.Equal(t, *tx, at)
-			}
+			tx := NewUnsignedPayment(spk, rcp, tc.amount, tc.fee, tc.timestamp)
+			assert.Equal(t, tc.spk, base58.Encode(tx.SenderPK[:]))
+			assert.Equal(t, tc.amount, tx.Amount)
+			assert.Equal(t, tc.recipient, tx.Recipient.String())
+			assert.Equal(t, tc.timestamp, tx.Timestamp)
+			assert.Equal(t, tc.fee, tx.Fee)
+			b, err := tx.bodyMarshalBinary()
+			assert.NoError(t, err)
+			var at Payment
+			err = at.bodyUnmarshalBinary(b)
+			assert.NoError(t, err)
+			assert.Equal(t, *tx, at)
+			tx.Signature = &sig
+			tx.ID = &sig
+			vr, err := tx.Verify(spk)
+			require.NoError(t, err)
+			assert.True(t, vr)
+			b, _ = tx.MarshalBinary()
+			err = at.UnmarshalBinary(b)
+			assert.NoError(t, err)
+			assert.Equal(t, *tx, at)
 		}
 	}
 }
 
 func TestPaymentValidations(t *testing.T) {
 	tests := []struct {
-		spk       string
-		recipient string
-		amount    uint64
-		fee       uint64
-		err       string
+		spk     string
+		address string
+		amount  uint64
+		fee     uint64
+		err     string
 	}{
 		{"AfZtLRQxLNYH5iradMkTeuXGe71uAiATVbr8DpXEEQa7", "3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ", 0, 10, "amount should be positive"},
 		{"AfZtLRQxLNYH5iradMkTeuXGe71uAiATVbr8DpXEEQa7", "3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ", 10, 0, "fee should be positive"},
 		{"AfZtLRQxLNYH5iradMkTeuXGe71uAiATVbr8DpXEEQa7", "3PAWwWa6GbwcJaFzwqXQN5KQm7H86Y7SHTQ", 10, 10, "invalid recipient address '3PAWwWa6GbwcJaFzwqXQN5KQm7H86Y7SHTQ': invalid Address checksum"},
+		{"AfZtLRQxLNYH5iradMkTeuXGe71uAiATVbr8DpXEEQa7", "3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ", math.MaxInt64 + 100, 10, "amount is too big"},
+		{"AfZtLRQxLNYH5iradMkTeuXGe71uAiATVbr8DpXEEQa7", "3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ", 10, math.MaxInt64 + 100, "fee is too big"},
+		{"AfZtLRQxLNYH5iradMkTeuXGe71uAiATVbr8DpXEEQa7", "3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ", math.MaxInt64, math.MaxInt64, "sum of amount and fee overflows JVM long"},
 	}
 	for _, tc := range tests {
-		spk, _ := crypto.NewPublicKeyFromBase58(tc.spk)
-		rcp, _ := NewAddressFromString(tc.recipient)
-		_, err := NewUnsignedPayment(spk, rcp, tc.amount, tc.fee, 0)
+		spk, err := crypto.NewPublicKeyFromBase58(tc.spk)
+		require.NoError(t, err)
+		addr, err := addressFromString(tc.address)
+		require.NoError(t, err)
+		tx := NewUnsignedPayment(spk, addr, tc.amount, tc.fee, 0)
+		v, err := tx.Valid()
+		assert.False(t, v)
 		assert.EqualError(t, err, tc.err)
 	}
 }
@@ -173,13 +181,12 @@ func TestPaymentToJSON(t *testing.T) {
 	sk, pk := crypto.GenerateKeyPair(s)
 	rcp, _ := NewAddressFromString("3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ")
 	ts := uint64(time.Now().Unix() * 1000)
-	if tx, err := NewUnsignedPayment(pk, rcp, 1000, 10, ts); assert.NoError(t, err) {
-		err = tx.Sign(sk)
-		assert.NoError(t, err)
-		if j, err := json.Marshal(tx); assert.NoError(t, err) {
-			ej := fmt.Sprintf("{\"type\":2,\"version\":1,\"id\":\"%s\",\"signature\":\"%s\",\"senderPublicKey\":\"%s\",\"recipient\":\"%s\",\"amount\":1000,\"fee\":10,\"timestamp\":%d}", base58.Encode(tx.ID[:]), base58.Encode(tx.Signature[:]), base58.Encode(tx.SenderPK[:]), tx.Recipient.String(), ts)
-			assert.Equal(t, ej, string(j))
-		}
+	tx := NewUnsignedPayment(pk, rcp, 1000, 10, ts)
+	err := tx.Sign(sk)
+	require.NoError(t, err)
+	if j, err := json.Marshal(tx); assert.NoError(t, err) {
+		ej := fmt.Sprintf("{\"type\":2,\"version\":1,\"id\":\"%s\",\"signature\":\"%s\",\"senderPublicKey\":\"%s\",\"recipient\":\"%s\",\"amount\":1000,\"fee\":10,\"timestamp\":%d}", base58.Encode(tx.ID[:]), base58.Encode(tx.Signature[:]), base58.Encode(tx.SenderPK[:]), tx.Recipient.String(), ts)
+		assert.Equal(t, ej, string(j))
 	}
 }
 
@@ -220,10 +227,13 @@ func TestIssueV1Validations(t *testing.T) {
 		err      string
 	}{
 		{"TKN", "This is a valid description for the token", 1000000, 2, 100000, "incorrect number of bytes in the asset's name"},
+		{"VERY_LONG_TOKEN_NAME", "This is a valid description for the token", 1000000, 2, 100000, "incorrect number of bytes in the asset's name"},
 		{"TOKEN", strings.Repeat("x", 1010), 1000000, 2, 100000, "incorrect number of bytes in the asset's description"},
 		{"TOKEN", "This is a valid description for the token", 0, 2, 100000, "quantity should be positive"},
+		{"TOKEN", "This is a valid description for the token", math.MaxInt64 + 100, 2, 100000, "quantity is too big"},
 		{"TOKEN", "This is a valid description for the token", 100000, 12, 100000, fmt.Sprintf("incorrect decimals, should be no more then %d", maxDecimals)},
 		{"TOKEN", "This is a valid description for the token", 100000, 2, 0, "fee should be positive"},
+		{"TOKEN", "This is a valid description for the token", 100000, 2, math.MaxInt64 + 100, "fee is too big"},
 	}
 	for _, tc := range tests {
 		spk, err := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
@@ -332,10 +342,14 @@ func TestIssueV2Validations(t *testing.T) {
 		err      string
 	}{
 		{"TKN", "This is a valid description for the token", 1000000, 2, 100000, "incorrect number of bytes in the asset's name"},
+		{"VERY_LONG_TOKEN_NAME", "This is a valid description for the token", 1000000, 2, 100000, "incorrect number of bytes in the asset's name"},
 		{"TOKEN", strings.Repeat("x", 1010), 1000000, 2, 100000, "incorrect number of bytes in the asset's description"},
 		{"TOKEN", "This is a valid description for the token", 0, 2, 100000, "quantity should be positive"},
+		{"TOKEN", "This is a valid description for the token", math.MaxInt64 + 1, 2, 100000, "quantity is too big"},
 		{"TOKEN", "This is a valid description for the token", 100000, 12, 100000, fmt.Sprintf("incorrect decimals, should be no more then %d", maxDecimals)},
 		{"TOKEN", "This is a valid description for the token", 100000, 2, 0, "fee should be positive"},
+		{"TOKEN", "This is a valid description for the token", 100000, 2, math.MaxInt64 + 1, "fee is too big"},
+		//TODO: add tests on script validation
 	}
 	for _, tc := range tests {
 		spk, _ := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
@@ -462,13 +476,13 @@ func TestIssueV2ToJSON(t *testing.T) {
 		require.NoError(t, err)
 		tx := NewUnsignedIssueV2(tc.chain, pk, tc.name, tc.desc, tc.quantity, tc.decimals, tc.reissuable, s, ts, tc.fee)
 		if j, err := json.Marshal(tx); assert.NoError(t, err) {
-			ej := fmt.Sprintf("{\"type\":3,\"version\":2,\"senderPublicKey\":\"%s\",\"name\":\"%s\",\"description\":\"%s\",\"quantity\":%d,\"decimals\":%d,\"reissuable\":%v,\"script\":\"%s\",\"fee\":%d,\"timestamp\":%d}",
-				base58.Encode(pk[:]), tc.name, tc.desc, tc.quantity, tc.decimals, tc.reissuable, tc.script, tc.fee, ts)
+			ej := fmt.Sprintf("{\"type\":3,\"version\":2,\"script\":\"%s\",\"senderPublicKey\":\"%s\",\"name\":\"%s\",\"description\":\"%s\",\"quantity\":%d,\"decimals\":%d,\"reissuable\":%v,\"timestamp\":%d,\"fee\":%d}",
+				tc.script, base58.Encode(pk[:]), tc.name, tc.desc, tc.quantity, tc.decimals, tc.reissuable, ts, tc.fee)
 			assert.Equal(t, ej, string(j))
 			if err := tx.Sign(sk); assert.NoError(t, err) {
 				if sj, err := json.Marshal(tx); assert.NoError(t, err) {
-					esj := fmt.Sprintf("{\"type\":3,\"version\":2,\"id\":\"%s\",\"proofs\":[\"%s\"],\"senderPublicKey\":\"%s\",\"name\":\"%s\",\"description\":\"%s\",\"quantity\":%d,\"decimals\":%d,\"reissuable\":%v,\"script\":\"%s\",\"fee\":%d,\"timestamp\":%d}",
-						base58.Encode(tx.ID[:]), base58.Encode(tx.Proofs.Proofs[0]), base58.Encode(pk[:]), tc.name, tc.desc, tc.quantity, tc.decimals, tc.reissuable, tc.script, tc.fee, ts)
+					esj := fmt.Sprintf("{\"type\":3,\"version\":2,\"id\":\"%s\",\"proofs\":[\"%s\"],\"script\":\"%s\",\"senderPublicKey\":\"%s\",\"name\":\"%s\",\"description\":\"%s\",\"quantity\":%d,\"decimals\":%d,\"reissuable\":%v,\"timestamp\":%d,\"fee\":%d}",
+						base58.Encode(tx.ID[:]), base58.Encode(tx.Proofs.Proofs[0]), tc.script, base58.Encode(pk[:]), tc.name, tc.desc, tc.quantity, tc.decimals, tc.reissuable, ts, tc.fee)
 					assert.Equal(t, esj, string(sj))
 				}
 			}
@@ -478,29 +492,28 @@ func TestIssueV2ToJSON(t *testing.T) {
 
 func TestTransferV1Validations(t *testing.T) {
 	tests := []struct {
-		addr   string
-		aa     string
-		fa     string
-		amount uint64
-		fee    uint64
-		att    string
-		err    string
+		recipient string
+		amount    uint64
+		fee       uint64
+		att       string
+		err       string
 	}{
-		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ", "4UY7UjzhRxKYyLh6mtiPkZpC73HFLE9DFNGKs7ju6Ai3", "4UY7UjzhRxKYyLh6mtiPkZpC73HFLE9DFNGKs7ju6Ai3", 0, 10, "The attachment", "failed to create TransferV1 transaction: amount should be positive"},
-		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ", "4UY7UjzhRxKYyLh6mtiPkZpC73HFLE9DFNGKs7ju6Ai3", "4UY7UjzhRxKYyLh6mtiPkZpC73HFLE9DFNGKs7ju6Ai3", 1000, 0, "The attachment", "failed to create TransferV1 transaction: fee should be positive"},
-		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ", "4UY7UjzhRxKYyLh6mtiPkZpC73HFLE9DFNGKs7ju6Ai3", "4UY7UjzhRxKYyLh6mtiPkZpC73HFLE9DFNGKs7ju6Ai3", 1000, 10, strings.Repeat("The attachment", 100), "failed to create TransferV1 transaction: attachment too long"},
-		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H86Y7SHTQ", "4UY7UjzhRxKYyLh6mtiPkZpC73HFLE9DFNGKs7ju6Ai3", "4UY7UjzhRxKYyLh6mtiPkZpC73HFLE9DFNGKs7ju6Ai3", 1000, 10, "The attachment", "failed to create TransferV1 transaction: invalid recipient address '3PAWwWa6GbwcJaFzwqXQN5KQm7H86Y7SHTQ': invalid Address checksum"},
+		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ", 0, 10, "The attachment", "amount should be positive"},
+		{"alias:W:nickname", 1000, 0, "The attachment", "fee should be positive"},
+		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ", math.MaxInt64 + 10, 1, "The attachment", "amount is too big"},
+		{"alias:W:nickname", 1000, math.MaxInt64 + 100, "The attachment", "fee is too big"},
+		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ", math.MaxInt64, math.MaxInt64, "The attachment", "sum of amount and fee overflows JVM long"},
+		{"alias:W:nickname", 1000, 10, strings.Repeat("The attachment", 100), "attachment is too long"},
+		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H86Y7SHTQ", 1000, 10, "The attachment", "invalid recipient '3PAWwWa6GbwcJaFzwqXQN5KQm7H86Y7SHTQ': invalid Address checksum"},
+		{"alias:W:прозвище", 1000, 10, "The attachment", "invalid recipient 'alias:W:прозвище': alias should contain only following characters: -.0123456789@_abcdefghijklmnopqrstuvwxyz"},
 	}
 	spk, _ := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
 	for _, tc := range tests {
-		addr, err := NewAddressFromString(tc.addr)
+		rcp, err := recipientFromString(tc.recipient)
 		require.NoError(t, err)
-		rcp := NewRecipientFromAddress(addr)
-		aa, err := NewOptionalAssetFromString(tc.aa)
+		a, err := NewOptionalAssetFromString("WAVES")
 		require.NoError(t, err)
-		fa, err := NewOptionalAssetFromString(tc.fa)
-		require.NoError(t, err)
-		tx := NewUnsignedTransferV1(spk, *aa, *fa, 0, tc.amount, tc.fee, rcp, tc.att)
+		tx := NewUnsignedTransferV1(spk, *a, *a, 0, tc.amount, tc.fee, rcp, tc.att)
 		v, err := tx.Valid()
 		assert.False(t, v)
 		assert.EqualError(t, err, tc.err, "No expected error '%s'", tc.err)
@@ -659,29 +672,28 @@ func TestTransferV1ToJSON(t *testing.T) {
 
 func TestTransferV2Validations(t *testing.T) {
 	tests := []struct {
-		addr   string
-		aa     string
-		fa     string
-		amount uint64
-		fee    uint64
-		att    string
-		err    string
+		recipient string
+		amount    uint64
+		fee       uint64
+		att       string
+		err       string
 	}{
-		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ", "4UY7UjzhRxKYyLh6mtiPkZpC73HFLE9DFNGKs7ju6Ai3", "4UY7UjzhRxKYyLh6mtiPkZpC73HFLE9DFNGKs7ju6Ai3", 0, 10, "The attachment", "failed to create TransferV2 transaction: amount should be positive"},
-		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ", "4UY7UjzhRxKYyLh6mtiPkZpC73HFLE9DFNGKs7ju6Ai3", "4UY7UjzhRxKYyLh6mtiPkZpC73HFLE9DFNGKs7ju6Ai3", 1000, 0, "The attachment", "failed to create TransferV2 transaction: fee should be positive"},
-		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ", "4UY7UjzhRxKYyLh6mtiPkZpC73HFLE9DFNGKs7ju6Ai3", "4UY7UjzhRxKYyLh6mtiPkZpC73HFLE9DFNGKs7ju6Ai3", 1000, 10, strings.Repeat("The attachment", 100), "failed to create TransferV2 transaction: attachment too long"},
-		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H86Y7SHTQ", "4UY7UjzhRxKYyLh6mtiPkZpC73HFLE9DFNGKs7ju6Ai3", "4UY7UjzhRxKYyLh6mtiPkZpC73HFLE9DFNGKs7ju6Ai3", 1000, 10, "The attachment", "failed to create TransferV2 transaction: invalid recipient address '3PAWwWa6GbwcJaFzwqXQN5KQm7H86Y7SHTQ': invalid Address checksum"},
+		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ", 0, 10, "The attachment", "amount should be positive"},
+		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ", 1000, 0, "The attachment", "fee should be positive"},
+		{"alias:W:nickname", math.MaxInt64 + 1, 10, "The attachment", "amount is too big"},
+		{"alias:W:nickname", 1000, math.MaxInt64 + 1, "The attachment", "fee is too big"},
+		{"alias:W:nickname", 1000, math.MaxInt64, "The attachment", "sum of amount and fee overflows JVM long"},
+		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ", 1000, 10, strings.Repeat("The attachment", 100), "attachment is too long"},
+		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H86Y7SHTQ", 1000, 10, "The attachment", "invalid recipient '3PAWwWa6GbwcJaFzwqXQN5KQm7H86Y7SHTQ': invalid Address checksum"},
+		{"alias:W:прозвище", 1000, 10, "The attachment", "invalid recipient 'alias:W:прозвище': alias should contain only following characters: -.0123456789@_abcdefghijklmnopqrstuvwxyz"},
 	}
 	spk, _ := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
 	for _, tc := range tests {
-		addr, err := NewAddressFromString(tc.addr)
+		rcp, err := recipientFromString(tc.recipient)
 		require.NoError(t, err)
-		rcp := NewRecipientFromAddress(addr)
-		aa, err := NewOptionalAssetFromString(tc.aa)
+		a, err := NewOptionalAssetFromString("WAVES")
 		require.NoError(t, err)
-		fa, err := NewOptionalAssetFromString(tc.fa)
-		require.NoError(t, err)
-		tx := NewUnsignedTransferV2(spk, *aa, *fa, 0, tc.amount, tc.fee, rcp, tc.att)
+		tx := NewUnsignedTransferV2(spk, *a, *a, 0, tc.amount, tc.fee, rcp, tc.att)
 		v, err := tx.Valid()
 		assert.False(t, v)
 		assert.EqualError(t, err, tc.err, "No expected error '%s'", tc.err)
@@ -3841,4 +3853,31 @@ func getTransaction(txb []byte) (Transaction, error) {
 		return &tx, err
 	}
 	return nil, errors.New("unknown transaction")
+}
+
+// This function is for tests only! Could produce invalid address.
+func addressFromString(s string) (Address, error) {
+	ab, err := base58.Decode(s)
+	if err != nil {
+		return Address{}, err
+	}
+	a := Address{}
+	copy(a[:], ab)
+	return a, nil
+}
+
+// This function is for tests only! Could produce invalid recipient.
+func recipientFromString(s string) (Recipient, error) {
+	if strings.HasPrefix(s, aliasPrefix) {
+		a, err := NewAliasFromString(s)
+		if err != nil {
+			return Recipient{}, err
+		}
+		return NewRecipientFromAlias(*a), nil
+	}
+	addr, err := addressFromString(s)
+	if err != nil {
+		return Recipient{}, err
+	}
+	return NewRecipientFromAddress(addr), nil
 }

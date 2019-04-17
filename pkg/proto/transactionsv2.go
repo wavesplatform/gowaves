@@ -30,100 +30,77 @@ const (
 
 // IssueV2 is a transaction to issue new asset, second version.
 type IssueV2 struct {
-	Type        TransactionType  `json:"type"`
-	Version     byte             `json:"version"`
-	ChainID     byte             `json:"-"`
-	ID          *crypto.Digest   `json:"id,omitempty"`
-	Proofs      *ProofsV1        `json:"proofs,omitempty"`
-	SenderPK    crypto.PublicKey `json:"senderPublicKey"`
-	Name        string           `json:"name"`
-	Description string           `json:"description"`
-	Quantity    uint64           `json:"quantity"`
-	Decimals    byte             `json:"decimals"`
-	Reissuable  bool             `json:"reissuable"`
-	Script      Script           `json:"script"`
-	Fee         uint64           `json:"fee"`
-	Timestamp   uint64           `json:"timestamp,omitempty"`
+	Type    TransactionType `json:"type"`
+	Version byte            `json:"version"`
+	ChainID byte            `json:"-"`
+	ID      *crypto.Digest  `json:"id,omitempty"`
+	Proofs  *ProofsV1       `json:"proofs,omitempty"`
+	Script  Script          `json:"script"`
+	Issue
 }
 
 func (tx IssueV2) GetID() []byte {
 	return tx.ID.Bytes()
 }
 
-func (tx IssueV2) GetSenderPK() crypto.PublicKey {
-	return tx.SenderPK
-}
-
-func (tx IssueV2) GetName() string {
-	return tx.Name
-}
-
-func (tx IssueV2) GetDescription() string {
-	return tx.Description
-}
-
-func (tx IssueV2) GetQuantity() uint64 {
-	return tx.Quantity
-}
-
-func (tx IssueV2) GetDecimals() byte {
-	return tx.Decimals
-}
-
-func (tx IssueV2) GetReissuable() bool {
-	return tx.Reissuable
-}
-
-func (tx IssueV2) GetScript() Script {
-	return tx.Script
-}
-
-func (tx IssueV2) GetTimestamp() uint64 {
-	return tx.Timestamp
-}
-
-func (tx IssueV2) GetFee() uint64 {
-	return tx.Fee
-}
+//func (tx IssueV2) GetSenderPK() crypto.PublicKey {
+//	return tx.SenderPK
+//}
+//
+//func (tx IssueV2) GetName() string {
+//	return tx.Name
+//}
+//
+//func (tx IssueV2) GetDescription() string {
+//	return tx.Description
+//}
+//
+//func (tx IssueV2) GetQuantity() uint64 {
+//	return tx.Quantity
+//}
+//
+//func (tx IssueV2) GetDecimals() byte {
+//	return tx.Decimals
+//}
+//
+//func (tx IssueV2) GetReissuable() bool {
+//	return tx.Reissuable
+//}
+//
+//func (tx IssueV2) GetScript() Script {
+//	return tx.Script
+//}
+//
+//func (tx IssueV2) GetTimestamp() uint64 {
+//	return tx.Timestamp
+//}
+//
+//func (tx IssueV2) GetFee() uint64 {
+//	return tx.Fee
+//}
+//TODO: remove this
 
 //NewUnsignedIssueV2 creates a new IssueV2 transaction with empty Proofs.
 func NewUnsignedIssueV2(chainID byte, senderPK crypto.PublicKey, name, description string, quantity uint64, decimals byte, reissuable bool, script []byte, timestamp, fee uint64) *IssueV2 {
-	return &IssueV2{
-		Type:        IssueTransaction,
-		Version:     2,
-		ChainID:     chainID,
+	i := Issue{
 		SenderPK:    senderPK,
 		Name:        name,
 		Description: description,
 		Quantity:    quantity,
 		Decimals:    decimals,
 		Reissuable:  reissuable,
-		Script:      script,
 		Timestamp:   timestamp,
 		Fee:         fee,
 	}
+	return &IssueV2{Type: IssueTransaction, Version: 2, ChainID: chainID, Script: script, Issue: i}
 }
 
 func (tx IssueV2) Valid() (bool, error) {
-	//TODO: implement
-	//if l := len(tx.Name); l < minAssetNameLen || l > maxAssetNameLen {
-	//	return nil, errors.New("incorrect number of bytes in the asset's name")
-	//}
-	//if tx.Quantity <= 0 {
-	//	return false, errors.New("quantity should be positive")
-	//}
-	//if !validJVMLong(tx.Quantity) {
-	//	return false, errors.New("quantity is too big")
-	//}
-	//if tx.Decimals > maxDecimals {
-	//	return false, errors.Errorf("incorrect decimals, should be no more then %d", maxDecimals)
-	//}
-	//if tx.Fee <= 0 {
-	//	return false, errors.New("fee should be positive")
-	//}
-	//if !validJVMLong(tx.Fee) {
-	//	return false, errors.New("fee is too big")
-	//}
+	ok, err := tx.Issue.Valid()
+	if !ok {
+		return false, err
+	}
+	//TODO: add script and scheme validations
 	return true, nil
 }
 
