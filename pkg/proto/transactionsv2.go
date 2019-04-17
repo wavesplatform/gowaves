@@ -87,23 +87,44 @@ func (tx IssueV2) GetFee() uint64 {
 }
 
 //NewUnsignedIssueV2 creates a new IssueV2 transaction with empty Proofs.
-func NewUnsignedIssueV2(chainID byte, senderPK crypto.PublicKey, name, description string, quantity uint64, decimals byte, reissuable bool, script []byte, timestamp, fee uint64) (*IssueV2, error) {
-	if l := len(name); l < minAssetNameLen || l > maxAssetNameLen {
-		return nil, errors.New("incorrect number of bytes in the asset's name")
+func NewUnsignedIssueV2(chainID byte, senderPK crypto.PublicKey, name, description string, quantity uint64, decimals byte, reissuable bool, script []byte, timestamp, fee uint64) *IssueV2 {
+	return &IssueV2{
+		Type:        IssueTransaction,
+		Version:     2,
+		ChainID:     chainID,
+		SenderPK:    senderPK,
+		Name:        name,
+		Description: description,
+		Quantity:    quantity,
+		Decimals:    decimals,
+		Reissuable:  reissuable,
+		Script:      script,
+		Timestamp:   timestamp,
+		Fee:         fee,
 	}
-	if l := len(description); l > maxDescriptionLen {
-		return nil, errors.New("incorrect number of bytes in the asset's description")
-	}
-	if quantity <= 0 {
-		return nil, errors.New("quantity should be positive")
-	}
-	if decimals > maxDecimals {
-		return nil, errors.Errorf("incorrect decimals, should be no more then %d", maxDecimals)
-	}
-	if fee <= 0 {
-		return nil, errors.New("fee should be positive")
-	}
-	return &IssueV2{Type: IssueTransaction, Version: 2, ChainID: chainID, SenderPK: senderPK, Name: name, Description: description, Quantity: quantity, Decimals: decimals, Reissuable: reissuable, Script: script, Timestamp: timestamp, Fee: fee}, nil
+}
+
+func (tx IssueV2) Valid() (bool, error) {
+	//TODO: implement
+	//if l := len(tx.Name); l < minAssetNameLen || l > maxAssetNameLen {
+	//	return nil, errors.New("incorrect number of bytes in the asset's name")
+	//}
+	//if tx.Quantity <= 0 {
+	//	return false, errors.New("quantity should be positive")
+	//}
+	//if !validJVMLong(tx.Quantity) {
+	//	return false, errors.New("quantity is too big")
+	//}
+	//if tx.Decimals > maxDecimals {
+	//	return false, errors.Errorf("incorrect decimals, should be no more then %d", maxDecimals)
+	//}
+	//if tx.Fee <= 0 {
+	//	return false, errors.New("fee should be positive")
+	//}
+	//if !validJVMLong(tx.Fee) {
+	//	return false, errors.New("fee is too big")
+	//}
+	return true, nil
 }
 
 //NonEmptyScript returns true if the script of the transaction is not empty, otherwise false.
@@ -303,12 +324,27 @@ func (tx TransferV2) GetID() []byte {
 }
 
 //NewUnsignedTransferV2 creates new TransferV2 transaction without proofs and ID.
-func NewUnsignedTransferV2(senderPK crypto.PublicKey, amountAsset, feeAsset OptionalAsset, timestamp, amount, fee uint64, recipient Address, attachment string) (*TransferV2, error) {
-	t, err := newTransfer(senderPK, amountAsset, feeAsset, timestamp, amount, fee, recipient, attachment)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to create TransferV2 transaction")
+func NewUnsignedTransferV2(senderPK crypto.PublicKey, amountAsset, feeAsset OptionalAsset, timestamp, amount, fee uint64, recipient Recipient, attachment string) *TransferV2 {
+	t := Transfer{
+		SenderPK:    senderPK,
+		Recipient:   recipient,
+		AmountAsset: amountAsset,
+		Amount:      amount,
+		FeeAsset:    feeAsset,
+		Fee:         fee,
+		Timestamp:   timestamp,
+		Attachment:  Attachment(attachment),
 	}
-	return &TransferV2{Type: TransferTransaction, Version: 2, Transfer: *t}, nil
+	return &TransferV2{Type: TransferTransaction, Version: 2, Transfer: t}
+}
+
+func (tx TransferV2) Valid() (bool, error) {
+	ok, err := tx.Transfer.Valid()
+	if !ok {
+		return false, err
+	}
+	//TODO: validate script and scheme
+	return true, nil
 }
 
 func (tx *TransferV2) BodyMarshalBinary() ([]byte, error) {
@@ -450,12 +486,16 @@ func (tx ReissueV2) GetID() []byte {
 }
 
 //NewUnsignedReissueV2 creates new ReissueV2 transaction without signature and ID.
-func NewUnsignedReissueV2(chainID byte, senderPK crypto.PublicKey, assetID crypto.Digest, quantity uint64, reissuable bool, timestamp, fee uint64) (*ReissueV2, error) {
-	r, err := newReissue(senderPK, assetID, quantity, reissuable, timestamp, fee)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to create ReissueV2 transaction")
+func NewUnsignedReissueV2(chainID byte, senderPK crypto.PublicKey, assetID crypto.Digest, quantity uint64, reissuable bool, timestamp, fee uint64) *ReissueV2 {
+	r := Reissue{
+		SenderPK:   senderPK,
+		AssetID:    assetID,
+		Quantity:   quantity,
+		Reissuable: reissuable,
+		Fee:        fee,
+		Timestamp:  timestamp,
 	}
-	return &ReissueV2{Type: ReissueTransaction, Version: 2, ChainID: chainID, Reissue: *r}, nil
+	return &ReissueV2{Type: ReissueTransaction, Version: 2, ChainID: chainID, Reissue: r}
 }
 
 func (tx *ReissueV2) bodyMarshalBinary() ([]byte, error) {
@@ -588,12 +628,20 @@ func (tx BurnV2) GetID() []byte {
 }
 
 //NewUnsignedBurnV2 creates new BurnV2 transaction without proofs and ID.
-func NewUnsignedBurnV2(chainID byte, senderPK crypto.PublicKey, assetID crypto.Digest, amount, timestamp, fee uint64) (*BurnV2, error) {
-	b, err := newBurn(senderPK, assetID, amount, timestamp, fee)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to create BurnV2 transaction")
+func NewUnsignedBurnV2(chainID byte, senderPK crypto.PublicKey, assetID crypto.Digest, amount, timestamp, fee uint64) *BurnV2 {
+	b := Burn{
+		SenderPK:  senderPK,
+		AssetID:   assetID,
+		Amount:    amount,
+		Fee:       fee,
+		Timestamp: timestamp,
 	}
-	return &BurnV2{Type: BurnTransaction, Version: 2, ChainID: chainID, Burn: *b}, nil
+	return &BurnV2{Type: BurnTransaction, Version: 2, ChainID: chainID, Burn: b}
+}
+
+func (tx BurnV2) Valid() (bool, error) {
+	//TODO: implement
+	return true, nil
 }
 
 func (tx *BurnV2) bodyMarshalBinary() ([]byte, error) {
@@ -767,23 +815,41 @@ func (tx ExchangeV2) GetTimestamp() uint64 {
 	return tx.Timestamp
 }
 
-func NewUnsignedExchangeV2(buy, sell Order, price, amount, buyMatcherFee, sellMatcherFee, fee, timestamp uint64) (*ExchangeV2, error) {
-	if amount <= 0 {
-		return nil, errors.New("amount should be positive")
+func NewUnsignedExchangeV2(buy, sell Order, price, amount, buyMatcherFee, sellMatcherFee, fee, timestamp uint64) *ExchangeV2 {
+	return &ExchangeV2{
+		Type:           ExchangeTransaction,
+		Version:        2,
+		SenderPK:       buy.GetMatcherPK(),
+		BuyOrder:       buy,
+		SellOrder:      sell,
+		Price:          price,
+		Amount:         amount,
+		BuyMatcherFee:  buyMatcherFee,
+		SellMatcherFee: sellMatcherFee,
+		Fee:            fee,
+		Timestamp:      timestamp,
 	}
-	if price <= 0 {
-		return nil, errors.New("price should be positive")
-	}
-	if buyMatcherFee <= 0 {
-		return nil, errors.New("buy matcher's fee should be positive")
-	}
-	if sellMatcherFee <= 0 {
-		return nil, errors.New("sell matcher's fee should be positive")
-	}
-	if fee <= 0 {
-		return nil, errors.New("fee should be positive")
-	}
-	return &ExchangeV2{Type: ExchangeTransaction, Version: 2, SenderPK: buy.GetMatcherPK(), BuyOrder: buy, SellOrder: sell, Price: price, Amount: amount, BuyMatcherFee: buyMatcherFee, SellMatcherFee: sellMatcherFee, Fee: fee, Timestamp: timestamp}, nil
+}
+
+func (tx ExchangeV2) Valid() (bool, error) {
+	//TODO: implement
+	//TODO: check orders expiration
+	//if amount <= 0 {
+	//	return nil, errors.New("amount should be positive")
+	//}
+	//if price <= 0 {
+	//	return nil, errors.New("price should be positive")
+	//}
+	//if buyMatcherFee <= 0 {
+	//	return nil, errors.New("buy matcher's fee should be positive")
+	//}
+	//if sellMatcherFee <= 0 {
+	//	return nil, errors.New("sell matcher's fee should be positive")
+	//}
+	//if fee <= 0 {
+	//	return nil, errors.New("fee should be positive")
+	//}
+	return true, nil
 }
 
 func (tx *ExchangeV2) marshalAsOrderV1(order Order) ([]byte, error) {
@@ -1093,12 +1159,20 @@ func (tx LeaseV2) GetID() []byte {
 }
 
 //NewUnsignedLeaseV2 creates new LeaseV1 transaction without signature and ID set.
-func NewUnsignedLeaseV2(senderPK crypto.PublicKey, recipient Address, amount, fee, timestamp uint64) (*LeaseV2, error) {
-	l, err := newLease(senderPK, recipient, amount, fee, timestamp)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to create LeaseV2 transaction")
+func NewUnsignedLeaseV2(senderPK crypto.PublicKey, recipient Recipient, amount, fee, timestamp uint64) *LeaseV2 {
+	l := Lease{
+		SenderPK:  senderPK,
+		Recipient: recipient,
+		Amount:    amount,
+		Fee:       fee,
+		Timestamp: timestamp,
 	}
-	return &LeaseV2{Type: LeaseTransaction, Version: 2, Lease: *l}, nil
+	return &LeaseV2{Type: LeaseTransaction, Version: 2, Lease: l}
+}
+
+func (tx *LeaseV2) Valid() (bool, error) {
+	//TODO: implement
+	return true, nil
 }
 
 func (tx *LeaseV2) bodyMarshalBinary() ([]byte, error) {
@@ -1232,12 +1306,19 @@ func (tx LeaseCancelV2) GetID() []byte {
 }
 
 //NewUnsignedLeaseCancelV2 creates new LeaseCancelV2 transaction structure without a signature and an ID.
-func NewUnsignedLeaseCancelV2(chainID byte, senderPK crypto.PublicKey, leaseID crypto.Digest, fee, timestamp uint64) (*LeaseCancelV2, error) {
-	lc, err := newLeaseCancel(senderPK, leaseID, fee, timestamp)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to create LeaseCancelV2 transaction")
+func NewUnsignedLeaseCancelV2(chainID byte, senderPK crypto.PublicKey, leaseID crypto.Digest, fee, timestamp uint64) *LeaseCancelV2 {
+	lc := LeaseCancel{
+		SenderPK:  senderPK,
+		LeaseID:   leaseID,
+		Fee:       fee,
+		Timestamp: timestamp,
 	}
-	return &LeaseCancelV2{Type: LeaseCancelTransaction, Version: 2, ChainID: chainID, LeaseCancel: *lc}, nil
+	return &LeaseCancelV2{Type: LeaseCancelTransaction, Version: 2, ChainID: chainID, LeaseCancel: lc}
+}
+
+func (tx LeaseCancelV2) Valid() (bool, error) {
+	//TODO: implement
+	return true, nil
 }
 
 func (tx *LeaseCancelV2) bodyMarshalBinary() ([]byte, error) {
@@ -1368,12 +1449,19 @@ func (tx CreateAliasV2) GetID() []byte {
 	return tx.ID.Bytes()
 }
 
-func NewUnsignedCreateAliasV2(senderPK crypto.PublicKey, alias Alias, fee, timestamp uint64) (*CreateAliasV2, error) {
-	ca, err := newCreateAlias(senderPK, alias, fee, timestamp)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to create CreateAliasV1 transaction")
+func NewUnsignedCreateAliasV2(senderPK crypto.PublicKey, alias Alias, fee, timestamp uint64) *CreateAliasV2 {
+	ca := CreateAlias{
+		SenderPK:  senderPK,
+		Alias:     alias,
+		Fee:       fee,
+		Timestamp: timestamp,
 	}
-	return &CreateAliasV2{Type: CreateAliasTransaction, Version: 2, CreateAlias: *ca}, nil
+	return &CreateAliasV2{Type: CreateAliasTransaction, Version: 2, CreateAlias: ca}
+}
+
+func (tx CreateAliasV2) Valid() (bool, error) {
+	//TODO:implement
+	return true, nil
 }
 
 func (tx *CreateAliasV2) bodyMarshalBinary() ([]byte, error) {

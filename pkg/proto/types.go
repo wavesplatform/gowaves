@@ -9,6 +9,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/ride/evaluator/reader"
+	"math/big"
 	"strconv"
 	"strings"
 )
@@ -26,6 +27,8 @@ const (
 	booleanArgumentLen   = 1 + 1
 	binaryArgumentMinLen = 1 + 4
 	stringArgumentMinLen = 1 + 4
+	PriceConstant        = 100000000
+	MaxOrderAmount       = 100 * PriceConstant * PriceConstant
 )
 
 var jsonNullBytes = []byte{0x6e, 0x75, 0x6c, 0x6c}
@@ -333,18 +336,91 @@ type OrderBody struct {
 	MatcherFee uint64           `json:"matcherFee"`
 }
 
-func NewOrderBody(senderPK, matcherPK crypto.PublicKey, amountAsset, priceAsset OptionalAsset, orderType OrderType, price, amount, timestamp, expiration, matcherFee uint64) (*OrderBody, error) {
-	if price <= 0 {
-		return nil, errors.New("price should be positive")
+func (o OrderBody) Valid() (bool, error) {
+	if o.AssetPair.AmountAsset == o.AssetPair.PriceAsset {
+		return false, errors.New("invalid asset pair")
 	}
-	if amount <= 0 {
-		return nil, errors.New("amount should be positive")
+	if o.Price <= 0 {
+		return false, errors.New("price should be positive")
 	}
-	if matcherFee <= 0 {
-		return nil, errors.New("matcher's fee should be positive")
+	if !validJVMLong(o.Price) {
+		return false, errors.New("price overflows JVM long")
 	}
-	//TODO: Add expiration validation
-	return &OrderBody{SenderPK: senderPK, MatcherPK: matcherPK, AssetPair: AssetPair{AmountAsset: amountAsset, PriceAsset: priceAsset}, OrderType: orderType, Price: price, Amount: amount, Timestamp: timestamp, Expiration: expiration, MatcherFee: matcherFee}, nil
+	if o.Amount <= 0 {
+		return false, errors.New("amount should be positive")
+	}
+	if o.Amount > MaxOrderAmount {
+		return false, errors.New("amount too large")
+	}
+	if !validJVMLong(o.Amount) {
+		return false, errors.New("price overflows JVM long")
+	}
+	if o.MatcherFee <= 0 {
+		return false, errors.New("matcher's fee should be positive")
+	}
+	if !validJVMLong(o.MatcherFee) {
+		return false, errors.New("matcher's fee overflows JVM long")
+	}
+	s, err := o.SpendAmount(o.Amount, o.Price)
+	if err != nil {
+		return false, err
+	}
+	if s <= 0 {
+		return false, errors.New("spend amount should be positive")
+	}
+	if !validJVMLong(s) {
+		return false, errors.New("spend amount is too large")
+	}
+	if !o.SpendAsset().Present && !validJVMLong(s + o.MatcherFee) {
+		return false, errors.New("sum of spend asset amount and matcher fee overflows JVM long")
+	}
+	r, err := o.ReceiveAmount(o.Amount, o.Price)
+	if err != nil {
+		return false, err
+	}
+	if r <= 0 {
+		return false, errors.New("receive amount should be positive")
+	}
+	if !validJVMLong(r) {
+		return false, errors.New("receive amount is too large")
+	}
+	return true, nil
+}
+
+func (o *OrderBody) SpendAmount(matchAmount, matchPrice uint64) (uint64, error) {
+	if o.OrderType == Sell {
+		return matchAmount, nil
+	}
+	return otherAmount(matchAmount, matchPrice)
+}
+
+func (o *OrderBody) ReceiveAmount(matchAmount, matchPrice uint64) (uint64, error) {
+	if o.OrderType == Buy {
+		return matchAmount, nil
+	}
+	return otherAmount(matchAmount, matchPrice)
+}
+
+var (
+	bigPriceConstant = big.NewInt(PriceConstant)
+)
+
+func otherAmount(amount, price uint64) (uint64, error) {
+	a := big.NewInt(0).SetUint64(amount)
+	p := big.NewInt(0).SetUint64(price)
+	r := big.NewInt(0).Mul(a, p)
+	r = big.NewInt(0).Div(r, bigPriceConstant)
+	if !r.IsUint64() {
+		return 0, errors.New("spend amount is too large")
+	}
+	return r.Uint64(), nil
+}
+
+func (o *OrderBody) SpendAsset() OptionalAsset {
+	if o.OrderType == Buy {
+		return o.AssetPair.PriceAsset
+	}
+	return o.AssetPair.AmountAsset
 }
 
 func (o *OrderBody) marshalBinary() ([]byte, error) {
@@ -438,12 +514,21 @@ type OrderV1 struct {
 }
 
 //NewUnsignedOrderV1 creates the new unsigned order.
-func NewUnsignedOrderV1(senderPK, matcherPK crypto.PublicKey, amountAsset, priceAsset OptionalAsset, orderType OrderType, price, amount, timestamp, expiration, matcherFee uint64) (*OrderV1, error) {
-	o, err := NewOrderBody(senderPK, matcherPK, amountAsset, priceAsset, orderType, price, amount, timestamp, expiration, matcherFee)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to create OrderV1")
+func NewUnsignedOrderV1(senderPK, matcherPK crypto.PublicKey, amountAsset, priceAsset OptionalAsset, orderType OrderType, price, amount, timestamp, expiration, matcherFee uint64) *OrderV1 {
+	ob := OrderBody{
+		SenderPK:  senderPK,
+		MatcherPK: matcherPK,
+		AssetPair: AssetPair{
+			AmountAsset: amountAsset,
+			PriceAsset:  priceAsset},
+		OrderType:  orderType,
+		Price:      price,
+		Amount:     amount,
+		Timestamp:  timestamp,
+		Expiration: expiration,
+		MatcherFee: matcherFee,
 	}
-	return &OrderV1{OrderBody: *o}, nil
+	return &OrderV1{OrderBody: ob}
 }
 
 func (o OrderV1) GetVersion() byte {
@@ -546,12 +631,21 @@ type OrderV2 struct {
 }
 
 //NewUnsignedOrderV2 creates the new unsigned order.
-func NewUnsignedOrderV2(senderPK, matcherPK crypto.PublicKey, amountAsset, priceAsset OptionalAsset, orderType OrderType, price, amount, timestamp, expiration, matcherFee uint64) (*OrderV2, error) {
-	o, err := NewOrderBody(senderPK, matcherPK, amountAsset, priceAsset, orderType, price, amount, timestamp, expiration, matcherFee)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to create OrderV2")
+func NewUnsignedOrderV2(senderPK, matcherPK crypto.PublicKey, amountAsset, priceAsset OptionalAsset, orderType OrderType, price, amount, timestamp, expiration, matcherFee uint64) *OrderV2 {
+	ob := OrderBody{
+		SenderPK:  senderPK,
+		MatcherPK: matcherPK,
+		AssetPair: AssetPair{
+			AmountAsset: amountAsset,
+			PriceAsset:  priceAsset},
+		OrderType:  orderType,
+		Price:      price,
+		Amount:     amount,
+		Timestamp:  timestamp,
+		Expiration: expiration,
+		MatcherFee: matcherFee,
 	}
-	return &OrderV2{Version: 2, OrderBody: *o}, nil
+	return &OrderV2{Version: 2, OrderBody: ob}
 }
 
 func (o OrderV2) GetVersion() byte {

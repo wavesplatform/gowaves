@@ -55,9 +55,8 @@ func TestRecipientJSONRoundTrip(t *testing.T) {
 				}
 			}
 		case tc.alias != "":
-			if al, err := NewAlias(tc.scheme, tc.alias); assert.NoError(t, err) {
-				r = NewRecipientFromAlias(*al)
-			}
+			al := NewAlias(tc.scheme, tc.alias)
+			r = NewRecipientFromAlias(*al)
 		default:
 			assert.Fail(t, "incorrect test")
 		}
@@ -104,19 +103,20 @@ func TestAliasFromString(t *testing.T) {
 		alias      = "blah-blah-blah"
 		aliasBytes = "6bqk2heWpAcsmshUhfT3QNEB"
 	)
-	if a, err := NewAlias(TestNetScheme, alias); assert.NoError(t, err) {
-		assert.Equal(t, "alias:T:blah-blah-blah", a.String())
-		assert.Equal(t, alias, a.Alias)
-		if b, err := a.MarshalBinary(); assert.NoError(t, err) {
-			assert.Equal(t, aliasBytes, base58.Encode(b))
-		}
+	a := NewAlias(TestNetScheme, alias)
+	assert.Equal(t, "alias:T:blah-blah-blah", a.String())
+	assert.Equal(t, alias, a.Alias)
+	if b, err := a.MarshalBinary(); assert.NoError(t, err) {
+		assert.Equal(t, aliasBytes, base58.Encode(b))
 	}
 }
 
 func TestIncorrectAlias(t *testing.T) {
 	aliases := []string{"xxx", "xxxl-very-very-very-long-alias-that-is-incorrect", "asd=asd", "QazWsxEdc"}
 	for _, alias := range aliases {
-		_, err := NewAlias(MainNetScheme, alias)
+		a := NewAlias(MainNetScheme, alias)
+		v, err := a.Valid()
+		assert.False(t, v)
 		assert.Error(t, err)
 	}
 }
