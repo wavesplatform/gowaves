@@ -56,6 +56,9 @@ func TestGenesisFromMainNet(t *testing.T) {
 		id, _ := base58.Decode(tc.sig)
 		if rcp, err := NewAddressFromString(tc.recipient); assert.NoError(t, err) {
 			tx := NewUnsignedGenesis(rcp, tc.amount, tc.timestamp)
+			v, err := tx.Valid()
+			assert.True(t, v)
+			assert.Nil(t, err)
 			if err := tx.GenerateSigID(); assert.NoError(t, err) {
 				assert.Equal(t, id, tx.ID[:])
 				assert.Equal(t, tc.amount, tx.Amount)
@@ -932,8 +935,10 @@ func TestReissueV1Validations(t *testing.T) {
 		fee      uint64
 		err      string
 	}{
-		{0, 100000, "failed to create ReissueV1 transaction: quantity should be positive"},
-		{100000, 0, "failed to create ReissueV1 transaction: fee should be positive"},
+		{0, 100000, "quantity should be positive"},
+		{math.MaxInt64 + 1, 100000, "quantity is too big"},
+		{100000, 0, "fee should be positive"},
+		{100000, math.MaxInt64 + 1, "fee is too big"},
 	}
 	for _, tc := range tests {
 		spk, err := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
@@ -1065,8 +1070,11 @@ func TestReissueV2Validations(t *testing.T) {
 		fee      uint64
 		err      string
 	}{
-		{0, 100000, "failed to create ReissueV2 transaction: quantity should be positive"},
-		{100000, 0, "failed to create ReissueV2 transaction: fee should be positive"},
+		{0, 100000, "quantity should be positive"},
+		{math.MaxInt64 + 1, 100000, "quantity is too big"},
+		{100000, 0, "fee should be positive"},
+		{100000, math.MaxInt64 + 1, "fee is too big"},
+		//TODO: add blockchain scheme validation
 	}
 	for _, tc := range tests {
 		spk, _ := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
@@ -1204,8 +1212,9 @@ func TestBurnV1Validations(t *testing.T) {
 		fee    uint64
 		err    string
 	}{
-		{0, 100000, "failed to create BurnV1 transaction: amount should be positive"},
-		{100000, 0, "failed to create BurnV1 transaction: fee should be positive"},
+		{math.MaxInt64 + 1, 100000, "amount is too big"},
+		{100000, 0, "fee should be positive"},
+		{100000, math.MaxInt64 + 1, "fee is too big"},
 	}
 	for _, tc := range tests {
 		spk, _ := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
@@ -1318,8 +1327,10 @@ func TestBurnV2Validations(t *testing.T) {
 		fee    uint64
 		err    string
 	}{
-		{'T', 0, 100000, "failed to create BurnV2 transaction: amount should be positive"},
-		{'W', 100000, 0, "failed to create BurnV2 transaction: fee should be positive"},
+		{'T', math.MaxInt64 + 10, 100000, "amount is too big"},
+		{'T', 100000, 0, "fee should be positive"},
+		{'T', 100000, math.MaxInt64 + 1, "fee is too big"},
+		//TODO: add blockchain scheme validation tests
 	}
 	for _, tc := range tests {
 		spk, _ := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
@@ -2053,21 +2064,25 @@ func TestExchangeV2FromJSON2(t *testing.T) {
 
 func TestLeaseV1Validations(t *testing.T) {
 	tests := []struct {
-		address string
-		amount  uint64
-		fee     uint64
-		err     string
+		recipient string
+		amount    uint64
+		fee       uint64
+		err       string
 	}{
-		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ", 0, 100000, "failed to create LeaseV1 transaction: amount should be positive"},
-		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ", 100000, 0, "failed to create LeaseV1 transaction: fee should be positive"},
-		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H86Y7SHTQ", 100000, 100000, "failed to create LeaseV1 transaction: failed to create new unsigned Lease transaction: invalid Address checksum"},
+		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ", 0, 100000, "amount should be positive"},
+		{"alias:T:nickname", math.MaxInt64 + 1, 100000, "amount is too big"},
+		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ", 100000, 0, "fee should be positive"},
+		{"alias:T:nickname", 100000, math.MaxInt64 + 1, "fee is too big"},
+		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ", math.MaxInt64, math.MaxInt64, "sum of amount and fee overflows JVM long"},
+		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H86Y7SHTQ", 100000, 100000, "failed to create new unsigned Lease transaction: invalid Address checksum"},
+		{"alias:T:прозвище", 100000, 100000, "failed to create new unsigned Lease transaction: alias should contain only following characters: -.0123456789@_abcdefghijklmnopqrstuvwxyz"},
+		//TODO: add test on leasing to oneself
 	}
 	for _, tc := range tests {
 		spk, err := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
 		require.NoError(t, err)
-		addr, err := NewAddressFromString(tc.address)
+		rcp, err := recipientFromString(tc.recipient)
 		require.NoError(t, err)
-		rcp := NewRecipientFromAddress(addr)
 		tx := NewUnsignedLeaseV1(spk, rcp, tc.amount, tc.fee, 0)
 		v, err := tx.Valid()
 		assert.False(t, v)
@@ -2188,21 +2203,25 @@ func TestLeaseV1ToJSON(t *testing.T) {
 
 func TestLeaseV2Validations(t *testing.T) {
 	tests := []struct {
-		address string
-		amount  uint64
-		fee     uint64
-		err     string
+		recipient string
+		amount    uint64
+		fee       uint64
+		err       string
 	}{
-		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ", 0, 100000, "failed to create LeaseV2 transaction: amount should be positive"},
-		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ", 100000, 0, "failed to create LeaseV2 transaction: fee should be positive"},
-		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H86Y7SHTQ", 100000, 100000, "failed to create LeaseV2 transaction: failed to create new unsigned Lease transaction: invalid Address checksum"},
+		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ", 0, 100000, "amount should be positive"},
+		{"alias:T:nickname", math.MaxInt64 + 1, 100000, "amount is too big"},
+		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ", 100000, 0, "fee should be positive"},
+		{"alias:T:nickname", 100000, math.MaxInt64 + 1, "fee is too big"},
+		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ", math.MaxInt64, math.MaxInt64, "sum of amount and fee overflows JVM long"},
+		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H86Y7SHTQ", 100000, 100000, "failed to create new unsigned Lease transaction: invalid Address checksum"},
+		{"alias:T:прозвище", 100000, 100000, "failed to create new unsigned Lease transaction: alias should contain only following characters: -.0123456789@_abcdefghijklmnopqrstuvwxyz"},
+		//TODO: add test on leasing to oneself
 	}
 	for _, tc := range tests {
 		spk, err := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
 		require.NoError(t, err)
-		addr, err := NewAddressFromString(tc.address)
+		rcp, err := recipientFromString(tc.recipient)
 		require.NoError(t, err)
-		rcp := NewRecipientFromAddress(addr)
 		tx := NewUnsignedLeaseV2(spk, rcp, tc.amount, tc.fee, 0)
 		v, err := tx.Valid()
 		assert.False(t, v)
@@ -2329,7 +2348,8 @@ func TestLeaseCancelV1Validations(t *testing.T) {
 		fee   uint64
 		err   string
 	}{
-		{"58iiBQ9uonkDpgr3NiAYgec3K9f5KvhHEwLfZTX2k7y3", 0, "failed to create LeaseCancelV1 transaction: fee should be positive"},
+		{"58iiBQ9uonkDpgr3NiAYgec3K9f5KvhHEwLfZTX2k7y3", 0, "fee should be positive"},
+		{"58iiBQ9uonkDpgr3NiAYgec3K9f5KvhHEwLfZTX2k7y3", math.MaxInt64 + 1, "fee is too big"},
 	}
 	for _, tc := range tests {
 		spk, _ := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
@@ -2444,7 +2464,9 @@ func TestLeaseCancelV2Validations(t *testing.T) {
 		fee   uint64
 		err   string
 	}{
-		{"58iiBQ9uonkDpgr3NiAYgec3K9f5KvhHEwLfZTX2k7y3", 0, "failed to create LeaseCancelV2 transaction: fee should be positive"},
+		{"58iiBQ9uonkDpgr3NiAYgec3K9f5KvhHEwLfZTX2k7y3", 0, "fee should be positive"},
+		{"58iiBQ9uonkDpgr3NiAYgec3K9f5KvhHEwLfZTX2k7y3", math.MaxInt64 + 10, "fee is too big"},
+		//TODO: add blockchain scheme validation
 	}
 	for _, tc := range tests {
 		spk, _ := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")

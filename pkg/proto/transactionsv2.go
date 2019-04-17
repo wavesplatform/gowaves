@@ -475,6 +475,15 @@ func NewUnsignedReissueV2(chainID byte, senderPK crypto.PublicKey, assetID crypt
 	return &ReissueV2{Type: ReissueTransaction, Version: 2, ChainID: chainID, Reissue: r}
 }
 
+func (tx ReissueV2) Valid() (bool, error) {
+	ok, err := tx.Reissue.Valid()
+	if !ok {
+		return false, err
+	}
+	//TODO: add current blockchain scheme validation
+	return true, nil
+}
+
 func (tx *ReissueV2) bodyMarshalBinary() ([]byte, error) {
 	buf := make([]byte, reissueV2BodyLen)
 	buf[0] = byte(tx.Type)
@@ -617,7 +626,11 @@ func NewUnsignedBurnV2(chainID byte, senderPK crypto.PublicKey, assetID crypto.D
 }
 
 func (tx BurnV2) Valid() (bool, error) {
-	//TODO: implement
+	ok, err := tx.Burn.Valid()
+	if !ok {
+		return false, err
+	}
+	//TODO: check current blockchain scheme
 	return true, nil
 }
 
@@ -1147,11 +1160,6 @@ func NewUnsignedLeaseV2(senderPK crypto.PublicKey, recipient Recipient, amount, 
 	return &LeaseV2{Type: LeaseTransaction, Version: 2, Lease: l}
 }
 
-func (tx *LeaseV2) Valid() (bool, error) {
-	//TODO: implement
-	return true, nil
-}
-
 func (tx *LeaseV2) bodyMarshalBinary() ([]byte, error) {
 	rl := tx.Recipient.len
 	buf := make([]byte, leaseV2BodyLen+rl)
@@ -1294,7 +1302,11 @@ func NewUnsignedLeaseCancelV2(chainID byte, senderPK crypto.PublicKey, leaseID c
 }
 
 func (tx LeaseCancelV2) Valid() (bool, error) {
-	//TODO: implement
+	ok, err := tx.LeaseCancel.Valid()
+	if !ok {
+		return false, err
+	}
+	//TODO: add scheme validation
 	return true, nil
 }
 

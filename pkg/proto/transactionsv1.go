@@ -354,11 +354,6 @@ func NewUnsignedReissueV1(senderPK crypto.PublicKey, assetID crypto.Digest, quan
 	return &ReissueV1{Type: ReissueTransaction, Version: 1, Reissue: r}
 }
 
-func (tx ReissueV1) Valid() (bool, error) {
-	//TODO: implement
-	return true, nil
-}
-
 func (tx *ReissueV1) bodyMarshalBinary() ([]byte, error) {
 	buf := make([]byte, reissueV1BodyLen)
 	buf[0] = byte(tx.Type)
@@ -480,11 +475,6 @@ func NewUnsignedBurnV1(senderPK crypto.PublicKey, assetID crypto.Digest, amount,
 		Timestamp: timestamp,
 	}
 	return &BurnV1{Type: BurnTransaction, Version: 1, Burn: b}
-}
-
-func (tx BurnV1) Valid() (bool, error) {
-	//TODO: implement
-	return true, nil
 }
 
 func (tx *BurnV1) bodyMarshalBinary() ([]byte, error) {
@@ -848,11 +838,6 @@ func NewUnsignedLeaseV1(senderPK crypto.PublicKey, recipient Recipient, amount, 
 	return &LeaseV1{Type: LeaseTransaction, Version: 1, Lease: l}
 }
 
-func (tx LeaseV1) Valid() (bool, error) {
-	//TODO: implement
-	return true, nil
-}
-
 func (tx *LeaseV1) bodyMarshalBinary() ([]byte, error) {
 	rl := tx.Recipient.len
 	buf := make([]byte, leaseV1BodyLen+rl)
@@ -972,11 +957,6 @@ func NewUnsignedLeaseCancelV1(senderPK crypto.PublicKey, leaseID crypto.Digest, 
 		Timestamp: timestamp,
 	}
 	return &LeaseCancelV1{Type: LeaseCancelTransaction, Version: 1, LeaseCancel: lc}
-}
-
-func (tx LeaseCancelV1) Valid() (bool, error) {
-	//TODO: implement
-	return true, nil
 }
 
 func (tx *LeaseCancelV1) bodyMarshalBinary() ([]byte, error) {

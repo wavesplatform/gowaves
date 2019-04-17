@@ -769,13 +769,15 @@ type Burn struct {
 }
 
 func (b Burn) Valid() (bool, error) {
-	//TODO: implement
-	//if amount <= 0 {
-	//	return nil, errors.New("amount should be positive")
-	//}
-	//if fee <= 0 {
-	//	return nil, errors.New("fee should be positive")
-	//}
+	if !validJVMLong(b.Amount) {
+		return false, errors.New("amount is too big")
+	}
+	if b.Fee <= 0 {
+		return false, errors.New("fee should be positive")
+	}
+	if !validJVMLong(b.Fee) {
+		return false, errors.New("fee is too big")
+	}
 	return true, nil
 }
 
@@ -819,16 +821,25 @@ type Lease struct {
 }
 
 func (l Lease) Valid() (bool, error) {
-	//TODO: implement
-	//if ok, err := recipient.Valid(); !ok {
-	//	return nil, errors.Wrap(err, "failed to create new unsigned Lease transaction")
-	//}
-	//if amount <= 0 {
-	//	return nil, errors.New("amount should be positive")
-	//}
-	//if fee <= 0 {
-	//	return nil, errors.New("fee should be positive")
-	//}
+	if ok, err := l.Recipient.Valid(); !ok {
+		return false, errors.Wrap(err, "failed to create new unsigned Lease transaction")
+	}
+	if l.Amount <= 0 {
+		return false, errors.New("amount should be positive")
+	}
+	if !validJVMLong(l.Amount) {
+		return false, errors.New("amount is too big")
+	}
+	if l.Fee <= 0 {
+		return false, errors.New("fee should be positive")
+	}
+	if !validJVMLong(l.Fee) {
+		return false, errors.New("fee is too big")
+	}
+	if !validJVMLong(l.Amount + l.Fee) {
+		return false, errors.New("sum of amount and fee overflows JVM long")
+	}
+	//TODO: check that sender and recipient is not the same
 	return true, nil
 }
 
@@ -879,10 +890,12 @@ type LeaseCancel struct {
 }
 
 func (lc LeaseCancel) Valid() (bool, error) {
-	//TODO: implement
-	//if fee <= 0 {
-	//	return nil, errors.New("fee should be positive")
-	//}
+	if lc.Fee <= 0 {
+		return false, errors.New("fee should be positive")
+	}
+	if !validJVMLong(lc.Fee) {
+		return false, errors.New("fee is too big")
+	}
 	return true, nil
 }
 
