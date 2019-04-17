@@ -9,7 +9,6 @@ import (
 )
 
 func TestAfter(t *testing.T) {
-
 	t.Run("cancelled", func(t *testing.T) {
 		ch := make(chan time.Time)
 		bool := atomic.NewBool(false)
@@ -32,5 +31,4 @@ func TestAfter(t *testing.T) {
 		<-time.After(1 * time.Millisecond)
 		require.True(t, bool.Load())
 	})
-
 }

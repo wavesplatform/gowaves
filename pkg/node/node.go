@@ -124,7 +124,6 @@ func (a *Node) handlePeerError(id string, err error) {
 	a.peerManager.Disconnect(id)
 }
 
-// TODO implement
 func (a *Node) Close() {
 	a.peerManager.Close()
 	a.stateManager.Close()
@@ -254,7 +253,6 @@ func (a *Node) Serve(ctx context.Context) error {
 }
 
 func RunNode(ctx context.Context, n *Node, p peer.Parent) {
-
 	go n.SyncState()
 
 	go func() {
@@ -305,7 +303,6 @@ func RunNode(ctx context.Context, n *Node, p peer.Parent) {
 			n.HandleProtoMessage(m)
 		}
 	}
-
 }
 
 type Signatures struct {

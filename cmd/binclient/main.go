@@ -19,14 +19,6 @@ var Cli struct {
 	WavesNetwork string `kong:"wavesnetwork,short='n',help='Waves network.',required"`
 	Address      string `kong:"address,short='a',help='Address connect to.',required"`
 	Version      string `kong:"version,short='v',help='Version,(0.15.1).',required"`
-
-	//
-	//Json struct {
-	//	File string `kong:"short='f',help='From file.',required"`
-	//} `kong:"cmd,help='Convert from json to binary'"`
-	//Bytes struct {
-	//	File string `kong:"short='f',help='From file.',required"`
-	//} `kong:"cmd,help='Convert from binary to json'"`
 }
 
 func init() {
@@ -35,19 +27,7 @@ func init() {
 }
 
 func main() {
-
-	//ctx :=
 	kong.Parse(&Cli)
-	//switch ctx.Command() {
-	//case "json":
-	//	serveJson()
-	//case "bytes":
-	//	serveBinary()
-	//default:
-	//	zap.S().Error(ctx.Command())
-	//	return
-	//}
-
 	zap.S().Infof("%+v", Cli)
 
 	version, err := parseVersion(Cli.Version)
@@ -65,12 +45,6 @@ func main() {
 		Timestamp:    proto.NewTimestampFromTime(time.Now()),
 	}
 
-	//bts, err := handshake.MarshalBinary()
-	//if err != nil {
-	//	zap.S().Error(err)
-	//	return
-	//}
-
 	conn, err := net.Dial("tcp", Cli.Address)
 	if err != nil {
 		zap.S().Error(err)
@@ -80,8 +54,6 @@ func main() {
 	defer conn.Close()
 
 	_, err = handshake.WriteTo(conn)
-
-	//_, err = conn.Write(bts)
 	if err != nil {
 		zap.S().Error(err)
 		return
@@ -121,12 +93,6 @@ func main() {
 	sigs := proto.GetSignaturesMessage{
 		Blocks: []crypto.Signature{sig},
 	}
-
-	//bts, err = sigs.MarshalBinary()
-	//if err != nil {
-	//	zap.S().Error(err)
-	//	return
-	//}
 
 	zap.S().Info("writing GetSignaturesMessage bytes")
 	_, err = sigs.WriteTo(conn)

@@ -205,44 +205,6 @@ func applyBlock2(receivedSignatures *proto.SignaturesMessage, blockSignatures *S
 			}
 		}
 	}
-
-	////subscribeCh, unsubscribe := subscribe.Subscribe(p, &proto.BlockMessage{})
-	////defer unsubscribe()
-	//for _, sig := range receivedSignatures.Signatures {
-	//	if !blockSignatures.Exists(sig) {
-	//		p.SendMessage(&proto.GetBlockMessage{BlockID: sig})
-	//
-	//		// wait for block with expected signature
-	//		timeout := time.After(30 * time.Second)
-	//		for {
-	//			select {
-	//			case <-timeout:
-	//				// TODO HANDLE timeout
-	//				zap.S().Error("timeout getting block", sig)
-	//				return
-	//
-	//			case blockMessage := <-subscribeCh:
-	//				bts := blockMessage.(*proto.BlockMessage).BlockBytes
-	//				blockSignature, err := proto.BlockGetSignature(bts)
-	//				if err != nil {
-	//					zap.S().Error(err)
-	//					continue
-	//				}
-	//
-	//				if blockSignature != sig {
-	//					continue
-	//				}
-	//
-	//				err = stateManager.AddBlock(bts)
-	//				if err != nil {
-	//					zap.S().Error(err)
-	//					// TODO handle error
-	//				}
-	//				break
-	//			}
-	//		}
-	//	}
-	//}
 }
 
 func sendBulk(sigs []crypto.Signature, p Peer) {

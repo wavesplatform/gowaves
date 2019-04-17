@@ -19,18 +19,3 @@ func TestCollectInt(t *testing.T) {
 	assert.Equal(t, 9, n)
 	assert.Equal(t, nil, err)
 }
-
-//
-//func TestCollectInt64(t *testing.T) {
-//	b := new(bytes.Buffer)
-//	c := new(CollectInt64)
-//
-//	c.W(b.Write([]byte{1, 2, 3}))
-//	c.W(b.Write([]byte{1, 2, 3}))
-//	c.W(b.Write([]byte{1, 2, 3}))
-//
-//	n, err := c.Ret()
-//
-//	assert.Equal(t, 9, n)
-//	assert.Equal(t, nil, err)
-//}
