@@ -32,7 +32,7 @@ func TestWrapConnection(t *testing.T) {
 	conn, err := net.Dial("tcp", listener.Addr().String())
 	require.NoError(t, err)
 
-	pool := bytespool.NewBytesPool(1, 1024)
+	pool := bytespool.NewBytesPool(1, len(byte_helpers.TransferV1.MessageBytes))
 	ch := make(chan []byte, 1)
 	wrapped := WrapConnection(conn, pool, nil, ch, nil, func(bytes proto.Header) bool {
 		return false
@@ -42,8 +42,7 @@ func TestWrapConnection(t *testing.T) {
 	case <-time.After(10 * time.Millisecond):
 		t.Fatalf("no value arrived in 10ms")
 	case m := <-ch:
-		assert.Equal(t, []byte{0, 0, 0, 165, 18, 52, 86, 120}, m[:8])
+		assert.Equal(t, byte_helpers.TransferV1.MessageBytes, m)
 		require.NoError(t, wrapped.Close())
 	}
-
 }

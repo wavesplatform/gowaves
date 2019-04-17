@@ -13,7 +13,7 @@ func TestAddr2Peers(t *testing.T) {
 	require.NotNil(t, p)
 	assert.False(t, p.Exists(addr))
 
-	p.Add(addr, &mock.MockPeer{})
+	p.Add(addr, &mock.Peer{})
 	assert.True(t, p.Exists(addr))
 
 	assert.Equal(t, 1, len(p.Addresses()))

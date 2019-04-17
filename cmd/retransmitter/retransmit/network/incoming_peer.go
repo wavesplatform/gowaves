@@ -33,13 +33,6 @@ type IncomingPeerParams struct {
 
 func RunIncomingPeer(ctx context.Context, params IncomingPeerParams) {
 	c := params.Conn
-	//bytes, err := params.DeclAddr.MarshalBinary()
-	//if err != nil {
-	//	zap.S().Error(err)
-	//	c.Close()
-	//	return
-	//}
-
 	readHandshake := proto.Handshake{}
 	_, err := readHandshake.ReadFrom(c)
 	if err != nil {
@@ -95,8 +88,6 @@ func RunIncomingPeer(ctx context.Context, params IncomingPeerParams) {
 		handshake: readHandshake,
 	}
 
-	//decl := proto.PeerInfo{}
-	//_ = decl.UnmarshalBinary(readHandshake.DeclaredAddrBytes)
 	zap.S().Debugf("%s, readhandshake %+v", c.RemoteAddr().String(), readHandshake)
 
 	out := peer.InfoMessage{

@@ -14,7 +14,6 @@ type TransferV1Struct struct {
 var TransferV1 TransferV1Struct
 
 func init() {
-
 	t := util.NewTransferV1Builder().MustBuild()
 	b, _ := t.MarshalBinary()
 	tm := proto.TransactionMessage{
@@ -27,5 +26,4 @@ func init() {
 		Transaction:      t,
 		MessageBytes:     tmb,
 	}
-
 }

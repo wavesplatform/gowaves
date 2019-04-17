@@ -49,12 +49,10 @@ func RunIncomingPeer(ctx context.Context, params IncomingPeerParams) error {
 	default:
 	}
 
-	//id := fmt.Sprintf("incoming Connection %s -> %s", c.RemoteAddr().String(), c.LocalAddr().String())
-	zap.S().Infof("read handshake from %s %+v", readHandshake)
+	zap.S().Debugf("read handshake from %s %+v", c.RemoteAddr().String(), readHandshake)
 
 	writeHandshake := proto.Handshake{
-		AppName: params.WavesNetwork,
-		// pass the same minor version as received
+		AppName:      params.WavesNetwork,
 		Version:      params.Version,
 		NodeName:     params.NodeName,
 		NodeNonce:    params.NodeNonce,
@@ -78,18 +76,6 @@ func RunIncomingPeer(ctx context.Context, params IncomingPeerParams) error {
 
 	remote := peer.NewRemote()
 	connection := conn.WrapConnection(c, params.Pool, remote.ToCh, remote.FromCh, remote.ErrCh, params.Skip)
-	//ctx, cancel := context.WithCancel(ctx)
-
-	//inPeer := &IncomingPeer{
-	//	params: params,
-	//	conn:   connection,
-	//	remote: remote,
-	//	//uniqueID: fmt.Sprintf("incoming Connection %s -> %s", c.RemoteAddr().String(), c.LocalAddr().String()),
-	//	cancel: cancel,
-	//}
-
-	//decl := proto.PeerInfo{}
-	//_ = decl.UnmarshalBinary(readHandshake.DeclaredAddr)
 	zap.S().Debugf("%s, readhandshake %+v", c.RemoteAddr().String(), readHandshake)
 
 	peerImpl := peer.NewPeerImpl(readHandshake, connection, peer.Incoming, remote)
@@ -111,45 +97,3 @@ func RunIncomingPeer(ctx context.Context, params IncomingPeerParams) error {
 		Pool:       params.Pool,
 	})
 }
-
-//
-//func (a *IncomingPeer) run(ctx context.Context) error {
-//	handleParams := peer.HandlerParams{
-//		Connection: a.conn,
-//		Ctx:        ctx,
-//		Remote:     a.remote,
-//		ID:         a.uniqueID,
-//		Parent:     a.params.Parent,
-//		Pool:       a.params.Pool,
-//	}
-//	return peer.Handle(handleParams)
-//}
-
-//func (a *IncomingPeer) Close() {
-//	a.cancel()
-//}
-//
-//func (a *IncomingPeer) SendMessage(m proto.Message) {
-//	b, err := m.MarshalBinary()
-//	if err != nil {
-//		zap.S().Error(err)
-//		return
-//	}
-//	select {
-//	case a.remote.ToCh <- b:
-//	default:
-//		zap.S().Warnf("can't send bytes to Remote, chan is full ID %s", a.uniqueID)
-//	}
-//}
-//
-//func (a *IncomingPeer) ID() string {
-//	return a.uniqueID
-//}
-//
-//func (a *IncomingPeer) Direction() Direction {
-//	return Incoming
-//}
-//
-//func (a *IncomingPeer) Connection() conn.Connection {
-//	return a.conn
-//}

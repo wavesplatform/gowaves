@@ -6,5 +6,5 @@ import (
 )
 
 func TestCompile(t *testing.T) {
-	var _ peer.Peer = &MockPeer{}
+	var _ peer.Peer = &Peer{}
 }

@@ -91,10 +91,6 @@ func (a *mockStateManager) BlockchainSettings() (*settings.BlockchainSettings, e
 	panic("implement me")
 }
 
-//func (a *mockStateManager) AddBlock(block *proto.Block) error {
-//	panic("implement me")
-//}
-
 func newMockStateWithGenesis() *mockStateManager {
 	sig, _ := crypto.NewSignatureFromBase58("5uqnLK3Z9eiot6FyYBfwUnbyid3abicQbAZjz38GQ1Q8XigQMxTK4C1zNkqS1SVw7FqSidbZKxWAKLVoEsp4nNqa")
 	block := &proto.Block{
@@ -107,11 +103,6 @@ func newMockStateWithGenesis() *mockStateManager {
 		sig2Block: sig2Block,
 	}
 }
-
-//
-//func (a *mockStateManager) GetBlock(blockID crypto.Signature) (*proto.Block, error) {
-//	return a.sig2Block[blockID], nil
-//}
 
 type mockPeerManager struct {
 	connected map[string]peer.Peer
@@ -161,7 +152,7 @@ func (*mockPeerManager) SpawnIncomingConnection(ctx context.Context, n net.Conn)
 	panic("implement me")
 }
 
-func NewMockPeerManagerWithDefaultPeer() (*mockPeerManager, string, *mock.MockPeer) {
+func NewMockPeerManagerWithDefaultPeer() (*mockPeerManager, string, *mock.Peer) {
 	peerName := "peer"
 	p := mock.NewPeer()
 	m := make(map[string]peer.Peer)

@@ -36,7 +36,6 @@ func TestConnectionImpl_Close(t *testing.T) {
 	pool := bytespool.NewBytesPool(32, 2*1024*1024)
 
 	params := wrapParams{
-
 		conn:         c,
 		pool:         pool,
 		toRemoteCh:   nil,
@@ -59,7 +58,7 @@ func TestRecvFromRemote_Transaction(t *testing.T) {
 	zap.ReplaceGlobals(logger)
 
 	messBytes := byte_helpers.TransferV1.MessageBytes
-	pool := bytespool.NewBytesPool(32, 15*1024)
+	pool := bytespool.NewNoOpBytesPool(len(messBytes))
 	fromRemoteCh := make(chan []byte, 2)
 
 	recvFromRemote(atomic.NewBool(false), pool, bytes.NewReader(messBytes), fromRemoteCh, make(chan error, 1), func(headerBytes proto.Header) bool {
@@ -67,5 +66,5 @@ func TestRecvFromRemote_Transaction(t *testing.T) {
 	})
 
 	retBytes := <-fromRemoteCh
-	assert.Equal(t, messBytes, retBytes[:len(messBytes)])
+	assert.Equal(t, messBytes, retBytes)
 }

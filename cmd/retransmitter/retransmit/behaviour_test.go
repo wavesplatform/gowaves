@@ -47,10 +47,10 @@ func TestClientRecvTransaction(t *testing.T) {
 
 	behaviour := retransmit.NewBehaviour(knownPeers, nil)
 
-	peer1 := &mock.MockPeer{
+	peer1 := &mock.Peer{
 		Addr: "peer1",
 	}
-	peer2 := &mock.MockPeer{
+	peer2 := &mock.Peer{
 		Addr: "peer2",
 	}
 
