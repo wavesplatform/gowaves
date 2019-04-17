@@ -15,6 +15,11 @@ const (
 	totalBlocksNumber = 200
 )
 
+var (
+	blockID0 = genBlockID(0)
+	blockID1 = genBlockID(1)
+)
+
 type mockBlockInfo struct {
 }
 
@@ -84,7 +89,7 @@ func genAddr(fillWith byte) proto.Address {
 	return addr
 }
 
-func getBlockID(fillWith byte) crypto.Signature {
+func genBlockID(fillWith byte) crypto.Signature {
 	var blockID crypto.Signature
 	for i := 0; i < crypto.SignatureSize; i++ {
 		blockID[i] = fillWith
@@ -139,24 +144,24 @@ func TestMinBalanceInRange(t *testing.T) {
 			t.Fatalf("Failed to clean test data dirs: %v", err)
 		}
 	}()
-
-	key := balanceKey{address: genAddr(1)}
+	addr := genAddr(1)
 	for i := 1; i < totalBlocksNumber; i++ {
-		blockID := getBlockID(byte(i))
+		blockID := genBlockID(byte(i))
 		addBlock(t, rw, blockID)
-		if err := stor.setAccountBalance(key.bytes(), uint64(i), blockID); err != nil {
-			t.Fatalf("Faied to set account balance: %v\n", err)
+		r := &wavesBalanceRecord{balanceProfile{uint64(i), 0, 0}, blockID}
+		if err := stor.setWavesBalance(addr, r); err != nil {
+			t.Fatalf("Faied to set waves balance: %v\n", err)
 		}
 	}
 	flush(t, stor, rw)
-	minBalance, err := stor.minBalanceInRange(key.bytes(), 1, totalBlocksNumber)
+	minBalance, err := stor.minEffectiveBalanceInRange(addr, 1, totalBlocksNumber)
 	if err != nil {
 		t.Fatalf("minBalanceInRange(): %v\n", err)
 	}
 	if minBalance != 1 {
 		t.Errorf("Invalid minimum balance in range: need %d, got %d.", 1, minBalance)
 	}
-	minBalance, err = stor.minBalanceInRange(key.bytes(), 100, 150)
+	minBalance, err = stor.minEffectiveBalanceInRange(addr, 100, 150)
 	if err != nil {
 		t.Fatalf("minBalanceInRange(): %v\n", err)
 	}
@@ -187,50 +192,51 @@ func TestBalances(t *testing.T) {
 		}
 	}()
 
-	// Set first balance.
-	balance := uint64(100)
-	blockID := getBlockID(0)
-	addr := genAddr(1)
-	key := balanceKey{address: addr}
-	addBlock(t, rw, blockID)
-	if err := stor.setAccountBalance(key.bytes(), balance, blockID); err != nil {
-		t.Fatalf("Faied to set account balance:%v\n", err)
+	addBlock(t, rw, blockID0)
+	addBlock(t, rw, blockID1)
+	wavesTests := []struct {
+		addr   proto.Address
+		record wavesBalanceRecord
+	}{
+		{genAddr(1), wavesBalanceRecord{balanceProfile{100, 0, 0}, blockID0}},
+		{genAddr(1), wavesBalanceRecord{balanceProfile{2500, 0, 0}, blockID0}},
+		{genAddr(1), wavesBalanceRecord{balanceProfile{10, 5, 0}, blockID1}},
+		{genAddr(1), wavesBalanceRecord{balanceProfile{10, 5, 3}, blockID1}},
 	}
-	flush(t, stor, rw)
-	newBalance, err := stor.accountBalance(key.bytes())
-	if err != nil {
-		t.Fatalf("Failed to retrieve account balance: %v\n", err)
+	for _, tc := range wavesTests {
+		if err := stor.setWavesBalance(tc.addr, &tc.record); err != nil {
+			t.Fatalf("Faied to set waves balance:%v\n", err)
+		}
+		flush(t, stor, rw)
+		profile, err := stor.wavesBalance(tc.addr)
+		if err != nil {
+			t.Fatalf("Failed to retrieve waves balance: %v\n", err)
+		}
+		if *profile != tc.record.balanceProfile {
+			t.Errorf("Waves balance profiles are not equal: %v and %v\n", profile, tc.record.balanceProfile)
+		}
 	}
-	if newBalance != balance {
-		t.Errorf("Balances are not equal: %d and %d\n", balance, newBalance)
+
+	assetTests := []struct {
+		addr    proto.Address
+		assetID []byte
+		record  assetBalanceRecord
+	}{
+		{genAddr(1), genAsset(1), assetBalanceRecord{100, blockID0}},
+		{genAddr(1), genAsset(1), assetBalanceRecord{2500, blockID0}},
+		{genAddr(1), genAsset(1), assetBalanceRecord{10, blockID1}},
 	}
-	// Set balance in same block.
-	balance = 2500
-	addBlock(t, rw, blockID)
-	if err := stor.setAccountBalance(key.bytes(), balance, blockID); err != nil {
-		t.Fatalf("Faied to set account balance:%v\n", err)
-	}
-	flush(t, stor, rw)
-	newBalance, err = stor.accountBalance(key.bytes())
-	if err != nil {
-		t.Fatalf("Failed to retrieve account balance: %v\n", err)
-	}
-	if newBalance != balance {
-		t.Errorf("Balances are not equal: %d and %d\n", balance, newBalance)
-	}
-	// Set balance in new block.
-	balance = 10
-	blockID = getBlockID(1)
-	addBlock(t, rw, blockID)
-	if err := stor.setAccountBalance(key.bytes(), balance, blockID); err != nil {
-		t.Fatalf("Faied to set account balance:%v\n", err)
-	}
-	flush(t, stor, rw)
-	newBalance, err = stor.accountBalance(key.bytes())
-	if err != nil {
-		t.Fatalf("Failed to retrieve account balance: %v\n", err)
-	}
-	if newBalance != balance {
-		t.Errorf("Balances are not equal: %d and %d\n", balance, newBalance)
+	for _, tc := range assetTests {
+		if err := stor.setAssetBalance(tc.addr, tc.assetID, &tc.record); err != nil {
+			t.Fatalf("Faied to set asset balance:%v\n", err)
+		}
+		flush(t, stor, rw)
+		balance, err := stor.assetBalance(tc.addr, tc.assetID)
+		if err != nil {
+			t.Fatalf("Failed to retrieve asset balance: %v\n", err)
+		}
+		if balance != tc.record.balance {
+			t.Errorf("Asset balances are not equal: %d and %d\n", balance, tc.record.balance)
+		}
 	}
 }

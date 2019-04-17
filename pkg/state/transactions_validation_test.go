@@ -17,8 +17,8 @@ var (
 	timestamp1       = settings.MainNetSettings.NegativeBalanceCheckAfterTime - 1
 
 	genesisSignature = "FSH8eAAzZNqnG8xgTZtz5xuLqXySsXgAjmFEC25hXMbEufiGjqWPnGCZFt6gLiVLJny16ipxRNAkkzjjhqTjBE2"
-	blockID0         = "FSH8eAAzZNqnG8xgTZtz5xuLqXySsXgAjmFEC25hXMbEufiGjqWPnGCZFt6gLiVLJny16ipxRNAkkzjjhqTjBE1"
-	blockID1         = "FSH8eAAzZNqnG8xgTZtz5xuLqXySsXgAjmFEC25hXMbEufiGjqWPnGCZFt6gLiVLJny16ipxRNAkkzjjhqTjBE3"
+	blockSig0        = "FSH8eAAzZNqnG8xgTZtz5xuLqXySsXgAjmFEC25hXMbEufiGjqWPnGCZFt6gLiVLJny16ipxRNAkkzjjhqTjBE1"
+	blockSig1        = "FSH8eAAzZNqnG8xgTZtz5xuLqXySsXgAjmFEC25hXMbEufiGjqWPnGCZFt6gLiVLJny16ipxRNAkkzjjhqTjBE3"
 
 	matcherPK     = "AfZtLRQxLNYH5iradMkTeuXGe71uAiATVbr8DpXEEQa6"
 	matcherAddr   = "3P9MUoSW7jfHNVFcq84rurfdWZYZuvVghVi"
@@ -62,38 +62,53 @@ func flushBalances(t *testing.T, balances *balances) {
 	balances.reset()
 }
 
-type balanceDiff struct {
-	address     string
-	asset       string
-	prevBalance uint64
-	newBalance  uint64
+type profileChange struct {
+	address      string
+	asset        string
+	prevBalance  uint64
+	prevLeaseIn  uint64
+	prevLeaseOut uint64
+	newBalance   uint64
+	newLeaseIn   uint64
+	newLeaseout  uint64
 }
 
-func key(t *testing.T, addr, asset string) []byte {
-	address, err := proto.NewAddressFromString(addr)
-	assert.NoError(t, err, "NewAddressFromString() failed")
-	ast, err := proto.NewOptionalAssetFromString(asset)
-	assert.NoError(t, err, "NewOptionalAssetFromString() failed")
-	balanceKey := balanceKey{address: address, asset: ast.ToID()}
-	return balanceKey.bytes()
-}
-
-func setBalances(t *testing.T, to *testObjects, balanceDiffs []balanceDiff) {
-	for _, diff := range balanceDiffs {
-		balanceKey := key(t, diff.address, diff.asset)
-		err := to.balances.setAccountBalance(balanceKey, diff.prevBalance, crypto.Signature{})
-		assert.NoError(t, err, "setAccountBalance() failed")
+func setBalances(t *testing.T, to *testObjects, profileChanges []profileChange) {
+	for _, diff := range profileChanges {
+		addr, err := proto.NewAddressFromString(diff.address)
+		assert.NoError(t, err, "NewAddressFromString() failed")
+		if diff.asset == "" {
+			r := &wavesBalanceRecord{balanceProfile{diff.prevBalance, diff.prevLeaseIn, diff.prevLeaseOut}, crypto.Signature{}}
+			err := to.balances.setWavesBalance(addr, r)
+			assert.NoError(t, err, "setWavesBalance() failed")
+		} else {
+			ast, err := proto.NewOptionalAssetFromString(diff.asset)
+			assert.NoError(t, err, "NewOptionalAssetFromString() failed")
+			r := &assetBalanceRecord{diff.prevBalance, crypto.Signature{}}
+			err = to.balances.setAssetBalance(addr, ast.ToID(), r)
+			assert.NoError(t, err, "setAssetBalance() failed")
+		}
 	}
 	flushBalances(t, to.balances)
 	flushAssets(t, to.assets)
 }
 
-func checkBalances(t *testing.T, balances *balances, balanceDiffs []balanceDiff) {
-	for _, diff := range balanceDiffs {
-		balanceKey := key(t, diff.address, diff.asset)
-		balance, err := balances.accountBalance(balanceKey)
-		assert.NoError(t, err, "accountBalance() failed")
-		assert.Equalf(t, balance, diff.newBalance, "invalid balance after validation: must be %d, is: %d", diff.newBalance, balance)
+func checkBalances(t *testing.T, balances *balances, profileChanges []profileChange) {
+	for _, diff := range profileChanges {
+		addr, err := proto.NewAddressFromString(diff.address)
+		assert.NoError(t, err, "NewAddressFromString() failed")
+		if diff.asset == "" {
+			newProfile := balanceProfile{diff.newBalance, diff.newLeaseIn, diff.newLeaseout}
+			profile, err := balances.wavesBalance(addr)
+			assert.NoError(t, err, "wavesBalance() failed")
+			assert.Equalf(t, newProfile, *profile, "invalid waves balance profile after validation: must be %v, is %v", newProfile, profile)
+		} else {
+			ast, err := proto.NewOptionalAssetFromString(diff.asset)
+			assert.NoError(t, err, "NewOptionalAssetFromString() failed")
+			balance, err := balances.assetBalance(addr, ast.ToID())
+			assert.NoError(t, err, "assetBalance() failed")
+			assert.Equalf(t, balance, diff.newBalance, "invalid asset balance after validation: must be %d, is: %d", diff.newBalance, balance)
+		}
 	}
 }
 
@@ -129,11 +144,22 @@ func validateTx(t *testing.T, tv *transactionValidator, tx proto.Transaction, bl
 	}
 }
 
-func setBalance(t *testing.T, to *testObjects, balanceKey []byte, balance uint64) {
+func setBalance(t *testing.T, to *testObjects, address, asset string, balance uint64) {
 	genesisSig, err := crypto.NewSignatureFromBase58(genesisSignature)
 	assert.NoError(t, err, "NewSignatureFromBase58() failed")
-	err = to.balances.setAccountBalance(balanceKey, balance, genesisSig)
-	assert.NoError(t, err, "setAccountBalance() failed")
+	addr, err := proto.NewAddressFromString(address)
+	assert.NoError(t, err, "NewAddressFromString() failed")
+	if asset == "" {
+		r := &wavesBalanceRecord{balanceProfile{balance, 0, 0}, genesisSig}
+		err := to.balances.setWavesBalance(addr, r)
+		assert.NoError(t, err, "setWavesBalance() failed")
+	} else {
+		ast, err := proto.NewOptionalAssetFromString(asset)
+		assert.NoError(t, err, "NewOptionalAssetFromString() failed")
+		r := &assetBalanceRecord{balance, genesisSig}
+		err = to.balances.setAssetBalance(addr, ast.ToID(), r)
+		assert.NoError(t, err, "setAssetBalance() failed")
+	}
 	flushBalances(t, to.balances)
 	flushAssets(t, to.assets)
 }
@@ -158,17 +184,17 @@ func TestValidateGenesis(t *testing.T) {
 
 	tx := createGenesis(t, recipientAddr)
 
-	balanceDiffs := []balanceDiff{
-		{recipientAddr, "", 0, tx.Amount},
+	profileChanges := []profileChange{
+		{address: recipientAddr, asset: "", prevBalance: 0, newBalance: tx.Amount},
 	}
-	setBalances(t, to, balanceDiffs)
+	setBalances(t, to, profileChanges)
 	blocks := []block{{genesisTimestamp, genesisSignature}}
 	validateTx(t, to.tv, tx, blocks, false)
 	err := to.tv.performTransactions()
 	assert.NoError(t, err, "performTransactions() failed")
 	flushBalances(t, to.balances)
 	flushAssets(t, to.assets)
-	checkBalances(t, to.balances, balanceDiffs)
+	checkBalances(t, to.balances, profileChanges)
 }
 
 func createPayment(t *testing.T) *proto.Payment {
@@ -192,34 +218,33 @@ func TestValidatePayment(t *testing.T) {
 	}()
 
 	tx := createPayment(t)
-	balanceKey := key(t, senderAddr, "")
 
 	// Set insufficient balance for sender and check failure.
-	setBalance(t, to, balanceKey, tx.Amount)
-	blocks := []block{{timestamp1, blockID0}}
+	setBalance(t, to, senderAddr, "", tx.Amount)
+	blocks := []block{{timestamp1, blockSig0}}
 	validateTx(t, to.tv, tx, blocks, true)
 	err := to.tv.performTransactions()
 	assert.Error(t, err, "performTransactions() did not fail with insufficient balance")
 	to.reset()
 
 	// Set insufficient balance for sender with multiple txs in same block.
-	setBalance(t, to, balanceKey, tx.Amount*2)
-	blocks = []block{{timestamp1, blockID0}, {timestamp1, blockID0}}
+	setBalance(t, to, senderAddr, "", tx.Amount*2)
+	blocks = []block{{timestamp1, blockSig0}, {timestamp1, blockSig0}}
 	validateTx(t, to.tv, tx, blocks, true)
 	err = to.tv.performTransactions()
 	assert.Error(t, err, "performTransactions() did not fail with insufficient balance")
 	to.reset()
 
 	// Set insufficient balance for sender with multiple txs in different blocks.
-	setBalance(t, to, balanceKey, tx.Amount*2)
-	blocks = []block{{timestamp1, blockID0}, {timestamp1, blockID1}}
+	setBalance(t, to, senderAddr, "", tx.Amount*2)
+	blocks = []block{{timestamp1, blockSig0}, {timestamp1, blockSig1}}
 	validateTx(t, to.tv, tx, blocks, true)
 	err = to.tv.performTransactions()
 	assert.Error(t, err, "performTransactions() did not fail with insufficient balance")
 	to.reset()
 
 	// Negative balance for one of txs in block with positive overall balance.
-	setBalance(t, to, balanceKey, tx.Amount)
+	setBalance(t, to, senderAddr, "", tx.Amount)
 	blocks = []block{{timestamp0, genesisSignature}}
 	// Negative balance after this Payment tx.
 	validateTx(t, to.tv, tx, blocks, false)
@@ -231,7 +256,7 @@ func TestValidatePayment(t *testing.T) {
 	to.reset()
 
 	// Negative balance for one of txs in block with positive overall balance when this situation is allowed.
-	setBalance(t, to, balanceKey, tx.Amount)
+	setBalance(t, to, senderAddr, "", tx.Amount)
 	blocks = []block{{timestamp1, genesisSignature}}
 	// Negative balance after this Payment tx.
 	validateTx(t, to.tv, tx, blocks, false)
@@ -243,23 +268,23 @@ func TestValidatePayment(t *testing.T) {
 	to.reset()
 
 	// Set proper balances and check result state.
-	balanceDiffs := []balanceDiff{
-		{senderAddr, "", tx.Amount + tx.Fee, 0},
-		{recipientAddr, "", 0, tx.Amount},
-		{minerAddr, "", 0, tx.Fee},
+	profileChanges := []profileChange{
+		{address: senderAddr, asset: "", prevBalance: tx.Amount + tx.Fee, newBalance: 0},
+		{address: recipientAddr, asset: "", prevBalance: 0, newBalance: tx.Amount},
+		{address: minerAddr, asset: "", prevBalance: 0, newBalance: tx.Fee},
 	}
-	setBalances(t, to, balanceDiffs)
-	blocks = []block{{timestamp0, blockID0}}
+	setBalances(t, to, profileChanges)
+	blocks = []block{{timestamp0, blockSig0}}
 	validateTx(t, to.tv, tx, blocks, true)
 	err = to.tv.performTransactions()
 	assert.NoError(t, err, "performTransactions() failed")
 	flushBalances(t, to.balances)
 	flushAssets(t, to.assets)
-	checkBalances(t, to.balances, balanceDiffs)
+	checkBalances(t, to.balances, profileChanges)
 }
 
 func createAsset(t *testing.T, to *testObjects, asset *proto.OptionalAsset) *assetInfo {
-	blockID, err := crypto.NewSignatureFromBase58(blockID0)
+	blockID, err := crypto.NewSignatureFromBase58(blockSig0)
 	assert.NoError(t, err, "NewSignatureFromBase58() failed")
 	assetInfo := createAssetInfo(t, true, blockID, asset.ID)
 	err = to.assets.issueAsset(asset.ID, assetInfo)
@@ -292,27 +317,26 @@ func TestValidateTransferV1(t *testing.T) {
 	}()
 
 	tx := createTransferV1(t, to, recipientAddr)
-	balanceKey := key(t, senderAddr, assetStr)
 
 	// Set insufficient balance for sender and check failure.
-	setBalance(t, to, balanceKey, tx.Amount)
-	blocks := []block{{timestamp1, blockID0}}
+	setBalance(t, to, senderAddr, assetStr, tx.Amount)
+	blocks := []block{{timestamp1, blockSig0}}
 	validateTx(t, to.tv, tx, blocks, true)
 	err := to.tv.performTransactions()
 	assert.Error(t, err, "performTransactions() did not fail with insufficient balance")
 	to.reset()
 
 	// Set insufficient balance for sender with multiple txs in same block.
-	setBalance(t, to, balanceKey, tx.Amount*2)
-	blocks = []block{{timestamp1, blockID0}, {timestamp1, blockID0}}
+	setBalance(t, to, senderAddr, assetStr, tx.Amount)
+	blocks = []block{{timestamp1, blockSig0}, {timestamp1, blockSig0}}
 	validateTx(t, to.tv, tx, blocks, true)
 	err = to.tv.performTransactions()
 	assert.Error(t, err, "performTransactions() did not fail with insufficient balance")
 	to.reset()
 
 	// Set insufficient balance for sender with multiple txs in different blocks.
-	setBalance(t, to, balanceKey, tx.Amount*2)
-	blocks = []block{{timestamp1, blockID0}, {timestamp1, blockID1}}
+	setBalance(t, to, senderAddr, assetStr, tx.Amount)
+	blocks = []block{{timestamp1, blockSig0}, {timestamp1, blockSig1}}
 	validateTx(t, to.tv, tx, blocks, true)
 	err = to.tv.performTransactions()
 	assert.Error(t, err, "performTransactions() did not fail with insufficient balance")
@@ -320,8 +344,8 @@ func TestValidateTransferV1(t *testing.T) {
 
 	tx1 := createTransferV1(t, to, senderAddr)
 	// Negative balance for one of txs in block with positive overall balance.
-	setBalance(t, to, balanceKey, tx1.Amount)
-	blocks = []block{{timestamp0, blockID0}}
+	setBalance(t, to, senderAddr, assetStr, tx.Amount)
+	blocks = []block{{timestamp0, blockSig0}}
 	// Transfer to same address leads to temp negative balance.
 	validateTx(t, to.tv, tx1, blocks, false)
 	err = to.tv.performTransactions()
@@ -329,8 +353,8 @@ func TestValidateTransferV1(t *testing.T) {
 	to.reset()
 
 	// Negative balance for one of txs in block with positive overall balance when this situation is allowed.
-	setBalance(t, to, balanceKey, tx1.Amount)
-	blocks = []block{{timestamp1, blockID0}}
+	setBalance(t, to, senderAddr, assetStr, tx.Amount)
+	blocks = []block{{timestamp1, blockSig0}}
 	// Transfer to same address leads to temp negative balance.
 	validateTx(t, to.tv, tx1, blocks, false)
 	err = to.tv.performTransactions()
@@ -338,19 +362,19 @@ func TestValidateTransferV1(t *testing.T) {
 	to.reset()
 
 	// Set proper balances and check result state.
-	balanceDiffs := []balanceDiff{
-		{senderAddr, assetStr, tx.Amount + tx.Fee, 0},
-		{recipientAddr, assetStr, 0, tx.Amount},
-		{minerAddr, assetStr, 0, tx.Fee},
+	profileChanges := []profileChange{
+		{address: senderAddr, asset: assetStr, prevBalance: tx.Amount + tx.Fee, newBalance: 0},
+		{address: minerAddr, asset: assetStr, prevBalance: 0, newBalance: tx.Fee},
+		{address: recipientAddr, asset: assetStr, prevBalance: 0, newBalance: tx.Amount},
 	}
-	setBalances(t, to, balanceDiffs)
-	blocks = []block{{timestamp0, blockID0}}
+	setBalances(t, to, profileChanges)
+	blocks = []block{{timestamp0, blockSig0}}
 	validateTx(t, to.tv, tx, blocks, true)
 	err = to.tv.performTransactions()
 	assert.NoError(t, err, "performTransactions() failed")
 	flushBalances(t, to.balances)
 	flushAssets(t, to.assets)
-	checkBalances(t, to.balances, balanceDiffs)
+	checkBalances(t, to.balances, profileChanges)
 }
 
 func createTransferV2(t *testing.T, to *testObjects, recipientAddr string) *proto.TransferV2 {
@@ -377,27 +401,26 @@ func TestValidateTransferV2(t *testing.T) {
 	}()
 
 	tx := createTransferV2(t, to, recipientAddr)
-	balanceKey := key(t, senderAddr, assetStr)
 
 	// Set insufficient balance for sender and check failure.
-	setBalance(t, to, balanceKey, tx.Amount)
-	blocks := []block{{timestamp1, blockID0}}
+	setBalance(t, to, senderAddr, assetStr, tx.Amount)
+	blocks := []block{{timestamp1, blockSig0}}
 	validateTx(t, to.tv, tx, blocks, true)
 	err := to.tv.performTransactions()
 	assert.Error(t, err, "performTransactions() did not fail with insufficient balance")
 	to.reset()
 
 	// Set insufficient balance for sender with multiple txs in same block.
-	setBalance(t, to, balanceKey, tx.Amount*2)
-	blocks = []block{{timestamp1, blockID0}, {timestamp1, blockID0}}
+	setBalance(t, to, senderAddr, assetStr, tx.Amount*2)
+	blocks = []block{{timestamp1, blockSig0}, {timestamp1, blockSig0}}
 	validateTx(t, to.tv, tx, blocks, true)
 	err = to.tv.performTransactions()
 	assert.Error(t, err, "performTransactions() did not fail with insufficient balance")
 	to.reset()
 
 	// Set insufficient balance for sender with multiple txs in different blocks.
-	setBalance(t, to, balanceKey, tx.Amount*2)
-	blocks = []block{{timestamp1, blockID0}, {timestamp1, blockID1}}
+	setBalance(t, to, senderAddr, assetStr, tx.Amount*2)
+	blocks = []block{{timestamp1, blockSig0}, {timestamp1, blockSig1}}
 	validateTx(t, to.tv, tx, blocks, true)
 	err = to.tv.performTransactions()
 	assert.Error(t, err, "performTransactions() did not fail with insufficient balance")
@@ -405,8 +428,8 @@ func TestValidateTransferV2(t *testing.T) {
 
 	tx1 := createTransferV2(t, to, senderAddr)
 	// Negative balance for one of txs in block with positive overall balance.
-	setBalance(t, to, balanceKey, tx1.Amount)
-	blocks = []block{{timestamp0, blockID0}}
+	setBalance(t, to, senderAddr, assetStr, tx1.Amount)
+	blocks = []block{{timestamp0, blockSig0}}
 	// Transfer to same address leads to temp negative balance.
 	validateTx(t, to.tv, tx1, blocks, true)
 	err = to.tv.performTransactions()
@@ -414,8 +437,8 @@ func TestValidateTransferV2(t *testing.T) {
 	to.reset()
 
 	// Negative balance for one of txs in block with positive overall balance when this situation is allowed.
-	setBalance(t, to, balanceKey, tx1.Amount)
-	blocks = []block{{timestamp1, blockID0}}
+	setBalance(t, to, senderAddr, assetStr, tx1.Amount)
+	blocks = []block{{timestamp1, blockSig0}}
 	// Transfer to same address leads to temp negative balance.
 	validateTx(t, to.tv, tx1, blocks, true)
 	err = to.tv.performTransactions()
@@ -423,19 +446,19 @@ func TestValidateTransferV2(t *testing.T) {
 	to.reset()
 
 	// Set proper balances and check result state.
-	balanceDiffs := []balanceDiff{
-		{senderAddr, assetStr, tx.Amount + tx.Fee, 0},
-		{recipientAddr, assetStr, 0, tx.Amount},
-		{minerAddr, assetStr, 0, tx.Fee},
+	profileChanges := []profileChange{
+		{address: senderAddr, asset: assetStr, prevBalance: tx.Amount + tx.Fee, newBalance: 0},
+		{address: minerAddr, asset: assetStr, prevBalance: 0, newBalance: tx.Fee},
+		{address: recipientAddr, asset: assetStr, prevBalance: 0, newBalance: tx.Amount},
 	}
-	setBalances(t, to, balanceDiffs)
-	blocks = []block{{timestamp0, blockID0}}
+	setBalances(t, to, profileChanges)
+	blocks = []block{{timestamp0, blockSig0}}
 	validateTx(t, to.tv, tx, blocks, true)
 	err = to.tv.performTransactions()
 	assert.NoError(t, err, "performTransactions() failed")
 	flushBalances(t, to.balances)
 	flushAssets(t, to.assets)
-	checkBalances(t, to.balances, balanceDiffs)
+	checkBalances(t, to.balances, profileChanges)
 }
 
 func createIssueV1(t *testing.T) *proto.IssueV1 {
@@ -462,7 +485,7 @@ func TestValidateIssueV1(t *testing.T) {
 
 	tx := createIssueV1(t)
 
-	blockID, err := crypto.NewSignatureFromBase58(blockID0)
+	blockID, err := crypto.NewSignatureFromBase58(blockSig0)
 	assert.NoError(t, err, "NewSignatureFromBase58() failed")
 	assetInfo := assetInfo{
 		assetConstInfo: assetConstInfo{
@@ -480,19 +503,19 @@ func TestValidateIssueV1(t *testing.T) {
 	asset, err := proto.NewOptionalAssetFromDigest(*tx.ID)
 	assert.NoError(t, err, "NewOptionalAssetFromString() failed")
 	// Set proper balances and check result state.
-	balanceDiffs := []balanceDiff{
-		{senderAddr, asset.String(), 0, tx.Quantity},
-		{senderAddr, "", tx.Fee, 0},
-		{minerAddr, "", 0, tx.Fee},
+	profileChanges := []profileChange{
+		{address: senderAddr, asset: asset.String(), prevBalance: 0, newBalance: tx.Quantity},
+		{address: senderAddr, asset: "", prevBalance: tx.Fee, newBalance: 0},
+		{address: minerAddr, asset: "", prevBalance: 0, newBalance: tx.Fee},
 	}
-	setBalances(t, to, balanceDiffs)
-	blocks := []block{{timestamp0, blockID0}}
+	setBalances(t, to, profileChanges)
+	blocks := []block{{timestamp0, blockSig0}}
 	validateTx(t, to.tv, tx, blocks, true)
 	err = to.tv.performTransactions()
 	assert.NoError(t, err, "performTransactions() failed")
 	flushBalances(t, to.balances)
 	flushAssets(t, to.assets)
-	checkBalances(t, to.balances, balanceDiffs)
+	checkBalances(t, to.balances, profileChanges)
 
 	// Check asset info.
 	info, err := to.assets.assetInfo(asset.ID)
@@ -524,7 +547,7 @@ func TestValidateIssueV2(t *testing.T) {
 
 	tx := createIssueV2(t)
 
-	blockID, err := crypto.NewSignatureFromBase58(blockID0)
+	blockID, err := crypto.NewSignatureFromBase58(blockSig0)
 	assert.NoError(t, err, "NewSignatureFromBase58() failed")
 	assetInfo := assetInfo{
 		assetConstInfo: assetConstInfo{
@@ -542,19 +565,19 @@ func TestValidateIssueV2(t *testing.T) {
 	asset, err := proto.NewOptionalAssetFromDigest(*tx.ID)
 	assert.NoError(t, err, "NewOptionalAssetFromString() failed")
 	// Set proper balances and check result state.
-	balanceDiffs := []balanceDiff{
-		{senderAddr, asset.String(), 0, tx.Quantity},
-		{senderAddr, "", tx.Fee, 0},
-		{minerAddr, "", 0, tx.Fee},
+	profileChanges := []profileChange{
+		{address: senderAddr, asset: asset.String(), prevBalance: 0, newBalance: tx.Quantity},
+		{address: senderAddr, asset: "", prevBalance: tx.Fee, newBalance: 0},
+		{address: minerAddr, asset: "", prevBalance: 0, newBalance: tx.Fee},
 	}
-	setBalances(t, to, balanceDiffs)
-	blocks := []block{{timestamp0, blockID0}}
+	setBalances(t, to, profileChanges)
+	blocks := []block{{timestamp0, blockSig0}}
 	validateTx(t, to.tv, tx, blocks, true)
 	err = to.tv.performTransactions()
 	assert.NoError(t, err, "performTransactions() failed")
 	flushBalances(t, to.balances)
 	flushAssets(t, to.assets)
-	checkBalances(t, to.balances, balanceDiffs)
+	checkBalances(t, to.balances, profileChanges)
 
 	// Check asset info.
 	info, err := to.assets.assetInfo(asset.ID)
@@ -590,19 +613,19 @@ func TestValidateReissueV1(t *testing.T) {
 	assetInfo.quantity = assetInfo.quantity + tx.Quantity
 
 	// Set proper balances and check result state.
-	balanceDiffs := []balanceDiff{
-		{senderAddr, asset.String(), 0, tx.Quantity},
-		{senderAddr, "", tx.Fee, 0},
-		{minerAddr, "", 0, tx.Fee},
+	profileChanges := []profileChange{
+		{address: senderAddr, asset: asset.String(), prevBalance: 0, newBalance: tx.Quantity},
+		{address: senderAddr, asset: "", prevBalance: tx.Fee, newBalance: 0},
+		{address: minerAddr, asset: "", prevBalance: 0, newBalance: tx.Fee},
 	}
-	setBalances(t, to, balanceDiffs)
-	blocks := []block{{timestamp0, blockID0}}
+	setBalances(t, to, profileChanges)
+	blocks := []block{{timestamp0, blockSig0}}
 	validateTx(t, to.tv, tx, blocks, true)
 	err = to.tv.performTransactions()
 	assert.NoError(t, err, "performTransactions() failed")
 	flushBalances(t, to.balances)
 	flushAssets(t, to.assets)
-	checkBalances(t, to.balances, balanceDiffs)
+	checkBalances(t, to.balances, profileChanges)
 
 	// Check asset info.
 	info, err := to.assets.assetInfo(asset.ID)
@@ -638,19 +661,19 @@ func TestValidateReissueV2(t *testing.T) {
 	assetInfo.quantity = assetInfo.quantity + tx.Quantity
 
 	// Set proper balances and check result state.
-	balanceDiffs := []balanceDiff{
-		{senderAddr, asset.String(), 0, tx.Quantity},
-		{senderAddr, "", tx.Fee, 0},
-		{minerAddr, "", 0, tx.Fee},
+	profileChanges := []profileChange{
+		{address: senderAddr, asset: asset.String(), prevBalance: 0, newBalance: tx.Quantity},
+		{address: senderAddr, asset: "", prevBalance: tx.Fee, newBalance: 0},
+		{address: minerAddr, asset: "", prevBalance: 0, newBalance: tx.Fee},
 	}
-	setBalances(t, to, balanceDiffs)
-	blocks := []block{{timestamp0, blockID0}}
+	setBalances(t, to, profileChanges)
+	blocks := []block{{timestamp0, blockSig0}}
 	validateTx(t, to.tv, tx, blocks, true)
 	err = to.tv.performTransactions()
 	assert.NoError(t, err, "performTransactions() failed")
 	flushBalances(t, to.balances)
 	flushAssets(t, to.assets)
-	checkBalances(t, to.balances, balanceDiffs)
+	checkBalances(t, to.balances, profileChanges)
 
 	// Check asset info.
 	info, err := to.assets.assetInfo(asset.ID)
@@ -684,46 +707,44 @@ func TestValidateBurnV1(t *testing.T) {
 	// Burn asset.
 	assetInfo.quantity = assetInfo.quantity - tx.Amount
 
-	balanceKey := key(t, senderAddr, assetStr)
-
 	// Set insufficient balance for sender and check failure.
-	setBalance(t, to, balanceKey, tx.Amount-1)
-	blocks := []block{{timestamp1, blockID0}}
+	setBalance(t, to, senderAddr, assetStr, tx.Amount-1)
+	blocks := []block{{timestamp1, blockSig0}}
 	validateTx(t, to.tv, tx, blocks, true)
 	err = to.tv.performTransactions()
 	assert.Error(t, err, "performTransactions() did not fail with insufficient balance")
 	to.reset()
 
 	// Set insufficient balance for sender with multiple txs in same block.
-	setBalance(t, to, balanceKey, tx.Amount*2-1)
-	blocks = []block{{timestamp1, blockID0}, {timestamp1, blockID0}}
+	setBalance(t, to, senderAddr, assetStr, tx.Amount*2-1)
+	blocks = []block{{timestamp1, blockSig0}, {timestamp1, blockSig0}}
 	validateTx(t, to.tv, tx, blocks, true)
 	err = to.tv.performTransactions()
 	assert.Error(t, err, "performTransactions() did not fail with insufficient balance")
 	to.reset()
 
 	// Set insufficient balance for sender with multiple txs in different blocks.
-	setBalance(t, to, balanceKey, tx.Amount*2-1)
-	blocks = []block{{timestamp1, blockID0}, {timestamp1, blockID1}}
+	setBalance(t, to, senderAddr, assetStr, tx.Amount*2-1)
+	blocks = []block{{timestamp1, blockSig0}, {timestamp1, blockSig1}}
 	validateTx(t, to.tv, tx, blocks, true)
 	err = to.tv.performTransactions()
 	assert.Error(t, err, "performTransactions() did not fail with insufficient balance")
 	to.reset()
 
 	// Set proper balances and check result state.
-	balanceDiffs := []balanceDiff{
-		{senderAddr, asset.String(), tx.Amount, 0},
-		{senderAddr, "", tx.Fee, 0},
-		{minerAddr, "", 0, tx.Fee},
+	profileChanges := []profileChange{
+		{address: senderAddr, asset: asset.String(), prevBalance: tx.Amount, newBalance: 0},
+		{address: senderAddr, asset: "", prevBalance: tx.Fee, newBalance: 0},
+		{address: minerAddr, asset: "", prevBalance: 0, newBalance: tx.Fee},
 	}
-	setBalances(t, to, balanceDiffs)
-	blocks = []block{{timestamp0, blockID0}}
+	setBalances(t, to, profileChanges)
+	blocks = []block{{timestamp0, blockSig0}}
 	validateTx(t, to.tv, tx, blocks, true)
 	err = to.tv.performTransactions()
 	assert.NoError(t, err, "performTransactions() failed")
 	flushBalances(t, to.balances)
 	flushAssets(t, to.assets)
-	checkBalances(t, to.balances, balanceDiffs)
+	checkBalances(t, to.balances, profileChanges)
 
 	// Check asset info.
 	info, err := to.assets.assetInfo(asset.ID)
@@ -757,46 +778,44 @@ func TestValidateBurnV2(t *testing.T) {
 	// Burn asset.
 	assetInfo.quantity = assetInfo.quantity - tx.Amount
 
-	balanceKey := key(t, senderAddr, assetStr)
-
 	// Set insufficient balance for sender and check failure.
-	setBalance(t, to, balanceKey, tx.Amount-1)
-	blocks := []block{{timestamp1, blockID0}}
+	setBalance(t, to, senderAddr, assetStr, tx.Amount-1)
+	blocks := []block{{timestamp1, blockSig0}}
 	validateTx(t, to.tv, tx, blocks, true)
 	err = to.tv.performTransactions()
 	assert.Error(t, err, "performTransactions() did not fail with insufficient balance")
 	to.reset()
 
 	// Set insufficient balance for sender with multiple txs in same block.
-	setBalance(t, to, balanceKey, tx.Amount*2-1)
-	blocks = []block{{timestamp1, blockID0}, {timestamp1, blockID0}}
+	setBalance(t, to, senderAddr, assetStr, tx.Amount*2-1)
+	blocks = []block{{timestamp1, blockSig0}, {timestamp1, blockSig0}}
 	validateTx(t, to.tv, tx, blocks, true)
 	err = to.tv.performTransactions()
 	assert.Error(t, err, "performTransactions() did not fail with insufficient balance")
 	to.reset()
 
 	// Set insufficient balance for sender with multiple txs in different blocks.
-	setBalance(t, to, balanceKey, tx.Amount*2-1)
-	blocks = []block{{timestamp1, blockID0}, {timestamp1, blockID1}}
+	setBalance(t, to, senderAddr, assetStr, tx.Amount*2-1)
+	blocks = []block{{timestamp1, blockSig0}, {timestamp1, blockSig1}}
 	validateTx(t, to.tv, tx, blocks, true)
 	err = to.tv.performTransactions()
 	assert.Error(t, err, "performTransactions() did not fail with insufficient balance")
 	to.reset()
 
 	// Set proper balances and check result state.
-	balanceDiffs := []balanceDiff{
-		{senderAddr, asset.String(), tx.Amount, 0},
-		{senderAddr, "", tx.Fee, 0},
-		{minerAddr, "", 0, tx.Fee},
+	profileChanges := []profileChange{
+		{address: senderAddr, asset: asset.String(), prevBalance: tx.Amount, newBalance: 0},
+		{address: senderAddr, asset: "", prevBalance: tx.Fee, newBalance: 0},
+		{address: minerAddr, asset: "", prevBalance: 0, newBalance: tx.Fee},
 	}
-	setBalances(t, to, balanceDiffs)
-	blocks = []block{{timestamp0, blockID0}}
+	setBalances(t, to, profileChanges)
+	blocks = []block{{timestamp0, blockSig0}}
 	validateTx(t, to.tv, tx, blocks, true)
 	err = to.tv.performTransactions()
 	assert.NoError(t, err, "performTransactions() failed")
 	flushBalances(t, to.balances)
 	flushAssets(t, to.assets)
-	checkBalances(t, to.balances, balanceDiffs)
+	checkBalances(t, to.balances, profileChanges)
 
 	// Check asset info.
 	info, err := to.assets.assetInfo(asset.ID)
@@ -838,22 +857,22 @@ func TestValidateExchangeV1(t *testing.T) {
 
 	price := tx.Price * tx.Amount / priceConstant
 	// Set proper balances and check result state.
-	balanceDiffs := []balanceDiff{
-		{recipientAddr, assetStr, 0, tx.Amount},
-		{recipientAddr, "", price + tx.BuyMatcherFee, 0},
-		{senderAddr, assetStr, tx.Amount, 0},
-		{senderAddr, "", tx.SellMatcherFee, price},
-		{minerAddr, "", 0, tx.Fee},
-		{matcherAddr, "", tx.Fee, tx.SellMatcherFee + tx.BuyMatcherFee},
+	profileChanges := []profileChange{
+		{address: recipientAddr, asset: assetStr, prevBalance: 0, newBalance: tx.Amount},
+		{address: recipientAddr, asset: "", prevBalance: price + tx.BuyMatcherFee, newBalance: 0},
+		{address: senderAddr, asset: assetStr, prevBalance: tx.Amount, newBalance: 0},
+		{address: senderAddr, asset: "", prevBalance: tx.SellMatcherFee, newBalance: price},
+		{address: minerAddr, asset: "", prevBalance: 0, newBalance: tx.Fee},
+		{address: matcherAddr, asset: "", prevBalance: tx.Fee, newBalance: tx.SellMatcherFee + tx.BuyMatcherFee},
 	}
-	setBalances(t, to, balanceDiffs)
-	blocks := []block{{timestamp0, blockID0}}
+	setBalances(t, to, profileChanges)
+	blocks := []block{{timestamp0, blockSig0}}
 	validateTx(t, to.tv, tx, blocks, true)
 	err = to.tv.performTransactions()
 	assert.NoError(t, err, "performTransactions() failed")
 	flushBalances(t, to.balances)
 	flushAssets(t, to.assets)
-	checkBalances(t, to.balances, balanceDiffs)
+	checkBalances(t, to.balances, profileChanges)
 }
 
 func createExchangeV2(t *testing.T) *proto.ExchangeV2 {
@@ -890,20 +909,20 @@ func TestValidateExchangeV2(t *testing.T) {
 
 	price := tx.Price * tx.Amount / priceConstant
 	// Set proper balances and check result state.
-	balanceDiffs := []balanceDiff{
-		{recipientAddr, assetStr, 0, tx.Amount},
-		{recipientAddr, "", price + tx.BuyMatcherFee, 0},
-		{senderAddr, assetStr, tx.Amount, 0},
-		{senderAddr, "", tx.SellMatcherFee, price},
-		{minerAddr, "", 0, tx.Fee},
-		{matcherAddr, "", tx.Fee, tx.SellMatcherFee + tx.BuyMatcherFee},
+	profileChanges := []profileChange{
+		{address: recipientAddr, asset: assetStr, prevBalance: 0, newBalance: tx.Amount},
+		{address: recipientAddr, asset: "", prevBalance: price + tx.BuyMatcherFee, newBalance: 0},
+		{address: senderAddr, asset: assetStr, prevBalance: tx.Amount, newBalance: 0},
+		{address: senderAddr, asset: "", prevBalance: tx.SellMatcherFee, newBalance: price},
+		{address: minerAddr, asset: "", prevBalance: 0, newBalance: tx.Fee},
+		{address: matcherAddr, asset: "", prevBalance: tx.Fee, newBalance: tx.SellMatcherFee + tx.BuyMatcherFee},
 	}
-	setBalances(t, to, balanceDiffs)
-	blocks := []block{{timestamp0, blockID0}}
+	setBalances(t, to, profileChanges)
+	blocks := []block{{timestamp0, blockSig0}}
 	validateTx(t, to.tv, tx, blocks, true)
 	err = to.tv.performTransactions()
 	assert.NoError(t, err, "performTransactions() failed")
 	flushBalances(t, to.balances)
 	flushAssets(t, to.assets)
-	checkBalances(t, to.balances, balanceDiffs)
+	checkBalances(t, to.balances, profileChanges)
 }

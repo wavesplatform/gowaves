@@ -210,6 +210,13 @@ func (s *stateManager) Block(blockID crypto.Signature) (*proto.Block, error) {
 }
 
 func (s *stateManager) BlockByHeight(height uint64) (*proto.Block, error) {
+	maxHeight, err := s.Height()
+	if err != nil {
+		return nil, StateError{errorType: RetrievalError, originalError: err}
+	}
+	if height < 1 || height > maxHeight {
+		return nil, StateError{errorType: InvalidInputError, originalError: errors.New("height out of valid range")}
+	}
 	blockID, err := s.rw.blockIDByHeight(height)
 	if err != nil {
 		return nil, StateError{errorType: RetrievalError, originalError: err}
@@ -250,16 +257,22 @@ func (s *stateManager) HeightToBlockID(height uint64) (crypto.Signature, error) 
 }
 
 func (s *stateManager) AccountBalance(addr proto.Address, asset []byte) (uint64, error) {
-	key := balanceKey{address: addr, asset: asset}
-	balance, err := s.balances.accountBalance(key.bytes())
+	if asset == nil {
+		profile, err := s.balances.wavesBalance(addr)
+		if err != nil {
+			return 0, StateError{errorType: RetrievalError, originalError: err}
+		}
+		return profile.balance, nil
+	}
+	balance, err := s.balances.assetBalance(addr, asset)
 	if err != nil {
 		return 0, StateError{errorType: RetrievalError, originalError: err}
 	}
 	return balance, nil
 }
 
-func (s *stateManager) AddressesNumber(wavesOnly bool) (uint64, error) {
-	res, err := s.balances.addressesNumber(wavesOnly)
+func (s *stateManager) WavesAddressesNumber() (uint64, error) {
+	res, err := s.balances.wavesAddressesNumber()
 	if err != nil {
 		return 0, StateError{errorType: RetrievalError, originalError: err}
 	}
@@ -472,6 +485,13 @@ func (s *stateManager) checkRollbackInput(blockID crypto.Signature) error {
 }
 
 func (s *stateManager) RollbackToHeight(height uint64) error {
+	maxHeight, err := s.Height()
+	if err != nil {
+		return StateError{errorType: RetrievalError, originalError: err}
+	}
+	if height < 1 || height > maxHeight {
+		return StateError{errorType: InvalidInputError, originalError: errors.New("height out of valid range")}
+	}
 	blockID, err := s.HeightToBlockID(height)
 	if err != nil {
 		return StateError{errorType: RetrievalError, originalError: err}
@@ -522,6 +542,13 @@ func (s *stateManager) RollbackTo(removalEdge crypto.Signature) error {
 }
 
 func (s *stateManager) ScoreAtHeight(height uint64) (*big.Int, error) {
+	maxHeight, err := s.Height()
+	if err != nil {
+		return nil, StateError{errorType: RetrievalError, originalError: err}
+	}
+	if height < 1 || height > maxHeight {
+		return nil, StateError{errorType: InvalidInputError, originalError: errors.New("height out of valid range")}
+	}
 	score, err := s.scores.score(height)
 	if err != nil {
 		return nil, StateError{errorType: RetrievalError, originalError: err}
@@ -538,8 +565,7 @@ func (s *stateManager) CurrentScore() (*big.Int, error) {
 }
 
 func (s *stateManager) EffectiveBalance(addr proto.Address, startHeight, endHeight uint64) (uint64, error) {
-	key := balanceKey{address: addr}
-	effectiveBalance, err := s.balances.minBalanceInRange(key.bytes(), startHeight, endHeight)
+	effectiveBalance, err := s.balances.minEffectiveBalanceInRange(addr, startHeight, endHeight)
 	if err != nil {
 		return 0, StateError{errorType: RetrievalError, originalError: err}
 	}
