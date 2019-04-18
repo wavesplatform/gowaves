@@ -52,11 +52,10 @@ func createLeasingRecord(t *testing.T, leaseID crypto.Digest, blockID crypto.Sig
 	assert.NoError(t, err, "failed to create address from string")
 	r := &leasingRecord{
 		leasing: leasing{
-			isActive:  true,
-			leaseIn:   1,
-			leaseOut:  10,
-			recipient: addr0,
-			sender:    addr1,
+			isActive:    true,
+			leaseAmount: 10,
+			recipient:   addr0,
+			sender:      addr1,
 		},
 		blockID: blockID,
 	}
