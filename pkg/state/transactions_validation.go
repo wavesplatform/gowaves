@@ -407,7 +407,7 @@ func (tv *transactionValidator) validateTransfer(tx *proto.Transfer, block, pare
 	changes[1] = balanceChange{senderAmountKey.bytes(), balanceDiff{balance: senderAmountBalanceDiff, blockID: block.BlockSignature}}
 	// Update receiver.
 	if tx.Recipient.Address == nil {
-		// TODO implement
+		// TODO support aliases.
 		return false, errors.New("alias without address is not supported yet")
 	}
 	receiverKey := balanceKey{address: *tx.Recipient.Address, asset: tx.AmountAsset.ToID()}
@@ -643,11 +643,90 @@ func (tv *transactionValidator) validateExchange(tx proto.Exchange, block, paren
 }
 
 func (tv *transactionValidator) validateLease(tx *proto.Lease, block, parent *proto.Block, initialisation bool) (bool, error) {
-	return false, nil
+	if ok, err := tv.checkTimestamps(tx.Timestamp, block.Timestamp, parent.Timestamp); !ok {
+		return false, errors.Wrap(err, "invalid timestamp")
+	}
+	changes := make([]balanceChange, 3)
+	// Update sender.
+	senderAddr, err := proto.NewAddressFromPublicKey(tv.settings.AddressSchemeCharacter, tx.SenderPK)
+	if err != nil {
+		return false, err
+	}
+	senderKey := balanceKey{address: senderAddr}
+	senderLeaseOutDiff := int64(tx.Amount)
+	changes[0] = balanceChange{senderKey.bytes(), balanceDiff{leaseOut: senderLeaseOutDiff, blockID: block.BlockSignature}}
+	// Update receiver.
+	if tx.Recipient.Address == nil {
+		// TODO support aliases.
+		return false, errors.New("alias without address is not supported yet")
+	}
+	receiverKey := balanceKey{address: *tx.Recipient.Address}
+	receiverLeaseInDiff := int64(tx.Amount)
+	changes[1] = balanceChange{receiverKey.bytes(), balanceDiff{leaseIn: receiverLeaseInDiff, blockID: block.BlockSignature}}
+	// Update miner.
+	minerAddr, err := proto.NewAddressFromPublicKey(tv.settings.AddressSchemeCharacter, block.GenPublicKey)
+	if err != nil {
+		return false, err
+	}
+	minerKey := balanceKey{address: minerAddr}
+	minerBalanceDiff := int64(tx.Fee)
+	changes[2] = balanceChange{minerKey.bytes(), balanceDiff{balance: minerBalanceDiff, blockID: block.BlockSignature}}
+	if err := tv.pushChanges(changes, block); err != nil {
+		return false, err
+	}
+	// Add leasing to lease state.
+	r := &leasingRecord{
+		leasing{true, tx.Amount, *tx.Recipient.Address, senderAddr},
+		block.BlockSignature,
+	}
+	if err := tv.leases.addLeasing(*tx.ID, r); err != nil {
+		return false, errors.Wrap(err, "failed to add leasing")
+	}
+	return true, nil
 }
 
 func (tv *transactionValidator) validateLeaseCancel(tx *proto.LeaseCancel, block, parent *proto.Block, initialisation bool) (bool, error) {
-	return false, nil
+	if ok, err := tv.checkTimestamps(tx.Timestamp, block.Timestamp, parent.Timestamp); !ok {
+		return false, errors.Wrap(err, "invalid timestamp")
+	}
+	l, err := tv.leases.newestLeasingInfo(tx.LeaseID)
+	if err != nil {
+		return false, err
+	}
+	if !l.isActive {
+		return false, errors.Wrap(err, "can not cancel lease which has already been cancelled")
+	}
+	senderAddr, err := proto.NewAddressFromPublicKey(tv.settings.AddressSchemeCharacter, tx.SenderPK)
+	if err != nil {
+		return false, err
+	}
+	if l.sender != senderAddr {
+		return false, errors.Wrap(err, "sender of LeaseCancel is not sender of corresponding Lease")
+	}
+	if err := tv.leases.cancelLeasing(tx.LeaseID, block.BlockSignature); err != nil {
+		return false, errors.Wrap(err, "failed to cancel leasing")
+	}
+	changes := make([]balanceChange, 3)
+	// Update sender.
+	senderKey := balanceKey{address: senderAddr}
+	senderLeaseInDiff := int64(l.leaseAmount)
+	changes[0] = balanceChange{senderKey.bytes(), balanceDiff{leaseIn: senderLeaseInDiff, blockID: block.BlockSignature}}
+	// Update receiver.
+	receiverKey := balanceKey{address: l.recipient}
+	receiverLeaseOutDiff := int64(l.leaseAmount)
+	changes[1] = balanceChange{receiverKey.bytes(), balanceDiff{leaseOut: receiverLeaseOutDiff, blockID: block.BlockSignature}}
+	// Update miner.
+	minerAddr, err := proto.NewAddressFromPublicKey(tv.settings.AddressSchemeCharacter, block.GenPublicKey)
+	if err != nil {
+		return false, err
+	}
+	minerKey := balanceKey{address: minerAddr}
+	minerBalanceDiff := int64(tx.Fee)
+	changes[2] = balanceChange{minerKey.bytes(), balanceDiff{balance: minerBalanceDiff, blockID: block.BlockSignature}}
+	if err := tv.pushChanges(changes, block); err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
 func (tv *transactionValidator) validateTransaction(block, parent *proto.Block, tx proto.Transaction, initialisation bool) error {
