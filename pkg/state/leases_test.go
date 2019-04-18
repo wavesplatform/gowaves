@@ -46,14 +46,17 @@ func createLeases() (*leases, []string, error) {
 }
 
 func createLeasingRecord(t *testing.T, leaseID crypto.Digest, blockID crypto.Signature) *leasingRecord {
-	addr, err := proto.NewAddressFromString("3PDdGex1meSUf4Yq5bjPBpyAbx6us9PaLfo")
+	addr0, err := proto.NewAddressFromString("3PDdGex1meSUf4Yq5bjPBpyAbx6us9PaLfo")
+	assert.NoError(t, err, "failed to create address from string")
+	addr1, err := proto.NewAddressFromString("3PNXHYoWp83VaWudq9ds9LpS5xykWuJHiHp")
 	assert.NoError(t, err, "failed to create address from string")
 	r := &leasingRecord{
 		leasing: leasing{
 			isActive:  true,
 			leaseIn:   1,
 			leaseOut:  10,
-			recipient: addr,
+			recipient: addr0,
+			sender:    addr1,
 		},
 		blockID: blockID,
 	}

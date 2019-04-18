@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	leasingRecordSize = 1 + 8 + 8 + proto.AddressSize + crypto.SignatureSize
+	leasingRecordSize = 1 + 8 + 8 + proto.AddressSize*2 + crypto.SignatureSize
 )
 
 type leasing struct {
@@ -19,6 +19,7 @@ type leasing struct {
 	leaseIn   uint64
 	leaseOut  uint64
 	recipient proto.Address
+	sender    proto.Address
 }
 
 type leasingRecord struct {
@@ -27,12 +28,13 @@ type leasingRecord struct {
 }
 
 func (l *leasingRecord) marshalBinary() ([]byte, error) {
-	res := make([]byte, 1+8+8+proto.AddressSize+crypto.SignatureSize)
+	res := make([]byte, leasingRecordSize)
 	proto.PutBool(res[0:1], l.isActive)
 	binary.BigEndian.PutUint64(res[1:9], l.leaseIn)
 	binary.BigEndian.PutUint64(res[9:17], l.leaseOut)
 	copy(res[17:17+proto.AddressSize], l.recipient[:])
-	copy(res[17+proto.AddressSize:], l.blockID[:])
+	copy(res[17+proto.AddressSize:17+proto.AddressSize*2], l.sender[:])
+	copy(res[17+proto.AddressSize*2:], l.blockID[:])
 	return res, nil
 }
 
@@ -45,7 +47,8 @@ func (l *leasingRecord) unmarshalBinary(data []byte) error {
 	l.leaseIn = binary.BigEndian.Uint64(data[1:9])
 	l.leaseOut = binary.BigEndian.Uint64(data[9:17])
 	copy(l.recipient[:], data[17:17+proto.AddressSize])
-	copy(l.blockID[:], data[17+proto.AddressSize:])
+	copy(l.sender[:], data[17+proto.AddressSize:17+proto.AddressSize*2])
+	copy(l.blockID[:], data[17+proto.AddressSize*2:])
 	return nil
 }
 
