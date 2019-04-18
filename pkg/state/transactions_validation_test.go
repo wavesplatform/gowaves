@@ -34,6 +34,7 @@ var (
 
 type testObjects struct {
 	assets   *assets
+	leases   *leases
 	balances *balances
 	tv       *transactionValidator
 }
@@ -41,13 +42,15 @@ type testObjects struct {
 func createTestObjects(t *testing.T) (*testObjects, []string) {
 	assets, path, err := createAssets()
 	assert.NoError(t, err, "createAssets() failed")
+	leases, path1, err := createLeases()
+	assert.NoError(t, err, "createLeases() failed")
 	balances, err := newBalances(assets.db, assets.dbBatch, &mock{}, &mockBlockInfo{})
 	assert.NoError(t, err, "newBalances() failed")
 	genesisSig, err := crypto.NewSignatureFromBase58(genesisSignature)
 	assert.NoError(t, err, "NewSignatureFromBase58() failed")
-	tv, err := newTransactionValidator(genesisSig, balances, assets, settings.MainNetSettings)
+	tv, err := newTransactionValidator(genesisSig, balances, assets, leases, settings.MainNetSettings)
 	assert.NoError(t, err, "newTransactionValidator() failed")
-	return &testObjects{assets: assets, balances: balances, tv: tv}, path
+	return &testObjects{assets: assets, leases: leases, balances: balances, tv: tv}, append(path, path1...)
 }
 
 func (to *testObjects) reset() {
@@ -91,6 +94,7 @@ func setBalances(t *testing.T, to *testObjects, profileChanges []profileChange) 
 	}
 	flushBalances(t, to.balances)
 	flushAssets(t, to.assets)
+	flushLeases(t, to.leases)
 }
 
 func checkBalances(t *testing.T, balances *balances, profileChanges []profileChange) {
@@ -162,6 +166,7 @@ func setBalance(t *testing.T, to *testObjects, address, asset string, balance ui
 	}
 	flushBalances(t, to.balances)
 	flushAssets(t, to.assets)
+	flushLeases(t, to.leases)
 }
 
 func createGenesis(t *testing.T, recipient string) *proto.Genesis {
@@ -194,6 +199,7 @@ func TestValidateGenesis(t *testing.T) {
 	assert.NoError(t, err, "performTransactions() failed")
 	flushBalances(t, to.balances)
 	flushAssets(t, to.assets)
+	flushLeases(t, to.leases)
 	checkBalances(t, to.balances, profileChanges)
 }
 
@@ -280,6 +286,7 @@ func TestValidatePayment(t *testing.T) {
 	assert.NoError(t, err, "performTransactions() failed")
 	flushBalances(t, to.balances)
 	flushAssets(t, to.assets)
+	flushLeases(t, to.leases)
 	checkBalances(t, to.balances, profileChanges)
 }
 
@@ -290,6 +297,7 @@ func createAsset(t *testing.T, to *testObjects, asset *proto.OptionalAsset) *ass
 	err = to.assets.issueAsset(asset.ID, assetInfo)
 	assert.NoError(t, err, "issueAset() failed")
 	flushAssets(t, to.assets)
+	flushLeases(t, to.leases)
 	return assetInfo
 }
 
@@ -374,6 +382,7 @@ func TestValidateTransferV1(t *testing.T) {
 	assert.NoError(t, err, "performTransactions() failed")
 	flushBalances(t, to.balances)
 	flushAssets(t, to.assets)
+	flushLeases(t, to.leases)
 	checkBalances(t, to.balances, profileChanges)
 }
 
@@ -458,6 +467,7 @@ func TestValidateTransferV2(t *testing.T) {
 	assert.NoError(t, err, "performTransactions() failed")
 	flushBalances(t, to.balances)
 	flushAssets(t, to.assets)
+	flushLeases(t, to.leases)
 	checkBalances(t, to.balances, profileChanges)
 }
 
@@ -515,6 +525,7 @@ func TestValidateIssueV1(t *testing.T) {
 	assert.NoError(t, err, "performTransactions() failed")
 	flushBalances(t, to.balances)
 	flushAssets(t, to.assets)
+	flushLeases(t, to.leases)
 	checkBalances(t, to.balances, profileChanges)
 
 	// Check asset info.
@@ -577,6 +588,7 @@ func TestValidateIssueV2(t *testing.T) {
 	assert.NoError(t, err, "performTransactions() failed")
 	flushBalances(t, to.balances)
 	flushAssets(t, to.assets)
+	flushLeases(t, to.leases)
 	checkBalances(t, to.balances, profileChanges)
 
 	// Check asset info.
@@ -625,6 +637,7 @@ func TestValidateReissueV1(t *testing.T) {
 	assert.NoError(t, err, "performTransactions() failed")
 	flushBalances(t, to.balances)
 	flushAssets(t, to.assets)
+	flushLeases(t, to.leases)
 	checkBalances(t, to.balances, profileChanges)
 
 	// Check asset info.
@@ -673,6 +686,7 @@ func TestValidateReissueV2(t *testing.T) {
 	assert.NoError(t, err, "performTransactions() failed")
 	flushBalances(t, to.balances)
 	flushAssets(t, to.assets)
+	flushLeases(t, to.leases)
 	checkBalances(t, to.balances, profileChanges)
 
 	// Check asset info.
@@ -744,6 +758,7 @@ func TestValidateBurnV1(t *testing.T) {
 	assert.NoError(t, err, "performTransactions() failed")
 	flushBalances(t, to.balances)
 	flushAssets(t, to.assets)
+	flushLeases(t, to.leases)
 	checkBalances(t, to.balances, profileChanges)
 
 	// Check asset info.
@@ -815,6 +830,7 @@ func TestValidateBurnV2(t *testing.T) {
 	assert.NoError(t, err, "performTransactions() failed")
 	flushBalances(t, to.balances)
 	flushAssets(t, to.assets)
+	flushLeases(t, to.leases)
 	checkBalances(t, to.balances, profileChanges)
 
 	// Check asset info.
@@ -872,6 +888,7 @@ func TestValidateExchangeV1(t *testing.T) {
 	assert.NoError(t, err, "performTransactions() failed")
 	flushBalances(t, to.balances)
 	flushAssets(t, to.assets)
+	flushLeases(t, to.leases)
 	checkBalances(t, to.balances, profileChanges)
 }
 
@@ -924,5 +941,6 @@ func TestValidateExchangeV2(t *testing.T) {
 	assert.NoError(t, err, "performTransactions() failed")
 	flushBalances(t, to.balances)
 	flushAssets(t, to.assets)
+	flushLeases(t, to.leases)
 	checkBalances(t, to.balances, profileChanges)
 }

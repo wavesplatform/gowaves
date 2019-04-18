@@ -254,6 +254,7 @@ type transactionValidator struct {
 	genesis     crypto.Signature
 	changesStor *changesStorage
 	assets      *assets
+	leases      *leases
 	settings    *settings.BlockchainSettings
 }
 
@@ -261,6 +262,7 @@ func newTransactionValidator(
 	genesis crypto.Signature,
 	balances *balances,
 	assets *assets,
+	leases *leases,
 	settings *settings.BlockchainSettings,
 ) (*transactionValidator, error) {
 	changesStor, err := newChangesStorage(balances)
@@ -271,6 +273,7 @@ func newTransactionValidator(
 		genesis:     genesis,
 		changesStor: changesStor,
 		assets:      assets,
+		leases:      leases,
 		settings:    settings,
 	}, nil
 }

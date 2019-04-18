@@ -53,6 +53,7 @@ type stateManager struct {
 	stateDB *stateDB
 
 	assets   *assets
+	leases   *leases
 	scores   *scores
 	balances *balances
 	rw       *blockReadWriter
@@ -110,6 +111,11 @@ func newStateManager(dataDir string, params BlockStorageParams, settings *settin
 	if err != nil {
 		return nil, StateError{errorType: Other, originalError: errors.Errorf("failed to create assets storage: %v\n", err)}
 	}
+	// leases is storage for leases info.
+	leases, err := newLeases(db, dbBatch, state, state)
+	if err != nil {
+		return nil, StateError{errorType: Other, originalError: errors.Errorf("failed to create leases storage: %v\n", err)}
+	}
 	// Consensus validator is needed to check block headers.
 	cv, err := consensus.NewConsensusValidator(state)
 	if err != nil {
@@ -117,6 +123,7 @@ func newStateManager(dataDir string, params BlockStorageParams, settings *settin
 	}
 	// Set fields which depend on state.
 	state.assets = assets
+	state.leases = leases
 	state.cv = cv
 	state.balances = balances
 	state.rw = rw
@@ -155,7 +162,7 @@ func (s *stateManager) addGenesisBlock() error {
 	if err := s.scores.addScore(&big.Int{}, genesisScore, 1); err != nil {
 		return err
 	}
-	tv, err := newTransactionValidator(s.genesis.BlockSignature, s.balances, s.assets, s.settings)
+	tv, err := newTransactionValidator(s.genesis.BlockSignature, s.balances, s.assets, s.leases, s.settings)
 	if err != nil {
 		return err
 	}
@@ -332,6 +339,7 @@ func (s *stateManager) addNewBlock(tv *transactionValidator, block, parent *prot
 func (s *stateManager) reset() error {
 	s.rw.reset()
 	s.assets.reset()
+	s.leases.reset()
 	s.balances.reset()
 	s.stateDB.reset()
 	return nil
@@ -342,6 +350,9 @@ func (s *stateManager) flush() error {
 		return err
 	}
 	if err := s.assets.flush(); err != nil {
+		return err
+	}
+	if err := s.leases.flush(); err != nil {
 		return err
 	}
 	if err := s.balances.flush(); err != nil {
@@ -417,7 +428,7 @@ func (s *stateManager) addBlocks(blocks [][]byte, initialisation bool) error {
 	if err != nil {
 		return StateError{errorType: RetrievalError, originalError: err}
 	}
-	tv, err := newTransactionValidator(s.genesis.BlockSignature, s.balances, s.assets, s.settings)
+	tv, err := newTransactionValidator(s.genesis.BlockSignature, s.balances, s.assets, s.leases, s.settings)
 	if err != nil {
 		return StateError{errorType: Other, originalError: err}
 	}

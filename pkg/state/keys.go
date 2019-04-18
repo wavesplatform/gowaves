@@ -36,6 +36,9 @@ const (
 	// Assets.
 	assetConstKeyPrefix
 	assetHistKeyPrefix
+
+	// Leases.
+	leaseKeyPrefix
 )
 
 type balanceKey struct {
@@ -136,5 +139,16 @@ func (k *assetHistKey) bytes() []byte {
 	buf := make([]byte, 1+crypto.DigestSize)
 	buf[0] = assetHistKeyPrefix
 	copy(buf[1:], k.assetID[:])
+	return buf
+}
+
+type leaseKey struct {
+	leaseID crypto.Digest
+}
+
+func (k *leaseKey) bytes() []byte {
+	buf := make([]byte, 1+crypto.DigestSize)
+	buf[0] = leaseKeyPrefix
+	copy(buf[1:], k.leaseID[:])
 	return buf
 }

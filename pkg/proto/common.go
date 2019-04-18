@@ -22,7 +22,7 @@ func StringWithUInt16Len(buf []byte) (string, error) {
 	s := binary.BigEndian.Uint16(buf[0:2])
 	buf = buf[2:]
 	if l := len(buf); l < int(s) {
-		return "", fmt.Errorf("not enough data to read sting of length %d, recieved only %d bytes", s, l)
+		return "", fmt.Errorf("not enough data to read sting of length %d, received only %d bytes", s, l)
 	}
 	r := string(buf[:s])
 	return r, nil
@@ -43,7 +43,7 @@ func StringWithUInt32Len(buf []byte) (string, error) {
 	s := binary.BigEndian.Uint32(buf[0:4])
 	buf = buf[4:]
 	if l := len(buf); l < int(s) {
-		return "", fmt.Errorf("not enough data to read sting of length %d, recieved only %d bytes", s, l)
+		return "", fmt.Errorf("not enough data to read sting of length %d, received only %d bytes", s, l)
 	}
 	r := string(buf[:s])
 	return r, nil
@@ -64,7 +64,7 @@ func BytesWithUInt16Len(buf []byte) ([]byte, error) {
 	s := binary.BigEndian.Uint16(buf[0:2])
 	buf = buf[2:]
 	if l := len(buf); l < int(s) {
-		return nil, fmt.Errorf("not enough data to read array of bytes of lenght %d, recieved only %d bytes", s, l)
+		return nil, fmt.Errorf("not enough data to read array of bytes of length %d, received only %d bytes", s, l)
 	}
 	r := make([]byte, s)
 	copy(r, buf[:s])
@@ -86,7 +86,7 @@ func BytesWithUInt32Len(buf []byte) ([]byte, error) {
 	s := binary.BigEndian.Uint32(buf[0:4])
 	buf = buf[4:]
 	if l := len(buf); l < int(s) {
-		return nil, fmt.Errorf("not enough data to read array of bytes of lenght %d, recieved only %d bytes", s, l)
+		return nil, fmt.Errorf("not enough data to read array of bytes of length %d, received only %d bytes", s, l)
 	}
 	r := make([]byte, s)
 	copy(r, buf[:s])
