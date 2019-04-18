@@ -244,7 +244,6 @@ func (tx *IssueV1) UnmarshalBinary(data []byte) error {
 type TransferV1 struct {
 	Type      TransactionType   `json:"type"`
 	Version   byte              `json:"version,omitempty"`
-	ID        *crypto.Digest    `json:"id,omitempty"`
 	Signature *crypto.Signature `json:"signature,omitempty"`
 	Transfer
 }
@@ -363,7 +362,6 @@ func (tx *TransferV1) UnmarshalBinary(data []byte) error {
 type ReissueV1 struct {
 	Type      TransactionType   `json:"type"`
 	Version   byte              `json:"version,omitempty"`
-	ID        *crypto.Digest    `json:"id,omitempty"`
 	Signature *crypto.Signature `json:"signature,omitempty"`
 	Reissue
 }
@@ -483,7 +481,6 @@ func (tx *ReissueV1) UnmarshalBinary(data []byte) error {
 type BurnV1 struct {
 	Type      TransactionType   `json:"type"`
 	Version   byte              `json:"version,omitempty"`
-	ID        *crypto.Digest    `json:"id,omitempty"`
 	Signature *crypto.Signature `json:"signature,omitempty"`
 	Burn
 }
@@ -823,7 +820,6 @@ func (tx *ExchangeV1) UnmarshalBinary(data []byte) error {
 type LeaseV1 struct {
 	Type      TransactionType   `json:"type"`
 	Version   byte              `json:"version,omitempty"`
-	ID        *crypto.Digest    `json:"id,omitempty"`
 	Signature *crypto.Signature `json:"signature,omitempty"`
 	Lease
 }
@@ -942,7 +938,6 @@ func (tx *LeaseV1) UnmarshalBinary(data []byte) error {
 type LeaseCancelV1 struct {
 	Type      TransactionType   `json:"type"`
 	Version   byte              `json:"version,omitempty"`
-	ID        *crypto.Digest    `json:"id,omitempty"`
 	Signature *crypto.Signature `json:"signature,omitempty"`
 	LeaseCancel
 }
@@ -1057,7 +1052,6 @@ func (tx *LeaseCancelV1) UnmarshalBinary(data []byte) error {
 type CreateAliasV1 struct {
 	Type      TransactionType   `json:"type"`
 	Version   byte              `json:"version,omitempty"`
-	ID        *crypto.Digest    `json:"id,omitempty"`
 	Signature *crypto.Signature `json:"signature,omitempty"`
 	CreateAlias
 }

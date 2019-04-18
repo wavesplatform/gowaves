@@ -433,6 +433,7 @@ func (tx *Payment) UnmarshalBinary(data []byte) error {
 }
 
 type Transfer struct {
+	ID          *crypto.Digest   `json:"id,omitempty"`
 	SenderPK    crypto.PublicKey `json:"senderPublicKey"`
 	AmountAsset OptionalAsset    `json:"assetId"`
 	FeeAsset    OptionalAsset    `json:"feeAssetId"`
@@ -558,6 +559,7 @@ type Issue interface {
 }
 
 type Reissue struct {
+	ID         *crypto.Digest   `json:"id,omitempty"`
 	SenderPK   crypto.PublicKey `json:"senderPublicKey"`
 	AssetID    crypto.Digest    `json:"assetId"`
 	Quantity   uint64           `json:"quantity"`
@@ -629,6 +631,7 @@ type Exchange interface {
 }
 
 type Burn struct {
+	ID        *crypto.Digest   `json:"id,omitempty"`
 	SenderPK  crypto.PublicKey `json:"senderPublicKey"`
 	AssetID   crypto.Digest    `json:"assetId"`
 	Amount    uint64           `json:"amount"`
@@ -678,6 +681,7 @@ func (b *Burn) unmarshalBinary(data []byte) error {
 }
 
 type Lease struct {
+	ID        *crypto.Digest   `json:"id,omitempty"`
 	SenderPK  crypto.PublicKey `json:"senderPublicKey"`
 	Recipient Recipient        `json:"recipient"`
 	Amount    uint64           `json:"amount"`
@@ -738,6 +742,7 @@ func (l *Lease) unmarshalBinary(data []byte) error {
 }
 
 type LeaseCancel struct {
+	ID        *crypto.Digest   `json:"id,omitempty"`
 	SenderPK  crypto.PublicKey `json:"senderPublicKey"`
 	LeaseID   crypto.Digest    `json:"leaseId"`
 	Fee       uint64           `json:"fee"`
@@ -779,6 +784,7 @@ func (lc *LeaseCancel) unmarshalBinary(data []byte) error {
 }
 
 type CreateAlias struct {
+	ID        *crypto.Digest   `json:"id,omitempty"`
 	SenderPK  crypto.PublicKey `json:"senderPublicKey"`
 	Alias     Alias            `json:"alias"`
 	Fee       uint64           `json:"fee"`

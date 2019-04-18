@@ -632,7 +632,7 @@ func TestTransferV1ToJSON(t *testing.T) {
 			}
 			if err := tx.Sign(sk); assert.NoError(t, err) {
 				if j, err := json.Marshal(tx); assert.NoError(t, err) {
-					ej := fmt.Sprintf("{\"type\":4,\"version\":1,\"id\":\"%s\",\"signature\":\"%s\",\"senderPublicKey\":\"%s\",\"assetId\":%s,\"feeAssetId\":%s,\"timestamp\":%d,\"amount\":100000000,\"fee\":100000,\"recipient\":\"3PDgLyMzNLkHF2cV1y7NhpmyS2HQjd57SWu\"%s}", base58.Encode(tx.ID[:]), base58.Encode(tx.Signature[:]), base58.Encode(pk[:]), tc.expectedAmountAsset, tc.expectedFeeAsset, ts, tc.expectedAttachment)
+					ej := fmt.Sprintf("{\"type\":4,\"version\":1,\"signature\":\"%s\",\"id\":\"%s\",\"senderPublicKey\":\"%s\",\"assetId\":%s,\"feeAssetId\":%s,\"timestamp\":%d,\"amount\":100000000,\"fee\":100000,\"recipient\":\"3PDgLyMzNLkHF2cV1y7NhpmyS2HQjd57SWu\"%s}", base58.Encode(tx.Signature[:]), base58.Encode(tx.ID[:]), base58.Encode(pk[:]), tc.expectedAmountAsset, tc.expectedFeeAsset, ts, tc.expectedAttachment)
 					assert.Equal(t, ej, string(j))
 				}
 			}
@@ -846,8 +846,8 @@ func TestTransferV2ToJSON(t *testing.T) {
 			}
 			if err := tx.Sign(sk); assert.NoError(t, err) {
 				if j, err := json.Marshal(tx); assert.NoError(t, err) {
-					ej := fmt.Sprintf("{\"type\":4,\"version\":2,\"id\":\"%s\",\"proofs\":[\"%s\"],\"senderPublicKey\":\"%s\",\"assetId\":%s,\"feeAssetId\":%s,\"timestamp\":%d,\"amount\":100000000,\"fee\":100000,\"recipient\":\"3PDgLyMzNLkHF2cV1y7NhpmyS2HQjd57SWu\"%s}",
-						base58.Encode(tx.ID[:]), base58.Encode(tx.Proofs.Proofs[0]), base58.Encode(pk[:]), tc.expectedAmountAsset, tc.expectedFeeAsset, ts, tc.expectedAttachment)
+					ej := fmt.Sprintf("{\"type\":4,\"version\":2,\"proofs\":[\"%s\"],\"id\":\"%s\",\"senderPublicKey\":\"%s\",\"assetId\":%s,\"feeAssetId\":%s,\"timestamp\":%d,\"amount\":100000000,\"fee\":100000,\"recipient\":\"3PDgLyMzNLkHF2cV1y7NhpmyS2HQjd57SWu\"%s}",
+						base58.Encode(tx.Proofs.Proofs[0]), base58.Encode(tx.ID[:]), base58.Encode(pk[:]), tc.expectedAmountAsset, tc.expectedFeeAsset, ts, tc.expectedAttachment)
 					assert.Equal(t, ej, string(j))
 				}
 			}
@@ -998,7 +998,7 @@ func TestReissueV1ToJSON(t *testing.T) {
 				assert.Equal(t, ej, string(j))
 				if err := tx.Sign(sk); assert.NoError(t, err) {
 					if sj, err := json.Marshal(tx); assert.NoError(t, err) {
-						esj := fmt.Sprintf("{\"type\":5,\"version\":1,\"id\":\"%s\",\"signature\":\"%s\",\"senderPublicKey\":\"%s\",\"assetId\":\"%s\",\"quantity\":%d,\"reissuable\":%v,\"timestamp\":%d,\"fee\":%d}", base58.Encode(tx.ID[:]), base58.Encode(tx.Signature[:]), base58.Encode(pk[:]), tc.asset, tc.quantity, tc.reissuable, ts, tc.fee)
+						esj := fmt.Sprintf("{\"type\":5,\"version\":1,\"signature\":\"%s\",\"id\":\"%s\",\"senderPublicKey\":\"%s\",\"assetId\":\"%s\",\"quantity\":%d,\"reissuable\":%v,\"timestamp\":%d,\"fee\":%d}", base58.Encode(tx.Signature[:]), base58.Encode(tx.ID[:]), base58.Encode(pk[:]), tc.asset, tc.quantity, tc.reissuable, ts, tc.fee)
 						assert.Equal(t, esj, string(sj))
 					}
 				}
@@ -1137,8 +1137,8 @@ func TestReissueV2ToJSON(t *testing.T) {
 				assert.Equal(t, ej, string(j))
 				if err := tx.Sign(sk); assert.NoError(t, err) {
 					if sj, err := json.Marshal(tx); assert.NoError(t, err) {
-						esj := fmt.Sprintf("{\"type\":5,\"version\":2,\"id\":\"%s\",\"proofs\":[\"%s\"],\"senderPublicKey\":\"%s\",\"assetId\":\"%s\",\"quantity\":%d,\"reissuable\":%v,\"timestamp\":%d,\"fee\":%d}",
-							base58.Encode(tx.ID[:]), base58.Encode(tx.Proofs.Proofs[0]), base58.Encode(pk[:]), tc.asset, tc.quantity, tc.reissuable, ts, tc.fee)
+						esj := fmt.Sprintf("{\"type\":5,\"version\":2,\"proofs\":[\"%s\"],\"id\":\"%s\",\"senderPublicKey\":\"%s\",\"assetId\":\"%s\",\"quantity\":%d,\"reissuable\":%v,\"timestamp\":%d,\"fee\":%d}",
+							base58.Encode(tx.Proofs.Proofs[0]), base58.Encode(tx.ID[:]), base58.Encode(pk[:]), tc.asset, tc.quantity, tc.reissuable, ts, tc.fee)
 						assert.Equal(t, esj, string(sj))
 					}
 				}
@@ -1252,7 +1252,7 @@ func TestBurnV1ToJSON(t *testing.T) {
 				assert.Equal(t, ej, string(j))
 				if err := tx.Sign(sk); assert.NoError(t, err) {
 					if sj, err := json.Marshal(tx); assert.NoError(t, err) {
-						esj := fmt.Sprintf("{\"type\":6,\"version\":1,\"id\":\"%s\",\"signature\":\"%s\",\"senderPublicKey\":\"%s\",\"assetId\":\"%s\",\"amount\":%d,\"timestamp\":%d,\"fee\":%d}", base58.Encode(tx.ID[:]), base58.Encode(tx.Signature[:]), base58.Encode(pk[:]), tc.asset, tc.amount, ts, tc.fee)
+						esj := fmt.Sprintf("{\"type\":6,\"version\":1,\"signature\":\"%s\",\"id\":\"%s\",\"senderPublicKey\":\"%s\",\"assetId\":\"%s\",\"amount\":%d,\"timestamp\":%d,\"fee\":%d}", base58.Encode(tx.Signature[:]), base58.Encode(tx.ID[:]), base58.Encode(pk[:]), tc.asset, tc.amount, ts, tc.fee)
 						assert.Equal(t, esj, string(sj))
 					}
 				}
@@ -1379,7 +1379,7 @@ func TestBurnV2ToJSON(t *testing.T) {
 				assert.Equal(t, ej, string(j))
 				if err := tx.Sign(sk); assert.NoError(t, err) {
 					if sj, err := json.Marshal(tx); assert.NoError(t, err) {
-						esj := fmt.Sprintf("{\"type\":6,\"version\":2,\"id\":\"%s\",\"proofs\":[\"%s\"],\"senderPublicKey\":\"%s\",\"assetId\":\"%s\",\"amount\":%d,\"timestamp\":%d,\"fee\":%d}", base58.Encode(tx.ID[:]), base58.Encode(tx.Proofs.Proofs[0]), base58.Encode(pk[:]), tc.asset, tc.amount, ts, tc.fee)
+						esj := fmt.Sprintf("{\"type\":6,\"version\":2,\"proofs\":[\"%s\"],\"id\":\"%s\",\"senderPublicKey\":\"%s\",\"assetId\":\"%s\",\"amount\":%d,\"timestamp\":%d,\"fee\":%d}", base58.Encode(tx.Proofs.Proofs[0]), base58.Encode(tx.ID[:]), base58.Encode(pk[:]), tc.asset, tc.amount, ts, tc.fee)
 						assert.Equal(t, esj, string(sj))
 					}
 				}
@@ -2109,7 +2109,7 @@ func TestLeaseV1ToJSON(t *testing.T) {
 				assert.Equal(t, ej, string(j))
 				if err := tx.Sign(sk); assert.NoError(t, err) {
 					if sj, err := json.Marshal(tx); assert.NoError(t, err) {
-						esj := fmt.Sprintf("{\"type\":8,\"version\":1,\"id\":\"%s\",\"signature\":\"%s\",\"senderPublicKey\":\"%s\",\"recipient\":\"%s\",\"amount\":%d,\"fee\":%d,\"timestamp\":%d}", base58.Encode(tx.ID[:]), base58.Encode(tx.Signature[:]), base58.Encode(pk[:]), tc.recipient, tc.amount, tc.fee, ts)
+						esj := fmt.Sprintf("{\"type\":8,\"version\":1,\"signature\":\"%s\",\"id\":\"%s\",\"senderPublicKey\":\"%s\",\"recipient\":\"%s\",\"amount\":%d,\"fee\":%d,\"timestamp\":%d}", base58.Encode(tx.Signature[:]), base58.Encode(tx.ID[:]), base58.Encode(pk[:]), tc.recipient, tc.amount, tc.fee, ts)
 						assert.Equal(t, esj, string(sj))
 					}
 				}
@@ -2234,8 +2234,8 @@ func TestLeaseV2ToJSON(t *testing.T) {
 				assert.Equal(t, ej, string(j))
 				if err := tx.Sign(sk); assert.NoError(t, err) {
 					if sj, err := json.Marshal(tx); assert.NoError(t, err) {
-						esj := fmt.Sprintf("{\"type\":8,\"version\":2,\"id\":\"%s\",\"proofs\":[\"%s\"],\"senderPublicKey\":\"%s\",\"recipient\":\"%s\",\"amount\":%d,\"fee\":%d,\"timestamp\":%d}",
-							base58.Encode(tx.ID[:]), base58.Encode(tx.Proofs.Proofs[0]), base58.Encode(pk[:]), tc.recipient, tc.amount, tc.fee, ts)
+						esj := fmt.Sprintf("{\"type\":8,\"version\":2,\"proofs\":[\"%s\"],\"id\":\"%s\",\"senderPublicKey\":\"%s\",\"recipient\":\"%s\",\"amount\":%d,\"fee\":%d,\"timestamp\":%d}",
+							base58.Encode(tx.Proofs.Proofs[0]), base58.Encode(tx.ID[:]), base58.Encode(pk[:]), tc.recipient, tc.amount, tc.fee, ts)
 						assert.Equal(t, esj, string(sj))
 					}
 				}
@@ -2351,7 +2351,7 @@ func TestLeaseCancelV1ToJSON(t *testing.T) {
 				assert.Equal(t, ej, string(j))
 				if err := tx.Sign(sk); assert.NoError(t, err) {
 					if sj, err := json.Marshal(tx); assert.NoError(t, err) {
-						esj := fmt.Sprintf("{\"type\":9,\"version\":1,\"id\":\"%s\",\"signature\":\"%s\",\"senderPublicKey\":\"%s\",\"leaseId\":\"%s\",\"fee\":%d,\"timestamp\":%d}", base58.Encode(tx.ID[:]), base58.Encode(tx.Signature[:]), base58.Encode(pk[:]), tc.lease, tc.fee, ts)
+						esj := fmt.Sprintf("{\"type\":9,\"version\":1,\"signature\":\"%s\",\"id\":\"%s\",\"senderPublicKey\":\"%s\",\"leaseId\":\"%s\",\"fee\":%d,\"timestamp\":%d}", base58.Encode(tx.Signature[:]), base58.Encode(tx.ID[:]), base58.Encode(pk[:]), tc.lease, tc.fee, ts)
 						assert.Equal(t, esj, string(sj))
 					}
 				}
@@ -2468,8 +2468,8 @@ func TestLeaseCancelV2ToJSON(t *testing.T) {
 				assert.Equal(t, ej, string(j))
 				if err := tx.Sign(sk); assert.NoError(t, err) {
 					if sj, err := json.Marshal(tx); assert.NoError(t, err) {
-						esj := fmt.Sprintf("{\"type\":9,\"version\":2,\"id\":\"%s\",\"proofs\":[\"%s\"],\"senderPublicKey\":\"%s\",\"leaseId\":\"%s\",\"fee\":%d,\"timestamp\":%d}",
-							base58.Encode(tx.ID[:]), base58.Encode(tx.Proofs.Proofs[0]), base58.Encode(pk[:]), tc.lease, tc.fee, ts)
+						esj := fmt.Sprintf("{\"type\":9,\"version\":2,\"proofs\":[\"%s\"],\"id\":\"%s\",\"senderPublicKey\":\"%s\",\"leaseId\":\"%s\",\"fee\":%d,\"timestamp\":%d}",
+							base58.Encode(tx.Proofs.Proofs[0]), base58.Encode(tx.ID[:]), base58.Encode(pk[:]), tc.lease, tc.fee, ts)
 						assert.Equal(t, esj, string(sj))
 					}
 				}
@@ -2589,7 +2589,7 @@ func TestCreateAliasV1ToJSON(t *testing.T) {
 				assert.Equal(t, ej, string(j))
 				if err := tx.Sign(sk); assert.NoError(t, err) {
 					if sj, err := json.Marshal(tx); assert.NoError(t, err) {
-						esj := fmt.Sprintf("{\"type\":10,\"version\":1,\"id\":\"%s\",\"signature\":\"%s\",\"senderPublicKey\":\"%s\",\"alias\":\"%s\",\"fee\":%d,\"timestamp\":%d}", base58.Encode(tx.ID[:]), base58.Encode(tx.Signature[:]), base58.Encode(pk[:]), a.String(), tc.fee, ts)
+						esj := fmt.Sprintf("{\"type\":10,\"version\":1,\"signature\":\"%s\",\"id\":\"%s\",\"senderPublicKey\":\"%s\",\"alias\":\"%s\",\"fee\":%d,\"timestamp\":%d}", base58.Encode(tx.Signature[:]), base58.Encode(tx.ID[:]), base58.Encode(pk[:]), a.String(), tc.fee, ts)
 						assert.Equal(t, esj, string(sj))
 					}
 				}
@@ -2711,8 +2711,8 @@ func TestCreateAliasV2ToJSON(t *testing.T) {
 				assert.Equal(t, ej, string(j))
 				if err := tx.Sign(sk); assert.NoError(t, err) {
 					if sj, err := json.Marshal(tx); assert.NoError(t, err) {
-						esj := fmt.Sprintf("{\"type\":10,\"version\":2,\"id\":\"%s\",\"proofs\":[\"%s\"],\"senderPublicKey\":\"%s\",\"alias\":\"%s\",\"fee\":%d,\"timestamp\":%d}",
-							base58.Encode(tx.ID[:]), base58.Encode(tx.Proofs.Proofs[0]), base58.Encode(pk[:]), a.String(), tc.fee, ts)
+						esj := fmt.Sprintf("{\"type\":10,\"version\":2,\"proofs\":[\"%s\"],\"id\":\"%s\",\"senderPublicKey\":\"%s\",\"alias\":\"%s\",\"fee\":%d,\"timestamp\":%d}",
+							base58.Encode(tx.Proofs.Proofs[0]), base58.Encode(tx.ID[:]), base58.Encode(pk[:]), a.String(), tc.fee, ts)
 						assert.Equal(t, esj, string(sj))
 					}
 				}

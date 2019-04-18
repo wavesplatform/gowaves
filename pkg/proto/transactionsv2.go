@@ -293,7 +293,6 @@ func (tx *IssueV2) UnmarshalBinary(data []byte) error {
 type TransferV2 struct {
 	Type    TransactionType `json:"type"`
 	Version byte            `json:"version,omitempty"`
-	ID      *crypto.Digest  `json:"id,omitempty"`
 	Proofs  *ProofsV1       `json:"proofs,omitempty"`
 	Transfer
 }
@@ -440,7 +439,6 @@ type ReissueV2 struct {
 	Type    TransactionType `json:"type"`
 	Version byte            `json:"version,omitempty"`
 	ChainID byte            `json:"-"`
-	ID      *crypto.Digest  `json:"id,omitempty"`
 	Proofs  *ProofsV1       `json:"proofs,omitempty"`
 	Reissue
 }
@@ -578,7 +576,6 @@ type BurnV2 struct {
 	Type    TransactionType `json:"type"`
 	Version byte            `json:"version,omitempty"`
 	ChainID byte            `json:"-"`
-	ID      *crypto.Digest  `json:"id,omitempty"`
 	Proofs  *ProofsV1       `json:"proofs,omitempty"`
 	Burn
 }
@@ -1083,7 +1080,6 @@ func (tx *ExchangeV2) UnmarshalJSON(data []byte) error {
 type LeaseV2 struct {
 	Type    TransactionType `json:"type"`
 	Version byte            `json:"version,omitempty"`
-	ID      *crypto.Digest  `json:"id,omitempty"`
 	Proofs  *ProofsV1       `json:"proofs,omitempty"`
 	Lease
 }
@@ -1222,7 +1218,6 @@ type LeaseCancelV2 struct {
 	Type    TransactionType `json:"type"`
 	Version byte            `json:"version,omitempty"`
 	ChainID byte            `json:"-"`
-	ID      *crypto.Digest  `json:"id,omitempty"`
 	Proofs  *ProofsV1       `json:"proofs,omitempty"`
 	LeaseCancel
 }
@@ -1359,7 +1354,6 @@ func (tx *LeaseCancelV2) UnmarshalBinary(data []byte) error {
 type CreateAliasV2 struct {
 	Type    TransactionType `json:"type"`
 	Version byte            `json:"version,omitempty"`
-	ID      *crypto.Digest  `json:"id,omitempty"`
 	Proofs  *ProofsV1       `json:"proofs,omitempty"`
 	CreateAlias
 }
