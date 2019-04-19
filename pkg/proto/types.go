@@ -12,6 +12,7 @@ import (
 	"math/big"
 	"strconv"
 	"strings"
+	"time"
 )
 
 const (
@@ -29,6 +30,9 @@ const (
 	stringArgumentMinLen = 1 + 4
 	PriceConstant        = 100000000
 	MaxOrderAmount       = 100 * PriceConstant * PriceConstant
+	MaxOrderTTL          = uint64((30 * 24 * time.Hour) / time.Millisecond)
+	maxKeySize           = 100
+	maxValueSize         = 32767
 )
 
 var jsonNullBytes = []byte{0x6e, 0x75, 0x6c, 0x6c}
@@ -303,6 +307,10 @@ type Order interface {
 	GetVersion() byte
 	GetOrderType() OrderType
 	GetMatcherPK() crypto.PublicKey
+	GetAssetPair() AssetPair
+	GetPrice() uint64
+	GetExpiration() uint64
+	Valid() (bool, error)
 }
 
 func OrderToOrderBody(o Order) (OrderBody, error) {
@@ -344,22 +352,25 @@ func (o OrderBody) Valid() (bool, error) {
 		return false, errors.New("price should be positive")
 	}
 	if !validJVMLong(o.Price) {
-		return false, errors.New("price overflows JVM long")
+		return false, errors.New("price is too big")
 	}
 	if o.Amount <= 0 {
 		return false, errors.New("amount should be positive")
 	}
-	if o.Amount > MaxOrderAmount {
-		return false, errors.New("amount too large")
-	}
 	if !validJVMLong(o.Amount) {
-		return false, errors.New("price overflows JVM long")
+		return false, errors.New("amount is too big")
+	}
+	if o.Amount > MaxOrderAmount {
+		return false, errors.New("amount is larger than maximum allowed")
 	}
 	if o.MatcherFee <= 0 {
 		return false, errors.New("matcher's fee should be positive")
 	}
 	if !validJVMLong(o.MatcherFee) {
-		return false, errors.New("matcher's fee overflows JVM long")
+		return false, errors.New("matcher's fee is too big")
+	}
+	if o.MatcherFee > MaxOrderAmount {
+		return false, errors.New("matcher's fee is larger than maximum allowed")
 	}
 	s, err := o.SpendAmount(o.Amount, o.Price)
 	if err != nil {
@@ -367,9 +378,6 @@ func (o OrderBody) Valid() (bool, error) {
 	}
 	if s <= 0 {
 		return false, errors.New("spend amount should be positive")
-	}
-	if !validJVMLong(s) {
-		return false, errors.New("spend amount is too large")
 	}
 	if !o.SpendAsset().Present && !validJVMLong(s + o.MatcherFee) {
 		return false, errors.New("sum of spend asset amount and matcher fee overflows JVM long")
@@ -381,8 +389,11 @@ func (o OrderBody) Valid() (bool, error) {
 	if r <= 0 {
 		return false, errors.New("receive amount should be positive")
 	}
-	if !validJVMLong(r) {
-		return false, errors.New("receive amount is too large")
+	if o.Timestamp <= 0 {
+		return false, errors.New("timestamp should be positive")
+	}
+	if o.Expiration <= 0 {
+		return false, errors.New("expiration should be positive")
 	}
 	return true, nil
 }
@@ -391,27 +402,27 @@ func (o *OrderBody) SpendAmount(matchAmount, matchPrice uint64) (uint64, error) 
 	if o.OrderType == Sell {
 		return matchAmount, nil
 	}
-	return otherAmount(matchAmount, matchPrice)
+	return otherAmount(matchAmount, matchPrice, "spend")
 }
 
 func (o *OrderBody) ReceiveAmount(matchAmount, matchPrice uint64) (uint64, error) {
 	if o.OrderType == Buy {
 		return matchAmount, nil
 	}
-	return otherAmount(matchAmount, matchPrice)
+	return otherAmount(matchAmount, matchPrice, "receive")
 }
 
 var (
 	bigPriceConstant = big.NewInt(PriceConstant)
 )
 
-func otherAmount(amount, price uint64) (uint64, error) {
+func otherAmount(amount, price uint64, name string) (uint64, error) {
 	a := big.NewInt(0).SetUint64(amount)
 	p := big.NewInt(0).SetUint64(price)
 	r := big.NewInt(0).Mul(a, p)
 	r = big.NewInt(0).Div(r, bigPriceConstant)
 	if !r.IsUint64() {
-		return 0, errors.New("spend amount is too large")
+		return 0, errors.Errorf("%s amount is too large", name)
 	}
 	return r.Uint64(), nil
 }
@@ -543,6 +554,18 @@ func (o OrderV1) GetMatcherPK() crypto.PublicKey {
 	return o.MatcherPK
 }
 
+func (o OrderV1) GetAssetPair() AssetPair {
+	return o.AssetPair
+}
+
+func (o OrderV1) GetPrice() uint64 {
+	return o.Price
+}
+
+func (o OrderV1) GetExpiration() uint64 {
+	return o.Expiration
+}
+
 func (o *OrderV1) bodyMarshalBinary() ([]byte, error) {
 	return o.OrderBody.marshalBinary()
 }
@@ -658,6 +681,18 @@ func (o OrderV2) GetOrderType() OrderType {
 
 func (o OrderV2) GetMatcherPK() crypto.PublicKey {
 	return o.MatcherPK
+}
+
+func (o OrderV2) GetAssetPair() AssetPair {
+	return o.AssetPair
+}
+
+func (o OrderV2) GetPrice() uint64 {
+	return o.Price
+}
+
+func (o OrderV2) GetExpiration() uint64 {
+	return o.Expiration
 }
 
 func (o *OrderV2) bodyMarshalBinary() ([]byte, error) {
@@ -822,11 +857,7 @@ func (p *ProofsV1) UnmarshalJSON(value []byte) error {
 
 //MarshalBinary writes the proofs to its binary form.
 func (p *ProofsV1) MarshalBinary() ([]byte, error) {
-	pl := 0
-	for _, e := range p.Proofs {
-		pl += len(e) + 2
-	}
-	buf := make([]byte, proofsMinLen+pl)
+	buf := make([]byte, p.binarySize())
 	pos := 0
 	buf[pos] = proofsVersion
 	pos++
@@ -904,6 +935,16 @@ func (p *ProofsV1) Verify(pos int, key crypto.PublicKey, data []byte) (bool, err
 	return crypto.Verify(key, sig, data), nil
 }
 
+func (p *ProofsV1) binarySize() int {
+	pl := 0
+	if p != nil {
+		for _, e := range p.Proofs {
+			pl += len(e) + 2
+		}
+	}
+	return proofsMinLen + pl
+}
+
 // ValueType is an alias for byte that encodes the value type.
 type ValueType byte
 
@@ -937,6 +978,7 @@ type DataEntry interface {
 	GetKey() string
 	GetValueType() ValueType
 	MarshalBinary() ([]byte, error)
+	Valid() (bool, error)
 	binarySize() int
 }
 
@@ -944,6 +986,16 @@ type DataEntry interface {
 type IntegerDataEntry struct {
 	Key   string
 	Value int64
+}
+
+func (e IntegerDataEntry) Valid() (bool, error) {
+	if len(e.Key) == 0 {
+		return false, errors.New("empty entry key")
+	}
+	if len(e.Key) > maxKeySize {
+		return false, errors.New("key is too large")
+	}
+	return true, nil
 }
 
 //GetKey returns the key of data entry.
@@ -1019,6 +1071,16 @@ func (e *IntegerDataEntry) UnmarshalJSON(value []byte) error {
 type BooleanDataEntry struct {
 	Key   string
 	Value bool
+}
+
+func (e BooleanDataEntry) Valid() (bool, error) {
+	if len(e.Key) == 0 {
+		return false, errors.New("empty entry key")
+	}
+	if len(e.Key) > maxKeySize {
+		return false, errors.New("key is too large")
+	}
+	return true, nil
 }
 
 //GetKey returns the key of data entry.
@@ -1100,6 +1162,19 @@ type BinaryDataEntry struct {
 	Value []byte
 }
 
+func (e BinaryDataEntry) Valid() (bool, error) {
+	if len(e.Key) == 0 {
+		return false, errors.New("empty entry key")
+	}
+	if len(e.Key) > maxKeySize {
+		return false, errors.New("key is too large")
+	}
+	if len(e.Value) > maxValueSize {
+		return false, errors.New("value is too large")
+	}
+	return true, nil
+}
+
 //GetKey returns the key of data entry.
 func (e BinaryDataEntry) GetKey() string {
 	return e.Key
@@ -1177,6 +1252,19 @@ func (e *BinaryDataEntry) UnmarshalJSON(value []byte) error {
 type StringDataEntry struct {
 	Key   string
 	Value string
+}
+
+func (e StringDataEntry) Valid() (bool, error) {
+	if len(e.Key) == 0 {
+		return false, errors.New("empty entry key")
+	}
+	if len(e.Key) > maxKeySize {
+		return false, errors.New("key is too large")
+	}
+	if len(e.Value) > maxValueSize {
+		return false, errors.New("value is too large")
+	}
+	return true, nil
 }
 
 //GetKey returns the key of key-value pair.

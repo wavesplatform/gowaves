@@ -934,10 +934,16 @@ type CreateAlias struct {
 }
 
 func (ca CreateAlias) Valid() (bool, error) {
-	//TODO: implement
-	//if fee <= 0 {
-	//	return nil, errors.New("fee should be positive")
-	//}
+	if ca.Fee <= 0 {
+		return false, errors.New("fee should be positive")
+	}
+	if !validJVMLong(ca.Fee) {
+		return false, errors.New("fee is too big")
+	}
+	ok, err := ca.Alias.Valid()
+	if !ok {
+		return false, err
+	}
 	return true, nil
 }
 

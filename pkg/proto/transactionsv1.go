@@ -3,7 +3,6 @@ package proto
 import (
 	"encoding/binary"
 	"encoding/json"
-
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 )
@@ -39,6 +38,12 @@ const (
 	setAssetScriptV1MinLen       = 1 + setScriptV1FixedBodyLen + proofsMinLen
 	invokeScriptV1FixedBodyLen   = 1 + 1 + 1 + crypto.PublicKeySize + AddressSize + 8 + 8
 	invokeScriptV1MinLen         = 1 + invokeScriptV1FixedBodyLen + proofsMinLen
+	maxTransfers                 = 100
+	maxEntries                   = 100
+	maxDataV1Bytes               = 150 * 1024
+	maxArguments                 = 22
+	maxFunctionNameBytes         = 255
+	maxInvokeScriptV1Bytes       = 5 * 1024
 )
 
 //IssueV1 transaction is a transaction to issue new asset.
@@ -639,29 +644,71 @@ func NewUnsignedExchangeV1(buy, sell OrderV1, price, amount, buyMatcherFee, sell
 }
 
 func (tx ExchangeV1) Valid() (bool, error) {
-	//TODO: Add expiration validation
-	//TODO: Implement
-	//if buy.Signature == nil {
-	//	return nil, errors.New("buy order should be signed")
-	//}
-	//if sell.Signature == nil {
-	//	return nil, errors.New("sell order should be signed")
-	//}
-	//if amount <= 0 {
-	//	return nil, errors.New("amount should be positive")
-	//}
-	//if price <= 0 {
-	//	return nil, errors.New("price should be positive")
-	//}
-	//if buyMatcherFee <= 0 {
-	//	return nil, errors.New("buy matcher's fee should be positive")
-	//}
-	//if sellMatcherFee <= 0 {
-	//	return nil, errors.New("sell matcher's fee should be positive")
-	//}
-	//if fee <= 0 {
-	//	return nil, errors.New("fee should be positive")
-	//}
+	ok, err := tx.BuyOrder.Valid()
+	if !ok {
+		return false, errors.Wrap(err, "invalid buy order")
+	}
+	ok, err = tx.SellOrder.Valid()
+	if !ok {
+		return false, errors.Wrap(err, "invalid sell order")
+	}
+	if tx.BuyOrder.OrderType != Buy {
+		return false, errors.New("incorrect order type of buy order")
+	}
+	if tx.SellOrder.OrderType != Sell {
+		return false, errors.New("incorrect order type of sell order")
+	}
+	if tx.SellOrder.MatcherPK != tx.BuyOrder.MatcherPK {
+		return false, errors.New("unmatched matcher's public keys")
+	}
+	if tx.SellOrder.AssetPair != tx.BuyOrder.AssetPair {
+		return false, errors.New("different asset pairs")
+	}
+	if tx.Amount <= 0 {
+		return false, errors.New("amount should be positive")
+	}
+	if !validJVMLong(tx.Amount) {
+		return false, errors.New("amount is too big")
+	}
+	if tx.Price <= 0 {
+		return false, errors.New("price should be positive")
+	}
+	if !validJVMLong(tx.Price) {
+		return false, errors.New("price is too big")
+	}
+	if tx.Price > tx.BuyOrder.Price || tx.Price < tx.SellOrder.Price {
+		return false, errors.New("invalid price")
+	}
+	if tx.Fee <= 0 {
+		return false, errors.New("fee should be positive")
+	}
+	if !validJVMLong(tx.Fee) {
+		return false, errors.New("fee is too big")
+	}
+	if tx.BuyMatcherFee <= 0 {
+		return false, errors.New("buy matcher's fee should be positive")
+	}
+	if !validJVMLong(tx.BuyMatcherFee) {
+		return false, errors.New("buy matcher's fee is too big")
+	}
+	if tx.SellMatcherFee <= 0 {
+		return false, errors.New("sell matcher's fee should be positive")
+	}
+	if !validJVMLong(tx.SellMatcherFee) {
+		return false, errors.New("sell matcher's fee is too big")
+	}
+	if tx.BuyOrder.Expiration < tx.Timestamp {
+		return false, errors.New("invalid buy order expiration")
+	}
+	if tx.BuyOrder.Expiration-tx.Timestamp > MaxOrderTTL {
+		return false, errors.New("buy order expiration should be earlier than 30 days")
+	}
+	if tx.SellOrder.Expiration < tx.Timestamp {
+		return false, errors.New("invalid sell order expiration")
+	}
+	if tx.SellOrder.Expiration-tx.Timestamp > MaxOrderTTL {
+		return false, errors.New("sell order expiration should be earlier than 30 days")
+	}
 	return true, nil
 }
 
@@ -1075,11 +1122,6 @@ func NewUnsignedCreateAliasV1(senderPK crypto.PublicKey, alias Alias, fee, times
 	return &CreateAliasV1{Type: CreateAliasTransaction, Version: 1, CreateAlias: ca}
 }
 
-func (tx CreateAliasV1) Valid() (bool, error) {
-	//TODO:implement
-	return true, nil
-}
-
 func (tx *CreateAliasV1) bodyMarshalBinary() ([]byte, error) {
 	buf := make([]byte, createAliasV1FixedBodyLen+len(tx.Alias.Alias))
 	buf[0] = byte(tx.Type)
@@ -1248,21 +1290,28 @@ func NewUnsignedMassTransferV1(senderPK crypto.PublicKey, asset OptionalAsset, t
 }
 
 func (tx MassTransferV1) Valid() (bool, error) {
-	//TODO: implement
-	//if len(transfers) == 0 {
-	//	return nil, errors.New("empty transfers")
-	//}
-	//for _, t := range transfers {
-	//	if t.Amount <= 0 {
-	//		return nil, errors.New("at least one of the transfers has non-positive amount")
-	//	}
-	//}
-	//if fee <= 0 {
-	//	return nil, errors.New("fee should be positive")
-	//}
-	//if len(attachment) > maxAttachmentLengthBytes {
-	//	return nil, errors.New("attachment too long")
-	//}
+	if len(tx.Transfers) > maxTransfers {
+		return false, errors.Errorf("number of transfers is greater than %d", maxTransfers)
+	}
+	if tx.Fee <= 0 {
+		return false, errors.New("fee should be positive")
+	}
+	if !validJVMLong(tx.Fee) {
+		return false, errors.New("fee is too big")
+	}
+	total := tx.Fee
+	for _, t := range tx.Transfers {
+		if !validJVMLong(t.Amount) {
+			return false, errors.New("at least one of the transfers amount is bigger than JVM long")
+		}
+		total += t.Amount
+		if !validJVMLong(total) {
+			return false, errors.New("sum of amounts of transfers and transaction fee is bigger than JVM long")
+		}
+	}
+	if len(tx.Attachment) > maxAttachmentLengthBytes {
+		return false, errors.New("attachment too long")
+	}
 	return true, nil
 }
 
@@ -1465,10 +1514,32 @@ func NewUnsignedData(senderPK crypto.PublicKey, fee, timestamp uint64) *DataV1 {
 }
 
 func (tx DataV1) Valid() (bool, error) {
-	//TODO: implement
-	//if fee <= 0 {
-	//	return nil, errors.New("fee should be positive")
-	//}
+	if len(tx.Entries) > maxEntries {
+		return false, errors.Errorf("number of DataV1 entries is bigger than %d", maxEntries)
+	}
+	keys := make(map[string]struct{})
+	size := dataV1FixedBodyLen + tx.Proofs.binarySize()
+	for _, e := range tx.Entries {
+		ok, err := e.Valid()
+		if !ok {
+			return false, errors.Wrap(err, "at least one of the DataV1 entry is not valid")
+		}
+		_, ok = keys[e.GetKey()]
+		if ok {
+			return false, errors.New("duplicate keys")
+		}
+		keys[e.GetKey()] = struct{}{}
+		size += e.binarySize()
+	}
+	if size > maxDataV1Bytes {
+		return false, errors.Errorf("total size of DataV1 transaction is bigger than %d bytes", maxDataV1Bytes)
+	}
+	if tx.Fee <= 0 {
+		return false, errors.New("fee should be positive")
+	}
+	if !validJVMLong(tx.Fee) {
+		return false, errors.New("fee is too big")
+	}
 	return true, nil
 }
 
@@ -1613,7 +1684,7 @@ func (tx *DataV1) Sign(secretKey crypto.SecretKey) error {
 	return nil
 }
 
-//Verify chechs that the signature is valid for the given public key.
+//Verify checks that the signature is valid for the given public key.
 func (tx *DataV1) Verify(publicKey crypto.PublicKey) (bool, error) {
 	b, err := tx.BodyMarshalBinary()
 	if err != nil {
@@ -1696,10 +1767,12 @@ func NewUnsignedSetScriptV1(chain byte, senderPK crypto.PublicKey, script []byte
 }
 
 func (tx SetScriptV1) Valid() (bool, error) {
-	//TODO: implement
-	//if fee <= 0 {
-	//	return nil, errors.New("fee should be positive")
-	//}
+	if tx.Fee <= 0 {
+		return false, errors.New("fee should be positive")
+	}
+	if !validJVMLong(tx.Fee) {
+		return false, errors.New("fee is too big")
+	}
 	return true, nil
 }
 
@@ -1877,10 +1950,15 @@ func NewUnsignedSponsorshipV1(senderPK crypto.PublicKey, assetID crypto.Digest, 
 }
 
 func (tx SponsorshipV1) Valid() (bool, error) {
-	//TODO: implement
-	//if fee <= 0 {
-	//	return nil, errors.New("fee should be positive")
-	//}
+	if tx.Fee <= 0 {
+		return false, errors.New("fee should be positive")
+	}
+	if !validJVMLong(tx.Fee) {
+		return false, errors.New("fee is too big")
+	}
+	if !validJVMLong(tx.MinAssetFee) {
+		return false, errors.New("min asset fee is too big")
+	}
 	return true, nil
 }
 
@@ -2043,10 +2121,13 @@ func NewUnsignedSetAssetScriptV1(chain byte, senderPK crypto.PublicKey, assetID 
 }
 
 func (tx SetAssetScriptV1) Valid() (bool, error) {
-	//TODO: implement
-	//if fee <= 0 {
-	//	return nil, errors.New("fee should be positive")
-	//}
+	if tx.Fee <= 0 {
+		return false, errors.New("fee should be positive")
+	}
+	if !validJVMLong(tx.Fee) {
+		return false, errors.New("fee is too big")
+	}
+	//TODO: validate blockchain scheme and script type
 	return true, nil
 }
 
@@ -2242,13 +2323,39 @@ func NewUnsignedInvokeScriptV1(chain byte, senderPK crypto.PublicKey, scriptAddr
 }
 
 func (tx InvokeScriptV1) Valid() (bool, error) {
-	//TODO: implement
-	//if fee <= 0 {
-	//	return nil, errors.New("fee should be positive")
-	//}
-	//if len(payments) > 1 {
-	//	return nil, errors.New("no more than one payment is allowed")
-	//}
+	if tx.Fee <= 0 {
+		return false, errors.New("fee should be positive")
+	}
+	if !validJVMLong(tx.Fee) {
+		return false, errors.New("fee is too big")
+	}
+	if len(tx.FunctionCall.Arguments) > maxArguments {
+		return false, errors.New("too many arguments")
+	}
+	if len(tx.FunctionCall.Name) > maxFunctionNameBytes {
+		return false, errors.New("function name is too big")
+	}
+	if len(tx.Payments) > 1 {
+		return false, errors.New("no more than one payment is allowed")
+	}
+	assets := make(map[OptionalAsset]struct{})
+	for _, p := range tx.Payments {
+		if p.Amount <= 0 {
+			return false, errors.New("at least one payment has a non-positive amount")
+		}
+		if !validJVMLong(p.Amount) {
+			return false, errors.New("at least one payment has a too big amount")
+		}
+		_, ok := assets[p.Asset]
+		if ok {
+			return false, errors.New("duplicate assets")
+		}
+		assets[p.Asset] = struct{}{}
+	}
+	//TODO: check blockchain scheme and script type
+	if tx.binarySize() > maxInvokeScriptV1Bytes {
+		return false, errors.New("invoke script transaction is too big")
+	}
 	return true, nil
 }
 
@@ -2414,4 +2521,8 @@ func (tx *InvokeScriptV1) UnmarshalBinary(data []byte) error {
 	}
 	tx.ID = &id
 	return nil
+}
+
+func (tx *InvokeScriptV1) binarySize() int {
+	return 1 + tx.Proofs.binarySize() + invokeScriptV1FixedBodyLen + tx.FunctionCall.binarySize() + tx.Payments.binarySize() + tx.FeeAsset.binarySize()
 }

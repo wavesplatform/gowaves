@@ -1452,18 +1452,17 @@ func TestExchangeV1Validations(t *testing.T) {
 	buySender, _ := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
 	sellSender, _ := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
 	mpk, _ := crypto.NewPublicKeyFromBase58("E7zJzWVn6kwsc6zwDpxZrEFjUu3xszPZ7XcStYNprbSJ")
+	mpk2, _ := crypto.NewPublicKeyFromBase58("3gRJoK6f7XUV7fx5jUzHoPwdb9ZdTFjtTPy2HgDinr1N")
 	aa, _ := NewOptionalAssetFromString("3gRJoK6f7XUV7fx5jUzHoPwdb9ZdTFjtTPy2HgDinr1N")
+	aa2, _ := NewOptionalAssetFromString("E7zJzWVn6kwsc6zwDpxZrEFjUu3xszPZ7XcStYNprbSJ")
 	pa, _ := NewOptionalAssetFromString("FftTzae2t8r6zZJ2VzEq2pS2Le4Vx9gYGXuDsEFBTYE2")
-	id, _ := crypto.NewDigestFromBase58("AkYY8M2iEts8xc21JEzwkMSmuJtH9ABGzEYeau4xWC5R")
-	sig, _ := crypto.NewSignatureFromBase58("5pzyUowLi31yP4AEh5qzg7gRrvmsfeypiUkW84CKzc4H6UTzEF2RgGPLckBEqNbJGn5ofQXzuDmUnxwuP3utYp9L")
-	bo := NewUnsignedOrderV1(buySender, mpk, *aa, *pa, Buy, 10, 100, 0, 0, 3)
-	sbo := NewUnsignedOrderV1(buySender, mpk, *aa, *pa, Buy, 10, 100, 0, 0, 3)
-	sbo.ID = &id
-	sbo.Signature = &sig
-	so := NewUnsignedOrderV1(sellSender, mpk, *aa, *pa, Sell, 9, 50, 0, 0, 3)
-	sso := NewUnsignedOrderV1(sellSender, mpk, *aa, *pa, Sell, 9, 50, 0, 0, 3)
-	sso.ID = &id
-	sso.Signature = &sig
+	sbo0 := newSignedOrderV1(t, buySender, mpk, *aa, *pa, Buy, 1000000000, 100, 10, 10+MaxOrderTTL, 3)
+	sbo1 := newSignedOrderV1(t, buySender, mpk, *aa, *pa, Buy, math.MaxInt64+1, 100, 10, 10+MaxOrderTTL, 3)
+	sbo2 := newSignedOrderV1(t, buySender, mpk, *aa2, *pa, Buy, 1000000000, 100, 10, 10+MaxOrderTTL, 3)
+	sso0 := newSignedOrderV1(t, sellSender, mpk, *aa, *pa, Sell, 900000000, 50, 20, 20+MaxOrderTTL, 3)
+	sso1 := newSignedOrderV1(t, sellSender, mpk, *aa, *pa, Sell, math.MaxInt64+1, 50, 20, 20+MaxOrderTTL, 3)
+	sso2 := newSignedOrderV1(t, sellSender, mpk2, *aa, *pa, Sell, 900000000, 50, 10, 10+MaxOrderTTL, 3)
+	sso3 := newSignedOrderV1(t, sellSender, mpk, *aa, *pa, Sell, 900000000, 50, 20, 5+MaxOrderTTL, 3)
 	tests := []struct {
 		buy     OrderV1
 		sell    OrderV1
@@ -1472,22 +1471,49 @@ func TestExchangeV1Validations(t *testing.T) {
 		buyFee  uint64
 		sellFee uint64
 		fee     uint64
+		ts      uint64
 		err     string
 	}{
-		{*sbo, *sso, 0, 456, 789, 987, 654, "price should be positive"},
-		{*sbo, *sso, 123, 0, 789, 987, 654, "amount should be positive"},
-		{*sbo, *sso, 123, 456, 0, 987, 654, "buy matcher's fee should be positive"},
-		{*sbo, *sso, 123, 456, 789, 0, 654, "sell matcher's fee should be positive"},
-		{*sbo, *sso, 123, 456, 789, 987, 0, "fee should be positive"},
-		{*bo, *sso, 123, 456, 789, 987, 654, "buy order should be signed"},
-		{*sbo, *so, 123, 456, 789, 987, 654, "sell order should be signed"},
+		{sbo1, sso0, 123, 456, 789, 987, 654, 111, "invalid buy order: price is too big"},
+		{sbo0, sso1, 123, 456, 789, 987, 654, 111, "invalid sell order: price is too big"},
+		{sbo0, sso0, 0, 456, 789, 987, 654, 111, "price should be positive"},
+		{sbo0, sso0, math.MaxInt64 + 1, 456, 789, 987, 654, 111, "price is too big"},
+		{sbo0, sso0, 950000000, 0, 789, 987, 654, 111, "amount should be positive"},
+		{sbo0, sso0, 950000000, math.MaxInt64 + 1, 789, 987, 654, 111, "amount is too big"},
+		{sbo0, sso0, 950000000, 456, 0, 987, 654, 111, "buy matcher's fee should be positive"},
+		{sbo0, sso0, 950000000, 456, math.MaxInt64 + 1, 987, 654, 111, "buy matcher's fee is too big"},
+		{sbo0, sso0, 950000000, 456, 789, 0, 654, 111, "sell matcher's fee should be positive"},
+		{sbo0, sso0, 950000000, 456, 789, math.MaxInt64 + 1, 654, 111, "sell matcher's fee is too big"},
+		{sbo0, sso0, 950000000, 456, 789, 987, 0, 111, "fee should be positive"},
+		{sbo0, sso0, 950000000, 456, 789, 987, math.MaxInt64 + 1, 111, "fee is too big"},
+		{sso0, sso0, 950000000, 456, 789, 987, 654, 111, "incorrect order type of buy order"},
+		{sbo0, sbo0, 950000000, 456, 789, 987, 654, 111, "incorrect order type of sell order"},
+		{sbo0, sso2, 950000000, 456, 789, 987, 654, 111, "unmatched matcher's public keys"},
+		{sbo2, sso0, 950000000, 456, 789, 987, 654, 111, "different asset pairs"},
+		{sbo0, sso0, 890000000, 456, 789, 987, 654, 111, "invalid price"},
+		{sbo0, sso0, 1010000000, 456, 789, 987, 654, 111, "invalid price"},
+		{sbo0, sso0, 950000000, 456, 789, 987, 654, 1, "buy order expiration should be earlier than 30 days"},
+		{sbo0, sso0, 950000000, 456, 789, 987, 654, 11, "sell order expiration should be earlier than 30 days"},
+		{sbo0, sso0, 950000000, 456, 789, 987, 654, MaxOrderTTL + 15, "invalid buy order expiration"},
+		{sbo0, sso3, 950000000, 456, 789, 987, 654, MaxOrderTTL + 10, "invalid sell order expiration"},
 	}
 	for _, tc := range tests {
-		tx := NewUnsignedExchangeV1(tc.buy, tc.sell, tc.price, tc.amount, tc.buyFee, tc.sellFee, tc.fee, 0)
+		tx := NewUnsignedExchangeV1(tc.buy, tc.sell, tc.price, tc.amount, tc.buyFee, tc.sellFee, tc.fee, tc.ts)
 		v, err := tx.Valid()
 		assert.False(t, v)
-		assert.EqualError(t, err, tc.err)
+		assert.EqualError(t, err, tc.err, fmt.Sprintf("expected: %s", tc.err))
 	}
+}
+
+func newSignedOrderV1(t *testing.T, sender, matcher crypto.PublicKey, amountAsset, priceAsset OptionalAsset, ot OrderType, price, amount, ts, exp, fee uint64) OrderV1 {
+	id, err := crypto.NewDigestFromBase58("AkYY8M2iEts8xc21JEzwkMSmuJtH9ABGzEYeau4xWC5R")
+	require.NoError(t, err)
+	sig, err := crypto.NewSignatureFromBase58("5pzyUowLi31yP4AEh5qzg7gRrvmsfeypiUkW84CKzc4H6UTzEF2RgGPLckBEqNbJGn5ofQXzuDmUnxwuP3utYp9L")
+	require.NoError(t, err)
+	o := NewUnsignedOrderV1(sender, matcher, amountAsset, priceAsset, ot, price, amount, ts, exp, fee)
+	o.ID = &id
+	o.Signature = &sig
+	return *o
 }
 
 func TestExchangeV1FromMainNet(t *testing.T) {
@@ -1684,34 +1710,53 @@ func TestExchangeV2Validations(t *testing.T) {
 	buySender, _ := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
 	sellSender, _ := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
 	mpk, _ := crypto.NewPublicKeyFromBase58("E7zJzWVn6kwsc6zwDpxZrEFjUu3xszPZ7XcStYNprbSJ")
+	mpk2, _ := crypto.NewPublicKeyFromBase58("3gRJoK6f7XUV7fx5jUzHoPwdb9ZdTFjtTPy2HgDinr1N")
 	aa, _ := NewOptionalAssetFromString("3gRJoK6f7XUV7fx5jUzHoPwdb9ZdTFjtTPy2HgDinr1N")
+	aa2, _ := NewOptionalAssetFromString("E7zJzWVn6kwsc6zwDpxZrEFjUu3xszPZ7XcStYNprbSJ")
 	pa, _ := NewOptionalAssetFromString("FftTzae2t8r6zZJ2VzEq2pS2Le4Vx9gYGXuDsEFBTYE2")
-	id, _ := crypto.NewDigestFromBase58("AkYY8M2iEts8xc21JEzwkMSmuJtH9ABGzEYeau4xWC5R")
-	sig, _ := crypto.NewSignatureFromBase58("5pzyUowLi31yP4AEh5qzg7gRrvmsfeypiUkW84CKzc4H6UTzEF2RgGPLckBEqNbJGn5ofQXzuDmUnxwuP3utYp9L")
-	sbo := NewUnsignedOrderV1(buySender, mpk, *aa, *pa, Buy, 10, 100, 0, 0, 3)
-	sbo.ID = &id
-	sbo.Signature = &sig
-	sso := NewUnsignedOrderV1(sellSender, mpk, *aa, *pa, Sell, 9, 50, 0, 0, 3)
-	sso.ID = &id
-	sso.Signature = &sig
+	sbo0 := newSignedOrderV1(t, buySender, mpk, *aa, *pa, Buy, 1000000000, 100, 10, 10+MaxOrderTTL, 3)
+	sbo1 := newSignedOrderV1(t, buySender, mpk, *aa, *pa, Buy, math.MaxInt64+1, 100, 10, 10+MaxOrderTTL, 3)
+	sbo2 := newSignedOrderV1(t, buySender, mpk, *aa2, *pa, Buy, 1000000000, 100, 10, 10+MaxOrderTTL, 3)
+	sso0 := newSignedOrderV1(t, sellSender, mpk, *aa, *pa, Sell, 900000000, 50, 20, 20+MaxOrderTTL, 3)
+	sso1 := newSignedOrderV1(t, sellSender, mpk, *aa, *pa, Sell, math.MaxInt64+1, 50, 20, 20+MaxOrderTTL, 3)
+	sso2 := newSignedOrderV1(t, sellSender, mpk2, *aa, *pa, Sell, 900000000, 50, 10, 10+MaxOrderTTL, 3)
+	sso3 := newSignedOrderV1(t, sellSender, mpk, *aa, *pa, Sell, 900000000, 50, 20, 5+MaxOrderTTL, 3)
 	tests := []struct {
-		buy     Order
-		sell    Order
+		buy     OrderV1
+		sell    OrderV1
 		price   uint64
 		amount  uint64
 		buyFee  uint64
 		sellFee uint64
 		fee     uint64
+		ts      uint64
 		err     string
 	}{
-		{*sbo, *sso, 0, 456, 789, 987, 654, "price should be positive"},
-		{*sbo, *sso, 123, 0, 789, 987, 654, "amount should be positive"},
-		{*sbo, *sso, 123, 456, 0, 987, 654, "buy matcher's fee should be positive"},
-		{*sbo, *sso, 123, 456, 789, 0, 654, "sell matcher's fee should be positive"},
-		{*sbo, *sso, 123, 456, 789, 987, 0, "fee should be positive"},
+		{sbo1, sso0, 123, 456, 789, 987, 654, 111, "invalid buy order: price is too big"},
+		{sbo0, sso1, 123, 456, 789, 987, 654, 111, "invalid sell order: price is too big"},
+		{sbo0, sso0, 0, 456, 789, 987, 654, 111, "price should be positive"},
+		{sbo0, sso0, math.MaxInt64 + 1, 456, 789, 987, 654, 111, "price is too big"},
+		{sbo0, sso0, 950000000, 0, 789, 987, 654, 111, "amount should be positive"},
+		{sbo0, sso0, 950000000, math.MaxInt64 + 1, 789, 987, 654, 111, "amount is too big"},
+		{sbo0, sso0, 950000000, 456, 0, 987, 654, 111, "buy matcher's fee should be positive"},
+		{sbo0, sso0, 950000000, 456, math.MaxInt64 + 1, 987, 654, 111, "buy matcher's fee is too big"},
+		{sbo0, sso0, 950000000, 456, 789, 0, 654, 111, "sell matcher's fee should be positive"},
+		{sbo0, sso0, 950000000, 456, 789, math.MaxInt64 + 1, 654, 111, "sell matcher's fee is too big"},
+		{sbo0, sso0, 950000000, 456, 789, 987, 0, 111, "fee should be positive"},
+		{sbo0, sso0, 950000000, 456, 789, 987, math.MaxInt64 + 1, 111, "fee is too big"},
+		{sso0, sso0, 950000000, 456, 789, 987, 654, 111, "incorrect order type of buy order"},
+		{sbo0, sbo0, 950000000, 456, 789, 987, 654, 111, "incorrect order type of sell order"},
+		{sbo0, sso2, 950000000, 456, 789, 987, 654, 111, "unmatched matcher's public keys"},
+		{sbo2, sso0, 950000000, 456, 789, 987, 654, 111, "different asset pairs"},
+		{sbo0, sso0, 890000000, 456, 789, 987, 654, 111, "invalid price"},
+		{sbo0, sso0, 1010000000, 456, 789, 987, 654, 111, "invalid price"},
+		{sbo0, sso0, 950000000, 456, 789, 987, 654, 1, "buy order expiration should be earlier than 30 days"},
+		{sbo0, sso0, 950000000, 456, 789, 987, 654, 11, "sell order expiration should be earlier than 30 days"},
+		{sbo0, sso0, 950000000, 456, 789, 987, 654, MaxOrderTTL + 15, "invalid buy order expiration"},
+		{sbo0, sso3, 950000000, 456, 789, 987, 654, MaxOrderTTL + 10, "invalid sell order expiration"},
 	}
 	for _, tc := range tests {
-		tx := NewUnsignedExchangeV2(tc.buy, tc.sell, tc.price, tc.amount, tc.buyFee, tc.sellFee, tc.fee, 0)
+		tx := NewUnsignedExchangeV2(tc.buy, tc.sell, tc.price, tc.amount, tc.buyFee, tc.sellFee, tc.fee, tc.ts)
 		v, err := tx.Valid()
 		assert.False(t, v)
 		assert.EqualError(t, err, tc.err, fmt.Sprintf("expected error: %s", tc.err))
@@ -2583,7 +2628,8 @@ func TestCreateAliasV1Validations(t *testing.T) {
 		fee   uint64
 		err   string
 	}{
-		{"something", 0, "failed to create CreateAliasV1 transaction: fee should be positive"},
+		{"something", 0, "fee should be positive"},
+		{"something", math.MaxInt64 + 1, "fee is too big"},
 	}
 	for _, tc := range tests {
 		spk, _ := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
@@ -2702,7 +2748,9 @@ func TestCreateAliasV2Validations(t *testing.T) {
 		fee   uint64
 		err   string
 	}{
-		{"something", 0, "failed to create CreateAliasV1 transaction: fee should be positive"},
+		{"something", 0, "fee should be positive"},
+		{"something", math.MaxInt64 + 10, "fee is too big"},
+		{"so", 12345, "alias length should be between 4 and 30"},
 	}
 	for _, tc := range tests {
 		spk, _ := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
@@ -2819,6 +2867,13 @@ func TestCreateAliasV2ToJSON(t *testing.T) {
 }
 
 func TestMassTransferV1Validations(t *testing.T) {
+	repeat := func(t MassTransferEntry, n int) []MassTransferEntry {
+		r := make([]MassTransferEntry, n)
+		for i := 0; i < n; i++ {
+			r = append(r, t)
+		}
+		return r
+	}
 	addr, _ := NewAddressFromString("3PB1Y84BGdEXE4HKaExyJ5cHP36nEw8ovaE")
 	tests := []struct {
 		asset      string
@@ -2828,8 +2883,10 @@ func TestMassTransferV1Validations(t *testing.T) {
 		err        string
 	}{
 		{"HmNSH2g1SWYHzuX1G4VCjL63TFs7PXDjsTAHzrAhSRCK", []MassTransferEntry{{NewRecipientFromAddress(addr), 100}}, 0, "", "fee should be positive"},
-		{"HmNSH2g1SWYHzuX1G4VCjL63TFs7PXDjsTAHzrAhSRCK", []MassTransferEntry{}, 10, "", "empty transfers"},
-		{"HmNSH2g1SWYHzuX1G4VCjL63TFs7PXDjsTAHzrAhSRCK", []MassTransferEntry{{NewRecipientFromAddress(addr), 0}, {NewRecipientFromAddress(addr), 20}}, 20, "", "at least one of the transfers has non-positive amount"},
+		{"HmNSH2g1SWYHzuX1G4VCjL63TFs7PXDjsTAHzrAhSRCK", []MassTransferEntry{{NewRecipientFromAddress(addr), 100}}, math.MaxInt64 + 10, "", "fee is too big"},
+		{"HmNSH2g1SWYHzuX1G4VCjL63TFs7PXDjsTAHzrAhSRCK", repeat(MassTransferEntry{NewRecipientFromAddress(addr), 100}, 101), 10, "", "number of transfers is greater than 100"},
+		{"HmNSH2g1SWYHzuX1G4VCjL63TFs7PXDjsTAHzrAhSRCK", []MassTransferEntry{{NewRecipientFromAddress(addr), math.MaxInt64 + 1}, {NewRecipientFromAddress(addr), 20}}, 20, "", "at least one of the transfers amount is bigger than JVM long"},
+		{"HmNSH2g1SWYHzuX1G4VCjL63TFs7PXDjsTAHzrAhSRCK", []MassTransferEntry{{NewRecipientFromAddress(addr), math.MaxInt64 / 2}, {NewRecipientFromAddress(addr), math.MaxInt64 / 2}}, 1000, "", "sum of amounts of transfers and transaction fee is bigger than JVM long"},
 		{"HmNSH2g1SWYHzuX1G4VCjL63TFs7PXDjsTAHzrAhSRCK", []MassTransferEntry{{NewRecipientFromAddress(addr), 10}, {NewRecipientFromAddress(addr), 20}}, 30, strings.Repeat("blah-blah", 30), "attachment too long"},
 	}
 	for _, tc := range tests {
@@ -2979,18 +3036,45 @@ func TestMassTransferV1ToJSON(t *testing.T) {
 }
 
 func TestDataV1Validations(t *testing.T) {
+	repeat := func(e BinaryDataEntry, n int) DataEntries {
+		r := DataEntries{}
+		for i := 0; i < n; i++ {
+			ue := e
+			ue.Key = fmt.Sprintf("%s-%d", e.Key, i)
+			r = append(r, ue)
+		}
+		return r
+	}
+	ieOk := IntegerDataEntry{Key: "integer-entry", Value: 12345}
+	ieFail := IntegerDataEntry{Key: "", Value: 1234567890}
+	beOk := BooleanDataEntry{Key: "boolean-entry", Value: true}
+	beFail := BooleanDataEntry{Key: strings.Repeat("too-big-key", 10), Value: false}
+	seOk := StringDataEntry{Key: "string-entry", Value: "some string value, should be ok"}
+	seFail := StringDataEntry{Key: "fail-string-entry", Value: strings.Repeat("too-big-value", 2521)}
+	deOk := BinaryDataEntry{Key: "binary-entry", Value: []byte{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09}}
+	deBig := BinaryDataEntry{Key: "binary-entry", Value: bytes.Repeat([]byte{0x00}, 1536)}
 	tests := []struct {
-		fee uint64
-		err string
+		entries DataEntries
+		fee     uint64
+		err     string
 	}{
-		{0, "fee should be positive"},
+		{[]DataEntry{ieOk}, 0, "fee should be positive"},
+		{[]DataEntry{beOk}, math.MaxInt64 + 10, "fee is too big"},
+		{[]DataEntry{seOk, seOk, deOk}, 12345, "duplicate keys"},
+		{repeat(deOk, 120), 12345, "number of DataV1 entries is bigger than 100"},
+		{[]DataEntry{ieFail}, 12345, "at least one of the DataV1 entry is not valid: empty entry key"},
+		{[]DataEntry{beFail, ieFail}, 12345, "at least one of the DataV1 entry is not valid: key is too large"},
+		{[]DataEntry{seFail}, 12345, "at least one of the DataV1 entry is not valid: value is too large"},
+		{repeat(deBig, 100), 12345, "total size of DataV1 transaction is bigger than 153600 bytes"},
 	}
 	for _, tc := range tests {
-		spk, _ := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
+		spk, err := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
+		require.NoError(t, err)
 		tx := NewUnsignedData(spk, tc.fee, 0)
+		tx.Entries = tc.entries
 		v, err := tx.Valid()
 		assert.False(t, v)
-		assert.EqualError(t, err, tc.err)
+		assert.EqualError(t, err, tc.err, fmt.Sprintf("expected: %s", tc.err))
 	}
 }
 
@@ -3219,6 +3303,8 @@ func TestSetScriptV1Validations(t *testing.T) {
 		err    string
 	}{
 		{"something", 0, "fee should be positive"},
+		{"something", math.MaxInt64 + 123, "fee is too big"},
+		//TODO: add blockchain scheme validation
 	}
 	for _, tc := range tests {
 		spk, _ := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
@@ -3337,15 +3423,20 @@ func TestSetScriptV1ToJSON(t *testing.T) {
 
 func TestSponsorshipV1Validations(t *testing.T) {
 	tests := []struct {
-		fee uint64
-		err string
+		minAssetFee uint64
+		fee         uint64
+		err         string
 	}{
-		{0, "fee should be positive"},
+		{0, 0, "fee should be positive"},
+		{0, math.MaxInt64 + 1, "fee is too big"},
+		{math.MaxInt64 + 1, 12345, "min asset fee is too big"},
 	}
 	for _, tc := range tests {
-		spk, _ := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
-		a, _ := crypto.NewDigestFromBase58("8Nwjd2tcQWff3S9WAhBa7vLRNpNnigWqrTbahvyfMVrU")
-		tx := NewUnsignedSponsorshipV1(spk, a, 0, tc.fee, 0)
+		spk, err := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
+		require.NoError(t, err)
+		a, err := crypto.NewDigestFromBase58("8Nwjd2tcQWff3S9WAhBa7vLRNpNnigWqrTbahvyfMVrU")
+		require.NoError(t, err)
+		tx := NewUnsignedSponsorshipV1(spk, a, tc.minAssetFee, tc.fee, 0)
 		v, err := tx.Valid()
 		assert.False(t, v)
 		assert.EqualError(t, err, tc.err)
@@ -3462,6 +3553,8 @@ func TestSetAssetScriptV1Validations(t *testing.T) {
 		err    string
 	}{
 		{"something", 0, "fee should be positive"},
+		{"something", math.MaxInt64 + 1, "fee is too big"},
+		//TODO: add tests on blockchain scheme validation and script type
 	}
 	for _, tc := range tests {
 		spk, _ := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
@@ -3590,24 +3683,38 @@ func TestSetAssetScriptV1ToJSON(t *testing.T) {
 }
 
 func TestInvokeScriptV1Validations(t *testing.T) {
+	repeat := func(arg StringArgument, n int) Arguments {
+		r := make([]Argument, n)
+		for i := 0; i < n; i++ {
+			r = append(r, arg)
+		}
+		return r
+	}
 	a1, err := NewOptionalAssetFromString("BXBUNddxTGTQc3G4qHYn5E67SBwMj18zLncUr871iuRD")
 	require.NoError(t, err)
 	a2, err := NewOptionalAssetFromString("WAVES")
 	require.NoError(t, err)
 
 	tests := []struct {
-		sps ScriptPayments
-		fee uint64
-		err string
+		sps  ScriptPayments
+		name string
+		args Arguments
+		fee  uint64
+		err  string
 	}{
-		{ScriptPayments{}, 0, "fee should be positive"},
-		{ScriptPayments{{12345, *a1}}, 0, "fee should be positive"},
-		{ScriptPayments{{12345, *a1}, {67890, *a2}}, 10000, "no more than one payment is allowed"},
+		{ScriptPayments{}, "foo", Arguments{IntegerArgument{Value: 1234567890}}, 0, "fee should be positive"},
+		{ScriptPayments{{12345, *a1}}, "foo", Arguments{StringArgument{Value: "some value should be ok"}}, math.MaxInt64 + 1, "fee is too big"},
+		{ScriptPayments{{12345, *a1}}, strings.Repeat("foo", 100), Arguments{}, 13245, "function name is too big"},
+		{ScriptPayments{{12345, *a1}}, "foo", repeat(StringArgument{Value: "some value should be ok"}, 100), 13245, "too many arguments"},
+		{ScriptPayments{{12345, *a1}, {67890, *a2}}, "foo", Arguments{}, 10000, "no more than one payment is allowed"},
+		{ScriptPayments{{0, *a1}}, "foo", Arguments{StringArgument{Value: "some value should be ok"}}, 1234, "at least one payment has a non-positive amount"},
+		{ScriptPayments{{math.MaxInt64 + 123, *a1}}, "foo", Arguments{StringArgument{Value: "some value should be ok"}}, 12345, "at least one payment has a too big amount"},
+		//TODO: add test on arguments evaluation
 	}
 	for _, tc := range tests {
 		spk, _ := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
 		ad, _ := NewAddressFromString("3MrDis17gyNSusZDg8Eo1PuFnm5SQMda3gu")
-		fc := FunctionCall{Name: "foo", Arguments: Arguments{}}
+		fc := FunctionCall{Name: tc.name, Arguments: tc.args}
 		tx := NewUnsignedInvokeScriptV1('T', spk, ad, fc, tc.sps, *a2, tc.fee, 12345)
 		v, err := tx.Valid()
 		assert.False(t, v)

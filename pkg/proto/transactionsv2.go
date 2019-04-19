@@ -822,23 +822,71 @@ func NewUnsignedExchangeV2(buy, sell Order, price, amount, buyMatcherFee, sellMa
 }
 
 func (tx ExchangeV2) Valid() (bool, error) {
-	//TODO: implement
-	//TODO: check orders expiration
-	//if amount <= 0 {
-	//	return nil, errors.New("amount should be positive")
-	//}
-	//if price <= 0 {
-	//	return nil, errors.New("price should be positive")
-	//}
-	//if buyMatcherFee <= 0 {
-	//	return nil, errors.New("buy matcher's fee should be positive")
-	//}
-	//if sellMatcherFee <= 0 {
-	//	return nil, errors.New("sell matcher's fee should be positive")
-	//}
-	//if fee <= 0 {
-	//	return nil, errors.New("fee should be positive")
-	//}
+	ok, err := tx.BuyOrder.Valid()
+	if !ok {
+		return false, errors.Wrap(err, "invalid buy order")
+	}
+	ok, err = tx.SellOrder.Valid()
+	if !ok {
+		return false, errors.Wrap(err, "invalid sell order")
+	}
+	if tx.BuyOrder.GetOrderType() != Buy {
+		return false, errors.New("incorrect order type of buy order")
+	}
+	if tx.SellOrder.GetOrderType() != Sell {
+		return false, errors.New("incorrect order type of sell order")
+	}
+	if tx.SellOrder.GetMatcherPK() != tx.BuyOrder.GetMatcherPK() {
+		return false, errors.New("unmatched matcher's public keys")
+	}
+	if tx.SellOrder.GetAssetPair() != tx.BuyOrder.GetAssetPair() {
+		return false, errors.New("different asset pairs")
+	}
+	if tx.Amount <= 0 {
+		return false, errors.New("amount should be positive")
+	}
+	if !validJVMLong(tx.Amount) {
+		return false, errors.New("amount is too big")
+	}
+	if tx.Price <= 0 {
+		return false, errors.New("price should be positive")
+	}
+	if !validJVMLong(tx.Price) {
+		return false, errors.New("price is too big")
+	}
+	if tx.Price > tx.BuyOrder.GetPrice() || tx.Price < tx.SellOrder.GetPrice() {
+		return false, errors.New("invalid price")
+	}
+	if tx.Fee <= 0 {
+		return false, errors.New("fee should be positive")
+	}
+	if !validJVMLong(tx.Fee) {
+		return false, errors.New("fee is too big")
+	}
+	if tx.BuyMatcherFee <= 0 {
+		return false, errors.New("buy matcher's fee should be positive")
+	}
+	if !validJVMLong(tx.BuyMatcherFee) {
+		return false, errors.New("buy matcher's fee is too big")
+	}
+	if tx.SellMatcherFee <= 0 {
+		return false, errors.New("sell matcher's fee should be positive")
+	}
+	if !validJVMLong(tx.SellMatcherFee) {
+		return false, errors.New("sell matcher's fee is too big")
+	}
+	if tx.BuyOrder.GetExpiration() < tx.Timestamp {
+		return false, errors.New("invalid buy order expiration")
+	}
+	if tx.BuyOrder.GetExpiration()-tx.Timestamp > MaxOrderTTL {
+		return false, errors.New("buy order expiration should be earlier than 30 days")
+	}
+	if tx.SellOrder.GetExpiration() < tx.Timestamp {
+		return false, errors.New("invalid sell order expiration")
+	}
+	if tx.SellOrder.GetExpiration()-tx.Timestamp > MaxOrderTTL {
+		return false, errors.New("sell order expiration should be earlier than 30 days")
+	}
 	return true, nil
 }
 
@@ -1446,11 +1494,6 @@ func NewUnsignedCreateAliasV2(senderPK crypto.PublicKey, alias Alias, fee, times
 		Timestamp: timestamp,
 	}
 	return &CreateAliasV2{Type: CreateAliasTransaction, Version: 2, CreateAlias: ca}
-}
-
-func (tx CreateAliasV2) Valid() (bool, error) {
-	//TODO:implement
-	return true, nil
 }
 
 func (tx *CreateAliasV2) bodyMarshalBinary() ([]byte, error) {

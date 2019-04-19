@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"math"
 	"strings"
 	"testing"
 	"time"
@@ -75,22 +76,44 @@ func TestMainNetOrder(t *testing.T) {
 }
 
 func TestOrderV1Validations(t *testing.T) {
+	aa, err := NewOptionalAssetFromString("8LQW8f7P5d5PZM7GtZEBgaqRPGSzS3DfPuiXrURJ4AJS")
+	require.NoError(t, err)
+	pa, err := NewOptionalAssetFromString("Ft8X1v1LTa1ABafufpaCWyVj8KkaxUWE6xBhW6sNFJck")
+	require.NoError(t, err)
+	waves, err := NewOptionalAssetFromString("WAVES")
+	require.NoError(t, err)
 	tests := []struct {
-		price  uint64
-		amount uint64
-		fee    uint64
-		err    string
+		amountAsset OptionalAsset
+		priceAsset  OptionalAsset
+		orderType   OrderType
+		price       uint64
+		amount      uint64
+		fee         uint64
+		ts          uint64
+		exp         uint64
+		err         string
 	}{
-		{0, 20, 30, "failed to create OrderV1: price should be positive"},
-		{10, 0, 30, "failed to create OrderV1: amount should be positive"},
-		{10, 20, 0, "failed to create OrderV1: matcher's fee should be positive"},
+		{*aa, *aa, Buy, 1234, 5678, 90, 1, 1, "invalid asset pair"},
+		{*aa, *pa, Sell, 0, 20, 30, 1, 1, "price should be positive"},
+		{*aa, *pa, Buy, math.MaxInt64 + 1, 20, 30, 1, 1, "price is too big"},
+		{*aa, *pa, Sell, 10, 0, 30, 1, 1, "amount should be positive"},
+		{*aa, *pa, Buy, 10, math.MaxInt64 + 1, 30, 1, 1, "amount is too big"},
+		{*aa, *pa, Sell, 10, MaxOrderAmount + 1, 30, 1, 1, "amount is larger than maximum allowed"},
+		{*aa, *pa, Buy, 10, 20, 0, 1, 1, "matcher's fee should be positive"},
+		{*aa, *pa, Sell, 10, 20, math.MaxInt64 + 2, 1, 1, "matcher's fee is too big"},
+		{*aa, *pa, Sell, 10, 20, MaxOrderAmount + 1, 1, 1, "matcher's fee is larger than maximum allowed"},
+		{*aa, *waves, Buy, math.MaxInt64, MaxOrderAmount, 1000, 1, 1, "spend amount is too large"},
+		{*aa, *waves, Buy, 1, 1, 1000, 1, 1, "spend amount should be positive"},
+		{*aa, *waves, Sell, math.MaxInt64, MaxOrderAmount, 1000, 1, 1, "receive amount is too large"},
+		{*aa, *waves, Sell, 1, 1, 1000, 1, 1, "receive amount should be positive"},
+		{*aa, *waves, Buy, math.MaxInt64 / (100 * PriceConstant), MaxOrderAmount, MaxOrderAmount, 1, 1, "sum of spend asset amount and matcher fee overflows JVM long"},
+		{*aa, *pa, Sell, 100000000, 20, 30, 0, 1, "timestamp should be positive"},
+		{*aa, *pa, Sell, 100000000, 20, 30, 1, 0, "expiration should be positive"},
 	}
 	spk, _ := crypto.NewPublicKeyFromBase58("6s3F3S1ZmdJ2B25EqHWgNUSfeHtMaRZJ4RGEB5hgS7QM")
 	mpk, _ := crypto.NewPublicKeyFromBase58("7kPFrHDiGw1rCm7LPszuECwWYL3dMf6iMifLRDJQZMzy")
-	aa, _ := NewOptionalAssetFromString("8LQW8f7P5d5PZM7GtZEBgaqRPGSzS3DfPuiXrURJ4AJS")
-	pa, _ := NewOptionalAssetFromString("Ft8X1v1LTa1ABafufpaCWyVj8KkaxUWE6xBhW6sNFJck")
 	for _, tc := range tests {
-		o := NewUnsignedOrderV1(spk, mpk, *aa, *pa, Buy, tc.price, tc.amount, 0, 0, tc.fee)
+		o := NewUnsignedOrderV1(spk, mpk, tc.amountAsset, tc.priceAsset, tc.orderType, tc.price, tc.amount, tc.ts, tc.exp, tc.fee)
 		v, err := o.Valid()
 		assert.False(t, v)
 		assert.EqualError(t, err, tc.err)
@@ -193,22 +216,46 @@ func TestOrderV1ToJSON(t *testing.T) {
 }
 
 func TestOrderV2Validations(t *testing.T) {
+	aa, err := NewOptionalAssetFromString("8LQW8f7P5d5PZM7GtZEBgaqRPGSzS3DfPuiXrURJ4AJS")
+	require.NoError(t, err)
+	pa, err := NewOptionalAssetFromString("Ft8X1v1LTa1ABafufpaCWyVj8KkaxUWE6xBhW6sNFJck")
+	require.NoError(t, err)
+	waves, err := NewOptionalAssetFromString("WAVES")
+	require.NoError(t, err)
 	tests := []struct {
-		price  uint64
-		amount uint64
-		fee    uint64
-		err    string
+		amountAsset OptionalAsset
+		priceAsset  OptionalAsset
+		orderType   OrderType
+		price       uint64
+		amount      uint64
+		fee         uint64
+		ts          uint64
+		exp         uint64
+		err         string
 	}{
-		{0, 20, 30, "failed to create OrderV2: price should be positive"},
-		{10, 0, 30, "failed to create OrderV2: amount should be positive"},
-		{10, 20, 0, "failed to create OrderV2: matcher's fee should be positive"},
+		{*aa, *aa, Buy, 1234, 5678, 90, 1, 1, "invalid asset pair"},
+		{*aa, *pa, Sell, 0, 20, 30, 1, 1, "price should be positive"},
+		{*aa, *pa, Buy, math.MaxInt64 + 1, 20, 30, 1, 1, "price is too big"},
+		{*aa, *pa, Sell, 10, 0, 30, 1, 1, "amount should be positive"},
+		{*aa, *pa, Buy, 10, math.MaxInt64 + 1, 30, 1, 1, "amount is too big"},
+		{*aa, *pa, Sell, 10, MaxOrderAmount + 1, 30, 1, 1, "amount is larger than maximum allowed"},
+		{*aa, *pa, Buy, 10, 20, 0, 1, 1, "matcher's fee should be positive"},
+		{*aa, *pa, Sell, 10, 20, math.MaxInt64 + 2, 1, 1, "matcher's fee is too big"},
+		{*aa, *pa, Sell, 10, 20, MaxOrderAmount + 1, 1, 1, "matcher's fee is larger than maximum allowed"},
+		{*aa, *waves, Buy, math.MaxInt64, MaxOrderAmount, 1000, 1, 1, "spend amount is too large"},
+		{*aa, *waves, Buy, 1, 1, 1000, 1, 1, "spend amount should be positive"},
+		{*aa, *waves, Sell, math.MaxInt64, MaxOrderAmount, 1000, 1, 1, "receive amount is too large"},
+		{*aa, *waves, Sell, 1, 1, 1000, 1, 1, "receive amount should be positive"},
+		{*aa, *waves, Buy, math.MaxInt64 / (100 * PriceConstant), MaxOrderAmount, MaxOrderAmount, 1, 1, "sum of spend asset amount and matcher fee overflows JVM long"},
+		{*aa, *pa, Sell, 100000000, 20, 30, 0, 1, "timestamp should be positive"},
+		{*aa, *pa, Sell, 100000000, 20, 30, 1, 0, "expiration should be positive"},
 	}
-	spk, _ := crypto.NewPublicKeyFromBase58("6s3F3S1ZmdJ2B25EqHWgNUSfeHtMaRZJ4RGEB5hgS7QM")
-	mpk, _ := crypto.NewPublicKeyFromBase58("7kPFrHDiGw1rCm7LPszuECwWYL3dMf6iMifLRDJQZMzy")
-	aa, _ := NewOptionalAssetFromString("8LQW8f7P5d5PZM7GtZEBgaqRPGSzS3DfPuiXrURJ4AJS")
-	pa, _ := NewOptionalAssetFromString("Ft8X1v1LTa1ABafufpaCWyVj8KkaxUWE6xBhW6sNFJck")
+	spk, err := crypto.NewPublicKeyFromBase58("6s3F3S1ZmdJ2B25EqHWgNUSfeHtMaRZJ4RGEB5hgS7QM")
+	require.NoError(t, err)
+	mpk, err := crypto.NewPublicKeyFromBase58("7kPFrHDiGw1rCm7LPszuECwWYL3dMf6iMifLRDJQZMzy")
+	require.NoError(t, err)
 	for _, tc := range tests {
-		o := NewUnsignedOrderV2(spk, mpk, *aa, *pa, Buy, tc.price, tc.amount, 0, 0, tc.fee)
+		o := NewUnsignedOrderV2(spk, mpk, tc.amountAsset, tc.priceAsset, tc.orderType, tc.price, tc.amount, tc.ts, tc.exp, tc.fee)
 		v, err := o.Valid()
 		assert.False(t, v)
 		assert.EqualError(t, err, tc.err)
