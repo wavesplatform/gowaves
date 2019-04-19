@@ -141,8 +141,7 @@ func setBalance(t *testing.T, to *testObjects, balanceKey []byte, balance uint64
 func createGenesis(t *testing.T, recipient string) *proto.Genesis {
 	rcp, err := proto.NewAddressFromString(recipient)
 	assert.NoError(t, err, "NewAddressFromString() failed")
-	tx, err := proto.NewUnsignedGenesis(rcp, 100, genesisTimestamp)
-	assert.NoError(t, err, "NewUnsignedGenesis() failed")
+	tx := proto.NewUnsignedGenesis(rcp, 100, genesisTimestamp)
 	return tx
 }
 
@@ -176,8 +175,7 @@ func createPayment(t *testing.T) *proto.Payment {
 	assert.NoError(t, err, "NewPublicKeyFromBase58() failed")
 	rcp, err := proto.NewAddressFromString(recipientAddr)
 	assert.NoError(t, err, "NewAddressFromString() failed")
-	tx, err := proto.NewUnsignedPayment(spk, rcp, 100, 1, timestamp1)
-	assert.NoError(t, err, "NewUnsignedPayment() failed")
+	tx := proto.NewUnsignedPayment(spk, rcp, 100, 1, timestamp1)
 	return tx
 }
 
@@ -276,8 +274,7 @@ func createTransferV1(t *testing.T, to *testObjects, recipientAddr string) *prot
 	assert.NoError(t, err, "NewPublicKeyFromBase58() failed")
 	rcp, err := proto.NewAddressFromString(recipientAddr)
 	assert.NoError(t, err, "NewAddressFromString() failed")
-	tx, err := proto.NewUnsignedTransferV1(spk, *asset, *asset, timestamp1, 100, 1, rcp, "attachment")
-	assert.NoError(t, err, "NewUnsignedTransferV1() failed")
+	tx := proto.NewUnsignedTransferV1(spk, *asset, *asset, timestamp1, 100, 1, proto.NewRecipientFromAddress(rcp), "attachment")
 	return tx
 }
 
@@ -361,8 +358,7 @@ func createTransferV2(t *testing.T, to *testObjects, recipientAddr string) *prot
 	assert.NoError(t, err, "NewPublicKeyFromBase58() failed")
 	rcp, err := proto.NewAddressFromString(recipientAddr)
 	assert.NoError(t, err, "NewAddressFromString() failed")
-	tx, err := proto.NewUnsignedTransferV2(spk, *asset, *asset, timestamp1, 100, 1, rcp, "attachment")
-	assert.NoError(t, err, "NewUnsignedTransferV2() failed")
+	tx := proto.NewUnsignedTransferV2(spk, *asset, *asset, timestamp1, 100, 1, proto.NewRecipientFromAddress(rcp), "attachment")
 	return tx
 }
 
@@ -441,8 +437,7 @@ func TestValidateTransferV2(t *testing.T) {
 func createIssueV1(t *testing.T) *proto.IssueV1 {
 	spk, err := crypto.NewPublicKeyFromBase58(senderPK)
 	assert.NoError(t, err, "NewPublicKeyFromBase58() failed")
-	tx, err := proto.NewUnsignedIssueV1(spk, "name", "description", 10, 7, true, timestamp1, 1)
-	assert.NoError(t, err, "NewUnsignedIssueV1() failed")
+	tx := proto.NewUnsignedIssueV1(spk, "name", "description", 10, 7, true, timestamp1, 1)
 	seed, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
 	sk, _ := crypto.GenerateKeyPair(seed)
 	err = tx.Sign(sk)
@@ -503,8 +498,7 @@ func TestValidateIssueV1(t *testing.T) {
 func createIssueV2(t *testing.T) *proto.IssueV2 {
 	spk, err := crypto.NewPublicKeyFromBase58(senderPK)
 	assert.NoError(t, err, "NewPublicKeyFromBase58() failed")
-	tx, err := proto.NewUnsignedIssueV2('W', spk, "name", "description", 10, 7, true, []byte{}, timestamp1, 1)
-	assert.NoError(t, err, "NewUnsignedIssueV2() failed")
+	tx := proto.NewUnsignedIssueV2('W', spk, "name", "description", 10, 7, true, []byte{}, timestamp1, 1)
 	seed, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
 	sk, _ := crypto.GenerateKeyPair(seed)
 	err = tx.Sign(sk)
@@ -565,8 +559,7 @@ func TestValidateIssueV2(t *testing.T) {
 func createReissueV1(t *testing.T, assetID crypto.Digest) *proto.ReissueV1 {
 	spk, err := crypto.NewPublicKeyFromBase58(senderPK)
 	assert.NoError(t, err, "NewPublicKeyFromBase58() failed")
-	tx, err := proto.NewUnsignedReissueV1(spk, assetID, 1, false, timestamp1, 1)
-	assert.NoError(t, err, "NewUnsignedReissueV1() failed")
+	tx := proto.NewUnsignedReissueV1(spk, assetID, 1, false, timestamp1, 1)
 	return tx
 }
 
@@ -613,8 +606,7 @@ func TestValidateReissueV1(t *testing.T) {
 func createReissueV2(t *testing.T, assetID crypto.Digest) *proto.ReissueV2 {
 	spk, err := crypto.NewPublicKeyFromBase58(senderPK)
 	assert.NoError(t, err, "NewPublicKeyFromBase58() failed")
-	tx, err := proto.NewUnsignedReissueV2('W', spk, assetID, 1, false, timestamp1, 1)
-	assert.NoError(t, err, "NewUnsignedReissueV2() failed")
+	tx := proto.NewUnsignedReissueV2('W', spk, assetID, 1, false, timestamp1, 1)
 	return tx
 }
 
@@ -661,8 +653,7 @@ func TestValidateReissueV2(t *testing.T) {
 func createBurnV1(t *testing.T, assetID crypto.Digest) *proto.BurnV1 {
 	spk, err := crypto.NewPublicKeyFromBase58(senderPK)
 	assert.NoError(t, err, "NewPublicKeyFromBase58() failed")
-	tx, err := proto.NewUnsignedBurnV1(spk, assetID, 1, timestamp1, 1)
-	assert.NoError(t, err, "NewUnsignedBurnV1() failed")
+	tx := proto.NewUnsignedBurnV1(spk, assetID, 1, timestamp1, 1)
 	return tx
 }
 
@@ -734,8 +725,7 @@ func TestValidateBurnV1(t *testing.T) {
 func createBurnV2(t *testing.T, assetID crypto.Digest) *proto.BurnV2 {
 	spk, err := crypto.NewPublicKeyFromBase58(senderPK)
 	assert.NoError(t, err, "NewPublicKeyFromBase58() failed")
-	tx, err := proto.NewUnsignedBurnV2('W', spk, assetID, 1, timestamp1, 1)
-	assert.NoError(t, err, "NewUnsignedBurnV2() failed")
+	tx := proto.NewUnsignedBurnV2('W', spk, assetID, 1, timestamp1, 1)
 	return tx
 }
 
@@ -811,12 +801,11 @@ func createExchangeV1(t *testing.T) *proto.ExchangeV1 {
 	a, _ := proto.NewOptionalAssetFromString(assetStr)
 	pa, _ := proto.NewOptionalAssetFromString("")
 	sig, _ := crypto.NewSignatureFromBase58("5pzyUowLi31yP4AEh5qzg7gRrvmsfeypiUkW84CKzc4H6UTzEF2RgGPLckBEqNbJGn5ofQXzuDmUnxwuP3utYp9L")
-	bo, _ := proto.NewUnsignedOrderV1(buySender, mpk, *a, *pa, proto.Buy, 10e8, 100, 0, 0, 3)
+	bo := proto.NewUnsignedOrderV1(buySender, mpk, *a, *pa, proto.Buy, 10e8, 100, 0, 0, 3)
 	bo.Signature = &sig
-	so, _ := proto.NewUnsignedOrderV1(sellSender, mpk, *a, *pa, proto.Sell, 10e8, 100, 0, 0, 3)
+	so := proto.NewUnsignedOrderV1(sellSender, mpk, *a, *pa, proto.Sell, 10e8, 100, 0, 0, 3)
 	so.Signature = &sig
-	tx, err := proto.NewUnsignedExchangeV1(*bo, *so, bo.Price, bo.Amount, 1, 2, 1, timestamp1)
-	assert.NoError(t, err, "NewUnsignedExchangeV1() failed")
+	tx := proto.NewUnsignedExchangeV1(*bo, *so, bo.Price, bo.Amount, 1, 2, 1, timestamp1)
 	return tx
 }
 
@@ -863,12 +852,11 @@ func createExchangeV2(t *testing.T) *proto.ExchangeV2 {
 	a, _ := proto.NewOptionalAssetFromString(assetStr)
 	pa, _ := proto.NewOptionalAssetFromString("")
 	sig, _ := crypto.NewSignatureFromBase58("5pzyUowLi31yP4AEh5qzg7gRrvmsfeypiUkW84CKzc4H6UTzEF2RgGPLckBEqNbJGn5ofQXzuDmUnxwuP3utYp9L")
-	bo, _ := proto.NewUnsignedOrderV1(buySender, mpk, *a, *pa, proto.Buy, 10e8, 100, 0, 0, 3)
+	bo := proto.NewUnsignedOrderV1(buySender, mpk, *a, *pa, proto.Buy, 10e8, 100, 0, 0, 3)
 	bo.Signature = &sig
-	so, _ := proto.NewUnsignedOrderV1(sellSender, mpk, *a, *pa, proto.Sell, 10e8, 100, 0, 0, 3)
+	so := proto.NewUnsignedOrderV1(sellSender, mpk, *a, *pa, proto.Sell, 10e8, 100, 0, 0, 3)
 	so.Signature = &sig
-	tx, err := proto.NewUnsignedExchangeV2(*bo, *so, bo.Price, bo.Amount, 1, 2, 1, timestamp1)
-	assert.NoError(t, err, "NewUnsignedExchangeV2() failed")
+	tx := proto.NewUnsignedExchangeV2(*bo, *so, bo.Price, bo.Amount, 1, 2, 1, timestamp1)
 	return tx
 }
 

@@ -5,14 +5,15 @@ import (
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/json"
-	"github.com/mr-tron/base58/base58"
-	"github.com/pkg/errors"
-	"github.com/wavesplatform/gowaves/pkg/crypto"
-	"github.com/wavesplatform/gowaves/pkg/ride/evaluator/reader"
 	"math/big"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/mr-tron/base58/base58"
+	"github.com/pkg/errors"
+	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/ride/evaluator/reader"
 )
 
 const (
@@ -379,7 +380,7 @@ func (o OrderBody) Valid() (bool, error) {
 	if s <= 0 {
 		return false, errors.New("spend amount should be positive")
 	}
-	if !o.SpendAsset().Present && !validJVMLong(s + o.MatcherFee) {
+	if !o.SpendAsset().Present && !validJVMLong(s+o.MatcherFee) {
 		return false, errors.New("sum of spend asset amount and matcher fee overflows JVM long")
 	}
 	r, err := o.ReceiveAmount(o.Amount, o.Price)

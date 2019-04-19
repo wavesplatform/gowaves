@@ -354,11 +354,11 @@ func FromSponsorshipV1(tx proto.SponsorshipV1) AssetChange {
 }
 
 func FromCreateAliasV1(scheme byte, tx proto.CreateAliasV1) (AliasBind, error) {
-	var err error
 	a := &tx.Alias
 	if tx.Alias.Scheme != scheme {
-		a, err = proto.NewAlias(scheme, tx.Alias.Alias)
-		if err != nil {
+		a = proto.NewAlias(scheme, tx.Alias.Alias)
+		ok, err := a.Valid()
+		if !ok {
 			return AliasBind{}, errors.Wrap(err, "failed to create AliasBind from CreateAliasV1")
 		}
 	}
@@ -367,11 +367,11 @@ func FromCreateAliasV1(scheme byte, tx proto.CreateAliasV1) (AliasBind, error) {
 }
 
 func FromCreateAliasV2(scheme byte, tx proto.CreateAliasV2) (AliasBind, error) {
-	var err error
 	a := &tx.Alias
 	if tx.Alias.Scheme != scheme {
-		a, err = proto.NewAlias(scheme, tx.Alias.Alias)
-		if err != nil {
+		a = proto.NewAlias(scheme, tx.Alias.Alias)
+		ok, err := a.Valid()
+		if !ok {
 			return AliasBind{}, errors.Wrap(err, "failed to create AliasBind from CreateAliasV2")
 		}
 	}
