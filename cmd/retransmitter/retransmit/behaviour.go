@@ -6,7 +6,8 @@ import (
 	"sync"
 
 	"github.com/wavesplatform/gowaves/cmd/retransmitter/retransmit/utils"
-	"github.com/wavesplatform/gowaves/pkg/network/peer"
+	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
+	. "github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
 )
@@ -44,9 +45,9 @@ func (a *BehaviourImpl) ProtoMessage(incomeMessage peer.ProtoMessage) {
 		if !a.tl.Exists(transaction) {
 			a.tl.Add(transaction)
 			a.counter.IncUniqueTransaction()
-			a.activeConnections.Each(func(id string, c *utils.PeerInfo) {
+			a.activeConnections.Each(func(id string, c Peer) {
 				if id != incomeMessage.ID {
-					c.Peer.SendMessage(incomeMessage.Message)
+					c.SendMessage(incomeMessage.Message)
 					a.counter.IncEachTransaction()
 				}
 			})
@@ -57,7 +58,7 @@ func (a *BehaviourImpl) ProtoMessage(incomeMessage peer.ProtoMessage) {
 	case *proto.PeersMessage:
 		zap.S().Debugf("got *proto.PeersMessage, from %s len=%d", incomeMessage.ID, len(t.Peers))
 		for _, p := range t.Peers {
-			a.knownPeers.Add(p, proto.Version{})
+			a.knownPeers.Add(proto.NewTCPAddr(p.Addr, int(p.Port)), proto.Version{})
 		}
 	default:
 		zap.S().Warnf("got unknown incomeMessage.Message of type %T\n", incomeMessage.Message)
@@ -66,8 +67,8 @@ func (a *BehaviourImpl) ProtoMessage(incomeMessage peer.ProtoMessage) {
 
 func (a *BehaviourImpl) Stop() {
 	a.knownPeers.Stop()
-	a.activeConnections.Each(func(id string, p *utils.PeerInfo) {
-		p.Peer.Close()
+	a.activeConnections.Each(func(id string, p Peer) {
+		p.Close()
 	})
 	a.counter.Stop()
 }
@@ -78,17 +79,9 @@ func (a *BehaviourImpl) InfoMessage(info peer.InfoMessage) {
 		zap.S().Infof("got error message %s from %s", t, info.ID)
 		a.errorHandler(info.ID, t)
 	case *peer.Connected:
-		a.activeConnections.Add(info.ID, &utils.PeerInfo{
-			Version:    t.Version,
-			Peer:       t.Peer,
-			DeclAddr:   t.DeclAddr,
-			RemoteAddr: t.RemoteAddr,
-			LocalAddr:  t.LocalAddr,
-			AppName:    t.AppName,
-			NodeName:   t.NodeName,
-		})
-		if !t.DeclAddr.Empty() {
-			a.knownPeers.Add(t.DeclAddr, t.Version)
+		a.activeConnections.Add(t.Peer.ID(), t.Peer)
+		if !t.Peer.Handshake().DeclaredAddr.Empty() {
+			a.knownPeers.Add(proto.TCPAddr(t.Peer.Handshake().DeclaredAddr), t.Peer.Handshake().Version)
 		}
 	default:
 		zap.S().Warnf("got unknown info message of type %T\n", info.Value)
@@ -97,8 +90,8 @@ func (a *BehaviourImpl) InfoMessage(info peer.InfoMessage) {
 
 func (a *BehaviourImpl) AskAboutKnownPeers() {
 	zap.S().Debug("ask about peers")
-	a.activeConnections.Each(func(id string, p *utils.PeerInfo) {
-		p.Peer.SendMessage(&proto.GetPeersMessage{})
+	a.activeConnections.Each(func(id string, p Peer) {
+		p.SendMessage(&proto.GetPeersMessage{})
 	})
 }
 
@@ -109,7 +102,7 @@ func (a *BehaviourImpl) sendToPeerMyKnownHosts(id string) {
 	}
 	c := a.activeConnections.Get(id)
 	if c != nil {
-		c.Peer.SendMessage(&pm)
+		c.SendMessage(&pm)
 	}
 }
 
@@ -117,8 +110,8 @@ func (a *BehaviourImpl) SendAllMyKnownPeers() {
 	pm := proto.PeersMessage{
 		Peers: a.knownPeers.Addresses(),
 	}
-	a.activeConnections.Each(func(id string, p *utils.PeerInfo) {
-		p.Peer.SendMessage(&pm)
+	a.activeConnections.Each(func(id string, p Peer) {
+		p.SendMessage(&pm)
 	})
 }
 
@@ -139,19 +132,13 @@ func (a *BehaviourImpl) SpawnKnownPeers(ctx context.Context) {
 func (a *BehaviourImpl) errorHandler(id string, e error) {
 	p := a.activeConnections.Get(id)
 	if p != nil {
-		p.Peer.Close()
+		p.Close()
 		a.activeConnections.Delete(id)
 	}
 }
 
 func (a *BehaviourImpl) Address(ctx context.Context, addr string) {
-	p, err := proto.NewPeerInfoFromString(addr)
-	if err != nil {
-		zap.S().Error(err)
-		return
-	}
-
-	a.knownPeers.Add(p, proto.Version{})
+	a.knownPeers.Add(proto.NewTCPAddrFromString(addr), proto.Version{})
 	if !a.activeConnections.Exists(addr) && !a.spawnedPeers.Exists(addr) {
 		go a.spawnOutgoingPeer(ctx, addr)
 		a.spawnedPeers.Add(addr)

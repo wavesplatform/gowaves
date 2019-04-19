@@ -1,49 +1,19 @@
 package retransmit_test
 
 import (
+	"github.com/wavesplatform/gowaves/pkg/p2p/mock"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/wavesplatform/gowaves/cmd/retransmitter/retransmit"
 	"github.com/wavesplatform/gowaves/cmd/retransmitter/retransmit/utils"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
-	"github.com/wavesplatform/gowaves/pkg/network/conn"
-	"github.com/wavesplatform/gowaves/pkg/network/peer"
+	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/util/byte_helpers"
 )
 
 var seed = []byte("test test")
-
-type mockPeer struct {
-	addr                  string
-	SendMessageCalledWith []proto.Message
-	incomeCh              chan peer.ProtoMessage
-}
-
-func (mockPeer) Direction() peer.Direction {
-	panic("implement me")
-}
-
-func (mockPeer) Reconnect() error {
-	panic("implement me")
-}
-
-func (mockPeer) Close() {
-	panic("implement me")
-}
-
-func (mockPeer) Connection() conn.Connection {
-	panic("implement me")
-}
-
-func (a *mockPeer) SendMessage(m proto.Message) {
-	a.SendMessageCalledWith = append(a.SendMessageCalledWith, m)
-}
-
-func (a mockPeer) ID() string {
-	return a.addr
-}
 
 func createTransaction() *proto.TransferV2 {
 	priv, pub := crypto.GenerateKeyPair(seed)
@@ -77,22 +47,22 @@ func TestClientRecvTransaction(t *testing.T) {
 
 	behaviour := retransmit.NewBehaviour(knownPeers, nil)
 
-	peer1 := &mockPeer{
-		addr: "peer1",
+	peer1 := &mock.Peer{
+		Addr: "peer1",
 	}
-	peer2 := &mockPeer{
-		addr: "peer2",
+	peer2 := &mock.Peer{
+		Addr: "peer2",
 	}
 
 	peer1Connected := peer.InfoMessage{
-		ID: peer1.addr,
+		ID: peer1.Addr,
 		Value: &peer.Connected{
 			Peer: peer1,
 		},
 	}
 
 	peer2Connected := peer.InfoMessage{
-		ID: peer2.addr,
+		ID: peer2.Addr,
 		Value: &peer.Connected{
 			Peer: peer2,
 		},
@@ -104,7 +74,7 @@ func TestClientRecvTransaction(t *testing.T) {
 	assert.Len(t, behaviour.ActiveConnections().Addresses(), 2)
 
 	protomess := peer.ProtoMessage{
-		ID: peer1.addr,
+		ID: peer1.Addr,
 		Message: &proto.TransactionMessage{
 			Transaction: byte_helpers.TransferV1.TransactionBytes,
 		},

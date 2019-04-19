@@ -5,6 +5,7 @@ import (
 	"encoding"
 	"encoding/binary"
 	"fmt"
+	"github.com/wavesplatform/gowaves/pkg/util/collect_writes"
 	"io"
 	"net"
 	"strconv"
@@ -33,6 +34,7 @@ const (
 	ContentIDBlock         = 0x17
 	ContentIDScore         = 0x18
 	ContentIDTransaction   = 0x19
+	ContentIDMicroblock    = 0x1A
 	ContentIDCheckpoint    = 0x64
 
 	HeaderContentIDPosition = 8
@@ -121,129 +123,268 @@ type Version struct {
 	Major, Minor, Patch uint32
 }
 
+func (a Version) WriteTo(writer io.Writer) (int64, error) {
+	b := make([]byte, 12)
+	binary.BigEndian.PutUint32(b[:4], a.Major)
+	binary.BigEndian.PutUint32(b[4:8], a.Minor)
+	binary.BigEndian.PutUint32(b[8:], a.Patch)
+	n, err := writer.Write(b)
+	if err != nil {
+		return int64(n), err
+	}
+	return int64(n), nil
+}
+
+func (a *Version) ReadFrom(r io.Reader) (int64, error) {
+	b := make([]byte, 12)
+	n, err := r.Read(b)
+	if err != nil {
+		return int64(n), err
+	}
+	a.Major = binary.BigEndian.Uint32(b[0:4])
+	a.Minor = binary.BigEndian.Uint32(b[4:8])
+	a.Patch = binary.BigEndian.Uint32(b[8:12])
+	return int64(n), nil
+}
+
+type TCPAddr net.TCPAddr
+
+func NewTCPAddr(ip net.IP, port int) TCPAddr {
+	return TCPAddr{
+		IP:   ip,
+		Port: port,
+	}
+}
+
+func (a TCPAddr) String() string {
+	return fmt.Sprintf("%s:%d", a.IP.String(), a.Port)
+}
+
+func (a TCPAddr) Empty() bool {
+	return len(a.IP) == 0 || a.IP.IsUnspecified()
+}
+
+func (a TCPAddr) WriteTo(w io.Writer) (int64, error) {
+	b := []byte(a.IP.To16())
+	n, err := w.Write(b)
+	if err != nil {
+		return int64(n), err
+	}
+
+	b8 := make([]byte, 8)
+	binary.BigEndian.PutUint64(b8, uint64(a.Port))
+	n2, err := w.Write(b8)
+	if err != nil {
+		return 0, err
+	}
+
+	return int64(n + n2), nil
+}
+
+func NewTCPAddrFromString(s string) TCPAddr {
+	host, port, err := net.SplitHostPort(s)
+	if err != nil {
+		return TCPAddr{}
+	}
+	ip := net.ParseIP(host)
+	p, _ := strconv.ParseUint(port, 10, 64)
+	return NewTCPAddr(ip, int(p))
+}
+
+func (a TCPAddr) ToIpPort() IpPort {
+	return NewIpPortFromTcpAddr(a)
+}
+
 // Handshake is the handshake structure of the waves protocol
 type Handshake struct {
-	AppName           string
-	Version           Version
-	NodeName          string
-	NodeNonce         uint64
-	DeclaredAddrBytes []byte
-	Timestamp         uint64
+	AppName      string
+	Version      Version
+	NodeName     string
+	NodeNonce    uint64
+	DeclaredAddr HandshakeTCPAddr
+	Timestamp    uint64
 }
 
-func (h *Handshake) marshalBinaryName() ([]byte, error) {
-	if len(h.AppName) > 255 {
-		return nil, errors.New("handshake application name too long")
+type HandshakeTCPAddr TCPAddr
+
+func NewHandshakeTCPAddr(ip net.IP, port int) HandshakeTCPAddr {
+	return HandshakeTCPAddr{
+		IP:   ip,
+		Port: port,
 	}
-	data := make([]byte, len(h.AppName)+1)
-	data[0] = byte(len(h.AppName))
-	copy(data[1:1+len(h.AppName)], h.AppName)
-
-	return data, nil
 }
 
-func (h *Handshake) marshalBinaryVersion() ([]byte, error) {
-	data := make([]byte, 12)
-
-	binary.BigEndian.PutUint32(data[0:4], h.Version.Major)
-	binary.BigEndian.PutUint32(data[4:8], h.Version.Minor)
-	binary.BigEndian.PutUint32(data[8:12], h.Version.Patch)
-
-	return data, nil
+func (a HandshakeTCPAddr) Empty() bool {
+	return TCPAddr(a).Empty()
+	//return len(a.IP) == 0 || a.IP.IsUnspecified()
 }
 
-func (h *Handshake) marshalBinaryNodeName() ([]byte, error) {
-	if len(h.NodeName) > 255 {
-		return nil, errors.New("handshake node name too long")
+func (a HandshakeTCPAddr) WriteTo(w io.Writer) (int64, error) {
+	if a.Empty() {
+		n, err := w.Write([]byte{0, 0, 0, 0})
+		if err != nil {
+			return 0, err
+		}
+		return int64(n), nil
 	}
-	l := len(h.NodeName)
+
+	b := [12]byte{}
+	binary.BigEndian.PutUint32(b[:4], 8)
+	copy(b[4:8], a.IP.To4())
+	binary.BigEndian.PutUint32(b[8:12], uint32(a.Port))
+	n, err := w.Write(b[:])
+	if err != nil {
+		return 0, err
+	}
+	return int64(n), nil
+}
+
+func (a *HandshakeTCPAddr) ReadFrom(r io.Reader) (int64, error) {
+	size := [4]byte{}
+	n, err := r.Read(size[:])
+	if err != nil {
+		return int64(n), err
+	}
+	s := binary.BigEndian.Uint32(size[:])
+	if s > 8 {
+		return 0, errors.Errorf("tcp addr is too large")
+	}
+
+	if s == 0 {
+		return int64(n), nil
+	}
+
+	b := [4]byte{}
+	n2, err := r.Read(b[:])
+	if err != nil {
+		return 0, err
+	}
+	a.IP = net.IPv4(b[0], b[1], b[2], b[3])
+
+	n3, err := r.Read(b[:])
+	if err != nil {
+		return 0, err
+	}
+	port := binary.BigEndian.Uint32(b[:])
+	a.Port = int(port)
+
+	return int64(n + n2 + n3), nil
+}
+
+func (a HandshakeTCPAddr) ToIpPort() IpPort {
+	return NewIpPortFromTcpAddr(TCPAddr(a))
+}
+
+func (a HandshakeTCPAddr) String() string {
+	return TCPAddr(a).String()
+}
+
+type U8String struct {
+	S string
+}
+
+func NewU8String(s string) U8String {
+	return U8String{S: s}
+}
+
+// MarshalBinary encodes U8String to binary form
+func (a U8String) MarshalBinary() ([]byte, error) {
+	l := len(a.S)
+	if l > 255 {
+		return nil, errors.New("too long string")
+	}
+
 	data := make([]byte, l+1)
 	data[0] = byte(l)
-	copy(data[1:1+l], h.NodeName)
-
+	copy(data[1:1+l], a.S)
 	return data, nil
 }
 
-func (h *Handshake) marshalBinaryAddr() ([]byte, error) {
-	data := make([]byte, 20+len(h.DeclaredAddrBytes))
+// MarshalBinary encodes U8String to binary form
+func (a U8String) WriteTo(w io.Writer) (int64, error) {
+	l := len(a.S)
+	if l > 255 {
+		return 0, errors.New("too long string")
+	}
 
-	binary.BigEndian.PutUint64(data[0:8], h.NodeNonce)
-	binary.BigEndian.PutUint32(data[8:12], uint32(len(h.DeclaredAddrBytes)))
-
-	copy(data[12:12+len(h.DeclaredAddrBytes)], h.DeclaredAddrBytes)
-	binary.BigEndian.PutUint64(data[12+len(h.DeclaredAddrBytes):20+len(h.DeclaredAddrBytes)], h.Timestamp)
-
-	return data, nil
+	data := make([]byte, l+1)
+	data[0] = byte(l)
+	copy(data[1:1+l], a.S)
+	n, err := w.Write(data)
+	if err != nil {
+		return int64(n), err
+	}
+	return int64(n), nil
 }
 
-// MarshalBinary encodes Handshake to binary form
-func (h *Handshake) MarshalBinary() ([]byte, error) {
-	data1, err := h.marshalBinaryName()
+func (a *U8String) ReadFrom(r io.Reader) (int64, error) {
+	size := make([]byte, 1)
+	n, err := r.Read(size)
 	if err != nil {
-		return nil, err
+		return 0, err
 	}
-	data2, err := h.marshalBinaryVersion()
+	str := make([]byte, size[0])
+	n2, err := r.Read(str)
 	if err != nil {
-		return nil, err
+		return 0, err
 	}
-	data3, err := h.marshalBinaryNodeName()
-	if err != nil {
-		return nil, err
-	}
-	data4, err := h.marshalBinaryAddr()
-	if err != nil {
-		return nil, err
-	}
-
-	data1 = append(data1, data2...)
-	data1 = append(data1, data3...)
-	data1 = append(data1, data4...)
-	return data1, nil
+	a.S = string(str)
+	return int64(n + n2), nil
 }
 
-// UnmarshalBinary decodes Handshake from binary from
-func (h *Handshake) UnmarshalBinary(data []byte) error {
-	if len(data) < 1 {
-		return errors.New("data too short")
-	}
-	appNameLen := data[0]
-	data = data[1:]
-	if len(data) < int(appNameLen) {
-		return errors.New("data too short")
-	}
-	h.AppName = string(data[:appNameLen])
-	data = data[appNameLen:]
-	if len(data) < 13 {
-		return errors.New("data too short")
-	}
-	h.Version.Major = binary.BigEndian.Uint32(data[0:4])
-	h.Version.Minor = binary.BigEndian.Uint32(data[4:8])
-	h.Version.Patch = binary.BigEndian.Uint32(data[8:12])
+type U64 uint64
 
-	nodeNameLen := data[12]
-	data = data[13:]
-	if len(data) < int(nodeNameLen) {
-		return errors.New("data too short")
+func (a U64) WriteTo(w io.Writer) (int64, error) {
+	b := make([]byte, 8)
+	binary.BigEndian.PutUint64(b, uint64(a))
+	n, err := w.Write(b)
+	if err != nil {
+		return int64(n), err
 	}
-	h.NodeName = string(data[:nodeNameLen])
-	data = data[nodeNameLen:]
-	if len(data) < 12 {
-		return errors.New("data too short")
-	}
-	h.NodeNonce = binary.BigEndian.Uint64(data[:8])
-	declAddrLen := binary.BigEndian.Uint32(data[8:12])
-	data = data[12:]
-	if len(data) < int(declAddrLen) {
-		return errors.New("data too short")
-	}
-	h.DeclaredAddrBytes = append([]byte(nil), data[:declAddrLen]...)
-	data = data[declAddrLen:]
-	if len(data) < 8 {
-		return errors.New("data too short")
-	}
-	h.Timestamp = binary.BigEndian.Uint64(data[:8])
+	return int64(n), nil
+}
 
-	return nil
+func (a *U64) ReadFrom(r io.Reader) (int64, error) {
+	b := [8]byte{}
+	n, err := r.Read(b[:])
+	if err != nil {
+		return int64(n), err
+	}
+	*a = U64(binary.BigEndian.Uint64(b[:]))
+	return int64(n), nil
+}
+
+type U32 uint32
+
+func (a U32) WriteTo(w io.Writer) (int64, error) {
+	b := make([]byte, 4)
+	binary.BigEndian.PutUint32(b, uint32(a))
+	n, err := w.Write(b)
+	if err != nil {
+		return int64(n), err
+	}
+	return int64(n), nil
+}
+
+func (a *U32) ReadFrom(r io.Reader) (int64, error) {
+	b := [4]byte{}
+	n, err := r.Read(b[:])
+	if err != nil {
+		return int64(n), err
+	}
+	*a = U32(binary.BigEndian.Uint32(b[:]))
+	return int64(n), nil
+}
+
+func (a *Handshake) WriteTo(w io.Writer) (int64, error) {
+	c := collect_writes.CollectInt64{}
+	c.W(NewU8String(a.AppName).WriteTo(w))
+	c.W(a.Version.WriteTo(w))
+	c.W(NewU8String(a.NodeName).WriteTo(w))
+	c.W(U64(a.NodeNonce).WriteTo(w))
+	c.W(a.DeclaredAddr.WriteTo(w))
+	c.W(U64(a.Timestamp).WriteTo(w))
+	return c.Ret()
 }
 
 func (h *Handshake) readApplicationName(buf []byte, r io.Reader) (int, error) {
@@ -325,68 +466,50 @@ func (h *Handshake) readTimestamp(buf []byte, r io.Reader) (int, error) {
 }
 
 // ReadFrom reads Handshake from io.Reader
-func (h *Handshake) ReadFrom(r io.Reader) (int64, error) {
+func (a *Handshake) ReadFrom(r io.Reader) (int64, error) {
 	// max Header size based on fields
-	buf := [556]byte{}
-	nn, err := h.readApplicationName(buf[:], r)
+	//buf := [556]byte{}
+	appName := U8String{}
+	n1, err := appName.ReadFrom(r)
 	if err != nil {
-		return int64(nn), err
+		return 0, errors.Wrap(err, "appname")
+	}
+	a.AppName = appName.S
+
+	n2, err := a.Version.ReadFrom(r)
+	if err != nil {
+		return 0, errors.Wrap(err, "version")
 	}
 
-	n, err := h.readVersion(buf[nn:], r)
+	nodeName := U8String{}
+	n3, err := nodeName.ReadFrom(r)
 	if err != nil {
-		return 0, err
+		return 0, errors.Wrap(err, "nodename")
+	}
+	a.NodeName = nodeName.S
+
+	nonce := U64(0)
+	n4, err := nonce.ReadFrom(r)
+	if err != nil {
+		return 0, errors.Wrap(err, "nonce")
+	}
+	a.NodeNonce = uint64(nonce)
+
+	addr := HandshakeTCPAddr{}
+	n5, err := addr.ReadFrom(r)
+	if err != nil {
+		return 0, errors.Wrap(err, "can't read HandshakeTCPAddr")
+	}
+	a.DeclaredAddr = addr
+
+	tm := U64(0)
+	n6, err := tm.ReadFrom(r)
+	if err != nil {
+		return 0, errors.Wrap(err, "timestamp")
 	}
 
-	nn += n
-
-	n, err = h.readNodeName(buf[nn:], r)
-	if err != nil {
-		return int64(n + nn), err
-	}
-
-	nn += n
-
-	n, err = h.readNonce(buf[nn:], r)
-	if err != nil {
-		return int64(n + nn), err
-	}
-
-	nn += n
-
-	n, err = h.readDeclAddr(buf[nn:], r)
-	if err != nil {
-		return int64(n + nn), err
-	}
-
-	nn += n
-
-	n, err = h.readTimestamp(buf[nn:], r)
-	if err != nil {
-		return int64(n + nn), err
-	}
-
-	nn += n
-
-	return int64(nn), h.UnmarshalBinary(buf[:])
-}
-
-// WriteTo writes Handshake to io.Writer
-func (h *Handshake) WriteTo(w io.Writer) (int64, error) {
-	buf, err := h.MarshalBinary()
-	if err != nil {
-		return 0, err
-	}
-	nn, err := w.Write(buf)
-	n := int64(nn)
-	return n, err
-}
-
-// PeerInfo tries convert declared address bytes into PeerInfo
-func (h *Handshake) PeerInfo() (PeerInfo, error) {
-	p := PeerInfo{}
-	err := p.UnmarshalBinary(h.DeclaredAddrBytes)
-	return p, err
+	a.Timestamp = uint64(tm)
+	return int64(n1 + n2 + n3 + n4 + n5 + n6), nil
 }
 
 // GetPeersMessage implements the GetPeers message from the waves protocol
@@ -441,10 +564,74 @@ func (m *GetPeersMessage) WriteTo(w io.Writer) (int64, error) {
 	return n, err
 }
 
+const IpPortLength = net.IPv6len + 8
+
+type IpPort [IpPortLength]byte
+
+func NewIpPortFromTcpAddr(a TCPAddr) IpPort {
+	out := IpPort{}
+	buf := new(bytes.Buffer)
+	_, _ = a.WriteTo(buf)
+	copy(out[:], buf.Bytes())
+	return out
+}
+
+func (a IpPort) Addr() net.IP {
+	return net.IP(a[:net.IPv6len])
+}
+
+func (a IpPort) Port() int {
+	b := binary.BigEndian.Uint64(a[net.IPv6len : net.IPv6len+8])
+	return int(b)
+}
+
+func (a IpPort) ToTcpAddr() TCPAddr {
+	return NewTCPAddr(a.Addr(), a.Port())
+}
+
+func (a *IpPort) UnmarshalBinary(b []byte) error {
+	if len(b) < IpPortLength {
+		return errors.Errorf("too low bytes to unmarshal IpPort, expected at least %d, got %d", IpPortLength, len(b))
+	}
+
+	k := IpPort{}
+	copy(k[:], b)
+	return nil
+}
+
+type StaticIP [net.IPv6len]byte
+
+func (a StaticIP) String() string {
+	return net.IP(a[:]).String()
+}
+
 // PeerInfo represents the address of a single peer
 type PeerInfo struct {
 	Addr net.IP
 	Port uint16
+}
+
+func (a PeerInfo) WriteTo(w io.Writer) (int64, error) {
+	b := [8]byte{}
+	copy(b[:4], a.Addr.To4())
+	binary.BigEndian.PutUint32(b[4:8], uint32(a.Port))
+	n, err := w.Write(b[:])
+	if err != nil {
+		return int64(n), err
+	}
+	return int64(n), nil
+}
+
+func (a *PeerInfo) ReadFrom(r io.Reader) (int64, error) {
+	b := [8]byte{}
+	n, err := r.Read(b[:])
+	if err != nil {
+		return int64(n), err
+	}
+	a.Addr = net.IPv4(b[0], b[1], b[2], b[3])
+	a.Port = uint16(binary.BigEndian.Uint32(b[:4]))
+
+	return int64(n), nil
 }
 
 func NewPeerInfoFromString(addr string) (PeerInfo, error) {
@@ -568,39 +755,52 @@ type PeersMessage struct {
 	Peers []PeerInfo
 }
 
-// MarshalBinary encodes PeersMessage message to binary form
-func (m *PeersMessage) MarshalBinary() ([]byte, error) {
+func (m *PeersMessage) WriteTo(w io.Writer) (int64, error) {
 	var h Header
-	body := make([]byte, 4)
 
-	binary.BigEndian.PutUint32(body[0:4], uint32(len(m.Peers)))
+	buf := new(bytes.Buffer)
+
+	c := collect_writes.CollectInt64{}
+	length := U32(len(m.Peers))
+	c.W(length.WriteTo(buf))
 
 	for _, k := range m.Peers {
-		peer, err := k.MarshalBinary()
-		if err != nil {
-			return nil, err
-		}
-		body = append(body, peer...)
+		c.W(k.WriteTo(buf))
 	}
 
-	h.Length = MaxHeaderLength + uint32(len(body)) - 4
+	n, err := c.Ret()
+	if err != nil {
+		return n, err
+	}
+
+	h.Length = MaxHeaderLength + uint32(len(buf.Bytes())) - 4
 	h.Magic = headerMagic
 	h.ContentID = ContentIDPeers
-	h.PayloadLength = uint32(len(body))
-	dig, err := crypto.FastHash(body)
+	h.PayloadLength = uint32(len(buf.Bytes()))
+	dig, err := crypto.FastHash(buf.Bytes())
 	if err != nil {
-		return nil, err
+		return 0, err
 	}
 	copy(h.PayloadCsum[:], dig[:4])
 
 	hdr, err := h.MarshalBinary()
 	if err != nil {
-		return nil, err
+		return 0, err
 	}
 
-	hdr = append(hdr, body...)
+	out := append(hdr, buf.Bytes()...)
 
-	return hdr, nil
+	n2, err := w.Write(out)
+	if err != nil {
+		return 0, err
+	}
+
+	return int64(n2), nil
+}
+
+// MarshalBinary encodes PeersMessage message to binary form
+func (m *PeersMessage) MarshalBinary() ([]byte, error) {
+	return nil, errors.Errorf("deprecated method")
 }
 
 // UnmarshalBinary decodes PeersMessage from binary form
@@ -674,23 +874,37 @@ func ReadPayload(buf []byte, r io.Reader) (int64, error) {
 
 // ReadFrom reads PeersMessage from io.Reader
 func (m *PeersMessage) ReadFrom(r io.Reader) (int64, error) {
-	packet, nn, err := readPacket(r)
+	//packet, nn, err := readPacket(r)
+	//if err != nil {
+	//	return nn, err
+	//}
+
+	h := Header{}
+	n, err := h.ReadFrom(r)
 	if err != nil {
-		return nn, err
+		return n, err
 	}
 
-	return nn, m.UnmarshalBinary(packet)
-}
-
-// WriteTo writes PeersMessage to io.Writer
-func (m *PeersMessage) WriteTo(w io.Writer) (int64, error) {
-	buf, err := m.MarshalBinary()
+	length := U32(0)
+	n2, err := length.ReadFrom(r)
 	if err != nil {
 		return 0, err
 	}
-	nn, err := w.Write(buf)
-	n := int64(nn)
-	return n, err
+
+	Peers := make([]PeerInfo, length)
+
+	n3 := n + n2
+	for i := 0; i < int(length); i++ {
+		p := PeerInfo{}
+		n4, err := p.ReadFrom(r)
+		if err != nil {
+			return 0, err
+		}
+		n3 += n4
+		Peers[i] = p
+	}
+
+	return n3, nil
 }
 
 // GetSignaturesMessage represents the Get Signatures request
@@ -976,7 +1190,8 @@ func (m *BlockMessage) UnmarshalBinary(data []byte) error {
 		return fmt.Errorf("wrong ContentID in Header: %x", h.ContentID)
 	}
 
-	m.BlockBytes = data[17:]
+	m.BlockBytes = make([]byte, h.PayloadLength)
+	copy(m.BlockBytes, data[17:17+h.PayloadLength])
 
 	return nil
 }
@@ -1041,8 +1256,8 @@ func (m *ScoreMessage) UnmarshalBinary(data []byte) error {
 		return fmt.Errorf("wrong ContentID in Header: %x", h.ContentID)
 	}
 
-	m.Score = data[17:]
-
+	m.Score = make([]byte, h.PayloadLength)
+	copy(m.Score, data[17:17+h.PayloadLength])
 	return nil
 }
 
@@ -1146,6 +1361,26 @@ type CheckPointMessage struct {
 	Checkpoints []CheckpointItem
 }
 
+// CheckPointMessage represents a CheckPoint message
+type MicroBlockMessage struct {
+}
+
+func (*MicroBlockMessage) ReadFrom(r io.Reader) (n int64, err error) {
+	panic("implement me")
+}
+
+func (*MicroBlockMessage) WriteTo(w io.Writer) (n int64, err error) {
+	panic("implement me")
+}
+
+func (*MicroBlockMessage) UnmarshalBinary(data []byte) error {
+	return nil
+}
+
+func (*MicroBlockMessage) MarshalBinary() (data []byte, err error) {
+	panic("implement me")
+}
+
 // MarshalBinary encodes CheckPointMessage to binary form
 func (m *CheckPointMessage) MarshalBinary() ([]byte, error) {
 	body := make([]byte, 4, 4+len(m.Checkpoints)*72+100)
@@ -1240,18 +1475,57 @@ func UnmarshalMessage(b []byte) (Message, error) {
 
 	var m Message
 	switch b[HeaderContentIDPosition] {
-	case ContentIDTransaction:
-		m = &TransactionMessage{}
 	case ContentIDGetPeers:
 		m = &GetPeersMessage{}
 	case ContentIDPeers:
 		m = &PeersMessage{}
+	case ContentIDGetSignatures:
+		m = &GetSignaturesMessage{}
+	case ContentIDSignatures:
+		m = &SignaturesMessage{}
+	case ContentIDGetBlock:
+		m = &GetBlockMessage{}
+	case ContentIDBlock:
+		m = &BlockMessage{}
+	case ContentIDScore:
+		m = &ScoreMessage{}
+	case ContentIDTransaction:
+		m = &TransactionMessage{}
+	case ContentIDCheckpoint:
+		m = &CheckPointMessage{}
+	case ContentIDMicroblock:
+		m = &MicroBlockMessage{}
 	default:
 		return nil, errors.Errorf(
-			"received unknown content id byte %d (%x)", b[HeaderContentIDPosition], b[HeaderContentIDPosition])
+			"received unknown content id byte %d 0x%x", b[HeaderContentIDPosition], b[HeaderContentIDPosition])
 	}
 
 	err := m.UnmarshalBinary(b)
 	return m, err
 
+}
+
+type BulkMessage []Message
+
+func (BulkMessage) ReadFrom(r io.Reader) (n int64, err error) {
+	panic("implement me")
+}
+
+func (BulkMessage) WriteTo(w io.Writer) (n int64, err error) {
+	panic("implement me")
+}
+
+func (BulkMessage) UnmarshalBinary(data []byte) error {
+	panic("implement me")
+}
+
+func (a BulkMessage) MarshalBinary() (data []byte, err error) {
+	var out bytes.Buffer
+	for _, row := range a {
+		_, err := row.WriteTo(&out)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return out.Bytes(), nil
 }

@@ -21,7 +21,7 @@ func TestKnownPeers(t *testing.T) {
 	knownPeers, err := utils.NewKnownPeersInterval(s, time.NewTicker(1*time.Second))
 	require.NoError(t, err)
 	defer knownPeers.Stop()
-	knownPeers.Add(proto.PeerInfo{Addr: net.IPv4(10, 10, 10, 10), Port: 90}, proto.Version{})
+	knownPeers.Add(proto.NewTCPAddr(net.IPv4(10, 10, 10, 10), 90), proto.Version{})
 
 	assert.Equal(t, []string{"10.10.10.10:90"}, knownPeers.GetAll())
 	assert.Len(t, knownPeers.Addresses(), 1)

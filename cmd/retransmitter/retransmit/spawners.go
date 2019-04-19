@@ -4,9 +4,10 @@ import (
 	"context"
 	"net"
 
+	"github.com/wavesplatform/gowaves/cmd/retransmitter/retransmit/network"
 	"github.com/wavesplatform/gowaves/pkg/libs/bytespool"
-	"github.com/wavesplatform/gowaves/pkg/network/conn"
-	"github.com/wavesplatform/gowaves/pkg/network/peer"
+	"github.com/wavesplatform/gowaves/pkg/p2p/conn"
+	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
@@ -19,11 +20,11 @@ type PeerOutgoingSpawnerImpl struct {
 	pool         bytespool.Pool
 	parent       peer.Parent
 	wavesNetwork string
-	declAddr     proto.PeerInfo
+	declAddr     proto.TCPAddr
 	skipFunc     conn.SkipFilter
 }
 
-func NewPeerSpawner(pool bytespool.Pool, skipFunc conn.SkipFilter, parent peer.Parent, WavesNetwork string, declAddr proto.PeerInfo) *PeerOutgoingSpawnerImpl {
+func NewPeerSpawner(pool bytespool.Pool, skipFunc conn.SkipFilter, parent peer.Parent, WavesNetwork string, declAddr proto.TCPAddr) *PeerOutgoingSpawnerImpl {
 	return &PeerOutgoingSpawnerImpl{
 		pool:         pool,
 		skipFunc:     skipFunc,
@@ -34,7 +35,7 @@ func NewPeerSpawner(pool bytespool.Pool, skipFunc conn.SkipFilter, parent peer.P
 }
 
 func (a *PeerOutgoingSpawnerImpl) SpawnOutgoing(ctx context.Context, address string) {
-	params := peer.OutgoingPeerParams{
+	params := network.OutgoingPeerParams{
 		Address:      address,
 		WavesNetwork: a.wavesNetwork,
 		Parent:       a.parent,
@@ -43,11 +44,11 @@ func (a *PeerOutgoingSpawnerImpl) SpawnOutgoing(ctx context.Context, address str
 		DeclAddr:     a.declAddr,
 	}
 
-	peer.RunOutgoingPeer(ctx, params)
+	network.RunOutgoingPeer(ctx, params)
 }
 
 func (a *PeerOutgoingSpawnerImpl) SpawnIncoming(ctx context.Context, c net.Conn) {
-	params := peer.IncomingPeerParams{
+	params := network.IncomingPeerParams{
 		WavesNetwork: a.wavesNetwork,
 		Conn:         c,
 		Skip:         a.skipFunc,
@@ -56,5 +57,5 @@ func (a *PeerOutgoingSpawnerImpl) SpawnIncoming(ctx context.Context, c net.Conn)
 		Pool:         a.pool,
 	}
 
-	peer.RunIncomingPeer(ctx, params)
+	network.RunIncomingPeer(ctx, params)
 }

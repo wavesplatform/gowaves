@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	// Balances.
+	// Balances (main state).
 	balanceKeyPrefix byte = iota
 
 	// Valid block IDs.
@@ -31,6 +31,9 @@ const (
 	// Assets.
 	assetConstKeyPrefix
 	assetHistKeyPrefix
+
+	// Known peers
+	knownPeersPrefix
 )
 
 type balanceKey struct {

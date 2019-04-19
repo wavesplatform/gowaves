@@ -3,6 +3,7 @@ package utils
 import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/wavesplatform/gowaves/pkg/p2p/mock"
 	"testing"
 )
 
@@ -12,7 +13,7 @@ func TestAddr2Peers(t *testing.T) {
 	require.NotNil(t, p)
 	assert.False(t, p.Exists(addr))
 
-	p.Add(addr, &PeerInfo{})
+	p.Add(addr, &mock.Peer{})
 	assert.True(t, p.Exists(addr))
 
 	assert.Equal(t, 1, len(p.Addresses()))

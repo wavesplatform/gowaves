@@ -1,12 +1,16 @@
 package state
 
 import (
+	"github.com/wavesplatform/gowaves/pkg/proto"
 	"io/ioutil"
 	"math/big"
+	"net"
 	"os"
 	"path/filepath"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/importer"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 )
@@ -22,6 +26,14 @@ type testCase struct {
 	score  *big.Int
 	path   string
 }
+
+//func getLocalDir() (string, error) {
+//	_, filename, _, ok := runtime.Caller(0)
+//	if !ok {
+//		return "", errors.Errorf("Unable to find current package file")
+//	}
+//	return filepath.Dir(filename), nil
+//}
 
 func bigFromStr(s string) *big.Int {
 	var big big.Int
@@ -203,4 +215,33 @@ func TestStateIntegrated(t *testing.T) {
 			t.Errorf("Height after rollback is not correct.")
 		}
 	}
+}
+
+func TestStateManager_SavePeers(t *testing.T) {
+	dataDir, err := ioutil.TempDir(os.TempDir(), "dataDir")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir for data: %v\n", err)
+	}
+	defer os.RemoveAll(dataDir)
+
+	manager, err := newStateManager(dataDir, DefaultBlockStorageParams(), settings.MainNetSettings)
+	if err != nil {
+		t.Fatalf("Failed to create state manager: %v.\n", err)
+	}
+	defer manager.Close()
+
+	peers, err := manager.Peers()
+	require.NoError(t, err)
+	assert.Len(t, peers, 0)
+
+	peers = []proto.TCPAddr{
+		proto.NewTCPAddr(net.IPv4(127, 0, 0, 1), 65535),
+		proto.NewTCPAddr(net.IPv4(83, 127, 1, 254).To4(), 80),
+	}
+	require.NoError(t, manager.SavePeers(peers))
+
+	// check that peers saved
+	peers2, err := manager.Peers()
+	require.NoError(t, err)
+	assert.Len(t, peers2, 2)
 }
