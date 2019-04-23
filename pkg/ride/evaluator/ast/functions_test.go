@@ -150,14 +150,14 @@ func TestNativeTransactionByID(t *testing.T) {
 	secret, public := crypto.GenerateKeyPair([]byte(seed))
 	sender, _ := proto.NewAddressFromPublicKey(proto.MainNetScheme, public)
 
-	transferV1, err := proto.NewUnsignedTransferV1(
+	transferV1 := proto.NewUnsignedTransferV1(
 		public,
 		proto.OptionalAsset{},
 		proto.OptionalAsset{},
 		uint64(time.Now().Unix()),
 		1,
 		10000,
-		sender,
+		proto.NewRecipientFromAddress(sender),
 		"",
 	)
 	require.NoError(t, err)
@@ -378,8 +378,7 @@ func TestNativeAssetBalance_FromAlias(t *testing.T) {
 
 	scope := newScopeWithState(s)
 
-	alias, err := proto.NewAlias(scope.Scheme(), "test")
-	require.NoError(t, err)
+	alias := proto.NewAlias(scope.Scheme(), "test")
 
 	d, err := crypto.NewDigestFromBase58("BXBUNddxTGTQc3G4qHYn5E67SBwMj18zLncUr871iuRD")
 	require.NoError(t, err)

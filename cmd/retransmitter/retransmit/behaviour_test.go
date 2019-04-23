@@ -22,14 +22,14 @@ func createTransaction() *proto.TransferV2 {
 		panic(err)
 	}
 
-	t, err := proto.NewUnsignedTransferV2(
+	t := proto.NewUnsignedTransferV2(
 		pub,
 		proto.OptionalAsset{},
 		proto.OptionalAsset{},
 		1544715621,
 		10000,
 		10000,
-		addr,
+		proto.NewRecipientFromAddress(addr),
 		"",
 	)
 

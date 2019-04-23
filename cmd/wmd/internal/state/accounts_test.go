@@ -103,8 +103,7 @@ func TestMultipleAccountState(t *testing.T) {
 	require.NoError(t, err)
 	acc1 := data.Account{Address: addr1}
 
-	alias2, err := proto.NewAlias(scheme, "alias2")
-	require.NoError(t, err)
+	alias2 := proto.NewAlias(scheme, "alias2")
 	pk2, err := crypto.NewPublicKeyFromBase58("HzfaJp8YQWLvQG4FkUxq2Q7iYWMYQ2k8UF89vVJAjWPj")
 	require.NoError(t, err)
 	addr2, err := proto.NewAddressFromPublicKey(scheme, pk2)

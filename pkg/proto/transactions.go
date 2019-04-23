@@ -37,9 +37,11 @@ const (
 	maxAssetNameLen          = 16
 	minAssetNameLen          = 4
 	maxDecimals              = 8
+	maxLongValue             = ^uint64(0) >> 1
 
 	genesisBodyLen = 1 + 8 + AddressSize + 8
 	paymentBodyLen = 1 + 8 + crypto.PublicKeySize + AddressSize + 8 + 8
+	issueLen       = crypto.PublicKeySize + 2 + 2 + 8 + 1 + 1 + 8 + 8
 	transferLen    = crypto.PublicKeySize + 1 + 1 + 8 + 8 + 8 + 2
 	reissueLen     = crypto.PublicKeySize + crypto.DigestSize + 8 + 1 + 8 + 8
 	burnLen        = crypto.PublicKeySize + crypto.DigestSize + 8 + 8 + 8
@@ -80,8 +82,10 @@ var (
 	}
 )
 
+// Transaction is a set of common transaction functions.
 type Transaction interface {
 	GetID() []byte
+	Valid() (bool, error)
 	MarshalBinary() ([]byte, error)
 	UnmarshalBinary([]byte) error
 }
@@ -224,14 +228,22 @@ func (tx Genesis) GetID() []byte {
 
 //NewUnsignedGenesis returns a new unsigned Genesis transaction. Actually Genesis transaction could not be signed.
 //That is why it doesn't implement Sing method. Instead it has GenerateSigID method, which calculates ID and uses it also as a signature.
-func NewUnsignedGenesis(recipient Address, amount, timestamp uint64) (*Genesis, error) {
-	if amount <= 0 {
-		return nil, errors.New("amount should be positive")
+func NewUnsignedGenesis(recipient Address, amount, timestamp uint64) *Genesis {
+	return &Genesis{Type: GenesisTransaction, Version: 1, Timestamp: timestamp, Recipient: recipient, Amount: amount}
+}
+
+//Valid checks the validity of transaction parameters and it's signature.
+func (tx Genesis) Valid() (bool, error) {
+	if tx.Amount <= 0 {
+		return false, errors.New("amount should be positive")
 	}
-	if ok, err := recipient.Validate(); !ok {
-		return nil, errors.Wrapf(err, "invalid recipient address '%s'", recipient.String())
+	if !validJVMLong(tx.Amount) {
+		return false, errors.New("amount is too big")
 	}
-	return &Genesis{Type: GenesisTransaction, Version: 1, Timestamp: timestamp, Recipient: recipient, Amount: amount}, nil
+	if ok, err := tx.Recipient.Valid(); !ok {
+		return false, errors.Wrapf(err, "invalid recipient address '%s'", tx.Recipient.String())
+	}
+	return true, nil
 }
 
 func (tx *Genesis) bodyMarshalBinary() ([]byte, error) {
@@ -324,17 +336,30 @@ func (tx Payment) GetID() []byte {
 }
 
 //NewUnsignedPayment creates new Payment transaction with empty Signature and ID fields.
-func NewUnsignedPayment(senderPK crypto.PublicKey, recipient Address, amount, fee, timestamp uint64) (*Payment, error) {
-	if ok, err := recipient.Validate(); !ok {
-		return nil, errors.Wrapf(err, "invalid recipient address '%s'", recipient.String())
+func NewUnsignedPayment(senderPK crypto.PublicKey, recipient Address, amount, fee, timestamp uint64) *Payment {
+	return &Payment{Type: PaymentTransaction, Version: 1, SenderPK: senderPK, Recipient: recipient, Amount: amount, Fee: fee, Timestamp: timestamp}
+}
+
+func (tx Payment) Valid() (bool, error) {
+	if ok, err := tx.Recipient.Valid(); !ok {
+		return false, errors.Wrapf(err, "invalid recipient address '%s'", tx.Recipient.String())
 	}
-	if amount <= 0 {
-		return nil, errors.New("amount should be positive")
+	if tx.Amount <= 0 {
+		return false, errors.New("amount should be positive")
 	}
-	if fee <= 0 {
-		return nil, errors.New("fee should be positive")
+	if !validJVMLong(tx.Amount) {
+		return false, errors.New("amount is too big")
 	}
-	return &Payment{Type: PaymentTransaction, Version: 1, SenderPK: senderPK, Recipient: recipient, Amount: amount, Fee: fee, Timestamp: timestamp}, nil
+	if tx.Fee <= 0 {
+		return false, errors.New("fee should be positive")
+	}
+	if !validJVMLong(tx.Fee) {
+		return false, errors.New("fee is too big")
+	}
+	if x := tx.Amount + tx.Fee; !validJVMLong(x) {
+		return false, errors.New("sum of amount and fee overflows JVM long")
+	}
+	return true, nil
 }
 
 func (tx *Payment) bodyMarshalBinary() ([]byte, error) {
@@ -432,6 +457,97 @@ func (tx *Payment) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
+type Issue struct {
+	SenderPK    crypto.PublicKey `json:"senderPublicKey"`
+	Name        string           `json:"name"`
+	Description string           `json:"description"`
+	Quantity    uint64           `json:"quantity"`
+	Decimals    byte             `json:"decimals"`
+	Reissuable  bool             `json:"reissuable"`
+	Timestamp   uint64           `json:"timestamp,omitempty"`
+	Fee         uint64           `json:"fee"`
+}
+
+func (i Issue) Valid() (bool, error) {
+	if i.Quantity <= 0 {
+		return false, errors.New("quantity should be positive")
+	}
+	if !validJVMLong(i.Quantity) {
+		return false, errors.New("quantity is too big")
+	}
+	if i.Fee <= 0 {
+		return false, errors.New("fee should be positive")
+	}
+	if !validJVMLong(i.Fee) {
+		return false, errors.New("fee is too big")
+	}
+	if l := len(i.Name); l < minAssetNameLen || l > maxAssetNameLen {
+		return false, errors.New("incorrect number of bytes in the asset's name")
+	}
+	if l := len(i.Description); l > maxDescriptionLen {
+		return false, errors.New("incorrect number of bytes in the asset's description")
+	}
+	if i.Decimals > maxDecimals {
+		return false, errors.Errorf("incorrect decimals, should be no more then %d", maxDecimals)
+	}
+	return true, nil
+}
+
+func (i Issue) marshalBinary() ([]byte, error) {
+	nl := len(i.Name)
+	dl := len(i.Description)
+	buf := make([]byte, issueLen+nl+dl)
+	p := 0
+	copy(buf[p:], i.SenderPK[:])
+	p += crypto.PublicKeySize
+	PutStringWithUInt16Len(buf[p:], i.Name)
+	p += 2 + nl
+	PutStringWithUInt16Len(buf[p:], i.Description)
+	p += 2 + dl
+	binary.BigEndian.PutUint64(buf[p:], i.Quantity)
+	p += 8
+	buf[p] = i.Decimals
+	p++
+	PutBool(buf[p:], i.Reissuable)
+	p++
+	binary.BigEndian.PutUint64(buf[p:], i.Fee)
+	p += 8
+	binary.BigEndian.PutUint64(buf[p:], i.Timestamp)
+	return buf, nil
+}
+
+func (i *Issue) unmarshalBinary(data []byte) error {
+	if l := len(data); l < issueLen {
+		return errors.Errorf("%d is not enough bytes for Issue, expected not less then %d", l, issueLen)
+	}
+	copy(i.SenderPK[:], data[:crypto.PublicKeySize])
+	data = data[crypto.PublicKeySize:]
+	var err error
+	i.Name, err = StringWithUInt16Len(data)
+	if err != nil {
+		return errors.Wrap(err, "failed to unmarshal Name")
+	}
+	data = data[2+len(i.Name):]
+	i.Description, err = StringWithUInt16Len(data)
+	if err != nil {
+		return errors.Wrap(err, "failed to unmarshal Description")
+	}
+	data = data[2+len(i.Description):]
+	i.Quantity = binary.BigEndian.Uint64(data)
+	data = data[8:]
+	i.Decimals = data[0]
+	data = data[1:]
+	i.Reissuable, err = Bool(data)
+	if err != nil {
+		return errors.Wrap(err, "failed to unmarshal Reissuable")
+	}
+	data = data[1:]
+	i.Fee = binary.BigEndian.Uint64(data)
+	data = data[8:]
+	i.Timestamp = binary.BigEndian.Uint64(data)
+	return nil
+}
+
 type Transfer struct {
 	SenderPK    crypto.PublicKey `json:"senderPublicKey"`
 	AmountAsset OptionalAsset    `json:"assetId"`
@@ -443,119 +559,129 @@ type Transfer struct {
 	Attachment  Attachment       `json:"attachment,omitempty"`
 }
 
-func newTransfer(senderPK crypto.PublicKey, amountAsset, feeAsset OptionalAsset, timestamp, amount, fee uint64, recipient Address, attachment string) (*Transfer, error) {
-	if amount <= 0 {
-		return nil, errors.New("amount should be positive")
+func (tr Transfer) Valid() (bool, error) {
+	if tr.Amount <= 0 {
+		return false, errors.New("amount should be positive")
 	}
-	if fee <= 0 {
-		return nil, errors.New("fee should be positive")
+	if !validJVMLong(tr.Amount) {
+		return false, errors.New("amount is too big")
 	}
-	if len(attachment) > maxAttachmentLengthBytes {
-		return nil, errors.New("attachment too long")
+	if tr.Fee <= 0 {
+		return false, errors.New("fee should be positive")
 	}
-	if ok, err := recipient.Validate(); !ok {
-		return nil, errors.Wrapf(err, "invalid recipient address '%s'", recipient.String())
+	if !validJVMLong(tr.Fee) {
+		return false, errors.New("fee is too big")
 	}
-	return &Transfer{SenderPK: senderPK, AmountAsset: amountAsset, FeeAsset: feeAsset, Timestamp: timestamp, Amount: amount, Fee: fee, Recipient: NewRecipientFromAddress(recipient), Attachment: Attachment(attachment)}, nil
+	if x := tr.Amount + tr.Fee; !validJVMLong(x) {
+		return false, errors.New("sum of amount and fee overflows JVM long")
+	}
+	if len(tr.Attachment) > maxAttachmentLengthBytes {
+		return false, errors.New("attachment is too long")
+	}
+	if ok, err := tr.Recipient.Valid(); !ok {
+		return false, errors.Wrapf(err, "invalid recipient '%s'", tr.Recipient.String())
+	}
+	return true, nil
 }
 
-func (tx *Transfer) marshalBinary() ([]byte, error) {
+func (tr *Transfer) marshalBinary() ([]byte, error) {
 	p := 0
 	aal := 0
-	if tx.AmountAsset.Present {
+	if tr.AmountAsset.Present {
 		aal += crypto.DigestSize
 	}
 	fal := 0
-	if tx.FeeAsset.Present {
+	if tr.FeeAsset.Present {
 		fal += crypto.DigestSize
 	}
-	rb, err := tx.Recipient.MarshalBinary()
+	rb, err := tr.Recipient.MarshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal Transfer body")
 	}
 	rl := len(rb)
-	atl := len(tx.Attachment)
+	atl := len(tr.Attachment)
 	buf := make([]byte, transferLen+aal+fal+atl+rl)
-	copy(buf[p:], tx.SenderPK[:])
+	copy(buf[p:], tr.SenderPK[:])
 	p += crypto.PublicKeySize
-	aab, err := tx.AmountAsset.MarshalBinary()
+	aab, err := tr.AmountAsset.MarshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal Transfer body")
 	}
 	copy(buf[p:], aab)
 	p += 1 + aal
-	fab, err := tx.FeeAsset.MarshalBinary()
+	fab, err := tr.FeeAsset.MarshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal Transfer body")
 	}
 	copy(buf[p:], fab)
 	p += 1 + fal
-	binary.BigEndian.PutUint64(buf[p:], tx.Timestamp)
+	binary.BigEndian.PutUint64(buf[p:], tr.Timestamp)
 	p += 8
-	binary.BigEndian.PutUint64(buf[p:], tx.Amount)
+	binary.BigEndian.PutUint64(buf[p:], tr.Amount)
 	p += 8
-	binary.BigEndian.PutUint64(buf[p:], tx.Fee)
+	binary.BigEndian.PutUint64(buf[p:], tr.Fee)
 	p += 8
 	copy(buf[p:], rb)
 	p += rl
-	PutStringWithUInt16Len(buf[p:], tx.Attachment.String())
+	PutStringWithUInt16Len(buf[p:], tr.Attachment.String())
 	return buf, nil
 }
 
-func (tx *Transfer) unmarshalBinary(data []byte) error {
+func (tr *Transfer) unmarshalBinary(data []byte) error {
 	if l := len(data); l < transferLen {
 		return errors.Errorf("%d bytes is not enough for Transfer body, expected not less then %d bytes", l, transferLen)
 	}
-	copy(tx.SenderPK[:], data[:crypto.PublicKeySize])
+	copy(tr.SenderPK[:], data[:crypto.PublicKeySize])
 	data = data[crypto.PublicKeySize:]
 	var err error
-	err = tx.AmountAsset.UnmarshalBinary(data)
+	err = tr.AmountAsset.UnmarshalBinary(data)
 	if err != nil {
 		return errors.Wrap(err, "failed to unmarshal Transfer body from bytes")
 	}
 	data = data[1:]
-	if tx.AmountAsset.Present {
+	if tr.AmountAsset.Present {
 		data = data[crypto.DigestSize:]
 	}
-	err = tx.FeeAsset.UnmarshalBinary(data)
+	err = tr.FeeAsset.UnmarshalBinary(data)
 	if err != nil {
 		return errors.Wrap(err, "failed to unmarshal Transfer body from bytes")
 	}
 	data = data[1:]
-	if tx.FeeAsset.Present {
+	if tr.FeeAsset.Present {
 		data = data[crypto.DigestSize:]
 	}
-	tx.Timestamp = binary.BigEndian.Uint64(data)
+	tr.Timestamp = binary.BigEndian.Uint64(data)
 	data = data[8:]
-	tx.Amount = binary.BigEndian.Uint64(data)
+	tr.Amount = binary.BigEndian.Uint64(data)
 	data = data[8:]
-	tx.Fee = binary.BigEndian.Uint64(data)
+	tr.Fee = binary.BigEndian.Uint64(data)
 	data = data[8:]
-	err = tx.Recipient.UnmarshalBinary(data)
+	err = tr.Recipient.UnmarshalBinary(data)
 	if err != nil {
 		return errors.Wrap(err, "failed to unmarshal Transfer body from bytes")
 	}
-	data = data[tx.Recipient.len:]
+	data = data[tr.Recipient.len:]
 	a, err := StringWithUInt16Len(data)
 	if err != nil {
 		return errors.Wrap(err, "failed to unmarshal Transfer body from bytes")
 	}
-	tx.Attachment = Attachment(a)
+	tr.Attachment = Attachment(a)
 	return nil
 }
 
-type Issue interface {
-	GetID() []byte
-	GetSenderPK() crypto.PublicKey
-	GetName() string
-	GetDescription() string
-	GetQuantity() uint64
-	GetDecimals() byte
-	GetReissuable() bool
-	GetScript() Script
-	GetTimestamp() uint64
-	GetFee() uint64
-}
+//type Issue interface {
+//	GetID() []byte
+//	GetSenderPK() crypto.PublicKey
+//	GetName() string
+//	GetDescription() string
+//	GetQuantity() uint64
+//	GetDecimals() byte
+//	GetReissuable() bool
+//	GetScript() Script
+//	GetTimestamp() uint64
+//	GetFee() uint64
+//}
+//TODO: remove this
 
 type Reissue struct {
 	SenderPK   crypto.PublicKey `json:"senderPublicKey"`
@@ -566,52 +692,58 @@ type Reissue struct {
 	Fee        uint64           `json:"fee"`
 }
 
-func newReissue(senderPK crypto.PublicKey, assetID crypto.Digest, quantity uint64, reissuable bool, timestamp, fee uint64) (*Reissue, error) {
-	if quantity <= 0 {
-		return nil, errors.New("quantity should be positive")
+func (r Reissue) Valid() (bool, error) {
+	if r.Quantity <= 0 {
+		return false, errors.New("quantity should be positive")
 	}
-	if fee <= 0 {
-		return nil, errors.New("fee should be positive")
+	if !validJVMLong(r.Quantity) {
+		return false, errors.New("quantity is too big")
 	}
-	return &Reissue{SenderPK: senderPK, AssetID: assetID, Quantity: quantity, Reissuable: reissuable, Timestamp: timestamp, Fee: fee}, nil
+	if r.Fee <= 0 {
+		return false, errors.New("fee should be positive")
+	}
+	if !validJVMLong(r.Fee) {
+		return false, errors.New("fee is too big")
+	}
+	return true, nil
 }
 
-func (tx *Reissue) marshalBinary() ([]byte, error) {
+func (r *Reissue) marshalBinary() ([]byte, error) {
 	p := 0
 	buf := make([]byte, reissueLen)
-	copy(buf[p:], tx.SenderPK[:])
+	copy(buf[p:], r.SenderPK[:])
 	p += crypto.PublicKeySize
-	copy(buf[p:], tx.AssetID[:])
+	copy(buf[p:], r.AssetID[:])
 	p += crypto.DigestSize
-	binary.BigEndian.PutUint64(buf[p:], tx.Quantity)
+	binary.BigEndian.PutUint64(buf[p:], r.Quantity)
 	p += 8
-	PutBool(buf[p:], tx.Reissuable)
+	PutBool(buf[p:], r.Reissuable)
 	p++
-	binary.BigEndian.PutUint64(buf[p:], tx.Fee)
+	binary.BigEndian.PutUint64(buf[p:], r.Fee)
 	p += 8
-	binary.BigEndian.PutUint64(buf[p:], tx.Timestamp)
+	binary.BigEndian.PutUint64(buf[p:], r.Timestamp)
 	return buf, nil
 }
 
-func (tx *Reissue) unmarshalBinary(data []byte) error {
+func (r *Reissue) unmarshalBinary(data []byte) error {
 	if l := len(data); l < reissueLen {
 		return errors.Errorf("%d bytes is not enough for Reissue body, expected not less then %d bytes", l, reissueLen)
 	}
-	copy(tx.SenderPK[:], data[:crypto.PublicKeySize])
+	copy(r.SenderPK[:], data[:crypto.PublicKeySize])
 	data = data[crypto.PublicKeySize:]
-	copy(tx.AssetID[:], data[:crypto.DigestSize])
+	copy(r.AssetID[:], data[:crypto.DigestSize])
 	data = data[crypto.DigestSize:]
-	tx.Quantity = binary.BigEndian.Uint64(data)
+	r.Quantity = binary.BigEndian.Uint64(data)
 	data = data[8:]
 	var err error
-	tx.Reissuable, err = Bool(data)
+	r.Reissuable, err = Bool(data)
 	if err != nil {
 		return errors.Wrap(err, "failed to unmarshal Reissuable")
 	}
 	data = data[1:]
-	tx.Fee = binary.BigEndian.Uint64(data)
+	r.Fee = binary.BigEndian.Uint64(data)
 	data = data[8:]
-	tx.Timestamp = binary.BigEndian.Uint64(data)
+	r.Timestamp = binary.BigEndian.Uint64(data)
 	return nil
 }
 
@@ -636,14 +768,17 @@ type Burn struct {
 	Fee       uint64           `json:"fee"`
 }
 
-func newBurn(senderPK crypto.PublicKey, assetID crypto.Digest, amount, timestamp, fee uint64) (*Burn, error) {
-	if amount <= 0 {
-		return nil, errors.New("amount should be positive")
+func (b Burn) Valid() (bool, error) {
+	if !validJVMLong(b.Amount) {
+		return false, errors.New("amount is too big")
 	}
-	if fee <= 0 {
-		return nil, errors.New("fee should be positive")
+	if b.Fee <= 0 {
+		return false, errors.New("fee should be positive")
 	}
-	return &Burn{SenderPK: senderPK, AssetID: assetID, Amount: amount, Timestamp: timestamp, Fee: fee}, nil
+	if !validJVMLong(b.Fee) {
+		return false, errors.New("fee is too big")
+	}
+	return true, nil
 }
 
 func (b *Burn) marshalBinary() ([]byte, error) {
@@ -685,17 +820,27 @@ type Lease struct {
 	Timestamp uint64           `json:"timestamp,omitempty"`
 }
 
-func newLease(senderPK crypto.PublicKey, recipient Address, amount, fee, timestamp uint64) (*Lease, error) {
-	if ok, err := recipient.Validate(); !ok {
-		return nil, errors.Wrap(err, "failed to create new unsigned Lease transaction")
+func (l Lease) Valid() (bool, error) {
+	if ok, err := l.Recipient.Valid(); !ok {
+		return false, errors.Wrap(err, "failed to create new unsigned Lease transaction")
 	}
-	if amount <= 0 {
-		return nil, errors.New("amount should be positive")
+	if l.Amount <= 0 {
+		return false, errors.New("amount should be positive")
 	}
-	if fee <= 0 {
-		return nil, errors.New("fee should be positive")
+	if !validJVMLong(l.Amount) {
+		return false, errors.New("amount is too big")
 	}
-	return &Lease{SenderPK: senderPK, Recipient: NewRecipientFromAddress(recipient), Amount: amount, Fee: fee, Timestamp: timestamp}, nil
+	if l.Fee <= 0 {
+		return false, errors.New("fee should be positive")
+	}
+	if !validJVMLong(l.Fee) {
+		return false, errors.New("fee is too big")
+	}
+	if !validJVMLong(l.Amount + l.Fee) {
+		return false, errors.New("sum of amount and fee overflows JVM long")
+	}
+	//TODO: check that sender and recipient is not the same
+	return true, nil
 }
 
 func (l *Lease) marshalBinary() ([]byte, error) {
@@ -744,11 +889,14 @@ type LeaseCancel struct {
 	Timestamp uint64           `json:"timestamp,omitempty"`
 }
 
-func newLeaseCancel(senderPK crypto.PublicKey, leaseID crypto.Digest, fee, timestamp uint64) (*LeaseCancel, error) {
-	if fee <= 0 {
-		return nil, errors.New("fee should be positive")
+func (lc LeaseCancel) Valid() (bool, error) {
+	if lc.Fee <= 0 {
+		return false, errors.New("fee should be positive")
 	}
-	return &LeaseCancel{SenderPK: senderPK, LeaseID: leaseID, Fee: fee, Timestamp: timestamp}, nil
+	if !validJVMLong(lc.Fee) {
+		return false, errors.New("fee is too big")
+	}
+	return true, nil
 }
 
 func (lc *LeaseCancel) marshalBinary() ([]byte, error) {
@@ -785,11 +933,18 @@ type CreateAlias struct {
 	Timestamp uint64           `json:"timestamp,omitempty"`
 }
 
-func newCreateAlias(senderPK crypto.PublicKey, alias Alias, fee, timestamp uint64) (*CreateAlias, error) {
-	if fee <= 0 {
-		return nil, errors.New("fee should be positive")
+func (ca CreateAlias) Valid() (bool, error) {
+	if ca.Fee <= 0 {
+		return false, errors.New("fee should be positive")
 	}
-	return &CreateAlias{SenderPK: senderPK, Alias: alias, Fee: fee, Timestamp: timestamp}, nil
+	if !validJVMLong(ca.Fee) {
+		return false, errors.New("fee is too big")
+	}
+	ok, err := ca.Alias.Valid()
+	if !ok {
+		return false, err
+	}
+	return true, nil
 }
 
 func (ca *CreateAlias) marshalBinary() ([]byte, error) {
@@ -845,4 +1000,8 @@ func (ca *CreateAlias) id() (*crypto.Digest, error) {
 		return nil, errors.Wrap(err, "failed to get CreateAlias transaction ID")
 	}
 	return &d, err
+}
+
+func validJVMLong(x uint64) bool {
+	return x >= 0 && x <= maxLongValue
 }

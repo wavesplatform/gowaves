@@ -3,13 +3,12 @@ package proto
 import (
 	"encoding/binary"
 	"encoding/json"
-
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 )
 
 const (
-	issueV1FixedBodyLen          = 1 + crypto.PublicKeySize + 2 + 2 + 8 + 1 + 1 + 8 + 8
+	issueV1FixedBodyLen          = 1 + issueLen
 	issueV1MinBodyLen            = issueV1FixedBodyLen + 4 // 4 because of the shortest allowed Asset name of 4 bytes
 	issueV1MinLen                = 1 + crypto.SignatureSize + issueV1MinBodyLen
 	transferV1FixedBodyLen       = 1 + transferLen
@@ -39,136 +38,105 @@ const (
 	setAssetScriptV1MinLen       = 1 + setScriptV1FixedBodyLen + proofsMinLen
 	invokeScriptV1FixedBodyLen   = 1 + 1 + 1 + crypto.PublicKeySize + AddressSize + 8 + 8
 	invokeScriptV1MinLen         = 1 + invokeScriptV1FixedBodyLen + proofsMinLen
+	maxTransfers                 = 100
+	maxEntries                   = 100
+	maxDataV1Bytes               = 150 * 1024
+	maxArguments                 = 22
+	maxFunctionNameBytes         = 255
+	maxInvokeScriptV1Bytes       = 5 * 1024
 )
 
 //IssueV1 transaction is a transaction to issue new asset.
 type IssueV1 struct {
-	Type        TransactionType   `json:"type"`
-	Version     byte              `json:"version,omitempty"`
-	ID          *crypto.Digest    `json:"id,omitempty"`
-	Signature   *crypto.Signature `json:"signature,omitempty"`
-	SenderPK    crypto.PublicKey  `json:"senderPublicKey"`
-	Name        string            `json:"name"`
-	Description string            `json:"description"`
-	Quantity    uint64            `json:"quantity"`
-	Decimals    byte              `json:"decimals"`
-	Reissuable  bool              `json:"reissuable"`
-	Timestamp   uint64            `json:"timestamp,omitempty"`
-	Fee         uint64            `json:"fee"`
+	Type      TransactionType   `json:"type"`
+	Version   byte              `json:"version,omitempty"`
+	ID        *crypto.Digest    `json:"id,omitempty"`
+	Signature *crypto.Signature `json:"signature,omitempty"`
+	Issue
 }
 
 func (tx IssueV1) GetID() []byte {
 	return tx.ID.Bytes()
 }
 
-func (tx IssueV1) GetSenderPK() crypto.PublicKey {
-	return tx.SenderPK
-}
-
-func (tx IssueV1) GetName() string {
-	return tx.Name
-}
-
-func (tx IssueV1) GetDescription() string {
-	return tx.Description
-}
-
-func (tx IssueV1) GetQuantity() uint64 {
-	return tx.Quantity
-}
-
-func (tx IssueV1) GetDecimals() byte {
-	return tx.Decimals
-}
-
-func (tx IssueV1) GetReissuable() bool {
-	return tx.Reissuable
-}
-
-func (tx IssueV1) GetScript() Script {
-	return Script{}
-}
-
-func (tx IssueV1) GetTimestamp() uint64 {
-	return tx.Timestamp
-}
-
-func (tx IssueV1) GetFee() uint64 {
-	return tx.Fee
-}
+//func (tx IssueV1) GetSenderPK() crypto.PublicKey {
+//	return tx.SenderPK
+//}
+//
+//func (tx IssueV1) GetName() string {
+//	return tx.Name
+//}
+//
+//func (tx IssueV1) GetDescription() string {
+//	return tx.Description
+//}
+//
+//func (tx IssueV1) GetQuantity() uint64 {
+//	return tx.Quantity
+//}
+//
+//func (tx IssueV1) GetDecimals() byte {
+//	return tx.Decimals
+//}
+//
+//func (tx IssueV1) GetReissuable() bool {
+//	return tx.Reissuable
+//}
+//
+//func (tx IssueV1) GetScript() Script {
+//	return Script{}
+//}
+//
+//func (tx IssueV1) GetTimestamp() uint64 {
+//	return tx.Timestamp
+//}
+//
+//func (tx IssueV1) GetFee() uint64 {
+//	return tx.Fee
+//}
+//TODO: remove this
 
 //NewUnsignedIssueV1 creates new IssueV1 transaction without signature and ID.
-func NewUnsignedIssueV1(senderPK crypto.PublicKey, name, description string, quantity uint64, decimals byte, reissuable bool, timestamp, fee uint64) (*IssueV1, error) {
-	if l := len(name); l < minAssetNameLen || l > maxAssetNameLen {
-		return nil, errors.New("incorrect number of bytes in the asset's name")
+func NewUnsignedIssueV1(senderPK crypto.PublicKey, name, description string, quantity uint64, decimals byte, reissuable bool, timestamp, fee uint64) *IssueV1 {
+	i := Issue{
+		SenderPK:    senderPK,
+		Name:        name,
+		Description: description,
+		Quantity:    quantity,
+		Decimals:    decimals,
+		Reissuable:  reissuable,
+		Timestamp:   timestamp,
+		Fee:         fee,
 	}
-	if l := len(description); l > maxDescriptionLen {
-		return nil, errors.New("incorrect number of bytes in the asset's description")
-	}
-	if quantity <= 0 {
-		return nil, errors.New("quantity should be positive")
-	}
-	if decimals > maxDecimals {
-		return nil, errors.Errorf("incorrect decimals, should be no more then %d", maxDecimals)
-	}
-	if fee <= 0 {
-		return nil, errors.New("fee should be positive")
-	}
-	return &IssueV1{Type: IssueTransaction, Version: 1, SenderPK: senderPK, Name: name, Description: description, Quantity: quantity, Decimals: decimals, Reissuable: reissuable, Timestamp: timestamp, Fee: fee}, nil
+	return &IssueV1{Type: IssueTransaction, Version: 1, Issue: i}
 }
 
 func (tx *IssueV1) bodyMarshalBinary() ([]byte, error) {
-	kl := crypto.PublicKeySize
-	nl := len(tx.Name)
-	dl := len(tx.Description)
-	buf := make([]byte, issueV1FixedBodyLen+nl+dl)
+	b, err := tx.Issue.marshalBinary()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to marshal IssueV1 body")
+	}
+	buf := make([]byte, 1+len(b))
 	buf[0] = byte(tx.Type)
-	copy(buf[1:], tx.SenderPK[:])
-	PutStringWithUInt16Len(buf[1+kl:], tx.Name)
-	PutStringWithUInt16Len(buf[3+kl+nl:], tx.Description)
-	binary.BigEndian.PutUint64(buf[5+kl+nl+dl:], tx.Quantity)
-	buf[13+kl+nl+dl] = tx.Decimals
-	PutBool(buf[14+kl+nl+dl:], tx.Reissuable)
-	binary.BigEndian.PutUint64(buf[15+kl+nl+dl:], tx.Fee)
-	binary.BigEndian.PutUint64(buf[23+kl+nl+dl:], tx.Timestamp)
+	copy(buf[1:], b)
 	return buf, nil
 }
 
 func (tx *IssueV1) bodyUnmarshalBinary(data []byte) error {
-	tx.Type = TransactionType(data[0])
-	tx.Version = 1
-	if l := len(data); l < issueV1MinBodyLen {
-		return errors.Errorf("not enough data for IssueV1 transaction %d, expected not less then %d", l, issueV1MinBodyLen)
+	if l := len(data); l < issueV1FixedBodyLen {
+		return errors.Errorf("%d bytes is not enough for IssueV1 transaction, expected not less then %d bytes", l, issueV1FixedBodyLen)
 	}
+	tx.Type = TransactionType(data[0])
 	if tx.Type != IssueTransaction {
 		return errors.Errorf("unexpected transaction type %d for IssueV1 transaction", tx.Type)
 	}
-	data = data[1:]
-	copy(tx.SenderPK[:], data[:crypto.PublicKeySize])
-	data = data[crypto.PublicKeySize:]
-	var err error
-	tx.Name, err = StringWithUInt16Len(data)
+	tx.Version = 1
+	var i Issue
+	err := i.unmarshalBinary(data[1:])
 	if err != nil {
-		return errors.Wrap(err, "failed to unmarshal AppName")
+		return errors.Wrap(err, "failed to unmarshal IssueV1 body from bytes")
 	}
-	data = data[2+len(tx.Name):]
-	tx.Description, err = StringWithUInt16Len(data)
-	if err != nil {
-		return errors.Wrap(err, "failed to unmarshal Description")
-	}
-	data = data[2+len(tx.Description):]
-	tx.Quantity = binary.BigEndian.Uint64(data)
-	data = data[8:]
-	tx.Decimals = data[0]
-	data = data[1:]
-	tx.Reissuable, err = Bool(data)
-	if err != nil {
-		return errors.Wrap(err, "failed to unmarshal Reissuable")
-	}
-	data = data[1:]
-	tx.Fee = binary.BigEndian.Uint64(data)
-	data = data[8:]
-	tx.Timestamp = binary.BigEndian.Uint64(data)
+	tx.Issue = i
 	return nil
 }
 
@@ -218,7 +186,7 @@ func (tx *IssueV1) MarshalBinary() ([]byte, error) {
 //UnmarshalBinary reads transaction from its binary representation.
 func (tx *IssueV1) UnmarshalBinary(data []byte) error {
 	if l := len(data); l < issueV1MinLen {
-		return errors.Errorf("not enough data for IssueV1 transaction, expected not less then %d, received %d", issueV1MinLen, l)
+		return errors.Errorf("%d is not enough data for IssueV1 transaction, expected not less then %d", l, issueV1MinLen)
 	}
 	if data[0] != byte(IssueTransaction) {
 		return errors.Errorf("incorrect transaction type %d for IssueV1 transaction", data[0])
@@ -254,12 +222,18 @@ func (tx TransferV1) GetID() []byte {
 }
 
 //NewUnsignedTransferV1 creates new TransferV1 transaction without signature and ID.
-func NewUnsignedTransferV1(senderPK crypto.PublicKey, amountAsset, feeAsset OptionalAsset, timestamp, amount, fee uint64, recipient Address, attachment string) (*TransferV1, error) {
-	t, err := newTransfer(senderPK, amountAsset, feeAsset, timestamp, amount, fee, recipient, attachment)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to create TransferV1 transaction")
+func NewUnsignedTransferV1(senderPK crypto.PublicKey, amountAsset, feeAsset OptionalAsset, timestamp, amount, fee uint64, recipient Recipient, attachment string) *TransferV1 {
+	t := Transfer{
+		SenderPK:    senderPK,
+		Recipient:   recipient,
+		AmountAsset: amountAsset,
+		Amount:      amount,
+		FeeAsset:    feeAsset,
+		Fee:         fee,
+		Timestamp:   timestamp,
+		Attachment:  Attachment(attachment),
 	}
-	return &TransferV1{Type: TransferTransaction, Version: 1, Transfer: *t}, nil
+	return &TransferV1{Type: TransferTransaction, Version: 1, Transfer: t}
 }
 
 func (tx *TransferV1) bodyMarshalBinary() ([]byte, error) {
@@ -373,12 +347,16 @@ func (tx ReissueV1) GetID() []byte {
 }
 
 //NewUnsignedReissueV1 creates new ReissueV1 transaction without signature and ID.
-func NewUnsignedReissueV1(senderPK crypto.PublicKey, assetID crypto.Digest, quantity uint64, reissuable bool, timestamp, fee uint64) (*ReissueV1, error) {
-	r, err := newReissue(senderPK, assetID, quantity, reissuable, timestamp, fee)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to create ReissueV1 transaction")
+func NewUnsignedReissueV1(senderPK crypto.PublicKey, assetID crypto.Digest, quantity uint64, reissuable bool, timestamp, fee uint64) *ReissueV1 {
+	r := Reissue{
+		SenderPK:   senderPK,
+		AssetID:    assetID,
+		Quantity:   quantity,
+		Reissuable: reissuable,
+		Fee:        fee,
+		Timestamp:  timestamp,
 	}
-	return &ReissueV1{Type: ReissueTransaction, Version: 1, Reissue: *r}, nil
+	return &ReissueV1{Type: ReissueTransaction, Version: 1, Reissue: r}
 }
 
 func (tx *ReissueV1) bodyMarshalBinary() ([]byte, error) {
@@ -493,12 +471,15 @@ func (tx BurnV1) GetID() []byte {
 }
 
 //NewUnsignedBurnV1 creates new BurnV1 transaction with no signature and ID.
-func NewUnsignedBurnV1(senderPK crypto.PublicKey, assetID crypto.Digest, amount, timestamp, fee uint64) (*BurnV1, error) {
-	b, err := newBurn(senderPK, assetID, amount, timestamp, fee)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to create BurnV1 transaction")
+func NewUnsignedBurnV1(senderPK crypto.PublicKey, assetID crypto.Digest, amount, timestamp, fee uint64) *BurnV1 {
+	b := Burn{
+		SenderPK:  senderPK,
+		AssetID:   assetID,
+		Amount:    amount,
+		Fee:       fee,
+		Timestamp: timestamp,
 	}
-	return &BurnV1{Type: BurnTransaction, Version: 1, Burn: *b}, nil
+	return &BurnV1{Type: BurnTransaction, Version: 1, Burn: b}
 }
 
 func (tx *BurnV1) bodyMarshalBinary() ([]byte, error) {
@@ -646,29 +627,89 @@ func (tx ExchangeV1) GetTimestamp() uint64 {
 	return tx.Timestamp
 }
 
-func NewUnsignedExchangeV1(buy, sell OrderV1, price, amount, buyMatcherFee, sellMatcherFee, fee, timestamp uint64) (*ExchangeV1, error) {
-	if buy.Signature == nil {
-		return nil, errors.New("buy order should be signed")
+func NewUnsignedExchangeV1(buy, sell OrderV1, price, amount, buyMatcherFee, sellMatcherFee, fee, timestamp uint64) *ExchangeV1 {
+	return &ExchangeV1{
+		Type:           ExchangeTransaction,
+		Version:        1,
+		SenderPK:       buy.MatcherPK,
+		BuyOrder:       buy,
+		SellOrder:      sell,
+		Price:          price,
+		Amount:         amount,
+		BuyMatcherFee:  buyMatcherFee,
+		SellMatcherFee: sellMatcherFee,
+		Fee:            fee,
+		Timestamp:      timestamp,
 	}
-	if sell.Signature == nil {
-		return nil, errors.New("sell order should be signed")
+}
+
+func (tx ExchangeV1) Valid() (bool, error) {
+	ok, err := tx.BuyOrder.Valid()
+	if !ok {
+		return false, errors.Wrap(err, "invalid buy order")
 	}
-	if amount <= 0 {
-		return nil, errors.New("amount should be positive")
+	ok, err = tx.SellOrder.Valid()
+	if !ok {
+		return false, errors.Wrap(err, "invalid sell order")
 	}
-	if price <= 0 {
-		return nil, errors.New("price should be positive")
+	if tx.BuyOrder.OrderType != Buy {
+		return false, errors.New("incorrect order type of buy order")
 	}
-	if buyMatcherFee <= 0 {
-		return nil, errors.New("buy matcher's fee should be positive")
+	if tx.SellOrder.OrderType != Sell {
+		return false, errors.New("incorrect order type of sell order")
 	}
-	if sellMatcherFee <= 0 {
-		return nil, errors.New("sell matcher's fee should be positive")
+	if tx.SellOrder.MatcherPK != tx.BuyOrder.MatcherPK {
+		return false, errors.New("unmatched matcher's public keys")
 	}
-	if fee <= 0 {
-		return nil, errors.New("fee should be positive")
+	if tx.SellOrder.AssetPair != tx.BuyOrder.AssetPair {
+		return false, errors.New("different asset pairs")
 	}
-	return &ExchangeV1{Type: ExchangeTransaction, Version: 1, SenderPK: buy.MatcherPK, BuyOrder: buy, SellOrder: sell, Price: price, Amount: amount, BuyMatcherFee: buyMatcherFee, SellMatcherFee: sellMatcherFee, Fee: fee, Timestamp: timestamp}, nil
+	if tx.Amount <= 0 {
+		return false, errors.New("amount should be positive")
+	}
+	if !validJVMLong(tx.Amount) {
+		return false, errors.New("amount is too big")
+	}
+	if tx.Price <= 0 {
+		return false, errors.New("price should be positive")
+	}
+	if !validJVMLong(tx.Price) {
+		return false, errors.New("price is too big")
+	}
+	if tx.Price > tx.BuyOrder.Price || tx.Price < tx.SellOrder.Price {
+		return false, errors.New("invalid price")
+	}
+	if tx.Fee <= 0 {
+		return false, errors.New("fee should be positive")
+	}
+	if !validJVMLong(tx.Fee) {
+		return false, errors.New("fee is too big")
+	}
+	if tx.BuyMatcherFee <= 0 {
+		return false, errors.New("buy matcher's fee should be positive")
+	}
+	if !validJVMLong(tx.BuyMatcherFee) {
+		return false, errors.New("buy matcher's fee is too big")
+	}
+	if tx.SellMatcherFee <= 0 {
+		return false, errors.New("sell matcher's fee should be positive")
+	}
+	if !validJVMLong(tx.SellMatcherFee) {
+		return false, errors.New("sell matcher's fee is too big")
+	}
+	if tx.BuyOrder.Expiration < tx.Timestamp {
+		return false, errors.New("invalid buy order expiration")
+	}
+	if tx.BuyOrder.Expiration-tx.Timestamp > MaxOrderTTL {
+		return false, errors.New("buy order expiration should be earlier than 30 days")
+	}
+	if tx.SellOrder.Expiration < tx.Timestamp {
+		return false, errors.New("invalid sell order expiration")
+	}
+	if tx.SellOrder.Expiration-tx.Timestamp > MaxOrderTTL {
+		return false, errors.New("sell order expiration should be earlier than 30 days")
+	}
+	return true, nil
 }
 
 func (tx *ExchangeV1) bodyMarshalBinary() ([]byte, error) {
@@ -833,12 +874,15 @@ func (tx LeaseV1) GetID() []byte {
 }
 
 //NewUnsignedLeaseV1 creates new LeaseV1 transaction without signature and ID set.
-func NewUnsignedLeaseV1(senderPK crypto.PublicKey, recipient Address, amount, fee, timestamp uint64) (*LeaseV1, error) {
-	l, err := newLease(senderPK, recipient, amount, fee, timestamp)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to create LeaseV1 transaction")
+func NewUnsignedLeaseV1(senderPK crypto.PublicKey, recipient Recipient, amount, fee, timestamp uint64) *LeaseV1 {
+	l := Lease{
+		SenderPK:  senderPK,
+		Recipient: recipient,
+		Amount:    amount,
+		Fee:       fee,
+		Timestamp: timestamp,
 	}
-	return &LeaseV1{Type: LeaseTransaction, Version: 1, Lease: *l}, nil
+	return &LeaseV1{Type: LeaseTransaction, Version: 1, Lease: l}
 }
 
 func (tx *LeaseV1) bodyMarshalBinary() ([]byte, error) {
@@ -952,12 +996,14 @@ func (tx LeaseCancelV1) GetID() []byte {
 }
 
 //NewUnsignedLeaseCancelV1 creates new LeaseCancelV1 transaction structure without a signature and an ID.
-func NewUnsignedLeaseCancelV1(senderPK crypto.PublicKey, leaseID crypto.Digest, fee, timestamp uint64) (*LeaseCancelV1, error) {
-	lc, err := newLeaseCancel(senderPK, leaseID, fee, timestamp)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to create LeaseCancelV1 transaction")
+func NewUnsignedLeaseCancelV1(senderPK crypto.PublicKey, leaseID crypto.Digest, fee, timestamp uint64) *LeaseCancelV1 {
+	lc := LeaseCancel{
+		SenderPK:  senderPK,
+		LeaseID:   leaseID,
+		Fee:       fee,
+		Timestamp: timestamp,
 	}
-	return &LeaseCancelV1{Type: LeaseCancelTransaction, Version: 1, LeaseCancel: *lc}, nil
+	return &LeaseCancelV1{Type: LeaseCancelTransaction, Version: 1, LeaseCancel: lc}
 }
 
 func (tx *LeaseCancelV1) bodyMarshalBinary() ([]byte, error) {
@@ -1066,12 +1112,14 @@ func (tx CreateAliasV1) GetID() []byte {
 	return tx.ID.Bytes()
 }
 
-func NewUnsignedCreateAliasV1(senderPK crypto.PublicKey, alias Alias, fee, timestamp uint64) (*CreateAliasV1, error) {
-	ca, err := newCreateAlias(senderPK, alias, fee, timestamp)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to create CreateAliasV1 transaction")
+func NewUnsignedCreateAliasV1(senderPK crypto.PublicKey, alias Alias, fee, timestamp uint64) *CreateAliasV1 {
+	ca := CreateAlias{
+		SenderPK:  senderPK,
+		Alias:     alias,
+		Fee:       fee,
+		Timestamp: timestamp,
 	}
-	return &CreateAliasV1{Type: CreateAliasTransaction, Version: 1, CreateAlias: *ca}, nil
+	return &CreateAliasV1{Type: CreateAliasTransaction, Version: 1, CreateAlias: ca}
 }
 
 func (tx *CreateAliasV1) bodyMarshalBinary() ([]byte, error) {
@@ -1237,22 +1285,34 @@ func (tx MassTransferV1) GetID() []byte {
 }
 
 //NewUnsignedMassTransferV1 creates new MassTransferV1 transaction structure without signature and ID.
-func NewUnsignedMassTransferV1(senderPK crypto.PublicKey, asset OptionalAsset, transfers []MassTransferEntry, fee, timestamp uint64, attachment string) (*MassTransferV1, error) {
-	if len(transfers) == 0 {
-		return nil, errors.New("empty transfers")
+func NewUnsignedMassTransferV1(senderPK crypto.PublicKey, asset OptionalAsset, transfers []MassTransferEntry, fee, timestamp uint64, attachment string) *MassTransferV1 {
+	return &MassTransferV1{Type: MassTransferTransaction, Version: 1, SenderPK: senderPK, Asset: asset, Transfers: transfers, Fee: fee, Timestamp: timestamp, Attachment: Attachment(attachment)}
+}
+
+func (tx MassTransferV1) Valid() (bool, error) {
+	if len(tx.Transfers) > maxTransfers {
+		return false, errors.Errorf("number of transfers is greater than %d", maxTransfers)
 	}
-	for _, t := range transfers {
-		if t.Amount <= 0 {
-			return nil, errors.New("at least one of the transfers has non-positive amount")
+	if tx.Fee <= 0 {
+		return false, errors.New("fee should be positive")
+	}
+	if !validJVMLong(tx.Fee) {
+		return false, errors.New("fee is too big")
+	}
+	total := tx.Fee
+	for _, t := range tx.Transfers {
+		if !validJVMLong(t.Amount) {
+			return false, errors.New("at least one of the transfers amount is bigger than JVM long")
+		}
+		total += t.Amount
+		if !validJVMLong(total) {
+			return false, errors.New("sum of amounts of transfers and transaction fee is bigger than JVM long")
 		}
 	}
-	if fee <= 0 {
-		return nil, errors.New("fee should be positive")
+	if len(tx.Attachment) > maxAttachmentLengthBytes {
+		return false, errors.New("attachment too long")
 	}
-	if len(attachment) > maxAttachmentLengthBytes {
-		return nil, errors.New("attachment too long")
-	}
-	return &MassTransferV1{Type: MassTransferTransaction, Version: 1, SenderPK: senderPK, Asset: asset, Transfers: transfers, Fee: fee, Timestamp: timestamp, Attachment: Attachment(attachment)}, nil
+	return true, nil
 }
 
 func (tx *MassTransferV1) bodyAndAssetLen() (int, int) {
@@ -1449,11 +1509,38 @@ func (tx DataV1) GetID() []byte {
 }
 
 //NewUnsignedData creates new Data transaction without proofs.
-func NewUnsignedData(senderPK crypto.PublicKey, fee, timestamp uint64) (*DataV1, error) {
-	if fee <= 0 {
-		return nil, errors.New("fee should be positive")
+func NewUnsignedData(senderPK crypto.PublicKey, fee, timestamp uint64) *DataV1 {
+	return &DataV1{Type: DataTransaction, Version: 1, SenderPK: senderPK, Fee: fee, Timestamp: timestamp}
+}
+
+func (tx DataV1) Valid() (bool, error) {
+	if len(tx.Entries) > maxEntries {
+		return false, errors.Errorf("number of DataV1 entries is bigger than %d", maxEntries)
 	}
-	return &DataV1{Type: DataTransaction, Version: 1, SenderPK: senderPK, Fee: fee, Timestamp: timestamp}, nil
+	keys := make(map[string]struct{})
+	size := dataV1FixedBodyLen + tx.Proofs.binarySize()
+	for _, e := range tx.Entries {
+		ok, err := e.Valid()
+		if !ok {
+			return false, errors.Wrap(err, "at least one of the DataV1 entry is not valid")
+		}
+		_, ok = keys[e.GetKey()]
+		if ok {
+			return false, errors.New("duplicate keys")
+		}
+		keys[e.GetKey()] = struct{}{}
+		size += e.binarySize()
+	}
+	if size > maxDataV1Bytes {
+		return false, errors.Errorf("total size of DataV1 transaction is bigger than %d bytes", maxDataV1Bytes)
+	}
+	if tx.Fee <= 0 {
+		return false, errors.New("fee should be positive")
+	}
+	if !validJVMLong(tx.Fee) {
+		return false, errors.New("fee is too big")
+	}
+	return true, nil
 }
 
 //AppendEntry adds the entry to the transaction.
@@ -1597,7 +1684,7 @@ func (tx *DataV1) Sign(secretKey crypto.SecretKey) error {
 	return nil
 }
 
-//Verify chechs that the signature is valid for the given public key.
+//Verify checks that the signature is valid for the given public key.
 func (tx *DataV1) Verify(publicKey crypto.PublicKey) (bool, error) {
 	b, err := tx.BodyMarshalBinary()
 	if err != nil {
@@ -1675,11 +1762,18 @@ func (tx SetScriptV1) GetID() []byte {
 }
 
 //NewUnsignedSetScriptV1 creates new unsigned SetScriptV1 transaction.
-func NewUnsignedSetScriptV1(chain byte, senderPK crypto.PublicKey, script []byte, fee, timestamp uint64) (*SetScriptV1, error) {
-	if fee <= 0 {
-		return nil, errors.New("fee should be positive")
+func NewUnsignedSetScriptV1(chain byte, senderPK crypto.PublicKey, script []byte, fee, timestamp uint64) *SetScriptV1 {
+	return &SetScriptV1{Type: SetScriptTransaction, Version: 1, ChainID: chain, SenderPK: senderPK, Script: script, Fee: fee, Timestamp: timestamp}
+}
+
+func (tx SetScriptV1) Valid() (bool, error) {
+	if tx.Fee <= 0 {
+		return false, errors.New("fee should be positive")
 	}
-	return &SetScriptV1{Type: SetScriptTransaction, Version: 1, ChainID: chain, SenderPK: senderPK, Script: script, Fee: fee, Timestamp: timestamp}, nil
+	if !validJVMLong(tx.Fee) {
+		return false, errors.New("fee is too big")
+	}
+	return true, nil
 }
 
 //NonEmptyScript returns true if transaction contains non-empty script.
@@ -1851,11 +1945,21 @@ func (tx SponsorshipV1) GetID() []byte {
 }
 
 //NewUnsignedSponsorshipV1 creates new unsigned SponsorshipV1 transaction
-func NewUnsignedSponsorshipV1(senderPK crypto.PublicKey, assetID crypto.Digest, minAssetFee, fee, timestamp uint64) (*SponsorshipV1, error) {
-	if fee <= 0 {
-		return nil, errors.New("fee should be positive")
+func NewUnsignedSponsorshipV1(senderPK crypto.PublicKey, assetID crypto.Digest, minAssetFee, fee, timestamp uint64) *SponsorshipV1 {
+	return &SponsorshipV1{Type: SponsorshipTransaction, Version: 1, SenderPK: senderPK, AssetID: assetID, MinAssetFee: minAssetFee, Fee: fee, Timestamp: timestamp}
+}
+
+func (tx SponsorshipV1) Valid() (bool, error) {
+	if tx.Fee <= 0 {
+		return false, errors.New("fee should be positive")
 	}
-	return &SponsorshipV1{Type: SponsorshipTransaction, Version: 1, SenderPK: senderPK, AssetID: assetID, MinAssetFee: minAssetFee, Fee: fee, Timestamp: timestamp}, nil
+	if !validJVMLong(tx.Fee) {
+		return false, errors.New("fee is too big")
+	}
+	if !validJVMLong(tx.MinAssetFee) {
+		return false, errors.New("min asset fee is too big")
+	}
+	return true, nil
 }
 
 func (tx *SponsorshipV1) bodyMarshalBinary() ([]byte, error) {
@@ -2012,11 +2116,19 @@ func (tx SetAssetScriptV1) GetID() []byte {
 }
 
 //NewUnsignedSetAssetScriptV1 creates new unsigned SetAssetScriptV1 transaction.
-func NewUnsignedSetAssetScriptV1(chain byte, senderPK crypto.PublicKey, assetID crypto.Digest, script []byte, fee, timestamp uint64) (*SetAssetScriptV1, error) {
-	if fee <= 0 {
-		return nil, errors.New("fee should be positive")
+func NewUnsignedSetAssetScriptV1(chain byte, senderPK crypto.PublicKey, assetID crypto.Digest, script []byte, fee, timestamp uint64) *SetAssetScriptV1 {
+	return &SetAssetScriptV1{Type: SetAssetScriptTransaction, Version: 1, ChainID: chain, SenderPK: senderPK, AssetID: assetID, Script: script, Fee: fee, Timestamp: timestamp}
+}
+
+func (tx SetAssetScriptV1) Valid() (bool, error) {
+	if tx.Fee <= 0 {
+		return false, errors.New("fee should be positive")
 	}
-	return &SetAssetScriptV1{Type: SetAssetScriptTransaction, Version: 1, ChainID: chain, SenderPK: senderPK, AssetID: assetID, Script: script, Fee: fee, Timestamp: timestamp}, nil
+	if !validJVMLong(tx.Fee) {
+		return false, errors.New("fee is too big")
+	}
+	//TODO: validate blockchain scheme and script type
+	return true, nil
 }
 
 //NonEmptyScript returns true if transaction contains non-empty script.
@@ -2195,13 +2307,7 @@ func (tx InvokeScriptV1) GetID() []byte {
 }
 
 //NewUnsignedSetAssetScriptV1 creates new unsigned SetAssetScriptV1 transaction.
-func NewUnsignedInvokeScriptV1(chain byte, senderPK crypto.PublicKey, scriptAddress Address, call FunctionCall, payments ScriptPayments, feeAsset OptionalAsset, fee, timestamp uint64) (*InvokeScriptV1, error) {
-	if fee <= 0 {
-		return nil, errors.New("fee should be positive")
-	}
-	if len(payments) > 1 {
-		return nil, errors.New("no more than one payment is allowed")
-	}
+func NewUnsignedInvokeScriptV1(chain byte, senderPK crypto.PublicKey, scriptAddress Address, call FunctionCall, payments ScriptPayments, feeAsset OptionalAsset, fee, timestamp uint64) *InvokeScriptV1 {
 	return &InvokeScriptV1{
 		Type:          InvokeScriptTransaction,
 		Version:       1,
@@ -2213,7 +2319,44 @@ func NewUnsignedInvokeScriptV1(chain byte, senderPK crypto.PublicKey, scriptAddr
 		FeeAsset:      feeAsset,
 		Fee:           fee,
 		Timestamp:     timestamp,
-	}, nil
+	}
+}
+
+func (tx InvokeScriptV1) Valid() (bool, error) {
+	if tx.Fee <= 0 {
+		return false, errors.New("fee should be positive")
+	}
+	if !validJVMLong(tx.Fee) {
+		return false, errors.New("fee is too big")
+	}
+	if len(tx.FunctionCall.Arguments) > maxArguments {
+		return false, errors.New("too many arguments")
+	}
+	if len(tx.FunctionCall.Name) > maxFunctionNameBytes {
+		return false, errors.New("function name is too big")
+	}
+	if len(tx.Payments) > 1 {
+		return false, errors.New("no more than one payment is allowed")
+	}
+	assets := make(map[OptionalAsset]struct{})
+	for _, p := range tx.Payments {
+		if p.Amount <= 0 {
+			return false, errors.New("at least one payment has a non-positive amount")
+		}
+		if !validJVMLong(p.Amount) {
+			return false, errors.New("at least one payment has a too big amount")
+		}
+		_, ok := assets[p.Asset]
+		if ok {
+			return false, errors.New("duplicate assets")
+		}
+		assets[p.Asset] = struct{}{}
+	}
+	//TODO: check blockchain scheme and script type
+	if tx.binarySize() > maxInvokeScriptV1Bytes {
+		return false, errors.New("invoke script transaction is too big")
+	}
+	return true, nil
 }
 
 func (tx *InvokeScriptV1) bodyMarshalBinary() ([]byte, error) {
@@ -2378,4 +2521,8 @@ func (tx *InvokeScriptV1) UnmarshalBinary(data []byte) error {
 	}
 	tx.ID = &id
 	return nil
+}
+
+func (tx *InvokeScriptV1) binarySize() int {
+	return 1 + tx.Proofs.binarySize() + invokeScriptV1FixedBodyLen + tx.FunctionCall.binarySize() + tx.Payments.binarySize() + tx.FeeAsset.binarySize()
 }
