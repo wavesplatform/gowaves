@@ -1,6 +1,7 @@
 package state
 
 import (
+	"bytes"
 	"encoding/binary"
 	"log"
 	"math"
@@ -20,20 +21,20 @@ const (
 
 type balanceProfile struct {
 	balance  uint64
-	leaseIn  uint64
-	leaseOut uint64
+	leaseIn  int64
+	leaseOut int64
 }
 
 func (bp *balanceProfile) effectiveBalance() (uint64, error) {
-	val, err := util.AddInt64(int64(bp.balance), int64(bp.leaseIn))
+	val, err := util.AddInt64(int64(bp.balance), bp.leaseIn)
 	if err != nil {
 		return 0, err
 	}
-	return uint64(val) - bp.leaseOut, nil
+	return uint64(val - bp.leaseOut), nil
 }
 
 func (bp *balanceProfile) spendableBalance() uint64 {
-	return bp.balance - bp.leaseOut
+	return uint64(int64(bp.balance) - bp.leaseOut)
 }
 
 type wavesBalanceRecord struct {
@@ -44,16 +45,23 @@ type wavesBalanceRecord struct {
 func (r *wavesBalanceRecord) marshalBinary() ([]byte, error) {
 	res := make([]byte, 8+8+8+crypto.SignatureSize)
 	binary.BigEndian.PutUint64(res[:8], r.balance)
-	binary.BigEndian.PutUint64(res[8:16], r.leaseIn)
-	binary.BigEndian.PutUint64(res[16:24], r.leaseOut)
+	binary.PutVarint(res[8:16], r.leaseIn)
+	binary.PutVarint(res[16:24], r.leaseOut)
 	copy(res[24:], r.blockID[:])
 	return res, nil
 }
 
 func (r *wavesBalanceRecord) unmarshalBinary(data []byte) error {
 	r.balance = binary.BigEndian.Uint64(data[:8])
-	r.leaseIn = binary.BigEndian.Uint64(data[8:16])
-	r.leaseOut = binary.BigEndian.Uint64(data[16:24])
+	var err error
+	r.leaseIn, err = binary.ReadVarint(bytes.NewReader(data[8:16]))
+	if err != nil {
+		return err
+	}
+	r.leaseOut, err = binary.ReadVarint(bytes.NewReader(data[16:24]))
+	if err != nil {
+		return err
+	}
 	copy(r.blockID[:], data[24:])
 	return nil
 }
@@ -131,6 +139,36 @@ func newBalances(
 	}, nil
 }
 
+func (s *balances) cancelAllLeases() error {
+	iter, err := s.db.NewKeyIterator([]byte{balanceKeyPrefix})
+	if err != nil {
+		return err
+	}
+	defer func() {
+		iter.Release()
+		if err := iter.Error(); err != nil {
+			log.Fatalf("Iterator error: %v", err)
+		}
+	}()
+
+	for iter.Next() {
+		key := iter.Key()
+		if len(key) > wavesBalanceKeySize {
+			continue
+		}
+		r, err := s.wavesRecord(key)
+		if err != nil {
+			return err
+		}
+		r.leaseOut = 0
+		r.leaseIn = 0
+		if err := s.setWavesBalanceImpl(key, r); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (s *balances) wavesAddressesNumber() (uint64, error) {
 	iter, err := s.db.NewKeyIterator([]byte{balanceKeyPrefix})
 	if err != nil {
@@ -149,7 +187,7 @@ func (s *balances) wavesAddressesNumber() (uint64, error) {
 		if len(key) > wavesBalanceKeySize {
 			continue
 		}
-		profile, err := s.wavesBalanceImpl(iter.Key())
+		profile, err := s.wavesBalanceImpl(key)
 		if err != nil {
 			return 0, err
 		}
@@ -252,20 +290,28 @@ func (s *balances) assetBalance(addr proto.Address, asset []byte) (uint64, error
 	return record.balance, nil
 }
 
-func (s *balances) wavesBalanceImpl(key []byte) (*balanceProfile, error) {
+func (s *balances) wavesRecord(key []byte) (*wavesBalanceRecord, error) {
 	last, err := s.lastRecord(key, s.wavesFmt)
 	if err != nil {
-		return &balanceProfile{}, err
+		return nil, err
 	}
 	if last == nil {
 		// No records = unknown address, expected behavior is to return empty profile and no errors in this case.
-		return &balanceProfile{}, nil
+		return &wavesBalanceRecord{}, nil
 	}
 	var record wavesBalanceRecord
 	if err := record.unmarshalBinary(last); err != nil {
-		return &balanceProfile{}, err
+		return nil, err
 	}
-	return &record.balanceProfile, nil
+	return &record, nil
+}
+
+func (s *balances) wavesBalanceImpl(key []byte) (*balanceProfile, error) {
+	r, err := s.wavesRecord(key)
+	if err != nil {
+		return nil, err
+	}
+	return &r.balanceProfile, nil
 }
 
 func (s *balances) wavesBalance(addr proto.Address) (*balanceProfile, error) {
@@ -292,13 +338,17 @@ func (s *balances) setAssetBalance(addr proto.Address, asset []byte, record *ass
 	return s.addRecordToLocalStor(key.bytes(), recordBytes, s.assetFmt, s.assetStor)
 }
 
-func (s *balances) setWavesBalance(addr proto.Address, record *wavesBalanceRecord) error {
-	key := balanceKey{address: addr}
+func (s *balances) setWavesBalanceImpl(key []byte, record *wavesBalanceRecord) error {
 	recordBytes, err := record.marshalBinary()
 	if err != nil {
 		return err
 	}
-	return s.addRecordToLocalStor(key.bytes(), recordBytes, s.wavesFmt, s.wavesStor)
+	return s.addRecordToLocalStor(key, recordBytes, s.wavesFmt, s.wavesStor)
+}
+
+func (s *balances) setWavesBalance(addr proto.Address, record *wavesBalanceRecord) error {
+	key := balanceKey{address: addr}
+	return s.setWavesBalanceImpl(key.bytes(), record)
 }
 
 func (s *balances) reset() {

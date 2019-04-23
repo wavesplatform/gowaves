@@ -20,10 +20,11 @@ const (
 )
 
 type balanceDiff struct {
-	balance  int64
-	leaseIn  int64
-	leaseOut int64
-	blockID  crypto.Signature
+	allowLeasedTransfer bool
+	balance             int64
+	leaseIn             int64
+	leaseOut            int64
+	blockID             crypto.Signature
 }
 
 func (diff *balanceDiff) spendableBalanceDiff() int64 {
@@ -35,21 +36,24 @@ func (diff *balanceDiff) applyTo(profile *balanceProfile) (*balanceProfile, erro
 	if err != nil {
 		return nil, errors.Errorf("failed to add balance and balance diff: %v\n", err)
 	}
-	newLeaseIn, err := util.AddInt64(diff.leaseIn, int64(profile.leaseIn))
+	newLeaseIn, err := util.AddInt64(diff.leaseIn, profile.leaseIn)
 	if err != nil {
 		return nil, errors.Errorf("failed to add leaseIn and leaseIn diff: %v\n", err)
 	}
-	newLeaseOut, err := util.AddInt64(diff.leaseOut, int64(profile.leaseOut))
+	newLeaseOut, err := util.AddInt64(diff.leaseOut, profile.leaseOut)
 	if err != nil {
 		return nil, errors.Errorf("failed to add leaseOut and leaseOut diff: %v\n", err)
 	}
-	if newBalance-newLeaseOut < 0 {
-		return nil, errors.New("negative balance")
+	if newBalance < 0 {
+		return nil, errors.New("negative result balance")
+	}
+	if (newBalance-newLeaseOut < 0) && !diff.allowLeasedTransfer {
+		return nil, errors.New("leased balance is greater than own")
 	}
 	newProfile := &balanceProfile{}
 	newProfile.balance = uint64(newBalance)
-	newProfile.leaseIn = uint64(newLeaseIn)
-	newProfile.leaseOut = uint64(newLeaseOut)
+	newProfile.leaseIn = newLeaseIn
+	newProfile.leaseOut = newLeaseOut
 	return newProfile, nil
 }
 
@@ -72,11 +76,10 @@ type balanceChanges struct {
 	key []byte
 	// Cumulative diffs of blocks transactions.
 	balanceDiffs []balanceDiff
-	// Diff which produces minimal spendable (taking leasing into account) balance value.
+	// minBalanceDiff is diff which produces minimal spendable (taking leasing into account) balance value.
 	// This is needed to check for negative balances.
-	// For blocks when temporary negative balances are possible,
-	// this value is set to the cumulative diff of all block's transactions.
-	minSpendableBalanceDiff int64
+	// For blocks when temporary negative balances are possible, this value is ignored.
+	minBalanceDiff balanceDiff
 }
 
 func (ch *balanceChanges) update(newDiff balanceDiff, checkTempNegative bool) error {
@@ -90,13 +93,15 @@ func (ch *balanceChanges) update(newDiff balanceDiff, checkTempNegative bool) er
 	}
 	if newDiff.blockID != lastDiff.blockID {
 		ch.balanceDiffs = append(ch.balanceDiffs, newDiff)
-	} else {
+	} else if last >= 0 {
 		ch.balanceDiffs[last] = newDiff
+	} else {
+		return errors.New("empty balance diffs slice and can not append the first diff")
 	}
 	if checkTempNegative {
-		// Check every tx, minSpendableBalanceDiff will have mimimum diff value among all txs at the end.
-		if newDiff.spendableBalanceDiff() < ch.minSpendableBalanceDiff {
-			ch.minSpendableBalanceDiff = newDiff.spendableBalanceDiff()
+		// Check every tx, minBalanceDiff will have mimimum diff value among all txs at the end.
+		if newDiff.spendableBalanceDiff() < ch.minBalanceDiff.spendableBalanceDiff() {
+			ch.minBalanceDiff = newDiff
 		}
 	}
 	return nil
@@ -164,12 +169,8 @@ func (bs *changesStorage) applyWavesChange(change *balanceChanges) error {
 		return errors.Errorf("failed to retrieve waves balance: %v\n", err)
 	}
 	// Check for negative balance.
-	minBalance, err := util.AddInt64(int64(profile.spendableBalance()), change.minSpendableBalanceDiff)
-	if err != nil {
-		return errors.Errorf("failed to add balances: %v\n", err)
-	}
-	if minBalance < 0 {
-		return errors.New("validation failed: negative balance")
+	if _, err := change.minBalanceDiff.applyTo(profile); err != nil {
+		return errors.Errorf("minimum balance diff produces invalid result: %v\n", err)
 	}
 	for _, diff := range change.balanceDiffs {
 		newProfile, err := diff.applyTo(profile)
@@ -194,7 +195,7 @@ func (bs *changesStorage) applyAssetChange(change *balanceChanges) error {
 		return errors.Errorf("failed to retrieve asset balance: %v\n", err)
 	}
 	// Check for negative balance.
-	minBalance, err := util.AddInt64(int64(balance), change.minSpendableBalanceDiff)
+	minBalance, err := util.AddInt64(int64(balance), change.minBalanceDiff.balance)
 	if err != nil {
 		return errors.Errorf("failed to add balances: %v\n", err)
 	}
@@ -300,11 +301,12 @@ func (tv *transactionValidator) checkTimestamps(txTimestamp, blockTimestamp, pre
 	return true, nil
 }
 
-func (tv *transactionValidator) addChange(key []byte, diff balanceDiff, block *proto.Block) (bool, error) {
+func (tv *transactionValidator) addChange(key []byte, diff balanceDiff, block *proto.Block, allowLeasedTransfer bool) (bool, error) {
 	changes, err := tv.changesStor.balanceChanges(key)
 	if err != nil {
 		return false, errors.Wrap(err, "can not retrieve balance changes")
 	}
+	changes.minBalanceDiff.allowLeasedTransfer = allowLeasedTransfer
 	checkTempNegative := tv.checkNegativeBalance(block.Timestamp)
 	if err := changes.update(diff, checkTempNegative); err != nil {
 		return false, errors.Wrap(err, "can not update balance changes")
@@ -319,7 +321,13 @@ type balanceChange struct {
 
 func (tv *transactionValidator) pushChanges(changes []balanceChange, block *proto.Block) error {
 	for _, ch := range changes {
-		if ok, err := tv.addChange(ch.key, ch.diff, block); !ok {
+		allowLeasedTransfer := true
+		if block.Timestamp >= tv.settings.AllowLeasedBalanceTransferUntilTime {
+			allowLeasedTransfer = false
+		}
+		ch.diff.allowLeasedTransfer = allowLeasedTransfer
+		ch.diff.blockID = block.BlockSignature
+		if ok, err := tv.addChange(ch.key, ch.diff, block, allowLeasedTransfer); !ok {
 			return err
 		}
 	}
@@ -335,7 +343,7 @@ func (tv *transactionValidator) validateGenesis(tx *proto.Genesis, block *proto.
 	}
 	key := balanceKey{address: tx.Recipient}
 	receiverBalanceDiff := int64(tx.Amount)
-	if ok, err := tv.addChange(key.bytes(), balanceDiff{balance: receiverBalanceDiff, blockID: block.BlockSignature}, block); !ok {
+	if ok, err := tv.addChange(key.bytes(), balanceDiff{balance: receiverBalanceDiff, blockID: block.BlockSignature}, block, false); !ok {
 		return false, err
 	}
 	return true, nil
@@ -353,11 +361,11 @@ func (tv *transactionValidator) validatePayment(tx *proto.Payment, block, parent
 	}
 	senderKey := balanceKey{address: senderAddr}
 	senderBalanceDiff := -int64(tx.Amount) - int64(tx.Fee)
-	changes[0] = balanceChange{senderKey.bytes(), balanceDiff{balance: senderBalanceDiff, blockID: block.BlockSignature}}
+	changes[0] = balanceChange{senderKey.bytes(), balanceDiff{balance: senderBalanceDiff}}
 	// Update receiver.
 	receiverKey := balanceKey{address: tx.Recipient}
 	receiverBalanceDiff := int64(tx.Amount)
-	changes[1] = balanceChange{receiverKey.bytes(), balanceDiff{balance: receiverBalanceDiff, blockID: block.BlockSignature}}
+	changes[1] = balanceChange{receiverKey.bytes(), balanceDiff{balance: receiverBalanceDiff}}
 	// Update miner.
 	minerAddr, err := proto.NewAddressFromPublicKey(tv.settings.AddressSchemeCharacter, block.GenPublicKey)
 	if err != nil {
@@ -365,7 +373,7 @@ func (tv *transactionValidator) validatePayment(tx *proto.Payment, block, parent
 	}
 	minerKey := balanceKey{address: minerAddr}
 	minerBalanceDiff := int64(tx.Fee)
-	changes[2] = balanceChange{minerKey.bytes(), balanceDiff{balance: minerBalanceDiff, blockID: block.BlockSignature}}
+	changes[2] = balanceChange{minerKey.bytes(), balanceDiff{balance: minerBalanceDiff}}
 	if err := tv.pushChanges(changes, block); err != nil {
 		return false, err
 	}
@@ -401,10 +409,10 @@ func (tv *transactionValidator) validateTransfer(tx *proto.Transfer, block, pare
 	}
 	senderFeeKey := balanceKey{address: senderAddr, asset: tx.FeeAsset.ToID()}
 	senderFeeBalanceDiff := -int64(tx.Fee)
-	changes[0] = balanceChange{senderFeeKey.bytes(), balanceDiff{balance: senderFeeBalanceDiff, blockID: block.BlockSignature}}
+	changes[0] = balanceChange{senderFeeKey.bytes(), balanceDiff{balance: senderFeeBalanceDiff}}
 	senderAmountKey := balanceKey{address: senderAddr, asset: tx.AmountAsset.ToID()}
 	senderAmountBalanceDiff := -int64(tx.Amount)
-	changes[1] = balanceChange{senderAmountKey.bytes(), balanceDiff{balance: senderAmountBalanceDiff, blockID: block.BlockSignature}}
+	changes[1] = balanceChange{senderAmountKey.bytes(), balanceDiff{balance: senderAmountBalanceDiff}}
 	// Update receiver.
 	if tx.Recipient.Address == nil {
 		// TODO support aliases.
@@ -412,7 +420,7 @@ func (tv *transactionValidator) validateTransfer(tx *proto.Transfer, block, pare
 	}
 	receiverKey := balanceKey{address: *tx.Recipient.Address, asset: tx.AmountAsset.ToID()}
 	receiverBalanceDiff := int64(tx.Amount)
-	changes[2] = balanceChange{receiverKey.bytes(), balanceDiff{balance: receiverBalanceDiff, blockID: block.BlockSignature}}
+	changes[2] = balanceChange{receiverKey.bytes(), balanceDiff{balance: receiverBalanceDiff}}
 	// Update miner.
 	minerAddr, err := proto.NewAddressFromPublicKey(tv.settings.AddressSchemeCharacter, block.GenPublicKey)
 	if err != nil {
@@ -420,7 +428,7 @@ func (tv *transactionValidator) validateTransfer(tx *proto.Transfer, block, pare
 	}
 	minerKey := balanceKey{address: minerAddr, asset: tx.FeeAsset.ToID()}
 	minerBalanceDiff := int64(tx.Fee)
-	changes[3] = balanceChange{minerKey.bytes(), balanceDiff{balance: minerBalanceDiff, blockID: block.BlockSignature}}
+	changes[3] = balanceChange{minerKey.bytes(), balanceDiff{balance: minerBalanceDiff}}
 	if err := tv.pushChanges(changes, block); err != nil {
 		return false, err
 	}
@@ -459,10 +467,10 @@ func (tv *transactionValidator) validateIssue(tx proto.Issue, block, parent *pro
 	}
 	senderFeeKey := balanceKey{address: senderAddr}
 	senderFeeBalanceDiff := -int64(tx.GetFee())
-	changes[0] = balanceChange{senderFeeKey.bytes(), balanceDiff{balance: senderFeeBalanceDiff, blockID: block.BlockSignature}}
+	changes[0] = balanceChange{senderFeeKey.bytes(), balanceDiff{balance: senderFeeBalanceDiff}}
 	senderAssetKey := balanceKey{address: senderAddr, asset: assetID[:]}
 	senderAssetBalanceDiff := int64(tx.GetQuantity())
-	changes[1] = balanceChange{senderAssetKey.bytes(), balanceDiff{balance: senderAssetBalanceDiff, blockID: block.BlockSignature}}
+	changes[1] = balanceChange{senderAssetKey.bytes(), balanceDiff{balance: senderAssetBalanceDiff}}
 	// Update miner.
 	minerAddr, err := proto.NewAddressFromPublicKey(tv.settings.AddressSchemeCharacter, block.GenPublicKey)
 	if err != nil {
@@ -470,7 +478,7 @@ func (tv *transactionValidator) validateIssue(tx proto.Issue, block, parent *pro
 	}
 	minerKey := balanceKey{address: minerAddr}
 	minerBalanceDiff := int64(tx.GetFee())
-	changes[2] = balanceChange{minerKey.bytes(), balanceDiff{balance: minerBalanceDiff, blockID: block.BlockSignature}}
+	changes[2] = balanceChange{minerKey.bytes(), balanceDiff{balance: minerBalanceDiff}}
 	if err := tv.pushChanges(changes, block); err != nil {
 		return false, err
 	}
@@ -506,10 +514,10 @@ func (tv *transactionValidator) validateReissue(tx *proto.Reissue, block, parent
 	}
 	senderFeeKey := balanceKey{address: senderAddr}
 	senderFeeBalanceDiff := -int64(tx.Fee)
-	changes[0] = balanceChange{senderFeeKey.bytes(), balanceDiff{balance: senderFeeBalanceDiff, blockID: block.BlockSignature}}
+	changes[0] = balanceChange{senderFeeKey.bytes(), balanceDiff{balance: senderFeeBalanceDiff}}
 	senderAssetKey := balanceKey{address: senderAddr, asset: tx.AssetID[:]}
 	senderAssetBalanceDiff := int64(tx.Quantity)
-	changes[1] = balanceChange{senderAssetKey.bytes(), balanceDiff{balance: senderAssetBalanceDiff, blockID: block.BlockSignature}}
+	changes[1] = balanceChange{senderAssetKey.bytes(), balanceDiff{balance: senderAssetBalanceDiff}}
 	// Update miner.
 	minerAddr, err := proto.NewAddressFromPublicKey(tv.settings.AddressSchemeCharacter, block.GenPublicKey)
 	if err != nil {
@@ -517,7 +525,7 @@ func (tv *transactionValidator) validateReissue(tx *proto.Reissue, block, parent
 	}
 	minerKey := balanceKey{address: minerAddr}
 	minerBalanceDiff := int64(tx.Fee)
-	changes[2] = balanceChange{minerKey.bytes(), balanceDiff{balance: minerBalanceDiff, blockID: block.BlockSignature}}
+	changes[2] = balanceChange{minerKey.bytes(), balanceDiff{balance: minerBalanceDiff}}
 	if err := tv.pushChanges(changes, block); err != nil {
 		return false, err
 	}
@@ -544,10 +552,10 @@ func (tv *transactionValidator) validateBurn(tx *proto.Burn, block, parent *prot
 	}
 	senderFeeKey := balanceKey{address: senderAddr}
 	senderFeeBalanceDiff := -int64(tx.Fee)
-	changes[0] = balanceChange{senderFeeKey.bytes(), balanceDiff{balance: senderFeeBalanceDiff, blockID: block.BlockSignature}}
+	changes[0] = balanceChange{senderFeeKey.bytes(), balanceDiff{balance: senderFeeBalanceDiff}}
 	senderAssetKey := balanceKey{address: senderAddr, asset: tx.AssetID[:]}
 	senderAssetBalanceDiff := -int64(tx.Amount)
-	changes[1] = balanceChange{senderAssetKey.bytes(), balanceDiff{balance: senderAssetBalanceDiff, blockID: block.BlockSignature}}
+	changes[1] = balanceChange{senderAssetKey.bytes(), balanceDiff{balance: senderAssetBalanceDiff}}
 	// Update miner.
 	minerAddr, err := proto.NewAddressFromPublicKey(tv.settings.AddressSchemeCharacter, block.GenPublicKey)
 	if err != nil {
@@ -555,7 +563,7 @@ func (tv *transactionValidator) validateBurn(tx *proto.Burn, block, parent *prot
 	}
 	minerKey := balanceKey{address: minerAddr}
 	minerBalanceDiff := int64(tx.Fee)
-	changes[2] = balanceChange{minerKey.bytes(), balanceDiff{balance: minerBalanceDiff, blockID: block.BlockSignature}}
+	changes[2] = balanceChange{minerKey.bytes(), balanceDiff{balance: minerBalanceDiff}}
 	if err := tv.pushChanges(changes, block); err != nil {
 		return false, err
 	}
@@ -599,23 +607,23 @@ func (tv *transactionValidator) validateExchange(tx proto.Exchange, block, paren
 	}
 	changes := make([]balanceChange, 8)
 	senderPriceKey := balanceKey{address: senderAddr, asset: sellOrder.AssetPair.PriceAsset.ToID()}
-	changes[0] = balanceChange{senderPriceKey.bytes(), balanceDiff{balance: priceDiff, blockID: block.BlockSignature}}
+	changes[0] = balanceChange{senderPriceKey.bytes(), balanceDiff{balance: priceDiff}}
 	senderAmountKey := balanceKey{address: senderAddr, asset: sellOrder.AssetPair.AmountAsset.ToID()}
-	changes[1] = balanceChange{senderAmountKey.bytes(), balanceDiff{balance: -amountDiff, blockID: block.BlockSignature}}
+	changes[1] = balanceChange{senderAmountKey.bytes(), balanceDiff{balance: -amountDiff}}
 	senderFeeKey := balanceKey{address: senderAddr}
 	senderFeeDiff := -int64(tx.GetSellMatcherFee())
-	changes[2] = balanceChange{senderFeeKey.bytes(), balanceDiff{balance: senderFeeDiff, blockID: block.BlockSignature}}
+	changes[2] = balanceChange{senderFeeKey.bytes(), balanceDiff{balance: senderFeeDiff}}
 	receiverAddr, err := proto.NewAddressFromPublicKey(tv.settings.AddressSchemeCharacter, buyOrder.SenderPK)
 	if err != nil {
 		return false, err
 	}
 	receiverPriceKey := balanceKey{address: receiverAddr, asset: sellOrder.AssetPair.PriceAsset.ToID()}
-	changes[3] = balanceChange{receiverPriceKey.bytes(), balanceDiff{balance: -priceDiff, blockID: block.BlockSignature}}
+	changes[3] = balanceChange{receiverPriceKey.bytes(), balanceDiff{balance: -priceDiff}}
 	receiverAmountKey := balanceKey{address: receiverAddr, asset: sellOrder.AssetPair.AmountAsset.ToID()}
-	changes[4] = balanceChange{receiverAmountKey.bytes(), balanceDiff{balance: amountDiff, blockID: block.BlockSignature}}
+	changes[4] = balanceChange{receiverAmountKey.bytes(), balanceDiff{balance: amountDiff}}
 	receiverFeeKey := balanceKey{address: receiverAddr}
 	receiverFeeDiff := -int64(tx.GetBuyMatcherFee())
-	changes[5] = balanceChange{receiverFeeKey.bytes(), balanceDiff{balance: receiverFeeDiff, blockID: block.BlockSignature}}
+	changes[5] = balanceChange{receiverFeeKey.bytes(), balanceDiff{balance: receiverFeeDiff}}
 	// Update matcher.
 	matcherAddr, err := proto.NewAddressFromPublicKey(tv.settings.AddressSchemeCharacter, buyOrder.MatcherPK)
 	if err != nil {
@@ -627,7 +635,7 @@ func (tv *transactionValidator) validateExchange(tx proto.Exchange, block, paren
 		return false, err
 	}
 	matcherBalanceDiff := matcherFee - int64(tx.GetFee())
-	changes[6] = balanceChange{matcherKey.bytes(), balanceDiff{balance: matcherBalanceDiff, blockID: block.BlockSignature}}
+	changes[6] = balanceChange{matcherKey.bytes(), balanceDiff{balance: matcherBalanceDiff}}
 	// Update miner.
 	minerAddr, err := proto.NewAddressFromPublicKey(tv.settings.AddressSchemeCharacter, block.GenPublicKey)
 	if err != nil {
@@ -635,7 +643,7 @@ func (tv *transactionValidator) validateExchange(tx proto.Exchange, block, paren
 	}
 	minerKey := balanceKey{address: minerAddr}
 	minerBalanceDiff := int64(tx.GetFee())
-	changes[7] = balanceChange{minerKey.bytes(), balanceDiff{balance: minerBalanceDiff, blockID: block.BlockSignature}}
+	changes[7] = balanceChange{minerKey.bytes(), balanceDiff{balance: minerBalanceDiff}}
 	if err := tv.pushChanges(changes, block); err != nil {
 		return false, err
 	}
@@ -646,7 +654,7 @@ func (tv *transactionValidator) validateLease(tx *proto.Lease, block, parent *pr
 	if ok, err := tv.checkTimestamps(tx.Timestamp, block.Timestamp, parent.Timestamp); !ok {
 		return false, errors.Wrap(err, "invalid timestamp")
 	}
-	changes := make([]balanceChange, 3)
+	changes := make([]balanceChange, 4)
 	// Update sender.
 	senderAddr, err := proto.NewAddressFromPublicKey(tv.settings.AddressSchemeCharacter, tx.SenderPK)
 	if err != nil {
@@ -654,7 +662,9 @@ func (tv *transactionValidator) validateLease(tx *proto.Lease, block, parent *pr
 	}
 	senderKey := balanceKey{address: senderAddr}
 	senderLeaseOutDiff := int64(tx.Amount)
-	changes[0] = balanceChange{senderKey.bytes(), balanceDiff{leaseOut: senderLeaseOutDiff, blockID: block.BlockSignature}}
+	changes[0] = balanceChange{senderKey.bytes(), balanceDiff{leaseOut: senderLeaseOutDiff}}
+	senderFeeDiff := -int64(tx.Fee)
+	changes[1] = balanceChange{senderKey.bytes(), balanceDiff{balance: senderFeeDiff}}
 	// Update receiver.
 	if tx.Recipient.Address == nil {
 		// TODO support aliases.
@@ -662,7 +672,7 @@ func (tv *transactionValidator) validateLease(tx *proto.Lease, block, parent *pr
 	}
 	receiverKey := balanceKey{address: *tx.Recipient.Address}
 	receiverLeaseInDiff := int64(tx.Amount)
-	changes[1] = balanceChange{receiverKey.bytes(), balanceDiff{leaseIn: receiverLeaseInDiff, blockID: block.BlockSignature}}
+	changes[2] = balanceChange{receiverKey.bytes(), balanceDiff{leaseIn: receiverLeaseInDiff}}
 	// Update miner.
 	minerAddr, err := proto.NewAddressFromPublicKey(tv.settings.AddressSchemeCharacter, block.GenPublicKey)
 	if err != nil {
@@ -670,9 +680,12 @@ func (tv *transactionValidator) validateLease(tx *proto.Lease, block, parent *pr
 	}
 	minerKey := balanceKey{address: minerAddr}
 	minerBalanceDiff := int64(tx.Fee)
-	changes[2] = balanceChange{minerKey.bytes(), balanceDiff{balance: minerBalanceDiff, blockID: block.BlockSignature}}
+	changes[3] = balanceChange{minerKey.bytes(), balanceDiff{balance: minerBalanceDiff}}
 	if err := tv.pushChanges(changes, block); err != nil {
 		return false, err
+	}
+	if senderAddr == *tx.Recipient.Address {
+		return false, errors.New("trying to lease money to self")
 	}
 	// Add leasing to lease state.
 	r := &leasingRecord{
@@ -693,28 +706,30 @@ func (tv *transactionValidator) validateLeaseCancel(tx *proto.LeaseCancel, block
 	if err != nil {
 		return false, err
 	}
-	if !l.isActive {
-		return false, errors.Wrap(err, "can not cancel lease which has already been cancelled")
+	if !l.isActive && (block.Timestamp > tv.settings.AllowMultipleLeaseCancelUntilTime) {
+		return false, errors.New("can not cancel lease which has already been cancelled")
 	}
 	senderAddr, err := proto.NewAddressFromPublicKey(tv.settings.AddressSchemeCharacter, tx.SenderPK)
 	if err != nil {
 		return false, err
 	}
-	if l.sender != senderAddr {
-		return false, errors.Wrap(err, "sender of LeaseCancel is not sender of corresponding Lease")
+	if (l.sender != senderAddr) && (block.Timestamp > tv.settings.AllowMultipleLeaseCancelUntilTime) {
+		return false, errors.New("sender of LeaseCancel is not sender of corresponding Lease")
 	}
 	if err := tv.leases.cancelLeasing(tx.LeaseID, block.BlockSignature); err != nil {
 		return false, errors.Wrap(err, "failed to cancel leasing")
 	}
-	changes := make([]balanceChange, 3)
+	changes := make([]balanceChange, 4)
 	// Update sender.
 	senderKey := balanceKey{address: senderAddr}
-	senderLeaseInDiff := int64(l.leaseAmount)
-	changes[0] = balanceChange{senderKey.bytes(), balanceDiff{leaseIn: senderLeaseInDiff, blockID: block.BlockSignature}}
+	senderLeaseOutDiff := -int64(l.leaseAmount)
+	changes[0] = balanceChange{senderKey.bytes(), balanceDiff{leaseOut: senderLeaseOutDiff}}
+	senderFeeDiff := -int64(tx.Fee)
+	changes[1] = balanceChange{senderKey.bytes(), balanceDiff{balance: senderFeeDiff}}
 	// Update receiver.
 	receiverKey := balanceKey{address: l.recipient}
-	receiverLeaseOutDiff := int64(l.leaseAmount)
-	changes[1] = balanceChange{receiverKey.bytes(), balanceDiff{leaseOut: receiverLeaseOutDiff, blockID: block.BlockSignature}}
+	receiverLeaseInDiff := -int64(l.leaseAmount)
+	changes[2] = balanceChange{receiverKey.bytes(), balanceDiff{leaseIn: receiverLeaseInDiff}}
 	// Update miner.
 	minerAddr, err := proto.NewAddressFromPublicKey(tv.settings.AddressSchemeCharacter, block.GenPublicKey)
 	if err != nil {
@@ -722,7 +737,7 @@ func (tv *transactionValidator) validateLeaseCancel(tx *proto.LeaseCancel, block
 	}
 	minerKey := balanceKey{address: minerAddr}
 	minerBalanceDiff := int64(tx.Fee)
-	changes[2] = balanceChange{minerKey.bytes(), balanceDiff{balance: minerBalanceDiff, blockID: block.BlockSignature}}
+	changes[3] = balanceChange{minerKey.bytes(), balanceDiff{balance: minerBalanceDiff}}
 	if err := tv.pushChanges(changes, block); err != nil {
 		return false, err
 	}

@@ -82,7 +82,7 @@ func main() {
 		if err1 != nil {
 			log.Fatalf("Failed to get current height: %v\n", err1)
 		}
-		log.Fatalf("Failed to apply blocks at height %d: %v\n", height, err)
+		log.Fatalf("Failed to apply blocks after height %d: %v\n", height, err)
 	}
 	elapsed := time.Since(start)
 	fmt.Printf("Import took %s\n", elapsed)

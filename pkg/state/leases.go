@@ -2,6 +2,7 @@ package state
 
 import (
 	"encoding/binary"
+	"log"
 
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
@@ -50,7 +51,7 @@ func (l *leasingRecord) unmarshalBinary(data []byte) error {
 }
 
 type leases struct {
-	db      keyvalue.KeyValue
+	db      keyvalue.IterableKeyVal
 	dbBatch keyvalue.Batch
 
 	stor map[string][]byte
@@ -58,7 +59,7 @@ type leases struct {
 }
 
 func newLeases(
-	db keyvalue.KeyValue,
+	db keyvalue.IterableKeyVal,
 	dbBatch keyvalue.Batch,
 	hInfo heightInfo,
 	bInfo blockInfo,
@@ -73,6 +74,46 @@ func newLeases(
 		stor:    make(map[string][]byte),
 		fmt:     fmt,
 	}, nil
+}
+
+func (l *leases) cancelAll() error {
+	leaseIter, err := l.db.NewKeyIterator([]byte{leaseKeyPrefix})
+	if err != nil {
+		return errors.Errorf("failed to create key iterator to cancel leases: %v\n", err)
+	}
+	defer func() {
+		leaseIter.Release()
+		if err := leaseIter.Error(); err != nil {
+			log.Fatalf("Iterator error: %v", err)
+		}
+	}()
+
+	// Iterate all the leases.
+	for leaseIter.Next() {
+		histBytes := leaseIter.Value()
+		histBytes, err = l.fmt.Normalize(histBytes)
+		if err != nil {
+			return errors.Errorf("failed to normalize history: %v\n", err)
+		}
+		lease, err := l.lastRecord(histBytes)
+		if err != nil {
+			return err
+		}
+		if lease.isActive {
+			// Cancel lease.
+			lease.isActive = false
+			leaseBytes, err := lease.marshalBinary()
+			if err != nil {
+				return errors.Errorf("failed to marshal lease: %v\n", err)
+			}
+			history, err := l.fmt.AddRecord(histBytes, leaseBytes)
+			if err != nil {
+				return errors.Errorf("failed to add leasing record to history: %v\n", err)
+			}
+			l.stor[string(leaseIter.Key())] = history
+		}
+	}
+	return nil
 }
 
 func (l *leases) lastRecord(history []byte) (*leasingRecord, error) {

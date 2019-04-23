@@ -60,6 +60,9 @@ type stateManager struct {
 
 	settings *settings.BlockchainSettings
 	cv       *consensus.ConsensusValidator
+
+	// Indicates whether lease cancellations were performed.
+	leasesCl0, leasesCl1, leasesCl2 bool
 }
 
 func newStateManager(dataDir string, params BlockStorageParams, settings *settings.BlockchainSettings) (*stateManager, error) {
@@ -422,6 +425,47 @@ func (s *stateManager) AddOldBlocks(blocks [][]byte) error {
 	return nil
 }
 
+func (s *stateManager) needToCancelLeases(height uint64) bool {
+	switch height {
+	case s.settings.ResetEffectiveBalanceAtHeight:
+		return !s.leasesCl0
+	case s.settings.BlockVersion3AfterHeight:
+		return !s.leasesCl1
+	default:
+		return false
+	}
+}
+
+func (s *stateManager) cancelLeases() error {
+	height, err := s.Height()
+	if err != nil {
+		return err
+	}
+	switch height {
+	case s.settings.ResetEffectiveBalanceAtHeight:
+		s.leasesCl0 = true
+		if err := s.leases.cancelAll(); err != nil {
+			return err
+		}
+		if err := s.balances.cancelAllLeases(); err != nil {
+			return err
+		}
+	case s.settings.BlockVersion3AfterHeight:
+		// TODO: cancel lease overflows.
+		s.leasesCl1 = true
+		return nil
+		//case blockchainFeatures.DataTransaction:
+		// TODO: cancel invalid leaseIn.
+	}
+	if err := s.flush(); err != nil {
+		return err
+	}
+	if err := s.reset(); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (s *stateManager) addBlocks(blocks [][]byte, initialisation bool) error {
 	blocksNumber := len(blocks)
 	parent, err := s.topBlock()
@@ -440,8 +484,15 @@ func (s *stateManager) addBlocks(blocks [][]byte, initialisation bool) error {
 	if err != nil {
 		return StateError{errorType: RetrievalError, originalError: err}
 	}
+	var blocksToFinish [][]byte
 	headers := make([]proto.BlockHeader, blocksNumber)
 	for i, blockBytes := range blocks {
+		curHeight := height + uint64(i)
+		if s.needToCancelLeases(curHeight) {
+			// Need to cancel something, so we split block batch in order to cancel and finish with the rest blocks after.
+			blocksToFinish = blocks[i:]
+			break
+		}
 		block, err := s.unmarshalAndCheck(blockBytes, parent.BlockSignature, initialisation)
 		if err != nil {
 			return StateError{errorType: DeserializationError, originalError: err}
@@ -464,7 +515,7 @@ func (s *stateManager) addBlocks(blocks [][]byte, initialisation bool) error {
 	if err := tv.performTransactions(); err != nil {
 		return StateError{errorType: TxValidationError, originalError: err}
 	}
-	if err := s.cv.ValidateHeaders(headers, height); err != nil {
+	if err := s.cv.ValidateHeaders(headers[:len(headers)-len(blocksToFinish)], height); err != nil {
 		return StateError{errorType: BlockValidationError, originalError: err}
 	}
 	if err := s.flush(); err != nil {
@@ -472,6 +523,13 @@ func (s *stateManager) addBlocks(blocks [][]byte, initialisation bool) error {
 	}
 	if err := s.reset(); err != nil {
 		return StateError{errorType: ModificationError, originalError: err}
+	}
+	if blocksToFinish != nil {
+		// Need to cancel leases due to bugs in historical blockchain.
+		if err := s.cancelLeases(); err != nil {
+			return StateError{errorType: ModificationError, originalError: err}
+		}
+		return s.addBlocks(blocksToFinish, initialisation)
 	}
 	return nil
 }

@@ -69,11 +69,11 @@ type profileChange struct {
 	address      string
 	asset        string
 	prevBalance  uint64
-	prevLeaseIn  uint64
-	prevLeaseOut uint64
+	prevLeaseIn  int64
+	prevLeaseOut int64
 	newBalance   uint64
-	newLeaseIn   uint64
-	newLeaseout  uint64
+	newLeaseIn   int64
+	newLeaseout  int64
 }
 
 func setBalances(t *testing.T, to *testObjects, profileChanges []profileChange) {
