@@ -3,6 +3,7 @@ package state
 import (
 	"encoding/binary"
 	"encoding/json"
+	"log"
 	"math/big"
 	"os"
 	"path/filepath"
@@ -531,6 +532,7 @@ func (s *stateManager) addBlocks(blocks [][]byte, initialisation bool) error {
 		}
 		return s.addBlocks(blocksToFinish, initialisation)
 	}
+	log.Printf("State: blocks to height %d added.\n", height+uint64(blocksNumber))
 	return nil
 }
 

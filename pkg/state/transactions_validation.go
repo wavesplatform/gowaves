@@ -20,6 +20,8 @@ const (
 )
 
 type balanceDiff struct {
+	// Exception for Exchange transactions which can result in temporary negative balance.
+	allowTempNegative   bool
 	allowLeasedTransfer bool
 	balance             int64
 	leaseIn             int64
@@ -85,6 +87,7 @@ type balanceChanges struct {
 func (ch *balanceChanges) update(newDiff balanceDiff, checkTempNegative bool) error {
 	last := len(ch.balanceDiffs) - 1
 	lastDiff := balanceDiff{}
+	allowNegForDiff := newDiff.allowTempNegative
 	if last >= 0 {
 		lastDiff = ch.balanceDiffs[last]
 	}
@@ -98,7 +101,7 @@ func (ch *balanceChanges) update(newDiff balanceDiff, checkTempNegative bool) er
 	} else {
 		return errors.New("empty balance diffs slice and can not append the first diff")
 	}
-	if checkTempNegative {
+	if checkTempNegative && !allowNegForDiff {
 		// Check every tx, minBalanceDiff will have mimimum diff value among all txs at the end.
 		if newDiff.spendableBalanceDiff() < ch.minBalanceDiff.spendableBalanceDiff() {
 			ch.minBalanceDiff = newDiff
@@ -200,7 +203,7 @@ func (bs *changesStorage) applyAssetChange(change *balanceChanges) error {
 		return errors.Errorf("failed to add balances: %v\n", err)
 	}
 	if minBalance < 0 {
-		return errors.New("validation failed: negative balance")
+		return errors.New("validation failed: negative asset balance")
 	}
 	for _, diff := range change.balanceDiffs {
 		newBalance, err := util.AddInt64(int64(balance), diff.balance)
@@ -208,7 +211,7 @@ func (bs *changesStorage) applyAssetChange(change *balanceChanges) error {
 			return errors.Errorf("failed to add balances: %v\n", err)
 		}
 		if newBalance < 0 {
-			return errors.New("validation failed: negative balance")
+			return errors.New("validation failed: negative asset balance")
 		}
 		r := &assetBalanceRecord{uint64(newBalance), diff.blockID}
 		if err := bs.balances.setAssetBalance(k.address, k.asset, r); err != nil {
@@ -609,7 +612,7 @@ func (tv *transactionValidator) validateExchange(tx proto.Exchange, block, paren
 	senderPriceKey := balanceKey{address: senderAddr, asset: sellOrder.AssetPair.PriceAsset.ToID()}
 	changes[0] = balanceChange{senderPriceKey.bytes(), balanceDiff{balance: priceDiff}}
 	senderAmountKey := balanceKey{address: senderAddr, asset: sellOrder.AssetPair.AmountAsset.ToID()}
-	changes[1] = balanceChange{senderAmountKey.bytes(), balanceDiff{balance: -amountDiff}}
+	changes[1] = balanceChange{senderAmountKey.bytes(), balanceDiff{allowTempNegative: true, balance: -amountDiff}}
 	senderFeeKey := balanceKey{address: senderAddr}
 	senderFeeDiff := -int64(tx.GetSellMatcherFee())
 	changes[2] = balanceChange{senderFeeKey.bytes(), balanceDiff{balance: senderFeeDiff}}
@@ -618,7 +621,7 @@ func (tv *transactionValidator) validateExchange(tx proto.Exchange, block, paren
 		return false, err
 	}
 	receiverPriceKey := balanceKey{address: receiverAddr, asset: sellOrder.AssetPair.PriceAsset.ToID()}
-	changes[3] = balanceChange{receiverPriceKey.bytes(), balanceDiff{balance: -priceDiff}}
+	changes[3] = balanceChange{receiverPriceKey.bytes(), balanceDiff{allowTempNegative: true, balance: -priceDiff}}
 	receiverAmountKey := balanceKey{address: receiverAddr, asset: sellOrder.AssetPair.AmountAsset.ToID()}
 	changes[4] = balanceChange{receiverAmountKey.bytes(), balanceDiff{balance: amountDiff}}
 	receiverFeeKey := balanceKey{address: receiverAddr}
