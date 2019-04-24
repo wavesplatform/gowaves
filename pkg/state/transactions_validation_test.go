@@ -1,6 +1,7 @@
 package state
 
 import (
+	"math/big"
 	"testing"
 
 	"github.com/mr-tron/base58/base58"
@@ -504,7 +505,7 @@ func TestValidateIssueV1(t *testing.T) {
 			decimals:    int8(tx.Decimals),
 		},
 		assetHistoryRecord: assetHistoryRecord{
-			quantity:   tx.Quantity,
+			quantity:   *big.NewInt(int64(tx.Quantity)),
 			reissuable: tx.Reissuable,
 			blockID:    blockID,
 		},
@@ -567,7 +568,7 @@ func TestValidateIssueV2(t *testing.T) {
 			decimals:    int8(tx.Decimals),
 		},
 		assetHistoryRecord: assetHistoryRecord{
-			quantity:   tx.Quantity,
+			quantity:   *big.NewInt(int64(tx.Quantity)),
 			reissuable: tx.Reissuable,
 			blockID:    blockID,
 		},
@@ -622,7 +623,7 @@ func TestValidateReissueV1(t *testing.T) {
 	tx := createReissueV1(t, asset.ID)
 	// Reissue asset.
 	assetInfo.reissuable = tx.Reissuable
-	assetInfo.quantity = assetInfo.quantity + tx.Quantity
+	assetInfo.quantity.Add(&assetInfo.quantity, big.NewInt(int64(tx.Quantity)))
 
 	// Set proper balances and check result state.
 	profileChanges := []profileChange{
@@ -671,7 +672,7 @@ func TestValidateReissueV2(t *testing.T) {
 	tx := createReissueV2(t, asset.ID)
 	// Reissue asset.
 	assetInfo.reissuable = tx.Reissuable
-	assetInfo.quantity = assetInfo.quantity + tx.Quantity
+	assetInfo.quantity.Add(&assetInfo.quantity, big.NewInt(int64(tx.Quantity)))
 
 	// Set proper balances and check result state.
 	profileChanges := []profileChange{
@@ -719,7 +720,7 @@ func TestValidateBurnV1(t *testing.T) {
 	assetInfo := createAsset(t, to, asset)
 	tx := createBurnV1(t, asset.ID)
 	// Burn asset.
-	assetInfo.quantity = assetInfo.quantity - tx.Amount
+	assetInfo.quantity.Sub(&assetInfo.quantity, big.NewInt(int64(tx.Amount)))
 
 	// Set insufficient balance for sender and check failure.
 	setBalance(t, to, senderAddr, assetStr, tx.Amount-1)
@@ -791,7 +792,7 @@ func TestValidateBurnV2(t *testing.T) {
 	assetInfo := createAsset(t, to, asset)
 	tx := createBurnV2(t, asset.ID)
 	// Burn asset.
-	assetInfo.quantity = assetInfo.quantity - tx.Amount
+	assetInfo.quantity.Sub(&assetInfo.quantity, big.NewInt(int64(tx.Amount)))
 
 	// Set insufficient balance for sender and check failure.
 	setBalance(t, to, senderAddr, assetStr, tx.Amount-1)

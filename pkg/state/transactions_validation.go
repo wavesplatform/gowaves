@@ -450,7 +450,7 @@ func (tv *transactionValidator) validateIssue(tx proto.Issue, block, parent *pro
 			decimals:    int8(tx.GetDecimals()),
 		},
 		assetHistoryRecord: assetHistoryRecord{
-			quantity:   tx.GetQuantity(),
+			quantity:   *big.NewInt(int64(tx.GetQuantity())),
 			reissuable: tx.GetReissuable(),
 			blockID:    block.BlockSignature,
 		},
@@ -503,7 +503,7 @@ func (tv *transactionValidator) validateReissue(tx *proto.Reissue, block, parent
 	// Modify asset.
 	change := &assetReissueChange{
 		reissuable: tx.Reissuable,
-		diff:       tx.Quantity,
+		diff:       int64(tx.Quantity),
 		blockID:    block.BlockSignature,
 	}
 	if err := tv.assets.reissueAsset(tx.AssetID, change); err != nil {
@@ -541,7 +541,7 @@ func (tv *transactionValidator) validateBurn(tx *proto.Burn, block, parent *prot
 	}
 	// Modify asset.
 	change := &assetBurnChange{
-		diff:    tx.Amount,
+		diff:    int64(tx.Amount),
 		blockID: block.BlockSignature,
 	}
 	if err := tv.assets.burnAsset(tx.AssetID, change); err != nil {
