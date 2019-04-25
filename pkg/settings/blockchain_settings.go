@@ -80,7 +80,7 @@ var (
 		FunctionalitySettings: FunctionalitySettings{
 			GenerationBalanceDepthFrom50To1000AfterHeight: 0,
 			BlockVersion3AfterHeight:                      161700,
-			ResetEffectiveBalanceAtHeight:                 515000,
+			ResetEffectiveBalanceAtHeight:                 51500,
 
 			AllowMultipleLeaseCancelUntilTime:      1492560000000,
 			AllowLeasedBalanceTransferUntilTime:    1508230496004,
