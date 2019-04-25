@@ -10,11 +10,12 @@ import (
 
 const (
 	// Key sizes.
-	balanceKeyMinSize = 1 + proto.AddressSize
-	balanceKeyMaxSize = 1 + proto.AddressSize + crypto.DigestSize
+	wavesBalanceKeySize = 1 + proto.AddressSize
+	assetBalanceKeySize = 1 + proto.AddressSize + crypto.DigestSize
 
 	// Balances.
-	balanceKeyPrefix byte = iota
+	wavesBalanceKeyPrefix byte = iota
+	assetBalanceKeyPrefix
 
 	// Valid block IDs.
 	blockIdKeyPrefix
@@ -41,38 +42,51 @@ const (
 	leaseKeyPrefix
 )
 
-type balanceKey struct {
+type wavesBalanceKey struct {
 	address proto.Address
-	asset   []byte
 }
 
-func (k *balanceKey) bytes() []byte {
-	if k.asset != nil {
-		buf := make([]byte, balanceKeyMaxSize)
-		buf[0] = balanceKeyPrefix
-		copy(buf[1:], k.address[:])
-		copy(buf[1+proto.AddressSize:], k.asset)
-		return buf
-	} else {
-		buf := make([]byte, balanceKeyMinSize)
-		buf[0] = balanceKeyPrefix
-		copy(buf[1:], k.address[:])
-		return buf
-	}
+func (k *wavesBalanceKey) bytes() []byte {
+	buf := make([]byte, wavesBalanceKeySize)
+	buf[0] = wavesBalanceKeyPrefix
+	copy(buf[1:], k.address[:])
+	return buf
 }
 
-func (k *balanceKey) unmarshal(data []byte) error {
-	if len(data) != balanceKeyMinSize && len(data) != balanceKeyMaxSize {
+func (k *wavesBalanceKey) unmarshal(data []byte) error {
+	if len(data) != wavesBalanceKeySize {
 		return errors.New("invalid data size")
 	}
 	var err error
 	if k.address, err = proto.NewAddressFromBytes(data[1 : 1+proto.AddressSize]); err != nil {
 		return err
 	}
-	if len(data) == balanceKeyMaxSize {
-		k.asset = make([]byte, crypto.DigestSize)
-		copy(k.asset, data[1+proto.AddressSize:])
+	return nil
+}
+
+type assetBalanceKey struct {
+	address proto.Address
+	asset   []byte
+}
+
+func (k *assetBalanceKey) bytes() []byte {
+	buf := make([]byte, assetBalanceKeySize)
+	buf[0] = assetBalanceKeyPrefix
+	copy(buf[1:], k.address[:])
+	copy(buf[1+proto.AddressSize:], k.asset)
+	return buf
+}
+
+func (k *assetBalanceKey) unmarshal(data []byte) error {
+	if len(data) != assetBalanceKeySize {
+		return errors.New("invalid data size")
 	}
+	var err error
+	if k.address, err = proto.NewAddressFromBytes(data[1 : 1+proto.AddressSize]); err != nil {
+		return err
+	}
+	k.asset = make([]byte, crypto.DigestSize)
+	copy(k.asset, data[1+proto.AddressSize:])
 	return nil
 }
 

@@ -140,7 +140,7 @@ func newBalances(
 }
 
 func (s *balances) cancelAllLeases() error {
-	iter, err := s.db.NewKeyIterator([]byte{balanceKeyPrefix})
+	iter, err := s.db.NewKeyIterator([]byte{wavesBalanceKeyPrefix})
 	if err != nil {
 		return err
 	}
@@ -153,9 +153,6 @@ func (s *balances) cancelAllLeases() error {
 
 	for iter.Next() {
 		key := iter.Key()
-		if len(key) > wavesBalanceKeySize {
-			continue
-		}
 		r, err := s.wavesRecord(key)
 		if err != nil {
 			return err
@@ -170,7 +167,7 @@ func (s *balances) cancelAllLeases() error {
 }
 
 func (s *balances) wavesAddressesNumber() (uint64, error) {
-	iter, err := s.db.NewKeyIterator([]byte{balanceKeyPrefix})
+	iter, err := s.db.NewKeyIterator([]byte{wavesBalanceKeyPrefix})
 	if err != nil {
 		return 0, err
 	}
@@ -184,9 +181,6 @@ func (s *balances) wavesAddressesNumber() (uint64, error) {
 	addressesNumber := uint64(0)
 	for iter.Next() {
 		key := iter.Key()
-		if len(key) > wavesBalanceKeySize {
-			continue
-		}
 		profile, err := s.wavesBalanceImpl(key)
 		if err != nil {
 			return 0, err
@@ -201,7 +195,7 @@ func (s *balances) wavesAddressesNumber() (uint64, error) {
 // minBalanceInRange() is used to get min miner's effective balance, so it includes blocks which
 // have not been flushed to DB yet (and are currently stored in memory).
 func (s *balances) minEffectiveBalanceInRange(addr proto.Address, startHeight, endHeight uint64) (uint64, error) {
-	key := balanceKey{address: addr}
+	key := wavesBalanceKey{address: addr}
 	history, err := fullHistory(key.bytes(), s.db, s.wavesStor, s.wavesFmt)
 	if err != nil {
 		return 0, err
@@ -274,7 +268,7 @@ func (s *balances) lastRecord(key []byte, fmt *history.HistoryFormatter) ([]byte
 }
 
 func (s *balances) assetBalance(addr proto.Address, asset []byte) (uint64, error) {
-	key := balanceKey{address: addr, asset: asset}
+	key := assetBalanceKey{address: addr, asset: asset}
 	last, err := s.lastRecord(key.bytes(), s.assetFmt)
 	if err != nil {
 		return 0, err
@@ -315,7 +309,7 @@ func (s *balances) wavesBalanceImpl(key []byte) (*balanceProfile, error) {
 }
 
 func (s *balances) wavesBalance(addr proto.Address) (*balanceProfile, error) {
-	key := balanceKey{address: addr}
+	key := wavesBalanceKey{address: addr}
 	return s.wavesBalanceImpl(key.bytes())
 }
 
@@ -330,7 +324,7 @@ func (s *balances) addRecordToLocalStor(key, record []byte, fmt *history.History
 }
 
 func (s *balances) setAssetBalance(addr proto.Address, asset []byte, record *assetBalanceRecord) error {
-	key := balanceKey{address: addr, asset: asset}
+	key := assetBalanceKey{address: addr, asset: asset}
 	recordBytes, err := record.marshalBinary()
 	if err != nil {
 		return err
@@ -347,7 +341,7 @@ func (s *balances) setWavesBalanceImpl(key []byte, record *wavesBalanceRecord) e
 }
 
 func (s *balances) setWavesBalance(addr proto.Address, record *wavesBalanceRecord) error {
-	key := balanceKey{address: addr}
+	key := wavesBalanceKey{address: addr}
 	return s.setWavesBalanceImpl(key.bytes(), record)
 }
 
