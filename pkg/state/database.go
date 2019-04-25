@@ -9,7 +9,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 )
 
-var Empty = []byte{}
+var void = []byte{}
 
 // stateDB is responsible for all the actions which operate on the whole DB.
 // For instance, list of valid blocks and height are DB-wide entities.
@@ -81,7 +81,7 @@ func (s *stateDB) syncRw(rw *blockReadWriter) error {
 func (s *stateDB) addBlock(blockID crypto.Signature) error {
 	s.heightChange++
 	key := blockIdKey{blockID: blockID}
-	s.dbBatch.Put(key.bytes(), Empty)
+	s.dbBatch.Put(key.bytes(), void)
 	return nil
 }
 

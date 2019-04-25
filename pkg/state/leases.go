@@ -76,7 +76,7 @@ func newLeases(
 	}, nil
 }
 
-func (l *leases) cancelAll() error {
+func (l *leases) cancelLeases(bySenders map[proto.Address]struct{}) error {
 	leaseIter, err := l.db.NewKeyIterator([]byte{leaseKeyPrefix})
 	if err != nil {
 		return errors.Errorf("failed to create key iterator to cancel leases: %v\n", err)
@@ -99,7 +99,11 @@ func (l *leases) cancelAll() error {
 		if err != nil {
 			return err
 		}
-		if lease.isActive {
+		toCancel := true
+		if bySenders != nil {
+			_, toCancel = bySenders[lease.sender]
+		}
+		if lease.isActive && toCancel {
 			// Cancel lease.
 			lease.isActive = false
 			leaseBytes, err := lease.marshalBinary()
@@ -114,6 +118,37 @@ func (l *leases) cancelAll() error {
 		}
 	}
 	return nil
+}
+
+func (l *leases) validLeaseIns() (map[proto.Address]int64, error) {
+	leaseIter, err := l.db.NewKeyIterator([]byte{leaseKeyPrefix})
+	if err != nil {
+		return nil, errors.Errorf("failed to create key iterator to cancel leases: %v\n", err)
+	}
+	defer func() {
+		leaseIter.Release()
+		if err := leaseIter.Error(); err != nil {
+			log.Fatalf("Iterator error: %v", err)
+		}
+	}()
+
+	leaseIns := make(map[proto.Address]int64)
+	// Iterate all the leases.
+	for leaseIter.Next() {
+		histBytes := leaseIter.Value()
+		histBytes, err = l.fmt.Normalize(histBytes)
+		if err != nil {
+			return nil, errors.Errorf("failed to normalize history: %v\n", err)
+		}
+		lease, err := l.lastRecord(histBytes)
+		if err != nil {
+			return nil, err
+		}
+		if lease.isActive {
+			leaseIns[lease.recipient] = int64(lease.leaseAmount)
+		}
+	}
+	return leaseIns, nil
 }
 
 func (l *leases) lastRecord(history []byte) (*leasingRecord, error) {

@@ -19,6 +19,8 @@ const (
 	assetBalanceRecordSize = 8 + crypto.SignatureSize
 )
 
+var empty struct{}
+
 type balanceProfile struct {
 	balance  uint64
 	leaseIn  int64
@@ -161,6 +163,57 @@ func (s *balances) cancelAllLeases() error {
 		r.leaseIn = 0
 		if err := s.setWavesBalanceImpl(key, r); err != nil {
 			return err
+		}
+	}
+	return nil
+}
+
+func (s *balances) cancelLeaseOverflows() (map[proto.Address]struct{}, error) {
+	iter, err := s.db.NewKeyIterator([]byte{wavesBalanceKeyPrefix})
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		iter.Release()
+		if err := iter.Error(); err != nil {
+			log.Fatalf("Iterator error: %v", err)
+		}
+	}()
+
+	var overflowedAddresses map[proto.Address]struct{}
+	for iter.Next() {
+		key := iter.Key()
+		r, err := s.wavesRecord(key)
+		if err != nil {
+			return nil, err
+		}
+		if int64(r.balance) < r.leaseOut {
+			var k wavesBalanceKey
+			if err := k.unmarshal(key); err != nil {
+				return nil, err
+			}
+			overflowedAddresses[k.address] = empty
+			r.leaseOut = 0
+		}
+		if err := s.setWavesBalanceImpl(key, r); err != nil {
+			return nil, err
+		}
+	}
+	return overflowedAddresses, err
+}
+
+func (s *balances) cancelInvalidLeaseIns(correctLeaseIns map[proto.Address]int64) error {
+	for addr, leaseIn := range correctLeaseIns {
+		k := wavesBalanceKey{addr}
+		r, err := s.wavesRecord(k.bytes())
+		if err != nil {
+			return err
+		}
+		if r.leaseIn != leaseIn {
+			r.leaseIn = leaseIn
+			if err := s.setWavesBalanceImpl(k.bytes(), r); err != nil {
+				return err
+			}
 		}
 	}
 	return nil

@@ -444,19 +444,33 @@ func (s *stateManager) cancelLeases() error {
 	}
 	switch height {
 	case s.settings.ResetEffectiveBalanceAtHeight:
-		s.leasesCl0 = true
-		if err := s.leases.cancelAll(); err != nil {
+		if err := s.leases.cancelLeases(nil); err != nil {
 			return err
 		}
 		if err := s.balances.cancelAllLeases(); err != nil {
 			return err
 		}
+		s.leasesCl0 = true
 	case s.settings.BlockVersion3AfterHeight:
-		// TODO: cancel lease overflows.
+		overflowAddrs, err := s.balances.cancelLeaseOverflows()
+		if err != nil {
+			return err
+		}
+		if err := s.leases.cancelLeases(overflowAddrs); err != nil {
+			return err
+		}
 		s.leasesCl1 = true
-		return nil
-		//case blockchainFeatures.DataTransaction:
-		// TODO: cancel invalid leaseIn.
+
+		//TODO
+		//case blockchainFeatures.DataTransactionHeight:
+		//leaseIns, err := s.leases.validLeaseIns()
+		//if err != nil {
+		//	return err
+		//}
+		//if err := s.balances.cancelInvalidLeaseIns(leaseIns); err != nil {
+		//	return err
+		//}
+		//s.leasesCl2 = true
 	}
 	if err := s.flush(); err != nil {
 		return err
