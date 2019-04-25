@@ -2,7 +2,6 @@ package proto
 
 import (
 	"bytes"
-	"encoding"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -17,8 +16,6 @@ import (
 )
 
 type marshallable interface {
-	encoding.BinaryMarshaler
-	encoding.BinaryUnmarshaler
 	io.WriterTo
 	io.ReaderFrom
 }
@@ -29,7 +26,7 @@ type comparable interface {
 
 type testable interface {
 	marshallable
-	comparable
+	//comparable
 }
 
 type protocolMarshallingTest struct {
@@ -43,20 +40,6 @@ func (h *Header) Equal(d comparable) bool {
 		return false
 	}
 	return *h == *p
-}
-
-// TODO remove this
-func (h *Handshake) Equal(d comparable) bool {
-	p, ok := d.(*Handshake)
-	if !ok {
-		return false
-	}
-	return h.AppName == p.AppName && h.Version.Major == p.Version.Major &&
-		h.Version.Minor == p.Version.Minor && h.Version.Patch == p.Version.Patch &&
-		h.NodeName == p.NodeName &&
-		h.NodeNonce == p.NodeNonce &&
-		bytes.Compare(p.DeclaredAddrBytes, h.DeclaredAddrBytes) == 0 &&
-		h.Timestamp == p.Timestamp
 }
 
 func (m *GetPeersMessage) Equal(d comparable) bool {
@@ -176,14 +159,6 @@ func (m *TransactionMessage) Equal(d comparable) bool {
 
 var tests = []protocolMarshallingTest{
 	{
-		&Handshake{"ab", Version{0x10, 0x3, 0x8}, "dc", 0x701, []byte{10, 20}, 0x8000},
-		"0261620000001000000003000000080264630000000000000701000000020a140000000000008000",
-	},
-	{
-		&Handshake{"wavesT", Version{0x0, 0xe, 0x5}, "My TESTNET node", 0x1c61, []byte{0xb9, 0x29, 0x70, 0x1e, 0x00, 0x00, 0x1a, 0xcf}, 0x5bb482c9},
-		"06776176657354000000000000000e000000050f4d7920544553544e4554206e6f64650000000000001c6100000008b929701e00001acf000000005bb482c9",
-	},
-	{
 		&GetPeersMessage{},
 		//P. Len |    Magic | ContentID | Payload Length | PayloadCsum | Payload
 		"00000009  12345678     01         00000000              ",
@@ -256,46 +231,18 @@ func TestProtocolMarshalling(t *testing.T) {
 				t.Error(err)
 			}
 
-			data, err := v.testMessage.MarshalBinary()
-			if err != nil {
-				t.Error(err)
-			}
-			if res := bytes.Compare(data, decoded); res != 0 {
-				strEncoded := hex.EncodeToString(data)
-				t.Errorf("want: %s, have %s", v.testEncoded, strEncoded)
-			}
-
-			var writerBuffer bytes.Buffer
-			writer := io.Writer(&writerBuffer)
-
-			v.testMessage.WriteTo(writer)
-
-			if !bytes.Equal(writerBuffer.Bytes(), data) {
-				t.Errorf("failed to write message to writer")
-			}
-
-			v.testMessage.WriteTo(writer)
-
-			reader := io.Reader(&writerBuffer)
+			buf := new(bytes.Buffer)
+			v.testMessage.WriteTo(buf)
+			require.Equal(t, decoded, buf.Bytes())
 
 			m := v.testMessage
-			if err = m.UnmarshalBinary(decoded); err != nil {
-				t.Errorf("failed to unmarshal: %s", err)
-			}
-			if !v.testMessage.Equal(m) {
-				t.Errorf("failed to correclty unmarshal message")
-			}
-
-			m.ReadFrom(reader)
-			if !v.testMessage.Equal(m) {
-				t.Errorf("failed to correctly read message from reader")
-			}
+			m.ReadFrom(buf)
+			require.Equal(t, v.testMessage, m)
 		})
 	}
 }
 
 func TestTransactionMessage_UnmarshalBinary(t *testing.T) {
-
 	p := TransactionMessage{
 		Transaction: []byte("transaction"),
 	}
@@ -373,7 +320,7 @@ func TestHandshake_ReadFrom(t *testing.T) {
 	assert.Equal(t, "wavesT", h.AppName)
 	assert.Equal(t, Version{Minor: 13, Patch: 2}, h.Version)
 	assert.Equal(t, "Node-514178", h.NodeName)
-	assert.Equal(t, []byte(nil), h.DeclaredAddrBytes)
+	assert.Empty(t, h.DeclaredAddr)
 }
 
 func TestHandshake_ReadFrom2(t *testing.T) {
@@ -383,7 +330,8 @@ func TestHandshake_ReadFrom2(t *testing.T) {
 		23, 116, 101, 115, 116, 110, 111, 100, 101, 49, 46, 119, 97, 118, 101, 115, 110, 111, 100, 101, 46, 110, 101, 116, // node name
 		0, 0, 0, 0, 0, 9, 101, 17, // nonce
 		0, 0, 0, 8 /*length*/, 217, 100, 219, 251, 0, 0, 26, 207,
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
+		0, 0, 0, 0, 0, 0, 0, 1, // timestamp
+	}
 	h := Handshake{}
 	_, err := h.ReadFrom(bytes.NewReader(b))
 	require.NoError(t, err)
@@ -391,35 +339,33 @@ func TestHandshake_ReadFrom2(t *testing.T) {
 	assert.Equal(t, Version{Minor: 15, Patch: 2}, h.Version)
 	assert.Equal(t, "testnode1.wavesnode.net", h.NodeName)
 	assert.EqualValues(t, 615697, h.NodeNonce)
-	info, err := h.PeerInfo()
 	require.NoError(t, err)
-	assert.Equal(t, PeerInfo{Addr: net.IPv4(217, 100, 219, 251), Port: 6863}, info)
-	assert.EqualValues(t, 0, h.Timestamp)
+
+	assert.Equal(t, NewHandshakeTCPAddr(net.IPv4(217, 100, 219, 251), 6863), h.DeclaredAddr)
+	assert.EqualValues(t, 1, h.Timestamp)
+
+	buf := new(bytes.Buffer)
+	h.WriteTo(buf)
+	require.Equal(t, b, buf.Bytes())
 }
 
 func TestHandshake_RoundTrip(t *testing.T) {
-
-	declAddr := PeerInfo{Addr: net.IPv4(217, 100, 219, 251), Port: 6863}
-	declByte, _ := declAddr.MarshalBinary()
+	buf := new(bytes.Buffer)
 
 	h1 := Handshake{
-		AppName:           "wavesT",
-		Version:           Version{Minor: 15, Patch: 2},
-		NodeName:          "testnode1.wavesnode.net",
-		NodeNonce:         615697,
-		DeclaredAddrBytes: declByte,
-		Timestamp:         222233,
+		AppName:      "wavesT",
+		Version:      Version{Minor: 15, Patch: 2},
+		NodeName:     "testnode1.wavesnode.net",
+		NodeNonce:    615697,
+		DeclaredAddr: NewHandshakeTCPAddr(net.IPv4(217, 100, 219, 251), 6863),
+		Timestamp:    222233,
 	}
 
-	bts, _ := h1.MarshalBinary()
+	h1.WriteTo(buf)
 
 	h2 := Handshake{}
-	h2.UnmarshalBinary(bts)
+	h2.ReadFrom(buf)
 	assert.Equal(t, h1, h2)
-
-	h3 := Handshake{}
-	h3.ReadFrom(bytes.NewReader(bts))
-	assert.Equal(t, h1, h3)
 }
 
 func TestTransactionMessage_MarshalRoundTrip(t *testing.T) {
@@ -436,4 +382,41 @@ func TestTransactionMessage_MarshalRoundTrip(t *testing.T) {
 	bts2, err := m.MarshalBinary()
 	require.NoError(t, err)
 	assert.Equal(t, bts, bts2)
+}
+
+func TestU8String(t *testing.T) {
+	s := NewU8String("bla bla")
+
+	buf := new(bytes.Buffer)
+
+	s.WriteTo(buf)
+
+	s2 := NewU8String("")
+	s2.ReadFrom(buf)
+	assert.Equal(t, s, s2)
+}
+
+func TestHandshakeTCPAddr_ReadWrite(t *testing.T) {
+	tests := []HandshakeTCPAddr{{}, NewHandshakeTCPAddr(net.IPv4(127, 0, 0, 1), 6868)}
+	for _, v := range tests {
+		t.Run(fmt.Sprintf("%T", v), func(t *testing.T) {
+			buf := new(bytes.Buffer)
+			a := HandshakeTCPAddr{}
+			_, err := v.WriteTo(buf)
+			require.NoError(t, err)
+
+			_, err = a.ReadFrom(buf)
+			require.NoError(t, err)
+
+			require.Equal(t, v, a)
+			require.Equal(t, v.Port, a.Port)
+		})
+	}
+}
+
+func TestHandshakeTCPAddr_Empty(t *testing.T) {
+	a := HandshakeTCPAddr{}
+	require.True(t, a.Empty())
+	b := NewHandshakeTCPAddr(net.IPv4(127, 0, 0, 1), 10)
+	require.False(t, b.Empty())
 }

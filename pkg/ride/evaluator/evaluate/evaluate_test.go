@@ -204,7 +204,7 @@ func TestFunctions(t *testing.T) {
 
 func TestDataFunctions(t *testing.T) {
 	secret, public := crypto.GenerateKeyPair([]byte(seed))
-	data, _ := proto.NewUnsignedData(public, 10000, 1544715621)
+	data := proto.NewUnsignedData(public, 10000, 1544715621)
 
 	require.NoError(t, data.AppendEntry(proto.IntegerDataEntry{
 		Key:   "integer",

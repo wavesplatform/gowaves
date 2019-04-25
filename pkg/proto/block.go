@@ -251,3 +251,13 @@ func (b *Block) UnmarshalBinary(data []byte) error {
 
 	return nil
 }
+
+//BlockGetSignature get signature from block without deserialization
+func BlockGetSignature(data []byte) (crypto.Signature, error) {
+	sig := crypto.Signature{}
+	if len(data) < 64 {
+		return sig, errors.Errorf("not enough bytes to decode block signature, want at least 64, found %d", len(data))
+	}
+	copy(sig[:], data[len(data)-64:])
+	return sig, nil
+}

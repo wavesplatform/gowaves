@@ -83,7 +83,7 @@ func (a *KnownPeers) Addresses() []proto.PeerInfo {
 	return out
 }
 
-func (a *KnownPeers) Add(declAddr proto.PeerInfo, version proto.Version) {
+func (a *KnownPeers) Add(declAddr proto.TCPAddr, version proto.Version) {
 	if declAddr.Empty() {
 		return
 	}

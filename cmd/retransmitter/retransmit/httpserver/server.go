@@ -3,6 +3,7 @@ package httpserver
 import (
 	"context"
 	"encoding/json"
+	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"net/http"
 	"net/http/pprof"
 	"sort"
@@ -58,17 +59,17 @@ type FullState struct {
 func (a *HttpServer) ActiveConnections(rw http.ResponseWriter, r *http.Request) {
 	var out ActiveConnections
 	addr2peer := a.retransmitter.ActiveConnections()
-	addr2peer.Each(func(id string, p *utils.PeerInfo) {
-		c := p.Peer.Connection()
+	addr2peer.Each(func(id string, p peer.Peer) {
+		c := p.Connection()
 		out = append(out, ActiveConnection{
 			Addr:          id,
-			Direction:     p.Peer.Direction().String(),
-			DeclAddr:      p.DeclAddr.String(),
-			RemoteAddr:    p.RemoteAddr,
-			LocalAddr:     p.LocalAddr,
-			Version:       p.Version,
-			AppName:       p.AppName,
-			NodeName:      p.NodeName,
+			Direction:     p.Direction().String(),
+			DeclAddr:      p.Handshake().DeclaredAddr.String(),
+			RemoteAddr:    p.RemoteAddr().String(),
+			LocalAddr:     p.Connection().Conn().LocalAddr().String(),
+			Version:       p.Handshake().Version,
+			AppName:       p.Handshake().AppName,
+			NodeName:      p.Handshake().NodeName,
 			SendClosed:    c.SendClosed(),
 			ReceiveClosed: c.ReceiveClosed(),
 		})

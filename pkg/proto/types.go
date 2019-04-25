@@ -5,12 +5,15 @@ import (
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/json"
+	"math/big"
+	"strconv"
+	"strings"
+	"time"
+
 	"github.com/mr-tron/base58/base58"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/ride/evaluator/reader"
-	"strconv"
-	"strings"
 )
 
 const (
@@ -26,6 +29,11 @@ const (
 	booleanArgumentLen   = 1 + 1
 	binaryArgumentMinLen = 1 + 4
 	stringArgumentMinLen = 1 + 4
+	PriceConstant        = 100000000
+	MaxOrderAmount       = 100 * PriceConstant * PriceConstant
+	MaxOrderTTL          = uint64((30 * 24 * time.Hour) / time.Millisecond)
+	maxKeySize           = 100
+	maxValueSize         = 32767
 )
 
 var jsonNullBytes = []byte{0x6e, 0x75, 0x6c, 0x6c}
@@ -300,6 +308,10 @@ type Order interface {
 	GetVersion() byte
 	GetOrderType() OrderType
 	GetMatcherPK() crypto.PublicKey
+	GetAssetPair() AssetPair
+	GetPrice() uint64
+	GetExpiration() uint64
+	Valid() (bool, error)
 }
 
 func OrderToOrderBody(o Order) (OrderBody, error) {
@@ -333,18 +345,94 @@ type OrderBody struct {
 	MatcherFee uint64           `json:"matcherFee"`
 }
 
-func NewOrderBody(senderPK, matcherPK crypto.PublicKey, amountAsset, priceAsset OptionalAsset, orderType OrderType, price, amount, timestamp, expiration, matcherFee uint64) (*OrderBody, error) {
-	if price <= 0 {
-		return nil, errors.New("price should be positive")
+func (o OrderBody) Valid() (bool, error) {
+	if o.AssetPair.AmountAsset == o.AssetPair.PriceAsset {
+		return false, errors.New("invalid asset pair")
 	}
-	if amount <= 0 {
-		return nil, errors.New("amount should be positive")
+	if o.Price <= 0 {
+		return false, errors.New("price should be positive")
 	}
-	if matcherFee <= 0 {
-		return nil, errors.New("matcher's fee should be positive")
+	if !validJVMLong(o.Price) {
+		return false, errors.New("price is too big")
 	}
-	//TODO: Add expiration validation
-	return &OrderBody{SenderPK: senderPK, MatcherPK: matcherPK, AssetPair: AssetPair{AmountAsset: amountAsset, PriceAsset: priceAsset}, OrderType: orderType, Price: price, Amount: amount, Timestamp: timestamp, Expiration: expiration, MatcherFee: matcherFee}, nil
+	if o.Amount <= 0 {
+		return false, errors.New("amount should be positive")
+	}
+	if !validJVMLong(o.Amount) {
+		return false, errors.New("amount is too big")
+	}
+	if o.Amount > MaxOrderAmount {
+		return false, errors.New("amount is larger than maximum allowed")
+	}
+	if o.MatcherFee <= 0 {
+		return false, errors.New("matcher's fee should be positive")
+	}
+	if !validJVMLong(o.MatcherFee) {
+		return false, errors.New("matcher's fee is too big")
+	}
+	if o.MatcherFee > MaxOrderAmount {
+		return false, errors.New("matcher's fee is larger than maximum allowed")
+	}
+	s, err := o.SpendAmount(o.Amount, o.Price)
+	if err != nil {
+		return false, err
+	}
+	if s <= 0 {
+		return false, errors.New("spend amount should be positive")
+	}
+	if !o.SpendAsset().Present && !validJVMLong(s+o.MatcherFee) {
+		return false, errors.New("sum of spend asset amount and matcher fee overflows JVM long")
+	}
+	r, err := o.ReceiveAmount(o.Amount, o.Price)
+	if err != nil {
+		return false, err
+	}
+	if r <= 0 {
+		return false, errors.New("receive amount should be positive")
+	}
+	if o.Timestamp <= 0 {
+		return false, errors.New("timestamp should be positive")
+	}
+	if o.Expiration <= 0 {
+		return false, errors.New("expiration should be positive")
+	}
+	return true, nil
+}
+
+func (o *OrderBody) SpendAmount(matchAmount, matchPrice uint64) (uint64, error) {
+	if o.OrderType == Sell {
+		return matchAmount, nil
+	}
+	return otherAmount(matchAmount, matchPrice, "spend")
+}
+
+func (o *OrderBody) ReceiveAmount(matchAmount, matchPrice uint64) (uint64, error) {
+	if o.OrderType == Buy {
+		return matchAmount, nil
+	}
+	return otherAmount(matchAmount, matchPrice, "receive")
+}
+
+var (
+	bigPriceConstant = big.NewInt(PriceConstant)
+)
+
+func otherAmount(amount, price uint64, name string) (uint64, error) {
+	a := big.NewInt(0).SetUint64(amount)
+	p := big.NewInt(0).SetUint64(price)
+	r := big.NewInt(0).Mul(a, p)
+	r = big.NewInt(0).Div(r, bigPriceConstant)
+	if !r.IsUint64() {
+		return 0, errors.Errorf("%s amount is too large", name)
+	}
+	return r.Uint64(), nil
+}
+
+func (o *OrderBody) SpendAsset() OptionalAsset {
+	if o.OrderType == Buy {
+		return o.AssetPair.PriceAsset
+	}
+	return o.AssetPair.AmountAsset
 }
 
 func (o *OrderBody) marshalBinary() ([]byte, error) {
@@ -438,12 +526,21 @@ type OrderV1 struct {
 }
 
 //NewUnsignedOrderV1 creates the new unsigned order.
-func NewUnsignedOrderV1(senderPK, matcherPK crypto.PublicKey, amountAsset, priceAsset OptionalAsset, orderType OrderType, price, amount, timestamp, expiration, matcherFee uint64) (*OrderV1, error) {
-	o, err := NewOrderBody(senderPK, matcherPK, amountAsset, priceAsset, orderType, price, amount, timestamp, expiration, matcherFee)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to create OrderV1")
+func NewUnsignedOrderV1(senderPK, matcherPK crypto.PublicKey, amountAsset, priceAsset OptionalAsset, orderType OrderType, price, amount, timestamp, expiration, matcherFee uint64) *OrderV1 {
+	ob := OrderBody{
+		SenderPK:  senderPK,
+		MatcherPK: matcherPK,
+		AssetPair: AssetPair{
+			AmountAsset: amountAsset,
+			PriceAsset:  priceAsset},
+		OrderType:  orderType,
+		Price:      price,
+		Amount:     amount,
+		Timestamp:  timestamp,
+		Expiration: expiration,
+		MatcherFee: matcherFee,
 	}
-	return &OrderV1{OrderBody: *o}, nil
+	return &OrderV1{OrderBody: ob}
 }
 
 func (o OrderV1) GetVersion() byte {
@@ -456,6 +553,18 @@ func (o OrderV1) GetOrderType() OrderType {
 
 func (o OrderV1) GetMatcherPK() crypto.PublicKey {
 	return o.MatcherPK
+}
+
+func (o OrderV1) GetAssetPair() AssetPair {
+	return o.AssetPair
+}
+
+func (o OrderV1) GetPrice() uint64 {
+	return o.Price
+}
+
+func (o OrderV1) GetExpiration() uint64 {
+	return o.Expiration
 }
 
 func (o *OrderV1) bodyMarshalBinary() ([]byte, error) {
@@ -546,12 +655,21 @@ type OrderV2 struct {
 }
 
 //NewUnsignedOrderV2 creates the new unsigned order.
-func NewUnsignedOrderV2(senderPK, matcherPK crypto.PublicKey, amountAsset, priceAsset OptionalAsset, orderType OrderType, price, amount, timestamp, expiration, matcherFee uint64) (*OrderV2, error) {
-	o, err := NewOrderBody(senderPK, matcherPK, amountAsset, priceAsset, orderType, price, amount, timestamp, expiration, matcherFee)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to create OrderV2")
+func NewUnsignedOrderV2(senderPK, matcherPK crypto.PublicKey, amountAsset, priceAsset OptionalAsset, orderType OrderType, price, amount, timestamp, expiration, matcherFee uint64) *OrderV2 {
+	ob := OrderBody{
+		SenderPK:  senderPK,
+		MatcherPK: matcherPK,
+		AssetPair: AssetPair{
+			AmountAsset: amountAsset,
+			PriceAsset:  priceAsset},
+		OrderType:  orderType,
+		Price:      price,
+		Amount:     amount,
+		Timestamp:  timestamp,
+		Expiration: expiration,
+		MatcherFee: matcherFee,
 	}
-	return &OrderV2{Version: 2, OrderBody: *o}, nil
+	return &OrderV2{Version: 2, OrderBody: ob}
 }
 
 func (o OrderV2) GetVersion() byte {
@@ -564,6 +682,18 @@ func (o OrderV2) GetOrderType() OrderType {
 
 func (o OrderV2) GetMatcherPK() crypto.PublicKey {
 	return o.MatcherPK
+}
+
+func (o OrderV2) GetAssetPair() AssetPair {
+	return o.AssetPair
+}
+
+func (o OrderV2) GetPrice() uint64 {
+	return o.Price
+}
+
+func (o OrderV2) GetExpiration() uint64 {
+	return o.Expiration
 }
 
 func (o *OrderV2) bodyMarshalBinary() ([]byte, error) {
@@ -728,11 +858,7 @@ func (p *ProofsV1) UnmarshalJSON(value []byte) error {
 
 //MarshalBinary writes the proofs to its binary form.
 func (p *ProofsV1) MarshalBinary() ([]byte, error) {
-	pl := 0
-	for _, e := range p.Proofs {
-		pl += len(e) + 2
-	}
-	buf := make([]byte, proofsMinLen+pl)
+	buf := make([]byte, p.binarySize())
 	pos := 0
 	buf[pos] = proofsVersion
 	pos++
@@ -810,6 +936,16 @@ func (p *ProofsV1) Verify(pos int, key crypto.PublicKey, data []byte) (bool, err
 	return crypto.Verify(key, sig, data), nil
 }
 
+func (p *ProofsV1) binarySize() int {
+	pl := 0
+	if p != nil {
+		for _, e := range p.Proofs {
+			pl += len(e) + 2
+		}
+	}
+	return proofsMinLen + pl
+}
+
 // ValueType is an alias for byte that encodes the value type.
 type ValueType byte
 
@@ -843,6 +979,7 @@ type DataEntry interface {
 	GetKey() string
 	GetValueType() ValueType
 	MarshalBinary() ([]byte, error)
+	Valid() (bool, error)
 	binarySize() int
 }
 
@@ -850,6 +987,16 @@ type DataEntry interface {
 type IntegerDataEntry struct {
 	Key   string
 	Value int64
+}
+
+func (e IntegerDataEntry) Valid() (bool, error) {
+	if len(e.Key) == 0 {
+		return false, errors.New("empty entry key")
+	}
+	if len(e.Key) > maxKeySize {
+		return false, errors.New("key is too large")
+	}
+	return true, nil
 }
 
 //GetKey returns the key of data entry.
@@ -925,6 +1072,16 @@ func (e *IntegerDataEntry) UnmarshalJSON(value []byte) error {
 type BooleanDataEntry struct {
 	Key   string
 	Value bool
+}
+
+func (e BooleanDataEntry) Valid() (bool, error) {
+	if len(e.Key) == 0 {
+		return false, errors.New("empty entry key")
+	}
+	if len(e.Key) > maxKeySize {
+		return false, errors.New("key is too large")
+	}
+	return true, nil
 }
 
 //GetKey returns the key of data entry.
@@ -1006,6 +1163,19 @@ type BinaryDataEntry struct {
 	Value []byte
 }
 
+func (e BinaryDataEntry) Valid() (bool, error) {
+	if len(e.Key) == 0 {
+		return false, errors.New("empty entry key")
+	}
+	if len(e.Key) > maxKeySize {
+		return false, errors.New("key is too large")
+	}
+	if len(e.Value) > maxValueSize {
+		return false, errors.New("value is too large")
+	}
+	return true, nil
+}
+
 //GetKey returns the key of data entry.
 func (e BinaryDataEntry) GetKey() string {
 	return e.Key
@@ -1083,6 +1253,19 @@ func (e *BinaryDataEntry) UnmarshalJSON(value []byte) error {
 type StringDataEntry struct {
 	Key   string
 	Value string
+}
+
+func (e StringDataEntry) Valid() (bool, error) {
+	if len(e.Key) == 0 {
+		return false, errors.New("empty entry key")
+	}
+	if len(e.Key) > maxKeySize {
+		return false, errors.New("key is too large")
+	}
+	if len(e.Value) > maxValueSize {
+		return false, errors.New("value is too large")
+	}
+	return true, nil
 }
 
 //GetKey returns the key of key-value pair.

@@ -203,7 +203,9 @@ func (s *Signature) UnmarshalJSON(value []byte) error {
 }
 
 func (s Signature) Bytes() []byte {
-	return s[:]
+	out := make([]byte, len(s))
+	copy(out, s[:])
+	return out
 }
 
 func NewSignatureFromBase58(s string) (Signature, error) {

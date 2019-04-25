@@ -2,7 +2,9 @@
 package util
 
 import (
+	"go.uber.org/zap"
 	"os"
+	"time"
 
 	"github.com/pkg/errors"
 )
@@ -42,4 +44,9 @@ func CleanTemporaryDirs(dirs []string) error {
 		}
 	}
 	return nil
+}
+
+func TimeTrack(start time.Time, name string) {
+	elapsed := time.Since(start)
+	zap.S().Infof("%s took %s", name, elapsed)
 }

@@ -36,19 +36,15 @@ func (a TransferV1Builder) Build() (*proto.TransferV1, error) {
 		return nil, err
 	}
 
-	t, err := proto.NewUnsignedTransferV1(
+	t := proto.NewUnsignedTransferV1(
 		pub,
 		proto.OptionalAsset{},
 		proto.OptionalAsset{},
 		proto.NewTimestampFromTime(a.timestamp),
 		10000,
 		10000,
-		addr,
+		proto.NewRecipientFromAddress(addr),
 		"")
-
-	if err != nil {
-		return nil, err
-	}
 
 	err = t.Sign(priv)
 	if err != nil {

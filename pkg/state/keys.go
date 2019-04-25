@@ -40,6 +40,8 @@ const (
 
 	// Leases.
 	leaseKeyPrefix
+	// Known peers.
+	knownPeersPrefix
 )
 
 type wavesBalanceKey struct {

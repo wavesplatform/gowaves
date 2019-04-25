@@ -58,12 +58,17 @@ type stateManager struct {
 	scores   *scores
 	balances *balances
 	rw       *blockReadWriter
+	peers    *peerStorage
 
 	settings *settings.BlockchainSettings
 	cv       *consensus.ConsensusValidator
 
 	// Indicates whether lease cancellations were performed.
 	leasesCl0, leasesCl1, leasesCl2 bool
+}
+
+func (s *stateManager) Peers() ([]proto.TCPAddr, error) {
+	return s.peers.peers()
 }
 
 func newStateManager(dataDir string, params BlockStorageParams, settings *settings.BlockchainSettings) (*stateManager, error) {
@@ -96,6 +101,7 @@ func newStateManager(dataDir string, params BlockStorageParams, settings *settin
 		stateDB:  stateDB,
 		scores:   scores,
 		settings: settings,
+		peers:    newPeerStorage(db),
 	}
 	// rw is storage for blocks.
 	rw, err := newBlockReadWriter(blockStorageDir, params.OffsetLen, params.HeaderOffsetLen, db, dbBatch)
@@ -667,6 +673,11 @@ func (s *stateManager) RollbackMax() uint64 {
 
 func (s *stateManager) IsValidBlock(blockID crypto.Signature) (bool, error) {
 	return s.stateDB.isValidBlock(blockID)
+}
+
+func (s *stateManager) SavePeers(peers []proto.TCPAddr) error {
+	return s.peers.savePeers(peers)
+
 }
 
 func (s *stateManager) Close() error {
