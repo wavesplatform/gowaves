@@ -83,7 +83,7 @@ type State interface {
 	// Retrieve current blockchain settings.
 	BlockchainSettings() (*settings.BlockchainSettings, error)
 
-	//Create or replace Peers
+	// Create or replace Peers.
 	SavePeers([]proto.TCPAddr) error
 	Peers() ([]proto.TCPAddr, error)
 
