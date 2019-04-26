@@ -7,7 +7,10 @@ import (
 )
 
 func BuildAst(r *BytesReader) (Expr, error) {
-	b := r.ReadByte()
+	b, err := r.ReadByte()
+	if err != nil {
+		return nil, errors.Errorf("ReadByte(): %v\n", err)
+	}
 	// first byte always should be E_BYTES
 	if b != E_BYTES {
 		return nil, errors.Errorf("BuildAst: invalid format, expected 1, found %d", b)
@@ -72,7 +75,10 @@ func readBlock(r *BytesReader) (*Block, error) {
 }
 
 func readFuncCAll(iter *BytesReader) (*FuncCall, error) {
-	nativeOrUser := iter.ReadByte()
+	nativeOrUser, err := iter.ReadByte()
+	if err != nil {
+		return nil, err
+	}
 	switch nativeOrUser {
 	case FH_NATIVE:
 		f, err := readNativeFunction(iter)
