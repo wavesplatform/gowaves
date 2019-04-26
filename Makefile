@@ -7,7 +7,7 @@ VERSION=$(shell git describe --tags --always --dirty)
 
 .PHONY: vetcheck fmtcheck dep clean build gotest
 
-all: dep build gotest vetcheck fmtcheck
+all: dep vetcheck fmtcheck build gotest
 
 dep:
 	dep ensure
