@@ -180,7 +180,7 @@ func (s *balances) cancelLeaseOverflows() (map[proto.Address]struct{}, error) {
 		}
 	}()
 
-	var overflowedAddresses map[proto.Address]struct{}
+	overflowedAddresses := make(map[proto.Address]struct{})
 	for iter.Next() {
 		key := iter.Key()
 		r, err := s.wavesRecord(key)

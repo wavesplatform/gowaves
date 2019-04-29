@@ -87,6 +87,8 @@ func (b *BlockHeader) MarshalHeaderToBinary() ([]byte, error) {
 }
 
 func (b *BlockHeader) UnmarshalHeaderFromBinary(data []byte) (err error) {
+	// TODO make benchmarks to figure out why multiple length checks slow down that much
+	// and (probably) get rid of recover().
 	defer func() {
 		if recover() != nil {
 			err = errors.New("invalid data size")
@@ -218,6 +220,8 @@ func (b *Block) MarshalBinary() ([]byte, error) {
 
 // UnmarshalBinary decodes Block from binary form
 func (b *Block) UnmarshalBinary(data []byte) (err error) {
+	// TODO make benchmarks to figure out why multiple length checks slow down that much
+	// and (probably) get rid of recover().
 	defer func() {
 		if recover() != nil {
 			err = errors.New("invalid data size")
