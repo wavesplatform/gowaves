@@ -105,6 +105,7 @@ func (l *leases) cancelLeases(bySenders map[proto.Address]struct{}) error {
 		}
 		if lease.isActive && toCancel {
 			// Cancel lease.
+			log.Printf("State: cancelling lease for address %s.", lease.sender.String())
 			lease.isActive = false
 			leaseBytes, err := lease.marshalBinary()
 			if err != nil {

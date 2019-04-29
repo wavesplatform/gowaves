@@ -192,6 +192,7 @@ func (s *balances) cancelLeaseOverflows() (map[proto.Address]struct{}, error) {
 			if err := k.unmarshal(key); err != nil {
 				return nil, err
 			}
+			log.Printf("Resolving lease overflow for address %s: %d ---> %d", k.address.String(), r.leaseOut, 0)
 			overflowedAddresses[k.address] = empty
 			r.leaseOut = 0
 		}
@@ -210,6 +211,7 @@ func (s *balances) cancelInvalidLeaseIns(correctLeaseIns map[proto.Address]int64
 			return err
 		}
 		if r.leaseIn != leaseIn {
+			log.Printf("Invalid leaseIn detected; fixing it: %d ---> %d.", r.leaseIn, leaseIn)
 			r.leaseIn = leaseIn
 			if err := s.setWavesBalanceImpl(k.bytes(), r); err != nil {
 				return err
