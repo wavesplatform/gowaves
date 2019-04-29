@@ -16,6 +16,7 @@ var (
 	genesisTimestamp = uint64(1465742577614)
 	timestamp0       = settings.MainNetSettings.NegativeBalanceCheckAfterTime + 1
 	timestamp1       = settings.MainNetSettings.NegativeBalanceCheckAfterTime - 1
+	timestamp2       = settings.MainNetSettings.AllowLeasedBalanceTransferUntilTime
 
 	genesisSignature = "FSH8eAAzZNqnG8xgTZtz5xuLqXySsXgAjmFEC25hXMbEufiGjqWPnGCZFt6gLiVLJny16ipxRNAkkzjjhqTjBE2"
 	blockSig0        = "FSH8eAAzZNqnG8xgTZtz5xuLqXySsXgAjmFEC25hXMbEufiGjqWPnGCZFt6gLiVLJny16ipxRNAkkzjjhqTjBE1"
@@ -149,19 +150,19 @@ func validateTx(t *testing.T, tv *transactionValidator, tx proto.Transaction, bl
 	}
 }
 
-func setBalance(t *testing.T, to *testObjects, address, asset string, balance uint64) {
+func setBalance(t *testing.T, to *testObjects, address, asset string, profile *balanceProfile) {
 	genesisSig, err := crypto.NewSignatureFromBase58(genesisSignature)
 	assert.NoError(t, err, "NewSignatureFromBase58() failed")
 	addr, err := proto.NewAddressFromString(address)
 	assert.NoError(t, err, "NewAddressFromString() failed")
 	if asset == "" {
-		r := &wavesBalanceRecord{balanceProfile{balance, 0, 0}, genesisSig}
+		r := &wavesBalanceRecord{*profile, genesisSig}
 		err := to.balances.setWavesBalance(addr, r)
 		assert.NoError(t, err, "setWavesBalance() failed")
 	} else {
 		ast, err := proto.NewOptionalAssetFromString(asset)
 		assert.NoError(t, err, "NewOptionalAssetFromString() failed")
-		r := &assetBalanceRecord{balance, genesisSig}
+		r := &assetBalanceRecord{profile.balance, genesisSig}
 		err = to.balances.setAssetBalance(addr, ast.ToID(), r)
 		assert.NoError(t, err, "setAssetBalance() failed")
 	}
@@ -225,6 +226,28 @@ func createPayment(t *testing.T) *proto.Payment {
 	return proto.NewUnsignedPayment(spk, rcp, 100, 1, timestamp1)
 }
 
+type leaseTestCase struct {
+	addr     string
+	profile  balanceProfile
+	blocks   []block
+	resError bool
+	failMsg  string
+}
+
+type runLeaseTest = func(*testing.T, *testObjects, proto.Transaction, *leaseTestCase)
+
+var testInvalidLeasing runLeaseTest = func(t *testing.T, to *testObjects, tx proto.Transaction, c *leaseTestCase) {
+	setBalance(t, to, c.addr, "", &c.profile)
+	validateTx(t, to.tv, tx, c.blocks, true)
+	err := to.tv.performTransactions()
+	if c.resError {
+		assert.Error(t, err, c.failMsg)
+	} else {
+		assert.NoError(t, err, c.failMsg)
+	}
+	to.reset()
+}
+
 type txTestCase struct {
 	senderAddr string
 	assetStr   string
@@ -237,7 +260,8 @@ type txTestCase struct {
 type runTest func(*testing.T, *testObjects, proto.Transaction, *txTestCase)
 
 var testNegBalance runTest = func(t *testing.T, to *testObjects, tx proto.Transaction, c *txTestCase) {
-	setBalance(t, to, c.senderAddr, c.assetStr, c.amount)
+	profile := &balanceProfile{c.amount, 0, 0}
+	setBalance(t, to, c.senderAddr, c.assetStr, profile)
 	validateTx(t, to.tv, tx, c.blocks, true)
 	err := to.tv.performTransactions()
 	if c.resError {
@@ -249,7 +273,8 @@ var testNegBalance runTest = func(t *testing.T, to *testObjects, tx proto.Transa
 }
 
 var testTempNegative runTest = func(t *testing.T, to *testObjects, tx proto.Transaction, c *txTestCase) {
-	setBalance(t, to, c.senderAddr, c.assetStr, c.amount)
+	profile := &balanceProfile{c.amount, 0, 0}
+	setBalance(t, to, c.senderAddr, c.assetStr, profile)
 	// Negative balance after this Payment tx.
 	validateTx(t, to.tv, tx, c.blocks, false)
 	// This genesis tx 'fixes' negative balance.
@@ -267,7 +292,8 @@ var testTempNegative runTest = func(t *testing.T, to *testObjects, tx proto.Tran
 var testTempNegativeUniversal runTest = func(t *testing.T, to *testObjects, tx proto.Transaction, c *txTestCase) {
 	tx1 := createTransferV1(t, to, c.senderAddr)
 	// Negative balance for one of txs in block with positive overall balance.
-	setBalance(t, to, c.senderAddr, c.assetStr, c.amount)
+	profile := &balanceProfile{c.amount, 0, 0}
+	setBalance(t, to, c.senderAddr, c.assetStr, profile)
 	// Transfer to same address leads to temp negative balance.
 	validateTx(t, to.tv, tx1, c.blocks, false)
 	err := to.tv.performTransactions()
@@ -805,12 +831,12 @@ func TestValidateExchangeV2(t *testing.T) {
 	diffTest(t, to, tx, profileChanges)
 }
 
-func createLeaseV1(t *testing.T) *proto.LeaseV1 {
+func createLeaseV1(t *testing.T, timestamp uint64) *proto.LeaseV1 {
 	spk, err := crypto.NewPublicKeyFromBase58(senderPK)
 	assert.NoError(t, err, "NewPublicKeyFromBase58() failed")
 	rcp, err := proto.NewAddressFromString(recipientAddr)
 	assert.NoError(t, err, "NewAddressFromString() failed")
-	tx := proto.NewUnsignedLeaseV1(spk, proto.NewRecipientFromAddress(rcp), 100, 1, timestamp1)
+	tx := proto.NewUnsignedLeaseV1(spk, proto.NewRecipientFromAddress(rcp), 100, 1, timestamp)
 	seed, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
 	sk, _ := crypto.GenerateKeyPair(seed)
 	err = tx.Sign(sk)
@@ -828,7 +854,20 @@ func TestValidateLeaseV1(t *testing.T) {
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
-	tx := createLeaseV1(t)
+	tx := createLeaseV1(t, timestamp2)
+	tx1 := createTransferV1(t, to, recipientAddr)
+	tx1.Timestamp = timestamp2
+	tests := []struct {
+		leaseTestCase
+		f runLeaseTest
+	}{
+		{leaseTestCase{senderAddr, balanceProfile{tx.Amount, 100500, int64(tx.Amount)}, []block{{timestamp2, blockSig0}}, true, "performTransactions() did not fail with all balance leased"}, testInvalidLeasing},
+		{leaseTestCase{senderAddr, balanceProfile{tx.Amount, 100500, int64(tx.Amount) - 1}, []block{{timestamp2, blockSig0}}, true, "performTransactions() did not fail with leased balance transfer"}, testInvalidLeasing},
+	}
+	tests[0].f(t, to, tx, &tests[0].leaseTestCase)
+	tests[1].f(t, to, tx1, &tests[1].leaseTestCase)
+
+	tx = createLeaseV1(t, timestamp1)
 	// Set proper balances and check result state.
 	profileChanges := []profileChange{
 		{address: senderAddr, asset: "", prevBalance: tx.Fee + tx.Amount, newBalance: tx.Amount, newLeaseOut: int64(tx.Amount)},
@@ -838,12 +877,12 @@ func TestValidateLeaseV1(t *testing.T) {
 	diffTest(t, to, tx, profileChanges)
 }
 
-func createLeaseV2(t *testing.T) *proto.LeaseV2 {
+func createLeaseV2(t *testing.T, timestamp uint64) *proto.LeaseV2 {
 	spk, err := crypto.NewPublicKeyFromBase58(senderPK)
 	assert.NoError(t, err, "NewPublicKeyFromBase58() failed")
 	rcp, err := proto.NewAddressFromString(recipientAddr)
 	assert.NoError(t, err, "NewAddressFromString() failed")
-	tx := proto.NewUnsignedLeaseV2(spk, proto.NewRecipientFromAddress(rcp), 100, 1, timestamp1)
+	tx := proto.NewUnsignedLeaseV2(spk, proto.NewRecipientFromAddress(rcp), 100, 1, timestamp)
 	seed, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
 	sk, _ := crypto.GenerateKeyPair(seed)
 	err = tx.Sign(sk)
@@ -861,7 +900,20 @@ func TestValidateLeaseV2(t *testing.T) {
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
-	tx := createLeaseV2(t)
+	tx := createLeaseV2(t, timestamp2)
+	tx1 := createTransferV2(t, to, recipientAddr)
+	tx1.Timestamp = timestamp2
+	tests := []struct {
+		leaseTestCase
+		f runLeaseTest
+	}{
+		{leaseTestCase{senderAddr, balanceProfile{tx.Amount, 100500, int64(tx.Amount)}, []block{{timestamp2, blockSig0}}, true, "performTransactions() did not fail with all balance leased"}, testInvalidLeasing},
+		{leaseTestCase{senderAddr, balanceProfile{tx.Amount, 100500, int64(tx.Amount) - 1}, []block{{timestamp2, blockSig0}}, true, "performTransactions() did not fail with leased balance transfer"}, testInvalidLeasing},
+	}
+	tests[0].f(t, to, tx, &tests[0].leaseTestCase)
+	tests[1].f(t, to, tx1, &tests[1].leaseTestCase)
+
+	tx = createLeaseV2(t, timestamp1)
 	// Set proper balances and check result state.
 	profileChanges := []profileChange{
 		{address: senderAddr, asset: "", prevBalance: tx.Fee + tx.Amount, newBalance: tx.Amount, newLeaseOut: int64(tx.Amount)},
@@ -871,10 +923,10 @@ func TestValidateLeaseV2(t *testing.T) {
 	diffTest(t, to, tx, profileChanges)
 }
 
-func createLeaseCancelV1(t *testing.T, leaseID crypto.Digest) *proto.LeaseCancelV1 {
+func createLeaseCancelV1(t *testing.T, leaseID crypto.Digest, timestamp uint64) *proto.LeaseCancelV1 {
 	spk, err := crypto.NewPublicKeyFromBase58(senderPK)
 	assert.NoError(t, err, "NewPublicKeyFromBase58() failed")
-	return proto.NewUnsignedLeaseCancelV1(spk, leaseID, 1, timestamp1)
+	return proto.NewUnsignedLeaseCancelV1(spk, leaseID, 1, timestamp)
 }
 
 func TestValidateLeaseCancelV1(t *testing.T) {
@@ -887,7 +939,7 @@ func TestValidateLeaseCancelV1(t *testing.T) {
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
-	leaseTx := createLeaseV1(t)
+	leaseTx := createLeaseV1(t, timestamp1)
 	// Perform lease first.
 	profileChanges := []profileChange{
 		{address: senderAddr, asset: "", prevBalance: leaseTx.Fee + leaseTx.Amount, newBalance: leaseTx.Amount, newLeaseOut: int64(leaseTx.Amount)},
@@ -896,7 +948,7 @@ func TestValidateLeaseCancelV1(t *testing.T) {
 	}
 	diffTest(t, to, leaseTx, profileChanges)
 
-	tx := createLeaseCancelV1(t, *leaseTx.ID)
+	tx := createLeaseCancelV1(t, *leaseTx.ID, timestamp1)
 	// Cancel it and check balance profiles.
 	profileChanges = []profileChange{
 		{address: senderAddr, asset: "", newBalance: leaseTx.Amount - tx.Fee, newLeaseOut: 0},
@@ -906,10 +958,10 @@ func TestValidateLeaseCancelV1(t *testing.T) {
 	validateAndCheck(t, to, tx, profileChanges)
 }
 
-func createLeaseCancelV2(t *testing.T, leaseID crypto.Digest) *proto.LeaseCancelV2 {
+func createLeaseCancelV2(t *testing.T, leaseID crypto.Digest, timestamp uint64) *proto.LeaseCancelV2 {
 	spk, err := crypto.NewPublicKeyFromBase58(senderPK)
 	assert.NoError(t, err, "NewPublicKeyFromBase58() failed")
-	return proto.NewUnsignedLeaseCancelV2('W', spk, leaseID, 1, timestamp1)
+	return proto.NewUnsignedLeaseCancelV2('W', spk, leaseID, 1, timestamp)
 }
 
 func TestValidateLeaseCancelV2(t *testing.T) {
@@ -922,7 +974,7 @@ func TestValidateLeaseCancelV2(t *testing.T) {
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
-	leaseTx := createLeaseV2(t)
+	leaseTx := createLeaseV2(t, timestamp1)
 	// Perform lease first.
 	profileChanges := []profileChange{
 		{address: senderAddr, asset: "", prevBalance: leaseTx.Fee + leaseTx.Amount, newBalance: leaseTx.Amount, newLeaseOut: int64(leaseTx.Amount)},
@@ -931,7 +983,7 @@ func TestValidateLeaseCancelV2(t *testing.T) {
 	}
 	diffTest(t, to, leaseTx, profileChanges)
 
-	tx := createLeaseCancelV2(t, *leaseTx.ID)
+	tx := createLeaseCancelV2(t, *leaseTx.ID, timestamp1)
 	// Cancel it and check balance profiles.
 	profileChanges = []profileChange{
 		{address: senderAddr, asset: "", newBalance: leaseTx.Amount - tx.Fee, newLeaseOut: 0},
