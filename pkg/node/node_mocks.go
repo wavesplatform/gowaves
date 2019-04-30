@@ -39,7 +39,7 @@ func (a *mockStateManager) AccountBalance(addr proto.Address, asset []byte) (uin
 	panic("implement me")
 }
 
-func (a *mockStateManager) AddressesNumber(wavesonly bool) (uint64, error) {
+func (a *mockStateManager) WavesAddressesNumber() (uint64, error) {
 	panic("implement me")
 }
 

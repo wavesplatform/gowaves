@@ -59,43 +59,6 @@ func (tx IssueV1) GetID() []byte {
 	return tx.ID.Bytes()
 }
 
-//func (tx IssueV1) GetSenderPK() crypto.PublicKey {
-//	return tx.SenderPK
-//}
-//
-//func (tx IssueV1) GetName() string {
-//	return tx.Name
-//}
-//
-//func (tx IssueV1) GetDescription() string {
-//	return tx.Description
-//}
-//
-//func (tx IssueV1) GetQuantity() uint64 {
-//	return tx.Quantity
-//}
-//
-//func (tx IssueV1) GetDecimals() byte {
-//	return tx.Decimals
-//}
-//
-//func (tx IssueV1) GetReissuable() bool {
-//	return tx.Reissuable
-//}
-//
-//func (tx IssueV1) GetScript() Script {
-//	return Script{}
-//}
-//
-//func (tx IssueV1) GetTimestamp() uint64 {
-//	return tx.Timestamp
-//}
-//
-//func (tx IssueV1) GetFee() uint64 {
-//	return tx.Fee
-//}
-//TODO: remove this
-
 //NewUnsignedIssueV1 creates new IssueV1 transaction without signature and ID.
 func NewUnsignedIssueV1(senderPK crypto.PublicKey, name, description string, quantity uint64, decimals byte, reissuable bool, timestamp, fee uint64) *IssueV1 {
 	i := Issue{

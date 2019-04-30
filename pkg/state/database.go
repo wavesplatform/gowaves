@@ -2,13 +2,14 @@ package state
 
 import (
 	"encoding/binary"
+	"log"
 
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 )
 
-var Empty = []byte{}
+var void = []byte{}
 
 // stateDB is responsible for all the actions which operate on the whole DB.
 // For instance, list of valid blocks and height are DB-wide entities.
@@ -56,6 +57,7 @@ func (s *stateDB) syncRw(rw *blockReadWriter) error {
 		return err
 	}
 	rwHeight := binary.LittleEndian.Uint64(rwHeightBytes)
+	log.Printf("Synced to initial height %d.\n", dbHeight)
 	if rwHeight < dbHeight {
 		// This should never happen, because we update block storage before writing changes into DB.
 		panic("Impossible to sync: DB is ahead of block storage; remove data dir and restart the node.")
@@ -79,7 +81,7 @@ func (s *stateDB) syncRw(rw *blockReadWriter) error {
 func (s *stateDB) addBlock(blockID crypto.Signature) error {
 	s.heightChange++
 	key := blockIdKey{blockID: blockID}
-	s.dbBatch.Put(key.bytes(), Empty)
+	s.dbBatch.Put(key.bytes(), void)
 	return nil
 }
 

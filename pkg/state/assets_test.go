@@ -3,6 +3,7 @@ package state
 import (
 	"bytes"
 	"io/ioutil"
+	"math/big"
 	"os"
 	"testing"
 
@@ -75,7 +76,7 @@ func createAssetInfo(t *testing.T, reissuable bool, blockID crypto.Signature, as
 			decimals:    2,
 		},
 		assetHistoryRecord: assetHistoryRecord{
-			quantity:   10000000,
+			quantity:   *big.NewInt(10000000),
 			reissuable: reissuable,
 			blockID:    blockID,
 		},
@@ -103,13 +104,13 @@ func TestIssueAsset(t *testing.T) {
 	assert.NoError(t, err, "failed to issue asset")
 	record, err := assets.newestAssetRecord(assetID)
 	assert.NoError(t, err, "failed to get newest asset record")
-	if *record != asset.assetHistoryRecord {
+	if !record.equal(&asset.assetHistoryRecord) {
 		t.Errorf("Assets differ.")
 	}
 	flushAssets(t, assets)
 	resAsset, err := assets.assetInfo(assetID)
 	assert.NoError(t, err, "failed to get asset info")
-	if *resAsset != *asset {
+	if !resAsset.equal(asset) {
 		t.Errorf("Assets differ.")
 	}
 }
@@ -135,11 +136,11 @@ func TestReissueAsset(t *testing.T) {
 	err = assets.reissueAsset(assetID, &assetReissueChange{false, 1, blockID})
 	assert.NoError(t, err, "failed to reissue asset")
 	asset.reissuable = false
-	asset.quantity += 1
+	asset.quantity.Add(&asset.quantity, big.NewInt(1))
 	flushAssets(t, assets)
 	resAsset, err := assets.assetInfo(assetID)
 	assert.NoError(t, err, "failed to get asset info")
-	if *resAsset != *asset {
+	if !resAsset.equal(asset) {
 		t.Errorf("Assets after reissue differ.")
 	}
 }
@@ -164,11 +165,11 @@ func TestBurnAsset(t *testing.T) {
 	assert.NoError(t, err, "failed to issue asset")
 	err = assets.burnAsset(assetID, &assetBurnChange{1, blockID})
 	assert.NoError(t, err, "failed to burn asset")
-	asset.quantity -= 1
+	asset.quantity.Sub(&asset.quantity, big.NewInt(1))
 	flushAssets(t, assets)
 	resAsset, err := assets.assetInfo(assetID)
 	assert.NoError(t, err, "failed to get asset info")
-	if *resAsset != *asset {
+	if !resAsset.equal(asset) {
 		t.Errorf("Assets after burn differ.")
 	}
 }

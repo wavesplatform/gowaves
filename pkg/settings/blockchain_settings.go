@@ -16,12 +16,16 @@ type FunctionalitySettings struct {
 	// Heights when some of rules change.
 	GenerationBalanceDepthFrom50To1000AfterHeight uint64
 	BlockVersion3AfterHeight                      uint64
+	// Lease cancellation.
+	ResetEffectiveBalanceAtHeight uint64
 
+	AllowMultipleLeaseCancelUntilTime   uint64
+	AllowLeasedBalanceTransferUntilTime uint64
 	// Timestamps when different kinds of checks become relevant.
 	NegativeBalanceCheckAfterTime          uint64
 	TxChangesSortedCheckAfterTime          uint64
 	TxFromFutureCheckAfterTime             uint64
-	UnissedAssetUntilTime                  uint64
+	UnissuedAssetUntilTime                 uint64
 	InvalidReissueInSameBlockUntilTime     uint64
 	MinimalGeneratingBalanceCheckAfterTime uint64
 
@@ -50,11 +54,14 @@ var (
 		FunctionalitySettings: FunctionalitySettings{
 			GenerationBalanceDepthFrom50To1000AfterHeight: 232000,
 			BlockVersion3AfterHeight:                      795000,
+			ResetEffectiveBalanceAtHeight:                 462000,
 
+			AllowMultipleLeaseCancelUntilTime:      1492768800000,
+			AllowLeasedBalanceTransferUntilTime:    1513357014002,
 			NegativeBalanceCheckAfterTime:          1479168000000,
 			TxChangesSortedCheckAfterTime:          1479416400000,
 			TxFromFutureCheckAfterTime:             1479168000000,
-			UnissedAssetUntilTime:                  1479416400000,
+			UnissuedAssetUntilTime:                 1479416400000,
 			InvalidReissueInSameBlockUntilTime:     1492768800000,
 			MinimalGeneratingBalanceCheckAfterTime: 1479168000000,
 
@@ -73,11 +80,14 @@ var (
 		FunctionalitySettings: FunctionalitySettings{
 			GenerationBalanceDepthFrom50To1000AfterHeight: 0,
 			BlockVersion3AfterHeight:                      161700,
+			ResetEffectiveBalanceAtHeight:                 51500,
 
+			AllowMultipleLeaseCancelUntilTime:      1492560000000,
+			AllowLeasedBalanceTransferUntilTime:    1508230496004,
 			NegativeBalanceCheckAfterTime:          1477958400000,
 			TxChangesSortedCheckAfterTime:          1479416400000,
 			TxFromFutureCheckAfterTime:             1478100000000,
-			UnissedAssetUntilTime:                  1479416400000,
+			UnissuedAssetUntilTime:                 1479416400000,
 			InvalidReissueInSameBlockUntilTime:     1492560000000,
 			MinimalGeneratingBalanceCheckAfterTime: 0,
 

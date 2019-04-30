@@ -19,7 +19,7 @@ import (
 	"strings"
 )
 
-var version = proto.Version{0, 15, 1}
+var version = proto.Version{Major: 0, Minor: 15, Patch: 1}
 
 type Cli struct {
 	Run struct {
@@ -48,6 +48,7 @@ func main() {
 	state, err := state.NewState("./", state.DefaultBlockStorageParams(), settings.MainNetSettings)
 	if err != nil {
 		zap.S().Error(err)
+		cancel()
 		return
 	}
 
@@ -55,6 +56,7 @@ func main() {
 	case "wavesW", "wavesD", "wavesT":
 	default:
 		zap.S().Error("expected WavesNetwork to be wavesW, wavesD or wavesT, found %s", cli.Run.WavesNetwork)
+		cancel()
 		return
 	}
 

@@ -60,9 +60,9 @@ type State interface {
 	// AccountBalance retrieves balance of address in specific currency, asset is asset's ID.
 	// nil asset = Waves.
 	AccountBalance(addr proto.Address, asset []byte) (uint64, error)
-	// AddressesNumber returns total number of addresses in state.
-	// Set wavesOnly to true to only get number of addresses which have Waves.
-	AddressesNumber(wavesOnly bool) (uint64, error)
+	// WavesAddressesNumber returns total number of Waves addresses in state.
+	// It is extremely slow, so it is recommended to only use for testing purposes.
+	WavesAddressesNumber() (uint64, error)
 	// AddBlock adds single block to state.
 	// It's not recommended to use this function when you are able to accumulate big blocks batch,
 	// since it's much more efficient to add many blocks at once.
@@ -83,7 +83,7 @@ type State interface {
 	// Retrieve current blockchain settings.
 	BlockchainSettings() (*settings.BlockchainSettings, error)
 
-	//Create or replace Peers
+	// Create or replace Peers.
 	SavePeers([]proto.TCPAddr) error
 	Peers() ([]proto.TCPAddr, error)
 

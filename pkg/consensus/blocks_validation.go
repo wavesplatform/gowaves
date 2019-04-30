@@ -100,11 +100,11 @@ func (cv *ConsensusValidator) validateEffectiveBalance(header *proto.BlockHeader
 	}
 	if smallerMinimalGeneratingBalanceActivated(height) {
 		if balance < minimalEffectiveBalanceForGenerator2 {
-			return errors.New("generator's effective balance is less than required for generation")
+			return errors.Errorf("generator's effective balance is less than required for generation: %d", balance)
 		}
 	}
 	if balance < minimalEffectiveBalanceForGenerator1 {
-		return errors.New("generator's effective balance is less than required for generation")
+		return errors.Errorf("generator's effective balance is less than required for generation: %d", balance)
 	}
 	return nil
 }
@@ -227,7 +227,7 @@ func (cv *ConsensusValidator) validateBlockDelay(height uint64, header *proto.Bl
 		return errors.Errorf("failed to get effective balance: %v\n", err)
 	}
 	if err := cv.validateEffectiveBalance(header, effectiveBalance, height); err != nil {
-		return errors.Errorf("invalid generating balance: %v\n", err)
+		return errors.Errorf("invalid generating balance at height %d: %v\n", height, err)
 	}
 	delay, err := cv.validBlockDelay(height, header.GenPublicKey, parent.BaseTarget, effectiveBalance)
 	if err != nil {

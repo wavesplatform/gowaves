@@ -3,13 +3,19 @@ package state
 import (
 	"encoding/binary"
 
+	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
 const (
-	// Balances (main state).
-	balanceKeyPrefix byte = iota
+	// Key sizes.
+	wavesBalanceKeySize = 1 + proto.AddressSize
+	assetBalanceKeySize = 1 + proto.AddressSize + crypto.DigestSize
+
+	// Balances.
+	wavesBalanceKeyPrefix byte = iota
+	assetBalanceKeyPrefix
 
 	// Valid block IDs.
 	blockIdKeyPrefix
@@ -32,28 +38,58 @@ const (
 	assetConstKeyPrefix
 	assetHistKeyPrefix
 
-	// Known peers
+	// Leases.
+	leaseKeyPrefix
+	// Known peers.
 	knownPeersPrefix
 )
 
-type balanceKey struct {
+type wavesBalanceKey struct {
+	address proto.Address
+}
+
+func (k *wavesBalanceKey) bytes() []byte {
+	buf := make([]byte, wavesBalanceKeySize)
+	buf[0] = wavesBalanceKeyPrefix
+	copy(buf[1:], k.address[:])
+	return buf
+}
+
+func (k *wavesBalanceKey) unmarshal(data []byte) error {
+	if len(data) != wavesBalanceKeySize {
+		return errors.New("invalid data size")
+	}
+	var err error
+	if k.address, err = proto.NewAddressFromBytes(data[1 : 1+proto.AddressSize]); err != nil {
+		return err
+	}
+	return nil
+}
+
+type assetBalanceKey struct {
 	address proto.Address
 	asset   []byte
 }
 
-func (k *balanceKey) bytes() []byte {
-	if k.asset != nil {
-		buf := make([]byte, 1+proto.AddressSize+crypto.DigestSize)
-		buf[0] = balanceKeyPrefix
-		copy(buf[1:], k.address[:])
-		copy(buf[1+proto.AddressSize:], k.asset)
-		return buf
-	} else {
-		buf := make([]byte, 1+proto.AddressSize)
-		buf[0] = balanceKeyPrefix
-		copy(buf[1:], k.address[:])
-		return buf
+func (k *assetBalanceKey) bytes() []byte {
+	buf := make([]byte, assetBalanceKeySize)
+	buf[0] = assetBalanceKeyPrefix
+	copy(buf[1:], k.address[:])
+	copy(buf[1+proto.AddressSize:], k.asset)
+	return buf
+}
+
+func (k *assetBalanceKey) unmarshal(data []byte) error {
+	if len(data) != assetBalanceKeySize {
+		return errors.New("invalid data size")
 	}
+	var err error
+	if k.address, err = proto.NewAddressFromBytes(data[1 : 1+proto.AddressSize]); err != nil {
+		return err
+	}
+	k.asset = make([]byte, crypto.DigestSize)
+	copy(k.asset, data[1+proto.AddressSize:])
+	return nil
 }
 
 type blockIdKey struct {
@@ -119,5 +155,16 @@ func (k *assetHistKey) bytes() []byte {
 	buf := make([]byte, 1+crypto.DigestSize)
 	buf[0] = assetHistKeyPrefix
 	copy(buf[1:], k.assetID[:])
+	return buf
+}
+
+type leaseKey struct {
+	leaseID crypto.Digest
+}
+
+func (k *leaseKey) bytes() []byte {
+	buf := make([]byte, 1+crypto.DigestSize)
+	buf[0] = leaseKeyPrefix
+	copy(buf[1:], k.leaseID[:])
 	return buf
 }

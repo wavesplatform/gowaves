@@ -1,23 +1,28 @@
 package state
 
 import (
-	"encoding/binary"
+	"math/big"
 
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/state/history"
-	"github.com/wavesplatform/gowaves/pkg/util"
 )
 
 const (
-	assetRecordSize = 8 + 1 + crypto.SignatureSize
+	// maxQuantityLen is maximum length of quantity (it's represented as big.Int) bytes in asset history records.
+	maxQuantityLen  = 16
+	assetRecordSize = maxQuantityLen + 1 + crypto.SignatureSize
 )
 
 type assetInfo struct {
 	assetConstInfo
 	assetHistoryRecord
+}
+
+func (ai *assetInfo) equal(ai1 *assetInfo) bool {
+	return ai.assetHistoryRecord.equal(&ai1.assetHistoryRecord) && (ai.assetConstInfo == ai1.assetConstInfo)
 }
 
 // assetConstInfo is part of asset info which is constant.
@@ -55,27 +60,45 @@ func (ai *assetConstInfo) unmarshalBinary(data []byte) error {
 
 // assetHistoryRecord is part of asset info which can change.
 type assetHistoryRecord struct {
-	quantity   uint64
+	quantity   big.Int
 	reissuable bool
 	blockID    crypto.Signature
 }
 
+func (r *assetHistoryRecord) equal(r1 *assetHistoryRecord) bool {
+	if r.quantity.Cmp(&r1.quantity) != 0 {
+		return false
+	}
+	if r.reissuable != r1.reissuable {
+		return false
+	}
+	if r.blockID != r1.blockID {
+		return false
+	}
+	return true
+}
+
 func (r *assetHistoryRecord) marshalBinary() ([]byte, error) {
-	res := make([]byte, 8+1+crypto.SignatureSize)
-	binary.BigEndian.PutUint64(res[:8], r.quantity)
-	proto.PutBool(res[8:9], r.reissuable)
-	copy(res[9:], r.blockID[:])
+	quantityBytes := r.quantity.Bytes()
+	l := len(quantityBytes)
+	if l > maxQuantityLen {
+		return nil, errors.Errorf("quantity length %d bytes exceeds maxQuantityLen of %d", l, maxQuantityLen)
+	}
+	res := make([]byte, maxQuantityLen+1+crypto.SignatureSize)
+	copy(res[maxQuantityLen-l:maxQuantityLen], quantityBytes)
+	proto.PutBool(res[maxQuantityLen:maxQuantityLen+1], r.reissuable)
+	copy(res[maxQuantityLen+1:], r.blockID[:])
 	return res, nil
 }
 
 func (r *assetHistoryRecord) unmarshalBinary(data []byte) error {
-	r.quantity = binary.BigEndian.Uint64(data[:8])
+	r.quantity.SetBytes(data[:maxQuantityLen])
 	var err error
-	r.reissuable, err = proto.Bool(data[8:9])
+	r.reissuable, err = proto.Bool(data[maxQuantityLen : maxQuantityLen+1])
 	if err != nil {
 		return err
 	}
-	copy(r.blockID[:], data[9:])
+	copy(r.blockID[:], data[maxQuantityLen+1:])
 	return nil
 }
 
@@ -136,7 +159,7 @@ func (a *assets) issueAsset(assetID crypto.Digest, asset *assetInfo) error {
 
 type assetReissueChange struct {
 	reissuable bool
-	diff       uint64
+	diff       int64
 	blockID    crypto.Signature
 }
 
@@ -145,17 +168,14 @@ func (a *assets) reissueAsset(assetID crypto.Digest, ch *assetReissueChange) err
 	if err != nil {
 		return errors.Errorf("failed to get asset info: %v\n", err)
 	}
-	prevQuantity := info.quantity
-	newQuantity, err := util.AddInt64(int64(ch.diff), int64(prevQuantity))
-	if err != nil {
-		return errors.Errorf("failed to add quantities: %v\n", err)
-	}
-	record := &assetHistoryRecord{reissuable: ch.reissuable, quantity: uint64(newQuantity), blockID: ch.blockID}
+	quantityDiff := big.NewInt(ch.diff)
+	info.quantity.Add(&info.quantity, quantityDiff)
+	record := &assetHistoryRecord{reissuable: ch.reissuable, quantity: info.quantity, blockID: ch.blockID}
 	return a.addNewRecord(assetID, record)
 }
 
 type assetBurnChange struct {
-	diff    uint64
+	diff    int64
 	blockID crypto.Signature
 }
 
@@ -164,9 +184,12 @@ func (a *assets) burnAsset(assetID crypto.Digest, ch *assetBurnChange) error {
 	if err != nil {
 		return errors.Errorf("failed to get asset info: %v\n", err)
 	}
-	prevQuantity := info.quantity
-	newQuantity := prevQuantity - ch.diff
-	record := &assetHistoryRecord{reissuable: info.reissuable, quantity: uint64(newQuantity), blockID: ch.blockID}
+	quantityDiff := big.NewInt(ch.diff)
+	if info.quantity.Cmp(quantityDiff) == -1 {
+		return errors.New("trying to burn more assets than exist at all")
+	}
+	info.quantity.Sub(&info.quantity, quantityDiff)
+	record := &assetHistoryRecord{reissuable: info.reissuable, quantity: info.quantity, blockID: ch.blockID}
 	return a.addNewRecord(assetID, record)
 }
 

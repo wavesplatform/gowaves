@@ -669,20 +669,6 @@ func (tr *Transfer) unmarshalBinary(data []byte) error {
 	return nil
 }
 
-//type Issue interface {
-//	GetID() []byte
-//	GetSenderPK() crypto.PublicKey
-//	GetName() string
-//	GetDescription() string
-//	GetQuantity() uint64
-//	GetDecimals() byte
-//	GetReissuable() bool
-//	GetScript() Script
-//	GetTimestamp() uint64
-//	GetFee() uint64
-//}
-//TODO: remove this
-
 type Reissue struct {
 	SenderPK   crypto.PublicKey `json:"senderPublicKey"`
 	AssetID    crypto.Digest    `json:"assetId"`
