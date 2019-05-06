@@ -64,8 +64,8 @@ func (a *BytesReader) Peek() byte {
 	return a.bytes[a.pos]
 }
 
-func (a *BytesReader) ReadByte() byte {
-	return a.Next()
+func (a *BytesReader) ReadByte() (byte, error) {
+	return a.Next(), nil
 }
 
 func (a *BytesReader) ReadShort() int16 {

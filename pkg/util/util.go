@@ -9,13 +9,22 @@ import (
 	"github.com/pkg/errors"
 )
 
-// Check for overflow.
+// Safe sum for int64.
 func AddInt64(a, b int64) (int64, error) {
 	c := a + b
 	if (c > a) == (b > 0) {
 		return c, nil
 	}
-	return 0, errors.New("integer overflow")
+	return 0, errors.New("64-bit signed integer overflow")
+}
+
+// Safe sum for uint64.
+func AddUint64(a, b uint64) (uint64, error) {
+	c := a + b
+	if (c > a) == (b > 0) {
+		return c, nil
+	}
+	return 0, errors.New("64-bit unsigned integer overflow")
 }
 
 func MinOf(vars ...uint64) uint64 {

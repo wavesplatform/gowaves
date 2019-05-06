@@ -36,7 +36,7 @@ func (a *MockStateManager) HeightToBlockID(height uint64) (crypto.Signature, err
 	panic("implement me")
 }
 
-func (a *MockStateManager) AccountBalance(addr proto.Address, asset []byte) (uint64, error) {
+func (a *MockStateManager) WavesAddressesNumber() (uint64, error) {
 	panic("implement me")
 }
 
@@ -89,6 +89,10 @@ func (a *MockStateManager) AddBlocks(blocks [][]byte, initialisation bool) error
 }
 
 func (a *MockStateManager) BlockchainSettings() (*settings.BlockchainSettings, error) {
+	panic("implement me")
+}
+
+func (a *MockStateManager) AccountBalance(addr proto.Address, asset []byte) (uint64, error) {
 	panic("implement me")
 }
 

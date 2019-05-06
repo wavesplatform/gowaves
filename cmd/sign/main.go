@@ -75,7 +75,7 @@ func transferTransaction() {
 		return
 	}
 
-	secretKey, err := getSecreyKey(opts.CustomSecret, pathToWallet)
+	secretKey, err := getSecretKey(opts.CustomSecret, pathToWallet)
 	if err != nil {
 		fmt.Printf("Err: %q", err)
 		return
@@ -84,21 +84,16 @@ func transferTransaction() {
 	publicKey := crypto.GeneratePublicKey(secretKey)
 
 	timestamp := client.NewTimestampFromTime(time.Now())
-	transfer, err := proto.NewUnsignedTransferV1(
+	transfer := proto.NewUnsignedTransferV1(
 		publicKey,
 		proto.OptionalAsset{},
 		proto.OptionalAsset{},
 		timestamp,
 		opts.Amount,
 		opts.Fee,
-		address,
+		proto.NewRecipientFromAddress(address),
 		"",
 	)
-
-	if err != nil {
-		fmt.Printf("Err: %s\n", err)
-		return
-	}
 
 	err = transfer.Sign(secretKey)
 	if err != nil {
@@ -115,7 +110,7 @@ func transferTransaction() {
 	fmt.Printf("\n%s\n\n", string(jsoned))
 }
 
-func getSecreyKey(s string, pathToWallet string) (crypto.SecretKey, error) {
+func getSecretKey(s string, pathToWallet string) (crypto.SecretKey, error) {
 	if s != "" {
 		return crypto.NewSecretKeyFromBase58(s)
 	}

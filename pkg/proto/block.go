@@ -86,7 +86,15 @@ func (b *BlockHeader) MarshalHeaderToBinary() ([]byte, error) {
 	return res, nil
 }
 
-func (b *BlockHeader) UnmarshalHeaderFromBinary(data []byte) error {
+func (b *BlockHeader) UnmarshalHeaderFromBinary(data []byte) (err error) {
+	// TODO make benchmarks to figure out why multiple length checks slow down that much
+	// and (probably) get rid of recover().
+	defer func() {
+		if recover() != nil {
+			err = errors.New("invalid data size")
+		}
+	}()
+
 	b.Version = BlockVersion(data[0])
 	b.Timestamp = binary.BigEndian.Uint64(data[1:9])
 	copy(b.Parent[:], data[9:73])
@@ -211,7 +219,15 @@ func (b *Block) MarshalBinary() ([]byte, error) {
 }
 
 // UnmarshalBinary decodes Block from binary form
-func (b *Block) UnmarshalBinary(data []byte) error {
+func (b *Block) UnmarshalBinary(data []byte) (err error) {
+	// TODO make benchmarks to figure out why multiple length checks slow down that much
+	// and (probably) get rid of recover().
+	defer func() {
+		if recover() != nil {
+			err = errors.New("invalid data size")
+		}
+	}()
+
 	b.Version = BlockVersion(data[0])
 	b.Timestamp = binary.BigEndian.Uint64(data[1:9])
 	copy(b.Parent[:], data[9:73])

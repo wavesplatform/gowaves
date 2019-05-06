@@ -19,7 +19,7 @@ import (
 	"strings"
 )
 
-var version = proto.Version{0, 15, 1}
+var version = proto.Version{Major: 0, Minor: 15, Patch: 1}
 
 type Cli struct {
 	Run struct {
@@ -48,6 +48,7 @@ func main() {
 	state, err := state.NewState("./", state.DefaultBlockStorageParams(), settings.MainNetSettings)
 	if err != nil {
 		zap.S().Error(err)
+		cancel()
 		return
 	}
 
@@ -61,6 +62,7 @@ func main() {
 	err = conf.Validate()
 	if err != nil {
 		zap.S().Error(err)
+		cancel()
 		return
 	}
 
@@ -89,6 +91,7 @@ func main() {
 	app, err := api.NewApp("integration-test-rest-api", n)
 	if err != nil {
 		zap.S().Error(err)
+		cancel()
 		return
 	}
 

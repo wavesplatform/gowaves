@@ -12,7 +12,7 @@ import (
 	"sync"
 )
 
-var defaultVersion = proto.Version{0, 15, 0}
+var defaultVersion = proto.Version{Major: 0, Minor: 15, Patch: 0}
 
 type peerInfo struct {
 	score *big.Int

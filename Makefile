@@ -5,9 +5,9 @@ SOURCE_DIRS = cmd pkg
 
 VERSION=$(shell git describe --tags --always --dirty)
 
-.PHONY: fmtcheck dep clean build gotest
+.PHONY: vetcheck fmtcheck dep clean build gotest
 
-all: dep build gotest fmtcheck
+all: dep vetcheck fmtcheck build gotest
 
 dep:
 	dep ensure
@@ -31,6 +31,9 @@ fmtcheck:
 	@gofmt -l -s $(SOURCE_DIRS) | grep ".*\.go"; if [ "$$?" = "0" ]; then exit 1; fi
 clean:
 	@rm -rf build
+
+vetcheck:
+	go vet ./...
 
 build-chaincmp-linux:
 	@CGO_ENABLE=0 GOOS=linux GOARCH=amd64 go build -o build/bin/linux-amd64/chaincmp -ldflags="-X main.version=$(VERSION)" ./cmd/chaincmp
