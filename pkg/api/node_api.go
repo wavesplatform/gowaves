@@ -60,15 +60,12 @@ func (a *NodeApi) routes() chi.Router {
 	r.Get("/blocks/first", a.BlocksFirst)
 	r.Get("/blocks/at/{id:\\d+}", a.BlockAt)
 	r.Get("/blocks/score/at/{id:\\d+}", a.BlockScoreAt)
-
 	r.Route("/peers", func(r chi.Router) {
 		r.Get("/all", a.PeersAll)
 		r.Get("/connected", a.PeersConnected)
 		r.Post("/connect", a.PeersConnect)
 	})
-
 	r.Get("/miner/info", a.Minerinfo)
-
 	return r
 }
 
