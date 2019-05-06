@@ -8,7 +8,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 )
 
-var Empty = []byte{}
+var Empty []byte = nil
 
 // stateDB is responsible for all the actions which operate on the whole DB.
 // For instance, list of valid blocks and height are DB-wide entities.

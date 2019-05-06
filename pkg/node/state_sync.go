@@ -5,7 +5,7 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/go-errors/errors"
+	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	. "github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"

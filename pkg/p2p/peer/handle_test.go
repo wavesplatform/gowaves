@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-errors/errors"
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/wavesplatform/gowaves/pkg/libs/bytespool"
 	"github.com/wavesplatform/gowaves/pkg/proto"

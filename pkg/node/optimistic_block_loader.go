@@ -1,11 +1,11 @@
 package node
 
 import (
-	"github.com/go-errors/errors"
-	"github.com/wavesplatform/gowaves/pkg/crypto"
-	//"github.com/wavesplatform/gowaves/pkg/network/peer"
-	"github.com/wavesplatform/gowaves/pkg/proto"
 	"sync"
+
+	"github.com/pkg/errors"
+	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
 type blockBytes []byte
