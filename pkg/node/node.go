@@ -279,8 +279,14 @@ func RunNode(ctx context.Context, n *Node, p peer.Parent) {
 	}()
 
 	go func() {
-		<-time.After(10 * time.Second)
+		select {
+		case <-time.After(10 * time.Second):
+		case <-ctx.Done():
+			return
+		}
+
 		n.AskPeers()
+
 		for {
 			select {
 			case <-ctx.Done():

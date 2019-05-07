@@ -34,12 +34,13 @@ func newExpectedBlocks(signatures []crypto.Signature, notify chan blockBytes) *e
 }
 
 func (a *expectedBlocks) add(block blockBytes) error {
-	a.mu.Lock()
-	defer a.mu.Unlock()
 	s, err := proto.BlockGetSignature(block)
 	if err != nil {
 		return err
 	}
+
+	a.mu.Lock()
+	defer a.mu.Unlock()
 
 	n, ok := a.blockToPosition[s]
 	if !ok {

@@ -80,8 +80,8 @@ func (a *PeerManagerImpl) Connected(unique string) (peer.Peer, bool) {
 
 // TODO check remove spawned
 func (a *PeerManagerImpl) AddConnected(peer peer.Peer) {
-	a.mu.RLock()
-	defer a.mu.RUnlock()
+	a.mu.Lock()
+	defer a.mu.Unlock()
 	a.active[peer.ID()] = newPeerInfo(peer)
 }
 
@@ -105,8 +105,8 @@ func (a *PeerManagerImpl) PeerWithHighestScore() (peer.Peer, *big.Int, bool) {
 }
 
 func (a *PeerManagerImpl) UpdateScore(id string, score *big.Int) {
-	a.mu.RLock()
-	defer a.mu.RUnlock()
+	a.mu.Lock()
+	defer a.mu.Unlock()
 
 	zap.S().Debugf("update score for %s, set %s", id, score.String())
 
@@ -214,8 +214,8 @@ func (a *PeerManagerImpl) RemoveSpawned(addr proto.TCPAddr) {
 }
 
 func (a *PeerManagerImpl) AskPeers() {
-	a.mu.Lock()
-	defer a.mu.Unlock()
+	a.mu.RLock()
+	defer a.mu.RUnlock()
 
 	for _, p := range a.active {
 		p.peer.SendMessage(&proto.GetPeersMessage{})
