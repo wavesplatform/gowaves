@@ -68,7 +68,8 @@ func main() {
 
 	declAddr := proto.NewTCPAddrFromString(conf.DeclaredAddr)
 
-	pool := bytespool.NewBytesPool(64, 2*1024*2014)
+	mb := 1024 * 1014
+	pool := bytespool.NewBytesPool(64, mb+(mb/2))
 
 	parent := peer.NewParent()
 
