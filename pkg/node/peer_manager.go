@@ -44,6 +44,7 @@ type PeerManager interface {
 	Close()
 	SpawnOutgoingConnections(context.Context)
 	SpawnIncomingConnection(ctx context.Context, conn net.Conn)
+	Connect(context.Context, proto.TCPAddr) error
 
 	// for all connected node send GetPeersMessage
 	AskPeers()
@@ -77,9 +78,10 @@ func (a *PeerManagerImpl) Connected(unique string) (peer.Peer, bool) {
 	return p.peer, ok
 }
 
+// TODO check remove spawned
 func (a *PeerManagerImpl) AddConnected(peer peer.Peer) {
-	a.mu.RLock()
-	defer a.mu.RUnlock()
+	a.mu.Lock()
+	defer a.mu.Unlock()
 	a.active[peer.ID()] = newPeerInfo(peer)
 }
 
@@ -103,8 +105,8 @@ func (a *PeerManagerImpl) PeerWithHighestScore() (peer.Peer, *big.Int, bool) {
 }
 
 func (a *PeerManagerImpl) UpdateScore(id string, score *big.Int) {
-	a.mu.RLock()
-	defer a.mu.RUnlock()
+	a.mu.Lock()
+	defer a.mu.Unlock()
 
 	zap.S().Debugf("update score for %s, set %s", id, score.String())
 
@@ -112,7 +114,7 @@ func (a *PeerManagerImpl) UpdateScore(id string, score *big.Int) {
 		row.score = score
 		a.active[id] = row
 	} else {
-		zap.S().Warnf("no peer with id %s found in active peers", id)
+		zap.S().Warnf("no peer with id %s found in active peers", id, a.active)
 	}
 }
 
@@ -212,8 +214,8 @@ func (a *PeerManagerImpl) RemoveSpawned(addr proto.TCPAddr) {
 }
 
 func (a *PeerManagerImpl) AskPeers() {
-	a.mu.Lock()
-	defer a.mu.Unlock()
+	a.mu.RLock()
+	defer a.mu.RUnlock()
 
 	for _, p := range a.active {
 		p.peer.SendMessage(&proto.GetPeersMessage{})
@@ -237,4 +239,40 @@ func (a *PeerManagerImpl) EachConnected(f func(peer peer.Peer, score *big.Int)) 
 	for _, row := range a.active {
 		f(row.peer, row.score)
 	}
+}
+
+func (a *PeerManagerImpl) Connect(ctx context.Context, addr proto.TCPAddr) error {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	active := map[proto.IpPort]struct{}{}
+	for _, p := range a.active {
+		if p.peer.Direction() == peer.Outgoing {
+			active[p.peer.RemoteAddr().ToIpPort()] = struct{}{}
+		} else {
+			if !p.peer.Handshake().DeclaredAddr.Empty() {
+				active[p.peer.Handshake().DeclaredAddr.ToIpPort()] = struct{}{}
+			}
+		}
+	}
+
+	if _, ok := active[addr.ToIpPort()]; ok {
+		return nil
+	}
+
+	if _, ok := a.spawned[addr.ToIpPort()]; ok {
+		return nil
+	}
+
+	a.spawned[addr.ToIpPort()] = struct{}{}
+
+	go func(addr proto.TCPAddr) {
+		defer a.RemoveSpawned(addr)
+		err := a.spawner.SpawnOutgoing(ctx, addr)
+		if err != nil {
+			zap.S().Error(err)
+		}
+	}(addr)
+
+	return nil
 }

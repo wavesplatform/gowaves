@@ -1,7 +1,7 @@
 package state
 
 import (
-	"github.com/go-errors/errors"
+	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 

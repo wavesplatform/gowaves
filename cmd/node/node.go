@@ -35,12 +35,12 @@ func init() {
 	zap.ReplaceGlobals(logger)
 }
 
-func noSkip(_ proto.Header) bool {
-	return false
-}
-
 func main() {
 	ctx, cancel := context.WithCancel(context.Background())
+
+	zap.S().Info(os.Args)
+	zap.S().Info(os.Environ())
+	zap.S().Info(os.LookupEnv("WAVES_OPTS"))
 
 	var cli Cli
 	kong.Parse(&cli)
@@ -52,39 +52,53 @@ func main() {
 		return
 	}
 
-	switch cli.Run.WavesNetwork {
-	case "wavesW", "wavesD", "wavesT":
-	default:
-		zap.S().Error("expected WavesNetwork to be wavesW, wavesD or wavesT, found %s", cli.Run.WavesNetwork)
+	conf := &settings.NodeSettings{}
+	settings.ApplySettings(conf,
+		FromArgs(&cli),
+		settings.FromJavaEnviron)
+
+	zap.S().Info("conf", conf)
+
+	err = conf.Validate()
+	if err != nil {
+		zap.S().Error(err)
 		cancel()
 		return
 	}
 
-	declAddr := proto.NewTCPAddrFromString(cli.Run.DeclAddr)
+	declAddr := proto.NewTCPAddrFromString(conf.DeclaredAddr)
 
-	//pool := bytespool.NewBytesPool(64, 2*1024*2014)
-	pool := bytespool.NewNoOpBytesPool(2 * 1024 * 2014)
+	mb := 1024 * 1014
+	pool := bytespool.NewBytesPool(64, mb+(mb/2))
 
 	parent := peer.NewParent()
 
-	peerSpawnerimpl := node.NewPeerSpawner(pool, noSkip, parent, cli.Run.WavesNetwork, declAddr, "gowaves", 100500, version)
+	peerSpawnerImpl := node.NewPeerSpawner(pool, parent, conf.WavesNetwork, declAddr, "gowaves", 100500, version)
 
-	peerManager := node.NewPeerManager(peerSpawnerimpl, state)
+	peerManager := node.NewPeerManager(peerSpawnerImpl, state)
 
 	n := node.NewNode(state, peerManager, declAddr)
 
 	go node.RunNode(ctx, n, parent)
 
-	if len(cli.Run.Addresses) > 0 {
-		adrs := strings.Split(cli.Run.Addresses, ",")
+	if len(conf.Addresses) > 0 {
+		adrs := strings.Split(conf.Addresses, ",")
 		for _, addr := range adrs {
 			peerManager.AddAddress(ctx, addr)
 		}
 	}
 
-	webApi := api.NewNodeApi(state, n, peerManager)
+	// TODO hardcore
+	app, err := api.NewApp("integration-test-rest-api", n)
+	if err != nil {
+		zap.S().Error(err)
+		cancel()
+		return
+	}
+
+	webApi := api.NewNodeApi(app, state, n)
 	go func() {
-		err := api.Run(ctx, cli.Run.HttpAddr, webApi)
+		err := api.Run(ctx, conf.HttpAddr, webApi)
 		if err != nil {
 			zap.S().Error("Failed to start API: %v", err)
 		}
@@ -105,4 +119,13 @@ func main() {
 		<-time.After(2 * time.Second)
 	}
 
+}
+
+func FromArgs(c *Cli) func(s *settings.NodeSettings) {
+	return func(s *settings.NodeSettings) {
+		s.DeclaredAddr = c.Run.DeclAddr
+		s.HttpAddr = c.Run.HttpAddr
+		s.WavesNetwork = c.Run.WavesNetwork
+		s.Addresses = c.Run.Addresses
+	}
 }

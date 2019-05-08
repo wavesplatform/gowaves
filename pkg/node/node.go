@@ -40,6 +40,14 @@ func NewNode(stateManager state.State, peerManager PeerManager, declAddr proto.T
 	}
 }
 
+func (a *Node) State() state.State {
+	return a.stateManager
+}
+
+func (a *Node) PeerManager() PeerManager {
+	return a.peerManager
+}
+
 func (a *Node) HandleProtoMessage(mess peer.ProtoMessage) {
 
 	zap.S().Info("arrived ", reflect.TypeOf(mess.Message))
@@ -231,6 +239,10 @@ func (a *Node) SpawnOutgoingConnections(ctx context.Context) {
 	a.peerManager.SpawnOutgoingConnections(ctx)
 }
 
+func (a *Node) SpawnOutgoingConnection(ctx context.Context, addr proto.TCPAddr) error {
+	return a.peerManager.Connect(ctx, addr)
+}
+
 func (a *Node) Serve(ctx context.Context) error {
 	if a.declAddr.Empty() {
 		return nil
@@ -267,8 +279,14 @@ func RunNode(ctx context.Context, n *Node, p peer.Parent) {
 	}()
 
 	go func() {
-		<-time.After(10 * time.Second)
+		select {
+		case <-time.After(10 * time.Second):
+		case <-ctx.Done():
+			return
+		}
+
 		n.AskPeers()
+
 		for {
 			select {
 			case <-ctx.Done():

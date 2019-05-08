@@ -147,6 +147,10 @@ func (a *Version) ReadFrom(r io.Reader) (int64, error) {
 	return int64(n), nil
 }
 
+func (a Version) String() string {
+	return fmt.Sprintf("%d.%d.%d", a.Major, a.Minor, a.Patch)
+}
+
 type TCPAddr net.TCPAddr
 
 func NewTCPAddr(ip net.IP, port int) TCPAddr {
