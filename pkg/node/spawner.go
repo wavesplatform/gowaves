@@ -11,6 +11,10 @@ import (
 	"net"
 )
 
+func noSkip(_ proto.Header) bool {
+	return false
+}
+
 type PeerSpawner interface {
 	SpawnOutgoing(ctx context.Context, addr proto.TCPAddr) error
 	SpawnIncoming(ctx context.Context, c net.Conn)
@@ -27,10 +31,10 @@ type PeerSpawnerImpl struct {
 	version      proto.Version
 }
 
-func NewPeerSpawner(pool bytespool.Pool, skipFunc conn.SkipFilter, parent peer.Parent, WavesNetwork string, declAddr proto.TCPAddr, nodeName string, nodeNonce uint64, version proto.Version) *PeerSpawnerImpl {
+func NewPeerSpawner(pool bytespool.Pool, parent peer.Parent, WavesNetwork string, declAddr proto.TCPAddr, nodeName string, nodeNonce uint64, version proto.Version) *PeerSpawnerImpl {
 	return &PeerSpawnerImpl{
 		pool:         pool,
-		skipFunc:     skipFunc,
+		skipFunc:     noSkip,
 		parent:       parent,
 		wavesNetwork: WavesNetwork,
 		declAddr:     declAddr,

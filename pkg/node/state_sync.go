@@ -1,11 +1,11 @@
 package node
 
 import (
-	"fmt"
+	"context"
 	"math/big"
 	"time"
 
-	"github.com/go-errors/errors"
+	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	. "github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -58,12 +58,13 @@ func (a *StateSync) Sync() error {
 
 		zap.S().Info("received signatures", received)
 		mess := received.(*proto.SignaturesMessage)
-		applyBlock2(mess, sigs, p, a.subscribe, a.stateManager, a.peerManager)
+		applyBlock(mess, sigs, p, a.subscribe, a.stateManager, a.peerManager)
 	}
 
 	return nil
 }
 
+// Send GetSignaturesMessage to peer with 100 last signatures
 func (a *StateSync) askSignatures(p Peer) (*Signatures, error) {
 	sigs, err := a.lastSignatures()
 	if err != nil {
@@ -98,6 +99,7 @@ func (a *StateSync) getPeerWithHighestScore() (Peer, error) {
 	return p, nil
 }
 
+// get last 100 signatures from db, from highest to lowest
 func (a *StateSync) lastSignatures() (*Signatures, error) {
 	var signatures []crypto.Signature
 
@@ -130,7 +132,7 @@ func (a *StateSync) Close() {
 	close(a.interrupt)
 }
 
-func applyBlock2(receivedSignatures *proto.SignaturesMessage, blockSignatures *Signatures, p Peer, subscribe *Subscribe, stateManager state.State, peerManager PeerManager) {
+func applyBlock(receivedSignatures *proto.SignaturesMessage, blockSignatures *Signatures, p Peer, subscribe *Subscribe, stateManager state.State, peerManager PeerManager) {
 
 	var sigs []crypto.Signature
 	for _, sig := range receivedSignatures.Signatures {
@@ -141,16 +143,19 @@ func applyBlock2(receivedSignatures *proto.SignaturesMessage, blockSignatures *S
 
 	ch := make(chan blockBytes, len(sigs))
 
-	go func() {
-		subscribeCh, unsubscribe := subscribe.Subscribe(p, &proto.BlockMessage{})
-		defer unsubscribe()
+	ctx, cancel := context.WithCancel(context.Background())
+	subscribeCh, unsubscribe := subscribe.Subscribe(p, &proto.BlockMessage{})
+	defer unsubscribe()
+	defer cancel()
 
+	go func() {
 		e := newExpectedBlocks(sigs, ch)
 		sendBulk(sigs, p)
 
 		// expect that all messages will income in 2 minutes
 		timeout := time.After(120 * time.Second)
 
+		// wait until we receive all signatures
 		for e.hasNext() {
 			select {
 			case <-timeout:
@@ -161,9 +166,10 @@ func applyBlock2(receivedSignatures *proto.SignaturesMessage, blockSignatures *S
 				if err != nil {
 					zap.S().Warn(err)
 				}
+			case <-ctx.Done():
+				return
 			}
 		}
-
 	}()
 
 	for i := 0; i < len(sigs); i++ {
@@ -188,9 +194,6 @@ func applyBlock2(receivedSignatures *proto.SignaturesMessage, blockSignatures *S
 			cancel()
 			err := stateManager.AddBlock(bts)
 			if err != nil {
-
-				fmt.Println(bts)
-
 				zap.S().Error(err)
 				continue
 			}

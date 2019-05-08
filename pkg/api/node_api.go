@@ -7,11 +7,8 @@ import (
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
 	"github.com/wavesplatform/gowaves/pkg/node"
-	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
-	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"go.uber.org/zap"
-	"math/big"
 	"net/http"
 	"strconv"
 	"time"
@@ -45,25 +42,30 @@ func Logger(l *zap.Logger) func(next http.Handler) http.Handler {
 type NodeApi struct {
 	state state.State
 	node  *node.Node
-	peers node.PeerManager
+	app   *App
 }
 
-func NewNodeApi(state state.State, node *node.Node, peers node.PeerManager) *NodeApi {
+func NewNodeApi(app *App, state state.State, node *node.Node) *NodeApi {
 	return &NodeApi{
 		state: state,
 		node:  node,
-		peers: peers,
+		app:   app,
 	}
 }
 
 func (a *NodeApi) routes() chi.Router {
 	r := chi.NewRouter()
 	r.Get("/blocks/last", a.BlocksLast)
+	r.Get("/blocks/height", a.BlockHeight)
 	r.Get("/blocks/first", a.BlocksFirst)
 	r.Get("/blocks/at/{id:\\d+}", a.BlockAt)
 
-	// peers
-	r.Get("/peers/all", a.PeersAll)
+	r.Route("/peers", func(r chi.Router) {
+		r.Get("/all", a.PeersAll)
+		r.Get("/connected", a.PeersConnected)
+		r.Post("/connect", a.PeersConnect)
+	})
+
 	return r
 }
 
@@ -129,6 +131,23 @@ func (a *NodeApi) BlockAt(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+type BlockHeightResponse struct {
+	Height uint64 `json:"height"`
+}
+
+func (a *NodeApi) BlockHeight(w http.ResponseWriter, r *http.Request) {
+	height, err := a.state.Height()
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to complete request: %s", err.Error()), http.StatusInternalServerError)
+		return
+	}
+	err = json.NewEncoder(w).Encode(&BlockHeightResponse{Height: height})
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to marshal status to JSON: %s", err.Error()), http.StatusInternalServerError)
+		return
+	}
+}
+
 func Run(ctx context.Context, address string, n *NodeApi) error {
 	apiServer := &http.Server{Addr: address, Handler: n.routes()}
 	go func() {
@@ -149,67 +168,65 @@ func Run(ctx context.Context, address string, n *NodeApi) error {
 	return nil
 }
 
-type PeersAll struct {
-	Peers []Peer `json:"peers"`
-}
-
-type Peer struct {
-	Address  string `json:"address"`
-	LastSeen uint64 `json:"lastSeen"`
-}
-
 func (a *NodeApi) PeersAll(w http.ResponseWriter, r *http.Request) {
-	peers, err := a.state.Peers()
+	peers, err := a.app.PeersAll()
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to complete request: %s", err.Error()), http.StatusInternalServerError)
+		handleError(err, w)
+		return
+	}
+	sendJson(peers, w)
+}
+
+type PeersConnectRequest struct {
+	Host string `json:"host"`
+	Port uint16 `json:"port"`
+}
+
+func (a *NodeApi) PeersConnect(w http.ResponseWriter, r *http.Request) {
+
+	zap.S().Info("PeersConnect ", r.Header.Get("X-API-Key"))
+
+	req := new(PeersConnectRequest)
+	err := json.NewDecoder(r.Body).Decode(req)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to marshal status to JSON: %s", err.Error()), http.StatusBadRequest)
 		return
 	}
 
-	var out []Peer
-	for _, row := range peers {
-		out = append(out, Peer{Address: row.String()})
-	}
+	zap.S().Info("PeersConnect ", r.Header.Get("X-API-Key"), req)
 
-	err = json.NewEncoder(w).Encode(PeersAll{Peers: out})
+	apiKey := r.Header.Get("X-API-Key")
+	rs, err := a.app.PeersConnect(context.Background(), apiKey, fmt.Sprintf("%s:%d", req.Host, req.Port))
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to marshal status to JSON: %s", err.Error()), http.StatusInternalServerError)
+		handleError(err, w)
 		return
 	}
-}
-
-type PeersConnected struct {
-	Peers []PeersConnectedRow `json:"peers"`
-}
-
-type PeersConnectedRow struct {
-	Address            string
-	DeclaredAddress    string
-	peerName           string
-	peerNonce          uint64
-	applicationName    string
-	applicationVersion proto.Version
+	sendJson(rs, w)
 }
 
 func (a *NodeApi) PeersConnected(w http.ResponseWriter, r *http.Request) {
-	var out []PeersConnectedRow
-	a.peers.EachConnected(func(peer peer.Peer, i *big.Int) {
+	rs, err := a.app.PeersConnected()
+	if err != nil {
+		handleError(err, w)
+		return
+	}
+	sendJson(rs, w)
+}
 
-		v := PeersConnectedRow{
-			Address:            peer.RemoteAddr().String(),
-			DeclaredAddress:    peer.Handshake().DeclaredAddr.String(),
-			peerName:           peer.Handshake().NodeName,
-			peerNonce:          peer.Handshake().NodeNonce,
-			applicationName:    peer.Handshake().AppName,
-			applicationVersion: peer.Handshake().Version,
-		}
+func handleError(err error, w http.ResponseWriter) {
+	switch err.(type) {
+	case *AuthError:
+		http.Error(w, fmt.Sprintf("Failed to complete request: %s", err.Error()), http.StatusForbidden)
+	case *BadRequestError:
+		http.Error(w, fmt.Sprintf("Failed to complete request: %s", err.Error()), http.StatusBadRequest)
+	default:
+		http.Error(w, fmt.Sprintf("Failed to complete request: %s", err.Error()), http.StatusInternalServerError)
+	}
+}
 
-		out = append(out, v)
-
-	})
-
-	err := json.NewEncoder(w).Encode(PeersConnected{Peers: out})
+func sendJson(v interface{}, w http.ResponseWriter) {
+	err := json.NewEncoder(w).Encode(v)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to marshal status to JSON: %s", err.Error()), http.StatusInternalServerError)
-		return
 	}
 }

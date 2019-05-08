@@ -290,7 +290,7 @@ func (s *stateManager) BlockIDToHeight(blockID crypto.Signature) (uint64, error)
 
 // RecentBlockIDToHeightStable is similar to BlockIDToHeight but it only works for recent rollbackMaxBlocks,
 // and it is much faster.
-// If block ID is not found among recent blocks, function returns -1 as height.
+// If block ID is not found among recent blocks, function returns 0 as height.
 func (s *stateManager) RecentBlockIDToHeightStable(blockID crypto.Signature) (uint64, error) {
 	if s.rb.isEmpty() {
 		if err := s.fillRecentBlocks(); err != nil {

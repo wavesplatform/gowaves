@@ -86,3 +86,7 @@ build-node-windows:
 	@CGO_ENABLE=0 GOOS=windows GOARCH=amd64 go build -o build/bin/windows-amd64/node.exe ./cmd/node
 
 release-node: ver build-node-linux build-node-darwin build-node-windows
+
+
+build-docker:
+	docker build -t com.wavesplatform/node-it:latest .
