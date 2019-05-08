@@ -92,13 +92,13 @@ type blockInfo interface {
 
 type heightInfo interface {
 	Height() (uint64, error)
-	BlockIDToHeight(blockID crypto.Signature) (uint64, error)
-	RollbackMax() uint64
+	RecentBlockIDToHeightStable(blockID crypto.Signature) (uint64, error)
+	RollbackMax() int
 }
 
 type heightInfoExt interface {
 	heightInfo
-	NewBlockIDToHeight(blockID crypto.Signature) (uint64, error)
+	RecentBlockIDToHeight(blockID crypto.Signature) (uint64, error)
 }
 
 type balances struct {
@@ -247,7 +247,7 @@ func (s *balances) wavesAddressesNumber() (uint64, error) {
 	return addressesNumber, nil
 }
 
-// minBalanceInRange() is used to get min miner's effective balance, so it includes blocks which
+// minEffectiveBalanceInRange() is used to get min miner's effective balance, so it includes blocks which
 // have not been flushed to DB yet (and are currently stored in memory).
 func (s *balances) minEffectiveBalanceInRange(addr proto.Address, startHeight, endHeight uint64) (uint64, error) {
 	key := wavesBalanceKey{address: addr}
@@ -266,7 +266,7 @@ func (s *balances) minEffectiveBalanceInRange(addr proto.Address, startHeight, e
 		if err != nil {
 			return 0, err
 		}
-		height, err := s.hInfo.NewBlockIDToHeight(blockID)
+		height, err := s.hInfo.RecentBlockIDToHeight(blockID)
 		if err != nil {
 			return 0, err
 		}

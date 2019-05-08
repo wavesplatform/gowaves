@@ -35,7 +35,7 @@ func (m *mockHeightInfo) Height() (uint64, error) {
 	return uint64(len(m.blockIDToHeight)), nil
 }
 
-func (m *mockHeightInfo) BlockIDToHeight(blockID crypto.Signature) (uint64, error) {
+func (m *mockHeightInfo) RecentBlockIDToHeightStable(blockID crypto.Signature) (uint64, error) {
 	height, ok := m.blockIDToHeight[blockID]
 	if !ok {
 		return 0, errors.New("ID not found")
@@ -43,7 +43,7 @@ func (m *mockHeightInfo) BlockIDToHeight(blockID crypto.Signature) (uint64, erro
 	return height, nil
 }
 
-func (m *mockHeightInfo) RollbackMax() uint64 {
+func (m *mockHeightInfo) RollbackMax() int {
 	return rollbackMax
 }
 
@@ -139,9 +139,9 @@ func TestNormalize(t *testing.T) {
 		if err != nil {
 			t.Fatalf("NewSignatureFromBytes(): %v\n", err)
 		}
-		recordHeight, err := hinfo.BlockIDToHeight(blockID)
+		recordHeight, err := hinfo.RecentBlockIDToHeightStable(blockID)
 		if err != nil {
-			t.Fatalf("BlockIDToHeight(): %v\n", err)
+			t.Fatalf("RecentBlockIDToHeightStable(): %v\n", err)
 		}
 		if recordHeight < height-rollbackMax {
 			oldRecordNumber++

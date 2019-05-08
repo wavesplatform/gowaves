@@ -16,23 +16,23 @@ import (
 type mock struct {
 }
 
-func (m *mock) IsValidBlock(blockID crypto.Signature) (bool, error) {
-	return true, nil
-}
-
 func (m *mock) Height() (uint64, error) {
 	return 0, nil
 }
 
-func (m *mock) BlockIDToHeight(blockID crypto.Signature) (uint64, error) {
+func (m *mock) IsValidBlock(blockID crypto.Signature) (bool, error) {
+	return true, nil
+}
+
+func (m *mock) RecentBlockIDToHeight(blockID crypto.Signature) (uint64, error) {
 	return 0, nil
 }
 
-func (m *mock) NewBlockIDToHeight(blockID crypto.Signature) (uint64, error) {
+func (m *mock) RecentBlockIDToHeightStable(blockID crypto.Signature) (uint64, error) {
 	return 0, nil
 }
 
-func (m *mock) RollbackMax() uint64 {
+func (m *mock) RollbackMax() int {
 	return rollbackMaxBlocks
 }
 

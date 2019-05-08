@@ -13,8 +13,8 @@ type blockInfo interface {
 
 type heightInfo interface {
 	Height() (uint64, error)
-	BlockIDToHeight(blockID crypto.Signature) (uint64, error)
-	RollbackMax() uint64
+	RecentBlockIDToHeightStable(blockID crypto.Signature) (uint64, error)
+	RollbackMax() int
 }
 
 type HistoryFormatter struct {
@@ -101,6 +101,10 @@ func (hfmt *HistoryFormatter) Filter(history []byte) ([]byte, error) {
 }
 
 func (hfmt *HistoryFormatter) Cut(history []byte) ([]byte, error) {
+	currentHeight, err := hfmt.hInfo.Height()
+	if err != nil {
+		return nil, err
+	}
 	firstNeeded := 0
 	for i := hfmt.recordSize; i <= len(history); i += hfmt.recordSize {
 		recordStart := i - hfmt.recordSize
@@ -113,15 +117,11 @@ func (hfmt *HistoryFormatter) Cut(history []byte) ([]byte, error) {
 		if err != nil {
 			return nil, err
 		}
-		blockHeight, err := hfmt.hInfo.BlockIDToHeight(blockID)
+		blockHeight, err := hfmt.hInfo.RecentBlockIDToHeightStable(blockID)
 		if err != nil {
 			return nil, err
 		}
-		currentHeight, err := hfmt.hInfo.Height()
-		if err != nil {
-			return nil, err
-		}
-		if currentHeight-blockHeight > hfmt.hInfo.RollbackMax() {
+		if (blockHeight == 0) || (currentHeight-blockHeight > uint64(hfmt.hInfo.RollbackMax())) {
 			// 1 record BEFORE minHeight is needed.
 			firstNeeded = recordStart
 			continue

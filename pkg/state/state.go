@@ -1,6 +1,7 @@
 package state
 
 import (
+	"bytes"
 	"encoding/binary"
 	"encoding/json"
 	"log"
@@ -60,15 +61,13 @@ type stateManager struct {
 	rw       *blockReadWriter
 	peers    *peerStorage
 
+	rb *recentBlocks
+
 	settings *settings.BlockchainSettings
 	cv       *consensus.ConsensusValidator
 
 	// Indicates whether lease cancellations were performed.
 	leasesCl0, leasesCl1, leasesCl2 bool
-}
-
-func (s *stateManager) Peers() ([]proto.TCPAddr, error) {
-	return s.peers.peers()
 }
 
 func newStateManager(dataDir string, params BlockStorageParams, settings *settings.BlockchainSettings) (*stateManager, error) {
@@ -103,16 +102,19 @@ func newStateManager(dataDir string, params BlockStorageParams, settings *settin
 		settings: settings,
 		peers:    newPeerStorage(db),
 	}
+	// Set fields which depend on state.
 	// rw is storage for blocks.
 	rw, err := newBlockReadWriter(blockStorageDir, params.OffsetLen, params.HeaderOffsetLen, db, dbBatch)
 	if err != nil {
 		return nil, StateError{errorType: Other, originalError: errors.Errorf("failed to create block storage: %v\n", err)}
 	}
+	state.rw = rw
 	// balances is storage for balances of accounts.
 	balances, err := newBalances(db, dbBatch, state, state)
 	if err != nil {
 		return nil, StateError{errorType: Other, originalError: errors.Errorf("failed to create balances storage: %v\n", err)}
 	}
+	state.balances = balances
 	if err := stateDB.syncRw(rw); err != nil {
 		return nil, StateError{errorType: Other, originalError: errors.Errorf("failed to sync block storage and DB: %v\n", err)}
 	}
@@ -121,22 +123,25 @@ func newStateManager(dataDir string, params BlockStorageParams, settings *settin
 	if err != nil {
 		return nil, StateError{errorType: Other, originalError: errors.Errorf("failed to create assets storage: %v\n", err)}
 	}
+	state.assets = assets
 	// leases is storage for leases info.
 	leases, err := newLeases(db, dbBatch, state, state)
 	if err != nil {
 		return nil, StateError{errorType: Other, originalError: errors.Errorf("failed to create leases storage: %v\n", err)}
 	}
+	state.leases = leases
 	// Consensus validator is needed to check block headers.
 	cv, err := consensus.NewConsensusValidator(state)
 	if err != nil {
 		return nil, StateError{errorType: Other, originalError: err}
 	}
-	// Set fields which depend on state.
-	state.assets = assets
-	state.leases = leases
 	state.cv = cv
-	state.balances = balances
-	state.rw = rw
+	// rb is in-memory storage for IDs of recent blocks.
+	rb, err := newRecentBlocks(rollbackMaxBlocks)
+	if err != nil {
+		return nil, StateError{errorType: Other, originalError: errors.Errorf("failed to create recent blocks stor: %v\n", err)}
+	}
+	state.rb = rb
 	// Handle genesis block.
 	genesisPath, err := genesisFilePath(settings)
 	if err != nil {
@@ -146,6 +151,10 @@ func newStateManager(dataDir string, params BlockStorageParams, settings *settin
 		return nil, StateError{errorType: Other, originalError: err}
 	}
 	return state, nil
+}
+
+func (s *stateManager) Peers() ([]proto.TCPAddr, error) {
+	return s.peers.peers()
 }
 
 func (s *stateManager) setGenesisBlock(genesisCfgPath string) error {
@@ -249,6 +258,28 @@ func (s *stateManager) Height() (uint64, error) {
 	return height, nil
 }
 
+func (s *stateManager) fillRecentBlocks() error {
+	height, err := s.Height()
+	if err != nil {
+		return err
+	}
+	start := uint64(1)
+	if height > rollbackMaxBlocks {
+		start = height - uint64(rollbackMaxBlocks)
+	}
+	s.rb.setStartHeight(start)
+	for h := start; h <= height; h++ {
+		id, err := s.HeightToBlockID(h)
+		if err != nil {
+			return err
+		}
+		if err := s.rb.addBlockID(id); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (s *stateManager) BlockIDToHeight(blockID crypto.Signature) (uint64, error) {
 	height, err := s.rw.heightByBlockID(blockID)
 	if err != nil {
@@ -257,8 +288,32 @@ func (s *stateManager) BlockIDToHeight(blockID crypto.Signature) (uint64, error)
 	return height, nil
 }
 
-func (s *stateManager) NewBlockIDToHeight(blockID crypto.Signature) (uint64, error) {
-	height, err := s.rw.heightByNewBlockID(blockID)
+// RecentBlockIDToHeightStable is similar to BlockIDToHeight but it only works for recent rollbackMaxBlocks,
+// and it is much faster.
+// If block ID is not found among recent blocks, function returns -1 as height.
+func (s *stateManager) RecentBlockIDToHeightStable(blockID crypto.Signature) (uint64, error) {
+	if s.rb.isEmpty() {
+		if err := s.fillRecentBlocks(); err != nil {
+			return 0, err
+		}
+	}
+	height, err := s.rb.blockIDToHeight(blockID)
+	if err != nil {
+		return 0, StateError{errorType: RetrievalError, originalError: err}
+	}
+	return height, nil
+}
+
+// RecentBlockIDToHeight is similar to RecentBlockIDToHeightStable but it takes into account new blocks as well
+// (blocks which have not been saved to DB yet).
+// It is mostly needed for calculation of miner's effective balance.
+func (s *stateManager) RecentBlockIDToHeight(blockID crypto.Signature) (uint64, error) {
+	if s.rb.isEmpty() {
+		if err := s.fillRecentBlocks(); err != nil {
+			return 0, err
+		}
+	}
+	height, err := s.rb.newBlockIDToHeight(blockID)
 	if err != nil {
 		return 0, StateError{errorType: RetrievalError, originalError: err}
 	}
@@ -306,6 +361,14 @@ func (s *stateManager) topBlock() (*proto.Block, error) {
 }
 
 func (s *stateManager) addNewBlock(tv *transactionValidator, block, parent *proto.Block, initialisation bool) error {
+	if s.rb.isEmpty() {
+		if err := s.fillRecentBlocks(); err != nil {
+			return err
+		}
+	}
+	if err := s.rb.addNewBlockID(block.BlockSignature); err != nil {
+		return err
+	}
 	if err := s.stateDB.addBlock(block.BlockSignature); err != nil {
 		return err
 	}
@@ -371,6 +434,7 @@ func (s *stateManager) flush() error {
 	if err := s.stateDB.flush(); err != nil {
 		return err
 	}
+	s.rb.flush()
 	return nil
 }
 
@@ -397,6 +461,7 @@ func (s *stateManager) undoBlockAddition() error {
 	if err := s.stateDB.syncRw(s.rw); err != nil {
 		return err
 	}
+	s.rb.reset()
 	return nil
 }
 
@@ -596,7 +661,7 @@ func (s *stateManager) RollbackToHeight(height uint64) error {
 	return nil
 }
 
-func (s *stateManager) RollbackTo(removalEdge crypto.Signature) error {
+func (s *stateManager) rollbackToImpl(removalEdge crypto.Signature) error {
 	if err := s.checkRollbackInput(removalEdge); err != nil {
 		return StateError{errorType: InvalidInputError, originalError: err}
 	}
@@ -609,12 +674,16 @@ func (s *stateManager) RollbackTo(removalEdge crypto.Signature) error {
 		if err != nil {
 			return StateError{errorType: RetrievalError, originalError: err}
 		}
-		if blockID == removalEdge {
+		if bytes.Equal(blockID[:], removalEdge[:]) {
 			break
 		}
 		if err := s.stateDB.rollbackBlock(blockID); err != nil {
 			return StateError{errorType: RollbackError, originalError: err}
 		}
+	}
+	// Remove blocks from block storage.
+	if err := s.rw.rollback(removalEdge, true); err != nil {
+		return StateError{errorType: RollbackError, originalError: err}
 	}
 	// Remove scores of deleted blocks.
 	newHeight, err := s.Height()
@@ -625,9 +694,18 @@ func (s *stateManager) RollbackTo(removalEdge crypto.Signature) error {
 	if err := s.scores.rollback(newHeight, oldHeight); err != nil {
 		return StateError{errorType: RollbackError, originalError: err}
 	}
-	// Remove blocks from block storage.
-	if err := s.rw.rollback(removalEdge, true); err != nil {
-		return StateError{errorType: RollbackError, originalError: err}
+	// Reset recent block IDs storage.
+	s.rb.reset()
+	return nil
+}
+
+func (s *stateManager) RollbackTo(removalEdge crypto.Signature) error {
+	if err := s.rollbackToImpl(removalEdge); err != nil {
+		if err1 := s.stateDB.syncRw(s.rw); err1 != nil {
+			panic("Failed to rollback and can not sync state components after failure.")
+		}
+		s.rb.reset()
+		return err
 	}
 	return nil
 }
@@ -667,7 +745,7 @@ func (s *stateManager) BlockchainSettings() (*settings.BlockchainSettings, error
 	return s.settings, nil
 }
 
-func (s *stateManager) RollbackMax() uint64 {
+func (s *stateManager) RollbackMax() int {
 	return rollbackMaxBlocks
 }
 

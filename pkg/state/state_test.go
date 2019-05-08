@@ -27,14 +27,6 @@ type testCase struct {
 	path   string
 }
 
-//func getLocalDir() (string, error) {
-//	_, filename, _, ok := runtime.Caller(0)
-//	if !ok {
-//		return "", errors.Errorf("Unable to find current package file")
-//	}
-//	return filepath.Dir(filename), nil
-//}
-
 func bigFromStr(s string) *big.Int {
 	var big big.Int
 	big.SetString(s, 10)

@@ -9,14 +9,8 @@ import (
 )
 
 var (
-	bottomLimit = rollbackMaxBlocks
+	rangeSize = rollbackMaxBlocks
 )
-
-func createRecentBlocks(t *testing.T) *recentBlocks {
-	rb, err := newRecentBlocks()
-	assert.NoError(t, err, "newRecentBlocks() failed")
-	return rb
-}
 
 func genIds(t *testing.T, size int) []crypto.Signature {
 	res := make([]crypto.Signature, size)
@@ -30,34 +24,40 @@ func genIds(t *testing.T, size int) []crypto.Signature {
 	return res
 }
 
-type recentTest struct {
-	bottomLimit int
-	isRecent    bool
-}
+type idChecker = func(crypto.Signature) (uint64, error)
 
-func checkRecent(t *testing.T, rb *recentBlocks, ids []crypto.Signature, tc *recentTest) {
-	for _, id := range ids {
-		isRecent, err := rb.blockIsRecent(id, tc.bottomLimit)
-		assert.NoError(t, err, "blockIsRecent() failed")
-		assert.Equal(t, tc.isRecent, isRecent, "blockIsRecent() returned incorrect result")
+func checkHeights(t *testing.T, ids []crypto.Signature, properHeights []uint64, check idChecker) {
+	for i, id := range ids {
+		height, err := check(id)
+		assert.NoError(t, err, "blockIDToHeight failed")
+		assert.Equal(t, properHeights[i], height, "blockIDToHeight() returned incorrect result")
 	}
 }
 
-func TestBlockIsRecent(t *testing.T) {
-	rb := createRecentBlocks(t)
+func TestIsInRange(t *testing.T) {
+	rb, err := newRecentBlocks(rangeSize)
+	assert.NoError(t, err, "newRecentBlocks() failed")
 	assert.Equal(t, true, rb.isEmpty())
-	ids := genIds(t, rollbackMaxBlocks*2)
+	ids := genIds(t, rangeSize)
+	heights := make([]uint64, rangeSize)
+	// Test indirect addition of IDs.
+	for i, id := range ids {
+		err := rb.addNewBlockID(id)
+		assert.NoError(t, err, "addNewBlockID() failed")
+		heights[i] = uint64(i)
+	}
+	assert.Equal(t, true, rb.isEmpty())
+	checkHeights(t, ids, heights, rb.newBlockIDToHeight)
+	rb.flush()
+	assert.Equal(t, false, rb.isEmpty())
+	checkHeights(t, ids, heights, rb.blockIDToHeight)
+	rb.reset()
+	assert.Equal(t, true, rb.isEmpty())
+	// Now test direct addition of IDs.
 	for _, id := range ids {
 		err := rb.addBlockID(id)
 		assert.NoError(t, err, "addBlockID() failed")
 	}
 	assert.Equal(t, false, rb.isEmpty())
-	tc0 := &recentTest{bottomLimit, false}
-	checkRecent(t, rb, ids[:len(ids)-bottomLimit], tc0)
-	tc1 := &recentTest{bottomLimit, true}
-	checkRecent(t, rb, ids[len(ids)-bottomLimit:], tc1)
-	rb.reset()
-	assert.Equal(t, true, rb.isEmpty())
-	tc2 := &recentTest{0, false}
-	checkRecent(t, rb, ids, tc2)
+	checkHeights(t, ids, heights, rb.blockIDToHeight)
 }
