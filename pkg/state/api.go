@@ -72,6 +72,7 @@ type State interface {
 	AddNewBlocks(blocks [][]byte) error
 	// AddOldBlocks adds batch of old blocks to state.
 	// Use it when importing historical blockchain.
+	// It is faster than AddNewBlocks but it is only safe when importing from scratch when no rollbacks are possible at all.
 	AddOldBlocks(blocks [][]byte) error
 	// Rollback functionality.
 	RollbackToHeight(height uint64) error

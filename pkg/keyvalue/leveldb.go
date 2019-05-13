@@ -23,7 +23,11 @@ func (k *KeyVal) NewBatch() (Batch, error) {
 }
 
 func (k *KeyVal) Get(key []byte) ([]byte, error) {
-	return k.db.Get(key, nil)
+	val, err := k.db.Get(key, nil)
+	if err == leveldb.ErrNotFound {
+		return val, ErrNotFound
+	}
+	return val, err
 }
 
 func (k *KeyVal) Has(key []byte) (bool, error) {

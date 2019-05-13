@@ -8,7 +8,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"github.com/wavesplatform/gowaves/pkg/state/history"
 )
 
 const (
@@ -55,16 +54,16 @@ type leases struct {
 	dbBatch keyvalue.Batch
 
 	stor map[string][]byte
-	fmt  *history.HistoryFormatter
+	fmt  *historyFormatter
 }
 
 func newLeases(
 	db keyvalue.IterableKeyVal,
 	dbBatch keyvalue.Batch,
-	hInfo heightInfo,
-	bInfo blockInfo,
+	stDb *stateDB,
+	rb *recentBlocks,
 ) (*leases, error) {
-	fmt, err := history.NewHistoryFormatter(leasingRecordSize, crypto.SignatureSize, hInfo, bInfo)
+	fmt, err := newHistoryFormatter(leasingRecordSize, crypto.SignatureSize, stDb, rb)
 	if err != nil {
 		return nil, err
 	}
@@ -91,7 +90,7 @@ func (l *leases) cancelLeases(bySenders map[proto.Address]struct{}) error {
 	// Iterate all the leases.
 	for leaseIter.Next() {
 		histBytes := leaseIter.Value()
-		histBytes, err = l.fmt.Normalize(histBytes)
+		histBytes, err = l.fmt.normalize(histBytes, true)
 		if err != nil {
 			return errors.Errorf("failed to normalize history: %v\n", err)
 		}
@@ -111,7 +110,7 @@ func (l *leases) cancelLeases(bySenders map[proto.Address]struct{}) error {
 			if err != nil {
 				return errors.Errorf("failed to marshal lease: %v\n", err)
 			}
-			history, err := l.fmt.AddRecord(histBytes, leaseBytes)
+			history, err := l.fmt.addRecord(histBytes, leaseBytes)
 			if err != nil {
 				return errors.Errorf("failed to add leasing record to history: %v\n", err)
 			}
@@ -137,7 +136,7 @@ func (l *leases) validLeaseIns() (map[proto.Address]int64, error) {
 	// Iterate all the leases.
 	for leaseIter.Next() {
 		histBytes := leaseIter.Value()
-		histBytes, err = l.fmt.Normalize(histBytes)
+		histBytes, err = l.fmt.normalize(histBytes, true)
 		if err != nil {
 			return nil, errors.Errorf("failed to normalize history: %v\n", err)
 		}
@@ -153,7 +152,7 @@ func (l *leases) validLeaseIns() (map[proto.Address]int64, error) {
 }
 
 func (l *leases) lastRecord(history []byte) (*leasingRecord, error) {
-	last, err := l.fmt.GetLatest(history)
+	last, err := l.fmt.getLatest(history)
 	if err != nil {
 		return nil, errors.Errorf("failed to get the last record: %v\n", err)
 	}
@@ -165,9 +164,9 @@ func (l *leases) lastRecord(history []byte) (*leasingRecord, error) {
 }
 
 // Leasing info from DB or local storage.
-func (l *leases) newestLeasingInfo(id crypto.Digest) (*leasing, error) {
+func (l *leases) newestLeasingInfo(id crypto.Digest, filter bool) (*leasing, error) {
 	key := leaseKey{leaseID: id}
-	history, err := fullHistory(key.bytes(), l.db, l.stor, l.fmt)
+	history, err := fullHistory(key.bytes(), l.db, l.stor, l.fmt, filter)
 	if err != nil {
 		return nil, err
 	}
@@ -185,7 +184,7 @@ func (l *leases) leasingInfo(id crypto.Digest) (*leasing, error) {
 	if err != nil {
 		return nil, errors.Errorf("failed to retrieve lease history: %v\n", err)
 	}
-	history, err = l.fmt.Normalize(history)
+	history, err = l.fmt.normalize(history, true)
 	if err != nil {
 		return nil, errors.Errorf("failed to normalize history: %v\n", err)
 	}
@@ -203,7 +202,7 @@ func (l *leases) addLeasing(id crypto.Digest, r *leasingRecord) error {
 		return errors.Errorf("failed to marshal record: %v\n", err)
 	}
 	history, _ := l.stor[string(key.bytes())]
-	history, err = l.fmt.AddRecord(history, recordBytes)
+	history, err = l.fmt.addRecord(history, recordBytes)
 	if err != nil {
 		return errors.Errorf("failed to add leasing record to history: %v\n", err)
 	}
@@ -211,8 +210,8 @@ func (l *leases) addLeasing(id crypto.Digest, r *leasingRecord) error {
 	return nil
 }
 
-func (l *leases) cancelLeasing(id crypto.Digest, blockID crypto.Signature) error {
-	leasing, err := l.newestLeasingInfo(id)
+func (l *leases) cancelLeasing(id crypto.Digest, blockID crypto.Signature, filter bool) error {
+	leasing, err := l.newestLeasingInfo(id, filter)
 	if err != nil {
 		return errors.Errorf("failed to get leasing info: %v\n", err)
 	}
@@ -225,8 +224,8 @@ func (l *leases) reset() {
 	l.stor = make(map[string][]byte)
 }
 
-func (l *leases) flush() error {
-	if err := addHistoryToBatch(l.db, l.dbBatch, l.stor, l.fmt); err != nil {
+func (l *leases) flush(initialisation bool) error {
+	if err := addHistoryToBatch(l.db, l.dbBatch, l.stor, l.fmt, !initialisation); err != nil {
 		return err
 	}
 	return nil

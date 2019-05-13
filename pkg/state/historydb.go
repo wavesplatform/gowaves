@@ -2,7 +2,6 @@ package state
 
 import (
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
-	"github.com/wavesplatform/gowaves/pkg/state/history"
 )
 
 // fullHistory returns combination of history from DB and the local storage (if any).
@@ -10,22 +9,19 @@ func fullHistory(
 	key []byte,
 	db keyvalue.KeyValue,
 	localStor map[string][]byte,
-	fmt *history.HistoryFormatter,
+	fmt *historyFormatter,
+	filter bool,
 ) ([]byte, error) {
 	newHist, _ := localStor[string(key)]
-	has, err := db.Has(key)
-	if err != nil {
-		return nil, err
-	}
-	if !has {
+	prevHist, err := db.Get(key)
+	if err == keyvalue.ErrNotFound {
 		// New history.
 		return newHist, nil
 	}
-	prevHist, err := db.Get(key)
 	if err != nil {
 		return nil, err
 	}
-	prevHist, err = fmt.Normalize(prevHist)
+	prevHist, err = fmt.normalize(prevHist, filter)
 	if err != nil {
 		return nil, err
 	}
@@ -37,11 +33,12 @@ func addHistoryToBatch(
 	db keyvalue.KeyValue,
 	dbBatch keyvalue.Batch,
 	localStor map[string][]byte,
-	fmt *history.HistoryFormatter,
+	fmt *historyFormatter,
+	filter bool,
 ) error {
 	for keyStr := range localStor {
 		key := []byte(keyStr)
-		newRecord, err := fullHistory(key, db, localStor, fmt)
+		newRecord, err := fullHistory(key, db, localStor, fmt, filter)
 		if err != nil {
 			return err
 		}

@@ -109,7 +109,7 @@ func TestStateRollback(t *testing.T) {
 			t.Fatalf("Height(): %v\n", err)
 		}
 		if tc.nextHeight >= height {
-			if err := importer.ApplyFromFile(manager, blocksPath, tc.nextHeight-1, height); err != nil {
+			if err := importer.ApplyFromFile(manager, blocksPath, tc.nextHeight-1, height, false); err != nil {
 				t.Fatalf("Failed to import: %v\n", err)
 			}
 		} else {
@@ -160,11 +160,11 @@ func TestStateIntegrated(t *testing.T) {
 	// Test what happens in case of failure: we add blocks starting from wrong height.
 	// State should be rolled back to previous state and ready to use after.
 	wrongStartHeight := uint64(100)
-	if err := importer.ApplyFromFile(manager, blocksPath, blocksToImport, wrongStartHeight); err == nil {
+	if err := importer.ApplyFromFile(manager, blocksPath, blocksToImport, wrongStartHeight, false); err == nil {
 		t.Errorf("Import starting from wrong height must fail but it doesn't.")
 	}
 	// Test normal import.
-	if err := importer.ApplyFromFile(manager, blocksPath, blocksToImport, 1); err != nil {
+	if err := importer.ApplyFromFile(manager, blocksPath, blocksToImport, 1, false); err != nil {
 		t.Fatalf("Failed to import: %v\n", err)
 	}
 	if err := importer.CheckBalances(manager, balancesPath); err != nil {

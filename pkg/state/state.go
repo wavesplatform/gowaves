@@ -96,52 +96,52 @@ func newStateManager(dataDir string, params BlockStorageParams, settings *settin
 	if err != nil {
 		return nil, StateError{errorType: Other, originalError: errors.Errorf("failed to create scores: %v\n", err)}
 	}
-	state := &stateManager{
-		stateDB:  stateDB,
-		scores:   scores,
-		settings: settings,
-		peers:    newPeerStorage(db),
-	}
-	// Set fields which depend on state.
 	// rw is storage for blocks.
 	rw, err := newBlockReadWriter(blockStorageDir, params.OffsetLen, params.HeaderOffsetLen, db, dbBatch)
 	if err != nil {
 		return nil, StateError{errorType: Other, originalError: errors.Errorf("failed to create block storage: %v\n", err)}
 	}
-	state.rw = rw
-	// balances is storage for balances of accounts.
-	balances, err := newBalances(db, dbBatch, state, state)
-	if err != nil {
-		return nil, StateError{errorType: Other, originalError: errors.Errorf("failed to create balances storage: %v\n", err)}
-	}
-	state.balances = balances
 	if err := stateDB.syncRw(rw); err != nil {
 		return nil, StateError{errorType: Other, originalError: errors.Errorf("failed to sync block storage and DB: %v\n", err)}
 	}
+	// rb is in-memory storage for IDs of recent blocks.
+	rb, err := newRecentBlocks(rollbackMaxBlocks, rw)
+	if err != nil {
+		return nil, StateError{errorType: Other, originalError: errors.Errorf("failed to create recent blocks stor: %v\n", err)}
+	}
+	// balances is storage for balances of accounts.
+	balances, err := newBalances(db, dbBatch, stateDB, rb)
+	if err != nil {
+		return nil, StateError{errorType: Other, originalError: errors.Errorf("failed to create balances storage: %v\n", err)}
+	}
 	// assets is storage for assets info.
-	assets, err := newAssets(db, dbBatch, state, state)
+	assets, err := newAssets(db, dbBatch, stateDB, rb)
 	if err != nil {
 		return nil, StateError{errorType: Other, originalError: errors.Errorf("failed to create assets storage: %v\n", err)}
 	}
-	state.assets = assets
 	// leases is storage for leases info.
-	leases, err := newLeases(db, dbBatch, state, state)
+	leases, err := newLeases(db, dbBatch, stateDB, rb)
 	if err != nil {
 		return nil, StateError{errorType: Other, originalError: errors.Errorf("failed to create leases storage: %v\n", err)}
 	}
-	state.leases = leases
+	state := &stateManager{
+		stateDB:  stateDB,
+		assets:   assets,
+		leases:   leases,
+		scores:   scores,
+		balances: balances,
+		rw:       rw,
+		rb:       rb,
+		settings: settings,
+		peers:    newPeerStorage(db),
+	}
+	// Set fields which depend on state.
 	// Consensus validator is needed to check block headers.
 	cv, err := consensus.NewConsensusValidator(state)
 	if err != nil {
 		return nil, StateError{errorType: Other, originalError: err}
 	}
 	state.cv = cv
-	// rb is in-memory storage for IDs of recent blocks.
-	rb, err := newRecentBlocks(rollbackMaxBlocks)
-	if err != nil {
-		return nil, StateError{errorType: Other, originalError: errors.Errorf("failed to create recent blocks stor: %v\n", err)}
-	}
-	state.rb = rb
 	// Handle genesis block.
 	genesisPath, err := genesisFilePath(settings)
 	if err != nil {
@@ -188,10 +188,10 @@ func (s *stateManager) addGenesisBlock() error {
 	if err := s.addNewBlock(tv, &s.genesis, nil, true); err != nil {
 		return err
 	}
-	if err := tv.performTransactions(); err != nil {
+	if err := tv.performTransactions(true); err != nil {
 		return err
 	}
-	if err := s.flush(); err != nil {
+	if err := s.flush(true); err != nil {
 		return StateError{errorType: ModificationError, originalError: err}
 	}
 	if err := s.reset(); err != nil {
@@ -258,62 +258,8 @@ func (s *stateManager) Height() (uint64, error) {
 	return height, nil
 }
 
-func (s *stateManager) fillRecentBlocks() error {
-	height, err := s.Height()
-	if err != nil {
-		return err
-	}
-	start := uint64(1)
-	if height > rollbackMaxBlocks {
-		start = height - uint64(rollbackMaxBlocks)
-	}
-	s.rb.setStartHeight(start)
-	for h := start; h <= height; h++ {
-		id, err := s.HeightToBlockID(h)
-		if err != nil {
-			return err
-		}
-		if err := s.rb.addBlockID(id); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 func (s *stateManager) BlockIDToHeight(blockID crypto.Signature) (uint64, error) {
 	height, err := s.rw.heightByBlockID(blockID)
-	if err != nil {
-		return 0, StateError{errorType: RetrievalError, originalError: err}
-	}
-	return height, nil
-}
-
-// RecentBlockIDToHeightStable is similar to BlockIDToHeight but it only works for recent rollbackMaxBlocks,
-// and it is much faster.
-// If block ID is not found among recent blocks, function returns 0 as height.
-func (s *stateManager) RecentBlockIDToHeightStable(blockID crypto.Signature) (uint64, error) {
-	if s.rb.isEmpty() {
-		if err := s.fillRecentBlocks(); err != nil {
-			return 0, err
-		}
-	}
-	height, err := s.rb.blockIDToHeight(blockID)
-	if err != nil {
-		return 0, StateError{errorType: RetrievalError, originalError: err}
-	}
-	return height, nil
-}
-
-// RecentBlockIDToHeight is similar to RecentBlockIDToHeightStable but it takes into account new blocks as well
-// (blocks which have not been saved to DB yet).
-// It is mostly needed for calculation of miner's effective balance.
-func (s *stateManager) RecentBlockIDToHeight(blockID crypto.Signature) (uint64, error) {
-	if s.rb.isEmpty() {
-		if err := s.fillRecentBlocks(); err != nil {
-			return 0, err
-		}
-	}
-	height, err := s.rb.newBlockIDToHeight(blockID)
 	if err != nil {
 		return 0, StateError{errorType: RetrievalError, originalError: err}
 	}
@@ -330,13 +276,13 @@ func (s *stateManager) HeightToBlockID(height uint64) (crypto.Signature, error) 
 
 func (s *stateManager) AccountBalance(addr proto.Address, asset []byte) (uint64, error) {
 	if asset == nil {
-		profile, err := s.balances.wavesBalance(addr)
+		profile, err := s.balances.wavesBalance(addr, true)
 		if err != nil {
 			return 0, StateError{errorType: RetrievalError, originalError: err}
 		}
 		return profile.balance, nil
 	}
-	balance, err := s.balances.assetBalance(addr, asset)
+	balance, err := s.balances.assetBalance(addr, asset, true)
 	if err != nil {
 		return 0, StateError{errorType: RetrievalError, originalError: err}
 	}
@@ -361,11 +307,6 @@ func (s *stateManager) topBlock() (*proto.Block, error) {
 }
 
 func (s *stateManager) addNewBlock(tv *transactionValidator, block, parent *proto.Block, initialisation bool) error {
-	if s.rb.isEmpty() {
-		if err := s.fillRecentBlocks(); err != nil {
-			return err
-		}
-	}
 	if err := s.rb.addNewBlockID(block.BlockSignature); err != nil {
 		return err
 	}
@@ -418,17 +359,17 @@ func (s *stateManager) reset() error {
 	return nil
 }
 
-func (s *stateManager) flush() error {
+func (s *stateManager) flush(initialisation bool) error {
 	if err := s.rw.flush(); err != nil {
 		return err
 	}
-	if err := s.assets.flush(); err != nil {
+	if err := s.assets.flush(initialisation); err != nil {
 		return err
 	}
-	if err := s.leases.flush(); err != nil {
+	if err := s.leases.flush(initialisation); err != nil {
 		return err
 	}
-	if err := s.balances.flush(); err != nil {
+	if err := s.balances.flush(initialisation); err != nil {
 		return err
 	}
 	if err := s.stateDB.flush(); err != nil {
@@ -543,7 +484,7 @@ func (s *stateManager) cancelLeases() error {
 		//}
 		//s.leasesCl2 = true
 	}
-	if err := s.flush(); err != nil {
+	if err := s.flush(true); err != nil {
 		return err
 	}
 	if err := s.reset(); err != nil {
@@ -598,13 +539,13 @@ func (s *stateManager) addBlocks(blocks [][]byte, initialisation bool) error {
 		headers[i] = block.BlockHeader
 		parent = block
 	}
-	if err := tv.performTransactions(); err != nil {
+	if err := tv.performTransactions(initialisation); err != nil {
 		return StateError{errorType: TxValidationError, originalError: err}
 	}
 	if err := s.cv.ValidateHeaders(headers[:len(headers)-len(blocksToFinish)], height); err != nil {
 		return StateError{errorType: BlockValidationError, originalError: err}
 	}
-	if err := s.flush(); err != nil {
+	if err := s.flush(initialisation); err != nil {
 		return StateError{errorType: ModificationError, originalError: err}
 	}
 	if err := s.reset(); err != nil {
@@ -743,14 +684,6 @@ func (s *stateManager) EffectiveBalance(addr proto.Address, startHeight, endHeig
 
 func (s *stateManager) BlockchainSettings() (*settings.BlockchainSettings, error) {
 	return s.settings, nil
-}
-
-func (s *stateManager) RollbackMax() int {
-	return rollbackMaxBlocks
-}
-
-func (s *stateManager) IsValidBlock(blockID crypto.Signature) (bool, error) {
-	return s.stateDB.isValidBlock(blockID)
 }
 
 func (s *stateManager) SavePeers(peers []proto.TCPAddr) error {

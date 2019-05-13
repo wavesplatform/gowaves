@@ -6,6 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/util"
 )
 
 var (
@@ -35,29 +36,43 @@ func checkHeights(t *testing.T, ids []crypto.Signature, properHeights []uint64, 
 }
 
 func TestIsInRange(t *testing.T) {
-	rb, err := newRecentBlocks(rangeSize)
+	rw, path, err := createBlockReadWriter(8, 8)
+	assert.NoError(t, err, "createBlockReadWriter() failed")
+	rb, err := newRecentBlocks(rangeSize, rw)
 	assert.NoError(t, err, "newRecentBlocks() failed")
-	assert.Equal(t, true, rb.isEmpty())
+
+	defer func() {
+		err = rw.close()
+		assert.NoError(t, err, "failed to close blockReadWriter")
+		err = rw.db.Close()
+		assert.NoError(t, err, "failed to close DB")
+		err = util.CleanTemporaryDirs(path)
+		assert.NoError(t, err, "failed to clean test data dirs")
+	}()
+
 	ids := genIds(t, rangeSize)
 	heights := make([]uint64, rangeSize)
 	// Test indirect addition of IDs.
 	for i, id := range ids {
-		err := rb.addNewBlockID(id)
+		err := rw.startBlock(id)
+		assert.NoError(t, err, "rw.startBlock() failed")
+		err = rw.finishBlock(id)
+		assert.NoError(t, err, "rw.finishBlock() failed")
+		err = rb.addNewBlockID(id)
 		assert.NoError(t, err, "addNewBlockID() failed")
-		heights[i] = uint64(i)
+		heights[i] = uint64(i + 1)
 	}
-	assert.Equal(t, true, rb.isEmpty())
 	checkHeights(t, ids, heights, rb.newBlockIDToHeight)
 	rb.flush()
-	assert.Equal(t, false, rb.isEmpty())
 	checkHeights(t, ids, heights, rb.blockIDToHeight)
-	rb.reset()
-	assert.Equal(t, true, rb.isEmpty())
+	err = rw.flush()
+	assert.NoError(t, err, "rw.flush() failed")
+	err = rw.db.Flush(rw.dbBatch)
+	assert.NoError(t, err, "db.Flush() failed")
 	// Now test direct addition of IDs.
-	for _, id := range ids {
-		err := rb.addBlockID(id)
-		assert.NoError(t, err, "addBlockID() failed")
-	}
-	assert.Equal(t, false, rb.isEmpty())
+	rb.reset()
+	height, err := rb.height()
+	assert.NoError(t, err, "rb.height() failed")
+	assert.Equal(t, uint64(rangeSize+1), height, "height() returned incorrect result")
 	checkHeights(t, ids, heights, rb.blockIDToHeight)
 }

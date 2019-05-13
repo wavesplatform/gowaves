@@ -35,6 +35,8 @@ var (
 )
 
 type testObjects struct {
+	rb       *recentBlocks
+	stateDB  *stateDB
 	assets   *assets
 	leases   *leases
 	balances *balances
@@ -42,29 +44,43 @@ type testObjects struct {
 }
 
 func createTestObjects(t *testing.T) (*testObjects, []string) {
-	assets, path, err := createAssets()
+	assetsObj, path, err := createAssets()
 	assert.NoError(t, err, "createAssets() failed")
-	leases, path1, err := createLeases()
-	assert.NoError(t, err, "createLeases() failed")
-	balances, err := newBalances(assets.db, assets.dbBatch, &mock{}, &mockBlockInfo{})
+	assets := assetsObj.assets
+	stateDB := assetsObj.stateDB
+	rb := assetsObj.rb
+	balances, err := newBalances(assets.db, assets.dbBatch, stateDB, rb)
 	assert.NoError(t, err, "newBalances() failed")
+	leases, err := newLeases(balances.db, balances.dbBatch, stateDB, rb)
+	assert.NoError(t, err, "newLeases() failed")
 	genesisSig, err := crypto.NewSignatureFromBase58(genesisSignature)
 	assert.NoError(t, err, "NewSignatureFromBase58() failed")
 	tv, err := newTransactionValidator(genesisSig, balances, assets, leases, settings.MainNetSettings)
 	assert.NoError(t, err, "newTransactionValidator() failed")
-	return &testObjects{assets: assets, leases: leases, balances: balances, tv: tv}, append(path, path1...)
+	return &testObjects{rb, stateDB, assets, leases, balances, tv}, path
 }
 
 func (to *testObjects) reset() {
+	to.leases.reset()
 	to.assets.reset()
 	to.balances.reset()
 	to.tv.reset()
 }
 
-func flushBalances(t *testing.T, balances *balances) {
-	err := balances.flush()
+func flushTestObjects(t *testing.T, to *testObjects) {
+	to.rb.flush()
+	err := to.leases.flush(false)
+	assert.NoError(t, err, "leases.flush() failed")
+	to.leases.reset()
+	err = to.balances.flush(false)
 	assert.NoError(t, err, "balances.flush() failed")
-	balances.reset()
+	to.balances.reset()
+	err = to.assets.flush(false)
+	assert.NoError(t, err, "assets.flush() failed")
+	to.assets.reset()
+	err = to.stateDB.flush()
+	assert.NoError(t, err, "stateDB.flush() failed")
+	to.stateDB.reset()
 }
 
 type profileChange struct {
@@ -79,6 +95,7 @@ type profileChange struct {
 }
 
 func setBalances(t *testing.T, to *testObjects, profileChanges []profileChange) {
+	addBlock(t, to.stateDB, to.rb, crypto.Signature{})
 	for _, diff := range profileChanges {
 		addr, err := proto.NewAddressFromString(diff.address)
 		assert.NoError(t, err, "NewAddressFromString() failed")
@@ -94,9 +111,7 @@ func setBalances(t *testing.T, to *testObjects, profileChanges []profileChange) 
 			assert.NoError(t, err, "setAssetBalance() failed")
 		}
 	}
-	flushBalances(t, to.balances)
-	flushAssets(t, to.assets)
-	flushLeases(t, to.leases)
+	flushTestObjects(t, to)
 }
 
 func checkBalances(t *testing.T, balances *balances, profileChanges []profileChange) {
@@ -105,13 +120,13 @@ func checkBalances(t *testing.T, balances *balances, profileChanges []profileCha
 		assert.NoError(t, err, "NewAddressFromString() failed")
 		if diff.asset == "" {
 			newProfile := balanceProfile{diff.newBalance, diff.newLeaseIn, diff.newLeaseOut}
-			profile, err := balances.wavesBalance(addr)
+			profile, err := balances.wavesBalance(addr, true)
 			assert.NoError(t, err, "wavesBalance() failed")
 			assert.Equalf(t, newProfile, *profile, "invalid waves balance profile after validation: must be %v, is %v", newProfile, profile)
 		} else {
 			ast, err := proto.NewOptionalAssetFromString(diff.asset)
 			assert.NoError(t, err, "NewOptionalAssetFromString() failed")
-			balance, err := balances.assetBalance(addr, ast.ToID())
+			balance, err := balances.assetBalance(addr, ast.ToID(), true)
 			assert.NoError(t, err, "assetBalance() failed")
 			assert.Equalf(t, balance, diff.newBalance, "invalid asset balance after validation: must be %d, is: %d", diff.newBalance, balance)
 		}
@@ -131,6 +146,14 @@ func blankBlocks(t *testing.T, timestamp uint64, blockID crypto.Signature) (*pro
 type block struct {
 	timestamp uint64
 	sig       string
+}
+
+func addBlocks(t *testing.T, to *testObjects, blocks []block) {
+	for _, b := range blocks {
+		blockID, err := crypto.NewSignatureFromBase58(b.sig)
+		assert.NoError(t, err, "NewSignatureFromBase58() failed")
+		addBlock(t, to.stateDB, to.rb, blockID)
+	}
 }
 
 func validateTx(t *testing.T, tv *transactionValidator, tx proto.Transaction, blocks []block, checkTimestamp bool) {
@@ -153,6 +176,7 @@ func validateTx(t *testing.T, tv *transactionValidator, tx proto.Transaction, bl
 func setBalance(t *testing.T, to *testObjects, address, asset string, profile *balanceProfile) {
 	genesisSig, err := crypto.NewSignatureFromBase58(genesisSignature)
 	assert.NoError(t, err, "NewSignatureFromBase58() failed")
+	addBlock(t, to.stateDB, to.rb, genesisSig)
 	addr, err := proto.NewAddressFromString(address)
 	assert.NoError(t, err, "NewAddressFromString() failed")
 	if asset == "" {
@@ -166,19 +190,16 @@ func setBalance(t *testing.T, to *testObjects, address, asset string, profile *b
 		err = to.balances.setAssetBalance(addr, ast.ToID(), r)
 		assert.NoError(t, err, "setAssetBalance() failed")
 	}
-	flushBalances(t, to.balances)
-	flushAssets(t, to.assets)
-	flushLeases(t, to.leases)
+	flushTestObjects(t, to)
 }
 
 func validateAndCheck(t *testing.T, to *testObjects, tx proto.Transaction, profileChanges []profileChange) {
 	blocks := []block{{timestamp0, blockSig0}}
+	addBlocks(t, to, blocks)
 	validateTx(t, to.tv, tx, blocks, true)
-	err := to.tv.performTransactions()
+	err := to.tv.performTransactions(false)
 	assert.NoError(t, err, "performTransactions() failed")
-	flushBalances(t, to.balances)
-	flushAssets(t, to.assets)
-	flushLeases(t, to.leases)
+	flushTestObjects(t, to)
 	checkBalances(t, to.balances, profileChanges)
 }
 
@@ -209,12 +230,11 @@ func TestValidateGenesis(t *testing.T) {
 	}
 	setBalances(t, to, profileChanges)
 	blocks := []block{{genesisTimestamp, genesisSignature}}
+	addBlocks(t, to, blocks)
 	validateTx(t, to.tv, tx, blocks, false)
-	err := to.tv.performTransactions()
+	err := to.tv.performTransactions(false)
 	assert.NoError(t, err, "performTransactions() failed")
-	flushBalances(t, to.balances)
-	flushAssets(t, to.assets)
-	flushLeases(t, to.leases)
+	flushTestObjects(t, to)
 	checkBalances(t, to.balances, profileChanges)
 }
 
@@ -238,8 +258,9 @@ type runLeaseTest = func(*testing.T, *testObjects, proto.Transaction, *leaseTest
 
 var testInvalidLeasing runLeaseTest = func(t *testing.T, to *testObjects, tx proto.Transaction, c *leaseTestCase) {
 	setBalance(t, to, c.addr, "", &c.profile)
+	addBlocks(t, to, c.blocks)
 	validateTx(t, to.tv, tx, c.blocks, true)
-	err := to.tv.performTransactions()
+	err := to.tv.performTransactions(false)
 	if c.resError {
 		assert.Error(t, err, c.failMsg)
 	} else {
@@ -262,8 +283,9 @@ type runTest func(*testing.T, *testObjects, proto.Transaction, *txTestCase)
 var testNegBalance runTest = func(t *testing.T, to *testObjects, tx proto.Transaction, c *txTestCase) {
 	profile := &balanceProfile{c.amount, 0, 0}
 	setBalance(t, to, c.senderAddr, c.assetStr, profile)
+	addBlocks(t, to, c.blocks)
 	validateTx(t, to.tv, tx, c.blocks, true)
-	err := to.tv.performTransactions()
+	err := to.tv.performTransactions(false)
 	if c.resError {
 		assert.Error(t, err, c.failMsg)
 	} else {
@@ -276,11 +298,12 @@ var testTempNegative runTest = func(t *testing.T, to *testObjects, tx proto.Tran
 	profile := &balanceProfile{c.amount, 0, 0}
 	setBalance(t, to, c.senderAddr, c.assetStr, profile)
 	// Negative balance after this Payment tx.
+	addBlocks(t, to, c.blocks)
 	validateTx(t, to.tv, tx, c.blocks, false)
 	// This genesis tx 'fixes' negative balance.
 	tx1 := createGenesis(t, c.senderAddr)
 	validateTx(t, to.tv, tx1, c.blocks, false)
-	err := to.tv.performTransactions()
+	err := to.tv.performTransactions(false)
 	if c.resError {
 		assert.Error(t, err, c.failMsg)
 	} else {
@@ -294,9 +317,10 @@ var testTempNegativeUniversal runTest = func(t *testing.T, to *testObjects, tx p
 	// Negative balance for one of txs in block with positive overall balance.
 	profile := &balanceProfile{c.amount, 0, 0}
 	setBalance(t, to, c.senderAddr, c.assetStr, profile)
+	addBlocks(t, to, c.blocks)
 	// Transfer to same address leads to temp negative balance.
 	validateTx(t, to.tv, tx1, c.blocks, false)
-	err := to.tv.performTransactions()
+	err := to.tv.performTransactions(false)
 	if c.resError {
 		assert.Error(t, err, c.failMsg)
 	} else {
@@ -347,11 +371,11 @@ func TestValidatePayment(t *testing.T) {
 func createAsset(t *testing.T, to *testObjects, asset *proto.OptionalAsset) *assetInfo {
 	blockID, err := crypto.NewSignatureFromBase58(blockSig0)
 	assert.NoError(t, err, "NewSignatureFromBase58() failed")
+	addBlock(t, to.stateDB, to.rb, blockID)
 	assetInfo := createAssetInfo(t, true, blockID, asset.ID)
 	err = to.assets.issueAsset(asset.ID, assetInfo)
 	assert.NoError(t, err, "issueAset() failed")
-	flushAssets(t, to.assets)
-	flushLeases(t, to.leases)
+	flushTestObjects(t, to)
 	return assetInfo
 }
 
@@ -503,7 +527,7 @@ func TestValidateIssueV1(t *testing.T) {
 	diffTest(t, to, tx, profileChanges)
 
 	// Check asset info.
-	info, err := to.assets.assetInfo(asset.ID)
+	info, err := to.assets.assetInfo(asset.ID, true)
 	assert.NoError(t, err, "assetInfo() failed")
 	assert.Equal(t, assetInfo, *info, "invalid asset info after performing IssueV1 transaction")
 }
@@ -556,7 +580,7 @@ func TestValidateIssueV2(t *testing.T) {
 	diffTest(t, to, tx, profileChanges)
 
 	// Check asset info.
-	info, err := to.assets.assetInfo(asset.ID)
+	info, err := to.assets.assetInfo(asset.ID, true)
 	assert.NoError(t, err, "assetInfo() failed")
 	assert.Equal(t, assetInfo, *info, "invalid asset info after performing IssueV2 transaction")
 }
@@ -595,7 +619,7 @@ func TestValidateReissueV1(t *testing.T) {
 	diffTest(t, to, tx, profileChanges)
 
 	// Check asset info.
-	info, err := to.assets.assetInfo(asset.ID)
+	info, err := to.assets.assetInfo(asset.ID, true)
 	assert.NoError(t, err, "assetInfo() failed")
 	assert.Equal(t, *assetInfo, *info, "invalid asset info after performing ReissueV1 transaction")
 }
@@ -634,7 +658,7 @@ func TestValidateReissueV2(t *testing.T) {
 	diffTest(t, to, tx, profileChanges)
 
 	// Check asset info.
-	info, err := to.assets.assetInfo(asset.ID)
+	info, err := to.assets.assetInfo(asset.ID, true)
 	assert.NoError(t, err, "assetInfo() failed")
 	assert.Equal(t, *assetInfo, *info, "invalid asset info after performing ReissueV2 transaction")
 }
@@ -687,7 +711,7 @@ func TestValidateBurnV1(t *testing.T) {
 	diffTest(t, to, tx, profileChanges)
 
 	// Check asset info.
-	info, err := to.assets.assetInfo(asset.ID)
+	info, err := to.assets.assetInfo(asset.ID, true)
 	assert.NoError(t, err, "assetInfo() failed")
 	assert.Equal(t, *assetInfo, *info, "invalid asset info after performing BurnV1 transaction")
 }
@@ -740,7 +764,7 @@ func TestValidateBurnV2(t *testing.T) {
 	diffTest(t, to, tx, profileChanges)
 
 	// Check asset info.
-	info, err := to.assets.assetInfo(asset.ID)
+	info, err := to.assets.assetInfo(asset.ID, true)
 	assert.NoError(t, err, "assetInfo() failed")
 	assert.Equal(t, *assetInfo, *info, "invalid asset info after performing BurnV2 transaction")
 }
