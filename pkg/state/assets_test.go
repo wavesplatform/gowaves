@@ -35,7 +35,7 @@ func createAssets() (*assetsTestObjects, []string, error) {
 		return nil, nil, err
 	}
 	res := []string{dbDir0}
-	db, err := keyvalue.NewKeyVal(dbDir0)
+	db, err := keyvalue.NewKeyVal(dbDir0, defaultTestBloomFilterParams())
 	if err != nil {
 		return nil, res, err
 	}

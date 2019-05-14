@@ -19,9 +19,10 @@ import (
 )
 
 const (
-	rollbackMaxBlocks = 2000
-	blocksStorDir     = "blocks_storage"
-	keyvalueDir       = "keyvalue"
+	rollbackMaxBlocks      = 2000
+	blocksStorDir          = "blocks_storage"
+	keyvalueDir            = "key_value"
+	bloomBitsPerKeyDefault = 10
 )
 
 func getLocalDir() (string, error) {
@@ -70,7 +71,7 @@ type stateManager struct {
 	leasesCl0, leasesCl1, leasesCl2 bool
 }
 
-func newStateManager(dataDir string, params BlockStorageParams, settings *settings.BlockchainSettings) (*stateManager, error) {
+func newStateManager(dataDir string, params StorageParams, settings *settings.BlockchainSettings) (*stateManager, error) {
 	blockStorageDir := filepath.Join(dataDir, blocksStorDir)
 	if _, err := os.Stat(blockStorageDir); os.IsNotExist(err) {
 		if err := os.Mkdir(blockStorageDir, 0755); err != nil {
@@ -79,7 +80,7 @@ func newStateManager(dataDir string, params BlockStorageParams, settings *settin
 	}
 	// Initialize database.
 	dbDir := filepath.Join(dataDir, keyvalueDir)
-	db, err := keyvalue.NewKeyVal(dbDir)
+	db, err := keyvalue.NewKeyVal(dbDir, params.BloomParams)
 	if err != nil {
 		return nil, StateError{errorType: Other, originalError: errors.Errorf("failed to create db: %v\n", err)}
 	}

@@ -75,7 +75,7 @@ func main() {
 		}
 		dataDir = tempDir
 	}
-	state, err := state.NewState(dataDir, state.DefaultBlockStorageParams(), ss)
+	state, err := state.NewState(dataDir, state.DefaultStorageParams(), ss)
 	if err != nil {
 		log.Fatalf("Failed to create state: %v.\n", err)
 	}

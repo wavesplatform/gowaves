@@ -1,7 +1,6 @@
 package state
 
 import (
-	"github.com/wavesplatform/gowaves/pkg/proto"
 	"io/ioutil"
 	"math/big"
 	"net"
@@ -12,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/importer"
+	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 )
 
@@ -43,7 +43,7 @@ func TestGenesisConfig(t *testing.T) {
 		Type:           settings.Custom,
 		GenesisCfgPath: filepath.Join(dir, "genesis", "testnet.json"),
 	}
-	manager, err := newStateManager(dataDir, DefaultBlockStorageParams(), ss)
+	manager, err := newStateManager(dataDir, DefaultStorageParams(), ss)
 	if err != nil {
 		t.Fatalf("Failed to create state manager: %v.\n", err)
 	}
@@ -76,7 +76,7 @@ func TestStateRollback(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temp dir for data: %v\n", err)
 	}
-	manager, err := newStateManager(dataDir, DefaultBlockStorageParams(), settings.MainNetSettings)
+	manager, err := newStateManager(dataDir, DefaultStorageParams(), settings.MainNetSettings)
 	if err != nil {
 		t.Fatalf("Failed to create state manager: %v.\n", err)
 	}
@@ -137,7 +137,7 @@ func TestStateIntegrated(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temp dir for data: %v\n", err)
 	}
-	manager, err := newStateManager(dataDir, DefaultBlockStorageParams(), settings.MainNetSettings)
+	manager, err := newStateManager(dataDir, DefaultStorageParams(), settings.MainNetSettings)
 	if err != nil {
 		t.Fatalf("Failed to create state manager: %v.\n", err)
 	}
@@ -216,7 +216,7 @@ func TestStateManager_SavePeers(t *testing.T) {
 	}
 	defer os.RemoveAll(dataDir)
 
-	manager, err := newStateManager(dataDir, DefaultBlockStorageParams(), settings.MainNetSettings)
+	manager, err := newStateManager(dataDir, DefaultStorageParams(), settings.MainNetSettings)
 	if err != nil {
 		t.Fatalf("Failed to create state manager: %v.\n", err)
 	}

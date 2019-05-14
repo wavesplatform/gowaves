@@ -4,6 +4,7 @@ import (
 	"math/big"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 )
@@ -94,17 +95,18 @@ type State interface {
 // NewState() creates State.
 // dataDir is path to directory to store all data, it's also possible to provide folder with existing data,
 // and state will try to sync and use it in this case.
-// params are block storage parameters, they specify lengths of byte offsets for headers and transactions.
-// Use state.DefaultBlockStorageParams() to create default parameters.
+// params are storage parameters, they specify lengths of byte offsets for headers and transactions and Bloom Filter's parameters.
+// Use state.DefaultStorageParams() to create default parameters.
 // Settings are blockchain settings (settings.MainNetSettings, settings.TestNetSettings or custom settings).
-func NewState(dataDir string, params BlockStorageParams, settings *settings.BlockchainSettings) (State, error) {
+func NewState(dataDir string, params StorageParams, settings *settings.BlockchainSettings) (State, error) {
 	return newStateManager(dataDir, params, settings)
 }
 
-type BlockStorageParams struct {
+type StorageParams struct {
 	OffsetLen, HeaderOffsetLen int
+	BloomParams                keyvalue.BloomFilterParams
 }
 
-func DefaultBlockStorageParams() BlockStorageParams {
-	return BlockStorageParams{OffsetLen: 8, HeaderOffsetLen: 8}
+func DefaultStorageParams() StorageParams {
+	return StorageParams{OffsetLen: 8, HeaderOffsetLen: 8, BloomParams: keyvalue.BloomFilterParams{N: 2e8, FalsePositiveProbability: 0.01}}
 }

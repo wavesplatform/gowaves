@@ -37,7 +37,7 @@ func createHistory() (*historyTestObjects, []string, error) {
 		return nil, nil, err
 	}
 	res := []string{dbDir0}
-	db, err := keyvalue.NewKeyVal(dbDir0)
+	db, err := keyvalue.NewKeyVal(dbDir0, defaultTestBloomFilterParams())
 	if err != nil {
 		return nil, res, err
 	}
@@ -74,6 +74,7 @@ func TestAddRecord(t *testing.T) {
 	var history []byte
 	blockID := make([]byte, crypto.SignatureSize)
 	_, err = rand.Read(blockID)
+	assert.NoError(t, err, "rand.Read() failed")
 	// Test record rewrite.
 	firstRecord := append([]byte{0}, blockID...)
 	history, err = to.fmt.addRecord(history, firstRecord)
