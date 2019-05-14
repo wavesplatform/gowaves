@@ -22,24 +22,24 @@ var (
 )
 
 type configuration struct {
-	logLevel     string
-	dbPath       string
-	scheme       byte
-	genesis      crypto.Signature
-	apiBind      string
-	netBind      string
-	announcement *internal.PeerAddr
-	name         string
-	nonce        uint64
-	versions     []proto.Version
-	seedPeers    []net.TCPAddr
+	logLevel      string
+	dbPath        string
+	scheme        byte
+	genesis       crypto.Signature
+	apiBind       string
+	netBind       string
+	publicAddress proto.HandshakeTCPAddr
+	name          string
+	nonce         uint64
+	versions      []proto.Version
+	seedPeers     []net.TCPAddr
 }
 
 func main() {
 	if err := run(); err != nil {
 		os.Exit(1)
 	}
-	os.Exit(1)
+	os.Exit(0)
 }
 
 func run() error {
@@ -67,21 +67,13 @@ func run() error {
 		return nil
 	}
 
-	var self *internal.PeerDesignation = nil
-	if cfg.announcement != nil {
-		zap.S().Debugf("Announcement: %s", cfg.announcement)
-		self = &internal.PeerDesignation{Address: cfg.announcement.IP, Nonce: cfg.nonce}
+	reg := internal.NewRegistry(cfg.scheme, cfg.publicAddress, cfg.versions, storage)
+	n := reg.AppendAddresses(cfg.seedPeers)
+	if n > 0 {
+		zap.S().Infof("%d seed peers added to storage", n)
 	}
-	peerRegistry := internal.NewPeerRegistry(self)
-	addressRegistry := internal.NewPublicAddressRegistry(storage, 10*time.Minute, 24*time.Hour, cfg.versions)
-	na, err := addressRegistry.RegisterNewAddresses(cfg.seedPeers)
-	if err != nil {
-		zap.S().Errorf("Failed to initialize seed peers: %v", err)
-		return err
-	}
-	zap.S().Infof("%d new seed addresses were registered", na)
 
-	api, err := internal.NewAPI(interrupt, storage, peerRegistry, cfg.apiBind)
+	api, err := internal.NewAPI(interrupt, storage, reg, cfg.apiBind)
 	if err != nil {
 		zap.S().Errorf("Failed to create API server: %v", err)
 		return err
@@ -92,28 +84,13 @@ func run() error {
 		return nil
 	}
 
-	server, err := internal.NewServer(interrupt, cfg.netBind)
-	if err != nil {
-		zap.S().Errorf("Failed to start network server: %v", err)
-		return err
-	}
+	h := internal.NewConnHandler(cfg.scheme, cfg.name, cfg.nonce, cfg.publicAddress, reg)
+	opts := internal.NewOptions(h)
+	opts.ReadDeadline = time.Minute
+	opts.WriteDeadline = time.Minute
 
-	dispatcher, err := internal.NewDispatcher(interrupt, storage, addressRegistry, peerRegistry, server.GetConnections(), cfg.announcement, cfg.name, cfg.nonce, cfg.scheme)
-	if err != nil {
-		zap.S().Errorf("Failed to initialize dispatcher: %v", err)
-		return err
-	}
+	dispatcher := internal.NewDispatcher(interrupt, cfg.netBind, opts, reg)
 	dispatcherDone := dispatcher.Start()
-
-	if interruptRequested(interrupt) {
-		return nil
-	}
-
-	serverDone := server.Start()
-
-	if interruptRequested(interrupt) {
-		return nil
-	}
 
 	<-interrupt
 
@@ -121,8 +98,6 @@ func run() error {
 	zap.S().Debug("API shutdown complete")
 	<-dispatcherDone
 	zap.S().Debug("Dispatcher shutdown complete")
-	<-serverDone
-	zap.S().Debug("Network server shutdown complete")
 
 	return nil
 }
@@ -133,7 +108,7 @@ func parseConfiguration() (*configuration, error) {
 		db              = flag.String("db", "", "Path to database folder. No default value.")
 		scheme          = flag.String("scheme", "W", "Blockchain scheme symbol. Defaults to \"W\" - MainNet scheme.")
 		genesis         = flag.String("genesis", "FSH8eAAzZNqnG8xgTZtz5xuLqXySsXgAjmFEC25hXMbEufiGjqWPnGCZFt6gLiVLJny16ipxRNAkkzjjhqTjBE2", "Genesis block signature in BASE58 encoding. Default value is MainNet's genesis block signature.")
-		versions        = flag.String("versions", "0.16 0.15 0.14 0.13 0.10 0.9 0.8 0.7 0.6 0.3", "Space separated list of known node's versions. By default all MainNet versions are supported.")
+		versions        = flag.String("versions", "0.17 0.16 0.15 0.14 0.13 0.10 0.9 0.8 0.7 0.6 0.3", "Space separated list of known node's versions. By default all MainNet versions are supported.")
 		apiBindAddress  = flag.String("api-bind", ":8080", "Local network address to bind the HTTP API of the service on. Default value is \":8080\".")
 		netBindAddress  = flag.String("net-bind", ":6868", "Local network address to bind the network server. Default value is \":6868 \".")
 		netName         = flag.String("net-name", "Fork Detector", "Name of the node to identify on the network. Default value is \"Fork Detector\".")
@@ -168,30 +143,23 @@ func parseConfiguration() (*configuration, error) {
 	if nonce == 0 {
 		nonce = generateNonce()
 	}
-	var addr *internal.PeerAddr = nil
-	if *declaredAddress != "" {
-		a, err := internal.ParsePeerAddr(*declaredAddress)
-		if err != nil {
-			return nil, errors.Wrapf(err, "invalid declared address")
-		}
-		addr = &a
-	}
+	addr := proto.ParseHandshakeTCPAddr(*declaredAddress)
 	peers, err := splitPeers(*seedPeers)
 	if err != nil {
 		return nil, errors.Wrapf(err, "invalid seed peers list")
 	}
 	cfg := &configuration{
-		dbPath:       *db,
-		logLevel:     *logLevel,
-		scheme:       (byte)((*scheme)[0]),
-		genesis:      sig,
-		versions:     vs,
-		seedPeers:    peers,
-		name:         *netName,
-		nonce:        nonce,
-		apiBind:      *apiBindAddress,
-		netBind:      *netBindAddress,
-		announcement: addr,
+		dbPath:        *db,
+		logLevel:      *logLevel,
+		scheme:        (byte)((*scheme)[0]),
+		genesis:       sig,
+		versions:      vs,
+		seedPeers:     peers,
+		name:          *netName,
+		nonce:         nonce,
+		apiBind:       *apiBindAddress,
+		netBind:       *netBindAddress,
+		publicAddress: addr,
 	}
 	return cfg, nil
 }

@@ -170,8 +170,52 @@ func (a *Version) ReadFrom(r io.Reader) (int64, error) {
 	return int64(n), nil
 }
 
-func (a Version) String() string {
-	return fmt.Sprintf("%d.%d.%d", a.Major, a.Minor, a.Patch)
+func (a *Version) String() string {
+	sb := strings.Builder{}
+	sb.WriteString(strconv.Itoa(int(a.Major)))
+	sb.WriteRune('.')
+	sb.WriteString(strconv.Itoa(int(a.Minor)))
+	sb.WriteRune('.')
+	sb.WriteString(strconv.Itoa(int(a.Patch)))
+	return sb.String()
+}
+
+type ByVersion []Version
+
+func (a ByVersion) Len() int {
+	return len(a)
+}
+
+func (a ByVersion) Swap(i, j int) {
+	a[i], a[j] = a[j], a[i]
+}
+
+func (a ByVersion) Less(i, j int) bool {
+	cmp := func(a, b uint32) int {
+		if a < b {
+			return -1
+		} else if a == b {
+			return 0
+		} else {
+			return 1
+		}
+	}
+	x := cmp(a[i].Major, a[j].Major)
+	y := cmp(a[i].Minor, a[j].Minor)
+	z := cmp(a[i].Patch, a[j].Patch)
+	if x < 0 {
+		return true
+	} else if x == 0 {
+		if y < 0 {
+			return true
+		} else if y == 0 {
+			return z < 0
+		} else {
+			return false
+		}
+	} else {
+		return false
+	}
 }
 
 type TCPAddr net.TCPAddr
@@ -214,7 +258,10 @@ func NewTCPAddrFromString(s string) TCPAddr {
 		return TCPAddr{}
 	}
 	ip := net.ParseIP(host)
-	p, _ := strconv.ParseUint(port, 10, 64)
+	p, err := strconv.ParseUint(port, 10, 64)
+	if err != nil {
+		return TCPAddr{}
+	}
 	return NewTCPAddr(ip, int(p))
 }
 
@@ -243,7 +290,6 @@ func NewHandshakeTCPAddr(ip net.IP, port int) HandshakeTCPAddr {
 
 func (a HandshakeTCPAddr) Empty() bool {
 	return TCPAddr(a).Empty()
-	//return len(a.IP) == 0 || a.IP.IsUnspecified()
 }
 
 func (a HandshakeTCPAddr) WriteTo(w io.Writer) (int64, error) {
@@ -304,6 +350,14 @@ func (a HandshakeTCPAddr) ToIpPort() IpPort {
 
 func (a HandshakeTCPAddr) String() string {
 	return TCPAddr(a).String()
+}
+
+func (a HandshakeTCPAddr) Network() string {
+	return "tcp"
+}
+
+func ParseHandshakeTCPAddr(s string) HandshakeTCPAddr {
+	return HandshakeTCPAddr(NewTCPAddrFromString(s))
 }
 
 type U8String struct {
@@ -626,16 +680,27 @@ func (a *IpPort) UnmarshalBinary(b []byte) error {
 	return nil
 }
 
-type StaticIP [net.IPv6len]byte
-
-func (a StaticIP) String() string {
-	return net.IP(a[:]).String()
-}
-
 // PeerInfo represents the address of a single peer
 type PeerInfo struct {
 	Addr net.IP
 	Port uint16
+}
+
+func NewPeerInfoFromString(addr string) (PeerInfo, error) {
+	strs := strings.Split(addr, ":")
+	if len(strs) != 2 {
+		return PeerInfo{}, errors.Errorf("invalid addr %s", addr)
+	}
+
+	ip := net.ParseIP(string(strs[0]))
+	port, err := strconv.ParseUint(strs[1], 10, 64)
+	if err != nil {
+		return PeerInfo{}, errors.Errorf("invalid port %s", strs[1])
+	}
+	return PeerInfo{
+		Addr: ip,
+		Port: uint16(port),
+	}, nil
 }
 
 func (a PeerInfo) WriteTo(w io.Writer) (int64, error) {
@@ -661,74 +726,57 @@ func (a *PeerInfo) ReadFrom(r io.Reader) (int64, error) {
 	return int64(n), nil
 }
 
-func NewPeerInfoFromString(addr string) (PeerInfo, error) {
-	strs := strings.Split(addr, ":")
-	if len(strs) != 2 {
-		return PeerInfo{}, errors.Errorf("invalid addr %s", addr)
-	}
-
-	ip := net.ParseIP(string(strs[0]))
-	port, err := strconv.ParseUint(strs[1], 10, 64)
-	if err != nil {
-		return PeerInfo{}, errors.Errorf("invalid port %s", strs[1])
-	}
-	return PeerInfo{
-		Addr: ip,
-		Port: uint16(port),
-	}, nil
-}
-
 // MarshalBinary encodes PeerInfo message to binary form
-func (m *PeerInfo) MarshalBinary() ([]byte, error) {
+func (a *PeerInfo) MarshalBinary() ([]byte, error) {
 	buffer := make([]byte, 8)
 
-	copy(buffer[0:4], m.Addr.To4())
-	binary.BigEndian.PutUint32(buffer[4:8], uint32(m.Port))
+	copy(buffer[0:4], a.Addr.To4())
+	binary.BigEndian.PutUint32(buffer[4:8], uint32(a.Port))
 
 	return buffer, nil
 }
 
 // UnmarshalBinary decodes PeerInfo message from binary form
-func (m *PeerInfo) UnmarshalBinary(data []byte) error {
+func (a *PeerInfo) UnmarshalBinary(data []byte) error {
 	if len(data) < 8 {
 		return errors.New("too short")
 	}
 
-	m.Addr = net.IPv4(data[0], data[1], data[2], data[3])
-	m.Port = uint16(binary.BigEndian.Uint32(data[4:8]))
+	a.Addr = net.IPv4(data[0], data[1], data[2], data[3])
+	a.Port = uint16(binary.BigEndian.Uint32(data[4:8]))
 
 	return nil
 }
 
 // String() implements Stringer interface for PeerInfo
-func (m PeerInfo) String() string {
+func (a PeerInfo) String() string {
 	var sb strings.Builder
-	sb.WriteString(m.Addr.String())
+	sb.WriteString(a.Addr.String())
 	sb.WriteRune(':')
-	sb.WriteString(strconv.Itoa(int(m.Port)))
+	sb.WriteString(strconv.Itoa(int(a.Port)))
 
 	return sb.String()
 }
 
 // MarshalJSON writes PeerInfo Value as JSON string
-func (m PeerInfo) MarshalJSON() ([]byte, error) {
+func (a PeerInfo) MarshalJSON() ([]byte, error) {
 	var sb strings.Builder
-	if m.Addr == nil {
+	if a.Addr == nil {
 		return nil, errors.New("invalid addr")
 	}
-	if m.Port == 0 {
+	if a.Port == 0 {
 		return nil, errors.New("invalid port")
 	}
 	sb.WriteRune('"')
-	sb.WriteString(m.Addr.String())
+	sb.WriteString(a.Addr.String())
 	sb.WriteRune(':')
-	sb.WriteString(strconv.Itoa(int(m.Port)))
+	sb.WriteString(strconv.Itoa(int(a.Port)))
 	sb.WriteRune('"')
 	return []byte(sb.String()), nil
 }
 
 // UnmarshalJSON reads PeerInfo from JSON string
-func (m *PeerInfo) UnmarshalJSON(value []byte) error {
+func (a *PeerInfo) UnmarshalJSON(value []byte) error {
 	s := string(value)
 	if s == jsonNull {
 		return nil
@@ -756,21 +804,21 @@ func (m *PeerInfo) UnmarshalJSON(value []byte) error {
 		port = splitted[1]
 	}
 
-	m.Addr = net.ParseIP(addr)
+	a.Addr = net.ParseIP(addr)
 	port64, err := strconv.ParseUint(port, 10, 16)
 	if err != nil {
 		return errors.Wrap(err, "failed to unmarshal PeerInfo from JSON")
 	}
-	m.Port = uint16(port64)
+	a.Port = uint16(port64)
 	return nil
 }
 
-func (m *PeerInfo) Empty() bool {
-	if m.Addr == nil || m.Addr.String() == "0.0.0.0" {
+func (a *PeerInfo) Empty() bool {
+	if a.Addr == nil || a.Addr.String() == "0.0.0.0" {
 		return true
 	}
 
-	if m.Port == 0 {
+	if a.Port == 0 {
 		return true
 	}
 
@@ -815,14 +863,18 @@ func (m *PeersMessage) WriteTo(w io.Writer) (int64, error) {
 		return 0, err
 	}
 
-	out := append(hdr, buf.Bytes()...)
-
-	n2, err := w.Write(out)
+	sent := 0
+	n1, err := w.Write(hdr)
 	if err != nil {
 		return 0, err
 	}
-
-	return int64(n2), nil
+	sent += n1
+	n2, err := io.Copy(w, buf)
+	if err != nil {
+		return 0, err
+	}
+	sent += int(n2)
+	return int64(sent), nil
 }
 
 // MarshalBinary encodes PeersMessage message to binary form

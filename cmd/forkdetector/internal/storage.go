@@ -19,7 +19,7 @@ const (
 	blocksPrefix
 	heightsPrefix
 	linksPrefix
-	publicAddressesPrefix
+	peerNodePrefix
 )
 
 var (
@@ -31,29 +31,26 @@ var (
 type peerKey struct {
 	prefix byte
 	ip     net.IP
-	nonce  uint64
 }
 
 func (k peerKey) bytes() []byte {
-	buf := make([]byte, 1+net.IPv4len+8)
+	buf := make([]byte, 1+net.IPv6len)
 	buf[0] = k.prefix
-	copy(buf[1:], k.ip.To4())
-	binary.BigEndian.PutUint64(buf[1+net.IPv4len:], k.nonce)
+	copy(buf[1:], k.ip)
 	return buf
 }
 
 func (k *peerKey) fromByte(data []byte) error {
-	if l := len(data); l < 1+net.IPv4len+8 {
+	if l := len(data); l < 1+net.IPv6len {
 		return errors.Errorf("%d is not enough bytes for peerKey", l)
 	}
 	k.prefix = data[0]
-	k.ip = net.IP(data[1 : 1+net.IPv4len])
-	k.nonce = binary.BigEndian.Uint64(data[1+net.IPv4len:])
+	k.ip = net.IP(data[1 : 1+net.IPv6len])
 	return nil
 }
 
-func newPeerLinkKey(d PeerDesignation) peerKey {
-	return peerKey{prefix: linksPrefix, ip: d.Address.To4(), nonce: d.Nonce}
+func newPeerLinkKey(ip net.IP) peerKey {
+	return peerKey{prefix: linksPrefix, ip: ip}
 }
 
 type signatureKey struct {
@@ -185,21 +182,6 @@ func (k *heightBlockKey) fromBytes(data []byte) error {
 	return nil
 }
 
-type publicAddressKey struct {
-	addr PeerAddr
-}
-
-func (k *publicAddressKey) bytes() []byte {
-	buf := make([]byte, 1+PeerAddrLen)
-	buf[0] = publicAddressesPrefix
-	b, err := k.addr.MarshalBinary()
-	if err != nil {
-		panic("no error expected")
-	}
-	copy(buf[1:], b)
-	return buf
-}
-
 type storage struct {
 	db      *leveldb.DB
 	genesis crypto.Signature
@@ -243,7 +225,80 @@ func (s *storage) Close() error {
 	return s.db.Close()
 }
 
-func (s *storage) handleBlock(block proto.Block, peer PeerDesignation) error {
+func (s *storage) Peer(ip net.IP) (PeerNode, error) {
+	peer := PeerNode{}
+	sn, err := s.db.GetSnapshot()
+	if err != nil {
+		return peer, err
+	}
+	defer sn.Release()
+	k := peerKey{prefix: peerNodePrefix, ip: ip}
+	v, err := sn.Get(k.bytes(), nil)
+	if err != nil {
+		return peer, err
+	}
+	err = peer.UnmarshalBinary(v)
+	if err != nil {
+		return peer, err
+	}
+	return peer, nil
+}
+
+func (s *storage) PutPeer(ip net.IP, peer PeerNode) error {
+	batch := new(leveldb.Batch)
+	k := peerKey{prefix: peerNodePrefix, ip: ip}
+	v, err := peer.MarshalBinary()
+	if err != nil {
+		return err
+	}
+	batch.Put(k.bytes(), v)
+	err = s.db.Write(batch, nil)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *storage) Peers() ([]PeerNode, error) {
+	sn, err := s.db.GetSnapshot()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to collect peers")
+	}
+	defer sn.Release()
+	st := []byte{peerNodePrefix}
+	lm := []byte{peerNodePrefix + 1}
+	it := sn.NewIterator(&util.Range{Start: st, Limit: lm}, nil)
+	r := make([]PeerNode, 0)
+	for it.Next() {
+		var v PeerNode
+		err = v.UnmarshalBinary(it.Value())
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to collect peers")
+		}
+		r = append(r, v)
+	}
+	it.Release()
+	return r, nil
+}
+
+func (s *storage) HasPeer(ip net.IP) (bool, error) {
+	sn, err := s.db.GetSnapshot()
+	if err != nil {
+		return false, err
+	}
+	defer sn.Release()
+	k := peerKey{prefix: peerNodePrefix, ip: ip}
+	_, err = sn.Get(k.bytes(), nil)
+	if err != nil {
+		if err == leveldb.ErrNotFound {
+			return false, nil
+		}
+		return false, err
+	}
+	return true, nil
+}
+
+func (s *storage) handleBlock(block proto.Block, peer PeerNode) error {
 	wrapError := func(err error) error {
 		return errors.Wrap(err, "failed to append new block")
 	}
@@ -262,7 +317,7 @@ func (s *storage) handleBlock(block proto.Block, peer PeerDesignation) error {
 	if ok {
 		// The block is already known, just update link
 		link := peerLink{fork: w.fork, height: w.height, block: block.BlockSignature}
-		putLink(batch, peer, link)
+		putLink(batch, peer.Address, link)
 		err = s.db.Write(batch, nil)
 		if err != nil {
 			return wrapError(err)
@@ -274,7 +329,7 @@ func (s *storage) handleBlock(block proto.Block, peer PeerDesignation) error {
 		return wrapError(err)
 	}
 	link := peerLink{fork: fid, height: h, block: block.BlockSignature}
-	putLink(batch, peer, link)
+	putLink(batch, peer.Address, link)
 	err = s.db.Write(batch, nil)
 	if err != nil {
 		return wrapError(err)
@@ -282,7 +337,7 @@ func (s *storage) handleBlock(block proto.Block, peer PeerDesignation) error {
 	return nil
 }
 
-func (s *storage) appendBlockSignature(sig crypto.Signature, peer PeerDesignation) (bool, error) {
+func (s *storage) appendBlockSignature(sig crypto.Signature, peer PeerNode) (bool, error) {
 	wrapError := func(err error) error {
 		return errors.Wrap(err, "failed to append new block signature")
 	}
@@ -301,7 +356,7 @@ func (s *storage) appendBlockSignature(sig crypto.Signature, peer PeerDesignatio
 	if ok {
 		// The block is already known, update the peer link
 		link := peerLink{fork: w.fork, height: w.height, block: sig}
-		putLink(batch, peer, link)
+		putLink(batch, peer.Address, link)
 		err = s.db.Write(batch, nil)
 		if err != nil {
 			return false, wrapError(err)
@@ -332,14 +387,12 @@ func (s *storage) parentedForks() ([]Fork, error) {
 		if err != nil {
 			return nil, wrapError(err)
 		}
-		pd := NewPeerDesignation(k.ip.To4(), k.nonce)
-
 		var link peerLink
 		err = link.fromBytes(it.Value())
 		if err != nil {
 			return nil, wrapError(err)
 		}
-
+		//TODO: return peer version
 		f, ok := m[link.fork]
 		if !ok {
 			f = Fork{}
@@ -353,7 +406,7 @@ func (s *storage) parentedForks() ([]Fork, error) {
 			f.Length = int(fh.length)
 		}
 		lag := f.Height - int(link.height)
-		f.Peers = append(f.Peers, NewPeerForkInfo(pd, lag))
+		f.Peers = append(f.Peers, NewPeerForkInfo(k.ip, lag))
 		m[link.fork] = f
 	}
 	r := make([]Fork, len(m))
@@ -365,48 +418,6 @@ func (s *storage) parentedForks() ([]Fork, error) {
 	sort.Sort(ForkByHeightLengthAndPeersCount(r))
 	r[0].Longest = true
 	return r, nil
-}
-
-func (s *storage) publicAddresses() ([]PublicAddress, error) {
-	sn, err := s.db.GetSnapshot()
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to collect public addresses")
-	}
-	st := []byte{publicAddressesPrefix}
-	lm := []byte{publicAddressesPrefix + 1}
-	it := sn.NewIterator(&util.Range{Start: st, Limit: lm}, nil)
-	r := make([]PublicAddress, 0)
-	for it.Next() {
-		var v PublicAddress
-		err = v.UnmarshalBinary(it.Value())
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to collect public addresses")
-		}
-		r = append(r, v)
-	}
-	return r, nil
-}
-
-func (s *storage) hasPublicAddress(a PeerAddr) (bool, error) {
-	k := publicAddressKey{addr: a}
-	ok, err := s.db.Has(k.bytes(), nil)
-	if err != nil {
-		return false, errors.Wrap(err, "failed to check public address presence")
-	}
-	return ok, nil
-}
-
-func (s *storage) putPublicAddress(pa PublicAddress) error {
-	k := publicAddressKey{addr: pa.address}
-	v, err := pa.MarshalBinary()
-	if err != nil {
-		return errors.Wrap(err, "failed to store public address")
-	}
-	err = s.db.Put(k.bytes(), v, nil)
-	if err != nil {
-		return errors.Wrap(err, "failed to store public address")
-	}
-	return nil
 }
 
 func putGenesisBlockWrapper(batch *leveldb.Batch, genesis crypto.Signature) (fork uint32, height uint32, err error) {
@@ -526,7 +537,7 @@ func (s *storage) fork(ip net.IP) ([]NodeForkInfo, error) {
 	return nil, nil
 }
 
-func (s *storage) frontBlocks(peer PeerDesignation, n int) ([]crypto.Signature, error) {
+func (s *storage) frontBlocks(peer PeerNode, n int) ([]crypto.Signature, error) {
 	wrapError := func(err error) error {
 		return errors.Wrap(err, "failed to get front blocks signatures")
 	}
@@ -537,7 +548,7 @@ func (s *storage) frontBlocks(peer PeerDesignation, n int) ([]crypto.Signature, 
 	}
 	defer sn.Release()
 
-	k := newPeerLinkKey(peer)
+	k := newPeerLinkKey(peer.Address)
 	v, err := sn.Get(k.bytes(), nil)
 	if err != nil {
 		if err == leveldb.ErrNotFound {
@@ -615,8 +626,8 @@ func wrapper(sn *leveldb.Snapshot, block crypto.Signature) (blockWrapper, bool, 
 	return w, true, nil
 }
 
-func putLink(batch *leveldb.Batch, peer PeerDesignation, link peerLink) {
-	k := newPeerLinkKey(peer)
+func putLink(batch *leveldb.Batch, ip net.IP, link peerLink) {
+	k := newPeerLinkKey(ip)
 	batch.Put(k.bytes(), link.bytes())
 }
 

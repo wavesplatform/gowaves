@@ -50,7 +50,7 @@ type status struct {
 type api struct {
 	interrupt <-chan struct{}
 	storage   *storage
-	registry  *PeerRegistry
+	registry  *Registry
 	srv       *http.Server
 }
 
@@ -62,30 +62,30 @@ type PublicAddressInfo struct {
 	NextAttemptTime time.Time `json:"next_attempt_time"`
 }
 
-func newInfoFromPublicAddress(pa PublicAddress) PublicAddressInfo {
-	status := "UNKNOWN"
-	switch pa.state {
-	case NewPublicAddress:
-		status = "NEW"
-	case HostilePublicAddress:
-		status = "HOSTILE"
-	case GreetedPublicAddress:
-		status = "GREETED"
-	case RespondingPublicAddress:
-		status = "RESPONDING"
-	case DiscardedPublicAddress:
-		status = "DISCARDED"
-	}
-	return PublicAddressInfo{
-		Address:         pa.address.String(),
-		Version:         pa.version.String(),
-		Status:          status,
-		Attempts:        pa.attempts,
-		NextAttemptTime: pa.nextAttempt,
-	}
-}
-
-func NewAPI(interrupt <-chan struct{}, storage *storage, registry *PeerRegistry, bind string) (*api, error) {
+//func newInfoFromPublicAddress(pa PublicAddress) PublicAddressInfo {
+//	status := "UNKNOWN"
+//	switch pa.state {
+//	case NewPublicAddress:
+//		status = "NEW"
+//	case HostilePublicAddress:
+//		status = "HOSTILE"
+//	case GreetedPublicAddress:
+//		status = "GREETED"
+//	case RespondingPublicAddress:
+//		status = "RESPONDING"
+//	case DiscardedPublicAddress:
+//		status = "DISCARDED"
+//	}
+//	return PublicAddressInfo{
+//		Address:         pa.address.String(),
+//		Version:         pa.version.String(),
+//		Status:          status,
+//		Attempts:        pa.attempts,
+//		NextAttemptTime: pa.nextAttempt,
+//	}
+//}
+//
+func NewAPI(interrupt <-chan struct{}, storage *storage, registry *Registry, bind string) (*api, error) {
 	if bind == "" {
 		return nil, errors.New("empty address to bin")
 	}
@@ -139,8 +139,8 @@ func (a *api) Start() <-chan struct{} {
 func (a *api) routes() chi.Router {
 	r := chi.NewRouter()
 	r.Get("/status", a.status)
-	r.Get("/addresses", a.addresses)
 	r.Get("/peers", a.peers)
+	r.Get("/connections", a.connections)
 	r.Get("/parentedForks", a.forks)
 	r.Get("/node/{address}", a.node)
 	r.Get("/height/{height:\\d+}", a.blocksAtHeight)
@@ -155,13 +155,13 @@ func (a *api) status(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	short, long := countForksByLength(forks)
-	pas, err := a.storage.publicAddresses()
+	peers, err := a.registry.Peers()
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to complete request: %v", err), http.StatusInternalServerError)
 		return
 	}
-	ps := a.registry.Peers()
-	s := status{ShortForksCount: short, LongForksCount: long, ConnectedNodesCount: len(ps), KnowNodesCount: len(pas)}
+	connections := a.registry.Connections()
+	s := status{ShortForksCount: short, LongForksCount: long, ConnectedNodesCount: len(connections), KnowNodesCount: len(peers)}
 	err = json.NewEncoder(w).Encode(s)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to marshal status to JSON: %v", err), http.StatusInternalServerError)
@@ -169,29 +169,29 @@ func (a *api) status(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (a *api) addresses(w http.ResponseWriter, r *http.Request) {
-	pas, err := a.storage.publicAddresses()
+func (a *api) peers(w http.ResponseWriter, r *http.Request) {
+	peers, err := a.registry.Peers()
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to complete request: %v", err), http.StatusInternalServerError)
 		return
 	}
-	infos := make([]PublicAddressInfo, len(pas))
-	for i, pa := range pas {
-		info := newInfoFromPublicAddress(pa)
-		infos[i] = info
-	}
-	err = json.NewEncoder(w).Encode(infos)
+	//infos := make([]PublicAddressInfo, len(pas))
+	//for i, addr := range peers {
+	//	info := newInfoFromPublicAddress(pa)
+	//	infos[i] = info
+	//}
+	err = json.NewEncoder(w).Encode(peers)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to marshal addresses to JSON: %v", err), http.StatusInternalServerError)
+		http.Error(w, fmt.Sprintf("Failed to marshal peers to JSON: %v", err), http.StatusInternalServerError)
 		return
 	}
 }
 
-func (a *api) peers(w http.ResponseWriter, r *http.Request) {
-	peers := a.registry.Peers()
-	err := json.NewEncoder(w).Encode(peers)
+func (a *api) connections(w http.ResponseWriter, r *http.Request) {
+	connections := a.registry.Connections()
+	err := json.NewEncoder(w).Encode(connections)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to marshal peers to JSON: %v", err), http.StatusInternalServerError)
+		http.Error(w, fmt.Sprintf("Failed to marshal connections to JSON: %v", err), http.StatusInternalServerError)
 		return
 	}
 }

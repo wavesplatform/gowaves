@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"sort"
 	"strings"
 	"testing"
 
@@ -424,13 +425,13 @@ func TestHandshakeTCPAddr_Empty(t *testing.T) {
 func TestNewVersionFromString(t *testing.T) {
 	v, err := NewVersionFromString("1.2.3")
 	require.NoError(t, err)
-	assert.Equal(t, Version{1, 2,3}, *v)
+	assert.Equal(t, Version{1, 2, 3}, *v)
 	v, err = NewVersionFromString("1.2")
 	require.NoError(t, err)
-	assert.Equal(t, Version{1, 2,0}, *v)
+	assert.Equal(t, Version{1, 2, 0}, *v)
 	v, err = NewVersionFromString("1")
 	require.NoError(t, err)
-	assert.Equal(t, Version{1, 0,0}, *v)
+	assert.Equal(t, Version{1, 0, 0}, *v)
 	_, err = NewVersionFromString("")
 	assert.Error(t, err)
 	_, err = NewVersionFromString("1.2.3.4")
@@ -439,4 +440,28 @@ func TestNewVersionFromString(t *testing.T) {
 	assert.Error(t, err)
 	_, err = NewVersionFromString("-1234.-4567.-8900")
 	assert.Error(t, err)
+}
+
+func TestVersionsSort(t *testing.T) {
+	versions := []Version{
+		{0, 16, 1},
+		{0, 13, 4},
+		{0, 16, 5},
+		{0, 15, 5},
+		{0, 16, 1},
+		{1, 0, 0},
+		{1, 2, 3},
+	}
+	v := ByVersion(versions)
+	sort.Sort(v)
+	expected := []Version{
+		{0, 13, 4},
+		{0, 15, 5},
+		{0, 16, 1},
+		{0, 16, 1},
+		{0, 16, 5},
+		{1, 0, 0},
+		{1, 2, 3},
+	}
+	assert.Equal(t, expected, []Version(v))
 }
