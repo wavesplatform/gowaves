@@ -289,12 +289,7 @@ func (r *Registry) Connections() ([]PeerNode, error) {
 	connections := make([]PeerNode, len(r.connections))
 	i := 0
 	for _, p := range r.connections {
-		sp, err := r.storage.Peer(p.Address)
-		if err == nil {
-			connections[i] = sp
-		} else {
-			connections[i] = p
-		}
+		connections[i] = p
 		i++
 	}
 	sort.Sort(PeerNodesByName(connections))
@@ -338,19 +333,35 @@ func (r *Registry) Peers() ([]PeerNode, error) {
 	if err != nil {
 		return nil, err
 	}
+	sort.Sort(PeerNodesByName(peers))
 	return peers, nil
+}
+
+func (r *Registry) FriendlyPeers() ([]PeerNode, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	peers, err := r.storage.Peers()
+	if err != nil {
+		return nil, err
+	}
+	friends := make([]PeerNode, 0)
+	for _, p := range peers {
+		if p.State == NodeGreeted {
+			friends = append(friends, p)
+		}
+	}
+	sort.Sort(PeerNodesByName(friends))
+	return friends, nil
 }
 
 func (r *Registry) Addresses() ([]net.Addr, error) {
 	addresses := make([]net.Addr, 0)
-	peers, err := r.storage.Peers()
+	peers, err := r.FriendlyPeers()
 	if err != nil {
 		return addresses, errors.Wrap(err, "failed to get public addresses from storage")
 	}
 	for _, peer := range peers {
-		if peer.State != NodeGreeted {
-			continue
-		}
 		addr := &net.TCPAddr{IP: peer.Address, Port: int(peer.Port)}
 		addresses = append(addresses, addr)
 	}

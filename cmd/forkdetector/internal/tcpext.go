@@ -344,7 +344,11 @@ func (c *Conn) sendLoop() {
 }
 
 func (c *Conn) Send(buf []byte) (int, error) {
-	if atomic.LoadInt32(&c.state) != connStateNormal {
+	s := atomic.LoadInt32(&c.state)
+	if s == connStateInitial {
+		return 0, nil
+	}
+	if s == connStateStopping || s == connStateStopped {
 		return 0, errors.New("unable to send to closed connection")
 	}
 	bufLen := len(buf)

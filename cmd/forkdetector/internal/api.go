@@ -44,8 +44,9 @@ func Logger(l *zap.Logger) func(next http.Handler) http.Handler {
 type status struct {
 	ShortForksCount     int `json:"short_forks_count"`
 	LongForksCount      int `json:"long_forks_count"`
-	KnowNodesCount      int `json:"know_nodes_count"`
-	ConnectedNodesCount int `json:"connected_nodes_count"`
+	AllPeersCount       int `json:"all_peers_count"`
+	FriendlyPeersCount  int `json:"friendly_peers_count"`
+	ConnectedPeersCount int `json:"connected_peers_count"`
 }
 
 type api struct {
@@ -63,29 +64,6 @@ type PublicAddressInfo struct {
 	NextAttemptTime time.Time `json:"next_attempt_time"`
 }
 
-//func newInfoFromPublicAddress(pa PublicAddress) PublicAddressInfo {
-//	status := "UNKNOWN"
-//	switch pa.state {
-//	case NewPublicAddress:
-//		status = "NEW"
-//	case HostilePublicAddress:
-//		status = "HOSTILE"
-//	case GreetedPublicAddress:
-//		status = "GREETED"
-//	case RespondingPublicAddress:
-//		status = "RESPONDING"
-//	case DiscardedPublicAddress:
-//		status = "DISCARDED"
-//	}
-//	return PublicAddressInfo{
-//		Address:         pa.address.String(),
-//		Version:         pa.version.String(),
-//		Status:          status,
-//		Attempts:        pa.attempts,
-//		NextAttemptTime: pa.nextAttempt,
-//	}
-//}
-//
 func NewAPI(interrupt <-chan struct{}, storage *storage, registry *Registry, bind string) (*api, error) {
 	if bind == "" {
 		return nil, errors.New("empty address to bin")
@@ -140,7 +118,8 @@ func (a *api) Start() <-chan struct{} {
 func (a *api) routes() chi.Router {
 	r := chi.NewRouter()
 	r.Get("/status", a.status)
-	r.Get("/peers", a.peers)
+	r.Get("/peers/all", a.peers)
+	r.Get("/peers/friendly", a.friendly)
 	r.Get("/connections", a.connections)
 	r.Get("/parentedForks", a.forks)
 	r.Get("/node/{address}", a.node)
@@ -164,12 +143,17 @@ func (a *api) status(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Failed to complete request: %v", err), http.StatusInternalServerError)
 		return
 	}
+	friends, err := a.registry.FriendlyPeers()
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to complete request: %v", err), http.StatusInternalServerError)
+		return
+	}
 	connections, err := a.registry.Connections()
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to complete request: %v", err), http.StatusInternalServerError)
 		return
 	}
-	s := status{ShortForksCount: short, LongForksCount: long, ConnectedNodesCount: len(connections), KnowNodesCount: len(peers)}
+	s := status{ShortForksCount: short, LongForksCount: long, AllPeersCount: len(peers), FriendlyPeersCount: len(friends), ConnectedPeersCount: len(connections)}
 	err = json.NewEncoder(w).Encode(s)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to marshal status to JSON: %v", err), http.StatusInternalServerError)
@@ -179,6 +163,19 @@ func (a *api) status(w http.ResponseWriter, r *http.Request) {
 
 func (a *api) peers(w http.ResponseWriter, r *http.Request) {
 	peers, err := a.registry.Peers()
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to complete request: %v", err), http.StatusInternalServerError)
+		return
+	}
+	err = json.NewEncoder(w).Encode(peers)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to marshal peers to JSON: %v", err), http.StatusInternalServerError)
+		return
+	}
+}
+
+func (a *api) friendly(w http.ResponseWriter, r *http.Request) {
+	peers, err := a.registry.FriendlyPeers()
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to complete request: %v", err), http.StatusInternalServerError)
 		return
