@@ -53,6 +53,9 @@ type State interface {
 	// Block getters.
 	Block(blockID crypto.Signature) (*proto.Block, error)
 	BlockByHeight(height uint64) (*proto.Block, error)
+	// Header getters.
+	Header(blockID crypto.Signature) (*proto.BlockHeader, error)
+	HeaderByHeight(height uint64) (*proto.BlockHeader, error)
 	// Height returns current blockchain height.
 	Height() (uint64, error)
 	// Height <---> blockID converters.
@@ -84,6 +87,11 @@ type State interface {
 	CurrentScore() (*big.Int, error)
 	// Retrieve current blockchain settings.
 	BlockchainSettings() (*settings.BlockchainSettings, error)
+	// Effective balance by address in given height range.
+	// WARNING: this function takes into account newest blocks (which are currently being added)
+	// and works correctly for height ranges exceeding current Height() if there are such blocks.
+	// It does not work for heights older than rollbackMax blocks before the current block.
+	EffectiveBalance(addr proto.Address, startHeight, endHeight uint64) (uint64, error)
 
 	// Create or replace Peers.
 	SavePeers([]proto.TCPAddr) error

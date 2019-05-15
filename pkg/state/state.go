@@ -218,8 +218,35 @@ func (s *stateManager) handleGenesisBlock(genesisCfgPath string) error {
 	return nil
 }
 
-func (s *stateManager) Block(blockID crypto.Signature) (*proto.Block, error) {
+func (s *stateManager) Header(blockID crypto.Signature) (*proto.BlockHeader, error) {
 	headerBytes, err := s.rw.readBlockHeader(blockID)
+	if err != nil {
+		return nil, StateError{errorType: RetrievalError, originalError: err}
+	}
+	var header proto.BlockHeader
+	if err := header.UnmarshalHeaderFromBinary(headerBytes); err != nil {
+		return nil, StateError{errorType: DeserializationError, originalError: err}
+	}
+	return &header, nil
+}
+
+func (s *stateManager) HeaderByHeight(height uint64) (*proto.BlockHeader, error) {
+	maxHeight, err := s.Height()
+	if err != nil {
+		return nil, StateError{errorType: RetrievalError, originalError: err}
+	}
+	if height < 1 || height > maxHeight {
+		return nil, StateError{errorType: InvalidInputError, originalError: errors.New("height out of valid range")}
+	}
+	blockID, err := s.rw.blockIDByHeight(height)
+	if err != nil {
+		return nil, StateError{errorType: RetrievalError, originalError: err}
+	}
+	return s.Header(blockID)
+}
+
+func (s *stateManager) Block(blockID crypto.Signature) (*proto.Block, error) {
+	header, err := s.Header(blockID)
 	if err != nil {
 		return nil, StateError{errorType: RetrievalError, originalError: err}
 	}
@@ -227,10 +254,7 @@ func (s *stateManager) Block(blockID crypto.Signature) (*proto.Block, error) {
 	if err != nil {
 		return nil, StateError{errorType: RetrievalError, originalError: err}
 	}
-	var block proto.Block
-	if err := block.UnmarshalHeaderFromBinary(headerBytes); err != nil {
-		return nil, StateError{errorType: DeserializationError, originalError: err}
-	}
+	block := proto.Block{BlockHeader: *header}
 	block.Transactions = make([]byte, len(transactions))
 	copy(block.Transactions, transactions)
 	return &block, nil
