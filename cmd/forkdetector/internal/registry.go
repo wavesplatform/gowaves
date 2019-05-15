@@ -167,6 +167,9 @@ func (r *Registry) PeerGreeted(addr net.Addr, nonce uint64, name string, v proto
 	if err != nil {
 		return err
 	}
+
+	delete(r.pending, hash(ip))
+
 	peer, err := r.storage.Peer(ip)
 	if err != nil {
 		if err != leveldb.ErrNotFound {
@@ -197,6 +200,9 @@ func (r *Registry) PeerHostile(addr net.Addr, nonce uint64, name string, v proto
 	if err != nil {
 		return err
 	}
+
+	delete(r.pending, hash(ip))
+
 	peer, err := r.storage.Peer(ip)
 	if err != nil {
 		if err != leveldb.ErrNotFound {
@@ -225,6 +231,9 @@ func (r *Registry) PeerDiscarded(addr net.Addr) error {
 	if err != nil {
 		return err
 	}
+
+	delete(r.pending, hash(ip))
+
 	peer, err := r.storage.Peer(ip)
 	if err != nil && err != leveldb.ErrNotFound {
 		return err
@@ -367,7 +376,7 @@ func (r *Registry) Addresses() ([]net.Addr, error) {
 		return addresses, errors.Wrap(err, "failed to get public addresses from storage")
 	}
 	for _, peer := range peers {
-		addr := &net.TCPAddr{IP: peer.Address, Port: int(peer.Port)}
+		addr := &net.TCPAddr{IP: peer.Address.To16(), Port: int(peer.Port)}
 		addresses = append(addresses, addr)
 	}
 	return addresses, nil
@@ -397,9 +406,9 @@ func (r Registry) TakeAvailableAddresses() ([]net.Addr, error) {
 		if ok {
 			continue
 		}
-		addr := &net.TCPAddr{IP: peer.Address, Port: int(peer.Port)}
+		addr := &net.TCPAddr{IP: peer.Address.To16(), Port: int(peer.Port)}
 		addresses = append(addresses, addr)
-		r.pending[hash(peer.Address)] = struct{}{}
+		r.pending[hash(peer.Address.To16())] = struct{}{}
 	}
 	return addresses, nil
 }
