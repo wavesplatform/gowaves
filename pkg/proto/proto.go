@@ -894,14 +894,13 @@ func (m *PeersMessage) UnmarshalBinary(data []byte) error {
 	}
 	peersCount := binary.BigEndian.Uint32(data[0:4])
 	data = data[4:]
-	for i := uint32(0); i < peersCount; i += 8 {
+	for i := uint32(0); i < peersCount*8; i += 8 {
 		var peer PeerInfo
 		if err := peer.UnmarshalBinary(data[i : i+8]); err != nil {
 			return err
 		}
 		m.Peers = append(m.Peers, peer)
 	}
-
 	return nil
 }
 
