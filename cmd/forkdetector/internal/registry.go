@@ -229,17 +229,22 @@ func (r *Registry) PeerDiscarded(addr net.Addr) error {
 	if err != nil && err != leveldb.ErrNotFound {
 		return err
 	}
-	peer.State = NodeDiscarded
-	if peer.Attempts > len(r.versions) {
-		peer.NextAttempt = time.Now().Add(dayDelay)
-	} else {
-		peer.NextAttempt = time.Now().Add(hourDelay)
+	switch peer.State {
+	case NodeGreeted, NodeHostile:
+		return nil
+	default:
+		peer.State = NodeDiscarded
+		if peer.Attempts > len(r.versions) {
+			peer.NextAttempt = time.Now().Add(dayDelay)
+		} else {
+			peer.NextAttempt = time.Now().Add(hourDelay)
+		}
+		err = r.storage.PutPeer(ip, peer)
+		if err != nil {
+			return err
+		}
+		return nil
 	}
-	err = r.storage.PutPeer(ip, peer)
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 func (r *Registry) Activate(addr net.Addr, h proto.Handshake) error {

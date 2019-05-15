@@ -14,14 +14,14 @@ import (
 )
 
 const (
-	DefaultRecvBufSize     = 4 << 10         // Default size of the receiving buffer, 4096 bytes.
-	DefaultSendQueueLen    = 1 << 6          // Default length of the sending queue (size of the channel) - 64 packets.
-	maxTemporaryErrorDelay = 1 * time.Second // Maximum value of the temporary error delay.
-	handshakeTimeout       = 5 * time.Second // Duration of timeout on handshake operations.
-	maxPayloadLength       = 2 << 20         // Maximum expected payload length 2MB.
-	magic                  = 0x12345678      // Protocol magic bytes
-	sizeLength             = 4               // Length of the encoded size field in the network message
-	magicLength            = 4               // Length of the field with magic bytes
+	DefaultRecvBufSize     = 4 << 10          // Default size of the receiving buffer, 4096 bytes.
+	DefaultSendQueueLen    = 1 << 6           // Default length of the sending queue (size of the channel) - 64 packets.
+	maxTemporaryErrorDelay = 1 * time.Second  // Maximum value of the temporary error delay.
+	handshakeTimeout       = 30 * time.Second // Duration of timeout on handshake operations.
+	maxPayloadLength       = 2 << 20          // Maximum expected payload length 2MB.
+	magic                  = 0x12345678       // Protocol magic bytes
+	sizeLength             = 4                // Length of the encoded size field in the network message
+	magicLength            = 4                // Length of the field with magic bytes
 )
 
 const (
