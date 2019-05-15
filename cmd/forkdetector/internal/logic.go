@@ -208,12 +208,7 @@ func (h *ConnHandler) OnReceive(c *Conn, buf []byte) {
 			zap.S().Warnf("[%s] Failed to unmarshal GetPeers message: %v", c.RawConn.RemoteAddr(), err)
 			return
 		}
-		peers, err := h.registry.Addresses()
-		if err != nil {
-			zap.S().Warnf("[%s] Failed to get peers to reply with: %v", err)
-			return
-		}
-		h.replyWithPeers(c, peers)
+		h.replyWithEmptyPeers(c)
 	case proto.ContentIDPeers:
 		var m proto.PeersMessage
 		err = m.UnmarshalBinary(buf)
@@ -312,17 +307,8 @@ func (h *ConnHandler) buildHandshake(ver proto.Version) *proto.Handshake {
 	}
 }
 
-func (h *ConnHandler) replyWithPeers(conn *Conn, peers []net.Addr) {
-	infos := make([]proto.PeerInfo, len(peers))
-	for i, p := range peers {
-		info, err := proto.NewPeerInfoFromString(p.String())
-		if err != nil {
-			zap.S().Warnf("[%s] Invalid peer '%s': %v", p.String(), err)
-			continue
-		}
-		infos[i] = info
-	}
-	m := proto.PeersMessage{Peers: infos}
+func (h *ConnHandler) replyWithEmptyPeers(conn *Conn) {
+	m := proto.PeersMessage{}
 	buf := new(bytes.Buffer)
 	_, err := m.WriteTo(buf)
 	if err != nil {
