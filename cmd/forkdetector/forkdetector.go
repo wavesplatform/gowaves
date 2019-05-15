@@ -9,6 +9,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+	"gopkg.in/natefinch/lumberjack.v2"
 	"math/rand"
 	"net"
 	"os"
@@ -23,6 +24,7 @@ var (
 
 type configuration struct {
 	logLevel      string
+	logFile       string
 	dbPath        string
 	scheme        byte
 	genesis       crypto.Signature
@@ -49,7 +51,7 @@ func run() error {
 		flag.Usage()
 		return err
 	}
-	setupLogger(cfg.logLevel)
+	setupLogger(cfg.logLevel, cfg.logFile)
 
 	// Get a channel that will be closed on shutdown signals (CTRL-C) or shutdown request
 	interrupt := interruptListener()
@@ -105,6 +107,7 @@ func run() error {
 func parseConfiguration() (*configuration, error) {
 	var (
 		logLevel        = flag.String("log-level", "INFO", "Logging level. Supported levels: DEBUG, INFO, WARN, ERROR, FATAL. Default logging level is INFO.")
+		logFile         = flag.String("log-file", "", "Path to log file. Log files are rotated at size 100MB. By default there is no log file.")
 		db              = flag.String("db", "", "Path to database folder. No default value.")
 		scheme          = flag.String("scheme", "W", "Blockchain scheme symbol. Defaults to \"W\" - MainNet scheme.")
 		genesis         = flag.String("genesis", "FSH8eAAzZNqnG8xgTZtz5xuLqXySsXgAjmFEC25hXMbEufiGjqWPnGCZFt6gLiVLJny16ipxRNAkkzjjhqTjBE2", "Genesis block signature in BASE58 encoding. Default value is MainNet's genesis block signature.")
@@ -151,6 +154,7 @@ func parseConfiguration() (*configuration, error) {
 	cfg := &configuration{
 		dbPath:        *db,
 		logLevel:      *logLevel,
+		logFile:       *logFile,
 		scheme:        (byte)((*scheme)[0]),
 		genesis:       sig,
 		versions:      vs,
@@ -195,7 +199,7 @@ func splitVersions(s string) ([]proto.Version, error) {
 	return r, nil
 }
 
-func setupLogger(level string) (*zap.Logger, *zap.SugaredLogger) {
+func setupLogger(level, file string) (*zap.Logger, *zap.SugaredLogger) {
 	al := zap.NewAtomicLevel()
 	switch strings.ToUpper(level) {
 	case "DEBUG":
@@ -212,7 +216,14 @@ func setupLogger(level string) (*zap.Logger, *zap.SugaredLogger) {
 		al.SetLevel(zap.InfoLevel)
 	}
 	ec := zap.NewDevelopmentEncoderConfig()
-	logger := zap.New(zapcore.NewCore(zapcore.NewConsoleEncoder(ec), zapcore.Lock(os.Stdout), al))
+	core := zapcore.NewCore(zapcore.NewConsoleEncoder(ec), zapcore.Lock(os.Stdout), al)
+	if file != "" {
+		w := zapcore.AddSync(&lumberjack.Logger{
+			Filename: file,
+		})
+		core = zapcore.NewTee(core, zapcore.NewCore(zapcore.NewConsoleEncoder(ec), w, al))
+	}
+	logger := zap.New(core)
 	zap.ReplaceGlobals(logger)
 	return logger, logger.Sugar()
 }
