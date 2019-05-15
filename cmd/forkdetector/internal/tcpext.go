@@ -30,7 +30,8 @@ const (
 )
 
 const (
-	connStateNormal int32 = iota
+	connStateInitial int32 = iota
+	connStateNormal
 	connStateStopping
 	connStateStopped
 )
@@ -98,20 +99,36 @@ func NewConn(opts *Options) *Conn {
 		Opts:        opts,
 		sendBufList: make(chan []byte, opts.SendQueueLen),
 		closed:      make(chan struct{}),
-		state:       connStateNormal,
+		state:       connStateInitial,
 	}
 	return c
 }
 
 func (c *Conn) String() string {
-	sb := strings.Builder{}
-	if c.RawConn != nil {
-		sb.WriteString(c.RawConn.LocalAddr().String())
-		sb.WriteString("->")
-		sb.WriteString(c.RawConn.RemoteAddr().String())
-	} else {
-		sb.WriteString("N/A")
+	s := atomic.LoadInt32(&c.state)
+	var sc rune
+	switch s {
+	case connStateInitial:
+		sc = '>'
+	case connStateNormal:
+		sc = '-'
+	case connStateStopping:
+		sc = '|'
+	case connStateStopped:
+		sc = 'X'
 	}
+	la := "N/A"
+	ra := "N/A"
+	if c.RawConn != nil {
+		la = c.RawConn.LocalAddr().String()
+		ra = c.RawConn.RemoteAddr().String()
+	}
+	sb := strings.Builder{}
+	sb.WriteString(la)
+	sb.WriteRune('-')
+	sb.WriteRune(sc)
+	sb.WriteRune('>')
+	sb.WriteString(ra)
 	return sb.String()
 }
 
@@ -152,12 +169,17 @@ func (c *Conn) Stop(mode int) {
 
 // IsStopped return true if Conn is stopped or stopping, otherwise return false.
 func (c *Conn) IsStopped() bool {
-	return atomic.LoadInt32(&c.state) != connStateNormal
+	v := atomic.LoadInt32(&c.state)
+	return v == connStateStopping || v == connStateStopped
 }
 
 func (c *Conn) serve() {
 	if c.IsStopped() {
 		return
+	}
+	s := atomic.LoadInt32(&c.state)
+	if s == connStateInitial {
+		atomic.StoreInt32(&c.state, connStateNormal)
 	}
 	tcpConn := c.RawConn.(*net.TCPConn)
 	err := tcpConn.SetNoDelay(c.Opts.NoDelay)
@@ -196,88 +218,6 @@ func (c *Conn) sleepForDelay(d time.Duration, err error) time.Duration {
 	zap.S().Warnf("[%s] Temporary error (retrying in %s): %v", c.RawConn.RemoteAddr(), d, err)
 	time.Sleep(d)
 	return d
-}
-
-type safeReader struct {
-	conn   *Conn
-	reader *bufio.Reader
-	abort  bool
-	skip   bool
-	delay  time.Duration
-}
-
-func newSafeReader(conn *Conn) *safeReader {
-	return &safeReader{conn: conn, reader: bufio.NewReader(conn.RawConn)}
-}
-
-func (r *safeReader) reset() {
-	if !r.abort {
-		r.skip = false
-	}
-}
-
-func (r *safeReader) read(buf []byte) uint64 {
-	if r.skip || r.abort {
-		return 0
-	}
-	if r.conn.Opts.ReadDeadline != 0 {
-		err := r.conn.RawConn.SetReadDeadline(time.Now().Add(r.conn.Opts.ReadDeadline))
-		if err != nil {
-			zap.S().Warnf("[%s] Failed to set read deadline: %v", r.conn.RawConn.RemoteAddr(), err)
-		}
-	}
-	n, err := io.ReadFull(r.reader, buf)
-	if err != nil {
-		if netErr, ok := err.(net.Error); ok {
-			if netErr.Timeout() {
-				zap.S().Debugf("[%s] Receive time out", r.conn.RawConn.RemoteAddr())
-			} else if netErr.Temporary() {
-				if r.delay == 0 {
-					r.delay = 5 * time.Millisecond
-				} else {
-					r.delay *= 2
-				}
-				if r.delay > maxTemporaryErrorDelay {
-					r.delay = maxTemporaryErrorDelay
-				}
-				zap.S().Warnf("[%s] Temporary network error (retrying in %s): %v", r.conn.RawConn.RemoteAddr(), r.delay, netErr)
-				time.Sleep(r.delay)
-				r.skip = true
-				return 0
-			}
-		}
-		if !r.conn.IsStopped() {
-			if err != io.EOF {
-				zap.S().Errorf("[%s] Receive error: %v", r.conn.RawConn.RemoteAddr(), err)
-			}
-			r.conn.Stop(StopImmediately)
-		}
-		r.abort = true
-		return 0
-	}
-	r.delay = 0
-	return uint64(n)
-}
-
-func (r *safeReader) readUint32(buf []byte) (uint64, uint32) {
-	if r.skip || r.abort {
-		return 0, 0
-	}
-	n := r.read(buf)
-	i := binary.BigEndian.Uint32(buf)
-	return n, i
-}
-
-func (r *safeReader) discard(n int) {
-	if r.abort {
-		return
-	}
-	r.skip = true
-	d, err := r.reader.Discard(n)
-	if err != nil {
-		zap.S().Errorf("[%s] Failed to discard connection buffer: %v", r.conn.RawConn.RemoteAddr(), err)
-	}
-	zap.S().Debugf("[%s] %d bytes have been discarded", r.conn.RawConn.RemoteAddr(), d)
 }
 
 func (c *Conn) recvLoop() {
@@ -430,7 +370,7 @@ func (c *Conn) Send(buf []byte) (int, error) {
 }
 
 func (c *Conn) DialAndServe(addr string) error {
-	//TODO: handle close of a connection that still dialing
+	//TODO: handle close of a connection that is dialing
 	rawConn, err := net.DialTimeout("tcp", addr, c.Opts.WriteDeadline)
 	if err != nil {
 		return err
@@ -632,6 +572,88 @@ var (
 	}
 	bufferPoolBig = &sync.Pool{}
 )
+
+type safeReader struct {
+	conn   *Conn
+	reader *bufio.Reader
+	abort  bool
+	skip   bool
+	delay  time.Duration
+}
+
+func newSafeReader(conn *Conn) *safeReader {
+	return &safeReader{conn: conn, reader: bufio.NewReader(conn.RawConn)}
+}
+
+func (r *safeReader) reset() {
+	if !r.abort {
+		r.skip = false
+	}
+}
+
+func (r *safeReader) read(buf []byte) uint64 {
+	if r.skip || r.abort {
+		return 0
+	}
+	if r.conn.Opts.ReadDeadline != 0 {
+		err := r.conn.RawConn.SetReadDeadline(time.Now().Add(r.conn.Opts.ReadDeadline))
+		if err != nil {
+			zap.S().Warnf("[%s] Failed to set read deadline: %v", r.conn.RawConn.RemoteAddr(), err)
+		}
+	}
+	n, err := io.ReadFull(r.reader, buf)
+	if err != nil {
+		if netErr, ok := err.(net.Error); ok {
+			if netErr.Timeout() {
+				zap.S().Debugf("[%s] Receive time out", r.conn.RawConn.RemoteAddr())
+			} else if netErr.Temporary() {
+				if r.delay == 0 {
+					r.delay = 5 * time.Millisecond
+				} else {
+					r.delay *= 2
+				}
+				if r.delay > maxTemporaryErrorDelay {
+					r.delay = maxTemporaryErrorDelay
+				}
+				zap.S().Warnf("[%s] Temporary network error (retrying in %s): %v", r.conn.RawConn.RemoteAddr(), r.delay, netErr)
+				time.Sleep(r.delay)
+				r.skip = true
+				return 0
+			}
+		}
+		if !r.conn.IsStopped() {
+			if err != io.EOF {
+				zap.S().Errorf("[%s] Receive error: %v", r.conn.RawConn.RemoteAddr(), err)
+			}
+			r.conn.Stop(StopImmediately)
+		}
+		r.abort = true
+		return 0
+	}
+	r.delay = 0
+	return uint64(n)
+}
+
+func (r *safeReader) readUint32(buf []byte) (uint64, uint32) {
+	if r.skip || r.abort {
+		return 0, 0
+	}
+	n := r.read(buf)
+	i := binary.BigEndian.Uint32(buf)
+	return n, i
+}
+
+func (r *safeReader) discard(n int) {
+	if r.abort {
+		return
+	}
+	r.skip = true
+	d, err := r.reader.Discard(n)
+	if err != nil {
+		zap.S().Errorf("[%s] Failed to discard connection buffer: %v", r.conn.RawConn.RemoteAddr(), err)
+	}
+	zap.S().Debugf("[%s] %d bytes have been discarded", r.conn.RawConn.RemoteAddr(), d)
+}
 
 func getBufferFromPool(targetSize int) []byte {
 	var buf []byte

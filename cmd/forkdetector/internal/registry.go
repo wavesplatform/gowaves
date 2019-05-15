@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"bytes"
 	"github.com/pkg/errors"
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -23,21 +24,25 @@ var (
 
 type Registry struct {
 	scheme      byte
-	self        net.Addr
+	self        net.IP
 	versions    versions
 	storage     *storage
 	mu          sync.Mutex
-	connections map[uint64]struct{}
+	connections map[uint64]PeerNode
 	pending     map[uint64]struct{}
 }
 
 func NewRegistry(scheme byte, self net.Addr, versions []proto.Version, storage *storage) *Registry {
+	ip, _, err := splitAddr(self)
+	if err != nil {
+		ip = net.IPv4zero.To16()
+	}
 	return &Registry{
 		scheme:      scheme,
-		self:        self,
+		self:        ip,
 		versions:    newVersions(versions),
 		storage:     storage,
-		connections: make(map[uint64]struct{}, 0),
+		connections: make(map[uint64]PeerNode, 0),
 		pending:     make(map[uint64]struct{}, 0),
 	}
 }
@@ -47,17 +52,17 @@ func (r *Registry) Check(addr net.Addr, application string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
+	ip, _, err := splitAddr(addr)
+	if err != nil {
+		return err
+	}
 	// Check that blockchain scheme is acceptable
 	if s := application[len(application)-1]; s != r.scheme {
 		return errors.Errorf("incompatible blockchain scheme %d", s)
 	}
 	// Check that this is not a connection to itself
-	if addr.String() == r.self.String() {
+	if bytes.Equal(ip, r.self) {
 		return errors.New("connection to itself")
-	}
-	ip, _, err := splitAddr(addr)
-	if err != nil {
-		return err
 	}
 	if ip.IsLoopback() {
 		return errors.New("connection to itself")
@@ -237,11 +242,11 @@ func (r *Registry) PeerDiscarded(addr net.Addr) error {
 	return nil
 }
 
-func (r *Registry) Activate(addr net.Addr) error {
+func (r *Registry) Activate(addr net.Addr, h proto.Handshake) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	ip, _, err := splitAddr(addr)
+	ip, port, err := splitAddr(addr)
 	if err != nil {
 		return errors.Wrap(err, "failed to activate address")
 	}
@@ -249,7 +254,15 @@ func (r *Registry) Activate(addr net.Addr) error {
 	if ok {
 		return errors.Errorf("attempt to activate already active address %s", addr.String())
 	}
-	r.connections[hash(ip)] = struct{}{}
+	p := PeerNode{
+		Address: ip,
+		Port:    port,
+		Nonce:   h.NodeNonce,
+		Name:    h.NodeName,
+		Version: h.Version,
+		State:   NodeGreeted,
+	}
+	r.connections[hash(ip)] = p
 	return nil
 }
 
@@ -259,7 +272,7 @@ func (r *Registry) Deactivate(addr net.Addr) error {
 
 	ip, _, err := splitAddr(addr)
 	if err != nil {
-		return errors.Wrap(err, "failed to deacitvate an address")
+		return errors.Wrap(err, "failed to deactivate an address")
 	}
 	_, ok := r.connections[hash(ip)]
 	if !ok {
@@ -269,18 +282,23 @@ func (r *Registry) Deactivate(addr net.Addr) error {
 	return nil
 }
 
-func (r *Registry) Connections() []PeerNode {
+func (r *Registry) Connections() ([]PeerNode, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	//TODO: implement
 	connections := make([]PeerNode, len(r.connections))
-	//i := 0
-	//for a := range r.connections {
-	//	connections[i] = a
-	//	i++
-	//}
-	return connections
+	i := 0
+	for _, p := range r.connections {
+		sp, err := r.storage.Peer(p.Address)
+		if err == nil {
+			connections[i] = sp
+		} else {
+			connections[i] = p
+		}
+		i++
+	}
+	sort.Sort(PeerNodesByName(connections))
+	return connections, nil
 }
 
 func (r *Registry) AppendAddresses(addresses []net.TCPAddr) int {
@@ -404,7 +422,7 @@ func splitAddr(addr net.Addr) (net.IP, uint16, error) {
 	if !ok {
 		return net.IP{}, 0, errors.Errorf("not a TCP address '%s'", addr.String())
 	}
-	return tcpAddr.IP, uint16(tcpAddr.Port), nil
+	return tcpAddr.IP.To16(), uint16(tcpAddr.Port), nil
 }
 
 func hash(ip net.IP) uint64 {

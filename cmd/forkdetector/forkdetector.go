@@ -28,7 +28,7 @@ type configuration struct {
 	genesis       crypto.Signature
 	apiBind       string
 	netBind       string
-	publicAddress proto.HandshakeTCPAddr
+	publicAddress net.TCPAddr
 	name          string
 	nonce         uint64
 	versions      []proto.Version
@@ -67,7 +67,7 @@ func run() error {
 		return nil
 	}
 
-	reg := internal.NewRegistry(cfg.scheme, cfg.publicAddress, cfg.versions, storage)
+	reg := internal.NewRegistry(cfg.scheme, &cfg.publicAddress, cfg.versions, storage)
 	n := reg.AppendAddresses(cfg.seedPeers)
 	if n > 0 {
 		zap.S().Infof("%d seed peers added to storage", n)
@@ -159,7 +159,7 @@ func parseConfiguration() (*configuration, error) {
 		nonce:         nonce,
 		apiBind:       *apiBindAddress,
 		netBind:       *netBindAddress,
-		publicAddress: addr,
+		publicAddress: net.TCPAddr(addr),
 	}
 	return cfg, nil
 }

@@ -23,12 +23,12 @@ type ConnHandler struct {
 	registry      *Registry
 }
 
-func NewConnHandler(scheme byte, name string, nonce uint64, addr proto.HandshakeTCPAddr, registry *Registry) *ConnHandler {
+func NewConnHandler(scheme byte, name string, nonce uint64, addr net.TCPAddr, registry *Registry) *ConnHandler {
 	return &ConnHandler{
 		scheme:        scheme,
 		name:          name,
 		nonce:         nonce,
-		publicAddress: addr,
+		publicAddress: proto.HandshakeTCPAddr(addr),
 		registry:      registry,
 	}
 }
@@ -46,6 +46,12 @@ func (h *ConnHandler) OnAccept(conn *Conn) {
 	_, err = ih.ReadFrom(r)
 	if err != nil {
 		zap.S().Warnf("[%s] Failed to receive handshake: %v", conn.RawConn.RemoteAddr(), err)
+		if strings.Contains(err.Error(), "tcp addr is too large") {
+			err = h.registry.PeerHostile(conn.RawConn.RemoteAddr(), 0, "N/A", proto.Version{})
+			if err != nil {
+				zap.S().Errorf("[%s] Failed to update peer info: %v", conn.RawConn.RemoteAddr(), err)
+			}
+		}
 		conn.Stop(StopImmediately)
 		return
 	}
@@ -54,7 +60,8 @@ func (h *ConnHandler) OnAccept(conn *Conn) {
 		zap.S().Errorf("[%s] Unacceptable peer: %v", conn.RawConn.RemoteAddr(), err)
 		conn.Stop(StopImmediately)
 		if !ih.DeclaredAddr.Empty() {
-			err = h.registry.PeerHostile(ih.DeclaredAddr, ih.NodeNonce, ih.NodeName, ih.Version)
+			a := net.TCPAddr(ih.DeclaredAddr)
+			err = h.registry.PeerHostile(&a, ih.NodeNonce, ih.NodeName, ih.Version)
 			if err != nil {
 				zap.S().Errorf("[%s] Failed to update peer info: %v", conn.RawConn.RemoteAddr(), err)
 			}
@@ -69,13 +76,14 @@ func (h *ConnHandler) OnAccept(conn *Conn) {
 		return
 	}
 	if !ih.DeclaredAddr.Empty() {
-		err = h.registry.PeerGreeted(ih.DeclaredAddr, ih.NodeNonce, ih.NodeName, ih.Version)
+		a := net.TCPAddr(ih.DeclaredAddr)
+		err = h.registry.PeerGreeted(&a, ih.NodeNonce, ih.NodeName, ih.Version)
 		if err != nil {
 			zap.S().Warnf("[%s] Failed to register accepted peer: %v", conn.RawConn.RemoteAddr(), err)
 			return
 		}
 	}
-	err = h.registry.Activate(conn.RawConn.RemoteAddr())
+	err = h.registry.Activate(conn.RawConn.RemoteAddr(), ih)
 	if err != nil {
 		zap.S().Errorf("[%s] Failed to update peer state: %v", conn.RawConn.RemoteAddr(), err)
 		conn.Stop(StopImmediately)
@@ -144,6 +152,13 @@ func (h *ConnHandler) OnConnect(conn *Conn) {
 	if err != nil {
 		zap.S().Warnf("[%s] Failed to receive handshake: %v", conn.RawConn.RemoteAddr(), err)
 		conn.Stop(StopImmediately)
+		if strings.Contains(err.Error(), "tcp addr is too large") {
+			err = h.registry.PeerHostile(conn.RawConn.RemoteAddr(), 0, "N/A", proto.Version{})
+			if err != nil {
+				zap.S().Errorf("[%s] Failed to update peer info: %v", conn.RawConn.RemoteAddr(), err)
+			}
+			return
+		}
 		err := h.registry.PeerDiscarded(conn.RawConn.RemoteAddr())
 		if err != nil {
 			zap.S().Errorf("[%s] Failed to update connection state: %v", conn.RawConn.RemoteAddr(), err)
@@ -155,7 +170,8 @@ func (h *ConnHandler) OnConnect(conn *Conn) {
 		zap.S().Errorf("[%s] Connection declined: %v", conn.RawConn.RemoteAddr(), err)
 		conn.Stop(StopImmediately)
 		if !ih.DeclaredAddr.Empty() {
-			err = h.registry.PeerHostile(ih.DeclaredAddr, ih.NodeNonce, ih.NodeName, ih.Version)
+			a := net.TCPAddr(ih.DeclaredAddr)
+			err = h.registry.PeerHostile(&a, ih.NodeNonce, ih.NodeName, ih.Version)
 			if err != nil {
 				zap.S().Errorf("[%s] Failed to update connection state: %v", conn.RawConn.RemoteAddr(), err)
 			}
@@ -168,7 +184,7 @@ func (h *ConnHandler) OnConnect(conn *Conn) {
 		conn.Stop(StopImmediately)
 		return
 	}
-	err = h.registry.Activate(conn.RawConn.RemoteAddr())
+	err = h.registry.Activate(conn.RawConn.RemoteAddr(), ih)
 	if err != nil {
 		zap.S().Errorf("[%s] Failed to update connection state: %v", conn.RawConn.RemoteAddr(), err)
 		conn.Stop(StopImmediately)
@@ -192,7 +208,6 @@ func (h *ConnHandler) OnReceive(c *Conn, buf []byte) {
 			zap.S().Warnf("[%s] Failed to unmarshal GetPeers message: %v", c.RawConn.RemoteAddr(), err)
 			return
 		}
-		zap.S().Debugf("[%s] Received GetPeers message", c.RawConn.RemoteAddr())
 		peers, err := h.registry.Addresses()
 		if err != nil {
 			zap.S().Warnf("[%s] Failed to get peers to reply with: %v", err)
@@ -251,7 +266,6 @@ func (h *ConnHandler) OnReceive(c *Conn, buf []byte) {
 			zap.S().Warnf("[%s] Failed to unmarshal Block message: %v", c.RawConn.RemoteAddr(), err)
 			return
 		}
-		zap.S().Debugf("[%s] Received Block message", c.RawConn.RemoteAddr())
 		// Applying block
 		var b proto.Block
 		err = b.UnmarshalBinary(m.BlockBytes)

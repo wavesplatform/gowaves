@@ -180,3 +180,19 @@ func (a *PeerNode) UnmarshalBinary(data []byte) error {
 	a.State = NodeState(data[0])
 	return nil
 }
+
+type PeerNodesByName []PeerNode
+
+func (a PeerNodesByName) Len() int {
+	return len(a)
+}
+
+func (a PeerNodesByName) Swap(i, j int) {
+	a[i], a[j] = a[j], a[i]
+}
+
+func (a PeerNodesByName) Less(i, j int) bool {
+	x := a[i].Name
+	y := a[j].Name
+	return strings.ToUpper(x) < strings.ToUpper(y)
+}

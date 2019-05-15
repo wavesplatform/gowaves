@@ -422,6 +422,17 @@ func TestHandshakeTCPAddr_Empty(t *testing.T) {
 	require.False(t, b.Empty())
 }
 
+func TestHandshakeTCPAddrCastToTCPAddr(t *testing.T) {
+	ha := NewHandshakeTCPAddr(net.IPv4(1, 1, 1, 1), 8080)
+	ca := net.TCPAddr(ha)
+	assert.Equal(t, "1.1.1.1:8080", ca.String())
+	a := net.Addr(&ca)
+	assert.Equal(t, "1.1.1.1:8080", a.String())
+	ta, ok := a.(*net.TCPAddr)
+	assert.True(t, ok)
+	assert.Equal(t, "1.1.1.1:8080", ta.String())
+}
+
 func TestNewVersionFromString(t *testing.T) {
 	v, err := NewVersionFromString("1.2.3")
 	require.NoError(t, err)

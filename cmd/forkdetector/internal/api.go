@@ -25,9 +25,10 @@ func Logger(l *zap.Logger) func(next http.Handler) http.Handler {
 
 			t1 := time.Now()
 			defer func() {
-				l.Info("Served",
+				l.Debug("Served",
 					zap.String("proto", r.Proto),
 					zap.String("path", r.URL.Path),
+					zap.String("remote", r.RemoteAddr),
 					zap.Duration("lat", time.Since(t1)),
 					zap.Int("status", ww.Status()),
 					zap.Int("size", ww.BytesWritten()),
@@ -149,18 +150,25 @@ func (a *api) routes() chi.Router {
 }
 
 func (a *api) status(w http.ResponseWriter, r *http.Request) {
-	forks, err := a.storage.parentedForks()
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to complete request: %v", err), http.StatusInternalServerError)
-		return
-	}
-	short, long := countForksByLength(forks)
+	//forks, err := a.storage.parentedForks()
+	//if err != nil {
+	//	http.Error(w, fmt.Sprintf("Failed to complete request: %v", err), http.StatusInternalServerError)
+	//	return
+	//}
+	//short, long := countForksByLength(forks)
+	// TODO: implement
+	short := 0
+	long := 0
 	peers, err := a.registry.Peers()
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to complete request: %v", err), http.StatusInternalServerError)
 		return
 	}
-	connections := a.registry.Connections()
+	connections, err := a.registry.Connections()
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to complete request: %v", err), http.StatusInternalServerError)
+		return
+	}
 	s := status{ShortForksCount: short, LongForksCount: long, ConnectedNodesCount: len(connections), KnowNodesCount: len(peers)}
 	err = json.NewEncoder(w).Encode(s)
 	if err != nil {
@@ -175,11 +183,6 @@ func (a *api) peers(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Failed to complete request: %v", err), http.StatusInternalServerError)
 		return
 	}
-	//infos := make([]PublicAddressInfo, len(pas))
-	//for i, addr := range peers {
-	//	info := newInfoFromPublicAddress(pa)
-	//	infos[i] = info
-	//}
 	err = json.NewEncoder(w).Encode(peers)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to marshal peers to JSON: %v", err), http.StatusInternalServerError)
@@ -188,8 +191,12 @@ func (a *api) peers(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *api) connections(w http.ResponseWriter, r *http.Request) {
-	connections := a.registry.Connections()
-	err := json.NewEncoder(w).Encode(connections)
+	connections, err := a.registry.Connections()
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to complete request: %v", err), http.StatusInternalServerError)
+		return
+	}
+	err = json.NewEncoder(w).Encode(connections)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to marshal connections to JSON: %v", err), http.StatusInternalServerError)
 		return

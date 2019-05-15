@@ -10,7 +10,9 @@ import (
 )
 
 const (
-	reconnectionInterval = time.Second
+	reconnectionInterval = 3 * time.Second
+	askPeersInterval     = 5 * time.Second
+	askPeersDelay        = 30 * time.Second
 )
 
 type Dispatcher struct {
@@ -22,6 +24,7 @@ type Dispatcher struct {
 	registry    *Registry
 	mu          sync.Mutex
 	connections map[*Conn]struct{}
+	schedule    schedule
 }
 
 func NewDispatcher(interrupt <-chan struct{}, bind string, opts *Options, registry *Registry) *Dispatcher {
@@ -43,6 +46,7 @@ func NewDispatcher(interrupt <-chan struct{}, bind string, opts *Options, regist
 		registry:    registry,
 		connections: make(map[*Conn]struct{}),
 		mu:          sync.Mutex{},
+		schedule:    schedule{interval: askPeersDelay},
 	}
 	return d
 }
@@ -50,6 +54,7 @@ func NewDispatcher(interrupt <-chan struct{}, bind string, opts *Options, regist
 func (d *Dispatcher) Start() <-chan struct{} {
 	zap.S().Debug("Starting dispatcher...")
 	reconnectTicker := time.NewTicker(reconnectionInterval)
+	askPeersTicker := time.NewTicker(askPeersInterval)
 	go func() {
 		err := d.server.ListenAndServe(d.bind)
 		if err != nil {
@@ -62,13 +67,13 @@ func (d *Dispatcher) Start() <-chan struct{} {
 			select {
 			case <-d.interrupt:
 				zap.S().Debug("Shutting down dispatcher...")
+				zap.S().Debug("Shutting down server...")
+				d.server.Stop(StopGracefullyAndWait)
+				<-d.server.Stopped()
 				zap.S().Debugf("Closing %d outgoing connections", len(d.connections))
 				for c := range d.connections {
 					c.Stop(StopGracefullyAndWait)
 				}
-				zap.S().Debug("Shutting down server...")
-				d.server.Stop(StopGracefullyAndWait)
-				<-d.server.Stopped()
 				zap.S().Debug("Server shutdown complete")
 				close(d.stopped)
 				return
@@ -80,6 +85,10 @@ func (d *Dispatcher) Start() <-chan struct{} {
 				}
 				for _, a := range addresses {
 					go d.dial(a)
+				}
+			case <-askPeersTicker.C:
+				for _, c := range d.schedule.pull() {
+					d.askPeers(c)
 				}
 			}
 		}
@@ -122,11 +131,56 @@ func (d *Dispatcher) askPeers(conn *Conn) {
 func (d *Dispatcher) addConnection(conn *Conn) {
 	d.mu.Lock()
 	d.connections[conn] = struct{}{}
+	d.schedule.append(conn)
 	d.mu.Unlock()
 }
 
 func (d *Dispatcher) removeConnection(conn *Conn) {
 	d.mu.Lock()
 	delete(d.connections, conn)
+	d.schedule.remove(conn)
 	d.mu.Unlock()
+}
+
+type schedule struct {
+	interval time.Duration
+	once     sync.Once
+	mu       sync.Mutex
+	items    map[*Conn]time.Time
+}
+
+func (s *schedule) append(c *Conn) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.once.Do(func() {
+		s.items = make(map[*Conn]time.Time)
+	})
+
+	_, ok := s.items[c]
+	if !ok {
+		s.items[c] = time.Now().Add(s.interval)
+	}
+}
+
+func (s *schedule) remove(c *Conn) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	delete(s.items, c)
+}
+
+func (s *schedule) pull() []*Conn {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	r := make([]*Conn, 0)
+	t := time.Now()
+	for k, v := range s.items {
+		if t.After(v) {
+			r = append(r, k)
+			s.items[k] = t.Add(s.interval)
+		}
+	}
+	return r
 }
