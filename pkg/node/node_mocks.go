@@ -84,6 +84,18 @@ func (a *MockStateManager) EffectiveBalance(addr proto.Address, startHeigth, end
 	panic("implement me")
 }
 
+func (a *MockStateManager) ValidateSingleTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64) error {
+	panic("implement me")
+}
+
+func (a *MockStateManager) ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64) error {
+	panic("implement me")
+}
+
+func (a *MockStateManager) ResetValidationList() {
+	panic("implement me")
+}
+
 func (a *MockStateManager) SavePeers([]proto.TCPAddr) error {
 	panic("implement me")
 }

@@ -27,6 +27,12 @@ type testCase struct {
 	path   string
 }
 
+func blocksPath(t *testing.T) string {
+	dir, err := getLocalDir()
+	assert.NoError(t, err, "getLocalDir() failed")
+	return filepath.Join(dir, "testdata", "blocks-10000")
+}
+
 func bigFromStr(s string) *big.Int {
 	var big big.Int
 	big.SetString(s, 10)
@@ -66,12 +72,49 @@ func TestGenesisConfig(t *testing.T) {
 	}
 }
 
+func validateTxs(st *stateManager, timestamp uint64, txs []proto.Transaction) error {
+	for _, tx := range txs {
+		if err := st.ValidateNextTx(tx, timestamp, timestamp); err != nil {
+			return err
+		}
+	}
+	st.ResetValidationList()
+	return nil
+}
+
+func TestValidationWithoutBlocks(t *testing.T) {
+	blocksPath := blocksPath(t)
+	dataDir, err := ioutil.TempDir(os.TempDir(), "dataDir")
+	assert.NoError(t, err, "failed to create dir for test data")
+	manager, err := newStateManager(dataDir, DefaultStorageParams(), settings.MainNetSettings)
+	assert.NoError(t, err, "newStateManager() failed")
+
+	defer func() {
+		err := manager.Close()
+		assert.NoError(t, err, "manager.Close() failed")
+		err = os.RemoveAll(dataDir)
+		assert.NoError(t, err, "failed to remove test data dirs")
+	}()
+
+	// Test txs from real block without this block.
+	height := uint64(75)
+	blocks, err := readRealBlocks(t, blocksPath, int(height+1))
+	assert.NoError(t, err, "readRealBlocks() failed")
+	last := blocks[len(blocks)-1]
+	txs, err := proto.BytesToTransactions(last.TransactionCount, last.Transactions)
+	assert.NoError(t, err, "BytesToTransactions() failed")
+	err = importer.ApplyFromFile(manager, blocksPath, height, 1, false)
+	assert.NoError(t, err, "ApplyFromFile() failed")
+	err = validateTxs(manager, last.Timestamp, txs)
+	assert.NoError(t, err, "validateTxs() failed")
+}
+
 func TestStateRollback(t *testing.T) {
 	dir, err := getLocalDir()
 	if err != nil {
 		t.Fatalf("Failed to get local dir: %v\n", err)
 	}
-	blocksPath := filepath.Join(dir, "testdata", "blocks-10000")
+	blocksPath := blocksPath(t)
 	dataDir, err := ioutil.TempDir(os.TempDir(), "dataDir")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir for data: %v\n", err)
@@ -131,7 +174,7 @@ func TestStateIntegrated(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to get local dir: %v\n", err)
 	}
-	blocksPath := filepath.Join(dir, "testdata", "blocks-10000")
+	blocksPath := blocksPath(t)
 	balancesPath := filepath.Join(dir, "testdata", "accounts-1001")
 	dataDir, err := ioutil.TempDir(os.TempDir(), "dataDir")
 	if err != nil {

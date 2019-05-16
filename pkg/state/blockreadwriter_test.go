@@ -9,7 +9,6 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
-	"path/filepath"
 	"sync"
 	"testing"
 	"time"
@@ -48,15 +47,11 @@ type readTask struct {
 	correctResult []byte
 }
 
-func readRealBlocks(t *testing.T, nBlocks int) ([]proto.Block, error) {
+func readRealBlocks(t *testing.T, blocksPath string, nBlocks int) ([]proto.Block, error) {
 	if len(cachedBlocks) >= nBlocks {
 		return cachedBlocks[:nBlocks], nil
 	}
-	dir, err := getLocalDir()
-	if err != nil {
-		return nil, err
-	}
-	f, err := os.Open(filepath.Join(dir, "testdata", "blocks-10000"))
+	f, err := os.Open(blocksPath)
 	if err != nil {
 		return nil, err
 	}
@@ -304,7 +299,7 @@ func TestSimpleReadWrite(t *testing.T) {
 		}
 	}()
 
-	blocks, err := readRealBlocks(t, blocksNumber)
+	blocks, err := readRealBlocks(t, blocksPath(t), blocksNumber)
 	if err != nil {
 		t.Fatalf("Can not read blocks from blockchain file: %v", err)
 	}
@@ -331,7 +326,7 @@ func TestSimultaneousReadWrite(t *testing.T) {
 		}
 	}()
 
-	blocks, err := readRealBlocks(t, blocksNumber)
+	blocks, err := readRealBlocks(t, blocksPath(t), blocksNumber)
 	if err != nil {
 		t.Fatalf("Can not read blocks from blockchain file: %v", err)
 	}
@@ -390,7 +385,7 @@ func TestSimultaneousReadDelete(t *testing.T) {
 		}
 	}()
 
-	blocks, err := readRealBlocks(t, blocksNumber)
+	blocks, err := readRealBlocks(t, blocksPath(t), blocksNumber)
 	if err != nil {
 		t.Fatalf("Can not read blocks from blockchain file: %v", err)
 	}

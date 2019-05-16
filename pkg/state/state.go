@@ -67,6 +67,11 @@ type stateManager struct {
 	settings *settings.BlockchainSettings
 	cv       *consensus.ConsensusValidator
 
+	// Transaction validator that performs checking against state for single transactions without block.
+	standaloneTv *transactionValidator
+	// Transaction validator that performs checking against state for multiple transactions without block.
+	multiTxTv *transactionValidator
+
 	// Indicates whether lease cancellations were performed.
 	leasesCl0, leasesCl1, leasesCl2 bool
 }
@@ -151,11 +156,28 @@ func newStateManager(dataDir string, params StorageParams, settings *settings.Bl
 	if err := state.handleGenesisBlock(genesisPath); err != nil {
 		return nil, StateError{errorType: Other, originalError: err}
 	}
+	// Set transaction validators for transactions without blocks (used by miner, UTX pool).
+	if err := state.setValidators(); err != nil {
+		return nil, StateError{errorType: Other, originalError: err}
+	}
 	return state, nil
 }
 
 func (s *stateManager) Peers() ([]proto.TCPAddr, error) {
 	return s.peers.peers()
+}
+
+func (s *stateManager) setValidators() error {
+	var err error
+	s.standaloneTv, err = newTransactionValidator(s.genesis.BlockSignature, s.balances, s.assets, s.leases, s.settings)
+	if err != nil {
+		return err
+	}
+	s.multiTxTv, err = newTransactionValidator(s.genesis.BlockSignature, s.balances, s.assets, s.leases, s.settings)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (s *stateManager) setGenesisBlock(genesisCfgPath string) error {
@@ -189,7 +211,7 @@ func (s *stateManager) addGenesisBlock() error {
 	if err := s.addNewBlock(tv, &s.genesis, nil, true); err != nil {
 		return err
 	}
-	if err := tv.performTransactions(true); err != nil {
+	if err := tv.validateTransactions(true, true); err != nil {
 		return err
 	}
 	if err := s.flush(true); err != nil {
@@ -363,8 +385,21 @@ func (s *stateManager) addNewBlock(tv *transactionValidator, block, parent *prot
 		if err := s.rw.writeTransaction(tx.GetID(), transactions[:n+4]); err != nil {
 			return err
 		}
+		parentTimestamp := uint64(0)
+		if parent != nil {
+			parentTimestamp = parent.Timestamp
+		}
 		// Validate transaction against state.
-		if err = tv.validateTransaction(block, parent, tx, initialisation); err != nil {
+		info := &txValidationInfo{
+			perform:          true,
+			initialisation:   initialisation,
+			validate:         false,
+			currentTimestamp: block.Timestamp,
+			parentTimestamp:  parentTimestamp,
+			minerPK:          block.GenPublicKey,
+			blockID:          block.BlockSignature,
+		}
+		if err = tv.addTxForValidation(tx, info); err != nil {
 			return err
 		}
 		transactions = transactions[4+n:]
@@ -564,7 +599,7 @@ func (s *stateManager) addBlocks(blocks [][]byte, initialisation bool) error {
 		headers[i] = block.BlockHeader
 		parent = block
 	}
-	if err := tv.performTransactions(initialisation); err != nil {
+	if err := tv.validateTransactions(initialisation, true); err != nil {
 		return StateError{errorType: TxValidationError, originalError: err}
 	}
 	if err := s.cv.ValidateHeaders(headers[:len(headers)-len(blocksToFinish)], height); err != nil {
@@ -714,6 +749,39 @@ func (s *stateManager) BlockchainSettings() (*settings.BlockchainSettings, error
 func (s *stateManager) SavePeers(peers []proto.TCPAddr) error {
 	return s.peers.savePeers(peers)
 
+}
+
+func (s *stateManager) ValidateSingleTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64) error {
+	info := &txValidationInfo{
+		perform:          false,
+		initialisation:   false,
+		validate:         true,
+		currentTimestamp: currentTimestamp,
+		parentTimestamp:  parentTimestamp,
+	}
+	if err := s.standaloneTv.addTxForValidation(tx, info); err != nil {
+		return StateError{errorType: TxValidationError, originalError: err}
+	}
+	s.standaloneTv.reset()
+	return nil
+}
+
+func (s *stateManager) ResetValidationList() {
+	s.multiTxTv.reset()
+}
+
+func (s *stateManager) ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64) error {
+	info := &txValidationInfo{
+		perform:          false,
+		initialisation:   false,
+		validate:         true,
+		currentTimestamp: currentTimestamp,
+		parentTimestamp:  parentTimestamp,
+	}
+	if err := s.multiTxTv.addTxForValidation(tx, info); err != nil {
+		return StateError{errorType: TxValidationError, originalError: err}
+	}
+	return nil
 }
 
 func (s *stateManager) Close() error {

@@ -93,6 +93,21 @@ type State interface {
 	// It does not work for heights older than rollbackMax blocks before the current block.
 	EffectiveBalance(addr proto.Address, startHeight, endHeight uint64) (uint64, error)
 
+	// -------------------------
+	// Validation functionality.
+	// -------------------------
+	// ValidateSingleTx() validates single transaction against current state.
+	// It does not change state. When validating, it does not take into account previous transactions that were validated.
+	// Returns TxValidationError or nil.
+	ValidateSingleTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64) error
+	// ValidateNextTx() validates transaction against state, taking into account all the previous changes from transactions
+	// that were added using ValidateNextTx() until you call ResetValidationList().
+	// Does not change state.
+	// Returns TxValidationError or nil.
+	ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64) error
+	// ResetValidationList() resets the validation list, so you can ValidateNextTx() from scratch after calling it.
+	ResetValidationList()
+
 	// Create or replace Peers.
 	SavePeers([]proto.TCPAddr) error
 	Peers() ([]proto.TCPAddr, error)
