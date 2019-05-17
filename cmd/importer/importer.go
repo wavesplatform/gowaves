@@ -75,7 +75,7 @@ func main() {
 		}
 		dataDir = tempDir
 	}
-	state, err := state.NewState(dataDir, state.DefaultBlockStorageParams(), ss)
+	state, err := state.NewState(dataDir, state.DefaultStorageParams(), ss)
 	if err != nil {
 		log.Fatalf("Failed to create state: %v.\n", err)
 	}
@@ -96,7 +96,7 @@ func main() {
 		log.Fatalf("Failed to get current height: %v\n", err)
 	}
 	start := time.Now()
-	if err := importer.ApplyFromFile(state, *blockchainPath, uint64(*nBlocks), height); err != nil {
+	if err := importer.ApplyFromFile(state, *blockchainPath, uint64(*nBlocks), height, true); err != nil {
 		height, err1 := state.Height()
 		if err1 != nil {
 			log.Fatalf("Failed to get current height: %v\n", err1)

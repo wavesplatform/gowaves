@@ -187,7 +187,7 @@ func (cv *ConsensusValidator) validateGeneratorSignature(height uint64, header *
 	if err != nil {
 		return errors.Errorf("failed to get last block header: %v\n", err)
 	}
-	expectedGenSig, err := generatorSignature(last.GenSignature, header.GenPublicKey)
+	expectedGenSig, err := GeneratorSignature(last.GenSignature, header.GenPublicKey)
 	if err != nil {
 		return errors.Errorf("failed to calculate generator signature: %v\n", err)
 	}
@@ -206,11 +206,11 @@ func (cv *ConsensusValidator) validBlockDelay(height uint64, pk crypto.PublicKey
 	if err != nil {
 		return 0, err
 	}
-	genSig, err := generatorSignature(header.GenSignature, pk)
+	genSig, err := GeneratorSignature(header.GenSignature, pk)
 	if err != nil {
 		return 0, err
 	}
-	hit, err := hit(genSig[:])
+	hit, err := GenHit(genSig[:])
 	if err != nil {
 		return 0, err
 	}
@@ -242,8 +242,8 @@ func (cv *ConsensusValidator) validateBlockDelay(height uint64, header *proto.Bl
 
 func (cv *ConsensusValidator) validateBlockTimestamp(header *proto.BlockHeader) error {
 	// Milliseconds.
-	currentTime := time.Now().UnixNano() / 1000
-	if int64(header.Timestamp)-currentTime > maxTimeDrift {
+	currentTimestamp := proto.NewTimestampFromTime(time.Now())
+	if int64(header.Timestamp)-int64(currentTimestamp) > maxTimeDrift {
 		return errors.New("block from future error: block's timestamp is too far in the future")
 	}
 	return nil

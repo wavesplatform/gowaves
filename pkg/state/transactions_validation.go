@@ -168,12 +168,12 @@ func (bs *changesStorage) balanceChanges(key []byte) (*balanceChanges, error) {
 	return nil, errors.New("invalid key size")
 }
 
-func (bs *changesStorage) applyWavesChange(change *balanceChanges) error {
+func (bs *changesStorage) applyWavesChange(change *balanceChanges, filter bool) error {
 	var k wavesBalanceKey
 	if err := k.unmarshal(change.key); err != nil {
 		return errors.Errorf("failed to unmarshal waves balance key: %v\n", err)
 	}
-	profile, err := bs.balances.wavesBalance(k.address)
+	profile, err := bs.balances.wavesBalance(k.address, filter)
 	if err != nil {
 		return errors.Errorf("failed to retrieve waves balance: %v\n", err)
 	}
@@ -194,12 +194,12 @@ func (bs *changesStorage) applyWavesChange(change *balanceChanges) error {
 	return nil
 }
 
-func (bs *changesStorage) applyAssetChange(change *balanceChanges) error {
+func (bs *changesStorage) applyAssetChange(change *balanceChanges, filter bool) error {
 	var k assetBalanceKey
 	if err := k.unmarshal(change.key); err != nil {
 		return errors.Errorf("failed to unmarshal asset balance key: %v\n", err)
 	}
-	balance, err := bs.balances.assetBalance(k.address, k.asset)
+	balance, err := bs.balances.assetBalance(k.address, k.asset, filter)
 	if err != nil {
 		return errors.Errorf("failed to retrieve asset balance: %v\n", err)
 	}
@@ -228,7 +228,7 @@ func (bs *changesStorage) applyAssetChange(change *balanceChanges) error {
 }
 
 // Apply all balance changes (actually move them to DB batch) and reset.
-func (bs *changesStorage) applyDeltas() error {
+func (bs *changesStorage) applyDeltas(filter bool) error {
 	// Apply and validate balance variations.
 	// At first, sort all changes by addresses they do modify.
 	// That's *very* important optimization, since levelDB stores data
@@ -239,12 +239,12 @@ func (bs *changesStorage) applyDeltas() error {
 	for _, delta := range bs.deltas {
 		if len(delta.key) > wavesBalanceKeySize {
 			// Is asset change.
-			if err := bs.applyAssetChange(&delta); err != nil {
+			if err := bs.applyAssetChange(&delta, filter); err != nil {
 				return err
 			}
 		} else {
 			// Is Waves change, need to take leasing into account.
-			if err := bs.applyWavesChange(&delta); err != nil {
+			if err := bs.applyWavesChange(&delta, filter); err != nil {
 				return err
 			}
 		}
@@ -389,12 +389,12 @@ func (tv *transactionValidator) validatePayment(tx *proto.Payment, block, parent
 	return true, nil
 }
 
-func (tv *transactionValidator) checkAsset(asset *proto.OptionalAsset) error {
+func (tv *transactionValidator) checkAsset(asset *proto.OptionalAsset, initialisation bool) error {
 	if !asset.Present {
 		// Waves always valid.
 		return nil
 	}
-	if _, err := tv.assets.newestAssetRecord(asset.ID); err != nil {
+	if _, err := tv.assets.newestAssetRecord(asset.ID, !initialisation); err != nil {
 		return errors.New("unknown asset")
 	}
 	return nil
@@ -404,10 +404,10 @@ func (tv *transactionValidator) validateTransfer(tx *proto.Transfer, block, pare
 	if ok, err := tv.checkTimestamps(tx.Timestamp, block.Timestamp, parent.Timestamp); !ok {
 		return false, errors.Wrap(err, "invalid timestamp")
 	}
-	if err := tv.checkAsset(&tx.AmountAsset); err != nil {
+	if err := tv.checkAsset(&tx.AmountAsset, initialisation); err != nil {
 		return false, err
 	}
-	if err := tv.checkAsset(&tx.FeeAsset); err != nil {
+	if err := tv.checkAsset(&tx.FeeAsset, initialisation); err != nil {
 		return false, err
 	}
 	changes := make([]balanceChange, 4)
@@ -499,7 +499,7 @@ func (tv *transactionValidator) validateReissue(tx *proto.Reissue, block, parent
 		return false, errors.Wrap(err, "invalid timestamp")
 	}
 	// Check if it's "legal" to modify given asset.
-	record, err := tv.assets.newestAssetRecord(tx.AssetID)
+	record, err := tv.assets.newestAssetRecord(tx.AssetID, !initialisation)
 	if err != nil {
 		return false, err
 	}
@@ -512,7 +512,7 @@ func (tv *transactionValidator) validateReissue(tx *proto.Reissue, block, parent
 		diff:       int64(tx.Quantity),
 		blockID:    block.BlockSignature,
 	}
-	if err := tv.assets.reissueAsset(tx.AssetID, change); err != nil {
+	if err := tv.assets.reissueAsset(tx.AssetID, change, !initialisation); err != nil {
 		return false, errors.Wrap(err, "failed to reissue asset")
 	}
 	changes := make([]balanceChange, 3)
@@ -550,7 +550,7 @@ func (tv *transactionValidator) validateBurn(tx *proto.Burn, block, parent *prot
 		diff:    int64(tx.Amount),
 		blockID: block.BlockSignature,
 	}
-	if err := tv.assets.burnAsset(tx.AssetID, change); err != nil {
+	if err := tv.assets.burnAsset(tx.AssetID, change, !initialisation); err != nil {
 		return false, errors.Wrap(err, "failed to burn asset")
 	}
 	changes := make([]balanceChange, 3)
@@ -592,10 +592,10 @@ func (tv *transactionValidator) validateExchange(tx proto.Exchange, block, paren
 		return false, err
 	}
 	// Check assets.
-	if err := tv.checkAsset(&sellOrder.AssetPair.AmountAsset); err != nil {
+	if err := tv.checkAsset(&sellOrder.AssetPair.AmountAsset, initialisation); err != nil {
 		return false, err
 	}
-	if err := tv.checkAsset(&sellOrder.AssetPair.PriceAsset); err != nil {
+	if err := tv.checkAsset(&sellOrder.AssetPair.PriceAsset, initialisation); err != nil {
 		return false, err
 	}
 	// Perform exchange.
@@ -711,7 +711,7 @@ func (tv *transactionValidator) validateLeaseCancel(tx *proto.LeaseCancel, block
 	if ok, err := tv.checkTimestamps(tx.Timestamp, block.Timestamp, parent.Timestamp); !ok {
 		return false, errors.Wrap(err, "invalid timestamp")
 	}
-	l, err := tv.leases.newestLeasingInfo(tx.LeaseID)
+	l, err := tv.leases.newestLeasingInfo(tx.LeaseID, !initialisation)
 	if err != nil {
 		return false, err
 	}
@@ -725,7 +725,7 @@ func (tv *transactionValidator) validateLeaseCancel(tx *proto.LeaseCancel, block
 	if (l.sender != senderAddr) && (block.Timestamp > tv.settings.AllowMultipleLeaseCancelUntilTime) {
 		return false, errors.New("sender of LeaseCancel is not sender of corresponding Lease")
 	}
-	if err := tv.leases.cancelLeasing(tx.LeaseID, block.BlockSignature); err != nil {
+	if err := tv.leases.cancelLeasing(tx.LeaseID, block.BlockSignature, !initialisation); err != nil {
 		return false, errors.Wrap(err, "failed to cancel leasing")
 	}
 	changes := make([]balanceChange, 4)
@@ -825,8 +825,8 @@ func (tv *transactionValidator) validateTransaction(block, parent *proto.Block, 
 	return nil
 }
 
-func (tv *transactionValidator) performTransactions() error {
-	return tv.changesStor.applyDeltas()
+func (tv *transactionValidator) performTransactions(initialisation bool) error {
+	return tv.changesStor.applyDeltas(!initialisation)
 }
 
 func (tv *transactionValidator) reset() {

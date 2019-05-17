@@ -1247,6 +1247,14 @@ func (tx MassTransferV1) GetID() []byte {
 	return tx.ID.Bytes()
 }
 
+func (tx MassTransferV1) GetFee() uint64 {
+	return tx.Fee
+}
+
+func (tx MassTransferV1) GetTimestamp() uint64 {
+	return tx.Timestamp
+}
+
 //NewUnsignedMassTransferV1 creates new MassTransferV1 transaction structure without signature and ID.
 func NewUnsignedMassTransferV1(senderPK crypto.PublicKey, asset OptionalAsset, transfers []MassTransferEntry, fee, timestamp uint64, attachment string) *MassTransferV1 {
 	return &MassTransferV1{Type: MassTransferTransaction, Version: 1, SenderPK: senderPK, Asset: asset, Transfers: transfers, Fee: fee, Timestamp: timestamp, Attachment: Attachment(attachment)}
@@ -1469,6 +1477,14 @@ type DataV1 struct {
 
 func (tx DataV1) GetID() []byte {
 	return tx.ID.Bytes()
+}
+
+func (tx DataV1) GetFee() uint64 {
+	return tx.Fee
+}
+
+func (tx DataV1) GetTimestamp() uint64 {
+	return tx.Timestamp
 }
 
 //NewUnsignedData creates new Data transaction without proofs.
@@ -1724,6 +1740,14 @@ func (tx SetScriptV1) GetID() []byte {
 	return tx.ID.Bytes()
 }
 
+func (tx SetScriptV1) GetFee() uint64 {
+	return tx.Fee
+}
+
+func (tx SetScriptV1) GetTimestamp() uint64 {
+	return tx.Timestamp
+}
+
 //NewUnsignedSetScriptV1 creates new unsigned SetScriptV1 transaction.
 func NewUnsignedSetScriptV1(chain byte, senderPK crypto.PublicKey, script []byte, fee, timestamp uint64) *SetScriptV1 {
 	return &SetScriptV1{Type: SetScriptTransaction, Version: 1, ChainID: chain, SenderPK: senderPK, Script: script, Fee: fee, Timestamp: timestamp}
@@ -1907,6 +1931,14 @@ func (tx SponsorshipV1) GetID() []byte {
 	return tx.ID.Bytes()
 }
 
+func (tx SponsorshipV1) GetFee() uint64 {
+	return tx.Fee
+}
+
+func (tx SponsorshipV1) GetTimestamp() uint64 {
+	return tx.Timestamp
+}
+
 //NewUnsignedSponsorshipV1 creates new unsigned SponsorshipV1 transaction
 func NewUnsignedSponsorshipV1(senderPK crypto.PublicKey, assetID crypto.Digest, minAssetFee, fee, timestamp uint64) *SponsorshipV1 {
 	return &SponsorshipV1{Type: SponsorshipTransaction, Version: 1, SenderPK: senderPK, AssetID: assetID, MinAssetFee: minAssetFee, Fee: fee, Timestamp: timestamp}
@@ -2076,6 +2108,14 @@ type SetAssetScriptV1 struct {
 
 func (tx SetAssetScriptV1) GetID() []byte {
 	return tx.ID.Bytes()
+}
+
+func (tx SetAssetScriptV1) GetFee() uint64 {
+	return tx.Fee
+}
+
+func (tx SetAssetScriptV1) GetTimestamp() uint64 {
+	return tx.Timestamp
 }
 
 //NewUnsignedSetAssetScriptV1 creates new unsigned SetAssetScriptV1 transaction.
@@ -2267,6 +2307,14 @@ type InvokeScriptV1 struct {
 
 func (tx InvokeScriptV1) GetID() []byte {
 	return tx.ID.Bytes()
+}
+
+func (tx InvokeScriptV1) GetFee() uint64 {
+	return tx.Fee
+}
+
+func (tx InvokeScriptV1) GetTimestamp() uint64 {
+	return tx.Timestamp
 }
 
 //NewUnsignedSetAssetScriptV1 creates new unsigned SetAssetScriptV1 transaction.

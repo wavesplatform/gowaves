@@ -13,23 +13,29 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/util"
 )
 
-func flushLeases(t *testing.T, leases *leases) {
-	if err := leases.flush(); err != nil {
-		t.Fatalf("flush(): %v\n", err)
-	}
-	leases.reset()
-	if err := leases.db.Flush(leases.dbBatch); err != nil {
-		t.Fatalf("db.Flush(): %v\n", err)
-	}
+type leasesTestObjects struct {
+	rb      *recentBlocks
+	leases  *leases
+	stateDB *stateDB
 }
 
-func createLeases() (*leases, []string, error) {
-	res := make([]string, 1)
+func flushLeases(t *testing.T, to *leasesTestObjects) {
+	to.rb.flush()
+	err := to.leases.flush(false)
+	assert.NoError(t, err, "leases.flush() failed")
+	to.leases.reset()
+	err = to.stateDB.flush()
+	assert.NoError(t, err, "stateDB.flush() failed")
+	to.stateDB.reset()
+}
+
+func createLeases() (*leasesTestObjects, []string, error) {
 	dbDir0, err := ioutil.TempDir(os.TempDir(), "dbDir0")
 	if err != nil {
-		return nil, res, err
+		return nil, nil, err
 	}
-	db, err := keyvalue.NewKeyVal(dbDir0)
+	res := []string{dbDir0}
+	db, err := keyvalue.NewKeyVal(dbDir0, defaultTestBloomFilterParams())
 	if err != nil {
 		return nil, res, err
 	}
@@ -37,12 +43,19 @@ func createLeases() (*leases, []string, error) {
 	if err != nil {
 		return nil, res, err
 	}
-	leases, err := newLeases(db, dbBatch, &mock{}, &mock{})
+	stateDB, err := newStateDB(db, dbBatch)
 	if err != nil {
 		return nil, res, err
 	}
-	res = []string{dbDir0}
-	return leases, res, nil
+	rb, err := newRecentBlocks(rollbackMaxBlocks, nil)
+	if err != nil {
+		return nil, res, err
+	}
+	leases, err := newLeases(db, dbBatch, stateDB, rb)
+	if err != nil {
+		return nil, res, err
+	}
+	return &leasesTestObjects{rb, leases, stateDB}, res, nil
 }
 
 func createLeasingRecord(t *testing.T, blockID crypto.Signature, sender string) *leasingRecord {
@@ -63,18 +76,17 @@ func createLeasingRecord(t *testing.T, blockID crypto.Signature, sender string) 
 }
 
 func TestCancelLeases(t *testing.T) {
-	leases, path, err := createLeases()
+	to, path, err := createLeases()
 	assert.NoError(t, err, "createLeases() failed")
 
 	defer func() {
-		err = leases.db.Close()
-		assert.NoError(t, err, "db.Close() failed")
+		err = to.stateDB.close()
+		assert.NoError(t, err, "stateDB.close() failed")
 		err = util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
-	blockID, err := crypto.NewSignatureFromBytes(bytes.Repeat([]byte{0xff}, crypto.SignatureSize))
-	assert.NoError(t, err, "failed to create signature from bytes")
+	addBlock(t, to.stateDB, to.rb, blockID0)
 	leasings := []struct {
 		sender      string
 		leaseIDByte byte
@@ -85,11 +97,11 @@ func TestCancelLeases(t *testing.T) {
 	for _, l := range leasings {
 		leaseID, err := crypto.NewDigestFromBytes(bytes.Repeat([]byte{l.leaseIDByte}, crypto.DigestSize))
 		assert.NoError(t, err, "failed to create digest from bytes")
-		r := createLeasingRecord(t, blockID, l.sender)
-		err = leases.addLeasing(leaseID, r)
+		r := createLeasingRecord(t, blockID0, l.sender)
+		err = to.leases.addLeasing(leaseID, r)
 		assert.NoError(t, err, "failed to add leasing")
 	}
-	flushLeases(t, leases)
+	flushLeases(t, to)
 	// Cancel one lease by sender and check.
 	badSenderStr := leasings[0].sender
 	badSender, err := proto.NewAddressFromString(badSenderStr)
@@ -97,13 +109,13 @@ func TestCancelLeases(t *testing.T) {
 	sendersToCancel := make(map[proto.Address]struct{})
 	var empty struct{}
 	sendersToCancel[badSender] = empty
-	err = leases.cancelLeases(sendersToCancel)
+	err = to.leases.cancelLeases(sendersToCancel)
 	assert.NoError(t, err, "cancelLeases() failed")
-	flushLeases(t, leases)
+	flushLeases(t, to)
 	for _, l := range leasings {
 		leaseID, err := crypto.NewDigestFromBytes(bytes.Repeat([]byte{l.leaseIDByte}, crypto.DigestSize))
 		assert.NoError(t, err, "failed to create digest from bytes")
-		leasing, err := leases.leasingInfo(leaseID)
+		leasing, err := to.leases.leasingInfo(leaseID)
 		assert.NoError(t, err, "failed to get leasing")
 		if l.sender == badSenderStr {
 			assert.Equal(t, leasing.isActive, false, "did not cancel leasing by sender")
@@ -112,31 +124,30 @@ func TestCancelLeases(t *testing.T) {
 		}
 	}
 	// Cancel all the leases and check.
-	err = leases.cancelLeases(nil)
+	err = to.leases.cancelLeases(nil)
 	assert.NoError(t, err, "cancelLeases() failed")
-	flushLeases(t, leases)
+	flushLeases(t, to)
 	for _, l := range leasings {
 		leaseID, err := crypto.NewDigestFromBytes(bytes.Repeat([]byte{l.leaseIDByte}, crypto.DigestSize))
 		assert.NoError(t, err, "failed to create digest from bytes")
-		leasing, err := leases.leasingInfo(leaseID)
+		leasing, err := to.leases.leasingInfo(leaseID)
 		assert.NoError(t, err, "failed to get leasing")
 		assert.Equal(t, leasing.isActive, false, "did not cancel all the leasings")
 	}
 }
 
 func TestValidLeaseIns(t *testing.T) {
-	leases, path, err := createLeases()
+	to, path, err := createLeases()
 	assert.NoError(t, err, "createLeases() failed")
 
 	defer func() {
-		err = leases.db.Close()
-		assert.NoError(t, err, "db.Close() failed")
+		err = to.stateDB.close()
+		assert.NoError(t, err, "stateDB.close() failed")
 		err = util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
-	blockID, err := crypto.NewSignatureFromBytes(bytes.Repeat([]byte{0xff}, crypto.SignatureSize))
-	assert.NoError(t, err, "failed to create signature from bytes")
+	addBlock(t, to.stateDB, to.rb, blockID0)
 	leasings := []struct {
 		sender      string
 		leaseIDByte byte
@@ -148,13 +159,13 @@ func TestValidLeaseIns(t *testing.T) {
 	for _, l := range leasings {
 		leaseID, err := crypto.NewDigestFromBytes(bytes.Repeat([]byte{l.leaseIDByte}, crypto.DigestSize))
 		assert.NoError(t, err, "failed to create digest from bytes")
-		r := createLeasingRecord(t, blockID, l.sender)
-		err = leases.addLeasing(leaseID, r)
+		r := createLeasingRecord(t, blockID0, l.sender)
+		err = to.leases.addLeasing(leaseID, r)
 		assert.NoError(t, err, "failed to add leasing")
 		properLeaseIns[r.recipient] = int64(r.leaseAmount)
 	}
-	flushLeases(t, leases)
-	leaseIns, err := leases.validLeaseIns()
+	flushLeases(t, to)
+	leaseIns, err := to.leases.validLeaseIns()
 	assert.NoError(t, err, "validLeaseIns() failed")
 	assert.Equal(t, len(properLeaseIns), len(leaseIns))
 	for k, v := range properLeaseIns {
@@ -164,57 +175,55 @@ func TestValidLeaseIns(t *testing.T) {
 }
 
 func TestAddLeasing(t *testing.T) {
-	leases, path, err := createLeases()
+	to, path, err := createLeases()
 	assert.NoError(t, err, "createLeases() failed")
 
 	defer func() {
-		err = leases.db.Close()
-		assert.NoError(t, err, "db.Close() failed")
+		err = to.stateDB.close()
+		assert.NoError(t, err, "stateDB.close() failed")
 		err = util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
-	blockID, err := crypto.NewSignatureFromBytes(bytes.Repeat([]byte{0xff}, crypto.SignatureSize))
-	assert.NoError(t, err, "failed to create signature from bytes")
+	addBlock(t, to.stateDB, to.rb, blockID0)
 	leaseID, err := crypto.NewDigestFromBytes(bytes.Repeat([]byte{0xff}, crypto.DigestSize))
 	assert.NoError(t, err, "failed to create digest from bytes")
 	senderStr := "3PNXHYoWp83VaWudq9ds9LpS5xykWuJHiHp"
-	r := createLeasingRecord(t, blockID, senderStr)
-	err = leases.addLeasing(leaseID, r)
+	r := createLeasingRecord(t, blockID0, senderStr)
+	err = to.leases.addLeasing(leaseID, r)
 	assert.NoError(t, err, "failed to add leasing")
-	l, err := leases.newestLeasingInfo(leaseID)
+	l, err := to.leases.newestLeasingInfo(leaseID, true)
 	assert.NoError(t, err, "failed to get newest leasing info")
 	assert.Equal(t, *l, r.leasing, "leasings differ before flushing")
-	flushLeases(t, leases)
-	resLeasing, err := leases.leasingInfo(leaseID)
+	flushLeases(t, to)
+	resLeasing, err := to.leases.leasingInfo(leaseID)
 	assert.NoError(t, err, "failed to get leasing info")
 	assert.Equal(t, *resLeasing, r.leasing, "leasings differ after flushing")
 }
 
 func TestCancelLeasing(t *testing.T) {
-	leases, path, err := createLeases()
+	to, path, err := createLeases()
 	assert.NoError(t, err, "createLeases() failed")
 
 	defer func() {
-		err = leases.db.Close()
-		assert.NoError(t, err, "db.Close() failed")
+		err = to.stateDB.close()
+		assert.NoError(t, err, "stateDB.close() failed")
 		err = util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
-	blockID, err := crypto.NewSignatureFromBytes(bytes.Repeat([]byte{0xff}, crypto.SignatureSize))
-	assert.NoError(t, err, "failed to create signature from bytes")
+	addBlock(t, to.stateDB, to.rb, blockID0)
 	leaseID, err := crypto.NewDigestFromBytes(bytes.Repeat([]byte{0xff}, crypto.DigestSize))
 	assert.NoError(t, err, "failed to create digest from bytes")
 	senderStr := "3PNXHYoWp83VaWudq9ds9LpS5xykWuJHiHp"
-	r := createLeasingRecord(t, blockID, senderStr)
-	err = leases.addLeasing(leaseID, r)
+	r := createLeasingRecord(t, blockID0, senderStr)
+	err = to.leases.addLeasing(leaseID, r)
 	assert.NoError(t, err, "failed to add leasing")
-	err = leases.cancelLeasing(leaseID, blockID)
+	err = to.leases.cancelLeasing(leaseID, blockID0, true)
 	assert.NoError(t, err, "failed to cancel leasing")
 	r.isActive = false
-	flushLeases(t, leases)
-	resLeasing, err := leases.leasingInfo(leaseID)
+	flushLeases(t, to)
+	resLeasing, err := to.leases.leasingInfo(leaseID)
 	assert.NoError(t, err, "failed to get leasing info")
 	assert.Equal(t, *resLeasing, r.leasing, "invalid leasing record after cancelation")
 }

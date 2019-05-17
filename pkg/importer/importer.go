@@ -22,7 +22,10 @@ type State interface {
 	AccountBalance(addr proto.Address, asset []byte) (uint64, error)
 }
 
-func ApplyFromFile(st State, blockchainPath string, nBlocks, startHeight uint64) error {
+// ApplyFromFile reads blocks from blockchainPath, applying them from height startHeight and until nBlocks+1.
+// Setting optimize to true speeds up the import, but it is only safe when importing blockchain from scratch
+// when no rollbacks are possible at all.
+func ApplyFromFile(st State, blockchainPath string, nBlocks, startHeight uint64, optimize bool) error {
 	blockchain, err := os.Open(blockchainPath)
 	if err != nil {
 		return errors.Errorf("failed to open blockchain file: %v\n", err)
@@ -61,8 +64,14 @@ func ApplyFromFile(st State, blockchainPath string, nBlocks, startHeight uint64)
 		if blocksIndex != blocksBatchSize && height != nBlocks {
 			continue
 		}
-		if err := st.AddOldBlocks(blocks[:blocksIndex]); err != nil {
-			return err
+		if optimize {
+			if err := st.AddOldBlocks(blocks[:blocksIndex]); err != nil {
+				return err
+			}
+		} else {
+			if err := st.AddNewBlocks(blocks[:blocksIndex]); err != nil {
+				return err
+			}
 		}
 		blocksIndex = 0
 	}

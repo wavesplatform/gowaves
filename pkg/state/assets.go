@@ -7,7 +7,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"github.com/wavesplatform/gowaves/pkg/state/history"
 )
 
 const (
@@ -110,16 +109,16 @@ type assets struct {
 	localStor map[string][]byte
 
 	// fmt is used for operations on assets history.
-	fmt *history.HistoryFormatter
+	fmt *historyFormatter
 }
 
 func newAssets(
 	db keyvalue.IterableKeyVal,
 	dbBatch keyvalue.Batch,
-	hInfo heightInfo,
-	bInfo blockInfo,
+	stDb *stateDB,
+	rb *recentBlocks,
 ) (*assets, error) {
-	fmt, err := history.NewHistoryFormatter(assetRecordSize, crypto.SignatureSize, hInfo, bInfo)
+	fmt, err := newHistoryFormatter(assetRecordSize, crypto.SignatureSize, stDb, rb)
 	if err != nil {
 		return nil, err
 	}
@@ -139,7 +138,7 @@ func (a *assets) addNewRecord(assetID crypto.Digest, record *assetHistoryRecord)
 	// Add new record to history.
 	histKey := assetHistKey{assetID: assetID}
 	history, _ := a.localStor[string(histKey.bytes())]
-	history, err = a.fmt.AddRecord(history, recordBytes)
+	history, err = a.fmt.addRecord(history, recordBytes)
 	if err != nil {
 		return errors.Errorf("failed to add asset record to history: %v\n", err)
 	}
@@ -163,8 +162,8 @@ type assetReissueChange struct {
 	blockID    crypto.Signature
 }
 
-func (a *assets) reissueAsset(assetID crypto.Digest, ch *assetReissueChange) error {
-	info, err := a.newestAssetRecord(assetID)
+func (a *assets) reissueAsset(assetID crypto.Digest, ch *assetReissueChange, filter bool) error {
+	info, err := a.newestAssetRecord(assetID, filter)
 	if err != nil {
 		return errors.Errorf("failed to get asset info: %v\n", err)
 	}
@@ -179,8 +178,8 @@ type assetBurnChange struct {
 	blockID crypto.Signature
 }
 
-func (a *assets) burnAsset(assetID crypto.Digest, ch *assetBurnChange) error {
-	info, err := a.newestAssetRecord(assetID)
+func (a *assets) burnAsset(assetID crypto.Digest, ch *assetBurnChange, filter bool) error {
+	info, err := a.newestAssetRecord(assetID, filter)
 	if err != nil {
 		return errors.Errorf("failed to get asset info: %v\n", err)
 	}
@@ -207,7 +206,7 @@ func (a *assets) constInfo(assetID crypto.Digest) (*assetConstInfo, error) {
 }
 
 func (a *assets) lastRecord(history []byte) (*assetHistoryRecord, error) {
-	last, err := a.fmt.GetLatest(history)
+	last, err := a.fmt.getLatest(history)
 	if err != nil {
 		return nil, errors.Errorf("failed to get the last record: %v\n", err)
 	}
@@ -220,9 +219,9 @@ func (a *assets) lastRecord(history []byte) (*assetHistoryRecord, error) {
 
 // Newest asset record (from local storage, or from DB if given asset has not been changed).
 // This is needed for transactions validation.
-func (a *assets) newestAssetRecord(assetID crypto.Digest) (*assetHistoryRecord, error) {
+func (a *assets) newestAssetRecord(assetID crypto.Digest, filter bool) (*assetHistoryRecord, error) {
 	histKey := assetHistKey{assetID: assetID}
-	history, err := fullHistory(histKey.bytes(), a.db, a.localStor, a.fmt)
+	history, err := fullHistory(histKey.bytes(), a.db, a.localStor, a.fmt, filter)
 	if err != nil {
 		return nil, err
 	}
@@ -235,7 +234,7 @@ func (a *assets) newestAssetRecord(assetID crypto.Digest) (*assetHistoryRecord, 
 
 // "Stable" asset info from database.
 // This should be used by external APIs.
-func (a *assets) assetInfo(assetID crypto.Digest) (*assetInfo, error) {
+func (a *assets) assetInfo(assetID crypto.Digest, filter bool) (*assetInfo, error) {
 	constInfo, err := a.constInfo(assetID)
 	if err != nil {
 		return nil, err
@@ -245,7 +244,7 @@ func (a *assets) assetInfo(assetID crypto.Digest) (*assetInfo, error) {
 	if err != nil {
 		return nil, errors.Errorf("failed to retrieve history for given asset: %v\n", err)
 	}
-	history, err = a.fmt.Normalize(history)
+	history, err = a.fmt.normalize(history, filter)
 	if err != nil {
 		return nil, errors.Errorf("failed to normalize history: %v\n", err)
 	}
@@ -260,8 +259,8 @@ func (a *assets) reset() {
 	a.localStor = make(map[string][]byte)
 }
 
-func (a *assets) flush() error {
-	if err := addHistoryToBatch(a.db, a.dbBatch, a.localStor, a.fmt); err != nil {
+func (a *assets) flush(initialisation bool) error {
+	if err := addHistoryToBatch(a.db, a.dbBatch, a.localStor, a.fmt, !initialisation); err != nil {
 		return err
 	}
 	return nil

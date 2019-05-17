@@ -10,7 +10,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"github.com/wavesplatform/gowaves/pkg/state/history"
 	"github.com/wavesplatform/gowaves/pkg/util"
 )
 
@@ -86,21 +85,6 @@ func (r *assetBalanceRecord) unmarshalBinary(data []byte) error {
 	return nil
 }
 
-type blockInfo interface {
-	IsValidBlock(blockID crypto.Signature) (bool, error)
-}
-
-type heightInfo interface {
-	Height() (uint64, error)
-	BlockIDToHeight(blockID crypto.Signature) (uint64, error)
-	RollbackMax() uint64
-}
-
-type heightInfoExt interface {
-	heightInfo
-	NewBlockIDToHeight(blockID crypto.Signature) (uint64, error)
-}
-
 type balances struct {
 	db      keyvalue.IterableKeyVal
 	dbBatch keyvalue.Batch
@@ -109,24 +93,24 @@ type balances struct {
 	wavesStor map[string][]byte
 	assetStor map[string][]byte
 
-	hInfo heightInfoExt
+	rb *recentBlocks
 	// assetFmt is used for operations on assets' balances history.
-	assetFmt *history.HistoryFormatter
+	assetFmt *historyFormatter
 	// wavesFmt is used for operations on waves' balances history.
-	wavesFmt *history.HistoryFormatter
+	wavesFmt *historyFormatter
 }
 
 func newBalances(
 	db keyvalue.IterableKeyVal,
 	dbBatch keyvalue.Batch,
-	hInfo heightInfoExt,
-	bInfo blockInfo,
+	stDb *stateDB,
+	rb *recentBlocks,
 ) (*balances, error) {
-	assetFmt, err := history.NewHistoryFormatter(assetBalanceRecordSize, crypto.SignatureSize, hInfo, bInfo)
+	assetFmt, err := newHistoryFormatter(assetBalanceRecordSize, crypto.SignatureSize, stDb, rb)
 	if err != nil {
 		return nil, err
 	}
-	wavesFmt, err := history.NewHistoryFormatter(wavesBalanceRecordSize, crypto.SignatureSize, hInfo, bInfo)
+	wavesFmt, err := newHistoryFormatter(wavesBalanceRecordSize, crypto.SignatureSize, stDb, rb)
 	if err != nil {
 		return nil, err
 	}
@@ -135,7 +119,7 @@ func newBalances(
 		dbBatch:   dbBatch,
 		wavesStor: make(map[string][]byte),
 		assetStor: make(map[string][]byte),
-		hInfo:     hInfo,
+		rb:        rb,
 		assetFmt:  assetFmt,
 		wavesFmt:  wavesFmt,
 	}, nil
@@ -155,7 +139,7 @@ func (s *balances) cancelAllLeases() error {
 
 	for iter.Next() {
 		key := iter.Key()
-		r, err := s.wavesRecord(key)
+		r, err := s.wavesRecord(key, true)
 		if err != nil {
 			return err
 		}
@@ -183,7 +167,7 @@ func (s *balances) cancelLeaseOverflows() (map[proto.Address]struct{}, error) {
 	overflowedAddresses := make(map[proto.Address]struct{})
 	for iter.Next() {
 		key := iter.Key()
-		r, err := s.wavesRecord(key)
+		r, err := s.wavesRecord(key, true)
 		if err != nil {
 			return nil, err
 		}
@@ -206,7 +190,7 @@ func (s *balances) cancelLeaseOverflows() (map[proto.Address]struct{}, error) {
 func (s *balances) cancelInvalidLeaseIns(correctLeaseIns map[proto.Address]int64) error {
 	for addr, leaseIn := range correctLeaseIns {
 		k := wavesBalanceKey{addr}
-		r, err := s.wavesRecord(k.bytes())
+		r, err := s.wavesRecord(k.bytes(), true)
 		if err != nil {
 			return err
 		}
@@ -236,7 +220,7 @@ func (s *balances) wavesAddressesNumber() (uint64, error) {
 	addressesNumber := uint64(0)
 	for iter.Next() {
 		key := iter.Key()
-		profile, err := s.wavesBalanceImpl(key)
+		profile, err := s.wavesBalanceImpl(key, true)
 		if err != nil {
 			return 0, err
 		}
@@ -247,18 +231,18 @@ func (s *balances) wavesAddressesNumber() (uint64, error) {
 	return addressesNumber, nil
 }
 
-// minBalanceInRange() is used to get min miner's effective balance, so it includes blocks which
+// minEffectiveBalanceInRange() is used to get min miner's effective balance, so it includes blocks which
 // have not been flushed to DB yet (and are currently stored in memory).
 func (s *balances) minEffectiveBalanceInRange(addr proto.Address, startHeight, endHeight uint64) (uint64, error) {
 	key := wavesBalanceKey{address: addr}
-	history, err := fullHistory(key.bytes(), s.db, s.wavesStor, s.wavesFmt)
+	history, err := fullHistory(key.bytes(), s.db, s.wavesStor, s.wavesFmt, true)
 	if err != nil {
 		return 0, err
 	}
 	minBalance := uint64(math.MaxUint64)
 	for i := len(history); i >= wavesBalanceRecordSize; i -= wavesBalanceRecordSize {
 		recordBytes := history[i-wavesBalanceRecordSize : i]
-		idBytes, err := s.wavesFmt.GetID(recordBytes)
+		idBytes, err := s.wavesFmt.getID(recordBytes)
 		if err != nil {
 			return 0, err
 		}
@@ -266,7 +250,7 @@ func (s *balances) minEffectiveBalanceInRange(addr proto.Address, startHeight, e
 		if err != nil {
 			return 0, err
 		}
-		height, err := s.hInfo.NewBlockIDToHeight(blockID)
+		height, err := s.rb.newBlockIDToHeight(blockID)
 		if err != nil {
 			return 0, err
 		}
@@ -294,20 +278,16 @@ func (s *balances) minEffectiveBalanceInRange(addr proto.Address, startHeight, e
 	return minBalance, nil
 }
 
-func (s *balances) lastRecord(key []byte, fmt *history.HistoryFormatter) ([]byte, error) {
-	has, err := s.db.Has(key)
-	if err != nil {
-		return nil, errors.Errorf("failed to check if balance key exists: %v\n", err)
-	}
-	if !has {
+func (s *balances) lastRecord(key []byte, fmt *historyFormatter, filter bool) ([]byte, error) {
+	history, err := s.db.Get(key)
+	if err == keyvalue.ErrNotFound {
 		// TODO: think about this scenario.
 		return nil, nil
 	}
-	history, err := s.db.Get(key)
 	if err != nil {
 		return nil, err
 	}
-	history, err = fmt.Normalize(history)
+	history, err = fmt.normalize(history, filter)
 	if err != nil {
 		return nil, err
 	}
@@ -315,16 +295,16 @@ func (s *balances) lastRecord(key []byte, fmt *history.HistoryFormatter) ([]byte
 		// There were no valid records, so the history is empty after filtering.
 		return nil, nil
 	}
-	last, err := fmt.GetLatest(history)
+	last, err := fmt.getLatest(history)
 	if err != nil {
 		return nil, err
 	}
 	return last, nil
 }
 
-func (s *balances) assetBalance(addr proto.Address, asset []byte) (uint64, error) {
+func (s *balances) assetBalance(addr proto.Address, asset []byte, filter bool) (uint64, error) {
 	key := assetBalanceKey{address: addr, asset: asset}
-	last, err := s.lastRecord(key.bytes(), s.assetFmt)
+	last, err := s.lastRecord(key.bytes(), s.assetFmt, filter)
 	if err != nil {
 		return 0, err
 	}
@@ -339,8 +319,8 @@ func (s *balances) assetBalance(addr proto.Address, asset []byte) (uint64, error
 	return record.balance, nil
 }
 
-func (s *balances) wavesRecord(key []byte) (*wavesBalanceRecord, error) {
-	last, err := s.lastRecord(key, s.wavesFmt)
+func (s *balances) wavesRecord(key []byte, filter bool) (*wavesBalanceRecord, error) {
+	last, err := s.lastRecord(key, s.wavesFmt, filter)
 	if err != nil {
 		return nil, err
 	}
@@ -355,22 +335,22 @@ func (s *balances) wavesRecord(key []byte) (*wavesBalanceRecord, error) {
 	return &record, nil
 }
 
-func (s *balances) wavesBalanceImpl(key []byte) (*balanceProfile, error) {
-	r, err := s.wavesRecord(key)
+func (s *balances) wavesBalanceImpl(key []byte, filter bool) (*balanceProfile, error) {
+	r, err := s.wavesRecord(key, filter)
 	if err != nil {
 		return nil, err
 	}
 	return &r.balanceProfile, nil
 }
 
-func (s *balances) wavesBalance(addr proto.Address) (*balanceProfile, error) {
+func (s *balances) wavesBalance(addr proto.Address, filter bool) (*balanceProfile, error) {
 	key := wavesBalanceKey{address: addr}
-	return s.wavesBalanceImpl(key.bytes())
+	return s.wavesBalanceImpl(key.bytes(), filter)
 }
 
-func (s *balances) addRecordToLocalStor(key, record []byte, fmt *history.HistoryFormatter, stor map[string][]byte) error {
+func (s *balances) addRecordToLocalStor(key, record []byte, fmt *historyFormatter, stor map[string][]byte) error {
 	history, _ := stor[string(key)]
-	history, err := fmt.AddRecord(history, record)
+	history, err := fmt.addRecord(history, record)
 	if err != nil {
 		return err
 	}
@@ -405,11 +385,11 @@ func (s *balances) reset() {
 	s.wavesStor = make(map[string][]byte)
 }
 
-func (s *balances) flush() error {
-	if err := addHistoryToBatch(s.db, s.dbBatch, s.wavesStor, s.wavesFmt); err != nil {
+func (s *balances) flush(initialisation bool) error {
+	if err := addHistoryToBatch(s.db, s.dbBatch, s.wavesStor, s.wavesFmt, !initialisation); err != nil {
 		return err
 	}
-	if err := addHistoryToBatch(s.db, s.dbBatch, s.assetStor, s.assetFmt); err != nil {
+	if err := addHistoryToBatch(s.db, s.dbBatch, s.assetStor, s.assetFmt, !initialisation); err != nil {
 		return err
 	}
 	return nil

@@ -1,4 +1,4 @@
-package history
+package state
 
 import (
 	"bytes"
@@ -7,54 +7,44 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 )
 
-type blockInfo interface {
-	IsValidBlock(blockID crypto.Signature) (bool, error)
-}
-
-type heightInfo interface {
-	Height() (uint64, error)
-	BlockIDToHeight(blockID crypto.Signature) (uint64, error)
-	RollbackMax() uint64
-}
-
-type HistoryFormatter struct {
+type historyFormatter struct {
 	recordSize int
 	idSize     int
-	hInfo      heightInfo
-	bInfo      blockInfo
+	db         *stateDB
+	rb         *recentBlocks
 }
 
-func NewHistoryFormatter(recordSize, idSize int, hInfo heightInfo, bInfo blockInfo) (*HistoryFormatter, error) {
+func newHistoryFormatter(recordSize, idSize int, db *stateDB, rb *recentBlocks) (*historyFormatter, error) {
 	if recordSize <= 0 || idSize <= 0 {
 		return nil, errors.New("invalid record or id size")
 	}
 	if recordSize < idSize {
 		return nil, errors.New("recordSize is < idSize")
 	}
-	return &HistoryFormatter{recordSize: recordSize, idSize: idSize, hInfo: hInfo, bInfo: bInfo}, nil
+	return &historyFormatter{recordSize: recordSize, idSize: idSize, db: db, rb: rb}, nil
 }
 
-func (hfmt *HistoryFormatter) GetID(record []byte) ([]byte, error) {
+func (hfmt *historyFormatter) getID(record []byte) ([]byte, error) {
 	if len(record) < hfmt.recordSize {
 		return nil, errors.New("invalid record size")
 	}
 	return record[hfmt.recordSize-hfmt.idSize:], nil
 }
 
-func (hfmt *HistoryFormatter) AddRecord(history []byte, record []byte) ([]byte, error) {
+func (hfmt *historyFormatter) addRecord(history []byte, record []byte) ([]byte, error) {
 	if len(history) < hfmt.recordSize {
 		// History is empty, new record is the first one.
 		return record, nil
 	}
-	lastRecord, err := hfmt.GetLatest(history)
+	lastRecord, err := hfmt.getLatest(history)
 	if err != nil {
 		return nil, err
 	}
-	lastID, err := hfmt.GetID(lastRecord)
+	lastID, err := hfmt.getID(lastRecord)
 	if err != nil {
 		return nil, err
 	}
-	curID, err := hfmt.GetID(record)
+	curID, err := hfmt.getID(record)
 	if err != nil {
 		return nil, err
 	}
@@ -68,17 +58,17 @@ func (hfmt *HistoryFormatter) AddRecord(history []byte, record []byte) ([]byte, 
 	return history, nil
 }
 
-func (hfmt *HistoryFormatter) GetLatest(history []byte) ([]byte, error) {
+func (hfmt *historyFormatter) getLatest(history []byte) ([]byte, error) {
 	if len(history) < hfmt.recordSize {
 		return nil, errors.New("invalid history size")
 	}
 	return history[len(history)-hfmt.recordSize:], nil
 }
 
-func (hfmt *HistoryFormatter) Filter(history []byte) ([]byte, error) {
+func (hfmt *historyFormatter) filter(history []byte) ([]byte, error) {
 	for i := len(history); i >= hfmt.recordSize; i -= hfmt.recordSize {
 		record := history[i-hfmt.recordSize : i]
-		id, err := hfmt.GetID(record)
+		id, err := hfmt.getID(record)
 		if err != nil {
 			return nil, err
 		}
@@ -86,7 +76,7 @@ func (hfmt *HistoryFormatter) Filter(history []byte) ([]byte, error) {
 		if err != nil {
 			return nil, err
 		}
-		valid, err := hfmt.bInfo.IsValidBlock(blockID)
+		valid, err := hfmt.db.isValidBlock(blockID)
 		if err != nil {
 			return nil, err
 		}
@@ -100,12 +90,16 @@ func (hfmt *HistoryFormatter) Filter(history []byte) ([]byte, error) {
 	return history, nil
 }
 
-func (hfmt *HistoryFormatter) Cut(history []byte) ([]byte, error) {
+func (hfmt *historyFormatter) cut(history []byte) ([]byte, error) {
+	currentHeight, err := hfmt.rb.height()
+	if err != nil {
+		return nil, err
+	}
 	firstNeeded := 0
 	for i := hfmt.recordSize; i <= len(history); i += hfmt.recordSize {
 		recordStart := i - hfmt.recordSize
 		record := history[recordStart:i]
-		id, err := hfmt.GetID(record)
+		id, err := hfmt.getID(record)
 		if err != nil {
 			return nil, err
 		}
@@ -113,15 +107,11 @@ func (hfmt *HistoryFormatter) Cut(history []byte) ([]byte, error) {
 		if err != nil {
 			return nil, err
 		}
-		blockHeight, err := hfmt.hInfo.BlockIDToHeight(blockID)
+		blockHeight, err := hfmt.rb.blockIDToHeight(blockID)
 		if err != nil {
 			return nil, err
 		}
-		currentHeight, err := hfmt.hInfo.Height()
-		if err != nil {
-			return nil, err
-		}
-		if currentHeight-blockHeight > hfmt.hInfo.RollbackMax() {
+		if (blockHeight == 0) || (currentHeight-blockHeight > uint64(rollbackMaxBlocks)) {
 			// 1 record BEFORE minHeight is needed.
 			firstNeeded = recordStart
 			continue
@@ -131,12 +121,15 @@ func (hfmt *HistoryFormatter) Cut(history []byte) ([]byte, error) {
 	return history[firstNeeded:], nil
 }
 
-func (hfmt *HistoryFormatter) Normalize(history []byte) ([]byte, error) {
-	history, err := hfmt.Filter(history)
-	if err != nil {
-		return nil, err
+func (hfmt *historyFormatter) normalize(history []byte, filter bool) ([]byte, error) {
+	var err error
+	if filter {
+		history, err = hfmt.filter(history)
+		if err != nil {
+			return nil, err
+		}
 	}
-	history, err = hfmt.Cut(history)
+	history, err = hfmt.cut(history)
 	if err != nil {
 		return nil, err
 	}

@@ -1,32 +1,90 @@
 package keyvalue
 
 import (
+	"log"
+
 	"github.com/pkg/errors"
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/util"
 )
 
-type KeyVal struct {
-	db *leveldb.DB
+type batch struct {
+	leveldbBatch *leveldb.Batch
+	filter       *bloomFilter
 }
 
-func NewKeyVal(path string) (*KeyVal, error) {
+func (b *batch) Delete(key []byte) {
+	b.leveldbBatch.Delete(key)
+}
+
+func (b *batch) Put(key, val []byte) {
+	b.leveldbBatch.Put(key, val)
+	b.filter.add(key)
+}
+
+func (b *batch) Reset() {
+	b.leveldbBatch.Reset()
+}
+
+type KeyVal struct {
+	db     *leveldb.DB
+	filter *bloomFilter
+}
+
+func initBloomFilter(kv *KeyVal, params BloomFilterParams) error {
+	filter, err := newBloomFilter(params)
+	if err != nil {
+		return err
+	}
+	iter, err := kv.NewKeyIterator([]byte{})
+	if err != nil {
+		return err
+	}
+	defer func() {
+		iter.Release()
+		if err := iter.Error(); err != nil {
+			log.Fatalf("Iterator error: %v", err)
+		}
+	}()
+
+	for iter.Next() {
+		filter.add(iter.Key())
+	}
+	kv.filter = filter
+	return nil
+}
+
+func NewKeyVal(path string, params BloomFilterParams) (*KeyVal, error) {
 	db, err := leveldb.OpenFile(path, nil)
 	if err != nil {
 		return nil, err
 	}
-	return &KeyVal{db: db}, nil
+	kv := &KeyVal{db: db}
+	if err := initBloomFilter(kv, params); err != nil {
+		return nil, err
+	}
+	return kv, nil
 }
 
 func (k *KeyVal) NewBatch() (Batch, error) {
-	return new(leveldb.Batch), nil
+	return &batch{new(leveldb.Batch), k.filter}, nil
 }
 
 func (k *KeyVal) Get(key []byte) ([]byte, error) {
-	return k.db.Get(key, nil)
+	if k.filter != nil && k.filter.notInTheSet(key) {
+		return nil, ErrNotFound
+	}
+	val, err := k.db.Get(key, nil)
+	if err == leveldb.ErrNotFound {
+		return val, ErrNotFound
+	}
+	return val, err
 }
 
 func (k *KeyVal) Has(key []byte) (bool, error) {
+	if k.filter != nil && k.filter.notInTheSet(key) {
+		return false, nil
+	}
 	return k.db.Has(key, nil)
 }
 
@@ -35,21 +93,22 @@ func (k *KeyVal) Delete(key []byte) error {
 }
 
 func (k *KeyVal) Put(key, val []byte) error {
+	k.filter.add(key)
 	if err := k.db.Put(key, val, nil); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (k *KeyVal) Flush(batch Batch) error {
-	b, ok := batch.(*leveldb.Batch)
+func (k *KeyVal) Flush(b1 Batch) error {
+	b, ok := b1.(*batch)
 	if !ok {
-		return errors.New("can't convert batch to leveldb.Batch")
+		return errors.New("can't convert batch interface to leveldb's batch")
 	}
-	if err := k.db.Write(b, nil); err != nil {
+	if err := k.db.Write(b.leveldbBatch, nil); err != nil {
 		return err
 	}
-	batch.Reset()
+	b.Reset()
 	return nil
 }
 

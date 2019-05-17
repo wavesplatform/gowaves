@@ -45,7 +45,7 @@ func main() {
 	var cli Cli
 	kong.Parse(&cli)
 
-	state, err := state.NewState("./", state.DefaultBlockStorageParams(), settings.MainNetSettings)
+	state, err := state.NewState("./", state.DefaultStorageParams(), settings.MainNetSettings)
 	if err != nil {
 		zap.S().Error(err)
 		cancel()
@@ -68,7 +68,8 @@ func main() {
 
 	declAddr := proto.NewTCPAddrFromString(conf.DeclaredAddr)
 
-	pool := bytespool.NewBytesPool(64, 2*1024*2014)
+	mb := 1024 * 1014
+	pool := bytespool.NewBytesPool(64, mb+(mb/2))
 
 	parent := peer.NewParent()
 

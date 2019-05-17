@@ -88,11 +88,13 @@ type Transaction interface {
 	Valid() (bool, error)
 	MarshalBinary() ([]byte, error)
 	UnmarshalBinary([]byte) error
+	GetFee() uint64
+	GetTimestamp() uint64
 }
 
 func BytesToTransaction(tx []byte) (Transaction, error) {
 	if len(tx) < 2 {
-		return nil, errors.New("invalid size of transation's bytes slice")
+		return nil, errors.New("invalid size of transaction's bytes slice")
 	}
 	if tx[0] == 0 {
 		transactionType, ok := bytesToTransactionsV2[TransactionType(tx[1])]
@@ -226,6 +228,14 @@ func (tx Genesis) GetID() []byte {
 	return tx.ID.Bytes()
 }
 
+func (tx Genesis) GetFee() uint64 {
+	return 0
+}
+
+func (tx Genesis) GetTimestamp() uint64 {
+	return tx.Timestamp
+}
+
 //NewUnsignedGenesis returns a new unsigned Genesis transaction. Actually Genesis transaction could not be signed.
 //That is why it doesn't implement Sing method. Instead it has GenerateSigID method, which calculates ID and uses it also as a signature.
 func NewUnsignedGenesis(recipient Address, amount, timestamp uint64) *Genesis {
@@ -333,6 +343,14 @@ type Payment struct {
 
 func (tx Payment) GetID() []byte {
 	return tx.ID.Bytes()
+}
+
+func (tx Payment) GetFee() uint64 {
+	return tx.Fee
+}
+
+func (tx Payment) GetTimestamp() uint64 {
+	return tx.Timestamp
 }
 
 //NewUnsignedPayment creates new Payment transaction with empty Signature and ID fields.
@@ -468,6 +486,14 @@ type Issue struct {
 	Fee         uint64           `json:"fee"`
 }
 
+func (i Issue) GetFee() uint64 {
+	return i.Fee
+}
+
+func (i Issue) GetTimestamp() uint64 {
+	return i.Timestamp
+}
+
 func (i Issue) Valid() (bool, error) {
 	if i.Quantity <= 0 {
 		return false, errors.New("quantity should be positive")
@@ -557,6 +583,14 @@ type Transfer struct {
 	Fee         uint64           `json:"fee"`
 	Recipient   Recipient        `json:"recipient"`
 	Attachment  Attachment       `json:"attachment,omitempty"`
+}
+
+func (tr Transfer) GetFee() uint64 {
+	return tr.Fee
+}
+
+func (tr Transfer) GetTimestamp() uint64 {
+	return tr.Timestamp
 }
 
 func (tr Transfer) Valid() (bool, error) {
@@ -678,6 +712,14 @@ type Reissue struct {
 	Fee        uint64           `json:"fee"`
 }
 
+func (r Reissue) GetFee() uint64 {
+	return r.Fee
+}
+
+func (r Reissue) GetTimestamp() uint64 {
+	return r.Timestamp
+}
+
 func (r Reissue) Valid() (bool, error) {
 	if r.Quantity <= 0 {
 		return false, errors.New("quantity should be positive")
@@ -754,6 +796,14 @@ type Burn struct {
 	Fee       uint64           `json:"fee"`
 }
 
+func (b Burn) GetFee() uint64 {
+	return b.Fee
+}
+
+func (b Burn) GetTimestamp() uint64 {
+	return b.Timestamp
+}
+
 func (b Burn) Valid() (bool, error) {
 	if !validJVMLong(b.Amount) {
 		return false, errors.New("amount is too big")
@@ -804,6 +854,14 @@ type Lease struct {
 	Amount    uint64           `json:"amount"`
 	Fee       uint64           `json:"fee"`
 	Timestamp uint64           `json:"timestamp,omitempty"`
+}
+
+func (l Lease) GetFee() uint64 {
+	return l.Fee
+}
+
+func (l Lease) GetTimestamp() uint64 {
+	return l.Timestamp
 }
 
 func (l Lease) Valid() (bool, error) {
@@ -875,6 +933,14 @@ type LeaseCancel struct {
 	Timestamp uint64           `json:"timestamp,omitempty"`
 }
 
+func (lc LeaseCancel) GetFee() uint64 {
+	return lc.Fee
+}
+
+func (lc LeaseCancel) GetTimestamp() uint64 {
+	return lc.Timestamp
+}
+
 func (lc LeaseCancel) Valid() (bool, error) {
 	if lc.Fee <= 0 {
 		return false, errors.New("fee should be positive")
@@ -917,6 +983,14 @@ type CreateAlias struct {
 	Alias     Alias            `json:"alias"`
 	Fee       uint64           `json:"fee"`
 	Timestamp uint64           `json:"timestamp,omitempty"`
+}
+
+func (ca CreateAlias) GetFee() uint64 {
+	return ca.Fee
+}
+
+func (ca CreateAlias) GetTimestamp() uint64 {
+	return ca.Timestamp
 }
 
 func (ca CreateAlias) Valid() (bool, error) {

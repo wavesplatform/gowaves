@@ -1,7 +1,6 @@
 package state
 
 import (
-	"github.com/wavesplatform/gowaves/pkg/proto"
 	"io/ioutil"
 	"math/big"
 	"net"
@@ -12,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/importer"
+	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 )
 
@@ -26,14 +26,6 @@ type testCase struct {
 	score  *big.Int
 	path   string
 }
-
-//func getLocalDir() (string, error) {
-//	_, filename, _, ok := runtime.Caller(0)
-//	if !ok {
-//		return "", errors.Errorf("Unable to find current package file")
-//	}
-//	return filepath.Dir(filename), nil
-//}
 
 func bigFromStr(s string) *big.Int {
 	var big big.Int
@@ -51,7 +43,7 @@ func TestGenesisConfig(t *testing.T) {
 		Type:           settings.Custom,
 		GenesisCfgPath: filepath.Join(dir, "genesis", "testnet.json"),
 	}
-	manager, err := newStateManager(dataDir, DefaultBlockStorageParams(), ss)
+	manager, err := newStateManager(dataDir, DefaultStorageParams(), ss)
 	if err != nil {
 		t.Fatalf("Failed to create state manager: %v.\n", err)
 	}
@@ -84,7 +76,7 @@ func TestStateRollback(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temp dir for data: %v\n", err)
 	}
-	manager, err := newStateManager(dataDir, DefaultBlockStorageParams(), settings.MainNetSettings)
+	manager, err := newStateManager(dataDir, DefaultStorageParams(), settings.MainNetSettings)
 	if err != nil {
 		t.Fatalf("Failed to create state manager: %v.\n", err)
 	}
@@ -117,7 +109,7 @@ func TestStateRollback(t *testing.T) {
 			t.Fatalf("Height(): %v\n", err)
 		}
 		if tc.nextHeight >= height {
-			if err := importer.ApplyFromFile(manager, blocksPath, tc.nextHeight-1, height); err != nil {
+			if err := importer.ApplyFromFile(manager, blocksPath, tc.nextHeight-1, height, false); err != nil {
 				t.Fatalf("Failed to import: %v\n", err)
 			}
 		} else {
@@ -145,7 +137,7 @@ func TestStateIntegrated(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temp dir for data: %v\n", err)
 	}
-	manager, err := newStateManager(dataDir, DefaultBlockStorageParams(), settings.MainNetSettings)
+	manager, err := newStateManager(dataDir, DefaultStorageParams(), settings.MainNetSettings)
 	if err != nil {
 		t.Fatalf("Failed to create state manager: %v.\n", err)
 	}
@@ -168,11 +160,11 @@ func TestStateIntegrated(t *testing.T) {
 	// Test what happens in case of failure: we add blocks starting from wrong height.
 	// State should be rolled back to previous state and ready to use after.
 	wrongStartHeight := uint64(100)
-	if err := importer.ApplyFromFile(manager, blocksPath, blocksToImport, wrongStartHeight); err == nil {
+	if err := importer.ApplyFromFile(manager, blocksPath, blocksToImport, wrongStartHeight, false); err == nil {
 		t.Errorf("Import starting from wrong height must fail but it doesn't.")
 	}
 	// Test normal import.
-	if err := importer.ApplyFromFile(manager, blocksPath, blocksToImport, 1); err != nil {
+	if err := importer.ApplyFromFile(manager, blocksPath, blocksToImport, 1, false); err != nil {
 		t.Fatalf("Failed to import: %v\n", err)
 	}
 	if err := importer.CheckBalances(manager, balancesPath); err != nil {
@@ -224,7 +216,7 @@ func TestStateManager_SavePeers(t *testing.T) {
 	}
 	defer os.RemoveAll(dataDir)
 
-	manager, err := newStateManager(dataDir, DefaultBlockStorageParams(), settings.MainNetSettings)
+	manager, err := newStateManager(dataDir, DefaultStorageParams(), settings.MainNetSettings)
 	if err != nil {
 		t.Fatalf("Failed to create state manager: %v.\n", err)
 	}

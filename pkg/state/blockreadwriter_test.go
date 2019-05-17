@@ -97,9 +97,10 @@ func createBlockReadWriter(offsetLen, headerOffsetLen int) (*blockReadWriter, []
 	res := make([]string, 2)
 	dbDir, err := ioutil.TempDir(os.TempDir(), "db_dir")
 	if err != nil {
-		return nil, res, err
+		return nil, nil, err
 	}
-	db, err := keyvalue.NewKeyVal(dbDir)
+	res[0] = dbDir
+	db, err := keyvalue.NewKeyVal(dbDir, defaultTestBloomFilterParams())
 	if err != nil {
 		return nil, res, err
 	}
@@ -111,11 +112,11 @@ func createBlockReadWriter(offsetLen, headerOffsetLen int) (*blockReadWriter, []
 	if err != nil {
 		return nil, res, err
 	}
+	res[1] = rwDir
 	rw, err := newBlockReadWriter(rwDir, offsetLen, headerOffsetLen, db, dbBatch)
 	if err != nil {
 		return nil, res, err
 	}
-	res = []string{dbDir, rwDir}
 	return rw, res, nil
 }
 
@@ -412,7 +413,7 @@ func TestSimultaneousReadDelete(t *testing.T) {
 	for {
 		_, err = rw.readBlockHeader(idToTest)
 		if err != nil {
-			if err.Error() == "leveldb: not found" {
+			if err == keyvalue.ErrNotFound {
 				// Successfully removed.
 				break
 			}
@@ -420,7 +421,7 @@ func TestSimultaneousReadDelete(t *testing.T) {
 		}
 		_, err = rw.readTransactionsBlock(idToTest)
 		if err != nil {
-			if err.Error() == "leveldb: not found" {
+			if err == keyvalue.ErrNotFound {
 				// Successfully removed.
 				break
 			}
