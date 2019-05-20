@@ -49,7 +49,7 @@ func TestGenesisConfig(t *testing.T) {
 		Type:           settings.Custom,
 		GenesisCfgPath: filepath.Join(dir, "genesis", "testnet.json"),
 	}
-	manager, err := newStateManager(dataDir, DefaultStorageParams(), ss)
+	manager, err := newStateManager(dataDir, DefaultStateParams(), ss)
 	if err != nil {
 		t.Fatalf("Failed to create state manager: %v.\n", err)
 	}
@@ -86,7 +86,7 @@ func TestValidationWithoutBlocks(t *testing.T) {
 	blocksPath := blocksPath(t)
 	dataDir, err := ioutil.TempDir(os.TempDir(), "dataDir")
 	assert.NoError(t, err, "failed to create dir for test data")
-	manager, err := newStateManager(dataDir, DefaultStorageParams(), settings.MainNetSettings)
+	manager, err := newStateManager(dataDir, DefaultStateParams(), settings.MainNetSettings)
 	assert.NoError(t, err, "newStateManager() failed")
 
 	defer func() {
@@ -119,7 +119,7 @@ func TestStateRollback(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temp dir for data: %v\n", err)
 	}
-	manager, err := newStateManager(dataDir, DefaultStorageParams(), settings.MainNetSettings)
+	manager, err := newStateManager(dataDir, DefaultStateParams(), settings.MainNetSettings)
 	if err != nil {
 		t.Fatalf("Failed to create state manager: %v.\n", err)
 	}
@@ -180,7 +180,7 @@ func TestStateIntegrated(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temp dir for data: %v\n", err)
 	}
-	manager, err := newStateManager(dataDir, DefaultStorageParams(), settings.MainNetSettings)
+	manager, err := newStateManager(dataDir, DefaultStateParams(), settings.MainNetSettings)
 	if err != nil {
 		t.Fatalf("Failed to create state manager: %v.\n", err)
 	}
@@ -259,7 +259,7 @@ func TestStateManager_SavePeers(t *testing.T) {
 	}
 	defer os.RemoveAll(dataDir)
 
-	manager, err := newStateManager(dataDir, DefaultStorageParams(), settings.MainNetSettings)
+	manager, err := newStateManager(dataDir, DefaultStateParams(), settings.MainNetSettings)
 	if err != nil {
 		t.Fatalf("Failed to create state manager: %v.\n", err)
 	}

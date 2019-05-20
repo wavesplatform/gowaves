@@ -2,6 +2,7 @@ package state
 
 import (
 	"math/big"
+	"runtime"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
@@ -16,6 +17,8 @@ const (
 	DeserializationError StateErrorType = iota + 1
 	TxValidationError
 	BlockValidationError
+	// Either block or tx.
+	ValidationError
 	RollbackError
 	// Errors occurring while getting data from database.
 	RetrievalError
@@ -118,13 +121,15 @@ type State interface {
 // NewState() creates State.
 // dataDir is path to directory to store all data, it's also possible to provide folder with existing data,
 // and state will try to sync and use it in this case.
-// params are storage parameters, they specify lengths of byte offsets for headers and transactions and Bloom Filter's parameters.
-// Use state.DefaultStorageParams() to create default parameters.
-// Settings are blockchain settings (settings.MainNetSettings, settings.TestNetSettings or custom settings).
-func NewState(dataDir string, params StorageParams, settings *settings.BlockchainSettings) (State, error) {
+// params are state parameters (see below).
+// settings are blockchain settings (settings.MainNetSettings, settings.TestNetSettings or custom settings).
+func NewState(dataDir string, params StateParams, settings *settings.BlockchainSettings) (State, error) {
 	return newStateManager(dataDir, params, settings)
 }
 
+// StorageParams are storage parameters, they specify lengths of byte offsets for headers and transactions
+// and Bloom Filter's parameters.
+// Use state.DefaultStorageParams() to create default parameters.
 type StorageParams struct {
 	OffsetLen, HeaderOffsetLen int
 	BloomParams                keyvalue.BloomFilterParams
@@ -132,4 +137,19 @@ type StorageParams struct {
 
 func DefaultStorageParams() StorageParams {
 	return StorageParams{OffsetLen: 8, HeaderOffsetLen: 8, BloomParams: keyvalue.BloomFilterParams{N: 2e8, FalsePositiveProbability: 0.01}}
+}
+
+// ValidationParams are validation parameters.
+// VerificationGoroutinesNum specifies how many goroutines will be run for verification of transactions and blocks signatures.
+type ValidationParams struct {
+	VerificationGoroutinesNum int
+}
+
+type StateParams struct {
+	StorageParams
+	ValidationParams
+}
+
+func DefaultStateParams() StateParams {
+	return StateParams{DefaultStorageParams(), ValidationParams{runtime.NumCPU() * 2}}
 }

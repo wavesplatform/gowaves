@@ -2,6 +2,7 @@ package state
 
 import (
 	"bytes"
+	"context"
 	"encoding/binary"
 	"encoding/json"
 	"log"
@@ -72,11 +73,14 @@ type stateManager struct {
 	// Transaction validator that performs checking against state for multiple transactions without block.
 	multiTxTv *transactionValidator
 
+	// Specifies how many goroutines will be run for verification of transactions and blocks signatures.
+	verificationGoroutinesNum int
+
 	// Indicates whether lease cancellations were performed.
 	leasesCl0, leasesCl1, leasesCl2 bool
 }
 
-func newStateManager(dataDir string, params StorageParams, settings *settings.BlockchainSettings) (*stateManager, error) {
+func newStateManager(dataDir string, params StateParams, settings *settings.BlockchainSettings) (*stateManager, error) {
 	blockStorageDir := filepath.Join(dataDir, blocksStorDir)
 	if _, err := os.Stat(blockStorageDir); os.IsNotExist(err) {
 		if err := os.Mkdir(blockStorageDir, 0755); err != nil {
@@ -131,15 +135,16 @@ func newStateManager(dataDir string, params StorageParams, settings *settings.Bl
 		return nil, StateError{errorType: Other, originalError: errors.Errorf("failed to create leases storage: %v\n", err)}
 	}
 	state := &stateManager{
-		stateDB:  stateDB,
-		assets:   assets,
-		leases:   leases,
-		scores:   scores,
-		balances: balances,
-		rw:       rw,
-		rb:       rb,
-		settings: settings,
-		peers:    newPeerStorage(db),
+		stateDB:                   stateDB,
+		assets:                    assets,
+		leases:                    leases,
+		scores:                    scores,
+		balances:                  balances,
+		rw:                        rw,
+		rb:                        rb,
+		settings:                  settings,
+		peers:                     newPeerStorage(db),
+		verificationGoroutinesNum: params.VerificationGoroutinesNum,
 	}
 	// Set fields which depend on state.
 	// Consensus validator is needed to check block headers.
@@ -197,6 +202,8 @@ func (s *stateManager) setGenesisBlock(genesisCfgPath string) error {
 
 func (s *stateManager) addGenesisBlock() error {
 	// Add score of genesis block.
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	genesisScore, err := calculateScore(s.genesis.BaseTarget)
 	if err != nil {
 		return err
@@ -208,11 +215,18 @@ func (s *stateManager) addGenesisBlock() error {
 	if err != nil {
 		return err
 	}
-	if err := s.addNewBlock(tv, &s.genesis, nil, true); err != nil {
+	chans := newVerifierChans()
+	go launchVerifier(ctx, chans, s.verificationGoroutinesNum)
+	if err := s.addNewBlock(tv, &s.genesis, nil, true, chans); err != nil {
 		return err
 	}
+	close(chans.tasksChan)
 	if err := tv.validateTransactions(true, true); err != nil {
 		return err
+	}
+	verifyError := <-chans.errChan
+	if verifyError != nil {
+		return StateError{errorType: BlockValidationError, originalError: err}
 	}
 	if err := s.flush(true); err != nil {
 		return StateError{errorType: ModificationError, originalError: err}
@@ -353,7 +367,7 @@ func (s *stateManager) topBlock() (*proto.Block, error) {
 	return s.BlockByHeight(height)
 }
 
-func (s *stateManager) addNewBlock(tv *transactionValidator, block, parent *proto.Block, initialisation bool) error {
+func (s *stateManager) addNewBlock(tv *transactionValidator, block, parent *proto.Block, initialisation bool, chans *verifierChans) error {
 	if err := s.rb.addNewBlockID(block.BlockSignature); err != nil {
 		return err
 	}
@@ -380,6 +394,15 @@ func (s *stateManager) addNewBlock(tv *transactionValidator, block, parent *prot
 		tx, err := proto.BytesToTransaction(txBytes)
 		if err != nil {
 			return err
+		}
+		task := &verifyTask{
+			taskType: verifyTx,
+			tx:       tx,
+		}
+		select {
+		case verifyError := <-chans.errChan:
+			return verifyError
+		case chans.tasksChan <- task:
 		}
 		// Save transaction to storage.
 		if err := s.rw.writeTransaction(tx.GetID(), transactions[:n+4]); err != nil {
@@ -437,22 +460,6 @@ func (s *stateManager) flush(initialisation bool) error {
 	}
 	s.rb.flush()
 	return nil
-}
-
-func (s *stateManager) unmarshalAndCheck(blockBytes []byte, parentSig crypto.Signature, initialisation bool) (*proto.Block, error) {
-	var block proto.Block
-	if err := block.UnmarshalBinary(blockBytes); err != nil {
-		return nil, err
-	}
-	// Check block signature.
-	if !crypto.Verify(block.GenPublicKey, block.BlockSignature, blockBytes[:len(blockBytes)-crypto.SignatureSize]) {
-		return nil, errors.New("invalid block signature")
-	}
-	// Check parent.
-	if parentSig != block.Parent {
-		return nil, errors.New("incorrect parent")
-	}
-	return &block, nil
 }
 
 func (s *stateManager) undoBlockAddition() error {
@@ -554,6 +561,8 @@ func (s *stateManager) cancelLeases() error {
 }
 
 func (s *stateManager) addBlocks(blocks [][]byte, initialisation bool) error {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	blocksNumber := len(blocks)
 	parent, err := s.topBlock()
 	if err != nil {
@@ -571,8 +580,10 @@ func (s *stateManager) addBlocks(blocks [][]byte, initialisation bool) error {
 	if err != nil {
 		return StateError{errorType: RetrievalError, originalError: err}
 	}
-	var blocksToFinish [][]byte
 	headers := make([]proto.BlockHeader, blocksNumber)
+	var blocksToFinish [][]byte
+	chans := newVerifierChans()
+	go launchVerifier(ctx, chans, s.verificationGoroutinesNum)
 	for i, blockBytes := range blocks {
 		curHeight := height + uint64(i)
 		if s.needToCancelLeases(curHeight) {
@@ -580,9 +591,20 @@ func (s *stateManager) addBlocks(blocks [][]byte, initialisation bool) error {
 			blocksToFinish = blocks[i:]
 			break
 		}
-		block, err := s.unmarshalAndCheck(blockBytes, parent.BlockSignature, initialisation)
-		if err != nil {
+		var block proto.Block
+		if err := block.UnmarshalBinary(blockBytes); err != nil {
 			return StateError{errorType: DeserializationError, originalError: err}
+		}
+		task := &verifyTask{
+			taskType:   verifyBlock,
+			parentSig:  parent.BlockSignature,
+			block:      &block,
+			blockBytes: blockBytes[:len(blockBytes)-crypto.SignatureSize],
+		}
+		select {
+		case verifyError := <-chans.errChan:
+			return StateError{errorType: ValidationError, originalError: verifyError}
+		case chans.tasksChan <- task:
 		}
 		// Add score.
 		score, err := calculateScore(block.BaseTarget)
@@ -593,17 +615,22 @@ func (s *stateManager) addBlocks(blocks [][]byte, initialisation bool) error {
 			return StateError{errorType: ModificationError, originalError: err}
 		}
 		prevScore = score
-		if err := s.addNewBlock(tv, block, parent, initialisation); err != nil {
+		if err := s.addNewBlock(tv, &block, parent, initialisation, chans); err != nil {
 			return StateError{errorType: TxValidationError, originalError: err}
 		}
 		headers[i] = block.BlockHeader
-		parent = block
+		parent = &block
 	}
+	close(chans.tasksChan)
 	if err := tv.validateTransactions(initialisation, true); err != nil {
 		return StateError{errorType: TxValidationError, originalError: err}
 	}
 	if err := s.cv.ValidateHeaders(headers[:len(headers)-len(blocksToFinish)], height); err != nil {
 		return StateError{errorType: BlockValidationError, originalError: err}
+	}
+	verifyError := <-chans.errChan
+	if verifyError != nil {
+		return StateError{errorType: ValidationError, originalError: err}
 	}
 	if err := s.flush(initialisation); err != nil {
 		return StateError{errorType: ModificationError, originalError: err}
@@ -752,6 +779,9 @@ func (s *stateManager) SavePeers(peers []proto.TCPAddr) error {
 }
 
 func (s *stateManager) ValidateSingleTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64) error {
+	if err := checkTx(tx); err != nil {
+		return StateError{errorType: TxValidationError, originalError: err}
+	}
 	info := &txValidationInfo{
 		perform:          false,
 		initialisation:   false,
@@ -771,6 +801,9 @@ func (s *stateManager) ResetValidationList() {
 }
 
 func (s *stateManager) ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64) error {
+	if err := checkTx(tx); err != nil {
+		return StateError{errorType: TxValidationError, originalError: err}
+	}
 	info := &txValidationInfo{
 		perform:          false,
 		initialisation:   false,
