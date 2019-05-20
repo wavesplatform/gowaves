@@ -127,6 +127,9 @@ func BytesToTransactions(count int, txs []byte) ([]Transaction, error) {
 	res := make([]Transaction, count)
 	for i := 0; i < count; i++ {
 		n := int(binary.BigEndian.Uint32(txs[0:4]))
+		if n+4 > len(txs) {
+			return nil, errors.New("invalid tx size: exceeds bytes slice bounds")
+		}
 		txBytes := txs[4 : n+4]
 		tx, err := BytesToTransaction(txBytes)
 		if err != nil {

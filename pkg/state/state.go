@@ -390,6 +390,9 @@ func (s *stateManager) addNewBlock(tv *transactionValidator, block, parent *prot
 	// Validate transactions.
 	for i := 0; i < block.TransactionCount; i++ {
 		n := int(binary.BigEndian.Uint32(transactions[0:4]))
+		if n+4 > len(transactions) {
+			return errors.New("invalid tx size: exceeds bytes slice bounds")
+		}
 		txBytes := transactions[4 : n+4]
 		tx, err := proto.BytesToTransaction(txBytes)
 		if err != nil {
