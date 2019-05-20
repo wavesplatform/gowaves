@@ -298,7 +298,29 @@ func (s *storage) HasPeer(ip net.IP) (bool, error) {
 	return true, nil
 }
 
-func (s *storage) handleBlock(block proto.Block, peer PeerNode) error {
+func (s *storage) AllSignatures() ([]crypto.Signature, error) {
+	sn, err := s.db.GetSnapshot()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to collect blocks signatures")
+	}
+	defer sn.Release()
+	st := []byte{blocksPrefix}
+	lm := []byte{blocksPrefix + 1}
+	it := sn.NewIterator(&util.Range{Start: st, Limit: lm}, nil)
+	r := make([]crypto.Signature, 0)
+	for it.Next() {
+		k := it.Key()
+		s, err := crypto.NewSignatureFromBytes(k[1:])
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to collect blocks signatures")
+		}
+		r = append(r, s)
+	}
+	it.Release()
+	return r, nil
+}
+
+func (s *storage) handleBlock(block proto.Block, peer net.IP) error {
 	wrapError := func(err error) error {
 		return errors.Wrap(err, "failed to append new block")
 	}
@@ -317,7 +339,7 @@ func (s *storage) handleBlock(block proto.Block, peer PeerNode) error {
 	if ok {
 		// The block is already known, just update link
 		link := peerLink{fork: w.fork, height: w.height, block: block.BlockSignature}
-		putLink(batch, peer.Address, link)
+		putLink(batch, peer, link)
 		err = s.db.Write(batch, nil)
 		if err != nil {
 			return wrapError(err)
@@ -329,7 +351,7 @@ func (s *storage) handleBlock(block proto.Block, peer PeerNode) error {
 		return wrapError(err)
 	}
 	link := peerLink{fork: fid, height: h, block: block.BlockSignature}
-	putLink(batch, peer.Address, link)
+	putLink(batch, peer, link)
 	err = s.db.Write(batch, nil)
 	if err != nil {
 		return wrapError(err)
@@ -337,7 +359,7 @@ func (s *storage) handleBlock(block proto.Block, peer PeerNode) error {
 	return nil
 }
 
-func (s *storage) appendBlockSignature(sig crypto.Signature, peer PeerNode) (bool, error) {
+func (s *storage) appendBlockSignature(sig crypto.Signature, peer net.IP) (bool, error) {
 	wrapError := func(err error) error {
 		return errors.Wrap(err, "failed to append new block signature")
 	}
@@ -356,7 +378,7 @@ func (s *storage) appendBlockSignature(sig crypto.Signature, peer PeerNode) (boo
 	if ok {
 		// The block is already known, update the peer link
 		link := peerLink{fork: w.fork, height: w.height, block: sig}
-		putLink(batch, peer.Address, link)
+		putLink(batch, peer, link)
 		err = s.db.Write(batch, nil)
 		if err != nil {
 			return false, wrapError(err)
@@ -537,7 +559,7 @@ func (s *storage) fork(ip net.IP) ([]NodeForkInfo, error) {
 	return nil, nil
 }
 
-func (s *storage) frontBlocks(peer PeerNode, n int) ([]crypto.Signature, error) {
+func (s *storage) frontBlocks(peer net.IP, n int) ([]crypto.Signature, error) {
 	wrapError := func(err error) error {
 		return errors.Wrap(err, "failed to get front blocks signatures")
 	}
@@ -548,7 +570,7 @@ func (s *storage) frontBlocks(peer PeerNode, n int) ([]crypto.Signature, error) 
 	}
 	defer sn.Release()
 
-	k := newPeerLinkKey(peer.Address)
+	k := newPeerLinkKey(peer)
 	v, err := sn.Get(k.bytes(), nil)
 	if err != nil {
 		if err == leveldb.ErrNotFound {

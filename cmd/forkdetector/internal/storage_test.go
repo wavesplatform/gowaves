@@ -34,8 +34,8 @@ func TestOneFork(t *testing.T) {
 	db, closeDB := openDB(t, "fd-1-fork")
 	defer closeDB()
 
-	peer1 := PeerNode{Address: net.IPv4(1, 2, 3, 4)}
-	peer2 := PeerNode{Address: net.IPv4(5, 6, 7, 8)}
+	peer1 := net.IPv4(1, 2, 3, 4).To16()
+	peer2 := net.IPv4(5, 6, 7, 8).To16()
 
 	gs, err := crypto.NewSignatureFromBase58("FSH8eAAzZNqnG8xgTZtz5xuLqXySsXgAjmFEC25hXMbEufiGjqWPnGCZFt6gLiVLJny16ipxRNAkkzjjhqTjBE2")
 	require.NoError(t, err)
@@ -56,7 +56,7 @@ func TestOneFork(t *testing.T) {
 		if fs, err := storage.parentedForks(); assert.NoError(t, err) {
 			assert.Equal(t, 1, len(fs))
 			assert.Equal(t, 1, len(fs[0].Peers))
-			assert.ElementsMatch(t, []PeerForkInfo{{peer1.Address, 0}}, fs[0].Peers)
+			assert.ElementsMatch(t, []PeerForkInfo{{peer1, 0}}, fs[0].Peers)
 			assert.True(t, fs[0].Longest)
 			assert.Equal(t, 1, fs[0].Length)
 			assert.Equal(t, 1, fs[0].Height)
@@ -68,7 +68,7 @@ func TestOneFork(t *testing.T) {
 		if fs, err := storage.parentedForks(); assert.NoError(t, err) {
 			assert.Equal(t, 1, len(fs))
 			assert.Equal(t, 1, len(fs[0].Peers))
-			assert.ElementsMatch(t, []PeerForkInfo{{peer1.Address, 0}}, fs[0].Peers)
+			assert.ElementsMatch(t, []PeerForkInfo{{peer1, 0}}, fs[0].Peers)
 			assert.True(t, fs[0].Longest)
 			assert.Equal(t, 2, fs[0].Length)
 			assert.Equal(t, 2, fs[0].Height)
@@ -80,7 +80,7 @@ func TestOneFork(t *testing.T) {
 		if fs, err := storage.parentedForks(); assert.NoError(t, err) {
 			assert.Equal(t, 1, len(fs))
 			assert.Equal(t, 1, len(fs[0].Peers))
-			assert.ElementsMatch(t, []PeerForkInfo{{peer1.Address, 0}}, fs[0].Peers)
+			assert.ElementsMatch(t, []PeerForkInfo{{peer1, 0}}, fs[0].Peers)
 			assert.True(t, fs[0].Longest)
 			assert.Equal(t, 3, fs[0].Length)
 			assert.Equal(t, 3, fs[0].Height)
@@ -92,7 +92,7 @@ func TestOneFork(t *testing.T) {
 		if fs, err := storage.parentedForks(); assert.NoError(t, err) {
 			assert.Equal(t, 1, len(fs))
 			assert.Equal(t, 1, len(fs[0].Peers))
-			assert.ElementsMatch(t, []PeerForkInfo{{peer1.Address, 0}}, fs[0].Peers)
+			assert.ElementsMatch(t, []PeerForkInfo{{peer1, 0}}, fs[0].Peers)
 			assert.True(t, fs[0].Longest)
 			assert.Equal(t, 4, fs[0].Length)
 			assert.Equal(t, 4, fs[0].Height)
@@ -104,7 +104,7 @@ func TestOneFork(t *testing.T) {
 		if fs, err := storage.parentedForks(); assert.NoError(t, err) {
 			assert.Equal(t, 1, len(fs))
 			assert.Equal(t, 2, len(fs[0].Peers))
-			assert.ElementsMatch(t, []PeerForkInfo{{peer1.Address, 0}, {peer2.Address, 3}}, fs[0].Peers)
+			assert.ElementsMatch(t, []PeerForkInfo{{peer1, 0}, {peer2, 3}}, fs[0].Peers)
 			assert.True(t, fs[0].Longest)
 			assert.Equal(t, 4, fs[0].Length)
 			assert.Equal(t, 4, fs[0].Height)
@@ -116,7 +116,7 @@ func TestOneFork(t *testing.T) {
 		if fs, err := storage.parentedForks(); assert.NoError(t, err) {
 			assert.Equal(t, 1, len(fs))
 			assert.Equal(t, 2, len(fs[0].Peers))
-			assert.ElementsMatch(t, []PeerForkInfo{{peer1.Address, 0}, {peer2.Address, 2}}, fs[0].Peers)
+			assert.ElementsMatch(t, []PeerForkInfo{{peer1, 0}, {peer2, 2}}, fs[0].Peers)
 			assert.True(t, fs[0].Longest)
 			assert.Equal(t, 4, fs[0].Length)
 			assert.Equal(t, 4, fs[0].Height)
@@ -128,7 +128,7 @@ func TestOneFork(t *testing.T) {
 		if fs, err := storage.parentedForks(); assert.NoError(t, err) {
 			assert.Equal(t, 1, len(fs))
 			assert.Equal(t, 2, len(fs[0].Peers))
-			assert.ElementsMatch(t, []PeerForkInfo{{peer1.Address, 0}, {peer2.Address, 1}}, fs[0].Peers)
+			assert.ElementsMatch(t, []PeerForkInfo{{peer1, 0}, {peer2, 1}}, fs[0].Peers)
 			assert.True(t, fs[0].Longest)
 			assert.Equal(t, 4, fs[0].Length)
 			assert.Equal(t, 4, fs[0].Height)
@@ -142,8 +142,8 @@ func TestTwoForks(t *testing.T) {
 	db, closeDB := openDB(t, "fd-2-fork")
 	defer closeDB()
 
-	peer1 := PeerNode{Address: net.IPv4(1, 2, 3, 4)}
-	peer2 := PeerNode{Address: net.IPv4(5, 6, 7, 8)}
+	peer1 := net.IPv4(1, 2, 3, 4).To16()
+	peer2 := net.IPv4(5, 6, 7, 8).To16()
 
 	gs, err := crypto.NewSignatureFromBase58("FSH8eAAzZNqnG8xgTZtz5xuLqXySsXgAjmFEC25hXMbEufiGjqWPnGCZFt6gLiVLJny16ipxRNAkkzjjhqTjBE2")
 	require.NoError(t, err)
@@ -167,7 +167,7 @@ func TestTwoForks(t *testing.T) {
 		if fs, err := storage.parentedForks(); assert.NoError(t, err) {
 			assert.Equal(t, 1, len(fs))
 			assert.Equal(t, 1, len(fs[0].Peers))
-			assert.ElementsMatch(t, []PeerForkInfo{{peer1.Address, 0}}, fs[0].Peers)
+			assert.ElementsMatch(t, []PeerForkInfo{{peer1, 0}}, fs[0].Peers)
 			assert.True(t, fs[0].Longest)
 			assert.Equal(t, 1, fs[0].Length)
 			assert.Equal(t, 1, fs[0].Height)
@@ -179,7 +179,7 @@ func TestTwoForks(t *testing.T) {
 		if fs, err := storage.parentedForks(); assert.NoError(t, err) {
 			assert.Equal(t, 1, len(fs))
 			assert.Equal(t, 1, len(fs[0].Peers))
-			assert.ElementsMatch(t, []PeerForkInfo{{peer1.Address, 0}}, fs[0].Peers)
+			assert.ElementsMatch(t, []PeerForkInfo{{peer1, 0}}, fs[0].Peers)
 			assert.True(t, fs[0].Longest)
 			assert.Equal(t, 2, fs[0].Length)
 			assert.Equal(t, 2, fs[0].Height)
@@ -191,7 +191,7 @@ func TestTwoForks(t *testing.T) {
 		if fs, err := storage.parentedForks(); assert.NoError(t, err) {
 			assert.Equal(t, 1, len(fs))
 			assert.Equal(t, 1, len(fs[0].Peers))
-			assert.ElementsMatch(t, []PeerForkInfo{{peer1.Address, 0}}, fs[0].Peers)
+			assert.ElementsMatch(t, []PeerForkInfo{{peer1, 0}}, fs[0].Peers)
 			assert.True(t, fs[0].Longest)
 			assert.Equal(t, 3, fs[0].Length)
 			assert.Equal(t, 3, fs[0].Height)
@@ -203,7 +203,7 @@ func TestTwoForks(t *testing.T) {
 		if fs, err := storage.parentedForks(); assert.NoError(t, err) {
 			assert.Equal(t, 1, len(fs))
 			assert.Equal(t, 1, len(fs[0].Peers))
-			assert.ElementsMatch(t, []PeerForkInfo{{peer1.Address, 0}}, fs[0].Peers)
+			assert.ElementsMatch(t, []PeerForkInfo{{peer1, 0}}, fs[0].Peers)
 			assert.True(t, fs[0].Longest)
 			assert.Equal(t, 4, fs[0].Length)
 			assert.Equal(t, 4, fs[0].Height)
@@ -215,7 +215,7 @@ func TestTwoForks(t *testing.T) {
 		if fs, err := storage.parentedForks(); assert.NoError(t, err) {
 			assert.Equal(t, 1, len(fs))
 			assert.Equal(t, 2, len(fs[0].Peers))
-			assert.ElementsMatch(t, []PeerForkInfo{{peer1.Address, 0}, {peer2.Address, 3}}, fs[0].Peers)
+			assert.ElementsMatch(t, []PeerForkInfo{{peer1, 0}, {peer2, 3}}, fs[0].Peers)
 			assert.True(t, fs[0].Longest)
 			assert.Equal(t, 4, fs[0].Length)
 			assert.Equal(t, 4, fs[0].Height)
@@ -227,7 +227,7 @@ func TestTwoForks(t *testing.T) {
 		if fs, err := storage.parentedForks(); assert.NoError(t, err) {
 			assert.Equal(t, 1, len(fs))
 			assert.Equal(t, 2, len(fs[0].Peers))
-			assert.ElementsMatch(t, []PeerForkInfo{{peer1.Address, 0}, {peer2.Address, 2}}, fs[0].Peers)
+			assert.ElementsMatch(t, []PeerForkInfo{{peer1, 0}, {peer2, 2}}, fs[0].Peers)
 			assert.True(t, fs[0].Longest)
 			assert.Equal(t, 4, fs[0].Length)
 			assert.Equal(t, 4, fs[0].Height)
@@ -240,8 +240,8 @@ func TestTwoForks(t *testing.T) {
 			assert.Equal(t, 2, len(fs))
 			assert.Equal(t, 1, len(fs[0].Peers))
 			assert.Equal(t, 1, len(fs[1].Peers))
-			assert.ElementsMatch(t, []PeerForkInfo{{peer1.Address, 0}}, fs[0].Peers)
-			assert.ElementsMatch(t, []PeerForkInfo{{peer2.Address, 0}}, fs[1].Peers)
+			assert.ElementsMatch(t, []PeerForkInfo{{peer1, 0}}, fs[0].Peers)
+			assert.ElementsMatch(t, []PeerForkInfo{{peer2, 0}}, fs[1].Peers)
 			assert.True(t, fs[0].Longest)
 			assert.Equal(t, 4, fs[0].Length)
 			assert.Equal(t, 4, fs[0].Height)
@@ -260,9 +260,9 @@ func TestMultipleForksAndSwitching(t *testing.T) {
 	db, closeDB := openDB(t, "fd-3-fork")
 	defer closeDB()
 
-	peer1 := PeerNode{Address: net.IPv4(1, 1, 1, 1).To4()}
-	peer2 := PeerNode{Address: net.IPv4(2, 2, 2, 2).To4()}
-	peer3 := PeerNode{Address: net.IPv4(3, 3, 3, 3).To4()}
+	peer1 := net.IPv4(1, 1, 1, 1).To16()
+	peer2 := net.IPv4(2, 2, 2, 2).To16()
+	peer3 := net.IPv4(3, 3, 3, 3).To16()
 
 	gs, err := crypto.NewSignatureFromBase58("FSH8eAAzZNqnG8xgTZtz5xuLqXySsXgAjmFEC25hXMbEufiGjqWPnGCZFt6gLiVLJny16ipxRNAkkzjjhqTjBE2")
 	require.NoError(t, err)
@@ -295,7 +295,7 @@ func TestMultipleForksAndSwitching(t *testing.T) {
 		if fs, err := storage.parentedForks(); assert.NoError(t, err) {
 			assert.Equal(t, 1, len(fs))
 			assert.Equal(t, 1, len(fs[0].Peers))
-			assert.ElementsMatch(t, []PeerForkInfo{{peer1.Address, 0}}, fs[0].Peers)
+			assert.ElementsMatch(t, []PeerForkInfo{{peer1, 0}}, fs[0].Peers)
 			assert.True(t, fs[0].Longest)
 			assert.Equal(t, 1, fs[0].Length)
 			assert.Equal(t, 1, fs[0].Height)
@@ -307,7 +307,7 @@ func TestMultipleForksAndSwitching(t *testing.T) {
 		if fs, err := storage.parentedForks(); assert.NoError(t, err) {
 			assert.Equal(t, 1, len(fs))
 			assert.Equal(t, 2, len(fs[0].Peers))
-			assert.ElementsMatch(t, []PeerForkInfo{{peer1.Address, 0}, {peer2.Address, 0}}, fs[0].Peers)
+			assert.ElementsMatch(t, []PeerForkInfo{{peer1, 0}, {peer2, 0}}, fs[0].Peers)
 			assert.True(t, fs[0].Longest)
 			assert.Equal(t, 1, fs[0].Length)
 			assert.Equal(t, 1, fs[0].Height)
@@ -319,7 +319,7 @@ func TestMultipleForksAndSwitching(t *testing.T) {
 		if fs, err := storage.parentedForks(); assert.NoError(t, err) {
 			assert.Equal(t, 1, len(fs))
 			assert.Equal(t, 3, len(fs[0].Peers))
-			assert.ElementsMatch(t, []PeerForkInfo{{peer1.Address, 0}, {peer2.Address, 0}, {peer3.Address, 0}}, fs[0].Peers)
+			assert.ElementsMatch(t, []PeerForkInfo{{peer1, 0}, {peer2, 0}, {peer3, 0}}, fs[0].Peers)
 			assert.True(t, fs[0].Longest)
 			assert.Equal(t, 1, fs[0].Length)
 			assert.Equal(t, 1, fs[0].Height)
@@ -331,7 +331,7 @@ func TestMultipleForksAndSwitching(t *testing.T) {
 		if fs, err := storage.parentedForks(); assert.NoError(t, err) {
 			assert.Equal(t, 1, len(fs))
 			assert.Equal(t, 3, len(fs[0].Peers))
-			assert.ElementsMatch(t, []PeerForkInfo{{peer1.Address, 0}, {peer2.Address, 1}, {peer3.Address, 1}}, fs[0].Peers)
+			assert.ElementsMatch(t, []PeerForkInfo{{peer1, 0}, {peer2, 1}, {peer3, 1}}, fs[0].Peers)
 			assert.True(t, fs[0].Longest)
 			assert.Equal(t, 2, fs[0].Length)
 			assert.Equal(t, 2, fs[0].Height)
@@ -343,7 +343,7 @@ func TestMultipleForksAndSwitching(t *testing.T) {
 		if fs, err := storage.parentedForks(); assert.NoError(t, err) {
 			assert.Equal(t, 1, len(fs))
 			assert.Equal(t, 3, len(fs[0].Peers))
-			assert.ElementsMatch(t, []PeerForkInfo{{peer1.Address, 0}, {peer2.Address, 2}, {peer3.Address, 2}}, fs[0].Peers)
+			assert.ElementsMatch(t, []PeerForkInfo{{peer1, 0}, {peer2, 2}, {peer3, 2}}, fs[0].Peers)
 			assert.True(t, fs[0].Longest)
 			assert.Equal(t, 3, fs[0].Length)
 			assert.Equal(t, 3, fs[0].Height)
@@ -355,7 +355,7 @@ func TestMultipleForksAndSwitching(t *testing.T) {
 		if fs, err := storage.parentedForks(); assert.NoError(t, err) {
 			assert.Equal(t, 1, len(fs))
 			assert.Equal(t, 3, len(fs[0].Peers))
-			assert.ElementsMatch(t, []PeerForkInfo{{peer1.Address, 0}, {peer2.Address, 2}, {peer3.Address, 1}}, fs[0].Peers)
+			assert.ElementsMatch(t, []PeerForkInfo{{peer1, 0}, {peer2, 2}, {peer3, 1}}, fs[0].Peers)
 			assert.True(t, fs[0].Longest)
 			assert.Equal(t, 3, fs[0].Length)
 			assert.Equal(t, 3, fs[0].Height)
@@ -367,7 +367,7 @@ func TestMultipleForksAndSwitching(t *testing.T) {
 		if fs, err := storage.parentedForks(); assert.NoError(t, err) {
 			assert.Equal(t, 1, len(fs))
 			assert.Equal(t, 3, len(fs[0].Peers))
-			assert.ElementsMatch(t, []PeerForkInfo{{peer1.Address, 0}, {peer2.Address, 1}, {peer3.Address, 1}}, fs[0].Peers)
+			assert.ElementsMatch(t, []PeerForkInfo{{peer1, 0}, {peer2, 1}, {peer3, 1}}, fs[0].Peers)
 			assert.True(t, fs[0].Longest)
 			assert.Equal(t, 3, fs[0].Length)
 			assert.Equal(t, 3, fs[0].Height)
@@ -380,8 +380,8 @@ func TestMultipleForksAndSwitching(t *testing.T) {
 			assert.Equal(t, 2, len(fs))
 			assert.Equal(t, 2, len(fs[0].Peers))
 			assert.Equal(t, 1, len(fs[1].Peers))
-			assert.ElementsMatch(t, []PeerForkInfo{{peer1.Address, 0}, {peer3.Address, 1}}, fs[0].Peers)
-			assert.ElementsMatch(t, []PeerForkInfo{{peer2.Address, 0}}, fs[1].Peers)
+			assert.ElementsMatch(t, []PeerForkInfo{{peer1, 0}, {peer3, 1}}, fs[0].Peers)
+			assert.ElementsMatch(t, []PeerForkInfo{{peer2, 0}}, fs[1].Peers)
 			assert.True(t, fs[0].Longest)
 			assert.False(t, fs[1].Longest)
 			assert.Equal(t, 3, fs[0].Length)
@@ -399,8 +399,8 @@ func TestMultipleForksAndSwitching(t *testing.T) {
 			assert.Equal(t, 2, len(fs))
 			assert.Equal(t, 2, len(fs[0].Peers))
 			assert.Equal(t, 1, len(fs[1].Peers))
-			assert.ElementsMatch(t, []PeerForkInfo{{peer1.Address, 0}, {peer3.Address, 2}}, fs[0].Peers)
-			assert.ElementsMatch(t, []PeerForkInfo{{peer2.Address, 0}}, fs[1].Peers)
+			assert.ElementsMatch(t, []PeerForkInfo{{peer1, 0}, {peer3, 2}}, fs[0].Peers)
+			assert.ElementsMatch(t, []PeerForkInfo{{peer2, 0}}, fs[1].Peers)
 			assert.True(t, fs[0].Longest)
 			assert.False(t, fs[1].Longest)
 			assert.Equal(t, 4, fs[0].Length)
@@ -419,7 +419,7 @@ func TestMultipleForksAndSwitching(t *testing.T) {
 			assert.Equal(t, 1, len(fs[0].Peers))
 			assert.Equal(t, 1, len(fs[1].Peers))
 			assert.Equal(t, 1, len(fs[2].Peers))
-			assert.ElementsMatch(t, []PeerForkInfo{{peer1.Address, 0}}, fs[0].Peers)
+			assert.ElementsMatch(t, []PeerForkInfo{{peer1, 0}}, fs[0].Peers)
 			assert.True(t, fs[0].Longest)
 			assert.False(t, fs[1].Longest)
 			assert.False(t, fs[2].Longest)
@@ -450,7 +450,7 @@ func TestMultipleForksAndSwitching(t *testing.T) {
 			assert.Equal(t, 1, len(fs[0].Peers))
 			assert.Equal(t, 1, len(fs[1].Peers))
 			assert.Equal(t, 1, len(fs[2].Peers))
-			if fs[0].Peers[0].Peer.Equal(peer3.Address) {
+			if fs[0].Peers[0].Peer.Equal(peer3) {
 				assert.Fail(t, "unexpected peer in longest fork")
 			}
 			assert.True(t, fs[0].Longest)
@@ -475,8 +475,8 @@ func TestMultipleForksAndSwitching(t *testing.T) {
 			assert.Equal(t, 2, len(fs))
 			assert.Equal(t, 2, len(fs[0].Peers))
 			assert.Equal(t, 1, len(fs[1].Peers))
-			assert.ElementsMatch(t, []PeerForkInfo{{peer1.Address, 0}, {peer3.Address, 1}}, fs[0].Peers)
-			assert.ElementsMatch(t, []PeerForkInfo{{peer2.Address, 0}}, fs[1].Peers)
+			assert.ElementsMatch(t, []PeerForkInfo{{peer1, 0}, {peer3, 1}}, fs[0].Peers)
+			assert.ElementsMatch(t, []PeerForkInfo{{peer2, 0}}, fs[1].Peers)
 			assert.True(t, fs[0].Longest)
 			assert.False(t, fs[1].Longest)
 			assert.Equal(t, 4, fs[0].Length)
@@ -494,8 +494,8 @@ func TestMultipleForksAndSwitching(t *testing.T) {
 			assert.Equal(t, 2, len(fs))
 			assert.Equal(t, 2, len(fs[0].Peers))
 			assert.Equal(t, 1, len(fs[1].Peers))
-			assert.ElementsMatch(t, []PeerForkInfo{{peer1.Address, 0}, {peer3.Address, 0}}, fs[0].Peers)
-			assert.ElementsMatch(t, []PeerForkInfo{{peer2.Address, 0}}, fs[1].Peers)
+			assert.ElementsMatch(t, []PeerForkInfo{{peer1, 0}, {peer3, 0}}, fs[0].Peers)
+			assert.ElementsMatch(t, []PeerForkInfo{{peer2, 0}}, fs[1].Peers)
 			assert.True(t, fs[0].Longest)
 			assert.False(t, fs[1].Longest)
 			assert.Equal(t, 4, fs[0].Length)
@@ -513,8 +513,8 @@ func TestMultipleForksAndSwitching(t *testing.T) {
 			assert.Equal(t, 2, len(fs))
 			assert.Equal(t, 2, len(fs[0].Peers))
 			assert.Equal(t, 1, len(fs[1].Peers))
-			assert.ElementsMatch(t, []PeerForkInfo{{peer1.Address, 0}, {peer3.Address, 1}}, fs[0].Peers)
-			assert.ElementsMatch(t, []PeerForkInfo{{peer2.Address, 0}}, fs[1].Peers)
+			assert.ElementsMatch(t, []PeerForkInfo{{peer1, 0}, {peer3, 1}}, fs[0].Peers)
+			assert.ElementsMatch(t, []PeerForkInfo{{peer2, 0}}, fs[1].Peers)
 			assert.True(t, fs[0].Longest)
 			assert.False(t, fs[1].Longest)
 			assert.Equal(t, 5, fs[0].Length)
@@ -532,8 +532,8 @@ func TestMultipleForksAndSwitching(t *testing.T) {
 			assert.Equal(t, 2, len(fs))
 			assert.Equal(t, 2, len(fs[0].Peers))
 			assert.Equal(t, 1, len(fs[1].Peers))
-			assert.ElementsMatch(t, []PeerForkInfo{{peer1.Address, 0}, {peer3.Address, 0}}, fs[0].Peers)
-			assert.ElementsMatch(t, []PeerForkInfo{{peer2.Address, 0}}, fs[1].Peers)
+			assert.ElementsMatch(t, []PeerForkInfo{{peer1, 0}, {peer3, 0}}, fs[0].Peers)
+			assert.ElementsMatch(t, []PeerForkInfo{{peer2, 0}}, fs[1].Peers)
 			assert.True(t, fs[0].Longest)
 			assert.False(t, fs[1].Longest)
 			assert.Equal(t, 5, fs[0].Length)

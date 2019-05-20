@@ -15,7 +15,7 @@ import (
 
 const (
 	DefaultRecvBufSize     = 4 << 10          // Default size of the receiving buffer, 4096 bytes.
-	DefaultSendQueueLen    = 1 << 6           // Default length of the sending queue (size of the channel) - 64 packets.
+	DefaultSendQueueLen    = 1 << 7           // Default length of the sending queue (size of the channel) - 64 packets.
 	maxTemporaryErrorDelay = 1 * time.Second  // Maximum value of the temporary error delay.
 	handshakeTimeout       = 30 * time.Second // Duration of timeout on handshake operations.
 	maxPayloadLength       = 2 << 20          // Maximum expected payload length 2MB.
@@ -223,7 +223,6 @@ func (c *Conn) sleepForDelay(d time.Duration, err error) time.Duration {
 func (c *Conn) recvLoop() {
 	reader := newSafeReader(c)
 	defer func() {
-		zap.S().Debugf("[%s] Receive loop terminated", c.RawConn.RemoteAddr())
 		c.wg.Done()
 	}()
 	sizeBuf := make([]byte, sizeLength)
@@ -311,7 +310,6 @@ func (c *Conn) sendBuf(buf []byte) (int, error) {
 
 func (c *Conn) sendLoop() {
 	defer func() {
-		zap.S().Debugf("[%s] Send loop terminated", c.RawConn.RemoteAddr())
 		c.wg.Done()
 	}()
 	for {
@@ -670,7 +668,7 @@ func getBufferFromPool(targetSize int) []byte {
 		buf = bufferPool4K.Get().([]byte)
 	default:
 		itr := bufferPoolBig.Get()
-		if itr != nil {
+		if itr != nil && cap(itr.([]byte)) >= targetSize {
 			buf = itr.([]byte)
 		} else {
 			buf = make([]byte, targetSize)

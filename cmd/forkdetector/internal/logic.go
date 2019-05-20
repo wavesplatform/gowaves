@@ -21,15 +21,21 @@ type ConnHandler struct {
 	nonce         uint64
 	publicAddress proto.HandshakeTCPAddr
 	registry      *Registry
+	readyCh       chan<- readyEvent
+	signaturesCh  chan<- signaturesEvent
+	blockCh       chan<- blockEvent
 }
 
-func NewConnHandler(scheme byte, name string, nonce uint64, addr net.TCPAddr, registry *Registry) *ConnHandler {
+func NewConnHandler(scheme byte, name string, nonce uint64, addr net.TCPAddr, registry *Registry, ready chan<- readyEvent, signatures chan<- signaturesEvent, blocks chan<- blockEvent) *ConnHandler {
 	return &ConnHandler{
 		scheme:        scheme,
 		name:          name,
 		nonce:         nonce,
 		publicAddress: proto.HandshakeTCPAddr(addr),
 		registry:      registry,
+		readyCh:       ready,
+		signaturesCh:  signatures,
+		blockCh:       blocks,
 	}
 }
 
@@ -105,7 +111,6 @@ func (h *ConnHandler) OnConnect(conn *Conn) {
 		return
 	}
 	ver, err := h.registry.SuggestVersion(conn.RawConn.RemoteAddr())
-	zap.S().Debugf("[%s] Trying to handshake with version %s", conn.RawConn.RemoteAddr(), ver.String())
 	if err != nil {
 		zap.S().Errorf("[%s] Failed to suggest the version to handshake with: %v", conn.RawConn.RemoteAddr(), err)
 		conn.Stop(StopImmediately)
@@ -115,6 +120,7 @@ func (h *ConnHandler) OnConnect(conn *Conn) {
 		}
 		return
 	}
+	zap.S().Debugf("[%s] Trying to handshake with version %s", conn.RawConn.RemoteAddr(), ver.String())
 	oh := h.buildHandshake(ver)
 	err = conn.RawConn.SetWriteDeadline(time.Now().Add(handshakeTimeout))
 	if err != nil {
@@ -233,7 +239,7 @@ func (h *ConnHandler) OnReceive(c *Conn, buf []byte) {
 		}
 		score := big.NewInt(0).SetBytes(m.Score)
 		zap.S().Debugf("[%s] Received Score %s", c.RawConn.RemoteAddr(), score.String())
-		//TODO: go h.requestBlockSignatures()
+		h.readyCh <- readyEvent{conn: c}
 	case proto.ContentIDSignatures:
 		var m proto.SignaturesMessage
 		err = m.UnmarshalBinary(buf)
@@ -241,19 +247,7 @@ func (h *ConnHandler) OnReceive(c *Conn, buf []byte) {
 			zap.S().Warnf("[%s] Failed to unmarshal Signatures message: %v", c.RawConn.RemoteAddr(), err)
 			return
 		}
-		zap.S().Debugf("[%s] Received Signatures message with %d block signatures", c.RawConn.RemoteAddr(), len(m.Signatures))
-		//TODO: Process received signatures
-		//err = h.loader.appendSignatures(m.Signatures)
-		//if err != nil {
-		//	zap.S().Warnf("Failed to append signature from '%s': %v", h.conn.RemoteAddr(), err)
-		//	continue
-		//}
-		//if h.loader.hasPending() {
-		//	h.requestBlock(h.loader.pending()[0])
-		//} else {
-		//	zap.S().Infof("No blocks to request from '%s', requesting more signatures...", h.conn.RemoteAddr())
-		//	h.requestBlockSignatures()
-		//}
+		h.signaturesCh <- signaturesEvent{conn: c, signatures: m.Signatures}
 	case proto.ContentIDBlock:
 		var m proto.BlockMessage
 		err = m.UnmarshalBinary(buf)
@@ -268,21 +262,7 @@ func (h *ConnHandler) OnReceive(c *Conn, buf []byte) {
 			zap.S().Warnf("[%s] Failed to unmarshal block: %v", c.RawConn.RemoteAddr(), err)
 			return
 		}
-		//TODO: process received block
-		//appended := h.loader.appendBlock(b)
-		//if !appended {
-		//	zap.S().Debugf("Unrequested block %s from '%s' was dropped", b.BlockSignature.String(), h.conn.RemoteAddr())
-		//	continue
-		//}
-		//if h.loader.hasPending() {
-		//	h.requestBlock(h.loader.pending()[0])
-		//	continue
-		//}
-		//err = h.loader.dump()
-		//if err != nil {
-		//	zap.S().Warnf("Failed to dump blocks received from '%s': %v", h.conn.RemoteAddr(), err)
-		//}
-		//go h.requestBlockSignatures()
+		h.blockCh <- blockEvent{conn: c, block: b}
 	}
 }
 

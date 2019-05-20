@@ -86,7 +86,14 @@ func run() error {
 		return nil
 	}
 
-	h := internal.NewConnHandler(cfg.scheme, cfg.name, cfg.nonce, cfg.publicAddress, reg)
+	loader, err := internal.NewLoader(interrupt, storage)
+	if err != nil {
+		zap.S().Errorf("Failed to instantiate loader: %v", err)
+		return err
+	}
+	loaderDone := loader.Start()
+
+	h := internal.NewConnHandler(cfg.scheme, cfg.name, cfg.nonce, cfg.publicAddress, reg, loader.Ready(), loader.Signatures(), loader.Blocks())
 	opts := internal.NewOptions(h)
 	opts.ReadDeadline = time.Minute
 	opts.WriteDeadline = time.Minute
@@ -100,6 +107,8 @@ func run() error {
 	zap.S().Debug("API shutdown complete")
 	<-dispatcherDone
 	zap.S().Debug("Dispatcher shutdown complete")
+	<-loaderDone
+	zap.S().Debugf("Loader shutdown complete")
 
 	return nil
 }
