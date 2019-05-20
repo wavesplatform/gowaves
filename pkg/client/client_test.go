@@ -73,4 +73,8 @@ func TestJoinUrl(t *testing.T) {
 	url, err := joinUrl("https://wavesplatform.com", "path")
 	require.NoError(t, err)
 	assert.Equal(t, "https://wavesplatform.com/path", url.String())
+
+	url, err = joinUrl("https://clinton.vostokservices.com/node-0", "/consensus/basetarget")
+	require.NoError(t, err)
+	assert.Equal(t, "https://clinton.vostokservices.com/node-0/consensus/basetarget", url.String())
 }

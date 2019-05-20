@@ -1,13 +1,15 @@
 package client
 
 import (
+	"github.com/pkg/errors"
+
 	"context"
 	"encoding/json"
-	"github.com/pkg/errors"
 	"io"
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"path"
 	"time"
 )
 
@@ -155,15 +157,23 @@ func doHttp(ctx context.Context, options Options, req *http.Request, v interface
 }
 
 func joinUrl(baseRaw string, pathRaw string) (*url.URL, error) {
-	base, err := url.Parse(baseRaw)
+	baseUrl, err := url.Parse(baseRaw)
 	if err != nil {
 		return nil, err
 	}
 
-	path, err := url.Parse(pathRaw)
+	pathUrl, err := url.Parse(pathRaw)
 	if err != nil {
 		return nil, err
 	}
 
-	return base.ResolveReference(path), nil
+	baseUrl.Path = path.Join(baseUrl.Path, pathUrl.Path)
+
+	query := baseUrl.Query()
+	for k := range pathUrl.Query() {
+		query.Set(k, pathUrl.Query().Get(k))
+	}
+	baseUrl.RawQuery = query.Encode()
+
+	return baseUrl, nil
 }
