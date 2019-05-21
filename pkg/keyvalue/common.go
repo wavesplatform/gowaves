@@ -1,5 +1,11 @@
 package keyvalue
 
+import (
+	"github.com/pkg/errors"
+)
+
+var ErrNotFound = errors.New("not found")
+
 type KeyValue interface {
 	NewBatch() (Batch, error)
 	Has(key []byte) (bool, error)

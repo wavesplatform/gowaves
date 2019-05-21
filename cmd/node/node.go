@@ -45,7 +45,7 @@ func main() {
 	var cli Cli
 	kong.Parse(&cli)
 
-	state, err := state.NewState("./", state.DefaultBlockStorageParams(), settings.MainNetSettings)
+	state, err := state.NewState("./", state.DefaultStateParams(), settings.MainNetSettings)
 	if err != nil {
 		zap.S().Error(err)
 		cancel()

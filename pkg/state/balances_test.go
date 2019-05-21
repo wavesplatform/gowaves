@@ -26,44 +26,35 @@ var (
 	blockID1 = genBlockID(1)
 )
 
-type mockBlockInfo struct {
+func addBlock(t *testing.T, db *stateDB, rb *recentBlocks, blockID crypto.Signature) {
+	err := rb.addNewBlockID(blockID)
+	assert.NoError(t, err, "rb.addNewBlockID() failed")
+	err = db.addBlock(blockID)
+	assert.NoError(t, err, "stateDB.addBlock() failed")
 }
 
-func (m *mockBlockInfo) IsValidBlock(blockID crypto.Signature) (bool, error) {
-	return true, nil
+type balancesTestObjects struct {
+	balances *balances
+	stateDB  *stateDB
 }
 
-type mockHeightInfo struct {
-	rw *blockReadWriter
+func flushBalances(t *testing.T, to *balancesTestObjects) {
+	to.balances.rb.flush()
+	err := to.balances.flush(false)
+	assert.NoError(t, err, "balances.flush() failed")
+	to.balances.reset()
+	err = to.stateDB.flush()
+	assert.NoError(t, err, "stateDB.flush() failed")
+	to.stateDB.reset()
 }
 
-func (m *mockHeightInfo) Height() (uint64, error) {
-	height, err := m.rw.currentHeight()
-	if err != nil {
-		return 0, err
-	}
-	return height, nil
-}
-
-func (m *mockHeightInfo) BlockIDToHeight(blockID crypto.Signature) (uint64, error) {
-	return m.rw.heightByBlockID(blockID)
-}
-
-func (m *mockHeightInfo) NewBlockIDToHeight(blockID crypto.Signature) (uint64, error) {
-	return m.rw.heightByNewBlockID(blockID)
-}
-
-func (m *mockHeightInfo) RollbackMax() uint64 {
-	return rollbackMaxBlocks
-}
-
-func createBalances(rw *blockReadWriter) (*balances, []string, error) {
-	res := make([]string, 1)
+func createBalances() (*balancesTestObjects, []string, error) {
 	dbDir0, err := ioutil.TempDir(os.TempDir(), "dbDir0")
 	if err != nil {
-		return nil, res, err
+		return nil, nil, err
 	}
-	db, err := keyvalue.NewKeyVal(dbDir0)
+	res := []string{dbDir0}
+	db, err := keyvalue.NewKeyVal(dbDir0, defaultTestBloomFilterParams())
 	if err != nil {
 		return nil, res, err
 	}
@@ -71,12 +62,19 @@ func createBalances(rw *blockReadWriter) (*balances, []string, error) {
 	if err != nil {
 		return nil, res, err
 	}
-	stor, err := newBalances(db, dbBatch, &mockHeightInfo{rw: rw}, &mockBlockInfo{})
+	stateDB, err := newStateDB(db, dbBatch)
 	if err != nil {
 		return nil, res, err
 	}
-	res = []string{dbDir0}
-	return stor, res, nil
+	rb, err := newRecentBlocks(rollbackMaxBlocks, nil)
+	if err != nil {
+		return nil, res, err
+	}
+	balances, err := newBalances(db, dbBatch, stateDB, rb)
+	if err != nil {
+		return nil, res, err
+	}
+	return &balancesTestObjects{balances, stateDB}, res, nil
 }
 
 func genAsset(fillWith byte) []byte {
@@ -103,49 +101,19 @@ func genBlockID(fillWith byte) crypto.Signature {
 	return blockID
 }
 
-func flush(t *testing.T, stor *balances, rw *blockReadWriter) {
-	if err := rw.flush(); err != nil {
-		t.Fatalf("rw.flush(): %v\n", err)
-	}
-	rw.reset()
-	if err := rw.db.Flush(rw.dbBatch); err != nil {
-		t.Fatalf("db.Flush(): %v\n", err)
-	}
-	if err := stor.flush(); err != nil {
-		t.Fatalf("flush(): %v\n", err)
-	}
-	stor.reset()
-	if err := stor.db.Flush(stor.dbBatch); err != nil {
-		t.Fatalf("db.Flush(): %v\n", err)
-	}
-}
-
-func addBlock(t *testing.T, rw *blockReadWriter, blockID crypto.Signature) {
-	if err := rw.startBlock(blockID); err != nil {
-		t.Fatalf("startBlock(): %v\n", err)
-	}
-	if err := rw.finishBlock(blockID); err != nil {
-		t.Fatalf("finishBlock(): %v\n", err)
-	}
-}
-
 func TestCancelAllLeases(t *testing.T) {
-	rw, path0, err := createBlockReadWriter(8, 8)
-	assert.NoError(t, err, "createBlockReadWriter() failed")
-	stor, path1, err := createBalances(rw)
+	to, path, err := createBalances()
 	assert.NoError(t, err, "createBalances() failed")
 
 	defer func() {
-		err := rw.db.Close()
-		assert.NoError(t, err, "failed to close rw DB")
-		err = stor.db.Close()
-		assert.NoError(t, err, "failed to close balances DB")
-		err = util.CleanTemporaryDirs(append(path0, path1...))
+		err = to.stateDB.close()
+		assert.NoError(t, err, "failed to close DB")
+		err = util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
-	addBlock(t, rw, blockID0)
-	addBlock(t, rw, blockID1)
+	addBlock(t, to.stateDB, to.balances.rb, blockID0)
+	addBlock(t, to.stateDB, to.balances.rb, blockID1)
 	tests := []struct {
 		addr   proto.Address
 		record wavesBalanceRecord
@@ -156,15 +124,15 @@ func TestCancelAllLeases(t *testing.T) {
 		{genAddr(4), wavesBalanceRecord{balanceProfile{10, 5, 3}, blockID1}},
 	}
 	for _, tc := range tests {
-		err = stor.setWavesBalance(tc.addr, &tc.record)
+		err = to.balances.setWavesBalance(tc.addr, &tc.record)
 		assert.NoError(t, err, "setWavesBalance() failed")
 	}
-	flush(t, stor, rw)
-	err = stor.cancelAllLeases()
+	flushBalances(t, to)
+	err = to.balances.cancelAllLeases()
 	assert.NoError(t, err, "cancelAllLeases() failed")
-	flush(t, stor, rw)
+	flushBalances(t, to)
 	for _, tc := range tests {
-		profile, err := stor.wavesBalance(tc.addr)
+		profile, err := to.balances.wavesBalance(tc.addr, true)
 		assert.NoError(t, err, "wavesBalance() failed")
 		assert.Equal(t, profile.balance, tc.record.balance)
 		assert.Equal(t, profile.leaseIn, int64(0))
@@ -173,22 +141,18 @@ func TestCancelAllLeases(t *testing.T) {
 }
 
 func TestCancelLeaseOverflows(t *testing.T) {
-	rw, path0, err := createBlockReadWriter(8, 8)
-	assert.NoError(t, err, "createBlockReadWriter() failed")
-	stor, path1, err := createBalances(rw)
+	to, path, err := createBalances()
 	assert.NoError(t, err, "createBalances() failed")
 
 	defer func() {
-		err := rw.db.Close()
-		assert.NoError(t, err, "failed to close rw DB")
-		err = stor.db.Close()
-		assert.NoError(t, err, "failed to close balances DB")
-		err = util.CleanTemporaryDirs(append(path0, path1...))
+		err = to.stateDB.close()
+		assert.NoError(t, err, "failed to close DB")
+		err = util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
-	addBlock(t, rw, blockID0)
-	addBlock(t, rw, blockID1)
+	addBlock(t, to.stateDB, to.balances.rb, blockID0)
+	addBlock(t, to.stateDB, to.balances.rb, blockID1)
 	tests := []struct {
 		addr   string
 		record wavesBalanceRecord
@@ -201,18 +165,18 @@ func TestCancelLeaseOverflows(t *testing.T) {
 	for _, tc := range tests {
 		addr, err := proto.NewAddressFromString(tc.addr)
 		assert.NoError(t, err, "NewAddressFromString() failed")
-		err = stor.setWavesBalance(addr, &tc.record)
+		err = to.balances.setWavesBalance(addr, &tc.record)
 		assert.NoError(t, err, "setWavesBalance() failed")
 	}
-	flush(t, stor, rw)
-	overflows, err := stor.cancelLeaseOverflows()
+	flushBalances(t, to)
+	overflows, err := to.balances.cancelLeaseOverflows()
 	assert.NoError(t, err, "cancelLeaseOverflows() failed")
-	flush(t, stor, rw)
+	flushBalances(t, to)
 	overflowsCount := 0
 	for _, tc := range tests {
 		addr, err := proto.NewAddressFromString(tc.addr)
 		assert.NoError(t, err, "NewAddressFromString() failed")
-		profile, err := stor.wavesBalance(addr)
+		profile, err := to.balances.wavesBalance(addr, true)
 		assert.NoError(t, err, "wavesBalance() failed")
 		assert.Equal(t, profile.balance, tc.record.balance)
 		assert.Equal(t, profile.leaseIn, tc.record.leaseIn)
@@ -230,22 +194,18 @@ func TestCancelLeaseOverflows(t *testing.T) {
 }
 
 func TestCancelInvalidLeaseIns(t *testing.T) {
-	rw, path0, err := createBlockReadWriter(8, 8)
-	assert.NoError(t, err, "createBlockReadWriter() failed")
-	stor, path1, err := createBalances(rw)
+	to, path, err := createBalances()
 	assert.NoError(t, err, "createBalances() failed")
 
 	defer func() {
-		err := rw.db.Close()
-		assert.NoError(t, err, "failed to close rw DB")
-		err = stor.db.Close()
-		assert.NoError(t, err, "failed to close balances DB")
-		err = util.CleanTemporaryDirs(append(path0, path1...))
+		err = to.stateDB.close()
+		assert.NoError(t, err, "failed to close DB")
+		err = util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
-	addBlock(t, rw, blockID0)
-	addBlock(t, rw, blockID1)
+	addBlock(t, to.stateDB, to.balances.rb, blockID0)
+	addBlock(t, to.stateDB, to.balances.rb, blockID1)
 	tests := []struct {
 		addr         string
 		record       wavesBalanceRecord
@@ -260,18 +220,18 @@ func TestCancelInvalidLeaseIns(t *testing.T) {
 	for _, tc := range tests {
 		addr, err := proto.NewAddressFromString(tc.addr)
 		assert.NoError(t, err, "NewAddressFromString() failed")
-		err = stor.setWavesBalance(addr, &tc.record)
+		err = to.balances.setWavesBalance(addr, &tc.record)
 		assert.NoError(t, err, "setWavesBalance() failed")
 		leaseIns[addr] = tc.validLeaseIn
 	}
-	flush(t, stor, rw)
-	err = stor.cancelInvalidLeaseIns(leaseIns)
+	flushBalances(t, to)
+	err = to.balances.cancelInvalidLeaseIns(leaseIns)
 	assert.NoError(t, err, "cancelInvalidLeaseIns() failed")
-	flush(t, stor, rw)
+	flushBalances(t, to)
 	for _, tc := range tests {
 		addr, err := proto.NewAddressFromString(tc.addr)
 		assert.NoError(t, err, "NewAddressFromString() failed")
-		profile, err := stor.wavesBalance(addr)
+		profile, err := to.balances.wavesBalance(addr, true)
 		assert.NoError(t, err, "wavesBalance() failed")
 		assert.Equal(t, profile.balance, tc.record.balance)
 		assert.Equal(t, profile.leaseIn, tc.validLeaseIn)
@@ -280,77 +240,55 @@ func TestCancelInvalidLeaseIns(t *testing.T) {
 }
 
 func TestMinBalanceInRange(t *testing.T) {
-	rw, path0, err := createBlockReadWriter(8, 8)
-	if err != nil {
-		t.Fatalf("createBlockReadWriter(): %v\n", err)
-	}
-	stor, path1, err := createBalances(rw)
-	if err != nil {
-		t.Fatalf("Can not create balances: %v\n", err)
-	}
+	to, path, err := createBalances()
+	assert.NoError(t, err, "createBalances() failed")
 
 	defer func() {
-		if err := rw.db.Close(); err != nil {
-			t.Fatalf("Failed to close DB: %v", err)
-		}
-		if err := stor.db.Close(); err != nil {
-			t.Fatalf("Failed to close DB: %v", err)
-		}
-		if err := util.CleanTemporaryDirs(append(path0, path1...)); err != nil {
-			t.Fatalf("Failed to clean test data dirs: %v", err)
-		}
+		err = to.stateDB.close()
+		assert.NoError(t, err, "failed to close DB")
+		err = util.CleanTemporaryDirs(path)
+		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
 	addr := genAddr(1)
-	for i := 1; i < totalBlocksNumber; i++ {
+	for i := 0; i < totalBlocksNumber; i++ {
 		blockID := genBlockID(byte(i))
-		addBlock(t, rw, blockID)
+		addBlock(t, to.stateDB, to.balances.rb, blockID)
 		r := &wavesBalanceRecord{balanceProfile{uint64(i), 0, 0}, blockID}
-		if err := stor.setWavesBalance(addr, r); err != nil {
+		if err := to.balances.setWavesBalance(addr, r); err != nil {
 			t.Fatalf("Faied to set waves balance: %v\n", err)
 		}
 	}
-	flush(t, stor, rw)
-	minBalance, err := stor.minEffectiveBalanceInRange(addr, 1, totalBlocksNumber)
+	flushBalances(t, to)
+	minBalance, err := to.balances.minEffectiveBalanceInRange(addr, 0, totalBlocksNumber)
 	if err != nil {
-		t.Fatalf("minBalanceInRange(): %v\n", err)
+		t.Fatalf("minEffectiveBalanceInRange(): %v\n", err)
 	}
-	if minBalance != 1 {
-		t.Errorf("Invalid minimum balance in range: need %d, got %d.", 1, minBalance)
+	if minBalance != 0 {
+		t.Errorf("Invalid minimum balance in range: need %d, got %d.", 0, minBalance)
 	}
-	minBalance, err = stor.minEffectiveBalanceInRange(addr, 100, 150)
+	minBalance, err = to.balances.minEffectiveBalanceInRange(addr, 99, 150)
 	if err != nil {
-		t.Fatalf("minBalanceInRange(): %v\n", err)
+		t.Fatalf("minEffectiveBalanceInRange(): %v\n", err)
 	}
-	if minBalance != 100 {
-		t.Errorf("Invalid minimum balance in range: need %d, got %d.", 100, minBalance)
+	if minBalance != 99 {
+		t.Errorf("Invalid minimum balance in range: need %d, got %d.", 99, minBalance)
 	}
 }
 
 func TestBalances(t *testing.T) {
-	rw, path0, err := createBlockReadWriter(8, 8)
-	if err != nil {
-		t.Fatalf("createBlockReadWriter(): %v\n", err)
-	}
-	stor, path1, err := createBalances(rw)
-	if err != nil {
-		t.Fatalf("Can not create balances: %v\n", err)
-	}
+	to, path, err := createBalances()
+	assert.NoError(t, err, "createBalances() failed")
 
 	defer func() {
-		if err := rw.db.Close(); err != nil {
-			t.Fatalf("Failed to close DB: %v", err)
-		}
-		if err := stor.db.Close(); err != nil {
-			t.Fatalf("Failed to close DB: %v", err)
-		}
-		if err := util.CleanTemporaryDirs(append(path0, path1...)); err != nil {
-			t.Fatalf("Failed to clean test data dirs: %v", err)
-		}
+		err = to.stateDB.close()
+		assert.NoError(t, err, "failed to close DB")
+		err = util.CleanTemporaryDirs(path)
+		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
-	addBlock(t, rw, blockID0)
-	addBlock(t, rw, blockID1)
+	addBlock(t, to.stateDB, to.balances.rb, blockID0)
+	addBlock(t, to.stateDB, to.balances.rb, blockID1)
 	wavesTests := []struct {
 		addr   proto.Address
 		record wavesBalanceRecord
@@ -361,11 +299,11 @@ func TestBalances(t *testing.T) {
 		{genAddr(1), wavesBalanceRecord{balanceProfile{10, 5, 3}, blockID1}},
 	}
 	for _, tc := range wavesTests {
-		if err := stor.setWavesBalance(tc.addr, &tc.record); err != nil {
+		if err := to.balances.setWavesBalance(tc.addr, &tc.record); err != nil {
 			t.Fatalf("Faied to set waves balance:%v\n", err)
 		}
-		flush(t, stor, rw)
-		profile, err := stor.wavesBalance(tc.addr)
+		flushBalances(t, to)
+		profile, err := to.balances.wavesBalance(tc.addr, true)
 		if err != nil {
 			t.Fatalf("Failed to retrieve waves balance: %v\n", err)
 		}
@@ -384,11 +322,11 @@ func TestBalances(t *testing.T) {
 		{genAddr(1), genAsset(1), assetBalanceRecord{10, blockID1}},
 	}
 	for _, tc := range assetTests {
-		if err := stor.setAssetBalance(tc.addr, tc.assetID, &tc.record); err != nil {
+		if err := to.balances.setAssetBalance(tc.addr, tc.assetID, &tc.record); err != nil {
 			t.Fatalf("Faied to set asset balance:%v\n", err)
 		}
-		flush(t, stor, rw)
-		balance, err := stor.assetBalance(tc.addr, tc.assetID)
+		flushBalances(t, to)
+		balance, err := to.balances.assetBalance(tc.addr, tc.assetID, true)
 		if err != nil {
 			t.Fatalf("Failed to retrieve asset balance: %v\n", err)
 		}

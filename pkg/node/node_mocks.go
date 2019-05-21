@@ -24,6 +24,14 @@ func (a *MockStateManager) BlockByHeight(height uint64) (*proto.Block, error) {
 	panic("implement me")
 }
 
+func (a *MockStateManager) Header(block crypto.Signature) (*proto.BlockHeader, error) {
+	panic("implement me")
+}
+
+func (a *MockStateManager) HeaderByHeight(height uint64) (*proto.BlockHeader, error) {
+	panic("implement me")
+}
+
 func (a *MockStateManager) Height() (uint64, error) {
 	panic("implement me")
 }
@@ -69,6 +77,22 @@ func (a *MockStateManager) ScoreAtHeight(height uint64) (*big.Int, error) {
 }
 
 func (a *MockStateManager) CurrentScore() (*big.Int, error) {
+	panic("implement me")
+}
+
+func (a *MockStateManager) EffectiveBalance(addr proto.Address, startHeigth, endHeight uint64) (uint64, error) {
+	panic("implement me")
+}
+
+func (a *MockStateManager) ValidateSingleTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64) error {
+	panic("implement me")
+}
+
+func (a *MockStateManager) ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64) error {
+	panic("implement me")
+}
+
+func (a *MockStateManager) ResetValidationList() {
 	panic("implement me")
 }
 

@@ -68,7 +68,7 @@ func spoilBlockVersion(block *proto.Block) {
 }
 
 func TestHeadersValidation(t *testing.T) {
-	blocks, err := readRealBlocks(t, blocksNumber)
+	blocks, err := readRealBlocks(t, blocksPath(t), blocksNumber)
 	if err != nil {
 		t.Fatalf("Can not read blocks from blockchain file: %v\n", err)
 	}
@@ -76,7 +76,7 @@ func TestHeadersValidation(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temp dir for data: %v\n", err)
 	}
-	st, err := NewState(dataDir, DefaultBlockStorageParams(), settings.MainNetSettings)
+	st, err := NewState(dataDir, DefaultStateParams(), settings.MainNetSettings)
 	if err != nil {
 		t.Fatalf("NewState(): %v\n", err)
 	}

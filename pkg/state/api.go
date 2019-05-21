@@ -2,8 +2,10 @@ package state
 
 import (
 	"math/big"
+	"runtime"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 )
@@ -15,6 +17,8 @@ const (
 	DeserializationError StateErrorType = iota + 1
 	TxValidationError
 	BlockValidationError
+	// Either block or tx.
+	ValidationError
 	RollbackError
 	// Errors occurring while getting data from database.
 	RetrievalError
@@ -52,6 +56,9 @@ type State interface {
 	// Block getters.
 	Block(blockID crypto.Signature) (*proto.Block, error)
 	BlockByHeight(height uint64) (*proto.Block, error)
+	// Header getters.
+	Header(blockID crypto.Signature) (*proto.BlockHeader, error)
+	HeaderByHeight(height uint64) (*proto.BlockHeader, error)
 	// Height returns current blockchain height.
 	Height() (uint64, error)
 	// Height <---> blockID converters.
@@ -72,6 +79,7 @@ type State interface {
 	AddNewBlocks(blocks [][]byte) error
 	// AddOldBlocks adds batch of old blocks to state.
 	// Use it when importing historical blockchain.
+	// It is faster than AddNewBlocks but it is only safe when importing from scratch when no rollbacks are possible at all.
 	AddOldBlocks(blocks [][]byte) error
 	// Rollback functionality.
 	RollbackToHeight(height uint64) error
@@ -82,6 +90,26 @@ type State interface {
 	CurrentScore() (*big.Int, error)
 	// Retrieve current blockchain settings.
 	BlockchainSettings() (*settings.BlockchainSettings, error)
+	// Effective balance by address in given height range.
+	// WARNING: this function takes into account newest blocks (which are currently being added)
+	// and works correctly for height ranges exceeding current Height() if there are such blocks.
+	// It does not work for heights older than rollbackMax blocks before the current block.
+	EffectiveBalance(addr proto.Address, startHeight, endHeight uint64) (uint64, error)
+
+	// -------------------------
+	// Validation functionality.
+	// -------------------------
+	// ValidateSingleTx() validates single transaction against current state.
+	// It does not change state. When validating, it does not take into account previous transactions that were validated.
+	// Returns TxValidationError or nil.
+	ValidateSingleTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64) error
+	// ValidateNextTx() validates transaction against state, taking into account all the previous changes from transactions
+	// that were added using ValidateNextTx() until you call ResetValidationList().
+	// Does not change state.
+	// Returns TxValidationError or nil.
+	ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64) error
+	// ResetValidationList() resets the validation list, so you can ValidateNextTx() from scratch after calling it.
+	ResetValidationList()
 
 	// Create or replace Peers.
 	SavePeers([]proto.TCPAddr) error
@@ -93,17 +121,35 @@ type State interface {
 // NewState() creates State.
 // dataDir is path to directory to store all data, it's also possible to provide folder with existing data,
 // and state will try to sync and use it in this case.
-// params are block storage parameters, they specify lengths of byte offsets for headers and transactions.
-// Use state.DefaultBlockStorageParams() to create default parameters.
-// Settings are blockchain settings (settings.MainNetSettings, settings.TestNetSettings or custom settings).
-func NewState(dataDir string, params BlockStorageParams, settings *settings.BlockchainSettings) (State, error) {
+// params are state parameters (see below).
+// settings are blockchain settings (settings.MainNetSettings, settings.TestNetSettings or custom settings).
+func NewState(dataDir string, params StateParams, settings *settings.BlockchainSettings) (State, error) {
 	return newStateManager(dataDir, params, settings)
 }
 
-type BlockStorageParams struct {
+// StorageParams are storage parameters, they specify lengths of byte offsets for headers and transactions
+// and Bloom Filter's parameters.
+// Use state.DefaultStorageParams() to create default parameters.
+type StorageParams struct {
 	OffsetLen, HeaderOffsetLen int
+	BloomParams                keyvalue.BloomFilterParams
 }
 
-func DefaultBlockStorageParams() BlockStorageParams {
-	return BlockStorageParams{OffsetLen: 8, HeaderOffsetLen: 8}
+func DefaultStorageParams() StorageParams {
+	return StorageParams{OffsetLen: 8, HeaderOffsetLen: 8, BloomParams: keyvalue.BloomFilterParams{N: 2e8, FalsePositiveProbability: 0.01}}
+}
+
+// ValidationParams are validation parameters.
+// VerificationGoroutinesNum specifies how many goroutines will be run for verification of transactions and blocks signatures.
+type ValidationParams struct {
+	VerificationGoroutinesNum int
+}
+
+type StateParams struct {
+	StorageParams
+	ValidationParams
+}
+
+func DefaultStateParams() StateParams {
+	return StateParams{DefaultStorageParams(), ValidationParams{runtime.NumCPU() * 2}}
 }

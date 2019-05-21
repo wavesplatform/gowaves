@@ -17,12 +17,13 @@ import (
 )
 
 var (
-	genesisCfgPath = flag.String("genesis-cfg-path", "", "Path to genesis JSON config for custom blockchains.")
-	blockchainType = flag.String("blockchain-type", "mainnet", "Blockchain type: mainnet/testnet/custom.")
-	blockchainPath = flag.String("blockchain-path", "", "Path to binary blockchain file.")
-	balancesPath   = flag.String("balances-path", "", "Path to JSON with correct balances after applying blocks.")
-	dataDirPath    = flag.String("data-path", "", "Path to directory with previously created state.")
-	nBlocks        = flag.Int("blocks-number", 1000, "Number of blocks to import.")
+	genesisCfgPath            = flag.String("genesis-cfg-path", "", "Path to genesis JSON config for custom blockchains.")
+	blockchainType            = flag.String("blockchain-type", "mainnet", "Blockchain type: mainnet/testnet/custom.")
+	blockchainPath            = flag.String("blockchain-path", "", "Path to binary blockchain file.")
+	balancesPath              = flag.String("balances-path", "", "Path to JSON with correct balances after applying blocks.")
+	dataDirPath               = flag.String("data-path", "", "Path to directory with previously created state.")
+	nBlocks                   = flag.Int("blocks-number", 1000, "Number of blocks to import.")
+	verificationGoroutinesNum = flag.Int("verification-goroutines-num", runtime.NumCPU()*2, " Number of goroutines that will be run for verification of transactions/blocks signatures.")
 	// Debug.
 	cpuProfilePath = flag.String("cpuprofile", "", "Write cpu pofile to this file.")
 	memProfilePath = flag.String("memprofile", "", "Write memory pofile to this file.")
@@ -75,13 +76,15 @@ func main() {
 		}
 		dataDir = tempDir
 	}
-	state, err := state.NewState(dataDir, state.DefaultBlockStorageParams(), ss)
+	params := state.DefaultStateParams()
+	params.VerificationGoroutinesNum = *verificationGoroutinesNum
+	st, err := state.NewState(dataDir, params, ss)
 	if err != nil {
 		log.Fatalf("Failed to create state: %v.\n", err)
 	}
 
 	defer func() {
-		if err := state.Close(); err != nil {
+		if err := st.Close(); err != nil {
 			log.Fatalf("Failed to close State: %v\n", err)
 		}
 		if *dataDirPath == "" {
@@ -91,13 +94,13 @@ func main() {
 		}
 	}()
 
-	height, err := state.Height()
+	height, err := st.Height()
 	if err != nil {
 		log.Fatalf("Failed to get current height: %v\n", err)
 	}
 	start := time.Now()
-	if err := importer.ApplyFromFile(state, *blockchainPath, uint64(*nBlocks), height); err != nil {
-		height, err1 := state.Height()
+	if err := importer.ApplyFromFile(st, *blockchainPath, uint64(*nBlocks), height, true); err != nil {
+		height, err1 := st.Height()
 		if err1 != nil {
 			log.Fatalf("Failed to get current height: %v\n", err1)
 		}
@@ -106,7 +109,7 @@ func main() {
 	elapsed := time.Since(start)
 	fmt.Printf("Import took %s\n", elapsed)
 	if len(*balancesPath) != 0 {
-		if err := importer.CheckBalances(state, *balancesPath); err != nil {
+		if err := importer.CheckBalances(st, *balancesPath); err != nil {
 			log.Fatalf("CheckBalances(): %v\n", err)
 		}
 	}

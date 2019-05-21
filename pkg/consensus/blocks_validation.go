@@ -23,7 +23,7 @@ const (
 
 type stateInfoProvider interface {
 	BlockchainSettings() (*settings.BlockchainSettings, error)
-	BlockByHeight(height uint64) (*proto.Block, error)
+	HeaderByHeight(height uint64) (*proto.BlockHeader, error)
 	EffectiveBalance(addr proto.Address, startHeight, endHeight uint64) (uint64, error)
 }
 
@@ -45,11 +45,7 @@ func NewConsensusValidator(state stateInfoProvider) (*ConsensusValidator, error)
 
 func (cv *ConsensusValidator) headerByHeight(height uint64) (*proto.BlockHeader, error) {
 	if height <= cv.startHeight {
-		block, err := cv.state.BlockByHeight(height)
-		if err != nil {
-			return nil, err
-		}
-		return &block.BlockHeader, nil
+		return cv.state.HeaderByHeight(height)
 	}
 	return &cv.headers[height-cv.startHeight-1], nil
 }
