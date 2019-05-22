@@ -93,7 +93,7 @@ func run() error {
 	}
 	loaderDone := loader.Start()
 
-	h := internal.NewConnHandler(cfg.scheme, cfg.name, cfg.nonce, cfg.publicAddress, reg, loader.Ready(), loader.Signatures(), loader.Blocks())
+	h := internal.NewConnHandler(cfg.scheme, cfg.name, cfg.nonce, cfg.publicAddress, reg, loader.NewConnections(), loader.ClosedConnections(), loader.Score(), loader.Signatures(), loader.Blocks())
 	opts := internal.NewOptions(h)
 	opts.ReadDeadline = time.Minute
 	opts.WriteDeadline = time.Minute

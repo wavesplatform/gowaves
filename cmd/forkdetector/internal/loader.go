@@ -6,9 +6,11 @@ import (
 	"github.com/seiflotfy/cuckoofilter"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"go.uber.org/atomic"
 	"go.uber.org/zap"
 	"net"
 	"strings"
+	"sync"
 )
 
 const (
@@ -16,10 +18,6 @@ const (
 	defaultCapacity = 10 * million
 	signaturesCount = 100
 )
-
-type readyEvent struct {
-	conn *Conn
-}
 
 type signaturesEvent struct {
 	conn       *Conn
@@ -36,17 +34,218 @@ type blockRequest struct {
 	signature crypto.Signature
 }
 
+type blocksCache struct {
+	mu    sync.Mutex
+	cache *cuckoo.Filter
+}
+
+func newBlocksCache(signatures []crypto.Signature) *blocksCache {
+	f := cuckoo.NewFilter(defaultCapacity)
+	for _, s := range signatures {
+		f.InsertUnique(s[:])
+	}
+	zap.S().Debugf("Loaded %d existing blocks signatures", f.Count())
+	return &blocksCache{cache: f}
+}
+
+func (c *blocksCache) put(signature crypto.Signature) bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.cache.InsertUnique(signature[:])
+}
+
+func (c *blocksCache) contain(signature crypto.Signature) bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.cache.Lookup(signature[:])
+}
+
+type signaturesSynchronizer struct {
+	wg               *sync.WaitGroup
+	storage          *storage
+	cache            *blocksCache
+	requestBlocksCh  chan<- signaturesEvent
+	conn             *Conn
+	addr             net.IP
+	pending          []crypto.Signature
+	working          *atomic.Bool
+	scoreCh          chan struct{}
+	signaturesCh     chan []crypto.Signature
+	receivedBlocksCh chan crypto.Signature
+}
+
+func newSignaturesSynchronizer(wg *sync.WaitGroup, storage *storage, cache *blocksCache, blocks chan<- signaturesEvent, conn *Conn) *signaturesSynchronizer {
+	return &signaturesSynchronizer{
+		wg:               wg,
+		storage:          storage,
+		cache:            cache,
+		requestBlocksCh:  blocks,
+		conn:             conn,
+		addr:             extractIPAddress(conn.RawConn.RemoteAddr()),
+		working:          atomic.NewBool(false),
+		scoreCh:          make(chan struct{}),
+		signaturesCh:     make(chan []crypto.Signature),
+		receivedBlocksCh: make(chan crypto.Signature),
+	}
+}
+
+func (s *signaturesSynchronizer) start() {
+	defer s.wg.Done()
+	s.working.Store(true)
+	go func() {
+		for s.working.Load() {
+			select {
+			case <-s.scoreCh:
+				s.requestSignatures()
+
+			case signatures := <-s.signaturesCh:
+				unheard := skip(signatures, s.pending)
+				nonexistent := make([]crypto.Signature, 0)
+				for _, sig := range unheard {
+					if s.cache.contain(sig) {
+						continue
+					}
+					nonexistent = append(nonexistent, sig)
+				}
+				if len(nonexistent) > 0 {
+					zap.S().Debugf("[%s] Requesting blocks: %s", s.conn.RawConn.RemoteAddr(), logSignatures(nonexistent))
+					s.requestBlocksCh <- signaturesEvent{conn: s.conn, signatures: nonexistent}
+					continue
+				}
+
+				last := unheard[len(unheard)-1]
+				err := s.movePeerLink(last)
+				if err != nil {
+					zap.S().Errorf("[%s] Failed to handle signatures: %v", s.conn.RawConn.RemoteAddr(), err)
+					continue
+				}
+				s.pending = nil
+				s.requestSignatures()
+
+			case bs := <-s.receivedBlocksCh:
+				// Requested block received move peer pointer
+				zap.S().Debugf("[%s] PENDED SIGS %s", s.conn.RawConn.RemoteAddr(), logSignatures(s.pending))
+				var i int
+				for i = 0; i < len(s.pending); i++ {
+					if bs == s.pending[i] {
+						zap.S().Debugf("[%s] HAS BLOCK IN PENDING %s", s.conn.RawConn.RemoteAddr(), bs.String())
+						break
+					}
+				}
+				var sig crypto.Signature
+				zap.S().Debugf("[%s] i = %d, l = %d", s.conn.RawConn.RemoteAddr(), i, len(s.pending))
+				if i < len(s.pending) {
+					sig = s.pending[i]
+					s.pending = s.pending[i+1:]
+				} else {
+					zap.S().DPanicf("[%s] Unexpected block notification: %s", s.conn.RawConn.RemoteAddr(), bs.String())
+					continue
+				}
+				err := s.movePeerLink(sig)
+				if err != nil {
+					zap.S().Errorf("[%s] Failed to handle block: %v", s.conn.RawConn.RemoteAddr(), err)
+					continue
+				}
+				if len(s.pending) == 0 {
+					s.requestSignatures()
+				}
+			}
+		}
+	}()
+}
+
+func (s *signaturesSynchronizer) stop() {
+	s.working.CAS(true, false)
+}
+
+func (s *signaturesSynchronizer) score() chan<- struct{} {
+	return s.scoreCh
+}
+
+func (s *signaturesSynchronizer) signatures() chan<- []crypto.Signature {
+	return s.signaturesCh
+}
+
+func (s *signaturesSynchronizer) block() chan<- crypto.Signature {
+	return s.receivedBlocksCh
+}
+
+func (s *signaturesSynchronizer) requestSignatures() {
+	if len(s.pending) > 0 {
+		zap.S().Debugf("[%s] Signatures already requested", s.conn.RawConn.RemoteAddr())
+		return
+	}
+	signatures, err := s.storage.frontBlocks(s.addr, signaturesCount)
+	if err != nil {
+		zap.S().Errorf("[%s] Failed to request signatures: %v", s.conn.RawConn.RemoteAddr(), err)
+		return
+	}
+	m := proto.GetSignaturesMessage{Blocks: signatures}
+	buf := new(bytes.Buffer)
+	_, err = m.WriteTo(buf)
+	if err != nil {
+		zap.S().Errorf("[%s] Failed to prepare the signatures request: %v", s.conn.RawConn.RemoteAddr(), err)
+		return
+	}
+	_, err = s.conn.Send(buf.Bytes())
+	if err != nil {
+		zap.S().Errorf("[%s] Failed to send the signatures request: %v", s.conn.RawConn.RemoteAddr(), err)
+		return
+	}
+	s.pending = signatures
+	zap.S().Debugf("[%s] PENDING SIGNATURES: %s", s.conn.RawConn.RemoteAddr(), logSignatures(s.pending))
+}
+
+func (s *signaturesSynchronizer) movePeerLink(signature crypto.Signature) error {
+	zap.S().Debugf("[%s] Moving peer link to block '%s'", s.conn.RawConn.RemoteAddr(), signature.String())
+	err := s.storage.updatePeerLink(s.addr, signature)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+type waitingList struct {
+	signature   crypto.Signature
+	connections []*Conn
+}
+
+func (w *waitingList) hasConnection(conn *Conn) bool {
+	for _, c := range w.connections {
+		if c == conn {
+			return true
+		}
+	}
+	return false
+}
+
+func (w *waitingList) request() blockRequest {
+	return blockRequest{conn: w.connections[0], signature: w.signature}
+}
+
+func (w *waitingList) appendConnection(conn *Conn) bool {
+	if w.hasConnection(conn) {
+		return false
+	}
+	w.connections = append(w.connections, conn)
+	return true
+}
+
 type Loader struct {
-	interrupt         <-chan struct{}
-	storage           *storage
-	existingBlocks    *cuckoo.Filter
-	pendingSignatures map[uint64][]crypto.Signature
-	pendingBlocks     []blockRequest
-	done              chan struct{}
-	readyCh           chan readyEvent
-	signaturesCh      chan signaturesEvent
-	blockCh           chan blockEvent
-	requestCh         chan blockRequest
+	interrupt           <-chan struct{}
+	storage             *storage
+	existingBlocks      *blocksCache
+	wg                  sync.WaitGroup
+	synchronizers       map[*Conn]*signaturesSynchronizer
+	pendingBlocks       []waitingList
+	done                chan struct{}
+	newConnectionsCh    chan *Conn
+	closedConnectionsCh chan *Conn
+	scoreCh             chan *Conn
+	signaturesCh        chan signaturesEvent
+	blockCh             chan blockEvent
+	blocksRequestsCh    chan signaturesEvent // Channel to request blocks downloading, used by signature synchronizers
+	requestCh           chan blockRequest
 }
 
 func NewLoader(interrupt <-chan struct{}, storage *storage) (*Loader, error) {
@@ -56,22 +255,21 @@ func NewLoader(interrupt <-chan struct{}, storage *storage) (*Loader, error) {
 		zap.S().Errorf("Failed to load existing blocks: %v", err)
 		return nil, errors.Wrap(err, "failed to load existing blocks signatures")
 	}
-	f := cuckoo.NewFilter(defaultCapacity)
-	for _, s := range signatures {
-		f.InsertUnique(s[:])
-	}
-	zap.S().Debugf("Loaded %d existing blocks signatures", f.Count())
 	return &Loader{
-		interrupt:         interrupt,
-		storage:           storage,
-		existingBlocks:    f,
-		pendingSignatures: make(map[uint64][]crypto.Signature),
-		pendingBlocks:     make([]blockRequest, 0),
-		done:              make(chan struct{}),
-		readyCh:           make(chan readyEvent),
-		signaturesCh:      make(chan signaturesEvent),
-		blockCh:           make(chan blockEvent),
-		requestCh:         make(chan blockRequest),
+		interrupt:           interrupt,
+		storage:             storage,
+		existingBlocks:      newBlocksCache(signatures),
+		wg:                  sync.WaitGroup{},
+		synchronizers:       make(map[*Conn]*signaturesSynchronizer),
+		pendingBlocks:       make([]waitingList, 0),
+		done:                make(chan struct{}),
+		newConnectionsCh:    make(chan *Conn),
+		closedConnectionsCh: make(chan *Conn),
+		scoreCh:             make(chan *Conn),
+		signaturesCh:        make(chan signaturesEvent),
+		blockCh:             make(chan blockEvent),
+		blocksRequestsCh:    make(chan signaturesEvent),
+		requestCh:           make(chan blockRequest),
 	}, nil
 }
 
@@ -81,82 +279,83 @@ func (l *Loader) Start() <-chan struct{} {
 			select {
 			case <-l.interrupt:
 				zap.S().Debugf("Shutting down loader...")
+				for _, s := range l.synchronizers {
+					s.stop()
+				}
+				l.wg.Wait()
 				close(l.done)
 				return
 
-			case e := <-l.readyCh:
-				ip, _, err := splitAddr(e.conn.RawConn.RemoteAddr())
-				if err != nil {
-					zap.S().Errorf("[%s] Failed to extract peer IP address: %v", e.conn.RawConn.RemoteAddr(), err)
-					continue
-				}
-				p, ok := l.pendingSignatures[hash(ip)]
-				if ok && len(p) > 0 {
-					zap.S().Errorf("[%s] Signatures already requested", e.conn.RawConn.RemoteAddr())
-					continue
-				}
-				ok, err = l.requestSignatures(e.conn, ip)
-				if err != nil {
-					zap.S().Warnf("[%s] Failed to request signatures: %v", e.conn.RawConn.RemoteAddr(), err)
-					continue
-				}
+			case c := <-l.newConnectionsCh:
+				// Start a new signatures synchronizer
+				_, ok := l.synchronizers[c]
 				if ok {
-					zap.S().Debugf("[%s] Signatures requested", e.conn.RawConn.RemoteAddr())
+					zap.S().Errorf("[%s] Repetitive attempt to register signatures synchronizer", c.RawConn.RemoteAddr())
+					continue
 				}
+				s := newSignaturesSynchronizer(&l.wg, l.storage, l.existingBlocks, l.blocksRequests(), c)
+				l.synchronizers[c] = s
+				l.wg.Add(1)
+				s.start()
+
+			case c := <-l.closedConnectionsCh:
+				// Shutting down signatures synchronizer
+				s, ok := l.synchronizers[c]
+				if !ok {
+					zap.S().Errorf("[%s] No signatures synchronizer", c.RawConn.RemoteAddr())
+					continue
+				}
+				s.stop()
+
+			case c := <-l.scoreCh:
+				// New score on connection
+				s, ok := l.synchronizers[c]
+				if !ok {
+					zap.S().Errorf("[%s] No signatures synchronizer", c.RawConn.RemoteAddr())
+					continue
+				}
+				s.score() <- struct{}{}
 
 			case e := <-l.signaturesCh:
+				// Handle new signatures
 				zap.S().Debugf("[%s] Received %d signatures: %s", e.conn.RawConn.RemoteAddr(), len(e.signatures), logSignatures(e.signatures))
-				ip, _, err := splitAddr(e.conn.RawConn.RemoteAddr())
-				if err != nil {
-					zap.S().Warnf("[%s] Failed to extract peer IP address: %v", e.conn.RawConn.RemoteAddr(), err)
-					continue
-				}
-				pending, ok := l.pendingSignatures[hash(ip)]
+				s, ok := l.synchronizers[e.conn]
 				if !ok {
-					zap.S().Warnf("[%s] No pending signatures", e.conn.RawConn.RemoteAddr())
+					zap.S().Errorf("[%s] No signatures synchronizer", e.conn.RawConn.RemoteAddr())
 					continue
 				}
-				unheard := skip(e.signatures, pending)
-				nonexistent := make([]crypto.Signature, 0)
-				for _, s := range unheard {
-					ok := l.existingBlocks.Lookup(s[:])
-					if ok {
-						continue
+				s.signatures() <- e.signatures
+
+			case e := <-l.blocksRequestsCh:
+				// Signature synchronizer requested to download some blocks
+				// Decide which blocks should be actually downloaded and put them to queue
+				// If block already in queue add the requester (signature synchronizer) to the notification list
+				zap.S().Debugf("[%s] REQUESTING BLOCKS %s", e.conn.RawConn.RemoteAddr(), logSignatures(e.signatures))
+				appended := false
+				for _, requestedBlock := range e.signatures {
+					exist := false
+					for _, pendingBlock := range l.pendingBlocks {
+						if pendingBlock.signature == requestedBlock {
+							//zap.S().Debugf("[%s] BLOCK ALREADY IN QUEUE %s", e.conn.RawConn.RemoteAddr(), requestedBlock.String())
+							if pendingBlock.appendConnection(e.conn) {
+								//zap.S().Debugf("[%s] ADDED TO WAITING LIST OF BLOCK %s", e.conn.RawConn.RemoteAddr(), requestedBlock.String())
+							}
+							exist = true
+							break
+						}
 					}
-					nonexistent = append(nonexistent, s)
-				}
-				if len(nonexistent) > 0 {
-					zap.S().Debugf("[%s] Requesting blocks: %s", e.conn.RawConn.RemoteAddr(), logSignatures(nonexistent))
-					appended := false
-					for _, s := range nonexistent {
-						r := blockRequest{e.conn, s}
-						ok := l.pendBlockRequest(r)
-						appended = appended || ok
+					if !exist {
+						zap.S().Debugf("[%s] APPENDING BLOCK TO QUEUE %s", e.conn.RawConn.RemoteAddr(), requestedBlock.String())
+						wl := waitingList{signature: requestedBlock}
+						wl.appendConnection(e.conn)
+						l.pendingBlocks = append(l.pendingBlocks, wl)
+						appended = true
 					}
-					if appended {
-						zap.S().Debugf("[%s] PUT BLOCK '%s' TO REQUEST CH 1", e.conn.RawConn.RemoteAddr(), l.pendingBlocks[0].signature.String())
-						l.requestCh <- l.pendingBlocks[0]
-					}
-					continue
+
 				}
-				s := unheard[len(unheard)-1]
-				zap.S().Debugf("[%s] Moving peer pointer to block '%s'", e.conn.RawConn.RemoteAddr(), s.String())
-				ok, err = l.storage.appendBlockSignature(s, ip)
-				if err != nil {
-					zap.S().Errorf("[%s] Failed to move peer pointer to block '%s': %v", e.conn.RawConn.RemoteAddr(), s.String(), err)
-					continue
-				}
-				if !ok {
-					zap.S().DPanicf("[%s] Attempt to move peer pointer to nonexistent block '%s'", e.conn.RawConn.RemoteAddr(), s.String())
-					continue
-				}
-				ok, err = l.requestSignatures(e.conn, ip)
-				if err != nil {
-					zap.S().Warnf("[%s] Failed to request signatures: %v", e.conn.RawConn.RemoteAddr(), err)
-					continue
-				}
-				if ok {
-					zap.S().Debugf("[%s] Signatures requested", e.conn.RawConn.RemoteAddr())
+				if appended {
+					zap.S().Debugf("[%s] PUT BLOCK '%s' TO REQUEST CH 1", e.conn.RawConn.RemoteAddr(), l.pendingBlocks[0].signature.String())
+					l.requestCh <- l.pendingBlocks[0].request()
 				}
 
 			case e := <-l.blockCh:
@@ -174,38 +373,40 @@ func (l *Loader) Start() <-chan struct{} {
 					zap.S().Warnf("[%s] Unexpected block '%s'", e.conn.RawConn.RemoteAddr(), e.block.BlockSignature.String())
 					continue
 				}
-				if l.pendingBlocks[0].conn != e.conn {
+				if !l.pendingBlocks[0].hasConnection(e.conn) {
 					zap.S().Warnf("[%s] Expected block '%s' but from unexpected connection", e.conn.RawConn.RemoteAddr(), e.block.BlockSignature.String())
 					continue
 				}
-				if l.existingBlocks.Lookup(e.block.BlockSignature[:]) {
+				if l.existingBlocks.contain(e.block.BlockSignature) {
 					zap.S().DPanicf("[%s] Somehow block '%s' already in cache", e.conn.RawConn.RemoteAddr(), e.block.BlockSignature.String())
 					continue
 				}
-				err = l.storage.handleBlock(e.block, ip)
+				err = l.storage.handleBlock(e.block, ip) //TODO: just add the block to storage, don't move peer link here
 				if err != nil {
 					zap.S().Errorf("[%s] Failed to save new block: %v", e.conn.RawConn.RemoteAddr(), err)
 					continue
 				}
-				ok := l.existingBlocks.InsertUnique(e.block.BlockSignature[:])
+				ok := l.existingBlocks.put(e.block.BlockSignature)
 				if !ok {
 					zap.S().DPanicf("[%s] Attempt to insert already inserted block ID '%s'", e.conn.RawConn.RemoteAddr(), e.block.BlockSignature.String())
 				}
 
+				wl := l.pendingBlocks[0]
+				for _, c := range wl.connections {
+					s, ok := l.synchronizers[c]
+					if !ok {
+						zap.S().Debugf("[%s] Synchronizer not found", c.RawConn.RemoteAddr())
+						continue
+					}
+					s.block() <- wl.signature
+				}
 				l.pendingBlocks = l.pendingBlocks[1:] // Pop first block signature from the queue
 				if len(l.pendingBlocks) == 0 {
 					zap.S().Debugf("[%s] NO BLOCKS TO REQUEST", e.conn.RawConn.RemoteAddr())
-					ok, err := l.requestSignatures(e.conn, ip)
-					if err != nil {
-						zap.S().Errorf("[%s] Failed to request new signatures: %v", e.conn.RawConn.RemoteAddr(), err)
-					}
-					if ok {
-						zap.S().Debugf("[%s] Signatures requested", e.conn.RawConn.RemoteAddr())
-					}
 					continue
 				}
 				zap.S().Debugf("[%s] PUT BLOCK '%s' TO REQUEST CH 2", e.conn.RawConn.RemoteAddr(), l.pendingBlocks[0].signature.String())
-				l.requestCh <- l.pendingBlocks[0] // Request next block leaving it in the queue
+				l.requestCh <- l.pendingBlocks[0].request() // Request next block leaving it in the queue
 			}
 		}
 	}()
@@ -224,8 +425,16 @@ func (l *Loader) Start() <-chan struct{} {
 	return l.done
 }
 
-func (l *Loader) Ready() chan<- readyEvent {
-	return l.readyCh
+func (l *Loader) NewConnections() chan<- *Conn {
+	return l.newConnectionsCh
+}
+
+func (l *Loader) ClosedConnections() chan<- *Conn {
+	return l.closedConnectionsCh
+}
+
+func (l *Loader) Score() chan<- *Conn {
+	return l.scoreCh
 }
 
 func (l *Loader) Signatures() chan<- signaturesEvent {
@@ -236,23 +445,8 @@ func (l *Loader) Blocks() chan<- blockEvent {
 	return l.blockCh
 }
 
-func (l *Loader) requestSignatures(conn *Conn, ip net.IP) (bool, error) {
-	s, err := l.storage.frontBlocks(ip, signaturesCount)
-	if err != nil {
-		return false, err
-	}
-	m := proto.GetSignaturesMessage{Blocks: s}
-	buf := new(bytes.Buffer)
-	_, err = m.WriteTo(buf)
-	if err != nil {
-		return false, err
-	}
-	_, err = conn.Send(buf.Bytes())
-	if err != nil {
-		return false, err
-	}
-	l.pendingSignatures[hash(ip)] = s
-	return true, nil
+func (l *Loader) blocksRequests() chan<- signaturesEvent {
+	return l.blocksRequestsCh
 }
 
 func (l *Loader) requestBlock(conn *Conn, signature crypto.Signature) error {
@@ -267,18 +461,6 @@ func (l *Loader) requestBlock(conn *Conn, signature crypto.Signature) error {
 		return err
 	}
 	return nil
-}
-
-func (l *Loader) pendBlockRequest(request blockRequest) bool {
-	for _, r := range l.pendingBlocks {
-		if r.signature == request.signature {
-			zap.S().Debugf("[%s] ALREADY IN QUEUE; %s", request.conn.RawConn.RemoteAddr(), request.signature.String())
-			return false
-		}
-	}
-	l.pendingBlocks = append(l.pendingBlocks, request)
-	zap.S().Debugf("[%s] ADDED TO QUEUE; %s", request.conn.RawConn.RemoteAddr(), request.signature.String())
-	return true
 }
 
 func logSignatures(signatures []crypto.Signature) string {
@@ -307,16 +489,17 @@ func contains(a []crypto.Signature, e crypto.Signature) bool {
 	return false
 }
 
-func intersect(a, b []crypto.Signature) []crypto.Signature {
-	r := make([]crypto.Signature, 0)
-	for i := 0; i < len(a); i++ {
-		e := a[i]
-		if contains(b, e) {
-			r = append(r, e)
-		}
-	}
-	return r
-}
+//TODO: remove?
+//func intersect(a, b []crypto.Signature) []crypto.Signature {
+//	r := make([]crypto.Signature, 0)
+//	for i := 0; i < len(a); i++ {
+//		e := a[i]
+//		if contains(b, e) {
+//			r = append(r, e)
+//		}
+//	}
+//	return r
+//}
 
 func skip(a, c []crypto.Signature) []crypto.Signature {
 	var i int

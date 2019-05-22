@@ -359,13 +359,10 @@ func (s *storage) handleBlock(block proto.Block, peer net.IP) error {
 	return nil
 }
 
-func (s *storage) appendBlockSignature(sig crypto.Signature, peer net.IP) (bool, error) {
-	wrapError := func(err error) error {
-		return errors.Wrap(err, "failed to append new block signature")
-	}
+func (s *storage) updatePeerLink(peer net.IP, sig crypto.Signature) error {
 	sn, err := s.db.GetSnapshot()
 	if err != nil {
-		return false, wrapError(err)
+		return errors.Wrap(err, "failed to update peer pointer")
 	}
 	defer sn.Release()
 	batch := new(leveldb.Batch)
@@ -373,19 +370,19 @@ func (s *storage) appendBlockSignature(sig crypto.Signature, peer net.IP) (bool,
 	// Check that the block is already exist
 	w, ok, err := wrapper(sn, sig)
 	if err != nil {
-		return false, wrapError(err)
+		return errors.Wrap(err, "failed to retrieve block")
 	}
-	if ok {
-		// The block is already known, update the peer link
-		link := peerLink{fork: w.fork, height: w.height, block: sig}
-		putLink(batch, peer, link)
-		err = s.db.Write(batch, nil)
-		if err != nil {
-			return false, wrapError(err)
-		}
-		return true, nil
+	if !ok {
+		return errors.New("block not found")
 	}
-	return false, nil
+	// The block is already known, update the peer link
+	link := peerLink{fork: w.fork, height: w.height, block: sig}
+	putLink(batch, peer, link)
+	err = s.db.Write(batch, nil)
+	if err != nil {
+		return errors.Wrap(err, "failed to update peer link")
+	}
+	return nil
 }
 
 func (s *storage) parentedForks() ([]Fork, error) {

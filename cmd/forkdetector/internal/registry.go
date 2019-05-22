@@ -2,11 +2,11 @@ package internal
 
 import (
 	"bytes"
+	"github.com/cespare/xxhash"
 	"github.com/pkg/errors"
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
-	"hash/fnv"
 	"net"
 	"sort"
 	"sync"
@@ -450,9 +450,16 @@ func splitAddr(addr net.Addr) (net.IP, uint16, error) {
 	return tcpAddr.IP.To16(), uint16(tcpAddr.Port), nil
 }
 
+func extractIPAddress(addr net.Addr) net.IP {
+	tcpAddr, ok := addr.(*net.TCPAddr)
+	if !ok {
+		return net.IPv4zero.To16()
+	}
+	return tcpAddr.IP.To16()
+}
+
 func hash(ip net.IP) uint64 {
-	h := fnv.New64()
-	h.Reset()
+	h := xxhash.New()
 	_, err := h.Write(ip)
 	if err != nil {
 		panic("err should be always nil")

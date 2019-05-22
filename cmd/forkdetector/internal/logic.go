@@ -16,26 +16,30 @@ const (
 )
 
 type ConnHandler struct {
-	scheme        byte
-	name          string
-	nonce         uint64
-	publicAddress proto.HandshakeTCPAddr
-	registry      *Registry
-	readyCh       chan<- readyEvent
-	signaturesCh  chan<- signaturesEvent
-	blockCh       chan<- blockEvent
+	scheme            byte
+	name              string
+	nonce             uint64
+	publicAddress     proto.HandshakeTCPAddr
+	registry          *Registry
+	newConnectionCh   chan<- *Conn
+	closeConnectionCh chan<- *Conn
+	scoreCh           chan<- *Conn
+	signaturesCh      chan<- signaturesEvent
+	blockCh           chan<- blockEvent
 }
 
-func NewConnHandler(scheme byte, name string, nonce uint64, addr net.TCPAddr, registry *Registry, ready chan<- readyEvent, signatures chan<- signaturesEvent, blocks chan<- blockEvent) *ConnHandler {
+func NewConnHandler(scheme byte, name string, nonce uint64, addr net.TCPAddr, registry *Registry, newConn, closeConn, score chan<- *Conn, signatures chan<- signaturesEvent, blocks chan<- blockEvent) *ConnHandler {
 	return &ConnHandler{
-		scheme:        scheme,
-		name:          name,
-		nonce:         nonce,
-		publicAddress: proto.HandshakeTCPAddr(addr),
-		registry:      registry,
-		readyCh:       ready,
-		signaturesCh:  signatures,
-		blockCh:       blocks,
+		scheme:            scheme,
+		name:              name,
+		nonce:             nonce,
+		publicAddress:     proto.HandshakeTCPAddr(addr),
+		registry:          registry,
+		newConnectionCh:   newConn,
+		closeConnectionCh: closeConn,
+		scoreCh:           score,
+		signaturesCh:      signatures,
+		blockCh:           blocks,
 	}
 }
 
@@ -96,6 +100,7 @@ func (h *ConnHandler) OnAccept(conn *Conn) {
 		return
 	}
 	zap.S().Debugf("[%s] Successful handshake with '%s' (nonce=%d, ver=%s, da=%s)", conn.RawConn.RemoteAddr(), ih.NodeName, ih.NodeNonce, ih.Version.String(), ih.DeclaredAddr.String())
+	h.newConnectionCh <- conn
 }
 
 func (h *ConnHandler) OnConnect(conn *Conn) {
@@ -197,13 +202,14 @@ func (h *ConnHandler) OnConnect(conn *Conn) {
 		return
 	}
 	zap.S().Debugf("[%s] Successful handshake with '%s' (nonce=%d, ver=%s, da=%s)", conn.RawConn.RemoteAddr(), ih.NodeName, ih.NodeNonce, ih.Version.String(), ih.DeclaredAddr.String())
+	h.newConnectionCh <- conn
 }
 
-func (h *ConnHandler) OnReceive(c *Conn, buf []byte) {
+func (h *ConnHandler) OnReceive(conn *Conn, buf []byte) {
 	header := proto.Header{}
 	err := header.UnmarshalBinary(buf)
 	if err != nil {
-		zap.S().Errorf("[%s] Failed to unmarshal message header: %v", c.RawConn.RemoteAddr(), err)
+		zap.S().Errorf("[%s] Failed to unmarshal message header: %v", conn.RawConn.RemoteAddr(), err)
 		return
 	}
 	switch header.ContentID {
@@ -211,15 +217,15 @@ func (h *ConnHandler) OnReceive(c *Conn, buf []byte) {
 		var m proto.GetPeersMessage
 		err = m.UnmarshalBinary(buf)
 		if err != nil {
-			zap.S().Warnf("[%s] Failed to unmarshal GetPeers message: %v", c.RawConn.RemoteAddr(), err)
+			zap.S().Warnf("[%s] Failed to unmarshal GetPeers message: %v", conn.RawConn.RemoteAddr(), err)
 			return
 		}
-		h.replyWithEmptyPeers(c)
+		h.replyWithEmptyPeers(conn)
 	case proto.ContentIDPeers:
 		var m proto.PeersMessage
 		err = m.UnmarshalBinary(buf)
 		if err != nil {
-			zap.S().Warnf("[%s] Failed to unmarshal Peers message: %v", c.RawConn.RemoteAddr(), err)
+			zap.S().Warnf("[%s] Failed to unmarshal Peers message: %v", conn.RawConn.RemoteAddr(), err)
 			return
 		}
 		addresses := make([]net.TCPAddr, len(m.Peers))
@@ -228,45 +234,46 @@ func (h *ConnHandler) OnReceive(c *Conn, buf []byte) {
 		}
 		n := h.registry.AppendAddresses(addresses)
 		if n > 0 {
-			zap.S().Debugf("[%s] Appended %d new addresses", c.RawConn.RemoteAddr(), n)
+			zap.S().Debugf("[%s] Appended %d new addresses", conn.RawConn.RemoteAddr(), n)
 		}
 	case proto.ContentIDScore:
 		var m proto.ScoreMessage
 		err = m.UnmarshalBinary(buf)
 		if err != nil {
-			zap.S().Warnf("[%s] Failed to unmarshal Score message: %v", c.RawConn.RemoteAddr(), err)
+			zap.S().Warnf("[%s] Failed to unmarshal Score message: %v", conn.RawConn.RemoteAddr(), err)
 			return
 		}
 		score := big.NewInt(0).SetBytes(m.Score)
-		zap.S().Debugf("[%s] Received Score %s", c.RawConn.RemoteAddr(), score.String())
-		h.readyCh <- readyEvent{conn: c}
+		zap.S().Debugf("[%s] Received Score %s", conn.RawConn.RemoteAddr(), score.String())
+		h.scoreCh <- conn
 	case proto.ContentIDSignatures:
 		var m proto.SignaturesMessage
 		err = m.UnmarshalBinary(buf)
 		if err != nil {
-			zap.S().Warnf("[%s] Failed to unmarshal Signatures message: %v", c.RawConn.RemoteAddr(), err)
+			zap.S().Warnf("[%s] Failed to unmarshal Signatures message: %v", conn.RawConn.RemoteAddr(), err)
 			return
 		}
-		h.signaturesCh <- signaturesEvent{conn: c, signatures: m.Signatures}
+		h.signaturesCh <- signaturesEvent{conn: conn, signatures: m.Signatures}
 	case proto.ContentIDBlock:
 		var m proto.BlockMessage
 		err = m.UnmarshalBinary(buf)
 		if err != nil {
-			zap.S().Warnf("[%s] Failed to unmarshal Block message: %v", c.RawConn.RemoteAddr(), err)
+			zap.S().Warnf("[%s] Failed to unmarshal Block message: %v", conn.RawConn.RemoteAddr(), err)
 			return
 		}
 		// Applying block
 		var b proto.Block
 		err = b.UnmarshalBinary(m.BlockBytes)
 		if err != nil {
-			zap.S().Warnf("[%s] Failed to unmarshal block: %v", c.RawConn.RemoteAddr(), err)
+			zap.S().Warnf("[%s] Failed to unmarshal block: %v", conn.RawConn.RemoteAddr(), err)
 			return
 		}
-		h.blockCh <- blockEvent{conn: c, block: b}
+		h.blockCh <- blockEvent{conn: conn, block: b}
 	}
 }
 
 func (h *ConnHandler) OnClose(conn *Conn) {
+	h.closeConnectionCh <- conn
 	err := h.registry.Deactivate(conn.RawConn.RemoteAddr())
 	if err != nil {
 		zap.S().Errorf("[%s] Failed to deactivate peer: %v", conn.RawConn.RemoteAddr(), err)
