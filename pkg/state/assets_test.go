@@ -2,14 +2,11 @@ package state
 
 import (
 	"bytes"
-	"io/ioutil"
 	"math/big"
-	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
-	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/util"
 )
 
@@ -30,32 +27,15 @@ func flushAssets(t *testing.T, to *assetsTestObjects) {
 }
 
 func createAssets() (*assetsTestObjects, []string, error) {
-	dbDir0, err := ioutil.TempDir(os.TempDir(), "dbDir0")
+	stor, path, err := createStorageObjects()
 	if err != nil {
-		return nil, nil, err
+		return nil, path, err
 	}
-	res := []string{dbDir0}
-	db, err := keyvalue.NewKeyVal(dbDir0, defaultTestBloomFilterParams())
+	assets, err := newAssets(stor.db, stor.dbBatch, stor.stateDB, stor.rb)
 	if err != nil {
-		return nil, res, err
+		return nil, path, err
 	}
-	dbBatch, err := db.NewBatch()
-	if err != nil {
-		return nil, res, err
-	}
-	stateDB, err := newStateDB(db, dbBatch)
-	if err != nil {
-		return nil, res, err
-	}
-	rb, err := newRecentBlocks(rollbackMaxBlocks, nil)
-	if err != nil {
-		return nil, res, err
-	}
-	assets, err := newAssets(db, dbBatch, stateDB, rb)
-	if err != nil {
-		return nil, res, err
-	}
-	return &assetsTestObjects{rb, assets, stateDB}, res, nil
+	return &assetsTestObjects{stor.rb, assets, stor.stateDB}, path, nil
 }
 
 func createAssetInfo(t *testing.T, reissuable bool, blockID0 crypto.Signature, assetID crypto.Digest) *assetInfo {

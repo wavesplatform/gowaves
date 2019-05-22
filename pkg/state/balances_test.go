@@ -1,13 +1,10 @@
 package state
 
 import (
-	"io/ioutil"
-	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
-	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/util"
 )
@@ -49,32 +46,15 @@ func flushBalances(t *testing.T, to *balancesTestObjects) {
 }
 
 func createBalances() (*balancesTestObjects, []string, error) {
-	dbDir0, err := ioutil.TempDir(os.TempDir(), "dbDir0")
+	stor, path, err := createStorageObjects()
 	if err != nil {
-		return nil, nil, err
+		return nil, path, err
 	}
-	res := []string{dbDir0}
-	db, err := keyvalue.NewKeyVal(dbDir0, defaultTestBloomFilterParams())
+	balances, err := newBalances(stor.db, stor.dbBatch, stor.stateDB, stor.rb)
 	if err != nil {
-		return nil, res, err
+		return nil, path, err
 	}
-	dbBatch, err := db.NewBatch()
-	if err != nil {
-		return nil, res, err
-	}
-	stateDB, err := newStateDB(db, dbBatch)
-	if err != nil {
-		return nil, res, err
-	}
-	rb, err := newRecentBlocks(rollbackMaxBlocks, nil)
-	if err != nil {
-		return nil, res, err
-	}
-	balances, err := newBalances(db, dbBatch, stateDB, rb)
-	if err != nil {
-		return nil, res, err
-	}
-	return &balancesTestObjects{balances, stateDB}, res, nil
+	return &balancesTestObjects{balances, stor.stateDB}, path, nil
 }
 
 func genAsset(fillWith byte) []byte {

@@ -2,13 +2,10 @@ package state
 
 import (
 	"bytes"
-	"io/ioutil"
-	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
-	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/util"
 )
@@ -30,32 +27,15 @@ func flushLeases(t *testing.T, to *leasesTestObjects) {
 }
 
 func createLeases() (*leasesTestObjects, []string, error) {
-	dbDir0, err := ioutil.TempDir(os.TempDir(), "dbDir0")
+	stor, path, err := createStorageObjects()
 	if err != nil {
-		return nil, nil, err
+		return nil, path, err
 	}
-	res := []string{dbDir0}
-	db, err := keyvalue.NewKeyVal(dbDir0, defaultTestBloomFilterParams())
+	leases, err := newLeases(stor.db, stor.dbBatch, stor.stateDB, stor.rb)
 	if err != nil {
-		return nil, res, err
+		return nil, path, err
 	}
-	dbBatch, err := db.NewBatch()
-	if err != nil {
-		return nil, res, err
-	}
-	stateDB, err := newStateDB(db, dbBatch)
-	if err != nil {
-		return nil, res, err
-	}
-	rb, err := newRecentBlocks(rollbackMaxBlocks, nil)
-	if err != nil {
-		return nil, res, err
-	}
-	leases, err := newLeases(db, dbBatch, stateDB, rb)
-	if err != nil {
-		return nil, res, err
-	}
-	return &leasesTestObjects{rb, leases, stateDB}, res, nil
+	return &leasesTestObjects{stor.rb, leases, stor.stateDB}, path, nil
 }
 
 func createLeasingRecord(t *testing.T, blockID crypto.Signature, sender string) *leasingRecord {

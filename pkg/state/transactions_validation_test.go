@@ -35,49 +35,34 @@ var (
 )
 
 type testObjects struct {
-	rb       *recentBlocks
-	stateDB  *stateDB
-	assets   *assets
-	leases   *leases
-	balances *balances
-	tv       *transactionValidator
+	rb      *recentBlocks
+	stateDB *stateDB
+	stor    *blockchainEntitiesStorage
+	tv      *transactionValidator
 }
 
 func createTestObjects(t *testing.T) (*testObjects, []string) {
-	assetsObj, path, err := createAssets()
-	assert.NoError(t, err, "createAssets() failed")
-	assets := assetsObj.assets
-	stateDB := assetsObj.stateDB
-	rb := assetsObj.rb
-	balances, err := newBalances(assets.db, assets.dbBatch, stateDB, rb)
-	assert.NoError(t, err, "newBalances() failed")
-	leases, err := newLeases(balances.db, balances.dbBatch, stateDB, rb)
-	assert.NoError(t, err, "newLeases() failed")
+	stor, path, err := createStorageObjects()
+	assert.NoError(t, err, "createStorageObjects() failed")
+	entities, err := newBlockchainEntitiesStorage(stor.db, stor.dbBatch, stor.stateDB, stor.rb)
+	assert.NoError(t, err, "newBlockchainEntitiesStorage() failed")
 	genesisSig, err := crypto.NewSignatureFromBase58(genesisSignature)
 	assert.NoError(t, err, "NewSignatureFromBase58() failed")
-	tv, err := newTransactionValidator(genesisSig, balances, assets, leases, settings.MainNetSettings)
+	tv, err := newTransactionValidator(genesisSig, entities, settings.MainNetSettings)
 	assert.NoError(t, err, "newTransactionValidator() failed")
-	return &testObjects{rb, stateDB, assets, leases, balances, tv}, path
+	return &testObjects{stor.rb, stor.stateDB, entities, tv}, path
 }
 
 func (to *testObjects) reset() {
-	to.leases.reset()
-	to.assets.reset()
-	to.balances.reset()
+	to.stor.reset()
 	to.tv.reset()
 }
 
 func flushTestObjects(t *testing.T, to *testObjects) {
 	to.rb.flush()
-	err := to.leases.flush(false)
-	assert.NoError(t, err, "leases.flush() failed")
-	to.leases.reset()
-	err = to.balances.flush(false)
-	assert.NoError(t, err, "balances.flush() failed")
-	to.balances.reset()
-	err = to.assets.flush(false)
-	assert.NoError(t, err, "assets.flush() failed")
-	to.assets.reset()
+	err := to.stor.flush(false)
+	assert.NoError(t, err, "stor.flush() failed")
+	to.stor.reset()
 	err = to.stateDB.flush()
 	assert.NoError(t, err, "stateDB.flush() failed")
 	to.stateDB.reset()
@@ -101,13 +86,13 @@ func setBalances(t *testing.T, to *testObjects, profileChanges []profileChange) 
 		assert.NoError(t, err, "NewAddressFromString() failed")
 		if diff.asset == "" {
 			r := &wavesBalanceRecord{balanceProfile{diff.prevBalance, diff.prevLeaseIn, diff.prevLeaseOut}, crypto.Signature{}}
-			err := to.balances.setWavesBalance(addr, r)
+			err := to.stor.balances.setWavesBalance(addr, r)
 			assert.NoError(t, err, "setWavesBalance() failed")
 		} else {
 			ast, err := proto.NewOptionalAssetFromString(diff.asset)
 			assert.NoError(t, err, "NewOptionalAssetFromString() failed")
 			r := &assetBalanceRecord{diff.prevBalance, crypto.Signature{}}
-			err = to.balances.setAssetBalance(addr, ast.ToID(), r)
+			err = to.stor.balances.setAssetBalance(addr, ast.ToID(), r)
 			assert.NoError(t, err, "setAssetBalance() failed")
 		}
 	}
@@ -180,13 +165,13 @@ func setBalance(t *testing.T, to *testObjects, address, asset string, profile *b
 	assert.NoError(t, err, "NewAddressFromString() failed")
 	if asset == "" {
 		r := &wavesBalanceRecord{*profile, genesisSig}
-		err := to.balances.setWavesBalance(addr, r)
+		err := to.stor.balances.setWavesBalance(addr, r)
 		assert.NoError(t, err, "setWavesBalance() failed")
 	} else {
 		ast, err := proto.NewOptionalAssetFromString(asset)
 		assert.NoError(t, err, "NewOptionalAssetFromString() failed")
 		r := &assetBalanceRecord{profile.balance, genesisSig}
-		err = to.balances.setAssetBalance(addr, ast.ToID(), r)
+		err = to.stor.balances.setAssetBalance(addr, ast.ToID(), r)
 		assert.NoError(t, err, "setAssetBalance() failed")
 	}
 	flushTestObjects(t, to)
@@ -199,7 +184,7 @@ func validateAndCheck(t *testing.T, to *testObjects, tx proto.Transaction, profi
 	err := to.tv.validateTransactions(false, true)
 	assert.NoError(t, err, "validateTransactions() failed")
 	flushTestObjects(t, to)
-	checkBalances(t, to.balances, profileChanges)
+	checkBalances(t, to.stor.balances, profileChanges)
 }
 
 func diffTest(t *testing.T, to *testObjects, tx proto.Transaction, profileChanges []profileChange) {
@@ -217,7 +202,7 @@ func TestValidateGenesis(t *testing.T) {
 	to, path := createTestObjects(t)
 
 	defer func() {
-		err := to.assets.db.Close()
+		err := to.stor.assets.db.Close()
 		assert.NoError(t, err, "db.Close() failed")
 		err = util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
@@ -234,7 +219,7 @@ func TestValidateGenesis(t *testing.T) {
 	err := to.tv.validateTransactions(false, true)
 	assert.NoError(t, err, "validateTransactions() failed")
 	flushTestObjects(t, to)
-	checkBalances(t, to.balances, profileChanges)
+	checkBalances(t, to.stor.balances, profileChanges)
 }
 
 func createPayment(t *testing.T) *proto.Payment {
@@ -332,7 +317,7 @@ func TestValidatePayment(t *testing.T) {
 	to, path := createTestObjects(t)
 
 	defer func() {
-		err := to.assets.db.Close()
+		err := to.stor.assets.db.Close()
 		assert.NoError(t, err, "db.Close() failed")
 		err = util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
@@ -372,7 +357,7 @@ func createAsset(t *testing.T, to *testObjects, asset *proto.OptionalAsset) *ass
 	assert.NoError(t, err, "NewSignatureFromBase58() failed")
 	addBlock(t, to.stateDB, to.rb, blockID)
 	assetInfo := createAssetInfo(t, true, blockID, asset.ID)
-	err = to.assets.issueAsset(asset.ID, assetInfo)
+	err = to.stor.assets.issueAsset(asset.ID, assetInfo)
 	assert.NoError(t, err, "issueAset() failed")
 	flushTestObjects(t, to)
 	return assetInfo
@@ -393,7 +378,7 @@ func TestValidateTransferV1(t *testing.T) {
 	to, path := createTestObjects(t)
 
 	defer func() {
-		err := to.assets.db.Close()
+		err := to.stor.assets.db.Close()
 		assert.NoError(t, err, "db.Close() failed")
 		err = util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
@@ -443,7 +428,7 @@ func TestValidateTransferV2(t *testing.T) {
 	to, path := createTestObjects(t)
 
 	defer func() {
-		err := to.assets.db.Close()
+		err := to.stor.assets.db.Close()
 		assert.NoError(t, err, "db.Close() failed")
 		err = util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
@@ -493,7 +478,7 @@ func TestValidateIssueV1(t *testing.T) {
 	to, path := createTestObjects(t)
 
 	defer func() {
-		err := to.assets.db.Close()
+		err := to.stor.assets.db.Close()
 		assert.NoError(t, err, "db.Close() failed")
 		err = util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
@@ -526,7 +511,7 @@ func TestValidateIssueV1(t *testing.T) {
 	diffTest(t, to, tx, profileChanges)
 
 	// Check asset info.
-	info, err := to.assets.assetInfo(asset.ID, true)
+	info, err := to.stor.assets.assetInfo(asset.ID, true)
 	assert.NoError(t, err, "assetInfo() failed")
 	assert.Equal(t, assetInfo, *info, "invalid asset info after performing IssueV1 transaction")
 }
@@ -546,7 +531,7 @@ func TestValidateIssueV2(t *testing.T) {
 	to, path := createTestObjects(t)
 
 	defer func() {
-		err := to.assets.db.Close()
+		err := to.stor.assets.db.Close()
 		assert.NoError(t, err, "db.Close() failed")
 		err = util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
@@ -579,7 +564,7 @@ func TestValidateIssueV2(t *testing.T) {
 	diffTest(t, to, tx, profileChanges)
 
 	// Check asset info.
-	info, err := to.assets.assetInfo(asset.ID, true)
+	info, err := to.stor.assets.assetInfo(asset.ID, true)
 	assert.NoError(t, err, "assetInfo() failed")
 	assert.Equal(t, assetInfo, *info, "invalid asset info after performing IssueV2 transaction")
 }
@@ -594,7 +579,7 @@ func TestValidateReissueV1(t *testing.T) {
 	to, path := createTestObjects(t)
 
 	defer func() {
-		err := to.assets.db.Close()
+		err := to.stor.assets.db.Close()
 		assert.NoError(t, err, "db.Close() failed")
 		err = util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
@@ -618,7 +603,7 @@ func TestValidateReissueV1(t *testing.T) {
 	diffTest(t, to, tx, profileChanges)
 
 	// Check asset info.
-	info, err := to.assets.assetInfo(asset.ID, true)
+	info, err := to.stor.assets.assetInfo(asset.ID, true)
 	assert.NoError(t, err, "assetInfo() failed")
 	assert.Equal(t, *assetInfo, *info, "invalid asset info after performing ReissueV1 transaction")
 }
@@ -633,7 +618,7 @@ func TestValidateReissueV2(t *testing.T) {
 	to, path := createTestObjects(t)
 
 	defer func() {
-		err := to.assets.db.Close()
+		err := to.stor.assets.db.Close()
 		assert.NoError(t, err, "db.Close() failed")
 		err = util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
@@ -657,7 +642,7 @@ func TestValidateReissueV2(t *testing.T) {
 	diffTest(t, to, tx, profileChanges)
 
 	// Check asset info.
-	info, err := to.assets.assetInfo(asset.ID, true)
+	info, err := to.stor.assets.assetInfo(asset.ID, true)
 	assert.NoError(t, err, "assetInfo() failed")
 	assert.Equal(t, *assetInfo, *info, "invalid asset info after performing ReissueV2 transaction")
 }
@@ -672,7 +657,7 @@ func TestValidateBurnV1(t *testing.T) {
 	to, path := createTestObjects(t)
 
 	defer func() {
-		err := to.assets.db.Close()
+		err := to.stor.assets.db.Close()
 		assert.NoError(t, err, "db.Close() failed")
 		err = util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
@@ -710,7 +695,7 @@ func TestValidateBurnV1(t *testing.T) {
 	diffTest(t, to, tx, profileChanges)
 
 	// Check asset info.
-	info, err := to.assets.assetInfo(asset.ID, true)
+	info, err := to.stor.assets.assetInfo(asset.ID, true)
 	assert.NoError(t, err, "assetInfo() failed")
 	assert.Equal(t, *assetInfo, *info, "invalid asset info after performing BurnV1 transaction")
 }
@@ -725,7 +710,7 @@ func TestValidateBurnV2(t *testing.T) {
 	to, path := createTestObjects(t)
 
 	defer func() {
-		err := to.assets.db.Close()
+		err := to.stor.assets.db.Close()
 		assert.NoError(t, err, "db.Close() failed")
 		err = util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
@@ -763,7 +748,7 @@ func TestValidateBurnV2(t *testing.T) {
 	diffTest(t, to, tx, profileChanges)
 
 	// Check asset info.
-	info, err := to.assets.assetInfo(asset.ID, true)
+	info, err := to.stor.assets.assetInfo(asset.ID, true)
 	assert.NoError(t, err, "assetInfo() failed")
 	assert.Equal(t, *assetInfo, *info, "invalid asset info after performing BurnV2 transaction")
 }
@@ -786,7 +771,7 @@ func TestValidateExchangeV1(t *testing.T) {
 	to, path := createTestObjects(t)
 
 	defer func() {
-		err := to.assets.db.Close()
+		err := to.stor.assets.db.Close()
 		assert.NoError(t, err, "db.Close() failed")
 		err = util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
@@ -829,7 +814,7 @@ func TestValidateExchangeV2(t *testing.T) {
 	to, path := createTestObjects(t)
 
 	defer func() {
-		err := to.assets.db.Close()
+		err := to.stor.assets.db.Close()
 		assert.NoError(t, err, "db.Close() failed")
 		err = util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
@@ -871,7 +856,7 @@ func TestValidateLeaseV1(t *testing.T) {
 	to, path := createTestObjects(t)
 
 	defer func() {
-		err := to.assets.db.Close()
+		err := to.stor.assets.db.Close()
 		assert.NoError(t, err, "db.Close() failed")
 		err = util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
@@ -917,7 +902,7 @@ func TestValidateLeaseV2(t *testing.T) {
 	to, path := createTestObjects(t)
 
 	defer func() {
-		err := to.assets.db.Close()
+		err := to.stor.assets.db.Close()
 		assert.NoError(t, err, "db.Close() failed")
 		err = util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
@@ -956,7 +941,7 @@ func TestValidateLeaseCancelV1(t *testing.T) {
 	to, path := createTestObjects(t)
 
 	defer func() {
-		err := to.assets.db.Close()
+		err := to.stor.assets.db.Close()
 		assert.NoError(t, err, "db.Close() failed")
 		err = util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
@@ -991,7 +976,7 @@ func TestValidateLeaseCancelV2(t *testing.T) {
 	to, path := createTestObjects(t)
 
 	defer func() {
-		err := to.assets.db.Close()
+		err := to.stor.assets.db.Close()
 		assert.NoError(t, err, "db.Close() failed")
 		err = util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
@@ -1020,7 +1005,7 @@ func TestValidateWithoutBlock(t *testing.T) {
 	to, path := createTestObjects(t)
 
 	defer func() {
-		err := to.assets.db.Close()
+		err := to.stor.assets.db.Close()
 		assert.NoError(t, err, "db.Close() failed")
 		err = util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
@@ -1041,7 +1026,7 @@ func TestValidateWithoutBlock(t *testing.T) {
 	assert.NoError(t, err, "addTxForValidation() failed with correct tx")
 	addr, err := proto.NewAddressFromString(senderAddr)
 	assert.NoError(t, err, "NewAddressFromString() failed")
-	newProfile, err := to.balances.wavesBalance(addr, true)
+	newProfile, err := to.stor.balances.wavesBalance(addr, true)
 	assert.NoError(t, err, "wavesBalance() failed")
 	assert.Equal(t, *profile, *newProfile, "validation without perform changed state")
 	// Insufficient balance when applying same tx once again.
