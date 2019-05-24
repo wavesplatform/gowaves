@@ -2,14 +2,11 @@ package state
 
 import (
 	"bytes"
-	"io/ioutil"
 	"math/rand"
-	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
-	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/util"
 )
 
@@ -19,45 +16,17 @@ const (
 )
 
 type historyTestObjects struct {
-	rb      *recentBlocks
-	fmt     *historyFormatter
-	stateDB *stateDB
-}
-
-func flushHistory(t *testing.T, to *historyTestObjects) {
-	to.rb.flush()
-	err := to.stateDB.flush()
-	assert.NoError(t, err, "stateDB.flush() failed")
-	to.stateDB.reset()
+	stor *storageObjects
+	fmt  *historyFormatter
 }
 
 func createHistory() (*historyTestObjects, []string, error) {
-	dbDir0, err := ioutil.TempDir(os.TempDir(), "dbDir0")
+	stor, path, err := createStorageObjects()
 	if err != nil {
-		return nil, nil, err
+		return nil, path, err
 	}
-	res := []string{dbDir0}
-	db, err := keyvalue.NewKeyVal(dbDir0, defaultTestBloomFilterParams())
-	if err != nil {
-		return nil, res, err
-	}
-	dbBatch, err := db.NewBatch()
-	if err != nil {
-		return nil, res, err
-	}
-	stateDB, err := newStateDB(db, dbBatch)
-	if err != nil {
-		return nil, res, err
-	}
-	rb, err := newRecentBlocks(rollbackMaxBlocks, nil)
-	if err != nil {
-		return nil, res, err
-	}
-	fmt, err := newHistoryFormatter(crypto.SignatureSize+1, crypto.SignatureSize, stateDB, rb)
-	if err != nil {
-		return nil, res, err
-	}
-	return &historyTestObjects{rb, fmt, stateDB}, res, nil
+	fmt, err := newHistoryFormatter(crypto.SignatureSize+1, crypto.SignatureSize, stor.stateDB, stor.rb)
+	return &historyTestObjects{stor, fmt}, path, nil
 }
 
 func TestAddRecord(t *testing.T) {
@@ -65,7 +34,7 @@ func TestAddRecord(t *testing.T) {
 	assert.NoError(t, err, "createHistory() failed")
 
 	defer func() {
-		err = to.stateDB.close()
+		err = to.stor.stateDB.close()
 		assert.NoError(t, err, "stateDB.close() failed")
 		err = util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
@@ -101,7 +70,7 @@ func TestNormalize(t *testing.T) {
 	assert.NoError(t, err, "createHistory() failed")
 
 	defer func() {
-		err = to.stateDB.close()
+		err = to.stor.stateDB.close()
 		assert.NoError(t, err, "stateDB.close() failed")
 		err = util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
@@ -117,19 +86,19 @@ func TestNormalize(t *testing.T) {
 		history, err = to.fmt.addRecord(history, blockID[:])
 		assert.NoError(t, err, "addRecord() failed")
 		if i <= rollbackEdge {
-			addBlock(t, to.stateDB, to.rb, blockID)
+			to.stor.addBlock(t, blockID)
 		}
 	}
 	history, err = to.fmt.normalize(history, true)
 	assert.NoError(t, err, "normalize() failed")
-	height, err := to.rb.height()
+	height, err := to.stor.rb.height()
 	assert.NoError(t, err, "height() failed")
 	oldRecordNumber := 0
 	for i := 0; i <= len(history)-crypto.SignatureSize; i += crypto.SignatureSize {
 		record := history[i : i+crypto.SignatureSize]
 		blockID, err := crypto.NewSignatureFromBytes(record)
 		assert.NoError(t, err, "NewSignatureFromBytes() failed")
-		recordHeight, err := to.rb.blockIDToHeight(blockID)
+		recordHeight, err := to.stor.rb.blockIDToHeight(blockID)
 		assert.NoError(t, err, "blockIDToHeight failed")
 		if recordHeight < height-rollbackMaxBlocks {
 			oldRecordNumber++

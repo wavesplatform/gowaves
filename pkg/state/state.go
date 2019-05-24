@@ -53,6 +53,7 @@ func genesisFilePath(s *settings.BlockchainSettings) (string, error) {
 }
 
 type blockchainEntitiesStorage struct {
+	hs       *historyStorage
 	aliases  *aliases
 	assets   *assets
 	leases   *leases
@@ -60,56 +61,36 @@ type blockchainEntitiesStorage struct {
 	balances *balances
 }
 
-func newBlockchainEntitiesStorage(db keyvalue.IterableKeyVal, dbBatch keyvalue.Batch, stDb *stateDB, rb *recentBlocks) (*blockchainEntitiesStorage, error) {
-	// aliases is storage for aliases.
-	aliases, err := newAliases(db, dbBatch, stDb, rb)
+func newBlockchainEntitiesStorage(hs *historyStorage) (*blockchainEntitiesStorage, error) {
+	aliases, err := newAliases(hs)
 	if err != nil {
-		return nil, StateError{errorType: Other, originalError: errors.Errorf("failed to create aliases storage: %v\n", err)}
+		return nil, err
 	}
-	// assets is storage for assets info.
-	assets, err := newAssets(db, dbBatch, stDb, rb)
+	assets, err := newAssets(hs.db, hs.dbBatch, hs)
 	if err != nil {
-		return nil, StateError{errorType: Other, originalError: errors.Errorf("failed to create assets storage: %v\n", err)}
+		return nil, err
 	}
-	// leases is storage for leases info.
-	leases, err := newLeases(db, dbBatch, stDb, rb)
+	leases, err := newLeases(hs.db, hs)
 	if err != nil {
-		return nil, StateError{errorType: Other, originalError: errors.Errorf("failed to create leases storage: %v\n", err)}
+		return nil, err
 	}
-	// scores is storage for blocks score.
-	scores, err := newScores(db, dbBatch)
+	scores, err := newScores(hs.db, hs.dbBatch)
 	if err != nil {
-		return nil, StateError{errorType: Other, originalError: errors.Errorf("failed to create scores: %v\n", err)}
+		return nil, err
 	}
-	// balances is storage for balances of accounts.
-	balances, err := newBalances(db, dbBatch, stDb, rb)
+	balances, err := newBalances(hs.db, hs)
 	if err != nil {
-		return nil, StateError{errorType: Other, originalError: errors.Errorf("failed to create balances storage: %v\n", err)}
+		return nil, err
 	}
-	return &blockchainEntitiesStorage{aliases, assets, leases, scores, balances}, nil
+	return &blockchainEntitiesStorage{hs, aliases, assets, leases, scores, balances}, nil
 }
 
 func (s *blockchainEntitiesStorage) reset() {
-	s.aliases.reset()
-	s.assets.reset()
-	s.leases.reset()
-	s.balances.reset()
+	s.hs.reset()
 }
 
 func (s *blockchainEntitiesStorage) flush(initialisation bool) error {
-	if err := s.aliases.flush(initialisation); err != nil {
-		return err
-	}
-	if err := s.assets.flush(initialisation); err != nil {
-		return err
-	}
-	if err := s.leases.flush(initialisation); err != nil {
-		return err
-	}
-	if err := s.balances.flush(initialisation); err != nil {
-		return err
-	}
-	return nil
+	return s.hs.flush(!initialisation)
 }
 
 type stateManager struct {
@@ -171,7 +152,11 @@ func newStateManager(dataDir string, params StateParams, settings *settings.Bloc
 	if err != nil {
 		return nil, StateError{errorType: Other, originalError: errors.Errorf("failed to create recent blocks stor: %v\n", err)}
 	}
-	stor, err := newBlockchainEntitiesStorage(db, dbBatch, stateDB, rb)
+	hs, err := newHistoryStorage(db, dbBatch, stateDB, rb)
+	if err != nil {
+		return nil, StateError{errorType: Other, originalError: errors.Errorf("failed to create history storage: %v\n", err)}
+	}
+	stor, err := newBlockchainEntitiesStorage(hs)
 	if err != nil {
 		return nil, StateError{errorType: Other, originalError: errors.Errorf("failed to create blockchain entities storage: %v\n", err)}
 	}

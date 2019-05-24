@@ -139,15 +139,15 @@ func (ch *balanceChanges) update(newDiff balanceDiff, checkTempNegative bool) er
 	return nil
 }
 
-type byKey []balanceChanges
+type changesByKey []balanceChanges
 
-func (k byKey) Len() int {
+func (k changesByKey) Len() int {
 	return len(k)
 }
-func (k byKey) Swap(i, j int) {
+func (k changesByKey) Swap(i, j int) {
 	k[i], k[j] = k[j], k[i]
 }
-func (k byKey) Less(i, j int) bool {
+func (k changesByKey) Less(i, j int) bool {
 	return bytes.Compare(k[i].key, k[j].key) == -1
 }
 
@@ -278,7 +278,7 @@ func (bs *changesStorage) validateDeltas(filter, perform bool) error {
 	// LevelDB stores data sorted by keys, and the idea is to read in sorted order.
 	// We save a lot of time on disk's seek time for hdd, and some time for ssd too (by reducing amount of reads).
 	// TODO: if DB supported MultiGet() operation, this would probably be even faster.
-	sort.Sort(byKey(bs.deltas))
+	sort.Sort(changesByKey(bs.deltas))
 	for _, delta := range bs.deltas {
 		if err := bs.validateDelta(&delta, filter, perform); err != nil {
 			return err

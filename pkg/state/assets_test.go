@@ -11,19 +11,8 @@ import (
 )
 
 type assetsTestObjects struct {
-	rb      *recentBlocks
-	assets  *assets
-	stateDB *stateDB
-}
-
-func flushAssets(t *testing.T, to *assetsTestObjects) {
-	to.rb.flush()
-	err := to.assets.flush(false)
-	assert.NoError(t, err, "assets.flush() failed")
-	to.assets.reset()
-	err = to.stateDB.flush()
-	assert.NoError(t, err, "stateDB.flush() failed")
-	to.stateDB.reset()
+	stor   *storageObjects
+	assets *assets
 }
 
 func createAssets() (*assetsTestObjects, []string, error) {
@@ -31,11 +20,11 @@ func createAssets() (*assetsTestObjects, []string, error) {
 	if err != nil {
 		return nil, path, err
 	}
-	assets, err := newAssets(stor.db, stor.dbBatch, stor.stateDB, stor.rb)
+	assets, err := newAssets(stor.db, stor.dbBatch, stor.hs)
 	if err != nil {
 		return nil, path, err
 	}
-	return &assetsTestObjects{stor.rb, assets, stor.stateDB}, path, nil
+	return &assetsTestObjects{stor, assets}, path, nil
 }
 
 func createAssetInfo(t *testing.T, reissuable bool, blockID0 crypto.Signature, assetID crypto.Digest) *assetInfo {
@@ -59,13 +48,13 @@ func TestIssueAsset(t *testing.T) {
 	assert.NoError(t, err, "createAssets() failed")
 
 	defer func() {
-		err = to.stateDB.close()
+		err = to.stor.stateDB.close()
 		assert.NoError(t, err, "stateDB.close() failed")
 		err = util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
-	addBlock(t, to.stateDB, to.rb, blockID0)
+	to.stor.addBlock(t, blockID0)
 	assetID, err := crypto.NewDigestFromBytes(bytes.Repeat([]byte{0xff}, crypto.DigestSize))
 	assert.NoError(t, err, "failed to create digest from bytes")
 	asset := createAssetInfo(t, false, blockID0, assetID)
@@ -76,7 +65,7 @@ func TestIssueAsset(t *testing.T) {
 	if !record.equal(&asset.assetHistoryRecord) {
 		t.Errorf("Assets differ.")
 	}
-	flushAssets(t, to)
+	to.stor.flush(t)
 	resAsset, err := to.assets.assetInfo(assetID, true)
 	assert.NoError(t, err, "failed to get asset info")
 	if !resAsset.equal(asset) {
@@ -89,13 +78,13 @@ func TestReissueAsset(t *testing.T) {
 	assert.NoError(t, err, "createAssets() failed")
 
 	defer func() {
-		err = to.stateDB.close()
+		err = to.stor.stateDB.close()
 		assert.NoError(t, err, "stateDB.close() failed")
 		err = util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
-	addBlock(t, to.stateDB, to.rb, blockID0)
+	to.stor.addBlock(t, blockID0)
 	assetID, err := crypto.NewDigestFromBytes(bytes.Repeat([]byte{0xff}, crypto.DigestSize))
 	assert.NoError(t, err, "failed to create digest from bytes")
 	asset := createAssetInfo(t, true, blockID0, assetID)
@@ -105,7 +94,7 @@ func TestReissueAsset(t *testing.T) {
 	assert.NoError(t, err, "failed to reissue asset")
 	asset.reissuable = false
 	asset.quantity.Add(&asset.quantity, big.NewInt(1))
-	flushAssets(t, to)
+	to.stor.flush(t)
 	resAsset, err := to.assets.assetInfo(assetID, true)
 	assert.NoError(t, err, "failed to get asset info")
 	if !resAsset.equal(asset) {
@@ -118,13 +107,13 @@ func TestBurnAsset(t *testing.T) {
 	assert.NoError(t, err, "createAssets() failed")
 
 	defer func() {
-		err = to.stateDB.close()
+		err = to.stor.stateDB.close()
 		assert.NoError(t, err, "stateDB.close() failed")
 		err = util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
-	addBlock(t, to.stateDB, to.rb, blockID0)
+	to.stor.addBlock(t, blockID0)
 	assetID, err := crypto.NewDigestFromBytes(bytes.Repeat([]byte{0xff}, crypto.DigestSize))
 	assert.NoError(t, err, "failed to create digest from bytes")
 	asset := createAssetInfo(t, false, blockID0, assetID)
@@ -133,7 +122,7 @@ func TestBurnAsset(t *testing.T) {
 	err = to.assets.burnAsset(assetID, &assetBurnChange{1, blockID0}, true)
 	assert.NoError(t, err, "failed to burn asset")
 	asset.quantity.Sub(&asset.quantity, big.NewInt(1))
-	flushAssets(t, to)
+	to.stor.flush(t)
 	resAsset, err := to.assets.assetInfo(assetID, true)
 	assert.NoError(t, err, "failed to get asset info")
 	if !resAsset.equal(asset) {
