@@ -91,6 +91,9 @@ func (r *assetHistoryRecord) marshalBinary() ([]byte, error) {
 }
 
 func (r *assetHistoryRecord) unmarshalBinary(data []byte) error {
+	if len(data) != assetRecordSize {
+		return errors.New("invalid data size")
+	}
 	r.quantity.SetBytes(data[:maxQuantityLen])
 	var err error
 	r.reissuable, err = proto.Bool(data[maxQuantityLen : maxQuantityLen+1])
@@ -102,32 +105,13 @@ func (r *assetHistoryRecord) unmarshalBinary(data []byte) error {
 }
 
 type assets struct {
-	db      keyvalue.IterableKeyVal
+	db      keyvalue.KeyValue
 	dbBatch keyvalue.Batch
-	// Local storage for history, is moved to batch after all the changes are made.
-	// The motivation for this is inability to read from DB batch.
-	localStor map[string][]byte
-
-	// fmt is used for operations on assets history.
-	fmt *historyFormatter
+	hs      *historyStorage
 }
 
-func newAssets(
-	db keyvalue.IterableKeyVal,
-	dbBatch keyvalue.Batch,
-	stDb *stateDB,
-	rb *recentBlocks,
-) (*assets, error) {
-	fmt, err := newHistoryFormatter(assetRecordSize, crypto.SignatureSize, stDb, rb)
-	if err != nil {
-		return nil, err
-	}
-	return &assets{
-		db:        db,
-		dbBatch:   dbBatch,
-		localStor: make(map[string][]byte),
-		fmt:       fmt,
-	}, nil
+func newAssets(db keyvalue.KeyValue, dbBatch keyvalue.Batch, hs *historyStorage) (*assets, error) {
+	return &assets{db, dbBatch, hs}, nil
 }
 
 func (a *assets) addNewRecord(assetID crypto.Digest, record *assetHistoryRecord) error {
@@ -137,13 +121,7 @@ func (a *assets) addNewRecord(assetID crypto.Digest, record *assetHistoryRecord)
 	}
 	// Add new record to history.
 	histKey := assetHistKey{assetID: assetID}
-	history, _ := a.localStor[string(histKey.bytes())]
-	history, err = a.fmt.addRecord(history, recordBytes)
-	if err != nil {
-		return errors.Errorf("failed to add asset record to history: %v\n", err)
-	}
-	a.localStor[string(histKey.bytes())] = history
-	return nil
+	return a.hs.set(asset, histKey.bytes(), recordBytes)
 }
 
 func (a *assets) issueAsset(assetID crypto.Digest, asset *assetInfo) error {
@@ -205,31 +183,19 @@ func (a *assets) constInfo(assetID crypto.Digest) (*assetConstInfo, error) {
 	return &constInfo, nil
 }
 
-func (a *assets) lastRecord(history []byte) (*assetHistoryRecord, error) {
-	last, err := a.fmt.getLatest(history)
-	if err != nil {
-		return nil, errors.Errorf("failed to get the last record: %v\n", err)
-	}
-	var record assetHistoryRecord
-	if err := record.unmarshalBinary(last); err != nil {
-		return nil, errors.Errorf("failed to unmarshal history record: %v\n", err)
-	}
-	return &record, nil
-}
-
 // Newest asset record (from local storage, or from DB if given asset has not been changed).
 // This is needed for transactions validation.
 func (a *assets) newestAssetRecord(assetID crypto.Digest, filter bool) (*assetHistoryRecord, error) {
 	histKey := assetHistKey{assetID: assetID}
-	history, err := fullHistory(histKey.bytes(), a.db, a.localStor, a.fmt, filter)
+	recordBytes, err := a.hs.getFresh(asset, histKey.bytes(), filter)
 	if err != nil {
 		return nil, err
 	}
-	record, err := a.lastRecord(history)
-	if err != nil {
-		return nil, err
+	var record assetHistoryRecord
+	if err := record.unmarshalBinary(recordBytes); err != nil {
+		return nil, errors.Errorf("failed to unmarshal record: %v\n", err)
 	}
-	return record, nil
+	return &record, nil
 }
 
 // "Stable" asset info from database.
@@ -240,28 +206,13 @@ func (a *assets) assetInfo(assetID crypto.Digest, filter bool) (*assetInfo, erro
 		return nil, err
 	}
 	histKey := assetHistKey{assetID: assetID}
-	history, err := a.db.Get(histKey.bytes())
-	if err != nil {
-		return nil, errors.Errorf("failed to retrieve history for given asset: %v\n", err)
-	}
-	history, err = a.fmt.normalize(history, filter)
-	if err != nil {
-		return nil, errors.Errorf("failed to normalize history: %v\n", err)
-	}
-	record, err := a.lastRecord(history)
+	recordBytes, err := a.hs.get(asset, histKey.bytes(), filter)
 	if err != nil {
 		return nil, err
 	}
-	return &assetInfo{assetConstInfo: *constInfo, assetHistoryRecord: *record}, nil
-}
-
-func (a *assets) reset() {
-	a.localStor = make(map[string][]byte)
-}
-
-func (a *assets) flush(initialisation bool) error {
-	if err := addHistoryToBatch(a.db, a.dbBatch, a.localStor, a.fmt, !initialisation); err != nil {
-		return err
+	var record assetHistoryRecord
+	if err := record.unmarshalBinary(recordBytes); err != nil {
+		return nil, errors.Errorf("failed to unmarshal record: %v\n", err)
 	}
-	return nil
+	return &assetInfo{assetConstInfo: *constInfo, assetHistoryRecord: record}, nil
 }

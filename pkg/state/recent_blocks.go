@@ -1,10 +1,14 @@
 package state
 
 import (
+	"sync"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 )
 
 type recentBlocks struct {
+	rwLock sync.RWMutex
+
 	stableHeight, newestHeight uint64
 	rangeSize                  int
 	// IDs of recent blocks in DB.
@@ -26,22 +30,35 @@ func newRecentBlocks(rangeSize int, rw *blockReadWriter) (*recentBlocks, error) 
 	}, nil
 }
 
-func (rb *recentBlocks) height() (uint64, error) {
+func (rb *recentBlocks) isEmpty() bool {
+	rb.rwLock.RLock()
+	defer rb.rwLock.RUnlock()
 	if rb.stableIds == nil && rb.rw != nil {
+		return true
+	}
+	return false
+}
+
+func (rb *recentBlocks) height() (uint64, error) {
+	if rb.isEmpty() {
 		if err := rb.fillRecentIds(); err != nil {
 			return 0, err
 		}
 	}
+	rb.rwLock.RLock()
+	defer rb.rwLock.RUnlock()
 	return rb.stableHeight, nil
 }
 
 // Add to the list of newest IDs.
 func (rb *recentBlocks) addNewBlockID(blockID crypto.Signature) error {
-	if rb.stableIds == nil && rb.rw != nil {
+	if rb.isEmpty() {
 		if err := rb.fillRecentIds(); err != nil {
 			return err
 		}
 	}
+	rb.rwLock.Lock()
+	defer rb.rwLock.Unlock()
 	if rb.newestHeight == 0 {
 		rb.newestHeight = rb.stableHeight
 	}
@@ -51,8 +68,7 @@ func (rb *recentBlocks) addNewBlockID(blockID crypto.Signature) error {
 	return nil
 }
 
-// Add directly to the list of stable IDs.
-func (rb *recentBlocks) addBlockID(blockID crypto.Signature) error {
+func (rb *recentBlocks) addBlockIDImpl(blockID crypto.Signature) error {
 	if len(rb.stableIds) < rb.rangeSize {
 		rb.isStable[blockID] = rb.stableHeight
 		rb.stableIds = append(rb.stableIds, blockID)
@@ -66,7 +82,16 @@ func (rb *recentBlocks) addBlockID(blockID crypto.Signature) error {
 	return nil
 }
 
+// Add directly to the list of stable IDs.
+func (rb *recentBlocks) addBlockID(blockID crypto.Signature) error {
+	rb.rwLock.Lock()
+	defer rb.rwLock.Unlock()
+	return rb.addBlockIDImpl(blockID)
+}
+
 func (rb *recentBlocks) fillRecentIds() error {
+	rb.rwLock.Lock()
+	defer rb.rwLock.Unlock()
 	height, err := rb.rw.currentHeight()
 	if err != nil {
 		return err
@@ -81,7 +106,7 @@ func (rb *recentBlocks) fillRecentIds() error {
 		if err != nil {
 			return err
 		}
-		if err := rb.addBlockID(id); err != nil {
+		if err := rb.addBlockIDImpl(id); err != nil {
 			return err
 		}
 	}
@@ -89,11 +114,13 @@ func (rb *recentBlocks) fillRecentIds() error {
 }
 
 func (rb *recentBlocks) newBlockIDToHeight(blockID crypto.Signature) (uint64, error) {
-	if rb.stableIds == nil && rb.rw != nil {
+	if rb.isEmpty() {
 		if err := rb.fillRecentIds(); err != nil {
 			return 0, err
 		}
 	}
+	rb.rwLock.RLock()
+	defer rb.rwLock.RUnlock()
 	height, ok := rb.isNewest[blockID]
 	if !ok {
 		height, ok = rb.isStable[blockID]
@@ -106,11 +133,13 @@ func (rb *recentBlocks) newBlockIDToHeight(blockID crypto.Signature) (uint64, er
 }
 
 func (rb *recentBlocks) blockIDToHeight(blockID crypto.Signature) (uint64, error) {
-	if rb.stableIds == nil && rb.rw != nil {
+	if rb.isEmpty() {
 		if err := rb.fillRecentIds(); err != nil {
 			return 0, err
 		}
 	}
+	rb.rwLock.RLock()
+	defer rb.rwLock.RUnlock()
 	stableHeight, ok := rb.isStable[blockID]
 	if !ok {
 		return 0, nil
@@ -119,6 +148,8 @@ func (rb *recentBlocks) blockIDToHeight(blockID crypto.Signature) (uint64, error
 }
 
 func (rb *recentBlocks) reset() {
+	rb.rwLock.Lock()
+	defer rb.rwLock.Unlock()
 	rb.stableIds = nil
 	rb.isStable = make(map[crypto.Signature]uint64)
 	rb.newestHeight = 0
@@ -141,6 +172,8 @@ func (rb *recentBlocks) addNewIds() {
 
 // flush() "flushes" newest IDs to stable IDs.
 func (rb *recentBlocks) flush() {
+	rb.rwLock.Lock()
+	defer rb.rwLock.Unlock()
 	rb.stableIds = append(rb.stableIds, rb.newestIds...)
 	rb.addNewIds()
 	rb.newestIds = nil

@@ -52,16 +52,54 @@ func genesisFilePath(s *settings.BlockchainSettings) (string, error) {
 	}
 }
 
-type stateManager struct {
-	genesis proto.Block
-	stateDB *stateDB
-
+type blockchainEntitiesStorage struct {
+	hs       *historyStorage
+	aliases  *aliases
 	assets   *assets
 	leases   *leases
 	scores   *scores
 	balances *balances
-	rw       *blockReadWriter
-	peers    *peerStorage
+}
+
+func newBlockchainEntitiesStorage(hs *historyStorage) (*blockchainEntitiesStorage, error) {
+	aliases, err := newAliases(hs)
+	if err != nil {
+		return nil, err
+	}
+	assets, err := newAssets(hs.db, hs.dbBatch, hs)
+	if err != nil {
+		return nil, err
+	}
+	leases, err := newLeases(hs.db, hs)
+	if err != nil {
+		return nil, err
+	}
+	scores, err := newScores(hs.db, hs.dbBatch)
+	if err != nil {
+		return nil, err
+	}
+	balances, err := newBalances(hs.db, hs)
+	if err != nil {
+		return nil, err
+	}
+	return &blockchainEntitiesStorage{hs, aliases, assets, leases, scores, balances}, nil
+}
+
+func (s *blockchainEntitiesStorage) reset() {
+	s.hs.reset()
+}
+
+func (s *blockchainEntitiesStorage) flush(initialisation bool) error {
+	return s.hs.flush(!initialisation)
+}
+
+type stateManager struct {
+	genesis proto.Block
+	stateDB *stateDB
+
+	stor  *blockchainEntitiesStorage
+	rw    *blockReadWriter
+	peers *peerStorage
 
 	rb *recentBlocks
 
@@ -101,11 +139,6 @@ func newStateManager(dataDir string, params StateParams, settings *settings.Bloc
 	if err != nil {
 		return nil, StateError{errorType: Other, originalError: errors.Errorf("failed to create stateDB: %v\n", err)}
 	}
-	// scores is storage for blocks score.
-	scores, err := newScores(db, dbBatch)
-	if err != nil {
-		return nil, StateError{errorType: Other, originalError: errors.Errorf("failed to create scores: %v\n", err)}
-	}
 	// rw is storage for blocks.
 	rw, err := newBlockReadWriter(blockStorageDir, params.OffsetLen, params.HeaderOffsetLen, db, dbBatch)
 	if err != nil {
@@ -119,27 +152,17 @@ func newStateManager(dataDir string, params StateParams, settings *settings.Bloc
 	if err != nil {
 		return nil, StateError{errorType: Other, originalError: errors.Errorf("failed to create recent blocks stor: %v\n", err)}
 	}
-	// balances is storage for balances of accounts.
-	balances, err := newBalances(db, dbBatch, stateDB, rb)
+	hs, err := newHistoryStorage(db, dbBatch, stateDB, rb)
 	if err != nil {
-		return nil, StateError{errorType: Other, originalError: errors.Errorf("failed to create balances storage: %v\n", err)}
+		return nil, StateError{errorType: Other, originalError: errors.Errorf("failed to create history storage: %v\n", err)}
 	}
-	// assets is storage for assets info.
-	assets, err := newAssets(db, dbBatch, stateDB, rb)
+	stor, err := newBlockchainEntitiesStorage(hs)
 	if err != nil {
-		return nil, StateError{errorType: Other, originalError: errors.Errorf("failed to create assets storage: %v\n", err)}
-	}
-	// leases is storage for leases info.
-	leases, err := newLeases(db, dbBatch, stateDB, rb)
-	if err != nil {
-		return nil, StateError{errorType: Other, originalError: errors.Errorf("failed to create leases storage: %v\n", err)}
+		return nil, StateError{errorType: Other, originalError: errors.Errorf("failed to create blockchain entities storage: %v\n", err)}
 	}
 	state := &stateManager{
 		stateDB:                   stateDB,
-		assets:                    assets,
-		leases:                    leases,
-		scores:                    scores,
-		balances:                  balances,
+		stor:                      stor,
 		rw:                        rw,
 		rb:                        rb,
 		settings:                  settings,
@@ -174,11 +197,11 @@ func (s *stateManager) Peers() ([]proto.TCPAddr, error) {
 
 func (s *stateManager) setValidators() error {
 	var err error
-	s.standaloneTv, err = newTransactionValidator(s.genesis.BlockSignature, s.balances, s.assets, s.leases, s.settings)
+	s.standaloneTv, err = newTransactionValidator(s.genesis.BlockSignature, s.stor, s.settings)
 	if err != nil {
 		return err
 	}
-	s.multiTxTv, err = newTransactionValidator(s.genesis.BlockSignature, s.balances, s.assets, s.leases, s.settings)
+	s.multiTxTv, err = newTransactionValidator(s.genesis.BlockSignature, s.stor, s.settings)
 	if err != nil {
 		return err
 	}
@@ -208,10 +231,10 @@ func (s *stateManager) addGenesisBlock() error {
 	if err != nil {
 		return err
 	}
-	if err := s.scores.addScore(&big.Int{}, genesisScore, 1); err != nil {
+	if err := s.stor.scores.addScore(&big.Int{}, genesisScore, 1); err != nil {
 		return err
 	}
-	tv, err := newTransactionValidator(s.genesis.BlockSignature, s.balances, s.assets, s.leases, s.settings)
+	tv, err := newTransactionValidator(s.genesis.BlockSignature, s.stor, s.settings)
 	if err != nil {
 		return err
 	}
@@ -337,13 +360,13 @@ func (s *stateManager) HeightToBlockID(height uint64) (crypto.Signature, error) 
 
 func (s *stateManager) AccountBalance(addr proto.Address, asset []byte) (uint64, error) {
 	if asset == nil {
-		profile, err := s.balances.wavesBalance(addr, true)
+		profile, err := s.stor.balances.wavesBalance(addr, true)
 		if err != nil {
 			return 0, StateError{errorType: RetrievalError, originalError: err}
 		}
 		return profile.balance, nil
 	}
-	balance, err := s.balances.assetBalance(addr, asset, true)
+	balance, err := s.stor.balances.assetBalance(addr, asset, true)
 	if err != nil {
 		return 0, StateError{errorType: RetrievalError, originalError: err}
 	}
@@ -351,7 +374,7 @@ func (s *stateManager) AccountBalance(addr proto.Address, asset []byte) (uint64,
 }
 
 func (s *stateManager) WavesAddressesNumber() (uint64, error) {
-	res, err := s.balances.wavesAddressesNumber()
+	res, err := s.stor.balances.wavesAddressesNumber()
 	if err != nil {
 		return 0, StateError{errorType: RetrievalError, originalError: err}
 	}
@@ -438,9 +461,7 @@ func (s *stateManager) addNewBlock(tv *transactionValidator, block, parent *prot
 
 func (s *stateManager) reset() error {
 	s.rw.reset()
-	s.assets.reset()
-	s.leases.reset()
-	s.balances.reset()
+	s.stor.reset()
 	s.stateDB.reset()
 	return nil
 }
@@ -449,13 +470,7 @@ func (s *stateManager) flush(initialisation bool) error {
 	if err := s.rw.flush(); err != nil {
 		return err
 	}
-	if err := s.assets.flush(initialisation); err != nil {
-		return err
-	}
-	if err := s.leases.flush(initialisation); err != nil {
-		return err
-	}
-	if err := s.balances.flush(initialisation); err != nil {
+	if err := s.stor.flush(initialisation); err != nil {
 		return err
 	}
 	if err := s.stateDB.flush(); err != nil {
@@ -526,30 +541,30 @@ func (s *stateManager) cancelLeases() error {
 	}
 	switch height {
 	case s.settings.ResetEffectiveBalanceAtHeight:
-		if err := s.leases.cancelLeases(nil); err != nil {
+		if err := s.stor.leases.cancelLeases(nil); err != nil {
 			return err
 		}
-		if err := s.balances.cancelAllLeases(); err != nil {
+		if err := s.stor.balances.cancelAllLeases(); err != nil {
 			return err
 		}
 		s.leasesCl0 = true
 	case s.settings.BlockVersion3AfterHeight:
-		overflowAddrs, err := s.balances.cancelLeaseOverflows()
+		overflowAddrs, err := s.stor.balances.cancelLeaseOverflows()
 		if err != nil {
 			return err
 		}
-		if err := s.leases.cancelLeases(overflowAddrs); err != nil {
+		if err := s.stor.leases.cancelLeases(overflowAddrs); err != nil {
 			return err
 		}
 		s.leasesCl1 = true
 
 		//TODO
 		//case blockchainFeatures.DataTransactionHeight:
-		//leaseIns, err := s.leases.validLeaseIns()
+		//leaseIns, err := s.stor.leases.validLeaseIns()
 		//if err != nil {
 		//	return err
 		//}
-		//if err := s.balances.cancelInvalidLeaseIns(leaseIns); err != nil {
+		//if err := s.stor.balances.cancelInvalidLeaseIns(leaseIns); err != nil {
 		//	return err
 		//}
 		//s.leasesCl2 = true
@@ -571,7 +586,7 @@ func (s *stateManager) addBlocks(blocks [][]byte, initialisation bool) error {
 	if err != nil {
 		return StateError{errorType: RetrievalError, originalError: err}
 	}
-	tv, err := newTransactionValidator(s.genesis.BlockSignature, s.balances, s.assets, s.leases, s.settings)
+	tv, err := newTransactionValidator(s.genesis.BlockSignature, s.stor, s.settings)
 	if err != nil {
 		return StateError{errorType: Other, originalError: err}
 	}
@@ -579,7 +594,7 @@ func (s *stateManager) addBlocks(blocks [][]byte, initialisation bool) error {
 	if err != nil {
 		return StateError{errorType: RetrievalError, originalError: err}
 	}
-	prevScore, err := s.scores.score(height)
+	prevScore, err := s.stor.scores.score(height)
 	if err != nil {
 		return StateError{errorType: RetrievalError, originalError: err}
 	}
@@ -614,7 +629,7 @@ func (s *stateManager) addBlocks(blocks [][]byte, initialisation bool) error {
 		if err != nil {
 			return StateError{errorType: Other, originalError: err}
 		}
-		if err := s.scores.addScore(prevScore, score, s.rw.recentHeight()); err != nil {
+		if err := s.stor.scores.addScore(prevScore, score, s.rw.recentHeight()); err != nil {
 			return StateError{errorType: ModificationError, originalError: err}
 		}
 		prevScore = score
@@ -722,7 +737,7 @@ func (s *stateManager) rollbackToImpl(removalEdge crypto.Signature) error {
 		return StateError{errorType: RetrievalError, originalError: err}
 	}
 	oldHeight := curHeight + 1
-	if err := s.scores.rollback(newHeight, oldHeight); err != nil {
+	if err := s.stor.scores.rollback(newHeight, oldHeight); err != nil {
 		return StateError{errorType: RollbackError, originalError: err}
 	}
 	// Reset recent block IDs storage.
@@ -749,7 +764,7 @@ func (s *stateManager) ScoreAtHeight(height uint64) (*big.Int, error) {
 	if height < 1 || height > maxHeight {
 		return nil, StateError{errorType: InvalidInputError, originalError: errors.New("height out of valid range")}
 	}
-	score, err := s.scores.score(height)
+	score, err := s.stor.scores.score(height)
 	if err != nil {
 		return nil, StateError{errorType: RetrievalError, originalError: err}
 	}
@@ -765,7 +780,7 @@ func (s *stateManager) CurrentScore() (*big.Int, error) {
 }
 
 func (s *stateManager) EffectiveBalance(addr proto.Address, startHeight, endHeight uint64) (uint64, error) {
-	effectiveBalance, err := s.balances.minEffectiveBalanceInRange(addr, startHeight, endHeight)
+	effectiveBalance, err := s.stor.balances.minEffectiveBalanceInRange(addr, startHeight, endHeight)
 	if err != nil {
 		return 0, StateError{errorType: RetrievalError, originalError: err}
 	}
