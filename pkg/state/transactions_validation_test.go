@@ -1,6 +1,7 @@
 package state
 
 import (
+	"fmt"
 	"math/big"
 	"testing"
 
@@ -120,21 +121,25 @@ func addBlocks(t *testing.T, to *testObjects, blocks []block) {
 	}
 }
 
+func defaultTxValidationInfo(t *testing.T, timestamp uint64, blockSig string) *txValidationInfo {
+	mpk, err := crypto.NewPublicKeyFromBase58(minerPK)
+	assert.NoError(t, err, "NewPublicKeyFromBase58() failed")
+	blockID, err := crypto.NewSignatureFromBase58(blockSig)
+	assert.NoError(t, err, "NewSignatureFromBase58() failed")
+	return &txValidationInfo{
+		perform:          true,
+		initialisation:   true,
+		currentTimestamp: timestamp,
+		parentTimestamp:  timestamp,
+		minerPK:          mpk,
+		blockID:          blockID,
+	}
+}
+
 func validateTx(t *testing.T, tv *transactionValidator, tx proto.Transaction, blocks []block, checkTimestamp bool) {
 	for _, b := range blocks {
-		mpk, err := crypto.NewPublicKeyFromBase58(minerPK)
-		assert.NoError(t, err, "NewPublicKeyFromBase58() failed")
-		blockID, err := crypto.NewSignatureFromBase58(b.sig)
-		assert.NoError(t, err, "NewSignatureFromBase58() failed")
-		info := &txValidationInfo{
-			perform:          true,
-			initialisation:   true,
-			currentTimestamp: b.timestamp,
-			parentTimestamp:  b.timestamp,
-			minerPK:          mpk,
-			blockID:          blockID,
-		}
-		err = tv.addTxForValidation(tx, info)
+		info := defaultTxValidationInfo(t, b.timestamp, b.sig)
+		err := tv.addTxForValidation(tx, info)
 		assert.NoError(t, err, "addTxForValidation() failed")
 		if checkTimestamp {
 			// Check invalid timestamp.
@@ -988,6 +993,90 @@ func TestValidateLeaseCancelV2(t *testing.T) {
 		{address: minerAddr, asset: "", newBalance: tx.Fee + leaseTx.Fee},
 	}
 	validateAndCheck(t, to, tx, profileChanges)
+}
+
+func createCreateAliasV1(t *testing.T, alias proto.Alias, timestamp uint64) *proto.CreateAliasV1 {
+	spk, err := crypto.NewPublicKeyFromBase58(senderPK)
+	assert.NoError(t, err, "NewPublicKeyFromBase58() failed")
+	return proto.NewUnsignedCreateAliasV1(spk, alias, 1, timestamp)
+}
+
+func TestValidateCreateAliasV1(t *testing.T) {
+	to, path := createTestObjects(t)
+
+	defer func() {
+		err := to.entities.assets.db.Close()
+		assert.NoError(t, err, "db.Close() failed")
+		err = util.CleanTemporaryDirs(path)
+		assert.NoError(t, err, "failed to clean test data dirs")
+	}()
+
+	aliasStr := "alias"
+	aliasFull := fmt.Sprintf("alias:W:%s", aliasStr)
+	alias, err := proto.NewAliasFromString(aliasFull)
+	assert.NoError(t, err, "NewAddressFromString() failed")
+	tx := createCreateAliasV1(t, *alias, timestamp1)
+	// Set proper balances and check result state.
+	profileChanges := []profileChange{
+		{address: senderAddr, asset: "", prevBalance: tx.Fee, newBalance: 0},
+		{address: minerAddr, asset: "", prevBalance: 0, newBalance: tx.Fee},
+	}
+	diffTest(t, to, tx, profileChanges)
+
+	// Check alias.
+	correctAddr, err := proto.NewAddressFromString(senderAddr)
+	assert.NoError(t, err, "NewAddressFromString() failed")
+	addr, err := to.entities.aliases.addrByAlias(aliasStr, true)
+	assert.NoError(t, err, "addrByAlias failed")
+	assert.Equal(t, correctAddr, *addr, "invalid address by alias after performing CreateAliasV2 transaction")
+
+	// Check alias already taken.
+	info := defaultTxValidationInfo(t, timestamp0, blockSig0)
+	err = to.tv.addTxForValidation(tx, info)
+	assert.Error(t, err, "addTxForValidation() did not fail with alias which is already taken")
+	assert.Equal(t, err.Error(), "createaliasv1 validation failed: alias is already taken")
+}
+
+func createCreateAliasV2(t *testing.T, alias proto.Alias, timestamp uint64) *proto.CreateAliasV2 {
+	spk, err := crypto.NewPublicKeyFromBase58(senderPK)
+	assert.NoError(t, err, "NewPublicKeyFromBase58() failed")
+	return proto.NewUnsignedCreateAliasV2(spk, alias, 1, timestamp)
+}
+
+func TestValidateCreateAliasV2(t *testing.T) {
+	to, path := createTestObjects(t)
+
+	defer func() {
+		err := to.entities.assets.db.Close()
+		assert.NoError(t, err, "db.Close() failed")
+		err = util.CleanTemporaryDirs(path)
+		assert.NoError(t, err, "failed to clean test data dirs")
+	}()
+
+	aliasStr := "alias"
+	aliasFull := fmt.Sprintf("alias:W:%s", aliasStr)
+	alias, err := proto.NewAliasFromString(aliasFull)
+	assert.NoError(t, err, "NewAddressFromString() failed")
+	tx := createCreateAliasV2(t, *alias, timestamp1)
+	// Set proper balances and check result state.
+	profileChanges := []profileChange{
+		{address: senderAddr, asset: "", prevBalance: tx.Fee, newBalance: 0},
+		{address: minerAddr, asset: "", prevBalance: 0, newBalance: tx.Fee},
+	}
+	diffTest(t, to, tx, profileChanges)
+
+	// Check alias.
+	correctAddr, err := proto.NewAddressFromString(senderAddr)
+	assert.NoError(t, err, "NewAddressFromString() failed")
+	addr, err := to.entities.aliases.addrByAlias(aliasStr, true)
+	assert.NoError(t, err, "addrByAlias failed")
+	assert.Equal(t, correctAddr, *addr, "invalid address by alias after performing CreateAliasV2 transaction")
+
+	// Check alias already taken.
+	info := defaultTxValidationInfo(t, timestamp0, blockSig0)
+	err = to.tv.addTxForValidation(tx, info)
+	assert.Error(t, err, "addTxForValidation() did not fail with alias which is already taken")
+	assert.Equal(t, err.Error(), "createaliasv2 validation failed: alias is already taken")
 }
 
 func TestValidateWithoutBlock(t *testing.T) {
