@@ -15,6 +15,8 @@ type StateErrorType byte
 const (
 	// Unmarshal error of block or transaction.
 	DeserializationError StateErrorType = iota + 1
+	// Marshal error of block or transaction.
+	SerializationError
 	TxValidationError
 	BlockValidationError
 	// Either block or tx.
@@ -56,9 +58,13 @@ type State interface {
 	// Block getters.
 	Block(blockID crypto.Signature) (*proto.Block, error)
 	BlockByHeight(height uint64) (*proto.Block, error)
+	BlockBytes(blockID crypto.Signature) ([]byte, error)
+	BlockBytesByHeight(height uint64) ([]byte, error)
 	// Header getters.
 	Header(blockID crypto.Signature) (*proto.BlockHeader, error)
 	HeaderByHeight(height uint64) (*proto.BlockHeader, error)
+	HeaderBytes(blockID crypto.Signature) ([]byte, error)
+	HeaderBytesByHeight(height uint64) ([]byte, error)
 	// Height returns current blockchain height.
 	Height() (uint64, error)
 	// Height <---> blockID converters.
@@ -74,13 +80,18 @@ type State interface {
 	// It's not recommended to use this function when you are able to accumulate big blocks batch,
 	// since it's much more efficient to add many blocks at once.
 	AddBlock(block []byte) error
+	AddDeserializedBlock(block *proto.Block) error
 	// AddNewBlocks adds batch of new blocks to state.
 	// Use it when blocks are logically new.
 	AddNewBlocks(blocks [][]byte) error
+	// AddNewDeserializedBlocks marshals blocks to binary and calls AddNewBlocks().
+	AddNewDeserializedBlocks(blocks []*proto.Block) error
 	// AddOldBlocks adds batch of old blocks to state.
 	// Use it when importing historical blockchain.
 	// It is faster than AddNewBlocks but it is only safe when importing from scratch when no rollbacks are possible at all.
 	AddOldBlocks(blocks [][]byte) error
+	// AddOldDeserializedBlocks marshals blocks to binary and calls AddOldBlocks().
+	AddOldDeserializedBlocks(blocks []*proto.Block) error
 	// Rollback functionality.
 	RollbackToHeight(height uint64) error
 	RollbackTo(removalEdge crypto.Signature) error

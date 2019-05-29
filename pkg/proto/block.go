@@ -178,6 +178,35 @@ func (t TransactionsField) MarshalJSON() ([]byte, error) {
 	return json.Marshal(transactions)
 }
 
+func AppendHeaderBytesToTransactions(headerBytes []byte, transactions []byte) ([]byte, error) {
+	headerLen := len(headerBytes)
+	if headerLen < 1 {
+		return nil, errors.New("insufficient header data size")
+	}
+	featuresSize := 0
+	version := BlockVersion(headerBytes[0])
+	if version >= NgBlockVersion {
+		if len(headerBytes) < 129 {
+			return nil, errors.New("insufficient header data size")
+		}
+		featuresCount := int(binary.BigEndian.Uint32(headerBytes[125:129]))
+		// featuresCount * int16 + int for featuresCount itself.
+		featuresSize = featuresCount*2 + 4
+	}
+	if headerLen < crypto.PublicKeySize+crypto.SignatureSize+featuresSize {
+		return nil, errors.New("insufficient header data size")
+	}
+	headerBeforeTx := headerBytes[:headerLen-crypto.PublicKeySize-crypto.SignatureSize-featuresSize]
+	headerAfterTx := headerBytes[headerLen-crypto.PublicKeySize-crypto.SignatureSize-featuresSize:]
+	res := make([]byte, headerLen+len(transactions))
+	copy(res, headerBeforeTx)
+	filled := len(headerBeforeTx)
+	copy(res[filled:], transactions)
+	filled += len(transactions)
+	copy(res[filled:], headerAfterTx)
+	return res, nil
+}
+
 // Block is a block of the blockchain
 type Block struct {
 	BlockHeader
