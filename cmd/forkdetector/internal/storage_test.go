@@ -52,7 +52,7 @@ func TestOneFork(t *testing.T) {
 
 	storage := storage{db: db, genesis: gs}
 
-	if err = storage.handleBlock(gb, peer1); assert.NoError(t, err) {
+	if err = storage.appendBlock(gb); assert.NoError(t, err) {
 		if fs, err := storage.parentedForks(); assert.NoError(t, err) {
 			assert.Equal(t, 1, len(fs))
 			assert.Equal(t, 1, len(fs[0].Peers))
@@ -64,7 +64,7 @@ func TestOneFork(t *testing.T) {
 			assert.Equal(t, gs, fs[0].CommonBlock)
 		}
 	}
-	if err = storage.handleBlock(b2, peer1); assert.NoError(t, err) {
+	if err = storage.appendBlock(b2); assert.NoError(t, err) {
 		if fs, err := storage.parentedForks(); assert.NoError(t, err) {
 			assert.Equal(t, 1, len(fs))
 			assert.Equal(t, 1, len(fs[0].Peers))
@@ -76,7 +76,7 @@ func TestOneFork(t *testing.T) {
 			assert.Equal(t, gs, fs[0].CommonBlock)
 		}
 	}
-	if err = storage.handleBlock(b3, peer1); assert.NoError(t, err) {
+	if err = storage.appendBlock(b3); assert.NoError(t, err) {
 		if fs, err := storage.parentedForks(); assert.NoError(t, err) {
 			assert.Equal(t, 1, len(fs))
 			assert.Equal(t, 1, len(fs[0].Peers))
@@ -88,7 +88,7 @@ func TestOneFork(t *testing.T) {
 			assert.Equal(t, gs, fs[0].CommonBlock)
 		}
 	}
-	if err = storage.handleBlock(b4, peer1); assert.NoError(t, err) {
+	if err = storage.appendBlock(b4); assert.NoError(t, err) {
 		if fs, err := storage.parentedForks(); assert.NoError(t, err) {
 			assert.Equal(t, 1, len(fs))
 			assert.Equal(t, 1, len(fs[0].Peers))
@@ -100,7 +100,7 @@ func TestOneFork(t *testing.T) {
 			assert.Equal(t, gs, fs[0].CommonBlock)
 		}
 	}
-	if err = storage.handleBlock(gb, peer2); assert.NoError(t, err) {
+	if err = storage.appendBlock(gb); assert.NoError(t, err) {
 		if fs, err := storage.parentedForks(); assert.NoError(t, err) {
 			assert.Equal(t, 1, len(fs))
 			assert.Equal(t, 2, len(fs[0].Peers))
@@ -112,7 +112,7 @@ func TestOneFork(t *testing.T) {
 			assert.Equal(t, gs, fs[0].CommonBlock)
 		}
 	}
-	if err = storage.handleBlock(b2, peer2); assert.NoError(t, err) {
+	if err = storage.appendBlock(b2); assert.NoError(t, err) {
 		if fs, err := storage.parentedForks(); assert.NoError(t, err) {
 			assert.Equal(t, 1, len(fs))
 			assert.Equal(t, 2, len(fs[0].Peers))
@@ -124,7 +124,7 @@ func TestOneFork(t *testing.T) {
 			assert.Equal(t, gs, fs[0].CommonBlock)
 		}
 	}
-	if err = storage.handleBlock(b3, peer2); assert.NoError(t, err) {
+	if err = storage.appendBlock(b3); assert.NoError(t, err) {
 		if fs, err := storage.parentedForks(); assert.NoError(t, err) {
 			assert.Equal(t, 1, len(fs))
 			assert.Equal(t, 2, len(fs[0].Peers))
@@ -163,7 +163,7 @@ func TestTwoForks(t *testing.T) {
 
 	storage := storage{db: db, genesis: gs}
 
-	if err = storage.handleBlock(gb, peer1); assert.NoError(t, err) {
+	if err = storage.appendBlock(gb); assert.NoError(t, err) {
 		if fs, err := storage.parentedForks(); assert.NoError(t, err) {
 			assert.Equal(t, 1, len(fs))
 			assert.Equal(t, 1, len(fs[0].Peers))
@@ -175,7 +175,7 @@ func TestTwoForks(t *testing.T) {
 			assert.Equal(t, gs, fs[0].CommonBlock)
 		}
 	}
-	if err = storage.handleBlock(b2, peer1); assert.NoError(t, err) {
+	if err = storage.appendBlock(b2); assert.NoError(t, err) {
 		if fs, err := storage.parentedForks(); assert.NoError(t, err) {
 			assert.Equal(t, 1, len(fs))
 			assert.Equal(t, 1, len(fs[0].Peers))
@@ -187,7 +187,7 @@ func TestTwoForks(t *testing.T) {
 			assert.Equal(t, gs, fs[0].CommonBlock)
 		}
 	}
-	if err = storage.handleBlock(b31, peer1); assert.NoError(t, err) {
+	if err = storage.appendBlock(b31); assert.NoError(t, err) {
 		if fs, err := storage.parentedForks(); assert.NoError(t, err) {
 			assert.Equal(t, 1, len(fs))
 			assert.Equal(t, 1, len(fs[0].Peers))
@@ -199,7 +199,7 @@ func TestTwoForks(t *testing.T) {
 			assert.Equal(t, gs, fs[0].CommonBlock)
 		}
 	}
-	if err = storage.handleBlock(b41, peer1); assert.NoError(t, err) {
+	if err = storage.appendBlock(b41); assert.NoError(t, err) {
 		if fs, err := storage.parentedForks(); assert.NoError(t, err) {
 			assert.Equal(t, 1, len(fs))
 			assert.Equal(t, 1, len(fs[0].Peers))
@@ -211,7 +211,7 @@ func TestTwoForks(t *testing.T) {
 			assert.Equal(t, gs, fs[0].CommonBlock)
 		}
 	}
-	if err = storage.handleBlock(gb, peer2); assert.NoError(t, err) {
+	if err = storage.appendBlock(gb); assert.NoError(t, err) {
 		if fs, err := storage.parentedForks(); assert.NoError(t, err) {
 			assert.Equal(t, 1, len(fs))
 			assert.Equal(t, 2, len(fs[0].Peers))
@@ -223,7 +223,7 @@ func TestTwoForks(t *testing.T) {
 			assert.Equal(t, gs, fs[0].CommonBlock)
 		}
 	}
-	if err = storage.handleBlock(b2, peer2); assert.NoError(t, err) {
+	if err = storage.appendBlock(b2); assert.NoError(t, err) {
 		if fs, err := storage.parentedForks(); assert.NoError(t, err) {
 			assert.Equal(t, 1, len(fs))
 			assert.Equal(t, 2, len(fs[0].Peers))
@@ -235,7 +235,7 @@ func TestTwoForks(t *testing.T) {
 			assert.Equal(t, gs, fs[0].CommonBlock)
 		}
 	}
-	if err = storage.handleBlock(b32, peer2); assert.NoError(t, err) {
+	if err = storage.appendBlock(b32); assert.NoError(t, err) {
 		if fs, err := storage.parentedForks(); assert.NoError(t, err) {
 			assert.Equal(t, 2, len(fs))
 			assert.Equal(t, 1, len(fs[0].Peers))
@@ -291,7 +291,7 @@ func TestMultipleForksAndSwitching(t *testing.T) {
 
 	storage := storage{db: db, genesis: gs}
 
-	if err = storage.handleBlock(gb, peer1); assert.NoError(t, err) {
+	if err = storage.appendBlock(gb); assert.NoError(t, err) {
 		if fs, err := storage.parentedForks(); assert.NoError(t, err) {
 			assert.Equal(t, 1, len(fs))
 			assert.Equal(t, 1, len(fs[0].Peers))
@@ -303,7 +303,7 @@ func TestMultipleForksAndSwitching(t *testing.T) {
 			assert.Equal(t, gs, fs[0].CommonBlock)
 		}
 	}
-	if err = storage.handleBlock(gb, peer2); assert.NoError(t, err) {
+	if err = storage.appendBlock(gb); assert.NoError(t, err) {
 		if fs, err := storage.parentedForks(); assert.NoError(t, err) {
 			assert.Equal(t, 1, len(fs))
 			assert.Equal(t, 2, len(fs[0].Peers))
@@ -315,7 +315,7 @@ func TestMultipleForksAndSwitching(t *testing.T) {
 			assert.Equal(t, gs, fs[0].CommonBlock)
 		}
 	}
-	if err = storage.handleBlock(gb, peer3); assert.NoError(t, err) {
+	if err = storage.appendBlock(gb); assert.NoError(t, err) {
 		if fs, err := storage.parentedForks(); assert.NoError(t, err) {
 			assert.Equal(t, 1, len(fs))
 			assert.Equal(t, 3, len(fs[0].Peers))
@@ -327,7 +327,7 @@ func TestMultipleForksAndSwitching(t *testing.T) {
 			assert.Equal(t, gs, fs[0].CommonBlock)
 		}
 	}
-	if err = storage.handleBlock(b2, peer1); assert.NoError(t, err) {
+	if err = storage.appendBlock(b2); assert.NoError(t, err) {
 		if fs, err := storage.parentedForks(); assert.NoError(t, err) {
 			assert.Equal(t, 1, len(fs))
 			assert.Equal(t, 3, len(fs[0].Peers))
@@ -339,7 +339,7 @@ func TestMultipleForksAndSwitching(t *testing.T) {
 			assert.Equal(t, gs, fs[0].CommonBlock)
 		}
 	}
-	if err = storage.handleBlock(b31, peer1); assert.NoError(t, err) {
+	if err = storage.appendBlock(b31); assert.NoError(t, err) {
 		if fs, err := storage.parentedForks(); assert.NoError(t, err) {
 			assert.Equal(t, 1, len(fs))
 			assert.Equal(t, 3, len(fs[0].Peers))
@@ -351,7 +351,7 @@ func TestMultipleForksAndSwitching(t *testing.T) {
 			assert.Equal(t, gs, fs[0].CommonBlock)
 		}
 	}
-	if err = storage.handleBlock(b2, peer3); assert.NoError(t, err) {
+	if err = storage.appendBlock(b2); assert.NoError(t, err) {
 		if fs, err := storage.parentedForks(); assert.NoError(t, err) {
 			assert.Equal(t, 1, len(fs))
 			assert.Equal(t, 3, len(fs[0].Peers))
@@ -363,7 +363,7 @@ func TestMultipleForksAndSwitching(t *testing.T) {
 			assert.Equal(t, gs, fs[0].CommonBlock)
 		}
 	}
-	if err = storage.handleBlock(b2, peer2); assert.NoError(t, err) {
+	if err = storage.appendBlock(b2); assert.NoError(t, err) {
 		if fs, err := storage.parentedForks(); assert.NoError(t, err) {
 			assert.Equal(t, 1, len(fs))
 			assert.Equal(t, 3, len(fs[0].Peers))
@@ -375,7 +375,7 @@ func TestMultipleForksAndSwitching(t *testing.T) {
 			assert.Equal(t, gs, fs[0].CommonBlock)
 		}
 	}
-	if err = storage.handleBlock(b32, peer2); assert.NoError(t, err) {
+	if err = storage.appendBlock(b32); assert.NoError(t, err) {
 		if fs, err := storage.parentedForks(); assert.NoError(t, err) {
 			assert.Equal(t, 2, len(fs))
 			assert.Equal(t, 2, len(fs[0].Peers))
@@ -394,7 +394,7 @@ func TestMultipleForksAndSwitching(t *testing.T) {
 			assert.Equal(t, bs2, fs[1].CommonBlock)
 		}
 	}
-	if err = storage.handleBlock(b41, peer1); assert.NoError(t, err) {
+	if err = storage.appendBlock(b41); assert.NoError(t, err) {
 		if fs, err := storage.parentedForks(); assert.NoError(t, err) {
 			assert.Equal(t, 2, len(fs))
 			assert.Equal(t, 2, len(fs[0].Peers))
@@ -413,7 +413,7 @@ func TestMultipleForksAndSwitching(t *testing.T) {
 			assert.Equal(t, bs2, fs[1].CommonBlock)
 		}
 	}
-	if err = storage.handleBlock(b33, peer3); assert.NoError(t, err) {
+	if err = storage.appendBlock(b33); assert.NoError(t, err) {
 		if fs, err := storage.parentedForks(); assert.NoError(t, err) {
 			assert.Equal(t, 3, len(fs))
 			assert.Equal(t, 1, len(fs[0].Peers))
@@ -444,7 +444,7 @@ func TestMultipleForksAndSwitching(t *testing.T) {
 			}
 		}
 	}
-	if err = storage.handleBlock(b42, peer2); assert.NoError(t, err) {
+	if err = storage.appendBlock(b42); assert.NoError(t, err) {
 		if fs, err := storage.parentedForks(); assert.NoError(t, err) {
 			assert.Equal(t, 3, len(fs))
 			assert.Equal(t, 1, len(fs[0].Peers))
@@ -470,7 +470,7 @@ func TestMultipleForksAndSwitching(t *testing.T) {
 			assert.Equal(t, bs2, fs[2].CommonBlock)
 		}
 	}
-	if err = storage.handleBlock(b31, peer3); assert.NoError(t, err) {
+	if err = storage.appendBlock(b31); assert.NoError(t, err) {
 		if fs, err := storage.parentedForks(); assert.NoError(t, err) {
 			assert.Equal(t, 2, len(fs))
 			assert.Equal(t, 2, len(fs[0].Peers))
@@ -489,7 +489,7 @@ func TestMultipleForksAndSwitching(t *testing.T) {
 			assert.Equal(t, bs2, fs[1].CommonBlock)
 		}
 	}
-	if err = storage.handleBlock(b41, peer3); assert.NoError(t, err) {
+	if err = storage.appendBlock(b41); assert.NoError(t, err) {
 		if fs, err := storage.parentedForks(); assert.NoError(t, err) {
 			assert.Equal(t, 2, len(fs))
 			assert.Equal(t, 2, len(fs[0].Peers))
@@ -508,7 +508,7 @@ func TestMultipleForksAndSwitching(t *testing.T) {
 			assert.Equal(t, bs2, fs[1].CommonBlock)
 		}
 	}
-	if err = storage.handleBlock(b51, peer1); assert.NoError(t, err) {
+	if err = storage.appendBlock(b51); assert.NoError(t, err) {
 		if fs, err := storage.parentedForks(); assert.NoError(t, err) {
 			assert.Equal(t, 2, len(fs))
 			assert.Equal(t, 2, len(fs[0].Peers))
@@ -527,7 +527,7 @@ func TestMultipleForksAndSwitching(t *testing.T) {
 			assert.Equal(t, bs2, fs[1].CommonBlock)
 		}
 	}
-	if err = storage.handleBlock(b51, peer3); assert.NoError(t, err) {
+	if err = storage.appendBlock(b51); assert.NoError(t, err) {
 		if fs, err := storage.parentedForks(); assert.NoError(t, err) {
 			assert.Equal(t, 2, len(fs))
 			assert.Equal(t, 2, len(fs[0].Peers))

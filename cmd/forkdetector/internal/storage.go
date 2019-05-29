@@ -65,6 +65,18 @@ func (k signatureKey) bytes() []byte {
 	return buf
 }
 
+type uint32Key struct {
+	prefix byte
+	key    uint32
+}
+
+func (k uint32Key) bytes() []byte {
+	buf := make([]byte, 1+4)
+	buf[0] = k.prefix
+	binary.BigEndian.PutUint32(buf[1:], k.key)
+	return buf
+}
+
 func newBlockWrapperKey(block crypto.Signature) signatureKey {
 	return signatureKey{prefix: blockWrappersPrefix, signature: block}
 }
@@ -320,7 +332,7 @@ func (s *storage) AllSignatures() ([]crypto.Signature, error) {
 	return r, nil
 }
 
-func (s *storage) handleBlock(block proto.Block, peer net.IP) error {
+func (s *storage) appendBlock(block proto.Block) error {
 	wrapError := func(err error) error {
 		return errors.Wrap(err, "failed to append new block")
 	}
@@ -332,26 +344,62 @@ func (s *storage) handleBlock(block proto.Block, peer net.IP) error {
 	batch := new(leveldb.Batch)
 
 	// Check that the block is actually new
-	w, ok, err := wrapper(sn, block.BlockSignature)
+	k := newBlockWrapperKey(block.BlockSignature)
+	ok, err := sn.Has(k.bytes(), nil)
 	if err != nil {
 		return wrapError(err)
 	}
 	if ok {
-		// The block is already known, just update link
-		link := peerLink{fork: w.fork, height: w.height, block: block.BlockSignature}
-		putLink(batch, peer, link)
-		err = s.db.Write(batch, nil)
-		if err != nil {
-			return wrapError(err)
-		}
 		return nil
 	}
-	fid, h, err := putNewBlock(sn, batch, block, s.genesis)
+
+	bb, err := block.MarshalBinary()
 	if err != nil {
 		return wrapError(err)
 	}
-	link := peerLink{fork: fid, height: h, block: block.BlockSignature}
-	putLink(batch, peer, link)
+	batch.Put(newBlockKey(block.BlockSignature).bytes(), bb)
+
+	var nw blockWrapper
+	pw, ok, err := wrapper(sn, block.Parent)
+	if err != nil {
+		return wrapError(err)
+	}
+	if !ok {
+		return wrapError(errors.Errorf("no wrapper for parent block '%s'", block.Parent))
+	}
+	pc := forksCountAtHeight(sn, pw.height)
+	height := pw.height + 1
+	c := forksCountAtHeight(sn, height)
+	var fh forkHeader
+	var fork uint32
+	if c < pc { // continue fork
+		nw = blockWrapper{height: height, fork: pw.fork, parent: block.Parent}
+		fork = pw.fork
+		fh, err = header(sn, fork)
+		if err != nil {
+			return wrapError(err)
+		}
+		fh.height = height
+		fh.last = block.BlockSignature
+		fh.length = fh.length + 1
+	} else { // new fork
+		fork, err = numberOfForks(sn)
+		if err != nil {
+			return wrapError(err)
+		}
+		fork++
+		updateLastForkID(batch, fork)
+		nw = blockWrapper{height: height, fork: fork, parent: block.Parent}
+		fh = forkHeader{height: height, length: 1, last: block.BlockSignature, common: nw.parent}
+	}
+	// Store fork header
+	batch.Put(forkHeaderKey(fork).bytes(), fh.bytes())
+	// Store the blockWrapper
+	batch.Put(newBlockWrapperKey(block.BlockSignature).bytes(), nw.bytes())
+	// update blocks at height
+	k2 := heightBlockKey{height: height, block: block.BlockSignature}
+	batch.Put(k2.bytes(), nil)
+
 	err = s.db.Write(batch, nil)
 	if err != nil {
 		return wrapError(err)
@@ -411,7 +459,6 @@ func (s *storage) parentedForks() ([]Fork, error) {
 		if err != nil {
 			return nil, wrapError(err)
 		}
-		//TODO: return peer version
 		f, ok := m[link.fork]
 		if !ok {
 			f = Fork{}
@@ -452,59 +499,6 @@ func putGenesisBlockWrapper(batch *leveldb.Batch, genesis crypto.Signature) (for
 	k := heightBlockKey{height: 1, block: genesis}
 	batch.Put(k.bytes(), nil)
 	return 0, 1, nil
-}
-
-func putNewBlock(sn *leveldb.Snapshot, batch *leveldb.Batch, block proto.Block, genesis crypto.Signature) (fork uint32, height uint32, err error) {
-	bb, err := block.MarshalBinary()
-	if err != nil {
-		return 0, 0, errors.Wrap(err, "failed to marshal new block")
-	}
-	batch.Put(newBlockKey(block.BlockSignature).bytes(), bb)
-
-	if block.BlockSignature == genesis {
-		return putGenesisBlockWrapper(batch, block.BlockSignature)
-	}
-
-	var nw blockWrapper
-	pw, ok, err := wrapper(sn, block.Parent)
-	if err != nil {
-		return 0, 0, errors.Wrap(err, "failed to put new block")
-	}
-	if !ok {
-		return 0, 0, errors.Errorf("no wrapper for parent block '%s'", block.Parent)
-	}
-	pc := forksCountAtHeight(sn, pw.height)
-	height = pw.height + 1
-	c := forksCountAtHeight(sn, height)
-	var fh forkHeader
-	if c < pc { // continue fork
-		nw = blockWrapper{height: height, fork: pw.fork, parent: block.Parent}
-		fork = pw.fork
-		fh, err = header(sn, fork)
-		if err != nil {
-			return 0, 0, errors.Wrap(err, "failed to put new block")
-		}
-		fh.height = height
-		fh.last = block.BlockSignature
-		fh.length = fh.length + 1
-	} else { // new fork
-		fork, err = numberOfForks(sn)
-		if err != nil {
-			return 0, 0, errors.Wrap(err, "failed to put new block")
-		}
-		fork++
-		updateLastForkID(batch, fork)
-		nw = blockWrapper{height: height, fork: fork, parent: block.Parent}
-		fh = forkHeader{height: height, length: 1, last: block.BlockSignature, common: nw.parent}
-	}
-	// Store fork header
-	batch.Put(forkHeaderKey(fork).bytes(), fh.bytes())
-	// Store the blockWrapper
-	batch.Put(newBlockWrapperKey(block.BlockSignature).bytes(), nw.bytes())
-	// update blocks at height
-	k2 := heightBlockKey{height: height, block: block.BlockSignature}
-	batch.Put(k2.bytes(), nil)
-	return fork, height, nil
 }
 
 func (s *storage) block(id crypto.Signature) (*proto.Block, bool, error) {

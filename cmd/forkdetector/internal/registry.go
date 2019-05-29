@@ -382,7 +382,7 @@ func (r *Registry) Addresses() ([]net.Addr, error) {
 	return addresses, nil
 }
 
-func (r Registry) TakeAvailableAddresses() ([]net.Addr, error) {
+func (r *Registry) TakeAvailableAddresses() ([]net.Addr, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 

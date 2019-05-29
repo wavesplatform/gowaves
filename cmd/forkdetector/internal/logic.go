@@ -253,7 +253,7 @@ func (h *ConnHandler) OnReceive(conn *Conn, buf []byte) {
 			zap.S().Warnf("[%s] Failed to unmarshal Signatures message: %v", conn.RawConn.RemoteAddr(), err)
 			return
 		}
-		h.signaturesCh <- signaturesEvent{conn: conn, signatures: m.Signatures}
+		h.signaturesCh <- newSignaturesEvent(conn, m.Signatures)
 	case proto.ContentIDBlock:
 		var m proto.BlockMessage
 		err = m.UnmarshalBinary(buf)

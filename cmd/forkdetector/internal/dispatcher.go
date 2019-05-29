@@ -70,7 +70,7 @@ func (d *Dispatcher) Start() <-chan struct{} {
 				zap.S().Debug("Shutting down server...")
 				d.server.Stop(StopGracefullyAndWait)
 				<-d.server.Stopped()
-				zap.S().Debugf("Closing %d outgoing connections", len(d.connections))
+				zap.S().Debugf("Closing %d outgoing connections", d.connectionsCount())
 				for c := range d.connections {
 					c.Stop(StopGracefullyAndWait)
 				}
@@ -140,6 +140,12 @@ func (d *Dispatcher) removeConnection(conn *Conn) {
 	delete(d.connections, conn)
 	d.schedule.remove(conn)
 	d.mu.Unlock()
+}
+
+func (d *Dispatcher) connectionsCount() int {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	return len(d.connections)
 }
 
 type schedule struct {
