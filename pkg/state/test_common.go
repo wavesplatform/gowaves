@@ -73,9 +73,10 @@ func genBlockIds(t *testing.T, amount int) []crypto.Signature {
 	for i := 0; i < amount; i++ {
 		id := make([]byte, crypto.SignatureSize)
 		_, err := rand.Read(id)
+		assert.NoError(t, err, "rand.Read() failed")
 		blockID, err := crypto.NewSignatureFromBytes(id)
 		assert.NoError(t, err, "NewSignatureFromBytes() failed")
-		ids = append(ids, blockID)
+		ids[i] = blockID
 	}
 	return ids
 }
