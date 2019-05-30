@@ -80,10 +80,11 @@ func (r *votesFeaturesRecord) unmarshalBinary(data []byte) error {
 }
 
 type features struct {
-	db       keyvalue.IterableKeyVal
-	dbBatch  keyvalue.Batch
-	hs       *historyStorage
-	settings *settings.BlockchainSettings
+	db                  keyvalue.IterableKeyVal
+	dbBatch             keyvalue.Batch
+	hs                  *historyStorage
+	settings            *settings.BlockchainSettings
+	definedFeaturesInfo map[settings.Feature]settings.FeatureInfo
 }
 
 func newFeatures(
@@ -91,8 +92,9 @@ func newFeatures(
 	dbBatch keyvalue.Batch,
 	hs *historyStorage,
 	settings *settings.BlockchainSettings,
+	definedFeaturesInfo map[settings.Feature]settings.FeatureInfo,
 ) (*features, error) {
-	return &features{db, dbBatch, hs, settings}, nil
+	return &features{db, dbBatch, hs, settings, definedFeaturesInfo}, nil
 }
 
 // addVote adds vote for feature by its featureID at given blockID.
@@ -135,6 +137,20 @@ func (f *features) featureVotes(featureID int16) (uint64, error) {
 	return record.votesNum, nil
 }
 
+func (f *features) printActivationLog(featureID int16) {
+	info, ok := f.definedFeaturesInfo[settings.Feature(featureID)]
+	if ok {
+		log.Printf("Activating feature %d (%s).\n", featureID, info.Description)
+	} else {
+		log.Printf("Activating UNKNOWN feature %d.\n", featureID)
+	}
+	if !ok || !info.Implemented {
+		log.Printf("FATAL: UNKNOWN/UNIMPLEMENTED feature has been activated on the blockchain!\n")
+		log.Printf("FOR THIS REASON THE NODE IS STOPPED AUTOMATICALLY.\n")
+		log.Fatalf("PLEASE, UPDATE THE NODE IMMEDIATELY!\n")
+	}
+}
+
 func (f *features) activateFeature(featureID int16, r *activatedFeaturesRecord) error {
 	key := activatedFeaturesKey{featureID: featureID}
 	keyBytes, err := key.bytes()
@@ -145,6 +161,7 @@ func (f *features) activateFeature(featureID int16, r *activatedFeaturesRecord) 
 	if err != nil {
 		return err
 	}
+	f.printActivationLog(featureID)
 	return f.hs.set(activatedFeature, keyBytes, recordBytes)
 }
 
@@ -181,6 +198,20 @@ func (f *features) activationHeight(featureID int16) (uint64, error) {
 	return record.activationHeight, nil
 }
 
+func (f *features) printApprovalLog(featureID int16) {
+	info, ok := f.definedFeaturesInfo[settings.Feature(featureID)]
+	if ok {
+		log.Printf("Approving feature %d (%s).\n", featureID, info.Description)
+	} else {
+		log.Printf("Approving UNKNOWN feature %d.\n", featureID)
+	}
+	if !ok || !info.Implemented {
+		log.Printf("WARNING: UNKNOWN/UNIMPLEMENTED feature has been approved on the blockchain!\n")
+		log.Printf("PLEASE UPDATE THE NODE AS SOON AS POSSILE!\n")
+		log.Printf("OTHERWISE THE NODE WILL BE STOPPED OR FORKED UPON FEATURE ACTIVATION.\n")
+	}
+}
+
 func (f *features) approveFeature(featureID int16, r *approvedFeaturesRecord) error {
 	key := approvedFeaturesKey{featureID: featureID}
 	keyBytes, err := key.bytes()
@@ -191,6 +222,7 @@ func (f *features) approveFeature(featureID int16, r *approvedFeaturesRecord) er
 	if err != nil {
 		return err
 	}
+	f.printApprovalLog(featureID)
 	return f.hs.set(approvedFeature, keyBytes, recordBytes)
 }
 

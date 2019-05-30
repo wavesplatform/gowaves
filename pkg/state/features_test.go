@@ -8,17 +8,23 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/util"
 )
 
+const (
+	featureID = 1
+)
+
 type featuresTestObjects struct {
 	stor     *storageObjects
 	features *features
 }
 
-func createFeatures(settings *settings.BlockchainSettings) (*featuresTestObjects, []string, error) {
+func createFeatures(sets *settings.BlockchainSettings) (*featuresTestObjects, []string, error) {
 	stor, path, err := createStorageObjects()
 	if err != nil {
 		return nil, path, err
 	}
-	features, err := newFeatures(stor.db, stor.dbBatch, stor.hs, settings)
+	definedFeaturesInfo := make(map[settings.Feature]settings.FeatureInfo)
+	definedFeaturesInfo[settings.Feature(featureID)] = settings.FeatureInfo{Implemented: true, Description: "test feature"}
+	features, err := newFeatures(stor.db, stor.dbBatch, stor.hs, sets, definedFeaturesInfo)
 	if err != nil {
 		return nil, path, err
 	}
@@ -36,7 +42,6 @@ func TestAddFeatureVote(t *testing.T) {
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
-	featureID := int16(1)
 	err = to.features.addVote(featureID, blockID0)
 	assert.NoError(t, err, "addVote() failed")
 	votes, err := to.features.featureVotes(featureID)
@@ -63,7 +68,6 @@ func TestApproveFeature(t *testing.T) {
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
-	featureID := int16(1)
 	approved, err := to.features.isApproved(featureID)
 	assert.NoError(t, err, "isApproved failed")
 	assert.Equal(t, false, approved)
@@ -91,7 +95,6 @@ func TestActivateFeature(t *testing.T) {
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
-	featureID := int16(1)
 	activated, err := to.features.isActivated(featureID)
 	assert.NoError(t, err, "isActivated failed")
 	assert.Equal(t, false, activated)
@@ -125,7 +128,6 @@ func TestFinishVoting(t *testing.T) {
 	for _, id := range ids {
 		to.stor.addBlock(t, id)
 	}
-	featureID := int16(1)
 	tests := []struct {
 		curHeight        uint64
 		votesNum         uint64
