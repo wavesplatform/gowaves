@@ -44,7 +44,7 @@ type wavesBalanceRecord struct {
 }
 
 func (r *wavesBalanceRecord) marshalBinary() ([]byte, error) {
-	res := make([]byte, 8+8+8+crypto.SignatureSize)
+	res := make([]byte, wavesBalanceRecordSize)
 	binary.BigEndian.PutUint64(res[:8], r.balance)
 	binary.PutVarint(res[8:16], r.leaseIn)
 	binary.PutVarint(res[16:24], r.leaseOut)
@@ -76,7 +76,7 @@ type assetBalanceRecord struct {
 }
 
 func (r *assetBalanceRecord) marshalBinary() ([]byte, error) {
-	res := make([]byte, 8+crypto.SignatureSize)
+	res := make([]byte, assetBalanceRecordSize)
 	binary.BigEndian.PutUint64(res[:8], r.balance)
 	copy(res[8:], r.blockID[:])
 	return res, nil
