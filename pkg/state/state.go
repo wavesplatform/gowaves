@@ -289,19 +289,28 @@ func (s *stateManager) Header(blockID crypto.Signature) (*proto.BlockHeader, err
 	return &header, nil
 }
 
-func (s *stateManager) HeaderByHeight(height uint64) (*proto.BlockHeader, error) {
-	maxHeight, err := s.Height()
+func (s *stateManager) HeaderBytes(blockID crypto.Signature) ([]byte, error) {
+	headerBytes, err := s.rw.readBlockHeader(blockID)
 	if err != nil {
 		return nil, StateError{errorType: RetrievalError, originalError: err}
 	}
-	if height < 1 || height > maxHeight {
-		return nil, StateError{errorType: InvalidInputError, originalError: errors.New("height out of valid range")}
-	}
-	blockID, err := s.rw.blockIDByHeight(height)
+	return headerBytes, nil
+}
+
+func (s *stateManager) HeaderByHeight(height uint64) (*proto.BlockHeader, error) {
+	blockID, err := s.HeightToBlockID(height)
 	if err != nil {
 		return nil, StateError{errorType: RetrievalError, originalError: err}
 	}
 	return s.Header(blockID)
+}
+
+func (s *stateManager) HeaderBytesByHeight(height uint64) ([]byte, error) {
+	blockID, err := s.HeightToBlockID(height)
+	if err != nil {
+		return nil, StateError{errorType: RetrievalError, originalError: err}
+	}
+	return s.HeaderBytes(blockID)
 }
 
 func (s *stateManager) Block(blockID crypto.Signature) (*proto.Block, error) {
@@ -319,19 +328,36 @@ func (s *stateManager) Block(blockID crypto.Signature) (*proto.Block, error) {
 	return &block, nil
 }
 
-func (s *stateManager) BlockByHeight(height uint64) (*proto.Block, error) {
-	maxHeight, err := s.Height()
+func (s *stateManager) BlockBytes(blockID crypto.Signature) ([]byte, error) {
+	headerBytes, err := s.rw.readBlockHeader(blockID)
 	if err != nil {
 		return nil, StateError{errorType: RetrievalError, originalError: err}
 	}
-	if height < 1 || height > maxHeight {
-		return nil, StateError{errorType: InvalidInputError, originalError: errors.New("height out of valid range")}
+	transactions, err := s.rw.readTransactionsBlock(blockID)
+	if err != nil {
+		return nil, StateError{errorType: RetrievalError, originalError: err}
 	}
-	blockID, err := s.rw.blockIDByHeight(height)
+	blockBytes, err := proto.AppendHeaderBytesToTransactions(headerBytes, transactions)
+	if err != nil {
+		return nil, StateError{errorType: Other, originalError: err}
+	}
+	return blockBytes, nil
+}
+
+func (s *stateManager) BlockByHeight(height uint64) (*proto.Block, error) {
+	blockID, err := s.HeightToBlockID(height)
 	if err != nil {
 		return nil, StateError{errorType: RetrievalError, originalError: err}
 	}
 	return s.Block(blockID)
+}
+
+func (s *stateManager) BlockBytesByHeight(height uint64) ([]byte, error) {
+	blockID, err := s.HeightToBlockID(height)
+	if err != nil {
+		return nil, StateError{errorType: RetrievalError, originalError: err}
+	}
+	return s.BlockBytes(blockID)
 }
 
 func (s *stateManager) Height() (uint64, error) {
@@ -351,11 +377,18 @@ func (s *stateManager) BlockIDToHeight(blockID crypto.Signature) (uint64, error)
 }
 
 func (s *stateManager) HeightToBlockID(height uint64) (crypto.Signature, error) {
-	id, err := s.rw.blockIDByHeight(height)
+	maxHeight, err := s.Height()
 	if err != nil {
 		return crypto.Signature{}, StateError{errorType: RetrievalError, originalError: err}
 	}
-	return id, nil
+	if height < 1 || height > maxHeight {
+		return crypto.Signature{}, StateError{errorType: InvalidInputError, originalError: errors.New("height out of valid range")}
+	}
+	blockID, err := s.rw.blockIDByHeight(height)
+	if err != nil {
+		return crypto.Signature{}, StateError{errorType: RetrievalError, originalError: err}
+	}
+	return blockID, nil
 }
 
 func (s *stateManager) AccountBalance(addr proto.Address, asset []byte) (uint64, error) {
@@ -503,6 +536,14 @@ func (s *stateManager) AddBlock(block []byte) error {
 	return nil
 }
 
+func (s *stateManager) AddDeserializedBlock(block *proto.Block) error {
+	blockBytes, err := block.MarshalBinary()
+	if err != nil {
+		return StateError{errorType: SerializationError, originalError: err}
+	}
+	return s.AddBlock(blockBytes)
+}
+
 func (s *stateManager) AddNewBlocks(blocks [][]byte) error {
 	if err := s.addBlocks(blocks, false); err != nil {
 		if err := s.undoBlockAddition(); err != nil {
@@ -513,6 +554,26 @@ func (s *stateManager) AddNewBlocks(blocks [][]byte) error {
 	return nil
 }
 
+func (s *stateManager) blocksToBinary(blocks []*proto.Block) ([][]byte, error) {
+	var blocksBytes [][]byte
+	for _, block := range blocks {
+		blockBytes, err := block.MarshalBinary()
+		if err != nil {
+			return nil, err
+		}
+		blocksBytes = append(blocksBytes, blockBytes)
+	}
+	return blocksBytes, nil
+}
+
+func (s *stateManager) AddNewDeserializedBlocks(blocks []*proto.Block) error {
+	blocksBytes, err := s.blocksToBinary(blocks)
+	if err != nil {
+		return StateError{errorType: SerializationError, originalError: err}
+	}
+	return s.AddNewBlocks(blocksBytes)
+}
+
 func (s *stateManager) AddOldBlocks(blocks [][]byte) error {
 	if err := s.addBlocks(blocks, true); err != nil {
 		if err := s.undoBlockAddition(); err != nil {
@@ -521,6 +582,14 @@ func (s *stateManager) AddOldBlocks(blocks [][]byte) error {
 		return err
 	}
 	return nil
+}
+
+func (s *stateManager) AddOldDeserializedBlocks(blocks []*proto.Block) error {
+	blocksBytes, err := s.blocksToBinary(blocks)
+	if err != nil {
+		return StateError{errorType: SerializationError, originalError: err}
+	}
+	return s.AddOldBlocks(blocksBytes)
 }
 
 func (s *stateManager) needToCancelLeases(height uint64) bool {
@@ -687,13 +756,6 @@ func (s *stateManager) checkRollbackInput(blockID crypto.Signature) error {
 }
 
 func (s *stateManager) RollbackToHeight(height uint64) error {
-	maxHeight, err := s.Height()
-	if err != nil {
-		return StateError{errorType: RetrievalError, originalError: err}
-	}
-	if height < 1 || height > maxHeight {
-		return StateError{errorType: InvalidInputError, originalError: errors.New("height out of valid range")}
-	}
 	blockID, err := s.HeightToBlockID(height)
 	if err != nil {
 		return StateError{errorType: RetrievalError, originalError: err}

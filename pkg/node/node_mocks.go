@@ -24,11 +24,27 @@ func (a *MockStateManager) BlockByHeight(height uint64) (*proto.Block, error) {
 	panic("implement me")
 }
 
+func (a *MockStateManager) BlockBytes(blockID crypto.Signature) ([]byte, error) {
+	panic("implement me")
+}
+
+func (a *MockStateManager) BlockBytesByHeight(height uint64) ([]byte, error) {
+	panic("implement me")
+}
+
 func (a *MockStateManager) Header(block crypto.Signature) (*proto.BlockHeader, error) {
 	panic("implement me")
 }
 
 func (a *MockStateManager) HeaderByHeight(height uint64) (*proto.BlockHeader, error) {
+	panic("implement me")
+}
+
+func (a *MockStateManager) HeaderBytes(blockID crypto.Signature) ([]byte, error) {
+	panic("implement me")
+}
+
+func (a *MockStateManager) HeaderBytesByHeight(height uint64) ([]byte, error) {
 	panic("implement me")
 }
 
@@ -56,11 +72,23 @@ func (a *MockStateManager) AddBlock(block []byte) error {
 	panic("implement me")
 }
 
+func (a *MockStateManager) AddDeserializedBlock(block *proto.Block) error {
+	panic("implement me")
+}
+
 func (a *MockStateManager) AddNewBlocks(blocks [][]byte) error {
 	panic("implement me")
 }
 
+func (a *MockStateManager) AddNewDeserializedBlocks(block []*proto.Block) error {
+	panic("implement me")
+}
+
 func (a *MockStateManager) AddOldBlocks(blocks [][]byte) error {
+	panic("implement me")
+}
+
+func (a *MockStateManager) AddOldDeserializedBlocks(block []*proto.Block) error {
 	panic("implement me")
 }
 
