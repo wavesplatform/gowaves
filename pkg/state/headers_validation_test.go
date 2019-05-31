@@ -68,7 +68,7 @@ func spoilBlockVersion(block *proto.Block) {
 }
 
 func TestHeadersValidation(t *testing.T) {
-	blocks, err := readRealBlocks(t, blocksNumber)
+	blocks, err := readRealBlocks(t, blocksPath(t), blocksNumber)
 	if err != nil {
 		t.Fatalf("Can not read blocks from blockchain file: %v\n", err)
 	}

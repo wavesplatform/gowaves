@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"encoding/binary"
 	"encoding/json"
+	"github.com/wavesplatform/gowaves/pkg/libs/serializer"
+	"io"
 
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
@@ -218,6 +220,61 @@ func (b *Block) MarshalBinary() ([]byte, error) {
 	return res, nil
 }
 
+//WriteTo writes binary representation of block into Writer. It does not sign and write signature.
+func (b *Block) WriteTo(w io.Writer) (int64, error) {
+	//res := make([]byte, 1+8+64+4+8+32+4)
+	s := serializer.New(w)
+	//res[0] = byte(b.Version)
+	s.Byte(byte(b.Version))
+	//binary.BigEndian.PutUint64(res[1:9], b.Timestamp)
+	s.Uint64(b.Timestamp)
+	//copy(res[9:], b.Parent[:])
+	s.Bytes(b.Parent[:])
+	//binary.BigEndian.PutUint32(res[73:77], b.ConsensusBlockLength)
+	s.Uint32(b.ConsensusBlockLength)
+	//binary.BigEndian.PutUint64(res[77:85], b.BaseTarget)
+	s.Uint64(b.BaseTarget)
+	//copy(res[85:117], b.GenSignature[:])
+	s.Bytes(b.GenSignature[:])
+	//binary.BigEndian.PutUint32(res[117:121], b.TransactionBlockLength)
+	s.Uint32(b.TransactionBlockLength)
+	if b.Version >= NgBlockVersion {
+		// Add tx count.
+		//buf := make([]byte, 4)
+		//binary.BigEndian.PutUint32(buf, uint32(b.TransactionCount))
+		s.Uint32(uint32(b.TransactionCount))
+		//res = append(res, buf...)
+		//res = append(res, b.Transactions...)
+		s.Bytes(b.Transactions)
+		//binary.BigEndian.PutUint32(buf, uint32(b.FeaturesCount))
+		s.Uint32(uint32(b.FeaturesCount))
+		//res = append(res, buf...)
+		// Add features.
+		fb, err := featuresToBinary(b.Features)
+		if err != nil {
+			return 0, err
+		}
+		//res = append(res, fb...)
+		s.Bytes(fb)
+	} else {
+		//res = append(res, byte(b.TransactionCount))
+		s.Byte(byte(b.TransactionCount))
+		//res = append(res, b.Transactions...)
+		s.Bytes(b.Transactions)
+	}
+	//res = append(res, b.GenPublicKey[:]...)
+	s.Bytes(b.GenPublicKey[:])
+	//res = append(res, b.BlockSignature[:]...)
+	//s.Bytes(b.BlockSignature[:])
+
+	//_, err := w.Write(res)
+	//if err != nil {
+	//	return 0, err
+	//}
+
+	return s.N(), nil
+}
+
 // UnmarshalBinary decodes Block from binary form
 func (b *Block) UnmarshalBinary(data []byte) (err error) {
 	// TODO make benchmarks to figure out why multiple length checks slow down that much
@@ -276,4 +333,37 @@ func BlockGetSignature(data []byte) (crypto.Signature, error) {
 	}
 	copy(sig[:], data[len(data)-64:])
 	return sig, nil
+}
+
+//BlockGetParent get parent signature from block without deserialization
+func BlockGetParent(data []byte) (crypto.Signature, error) {
+	parent := crypto.Signature{}
+	if len(data) < 73 {
+		return parent, errors.Errorf("not enough bytes to decode block parent signature, want at least 73, found %d", len(data))
+	}
+	copy(parent[:], data[9:73])
+	return parent, nil
+}
+
+type Transactions []Transaction
+
+func (a Transactions) WriteTo(w io.Writer) (int64, error) {
+	s := serializer.New(w)
+	for _, t := range a {
+		bts, err := t.MarshalBinary()
+		if err != nil {
+			return 0, err
+		}
+
+		err = s.Uint32(uint32(len(bts)))
+		if err != nil {
+			return 0, err
+		}
+
+		err = s.Bytes(bts)
+		if err != nil {
+			return 0, err
+		}
+	}
+	return s.N(), nil
 }

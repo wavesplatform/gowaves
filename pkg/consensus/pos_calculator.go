@@ -57,7 +57,8 @@ func GeneratorSignature(signature crypto.Digest, pk crypto.PublicKey) (crypto.Di
 }
 
 func GenHit(generatorSig []byte) (*Hit, error) {
-	s := generatorSig[:hitSize]
+	s := make([]byte, hitSize)
+	copy(s, generatorSig[:hitSize])
 	for i, j := 0, len(s)-1; i < j; i, j = i+1, j-1 {
 		s[i], s[j] = s[j], s[i]
 	}
@@ -68,7 +69,7 @@ func GenHit(generatorSig []byte) (*Hit, error) {
 
 type posCalculator interface {
 	heightForHit(height uint64) uint64
-	calculateBaseTarget(
+	CalculateBaseTarget(
 		targetBlockDelaySeconds uint64,
 		prevHeight uint64,
 		prevTarget uint64,
@@ -76,17 +77,17 @@ type posCalculator interface {
 		greatGrandParentTimestamp uint64,
 		currentTimestamp uint64,
 	) (uint64, error)
-	calculateDelay(hit *big.Int, parentTarget, balance uint64) (uint64, error)
+	CalculateDelay(hit *big.Int, parentTarget, balance uint64) (uint64, error)
 }
 
-type nxtPosCalculator struct {
+type NxtPosCalculator struct {
 }
 
-func (calc *nxtPosCalculator) heightForHit(height uint64) uint64 {
+func (calc *NxtPosCalculator) heightForHit(height uint64) uint64 {
 	return height - nxtPosHeightDiffForHit
 }
 
-func (calc *nxtPosCalculator) calculateBaseTarget(
+func (calc *NxtPosCalculator) CalculateBaseTarget(
 	targetBlockDelaySeconds uint64,
 	prevHeight uint64,
 	prevTarget uint64,
@@ -116,7 +117,7 @@ func (calc *nxtPosCalculator) calculateBaseTarget(
 	}
 }
 
-func (calc *nxtPosCalculator) calculateDelay(hit *Hit, parentTarget BaseTarget, balance uint64) (uint64, error) {
+func (calc *NxtPosCalculator) CalculateDelay(hit *Hit, parentTarget BaseTarget, balance uint64) (uint64, error) {
 	var targetFloat big.Float
 	targetFloat.SetUint64(parentTarget)
 	var balanceFloat big.Float
@@ -140,28 +141,28 @@ func (calc *FairPosCalculator) heightForHit(height uint64) uint64 {
 
 func (calc *FairPosCalculator) CalculateBaseTarget(
 	targetBlockDelaySeconds uint64,
-	prevHeight uint64,
-	prevTarget uint64,
-	parentTimestamp uint64,
-	greatGrandParentTimestamp uint64,
-	currentTimestamp uint64,
+	confirmedHeight uint64, // 5
+	confirmedTarget uint64, // ???
+	confirmedTimestamp uint64, // 100500
+	greatGrandParentTimestamp uint64, // 3
+	applyingBlockTimestamp uint64,
 ) (BaseTarget, error) {
 	maxDelay := normalize(90, targetBlockDelaySeconds)
 	minDelay := normalize(30, targetBlockDelaySeconds)
 	if greatGrandParentTimestamp == 0 {
-		return prevTarget, nil
+		return confirmedTarget, nil
 	}
-	average := float64(currentTimestamp-greatGrandParentTimestamp) / 3 / 1000
+	average := float64(applyingBlockTimestamp-greatGrandParentTimestamp) / 3 / 1000
 	if average > maxDelay {
-		return (prevTarget + uint64(math.Max(1, float64(prevTarget/100)))), nil
+		return (confirmedTarget + uint64(math.Max(1, float64(confirmedTarget/100)))), nil
 	} else if average < minDelay {
-		return (prevTarget - uint64(math.Max(1, float64(prevTarget/100)))), nil
+		return (confirmedTarget - uint64(math.Max(1, float64(confirmedTarget/100)))), nil
 	} else {
-		return prevTarget, nil
+		return confirmedTarget, nil
 	}
 }
 
-func (calc *FairPosCalculator) CalculateDelay(hit *Hit, parentTarget BaseTarget, balance uint64) (uint64, error) {
+func (calc *FairPosCalculator) CalculateDelay(hit *Hit, confirmedTarget BaseTarget, balance uint64) (uint64, error) {
 	var maxHit big.Int
 	maxHit.SetBytes(maxSignature)
 	var maxHitFloat big.Float
@@ -171,7 +172,7 @@ func (calc *FairPosCalculator) CalculateDelay(hit *Hit, parentTarget BaseTarget,
 	var quo big.Float
 	quo.Quo(&hitFloat, &maxHitFloat)
 	h, _ := quo.Float64()
-	log := math.Log(1 - c2*math.Log(h)/float64(parentTarget)/float64(balance))
+	log := math.Log(1 - c2*math.Log(h)/float64(confirmedTarget)/float64(balance))
 	res := uint64(tMin + c1*log)
 	return res, nil
 }
@@ -179,7 +180,7 @@ func (calc *FairPosCalculator) CalculateDelay(hit *Hit, parentTarget BaseTarget,
 func posAlgo(height uint64) (posCalculator, error) {
 	// TODO: support features concept.
 	// Always return Nxt for now, since FairPos appeared later.
-	return &nxtPosCalculator{}, nil
+	return &NxtPosCalculator{}, nil
 }
 
 func fairPosActivated(height uint64) bool {

@@ -133,7 +133,8 @@ func TestPaymentFromMainNet(t *testing.T) {
 			assert.Equal(t, tc.recipient, tx.Recipient.String())
 			assert.Equal(t, tc.timestamp, tx.Timestamp)
 			assert.Equal(t, tc.fee, tx.Fee)
-			b, err := tx.bodyMarshalBinary()
+			b := tx.bodyMarshalBinaryBuffer()
+			err = tx.bodyMarshalBinary(b)
 			assert.NoError(t, err)
 			var at Payment
 			err = at.bodyUnmarshalBinary(b)
@@ -148,6 +149,32 @@ func TestPaymentFromMainNet(t *testing.T) {
 			err = at.UnmarshalBinary(b)
 			assert.NoError(t, err)
 			assert.Equal(t, *tx, at)
+		}
+	}
+}
+
+func BenchmarkPaymentFromMainNet(t *testing.B) {
+	t.ReportAllocs()
+	tc := struct {
+		sig       string
+		timestamp uint64
+		spk       string
+		recipient string
+		amount    uint64
+		fee       uint64
+	}{"2ZojhAw3r8DhiHD6gRJ2dXNpuErAd4iaoj5NSWpfYrqppxpYkcXBHzSAWTkAGX5d3EeuAUS8rZ4vnxnDSbJU8MkM", 1465754870341, "AfZtLRQxLNYH5iradMkTeuXGe71uAiATVbr8DpXEEQa7", "3P7NaMWCosRTbVwTfiiU6M6tHpQ6DuNFtYp", 20999990, 1}
+	t.ResetTimer()
+	t.StopTimer()
+	for i := 0; i < t.N; i++ {
+		sig, _ := crypto.NewSignatureFromBase58(tc.sig)
+		spk, _ := crypto.NewPublicKeyFromBase58(tc.spk)
+		if rcp, err := NewAddressFromString(tc.recipient); assert.NoError(t, err) {
+			tx := NewUnsignedPayment(spk, rcp, tc.amount, tc.fee, tc.timestamp)
+			tx.Signature = &sig
+			tx.ID = &sig
+			t.StartTimer()
+			_, _ = tx.MarshalBinary()
+			t.StopTimer()
 		}
 	}
 }
@@ -864,6 +891,78 @@ func TestTransferV2BinaryRoundTrip(t *testing.T) {
 				assert.Equal(t, tc.attachment, atx.Attachment.String())
 			}
 		}
+	}
+}
+
+func BenchmarkTransferV2Binary(t *testing.B) {
+	t.ResetTimer()
+	t.StopTimer()
+	t.ReportAllocs()
+
+	tc := struct {
+		scheme              byte
+		amountAsset         string
+		expectedAmountAsset string
+		feeAsset            string
+		expectedFeeAsset    string
+		amount              uint64
+		fee                 uint64
+		attachment          string
+	}{'W', "B1u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ", "B1u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ", "", "WAVES", 10, 20, ""}
+
+	seed, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
+	sk, pk := crypto.GenerateKeyPair(seed)
+	for i := 0; i < t.N; i++ {
+		ts := uint64(time.Now().UnixNano() / 1000000)
+		addr, err := NewAddressFromPublicKey(tc.scheme, pk)
+		require.NoError(t, err)
+		rcp := NewRecipientFromAddress(addr)
+		aa, err := NewOptionalAssetFromString(tc.amountAsset)
+		require.NoError(t, err)
+		fa, err := NewOptionalAssetFromString(tc.feeAsset)
+		require.NoError(t, err)
+		tx := NewUnsignedTransferV2(pk, *aa, *fa, ts, tc.amount, tc.fee, rcp, tc.attachment)
+		if bb, err := tx.BodyMarshalBinary(); assert.NoError(t, err) {
+			var atx TransferV2
+			if err := atx.BodyUnmarshalBinary(bb); assert.NoError(t, err) {
+				assert.Equal(t, tx.Type, atx.Type)
+				assert.Equal(t, tx.Version, atx.Version)
+				assert.Equal(t, tx.SenderPK, atx.SenderPK)
+				assert.Equal(t, tx.Recipient, atx.Recipient)
+				assert.Equal(t, tx.AmountAsset.Present, atx.AmountAsset.Present)
+				assert.ElementsMatch(t, tx.AmountAsset.ID, atx.AmountAsset.ID)
+				assert.Equal(t, tx.FeeAsset.Present, atx.FeeAsset.Present)
+				assert.ElementsMatch(t, tx.FeeAsset.ID, atx.FeeAsset.ID)
+				assert.Equal(t, tx.Amount, atx.Amount)
+				assert.Equal(t, tx.Fee, atx.Fee)
+				assert.Equal(t, tx.Timestamp, atx.Timestamp)
+				assert.Equal(t, tx.Attachment.String(), atx.Attachment.String())
+			}
+		}
+		if err := tx.Sign(sk); assert.NoError(t, err) {
+			if r, err := tx.Verify(pk); assert.NoError(t, err) {
+				assert.True(t, r)
+			}
+		}
+
+		t.StartTimer()
+		_, _ = tx.MarshalBinary()
+		t.StopTimer()
+
+		//if b, err :=  assert.NoError(t, err) {
+		//	var atx TransferV2
+		//	if err := atx.UnmarshalBinary(b); assert.NoError(t, err) {
+		//		assert.Equal(t, tx.ID, atx.ID)
+		//		assert.ElementsMatch(t, tx.Proofs.Proofs, atx.Proofs.Proofs)
+		//		assert.Equal(t, pk, atx.SenderPK)
+		//		assert.Equal(t, tc.expectedAmountAsset, atx.AmountAsset.String())
+		//		assert.Equal(t, tc.expectedFeeAsset, atx.FeeAsset.String())
+		//		assert.Equal(t, tc.amount, atx.Amount)
+		//		assert.Equal(t, tc.fee, atx.Fee)
+		//		assert.Equal(t, ts, atx.Timestamp)
+		//		assert.Equal(t, tc.attachment, atx.Attachment.String())
+		//	}
+		//}
 	}
 }
 

@@ -2,6 +2,7 @@ package state
 
 import (
 	"math/big"
+	"sync"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
@@ -9,50 +10,19 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/settings"
 )
 
-type StateErrorType byte
-
-const (
-	// Unmarshal error of block or transaction.
-	DeserializationError StateErrorType = iota + 1
-	TxValidationError
-	BlockValidationError
-	RollbackError
-	// Errors occurring while getting data from database.
-	RetrievalError
-	// Errors occurring while updating/modifying state data.
-	ModificationError
-	InvalidInputError
-	// DB or block storage Close() error.
-	ClosureError
-	// Minor technical errors which shouldn't ever happen.
-	Other
-)
-
-type StateError struct {
-	errorType     StateErrorType
-	originalError error
-}
-
-func (err StateError) Error() string {
-	return err.originalError.Error()
-}
-
-func ErrorType(err error) StateErrorType {
-	switch e := err.(type) {
-	case StateError:
-		return e.errorType
-	default:
-		return 0
-	}
-}
-
 // State represents overall Node's state.
 // Data retrievals (e.g. account balances), as well as modifiers (like adding or rolling back blocks)
 // should all be made using this interface.
 type State interface {
+	// Global mutex of state
+	Mutex() *sync.RWMutex
 	// Block getters.
 	Block(blockID crypto.Signature) (*proto.Block, error)
 	BlockByHeight(height uint64) (*proto.Block, error)
+	//BlocksByHeight(fromHeight proto.Height, inclusiveHeight proto.Height) ([]*proto.Block, error)
+	// Header getters.
+	Header(blockID crypto.Signature) (*proto.BlockHeader, error)
+	HeaderByHeight(height uint64) (*proto.BlockHeader, error)
 	// Height returns current blockchain height.
 	Height() (uint64, error)
 	// Height <---> blockID converters.
@@ -67,7 +37,7 @@ type State interface {
 	// AddBlock adds single block to state.
 	// It's not recommended to use this function when you are able to accumulate big blocks batch,
 	// since it's much more efficient to add many blocks at once.
-	AddBlock(block []byte) error
+	AddBlock(block []byte) (*proto.Block, error)
 	// AddNewBlocks adds batch of new blocks to state.
 	// Use it when blocks are logically new.
 	AddNewBlocks(blocks [][]byte) error
@@ -84,12 +54,30 @@ type State interface {
 	CurrentScore() (*big.Int, error)
 	// Retrieve current blockchain settings.
 	BlockchainSettings() (*settings.BlockchainSettings, error)
+	// Effective balance by address in given height range.
+	// WARNING: this function takes into account newest blocks (which are currently being added)
+	// and works correctly for height ranges exceeding current Height() if there are such blocks.
+	// It does not work for heights older than rollbackMax blocks before the current block.
+	EffectiveBalance(addr proto.Address, startHeight, endHeight uint64) (uint64, error)
+
+	// -------------------------
+	// Validation functionality.
+	// -------------------------
+	// ValidateSingleTx() validates single transaction against current state.
+	// It does not change state. When validating, it does not take into account previous transactions that were validated.
+	// Returns TxValidationError or nil.
+	ValidateSingleTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64) error
+	// ValidateNextTx() validates transaction against state, taking into account all the previous changes from transactions
+	// that were added using ValidateNextTx() until you call ResetValidationList().
+	// Does not change state.
+	// Returns TxValidationError or nil.
+	ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64) error
+	// ResetValidationList() resets the validation list, so you can ValidateNextTx() from scratch after calling it.
+	ResetValidationList()
 
 	// Create or replace Peers.
 	SavePeers([]proto.TCPAddr) error
 	Peers() ([]proto.TCPAddr, error)
-
-	EffectiveBalance(addr proto.Address, startHeight, endHeight uint64) (uint64, error)
 
 	Close() error
 }

@@ -23,7 +23,7 @@ const (
 
 type stateInfoProvider interface {
 	BlockchainSettings() (*settings.BlockchainSettings, error)
-	BlockByHeight(height uint64) (*proto.Block, error)
+	HeaderByHeight(height uint64) (*proto.BlockHeader, error)
 	EffectiveBalance(addr proto.Address, startHeight, endHeight uint64) (uint64, error)
 }
 
@@ -45,11 +45,7 @@ func NewConsensusValidator(state stateInfoProvider) (*ConsensusValidator, error)
 
 func (cv *ConsensusValidator) headerByHeight(height uint64) (*proto.BlockHeader, error) {
 	if height <= cv.startHeight {
-		block, err := cv.state.BlockByHeight(height)
-		if err != nil {
-			return nil, err
-		}
-		return &block.BlockHeader, nil
+		return cv.state.HeaderByHeight(height)
 	}
 	return &cv.headers[height-cv.startHeight-1], nil
 }
@@ -100,11 +96,11 @@ func (cv *ConsensusValidator) validateEffectiveBalance(header *proto.BlockHeader
 	}
 	if smallerMinimalGeneratingBalanceActivated(height) {
 		if balance < minimalEffectiveBalanceForGenerator2 {
-			return errors.Errorf("generator's effective balance is less than required for generation: %d", balance)
+			return errors.Errorf("generator's effective balance is less than required for generation: expected %d, found %d", minimalEffectiveBalanceForGenerator2, balance)
 		}
 	}
 	if balance < minimalEffectiveBalanceForGenerator1 {
-		return errors.Errorf("generator's effective balance is less than required for generation: %d", balance)
+		return errors.Errorf("generator's effective balance is less than required for generation: expected %d, %d", minimalEffectiveBalanceForGenerator1, balance)
 	}
 	return nil
 }
@@ -165,7 +161,7 @@ func (cv *ConsensusValidator) validateBaseTarget(height uint64, header, parent, 
 	if greatGrandParent != nil {
 		greatGrandParentTimestamp = greatGrandParent.Timestamp
 	}
-	expectedTarget, err := pos.calculateBaseTarget(
+	expectedTarget, err := pos.CalculateBaseTarget(
 		cv.settings.AverageBlockDelaySeconds,
 		height,
 		parent.BaseTarget,
@@ -214,7 +210,7 @@ func (cv *ConsensusValidator) validBlockDelay(height uint64, pk crypto.PublicKey
 	if err != nil {
 		return 0, err
 	}
-	return pos.calculateDelay(hit, parentTarget, effectiveBalance)
+	return pos.CalculateDelay(hit, parentTarget, effectiveBalance)
 }
 
 func (cv *ConsensusValidator) validateBlockDelay(height uint64, header *proto.BlockHeader) error {
@@ -244,7 +240,12 @@ func (cv *ConsensusValidator) validateBlockTimestamp(header *proto.BlockHeader) 
 	// Milliseconds.
 	currentTimestamp := proto.NewTimestampFromTime(time.Now())
 	if int64(header.Timestamp)-int64(currentTimestamp) > maxTimeDrift {
-		return errors.New("block from future error: block's timestamp is too far in the future")
+		return errors.Errorf(
+			"block from future error: block's timestamp is too far in the future, current timestamp %d, received %d, maxTimeDrift %d, delta %d",
+			currentTimestamp,
+			header.Timestamp,
+			maxTimeDrift,
+			header.Timestamp-currentTimestamp)
 	}
 	return nil
 }

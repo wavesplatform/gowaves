@@ -6,6 +6,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/state"
+	"github.com/wavesplatform/gowaves/pkg/types"
 	"github.com/wavesplatform/gowaves/pkg/util"
 	"go.uber.org/zap"
 	"math/big"
@@ -22,21 +23,25 @@ type Config struct {
 }
 
 type Node struct {
-	peerManager  PeerManager
-	stateManager state.State
-	subscribe    *Subscribe
-	sync         *StateSync
-	declAddr     proto.TCPAddr
+	peerManager      PeerManager
+	stateManager     state.State
+	subscribe        *Subscribe
+	sync             *StateSync
+	declAddr         proto.TCPAddr
+	scheduler        types.Scheduler
+	minerInterrupter types.MinerInterrupter
 }
 
-func NewNode(stateManager state.State, peerManager PeerManager, declAddr proto.TCPAddr) *Node {
+func NewNode(stateManager state.State, peerManager PeerManager, declAddr proto.TCPAddr, scheduler types.Scheduler, minerInterrupter types.MinerInterrupter) *Node {
 	s := NewSubscribeService()
 	return &Node{
-		stateManager: stateManager,
-		peerManager:  peerManager,
-		subscribe:    s,
-		sync:         NewStateSync(stateManager, peerManager, s),
-		declAddr:     declAddr,
+		stateManager:     stateManager,
+		peerManager:      peerManager,
+		subscribe:        s,
+		sync:             NewStateSync(stateManager, peerManager, s, scheduler, minerInterrupter),
+		declAddr:         declAddr,
+		scheduler:        scheduler,
+		minerInterrupter: minerInterrupter,
 	}
 }
 
@@ -207,9 +212,24 @@ func (a *Node) handleScoreMessage(peerID string, score []byte) {
 	a.peerManager.UpdateScore(peerID, b)
 }
 
-func (a *Node) handleBlockMessage(peerID string, mess proto.Message) {
+func (a *Node) handleBlockMessage(peerID string, mess *proto.BlockMessage) {
 	defer util.TimeTrack(time.Now(), "handleBlockMessage")
-	a.subscribe.Receive(peerID, mess)
+	if !a.subscribe.Receive(peerID, mess) {
+		ba := NewBlockApplier(a.stateManager, a.peerManager, a.scheduler, a.minerInterrupter)
+
+		b := &proto.Block{}
+		err := b.UnmarshalBinary(mess.BlockBytes)
+		if err != nil {
+			zap.S().Debug(err)
+			return
+		}
+
+		err = ba.Apply(BlockWithBytes{Block: b, Bytes: mess.BlockBytes})
+		if err != nil {
+			zap.S().Debug(err)
+			return
+		}
+	}
 }
 
 func (a *Node) handleGetSignaturesMessage(peerID string, mess *proto.GetSignaturesMessage) {

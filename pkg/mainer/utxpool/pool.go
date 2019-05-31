@@ -1,4 +1,4 @@
-package pool
+package utxpool
 
 import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
@@ -40,7 +40,7 @@ type Utx struct {
 	limit          uint // max transaction count
 }
 
-func NewUtx(limit uint) *Utx {
+func New(limit uint) *Utx {
 	return &Utx{
 		transactionIds: make(map[crypto.Digest]struct{}),
 		limit:          limit,

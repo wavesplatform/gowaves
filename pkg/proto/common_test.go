@@ -1,7 +1,9 @@
 package proto
 
 import (
+	"bytes"
 	"github.com/stretchr/testify/assert"
+	"github.com/wavesplatform/gowaves/pkg/libs/serializer"
 	"testing"
 )
 
@@ -9,12 +11,28 @@ func TestStringWithUInt16LenBinaryRoundTrip(t *testing.T) {
 	tests := []string{
 		"",
 		"a",
-		"sdlfjsalktjerqoitjg asjfdg",
+		"hello world",
 	}
 	for _, tc := range tests {
 		buf := make([]byte, 2+len(tc))
 		PutStringWithUInt16Len(buf, tc)
 		s, err := StringWithUInt16Len(buf)
+		assert.NoError(t, err)
+		assert.Equal(t, tc, s)
+	}
+}
+
+func TestSerializer_StringWithUInt16LenBinary(t *testing.T) {
+	tests := []string{
+		"",
+		"a",
+		"hello world",
+	}
+	for _, tc := range tests {
+		buf := new(bytes.Buffer)
+		ser := serializer.New(buf)
+		_ = ser.StringWithUInt16Len(tc)
+		s, err := StringWithUInt16Len(buf.Bytes())
 		assert.NoError(t, err)
 		assert.Equal(t, tc, s)
 	}

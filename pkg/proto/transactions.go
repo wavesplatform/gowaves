@@ -125,6 +125,21 @@ func BytesToTransaction(tx []byte) (Transaction, error) {
 	}
 }
 
+func BytesToTransactions(count int, txs []byte) ([]Transaction, error) {
+	res := make([]Transaction, count)
+	for i := 0; i < count; i++ {
+		n := int(binary.BigEndian.Uint32(txs[0:4]))
+		txBytes := txs[4 : n+4]
+		tx, err := BytesToTransaction(txBytes)
+		if err != nil {
+			return nil, err
+		}
+		res[i] = tx
+		txs = txs[4+n:]
+	}
+	return res, nil
+}
+
 type TransactionTypeVersion struct {
 	Type    TransactionType `json:"type"`
 	Version byte            `json:"version,omitempty"`
@@ -380,16 +395,14 @@ func (tx Payment) Valid() (bool, error) {
 	return true, nil
 }
 
-func (tx *Payment) bodyMarshalBinary() ([]byte, error) {
-	buf := make([]byte, paymentBodyLen)
+func (tx *Payment) bodyMarshalBinary(buf []byte) error {
 	buf[0] = byte(tx.Type)
 	binary.BigEndian.PutUint64(buf[1:], tx.Timestamp)
 	copy(buf[9:], tx.SenderPK[:])
 	copy(buf[9+crypto.PublicKeySize:], tx.Recipient[:])
 	binary.BigEndian.PutUint64(buf[9+crypto.PublicKeySize+AddressSize:], tx.Amount)
 	binary.BigEndian.PutUint64(buf[17+crypto.PublicKeySize+AddressSize:], tx.Fee)
-	return buf, nil
-
+	return nil
 }
 
 func (tx *Payment) bodyUnmarshalBinary(data []byte) error {
@@ -416,7 +429,8 @@ func (tx *Payment) bodyUnmarshalBinary(data []byte) error {
 
 //Sign calculates transaction signature and set it as an ID.
 func (tx *Payment) Sign(secretKey crypto.SecretKey) error {
-	b, err := tx.bodyMarshalBinary()
+	b := tx.bodyMarshalBinaryBuffer()
+	err := tx.bodyMarshalBinary(b)
 	if err != nil {
 		return errors.Wrap(err, "failed to sign Payment transaction")
 	}
@@ -433,7 +447,8 @@ func (tx *Payment) Verify(publicKey crypto.PublicKey) (bool, error) {
 	if tx.Signature == nil {
 		return false, errors.New("empty signature")
 	}
-	b, err := tx.bodyMarshalBinary()
+	b := tx.bodyMarshalBinaryBuffer()
+	err := tx.bodyMarshalBinary(b)
 	if err != nil {
 		return false, errors.Wrap(err, "failed to verify Payment transaction")
 	}
@@ -444,11 +459,28 @@ func (tx *Payment) Verify(publicKey crypto.PublicKey) (bool, error) {
 
 //MarshalBinary returns a bytes representation of Payment transaction.
 func (tx *Payment) MarshalBinary() ([]byte, error) {
-	b, err := tx.bodyMarshalBinary()
+	b := tx.bodyMarshalBinaryBuffer()
+	err := tx.bodyMarshalBinary(b)
 	if err != nil {
-
+		return nil, err
 	}
 	buf := make([]byte, paymentBodyLen+crypto.SignatureSize)
+	copy(buf, b)
+	copy(buf[paymentBodyLen:], tx.Signature[:])
+	return buf, nil
+}
+
+func (tx *Payment) bodyMarshalBinaryBuffer() []byte {
+	return make([]byte, paymentBodyLen)
+}
+
+//MarshalBinary returns a bytes representation of Payment transaction.
+func (tx *Payment) MarshalBinary2(buf []byte) ([]byte, error) {
+	b := tx.bodyMarshalBinaryBuffer()
+	err := tx.bodyMarshalBinary(b)
+	if err != nil {
+		return nil, err
+	}
 	copy(buf, b)
 	copy(buf[paymentBodyLen:], tx.Signature[:])
 	return buf, nil

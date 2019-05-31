@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"sync"
 
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/consensus"
@@ -52,6 +53,8 @@ func genesisFilePath(s *settings.BlockchainSettings) (string, error) {
 }
 
 type stateManager struct {
+	mutex *sync.RWMutex
+
 	genesis proto.Block
 	stateDB *stateDB
 
@@ -66,6 +69,11 @@ type stateManager struct {
 
 	settings *settings.BlockchainSettings
 	cv       *consensus.ConsensusValidator
+
+	// Transaction validator that performs checking against state for single transactions without block.
+	standaloneTv *transactionValidator
+	// Transaction validator that performs checking against state for multiple transactions without block.
+	multiTxTv *transactionValidator
 
 	// Indicates whether lease cancellations were performed.
 	leasesCl0, leasesCl1, leasesCl2 bool
@@ -126,6 +134,7 @@ func newStateManager(dataDir string, params StorageParams, settings *settings.Bl
 		return nil, StateError{errorType: Other, originalError: errors.Errorf("failed to create leases storage: %v\n", err)}
 	}
 	state := &stateManager{
+		mutex:    &sync.RWMutex{},
 		stateDB:  stateDB,
 		assets:   assets,
 		leases:   leases,
@@ -151,11 +160,32 @@ func newStateManager(dataDir string, params StorageParams, settings *settings.Bl
 	if err := state.handleGenesisBlock(genesisPath); err != nil {
 		return nil, StateError{errorType: Other, originalError: err}
 	}
+	// Set transaction validators for transactions without blocks (used by miner, UTX pool).
+	if err := state.setValidators(); err != nil {
+		return nil, StateError{errorType: Other, originalError: err}
+	}
 	return state, nil
 }
 
 func (s *stateManager) Peers() ([]proto.TCPAddr, error) {
 	return s.peers.peers()
+}
+
+func (s *stateManager) Mutex() *sync.RWMutex {
+	return s.mutex
+}
+
+func (s *stateManager) setValidators() error {
+	var err error
+	s.standaloneTv, err = newTransactionValidator(s.genesis.BlockSignature, s.balances, s.assets, s.leases, s.settings)
+	if err != nil {
+		return err
+	}
+	s.multiTxTv, err = newTransactionValidator(s.genesis.BlockSignature, s.balances, s.assets, s.leases, s.settings)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (s *stateManager) setGenesisBlock(genesisCfgPath string) error {
@@ -175,7 +205,7 @@ func (s *stateManager) setGenesisBlock(genesisCfgPath string) error {
 
 func (s *stateManager) addGenesisBlock() error {
 	// Add score of genesis block.
-	genesisScore, err := calculateScore(s.genesis.BaseTarget)
+	genesisScore, err := CalculateScore(s.genesis.BaseTarget)
 	if err != nil {
 		return err
 	}
@@ -189,7 +219,7 @@ func (s *stateManager) addGenesisBlock() error {
 	if err := s.addNewBlock(tv, &s.genesis, nil, true); err != nil {
 		return err
 	}
-	if err := tv.performTransactions(true); err != nil {
+	if err := tv.validateTransactions(true, true); err != nil {
 		return err
 	}
 	if err := s.flush(true); err != nil {
@@ -218,8 +248,35 @@ func (s *stateManager) handleGenesisBlock(genesisCfgPath string) error {
 	return nil
 }
 
-func (s *stateManager) Block(blockID crypto.Signature) (*proto.Block, error) {
+func (s *stateManager) Header(blockID crypto.Signature) (*proto.BlockHeader, error) {
 	headerBytes, err := s.rw.readBlockHeader(blockID)
+	if err != nil {
+		return nil, StateError{errorType: RetrievalError, originalError: err}
+	}
+	var header proto.BlockHeader
+	if err := header.UnmarshalHeaderFromBinary(headerBytes); err != nil {
+		return nil, StateError{errorType: DeserializationError, originalError: err}
+	}
+	return &header, nil
+}
+
+func (s *stateManager) HeaderByHeight(height uint64) (*proto.BlockHeader, error) {
+	maxHeight, err := s.Height()
+	if err != nil {
+		return nil, StateError{errorType: RetrievalError, originalError: err}
+	}
+	if height < 1 || height > maxHeight {
+		return nil, StateError{errorType: InvalidInputError, originalError: errors.New("height out of valid range")}
+	}
+	blockID, err := s.rw.blockIDByHeight(height)
+	if err != nil {
+		return nil, StateError{errorType: RetrievalError, originalError: err}
+	}
+	return s.Header(blockID)
+}
+
+func (s *stateManager) Block(blockID crypto.Signature) (*proto.Block, error) {
+	header, err := s.Header(blockID)
 	if err != nil {
 		return nil, StateError{errorType: RetrievalError, originalError: err}
 	}
@@ -227,10 +284,7 @@ func (s *stateManager) Block(blockID crypto.Signature) (*proto.Block, error) {
 	if err != nil {
 		return nil, StateError{errorType: RetrievalError, originalError: err}
 	}
-	var block proto.Block
-	if err := block.UnmarshalHeaderFromBinary(headerBytes); err != nil {
-		return nil, StateError{errorType: DeserializationError, originalError: err}
-	}
+	block := proto.Block{BlockHeader: *header}
 	block.Transactions = make([]byte, len(transactions))
 	copy(block.Transactions, transactions)
 	return &block, nil
@@ -339,8 +393,21 @@ func (s *stateManager) addNewBlock(tv *transactionValidator, block, parent *prot
 		if err := s.rw.writeTransaction(tx.GetID(), transactions[:n+4]); err != nil {
 			return err
 		}
+		parentTimestamp := uint64(0)
+		if parent != nil {
+			parentTimestamp = parent.Timestamp
+		}
 		// Validate transaction against state.
-		if err = tv.validateTransaction(block, parent, tx, initialisation); err != nil {
+		info := &txValidationInfo{
+			perform:          true,
+			initialisation:   initialisation,
+			validate:         false,
+			currentTimestamp: block.Timestamp,
+			parentTimestamp:  parentTimestamp,
+			minerPK:          block.GenPublicKey,
+			blockID:          block.BlockSignature,
+		}
+		if err = tv.addTxForValidation(tx, info); err != nil {
 			return err
 		}
 		transactions = transactions[4+n:]
@@ -407,20 +474,20 @@ func (s *stateManager) undoBlockAddition() error {
 	return nil
 }
 
-func (s *stateManager) AddBlock(block []byte) error {
-	blocks := make([][]byte, 1)
-	blocks[0] = block
-	if err := s.addBlocks(blocks, false); err != nil {
+func (s *stateManager) AddBlock(blockBytes []byte) (*proto.Block, error) {
+	block, err := s.addBlocks([][]byte{blockBytes}, false)
+	if err != nil {
 		if err := s.undoBlockAddition(); err != nil {
 			panic("Failed to add blocks and can not rollback to previous state after failure.")
 		}
-		return err
+		return nil, err
 	}
-	return nil
+	return block, nil
 }
 
 func (s *stateManager) AddNewBlocks(blocks [][]byte) error {
-	if err := s.addBlocks(blocks, false); err != nil {
+	_, err := s.addBlocks(blocks, false)
+	if err != nil {
 		if err := s.undoBlockAddition(); err != nil {
 			panic("Failed to add blocks and can not rollback to previous state after failure.")
 		}
@@ -430,7 +497,7 @@ func (s *stateManager) AddNewBlocks(blocks [][]byte) error {
 }
 
 func (s *stateManager) AddOldBlocks(blocks [][]byte) error {
-	if err := s.addBlocks(blocks, true); err != nil {
+	if _, err := s.addBlocks(blocks, true); err != nil {
 		if err := s.undoBlockAddition(); err != nil {
 			panic("Failed to add blocks and can not rollback to previous state after failure.")
 		}
@@ -494,26 +561,27 @@ func (s *stateManager) cancelLeases() error {
 	return nil
 }
 
-func (s *stateManager) addBlocks(blocks [][]byte, initialisation bool) error {
+func (s *stateManager) addBlocks(blocks [][]byte, initialisation bool) (*proto.Block, error) {
 	blocksNumber := len(blocks)
 	parent, err := s.topBlock()
 	if err != nil {
-		return StateError{errorType: RetrievalError, originalError: err}
+		return nil, StateError{errorType: RetrievalError, originalError: err}
 	}
 	tv, err := newTransactionValidator(s.genesis.BlockSignature, s.balances, s.assets, s.leases, s.settings)
 	if err != nil {
-		return StateError{errorType: Other, originalError: err}
+		return nil, StateError{errorType: Other, originalError: err}
 	}
 	height, err := s.Height()
 	if err != nil {
-		return StateError{errorType: RetrievalError, originalError: err}
+		return nil, StateError{errorType: RetrievalError, originalError: err}
 	}
 	prevScore, err := s.scores.score(height)
 	if err != nil {
-		return StateError{errorType: RetrievalError, originalError: err}
+		return nil, StateError{errorType: RetrievalError, originalError: err}
 	}
 	var blocksToFinish [][]byte
 	headers := make([]proto.BlockHeader, blocksNumber)
+	var lastBlock *proto.Block
 	for i, blockBytes := range blocks {
 		curHeight := height + uint64(i)
 		if s.needToCancelLeases(curHeight) {
@@ -523,44 +591,46 @@ func (s *stateManager) addBlocks(blocks [][]byte, initialisation bool) error {
 		}
 		block, err := s.unmarshalAndCheck(blockBytes, parent.BlockSignature, initialisation)
 		if err != nil {
-			return StateError{errorType: DeserializationError, originalError: err}
+			return nil, StateError{errorType: DeserializationError, originalError: err}
 		}
+		lastBlock = block
+
 		// Add score.
-		score, err := calculateScore(block.BaseTarget)
+		score, err := CalculateScore(block.BaseTarget)
 		if err != nil {
-			return StateError{errorType: Other, originalError: err}
+			return nil, StateError{errorType: Other, originalError: err}
 		}
 		if err := s.scores.addScore(prevScore, score, s.rw.recentHeight()); err != nil {
-			return StateError{errorType: ModificationError, originalError: err}
+			return nil, StateError{errorType: ModificationError, originalError: err}
 		}
 		prevScore = score
 		if err := s.addNewBlock(tv, block, parent, initialisation); err != nil {
-			return StateError{errorType: TxValidationError, originalError: err}
+			return nil, StateError{errorType: TxValidationError, originalError: err}
 		}
 		headers[i] = block.BlockHeader
 		parent = block
 	}
-	if err := tv.performTransactions(initialisation); err != nil {
-		return StateError{errorType: TxValidationError, originalError: err}
+	if err := tv.validateTransactions(initialisation, true); err != nil {
+		return nil, StateError{errorType: TxValidationError, originalError: err}
 	}
 	if err := s.cv.ValidateHeaders(headers[:len(headers)-len(blocksToFinish)], height); err != nil {
-		return StateError{errorType: BlockValidationError, originalError: err}
+		return nil, StateError{errorType: BlockValidationError, originalError: err}
 	}
 	if err := s.flush(initialisation); err != nil {
-		return StateError{errorType: ModificationError, originalError: err}
+		return nil, StateError{errorType: ModificationError, originalError: err}
 	}
 	if err := s.reset(); err != nil {
-		return StateError{errorType: ModificationError, originalError: err}
+		return nil, StateError{errorType: ModificationError, originalError: err}
 	}
 	if blocksToFinish != nil {
 		// Need to cancel leases due to bugs in historical blockchain.
 		if err := s.cancelLeases(); err != nil {
-			return StateError{errorType: ModificationError, originalError: err}
+			return nil, StateError{errorType: ModificationError, originalError: err}
 		}
 		return s.addBlocks(blocksToFinish, initialisation)
 	}
 	log.Printf("State: blocks to height %d added.\n", height+uint64(blocksNumber))
-	return nil
+	return lastBlock, nil
 }
 
 func (s *stateManager) checkRollbackInput(blockID crypto.Signature) error {
@@ -690,6 +760,39 @@ func (s *stateManager) BlockchainSettings() (*settings.BlockchainSettings, error
 func (s *stateManager) SavePeers(peers []proto.TCPAddr) error {
 	return s.peers.savePeers(peers)
 
+}
+
+func (s *stateManager) ValidateSingleTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64) error {
+	info := &txValidationInfo{
+		perform:          false,
+		initialisation:   false,
+		validate:         true,
+		currentTimestamp: currentTimestamp,
+		parentTimestamp:  parentTimestamp,
+	}
+	if err := s.standaloneTv.addTxForValidation(tx, info); err != nil {
+		return StateError{errorType: TxValidationError, originalError: err}
+	}
+	s.standaloneTv.reset()
+	return nil
+}
+
+func (s *stateManager) ResetValidationList() {
+	s.multiTxTv.reset()
+}
+
+func (s *stateManager) ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64) error {
+	info := &txValidationInfo{
+		perform:          false,
+		initialisation:   false,
+		validate:         true,
+		currentTimestamp: currentTimestamp,
+		parentTimestamp:  parentTimestamp,
+	}
+	if err := s.multiTxTv.addTxForValidation(tx, info); err != nil {
+		return StateError{errorType: TxValidationError, originalError: err}
+	}
+	return nil
 }
 
 func (s *stateManager) Close() error {

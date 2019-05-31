@@ -55,22 +55,22 @@ func TestFairPosCalculateBaseTarget(t *testing.T) {
 }
 
 func TestNxtPosCalculateDelay(t *testing.T) {
-	nxt := &nxtPosCalculator{}
+	nxt := &NxtPosCalculator{}
 	var hit big.Int
 	hit.SetString("7351874400125134246", 10)
-	delay, err := nxt.calculateDelay(&hit, 334160, 500162462800)
+	delay, err := nxt.CalculateDelay(&hit, 334160, 500162462800)
 	if err != nil {
 		t.Fatalf("nxt.calculateDelay(): %v\n", err)
 	}
 	assert.Equal(t, uint64(44000), delay, "invalid nxt delay")
 	hit.SetString("11824069987143516706", 10)
-	delay, err = nxt.calculateDelay(&hit, 704498270, 100001283)
+	delay, err = nxt.CalculateDelay(&hit, 704498270, 100001283)
 	if err != nil {
 		t.Fatalf("nxt.calculateDelay(): %v\n", err)
 	}
 	assert.Equal(t, uint64(168000), delay, "invalid nxt delay")
 	hit.SetString("1191797677384316995", 10)
-	delay, err = nxt.calculateDelay(&hit, 786689734, 100001062)
+	delay, err = nxt.CalculateDelay(&hit, 786689734, 100001062)
 	if err != nil {
 		t.Fatalf("nxt.calculateDelay(): %v\n", err)
 	}
@@ -78,18 +78,18 @@ func TestNxtPosCalculateDelay(t *testing.T) {
 }
 
 func TestNxtPosCalculateBaseTarget(t *testing.T) {
-	nxt := &nxtPosCalculator{}
-	target, err := nxt.calculateBaseTarget(60, 200000, 309209, 1477353355327, 1477353205129, 1477353460467)
+	nxt := &NxtPosCalculator{}
+	target, err := nxt.CalculateBaseTarget(60, 200000, 309209, 1477353355327, 1477353205129, 1477353460467)
 	if err != nil {
 		t.Fatalf("nxt.calculateBaseTarget(): %v\n", err)
 	}
 	assert.Equal(t, uint64(345283), target, "invalid nxt base target")
-	target, err = nxt.calculateBaseTarget(60, 7160, 704498270, 1466167572675, 1466167287305, 1466167602106)
+	target, err = nxt.CalculateBaseTarget(60, 7160, 704498270, 1466167572675, 1466167287305, 1466167602106)
 	if err != nil {
 		t.Fatalf("nxt.calculateBaseTarget(): %v\n", err)
 	}
 	assert.Equal(t, uint64(786689734), target, "invalid nxt base target")
-	target, err = nxt.calculateBaseTarget(60, 7163, 727950233, 1466167672163, 1466167602106, 1466167703511)
+	target, err = nxt.CalculateBaseTarget(60, 7163, 727950233, 1466167672163, 1466167602106, 1466167703511)
 	if err != nil {
 		t.Fatalf("nxt.calculateBaseTarget(): %v\n", err)
 	}

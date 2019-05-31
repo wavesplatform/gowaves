@@ -76,6 +76,14 @@ func NewDigestFromBytes(b []byte) (Digest, error) {
 	return r, nil
 }
 
+func MustDigestFromBase58(s string) Digest {
+	rs, err := array32FromBase58(s, "Digest")
+	if err != nil {
+		panic(err.Error())
+	}
+	return rs
+}
+
 type SecretKey [SecretKeySize]byte
 
 func (k SecretKey) MarshalBinary() ([]byte, error) {
@@ -148,7 +156,7 @@ func (k *PublicKey) UnmarshalJSON(value []byte) error {
 	return nil
 }
 
-func (k *PublicKey) String() string {
+func (k PublicKey) String() string {
 	return base58.Encode(k[:])
 }
 
@@ -219,6 +227,14 @@ func NewSignatureFromBytes(b []byte) (Signature, error) {
 	s := Signature{}
 	copy(s[:], b[:])
 	return s, nil
+}
+
+func MustSignatureFromBase58(s string) Signature {
+	rs, err := array64FromBase58(s, "Signature")
+	if err != nil {
+		panic(err.Error())
+	}
+	return rs
 }
 
 func Keccak256(data []byte) Digest {

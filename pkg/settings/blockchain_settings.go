@@ -4,12 +4,9 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
-type BlockchainType byte
-
 const (
-	MainNet BlockchainType = iota
-	TestNet
-	Custom
+	MainNet = 'W'
+	TestNet = 'T'
 )
 
 type FunctionalitySettings struct {
@@ -42,7 +39,7 @@ type FunctionalitySettings struct {
 
 type BlockchainSettings struct {
 	FunctionalitySettings
-	Type BlockchainType
+	Type byte
 	// GenesisCfgPath is path to JSON file with complete representation of genesis block.
 	// Leave this field blank for MainNet/TestNet, it is only used for custom blockchains.
 	GenesisCfgPath string

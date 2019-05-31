@@ -1,4 +1,4 @@
-package pool
+package utxpool
 
 import (
 	"github.com/stretchr/testify/require"
@@ -45,7 +45,7 @@ func id(b []byte, fee uint64) *transaction {
 }
 
 func TestTransactionPool(t *testing.T) {
-	a := NewUtx(10000)
+	a := New(10000)
 
 	a.Add(tr(4))
 	a.Add(tr(1))
@@ -62,7 +62,7 @@ func TestTransactionPool(t *testing.T) {
 func BenchmarkTransactionPool(b *testing.B) {
 	b.ReportAllocs()
 	rand.Seed(time.Now().Unix())
-	a := NewUtx(10000)
+	a := New(10000)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -86,7 +86,7 @@ func BenchmarkTransactionPool(b *testing.B) {
 }
 
 func TestTransactionPool_Exists(t *testing.T) {
-	a := NewUtx(10000)
+	a := New(10000)
 
 	require.False(t, a.Exists(id([]byte{1, 2, 3}, 0)))
 

@@ -45,13 +45,6 @@ func main() {
 	var cli Cli
 	kong.Parse(&cli)
 
-	state, err := state.NewState("./", state.DefaultStorageParams(), settings.MainNetSettings)
-	if err != nil {
-		zap.S().Error(err)
-		cancel()
-		return
-	}
-
 	conf := &settings.NodeSettings{}
 	settings.ApplySettings(conf,
 		FromArgs(&cli),
@@ -59,7 +52,14 @@ func main() {
 
 	zap.S().Info("conf", conf)
 
-	err = conf.Validate()
+	err := conf.Validate()
+	if err != nil {
+		zap.S().Error(err)
+		cancel()
+		return
+	}
+
+	state, err := state.NewState("./", state.DefaultStorageParams(), settings.MainNetSettings)
 	if err != nil {
 		zap.S().Error(err)
 		cancel()
