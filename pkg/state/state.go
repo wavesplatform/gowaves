@@ -121,6 +121,9 @@ type stateManager struct {
 
 	// Indicates whether lease cancellations were performed.
 	leasesCl0, leasesCl1, leasesCl2 bool
+
+	// The height when last features voting took place.
+	lastVotingHeight uint64
 }
 
 func newStateManager(dataDir string, params StateParams, settings *settings.BlockchainSettings) (*stateManager, error) {
@@ -610,6 +613,14 @@ func (s *stateManager) AddOldDeserializedBlocks(blocks []*proto.Block) error {
 	return s.AddOldBlocks(blocksBytes)
 }
 
+func (s *stateManager) needToFinishVotingPeriod(height uint64) bool {
+	votingFinishHeight := (height % s.settings.ActivationWindowSize(height)) == 0
+	if votingFinishHeight {
+		return s.lastVotingHeight != height
+	}
+	return false
+}
+
 func (s *stateManager) needToCancelLeases(height uint64) bool {
 	switch height {
 	case s.settings.ResetEffectiveBalanceAtHeight:
@@ -619,6 +630,45 @@ func (s *stateManager) needToCancelLeases(height uint64) bool {
 	default:
 		return false
 	}
+}
+
+type breakerTask struct {
+	// Indicates that the task to perform before calling addBlocks() is to cancel leases.
+	cancelLeases bool
+	// Indicates that the task to perform before calling addBlocks() is to finish features voting period.
+	finishVotingPeriod bool
+}
+
+func (s *stateManager) needToBreakAddingBlocks(curHeight uint64, task *breakerTask) bool {
+	if s.needToCancelLeases(curHeight) {
+		task.cancelLeases = true
+	}
+	if s.needToFinishVotingPeriod(curHeight) {
+		task.finishVotingPeriod = true
+	}
+	return task.cancelLeases || task.finishVotingPeriod
+}
+
+func (s *stateManager) finishVoting() error {
+	height, err := s.Height()
+	if err != nil {
+		return err
+	}
+	last, err := s.topBlock()
+	if err != nil {
+		return err
+	}
+	if err := s.stor.features.finishVoting(height, last.BlockSignature); err != nil {
+		return err
+	}
+	s.lastVotingHeight = height
+	if err := s.flush(true); err != nil {
+		return err
+	}
+	if err := s.reset(); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (s *stateManager) cancelLeases() error {
@@ -673,6 +723,24 @@ func (s *stateManager) cancelLeases() error {
 	return nil
 }
 
+func (s *stateManager) handleBreak(blocksToFinish [][]byte, initialisation bool, task *breakerTask) error {
+	if task == nil {
+		return StateError{errorType: Other, originalError: errors.New("handleBreak received empty task")}
+	}
+	if task.finishVotingPeriod {
+		if err := s.finishVoting(); err != nil {
+			return StateError{errorType: ModificationError, originalError: err}
+		}
+	}
+	if task.cancelLeases {
+		// Need to cancel leases due to bugs in historical blockchain.
+		if err := s.cancelLeases(); err != nil {
+			return StateError{errorType: ModificationError, originalError: err}
+		}
+	}
+	return s.addBlocks(blocksToFinish, initialisation)
+}
+
 func (s *stateManager) addBlocks(blocks [][]byte, initialisation bool) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -695,12 +763,13 @@ func (s *stateManager) addBlocks(blocks [][]byte, initialisation bool) error {
 	}
 	headers := make([]proto.BlockHeader, blocksNumber)
 	var blocksToFinish [][]byte
+	breakerInfo := &breakerTask{}
 	chans := newVerifierChans()
 	go launchVerifier(ctx, chans, s.verificationGoroutinesNum)
 	for i, blockBytes := range blocks {
 		curHeight := height + uint64(i)
-		if s.needToCancelLeases(curHeight) {
-			// Need to cancel something, so we split block batch in order to cancel and finish with the rest blocks after.
+		if s.needToBreakAddingBlocks(curHeight, breakerInfo) {
+			// Need to break at this height, so we split block batch in order to cancel and finish with the rest blocks after.
 			blocksToFinish = blocks[i:]
 			break
 		}
@@ -752,11 +821,7 @@ func (s *stateManager) addBlocks(blocks [][]byte, initialisation bool) error {
 		return StateError{errorType: ModificationError, originalError: err}
 	}
 	if blocksToFinish != nil {
-		// Need to cancel leases due to bugs in historical blockchain.
-		if err := s.cancelLeases(); err != nil {
-			return StateError{errorType: ModificationError, originalError: err}
-		}
-		return s.addBlocks(blocksToFinish, initialisation)
+		return s.handleBreak(blocksToFinish, initialisation, breakerInfo)
 	}
 	log.Printf("State: blocks to height %d added.\n", height+uint64(blocksNumber))
 	return nil

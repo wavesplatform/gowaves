@@ -24,14 +24,14 @@ type FeatureInfo struct {
 }
 
 var FeaturesInfo = map[Feature]FeatureInfo{
-	SmallerMinimalGeneratingBalance: {false, "Minimum Generating Balance of 1000 WAVES"},
+	SmallerMinimalGeneratingBalance: {true, "Minimum Generating Balance of 1000 WAVES"},
 	NG:                              {false, "NG Protocol"},
 	MassTransfer:                    {false, "Mass Transfer Transaction"},
 	SmartAccounts:                   {false, "Smart Accounts"},
 	DataTransaction:                 {false, "Data Transaction"},
 	BurnAnyTokens:                   {false, "Burn Any Tokens"},
 	FeeSponsorship:                  {false, "Fee Sponsorship"},
-	FairPoS:                         {false, "Fair PoS"},
+	FairPoS:                         {true, "Fair PoS"},
 	SmartAssets:                     {false, "Smart Assets"},
 	SmartAccountTrading:             {false, "Smart Account Trading"},
 	Ride4DApps:                      {false, "RIDE 4 DAPPS"},
