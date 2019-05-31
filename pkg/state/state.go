@@ -268,6 +268,27 @@ func (s *stateManager) addGenesisBlock() error {
 	return nil
 }
 
+func (s *stateManager) applyPreactivatedFeatures(features []int16) error {
+	genesisID := s.genesis.BlockSignature
+	for _, featureID := range features {
+		approvalRequest := &approvedFeaturesRecord{1, genesisID}
+		if err := s.stor.features.approveFeature(featureID, approvalRequest); err != nil {
+			return err
+		}
+		activationRequest := &activatedFeaturesRecord{1, genesisID}
+		if err := s.stor.features.activateFeature(featureID, activationRequest); err != nil {
+			return err
+		}
+	}
+	if err := s.flush(true); err != nil {
+		return err
+	}
+	if err := s.reset(); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (s *stateManager) handleGenesisBlock(genesisCfgPath string) error {
 	height, err := s.Height()
 	if err != nil {
@@ -278,6 +299,9 @@ func (s *stateManager) handleGenesisBlock(genesisCfgPath string) error {
 	}
 	// If the storage is new (data dir does not contain any data), genesis block must be applied.
 	if height == 0 {
+		if err := s.applyPreactivatedFeatures(s.settings.PreactivatedFeatures); err != nil {
+			return errors.Errorf("failed to apply preactivated features: %v\n", err)
+		}
 		if err := s.addGenesisBlock(); err != nil {
 			return errors.Errorf("failed to apply/save genesis: %v\n", err)
 		}
@@ -841,7 +865,7 @@ func (s *stateManager) checkRollbackInput(blockID crypto.Signature) error {
 		return err
 	}
 	if height < minRollbackHeight || height > maxHeight {
-		return errors.New("invalid height")
+		return errors.Errorf("invalid height; valid range is: [%d, %d]", minRollbackHeight, maxHeight)
 	}
 	return nil
 }
