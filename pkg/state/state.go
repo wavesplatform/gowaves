@@ -59,9 +59,10 @@ type blockchainEntitiesStorage struct {
 	leases   *leases
 	scores   *scores
 	balances *balances
+	features *features
 }
 
-func newBlockchainEntitiesStorage(hs *historyStorage) (*blockchainEntitiesStorage, error) {
+func newBlockchainEntitiesStorage(hs *historyStorage, sets *settings.BlockchainSettings) (*blockchainEntitiesStorage, error) {
 	aliases, err := newAliases(hs)
 	if err != nil {
 		return nil, err
@@ -82,7 +83,11 @@ func newBlockchainEntitiesStorage(hs *historyStorage) (*blockchainEntitiesStorag
 	if err != nil {
 		return nil, err
 	}
-	return &blockchainEntitiesStorage{hs, aliases, assets, leases, scores, balances}, nil
+	features, err := newFeatures(hs.db, hs.dbBatch, hs, sets, settings.FeaturesInfo)
+	if err != nil {
+		return nil, err
+	}
+	return &blockchainEntitiesStorage{hs, aliases, assets, leases, scores, balances, features}, nil
 }
 
 func (s *blockchainEntitiesStorage) reset() {
@@ -156,7 +161,7 @@ func newStateManager(dataDir string, params StateParams, settings *settings.Bloc
 	if err != nil {
 		return nil, StateError{errorType: Other, originalError: errors.Errorf("failed to create history storage: %v\n", err)}
 	}
-	stor, err := newBlockchainEntitiesStorage(hs)
+	stor, err := newBlockchainEntitiesStorage(hs, settings)
 	if err != nil {
 		return nil, StateError{errorType: Other, originalError: errors.Errorf("failed to create blockchain entities storage: %v\n", err)}
 	}
@@ -423,6 +428,16 @@ func (s *stateManager) topBlock() (*proto.Block, error) {
 	return s.BlockByHeight(height)
 }
 
+func (s *stateManager) addFeaturesVotes(block *proto.Block) error {
+	// For Block version 2 Features are always empty, so we don't add anything.
+	for _, featureID := range block.Features {
+		if err := s.stor.features.addVote(featureID, block.BlockSignature); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (s *stateManager) addNewBlock(tv *transactionValidator, block, parent *proto.Block, initialisation bool, chans *verifierChans) error {
 	if err := s.rb.addNewBlockID(block.BlockSignature); err != nil {
 		return err
@@ -487,6 +502,9 @@ func (s *stateManager) addNewBlock(tv *transactionValidator, block, parent *prot
 		transactions = transactions[4+n:]
 	}
 	if err := s.rw.finishBlock(block.BlockSignature); err != nil {
+		return err
+	}
+	if err := s.addFeaturesVotes(block); err != nil {
 		return err
 	}
 	return nil
@@ -608,8 +626,18 @@ func (s *stateManager) cancelLeases() error {
 	if err != nil {
 		return err
 	}
-	switch height {
-	case s.settings.ResetEffectiveBalanceAtHeight:
+	dataTxActivated, err := s.IsActivated(int16(settings.DataTransaction))
+	if err != nil {
+		return err
+	}
+	dataTxHeight := uint64(0)
+	if dataTxActivated {
+		dataTxHeight, err = s.ActivationHeight(int16(settings.DataTransaction))
+		if err != nil {
+			return err
+		}
+	}
+	if height == s.settings.ResetEffectiveBalanceAtHeight {
 		if err := s.stor.leases.cancelLeases(nil); err != nil {
 			return err
 		}
@@ -617,7 +645,7 @@ func (s *stateManager) cancelLeases() error {
 			return err
 		}
 		s.leasesCl0 = true
-	case s.settings.BlockVersion3AfterHeight:
+	} else if height == s.settings.BlockVersion3AfterHeight {
 		overflowAddrs, err := s.stor.balances.cancelLeaseOverflows()
 		if err != nil {
 			return err
@@ -626,17 +654,15 @@ func (s *stateManager) cancelLeases() error {
 			return err
 		}
 		s.leasesCl1 = true
-
-		//TODO
-		//case blockchainFeatures.DataTransactionHeight:
-		//leaseIns, err := s.stor.leases.validLeaseIns()
-		//if err != nil {
-		//	return err
-		//}
-		//if err := s.stor.balances.cancelInvalidLeaseIns(leaseIns); err != nil {
-		//	return err
-		//}
-		//s.leasesCl2 = true
+	} else if dataTxActivated && height == dataTxHeight {
+		leaseIns, err := s.stor.leases.validLeaseIns()
+		if err != nil {
+			return err
+		}
+		if err := s.stor.balances.cancelInvalidLeaseIns(leaseIns); err != nil {
+			return err
+		}
+		s.leasesCl2 = true
 	}
 	if err := s.flush(true); err != nil {
 		return err
@@ -895,6 +921,38 @@ func (s *stateManager) ValidateNextTx(tx proto.Transaction, currentTimestamp, pa
 		return StateError{errorType: TxValidationError, originalError: err}
 	}
 	return nil
+}
+
+func (s *stateManager) IsActivated(featureID int16) (bool, error) {
+	activated, err := s.stor.features.isActivated(featureID)
+	if err != nil {
+		return false, StateError{errorType: RetrievalError, originalError: err}
+	}
+	return activated, nil
+}
+
+func (s *stateManager) ActivationHeight(featureID int16) (uint64, error) {
+	height, err := s.stor.features.activationHeight(featureID)
+	if err != nil {
+		return 0, StateError{errorType: RetrievalError, originalError: err}
+	}
+	return height, nil
+}
+
+func (s *stateManager) IsApproved(featureID int16) (bool, error) {
+	approved, err := s.stor.features.isApproved(featureID)
+	if err != nil {
+		return false, StateError{errorType: RetrievalError, originalError: err}
+	}
+	return approved, nil
+}
+
+func (s *stateManager) ApprovalHeight(featureID int16) (uint64, error) {
+	height, err := s.stor.features.approvalHeight(featureID)
+	if err != nil {
+		return 0, StateError{errorType: RetrievalError, originalError: err}
+	}
+	return height, nil
 }
 
 func (s *stateManager) Close() error {

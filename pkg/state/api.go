@@ -126,6 +126,12 @@ type State interface {
 	SavePeers([]proto.TCPAddr) error
 	Peers() ([]proto.TCPAddr, error)
 
+	// Features.
+	IsActivated(featureID int16) (bool, error)
+	ActivationHeight(featureID int16) (uint64, error)
+	IsApproved(featureID int16) (bool, error)
+	ApprovalHeight(featureID int16) (uint64, error)
+
 	Close() error
 }
 

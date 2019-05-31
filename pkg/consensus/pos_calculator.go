@@ -170,14 +170,3 @@ func (calc *fairPosCalculator) calculateDelay(hit *big.Int, parentTarget, balanc
 	res := uint64(tMin + c1*log)
 	return res, nil
 }
-
-func posAlgo(height uint64) (posCalculator, error) {
-	// TODO: support features concept.
-	// Always return Nxt for now, since FairPos appeared later.
-	return &nxtPosCalculator{}, nil
-}
-
-func fairPosActivated(height uint64) bool {
-	// TODO: support features activation.
-	return false
-}
