@@ -25,6 +25,7 @@ type stateInfoProvider interface {
 	BlockchainSettings() (*settings.BlockchainSettings, error)
 	HeaderByHeight(height uint64) (*proto.BlockHeader, error)
 	EffectiveBalance(addr proto.Address, startHeight, endHeight uint64) (uint64, error)
+	IsActivated(featureID int16) (bool, error)
 }
 
 type ConsensusValidator struct {
@@ -41,6 +42,25 @@ func NewConsensusValidator(state stateInfoProvider) (*ConsensusValidator, error)
 		return nil, errors.Errorf("failed to get blockchain settings: %v\n", err)
 	}
 	return &ConsensusValidator{state: state, settings: settings}, nil
+}
+
+func (cv *ConsensusValidator) smallerMinimalGeneratingBalanceActivated() (bool, error) {
+	return cv.state.IsActivated(int16(settings.SmallerMinimalGeneratingBalance))
+}
+
+func (cv *ConsensusValidator) fairPosActivated() (bool, error) {
+	return cv.state.IsActivated(int16(settings.FairPoS))
+}
+
+func (cv *ConsensusValidator) posAlgo() (posCalculator, error) {
+	fair, err := cv.fairPosActivated()
+	if err != nil {
+		return &nxtPosCalculator{}, err
+	}
+	if fair {
+		return &fairPosCalculator{}, nil
+	}
+	return &nxtPosCalculator{}, nil
 }
 
 func (cv *ConsensusValidator) headerByHeight(height uint64) (*proto.BlockHeader, error) {
@@ -85,16 +105,15 @@ func (cv *ConsensusValidator) ValidateHeaders(headers []proto.BlockHeader, start
 	return nil
 }
 
-func smallerMinimalGeneratingBalanceActivated(height uint64) bool {
-	// TODO: support features activation.
-	return false
-}
-
 func (cv *ConsensusValidator) validateEffectiveBalance(header *proto.BlockHeader, balance, height uint64) error {
 	if header.Timestamp < cv.settings.MinimalGeneratingBalanceCheckAfterTime {
 		return nil
 	}
-	if smallerMinimalGeneratingBalanceActivated(height) {
+	smallerGeneratingBalance, err := cv.smallerMinimalGeneratingBalanceActivated()
+	if err != nil {
+		return err
+	}
+	if smallerGeneratingBalance {
 		if balance < minimalEffectiveBalanceForGenerator2 {
 			return errors.Errorf("generator's effective balance is less than required for generation: %d", balance)
 		}
@@ -140,11 +159,15 @@ func (cv *ConsensusValidator) validateBlockVersion(height uint64, header *proto.
 }
 
 func (cv *ConsensusValidator) checkTargetLimit(height, target uint64) error {
-	if !fairPosActivated(height) {
+	fair, err := cv.fairPosActivated()
+	if err != nil {
+		return err
+	}
+	if !fair {
 		return nil
 	}
 	if target > cv.settings.MaxBaseTarget {
-		return errors.New("base target is greater than maximum value from config")
+		return errors.New("base target is greater than maximum value from blockchain settings")
 	}
 	return nil
 }
@@ -153,7 +176,7 @@ func (cv *ConsensusValidator) validateBaseTarget(height uint64, header, parent, 
 	if err := cv.checkTargetLimit(height, header.BaseTarget); err != nil {
 		return err
 	}
-	pos, err := posAlgo(height)
+	pos, err := cv.posAlgo()
 	if err != nil {
 		return err
 	}
@@ -194,7 +217,7 @@ func (cv *ConsensusValidator) validateGeneratorSignature(height uint64, header *
 }
 
 func (cv *ConsensusValidator) validBlockDelay(height uint64, pk crypto.PublicKey, parentTarget, effectiveBalance uint64) (uint64, error) {
-	pos, err := posAlgo(height)
+	pos, err := cv.posAlgo()
 	if err != nil {
 		return 0, err
 	}

@@ -83,7 +83,7 @@ func (r *assetHistoryRecord) marshalBinary() ([]byte, error) {
 	if l > maxQuantityLen {
 		return nil, errors.Errorf("quantity length %d bytes exceeds maxQuantityLen of %d", l, maxQuantityLen)
 	}
-	res := make([]byte, maxQuantityLen+1+crypto.SignatureSize)
+	res := make([]byte, assetRecordSize)
 	copy(res[maxQuantityLen-l:maxQuantityLen], quantityBytes)
 	proto.PutBool(res[maxQuantityLen:maxQuantityLen+1], r.reissuable)
 	copy(res[maxQuantityLen+1:], r.blockID[:])

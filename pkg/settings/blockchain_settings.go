@@ -1,6 +1,8 @@
 package settings
 
 import (
+	"math"
+
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
@@ -13,6 +15,12 @@ const (
 )
 
 type FunctionalitySettings struct {
+	// Features.
+	FeaturesVotingPeriod             uint64
+	VotesForFeatureActivation        uint64
+	PreactivatedFeatures             []int16
+	DoubleFeaturesPeriodsAfterHeight uint64
+
 	// Heights when some of rules change.
 	GenerationBalanceDepthFrom50To1000AfterHeight uint64
 	BlockVersion3AfterHeight                      uint64
@@ -40,6 +48,22 @@ type FunctionalitySettings struct {
 	MaxBaseTarget uint64
 }
 
+func (f *FunctionalitySettings) VotesForFeatureElection(height uint64) uint64 {
+	if height >= f.DoubleFeaturesPeriodsAfterHeight {
+		return f.VotesForFeatureActivation * 2
+	} else {
+		return f.VotesForFeatureActivation
+	}
+}
+
+func (f *FunctionalitySettings) ActivationWindowSize(height uint64) uint64 {
+	if height >= f.DoubleFeaturesPeriodsAfterHeight {
+		return f.FeaturesVotingPeriod * 2
+	} else {
+		return f.FeaturesVotingPeriod
+	}
+}
+
 type BlockchainSettings struct {
 	FunctionalitySettings
 	Type BlockchainType
@@ -52,6 +76,10 @@ var (
 	MainNetSettings = &BlockchainSettings{
 		Type: MainNet,
 		FunctionalitySettings: FunctionalitySettings{
+			FeaturesVotingPeriod:             5000,
+			VotesForFeatureActivation:        4000,
+			DoubleFeaturesPeriodsAfterHeight: 810000,
+
 			GenerationBalanceDepthFrom50To1000AfterHeight: 232000,
 			BlockVersion3AfterHeight:                      795000,
 			ResetEffectiveBalanceAtHeight:                 462000,
@@ -78,6 +106,10 @@ var (
 	TestNetSettings = &BlockchainSettings{
 		Type: TestNet,
 		FunctionalitySettings: FunctionalitySettings{
+			FeaturesVotingPeriod:             3000,
+			VotesForFeatureActivation:        2700,
+			DoubleFeaturesPeriodsAfterHeight: math.MaxUint64,
+
 			GenerationBalanceDepthFrom50To1000AfterHeight: 0,
 			BlockVersion3AfterHeight:                      161700,
 			ResetEffectiveBalanceAtHeight:                 51500,

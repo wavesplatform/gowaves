@@ -16,7 +16,7 @@ type aliasRecord struct {
 }
 
 func (r *aliasRecord) marshalBinary() ([]byte, error) {
-	res := make([]byte, proto.AddressSize+crypto.SignatureSize)
+	res := make([]byte, aliasRecordSize)
 	copy(res[:proto.AddressSize], r.addr[:])
 	copy(res[proto.AddressSize:], r.blockID[:])
 	return res, nil

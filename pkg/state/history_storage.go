@@ -16,14 +16,20 @@ const (
 	lease
 	wavesBalance
 	assetBalance
+	featureVote
+	approvedFeature
+	activatedFeature
 )
 
 var recordSizes = map[blockchainEntity]int{
-	alias:        aliasRecordSize,
-	asset:        assetRecordSize,
-	lease:        leasingRecordSize,
-	wavesBalance: wavesBalanceRecordSize,
-	assetBalance: assetBalanceRecordSize,
+	alias:            aliasRecordSize,
+	asset:            assetRecordSize,
+	lease:            leasingRecordSize,
+	wavesBalance:     wavesBalanceRecordSize,
+	assetBalance:     assetBalanceRecordSize,
+	featureVote:      votesFeaturesRecordSize,
+	approvedFeature:  approvedFeaturesRecordSize,
+	activatedFeature: activatedFeaturesRecordSize,
 }
 
 type historyStorage struct {

@@ -148,6 +148,22 @@ func (a *MockStateManager) AccountBalance(addr proto.Address, asset []byte) (uin
 	panic("implement me")
 }
 
+func (a *MockStateManager) IsActivated(featureID int16) (bool, error) {
+	panic("implement me")
+}
+
+func (a *MockStateManager) ActivationHeight(featureID int16) (uint64, error) {
+	panic("implement me")
+}
+
+func (a *MockStateManager) IsApproved(featureID int16) (bool, error) {
+	panic("implement me")
+}
+
+func (a *MockStateManager) ApprovalHeight(featureID int16) (uint64, error) {
+	panic("implement me")
+}
+
 func newMockStateWithGenesis() *MockStateManager {
 	sig, _ := crypto.NewSignatureFromBase58("5uqnLK3Z9eiot6FyYBfwUnbyid3abicQbAZjz38GQ1Q8XigQMxTK4C1zNkqS1SVw7FqSidbZKxWAKLVoEsp4nNqa")
 	block := &proto.Block{

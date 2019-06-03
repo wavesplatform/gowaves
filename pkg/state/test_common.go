@@ -2,6 +2,7 @@ package state
 
 import (
 	"io/ioutil"
+	"math/rand"
 	"os"
 	"testing"
 
@@ -65,4 +66,17 @@ func createStorageObjects() (*storageObjects, []string, error) {
 		return nil, res, err
 	}
 	return &storageObjects{db, dbBatch, hs, stateDB, rb}, res, nil
+}
+
+func genBlockIds(t *testing.T, amount int) []crypto.Signature {
+	ids := make([]crypto.Signature, amount)
+	for i := 0; i < amount; i++ {
+		id := make([]byte, crypto.SignatureSize)
+		_, err := rand.Read(id)
+		assert.NoError(t, err, "rand.Read() failed")
+		blockID, err := crypto.NewSignatureFromBytes(id)
+		assert.NoError(t, err, "NewSignatureFromBytes() failed")
+		ids[i] = blockID
+	}
+	return ids
 }
