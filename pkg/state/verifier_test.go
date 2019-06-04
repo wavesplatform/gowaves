@@ -107,7 +107,7 @@ func TestVerifier(t *testing.T) {
 	assert.Error(t, err, "verifyTransactions() did not fail with unsigned tx")
 	chans = newVerifierChans()
 	go launchVerifier(context.Background(), chans, runtime.NumCPU())
-	// Test invalod tx failure.
+	// Test invalid tx failure.
 	invalidTx := proto.NewUnsignedGenesis(recipient, 0, 0)
 	txs = []proto.Transaction{invalidTx}
 	err = verifyTransactions(txs, chans)

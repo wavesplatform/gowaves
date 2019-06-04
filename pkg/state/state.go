@@ -458,6 +458,14 @@ func (s *stateManager) topBlock() (*proto.Block, error) {
 func (s *stateManager) addFeaturesVotes(block *proto.Block) error {
 	// For Block version 2 Features are always empty, so we don't add anything.
 	for _, featureID := range block.Features {
+		approved, err := s.stor.features.isApproved(featureID)
+		if err != nil {
+			return err
+		}
+		if approved {
+			log.Printf("Block has vote for featureID %v, but it is already approved.", featureID)
+			continue
+		}
 		if err := s.stor.features.addVote(featureID, block.BlockSignature); err != nil {
 			return err
 		}
