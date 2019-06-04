@@ -836,7 +836,7 @@ func (s *stateManager) addBlocks(blocks [][]byte, initialisation bool) error {
 	}
 	verifyError := <-chans.errChan
 	if verifyError != nil {
-		return StateError{errorType: ValidationError, originalError: err}
+		return StateError{errorType: ValidationError, originalError: verifyError}
 	}
 	if err := s.flush(initialisation); err != nil {
 		return StateError{errorType: ModificationError, originalError: err}
