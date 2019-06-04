@@ -298,9 +298,22 @@ func (f *features) approveFeatures(curHeight uint64, curBlockID crypto.Signature
 				return err
 			}
 		}
-		// Remove feature from the voting list anyway:
-		// next voting period starts from scratch.
-		f.dbBatch.Delete(key)
+		votes, err := f.featureVotes(k.featureID)
+		if err != nil {
+			return err
+		}
+		if votes > 0 {
+			// Reset features votes anyway:
+			// next voting period starts from scratch.
+			newRecord := &votesFeaturesRecord{0, curBlockID}
+			newRecordBytes, err := newRecord.marshalBinary()
+			if err != nil {
+				return err
+			}
+			if err := f.hs.set(featureVote, key, newRecordBytes); err != nil {
+				return err
+			}
+		}
 	}
 	return nil
 }
