@@ -25,6 +25,7 @@ out/
 
 *.lock
 *.txt
+*.log
 !cmd/wmd/symbols.txt
 **/.DS_Store
 blocks_storage

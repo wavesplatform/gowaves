@@ -53,6 +53,7 @@ type api struct {
 	interrupt <-chan struct{}
 	storage   *storage
 	registry  *Registry
+	drawer    *drawer
 	srv       *http.Server
 }
 
@@ -64,11 +65,11 @@ type PublicAddressInfo struct {
 	NextAttemptTime time.Time `json:"next_attempt_time"`
 }
 
-func NewAPI(interrupt <-chan struct{}, storage *storage, registry *Registry, bind string) (*api, error) {
+func NewAPI(interrupt <-chan struct{}, storage *storage, registry *Registry, drawer *drawer, bind string) (*api, error) {
 	if bind == "" {
 		return nil, errors.New("empty address to bin")
 	}
-	a := api{interrupt: interrupt, storage: storage, registry: registry}
+	a := api{interrupt: interrupt, storage: storage, registry: registry, drawer: drawer}
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
@@ -129,15 +130,7 @@ func (a *api) routes() chi.Router {
 }
 
 func (a *api) status(w http.ResponseWriter, r *http.Request) {
-	//forks, err := a.storage.parentedForks()
-	//if err != nil {
-	//	http.Error(w, fmt.Sprintf("Failed to complete request: %v", err), http.StatusInternalServerError)
-	//	return
-	//}
-	//short, long := countForksByLength(forks)
-	// TODO: implement
-	short := 0
-	long := 0
+	stats := a.drawer.stats()
 	peers, err := a.registry.Peers()
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to complete request: %v", err), http.StatusInternalServerError)
@@ -153,7 +146,7 @@ func (a *api) status(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Failed to complete request: %v", err), http.StatusInternalServerError)
 		return
 	}
-	s := status{ShortForksCount: short, LongForksCount: long, AllPeersCount: len(peers), FriendlyPeersCount: len(friends), ConnectedPeersCount: len(connections)}
+	s := status{ShortForksCount: stats.short, LongForksCount: stats.long, AllPeersCount: len(peers), FriendlyPeersCount: len(friends), ConnectedPeersCount: len(connections)}
 	err = json.NewEncoder(w).Encode(s)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to marshal status to JSON: %v", err), http.StatusInternalServerError)
@@ -201,7 +194,7 @@ func (a *api) connections(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *api) forks(w http.ResponseWriter, r *http.Request) {
-	forks, err := a.storage.parentedForks()
+	forks, err := a.drawer.forks()
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to complete request: %v", err), http.StatusInternalServerError)
 		return
@@ -220,7 +213,7 @@ func (a *api) node(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Invalid IP address '%s'", addr), http.StatusBadRequest)
 		return
 	}
-	fork, err := a.storage.fork(ip)
+	fork, err := a.drawer.fork(ip)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to complete request: %v", err), http.StatusInternalServerError)
 		return
@@ -269,14 +262,4 @@ func (a *api) block(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Failed to marshal status to JSON: %v", err), http.StatusInternalServerError)
 		return
 	}
-}
-
-func countForksByLength(forks []Fork) (int, int) {
-	r := 0
-	for _, f := range forks {
-		if f.Length < 10 {
-			r++
-		}
-	}
-	return r, len(forks) - r
 }

@@ -73,7 +73,7 @@ func (r *Registry) Check(addr net.Addr, application string) error {
 		return errors.Errorf("duplicate connection from %s", addr)
 	}
 	// Check what we already know about the address
-	peer, err := r.storage.Peer(ip)
+	peer, err := r.storage.peer(ip)
 	if err != nil {
 		if err == leveldb.ErrNotFound {
 			return nil
@@ -94,7 +94,7 @@ func (r *Registry) SuggestVersion(addr net.Addr) (proto.Version, error) {
 	if err != nil {
 		return proto.Version{}, err
 	}
-	peer, err := r.storage.Peer(ip)
+	peer, err := r.storage.peer(ip)
 	if err != nil {
 		if err != leveldb.ErrNotFound {
 			return proto.Version{}, err
@@ -115,7 +115,7 @@ func (r *Registry) SuggestVersion(addr net.Addr) (proto.Version, error) {
 		} else {
 			peer.NextAttempt = time.Now().Add(hourDelay)
 		}
-		err = r.storage.PutPeer(ip, peer)
+		err = r.storage.putPeer(ip, peer)
 		if err != nil {
 			return proto.Version{}, err
 		}
@@ -131,7 +131,7 @@ func (r *Registry) PeerConnected(addr net.Addr) error {
 	if err != nil {
 		return err
 	}
-	peer, err := r.storage.Peer(ip)
+	peer, err := r.storage.peer(ip)
 	if err != nil {
 		if err != leveldb.ErrNotFound {
 			return err
@@ -152,7 +152,7 @@ func (r *Registry) PeerConnected(addr net.Addr) error {
 	case NodeGreeted:
 		return nil
 	}
-	err = r.storage.PutPeer(ip, peer)
+	err = r.storage.putPeer(ip, peer)
 	if err != nil {
 		return err
 	}
@@ -170,7 +170,7 @@ func (r *Registry) PeerGreeted(addr net.Addr, nonce uint64, name string, v proto
 
 	delete(r.pending, hash(ip))
 
-	peer, err := r.storage.Peer(ip)
+	peer, err := r.storage.peer(ip)
 	if err != nil {
 		if err != leveldb.ErrNotFound {
 			return err
@@ -185,7 +185,7 @@ func (r *Registry) PeerGreeted(addr net.Addr, nonce uint64, name string, v proto
 	peer.Attempts = 0
 	peer.NextAttempt = time.Time{}
 	peer.State = NodeGreeted
-	err = r.storage.PutPeer(ip, peer)
+	err = r.storage.putPeer(ip, peer)
 	if err != nil {
 		return err
 	}
@@ -203,7 +203,7 @@ func (r *Registry) PeerHostile(addr net.Addr, nonce uint64, name string, v proto
 
 	delete(r.pending, hash(ip))
 
-	peer, err := r.storage.Peer(ip)
+	peer, err := r.storage.peer(ip)
 	if err != nil {
 		if err != leveldb.ErrNotFound {
 			return err
@@ -216,7 +216,7 @@ func (r *Registry) PeerHostile(addr net.Addr, nonce uint64, name string, v proto
 	peer.Name = name
 	peer.Version = v
 	peer.State = NodeHostile
-	err = r.storage.PutPeer(ip, peer)
+	err = r.storage.putPeer(ip, peer)
 	if err != nil {
 		return err
 	}
@@ -234,7 +234,7 @@ func (r *Registry) PeerDiscarded(addr net.Addr) error {
 
 	delete(r.pending, hash(ip))
 
-	peer, err := r.storage.Peer(ip)
+	peer, err := r.storage.peer(ip)
 	if err != nil && err != leveldb.ErrNotFound {
 		return err
 	}
@@ -248,7 +248,7 @@ func (r *Registry) PeerDiscarded(addr net.Addr) error {
 		} else {
 			peer.NextAttempt = time.Now().Add(hourDelay)
 		}
-		err = r.storage.PutPeer(ip, peer)
+		err = r.storage.putPeer(ip, peer)
 		if err != nil {
 			return err
 		}
@@ -321,14 +321,14 @@ func (r *Registry) AppendAddresses(addresses []net.TCPAddr) int {
 			zap.S().Warnf("Error adding address: %v", err)
 			continue
 		}
-		yes, err := r.storage.HasPeer(ip)
+		yes, err := r.storage.hasPeer(ip)
 		if err != nil {
 			zap.S().Warnf("Failed to append addresses: %v", err)
 			return count
 		}
 		if !yes {
 			peer := PeerNode{Address: ip, Port: port, State: NodeUnknown}
-			err := r.storage.PutPeer(ip, peer)
+			err := r.storage.putPeer(ip, peer)
 			if err != nil {
 				zap.S().Warnf("Failed to append addresses: %v", err)
 				return count
@@ -343,7 +343,7 @@ func (r *Registry) Peers() ([]PeerNode, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	peers, err := r.storage.Peers()
+	peers, err := r.storage.peers()
 	if err != nil {
 		return nil, err
 	}
@@ -355,7 +355,7 @@ func (r *Registry) FriendlyPeers() ([]PeerNode, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	peers, err := r.storage.Peers()
+	peers, err := r.storage.peers()
 	if err != nil {
 		return nil, err
 	}
@@ -387,7 +387,7 @@ func (r *Registry) TakeAvailableAddresses() ([]net.Addr, error) {
 	defer r.mu.Unlock()
 
 	addresses := make([]net.Addr, 0)
-	peers, err := r.storage.Peers()
+	peers, err := r.storage.peers()
 	if err != nil {
 		return addresses, errors.Wrap(err, "failed to get available addresses from storage")
 	}

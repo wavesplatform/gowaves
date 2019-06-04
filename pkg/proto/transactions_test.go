@@ -2204,6 +2204,85 @@ func TestExchangeV2FromJSON2(t *testing.T) {
 	assert.NotNil(t, so)
 }
 
+func TestExchangeV2FromJSON3(t *testing.T) {
+	var js = `
+{
+  "type": 7,
+  "id": "GR7ZDZFU2K7R9zM1qNqJEaC1vgA7hFbD3qFxvsSB9U84",
+  "sender": "3PJaDyprvekvPXPuAtxrapacuDJopgJRaU3",
+  "senderPublicKey": "7kPFrHDiGw1rCm7LPszuECwWYL3dMf6iMifLRDJQZMzy",
+  "fee": 300000,
+  "timestamp": 1559218968473,
+  "proofs": [
+    "4HdcL9Ppgbf4kKECBvRx28ieSRMtgaFeF97kxSwmB72fLb3FLApkn4KQcKFE4F4pz5UwFcYBP6PB5RqXSrbKLhQM"
+  ],
+  "version": 2,
+  "order1": {
+    "version": 1,
+    "id": "Du7mcUrKveCyBchxfR8RULZK6Ad21AtfWQcR8uqo3WZq",
+    "sender": "3PCdWLg27GMKprpwKcHqcWS2UwXWwQNRwag",
+    "senderPublicKey": "6HfBybJc7E4wJYZgWNpDJf9RnZRDvS4WLbcx7FtYBCbN",
+    "matcherPublicKey": "7kPFrHDiGw1rCm7LPszuECwWYL3dMf6iMifLRDJQZMzy",
+    "assetPair": {
+      "amountAsset": "9JKjU6U2Ho71U7VWHvr14RB7iLpx2qYBtyUZqLpv6pVB",
+      "priceAsset": null
+    },
+    "orderType": "buy",
+    "amount": 139538564044,
+    "price": 105,
+    "timestamp": 1559218968424,
+    "expiration": 1559219033424,
+    "matcherFee": 300000,
+    "signature": "SrzSabfBaGFyw1Ex6S7X4BH6mtujgwVxBMKNwcPb2wsyzTrkAzipybjAZcyoBdkEhBoUooUAUPGmHqFcffcTaVG",
+    "proofs": [
+      "SrzSabfBaGFyw1Ex6S7X4BH6mtujgwVxBMKNwcPb2wsyzTrkAzipybjAZcyoBdkEhBoUooUAUPGmHqFcffcTaVG"
+    ]
+  },
+  "order2": {
+    "version": 1,
+    "id": "8KyKHCgGPYrwco9QNGaNwCbVZgSBvjz8JNW24VxVr5Vb",
+    "sender": "3PCdWLg27GMKprpwKcHqcWS2UwXWwQNRwag",
+    "senderPublicKey": "6HfBybJc7E4wJYZgWNpDJf9RnZRDvS4WLbcx7FtYBCbN",
+    "matcherPublicKey": "7kPFrHDiGw1rCm7LPszuECwWYL3dMf6iMifLRDJQZMzy",
+    "assetPair": {
+      "amountAsset": "9JKjU6U2Ho71U7VWHvr14RB7iLpx2qYBtyUZqLpv6pVB",
+      "priceAsset": null
+    },
+    "orderType": "sell",
+    "amount": 139538564044000,
+    "price": 105,
+    "timestamp": 1559218958940,
+    "expiration": 1559219023940,
+    "matcherFee": 300000,
+    "signature": "3TSrKc3EnZtnULQKDGBW6fMQqqPFZoRzy4fC7n637dHXhHhs9K61mTwAkmXnq8M5sTV4Y7eG7fq1YFUCJVEWVLjC",
+    "proofs": [
+      "3TSrKc3EnZtnULQKDGBW6fMQqqPFZoRzy4fC7n637dHXhHhs9K61mTwAkmXnq8M5sTV4Y7eG7fq1YFUCJVEWVLjC"
+    ]
+  },
+  "amount": 139538095239,
+  "price": 105,
+  "buyMatcherFee": 299998,
+  "sellMatcherFee": 299,
+  "height": 1549429
+}
+`
+	var tx ExchangeV2
+	err := json.Unmarshal([]byte(js), &tx)
+	require.NoError(t, err)
+	assert.Equal(t, ExchangeTransaction, tx.Type)
+	assert.Equal(t, 2, int(tx.Version))
+	bo, ok := tx.BuyOrder.(*OrderV1)
+	assert.True(t, ok)
+	assert.NotNil(t, bo)
+	so, ok := tx.SellOrder.(*OrderV1)
+	assert.True(t, ok)
+	assert.NotNil(t, so)
+
+	b, err := tx.MarshalBinary()
+	require.NoError(t, err)
+	assert.Equal(t, uint8(0xcb), b[6])
+}
+
 func TestLeaseV1Validations(t *testing.T) {
 	tests := []struct {
 		recipient string

@@ -934,7 +934,7 @@ func (tx ExchangeV2) Valid() (bool, error) {
 }
 
 func (tx *ExchangeV2) marshalAsOrderV1(order Order) ([]byte, error) {
-	o, ok := order.(OrderV1)
+	o, ok := order.(*OrderV1)
 	if !ok {
 		return nil, errors.New("failed to cast an order with version 1 to OrderV1")
 	}
@@ -951,7 +951,7 @@ func (tx *ExchangeV2) marshalAsOrderV1(order Order) ([]byte, error) {
 }
 
 func (tx *ExchangeV2) marshalAsOrderV2(order Order) ([]byte, error) {
-	o, ok := order.(OrderV2)
+	o, ok := order.(*OrderV2)
 	if !ok {
 		return nil, errors.New("failed to cast an order with version 2 to OrderV2")
 	}

@@ -2,7 +2,6 @@ package internal
 
 import (
 	"bytes"
-	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
@@ -14,7 +13,6 @@ import (
 )
 
 const (
-	signaturesCount     = 100
 	blockReceiveTimeout = time.Minute
 )
 
@@ -42,43 +40,42 @@ type blockEvent struct {
 	block proto.Block
 }
 
-type blocksCache struct {
-	mu    sync.RWMutex
-	cache  map[crypto.Signature]struct{}
-}
-
-func newBlocksCache(signatures []crypto.Signature) *blocksCache {
-	f := make(map[crypto.Signature]struct{})
-	for _, s := range signatures {
-		if _, ok := f[s]; !ok {
-			f[s] = struct{}{}
-		}
-	}
-	zap.S().Debugf("Loaded %d existing blocks signatures", len(f))
-	return &blocksCache{cache: f}
-}
-
-func (c *blocksCache) put(signature crypto.Signature) bool {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	if _, ok := c.cache[signature]; ok {
-		return false
-	}
-	c.cache[signature] = struct{}{}
-	return true
-}
-
-func (c *blocksCache) contains(signature crypto.Signature) bool {
-	c.mu.RLock()
-	_, ok := c.cache[signature]
-	c.mu.RUnlock()
-	return ok
-}
+//type blocksCache struct {
+//	mu    sync.RWMutex
+//	cache  map[crypto.Signature]struct{}
+//}
+//
+//func newBlocksCache(signatures []crypto.Signature) *blocksCache {
+//	f := make(map[crypto.Signature]struct{})
+//	for _, s := range signatures {
+//		if _, ok := f[s]; !ok {
+//			f[s] = struct{}{}
+//		}
+//	}
+//	zap.S().Debugf("Loaded %d existing blocks signatures", len(f))
+//	return &blocksCache{cache: f}
+//}
+//
+//func (c *blocksCache) put(signature crypto.Signature) bool {
+//	c.mu.Lock()
+//	defer c.mu.Unlock()
+//	if _, ok := c.cache[signature]; ok {
+//		return false
+//	}
+//	c.cache[signature] = struct{}{}
+//	return true
+//}
+//
+//func (c *blocksCache) contains(signature crypto.Signature) bool {
+//	c.mu.RLock()
+//	_, ok := c.cache[signature]
+//	c.mu.RUnlock()
+//	return ok
+//}
 
 type signaturesSynchronizer struct {
 	wg               *sync.WaitGroup
-	storage          *storage
-	cache            *blocksCache
+	drawer           *drawer
 	requestBlocksCh  chan<- signaturesEvent
 	conn             *Conn
 	addr             net.IP
@@ -89,11 +86,10 @@ type signaturesSynchronizer struct {
 	receivedBlocksCh chan notificationEvent
 }
 
-func newSignaturesSynchronizer(wg *sync.WaitGroup, storage *storage, cache *blocksCache, blocks chan<- signaturesEvent, conn *Conn) *signaturesSynchronizer {
+func newSignaturesSynchronizer(wg *sync.WaitGroup, drawer *drawer, blocks chan<- signaturesEvent, conn *Conn) *signaturesSynchronizer {
 	return &signaturesSynchronizer{
 		wg:               wg,
-		storage:          storage,
-		cache:            cache,
+		drawer:           drawer,
 		requestBlocksCh:  blocks,
 		conn:             conn,
 		addr:             extractIPAddress(conn.RawConn.RemoteAddr()),
@@ -119,7 +115,7 @@ func (s *signaturesSynchronizer) start() {
 			unheard := skip(signatures, s.pending)
 			nonexistent := make([]crypto.Signature, 0)
 			for _, sig := range unheard {
-				if s.cache.contains(sig) {
+				if _, ok := s.drawer.number(sig); ok {
 					continue
 				}
 				nonexistent = append(nonexistent, sig)
@@ -132,7 +128,7 @@ func (s *signaturesSynchronizer) start() {
 			}
 
 			last := unheard[len(unheard)-1]
-			err := s.movePeerLink(last)
+			err := s.movePeer(last)
 			if err != nil {
 				zap.S().Fatalf("[%s][SYN] Failed to handle signatures: %v", s.conn.RawConn.RemoteAddr(), err)
 				return
@@ -154,7 +150,7 @@ func (s *signaturesSynchronizer) start() {
 			}
 			s.pending = s.pending[1:]
 			if e.result {
-				err := s.movePeerLink(sig)
+				err := s.movePeer(sig)
 				if err != nil {
 					zap.S().Errorf("[%s][SYN] Failed to update peer link: %v", s.conn.RawConn.RemoteAddr(), err)
 					continue
@@ -188,7 +184,7 @@ func (s *signaturesSynchronizer) requestSignatures() {
 		zap.S().Debugf("[%s][SYN] Signatures already requested", s.conn.RawConn.RemoteAddr())
 		return
 	}
-	signatures, err := s.storage.frontBlocks(s.addr, signaturesCount)
+	signatures, err := s.drawer.front(s.addr)
 	if err != nil {
 		zap.S().Fatalf("[%s][SYN] Failed to request signatures: %v", s.conn.RawConn.RemoteAddr(), err)
 	}
@@ -206,9 +202,9 @@ func (s *signaturesSynchronizer) requestSignatures() {
 	s.pending = signatures
 }
 
-func (s *signaturesSynchronizer) movePeerLink(signature crypto.Signature) error {
+func (s *signaturesSynchronizer) movePeer(signature crypto.Signature) error {
 	zap.S().Debugf("[%s][SYN] Moving peer link to block '%s'", s.conn.RawConn.RemoteAddr(), signature.String())
-	err := s.storage.updatePeerLink(s.addr, signature)
+	err := s.drawer.movePeer(s.addr, signature)
 	if err != nil {
 		return err
 	}
@@ -313,8 +309,7 @@ func (q *requestQueue) dispose() bool {
 
 type blocksLoader struct {
 	wg              *sync.WaitGroup
-	storage         *storage
-	cache           *blocksCache
+	drawer          *drawer
 	requestCh       chan signaturesEvent
 	blockCh         chan blockEvent
 	notificationsCh chan notificationEvent
@@ -323,11 +318,10 @@ type blocksLoader struct {
 	requestTimer    *time.Timer
 }
 
-func newBlockLoader(wg *sync.WaitGroup, storage *storage, cache *blocksCache) *blocksLoader {
+func newBlockLoader(wg *sync.WaitGroup, drawer *drawer) *blocksLoader {
 	return &blocksLoader{
 		wg:              wg,
-		storage:         storage,
-		cache:           cache,
+		drawer:          drawer,
 		requestCh:       make(chan signaturesEvent),
 		blockCh:         make(chan blockEvent),
 		notificationsCh: make(chan notificationEvent),
@@ -375,13 +369,10 @@ func (l *blocksLoader) start() {
 				continue
 			}
 			result := true
-			err := l.storage.appendBlock(e.block)
+			err := l.drawer.appendBlock(e.block)
 			if err != nil {
 				zap.S().Errorf("[%s][BLD] Failed to save new block: %v", e.conn.RawConn.RemoteAddr(), err)
 				result = false
-			}
-			if result {
-				l.cache.put(e.block.BlockSignature)
 			}
 			zap.S().Debugf("[%s][BLD] NOTIFYING ABOUT %s", e.conn.RawConn.RemoteAddr(), e.block.BlockSignature.String())
 			l.notificationsCh <- notificationEvent{e.block.BlockSignature, result}
@@ -435,8 +426,7 @@ func (l *blocksLoader) notificationsTap() <-chan notificationEvent {
 
 type Loader struct {
 	interrupt           <-chan struct{}
-	storage             *storage
-	existingBlocks      *blocksCache
+	drawer              *drawer
 	wg                  *sync.WaitGroup
 	synchronizers       map[*Conn]*signaturesSynchronizer
 	blocksLoader        *blocksLoader
@@ -448,20 +438,12 @@ type Loader struct {
 	notificationsCh     chan notificationEvent
 }
 
-func NewLoader(interrupt <-chan struct{}, storage *storage) (*Loader, error) {
-	zap.S().Debugf("[LDR] Loading existing blocks signatures...")
-	signatures, err := storage.AllSignatures()
-	if err != nil {
-		zap.S().Errorf("[LDR] Failed to load existing blocks: %v", err)
-		return nil, errors.Wrap(err, "failed to load existing blocks signatures")
-	}
+func NewLoader(interrupt <-chan struct{}, drawer *drawer) (*Loader, error) {
 	wg := &sync.WaitGroup{}
-	cache := newBlocksCache(signatures)
-	bl := newBlockLoader(wg, storage, cache)
+	bl := newBlockLoader(wg, drawer)
 	return &Loader{
 		interrupt:           interrupt,
-		storage:             storage,
-		existingBlocks:      cache,
+		drawer:              drawer,
 		wg:                  wg,
 		synchronizers:       make(map[*Conn]*signaturesSynchronizer),
 		blocksLoader:        bl,
@@ -497,7 +479,7 @@ func (l *Loader) Start() <-chan struct{} {
 					zap.S().Errorf("[%s][LDR] Repetitive attempt to register signatures synchronizer", c.RawConn.RemoteAddr())
 					continue
 				}
-				s := newSignaturesSynchronizer(l.wg, l.storage, l.existingBlocks, l.blocksRequests(), c)
+				s := newSignaturesSynchronizer(l.wg, l.drawer, l.blocksRequests(), c)
 				l.synchronizers[c] = s
 				l.wg.Add(1)
 				go s.start()
@@ -532,13 +514,19 @@ func (l *Loader) Start() <-chan struct{} {
 
 			case e := <-l.blocksLoader.notificationsTap():
 				// Notify synchronizers about new block applied by blocks loader
-				go func() {
+				syncs := make([]*signaturesSynchronizer, len(l.synchronizers))
+				i := 0
+				for _, s := range l.synchronizers {
+					syncs[i] = s
+					i++
+				}
+				go func(synchronizers []*signaturesSynchronizer) {
 					zap.S().Debugf("[LDR] Block notification received: %s, %v", e.block.String(), e.result)
 					zap.S().Debugf("[LDR] Notifying %d synchronizers", len(l.synchronizers))
-					for _, s := range l.synchronizers {
+					for _, s := range synchronizers {
 						s.block() <- e
 					}
-				}()
+				}(syncs)
 			}
 		}
 	}()

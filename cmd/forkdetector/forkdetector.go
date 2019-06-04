@@ -75,7 +75,9 @@ func run() error {
 		zap.S().Infof("%d seed peers added to storage", n)
 	}
 
-	api, err := internal.NewAPI(interrupt, storage, reg, cfg.apiBind)
+	drawer := internal.NewDrawer(storage, reg)
+
+	api, err := internal.NewAPI(interrupt, storage, reg, drawer, cfg.apiBind)
 	if err != nil {
 		zap.S().Errorf("Failed to create API server: %v", err)
 		return err
@@ -86,7 +88,7 @@ func run() error {
 		return nil
 	}
 
-	loader, err := internal.NewLoader(interrupt, storage)
+	loader, err := internal.NewLoader(interrupt, drawer)
 	if err != nil {
 		zap.S().Errorf("Failed to instantiate loader: %v", err)
 		return err
@@ -109,6 +111,12 @@ func run() error {
 	zap.S().Debug("Dispatcher shutdown complete")
 	<-loaderDone
 	zap.S().Debugf("Loader shutdown complete")
+
+	err = storage.Close()
+	if err != nil {
+		zap.S().Errorf("Failed to close the storage: %v", err)
+		return err
+	}
 
 	return nil
 }
