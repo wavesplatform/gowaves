@@ -13,6 +13,7 @@ import (
 )
 
 const (
+	// priceConstant is used for exchange calculations.
 	priceConstant = 10e7
 )
 
@@ -25,20 +26,34 @@ func byteKey(addr proto.Address, assetID []byte) []byte {
 	return k.bytes()
 }
 
+// balanceDiff represents atomic balance change, which is a result of applying transaction.
+// Transaction may produce one or more balance diffs.
+// Each address among tx participants may also have one or more diffs within this tx.
+// For instance, paying transaction fee in Waves and sending Waves are two separate diffs for same address in Transfer/Payment tx.
 type balanceDiff struct {
-	// Exception for Exchange transactions which can result in temporary negative balance.
+	// allowTempNegative indicates that this diff can not be picked as minBalanceDiff.
+	// This is needed when diff may legitimately result in temporary negative balance.
+	// For example, when seller and buyer are same person in Exchange transaction.
 	allowTempNegative   bool
 	allowLeasedTransfer bool
+	// Balance change.
 	balance             int64
+	// LeaseIn change.
 	leaseIn             int64
+	// LeaseOut change.
 	leaseOut            int64
+	// blockID when this change takes place.
 	blockID             crypto.Signature
 }
 
+// spendableBalanceDiff() returns the difference of spendable balance which given diff produces.
 func (diff *balanceDiff) spendableBalanceDiff() int64 {
 	return diff.balance - diff.leaseOut
 }
 
+// applyTo() applies diff to the profile given.
+// It does not change input profile, and returns the updated version.
+// It also checks that it is legitimate to apply this diff to the profile (negative balances / overflows).
 func (diff *balanceDiff) applyTo(profile *balanceProfile) (*balanceProfile, error) {
 	newBalance, err := util.AddInt64(diff.balance, int64(profile.balance))
 	if err != nil {
@@ -65,6 +80,8 @@ func (diff *balanceDiff) applyTo(profile *balanceProfile) (*balanceProfile, erro
 	return newProfile, nil
 }
 
+// add() sums two diffs, checking for overflows.
+// It does not change the input diff.
 func (diff *balanceDiff) add(prevDiff *balanceDiff) error {
 	var err error
 	if diff.balance, err = util.AddInt64(diff.balance, prevDiff.balance); err != nil {
@@ -79,11 +96,14 @@ func (diff *balanceDiff) add(prevDiff *balanceDiff) error {
 	return nil
 }
 
+// balanceChange represents single transaction result.
 type balanceChange struct {
 	key  []byte
 	diff balanceDiff
 }
 
+// balanceChanges is a full collection of changes for given key.
+// balanceDiffs is slice of per-block cumulative diffs.
 type balanceChanges struct {
 	// Key in main DB.
 	key []byte
@@ -117,7 +137,7 @@ func (ch *balanceChanges) safeCopy() *balanceChanges {
 func (ch *balanceChanges) updateMinBalanceDiff(newDiff balanceDiff, checkTempNegative bool) {
 	allowNegForDiff := newDiff.allowTempNegative
 	if checkTempNegative && !allowNegForDiff {
-		// Check every tx, minBalanceDiff will have mimimum diff value among all txs at the end.
+		// Check every tx, minBalanceDiff will have minimum diff value among all txs at the end.
 		if newDiff.spendableBalanceDiff() < ch.minBalanceDiff.spendableBalanceDiff() {
 			ch.minBalanceDiff = newDiff
 		}
@@ -225,6 +245,8 @@ func (bs *changesStorage) balanceChanges(key []byte) (*balanceChanges, error) {
 	return nil, errors.New("invalid key size")
 }
 
+// constructBalanceChanges() checks whether changes for given change key already exist, and adds new change to them in such case.
+// Otherwise, it creates fresh changes with the first change equal to the argument.
 func (bs *changesStorage) constructBalanceChanges(change balanceChange, checkTempNegative bool) (*balanceChanges, error) {
 	exists, err := bs.exists(change.key)
 	if err != nil {
@@ -245,6 +267,7 @@ func (bs *changesStorage) constructBalanceChanges(change balanceChange, checkTem
 	return changes, nil
 }
 
+// addChange() adds new change to storage, validating it immediately before saving if necessarily.
 func (bs *changesStorage) addChange(change balanceChange, checkTempNegative, validate bool) (bool, error) {
 	changes, err := bs.constructBalanceChanges(change, checkTempNegative)
 	if err != nil {
@@ -355,7 +378,7 @@ func (k changesByKey) Less(i, j int) bool {
 	return bytes.Compare(k[i].key, k[j].key) == -1
 }
 
-// Apply all balance changes (actually move them to DB batch) and reset.
+// Apply all balance changes (actually move them to balances in-memory storage) and reset.
 func (bs *changesStorage) validateBalancesChanges(filter, perform bool) error {
 	// Apply and validate balance variations.
 	// At first, sort all changes by addresses they do modify.
