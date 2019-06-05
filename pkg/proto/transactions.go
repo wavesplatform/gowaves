@@ -320,7 +320,7 @@ func (tx *Genesis) MarshalBinary() ([]byte, error) {
 //UnmarshalBinary reads transaction values from the slice of bytes.
 func (tx *Genesis) UnmarshalBinary(data []byte) error {
 	if l := len(data); l != genesisBodyLen {
-		return errors.Errorf("incorrect data lenght for Genesis transaction, expected %d, received %d", genesisBodyLen, l)
+		return errors.Errorf("incorrect data length for Genesis transaction, expected %d, received %d", genesisBodyLen, l)
 	}
 	if data[0] != byte(GenesisTransaction) {
 		return errors.Errorf("incorrect transaction type %d for Genesis transaction", data[0])

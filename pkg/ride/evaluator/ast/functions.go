@@ -195,7 +195,7 @@ func NativeFractionLong(s Scope, e Exprs) (Expr, error) {
 		return nil, errors.Errorf("%s first argument expected to be *LongExpr, got %T", funcName, rs[0])
 	}
 
-	multiplyer, ok := rs[1].(*LongExpr)
+	multiplier, ok := rs[1].(*LongExpr)
 	if !ok {
 		return nil, errors.Errorf("%s second argument expected to be *LongExpr, got %T", funcName, rs[1])
 	}
@@ -210,7 +210,7 @@ func NativeFractionLong(s Scope, e Exprs) (Expr, error) {
 	}
 
 	a := big.NewInt(0)
-	a.Mul(big.NewInt(originalValue.Value), big.NewInt(multiplyer.Value))
+	a.Mul(big.NewInt(originalValue.Value), big.NewInt(multiplier.Value))
 	a.Div(a, big.NewInt(divider.Value))
 
 	if !a.IsInt64() {
