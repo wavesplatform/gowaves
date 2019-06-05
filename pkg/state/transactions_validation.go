@@ -79,6 +79,11 @@ func (diff *balanceDiff) add(prevDiff *balanceDiff) error {
 	return nil
 }
 
+type balanceChange struct {
+	key  []byte
+	diff balanceDiff
+}
+
 type balanceChanges struct {
 	// Key in main DB.
 	key []byte
@@ -88,6 +93,25 @@ type balanceChanges struct {
 	// This is needed to check for negative balances.
 	// For blocks when temporary negative balances are possible, this value is ignored.
 	minBalanceDiff balanceDiff
+}
+
+// newBalanceChanges() constructs new balanceChanges from the first change.
+func newBalanceChanges(change balanceChange, canBeMin bool) *balanceChanges {
+	changes := &balanceChanges{key: change.key, balanceDiffs: []balanceDiff{change.diff}}
+	if canBeMin {
+		changes.minBalanceDiff = change.diff
+	}
+	return changes
+}
+
+func (ch *balanceChanges) safeCopy() *balanceChanges {
+	newChanges := &balanceChanges{}
+	newChanges.key = make([]byte, len(ch.key))
+	copy(newChanges.key[:], ch.key[:])
+	newChanges.balanceDiffs = make([]balanceDiff, len(ch.balanceDiffs))
+	copy(newChanges.balanceDiffs[:], ch.balanceDiffs[:])
+	newChanges.minBalanceDiff = ch.minBalanceDiff
+	return newChanges
 }
 
 func (ch *balanceChanges) updateMinBalanceDiff(newDiff balanceDiff, checkTempNegative bool) {
@@ -100,55 +124,22 @@ func (ch *balanceChanges) updateMinBalanceDiff(newDiff balanceDiff, checkTempNeg
 	}
 }
 
-// Similar to update() but doesn't work with block IDs.
-func (ch *balanceChanges) updateDirectly(newDiff balanceDiff, checkTempNegative bool) error {
+func (ch *balanceChanges) addDiff(newDiff balanceDiff, checkTempNegative bool) error {
+	if len(ch.balanceDiffs) < 1 {
+		return errors.New("trying to addDiff() to empty balanceChanges")
+	}
 	last := len(ch.balanceDiffs) - 1
-	lastDiff := balanceDiff{}
-	if last >= 0 {
-		lastDiff = ch.balanceDiffs[last]
-	}
-	if err := newDiff.add(&lastDiff); err != nil {
-		return errors.Errorf("failed to add diffs: %v\n", err)
-	}
-	if last >= 0 {
-		ch.balanceDiffs[last] = newDiff
-	} else {
-		ch.balanceDiffs = append(ch.balanceDiffs, newDiff)
-	}
-	ch.updateMinBalanceDiff(newDiff, checkTempNegative)
-	return nil
-}
-
-func (ch *balanceChanges) update(newDiff balanceDiff, checkTempNegative bool) error {
-	last := len(ch.balanceDiffs) - 1
-	lastDiff := balanceDiff{}
-	if last >= 0 {
-		lastDiff = ch.balanceDiffs[last]
-	}
+	lastDiff := ch.balanceDiffs[last]
 	if err := newDiff.add(&lastDiff); err != nil {
 		return errors.Errorf("failed to add diffs: %v\n", err)
 	}
 	if newDiff.blockID != lastDiff.blockID {
 		ch.balanceDiffs = append(ch.balanceDiffs, newDiff)
-	} else if last >= 0 {
-		ch.balanceDiffs[last] = newDiff
 	} else {
-		return errors.New("empty balance diffs slice and can not append the first diff")
+		ch.balanceDiffs[last] = newDiff
 	}
 	ch.updateMinBalanceDiff(newDiff, checkTempNegative)
 	return nil
-}
-
-type changesByKey []balanceChanges
-
-func (k changesByKey) Len() int {
-	return len(k)
-}
-func (k changesByKey) Swap(i, j int) {
-	k[i], k[j] = k[j], k[i]
-}
-func (k changesByKey) Less(i, j int) bool {
-	return bytes.Compare(k[i].key, k[j].key) == -1
 }
 
 type wavesBalanceKeyFixed [wavesBalanceKeySize]byte
@@ -156,9 +147,9 @@ type assetBalanceKeyFixed [assetBalanceKeySize]byte
 
 type changesStorage struct {
 	balances  *balances
-	deltas    []balanceChanges
-	wavesKeys map[wavesBalanceKeyFixed]int // waves key --> index in deltas.
-	assetKeys map[assetBalanceKeyFixed]int // asset key --> index in deltas.
+	changes   []balanceChanges
+	wavesKeys map[wavesBalanceKeyFixed]int // waves key --> index in changes.
+	assetKeys map[assetBalanceKeyFixed]int // asset key --> index in changes.
 }
 
 func newChangesStorage(balances *balances) (*changesStorage, error) {
@@ -169,29 +160,110 @@ func newChangesStorage(balances *balances) (*changesStorage, error) {
 	}, nil
 }
 
+func (bs *changesStorage) exists(key []byte) (bool, error) {
+	size := len(key)
+	if size == wavesBalanceKeySize {
+		var wavesKey wavesBalanceKeyFixed
+		copy(wavesKey[:], key)
+		_, ok := bs.wavesKeys[wavesKey]
+		return ok, nil
+	} else if size == assetBalanceKeySize {
+		var assetKey assetBalanceKeyFixed
+		copy(assetKey[:], key)
+		_, ok := bs.assetKeys[assetKey]
+		return ok, nil
+	}
+	return false, errors.New("invalid key size")
+}
+
+func (bs *changesStorage) setBalanceChanges(changes *balanceChanges) error {
+	key := changes.key
+	size := len(key)
+	if size == wavesBalanceKeySize {
+		var wavesKey wavesBalanceKeyFixed
+		copy(wavesKey[:], key)
+		if index, ok := bs.wavesKeys[wavesKey]; ok {
+			bs.changes[index] = *changes
+		} else {
+			bs.wavesKeys[wavesKey] = len(bs.changes)
+			bs.changes = append(bs.changes, *changes)
+		}
+		return nil
+	} else if size == assetBalanceKeySize {
+		var assetKey assetBalanceKeyFixed
+		copy(assetKey[:], key)
+		if index, ok := bs.assetKeys[assetKey]; ok {
+			bs.changes[index] = *changes
+		} else {
+			bs.assetKeys[assetKey] = len(bs.changes)
+			bs.changes = append(bs.changes, *changes)
+		}
+		return nil
+	}
+	return errors.New("invalid key size")
+}
+
 func (bs *changesStorage) balanceChanges(key []byte) (*balanceChanges, error) {
 	size := len(key)
 	if size == wavesBalanceKeySize {
 		var wavesKey wavesBalanceKeyFixed
 		copy(wavesKey[:], key)
-		if _, ok := bs.wavesKeys[wavesKey]; !ok {
-			bs.wavesKeys[wavesKey] = len(bs.deltas)
-			bs.deltas = append(bs.deltas, balanceChanges{key: key})
+		index, ok := bs.wavesKeys[wavesKey]
+		if !ok {
+			return nil, errors.New("key not found")
 		}
-		return &bs.deltas[bs.wavesKeys[wavesKey]], nil
+		return bs.changes[index].safeCopy(), nil
 	} else if size == assetBalanceKeySize {
 		var assetKey assetBalanceKeyFixed
 		copy(assetKey[:], key)
-		if _, ok := bs.assetKeys[assetKey]; !ok {
-			bs.assetKeys[assetKey] = len(bs.deltas)
-			bs.deltas = append(bs.deltas, balanceChanges{key: key})
+		index, ok := bs.assetKeys[assetKey]
+		if !ok {
+			return nil, errors.New("key not found")
 		}
-		return &bs.deltas[bs.assetKeys[assetKey]], nil
+		return bs.changes[index].safeCopy(), nil
 	}
 	return nil, errors.New("invalid key size")
 }
 
-func (bs *changesStorage) validateWavesChange(change *balanceChanges, filter, perform bool) error {
+func (bs *changesStorage) constructBalanceChanges(change balanceChange, checkTempNegative bool) (*balanceChanges, error) {
+	exists, err := bs.exists(change.key)
+	if err != nil {
+		return nil, err
+	}
+	if !exists {
+		return newBalanceChanges(change, checkTempNegative), nil
+	}
+	// Changes for this key are already in the stor, retrieve them.
+	changes, err := bs.balanceChanges(change.key)
+	if err != nil {
+		return nil, errors.Wrap(err, "can not retrieve balance changes")
+	}
+	changes.minBalanceDiff.allowLeasedTransfer = change.diff.allowLeasedTransfer
+	if err := changes.addDiff(change.diff, checkTempNegative); err != nil {
+		return nil, errors.Wrap(err, "can not update balance changes")
+	}
+	return changes, nil
+}
+
+func (bs *changesStorage) addChange(change balanceChange, checkTempNegative, validate bool) (bool, error) {
+	changes, err := bs.constructBalanceChanges(change, checkTempNegative)
+	if err != nil {
+		return false, errors.Wrap(err, "failed to construct balance changes for given key and diff")
+	}
+	if validate {
+		// Validate immediately, without waiting for validateTransactions() call.
+		if err := bs.validateBalanceChanges(changes, true, false); err != nil {
+			return false, errors.Wrap(err, "changes validation failed")
+		}
+	}
+	// Save changes at the end if validation was successful / if immediate validation was not needed.
+	if err := bs.setBalanceChanges(changes); err != nil {
+		return false, errors.Wrap(err, "failed to save changes to changes storage")
+	}
+	return true, nil
+}
+
+func (bs *changesStorage) validateWavesBalanceChanges(change *balanceChanges, filter, perform bool) error {
 	var k wavesBalanceKey
 	if err := k.unmarshal(change.key); err != nil {
 		return errors.Errorf("failed to unmarshal waves balance key: %v\n", err)
@@ -220,7 +292,7 @@ func (bs *changesStorage) validateWavesChange(change *balanceChanges, filter, pe
 	return nil
 }
 
-func (bs *changesStorage) validateAssetChange(change *balanceChanges, filter, perform bool) error {
+func (bs *changesStorage) validateAssetBalanceChanges(change *balanceChanges, filter, perform bool) error {
 	var k assetBalanceKey
 	if err := k.unmarshal(change.key); err != nil {
 		return errors.Errorf("failed to unmarshal asset balance key: %v\n", err)
@@ -256,31 +328,43 @@ func (bs *changesStorage) validateAssetChange(change *balanceChanges, filter, pe
 	return nil
 }
 
-func (bs *changesStorage) validateDelta(delta *balanceChanges, filter, perform bool) error {
-	if len(delta.key) > wavesBalanceKeySize {
+func (bs *changesStorage) validateBalanceChanges(changes *balanceChanges, filter, perform bool) error {
+	if len(changes.key) > wavesBalanceKeySize {
 		// Is asset change.
-		if err := bs.validateAssetChange(delta, filter, perform); err != nil {
+		if err := bs.validateAssetBalanceChanges(changes, filter, perform); err != nil {
 			return err
 		}
 	} else {
 		// Is Waves change, need to take leasing into account.
-		if err := bs.validateWavesChange(delta, filter, perform); err != nil {
+		if err := bs.validateWavesBalanceChanges(changes, filter, perform); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
+type changesByKey []balanceChanges
+
+func (k changesByKey) Len() int {
+	return len(k)
+}
+func (k changesByKey) Swap(i, j int) {
+	k[i], k[j] = k[j], k[i]
+}
+func (k changesByKey) Less(i, j int) bool {
+	return bytes.Compare(k[i].key, k[j].key) == -1
+}
+
 // Apply all balance changes (actually move them to DB batch) and reset.
-func (bs *changesStorage) validateDeltas(filter, perform bool) error {
+func (bs *changesStorage) validateBalancesChanges(filter, perform bool) error {
 	// Apply and validate balance variations.
 	// At first, sort all changes by addresses they do modify.
 	// LevelDB stores data sorted by keys, and the idea is to read in sorted order.
 	// We save a lot of time on disk's seek time for hdd, and some time for ssd too (by reducing amount of reads).
 	// TODO: if DB supported MultiGet() operation, this would probably be even faster.
-	sort.Sort(changesByKey(bs.deltas))
-	for _, delta := range bs.deltas {
-		if err := bs.validateDelta(&delta, filter, perform); err != nil {
+	sort.Sort(changesByKey(bs.changes))
+	for _, changes := range bs.changes {
+		if err := bs.validateBalanceChanges(&changes, filter, perform); err != nil {
 			return err
 		}
 	}
@@ -289,10 +373,24 @@ func (bs *changesStorage) validateDeltas(filter, perform bool) error {
 }
 
 func (bs *changesStorage) reset() {
-	bs.deltas = nil
+	bs.changes = nil
 	bs.wavesKeys = make(map[wavesBalanceKeyFixed]int)
 	bs.assetKeys = make(map[assetBalanceKeyFixed]int)
 
+}
+
+type txValidationInfo struct {
+	perform          bool
+	initialisation   bool
+	validate         bool
+	currentTimestamp uint64
+	parentTimestamp  uint64
+	minerPK          crypto.PublicKey
+	blockID          crypto.Signature
+}
+
+func (i *txValidationInfo) hasMiner() bool {
+	return i.minerPK != (crypto.PublicKey{})
 }
 
 type transactionValidator struct {
@@ -341,53 +439,6 @@ func (tv *transactionValidator) checkTimestamps(txTimestamp, blockTimestamp, pre
 	return true, nil
 }
 
-func (tv *transactionValidator) addChange(key []byte, diff balanceDiff, currentTimestamp uint64, validate bool) (bool, error) {
-	changes, err := tv.changesStor.balanceChanges(key)
-	if err != nil {
-		return false, errors.Wrap(err, "can not retrieve balance changes")
-	}
-	changesCopy := *changes
-	changesCopy.minBalanceDiff.allowLeasedTransfer = diff.allowLeasedTransfer
-	checkTempNegative := tv.checkNegativeBalance(currentTimestamp)
-	if diff.blockID != (crypto.Signature{}) {
-		if err := changesCopy.update(diff, checkTempNegative); err != nil {
-			return false, errors.Wrap(err, "can not update balance changes")
-		}
-	} else {
-		if err := changesCopy.updateDirectly(diff, checkTempNegative); err != nil {
-			return false, errors.Wrap(err, "can not update balance changes")
-		}
-	}
-	if validate {
-		// Validate immediately, without waiting for validateTransactions() call.
-		if err := tv.changesStor.validateDelta(&changesCopy, true, false); err != nil {
-			return false, errors.Wrap(err, "changes validation failed")
-		}
-	}
-	// Save changes at the end if validation was successful.
-	*changes = changesCopy
-	return true, nil
-}
-
-type balanceChange struct {
-	key  []byte
-	diff balanceDiff
-}
-
-type txValidationInfo struct {
-	perform          bool
-	initialisation   bool
-	validate         bool
-	currentTimestamp uint64
-	parentTimestamp  uint64
-	minerPK          crypto.PublicKey
-	blockID          crypto.Signature
-}
-
-func (i *txValidationInfo) hasMiner() bool {
-	return i.minerPK != (crypto.PublicKey{})
-}
-
 func (tv *transactionValidator) pushChanges(changes []balanceChange, info *txValidationInfo) error {
 	for _, ch := range changes {
 		allowLeasedTransfer := true
@@ -396,7 +447,8 @@ func (tv *transactionValidator) pushChanges(changes []balanceChange, info *txVal
 		}
 		ch.diff.allowLeasedTransfer = allowLeasedTransfer
 		ch.diff.blockID = info.blockID
-		if ok, err := tv.addChange(ch.key, ch.diff, info.currentTimestamp, info.validate); !ok {
+		checkTempNegative := tv.checkNegativeBalance(info.currentTimestamp)
+		if ok, err := tv.changesStor.addChange(ch, checkTempNegative, info.validate); !ok {
 			return err
 		}
 	}
@@ -975,7 +1027,7 @@ func (tv *transactionValidator) addTxForValidation(tx proto.Transaction, info *t
 }
 
 func (tv *transactionValidator) validateTransactions(initialisation, perform bool) error {
-	return tv.changesStor.validateDeltas(!initialisation, perform)
+	return tv.changesStor.validateBalancesChanges(!initialisation, perform)
 }
 
 func (tv *transactionValidator) reset() {

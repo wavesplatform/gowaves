@@ -1091,7 +1091,7 @@ func TestValidateWithoutBlock(t *testing.T) {
 
 	tx := createPayment(t)
 	// Test valid tx.
-	profile := &balanceProfile{tx.Amount + tx.Fee, 0, 0}
+	profile := &balanceProfile{tx.Amount + tx.Fee + 2, 0, 0}
 	setBalance(t, to, senderAddr, "", profile)
 	info := &txValidationInfo{
 		perform:          false,
@@ -1110,4 +1110,9 @@ func TestValidateWithoutBlock(t *testing.T) {
 	// Insufficient balance when applying same tx once again.
 	err = to.tv.addTxForValidation(tx, info)
 	assert.Error(t, err, "addTxForValidation() did not fail with insufficient balance")
+	// Decenet tx again.
+	tx.Amount = 1
+	tx.Fee = 1
+	err = to.tv.addTxForValidation(tx, info)
+	assert.NoError(t, err, "addTxForValidation() failed with correct tx")
 }
