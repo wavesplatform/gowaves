@@ -6,8 +6,10 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/importer"
@@ -27,6 +29,14 @@ type testCase struct {
 	path   string
 }
 
+func getLocalDir() (string, error) {
+	_, filename, _, ok := runtime.Caller(0)
+	if !ok {
+		return "", errors.Errorf("Unable to find current package file")
+	}
+	return filepath.Dir(filename), nil
+}
+
 func blocksPath(t *testing.T) string {
 	dir, err := getLocalDir()
 	assert.NoError(t, err, "getLocalDir() failed")
@@ -40,16 +50,12 @@ func bigFromStr(s string) *big.Int {
 }
 
 func TestGenesisConfig(t *testing.T) {
-	dir, err := getLocalDir()
-	if err != nil {
-		t.Fatalf("Failed to get local dir: %v\n", err)
-	}
 	dataDir, err := ioutil.TempDir(os.TempDir(), "dataDir")
 	ss := &settings.BlockchainSettings{
-		Type:           settings.Custom,
-		GenesisCfgPath: filepath.Join(dir, "genesis", "testnet.json"),
+		Type:          settings.Custom,
+		GenesisGetter: settings.TestnetGenesis,
 	}
-	manager, err := newStateManager(dataDir, DefaultStorageParams(), ss)
+	manager, err := newStateManager(dataDir, DefaultStateParams(), ss)
 	if err != nil {
 		t.Fatalf("Failed to create state manager: %v.\n", err)
 	}
@@ -86,7 +92,7 @@ func TestValidationWithoutBlocks(t *testing.T) {
 	blocksPath := blocksPath(t)
 	dataDir, err := ioutil.TempDir(os.TempDir(), "dataDir")
 	assert.NoError(t, err, "failed to create dir for test data")
-	manager, err := newStateManager(dataDir, DefaultStorageParams(), settings.MainNetSettings)
+	manager, err := newStateManager(dataDir, DefaultStateParams(), settings.MainNetSettings)
 	assert.NoError(t, err, "newStateManager() failed")
 
 	defer func() {
@@ -119,7 +125,7 @@ func TestStateRollback(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temp dir for data: %v\n", err)
 	}
-	manager, err := newStateManager(dataDir, DefaultStorageParams(), settings.MainNetSettings)
+	manager, err := newStateManager(dataDir, DefaultStateParams(), settings.MainNetSettings)
 	if err != nil {
 		t.Fatalf("Failed to create state manager: %v.\n", err)
 	}
@@ -180,7 +186,7 @@ func TestStateIntegrated(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temp dir for data: %v\n", err)
 	}
-	manager, err := newStateManager(dataDir, DefaultStorageParams(), settings.MainNetSettings)
+	manager, err := newStateManager(dataDir, DefaultStateParams(), settings.MainNetSettings)
 	if err != nil {
 		t.Fatalf("Failed to create state manager: %v.\n", err)
 	}
@@ -259,7 +265,7 @@ func TestStateManager_SavePeers(t *testing.T) {
 	}
 	defer os.RemoveAll(dataDir)
 
-	manager, err := newStateManager(dataDir, DefaultStorageParams(), settings.MainNetSettings)
+	manager, err := newStateManager(dataDir, DefaultStateParams(), settings.MainNetSettings)
 	if err != nil {
 		t.Fatalf("Failed to create state manager: %v.\n", err)
 	}

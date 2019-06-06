@@ -141,10 +141,10 @@ func (calc *FairPosCalculator) heightForHit(height uint64) uint64 {
 
 func (calc *FairPosCalculator) CalculateBaseTarget(
 	targetBlockDelaySeconds uint64,
-	confirmedHeight uint64, // 5
-	confirmedTarget uint64, // ???
-	confirmedTimestamp uint64, // 100500
-	greatGrandParentTimestamp uint64, // 3
+	confirmedHeight uint64,
+	confirmedTarget uint64,
+	confirmedTimestamp uint64,
+	greatGrandParentTimestamp uint64,
 	applyingBlockTimestamp uint64,
 ) (BaseTarget, error) {
 	maxDelay := normalize(90, targetBlockDelaySeconds)

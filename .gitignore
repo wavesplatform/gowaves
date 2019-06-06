@@ -28,5 +28,4 @@ out/
 !cmd/wmd/symbols.txt
 .DS_Store
 blocks_storage
-/key_value
-/keyvalue
+key_value

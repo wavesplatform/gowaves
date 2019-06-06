@@ -5,7 +5,6 @@ import (
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/json"
-	"github.com/wavesplatform/gowaves/pkg/libs/serializer"
 	"io"
 	"math/big"
 	"strconv"
@@ -15,6 +14,7 @@ import (
 	"github.com/mr-tron/base58/base58"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/libs/serializer"
 	"github.com/wavesplatform/gowaves/pkg/ride/evaluator/reader"
 )
 

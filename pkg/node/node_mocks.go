@@ -15,53 +15,36 @@ import (
 )
 
 func notFound() state.StateError {
-	return state.NewStateError(0, keyvalue.ErrNotFound)
+	return state.NewStateError(state.NotFoundError, keyvalue.ErrNotFound)
 }
-
-type AddBlockFunc func(a *MockStateManager, block []byte) (*proto.Block, error)
 
 type MockStateManager struct {
 	state           []*proto.Block
 	sig2Block       map[crypto.Signature]*proto.Block
 	Peers_          []proto.TCPAddr
 	blockIDToHeight map[crypto.Signature]proto.Height
-	addBlockFunc    AddBlockFunc
 }
 
-func DefaultAddBlockFunc(a *MockStateManager, block []byte) (*proto.Block, error) {
-	b := &proto.Block{}
-	err := b.UnmarshalBinary(block)
-	if err != nil {
-		return nil, err
-	}
-	a.addBlock(b)
-	return b, nil
+func (a *MockStateManager) HeaderBytes(blockID crypto.Signature) ([]byte, error) {
+	panic("implement me")
+}
+
+func (a *MockStateManager) HeaderBytesByHeight(height uint64) ([]byte, error) {
+	panic("implement me")
+}
+
+func (a *MockStateManager) AddBlock([]byte) (*proto.Block, error) {
+	panic("implement me")
 }
 
 func NewMockStateManager(blocks ...*proto.Block) *MockStateManager {
-	return NewMockStateManagerWithAddBlock(DefaultAddBlockFunc, blocks...)
-}
-
-func NewMockStateManagerWithAddBlock(addBlockFunc AddBlockFunc, blocks ...*proto.Block) *MockStateManager {
 	m := &MockStateManager{
 		blockIDToHeight: make(map[crypto.Signature]proto.Height),
-		addBlockFunc:    addBlockFunc,
 	}
 	for _, b := range blocks {
-		m.addBlock(b)
+		m.AddDeserializedBlock(b)
 	}
 	return m
-}
-
-func (a *MockStateManager) addBlock(block *proto.Block) {
-	if (block.BlockSignature == crypto.Signature{}) {
-		panic("empty signature")
-	}
-	if _, ok := a.blockIDToHeight[block.BlockSignature]; ok {
-		panic("duplicate block")
-	}
-	a.state = append(a.state, block)
-	a.blockIDToHeight[block.BlockSignature] = proto.Height(len(a.state))
 }
 
 func (a *MockStateManager) Block(blockID crypto.Signature) (*proto.Block, error) {
@@ -109,24 +92,12 @@ func (a *MockStateManager) AddressesNumber(wavesonly bool) (uint64, error) {
 	panic("implement me")
 }
 
-func (a *MockStateManager) AddBlock(block []byte) (*proto.Block, error) {
-	return a.addBlockFunc(a, block)
-}
-
 func (a *MockStateManager) Mutex() *sync.RWMutex {
 	return &sync.RWMutex{}
 }
 
 func (a *MockStateManager) AddNewBlocks(blocks [][]byte) error {
-	for _, bts := range blocks {
-		block := proto.Block{}
-		err := block.UnmarshalBinary(bts)
-		if err != nil {
-			return err
-		}
-		a.addBlock(&block)
-	}
-	return nil
+	panic("implement me")
 }
 
 func (a *MockStateManager) AddOldBlocks(blocks [][]byte) error {
@@ -206,6 +177,36 @@ func (a *MockStateManager) BlockchainSettings() (*settings.BlockchainSettings, e
 }
 
 func (a *MockStateManager) AccountBalance(addr proto.Address, asset []byte) (uint64, error) {
+	panic("implement me")
+}
+
+func (a *MockStateManager) AddDeserializedBlock(block *proto.Block) (*proto.Block, error) {
+	if (block.BlockSignature == crypto.Signature{}) {
+		panic("empty signature")
+	}
+	if _, ok := a.blockIDToHeight[block.BlockSignature]; ok {
+		panic("duplicate block")
+	}
+	a.state = append(a.state, block)
+	a.blockIDToHeight[block.BlockSignature] = proto.Height(len(a.state))
+	return block, nil
+}
+func (a *MockStateManager) AddNewDeserializedBlocks(blocks []*proto.Block) error {
+	for _, b := range blocks {
+		a.AddDeserializedBlock(b)
+	}
+	return nil
+}
+
+func (a *MockStateManager) AddOldDeserializedBlocks([]*proto.Block) error {
+	panic("implement me")
+}
+
+func (a *MockStateManager) BlockBytes(blockID crypto.Signature) ([]byte, error) {
+	panic("implement me")
+}
+
+func (a *MockStateManager) BlockBytesByHeight(height proto.Height) ([]byte, error) {
 	panic("implement me")
 }
 

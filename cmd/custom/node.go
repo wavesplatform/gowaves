@@ -4,8 +4,11 @@ import (
 	"context"
 	"github.com/alecthomas/kong"
 	"github.com/wavesplatform/gowaves/pkg/api"
-	"github.com/wavesplatform/gowaves/pkg/mainer/scheduler"
+	"github.com/wavesplatform/gowaves/pkg/mainer"
+	scheduler2 "github.com/wavesplatform/gowaves/pkg/mainer/scheduler"
+	"github.com/wavesplatform/gowaves/pkg/mainer/utxpool"
 	"github.com/wavesplatform/gowaves/pkg/settings"
+	"math/rand"
 	"os"
 	"os/signal"
 	"syscall"
@@ -28,6 +31,8 @@ type Cli struct {
 		Addresses    string `kong:"address,short='a',help='Addresses connect to.'"`
 		DeclAddr     string `kong:"decladdr,short='d',help='Address listen on.'"`
 		HttpAddr     string `kong:"httpaddr,short='w',help='Http addr bind on.'"`
+		GenesisPath  string `kong:"genesis,short='g',help='Path to genesis json file.'"`
+		Seed         string `kong:"seed,help='Seed for miner.'"`
 	} `kong:"cmd,help='Run node'"`
 }
 
@@ -60,7 +65,21 @@ func main() {
 		return
 	}
 
-	state, err := state.NewState("./", state.DefaultStateParams(), settings.MainNetSettings)
+	custom := &settings.BlockchainSettings{
+		Type: 'E',
+		FunctionalitySettings: settings.FunctionalitySettings{
+			MaxTxTimeBackOffset:    120 * 60000,
+			MaxTxTimeForwardOffset: 90 * 60000,
+
+			AddressSchemeCharacter: 'E',
+
+			AverageBlockDelaySeconds: 60,
+			MaxBaseTarget:            200,
+		},
+		GenesisGetter: settings.FromPath(cli.Run.GenesisPath),
+	}
+
+	state, err := state.NewState("./", state.DefaultStateParams(), custom)
 	if err != nil {
 		zap.S().Error(err)
 		cancel()
@@ -70,15 +89,28 @@ func main() {
 	declAddr := proto.NewTCPAddrFromString(conf.DeclaredAddr)
 
 	mb := 1024 * 1014
-	pool := bytespool.NewBytesPool(64, mb+(mb/2))
+	btsPool := bytespool.NewBytesPool(64, mb+(mb/2))
 
 	parent := peer.NewParent()
 
-	peerSpawnerImpl := node.NewPeerSpawner(pool, parent, conf.WavesNetwork, declAddr, "gowaves", 100500, version)
+	peerSpawnerImpl := node.NewPeerSpawner(btsPool, parent, conf.WavesNetwork, declAddr, "gowaves", uint64(rand.Int()), version)
 
 	peerManager := node.NewPeerManager(peerSpawnerImpl, state)
 
-	n := node.NewNode(state, peerManager, declAddr, nil, nil)
+	var keyPairs []proto.KeyPair
+	if len(cli.Run.Seed) > 0 {
+		keyPairs = append(keyPairs, proto.NewKeyPair([]byte(cli.Run.Seed)))
+	}
+
+	scheduler := scheduler2.NewScheduler(state, keyPairs, custom)
+
+	utx := utxpool.New(10000)
+	Mainer := mainer.New(utx, state, peerManager, scheduler)
+
+	go mainer.Run(ctx, Mainer, scheduler)
+	go scheduler.Reschedule()
+
+	n := node.NewNode(state, peerManager, declAddr, scheduler, Mainer)
 
 	go node.RunNode(ctx, n, parent)
 
@@ -89,10 +121,8 @@ func main() {
 		}
 	}
 
-	schedulerIns := scheduler.NewScheduler(state, nil, nil)
-
 	// TODO hardcore
-	app, err := api.NewApp("integration-test-rest-api", n, schedulerIns)
+	app, err := api.NewApp("integration-test-rest-api", n, scheduler)
 	if err != nil {
 		zap.S().Error(err)
 		cancel()
@@ -101,6 +131,7 @@ func main() {
 
 	webApi := api.NewNodeApi(app, state, n)
 	go func() {
+		zap.S().Info("===== ", conf.HttpAddr)
 		err := api.Run(ctx, conf.HttpAddr, webApi)
 		if err != nil {
 			zap.S().Error("Failed to start API: %v", err)

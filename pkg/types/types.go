@@ -1,12 +1,7 @@
 package types
 
-import (
-	"github.com/wavesplatform/gowaves/pkg/proto"
-	"github.com/wavesplatform/gowaves/pkg/state"
-)
-
 type Scheduler interface {
-	Reschedule(state state.State, curBlock *proto.Block, height uint64)
+	Reschedule()
 }
 
 // Miner mutates state, applying block also. We can't do it together.

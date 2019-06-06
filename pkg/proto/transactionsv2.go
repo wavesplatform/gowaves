@@ -299,18 +299,6 @@ func (tx *TransferV2) BodyMarshalBinary() ([]byte, error) {
 	return buf, nil
 }
 
-//func (tx *TransferV2) BodyWriteTo(w io.Writer) (int64, error) {
-//	b, err := tx.Transfer.marshalBinary()
-//	if err != nil {
-//		return nil, errors.Wrap(err, "failed to marshal TransferV2 body")
-//	}
-//	buf := make([]byte, 2+len(b))
-//	buf[0] = byte(tx.Type)
-//	buf[1] = tx.Version
-//	copy(buf[2:], b)
-//	return buf, nil
-//}
-
 func (tx *TransferV2) BodyUnmarshalBinary(data []byte) error {
 	if l := len(data); l < transferV2FixedBodyLen {
 		return errors.Errorf("%d bytes is not enough for TransferV2 transaction, expected not less then %d bytes", l, transferV2FixedBodyLen)
@@ -382,26 +370,6 @@ func (tx *TransferV2) MarshalBinary() ([]byte, error) {
 	copy(buf[1+bl:], pb)
 	return buf, nil
 }
-
-//func (tx *TransferV2) WriteTo(w io.Writer) (int64, error) {
-//	bb, err := tx.BodyMarshalBinary()
-//	if err != nil {
-//		return nil, errors.Wrap(err, "failed to marshal TransferV2 transaction to bytes")
-//	}
-//	bl := len(bb)
-//	if tx.Proofs == nil {
-//		return nil, errors.New("failed to marshal TransferV2 transaction to bytes: no proofs")
-//	}
-//	pb, err := tx.Proofs.MarshalBinary()
-//	if err != nil {
-//		return nil, errors.Wrap(err, "failed to marshal TransferV2 transaction to bytes")
-//	}
-//	buf := make([]byte, 1+bl+len(pb))
-//	buf[0] = 0
-//	copy(buf[1:], bb)
-//	copy(buf[1+bl:], pb)
-//	return buf, nil
-//}
 
 //UnmarshalBinary reads TransferV2 from its bytes representation.
 func (tx *TransferV2) UnmarshalBinary(data []byte) error {

@@ -11,7 +11,6 @@ import (
 	"go.uber.org/zap"
 	"math/big"
 	"net"
-	"reflect"
 	"time"
 )
 
@@ -54,9 +53,6 @@ func (a *Node) PeerManager() PeerManager {
 }
 
 func (a *Node) HandleProtoMessage(mess peer.ProtoMessage) {
-
-	zap.S().Info("arrived ", reflect.TypeOf(mess.Message))
-
 	switch t := mess.Message.(type) {
 	case *proto.PeersMessage:
 		a.handlePeersMessage(mess.ID, t)
@@ -69,7 +65,6 @@ func (a *Node) HandleProtoMessage(mess peer.ProtoMessage) {
 	case *proto.GetBlockMessage:
 		a.handleBlockBySignatureMessage(mess.ID, t.BlockID)
 	case *proto.SignaturesMessage:
-		//a.handleSignaturesMessage()
 		a.subscribe.Receive(mess.ID, t)
 	case *proto.GetSignaturesMessage:
 		a.handleGetSignaturesMessage(mess.ID, t)
@@ -195,13 +190,13 @@ func (a *Node) handleBlockBySignatureMessage(peer string, sig crypto.Signature) 
 }
 
 // called every n seconds, handle change runtime state
+// TODO this function should be replaced by events
 func (a *Node) SyncState() {
 	for {
 		err := a.sync.Sync()
 		if err != nil {
-			zap.S().Error(err)
 			// wait only on errors
-			time.Sleep(5 * time.Second)
+			time.Sleep(500 * time.Millisecond)
 		}
 	}
 }
@@ -224,11 +219,12 @@ func (a *Node) handleBlockMessage(peerID string, mess *proto.BlockMessage) {
 			return
 		}
 
-		err = ba.Apply(BlockWithBytes{Block: b, Bytes: mess.BlockBytes})
+		err = ba.Apply(b)
 		if err != nil {
 			zap.S().Debug(err)
 			return
 		}
+		go a.scheduler.Reschedule()
 	}
 }
 

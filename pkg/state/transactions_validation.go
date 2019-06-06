@@ -139,15 +139,15 @@ func (ch *balanceChanges) update(newDiff balanceDiff, checkTempNegative bool) er
 	return nil
 }
 
-type byKey []balanceChanges
+type changesByKey []balanceChanges
 
-func (k byKey) Len() int {
+func (k changesByKey) Len() int {
 	return len(k)
 }
-func (k byKey) Swap(i, j int) {
+func (k changesByKey) Swap(i, j int) {
 	k[i], k[j] = k[j], k[i]
 }
-func (k byKey) Less(i, j int) bool {
+func (k changesByKey) Less(i, j int) bool {
 	return bytes.Compare(k[i].key, k[j].key) == -1
 }
 
@@ -202,7 +202,7 @@ func (bs *changesStorage) validateWavesChange(change *balanceChanges, filter, pe
 	}
 	// Check for negative balance.
 	if _, err := change.minBalanceDiff.applyTo(profile); err != nil {
-		return errors.Errorf("minimum balance diff produces invalid result: %v\n", err)
+		return errors.Errorf("minimum balance diff for %s produces invalid result: %v\n", k.address.String(), err)
 	}
 	for _, diff := range change.balanceDiffs {
 		newProfile, err := diff.applyTo(profile)
@@ -275,11 +275,10 @@ func (bs *changesStorage) validateDelta(delta *balanceChanges, filter, perform b
 func (bs *changesStorage) validateDeltas(filter, perform bool) error {
 	// Apply and validate balance variations.
 	// At first, sort all changes by addresses they do modify.
-	// That's *very* important optimization, since levelDB stores data
-	// sorted by keys, and the idea is to read in sorted order.
-	// We save a lot of time on disk's seek time.
+	// LevelDB stores data sorted by keys, and the idea is to read in sorted order.
+	// We save a lot of time on disk's seek time for hdd, and some time for ssd too (by reducing amount of reads).
 	// TODO: if DB supported MultiGet() operation, this would probably be even faster.
-	sort.Sort(byKey(bs.deltas))
+	sort.Sort(changesByKey(bs.deltas))
 	for _, delta := range bs.deltas {
 		if err := bs.validateDelta(&delta, filter, perform); err != nil {
 			return err
@@ -299,27 +298,23 @@ func (bs *changesStorage) reset() {
 type transactionValidator struct {
 	genesis     crypto.Signature
 	changesStor *changesStorage
-	assets      *assets
-	leases      *leases
+	stor        *blockchainEntitiesStorage
 	settings    *settings.BlockchainSettings
 }
 
 func newTransactionValidator(
 	genesis crypto.Signature,
-	balances *balances,
-	assets *assets,
-	leases *leases,
+	stor *blockchainEntitiesStorage,
 	settings *settings.BlockchainSettings,
 ) (*transactionValidator, error) {
-	changesStor, err := newChangesStorage(balances)
+	changesStor, err := newChangesStorage(stor.balances)
 	if err != nil {
 		return nil, errors.Errorf("failed to create balances changes storage: %v\n", err)
 	}
 	return &transactionValidator{
 		genesis:     genesis,
 		changesStor: changesStor,
-		assets:      assets,
-		leases:      leases,
+		stor:        stor,
 		settings:    settings,
 	}, nil
 }
@@ -463,7 +458,7 @@ func (tv *transactionValidator) checkAsset(asset *proto.OptionalAsset, initialis
 		// Waves always valid.
 		return nil
 	}
-	if _, err := tv.assets.newestAssetRecord(asset.ID, !initialisation); err != nil {
+	if _, err := tv.stor.assets.newestAssetRecord(asset.ID, !initialisation); err != nil {
 		return errors.New("unknown asset")
 	}
 	return nil
@@ -492,11 +487,16 @@ func (tv *transactionValidator) validateTransfer(tx *proto.Transfer, info *txVal
 	senderAmountBalanceDiff := -int64(tx.Amount)
 	changes[1] = balanceChange{senderAmountKey, balanceDiff{balance: senderAmountBalanceDiff}}
 	// Update receiver.
+	recipientAddr := &proto.Address{}
 	if tx.Recipient.Address == nil {
-		// TODO support aliases.
-		return false, errors.New("alias without address is not supported yet")
+		recipientAddr, err = tv.stor.aliases.newestAddrByAlias(tx.Recipient.Alias.Alias, !info.initialisation)
+		if err != nil {
+			return false, errors.Errorf("invalid alias: %v\n", err)
+		}
+	} else {
+		recipientAddr = tx.Recipient.Address
 	}
-	receiverKey := byteKey(*tx.Recipient.Address, tx.AmountAsset.ToID())
+	receiverKey := byteKey(*recipientAddr, tx.AmountAsset.ToID())
 	receiverBalanceDiff := int64(tx.Amount)
 	changes[2] = balanceChange{receiverKey, balanceDiff{balance: receiverBalanceDiff}}
 	if info.hasMiner() {
@@ -537,7 +537,7 @@ func (tv *transactionValidator) validateIssue(tx *proto.Issue, id []byte, info *
 				blockID:    info.blockID,
 			},
 		}
-		if err := tv.assets.issueAsset(assetID, asset); err != nil {
+		if err := tv.stor.assets.issueAsset(assetID, asset); err != nil {
 			return false, errors.Wrap(err, "failed to issue asset")
 		}
 	}
@@ -574,7 +574,7 @@ func (tv *transactionValidator) validateReissue(tx *proto.Reissue, info *txValid
 		return false, errors.Wrap(err, "invalid timestamp")
 	}
 	// Check if it's "legal" to modify given asset.
-	record, err := tv.assets.newestAssetRecord(tx.AssetID, !info.initialisation)
+	record, err := tv.stor.assets.newestAssetRecord(tx.AssetID, !info.initialisation)
 	if err != nil {
 		return false, err
 	}
@@ -588,7 +588,7 @@ func (tv *transactionValidator) validateReissue(tx *proto.Reissue, info *txValid
 			diff:       int64(tx.Quantity),
 			blockID:    info.blockID,
 		}
-		if err := tv.assets.reissueAsset(tx.AssetID, change, !info.initialisation); err != nil {
+		if err := tv.stor.assets.reissueAsset(tx.AssetID, change, !info.initialisation); err != nil {
 			return false, errors.Wrap(err, "failed to reissue asset")
 		}
 	}
@@ -630,7 +630,7 @@ func (tv *transactionValidator) validateBurn(tx *proto.Burn, info *txValidationI
 			diff:    int64(tx.Amount),
 			blockID: info.blockID,
 		}
-		if err := tv.assets.burnAsset(tx.AssetID, change, !info.initialisation); err != nil {
+		if err := tv.stor.assets.burnAsset(tx.AssetID, change, !info.initialisation); err != nil {
 			return false, errors.Wrap(err, "failed to burn asset")
 		}
 	}
@@ -699,12 +699,12 @@ func (tv *transactionValidator) validateExchange(tx proto.Exchange, info *txVali
 	}
 	changes := make([]balanceChange, 7)
 	senderPriceKey := byteKey(senderAddr, sellOrder.AssetPair.PriceAsset.ToID())
-	changes[0] = balanceChange{senderPriceKey, balanceDiff{balance: priceDiff}}
+	changes[0] = balanceChange{senderPriceKey, balanceDiff{allowTempNegative: true, balance: priceDiff}}
 	senderAmountKey := byteKey(senderAddr, sellOrder.AssetPair.AmountAsset.ToID())
 	changes[1] = balanceChange{senderAmountKey, balanceDiff{allowTempNegative: true, balance: -amountDiff}}
 	senderFeeKey := wavesBalanceKey{senderAddr}
 	senderFeeDiff := -int64(tx.GetSellMatcherFee())
-	changes[2] = balanceChange{senderFeeKey.bytes(), balanceDiff{balance: senderFeeDiff}}
+	changes[2] = balanceChange{senderFeeKey.bytes(), balanceDiff{allowTempNegative: true, balance: senderFeeDiff}}
 	receiverAddr, err := proto.NewAddressFromPublicKey(tv.settings.AddressSchemeCharacter, buyOrder.SenderPK)
 	if err != nil {
 		return false, err
@@ -712,10 +712,10 @@ func (tv *transactionValidator) validateExchange(tx proto.Exchange, info *txVali
 	receiverPriceKey := byteKey(receiverAddr, sellOrder.AssetPair.PriceAsset.ToID())
 	changes[3] = balanceChange{receiverPriceKey, balanceDiff{allowTempNegative: true, balance: -priceDiff}}
 	receiverAmountKey := byteKey(receiverAddr, sellOrder.AssetPair.AmountAsset.ToID())
-	changes[4] = balanceChange{receiverAmountKey, balanceDiff{balance: amountDiff}}
+	changes[4] = balanceChange{receiverAmountKey, balanceDiff{allowTempNegative: true, balance: amountDiff}}
 	receiverFeeKey := wavesBalanceKey{receiverAddr}
 	receiverFeeDiff := -int64(tx.GetBuyMatcherFee())
-	changes[5] = balanceChange{receiverFeeKey.bytes(), balanceDiff{balance: receiverFeeDiff}}
+	changes[5] = balanceChange{receiverFeeKey.bytes(), balanceDiff{allowTempNegative: true, balance: receiverFeeDiff}}
 	// Update matcher.
 	matcherAddr, err := proto.NewAddressFromPublicKey(tv.settings.AddressSchemeCharacter, buyOrder.MatcherPK)
 	if err != nil {
@@ -727,7 +727,7 @@ func (tv *transactionValidator) validateExchange(tx proto.Exchange, info *txVali
 		return false, err
 	}
 	matcherBalanceDiff := matcherFee - int64(tx.GetFee())
-	changes[6] = balanceChange{matcherKey.bytes(), balanceDiff{balance: matcherBalanceDiff}}
+	changes[6] = balanceChange{matcherKey.bytes(), balanceDiff{allowTempNegative: true, balance: matcherBalanceDiff}}
 	if info.hasMiner() {
 		// Update miner.
 		minerAddr, err := proto.NewAddressFromPublicKey(tv.settings.AddressSchemeCharacter, info.minerPK)
@@ -736,7 +736,7 @@ func (tv *transactionValidator) validateExchange(tx proto.Exchange, info *txVali
 		}
 		minerKey := byteKey(minerAddr, nil)
 		minerBalanceDiff := int64(tx.GetFee())
-		changes = append(changes, balanceChange{minerKey, balanceDiff{balance: minerBalanceDiff}})
+		changes = append(changes, balanceChange{minerKey, balanceDiff{allowTempNegative: true, balance: minerBalanceDiff}})
 	}
 	if err := tv.pushChanges(changes, info); err != nil {
 		return false, err
@@ -752,7 +752,16 @@ func (tv *transactionValidator) validateLease(tx *proto.Lease, id *crypto.Digest
 	if err != nil {
 		return false, err
 	}
-	if senderAddr == *tx.Recipient.Address {
+	recipientAddr := &proto.Address{}
+	if tx.Recipient.Address == nil {
+		recipientAddr, err = tv.stor.aliases.newestAddrByAlias(tx.Recipient.Alias.Alias, !info.initialisation)
+		if err != nil {
+			return false, errors.Errorf("invalid alias: %v\n", err)
+		}
+	} else {
+		recipientAddr = tx.Recipient.Address
+	}
+	if senderAddr == *recipientAddr {
 		return false, errors.New("trying to lease money to self")
 	}
 	changes := make([]balanceChange, 3)
@@ -763,11 +772,7 @@ func (tv *transactionValidator) validateLease(tx *proto.Lease, id *crypto.Digest
 	senderFeeDiff := -int64(tx.Fee)
 	changes[1] = balanceChange{senderKey.bytes(), balanceDiff{balance: senderFeeDiff}}
 	// Update receiver.
-	if tx.Recipient.Address == nil {
-		// TODO support aliases.
-		return false, errors.New("alias without address is not supported yet")
-	}
-	receiverKey := wavesBalanceKey{address: *tx.Recipient.Address}
+	receiverKey := wavesBalanceKey{address: *recipientAddr}
 	receiverLeaseInDiff := int64(tx.Amount)
 	changes[2] = balanceChange{receiverKey.bytes(), balanceDiff{leaseIn: receiverLeaseInDiff}}
 	if info.hasMiner() {
@@ -786,10 +791,10 @@ func (tv *transactionValidator) validateLease(tx *proto.Lease, id *crypto.Digest
 	if info.perform {
 		// Add leasing to lease state.
 		r := &leasingRecord{
-			leasing{true, tx.Amount, *tx.Recipient.Address, senderAddr},
+			leasing{true, tx.Amount, *recipientAddr, senderAddr},
 			info.blockID,
 		}
-		if err := tv.leases.addLeasing(*id, r); err != nil {
+		if err := tv.stor.leases.addLeasing(*id, r); err != nil {
 			return false, errors.Wrap(err, "failed to add leasing")
 		}
 	}
@@ -800,7 +805,7 @@ func (tv *transactionValidator) validateLeaseCancel(tx *proto.LeaseCancel, info 
 	if ok, err := tv.checkTimestamps(tx.Timestamp, info.currentTimestamp, info.parentTimestamp); !ok {
 		return false, errors.Wrap(err, "invalid timestamp")
 	}
-	l, err := tv.leases.newestLeasingInfo(tx.LeaseID, !info.initialisation)
+	l, err := tv.stor.leases.newestLeasingInfo(tx.LeaseID, !info.initialisation)
 	if err != nil {
 		return false, err
 	}
@@ -815,7 +820,7 @@ func (tv *transactionValidator) validateLeaseCancel(tx *proto.LeaseCancel, info 
 		return false, errors.New("sender of LeaseCancel is not sender of corresponding Lease")
 	}
 	if info.perform {
-		if err := tv.leases.cancelLeasing(tx.LeaseID, info.blockID, !info.initialisation); err != nil {
+		if err := tv.stor.leases.cancelLeasing(tx.LeaseID, info.blockID, !info.initialisation); err != nil {
 			return false, errors.Wrap(err, "failed to cancel leasing")
 		}
 	}
@@ -839,6 +844,49 @@ func (tv *transactionValidator) validateLeaseCancel(tx *proto.LeaseCancel, info 
 		minerKey := wavesBalanceKey{address: minerAddr}
 		minerBalanceDiff := int64(tx.Fee)
 		changes = append(changes, balanceChange{minerKey.bytes(), balanceDiff{balance: minerBalanceDiff}})
+	}
+	if err := tv.pushChanges(changes, info); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+func (tv *transactionValidator) validateCreateAlias(tx *proto.CreateAlias, info *txValidationInfo) (bool, error) {
+	if ok, err := tv.checkTimestamps(tx.Timestamp, info.currentTimestamp, info.parentTimestamp); !ok {
+		return false, errors.Wrap(err, "invalid timestamp")
+	}
+	// Check if alias already taken.
+	if _, err := tv.stor.aliases.newestAddrByAlias(tx.Alias.Alias, !info.initialisation); err == nil {
+		return false, errors.New("alias is already taken")
+	}
+	senderAddr, err := proto.NewAddressFromPublicKey(tv.settings.AddressSchemeCharacter, tx.SenderPK)
+	if err != nil {
+		return false, err
+	}
+	if info.perform {
+		// Save alias to aliases storage.
+		r := &aliasRecord{
+			addr:    senderAddr,
+			blockID: info.blockID,
+		}
+		if err := tv.stor.aliases.createAlias(tx.Alias.Alias, r); err != nil {
+			return false, err
+		}
+	}
+	changes := make([]balanceChange, 1)
+	// Update sender.
+	senderFeeKey := wavesBalanceKey{address: senderAddr}
+	senderFeeBalanceDiff := -int64(tx.Fee)
+	changes[0] = balanceChange{senderFeeKey.bytes(), balanceDiff{balance: senderFeeBalanceDiff}}
+	if info.hasMiner() {
+		// Update miner.
+		minerAddr, err := proto.NewAddressFromPublicKey(tv.settings.AddressSchemeCharacter, info.minerPK)
+		if err != nil {
+			return false, err
+		}
+		minerKey := byteKey(minerAddr, nil)
+		minerBalanceDiff := int64(tx.Fee)
+		changes = append(changes, balanceChange{minerKey, balanceDiff{balance: minerBalanceDiff}})
 	}
 	if err := tv.pushChanges(changes, info); err != nil {
 		return false, err
@@ -911,6 +959,14 @@ func (tv *transactionValidator) addTxForValidation(tx proto.Transaction, info *t
 	case *proto.LeaseCancelV2:
 		if ok, err := tv.validateLeaseCancel(&v.LeaseCancel, info); !ok {
 			return errors.Wrap(err, "leasecancelv2 validation failed")
+		}
+	case *proto.CreateAliasV1:
+		if ok, err := tv.validateCreateAlias(&v.CreateAlias, info); !ok {
+			return errors.Wrap(err, "createaliasv1 validation failed")
+		}
+	case *proto.CreateAliasV2:
+		if ok, err := tv.validateCreateAlias(&v.CreateAlias, info); !ok {
+			return errors.Wrap(err, "createaliasv2 validation failed")
 		}
 	default:
 		return errors.Errorf("transaction type %T is not supported\n", v)

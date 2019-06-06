@@ -42,6 +42,9 @@ const (
 	leaseKeyPrefix
 	// Known peers.
 	knownPeersPrefix
+
+	// Aliases.
+	aliasKeyPrefix
 )
 
 type wavesBalanceKey struct {
@@ -166,5 +169,17 @@ func (k *leaseKey) bytes() []byte {
 	buf := make([]byte, 1+crypto.DigestSize)
 	buf[0] = leaseKeyPrefix
 	copy(buf[1:], k.leaseID[:])
+	return buf
+}
+
+type aliasKey struct {
+	alias string
+}
+
+func (k *aliasKey) bytes() []byte {
+	aliasBytes := []byte(k.alias)
+	buf := make([]byte, 1+len(aliasBytes))
+	buf[0] = aliasKeyPrefix
+	copy(buf[1:], aliasBytes[:])
 	return buf
 }

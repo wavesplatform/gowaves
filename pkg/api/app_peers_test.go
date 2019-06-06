@@ -30,7 +30,7 @@ func TestApp_PeersAll(t *testing.T) {
 		Peers_: []proto.TCPAddr{proto.NewTCPAddrFromString("127.0.0.1:6868")},
 	}
 
-	app, err := NewApp("key", mockNode{s})
+	app, err := NewApp("key", mockNode{s}, nil)
 	require.NoError(t, err)
 
 	rs2, err := app.PeersAll()

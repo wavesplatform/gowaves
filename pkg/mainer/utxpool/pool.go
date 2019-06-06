@@ -11,6 +11,8 @@ import (
 type transactionsHeap []proto.Transaction
 
 func (a transactionsHeap) Len() int { return len(a) }
+
+// TODO we should compare by fee/len
 func (a transactionsHeap) Less(i, j int) bool {
 	// We want Pop to give us the highest, not lowest, priority so we use greater than here.
 	return a[i].GetFee() > a[j].GetFee()

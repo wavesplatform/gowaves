@@ -60,7 +60,7 @@ func (hfmt *historyFormatter) addRecord(history []byte, record []byte) ([]byte, 
 
 func (hfmt *historyFormatter) getLatest(history []byte) ([]byte, error) {
 	if len(history) < hfmt.recordSize {
-		return nil, errors.New("invalid history size")
+		return nil, errors.Errorf("invalid history size %d, min is %d\n", len(history), hfmt.recordSize)
 	}
 	return history[len(history)-hfmt.recordSize:], nil
 }

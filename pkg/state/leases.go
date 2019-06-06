@@ -37,6 +37,9 @@ func (l *leasingRecord) marshalBinary() ([]byte, error) {
 }
 
 func (l *leasingRecord) unmarshalBinary(data []byte) error {
+	if len(data) != leasingRecordSize {
+		return errors.New("invalid data size")
+	}
 	var err error
 	l.isActive, err = proto.Bool(data[0:1])
 	if err != nil {
@@ -50,29 +53,12 @@ func (l *leasingRecord) unmarshalBinary(data []byte) error {
 }
 
 type leases struct {
-	db      keyvalue.IterableKeyVal
-	dbBatch keyvalue.Batch
-
-	stor map[string][]byte
-	fmt  *historyFormatter
+	db keyvalue.IterableKeyVal
+	hs *historyStorage
 }
 
-func newLeases(
-	db keyvalue.IterableKeyVal,
-	dbBatch keyvalue.Batch,
-	stDb *stateDB,
-	rb *recentBlocks,
-) (*leases, error) {
-	fmt, err := newHistoryFormatter(leasingRecordSize, crypto.SignatureSize, stDb, rb)
-	if err != nil {
-		return nil, err
-	}
-	return &leases{
-		db:      db,
-		dbBatch: dbBatch,
-		stor:    make(map[string][]byte),
-		fmt:     fmt,
-	}, nil
+func newLeases(db keyvalue.IterableKeyVal, hs *historyStorage) (*leases, error) {
+	return &leases{db, hs}, nil
 }
 
 func (l *leases) cancelLeases(bySenders map[proto.Address]struct{}) error {
@@ -89,32 +75,30 @@ func (l *leases) cancelLeases(bySenders map[proto.Address]struct{}) error {
 
 	// Iterate all the leases.
 	for leaseIter.Next() {
-		histBytes := leaseIter.Value()
-		histBytes, err = l.fmt.normalize(histBytes, true)
-		if err != nil {
-			return errors.Errorf("failed to normalize history: %v\n", err)
-		}
-		lease, err := l.lastRecord(histBytes)
+		key := keyvalue.SafeKey(leaseIter)
+		leaseBytes, err := l.hs.get(lease, key, true)
 		if err != nil {
 			return err
 		}
+		var leaseRecord leasingRecord
+		if err := leaseRecord.unmarshalBinary(leaseBytes); err != nil {
+			return errors.Errorf("failed to unmarshal lease: %v\n", err)
+		}
 		toCancel := true
 		if bySenders != nil {
-			_, toCancel = bySenders[lease.sender]
+			_, toCancel = bySenders[leaseRecord.sender]
 		}
-		if lease.isActive && toCancel {
+		if leaseRecord.isActive && toCancel {
 			// Cancel lease.
-			log.Printf("State: cancelling lease for address %s.", lease.sender.String())
-			lease.isActive = false
-			leaseBytes, err := lease.marshalBinary()
+			log.Printf("State: cancelling lease for address %s.", leaseRecord.sender.String())
+			leaseRecord.isActive = false
+			leaseBytes, err := leaseRecord.marshalBinary()
 			if err != nil {
 				return errors.Errorf("failed to marshal lease: %v\n", err)
 			}
-			history, err := l.fmt.addRecord(histBytes, leaseBytes)
-			if err != nil {
-				return errors.Errorf("failed to add leasing record to history: %v\n", err)
+			if err := l.hs.set(lease, key, leaseBytes); err != nil {
+				return errors.Errorf("failed to save lease to storage: %v\n", err)
 			}
-			l.stor[string(leaseIter.Key())] = history
 		}
 	}
 	return nil
@@ -135,14 +119,13 @@ func (l *leases) validLeaseIns() (map[proto.Address]int64, error) {
 	leaseIns := make(map[proto.Address]int64)
 	// Iterate all the leases.
 	for leaseIter.Next() {
-		histBytes := leaseIter.Value()
-		histBytes, err = l.fmt.normalize(histBytes, true)
-		if err != nil {
-			return nil, errors.Errorf("failed to normalize history: %v\n", err)
-		}
-		lease, err := l.lastRecord(histBytes)
+		leaseBytes, err := l.hs.get(lease, leaseIter.Key(), true)
 		if err != nil {
 			return nil, err
+		}
+		var lease leasingRecord
+		if err := lease.unmarshalBinary(leaseBytes); err != nil {
+			return nil, errors.Errorf("failed to unmarshal lease: %v\n", err)
 		}
 		if lease.isActive {
 			leaseIns[lease.recipient] = int64(lease.leaseAmount)
@@ -151,46 +134,30 @@ func (l *leases) validLeaseIns() (map[proto.Address]int64, error) {
 	return leaseIns, nil
 }
 
-func (l *leases) lastRecord(history []byte) (*leasingRecord, error) {
-	last, err := l.fmt.getLatest(history)
-	if err != nil {
-		return nil, errors.Errorf("failed to get the last record: %v\n", err)
-	}
-	var record leasingRecord
-	if err := record.unmarshalBinary(last); err != nil {
-		return nil, errors.Errorf("failed to unmarshal history record: %v\n", err)
-	}
-	return &record, nil
-}
-
 // Leasing info from DB or local storage.
 func (l *leases) newestLeasingInfo(id crypto.Digest, filter bool) (*leasing, error) {
 	key := leaseKey{leaseID: id}
-	history, err := fullHistory(key.bytes(), l.db, l.stor, l.fmt, filter)
+	recordBytes, err := l.hs.getFresh(lease, key.bytes(), filter)
 	if err != nil {
 		return nil, err
 	}
-	record, err := l.lastRecord(history)
-	if err != nil {
-		return nil, err
+	var record leasingRecord
+	if err := record.unmarshalBinary(recordBytes); err != nil {
+		return nil, errors.Errorf("failed to unmarshal record: %v\n", err)
 	}
 	return &record.leasing, nil
 }
 
 // Stable leasing info from DB.
-func (l *leases) leasingInfo(id crypto.Digest) (*leasing, error) {
+func (l *leases) leasingInfo(id crypto.Digest, filter bool) (*leasing, error) {
 	key := leaseKey{leaseID: id}
-	history, err := l.db.Get(key.bytes())
-	if err != nil {
-		return nil, errors.Errorf("failed to retrieve lease history: %v\n", err)
-	}
-	history, err = l.fmt.normalize(history, true)
-	if err != nil {
-		return nil, errors.Errorf("failed to normalize history: %v\n", err)
-	}
-	record, err := l.lastRecord(history)
+	recordBytes, err := l.hs.get(lease, key.bytes(), filter)
 	if err != nil {
 		return nil, err
+	}
+	var record leasingRecord
+	if err := record.unmarshalBinary(recordBytes); err != nil {
+		return nil, errors.Errorf("failed to unmarshal record: %v\n", err)
 	}
 	return &record.leasing, nil
 }
@@ -201,12 +168,9 @@ func (l *leases) addLeasing(id crypto.Digest, r *leasingRecord) error {
 	if err != nil {
 		return errors.Errorf("failed to marshal record: %v\n", err)
 	}
-	history, _ := l.stor[string(key.bytes())]
-	history, err = l.fmt.addRecord(history, recordBytes)
-	if err != nil {
-		return errors.Errorf("failed to add leasing record to history: %v\n", err)
+	if err := l.hs.set(lease, key.bytes(), recordBytes); err != nil {
+		return err
 	}
-	l.stor[string(key.bytes())] = history
 	return nil
 }
 
@@ -218,15 +182,4 @@ func (l *leases) cancelLeasing(id crypto.Digest, blockID crypto.Signature, filte
 	leasing.isActive = false
 	record := &leasingRecord{*leasing, blockID}
 	return l.addLeasing(id, record)
-}
-
-func (l *leases) reset() {
-	l.stor = make(map[string][]byte)
-}
-
-func (l *leases) flush(initialisation bool) error {
-	if err := addHistoryToBatch(l.db, l.dbBatch, l.stor, l.fmt, !initialisation); err != nil {
-		return err
-	}
-	return nil
 }

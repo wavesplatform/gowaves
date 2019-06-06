@@ -44,13 +44,22 @@ var blockTests = []test{
 	},
 }
 
+func makeBlock(t *testing.T) *Block {
+	decoded, err := hex.DecodeString(blockTests[0].hexEncoded)
+	assert.NoError(t, err, "hex.DecodeString failed")
+	var block Block
+	err = block.UnmarshalBinary(decoded)
+	assert.NoError(t, err, "block.UnmarshalBinary failed")
+	return &block
+}
+
 func blockFromBinaryToBinary(t *testing.T, hexStr, jsonStr string) {
 	decoded, err := hex.DecodeString(hexStr)
 	if err != nil {
 		t.Fatal(err)
 	}
 	var b Block
-	b.UnmarshalBinary(decoded)
+	err = b.UnmarshalBinary(decoded)
 	assert.NoError(t, err, "UnmarshalBinary() for block failed")
 	bytes, err := json.Marshal(b)
 	assert.NoError(t, err, "json.Marshal() for block failed")
@@ -77,7 +86,7 @@ func headerFromBinaryToBinary(t *testing.T, hexStr, jsonStr string) {
 		t.Fatal(err)
 	}
 	var header BlockHeader
-	header.UnmarshalHeaderFromBinary(decoded)
+	err = header.UnmarshalHeaderFromBinary(decoded)
 	assert.NoError(t, err, "UnmarshalHeaderFromBinary() failed")
 	bytes, err := json.Marshal(header)
 	assert.NoError(t, err, "json.Marshal() for header failed")
@@ -105,6 +114,18 @@ func TestHeaderSerialization(t *testing.T) {
 			headerFromJSONToJSON(t, v.jsonEncoded)
 		})
 	}
+}
+
+func TestAppendHeaderBytesToTransactions(t *testing.T) {
+	block := makeBlock(t)
+	headerBytes, err := block.MarshalHeaderToBinary()
+	assert.NoError(t, err, "MarshalHeaderToBinary() failed")
+	transactions := block.Transactions
+	blockBytes, err := block.MarshalBinary()
+	assert.NoError(t, err, "block.MarshalBinary() failed")
+	blockBytes1, err := AppendHeaderBytesToTransactions(headerBytes, transactions)
+	assert.NoError(t, err, "AppendHeaderBytesToTransactions() failed")
+	assert.Equal(t, blockBytes, blockBytes1)
 }
 
 func TestBlockSerialization(t *testing.T) {
@@ -192,5 +213,6 @@ func TestBlock_WriteTo(t *testing.T) {
 	block.WriteTo(buf)
 	marshaledBytes, _ := block.MarshalBinary()
 
-	require.Equal(t, marshaledBytes, buf.Bytes())
+	// writeTo doesn't write signature
+	require.Equal(t, marshaledBytes[:len(marshaledBytes)-crypto.SignatureSize], buf.Bytes())
 }

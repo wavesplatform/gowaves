@@ -37,6 +37,7 @@ func New(utx *utxpool.Utx, state state.State, peer node.PeerManager, scheduler t
 
 func (a *Mainer) Mine(t proto.Timestamp, k proto.KeyPair, parent crypto.Signature, baseTarget consensus.BaseTarget, GenSignature crypto.Digest) {
 	a.interrupt.Store(false)
+	defer a.scheduler.Reschedule()
 	lastKnownBlock, err := a.state.Block(parent)
 	if err != nil {
 		zap.S().Error(err)
@@ -75,41 +76,25 @@ func (a *Mainer) Mine(t proto.Timestamp, k proto.KeyPair, parent crypto.Signatur
 		return
 	}
 
-	b := proto.Block{
-		BlockHeader: proto.BlockHeader{
-			Version:                3,
-			Timestamp:              t,
-			Parent:                 parent,
-			FeaturesCount:          0,   // ??
-			Features:               nil, // ??
-			ConsensusBlockLength:   40,  //  ??
-			TransactionBlockLength: uint32(len(buf.Bytes()) + 4),
-			TransactionCount:       len(transactions),
-			GenPublicKey:           k.Public(),
-			BlockSignature:         crypto.Signature{}, //
-
-			NxtConsensus: proto.NxtConsensus{
-				BaseTarget:   baseTarget,   // 8
-				GenSignature: GenSignature, //
-			},
-		},
-		Transactions: buf.Bytes(),
+	nxt := proto.NxtConsensus{
+		BaseTarget:   baseTarget,
+		GenSignature: GenSignature,
 	}
 
-	zap.S().Infof("%+v", b)
-
-	buf = new(bytes.Buffer)
-	_, err = b.WriteTo(buf)
+	b, err := proto.BlockBuilder(transactions, t, parent, k.Public(), nxt)
 	if err != nil {
 		zap.S().Error(err)
 		return
 	}
 
-	sign := crypto.Sign(k.Private(), buf.Bytes())
-	buf.Write(sign[:])
+	err = b.Sign(k.Private())
+	if err != nil {
+		zap.S().Error(err)
+		return
+	}
 
 	ba := node.NewBlockApplier(a.state, a.peer, a.scheduler, a)
-	err = ba.Apply(buf.Bytes())
+	err = ba.Apply(b)
 	if err != nil {
 		zap.S().Error(err)
 	}

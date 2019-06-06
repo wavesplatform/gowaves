@@ -1,11 +1,12 @@
 package state
 
 import (
+	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"math/big"
+	"runtime"
 	"sync"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
-	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 )
@@ -19,10 +20,13 @@ type State interface {
 	// Block getters.
 	Block(blockID crypto.Signature) (*proto.Block, error)
 	BlockByHeight(height uint64) (*proto.Block, error)
-	//BlocksByHeight(fromHeight proto.Height, inclusiveHeight proto.Height) ([]*proto.Block, error)
+	BlockBytes(blockID crypto.Signature) ([]byte, error)
+	BlockBytesByHeight(height uint64) ([]byte, error)
 	// Header getters.
 	Header(blockID crypto.Signature) (*proto.BlockHeader, error)
 	HeaderByHeight(height uint64) (*proto.BlockHeader, error)
+	HeaderBytes(blockID crypto.Signature) ([]byte, error)
+	HeaderBytesByHeight(height uint64) ([]byte, error)
 	// Height returns current blockchain height.
 	Height() (uint64, error)
 	// Height <---> blockID converters.
@@ -38,13 +42,18 @@ type State interface {
 	// It's not recommended to use this function when you are able to accumulate big blocks batch,
 	// since it's much more efficient to add many blocks at once.
 	AddBlock(block []byte) (*proto.Block, error)
+	AddDeserializedBlock(block *proto.Block) (*proto.Block, error)
 	// AddNewBlocks adds batch of new blocks to state.
 	// Use it when blocks are logically new.
 	AddNewBlocks(blocks [][]byte) error
+	// AddNewDeserializedBlocks marshals blocks to binary and calls AddNewBlocks().
+	AddNewDeserializedBlocks(blocks []*proto.Block) error
 	// AddOldBlocks adds batch of old blocks to state.
 	// Use it when importing historical blockchain.
 	// It is faster than AddNewBlocks but it is only safe when importing from scratch when no rollbacks are possible at all.
 	AddOldBlocks(blocks [][]byte) error
+	// AddOldDeserializedBlocks marshals blocks to binary and calls AddOldBlocks().
+	AddOldDeserializedBlocks(blocks []*proto.Block) error
 	// Rollback functionality.
 	RollbackToHeight(height uint64) error
 	RollbackTo(removalEdge crypto.Signature) error
@@ -85,13 +94,15 @@ type State interface {
 // NewState() creates State.
 // dataDir is path to directory to store all data, it's also possible to provide folder with existing data,
 // and state will try to sync and use it in this case.
-// params are storage parameters, they specify lengths of byte offsets for headers and transactions and Bloom Filter's parameters.
-// Use state.DefaultStorageParams() to create default parameters.
-// Settings are blockchain settings (settings.MainNetSettings, settings.TestNetSettings or custom settings).
-func NewState(dataDir string, params StorageParams, settings *settings.BlockchainSettings) (State, error) {
+// params are state parameters (see below).
+// settings are blockchain settings (settings.MainNetSettings, settings.TestNetSettings or custom settings).
+func NewState(dataDir string, params StateParams, settings *settings.BlockchainSettings) (State, error) {
 	return newStateManager(dataDir, params, settings)
 }
 
+// StorageParams are storage parameters, they specify lengths of byte offsets for headers and transactions
+// and Bloom Filter's parameters.
+// Use state.DefaultStorageParams() to create default parameters.
 type StorageParams struct {
 	OffsetLen, HeaderOffsetLen int
 	BloomParams                keyvalue.BloomFilterParams
@@ -99,4 +110,19 @@ type StorageParams struct {
 
 func DefaultStorageParams() StorageParams {
 	return StorageParams{OffsetLen: 8, HeaderOffsetLen: 8, BloomParams: keyvalue.BloomFilterParams{N: 2e8, FalsePositiveProbability: 0.01}}
+}
+
+// ValidationParams are validation parameters.
+// VerificationGoroutinesNum specifies how many goroutines will be run for verification of transactions and blocks signatures.
+type ValidationParams struct {
+	VerificationGoroutinesNum int
+}
+
+type StateParams struct {
+	StorageParams
+	ValidationParams
+}
+
+func DefaultStateParams() StateParams {
+	return StateParams{DefaultStorageParams(), ValidationParams{runtime.NumCPU() * 2}}
 }

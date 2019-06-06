@@ -8,14 +8,12 @@ import (
 )
 
 func TestApp_Miner(t *testing.T) {
-
 	s := Scheduler{
-		TimeNow: time.Now(),
+		TimeNow: time.Unix(1559565012, 0),
 	}
 
 	bts, err := json.Marshal(s)
 	require.NoError(t, err)
 
-	require.Equal(t, 1, string(bts))
-
+	require.Contains(t, string(bts), "2019-06-03T15:30:12+03:00")
 }

@@ -7,20 +7,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
-type Settings struct {
-}
-
-//type Genesis struct {
-//	Version                int
-//	Timestamp              proto.Timestamp
-//	Reference              string
-//	NxtConsensus           proto.NxtConsensus
-//	Signature              string
-//	TransactionBlockLength uint
-//	TransactionCount       uint
-//	Transactions           []proto.Genesis
-//}
-
 func Genesis(timestamp proto.Timestamp, transactions proto.Transactions) (*proto.Block, error) {
 
 	buf := new(bytes.Buffer)
@@ -43,8 +29,6 @@ func Genesis(timestamp proto.Timestamp, transactions proto.Transactions) (*proto
 			},
 			TransactionBlockLength: uint32(len(buf.Bytes())),
 			TransactionCount:       len(transactions),
-			//GenPublicKey: "", // ???
-			//BlockSignature
 		},
 		Transactions: buf.Bytes(),
 	}

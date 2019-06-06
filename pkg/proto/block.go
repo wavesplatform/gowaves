@@ -4,11 +4,11 @@ import (
 	"bytes"
 	"encoding/binary"
 	"encoding/json"
+	"github.com/pkg/errors"
+	"github.com/valyala/bytebufferpool"
+	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/libs/serializer"
 	"io"
-
-	"github.com/pkg/errors"
-	"github.com/wavesplatform/gowaves/pkg/crypto"
 )
 
 type BlockVersion byte
@@ -180,10 +180,52 @@ func (t TransactionsField) MarshalJSON() ([]byte, error) {
 	return json.Marshal(transactions)
 }
 
+func AppendHeaderBytesToTransactions(headerBytes []byte, transactions []byte) ([]byte, error) {
+	headerLen := len(headerBytes)
+	if headerLen < 1 {
+		return nil, errors.New("insufficient header data size")
+	}
+	featuresSize := 0
+	version := BlockVersion(headerBytes[0])
+	if version >= NgBlockVersion {
+		if len(headerBytes) < 129 {
+			return nil, errors.New("insufficient header data size")
+		}
+		featuresCount := int(binary.BigEndian.Uint32(headerBytes[125:129]))
+		// featuresCount * int16 + int for featuresCount itself.
+		featuresSize = featuresCount*2 + 4
+	}
+	if headerLen < crypto.PublicKeySize+crypto.SignatureSize+featuresSize {
+		return nil, errors.New("insufficient header data size")
+	}
+	headerBeforeTx := headerBytes[:headerLen-crypto.PublicKeySize-crypto.SignatureSize-featuresSize]
+	headerAfterTx := headerBytes[headerLen-crypto.PublicKeySize-crypto.SignatureSize-featuresSize:]
+	res := make([]byte, headerLen+len(transactions))
+	copy(res, headerBeforeTx)
+	filled := len(headerBeforeTx)
+	copy(res[filled:], transactions)
+	filled += len(transactions)
+	copy(res[filled:], headerAfterTx)
+	return res, nil
+}
+
 // Block is a block of the blockchain
 type Block struct {
 	BlockHeader
 	Transactions TransactionsField `json:"transactions,omitempty"`
+}
+
+func (b *Block) Sign(secret crypto.SecretKey) error {
+	buf := bytebufferpool.Get()
+	_, err := b.WriteTo(buf)
+	if err != nil {
+		return err
+	}
+
+	sign := crypto.Sign(secret, buf.Bytes())
+	b.BlockSignature = sign
+	buf.Write(sign[:])
+	return nil
 }
 
 // MarshalBinary encodes Block to binary form
@@ -220,58 +262,31 @@ func (b *Block) MarshalBinary() ([]byte, error) {
 	return res, nil
 }
 
-//WriteTo writes binary representation of block into Writer. It does not sign and write signature.
+//WriteTo writes binary representation of block into Writer.
+//It does not sign and write signature.
 func (b *Block) WriteTo(w io.Writer) (int64, error) {
-	//res := make([]byte, 1+8+64+4+8+32+4)
 	s := serializer.New(w)
-	//res[0] = byte(b.Version)
 	s.Byte(byte(b.Version))
-	//binary.BigEndian.PutUint64(res[1:9], b.Timestamp)
 	s.Uint64(b.Timestamp)
-	//copy(res[9:], b.Parent[:])
 	s.Bytes(b.Parent[:])
-	//binary.BigEndian.PutUint32(res[73:77], b.ConsensusBlockLength)
 	s.Uint32(b.ConsensusBlockLength)
-	//binary.BigEndian.PutUint64(res[77:85], b.BaseTarget)
 	s.Uint64(b.BaseTarget)
-	//copy(res[85:117], b.GenSignature[:])
 	s.Bytes(b.GenSignature[:])
-	//binary.BigEndian.PutUint32(res[117:121], b.TransactionBlockLength)
 	s.Uint32(b.TransactionBlockLength)
 	if b.Version >= NgBlockVersion {
-		// Add tx count.
-		//buf := make([]byte, 4)
-		//binary.BigEndian.PutUint32(buf, uint32(b.TransactionCount))
 		s.Uint32(uint32(b.TransactionCount))
-		//res = append(res, buf...)
-		//res = append(res, b.Transactions...)
 		s.Bytes(b.Transactions)
-		//binary.BigEndian.PutUint32(buf, uint32(b.FeaturesCount))
 		s.Uint32(uint32(b.FeaturesCount))
-		//res = append(res, buf...)
-		// Add features.
 		fb, err := featuresToBinary(b.Features)
 		if err != nil {
 			return 0, err
 		}
-		//res = append(res, fb...)
 		s.Bytes(fb)
 	} else {
-		//res = append(res, byte(b.TransactionCount))
 		s.Byte(byte(b.TransactionCount))
-		//res = append(res, b.Transactions...)
 		s.Bytes(b.Transactions)
 	}
-	//res = append(res, b.GenPublicKey[:]...)
 	s.Bytes(b.GenPublicKey[:])
-	//res = append(res, b.BlockSignature[:]...)
-	//s.Bytes(b.BlockSignature[:])
-
-	//_, err := w.Write(res)
-	//if err != nil {
-	//	return 0, err
-	//}
-
 	return s.N(), nil
 }
 
@@ -323,6 +338,32 @@ func (b *Block) UnmarshalBinary(data []byte) (err error) {
 	copy(b.BlockSignature[:], data[len(data)-64:])
 
 	return nil
+}
+
+func BlockBuilder(transactions Transactions, timestamp Timestamp, parentSig crypto.Signature, publicKey crypto.PublicKey, NxtConsensus NxtConsensus) (*Block, error) {
+	buf := bytebufferpool.Get()
+	_, err := transactions.WriteTo(buf)
+	if err != nil {
+		return nil, err
+	}
+
+	b := Block{
+		BlockHeader: BlockHeader{
+			Version:                3,
+			Timestamp:              timestamp,
+			Parent:                 parentSig,
+			FeaturesCount:          0,   // ??
+			Features:               nil, // ??
+			ConsensusBlockLength:   40,  //  ??
+			TransactionBlockLength: uint32(len(buf.Bytes()) + 4),
+			TransactionCount:       len(transactions),
+			GenPublicKey:           publicKey,
+			NxtConsensus:           NxtConsensus,
+		},
+		Transactions: buf.Bytes(),
+	}
+
+	return &b, nil
 }
 
 //BlockGetSignature get signature from block without deserialization

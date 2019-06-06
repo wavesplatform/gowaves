@@ -28,6 +28,7 @@ type SchedulerImpl struct {
 	mu       sync.Mutex
 	internal internal
 	emits    []Emit
+	state    state.State
 }
 
 type internal interface {
@@ -38,7 +39,6 @@ type internalImpl struct {
 }
 
 func (a internalImpl) schedule(state state.State, keyPairs []proto.KeyPair, schema proto.Schema, AverageBlockDelaySeconds uint64, confirmedBlock *proto.Block, confirmedBlockHeight uint64) []Emit {
-
 	var greatGrandParentTimestamp proto.Timestamp = 0
 	if confirmedBlockHeight > 2 {
 		greatGrandParent, err := state.BlockByHeight(confirmedBlockHeight - 2)
@@ -49,7 +49,7 @@ func (a internalImpl) schedule(state state.State, keyPairs []proto.KeyPair, sche
 		greatGrandParentTimestamp = greatGrandParent.Timestamp
 	}
 
-	out := []Emit{}
+	var out []Emit
 	for _, keyPair := range keyPairs {
 		genSig, err := consensus.GeneratorSignature(confirmedBlock.BlockHeader.GenSignature, keyPair.Public())
 		if err != nil {
@@ -63,6 +63,7 @@ func (a internalImpl) schedule(state state.State, keyPairs []proto.KeyPair, sche
 			continue
 		}
 
+		// TODO
 		c := &consensus.NxtPosCalculator{}
 		//c := &consensus.FairPosCalculator{}
 
@@ -84,13 +85,6 @@ func (a internalImpl) schedule(state state.State, keyPairs []proto.KeyPair, sche
 			continue
 		}
 
-		//now := proto.NewTimestampFromTime(time.Now())
-		//if confirmedBlock.Timestamp+delay > now { // timestamp in future
-		// delta from now to future
-		//timeout := confirmedBlock.Timestamp + delay - now
-		// start timeout before emit mine
-		//keyPair_ := keyPair // ensure passed correct value
-		//cancel := cancellable.After(time.Duration(timeout)*time.Millisecond, func() {
 		out = append(out, Emit{
 			Timestamp:            confirmedBlock.Timestamp + delay,
 			KeyPair:              keyPair,
@@ -98,36 +92,21 @@ func (a internalImpl) schedule(state state.State, keyPairs []proto.KeyPair, sche
 			BaseTarget:           baseTarget,
 			ParentBlockSignature: confirmedBlock.BlockSignature,
 		})
-		//})
-		//a.cancel = append(a.cancel, cancel)
-		//} else {
-		//	out = <- Emit{
-		//		Timestamp:            confirmedBlock.Timestamp + delay,
-		//		KeyPair:              keyPair,
-		//		GenSignature:         genSig,
-		//		BaseTarget:           baseTarget,
-		//		ParentBlockSignature: confirmedBlock.BlockSignature,
-		//	}
-		//}
 	}
 	return out
 }
 
-func NewScheduler(pairs []proto.KeyPair, settings *settings.BlockchainSettings) *SchedulerImpl {
-	return &SchedulerImpl{
-		keyPairs: pairs,
-		mine:     make(chan Emit),
-		settings: settings,
-		internal: internalImpl{},
-	}
+func NewScheduler(state state.State, pairs []proto.KeyPair, settings *settings.BlockchainSettings) *SchedulerImpl {
+	return newScheduler(internalImpl{}, state, pairs, settings)
 }
 
-func newScheduler(internal internal, pairs []proto.KeyPair, settings *settings.BlockchainSettings) *SchedulerImpl {
+func newScheduler(internal internal, state state.State, pairs []proto.KeyPair, settings *settings.BlockchainSettings) *SchedulerImpl {
 	return &SchedulerImpl{
 		keyPairs: pairs,
-		mine:     make(chan Emit),
+		mine:     make(chan Emit, 1),
 		settings: settings,
 		internal: internal,
+		state:    state,
 	}
 }
 
@@ -135,7 +114,12 @@ func (a *SchedulerImpl) Mine() chan Emit {
 	return a.mine
 }
 
-func (a *SchedulerImpl) Init(state state.State) {
+func (a *SchedulerImpl) Reschedule() {
+	if len(a.keyPairs) == 0 {
+		return
+	}
+	state := a.state
+
 	mu := state.Mutex()
 	mu.RLock()
 
@@ -154,15 +138,15 @@ func (a *SchedulerImpl) Init(state state.State) {
 	}
 
 	mu.RUnlock()
-	go a.Reschedule(state, block, h)
+	a.reschedule(state, block, h)
 }
 
-func (a *SchedulerImpl) Reschedule(state state.State, confirmedBlock *proto.Block, confirmedBlockHeight uint64) {
-	a.mu.Lock()
-	defer a.mu.Unlock()
+func (a *SchedulerImpl) reschedule(state state.State, confirmedBlock *proto.Block, confirmedBlockHeight uint64) {
 	if len(a.keyPairs) == 0 {
 		return
 	}
+	a.mu.Lock()
+	defer a.mu.Unlock()
 
 	// stop previous timeouts
 	for _, cancel := range a.cancel {
@@ -170,7 +154,7 @@ func (a *SchedulerImpl) Reschedule(state state.State, confirmedBlock *proto.Bloc
 	}
 	a.cancel = nil
 
-	emits := a.internal.schedule(state, a.keyPairs, a.settings.Type, a.settings.AverageBlockDelaySeconds, confirmedBlock, confirmedBlockHeight)
+	emits := a.internal.schedule(state, a.keyPairs, a.settings.AddressSchemeCharacter, a.settings.AverageBlockDelaySeconds, confirmedBlock, confirmedBlockHeight)
 	a.emits = emits
 
 	now := proto.NewTimestampFromTime(time.Now())
@@ -186,37 +170,10 @@ func (a *SchedulerImpl) Reschedule(state state.State, confirmedBlock *proto.Bloc
 			a.mine <- emit
 		}
 	}
+}
 
-	//if confirmedBlock.Timestamp+delay > now { // timestamp in future
-	// delta from now to future
-	//timeout := confirmedBlock.Timestamp + delay - now
-	// start timeout before emit mine
-	//keyPair_ := keyPair // ensure passed correct value
-	//cancel := cancellable.After(time.Duration(timeout)*time.Millisecond, func() {
-	//out = append(out, Emit{
-	//	Timestamp:            confirmedBlock.Timestamp + delay,
-	//	KeyPair:              keyPair,
-	//	GenSignature:         genSig,
-	//	BaseTarget:           baseTarget,
-	//	ParentBlockSignature: confirmedBlock.BlockSignature,
-	//})
-	//})
-	//a.cancel = append(a.cancel, cancel)
-	//} else {
-	//	out = <- Emit{
-	//		Timestamp:            confirmedBlock.Timestamp + delay,
-	//		KeyPair:              keyPair,
-	//		GenSignature:         genSig,
-	//		BaseTarget:           baseTarget,
-	//		ParentBlockSignature: confirmedBlock.BlockSignature,
-	//	}
-	//}
-
-	////
-	//parentBlock, err := state.BlockByHeight(height - 1)
-	//if err != nil {
-	//	zap.S().Error(err)
-	//	return
-	//}
-
+func (a *SchedulerImpl) Emits() []Emit {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.emits
 }

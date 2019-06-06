@@ -30,6 +30,12 @@ type Iterator interface {
 	Release()
 }
 
+func SafeKey(iter Iterator) []byte {
+	key := make([]byte, len(iter.Key()))
+	copy(key[:], iter.Key())
+	return key
+}
+
 type IterableKeyVal interface {
 	KeyValue
 	NewKeyIterator(prefix []byte) (Iterator, error)

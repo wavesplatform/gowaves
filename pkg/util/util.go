@@ -2,11 +2,11 @@
 package util
 
 import (
-	"go.uber.org/zap"
 	"os"
 	"time"
 
 	"github.com/pkg/errors"
+	"go.uber.org/zap"
 )
 
 // Safe sum for int64.

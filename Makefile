@@ -87,6 +87,14 @@ build-node-windows:
 
 release-node: ver build-node-linux build-node-darwin build-node-windows
 
+build-custom-linux:
+	@CGO_ENABLE=0 GOOS=linux GOARCH=amd64 go build -o build/bin/linux-amd64/custom ./cmd/custom
+build-custom-darwin:
+	@CGO_ENABLE=0 GOOS=darwin GOARCH=amd64 go build -o build/bin/darwin-amd64/custom ./cmd/custom
+build-custom-windows:
+	@CGO_ENABLE=0 GOOS=windows GOARCH=amd64 go build -o build/bin/windows-amd64/custom.exe ./cmd/custom
+
+build-custom: ver build-custom-linux build-custom-darwin build-custom-windows
 
 build-docker:
 	docker build -t com.wavesplatform/node-it:latest .

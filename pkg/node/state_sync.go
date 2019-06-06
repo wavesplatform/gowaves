@@ -59,8 +59,6 @@ func (a *StateSync) Sync() error {
 		zap.S().Info("timeout waiting &proto.SignaturesMessage{}")
 		return TimeoutErr
 	case received := <-messCh:
-
-		zap.S().Info("received signatures", received)
 		mess := received.(*proto.SignaturesMessage)
 		downloadSignatures(mess, sigs, p, a.subscribe, a.blockApplier)
 	}
@@ -185,8 +183,6 @@ func downloadSignatures(receivedSignatures *proto.SignaturesMessage, blockSignat
 			p.SendMessage(&proto.GetBlockMessage{BlockID: sigs[i]})
 		})
 
-		zap.S().Info("waiting for sig  ", sigs[i])
-
 		select {
 		case <-timeout:
 			// TODO HANDLE timeout
@@ -196,24 +192,11 @@ func downloadSignatures(receivedSignatures *proto.SignaturesMessage, blockSignat
 
 		case bts := <-ch:
 			cancel()
-
-			//blockApplier := NewBlockApplier(stateManager, peerManager, scheduler)
 			err := applier.ApplyBytes(bts)
-
-			//err := stateManager.AddBlock(bts)
 			if err != nil {
 				zap.S().Error(err)
 				continue
 			}
-
-			//cur, err := stateManager.CurrentScore()
-			//if err == nil {
-			//	peerManager.EachConnected(func(peer Peer, i *big.Int) {
-			//		peer.SendMessage(&proto.ScoreMessage{
-			//			Score: cur.Bytes(),
-			//		})
-			//	})
-			//}
 		}
 	}
 }

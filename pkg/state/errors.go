@@ -1,14 +1,13 @@
 package state
 
-import "github.com/wavesplatform/gowaves/pkg/keyvalue"
-
-type StateErrorType byte
+type ErrorType byte
 
 const (
 	// Unmarshal error of block or transaction.
-	DeserializationError StateErrorType = iota + 1
+	DeserializationError ErrorType = iota + 1
+	NotFoundError
 	TxValidationError
-	BlockValidationError
+	ValidationError
 	RollbackError
 	// Errors occurring while getting data from database.
 	RetrievalError
@@ -22,25 +21,16 @@ const (
 )
 
 type StateError struct {
-	errorType     StateErrorType
+	errorType     ErrorType
 	originalError error
 }
 
-func NewStateError(errorType StateErrorType, originalError error) StateError {
+func NewStateError(errorType ErrorType, originalError error) StateError {
 	return StateError{errorType: errorType, originalError: originalError}
 }
 
 func (err StateError) Error() string {
 	return err.originalError.Error()
-}
-
-func ErrorType(err error) StateErrorType {
-	switch e := err.(type) {
-	case StateError:
-		return e.errorType
-	default:
-		return 0
-	}
 }
 
 func IsNotFound(err error) bool {
@@ -51,5 +41,5 @@ func IsNotFound(err error) bool {
 	if !ok {
 		return false
 	}
-	return keyvalue.ErrNotFound == s.originalError
+	return s.errorType == NotFoundError
 }
