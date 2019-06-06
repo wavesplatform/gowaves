@@ -196,7 +196,7 @@ func (a *Node) SyncState() {
 		err := a.sync.Sync()
 		if err != nil {
 			// wait only on errors
-			time.Sleep(5 * time.Second)
+			time.Sleep(500 * time.Millisecond)
 		}
 	}
 }
