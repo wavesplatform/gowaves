@@ -2,7 +2,6 @@ package node
 
 import (
 	"context"
-	"math/big"
 	"time"
 
 	"github.com/pkg/errors"
