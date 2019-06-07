@@ -324,3 +324,21 @@ func TestStateManager_SavePeers(t *testing.T) {
 	require.NoError(t, err)
 	assert.Len(t, peers2, 2)
 }
+
+func TestStateManager_Mutex(t *testing.T) {
+	dataDir, err := ioutil.TempDir(os.TempDir(), "dataDir")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir for data: %v\n", err)
+	}
+	defer os.RemoveAll(dataDir)
+
+	manager, err := newStateManager(dataDir, DefaultStateParams(), settings.MainNetSettings)
+	if err != nil {
+		t.Fatalf("Failed to create state manager: %v.\n", err)
+	}
+	defer manager.Close()
+
+	mu := manager.Mutex()
+	mu.Lock()
+	mu.Unlock()
+}

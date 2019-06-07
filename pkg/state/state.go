@@ -168,6 +168,7 @@ func newStateManager(dataDir string, params StateParams, settings *settings.Bloc
 		settings:                  settings,
 		peers:                     newPeerStorage(db),
 		verificationGoroutinesNum: params.VerificationGoroutinesNum,
+		mu:                        &sync.RWMutex{},
 	}
 	// Set fields which depend on state.
 	// Consensus validator is needed to check block headers.
