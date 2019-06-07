@@ -53,13 +53,14 @@ func genesisFilePath(s *settings.BlockchainSettings) (string, error) {
 }
 
 type blockchainEntitiesStorage struct {
-	hs       *historyStorage
-	aliases  *aliases
-	assets   *assets
-	leases   *leases
-	scores   *scores
-	balances *balances
-	features *features
+	hs         *historyStorage
+	aliases    *aliases
+	assets     *assets
+	leases     *leases
+	scores     *scores
+	blocksInfo *blocksInfo
+	balances   *balances
+	features   *features
 }
 
 func newBlockchainEntitiesStorage(hs *historyStorage, sets *settings.BlockchainSettings) (*blockchainEntitiesStorage, error) {
@@ -79,6 +80,10 @@ func newBlockchainEntitiesStorage(hs *historyStorage, sets *settings.BlockchainS
 	if err != nil {
 		return nil, err
 	}
+	blocksInfo, err := newBlocksInfo(hs.db, hs.dbBatch)
+	if err != nil {
+		return nil, err
+	}
 	balances, err := newBalances(hs.db, hs)
 	if err != nil {
 		return nil, err
@@ -87,7 +92,7 @@ func newBlockchainEntitiesStorage(hs *historyStorage, sets *settings.BlockchainS
 	if err != nil {
 		return nil, err
 	}
-	return &blockchainEntitiesStorage{hs, aliases, assets, leases, scores, balances, features}, nil
+	return &blockchainEntitiesStorage{hs, aliases, assets, leases, scores, blocksInfo, balances, features}, nil
 }
 
 func (s *blockchainEntitiesStorage) reset() {
@@ -252,7 +257,7 @@ func (s *stateManager) addGenesisBlock() error {
 		return err
 	}
 	close(chans.tasksChan)
-	if err := tv.validateTransactions(true, true); err != nil {
+	if err := tv.validateBalanceChanges(true, true); err != nil {
 		return err
 	}
 	verifyError := <-chans.errChan
@@ -474,9 +479,11 @@ func (s *stateManager) addFeaturesVotes(block *proto.Block) error {
 }
 
 func (s *stateManager) addNewBlock(tv *transactionValidator, block, parent *proto.Block, initialisation bool, chans *verifierChans) error {
+	// Add ID of new block to in-memory IDs storage.
 	if err := s.rb.addNewBlockID(block.BlockSignature); err != nil {
 		return err
 	}
+	// Add ID of new block to the list of valid IDs.
 	if err := s.stateDB.addBlock(block.BlockSignature); err != nil {
 		return err
 	}
@@ -484,26 +491,28 @@ func (s *stateManager) addNewBlock(tv *transactionValidator, block, parent *prot
 	if err := s.rw.startBlock(block.BlockSignature); err != nil {
 		return err
 	}
-	// Save block header to storage.
 	headerBytes, err := block.MarshalHeaderToBinary()
 	if err != nil {
 		return err
 	}
+	// Save block header to storage.
 	if err := s.rw.writeBlockHeader(block.BlockSignature, headerBytes); err != nil {
 		return err
 	}
-	transactions := block.Transactions
-	// Validate transactions.
+	transactionsBytes := block.Transactions
+	var transactions []proto.Transaction
 	for i := 0; i < block.TransactionCount; i++ {
-		n := int(binary.BigEndian.Uint32(transactions[0:4]))
-		if n+4 > len(transactions) {
+		n := int(binary.BigEndian.Uint32(transactionsBytes[0:4]))
+		if n+4 > len(transactionsBytes) {
 			return errors.New("invalid tx size: exceeds bytes slice bounds")
 		}
-		txBytes := transactions[4 : n+4]
+		txBytes := transactionsBytes[4 : n+4]
 		tx, err := proto.BytesToTransaction(txBytes)
 		if err != nil {
 			return err
 		}
+		transactions = append(transactions, tx)
+		// Send transaction for signature/data verification.
 		task := &verifyTask{
 			taskType: verifyTx,
 			tx:       tx,
@@ -514,31 +523,35 @@ func (s *stateManager) addNewBlock(tv *transactionValidator, block, parent *prot
 		case chans.tasksChan <- task:
 		}
 		// Save transaction to storage.
-		if err := s.rw.writeTransaction(tx.GetID(), transactions[:n+4]); err != nil {
+		if err := s.rw.writeTransaction(tx.GetID(), transactionsBytes[:n+4]); err != nil {
 			return err
 		}
-		parentTimestamp := uint64(0)
-		if parent != nil {
-			parentTimestamp = parent.Timestamp
-		}
-		// Validate transaction against state.
-		info := &txValidationInfo{
-			perform:          true,
-			initialisation:   initialisation,
-			validate:         false,
-			currentTimestamp: block.Timestamp,
-			parentTimestamp:  parentTimestamp,
-			minerPK:          block.GenPublicKey,
-			blockID:          block.BlockSignature,
-		}
-		if err = tv.addTxForValidation(tx, info); err != nil {
-			return err
-		}
-		transactions = transactions[4+n:]
+		transactionsBytes = transactionsBytes[4+n:]
+	}
+	// Handle transactions validation against state.
+	parentTimestamp := uint64(0)
+	parentSig := crypto.Signature{}
+	if parent != nil {
+		parentTimestamp = parent.Timestamp
+		parentSig = parent.BlockSignature
+	}
+	info := &txValidationInfo{
+		perform:          true,
+		initialisation:   initialisation,
+		validate:         false,
+		currentTimestamp: block.Timestamp,
+		parentTimestamp:  parentTimestamp,
+		minerPK:          block.GenPublicKey,
+		blockID:          block.BlockSignature,
+		prevBlockID:      parentSig,
+	}
+	if err = tv.createTransactionsDiffs(transactions, info); err != nil {
+		return err
 	}
 	if err := s.rw.finishBlock(block.BlockSignature); err != nil {
 		return err
 	}
+	// Count features votes.
 	if err := s.addFeaturesVotes(block); err != nil {
 		return err
 	}
@@ -836,7 +849,7 @@ func (s *stateManager) addBlocks(blocks [][]byte, initialisation bool) error {
 		parent = &block
 	}
 	close(chans.tasksChan)
-	if err := tv.validateTransactions(initialisation, true); err != nil {
+	if err := tv.validateBalanceChanges(initialisation, true); err != nil {
 		return StateError{errorType: TxValidationError, originalError: err}
 	}
 	if err := s.cv.ValidateHeaders(headers[:len(headers)-len(blocksToFinish)], height); err != nil {
@@ -909,6 +922,9 @@ func (s *stateManager) rollbackToImpl(removalEdge crypto.Signature) error {
 			break
 		}
 		if err := s.stateDB.rollbackBlock(blockID); err != nil {
+			return StateError{errorType: RollbackError, originalError: err}
+		}
+		if err := s.stor.blocksInfo.rollback(blockID); err != nil {
 			return StateError{errorType: RollbackError, originalError: err}
 		}
 	}
@@ -992,7 +1008,7 @@ func (s *stateManager) ValidateSingleTx(tx proto.Transaction, currentTimestamp, 
 		currentTimestamp: currentTimestamp,
 		parentTimestamp:  parentTimestamp,
 	}
-	if err := s.standaloneTv.addTxForValidation(tx, info); err != nil {
+	if err := s.standaloneTv.createTxDiffs(tx, info); err != nil {
 		return StateError{errorType: TxValidationError, originalError: err}
 	}
 	s.standaloneTv.reset()
@@ -1014,7 +1030,7 @@ func (s *stateManager) ValidateNextTx(tx proto.Transaction, currentTimestamp, pa
 		currentTimestamp: currentTimestamp,
 		parentTimestamp:  parentTimestamp,
 	}
-	if err := s.multiTxTv.addTxForValidation(tx, info); err != nil {
+	if err := s.multiTxTv.createTxDiffs(tx, info); err != nil {
 		return StateError{errorType: TxValidationError, originalError: err}
 	}
 	return nil

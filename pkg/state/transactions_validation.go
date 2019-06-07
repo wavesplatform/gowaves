@@ -15,6 +15,10 @@ import (
 const (
 	// priceConstant is used for exchange calculations.
 	priceConstant = 10e7
+	// ngCurrentBlockFeePercentage is percentage of fees miner gets from the current block after activating NG (40%).
+	// It is represented as (2 / 5), to make it compatible with Scala implementation.
+	ngCurrentBlockFeePercentageDivider  = 5
+	ngCurrentBlockFeePercentageDividend = 2
 )
 
 func byteKey(addr proto.Address, assetID []byte) []byte {
@@ -37,13 +41,13 @@ type balanceDiff struct {
 	allowTempNegative   bool
 	allowLeasedTransfer bool
 	// Balance change.
-	balance             int64
+	balance int64
 	// LeaseIn change.
-	leaseIn             int64
+	leaseIn int64
 	// LeaseOut change.
-	leaseOut            int64
+	leaseOut int64
 	// blockID when this change takes place.
-	blockID             crypto.Signature
+	blockID crypto.Signature
 }
 
 // spendableBalanceDiff() returns the difference of spendable balance which given diff produces.
@@ -118,7 +122,7 @@ type balanceChanges struct {
 // newBalanceChanges() constructs new balanceChanges from the first change.
 func newBalanceChanges(change balanceChange, canBeMin bool) *balanceChanges {
 	changes := &balanceChanges{key: change.key, balanceDiffs: []balanceDiff{change.diff}}
-	if canBeMin {
+	if canBeMin && !change.diff.allowTempNegative {
 		changes.minBalanceDiff = change.diff
 	}
 	return changes
@@ -410,10 +414,15 @@ type txValidationInfo struct {
 	parentTimestamp  uint64
 	minerPK          crypto.PublicKey
 	blockID          crypto.Signature
+	prevBlockID      crypto.Signature
 }
 
 func (i *txValidationInfo) hasMiner() bool {
 	return i.minerPK != (crypto.PublicKey{})
+}
+
+func (i *txValidationInfo) hasPrevBlock() bool {
+	return i.prevBlockID != (crypto.Signature{})
 }
 
 type transactionValidator struct {
@@ -421,6 +430,9 @@ type transactionValidator struct {
 	changesStor *changesStorage
 	stor        *blockchainEntitiesStorage
 	settings    *settings.BlockchainSettings
+	// Current block's fee distribution.
+	curDistr  feeDistribution
+	blockFees map[crypto.Signature]feeDistribution
 }
 
 func newTransactionValidator(
@@ -437,7 +449,45 @@ func newTransactionValidator(
 		changesStor: changesStor,
 		stor:        stor,
 		settings:    settings,
+		curDistr:    newFeeDistribution(),
+		blockFees:   make(map[crypto.Signature]feeDistribution),
 	}, nil
+}
+
+func (tv *transactionValidator) calculateCurrentBlockTxFee(txFee uint64) (uint64, error) {
+	ngActivated, err := tv.stor.features.isActivated(int16(settings.NG))
+	if err != nil {
+		return 0, err
+	}
+	if ngActivated {
+		return txFee / ngCurrentBlockFeePercentageDivider * ngCurrentBlockFeePercentageDividend, nil
+	}
+	return txFee, nil
+}
+
+func (tv *transactionValidator) prevBlockFeeDistr(prevBlock crypto.Signature) (*feeDistribution, error) {
+	ngActivated, err := tv.stor.features.isActivated(int16(settings.NG))
+	if err != nil {
+		return nil, err
+	}
+	if !ngActivated {
+		// If NG is not activated, miner does not get any fees from the previous block.
+		return &feeDistribution{}, nil
+	}
+	ngActivationBlock, err := tv.stor.features.activationBlock(int16(settings.NG))
+	if err != nil {
+		return nil, err
+	}
+	if bytes.Compare(prevBlock[:], ngActivationBlock[:]) == 0 {
+		// If the last block in current state is the NG activation block,
+		// miner does not get any fees from this (last) block, because it was all taken by the last non-NG miner.
+		return &feeDistribution{}, nil
+	}
+	if distr, ok := tv.blockFees[prevBlock]; ok {
+		return &distr, nil
+	}
+	// Load from DB.
+	return tv.stor.blocksInfo.feeDistribution(prevBlock)
 }
 
 func (tv *transactionValidator) checkFromFuture(timestamp uint64) bool {
@@ -478,6 +528,33 @@ func (tv *transactionValidator) pushChanges(changes []balanceChange, info *txVal
 	return nil
 }
 
+func (tv *transactionValidator) minerPayout(fee uint64, minerPK crypto.PublicKey, feeAsset []byte) (*balanceChange, error) {
+	minerAddr, err := proto.NewAddressFromPublicKey(tv.settings.AddressSchemeCharacter, minerPK)
+	if err != nil {
+		return nil, err
+	}
+	minerKey := byteKey(minerAddr, feeAsset)
+	minerBalanceDiff, err := tv.calculateCurrentBlockTxFee(fee)
+	if err != nil {
+		return nil, err
+	}
+	// Append miner balance change to the list of changes.
+	minerChange := &balanceChange{minerKey, balanceDiff{balance: int64(minerBalanceDiff)}}
+	// Count fees.
+	if feeAsset == nil {
+		tv.curDistr.totalWavesFees += fee
+		tv.curDistr.currentWavesBlockFees += minerBalanceDiff
+	} else {
+		assetID, err := crypto.NewDigestFromBytes(feeAsset)
+		if err != nil {
+			return nil, err
+		}
+		tv.curDistr.totalFees[assetID] += fee
+		tv.curDistr.currentBlockFees[assetID] += minerBalanceDiff
+	}
+	return minerChange, nil
+}
+
 func (tv *transactionValidator) validateGenesis(tx *proto.Genesis, info *txValidationInfo) (bool, error) {
 	if info.blockID != tv.genesis {
 		return false, errors.New("genesis transaction inside of non-genesis block")
@@ -513,14 +590,11 @@ func (tv *transactionValidator) validatePayment(tx *proto.Payment, info *txValid
 	receiverBalanceDiff := int64(tx.Amount)
 	changes[1] = balanceChange{receiverKey.bytes(), balanceDiff{balance: receiverBalanceDiff}}
 	if info.hasMiner() {
-		// Update miner.
-		minerAddr, err := proto.NewAddressFromPublicKey(tv.settings.AddressSchemeCharacter, info.minerPK)
+		minerChange, err := tv.minerPayout(tx.Fee, info.minerPK, nil)
 		if err != nil {
-			return false, err
+			return false, errors.Wrap(err, "failed to calculate miner payout")
 		}
-		minerKey := wavesBalanceKey{address: minerAddr}
-		minerBalanceDiff := int64(tx.Fee)
-		changes = append(changes, balanceChange{minerKey.bytes(), balanceDiff{balance: minerBalanceDiff}})
+		changes = append(changes, *minerChange)
 	}
 	if err := tv.pushChanges(changes, info); err != nil {
 		return false, err
@@ -575,14 +649,11 @@ func (tv *transactionValidator) validateTransfer(tx *proto.Transfer, info *txVal
 	receiverBalanceDiff := int64(tx.Amount)
 	changes[2] = balanceChange{receiverKey, balanceDiff{balance: receiverBalanceDiff}}
 	if info.hasMiner() {
-		// Update miner.
-		minerAddr, err := proto.NewAddressFromPublicKey(tv.settings.AddressSchemeCharacter, info.minerPK)
+		minerChange, err := tv.minerPayout(tx.Fee, info.minerPK, tx.FeeAsset.ToID())
 		if err != nil {
-			return false, err
+			return false, errors.Wrap(err, "failed to calculate miner payout")
 		}
-		minerKey := byteKey(minerAddr, tx.FeeAsset.ToID())
-		minerBalanceDiff := int64(tx.Fee)
-		changes = append(changes, balanceChange{minerKey, balanceDiff{balance: minerBalanceDiff}})
+		changes = append(changes, *minerChange)
 	}
 	if err := tv.pushChanges(changes, info); err != nil {
 		return false, err
@@ -629,14 +700,11 @@ func (tv *transactionValidator) validateIssue(tx *proto.Issue, id []byte, info *
 	senderAssetBalanceDiff := int64(tx.Quantity)
 	changes[1] = balanceChange{senderAssetKey.bytes(), balanceDiff{balance: senderAssetBalanceDiff}}
 	if info.hasMiner() {
-		// Update miner.
-		minerAddr, err := proto.NewAddressFromPublicKey(tv.settings.AddressSchemeCharacter, info.minerPK)
+		minerChange, err := tv.minerPayout(tx.Fee, info.minerPK, nil)
 		if err != nil {
-			return false, err
+			return false, errors.Wrap(err, "failed to calculate miner payout")
 		}
-		minerKey := byteKey(minerAddr, nil)
-		minerBalanceDiff := int64(tx.Fee)
-		changes = append(changes, balanceChange{minerKey, balanceDiff{balance: minerBalanceDiff}})
+		changes = append(changes, *minerChange)
 	}
 	if err := tv.pushChanges(changes, info); err != nil {
 		return false, err
@@ -680,14 +748,11 @@ func (tv *transactionValidator) validateReissue(tx *proto.Reissue, info *txValid
 	senderAssetBalanceDiff := int64(tx.Quantity)
 	changes[1] = balanceChange{senderAssetKey.bytes(), balanceDiff{balance: senderAssetBalanceDiff}}
 	if info.hasMiner() {
-		// Update miner.
-		minerAddr, err := proto.NewAddressFromPublicKey(tv.settings.AddressSchemeCharacter, info.minerPK)
+		minerChange, err := tv.minerPayout(tx.Fee, info.minerPK, nil)
 		if err != nil {
-			return false, err
+			return false, errors.Wrap(err, "failed to calculate miner payout")
 		}
-		minerKey := byteKey(minerAddr, nil)
-		minerBalanceDiff := int64(tx.Fee)
-		changes = append(changes, balanceChange{minerKey, balanceDiff{balance: minerBalanceDiff}})
+		changes = append(changes, *minerChange)
 	}
 	if err := tv.pushChanges(changes, info); err != nil {
 		return false, err
@@ -722,14 +787,11 @@ func (tv *transactionValidator) validateBurn(tx *proto.Burn, info *txValidationI
 	senderAssetBalanceDiff := -int64(tx.Amount)
 	changes[1] = balanceChange{senderAssetKey.bytes(), balanceDiff{balance: senderAssetBalanceDiff}}
 	if info.hasMiner() {
-		// Update miner.
-		minerAddr, err := proto.NewAddressFromPublicKey(tv.settings.AddressSchemeCharacter, info.minerPK)
+		minerChange, err := tv.minerPayout(tx.Fee, info.minerPK, nil)
 		if err != nil {
-			return false, err
+			return false, errors.Wrap(err, "failed to calculate miner payout")
 		}
-		minerKey := byteKey(minerAddr, nil)
-		minerBalanceDiff := int64(tx.Fee)
-		changes = append(changes, balanceChange{minerKey, balanceDiff{balance: minerBalanceDiff}})
+		changes = append(changes, *minerChange)
 	}
 	if err := tv.pushChanges(changes, info); err != nil {
 		return false, err
@@ -804,14 +866,11 @@ func (tv *transactionValidator) validateExchange(tx proto.Exchange, info *txVali
 	matcherBalanceDiff := matcherFee - int64(tx.GetFee())
 	changes[6] = balanceChange{matcherKey.bytes(), balanceDiff{allowTempNegative: true, balance: matcherBalanceDiff}}
 	if info.hasMiner() {
-		// Update miner.
-		minerAddr, err := proto.NewAddressFromPublicKey(tv.settings.AddressSchemeCharacter, info.minerPK)
+		minerChange, err := tv.minerPayout(tx.GetFee(), info.minerPK, nil)
 		if err != nil {
-			return false, err
+			return false, errors.Wrap(err, "failed to calculate miner payout")
 		}
-		minerKey := byteKey(minerAddr, nil)
-		minerBalanceDiff := int64(tx.GetFee())
-		changes = append(changes, balanceChange{minerKey, balanceDiff{allowTempNegative: true, balance: minerBalanceDiff}})
+		changes = append(changes, *minerChange)
 	}
 	if err := tv.pushChanges(changes, info); err != nil {
 		return false, err
@@ -851,14 +910,11 @@ func (tv *transactionValidator) validateLease(tx *proto.Lease, id *crypto.Digest
 	receiverLeaseInDiff := int64(tx.Amount)
 	changes[2] = balanceChange{receiverKey.bytes(), balanceDiff{leaseIn: receiverLeaseInDiff}}
 	if info.hasMiner() {
-		// Update miner.
-		minerAddr, err := proto.NewAddressFromPublicKey(tv.settings.AddressSchemeCharacter, info.minerPK)
+		minerChange, err := tv.minerPayout(tx.Fee, info.minerPK, nil)
 		if err != nil {
-			return false, err
+			return false, errors.Wrap(err, "failed to calculate miner payout")
 		}
-		minerKey := wavesBalanceKey{address: minerAddr}
-		minerBalanceDiff := int64(tx.Fee)
-		changes = append(changes, balanceChange{minerKey.bytes(), balanceDiff{balance: minerBalanceDiff}})
+		changes = append(changes, *minerChange)
 	}
 	if err := tv.pushChanges(changes, info); err != nil {
 		return false, err
@@ -911,14 +967,11 @@ func (tv *transactionValidator) validateLeaseCancel(tx *proto.LeaseCancel, info 
 	receiverLeaseInDiff := -int64(l.leaseAmount)
 	changes[2] = balanceChange{receiverKey.bytes(), balanceDiff{leaseIn: receiverLeaseInDiff}}
 	if info.hasMiner() {
-		// Update miner.
-		minerAddr, err := proto.NewAddressFromPublicKey(tv.settings.AddressSchemeCharacter, info.minerPK)
+		minerChange, err := tv.minerPayout(tx.Fee, info.minerPK, nil)
 		if err != nil {
-			return false, err
+			return false, errors.Wrap(err, "failed to calculate miner payout")
 		}
-		minerKey := wavesBalanceKey{address: minerAddr}
-		minerBalanceDiff := int64(tx.Fee)
-		changes = append(changes, balanceChange{minerKey.bytes(), balanceDiff{balance: minerBalanceDiff}})
+		changes = append(changes, *minerChange)
 	}
 	if err := tv.pushChanges(changes, info); err != nil {
 		return false, err
@@ -954,14 +1007,11 @@ func (tv *transactionValidator) validateCreateAlias(tx *proto.CreateAlias, info 
 	senderFeeBalanceDiff := -int64(tx.Fee)
 	changes[0] = balanceChange{senderFeeKey.bytes(), balanceDiff{balance: senderFeeBalanceDiff}}
 	if info.hasMiner() {
-		// Update miner.
-		minerAddr, err := proto.NewAddressFromPublicKey(tv.settings.AddressSchemeCharacter, info.minerPK)
+		minerChange, err := tv.minerPayout(tx.Fee, info.minerPK, nil)
 		if err != nil {
-			return false, err
+			return false, errors.Wrap(err, "failed to calculate miner payout")
 		}
-		minerKey := byteKey(minerAddr, nil)
-		minerBalanceDiff := int64(tx.Fee)
-		changes = append(changes, balanceChange{minerKey, balanceDiff{balance: minerBalanceDiff}})
+		changes = append(changes, *minerChange)
 	}
 	if err := tv.pushChanges(changes, info); err != nil {
 		return false, err
@@ -969,7 +1019,7 @@ func (tv *transactionValidator) validateCreateAlias(tx *proto.CreateAlias, info 
 	return true, nil
 }
 
-func (tv *transactionValidator) addTxForValidation(tx proto.Transaction, info *txValidationInfo) error {
+func (tv *transactionValidator) createTxDiffs(tx proto.Transaction, info *txValidationInfo) error {
 	switch v := tx.(type) {
 	case *proto.Genesis:
 		if ok, err := tv.validateGenesis(v, info); !ok {
@@ -1049,10 +1099,78 @@ func (tv *transactionValidator) addTxForValidation(tx proto.Transaction, info *t
 	return nil
 }
 
-func (tv *transactionValidator) validateTransactions(initialisation, perform bool) error {
-	return tv.changesStor.validateBalancesChanges(!initialisation, perform)
+func balanceChangesFromFees(addr proto.Address, distr *feeDistribution) ([]balanceChange, error) {
+	var changes []balanceChange
+	wavesKey := wavesBalanceKey{addr}
+	wavesDiff := distr.totalWavesFees - distr.currentWavesBlockFees
+	wavesChange := balanceChange{wavesKey.bytes(), balanceDiff{balance: int64(wavesDiff)}}
+	changes = append(changes, wavesChange)
+	for asset, totalFee := range distr.totalFees {
+		curFee, ok := distr.currentBlockFees[asset]
+		if !ok {
+			return nil, errors.New("current fee for asset is not found")
+		}
+		assetKey := byteKey(addr, asset[:])
+		assetDiff := totalFee - curFee
+		assetChange := balanceChange{assetKey, balanceDiff{balance: int64(assetDiff)}}
+		changes = append(changes, assetChange)
+	}
+	return changes, nil
+}
+
+func (tv *transactionValidator) createPrevBlockMinerFeeDiffs(info *txValidationInfo) error {
+	if !info.hasPrevBlock() || !info.hasMiner() {
+		return nil
+	}
+	feeDistr, err := tv.prevBlockFeeDistr(info.prevBlockID)
+	if err != nil {
+		return err
+	}
+	// Update miner.
+	minerAddr, err := proto.NewAddressFromPublicKey(tv.settings.AddressSchemeCharacter, info.minerPK)
+	if err != nil {
+		return err
+	}
+	changes, err := balanceChangesFromFees(minerAddr, feeDistr)
+	if err != nil {
+		return err
+	}
+	if err := tv.pushChanges(changes, info); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (tv *transactionValidator) createTransactionsDiffs(transactions []proto.Transaction, info *txValidationInfo) error {
+	if err := tv.createPrevBlockMinerFeeDiffs(info); err != nil {
+		return err
+	}
+	for _, tx := range transactions {
+		if err := tv.createTxDiffs(tx, info); err != nil {
+			return err
+		}
+	}
+	// Save fee distribution.
+	tv.blockFees[info.blockID] = tv.curDistr
+	// Reset current block fee distribution.
+	tv.curDistr = newFeeDistribution()
+	return nil
+}
+
+func (tv *transactionValidator) validateBalanceChanges(initialisation, perform bool) error {
+	if err := tv.changesStor.validateBalancesChanges(!initialisation, perform); err != nil {
+		return err
+	}
+	for blockID, distr := range tv.blockFees {
+		if err := tv.stor.blocksInfo.saveFeeDistribution(blockID, &distr); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (tv *transactionValidator) reset() {
 	tv.changesStor.reset()
+	tv.curDistr = newFeeDistribution()
+	tv.blockFees = make(map[crypto.Signature]feeDistribution)
 }

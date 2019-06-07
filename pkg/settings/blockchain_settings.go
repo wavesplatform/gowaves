@@ -49,7 +49,7 @@ type FunctionalitySettings struct {
 }
 
 func (f *FunctionalitySettings) VotesForFeatureElection(height uint64) uint64 {
-	if height >= f.DoubleFeaturesPeriodsAfterHeight {
+	if height > f.DoubleFeaturesPeriodsAfterHeight {
 		return f.VotesForFeatureActivation * 2
 	} else {
 		return f.VotesForFeatureActivation
@@ -57,7 +57,7 @@ func (f *FunctionalitySettings) VotesForFeatureElection(height uint64) uint64 {
 }
 
 func (f *FunctionalitySettings) ActivationWindowSize(height uint64) uint64 {
-	if height >= f.DoubleFeaturesPeriodsAfterHeight {
+	if height > f.DoubleFeaturesPeriodsAfterHeight {
 		return f.FeaturesVotingPeriod * 2
 	} else {
 		return f.FeaturesVotingPeriod

@@ -25,7 +25,7 @@ type FeatureInfo struct {
 
 var FeaturesInfo = map[Feature]FeatureInfo{
 	SmallerMinimalGeneratingBalance: {true, "Minimum Generating Balance of 1000 WAVES"},
-	NG:                              {false, "NG Protocol"},
+	NG:                              {true, "NG Protocol"},
 	MassTransfer:                    {false, "Mass Transfer Transaction"},
 	SmartAccounts:                   {false, "Smart Accounts"},
 	DataTransaction:                 {false, "Data Transaction"},

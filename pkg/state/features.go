@@ -181,21 +181,37 @@ func (f *features) isActivated(featureID int16) (bool, error) {
 	return true, nil
 }
 
-func (f *features) activationHeight(featureID int16) (uint64, error) {
+func (f *features) activatedFeaturesRecord(featureID int16) (*activatedFeaturesRecord, error) {
 	key := activatedFeaturesKey{featureID: featureID}
 	keyBytes, err := key.bytes()
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 	recordBytes, err := f.hs.get(activatedFeature, keyBytes, true)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 	var record activatedFeaturesRecord
 	if err := record.unmarshalBinary(recordBytes); err != nil {
+		return nil, err
+	}
+	return &record, nil
+}
+
+func (f *features) activationHeight(featureID int16) (uint64, error) {
+	record, err := f.activatedFeaturesRecord(featureID)
+	if err != nil {
 		return 0, err
 	}
 	return record.activationHeight, nil
+}
+
+func (f *features) activationBlock(featureID int16) (crypto.Signature, error) {
+	record, err := f.activatedFeaturesRecord(featureID)
+	if err != nil {
+		return crypto.Signature{}, err
+	}
+	return record.blockID, nil
 }
 
 func (f *features) printApprovalLog(featureID int16) {
