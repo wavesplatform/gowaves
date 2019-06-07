@@ -44,7 +44,7 @@ type wavesBalanceRecord struct {
 }
 
 func (r *wavesBalanceRecord) marshalBinary() ([]byte, error) {
-	res := make([]byte, 8+8+8+crypto.SignatureSize)
+	res := make([]byte, wavesBalanceRecordSize)
 	binary.BigEndian.PutUint64(res[:8], r.balance)
 	binary.PutVarint(res[8:16], r.leaseIn)
 	binary.PutVarint(res[16:24], r.leaseOut)
@@ -76,7 +76,7 @@ type assetBalanceRecord struct {
 }
 
 func (r *assetBalanceRecord) marshalBinary() ([]byte, error) {
-	res := make([]byte, 8+crypto.SignatureSize)
+	res := make([]byte, assetBalanceRecordSize)
 	binary.BigEndian.PutUint64(res[:8], r.balance)
 	copy(res[8:], r.blockID[:])
 	return res, nil
@@ -89,21 +89,6 @@ func (r *assetBalanceRecord) unmarshalBinary(data []byte) error {
 	r.balance = binary.BigEndian.Uint64(data[:8])
 	copy(r.blockID[:], data[8:])
 	return nil
-}
-
-type blockInfo interface {
-	IsValidBlock(blockID crypto.Signature) (bool, error)
-}
-
-type heightInfo interface {
-	Height() (uint64, error)
-	BlockIDToHeight(blockID crypto.Signature) (uint64, error)
-	RollbackMax() uint64
-}
-
-type heightInfoExt interface {
-	heightInfo
-	NewBlockIDToHeight(blockID crypto.Signature) (uint64, error)
 }
 
 type balances struct {

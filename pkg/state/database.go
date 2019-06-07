@@ -147,6 +147,9 @@ func (s *stateDB) calculateNewRollbackMinHeight(newHeight uint64) (uint64, error
 	if err != nil {
 		return 0, err
 	}
+	if newHeight < prevRollbackMinHeight {
+		return prevRollbackMinHeight, nil
+	}
 	if newHeight-prevRollbackMinHeight < rollbackMaxBlocks {
 		return prevRollbackMinHeight, nil
 	}

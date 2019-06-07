@@ -1,6 +1,7 @@
 package state
 
 import (
+	"bytes"
 	"encoding/binary"
 
 	"github.com/pkg/errors"
@@ -12,6 +13,9 @@ const (
 	// Key sizes.
 	wavesBalanceKeySize = 1 + proto.AddressSize
 	assetBalanceKeySize = 1 + proto.AddressSize + crypto.DigestSize
+
+	approvedFeaturesKeySize = 1 + 2
+	votesFeaturesKeySize    = 1 + 2
 
 	// Balances.
 	wavesBalanceKeyPrefix byte = iota
@@ -45,6 +49,11 @@ const (
 
 	// Aliases.
 	aliasKeyPrefix
+
+	// Features.
+	activatedFeaturesKeyPrefix
+	approvedFeaturesKeyPrefix
+	votesFeaturesKeyPrefix
 )
 
 type wavesBalanceKey struct {
@@ -182,4 +191,71 @@ func (k *aliasKey) bytes() []byte {
 	buf[0] = aliasKeyPrefix
 	copy(buf[1:], aliasBytes[:])
 	return buf
+}
+
+type activatedFeaturesKey struct {
+	featureID int16
+}
+
+func (k *activatedFeaturesKey) bytes() ([]byte, error) {
+	buf := new(bytes.Buffer)
+	if _, err := buf.Write([]byte{activatedFeaturesKeyPrefix}); err != nil {
+		return nil, err
+	}
+	if err := binary.Write(buf, binary.BigEndian, k.featureID); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
+
+type approvedFeaturesKey struct {
+	featureID int16
+}
+
+func (k *approvedFeaturesKey) bytes() ([]byte, error) {
+	buf := new(bytes.Buffer)
+	if _, err := buf.Write([]byte{approvedFeaturesKeyPrefix}); err != nil {
+		return nil, err
+	}
+	if err := binary.Write(buf, binary.BigEndian, k.featureID); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
+
+func (k *approvedFeaturesKey) unmarshal(data []byte) error {
+	if len(data) != approvedFeaturesKeySize {
+		return errors.New("invalid data size")
+	}
+	buf := bytes.NewBuffer(data[1:])
+	if err := binary.Read(buf, binary.BigEndian, &k.featureID); err != nil {
+		return err
+	}
+	return nil
+}
+
+type votesFeaturesKey struct {
+	featureID int16
+}
+
+func (k *votesFeaturesKey) bytes() ([]byte, error) {
+	buf := new(bytes.Buffer)
+	if _, err := buf.Write([]byte{votesFeaturesKeyPrefix}); err != nil {
+		return nil, err
+	}
+	if err := binary.Write(buf, binary.BigEndian, k.featureID); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
+
+func (k *votesFeaturesKey) unmarshal(data []byte) error {
+	if len(data) != votesFeaturesKeySize {
+		return errors.New("invalid data size")
+	}
+	buf := bytes.NewBuffer(data[1:])
+	if err := binary.Read(buf, binary.BigEndian, &k.featureID); err != nil {
+		return err
+	}
+	return nil
 }

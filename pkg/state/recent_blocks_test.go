@@ -1,7 +1,6 @@
 package state
 
 import (
-	"math/rand"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -12,19 +11,6 @@ import (
 var (
 	rangeSize = rollbackMaxBlocks
 )
-
-func genIds(t *testing.T, size int) []crypto.Signature {
-	res := make([]crypto.Signature, size)
-	for i := 0; i < size; i++ {
-		id := make([]byte, crypto.SignatureSize)
-		_, err := rand.Read(id)
-		assert.NoError(t, err, "rand.Read() failed")
-		blockID, err := crypto.NewSignatureFromBytes(id)
-		assert.NoError(t, err, "crypto.NewSignatureFromBytes() failed")
-		res[i] = blockID
-	}
-	return res
-}
 
 type idChecker = func(crypto.Signature) (uint64, error)
 
@@ -51,7 +37,7 @@ func TestIsInRange(t *testing.T) {
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
-	ids := genIds(t, rangeSize)
+	ids := genBlockIds(t, rangeSize)
 	heights := make([]uint64, rangeSize)
 	// Test indirect addition of IDs.
 	for i, id := range ids {

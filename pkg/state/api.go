@@ -1,12 +1,12 @@
 package state
 
 import (
-	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"math/big"
 	"runtime"
 	"sync"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 )
@@ -87,6 +87,12 @@ type State interface {
 	// Create or replace Peers.
 	SavePeers([]proto.TCPAddr) error
 	Peers() ([]proto.TCPAddr, error)
+
+	// Features.
+	IsActivated(featureID int16) (bool, error)
+	ActivationHeight(featureID int16) (uint64, error)
+	IsApproved(featureID int16) (bool, error)
+	ApprovalHeight(featureID int16) (uint64, error)
 
 	Close() error
 }

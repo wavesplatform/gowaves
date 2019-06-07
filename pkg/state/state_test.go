@@ -103,7 +103,7 @@ func TestValidationWithoutBlocks(t *testing.T) {
 	}()
 
 	// Test txs from real block without this block.
-	height := uint64(75)
+	height := proto.Height(75)
 	blocks, err := readRealBlocks(t, blocksPath, int(height+1))
 	assert.NoError(t, err, "readRealBlocks() failed")
 	last := blocks[len(blocks)-1]
@@ -113,6 +113,44 @@ func TestValidationWithoutBlocks(t *testing.T) {
 	assert.NoError(t, err, "ApplyFromFile() failed")
 	err = validateTxs(manager, last.Timestamp, txs)
 	assert.NoError(t, err, "validateTxs() failed")
+}
+
+func TestPreactivatedFeatures(t *testing.T) {
+	blocksPath := blocksPath(t)
+	dataDir, err := ioutil.TempDir(os.TempDir(), "dataDir")
+	assert.NoError(t, err, "failed to create dir for test data")
+	// Set preactivated feature.
+	featureID := int16(1)
+	sets := settings.MainNetSettings
+	sets.PreactivatedFeatures = []int16{featureID}
+	manager, err := newStateManager(dataDir, DefaultStateParams(), sets)
+	assert.NoError(t, err, "newStateManager() failed")
+
+	defer func() {
+		err := manager.Close()
+		assert.NoError(t, err, "manager.Close() failed")
+		err = os.RemoveAll(dataDir)
+		assert.NoError(t, err, "failed to remove test data dirs")
+	}()
+
+	// Check features status.
+	activated, err := manager.IsActivated(featureID)
+	assert.NoError(t, err, "IsActivated() failed")
+	assert.Equal(t, true, activated)
+	approved, err := manager.IsApproved(featureID)
+	assert.NoError(t, err, "IsApproved() failed")
+	assert.Equal(t, true, approved)
+	// Apply blocks.
+	height := uint64(75)
+	err = importer.ApplyFromFile(manager, blocksPath, height, 1, false)
+	assert.NoError(t, err, "ApplyFromFile() failed")
+	// Check activation and approval heights.
+	activationHeight, err := manager.ActivationHeight(featureID)
+	assert.NoError(t, err, "ActivationHeight() failed")
+	assert.Equal(t, uint64(1), activationHeight)
+	approvalHeight, err := manager.ApprovalHeight(featureID)
+	assert.NoError(t, err, "ApprovalHeight() failed")
+	assert.Equal(t, uint64(1), approvalHeight)
 }
 
 func TestStateRollback(t *testing.T) {

@@ -44,7 +44,7 @@ type testObjects struct {
 func createTestObjects(t *testing.T) (*testObjects, []string) {
 	stor, path, err := createStorageObjects()
 	assert.NoError(t, err, "createStorageObjects() failed")
-	entities, err := newBlockchainEntitiesStorage(stor.hs)
+	entities, err := newBlockchainEntitiesStorage(stor.hs, settings.MainNetSettings)
 	assert.NoError(t, err, "newBlockchainEntitiesStorage() failed")
 	genesisSig, err := crypto.NewSignatureFromBase58(genesisSignature)
 	assert.NoError(t, err, "NewSignatureFromBase58() failed")

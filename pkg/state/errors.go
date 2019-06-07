@@ -6,6 +6,7 @@ const (
 	// Unmarshal error of block or transaction.
 	DeserializationError ErrorType = iota + 1
 	NotFoundError
+	SerializationError
 	TxValidationError
 	ValidationError
 	RollbackError
