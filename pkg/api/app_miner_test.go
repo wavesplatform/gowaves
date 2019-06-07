@@ -15,5 +15,5 @@ func TestApp_Miner(t *testing.T) {
 	bts, err := json.Marshal(s)
 	require.NoError(t, err)
 
-	require.Contains(t, string(bts), "2019-06-03T15:30:12+03:00")
+	require.Contains(t, string(bts), "2019-06-03T")
 }
