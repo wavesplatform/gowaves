@@ -1,12 +1,10 @@
-package mainer
+package miner
 
 import (
-	"bytes"
-	"context"
 	"github.com/wavesplatform/gowaves/pkg/consensus"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
-	"github.com/wavesplatform/gowaves/pkg/mainer/scheduler"
-	"github.com/wavesplatform/gowaves/pkg/mainer/utxpool"
+	"github.com/wavesplatform/gowaves/pkg/miner/scheduler"
+	"github.com/wavesplatform/gowaves/pkg/miner/utxpool"
 	"github.com/wavesplatform/gowaves/pkg/node"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/state"
@@ -14,10 +12,12 @@ import (
 	"go.uber.org/atomic"
 	"go.uber.org/zap"
 
+	"bytes"
+	"context"
 	"time"
 )
 
-type Mainer struct {
+type Miner struct {
 	utx       *utxpool.Utx
 	state     state.State
 	peer      node.PeerManager
@@ -25,8 +25,8 @@ type Mainer struct {
 	interrupt *atomic.Bool
 }
 
-func New(utx *utxpool.Utx, state state.State, peer node.PeerManager, scheduler types.Scheduler) *Mainer {
-	return &Mainer{
+func New(utx *utxpool.Utx, state state.State, peer node.PeerManager, scheduler types.Scheduler) *Miner {
+	return &Miner{
 		scheduler: scheduler,
 		utx:       utx,
 		state:     state,
@@ -35,7 +35,7 @@ func New(utx *utxpool.Utx, state state.State, peer node.PeerManager, scheduler t
 	}
 }
 
-func (a *Mainer) Mine(t proto.Timestamp, k proto.KeyPair, parent crypto.Signature, baseTarget consensus.BaseTarget, GenSignature crypto.Digest) {
+func (a *Miner) Mine(t proto.Timestamp, k proto.KeyPair, parent crypto.Signature, baseTarget consensus.BaseTarget, GenSignature crypto.Digest) {
 	a.interrupt.Store(false)
 	defer a.scheduler.Reschedule()
 	lastKnownBlock, err := a.state.Block(parent)
@@ -100,11 +100,11 @@ func (a *Mainer) Mine(t proto.Timestamp, k proto.KeyPair, parent crypto.Signatur
 	}
 }
 
-func (a *Mainer) Interrupt() {
+func (a *Miner) Interrupt() {
 	a.interrupt.Store(true)
 }
 
-func Run(ctx context.Context, a *Mainer, s *scheduler.SchedulerImpl) {
+func Run(ctx context.Context, a *Miner, s *scheduler.SchedulerImpl) {
 	for {
 		select {
 		case <-ctx.Done():

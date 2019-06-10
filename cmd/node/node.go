@@ -4,7 +4,7 @@ import (
 	"context"
 	"github.com/alecthomas/kong"
 	"github.com/wavesplatform/gowaves/pkg/api"
-	"github.com/wavesplatform/gowaves/pkg/mainer/scheduler"
+	"github.com/wavesplatform/gowaves/pkg/miner/scheduler"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"os"
 	"os/signal"

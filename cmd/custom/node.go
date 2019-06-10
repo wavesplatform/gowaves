@@ -4,9 +4,9 @@ import (
 	"context"
 	"github.com/alecthomas/kong"
 	"github.com/wavesplatform/gowaves/pkg/api"
-	"github.com/wavesplatform/gowaves/pkg/mainer"
-	scheduler2 "github.com/wavesplatform/gowaves/pkg/mainer/scheduler"
-	"github.com/wavesplatform/gowaves/pkg/mainer/utxpool"
+	"github.com/wavesplatform/gowaves/pkg/miner"
+	scheduler2 "github.com/wavesplatform/gowaves/pkg/miner/scheduler"
+	"github.com/wavesplatform/gowaves/pkg/miner/utxpool"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"math/rand"
 	"os"
@@ -105,9 +105,9 @@ func main() {
 	scheduler := scheduler2.NewScheduler(state, keyPairs, custom)
 
 	utx := utxpool.New(10000)
-	Mainer := mainer.New(utx, state, peerManager, scheduler)
+	Mainer := miner.New(utx, state, peerManager, scheduler)
 
-	go mainer.Run(ctx, Mainer, scheduler)
+	go miner.Run(ctx, Mainer, scheduler)
 	go scheduler.Reschedule()
 
 	n := node.NewNode(state, peerManager, declAddr, scheduler, Mainer)
