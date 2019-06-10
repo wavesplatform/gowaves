@@ -1,7 +1,11 @@
 // Transactions
 syntax = "proto3";
+package waves;
+
 option java_package = "com.wavesplatform.protobuf.transaction";
+option csharp_namespace = "Waves";
 option go_package = "client/grpc";
+
 import "script.proto";
 import "recipient.proto";
 import "google/protobuf/empty.proto";
@@ -138,16 +142,6 @@ message SetScriptTransactionData {
 };
 
 message ExchangeTransactionData {
-    message BuySellOrders {
-        Order buy_order = 1;
-        Order sell_order = 2;
-    }
-
-    message MakerTakerOrders {
-        Order maker_order = 1;
-        Order taker_order = 2;
-    }
-
     message Order {
         enum Side {
             BUY = 0;
@@ -155,8 +149,8 @@ message ExchangeTransactionData {
         };
 
         message AssetPair {
-            bytes amount_asset_id = 1;
-            bytes price_asset_id = 2;
+            AssetId amount_asset_id = 1;
+            AssetId price_asset_id = 2;
         };
 
         int32 chain_id = 1;

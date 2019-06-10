@@ -330,7 +330,7 @@ func (tx *Genesis) MarshalBinary() ([]byte, error) {
 //UnmarshalBinary reads transaction values from the slice of bytes.
 func (tx *Genesis) UnmarshalBinary(data []byte) error {
 	if l := len(data); l != genesisBodyLen {
-		return errors.Errorf("incorrect data lenght for Genesis transaction, expected %d, received %d", genesisBodyLen, l)
+		return errors.Errorf("incorrect data length for Genesis transaction, expected %d, received %d", genesisBodyLen, l)
 	}
 	if data[0] != byte(GenesisTransaction) {
 		return errors.Errorf("incorrect transaction type %d for Genesis transaction", data[0])
@@ -810,19 +810,6 @@ func (r *Reissue) unmarshalBinary(data []byte) error {
 	return nil
 }
 
-type Exchange interface {
-	GetID() []byte
-	GetSenderPK() crypto.PublicKey
-	GetBuyOrder() (OrderBody, error)
-	GetSellOrder() (OrderBody, error)
-	GetPrice() uint64
-	GetAmount() uint64
-	GetBuyMatcherFee() uint64
-	GetSellMatcherFee() uint64
-	GetFee() uint64
-	GetTimestamp() uint64
-}
-
 type Burn struct {
 	SenderPK  crypto.PublicKey `json:"senderPublicKey"`
 	AssetID   crypto.Digest    `json:"assetId"`
@@ -881,6 +868,19 @@ func (b *Burn) unmarshalBinary(data []byte) error {
 	data = data[8:]
 	b.Timestamp = binary.BigEndian.Uint64(data)
 	return nil
+}
+
+type Exchange interface {
+	GetID() []byte
+	GetSenderPK() crypto.PublicKey
+	GetBuyOrder() (OrderBody, error)
+	GetSellOrder() (OrderBody, error)
+	GetPrice() uint64
+	GetAmount() uint64
+	GetBuyMatcherFee() uint64
+	GetSellMatcherFee() uint64
+	GetFee() uint64
+	GetTimestamp() uint64
 }
 
 type Lease struct {

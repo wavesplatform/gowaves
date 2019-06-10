@@ -78,6 +78,22 @@ func NewAddressFromPublicKey(scheme byte, publicKey crypto.PublicKey) (Address, 
 	return a, nil
 }
 
+func RebuildAddress(scheme byte, body []byte) (Address, error) {
+	var a Address
+	a[0] = addressVersion
+	a[1] = scheme
+	if l := len(body); l != bodySize {
+		return Address{}, errors.Errorf("%d is not enough bytes for the body of an address", l)
+	}
+	copy(a[headerSize:], body[:bodySize])
+	cs, err := addressChecksum(a[:headerSize+bodySize])
+	if err != nil {
+		return a, errors.Wrap(err, "failed to calculate Address checksum")
+	}
+	copy(a[headerSize+bodySize:], cs)
+	return a, nil
+}
+
 // NewAddressFromString creates an Address from its string representation. This function checks that the address is valid.
 func NewAddressFromString(s string) (Address, error) {
 	var a Address

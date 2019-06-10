@@ -28,7 +28,7 @@ const (
 	orderV2MinLen        = orderV2FixedBodyLen + proofsMinLen
 	jsonNull             = "null"
 	integerArgumentLen   = 1 + 8
-	booleanArgumentLen   = 1 + 1
+	booleanArgumentLen   = 1
 	binaryArgumentMinLen = 1 + 4
 	stringArgumentMinLen = 1 + 4
 	PriceConstant        = 100000000
@@ -170,7 +170,9 @@ func (a OptionalAsset) binarySize() int {
 func (a OptionalAsset) MarshalBinary() ([]byte, error) {
 	buf := make([]byte, a.binarySize())
 	PutBool(buf, a.Present)
-	copy(buf[1:], a.ID[:])
+	if a.Present {
+		copy(buf[1:], a.ID[:])
+	}
 	return buf, nil
 }
 
@@ -847,6 +849,10 @@ type ProofsV1 struct {
 	Proofs  []B58Bytes
 }
 
+func NewProofs() *ProofsV1 {
+	return &ProofsV1{Version: proofsVersion, Proofs: make([]B58Bytes, 0)}
+}
+
 //String gives a string representation of the proofs collection.
 func (p ProofsV1) String() string {
 	var sb strings.Builder
@@ -969,18 +975,18 @@ func (p *ProofsV1) binarySize() int {
 }
 
 // ValueType is an alias for byte that encodes the value type.
-type ValueType byte
+type DataValueType byte
 
 // String translates ValueType value to human readable name.
-func (vt ValueType) String() string {
+func (vt DataValueType) String() string {
 	switch vt {
-	case Integer:
+	case DataInteger:
 		return "integer"
-	case Boolean:
+	case DataBoolean:
 		return "boolean"
-	case Binary:
+	case DataBinary:
 		return "binary"
-	case String:
+	case DataString:
 		return "string"
 	default:
 		return ""
@@ -989,17 +995,49 @@ func (vt ValueType) String() string {
 
 //Supported value types.
 const (
-	Integer ValueType = iota
-	Boolean
-	Binary
-	String
+	DataInteger DataValueType = iota
+	DataBoolean
+	DataBinary
+	DataString
+)
+
+// ValueType is an alias for byte that encodes the value type.
+type ArgumentValueType byte
+
+// String translates ValueType value to human readable name.
+func (vt ArgumentValueType) String() string {
+	switch vt {
+	case ArgumentInteger:
+		return "integer"
+	case ArgumentBoolean:
+		return "boolean"
+	case ArgumentBinary:
+		return "binary"
+	case ArgumentString:
+		return "string"
+	default:
+		return ""
+	}
+}
+
+const (
+	ArgumentInteger ArgumentValueType = iota
+	ArgumentBinary
+	ArgumentString
+	ArgumentBoolean
+)
+
+//Special values to represent Boolean value
+const (
+	BooleanTrue  = 6
+	BooleanFalse = 7
 )
 
 //DataEntry is a common interface of all types of data entries.
 //The interface is used to store different types of data entries in one slice.
 type DataEntry interface {
 	GetKey() string
-	GetValueType() ValueType
+	GetValueType() DataValueType
 	MarshalBinary() ([]byte, error)
 	Valid() (bool, error)
 	binarySize() int
@@ -1027,8 +1065,8 @@ func (e IntegerDataEntry) GetKey() string {
 }
 
 //GetValueType returns the value type of the entry.
-func (e IntegerDataEntry) GetValueType() ValueType {
-	return Integer
+func (e IntegerDataEntry) GetValueType() DataValueType {
+	return DataInteger
 }
 
 func (e IntegerDataEntry) binarySize() int {
@@ -1041,7 +1079,7 @@ func (e IntegerDataEntry) MarshalBinary() ([]byte, error) {
 	pos := 0
 	PutStringWithUInt16Len(buf[pos:], e.Key)
 	pos += 2 + len(e.Key)
-	buf[pos] = byte(Integer)
+	buf[pos] = byte(DataInteger)
 	pos++
 	binary.BigEndian.PutUint64(buf[pos:], uint64(e.Value))
 	return buf, nil
@@ -1059,8 +1097,8 @@ func (e *IntegerDataEntry) UnmarshalBinary(data []byte) error {
 	}
 	e.Key = k
 	kl := 2 + len(k)
-	if t := data[kl]; t != byte(Integer) {
-		return errors.Errorf("unexpected value type %d for IntegerDataEntry, expected %d", t, Integer)
+	if t := data[kl]; t != byte(DataInteger) {
+		return errors.Errorf("unexpected value type %d for IntegerDataEntry, expected %d", t, DataInteger)
 	}
 	e.Value = int64(binary.BigEndian.Uint64(data[kl+1:]))
 	return nil
@@ -1112,8 +1150,8 @@ func (e BooleanDataEntry) GetKey() string {
 }
 
 //GetValueType returns the data type (Boolean) of the entry.
-func (e BooleanDataEntry) GetValueType() ValueType {
-	return Boolean
+func (e BooleanDataEntry) GetValueType() DataValueType {
+	return DataBoolean
 }
 
 func (e BooleanDataEntry) binarySize() int {
@@ -1126,7 +1164,7 @@ func (e BooleanDataEntry) MarshalBinary() ([]byte, error) {
 	pos := 0
 	PutStringWithUInt16Len(buf[pos:], e.Key)
 	pos += 2 + len(e.Key)
-	buf[pos] = byte(Boolean)
+	buf[pos] = byte(DataBoolean)
 	pos++
 	PutBool(buf[pos:], e.Value)
 	return buf, nil
@@ -1144,8 +1182,8 @@ func (e *BooleanDataEntry) UnmarshalBinary(data []byte) error {
 	}
 	e.Key = k
 	kl := 2 + len(k)
-	if t := data[kl]; t != byte(Boolean) {
-		return errors.Errorf("unexpected value type %d for BooleanDataEntry, expected %d", t, Boolean)
+	if t := data[kl]; t != byte(DataBoolean) {
+		return errors.Errorf("unexpected value type %d for BooleanDataEntry, expected %d", t, DataBoolean)
 	}
 	v, err := Bool(data[kl+1:])
 	if err != nil {
@@ -1204,8 +1242,8 @@ func (e BinaryDataEntry) GetKey() string {
 }
 
 //GetValueType returns the type of value (Binary) stored in an entry.
-func (e BinaryDataEntry) GetValueType() ValueType {
-	return Binary
+func (e BinaryDataEntry) GetValueType() DataValueType {
+	return DataBinary
 }
 
 func (e BinaryDataEntry) binarySize() int {
@@ -1218,7 +1256,7 @@ func (e BinaryDataEntry) MarshalBinary() ([]byte, error) {
 	pos := 0
 	PutStringWithUInt16Len(buf[pos:], e.Key)
 	pos += 2 + len(e.Key)
-	buf[pos] = byte(Binary)
+	buf[pos] = byte(DataBinary)
 	pos++
 	PutBytesWithUInt16Len(buf[pos:], e.Value)
 	return buf, nil
@@ -1236,8 +1274,8 @@ func (e *BinaryDataEntry) UnmarshalBinary(data []byte) error {
 	}
 	e.Key = k
 	kl := 2 + len(k)
-	if t := data[kl]; t != byte(Binary) {
-		return errors.Errorf("unexpected value type %d for BinaryDataEntry, expected %d", t, Binary)
+	if t := data[kl]; t != byte(DataBinary) {
+		return errors.Errorf("unexpected value type %d for BinaryDataEntry, expected %d", t, DataBinary)
 	}
 	v, err := BytesWithUInt16Len(data[kl+1:])
 	if err != nil {
@@ -1296,8 +1334,8 @@ func (e StringDataEntry) GetKey() string {
 }
 
 //GetValueType returns the type of value in key-value entry.
-func (e StringDataEntry) GetValueType() ValueType {
-	return String
+func (e StringDataEntry) GetValueType() DataValueType {
+	return DataString
 }
 
 func (e StringDataEntry) binarySize() int {
@@ -1310,7 +1348,7 @@ func (e StringDataEntry) MarshalBinary() ([]byte, error) {
 	pos := 0
 	PutStringWithUInt16Len(buf[pos:], e.Key)
 	pos += 2 + len(e.Key)
-	buf[pos] = byte(String)
+	buf[pos] = byte(DataString)
 	pos++
 	PutStringWithUInt16Len(buf[pos:], e.Value)
 	return buf, nil
@@ -1328,8 +1366,8 @@ func (e *StringDataEntry) UnmarshalBinary(data []byte) error {
 	}
 	e.Key = k
 	kl := 2 + len(k)
-	if t := data[kl]; t != byte(String) {
-		return errors.Errorf("unexpected value type %d for StringDataEntry, expected %d", t, String)
+	if t := data[kl]; t != byte(DataString) {
+		return errors.Errorf("unexpected value type %d for StringDataEntry, expected %d", t, DataString)
 	}
 	v, err := StringWithUInt16Len(data[kl+1:])
 	if err != nil {
@@ -1463,7 +1501,7 @@ func (s *Script) UnmarshalJSON(value []byte) error {
 }
 
 type Argument interface {
-	GetValueType() ValueType
+	GetValueType() ArgumentValueType
 	MarshalBinary() ([]byte, error)
 	binarySize() int
 }
@@ -1550,20 +1588,20 @@ func (a *Arguments) UnmarshalBinary(data []byte) error {
 	for i := 0; i < int(n); i++ {
 		var arg Argument
 		var err error
-		switch ValueType(data[0]) {
-		case Integer:
+		switch ArgumentValueType(data[0]) {
+		case ArgumentInteger:
 			var ia IntegerArgument
 			err = ia.UnmarshalBinary(data)
 			arg = &ia
-		case Boolean:
+		case BooleanTrue, BooleanFalse:
 			var ba BooleanArgument
 			err = ba.UnmarshalBinary(data)
 			arg = &ba
-		case Binary:
+		case ArgumentBinary:
 			var ba BinaryArgument
 			err = ba.UnmarshalBinary(data)
 			arg = &ba
-		case String:
+		case ArgumentString:
 			var sa StringArgument
 			err = sa.UnmarshalBinary(data)
 			arg = &sa
@@ -1592,8 +1630,8 @@ type IntegerArgument struct {
 }
 
 //GetValueType returns the value type of the entry.
-func (a IntegerArgument) GetValueType() ValueType {
-	return Integer
+func (a IntegerArgument) GetValueType() ArgumentValueType {
+	return ArgumentInteger
 }
 
 func (a IntegerArgument) binarySize() int {
@@ -1604,7 +1642,7 @@ func (a IntegerArgument) binarySize() int {
 func (a IntegerArgument) MarshalBinary() ([]byte, error) {
 	buf := make([]byte, a.binarySize())
 	pos := 0
-	buf[pos] = byte(Integer)
+	buf[pos] = byte(ArgumentInteger)
 	pos++
 	binary.BigEndian.PutUint64(buf[pos:], uint64(a.Value))
 	return buf, nil
@@ -1615,8 +1653,8 @@ func (a *IntegerArgument) UnmarshalBinary(data []byte) error {
 	if l := len(data); l < integerArgumentLen {
 		return errors.Errorf("invalid data length for IntegerArgument, expected not less than %d, received %d", integerArgumentLen, l)
 	}
-	if t := data[0]; t != byte(Integer) {
-		return errors.Errorf("unexpected value type %d for IntegerArgument, expected %d", t, Integer)
+	if t := data[0]; t != byte(ArgumentInteger) {
+		return errors.Errorf("unexpected value type %d for IntegerArgument, expected %d", t, ArgumentInteger)
 	}
 	a.Value = int64(binary.BigEndian.Uint64(data[1:]))
 	return nil
@@ -1649,8 +1687,8 @@ type BooleanArgument struct {
 }
 
 //GetValueType returns the data type (Boolean) of the argument.
-func (a BooleanArgument) GetValueType() ValueType {
-	return Boolean
+func (a BooleanArgument) GetValueType() ArgumentValueType {
+	return ArgumentBoolean
 }
 
 func (a BooleanArgument) binarySize() int {
@@ -1660,10 +1698,11 @@ func (a BooleanArgument) binarySize() int {
 //MarshalBinary writes a byte representation of the boolean data entry.
 func (a BooleanArgument) MarshalBinary() ([]byte, error) {
 	buf := make([]byte, a.binarySize())
-	pos := 0
-	buf[pos] = byte(Boolean)
-	pos++
-	PutBool(buf[pos:], a.Value)
+	if a.Value {
+		buf[0] = BooleanTrue
+	} else {
+		buf[0] = BooleanFalse
+	}
 	return buf, nil
 }
 
@@ -1672,14 +1711,14 @@ func (a *BooleanArgument) UnmarshalBinary(data []byte) error {
 	if l := len(data); l < booleanArgumentLen {
 		return errors.Errorf("invalid data length for BooleanArgument, expected not less than %d, received %d", booleanArgumentLen, l)
 	}
-	if t := data[0]; t != byte(Boolean) {
-		return errors.Errorf("unexpected value type %d for BooleanArgument, expected %d", t, Boolean)
+	switch data[0] {
+	case BooleanTrue:
+		a.Value = true
+	case BooleanFalse:
+		a.Value = false
+	default:
+		return errors.Errorf("unexpected value (%d) for BooleanArgument", data[0])
 	}
-	v, err := Bool(data[1:])
-	if err != nil {
-		return errors.Wrap(err, "failed to unmarshal BooleanArgument from bytes")
-	}
-	a.Value = v
 	return nil
 }
 
@@ -1710,8 +1749,8 @@ type BinaryArgument struct {
 }
 
 //GetValueType returns the type of value (Binary) stored in an argument.
-func (a BinaryArgument) GetValueType() ValueType {
-	return Binary
+func (a BinaryArgument) GetValueType() ArgumentValueType {
+	return ArgumentBinary
 }
 
 func (a BinaryArgument) binarySize() int {
@@ -1722,7 +1761,7 @@ func (a BinaryArgument) binarySize() int {
 func (a BinaryArgument) MarshalBinary() ([]byte, error) {
 	buf := make([]byte, a.binarySize())
 	pos := 0
-	buf[pos] = byte(Binary)
+	buf[pos] = byte(ArgumentBinary)
 	pos++
 	PutBytesWithUInt32Len(buf[pos:], a.Value)
 	return buf, nil
@@ -1733,8 +1772,8 @@ func (a *BinaryArgument) UnmarshalBinary(data []byte) error {
 	if l := len(data); l < binaryArgumentMinLen {
 		return errors.Errorf("invalid data length for BinaryArgument, expected not less than %d, received %d", binaryArgumentMinLen, l)
 	}
-	if t := data[0]; t != byte(Binary) {
-		return errors.Errorf("unexpected value type %d for BinaryArgument, expected %d", t, Binary)
+	if t := data[0]; t != byte(ArgumentBinary) {
+		return errors.Errorf("unexpected value type %d for BinaryArgument, expected %d", t, ArgumentBinary)
 	}
 	v, err := BytesWithUInt32Len(data[1:])
 	if err != nil {
@@ -1771,8 +1810,8 @@ type StringArgument struct {
 }
 
 //GetValueType returns the type of value of the argument.
-func (a StringArgument) GetValueType() ValueType {
-	return String
+func (a StringArgument) GetValueType() ArgumentValueType {
+	return ArgumentString
 }
 
 func (a StringArgument) binarySize() int {
@@ -1783,7 +1822,7 @@ func (a StringArgument) binarySize() int {
 func (a StringArgument) MarshalBinary() ([]byte, error) {
 	buf := make([]byte, a.binarySize())
 	pos := 0
-	buf[pos] = byte(String)
+	buf[pos] = byte(ArgumentString)
 	pos++
 	PutStringWithUInt32Len(buf[pos:], a.Value)
 	return buf, nil
@@ -1794,8 +1833,8 @@ func (a *StringArgument) UnmarshalBinary(data []byte) error {
 	if l := len(data); l < stringArgumentMinLen {
 		return errors.Errorf("invalid data length for StringArgument, expected not less than %d, received %d", stringArgumentMinLen, l)
 	}
-	if t := data[0]; t != byte(String) {
-		return errors.Errorf("unexpected value type %d for StringArgument, expected %d", t, String)
+	if t := data[0]; t != byte(ArgumentString) {
+		return errors.Errorf("unexpected value type %d for StringArgument, expected %d", t, ArgumentString)
 	}
 	v, err := StringWithUInt32Len(data[1:])
 	if err != nil {
@@ -1828,24 +1867,37 @@ func (a *StringArgument) UnmarshalJSON(value []byte) error {
 
 // FunctionCall structure represents the description of function called in the InvokeScript transaction.
 type FunctionCall struct {
-	Name      string    `json:"function"`
-	Arguments Arguments `json:"args"`
+	Default   bool
+	Name      string
+	Arguments Arguments
 }
 
 func (c FunctionCall) MarshalBinary() ([]byte, error) {
+	if c.Default {
+		return []byte{0}, nil
+	}
 	buf := make([]byte, c.binarySize())
-	buf[0] = reader.E_FUNCALL
-	buf[1] = reader.FH_USER
-	PutStringWithUInt32Len(buf[2:], c.Name)
+	buf[0] = 1
+	buf[1] = reader.E_FUNCALL
+	buf[2] = reader.FH_USER
+	PutStringWithUInt32Len(buf[3:], c.Name)
 	ab, err := c.Arguments.MarshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal FunctionCall to bytes")
 	}
-	copy(buf[2+4+len(c.Name):], ab)
+	copy(buf[3+4+len(c.Name):], ab)
 	return buf, nil
 }
 
 func (c *FunctionCall) UnmarshalBinary(data []byte) error {
+	if l := len(data); l < 1 {
+		return errors.Errorf("%d is not enough bytes for FunctionCall", l)
+	}
+	if data[0] == 0 {
+		c.Default = true
+		return nil
+	}
+	data = data[1:]
 	if l := len(data); l < 1+1+4 {
 		return errors.Errorf("%d is not enough bytes of FunctionCall", l)
 	}
@@ -1871,8 +1923,43 @@ func (c *FunctionCall) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
+//MarshalJSON writes the entry to its JSON representation.
+func (c FunctionCall) MarshalJSON() ([]byte, error) {
+	if c.Default {
+		return []byte("null"), nil
+	}
+	tmp := struct {
+		Name      string    `json:"function"`
+		Arguments Arguments `json:"args"`
+	}{c.Name, c.Arguments}
+	return json.Marshal(tmp)
+}
+
+//UnmarshalJSON reads the entry from JSON.
+func (c *FunctionCall) UnmarshalJSON(value []byte) error {
+	str := string(value)
+	if str == "null" || str == "{}" {
+		c.Default = true
+		return nil
+	}
+	var tmp struct {
+		Name      string    `json:"function"`
+		Arguments Arguments `json:"args"`
+	}
+	if err := json.Unmarshal(value, &tmp); err != nil {
+		return errors.Wrap(err, "failed to deserialize function call from JSON")
+	}
+	c.Default = false
+	c.Name = tmp.Name
+	c.Arguments = tmp.Arguments
+	return nil
+}
+
 func (c FunctionCall) binarySize() int {
-	return 1 + 1 + 4 + len(c.Name) + c.Arguments.binarySize()
+	if c.Default {
+		return 1
+	}
+	return 1 + 1 + 1 + 4 + len(c.Name) + c.Arguments.binarySize()
 }
 
 type ScriptPayment struct {
@@ -1881,23 +1968,32 @@ type ScriptPayment struct {
 }
 
 func (p ScriptPayment) MarshalBinary() ([]byte, error) {
-	buf := make([]byte, p.binarySize())
+	size := p.binarySize()
+	buf := make([]byte, size)
+	pos := 0
+	binary.BigEndian.PutUint16(buf[pos:], uint16(size-2))
+	pos += 2
+	binary.BigEndian.PutUint64(buf[pos:], p.Amount)
+	pos += 8
 	ab, err := p.Asset.MarshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to serialize ScriptPayment to bytes")
 	}
-	binary.BigEndian.PutUint64(buf, p.Amount)
-	copy(buf[8:], ab)
+	copy(buf[pos:], ab)
 	return buf, nil
 }
 
 func (p *ScriptPayment) UnmarshalBinary(data []byte) error {
-	if l := len(data); l < 8+1 {
+	if l := len(data); l < 2 {
 		return errors.Errorf("%d is not enough bytes for ScriptPayment", l)
 	}
-	p.Amount = binary.BigEndian.Uint64(data[:8])
+	size := int(binary.BigEndian.Uint16(data[:2]))
+	if l := len(data[2:]); l < size {
+		return errors.Errorf("%d is not enough bytes for ScriptPayment", l)
+	}
+	p.Amount = binary.BigEndian.Uint64(data[2:10])
 	var a OptionalAsset
-	err := a.UnmarshalBinary(data[8:])
+	err := a.UnmarshalBinary(data[10:])
 	if err != nil {
 		return errors.Wrap(err, "failed to deserialize ScriptPayment from bytes")
 	}
@@ -1906,7 +2002,7 @@ func (p *ScriptPayment) UnmarshalBinary(data []byte) error {
 }
 
 func (p *ScriptPayment) binarySize() int {
-	return p.Asset.binarySize() + 8
+	return 2 + 8 + p.Asset.binarySize()
 }
 
 type ScriptPayments []ScriptPayment

@@ -376,7 +376,7 @@ func TestIntegerDataEntryBinaryRoundTrip(t *testing.T) {
 				assert.Equal(t, tc.key, av.Key)
 				assert.Equal(t, tc.key, av.GetKey())
 				assert.Equal(t, tc.value, av.Value)
-				assert.Equal(t, Integer, av.GetValueType())
+				assert.Equal(t, DataInteger, av.GetValueType())
 			}
 		}
 	}
@@ -403,7 +403,7 @@ func TestIntegerDataEntryJSONRoundTrip(t *testing.T) {
 				assert.Equal(t, tc.key, av.Key)
 				assert.Equal(t, tc.key, av.GetKey())
 				assert.Equal(t, tc.value, av.Value)
-				assert.Equal(t, Integer, av.GetValueType())
+				assert.Equal(t, DataInteger, av.GetValueType())
 			}
 		}
 	}
@@ -427,7 +427,7 @@ func TestBooleanDataEntryBinaryRoundTrip(t *testing.T) {
 				assert.Equal(t, tc.key, av.Key)
 				assert.Equal(t, tc.key, av.GetKey())
 				assert.Equal(t, tc.value, av.Value)
-				assert.Equal(t, Boolean, av.GetValueType())
+				assert.Equal(t, DataBoolean, av.GetValueType())
 			}
 		}
 	}
@@ -454,7 +454,7 @@ func TestBooleanDataEntryJSONRoundTrip(t *testing.T) {
 				assert.Equal(t, tc.key, av.Key)
 				assert.Equal(t, tc.key, av.GetKey())
 				assert.Equal(t, tc.value, av.Value)
-				assert.Equal(t, Boolean, av.GetValueType())
+				assert.Equal(t, DataBoolean, av.GetValueType())
 			}
 		}
 	}
@@ -479,7 +479,7 @@ func TestBinaryDataEntryBinaryRoundTrip(t *testing.T) {
 				assert.Equal(t, tc.key, av.Key)
 				assert.Equal(t, tc.key, av.GetKey())
 				assert.ElementsMatch(t, bv, av.Value)
-				assert.Equal(t, Binary, av.GetValueType())
+				assert.Equal(t, DataBinary, av.GetValueType())
 			}
 		}
 	}
@@ -508,7 +508,7 @@ func TestBinaryDataEntryJSONRoundTrip(t *testing.T) {
 				assert.Equal(t, tc.key, av.Key)
 				assert.Equal(t, tc.key, av.GetKey())
 				assert.ElementsMatch(t, bv, av.Value)
-				assert.Equal(t, Binary, av.GetValueType())
+				assert.Equal(t, DataBinary, av.GetValueType())
 			}
 		}
 	}
@@ -532,7 +532,7 @@ func TestStringDataEntryBinaryRoundTrip(t *testing.T) {
 				assert.Equal(t, tc.key, av.Key)
 				assert.Equal(t, tc.key, av.GetKey())
 				assert.Equal(t, tc.value, av.Value)
-				assert.Equal(t, String, av.GetValueType())
+				assert.Equal(t, DataString, av.GetValueType())
 			}
 		}
 	}
@@ -559,7 +559,7 @@ func TestStringDataEntryJSONRoundTrip(t *testing.T) {
 				assert.Equal(t, tc.key, av.Key)
 				assert.Equal(t, tc.key, av.GetKey())
 				assert.Equal(t, tc.value, av.Value)
-				assert.Equal(t, String, av.GetValueType())
+				assert.Equal(t, DataString, av.GetValueType())
 			}
 		}
 	}
@@ -724,7 +724,7 @@ func TestBooleanArgumentBinarySize(t *testing.T) {
 	tests := []bool{true, false}
 	for _, tc := range tests {
 		v := BooleanArgument{tc}
-		assert.Equal(t, 2, v.binarySize())
+		assert.Equal(t, 1, v.binarySize())
 	}
 }
 
@@ -754,7 +754,7 @@ func TestIntegerArgumentBinaryRoundTrip(t *testing.T) {
 			var av IntegerArgument
 			if err := av.UnmarshalBinary(b); assert.NoError(t, err) {
 				assert.Equal(t, tc, av.Value)
-				assert.Equal(t, Integer, av.GetValueType())
+				assert.Equal(t, ArgumentInteger, av.GetValueType())
 			}
 		}
 	}
@@ -771,7 +771,7 @@ func TestIntegerArgumentJSONRoundTrip(t *testing.T) {
 			var av IntegerArgument
 			if err := av.UnmarshalJSON(b); assert.NoError(t, err) {
 				assert.Equal(t, tc, av.Value)
-				assert.Equal(t, Integer, av.GetValueType())
+				assert.Equal(t, ArgumentInteger, av.GetValueType())
 			}
 		}
 	}
@@ -785,7 +785,7 @@ func TestBooleanArgumentBinaryRoundTrip(t *testing.T) {
 			var av BooleanArgument
 			if err := av.UnmarshalBinary(b); assert.NoError(t, err) {
 				assert.Equal(t, tc, av.Value)
-				assert.Equal(t, Boolean, av.GetValueType())
+				assert.Equal(t, ArgumentBoolean, av.GetValueType())
 			}
 		}
 	}
@@ -802,7 +802,7 @@ func TestBooleanArgumentJSONRoundTrip(t *testing.T) {
 			var av BooleanArgument
 			if err := av.UnmarshalJSON(b); assert.NoError(t, err) {
 				assert.Equal(t, tc, av.Value)
-				assert.Equal(t, Boolean, av.GetValueType())
+				assert.Equal(t, ArgumentBoolean, av.GetValueType())
 			}
 		}
 	}
@@ -817,7 +817,7 @@ func TestBinaryArgumentBinaryRoundTrip(t *testing.T) {
 			var av BinaryArgument
 			if err := av.UnmarshalBinary(b); assert.NoError(t, err) {
 				assert.ElementsMatch(t, bv, av.Value)
-				assert.Equal(t, Binary, av.GetValueType())
+				assert.Equal(t, ArgumentBinary, av.GetValueType())
 			}
 		}
 	}
@@ -837,7 +837,7 @@ func TestBinaryArgumentJSONRoundTrip(t *testing.T) {
 			var av BinaryArgument
 			if err := av.UnmarshalJSON(b); assert.NoError(t, err) {
 				assert.ElementsMatch(t, bv, av.Value)
-				assert.Equal(t, Binary, av.GetValueType())
+				assert.Equal(t, ArgumentBinary, av.GetValueType())
 			}
 		}
 	}
@@ -851,7 +851,7 @@ func TestStringArgumentBinaryRoundTrip(t *testing.T) {
 			var av StringArgument
 			if err := av.UnmarshalBinary(b); assert.NoError(t, err) {
 				assert.Equal(t, tc, av.Value)
-				assert.Equal(t, String, av.GetValueType())
+				assert.Equal(t, ArgumentString, av.GetValueType())
 			}
 		}
 	}
@@ -868,7 +868,7 @@ func TestStringArgumentJSONRoundTrip(t *testing.T) {
 			var av StringArgument
 			if err := av.UnmarshalJSON(b); assert.NoError(t, err) {
 				assert.Equal(t, tc, av.Value)
-				assert.Equal(t, String, av.GetValueType())
+				assert.Equal(t, ArgumentString, av.GetValueType())
 			}
 		}
 	}
