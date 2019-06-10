@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"github.com/wavesplatform/gowaves/pkg/util/collect_writes"
+	"go.uber.org/zap"
 	"io"
 	"net"
 	"strconv"
@@ -1367,6 +1368,7 @@ type CheckPointMessage struct {
 
 // CheckPointMessage represents a CheckPoint message
 type MicroBlockMessage struct {
+	MicroBlockBody []byte
 }
 
 func (*MicroBlockMessage) ReadFrom(r io.Reader) (n int64, err error) {
@@ -1377,7 +1379,40 @@ func (*MicroBlockMessage) WriteTo(w io.Writer) (n int64, err error) {
 	panic("implement me")
 }
 
-func (*MicroBlockMessage) UnmarshalBinary(data []byte) error {
+func (a *MicroBlockMessage) UnmarshalBinary(data []byte) error {
+	var h Header
+	if err := h.UnmarshalBinary(data); err != nil {
+		return err
+	}
+	if h.ContentID != ContentIDMicroblock {
+		return fmt.Errorf("wrong ContentID in Header: %x", h.ContentID)
+	}
+	data = data[17:]
+
+	if len(data) < crypto.SignatureSize*2+1 {
+		return errors.New("invalid micro block size")
+	}
+
+	b := make([]byte, len(data))
+	copy(b, data)
+	a.MicroBlockBody = b
+
+	//version := data[0]
+
+	// TODO check max length
+	//a.Transaction = make([]byte, h.PayloadLength)
+	//copy(m.Transaction, data[MaxHeaderLength:MaxHeaderLength+h.PayloadLength])
+	//dig, err := crypto.FastHash(m.Transaction)
+	//if err != nil {
+	//	return err
+	//}
+	//
+	//if !bytes.Equal(dig[:4], h.PayloadCsum[:]) {
+	//	return fmt.Errorf("invalid checksum: expected %x, found %x", dig[:4], h.PayloadCsum[:])
+	//}
+	//return nil
+
+	zap.S().Info("micro block message UnmarshalBinary ", data[:h.PayloadLength+50])
 	return nil
 }
 

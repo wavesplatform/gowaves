@@ -72,7 +72,7 @@ func (a *Node) HandleProtoMessage(mess peer.ProtoMessage) {
 	// nothing to do with transactions
 	// no utx pool exists
 	case *proto.MicroBlockMessage:
-	// skip to better times
+		zap.S().Info(mess)
 
 	default:
 		zap.S().Errorf("unknown proto Message %+v", mess.Message)

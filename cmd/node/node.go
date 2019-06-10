@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/alecthomas/kong"
 	"github.com/wavesplatform/gowaves/pkg/api"
+	"github.com/wavesplatform/gowaves/pkg/miner"
 	"github.com/wavesplatform/gowaves/pkg/miner/scheduler"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"os"
@@ -20,7 +21,7 @@ import (
 	"strings"
 )
 
-var version = proto.Version{Major: 0, Minor: 15, Patch: 1}
+var version = proto.Version{Major: 0, Minor: 16, Patch: 1}
 
 type Cli struct {
 	Run struct {
@@ -78,7 +79,11 @@ func main() {
 
 	peerManager := node.NewPeerManager(peerSpawnerImpl, state)
 
-	n := node.NewNode(state, peerManager, declAddr, nil, nil)
+	schedulerInstance := scheduler.NewScheduler(state, nil, nil)
+
+	mine := miner.NoOpMiner()
+
+	n := node.NewNode(state, peerManager, declAddr, schedulerInstance, mine)
 
 	go node.RunNode(ctx, n, parent)
 
@@ -89,10 +94,8 @@ func main() {
 		}
 	}
 
-	schedulerIns := scheduler.NewScheduler(state, nil, nil)
-
 	// TODO hardcore
-	app, err := api.NewApp("integration-test-rest-api", n, schedulerIns)
+	app, err := api.NewApp("integration-test-rest-api", n, schedulerInstance)
 	if err != nil {
 		zap.S().Error(err)
 		cancel()

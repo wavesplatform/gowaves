@@ -114,3 +114,13 @@ func Run(ctx context.Context, a *Miner, s *scheduler.SchedulerImpl) {
 		}
 	}
 }
+
+type noOpMiner struct {
+}
+
+func (noOpMiner) Interrupt() {
+}
+
+func NoOpMiner() noOpMiner {
+	return noOpMiner{}
+}
