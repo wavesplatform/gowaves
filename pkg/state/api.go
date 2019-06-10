@@ -3,6 +3,7 @@ package state
 import (
 	"math/big"
 	"runtime"
+	"sync"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
@@ -10,51 +11,12 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/settings"
 )
 
-type StateErrorType byte
-
-const (
-	// Unmarshal error of block or transaction.
-	DeserializationError StateErrorType = iota + 1
-	// Marshal error of block or transaction.
-	SerializationError
-	TxValidationError
-	BlockValidationError
-	// Either block or tx.
-	ValidationError
-	RollbackError
-	// Errors occurring while getting data from database.
-	RetrievalError
-	// Errors occurring while updating/modifying state data.
-	ModificationError
-	InvalidInputError
-	// DB or block storage Close() error.
-	ClosureError
-	// Minor technical errors which shouldn't ever happen.
-	Other
-)
-
-type StateError struct {
-	errorType     StateErrorType
-	originalError error
-}
-
-func (err StateError) Error() string {
-	return err.originalError.Error()
-}
-
-func ErrorType(err error) StateErrorType {
-	switch e := err.(type) {
-	case StateError:
-		return e.errorType
-	default:
-		return 0
-	}
-}
-
 // State represents overall Node's state.
 // Data retrievals (e.g. account balances), as well as modifiers (like adding or rolling back blocks)
 // should all be made using this interface.
 type State interface {
+	// Global mutex of state
+	Mutex() *sync.RWMutex
 	// Block getters.
 	Block(blockID crypto.Signature) (*proto.Block, error)
 	BlockByHeight(height uint64) (*proto.Block, error)
@@ -79,8 +41,8 @@ type State interface {
 	// AddBlock adds single block to state.
 	// It's not recommended to use this function when you are able to accumulate big blocks batch,
 	// since it's much more efficient to add many blocks at once.
-	AddBlock(block []byte) error
-	AddDeserializedBlock(block *proto.Block) error
+	AddBlock(block []byte) (*proto.Block, error)
+	AddDeserializedBlock(block *proto.Block) (*proto.Block, error)
 	// AddNewBlocks adds batch of new blocks to state.
 	// Use it when blocks are logically new.
 	AddNewBlocks(blocks [][]byte) error

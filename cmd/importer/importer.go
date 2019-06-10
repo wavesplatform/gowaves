@@ -39,7 +39,9 @@ func blockchainSettings() (*settings.BlockchainSettings, error) {
 		if *genesisCfgPath == "" {
 			return nil, errors.New("for custom blockchains you have to specify path to your genesis JSON config")
 		}
-		return &settings.BlockchainSettings{Type: settings.Custom, GenesisCfgPath: *genesisCfgPath}, nil
+		// TODO fix type
+		//return &settings.BlockchainSettings{Type: settings.Custom, GenesisCfgPath: *genesisCfgPath}, nil
+		return &settings.BlockchainSettings{GenesisGetter: settings.FromPath(*genesisCfgPath)}, nil
 	default:
 		return nil, errors.New("invalid blockchain type")
 	}

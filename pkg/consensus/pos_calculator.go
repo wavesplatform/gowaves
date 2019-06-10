@@ -25,6 +25,9 @@ const (
 	tMin = float64(5000)
 )
 
+type Hit = big.Int
+type BaseTarget = uint64
+
 var (
 	maxSignature = bytes.Repeat([]byte{0xff}, hitSize)
 )
@@ -44,15 +47,18 @@ func normalizeBaseTarget(baseTarget, targetBlockDelaySeconds uint64) uint64 {
 	return baseTarget
 }
 
-func generatorSignature(signature crypto.Digest, pk crypto.PublicKey) (crypto.Digest, error) {
+// signature prev block
+// pk miner
+func GeneratorSignature(signature crypto.Digest, pk crypto.PublicKey) (crypto.Digest, error) {
 	s := make([]byte, crypto.DigestSize*2)
 	copy(s[:crypto.DigestSize], signature[:])
 	copy(s[crypto.DigestSize:], pk[:])
 	return crypto.FastHash(s)
 }
 
-func hit(generatorSig []byte) (*big.Int, error) {
-	s := generatorSig[:hitSize]
+func GenHit(generatorSig []byte) (*Hit, error) {
+	s := make([]byte, hitSize)
+	copy(s, generatorSig[:hitSize])
 	for i, j := 0, len(s)-1; i < j; i, j = i+1, j-1 {
 		s[i], s[j] = s[j], s[i]
 	}
@@ -63,7 +69,7 @@ func hit(generatorSig []byte) (*big.Int, error) {
 
 type posCalculator interface {
 	heightForHit(height uint64) uint64
-	calculateBaseTarget(
+	CalculateBaseTarget(
 		targetBlockDelaySeconds uint64,
 		prevHeight uint64,
 		prevTarget uint64,
@@ -71,24 +77,24 @@ type posCalculator interface {
 		greatGrandParentTimestamp uint64,
 		currentTimestamp uint64,
 	) (uint64, error)
-	calculateDelay(hit *big.Int, parentTarget, balance uint64) (uint64, error)
+	CalculateDelay(hit *big.Int, parentTarget, balance uint64) (uint64, error)
 }
 
-type nxtPosCalculator struct {
+type NxtPosCalculator struct {
 }
 
-func (calc *nxtPosCalculator) heightForHit(height uint64) uint64 {
+func (calc *NxtPosCalculator) heightForHit(height uint64) uint64 {
 	return height - nxtPosHeightDiffForHit
 }
 
-func (calc *nxtPosCalculator) calculateBaseTarget(
+func (calc *NxtPosCalculator) CalculateBaseTarget(
 	targetBlockDelaySeconds uint64,
 	prevHeight uint64,
 	prevTarget uint64,
 	parentTimestamp uint64,
 	greatGrandParentTimestamp uint64,
 	currentTimestamp uint64,
-) (uint64, error) {
+) (BaseTarget, error) {
 	if prevHeight%2 == 0 {
 		meanBlockDelay := (currentTimestamp - parentTimestamp) / 1000
 		if greatGrandParentTimestamp > 0 {
@@ -111,7 +117,7 @@ func (calc *nxtPosCalculator) calculateBaseTarget(
 	}
 }
 
-func (calc *nxtPosCalculator) calculateDelay(hit *big.Int, parentTarget, balance uint64) (uint64, error) {
+func (calc *NxtPosCalculator) CalculateDelay(hit *Hit, parentTarget BaseTarget, balance uint64) (uint64, error) {
 	var targetFloat big.Float
 	targetFloat.SetUint64(parentTarget)
 	var balanceFloat big.Float
@@ -126,37 +132,37 @@ func (calc *nxtPosCalculator) calculateDelay(hit *big.Int, parentTarget, balance
 	return delay, nil
 }
 
-type fairPosCalculator struct {
+type FairPosCalculator struct {
 }
 
-func (calc *fairPosCalculator) heightForHit(height uint64) uint64 {
+func (calc *FairPosCalculator) heightForHit(height uint64) uint64 {
 	return height - fairPosHeightDiffForHit
 }
 
-func (calc *fairPosCalculator) calculateBaseTarget(
+func (calc *FairPosCalculator) CalculateBaseTarget(
 	targetBlockDelaySeconds uint64,
-	prevHeight uint64,
-	prevTarget uint64,
-	parentTimestamp uint64,
+	confirmedHeight uint64,
+	confirmedTarget uint64,
+	confirmedTimestamp uint64,
 	greatGrandParentTimestamp uint64,
-	currentTimestamp uint64,
-) (uint64, error) {
+	applyingBlockTimestamp uint64,
+) (BaseTarget, error) {
 	maxDelay := normalize(90, targetBlockDelaySeconds)
 	minDelay := normalize(30, targetBlockDelaySeconds)
 	if greatGrandParentTimestamp == 0 {
-		return prevTarget, nil
+		return confirmedTarget, nil
 	}
-	average := float64(currentTimestamp-greatGrandParentTimestamp) / 3 / 1000
+	average := float64(applyingBlockTimestamp-greatGrandParentTimestamp) / 3 / 1000
 	if average > maxDelay {
-		return (prevTarget + uint64(math.Max(1, float64(prevTarget/100)))), nil
+		return (confirmedTarget + uint64(math.Max(1, float64(confirmedTarget/100)))), nil
 	} else if average < minDelay {
-		return (prevTarget - uint64(math.Max(1, float64(prevTarget/100)))), nil
+		return (confirmedTarget - uint64(math.Max(1, float64(confirmedTarget/100)))), nil
 	} else {
-		return prevTarget, nil
+		return confirmedTarget, nil
 	}
 }
 
-func (calc *fairPosCalculator) calculateDelay(hit *big.Int, parentTarget, balance uint64) (uint64, error) {
+func (calc *FairPosCalculator) CalculateDelay(hit *Hit, confirmedTarget BaseTarget, balance uint64) (uint64, error) {
 	var maxHit big.Int
 	maxHit.SetBytes(maxSignature)
 	var maxHitFloat big.Float
@@ -166,7 +172,18 @@ func (calc *fairPosCalculator) calculateDelay(hit *big.Int, parentTarget, balanc
 	var quo big.Float
 	quo.Quo(&hitFloat, &maxHitFloat)
 	h, _ := quo.Float64()
-	log := math.Log(1 - c2*math.Log(h)/float64(parentTarget)/float64(balance))
+	log := math.Log(1 - c2*math.Log(h)/float64(confirmedTarget)/float64(balance))
 	res := uint64(tMin + c1*log)
 	return res, nil
+}
+
+func posAlgo(height uint64) (posCalculator, error) {
+	// TODO: support features concept.
+	// Always return Nxt for now, since FairPos appeared later.
+	return &NxtPosCalculator{}, nil
+}
+
+func fairPosActivated(height uint64) bool {
+	// TODO: support features activation.
+	return false
 }

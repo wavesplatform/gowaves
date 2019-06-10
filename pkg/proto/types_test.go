@@ -1,6 +1,7 @@
 package proto
 
 import (
+	"bytes"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -638,6 +639,31 @@ func TestNewOptionalAssetFromDigest(t *testing.T) {
 	asset1, err := NewOptionalAssetFromDigest(d)
 	require.NoError(t, err)
 	assert.True(t, asset1.Present)
+}
+
+func TestOptionalAsset_Marshal(t *testing.T) {
+	d, _ := NewOptionalAssetFromString("BXBUNddxTGTQc3G4qHYn5E67SBwMj18zLncUr871iuRD")
+
+	b, _ := d.MarshalBinary()
+	d2 := OptionalAsset{}
+	d2.UnmarshalBinary(b)
+
+	require.Equal(t, d.String(), d2.String())
+
+	buf := new(bytes.Buffer)
+	d.WriteTo(buf)
+}
+
+func TestOptionalAsset_WriteTo(t *testing.T) {
+	d, _ := NewOptionalAssetFromString("BXBUNddxTGTQc3G4qHYn5E67SBwMj18zLncUr871iuRD")
+
+	buf := new(bytes.Buffer)
+	d.WriteTo(buf)
+
+	d2 := OptionalAsset{}
+	d2.UnmarshalBinary(buf.Bytes())
+
+	require.Equal(t, d.String(), d2.String())
 }
 
 func TestScriptJSONRoundTrip(t *testing.T) {

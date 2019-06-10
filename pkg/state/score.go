@@ -7,7 +7,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 )
 
-func calculateScore(baseTarget uint64) (*big.Int, error) {
+func CalculateScore(baseTarget uint64) (*big.Int, error) {
 	if baseTarget == 0 {
 		return nil, errors.New("zero base target")
 	}

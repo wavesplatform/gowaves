@@ -14,12 +14,9 @@ type NodeSettings struct {
 }
 
 func (a NodeSettings) Validate() error {
-	switch a.WavesNetwork {
-	case "wavesW", "wavesD", "wavesT":
-	default:
-		return errors.Errorf("expected WavesNetwork to be wavesW, wavesD or wavesT, found %s", a.WavesNetwork)
+	if len(a.WavesNetwork) == 0 {
+		return errors.Errorf("empty WavesNetwork")
 	}
-
 	return nil
 }
 

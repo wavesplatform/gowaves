@@ -88,11 +88,13 @@ type Transaction interface {
 	Valid() (bool, error)
 	MarshalBinary() ([]byte, error)
 	UnmarshalBinary([]byte) error
+	GetFee() uint64
+	GetTimestamp() uint64
 }
 
 func BytesToTransaction(tx []byte) (Transaction, error) {
 	if len(tx) < 2 {
-		return nil, errors.New("invalid size of transation's bytes slice")
+		return nil, errors.New("invalid size of transaction's bytes slice")
 	}
 	if tx[0] == 0 {
 		transactionType, ok := bytesToTransactionsV2[TransactionType(tx[1])]
@@ -244,6 +246,14 @@ func (tx Genesis) GetID() []byte {
 	return tx.ID.Bytes()
 }
 
+func (tx Genesis) GetFee() uint64 {
+	return 0
+}
+
+func (tx Genesis) GetTimestamp() uint64 {
+	return tx.Timestamp
+}
+
 //NewUnsignedGenesis returns a new unsigned Genesis transaction. Actually Genesis transaction could not be signed.
 //That is why it doesn't implement Sing method. Instead it has GenerateSigID method, which calculates ID and uses it also as a signature.
 func NewUnsignedGenesis(recipient Address, amount, timestamp uint64) *Genesis {
@@ -353,6 +363,14 @@ func (tx Payment) GetID() []byte {
 	return tx.ID.Bytes()
 }
 
+func (tx Payment) GetFee() uint64 {
+	return tx.Fee
+}
+
+func (tx Payment) GetTimestamp() uint64 {
+	return tx.Timestamp
+}
+
 //NewUnsignedPayment creates new Payment transaction with empty Signature and ID fields.
 func NewUnsignedPayment(senderPK crypto.PublicKey, recipient Address, amount, fee, timestamp uint64) *Payment {
 	return &Payment{Type: PaymentTransaction, Version: 1, SenderPK: senderPK, Recipient: recipient, Amount: amount, Fee: fee, Timestamp: timestamp}
@@ -380,16 +398,14 @@ func (tx Payment) Valid() (bool, error) {
 	return true, nil
 }
 
-func (tx *Payment) bodyMarshalBinary() ([]byte, error) {
-	buf := make([]byte, paymentBodyLen)
+func (tx *Payment) bodyMarshalBinary(buf []byte) error {
 	buf[0] = byte(tx.Type)
 	binary.BigEndian.PutUint64(buf[1:], tx.Timestamp)
 	copy(buf[9:], tx.SenderPK[:])
 	copy(buf[9+crypto.PublicKeySize:], tx.Recipient[:])
 	binary.BigEndian.PutUint64(buf[9+crypto.PublicKeySize+AddressSize:], tx.Amount)
 	binary.BigEndian.PutUint64(buf[17+crypto.PublicKeySize+AddressSize:], tx.Fee)
-	return buf, nil
-
+	return nil
 }
 
 func (tx *Payment) bodyUnmarshalBinary(data []byte) error {
@@ -416,7 +432,8 @@ func (tx *Payment) bodyUnmarshalBinary(data []byte) error {
 
 //Sign calculates transaction signature and set it as an ID.
 func (tx *Payment) Sign(secretKey crypto.SecretKey) error {
-	b, err := tx.bodyMarshalBinary()
+	b := tx.bodyMarshalBinaryBuffer()
+	err := tx.bodyMarshalBinary(b)
 	if err != nil {
 		return errors.Wrap(err, "failed to sign Payment transaction")
 	}
@@ -433,7 +450,8 @@ func (tx *Payment) Verify(publicKey crypto.PublicKey) (bool, error) {
 	if tx.Signature == nil {
 		return false, errors.New("empty signature")
 	}
-	b, err := tx.bodyMarshalBinary()
+	b := tx.bodyMarshalBinaryBuffer()
+	err := tx.bodyMarshalBinary(b)
 	if err != nil {
 		return false, errors.Wrap(err, "failed to verify Payment transaction")
 	}
@@ -444,11 +462,28 @@ func (tx *Payment) Verify(publicKey crypto.PublicKey) (bool, error) {
 
 //MarshalBinary returns a bytes representation of Payment transaction.
 func (tx *Payment) MarshalBinary() ([]byte, error) {
-	b, err := tx.bodyMarshalBinary()
+	b := tx.bodyMarshalBinaryBuffer()
+	err := tx.bodyMarshalBinary(b)
 	if err != nil {
-
+		return nil, err
 	}
 	buf := make([]byte, paymentBodyLen+crypto.SignatureSize)
+	copy(buf, b)
+	copy(buf[paymentBodyLen:], tx.Signature[:])
+	return buf, nil
+}
+
+func (tx *Payment) bodyMarshalBinaryBuffer() []byte {
+	return make([]byte, paymentBodyLen)
+}
+
+//MarshalBinary returns a bytes representation of Payment transaction.
+func (tx *Payment) MarshalBinary2(buf []byte) ([]byte, error) {
+	b := tx.bodyMarshalBinaryBuffer()
+	err := tx.bodyMarshalBinary(b)
+	if err != nil {
+		return nil, err
+	}
 	copy(buf, b)
 	copy(buf[paymentBodyLen:], tx.Signature[:])
 	return buf, nil
@@ -484,6 +519,14 @@ type Issue struct {
 	Reissuable  bool             `json:"reissuable"`
 	Timestamp   uint64           `json:"timestamp,omitempty"`
 	Fee         uint64           `json:"fee"`
+}
+
+func (i Issue) GetFee() uint64 {
+	return i.Fee
+}
+
+func (i Issue) GetTimestamp() uint64 {
+	return i.Timestamp
 }
 
 func (i Issue) Valid() (bool, error) {
@@ -575,6 +618,14 @@ type Transfer struct {
 	Fee         uint64           `json:"fee"`
 	Recipient   Recipient        `json:"recipient"`
 	Attachment  Attachment       `json:"attachment,omitempty"`
+}
+
+func (tr Transfer) GetFee() uint64 {
+	return tr.Fee
+}
+
+func (tr Transfer) GetTimestamp() uint64 {
+	return tr.Timestamp
 }
 
 func (tr Transfer) Valid() (bool, error) {
@@ -696,6 +747,14 @@ type Reissue struct {
 	Fee        uint64           `json:"fee"`
 }
 
+func (r Reissue) GetFee() uint64 {
+	return r.Fee
+}
+
+func (r Reissue) GetTimestamp() uint64 {
+	return r.Timestamp
+}
+
 func (r Reissue) Valid() (bool, error) {
 	if r.Quantity <= 0 {
 		return false, errors.New("quantity should be positive")
@@ -772,6 +831,14 @@ type Burn struct {
 	Fee       uint64           `json:"fee"`
 }
 
+func (b Burn) GetFee() uint64 {
+	return b.Fee
+}
+
+func (b Burn) GetTimestamp() uint64 {
+	return b.Timestamp
+}
+
 func (b Burn) Valid() (bool, error) {
 	if !validJVMLong(b.Amount) {
 		return false, errors.New("amount is too big")
@@ -822,6 +889,14 @@ type Lease struct {
 	Amount    uint64           `json:"amount"`
 	Fee       uint64           `json:"fee"`
 	Timestamp uint64           `json:"timestamp,omitempty"`
+}
+
+func (l Lease) GetFee() uint64 {
+	return l.Fee
+}
+
+func (l Lease) GetTimestamp() uint64 {
+	return l.Timestamp
 }
 
 func (l Lease) Valid() (bool, error) {
@@ -893,6 +968,14 @@ type LeaseCancel struct {
 	Timestamp uint64           `json:"timestamp,omitempty"`
 }
 
+func (lc LeaseCancel) GetFee() uint64 {
+	return lc.Fee
+}
+
+func (lc LeaseCancel) GetTimestamp() uint64 {
+	return lc.Timestamp
+}
+
 func (lc LeaseCancel) Valid() (bool, error) {
 	if lc.Fee <= 0 {
 		return false, errors.New("fee should be positive")
@@ -935,6 +1018,14 @@ type CreateAlias struct {
 	Alias     Alias            `json:"alias"`
 	Fee       uint64           `json:"fee"`
 	Timestamp uint64           `json:"timestamp,omitempty"`
+}
+
+func (ca CreateAlias) GetFee() uint64 {
+	return ca.Fee
+}
+
+func (ca CreateAlias) GetTimestamp() uint64 {
+	return ca.Timestamp
 }
 
 func (ca CreateAlias) Valid() (bool, error) {

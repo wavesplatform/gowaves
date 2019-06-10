@@ -59,13 +59,13 @@ func (a *NodeApi) routes() chi.Router {
 	r.Get("/blocks/height", a.BlockHeight)
 	r.Get("/blocks/first", a.BlocksFirst)
 	r.Get("/blocks/at/{id:\\d+}", a.BlockAt)
-
+	r.Get("/blocks/score/at/{id:\\d+}", a.BlockScoreAt)
 	r.Route("/peers", func(r chi.Router) {
 		r.Get("/all", a.PeersAll)
 		r.Get("/connected", a.PeersConnected)
 		r.Post("/connect", a.PeersConnect)
 	})
-
+	r.Get("/miner/info", a.Minerinfo)
 	return r
 }
 
@@ -148,6 +148,21 @@ func (a *NodeApi) BlockHeight(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (a *NodeApi) BlockScoreAt(w http.ResponseWriter, r *http.Request) {
+	s := chi.URLParam(r, "id")
+	id, err := strconv.ParseUint(s, 10, 64)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	rs, err := a.app.BlocksScoreAt(id)
+	if err != nil {
+		handleError(err, w)
+		return
+	}
+	sendJson(rs, w)
+}
+
 func Run(ctx context.Context, address string, n *NodeApi) error {
 	apiServer := &http.Server{Addr: address, Handler: n.routes()}
 	go func() {
@@ -206,6 +221,15 @@ func (a *NodeApi) PeersConnect(w http.ResponseWriter, r *http.Request) {
 
 func (a *NodeApi) PeersConnected(w http.ResponseWriter, r *http.Request) {
 	rs, err := a.app.PeersConnected()
+	if err != nil {
+		handleError(err, w)
+		return
+	}
+	sendJson(rs, w)
+}
+
+func (a *NodeApi) Minerinfo(w http.ResponseWriter, r *http.Request) {
+	rs, err := a.app.Miner()
 	if err != nil {
 		handleError(err, w)
 		return

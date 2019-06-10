@@ -1,13 +1,17 @@
 package proto
 
 import (
+	"bytes"
+	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"github.com/stretchr/testify/require"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"github.com/wavesplatform/gowaves/pkg/crypto"
 )
 
 type test struct {
@@ -147,4 +151,68 @@ func TestBlockGetSignature(t *testing.T) {
 			require.Equal(t, v.signature, rs.String())
 		})
 	}
+}
+
+func TestTransactions_WriteTo(t *testing.T) {
+	secret, public := crypto.GenerateKeyPair([]byte("test"))
+	alias, err := NewAliasFromString("alias:T:aaaa")
+	require.NoError(t, err)
+	createAlias := NewUnsignedCreateAliasV1(public, *alias, 10000, NewTimestampFromTime(time.Now()))
+	require.NoError(t, createAlias.Sign(secret))
+	bts, _ := createAlias.MarshalBinary()
+
+	buf := new(bytes.Buffer)
+	ts := Transactions{createAlias}
+
+	_, err = ts.WriteTo(buf)
+	require.NoError(t, err)
+
+	length := binary.BigEndian.Uint32(buf.Bytes()[:4])
+	require.EqualValues(t, length, len(bts))
+	require.Equal(t, buf.Bytes()[4:], bts)
+}
+
+func TestBlock_WriteTo(t *testing.T) {
+	sig, _ := crypto.NewSignatureFromBase58("2kcBqiM5y3DAtg8UrDp5X5dqhKUQ2cNSndZ98c7QMDWgXaz7g1gPGKyND16vSGYvoVN2UqxNk9dSonJUqWmjE5Ee")
+	parent, _ := crypto.NewSignatureFromBase58("3ov5nyERRYrNd8Uun7nuUWYwztXL8jjt3Cbr5HMfsGhoXAKkctAYVVmUFChz95fPHKyrWopuaygdirQ4kMa3fkwJ")
+	gensig, _ := crypto.NewDigestFromBase58("5fkwJc2yZVT2WLDxXs8qFJHdzb2FXji5MC3PDdAFC145")
+
+	// transaction
+	secret, public := crypto.GenerateKeyPair([]byte("test"))
+	alias, err := NewAliasFromString("alias:T:aaaa")
+	require.NoError(t, err)
+	createAlias := NewUnsignedCreateAliasV1(public, *alias, 10000, NewTimestampFromTime(time.Now()))
+	require.NoError(t, createAlias.Sign(secret))
+
+	buf := new(bytes.Buffer)
+	transactions := Transactions{createAlias}
+	transactions.WriteTo(buf)
+
+	block := Block{
+		BlockHeader: BlockHeader{
+			Version:                3,
+			Timestamp:              1558019400034,
+			Parent:                 parent,
+			FeaturesCount:          0,   // ??
+			Features:               nil, // ??
+			ConsensusBlockLength:   40,  //  ??
+			TransactionBlockLength: uint32(len(buf.Bytes())),
+			TransactionCount:       len(transactions),
+			GenPublicKey:           public,
+			BlockSignature:         sig, //
+
+			NxtConsensus: NxtConsensus{
+				BaseTarget:   1010,   // 8
+				GenSignature: gensig, //
+			},
+		},
+		Transactions: buf.Bytes(),
+	}
+
+	buf = new(bytes.Buffer)
+	block.WriteTo(buf)
+	marshaledBytes, _ := block.MarshalBinary()
+
+	// writeTo doesn't write signature
+	require.Equal(t, marshaledBytes[:len(marshaledBytes)-crypto.SignatureSize], buf.Bytes())
 }

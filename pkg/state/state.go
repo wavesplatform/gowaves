@@ -4,12 +4,11 @@ import (
 	"bytes"
 	"context"
 	"encoding/binary"
-	"encoding/json"
 	"log"
 	"math/big"
 	"os"
 	"path/filepath"
-	"runtime"
+	"sync"
 
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/consensus"
@@ -26,29 +25,12 @@ const (
 	bloomBitsPerKeyDefault = 10
 )
 
-func getLocalDir() (string, error) {
-	_, filename, _, ok := runtime.Caller(0)
-	if !ok {
-		return "", errors.Errorf("Unable to find current package file")
-	}
-	return filepath.Dir(filename), nil
-}
-
-func genesisFilePath(s *settings.BlockchainSettings) (string, error) {
-	dir, err := getLocalDir()
-	if err != nil {
-		return "", err
-	}
-	switch s.Type {
-	case settings.MainNet:
-		return filepath.Join(dir, "genesis", "mainnet.json"), nil
-	case settings.TestNet:
-		return filepath.Join(dir, "genesis", "testnet.json"), nil
+func wrapErr(err error, stateErrorType ErrorType) error {
+	switch err.(type) {
+	case StateError:
+		return err
 	default:
-		if _, err := os.Stat(s.GenesisCfgPath); err != nil {
-			return "", err
-		}
-		return s.GenesisCfgPath, nil
+		return NewStateError(stateErrorType, err)
 	}
 }
 
@@ -99,6 +81,8 @@ func (s *blockchainEntitiesStorage) flush(initialisation bool) error {
 }
 
 type stateManager struct {
+	mu *sync.RWMutex
+
 	genesis proto.Block
 	stateDB *stateDB
 
@@ -124,6 +108,14 @@ type stateManager struct {
 
 	// The height when last features voting took place.
 	lastVotingHeight uint64
+}
+
+func (s *stateManager) Mutex() *sync.RWMutex {
+	return s.mu
+}
+
+func (s *stateManager) Peers() ([]proto.TCPAddr, error) {
+	return s.peers.peers()
 }
 
 func newStateManager(dataDir string, params StateParams, settings *settings.BlockchainSettings) (*stateManager, error) {
@@ -176,6 +168,7 @@ func newStateManager(dataDir string, params StateParams, settings *settings.Bloc
 		settings:                  settings,
 		peers:                     newPeerStorage(db),
 		verificationGoroutinesNum: params.VerificationGoroutinesNum,
+		mu:                        &sync.RWMutex{},
 	}
 	// Set fields which depend on state.
 	// Consensus validator is needed to check block headers.
@@ -185,11 +178,7 @@ func newStateManager(dataDir string, params StateParams, settings *settings.Bloc
 	}
 	state.cv = cv
 	// Handle genesis block.
-	genesisPath, err := genesisFilePath(settings)
-	if err != nil {
-		return nil, StateError{errorType: Other, originalError: err}
-	}
-	if err := state.handleGenesisBlock(genesisPath); err != nil {
+	if err := state.handleGenesisBlock(settings.GenesisGetter); err != nil {
 		return nil, StateError{errorType: Other, originalError: err}
 	}
 	// Set transaction validators for transactions without blocks (used by miner, UTX pool).
@@ -199,8 +188,9 @@ func newStateManager(dataDir string, params StateParams, settings *settings.Bloc
 	return state, nil
 }
 
-func (s *stateManager) Peers() ([]proto.TCPAddr, error) {
-	return s.peers.peers()
+func (s *stateManager) setGenesisBlock(genesisBlock *proto.Block) error {
+	s.genesis = *genesisBlock
+	return nil
 }
 
 func (s *stateManager) setValidators() error {
@@ -216,26 +206,11 @@ func (s *stateManager) setValidators() error {
 	return nil
 }
 
-func (s *stateManager) setGenesisBlock(genesisCfgPath string) error {
-	genesisFile, err := os.Open(genesisCfgPath)
-	if err != nil {
-		return errors.Errorf("failed to open genesis file: %v\n", err)
-	}
-	jsonParser := json.NewDecoder(genesisFile)
-	if err := jsonParser.Decode(&s.genesis); err != nil {
-		return errors.Errorf("failed to parse JSON of genesis block: %v\n", err)
-	}
-	if err := genesisFile.Close(); err != nil {
-		return errors.Errorf("failed to close genesis file: %v\n", err)
-	}
-	return nil
-}
-
 func (s *stateManager) addGenesisBlock() error {
 	// Add score of genesis block.
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	genesisScore, err := calculateScore(s.genesis.BaseTarget)
+	genesisScore, err := CalculateScore(s.genesis.BaseTarget)
 	if err != nil {
 		return err
 	}
@@ -257,7 +232,7 @@ func (s *stateManager) addGenesisBlock() error {
 	}
 	verifyError := <-chans.errChan
 	if verifyError != nil {
-		return StateError{errorType: BlockValidationError, originalError: err}
+		return StateError{errorType: ValidationError, originalError: verifyError}
 	}
 	if err := s.flush(true); err != nil {
 		return StateError{errorType: ModificationError, originalError: err}
@@ -289,12 +264,18 @@ func (s *stateManager) applyPreactivatedFeatures(features []int16) error {
 	return nil
 }
 
-func (s *stateManager) handleGenesisBlock(genesisCfgPath string) error {
+func (s *stateManager) handleGenesisBlock(g settings.GenesisGetter) error {
 	height, err := s.Height()
 	if err != nil {
 		return err
 	}
-	if err := s.setGenesisBlock(genesisCfgPath); err != nil {
+
+	block, err := g.Get()
+	if err != nil {
+		return err
+	}
+
+	if err := s.setGenesisBlock(block); err != nil {
 		return err
 	}
 	// If the storage is new (data dir does not contain any data), genesis block must be applied.
@@ -312,6 +293,9 @@ func (s *stateManager) handleGenesisBlock(genesisCfgPath string) error {
 func (s *stateManager) Header(blockID crypto.Signature) (*proto.BlockHeader, error) {
 	headerBytes, err := s.rw.readBlockHeader(blockID)
 	if err != nil {
+		if err == keyvalue.ErrNotFound {
+			return nil, StateError{errorType: NotFoundError, originalError: err}
+		}
 		return nil, StateError{errorType: RetrievalError, originalError: err}
 	}
 	var header proto.BlockHeader
@@ -348,7 +332,7 @@ func (s *stateManager) HeaderBytesByHeight(height uint64) ([]byte, error) {
 func (s *stateManager) Block(blockID crypto.Signature) (*proto.Block, error) {
 	header, err := s.Header(blockID)
 	if err != nil {
-		return nil, StateError{errorType: RetrievalError, originalError: err}
+		return nil, wrapErr(err, RetrievalError)
 	}
 	transactions, err := s.rw.readTransactionsBlock(blockID)
 	if err != nil {
@@ -569,28 +553,27 @@ func (s *stateManager) undoBlockAddition() error {
 	return nil
 }
 
-func (s *stateManager) AddBlock(block []byte) error {
-	blocks := make([][]byte, 1)
-	blocks[0] = block
-	if err := s.addBlocks(blocks, false); err != nil {
+func (s *stateManager) AddBlock(block []byte) (*proto.Block, error) {
+	rs, err := s.addBlocks([][]byte{block}, false)
+	if err != nil {
 		if err := s.undoBlockAddition(); err != nil {
 			panic("Failed to add blocks and can not rollback to previous state after failure.")
 		}
-		return err
+		return nil, err
 	}
-	return nil
+	return rs, nil
 }
 
-func (s *stateManager) AddDeserializedBlock(block *proto.Block) error {
+func (s *stateManager) AddDeserializedBlock(block *proto.Block) (*proto.Block, error) {
 	blockBytes, err := block.MarshalBinary()
 	if err != nil {
-		return StateError{errorType: SerializationError, originalError: err}
+		return nil, StateError{errorType: SerializationError, originalError: err}
 	}
 	return s.AddBlock(blockBytes)
 }
 
 func (s *stateManager) AddNewBlocks(blocks [][]byte) error {
-	if err := s.addBlocks(blocks, false); err != nil {
+	if _, err := s.addBlocks(blocks, false); err != nil {
 		if err := s.undoBlockAddition(); err != nil {
 			panic("Failed to add blocks and can not rollback to previous state after failure.")
 		}
@@ -620,7 +603,7 @@ func (s *stateManager) AddNewDeserializedBlocks(blocks []*proto.Block) error {
 }
 
 func (s *stateManager) AddOldBlocks(blocks [][]byte) error {
-	if err := s.addBlocks(blocks, true); err != nil {
+	if _, err := s.addBlocks(blocks, true); err != nil {
 		if err := s.undoBlockAddition(); err != nil {
 			panic("Failed to add blocks and can not rollback to previous state after failure.")
 		}
@@ -747,49 +730,53 @@ func (s *stateManager) cancelLeases() error {
 	return nil
 }
 
-func (s *stateManager) handleBreak(blocksToFinish [][]byte, initialisation bool, task *breakerTask) error {
+func (s *stateManager) handleBreak(blocksToFinish [][]byte, initialisation bool, task *breakerTask) (*proto.Block, error) {
 	if task == nil {
-		return StateError{errorType: Other, originalError: errors.New("handleBreak received empty task")}
+		return nil, StateError{errorType: Other, originalError: errors.New("handleBreak received empty task")}
 	}
 	if task.finishVotingPeriod {
 		if err := s.finishVoting(); err != nil {
-			return StateError{errorType: ModificationError, originalError: err}
+			return nil, StateError{errorType: ModificationError, originalError: err}
 		}
 	}
 	if task.cancelLeases {
 		// Need to cancel leases due to bugs in historical blockchain.
 		if err := s.cancelLeases(); err != nil {
-			return StateError{errorType: ModificationError, originalError: err}
+			return nil, StateError{errorType: ModificationError, originalError: err}
 		}
 	}
 	return s.addBlocks(blocksToFinish, initialisation)
 }
 
-func (s *stateManager) addBlocks(blocks [][]byte, initialisation bool) error {
+func (s *stateManager) addBlocks(blocks [][]byte, initialisation bool) (*proto.Block, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	blocksNumber := len(blocks)
+	if blocksNumber == 0 {
+		return nil, StateError{errorType: Other, originalError: errors.New("no blocks provided")}
+	}
 	parent, err := s.topBlock()
 	if err != nil {
-		return StateError{errorType: RetrievalError, originalError: err}
+		return nil, StateError{errorType: RetrievalError, originalError: err}
 	}
 	tv, err := newTransactionValidator(s.genesis.BlockSignature, s.stor, s.settings)
 	if err != nil {
-		return StateError{errorType: Other, originalError: err}
+		return nil, StateError{errorType: Other, originalError: err}
 	}
 	height, err := s.Height()
 	if err != nil {
-		return StateError{errorType: RetrievalError, originalError: err}
+		return nil, StateError{errorType: RetrievalError, originalError: err}
 	}
 	prevScore, err := s.stor.scores.score(height)
 	if err != nil {
-		return StateError{errorType: RetrievalError, originalError: err}
+		return nil, StateError{errorType: RetrievalError, originalError: err}
 	}
 	headers := make([]proto.BlockHeader, blocksNumber)
 	var blocksToFinish [][]byte
 	breakerInfo := &breakerTask{}
 	chans := newVerifierChans()
 	go launchVerifier(ctx, chans, s.verificationGoroutinesNum)
+	var lastBlock *proto.Block
 	for i, blockBytes := range blocks {
 		curHeight := height + uint64(i)
 		if s.needToBreakAddingBlocks(curHeight, breakerInfo) {
@@ -799,7 +786,7 @@ func (s *stateManager) addBlocks(blocks [][]byte, initialisation bool) error {
 		}
 		var block proto.Block
 		if err := block.UnmarshalBinary(blockBytes); err != nil {
-			return StateError{errorType: DeserializationError, originalError: err}
+			return nil, StateError{errorType: DeserializationError, originalError: err}
 		}
 		task := &verifyTask{
 			taskType:   verifyBlock,
@@ -809,46 +796,46 @@ func (s *stateManager) addBlocks(blocks [][]byte, initialisation bool) error {
 		}
 		select {
 		case verifyError := <-chans.errChan:
-			return StateError{errorType: ValidationError, originalError: verifyError}
+			return nil, StateError{errorType: ValidationError, originalError: verifyError}
 		case chans.tasksChan <- task:
 		}
 		// Add score.
-		score, err := calculateScore(block.BaseTarget)
+		score, err := CalculateScore(block.BaseTarget)
 		if err != nil {
-			return StateError{errorType: Other, originalError: err}
+			return nil, StateError{errorType: Other, originalError: err}
 		}
 		if err := s.stor.scores.addScore(prevScore, score, s.rw.recentHeight()); err != nil {
-			return StateError{errorType: ModificationError, originalError: err}
+			return nil, StateError{errorType: ModificationError, originalError: err}
 		}
 		prevScore = score
 		if err := s.addNewBlock(tv, &block, parent, initialisation, chans); err != nil {
-			return StateError{errorType: TxValidationError, originalError: err}
+			return nil, StateError{errorType: TxValidationError, originalError: err}
 		}
 		headers[i] = block.BlockHeader
 		parent = &block
 	}
 	close(chans.tasksChan)
 	if err := tv.validateTransactions(initialisation, true); err != nil {
-		return StateError{errorType: TxValidationError, originalError: err}
+		return nil, StateError{errorType: TxValidationError, originalError: err}
 	}
 	if err := s.cv.ValidateHeaders(headers[:len(headers)-len(blocksToFinish)], height); err != nil {
-		return StateError{errorType: BlockValidationError, originalError: err}
+		return nil, StateError{errorType: ValidationError, originalError: err}
 	}
 	verifyError := <-chans.errChan
 	if verifyError != nil {
-		return StateError{errorType: ValidationError, originalError: err}
+		return nil, StateError{errorType: ValidationError, originalError: verifyError}
 	}
 	if err := s.flush(initialisation); err != nil {
-		return StateError{errorType: ModificationError, originalError: err}
+		return nil, StateError{errorType: ModificationError, originalError: err}
 	}
 	if err := s.reset(); err != nil {
-		return StateError{errorType: ModificationError, originalError: err}
+		return nil, StateError{errorType: ModificationError, originalError: err}
 	}
 	if blocksToFinish != nil {
 		return s.handleBreak(blocksToFinish, initialisation, breakerInfo)
 	}
 	log.Printf("State: blocks to height %d added.\n", height+uint64(blocksNumber))
-	return nil
+	return lastBlock, nil
 }
 
 func (s *stateManager) checkRollbackInput(blockID crypto.Signature) error {

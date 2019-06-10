@@ -55,12 +55,12 @@ func (cv *ConsensusValidator) fairPosActivated() (bool, error) {
 func (cv *ConsensusValidator) posAlgo() (posCalculator, error) {
 	fair, err := cv.fairPosActivated()
 	if err != nil {
-		return &nxtPosCalculator{}, err
+		return &NxtPosCalculator{}, err
 	}
 	if fair {
-		return &fairPosCalculator{}, nil
+		return &FairPosCalculator{}, nil
 	}
-	return &nxtPosCalculator{}, nil
+	return &NxtPosCalculator{}, nil
 }
 
 func (cv *ConsensusValidator) headerByHeight(height uint64) (*proto.BlockHeader, error) {
@@ -115,11 +115,11 @@ func (cv *ConsensusValidator) validateEffectiveBalance(header *proto.BlockHeader
 	}
 	if smallerGeneratingBalance {
 		if balance < minimalEffectiveBalanceForGenerator2 {
-			return errors.Errorf("generator's effective balance is less than required for generation: %d", balance)
+			return errors.Errorf("generator's effective balance is less than required for generation: expected %d, found %d", minimalEffectiveBalanceForGenerator2, balance)
 		}
 	}
 	if balance < minimalEffectiveBalanceForGenerator1 {
-		return errors.Errorf("generator's effective balance is less than required for generation: %d", balance)
+		return errors.Errorf("generator's effective balance is less than required for generation: expected %d, %d", minimalEffectiveBalanceForGenerator1, balance)
 	}
 	return nil
 }
@@ -184,7 +184,7 @@ func (cv *ConsensusValidator) validateBaseTarget(height uint64, header, parent, 
 	if greatGrandParent != nil {
 		greatGrandParentTimestamp = greatGrandParent.Timestamp
 	}
-	expectedTarget, err := pos.calculateBaseTarget(
+	expectedTarget, err := pos.CalculateBaseTarget(
 		cv.settings.AverageBlockDelaySeconds,
 		height,
 		parent.BaseTarget,
@@ -206,7 +206,7 @@ func (cv *ConsensusValidator) validateGeneratorSignature(height uint64, header *
 	if err != nil {
 		return errors.Errorf("failed to get last block header: %v\n", err)
 	}
-	expectedGenSig, err := generatorSignature(last.GenSignature, header.GenPublicKey)
+	expectedGenSig, err := GeneratorSignature(last.GenSignature, header.GenPublicKey)
 	if err != nil {
 		return errors.Errorf("failed to calculate generator signature: %v\n", err)
 	}
@@ -225,15 +225,15 @@ func (cv *ConsensusValidator) validBlockDelay(height uint64, pk crypto.PublicKey
 	if err != nil {
 		return 0, err
 	}
-	genSig, err := generatorSignature(header.GenSignature, pk)
+	genSig, err := GeneratorSignature(header.GenSignature, pk)
 	if err != nil {
 		return 0, err
 	}
-	hit, err := hit(genSig[:])
+	hit, err := GenHit(genSig[:])
 	if err != nil {
 		return 0, err
 	}
-	return pos.calculateDelay(hit, parentTarget, effectiveBalance)
+	return pos.CalculateDelay(hit, parentTarget, effectiveBalance)
 }
 
 func (cv *ConsensusValidator) validateBlockDelay(height uint64, header *proto.BlockHeader) error {
@@ -261,9 +261,14 @@ func (cv *ConsensusValidator) validateBlockDelay(height uint64, header *proto.Bl
 
 func (cv *ConsensusValidator) validateBlockTimestamp(header *proto.BlockHeader) error {
 	// Milliseconds.
-	currentTime := time.Now().UnixNano() / 1000
-	if int64(header.Timestamp)-currentTime > maxTimeDrift {
-		return errors.New("block from future error: block's timestamp is too far in the future")
+	currentTimestamp := proto.NewTimestampFromTime(time.Now())
+	if int64(header.Timestamp)-int64(currentTimestamp) > maxTimeDrift {
+		return errors.Errorf(
+			"block from future error: block's timestamp is too far in the future, current timestamp %d, received %d, maxTimeDrift %d, delta %d",
+			currentTimestamp,
+			header.Timestamp,
+			maxTimeDrift,
+			header.Timestamp-currentTimestamp)
 	}
 	return nil
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/alecthomas/kong"
 	"github.com/wavesplatform/gowaves/pkg/api"
+	"github.com/wavesplatform/gowaves/pkg/miner/scheduler"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"os"
 	"os/signal"
@@ -45,13 +46,6 @@ func main() {
 	var cli Cli
 	kong.Parse(&cli)
 
-	state, err := state.NewState("./", state.DefaultStateParams(), settings.MainNetSettings)
-	if err != nil {
-		zap.S().Error(err)
-		cancel()
-		return
-	}
-
 	conf := &settings.NodeSettings{}
 	settings.ApplySettings(conf,
 		FromArgs(&cli),
@@ -59,7 +53,14 @@ func main() {
 
 	zap.S().Info("conf", conf)
 
-	err = conf.Validate()
+	err := conf.Validate()
+	if err != nil {
+		zap.S().Error(err)
+		cancel()
+		return
+	}
+
+	state, err := state.NewState("./", state.DefaultStateParams(), settings.MainNetSettings)
 	if err != nil {
 		zap.S().Error(err)
 		cancel()
@@ -77,7 +78,7 @@ func main() {
 
 	peerManager := node.NewPeerManager(peerSpawnerImpl, state)
 
-	n := node.NewNode(state, peerManager, declAddr)
+	n := node.NewNode(state, peerManager, declAddr, nil, nil)
 
 	go node.RunNode(ctx, n, parent)
 
@@ -88,8 +89,10 @@ func main() {
 		}
 	}
 
+	schedulerIns := scheduler.NewScheduler(state, nil, nil)
+
 	// TODO hardcore
-	app, err := api.NewApp("integration-test-rest-api", n)
+	app, err := api.NewApp("integration-test-rest-api", n, schedulerIns)
 	if err != nil {
 		zap.S().Error(err)
 		cancel()

@@ -13,7 +13,7 @@ func TestCalculateScore(t *testing.T) {
 	var genesisScore big.Int
 	genesisScore.SetString(genesisScoreStr, 10)
 	genesisTarget := uint64(153722867)
-	result, err := calculateScore(genesisTarget)
+	result, err := CalculateScore(genesisTarget)
 	if err != nil {
 		t.Fatalf("Failed to calculate score: %v\n", err)
 	}
