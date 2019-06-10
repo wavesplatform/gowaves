@@ -538,14 +538,17 @@ func (s *stateManager) addNewBlock(tv *transactionValidator, block, parent *prot
 	info := &txValidationInfo{
 		perform:          true,
 		initialisation:   initialisation,
-		validate:         false,
 		currentTimestamp: block.Timestamp,
 		parentTimestamp:  parentTimestamp,
 		minerPK:          block.GenPublicKey,
 		blockID:          block.BlockSignature,
 		prevBlockID:      parentSig,
 	}
-	if err = tv.createTransactionsDiffs(transactions, info); err != nil {
+	blockDiff, err := tv.createBlockDiff(transactions, info)
+	if err != nil {
+		return err
+	}
+	if err = tv.saveBlockDiff(blockDiff, false); err != nil {
 		return err
 	}
 	if err := s.rw.finishBlock(block.BlockSignature); err != nil {
@@ -1004,12 +1007,15 @@ func (s *stateManager) ValidateSingleTx(tx proto.Transaction, currentTimestamp, 
 	info := &txValidationInfo{
 		perform:          false,
 		initialisation:   false,
-		validate:         true,
 		currentTimestamp: currentTimestamp,
 		parentTimestamp:  parentTimestamp,
 	}
-	if err := s.standaloneTv.createTxDiffs(tx, info); err != nil {
-		return StateError{errorType: TxValidationError, originalError: err}
+	diffs, err := s.standaloneTv.createTransactionsDiffs([]proto.Transaction{tx}, info)
+	if err != nil {
+		return err
+	}
+	if err = s.standaloneTv.saveTransactionsDiffs(diffs, true); err != nil {
+		return err
 	}
 	s.standaloneTv.reset()
 	return nil
@@ -1026,12 +1032,15 @@ func (s *stateManager) ValidateNextTx(tx proto.Transaction, currentTimestamp, pa
 	info := &txValidationInfo{
 		perform:          false,
 		initialisation:   false,
-		validate:         true,
 		currentTimestamp: currentTimestamp,
 		parentTimestamp:  parentTimestamp,
 	}
-	if err := s.multiTxTv.createTxDiffs(tx, info); err != nil {
-		return StateError{errorType: TxValidationError, originalError: err}
+	diffs, err := s.multiTxTv.createTransactionsDiffs([]proto.Transaction{tx}, info)
+	if err != nil {
+		return err
+	}
+	if err = s.multiTxTv.saveTransactionsDiffs(diffs, true); err != nil {
+		return err
 	}
 	return nil
 }

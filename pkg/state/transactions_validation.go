@@ -35,10 +35,6 @@ func byteKey(addr proto.Address, assetID []byte) []byte {
 // Each address among tx participants may also have one or more diffs within this tx.
 // For instance, paying transaction fee in Waves and sending Waves are two separate diffs for same address in Transfer/Payment tx.
 type balanceDiff struct {
-	// allowTempNegative indicates that this diff can not be picked as minBalanceDiff.
-	// This is needed when diff may legitimately result in temporary negative balance.
-	// For example, when seller and buyer are same person in Exchange transaction.
-	allowTempNegative   bool
 	allowLeasedTransfer bool
 	// Balance change.
 	balance int64
@@ -100,12 +96,6 @@ func (diff *balanceDiff) add(prevDiff *balanceDiff) error {
 	return nil
 }
 
-// balanceChange represents single transaction result.
-type balanceChange struct {
-	key  []byte
-	diff balanceDiff
-}
-
 // balanceChanges is a full collection of changes for given key.
 // balanceDiffs is slice of per-block cumulative diffs.
 type balanceChanges struct {
@@ -119,13 +109,9 @@ type balanceChanges struct {
 	minBalanceDiff balanceDiff
 }
 
-// newBalanceChanges() constructs new balanceChanges from the first change.
-func newBalanceChanges(change balanceChange, canBeMin bool) *balanceChanges {
-	changes := &balanceChanges{key: change.key, balanceDiffs: []balanceDiff{change.diff}}
-	if canBeMin && !change.diff.allowTempNegative {
-		changes.minBalanceDiff = change.diff
-	}
-	return changes
+// newBalanceChanges() constructs new balanceChanges from the first balance diff.
+func newBalanceChanges(key []byte, diff balanceDiff) *balanceChanges {
+	return &balanceChanges{key, []balanceDiff{diff}, diff}
 }
 
 func (ch *balanceChanges) safeCopy() *balanceChanges {
@@ -138,17 +124,14 @@ func (ch *balanceChanges) safeCopy() *balanceChanges {
 	return newChanges
 }
 
-func (ch *balanceChanges) updateMinBalanceDiff(newDiff balanceDiff, checkTempNegative bool) {
-	allowNegForDiff := newDiff.allowTempNegative
-	if checkTempNegative && !allowNegForDiff {
-		// Check every tx, minBalanceDiff will have minimum diff value among all txs at the end.
-		if newDiff.spendableBalanceDiff() < ch.minBalanceDiff.spendableBalanceDiff() {
-			ch.minBalanceDiff = newDiff
-		}
+func (ch *balanceChanges) updateMinBalanceDiff(newDiff balanceDiff) {
+	// Check every tx, minBalanceDiff will have minimum diff value among all txs at the end.
+	if newDiff.spendableBalanceDiff() < ch.minBalanceDiff.spendableBalanceDiff() {
+		ch.minBalanceDiff = newDiff
 	}
 }
 
-func (ch *balanceChanges) addDiff(newDiff balanceDiff, checkTempNegative bool) error {
+func (ch *balanceChanges) addDiff(newDiff balanceDiff) error {
 	if len(ch.balanceDiffs) < 1 {
 		return errors.New("trying to addDiff() to empty balanceChanges")
 	}
@@ -162,7 +145,7 @@ func (ch *balanceChanges) addDiff(newDiff balanceDiff, checkTempNegative bool) e
 	} else {
 		ch.balanceDiffs[last] = newDiff
 	}
-	ch.updateMinBalanceDiff(newDiff, checkTempNegative)
+	ch.updateMinBalanceDiff(newDiff)
 	return nil
 }
 
@@ -182,22 +165,6 @@ func newChangesStorage(balances *balances) (*changesStorage, error) {
 		wavesKeys: make(map[wavesBalanceKeyFixed]int),
 		assetKeys: make(map[assetBalanceKeyFixed]int),
 	}, nil
-}
-
-func (bs *changesStorage) exists(key []byte) (bool, error) {
-	size := len(key)
-	if size == wavesBalanceKeySize {
-		var wavesKey wavesBalanceKeyFixed
-		copy(wavesKey[:], key)
-		_, ok := bs.wavesKeys[wavesKey]
-		return ok, nil
-	} else if size == assetBalanceKeySize {
-		var assetKey assetBalanceKeyFixed
-		copy(assetKey[:], key)
-		_, ok := bs.assetKeys[assetKey]
-		return ok, nil
-	}
-	return false, errors.New("invalid key size")
 }
 
 func (bs *changesStorage) setBalanceChanges(changes *balanceChanges) error {
@@ -234,7 +201,7 @@ func (bs *changesStorage) balanceChanges(key []byte) (*balanceChanges, error) {
 		copy(wavesKey[:], key)
 		index, ok := bs.wavesKeys[wavesKey]
 		if !ok {
-			return nil, errors.New("key not found")
+			return nil, errNotFound
 		}
 		return bs.changes[index].safeCopy(), nil
 	} else if size == assetBalanceKeySize {
@@ -242,52 +209,58 @@ func (bs *changesStorage) balanceChanges(key []byte) (*balanceChanges, error) {
 		copy(assetKey[:], key)
 		index, ok := bs.assetKeys[assetKey]
 		if !ok {
-			return nil, errors.New("key not found")
+			return nil, errNotFound
 		}
 		return bs.changes[index].safeCopy(), nil
 	}
 	return nil, errors.New("invalid key size")
 }
 
-// constructBalanceChanges() checks whether changes for given change key already exist, and adds new change to them in such case.
-// Otherwise, it creates fresh changes with the first change equal to the argument.
-func (bs *changesStorage) constructBalanceChanges(change balanceChange, checkTempNegative bool) (*balanceChanges, error) {
-	exists, err := bs.exists(change.key)
-	if err != nil {
-		return nil, err
-	}
-	if !exists {
-		return newBalanceChanges(change, checkTempNegative), nil
-	}
+// constructBalanceChanges() checks whether changes for given change key already exist, and adds new diff to them in such case.
+// Otherwise, it creates fresh changes with the first diff equal to the argument.
+func (bs *changesStorage) constructBalanceChanges(key []byte, diff balanceDiff) (*balanceChanges, error) {
 	// Changes for this key are already in the stor, retrieve them.
-	changes, err := bs.balanceChanges(change.key)
+	changes, err := bs.balanceChanges(key)
+	if err == errNotFound {
+		// Fresh changes with the first diff set.
+		return newBalanceChanges(key, diff), nil
+	}
 	if err != nil {
 		return nil, errors.Wrap(err, "can not retrieve balance changes")
 	}
-	changes.minBalanceDiff.allowLeasedTransfer = change.diff.allowLeasedTransfer
-	if err := changes.addDiff(change.diff, checkTempNegative); err != nil {
+	// Add new diff to existing changes.
+	if err := changes.addDiff(diff); err != nil {
 		return nil, errors.Wrap(err, "can not update balance changes")
 	}
 	return changes, nil
 }
 
-// addChange() adds new change to storage, validating it immediately before saving if necessarily.
-func (bs *changesStorage) addChange(change balanceChange, checkTempNegative, validate bool) (bool, error) {
-	changes, err := bs.constructBalanceChanges(change, checkTempNegative)
+// addBalanceDiff() adds new balance diff to storage, validating it immediately before saving if necessarily.
+func (bs *changesStorage) addBalanceDiff(key []byte, diff balanceDiff, validate bool) error {
+	changes, err := bs.constructBalanceChanges(key, diff)
 	if err != nil {
-		return false, errors.Wrap(err, "failed to construct balance changes for given key and diff")
+		return errors.Wrap(err, "failed to construct balance changes for given key and diff")
 	}
 	if validate {
 		// Validate immediately, without waiting for validateTransactions() call.
 		if err := bs.validateBalanceChanges(changes, true, false); err != nil {
-			return false, errors.Wrap(err, "changes validation failed")
+			return errors.Wrap(err, "changes validation failed")
 		}
 	}
 	// Save changes at the end if validation was successful / if immediate validation was not needed.
 	if err := bs.setBalanceChanges(changes); err != nil {
-		return false, errors.Wrap(err, "failed to save changes to changes storage")
+		return errors.Wrap(err, "failed to save changes to changes storage")
 	}
-	return true, nil
+	return nil
+}
+
+func (bs *changesStorage) saveTxDiff(diff txDiff, validate bool) error {
+	for key, balanceDiff := range diff {
+		if err := bs.addBalanceDiff([]byte(key), balanceDiff, validate); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (bs *changesStorage) validateWavesBalanceChanges(change *balanceChanges, filter, perform bool) error {
@@ -304,6 +277,7 @@ func (bs *changesStorage) validateWavesBalanceChanges(change *balanceChanges, fi
 		return errors.Errorf("minimum balance diff for %s produces invalid result: %v\n", k.address.String(), err)
 	}
 	for _, diff := range change.balanceDiffs {
+		// Check for negative balance.
 		newProfile, err := diff.applyTo(profile)
 		if err != nil {
 			return errors.Errorf("failed to apply waves balance change: %v\n", err)
@@ -425,6 +399,26 @@ func (i *txValidationInfo) hasPrevBlock() bool {
 	return i.prevBlockID != (crypto.Signature{})
 }
 
+type txDiff map[string]balanceDiff
+
+func newTxDiff() txDiff {
+	return make(txDiff)
+}
+
+func (diff txDiff) appendBalanceDiff(key []byte, balanceDiff balanceDiff) error {
+	keyStr := string(key)
+	if prevDiff, ok := diff[keyStr]; ok {
+		if err := balanceDiff.add(&prevDiff); err != nil {
+			return err
+		}
+		diff[keyStr] = balanceDiff
+	} else {
+		// New balance diff for this key.
+		diff[keyStr] = balanceDiff
+	}
+	return nil
+}
+
 type transactionValidator struct {
 	genesis     crypto.Signature
 	changesStor *changesStorage
@@ -494,52 +488,45 @@ func (tv *transactionValidator) checkFromFuture(timestamp uint64) bool {
 	return timestamp > tv.settings.TxFromFutureCheckAfterTime
 }
 
-func (tv *transactionValidator) checkNegativeBalance(timestamp uint64) bool {
-	return timestamp > tv.settings.NegativeBalanceCheckAfterTime
-}
-
 func (tv *transactionValidator) checkTxChangesSorted(timestamp uint64) bool {
 	return timestamp > tv.settings.TxChangesSortedCheckAfterTime
 }
 
-func (tv *transactionValidator) checkTimestamps(txTimestamp, blockTimestamp, prevBlockTimestamp uint64) (bool, error) {
+func (tv *transactionValidator) checkTimestamps(txTimestamp, blockTimestamp, prevBlockTimestamp uint64) error {
 	if txTimestamp < prevBlockTimestamp-tv.settings.MaxTxTimeBackOffset {
-		return false, errors.New("early transaction creation time")
+		return errors.New("early transaction creation time")
 	}
 	if tv.checkFromFuture(blockTimestamp) && txTimestamp > blockTimestamp+tv.settings.MaxTxTimeForwardOffset {
-		return false, errors.New("late transaction creation time")
-	}
-	return true, nil
-}
-
-func (tv *transactionValidator) pushChanges(changes []balanceChange, info *txValidationInfo) error {
-	for _, ch := range changes {
-		allowLeasedTransfer := true
-		if info.currentTimestamp >= tv.settings.AllowLeasedBalanceTransferUntilTime {
-			allowLeasedTransfer = false
-		}
-		ch.diff.allowLeasedTransfer = allowLeasedTransfer
-		ch.diff.blockID = info.blockID
-		checkTempNegative := tv.checkNegativeBalance(info.currentTimestamp)
-		if ok, err := tv.changesStor.addChange(ch, checkTempNegative, info.validate); !ok {
-			return err
-		}
+		return errors.New("late transaction creation time")
 	}
 	return nil
 }
 
-func (tv *transactionValidator) minerPayout(fee uint64, minerPK crypto.PublicKey, feeAsset []byte) (*balanceChange, error) {
-	minerAddr, err := proto.NewAddressFromPublicKey(tv.settings.AddressSchemeCharacter, minerPK)
+// curBlockBalanceDiff takes balanceDiff and appends additional info.
+func (tv *transactionValidator) curBlockBalanceDiff(diff balanceDiff, info *txValidationInfo) balanceDiff {
+	allowLeasedTransfer := true
+	if info.currentTimestamp >= tv.settings.AllowLeasedBalanceTransferUntilTime {
+		allowLeasedTransfer = false
+	}
+	diff.allowLeasedTransfer = allowLeasedTransfer
+	diff.blockID = info.blockID
+	return diff
+}
+
+// minerPayout adds current fee part of given tx to txDiff.
+func (tv *transactionValidator) minerPayout(diff txDiff, fee uint64, info *txValidationInfo, feeAsset []byte) error {
+	minerAddr, err := proto.NewAddressFromPublicKey(tv.settings.AddressSchemeCharacter, info.minerPK)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	minerKey := byteKey(minerAddr, feeAsset)
 	minerBalanceDiff, err := tv.calculateCurrentBlockTxFee(fee)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	// Append miner balance change to the list of changes.
-	minerChange := &balanceChange{minerKey, balanceDiff{balance: int64(minerBalanceDiff)}}
+	if err := diff.appendBalanceDiff(minerKey, tv.curBlockBalanceDiff(balanceDiff{balance: int64(minerBalanceDiff)}, info)); err != nil {
+		return err
+	}
 	// Count fees.
 	if feeAsset == nil {
 		tv.curDistr.totalWavesFees += fee
@@ -547,59 +534,57 @@ func (tv *transactionValidator) minerPayout(fee uint64, minerPK crypto.PublicKey
 	} else {
 		assetID, err := crypto.NewDigestFromBytes(feeAsset)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		tv.curDistr.totalFees[assetID] += fee
 		tv.curDistr.currentBlockFees[assetID] += minerBalanceDiff
 	}
-	return minerChange, nil
+	return nil
 }
 
-func (tv *transactionValidator) validateGenesis(tx *proto.Genesis, info *txValidationInfo) (bool, error) {
+func (tv *transactionValidator) createDiffGenesis(tx *proto.Genesis, info *txValidationInfo) (txDiff, error) {
+	diff := newTxDiff()
 	if info.blockID != tv.genesis {
-		return false, errors.New("genesis transaction inside of non-genesis block")
+		return txDiff{}, errors.New("genesis transaction inside of non-genesis block")
 	}
 	if !info.initialisation {
-		return false, errors.New("genesis transaction in non-initialisation mode")
+		return txDiff{}, errors.New("genesis transaction in non-initialisation mode")
 	}
-	changes := make([]balanceChange, 1)
 	key := wavesBalanceKey{address: tx.Recipient}
 	receiverBalanceDiff := int64(tx.Amount)
-	changes[0] = balanceChange{key.bytes(), balanceDiff{balance: receiverBalanceDiff}}
-	if err := tv.pushChanges(changes, info); err != nil {
-		return false, err
+	if err := diff.appendBalanceDiff(key.bytes(), tv.curBlockBalanceDiff(balanceDiff{balance: receiverBalanceDiff}, info)); err != nil {
+		return txDiff{}, err
 	}
-	return true, nil
+	return diff, nil
 }
 
-func (tv *transactionValidator) validatePayment(tx *proto.Payment, info *txValidationInfo) (bool, error) {
-	if ok, err := tv.checkTimestamps(tx.Timestamp, info.currentTimestamp, info.parentTimestamp); !ok {
-		return false, errors.Wrap(err, "invalid timestamp")
+func (tv *transactionValidator) createDiffPayment(tx *proto.Payment, info *txValidationInfo) (txDiff, error) {
+	diff := newTxDiff()
+	if err := tv.checkTimestamps(tx.Timestamp, info.currentTimestamp, info.parentTimestamp); err != nil {
+		return txDiff{}, errors.Wrap(err, "invalid timestamp")
 	}
-	changes := make([]balanceChange, 2)
-	// Update sender.
+	// Append sender diff.
 	senderAddr, err := proto.NewAddressFromPublicKey(tv.settings.AddressSchemeCharacter, tx.SenderPK)
 	if err != nil {
-		return false, err
+		return txDiff{}, err
 	}
 	senderKey := wavesBalanceKey{address: senderAddr}
 	senderBalanceDiff := -int64(tx.Amount) - int64(tx.Fee)
-	changes[0] = balanceChange{senderKey.bytes(), balanceDiff{balance: senderBalanceDiff}}
-	// Update receiver.
+	if err := diff.appendBalanceDiff(senderKey.bytes(), tv.curBlockBalanceDiff(balanceDiff{balance: senderBalanceDiff}, info)); err != nil {
+		return txDiff{}, err
+	}
+	// Append receiver diff.
 	receiverKey := wavesBalanceKey{address: tx.Recipient}
 	receiverBalanceDiff := int64(tx.Amount)
-	changes[1] = balanceChange{receiverKey.bytes(), balanceDiff{balance: receiverBalanceDiff}}
+	if err := diff.appendBalanceDiff(receiverKey.bytes(), tv.curBlockBalanceDiff(balanceDiff{balance: receiverBalanceDiff}, info)); err != nil {
+		return txDiff{}, err
+	}
 	if info.hasMiner() {
-		minerChange, err := tv.minerPayout(tx.Fee, info.minerPK, nil)
-		if err != nil {
-			return false, errors.Wrap(err, "failed to calculate miner payout")
+		if err := tv.minerPayout(diff, tx.Fee, info, nil); err != nil {
+			return txDiff{}, errors.Wrap(err, "failed to append miner payout")
 		}
-		changes = append(changes, *minerChange)
 	}
-	if err := tv.pushChanges(changes, info); err != nil {
-		return false, err
-	}
-	return true, nil
+	return diff, nil
 }
 
 func (tv *transactionValidator) checkAsset(asset *proto.OptionalAsset, initialisation bool) error {
@@ -613,61 +598,63 @@ func (tv *transactionValidator) checkAsset(asset *proto.OptionalAsset, initialis
 	return nil
 }
 
-func (tv *transactionValidator) validateTransfer(tx *proto.Transfer, info *txValidationInfo) (bool, error) {
-	if ok, err := tv.checkTimestamps(tx.Timestamp, info.currentTimestamp, info.parentTimestamp); !ok {
-		return false, errors.Wrap(err, "invalid timestamp")
+func (tv *transactionValidator) createDiffTransfer(tx *proto.Transfer, info *txValidationInfo) (txDiff, error) {
+	diff := newTxDiff()
+	if err := tv.checkTimestamps(tx.Timestamp, info.currentTimestamp, info.parentTimestamp); err != nil {
+		return txDiff{}, errors.Wrap(err, "invalid timestamp")
 	}
 	if err := tv.checkAsset(&tx.AmountAsset, info.initialisation); err != nil {
-		return false, err
+		return txDiff{}, err
 	}
 	if err := tv.checkAsset(&tx.FeeAsset, info.initialisation); err != nil {
-		return false, err
+		return txDiff{}, err
 	}
-	changes := make([]balanceChange, 3)
-	// Update sender.
+	// Append sender diff.
 	senderAddr, err := proto.NewAddressFromPublicKey(tv.settings.AddressSchemeCharacter, tx.SenderPK)
 	if err != nil {
-		return false, err
+		return txDiff{}, err
 	}
 	senderFeeKey := byteKey(senderAddr, tx.FeeAsset.ToID())
 	senderFeeBalanceDiff := -int64(tx.Fee)
-	changes[0] = balanceChange{senderFeeKey, balanceDiff{balance: senderFeeBalanceDiff}}
+	if err := diff.appendBalanceDiff(senderFeeKey, tv.curBlockBalanceDiff(balanceDiff{balance: senderFeeBalanceDiff}, info)); err != nil {
+		return txDiff{}, err
+	}
 	senderAmountKey := byteKey(senderAddr, tx.AmountAsset.ToID())
 	senderAmountBalanceDiff := -int64(tx.Amount)
-	changes[1] = balanceChange{senderAmountKey, balanceDiff{balance: senderAmountBalanceDiff}}
-	// Update receiver.
+	if err := diff.appendBalanceDiff(senderAmountKey, tv.curBlockBalanceDiff(balanceDiff{balance: senderAmountBalanceDiff}, info)); err != nil {
+		return txDiff{}, err
+	}
+	// Append receiver diff.
 	recipientAddr := &proto.Address{}
 	if tx.Recipient.Address == nil {
 		recipientAddr, err = tv.stor.aliases.newestAddrByAlias(tx.Recipient.Alias.Alias, !info.initialisation)
 		if err != nil {
-			return false, errors.Errorf("invalid alias: %v\n", err)
+			return txDiff{}, errors.Errorf("invalid alias: %v\n", err)
 		}
 	} else {
 		recipientAddr = tx.Recipient.Address
 	}
 	receiverKey := byteKey(*recipientAddr, tx.AmountAsset.ToID())
 	receiverBalanceDiff := int64(tx.Amount)
-	changes[2] = balanceChange{receiverKey, balanceDiff{balance: receiverBalanceDiff}}
+	if err := diff.appendBalanceDiff(receiverKey, tv.curBlockBalanceDiff(balanceDiff{balance: receiverBalanceDiff}, info)); err != nil {
+		return txDiff{}, err
+	}
 	if info.hasMiner() {
-		minerChange, err := tv.minerPayout(tx.Fee, info.minerPK, tx.FeeAsset.ToID())
-		if err != nil {
-			return false, errors.Wrap(err, "failed to calculate miner payout")
+		if err := tv.minerPayout(diff, tx.Fee, info, tx.FeeAsset.ToID()); err != nil {
+			return txDiff{}, errors.Wrap(err, "failed to append miner payout")
 		}
-		changes = append(changes, *minerChange)
 	}
-	if err := tv.pushChanges(changes, info); err != nil {
-		return false, err
-	}
-	return true, nil
+	return diff, nil
 }
 
-func (tv *transactionValidator) validateIssue(tx *proto.Issue, id []byte, info *txValidationInfo) (bool, error) {
-	if ok, err := tv.checkTimestamps(tx.Timestamp, info.currentTimestamp, info.parentTimestamp); !ok {
-		return false, errors.Wrap(err, "invalid timestamp")
+func (tv *transactionValidator) createDiffIssue(tx *proto.Issue, id []byte, info *txValidationInfo) (txDiff, error) {
+	diff := newTxDiff()
+	if err := tv.checkTimestamps(tx.Timestamp, info.currentTimestamp, info.parentTimestamp); err != nil {
+		return txDiff{}, errors.Wrap(err, "invalid timestamp")
 	}
 	assetID, err := crypto.NewDigestFromBytes(id)
 	if err != nil {
-		return false, err
+		return txDiff{}, err
 	}
 	if info.perform {
 		// Create new asset.
@@ -684,45 +671,44 @@ func (tv *transactionValidator) validateIssue(tx *proto.Issue, id []byte, info *
 			},
 		}
 		if err := tv.stor.assets.issueAsset(assetID, asset); err != nil {
-			return false, errors.Wrap(err, "failed to issue asset")
+			return txDiff{}, errors.Wrap(err, "failed to issue asset")
 		}
 	}
-	changes := make([]balanceChange, 2)
-	// Update sender.
+	// Append sender diff.
 	senderAddr, err := proto.NewAddressFromPublicKey(tv.settings.AddressSchemeCharacter, tx.SenderPK)
 	if err != nil {
-		return false, err
+		return txDiff{}, err
 	}
 	senderFeeKey := wavesBalanceKey{address: senderAddr}
 	senderFeeBalanceDiff := -int64(tx.Fee)
-	changes[0] = balanceChange{senderFeeKey.bytes(), balanceDiff{balance: senderFeeBalanceDiff}}
+	if err := diff.appendBalanceDiff(senderFeeKey.bytes(), tv.curBlockBalanceDiff(balanceDiff{balance: senderFeeBalanceDiff}, info)); err != nil {
+		return txDiff{}, err
+	}
 	senderAssetKey := assetBalanceKey{address: senderAddr, asset: assetID[:]}
 	senderAssetBalanceDiff := int64(tx.Quantity)
-	changes[1] = balanceChange{senderAssetKey.bytes(), balanceDiff{balance: senderAssetBalanceDiff}}
+	if err := diff.appendBalanceDiff(senderAssetKey.bytes(), tv.curBlockBalanceDiff(balanceDiff{balance: senderAssetBalanceDiff}, info)); err != nil {
+		return txDiff{}, err
+	}
 	if info.hasMiner() {
-		minerChange, err := tv.minerPayout(tx.Fee, info.minerPK, nil)
-		if err != nil {
-			return false, errors.Wrap(err, "failed to calculate miner payout")
+		if err := tv.minerPayout(diff, tx.Fee, info, nil); err != nil {
+			return txDiff{}, errors.Wrap(err, "failed to append miner payout")
 		}
-		changes = append(changes, *minerChange)
 	}
-	if err := tv.pushChanges(changes, info); err != nil {
-		return false, err
-	}
-	return true, nil
+	return diff, nil
 }
 
-func (tv *transactionValidator) validateReissue(tx *proto.Reissue, info *txValidationInfo) (bool, error) {
-	if ok, err := tv.checkTimestamps(tx.Timestamp, info.currentTimestamp, info.parentTimestamp); !ok {
-		return false, errors.Wrap(err, "invalid timestamp")
+func (tv *transactionValidator) createDiffReissue(tx *proto.Reissue, info *txValidationInfo) (txDiff, error) {
+	diff := newTxDiff()
+	if err := tv.checkTimestamps(tx.Timestamp, info.currentTimestamp, info.parentTimestamp); err != nil {
+		return txDiff{}, errors.Wrap(err, "invalid timestamp")
 	}
 	// Check if it's "legal" to modify given asset.
 	record, err := tv.stor.assets.newestAssetRecord(tx.AssetID, !info.initialisation)
 	if err != nil {
-		return false, err
+		return txDiff{}, err
 	}
 	if (info.currentTimestamp > tv.settings.InvalidReissueInSameBlockUntilTime) && !record.reissuable {
-		return false, errors.New("attempt to reissue asset which is not reissuable")
+		return txDiff{}, errors.New("attempt to reissue asset which is not reissuable")
 	}
 	if info.perform {
 		// Modify asset.
@@ -732,37 +718,36 @@ func (tv *transactionValidator) validateReissue(tx *proto.Reissue, info *txValid
 			blockID:    info.blockID,
 		}
 		if err := tv.stor.assets.reissueAsset(tx.AssetID, change, !info.initialisation); err != nil {
-			return false, errors.Wrap(err, "failed to reissue asset")
+			return txDiff{}, errors.Wrap(err, "failed to reissue asset")
 		}
 	}
-	changes := make([]balanceChange, 2)
-	// Update sender.
+	// Append sender diff.
 	senderAddr, err := proto.NewAddressFromPublicKey(tv.settings.AddressSchemeCharacter, tx.SenderPK)
 	if err != nil {
-		return false, err
+		return txDiff{}, err
 	}
 	senderFeeKey := wavesBalanceKey{address: senderAddr}
 	senderFeeBalanceDiff := -int64(tx.Fee)
-	changes[0] = balanceChange{senderFeeKey.bytes(), balanceDiff{balance: senderFeeBalanceDiff}}
+	if err := diff.appendBalanceDiff(senderFeeKey.bytes(), tv.curBlockBalanceDiff(balanceDiff{balance: senderFeeBalanceDiff}, info)); err != nil {
+		return txDiff{}, err
+	}
 	senderAssetKey := assetBalanceKey{address: senderAddr, asset: tx.AssetID[:]}
 	senderAssetBalanceDiff := int64(tx.Quantity)
-	changes[1] = balanceChange{senderAssetKey.bytes(), balanceDiff{balance: senderAssetBalanceDiff}}
+	if err := diff.appendBalanceDiff(senderAssetKey.bytes(), tv.curBlockBalanceDiff(balanceDiff{balance: senderAssetBalanceDiff}, info)); err != nil {
+		return txDiff{}, err
+	}
 	if info.hasMiner() {
-		minerChange, err := tv.minerPayout(tx.Fee, info.minerPK, nil)
-		if err != nil {
-			return false, errors.Wrap(err, "failed to calculate miner payout")
+		if err := tv.minerPayout(diff, tx.Fee, info, nil); err != nil {
+			return txDiff{}, errors.Wrap(err, "failed to append miner payout")
 		}
-		changes = append(changes, *minerChange)
 	}
-	if err := tv.pushChanges(changes, info); err != nil {
-		return false, err
-	}
-	return true, nil
+	return diff, nil
 }
 
-func (tv *transactionValidator) validateBurn(tx *proto.Burn, info *txValidationInfo) (bool, error) {
-	if ok, err := tv.checkTimestamps(tx.Timestamp, info.currentTimestamp, info.parentTimestamp); !ok {
-		return false, errors.Wrap(err, "invalid timestamp")
+func (tv *transactionValidator) createDiffBurn(tx *proto.Burn, info *txValidationInfo) (txDiff, error) {
+	diff := newTxDiff()
+	if err := tv.checkTimestamps(tx.Timestamp, info.currentTimestamp, info.parentTimestamp); err != nil {
+		return txDiff{}, errors.Wrap(err, "invalid timestamp")
 	}
 	if info.perform {
 		// Modify asset.
@@ -771,52 +756,51 @@ func (tv *transactionValidator) validateBurn(tx *proto.Burn, info *txValidationI
 			blockID: info.blockID,
 		}
 		if err := tv.stor.assets.burnAsset(tx.AssetID, change, !info.initialisation); err != nil {
-			return false, errors.Wrap(err, "failed to burn asset")
+			return txDiff{}, errors.Wrap(err, "failed to burn asset")
 		}
 	}
-	changes := make([]balanceChange, 2)
-	// Update sender.
+	// Append sender diff.
 	senderAddr, err := proto.NewAddressFromPublicKey(tv.settings.AddressSchemeCharacter, tx.SenderPK)
 	if err != nil {
-		return false, err
+		return txDiff{}, err
 	}
 	senderFeeKey := wavesBalanceKey{address: senderAddr}
 	senderFeeBalanceDiff := -int64(tx.Fee)
-	changes[0] = balanceChange{senderFeeKey.bytes(), balanceDiff{balance: senderFeeBalanceDiff}}
+	if err := diff.appendBalanceDiff(senderFeeKey.bytes(), tv.curBlockBalanceDiff(balanceDiff{balance: senderFeeBalanceDiff}, info)); err != nil {
+		return txDiff{}, err
+	}
 	senderAssetKey := assetBalanceKey{address: senderAddr, asset: tx.AssetID[:]}
 	senderAssetBalanceDiff := -int64(tx.Amount)
-	changes[1] = balanceChange{senderAssetKey.bytes(), balanceDiff{balance: senderAssetBalanceDiff}}
+	if err := diff.appendBalanceDiff(senderAssetKey.bytes(), tv.curBlockBalanceDiff(balanceDiff{balance: senderAssetBalanceDiff}, info)); err != nil {
+		return txDiff{}, err
+	}
 	if info.hasMiner() {
-		minerChange, err := tv.minerPayout(tx.Fee, info.minerPK, nil)
-		if err != nil {
-			return false, errors.Wrap(err, "failed to calculate miner payout")
+		if err := tv.minerPayout(diff, tx.Fee, info, nil); err != nil {
+			return txDiff{}, errors.Wrap(err, "failed to append miner payout")
 		}
-		changes = append(changes, *minerChange)
 	}
-	if err := tv.pushChanges(changes, info); err != nil {
-		return false, err
-	}
-	return true, nil
+	return diff, nil
 }
 
-func (tv *transactionValidator) validateExchange(tx proto.Exchange, info *txValidationInfo) (bool, error) {
-	if ok, err := tv.checkTimestamps(tx.GetTimestamp(), info.currentTimestamp, info.parentTimestamp); !ok {
-		return false, errors.Wrap(err, "invalid timestamp")
+func (tv *transactionValidator) createDiffExchange(tx proto.Exchange, info *txValidationInfo) (txDiff, error) {
+	diff := newTxDiff()
+	if err := tv.checkTimestamps(tx.GetTimestamp(), info.currentTimestamp, info.parentTimestamp); err != nil {
+		return txDiff{}, errors.Wrap(err, "invalid timestamp")
 	}
 	buyOrder, err := tx.GetBuyOrder()
 	if err != nil {
-		return false, err
+		return txDiff{}, err
 	}
 	sellOrder, err := tx.GetSellOrder()
 	if err != nil {
-		return false, err
+		return txDiff{}, err
 	}
 	// Check assets.
 	if err := tv.checkAsset(&sellOrder.AssetPair.AmountAsset, info.initialisation); err != nil {
-		return false, err
+		return txDiff{}, err
 	}
 	if err := tv.checkAsset(&sellOrder.AssetPair.PriceAsset, info.initialisation); err != nil {
-		return false, err
+		return txDiff{}, err
 	}
 	// Perform exchange.
 	var val, amount, price big.Int
@@ -826,98 +810,102 @@ func (tv *transactionValidator) validateExchange(tx proto.Exchange, info *txVali
 	val.Mul(&amount, &price)
 	val.Quo(&val, priceConst)
 	if !val.IsInt64() {
-		return false, errors.New("price * amount exceeds MaxInt64")
+		return txDiff{}, errors.New("price * amount exceeds MaxInt64")
 	}
 	priceDiff := val.Int64()
 	amountDiff := int64(tx.GetAmount())
 	senderAddr, err := proto.NewAddressFromPublicKey(tv.settings.AddressSchemeCharacter, sellOrder.SenderPK)
 	if err != nil {
-		return false, err
+		return txDiff{}, err
 	}
-	changes := make([]balanceChange, 7)
 	senderPriceKey := byteKey(senderAddr, sellOrder.AssetPair.PriceAsset.ToID())
-	changes[0] = balanceChange{senderPriceKey, balanceDiff{allowTempNegative: true, balance: priceDiff}}
+	if err := diff.appendBalanceDiff(senderPriceKey, tv.curBlockBalanceDiff(balanceDiff{balance: priceDiff}, info)); err != nil {
+		return txDiff{}, err
+	}
 	senderAmountKey := byteKey(senderAddr, sellOrder.AssetPair.AmountAsset.ToID())
-	changes[1] = balanceChange{senderAmountKey, balanceDiff{allowTempNegative: true, balance: -amountDiff}}
+	if err := diff.appendBalanceDiff(senderAmountKey, tv.curBlockBalanceDiff(balanceDiff{balance: -amountDiff}, info)); err != nil {
+		return txDiff{}, err
+	}
 	senderFeeKey := wavesBalanceKey{senderAddr}
 	senderFeeDiff := -int64(tx.GetSellMatcherFee())
-	changes[2] = balanceChange{senderFeeKey.bytes(), balanceDiff{allowTempNegative: true, balance: senderFeeDiff}}
+	if err := diff.appendBalanceDiff(senderFeeKey.bytes(), tv.curBlockBalanceDiff(balanceDiff{balance: senderFeeDiff}, info)); err != nil {
+		return txDiff{}, err
+	}
 	receiverAddr, err := proto.NewAddressFromPublicKey(tv.settings.AddressSchemeCharacter, buyOrder.SenderPK)
 	if err != nil {
-		return false, err
+		return txDiff{}, err
 	}
 	receiverPriceKey := byteKey(receiverAddr, sellOrder.AssetPair.PriceAsset.ToID())
-	changes[3] = balanceChange{receiverPriceKey, balanceDiff{allowTempNegative: true, balance: -priceDiff}}
+	if err := diff.appendBalanceDiff(receiverPriceKey, tv.curBlockBalanceDiff(balanceDiff{balance: -priceDiff}, info)); err != nil {
+		return txDiff{}, err
+	}
 	receiverAmountKey := byteKey(receiverAddr, sellOrder.AssetPair.AmountAsset.ToID())
-	changes[4] = balanceChange{receiverAmountKey, balanceDiff{allowTempNegative: true, balance: amountDiff}}
+	if err := diff.appendBalanceDiff(receiverAmountKey, tv.curBlockBalanceDiff(balanceDiff{balance: amountDiff}, info)); err != nil {
+		return txDiff{}, err
+	}
 	receiverFeeKey := wavesBalanceKey{receiverAddr}
 	receiverFeeDiff := -int64(tx.GetBuyMatcherFee())
-	changes[5] = balanceChange{receiverFeeKey.bytes(), balanceDiff{allowTempNegative: true, balance: receiverFeeDiff}}
+	if err := diff.appendBalanceDiff(receiverFeeKey.bytes(), tv.curBlockBalanceDiff(balanceDiff{balance: receiverFeeDiff}, info)); err != nil {
+		return txDiff{}, err
+	}
 	// Update matcher.
 	matcherAddr, err := proto.NewAddressFromPublicKey(tv.settings.AddressSchemeCharacter, buyOrder.MatcherPK)
 	if err != nil {
-		return false, err
+		return txDiff{}, err
 	}
 	matcherKey := wavesBalanceKey{matcherAddr}
 	matcherFee, err := util.AddInt64(int64(tx.GetBuyMatcherFee()), int64(tx.GetSellMatcherFee()))
 	if err != nil {
-		return false, err
+		return txDiff{}, err
 	}
 	matcherBalanceDiff := matcherFee - int64(tx.GetFee())
-	changes[6] = balanceChange{matcherKey.bytes(), balanceDiff{allowTempNegative: true, balance: matcherBalanceDiff}}
+	if err := diff.appendBalanceDiff(matcherKey.bytes(), tv.curBlockBalanceDiff(balanceDiff{balance: matcherBalanceDiff}, info)); err != nil {
+		return txDiff{}, err
+	}
 	if info.hasMiner() {
-		minerChange, err := tv.minerPayout(tx.GetFee(), info.minerPK, nil)
-		if err != nil {
-			return false, errors.Wrap(err, "failed to calculate miner payout")
+		if err := tv.minerPayout(diff, tx.GetFee(), info, nil); err != nil {
+			return txDiff{}, errors.Wrap(err, "failed to append miner payout")
 		}
-		changes = append(changes, *minerChange)
 	}
-	if err := tv.pushChanges(changes, info); err != nil {
-		return false, err
-	}
-	return true, nil
+	return diff, nil
 }
 
-func (tv *transactionValidator) validateLease(tx *proto.Lease, id *crypto.Digest, info *txValidationInfo) (bool, error) {
-	if ok, err := tv.checkTimestamps(tx.Timestamp, info.currentTimestamp, info.parentTimestamp); !ok {
-		return false, errors.Wrap(err, "invalid timestamp")
+func (tv *transactionValidator) createDiffLease(tx *proto.Lease, id *crypto.Digest, info *txValidationInfo) (txDiff, error) {
+	diff := newTxDiff()
+	if err := tv.checkTimestamps(tx.Timestamp, info.currentTimestamp, info.parentTimestamp); err != nil {
+		return txDiff{}, errors.Wrap(err, "invalid timestamp")
 	}
 	senderAddr, err := proto.NewAddressFromPublicKey(tv.settings.AddressSchemeCharacter, tx.SenderPK)
 	if err != nil {
-		return false, err
+		return txDiff{}, err
 	}
 	recipientAddr := &proto.Address{}
 	if tx.Recipient.Address == nil {
 		recipientAddr, err = tv.stor.aliases.newestAddrByAlias(tx.Recipient.Alias.Alias, !info.initialisation)
 		if err != nil {
-			return false, errors.Errorf("invalid alias: %v\n", err)
+			return txDiff{}, errors.Errorf("invalid alias: %v\n", err)
 		}
 	} else {
 		recipientAddr = tx.Recipient.Address
 	}
 	if senderAddr == *recipientAddr {
-		return false, errors.New("trying to lease money to self")
+		return txDiff{}, errors.New("trying to lease money to self")
 	}
-	changes := make([]balanceChange, 3)
-	// Update sender.
+	// Append sender diff.
 	senderKey := wavesBalanceKey{address: senderAddr}
 	senderLeaseOutDiff := int64(tx.Amount)
-	changes[0] = balanceChange{senderKey.bytes(), balanceDiff{leaseOut: senderLeaseOutDiff}}
+	if err := diff.appendBalanceDiff(senderKey.bytes(), tv.curBlockBalanceDiff(balanceDiff{leaseOut: senderLeaseOutDiff}, info)); err != nil {
+		return txDiff{}, err
+	}
 	senderFeeDiff := -int64(tx.Fee)
-	changes[1] = balanceChange{senderKey.bytes(), balanceDiff{balance: senderFeeDiff}}
-	// Update receiver.
+	if err := diff.appendBalanceDiff(senderKey.bytes(), tv.curBlockBalanceDiff(balanceDiff{balance: senderFeeDiff}, info)); err != nil {
+		return txDiff{}, err
+	}
+	// Append receiver diff.
 	receiverKey := wavesBalanceKey{address: *recipientAddr}
 	receiverLeaseInDiff := int64(tx.Amount)
-	changes[2] = balanceChange{receiverKey.bytes(), balanceDiff{leaseIn: receiverLeaseInDiff}}
-	if info.hasMiner() {
-		minerChange, err := tv.minerPayout(tx.Fee, info.minerPK, nil)
-		if err != nil {
-			return false, errors.Wrap(err, "failed to calculate miner payout")
-		}
-		changes = append(changes, *minerChange)
-	}
-	if err := tv.pushChanges(changes, info); err != nil {
-		return false, err
+	if err := diff.appendBalanceDiff(receiverKey.bytes(), tv.curBlockBalanceDiff(balanceDiff{leaseIn: receiverLeaseInDiff}, info)); err != nil {
+		return txDiff{}, err
 	}
 	if info.perform {
 		// Add leasing to lease state.
@@ -926,70 +914,77 @@ func (tv *transactionValidator) validateLease(tx *proto.Lease, id *crypto.Digest
 			info.blockID,
 		}
 		if err := tv.stor.leases.addLeasing(*id, r); err != nil {
-			return false, errors.Wrap(err, "failed to add leasing")
+			return txDiff{}, errors.Wrap(err, "failed to add leasing")
 		}
 	}
-	return true, nil
+	if info.hasMiner() {
+		if err := tv.minerPayout(diff, tx.Fee, info, nil); err != nil {
+			return txDiff{}, errors.Wrap(err, "failed to append miner payout")
+		}
+	}
+	return diff, nil
 }
 
-func (tv *transactionValidator) validateLeaseCancel(tx *proto.LeaseCancel, info *txValidationInfo) (bool, error) {
-	if ok, err := tv.checkTimestamps(tx.Timestamp, info.currentTimestamp, info.parentTimestamp); !ok {
-		return false, errors.Wrap(err, "invalid timestamp")
+func (tv *transactionValidator) createDiffLeaseCancel(tx *proto.LeaseCancel, info *txValidationInfo) (txDiff, error) {
+	diff := newTxDiff()
+	if err := tv.checkTimestamps(tx.Timestamp, info.currentTimestamp, info.parentTimestamp); err != nil {
+		return txDiff{}, errors.Wrap(err, "invalid timestamp")
 	}
 	l, err := tv.stor.leases.newestLeasingInfo(tx.LeaseID, !info.initialisation)
 	if err != nil {
-		return false, err
+		return txDiff{}, errors.Wrap(err, "no leasing info found for this leaseID")
 	}
 	if !l.isActive && (info.currentTimestamp > tv.settings.AllowMultipleLeaseCancelUntilTime) {
-		return false, errors.New("can not cancel lease which has already been cancelled")
+		return txDiff{}, errors.New("can not cancel lease which has already been cancelled")
 	}
 	senderAddr, err := proto.NewAddressFromPublicKey(tv.settings.AddressSchemeCharacter, tx.SenderPK)
 	if err != nil {
-		return false, err
+		return txDiff{}, err
 	}
 	if (l.sender != senderAddr) && (info.currentTimestamp > tv.settings.AllowMultipleLeaseCancelUntilTime) {
-		return false, errors.New("sender of LeaseCancel is not sender of corresponding Lease")
+		return txDiff{}, errors.New("sender of LeaseCancel is not sender of corresponding Lease")
 	}
 	if info.perform {
 		if err := tv.stor.leases.cancelLeasing(tx.LeaseID, info.blockID, !info.initialisation); err != nil {
-			return false, errors.Wrap(err, "failed to cancel leasing")
+			return txDiff{}, errors.Wrap(err, "failed to cancel leasing")
 		}
 	}
-	changes := make([]balanceChange, 3)
-	// Update sender.
+	// Append sender diff.
 	senderKey := wavesBalanceKey{address: senderAddr}
 	senderLeaseOutDiff := -int64(l.leaseAmount)
-	changes[0] = balanceChange{senderKey.bytes(), balanceDiff{leaseOut: senderLeaseOutDiff}}
+	if err := diff.appendBalanceDiff(senderKey.bytes(), tv.curBlockBalanceDiff(balanceDiff{leaseOut: senderLeaseOutDiff}, info)); err != nil {
+		return txDiff{}, err
+	}
 	senderFeeDiff := -int64(tx.Fee)
-	changes[1] = balanceChange{senderKey.bytes(), balanceDiff{balance: senderFeeDiff}}
-	// Update receiver.
+	if err := diff.appendBalanceDiff(senderKey.bytes(), tv.curBlockBalanceDiff(balanceDiff{balance: senderFeeDiff}, info)); err != nil {
+		return txDiff{}, err
+	}
+	// Append receiver diff.
 	receiverKey := wavesBalanceKey{address: l.recipient}
 	receiverLeaseInDiff := -int64(l.leaseAmount)
-	changes[2] = balanceChange{receiverKey.bytes(), balanceDiff{leaseIn: receiverLeaseInDiff}}
+	if err := diff.appendBalanceDiff(receiverKey.bytes(), tv.curBlockBalanceDiff(balanceDiff{leaseIn: receiverLeaseInDiff}, info)); err != nil {
+		return txDiff{}, err
+	}
 	if info.hasMiner() {
-		minerChange, err := tv.minerPayout(tx.Fee, info.minerPK, nil)
-		if err != nil {
-			return false, errors.Wrap(err, "failed to calculate miner payout")
+		if err := tv.minerPayout(diff, tx.Fee, info, nil); err != nil {
+			return txDiff{}, errors.Wrap(err, "failed to append miner payout")
 		}
-		changes = append(changes, *minerChange)
 	}
-	if err := tv.pushChanges(changes, info); err != nil {
-		return false, err
-	}
-	return true, nil
+	return diff, nil
 }
 
-func (tv *transactionValidator) validateCreateAlias(tx *proto.CreateAlias, info *txValidationInfo) (bool, error) {
-	if ok, err := tv.checkTimestamps(tx.Timestamp, info.currentTimestamp, info.parentTimestamp); !ok {
-		return false, errors.Wrap(err, "invalid timestamp")
+func (tv *transactionValidator) createDiffCreateAlias(tx *proto.CreateAlias, info *txValidationInfo) (txDiff, error) {
+	diff := newTxDiff()
+	if err := tv.checkTimestamps(tx.Timestamp, info.currentTimestamp, info.parentTimestamp); err != nil {
+		return txDiff{}, errors.Wrap(err, "invalid timestamp")
 	}
 	// Check if alias already taken.
 	if _, err := tv.stor.aliases.newestAddrByAlias(tx.Alias.Alias, !info.initialisation); err == nil {
-		return false, errors.New("alias is already taken")
+		return txDiff{}, errors.New("alias is already taken")
 	}
 	senderAddr, err := proto.NewAddressFromPublicKey(tv.settings.AddressSchemeCharacter, tx.SenderPK)
 	if err != nil {
-		return false, err
+		return txDiff{}, err
 	}
 	if info.perform {
 		// Save alias to aliases storage.
@@ -998,162 +993,230 @@ func (tv *transactionValidator) validateCreateAlias(tx *proto.CreateAlias, info 
 			blockID: info.blockID,
 		}
 		if err := tv.stor.aliases.createAlias(tx.Alias.Alias, r); err != nil {
-			return false, err
+			return txDiff{}, err
 		}
 	}
-	changes := make([]balanceChange, 1)
-	// Update sender.
+	// Append sender diff.
 	senderFeeKey := wavesBalanceKey{address: senderAddr}
 	senderFeeBalanceDiff := -int64(tx.Fee)
-	changes[0] = balanceChange{senderFeeKey.bytes(), balanceDiff{balance: senderFeeBalanceDiff}}
+	if err := diff.appendBalanceDiff(senderFeeKey.bytes(), tv.curBlockBalanceDiff(balanceDiff{balance: senderFeeBalanceDiff}, info)); err != nil {
+		return txDiff{}, err
+	}
 	if info.hasMiner() {
-		minerChange, err := tv.minerPayout(tx.Fee, info.minerPK, nil)
-		if err != nil {
-			return false, errors.Wrap(err, "failed to calculate miner payout")
+		if err := tv.minerPayout(diff, tx.Fee, info, nil); err != nil {
+			return txDiff{}, errors.Wrap(err, "failed to append miner payout")
 		}
-		changes = append(changes, *minerChange)
 	}
-	if err := tv.pushChanges(changes, info); err != nil {
-		return false, err
-	}
-	return true, nil
+	return diff, nil
 }
 
-func (tv *transactionValidator) createTxDiffs(tx proto.Transaction, info *txValidationInfo) error {
+func (tv *transactionValidator) createTxDiff(tx proto.Transaction, info *txValidationInfo) (txDiff, error) {
 	switch v := tx.(type) {
 	case *proto.Genesis:
-		if ok, err := tv.validateGenesis(v, info); !ok {
-			return errors.Wrap(err, "genesis validation failed")
+		diff, err := tv.createDiffGenesis(v, info)
+		if err != nil {
+			return txDiff{}, errors.Wrap(err, "genesis initial checking/diff creation failed")
 		}
+		return diff, nil
 	case *proto.Payment:
-		if ok, err := tv.validatePayment(v, info); !ok {
-			return errors.Wrap(err, "payment validation failed")
+		diff, err := tv.createDiffPayment(v, info)
+		if err != nil {
+			return txDiff{}, errors.Wrap(err, "payment initial checking/diff creation failed")
 		}
+		return diff, nil
 	case *proto.TransferV1:
-		if ok, err := tv.validateTransfer(&v.Transfer, info); !ok {
-			return errors.Wrap(err, "transferv1 validation failed")
+		diff, err := tv.createDiffTransfer(&v.Transfer, info)
+		if err != nil {
+			return txDiff{}, errors.Wrap(err, "transferv1 initial checking/diff creation failed")
 		}
+		return diff, nil
 	case *proto.TransferV2:
-		if ok, err := tv.validateTransfer(&v.Transfer, info); !ok {
-			return errors.Wrap(err, "transferv2 validation failed")
+		diff, err := tv.createDiffTransfer(&v.Transfer, info)
+		if err != nil {
+			return txDiff{}, errors.Wrap(err, "transferv2 initial checking/diff creation failed")
 		}
+		return diff, nil
 	case *proto.IssueV1:
-		if ok, err := tv.validateIssue(&v.Issue, tx.GetID(), info); !ok {
-			return errors.Wrap(err, "issuev1 validation failed")
+		diff, err := tv.createDiffIssue(&v.Issue, tx.GetID(), info)
+		if err != nil {
+			return txDiff{}, errors.Wrap(err, "issuev1 initial checking/diff creation failed")
 		}
+		return diff, nil
 	case *proto.IssueV2:
-		if ok, err := tv.validateIssue(&v.Issue, tx.GetID(), info); !ok {
-			return errors.Wrap(err, "issuev2 validation failed")
+		diff, err := tv.createDiffIssue(&v.Issue, tx.GetID(), info)
+		if err != nil {
+			return txDiff{}, errors.Wrap(err, "issuev2 initial checking/diff creation failed")
 		}
+		return diff, nil
 	case *proto.ReissueV1:
-		if ok, err := tv.validateReissue(&v.Reissue, info); !ok {
-			return errors.Wrap(err, "reissuev1 validation failed")
+		diff, err := tv.createDiffReissue(&v.Reissue, info)
+		if err != nil {
+			return txDiff{}, errors.Wrap(err, "reissuev1 initial checking/diff creation failed")
 		}
+		return diff, nil
 	case *proto.ReissueV2:
-		if ok, err := tv.validateReissue(&v.Reissue, info); !ok {
-			return errors.Wrap(err, "reissuev2 validation failed")
+		diff, err := tv.createDiffReissue(&v.Reissue, info)
+		if err != nil {
+			return txDiff{}, errors.Wrap(err, "reissuev2 initial checking/diff creation failed")
 		}
+		return diff, nil
 	case *proto.BurnV1:
-		if ok, err := tv.validateBurn(&v.Burn, info); !ok {
-			return errors.Wrap(err, "burnv1 validation failed")
+		diff, err := tv.createDiffBurn(&v.Burn, info)
+		if err != nil {
+			return txDiff{}, errors.Wrap(err, "burnv1 initial checking/diff creation failed")
 		}
+		return diff, nil
 	case *proto.BurnV2:
-		if ok, err := tv.validateBurn(&v.Burn, info); !ok {
-			return errors.Wrap(err, "burnv2 validation failed")
+		diff, err := tv.createDiffBurn(&v.Burn, info)
+		if err != nil {
+			return txDiff{}, errors.Wrap(err, "burnv2 initial checking/diff creation failed")
 		}
+		return diff, nil
 	case *proto.ExchangeV1:
-		if ok, err := tv.validateExchange(v, info); !ok {
-			return errors.Wrap(err, "exchangev1 validation failed")
+		diff, err := tv.createDiffExchange(v, info)
+		if err != nil {
+			return txDiff{}, errors.Wrap(err, "exchangev1 initial checking/diff creation failed")
 		}
+		return diff, nil
 	case *proto.ExchangeV2:
-		if ok, err := tv.validateExchange(v, info); !ok {
-			return errors.Wrap(err, "exchange2 validation failed")
+		diff, err := tv.createDiffExchange(v, info)
+		if err != nil {
+			return txDiff{}, errors.Wrap(err, "exchange2 initial checking/diff creation failed")
 		}
+		return diff, nil
 	case *proto.LeaseV1:
-		if ok, err := tv.validateLease(&v.Lease, v.ID, info); !ok {
-			return errors.Wrap(err, "leasev1 validation failed")
+		diff, err := tv.createDiffLease(&v.Lease, v.ID, info)
+		if err != nil {
+			return txDiff{}, errors.Wrap(err, "leasev1 initial checking/diff creation failed")
 		}
+		return diff, nil
 	case *proto.LeaseV2:
-		if ok, err := tv.validateLease(&v.Lease, v.ID, info); !ok {
-			return errors.Wrap(err, "leasev2 validation failed")
+		diff, err := tv.createDiffLease(&v.Lease, v.ID, info)
+		if err != nil {
+			return txDiff{}, errors.Wrap(err, "leasev2 initial checking/diff creation failed")
 		}
+		return diff, nil
 	case *proto.LeaseCancelV1:
-		if ok, err := tv.validateLeaseCancel(&v.LeaseCancel, info); !ok {
-			return errors.Wrap(err, "leasecancelv1 validation failed")
+		diff, err := tv.createDiffLeaseCancel(&v.LeaseCancel, info)
+		if err != nil {
+			return txDiff{}, errors.Wrap(err, "leasecancelv1 initial checking/diff creation failed")
 		}
+		return diff, nil
 	case *proto.LeaseCancelV2:
-		if ok, err := tv.validateLeaseCancel(&v.LeaseCancel, info); !ok {
-			return errors.Wrap(err, "leasecancelv2 validation failed")
+		diff, err := tv.createDiffLeaseCancel(&v.LeaseCancel, info)
+		if err != nil {
+			return txDiff{}, errors.Wrap(err, "leasecancelv2 initial checking/diff creation failed")
 		}
+		return diff, nil
 	case *proto.CreateAliasV1:
-		if ok, err := tv.validateCreateAlias(&v.CreateAlias, info); !ok {
-			return errors.Wrap(err, "createaliasv1 validation failed")
+		diff, err := tv.createDiffCreateAlias(&v.CreateAlias, info)
+		if err != nil {
+			return txDiff{}, errors.Wrap(err, "createaliasv1 initial checking/diff creation failed")
 		}
+		return diff, nil
 	case *proto.CreateAliasV2:
-		if ok, err := tv.validateCreateAlias(&v.CreateAlias, info); !ok {
-			return errors.Wrap(err, "createaliasv2 validation failed")
+		diff, err := tv.createDiffCreateAlias(&v.CreateAlias, info)
+		if err != nil {
+			return txDiff{}, errors.Wrap(err, "createaliasv2 initial checking/diff creation failed")
 		}
+		return diff, nil
 	default:
-		return errors.Errorf("transaction type %T is not supported\n", v)
+		return txDiff{}, errors.Errorf("transaction type %T is not supported\n", v)
 	}
-	return nil
 }
 
-func balanceChangesFromFees(addr proto.Address, distr *feeDistribution) ([]balanceChange, error) {
-	var changes []balanceChange
+func (tv *transactionValidator) txDiffFromFees(addr proto.Address, distr *feeDistribution, info *txValidationInfo) (txDiff, error) {
+	diff := newTxDiff()
 	wavesKey := wavesBalanceKey{addr}
 	wavesDiff := distr.totalWavesFees - distr.currentWavesBlockFees
-	wavesChange := balanceChange{wavesKey.bytes(), balanceDiff{balance: int64(wavesDiff)}}
-	changes = append(changes, wavesChange)
+	if err := diff.appendBalanceDiff(wavesKey.bytes(), tv.curBlockBalanceDiff(balanceDiff{balance: int64(wavesDiff)}, info)); err != nil {
+		return txDiff{}, err
+	}
 	for asset, totalFee := range distr.totalFees {
 		curFee, ok := distr.currentBlockFees[asset]
 		if !ok {
-			return nil, errors.New("current fee for asset is not found")
+			return txDiff{}, errors.New("current fee for asset is not found")
 		}
 		assetKey := byteKey(addr, asset[:])
 		assetDiff := totalFee - curFee
-		assetChange := balanceChange{assetKey, balanceDiff{balance: int64(assetDiff)}}
-		changes = append(changes, assetChange)
+		if err := diff.appendBalanceDiff(assetKey, tv.curBlockBalanceDiff(balanceDiff{balance: int64(assetDiff)}, info)); err != nil {
+			return txDiff{}, err
+		}
 	}
-	return changes, nil
+	return diff, nil
 }
 
-func (tv *transactionValidator) createPrevBlockMinerFeeDiffs(info *txValidationInfo) error {
-	if !info.hasPrevBlock() || !info.hasMiner() {
-		return nil
-	}
+func (tv *transactionValidator) createPrevBlockMinerFeeDiff(info *txValidationInfo) (txDiff, error) {
 	feeDistr, err := tv.prevBlockFeeDistr(info.prevBlockID)
 	if err != nil {
-		return err
+		return txDiff{}, err
 	}
 	// Update miner.
 	minerAddr, err := proto.NewAddressFromPublicKey(tv.settings.AddressSchemeCharacter, info.minerPK)
 	if err != nil {
-		return err
+		return txDiff{}, err
 	}
-	changes, err := balanceChangesFromFees(minerAddr, feeDistr)
+	diff, err := tv.txDiffFromFees(minerAddr, feeDistr, info)
 	if err != nil {
-		return err
+		return txDiff{}, err
 	}
-	if err := tv.pushChanges(changes, info); err != nil {
-		return err
-	}
-	return nil
+	return diff, nil
 }
 
-func (tv *transactionValidator) createTransactionsDiffs(transactions []proto.Transaction, info *txValidationInfo) error {
-	if err := tv.createPrevBlockMinerFeeDiffs(info); err != nil {
-		return err
-	}
-	for _, tx := range transactions {
-		if err := tv.createTxDiffs(tx, info); err != nil {
-			return err
+func (tv *transactionValidator) createTransactionsDiffs(transactions []proto.Transaction, info *txValidationInfo) ([]txDiff, error) {
+	diffs := make([]txDiff, len(transactions))
+	for i, tx := range transactions {
+		diff, err := tv.createTxDiff(tx, info)
+		if err != nil {
+			return nil, err
 		}
+		diffs[i] = diff
 	}
+	return diffs, nil
+}
+
+type blockDiff struct {
+	minerDiff txDiff
+	txDiffs   []txDiff
+}
+
+func (tv *transactionValidator) createBlockDiff(blockTxs []proto.Transaction, info *txValidationInfo) (blockDiff, error) {
+	var diff blockDiff
+	if info.hasPrevBlock() {
+		minerDiff, err := tv.createPrevBlockMinerFeeDiff(info)
+		if err != nil {
+			return blockDiff{}, err
+		}
+		diff.minerDiff = minerDiff
+	}
+	txDiffs, err := tv.createTransactionsDiffs(blockTxs, info)
+	if err != nil {
+		return blockDiff{}, err
+	}
+	diff.txDiffs = txDiffs
 	// Save fee distribution.
 	tv.blockFees[info.blockID] = tv.curDistr
 	// Reset current block fee distribution.
 	tv.curDistr = newFeeDistribution()
+	return diff, nil
+}
+
+func (tv *transactionValidator) saveTransactionsDiffs(diffs []txDiff, validate bool) error {
+	for _, diff := range diffs {
+		if err := tv.changesStor.saveTxDiff(diff, validate); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (tv *transactionValidator) saveBlockDiff(diff blockDiff, validate bool) error {
+	if err := tv.changesStor.saveTxDiff(diff.minerDiff, validate); err != nil {
+		return err
+	}
+	if err := tv.saveTransactionsDiffs(diff.txDiffs, validate); err != nil {
+		return err
+	}
 	return nil
 }
 

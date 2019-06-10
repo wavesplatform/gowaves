@@ -139,14 +139,16 @@ func defaultTxValidationInfo(t *testing.T, timestamp uint64, blockSig string) *t
 func validateTx(t *testing.T, tv *transactionValidator, tx proto.Transaction, blocks []block, checkTimestamp bool) {
 	for _, b := range blocks {
 		info := defaultTxValidationInfo(t, b.timestamp, b.sig)
-		err := tv.createTxDiffs(tx, info)
-		assert.NoError(t, err, "createTxDiffs() failed")
+		diffs, err := tv.createTransactionsDiffs([]proto.Transaction{tx}, info)
+		assert.NoError(t, err, "createTransactionsDiffs() failed")
+		err = tv.saveTransactionsDiffs(diffs, false)
+		assert.NoError(t, err, "saveTransactionsDiffs() failed")
 		if checkTimestamp {
 			// Check invalid timestamp.
 			info.parentTimestamp = 0
 			info.currentTimestamp = 0
-			err = tv.createTxDiffs(tx, info)
-			assert.Error(t, err, "createTxDiffs() did not fail with invalid timestamp")
+			_, err = tv.createTransactionsDiffs([]proto.Transaction{tx}, info)
+			assert.Error(t, err, "createTransactionsDiffs() did not fail with invalid timestamp")
 		}
 	}
 }
@@ -290,23 +292,6 @@ var testTempNegative runTest = func(t *testing.T, to *testObjects, tx proto.Tran
 	to.reset()
 }
 
-var testTempNegativeUniversal runTest = func(t *testing.T, to *testObjects, tx proto.Transaction, c *txTestCase) {
-	tx1 := createTransferV1(t, to, c.senderAddr)
-	// Negative balance for one of txs in block with positive overall balance.
-	profile := &balanceProfile{c.amount, 0, 0}
-	setBalance(t, to, c.senderAddr, c.assetStr, profile)
-	addBlocks(t, to, c.blocks)
-	// Transfer to same address leads to temp negative balance.
-	validateTx(t, to.tv, tx1, c.blocks, false)
-	err := to.tv.validateBalanceChanges(false, true)
-	if c.resError {
-		assert.Error(t, err, c.failMsg)
-	} else {
-		assert.NoError(t, err, c.failMsg)
-	}
-	to.reset()
-}
-
 func TestValidatePayment(t *testing.T) {
 	to, path := createTestObjects(t)
 
@@ -330,8 +315,6 @@ func TestValidatePayment(t *testing.T) {
 		{txTestCase{senderAddr, "", tx.Amount * 2, []block{{timestamp1, blockSig0}, {timestamp1, blockSig1}}, true, "validateBalanceChanges() did not fail with insufficient balance"}, testNegBalance},
 		// Negative balance for one of txs in block with positive overall balance.
 		{txTestCase{senderAddr, "", tx.Amount, []block{{timestamp0, genesisSignature}}, true, "validateBalanceChanges() did not fail with negative balance"}, testTempNegative},
-		// Negative balance for one of txs in block with positive overall balance when this situation is allowed.
-		{txTestCase{senderAddr, "", tx.Amount, []block{{timestamp1, genesisSignature}}, false, "validateBalanceChanges() failed with negative balance but it was allowed for this block"}, testTempNegative},
 	}
 	for _, c := range tests {
 		c.f(t, to, tx, &c.txTestCase)
@@ -390,9 +373,7 @@ func TestValidateTransferV1(t *testing.T) {
 		// Set insufficient balance for sender with multiple txs in different blocks.
 		{txTestCase{senderAddr, assetStr, tx.Amount, []block{{timestamp1, blockSig0}, {timestamp1, blockSig1}}, true, "validateBalanceChanges() did not fail with insufficient balance"}, testNegBalance},
 		// Negative balance for one of txs in block with positive overall balance.
-		{txTestCase{senderAddr, assetStr, tx.Amount, []block{{timestamp0, blockSig0}}, true, "validateBalanceChanges() did not fail with negative balance"}, testTempNegativeUniversal},
-		// Negative balance for one of txs in block with positive overall balance when this situation is allowed.
-		{txTestCase{senderAddr, assetStr, tx.Amount, []block{{timestamp1, blockSig0}}, false, "validateBalanceChanges() failed with negative balance but it was allowed for this block"}, testTempNegativeUniversal},
+		{txTestCase{senderAddr, assetStr, tx.Amount, []block{{timestamp0, genesisSignature}}, true, "validateBalanceChanges() did not fail with negative balance"}, testTempNegative},
 	}
 	for _, c := range tests {
 		c.f(t, to, tx, &c.txTestCase)
@@ -440,9 +421,7 @@ func TestValidateTransferV2(t *testing.T) {
 		// Set insufficient balance for sender with multiple txs in different blocks.
 		{txTestCase{senderAddr, assetStr, tx.Amount, []block{{timestamp1, blockSig0}, {timestamp1, blockSig1}}, true, "validateBalanceChanges() did not fail with insufficient balance"}, testNegBalance},
 		// Negative balance for one of txs in block with positive overall balance.
-		{txTestCase{senderAddr, assetStr, tx.Amount, []block{{timestamp0, blockSig0}}, true, "validateBalanceChanges() did not fail with negative balance"}, testTempNegativeUniversal},
-		// Negative balance for one of txs in block with positive overall balance when this situation is allowed.
-		{txTestCase{senderAddr, assetStr, tx.Amount, []block{{timestamp1, blockSig0}}, false, "validateBalanceChanges() failed with negative balance but it was allowed for this block"}, testTempNegativeUniversal},
+		{txTestCase{senderAddr, assetStr, tx.Amount, []block{{timestamp0, genesisSignature}}, true, "validateBalanceChanges() did not fail with negative balance"}, testTempNegative},
 	}
 	for _, c := range tests {
 		c.f(t, to, tx, &c.txTestCase)
@@ -1032,9 +1011,9 @@ func TestValidateCreateAliasV1(t *testing.T) {
 
 	// Check alias already taken.
 	info := defaultTxValidationInfo(t, timestamp0, blockSig0)
-	err = to.tv.createTxDiffs(tx, info)
-	assert.Error(t, err, "createTxDiffs() did not fail with alias which is already taken")
-	assert.Equal(t, err.Error(), "createaliasv1 validation failed: alias is already taken")
+	_, err = to.tv.createTransactionsDiffs([]proto.Transaction{tx}, info)
+	assert.Error(t, err, "createTransactionsDiffs() did not fail with alias which is already taken")
+	assert.Equal(t, err.Error(), "createaliasv1 initial checking/diff creation failed: alias is already taken")
 }
 
 func createCreateAliasV2(t *testing.T, alias proto.Alias, timestamp uint64) *proto.CreateAliasV2 {
@@ -1074,9 +1053,9 @@ func TestValidateCreateAliasV2(t *testing.T) {
 
 	// Check alias already taken.
 	info := defaultTxValidationInfo(t, timestamp0, blockSig0)
-	err = to.tv.createTxDiffs(tx, info)
-	assert.Error(t, err, "createTxDiffs() did not fail with alias which is already taken")
-	assert.Equal(t, err.Error(), "createaliasv2 validation failed: alias is already taken")
+	_, err = to.tv.createTransactionsDiffs([]proto.Transaction{tx}, info)
+	assert.Error(t, err, "createTransactionsDiffs() did not fail with alias which is already taken")
+	assert.Equal(t, err.Error(), "createaliasv2 initial checking/diff creation failed: alias is already taken")
 }
 
 func TestValidateWithoutBlock(t *testing.T) {
@@ -1096,25 +1075,30 @@ func TestValidateWithoutBlock(t *testing.T) {
 	info := &txValidationInfo{
 		perform:          false,
 		initialisation:   false,
-		validate:         true,
 		currentTimestamp: timestamp0,
 		parentTimestamp:  timestamp0,
 	}
-	err := to.tv.createTxDiffs(tx, info)
-	assert.NoError(t, err, "createTxDiffs() failed with correct tx")
+	diffs, err := to.tv.createTransactionsDiffs([]proto.Transaction{tx}, info)
+	assert.NoError(t, err, "createTransactionsDiffs() failed with correct tx")
+	err = to.tv.saveTransactionsDiffs(diffs, true)
+	assert.NoError(t, err, "saveTransactionsDiffs() failed")
 	addr, err := proto.NewAddressFromString(senderAddr)
 	assert.NoError(t, err, "NewAddressFromString() failed")
 	newProfile, err := to.entities.balances.wavesBalance(addr, true)
 	assert.NoError(t, err, "wavesBalance() failed")
 	assert.Equal(t, *profile, *newProfile, "validation without perform changed state")
 	// Insufficient balance when applying same tx once again.
-	err = to.tv.createTxDiffs(tx, info)
-	assert.Error(t, err, "createTxDiffs() did not fail with insufficient balance")
+	diffs, err = to.tv.createTransactionsDiffs([]proto.Transaction{tx}, info)
+	assert.NoError(t, err, "createTransactionsDiffs() failed with correct tx")
+	err = to.tv.saveTransactionsDiffs(diffs, true)
+	assert.Error(t, err, "saveTransactionsDiffs() did not fail with insufficient balance")
 	// Decenet tx again.
 	tx.Amount = 1
 	tx.Fee = 1
-	err = to.tv.createTxDiffs(tx, info)
-	assert.NoError(t, err, "createTxDiffs() failed with correct tx")
+	diffs, err = to.tv.createTransactionsDiffs([]proto.Transaction{tx}, info)
+	assert.NoError(t, err, "createTransactionsDiffs() failed with correct tx")
+	err = to.tv.saveTransactionsDiffs(diffs, true)
+	assert.NoError(t, err, "saveTransactionsDiffs() failed with correct tx")
 }
 
 func TestNGFeeDistribution(t *testing.T) {
