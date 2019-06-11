@@ -648,13 +648,12 @@ func (c *SafeTransactionConverter) ConvertTransaction(tx Transaction) (proto.Tra
 
 	case *Transaction_InvokeScript:
 		feeAsset, feeAmount := c.convertAmount(tx.Fee)
-		dAppAddr := c.address(scheme, d.InvokeScript.DappAddress)
 		return &proto.InvokeScriptV1{
 			Type:            proto.InvokeScriptTransaction,
 			Version:         v,
 			ChainID:         scheme,
 			SenderPK:        c.publicKey(tx.SenderPublicKey),
-			ScriptRecipient: proto.NewRecipientFromAddress(dAppAddr),
+			ScriptRecipient: c.recipient(scheme, d.InvokeScript.DApp),
 			FunctionCall:    c.functionCall(d.InvokeScript.FunctionCall),
 			Payments:        c.payments(d.InvokeScript.Payments),
 			FeeAsset:        feeAsset,

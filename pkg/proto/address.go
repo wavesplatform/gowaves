@@ -325,6 +325,21 @@ func NewRecipientFromAlias(a Alias) Recipient {
 	return Recipient{Alias: &a, len: aliasFixedSize + len(a.Alias)}
 }
 
+func NewRecipientFromString(s string) (Recipient, error) {
+	if strings.Index(s, aliasPrefix) != -1 {
+		a, err := NewAliasFromString(s)
+		if err != nil {
+			return Recipient{}, err
+		}
+		return NewRecipientFromAlias(*a), nil
+	}
+	a, err := NewAddressFromString(s)
+	if err != nil {
+		return Recipient{}, err
+	}
+	return NewRecipientFromAddress(a), nil
+}
+
 // Valid checks that either an Address or an Alias is set then checks the validity of the set field.
 func (r Recipient) Valid() (bool, error) {
 	switch {

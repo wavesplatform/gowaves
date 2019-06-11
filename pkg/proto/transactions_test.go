@@ -3825,7 +3825,7 @@ func TestInvokeScriptV1FromTestNet(t *testing.T) {
 		sig       string
 		id        string
 		scheme    byte
-		addr      string
+		dapp      string
 		fc        string
 		payments  string
 		fee       uint64
@@ -3836,6 +3836,7 @@ func TestInvokeScriptV1FromTestNet(t *testing.T) {
 		{"AkMK8AjATGN89Ziiy8U4p7vquPU8qjeVedMpcWgXLovD", "4RnTATsewLTeawZJWRpwiFLGVPP81NHgDxFdXfiJXVtdRrbANAyTHGuKNiLZkRwW5vRMLnrDneGPrNfqxcAcSh59", "FdQwSRUwBzNbLdKu158aELLdPSfmKQ7B3fYd2en3CEyg", 'T', "3ND68eBy9NyJPeq4eRqi42c45hoDAzzRjSm", "{\"function\":\"bet\",\"args\":[{\"type\":\"string\",\"value\":\"1\"}]}", "[{\"amount\":200500000,\"assetId\":null}]", 500000, "WAVES", 1560151320652},
 		{"5gwomYMjH2taJyfXjGj2LPVwcVH7Wd86Xh2T2iTENqa4", "4HGuUbp2y2rh5NA5aXKi9xEAr5AYyb89PknKpZo8LdwbHoA2QBS4CYiGh6cJqZZ7DTsx2b1jEciQpPhcxzrLbDLk", "88G72uSqvSMh4qvAFGiE78eJsFXxiAjXZRJJhMGrHh6", 'T', "3N6t7q6vrBQT7CUPjFeDieKvm7be6pBcFLx", "{\"function\":\"test\",\"args\":[{\"type\":\"binary\",\"value\":\"base64:c29tZQ==\"},{\"type\":\"boolean\",\"value\":true},{\"type\":\"integer\",\"value\":100500},{\"type\":\"string\",\"value\":\"some text\"}]}", "[{\"amount\":10,\"assetId\":\"H3jGkTWJr8Sr4KFay3QqNqmA3zEtgxYAx1ojitNaPkWy\"}]", 9, "H3jGkTWJr8Sr4KFay3QqNqmA3zEtgxYAx1ojitNaPkWy", 1560153418889},
 		{"5gwomYMjH2taJyfXjGj2LPVwcVH7Wd86Xh2T2iTENqa4", "4S7aQoeGrtbRsDGRg2yT8eG9ybRsv1GzeYC4zn14LzmwdYXRviqK9XtPjBWANk1VqQEJMQvMRuj19baSGmb65qeu", "DtsKYcGQbobcXboE1FzfzxqBuQJmdwzQS7YTFXYDBj6S", 'T', "3N6t7q6vrBQT7CUPjFeDieKvm7be6pBcFLx", "null", "[]", 900000, "WAVES", 1560153629460},
+		{"5gwomYMjH2taJyfXjGj2LPVwcVH7Wd86Xh2T2iTENqa4", "2PrBFHS41nwd2Gq4BL6VuBxX855UbSN8dgHQYcRWLRczUpoTvojzwT6yXfvEH8QEPiREdxgGUfCLiseiPoKPTUY5", "FYo3AFvGX4L5CSBNXSB6Tc8J4vmuY7PTj4FYge5BKmfM", 'T', "alias:T:inv-test", "null", "[]", 900000, "WAVES", 1560161103375},
 	}
 	for _, tc := range tests {
 		spk, err := crypto.NewPublicKeyFromBase58(tc.pk)
@@ -3844,7 +3845,7 @@ func TestInvokeScriptV1FromTestNet(t *testing.T) {
 		require.NoError(t, err)
 		sig, err := crypto.NewSignatureFromBase58(tc.sig)
 		require.NoError(t, err)
-		a, err := NewAddressFromString(tc.addr)
+		rcp, err := NewRecipientFromString(tc.dapp)
 		require.NoError(t, err)
 		fa, err := NewOptionalAssetFromString(tc.feeAsset)
 		require.NoError(t, err)
@@ -3860,7 +3861,7 @@ func TestInvokeScriptV1FromTestNet(t *testing.T) {
 		pjs, err := json.Marshal(payments)
 		require.NoError(t, err)
 		assert.Equal(t, tc.payments, string(pjs))
-		tx := NewUnsignedInvokeScriptV1(tc.scheme, spk, NewRecipientFromAddress(a), fc, payments, *fa, tc.fee, tc.timestamp)
+		tx := NewUnsignedInvokeScriptV1(tc.scheme, spk, rcp, fc, payments, *fa, tc.fee, tc.timestamp)
 		if b, err := tx.bodyMarshalBinary(); assert.NoError(t, err) {
 			if h, err := crypto.FastHash(b); assert.NoError(t, err) {
 				assert.Equal(t, id, h)

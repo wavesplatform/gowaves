@@ -12,6 +12,7 @@ import (
 )
 
 func TestTransactionsAPIClient(t *testing.T) {
+	t.SkipNow()
 	conn := connect(t)
 	defer conn.Close()
 
@@ -31,6 +32,7 @@ func TestTransactionsAPIClient(t *testing.T) {
 }
 
 func TestBlocksAPIClient(t *testing.T) {
+	t.SkipNow()
 	conn := connect(t)
 	defer conn.Close()
 
