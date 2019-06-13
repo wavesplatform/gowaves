@@ -106,7 +106,7 @@ func BytesToTransaction(tx []byte) (Transaction, error) {
 		if err := transaction.UnmarshalBinary(tx); err != nil {
 			return nil, errors.Wrap(err, "failed to unmarshal transaction")
 		}
-		return Transaction(transaction), nil
+		return transaction, nil
 	} else {
 		transactionType, ok := bytesToTransactionsV1[TransactionType(tx[0])]
 		if !ok {
