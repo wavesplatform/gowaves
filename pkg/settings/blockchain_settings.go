@@ -1,9 +1,13 @@
 package settings
 
 import (
-	"math"
-
+	"encoding/json"
+	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"math"
+	"os"
+	"path/filepath"
+	"runtime"
 )
 
 type BlockchainType byte
@@ -41,7 +45,7 @@ type FunctionalitySettings struct {
 	MaxTxTimeBackOffset    uint64
 	MaxTxTimeForwardOffset uint64
 
-	AddressSchemeCharacter byte
+	AddressSchemeCharacter proto.Schema
 
 	AverageBlockDelaySeconds uint64
 	// Configurable.
@@ -67,9 +71,8 @@ func (f *FunctionalitySettings) ActivationWindowSize(height uint64) uint64 {
 type BlockchainSettings struct {
 	FunctionalitySettings
 	Type BlockchainType
-	// GenesisCfgPath is path to JSON file with complete representation of genesis block.
-	// Leave this field blank for MainNet/TestNet, it is only used for custom blockchains.
-	GenesisCfgPath string
+	// GenesisGetter is way how you get genesis file.
+	GenesisGetter GenesisGetter
 }
 
 var (
@@ -101,6 +104,7 @@ var (
 			AverageBlockDelaySeconds: 60,
 			MaxBaseTarget:            200,
 		},
+		GenesisGetter: MainnetGenesis,
 	}
 
 	TestNetSettings = &BlockchainSettings{
@@ -131,5 +135,75 @@ var (
 			AverageBlockDelaySeconds: 60,
 			MaxBaseTarget:            200,
 		},
+		GenesisGetter: TestnetGenesis,
 	}
 )
+
+type GenesisGetter interface {
+	Get() (*proto.Block, error)
+}
+
+type localGenesisGetter struct {
+	paths []string
+}
+
+func (a localGenesisGetter) Get() (*proto.Block, error) {
+	genesisCfgPath := filepath.Join(a.paths...)
+	return fromPath(genesisCfgPath)
+}
+
+type absoluteGenesisGetter struct {
+	path []string
+}
+
+func (a absoluteGenesisGetter) Get() (*proto.Block, error) {
+	return fromPath(filepath.Join(a.path...))
+}
+
+func fromPath(genesisCfgPath string) (*proto.Block, error) {
+	genesisFile, err := os.Open(genesisCfgPath)
+	if err != nil {
+		return nil, errors.Errorf("failed to open genesis file: %v\n", err)
+	}
+	jsonParser := json.NewDecoder(genesisFile)
+	genesis := proto.Block{}
+	if err := jsonParser.Decode(&genesis); err != nil {
+		return nil, errors.Errorf("failed to parse JSON of genesis block: %v\n", err)
+	}
+	if err := genesisFile.Close(); err != nil {
+		return nil, errors.Errorf("failed to close genesis file: %v\n", err)
+	}
+	return &genesis, nil
+}
+
+func getLocalDir() (string, error) {
+	_, filename, _, ok := runtime.Caller(0)
+	if !ok {
+		return "", errors.Errorf("Unable to find current package file")
+	}
+	return filepath.Dir(filename), nil
+}
+
+func getCurrentDir() (string, error) {
+	_, filename, _, ok := runtime.Caller(2)
+	if !ok {
+		return "", errors.Errorf("Unable to find current package file")
+	}
+	return filepath.Dir(filename), nil
+}
+
+func FromCurrentDir(path ...string) GenesisGetter {
+	c, _ := getCurrentDir()
+	return localGenesisGetter{
+		paths: append([]string{c}, path...),
+	}
+}
+
+func FromPath(path ...string) GenesisGetter {
+	return absoluteGenesisGetter{
+		path: path,
+	}
+}
+
+var MainnetGenesis = FromCurrentDir("../state/genesis", "mainnet.json")
+var TestnetGenesis = FromCurrentDir("../state/genesis", "testnet.json")

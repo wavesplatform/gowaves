@@ -2,7 +2,6 @@ package node
 
 import (
 	"context"
-	"math/big"
 	"time"
 
 	"github.com/pkg/errors"
@@ -10,6 +9,7 @@ import (
 	. "github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/state"
+	"github.com/wavesplatform/gowaves/pkg/types"
 	"github.com/wavesplatform/gowaves/pkg/util/cancellable"
 	"go.uber.org/zap"
 )
@@ -19,14 +19,18 @@ type StateSync struct {
 	stateManager state.State
 	subscribe    *Subscribe
 	interrupt    chan struct{}
+	scheduler    types.Scheduler
+	blockApplier *BlockApplier
 }
 
-func NewStateSync(stateManager state.State, peerManager PeerManager, subscribe *Subscribe) *StateSync {
+func NewStateSync(stateManager state.State, peerManager PeerManager, subscribe *Subscribe, scheduler types.Scheduler, interrupter types.MinerInterrupter) *StateSync {
 	return &StateSync{
 		peerManager:  peerManager,
 		stateManager: stateManager,
 		subscribe:    subscribe,
 		interrupt:    make(chan struct{}),
+		scheduler:    scheduler,
+		blockApplier: NewBlockApplier(stateManager, peerManager, scheduler, interrupter),
 	}
 }
 
@@ -55,10 +59,8 @@ func (a *StateSync) Sync() error {
 		zap.S().Info("timeout waiting &proto.SignaturesMessage{}")
 		return TimeoutErr
 	case received := <-messCh:
-
-		zap.S().Info("received signatures", received)
 		mess := received.(*proto.SignaturesMessage)
-		applyBlock(mess, sigs, p, a.subscribe, a.stateManager, a.peerManager)
+		downloadSignatures(mess, sigs, p, a.subscribe, a.blockApplier)
 	}
 
 	return nil
@@ -132,7 +134,7 @@ func (a *StateSync) Close() {
 	close(a.interrupt)
 }
 
-func applyBlock(receivedSignatures *proto.SignaturesMessage, blockSignatures *Signatures, p Peer, subscribe *Subscribe, stateManager state.State, peerManager PeerManager) {
+func downloadSignatures(receivedSignatures *proto.SignaturesMessage, blockSignatures *Signatures, p Peer, subscribe *Subscribe, applier *BlockApplier) {
 
 	var sigs []crypto.Signature
 	for _, sig := range receivedSignatures.Signatures {
@@ -181,8 +183,6 @@ func applyBlock(receivedSignatures *proto.SignaturesMessage, blockSignatures *Si
 			p.SendMessage(&proto.GetBlockMessage{BlockID: sigs[i]})
 		})
 
-		zap.S().Info("waiting for sig  ", sigs[i])
-
 		select {
 		case <-timeout:
 			// TODO HANDLE timeout
@@ -192,19 +192,10 @@ func applyBlock(receivedSignatures *proto.SignaturesMessage, blockSignatures *Si
 
 		case bts := <-ch:
 			cancel()
-			err := stateManager.AddBlock(bts)
+			err := applier.ApplyBytes(bts)
 			if err != nil {
 				zap.S().Error(err)
 				continue
-			}
-
-			cur, err := stateManager.CurrentScore()
-			if err == nil {
-				peerManager.EachConnected(func(peer Peer, i *big.Int) {
-					peer.SendMessage(&proto.ScoreMessage{
-						Score: cur.Bytes(),
-					})
-				})
 			}
 		}
 	}

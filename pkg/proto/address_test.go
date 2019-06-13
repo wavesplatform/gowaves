@@ -1,10 +1,12 @@
 package proto
 
 import (
+	"bytes"
 	"crypto/rand"
 	"encoding/json"
 	"github.com/mr-tron/base58/base58"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"testing"
 )
@@ -109,6 +111,11 @@ func TestAliasFromString(t *testing.T) {
 	if b, err := a.MarshalBinary(); assert.NoError(t, err) {
 		assert.Equal(t, aliasBytes, base58.Encode(b))
 	}
+
+	buf := &bytes.Buffer{}
+	if _, err := a.WriteTo(buf); assert.NoError(t, err) {
+		require.Equal(t, aliasBytes, base58.Encode(buf.Bytes()))
+	}
 }
 
 func TestIncorrectAlias(t *testing.T) {
@@ -134,4 +141,23 @@ func TestAliasFromBytes(t *testing.T) {
 	assert.Equal(t, aliasVersion, a.Version)
 	assert.Equal(t, TestNetScheme, a.Scheme)
 	assert.Equal(t, alias, a.Alias)
+}
+
+func TestRecipient_WriteTo(t *testing.T) {
+	buf := &bytes.Buffer{}
+
+	addr, _ := NewAddressFromString("3PQ8bp1aoqHQo3icNqFv6VM36V1jzPeaG1v")
+	rec := NewRecipientFromAddress(addr)
+	rec.WriteTo(buf)
+	bin, _ := rec.MarshalBinary()
+	require.Equal(t, bin, buf.Bytes())
+
+	buf.Reset()
+
+	alias, _ := NewAliasFromString("alias:T:blah-blah-blah")
+	rec = NewRecipientFromAlias(*alias)
+	bin, _ = rec.MarshalBinary()
+	rec.WriteTo(buf)
+	require.Equal(t, bin, buf.Bytes())
+
 }

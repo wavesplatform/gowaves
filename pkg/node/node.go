@@ -6,11 +6,11 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/state"
+	"github.com/wavesplatform/gowaves/pkg/types"
 	"github.com/wavesplatform/gowaves/pkg/util"
 	"go.uber.org/zap"
 	"math/big"
 	"net"
-	"reflect"
 	"time"
 )
 
@@ -22,21 +22,25 @@ type Config struct {
 }
 
 type Node struct {
-	peerManager  PeerManager
-	stateManager state.State
-	subscribe    *Subscribe
-	sync         *StateSync
-	declAddr     proto.TCPAddr
+	peerManager      PeerManager
+	stateManager     state.State
+	subscribe        *Subscribe
+	sync             *StateSync
+	declAddr         proto.TCPAddr
+	scheduler        types.Scheduler
+	minerInterrupter types.MinerInterrupter
 }
 
-func NewNode(stateManager state.State, peerManager PeerManager, declAddr proto.TCPAddr) *Node {
+func NewNode(stateManager state.State, peerManager PeerManager, declAddr proto.TCPAddr, scheduler types.Scheduler, minerInterrupter types.MinerInterrupter) *Node {
 	s := NewSubscribeService()
 	return &Node{
-		stateManager: stateManager,
-		peerManager:  peerManager,
-		subscribe:    s,
-		sync:         NewStateSync(stateManager, peerManager, s),
-		declAddr:     declAddr,
+		stateManager:     stateManager,
+		peerManager:      peerManager,
+		subscribe:        s,
+		sync:             NewStateSync(stateManager, peerManager, s, scheduler, minerInterrupter),
+		declAddr:         declAddr,
+		scheduler:        scheduler,
+		minerInterrupter: minerInterrupter,
 	}
 }
 
@@ -49,9 +53,6 @@ func (a *Node) PeerManager() PeerManager {
 }
 
 func (a *Node) HandleProtoMessage(mess peer.ProtoMessage) {
-
-	zap.S().Info("arrived ", reflect.TypeOf(mess.Message))
-
 	switch t := mess.Message.(type) {
 	case *proto.PeersMessage:
 		a.handlePeersMessage(mess.ID, t)
@@ -64,7 +65,6 @@ func (a *Node) HandleProtoMessage(mess peer.ProtoMessage) {
 	case *proto.GetBlockMessage:
 		a.handleBlockBySignatureMessage(mess.ID, t.BlockID)
 	case *proto.SignaturesMessage:
-		//a.handleSignaturesMessage()
 		a.subscribe.Receive(mess.ID, t)
 	case *proto.GetSignaturesMessage:
 		a.handleGetSignaturesMessage(mess.ID, t)
@@ -190,13 +190,13 @@ func (a *Node) handleBlockBySignatureMessage(peer string, sig crypto.Signature) 
 }
 
 // called every n seconds, handle change runtime state
+// TODO this function should be replaced by events
 func (a *Node) SyncState() {
 	for {
 		err := a.sync.Sync()
 		if err != nil {
-			zap.S().Error(err)
 			// wait only on errors
-			time.Sleep(5 * time.Second)
+			time.Sleep(500 * time.Millisecond)
 		}
 	}
 }
@@ -207,9 +207,25 @@ func (a *Node) handleScoreMessage(peerID string, score []byte) {
 	a.peerManager.UpdateScore(peerID, b)
 }
 
-func (a *Node) handleBlockMessage(peerID string, mess proto.Message) {
+func (a *Node) handleBlockMessage(peerID string, mess *proto.BlockMessage) {
 	defer util.TimeTrack(time.Now(), "handleBlockMessage")
-	a.subscribe.Receive(peerID, mess)
+	if !a.subscribe.Receive(peerID, mess) {
+		ba := NewBlockApplier(a.stateManager, a.peerManager, a.scheduler, a.minerInterrupter)
+
+		b := &proto.Block{}
+		err := b.UnmarshalBinary(mess.BlockBytes)
+		if err != nil {
+			zap.S().Debug(err)
+			return
+		}
+
+		err = ba.Apply(b)
+		if err != nil {
+			zap.S().Debug(err)
+			return
+		}
+		go a.scheduler.Reschedule()
+	}
 }
 
 func (a *Node) handleGetSignaturesMessage(peerID string, mess *proto.GetSignaturesMessage) {

@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/json"
+	"io"
 	"math/big"
 	"strconv"
 	"strings"
@@ -13,6 +14,7 @@ import (
 	"github.com/mr-tron/base58/base58"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/libs/serializer"
 	"github.com/wavesplatform/gowaves/pkg/ride/evaluator/reader"
 )
 
@@ -35,6 +37,10 @@ const (
 	maxKeySize           = 100
 	maxValueSize         = 32767
 )
+
+type Timestamp = uint64
+type Schema = byte
+type Height = uint64
 
 var jsonNullBytes = []byte{0x6e, 0x75, 0x6c, 0x6c}
 
@@ -166,6 +172,22 @@ func (a OptionalAsset) MarshalBinary() ([]byte, error) {
 	PutBool(buf, a.Present)
 	copy(buf[1:], a.ID[:])
 	return buf, nil
+}
+
+//WriteTo writes its binary representation.
+func (a OptionalAsset) WriteTo(w io.Writer) (int64, error) {
+	s := serializer.New(w)
+	err := s.Bool(a.Present)
+	if err != nil {
+		return 0, err
+	}
+	if a.Present {
+		err = s.Bytes(a.ID[:])
+		if err != nil {
+			return 0, err
+		}
+	}
+	return s.N(), nil
 }
 
 //UnmarshalBinary reads the OptionalAsset structure from its binary representation.

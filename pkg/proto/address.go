@@ -6,6 +6,8 @@ import (
 	"github.com/mr-tron/base58/base58"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/libs/serializer"
+	"io"
 	"strconv"
 	"strings"
 )
@@ -213,6 +215,26 @@ func (a *Alias) MarshalBinary() ([]byte, error) {
 	return a.Bytes(), nil
 }
 
+func (a *Alias) WriteTo(w io.Writer) (int64, error) {
+	s := serializer.New(w)
+	err := s.Byte(a.Version)
+	if err != nil {
+		return 0, err
+	}
+
+	err = s.Byte(a.Scheme)
+	if err != nil {
+		return 0, err
+	}
+
+	err = s.StringWithUInt16Len(a.Alias)
+	if err != nil {
+		return 0, err
+	}
+
+	return s.N(), nil
+}
+
 // Bytes converts the Alias to the slice of bytes.
 func (a *Alias) Bytes() []byte {
 	al := len(a.Alias)
@@ -336,6 +358,17 @@ func (r *Recipient) MarshalBinary() ([]byte, error) {
 		return r.Alias.MarshalBinary()
 	}
 	return r.Address[:], nil
+}
+
+func (r *Recipient) WriteTo(w io.Writer) (int64, error) {
+	if r.Alias != nil {
+		return r.Alias.WriteTo(w)
+	}
+	n, err := w.Write(r.Address[:])
+	if err != nil {
+		return int64(n), err
+	}
+	return int64(n), nil
 }
 
 // UnmarshalBinary reads the Recipient from bytes. Validates the result.
