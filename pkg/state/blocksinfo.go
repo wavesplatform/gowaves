@@ -122,7 +122,7 @@ type blocksInfo struct {
 }
 
 func newBlocksInfo(db keyvalue.KeyValue, dbBatch keyvalue.Batch) (*blocksInfo, error) {
-	return &blocksInfo{db: db, dbBatch: dbBatch}, nil
+	return &blocksInfo{db, dbBatch}, nil
 }
 
 func (i *blocksInfo) feeDistribution(blockID crypto.Signature) (*feeDistribution, error) {

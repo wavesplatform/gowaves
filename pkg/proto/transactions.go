@@ -84,6 +84,7 @@ var (
 
 // Transaction is a set of common transaction functions.
 type Transaction interface {
+	GetTypeVersion() TransactionTypeVersion
 	GetID() []byte
 	Valid() (bool, error)
 	MarshalBinary() ([]byte, error)
@@ -242,6 +243,10 @@ type Genesis struct {
 	Amount    uint64            `json:"amount"`
 }
 
+func (tx Genesis) GetTypeVersion() TransactionTypeVersion {
+	return TransactionTypeVersion{tx.Type, tx.Version}
+}
+
 func (tx Genesis) GetID() []byte {
 	return tx.ID.Bytes()
 }
@@ -357,6 +362,10 @@ type Payment struct {
 	Amount    uint64            `json:"amount"`
 	Fee       uint64            `json:"fee"`
 	Timestamp uint64            `json:"timestamp"`
+}
+
+func (tx Payment) GetTypeVersion() TransactionTypeVersion {
+	return TransactionTypeVersion{tx.Type, tx.Version}
 }
 
 func (tx Payment) GetID() []byte {

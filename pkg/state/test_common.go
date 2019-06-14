@@ -11,6 +11,11 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 )
 
+var (
+	testPK   = "AfZtLRQxLNYH5iradMkTeuXGe71uAiATVbr8DpXEEQa8"
+	testAddr = "3PDdGex1meSUf4Yq5bjPBpyAbx6us9PaLfo"
+)
+
 func defaultTestBloomFilterParams() keyvalue.BloomFilterParams {
 	return keyvalue.BloomFilterParams{N: 2e6, FalsePositiveProbability: 0.01}
 }

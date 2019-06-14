@@ -15,7 +15,7 @@ import (
 // Data retrievals (e.g. account balances), as well as modifiers (like adding or rolling back blocks)
 // should all be made using this interface.
 type State interface {
-	// Global mutex of state
+	// Global mutex of state.
 	Mutex() *sync.RWMutex
 	// Block getters.
 	Block(blockID crypto.Signature) (*proto.Block, error)

@@ -55,6 +55,10 @@ type IssueV1 struct {
 	Issue
 }
 
+func (tx IssueV1) GetTypeVersion() TransactionTypeVersion {
+	return TransactionTypeVersion{tx.Type, tx.Version}
+}
+
 func (tx IssueV1) GetID() []byte {
 	return tx.ID.Bytes()
 }
@@ -178,6 +182,10 @@ type TransferV1 struct {
 	ID        *crypto.Digest    `json:"id,omitempty"`
 	Signature *crypto.Signature `json:"signature,omitempty"`
 	Transfer
+}
+
+func (tx TransferV1) GetTypeVersion() TransactionTypeVersion {
+	return TransactionTypeVersion{tx.Type, tx.Version}
 }
 
 func (tx TransferV1) GetID() []byte {
@@ -305,6 +313,10 @@ type ReissueV1 struct {
 	Reissue
 }
 
+func (tx ReissueV1) GetTypeVersion() TransactionTypeVersion {
+	return TransactionTypeVersion{tx.Type, tx.Version}
+}
+
 func (tx ReissueV1) GetID() []byte {
 	return tx.ID.Bytes()
 }
@@ -429,6 +441,10 @@ type BurnV1 struct {
 	Burn
 }
 
+func (tx BurnV1) GetTypeVersion() TransactionTypeVersion {
+	return TransactionTypeVersion{tx.Type, tx.Version}
+}
+
 func (tx BurnV1) GetID() []byte {
 	return tx.ID.Bytes()
 }
@@ -549,6 +565,10 @@ type ExchangeV1 struct {
 	SellMatcherFee uint64            `json:"sellMatcherFee"`
 	Fee            uint64            `json:"fee"`
 	Timestamp      uint64            `json:"timestamp,omitempty"`
+}
+
+func (tx ExchangeV1) GetTypeVersion() TransactionTypeVersion {
+	return TransactionTypeVersion{tx.Type, tx.Version}
 }
 
 func (tx ExchangeV1) GetID() []byte {
@@ -832,6 +852,10 @@ type LeaseV1 struct {
 	Lease
 }
 
+func (tx LeaseV1) GetTypeVersion() TransactionTypeVersion {
+	return TransactionTypeVersion{tx.Type, tx.Version}
+}
+
 func (tx LeaseV1) GetID() []byte {
 	return tx.ID.Bytes()
 }
@@ -954,6 +978,10 @@ type LeaseCancelV1 struct {
 	LeaseCancel
 }
 
+func (tx LeaseCancelV1) GetTypeVersion() TransactionTypeVersion {
+	return TransactionTypeVersion{tx.Type, tx.Version}
+}
+
 func (tx LeaseCancelV1) GetID() []byte {
 	return tx.ID.Bytes()
 }
@@ -1069,6 +1097,10 @@ type CreateAliasV1 struct {
 	ID        *crypto.Digest    `json:"id,omitempty"`
 	Signature *crypto.Signature `json:"signature,omitempty"`
 	CreateAlias
+}
+
+func (tx CreateAliasV1) GetTypeVersion() TransactionTypeVersion {
+	return TransactionTypeVersion{tx.Type, tx.Version}
 }
 
 func (tx CreateAliasV1) GetID() []byte {
@@ -1241,6 +1273,10 @@ type MassTransferV1 struct {
 	Timestamp  uint64              `json:"timestamp,omitempty"`
 	Fee        uint64              `json:"fee"`
 	Attachment Attachment          `json:"attachment,omitempty"`
+}
+
+func (tx MassTransferV1) GetTypeVersion() TransactionTypeVersion {
+	return TransactionTypeVersion{tx.Type, tx.Version}
 }
 
 func (tx MassTransferV1) GetID() []byte {
@@ -1473,6 +1509,10 @@ type DataV1 struct {
 	Entries   DataEntries      `json:"data"`
 	Fee       uint64           `json:"fee"`
 	Timestamp uint64           `json:"timestamp,omitempty"`
+}
+
+func (tx DataV1) GetTypeVersion() TransactionTypeVersion {
+	return TransactionTypeVersion{tx.Type, tx.Version}
 }
 
 func (tx DataV1) GetID() []byte {
@@ -1736,6 +1776,10 @@ type SetScriptV1 struct {
 	Timestamp uint64           `json:"timestamp,omitempty"`
 }
 
+func (tx SetScriptV1) GetTypeVersion() TransactionTypeVersion {
+	return TransactionTypeVersion{tx.Type, tx.Version}
+}
+
 func (tx SetScriptV1) GetID() []byte {
 	return tx.ID.Bytes()
 }
@@ -1927,6 +1971,10 @@ type SponsorshipV1 struct {
 	Timestamp   uint64           `json:"timestamp,omitempty"`
 }
 
+func (tx SponsorshipV1) GetTypeVersion() TransactionTypeVersion {
+	return TransactionTypeVersion{tx.Type, tx.Version}
+}
+
 func (tx SponsorshipV1) GetID() []byte {
 	return tx.ID.Bytes()
 }
@@ -2104,6 +2152,10 @@ type SetAssetScriptV1 struct {
 	Script    Script           `json:"script"`
 	Fee       uint64           `json:"fee"`
 	Timestamp uint64           `json:"timestamp,omitempty"`
+}
+
+func (tx SetAssetScriptV1) GetTypeVersion() TransactionTypeVersion {
+	return TransactionTypeVersion{tx.Type, tx.Version}
 }
 
 func (tx SetAssetScriptV1) GetID() []byte {
@@ -2303,6 +2355,10 @@ type InvokeScriptV1 struct {
 	FeeAsset      OptionalAsset    `json:"feeAssetId"`
 	Fee           uint64           `json:"fee"`
 	Timestamp     uint64           `json:"timestamp,omitempty"`
+}
+
+func (tx InvokeScriptV1) GetTypeVersion() TransactionTypeVersion {
+	return TransactionTypeVersion{tx.Type, tx.Version}
 }
 
 func (tx InvokeScriptV1) GetID() []byte {

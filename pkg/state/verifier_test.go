@@ -97,9 +97,9 @@ func TestVerifier(t *testing.T) {
 	chans = newVerifierChans()
 	go launchVerifier(context.Background(), chans, runtime.NumCPU())
 	// Test unsigned tx failure.
-	spk, err := crypto.NewPublicKeyFromBase58(senderPK)
+	spk, err := crypto.NewPublicKeyFromBase58(testPK)
 	assert.NoError(t, err, "NewPublicKeyFromBase58() failed")
-	recipient, err := proto.NewAddressFromString(recipientAddr)
+	recipient, err := proto.NewAddressFromString(testAddr)
 	assert.NoError(t, err, "NewAddressFromString() failed")
 	unsignedTx := proto.NewUnsignedPayment(spk, recipient, 100, 1, 0)
 	txs = []proto.Transaction{unsignedTx}
