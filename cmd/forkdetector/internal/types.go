@@ -40,6 +40,9 @@ func (a ForkByHeightLengthAndPeersCount) Swap(i, j int) {
 }
 
 func (a ForkByHeightLengthAndPeersCount) Less(i, j int) bool {
+	if a[i].Longest {
+		return true
+	}
 	if a[i].Height > a[j].Height {
 		return true
 	}

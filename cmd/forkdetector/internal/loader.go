@@ -115,7 +115,12 @@ func (s *signaturesSynchronizer) start() {
 			unheard := skip(signatures, s.pending)
 			nonexistent := make([]crypto.Signature, 0)
 			for _, sig := range unheard {
-				if _, ok := s.drawer.number(sig); ok {
+				ok, err := s.drawer.hasBlock(sig)
+				if err != nil {
+					zap.S().Fatalf("[%s][SYN] Failed to check block '%s' presence", s.conn.RawConn.RemoteAddr(), sig.String())
+					return
+				}
+				if ok {
 					continue
 				}
 				nonexistent = append(nonexistent, sig)

@@ -46,6 +46,47 @@ func TestGraphIntersection(t *testing.T) {
 	assert.Equal(t, uint32(8), g.intersection(10, 8))
 }
 
+func TestGraphPaths(t *testing.T) {
+	a := buildGraph()
+	paths := a.paths([]uint32{5, 7, 10})
+	assert.Equal(t, 3, len(paths))
+	assert.Equal(t, 10, int(paths[0].top))
+	assert.Equal(t, 7, paths[0].length)
+	assert.Equal(t, 5, int(paths[1].top))
+	assert.Equal(t, 5, paths[1].length)
+	assert.Equal(t, 7, int(paths[2].top))
+	assert.Equal(t, 5, paths[2].length)
+}
+
+func TestGraphPathsIntersection(t *testing.T) {
+	a := buildGraph()
+	paths := a.paths([]uint32{5, 7, 9, 10})
+	assert.Equal(t, 4, len(paths))
+	assert.Equal(t, 9, int(paths[0].intersection(paths[1])))
+	assert.Equal(t, 3, int(paths[0].intersection(paths[2])))
+	assert.Equal(t, 6, int(paths[0].intersection(paths[3])))
+}
+
+func BenchmarkPathsSort1M(b *testing.B) {
+	g := buildRandomGraph(2000000, 3)
+	vertices := make([]uint32, 300)
+	for i := 0; i < 300; i++ {
+		vertices[i] = uint32(rand.Intn(1000000) + 1)
+	}
+	for n := 0; n < b.N; n++ {
+		g.paths(vertices)
+	}
+}
+
+func BenchmarkGraphPath2M(b *testing.B) {
+	g := buildRandomGraph(2000000, 5)
+	var p []uint32
+	for n := 0; n < b.N; n++ {
+		p = g.path(2000000)
+	}
+	fmt.Println(len(p))
+}
+
 func TestHugeRandomGraph(t *testing.T) {
 	start := time.Now()
 	PrintMemUsage()
@@ -100,6 +141,31 @@ func buildGraph() *graph {
 	g.edge(8, 6)
 	g.edge(9, 8)
 	g.edge(10, 9)
+	return g
+}
+
+func buildRandomGraph(size, width int) *graph {
+	rand.Seed(time.Now().Unix())
+	g := newGraph()
+	previous := make([]uint32, 0)
+	nodesCount := 0
+	for i := 1; i < size; i++ {
+		if i > 1 {
+			count := rand.Intn(width) + 1
+			current := make([]uint32, count)
+			for j := 0; j < count; j++ {
+				nodesCount++
+				n := uint32(nodesCount)
+				current[j] = uint32(n)
+				p := previous[rand.Intn(len(previous))]
+				g.edge(n, p)
+			}
+			previous = current
+		} else {
+			nodesCount++
+			previous = []uint32{uint32(nodesCount)}
+		}
+	}
 	return g
 }
 

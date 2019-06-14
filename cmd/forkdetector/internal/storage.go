@@ -2,8 +2,10 @@ package internal
 
 import (
 	"encoding/binary"
+	"fmt"
 	"github.com/pkg/errors"
 	"github.com/syndtr/goleveldb/leveldb"
+	"github.com/syndtr/goleveldb/leveldb/iterator"
 	"github.com/syndtr/goleveldb/leveldb/util"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -39,13 +41,12 @@ func (k peerKey) bytes() []byte {
 	return buf
 }
 
-func (k *peerKey) fromByte(data []byte) error {
+func (k *peerKey) fromBytes(data []byte) {
 	if l := len(data); l < 1+net.IPv6len {
-		return errors.Errorf("%d is not enough bytes for peerKey", l)
+		panic(fmt.Sprintf("%d is not enough bytes for peerKey", l))
 	}
 	k.prefix = data[0]
 	k.ip = net.IP(data[1 : 1+net.IPv6len])
-	return nil
 }
 
 func newPeerLeashKey(ip net.IP) peerKey {
@@ -84,6 +85,14 @@ func (k numberKey) bytes() []byte {
 	return buf
 }
 
+func (k *numberKey) fromBytes(data []byte) {
+	if l := len(data); l < 5 {
+		panic(fmt.Sprintf("%d is not enough bytes for numberKey", l))
+	}
+	k.prefix = data[0]
+	k.number = binary.BigEndian.Uint32(data[1:])
+}
+
 func newBlockLinkKey(number uint32) numberKey {
 	return numberKey{prefix: blockLinksPrefix, number: number}
 }
@@ -102,14 +111,13 @@ func (w blockLink) bytes() []byte {
 	return buf
 }
 
-func (w *blockLink) fromBytes(data []byte) error {
+func (w *blockLink) fromBytes(data []byte) {
 	if l := len(data); l < 4+4+crypto.SignatureSize {
-		return errors.Errorf("%d is not enough bytes for blockLink", l)
+		panic(fmt.Sprintf("%d is not enough bytes for blockLink", l))
 	}
 	w.parent = binary.BigEndian.Uint32(data[0:4])
 	w.height = binary.BigEndian.Uint32(data[4:8])
 	copy(w.signature[:], data[8:8+crypto.SignatureSize])
-	return nil
 }
 
 type heightBlockKey struct {
@@ -125,16 +133,15 @@ func (k heightBlockKey) bytes() []byte {
 	return buf
 }
 
-func (k *heightBlockKey) fromBytes(data []byte) error {
+func (k *heightBlockKey) fromBytes(data []byte) {
 	if l := len(data); l < 1+4+crypto.SignatureSize {
-		return errors.Errorf("%d is not enough bytes for heightBlockKey", l)
+		panic(fmt.Sprintf("%d is not enough bytes for heightBlockKey", l))
 	}
 	if data[0] != heightsPrefix {
-		return errors.New("invalid heightBlockKey prefix")
+		panic("invalid heightBlockKey prefix")
 	}
 	k.height = binary.BigEndian.Uint32(data[1:])
 	copy(k.block[:], data[1+4:1+4+crypto.SignatureSize])
-	return nil
 }
 
 type storage struct {
@@ -166,8 +173,10 @@ func NewStorage(path string, genesis crypto.Signature) (*storage, error) {
 		batch := new(leveldb.Batch)
 
 		num, err := s.nextBlockNumber(sn, batch, genesis)
+		zap.S().Debugf("[STO] Assigning number %d to block '%s'", num, genesis)
 		l := blockLink{parent: 0, height: 1, signature: genesis}
 		batch.Put(newBlockLinkKey(num).bytes(), l.bytes())
+		zap.S().Debugf("[STO] Storing block link '%v' under number %d", l, num)
 		// update blocks at height
 		k := heightBlockKey{height: 1, block: genesis}
 		batch.Put(k.bytes(), nil)
@@ -258,13 +267,13 @@ func (s *storage) hasPeer(ip net.IP) (bool, error) {
 	return true, nil
 }
 
-func (s *storage) appendBlock(block proto.Block) error {
+func (s *storage) appendBlock(block proto.Block) (uint32, uint32, error) {
 	wrapError := func(err error) error {
 		return errors.Wrap(err, "failed to append new block")
 	}
 	sn, err := s.db.GetSnapshot()
 	if err != nil {
-		return wrapError(err)
+		return 0, 0, wrapError(err)
 	}
 	defer sn.Release()
 	batch := new(leveldb.Batch)
@@ -273,33 +282,35 @@ func (s *storage) appendBlock(block proto.Block) error {
 	bk := newBlockKey(block.BlockSignature)
 	ok, err := sn.Has(bk.bytes(), nil)
 	if err != nil {
-		return wrapError(err)
+		return 0, 0, wrapError(err)
 	}
 	if ok {
-		return nil
+		return 0, 0, nil
 	}
 
 	// Put the block bytes in storage
 	bb, err := block.MarshalBinary()
 	if err != nil {
-		return err
+		return 0, 0, err
 	}
 	batch.Put(bk.bytes(), bb)
 
 	// Get the block's parent link
+	zap.S().Debugf("[STO] Requesting parent block number")
 	parentNumber, err := s.blockNumber(sn, block.Parent)
+	zap.S().Debugf("[STO] Parent block '%s' has number %d", block.Parent.String(), parentNumber)
 	if err != nil {
-		return wrapError(err)
+		return 0, 0, wrapError(err)
 	}
 	parentLink, err := s.blockLink(sn, parentNumber)
 	if err != nil {
-		return wrapError(err)
+		return 0, 0, wrapError(err)
 	}
 
 	// Acquire next block number for the block and put a new block link in the storage
 	num, err := s.nextBlockNumber(sn, batch, block.BlockSignature)
 	if err != nil {
-		return wrapError(err)
+		return 0, 0, wrapError(err)
 	}
 	link := blockLink{parent: parentNumber, height: parentLink.height + 1, signature: block.BlockSignature}
 	batch.Put(newBlockLinkKey(num).bytes(), link.bytes())
@@ -310,17 +321,22 @@ func (s *storage) appendBlock(block proto.Block) error {
 
 	err = s.db.Write(batch, nil)
 	if err != nil {
-		return wrapError(err)
+		return 0, 0, wrapError(err)
 	}
-	return nil
+	return num, parentNumber, nil
 }
 
 func (s *storage) nextBlockNumber(sn *leveldb.Snapshot, batch *leveldb.Batch, signature crypto.Signature) (uint32, error) {
 	v, err := sn.Get(blocksCounterKey, nil)
+	var n uint32
 	if err != nil {
-		return 0, err
+		if err != leveldb.ErrNotFound {
+			return 0, err
+		}
+		n = 0
+	} else {
+		n = binary.BigEndian.Uint32(v)
 	}
-	n := binary.BigEndian.Uint32(v)
 	n++
 	buf := make([]byte, 4)
 	binary.BigEndian.PutUint32(buf, n)
@@ -330,6 +346,7 @@ func (s *storage) nextBlockNumber(sn *leveldb.Snapshot, batch *leveldb.Batch, si
 }
 
 func (s *storage) blockNumber(sn *leveldb.Snapshot, signature crypto.Signature) (uint32, error) {
+	zap.S().Debugf("[STO] Getting number for block '%s'", signature.String())
 	k := newBlockNumberKey(signature)
 	v, err := sn.Get(k.bytes(), nil)
 	if err != nil {
@@ -345,34 +362,33 @@ func (s *storage) blockLink(sn *leveldb.Snapshot, number uint32) (blockLink, err
 		return blockLink{}, err
 	}
 	var l blockLink
-	err = l.fromBytes(v)
-	if err != nil {
-		return blockLink{}, err
-	}
+	l.fromBytes(v)
 	return l, nil
 }
 
-func (s *storage) signatures() ([]crypto.Signature, error) {
-	sn, err := s.db.GetSnapshot()
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to collect blocks signatures")
-	}
-	defer sn.Release()
-	st := []byte{blocksPrefix}
-	lm := []byte{blocksPrefix + 1}
-	it := sn.NewIterator(&util.Range{Start: st, Limit: lm}, nil)
-	r := make([]crypto.Signature, 0)
-	for it.Next() {
-		k := it.Key()
-		s, err := crypto.NewSignatureFromBytes(k[1:])
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to collect blocks signatures")
-		}
-		r = append(r, s)
-	}
-	it.Release()
-	return r, nil
-}
+//TODO: remove?
+
+//func (s *storage) signatures() ([]crypto.Signature, error) {
+//	sn, err := s.db.GetSnapshot()
+//	if err != nil {
+//		return nil, errors.Wrap(err, "failed to collect blocks signatures")
+//	}
+//	defer sn.Release()
+//	st := []byte{blocksPrefix}
+//	lm := []byte{blocksPrefix + 1}
+//	it := sn.NewIterator(&util.Range{Start: st, Limit: lm}, nil)
+//	r := make([]crypto.Signature, 0)
+//	for it.Next() {
+//		k := it.Key()
+//		s, err := crypto.NewSignatureFromBytes(k[1:])
+//		if err != nil {
+//			return nil, errors.Wrap(err, "failed to collect blocks signatures")
+//		}
+//		r = append(r, s)
+//	}
+//	it.Release()
+//	return r, nil
+//}
 
 func (s *storage) movePeerLeash(peer net.IP, sig crypto.Signature) error {
 	sn, err := s.db.GetSnapshot()
@@ -435,13 +451,41 @@ func (s *storage) blocks(height uint32) ([]crypto.Signature, error) {
 	r := make([]crypto.Signature, 0)
 	for it.Next() {
 		var k heightBlockKey
-		err = k.fromBytes(it.Key())
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to collect blocks at height")
-		}
+		k.fromBytes(it.Key())
 		r = append(r, k.block)
 	}
 	return r, nil
+}
+
+type blockLinkIterator struct {
+	sn *leveldb.Snapshot
+	it iterator.Iterator
+}
+
+func (i *blockLinkIterator) next() bool {
+	return i.it.Next()
+}
+
+func (i *blockLinkIterator) value() (uint32, uint32, crypto.Signature) {
+	var key numberKey
+	key.fromBytes(i.it.Key())
+	var bl blockLink
+	bl.fromBytes(i.it.Value())
+	return key.number, bl.parent, bl.signature
+}
+
+func (i *blockLinkIterator) close() {
+	i.it.Release()
+	i.sn.Release()
+}
+
+func (s *storage) newBlockLinkIterator() (*blockLinkIterator, error) {
+	sn, err := s.db.GetSnapshot()
+	if err != nil {
+		return nil, err
+	}
+	it := sn.NewIterator(&util.Range{Start: []byte{blockLinksPrefix}, Limit: []byte{blockLinksPrefix + 1}}, nil)
+	return &blockLinkIterator{sn: sn, it: it}, nil
 }
 
 func (s *storage) frontBlocks(peer net.IP, n int) ([]crypto.Signature, error) {
@@ -475,4 +519,40 @@ func (s *storage) frontBlocks(peer net.IP, n int) ([]crypto.Signature, error) {
 		number = l.parent
 	}
 	return signatures, nil
+}
+
+func (s *storage) peersLastBlocks() (map[uint32][]net.IP, error) {
+	sn, err := s.db.GetSnapshot()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to collect peers' last blocks")
+	}
+	defer sn.Release()
+	it := sn.NewIterator(&util.Range{Start: []byte{peerLeashPrefix}, Limit: []byte{peerLeashPrefix + 1}}, nil)
+	r := make(map[uint32][]net.IP)
+	for it.Next() {
+		var k peerKey
+		k.fromBytes(it.Key())
+		ip := k.ip
+		n := binary.BigEndian.Uint32(it.Value())
+		if ips, ok := r[n]; ok {
+			r[n] = append(ips, ip)
+		} else {
+			r[n] = []net.IP{ip}
+		}
+	}
+	return r, nil
+}
+
+func (s *storage) peerLastBlock(peer net.IP) (uint32, error) {
+	sn, err := s.db.GetSnapshot()
+	if err != nil {
+		return 0, errors.Wrap(err, "failed to get peer's last block")
+	}
+	defer sn.Release()
+	k := newPeerLeashKey(peer)
+	v, err := sn.Get(k.bytes(), nil)
+	if err != nil {
+		return 0, errors.Wrap(err, "failed to get peer's last block")
+	}
+	return binary.BigEndian.Uint32(v), nil
 }
