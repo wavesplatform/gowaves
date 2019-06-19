@@ -8,22 +8,46 @@ import (
 	"github.com/syndtr/goleveldb/leveldb/util"
 )
 
+type pair struct {
+	key      []byte
+	value    []byte
+	deletion bool
+}
+
 type batch struct {
-	leveldbBatch *leveldb.Batch
-	filter       *bloomFilter
+	filter *bloomFilter
+	pairs  []pair
 }
 
 func (b *batch) Delete(key []byte) {
-	b.leveldbBatch.Delete(key)
+	keyCopy := make([]byte, len(key))
+	copy(keyCopy[:], key[:])
+	b.pairs = append(b.pairs, pair{key: keyCopy, deletion: true})
 }
 
 func (b *batch) Put(key, val []byte) {
-	b.leveldbBatch.Put(key, val)
-	b.filter.add(key)
+	valCopy := make([]byte, len(val))
+	copy(valCopy[:], val[:])
+	keyCopy := make([]byte, len(key))
+	copy(keyCopy[:], key[:])
+	b.pairs = append(b.pairs, pair{key: keyCopy, value: valCopy, deletion: false})
+	b.filter.add(keyCopy)
+}
+
+func (b *batch) leveldbBatch() *leveldb.Batch {
+	leveldbBatch := new(leveldb.Batch)
+	for _, pair := range b.pairs {
+		if pair.deletion {
+			leveldbBatch.Delete(pair.key)
+		} else {
+			leveldbBatch.Put(pair.key, pair.value)
+		}
+	}
+	return leveldbBatch
 }
 
 func (b *batch) Reset() {
-	b.leveldbBatch.Reset()
+	b.pairs = nil
 }
 
 type KeyVal struct {
@@ -67,7 +91,7 @@ func NewKeyVal(path string, params BloomFilterParams) (*KeyVal, error) {
 }
 
 func (k *KeyVal) NewBatch() (Batch, error) {
-	return &batch{new(leveldb.Batch), k.filter}, nil
+	return &batch{filter: k.filter}, nil
 }
 
 func (k *KeyVal) Get(key []byte) ([]byte, error) {
@@ -105,7 +129,7 @@ func (k *KeyVal) Flush(b1 Batch) error {
 	if !ok {
 		return errors.New("can't convert batch interface to leveldb's batch")
 	}
-	if err := k.db.Write(b.leveldbBatch, nil); err != nil {
+	if err := k.db.Write(b.leveldbBatch(), nil); err != nil {
 		return err
 	}
 	b.Reset()
