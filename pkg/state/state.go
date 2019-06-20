@@ -255,7 +255,8 @@ func newStateManager(dataDir string, params StateParams, settings *settings.Bloc
 	}
 	// Initialize database.
 	dbDir := filepath.Join(dataDir, keyvalueDir)
-	db, err := keyvalue.NewKeyVal(dbDir, params.BloomParams)
+	dbParams := keyvalue.KeyValParams{CacheParams: params.CacheParams, BloomFilterParams: params.BloomParams}
+	db, err := keyvalue.NewKeyVal(dbDir, dbParams)
 	if err != nil {
 		return nil, wrapErr(Other, errors.Errorf("failed to create db: %v\n", err))
 	}

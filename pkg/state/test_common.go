@@ -11,13 +11,27 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 )
 
+const (
+	testBloomFilterSize                     = 2e6
+	testBloomFilterFalsePositiveProbability = 0.01
+	testCacheSize                           = 2 * 1024 * 1024
+)
+
 var (
 	testPK   = "AfZtLRQxLNYH5iradMkTeuXGe71uAiATVbr8DpXEEQa8"
 	testAddr = "3PDdGex1meSUf4Yq5bjPBpyAbx6us9PaLfo"
 )
 
 func defaultTestBloomFilterParams() keyvalue.BloomFilterParams {
-	return keyvalue.BloomFilterParams{N: 2e6, FalsePositiveProbability: 0.01}
+	return keyvalue.BloomFilterParams{N: testBloomFilterSize, FalsePositiveProbability: testBloomFilterFalsePositiveProbability}
+}
+
+func defaultTestCacheParams() keyvalue.CacheParams {
+	return keyvalue.CacheParams{Size: testCacheSize}
+}
+
+func defaultTestKeyValParams() keyvalue.KeyValParams {
+	return keyvalue.KeyValParams{CacheParams: defaultTestCacheParams(), BloomFilterParams: defaultTestBloomFilterParams()}
 }
 
 type storageObjects struct {
@@ -50,7 +64,7 @@ func createStorageObjects() (*storageObjects, []string, error) {
 		return nil, nil, err
 	}
 	res := []string{dbDir0}
-	db, err := keyvalue.NewKeyVal(dbDir0, defaultTestBloomFilterParams())
+	db, err := keyvalue.NewKeyVal(dbDir0, defaultTestKeyValParams())
 	if err != nil {
 		return nil, res, err
 	}

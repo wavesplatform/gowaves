@@ -8,9 +8,17 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+const (
+	cacheSize = 100
+)
+
 func TestKeyVal(t *testing.T) {
 	dbDir, err := ioutil.TempDir(os.TempDir(), "dbDir0")
-	kv, err := NewKeyVal(dbDir, BloomFilterParams{n, falsePositiveProbability})
+	params := KeyValParams{
+		CacheParams{cacheSize},
+		BloomFilterParams{n, falsePositiveProbability},
+	}
+	kv, err := NewKeyVal(dbDir, params)
 	assert.NoError(t, err, "NewKeyVal() failed")
 
 	defer func() {

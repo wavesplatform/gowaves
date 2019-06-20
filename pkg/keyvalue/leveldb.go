@@ -2,7 +2,9 @@ package keyvalue
 
 import (
 	"log"
+	"sync"
 
+	"github.com/coocood/freecache"
 	"github.com/pkg/errors"
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/util"
@@ -15,26 +17,47 @@ type pair struct {
 }
 
 type batch struct {
+	mu     *sync.Mutex
 	filter *bloomFilter
 	pairs  []pair
 }
 
 func (b *batch) Delete(key []byte) {
+	b.mu.Lock()
 	keyCopy := make([]byte, len(key))
 	copy(keyCopy[:], key[:])
 	b.pairs = append(b.pairs, pair{key: keyCopy, deletion: true})
+	b.mu.Unlock()
 }
 
 func (b *batch) Put(key, val []byte) {
+	b.mu.Lock()
 	valCopy := make([]byte, len(val))
 	copy(valCopy[:], val[:])
 	keyCopy := make([]byte, len(key))
 	copy(keyCopy[:], key[:])
 	b.pairs = append(b.pairs, pair{key: keyCopy, value: valCopy, deletion: false})
 	b.filter.add(keyCopy)
+	b.mu.Unlock()
+}
+
+func (b *batch) addToCache(cache *freecache.Cache) {
+	b.mu.Lock()
+	for _, pair := range b.pairs {
+		if pair.deletion {
+			cache.Del(pair.key)
+		} else {
+			if err := cache.Set(pair.key, pair.value, 0); err != nil {
+				// If we can not set the value for some reason, at least make sure the old one is gone.
+				cache.Del(pair.key)
+			}
+		}
+	}
+	b.mu.Unlock()
 }
 
 func (b *batch) leveldbBatch() *leveldb.Batch {
+	b.mu.Lock()
 	leveldbBatch := new(leveldb.Batch)
 	for _, pair := range b.pairs {
 		if pair.deletion {
@@ -43,16 +66,20 @@ func (b *batch) leveldbBatch() *leveldb.Batch {
 			leveldbBatch.Put(pair.key, pair.value)
 		}
 	}
+	b.mu.Unlock()
 	return leveldbBatch
 }
 
 func (b *batch) Reset() {
+	b.mu.Lock()
 	b.pairs = nil
+	b.mu.Unlock()
 }
 
 type KeyVal struct {
 	db     *leveldb.DB
 	filter *bloomFilter
+	cache  *freecache.Cache
 }
 
 func initBloomFilter(kv *KeyVal, params BloomFilterParams) error {
@@ -78,29 +105,42 @@ func initBloomFilter(kv *KeyVal, params BloomFilterParams) error {
 	return nil
 }
 
-func NewKeyVal(path string, params BloomFilterParams) (*KeyVal, error) {
+type CacheParams struct {
+	Size int
+}
+
+type KeyValParams struct {
+	CacheParams
+	BloomFilterParams
+}
+
+func NewKeyVal(path string, params KeyValParams) (*KeyVal, error) {
 	db, err := leveldb.OpenFile(path, nil)
 	if err != nil {
 		return nil, err
 	}
-	kv := &KeyVal{db: db}
-	if err := initBloomFilter(kv, params); err != nil {
+	cache := freecache.NewCache(params.CacheParams.Size)
+	kv := &KeyVal{db: db, cache: cache}
+	if err := initBloomFilter(kv, params.BloomFilterParams); err != nil {
 		return nil, err
 	}
 	return kv, nil
 }
 
 func (k *KeyVal) NewBatch() (Batch, error) {
-	return &batch{filter: k.filter}, nil
+	return &batch{filter: k.filter, mu: &sync.Mutex{}}, nil
 }
 
 func (k *KeyVal) Get(key []byte) ([]byte, error) {
+	if val, err := k.cache.Get(key); err == nil {
+		return val, nil
+	}
 	if k.filter != nil && k.filter.notInTheSet(key) {
 		return nil, ErrNotFound
 	}
 	val, err := k.db.Get(key, nil)
 	if err == leveldb.ErrNotFound {
-		return val, ErrNotFound
+		return nil, ErrNotFound
 	}
 	return val, err
 }
@@ -109,17 +149,25 @@ func (k *KeyVal) Has(key []byte) (bool, error) {
 	if k.filter != nil && k.filter.notInTheSet(key) {
 		return false, nil
 	}
+	if _, err := k.cache.Get(key); err == nil {
+		return true, nil
+	}
 	return k.db.Has(key, nil)
 }
 
 func (k *KeyVal) Delete(key []byte) error {
+	k.cache.Del(key)
 	return k.db.Delete(key, nil)
 }
 
 func (k *KeyVal) Put(key, val []byte) error {
-	k.filter.add(key)
 	if err := k.db.Put(key, val, nil); err != nil {
 		return err
+	}
+	k.filter.add(key)
+	if err := k.cache.Set(key, val, 0); err != nil {
+		// If we can not set the value for some reason, at least make sure the old one is gone.
+		k.cache.Del(key)
 	}
 	return nil
 }
@@ -132,7 +180,9 @@ func (k *KeyVal) Flush(b1 Batch) error {
 	if err := k.db.Write(b.leveldbBatch(), nil); err != nil {
 		return err
 	}
+	b.addToCache(k.cache)
 	b.Reset()
+	log.Printf("Cache HitRate: %v\n", k.cache.HitRate())
 	return nil
 }
 

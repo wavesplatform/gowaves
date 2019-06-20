@@ -95,7 +95,7 @@ func createBlockReadWriter(offsetLen, headerOffsetLen int) (*blockReadWriter, []
 		return nil, nil, err
 	}
 	res[0] = dbDir
-	db, err := keyvalue.NewKeyVal(dbDir, defaultTestBloomFilterParams())
+	db, err := keyvalue.NewKeyVal(dbDir, defaultTestKeyValParams())
 	if err != nil {
 		return nil, res, err
 	}
