@@ -13,7 +13,6 @@ type balanceChanges struct {
 	balanceDiffs []balanceDiff
 	// minBalanceDiff is diff which produces minimal spendable (taking leasing into account) balance value.
 	// This is needed to check for negative balances.
-	// For blocks when temporary negative balances are possible, this value is ignored.
 	minBalanceDiff balanceDiff
 }
 
@@ -57,6 +56,9 @@ func (ch *balanceChanges) addDiff(newDiff balanceDiff) error {
 	return nil
 }
 
+// Diff storage stores balances diffs, grouping them by keys.
+// For each key, a complete history for all the blocks is stored.
+// These changes can be retrieved either altogether or by the keys list.
 type diffStorage struct {
 	changes []balanceChanges
 	keys    map[string]int // key --> index in changes.
@@ -110,7 +112,6 @@ func (s *diffStorage) addBalanceDiff(key string, diff balanceDiff) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to construct balance changes for given key and diff")
 	}
-	// Save changes at the end if validation was successful / if immediate validation was not needed.
 	if err := s.setBalanceChanges(changes); err != nil {
 		return errors.Wrap(err, "failed to save changes to changes storage")
 	}

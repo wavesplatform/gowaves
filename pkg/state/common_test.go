@@ -2,6 +2,7 @@ package state
 
 import (
 	"io/ioutil"
+	"log"
 	"math/rand"
 	"os"
 	"testing"
@@ -9,18 +10,90 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
+	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
 const (
 	testBloomFilterSize                     = 2e6
 	testBloomFilterFalsePositiveProbability = 0.01
 	testCacheSize                           = 2 * 1024 * 1024
+
+	testPK   = "AfZtLRQxLNYH5iradMkTeuXGe71uAiATVbr8DpXEEQa8"
+	testAddr = "3PDdGex1meSUf4Yq5bjPBpyAbx6us9PaLfo"
+
+	matcherPK     = "AfZtLRQxLNYH5iradMkTeuXGe71uAiATVbr8DpXEEQa6"
+	matcherAddr   = "3P9MUoSW7jfHNVFcq84rurfdWZYZuvVghVi"
+	minerPK       = "AfZtLRQxLNYH5iradMkTeuXGe71uAiATVbr8DpXEEQa7"
+	minerAddr     = "3PP2ywCpyvC57rN4vUZhJjQrmGMTWnjFKi7"
+	senderPK      = "AfZtLRQxLNYH5iradMkTeuXGe71uAiATVbr8DpXEEQa8"
+	senderAddr    = "3PNXHYoWp83VaWudq9ds9LpS5xykWuJHiHp"
+	recipientPK   = "AfZtLRQxLNYH5iradMkTeuXGe71uAiATVbr8DpXEEQa9"
+	recipientAddr = "3PDdGex1meSUf4Yq5bjPBpyAbx6us9PaLfo"
+
+	assetStr = "B2u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ"
 )
 
 var (
-	testPK   = "AfZtLRQxLNYH5iradMkTeuXGe71uAiATVbr8DpXEEQa8"
-	testAddr = "3PDdGex1meSUf4Yq5bjPBpyAbx6us9PaLfo"
+	blockID0 = genBlockId(1)
+	blockID1 = genBlockId(2)
 )
+
+type testAddrData struct {
+	pk       crypto.PublicKey
+	addr     proto.Address
+	wavesKey string
+	assetKey string
+}
+
+func newTestAddrData(pkStr, addrStr string, asset []byte) (*testAddrData, error) {
+	pk, err := crypto.NewPublicKeyFromBase58(pkStr)
+	if err != nil {
+		return nil, err
+	}
+	addr, err := proto.NewAddressFromString(addrStr)
+	if err != nil {
+		return nil, err
+	}
+	wavesKey := string((&wavesBalanceKey{addr}).bytes())
+	assetKey := string((&assetBalanceKey{addr, asset}).bytes())
+	return &testAddrData{pk: pk, addr: addr, wavesKey: wavesKey, assetKey: assetKey}, nil
+}
+
+type testGlobalVars struct {
+	assetID []byte
+
+	matcherInfo   *testAddrData
+	minerInfo     *testAddrData
+	senderInfo    *testAddrData
+	recipientInfo *testAddrData
+}
+
+var testGlobal testGlobalVars
+
+func TestMain(m *testing.M) {
+	assetID, err := crypto.NewDigestFromBase58(assetStr)
+	if err != nil {
+		log.Fatalf("NewDigestFromBase58() failed: %v\n", err)
+	}
+	testGlobal.assetID = assetID.Bytes()
+	testGlobal.matcherInfo, err = newTestAddrData(matcherPK, matcherAddr, testGlobal.assetID)
+	if err != nil {
+		log.Fatalf("newTestAddrData(): %v\n", err)
+	}
+	testGlobal.minerInfo, err = newTestAddrData(minerPK, minerAddr, testGlobal.assetID)
+	if err != nil {
+		log.Fatalf("newTestAddrData(): %v\n", err)
+	}
+	testGlobal.senderInfo, err = newTestAddrData(senderPK, senderAddr, testGlobal.assetID)
+	if err != nil {
+		log.Fatalf("newTestAddrData(): %v\n", err)
+	}
+	testGlobal.recipientInfo, err = newTestAddrData(recipientPK, recipientAddr, testGlobal.assetID)
+	if err != nil {
+		log.Fatalf("newTestAddrData(): %v\n", err)
+	}
+	os.Exit(m.Run())
+}
 
 func defaultTestBloomFilterParams() keyvalue.BloomFilterParams {
 	return keyvalue.BloomFilterParams{N: testBloomFilterSize, FalsePositiveProbability: testBloomFilterFalsePositiveProbability}
@@ -87,7 +160,7 @@ func createStorageObjects() (*storageObjects, []string, error) {
 	return &storageObjects{db, dbBatch, hs, stateDB, rb}, res, nil
 }
 
-func genBlockIds(t *testing.T, amount int) []crypto.Signature {
+func genRandBlockIds(t *testing.T, amount int) []crypto.Signature {
 	ids := make([]crypto.Signature, amount)
 	for i := 0; i < amount; i++ {
 		id := make([]byte, crypto.SignatureSize)
@@ -98,4 +171,12 @@ func genBlockIds(t *testing.T, amount int) []crypto.Signature {
 		ids[i] = blockID
 	}
 	return ids
+}
+
+func genBlockId(fillWith byte) crypto.Signature {
+	var blockID crypto.Signature
+	for i := 0; i < crypto.SignatureSize; i++ {
+		blockID[i] = fillWith
+	}
+	return blockID
 }

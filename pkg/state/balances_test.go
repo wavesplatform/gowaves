@@ -18,11 +18,6 @@ const (
 	addr3 = "3PDdGex1meSUf4Yq5bjPBpyAbx6us9PaLfo"
 )
 
-var (
-	blockID0 = genBlockID(0)
-	blockID1 = genBlockID(1)
-)
-
 type balancesTestObjects struct {
 	stor     *storageObjects
 	balances *balances
@@ -54,14 +49,6 @@ func genAddr(fillWith byte) proto.Address {
 		addr[i] = fillWith
 	}
 	return addr
-}
-
-func genBlockID(fillWith byte) crypto.Signature {
-	var blockID crypto.Signature
-	for i := 0; i < crypto.SignatureSize; i++ {
-		blockID[i] = fillWith
-	}
-	return blockID
 }
 
 func TestCancelAllLeases(t *testing.T) {
@@ -215,7 +202,7 @@ func TestMinBalanceInRange(t *testing.T) {
 
 	addr := genAddr(1)
 	for i := 0; i < totalBlocksNumber; i++ {
-		blockID := genBlockID(byte(i))
+		blockID := genBlockId(byte(i))
 		to.stor.addBlock(t, blockID)
 		r := &wavesBalanceRecord{balanceProfile{uint64(i), 0, 0}, blockID}
 		if err := to.balances.setWavesBalance(addr, r); err != nil {

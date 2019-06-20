@@ -37,7 +37,7 @@ func TestIsInRange(t *testing.T) {
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
-	ids := genBlockIds(t, rangeSize)
+	ids := genRandBlockIds(t, rangeSize)
 	heights := make([]uint64, rangeSize)
 	// Test indirect addition of IDs.
 	for i, id := range ids {

@@ -25,9 +25,7 @@ func byteKey(addr proto.Address, assetID []byte) []byte {
 }
 
 // balanceDiff represents atomic balance change, which is a result of applying transaction.
-// Transaction may produce one or more balance diffs.
-// Each address among tx participants may also have one or more diffs within this tx.
-// For instance, paying transaction fee in Waves and sending Waves are two separate diffs for same address in Transfer/Payment tx.
+// Transaction may produce one or more balance diffs, with single diff corresponding to certain address.
 type balanceDiff struct {
 	allowLeasedTransfer bool
 	// Balance change.
