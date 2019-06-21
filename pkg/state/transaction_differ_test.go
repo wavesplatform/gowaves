@@ -42,10 +42,6 @@ func defaultDifferInfo(t *testing.T) *differInfo {
 	return &differInfo{false, testGlobal.minerInfo.pk}
 }
 
-func defaultPerformerInfo(t *testing.T) *performerInfo {
-	return &performerInfo{false, blockID0}
-}
-
 func createGenesis(t *testing.T) *proto.Genesis {
 	return proto.NewUnsignedGenesis(testGlobal.recipientInfo.addr, defaultAmount, defaultTimestamp)
 }
@@ -477,7 +473,7 @@ func createCreateAliasV1(t *testing.T) *proto.CreateAliasV1 {
 	aliasStr := "alias"
 	aliasFull := fmt.Sprintf("alias:W:%s", aliasStr)
 	alias, err := proto.NewAliasFromString(aliasFull)
-	assert.NoError(t, err, "NewAddressFromString() failed")
+	assert.NoError(t, err, "NewAliasFromString() failed")
 	return proto.NewUnsignedCreateAliasV1(testGlobal.senderInfo.pk, *alias, defaultFee, defaultTimestamp)
 }
 
@@ -504,7 +500,7 @@ func createCreateAliasV2(t *testing.T) *proto.CreateAliasV2 {
 	aliasStr := "alias"
 	aliasFull := fmt.Sprintf("alias:W:%s", aliasStr)
 	alias, err := proto.NewAliasFromString(aliasFull)
-	assert.NoError(t, err, "NewAddressFromString() failed")
+	assert.NoError(t, err, "NewAliasFromString() failed")
 	return proto.NewUnsignedCreateAliasV2(testGlobal.senderInfo.pk, *alias, defaultFee, defaultTimestamp)
 }
 
