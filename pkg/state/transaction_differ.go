@@ -24,6 +24,10 @@ func byteKey(addr proto.Address, assetID []byte) []byte {
 	return k.bytes()
 }
 
+func stringKey(addr proto.Address, assetID []byte) string {
+	return string(byteKey(addr, assetID))
+}
+
 // balanceDiff represents atomic balance change, which is a result of applying transaction.
 // Transaction may produce one or more balance diffs, with single diff corresponding to certain address.
 type balanceDiff struct {

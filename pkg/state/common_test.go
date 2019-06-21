@@ -60,6 +60,7 @@ func newTestAddrData(pkStr, addrStr string, asset []byte) (*testAddrData, error)
 }
 
 type testGlobalVars struct {
+	asset   *proto.OptionalAsset
 	assetID []byte
 
 	matcherInfo   *testAddrData
@@ -76,6 +77,10 @@ func TestMain(m *testing.M) {
 		log.Fatalf("NewDigestFromBase58() failed: %v\n", err)
 	}
 	testGlobal.assetID = assetID.Bytes()
+	testGlobal.asset, err = proto.NewOptionalAssetFromString(assetStr)
+	if err != nil {
+		log.Fatalf("NewOptionalAssetFromString() failed: %v\n", err)
+	}
 	testGlobal.matcherInfo, err = newTestAddrData(matcherPK, matcherAddr, testGlobal.assetID)
 	if err != nil {
 		log.Fatalf("newTestAddrData(): %v\n", err)
