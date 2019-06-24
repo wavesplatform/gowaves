@@ -11,26 +11,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/settings"
 )
 
-const (
-	// Default values.
-	// Cache parameters.
-	// 500 MiB.
-	DefaultCacheSize = 500 * 1024 * 1024
-
-	// Bloom filter parameters.
-	// {2e8, 0.01} combination means that BloomFilter will have a size of approximately 230 MB.
-	// Number of elements in Bloom Filter.
-	DefaultBloomFilterSize = 2e8
-	// Acceptable false positive for Bloom Filter (1%).
-	DefaultBloomFilterFalsePostiiveProbability = 0.01
-
-	// Block storage parameters.
-	// DefaultOffsetLen is the amount of bytes needed to store offset of transactions in blockchain file.
-	DefaultOffsetLen = 8
-	// DefaultHeaderOffsetLen is the amount of bytes needed to store offset of headers in headers file.
-	DefaultHeaderOffsetLen = 8
-)
-
 // State represents overall Node's state.
 // Data retrievals (e.g. account balances), as well as modifiers (like adding or rolling back blocks)
 // should all be made using this interface.
@@ -129,19 +109,23 @@ func NewState(dataDir string, params StateParams, settings *settings.BlockchainS
 type StorageParams struct {
 	OffsetLen       int
 	HeaderOffsetLen int
-	CacheParams     keyvalue.CacheParams
-	BloomParams     keyvalue.BloomFilterParams
+	DbParams        keyvalue.KeyValParams
 }
 
 func DefaultStorageParams() StorageParams {
-	return StorageParams{
-		BloomParams: keyvalue.BloomFilterParams{
+	dbParams := keyvalue.KeyValParams{
+		CacheParams: keyvalue.CacheParams{Size: DefaultCacheSize},
+		BloomFilterParams: keyvalue.BloomFilterParams{
 			N:                        DefaultBloomFilterSize,
 			FalsePositiveProbability: DefaultBloomFilterFalsePostiiveProbability,
 		},
-		CacheParams:     keyvalue.CacheParams{Size: DefaultCacheSize},
+		WriteBuffer:         DefaultWriteBuffer,
+		CompactionTableSize: DefaultCompactionTableSize,
+	}
+	return StorageParams{
 		OffsetLen:       DefaultOffsetLen,
 		HeaderOffsetLen: DefaultHeaderOffsetLen,
+		DbParams:        dbParams,
 	}
 }
 

@@ -7,6 +7,7 @@ import (
 	"github.com/coocood/freecache"
 	"github.com/pkg/errors"
 	"github.com/syndtr/goleveldb/leveldb"
+	"github.com/syndtr/goleveldb/leveldb/opt"
 	"github.com/syndtr/goleveldb/leveldb/util"
 )
 
@@ -105,17 +106,21 @@ func initBloomFilter(kv *KeyVal, params BloomFilterParams) error {
 	return nil
 }
 
-type CacheParams struct {
-	Size int
-}
-
 type KeyValParams struct {
 	CacheParams
 	BloomFilterParams
+	WriteBuffer         int
+	CompactionTableSize int
+	CompactionTotalSize int
 }
 
 func NewKeyVal(path string, params KeyValParams) (*KeyVal, error) {
-	db, err := leveldb.OpenFile(path, nil)
+	dbOptions := &opt.Options{
+		WriteBuffer:         params.WriteBuffer,
+		CompactionTableSize: params.CompactionTableSize,
+		CompactionTotalSize: params.CompactionTotalSize,
+	}
+	db, err := leveldb.OpenFile(path, dbOptions)
 	if err != nil {
 		return nil, err
 	}
