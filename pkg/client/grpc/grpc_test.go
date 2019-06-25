@@ -2,17 +2,20 @@ package grpc
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 	"io"
+	"strconv"
+	"strings"
 	"testing"
 	"time"
 )
 
 func TestTransactionsAPIClient(t *testing.T) {
-	t.SkipNow()
+	//t.SkipNow()
 	conn := connect(t)
 	defer conn.Close()
 
@@ -26,13 +29,18 @@ func TestTransactionsAPIClient(t *testing.T) {
 	require.NoError(t, err)
 	var msg TransactionResponse
 	for err = uc.RecvMsg(&msg); err == nil; err = uc.RecvMsg(&msg) {
-		fmt.Println(msg)
+		c := SafeConverter{}
+		tx, err := c.SignedTransaction(msg.Transaction)
+		require.NoError(t, err)
+		js, err := json.Marshal(tx)
+		require.NoError(t, err)
+		fmt.Println(string(js))
 	}
 	assert.Equal(t, io.EOF, err)
 }
 
 func TestBlocksAPIClient(t *testing.T) {
-	t.SkipNow()
+	//t.SkipNow()
 	conn := connect(t)
 	defer conn.Close()
 
@@ -47,9 +55,28 @@ func TestBlocksAPIClient(t *testing.T) {
 
 	var err error
 	var b *BlockWithHeight
-	h := 1
+	cnv := SafeConverter{Scheme: 'T'}
+	h := 285989 //100327
 	for b, err = getBlock(h); err == nil; b, err = getBlock(h) {
-		fmt.Println("HEIGHT:", b.Height, "BLOCK:", b.Block)
+		cnv.Reset()
+		txs, err := cnv.BlockTransactions(b)
+		require.NoError(t, err)
+		sb := strings.Builder{}
+		sb.WriteRune('[')
+		sb.WriteString(strconv.Itoa(len(txs)))
+		sb.WriteRune(']')
+		sb.WriteRune(' ')
+		for _, tx := range txs {
+			js, err := json.Marshal(tx)
+			require.NoError(t, err)
+			sb.WriteString(string(js))
+			sb.WriteRune(',')
+		}
+		header, err := cnv.BlockHeader(b)
+		require.NoError(t, err)
+		bjs, err := json.Marshal(header)
+		require.NoError(t, err)
+		fmt.Println("HEIGHT:", b.Height, "BLOCK:", string(bjs), "TXS:", sb.String())
 		h++
 	}
 	assert.Equal(t, io.EOF, err)

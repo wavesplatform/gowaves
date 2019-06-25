@@ -39,6 +39,17 @@ type IssueV2 struct {
 	Issue
 }
 
+func (tx *IssueV2) GenerateID() {
+	if tx.ID == nil {
+		body, err := tx.bodyMarshalBinary()
+		if err != nil {
+			panic(err.Error())
+		}
+		id := crypto.MustFastHash(body)
+		tx.ID = &id
+	}
+}
+
 func (tx IssueV2) GetID() []byte {
 	return tx.ID.Bytes()
 }
@@ -259,6 +270,17 @@ type TransferV2 struct {
 	Transfer
 }
 
+func (tx *TransferV2) GenerateID() {
+	if tx.ID == nil {
+		body, err := tx.BodyMarshalBinary()
+		if err != nil {
+			panic(err.Error())
+		}
+		id := crypto.MustFastHash(body)
+		tx.ID = &id
+	}
+}
+
 func (tx TransferV2) GetID() []byte {
 	return tx.ID.Bytes()
 }
@@ -421,6 +443,17 @@ type ReissueV2 struct {
 	Reissue
 }
 
+func (tx *ReissueV2) GenerateID() {
+	if tx.ID == nil {
+		body, err := tx.bodyMarshalBinary()
+		if err != nil {
+			panic(err.Error())
+		}
+		id := crypto.MustFastHash(body)
+		tx.ID = &id
+	}
+}
+
 func (tx ReissueV2) GetID() []byte {
 	return tx.ID.Bytes()
 }
@@ -570,6 +603,17 @@ type BurnV2 struct {
 	ID      *crypto.Digest  `json:"id,omitempty"`
 	Proofs  *ProofsV1       `json:"proofs,omitempty"`
 	Burn
+}
+
+func (tx *BurnV2) GenerateID() {
+	if tx.ID == nil {
+		body, err := tx.bodyMarshalBinary()
+		if err != nil {
+			panic(err.Error())
+		}
+		id := crypto.MustFastHash(body)
+		tx.ID = &id
+	}
 }
 
 func (tx BurnV2) GetID() []byte {
@@ -727,6 +771,17 @@ type ExchangeV2 struct {
 	SellMatcherFee uint64           `json:"sellMatcherFee"`
 	Fee            uint64           `json:"fee"`
 	Timestamp      uint64           `json:"timestamp,omitempty"`
+}
+
+func (tx *ExchangeV2) GenerateID() {
+	if tx.ID == nil {
+		body, err := tx.bodyMarshalBinary()
+		if err != nil {
+			panic(err.Error())
+		}
+		id := crypto.MustFastHash(body)
+		tx.ID = &id
+	}
 }
 
 func (tx ExchangeV2) GetID() []byte {
@@ -1155,6 +1210,17 @@ type LeaseV2 struct {
 	Lease
 }
 
+func (tx *LeaseV2) GenerateID() {
+	if tx.ID == nil {
+		body, err := tx.bodyMarshalBinary()
+		if err != nil {
+			panic(err.Error())
+		}
+		id := crypto.MustFastHash(body)
+		tx.ID = &id
+	}
+}
+
 func (tx LeaseV2) GetID() []byte {
 	return tx.ID.Bytes()
 }
@@ -1295,6 +1361,17 @@ type LeaseCancelV2 struct {
 	ID      *crypto.Digest  `json:"id,omitempty"`
 	Proofs  *ProofsV1       `json:"proofs,omitempty"`
 	LeaseCancel
+}
+
+func (tx *LeaseCancelV2) GenerateID() {
+	if tx.ID == nil {
+		body, err := tx.bodyMarshalBinary()
+		if err != nil {
+			panic(err.Error())
+		}
+		id := crypto.MustFastHash(body)
+		tx.ID = &id
+	}
 }
 
 func (tx LeaseCancelV2) GetID() []byte {
@@ -1443,6 +1520,16 @@ type CreateAliasV2 struct {
 	ID      *crypto.Digest  `json:"id,omitempty"`
 	Proofs  *ProofsV1       `json:"proofs,omitempty"`
 	CreateAlias
+}
+
+func (tx *CreateAliasV2) GenerateID() {
+	if tx.ID == nil {
+		id, err := tx.CreateAlias.id()
+		if err != nil {
+			panic(err.Error())
+		}
+		tx.ID = id
+	}
 }
 
 func (tx CreateAliasV2) GetID() []byte {

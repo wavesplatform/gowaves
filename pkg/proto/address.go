@@ -83,7 +83,7 @@ func RebuildAddress(scheme byte, body []byte) (Address, error) {
 	a[0] = addressVersion
 	a[1] = scheme
 	if l := len(body); l != bodySize {
-		return Address{}, errors.Errorf("%d is not enough bytes for the body of an address", l)
+		return Address{}, errors.Errorf("%d is unexpected address' body size", l)
 	}
 	copy(a[headerSize:], body[:bodySize])
 	cs, err := addressChecksum(a[:headerSize+bodySize])

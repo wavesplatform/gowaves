@@ -55,6 +55,17 @@ type IssueV1 struct {
 	Issue
 }
 
+func (tx *IssueV1) GenerateID() {
+	if tx.ID == nil {
+		body, err := tx.bodyMarshalBinary()
+		if err != nil {
+			panic(err.Error())
+		}
+		id := crypto.MustFastHash(body)
+		tx.ID = &id
+	}
+}
+
 func (tx IssueV1) GetID() []byte {
 	return tx.ID.Bytes()
 }
@@ -111,11 +122,8 @@ func (tx *IssueV1) Sign(secretKey crypto.SecretKey) error {
 	}
 	s := crypto.Sign(secretKey, b)
 	tx.Signature = &s
-	d, err := crypto.FastHash(b)
-	if err != nil {
-		return errors.Wrap(err, "failed to sign IssueV1 transaction")
-	}
-	tx.ID = &d
+	id := crypto.MustFastHash(b)
+	tx.ID = &id
 	return nil
 }
 
@@ -178,6 +186,17 @@ type TransferV1 struct {
 	ID        *crypto.Digest    `json:"id,omitempty"`
 	Signature *crypto.Signature `json:"signature,omitempty"`
 	Transfer
+}
+
+func (tx *TransferV1) GenerateID() {
+	if tx.ID == nil {
+		body, err := tx.bodyMarshalBinary()
+		if err != nil {
+			panic(err.Error())
+		}
+		id := crypto.MustFastHash(body)
+		tx.ID = &id
+	}
 }
 
 func (tx TransferV1) GetID() []byte {
@@ -305,6 +324,17 @@ type ReissueV1 struct {
 	Reissue
 }
 
+func (tx *ReissueV1) GenerateID() {
+	if tx.ID == nil {
+		body, err := tx.bodyMarshalBinary()
+		if err != nil {
+			panic(err.Error())
+		}
+		id := crypto.MustFastHash(body)
+		tx.ID = &id
+	}
+}
+
 func (tx ReissueV1) GetID() []byte {
 	return tx.ID.Bytes()
 }
@@ -429,6 +459,17 @@ type BurnV1 struct {
 	Burn
 }
 
+func (tx *BurnV1) GenerateID() {
+	if tx.ID == nil {
+		body, err := tx.bodyMarshalBinary()
+		if err != nil {
+			panic(err.Error())
+		}
+		id := crypto.MustFastHash(body)
+		tx.ID = &id
+	}
+}
+
 func (tx BurnV1) GetID() []byte {
 	return tx.ID.Bytes()
 }
@@ -549,6 +590,17 @@ type ExchangeV1 struct {
 	SellMatcherFee uint64            `json:"sellMatcherFee"`
 	Fee            uint64            `json:"fee"`
 	Timestamp      uint64            `json:"timestamp,omitempty"`
+}
+
+func (tx *ExchangeV1) GenerateID() {
+	if tx.ID == nil {
+		body, err := tx.bodyMarshalBinary()
+		if err != nil {
+			panic(err.Error())
+		}
+		id := crypto.MustFastHash(body)
+		tx.ID = &id
+	}
 }
 
 func (tx ExchangeV1) GetID() []byte {
@@ -832,6 +884,17 @@ type LeaseV1 struct {
 	Lease
 }
 
+func (tx *LeaseV1) GenerateID() {
+	if tx.ID == nil {
+		body, err := tx.bodyMarshalBinary()
+		if err != nil {
+			panic(err.Error())
+		}
+		id := crypto.MustFastHash(body)
+		tx.ID = &id
+	}
+}
+
 func (tx LeaseV1) GetID() []byte {
 	return tx.ID.Bytes()
 }
@@ -954,6 +1017,17 @@ type LeaseCancelV1 struct {
 	LeaseCancel
 }
 
+func (tx *LeaseCancelV1) GenerateID() {
+	if tx.ID == nil {
+		body, err := tx.bodyMarshalBinary()
+		if err != nil {
+			panic(err.Error())
+		}
+		id := crypto.MustFastHash(body)
+		tx.ID = &id
+	}
+}
+
 func (tx LeaseCancelV1) GetID() []byte {
 	return tx.ID.Bytes()
 }
@@ -1069,6 +1143,16 @@ type CreateAliasV1 struct {
 	ID        *crypto.Digest    `json:"id,omitempty"`
 	Signature *crypto.Signature `json:"signature,omitempty"`
 	CreateAlias
+}
+
+func (tx *CreateAliasV1) GenerateID() {
+	if tx.ID == nil {
+		id, err := tx.CreateAlias.id()
+		if err != nil {
+			panic(err.Error())
+		}
+		tx.ID = id
+	}
 }
 
 func (tx CreateAliasV1) GetID() []byte {
@@ -1241,6 +1325,17 @@ type MassTransferV1 struct {
 	Timestamp  uint64              `json:"timestamp,omitempty"`
 	Fee        uint64              `json:"fee"`
 	Attachment Attachment          `json:"attachment,omitempty"`
+}
+
+func (tx *MassTransferV1) GenerateID() {
+	if tx.ID == nil {
+		body, err := tx.bodyMarshalBinary()
+		if err != nil {
+			panic(err.Error())
+		}
+		id := crypto.MustFastHash(body)
+		tx.ID = &id
+	}
 }
 
 func (tx MassTransferV1) GetID() []byte {
@@ -1473,6 +1568,17 @@ type DataV1 struct {
 	Entries   DataEntries      `json:"data"`
 	Fee       uint64           `json:"fee"`
 	Timestamp uint64           `json:"timestamp,omitempty"`
+}
+
+func (tx *DataV1) GenerateID() {
+	if tx.ID == nil {
+		body, err := tx.BodyMarshalBinary()
+		if err != nil {
+			panic(err.Error())
+		}
+		id := crypto.MustFastHash(body)
+		tx.ID = &id
+	}
 }
 
 func (tx DataV1) GetID() []byte {
@@ -1736,6 +1842,17 @@ type SetScriptV1 struct {
 	Timestamp uint64           `json:"timestamp,omitempty"`
 }
 
+func (tx *SetScriptV1) GenerateID() {
+	if tx.ID == nil {
+		body, err := tx.bodyMarshalBinary()
+		if err != nil {
+			panic(err.Error())
+		}
+		id := crypto.MustFastHash(body)
+		tx.ID = &id
+	}
+}
+
 func (tx SetScriptV1) GetID() []byte {
 	return tx.ID.Bytes()
 }
@@ -1927,6 +2044,17 @@ type SponsorshipV1 struct {
 	Timestamp   uint64           `json:"timestamp,omitempty"`
 }
 
+func (tx *SponsorshipV1) GenerateID() {
+	if tx.ID == nil {
+		body, err := tx.bodyMarshalBinary()
+		if err != nil {
+			panic(err.Error())
+		}
+		id := crypto.MustFastHash(body)
+		tx.ID = &id
+	}
+}
+
 func (tx SponsorshipV1) GetID() []byte {
 	return tx.ID.Bytes()
 }
@@ -2104,6 +2232,17 @@ type SetAssetScriptV1 struct {
 	Script    Script           `json:"script"`
 	Fee       uint64           `json:"fee"`
 	Timestamp uint64           `json:"timestamp,omitempty"`
+}
+
+func (tx *SetAssetScriptV1) GenerateID() {
+	if tx.ID == nil {
+		body, err := tx.bodyMarshalBinary()
+		if err != nil {
+			panic(err.Error())
+		}
+		id := crypto.MustFastHash(body)
+		tx.ID = &id
+	}
 }
 
 func (tx SetAssetScriptV1) GetID() []byte {
@@ -2303,6 +2442,17 @@ type InvokeScriptV1 struct {
 	FeeAsset        OptionalAsset    `json:"feeAssetId"`
 	Fee             uint64           `json:"fee"`
 	Timestamp       uint64           `json:"timestamp,omitempty"`
+}
+
+func (tx *InvokeScriptV1) GenerateID() {
+	if tx.ID == nil {
+		body, err := tx.bodyMarshalBinary()
+		if err != nil {
+			panic(err.Error())
+		}
+		id := crypto.MustFastHash(body)
+		tx.ID = &id
+	}
 }
 
 func (tx InvokeScriptV1) GetID() []byte {
