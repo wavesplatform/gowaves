@@ -55,8 +55,8 @@ func TestBlocksAPIClient(t *testing.T) {
 
 	var err error
 	var b *BlockWithHeight
-	cnv := SafeConverter{Scheme: 'T'}
-	h := 285989 //100327
+	cnv := SafeConverter{}
+	h := 393633 //100327
 	for b, err = getBlock(h); err == nil; b, err = getBlock(h) {
 		cnv.Reset()
 		txs, err := cnv.BlockTransactions(b)
@@ -83,7 +83,7 @@ func TestBlocksAPIClient(t *testing.T) {
 }
 
 func connect(t *testing.T) *grpc.ClientConn {
-	conn, err := grpc.Dial("52.30.47.67:6870", grpc.WithInsecure())
+	conn, err := grpc.Dial("testnet-aws-ir-2.wavesnodes.com:6870", grpc.WithInsecure())
 	require.NoError(t, err)
 	return conn
 }

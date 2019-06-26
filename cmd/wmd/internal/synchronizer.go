@@ -73,7 +73,7 @@ func (s *Synchronizer) synchronize() {
 	rh, err := s.nodeHeight()
 	rh = rh - s.lag
 	if err != nil {
-		s.log.Error("Failed to synchronize with node", err)
+		s.log.Errorf("Failed to synchronize with node: %v", err)
 		return
 	}
 	lh, err := s.storage.Height()

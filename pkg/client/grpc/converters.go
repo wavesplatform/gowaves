@@ -7,8 +7,7 @@ import (
 )
 
 type SafeConverter struct {
-	Scheme byte //TODO: remove this
-	err    error
+	err error
 }
 
 func (c *SafeConverter) address(scheme byte, addr []byte) proto.Address {
@@ -16,18 +15,6 @@ func (c *SafeConverter) address(scheme byte, addr []byte) proto.Address {
 		return proto.Address{}
 	}
 	a, err := proto.RebuildAddress(scheme, addr)
-	if err != nil {
-		c.err = err
-		return proto.Address{}
-	}
-	return a
-}
-
-func (c *SafeConverter) fullAddress(addr []byte) proto.Address { //TODO: remove this
-	if c.err != nil {
-		return proto.Address{}
-	}
-	a, err := proto.NewAddressFromBytes(addr)
 	if err != nil {
 		c.err = err
 		return proto.Address{}
@@ -394,9 +381,6 @@ func (c *SafeConverter) Reset() {
 func (c *SafeConverter) Transaction(tx *Transaction) (proto.Transaction, error) {
 	ts := c.uint64(tx.Timestamp)
 	scheme := c.byte(tx.ChainId)
-	if scheme == 0 {
-		scheme = c.Scheme
-	}
 	v := c.byte(tx.Version)
 	if c.err != nil {
 		return nil, c.err
@@ -408,7 +392,7 @@ func (c *SafeConverter) Transaction(tx *Transaction) (proto.Transaction, error) 
 			Type:      proto.GenesisTransaction,
 			Version:   v,
 			Timestamp: ts,
-			Recipient: c.fullAddress(d.Genesis.RecipientAddress),
+			Recipient: c.address(scheme, d.Genesis.RecipientAddress),
 			Amount:    uint64(d.Genesis.Amount),
 		}
 
@@ -417,7 +401,7 @@ func (c *SafeConverter) Transaction(tx *Transaction) (proto.Transaction, error) 
 			Type:      proto.PaymentTransaction,
 			Version:   v,
 			SenderPK:  c.publicKey(tx.SenderPublicKey),
-			Recipient: c.fullAddress(d.Payment.RecipientAddress),
+			Recipient: c.address(scheme, d.Payment.RecipientAddress),
 			Amount:    c.uint64(d.Payment.Amount),
 			Fee:       c.amount(tx.Fee),
 			Timestamp: ts,
