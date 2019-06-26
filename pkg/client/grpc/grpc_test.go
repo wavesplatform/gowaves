@@ -56,7 +56,7 @@ func TestBlocksAPIClient(t *testing.T) {
 	var err error
 	var b *BlockWithHeight
 	cnv := SafeConverter{}
-	h := 393633 //100327
+	h := 1
 	for b, err = getBlock(h); err == nil; b, err = getBlock(h) {
 		cnv.Reset()
 		txs, err := cnv.BlockTransactions(b)
