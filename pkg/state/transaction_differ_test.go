@@ -13,7 +13,7 @@ import (
 )
 
 var (
-	defaultTimestamp = uint64(1465742577614)
+	defaultTimestamp = settings.MainNetSettings.CheckTempNegativeAfterTime
 	defaultAmount    = uint64(100)
 	defaultFee       = uint64(1)
 	defaultQuantity  = uint64(1000)
@@ -39,7 +39,7 @@ func createDifferTestObjects(t *testing.T) (*differTestObjects, []string) {
 }
 
 func defaultDifferInfo(t *testing.T) *differInfo {
-	return &differInfo{false, testGlobal.minerInfo.pk}
+	return &differInfo{false, testGlobal.minerInfo.pk, defaultTimestamp}
 }
 
 func createGenesis(t *testing.T) *proto.Genesis {
@@ -57,7 +57,7 @@ func TestCreateDiffGenesis(t *testing.T) {
 	tx := createGenesis(t)
 	diff, err := to.td.createDiffGenesis(tx, defaultDifferInfo(t))
 	assert.NoError(t, err, "createDiffGenesis() failed")
-	correctDiff := txDiff{testGlobal.recipientInfo.wavesKey: balanceDiff{balance: int64(tx.Amount)}}
+	correctDiff := txDiff{testGlobal.recipientInfo.wavesKey: newBalanceDiff(int64(tx.Amount), 0, 0, false)}
 	assert.Equal(t, correctDiff, diff)
 }
 
@@ -78,15 +78,15 @@ func TestCreateDiffPayment(t *testing.T) {
 	assert.NoError(t, err, "createDiffPayment() failed")
 
 	correctDiff := txDiff{
-		testGlobal.senderInfo.wavesKey:    balanceDiff{balance: -int64(tx.Amount + tx.Fee)},
-		testGlobal.recipientInfo.wavesKey: balanceDiff{balance: int64(tx.Amount)},
-		testGlobal.minerInfo.wavesKey:     balanceDiff{balance: int64(tx.Fee)},
+		testGlobal.senderInfo.wavesKey:    newBalanceDiff(-int64(tx.Amount+tx.Fee), 0, 0, true),
+		testGlobal.recipientInfo.wavesKey: newBalanceDiff(int64(tx.Amount), 0, 0, true),
+		testGlobal.minerInfo.wavesKey:     newBalanceDiff(int64(tx.Fee), 0, 0, false),
 	}
 	assert.Equal(t, correctDiff, diff)
 }
 
 func createTransferV1(t *testing.T) *proto.TransferV1 {
-	return proto.NewUnsignedTransferV1(testGlobal.senderInfo.pk, *(testGlobal.asset), *(testGlobal.asset), defaultTimestamp, defaultAmount, defaultFee, proto.NewRecipientFromAddress(testGlobal.recipientInfo.addr), "attachment")
+	return proto.NewUnsignedTransferV1(testGlobal.senderInfo.pk, *(testGlobal.asset0.asset), *(testGlobal.asset0.asset), defaultTimestamp, defaultAmount, defaultFee, proto.NewRecipientFromAddress(testGlobal.recipientInfo.addr), "attachment")
 }
 
 func TestCreateDiffTransferV1(t *testing.T) {
@@ -101,16 +101,18 @@ func TestCreateDiffTransferV1(t *testing.T) {
 	diff, err := to.td.createDiffTransferV1(tx, defaultDifferInfo(t))
 	assert.NoError(t, err, "createDiffTransferV1() failed")
 
+	senderCorrectDiff := newBalanceDiff(-int64(tx.Amount+tx.Fee), 0, 0, true)
+	senderCorrectDiff.minBalance = -int64(tx.Amount + tx.Fee)
 	correctDiff := txDiff{
-		testGlobal.senderInfo.assetKey:    balanceDiff{balance: -int64(tx.Amount + tx.Fee)},
-		testGlobal.recipientInfo.assetKey: balanceDiff{balance: int64(tx.Amount)},
-		testGlobal.minerInfo.assetKey:     balanceDiff{balance: int64(tx.Fee)},
+		testGlobal.senderInfo.assetKey:    senderCorrectDiff,
+		testGlobal.recipientInfo.assetKey: newBalanceDiff(int64(tx.Amount), 0, 0, true),
+		testGlobal.minerInfo.assetKey:     newBalanceDiff(int64(tx.Fee), 0, 0, false),
 	}
 	assert.Equal(t, correctDiff, diff)
 }
 
 func createTransferV2(t *testing.T) *proto.TransferV2 {
-	return proto.NewUnsignedTransferV2(testGlobal.senderInfo.pk, *(testGlobal.asset), *(testGlobal.asset), defaultTimestamp, defaultAmount, defaultFee, proto.NewRecipientFromAddress(testGlobal.recipientInfo.addr), "attachment")
+	return proto.NewUnsignedTransferV2(testGlobal.senderInfo.pk, *(testGlobal.asset0.asset), *(testGlobal.asset0.asset), defaultTimestamp, defaultAmount, defaultFee, proto.NewRecipientFromAddress(testGlobal.recipientInfo.addr), "attachment")
 }
 
 func TestCreateDiffTransferV2(t *testing.T) {
@@ -125,10 +127,12 @@ func TestCreateDiffTransferV2(t *testing.T) {
 	diff, err := to.td.createDiffTransferV2(tx, defaultDifferInfo(t))
 	assert.NoError(t, err, "createDiffTransferV2() failed")
 
+	senderCorrectDiff := newBalanceDiff(-int64(tx.Amount+tx.Fee), 0, 0, true)
+	senderCorrectDiff.minBalance = -int64(tx.Amount + tx.Fee)
 	correctDiff := txDiff{
-		testGlobal.senderInfo.assetKey:    balanceDiff{balance: -int64(tx.Amount + tx.Fee)},
-		testGlobal.recipientInfo.assetKey: balanceDiff{balance: int64(tx.Amount)},
-		testGlobal.minerInfo.assetKey:     balanceDiff{balance: int64(tx.Fee)},
+		testGlobal.senderInfo.assetKey:    senderCorrectDiff,
+		testGlobal.recipientInfo.assetKey: newBalanceDiff(int64(tx.Amount), 0, 0, true),
+		testGlobal.minerInfo.assetKey:     newBalanceDiff(int64(tx.Fee), 0, 0, false),
 	}
 	assert.Equal(t, correctDiff, diff)
 }
@@ -155,9 +159,9 @@ func TestCreateDiffIssueV1(t *testing.T) {
 	assert.NoError(t, err, "createDiffIssueV1() failed")
 
 	correctDiff := txDiff{
-		stringKey(testGlobal.senderInfo.addr, tx.ID.Bytes()): balanceDiff{balance: int64(tx.Quantity)},
-		testGlobal.senderInfo.wavesKey:                       balanceDiff{balance: -int64(tx.Fee)},
-		testGlobal.minerInfo.wavesKey:                        balanceDiff{balance: int64(tx.Fee)},
+		stringKey(testGlobal.senderInfo.addr, tx.ID.Bytes()): newBalanceDiff(int64(tx.Quantity), 0, 0, false),
+		testGlobal.senderInfo.wavesKey:                       newBalanceDiff(-int64(tx.Fee), 0, 0, false),
+		testGlobal.minerInfo.wavesKey:                        newBalanceDiff(int64(tx.Fee), 0, 0, false),
 	}
 	assert.Equal(t, correctDiff, diff)
 }
@@ -184,15 +188,15 @@ func TestCreateDiffIssueV2(t *testing.T) {
 	assert.NoError(t, err, "createDiffIssueV2() failed")
 
 	correctDiff := txDiff{
-		stringKey(testGlobal.senderInfo.addr, tx.ID.Bytes()): balanceDiff{balance: int64(tx.Quantity)},
-		testGlobal.senderInfo.wavesKey:                       balanceDiff{balance: -int64(tx.Fee)},
-		testGlobal.minerInfo.wavesKey:                        balanceDiff{balance: int64(tx.Fee)},
+		stringKey(testGlobal.senderInfo.addr, tx.ID.Bytes()): newBalanceDiff(int64(tx.Quantity), 0, 0, false),
+		testGlobal.senderInfo.wavesKey:                       newBalanceDiff(-int64(tx.Fee), 0, 0, false),
+		testGlobal.minerInfo.wavesKey:                        newBalanceDiff(int64(tx.Fee), 0, 0, false),
 	}
 	assert.Equal(t, correctDiff, diff)
 }
 
 func createReissueV1(t *testing.T) *proto.ReissueV1 {
-	return proto.NewUnsignedReissueV1(testGlobal.senderInfo.pk, testGlobal.asset.ID, defaultQuantity, false, defaultTimestamp, defaultFee)
+	return proto.NewUnsignedReissueV1(testGlobal.senderInfo.pk, testGlobal.asset0.asset.ID, defaultQuantity, false, defaultTimestamp, defaultFee)
 }
 
 func TestCreateDiffReissueV1(t *testing.T) {
@@ -208,15 +212,15 @@ func TestCreateDiffReissueV1(t *testing.T) {
 	assert.NoError(t, err, "createDiffReissueV1() failed")
 
 	correctDiff := txDiff{
-		testGlobal.senderInfo.assetKey: balanceDiff{balance: int64(tx.Quantity)},
-		testGlobal.senderInfo.wavesKey: balanceDiff{balance: -int64(tx.Fee)},
-		testGlobal.minerInfo.wavesKey:  balanceDiff{balance: int64(tx.Fee)},
+		testGlobal.senderInfo.assetKey: newBalanceDiff(int64(tx.Quantity), 0, 0, false),
+		testGlobal.senderInfo.wavesKey: newBalanceDiff(-int64(tx.Fee), 0, 0, false),
+		testGlobal.minerInfo.wavesKey:  newBalanceDiff(int64(tx.Fee), 0, 0, false),
 	}
 	assert.Equal(t, correctDiff, diff)
 }
 
 func createReissueV2(t *testing.T) *proto.ReissueV2 {
-	return proto.NewUnsignedReissueV2('W', testGlobal.senderInfo.pk, testGlobal.asset.ID, defaultQuantity, false, defaultTimestamp, defaultFee)
+	return proto.NewUnsignedReissueV2('W', testGlobal.senderInfo.pk, testGlobal.asset0.asset.ID, defaultQuantity, false, defaultTimestamp, defaultFee)
 }
 
 func TestCreateDiffReissueV2(t *testing.T) {
@@ -232,15 +236,15 @@ func TestCreateDiffReissueV2(t *testing.T) {
 	assert.NoError(t, err, "createDiffReissueV2() failed")
 
 	correctDiff := txDiff{
-		testGlobal.senderInfo.assetKey: balanceDiff{balance: int64(tx.Quantity)},
-		testGlobal.senderInfo.wavesKey: balanceDiff{balance: -int64(tx.Fee)},
-		testGlobal.minerInfo.wavesKey:  balanceDiff{balance: int64(tx.Fee)},
+		testGlobal.senderInfo.assetKey: newBalanceDiff(int64(tx.Quantity), 0, 0, false),
+		testGlobal.senderInfo.wavesKey: newBalanceDiff(-int64(tx.Fee), 0, 0, false),
+		testGlobal.minerInfo.wavesKey:  newBalanceDiff(int64(tx.Fee), 0, 0, false),
 	}
 	assert.Equal(t, correctDiff, diff)
 }
 
 func createBurnV1(t *testing.T) *proto.BurnV1 {
-	return proto.NewUnsignedBurnV1(testGlobal.senderInfo.pk, testGlobal.asset.ID, defaultAmount, defaultTimestamp, defaultFee)
+	return proto.NewUnsignedBurnV1(testGlobal.senderInfo.pk, testGlobal.asset0.asset.ID, defaultAmount, defaultTimestamp, defaultFee)
 }
 
 func TestCreateDiffBurnV1(t *testing.T) {
@@ -256,15 +260,15 @@ func TestCreateDiffBurnV1(t *testing.T) {
 	assert.NoError(t, err, "createDiffBurnV1() failed")
 
 	correctDiff := txDiff{
-		testGlobal.senderInfo.assetKey: balanceDiff{balance: -int64(tx.Amount)},
-		testGlobal.senderInfo.wavesKey: balanceDiff{balance: -int64(tx.Fee)},
-		testGlobal.minerInfo.wavesKey:  balanceDiff{balance: int64(tx.Fee)},
+		testGlobal.senderInfo.assetKey: newBalanceDiff(-int64(tx.Amount), 0, 0, false),
+		testGlobal.senderInfo.wavesKey: newBalanceDiff(-int64(tx.Fee), 0, 0, false),
+		testGlobal.minerInfo.wavesKey:  newBalanceDiff(int64(tx.Fee), 0, 0, false),
 	}
 	assert.Equal(t, correctDiff, diff)
 }
 
 func createBurnV2(t *testing.T) *proto.BurnV2 {
-	return proto.NewUnsignedBurnV2('W', testGlobal.senderInfo.pk, testGlobal.asset.ID, defaultAmount, defaultTimestamp, defaultFee)
+	return proto.NewUnsignedBurnV2('W', testGlobal.senderInfo.pk, testGlobal.asset0.asset.ID, defaultAmount, defaultTimestamp, defaultFee)
 }
 
 func TestCreateDiffBurnV2(t *testing.T) {
@@ -280,20 +284,16 @@ func TestCreateDiffBurnV2(t *testing.T) {
 	assert.NoError(t, err, "createDiffBurnV2() failed")
 
 	correctDiff := txDiff{
-		testGlobal.senderInfo.assetKey: balanceDiff{balance: -int64(tx.Amount)},
-		testGlobal.senderInfo.wavesKey: balanceDiff{balance: -int64(tx.Fee)},
-		testGlobal.minerInfo.wavesKey:  balanceDiff{balance: int64(tx.Fee)},
+		testGlobal.senderInfo.assetKey: newBalanceDiff(-int64(tx.Amount), 0, 0, false),
+		testGlobal.senderInfo.wavesKey: newBalanceDiff(-int64(tx.Fee), 0, 0, false),
+		testGlobal.minerInfo.wavesKey:  newBalanceDiff(int64(tx.Fee), 0, 0, false),
 	}
 	assert.Equal(t, correctDiff, diff)
 }
 
 func createExchangeV1(t *testing.T) *proto.ExchangeV1 {
-	pa, _ := proto.NewOptionalAssetFromString("")
-	sig, _ := crypto.NewSignatureFromBase58("5pzyUowLi31yP4AEh5qzg7gRrvmsfeypiUkW84CKzc4H6UTzEF2RgGPLckBEqNbJGn5ofQXzuDmUnxwuP3utYp9L")
-	bo := proto.NewUnsignedOrderV1(testGlobal.senderInfo.pk, testGlobal.matcherInfo.pk, *testGlobal.asset, *pa, proto.Buy, 10e8, 100, 0, 0, 3)
-	bo.Signature = &sig
-	so := proto.NewUnsignedOrderV1(testGlobal.recipientInfo.pk, testGlobal.matcherInfo.pk, *testGlobal.asset, *pa, proto.Sell, 10e8, 100, 0, 0, 3)
-	so.Signature = &sig
+	bo := proto.NewUnsignedOrderV1(testGlobal.senderInfo.pk, testGlobal.matcherInfo.pk, *testGlobal.asset0.asset, *testGlobal.asset1.asset, proto.Buy, 10e8, 100, 0, 0, 3)
+	so := proto.NewUnsignedOrderV1(testGlobal.recipientInfo.pk, testGlobal.matcherInfo.pk, *testGlobal.asset0.asset, *testGlobal.asset1.asset, proto.Sell, 10e8, 100, 0, 0, 3)
 	return proto.NewUnsignedExchangeV1(*bo, *so, bo.Price, bo.Amount, 1, 2, defaultFee, defaultTimestamp)
 }
 
@@ -311,23 +311,21 @@ func TestCreateDiffExchangeV1(t *testing.T) {
 
 	price := tx.Price * tx.Amount / priceConstant
 	correctDiff := txDiff{
-		testGlobal.recipientInfo.assetKey: balanceDiff{balance: -int64(tx.Amount)},
-		testGlobal.recipientInfo.wavesKey: balanceDiff{balance: int64(price - tx.SellMatcherFee)},
-		testGlobal.senderInfo.assetKey:    balanceDiff{balance: int64(tx.Amount)},
-		testGlobal.senderInfo.wavesKey:    balanceDiff{balance: -int64(price + tx.BuyMatcherFee)},
-		testGlobal.minerInfo.wavesKey:     balanceDiff{balance: int64(tx.Fee)},
-		testGlobal.matcherInfo.wavesKey:   balanceDiff{balance: int64(tx.SellMatcherFee + tx.BuyMatcherFee - tx.Fee)},
+		testGlobal.recipientInfo.assetKey:  newBalanceDiff(-int64(tx.Amount), 0, 0, false),
+		testGlobal.recipientInfo.assetKey1: newBalanceDiff(int64(price), 0, 0, false),
+		testGlobal.recipientInfo.wavesKey:  newBalanceDiff(-int64(tx.SellMatcherFee), 0, 0, false),
+		testGlobal.senderInfo.assetKey:     newBalanceDiff(int64(tx.Amount), 0, 0, false),
+		testGlobal.senderInfo.assetKey1:    newBalanceDiff(-int64(price), 0, 0, false),
+		testGlobal.senderInfo.wavesKey:     newBalanceDiff(-int64(tx.BuyMatcherFee), 0, 0, false),
+		testGlobal.minerInfo.wavesKey:      newBalanceDiff(int64(tx.Fee), 0, 0, false),
+		testGlobal.matcherInfo.wavesKey:    newBalanceDiff(int64(tx.SellMatcherFee+tx.BuyMatcherFee-tx.Fee), 0, 0, false),
 	}
 	assert.Equal(t, correctDiff, diff)
 }
 
 func createExchangeV2(t *testing.T) *proto.ExchangeV2 {
-	pa, _ := proto.NewOptionalAssetFromString("")
-	sig, _ := crypto.NewSignatureFromBase58("5pzyUowLi31yP4AEh5qzg7gRrvmsfeypiUkW84CKzc4H6UTzEF2RgGPLckBEqNbJGn5ofQXzuDmUnxwuP3utYp9L")
-	bo := proto.NewUnsignedOrderV1(testGlobal.senderInfo.pk, testGlobal.matcherInfo.pk, *testGlobal.asset, *pa, proto.Buy, 10e8, 100, 0, 0, 3)
-	bo.Signature = &sig
-	so := proto.NewUnsignedOrderV1(testGlobal.recipientInfo.pk, testGlobal.matcherInfo.pk, *testGlobal.asset, *pa, proto.Sell, 10e8, 100, 0, 0, 3)
-	so.Signature = &sig
+	bo := proto.NewUnsignedOrderV2(testGlobal.senderInfo.pk, testGlobal.matcherInfo.pk, *testGlobal.asset0.asset, *testGlobal.asset1.asset, proto.Buy, 10e8, 100, 0, 0, 3)
+	so := proto.NewUnsignedOrderV2(testGlobal.recipientInfo.pk, testGlobal.matcherInfo.pk, *testGlobal.asset0.asset, *testGlobal.asset1.asset, proto.Sell, 10e8, 100, 0, 0, 3)
 	return proto.NewUnsignedExchangeV2(*bo, *so, bo.Price, bo.Amount, 1, 2, defaultFee, defaultTimestamp)
 }
 
@@ -345,12 +343,14 @@ func TestCreateDiffExchangeV2(t *testing.T) {
 
 	price := tx.Price * tx.Amount / priceConstant
 	correctDiff := txDiff{
-		testGlobal.recipientInfo.assetKey: balanceDiff{balance: -int64(tx.Amount)},
-		testGlobal.recipientInfo.wavesKey: balanceDiff{balance: int64(price - tx.SellMatcherFee)},
-		testGlobal.senderInfo.assetKey:    balanceDiff{balance: int64(tx.Amount)},
-		testGlobal.senderInfo.wavesKey:    balanceDiff{balance: -int64(price + tx.BuyMatcherFee)},
-		testGlobal.minerInfo.wavesKey:     balanceDiff{balance: int64(tx.Fee)},
-		testGlobal.matcherInfo.wavesKey:   balanceDiff{balance: int64(tx.SellMatcherFee + tx.BuyMatcherFee - tx.Fee)},
+		testGlobal.recipientInfo.assetKey:  newBalanceDiff(-int64(tx.Amount), 0, 0, false),
+		testGlobal.recipientInfo.assetKey1: newBalanceDiff(int64(price), 0, 0, false),
+		testGlobal.recipientInfo.wavesKey:  newBalanceDiff(-int64(tx.SellMatcherFee), 0, 0, false),
+		testGlobal.senderInfo.assetKey:     newBalanceDiff(int64(tx.Amount), 0, 0, false),
+		testGlobal.senderInfo.assetKey1:    newBalanceDiff(-int64(price), 0, 0, false),
+		testGlobal.senderInfo.wavesKey:     newBalanceDiff(-int64(tx.BuyMatcherFee), 0, 0, false),
+		testGlobal.minerInfo.wavesKey:      newBalanceDiff(int64(tx.Fee), 0, 0, false),
+		testGlobal.matcherInfo.wavesKey:    newBalanceDiff(int64(tx.SellMatcherFee+tx.BuyMatcherFee-tx.Fee), 0, 0, false),
 	}
 	assert.Equal(t, correctDiff, diff)
 }
@@ -377,9 +377,9 @@ func TestCreateDiffLeaseV1(t *testing.T) {
 	assert.NoError(t, err, "createDiffLeaseV1() failed")
 
 	correctDiff := txDiff{
-		testGlobal.senderInfo.wavesKey:    balanceDiff{balance: -int64(tx.Fee), leaseOut: int64(tx.Amount)},
-		testGlobal.recipientInfo.wavesKey: balanceDiff{leaseIn: int64(tx.Amount)},
-		testGlobal.minerInfo.wavesKey:     balanceDiff{balance: int64(tx.Fee)},
+		testGlobal.senderInfo.wavesKey:    newBalanceDiff(-int64(tx.Fee), 0, int64(tx.Amount), false),
+		testGlobal.recipientInfo.wavesKey: newBalanceDiff(0, int64(tx.Amount), 0, false),
+		testGlobal.minerInfo.wavesKey:     newBalanceDiff(int64(tx.Fee), 0, 0, false),
 	}
 	assert.Equal(t, correctDiff, diff)
 }
@@ -406,9 +406,9 @@ func TestCreateDiffLeaseV2(t *testing.T) {
 	assert.NoError(t, err, "createDiffLeaseV2() failed")
 
 	correctDiff := txDiff{
-		testGlobal.senderInfo.wavesKey:    balanceDiff{balance: -int64(tx.Fee), leaseOut: int64(tx.Amount)},
-		testGlobal.recipientInfo.wavesKey: balanceDiff{leaseIn: int64(tx.Amount)},
-		testGlobal.minerInfo.wavesKey:     balanceDiff{balance: int64(tx.Fee)},
+		testGlobal.senderInfo.wavesKey:    newBalanceDiff(-int64(tx.Fee), 0, int64(tx.Amount), false),
+		testGlobal.recipientInfo.wavesKey: newBalanceDiff(0, int64(tx.Amount), 0, false),
+		testGlobal.minerInfo.wavesKey:     newBalanceDiff(int64(tx.Fee), 0, 0, false),
 	}
 	assert.Equal(t, correctDiff, diff)
 }
@@ -434,9 +434,9 @@ func TestCreateDiffLeaseCancelV1(t *testing.T) {
 	assert.NoError(t, err, "createDiffLeaseCancelV1() failed")
 
 	correctDiff := txDiff{
-		testGlobal.senderInfo.wavesKey:    balanceDiff{balance: -int64(tx.Fee), leaseOut: -int64(leaseTx.Amount)},
-		testGlobal.recipientInfo.wavesKey: balanceDiff{leaseIn: -int64(leaseTx.Amount)},
-		testGlobal.minerInfo.wavesKey:     balanceDiff{balance: int64(tx.Fee)},
+		testGlobal.senderInfo.wavesKey:    newBalanceDiff(-int64(tx.Fee), 0, -int64(leaseTx.Amount), false),
+		testGlobal.recipientInfo.wavesKey: newBalanceDiff(0, -int64(leaseTx.Amount), 0, false),
+		testGlobal.minerInfo.wavesKey:     newBalanceDiff(int64(tx.Fee), 0, 0, false),
 	}
 	assert.Equal(t, correctDiff, diff)
 }
@@ -462,9 +462,9 @@ func TestCreateDiffLeaseCancelV2(t *testing.T) {
 	assert.NoError(t, err, "createDiffLeaseCancelV2() failed")
 
 	correctDiff := txDiff{
-		testGlobal.senderInfo.wavesKey:    balanceDiff{balance: -int64(tx.Fee), leaseOut: -int64(leaseTx.Amount)},
-		testGlobal.recipientInfo.wavesKey: balanceDiff{leaseIn: -int64(leaseTx.Amount)},
-		testGlobal.minerInfo.wavesKey:     balanceDiff{balance: int64(tx.Fee)},
+		testGlobal.senderInfo.wavesKey:    newBalanceDiff(-int64(tx.Fee), 0, -int64(leaseTx.Amount), false),
+		testGlobal.recipientInfo.wavesKey: newBalanceDiff(0, -int64(leaseTx.Amount), 0, false),
+		testGlobal.minerInfo.wavesKey:     newBalanceDiff(int64(tx.Fee), 0, 0, false),
 	}
 	assert.Equal(t, correctDiff, diff)
 }
@@ -490,8 +490,8 @@ func TestCreateDiffCreateAliasV1(t *testing.T) {
 	assert.NoError(t, err, "createDiffCreateAliasV1 failed")
 
 	correctDiff := txDiff{
-		testGlobal.senderInfo.wavesKey: balanceDiff{balance: -int64(tx.Fee)},
-		testGlobal.minerInfo.wavesKey:  balanceDiff{balance: int64(tx.Fee)},
+		testGlobal.senderInfo.wavesKey: newBalanceDiff(-int64(tx.Fee), 0, 0, false),
+		testGlobal.minerInfo.wavesKey:  newBalanceDiff(int64(tx.Fee), 0, 0, false),
 	}
 	assert.Equal(t, correctDiff, diff)
 }
@@ -517,8 +517,8 @@ func TestCreateDiffCreateAliasV2(t *testing.T) {
 	assert.NoError(t, err, "createDiffCreateAliasV2 failed")
 
 	correctDiff := txDiff{
-		testGlobal.senderInfo.wavesKey: balanceDiff{balance: -int64(tx.Fee)},
-		testGlobal.minerInfo.wavesKey:  balanceDiff{balance: int64(tx.Fee)},
+		testGlobal.senderInfo.wavesKey: newBalanceDiff(-int64(tx.Fee), 0, 0, false),
+		testGlobal.minerInfo.wavesKey:  newBalanceDiff(int64(tx.Fee), 0, 0, false),
 	}
 	assert.Equal(t, correctDiff, diff)
 }

@@ -223,7 +223,7 @@ func (f *features) printApprovalLog(featureID int16) {
 	}
 	if !ok || !info.Implemented {
 		log.Printf("WARNING: UNKNOWN/UNIMPLEMENTED feature has been approved on the blockchain!\n")
-		log.Printf("PLEASE UPDATE THE NODE AS SOON AS POSSILE!\n")
+		log.Printf("PLEASE UPDATE THE NODE AS SOON AS POSSIBLE!\n")
 		log.Printf("OTHERWISE THE NODE WILL BE STOPPED OR FORKED UPON FEATURE ACTIVATION.\n")
 	}
 }

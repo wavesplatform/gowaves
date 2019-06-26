@@ -34,7 +34,7 @@ type FunctionalitySettings struct {
 	AllowMultipleLeaseCancelUntilTime   uint64
 	AllowLeasedBalanceTransferUntilTime uint64
 	// Timestamps when different kinds of checks become relevant.
-	NegativeBalanceCheckAfterTime          uint64
+	CheckTempNegativeAfterTime             uint64
 	TxChangesSortedCheckAfterTime          uint64
 	TxFromFutureCheckAfterTime             uint64
 	UnissuedAssetUntilTime                 uint64
@@ -89,7 +89,7 @@ var (
 
 			AllowMultipleLeaseCancelUntilTime:      1492768800000,
 			AllowLeasedBalanceTransferUntilTime:    1513357014002,
-			NegativeBalanceCheckAfterTime:          1479168000000,
+			CheckTempNegativeAfterTime:             1479168000000,
 			TxChangesSortedCheckAfterTime:          1479416400000,
 			TxFromFutureCheckAfterTime:             1479168000000,
 			UnissuedAssetUntilTime:                 1479416400000,
@@ -120,7 +120,7 @@ var (
 
 			AllowMultipleLeaseCancelUntilTime:      1492560000000,
 			AllowLeasedBalanceTransferUntilTime:    1508230496004,
-			NegativeBalanceCheckAfterTime:          1477958400000,
+			CheckTempNegativeAfterTime:             1477958400000,
 			TxChangesSortedCheckAfterTime:          1479416400000,
 			TxFromFutureCheckAfterTime:             1478100000000,
 			UnissuedAssetUntilTime:                 1479416400000,

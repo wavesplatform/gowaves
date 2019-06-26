@@ -7,13 +7,8 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 )
 
-const (
-	assetStr0 = "BXBUNddxTGTQc3G4qHYn5E67SBwMj18zLncUr871iuRD"
-	assetStr1 = "BXBUNddxTGTQc3G4qHYn5E67SBwMj18zLncUr781iuRD"
-)
-
 func TestFeeDistributionSerialization(t *testing.T) {
-	asset0, err := crypto.NewDigestFromBase58(assetStr0)
+	asset0, err := crypto.NewDigestFromBase58(assetStr)
 	assert.NoError(t, err, "NewDigestFromBase58() failed")
 	asset1, err := crypto.NewDigestFromBase58(assetStr1)
 	assert.NoError(t, err, "NewDigestFromBase58() failed")

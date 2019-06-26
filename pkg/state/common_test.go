@@ -30,7 +30,10 @@ const (
 	recipientPK   = "AfZtLRQxLNYH5iradMkTeuXGe71uAiATVbr8DpXEEQa9"
 	recipientAddr = "3PDdGex1meSUf4Yq5bjPBpyAbx6us9PaLfo"
 
-	assetStr = "B2u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ"
+	assetStr  = "B2u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ"
+	assetStr1 = "3gRJoK6f7XUV7fx5jUzHoPwdb9ZdTFjtTPy2HgDinr1N"
+
+	genesisSignature = "FSH8eAAzZNqnG8xgTZtz5xuLqXySsXgAjmFEC25hXMbEufiGjqWPnGCZFt6gLiVLJny16ipxRNAkkzjjhqTjBE2"
 )
 
 var (
@@ -39,13 +42,14 @@ var (
 )
 
 type testAddrData struct {
-	pk       crypto.PublicKey
-	addr     proto.Address
-	wavesKey string
-	assetKey string
+	pk        crypto.PublicKey
+	addr      proto.Address
+	wavesKey  string
+	assetKey  string
+	assetKey1 string
 }
 
-func newTestAddrData(pkStr, addrStr string, asset []byte) (*testAddrData, error) {
+func newTestAddrData(pkStr, addrStr string, asset, asset1 []byte) (*testAddrData, error) {
 	pk, err := crypto.NewPublicKeyFromBase58(pkStr)
 	if err != nil {
 		return nil, err
@@ -56,12 +60,30 @@ func newTestAddrData(pkStr, addrStr string, asset []byte) (*testAddrData, error)
 	}
 	wavesKey := string((&wavesBalanceKey{addr}).bytes())
 	assetKey := string((&assetBalanceKey{addr, asset}).bytes())
-	return &testAddrData{pk: pk, addr: addr, wavesKey: wavesKey, assetKey: assetKey}, nil
+	assetKey1 := string((&assetBalanceKey{addr, asset1}).bytes())
+	return &testAddrData{pk: pk, addr: addr, wavesKey: wavesKey, assetKey: assetKey, assetKey1: assetKey1}, nil
+}
+
+type testAssetData struct {
+	asset   *proto.OptionalAsset
+	assetID []byte
+}
+
+func newTestAssetData(assetStr string) (*testAssetData, error) {
+	assetID, err := crypto.NewDigestFromBase58(assetStr)
+	if err != nil {
+		return nil, err
+	}
+	asset, err := proto.NewOptionalAssetFromString(assetStr)
+	if err != nil {
+		return nil, err
+	}
+	return &testAssetData{asset, assetID.Bytes()}, nil
 }
 
 type testGlobalVars struct {
-	asset   *proto.OptionalAsset
-	assetID []byte
+	asset0 *testAssetData
+	asset1 *testAssetData
 
 	matcherInfo   *testAddrData
 	minerInfo     *testAddrData
@@ -72,28 +94,28 @@ type testGlobalVars struct {
 var testGlobal testGlobalVars
 
 func TestMain(m *testing.M) {
-	assetID, err := crypto.NewDigestFromBase58(assetStr)
+	var err error
+	testGlobal.asset0, err = newTestAssetData(assetStr)
 	if err != nil {
-		log.Fatalf("NewDigestFromBase58() failed: %v\n", err)
+		log.Fatalf("newTestAssetData(): %v\n", err)
 	}
-	testGlobal.assetID = assetID.Bytes()
-	testGlobal.asset, err = proto.NewOptionalAssetFromString(assetStr)
+	testGlobal.asset1, err = newTestAssetData(assetStr1)
 	if err != nil {
-		log.Fatalf("NewOptionalAssetFromString() failed: %v\n", err)
+		log.Fatalf("newTestAssetData(): %v\n", err)
 	}
-	testGlobal.matcherInfo, err = newTestAddrData(matcherPK, matcherAddr, testGlobal.assetID)
-	if err != nil {
-		log.Fatalf("newTestAddrData(): %v\n", err)
-	}
-	testGlobal.minerInfo, err = newTestAddrData(minerPK, minerAddr, testGlobal.assetID)
+	testGlobal.matcherInfo, err = newTestAddrData(matcherPK, matcherAddr, testGlobal.asset0.assetID, testGlobal.asset1.assetID)
 	if err != nil {
 		log.Fatalf("newTestAddrData(): %v\n", err)
 	}
-	testGlobal.senderInfo, err = newTestAddrData(senderPK, senderAddr, testGlobal.assetID)
+	testGlobal.minerInfo, err = newTestAddrData(minerPK, minerAddr, testGlobal.asset0.assetID, testGlobal.asset1.assetID)
 	if err != nil {
 		log.Fatalf("newTestAddrData(): %v\n", err)
 	}
-	testGlobal.recipientInfo, err = newTestAddrData(recipientPK, recipientAddr, testGlobal.assetID)
+	testGlobal.senderInfo, err = newTestAddrData(senderPK, senderAddr, testGlobal.asset0.assetID, testGlobal.asset1.assetID)
+	if err != nil {
+		log.Fatalf("newTestAddrData(): %v\n", err)
+	}
+	testGlobal.recipientInfo, err = newTestAddrData(recipientPK, recipientAddr, testGlobal.asset0.assetID, testGlobal.asset1.assetID)
 	if err != nil {
 		log.Fatalf("newTestAddrData(): %v\n", err)
 	}

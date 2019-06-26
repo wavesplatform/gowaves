@@ -12,6 +12,7 @@ type checkerInfo struct {
 	currentTimestamp uint64
 	parentTimestamp  uint64
 	blockID          crypto.Signature
+	height           uint64
 }
 
 type transactionChecker struct {
@@ -67,6 +68,9 @@ func (tc *transactionChecker) checkPayment(transaction proto.Transaction, info *
 	tx, ok := transaction.(*proto.Payment)
 	if !ok {
 		return errors.New("failed to convert interface to Payment transaction")
+	}
+	if info.height >= tc.settings.BlockVersion3AfterHeight {
+		return errors.Errorf("Payment transaction is deprecated after height %d", tc.settings.BlockVersion3AfterHeight)
 	}
 	if err := tc.checkTimestamps(tx.Timestamp, info.currentTimestamp, info.parentTimestamp); err != nil {
 		return errors.Wrap(err, "invalid timestamp")

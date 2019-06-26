@@ -11,14 +11,11 @@ type balanceChanges struct {
 	key []byte
 	// Cumulative diffs of blocks transactions.
 	balanceDiffs []balanceDiff
-	// minBalanceDiff is diff which produces minimal spendable (taking leasing into account) balance value.
-	// This is needed to check for negative balances.
-	minBalanceDiff balanceDiff
 }
 
 // newBalanceChanges() constructs new balanceChanges from the first balance diff.
 func newBalanceChanges(key []byte, diff balanceDiff) *balanceChanges {
-	return &balanceChanges{key, []balanceDiff{diff}, diff}
+	return &balanceChanges{key, []balanceDiff{diff}}
 }
 
 func (ch *balanceChanges) safeCopy() *balanceChanges {
@@ -27,15 +24,7 @@ func (ch *balanceChanges) safeCopy() *balanceChanges {
 	copy(newChanges.key[:], ch.key[:])
 	newChanges.balanceDiffs = make([]balanceDiff, len(ch.balanceDiffs))
 	copy(newChanges.balanceDiffs[:], ch.balanceDiffs[:])
-	newChanges.minBalanceDiff = ch.minBalanceDiff
 	return newChanges
-}
-
-func (ch *balanceChanges) updateMinBalanceDiff(newDiff balanceDiff) {
-	// Check every tx, minBalanceDiff will have minimum diff value among all txs at the end.
-	if newDiff.spendableBalanceDiff() < ch.minBalanceDiff.spendableBalanceDiff() {
-		ch.minBalanceDiff = newDiff
-	}
 }
 
 func (ch *balanceChanges) addDiff(newDiff balanceDiff) error {
@@ -44,7 +33,7 @@ func (ch *balanceChanges) addDiff(newDiff balanceDiff) error {
 	}
 	last := len(ch.balanceDiffs) - 1
 	lastDiff := ch.balanceDiffs[last]
-	if err := newDiff.add(&lastDiff); err != nil {
+	if err := newDiff.addInsideBlock(&lastDiff); err != nil {
 		return errors.Errorf("failed to add diffs: %v\n", err)
 	}
 	if newDiff.blockID != lastDiff.blockID {
@@ -52,7 +41,6 @@ func (ch *balanceChanges) addDiff(newDiff balanceDiff) error {
 	} else {
 		ch.balanceDiffs[last] = newDiff
 	}
-	ch.updateMinBalanceDiff(newDiff)
 	return nil
 }
 

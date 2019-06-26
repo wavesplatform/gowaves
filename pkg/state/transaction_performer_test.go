@@ -111,7 +111,7 @@ func TestPerformReissueV1(t *testing.T) {
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
-	assetInfo := createAsset(t, to, testGlobal.asset.ID)
+	assetInfo := createAsset(t, to, testGlobal.asset0.asset.ID)
 	tx := createReissueV1(t)
 	err := to.tp.performReissueV1(tx, defaultPerformerInfo(t))
 	assert.NoError(t, err, "performReissueV1() failed")
@@ -120,7 +120,7 @@ func TestPerformReissueV1(t *testing.T) {
 	assetInfo.quantity.Add(&assetInfo.quantity, big.NewInt(int64(tx.Quantity)))
 
 	// Check asset info.
-	info, err := to.entities.assets.assetInfo(testGlobal.asset.ID, true)
+	info, err := to.entities.assets.assetInfo(testGlobal.asset0.asset.ID, true)
 	assert.NoError(t, err, "assetInfo() failed")
 	assert.Equal(t, *assetInfo, *info, "invalid asset info after performing ReissueV1 transaction")
 }
@@ -133,7 +133,7 @@ func TestPerformReissueV2(t *testing.T) {
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
-	assetInfo := createAsset(t, to, testGlobal.asset.ID)
+	assetInfo := createAsset(t, to, testGlobal.asset0.asset.ID)
 	tx := createReissueV2(t)
 	err := to.tp.performReissueV2(tx, defaultPerformerInfo(t))
 	assert.NoError(t, err, "performReissueV2() failed")
@@ -142,7 +142,7 @@ func TestPerformReissueV2(t *testing.T) {
 	assetInfo.quantity.Add(&assetInfo.quantity, big.NewInt(int64(tx.Quantity)))
 
 	// Check asset info.
-	info, err := to.entities.assets.assetInfo(testGlobal.asset.ID, true)
+	info, err := to.entities.assets.assetInfo(testGlobal.asset0.asset.ID, true)
 	assert.NoError(t, err, "assetInfo() failed")
 	assert.Equal(t, *assetInfo, *info, "invalid asset info after performing ReissueV1 transaction")
 }
@@ -155,7 +155,7 @@ func TestPerformBurnV1(t *testing.T) {
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
-	assetInfo := createAsset(t, to, testGlobal.asset.ID)
+	assetInfo := createAsset(t, to, testGlobal.asset0.asset.ID)
 	tx := createBurnV1(t)
 	err := to.tp.performBurnV1(tx, defaultPerformerInfo(t))
 	assert.NoError(t, err, "performBurnV1() failed")
@@ -163,7 +163,7 @@ func TestPerformBurnV1(t *testing.T) {
 	assetInfo.quantity.Sub(&assetInfo.quantity, big.NewInt(int64(tx.Amount)))
 
 	// Check asset info.
-	info, err := to.entities.assets.assetInfo(testGlobal.asset.ID, true)
+	info, err := to.entities.assets.assetInfo(testGlobal.asset0.asset.ID, true)
 	assert.NoError(t, err, "assetInfo() failed")
 	assert.Equal(t, *assetInfo, *info, "invalid asset info after performing BurnV1 transaction")
 }
@@ -176,7 +176,7 @@ func TestPerformBurnV2(t *testing.T) {
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
-	assetInfo := createAsset(t, to, testGlobal.asset.ID)
+	assetInfo := createAsset(t, to, testGlobal.asset0.asset.ID)
 	tx := createBurnV2(t)
 	err := to.tp.performBurnV2(tx, defaultPerformerInfo(t))
 	assert.NoError(t, err, "performBurnV2() failed")
@@ -184,7 +184,7 @@ func TestPerformBurnV2(t *testing.T) {
 	assetInfo.quantity.Sub(&assetInfo.quantity, big.NewInt(int64(tx.Amount)))
 
 	// Check asset info.
-	info, err := to.entities.assets.assetInfo(testGlobal.asset.ID, true)
+	info, err := to.entities.assets.assetInfo(testGlobal.asset0.asset.ID, true)
 	assert.NoError(t, err, "assetInfo() failed")
 	assert.Equal(t, *assetInfo, *info, "invalid asset info after performing BurnV2 transaction")
 }

@@ -115,7 +115,7 @@ func (d *blockDiffer) createTransactionsDiffs(transactions []proto.Transaction, 
 	d.curDistr = newFeeDistribution()
 	diffs := make([]txDiff, len(transactions))
 	for i, tx := range transactions {
-		differInfo := &differInfo{initialisation, block.GenPublicKey}
+		differInfo := &differInfo{initialisation, block.GenPublicKey, block.Timestamp}
 		diff, err := d.handler.createDiffTx(tx, differInfo)
 		if err != nil {
 			return nil, err

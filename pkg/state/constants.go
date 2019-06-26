@@ -7,11 +7,10 @@ const (
 	DefaultCacheSize = 500 * 1024 * 1024
 
 	// Bloom filter parameters.
-	// {2e8, 0.01} combination means that BloomFilter will have a size of approximately 230 MB.
 	// Number of elements in Bloom Filter.
 	DefaultBloomFilterSize = 2e8
-	// Acceptable false positive for Bloom Filter (1%).
-	DefaultBloomFilterFalsePostiiveProbability = 0.01
+	// Acceptable false positive for Bloom Filter (0.01%).
+	DefaultBloomFilterFalsePostiiveProbability = 0.0001
 
 	// Db parameters.
 	DefaultWriteBuffer         = 16 * 1024 * 1024

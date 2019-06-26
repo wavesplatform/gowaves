@@ -5,7 +5,6 @@ import (
 	"sort"
 
 	"github.com/pkg/errors"
-	"github.com/wavesplatform/gowaves/pkg/util"
 )
 
 type diffApplier struct {
@@ -25,15 +24,11 @@ func (a *diffApplier) applyWavesBalanceChanges(change *balanceChanges, filter, v
 	if err != nil {
 		return errors.Errorf("failed to retrieve waves balance: %v\n", err)
 	}
-	// Check for negative balance.
-	if _, err := change.minBalanceDiff.applyTo(profile); err != nil {
-		return errors.Errorf("minimum balance diff for %s produces invalid result: %v\n", k.address.String(), err)
-	}
 	for _, diff := range change.balanceDiffs {
 		// Check for negative balance.
 		newProfile, err := diff.applyTo(profile)
 		if err != nil {
-			return errors.Errorf("failed to apply waves balance change: %v\n", err)
+			return errors.Errorf("failed to apply waves balance change for addr %s: %v\n", k.address.String(), err)
 		}
 		if validateOnly {
 			continue
@@ -55,26 +50,15 @@ func (a *diffApplier) applyAssetBalanceChanges(change *balanceChanges, filter, v
 	if err != nil {
 		return errors.Errorf("failed to retrieve asset balance: %v\n", err)
 	}
-	// Check for negative balance.
-	minBalance, err := util.AddInt64(int64(balance), change.minBalanceDiff.balance)
-	if err != nil {
-		return errors.Errorf("failed to add balances: %v\n", err)
-	}
-	if minBalance < 0 {
-		return errors.New("validation failed: negative asset balance")
-	}
 	for _, diff := range change.balanceDiffs {
-		newBalance, err := util.AddInt64(int64(balance), diff.balance)
+		newBalance, err := diff.applyToAssetBalance(balance)
 		if err != nil {
-			return errors.Errorf("failed to add balances: %v\n", err)
-		}
-		if newBalance < 0 {
-			return errors.New("validation failed: negative asset balance")
+			return errors.Errorf("validation failed: negative asset balance: %v\n", err)
 		}
 		if validateOnly {
 			continue
 		}
-		r := &assetBalanceRecord{uint64(newBalance), diff.blockID}
+		r := &assetBalanceRecord{newBalance, diff.blockID}
 		if err := a.balances.setAssetBalance(k.address, k.asset, r); err != nil {
 			return errors.Errorf("failed to set asset balance: %v\n", err)
 		}

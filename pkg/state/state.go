@@ -19,11 +19,12 @@ import (
 )
 
 const (
-	rollbackMaxBlocks      = 2000
-	blocksStorDir          = "blocks_storage"
-	keyvalueDir            = "key_value"
-	bloomBitsPerKeyDefault = 10
+	rollbackMaxBlocks = 2000
+	blocksStorDir     = "blocks_storage"
+	keyvalueDir       = "key_value"
 )
+
+var empty struct{}
 
 func wrapErr(stateErrorType ErrorType, err error) error {
 	switch err.(type) {
@@ -86,19 +87,28 @@ func (s *blockchainEntitiesStorage) flush(initialisation bool) error {
 }
 
 type txAppender struct {
+	// rw is needed to check for duplicate tx IDs.
+	rw *blockReadWriter
+
 	// TransactionHandler is handler for any operations on transactions.
 	txHandler *transactionHandler
 	// Block differ is used to create diffs from blocks.
 	blockDiffer *blockDiffer
 	// Storage for diffs of transactions coming in added blocks.
 	diffStorAppendedBlocks *diffStorage
+	// Ids of all transactions whose diffs are currently in diffStorAppendedBlocks.
+	// This is needed to check that transaction ids are unique.
+	appendedBlocksTxIds map[string]struct{}
 	// Storage for diffs of transactions coming for validation without blocks.
 	diffStorNoBlocks *diffStorage
+	// Ids of all transactions whose diffs are currently in diffStorNoBlocks.
+	// This is needed to check that transaction ids are unique.
+	noBlocksTxIds map[string]struct{}
 	// diffApplier is used to both validate and apply balance diffs.
 	diffApplier *diffApplier
 }
 
-func newTxAppender(stor *blockchainEntitiesStorage, settings *settings.BlockchainSettings) (*txAppender, error) {
+func newTxAppender(rw *blockReadWriter, stor *blockchainEntitiesStorage, settings *settings.BlockchainSettings) (*txAppender, error) {
 	genesis, err := settings.GenesisGetter.Get()
 	if err != nil {
 		return nil, err
@@ -123,24 +133,65 @@ func newTxAppender(stor *blockchainEntitiesStorage, settings *settings.Blockchai
 	if err != nil {
 		return nil, err
 	}
-	return &txAppender{txHandler, blockDiffer, diffStorAppendedBlocks, diffStorNoBlocks, diffApplier}, nil
+	return &txAppender{
+		rw:                     rw,
+		txHandler:              txHandler,
+		blockDiffer:            blockDiffer,
+		appendedBlocksTxIds:    make(map[string]struct{}),
+		diffStorAppendedBlocks: diffStorAppendedBlocks,
+		noBlocksTxIds:          make(map[string]struct{}),
+		diffStorNoBlocks:       diffStorNoBlocks,
+		diffApplier:            diffApplier,
+	}, nil
 }
 
-func (a *txAppender) appendBlock(transactions []proto.Transaction, block, parent *proto.Block, initialisation bool) error {
-	hasParent := (parent != nil)
-	for _, tx := range transactions {
-		checkerInfo := &checkerInfo{initialisation: initialisation, currentTimestamp: block.Timestamp, blockID: block.BlockSignature}
+type appendBlockParams struct {
+	transactions   []proto.Transaction
+	block, parent  *proto.Block
+	height         uint64
+	initialisation bool
+}
+
+func (a *txAppender) checkDuplicateTxIds(id []byte, recentIds map[string]struct{}) error {
+	// Check recent.
+	if _, ok := recentIds[string(id)]; ok {
+		return errors.Errorf("transaction with ID %v already in state", id)
+	}
+	// Check DB.
+	if _, err := a.rw.readTransaction(id); err == nil {
+		return errors.Errorf("transaction with ID %v already in state", id)
+	}
+	return nil
+}
+
+func (a *txAppender) appendBlock(params *appendBlockParams) error {
+	hasParent := (params.parent != nil)
+	for _, tx := range params.transactions {
+		id := tx.GetID()
+		checkerInfo := &checkerInfo{
+			initialisation:   params.initialisation,
+			currentTimestamp: params.block.Timestamp,
+			blockID:          params.block.BlockSignature,
+			height:           params.height,
+		}
+		if tx.GetTypeVersion().Type != proto.PaymentTransaction {
+			if err := a.checkDuplicateTxIds(id, a.appendedBlocksTxIds); err != nil {
+				return err
+			}
+		}
+		// Add transaction ID.
+		a.appendedBlocksTxIds[string(id)] = empty
 		if hasParent {
-			checkerInfo.parentTimestamp = parent.Timestamp
+			checkerInfo.parentTimestamp = params.parent.Timestamp
 		}
 		if err := a.txHandler.checkTx(tx, checkerInfo); err != nil {
 			return err
 		}
-		if err := a.txHandler.performTx(tx, &performerInfo{initialisation, block.BlockSignature}); err != nil {
+		if err := a.txHandler.performTx(tx, &performerInfo{params.initialisation, params.block.BlockSignature}); err != nil {
 			return err
 		}
 	}
-	blockDiff, err := a.blockDiffer.createBlockDiff(transactions, block, initialisation, hasParent)
+	blockDiff, err := a.blockDiffer.createBlockDiff(params.transactions, params.block, params.initialisation, hasParent)
 	if err != nil {
 		return err
 	}
@@ -152,6 +203,7 @@ func (a *txAppender) appendBlock(transactions []proto.Transaction, block, parent
 
 func (a *txAppender) applyAllDiffs(initialisation bool) error {
 	changes := a.diffStorAppendedBlocks.allChanges()
+	a.appendedBlocksTxIds = make(map[string]struct{})
 	a.diffStorAppendedBlocks.reset()
 	if err := a.diffApplier.applyBalancesChanges(changes, !initialisation); err != nil {
 		return err
@@ -160,6 +212,12 @@ func (a *txAppender) applyAllDiffs(initialisation bool) error {
 }
 
 func (a *txAppender) validateSingleTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64) error {
+	id := tx.GetID()
+	if tx.GetTypeVersion().Type != proto.PaymentTransaction {
+		if _, err := a.rw.readTransaction(id); err == nil {
+			return errors.Errorf("transaction with ID %v already in state", id)
+		}
+	}
 	// Check tx signature and data.
 	if err := checkTx(tx); err != nil {
 		return err
@@ -169,7 +227,7 @@ func (a *txAppender) validateSingleTx(tx proto.Transaction, currentTimestamp, pa
 	if err := a.txHandler.checkTx(tx, checkerInfo); err != nil {
 		return err
 	}
-	diff, err := a.txHandler.createDiffTx(tx, &differInfo{initialisation: false})
+	diff, err := a.txHandler.createDiffTx(tx, &differInfo{initialisation: false, blockTime: currentTimestamp})
 	if err != nil {
 		return err
 	}
@@ -180,10 +238,19 @@ func (a *txAppender) validateSingleTx(tx proto.Transaction, currentTimestamp, pa
 }
 
 func (a *txAppender) resetValidationList() {
+	a.noBlocksTxIds = make(map[string]struct{})
 	a.diffStorNoBlocks.reset()
 }
 
 func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64) error {
+	id := tx.GetID()
+	if tx.GetTypeVersion().Type != proto.PaymentTransaction {
+		if err := a.checkDuplicateTxIds(id, a.noBlocksTxIds); err != nil {
+			return err
+		}
+	}
+	// Add transaction ID.
+	a.noBlocksTxIds[string(id)] = empty
 	// Check tx signature and data.
 	if err := checkTx(tx); err != nil {
 		return err
@@ -193,7 +260,7 @@ func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, pare
 	if err := a.txHandler.checkTx(tx, checkerInfo); err != nil {
 		return err
 	}
-	diff, err := a.txHandler.createDiffTx(tx, &differInfo{initialisation: false})
+	diff, err := a.txHandler.createDiffTx(tx, &differInfo{initialisation: false, blockTime: currentTimestamp})
 	if err != nil {
 		return err
 	}
@@ -288,7 +355,7 @@ func newStateManager(dataDir string, params StateParams, settings *settings.Bloc
 	if err != nil {
 		return nil, wrapErr(Other, errors.Errorf("failed to create blockchain entities storage: %v\n", err))
 	}
-	appender, err := newTxAppender(stor, settings)
+	appender, err := newTxAppender(rw, stor, settings)
 	if err != nil {
 		return nil, wrapErr(Other, err)
 	}
@@ -335,7 +402,7 @@ func (s *stateManager) addGenesisBlock() error {
 	}
 	chans := newVerifierChans()
 	go launchVerifier(ctx, chans, s.verificationGoroutinesNum)
-	if err := s.addNewBlock(&s.genesis, nil, true, chans); err != nil {
+	if err := s.addNewBlock(&s.genesis, nil, true, chans, 0); err != nil {
 		return err
 	}
 	close(chans.tasksChan)
@@ -569,7 +636,7 @@ func (s *stateManager) addFeaturesVotes(block *proto.Block) error {
 	return nil
 }
 
-func (s *stateManager) addNewBlock(block, parent *proto.Block, initialisation bool, chans *verifierChans) error {
+func (s *stateManager) addNewBlock(block, parent *proto.Block, initialisation bool, chans *verifierChans, height uint64) error {
 	// Add ID of new block to in-memory IDs storage.
 	if err := s.rb.addNewBlockID(block.BlockSignature); err != nil {
 		return err
@@ -586,7 +653,7 @@ func (s *stateManager) addNewBlock(block, parent *proto.Block, initialisation bo
 	if err != nil {
 		return err
 	}
-	// Save block header to storage.
+	// Save block header to block storage.
 	if err := s.rw.writeBlockHeader(block.BlockSignature, headerBytes); err != nil {
 		return err
 	}
@@ -619,9 +686,18 @@ func (s *stateManager) addNewBlock(block, parent *proto.Block, initialisation bo
 		}
 		transactionsBytes = transactionsBytes[4+n:]
 	}
-	if err := s.appender.appendBlock(transactions, block, parent, initialisation); err != nil {
+	params := &appendBlockParams{
+		transactions:   transactions,
+		block:          block,
+		parent:         parent,
+		height:         height,
+		initialisation: initialisation,
+	}
+	// Check and perform block's transactions, create balance diffs.
+	if err := s.appender.appendBlock(params); err != nil {
 		return err
 	}
+	// Let block storage know that the current block is over.
 	if err := s.rw.finishBlock(block.BlockSignature); err != nil {
 		return err
 	}
@@ -864,8 +940,10 @@ func (s *stateManager) addBlocks(blocks [][]byte, initialisation bool) (*proto.B
 	defer cancel()
 	blocksNumber := len(blocks)
 	if blocksNumber == 0 {
-		return nil, wrapErr(Other, errors.New("no blocks provided"))
+		return nil, wrapErr(InvalidInputError, errors.New("no blocks provided"))
 	}
+
+	// Read some useful values for later.
 	parent, err := s.topBlock()
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
@@ -879,10 +957,20 @@ func (s *stateManager) addBlocks(blocks [][]byte, initialisation bool) (*proto.B
 		return nil, wrapErr(RetrievalError, err)
 	}
 	headers := make([]proto.BlockHeader, blocksNumber)
+
+	// Some 'events', like finish of voting periods or cancelling invalid leases, happen (or happened)
+	// at defined height of the blockchain.
+	// When such events occur inside of the blocks batch, this batch must be splitted, so the event
+	// can be performed with consistent database state, with all the recent changes being saved to disk.
+	// After performing the event, addBlocks() calls itself with the rest of the blocks batch.
+	// blocksToFinish stores these blocks, breakerInfo specifies type of the event.
 	var blocksToFinish [][]byte
 	breakerInfo := &breakerTask{}
+
+	// Launch verifier that checks signatures of blocks and transactions.
 	chans := newVerifierChans()
 	go launchVerifier(ctx, chans, s.verificationGoroutinesNum)
+
 	var lastBlock *proto.Block
 	for i, blockBytes := range blocks {
 		curHeight := height + uint64(i)
@@ -895,6 +983,7 @@ func (s *stateManager) addBlocks(blocks [][]byte, initialisation bool) (*proto.B
 		if err := block.UnmarshalBinary(blockBytes); err != nil {
 			return nil, wrapErr(DeserializationError, err)
 		}
+		// Send block for signature verification, which works in separate goroutine.
 		task := &verifyTask{
 			taskType:   verifyBlock,
 			parentSig:  parent.BlockSignature,
@@ -916,29 +1005,38 @@ func (s *stateManager) addBlocks(blocks [][]byte, initialisation bool) (*proto.B
 			return nil, wrapErr(ModificationError, err)
 		}
 		prevScore = score
-		if err := s.addNewBlock(&block, parent, initialisation, chans); err != nil {
+		// Save block to storage, check its transactions, create and save balance diffs for its transactions.
+		if err := s.addNewBlock(&block, parent, initialisation, chans, curHeight); err != nil {
 			return nil, wrapErr(TxValidationError, err)
 		}
 		headers[i] = block.BlockHeader
 		parent = &block
 	}
+	// Tasks chan can now be closed, since all the blocks and transactions have been already sent for verification.
 	close(chans.tasksChan)
+	// Apply all the balance diffs accumulated from this blocks batch.
+	// This also validates diffs for negative balances.
 	if err := s.appender.applyAllDiffs(initialisation); err != nil {
 		return nil, wrapErr(TxValidationError, err)
 	}
+	// Validate consensus (i.e. that all of the new blocks were mined fairly).
 	if err := s.cv.ValidateHeaders(headers[:len(headers)-len(blocksToFinish)], height); err != nil {
 		return nil, wrapErr(ValidationError, err)
 	}
+	// Check the result of signatures verification.
 	verifyError := <-chans.errChan
 	if verifyError != nil {
 		return nil, wrapErr(ValidationError, verifyError)
 	}
+	// After everything is validated, save all the changes to DB.
 	if err := s.flush(initialisation); err != nil {
 		return nil, wrapErr(ModificationError, err)
 	}
+	// Reset in-memory storages.
 	if err := s.reset(); err != nil {
 		return nil, wrapErr(ModificationError, err)
 	}
+	// Check if we need to perform some event and call addBlocks() again.
 	if blocksToFinish != nil {
 		return s.handleBreak(blocksToFinish, initialisation, breakerInfo)
 	}

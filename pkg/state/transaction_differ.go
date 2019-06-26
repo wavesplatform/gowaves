@@ -31,15 +31,30 @@ func stringKey(addr proto.Address, assetID []byte) string {
 // balanceDiff represents atomic balance change, which is a result of applying transaction.
 // Transaction may produce one or more balance diffs, with single diff corresponding to certain address.
 type balanceDiff struct {
-	allowLeasedTransfer bool
+	allowLeasedTransfer          bool
+	updateMinIntermediateBalance bool
+	// Min intermediate balance change.
+	minBalance int64
 	// Balance change.
 	balance int64
 	// LeaseIn change.
 	leaseIn int64
 	// LeaseOut change.
 	leaseOut int64
-	// blockID of block this diff belongs to.
-	blockID crypto.Signature
+	blockID  crypto.Signature
+}
+
+func newBalanceDiff(balance, leaseIn, leaseOut int64, updateMinIntermediateBalance bool) balanceDiff {
+	diff := balanceDiff{
+		updateMinIntermediateBalance: updateMinIntermediateBalance,
+		balance:                      balance,
+		leaseIn:                      leaseIn,
+		leaseOut:                     leaseOut,
+	}
+	if updateMinIntermediateBalance {
+		diff.minBalance = balance
+	}
+	return diff
 }
 
 // spendableBalanceDiff() returns the difference of spendable balance which given diff produces.
@@ -51,24 +66,35 @@ func (diff *balanceDiff) spendableBalanceDiff() int64 {
 // It does not change input profile, and returns the updated version.
 // It also checks that it is legitimate to apply this diff to the profile (negative balances / overflows).
 func (diff *balanceDiff) applyTo(profile *balanceProfile) (*balanceProfile, error) {
+	// Check min intermediate change.
+	minBalance, err := util.AddInt64(diff.minBalance, int64(profile.balance))
+	if err != nil {
+		return nil, errors.Errorf("failed to add balance and min balance diff: %v\n", err)
+	}
+	if minBalance < 0 {
+		return nil, errors.Errorf("negative intermediate balance: balance is %d; diff is: %d\n", profile.balance, diff.minBalance)
+	}
+	// Chech main balance diff.
 	newBalance, err := util.AddInt64(diff.balance, int64(profile.balance))
 	if err != nil {
 		return nil, errors.Errorf("failed to add balance and balance diff: %v\n", err)
+	}
+	if newBalance < 0 {
+		return nil, errors.New("negative result balance")
 	}
 	newLeaseIn, err := util.AddInt64(diff.leaseIn, profile.leaseIn)
 	if err != nil {
 		return nil, errors.Errorf("failed to add leaseIn and leaseIn diff: %v\n", err)
 	}
+	// Check leasing change.
 	newLeaseOut, err := util.AddInt64(diff.leaseOut, profile.leaseOut)
 	if err != nil {
 		return nil, errors.Errorf("failed to add leaseOut and leaseOut diff: %v\n", err)
 	}
-	if newBalance < 0 {
-		return nil, errors.New("negative result balance")
-	}
 	if (newBalance-newLeaseOut < 0) && !diff.allowLeasedTransfer {
 		return nil, errors.New("leased balance is greater than own")
 	}
+	// Update profile.
 	newProfile := &balanceProfile{}
 	newProfile.balance = uint64(newBalance)
 	newProfile.leaseIn = newLeaseIn
@@ -76,9 +102,29 @@ func (diff *balanceDiff) applyTo(profile *balanceProfile) (*balanceProfile, erro
 	return newProfile, nil
 }
 
-// add() sums two diffs, checking for overflows.
-// It does not change the input diff.
-func (diff *balanceDiff) add(prevDiff *balanceDiff) error {
+// applyToAssetBalance() is similar to applyTo() but does not deal with leasing.
+func (diff *balanceDiff) applyToAssetBalance(balance uint64) (uint64, error) {
+	// Check min intermediate change.
+	minBalance, err := util.AddInt64(diff.minBalance, int64(balance))
+	if err != nil {
+		return 0, errors.Errorf("failed to add balance and min balance diff: %v\n", err)
+	}
+	if minBalance < 0 {
+		return 0, errors.New("negative intermediate asset balance")
+	}
+	// Chech main balance diff.
+	newBalance, err := util.AddInt64(diff.balance, int64(balance))
+	if err != nil {
+		return 0, errors.Errorf("failed to add balance and balance diff: %v\n", err)
+	}
+	if newBalance < 0 {
+		return 0, errors.New("negative result balance")
+	}
+	return uint64(newBalance), nil
+}
+
+// addCommon() sums fields of any diffs.
+func (diff *balanceDiff) addCommon(prevDiff *balanceDiff) error {
 	var err error
 	if diff.balance, err = util.AddInt64(diff.balance, prevDiff.balance); err != nil {
 		return errors.Errorf("failed to add balance diffs: %v\n", err)
@@ -92,9 +138,48 @@ func (diff *balanceDiff) add(prevDiff *balanceDiff) error {
 	return nil
 }
 
+// addInsideTx() sums diffs inside single transaction.
+// It also makes sure that minimum intermediate change gets updated properly.
+func (diff *balanceDiff) addInsideTx(prevDiff *balanceDiff) error {
+	if diff.updateMinIntermediateBalance {
+		// If updateMinIntermediateBalance is true, this tx may produce negative intermediate changes.
+		// It is only true for few tx types: Payment, Transfer, MassTransfer.
+		// Add current diff to previous minBalance (aka intermediate change) to get newMinBalance.
+		newMinBalance, err := util.AddInt64(diff.balance, prevDiff.minBalance)
+		if err != nil {
+			return errors.Errorf("failed to update min balance diff: %v\n", err)
+		}
+		// Copy previous minBalance at first.
+		diff.minBalance = prevDiff.minBalance
+		if newMinBalance < diff.minBalance {
+			// newMinBalance is less than previous minBalance, so we should use it.
+			diff.minBalance = newMinBalance
+		}
+	}
+	return diff.addCommon(prevDiff)
+}
+
+// addInsideBlock() sums diffs inside block.
+// It also makes sure that minimum intermediate change gets updated properly.
+func (diff *balanceDiff) addInsideBlock(prevDiff *balanceDiff) error {
+	// Add previous cumulative diff to tx diff's minBalance to make it correspond to cumulative block diff.
+	newMinBalance, err := util.AddInt64(diff.minBalance, prevDiff.balance)
+	if err != nil {
+		return errors.Errorf("failed to update min balance diff: %v\n", err)
+	}
+	// Copy previous minBalance at first.
+	diff.minBalance = prevDiff.minBalance
+	if newMinBalance < prevDiff.minBalance {
+		// newMinBalance is less than previous minBalance, so we should use it.
+		diff.minBalance = newMinBalance
+	}
+	return diff.addCommon(prevDiff)
+}
+
 type differInfo struct {
 	initialisation bool
 	minerPK        crypto.PublicKey
+	blockTime      uint64
 }
 
 func (i *differInfo) hasMiner() bool {
@@ -127,7 +212,7 @@ func (diff txDiff) keys() []string {
 func (diff txDiff) appendBalanceDiff(key []byte, balanceDiff balanceDiff) error {
 	keyStr := string(key)
 	if prevDiff, ok := diff[keyStr]; ok {
-		if err := balanceDiff.add(&prevDiff); err != nil {
+		if err := balanceDiff.addInsideTx(&prevDiff); err != nil {
 			return err
 		}
 		diff[keyStr] = balanceDiff
@@ -166,7 +251,7 @@ func (td *transactionDiffer) minerPayout(diff txDiff, fee uint64, info *differIn
 	if err != nil {
 		return err
 	}
-	if err := diff.appendBalanceDiff(minerKey, balanceDiff{balance: int64(minerBalanceDiff)}); err != nil {
+	if err := diff.appendBalanceDiff(minerKey, newBalanceDiff(int64(minerBalanceDiff), 0, 0, false)); err != nil {
 		return err
 	}
 	return nil
@@ -180,7 +265,7 @@ func (td *transactionDiffer) createDiffGenesis(transaction proto.Transaction, in
 	diff := newTxDiff()
 	key := wavesBalanceKey{address: tx.Recipient}
 	receiverBalanceDiff := int64(tx.Amount)
-	if err := diff.appendBalanceDiff(key.bytes(), balanceDiff{balance: receiverBalanceDiff}); err != nil {
+	if err := diff.appendBalanceDiff(key.bytes(), newBalanceDiff(receiverBalanceDiff, 0, 0, false)); err != nil {
 		return txDiff{}, err
 	}
 	return diff, nil
@@ -192,6 +277,10 @@ func (td *transactionDiffer) createDiffPayment(transaction proto.Transaction, in
 		return txDiff{}, errors.New("failed to convert interface to Payment transaction")
 	}
 	diff := newTxDiff()
+	updateMinIntermediateBalance := false
+	if info.blockTime >= td.settings.CheckTempNegativeAfterTime {
+		updateMinIntermediateBalance = true
+	}
 	// Append sender diff.
 	senderAddr, err := proto.NewAddressFromPublicKey(td.settings.AddressSchemeCharacter, tx.SenderPK)
 	if err != nil {
@@ -199,13 +288,13 @@ func (td *transactionDiffer) createDiffPayment(transaction proto.Transaction, in
 	}
 	senderKey := wavesBalanceKey{address: senderAddr}
 	senderBalanceDiff := -int64(tx.Amount) - int64(tx.Fee)
-	if err := diff.appendBalanceDiff(senderKey.bytes(), balanceDiff{balance: senderBalanceDiff}); err != nil {
+	if err := diff.appendBalanceDiff(senderKey.bytes(), newBalanceDiff(senderBalanceDiff, 0, 0, updateMinIntermediateBalance)); err != nil {
 		return txDiff{}, err
 	}
 	// Append receiver diff.
 	receiverKey := wavesBalanceKey{address: tx.Recipient}
 	receiverBalanceDiff := int64(tx.Amount)
-	if err := diff.appendBalanceDiff(receiverKey.bytes(), balanceDiff{balance: receiverBalanceDiff}); err != nil {
+	if err := diff.appendBalanceDiff(receiverKey.bytes(), newBalanceDiff(receiverBalanceDiff, 0, 0, updateMinIntermediateBalance)); err != nil {
 		return txDiff{}, err
 	}
 	if info.hasMiner() {
@@ -218,6 +307,10 @@ func (td *transactionDiffer) createDiffPayment(transaction proto.Transaction, in
 
 func (td *transactionDiffer) createDiffTransfer(tx *proto.Transfer, info *differInfo) (txDiff, error) {
 	diff := newTxDiff()
+	updateMinIntermediateBalance := false
+	if info.blockTime >= td.settings.CheckTempNegativeAfterTime {
+		updateMinIntermediateBalance = true
+	}
 	// Append sender diff.
 	senderAddr, err := proto.NewAddressFromPublicKey(td.settings.AddressSchemeCharacter, tx.SenderPK)
 	if err != nil {
@@ -225,12 +318,12 @@ func (td *transactionDiffer) createDiffTransfer(tx *proto.Transfer, info *differ
 	}
 	senderFeeKey := byteKey(senderAddr, tx.FeeAsset.ToID())
 	senderFeeBalanceDiff := -int64(tx.Fee)
-	if err := diff.appendBalanceDiff(senderFeeKey, balanceDiff{balance: senderFeeBalanceDiff}); err != nil {
+	if err := diff.appendBalanceDiff(senderFeeKey, newBalanceDiff(senderFeeBalanceDiff, 0, 0, updateMinIntermediateBalance)); err != nil {
 		return txDiff{}, err
 	}
 	senderAmountKey := byteKey(senderAddr, tx.AmountAsset.ToID())
 	senderAmountBalanceDiff := -int64(tx.Amount)
-	if err := diff.appendBalanceDiff(senderAmountKey, balanceDiff{balance: senderAmountBalanceDiff}); err != nil {
+	if err := diff.appendBalanceDiff(senderAmountKey, newBalanceDiff(senderAmountBalanceDiff, 0, 0, updateMinIntermediateBalance)); err != nil {
 		return txDiff{}, err
 	}
 	// Append receiver diff.
@@ -245,7 +338,7 @@ func (td *transactionDiffer) createDiffTransfer(tx *proto.Transfer, info *differ
 	}
 	receiverKey := byteKey(*recipientAddr, tx.AmountAsset.ToID())
 	receiverBalanceDiff := int64(tx.Amount)
-	if err := diff.appendBalanceDiff(receiverKey, balanceDiff{balance: receiverBalanceDiff}); err != nil {
+	if err := diff.appendBalanceDiff(receiverKey, newBalanceDiff(receiverBalanceDiff, 0, 0, updateMinIntermediateBalance)); err != nil {
 		return txDiff{}, err
 	}
 	if info.hasMiner() {
@@ -285,12 +378,12 @@ func (td *transactionDiffer) createDiffIssue(tx *proto.Issue, id []byte, info *d
 	}
 	senderFeeKey := wavesBalanceKey{address: senderAddr}
 	senderFeeBalanceDiff := -int64(tx.Fee)
-	if err := diff.appendBalanceDiff(senderFeeKey.bytes(), balanceDiff{balance: senderFeeBalanceDiff}); err != nil {
+	if err := diff.appendBalanceDiff(senderFeeKey.bytes(), newBalanceDiff(senderFeeBalanceDiff, 0, 0, false)); err != nil {
 		return txDiff{}, err
 	}
 	senderAssetKey := assetBalanceKey{address: senderAddr, asset: assetID[:]}
 	senderAssetBalanceDiff := int64(tx.Quantity)
-	if err := diff.appendBalanceDiff(senderAssetKey.bytes(), balanceDiff{balance: senderAssetBalanceDiff}); err != nil {
+	if err := diff.appendBalanceDiff(senderAssetKey.bytes(), newBalanceDiff(senderAssetBalanceDiff, 0, 0, false)); err != nil {
 		return txDiff{}, err
 	}
 	if info.hasMiner() {
@@ -326,12 +419,12 @@ func (td *transactionDiffer) createDiffReissue(tx *proto.Reissue, info *differIn
 	}
 	senderFeeKey := wavesBalanceKey{address: senderAddr}
 	senderFeeBalanceDiff := -int64(tx.Fee)
-	if err := diff.appendBalanceDiff(senderFeeKey.bytes(), balanceDiff{balance: senderFeeBalanceDiff}); err != nil {
+	if err := diff.appendBalanceDiff(senderFeeKey.bytes(), newBalanceDiff(senderFeeBalanceDiff, 0, 0, false)); err != nil {
 		return txDiff{}, err
 	}
 	senderAssetKey := assetBalanceKey{address: senderAddr, asset: tx.AssetID[:]}
 	senderAssetBalanceDiff := int64(tx.Quantity)
-	if err := diff.appendBalanceDiff(senderAssetKey.bytes(), balanceDiff{balance: senderAssetBalanceDiff}); err != nil {
+	if err := diff.appendBalanceDiff(senderAssetKey.bytes(), newBalanceDiff(senderAssetBalanceDiff, 0, 0, false)); err != nil {
 		return txDiff{}, err
 	}
 	if info.hasMiner() {
@@ -367,12 +460,12 @@ func (td *transactionDiffer) createDiffBurn(tx *proto.Burn, info *differInfo) (t
 	}
 	senderFeeKey := wavesBalanceKey{address: senderAddr}
 	senderFeeBalanceDiff := -int64(tx.Fee)
-	if err := diff.appendBalanceDiff(senderFeeKey.bytes(), balanceDiff{balance: senderFeeBalanceDiff}); err != nil {
+	if err := diff.appendBalanceDiff(senderFeeKey.bytes(), newBalanceDiff(senderFeeBalanceDiff, 0, 0, false)); err != nil {
 		return txDiff{}, err
 	}
 	senderAssetKey := assetBalanceKey{address: senderAddr, asset: tx.AssetID[:]}
 	senderAssetBalanceDiff := -int64(tx.Amount)
-	if err := diff.appendBalanceDiff(senderAssetKey.bytes(), balanceDiff{balance: senderAssetBalanceDiff}); err != nil {
+	if err := diff.appendBalanceDiff(senderAssetKey.bytes(), newBalanceDiff(senderAssetBalanceDiff, 0, 0, false)); err != nil {
 		return txDiff{}, err
 	}
 	if info.hasMiner() {
@@ -430,16 +523,16 @@ func (td *transactionDiffer) createDiffExchange(transaction proto.Transaction, i
 		return txDiff{}, err
 	}
 	senderPriceKey := byteKey(senderAddr, sellOrder.AssetPair.PriceAsset.ToID())
-	if err := diff.appendBalanceDiff(senderPriceKey, balanceDiff{balance: priceDiff}); err != nil {
+	if err := diff.appendBalanceDiff(senderPriceKey, newBalanceDiff(priceDiff, 0, 0, false)); err != nil {
 		return txDiff{}, err
 	}
 	senderAmountKey := byteKey(senderAddr, sellOrder.AssetPair.AmountAsset.ToID())
-	if err := diff.appendBalanceDiff(senderAmountKey, balanceDiff{balance: -amountDiff}); err != nil {
+	if err := diff.appendBalanceDiff(senderAmountKey, newBalanceDiff(-amountDiff, 0, 0, false)); err != nil {
 		return txDiff{}, err
 	}
 	senderFeeKey := wavesBalanceKey{senderAddr}
 	senderFeeDiff := -int64(tx.GetSellMatcherFee())
-	if err := diff.appendBalanceDiff(senderFeeKey.bytes(), balanceDiff{balance: senderFeeDiff}); err != nil {
+	if err := diff.appendBalanceDiff(senderFeeKey.bytes(), newBalanceDiff(senderFeeDiff, 0, 0, false)); err != nil {
 		return txDiff{}, err
 	}
 	receiverAddr, err := proto.NewAddressFromPublicKey(td.settings.AddressSchemeCharacter, buyOrder.SenderPK)
@@ -447,16 +540,16 @@ func (td *transactionDiffer) createDiffExchange(transaction proto.Transaction, i
 		return txDiff{}, err
 	}
 	receiverPriceKey := byteKey(receiverAddr, sellOrder.AssetPair.PriceAsset.ToID())
-	if err := diff.appendBalanceDiff(receiverPriceKey, balanceDiff{balance: -priceDiff}); err != nil {
+	if err := diff.appendBalanceDiff(receiverPriceKey, newBalanceDiff(-priceDiff, 0, 0, false)); err != nil {
 		return txDiff{}, err
 	}
 	receiverAmountKey := byteKey(receiverAddr, sellOrder.AssetPair.AmountAsset.ToID())
-	if err := diff.appendBalanceDiff(receiverAmountKey, balanceDiff{balance: amountDiff}); err != nil {
+	if err := diff.appendBalanceDiff(receiverAmountKey, newBalanceDiff(amountDiff, 0, 0, false)); err != nil {
 		return txDiff{}, err
 	}
 	receiverFeeKey := wavesBalanceKey{receiverAddr}
 	receiverFeeDiff := -int64(tx.GetBuyMatcherFee())
-	if err := diff.appendBalanceDiff(receiverFeeKey.bytes(), balanceDiff{balance: receiverFeeDiff}); err != nil {
+	if err := diff.appendBalanceDiff(receiverFeeKey.bytes(), newBalanceDiff(receiverFeeDiff, 0, 0, false)); err != nil {
 		return txDiff{}, err
 	}
 	// Update matcher.
@@ -470,7 +563,7 @@ func (td *transactionDiffer) createDiffExchange(transaction proto.Transaction, i
 		return txDiff{}, err
 	}
 	matcherBalanceDiff := matcherFee - int64(tx.GetFee())
-	if err := diff.appendBalanceDiff(matcherKey.bytes(), balanceDiff{balance: matcherBalanceDiff}); err != nil {
+	if err := diff.appendBalanceDiff(matcherKey.bytes(), newBalanceDiff(matcherBalanceDiff, 0, 0, false)); err != nil {
 		return txDiff{}, err
 	}
 	if info.hasMiner() {
@@ -490,11 +583,11 @@ func (td *transactionDiffer) createDiffLease(tx *proto.Lease, id *crypto.Digest,
 	}
 	senderKey := wavesBalanceKey{address: senderAddr}
 	senderLeaseOutDiff := int64(tx.Amount)
-	if err := diff.appendBalanceDiff(senderKey.bytes(), balanceDiff{leaseOut: senderLeaseOutDiff}); err != nil {
+	if err := diff.appendBalanceDiff(senderKey.bytes(), newBalanceDiff(0, 0, senderLeaseOutDiff, false)); err != nil {
 		return txDiff{}, err
 	}
 	senderFeeDiff := -int64(tx.Fee)
-	if err := diff.appendBalanceDiff(senderKey.bytes(), balanceDiff{balance: senderFeeDiff}); err != nil {
+	if err := diff.appendBalanceDiff(senderKey.bytes(), newBalanceDiff(senderFeeDiff, 0, 0, false)); err != nil {
 		return txDiff{}, err
 	}
 	// Append receiver diff.
@@ -509,7 +602,7 @@ func (td *transactionDiffer) createDiffLease(tx *proto.Lease, id *crypto.Digest,
 	}
 	receiverKey := wavesBalanceKey{address: *recipientAddr}
 	receiverLeaseInDiff := int64(tx.Amount)
-	if err := diff.appendBalanceDiff(receiverKey.bytes(), balanceDiff{leaseIn: receiverLeaseInDiff}); err != nil {
+	if err := diff.appendBalanceDiff(receiverKey.bytes(), newBalanceDiff(0, receiverLeaseInDiff, 0, false)); err != nil {
 		return txDiff{}, err
 	}
 	if info.hasMiner() {
@@ -549,17 +642,17 @@ func (td *transactionDiffer) createDiffLeaseCancel(tx *proto.LeaseCancel, info *
 	}
 	senderKey := wavesBalanceKey{address: senderAddr}
 	senderLeaseOutDiff := -int64(l.leaseAmount)
-	if err := diff.appendBalanceDiff(senderKey.bytes(), balanceDiff{leaseOut: senderLeaseOutDiff}); err != nil {
+	if err := diff.appendBalanceDiff(senderKey.bytes(), newBalanceDiff(0, 0, senderLeaseOutDiff, false)); err != nil {
 		return txDiff{}, err
 	}
 	senderFeeDiff := -int64(tx.Fee)
-	if err := diff.appendBalanceDiff(senderKey.bytes(), balanceDiff{balance: senderFeeDiff}); err != nil {
+	if err := diff.appendBalanceDiff(senderKey.bytes(), newBalanceDiff(senderFeeDiff, 0, 0, false)); err != nil {
 		return txDiff{}, err
 	}
 	// Append receiver diff.
 	receiverKey := wavesBalanceKey{address: l.recipient}
 	receiverLeaseInDiff := -int64(l.leaseAmount)
-	if err := diff.appendBalanceDiff(receiverKey.bytes(), balanceDiff{leaseIn: receiverLeaseInDiff}); err != nil {
+	if err := diff.appendBalanceDiff(receiverKey.bytes(), newBalanceDiff(0, receiverLeaseInDiff, 0, false)); err != nil {
 		return txDiff{}, err
 	}
 	if info.hasMiner() {
@@ -595,7 +688,7 @@ func (td *transactionDiffer) createDiffCreateAlias(tx *proto.CreateAlias, info *
 	// Append sender diff.
 	senderFeeKey := wavesBalanceKey{address: senderAddr}
 	senderFeeBalanceDiff := -int64(tx.Fee)
-	if err := diff.appendBalanceDiff(senderFeeKey.bytes(), balanceDiff{balance: senderFeeBalanceDiff}); err != nil {
+	if err := diff.appendBalanceDiff(senderFeeKey.bytes(), newBalanceDiff(senderFeeBalanceDiff, 0, 0, false)); err != nil {
 		return txDiff{}, err
 	}
 	if info.hasMiner() {

@@ -38,7 +38,16 @@ func (b *batch) Put(key, val []byte) {
 	keyCopy := make([]byte, len(key))
 	copy(keyCopy[:], key[:])
 	b.pairs = append(b.pairs, pair{key: keyCopy, value: valCopy, deletion: false})
-	b.filter.add(keyCopy)
+	b.mu.Unlock()
+}
+
+func (b *batch) addToFilter() {
+	b.mu.Lock()
+	for _, pair := range b.pairs {
+		if !pair.deletion {
+			b.filter.add(pair.key)
+		}
+	}
 	b.mu.Unlock()
 }
 
@@ -186,8 +195,8 @@ func (k *KeyVal) Flush(b1 Batch) error {
 		return err
 	}
 	b.addToCache(k.cache)
+	b.addToFilter()
 	b.Reset()
-	log.Printf("Cache HitRate: %v\n", k.cache.HitRate())
 	return nil
 }
 
@@ -200,5 +209,6 @@ func (k *KeyVal) NewKeyIterator(prefix []byte) (Iterator, error) {
 }
 
 func (k *KeyVal) Close() error {
+	log.Printf("Cache HitRate: %v\n", k.cache.HitRate())
 	return k.db.Close()
 }
