@@ -207,3 +207,12 @@ func genBlockId(fillWith byte) crypto.Signature {
 	}
 	return blockID
 }
+
+func createAsset(t *testing.T, entities *blockchainEntitiesStorage, stor *storageObjects, assetID crypto.Digest) *assetInfo {
+	stor.addBlock(t, blockID0)
+	assetInfo := createAssetInfo(t, true, blockID0, assetID)
+	err := entities.assets.issueAsset(assetID, assetInfo)
+	assert.NoError(t, err, "issueAset() failed")
+	stor.flush(t)
+	return assetInfo
+}

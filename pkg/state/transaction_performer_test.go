@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/util"
 )
@@ -28,15 +27,6 @@ func createPerformerTestObjects(t *testing.T) (*performerTestObjects, []string) 
 
 func defaultPerformerInfo(t *testing.T) *performerInfo {
 	return &performerInfo{false, blockID0}
-}
-
-func createAsset(t *testing.T, to *performerTestObjects, assetID crypto.Digest) *assetInfo {
-	to.stor.addBlock(t, blockID0)
-	assetInfo := createAssetInfo(t, true, blockID0, assetID)
-	err := to.entities.assets.issueAsset(assetID, assetInfo)
-	assert.NoError(t, err, "issueAset() failed")
-	to.stor.flush(t)
-	return assetInfo
 }
 
 func TestPerformIssueV1(t *testing.T) {
@@ -111,7 +101,7 @@ func TestPerformReissueV1(t *testing.T) {
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
-	assetInfo := createAsset(t, to, testGlobal.asset0.asset.ID)
+	assetInfo := createAsset(t, to.entities, to.stor, testGlobal.asset0.asset.ID)
 	tx := createReissueV1(t)
 	err := to.tp.performReissueV1(tx, defaultPerformerInfo(t))
 	assert.NoError(t, err, "performReissueV1() failed")
@@ -133,7 +123,7 @@ func TestPerformReissueV2(t *testing.T) {
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
-	assetInfo := createAsset(t, to, testGlobal.asset0.asset.ID)
+	assetInfo := createAsset(t, to.entities, to.stor, testGlobal.asset0.asset.ID)
 	tx := createReissueV2(t)
 	err := to.tp.performReissueV2(tx, defaultPerformerInfo(t))
 	assert.NoError(t, err, "performReissueV2() failed")
@@ -155,7 +145,7 @@ func TestPerformBurnV1(t *testing.T) {
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
-	assetInfo := createAsset(t, to, testGlobal.asset0.asset.ID)
+	assetInfo := createAsset(t, to.entities, to.stor, testGlobal.asset0.asset.ID)
 	tx := createBurnV1(t)
 	err := to.tp.performBurnV1(tx, defaultPerformerInfo(t))
 	assert.NoError(t, err, "performBurnV1() failed")
@@ -176,7 +166,7 @@ func TestPerformBurnV2(t *testing.T) {
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
-	assetInfo := createAsset(t, to, testGlobal.asset0.asset.ID)
+	assetInfo := createAsset(t, to.entities, to.stor, testGlobal.asset0.asset.ID)
 	tx := createBurnV2(t)
 	err := to.tp.performBurnV2(tx, defaultPerformerInfo(t))
 	assert.NoError(t, err, "performBurnV2() failed")
