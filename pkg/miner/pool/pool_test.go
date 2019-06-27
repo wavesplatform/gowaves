@@ -36,6 +36,10 @@ func (a transaction) GetFee() uint64 {
 	return a.fee
 }
 
+func (a transaction) GenerateID() {
+	panic("not implemented")
+}
+
 func tr(fee uint64) *transaction {
 	return &transaction{fee: fee}
 }

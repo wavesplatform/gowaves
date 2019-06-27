@@ -1,0 +1,13 @@
+// Transactions
+syntax = "proto3";
+package waves;
+option java_package = "com.wavesplatform.protobuf.transaction";
+option csharp_namespace = "Waves";
+option go_package = "client/grpc";
+
+message Recipient {
+    oneof recipient {
+        bytes address = 1;
+        string alias = 2;
+    };
+};

@@ -256,6 +256,14 @@ func FastHash(data []byte) (Digest, error) {
 	return d, nil
 }
 
+func MustFastHash(data []byte) Digest {
+	d, err := FastHash(data)
+	if err != nil {
+		panic(err.Error())
+	}
+	return d
+}
+
 func SecureHash(data []byte) (Digest, error) {
 	var d Digest
 	fh, err := blake2b.New256(nil)

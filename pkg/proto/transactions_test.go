@@ -3223,17 +3223,17 @@ func TestDataV1BinaryRoundTrip(t *testing.T) {
 		tx := NewUnsignedData(pk, tc.fee, ts)
 		for i, k := range tc.keys {
 			var e DataEntry
-			switch ValueType(tc.types[i]) {
-			case Integer:
+			switch DataValueType(tc.types[i]) {
+			case DataInteger:
 				v, _ := strconv.Atoi(tc.values[i])
 				e = IntegerDataEntry{k, int64(v)}
-			case Boolean:
+			case DataBoolean:
 				v, _ := strconv.ParseBool(tc.values[i])
 				e = BooleanDataEntry{k, v}
-			case Binary:
+			case DataBinary:
 				v, _ := base58.Decode(tc.values[i])
 				e = BinaryDataEntry{k, v}
-			case String:
+			case DataString:
 				e = StringDataEntry{k, tc.values[i]}
 			}
 			err := tx.AppendEntry(e)
@@ -3297,8 +3297,8 @@ func TestDataV1ToJSON(t *testing.T) {
 			sb.WriteRune('"')
 			sb.WriteString(",\"type\":")
 			var e DataEntry
-			switch ValueType(tc.types[i]) {
-			case Integer:
+			switch DataValueType(tc.types[i]) {
+			case DataInteger:
 				v, _ := strconv.Atoi(tc.values[i])
 				e = IntegerDataEntry{k, int64(v)}
 				sb.WriteRune('"')
@@ -3306,7 +3306,7 @@ func TestDataV1ToJSON(t *testing.T) {
 				sb.WriteRune('"')
 				sb.WriteString(",\"value\":")
 				sb.WriteString(tc.values[i])
-			case Boolean:
+			case DataBoolean:
 				v, _ := strconv.ParseBool(tc.values[i])
 				e = BooleanDataEntry{k, v}
 				sb.WriteRune('"')
@@ -3314,7 +3314,7 @@ func TestDataV1ToJSON(t *testing.T) {
 				sb.WriteRune('"')
 				sb.WriteString(",\"value\":")
 				sb.WriteString(tc.values[i])
-			case Binary:
+			case DataBinary:
 				v, _ := base58.Decode(tc.values[i])
 				e = BinaryDataEntry{k, v}
 				sb.WriteRune('"')
@@ -3325,7 +3325,7 @@ func TestDataV1ToJSON(t *testing.T) {
 				sb.WriteString("base64:")
 				sb.WriteString(base64.StdEncoding.EncodeToString(v))
 				sb.WriteRune('"')
-			case String:
+			case DataString:
 				e = StringDataEntry{k, tc.values[i]}
 				sb.WriteRune('"')
 				sb.WriteString("string")
@@ -3812,7 +3812,7 @@ func TestInvokeScriptV1Validations(t *testing.T) {
 		spk, _ := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
 		ad, _ := NewAddressFromString("3MrDis17gyNSusZDg8Eo1PuFnm5SQMda3gu")
 		fc := FunctionCall{Name: tc.name, Arguments: tc.args}
-		tx := NewUnsignedInvokeScriptV1('T', spk, ad, fc, tc.sps, *a2, tc.fee, 12345)
+		tx := NewUnsignedInvokeScriptV1('T', spk, NewRecipientFromAddress(ad), fc, tc.sps, *a2, tc.fee, 12345)
 		v, err := tx.Valid()
 		assert.False(t, v)
 		assert.EqualError(t, err, tc.err)
@@ -3825,24 +3825,43 @@ func TestInvokeScriptV1FromTestNet(t *testing.T) {
 		sig       string
 		id        string
 		scheme    byte
-		addr      string
+		dapp      string
 		fc        string
+		payments  string
 		fee       uint64
+		feeAsset  string
 		timestamp uint64
 	}{
-		{"2AqMAWBPbTxYdHoE9vsELWTrCFjhEJdKAACt5UEjFGLu", "KXrLyY5dU4wFtg17cEbMq4sg5aYokepZQ4x4PkGgpU3ZA7waJt5S9wi8sL9bGbgzvUgLfEZhbirb8G59jjzH76w", "2rPStE939HsiBxgWfDKM4fALEc8Bhbbg7SaEdVJ8MLS4", 'T', "3MqznbvHM2CqEVG6HKpWQmmXrWWHgBmFcAJ", "{\"function\":\"foo\",\"args\":[{\"type\":\"integer\",\"value\":42}]}", 500000, 1553873984919},
+		{"DKGFPozLrsiR8NM4NJzqQaBYC8NyGYjuw2hDYicQVjco", "5eV3WVt96gQDLdk1KFGa23AZhriZcv6Xy2Zvo33Pqgh7SRLumPeToFUoZxSAry5LUbzdndAdpP5Cy1c6wvVXNUyX", "4xgCjQBvxirqts1nBhTqci5C1TLEJs974aAJgmjPF2bz", 'T', "3MpVFGJWgiGyh5LmE1nxNLsjjtSL3Bgh9NV", "{\"function\":\"LiquidExhange\",\"args\":[]}", "[{\"amount\":35000000000,\"assetId\":null}]", 1000000, "WAVES", 1559832028452},
+		{"AkMK8AjATGN89Ziiy8U4p7vquPU8qjeVedMpcWgXLovD", "4RnTATsewLTeawZJWRpwiFLGVPP81NHgDxFdXfiJXVtdRrbANAyTHGuKNiLZkRwW5vRMLnrDneGPrNfqxcAcSh59", "FdQwSRUwBzNbLdKu158aELLdPSfmKQ7B3fYd2en3CEyg", 'T', "3ND68eBy9NyJPeq4eRqi42c45hoDAzzRjSm", "{\"function\":\"bet\",\"args\":[{\"type\":\"string\",\"value\":\"1\"}]}", "[{\"amount\":200500000,\"assetId\":null}]", 500000, "WAVES", 1560151320652},
+		{"5gwomYMjH2taJyfXjGj2LPVwcVH7Wd86Xh2T2iTENqa4", "4HGuUbp2y2rh5NA5aXKi9xEAr5AYyb89PknKpZo8LdwbHoA2QBS4CYiGh6cJqZZ7DTsx2b1jEciQpPhcxzrLbDLk", "88G72uSqvSMh4qvAFGiE78eJsFXxiAjXZRJJhMGrHh6", 'T', "3N6t7q6vrBQT7CUPjFeDieKvm7be6pBcFLx", "{\"function\":\"test\",\"args\":[{\"type\":\"binary\",\"value\":\"base64:c29tZQ==\"},{\"type\":\"boolean\",\"value\":true},{\"type\":\"integer\",\"value\":100500},{\"type\":\"string\",\"value\":\"some text\"}]}", "[{\"amount\":10,\"assetId\":\"H3jGkTWJr8Sr4KFay3QqNqmA3zEtgxYAx1ojitNaPkWy\"}]", 9, "H3jGkTWJr8Sr4KFay3QqNqmA3zEtgxYAx1ojitNaPkWy", 1560153418889},
+		{"5gwomYMjH2taJyfXjGj2LPVwcVH7Wd86Xh2T2iTENqa4", "4S7aQoeGrtbRsDGRg2yT8eG9ybRsv1GzeYC4zn14LzmwdYXRviqK9XtPjBWANk1VqQEJMQvMRuj19baSGmb65qeu", "DtsKYcGQbobcXboE1FzfzxqBuQJmdwzQS7YTFXYDBj6S", 'T', "3N6t7q6vrBQT7CUPjFeDieKvm7be6pBcFLx", "null", "[]", 900000, "WAVES", 1560153629460},
+		{"5gwomYMjH2taJyfXjGj2LPVwcVH7Wd86Xh2T2iTENqa4", "2PrBFHS41nwd2Gq4BL6VuBxX855UbSN8dgHQYcRWLRczUpoTvojzwT6yXfvEH8QEPiREdxgGUfCLiseiPoKPTUY5", "FYo3AFvGX4L5CSBNXSB6Tc8J4vmuY7PTj4FYge5BKmfM", 'T', "alias:T:inv-test", "null", "[]", 900000, "WAVES", 1560161103375},
 	}
 	for _, tc := range tests {
-		spk, _ := crypto.NewPublicKeyFromBase58(tc.pk)
-		id, _ := crypto.NewDigestFromBase58(tc.id)
-		sig, _ := crypto.NewSignatureFromBase58(tc.sig)
-		wa, _ := NewOptionalAssetFromString("WAVES")
-		a, err := NewAddressFromString(tc.addr)
+		spk, err := crypto.NewPublicKeyFromBase58(tc.pk)
+		require.NoError(t, err)
+		id, err := crypto.NewDigestFromBase58(tc.id)
+		require.NoError(t, err)
+		sig, err := crypto.NewSignatureFromBase58(tc.sig)
+		require.NoError(t, err)
+		rcp, err := NewRecipientFromString(tc.dapp)
+		require.NoError(t, err)
+		fa, err := NewOptionalAssetFromString(tc.feeAsset)
 		require.NoError(t, err)
 		fc := FunctionCall{}
 		err = json.Unmarshal([]byte(tc.fc), &fc)
 		require.NoError(t, err)
-		tx := NewUnsignedInvokeScriptV1(tc.scheme, spk, a, fc, ScriptPayments{}, *wa, tc.fee, tc.timestamp)
+		fjs, err := json.Marshal(fc)
+		require.NoError(t, err)
+		assert.Equal(t, tc.fc, string(fjs))
+		payments := ScriptPayments{}
+		err = json.Unmarshal([]byte(tc.payments), &payments)
+		require.NoError(t, err)
+		pjs, err := json.Marshal(payments)
+		require.NoError(t, err)
+		assert.Equal(t, tc.payments, string(pjs))
+		tx := NewUnsignedInvokeScriptV1(tc.scheme, spk, rcp, fc, payments, *fa, tc.fee, tc.timestamp)
 		if b, err := tx.bodyMarshalBinary(); assert.NoError(t, err) {
 			if h, err := crypto.FastHash(b); assert.NoError(t, err) {
 				assert.Equal(t, id, h)
@@ -3879,7 +3898,7 @@ func TestInvokeScriptV1BinaryRoundTrip(t *testing.T) {
 		sps := ScriptPayments{}
 		err = json.Unmarshal([]byte(tc.payments), &sps)
 		require.NoError(t, err)
-		tx := NewUnsignedInvokeScriptV1(tc.chainID, pk, ad, fc, sps, *a, tc.fee, ts)
+		tx := NewUnsignedInvokeScriptV1(tc.chainID, pk, NewRecipientFromAddress(ad), fc, sps, *a, tc.fee, ts)
 		if bb, err := tx.bodyMarshalBinary(); assert.NoError(t, err) {
 			var atx InvokeScriptV1
 			if err := atx.bodyUnmarshalBinary(bb); assert.NoError(t, err) {
@@ -3887,7 +3906,7 @@ func TestInvokeScriptV1BinaryRoundTrip(t *testing.T) {
 				assert.Equal(t, tx.Version, atx.Version)
 				assert.Equal(t, tx.SenderPK, atx.SenderPK)
 				assert.Equal(t, tx.ChainID, atx.ChainID)
-				assert.Equal(t, tx.ScriptAddress, atx.ScriptAddress)
+				assert.Equal(t, tx.ScriptRecipient, atx.ScriptRecipient)
 				assert.Equal(t, tx.FunctionCall, atx.FunctionCall)
 				assert.Equal(t, tx.Payments, atx.Payments)
 				assert.Equal(t, tx.FeeAsset, atx.FeeAsset)
@@ -3908,7 +3927,7 @@ func TestInvokeScriptV1BinaryRoundTrip(t *testing.T) {
 				assert.Equal(t, pk, atx.SenderPK)
 				assert.Equal(t, tc.chainID, atx.ChainID)
 				assert.Equal(t, *a, atx.FeeAsset)
-				assert.Equal(t, ad, atx.ScriptAddress)
+				assert.Equal(t, NewRecipientFromAddress(ad), atx.ScriptRecipient)
 				assert.Equal(t, sps, atx.Payments)
 				assert.Equal(t, fc, atx.FunctionCall)
 				assert.Equal(t, tc.fee, atx.Fee)
@@ -3949,13 +3968,13 @@ func TestInvokeScriptV1ToJSON(t *testing.T) {
 		if tc.feeAsset == "WAVES" {
 			feeAssetIDJSON = "null"
 		}
-		tx := NewUnsignedInvokeScriptV1(tc.chainID, pk, ad, fc, sps, *a, tc.fee, ts)
+		tx := NewUnsignedInvokeScriptV1(tc.chainID, pk, NewRecipientFromAddress(ad), fc, sps, *a, tc.fee, ts)
 		if j, err := json.Marshal(tx); assert.NoError(t, err) {
-			ej := fmt.Sprintf("{\"type\":16,\"version\":1,\"senderPublicKey\":\"%s\",\"dappAddress\":\"%s\",\"call\":%s,\"payment\":%s,\"feeAssetId\":%s,\"fee\":%d,\"timestamp\":%d}", base58.Encode(pk[:]), tc.address, tc.fc, tc.payments, feeAssetIDJSON, tc.fee, ts)
+			ej := fmt.Sprintf("{\"type\":16,\"version\":1,\"senderPublicKey\":\"%s\",\"dApp\":\"%s\",\"call\":%s,\"payment\":%s,\"feeAssetId\":%s,\"fee\":%d,\"timestamp\":%d}", base58.Encode(pk[:]), tc.address, tc.fc, tc.payments, feeAssetIDJSON, tc.fee, ts)
 			assert.Equal(t, ej, string(j))
 			if err := tx.Sign(sk); assert.NoError(t, err) {
 				if sj, err := json.Marshal(tx); assert.NoError(t, err) {
-					esj := fmt.Sprintf("{\"type\":16,\"version\":1,\"id\":\"%s\",\"proofs\":[\"%s\"],\"senderPublicKey\":\"%s\",\"dappAddress\":\"%s\",\"call\":%s,\"payment\":%s,\"feeAssetId\":%s,\"fee\":%d,\"timestamp\":%d}",
+					esj := fmt.Sprintf("{\"type\":16,\"version\":1,\"id\":\"%s\",\"proofs\":[\"%s\"],\"senderPublicKey\":\"%s\",\"dApp\":\"%s\",\"call\":%s,\"payment\":%s,\"feeAssetId\":%s,\"fee\":%d,\"timestamp\":%d}",
 						base58.Encode(tx.ID[:]), base58.Encode(tx.Proofs.Proofs[0]), base58.Encode(pk[:]), tc.address, tc.fc, tc.payments, feeAssetIDJSON, tc.fee, ts)
 					assert.Equal(t, esj, string(sj))
 				}

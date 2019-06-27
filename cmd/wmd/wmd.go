@@ -11,7 +11,6 @@ import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"net/http"
-	"net/url"
 	"os"
 	"runtime"
 	"runtime/debug"
@@ -22,7 +21,6 @@ import (
 var version = "0.0.0"
 
 const (
-	defaultScheme       = "http"
 	defaultSyncInterval = 10
 )
 
@@ -31,7 +29,7 @@ func run() error {
 	var (
 		logLevel       = flag.String("log-level", "INFO", "Logging level. Supported levels: DEBUG, INFO, WARN, ERROR, FATAL. Default logging level INFO.")
 		importFile     = flag.String("import-file", "", "Path to binary blockchain file to import before starting synchronization.")
-		node           = flag.String("node", "http://127.0.0.1:6869", "URL of Waves node API. Default value: http://127.0.0.1:6869.")
+		node           = flag.String("node", "127.0.0.1:6870", "Address of the node's gRPC API endpoint. Default value: 127.0.0.1:6870.")
 		interval       = flag.Int("sync-interval", defaultSyncInterval, "Synchronization interval, seconds. Default interval is 10 seconds.")
 		lag            = flag.Int("lag", 1, "Synchronization lag behind the node, blocks. Default value 1 block.")
 		address        = flag.String("address", ":6990", "Local network address to bind the HTTP API of the service on. Default value is :6990.")
@@ -99,12 +97,11 @@ func run() error {
 	}
 	sch := (byte)((*scheme)[0])
 
-	u, err := parseNodeURL(*node)
-	if err != nil {
+	if *node == "" {
+		err := errors.New("empty node address")
 		log.Errorf("Failed to parse node's API address: %s", err.Error())
 		return err
 	}
-
 	if *interval <= 0 {
 		*interval = defaultSyncInterval
 	}
@@ -119,7 +116,7 @@ func run() error {
 	}
 
 	storage := state.Storage{Path: *db, Scheme: sch}
-	err = storage.Open()
+	err := storage.Open()
 	if err != nil {
 		log.Errorf("Failed to open the storage: %v", err)
 		return err
@@ -208,14 +205,12 @@ func run() error {
 	}
 
 	var synchronizerDone <-chan struct{}
-	if u != nil {
-		s, err := internal.NewSynchronizer(interrupt, log, &storage, sch, matcherPK, *u, *interval, *lag)
-		if err != nil {
-			log.Errorf("Failed to start synchronization: %v", err)
-			return err
-		}
-		synchronizerDone = s.Done()
+	s, err := internal.NewSynchronizer(interrupt, log, &storage, sch, matcherPK, *node, *interval, *lag)
+	if err != nil {
+		log.Errorf("Failed to start synchronization: %v", err)
+		return err
 	}
+	synchronizerDone = s.Done()
 
 	if apiDone != nil {
 		<-apiDone
@@ -256,24 +251,4 @@ func setupLogger(level string) (*zap.Logger, *zap.SugaredLogger) {
 	ec := zap.NewDevelopmentEncoderConfig()
 	logger := zap.New(zapcore.NewCore(zapcore.NewConsoleEncoder(ec), zapcore.Lock(os.Stdout), al))
 	return logger, logger.Sugar()
-}
-
-func parseNodeURL(s string) (*url.URL, error) {
-	var u *url.URL
-	var err error
-	if strings.Contains(s, "//") {
-		u, err = url.Parse(s)
-	} else {
-		u, err = url.Parse("//" + s)
-	}
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to parse URL '%s'", s)
-	}
-	if u.Scheme == "" {
-		u.Scheme = defaultScheme
-	}
-	if u.Scheme != "http" && u.Scheme != "https" {
-		return nil, errors.Errorf("unsupported URL scheme '%s'", u.Scheme)
-	}
-	return u, nil
 }

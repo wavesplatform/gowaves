@@ -621,7 +621,7 @@ func (a DataEntryListExpr) InstanceOf() string {
 	return "DataEntryList"
 }
 
-func (a *DataEntryListExpr) Get(key string, valueType proto.ValueType) Expr {
+func (a *DataEntryListExpr) Get(key string, valueType proto.DataValueType) Expr {
 	if !a.cached {
 		a.cache()
 	}
@@ -629,13 +629,13 @@ func (a *DataEntryListExpr) Get(key string, valueType proto.ValueType) Expr {
 	if ok {
 		if rs.GetValueType() == valueType {
 			switch valueType {
-			case proto.Integer:
+			case proto.DataInteger:
 				return NewLong(rs.(proto.IntegerDataEntry).Value)
-			case proto.String:
+			case proto.DataString:
 				return NewString(rs.(proto.StringDataEntry).Value)
-			case proto.Boolean:
+			case proto.DataBoolean:
 				return NewBoolean(rs.(proto.BooleanDataEntry).Value)
-			case proto.Binary:
+			case proto.DataBinary:
 				return NewBytes(rs.(proto.BinaryDataEntry).Value)
 			}
 		}
@@ -643,7 +643,7 @@ func (a *DataEntryListExpr) Get(key string, valueType proto.ValueType) Expr {
 	return Unit{}
 }
 
-func (a *DataEntryListExpr) GetByIndex(index int, valueType proto.ValueType) Expr {
+func (a *DataEntryListExpr) GetByIndex(index int, valueType proto.DataValueType) Expr {
 	if index > len(a.source)-1 {
 		return NewUnit()
 	}
@@ -654,13 +654,13 @@ func (a *DataEntryListExpr) GetByIndex(index int, valueType proto.ValueType) Exp
 	}
 
 	switch valueType {
-	case proto.Integer:
+	case proto.DataInteger:
 		return NewLong(rs.(proto.IntegerDataEntry).Value)
-	case proto.String:
+	case proto.DataString:
 		return NewString(rs.(proto.StringDataEntry).Value)
-	case proto.Boolean:
+	case proto.DataBoolean:
 		return NewBoolean(rs.(proto.BooleanDataEntry).Value)
-	case proto.Binary:
+	case proto.DataBinary:
 		return NewBytes(rs.(proto.BinaryDataEntry).Value)
 	default:
 		return NewUnit()
