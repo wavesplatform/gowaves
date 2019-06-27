@@ -14,6 +14,8 @@ import (
 )
 
 const (
+	testSeedLen = 75
+
 	testBloomFilterSize                     = 2e6
 	testBloomFilterFalsePositiveProbability = 0.01
 	testCacheSize                           = 2 * 1024 * 1024
@@ -208,6 +210,16 @@ func genBlockId(fillWith byte) crypto.Signature {
 	return blockID
 }
 
+func generateRandomRecipient(t *testing.T) proto.Recipient {
+	seed := make([]byte, testSeedLen)
+	_, err := rand.Read(seed)
+	assert.NoError(t, err, "rand.Read() failed")
+	_, pk := crypto.GenerateKeyPair(seed)
+	addr, err := proto.NewAddressFromPublicKey('W', pk)
+	assert.NoError(t, err, "NewAddressFromPublicKey() failed")
+	return proto.NewRecipientFromAddress(addr)
+}
+
 func createAsset(t *testing.T, entities *blockchainEntitiesStorage, stor *storageObjects, assetID crypto.Digest) *assetInfo {
 	stor.addBlock(t, blockID0)
 	assetInfo := createAssetInfo(t, true, blockID0, assetID)
@@ -215,4 +227,12 @@ func createAsset(t *testing.T, entities *blockchainEntitiesStorage, stor *storag
 	assert.NoError(t, err, "issueAset() failed")
 	stor.flush(t)
 	return assetInfo
+}
+
+func activateFeature(t *testing.T, entities *blockchainEntitiesStorage, stor *storageObjects, featureID int16) {
+	stor.addBlock(t, blockID0)
+	activationReq := &activatedFeaturesRecord{1, blockID0}
+	err := entities.features.activateFeature(featureID, activationReq)
+	assert.NoError(t, err, "activateFeature() failed")
+	stor.flush(t)
 }

@@ -85,6 +85,9 @@ func buildHanndles(tc *transactionChecker, tp *transactionPerformer, td *transac
 		proto.TransactionTypeVersion{Type: proto.CreateAliasTransaction, Version: 2}: txHandleFuncs{
 			tc.checkCreateAliasV2, tp.performCreateAliasV2, td.createDiffCreateAliasV2, minerFeeCreateAliasV2,
 		},
+		proto.TransactionTypeVersion{Type: proto.MassTransferTransaction, Version: 1}: txHandleFuncs{
+			tc.checkMassTransferV1, nil, td.createDiffMassTransferV1, minerFeeMassTransferV1,
+		},
 	}
 }
 

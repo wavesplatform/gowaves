@@ -21,9 +21,10 @@ var (
 )
 
 type differTestObjects struct {
-	stor *storageObjects
-	td   *transactionDiffer
-	tp   *transactionPerformer
+	stor     *storageObjects
+	entities *blockchainEntitiesStorage
+	td       *transactionDiffer
+	tp       *transactionPerformer
 }
 
 func createDifferTestObjects(t *testing.T) (*differTestObjects, []string) {
@@ -35,7 +36,7 @@ func createDifferTestObjects(t *testing.T) (*differTestObjects, []string) {
 	assert.NoError(t, err, "newTransactionDiffer() failed")
 	tp, err := newTransactionPerformer(entities, settings.MainNetSettings)
 	assert.NoError(t, err, "newTransactionPerformer() failed")
-	return &differTestObjects{stor, td, tp}, path
+	return &differTestObjects{stor, entities, td, tp}, path
 }
 
 func defaultDifferInfo(t *testing.T) *differInfo {
@@ -519,6 +520,50 @@ func TestCreateDiffCreateAliasV2(t *testing.T) {
 	correctDiff := txDiff{
 		testGlobal.senderInfo.wavesKey: newBalanceDiff(-int64(tx.Fee), 0, 0, false),
 		testGlobal.minerInfo.wavesKey:  newBalanceDiff(int64(tx.Fee), 0, 0, false),
+	}
+	assert.Equal(t, correctDiff, diff)
+}
+
+func generateMassTransferEntries(t *testing.T, entriesNum int) []proto.MassTransferEntry {
+	res := make([]proto.MassTransferEntry, entriesNum)
+	for i := 0; i < entriesNum; i++ {
+		amount := uint64(i)
+		rcp := generateRandomRecipient(t)
+		entry := proto.MassTransferEntry{Recipient: rcp, Amount: amount}
+		res[i] = entry
+	}
+	return res
+}
+
+func createMassTransferV1(t *testing.T, transfers []proto.MassTransferEntry) *proto.MassTransferV1 {
+	return proto.NewUnsignedMassTransferV1(testGlobal.senderInfo.pk, *testGlobal.asset0.asset, transfers, defaultFee, defaultTimestamp, "attachment")
+}
+
+func TestCreateDiffMassTransferV1(t *testing.T) {
+	to, path := createDifferTestObjects(t)
+
+	defer func() {
+		err := util.CleanTemporaryDirs(path)
+		assert.NoError(t, err, "failed to clean test data dirs")
+	}()
+
+	entriesNum := 66
+	entries := generateMassTransferEntries(t, entriesNum)
+	tx := createMassTransferV1(t, entries)
+	diff, err := to.td.createDiffMassTransferV1(tx, defaultDifferInfo(t))
+	assert.NoError(t, err, "createDiffMassTransferV1 failed")
+
+	correctDiff := txDiff{
+		testGlobal.senderInfo.wavesKey: newBalanceDiff(-int64(tx.Fee), 0, 0, true),
+		testGlobal.minerInfo.wavesKey:  newBalanceDiff(int64(tx.Fee), 0, 0, false),
+	}
+	for _, entry := range entries {
+		recipientAddr, err := recipientToAddress(entry.Recipient, to.entities.aliases, true)
+		assert.NoError(t, err, "recipientToAddress() failed")
+		err = correctDiff.appendBalanceDiff(byteKey(*recipientAddr, tx.Asset.ToID()), newBalanceDiff(int64(entry.Amount), 0, 0, true))
+		assert.NoError(t, err, "appendBalanceDiff() failed")
+		err = correctDiff.appendBalanceDiff(byteKey(testGlobal.senderInfo.addr, tx.Asset.ToID()), newBalanceDiff(-int64(entry.Amount), 0, 0, true))
+		assert.NoError(t, err, "appendBalanceDiff() failed")
 	}
 	assert.Equal(t, correctDiff, diff)
 }

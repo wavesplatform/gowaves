@@ -157,3 +157,11 @@ func minerFeeCreateAliasV2(transaction proto.Transaction, distr *feeDistribution
 	}
 	return minerFee(distr, tx.Fee, calculateCurrentBlockTxFee(tx.Fee, ngActivated), proto.OptionalAsset{Present: false})
 }
+
+func minerFeeMassTransferV1(transaction proto.Transaction, distr *feeDistribution, ngActivated bool) error {
+	tx, ok := transaction.(*proto.MassTransferV1)
+	if !ok {
+		return errors.New("failed to convert interface to MassTrnasferV1 tx")
+	}
+	return minerFee(distr, tx.Fee, calculateCurrentBlockTxFee(tx.Fee, ngActivated), proto.OptionalAsset{Present: false})
+}

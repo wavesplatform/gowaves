@@ -308,3 +308,21 @@ func (tc *transactionChecker) checkCreateAliasV2(transaction proto.Transaction, 
 	}
 	return tc.checkCreateAlias(&tx.CreateAlias, info)
 }
+
+func (tc *transactionChecker) checkMassTransferV1(transaction proto.Transaction, info *checkerInfo) error {
+	tx, ok := transaction.(*proto.MassTransferV1)
+	if !ok {
+		return errors.New("failed to convert interface to MassTransferV1 transaction")
+	}
+	activated, err := tc.stor.features.isActivated(int16(settings.MassTransfer))
+	if err != nil {
+		return err
+	}
+	if !activated {
+		return errors.New("MassTransfer transaction has not been activated yet")
+	}
+	if err := tc.checkAsset(&tx.Asset, info.initialisation); err != nil {
+		return err
+	}
+	return nil
+}

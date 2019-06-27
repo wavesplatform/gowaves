@@ -305,6 +305,17 @@ func (td *transactionDiffer) createDiffPayment(transaction proto.Transaction, in
 	return diff, nil
 }
 
+func recipientToAddress(rcp proto.Recipient, aliases *aliases, filter bool) (*proto.Address, error) {
+	if rcp.Address != nil {
+		return rcp.Address, nil
+	}
+	recipientAddr, err := aliases.newestAddrByAlias(rcp.Alias.Alias, filter)
+	if err != nil {
+		return &proto.Address{}, errors.Errorf("invalid alias: %v\n", err)
+	}
+	return recipientAddr, nil
+}
+
 func (td *transactionDiffer) createDiffTransfer(tx *proto.Transfer, info *differInfo) (txDiff, error) {
 	diff := newTxDiff()
 	updateMinIntermediateBalance := false
@@ -327,14 +338,9 @@ func (td *transactionDiffer) createDiffTransfer(tx *proto.Transfer, info *differ
 		return txDiff{}, err
 	}
 	// Append receiver diff.
-	recipientAddr := &proto.Address{}
-	if tx.Recipient.Address == nil {
-		recipientAddr, err = td.stor.aliases.newestAddrByAlias(tx.Recipient.Alias.Alias, !info.initialisation)
-		if err != nil {
-			return txDiff{}, errors.Errorf("invalid alias: %v\n", err)
-		}
-	} else {
-		recipientAddr = tx.Recipient.Address
+	recipientAddr, err := recipientToAddress(tx.Recipient, td.stor.aliases, !info.initialisation)
+	if err != nil {
+		return txDiff{}, err
 	}
 	receiverKey := byteKey(*recipientAddr, tx.AmountAsset.ToID())
 	receiverBalanceDiff := int64(tx.Amount)
@@ -591,14 +597,9 @@ func (td *transactionDiffer) createDiffLease(tx *proto.Lease, id *crypto.Digest,
 		return txDiff{}, err
 	}
 	// Append receiver diff.
-	recipientAddr := &proto.Address{}
-	if tx.Recipient.Address == nil {
-		recipientAddr, err = td.stor.aliases.newestAddrByAlias(tx.Recipient.Alias.Alias, !info.initialisation)
-		if err != nil {
-			return txDiff{}, errors.Errorf("invalid alias: %v\n", err)
-		}
-	} else {
-		recipientAddr = tx.Recipient.Address
+	recipientAddr, err := recipientToAddress(tx.Recipient, td.stor.aliases, !info.initialisation)
+	if err != nil {
+		return txDiff{}, err
 	}
 	receiverKey := wavesBalanceKey{address: *recipientAddr}
 	receiverLeaseInDiff := int64(tx.Amount)
@@ -713,4 +714,51 @@ func (td *transactionDiffer) createDiffCreateAliasV2(transaction proto.Transacti
 		return txDiff{}, errors.New("failed to convert interface to CreateAliasV2 transaction")
 	}
 	return td.createDiffCreateAlias(&tx.CreateAlias, info)
+}
+
+func (td *transactionDiffer) createDiffMassTransferV1(transaction proto.Transaction, info *differInfo) (txDiff, error) {
+	tx, ok := transaction.(*proto.MassTransferV1)
+	if !ok {
+		return txDiff{}, errors.New("failed to convert interface to MassTransferV1 transaction")
+	}
+	diff := newTxDiff()
+	updateMinIntermediateBalance := false
+	if info.blockTime >= td.settings.CheckTempNegativeAfterTime {
+		updateMinIntermediateBalance = true
+	}
+	// Append sender fee diff.
+	senderAddr, err := proto.NewAddressFromPublicKey(td.settings.AddressSchemeCharacter, tx.SenderPK)
+	if err != nil {
+		return txDiff{}, err
+	}
+	senderFeeKey := wavesBalanceKey{address: senderAddr}
+	senderFeeBalanceDiff := -int64(tx.Fee)
+	if err := diff.appendBalanceDiff(senderFeeKey.bytes(), newBalanceDiff(senderFeeBalanceDiff, 0, 0, updateMinIntermediateBalance)); err != nil {
+		return txDiff{}, err
+	}
+	// Append amount diffs.
+	senderAmountKey := byteKey(senderAddr, tx.Asset.ToID())
+	for _, entry := range tx.Transfers {
+		// Sender.
+		senderAmountBalanceDiff := -int64(entry.Amount)
+		if err := diff.appendBalanceDiff(senderAmountKey, newBalanceDiff(senderAmountBalanceDiff, 0, 0, updateMinIntermediateBalance)); err != nil {
+			return txDiff{}, err
+		}
+		// Recipient.
+		recipientAddr, err := recipientToAddress(entry.Recipient, td.stor.aliases, !info.initialisation)
+		if err != nil {
+			return txDiff{}, err
+		}
+		recipientKey := byteKey(*recipientAddr, tx.Asset.ToID())
+		recipientBalanceDiff := int64(entry.Amount)
+		if err := diff.appendBalanceDiff(recipientKey, newBalanceDiff(recipientBalanceDiff, 0, 0, updateMinIntermediateBalance)); err != nil {
+			return txDiff{}, err
+		}
+	}
+	if info.hasMiner() {
+		if err := td.minerPayout(diff, tx.Fee, info, nil); err != nil {
+			return txDiff{}, errors.Wrap(err, "failed to append miner payout")
+		}
+	}
+	return diff, nil
 }

@@ -414,3 +414,31 @@ func TestCheckCreateAliasV2(t *testing.T) {
 	err = to.tc.checkCreateAliasV2(tx, info)
 	assert.Error(t, err, "checkCreateAliasV2 did not fail when using alias which is alredy taken")
 }
+
+func TestCheckMassTransferV1(t *testing.T) {
+	to, path := createCheckerTestObjects(t)
+
+	defer func() {
+		err := util.CleanTemporaryDirs(path)
+		assert.NoError(t, err, "failed to clean test data dirs")
+	}()
+
+	entriesNum := 50
+	entries := generateMassTransferEntries(t, entriesNum)
+	tx := createMassTransferV1(t, entries)
+	info := defaultCheckerInfo(t)
+
+	err := to.tc.checkMassTransferV1(tx, info)
+	assert.Error(t, err, "checkMassTransferV1 did not fail prior to feature activation")
+	assert.EqualError(t, err, "MassTransfer transaction has not been activated yet")
+
+	// Acivate MassTransfer.
+	activateFeature(t, to.entities, to.stor, int16(settings.MassTransfer))
+	err = to.tc.checkMassTransferV1(tx, info)
+	assert.Error(t, err, "checkMassTransferV1 did not fail with unissued asset")
+	assert.EqualError(t, err, "unknown asset")
+
+	createAsset(t, to.entities, to.stor, testGlobal.asset0.asset.ID)
+	err = to.tc.checkMassTransferV1(tx, info)
+	assert.NoError(t, err, "checkMassTransferV1 failed with valid massTransfer tx")
+}
