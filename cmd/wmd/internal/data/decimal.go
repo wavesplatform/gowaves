@@ -79,6 +79,9 @@ func (d *Decimal) String() string {
 	sb.WriteString(a)
 	if len(b) > 0 {
 		sb.WriteString(delimiter)
+		if len(b) > 8 {
+			b = b[:8]
+		}
 		sb.WriteString(b)
 	}
 	return sb.String()
