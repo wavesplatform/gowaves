@@ -39,6 +39,10 @@ type IssueV2 struct {
 	Issue
 }
 
+func (tx IssueV2) GetTypeVersion() TransactionTypeVersion {
+	return TransactionTypeVersion{tx.Type, tx.Version}
+}
+
 func (tx *IssueV2) GenerateID() {
 	if tx.ID == nil {
 		body, err := tx.bodyMarshalBinary()
@@ -48,6 +52,7 @@ func (tx *IssueV2) GenerateID() {
 		id := crypto.MustFastHash(body)
 		tx.ID = &id
 	}
+
 }
 
 func (tx IssueV2) GetID() []byte {
@@ -270,6 +275,10 @@ type TransferV2 struct {
 	Transfer
 }
 
+func (tx TransferV2) GetTypeVersion() TransactionTypeVersion {
+	return TransactionTypeVersion{tx.Type, tx.Version}
+}
+
 func (tx *TransferV2) GenerateID() {
 	if tx.ID == nil {
 		body, err := tx.BodyMarshalBinary()
@@ -279,6 +288,7 @@ func (tx *TransferV2) GenerateID() {
 		id := crypto.MustFastHash(body)
 		tx.ID = &id
 	}
+
 }
 
 func (tx TransferV2) GetID() []byte {
@@ -443,6 +453,10 @@ type ReissueV2 struct {
 	Reissue
 }
 
+func (tx ReissueV2) GetTypeVersion() TransactionTypeVersion {
+	return TransactionTypeVersion{tx.Type, tx.Version}
+}
+
 func (tx *ReissueV2) GenerateID() {
 	if tx.ID == nil {
 		body, err := tx.bodyMarshalBinary()
@@ -452,6 +466,7 @@ func (tx *ReissueV2) GenerateID() {
 		id := crypto.MustFastHash(body)
 		tx.ID = &id
 	}
+
 }
 
 func (tx ReissueV2) GetID() []byte {
@@ -605,6 +620,10 @@ type BurnV2 struct {
 	Burn
 }
 
+func (tx BurnV2) GetTypeVersion() TransactionTypeVersion {
+	return TransactionTypeVersion{tx.Type, tx.Version}
+}
+
 func (tx *BurnV2) GenerateID() {
 	if tx.ID == nil {
 		body, err := tx.bodyMarshalBinary()
@@ -614,6 +633,7 @@ func (tx *BurnV2) GenerateID() {
 		id := crypto.MustFastHash(body)
 		tx.ID = &id
 	}
+
 }
 
 func (tx BurnV2) GetID() []byte {
@@ -773,6 +793,10 @@ type ExchangeV2 struct {
 	Timestamp      uint64           `json:"timestamp,omitempty"`
 }
 
+func (tx ExchangeV2) GetTypeVersion() TransactionTypeVersion {
+	return TransactionTypeVersion{tx.Type, tx.Version}
+}
+
 func (tx *ExchangeV2) GenerateID() {
 	if tx.ID == nil {
 		body, err := tx.bodyMarshalBinary()
@@ -782,6 +806,7 @@ func (tx *ExchangeV2) GenerateID() {
 		id := crypto.MustFastHash(body)
 		tx.ID = &id
 	}
+
 }
 
 func (tx ExchangeV2) GetID() []byte {
@@ -1230,6 +1255,10 @@ type LeaseV2 struct {
 	Lease
 }
 
+func (tx LeaseV2) GetTypeVersion() TransactionTypeVersion {
+	return TransactionTypeVersion{tx.Type, tx.Version}
+}
+
 func (tx *LeaseV2) GenerateID() {
 	if tx.ID == nil {
 		body, err := tx.bodyMarshalBinary()
@@ -1239,6 +1268,7 @@ func (tx *LeaseV2) GenerateID() {
 		id := crypto.MustFastHash(body)
 		tx.ID = &id
 	}
+
 }
 
 func (tx LeaseV2) GetID() []byte {
@@ -1383,6 +1413,10 @@ type LeaseCancelV2 struct {
 	LeaseCancel
 }
 
+func (tx LeaseCancelV2) GetTypeVersion() TransactionTypeVersion {
+	return TransactionTypeVersion{tx.Type, tx.Version}
+}
+
 func (tx *LeaseCancelV2) GenerateID() {
 	if tx.ID == nil {
 		body, err := tx.bodyMarshalBinary()
@@ -1392,6 +1426,7 @@ func (tx *LeaseCancelV2) GenerateID() {
 		id := crypto.MustFastHash(body)
 		tx.ID = &id
 	}
+
 }
 
 func (tx LeaseCancelV2) GetID() []byte {
@@ -1542,6 +1577,10 @@ type CreateAliasV2 struct {
 	CreateAlias
 }
 
+func (tx CreateAliasV2) GetTypeVersion() TransactionTypeVersion {
+	return TransactionTypeVersion{tx.Type, tx.Version}
+}
+
 func (tx *CreateAliasV2) GenerateID() {
 	if tx.ID == nil {
 		id, err := tx.CreateAlias.id()
@@ -1550,6 +1589,7 @@ func (tx *CreateAliasV2) GenerateID() {
 		}
 		tx.ID = id
 	}
+
 }
 
 func (tx CreateAliasV2) GetID() []byte {

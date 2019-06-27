@@ -54,6 +54,9 @@ const (
 	activatedFeaturesKeyPrefix
 	approvedFeaturesKeyPrefix
 	votesFeaturesKeyPrefix
+
+	// Blocks information (fees for now).
+	blocksInfoKeyPrefix
 )
 
 type wavesBalanceKey struct {
@@ -258,4 +261,15 @@ func (k *votesFeaturesKey) unmarshal(data []byte) error {
 		return err
 	}
 	return nil
+}
+
+type blocksInfoKey struct {
+	blockID crypto.Signature
+}
+
+func (k *blocksInfoKey) bytes() []byte {
+	buf := make([]byte, 1+crypto.SignatureSize)
+	buf[0] = blocksInfoKeyPrefix
+	copy(buf[1:], k.blockID[:])
+	return buf
 }

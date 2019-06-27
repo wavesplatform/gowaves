@@ -1,6 +1,7 @@
 package state
 
 import (
+	"fmt"
 	"io/ioutil"
 	"math/big"
 	"net"
@@ -12,6 +13,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/importer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
@@ -113,44 +115,6 @@ func TestValidationWithoutBlocks(t *testing.T) {
 	assert.NoError(t, err, "ApplyFromFile() failed")
 	err = validateTxs(manager, last.Timestamp, txs)
 	assert.NoError(t, err, "validateTxs() failed")
-}
-
-func TestPreactivatedFeatures(t *testing.T) {
-	blocksPath := blocksPath(t)
-	dataDir, err := ioutil.TempDir(os.TempDir(), "dataDir")
-	assert.NoError(t, err, "failed to create dir for test data")
-	// Set preactivated feature.
-	featureID := int16(1)
-	sets := settings.MainNetSettings
-	sets.PreactivatedFeatures = []int16{featureID}
-	manager, err := newStateManager(dataDir, DefaultStateParams(), sets)
-	assert.NoError(t, err, "newStateManager() failed")
-
-	defer func() {
-		err := manager.Close()
-		assert.NoError(t, err, "manager.Close() failed")
-		err = os.RemoveAll(dataDir)
-		assert.NoError(t, err, "failed to remove test data dirs")
-	}()
-
-	// Check features status.
-	activated, err := manager.IsActivated(featureID)
-	assert.NoError(t, err, "IsActivated() failed")
-	assert.Equal(t, true, activated)
-	approved, err := manager.IsApproved(featureID)
-	assert.NoError(t, err, "IsApproved() failed")
-	assert.Equal(t, true, approved)
-	// Apply blocks.
-	height := uint64(75)
-	err = importer.ApplyFromFile(manager, blocksPath, height, 1, false)
-	assert.NoError(t, err, "ApplyFromFile() failed")
-	// Check activation and approval heights.
-	activationHeight, err := manager.ActivationHeight(featureID)
-	assert.NoError(t, err, "ActivationHeight() failed")
-	assert.Equal(t, uint64(1), activationHeight)
-	approvalHeight, err := manager.ApprovalHeight(featureID)
-	assert.NoError(t, err, "ApprovalHeight() failed")
-	assert.Equal(t, uint64(1), approvalHeight)
 }
 
 func TestStateRollback(t *testing.T) {
@@ -323,6 +287,85 @@ func TestStateManager_SavePeers(t *testing.T) {
 	peers2, err := manager.Peers()
 	require.NoError(t, err)
 	assert.Len(t, peers2, 2)
+}
+
+func TestPreactivatedFeatures(t *testing.T) {
+	blocksPath := blocksPath(t)
+	dataDir, err := ioutil.TempDir(os.TempDir(), "dataDir")
+	assert.NoError(t, err, "failed to create dir for test data")
+	// Set preactivated feature.
+	featureID := int16(1)
+	sets := settings.MainNetSettings
+	sets.PreactivatedFeatures = []int16{featureID}
+	manager, err := newStateManager(dataDir, DefaultStateParams(), sets)
+	assert.NoError(t, err, "newStateManager() failed")
+
+	defer func() {
+		err := manager.Close()
+		assert.NoError(t, err, "manager.Close() failed")
+		err = os.RemoveAll(dataDir)
+		assert.NoError(t, err, "failed to remove test data dirs")
+	}()
+
+	// Check features status.
+	activated, err := manager.IsActivated(featureID)
+	assert.NoError(t, err, "IsActivated() failed")
+	assert.Equal(t, true, activated)
+	approved, err := manager.IsApproved(featureID)
+	assert.NoError(t, err, "IsApproved() failed")
+	assert.Equal(t, true, approved)
+	// Apply blocks.
+	height := uint64(75)
+	err = importer.ApplyFromFile(manager, blocksPath, height, 1, false)
+	assert.NoError(t, err, "ApplyFromFile() failed")
+	// Check activation and approval heights.
+	activationHeight, err := manager.ActivationHeight(featureID)
+	assert.NoError(t, err, "ActivationHeight() failed")
+	assert.Equal(t, uint64(1), activationHeight)
+	approvalHeight, err := manager.ApprovalHeight(featureID)
+	assert.NoError(t, err, "ApprovalHeight() failed")
+	assert.Equal(t, uint64(1), approvalHeight)
+}
+
+func TestDisallowDuplicateTxIds(t *testing.T) {
+	blocksPath := blocksPath(t)
+	dataDir, err := ioutil.TempDir(os.TempDir(), "dataDir")
+	assert.NoError(t, err, "failed to create dir for test data")
+	manager, err := newStateManager(dataDir, DefaultStateParams(), settings.MainNetSettings)
+	assert.NoError(t, err, "newStateManager() failed")
+
+	defer func() {
+		err := manager.Close()
+		assert.NoError(t, err, "manager.Close() failed")
+		err = os.RemoveAll(dataDir)
+		assert.NoError(t, err, "failed to remove test data dirs")
+	}()
+
+	// Apply blocks.
+	height := uint64(75)
+	err = importer.ApplyFromFile(manager, blocksPath, height, 1, false)
+	assert.NoError(t, err, "ApplyFromFile() failed")
+	// Now validate tx with ID which is already in the state.
+	sig, err := crypto.NewSignatureFromBase58("2DVtfgXjpMeFf2PQCqvwxAiaGbiDsxDjSdNQkc5JQ74eWxjWFYgwvqzC4dn7iB1AhuM32WxEiVi1SGijsBtYQwn8")
+	assert.NoError(t, err, "NewSignatureFromBase58() failed")
+	addr, err := proto.NewAddressFromString("3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ")
+	assert.NoError(t, err, "NewAddressFromString() failed")
+	tx := &proto.Genesis{
+		Type:      proto.GenesisTransaction,
+		Version:   0,
+		ID:        &sig,
+		Signature: &sig,
+		Timestamp: 1465742577614,
+		Recipient: addr,
+		Amount:    9999999500000000,
+	}
+	expectedErrStr := fmt.Sprintf("transaction with ID %v already in state", tx.GetID())
+	err = manager.ValidateSingleTx(tx, 1460678400000, 1460678400000)
+	assert.Error(t, err, "duplicate transacton ID was accepted by state")
+	assert.EqualError(t, err, expectedErrStr)
+	err = manager.ValidateNextTx(tx, 1460678400000, 1460678400000)
+	assert.Error(t, err, "duplicate transacton ID was accepted by state")
+	assert.EqualError(t, err, expectedErrStr)
 }
 
 func TestStateManager_Mutex(t *testing.T) {

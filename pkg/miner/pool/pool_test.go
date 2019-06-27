@@ -5,11 +5,17 @@ import (
 	"math/rand"
 	"testing"
 	"time"
+
+	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
 type transaction struct {
 	fee uint64
 	id  []byte
+}
+
+func (a transaction) GetTypeVersion() proto.TransactionTypeVersion {
+	panic("implement me")
 }
 
 func (a transaction) GetID() []byte {

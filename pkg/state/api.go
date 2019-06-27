@@ -15,7 +15,7 @@ import (
 // Data retrievals (e.g. account balances), as well as modifiers (like adding or rolling back blocks)
 // should all be made using this interface.
 type State interface {
-	// Global mutex of state
+	// Global mutex of state.
 	Mutex() *sync.RWMutex
 	// Block getters.
 	Block(blockID crypto.Signature) (*proto.Block, error)
@@ -106,16 +106,27 @@ func NewState(dataDir string, params StateParams, settings *settings.BlockchainS
 	return newStateManager(dataDir, params, settings)
 }
 
-// StorageParams are storage parameters, they specify lengths of byte offsets for headers and transactions
-// and Bloom Filter's parameters.
-// Use state.DefaultStorageParams() to create default parameters.
 type StorageParams struct {
-	OffsetLen, HeaderOffsetLen int
-	BloomParams                keyvalue.BloomFilterParams
+	OffsetLen       int
+	HeaderOffsetLen int
+	DbParams        keyvalue.KeyValParams
 }
 
 func DefaultStorageParams() StorageParams {
-	return StorageParams{OffsetLen: 8, HeaderOffsetLen: 8, BloomParams: keyvalue.BloomFilterParams{N: 2e8, FalsePositiveProbability: 0.01}}
+	dbParams := keyvalue.KeyValParams{
+		CacheParams: keyvalue.CacheParams{Size: DefaultCacheSize},
+		BloomFilterParams: keyvalue.BloomFilterParams{
+			N:                        DefaultBloomFilterSize,
+			FalsePositiveProbability: DefaultBloomFilterFalsePostiiveProbability,
+		},
+		WriteBuffer:         DefaultWriteBuffer,
+		CompactionTableSize: DefaultCompactionTableSize,
+	}
+	return StorageParams{
+		OffsetLen:       DefaultOffsetLen,
+		HeaderOffsetLen: DefaultHeaderOffsetLen,
+		DbParams:        dbParams,
+	}
 }
 
 // ValidationParams are validation parameters.

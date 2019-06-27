@@ -8,9 +8,23 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+const (
+	cacheSize           = 100
+	writeBuffer         = 4 * 1024 * 1024
+	sstableSize         = 2 * 1024 * 1024
+	compactionTotalSize = 10 * 1024 * 1024
+)
+
 func TestKeyVal(t *testing.T) {
 	dbDir, err := ioutil.TempDir(os.TempDir(), "dbDir0")
-	kv, err := NewKeyVal(dbDir, BloomFilterParams{n, falsePositiveProbability})
+	params := KeyValParams{
+		CacheParams:         CacheParams{cacheSize},
+		BloomFilterParams:   BloomFilterParams{n, falsePositiveProbability},
+		WriteBuffer:         writeBuffer,
+		CompactionTableSize: sstableSize,
+		CompactionTotalSize: compactionTotalSize,
+	}
+	kv, err := NewKeyVal(dbDir, params)
 	assert.NoError(t, err, "NewKeyVal() failed")
 
 	defer func() {

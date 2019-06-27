@@ -124,7 +124,7 @@ func TestFinishVoting(t *testing.T) {
 	}()
 
 	height := settings.ActivationWindowSize(1)
-	ids := genBlockIds(t, int(height*2))
+	ids := genRandBlockIds(t, int(height*2))
 	for _, id := range ids {
 		to.stor.addBlock(t, id)
 	}

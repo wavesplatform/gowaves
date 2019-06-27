@@ -18,8 +18,6 @@ const (
 	assetBalanceRecordSize = 8 + crypto.SignatureSize
 )
 
-var empty struct{}
-
 type balanceProfile struct {
 	balance  uint64
 	leaseIn  int64

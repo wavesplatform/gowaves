@@ -84,6 +84,7 @@ var (
 
 // Transaction is a set of common transaction functions.
 type Transaction interface {
+	GetTypeVersion() TransactionTypeVersion
 	GetID() []byte
 	Valid() (bool, error)
 	MarshalBinary() ([]byte, error)
@@ -109,7 +110,7 @@ func BytesToTransaction(tx []byte) (Transaction, error) {
 		if err := transaction.UnmarshalBinary(tx); err != nil {
 			return nil, errors.Wrap(err, "failed to unmarshal transaction")
 		}
-		return Transaction(transaction), nil
+		return transaction, nil
 	} else {
 		transactionType, ok := bytesToTransactionsV1[TransactionType(tx[0])]
 		if !ok {
@@ -243,6 +244,10 @@ type Genesis struct {
 	Amount    uint64            `json:"amount"`
 }
 
+func (tx Genesis) GetTypeVersion() TransactionTypeVersion {
+	return TransactionTypeVersion{tx.Type, tx.Version}
+}
+
 func (tx *Genesis) GenerateID() {
 	if tx.ID == nil {
 		body, err := tx.bodyMarshalBinary()
@@ -371,6 +376,10 @@ type Payment struct {
 	Amount    uint64            `json:"amount"`
 	Fee       uint64            `json:"fee"`
 	Timestamp uint64            `json:"timestamp"`
+}
+
+func (tx Payment) GetTypeVersion() TransactionTypeVersion {
+	return TransactionTypeVersion{tx.Type, tx.Version}
 }
 
 func (tx *Payment) GenerateID() {

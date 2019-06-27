@@ -21,6 +21,19 @@ const (
 	minimalEffectiveBalanceForGenerator2 = 100000000000
 )
 
+// Invalid blocks that are already in blockchain.
+var mainNetInvalidBlocks = map[string]uint64{
+	"2GNCYVy7k3kEPXzz12saMtRDeXFKr8cymVsG8Yxx3sZZ75eHj9csfXnGHuuJe7XawbcwjKdifUrV1uMq4ZNCWPf1": 812608,
+	"5uZoDnRKeWZV9Thu2nvJVZ5dBvPB7k2gvpzFD618FMXCbBVBMN2rRyvKBZBhAGnGdgeh2LXEeSr9bJqruJxngsE7": 813207,
+}
+
+func isInvalidMainNetBlock(blockID crypto.Signature, height uint64) bool {
+	if h, ok := mainNetInvalidBlocks[blockID.String()]; ok {
+		return h == height
+	}
+	return false
+}
+
 type stateInfoProvider interface {
 	BlockchainSettings() (*settings.BlockchainSettings, error)
 	HeaderByHeight(height uint64) (*proto.BlockHeader, error)
@@ -117,6 +130,7 @@ func (cv *ConsensusValidator) validateEffectiveBalance(header *proto.BlockHeader
 		if balance < minimalEffectiveBalanceForGenerator2 {
 			return errors.Errorf("generator's effective balance is less than required for generation: expected %d, found %d", minimalEffectiveBalanceForGenerator2, balance)
 		}
+		return nil
 	}
 	if balance < minimalEffectiveBalanceForGenerator1 {
 		return errors.Errorf("generator's effective balance is less than required for generation: expected %d, %d", minimalEffectiveBalanceForGenerator1, balance)
@@ -237,6 +251,9 @@ func (cv *ConsensusValidator) validBlockDelay(height uint64, pk crypto.PublicKey
 }
 
 func (cv *ConsensusValidator) validateBlockDelay(height uint64, header *proto.BlockHeader) error {
+	if cv.settings.Type == settings.MainNet && isInvalidMainNetBlock(header.BlockSignature, height) {
+		return nil
+	}
 	parent, err := cv.headerByHeight(height)
 	if err != nil {
 		return errors.Errorf("failed to get parent by height: %v\n", err)
