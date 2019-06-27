@@ -78,6 +78,22 @@ func NewAddressFromPublicKey(scheme byte, publicKey crypto.PublicKey) (Address, 
 	return a, nil
 }
 
+func RebuildAddress(scheme byte, body []byte) (Address, error) {
+	var a Address
+	a[0] = addressVersion
+	a[1] = scheme
+	if l := len(body); l != bodySize {
+		return Address{}, errors.Errorf("%d is unexpected address' body size", l)
+	}
+	copy(a[headerSize:], body[:bodySize])
+	cs, err := addressChecksum(a[:headerSize+bodySize])
+	if err != nil {
+		return a, errors.Wrap(err, "failed to calculate Address checksum")
+	}
+	copy(a[headerSize+bodySize:], cs)
+	return a, nil
+}
+
 // NewAddressFromString creates an Address from its string representation. This function checks that the address is valid.
 func NewAddressFromString(s string) (Address, error) {
 	var a Address
@@ -307,6 +323,21 @@ func NewRecipientFromAddress(a Address) Recipient {
 // NewRecipientFromAlias creates a Recipient with the given Alias inside.
 func NewRecipientFromAlias(a Alias) Recipient {
 	return Recipient{Alias: &a, len: aliasFixedSize + len(a.Alias)}
+}
+
+func NewRecipientFromString(s string) (Recipient, error) {
+	if strings.Index(s, aliasPrefix) != -1 {
+		a, err := NewAliasFromString(s)
+		if err != nil {
+			return Recipient{}, err
+		}
+		return NewRecipientFromAlias(*a), nil
+	}
+	a, err := NewAddressFromString(s)
+	if err != nil {
+		return Recipient{}, err
+	}
+	return NewRecipientFromAddress(a), nil
 }
 
 // Valid checks that either an Address or an Alias is set then checks the validity of the set field.

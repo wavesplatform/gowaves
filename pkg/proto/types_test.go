@@ -358,6 +358,170 @@ func TestOrderV2ToJSON(t *testing.T) {
 	}
 }
 
+func TestOrderV3Validations(t *testing.T) {
+	aa, err := NewOptionalAssetFromString("8LQW8f7P5d5PZM7GtZEBgaqRPGSzS3DfPuiXrURJ4AJS")
+	require.NoError(t, err)
+	pa, err := NewOptionalAssetFromString("Ft8X1v1LTa1ABafufpaCWyVj8KkaxUWE6xBhW6sNFJck")
+	require.NoError(t, err)
+	fa, err := NewOptionalAssetFromString("2bkjzFqTMM3cQpbgGYKE8r7J73SrXFH8YfxFBRBterLt")
+	require.NoError(t, err)
+	waves, err := NewOptionalAssetFromString("WAVES")
+	require.NoError(t, err)
+	tests := []struct {
+		amountAsset OptionalAsset
+		priceAsset  OptionalAsset
+		orderType   OrderType
+		price       uint64
+		amount      uint64
+		fee         uint64
+		feeAsset    OptionalAsset
+		ts          uint64
+		exp         uint64
+		err         string
+	}{
+		{*aa, *aa, Buy, 1234, 5678, 90, *fa, 1, 1, "invalid asset pair"},
+		{*aa, *pa, Sell, 0, 20, 30, *fa, 1, 1, "price should be positive"},
+		{*aa, *pa, Buy, math.MaxInt64 + 1, 20, 30, *fa, 1, 1, "price is too big"},
+		{*aa, *pa, Sell, 10, 0, 30, *fa, 1, 1, "amount should be positive"},
+		{*aa, *pa, Buy, 10, math.MaxInt64 + 1, 30, *fa, 1, 1, "amount is too big"},
+		{*aa, *pa, Sell, 10, MaxOrderAmount + 1, 30, *fa, 1, 1, "amount is larger than maximum allowed"},
+		{*aa, *pa, Buy, 10, 20, 0, *waves, 1, 1, "matcher's fee should be positive"},
+		{*aa, *pa, Sell, 10, 20, math.MaxInt64 + 2, *fa, 1, 1, "matcher's fee is too big"},
+		{*aa, *pa, Sell, 10, 20, MaxOrderAmount + 1, *fa, 1, 1, "matcher's fee is larger than maximum allowed"},
+		{*aa, *waves, Buy, math.MaxInt64, MaxOrderAmount, 1000, *fa, 1, 1, "spend amount is too large"},
+		{*aa, *waves, Buy, 1, 1, 1000, *fa, 1, 1, "spend amount should be positive"},
+		{*aa, *waves, Sell, math.MaxInt64, MaxOrderAmount, 1000, *fa, 1, 1, "receive amount is too large"},
+		{*aa, *waves, Sell, 1, 1, 1000, *fa, 1, 1, "receive amount should be positive"},
+		{*aa, *waves, Buy, math.MaxInt64 / (100 * PriceConstant), MaxOrderAmount, MaxOrderAmount, *fa, 1, 1, "sum of spend asset amount and matcher fee overflows JVM long"},
+		{*aa, *pa, Sell, 100000000, 20, 30, *waves, 0, 1, "timestamp should be positive"},
+		{*aa, *pa, Sell, 100000000, 20, 30, *waves, 1, 0, "expiration should be positive"},
+	}
+	spk, err := crypto.NewPublicKeyFromBase58("6s3F3S1ZmdJ2B25EqHWgNUSfeHtMaRZJ4RGEB5hgS7QM")
+	require.NoError(t, err)
+	mpk, err := crypto.NewPublicKeyFromBase58("7kPFrHDiGw1rCm7LPszuECwWYL3dMf6iMifLRDJQZMzy")
+	require.NoError(t, err)
+	for _, tc := range tests {
+		o := NewUnsignedOrderV3(spk, mpk, tc.amountAsset, tc.priceAsset, tc.orderType, tc.price, tc.amount, tc.ts, tc.exp, tc.fee, tc.feeAsset)
+		v, err := o.Valid()
+		assert.False(t, v)
+		assert.EqualError(t, err, tc.err)
+	}
+}
+
+func TestOrderV3SigningRoundTrip(t *testing.T) {
+	tests := []struct {
+		seed        string
+		matcher     string
+		amountAsset string
+		priceAsset  string
+		orderType   OrderType
+		amount      uint64
+		price       uint64
+		fee         uint64
+		feeAsset    string
+	}{
+		{"3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc", "7kPFrHDiGw1rCm7LPszuECwWYL3dMf6iMifLRDJQZMzy", "8LQW8f7P5d5PZM7GtZEBgaqRPGSzS3DfPuiXrURJ4AJS", "2bkjzFqTMM3cQpbgGYKE8r7J73SrXFH8YfxFBRBterLt", Sell, 1000, 100, 10, "Ft8X1v1LTa1ABafufpaCWyVj8KkaxUWE6xBhW6sNFJck"},
+		{"3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc", "7kPFrHDiGw1rCm7LPszuECwWYL3dMf6iMifLRDJQZMzy", "WAVES", "2bkjzFqTMM3cQpbgGYKE8r7J73SrXFH8YfxFBRBterLt", Buy, 1, 1, 1, "WAVES"},
+		{"3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc", "7kPFrHDiGw1rCm7LPszuECwWYL3dMf6iMifLRDJQZMzy", "8LQW8f7P5d5PZM7GtZEBgaqRPGSzS3DfPuiXrURJ4AJS", "WAVES", Sell, 2, 2, 2, "Ft8X1v1LTa1ABafufpaCWyVj8KkaxUWE6xBhW6sNFJck"},
+	}
+	for _, tc := range tests {
+		seed, err := base58.Decode(tc.seed)
+		require.NoError(t, err)
+		sk, pk := crypto.GenerateKeyPair(seed)
+		mpk, err := crypto.NewPublicKeyFromBase58(tc.matcher)
+		require.NoError(t, err)
+		aa, err := NewOptionalAssetFromString(tc.amountAsset)
+		require.NoError(t, err)
+		pa, err := NewOptionalAssetFromString(tc.priceAsset)
+		require.NoError(t, err)
+		fa, err := NewOptionalAssetFromString(tc.feeAsset)
+		require.NoError(t, err)
+
+		ts := uint64(time.Now().UnixNano() / 1000000)
+		exp := ts + 100*1000
+		o := NewUnsignedOrderV3(pk, mpk, *aa, *pa, tc.orderType, tc.price, tc.amount, ts, exp, tc.fee, *fa)
+		if err := o.Sign(sk); assert.NoError(t, err) {
+			if r, err := o.Verify(pk); assert.NoError(t, err) {
+				assert.True(t, r)
+			}
+			if b, err := o.MarshalBinary(); assert.NoError(t, err) {
+				var ao OrderV3
+				if err := ao.UnmarshalBinary(b); assert.NoError(t, err) {
+					assert.ElementsMatch(t, *o.ID, *ao.ID)
+					assert.ElementsMatch(t, o.Proofs.Proofs[0], ao.Proofs.Proofs[0])
+					assert.ElementsMatch(t, o.SenderPK, ao.SenderPK)
+					assert.ElementsMatch(t, o.MatcherPK, ao.MatcherPK)
+					assert.Equal(t, o.AssetPair, ao.AssetPair)
+					assert.Equal(t, o.OrderType, ao.OrderType)
+					assert.Equal(t, o.Price, ao.Price)
+					assert.Equal(t, o.Amount, ao.Amount)
+					assert.Equal(t, o.Timestamp, ao.Timestamp)
+					assert.Equal(t, o.Expiration, ao.Expiration)
+					assert.Equal(t, o.MatcherFee, ao.MatcherFee)
+				}
+			}
+		}
+	}
+}
+
+func TestOrderV3ToJSON(t *testing.T) {
+	tests := []struct {
+		seed        string
+		matcher     string
+		amountAsset string
+		priceAsset  string
+		orderType   OrderType
+		amount      uint64
+		price       uint64
+		fee         uint64
+		feeAsset    string
+	}{
+		{"3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc", "7kPFrHDiGw1rCm7LPszuECwWYL3dMf6iMifLRDJQZMzy", "8LQW8f7P5d5PZM7GtZEBgaqRPGSzS3DfPuiXrURJ4AJS", "2bkjzFqTMM3cQpbgGYKE8r7J73SrXFH8YfxFBRBterLt", Sell, 1000, 100, 10, "Ft8X1v1LTa1ABafufpaCWyVj8KkaxUWE6xBhW6sNFJck"},
+		{"3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc", "7kPFrHDiGw1rCm7LPszuECwWYL3dMf6iMifLRDJQZMzy", "WAVES", "2bkjzFqTMM3cQpbgGYKE8r7J73SrXFH8YfxFBRBterLt", Buy, 1, 1, 1, "WAVES"},
+		{"3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc", "7kPFrHDiGw1rCm7LPszuECwWYL3dMf6iMifLRDJQZMzy", "8LQW8f7P5d5PZM7GtZEBgaqRPGSzS3DfPuiXrURJ4AJS", "WAVES", Sell, 2, 2, 2, "Ft8X1v1LTa1ABafufpaCWyVj8KkaxUWE6xBhW6sNFJck"},
+	}
+	for _, tc := range tests {
+		seed, err := base58.Decode(tc.seed)
+		require.NoError(t, err)
+		sk, pk := crypto.GenerateKeyPair(seed)
+		mpk, err := crypto.NewPublicKeyFromBase58(tc.matcher)
+		require.NoError(t, err)
+		aa, err := NewOptionalAssetFromString(tc.amountAsset)
+		require.NoError(t, err)
+		pa, err := NewOptionalAssetFromString(tc.priceAsset)
+		require.NoError(t, err)
+		fa, err := NewOptionalAssetFromString(tc.feeAsset)
+		require.NoError(t, err)
+		ts := uint64(time.Now().UnixNano() / 1000000)
+		aas := "null"
+		if aa.Present {
+			aas = fmt.Sprintf("\"%s\"", aa.ID.String())
+		}
+		pas := "null"
+		if pa.Present {
+			pas = fmt.Sprintf("\"%s\"", pa.ID.String())
+		}
+		fas := "null"
+		if fa.Present {
+			fas = fmt.Sprintf("\"%s\"", fa.ID.String())
+		}
+		exp := ts + 100*1000
+		o := NewUnsignedOrderV3(pk, mpk, *aa, *pa, tc.orderType, tc.price, tc.amount, ts, exp, tc.fee, *fa)
+		if j, err := json.Marshal(o); assert.NoError(t, err) {
+			ej := fmt.Sprintf("{\"version\":3,\"matcherFeeAssetId\":%s,\"senderPublicKey\":\"%s\",\"matcherPublicKey\":\"%s\",\"assetPair\":{\"amountAsset\":%s,\"priceAsset\":%s},\"orderType\":\"%s\",\"price\":%d,\"amount\":%d,\"timestamp\":%d,\"expiration\":%d,\"matcherFee\":%d}",
+				fas, base58.Encode(pk[:]), tc.matcher, aas, pas, tc.orderType.String(), tc.price, tc.amount, ts, exp, tc.fee)
+			assert.Equal(t, ej, string(j))
+			if err := o.Sign(sk); assert.NoError(t, err) {
+				if j, err := json.Marshal(o); assert.NoError(t, err) {
+					ej := fmt.Sprintf("{\"version\":3,\"id\":\"%s\",\"proofs\":[\"%s\"],\"matcherFeeAssetId\":%s,\"senderPublicKey\":\"%s\",\"matcherPublicKey\":\"%s\",\"assetPair\":{\"amountAsset\":%s,\"priceAsset\":%s},\"orderType\":\"%s\",\"price\":%d,\"amount\":%d,\"timestamp\":%d,\"expiration\":%d,\"matcherFee\":%d}",
+						base58.Encode(o.ID[:]), base58.Encode(o.Proofs.Proofs[0]), fas, base58.Encode(pk[:]), tc.matcher, aas, pas, tc.orderType.String(), tc.price, tc.amount, ts, exp, tc.fee)
+					assert.Equal(t, ej, string(j))
+				}
+			}
+		}
+	}
+}
+
 func TestIntegerDataEntryBinaryRoundTrip(t *testing.T) {
 	tests := []struct {
 		key   string
@@ -376,7 +540,7 @@ func TestIntegerDataEntryBinaryRoundTrip(t *testing.T) {
 				assert.Equal(t, tc.key, av.Key)
 				assert.Equal(t, tc.key, av.GetKey())
 				assert.Equal(t, tc.value, av.Value)
-				assert.Equal(t, Integer, av.GetValueType())
+				assert.Equal(t, DataInteger, av.GetValueType())
 			}
 		}
 	}
@@ -403,7 +567,7 @@ func TestIntegerDataEntryJSONRoundTrip(t *testing.T) {
 				assert.Equal(t, tc.key, av.Key)
 				assert.Equal(t, tc.key, av.GetKey())
 				assert.Equal(t, tc.value, av.Value)
-				assert.Equal(t, Integer, av.GetValueType())
+				assert.Equal(t, DataInteger, av.GetValueType())
 			}
 		}
 	}
@@ -427,7 +591,7 @@ func TestBooleanDataEntryBinaryRoundTrip(t *testing.T) {
 				assert.Equal(t, tc.key, av.Key)
 				assert.Equal(t, tc.key, av.GetKey())
 				assert.Equal(t, tc.value, av.Value)
-				assert.Equal(t, Boolean, av.GetValueType())
+				assert.Equal(t, DataBoolean, av.GetValueType())
 			}
 		}
 	}
@@ -454,7 +618,7 @@ func TestBooleanDataEntryJSONRoundTrip(t *testing.T) {
 				assert.Equal(t, tc.key, av.Key)
 				assert.Equal(t, tc.key, av.GetKey())
 				assert.Equal(t, tc.value, av.Value)
-				assert.Equal(t, Boolean, av.GetValueType())
+				assert.Equal(t, DataBoolean, av.GetValueType())
 			}
 		}
 	}
@@ -479,7 +643,7 @@ func TestBinaryDataEntryBinaryRoundTrip(t *testing.T) {
 				assert.Equal(t, tc.key, av.Key)
 				assert.Equal(t, tc.key, av.GetKey())
 				assert.ElementsMatch(t, bv, av.Value)
-				assert.Equal(t, Binary, av.GetValueType())
+				assert.Equal(t, DataBinary, av.GetValueType())
 			}
 		}
 	}
@@ -508,7 +672,7 @@ func TestBinaryDataEntryJSONRoundTrip(t *testing.T) {
 				assert.Equal(t, tc.key, av.Key)
 				assert.Equal(t, tc.key, av.GetKey())
 				assert.ElementsMatch(t, bv, av.Value)
-				assert.Equal(t, Binary, av.GetValueType())
+				assert.Equal(t, DataBinary, av.GetValueType())
 			}
 		}
 	}
@@ -532,7 +696,7 @@ func TestStringDataEntryBinaryRoundTrip(t *testing.T) {
 				assert.Equal(t, tc.key, av.Key)
 				assert.Equal(t, tc.key, av.GetKey())
 				assert.Equal(t, tc.value, av.Value)
-				assert.Equal(t, String, av.GetValueType())
+				assert.Equal(t, DataString, av.GetValueType())
 			}
 		}
 	}
@@ -559,7 +723,7 @@ func TestStringDataEntryJSONRoundTrip(t *testing.T) {
 				assert.Equal(t, tc.key, av.Key)
 				assert.Equal(t, tc.key, av.GetKey())
 				assert.Equal(t, tc.value, av.Value)
-				assert.Equal(t, String, av.GetValueType())
+				assert.Equal(t, DataString, av.GetValueType())
 			}
 		}
 	}
@@ -724,7 +888,7 @@ func TestBooleanArgumentBinarySize(t *testing.T) {
 	tests := []bool{true, false}
 	for _, tc := range tests {
 		v := BooleanArgument{tc}
-		assert.Equal(t, 2, v.binarySize())
+		assert.Equal(t, 1, v.binarySize())
 	}
 }
 
@@ -754,7 +918,7 @@ func TestIntegerArgumentBinaryRoundTrip(t *testing.T) {
 			var av IntegerArgument
 			if err := av.UnmarshalBinary(b); assert.NoError(t, err) {
 				assert.Equal(t, tc, av.Value)
-				assert.Equal(t, Integer, av.GetValueType())
+				assert.Equal(t, ArgumentInteger, av.GetValueType())
 			}
 		}
 	}
@@ -771,7 +935,7 @@ func TestIntegerArgumentJSONRoundTrip(t *testing.T) {
 			var av IntegerArgument
 			if err := av.UnmarshalJSON(b); assert.NoError(t, err) {
 				assert.Equal(t, tc, av.Value)
-				assert.Equal(t, Integer, av.GetValueType())
+				assert.Equal(t, ArgumentInteger, av.GetValueType())
 			}
 		}
 	}
@@ -785,7 +949,7 @@ func TestBooleanArgumentBinaryRoundTrip(t *testing.T) {
 			var av BooleanArgument
 			if err := av.UnmarshalBinary(b); assert.NoError(t, err) {
 				assert.Equal(t, tc, av.Value)
-				assert.Equal(t, Boolean, av.GetValueType())
+				assert.Equal(t, ArgumentBoolean, av.GetValueType())
 			}
 		}
 	}
@@ -802,7 +966,7 @@ func TestBooleanArgumentJSONRoundTrip(t *testing.T) {
 			var av BooleanArgument
 			if err := av.UnmarshalJSON(b); assert.NoError(t, err) {
 				assert.Equal(t, tc, av.Value)
-				assert.Equal(t, Boolean, av.GetValueType())
+				assert.Equal(t, ArgumentBoolean, av.GetValueType())
 			}
 		}
 	}
@@ -817,7 +981,7 @@ func TestBinaryArgumentBinaryRoundTrip(t *testing.T) {
 			var av BinaryArgument
 			if err := av.UnmarshalBinary(b); assert.NoError(t, err) {
 				assert.ElementsMatch(t, bv, av.Value)
-				assert.Equal(t, Binary, av.GetValueType())
+				assert.Equal(t, ArgumentBinary, av.GetValueType())
 			}
 		}
 	}
@@ -837,7 +1001,7 @@ func TestBinaryArgumentJSONRoundTrip(t *testing.T) {
 			var av BinaryArgument
 			if err := av.UnmarshalJSON(b); assert.NoError(t, err) {
 				assert.ElementsMatch(t, bv, av.Value)
-				assert.Equal(t, Binary, av.GetValueType())
+				assert.Equal(t, ArgumentBinary, av.GetValueType())
 			}
 		}
 	}
@@ -851,7 +1015,7 @@ func TestStringArgumentBinaryRoundTrip(t *testing.T) {
 			var av StringArgument
 			if err := av.UnmarshalBinary(b); assert.NoError(t, err) {
 				assert.Equal(t, tc, av.Value)
-				assert.Equal(t, String, av.GetValueType())
+				assert.Equal(t, ArgumentString, av.GetValueType())
 			}
 		}
 	}
@@ -868,7 +1032,7 @@ func TestStringArgumentJSONRoundTrip(t *testing.T) {
 			var av StringArgument
 			if err := av.UnmarshalJSON(b); assert.NoError(t, err) {
 				assert.Equal(t, tc, av.Value)
-				assert.Equal(t, String, av.GetValueType())
+				assert.Equal(t, ArgumentString, av.GetValueType())
 			}
 		}
 	}

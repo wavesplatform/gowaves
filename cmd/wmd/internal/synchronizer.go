@@ -3,15 +3,15 @@ package internal
 import (
 	"bytes"
 	"context"
+	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/cmd/wmd/internal/data"
 	"github.com/wavesplatform/gowaves/cmd/wmd/internal/state"
-	"github.com/wavesplatform/gowaves/pkg/client"
+	client "github.com/wavesplatform/gowaves/pkg/client/grpc"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
-	"net/http"
-	"net/url"
+	"google.golang.org/grpc"
 	"strings"
 	"time"
 )
@@ -19,7 +19,7 @@ import (
 type Synchronizer struct {
 	interrupt <-chan struct{}
 	done      chan struct{}
-	client    *client.Client
+	conn      *grpc.ClientConn
 	log       *zap.SugaredLogger
 	storage   *state.Storage
 	scheme    byte
@@ -28,8 +28,8 @@ type Synchronizer struct {
 	lag       int
 }
 
-func NewSynchronizer(interrupt <-chan struct{}, log *zap.SugaredLogger, storage *state.Storage, scheme byte, matcher crypto.PublicKey, node url.URL, interval int, lag int) (*Synchronizer, error) {
-	c, err := client.NewClient(client.Options{BaseUrl: node.String(), Client: &http.Client{}})
+func NewSynchronizer(interrupt <-chan struct{}, log *zap.SugaredLogger, storage *state.Storage, scheme byte, matcher crypto.PublicKey, node string, interval int, lag int) (*Synchronizer, error) {
+	conn, err := grpc.Dial(node, grpc.WithInsecure())
 	if err != nil {
 		return nil, errors.Wrapf(err, "Failed to create new synchronizer")
 	}
@@ -37,7 +37,7 @@ func NewSynchronizer(interrupt <-chan struct{}, log *zap.SugaredLogger, storage 
 	t := time.NewTicker(d)
 	log.Infof("Synchronization interval set to %v", d)
 	done := make(chan struct{})
-	s := Synchronizer{interrupt: interrupt, done: done, client: c, log: log, storage: storage, scheme: scheme, matcher: matcher, ticker: t, lag: lag}
+	s := Synchronizer{interrupt: interrupt, done: done, conn: conn, log: log, storage: storage, scheme: scheme, matcher: matcher, ticker: t, lag: lag}
 	go s.run()
 	return &s, nil
 }
@@ -73,7 +73,7 @@ func (s *Synchronizer) synchronize() {
 	rh, err := s.nodeHeight()
 	rh = rh - s.lag
 	if err != nil {
-		s.log.Error("Failed to synchronize with node", err)
+		s.log.Errorf("Failed to synchronize with node: %v", err)
 		return
 	}
 	lh, err := s.storage.Height()
@@ -119,11 +119,15 @@ func (s *Synchronizer) applyBlocks(start, end int) error {
 		if s.interrupted() {
 			return errors.New("synchronization was interrupted")
 		}
-		b, err := s.nodeBlock(h)
+		header, txs, err := s.nodeBlock(h)
 		if err != nil {
 			return err
 		}
-		err = s.applyBlock(h, b.Signature, b.Transactions, int(b.TransactionCount), b.Generator)
+		addr, err := proto.NewAddressFromPublicKey(s.scheme, header.GenPublicKey)
+		if err != nil {
+			return err
+		}
+		err = s.applyBlock(h, header.BlockSignature, txs, int(len(txs)), addr)
 		if err != nil {
 			return err
 		}
@@ -133,7 +137,7 @@ func (s *Synchronizer) applyBlocks(start, end int) error {
 
 var emptySignature = crypto.Signature{}
 
-func (s *Synchronizer) applyBlock(height int, id crypto.Signature, txs client.TransactionsField, count int, miner proto.Address) error {
+func (s *Synchronizer) applyBlock(height int, id crypto.Signature, txs []proto.Transaction, count int, miner proto.Address) error {
 	if bytes.Equal(id[:], emptySignature[:]) {
 		return errors.Errorf("Empty block signature at height: %d", height)
 	}
@@ -156,31 +160,47 @@ func (s *Synchronizer) applyBlock(height int, id crypto.Signature, txs client.Tr
 func (s *Synchronizer) nodeHeight() (int, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-	bh, _, err := s.client.Blocks.Height(ctx)
+
+	c := client.NewBlocksApiClient(s.conn)
+	h, err := c.GetCurrentHeight(ctx, &empty.Empty{}, grpc.EmptyCallOption{})
 	if err != nil {
 		return 0, err
 	}
-	return int(bh.Height), nil
+	return int(h.Value), nil
+}
+
+func (s *Synchronizer) block(height int, full bool) (*client.BlockWithHeight, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	return client.NewBlocksApiClient(s.conn).GetBlock(ctx, &client.BlockRequest{IncludeTransactions: full, Request: &client.BlockRequest_Height{Height: int32(height)}}, grpc.EmptyCallOption{})
 }
 
 func (s *Synchronizer) nodeBlockSignature(height int) (crypto.Signature, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	header, _, err := s.client.Blocks.HeadersAt(ctx, uint64(height))
+	cnv := client.SafeConverter{}
+	res, err := s.block(height, false)
 	if err != nil {
 		return crypto.Signature{}, err
 	}
-	return header.Signature, nil
+	header, err := cnv.BlockHeader(res)
+	if err != nil {
+		return crypto.Signature{}, err
+	}
+	return header.BlockSignature, nil
 }
 
-func (s *Synchronizer) nodeBlock(height int) (*client.Block, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	block, _, err := s.client.Blocks.At(ctx, uint64(height))
+func (s *Synchronizer) nodeBlock(height int) (proto.BlockHeader, []proto.Transaction, error) {
+	cnv := client.SafeConverter{}
+	res, err := s.block(height, true)
 	if err != nil {
-		return nil, err
+		return proto.BlockHeader{}, nil, err
 	}
-	return block, nil
+	header, err := cnv.BlockHeader(res)
+	if err != nil {
+		return proto.BlockHeader{}, nil, err
+	}
+	cnv.Reset()
+	txs, err := cnv.BlockTransactions(res)
+	return header, txs, nil
 }
 
 func (s *Synchronizer) findLastCommonHeight(start, stop int) (int, error) {
@@ -220,7 +240,7 @@ func (s *Synchronizer) equalSignatures(height int) (bool, error) {
 	return bytes.Equal(rbs[:], lbs[:]), nil
 }
 
-func (s *Synchronizer) extractTransactions(txs client.TransactionsField, miner proto.Address) ([]data.Trade, []data.IssueChange, []data.AssetChange, []data.AccountChange, []data.AliasBind, error) {
+func (s *Synchronizer) extractTransactions(txs []proto.Transaction, miner proto.Address) ([]data.Trade, []data.IssueChange, []data.AssetChange, []data.AccountChange, []data.AliasBind, error) {
 	wrapErr := func(err error, transaction string) error {
 		return errors.Wrapf(err, "failed to extract %s transaction", transaction)
 	}

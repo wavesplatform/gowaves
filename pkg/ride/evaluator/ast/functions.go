@@ -998,25 +998,25 @@ func NativeToBse64String(s Scope, e Exprs) (Expr, error) {
 
 // Get integer from data of DataTransaction
 func NativeDataLongFromArray(s Scope, e Exprs) (Expr, error) {
-	return dataFromArray("NativeDataLongFromArray", s, e, proto.Integer)
+	return dataFromArray("NativeDataLongFromArray", s, e, proto.DataInteger)
 }
 
 // Get boolean from data of DataTransaction
 func NativeDataBooleanFromArray(s Scope, e Exprs) (Expr, error) {
-	return dataFromArray("NativeDataBooleanFromArray", s, e, proto.Boolean)
+	return dataFromArray("NativeDataBooleanFromArray", s, e, proto.DataBoolean)
 }
 
 // Get string from data of DataTransaction
 func NativeDataStringFromArray(s Scope, e Exprs) (Expr, error) {
-	return dataFromArray("NativeDataBooleanFromArray", s, e, proto.String)
+	return dataFromArray("NativeDataBooleanFromArray", s, e, proto.DataString)
 }
 
 // Get bytes from data of DataTransaction
 func NativeDataBinaryFromArray(s Scope, e Exprs) (Expr, error) {
-	return dataFromArray("NativeDataBooleanFromArray", s, e, proto.Binary)
+	return dataFromArray("NativeDataBooleanFromArray", s, e, proto.DataBinary)
 }
 
-func dataFromArray(funcName string, s Scope, e Exprs, valueType proto.ValueType) (Expr, error) {
+func dataFromArray(funcName string, s Scope, e Exprs, valueType proto.DataValueType) (Expr, error) {
 	if l := len(e); l != 2 {
 		return nil, errors.Errorf("%s: invalid params, expected 2, passed %d", funcName, l)
 	}
@@ -1046,25 +1046,25 @@ func dataFromArray(funcName string, s Scope, e Exprs, valueType proto.ValueType)
 
 // Get integer from account state
 func NativeDataLongFromState(s Scope, e Exprs) (Expr, error) {
-	return dataFromState("NativeDataLongFromState", s, e, proto.Integer)
+	return dataFromState("NativeDataLongFromState", s, e, proto.DataInteger)
 }
 
 // Get bool from account state
 func NativeDataBooleanFromState(s Scope, e Exprs) (Expr, error) {
-	return dataFromState("NativeDataBooleanFromState", s, e, proto.Boolean)
+	return dataFromState("NativeDataBooleanFromState", s, e, proto.DataBoolean)
 }
 
 // Get bytes from account state
 func NativeDataBytesFromState(s Scope, e Exprs) (Expr, error) {
-	return dataFromState("NativeDataBytesFromState", s, e, proto.Binary)
+	return dataFromState("NativeDataBytesFromState", s, e, proto.DataBinary)
 }
 
 // Get string from account state
 func NativeDataStringFromState(s Scope, e Exprs) (Expr, error) {
-	return dataFromState("NativeDataStringFromState", s, e, proto.String)
+	return dataFromState("NativeDataStringFromState", s, e, proto.DataString)
 }
 
-func dataFromState(funcName string, s Scope, e Exprs, valueType proto.ValueType) (Expr, error) {
+func dataFromState(funcName string, s Scope, e Exprs, valueType proto.DataValueType) (Expr, error) {
 	if l := len(e); l != 2 {
 		return nil, errors.Errorf("%s: invalid params, expected 2, passed %d", funcName, l)
 	}
@@ -1301,7 +1301,7 @@ func UserUnaryNot(s Scope, e Exprs) (Expr, error) {
 	return NewBoolean(!boolExpr.Value), nil
 }
 
-func dataFromArrayByIndex(funcName string, s Scope, e Exprs, valueType proto.ValueType) (Expr, error) {
+func dataFromArrayByIndex(funcName string, s Scope, e Exprs, valueType proto.DataValueType) (Expr, error) {
 	if l := len(e); l != 2 {
 		return nil, errors.Errorf("%s: invalid params, expected 2, passed %d", funcName, l)
 	}
@@ -1331,22 +1331,22 @@ func dataFromArrayByIndex(funcName string, s Scope, e Exprs, valueType proto.Val
 
 func UserDataIntegerFromArrayByIndex(s Scope, e Exprs) (Expr, error) {
 	funcName := "UserDataIntegerFromArrayByIndex"
-	return dataFromArrayByIndex(funcName, s, e, proto.Integer)
+	return dataFromArrayByIndex(funcName, s, e, proto.DataInteger)
 }
 
 func UserDataBooleanFromArrayByIndex(s Scope, e Exprs) (Expr, error) {
 	funcName := "UserDataBooleanFromArrayByIndex"
-	return dataFromArrayByIndex(funcName, s, e, proto.Boolean)
+	return dataFromArrayByIndex(funcName, s, e, proto.DataBoolean)
 }
 
 func UserDataBinaryFromArrayByIndex(s Scope, e Exprs) (Expr, error) {
 	funcName := "UserDataBinaryFromArrayByIndex"
-	return dataFromArrayByIndex(funcName, s, e, proto.Binary)
+	return dataFromArrayByIndex(funcName, s, e, proto.DataBinary)
 }
 
 func UserDataStringFromArrayByIndex(s Scope, e Exprs) (Expr, error) {
 	funcName := "UserDataStringFromArrayByIndex"
-	return dataFromArrayByIndex(funcName, s, e, proto.String)
+	return dataFromArrayByIndex(funcName, s, e, proto.DataString)
 }
 
 func UserAddressFromPublicKey(s Scope, e Exprs) (Expr, error) {

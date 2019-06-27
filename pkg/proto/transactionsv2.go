@@ -43,6 +43,18 @@ func (tx IssueV2) GetTypeVersion() TransactionTypeVersion {
 	return TransactionTypeVersion{tx.Type, tx.Version}
 }
 
+func (tx *IssueV2) GenerateID() {
+	if tx.ID == nil {
+		body, err := tx.bodyMarshalBinary()
+		if err != nil {
+			panic(err.Error())
+		}
+		id := crypto.MustFastHash(body)
+		tx.ID = &id
+	}
+
+}
+
 func (tx IssueV2) GetID() []byte {
 	return tx.ID.Bytes()
 }
@@ -267,6 +279,18 @@ func (tx TransferV2) GetTypeVersion() TransactionTypeVersion {
 	return TransactionTypeVersion{tx.Type, tx.Version}
 }
 
+func (tx *TransferV2) GenerateID() {
+	if tx.ID == nil {
+		body, err := tx.BodyMarshalBinary()
+		if err != nil {
+			panic(err.Error())
+		}
+		id := crypto.MustFastHash(body)
+		tx.ID = &id
+	}
+
+}
+
 func (tx TransferV2) GetID() []byte {
 	return tx.ID.Bytes()
 }
@@ -433,6 +457,18 @@ func (tx ReissueV2) GetTypeVersion() TransactionTypeVersion {
 	return TransactionTypeVersion{tx.Type, tx.Version}
 }
 
+func (tx *ReissueV2) GenerateID() {
+	if tx.ID == nil {
+		body, err := tx.bodyMarshalBinary()
+		if err != nil {
+			panic(err.Error())
+		}
+		id := crypto.MustFastHash(body)
+		tx.ID = &id
+	}
+
+}
+
 func (tx ReissueV2) GetID() []byte {
 	return tx.ID.Bytes()
 }
@@ -586,6 +622,18 @@ type BurnV2 struct {
 
 func (tx BurnV2) GetTypeVersion() TransactionTypeVersion {
 	return TransactionTypeVersion{tx.Type, tx.Version}
+}
+
+func (tx *BurnV2) GenerateID() {
+	if tx.ID == nil {
+		body, err := tx.bodyMarshalBinary()
+		if err != nil {
+			panic(err.Error())
+		}
+		id := crypto.MustFastHash(body)
+		tx.ID = &id
+	}
+
 }
 
 func (tx BurnV2) GetID() []byte {
@@ -749,6 +797,18 @@ func (tx ExchangeV2) GetTypeVersion() TransactionTypeVersion {
 	return TransactionTypeVersion{tx.Type, tx.Version}
 }
 
+func (tx *ExchangeV2) GenerateID() {
+	if tx.ID == nil {
+		body, err := tx.bodyMarshalBinary()
+		if err != nil {
+			panic(err.Error())
+		}
+		id := crypto.MustFastHash(body)
+		tx.ID = &id
+	}
+
+}
+
 func (tx ExchangeV2) GetID() []byte {
 	return tx.ID.Bytes()
 }
@@ -906,6 +966,22 @@ func (tx *ExchangeV2) marshalAsOrderV2(order Order) ([]byte, error) {
 	return buf, nil
 }
 
+func (tx *ExchangeV2) marshalAsOrderV3(order Order) ([]byte, error) {
+	o, ok := order.(OrderV3)
+	if !ok {
+		return nil, errors.New("failed to cast an order with version 3 to OrderV3")
+	}
+	b, err := o.MarshalBinary()
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to marshal OrderV3 to bytes")
+	}
+	l := len(b)
+	buf := make([]byte, 4+l)
+	binary.BigEndian.PutUint32(buf, uint32(l))
+	copy(buf[4:], b)
+	return buf, nil
+}
+
 func (tx *ExchangeV2) bodyMarshalBinary() ([]byte, error) {
 	var bob []byte
 	var sob []byte
@@ -915,6 +991,8 @@ func (tx *ExchangeV2) bodyMarshalBinary() ([]byte, error) {
 		bob, err = tx.marshalAsOrderV1(tx.BuyOrder)
 	case 2:
 		bob, err = tx.marshalAsOrderV2(tx.BuyOrder)
+	case 3:
+		bob, err = tx.marshalAsOrderV3(tx.BuyOrder)
 	default:
 		err = errors.Errorf("invalid BuyOrder version %d", tx.BuyOrder.GetVersion())
 	}
@@ -927,6 +1005,8 @@ func (tx *ExchangeV2) bodyMarshalBinary() ([]byte, error) {
 		sob, err = tx.marshalAsOrderV1(tx.SellOrder)
 	case 2:
 		sob, err = tx.marshalAsOrderV2(tx.SellOrder)
+	case 3:
+		sob, err = tx.marshalAsOrderV3(tx.SellOrder)
 	default:
 		err = errors.Errorf("invalid SellOrder version %d", tx.SellOrder.GetVersion())
 	}
@@ -1179,6 +1259,18 @@ func (tx LeaseV2) GetTypeVersion() TransactionTypeVersion {
 	return TransactionTypeVersion{tx.Type, tx.Version}
 }
 
+func (tx *LeaseV2) GenerateID() {
+	if tx.ID == nil {
+		body, err := tx.bodyMarshalBinary()
+		if err != nil {
+			panic(err.Error())
+		}
+		id := crypto.MustFastHash(body)
+		tx.ID = &id
+	}
+
+}
+
 func (tx LeaseV2) GetID() []byte {
 	return tx.ID.Bytes()
 }
@@ -1323,6 +1415,18 @@ type LeaseCancelV2 struct {
 
 func (tx LeaseCancelV2) GetTypeVersion() TransactionTypeVersion {
 	return TransactionTypeVersion{tx.Type, tx.Version}
+}
+
+func (tx *LeaseCancelV2) GenerateID() {
+	if tx.ID == nil {
+		body, err := tx.bodyMarshalBinary()
+		if err != nil {
+			panic(err.Error())
+		}
+		id := crypto.MustFastHash(body)
+		tx.ID = &id
+	}
+
 }
 
 func (tx LeaseCancelV2) GetID() []byte {
@@ -1475,6 +1579,17 @@ type CreateAliasV2 struct {
 
 func (tx CreateAliasV2) GetTypeVersion() TransactionTypeVersion {
 	return TransactionTypeVersion{tx.Type, tx.Version}
+}
+
+func (tx *CreateAliasV2) GenerateID() {
+	if tx.ID == nil {
+		id, err := tx.CreateAlias.id()
+		if err != nil {
+			panic(err.Error())
+		}
+		tx.ID = id
+	}
+
 }
 
 func (tx CreateAliasV2) GetID() []byte {
