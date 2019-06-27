@@ -44,28 +44,28 @@ func run() error {
 	flag.Parse()
 
 	// Set up log
-	logger, log := setupLogger(*logLevel)
+	logger, _ := setupLogger(*logLevel)
 	defer func() {
 		err := logger.Sync()
 		if err != nil && err == os.ErrInvalid {
-			log.Fatalf("Failed to close logging subsystem: %s", err.Error())
+			panic(fmt.Sprintf("Failed to close logging subsystem: %v\n", err))
 		}
 	}()
 
 	// Get a channel that will be closed on shutdown signals (CTRL-C) or shutdown request
-	interrupt := interruptListener(log)
-	defer log.Info("Shutdown complete")
+	interrupt := interruptListener()
+	defer zap.S().Info("Shutdown complete")
 
-	log.Infof("Waves Market Data (WMD) version %s", version)
+	zap.S().Infof("Waves Market Data (WMD) version %s", version)
 
 	// Enable http profiling server if requested
 	if *profilerPort != 0 {
 		go func() {
 			listenAddr := fmt.Sprintf(":%d", *profilerPort)
-			log.Infof("Profile server listening on %s", listenAddr)
+			zap.S().Infof("Profile server listening on %s", listenAddr)
 			profileRedirect := http.RedirectHandler("/debug/pprof", http.StatusSeeOther)
 			http.Handle("/", profileRedirect)
-			log.Errorf("%v", http.ListenAndServe(listenAddr, nil))
+			zap.S().Errorf("%v", http.ListenAndServe(listenAddr, nil))
 		}()
 	}
 
@@ -73,33 +73,33 @@ func run() error {
 	if *cpuProfileFile != "" {
 		f, err := os.Create(*cpuProfileFile)
 		if err != nil {
-			log.Errorf("Unable to create CPU profile: %v", err)
+			zap.S().Errorf("Unable to create CPU profile: %v", err)
 			return err
 		}
 		err = pprof.StartCPUProfile(f)
 		if err != nil {
-			log.Errorf("Failed to start CPU profiling: %v", err)
+			zap.S().Errorf("Failed to start CPU profiling: %v", err)
 			return err
 		}
 		defer func() {
 			pprof.StopCPUProfile()
 			err := f.Close()
 			if err != nil {
-				log.Errorf("Failed to close CPU profile file: %v", err)
+				zap.S().Errorf("Failed to close CPU profile file: %v", err)
 			}
 		}()
 	}
 
 	if len(*scheme) != 1 {
 		err := errors.Errorf("incorrect blockchain scheme '%s', expected one character", *scheme)
-		log.Errorf("Invalid configuration: %v", err)
+		zap.S().Errorf("Invalid configuration: %v", err)
 		return err
 	}
 	sch := (byte)((*scheme)[0])
 
 	if *node == "" {
 		err := errors.New("empty node address")
-		log.Errorf("Failed to parse node's API address: %s", err.Error())
+		zap.S().Errorf("Failed to parse node's API address: %s", err.Error())
 		return err
 	}
 	if *interval <= 0 {
@@ -111,23 +111,23 @@ func run() error {
 
 	if *db == "" {
 		err := errors.Errorf("no database path")
-		log.Errorf("Invalid configuration: %v", err)
+		zap.S().Errorf("Invalid configuration: %v", err)
 		return err
 	}
 
 	storage := state.Storage{Path: *db, Scheme: sch}
 	err := storage.Open()
 	if err != nil {
-		log.Errorf("Failed to open the storage: %v", err)
+		zap.S().Errorf("Failed to open the storage: %v", err)
 		return err
 	}
 	defer func() {
-		log.Info("Closing the storage...")
+		zap.S().Info("Closing the storage...")
 		err := storage.Close()
 		if err != nil {
-			log.Errorf("Failed to close the storage: %v", err)
+			zap.S().Errorf("Failed to close the storage: %v", err)
 		}
-		log.Info("Storage closed")
+		zap.S().Info("Storage closed")
 	}()
 
 	if interruptRequested(interrupt) {
@@ -135,19 +135,19 @@ func run() error {
 	}
 
 	if *rollback != 0 {
-		log.Infof("Rollback to height %d was requested, rolling back...", *rollback)
+		zap.S().Infof("Rollback to height %d was requested, rolling back...", *rollback)
 		rh, err := storage.SafeRollbackHeight(*rollback)
 		if err != nil {
-			log.Errorf("Failed to find the correct height of rollback: %v", err)
+			zap.S().Errorf("Failed to find the correct height of rollback: %v", err)
 			return nil
 		}
-		log.Infof("Nearest correct height of rollback: %d", rh)
+		zap.S().Infof("Nearest correct height of rollback: %d", rh)
 		err = storage.Rollback(rh)
 		if err != nil {
-			log.Errorf("Failed to rollback to height %d: %v", rh, err)
+			zap.S().Errorf("Failed to rollback to height %d: %v", rh, err)
 			return nil
 		}
-		log.Infof("Successfully rolled back to height %d", rh)
+		zap.S().Infof("Successfully rolled back to height %d", rh)
 	}
 
 	if interruptRequested(interrupt) {
@@ -156,22 +156,22 @@ func run() error {
 
 	matcherPK, err := crypto.NewPublicKeyFromBase58(*matcher)
 	if err != nil {
-		log.Errorf("Incorrect matcher's address: %v", err)
+		zap.S().Errorf("Incorrect matcher's address: %v", err)
 		return err
 	}
 
 	symbols, err := data.ImportSymbols(*symbolsFile)
 	if err != nil {
-		log.Errorf("Failed to load symbol substitutions: %v", err)
+		zap.S().Errorf("Failed to load symbol substitutions: %v", err)
 		return nil
 	}
-	log.Infof("Imported %d of symbol substitutions", symbols.Count())
+	zap.S().Infof("Imported %d of symbol substitutions", symbols.Count())
 
 	h, err := storage.Height()
 	if err != nil {
-		log.Warnf("Failed to get current height: %s", err.Error())
+		zap.S().Warnf("Failed to get current height: %s", err.Error())
 	}
-	log.Infof("Last stored height: %d", h)
+	zap.S().Infof("Last stored height: %d", h)
 
 	if interruptRequested(interrupt) {
 		return nil
@@ -179,13 +179,13 @@ func run() error {
 
 	if *importFile != "" {
 		if _, err := os.Stat(*importFile); os.IsNotExist(err) {
-			log.Errorf("Failed to import blockchain from file: %v", err)
+			zap.S().Errorf("Failed to import blockchain from file: %v", err)
 			return err
 		}
-		importer := internal.NewImporter(interrupt, log, sch, &storage, matcherPK)
+		importer := internal.NewImporter(interrupt, sch, &storage, matcherPK)
 		err := importer.Import(*importFile)
 		if err != nil {
-			log.Errorf("Failed to import blockchain file '%s': %v", *importFile, err)
+			zap.S().Errorf("Failed to import blockchain file '%s': %v", *importFile, err)
 			return err
 		}
 	}
@@ -205,20 +205,20 @@ func run() error {
 	}
 
 	var synchronizerDone <-chan struct{}
-	s, err := internal.NewSynchronizer(interrupt, log, &storage, sch, matcherPK, *node, *interval, *lag)
+	s, err := internal.NewSynchronizer(interrupt, &storage, sch, matcherPK, *node, *interval, *lag)
 	if err != nil {
-		log.Errorf("Failed to start synchronization: %v", err)
+		zap.S().Errorf("Failed to start synchronization: %v", err)
 		return err
 	}
 	synchronizerDone = s.Done()
 
 	if apiDone != nil {
 		<-apiDone
-		log.Info("API shutdown complete")
+		zap.S().Info("API shutdown complete")
 	}
 	if synchronizerDone != nil {
 		<-synchronizerDone
-		log.Info("Synchronizer shutdown complete")
+		zap.S().Info("Synchronizer shutdown complete")
 	}
 	<-interrupt
 	return nil
@@ -249,6 +249,8 @@ func setupLogger(level string) (*zap.Logger, *zap.SugaredLogger) {
 		al.SetLevel(zap.InfoLevel)
 	}
 	ec := zap.NewDevelopmentEncoderConfig()
-	logger := zap.New(zapcore.NewCore(zapcore.NewConsoleEncoder(ec), zapcore.Lock(os.Stdout), al))
+	core := zapcore.NewCore(zapcore.NewConsoleEncoder(ec), zapcore.Lock(os.Stdout), al)
+	logger := zap.New(core)
+	zap.ReplaceGlobals(logger)
 	return logger, logger.Sugar()
 }

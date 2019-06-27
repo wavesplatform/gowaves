@@ -453,6 +453,7 @@ func candles(snapshot *leveldb.Snapshot, amountAsset, priceAsset crypto.Digest, 
 	ek := candleKey{amountAsset, priceAsset, stop}
 	r := make([]data.Candle, 0)
 	it := snapshot.NewIterator(&util.Range{Start: sk.bytes(), Limit: ek.bytes()}, nil)
+	defer it.Release()
 	var c data.Candle
 	i := 0
 	for it.Next() {
@@ -466,7 +467,6 @@ func candles(snapshot *leveldb.Snapshot, amountAsset, priceAsset crypto.Digest, 
 			break
 		}
 	}
-	it.Release()
 	return r, nil
 }
 

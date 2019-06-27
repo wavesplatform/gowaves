@@ -169,7 +169,7 @@ func TestDecimalMarshalJSON(t *testing.T) {
 	require.NoError(t, err)
 	s, err := a.MarshalJSON()
 	require.NoError(t, err)
-	assert.ElementsMatch(t, []byte("\"0.123456789\""), s)
+	assert.ElementsMatch(t, []byte("\"0.12345678\""), s) // Length of the decimal part is limited by 8 symbols
 }
 
 func TestDecimalUnmarshalJSON(t *testing.T) {

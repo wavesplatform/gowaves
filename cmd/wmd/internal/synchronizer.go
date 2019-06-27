@@ -20,7 +20,6 @@ type Synchronizer struct {
 	interrupt <-chan struct{}
 	done      chan struct{}
 	conn      *grpc.ClientConn
-	log       *zap.SugaredLogger
 	storage   *state.Storage
 	scheme    byte
 	matcher   crypto.PublicKey
@@ -28,16 +27,16 @@ type Synchronizer struct {
 	lag       int
 }
 
-func NewSynchronizer(interrupt <-chan struct{}, log *zap.SugaredLogger, storage *state.Storage, scheme byte, matcher crypto.PublicKey, node string, interval int, lag int) (*Synchronizer, error) {
+func NewSynchronizer(interrupt <-chan struct{}, storage *state.Storage, scheme byte, matcher crypto.PublicKey, node string, interval int, lag int) (*Synchronizer, error) {
 	conn, err := grpc.Dial(node, grpc.WithInsecure())
 	if err != nil {
 		return nil, errors.Wrapf(err, "Failed to create new synchronizer")
 	}
 	d := time.Duration(interval) * time.Second
 	t := time.NewTicker(d)
-	log.Infof("Synchronization interval set to %v", d)
+	zap.S().Infof("Synchronization interval set to %v", d)
 	done := make(chan struct{})
-	s := Synchronizer{interrupt: interrupt, done: done, conn: conn, log: log, storage: storage, scheme: scheme, matcher: matcher, ticker: t, lag: lag}
+	s := Synchronizer{interrupt: interrupt, done: done, conn: conn, storage: storage, scheme: scheme, matcher: matcher, ticker: t, lag: lag}
 	go s.run()
 	return &s, nil
 }
@@ -52,7 +51,7 @@ func (s *Synchronizer) run() {
 		select {
 		case <-s.interrupt:
 			s.ticker.Stop()
-			s.log.Info("Shutting down synchronizer...")
+			zap.S().Info("Shutting down synchronizer...")
 			return
 		case <-s.ticker.C:
 			s.synchronize()
@@ -73,48 +72,48 @@ func (s *Synchronizer) synchronize() {
 	rh, err := s.nodeHeight()
 	rh = rh - s.lag
 	if err != nil {
-		s.log.Errorf("Failed to synchronize with node: %v", err)
+		zap.S().Errorf("Failed to synchronize with node: %v", err)
 		return
 	}
 	lh, err := s.storage.Height()
 	if err != nil {
-		s.log.Errorf("Failed to synchronize with node: %v", err)
+		zap.S().Errorf("Failed to synchronize with node: %v", err)
 		return
 	}
 	if s.interrupted() {
 		return
 	}
 	if rh > lh {
-		s.log.Infof("Local height %d, node height %d", lh, rh)
+		zap.S().Infof("Local height %d, node height %d", lh, rh)
 		ch, err := s.findLastCommonHeight(1, lh)
 		if err != nil {
-			s.log.Errorf("Failed to find last common height: %v", err)
+			zap.S().Errorf("Failed to find last common height: %v", err)
 			return
 		}
 		if ch < lh {
 			rollbackHeight, err := s.storage.SafeRollbackHeight(ch)
 			if err != nil {
-				s.log.Errorf("Failed to get rollback height: %v", err)
+				zap.S().Errorf("Failed to get rollback height: %v", err)
 				return
 			}
-			s.log.Warnf("Rolling back to safe height %d", rollbackHeight)
+			zap.S().Warnf("Rolling back to safe height %d", rollbackHeight)
 			err = s.storage.Rollback(rollbackHeight)
 			if err != nil {
-				s.log.Errorf("Failed to rollback: %v", err)
+				zap.S().Errorf("Failed to rollback: %v", err)
 				return
 			}
 			ch = rollbackHeight - 1
 		}
 		err = s.applyBlocks(ch+1, rh)
 		if err != nil && !strings.Contains(err.Error(), "Invalid status code") {
-			s.log.Errorf("Failed to apply blocks: %v", err)
+			zap.S().Errorf("Failed to apply blocks: %v", err)
 			return
 		}
 	}
 }
 
 func (s *Synchronizer) applyBlocks(start, end int) error {
-	s.log.Infof("Synchronizing %d blocks starting from height %d", end-start+1, start)
+	zap.S().Infof("Synchronizing %d blocks starting from height %d", end-start+1, start)
 	for h := start; h <= end; h++ {
 		if s.interrupted() {
 			return errors.New("synchronization was interrupted")
@@ -141,18 +140,18 @@ func (s *Synchronizer) applyBlock(height int, id crypto.Signature, txs []proto.T
 	if bytes.Equal(id[:], emptySignature[:]) {
 		return errors.Errorf("Empty block signature at height: %d", height)
 	}
-	s.log.Infof("Applying block '%s' at %d containing %d transactions", id.String(), height, count)
+	zap.S().Infof("Applying block '%s' at %d containing %d transactions", id.String(), height, count)
 	trades, issues, assets, accounts, aliases, err := s.extractTransactions(txs, miner)
 	if err != nil {
 		return err
 	}
 	err = s.storage.PutBalances(height, id, issues, assets, accounts, aliases)
 	if err != nil {
-		s.log.Errorf("Failed to update state: %s", err.Error())
+		zap.S().Errorf("Failed to update state: %s", err.Error())
 	}
 	err = s.storage.PutTrades(height, id, trades)
 	if err != nil {
-		s.log.Errorf("Failed to update state: %s", err.Error())
+		zap.S().Errorf("Failed to update state: %s", err.Error())
 	}
 	return nil
 }
@@ -254,7 +253,7 @@ func (s *Synchronizer) extractTransactions(txs []proto.Transaction, miner proto.
 	for i, tx := range []proto.Transaction(txs) {
 		switch t := tx.(type) {
 		case *proto.IssueV1:
-			s.log.Debugf("#%d: IssueV1: %v", i, t)
+			zap.S().Debugf("#%d: IssueV1: %v", i, t)
 			ic, ac, err := data.FromIssueV1(s.scheme, *t)
 			if err != nil {
 				return nil, nil, nil, nil, nil, wrapErr(err, "IssueV1")
@@ -263,7 +262,7 @@ func (s *Synchronizer) extractTransactions(txs []proto.Transaction, miner proto.
 			accountChanges = append(accountChanges, ac)
 
 		case *proto.IssueV2:
-			s.log.Debugf("%d: IssueV2: %v", i, t)
+			zap.S().Debugf("%d: IssueV2: %v", i, t)
 			ic, ac, err := data.FromIssueV2(s.scheme, *t)
 			if err != nil {
 				return nil, nil, nil, nil, nil, wrapErr(err, "IssueV2")
@@ -272,7 +271,7 @@ func (s *Synchronizer) extractTransactions(txs []proto.Transaction, miner proto.
 			accountChanges = append(accountChanges, ac)
 
 		case *proto.TransferV1:
-			s.log.Debugf("%d: TransferV1: %v", i, t)
+			zap.S().Debugf("%d: TransferV1: %v", i, t)
 			tt := *t
 			if tt.AmountAsset.Present || tt.FeeAsset.Present {
 				u, err := data.FromTransferV1MinerAddress(s.scheme, tt, miner)
@@ -283,7 +282,7 @@ func (s *Synchronizer) extractTransactions(txs []proto.Transaction, miner proto.
 			}
 
 		case *proto.TransferV2:
-			s.log.Debugf("%d: TransferV2: %v", i, t)
+			zap.S().Debugf("%d: TransferV2: %v", i, t)
 			tt := *t
 			if tt.AmountAsset.Present || tt.FeeAsset.Present {
 				u, err := data.FromTransferV2MinerAddress(s.scheme, tt, miner)
@@ -294,7 +293,7 @@ func (s *Synchronizer) extractTransactions(txs []proto.Transaction, miner proto.
 			}
 
 		case *proto.ReissueV1:
-			s.log.Debugf("%d: ReissueV1: %v", i, t)
+			zap.S().Debugf("%d: ReissueV1: %v", i, t)
 			as, ac, err := data.FromReissueV1(s.scheme, *t)
 			if err != nil {
 				return nil, nil, nil, nil, nil, wrapErr(err, "ReissueV1")
@@ -303,7 +302,7 @@ func (s *Synchronizer) extractTransactions(txs []proto.Transaction, miner proto.
 			accountChanges = append(accountChanges, ac)
 
 		case *proto.ReissueV2:
-			s.log.Debugf("%d: ReissueV2: %v", i, t)
+			zap.S().Debugf("%d: ReissueV2: %v", i, t)
 			as, ac, err := data.FromReissueV2(s.scheme, *t)
 			if err != nil {
 				return nil, nil, nil, nil, nil, wrapErr(err, "ReissueV2")
@@ -312,7 +311,7 @@ func (s *Synchronizer) extractTransactions(txs []proto.Transaction, miner proto.
 			accountChanges = append(accountChanges, ac)
 
 		case *proto.BurnV1:
-			s.log.Debugf("%d: BurnV1: %v", i, t)
+			zap.S().Debugf("%d: BurnV1: %v", i, t)
 			as, ac, err := data.FromBurnV1(s.scheme, *t)
 			if err != nil {
 				return nil, nil, nil, nil, nil, wrapErr(err, "BurnV1")
@@ -321,7 +320,7 @@ func (s *Synchronizer) extractTransactions(txs []proto.Transaction, miner proto.
 			accountChanges = append(accountChanges, ac)
 
 		case *proto.BurnV2:
-			s.log.Debugf("%d: BurnV2: %v", i, t)
+			zap.S().Debugf("%d: BurnV2: %v", i, t)
 			as, ac, err := data.FromBurnV2(s.scheme, *t)
 			if err != nil {
 				return nil, nil, nil, nil, nil, wrapErr(err, "BurnV2")
@@ -330,7 +329,7 @@ func (s *Synchronizer) extractTransactions(txs []proto.Transaction, miner proto.
 			accountChanges = append(accountChanges, ac)
 
 		case *proto.ExchangeV1:
-			s.log.Debugf("%d: ExchangeV1: %v", i, t)
+			zap.S().Debugf("%d: ExchangeV1: %v", i, t)
 			tt := *t
 			if bytes.Equal(s.matcher[:], tt.SenderPK[:]) {
 				t, err := data.NewTradeFromExchangeV1(s.scheme, tt)
@@ -346,7 +345,7 @@ func (s *Synchronizer) extractTransactions(txs []proto.Transaction, miner proto.
 			accountChanges = append(accountChanges, ac...)
 
 		case *proto.ExchangeV2:
-			s.log.Debugf("%d: ExchangeV2: %v", i, t)
+			zap.S().Debugf("%d: ExchangeV2: %v", i, t)
 			tt := *t
 			if bytes.Equal(s.matcher[:], tt.SenderPK[:]) {
 				t, err := data.NewTradeFromExchangeV2(s.scheme, tt)
@@ -362,11 +361,11 @@ func (s *Synchronizer) extractTransactions(txs []proto.Transaction, miner proto.
 			accountChanges = append(accountChanges, ac...)
 
 		case *proto.SponsorshipV1:
-			s.log.Debugf("%d: SponsorshipV1: %v", i, t)
+			zap.S().Debugf("%d: SponsorshipV1: %v", i, t)
 			assetChanges = append(assetChanges, data.FromSponsorshipV1(*t))
 
 		case *proto.CreateAliasV1:
-			s.log.Debugf("%d: CreateAliasV1: %v", i, t)
+			zap.S().Debugf("%d: CreateAliasV1: %v", i, t)
 			b, err := data.FromCreateAliasV1(s.scheme, *t)
 			if err != nil {
 				return nil, nil, nil, nil, nil, wrapErr(err, "CreateAliasV1")
@@ -374,7 +373,7 @@ func (s *Synchronizer) extractTransactions(txs []proto.Transaction, miner proto.
 			binds = append(binds, b)
 
 		case *proto.CreateAliasV2:
-			s.log.Debugf("%d: CreateAliasV2: %v", i, t)
+			zap.S().Debugf("%d: CreateAliasV2: %v", i, t)
 			b, err := data.FromCreateAliasV2(s.scheme, *t)
 			if err != nil {
 				return nil, nil, nil, nil, nil, wrapErr(err, "CreateAliasV2")
@@ -382,7 +381,7 @@ func (s *Synchronizer) extractTransactions(txs []proto.Transaction, miner proto.
 			binds = append(binds, b)
 
 		case *proto.MassTransferV1:
-			s.log.Debugf("%d: MassTransferV1: %v", i, t)
+			zap.S().Debugf("%d: MassTransferV1: %v", i, t)
 			tt := *t
 			if tt.Asset.Present {
 				ac, err := data.FromMassTransferV1(s.scheme, tt)
@@ -403,7 +402,7 @@ func (s *Synchronizer) extractTransactions(txs []proto.Transaction, miner proto.
 		case *proto.SetAssetScriptV1:
 
 		default:
-			s.log.Warnf("%d: Unknown transaction type", i)
+			zap.S().Warnf("%d: Unknown transaction type", i)
 		}
 	}
 	return trades, issueChanges, assetChanges, accountChanges, binds, nil

@@ -50,6 +50,7 @@ func NewTickerInfo(symbol string, amountAsset, priceAsset AssetInfo, amountAsset
 	xy := x.Mul(x, y)
 	pv := xy.Div(xy, z).Uint64()
 	ts := uint64(time.Now().UnixNano() / 1000000)
+	scale := uint(priceAsset.Decimals - amountAsset.Decimals + 8)
 	aaSupply := Decimal{value: amountAsset.Supply, scale: uint(amountAsset.Decimals)}
 	aaMaxSupply := aaSupply.ToInfiniteDecimal(amountAsset.Reissuable)
 	aaCirculatingSupply := Decimal{value: amountAsset.Supply - amountAssetIssuerBalance, scale: uint(amountAsset.Decimals)}
@@ -70,13 +71,13 @@ func NewTickerInfo(symbol string, amountAsset, priceAsset AssetInfo, amountAsset
 		PriceAssetTotalSupply:        paSupply,
 		PriceAssetMaxSupply:          paMaxSupply,
 		PriceAssetCirculatingSupply:  paCirculatingSupply,
-		DayOpen:                      Decimal{candle.Open, uint(priceAsset.Decimals)},
-		DayHigh:                      Decimal{candle.High, uint(priceAsset.Decimals)},
-		DayLow:                       Decimal{candle.Low, uint(priceAsset.Decimals)},
-		DayClose:                     Decimal{candle.Close, uint(priceAsset.Decimals)},
-		DayVWAP:                      Decimal{candle.Average, uint(priceAsset.Decimals)},
+		DayOpen:                      Decimal{candle.Open, scale},
+		DayHigh:                      Decimal{candle.High, scale},
+		DayLow:                       Decimal{candle.Low, scale},
+		DayClose:                     Decimal{candle.Close, scale},
+		DayVWAP:                      Decimal{candle.Average, scale},
 		DayVolume:                    Decimal{candle.Volume, uint(amountAsset.Decimals)},
-		DayPriceVolume:               Decimal{pv, uint(priceAsset.Decimals)},
+		DayPriceVolume:               Decimal{pv, scale},
 		Timestamp:                    ts,
 	}
 }
