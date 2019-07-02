@@ -286,8 +286,12 @@ func (tc *transactionChecker) checkCreateAlias(tx *proto.CreateAlias, info *chec
 	if err := tc.checkTimestamps(tx.Timestamp, info.currentTimestamp, info.parentTimestamp); err != nil {
 		return errors.Wrap(err, "invalid timestamp")
 	}
-	// Check if alias already taken.
-	if _, err := tc.stor.aliases.newestAddrByAlias(tx.Alias.Alias, !info.initialisation); err == nil {
+	if (info.currentTimestamp >= tc.settings.StolenAliasesWindowTimeStart) && (info.currentTimestamp <= tc.settings.StolenAliasesWindowTimeEnd) {
+		// At this period it is fine to steal aliases.
+		return nil
+	}
+	// Check if alias is already taken.
+	if tc.stor.aliases.exists(tx.Alias.Alias, !info.initialisation) {
 		return errors.New("alias is already taken")
 	}
 	return nil

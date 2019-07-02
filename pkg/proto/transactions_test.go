@@ -4113,7 +4113,7 @@ func addressFromString(s string) (Address, error) {
 
 // This function is for tests only! Could produce invalid recipient.
 func recipientFromString(s string) (Recipient, error) {
-	if strings.HasPrefix(s, aliasPrefix) {
+	if strings.HasPrefix(s, AliasPrefix) {
 		a, err := NewAliasFromString(s)
 		if err != nil {
 			return Recipient{}, err

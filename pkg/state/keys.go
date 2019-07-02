@@ -14,6 +14,8 @@ const (
 	wavesBalanceKeySize = 1 + proto.AddressSize
 	assetBalanceKeySize = 1 + proto.AddressSize + crypto.DigestSize
 
+	aliasKeySize            = 1 + 2 + proto.AliasMaxLength
+	disabledAliasKeySize    = 1 + 2 + proto.AliasMaxLength
 	approvedFeaturesKeySize = 1 + 2
 	votesFeaturesKeySize    = 1 + 2
 
@@ -49,6 +51,7 @@ const (
 
 	// Aliases.
 	aliasKeyPrefix
+	disabledAliasKeyPrefix
 
 	// Features.
 	activatedFeaturesKeyPrefix
@@ -189,10 +192,32 @@ type aliasKey struct {
 }
 
 func (k *aliasKey) bytes() []byte {
-	aliasBytes := []byte(k.alias)
-	buf := make([]byte, 1+len(aliasBytes))
+	buf := make([]byte, aliasKeySize)
 	buf[0] = aliasKeyPrefix
-	copy(buf[1:], aliasBytes[:])
+	proto.PutStringWithUInt16Len(buf[1:], k.alias)
+	return buf
+}
+
+func (k *aliasKey) unmarshal(data []byte) error {
+	if len(data) != aliasKeySize {
+		return errors.New("invalid data size")
+	}
+	var err error
+	k.alias, err = proto.StringWithUInt16Len(data[1:])
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+type disabledAliasKey struct {
+	alias string
+}
+
+func (k *disabledAliasKey) bytes() []byte {
+	buf := make([]byte, disabledAliasKeySize)
+	buf[0] = disabledAliasKeyPrefix
+	proto.PutStringWithUInt16Len(buf[1:], k.alias)
 	return buf
 }
 

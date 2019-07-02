@@ -193,6 +193,7 @@ func (tp *transactionPerformer) performCreateAlias(tx *proto.CreateAlias, info *
 	}
 	// Save alias to aliases storage.
 	r := &aliasRecord{
+		stolen:  tp.stor.aliases.exists(tx.Alias.Alias, !info.initialisation),
 		addr:    senderAddr,
 		blockID: info.blockID,
 	}
