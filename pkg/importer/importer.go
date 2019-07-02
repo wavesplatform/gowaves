@@ -25,6 +25,7 @@ type State interface {
 // ApplyFromFile reads blocks from blockchainPath, applying them from height startHeight and until nBlocks+1.
 // Setting optimize to true speeds up the import, but it is only safe when importing blockchain from scratch
 // when no rollbacks are possible at all.
+// If the state was rolled back at least once before, `optimize` MUST BE false.
 func ApplyFromFile(st State, blockchainPath string, nBlocks, startHeight uint64, optimize bool) error {
 	blockchain, err := os.Open(blockchainPath)
 	if err != nil {

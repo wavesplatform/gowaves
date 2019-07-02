@@ -130,6 +130,11 @@ func (d *blockDiffer) createTransactionsDiffs(transactions []proto.Transaction, 
 			return nil, err
 		}
 	}
+	// Save fee distribution to DB.
+	if err := d.stor.blocksInfo.saveFeeDistribution(block.BlockSignature, &d.curDistr); err != nil {
+		return nil, err
+	}
+	// Update fee distribution.
 	d.prevDistr = d.curDistr
 	d.prevBlockID = block.BlockSignature
 	return diffs, nil

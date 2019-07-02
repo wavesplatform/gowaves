@@ -143,8 +143,8 @@ func (cv *ConsensusValidator) generatingBalance(height uint64, addr proto.Addres
 	if height >= cv.settings.GenerationBalanceDepthFrom50To1000AfterHeight {
 		depth = secondDepth
 	}
-	bottomLimit := height - depth
-	if height < 1+depth {
+	bottomLimit := height - depth + 1
+	if height < depth {
 		bottomLimit = 1
 	}
 	balance, err := cv.state.EffectiveBalance(addr, bottomLimit, height)

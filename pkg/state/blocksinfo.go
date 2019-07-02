@@ -129,11 +129,11 @@ func (i *blocksInfo) feeDistribution(blockID crypto.Signature) (*feeDistribution
 	key := blocksInfoKey{blockID}
 	distrBytes, err := i.db.Get(key.bytes())
 	if err != nil {
-		return &feeDistribution{}, nil
+		return &feeDistribution{}, err
 	}
 	distr := newFeeDistribution()
 	if err := distr.unmarshalBinary(distrBytes); err != nil {
-		return &feeDistribution{}, nil
+		return &feeDistribution{}, err
 	}
 	return &distr, nil
 }
