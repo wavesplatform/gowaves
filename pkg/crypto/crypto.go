@@ -37,7 +37,7 @@ func (d Digest) Bytes() []byte {
 }
 
 func (d Digest) MarshalBinary() ([]byte, error) {
-	b := make([]byte, 0, DigestSize)
+	b := make([]byte, DigestSize)
 	copy(b, d[:])
 	return b, nil
 }
@@ -87,7 +87,7 @@ func MustDigestFromBase58(s string) Digest {
 type SecretKey [SecretKeySize]byte
 
 func (k SecretKey) MarshalBinary() ([]byte, error) {
-	b := make([]byte, 0, SecretKeySize)
+	b := make([]byte, SecretKeySize)
 	copy(b, k[:])
 	return b, nil
 }
@@ -130,7 +130,7 @@ func NewSecretKeyFromBase58(s string) (SecretKey, error) {
 type PublicKey [PublicKeySize]byte
 
 func (k PublicKey) MarshalBinary() ([]byte, error) {
-	b := make([]byte, 0, PublicKeySize)
+	b := make([]byte, PublicKeySize)
 	copy(b, k[:])
 	return b, nil
 }
@@ -184,7 +184,7 @@ func (s Signature) String() string {
 }
 
 func (s Signature) MarshalBinary() ([]byte, error) {
-	b := make([]byte, 0, SignatureSize)
+	b := make([]byte, SignatureSize)
 	copy(b, s[:])
 	return b, nil
 }
