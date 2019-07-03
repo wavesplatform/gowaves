@@ -140,7 +140,7 @@ func (tc *transactionChecker) checkReissue(tx *proto.Reissue, info *checkerInfo)
 		return err
 	}
 	if (info.currentTimestamp > tc.settings.InvalidReissueInSameBlockUntilTime) && !record.reissuable {
-		return errors.New("attempt to reissue asset which is not reissuable")
+		return errors.Errorf("attempt to reissue asset %s which is not reissuable", tx.AssetID.String())
 	}
 	return nil
 }

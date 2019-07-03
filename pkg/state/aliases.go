@@ -108,6 +108,13 @@ func (a *aliases) addrByAliasImpl(key []byte, filter bool) (*aliasRecord, error)
 }
 
 func (a *aliases) addrByAlias(aliasStr string, filter bool) (*proto.Address, error) {
+	disabled, err := a.isDisabled(aliasStr)
+	if err != nil {
+		return nil, err
+	}
+	if disabled {
+		return nil, errAliasDisabled
+	}
 	key := aliasKey{alias: aliasStr}
 	record, err := a.addrByAliasImpl(key.bytes(), filter)
 	if err != nil {

@@ -390,6 +390,11 @@ func TestCheckCreateAliasV1(t *testing.T) {
 
 	err = to.tc.checkCreateAliasV1(tx, info)
 	assert.Error(t, err, "checkCreateAliasV1 did not fail when using alias which is alredy taken")
+
+	// Check that checker allows to steal aliases at specified timestamp window on MainNet.
+	info.currentTimestamp = settings.MainNetSettings.StolenAliasesWindowTimeStart
+	err = to.tc.checkCreateAliasV1(tx, info)
+	assert.NoError(t, err, "checkCreateAliasV1 failed when stealing aliases is allowed")
 }
 
 func TestCheckCreateAliasV2(t *testing.T) {
@@ -413,6 +418,11 @@ func TestCheckCreateAliasV2(t *testing.T) {
 
 	err = to.tc.checkCreateAliasV2(tx, info)
 	assert.Error(t, err, "checkCreateAliasV2 did not fail when using alias which is alredy taken")
+
+	// Check that checker allows to steal aliases at specified timestamp window on MainNet.
+	info.currentTimestamp = settings.MainNetSettings.StolenAliasesWindowTimeStart
+	err = to.tc.checkCreateAliasV2(tx, info)
+	assert.NoError(t, err, "checkCreateAliasV1 failed when stealing aliases is allowed")
 }
 
 func TestCheckMassTransferV1(t *testing.T) {
