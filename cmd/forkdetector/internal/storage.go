@@ -173,11 +173,8 @@ func NewStorage(path string, genesis crypto.Signature) (*storage, error) {
 		batch := new(leveldb.Batch)
 
 		num, err := s.nextBlockNumber(sn, batch, genesis)
-		zap.S().Debugf("[STO] Assigning number %d to block '%s'", num, genesis)
 		l := blockLink{parent: 0, height: 1, signature: genesis}
 		batch.Put(newBlockLinkKey(num).bytes(), l.bytes())
-		zap.S().Debugf("[STO] Storing block link '%v' under number %d", l, num)
-		// update blocks at height
 		k := heightBlockKey{height: 1, block: genesis}
 		batch.Put(k.bytes(), nil)
 
@@ -296,7 +293,6 @@ func (s *storage) appendBlock(block proto.Block) (uint32, uint32, error) {
 	batch.Put(bk.bytes(), bb)
 
 	// Get the block's parent link
-	zap.S().Debugf("[STO] Requesting parent block number")
 	parentNumber, err := s.blockNumber(sn, block.Parent)
 	zap.S().Debugf("[STO] Parent block '%s' has number %d", block.Parent.String(), parentNumber)
 	if err != nil {
@@ -346,7 +342,6 @@ func (s *storage) nextBlockNumber(sn *leveldb.Snapshot, batch *leveldb.Batch, si
 }
 
 func (s *storage) blockNumber(sn *leveldb.Snapshot, signature crypto.Signature) (uint32, error) {
-	zap.S().Debugf("[STO] Getting number for block '%s'", signature.String())
 	k := newBlockNumberKey(signature)
 	v, err := sn.Get(k.bytes(), nil)
 	if err != nil {
@@ -365,30 +360,6 @@ func (s *storage) blockLink(sn *leveldb.Snapshot, number uint32) (blockLink, err
 	l.fromBytes(v)
 	return l, nil
 }
-
-//TODO: remove?
-
-//func (s *storage) signatures() ([]crypto.Signature, error) {
-//	sn, err := s.db.GetSnapshot()
-//	if err != nil {
-//		return nil, errors.Wrap(err, "failed to collect blocks signatures")
-//	}
-//	defer sn.Release()
-//	st := []byte{blocksPrefix}
-//	lm := []byte{blocksPrefix + 1}
-//	it := sn.NewIterator(&util.Range{Start: st, Limit: lm}, nil)
-//	r := make([]crypto.Signature, 0)
-//	for it.Next() {
-//		k := it.Key()
-//		s, err := crypto.NewSignatureFromBytes(k[1:])
-//		if err != nil {
-//			return nil, errors.Wrap(err, "failed to collect blocks signatures")
-//		}
-//		r = append(r, s)
-//	}
-//	it.Release()
-//	return r, nil
-//}
 
 func (s *storage) movePeerLeash(peer net.IP, sig crypto.Signature) error {
 	sn, err := s.db.GetSnapshot()

@@ -16,15 +16,13 @@ const (
 )
 
 type Dispatcher struct {
-	interrupt   <-chan struct{}
-	bind        string
-	Opts        *Options
-	server      *Server
-	stopped     chan struct{}
-	registry    *Registry
-	mu          sync.Mutex
-	connections map[*Conn]struct{}
-	schedule    schedule
+	interrupt <-chan struct{}
+	bind      string
+	Opts      *Options
+	server    *Server
+	stopped   chan struct{}
+	registry  *Registry
+	schedule  schedule
 }
 
 func NewDispatcher(interrupt <-chan struct{}, bind string, opts *Options, registry *Registry) *Dispatcher {
@@ -38,15 +36,13 @@ func NewDispatcher(interrupt <-chan struct{}, bind string, opts *Options, regist
 	}
 	s := NewServer(opts)
 	d := &Dispatcher{
-		interrupt:   interrupt,
-		bind:        bind,
-		Opts:        opts,
-		server:      s,
-		stopped:     make(chan struct{}),
-		registry:    registry,
-		connections: make(map[*Conn]struct{}),
-		mu:          sync.Mutex{},
-		schedule:    schedule{interval: askPeersDelay},
+		interrupt: interrupt,
+		bind:      bind,
+		Opts:      opts,
+		server:    s,
+		stopped:   make(chan struct{}),
+		registry:  registry,
+		schedule:  schedule{interval: askPeersDelay},
 	}
 	return d
 }
@@ -70,9 +66,9 @@ func (d *Dispatcher) Start() <-chan struct{} {
 				zap.S().Debug("Shutting down server...")
 				d.server.Stop(StopGracefullyAndWait)
 				<-d.server.Stopped()
-				zap.S().Debugf("Closing %d outgoing connections", d.connectionsCount())
-				for c := range d.connections {
-					c.Stop(StopGracefullyAndWait)
+				zap.S().Debugf("Closing %d outgoing connections", d.schedule.len())
+				for _, c := range d.schedule.connections() {
+					c.Stop(StopImmediately)
 				}
 				zap.S().Debug("Server shutdown complete")
 				close(d.stopped)
@@ -97,12 +93,12 @@ func (d *Dispatcher) Start() <-chan struct{} {
 }
 
 func (d *Dispatcher) dial(addr net.Addr) {
-	c := NewConn(d.Opts)
+	conn := NewConn(d.Opts)
 	defer func(conn *Conn) {
-		d.removeConnection(conn)
-	}(c)
-	d.addConnection(c)
-	err := c.DialAndServe(addr.String())
+		d.schedule.remove(conn)
+	}(conn)
+	d.schedule.append(conn)
+	err := conn.DialAndServe(addr.String())
 	if err != nil {
 		zap.S().Errorf("Failed to establish connection with %s: %v", addr.String(), err)
 		err := d.registry.PeerDiscarded(addr)
@@ -128,41 +124,19 @@ func (d *Dispatcher) askPeers(conn *Conn) {
 	}
 }
 
-func (d *Dispatcher) addConnection(conn *Conn) {
-	d.mu.Lock()
-	d.connections[conn] = struct{}{}
-	d.schedule.append(conn)
-	d.mu.Unlock()
-}
-
-func (d *Dispatcher) removeConnection(conn *Conn) {
-	d.mu.Lock()
-	delete(d.connections, conn)
-	d.schedule.remove(conn)
-	d.mu.Unlock()
-}
-
-func (d *Dispatcher) connectionsCount() int {
-	d.mu.Lock()
-	defer d.mu.Unlock()
-	return len(d.connections)
-}
-
 type schedule struct {
 	interval time.Duration
 	once     sync.Once
-	mu       sync.Mutex
+	mu       sync.RWMutex
 	items    map[*Conn]time.Time
 }
 
 func (s *schedule) append(c *Conn) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
 	s.once.Do(func() {
 		s.items = make(map[*Conn]time.Time)
 	})
-
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	_, ok := s.items[c]
 	if !ok {
 		s.items[c] = time.Now().Add(s.interval)
@@ -170,16 +144,20 @@ func (s *schedule) append(c *Conn) {
 }
 
 func (s *schedule) remove(c *Conn) {
+	s.once.Do(func() {
+		s.items = make(map[*Conn]time.Time)
+	})
 	s.mu.Lock()
 	defer s.mu.Unlock()
-
 	delete(s.items, c)
 }
 
 func (s *schedule) pull() []*Conn {
+	s.once.Do(func() {
+		s.items = make(map[*Conn]time.Time)
+	})
 	s.mu.Lock()
 	defer s.mu.Unlock()
-
 	r := make([]*Conn, 0)
 	t := time.Now()
 	for k, v := range s.items {
@@ -189,4 +167,28 @@ func (s *schedule) pull() []*Conn {
 		}
 	}
 	return r
+}
+
+func (s *schedule) connections() []*Conn {
+	s.once.Do(func() {
+		s.items = make(map[*Conn]time.Time)
+	})
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	r := make([]*Conn, len(s.items))
+	i := 0
+	for c := range s.items {
+		r[i] = c
+		i++
+	}
+	return r
+}
+
+func (s *schedule) len() int {
+	s.once.Do(func() {
+		s.items = make(map[*Conn]time.Time)
+	})
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return len(s.items)
 }

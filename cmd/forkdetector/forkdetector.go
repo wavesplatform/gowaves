@@ -132,7 +132,7 @@ func parseConfiguration() (*configuration, error) {
 		db              = flag.String("db", "", "Path to database folder. No default value.")
 		scheme          = flag.String("scheme", "W", "Blockchain scheme symbol. Defaults to \"W\" - MainNet scheme.")
 		genesis         = flag.String("genesis", "FSH8eAAzZNqnG8xgTZtz5xuLqXySsXgAjmFEC25hXMbEufiGjqWPnGCZFt6gLiVLJny16ipxRNAkkzjjhqTjBE2", "Genesis block signature in BASE58 encoding. Default value is MainNet's genesis block signature.")
-		versions        = flag.String("versions", "0.17 0.16 0.15 0.14 0.13 0.10 0.9 0.8 0.7 0.6 0.3", "Space separated list of known node's versions. By default all MainNet versions are supported.")
+		versions        = flag.String("versions", "1.0 0.17 0.16 0.15 0.14 0.13 0.10 0.9 0.8 0.7 0.6 0.3", "Space separated list of known node's versions. By default all MainNet versions are supported.")
 		apiBindAddress  = flag.String("api-bind", ":8080", "Local network address to bind the HTTP API of the service on. Default value is \":8080\".")
 		netBindAddress  = flag.String("net-bind", ":6868", "Local network address to bind the network server. Default value is \":6868 \".")
 		netName         = flag.String("net-name", "Fork Detector", "Name of the node to identify on the network. Default value is \"Fork Detector\".")

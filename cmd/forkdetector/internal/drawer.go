@@ -14,6 +14,30 @@ const (
 	blocksBatchSize = 100
 )
 
+type safeCuckooFilter struct {
+	once   sync.Once
+	mu     sync.RWMutex
+	filter *cuckoo.Filter
+}
+
+func (f *safeCuckooFilter) insert(d []byte) bool {
+	f.once.Do(func() {
+		f.filter = cuckoo.NewFilter(filterCapacity)
+	})
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.filter.InsertUnique(d)
+}
+
+func (f *safeCuckooFilter) lookup(d []byte) bool {
+	f.once.Do(func() {
+		f.filter = cuckoo.NewFilter(filterCapacity)
+	})
+	f.mu.RLock()
+	defer f.mu.RUnlock()
+	return f.filter.Lookup(d)
+}
+
 type drawerStats struct {
 	total int
 	short int
@@ -23,8 +47,7 @@ type drawerStats struct {
 type drawer struct {
 	storage  *storage
 	registry *Registry
-	mu       sync.RWMutex
-	filter   *cuckoo.Filter
+	filter   *safeCuckooFilter
 	graph    *graph
 	longest  []uint32
 	top      uint32
@@ -32,7 +55,7 @@ type drawer struct {
 
 func NewDrawer(storage *storage, registry *Registry) (*drawer, error) {
 	g := newGraph()
-	f := cuckoo.NewFilter(filterCapacity)
+	f := new(safeCuckooFilter)
 	it, err := storage.newBlockLinkIterator()
 	if err != nil {
 		return nil, err
@@ -41,7 +64,7 @@ func NewDrawer(storage *storage, registry *Registry) (*drawer, error) {
 	for it.next() {
 		from, to, sig := it.value()
 		g.edge(from, to)
-		f.InsertUnique(sig[:])
+		f.insert(sig[:])
 		count++
 	}
 	zap.S().Debugf("[DRA] State restored, %d blocks loaded", count)
@@ -64,10 +87,7 @@ func (d *drawer) movePeer(peer net.IP, signature crypto.Signature) error {
 }
 
 func (d *drawer) hasBlock(signature crypto.Signature) (bool, error) {
-	zap.S().Debugf("[DRA] Checking presence of block '%s'", signature.String())
-	//d.mu.RLock()
-	//defer d.mu.RUnlock()
-	if !d.filter.Lookup(signature[:]) { // A block with such signature is definitely unseen
+	if !d.filter.lookup(signature[:]) { // A block with such signature is definitely unseen
 		return false, nil
 	}
 	_, ok, err := d.storage.block(signature)
@@ -78,23 +98,17 @@ func (d *drawer) hasBlock(signature crypto.Signature) (bool, error) {
 }
 
 func (d *drawer) appendBlock(block proto.Block) error {
-	//d.mu.Lock()
-	//defer d.mu.Unlock()
-
 	zap.S().Debugf("[DRA] Appending block '%s'", block.BlockSignature.String())
 	from, to, err := d.storage.appendBlock(block)
 	if err != nil {
 		return err
 	}
 	d.graph.edge(from, to)
-	d.filter.InsertUnique(block.BlockSignature[:])
+	d.filter.insert(block.BlockSignature[:])
 	return nil
 }
 
 func (d *drawer) forks() ([]Fork, error) {
-	//d.mu.RLock()
-	//defer d.mu.RUnlock()
-
 	lastBlocks, err := d.storage.peersLastBlocks()
 	if err != nil {
 		return nil, err
@@ -149,9 +163,6 @@ func (d *drawer) allPeersPathsWithTop(lastBlocks map[uint32][]net.IP) (map[uint3
 }
 
 func (d *drawer) fork(peer net.IP) (Fork, error) {
-	//d.mu.RLock()
-	//defer d.mu.RUnlock()
-	//
 	//n, err := d.storage.peerLastBlock(peer)
 	//if err != nil {
 	//	return Fork{}, err
@@ -165,4 +176,3 @@ func (d *drawer) fork(peer net.IP) (Fork, error) {
 func (d *drawer) stats() *drawerStats {
 	return &drawerStats{}
 }
-

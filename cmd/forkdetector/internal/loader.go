@@ -5,7 +5,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
-	"net"
 	"strconv"
 	"strings"
 	"sync"
@@ -21,11 +20,6 @@ type signaturesEvent struct {
 	signatures []crypto.Signature
 }
 
-type notificationEvent struct {
-	block  crypto.Signature
-	result bool
-}
-
 func newSignaturesEvent(conn *Conn, signatures []crypto.Signature) signaturesEvent {
 	s := make([]crypto.Signature, len(signatures))
 	copy(s, signatures)
@@ -38,182 +32,6 @@ func newSignaturesEvent(conn *Conn, signatures []crypto.Signature) signaturesEve
 type blockEvent struct {
 	conn  *Conn
 	block proto.Block
-}
-
-//type blocksCache struct {
-//	mu    sync.RWMutex
-//	cache  map[crypto.Signature]struct{}
-//}
-//
-//func newBlocksCache(signatures []crypto.Signature) *blocksCache {
-//	f := make(map[crypto.Signature]struct{})
-//	for _, s := range signatures {
-//		if _, ok := f[s]; !ok {
-//			f[s] = struct{}{}
-//		}
-//	}
-//	zap.S().Debugf("Loaded %d existing blocks signatures", len(f))
-//	return &blocksCache{cache: f}
-//}
-//
-//func (c *blocksCache) put(signature crypto.Signature) bool {
-//	c.mu.Lock()
-//	defer c.mu.Unlock()
-//	if _, ok := c.cache[signature]; ok {
-//		return false
-//	}
-//	c.cache[signature] = struct{}{}
-//	return true
-//}
-//
-//func (c *blocksCache) contains(signature crypto.Signature) bool {
-//	c.mu.RLock()
-//	_, ok := c.cache[signature]
-//	c.mu.RUnlock()
-//	return ok
-//}
-
-type signaturesSynchronizer struct {
-	wg               *sync.WaitGroup
-	drawer           *drawer
-	requestBlocksCh  chan<- signaturesEvent
-	conn             *Conn
-	addr             net.IP
-	pending          []crypto.Signature
-	shutdownCh       chan struct{}
-	scoreCh          chan struct{}
-	signaturesCh     chan []crypto.Signature
-	receivedBlocksCh chan notificationEvent
-}
-
-func newSignaturesSynchronizer(wg *sync.WaitGroup, drawer *drawer, blocks chan<- signaturesEvent, conn *Conn) *signaturesSynchronizer {
-	return &signaturesSynchronizer{
-		wg:               wg,
-		drawer:           drawer,
-		requestBlocksCh:  blocks,
-		conn:             conn,
-		addr:             extractIPAddress(conn.RawConn.RemoteAddr()),
-		shutdownCh:       make(chan struct{}),
-		scoreCh:          make(chan struct{}),
-		signaturesCh:     make(chan []crypto.Signature),
-		receivedBlocksCh: make(chan notificationEvent),
-	}
-}
-
-func (s *signaturesSynchronizer) start() {
-	defer s.wg.Done()
-	for {
-		select {
-		case <-s.shutdownCh:
-			zap.S().Debugf("[%s][SYN] Shutdown complete", s.conn.RawConn.RemoteAddr())
-			return
-
-		case <-s.scoreCh:
-			s.requestSignatures()
-
-		case signatures := <-s.signaturesCh:
-			unheard := skip(signatures, s.pending)
-			nonexistent := make([]crypto.Signature, 0)
-			for _, sig := range unheard {
-				ok, err := s.drawer.hasBlock(sig)
-				if err != nil {
-					zap.S().Fatalf("[%s][SYN] Failed to check block '%s' presence", s.conn.RawConn.RemoteAddr(), sig.String())
-					return
-				}
-				if ok {
-					continue
-				}
-				nonexistent = append(nonexistent, sig)
-			}
-			if len(nonexistent) > 0 {
-				zap.S().Debugf("[%s][SYN] Requesting blocks: %s", s.conn.RawConn.RemoteAddr(), logSignatures(nonexistent))
-				s.pending = nonexistent
-				s.requestBlocksCh <- newSignaturesEvent(s.conn, nonexistent)
-				continue
-			}
-
-			last := unheard[len(unheard)-1]
-			err := s.movePeer(last)
-			if err != nil {
-				zap.S().Fatalf("[%s][SYN] Failed to handle signatures: %v", s.conn.RawConn.RemoteAddr(), err)
-				return
-			}
-			s.pending = nil
-			s.requestSignatures()
-
-		case e := <-s.receivedBlocksCh:
-			// Requested block received move peer pointer
-			//zap.S().Debugf("[%s] PENDED %s", s.conn.RawConn.RemoteAddr(), logSignatures(s.pending))
-			if len(s.pending) == 0 {
-				//zap.S().Debugf("[%s] No pending signatures", s.conn.RawConn.RemoteAddr())
-				continue
-			}
-			sig := s.pending[0]
-			if e.block != sig {
-				zap.S().Debugf("[%s][SYN] Unexpected block %s, expecting %s", s.conn.RawConn.RemoteAddr(), e.block.String(), sig.String())
-				continue
-			}
-			s.pending = s.pending[1:]
-			if e.result {
-				err := s.movePeer(sig)
-				if err != nil {
-					zap.S().Errorf("[%s][SYN] Failed to update peer link: %v", s.conn.RawConn.RemoteAddr(), err)
-					continue
-				}
-			}
-			if len(s.pending) == 0 {
-				s.requestSignatures()
-			}
-		}
-	}
-}
-
-func (s *signaturesSynchronizer) shutdownSink() chan<- struct{} {
-	return s.shutdownCh
-}
-
-func (s *signaturesSynchronizer) score() chan<- struct{} {
-	return s.scoreCh
-}
-
-func (s *signaturesSynchronizer) signatures() chan<- []crypto.Signature {
-	return s.signaturesCh
-}
-
-func (s *signaturesSynchronizer) block() chan<- notificationEvent {
-	return s.receivedBlocksCh
-}
-
-func (s *signaturesSynchronizer) requestSignatures() {
-	if len(s.pending) > 0 {
-		zap.S().Debugf("[%s][SYN] Signatures already requested", s.conn.RawConn.RemoteAddr())
-		return
-	}
-	signatures, err := s.drawer.front(s.addr)
-	if err != nil {
-		zap.S().Fatalf("[%s][SYN] Failed to request signatures: %v", s.conn.RawConn.RemoteAddr(), err)
-	}
-	m := proto.GetSignaturesMessage{Blocks: signatures}
-	buf := new(bytes.Buffer)
-	_, err = m.WriteTo(buf)
-	if err != nil {
-		zap.S().Errorf("[%s][SYN] Failed to prepare the signatures request: %v", s.conn.RawConn.RemoteAddr(), err)
-	}
-	_, err = s.conn.Send(buf.Bytes())
-	if err != nil {
-		zap.S().Errorf("[%s][SYN] Failed to send the signatures request: %v", s.conn.RawConn.RemoteAddr(), err)
-		return
-	}
-	s.pending = signatures
-}
-
-func (s *signaturesSynchronizer) movePeer(signature crypto.Signature) error {
-	zap.S().Debugf("[%s][SYN] Moving peer link to block '%s'", s.conn.RawConn.RemoteAddr(), signature.String())
-	err := s.drawer.movePeer(s.addr, signature)
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 type blockRequest struct {
@@ -272,13 +90,11 @@ func (q *requestQueue) enqueue(block crypto.Signature, conn *Conn) {
 	if ok {
 		list = append(list, conn)
 		q.connections[block] = list
-		//zap.S().Debugf("[%s] Updated block in queue '%s', connections %s", conn.RawConn.RemoteAddr(), block.String(), logConnections(list))
 		return
 	}
 	q.blocks = append(q.blocks, block)
 	list = []*Conn{conn}
 	q.connections[block] = list
-	//zap.S().Debugf("[%s] Enqueued block '%s', connections %s", conn.RawConn.RemoteAddr(), block.String(), logConnections(list))
 }
 
 func (q *requestQueue) load() bool {
@@ -317,7 +133,7 @@ type blocksLoader struct {
 	drawer          *drawer
 	requestCh       chan signaturesEvent
 	blockCh         chan blockEvent
-	notificationsCh chan notificationEvent
+	notificationsCh chan crypto.Signature
 	shutdownCh      chan struct{}
 	queue           *requestQueue
 	requestTimer    *time.Timer
@@ -329,7 +145,7 @@ func newBlockLoader(wg *sync.WaitGroup, drawer *drawer) *blocksLoader {
 		drawer:          drawer,
 		requestCh:       make(chan signaturesEvent),
 		blockCh:         make(chan blockEvent),
-		notificationsCh: make(chan notificationEvent),
+		notificationsCh: make(chan crypto.Signature),
 		shutdownCh:      make(chan struct{}),
 		queue:           newRequestQueue(),
 		requestTimer:    time.NewTimer(blockReceiveTimeout),
@@ -348,14 +164,18 @@ func (l *blocksLoader) start() {
 			for _, s := range e.signatures {
 				l.queue.enqueue(s, e.conn)
 			}
+			zap.S().Debugf("[BLD] ( REQUESTING BLOCKS 1")
 			l.requestBlock()
+			zap.S().Debugf("[BLD] ) BLOCKS REQUESTED 1")
 
 		case <-l.requestTimer.C:
 			zap.S().Warnf("[BLD] Failed to receive block in time")
 			if !l.queue.dispose() {
 				zap.S().Debugf("[BLD] NOTHING TO DISPOSE")
 			}
+			zap.S().Debugf("[BLD] ( REQUESTING BLOCKS 2")
 			l.requestBlock()
+			zap.S().Debugf("[BLD] ) BLOCKS REQUESTED 2")
 
 		case e := <-l.blockCh:
 			zap.S().Debugf("[%s][BLD] Received block '%s'", e.conn.RawConn.RemoteAddr(), e.block.BlockSignature.String())
@@ -373,18 +193,20 @@ func (l *blocksLoader) start() {
 				zap.S().Warnf("[%s][BLD] Expected block '%s' but from unexpected connection, was requested on %s", e.conn.RawConn.RemoteAddr(), e.block.BlockSignature.String(), pending.connections[0].RawConn.RemoteAddr())
 				continue
 			}
-			result := true
 			err := l.drawer.appendBlock(e.block)
 			if err != nil {
-				zap.S().Errorf("[%s][BLD] Failed to save new block: %v", e.conn.RawConn.RemoteAddr(), err)
-				result = false
+				zap.S().Fatalf("[%s][BLD] Failed to save new block: %v", e.conn.RawConn.RemoteAddr(), err)
+				return
 			}
-			zap.S().Debugf("[%s][BLD] NOTIFYING ABOUT %s", e.conn.RawConn.RemoteAddr(), e.block.BlockSignature.String())
-			l.notificationsCh <- notificationEvent{e.block.BlockSignature, result}
+			zap.S().Debugf("[%s][BLD] ( NOTIFYING ABOUT %s", e.conn.RawConn.RemoteAddr(), e.block.BlockSignature.String())
+			l.notificationsCh <- e.block.BlockSignature
 			if !l.queue.dispose() {
 				zap.S().Debugf("[BLD] NOTHING TO DISPOSE")
 			}
+			zap.S().Debugf("[%s][BLD] ) NOTIFICATIONS SENT %s", e.conn.RawConn.RemoteAddr(), e.block.BlockSignature.String())
+			zap.S().Debugf("[BLD] ( REQUESTING BLOCKS 3")
 			l.requestBlock()
+			zap.S().Debugf("[BLD] ) BLOCKS REQUESTED 3")
 		}
 	}
 }
@@ -425,7 +247,7 @@ func (l *blocksLoader) blocksSink() chan<- blockEvent {
 	return l.blockCh
 }
 
-func (l *blocksLoader) notificationsTap() <-chan notificationEvent {
+func (l *blocksLoader) notificationsTap() <-chan crypto.Signature {
 	return l.notificationsCh
 }
 
@@ -440,7 +262,7 @@ type Loader struct {
 	closedConnectionsCh chan *Conn
 	scoreCh             chan *Conn
 	signaturesCh        chan signaturesEvent
-	notificationsCh     chan notificationEvent
+	notificationsCh     chan crypto.Signature
 }
 
 func NewLoader(interrupt <-chan struct{}, drawer *drawer) (*Loader, error) {
@@ -491,11 +313,13 @@ func (l *Loader) Start() <-chan struct{} {
 
 			case c := <-l.closedConnectionsCh:
 				// Shutting down signatures synchronizer
+				zap.S().Debugf("[%s][LDR] Connection closed, shutting down signatures synchronizer", c.RawConn.RemoteAddr())
 				s, ok := l.synchronizers[c]
 				if !ok {
-					zap.S().Errorf("[%s][LDR] No signatures synchronizer", c.RawConn.RemoteAddr())
+					zap.S().Errorf("[%s][LDR] No signatures synchronizer found", c.RawConn.RemoteAddr())
 					continue
 				}
+				delete(l.synchronizers, c)
 				s.shutdownSink() <- struct{}{}
 
 			case c := <-l.scoreCh:
@@ -526,7 +350,7 @@ func (l *Loader) Start() <-chan struct{} {
 					i++
 				}
 				go func(synchronizers []*signaturesSynchronizer) {
-					zap.S().Debugf("[LDR] Block notification received: %s, %v", e.block.String(), e.result)
+					zap.S().Debugf("[LDR] Block notification received: %s", e.String())
 					zap.S().Debugf("[LDR] Notifying %d synchronizers", len(l.synchronizers))
 					for _, s := range synchronizers {
 						s.block() <- e
@@ -577,23 +401,4 @@ func logSignatures(signatures []crypto.Signature) string {
 	}
 	sb.WriteRune(']')
 	return sb.String()
-}
-
-func contains(a []crypto.Signature, e crypto.Signature) bool {
-	for i := 0; i < len(a); i++ {
-		if a[i] == e {
-			return true
-		}
-	}
-	return false
-}
-
-func skip(a, c []crypto.Signature) []crypto.Signature {
-	var i int
-	for i = 0; i < len(a); i++ {
-		if !contains(c, a[i]) {
-			break
-		}
-	}
-	return a[i:]
 }

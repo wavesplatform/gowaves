@@ -152,9 +152,11 @@ func (c *Conn) Stop(mode int) {
 	c.once.Do(func() {
 		if mode == StopImmediately {
 			atomic.StoreInt32(&c.state, connStateStopped)
-			err := c.RawConn.Close()
-			if err != nil {
-				zap.S().Warnf("[%s] Failed to close the connection properly: %v", c.RawConn.RemoteAddr(), err)
+			if c.RawConn != nil {
+				err := c.RawConn.Close()
+				if err != nil {
+					zap.S().Warnf("[%s] Failed to close the connection properly: %v", c.RawConn.RemoteAddr(), err)
+				}
 			}
 			close(c.closed)
 		} else {
