@@ -1,15 +1,16 @@
-package node
+package peer_manager
 
 import (
 	"context"
-	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
-	"github.com/wavesplatform/gowaves/pkg/proto"
-	"github.com/wavesplatform/gowaves/pkg/state"
-	"go.uber.org/zap"
+	"fmt"
 	"math/big"
 	"net"
 	"sort"
 	"sync"
+
+	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
+	"github.com/wavesplatform/gowaves/pkg/proto"
+	"go.uber.org/zap"
 )
 
 var defaultVersion = proto.Version{Major: 0, Minor: 15, Patch: 0}
@@ -57,16 +58,16 @@ type PeerManagerImpl struct {
 	active     map[string]peerInfo //peer.Peer
 	knownPeers map[string]proto.Version
 	mu         sync.RWMutex
-	state      state.State
+	state      PeerStorage
 	spawned    map[proto.IpPort]struct{}
 }
 
-func NewPeerManager(spawner PeerSpawner, state state.State) *PeerManagerImpl {
+func NewPeerManager(spawner PeerSpawner, storage PeerStorage) *PeerManagerImpl {
 	return &PeerManagerImpl{
 		spawner:    spawner,
 		active:     make(map[string]peerInfo),
 		knownPeers: make(map[string]proto.Version),
-		state:      state,
+		state:      storage,
 		spawned:    make(map[proto.IpPort]struct{}),
 	}
 }

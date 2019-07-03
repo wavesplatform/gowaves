@@ -2,10 +2,11 @@ package api
 
 import (
 	"context"
+
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/miner/scheduler"
-	"github.com/wavesplatform/gowaves/pkg/node"
+	"github.com/wavesplatform/gowaves/pkg/node/peer_manager"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/state"
 )
@@ -13,7 +14,7 @@ import (
 type Node interface {
 	State() state.State
 	SpawnOutgoingConnection(ctx context.Context, addr proto.TCPAddr) error
-	PeerManager() node.PeerManager
+	PeerManager() peer_manager.PeerManager
 }
 
 type SchedulerEmits interface {

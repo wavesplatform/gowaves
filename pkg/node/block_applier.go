@@ -4,6 +4,7 @@ import (
 	"math/big"
 
 	"github.com/pkg/errors"
+	"github.com/wavesplatform/gowaves/pkg/node/peer_manager"
 	. "github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/state"
@@ -104,13 +105,13 @@ func (a *innerBlockApplier) apply(block *proto.Block) (*proto.Block, proto.Heigh
 
 type BlockApplier struct {
 	state       state.State
-	peer        PeerManager
+	peer        peer_manager.PeerManager
 	scheduler   types.Scheduler
 	interrupter types.MinerInterrupter
 	inner       innerBlockApplier
 }
 
-func NewBlockApplier(state state.State, peer PeerManager, scheduler types.Scheduler, minerInterrupter types.MinerInterrupter) *BlockApplier {
+func NewBlockApplier(state state.State, peer peer_manager.PeerManager, scheduler types.Scheduler, minerInterrupter types.MinerInterrupter) *BlockApplier {
 	return &BlockApplier{
 		state:       state,
 		peer:        peer,

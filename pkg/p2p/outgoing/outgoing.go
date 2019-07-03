@@ -33,6 +33,7 @@ func EstablishConnection(ctx context.Context, params EstablishParams, v proto.Ve
 
 	c, err := net.Dial("tcp", params.Address.String())
 	if err != nil {
+		zap.S().Error(err)
 		return err
 	}
 

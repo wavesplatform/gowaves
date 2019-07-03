@@ -2,16 +2,18 @@ package node
 
 import (
 	"context"
+	"math/big"
+	"net"
+	"time"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/node/peer_manager"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"github.com/wavesplatform/gowaves/pkg/types"
 	"github.com/wavesplatform/gowaves/pkg/util"
 	"go.uber.org/zap"
-	"math/big"
-	"net"
-	"time"
 )
 
 type Config struct {
@@ -22,7 +24,7 @@ type Config struct {
 }
 
 type Node struct {
-	peerManager      PeerManager
+	peerManager      peer_manager.PeerManager
 	stateManager     state.State
 	subscribe        *Subscribe
 	sync             *StateSync
@@ -31,7 +33,7 @@ type Node struct {
 	minerInterrupter types.MinerInterrupter
 }
 
-func NewNode(stateManager state.State, peerManager PeerManager, declAddr proto.TCPAddr, scheduler types.Scheduler, minerInterrupter types.MinerInterrupter) *Node {
+func NewNode(stateManager state.State, peerManager peer_manager.PeerManager, declAddr proto.TCPAddr, scheduler types.Scheduler, minerInterrupter types.MinerInterrupter) *Node {
 	s := NewSubscribeService()
 	return &Node{
 		stateManager:     stateManager,
@@ -48,7 +50,7 @@ func (a *Node) State() state.State {
 	return a.stateManager
 }
 
-func (a *Node) PeerManager() PeerManager {
+func (a *Node) PeerManager() peer_manager.PeerManager {
 	return a.peerManager
 }
 
@@ -71,8 +73,8 @@ func (a *Node) HandleProtoMessage(mess peer.ProtoMessage) {
 	case *proto.TransactionMessage:
 	// nothing to do with transactions
 	// no utx pool exists
-	case *proto.MicroBlockMessage:
-		zap.S().Info(mess)
+	case *proto.MicroBlockInvMessage:
+		a.handleMicroblockInvMessage(mess.ID, t)
 
 	default:
 		zap.S().Errorf("unknown proto Message %+v", mess.Message)
@@ -134,7 +136,12 @@ func (a *Node) handlePeerError(id string, err error) {
 
 func (a *Node) Close() {
 	a.peerManager.Close()
+
+	m := a.stateManager.Mutex()
+	m.Lock()
 	a.stateManager.Close()
+	m.Unlock()
+
 	a.sync.Close()
 }
 
@@ -249,6 +256,13 @@ func (a *Node) handleGetSignaturesMessage(peerID string, mess *proto.GetSignatur
 		sendSignatures(block, a.stateManager, p)
 		return
 	}
+}
+
+func (a *Node) handleMicroblockInvMessage(peerID string, mess *proto.MicroBlockInvMessage) {
+	m := proto.MicroBlockInv{}
+	err := m.UnmarshalBinary(mess.Body)
+	zap.S().Info("*proto.MicroBlockInv ", m, err)
+
 }
 
 func (a *Node) SpawnOutgoingConnections(ctx context.Context) {

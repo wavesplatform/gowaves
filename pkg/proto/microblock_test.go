@@ -1,20 +1,51 @@
 package proto
 
 import (
-	"github.com/stretchr/testify/require"
+	"bytes"
 	"testing"
+
+	"github.com/stretchr/testify/require"
+	"github.com/wavesplatform/gowaves/pkg/crypto"
 )
 
-func TestMicroBlock_UnmarshalBinary(t *testing.T) {
-	mBytes := []byte{
-		0, 0, 0, 237,
-		18, 52, 86, 120,
-		26,
-		0, 0, 0, 224,
-		19, 34, 78, 86,
-		182, 35, 49, 86, 42, 200, 213, 253, 3, 193, 156, 84, 158, 6, 85, 144, 196, 169, 150, 129, 143, 56, 215, 43, 166, 227, 252, 84, 68, 23, 232, 0, 204, 6, 204, 215, 132, 126, 216, 110, 30, 18, 77, 21, 50, 29, 218, 224, 26, 112, 42, 200, 210, 90, 76, 27, 22, 155, 42, 143, 86, 142, 151, 16, 37, 32, 184, 175, 222, 165, 144, 9, 155, 185, 187, 216, 180, 34, 144, 144, 111, 212, 131, 161, 41, 94, 101, 13, 115, 237, 150, 158, 72, 214, 240, 129, 223, 110, 144, 45, 100, 108, 63, 104, 38, 27, 197, 164, 45, 44, 148, 67, 241, 109, 198, 136, 236, 169, 237, 98, 21, 252, 71, 28, 1, 205, 195, 21, 112, 95, 143, 186, 183, 4, 37, 187, 226, 91, 25, 138, 66, 82, 167, 199, 249, 201, 152, 1, 95, 152, 236, 164, 21, 150, 132, 33, 102, 24, 125, 143, 1, 201, 43, 50, 177, 73, 186, 246, 142, 20, 209, 126, 243, 169, 70, 151, 240, 93, 225, 54, 142, 137, 133, 247, 5, 134, 30, 185, 199, 189, 3, 73, 246, 23, 231, 94, 130, 111, 216, 191, 163, 15, 59, 202, 40, 55, 37}
+func TestMicroBlock_Marshaling(t *testing.T) {
+	m := MicroBlock{
+		VersionField:          3,
+		PrevResBlockSigField:  crypto.MustSignatureFromBase58("37ex9gonRZtUddDHgSzSes5Ds9UeQyS74DyAXtGFrDpJnEg7sjGdi2ncaV4rVpZnLboQmid3whcbZUWS49FV3ZCs"),
+		TotalResBlockSigField: crypto.MustSignatureFromBase58("3ta68P5LdLHWKuKcDvASsjcCMEQsm1ySrpxYZwqmzCHiAWHgrYJE1ZmaTsh3ytPqY73545EUPDaGfVdrguTqVTHg"),
+		Signer: Signer{Generator: crypto.MustPublicKeyFromBase58("adBBo1RCATFZYX114g8xDRpzKqRCVwckuTP6rcgYmA6"),
+			Signature: crypto.MustSignatureFromBase58("56Un9HE6UnG2ut3srow7tGrQ9pMKyKqhbpJBjwJ7oV2rpr58iaPYG5G3QmZqVo169GN4bNHNHwhDykgPbQknD3Nv"),
+		},
+		TransactionCount: 1,
+		Transactions:     NewReprFromBytes([]byte{0, 0, 0, 152, 4, 76, 252, 177, 12, 123, 169, 56, 92, 8, 85, 82, 118, 1, 166, 228, 57, 52, 84, 161, 19, 144, 247, 9, 93, 114, 88, 198, 123, 123, 210, 188, 95, 177, 170, 229, 15, 176, 248, 128, 112, 121, 201, 53, 221, 15, 55, 231, 118, 113, 192, 201, 113, 251, 55, 6, 95, 207, 47, 24, 71, 240, 162, 206, 6, 4, 236, 89, 77, 54, 8, 236, 240, 30, 10, 87, 121, 139, 23, 7, 114, 121, 45, 177, 69, 50, 132, 55, 119, 224, 172, 245, 68, 95, 44, 28, 243, 4, 0, 0, 0, 0, 1, 107, 137, 11, 41, 201, 0, 0, 0, 10, 247, 96, 247, 0, 0, 0, 0, 0, 0, 1, 134, 160, 1, 87, 126, 90, 125, 49, 243, 210, 18, 83, 195, 130, 223, 30, 209, 178, 95, 17, 186, 108, 63, 172, 209, 224, 228, 138, 0, 0}, 1),
+	}
 
-	m := MicroBlock{}
-	require.NoError(t, m.UnmarshalBinary(mBytes[17:]))
+	buf := &bytes.Buffer{}
+	m.WriteTo(buf)
+
+	m2 := MicroBlock{}
+	m2.UnmarshalBinary(buf.Bytes())
+
+	require.Equal(t, m, m2)
+
+	rs, err := m.VerifySignature()
+	require.NoError(t, err)
+	require.True(t, rs)
+}
+
+func TestMicroBlockRequestMessage_Marshal(t *testing.T) {
+
+	m := MicroBlockRequestMessage{
+		Body: []byte("blalba"),
+	}
+
+	bts, err := m.MarshalBinary()
+	require.NoError(t, err)
+
+	m2 := MicroBlockRequestMessage{}
+	err = m2.UnmarshalBinary(bts)
+	require.NoError(t, err)
+
+	require.Equal(t, m, m2)
 
 }

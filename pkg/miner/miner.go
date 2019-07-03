@@ -6,6 +6,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/miner/scheduler"
 	"github.com/wavesplatform/gowaves/pkg/miner/utxpool"
 	"github.com/wavesplatform/gowaves/pkg/node"
+	"github.com/wavesplatform/gowaves/pkg/node/peer_manager"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"github.com/wavesplatform/gowaves/pkg/types"
@@ -20,12 +21,12 @@ import (
 type Miner struct {
 	utx       *utxpool.Utx
 	state     state.State
-	peer      node.PeerManager
+	peer      peer_manager.PeerManager
 	scheduler types.Scheduler
 	interrupt *atomic.Bool
 }
 
-func New(utx *utxpool.Utx, state state.State, peer node.PeerManager, scheduler types.Scheduler) *Miner {
+func New(utx *utxpool.Utx, state state.State, peer peer_manager.PeerManager, scheduler types.Scheduler) *Miner {
 	return &Miner{
 		scheduler: scheduler,
 		utx:       utx,
@@ -81,7 +82,7 @@ func (a *Miner) Mine(t proto.Timestamp, k proto.KeyPair, parent crypto.Signature
 		GenSignature: GenSignature,
 	}
 
-	b, err := proto.BlockBuilder(transactions, t, parent, k.Public(), nxt)
+	b, err := proto.CreateBlock(proto.NewReprFromTransactions(transactions), t, parent, k.Public(), nxt)
 	if err != nil {
 		zap.S().Error(err)
 		return

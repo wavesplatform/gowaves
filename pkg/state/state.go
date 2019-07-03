@@ -339,8 +339,7 @@ func (s *stateManager) Block(blockID crypto.Signature) (*proto.Block, error) {
 		return nil, StateError{errorType: RetrievalError, originalError: err}
 	}
 	block := proto.Block{BlockHeader: *header}
-	block.Transactions = make([]byte, len(transactions))
-	copy(block.Transactions, transactions)
+	block.Transactions = proto.NewReprFromBytes(transactions, header.TransactionCount)
 	return &block, nil
 }
 
@@ -468,7 +467,10 @@ func (s *stateManager) addNewBlock(tv *transactionValidator, block, parent *prot
 	if err := s.rw.writeBlockHeader(block.BlockSignature, headerBytes); err != nil {
 		return err
 	}
-	transactions := block.Transactions
+	transactions, err := block.Transactions.Bytes()
+	if err != nil {
+		return err
+	}
 	// Validate transactions.
 	for i := 0; i < block.TransactionCount; i++ {
 		n := int(binary.BigEndian.Uint32(transactions[0:4]))

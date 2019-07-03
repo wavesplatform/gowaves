@@ -7,6 +7,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/miner"
 	scheduler2 "github.com/wavesplatform/gowaves/pkg/miner/scheduler"
 	"github.com/wavesplatform/gowaves/pkg/miner/utxpool"
+	"github.com/wavesplatform/gowaves/pkg/node/peer_manager"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"math/rand"
 	"os"
@@ -93,9 +94,9 @@ func main() {
 
 	parent := peer.NewParent()
 
-	peerSpawnerImpl := node.NewPeerSpawner(btsPool, parent, conf.WavesNetwork, declAddr, "gowaves", uint64(rand.Int()), version)
+	peerSpawnerImpl := peer_manager.NewPeerSpawner(btsPool, parent, conf.WavesNetwork, declAddr, "gowaves", uint64(rand.Int()), version)
 
-	peerManager := node.NewPeerManager(peerSpawnerImpl, state)
+	peerManager := peer_manager.NewPeerManager(peerSpawnerImpl, state)
 
 	var keyPairs []proto.KeyPair
 	if len(cli.Run.Seed) > 0 {

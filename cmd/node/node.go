@@ -6,6 +6,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/api"
 	"github.com/wavesplatform/gowaves/pkg/miner"
 	"github.com/wavesplatform/gowaves/pkg/miner/scheduler"
+	"github.com/wavesplatform/gowaves/pkg/node/peer_manager"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"os"
 	"os/signal"
@@ -75,9 +76,9 @@ func main() {
 
 	parent := peer.NewParent()
 
-	peerSpawnerImpl := node.NewPeerSpawner(pool, parent, conf.WavesNetwork, declAddr, "gowaves", 100500, version)
+	peerSpawnerImpl := peer_manager.NewPeerSpawner(pool, parent, conf.WavesNetwork, declAddr, "gowaves", 100500, version)
 
-	peerManager := node.NewPeerManager(peerSpawnerImpl, state)
+	peerManager := peer_manager.NewPeerManager(peerSpawnerImpl, state)
 
 	schedulerInstance := scheduler.NewScheduler(state, nil, nil)
 

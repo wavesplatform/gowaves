@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"github.com/syndtr/goleveldb/leveldb"
+	"github.com/valyala/bytebufferpool"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
@@ -112,11 +113,13 @@ func (w *WavesDB) Put(block *proto.Block) error {
 		height = binary.BigEndian.Uint64(heightBytes)
 		height++
 	}
-	bytes, err := block.MarshalBinary()
+	buf := bytebufferpool.Get()
+	defer bytebufferpool.Put(buf)
+	_, err := block.WriteTo(buf)
 	if err != nil {
 		return err
 	}
-	if err = w.db.Put(block.BlockSignature[:], bytes, nil); err != nil {
+	if err = w.db.Put(block.BlockSignature[:], buf.Bytes(), nil); err != nil {
 		return err
 	}
 

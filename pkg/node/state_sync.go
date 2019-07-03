@@ -6,6 +6,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/node/peer_manager"
 	. "github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/state"
@@ -15,7 +16,7 @@ import (
 )
 
 type StateSync struct {
-	peerManager  PeerManager
+	peerManager  peer_manager.PeerManager
 	stateManager state.State
 	subscribe    *Subscribe
 	interrupt    chan struct{}
@@ -23,7 +24,7 @@ type StateSync struct {
 	blockApplier *BlockApplier
 }
 
-func NewStateSync(stateManager state.State, peerManager PeerManager, subscribe *Subscribe, scheduler types.Scheduler, interrupter types.MinerInterrupter) *StateSync {
+func NewStateSync(stateManager state.State, peerManager peer_manager.PeerManager, subscribe *Subscribe, scheduler types.Scheduler, interrupter types.MinerInterrupter) *StateSync {
 	return &StateSync{
 		peerManager:  peerManager,
 		stateManager: stateManager,

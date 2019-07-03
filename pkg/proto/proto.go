@@ -5,8 +5,6 @@ import (
 	"encoding"
 	"encoding/binary"
 	"fmt"
-	"github.com/wavesplatform/gowaves/pkg/util/collect_writes"
-	"go.uber.org/zap"
 	"io"
 	"net"
 	"strconv"
@@ -14,6 +12,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/util/collect_writes"
 )
 
 const (
@@ -27,16 +26,18 @@ const (
 
 // Constants for message IDs
 const (
-	ContentIDGetPeers      = 0x1
-	ContentIDPeers         = 0x2
-	ContentIDGetSignatures = 0x14
-	ContentIDSignatures    = 0x15
-	ContentIDGetBlock      = 0x16
-	ContentIDBlock         = 0x17
-	ContentIDScore         = 0x18
-	ContentIDTransaction   = 0x19
-	ContentIDMicroblock    = 0x1A
-	ContentIDCheckpoint    = 0x64
+	ContentIDGetPeers          = 0x1
+	ContentIDPeers             = 0x2
+	ContentIDGetSignatures     = 0x14
+	ContentIDSignatures        = 0x15
+	ContentIDGetBlock          = 0x16
+	ContentIDBlock             = 0x17
+	ContentIDScore             = 0x18
+	ContentIDTransaction       = 0x19
+	ContentIDInvMicroblock     = 0x1A
+	ContentIDCheckpoint        = 0x64
+	ContentIDMicroblockRequest = 27
+	ContentIDMicroblock        = 28
 
 	HeaderContentIDPosition = 8
 )
@@ -1366,60 +1367,6 @@ type CheckPointMessage struct {
 	Checkpoints []CheckpointItem
 }
 
-// CheckPointMessage represents a CheckPoint message
-type MicroBlockMessage struct {
-	MicroBlockBody []byte
-}
-
-func (*MicroBlockMessage) ReadFrom(r io.Reader) (n int64, err error) {
-	panic("implement me")
-}
-
-func (*MicroBlockMessage) WriteTo(w io.Writer) (n int64, err error) {
-	panic("implement me")
-}
-
-func (a *MicroBlockMessage) UnmarshalBinary(data []byte) error {
-	var h Header
-	if err := h.UnmarshalBinary(data); err != nil {
-		return err
-	}
-	if h.ContentID != ContentIDMicroblock {
-		return fmt.Errorf("wrong ContentID in Header: %x", h.ContentID)
-	}
-	data = data[17:]
-
-	if len(data) < crypto.SignatureSize*2+1 {
-		return errors.New("invalid micro block size")
-	}
-
-	b := make([]byte, len(data))
-	copy(b, data)
-	a.MicroBlockBody = b
-
-	//version := data[0]
-
-	// TODO check max length
-	//a.Transaction = make([]byte, h.PayloadLength)
-	//copy(m.Transaction, data[MaxHeaderLength:MaxHeaderLength+h.PayloadLength])
-	//dig, err := crypto.FastHash(m.Transaction)
-	//if err != nil {
-	//	return err
-	//}
-	//
-	//if !bytes.Equal(dig[:4], h.PayloadCsum[:]) {
-	//	return fmt.Errorf("invalid checksum: expected %x, found %x", dig[:4], h.PayloadCsum[:])
-	//}
-	//return nil
-
-	zap.S().Info("micro block message UnmarshalBinary ", data[:h.PayloadLength+50])
-	return nil
-}
-
-func (*MicroBlockMessage) MarshalBinary() (data []byte, err error) {
-	panic("implement me")
-}
-
 // MarshalBinary encodes CheckPointMessage to binary form
 func (m *CheckPointMessage) MarshalBinary() ([]byte, error) {
 	body := make([]byte, 4, 4+len(m.Checkpoints)*72+100)
@@ -1534,6 +1481,10 @@ func UnmarshalMessage(b []byte) (Message, error) {
 		m = &CheckPointMessage{}
 	case ContentIDMicroblock:
 		m = &MicroBlockMessage{}
+	case ContentIDMicroblockRequest:
+		m = &MicroBlockRequestMessage{}
+	case ContentIDInvMicroblock:
+		m = &MicroBlockInvMessage{}
 	default:
 		return nil, errors.Errorf(
 			"received unknown content id byte %d 0x%x", b[HeaderContentIDPosition], b[HeaderContentIDPosition])

@@ -61,7 +61,7 @@ func blockFromBinaryToBinary(t *testing.T, hexStr, jsonStr string) {
 	var b Block
 	err = b.UnmarshalBinary(decoded)
 	assert.NoError(t, err, "UnmarshalBinary() for block failed")
-	bytes, err := json.Marshal(b)
+	bytes, err := BlockEncodeJson(&b)
 	assert.NoError(t, err, "json.Marshal() for block failed")
 	str := string(bytes)
 	assert.Equalf(t, jsonStr, str, "block marshaled to wrong json:\nhave: %s\nwant: %s", str, jsonStr)
@@ -70,11 +70,11 @@ func blockFromBinaryToBinary(t *testing.T, hexStr, jsonStr string) {
 	assert.Equal(t, decoded, bin, "bin for block differs")
 }
 
-func blockFromJSONToJSON(t *testing.T, jsonStr string) {
+func blockFromJSONToJSON(t *testing.T, jsonStr string, iteration int) {
 	var b Block
 	err := json.Unmarshal([]byte(jsonStr), &b)
 	assert.NoError(t, err, "json.Unmarshal() for block failed")
-	bytes, err := json.Marshal(b)
+	bytes, err := BlockEncodeJson(&b)
 	assert.NoError(t, err, "json.Marshal() for block failed")
 	str := string(bytes)
 	assert.Equalf(t, jsonStr, str, "block marshaled to wrong json:\nhave: %s\nwant: %s", str, jsonStr)
@@ -123,7 +123,8 @@ func TestAppendHeaderBytesToTransactions(t *testing.T) {
 	transactions := block.Transactions
 	blockBytes, err := block.MarshalBinary()
 	assert.NoError(t, err, "block.MarshalBinary() failed")
-	blockBytes1, err := AppendHeaderBytesToTransactions(headerBytes, transactions)
+	transactionsBts, _ := transactions.Bytes()
+	blockBytes1, err := AppendHeaderBytesToTransactions(headerBytes, transactionsBts)
 	assert.NoError(t, err, "AppendHeaderBytesToTransactions() failed")
 	assert.Equal(t, blockBytes, blockBytes1)
 }
@@ -132,7 +133,7 @@ func TestBlockSerialization(t *testing.T) {
 	for i, v := range blockTests {
 		t.Run(fmt.Sprintf("%v", i), func(t *testing.T) {
 			blockFromBinaryToBinary(t, v.hexEncoded, v.jsonEncoded)
-			blockFromJSONToJSON(t, v.jsonEncoded)
+			blockFromJSONToJSON(t, v.jsonEncoded, i)
 		})
 	}
 }
@@ -206,11 +207,11 @@ func TestBlock_WriteTo(t *testing.T) {
 				GenSignature: gensig, //
 			},
 		},
-		Transactions: buf.Bytes(),
+		Transactions: NewReprFromTransactions(transactions),
 	}
 
 	buf = new(bytes.Buffer)
-	block.WriteTo(buf)
+	block.WriteToWithoutSignature(buf)
 	marshaledBytes, _ := block.MarshalBinary()
 
 	// writeTo doesn't write signature
