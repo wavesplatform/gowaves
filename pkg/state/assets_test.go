@@ -30,6 +30,7 @@ func createAssets() (*assetsTestObjects, []string, error) {
 func createAssetInfo(t *testing.T, reissuable bool, blockID0 crypto.Signature, assetID crypto.Digest) *assetInfo {
 	asset := &assetInfo{
 		assetConstInfo: assetConstInfo{
+			issuer:      testGlobal.senderInfo.pk,
 			name:        "asset",
 			description: "description",
 			decimals:    2,

@@ -1,6 +1,7 @@
 package state
 
 import (
+	"math"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -170,9 +171,15 @@ func TestCheckReissueV1(t *testing.T) {
 
 	tx := createReissueV1(t)
 	info := defaultCheckerInfo(t)
-	info.currentTimestamp = settings.MainNetSettings.InvalidReissueInSameBlockUntilTime + 1
+	info.currentTimestamp = settings.MainNetSettings.ReissueBugWindowTimeEnd + 1
 	err := to.tc.checkReissueV1(tx, info)
 	assert.NoError(t, err, "checkReissueV1 failed with valid reissue tx")
+
+	temp := tx.Quantity
+	tx.Quantity = math.MaxInt64 + 1
+	err = to.tc.checkReissueV1(tx, info)
+	assert.EqualError(t, err, "asset total value overflow")
+	tx.Quantity = temp
 
 	tx.Reissuable = false
 	err = to.tp.performReissueV1(tx, defaultPerformerInfo(t))
@@ -182,6 +189,7 @@ func TestCheckReissueV1(t *testing.T) {
 
 	err = to.tc.checkReissueV1(tx, info)
 	assert.Error(t, err, "checkReissueV1 did not fail when trying to reissue unreissueable asset")
+	assert.EqualError(t, err, "attempt to reissue asset which is not reissuable")
 }
 
 func TestCheckReissueV2(t *testing.T) {
@@ -196,9 +204,15 @@ func TestCheckReissueV2(t *testing.T) {
 
 	tx := createReissueV2(t)
 	info := defaultCheckerInfo(t)
-	info.currentTimestamp = settings.MainNetSettings.InvalidReissueInSameBlockUntilTime + 1
+	info.currentTimestamp = settings.MainNetSettings.ReissueBugWindowTimeEnd + 1
 	err := to.tc.checkReissueV2(tx, info)
 	assert.NoError(t, err, "checkReissueV2 failed with valid reissue tx")
+
+	temp := tx.Quantity
+	tx.Quantity = math.MaxInt64 + 1
+	err = to.tc.checkReissueV2(tx, info)
+	assert.EqualError(t, err, "asset total value overflow")
+	tx.Quantity = temp
 
 	tx.Reissuable = false
 	err = to.tp.performReissueV2(tx, defaultPerformerInfo(t))
@@ -208,6 +222,7 @@ func TestCheckReissueV2(t *testing.T) {
 
 	err = to.tc.checkReissueV2(tx, info)
 	assert.Error(t, err, "checkReissueV2 did not fail when trying to reissue unreissueable asset")
+	assert.EqualError(t, err, "attempt to reissue asset which is not reissuable")
 }
 
 func TestCheckBurnV1(t *testing.T) {

@@ -44,6 +44,7 @@ func TestPerformIssueV1(t *testing.T) {
 	to.stor.flush(t)
 	assetInfo := assetInfo{
 		assetConstInfo: assetConstInfo{
+			issuer:      tx.SenderPK,
 			name:        tx.Name,
 			description: tx.Description,
 			decimals:    int8(tx.Decimals),
@@ -76,6 +77,7 @@ func TestPerformIssueV2(t *testing.T) {
 	to.stor.flush(t)
 	assetInfo := assetInfo{
 		assetConstInfo: assetConstInfo{
+			issuer:      tx.SenderPK,
 			name:        tx.Name,
 			description: tx.Description,
 			decimals:    int8(tx.Decimals),

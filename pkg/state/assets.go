@@ -26,23 +26,33 @@ func (ai *assetInfo) equal(ai1 *assetInfo) bool {
 
 // assetConstInfo is part of asset info which is constant.
 type assetConstInfo struct {
+	issuer      crypto.PublicKey
 	name        string
 	description string
 	decimals    int8
 }
 
 func (ai *assetConstInfo) marshalBinary() ([]byte, error) {
+	issuerBytes, err := ai.issuer.MarshalBinary()
+	if err != nil {
+		return nil, err
+	}
 	nameBuf := make([]byte, 2+len(ai.name))
 	proto.PutStringWithUInt16Len(nameBuf, ai.name)
+	res := append(issuerBytes, nameBuf...)
 	descriptionBuf := make([]byte, 2+len(ai.description))
 	proto.PutStringWithUInt16Len(descriptionBuf, ai.description)
-	res := append(nameBuf, descriptionBuf...)
+	res = append(res, descriptionBuf...)
 	res = append(res, byte(ai.decimals))
 	return res, nil
 }
 
 func (ai *assetConstInfo) unmarshalBinary(data []byte) error {
-	var err error
+	err := ai.issuer.UnmarshalBinary(data[:crypto.PublicKeySize])
+	if err != nil {
+		return err
+	}
+	data = data[crypto.PublicKeySize:]
 	ai.name, err = proto.StringWithUInt16Len(data)
 	if err != nil {
 		return err
@@ -108,10 +118,12 @@ type assets struct {
 	db      keyvalue.KeyValue
 	dbBatch keyvalue.Batch
 	hs      *historyStorage
+
+	freshConstInfo map[crypto.Digest]assetConstInfo
 }
 
 func newAssets(db keyvalue.KeyValue, dbBatch keyvalue.Batch, hs *historyStorage) (*assets, error) {
-	return &assets{db, dbBatch, hs}, nil
+	return &assets{db: db, dbBatch: dbBatch, hs: hs, freshConstInfo: make(map[crypto.Digest]assetConstInfo)}, nil
 }
 
 func (a *assets) addNewRecord(assetID crypto.Digest, record *assetHistoryRecord) error {
@@ -131,6 +143,7 @@ func (a *assets) issueAsset(assetID crypto.Digest, asset *assetInfo) error {
 	}
 	constKey := assetConstKey{assetID: assetID}
 	a.dbBatch.Put(constKey.bytes(), assetConstBytes)
+	a.freshConstInfo[assetID] = asset.assetConstInfo
 	return a.addNewRecord(assetID, &asset.assetHistoryRecord)
 }
 
@@ -145,8 +158,8 @@ func (a *assets) reissueAsset(assetID crypto.Digest, ch *assetReissueChange, fil
 	if err != nil {
 		return errors.Errorf("failed to get asset info: %v\n", err)
 	}
-	quantityDiff := big.NewInt(ch.diff)
-	info.quantity.Add(&info.quantity, quantityDiff)
+	newValue := info.quantity.Int64() + ch.diff
+	info.quantity.SetInt64(newValue)
 	record := &assetHistoryRecord{reissuable: ch.reissuable, quantity: info.quantity, blockID: ch.blockID}
 	return a.addNewRecord(assetID, record)
 }
@@ -183,6 +196,14 @@ func (a *assets) constInfo(assetID crypto.Digest) (*assetConstInfo, error) {
 	return &constInfo, nil
 }
 
+func (a *assets) newestConstInfo(assetID crypto.Digest) (*assetConstInfo, error) {
+	info, ok := a.freshConstInfo[assetID]
+	if ok {
+		return &info, nil
+	}
+	return a.constInfo(assetID)
+}
+
 // Newest asset record (from local storage, or from DB if given asset has not been changed).
 // This is needed for transactions validation.
 func (a *assets) newestAssetRecord(assetID crypto.Digest, filter bool) (*assetHistoryRecord, error) {
@@ -215,4 +236,8 @@ func (a *assets) assetInfo(assetID crypto.Digest, filter bool) (*assetInfo, erro
 		return nil, errors.Errorf("failed to unmarshal record: %v\n", err)
 	}
 	return &assetInfo{assetConstInfo: *constInfo, assetHistoryRecord: record}, nil
+}
+
+func (a *assets) reset() {
+	a.freshConstInfo = make(map[crypto.Digest]assetConstInfo)
 }

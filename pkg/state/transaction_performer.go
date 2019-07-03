@@ -31,6 +31,7 @@ func (tp *transactionPerformer) performIssue(tx *proto.Issue, id []byte, info *p
 	// Create new asset.
 	asset := &assetInfo{
 		assetConstInfo: assetConstInfo{
+			issuer:      tx.SenderPK,
 			name:        tx.Name,
 			description: tx.Description,
 			decimals:    int8(tx.Decimals),

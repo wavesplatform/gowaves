@@ -80,6 +80,7 @@ func newBlockchainEntitiesStorage(hs *historyStorage, sets *settings.BlockchainS
 
 func (s *blockchainEntitiesStorage) reset() {
 	s.hs.reset()
+	s.assets.reset()
 }
 
 func (s *blockchainEntitiesStorage) flush(initialisation bool) error {

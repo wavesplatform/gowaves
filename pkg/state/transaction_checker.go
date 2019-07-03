@@ -1,6 +1,9 @@
 package state
 
 import (
+	"bytes"
+	"math"
+
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -134,13 +137,31 @@ func (tc *transactionChecker) checkReissue(tx *proto.Reissue, info *checkerInfo)
 	if err := tc.checkTimestamps(tx.Timestamp, info.currentTimestamp, info.parentTimestamp); err != nil {
 		return errors.Wrap(err, "invalid timestamp")
 	}
-	// Check if it's "legal" to modify given asset.
+	assetInfo, err := tc.stor.assets.newestConstInfo(tx.AssetID)
+	if err != nil {
+		return err
+	}
+	if !bytes.Equal(assetInfo.issuer[:], tx.SenderPK[:]) {
+		return errors.New("asset was issued by other address")
+	}
+	if info.currentTimestamp <= tc.settings.InvalidReissueInSameBlockUntilTime {
+		// Due to bugs in existing blockchain it is valid to reissue non-reissueable asset in this time period.
+		return nil
+	}
+	if (info.currentTimestamp >= tc.settings.ReissueBugWindowTimeStart) && (info.currentTimestamp <= tc.settings.ReissueBugWindowTimeEnd) {
+		// Due to bugs in existing blockchain it is valid to reissue non-reissueable asset in this time period.
+		return nil
+	}
 	record, err := tc.stor.assets.newestAssetRecord(tx.AssetID, !info.initialisation)
 	if err != nil {
 		return err
 	}
-	if (info.currentTimestamp > tc.settings.InvalidReissueInSameBlockUntilTime) && !record.reissuable {
-		return errors.Errorf("attempt to reissue asset %s which is not reissuable", tx.AssetID.String())
+	if !record.reissuable {
+		return errors.Errorf("attempt to reissue asset which is not reissuable")
+	}
+	// Check Int64 overflow.
+	if (math.MaxInt64-int64(tx.Quantity) < record.quantity.Int64()) && (info.currentTimestamp >= tc.settings.ReissueBugWindowTimeEnd) {
+		return errors.New("asset total value overflow")
 	}
 	return nil
 }
