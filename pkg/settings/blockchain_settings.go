@@ -126,8 +126,10 @@ var (
 
 			GenerationBalanceDepthFrom50To1000AfterHeight: 0,
 			BlockVersion3AfterHeight:                      161700,
-			ResetEffectiveBalanceAtHeight:                 51500,
 
+			ResetEffectiveBalanceAtHeight:          51500,
+			ReissueBugWindowTimeStart:              1520411086003,
+			ReissueBugWindowTimeEnd:                1523096218005,
 			AllowMultipleLeaseCancelUntilTime:      1492560000000,
 			AllowLeasedBalanceTransferUntilTime:    1508230496004,
 			CheckTempNegativeAfterTime:             1477958400000,
