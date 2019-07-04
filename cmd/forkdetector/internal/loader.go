@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"bytes"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
@@ -13,6 +14,7 @@ import (
 
 const (
 	blockReceiveTimeout = time.Minute
+	batchSize           = 20
 )
 
 type signaturesEvent struct {
@@ -164,7 +166,7 @@ func (l *blocksLoader) start() {
 				l.queue.enqueue(s, e.conn)
 			}
 			zap.S().Debugf("[BLD] ( REQUESTING BLOCKS 1")
-			l.requestBlock()
+			l.requestBlocks()
 			zap.S().Debugf("[BLD] ) BLOCKS REQUESTED 1")
 
 		case <-l.requestTimer.C:
@@ -175,7 +177,7 @@ func (l *blocksLoader) start() {
 			// Restart timer
 			l.pending = nil // Dispose all pending blocks
 			zap.S().Debugf("[BLD] ( REQUESTING BLOCKS 2")
-			l.requestBlock()
+			l.requestBlocks()
 			zap.S().Debugf("[BLD] ) BLOCKS REQUESTED 2")
 
 		case e := <-l.blockCh:
@@ -214,7 +216,7 @@ func (l *blocksLoader) start() {
 			//}
 			zap.S().Debugf("[%s][BLD] ) NOTIFICATIONS SENT %s", e.conn.RawConn.RemoteAddr(), e.block.BlockSignature.String())
 			zap.S().Debugf("[BLD] ( REQUESTING BLOCKS 3")
-			l.requestBlock()
+			l.requestBlocks()
 			zap.S().Debugf("[BLD] ) BLOCKS REQUESTED 3")
 		}
 	}
@@ -224,7 +226,23 @@ func (l *blocksLoader) shutdownSink() chan<- struct{} {
 	return l.shutdownCh
 }
 
-func (l *blocksLoader) requestBlock() {
+func (l *blocksLoader) requestBlocks(exclusion []*Conn) {
+	// Request `batchSize` blocks or less
+	for i := 0; i < batchSize; i++ {
+		sig, conn, ok := l.queue.pickRandomly(exclusion)
+		if !ok {
+			break // No more blocks left in queue, aborting
+		}
+		// Request one block from the connection
+		err := l.requestBlock(sig, conn)
+		if err != nil {
+			// If there is an error, unpick the block, and try to pick it from another node (exclude currently selected node).
+			exclusion = append(exclusion, conn)
+		}
+		// If everything is OK, save information about requested block and connection to pending blocks storage
+	}
+	// Reset the timer
+
 	//ok := l.queue.load()
 	//if !ok {
 	//	zap.S().Warnf("[BLD] No block to request or block already requested: %s", l.queue.String())
@@ -233,19 +251,28 @@ func (l *blocksLoader) requestBlock() {
 	//pending, _ := l.queue.locked()
 	//conn := pending.connections[0]
 	//zap.S().Infof("[%s][BLD] Requesting block %s: %s", conn.RawConn.RemoteAddr(), pending.block, l.queue.String())
-	//buf := new(bytes.Buffer)
-	//m := proto.GetBlockMessage{BlockID: pending.block}
-	//_, err := m.WriteTo(buf)
-	//if err != nil {
-	//	zap.S().Errorf("[%s][BLD] Failed to serialize block request message: %v", conn.RawConn.RemoteAddr(), err)
-	//	return
-	//}
 	//l.requestTimer.Reset(blockReceiveTimeout)
-	//_, err = conn.Send(buf.Bytes())
-	//if err != nil {
-	//	zap.S().Errorf("[%s][BLD] Failed to send block request message: %v", conn.RawConn.RemoteAddr(), err)
-	//	return
 	//}
+}
+
+func (l *blocksLoader) requestBlock(sig crypto.Signature, conn *Conn) error {
+	if conn == nil {
+		zap.S().Fatalf("Empty connection to request block '%s'", sig.String())
+		return nil
+	}
+	buf := new(bytes.Buffer)
+	m := proto.GetBlockMessage{BlockID: sig}
+	_, err := m.WriteTo(buf)
+	if err != nil {
+		zap.S().Errorf("[%s][BLD] Failed to serialize block '%s': %v", conn.RawConn.RemoteAddr(), sig.String(), err)
+		return err
+	}
+	_, err = conn.Send(buf.Bytes())
+	if err != nil {
+		zap.S().Errorf("[%s][BLD] Failed to request block '%s': %v", conn.RawConn.RemoteAddr(), sig.String(), err)
+		return err
+	}
+	return nil
 }
 
 func (l *blocksLoader) requestsSink() chan<- signaturesEvent {
