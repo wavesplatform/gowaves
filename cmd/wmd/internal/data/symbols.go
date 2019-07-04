@@ -17,8 +17,8 @@ type Symbols struct {
 }
 
 type Substitution struct {
-	Symbol  string        `json:"symbol"`
-	AssetID crypto.Digest `json:"assetID"`
+	Symbol  string  `json:"symbol"`
+	AssetID AssetID `json:"assetID"`
 }
 
 type BySymbols []Substitution
@@ -48,7 +48,7 @@ func (s *Symbols) All() []Substitution {
 	r := make([]Substitution, len(s.tickers))
 	i := 0
 	for k, v := range s.tickers {
-		r[i] = Substitution{k, v}
+		r[i] = Substitution{k, AssetID(v)}
 		i++
 	}
 	sort.Sort(BySymbols(r))
