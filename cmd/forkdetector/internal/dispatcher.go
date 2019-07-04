@@ -68,7 +68,7 @@ func (d *Dispatcher) Start() <-chan struct{} {
 				<-d.server.Stopped()
 				zap.S().Debugf("Closing %d outgoing connections", d.schedule.len())
 				for _, c := range d.schedule.connections() {
-					c.Stop(StopImmediately)
+					c.Stop(StopGracefullyAndWait)
 				}
 				zap.S().Debug("Server shutdown complete")
 				close(d.stopped)

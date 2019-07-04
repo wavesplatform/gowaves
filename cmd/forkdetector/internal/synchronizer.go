@@ -150,19 +150,19 @@ func (s *signaturesSynchronizer) movePeer(signature crypto.Signature) error {
 	return nil
 }
 
-func contains(a []crypto.Signature, e crypto.Signature) bool {
+func contains(a []crypto.Signature, e crypto.Signature) (bool, int) {
 	for i := 0; i < len(a); i++ {
 		if a[i] == e {
-			return true
+			return true, i
 		}
 	}
-	return false
+	return false, -1
 }
 
 func skip(a, c []crypto.Signature) []crypto.Signature {
 	var i int
 	for i = 0; i < len(a); i++ {
-		if !contains(c, a[i]) {
+		if ok, _ := contains(c, a[i]); !ok {
 			break
 		}
 	}
