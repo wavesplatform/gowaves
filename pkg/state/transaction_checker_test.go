@@ -181,6 +181,11 @@ func TestCheckReissueV1(t *testing.T) {
 	assert.EqualError(t, err, "asset total value overflow")
 	tx.Quantity = temp
 
+	tx.SenderPK = testGlobal.recipientInfo.pk
+	err = to.tc.checkReissueV1(tx, info)
+	assert.EqualError(t, err, "asset was issued by other address")
+	tx.SenderPK = testGlobal.senderInfo.pk
+
 	tx.Reissuable = false
 	err = to.tp.performReissueV1(tx, defaultPerformerInfo(t))
 	assert.NoError(t, err, "performReissueV1 failed")
@@ -213,6 +218,11 @@ func TestCheckReissueV2(t *testing.T) {
 	err = to.tc.checkReissueV2(tx, info)
 	assert.EqualError(t, err, "asset total value overflow")
 	tx.Quantity = temp
+
+	tx.SenderPK = testGlobal.recipientInfo.pk
+	err = to.tc.checkReissueV2(tx, info)
+	assert.EqualError(t, err, "asset was issued by other address")
+	tx.SenderPK = testGlobal.senderInfo.pk
 
 	tx.Reissuable = false
 	err = to.tp.performReissueV2(tx, defaultPerformerInfo(t))

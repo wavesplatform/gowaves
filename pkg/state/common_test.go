@@ -3,6 +3,7 @@ package state
 import (
 	"io/ioutil"
 	"log"
+	"math/big"
 	"math/rand"
 	"os"
 	"testing"
@@ -218,6 +219,23 @@ func generateRandomRecipient(t *testing.T) proto.Recipient {
 	addr, err := proto.NewAddressFromPublicKey('W', pk)
 	assert.NoError(t, err, "NewAddressFromPublicKey() failed")
 	return proto.NewRecipientFromAddress(addr)
+}
+
+func createAssetInfo(t *testing.T, reissuable bool, blockID0 crypto.Signature, assetID crypto.Digest) *assetInfo {
+	asset := &assetInfo{
+		assetConstInfo: assetConstInfo{
+			issuer:      testGlobal.senderInfo.pk,
+			name:        "asset",
+			description: "description",
+			decimals:    2,
+		},
+		assetHistoryRecord: assetHistoryRecord{
+			quantity:   *big.NewInt(10000000),
+			reissuable: reissuable,
+			blockID:    blockID0,
+		},
+	}
+	return asset
 }
 
 func createAsset(t *testing.T, entities *blockchainEntitiesStorage, stor *storageObjects, assetID crypto.Digest) *assetInfo {
