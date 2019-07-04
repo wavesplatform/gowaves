@@ -44,6 +44,7 @@ func TestPerformIssueV1(t *testing.T) {
 	to.stor.flush(t)
 	assetInfo := assetInfo{
 		assetConstInfo: assetConstInfo{
+			issuer:      tx.SenderPK,
 			name:        tx.Name,
 			description: tx.Description,
 			decimals:    int8(tx.Decimals),
@@ -76,6 +77,7 @@ func TestPerformIssueV2(t *testing.T) {
 	to.stor.flush(t)
 	assetInfo := assetInfo{
 		assetConstInfo: assetConstInfo{
+			issuer:      tx.SenderPK,
 			name:        tx.Name,
 			description: tx.Description,
 			decimals:    int8(tx.Decimals),
@@ -300,7 +302,17 @@ func TestPerformCreateAliasV1(t *testing.T) {
 	to.stor.flush(t)
 	addr, err := to.entities.aliases.addrByAlias(tx.Alias.Alias, true)
 	assert.NoError(t, err, "addrByAlias failed")
-	assert.Equal(t, testGlobal.senderInfo.addr, *addr, "invalid address by alias after performing CreateAliasV2 transaction")
+	assert.Equal(t, testGlobal.senderInfo.addr, *addr, "invalid address by alias after performing CreateAliasV1 transaction")
+
+	// Test stealing aliases.
+	err = to.tp.performCreateAliasV1(tx, defaultPerformerInfo(t))
+	assert.NoError(t, err, "performCreateAliasV1() failed")
+	to.stor.flush(t)
+	err = to.entities.aliases.disableStolenAliases()
+	assert.NoError(t, err, "disableStolenAliases() failed")
+	to.stor.flush(t)
+	_, err = to.entities.aliases.addrByAlias(tx.Alias.Alias, true)
+	assert.Equal(t, errAliasDisabled, err)
 }
 
 func TestPerformCreateAliasV2(t *testing.T) {
@@ -319,4 +331,14 @@ func TestPerformCreateAliasV2(t *testing.T) {
 	addr, err := to.entities.aliases.addrByAlias(tx.Alias.Alias, true)
 	assert.NoError(t, err, "addrByAlias failed")
 	assert.Equal(t, testGlobal.senderInfo.addr, *addr, "invalid address by alias after performing CreateAliasV2 transaction")
+
+	// Test stealing aliases.
+	err = to.tp.performCreateAliasV2(tx, defaultPerformerInfo(t))
+	assert.NoError(t, err, "performCreateAliasV2() failed")
+	to.stor.flush(t)
+	err = to.entities.aliases.disableStolenAliases()
+	assert.NoError(t, err, "disableStolenAliases() failed")
+	to.stor.flush(t)
+	_, err = to.entities.aliases.addrByAlias(tx.Alias.Alias, true)
+	assert.Equal(t, errAliasDisabled, err)
 }

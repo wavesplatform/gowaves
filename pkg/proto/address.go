@@ -22,10 +22,10 @@ const (
 	addressVersion byte = 0x01
 
 	aliasVersion   byte = 0x02
-	aliasMinLength      = 4
-	aliasMaxLength      = 30
-	aliasAlphabet       = "-.0123456789@_abcdefghijklmnopqrstuvwxyz"
-	aliasPrefix         = "alias"
+	AliasMinLength      = 4
+	AliasMaxLength      = 30
+	AliasAlphabet       = "-.0123456789@_abcdefghijklmnopqrstuvwxyz"
+	AliasPrefix         = "alias"
 
 	MainNetScheme byte = 'W'
 	TestNetScheme byte = 'T'
@@ -167,8 +167,8 @@ func NewAliasFromString(s string) (*Alias, error) {
 	if len(ps) != 3 {
 		return nil, errors.Errorf("incorrect alias string representation '%s'", s)
 	}
-	if ps[0] != aliasPrefix {
-		return nil, errors.Errorf("alias should start with prefix '%s'", aliasPrefix)
+	if ps[0] != AliasPrefix {
+		return nil, errors.Errorf("alias should start with prefix '%s'", AliasPrefix)
 	}
 	scheme := ps[1]
 	if len(scheme) != 1 {
@@ -191,7 +191,7 @@ func NewAliasFromBytes(b []byte) (*Alias, error) {
 // String converts the Alias to its 3-part string representation.
 func (a Alias) String() string {
 	sb := new(strings.Builder)
-	sb.WriteString(aliasPrefix)
+	sb.WriteString(AliasPrefix)
 	sb.WriteRune(':')
 	sb.WriteByte(a.Scheme)
 	sb.WriteRune(':')
@@ -264,8 +264,8 @@ func (a *Alias) Bytes() []byte {
 // Reads an Alias from its bytes representation. This function does not validate the result.
 func (a *Alias) UnmarshalBinary(data []byte) error {
 	dl := len(data)
-	if dl < aliasFixedSize+aliasMinLength {
-		return errors.Errorf("incorrect alias length %d, should be at least %d bytes", dl, aliasFixedSize+aliasMinLength)
+	if dl < aliasFixedSize+AliasMinLength {
+		return errors.Errorf("incorrect alias length %d, should be at least %d bytes", dl, aliasFixedSize+AliasMinLength)
 	}
 	if data[0] != aliasVersion {
 		return errors.Errorf("unsupported alias version %d, expected %d", data[0], aliasVersion)
@@ -290,11 +290,11 @@ func (a Alias) Valid() (bool, error) {
 	if v := a.Version; v != aliasVersion {
 		return false, errors.Errorf("%d is incorrect alias version, expected %d", v, aliasVersion)
 	}
-	if l := len(a.Alias); l < aliasMinLength || l > aliasMaxLength {
-		return false, errors.Errorf("alias length should be between %d and %d", aliasMinLength, aliasMaxLength)
+	if l := len(a.Alias); l < AliasMinLength || l > AliasMaxLength {
+		return false, errors.Errorf("alias length should be between %d and %d", AliasMinLength, AliasMaxLength)
 	}
 	if !correctAlphabet(a.Alias) {
-		return false, errors.Errorf("alias should contain only following characters: %s", aliasAlphabet)
+		return false, errors.Errorf("alias should contain only following characters: %s", AliasAlphabet)
 	}
 	return true, nil
 }
@@ -326,7 +326,7 @@ func NewRecipientFromAlias(a Alias) Recipient {
 }
 
 func NewRecipientFromString(s string) (Recipient, error) {
-	if strings.Index(s, aliasPrefix) != -1 {
+	if strings.Index(s, AliasPrefix) != -1 {
 		a, err := NewAliasFromString(s)
 		if err != nil {
 			return Recipient{}, err
@@ -363,7 +363,7 @@ func (r Recipient) MarshalJSON() ([]byte, error) {
 // UnmarshalJSON reads the Recipient from its JSON representation.
 func (r *Recipient) UnmarshalJSON(value []byte) error {
 	s := string(value)
-	if strings.Index(s, aliasPrefix) != -1 {
+	if strings.Index(s, AliasPrefix) != -1 {
 		var a Alias
 		err := a.UnmarshalJSON(value)
 		if err != nil {

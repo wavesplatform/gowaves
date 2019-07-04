@@ -47,7 +47,7 @@ type blockchainEntitiesStorage struct {
 }
 
 func newBlockchainEntitiesStorage(hs *historyStorage, sets *settings.BlockchainSettings) (*blockchainEntitiesStorage, error) {
-	aliases, err := newAliases(hs)
+	aliases, err := newAliases(hs.db, hs.dbBatch, hs)
 	if err != nil {
 		return nil, err
 	}
@@ -80,6 +80,7 @@ func newBlockchainEntitiesStorage(hs *historyStorage, sets *settings.BlockchainS
 
 func (s *blockchainEntitiesStorage) reset() {
 	s.hs.reset()
+	s.assets.reset()
 }
 
 func (s *blockchainEntitiesStorage) flush(initialisation bool) error {
@@ -89,6 +90,8 @@ func (s *blockchainEntitiesStorage) flush(initialisation bool) error {
 type txAppender struct {
 	// rw is needed to check for duplicate tx IDs.
 	rw *blockReadWriter
+
+	settings *settings.BlockchainSettings
 
 	// TransactionHandler is handler for any operations on transactions.
 	txHandler *transactionHandler
@@ -135,6 +138,7 @@ func newTxAppender(rw *blockReadWriter, stor *blockchainEntitiesStorage, setting
 	}
 	return &txAppender{
 		rw:                     rw,
+		settings:               settings,
 		txHandler:              txHandler,
 		blockDiffer:            blockDiffer,
 		appendedBlocksTxIds:    make(map[string]struct{}),
@@ -145,14 +149,7 @@ func newTxAppender(rw *blockReadWriter, stor *blockchainEntitiesStorage, setting
 	}, nil
 }
 
-type appendBlockParams struct {
-	transactions   []proto.Transaction
-	block, parent  *proto.Block
-	height         uint64
-	initialisation bool
-}
-
-func (a *txAppender) checkDuplicateTxIds(id []byte, recentIds map[string]struct{}) error {
+func (a *txAppender) checkDuplicateTxIdsImpl(id []byte, recentIds map[string]struct{}) error {
 	// Check recent.
 	if _, ok := recentIds[string(id)]; ok {
 		return errors.Errorf("transaction with ID %v already in state", id)
@@ -164,23 +161,41 @@ func (a *txAppender) checkDuplicateTxIds(id []byte, recentIds map[string]struct{
 	return nil
 }
 
+func (a *txAppender) checkDuplicateTxIds(tx proto.Transaction, recentIds map[string]struct{}, timestamp uint64) error {
+	if tx.GetTypeVersion().Type == proto.PaymentTransaction {
+		// Payment transactions are deprecated.
+		return nil
+	}
+	if tx.GetTypeVersion().Type == proto.CreateAliasTransaction {
+		if (timestamp >= a.settings.StolenAliasesWindowTimeStart) && (timestamp <= a.settings.StolenAliasesWindowTimeEnd) {
+			// At this period alias transactions might have duplicate IDs due to bugs in historical blockchain.
+			return nil
+		}
+	}
+	return a.checkDuplicateTxIdsImpl(tx.GetID(), a.appendedBlocksTxIds)
+}
+
+type appendBlockParams struct {
+	transactions   []proto.Transaction
+	block, parent  *proto.Block
+	height         uint64
+	initialisation bool
+}
+
 func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	hasParent := (params.parent != nil)
 	for _, tx := range params.transactions {
-		id := tx.GetID()
 		checkerInfo := &checkerInfo{
 			initialisation:   params.initialisation,
 			currentTimestamp: params.block.Timestamp,
 			blockID:          params.block.BlockSignature,
 			height:           params.height,
 		}
-		if tx.GetTypeVersion().Type != proto.PaymentTransaction {
-			if err := a.checkDuplicateTxIds(id, a.appendedBlocksTxIds); err != nil {
-				return err
-			}
+		if err := a.checkDuplicateTxIds(tx, a.appendedBlocksTxIds, params.block.Timestamp); err != nil {
+			return err
 		}
 		// Add transaction ID.
-		a.appendedBlocksTxIds[string(id)] = empty
+		a.appendedBlocksTxIds[string(tx.GetID())] = empty
 		if hasParent {
 			checkerInfo.parentTimestamp = params.parent.Timestamp
 		}
@@ -212,11 +227,9 @@ func (a *txAppender) applyAllDiffs(initialisation bool) error {
 }
 
 func (a *txAppender) validateSingleTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64) error {
-	id := tx.GetID()
-	if tx.GetTypeVersion().Type != proto.PaymentTransaction {
-		if _, err := a.rw.readTransaction(id); err == nil {
-			return errors.Errorf("transaction with ID %v already in state", id)
-		}
+	dummy := make(map[string]struct{})
+	if err := a.checkDuplicateTxIds(tx, dummy, currentTimestamp); err != nil {
+		return err
 	}
 	// Check tx signature and data.
 	if err := checkTx(tx); err != nil {
@@ -243,14 +256,11 @@ func (a *txAppender) resetValidationList() {
 }
 
 func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64) error {
-	id := tx.GetID()
-	if tx.GetTypeVersion().Type != proto.PaymentTransaction {
-		if err := a.checkDuplicateTxIds(id, a.noBlocksTxIds); err != nil {
-			return err
-		}
+	if err := a.checkDuplicateTxIds(tx, a.noBlocksTxIds, currentTimestamp); err != nil {
+		return err
 	}
 	// Add transaction ID.
-	a.noBlocksTxIds[string(id)] = empty
+	a.noBlocksTxIds[string(tx.GetID())] = empty
 	// Check tx signature and data.
 	if err := checkTx(tx); err != nil {
 		return err
@@ -815,32 +825,75 @@ func (s *stateManager) needToFinishVotingPeriod(height uint64) bool {
 	return false
 }
 
-func (s *stateManager) needToCancelLeases(height uint64) bool {
+func (s *stateManager) needToResetStolenAliases(height uint64) (bool, error) {
+	dataTxActivated, err := s.IsActivated(int16(settings.DataTransaction))
+	if err != nil {
+		return false, err
+	}
+	if dataTxActivated {
+		dataTxHeight, err := s.ActivationHeight(int16(settings.DataTransaction))
+		if err != nil {
+			return false, err
+		}
+		if height == dataTxHeight {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+func (s *stateManager) needToCancelLeases(height uint64) (bool, error) {
+	dataTxActivated, err := s.IsActivated(int16(settings.DataTransaction))
+	if err != nil {
+		return false, err
+	}
+	dataTxHeight := uint64(0)
+	if dataTxActivated {
+		dataTxHeight, err = s.ActivationHeight(int16(settings.DataTransaction))
+		if err != nil {
+			return false, err
+		}
+	}
 	switch height {
 	case s.settings.ResetEffectiveBalanceAtHeight:
-		return !s.leasesCl0
+		return !s.leasesCl0, nil
 	case s.settings.BlockVersion3AfterHeight:
-		return !s.leasesCl1
+		return !s.leasesCl1, nil
+	case dataTxHeight:
+		return !s.leasesCl2, nil
 	default:
-		return false
+		return false, nil
 	}
 }
 
 type breakerTask struct {
 	// Indicates that the task to perform before calling addBlocks() is to cancel leases.
 	cancelLeases bool
+	// Indicates that the task to perfrom before calling addBlocks() is to reset stolen aliases.
+	resetStolenAliases bool
 	// Indicates that the task to perform before calling addBlocks() is to finish features voting period.
 	finishVotingPeriod bool
 }
 
-func (s *stateManager) needToBreakAddingBlocks(curHeight uint64, task *breakerTask) bool {
-	if s.needToCancelLeases(curHeight) {
+func (s *stateManager) needToBreakAddingBlocks(curHeight uint64, task *breakerTask) (bool, error) {
+	cancelLeases, err := s.needToCancelLeases(curHeight)
+	if err != nil {
+		return false, err
+	}
+	if cancelLeases {
 		task.cancelLeases = true
+	}
+	resetStolenAliases, err := s.needToResetStolenAliases(curHeight)
+	if err != nil {
+		return false, err
+	}
+	if resetStolenAliases {
+		task.resetStolenAliases = true
 	}
 	if s.needToFinishVotingPeriod(curHeight) {
 		task.finishVotingPeriod = true
 	}
-	return task.cancelLeases || task.finishVotingPeriod
+	return task.cancelLeases || task.finishVotingPeriod || task.resetStolenAliases, nil
 }
 
 func (s *stateManager) finishVoting() error {
@@ -932,6 +985,12 @@ func (s *stateManager) handleBreak(blocksToFinish [][]byte, initialisation bool,
 			return nil, wrapErr(ModificationError, err)
 		}
 	}
+	if task.resetStolenAliases {
+		// Need to reset stolen aliases due to bugs in historical blockchain.
+		if err := s.stor.aliases.disableStolenAliases(); err != nil {
+			return nil, wrapErr(ModificationError, err)
+		}
+	}
 	return s.addBlocks(blocksToFinish, initialisation)
 }
 
@@ -974,7 +1033,11 @@ func (s *stateManager) addBlocks(blocks [][]byte, initialisation bool) (*proto.B
 	var lastBlock *proto.Block
 	for i, blockBytes := range blocks {
 		curHeight := height + uint64(i)
-		if s.needToBreakAddingBlocks(curHeight, breakerInfo) {
+		breakAdding, err := s.needToBreakAddingBlocks(curHeight, breakerInfo)
+		if err != nil {
+			return nil, wrapErr(RetrievalError, err)
+		}
+		if breakAdding {
 			// Need to break at this height, so we split block batch in order to cancel and finish with the rest blocks after.
 			blocksToFinish = blocks[i:]
 			break

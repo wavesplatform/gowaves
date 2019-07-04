@@ -31,6 +31,7 @@ func (tp *transactionPerformer) performIssue(tx *proto.Issue, id []byte, info *p
 	// Create new asset.
 	asset := &assetInfo{
 		assetConstInfo: assetConstInfo{
+			issuer:      tx.SenderPK,
 			name:        tx.Name,
 			description: tx.Description,
 			decimals:    int8(tx.Decimals),
@@ -193,6 +194,7 @@ func (tp *transactionPerformer) performCreateAlias(tx *proto.CreateAlias, info *
 	}
 	// Save alias to aliases storage.
 	r := &aliasRecord{
+		stolen:  tp.stor.aliases.exists(tx.Alias.Alias, !info.initialisation),
 		addr:    senderAddr,
 		blockID: info.blockID,
 	}

@@ -27,22 +27,6 @@ func createAssets() (*assetsTestObjects, []string, error) {
 	return &assetsTestObjects{stor, assets}, path, nil
 }
 
-func createAssetInfo(t *testing.T, reissuable bool, blockID0 crypto.Signature, assetID crypto.Digest) *assetInfo {
-	asset := &assetInfo{
-		assetConstInfo: assetConstInfo{
-			name:        "asset",
-			description: "description",
-			decimals:    2,
-		},
-		assetHistoryRecord: assetHistoryRecord{
-			quantity:   *big.NewInt(10000000),
-			reissuable: reissuable,
-			blockID:    blockID0,
-		},
-	}
-	return asset
-}
-
 func TestIssueAsset(t *testing.T) {
 	to, path, err := createAssets()
 	assert.NoError(t, err, "createAssets() failed")

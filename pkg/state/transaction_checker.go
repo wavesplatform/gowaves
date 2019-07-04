@@ -1,6 +1,9 @@
 package state
 
 import (
+	"bytes"
+	"math"
+
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -134,13 +137,31 @@ func (tc *transactionChecker) checkReissue(tx *proto.Reissue, info *checkerInfo)
 	if err := tc.checkTimestamps(tx.Timestamp, info.currentTimestamp, info.parentTimestamp); err != nil {
 		return errors.Wrap(err, "invalid timestamp")
 	}
-	// Check if it's "legal" to modify given asset.
+	assetInfo, err := tc.stor.assets.newestConstInfo(tx.AssetID)
+	if err != nil {
+		return err
+	}
+	if !bytes.Equal(assetInfo.issuer[:], tx.SenderPK[:]) {
+		return errors.New("asset was issued by other address")
+	}
+	if info.currentTimestamp <= tc.settings.InvalidReissueInSameBlockUntilTime {
+		// Due to bugs in existing blockchain it is valid to reissue non-reissueable asset in this time period.
+		return nil
+	}
+	if (info.currentTimestamp >= tc.settings.ReissueBugWindowTimeStart) && (info.currentTimestamp <= tc.settings.ReissueBugWindowTimeEnd) {
+		// Due to bugs in existing blockchain it is valid to reissue non-reissueable asset in this time period.
+		return nil
+	}
 	record, err := tc.stor.assets.newestAssetRecord(tx.AssetID, !info.initialisation)
 	if err != nil {
 		return err
 	}
-	if (info.currentTimestamp > tc.settings.InvalidReissueInSameBlockUntilTime) && !record.reissuable {
-		return errors.New("attempt to reissue asset which is not reissuable")
+	if !record.reissuable {
+		return errors.Errorf("attempt to reissue asset which is not reissuable")
+	}
+	// Check Int64 overflow.
+	if (math.MaxInt64-int64(tx.Quantity) < record.quantity.Int64()) && (info.currentTimestamp >= tc.settings.ReissueBugWindowTimeEnd) {
+		return errors.New("asset total value overflow")
 	}
 	return nil
 }
@@ -286,8 +307,12 @@ func (tc *transactionChecker) checkCreateAlias(tx *proto.CreateAlias, info *chec
 	if err := tc.checkTimestamps(tx.Timestamp, info.currentTimestamp, info.parentTimestamp); err != nil {
 		return errors.Wrap(err, "invalid timestamp")
 	}
-	// Check if alias already taken.
-	if _, err := tc.stor.aliases.newestAddrByAlias(tx.Alias.Alias, !info.initialisation); err == nil {
+	if (info.currentTimestamp >= tc.settings.StolenAliasesWindowTimeStart) && (info.currentTimestamp <= tc.settings.StolenAliasesWindowTimeEnd) {
+		// At this period it is fine to steal aliases.
+		return nil
+	}
+	// Check if alias is already taken.
+	if tc.stor.aliases.exists(tx.Alias.Alias, !info.initialisation) {
 		return errors.New("alias is already taken")
 	}
 	return nil
@@ -307,4 +332,22 @@ func (tc *transactionChecker) checkCreateAliasV2(transaction proto.Transaction, 
 		return errors.New("failed to convert interface to CreateAliasV2 transaction")
 	}
 	return tc.checkCreateAlias(&tx.CreateAlias, info)
+}
+
+func (tc *transactionChecker) checkMassTransferV1(transaction proto.Transaction, info *checkerInfo) error {
+	tx, ok := transaction.(*proto.MassTransferV1)
+	if !ok {
+		return errors.New("failed to convert interface to MassTransferV1 transaction")
+	}
+	activated, err := tc.stor.features.isActivated(int16(settings.MassTransfer))
+	if err != nil {
+		return err
+	}
+	if !activated {
+		return errors.New("MassTransfer transaction has not been activated yet")
+	}
+	if err := tc.checkAsset(&tx.Asset, info.initialisation); err != nil {
+		return err
+	}
+	return nil
 }

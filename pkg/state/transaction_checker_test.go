@@ -1,6 +1,7 @@
 package state
 
 import (
+	"math"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -170,9 +171,20 @@ func TestCheckReissueV1(t *testing.T) {
 
 	tx := createReissueV1(t)
 	info := defaultCheckerInfo(t)
-	info.currentTimestamp = settings.MainNetSettings.InvalidReissueInSameBlockUntilTime + 1
+	info.currentTimestamp = settings.MainNetSettings.ReissueBugWindowTimeEnd + 1
 	err := to.tc.checkReissueV1(tx, info)
 	assert.NoError(t, err, "checkReissueV1 failed with valid reissue tx")
+
+	temp := tx.Quantity
+	tx.Quantity = math.MaxInt64 + 1
+	err = to.tc.checkReissueV1(tx, info)
+	assert.EqualError(t, err, "asset total value overflow")
+	tx.Quantity = temp
+
+	tx.SenderPK = testGlobal.recipientInfo.pk
+	err = to.tc.checkReissueV1(tx, info)
+	assert.EqualError(t, err, "asset was issued by other address")
+	tx.SenderPK = testGlobal.senderInfo.pk
 
 	tx.Reissuable = false
 	err = to.tp.performReissueV1(tx, defaultPerformerInfo(t))
@@ -182,6 +194,7 @@ func TestCheckReissueV1(t *testing.T) {
 
 	err = to.tc.checkReissueV1(tx, info)
 	assert.Error(t, err, "checkReissueV1 did not fail when trying to reissue unreissueable asset")
+	assert.EqualError(t, err, "attempt to reissue asset which is not reissuable")
 }
 
 func TestCheckReissueV2(t *testing.T) {
@@ -196,9 +209,20 @@ func TestCheckReissueV2(t *testing.T) {
 
 	tx := createReissueV2(t)
 	info := defaultCheckerInfo(t)
-	info.currentTimestamp = settings.MainNetSettings.InvalidReissueInSameBlockUntilTime + 1
+	info.currentTimestamp = settings.MainNetSettings.ReissueBugWindowTimeEnd + 1
 	err := to.tc.checkReissueV2(tx, info)
 	assert.NoError(t, err, "checkReissueV2 failed with valid reissue tx")
+
+	temp := tx.Quantity
+	tx.Quantity = math.MaxInt64 + 1
+	err = to.tc.checkReissueV2(tx, info)
+	assert.EqualError(t, err, "asset total value overflow")
+	tx.Quantity = temp
+
+	tx.SenderPK = testGlobal.recipientInfo.pk
+	err = to.tc.checkReissueV2(tx, info)
+	assert.EqualError(t, err, "asset was issued by other address")
+	tx.SenderPK = testGlobal.senderInfo.pk
 
 	tx.Reissuable = false
 	err = to.tp.performReissueV2(tx, defaultPerformerInfo(t))
@@ -208,6 +232,7 @@ func TestCheckReissueV2(t *testing.T) {
 
 	err = to.tc.checkReissueV2(tx, info)
 	assert.Error(t, err, "checkReissueV2 did not fail when trying to reissue unreissueable asset")
+	assert.EqualError(t, err, "attempt to reissue asset which is not reissuable")
 }
 
 func TestCheckBurnV1(t *testing.T) {
@@ -390,6 +415,11 @@ func TestCheckCreateAliasV1(t *testing.T) {
 
 	err = to.tc.checkCreateAliasV1(tx, info)
 	assert.Error(t, err, "checkCreateAliasV1 did not fail when using alias which is alredy taken")
+
+	// Check that checker allows to steal aliases at specified timestamp window on MainNet.
+	info.currentTimestamp = settings.MainNetSettings.StolenAliasesWindowTimeStart
+	err = to.tc.checkCreateAliasV1(tx, info)
+	assert.NoError(t, err, "checkCreateAliasV1 failed when stealing aliases is allowed")
 }
 
 func TestCheckCreateAliasV2(t *testing.T) {
@@ -413,4 +443,37 @@ func TestCheckCreateAliasV2(t *testing.T) {
 
 	err = to.tc.checkCreateAliasV2(tx, info)
 	assert.Error(t, err, "checkCreateAliasV2 did not fail when using alias which is alredy taken")
+
+	// Check that checker allows to steal aliases at specified timestamp window on MainNet.
+	info.currentTimestamp = settings.MainNetSettings.StolenAliasesWindowTimeStart
+	err = to.tc.checkCreateAliasV2(tx, info)
+	assert.NoError(t, err, "checkCreateAliasV1 failed when stealing aliases is allowed")
+}
+
+func TestCheckMassTransferV1(t *testing.T) {
+	to, path := createCheckerTestObjects(t)
+
+	defer func() {
+		err := util.CleanTemporaryDirs(path)
+		assert.NoError(t, err, "failed to clean test data dirs")
+	}()
+
+	entriesNum := 50
+	entries := generateMassTransferEntries(t, entriesNum)
+	tx := createMassTransferV1(t, entries)
+	info := defaultCheckerInfo(t)
+
+	err := to.tc.checkMassTransferV1(tx, info)
+	assert.Error(t, err, "checkMassTransferV1 did not fail prior to feature activation")
+	assert.EqualError(t, err, "MassTransfer transaction has not been activated yet")
+
+	// Acivate MassTransfer.
+	activateFeature(t, to.entities, to.stor, int16(settings.MassTransfer))
+	err = to.tc.checkMassTransferV1(tx, info)
+	assert.Error(t, err, "checkMassTransferV1 did not fail with unissued asset")
+	assert.EqualError(t, err, "unknown asset")
+
+	createAsset(t, to.entities, to.stor, testGlobal.asset0.asset.ID)
+	err = to.tc.checkMassTransferV1(tx, info)
+	assert.NoError(t, err, "checkMassTransferV1 failed with valid massTransfer tx")
 }

@@ -28,9 +28,15 @@ type FunctionalitySettings struct {
 	// Heights when some of rules change.
 	GenerationBalanceDepthFrom50To1000AfterHeight uint64
 	BlockVersion3AfterHeight                      uint64
+
 	// Lease cancellation.
 	ResetEffectiveBalanceAtHeight uint64
-
+	// Window when stolen aliases are valid.
+	StolenAliasesWindowTimeStart uint64
+	StolenAliasesWindowTimeEnd   uint64
+	// Window when unreissueable assets can be reissued.
+	ReissueBugWindowTimeStart           uint64
+	ReissueBugWindowTimeEnd             uint64
 	AllowMultipleLeaseCancelUntilTime   uint64
 	AllowLeasedBalanceTransferUntilTime uint64
 	// Timestamps when different kinds of checks become relevant.
@@ -85,8 +91,12 @@ var (
 
 			GenerationBalanceDepthFrom50To1000AfterHeight: 232000,
 			BlockVersion3AfterHeight:                      795000,
-			ResetEffectiveBalanceAtHeight:                 462000,
 
+			ResetEffectiveBalanceAtHeight:          462000,
+			StolenAliasesWindowTimeStart:           1522463241035,
+			StolenAliasesWindowTimeEnd:             1530161445559,
+			ReissueBugWindowTimeStart:              1522463241035,
+			ReissueBugWindowTimeEnd:                1530161445559,
 			AllowMultipleLeaseCancelUntilTime:      1492768800000,
 			AllowLeasedBalanceTransferUntilTime:    1513357014002,
 			CheckTempNegativeAfterTime:             1479168000000,
@@ -116,8 +126,10 @@ var (
 
 			GenerationBalanceDepthFrom50To1000AfterHeight: 0,
 			BlockVersion3AfterHeight:                      161700,
-			ResetEffectiveBalanceAtHeight:                 51500,
 
+			ResetEffectiveBalanceAtHeight:          51500,
+			ReissueBugWindowTimeStart:              1520411086003,
+			ReissueBugWindowTimeEnd:                1523096218005,
 			AllowMultipleLeaseCancelUntilTime:      1492560000000,
 			AllowLeasedBalanceTransferUntilTime:    1508230496004,
 			CheckTempNegativeAfterTime:             1477958400000,

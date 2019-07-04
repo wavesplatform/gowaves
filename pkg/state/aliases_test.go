@@ -18,7 +18,7 @@ func createAliases() (*aliasesTestObjects, []string, error) {
 	if err != nil {
 		return nil, path, err
 	}
-	aliases, err := newAliases(stor.hs)
+	aliases, err := newAliases(stor.db, stor.dbBatch, stor.hs)
 	if err != nil {
 		return nil, path, err
 	}
@@ -40,7 +40,7 @@ func TestCreateAlias(t *testing.T) {
 	to.stor.addBlock(t, blockID0)
 	aliasAddr, err := proto.NewAddressFromString(addr0)
 	assert.NoError(t, err, "NewAddressFromString() failed")
-	r := &aliasRecord{aliasAddr, blockID0}
+	r := &aliasRecord{false, aliasAddr, blockID0}
 	err = to.aliases.createAlias(aliasStr, r)
 	assert.NoError(t, err, "createAlias() failed")
 	addr, err := to.aliases.newestAddrByAlias(aliasStr, true)
@@ -50,4 +50,37 @@ func TestCreateAlias(t *testing.T) {
 	addr, err = to.aliases.addrByAlias(aliasStr, true)
 	assert.NoError(t, err, "addrByAlias() failed")
 	assert.Equal(t, aliasAddr, *addr)
+}
+
+func TestDisableStolenAliases(t *testing.T) {
+	to, path, err := createAliases()
+	assert.NoError(t, err, "createAliases() failed")
+
+	defer func() {
+		err = to.stor.stateDB.close()
+		assert.NoError(t, err, "stateDB.close() failed")
+		err = util.CleanTemporaryDirs(path)
+		assert.NoError(t, err, "failed to clean test data dirs")
+	}()
+
+	aliasStr := "alias"
+	to.stor.addBlock(t, blockID0)
+	aliasAddr, err := proto.NewAddressFromString(addr0)
+	assert.NoError(t, err, "NewAddressFromString() failed")
+	r := &aliasRecord{true, aliasAddr, blockID0}
+	err = to.aliases.createAlias(aliasStr, r)
+	assert.NoError(t, err, "createAlias() failed")
+	to.stor.flush(t)
+
+	err = to.aliases.disableStolenAliases()
+	assert.NoError(t, err, "disableStolenAlises() failed")
+	to.stor.flush(t)
+	disabled, err := to.aliases.isDisabled(aliasStr)
+	assert.NoError(t, err, "isDisabled() failed")
+	assert.Equal(t, true, disabled)
+	assert.Equal(t, true, to.aliases.exists(aliasStr, true))
+	_, err = to.aliases.addrByAlias(aliasStr, true)
+	assert.Equal(t, errAliasDisabled, err)
+	_, err = to.aliases.newestAddrByAlias(aliasStr, true)
+	assert.Equal(t, errAliasDisabled, err)
 }
