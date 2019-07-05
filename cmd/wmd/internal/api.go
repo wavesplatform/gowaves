@@ -74,7 +74,7 @@ func NewDataFeedAPI(interrupt <-chan struct{}, logger *zap.Logger, storage *stat
 	r.Use(middleware.RealIP)
 	r.Use(Logger(logger))
 	r.Use(middleware.Recoverer)
-	r.Use(middleware.SetHeader("Content-Type", "application/json"))
+	r.Use(middleware.SetHeader("Content-Type", "application/json; charset=UTF-8"))
 	r.Use(middleware.DefaultCompress)
 	r.Mount("/api", a.routes())
 	apiServer := &http.Server{Addr: address, Handler: r}
