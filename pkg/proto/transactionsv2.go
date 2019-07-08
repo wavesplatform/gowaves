@@ -39,6 +39,10 @@ type IssueV2 struct {
 	Issue
 }
 
+func (tx IssueV2) CanVerifySignatureWithoutState() bool {
+	return false
+}
+
 func (tx IssueV2) GetTypeVersion() TransactionTypeVersion {
 	return TransactionTypeVersion{tx.Type, tx.Version}
 }
@@ -275,6 +279,10 @@ type TransferV2 struct {
 	Transfer
 }
 
+func (tx TransferV2) CanVerifySignatureWithoutState() bool {
+	return false
+}
+
 func (tx TransferV2) GetTypeVersion() TransactionTypeVersion {
 	return TransactionTypeVersion{tx.Type, tx.Version}
 }
@@ -453,6 +461,10 @@ type ReissueV2 struct {
 	Reissue
 }
 
+func (tx ReissueV2) CanVerifySignatureWithoutState() bool {
+	return false
+}
+
 func (tx ReissueV2) GetTypeVersion() TransactionTypeVersion {
 	return TransactionTypeVersion{tx.Type, tx.Version}
 }
@@ -618,6 +630,10 @@ type BurnV2 struct {
 	ID      *crypto.Digest  `json:"id,omitempty"`
 	Proofs  *ProofsV1       `json:"proofs,omitempty"`
 	Burn
+}
+
+func (tx BurnV2) CanVerifySignatureWithoutState() bool {
+	return false
 }
 
 func (tx BurnV2) GetTypeVersion() TransactionTypeVersion {
@@ -791,6 +807,10 @@ type ExchangeV2 struct {
 	SellMatcherFee uint64           `json:"sellMatcherFee"`
 	Fee            uint64           `json:"fee"`
 	Timestamp      uint64           `json:"timestamp,omitempty"`
+}
+
+func (tx ExchangeV2) CanVerifySignatureWithoutState() bool {
+	return false
 }
 
 func (tx ExchangeV2) GetTypeVersion() TransactionTypeVersion {
@@ -1255,6 +1275,10 @@ type LeaseV2 struct {
 	Lease
 }
 
+func (tx LeaseV2) CanVerifySignatureWithoutState() bool {
+	return false
+}
+
 func (tx LeaseV2) GetTypeVersion() TransactionTypeVersion {
 	return TransactionTypeVersion{tx.Type, tx.Version}
 }
@@ -1411,6 +1435,10 @@ type LeaseCancelV2 struct {
 	ID      *crypto.Digest  `json:"id,omitempty"`
 	Proofs  *ProofsV1       `json:"proofs,omitempty"`
 	LeaseCancel
+}
+
+func (tx LeaseCancelV2) CanVerifySignatureWithoutState() bool {
+	return false
 }
 
 func (tx LeaseCancelV2) GetTypeVersion() TransactionTypeVersion {
@@ -1575,6 +1603,10 @@ type CreateAliasV2 struct {
 	ID      *crypto.Digest  `json:"id,omitempty"`
 	Proofs  *ProofsV1       `json:"proofs,omitempty"`
 	CreateAlias
+}
+
+func (tx CreateAliasV2) CanVerifySignatureWithoutState() bool {
+	return false
 }
 
 func (tx CreateAliasV2) GetTypeVersion() TransactionTypeVersion {

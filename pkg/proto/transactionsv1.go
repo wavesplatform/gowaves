@@ -55,6 +55,10 @@ type IssueV1 struct {
 	Issue
 }
 
+func (tx IssueV1) CanVerifySignatureWithoutState() bool {
+	return true
+}
+
 func (tx IssueV1) GetTypeVersion() TransactionTypeVersion {
 	return TransactionTypeVersion{tx.Type, tx.Version}
 }
@@ -190,6 +194,10 @@ type TransferV1 struct {
 	ID        *crypto.Digest    `json:"id,omitempty"`
 	Signature *crypto.Signature `json:"signature,omitempty"`
 	Transfer
+}
+
+func (tx TransferV1) CanVerifySignatureWithoutState() bool {
+	return true
 }
 
 func (tx TransferV1) GetTypeVersion() TransactionTypeVersion {
@@ -332,6 +340,10 @@ type ReissueV1 struct {
 	Reissue
 }
 
+func (tx ReissueV1) CanVerifySignatureWithoutState() bool {
+	return true
+}
+
 func (tx ReissueV1) GetTypeVersion() TransactionTypeVersion {
 	return TransactionTypeVersion{tx.Type, tx.Version}
 }
@@ -472,6 +484,10 @@ type BurnV1 struct {
 	Burn
 }
 
+func (tx BurnV1) CanVerifySignatureWithoutState() bool {
+	return true
+}
+
 func (tx BurnV1) GetTypeVersion() TransactionTypeVersion {
 	return TransactionTypeVersion{tx.Type, tx.Version}
 }
@@ -608,6 +624,10 @@ type ExchangeV1 struct {
 	SellMatcherFee uint64            `json:"sellMatcherFee"`
 	Fee            uint64            `json:"fee"`
 	Timestamp      uint64            `json:"timestamp,omitempty"`
+}
+
+func (tx ExchangeV1) CanVerifySignatureWithoutState() bool {
+	return true
 }
 
 func (tx ExchangeV1) GetTypeVersion() TransactionTypeVersion {
@@ -907,6 +927,10 @@ type LeaseV1 struct {
 	Lease
 }
 
+func (tx LeaseV1) CanVerifySignatureWithoutState() bool {
+	return true
+}
+
 func (tx LeaseV1) GetTypeVersion() TransactionTypeVersion {
 	return TransactionTypeVersion{tx.Type, tx.Version}
 }
@@ -1045,6 +1069,10 @@ type LeaseCancelV1 struct {
 	LeaseCancel
 }
 
+func (tx LeaseCancelV1) CanVerifySignatureWithoutState() bool {
+	return true
+}
+
 func (tx LeaseCancelV1) GetTypeVersion() TransactionTypeVersion {
 	return TransactionTypeVersion{tx.Type, tx.Version}
 }
@@ -1176,6 +1204,10 @@ type CreateAliasV1 struct {
 	ID        *crypto.Digest    `json:"id,omitempty"`
 	Signature *crypto.Signature `json:"signature,omitempty"`
 	CreateAlias
+}
+
+func (tx CreateAliasV1) CanVerifySignatureWithoutState() bool {
+	return true
 }
 
 func (tx CreateAliasV1) GetTypeVersion() TransactionTypeVersion {
@@ -1363,6 +1395,10 @@ type MassTransferV1 struct {
 	Timestamp  uint64              `json:"timestamp,omitempty"`
 	Fee        uint64              `json:"fee"`
 	Attachment Attachment          `json:"attachment,omitempty"`
+}
+
+func (tx MassTransferV1) CanVerifySignatureWithoutState() bool {
+	return true
 }
 
 func (tx MassTransferV1) GetTypeVersion() TransactionTypeVersion {
@@ -1611,6 +1647,10 @@ type DataV1 struct {
 	Entries   DataEntries      `json:"data"`
 	Fee       uint64           `json:"fee"`
 	Timestamp uint64           `json:"timestamp,omitempty"`
+}
+
+func (tx DataV1) CanVerifySignatureWithoutState() bool {
+	return false
 }
 
 func (tx DataV1) GetTypeVersion() TransactionTypeVersion {
@@ -1890,6 +1930,10 @@ type SetScriptV1 struct {
 	Timestamp uint64           `json:"timestamp,omitempty"`
 }
 
+func (tx SetScriptV1) CanVerifySignatureWithoutState() bool {
+	return false
+}
+
 func (tx SetScriptV1) GetTypeVersion() TransactionTypeVersion {
 	return TransactionTypeVersion{tx.Type, tx.Version}
 }
@@ -2097,6 +2141,10 @@ type SponsorshipV1 struct {
 	Timestamp   uint64           `json:"timestamp,omitempty"`
 }
 
+func (tx SponsorshipV1) CanVerifySignatureWithoutState() bool {
+	return false
+}
+
 func (tx SponsorshipV1) GetTypeVersion() TransactionTypeVersion {
 	return TransactionTypeVersion{tx.Type, tx.Version}
 }
@@ -2290,6 +2338,10 @@ type SetAssetScriptV1 struct {
 	Script    Script           `json:"script"`
 	Fee       uint64           `json:"fee"`
 	Timestamp uint64           `json:"timestamp,omitempty"`
+}
+
+func (tx SetAssetScriptV1) CanVerifySignatureWithoutState() bool {
+	return false
 }
 
 func (tx SetAssetScriptV1) GetTypeVersion() TransactionTypeVersion {
@@ -2505,6 +2557,10 @@ type InvokeScriptV1 struct {
 	FeeAsset        OptionalAsset    `json:"feeAssetId"`
 	Fee             uint64           `json:"fee"`
 	Timestamp       uint64           `json:"timestamp,omitempty"`
+}
+
+func (tx InvokeScriptV1) CanVerifySignatureWithoutState() bool {
+	return false
 }
 
 func (tx *InvokeScriptV1) GenerateID() {

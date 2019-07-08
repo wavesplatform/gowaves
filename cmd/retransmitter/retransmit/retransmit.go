@@ -133,231 +133,29 @@ func (a *Retransmitter) periodicallySpawnPeers(ctx context.Context, ticker *time
 	}
 }
 
-func getTransaction(message proto.Message) (proto.Transaction, error) {
-	switch t := message.(type) {
-	case *proto.TransactionMessage:
-		txb := t.Transaction
-		switch txb[0] {
-		case 0:
-			switch txb[1] {
-			case byte(proto.IssueTransaction):
-				var tx proto.IssueV2
-				err := tx.UnmarshalBinary(txb)
-				if err != nil {
-					return nil, err
-				}
-				return &tx, nil
-			case byte(proto.TransferTransaction):
-				var tx proto.TransferV2
-				err := tx.UnmarshalBinary(txb)
-				if err != nil {
-					return nil, err
-				}
-				return &tx, nil
-			case byte(proto.ReissueTransaction):
-				var tx proto.ReissueV2
-				err := tx.UnmarshalBinary(txb)
-				if err != nil {
-					return nil, err
-				}
-				return &tx, nil
-			case byte(proto.BurnTransaction):
-				var tx proto.BurnV2
-				err := tx.UnmarshalBinary(txb)
-				if err != nil {
-					return nil, err
-				}
-				return &tx, nil
-			case byte(proto.ExchangeTransaction):
-				var tx proto.ExchangeV2
-				err := tx.UnmarshalBinary(txb)
-				if err != nil {
-					return nil, err
-				}
-				return &tx, nil
-			case byte(proto.LeaseTransaction):
-				var tx proto.LeaseV2
-				err := tx.UnmarshalBinary(txb)
-				if err != nil {
-					return nil, err
-				}
-				return &tx, nil
-			case byte(proto.LeaseCancelTransaction):
-				var tx proto.LeaseCancelV2
-				err := tx.UnmarshalBinary(txb)
-				if err != nil {
-					return nil, err
-				}
-				return &tx, nil
-			case byte(proto.CreateAliasTransaction):
-				var tx proto.CreateAliasV2
-				err := tx.UnmarshalBinary(txb)
-				if err != nil {
-					return nil, err
-				}
-				return &tx, nil
-			case byte(proto.DataTransaction):
-				var tx proto.DataV1
-				err := tx.UnmarshalBinary(txb)
-				if err != nil {
-					return nil, err
-				}
-				return &tx, nil
-			case byte(proto.SetScriptTransaction):
-				var tx proto.SetScriptV1
-				err := tx.UnmarshalBinary(txb)
-				if err != nil {
-					return nil, err
-				}
-				return &tx, nil
-			case byte(proto.SponsorshipTransaction):
-				var tx proto.SponsorshipV1
-				err := tx.UnmarshalBinary(txb)
-				if err != nil {
-					return nil, err
-				}
-				return &tx, nil
-			default:
-				return nil, errors.New("unknown transaction")
-			}
-
-		case byte(proto.IssueTransaction):
-			var tx proto.IssueV1
-			err := tx.UnmarshalBinary(txb)
-			if err != nil {
-				return nil, err
-			}
-			valid, err := tx.Verify(tx.SenderPK)
-			if err != nil {
-				return nil, err
-			}
-
-			if !valid {
-				return nil, invalidTransaction
-			}
-			return &tx, nil
-
-		case byte(proto.TransferTransaction):
-			var tx proto.TransferV1
-			err := tx.UnmarshalBinary(txb)
-			if err != nil {
-				return nil, err
-			}
-			valid, err := tx.Verify(tx.SenderPK)
-			if err != nil {
-				return nil, err
-			}
-
-			if !valid {
-				return nil, invalidTransaction
-			}
-			return &tx, nil
-		case byte(proto.ReissueTransaction):
-			var tx proto.ReissueV1
-			err := tx.UnmarshalBinary(txb)
-			if err != nil {
-				return nil, err
-			}
-			valid, err := tx.Verify(tx.SenderPK)
-			if err != nil {
-				return nil, err
-			}
-
-			if !valid {
-				return nil, invalidTransaction
-			}
-			return &tx, nil
-		case byte(proto.BurnTransaction):
-			var tx proto.BurnV1
-			err := tx.UnmarshalBinary(txb)
-			if err != nil {
-				return nil, err
-			}
-			valid, err := tx.Verify(tx.SenderPK)
-			if err != nil {
-				return nil, err
-			}
-
-			if !valid {
-				return nil, invalidTransaction
-			}
-			return &tx, nil
-		case byte(proto.ExchangeTransaction):
-			var tx proto.ExchangeV1
-			err := tx.UnmarshalBinary(txb)
-			if err != nil {
-				return nil, err
-			}
-			valid, err := tx.Verify(tx.SenderPK)
-			if err != nil {
-				return nil, err
-			}
-
-			if !valid {
-				return nil, invalidTransaction
-			}
-			return &tx, nil
-		case byte(proto.LeaseTransaction):
-			var tx proto.LeaseV1
-			err := tx.UnmarshalBinary(txb)
-			if err != nil {
-				return nil, err
-			}
-			valid, err := tx.Verify(tx.SenderPK)
-			if err != nil {
-				return nil, err
-			}
-
-			if !valid {
-				return nil, invalidTransaction
-			}
-			return &tx, nil
-		case byte(proto.LeaseCancelTransaction):
-			var tx proto.LeaseCancelV1
-			err := tx.UnmarshalBinary(txb)
-			if err != nil {
-				return nil, err
-			}
-			valid, err := tx.Verify(tx.SenderPK)
-			if err != nil {
-				return nil, err
-			}
-
-			if !valid {
-				return nil, invalidTransaction
-			}
-			return &tx, nil
-		case byte(proto.CreateAliasTransaction):
-			var tx proto.CreateAliasV1
-			err := tx.UnmarshalBinary(txb)
-			if err != nil {
-				return nil, err
-			}
-			valid, err := tx.Verify(tx.SenderPK)
-			if err != nil {
-				return nil, err
-			}
-
-			if !valid {
-				return nil, invalidTransaction
-			}
-			return &tx, nil
-		case byte(proto.MassTransferTransaction):
-			var tx proto.MassTransferV1
-			err := tx.UnmarshalBinary(txb)
-			if err != nil {
-				return nil, err
-			}
-			valid, err := tx.Verify(tx.SenderPK)
-			if err != nil {
-				return nil, err
-			}
-
-			if !valid {
-				return nil, invalidTransaction
-			}
-			return &tx, nil
-		}
+func verifySig(transaction proto.Transaction) (bool, error) {
+	if !transaction.CanVerifySignatureWithoutState() {
+		return true, nil
 	}
-	return nil, errors.New("unknown transaction")
+	switch tx := transaction.(type) {
+	case *proto.IssueV1:
+		return tx.Verify(tx.SenderPK)
+	case *proto.TransferV1:
+		return tx.Verify(tx.SenderPK)
+	case *proto.ReissueV1:
+		return tx.Verify(tx.SenderPK)
+	case *proto.BurnV1:
+		return tx.Verify(tx.SenderPK)
+	case *proto.ExchangeV1:
+		return tx.Verify(tx.SenderPK)
+	case *proto.LeaseV1:
+		return tx.Verify(tx.SenderPK)
+	case *proto.LeaseCancelV1:
+		return tx.Verify(tx.SenderPK)
+	case *proto.CreateAliasV1:
+		return tx.Verify(tx.SenderPK)
+	case *proto.MassTransferV1:
+		return tx.Verify(tx.SenderPK)
+	}
+	return false, errors.Errorf("invalid transaction %T %+v ", transaction, transaction)
 }

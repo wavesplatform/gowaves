@@ -92,6 +92,7 @@ type Transaction interface {
 	GetFee() uint64
 	GetTimestamp() uint64
 	GenerateID()
+	CanVerifySignatureWithoutState() bool
 }
 
 func BytesToTransaction(tx []byte) (Transaction, error) {
@@ -244,6 +245,10 @@ type Genesis struct {
 	Amount    uint64            `json:"amount"`
 }
 
+func (tx Genesis) CanVerifySignatureWithoutState() bool {
+	return false
+}
+
 func (tx Genesis) GetTypeVersion() TransactionTypeVersion {
 	return TransactionTypeVersion{tx.Type, tx.Version}
 }
@@ -376,6 +381,10 @@ type Payment struct {
 	Amount    uint64            `json:"amount"`
 	Fee       uint64            `json:"fee"`
 	Timestamp uint64            `json:"timestamp"`
+}
+
+func (tx Payment) CanVerifySignatureWithoutState() bool {
+	return true
 }
 
 func (tx Payment) GetTypeVersion() TransactionTypeVersion {

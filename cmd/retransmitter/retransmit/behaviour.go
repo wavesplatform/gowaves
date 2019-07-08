@@ -36,9 +36,21 @@ func NewBehaviour(knownPeers *utils.KnownPeers, peerSpawner PeerSpawner) *Behavi
 func (a *BehaviourImpl) ProtoMessage(incomeMessage peer.ProtoMessage) {
 	switch t := incomeMessage.Message.(type) {
 	case *proto.TransactionMessage:
-		transaction, err := getTransaction(t)
+		//transaction, err := getTransaction(t)
+		transaction, err := proto.BytesToTransaction(t.Transaction)
 		if err != nil {
 			zap.S().Error(err, incomeMessage.ID, t)
+			return
+		}
+
+		valid, err := verifySig(transaction)
+		if err != nil {
+			zap.S().Error(err, incomeMessage.ID, transaction)
+			return
+		}
+
+		if !valid {
+			zap.S().Error("invalid transaction sig ", incomeMessage.ID, transaction)
 			return
 		}
 
