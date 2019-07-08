@@ -16,16 +16,16 @@ type row struct {
 	MicroBlocks []*proto.MicroBlock
 }
 
-type blockSequence []interface{}
+type blocks []interface{}
 
-func shrink(sequence blockSequence) blockSequence {
+func shrink(sequence blocks) blocks {
 	if l := len(sequence); l > 100 {
 		return sequence[l-100:]
 	}
 	return sequence
 }
 
-func (a blockSequence) AddBlock(block *proto.Block) (blockSequence, error) {
+func (a blocks) AddBlock(block *proto.Block) (blocks, error) {
 	if a.Len() == 0 {
 		return []interface{}{block}, nil
 	}
@@ -46,7 +46,7 @@ func (a blockSequence) AddBlock(block *proto.Block) (blockSequence, error) {
 	return nil, errors.New("parent not found")
 }
 
-func (a blockSequence) AddMicro(micro *proto.MicroBlock) (blockSequence, error) {
+func (a blocks) AddMicro(micro *proto.MicroBlock) (blocks, error) {
 	if a.Len() == 0 {
 		return nil, nil
 	}
@@ -67,19 +67,19 @@ func (a blockSequence) AddMicro(micro *proto.MicroBlock) (blockSequence, error) 
 	return nil, errors.New("parent not found")
 }
 
-func (a blockSequence) Len() int {
+func (a blocks) Len() int {
 	return len(a)
 }
 
-func newBlockSequence() blockSequence {
-	return blockSequence{}
+func newBlockSequence() blocks {
+	return blocks{}
 }
 
-func newBlockSequenceFromBlock(block *proto.Block) blockSequence {
+func newBlockSequenceFromBlock(block *proto.Block) blocks {
 	return []interface{}{block}
 }
 
-func (a blockSequence) Row() (row, error) {
+func (a blocks) Row() (row, error) {
 	for i := len(a) - 1; i >= 0; i-- {
 		switch t := a[i].(type) {
 		case *proto.Block:
@@ -100,8 +100,8 @@ func inf2micro(in []interface{}) []*proto.MicroBlock {
 }
 
 type storage struct {
-	curState  blockSequence
-	prevState blockSequence
+	curState  blocks
+	prevState blocks
 	validator validator
 }
 

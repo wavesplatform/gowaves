@@ -2,7 +2,6 @@ package peer_manager
 
 import (
 	"context"
-	"fmt"
 	"math/big"
 	"net"
 	"sort"

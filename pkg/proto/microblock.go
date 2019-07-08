@@ -25,6 +25,8 @@ type MicroBlock struct {
 	Transactions          *TransactionsRepresentation
 }
 
+type MicroblockTotalSig = crypto.Signature
+
 func (a *MicroBlock) UnmarshalBinary(b []byte) error {
 	var err error
 	d := deserializer.NewDeserializer(b)

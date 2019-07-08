@@ -31,6 +31,12 @@ func newMicro(sig crypto.Signature, parent crypto.Signature) *proto.MicroBlock {
 	}
 }
 
+func newInv(sig crypto.Signature) *proto.MicroBlockInv {
+	return &proto.MicroBlockInv{
+		TotalBlockSig: sig,
+	}
+}
+
 type noOpValidator struct {
 }
 
