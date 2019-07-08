@@ -24,7 +24,7 @@ func createFeatures(sets *settings.BlockchainSettings) (*featuresTestObjects, []
 	}
 	definedFeaturesInfo := make(map[settings.Feature]settings.FeatureInfo)
 	definedFeaturesInfo[settings.Feature(featureID)] = settings.FeatureInfo{Implemented: true, Description: "test feature"}
-	features, err := newFeatures(stor.db, stor.dbBatch, stor.hs, sets, definedFeaturesInfo)
+	features, err := newFeatures(stor.db, stor.dbBatch, stor.hs, stor.stateDB, sets, definedFeaturesInfo)
 	if err != nil {
 		return nil, path, err
 	}
@@ -42,6 +42,7 @@ func TestAddFeatureVote(t *testing.T) {
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
+	to.stor.addBlock(t, blockID0)
 	err = to.features.addVote(featureID, blockID0)
 	assert.NoError(t, err, "addVote() failed")
 	votes, err := to.features.featureVotes(featureID)
@@ -50,7 +51,6 @@ func TestAddFeatureVote(t *testing.T) {
 	votes, err = to.features.featureVotes(0)
 	assert.NoError(t, err, "featureVotes() failed")
 	assert.Equal(t, uint64(0), votes)
-	to.stor.addBlock(t, blockID0)
 	to.stor.flush(t)
 	votes, err = to.features.featureVotes(featureID)
 	assert.NoError(t, err, "featureVotes() after flush() failed")
@@ -71,10 +71,12 @@ func TestApproveFeature(t *testing.T) {
 	approved, err := to.features.isApproved(featureID)
 	assert.NoError(t, err, "isApproved failed")
 	assert.Equal(t, false, approved)
-	r := &approvedFeaturesRecord{1, blockID0}
+	to.stor.addBlock(t, blockID0)
+	blockNum, err := to.stor.stateDB.blockIdToNum(blockID0)
+	assert.NoError(t, err, "blockIdToNum() failed")
+	r := &approvedFeaturesRecord{1, blockNum}
 	err = to.features.approveFeature(featureID, r)
 	assert.NoError(t, err, "approveFeature() failed")
-	to.stor.addBlock(t, blockID0)
 	to.stor.flush(t)
 	approved, err = to.features.isApproved(featureID)
 	assert.NoError(t, err, "isApproved failed")
@@ -95,13 +97,15 @@ func TestActivateFeature(t *testing.T) {
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
+	to.stor.addBlock(t, blockID0)
 	activated, err := to.features.isActivated(featureID)
 	assert.NoError(t, err, "isActivated failed")
 	assert.Equal(t, false, activated)
-	r := &activatedFeaturesRecord{1, blockID0}
+	blockNum, err := to.stor.stateDB.blockIdToNum(blockID0)
+	assert.NoError(t, err, "blockIdToNum() failed")
+	r := &activatedFeaturesRecord{1, blockNum}
 	err = to.features.activateFeature(featureID, r)
 	assert.NoError(t, err, "activateFeature() failed")
-	to.stor.addBlock(t, blockID0)
 	to.stor.flush(t)
 	activated, err = to.features.isActivated(featureID)
 	assert.NoError(t, err, "isActivated failed")

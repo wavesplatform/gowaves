@@ -21,7 +21,7 @@ type checkerTestObjects struct {
 func createCheckerTestObjects(t *testing.T) (*checkerTestObjects, []string) {
 	stor, path, err := createStorageObjects()
 	assert.NoError(t, err, "createStorageObjects() failed")
-	entities, err := newBlockchainEntitiesStorage(stor.hs, settings.MainNetSettings)
+	entities, err := newBlockchainEntitiesStorage(stor.hs, stor.stateDB, settings.MainNetSettings)
 	assert.NoError(t, err, "newBlockchainEntitiesStorage() failed")
 	tc, err := newTransactionChecker(crypto.MustSignatureFromBase58(genesisSignature), entities, settings.MainNetSettings)
 	assert.NoError(t, err, "newTransactionChecker() failed")
@@ -344,9 +344,9 @@ func TestCheckLeaseCancelV1(t *testing.T) {
 	err := to.tc.checkLeaseCancelV1(tx, info)
 	assert.Error(t, err, "checkLeaseCancelV1 did not fail when cancelling nonexistent lease")
 
+	to.stor.addBlock(t, blockID0)
 	err = to.tp.performLeaseV1(leaseTx, defaultPerformerInfo(t))
 	assert.NoError(t, err, "performLeaseV1 failed")
-	to.stor.addBlock(t, blockID0)
 	to.stor.flush(t)
 
 	tx.SenderPK = testGlobal.recipientInfo.pk
@@ -377,9 +377,9 @@ func TestCheckLeaseCancelV2(t *testing.T) {
 	err := to.tc.checkLeaseCancelV2(tx, info)
 	assert.Error(t, err, "checkLeaseCancelV2 did not fail when cancelling nonexistent lease")
 
+	to.stor.addBlock(t, blockID0)
 	err = to.tp.performLeaseV2(leaseTx, defaultPerformerInfo(t))
 	assert.NoError(t, err, "performLeaseV2 failed")
-	to.stor.addBlock(t, blockID0)
 	to.stor.flush(t)
 
 	tx.SenderPK = testGlobal.recipientInfo.pk
@@ -408,9 +408,9 @@ func TestCheckCreateAliasV1(t *testing.T) {
 	err := to.tc.checkCreateAliasV1(tx, info)
 	assert.NoError(t, err, "checkCreateAliasV1 failed with valid createAlias tx")
 
+	to.stor.addBlock(t, blockID0)
 	err = to.tp.performCreateAliasV1(tx, defaultPerformerInfo(t))
 	assert.NoError(t, err, "performCreateAliasV1 failed")
-	to.stor.addBlock(t, blockID0)
 	to.stor.flush(t)
 
 	err = to.tc.checkCreateAliasV1(tx, info)
@@ -436,9 +436,9 @@ func TestCheckCreateAliasV2(t *testing.T) {
 	err := to.tc.checkCreateAliasV2(tx, info)
 	assert.NoError(t, err, "checkCreateAliasV2 failed with valid createAlias tx")
 
+	to.stor.addBlock(t, blockID0)
 	err = to.tp.performCreateAliasV2(tx, defaultPerformerInfo(t))
 	assert.NoError(t, err, "performCreateAliasV2 failed")
-	to.stor.addBlock(t, blockID0)
 	to.stor.flush(t)
 
 	err = to.tc.checkCreateAliasV2(tx, info)

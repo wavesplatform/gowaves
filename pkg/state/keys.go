@@ -23,8 +23,15 @@ const (
 	wavesBalanceKeyPrefix byte = iota
 	assetBalanceKeyPrefix
 
-	// Valid block IDs.
-	blockIdKeyPrefix
+	// Unique block num of the last block.
+	lastBlockNumKeyPrefix
+	// BlockID --> unique block number.
+	// Numbers are increasing sequentially.
+	// These numbers are stored in history records instead of long IDs.
+	blockIdToNumKeyPrefix
+	blockNumToIdKeyPrefix
+	// Valid block unique nums.
+	validBlockNumKeyPrefix
 
 	// For block storage.
 	// IDs of blocks and transactions --> offsets in files.
@@ -110,14 +117,36 @@ func (k *assetBalanceKey) unmarshal(data []byte) error {
 	return nil
 }
 
-type blockIdKey struct {
+type blockIdToNumKey struct {
 	blockID crypto.Signature
 }
 
-func (k *blockIdKey) bytes() []byte {
+func (k *blockIdToNumKey) bytes() []byte {
 	buf := make([]byte, 1+crypto.SignatureSize)
-	buf[0] = blockIdKeyPrefix
+	buf[0] = blockIdToNumKeyPrefix
 	copy(buf[1:], k.blockID[:])
+	return buf
+}
+
+type blockNumToIdKey struct {
+	blockNum uint32
+}
+
+func (k *blockNumToIdKey) bytes() []byte {
+	buf := make([]byte, 1+4)
+	buf[0] = blockNumToIdKeyPrefix
+	binary.LittleEndian.PutUint32(buf[1:], k.blockNum)
+	return buf
+}
+
+type validBlockNumKey struct {
+	blockNum uint32
+}
+
+func (k *validBlockNumKey) bytes() []byte {
+	buf := make([]byte, 1+4)
+	buf[0] = validBlockNumKeyPrefix
+	binary.LittleEndian.PutUint32(buf[1:], k.blockNum)
 	return buf
 }
 

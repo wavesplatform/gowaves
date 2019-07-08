@@ -224,14 +224,30 @@ func (rw *blockReadWriter) blockIDByHeight(height uint64) (crypto.Signature, err
 	return res, nil
 }
 
+func (rw *blockReadWriter) heightFromBlockInfo(blockInfo []byte) (uint64, error) {
+	if len(blockInfo) < 8 {
+		return 0, errors.New("invalid data size")
+	}
+	height := binary.LittleEndian.Uint64(blockInfo[len(blockInfo)-8:])
+	return height + 1, nil
+}
+
+func (rw *blockReadWriter) newestHeightByBlockID(blockID crypto.Signature) (uint64, error) {
+	key := blockOffsetKey{blockID: blockID}
+	blockInfo, ok := rw.blockInfo[key]
+	if ok {
+		return rw.heightFromBlockInfo(blockInfo)
+	}
+	return rw.heightByBlockID(blockID)
+}
+
 func (rw *blockReadWriter) heightByBlockID(blockID crypto.Signature) (uint64, error) {
 	key := blockOffsetKey{blockID: blockID}
 	blockInfo, err := rw.db.Get(key.bytes())
 	if err != nil {
 		return 0, err
 	}
-	height := binary.LittleEndian.Uint64(blockInfo[len(blockInfo)-8:])
-	return height + 1, nil
+	return rw.heightFromBlockInfo(blockInfo)
 }
 
 func (rw *blockReadWriter) recentHeight() uint64 {

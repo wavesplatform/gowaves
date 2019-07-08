@@ -18,7 +18,7 @@ type performerTestObjects struct {
 func createPerformerTestObjects(t *testing.T) (*performerTestObjects, []string) {
 	stor, path, err := createStorageObjects()
 	assert.NoError(t, err, "createStorageObjects() failed")
-	entities, err := newBlockchainEntitiesStorage(stor.hs, settings.MainNetSettings)
+	entities, err := newBlockchainEntitiesStorage(stor.hs, stor.stateDB, settings.MainNetSettings)
 	assert.NoError(t, err, "newBlockchainEntitiesStorage() failed")
 	tp, err := newTransactionPerformer(entities, settings.MainNetSettings)
 	assert.NoError(t, err, "newTransactionPerformer() failed")
@@ -37,10 +37,10 @@ func TestPerformIssueV1(t *testing.T) {
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
+	to.stor.addBlock(t, blockID0)
 	tx := createIssueV1(t)
 	err := to.tp.performIssueV1(tx, defaultPerformerInfo(t))
 	assert.NoError(t, err, "performIssueV1() failed")
-	to.stor.addBlock(t, blockID0)
 	to.stor.flush(t)
 	assetInfo := assetInfo{
 		assetConstInfo: assetConstInfo{
@@ -49,10 +49,9 @@ func TestPerformIssueV1(t *testing.T) {
 			description: tx.Description,
 			decimals:    int8(tx.Decimals),
 		},
-		assetHistoryRecord: assetHistoryRecord{
+		assetChangeableInfo: assetChangeableInfo{
 			quantity:   *big.NewInt(int64(tx.Quantity)),
 			reissuable: tx.Reissuable,
-			blockID:    blockID0,
 		},
 	}
 
@@ -70,10 +69,10 @@ func TestPerformIssueV2(t *testing.T) {
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
+	to.stor.addBlock(t, blockID0)
 	tx := createIssueV2(t)
 	err := to.tp.performIssueV2(tx, defaultPerformerInfo(t))
 	assert.NoError(t, err, "performIssueV2() failed")
-	to.stor.addBlock(t, blockID0)
 	to.stor.flush(t)
 	assetInfo := assetInfo{
 		assetConstInfo: assetConstInfo{
@@ -82,10 +81,9 @@ func TestPerformIssueV2(t *testing.T) {
 			description: tx.Description,
 			decimals:    int8(tx.Decimals),
 		},
-		assetHistoryRecord: assetHistoryRecord{
+		assetChangeableInfo: assetChangeableInfo{
 			quantity:   *big.NewInt(int64(tx.Quantity)),
 			reissuable: tx.Reissuable,
-			blockID:    blockID0,
 		},
 	}
 
@@ -189,10 +187,10 @@ func TestPerformLeaseV1(t *testing.T) {
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
+	to.stor.addBlock(t, blockID0)
 	tx := createLeaseV1(t)
 	err := to.tp.performLeaseV1(tx, defaultPerformerInfo(t))
 	assert.NoError(t, err, "performLeaseV1() failed")
-	to.stor.addBlock(t, blockID0)
 	to.stor.flush(t)
 	leasingInfo := &leasing{
 		isActive:    true,
@@ -214,10 +212,10 @@ func TestPerformLeaseV2(t *testing.T) {
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
+	to.stor.addBlock(t, blockID0)
 	tx := createLeaseV2(t)
 	err := to.tp.performLeaseV2(tx, defaultPerformerInfo(t))
 	assert.NoError(t, err, "performLeaseV2() failed")
-	to.stor.addBlock(t, blockID0)
 	to.stor.flush(t)
 	leasingInfo := &leasing{
 		isActive:    true,
@@ -239,10 +237,10 @@ func TestPerformLeaseCancelV1(t *testing.T) {
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
+	to.stor.addBlock(t, blockID0)
 	leaseTx := createLeaseV1(t)
 	err := to.tp.performLeaseV1(leaseTx, defaultPerformerInfo(t))
 	assert.NoError(t, err, "performLeaseV1() failed")
-	to.stor.addBlock(t, blockID0)
 	to.stor.flush(t)
 	leasingInfo := &leasing{
 		isActive:    false,
@@ -267,10 +265,10 @@ func TestPerformLeaseCancelV2(t *testing.T) {
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
+	to.stor.addBlock(t, blockID0)
 	leaseTx := createLeaseV2(t)
 	err := to.tp.performLeaseV2(leaseTx, defaultPerformerInfo(t))
 	assert.NoError(t, err, "performLeaseV2() failed")
-	to.stor.addBlock(t, blockID0)
 	to.stor.flush(t)
 	leasingInfo := &leasing{
 		isActive:    false,
@@ -295,10 +293,10 @@ func TestPerformCreateAliasV1(t *testing.T) {
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
+	to.stor.addBlock(t, blockID0)
 	tx := createCreateAliasV1(t)
 	err := to.tp.performCreateAliasV1(tx, defaultPerformerInfo(t))
 	assert.NoError(t, err, "performCreateAliasV1() failed")
-	to.stor.addBlock(t, blockID0)
 	to.stor.flush(t)
 	addr, err := to.entities.aliases.addrByAlias(tx.Alias.Alias, true)
 	assert.NoError(t, err, "addrByAlias failed")
@@ -323,10 +321,10 @@ func TestPerformCreateAliasV2(t *testing.T) {
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
+	to.stor.addBlock(t, blockID0)
 	tx := createCreateAliasV2(t)
 	err := to.tp.performCreateAliasV2(tx, defaultPerformerInfo(t))
 	assert.NoError(t, err, "performCreateAliasV2() failed")
-	to.stor.addBlock(t, blockID0)
 	to.stor.flush(t)
 	addr, err := to.entities.aliases.addrByAlias(tx.Alias.Alias, true)
 	assert.NoError(t, err, "addrByAlias failed")

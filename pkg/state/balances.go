@@ -14,8 +14,8 @@ import (
 )
 
 const (
-	wavesBalanceRecordSize = 8 + 8 + 8 + crypto.SignatureSize
-	assetBalanceRecordSize = 8 + crypto.SignatureSize
+	wavesBalanceRecordSize = 8 + 8 + 8 + 4
+	assetBalanceRecordSize = 8 + 4
 )
 
 type balanceProfile struct {
@@ -38,7 +38,7 @@ func (bp *balanceProfile) spendableBalance() uint64 {
 
 type wavesBalanceRecord struct {
 	balanceProfile
-	blockID crypto.Signature
+	blockNum uint32
 }
 
 func (r *wavesBalanceRecord) marshalBinary() ([]byte, error) {
@@ -46,7 +46,7 @@ func (r *wavesBalanceRecord) marshalBinary() ([]byte, error) {
 	binary.BigEndian.PutUint64(res[:8], r.balance)
 	binary.PutVarint(res[8:16], r.leaseIn)
 	binary.PutVarint(res[16:24], r.leaseOut)
-	copy(res[24:], r.blockID[:])
+	binary.BigEndian.PutUint32(res[24:], r.blockNum)
 	return res, nil
 }
 
@@ -64,19 +64,19 @@ func (r *wavesBalanceRecord) unmarshalBinary(data []byte) error {
 	if err != nil {
 		return err
 	}
-	copy(r.blockID[:], data[24:])
+	r.blockNum = binary.BigEndian.Uint32(data[24:])
 	return nil
 }
 
 type assetBalanceRecord struct {
-	balance uint64
-	blockID crypto.Signature
+	balance  uint64
+	blockNum uint32
 }
 
 func (r *assetBalanceRecord) marshalBinary() ([]byte, error) {
 	res := make([]byte, assetBalanceRecordSize)
 	binary.BigEndian.PutUint64(res[:8], r.balance)
-	copy(res[8:], r.blockID[:])
+	binary.BigEndian.PutUint32(res[8:], r.blockNum)
 	return res, nil
 }
 
@@ -85,17 +85,18 @@ func (r *assetBalanceRecord) unmarshalBinary(data []byte) error {
 		return errors.New("invalid data size")
 	}
 	r.balance = binary.BigEndian.Uint64(data[:8])
-	copy(r.blockID[:], data[8:])
+	r.blockNum = binary.BigEndian.Uint32(data[8:])
 	return nil
 }
 
 type balances struct {
-	db keyvalue.IterableKeyVal
-	hs *historyStorage
+	db      keyvalue.IterableKeyVal
+	stateDB *stateDB
+	hs      *historyStorage
 }
 
-func newBalances(db keyvalue.IterableKeyVal, hs *historyStorage) (*balances, error) {
-	return &balances{db, hs}, nil
+func newBalances(db keyvalue.IterableKeyVal, stateDB *stateDB, hs *historyStorage) (*balances, error) {
+	return &balances{db, stateDB, hs}, nil
 }
 
 func (s *balances) cancelAllLeases() error {
@@ -277,8 +278,13 @@ func (s *balances) wavesBalance(addr proto.Address, filter bool) (*balanceProfil
 	return s.wavesBalanceImpl(key.bytes(), filter)
 }
 
-func (s *balances) setAssetBalance(addr proto.Address, asset []byte, record *assetBalanceRecord) error {
+func (s *balances) setAssetBalance(addr proto.Address, asset []byte, balance uint64, blockID crypto.Signature) error {
 	key := assetBalanceKey{address: addr, asset: asset}
+	blockNum, err := s.stateDB.blockIdToNum(blockID)
+	if err != nil {
+		return err
+	}
+	record := &assetBalanceRecord{balance, blockNum}
 	recordBytes, err := record.marshalBinary()
 	if err != nil {
 		return err
@@ -294,7 +300,12 @@ func (s *balances) setWavesBalanceImpl(key []byte, record *wavesBalanceRecord) e
 	return s.hs.set(wavesBalance, key, recordBytes)
 }
 
-func (s *balances) setWavesBalance(addr proto.Address, record *wavesBalanceRecord) error {
+func (s *balances) setWavesBalance(addr proto.Address, profile *balanceProfile, blockID crypto.Signature) error {
 	key := wavesBalanceKey{address: addr}
+	blockNum, err := s.stateDB.blockIdToNum(blockID)
+	if err != nil {
+		return err
+	}
+	record := &wavesBalanceRecord{*profile, blockNum}
 	return s.setWavesBalanceImpl(key.bytes(), record)
 }

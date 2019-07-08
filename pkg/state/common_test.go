@@ -140,14 +140,16 @@ func defaultTestKeyValParams() keyvalue.KeyValParams {
 type storageObjects struct {
 	db      keyvalue.IterableKeyVal
 	dbBatch keyvalue.Batch
+	rw      *blockReadWriter
 	hs      *historyStorage
 	stateDB *stateDB
-	rb      *recentBlocks
 }
 
 func (s *storageObjects) flush(t *testing.T) {
-	s.rb.flush()
-	err := s.hs.flush(true)
+	err := s.rw.flush()
+	assert.NoError(t, err, "rw.flush() failed")
+	s.rw.reset()
+	err = s.hs.flush(true)
 	assert.NoError(t, err, "hs.flush() failed")
 	err = s.stateDB.flush()
 	assert.NoError(t, err, "stateDB.flush() failed")
@@ -155,18 +157,26 @@ func (s *storageObjects) flush(t *testing.T) {
 }
 
 func (s *storageObjects) addBlock(t *testing.T, blockID crypto.Signature) {
-	err := s.rb.addNewBlockID(blockID)
-	assert.NoError(t, err, "rb.addNewBlockID() failed")
-	err = s.stateDB.addBlock(blockID)
+	err := s.stateDB.addBlock(blockID)
 	assert.NoError(t, err, "stateDB.addBlock() failed")
+	err = s.rw.startBlock(blockID)
+	assert.NoError(t, err, "startBlock() failed")
+	err = s.rw.finishBlock(blockID)
+	assert.NoError(t, err, "finishBlock() failed")
 }
 
 func createStorageObjects() (*storageObjects, []string, error) {
+	res := make([]string, 2)
 	dbDir0, err := ioutil.TempDir(os.TempDir(), "dbDir0")
 	if err != nil {
 		return nil, nil, err
 	}
-	res := []string{dbDir0}
+	res[0] = dbDir0
+	rwDir, err := ioutil.TempDir(os.TempDir(), "rw_dir")
+	if err != nil {
+		return nil, res, err
+	}
+	res[1] = rwDir
 	db, err := keyvalue.NewKeyVal(dbDir0, defaultTestKeyValParams())
 	if err != nil {
 		return nil, res, err
@@ -179,15 +189,15 @@ func createStorageObjects() (*storageObjects, []string, error) {
 	if err != nil {
 		return nil, res, err
 	}
-	rb, err := newRecentBlocks(rollbackMaxBlocks, nil)
+	rw, err := newBlockReadWriter(rwDir, 8, 8, db, dbBatch)
 	if err != nil {
 		return nil, res, err
 	}
-	hs, err := newHistoryStorage(db, dbBatch, stateDB, rb)
+	hs, err := newHistoryStorage(db, dbBatch, rw, stateDB)
 	if err != nil {
 		return nil, res, err
 	}
-	return &storageObjects{db, dbBatch, hs, stateDB, rb}, res, nil
+	return &storageObjects{db, dbBatch, rw, hs, stateDB}, res, nil
 }
 
 func genRandBlockIds(t *testing.T, amount int) []crypto.Signature {
@@ -221,27 +231,25 @@ func generateRandomRecipient(t *testing.T) proto.Recipient {
 	return proto.NewRecipientFromAddress(addr)
 }
 
-func createAssetInfo(t *testing.T, reissuable bool, blockID0 crypto.Signature, assetID crypto.Digest) *assetInfo {
-	asset := &assetInfo{
+func defaultAssetInfo(reissuable bool) *assetInfo {
+	return &assetInfo{
 		assetConstInfo: assetConstInfo{
 			issuer:      testGlobal.senderInfo.pk,
 			name:        "asset",
 			description: "description",
 			decimals:    2,
 		},
-		assetHistoryRecord: assetHistoryRecord{
+		assetChangeableInfo: assetChangeableInfo{
 			quantity:   *big.NewInt(10000000),
 			reissuable: reissuable,
-			blockID:    blockID0,
 		},
 	}
-	return asset
 }
 
 func createAsset(t *testing.T, entities *blockchainEntitiesStorage, stor *storageObjects, assetID crypto.Digest) *assetInfo {
 	stor.addBlock(t, blockID0)
-	assetInfo := createAssetInfo(t, true, blockID0, assetID)
-	err := entities.assets.issueAsset(assetID, assetInfo)
+	assetInfo := defaultAssetInfo(true)
+	err := entities.assets.issueAsset(assetID, assetInfo, blockID0)
 	assert.NoError(t, err, "issueAset() failed")
 	stor.flush(t)
 	return assetInfo
@@ -249,8 +257,10 @@ func createAsset(t *testing.T, entities *blockchainEntitiesStorage, stor *storag
 
 func activateFeature(t *testing.T, entities *blockchainEntitiesStorage, stor *storageObjects, featureID int16) {
 	stor.addBlock(t, blockID0)
-	activationReq := &activatedFeaturesRecord{1, blockID0}
-	err := entities.features.activateFeature(featureID, activationReq)
+	blockNum, err := stor.stateDB.blockIdToNum(blockID0)
+	assert.NoError(t, err, "blockIdToNum() failed")
+	activationReq := &activatedFeaturesRecord{1, blockNum}
+	err = entities.features.activateFeature(featureID, activationReq)
 	assert.NoError(t, err, "activateFeature() failed")
 	stor.flush(t)
 }

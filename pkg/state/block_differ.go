@@ -61,7 +61,7 @@ func (d *blockDiffer) prevBlockFeeDistr(prevBlock crypto.Signature) (*feeDistrib
 	return d.stor.blocksInfo.feeDistribution(prevBlock)
 }
 
-func (d *blockDiffer) appendBlockInfoToTxDiff(diff txDiff, block *proto.Block) {
+func (d *blockDiffer) appendBlockInfoToTxDiff(diff txDiff, block *proto.BlockHeader) {
 	for key := range diff {
 		balanceDiff := diff[key]
 		allowLeasedTransfer := true
@@ -111,7 +111,7 @@ func (d *blockDiffer) createPrevBlockMinerFeeDiff(prevBlockID crypto.Signature, 
 	return diff, nil
 }
 
-func (d *blockDiffer) createTransactionsDiffs(transactions []proto.Transaction, block *proto.Block, initialisation bool) ([]txDiff, error) {
+func (d *blockDiffer) createTransactionsDiffs(transactions []proto.Transaction, block *proto.BlockHeader, initialisation bool) ([]txDiff, error) {
 	d.curDistr = newFeeDistribution()
 	diffs := make([]txDiff, len(transactions))
 	for i, tx := range transactions {
@@ -140,7 +140,7 @@ func (d *blockDiffer) createTransactionsDiffs(transactions []proto.Transaction, 
 	return diffs, nil
 }
 
-func (d *blockDiffer) createBlockDiff(blockTxs []proto.Transaction, block *proto.Block, initialisation, hasParent bool) (blockDiff, error) {
+func (d *blockDiffer) createBlockDiff(blockTxs []proto.Transaction, block *proto.BlockHeader, initialisation, hasParent bool) (blockDiff, error) {
 	var diff blockDiff
 	if hasParent {
 		minerDiff, err := d.createPrevBlockMinerFeeDiff(block.Parent, block.GenPublicKey)
@@ -161,4 +161,5 @@ func (d *blockDiffer) createBlockDiff(blockTxs []proto.Transaction, block *proto
 func (d *blockDiffer) reset() {
 	d.curDistr = newFeeDistribution()
 	d.prevDistr = newFeeDistribution()
+	d.prevBlockID = crypto.Signature{}
 }

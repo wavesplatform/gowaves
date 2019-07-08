@@ -51,7 +51,7 @@ func (tc *transactionChecker) checkAsset(asset *proto.OptionalAsset, initialisat
 		// Waves always valid.
 		return nil
 	}
-	if _, err := tc.stor.assets.newestAssetRecord(asset.ID, !initialisation); err != nil {
+	if _, err := tc.stor.assets.newestAssetInfo(asset.ID, !initialisation); err != nil {
 		return errors.New("unknown asset")
 	}
 	return nil
@@ -137,7 +137,7 @@ func (tc *transactionChecker) checkReissue(tx *proto.Reissue, info *checkerInfo)
 	if err := tc.checkTimestamps(tx.Timestamp, info.currentTimestamp, info.parentTimestamp); err != nil {
 		return errors.Wrap(err, "invalid timestamp")
 	}
-	assetInfo, err := tc.stor.assets.newestConstInfo(tx.AssetID)
+	assetInfo, err := tc.stor.assets.newestAssetInfo(tx.AssetID, !info.initialisation)
 	if err != nil {
 		return err
 	}
@@ -152,15 +152,11 @@ func (tc *transactionChecker) checkReissue(tx *proto.Reissue, info *checkerInfo)
 		// Due to bugs in existing blockchain it is valid to reissue non-reissueable asset in this time period.
 		return nil
 	}
-	record, err := tc.stor.assets.newestAssetRecord(tx.AssetID, !info.initialisation)
-	if err != nil {
-		return err
-	}
-	if !record.reissuable {
+	if !assetInfo.reissuable {
 		return errors.Errorf("attempt to reissue asset which is not reissuable")
 	}
 	// Check Int64 overflow.
-	if (math.MaxInt64-int64(tx.Quantity) < record.quantity.Int64()) && (info.currentTimestamp >= tc.settings.ReissueBugWindowTimeEnd) {
+	if (math.MaxInt64-int64(tx.Quantity) < assetInfo.quantity.Int64()) && (info.currentTimestamp >= tc.settings.ReissueBugWindowTimeEnd) {
 		return errors.New("asset total value overflow")
 	}
 	return nil

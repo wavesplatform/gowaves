@@ -46,16 +46,16 @@ type blockchainEntitiesStorage struct {
 	features   *features
 }
 
-func newBlockchainEntitiesStorage(hs *historyStorage, sets *settings.BlockchainSettings) (*blockchainEntitiesStorage, error) {
-	aliases, err := newAliases(hs.db, hs.dbBatch, hs)
+func newBlockchainEntitiesStorage(hs *historyStorage, stateDB *stateDB, sets *settings.BlockchainSettings) (*blockchainEntitiesStorage, error) {
+	aliases, err := newAliases(hs.db, hs.dbBatch, stateDB, hs)
 	if err != nil {
 		return nil, err
 	}
-	assets, err := newAssets(hs.db, hs.dbBatch, hs)
+	assets, err := newAssets(hs.db, hs.dbBatch, stateDB, hs)
 	if err != nil {
 		return nil, err
 	}
-	leases, err := newLeases(hs.db, hs)
+	leases, err := newLeases(hs.db, stateDB, hs)
 	if err != nil {
 		return nil, err
 	}
@@ -67,11 +67,11 @@ func newBlockchainEntitiesStorage(hs *historyStorage, sets *settings.BlockchainS
 	if err != nil {
 		return nil, err
 	}
-	balances, err := newBalances(hs.db, hs)
+	balances, err := newBalances(hs.db, stateDB, hs)
 	if err != nil {
 		return nil, err
 	}
-	features, err := newFeatures(hs.db, hs.dbBatch, hs, sets, settings.FeaturesInfo)
+	features, err := newFeatures(hs.db, hs.dbBatch, hs, stateDB, sets, settings.FeaturesInfo)
 	if err != nil {
 		return nil, err
 	}
@@ -177,7 +177,7 @@ func (a *txAppender) checkDuplicateTxIds(tx proto.Transaction, recentIds map[str
 
 type appendBlockParams struct {
 	transactions   []proto.Transaction
-	block, parent  *proto.Block
+	block, parent  *proto.BlockHeader
 	height         uint64
 	initialisation bool
 }
@@ -287,6 +287,14 @@ func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, pare
 	return nil
 }
 
+func (a *txAppender) reset() {
+	a.appendedBlocksTxIds = make(map[string]struct{})
+	a.noBlocksTxIds = make(map[string]struct{})
+	a.diffStorNoBlocks.reset()
+	a.diffStorAppendedBlocks.reset()
+	a.blockDiffer.reset()
+}
+
 type stateManager struct {
 	mu *sync.RWMutex
 
@@ -297,9 +305,7 @@ type stateManager struct {
 	rw    *blockReadWriter
 	peers *peerStorage
 
-	rb *recentBlocks
-
-	// BlockchainSettings: general info about the blobkchain type, constants etc.
+	// BlockchainSettings: general info about the blockchain type, constants etc.
 	settings *settings.BlockchainSettings
 	// ConsensusValidator: validator for block headers.
 	cv *consensus.ConsensusValidator
@@ -352,16 +358,11 @@ func newStateManager(dataDir string, params StateParams, settings *settings.Bloc
 	if err := stateDB.syncRw(rw); err != nil {
 		return nil, wrapErr(Other, errors.Errorf("failed to sync block storage and DB: %v\n", err))
 	}
-	// rb is in-memory storage for IDs of recent blocks.
-	rb, err := newRecentBlocks(rollbackMaxBlocks, rw)
-	if err != nil {
-		return nil, wrapErr(Other, errors.Errorf("failed to create recent blocks stor: %v\n", err))
-	}
-	hs, err := newHistoryStorage(db, dbBatch, stateDB, rb)
+	hs, err := newHistoryStorage(db, dbBatch, rw, stateDB)
 	if err != nil {
 		return nil, wrapErr(Other, errors.Errorf("failed to create history storage: %v\n", err))
 	}
-	stor, err := newBlockchainEntitiesStorage(hs, settings)
+	stor, err := newBlockchainEntitiesStorage(hs, stateDB, settings)
 	if err != nil {
 		return nil, wrapErr(Other, errors.Errorf("failed to create blockchain entities storage: %v\n", err))
 	}
@@ -373,7 +374,6 @@ func newStateManager(dataDir string, params StateParams, settings *settings.Bloc
 		stateDB:                   stateDB,
 		stor:                      stor,
 		rw:                        rw,
-		rb:                        rb,
 		settings:                  settings,
 		peers:                     newPeerStorage(db),
 		appender:                  appender,
@@ -434,12 +434,16 @@ func (s *stateManager) addGenesisBlock() error {
 
 func (s *stateManager) applyPreactivatedFeatures(features []int16) error {
 	genesisID := s.genesis.BlockSignature
+	genesisBlockNum, err := s.stateDB.blockIdToNum(genesisID)
+	if err != nil {
+		return err
+	}
 	for _, featureID := range features {
-		approvalRequest := &approvedFeaturesRecord{1, genesisID}
+		approvalRequest := &approvedFeaturesRecord{1, genesisBlockNum}
 		if err := s.stor.features.approveFeature(featureID, approvalRequest); err != nil {
 			return err
 		}
-		activationRequest := &activatedFeaturesRecord{1, genesisID}
+		activationRequest := &activatedFeaturesRecord{1, genesisBlockNum}
 		if err := s.stor.features.activateFeature(featureID, activationRequest); err != nil {
 			return err
 		}
@@ -469,6 +473,10 @@ func (s *stateManager) handleGenesisBlock(g settings.GenesisGetter) error {
 	}
 	// If the storage is new (data dir does not contain any data), genesis block must be applied.
 	if height == 0 {
+		// Assign unique block number for this block ID, add this number to the list of valid blocks.
+		if err := s.stateDB.addBlock(block.BlockSignature); err != nil {
+			return err
+		}
 		if err := s.applyPreactivatedFeatures(s.settings.PreactivatedFeatures); err != nil {
 			return errors.Errorf("failed to apply preactivated features: %v\n", err)
 		}
@@ -647,14 +655,6 @@ func (s *stateManager) addFeaturesVotes(block *proto.Block) error {
 }
 
 func (s *stateManager) addNewBlock(block, parent *proto.Block, initialisation bool, chans *verifierChans, height uint64) error {
-	// Add ID of new block to in-memory IDs storage.
-	if err := s.rb.addNewBlockID(block.BlockSignature); err != nil {
-		return err
-	}
-	// Add ID of new block to the list of valid IDs.
-	if err := s.stateDB.addBlock(block.BlockSignature); err != nil {
-		return err
-	}
 	// Indicate new block for storage.
 	if err := s.rw.startBlock(block.BlockSignature); err != nil {
 		return err
@@ -696,10 +696,14 @@ func (s *stateManager) addNewBlock(block, parent *proto.Block, initialisation bo
 		}
 		transactionsBytes = transactionsBytes[4+n:]
 	}
+	var parentHeader *proto.BlockHeader
+	if parent != nil {
+		parentHeader = &parent.BlockHeader
+	}
 	params := &appendBlockParams{
 		transactions:   transactions,
-		block:          block,
-		parent:         parent,
+		block:          &block.BlockHeader,
+		parent:         parentHeader,
 		height:         height,
 		initialisation: initialisation,
 	}
@@ -722,6 +726,7 @@ func (s *stateManager) reset() error {
 	s.rw.reset()
 	s.stor.reset()
 	s.stateDB.reset()
+	s.appender.reset()
 	return nil
 }
 
@@ -735,7 +740,6 @@ func (s *stateManager) flush(initialisation bool) error {
 	if err := s.stateDB.flush(); err != nil {
 		return err
 	}
-	s.rb.flush()
 	return nil
 }
 
@@ -746,7 +750,6 @@ func (s *stateManager) undoBlockAddition() error {
 	if err := s.stateDB.syncRw(s.rw); err != nil {
 		return err
 	}
-	s.rb.reset()
 	return nil
 }
 
@@ -1068,6 +1071,10 @@ func (s *stateManager) addBlocks(blocks [][]byte, initialisation bool) (*proto.B
 			return nil, wrapErr(ModificationError, err)
 		}
 		prevScore = score
+		// Assign unique block number for this block ID, add this number to the list of valid blocks.
+		if err := s.stateDB.addBlock(block.BlockSignature); err != nil {
+			return nil, wrapErr(ModificationError, err)
+		}
 		// Save block to storage, check its transactions, create and save balance diffs for its transactions.
 		if err := s.addNewBlock(&block, parent, initialisation, chans, curHeight); err != nil {
 			return nil, wrapErr(TxValidationError, err)
@@ -1177,7 +1184,6 @@ func (s *stateManager) rollbackToImpl(removalEdge crypto.Signature) error {
 		return wrapErr(RollbackError, err)
 	}
 	// Reset recent block IDs storage.
-	s.rb.reset()
 	return nil
 }
 
@@ -1186,7 +1192,6 @@ func (s *stateManager) RollbackTo(removalEdge crypto.Signature) error {
 		if err1 := s.stateDB.syncRw(s.rw); err1 != nil {
 			panic("Failed to rollback and can not sync state components after failure.")
 		}
-		s.rb.reset()
 		return err
 	}
 	return nil
