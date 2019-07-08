@@ -264,7 +264,7 @@ func (s *storage) hasPeer(ip net.IP) (bool, error) {
 	return true, nil
 }
 
-func (s *storage) appendBlock(block proto.Block) (uint32, uint32, error) {
+func (s *storage) appendBlock(block *proto.Block) (uint32, uint32, error) {
 	wrapError := func(err error) error {
 		return errors.Wrap(err, "failed to append new block")
 	}
@@ -294,7 +294,6 @@ func (s *storage) appendBlock(block proto.Block) (uint32, uint32, error) {
 
 	// Get the block's parent link
 	parentNumber, err := s.blockNumber(sn, block.Parent)
-	zap.S().Debugf("[STO] Parent block '%s' has number %d", block.Parent.String(), parentNumber)
 	if err != nil {
 		return 0, 0, wrapError(err)
 	}

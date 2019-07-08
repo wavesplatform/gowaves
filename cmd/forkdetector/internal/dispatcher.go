@@ -15,7 +15,7 @@ const (
 	askPeersDelay        = 30 * time.Second
 )
 
-type Dispatcher struct {
+type dispatcher struct {
 	interrupt <-chan struct{}
 	bind      string
 	Opts      *Options
@@ -25,7 +25,7 @@ type Dispatcher struct {
 	schedule  schedule
 }
 
-func NewDispatcher(interrupt <-chan struct{}, bind string, opts *Options, registry *Registry) *Dispatcher {
+func NewDispatcher(interrupt <-chan struct{}, bind string, opts *Options, registry *Registry) *dispatcher {
 	if opts.RecvBufSize <= 0 {
 		zap.S().Warnf("Invalid receive buffer size %d, using default value instead", opts.RecvBufSize)
 		opts.RecvBufSize = DefaultRecvBufSize
@@ -35,7 +35,7 @@ func NewDispatcher(interrupt <-chan struct{}, bind string, opts *Options, regist
 		opts.SendQueueLen = DefaultSendQueueLen
 	}
 	s := NewServer(opts)
-	d := &Dispatcher{
+	d := &dispatcher{
 		interrupt: interrupt,
 		bind:      bind,
 		Opts:      opts,
@@ -47,7 +47,7 @@ func NewDispatcher(interrupt <-chan struct{}, bind string, opts *Options, regist
 	return d
 }
 
-func (d *Dispatcher) Start() <-chan struct{} {
+func (d *dispatcher) Start() <-chan struct{} {
 	zap.S().Debug("Starting dispatcher...")
 	reconnectTicker := time.NewTicker(reconnectionInterval)
 	askPeersTicker := time.NewTicker(askPeersInterval)
@@ -68,7 +68,7 @@ func (d *Dispatcher) Start() <-chan struct{} {
 				<-d.server.Stopped()
 				zap.S().Debugf("Closing %d outgoing connections", d.schedule.len())
 				for _, c := range d.schedule.connections() {
-					c.Stop(StopGracefullyAndWait)
+					c.Stop(StopImmediately)
 				}
 				zap.S().Debug("Server shutdown complete")
 				close(d.stopped)
@@ -92,7 +92,7 @@ func (d *Dispatcher) Start() <-chan struct{} {
 	return d.stopped
 }
 
-func (d *Dispatcher) dial(addr net.Addr) {
+func (d *dispatcher) dial(addr net.Addr) {
 	conn := NewConn(d.Opts)
 	defer func(conn *Conn) {
 		d.schedule.remove(conn)
@@ -109,7 +109,7 @@ func (d *Dispatcher) dial(addr net.Addr) {
 	}
 }
 
-func (d *Dispatcher) askPeers(conn *Conn) {
+func (d *dispatcher) askPeers(conn *Conn) {
 	buf := new(bytes.Buffer)
 	m := proto.GetPeersMessage{}
 	_, err := m.WriteTo(buf)
@@ -131,10 +131,12 @@ type schedule struct {
 	items    map[*Conn]time.Time
 }
 
+func (s *schedule) init() {
+	s.items = make(map[*Conn]time.Time)
+}
+
 func (s *schedule) append(c *Conn) {
-	s.once.Do(func() {
-		s.items = make(map[*Conn]time.Time)
-	})
+	s.once.Do(s.init)
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	_, ok := s.items[c]
@@ -144,18 +146,14 @@ func (s *schedule) append(c *Conn) {
 }
 
 func (s *schedule) remove(c *Conn) {
-	s.once.Do(func() {
-		s.items = make(map[*Conn]time.Time)
-	})
+	s.once.Do(s.init)
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	delete(s.items, c)
 }
 
 func (s *schedule) pull() []*Conn {
-	s.once.Do(func() {
-		s.items = make(map[*Conn]time.Time)
-	})
+	s.once.Do(s.init)
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	r := make([]*Conn, 0)
@@ -170,9 +168,7 @@ func (s *schedule) pull() []*Conn {
 }
 
 func (s *schedule) connections() []*Conn {
-	s.once.Do(func() {
-		s.items = make(map[*Conn]time.Time)
-	})
+	s.once.Do(s.init)
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	r := make([]*Conn, len(s.items))
@@ -185,9 +181,7 @@ func (s *schedule) connections() []*Conn {
 }
 
 func (s *schedule) len() int {
-	s.once.Do(func() {
-		s.items = make(map[*Conn]time.Time)
-	})
+	s.once.Do(s.init)
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return len(s.items)

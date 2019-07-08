@@ -9,7 +9,7 @@ import (
 	"sync"
 )
 
-type signaturesSynchronizer struct {
+type synchronizer struct {
 	wg               *sync.WaitGroup
 	drawer           *drawer
 	requestBlocksCh  chan<- signaturesEvent
@@ -23,8 +23,8 @@ type signaturesSynchronizer struct {
 	receivedBlocksCh chan crypto.Signature
 }
 
-func newSignaturesSynchronizer(wg *sync.WaitGroup, drawer *drawer, blocks chan<- signaturesEvent, conn *Conn) *signaturesSynchronizer {
-	return &signaturesSynchronizer{
+func newSynchronizer(wg *sync.WaitGroup, drawer *drawer, blocks chan<- signaturesEvent, conn *Conn) *synchronizer {
+	return &synchronizer{
 		wg:               wg,
 		drawer:           drawer,
 		requestBlocksCh:  blocks,
@@ -38,11 +38,15 @@ func newSignaturesSynchronizer(wg *sync.WaitGroup, drawer *drawer, blocks chan<-
 	}
 }
 
-func (s *signaturesSynchronizer) start() {
+func (s *synchronizer) start() {
 	defer s.wg.Done()
 	for {
 		select {
 		case <-s.shutdownCh:
+			zap.S().Debugf("[%s][SYN] Shutting down synchronizer for connection '%s'", s.conn.RawConn.RemoteAddr(), s.conn.String())
+			close(s.scoreCh)
+			close(s.signaturesCh)
+			close(s.receivedBlocksCh)
 			zap.S().Debugf("[%s][SYN] Shutdown complete", s.conn.RawConn.RemoteAddr())
 			return
 
@@ -52,6 +56,9 @@ func (s *signaturesSynchronizer) start() {
 
 		case signatures := <-s.signaturesCh:
 			unheard := skip(signatures, s.requested)
+			if len(unheard) == 0 {
+				continue
+			}
 			nonexistent := make([]crypto.Signature, 0)
 			for _, sig := range unheard {
 				ok, err := s.drawer.hasBlock(sig)
@@ -100,23 +107,23 @@ func (s *signaturesSynchronizer) start() {
 	}
 }
 
-func (s *signaturesSynchronizer) shutdownSink() chan<- struct{} {
+func (s *synchronizer) shutdownSink() chan<- struct{} {
 	return s.shutdownCh
 }
 
-func (s *signaturesSynchronizer) score() chan<- struct{} {
+func (s *synchronizer) score() chan<- struct{} {
 	return s.scoreCh
 }
 
-func (s *signaturesSynchronizer) signatures() chan<- []crypto.Signature {
+func (s *synchronizer) signatures() chan<- []crypto.Signature {
 	return s.signaturesCh
 }
 
-func (s *signaturesSynchronizer) block() chan<- crypto.Signature {
+func (s *synchronizer) block() chan<- crypto.Signature {
 	return s.receivedBlocksCh
 }
 
-func (s *signaturesSynchronizer) requestSignatures() {
+func (s *synchronizer) requestSignatures() {
 	if len(s.requested) > 0 {
 		zap.S().Debugf("[%s][SYN] Signatures already requested", s.conn.RawConn.RemoteAddr())
 		return
@@ -141,7 +148,7 @@ func (s *signaturesSynchronizer) requestSignatures() {
 	s.requested = signatures
 }
 
-func (s *signaturesSynchronizer) movePeer(signature crypto.Signature) error {
+func (s *synchronizer) movePeer(signature crypto.Signature) error {
 	zap.S().Debugf("[%s][SYN] Moving peer link to block '%s'", s.conn.RawConn.RemoteAddr(), signature.String())
 	err := s.drawer.movePeer(s.addr, signature)
 	if err != nil {

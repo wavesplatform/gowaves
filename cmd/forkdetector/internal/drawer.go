@@ -97,7 +97,7 @@ func (d *drawer) hasBlock(signature crypto.Signature) (bool, error) {
 	return ok, nil
 }
 
-func (d *drawer) appendBlock(block proto.Block) error {
+func (d *drawer) appendBlock(block *proto.Block) error {
 	zap.S().Debugf("[DRA] Appending block '%s'", block.BlockSignature.String())
 	from, to, err := d.storage.appendBlock(block)
 	if err != nil {

@@ -268,7 +268,7 @@ func (h *ConnHandler) OnReceive(conn *Conn, buf []byte) {
 			zap.S().Warnf("[%s] Failed to unmarshal block: %v", conn.RawConn.RemoteAddr(), err)
 			return
 		}
-		h.blockCh <- blockEvent{conn: conn, block: b}
+		h.blockCh <- blockEvent{conn: conn, block: &b}
 	}
 }
 

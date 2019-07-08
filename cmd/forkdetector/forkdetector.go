@@ -13,6 +13,8 @@ import (
 	"math/rand"
 	"net"
 	"os"
+	"runtime"
+	"runtime/pprof"
 	"strconv"
 	"strings"
 	"time"
@@ -23,18 +25,20 @@ var (
 )
 
 type configuration struct {
-	logLevel      string
-	logFile       string
-	dbPath        string
-	scheme        byte
-	genesis       crypto.Signature
-	apiBind       string
-	netBind       string
-	publicAddress net.TCPAddr
-	name          string
-	nonce         uint64
-	versions      []proto.Version
-	seedPeers     []net.TCPAddr
+	logLevel       string
+	logFile        string
+	dbPath         string
+	scheme         byte
+	genesis        crypto.Signature
+	apiBind        string
+	netBind        string
+	publicAddress  net.TCPAddr
+	name           string
+	nonce          uint64
+	versions       []proto.Version
+	seedPeers      []net.TCPAddr
+	cpuProfileFile *os.File
+	memProfileFile *os.File
 }
 
 func main() {
@@ -52,6 +56,19 @@ func run() error {
 		return err
 	}
 	setupLogger(cfg.logLevel, cfg.logFile)
+
+	if cfg.cpuProfileFile != nil {
+		defer func() {
+			err := cfg.cpuProfileFile.Close()
+			zap.S().Errorf("Failed to close CPU profile: %v", err)
+		}()
+		err := pprof.StartCPUProfile(cfg.cpuProfileFile)
+		if err != nil {
+			zap.S().Errorf("Could not start CPU profile: %v", err)
+			return err
+		}
+		defer pprof.StopCPUProfile()
+	}
 
 	// Get a channel that will be closed on shutdown signals (CTRL-C) or shutdown request
 	interrupt := interruptListener()
@@ -92,19 +109,19 @@ func run() error {
 		return nil
 	}
 
-	loader, err := internal.NewLoader(interrupt, drawer)
+	distributor, err := internal.NewDistributor(interrupt, drawer)
 	if err != nil {
-		zap.S().Errorf("Failed to instantiate loader: %v", err)
+		zap.S().Errorf("Failed to instantiate distributor: %v", err)
 		return err
 	}
-	loaderDone := loader.Start()
+	distributorDone := distributor.Start()
 
-	h := internal.NewConnHandler(cfg.scheme, cfg.name, cfg.nonce, cfg.publicAddress, reg, loader.NewConnections(), loader.ClosedConnections(), loader.Score(), loader.Signatures(), loader.Blocks())
+	h := internal.NewConnHandler(cfg.scheme, cfg.name, cfg.nonce, cfg.publicAddress, reg, distributor.NewConnectionsSink(), distributor.ClosedConnectionsSink(), distributor.ScoreSink(), distributor.SignaturesSink(), distributor.BlocksSink())
 	opts := internal.NewOptions(h)
 	opts.ReadDeadline = time.Minute
 	opts.WriteDeadline = time.Minute
 
-	dispatcher := internal.NewDispatcher(interrupt, cfg.netBind, opts, reg)
+	dispatcher := internal.NewDispatcher(distributorDone, cfg.netBind, opts, reg)
 	dispatcherDone := dispatcher.Start()
 
 	<-interrupt
@@ -113,13 +130,28 @@ func run() error {
 	zap.S().Debug("API shutdown complete")
 	<-dispatcherDone
 	zap.S().Debug("Dispatcher shutdown complete")
-	<-loaderDone
-	zap.S().Debugf("Loader shutdown complete")
+	<-distributorDone
+	zap.S().Debugf("Distributor shutdown complete")
 
 	err = storage.Close()
 	if err != nil {
 		zap.S().Errorf("Failed to close the storage: %v", err)
 		return err
+	}
+
+	if cfg.memProfileFile != nil {
+		defer func() {
+			err := cfg.memProfileFile.Close()
+			if err != nil {
+				zap.S().Errorf("Failed to close memory profile: %v", err)
+			}
+		}()
+		runtime.GC()
+		err := pprof.WriteHeapProfile(cfg.memProfileFile)
+		if err != nil {
+			zap.S().Errorf("Failed to write memory profile: %v", err)
+			return err
+		}
 	}
 
 	return nil
@@ -141,6 +173,8 @@ func parseConfiguration() (*configuration, error) {
 		seedPeers       = flag.String("seed-peers",
 			"13.228.86.201:6868 13.229.0.149:6868 18.195.170.147:6868 34.253.153.4:6868 35.156.19.4:6868 52.50.69.247:6868 52.52.46.76:6868 52.57.147.71:6868 52.214.55.18:6868 54.176.190.226:6868",
 			"Space separated list of public peers for initial connection. Defaults to MainNet's public peers.")
+		cpuProfilePath = flag.String("cpu-profile", "", "Write CPU profile to the file.")
+		memProfilePath = flag.String("mem-profile", "", "Write memory profile to the file.")
 	)
 	flag.Parse()
 	if *db == "" {
@@ -172,19 +206,36 @@ func parseConfiguration() (*configuration, error) {
 	if err != nil {
 		return nil, errors.Wrapf(err, "invalid seed peers list")
 	}
+	var cpuProf *os.File
+	if *cpuProfilePath != "" {
+		cpuProf, err = os.Create(*cpuProfilePath)
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to create CPU profile")
+		}
+	}
+	var memProf *os.File
+	if *memProfilePath != "" {
+		memProf, err = os.Create(*memProfilePath)
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to create memory profile")
+		}
+	}
+
 	cfg := &configuration{
-		dbPath:        *db,
-		logLevel:      *logLevel,
-		logFile:       *logFile,
-		scheme:        (byte)((*scheme)[0]),
-		genesis:       sig,
-		versions:      vs,
-		seedPeers:     peers,
-		name:          *netName,
-		nonce:         nonce,
-		apiBind:       *apiBindAddress,
-		netBind:       *netBindAddress,
-		publicAddress: net.TCPAddr(addr),
+		dbPath:         *db,
+		logLevel:       *logLevel,
+		logFile:        *logFile,
+		scheme:         (byte)((*scheme)[0]),
+		genesis:        sig,
+		versions:       vs,
+		seedPeers:      peers,
+		name:           *netName,
+		nonce:          nonce,
+		apiBind:        *apiBindAddress,
+		netBind:        *netBindAddress,
+		publicAddress:  net.TCPAddr(addr),
+		cpuProfileFile: cpuProf,
+		memProfileFile: memProf,
 	}
 	return cfg, nil
 }

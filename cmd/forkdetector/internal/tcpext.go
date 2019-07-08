@@ -152,13 +152,13 @@ func (c *Conn) Stop(mode int) {
 	c.once.Do(func() {
 		if mode == StopImmediately {
 			atomic.StoreInt32(&c.state, connStateStopped)
+			close(c.closed)
 			if c.RawConn != nil {
 				err := c.RawConn.Close()
 				if err != nil {
 					zap.S().Warnf("[%s] Failed to close the connection properly: %v", c.RawConn.RemoteAddr(), err)
 				}
 			}
-			close(c.closed)
 		} else {
 			atomic.StoreInt32(&c.state, connStateStopping)
 			close(c.closed)
@@ -378,6 +378,11 @@ func (c *Conn) DialAndServe(addr string) error {
 	rawConn, err := net.DialTimeout("tcp", addr, c.Opts.WriteDeadline)
 	if err != nil {
 		return err
+	}
+	select {
+	case <-c.closed:
+		return errors.New("Connection closed while instantiation")
+	default:
 	}
 	c.RawConn = rawConn
 	c.Opts.Handler.OnConnect(c)
