@@ -124,6 +124,7 @@ func (a *api) routes() chi.Router {
 	r.Get("/peers/friendly", a.friendly)                // Returns the list of peers that have been successfully handshaked at least once
 	r.Get("/connections", a.connections)                // Returns the list of active connections
 	r.Get("/forks", a.forks)                            // Returns the combined info about forks for all connected peers
+	r.Get("/all-forks", a.allForks)                     // Returns the combined info about all registered forks
 	r.Get("/fork/{address}", a.fork)                    // Returns the info about fork of the given peer
 	r.Get("/height/{height:\\d+}", a.blocksAtHeight)    // Returns the list of blocks' IDs on the given height
 	r.Get("/block/{id:[a-km-zA-HJ-NP-Z1-9]+}", a.block) // Returns the block content by it's ID
@@ -202,7 +203,42 @@ func (a *api) connections(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *api) forks(w http.ResponseWriter, r *http.Request) {
-	forks, err := a.drawer.forks()
+	nodes, err := a.registry.Connections()
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to complete request: %v", err), http.StatusInternalServerError)
+		return
+	}
+	ips := make([]net.IP, len(nodes))
+	for i, n := range nodes {
+		ip := make([]byte, net.IPv6len)
+		copy(ip, n.Address.To16())
+		ips[i] = ip
+	}
+	forks, err := a.drawer.forks(ips)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to complete request: %v", err), http.StatusInternalServerError)
+		return
+	}
+	err = json.NewEncoder(w).Encode(forks)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to marshal status to JSON: %v", err), http.StatusInternalServerError)
+		return
+	}
+}
+
+func (a *api) allForks(w http.ResponseWriter, r *http.Request) {
+	nodes, err := a.registry.Peers()
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to complete request: %v", err), http.StatusInternalServerError)
+		return
+	}
+	ips := make([]net.IP, len(nodes))
+	for i, n := range nodes {
+		ip := make([]byte, net.IPv6len)
+		copy(ip, n.Address.To16())
+		ips[i] = ip
+	}
+	forks, err := a.drawer.forks(ips)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to complete request: %v", err), http.StatusInternalServerError)
 		return
@@ -216,12 +252,31 @@ func (a *api) forks(w http.ResponseWriter, r *http.Request) {
 
 func (a *api) fork(w http.ResponseWriter, r *http.Request) {
 	addr := chi.URLParam(r, "address")
-	ip := net.ParseIP(addr)
-	if ip == nil {
+	peer := net.ParseIP(addr)
+	if peer == nil {
 		http.Error(w, fmt.Sprintf("Invalid IP address '%s'", addr), http.StatusBadRequest)
 		return
 	}
-	fork, err := a.drawer.fork(ip)
+	nodes, err := a.registry.Peers()
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to complete request: %v", err), http.StatusInternalServerError)
+		return
+	}
+	ips := make([]net.IP, len(nodes))
+	contains := false
+	for i, n := range nodes {
+		if n.Address.Equal(peer) {
+			contains = true
+		}
+		ip := make([]byte, net.IPv6len)
+		copy(ip, n.Address.To16())
+		ips[i] = ip
+	}
+	if !contains {
+		http.Error(w, fmt.Sprintf("Peer %s not found", peer.String()), http.StatusNotFound)
+		return
+	}
+	fork, err := a.drawer.fork(peer, ips)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to complete request: %v", err), http.StatusInternalServerError)
 		return

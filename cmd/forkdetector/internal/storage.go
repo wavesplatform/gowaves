@@ -492,7 +492,7 @@ func (s *storage) frontBlocks(peer net.IP, n int) ([]crypto.Signature, error) {
 	return signatures, nil
 }
 
-func (s *storage) peersLastBlocks() (map[uint32][]net.IP, error) {
+func (s *storage) peersLastBlocks(include func(ip net.IP) bool) (map[uint32][]net.IP, error) {
 	sn, err := s.db.GetSnapshot()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to collect peers' last blocks")
@@ -504,6 +504,9 @@ func (s *storage) peersLastBlocks() (map[uint32][]net.IP, error) {
 		var k peerKey
 		k.fromBytes(it.Key())
 		ip := make([]byte, net.IPv6len)
+		if !include(k.ip) {
+			continue
+		}
 		copy(ip, k.ip)
 		n := binary.BigEndian.Uint32(it.Value())
 		if ips, ok := r[n]; ok {

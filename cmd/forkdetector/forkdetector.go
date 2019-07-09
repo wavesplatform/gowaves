@@ -92,7 +92,7 @@ func run() error {
 		zap.S().Infof("%d seed peers added to storage", n)
 	}
 
-	drawer, err := internal.NewDrawer(storage, reg)
+	drawer, err := internal.NewDrawer(storage)
 	if err != nil {
 		zap.S().Errorf("Failed to create restoer state: %v", err)
 		return err

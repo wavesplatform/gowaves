@@ -47,16 +47,15 @@ type drawerStats struct {
 }
 
 type drawer struct {
-	storage  *storage
-	registry *Registry
-	filter   *safeCuckooFilter
-	mu       sync.RWMutex
-	graph    *graph
-	st       *drawerStats
+	storage *storage
+	filter  *safeCuckooFilter
+	mu      sync.RWMutex
+	graph   *graph
+	st      *drawerStats
 }
 
-func NewDrawer(storage *storage, registry *Registry) (*drawer, error) {
-	zap.S().Info("[DRA] Restoring state...")
+func NewDrawer(storage *storage) (*drawer, error) {
+	zap.S().Info("Restoring state...")
 	start := time.Now()
 	g := newGraph()
 	f := new(safeCuckooFilter)
@@ -72,13 +71,12 @@ func NewDrawer(storage *storage, registry *Registry) (*drawer, error) {
 		f.insert(sig[:])
 		count++
 	}
-	zap.S().Infof("[DRA] State restored, %d blocks loaded in %s", count, time.Since(start))
+	zap.S().Infof("State restored, %d blocks loaded in %s", count, time.Since(start))
 	return &drawer{
-		storage:  storage,
-		registry: registry,
-		filter:   f,
-		graph:    g,
-		st:       &drawerStats{blocks: count},
+		storage: storage,
+		filter:  f,
+		graph:   g,
+		st:      &drawerStats{blocks: count},
 	}, nil
 }
 
@@ -117,23 +115,7 @@ func (d *drawer) appendBlock(block *proto.Block) error {
 	return nil
 }
 
-func (d *drawer) forks() ([]Fork, error) {
-	lastBlocks, err := d.storage.peersLastBlocks()
-	if err != nil {
-		return nil, err
-	}
-
-	d.mu.RLock()
-	defer d.mu.RUnlock()
-
-	blocks := make([]uint32, len(lastBlocks))
-	i := 0
-	for key := range lastBlocks {
-		blocks[i] = key
-		i++
-	}
-
-	forks := d.graph.forks(blocks)
+func (d *drawer) combineForks(forks []fork, peersByBlocks map[uint32][]net.IP) ([]Fork, error) {
 	result := make([]Fork, len(forks))
 	for i, f := range forks {
 		head, err := d.storage.link(f.top)
@@ -146,8 +128,7 @@ func (d *drawer) forks() ([]Fork, error) {
 		}
 		peers := make([]PeerForkInfo, 0)
 		for n, l := range f.lags {
-			ips, ok := lastBlocks[n]
-			zap.S().Debugf("[DRA] FORK: %s; BLOCK#: %d; LAG: %d; IPS: %v", head.signature.String(), n, l, ips)
+			ips, ok := peersByBlocks[n]
 			if !ok {
 				return nil, errors.Errorf("failure to collect peers for block #d", n)
 			}
@@ -179,31 +160,62 @@ func (d *drawer) forks() ([]Fork, error) {
 	return result, nil
 }
 
-func (d *drawer) allPeersPathsWithTop(lastBlocks map[uint32][]net.IP) (map[uint32][]uint32, uint32) {
-	paths := make(map[uint32][]uint32)
-	var top uint32
-	longest := 0
-	for k := range lastBlocks {
-		d.mu.RLock()
-		paths[k] = d.graph.path(k)
-		d.mu.RUnlock()
-		if l := len(paths[k]); l > longest {
-			longest = l
-			top = k
-		}
+func (d *drawer) extractBlockNumbers(peersByBlocks map[uint32][]net.IP) []uint32 {
+	blocks := make([]uint32, len(peersByBlocks))
+	i := 0
+	for key := range peersByBlocks {
+		blocks[i] = key
+		i++
 	}
-	return paths, top
+	return blocks
 }
 
-func (d *drawer) fork(peer net.IP) (Fork, error) {
-	//n, err := d.storage.peerLastBlock(peer)
-	//if err != nil {
-	//	return Fork{}, err
-	//}
-	//
-	//path := d.graph.path(n)
-	//
-	return Fork{}, nil
+func (d *drawer) forks(addresses []net.IP) ([]Fork, error) {
+	lastBlocks, err := d.storage.peersLastBlocks(d.buildFilter(addresses))
+	if err != nil {
+		return nil, err
+	}
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+	forks := d.graph.forks(d.extractBlockNumbers(lastBlocks))
+	return d.combineForks(forks, lastBlocks)
+}
+
+func (d *drawer) fork(ip net.IP, addresses []net.IP) ([]Fork, error) {
+	lastBlocks, err := d.storage.peersLastBlocks(d.buildFilter(addresses))
+	if err != nil {
+		return nil, err
+	}
+	for k, v := range lastBlocks {
+		if !d.containsIP(v, ip) {
+			delete(lastBlocks, k)
+		}
+	}
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+	forks := d.graph.forks(d.extractBlockNumbers(lastBlocks))
+	return d.combineForks(forks, lastBlocks)
+}
+
+func (d *drawer) containsIP(addresses []net.IP, ip net.IP) bool {
+	for _, a := range addresses {
+		if ip.Equal(a) {
+			return true
+		}
+	}
+	return false
+}
+
+func (d *drawer) buildFilter(addresses []net.IP) func(ip net.IP) bool {
+	addrMap := make(map[uint64]struct{})
+	for _, a := range addresses {
+		h := hash(a)
+		addrMap[h] = struct{}{}
+	}
+	return func(ip net.IP) bool {
+		_, ok := addrMap[hash(ip)]
+		return ok
+	}
 }
 
 func (d *drawer) stats() *drawerStats {

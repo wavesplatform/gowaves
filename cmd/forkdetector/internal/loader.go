@@ -141,7 +141,7 @@ func (l *loader) requestBlock(sig crypto.Signature, conn *Conn) error {
 
 func (l *loader) applyBlocks() {
 	for block, ok := l.pending.dequeue(); ok; block, ok = l.pending.dequeue() {
-		zap.S().Infof("[LDR] Applying block '%s", block.BlockSignature.String())
+		zap.S().Infof("Applying block '%s", block.BlockSignature.String())
 		err := l.drawer.appendBlock(block)
 		if err != nil {
 			zap.S().Fatalf("[LDR] Failed to apply block '%s': %v", block.BlockSignature.String(), err)

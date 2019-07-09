@@ -117,6 +117,9 @@ func (g *graph) paths(vertices []uint32) []path {
 }
 
 func (g *graph) forks(vertices []uint32) []fork {
+	if len(vertices) == 0 {
+		return nil
+	}
 	update := func(paths []path, i int, branches map[uint32][]branch) map[uint32][]branch {
 		p := paths[i]
 		for j := i - 1; j >= 0; j-- {
