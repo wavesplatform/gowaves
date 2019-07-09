@@ -11,8 +11,10 @@ import (
 )
 
 const (
-	blocksBatchSize = 250
-	maxBlockSize    = 2 * 1024 * 1024
+	MiB                = 1024 * 1024
+	maxTotalBatchSize  = 10 * MiB
+	maxBlocksBatchSize = 250
+	maxBlockSize       = 2 * MiB
 )
 
 type State interface {
@@ -39,9 +41,10 @@ func ApplyFromFile(st State, blockchainPath string, nBlocks, startHeight uint64,
 	}()
 
 	sb := make([]byte, 4)
-	var blocks [blocksBatchSize][]byte
+	var blocks [maxBlocksBatchSize][]byte
 	blocksIndex := 0
 	readPos := int64(0)
+	totalSize := 0
 	for height := uint64(1); height <= nBlocks; height++ {
 		if _, err := blockchain.ReadAt(sb, readPos); err != nil {
 			return err
@@ -50,6 +53,7 @@ func ApplyFromFile(st State, blockchainPath string, nBlocks, startHeight uint64,
 		if size > maxBlockSize || size <= 0 {
 			return errors.New("corrupted blockchain file: invalid block size")
 		}
+		totalSize += int(size)
 		readPos += 4
 		if height < startHeight {
 			readPos += int64(size)
@@ -62,7 +66,7 @@ func ApplyFromFile(st State, blockchainPath string, nBlocks, startHeight uint64,
 		readPos += int64(size)
 		blocks[blocksIndex] = block
 		blocksIndex++
-		if blocksIndex != blocksBatchSize && height != nBlocks {
+		if (totalSize < maxTotalBatchSize) && (blocksIndex != maxBlocksBatchSize) && (height != nBlocks) {
 			continue
 		}
 		if optimize {
@@ -74,6 +78,7 @@ func ApplyFromFile(st State, blockchainPath string, nBlocks, startHeight uint64,
 				return err
 			}
 		}
+		totalSize = 0
 		blocksIndex = 0
 	}
 	return nil
