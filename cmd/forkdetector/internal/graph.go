@@ -2,6 +2,38 @@ package internal
 
 import "sort"
 
+type path struct {
+	top      uint32
+	length   int
+	vertices []uint32
+}
+
+// intersection returns the last common vertex ID and the length of common path
+func (p *path) intersection(other path) (uint32, int) {
+	l := p.length
+	if other.length < l {
+		l = other.length
+	}
+	for i := 0; i < l; i++ {
+		if p.vertices[i] != other.vertices[i] {
+			return p.vertices[i-1], i
+		}
+	}
+	return p.vertices[l-1], l
+}
+
+type fork struct {
+	top    uint32
+	common uint32
+	length int
+	lags   map[uint32]int
+}
+
+type branch struct {
+	path path
+	lag  int
+}
+
 type graph struct {
 	adjacencies map[uint32]uint32
 }
@@ -85,35 +117,52 @@ func (g *graph) paths(vertices []uint32) []path {
 }
 
 func (g *graph) forks(vertices []uint32) []fork {
+	update := func(paths []path, i int, branches map[uint32][]branch) map[uint32][]branch {
+		p := paths[i]
+		for j := i - 1; j >= 0; j-- {
+			lp := paths[j]
+			c, _ := lp.intersection(p)
+			if c == p.top { // same fork with lp
+				br, ok := branches[lp.top]
+				lag := lp.length - p.length
+				if ok {
+					branches[lp.top] = append(br, branch{p, lag})
+				}
+				return branches
+			}
+		}
+		branches[p.top] = []branch{{p, 0}}
+		return branches
+	}
+
 	paths := g.paths(vertices)
-	var longest path
-	for i, p := range paths {
-		if i == 0 {
-			longest = p
-			continue
-		}
-		p.intersection(longest)
-	}
-	return nil
-}
 
-type path struct {
-	top      uint32
-	length   int
-	vertices []uint32
-}
+	longest := paths[0]
+	branches := make(map[uint32][]branch)
+	branches[longest.top] = []branch{{longest, 0}}
 
-func (p *path) intersection(other path) uint32 {
-	l := p.length
-	if other.length < l {
-		l = other.length
+	r := make([]fork, 0, len(branches))
+	for i := 1; i < len(paths); i++ {
+		branches = update(paths, i, branches)
 	}
-	for i := 0; i < l; i++ {
-		if p.vertices[i] != other.vertices[i] {
-			return p.vertices[i-1]
+	for _, p := range paths {
+		brs, ok := branches[p.top]
+		if ok {
+			c, cpl := longest.intersection(brs[0].path)
+			lags := make(map[uint32]int)
+			for _, br := range brs {
+				lags[br.path.top] = br.lag
+			}
+			f := fork{
+				top:    brs[0].path.top,
+				common: c,
+				length: p.length - cpl,
+				lags:   lags,
+			}
+			r = append(r, f)
 		}
 	}
-	return p.vertices[l-1]
+	return r
 }
 
 type pathsByLengthAscending []path
@@ -128,9 +177,4 @@ func (a pathsByLengthAscending) Swap(i, j int) {
 
 func (a pathsByLengthAscending) Less(i, j int) bool {
 	return a[i].length < a[j].length
-}
-
-type fork struct {
-	top    uint32
-	common uint32
 }

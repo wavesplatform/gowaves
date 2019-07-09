@@ -14,13 +14,13 @@ import (
 )
 
 const (
-	blocksPrefix byte = iota
-	blocksCounterPrefix
-	blockNumbersPrefix
-	blockLinksPrefix
-	heightsPrefix
-	peerLeashPrefix
-	peerNodePrefix
+	blocksPrefix        byte = iota // Keys to store blocks by its signatures
+	blocksCounterPrefix             // Keys to store the instance of total number of blocks
+	blockNumbersPrefix              // Keys to store the number of block by its signature
+	blockLinksPrefix                // Keys to store the block link by the block number
+	heightsPrefix                   // Keys to store the signatures of blocks by its heights
+	peerLeashPrefix                 // Keys to store the numbers of blocks last seen from peers
+	peerNodePrefix                  // Keys to store peers by its IPs
 )
 
 var (
@@ -424,6 +424,7 @@ func (s *storage) blocks(height uint32) ([]crypto.Signature, error) {
 		k.fromBytes(it.Key())
 		r = append(r, k.block)
 	}
+	it.Release()
 	return r, nil
 }
 
@@ -450,7 +451,7 @@ func (i *blockLinkIterator) close() {
 }
 
 func (s *storage) newBlockLinkIterator() (*blockLinkIterator, error) {
-	sn, err := s.db.GetSnapshot()
+	sn, err := s.db.GetSnapshot() // Snapshot and iterator will be released with `close` function
 	if err != nil {
 		return nil, err
 	}
@@ -502,7 +503,8 @@ func (s *storage) peersLastBlocks() (map[uint32][]net.IP, error) {
 	for it.Next() {
 		var k peerKey
 		k.fromBytes(it.Key())
-		ip := k.ip
+		ip := make([]byte, net.IPv6len)
+		copy(ip, k.ip)
 		n := binary.BigEndian.Uint32(it.Value())
 		if ips, ok := r[n]; ok {
 			r[n] = append(ips, ip)
@@ -510,6 +512,7 @@ func (s *storage) peersLastBlocks() (map[uint32][]net.IP, error) {
 			r[n] = []net.IP{ip}
 		}
 	}
+	it.Release()
 	return r, nil
 }
 
@@ -525,4 +528,17 @@ func (s *storage) peerLastBlock(peer net.IP) (uint32, error) {
 		return 0, errors.Wrap(err, "failed to get peer's last block")
 	}
 	return binary.BigEndian.Uint32(v), nil
+}
+
+func (s *storage) link(num uint32) (blockLink, error) {
+	sn, err := s.db.GetSnapshot()
+	if err != nil {
+		return blockLink{}, errors.Wrap(err, "failed to locate block signature")
+	}
+	defer sn.Release()
+	l, err := s.blockLink(sn, num)
+	if err != nil {
+		return blockLink{}, errors.Wrap(err, "failed to locate block signature")
+	}
+	return l, nil
 }

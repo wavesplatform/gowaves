@@ -1,12 +1,14 @@
 package internal
 
 import (
+	"github.com/pkg/errors"
 	"github.com/seiflotfy/cuckoofilter"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
 	"net"
 	"sync"
+	"time"
 )
 
 const (
@@ -39,27 +41,30 @@ func (f *safeCuckooFilter) lookup(d []byte) bool {
 }
 
 type drawerStats struct {
-	total int
-	short int
-	long  int
+	blocks int
+	short  int
+	long   int
 }
 
 type drawer struct {
 	storage  *storage
 	registry *Registry
 	filter   *safeCuckooFilter
+	mu       sync.RWMutex
 	graph    *graph
-	longest  []uint32
-	top      uint32
+	st       *drawerStats
 }
 
 func NewDrawer(storage *storage, registry *Registry) (*drawer, error) {
+	zap.S().Info("[DRA] Restoring state...")
+	start := time.Now()
 	g := newGraph()
 	f := new(safeCuckooFilter)
 	it, err := storage.newBlockLinkIterator()
 	if err != nil {
 		return nil, err
 	}
+	defer it.close()
 	count := 0
 	for it.next() {
 		from, to, sig := it.value()
@@ -67,12 +72,13 @@ func NewDrawer(storage *storage, registry *Registry) (*drawer, error) {
 		f.insert(sig[:])
 		count++
 	}
-	zap.S().Debugf("[DRA] State restored, %d blocks loaded", count)
+	zap.S().Infof("[DRA] State restored, %d blocks loaded in %s", count, time.Since(start))
 	return &drawer{
 		storage:  storage,
 		registry: registry,
 		filter:   f,
 		graph:    g,
+		st:       &drawerStats{blocks: count},
 	}, nil
 }
 
@@ -103,7 +109,10 @@ func (d *drawer) appendBlock(block *proto.Block) error {
 	if err != nil {
 		return err
 	}
+	d.mu.Lock()
 	d.graph.edge(from, to)
+	d.st.blocks++
+	d.mu.Unlock()
 	d.filter.insert(block.BlockSignature[:])
 	return nil
 }
@@ -114,37 +123,59 @@ func (d *drawer) forks() ([]Fork, error) {
 		return nil, err
 	}
 
-	paths, top := d.allPeersPathsWithTop(lastBlocks)
+	d.mu.RLock()
+	defer d.mu.RUnlock()
 
-	forks := make(map[uint32][]uint32)
-	longest := paths[top]
-	forks[1] = []uint32{top}
-	for v, p := range paths {
-		if v == top {
-			continue
-		}
-		common := d.graph.pathsIntersection(longest, p)
-		if common == v {
-			forks[1] = append(forks[1], v)
-			// On the same fork
-		} else {
-			// On different fork, combine by common block
-			forks[common] = append(forks[common], v)
-		}
+	blocks := make([]uint32, len(lastBlocks))
+	i := 0
+	for key := range lastBlocks {
+		blocks[i] = key
+		i++
 	}
 
-	result := make([]Fork, 0)
-	//for k, v := range forks {
-	//
-	//	block := d.storage.getSignature()
-	//	fork := Fork{
-	//		HeadBlock: block,
-	//		Longest:   k == 1,
-	//		CommonBlock:k,
-	//
-	//	}
-	//	result = append(result)
-	//}
+	forks := d.graph.forks(blocks)
+	result := make([]Fork, len(forks))
+	for i, f := range forks {
+		head, err := d.storage.link(f.top)
+		if err != nil {
+			return nil, err
+		}
+		common, err := d.storage.link(f.common)
+		if err != nil {
+			return nil, err
+		}
+		peers := make([]PeerForkInfo, 0)
+		for n, l := range f.lags {
+			ips, ok := lastBlocks[n]
+			zap.S().Debugf("[DRA] FORK: %s; BLOCK#: %d; LAG: %d; IPS: %v", head.signature.String(), n, l, ips)
+			if !ok {
+				return nil, errors.Errorf("failure to collect peers for block #d", n)
+			}
+			for _, ip := range ips {
+				peer, err := d.storage.peer(ip)
+				if err != nil {
+					return nil, errors.Wrap(err, "failed to collect peers")
+				}
+				pi := PeerForkInfo{
+					Peer:    ip,
+					Lag:     l,
+					Name:    peer.Name,
+					Version: peer.Version,
+				}
+				peers = append(peers, pi)
+			}
+		}
+		fork := Fork{
+			Longest:          i == 0,
+			Height:           int(head.height),
+			HeadBlock:        head.signature,
+			LastCommonHeight: int(common.height),
+			LastCommonBlock:  common.signature,
+			Length:           f.length,
+			Peers:            peers,
+		}
+		result[i] = fork
+	}
 	return result, nil
 }
 
@@ -153,7 +184,9 @@ func (d *drawer) allPeersPathsWithTop(lastBlocks map[uint32][]net.IP) (map[uint3
 	var top uint32
 	longest := 0
 	for k := range lastBlocks {
+		d.mu.RLock()
 		paths[k] = d.graph.path(k)
+		d.mu.RUnlock()
 		if l := len(paths[k]); l > longest {
 			longest = l
 			top = k
@@ -174,5 +207,7 @@ func (d *drawer) fork(peer net.IP) (Fork, error) {
 }
 
 func (d *drawer) stats() *drawerStats {
-	return &drawerStats{}
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+	return d.st
 }

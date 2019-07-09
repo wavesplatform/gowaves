@@ -180,6 +180,14 @@ func (a *Version) String() string {
 	return sb.String()
 }
 
+func (a *Version) MarshalJSON() ([]byte, error) {
+	var sb strings.Builder
+	sb.WriteRune('"')
+	sb.WriteString(a.String())
+	sb.WriteRune('"')
+	return []byte(sb.String()), nil
+}
+
 type ByVersion []Version
 
 func (a ByVersion) Len() int {

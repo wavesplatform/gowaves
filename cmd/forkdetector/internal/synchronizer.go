@@ -44,9 +44,9 @@ func (s *synchronizer) start() {
 		select {
 		case <-s.shutdownCh:
 			zap.S().Debugf("[%s][SYN] Shutting down synchronizer for connection '%s'", s.conn.RawConn.RemoteAddr(), s.conn.String())
-			close(s.scoreCh)
-			close(s.signaturesCh)
-			close(s.receivedBlocksCh)
+			//close(s.scoreCh)
+			//close(s.signaturesCh)
+			//close(s.receivedBlocksCh)
 			zap.S().Debugf("[%s][SYN] Shutdown complete", s.conn.RawConn.RemoteAddr())
 			return
 
@@ -57,6 +57,7 @@ func (s *synchronizer) start() {
 		case signatures := <-s.signaturesCh:
 			unheard := skip(signatures, s.requested)
 			if len(unheard) == 0 {
+				s.requested = nil
 				continue
 			}
 			nonexistent := make([]crypto.Signature, 0)

@@ -12,21 +12,20 @@ import (
 )
 
 type PeerForkInfo struct {
-	Peer net.IP `json:"peer"`
-	Lag  int    `json:"lag"`
-}
-
-func NewPeerForkInfo(peer net.IP, lag int) PeerForkInfo {
-	return PeerForkInfo{Peer: peer, Lag: lag}
+	Peer    net.IP        `json:"peer"`
+	Lag     int           `json:"lag"`
+	Name    string        `json:"name"`
+	Version proto.Version `json:"version"`
 }
 
 type Fork struct {
-	HeadBlock   crypto.Signature `json:"head_block"`
-	Longest     bool             `json:"longest"`
-	CommonBlock crypto.Signature `json:"common_block"`
-	Height      int              `json:"height"`
-	Length      int              `json:"length"`
-	Peers       []PeerForkInfo   `json:"peers"`
+	Longest          bool             `json:"longest"`            // Indicates that the fork is the longest
+	Height           int              `json:"height"`             // The height of the last block in the fork
+	HeadBlock        crypto.Signature `json:"head_block"`         // The last block of the fork
+	LastCommonHeight int              `json:"last_common_height"` // The height of the last common block
+	LastCommonBlock  crypto.Signature `json:"last_common_block"`  // The last common block with the longest fork
+	Length           int              `json:"length"`             // The number of blocks since the last common block
+	Peers            []PeerForkInfo   `json:"peers"`              // Peers that seen on the fork
 }
 
 type ForkByHeightLengthAndPeersCount []Fork

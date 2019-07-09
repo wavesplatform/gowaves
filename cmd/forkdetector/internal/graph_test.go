@@ -67,6 +67,24 @@ func TestGraphPathsIntersection(t *testing.T) {
 	assert.Equal(t, 6, int(paths[0].intersection(paths[3])))
 }
 
+func TestGraphForks(t *testing.T) {
+	a := buildGraph()
+	forks := a.forks([]uint32{4, 5, 7, 9, 10})
+	assert.Equal(t, 3, len(forks))
+
+	assert.Equal(t, 10, int(forks[0].top))
+	assert.Equal(t, 10, int(forks[0].common))
+	assert.Equal(t, 2, len(forks[0].lags))
+
+	assert.Equal(t, 5, int(forks[1].top))
+	assert.Equal(t, 3, int(forks[1].common))
+	assert.Equal(t, 2, len(forks[1].lags))
+
+	assert.Equal(t, 7, int(forks[2].top))
+	assert.Equal(t, 6, int(forks[2].common))
+	assert.Equal(t, 1, len(forks[2].lags))
+}
+
 func BenchmarkPathsSort1M(b *testing.B) {
 	g := buildRandomGraph(2000000, 3)
 	vertices := make([]uint32, 300)

@@ -47,6 +47,7 @@ type status struct {
 	AllPeersCount       int `json:"all_peers_count"`
 	FriendlyPeersCount  int `json:"friendly_peers_count"`
 	ConnectedPeersCount int `json:"connected_peers_count"`
+	TotalBlocksCount    int `json:"total_blocks_count"`
 }
 
 type api struct {
@@ -118,14 +119,14 @@ func (a *api) Start() <-chan struct{} {
 
 func (a *api) routes() chi.Router {
 	r := chi.NewRouter()
-	r.Get("/status", a.status)
-	r.Get("/peers/all", a.peers)
-	r.Get("/peers/friendly", a.friendly)
-	r.Get("/connections", a.connections)
-	r.Get("/parentedForks", a.forks)
-	r.Get("/node/{address}", a.node)
-	r.Get("/height/{height:\\d+}", a.blocksAtHeight)
-	r.Get("/block/{id:[a-km-zA-HJ-NP-Z1-9]+}", a.block)
+	r.Get("/status", a.status)                          // Status information
+	r.Get("/peers/all", a.peers)                        // Returns the list of all known peers
+	r.Get("/peers/friendly", a.friendly)                // Returns the list of peers that have been successfully handshaked at least once
+	r.Get("/connections", a.connections)                // Returns the list of active connections
+	r.Get("/forks", a.forks)                            // Returns the combined info about forks for all connected peers
+	r.Get("/fork/{address}", a.fork)                    // Returns the info about fork of the given peer
+	r.Get("/height/{height:\\d+}", a.blocksAtHeight)    // Returns the list of blocks' IDs on the given height
+	r.Get("/block/{id:[a-km-zA-HJ-NP-Z1-9]+}", a.block) // Returns the block content by it's ID
 	return r
 }
 
@@ -146,7 +147,14 @@ func (a *api) status(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Failed to complete request: %v", err), http.StatusInternalServerError)
 		return
 	}
-	s := status{ShortForksCount: stats.short, LongForksCount: stats.long, AllPeersCount: len(peers), FriendlyPeersCount: len(friends), ConnectedPeersCount: len(connections)}
+	s := status{
+		ShortForksCount:     stats.short,
+		LongForksCount:      stats.long,
+		AllPeersCount:       len(peers),
+		FriendlyPeersCount:  len(friends),
+		ConnectedPeersCount: len(connections),
+		TotalBlocksCount:    stats.blocks,
+	}
 	err = json.NewEncoder(w).Encode(s)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to marshal status to JSON: %v", err), http.StatusInternalServerError)
@@ -206,7 +214,7 @@ func (a *api) forks(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (a *api) node(w http.ResponseWriter, r *http.Request) {
+func (a *api) fork(w http.ResponseWriter, r *http.Request) {
 	addr := chi.URLParam(r, "address")
 	ip := net.ParseIP(addr)
 	if ip == nil {
@@ -241,8 +249,6 @@ func (a *api) blocksAtHeight(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *api) block(w http.ResponseWriter, r *http.Request) {
-	//TODO: This method doesn't return the whole block with transactions.
-	//		It should be reimplemented with the complete JSON representation of block or using upcoming protobufs.
 	p := chi.URLParam(r, "id")
 	sig, err := crypto.NewSignatureFromBase58(p)
 	if err != nil {
