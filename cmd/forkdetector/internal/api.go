@@ -11,6 +11,7 @@ import (
 	"go.uber.org/zap"
 	"net"
 	"net/http"
+	"runtime"
 	"strconv"
 	"time"
 )
@@ -48,6 +49,7 @@ type status struct {
 	FriendlyPeersCount  int `json:"friendly_peers_count"`
 	ConnectedPeersCount int `json:"connected_peers_count"`
 	TotalBlocksCount    int `json:"total_blocks_count"`
+	GoroutinesCount     int `json:"goroutines_count"`
 }
 
 type api struct {
@@ -132,6 +134,7 @@ func (a *api) routes() chi.Router {
 }
 
 func (a *api) status(w http.ResponseWriter, r *http.Request) {
+	goroutines := runtime.NumGoroutine()
 	stats := a.drawer.stats()
 	peers, err := a.registry.Peers()
 	if err != nil {
@@ -143,11 +146,7 @@ func (a *api) status(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Failed to complete request: %v", err), http.StatusInternalServerError)
 		return
 	}
-	connections, err := a.registry.Connections()
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to complete request: %v", err), http.StatusInternalServerError)
-		return
-	}
+	connections := a.registry.Connections()
 	s := status{
 		ShortForksCount:     stats.short,
 		LongForksCount:      stats.long,
@@ -155,6 +154,7 @@ func (a *api) status(w http.ResponseWriter, r *http.Request) {
 		FriendlyPeersCount:  len(friends),
 		ConnectedPeersCount: len(connections),
 		TotalBlocksCount:    stats.blocks,
+		GoroutinesCount:     goroutines,
 	}
 	err = json.NewEncoder(w).Encode(s)
 	if err != nil {
@@ -190,12 +190,8 @@ func (a *api) friendly(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *api) connections(w http.ResponseWriter, r *http.Request) {
-	connections, err := a.registry.Connections()
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to complete request: %v", err), http.StatusInternalServerError)
-		return
-	}
-	err = json.NewEncoder(w).Encode(connections)
+	connections := a.registry.Connections()
+	err := json.NewEncoder(w).Encode(connections)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to marshal connections to JSON: %v", err), http.StatusInternalServerError)
 		return
@@ -203,11 +199,7 @@ func (a *api) connections(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *api) forks(w http.ResponseWriter, r *http.Request) {
-	nodes, err := a.registry.Connections()
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to complete request: %v", err), http.StatusInternalServerError)
-		return
-	}
+	nodes := a.registry.Connections()
 	ips := make([]net.IP, len(nodes))
 	for i, n := range nodes {
 		ip := make([]byte, net.IPv6len)

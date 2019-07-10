@@ -1,6 +1,8 @@
 package internal
 
-import "sort"
+import (
+	"sort"
+)
 
 type path struct {
 	top      uint32
@@ -120,34 +122,31 @@ func (g *graph) forks(vertices []uint32) []fork {
 	if len(vertices) == 0 {
 		return nil
 	}
-	update := func(paths []path, i int, branches map[uint32][]branch) map[uint32][]branch {
+
+	paths := g.paths(vertices)
+	branches := make(map[uint32][]branch)
+	for i := 0; i < len(paths); i++ {
 		p := paths[i]
+		insert := true
 		for j := i - 1; j >= 0; j-- {
 			lp := paths[j]
 			c, _ := lp.intersection(p)
-			if c == p.top { // same fork with lp
-				br, ok := branches[lp.top]
-				lag := lp.length - p.length
+			if c == p.top { // same fork but lagged
+				insert = false
+				br, ok := branches[lp.top] // updating the existing longer branch with this lagged path
 				if ok {
+					lag := lp.length - p.length
 					branches[lp.top] = append(br, branch{p, lag})
+					break
 				}
-				return branches
 			}
 		}
-		branches[p.top] = []branch{{p, 0}}
-		return branches
+		if insert {
+			branches[p.top] = []branch{{p, 0}}
+		}
 	}
-
-	paths := g.paths(vertices)
-
-	longest := paths[0]
-	branches := make(map[uint32][]branch)
-	branches[longest.top] = []branch{{longest, 0}}
-
 	r := make([]fork, 0, len(branches))
-	for i := 1; i < len(paths); i++ {
-		branches = update(paths, i, branches)
-	}
+	longest := paths[0]
 	for _, p := range paths {
 		brs, ok := branches[p.top]
 		if ok {

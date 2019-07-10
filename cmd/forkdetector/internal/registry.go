@@ -296,7 +296,7 @@ func (r *Registry) Deactivate(addr net.Addr) error {
 	return nil
 }
 
-func (r *Registry) Connections() ([]PeerNode, error) {
+func (r *Registry) Connections() []PeerNode {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -307,7 +307,7 @@ func (r *Registry) Connections() ([]PeerNode, error) {
 		i++
 	}
 	sort.Sort(PeerNodesByName(connections))
-	return connections, nil
+	return connections
 }
 
 func (r *Registry) AppendAddresses(addresses []net.TCPAddr) int {

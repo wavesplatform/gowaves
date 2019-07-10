@@ -37,7 +37,7 @@ type peerKey struct {
 func (k peerKey) bytes() []byte {
 	buf := make([]byte, 1+net.IPv6len)
 	buf[0] = k.prefix
-	copy(buf[1:], k.ip)
+	copy(buf[1:], k.ip.To16())
 	return buf
 }
 
@@ -50,7 +50,7 @@ func (k *peerKey) fromBytes(data []byte) {
 }
 
 func newPeerLeashKey(ip net.IP) peerKey {
-	return peerKey{prefix: peerLeashPrefix, ip: ip}
+	return peerKey{prefix: peerLeashPrefix, ip: ip.To16()}
 }
 
 type signatureKey struct {
@@ -198,7 +198,7 @@ func (s *storage) peer(ip net.IP) (PeerNode, error) {
 		return peer, err
 	}
 	defer sn.Release()
-	k := peerKey{prefix: peerNodePrefix, ip: ip}
+	k := peerKey{prefix: peerNodePrefix, ip: ip.To16()}
 	v, err := sn.Get(k.bytes(), nil)
 	if err != nil {
 		return peer, err
@@ -212,7 +212,7 @@ func (s *storage) peer(ip net.IP) (PeerNode, error) {
 
 func (s *storage) putPeer(ip net.IP, peer PeerNode) error {
 	batch := new(leveldb.Batch)
-	k := peerKey{prefix: peerNodePrefix, ip: ip}
+	k := peerKey{prefix: peerNodePrefix, ip: ip.To16()}
 	v, err := peer.MarshalBinary()
 	if err != nil {
 		return err
@@ -253,7 +253,7 @@ func (s *storage) hasPeer(ip net.IP) (bool, error) {
 		return false, err
 	}
 	defer sn.Release()
-	k := peerKey{prefix: peerNodePrefix, ip: ip}
+	k := peerKey{prefix: peerNodePrefix, ip: ip.To16()}
 	_, err = sn.Get(k.bytes(), nil)
 	if err != nil {
 		if err == leveldb.ErrNotFound {

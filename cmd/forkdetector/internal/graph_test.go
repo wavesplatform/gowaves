@@ -62,14 +62,20 @@ func TestGraphPathsIntersection(t *testing.T) {
 	a := buildGraph()
 	paths := a.paths([]uint32{5, 7, 9, 10})
 	assert.Equal(t, 4, len(paths))
-	assert.Equal(t, 9, int(paths[0].intersection(paths[1])))
-	assert.Equal(t, 3, int(paths[0].intersection(paths[2])))
-	assert.Equal(t, 6, int(paths[0].intersection(paths[3])))
+	top, lag := paths[0].intersection(paths[1])
+	assert.Equal(t, 9, int(top))
+	assert.Equal(t, 6, lag)
+	top, lag = paths[0].intersection(paths[2])
+	assert.Equal(t, 3, int(top))
+	assert.Equal(t, 3, lag)
+	top, lag = paths[0].intersection(paths[3])
+	assert.Equal(t, 6, int(top))
+	assert.Equal(t, 4, lag)
 }
 
 func TestGraphForks(t *testing.T) {
 	a := buildGraph()
-	forks := a.forks([]uint32{4, 5, 7, 9, 10})
+	forks := a.forks([]uint32{4, 5, 6, 7, 9, 10})
 	assert.Equal(t, 3, len(forks))
 
 	assert.Equal(t, 10, int(forks[0].top))
@@ -82,7 +88,7 @@ func TestGraphForks(t *testing.T) {
 
 	assert.Equal(t, 7, int(forks[2].top))
 	assert.Equal(t, 6, int(forks[2].common))
-	assert.Equal(t, 1, len(forks[2].lags))
+	assert.Equal(t, 2, len(forks[2].lags))
 }
 
 func BenchmarkPathsSort1M(b *testing.B) {

@@ -3,6 +3,7 @@ package internal
 import (
 	"github.com/pkg/errors"
 	"github.com/seiflotfy/cuckoofilter"
+	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
@@ -130,11 +131,15 @@ func (d *drawer) combineForks(forks []fork, peersByBlocks map[uint32][]net.IP) (
 		for n, l := range f.lags {
 			ips, ok := peersByBlocks[n]
 			if !ok {
-				return nil, errors.Errorf("failure to collect peers for block #d", n)
+				return nil, errors.Errorf("failure to collect peers for block %d", n)
 			}
 			for _, ip := range ips {
 				peer, err := d.storage.peer(ip)
 				if err != nil {
+					if err == leveldb.ErrNotFound {
+						zap.S().Warnf("[DRA] Peer '%s' not found", ip.String())
+						continue
+					}
 					return nil, errors.Wrap(err, "failed to collect peers")
 				}
 				pi := PeerForkInfo{
@@ -199,7 +204,7 @@ func (d *drawer) fork(ip net.IP, addresses []net.IP) ([]Fork, error) {
 
 func (d *drawer) containsIP(addresses []net.IP, ip net.IP) bool {
 	for _, a := range addresses {
-		if ip.Equal(a) {
+		if ip.To16().Equal(a.To16()) {
 			return true
 		}
 	}
@@ -209,11 +214,10 @@ func (d *drawer) containsIP(addresses []net.IP, ip net.IP) bool {
 func (d *drawer) buildFilter(addresses []net.IP) func(ip net.IP) bool {
 	addrMap := make(map[uint64]struct{})
 	for _, a := range addresses {
-		h := hash(a)
-		addrMap[h] = struct{}{}
+		addrMap[hash(a.To16())] = struct{}{}
 	}
 	return func(ip net.IP) bool {
-		_, ok := addrMap[hash(ip)]
+		_, ok := addrMap[hash(ip.To16())]
 		return ok
 	}
 }
