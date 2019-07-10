@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	leasingRecordSize = 1 + 8 + proto.AddressSize*2 + crypto.SignatureSize
+	leasingRecordSize = 1 + 8 + proto.AddressSize*2 + 4
 )
 
 type leasing struct {
@@ -23,7 +23,7 @@ type leasing struct {
 
 type leasingRecord struct {
 	leasing
-	blockID crypto.Signature
+	blockNum uint32
 }
 
 func (l *leasingRecord) marshalBinary() ([]byte, error) {
@@ -32,7 +32,7 @@ func (l *leasingRecord) marshalBinary() ([]byte, error) {
 	binary.BigEndian.PutUint64(res[1:9], l.leaseAmount)
 	copy(res[9:9+proto.AddressSize], l.recipient[:])
 	copy(res[9+proto.AddressSize:9+proto.AddressSize*2], l.sender[:])
-	copy(res[9+proto.AddressSize*2:], l.blockID[:])
+	binary.BigEndian.PutUint32(res[9+proto.AddressSize*2:], l.blockNum)
 	return res, nil
 }
 
@@ -48,17 +48,18 @@ func (l *leasingRecord) unmarshalBinary(data []byte) error {
 	l.leaseAmount = binary.BigEndian.Uint64(data[1:9])
 	copy(l.recipient[:], data[9:9+proto.AddressSize])
 	copy(l.sender[:], data[9+proto.AddressSize:9+proto.AddressSize*2])
-	copy(l.blockID[:], data[9+proto.AddressSize*2:])
+	l.blockNum = binary.BigEndian.Uint32(data[9+proto.AddressSize*2:])
 	return nil
 }
 
 type leases struct {
-	db keyvalue.IterableKeyVal
-	hs *historyStorage
+	db      keyvalue.IterableKeyVal
+	stateDB *stateDB
+	hs      *historyStorage
 }
 
-func newLeases(db keyvalue.IterableKeyVal, hs *historyStorage) (*leases, error) {
-	return &leases{db, hs}, nil
+func newLeases(db keyvalue.IterableKeyVal, stateDB *stateDB, hs *historyStorage) (*leases, error) {
+	return &leases{db, stateDB, hs}, nil
 }
 
 func (l *leases) cancelLeases(bySenders map[proto.Address]struct{}) error {
@@ -162,8 +163,13 @@ func (l *leases) leasingInfo(id crypto.Digest, filter bool) (*leasing, error) {
 	return &record.leasing, nil
 }
 
-func (l *leases) addLeasing(id crypto.Digest, r *leasingRecord) error {
+func (l *leases) addLeasing(id crypto.Digest, leasing *leasing, blockID crypto.Signature) error {
 	key := leaseKey{leaseID: id}
+	blockNum, err := l.stateDB.blockIdToNum(blockID)
+	if err != nil {
+		return err
+	}
+	r := &leasingRecord{*leasing, blockNum}
 	recordBytes, err := r.marshalBinary()
 	if err != nil {
 		return errors.Errorf("failed to marshal record: %v\n", err)
@@ -180,6 +186,5 @@ func (l *leases) cancelLeasing(id crypto.Digest, blockID crypto.Signature, filte
 		return errors.Errorf("failed to get leasing info: %v\n", err)
 	}
 	leasing.isActive = false
-	record := &leasingRecord{*leasing, blockID}
-	return l.addLeasing(id, record)
+	return l.addLeasing(id, leasing, blockID)
 }

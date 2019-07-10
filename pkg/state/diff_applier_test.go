@@ -19,7 +19,7 @@ type diffApplierTestObjects struct {
 func createDiffApplierTestObjects(t *testing.T) (*diffApplierTestObjects, []string) {
 	stor, path, err := createStorageObjects()
 	assert.NoError(t, err, "createStorageObjects() failed")
-	entities, err := newBlockchainEntitiesStorage(stor.hs, settings.MainNetSettings)
+	entities, err := newBlockchainEntitiesStorage(stor.hs, stor.stateDB, settings.MainNetSettings)
 	assert.NoError(t, err, "newBlockchainEntitiesStorage() failed")
 	applier, err := newDiffApplier(entities.balances)
 	assert.NoError(t, err, "newDiffApplier() failed")
@@ -38,6 +38,7 @@ func TestDiffApplierWithWaves(t *testing.T) {
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
+	to.stor.addBlock(t, blockID0)
 	// Test applying valid change.
 	diff := balanceDiff{balance: 100, blockID: blockID0}
 	changes := []balanceChanges{
@@ -45,7 +46,6 @@ func TestDiffApplierWithWaves(t *testing.T) {
 	}
 	err := to.applier.applyBalancesChanges(changes, true)
 	assert.NoError(t, err, "applyBalancesChanges() failed")
-	to.stor.addBlock(t, blockID0)
 	to.stor.flush(t)
 	profile, err := to.entities.balances.wavesBalance(testGlobal.senderInfo.addr, true)
 	assert.NoError(t, err, "wavesBalance() failed")
@@ -101,6 +101,7 @@ func TestDiffApplierWithAssets(t *testing.T) {
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
+	to.stor.addBlock(t, blockID0)
 	// Test applying valid change.
 	diff := balanceDiff{balance: 100, blockID: blockID0}
 	changes := []balanceChanges{
@@ -108,7 +109,6 @@ func TestDiffApplierWithAssets(t *testing.T) {
 	}
 	err := to.applier.applyBalancesChanges(changes, true)
 	assert.NoError(t, err, "applyBalancesChanges() failed")
-	to.stor.addBlock(t, blockID0)
 	to.stor.flush(t)
 	balance, err := to.entities.balances.assetBalance(testGlobal.senderInfo.addr, testGlobal.asset0.assetID, true)
 	assert.NoError(t, err, "assetBalance() failed")
@@ -133,6 +133,7 @@ func TestTransferOverspend(t *testing.T) {
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
+	to.stor.addBlock(t, blockID0)
 	// Create overspend transfer to self.
 	tx := createTransferV1(t)
 	info := defaultDifferInfo(t)
@@ -140,9 +141,7 @@ func TestTransferOverspend(t *testing.T) {
 	tx.Timestamp = info.blockTime
 	tx.Recipient = proto.NewRecipientFromAddress(testGlobal.senderInfo.addr)
 	// Set balance equal to tx Fee.
-	to.stor.addBlock(t, blockID0)
-	r := &assetBalanceRecord{tx.Fee, blockID0}
-	err := to.entities.balances.setAssetBalance(testGlobal.senderInfo.addr, testGlobal.asset0.assetID, r)
+	err := to.entities.balances.setAssetBalance(testGlobal.senderInfo.addr, testGlobal.asset0.assetID, tx.Fee, blockID0)
 	assert.NoError(t, err, "setAssetBalacne() failed")
 	to.stor.flush(t)
 

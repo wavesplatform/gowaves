@@ -18,7 +18,7 @@ func createAliases() (*aliasesTestObjects, []string, error) {
 	if err != nil {
 		return nil, path, err
 	}
-	aliases, err := newAliases(stor.db, stor.dbBatch, stor.hs)
+	aliases, err := newAliases(stor.db, stor.dbBatch, stor.stateDB, stor.hs)
 	if err != nil {
 		return nil, path, err
 	}
@@ -40,8 +40,8 @@ func TestCreateAlias(t *testing.T) {
 	to.stor.addBlock(t, blockID0)
 	aliasAddr, err := proto.NewAddressFromString(addr0)
 	assert.NoError(t, err, "NewAddressFromString() failed")
-	r := &aliasRecord{false, aliasAddr, blockID0}
-	err = to.aliases.createAlias(aliasStr, r)
+	inf := &aliasInfo{false, aliasAddr}
+	err = to.aliases.createAlias(aliasStr, inf, blockID0)
 	assert.NoError(t, err, "createAlias() failed")
 	addr, err := to.aliases.newestAddrByAlias(aliasStr, true)
 	assert.NoError(t, err, "newestAddrByAlias() failed")
@@ -67,8 +67,8 @@ func TestDisableStolenAliases(t *testing.T) {
 	to.stor.addBlock(t, blockID0)
 	aliasAddr, err := proto.NewAddressFromString(addr0)
 	assert.NoError(t, err, "NewAddressFromString() failed")
-	r := &aliasRecord{true, aliasAddr, blockID0}
-	err = to.aliases.createAlias(aliasStr, r)
+	inf := &aliasInfo{true, aliasAddr}
+	err = to.aliases.createAlias(aliasStr, inf, blockID0)
 	assert.NoError(t, err, "createAlias() failed")
 	to.stor.flush(t)
 

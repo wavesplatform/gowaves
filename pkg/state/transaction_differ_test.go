@@ -30,7 +30,7 @@ type differTestObjects struct {
 func createDifferTestObjects(t *testing.T) (*differTestObjects, []string) {
 	stor, path, err := createStorageObjects()
 	assert.NoError(t, err, "createStorageObjects() failed")
-	entities, err := newBlockchainEntitiesStorage(stor.hs, settings.MainNetSettings)
+	entities, err := newBlockchainEntitiesStorage(stor.hs, stor.stateDB, settings.MainNetSettings)
 	assert.NoError(t, err, "newBlockchainEntitiesStorage() failed")
 	td, err := newTransactionDiffer(entities, settings.MainNetSettings)
 	assert.NoError(t, err, "newTransactionDiffer() failed")
@@ -427,7 +427,9 @@ func TestCreateDiffLeaseCancelV1(t *testing.T) {
 	}()
 
 	leaseTx := createLeaseV1(t)
-	err := to.tp.performLeaseV1(leaseTx, defaultPerformerInfo(t))
+	info := defaultPerformerInfo(t)
+	to.stor.addBlock(t, info.blockID)
+	err := to.tp.performLeaseV1(leaseTx, info)
 	assert.NoError(t, err, "performLeaseV1 failed")
 
 	tx := createLeaseCancelV1(t, *leaseTx.ID)
@@ -455,7 +457,9 @@ func TestCreateDiffLeaseCancelV2(t *testing.T) {
 	}()
 
 	leaseTx := createLeaseV2(t)
-	err := to.tp.performLeaseV2(leaseTx, defaultPerformerInfo(t))
+	info := defaultPerformerInfo(t)
+	to.stor.addBlock(t, info.blockID)
+	err := to.tp.performLeaseV2(leaseTx, info)
 	assert.NoError(t, err, "performLeaseV2 failed")
 
 	tx := createLeaseCancelV2(t, *leaseTx.ID)

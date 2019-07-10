@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"runtime"
+	"runtime/debug"
 	"runtime/pprof"
 	"time"
 
@@ -70,6 +71,9 @@ func main() {
 		}
 		defer pprof.StopCPUProfile()
 	}
+
+	// https://godoc.org/github.com/coocood/freecache#NewCache
+	debug.SetGCPercent(20)
 
 	ss, err := blockchainSettings()
 	if err != nil {

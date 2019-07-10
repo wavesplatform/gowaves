@@ -20,7 +20,7 @@ func createAssets() (*assetsTestObjects, []string, error) {
 	if err != nil {
 		return nil, path, err
 	}
-	assets, err := newAssets(stor.db, stor.dbBatch, stor.hs)
+	assets, err := newAssets(stor.db, stor.dbBatch, stor.stateDB, stor.hs)
 	if err != nil {
 		return nil, path, err
 	}
@@ -41,12 +41,12 @@ func TestIssueAsset(t *testing.T) {
 	to.stor.addBlock(t, blockID0)
 	assetID, err := crypto.NewDigestFromBytes(bytes.Repeat([]byte{0xff}, crypto.DigestSize))
 	assert.NoError(t, err, "failed to create digest from bytes")
-	asset := createAssetInfo(t, false, blockID0, assetID)
-	err = to.assets.issueAsset(assetID, asset)
+	asset := defaultAssetInfo(false)
+	err = to.assets.issueAsset(assetID, asset, blockID0)
 	assert.NoError(t, err, "failed to issue asset")
-	record, err := to.assets.newestAssetRecord(assetID, true)
-	assert.NoError(t, err, "failed to get newest asset record")
-	if !record.equal(&asset.assetHistoryRecord) {
+	inf, err := to.assets.newestAssetInfo(assetID, true)
+	assert.NoError(t, err, "failed to get newest asset info")
+	if !inf.equal(asset) {
 		t.Errorf("Assets differ.")
 	}
 	to.stor.flush(t)
@@ -71,8 +71,8 @@ func TestReissueAsset(t *testing.T) {
 	to.stor.addBlock(t, blockID0)
 	assetID, err := crypto.NewDigestFromBytes(bytes.Repeat([]byte{0xff}, crypto.DigestSize))
 	assert.NoError(t, err, "failed to create digest from bytes")
-	asset := createAssetInfo(t, true, blockID0, assetID)
-	err = to.assets.issueAsset(assetID, asset)
+	asset := defaultAssetInfo(true)
+	err = to.assets.issueAsset(assetID, asset, blockID0)
 	assert.NoError(t, err, "failed to issue asset")
 	err = to.assets.reissueAsset(assetID, &assetReissueChange{false, 1, blockID0}, true)
 	assert.NoError(t, err, "failed to reissue asset")
@@ -100,8 +100,8 @@ func TestBurnAsset(t *testing.T) {
 	to.stor.addBlock(t, blockID0)
 	assetID, err := crypto.NewDigestFromBytes(bytes.Repeat([]byte{0xff}, crypto.DigestSize))
 	assert.NoError(t, err, "failed to create digest from bytes")
-	asset := createAssetInfo(t, false, blockID0, assetID)
-	err = to.assets.issueAsset(assetID, asset)
+	asset := defaultAssetInfo(false)
+	err = to.assets.issueAsset(assetID, asset, blockID0)
 	assert.NoError(t, err, "failed to issue asset")
 	err = to.assets.burnAsset(assetID, &assetBurnChange{1, blockID0}, true)
 	assert.NoError(t, err, "failed to burn asset")

@@ -29,20 +29,19 @@ func (tp *transactionPerformer) performIssue(tx *proto.Issue, id []byte, info *p
 		return err
 	}
 	// Create new asset.
-	asset := &assetInfo{
+	assetInfo := &assetInfo{
 		assetConstInfo: assetConstInfo{
 			issuer:      tx.SenderPK,
 			name:        tx.Name,
 			description: tx.Description,
 			decimals:    int8(tx.Decimals),
 		},
-		assetHistoryRecord: assetHistoryRecord{
+		assetChangeableInfo: assetChangeableInfo{
 			quantity:   *big.NewInt(int64(tx.Quantity)),
 			reissuable: tx.Reissuable,
-			blockID:    info.blockID,
 		},
 	}
-	if err := tp.stor.assets.issueAsset(assetID, asset); err != nil {
+	if err := tp.stor.assets.issueAsset(assetID, assetInfo, info.blockID); err != nil {
 		return errors.Wrap(err, "failed to issue asset")
 	}
 	return nil
@@ -138,11 +137,8 @@ func (tp *transactionPerformer) performLease(tx *proto.Lease, id *crypto.Digest,
 		recipientAddr = tx.Recipient.Address
 	}
 	// Add leasing to lease state.
-	r := &leasingRecord{
-		leasing{true, tx.Amount, *recipientAddr, senderAddr},
-		info.blockID,
-	}
-	if err := tp.stor.leases.addLeasing(*id, r); err != nil {
+	l := &leasing{true, tx.Amount, *recipientAddr, senderAddr}
+	if err := tp.stor.leases.addLeasing(*id, l, info.blockID); err != nil {
 		return errors.Wrap(err, "failed to add leasing")
 	}
 	return nil
@@ -193,12 +189,11 @@ func (tp *transactionPerformer) performCreateAlias(tx *proto.CreateAlias, info *
 		return err
 	}
 	// Save alias to aliases storage.
-	r := &aliasRecord{
-		stolen:  tp.stor.aliases.exists(tx.Alias.Alias, !info.initialisation),
-		addr:    senderAddr,
-		blockID: info.blockID,
+	inf := &aliasInfo{
+		stolen: tp.stor.aliases.exists(tx.Alias.Alias, !info.initialisation),
+		addr:   senderAddr,
 	}
-	if err := tp.stor.aliases.createAlias(tx.Alias.Alias, r); err != nil {
+	if err := tp.stor.aliases.createAlias(tx.Alias.Alias, inf, info.blockID); err != nil {
 		return err
 	}
 	return nil

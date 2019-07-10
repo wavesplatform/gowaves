@@ -24,7 +24,9 @@ type blockReadWriter struct {
 	// Height is used as index for block IDs.
 	blockHeight2ID *os.File
 
-	blockchainBuf *bufio.Writer
+	blockchainBuf     *bufio.Writer
+	headersBuf        *bufio.Writer
+	blockHeight2IDBuf *bufio.Writer
 
 	blockInfo map[blockOffsetKey][]byte
 
@@ -106,23 +108,25 @@ func newBlockReadWriter(
 		return nil, err
 	}
 	return &blockReadWriter{
-		db:              db,
-		dbBatch:         dbBatch,
-		blockchain:      blockchain,
-		headers:         headers,
-		blockHeight2ID:  blockHeight2ID,
-		blockchainBuf:   bufio.NewWriter(blockchain),
-		blockInfo:       make(map[blockOffsetKey][]byte),
-		txBounds:        make([]byte, offsetLen*2),
-		headerBounds:    make([]byte, headerOffsetLen*2),
-		blockBounds:     make([]byte, offsetLen*2),
-		heightBuf:       make([]byte, 8),
-		offsetEnd:       uint64(1<<uint(8*offsetLen) - 1),
-		blockchainLen:   blockchainSize,
-		headersLen:      headersSize,
-		offsetLen:       offsetLen,
-		headerOffsetLen: headerOffsetLen,
-		height:          height,
+		db:                db,
+		dbBatch:           dbBatch,
+		blockchain:        blockchain,
+		headers:           headers,
+		blockHeight2ID:    blockHeight2ID,
+		blockchainBuf:     bufio.NewWriter(blockchain),
+		headersBuf:        bufio.NewWriter(headers),
+		blockHeight2IDBuf: bufio.NewWriter(blockHeight2ID),
+		blockInfo:         make(map[blockOffsetKey][]byte),
+		txBounds:          make([]byte, offsetLen*2),
+		headerBounds:      make([]byte, headerOffsetLen*2),
+		blockBounds:       make([]byte, offsetLen*2),
+		heightBuf:         make([]byte, 8),
+		offsetEnd:         uint64(1<<uint(8*offsetLen) - 1),
+		blockchainLen:     blockchainSize,
+		headersLen:        headersSize,
+		offsetLen:         offsetLen,
+		headerOffsetLen:   headerOffsetLen,
+		height:            height,
 	}, nil
 }
 
@@ -161,7 +165,7 @@ func (rw *blockReadWriter) syncFiles() error {
 }
 
 func (rw *blockReadWriter) startBlock(blockID crypto.Signature) error {
-	if _, err := rw.blockHeight2ID.Write(blockID[:]); err != nil {
+	if _, err := rw.blockHeight2IDBuf.Write(blockID[:]); err != nil {
 		return err
 	}
 	binary.LittleEndian.PutUint64(rw.blockBounds[:rw.offsetLen], rw.blockchainLen)
@@ -197,7 +201,7 @@ func (rw *blockReadWriter) writeTransaction(txID []byte, tx []byte) error {
 }
 
 func (rw *blockReadWriter) writeBlockHeader(blockID crypto.Signature, header []byte) error {
-	if _, err := rw.headers.Write(header); err != nil {
+	if _, err := rw.headersBuf.Write(header); err != nil {
 		return err
 	}
 	rw.headersLen += uint64(len(header))
@@ -224,14 +228,30 @@ func (rw *blockReadWriter) blockIDByHeight(height uint64) (crypto.Signature, err
 	return res, nil
 }
 
+func (rw *blockReadWriter) heightFromBlockInfo(blockInfo []byte) (uint64, error) {
+	if len(blockInfo) < 8 {
+		return 0, errors.New("invalid data size")
+	}
+	height := binary.LittleEndian.Uint64(blockInfo[len(blockInfo)-8:])
+	return height + 1, nil
+}
+
+func (rw *blockReadWriter) newestHeightByBlockID(blockID crypto.Signature) (uint64, error) {
+	key := blockOffsetKey{blockID: blockID}
+	blockInfo, ok := rw.blockInfo[key]
+	if ok {
+		return rw.heightFromBlockInfo(blockInfo)
+	}
+	return rw.heightByBlockID(blockID)
+}
+
 func (rw *blockReadWriter) heightByBlockID(blockID crypto.Signature) (uint64, error) {
 	key := blockOffsetKey{blockID: blockID}
 	blockInfo, err := rw.db.Get(key.bytes())
 	if err != nil {
 		return 0, err
 	}
-	height := binary.LittleEndian.Uint64(blockInfo[len(blockInfo)-8:])
-	return height + 1, nil
+	return rw.heightFromBlockInfo(blockInfo)
 }
 
 func (rw *blockReadWriter) recentHeight() uint64 {
@@ -404,6 +424,8 @@ func (rw *blockReadWriter) removeEverything(cleanIDs bool) error {
 	rw.headersLen = 0
 	// Reset buffers.
 	rw.blockchainBuf.Reset(rw.blockchain)
+	rw.headersBuf.Reset(rw.headers)
+	rw.blockHeight2IDBuf.Reset(rw.blockHeight2ID)
 	return nil
 }
 
@@ -465,6 +487,8 @@ func (rw *blockReadWriter) rollback(removalEdge crypto.Signature, cleanIDs bool)
 	rw.headersLen = headerEnd
 	// Reset buffers.
 	rw.blockchainBuf.Reset(rw.blockchain)
+	rw.headersBuf.Reset(rw.headers)
+	rw.blockHeight2IDBuf.Reset(rw.blockHeight2ID)
 	return nil
 }
 
@@ -475,6 +499,12 @@ func (rw *blockReadWriter) reset() {
 
 func (rw *blockReadWriter) flush() error {
 	if err := rw.blockchainBuf.Flush(); err != nil {
+		return err
+	}
+	if err := rw.headersBuf.Flush(); err != nil {
+		return err
+	}
+	if err := rw.blockHeight2IDBuf.Flush(); err != nil {
 		return err
 	}
 	if err := rw.syncFiles(); err != nil {

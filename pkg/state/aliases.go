@@ -1,6 +1,7 @@
 package state
 
 import (
+	"encoding/binary"
 	"log"
 
 	"github.com/pkg/errors"
@@ -12,20 +13,24 @@ import (
 var errAliasDisabled = errors.New("alias was stolen and is now disabled")
 
 const (
-	aliasRecordSize = 1 + proto.AddressSize + crypto.SignatureSize
+	aliasRecordSize = 1 + proto.AddressSize + 4
 )
 
+type aliasInfo struct {
+	stolen bool
+	addr   proto.Address
+}
+
 type aliasRecord struct {
-	stolen  bool
-	addr    proto.Address
-	blockID crypto.Signature
+	aliasInfo
+	blockNum uint32
 }
 
 func (r *aliasRecord) marshalBinary() ([]byte, error) {
 	res := make([]byte, aliasRecordSize)
 	proto.PutBool(res[:1], r.stolen)
 	copy(res[1:1+proto.AddressSize], r.addr[:])
-	copy(res[1+proto.AddressSize:], r.blockID[:])
+	binary.BigEndian.PutUint32(res[1+proto.AddressSize:], r.blockNum)
 	return res, nil
 }
 
@@ -39,22 +44,28 @@ func (r *aliasRecord) unmarshalBinary(data []byte) error {
 		return err
 	}
 	copy(r.addr[:], data[1:1+proto.AddressSize])
-	copy(r.blockID[:], data[1+proto.AddressSize:])
+	r.blockNum = binary.BigEndian.Uint32(data[1+proto.AddressSize:])
 	return nil
 }
 
 type aliases struct {
 	db      keyvalue.IterableKeyVal
 	dbBatch keyvalue.Batch
+	stateDB *stateDB
 	hs      *historyStorage
 }
 
-func newAliases(db keyvalue.IterableKeyVal, dbBatch keyvalue.Batch, hs *historyStorage) (*aliases, error) {
-	return &aliases{db, dbBatch, hs}, nil
+func newAliases(db keyvalue.IterableKeyVal, dbBatch keyvalue.Batch, stateDB *stateDB, hs *historyStorage) (*aliases, error) {
+	return &aliases{db, dbBatch, stateDB, hs}, nil
 }
 
-func (a *aliases) createAlias(aliasStr string, r *aliasRecord) error {
-	key := aliasKey{alias: aliasStr}
+func (a *aliases) createAlias(aliasStr string, info *aliasInfo, blockID crypto.Signature) error {
+	key := aliasKey{aliasStr}
+	blockNum, err := a.stateDB.blockIdToNum(blockID)
+	if err != nil {
+		return err
+	}
+	r := aliasRecord{*info, blockNum}
 	recordBytes, err := r.marshalBinary()
 	if err != nil {
 		return err
@@ -95,7 +106,7 @@ func (a *aliases) newestAddrByAlias(aliasStr string, filter bool) (*proto.Addres
 	return &record.addr, nil
 }
 
-func (a *aliases) addrByAliasImpl(key []byte, filter bool) (*aliasRecord, error) {
+func (a *aliases) recordByAlias(key []byte, filter bool) (*aliasRecord, error) {
 	recordBytes, err := a.hs.get(alias, key, filter)
 	if err != nil {
 		return nil, err
@@ -116,7 +127,7 @@ func (a *aliases) addrByAlias(aliasStr string, filter bool) (*proto.Address, err
 		return nil, errAliasDisabled
 	}
 	key := aliasKey{alias: aliasStr}
-	record, err := a.addrByAliasImpl(key.bytes(), filter)
+	record, err := a.recordByAlias(key.bytes(), filter)
 	if err != nil {
 		return nil, err
 	}
@@ -131,7 +142,7 @@ func (a *aliases) disableStolenAliases() error {
 
 	for iter.Next() {
 		keyBytes := iter.Key()
-		record, err := a.addrByAliasImpl(iter.Key(), true)
+		record, err := a.recordByAlias(iter.Key(), true)
 		if err != nil {
 			return err
 		}
