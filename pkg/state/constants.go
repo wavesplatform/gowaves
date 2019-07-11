@@ -15,7 +15,7 @@ const (
 	// Db parameters.
 	DefaultWriteBuffer         = 32 * 1024 * 1024
 	DefaultCompactionTableSize = 8 * 1024 * 1024
-	DefaultCompactionTotalSize = 40 * 1024 * 1024
+	DefaultCompactionTotalSize = 10 * 1024 * 1024
 
 	// Block storage parameters.
 	// DefaultOffsetLen is the amount of bytes needed to store offset of transactions in blockchain file.
