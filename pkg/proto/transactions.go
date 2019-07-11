@@ -85,7 +85,7 @@ var (
 // Transaction is a set of common transaction functions.
 type Transaction interface {
 	GetTypeVersion() TransactionTypeVersion
-	GetID() []byte
+	GetID() ([]byte, error)
 	Valid() (bool, error)
 	MarshalBinary() ([]byte, error)
 	UnmarshalBinary([]byte) error
@@ -259,8 +259,11 @@ func (tx *Genesis) GenerateID() {
 	}
 }
 
-func (tx Genesis) GetID() []byte {
-	return tx.ID.Bytes()
+func (tx Genesis) GetID() ([]byte, error) {
+	if tx.ID == nil {
+		return nil, errors.New("tx ID is not set\n")
+	}
+	return tx.ID.Bytes(), nil
 }
 
 func (tx Genesis) GetFee() uint64 {
@@ -394,8 +397,11 @@ func (tx *Payment) GenerateID() {
 	}
 }
 
-func (tx Payment) GetID() []byte {
-	return tx.ID.Bytes()
+func (tx Payment) GetID() ([]byte, error) {
+	if tx.ID == nil {
+		return nil, errors.New("tx ID is not set\n")
+	}
+	return tx.ID.Bytes(), nil
 }
 
 func (tx Payment) GetFee() uint64 {
@@ -917,7 +923,7 @@ func (b *Burn) unmarshalBinary(data []byte) error {
 }
 
 type Exchange interface {
-	GetID() []byte
+	GetID() ([]byte, error)
 	GetSenderPK() crypto.PublicKey
 	GetBuyOrder() (OrderBody, error)
 	GetSellOrder() (OrderBody, error)

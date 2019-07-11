@@ -172,7 +172,11 @@ func (a *txAppender) checkDuplicateTxIds(tx proto.Transaction, recentIds map[str
 			return nil
 		}
 	}
-	return a.checkDuplicateTxIdsImpl(tx.GetID(), a.appendedBlocksTxIds)
+	txID, err := tx.GetID()
+	if err != nil {
+		return err
+	}
+	return a.checkDuplicateTxIdsImpl(txID, a.appendedBlocksTxIds)
 }
 
 type appendBlockParams struct {
@@ -195,7 +199,11 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 			return err
 		}
 		// Add transaction ID.
-		a.appendedBlocksTxIds[string(tx.GetID())] = empty
+		txID, err := tx.GetID()
+		if err != nil {
+			return err
+		}
+		a.appendedBlocksTxIds[string(txID)] = empty
 		if hasParent {
 			checkerInfo.parentTimestamp = params.parent.Timestamp
 		}
@@ -260,7 +268,11 @@ func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, pare
 		return err
 	}
 	// Add transaction ID.
-	a.noBlocksTxIds[string(tx.GetID())] = empty
+	txID, err := tx.GetID()
+	if err != nil {
+		return err
+	}
+	a.noBlocksTxIds[string(txID)] = empty
 	// Check tx signature and data.
 	if err := checkTx(tx); err != nil {
 		return err
@@ -691,7 +703,11 @@ func (s *stateManager) addNewBlock(block, parent *proto.Block, initialisation bo
 		case chans.tasksChan <- task:
 		}
 		// Save transaction to storage.
-		if err := s.rw.writeTransaction(tx.GetID(), transactionsBytes[:n+4]); err != nil {
+		txID, err := tx.GetID()
+		if err != nil {
+			return err
+		}
+		if err := s.rw.writeTransaction(txID, transactionsBytes[:n+4]); err != nil {
 			return err
 		}
 		transactionsBytes = transactionsBytes[4+n:]

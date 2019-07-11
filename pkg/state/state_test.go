@@ -359,7 +359,9 @@ func TestDisallowDuplicateTxIds(t *testing.T) {
 		Recipient: addr,
 		Amount:    9999999500000000,
 	}
-	expectedErrStr := fmt.Sprintf("transaction with ID %v already in state", tx.GetID())
+	txID, err := tx.GetID()
+	assert.NoError(t, err, "tx.GetID() failed")
+	expectedErrStr := fmt.Sprintf("transaction with ID %v already in state", txID)
 	err = manager.ValidateSingleTx(tx, 1460678400000, 1460678400000)
 	assert.Error(t, err, "duplicate transacton ID was accepted by state")
 	assert.EqualError(t, err, expectedErrStr)

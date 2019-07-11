@@ -10,7 +10,11 @@ func NewVariablesFromTransaction(scheme byte, t proto.Transaction) (map[string]E
 	funcName := "NewVariablesFromTransaction"
 
 	out := make(map[string]Expr)
-	out["id"] = NewBytes(t.GetID())
+	tID, err := t.GetID()
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	out["id"] = NewBytes(tID)
 
 	switch tx := t.(type) {
 	case *proto.Payment:

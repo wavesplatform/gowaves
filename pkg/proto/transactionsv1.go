@@ -70,8 +70,11 @@ func (tx *IssueV1) GenerateID() {
 	}
 }
 
-func (tx IssueV1) GetID() []byte {
-	return tx.ID.Bytes()
+func (tx IssueV1) GetID() ([]byte, error) {
+	if tx.ID == nil {
+		return nil, errors.New("tx ID is not set\n")
+	}
+	return tx.ID.Bytes(), nil
 }
 
 //NewUnsignedIssueV1 creates new IssueV1 transaction without signature and ID.
@@ -207,8 +210,11 @@ func (tx *TransferV1) GenerateID() {
 	}
 }
 
-func (tx TransferV1) GetID() []byte {
-	return tx.ID.Bytes()
+func (tx TransferV1) GetID() ([]byte, error) {
+	if tx.ID == nil {
+		return nil, errors.New("tx ID is not set\n")
+	}
+	return tx.ID.Bytes(), nil
 }
 
 //NewUnsignedTransferV1 creates new TransferV1 transaction without signature and ID.
@@ -348,8 +354,11 @@ func (tx *ReissueV1) GenerateID() {
 
 }
 
-func (tx ReissueV1) GetID() []byte {
-	return tx.ID.Bytes()
+func (tx ReissueV1) GetID() ([]byte, error) {
+	if tx.ID == nil {
+		return nil, errors.New("tx ID is not set\n")
+	}
+	return tx.ID.Bytes(), nil
 }
 
 //NewUnsignedReissueV1 creates new ReissueV1 transaction without signature and ID.
@@ -488,8 +497,11 @@ func (tx *BurnV1) GenerateID() {
 
 }
 
-func (tx BurnV1) GetID() []byte {
-	return tx.ID.Bytes()
+func (tx BurnV1) GetID() ([]byte, error) {
+	if tx.ID == nil {
+		return nil, errors.New("tx ID is not set\n")
+	}
+	return tx.ID.Bytes(), nil
 }
 
 //NewUnsignedBurnV1 creates new BurnV1 transaction with no signature and ID.
@@ -626,8 +638,11 @@ func (tx *ExchangeV1) GenerateID() {
 
 }
 
-func (tx ExchangeV1) GetID() []byte {
-	return tx.ID.Bytes()
+func (tx ExchangeV1) GetID() ([]byte, error) {
+	if tx.ID == nil {
+		return nil, errors.New("tx ID is not set\n")
+	}
+	return tx.ID.Bytes(), nil
 }
 
 func (tx ExchangeV1) GetSenderPK() crypto.PublicKey {
@@ -923,8 +938,11 @@ func (tx *LeaseV1) GenerateID() {
 
 }
 
-func (tx LeaseV1) GetID() []byte {
-	return tx.ID.Bytes()
+func (tx LeaseV1) GetID() ([]byte, error) {
+	if tx.ID == nil {
+		return nil, errors.New("tx ID is not set\n")
+	}
+	return tx.ID.Bytes(), nil
 }
 
 //NewUnsignedLeaseV1 creates new LeaseV1 transaction without signature and ID set.
@@ -1061,8 +1079,11 @@ func (tx *LeaseCancelV1) GenerateID() {
 
 }
 
-func (tx LeaseCancelV1) GetID() []byte {
-	return tx.ID.Bytes()
+func (tx LeaseCancelV1) GetID() ([]byte, error) {
+	if tx.ID == nil {
+		return nil, errors.New("tx ID is not set\n")
+	}
+	return tx.ID.Bytes(), nil
 }
 
 //NewUnsignedLeaseCancelV1 creates new LeaseCancelV1 transaction structure without a signature and an ID.
@@ -1193,8 +1214,11 @@ func (tx *CreateAliasV1) GenerateID() {
 
 }
 
-func (tx CreateAliasV1) GetID() []byte {
-	return tx.ID.Bytes()
+func (tx CreateAliasV1) GetID() ([]byte, error) {
+	if tx.ID == nil {
+		return nil, errors.New("tx ID is not set\n")
+	}
+	return tx.ID.Bytes(), nil
 }
 
 func NewUnsignedCreateAliasV1(senderPK crypto.PublicKey, alias Alias, fee, timestamp uint64) *CreateAliasV1 {
@@ -1381,8 +1405,11 @@ func (tx *MassTransferV1) GenerateID() {
 
 }
 
-func (tx MassTransferV1) GetID() []byte {
-	return tx.ID.Bytes()
+func (tx MassTransferV1) GetID() ([]byte, error) {
+	if tx.ID == nil {
+		return nil, errors.New("tx ID is not set\n")
+	}
+	return tx.ID.Bytes(), nil
 }
 
 func (tx MassTransferV1) GetFee() uint64 {
@@ -1629,8 +1656,11 @@ func (tx *DataV1) GenerateID() {
 
 }
 
-func (tx DataV1) GetID() []byte {
-	return tx.ID.Bytes()
+func (tx DataV1) GetID() ([]byte, error) {
+	if tx.ID == nil {
+		return nil, errors.New("tx ID is not set\n")
+	}
+	return tx.ID.Bytes(), nil
 }
 
 func (tx DataV1) GetFee() uint64 {
@@ -1906,8 +1936,11 @@ func (tx *SetScriptV1) GenerateID() {
 
 }
 
-func (tx SetScriptV1) GetID() []byte {
-	return tx.ID.Bytes()
+func (tx SetScriptV1) GetID() ([]byte, error) {
+	if tx.ID == nil {
+		return nil, errors.New("tx ID is not set\n")
+	}
+	return tx.ID.Bytes(), nil
 }
 
 func (tx SetScriptV1) GetFee() uint64 {
@@ -2113,8 +2146,11 @@ func (tx *SponsorshipV1) GenerateID() {
 
 }
 
-func (tx SponsorshipV1) GetID() []byte {
-	return tx.ID.Bytes()
+func (tx SponsorshipV1) GetID() ([]byte, error) {
+	if tx.ID == nil {
+		return nil, errors.New("tx ID is not set\n")
+	}
+	return tx.ID.Bytes(), nil
 }
 
 func (tx SponsorshipV1) GetFee() uint64 {
@@ -2308,8 +2344,11 @@ func (tx *SetAssetScriptV1) GenerateID() {
 
 }
 
-func (tx SetAssetScriptV1) GetID() []byte {
-	return tx.ID.Bytes()
+func (tx SetAssetScriptV1) GetID() ([]byte, error) {
+	if tx.ID == nil {
+		return nil, errors.New("tx ID is not set\n")
+	}
+	return tx.ID.Bytes(), nil
 }
 
 func (tx SetAssetScriptV1) GetFee() uint64 {
@@ -2522,8 +2561,11 @@ func (tx InvokeScriptV1) GetTypeVersion() TransactionTypeVersion {
 	return TransactionTypeVersion{tx.Type, tx.Version}
 }
 
-func (tx InvokeScriptV1) GetID() []byte {
-	return tx.ID.Bytes()
+func (tx InvokeScriptV1) GetID() ([]byte, error) {
+	if tx.ID == nil {
+		return nil, errors.New("tx ID is not set\n")
+	}
+	return tx.ID.Bytes(), nil
 }
 
 func (tx InvokeScriptV1) GetFee() uint64 {
