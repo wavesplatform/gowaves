@@ -286,14 +286,14 @@ func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, pare
 	if err != nil {
 		return err
 	}
-	if err := a.diffStorNoBlocks.saveTxDiff(diff); err != nil {
-		return err
-	}
-	changes, err := a.diffStorNoBlocks.changesByKeys(diff.keys())
+	changes, err := a.diffStorNoBlocks.changesByTxDiff(diff)
 	if err != nil {
 		return err
 	}
 	if err := a.diffApplier.validateBalancesChanges(changes, true); err != nil {
+		return err
+	}
+	if err := a.diffStorNoBlocks.saveBalanceChanges(changes); err != nil {
 		return err
 	}
 	return nil
