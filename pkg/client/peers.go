@@ -20,7 +20,7 @@ func NewPeers(options Options) *Peers {
 }
 
 type PeerAllRow struct {
-	Address  proto.TCPAddr
+	Address  proto.PeerInfo
 	LastSeen uint64 `json:"lastSeen"`
 }
 
@@ -59,12 +59,12 @@ type peersConnected struct {
 }
 
 type PeersConnectedRow struct {
-	Address            proto.TCPAddr `json:"address"`
-	DeclaredAddress    proto.TCPAddr `json:"declaredAddress"`
-	PeerName           string        `json:"peerName"`
-	PeerNonce          uint64        `json:"peerNonce"`
-	ApplicationName    string        `json:"applicationName"`
-	ApplicationVersion string        `json:"applicationVersion"`
+	Address            proto.PeerInfo `json:"address"`
+	DeclaredAddress    proto.PeerInfo `json:"declaredAddress"`
+	PeerName           string         `json:"peerName"`
+	PeerNonce          uint64         `json:"peerNonce"`
+	ApplicationName    string         `json:"applicationName"`
+	ApplicationVersion string         `json:"applicationVersion"`
 }
 
 func (a *Peers) Connected(ctx context.Context) ([]*PeersConnectedRow, *Response, error) {
@@ -94,9 +94,9 @@ func (a *Peers) Connected(ctx context.Context) ([]*PeersConnectedRow, *Response,
 }
 
 type PeersBlacklistedRow struct {
-	Hostname  proto.TCPAddr `json:"hostname"`
-	Timestamp uint64        `json:"timestamp"`
-	Reason    string        `json:"reason"`
+	Hostname  proto.PeerInfo `json:"hostname"`
+	Timestamp uint64         `json:"timestamp"`
+	Reason    string         `json:"reason"`
 }
 
 func (a *Peers) Blacklisted(ctx context.Context) ([]*PeersBlacklistedRow, *Response, error) {
@@ -126,8 +126,8 @@ func (a *Peers) Blacklisted(ctx context.Context) ([]*PeersBlacklistedRow, *Respo
 }
 
 type PeersSuspendedRow struct {
-	Hostname  proto.TCPAddr `json:"hostname"`
-	Timestamp uint64        `json:"timestamp"`
+	Hostname  proto.PeerInfo `json:"hostname"`
+	Timestamp uint64         `json:"timestamp"`
 }
 
 func (a *Peers) Suspended(ctx context.Context) ([]*PeersSuspendedRow, *Response, error) {

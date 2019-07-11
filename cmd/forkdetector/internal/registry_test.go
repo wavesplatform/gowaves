@@ -43,7 +43,7 @@ func TestRegisterNewAddresses(t *testing.T) {
 
 	for _, pa := range pas1 {
 		err := registry.PeerDiscarded(pa)
-		require.NoError(t,err)
+		require.NoError(t, err)
 	}
 	pas2, err := registry.TakeAvailableAddresses()
 	require.NoError(t, err)

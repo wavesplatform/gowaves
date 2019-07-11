@@ -76,11 +76,11 @@ func TestPeers_Connected(t *testing.T) {
 	assert.NotNil(t, resp)
 	assert.Equal(t, 2, len(body))
 	assert.Equal(t, &PeersConnectedRow{
-		Address: proto.PeerAddress{
+		Address: proto.PeerInfo{
 			Addr: net.ParseIP("127.0.0.1"),
 			Port: 6863,
 		},
-		DeclaredAddress: proto.PeerAddress{
+		DeclaredAddress: proto.PeerInfo{
 			Addr: net.ParseIP("127.0.0.1"),
 			Port: 6863,
 		},

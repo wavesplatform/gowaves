@@ -967,7 +967,7 @@ func (tx *ExchangeV2) marshalAsOrderV2(order Order) ([]byte, error) {
 }
 
 func (tx *ExchangeV2) marshalAsOrderV3(order Order) ([]byte, error) {
-	o, ok := order.(OrderV3)
+	o, ok := order.(*OrderV3)
 	if !ok {
 		return nil, errors.New("failed to cast an order with version 3 to OrderV3")
 	}
@@ -1038,7 +1038,7 @@ func (tx *ExchangeV2) bodyMarshalBinary() ([]byte, error) {
 	return buf, nil
 }
 
-func (tx *ExchangeV2) unmarshalOrder(data []byte) (int, *Order, error) {
+func (tx *ExchangeV2) unmarshalOrder(data []byte) (int, Order, error) {
 	var r Order
 	n := 0
 	ol := binary.BigEndian.Uint32(data)
@@ -1046,7 +1046,7 @@ func (tx *ExchangeV2) unmarshalOrder(data []byte) (int, *Order, error) {
 	switch data[n] {
 	case 1:
 		n++
-		var o OrderV1
+		o := new(OrderV1)
 		err := o.UnmarshalBinary(data[n:])
 		if err != nil {
 			return 0, nil, errors.Wrap(err, "failed to unmarshal OrderV1")
@@ -1054,17 +1054,25 @@ func (tx *ExchangeV2) unmarshalOrder(data []byte) (int, *Order, error) {
 		n += int(ol)
 		r = o
 	case 2:
-		var o OrderV2
+		o := new(OrderV2)
 		err := o.UnmarshalBinary(data[n:])
 		if err != nil {
 			return 0, nil, errors.Wrap(err, "failed to unmarshal OrderV2")
 		}
 		n += int(ol)
 		r = o
+	case 3:
+		o := new(OrderV3)
+		err := o.UnmarshalBinary(data[n:])
+		if err != nil {
+			return 0, nil, errors.Wrap(err, "failed to unmarshal OrderV3")
+		}
+		n += int(ol)
+		r = o
 	default:
 		return 0, nil, errors.Errorf("unexpected order version %d", data[n])
 	}
-	return n, &r, nil
+	return n, r, nil
 }
 
 func (tx *ExchangeV2) bodyUnmarshalBinary(data []byte) (int, error) {
@@ -1090,13 +1098,13 @@ func (tx *ExchangeV2) bodyUnmarshalBinary(data []byte) (int, error) {
 	if err != nil {
 		return 0, errors.Wrap(err, "failed to unmarshal buy order")
 	}
-	tx.BuyOrder = *o
+	tx.BuyOrder = Order(o)
 	n += l
 	l, o, err = tx.unmarshalOrder(data[n:])
 	if err != nil {
 		return 0, errors.Wrap(err, "failed to unmarshal sell order")
 	}
-	tx.SellOrder = *o
+	tx.SellOrder = Order(o)
 	n += l
 	tx.Price = binary.BigEndian.Uint64(data[n:])
 	n += 8
@@ -1193,10 +1201,12 @@ func (tx *ExchangeV2) UnmarshalJSON(data []byte) error {
 	guessOrderVersion := func(version byte) Order {
 		var r Order
 		switch version {
+		case 3:
+			r = new(OrderV3)
 		case 2:
-			r = &OrderV2{}
+			r = new(OrderV2)
 		default:
-			r = &OrderV1{}
+			r = new(OrderV1)
 		}
 		return r
 	}

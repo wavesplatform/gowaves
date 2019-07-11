@@ -1913,7 +1913,7 @@ func TestExchangeV2FromTestNet(t *testing.T) {
 		sSig, _ := crypto.NewSignatureFromBase58(tc.sellSig)
 		so.ID = &sID
 		so.Signature = &sSig
-		tx := NewUnsignedExchangeV2(*bo, *so, tc.price, tc.amount, tc.buyMatcherFee, tc.sellMatcherFee, tc.fee, tc.timestamp)
+		tx := NewUnsignedExchangeV2(bo, so, tc.price, tc.amount, tc.buyMatcherFee, tc.sellMatcherFee, tc.fee, tc.timestamp)
 		if b, err := tx.bodyMarshalBinary(); assert.NoError(t, err) {
 			if h, err := crypto.FastHash(b); assert.NoError(t, err) {
 				assert.Equal(t, id, h)
@@ -1953,10 +1953,10 @@ func TestExchangeV2BinaryRoundTrip(t *testing.T) {
 		sellFee uint64
 		fee     uint64
 	}{
-		{*bo1, *so1, 123, 456, 789, 987, 654},
-		{*bo2, *so2, 987654321, 544321, 9876, 8765, 13245},
-		{*bo1, *so2, 123, 456, 789, 987, 654},
-		{*bo2, *so1, 987654321, 544321, 9876, 8765, 13245},
+		{bo1, so1, 123, 456, 789, 987, 654},
+		{bo2, so2, 987654321, 544321, 9876, 8765, 13245},
+		{bo1, so2, 123, 456, 789, 987, 654},
+		{bo2, so1, 987654321, 544321, 9876, 8765, 13245},
 	}
 	for _, tc := range tests {
 		ts := uint64(time.Now().UnixNano() / 1000000)
@@ -1990,7 +1990,7 @@ func TestExchangeV2BinaryRoundTrip(t *testing.T) {
 				assert.ElementsMatch(t, *tx.ID, *atx.ID)
 				assert.ElementsMatch(t, tx.Proofs.Proofs[0], atx.Proofs.Proofs[0])
 				assert.Equal(t, mpk, atx.SenderPK)
-				assert.Equal(t, tc.buy, atx.BuyOrder)
+				assert.EqualValues(t, tc.buy, atx.BuyOrder)
 				assert.Equal(t, tc.sell, atx.SellOrder)
 				assert.Equal(t, tc.price, atx.Price)
 				assert.Equal(t, tc.amount, atx.Amount)
@@ -2038,7 +2038,7 @@ func TestExchangeV2ToJSON(t *testing.T) {
 		err = so.Sign(sk)
 		require.NoError(t, err)
 		soj, _ := json.Marshal(so)
-		tx := NewUnsignedExchangeV2(*bo, *so, tc.price, tc.amount, tc.buyFee, tc.sellFee, tc.fee, ts)
+		tx := NewUnsignedExchangeV2(bo, so, tc.price, tc.amount, tc.buyFee, tc.sellFee, tc.fee, ts)
 		if j, err := json.Marshal(tx); assert.NoError(t, err) {
 			ej := fmt.Sprintf("{\"type\":7,\"version\":2,\"senderPublicKey\":\"%s\",\"order1\":%s,\"order2\":%s,\"price\":%d,\"amount\":%d,\"buyMatcherFee\":%d,\"sellMatcherFee\":%d,\"fee\":%d,\"timestamp\":%d}",
 				base58.Encode(mpk[:]), string(boj), string(soj), tc.price, tc.amount, tc.buyFee, tc.sellFee, tc.fee, ts)

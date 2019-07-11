@@ -95,7 +95,7 @@ func (a *Retransmitter) askPeersAboutKnownPeers(ctx context.Context, ticker *tim
 
 // listen incoming connections on provided address
 func (a *Retransmitter) ServeIncomingConnections(ctx context.Context, listenAddr string) error {
-	_, err := proto.NewPeerAddressFromString(listenAddr)
+	_, err := proto.NewPeerInfoFromString(listenAddr)
 	if err != nil {
 		return err
 	}

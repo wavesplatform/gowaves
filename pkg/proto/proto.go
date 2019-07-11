@@ -170,7 +170,7 @@ func (a *Version) ReadFrom(r io.Reader) (int64, error) {
 	return int64(n), nil
 }
 
-func (a *Version) String() string {
+func (a Version) String() string {
 	sb := strings.Builder{}
 	sb.WriteString(strconv.Itoa(int(a.Major)))
 	sb.WriteRune('.')
@@ -688,27 +688,16 @@ func (a *IpPort) UnmarshalBinary(b []byte) error {
 	return nil
 }
 
+type StaticIP [net.IPv6len]byte
+
+func (a StaticIP) String() string {
+	return net.IP(a[:]).String()
+}
+
 // PeerInfo represents the address of a single peer
 type PeerInfo struct {
 	Addr net.IP
 	Port uint16
-}
-
-func NewPeerInfoFromString(addr string) (PeerInfo, error) {
-	strs := strings.Split(addr, ":")
-	if len(strs) != 2 {
-		return PeerInfo{}, errors.Errorf("invalid addr %s", addr)
-	}
-
-	ip := net.ParseIP(string(strs[0]))
-	port, err := strconv.ParseUint(strs[1], 10, 64)
-	if err != nil {
-		return PeerInfo{}, errors.Errorf("invalid port %s", strs[1])
-	}
-	return PeerInfo{
-		Addr: ip,
-		Port: uint16(port),
-	}, nil
 }
 
 func (a PeerInfo) WriteTo(w io.Writer) (int64, error) {
@@ -734,57 +723,74 @@ func (a *PeerInfo) ReadFrom(r io.Reader) (int64, error) {
 	return int64(n), nil
 }
 
+func NewPeerInfoFromString(addr string) (PeerInfo, error) {
+	strs := strings.Split(addr, ":")
+	if len(strs) != 2 {
+		return PeerInfo{}, errors.Errorf("invalid addr %s", addr)
+	}
+
+	ip := net.ParseIP(string(strs[0]))
+	port, err := strconv.ParseUint(strs[1], 10, 64)
+	if err != nil {
+		return PeerInfo{}, errors.Errorf("invalid port %s", strs[1])
+	}
+	return PeerInfo{
+		Addr: ip,
+		Port: uint16(port),
+	}, nil
+}
+
 // MarshalBinary encodes PeerInfo message to binary form
-func (a *PeerInfo) MarshalBinary() ([]byte, error) {
+func (m *PeerInfo) MarshalBinary() ([]byte, error) {
 	buffer := make([]byte, 8)
 
-	copy(buffer[0:4], a.Addr.To4())
-	binary.BigEndian.PutUint32(buffer[4:8], uint32(a.Port))
+	copy(buffer[0:4], m.Addr.To4())
+	binary.BigEndian.PutUint32(buffer[4:8], uint32(m.Port))
 
 	return buffer, nil
 }
 
 // UnmarshalBinary decodes PeerInfo message from binary form
-func (a *PeerInfo) UnmarshalBinary(data []byte) error {
+func (m *PeerInfo) UnmarshalBinary(data []byte) error {
 	if len(data) < 8 {
 		return errors.New("too short")
 	}
 
-	a.Addr = net.IPv4(data[0], data[1], data[2], data[3])
-	a.Port = uint16(binary.BigEndian.Uint32(data[4:8]))
+	m.Addr = net.IPv4(data[0], data[1], data[2], data[3])
+	m.Port = uint16(binary.BigEndian.Uint32(data[4:8]))
 
 	return nil
 }
 
 // String() implements Stringer interface for PeerInfo
-func (a PeerInfo) String() string {
+func (m PeerInfo) String() string {
 	var sb strings.Builder
-	sb.WriteString(a.Addr.String())
+	sb.WriteString(m.Addr.String())
 	sb.WriteRune(':')
-	sb.WriteString(strconv.Itoa(int(a.Port)))
+	sb.WriteString(strconv.Itoa(int(m.Port)))
 
 	return sb.String()
 }
 
 // MarshalJSON writes PeerInfo Value as JSON string
-func (a PeerInfo) MarshalJSON() ([]byte, error) {
+func (m PeerInfo) MarshalJSON() ([]byte, error) {
 	var sb strings.Builder
-	if a.Addr == nil {
+	if m.Addr == nil {
 		return nil, errors.New("invalid addr")
 	}
-	if a.Port == 0 {
+	if m.Port == 0 {
 		return nil, errors.New("invalid port")
 	}
 	sb.WriteRune('"')
-	sb.WriteString(a.Addr.String())
+	sb.WriteString(m.Addr.String())
 	sb.WriteRune(':')
-	sb.WriteString(strconv.Itoa(int(a.Port)))
+	sb.WriteString(strconv.Itoa(int(m.Port)))
 	sb.WriteRune('"')
 	return []byte(sb.String()), nil
 }
 
 // UnmarshalJSON reads PeerInfo from JSON string
-func (a *PeerInfo) UnmarshalJSON(value []byte) error {
+func (m *PeerInfo) UnmarshalJSON(value []byte) error {
 	s := string(value)
 	if s == jsonNull {
 		return nil
@@ -812,21 +818,21 @@ func (a *PeerInfo) UnmarshalJSON(value []byte) error {
 		port = splitted[1]
 	}
 
-	a.Addr = net.ParseIP(addr)
+	m.Addr = net.ParseIP(addr)
 	port64, err := strconv.ParseUint(port, 10, 16)
 	if err != nil {
 		return errors.Wrap(err, "failed to unmarshal PeerInfo from JSON")
 	}
-	a.Port = uint16(port64)
+	m.Port = uint16(port64)
 	return nil
 }
 
-func (a *PeerInfo) Empty() bool {
-	if a.Addr == nil || a.Addr.String() == "0.0.0.0" {
+func (m *PeerInfo) Empty() bool {
+	if m.Addr == nil || m.Addr.String() == "0.0.0.0" {
 		return true
 	}
 
-	if a.Port == 0 {
+	if m.Port == 0 {
 		return true
 	}
 
@@ -871,18 +877,14 @@ func (m *PeersMessage) WriteTo(w io.Writer) (int64, error) {
 		return 0, err
 	}
 
-	sent := 0
-	n1, err := w.Write(hdr)
+	out := append(hdr, buf.Bytes()...)
+
+	n2, err := w.Write(out)
 	if err != nil {
 		return 0, err
 	}
-	sent += n1
-	n2, err := io.Copy(w, buf)
-	if err != nil {
-		return 0, err
-	}
-	sent += int(n2)
-	return int64(sent), nil
+
+	return int64(n2), nil
 }
 
 // MarshalBinary encodes PeersMessage message to binary form
@@ -902,13 +904,14 @@ func (m *PeersMessage) UnmarshalBinary(data []byte) error {
 	}
 	peersCount := binary.BigEndian.Uint32(data[0:4])
 	data = data[4:]
-	for i := uint32(0); i < peersCount*8; i += 8 {
+	for i := uint32(0); i < peersCount; i += 8 {
 		var peer PeerInfo
 		if err := peer.UnmarshalBinary(data[i : i+8]); err != nil {
 			return err
 		}
 		m.Peers = append(m.Peers, peer)
 	}
+
 	return nil
 }
 

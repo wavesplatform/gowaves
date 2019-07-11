@@ -23,4 +23,3 @@ type blockEvent struct {
 	conn  *Conn
 	block *proto.Block
 }
-
