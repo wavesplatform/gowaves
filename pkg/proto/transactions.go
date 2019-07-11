@@ -482,8 +482,11 @@ func (tx *Payment) Sign(secretKey crypto.SecretKey) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to sign Payment transaction")
 	}
-	s := tx.generateBodyHash(b)
-	tx.ID = &s
+	d := make([]byte, len(b)+3)
+	copy(d[3:], b)
+	s := crypto.Sign(secretKey, d)
+	id := tx.generateBodyHash(b)
+	tx.ID = &id
 	tx.Signature = &s
 	return nil
 }
