@@ -1,9 +1,10 @@
 package internal
 
 import (
+	"testing"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
-	"testing"
 )
 
 func TestSkipRepeatedSignatures(t *testing.T) {

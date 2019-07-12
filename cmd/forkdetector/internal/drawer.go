@@ -1,15 +1,16 @@
 package internal
 
 import (
+	"net"
+	"sync"
+	"time"
+
 	"github.com/pkg/errors"
 	"github.com/seiflotfy/cuckoofilter"
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
-	"net"
-	"sync"
-	"time"
 )
 
 const (

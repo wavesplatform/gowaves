@@ -1,11 +1,12 @@
 package internal
 
 import (
+	"net"
+	"testing"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"net"
-	"testing"
 )
 
 func TestRegisterNewAddresses(t *testing.T) {

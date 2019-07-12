@@ -2,14 +2,15 @@ package internal
 
 import (
 	"bytes"
-	"github.com/wavesplatform/gowaves/pkg/crypto"
-	"github.com/wavesplatform/gowaves/pkg/proto"
-	"go.uber.org/zap"
 	"math/rand"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/proto"
+	"go.uber.org/zap"
 )
 
 type requestQueue struct {

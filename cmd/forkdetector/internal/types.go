@@ -2,13 +2,14 @@ package internal
 
 import (
 	"encoding/binary"
-	"github.com/pkg/errors"
-	"github.com/wavesplatform/gowaves/pkg/crypto"
-	"github.com/wavesplatform/gowaves/pkg/proto"
 	"net"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/pkg/errors"
+	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
 type PeerForkInfo struct {

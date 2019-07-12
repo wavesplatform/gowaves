@@ -1,9 +1,10 @@
 package main
 
 import (
-	"go.uber.org/zap"
 	"os"
 	"os/signal"
+
+	"go.uber.org/zap"
 )
 
 var (

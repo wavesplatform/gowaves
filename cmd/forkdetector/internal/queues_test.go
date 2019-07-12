@@ -1,13 +1,14 @@
 package internal
 
 import (
+	"net"
+	"testing"
+	"time"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"net"
-	"testing"
-	"time"
 )
 
 type mockAddr struct {

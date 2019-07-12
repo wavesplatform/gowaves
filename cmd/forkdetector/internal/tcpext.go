@@ -3,14 +3,15 @@ package internal
 import (
 	"bufio"
 	"encoding/binary"
-	"github.com/pkg/errors"
-	"go.uber.org/zap"
 	"io"
 	"net"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/pkg/errors"
+	"go.uber.org/zap"
 )
 
 const (

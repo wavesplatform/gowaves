@@ -3,6 +3,8 @@ package internal
 import (
 	"encoding/binary"
 	"fmt"
+	"net"
+
 	"github.com/pkg/errors"
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/iterator"
@@ -10,7 +12,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
-	"net"
 )
 
 const (

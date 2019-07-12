@@ -1,12 +1,13 @@
 package internal
 
 import (
-	"github.com/stretchr/testify/assert"
-	"github.com/syndtr/goleveldb/leveldb"
-	"github.com/syndtr/goleveldb/leveldb/opt"
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/syndtr/goleveldb/leveldb"
+	"github.com/syndtr/goleveldb/leveldb/opt"
 )
 
 func openDB(t *testing.T, name string) (*leveldb.DB, func()) {

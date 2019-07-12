@@ -3,12 +3,13 @@ package internal
 import (
 	"bufio"
 	"bytes"
-	"github.com/wavesplatform/gowaves/pkg/proto"
-	"go.uber.org/zap"
 	"math/big"
 	"net"
 	"strings"
 	"time"
+
+	"github.com/wavesplatform/gowaves/pkg/proto"
+	"go.uber.org/zap"
 )
 
 const (

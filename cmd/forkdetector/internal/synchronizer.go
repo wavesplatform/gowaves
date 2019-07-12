@@ -2,11 +2,12 @@ package internal
 
 import (
 	"bytes"
+	"net"
+	"sync"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
-	"net"
-	"sync"
 )
 
 type synchronizer struct {
@@ -44,9 +45,6 @@ func (s *synchronizer) start() {
 		select {
 		case <-s.shutdownCh:
 			zap.S().Debugf("[%s][SYN] Shutting down synchronizer for connection '%s'", s.conn.RawConn.RemoteAddr(), s.conn.String())
-			//close(s.scoreCh)
-			//close(s.signaturesCh)
-			//close(s.receivedBlocksCh)
 			zap.S().Debugf("[%s][SYN] Shutdown complete", s.conn.RawConn.RemoteAddr())
 			return
 

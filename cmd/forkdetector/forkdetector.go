@@ -3,13 +3,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/pkg/errors"
-	"github.com/wavesplatform/gowaves/cmd/forkdetector/internal"
-	"github.com/wavesplatform/gowaves/pkg/crypto"
-	"github.com/wavesplatform/gowaves/pkg/proto"
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
-	"gopkg.in/natefinch/lumberjack.v2"
 	"math/rand"
 	"net"
 	"os"
@@ -18,6 +11,14 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/pkg/errors"
+	"github.com/wavesplatform/gowaves/cmd/forkdetector/internal"
+	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/proto"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
+	"gopkg.in/natefinch/lumberjack.v2"
 )
 
 var (

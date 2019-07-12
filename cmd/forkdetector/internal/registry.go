@@ -2,15 +2,16 @@ package internal
 
 import (
 	"bytes"
+	"net"
+	"sort"
+	"sync"
+	"time"
+
 	"github.com/cespare/xxhash"
 	"github.com/pkg/errors"
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
-	"net"
-	"sort"
-	"sync"
-	"time"
 )
 
 const (

@@ -4,16 +4,17 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/go-chi/chi"
-	"github.com/go-chi/chi/middleware"
-	"github.com/pkg/errors"
-	"github.com/wavesplatform/gowaves/pkg/crypto"
-	"go.uber.org/zap"
 	"net"
 	"net/http"
 	"runtime"
 	"strconv"
 	"time"
+
+	"github.com/go-chi/chi"
+	"github.com/go-chi/chi/middleware"
+	"github.com/pkg/errors"
+	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"go.uber.org/zap"
 )
 
 // Logger is a middleware that logs the start and end of each request, along
@@ -309,6 +310,7 @@ func (a *api) block(w http.ResponseWriter, r *http.Request) {
 	}
 	if !ok {
 		http.Error(w, "Block not found", http.StatusNotFound)
+		return
 	}
 	err = json.NewEncoder(w).Encode(block)
 	if err != nil {

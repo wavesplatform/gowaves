@@ -2,11 +2,12 @@ package internal
 
 import (
 	"bytes"
-	"github.com/wavesplatform/gowaves/pkg/proto"
-	"go.uber.org/zap"
 	"net"
 	"sync"
 	"time"
+
+	"github.com/wavesplatform/gowaves/pkg/proto"
+	"go.uber.org/zap"
 )
 
 const (
@@ -103,7 +104,7 @@ func (d *dispatcher) dial(addr net.Addr) {
 		zap.S().Errorf("Failed to establish connection with %s: %v", addr.String(), err)
 		err := d.registry.PeerDiscarded(addr)
 		if err != nil {
-
+			zap.S().Fatalf("Failed to update peer state")
 		}
 		return
 	}

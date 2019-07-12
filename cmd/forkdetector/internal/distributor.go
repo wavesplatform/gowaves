@@ -1,9 +1,10 @@
 package internal
 
 import (
+	"sync"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"go.uber.org/zap"
-	"sync"
 )
 
 type distributor struct {
