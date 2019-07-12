@@ -120,6 +120,20 @@ To check the logs use `journalctl` utility.
 sudo journalctl -u wmd -f
 ```
 
+## Building
+
+To build WMD execute the command:
+
+```bash
+make release-wmd
+```
+
+After modifying `wmd-swagger.json` you have to compile it with the following commands:
+```bash
+cd cmd/wmd/
+statik -src swagger/ -dest internal/ -p swagger -f
+```
+
 ## HTTP API
 
 ### **GET** - /api/status
