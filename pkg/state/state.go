@@ -176,7 +176,7 @@ func (a *txAppender) checkDuplicateTxIds(tx proto.Transaction, recentIds map[str
 	if err != nil {
 		return err
 	}
-	return a.checkDuplicateTxIdsImpl(txID, a.appendedBlocksTxIds)
+	return a.checkDuplicateTxIdsImpl(txID, recentIds)
 }
 
 type appendBlockParams struct {
@@ -301,8 +301,6 @@ func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, pare
 
 func (a *txAppender) reset() {
 	a.appendedBlocksTxIds = make(map[string]struct{})
-	a.noBlocksTxIds = make(map[string]struct{})
-	a.diffStorNoBlocks.reset()
 	a.diffStorAppendedBlocks.reset()
 	a.blockDiffer.reset()
 }
