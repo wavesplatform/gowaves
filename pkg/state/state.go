@@ -348,10 +348,12 @@ func newStateManager(dataDir string, params StateParams, settings *settings.Bloc
 	}
 	// Initialize database.
 	dbDir := filepath.Join(dataDir, keyvalueDir)
+	log.Printf("Initializing state database, will take up to few minutes...\n")
 	db, err := keyvalue.NewKeyVal(dbDir, params.DbParams)
 	if err != nil {
 		return nil, wrapErr(Other, errors.Errorf("failed to create db: %v\n", err))
 	}
+	log.Printf("Finished initializing database.\n")
 	dbBatch, err := db.NewBatch()
 	if err != nil {
 		return nil, wrapErr(Other, errors.Errorf("failed to create db batch: %v\n", err))
