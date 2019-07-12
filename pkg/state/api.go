@@ -121,6 +121,7 @@ func DefaultStorageParams() StorageParams {
 		},
 		WriteBuffer:         DefaultWriteBuffer,
 		CompactionTableSize: DefaultCompactionTableSize,
+		CompactionTotalSize: DefaultCompactionTotalSize,
 	}
 	return StorageParams{
 		OffsetLen:       DefaultOffsetLen,

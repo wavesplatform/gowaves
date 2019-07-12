@@ -372,7 +372,11 @@ func (rw *blockReadWriter) cleanIDs(oldHeight, newBlockchainLen uint64) error {
 		if err != nil {
 			return err
 		}
-		key := txOffsetKey{txID: tx.GetID()}
+		txID, err := tx.GetID()
+		if err != nil {
+			return err
+		}
+		key := txOffsetKey{txID: txID}
 		if err := rw.db.Delete(key.bytes()); err != nil {
 			return err
 		}
