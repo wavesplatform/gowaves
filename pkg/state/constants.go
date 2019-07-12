@@ -13,9 +13,9 @@ const (
 	DefaultBloomFilterFalsePostiiveProbability = 0.0001
 
 	// Db parameters.
-	DefaultWriteBuffer         = 16 * 1024 * 1024
-	DefaultCompactionTableSize = 4 * 1024 * 1024
-	DefaultCompactionTotalSize = 20 * 1024 * 1024
+	DefaultWriteBuffer         = 32 * 1024 * 1024
+	DefaultCompactionTableSize = 8 * 1024 * 1024
+	DefaultCompactionTotalSize = 10 * 1024 * 1024
 
 	// Block storage parameters.
 	// DefaultOffsetLen is the amount of bytes needed to store offset of transactions in blockchain file.

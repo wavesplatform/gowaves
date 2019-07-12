@@ -5,15 +5,21 @@ import (
 	"encoding/json"
 	"log"
 	"os"
+	"time"
 
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
 const (
-	MiB                = 1024 * 1024
-	maxTotalBatchSize  = 10 * MiB
-	maxBlocksBatchSize = 250
+	KiB = 1024
+	MiB = 1024 * KiB
+
+	initTotalBatchSize = 1 * MiB
+	sizeAdjustment     = 1 * MiB
+
+	maxTotalBatchSize  = 32 * MiB
+	maxBlocksBatchSize = 50000
 	maxBlockSize       = 2 * MiB
 )
 
@@ -22,6 +28,33 @@ type State interface {
 	AddOldBlocks(blocks [][]byte) error
 	WavesAddressesNumber() (uint64, error)
 	AccountBalance(addr proto.Address, asset []byte) (uint64, error)
+}
+
+func calculateNextMaxSizeAndDirection(maxSize, speed, prevSpeed int, increasingSize bool) (int, bool) {
+	if speed > prevSpeed && increasingSize {
+		maxSize += sizeAdjustment
+		if maxSize > maxTotalBatchSize {
+			maxSize = maxTotalBatchSize
+		}
+	} else if speed > prevSpeed && !increasingSize {
+		maxSize -= sizeAdjustment
+		if maxSize < initTotalBatchSize {
+			maxSize = initTotalBatchSize
+		}
+	} else if speed < prevSpeed && increasingSize {
+		increasingSize = false
+		maxSize -= sizeAdjustment
+		if maxSize < initTotalBatchSize {
+			maxSize = initTotalBatchSize
+		}
+	} else if speed < prevSpeed && !increasingSize {
+		increasingSize = true
+		maxSize += sizeAdjustment
+		if maxSize > maxTotalBatchSize {
+			maxSize = maxTotalBatchSize
+		}
+	}
+	return maxSize, increasingSize
 }
 
 // ApplyFromFile reads blocks from blockchainPath, applying them from height startHeight and until nBlocks+1.
@@ -45,6 +78,9 @@ func ApplyFromFile(st State, blockchainPath string, nBlocks, startHeight uint64,
 	blocksIndex := 0
 	readPos := int64(0)
 	totalSize := 0
+	prevSpeed := 0
+	increasingSize := false
+	maxSize := initTotalBatchSize
 	for height := uint64(1); height <= nBlocks; height++ {
 		if _, err := blockchain.ReadAt(sb, readPos); err != nil {
 			return err
@@ -66,9 +102,10 @@ func ApplyFromFile(st State, blockchainPath string, nBlocks, startHeight uint64,
 		readPos += int64(size)
 		blocks[blocksIndex] = block
 		blocksIndex++
-		if (totalSize < maxTotalBatchSize) && (blocksIndex != maxBlocksBatchSize) && (height != nBlocks) {
+		if (totalSize < maxSize) && (blocksIndex != maxBlocksBatchSize) && (height != nBlocks) {
 			continue
 		}
+		start := time.Now()
 		if optimize {
 			if err := st.AddOldBlocks(blocks[:blocksIndex]); err != nil {
 				return err
@@ -78,6 +115,10 @@ func ApplyFromFile(st State, blockchainPath string, nBlocks, startHeight uint64,
 				return err
 			}
 		}
+		elapsed := time.Since(start)
+		speed := int(elapsed) / totalSize
+		maxSize, increasingSize = calculateNextMaxSizeAndDirection(maxSize, speed, prevSpeed, increasingSize)
+		prevSpeed = speed
 		totalSize = 0
 		blocksIndex = 0
 	}

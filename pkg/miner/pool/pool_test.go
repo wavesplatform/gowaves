@@ -18,8 +18,8 @@ func (a transaction) GetTypeVersion() proto.TransactionTypeVersion {
 	panic("implement me")
 }
 
-func (a transaction) GetID() []byte {
-	return a.id
+func (a transaction) GetID() ([]byte, error) {
+	return a.id, nil
 }
 
 func (transaction) Valid() (bool, error) {

@@ -75,20 +75,17 @@ func (s *diffStorage) balanceChanges(key string) (*balanceChanges, error) {
 	return s.changes[index].safeCopy(), nil
 }
 
-// constructBalanceChanges() checks whether changes for given change key already exist, and adds new diff to them in such case.
-// Otherwise, it creates fresh changes with the first diff equal to the argument.
-func (s *diffStorage) constructBalanceChanges(key string, diff balanceDiff) (*balanceChanges, error) {
+func (s *diffStorage) balanceChangesWithNewDiff(key string, newDiff balanceDiff) (*balanceChanges, error) {
 	// Changes for this key are already in the stor, retrieve them.
 	changes, err := s.balanceChanges(key)
 	if err == errNotFound {
 		// Fresh changes with the first diff set.
-		return newBalanceChanges([]byte(key), diff), nil
-	}
-	if err != nil {
+		return newBalanceChanges([]byte(key), newDiff), nil
+	} else if err != nil {
 		return nil, errors.Wrap(err, "can not retrieve balance changes")
 	}
-	// Add new diff to existing changes.
-	if err := changes.addDiff(diff); err != nil {
+	// Add new diff.
+	if err := changes.addDiff(newDiff); err != nil {
 		return nil, errors.Wrap(err, "can not update balance changes")
 	}
 	return changes, nil
@@ -96,12 +93,36 @@ func (s *diffStorage) constructBalanceChanges(key string, diff balanceDiff) (*ba
 
 // addBalanceDiff() adds new balance diff to storage.
 func (s *diffStorage) addBalanceDiff(key string, diff balanceDiff) error {
-	changes, err := s.constructBalanceChanges(key, diff)
-	if err != nil {
-		return errors.Wrap(err, "failed to construct balance changes for given key and diff")
+	index, ok := s.keys[key]
+	if !ok {
+		changes := newBalanceChanges([]byte(key), diff)
+		return s.setBalanceChanges(changes)
 	}
-	if err := s.setBalanceChanges(changes); err != nil {
-		return errors.Wrap(err, "failed to save changes to changes storage")
+	changes := &s.changes[index]
+	// Add new diff to existing changes.
+	if err := changes.addDiff(diff); err != nil {
+		return errors.Wrap(err, "can not update balance changes")
+	}
+	return nil
+}
+
+func (s *diffStorage) changesByTxDiff(diff txDiff) ([]balanceChanges, error) {
+	var changes []balanceChanges
+	for key, balanceDiff := range diff {
+		change, err := s.balanceChangesWithNewDiff(key, balanceDiff)
+		if err != nil {
+			return nil, err
+		}
+		changes = append(changes, *change)
+	}
+	return changes, nil
+}
+
+func (s *diffStorage) saveBalanceChanges(changes []balanceChanges) error {
+	for _, change := range changes {
+		if err := s.setBalanceChanges(&change); err != nil {
+			return errors.Wrap(err, "failed to save changes to changes storage")
+		}
 	}
 	return nil
 }

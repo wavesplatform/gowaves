@@ -52,8 +52,11 @@ func (tp *transactionPerformer) performIssueV1(transaction proto.Transaction, in
 	if !ok {
 		return errors.New("failed to convert interface to IssueV1 transaction")
 	}
-
-	return tp.performIssue(&tx.Issue, tx.GetID(), info)
+	txID, err := tx.GetID()
+	if err != nil {
+		return errors.Errorf("failed to get transaction ID: %v\n", err)
+	}
+	return tp.performIssue(&tx.Issue, txID, info)
 }
 
 func (tp *transactionPerformer) performIssueV2(transaction proto.Transaction, info *performerInfo) error {
@@ -61,8 +64,11 @@ func (tp *transactionPerformer) performIssueV2(transaction proto.Transaction, in
 	if !ok {
 		return errors.New("failed to convert interface to IssueV2 transaction")
 	}
-
-	return tp.performIssue(&tx.Issue, tx.GetID(), info)
+	txID, err := tx.GetID()
+	if err != nil {
+		return errors.Errorf("failed to get transaction ID: %v\n", err)
+	}
+	return tp.performIssue(&tx.Issue, txID, info)
 }
 
 func (tp *transactionPerformer) performReissue(tx *proto.Reissue, info *performerInfo) error {

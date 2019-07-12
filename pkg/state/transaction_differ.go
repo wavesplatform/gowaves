@@ -405,7 +405,11 @@ func (td *transactionDiffer) createDiffIssueV1(transaction proto.Transaction, in
 	if !ok {
 		return txDiff{}, errors.New("failed to convert interface to IssueV1 transaction")
 	}
-	return td.createDiffIssue(&tx.Issue, tx.GetID(), info)
+	txID, err := tx.GetID()
+	if err != nil {
+		return txDiff{}, errors.Errorf("failed to get transaction ID: %v\n", err)
+	}
+	return td.createDiffIssue(&tx.Issue, txID, info)
 }
 
 func (td *transactionDiffer) createDiffIssueV2(transaction proto.Transaction, info *differInfo) (txDiff, error) {
@@ -413,7 +417,11 @@ func (td *transactionDiffer) createDiffIssueV2(transaction proto.Transaction, in
 	if !ok {
 		return txDiff{}, errors.New("failed to convert interface to IssueV2 transaction")
 	}
-	return td.createDiffIssue(&tx.Issue, tx.GetID(), info)
+	txID, err := tx.GetID()
+	if err != nil {
+		return txDiff{}, errors.Errorf("failed to get transaction ID: %v\n", err)
+	}
+	return td.createDiffIssue(&tx.Issue, txID, info)
 }
 
 func (td *transactionDiffer) createDiffReissue(tx *proto.Reissue, info *differInfo) (txDiff, error) {
