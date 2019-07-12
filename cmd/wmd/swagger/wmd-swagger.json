@@ -1,0 +1,255 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "WMD (Waves Market Data) HTTP API",
+    "version": "v0.2.0"
+  },
+  "basePath": "/api",
+  "paths": {
+    "/status": {
+      "get": {
+        "summary": "Reports the current state of the service",
+        "responses": {
+          "default": {
+            "description": "Returns the JSON object of two fields: current_height and last_block_id. Could be used to check the health of the service."
+          }
+        }
+      }
+    },
+    "/symbols": {
+      "get": {
+        "summary": "Returns the list of currently used tickers substitutions",
+        "responses": {
+          "default": {
+            "description": "Returns the list of JSON objects each of those consists of two fields symbol and assetID."
+          }
+        }
+      }
+    },
+    "/markets": {
+      "get": {
+        "summary": "Gets the list of all pairs with an actual information about them.",
+        "responses": {
+          "default": {
+            "description": "List of JSON objects with markets descriptions."
+          }
+        }
+      }
+    },
+    "/tickers": {
+      "get": {
+        "summary": "Returns the list of all pairs with an actual information about them.",
+        "responses": {
+          "default": {
+            "description": "List of JSON objects."
+          }
+        }
+      }
+    },
+    "/ticker/{AMOUNT_ASSET}/{PRICE_ASSET}": {
+      "get": {
+        "summary": "Returns the information about the given pair.",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "AMOUNT_ASSET",
+            "required": true,
+            "in": "path"
+          },
+          {
+            "type": "string",
+            "name": "PRICE_ASSET",
+            "required": true,
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "JSON object which describes the pair."
+          }
+        }
+      }
+    },
+    "/trades/{AMOUNT_ASSET}/{PRICE_ASSET}/{LIMIT}": {
+      "get": {
+        "summary": "Returns the list of trades for the given pair limited by LIMIT.",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "AMOUNT_ASSET",
+            "required": true,
+            "in": "path"
+          },
+          {
+            "type": "string",
+            "name": "PRICE_ASSET",
+            "required": true,
+            "in": "path"
+          },
+          {
+            "type": "number",
+            "name": "LIMIT",
+            "required": true,
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "Limited list of JSON objects describing trades."
+          }
+        }
+      }
+    },
+    "/trades/{AMOUNT_ASSET}/{PRICE_ASSET}/{FROM}/{TO}": {
+      "get": {
+        "summary": "Return the list of trades for the given pair limited by two timestamps.",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "AMOUNT_ASSET",
+            "required": true,
+            "in": "path"
+          },
+          {
+            "type": "string",
+            "name": "PRICE_ASSET",
+            "required": true,
+            "in": "path"
+          },
+          {
+            "type": "number",
+            "name": "FROM",
+            "required": true,
+            "in": "path"
+          },
+          {
+            "type": "number",
+            "name": "TO",
+            "required": true,
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "Limited list of JSON objects describing trades."
+          }
+        }
+      }
+    },
+    "/trades/{AMOUNT_ASSET}/{PRICE_ASSET}/{ADDRESS}/{LIMIT}": {
+      "get": {
+        "summary": "Gets the list of trades for given pair and address.",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "AMOUNT_ASSET",
+            "required": true,
+            "in": "path"
+          },
+          {
+            "type": "string",
+            "name": "PRICE_ASSET",
+            "required": true,
+            "in": "path"
+          },
+          {
+            "type": "string",
+            "name": "ADDRESS",
+            "required": true,
+            "in": "path"
+          },
+          {
+            "type": "number",
+            "name": "LIMIT",
+            "required": true,
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "List of JSON objects that describes trades."
+          }
+        }
+      }
+    },
+    "/candles/{AMOUNT_ASSET}/{PRICE_ASSET}/{TIME_FRAME}/{LIMIT}": {
+      "get": {
+        "summary": "Get OHLCV candlestick data for the specified asset pair",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "AMOUNT_ASSET",
+            "required": true,
+            "in": "path"
+          },
+          {
+            "type": "string",
+            "name": "PRICE_ASSET",
+            "required": true,
+            "in": "path"
+          },
+          {
+            "type": "number",
+            "name": "TIME_FRAME",
+            "required": true,
+            "in": "path"
+          },
+          {
+            "type": "number",
+            "name": "LIMIT",
+            "required": true,
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "List of candlesticks JSON objects limited by number of objects."
+          }
+        }
+      }
+    },
+    "/candles/{AMOUNT_ASSET}/{PRICE_ASSET}/{TIME_FRAME}/{FROM}/{TO}": {
+      "get": {
+        "summary": "Returns the OHLCV candlesticks for the given pair, time frame and time period.",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "AMOUNT_ASSET",
+            "required": true,
+            "in": "path"
+          },
+          {
+            "type": "string",
+            "name": "PRICE_ASSET",
+            "required": true,
+            "in": "path"
+          },
+          {
+            "type": "number",
+            "name": "TIME_FRAME",
+            "required": true,
+            "in": "path"
+          },
+          {
+            "type": "number",
+            "name": "FROM",
+            "required": true,
+            "in": "path"
+          },
+          {
+            "type": "number",
+            "name": "TO",
+            "required": true,
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "List of candlesticks JSON objects limited by time period."
+          }
+        }
+      }
+    }
+  },
+  "tags": []
+}

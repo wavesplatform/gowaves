@@ -400,7 +400,7 @@ func (s *Synchronizer) extractTransactions(txs []proto.Transaction, miner proto.
 		case *proto.DataV1:
 		case *proto.SetScriptV1:
 		case *proto.SetAssetScriptV1:
-
+		case *proto.InvokeScriptV1:
 		default:
 			zap.S().Warnf("%d: Unknown transaction type", i)
 		}
