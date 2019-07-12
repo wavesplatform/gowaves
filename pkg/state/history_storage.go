@@ -136,9 +136,15 @@ func (hs *historyStorage) combineHistories(key, newHist []byte, fmt historyForma
 	if err != nil {
 		return nil, err
 	}
+	lenBeforeNormalization := len(prevHist)
 	prevHist, err = fmt.normalize(prevHist, filter)
 	if err != nil {
 		return nil, err
+	}
+	if len(prevHist) != lenBeforeNormalization {
+		if err := hs.db.Put(key, prevHist); err != nil {
+			return nil, err
+		}
 	}
 	return append(prevHist, newHist...), nil
 }

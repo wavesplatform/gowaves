@@ -81,6 +81,25 @@ type BlockchainSettings struct {
 	GenesisGetter GenesisGetter
 }
 
+func DefaultSettingsForCustomBlockchain(genesisGetter GenesisGetter) *BlockchainSettings {
+	return &BlockchainSettings{
+		Type: Custom,
+		FunctionalitySettings: FunctionalitySettings{
+			FeaturesVotingPeriod:      5000,
+			VotesForFeatureActivation: 4000,
+
+			MaxTxTimeBackOffset:    120 * 60000,
+			MaxTxTimeForwardOffset: 90 * 60000,
+
+			AddressSchemeCharacter: 'C',
+
+			AverageBlockDelaySeconds: 60,
+			MaxBaseTarget:            200,
+		},
+		GenesisGetter: genesisGetter,
+	}
+}
+
 var (
 	MainNetSettings = &BlockchainSettings{
 		Type: MainNet,

@@ -33,7 +33,9 @@ func (a *TransactionList) Add(transaction proto.Transaction) {
 		return
 	}
 	b := [idSize]byte{}
-	copy(b[:], transaction.GetID())
+	// TODO: check GetID() error.
+	txID, _ := transaction.GetID()
+	copy(b[:], txID)
 	a.id2t[b] = struct{}{}
 	a.replaceOldTransaction(transaction)
 }
@@ -43,7 +45,9 @@ func (a *TransactionList) replaceOldTransaction(transaction proto.Transaction) {
 	curIdx := a.index % a.size
 	curTransaction := a.lst[curIdx]
 	delete(a.id2t, curTransaction)
-	copy(a.lst[curIdx][:], transaction.GetID())
+	// TODO: check GetID() error.
+	txID, _ := transaction.GetID()
+	copy(a.lst[curIdx][:], txID)
 	a.index += 1
 }
 
@@ -56,7 +60,9 @@ func (a *TransactionList) Exists(transaction proto.Transaction) bool {
 // non thread safe
 func (a *TransactionList) exists(transaction proto.Transaction) bool {
 	b := [idSize]byte{}
-	copy(b[:], transaction.GetID())
+	// TODO: check GetID() error.
+	txID, _ := transaction.GetID()
+	copy(b[:], txID)
 	_, ok := a.id2t[b]
 	return ok
 }

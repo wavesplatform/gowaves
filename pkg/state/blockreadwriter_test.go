@@ -135,7 +135,11 @@ func writeBlock(t *testing.T, rw *blockReadWriter, block *proto.Block) {
 		if err != nil {
 			t.Fatalf("Can not unmarshal tx: %v", err)
 		}
-		if err := rw.writeTransaction(tx.GetID(), transaction[:n+4]); err != nil {
+		txID, err := tx.GetID()
+		if err != nil {
+			t.Fatalf("tx.GetID(): %v\n", err)
+		}
+		if err := rw.writeTransaction(txID, transaction[:n+4]); err != nil {
 			t.Fatalf("writeTransaction(): %v", err)
 		}
 		transaction = transaction[4+n:]
@@ -205,11 +209,15 @@ func writeBlocks(ctx context.Context, rw *blockReadWriter, blocks []proto.Block,
 				close(readTasks)
 				return err
 			}
-			if err := rw.writeTransaction(tx.GetID(), transaction[:n+4]); err != nil {
+			txID, err := tx.GetID()
+			if err != nil {
+				return err
+			}
+			if err := rw.writeTransaction(txID, transaction[:n+4]); err != nil {
 				close(readTasks)
 				return err
 			}
-			task = &readTask{taskType: readTx, txID: tx.GetID(), correctResult: transaction[:n+4]}
+			task = &readTask{taskType: readTx, txID: txID, correctResult: transaction[:n+4]}
 			tasksBuf = append(tasksBuf, task)
 			transaction = transaction[4+n:]
 		}

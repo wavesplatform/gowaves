@@ -10,6 +10,7 @@ import (
 	"runtime"
 	"testing"
 
+	"github.com/mr-tron/base58/base58"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -115,6 +116,32 @@ func TestValidationWithoutBlocks(t *testing.T) {
 	assert.NoError(t, err, "ApplyFromFile() failed")
 	err = validateTxs(manager, last.Timestamp, txs)
 	assert.NoError(t, err, "validateTxs() failed")
+
+	// Test that in case validation using ValidateNextTx() fails, its diffs are not taken into account for further validation.
+	seed, err := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
+	assert.NoError(t, err, "base58.Decode() failed")
+	sk, pk := crypto.GenerateKeyPair(seed)
+	// This tx tries to send more Waves than exist at all.
+	invalidTx := proto.NewUnsignedPayment(pk, testGlobal.recipientInfo.addr, 19999999500000000, 1, defaultTimestamp)
+	err = invalidTx.Sign(sk)
+	assert.NoError(t, err, "tx.Sign() failed")
+	err = manager.ValidateNextTx(invalidTx, defaultTimestamp, defaultTimestamp)
+	assert.Error(t, err, "ValidateNextTx did not fail with invalid tx")
+	// Now set some balance for sender.
+	addr, err := proto.NewAddressFromPublicKey('W', pk)
+	assert.NoError(t, err, "NewAddressFromPublicKey() failed")
+	blockID, err := crypto.NewSignatureFromBase58("m2RcwouGn8iMbiN5e8NB6ZNHFaJu6H2CFewYhwXUXZFmg5UTADtvBvdebFupNTzxsqvxsCUaL2VRQXh3iuK4AeA")
+	assert.NoError(t, err, "NewSignatureFromBase58() failed")
+	err = manager.stor.balances.setWavesBalance(addr, &balanceProfile{2, 0, 0}, blockID)
+	assert.NoError(t, err, "setWavesBalance() failed")
+	err = manager.flush(true)
+	assert.NoError(t, err, "manager.flush() failed")
+	// Valid tx with same sender must be valid after validation of previous invalid tx.
+	validTx := proto.NewUnsignedPayment(pk, testGlobal.recipientInfo.addr, 1, 1, defaultTimestamp)
+	err = validTx.Sign(sk)
+	assert.NoError(t, err, "tx.Sign() failed")
+	err = manager.ValidateNextTx(validTx, defaultTimestamp, defaultTimestamp)
+	assert.NoError(t, err, "ValidateNextTx failed with valid tx")
 }
 
 func TestStateRollback(t *testing.T) {
@@ -359,7 +386,9 @@ func TestDisallowDuplicateTxIds(t *testing.T) {
 		Recipient: addr,
 		Amount:    9999999500000000,
 	}
-	expectedErrStr := fmt.Sprintf("transaction with ID %v already in state", tx.GetID())
+	txID, err := tx.GetID()
+	assert.NoError(t, err, "tx.GetID() failed")
+	expectedErrStr := fmt.Sprintf("transaction with ID %v already in state", txID)
 	err = manager.ValidateSingleTx(tx, 1460678400000, 1460678400000)
 	assert.Error(t, err, "duplicate transacton ID was accepted by state")
 	assert.EqualError(t, err, expectedErrStr)
