@@ -1270,15 +1270,27 @@ func (e IntegerDataEntry) binarySize() int {
 	return 2 + len(e.Key) + 1 + 8
 }
 
+//MarshalValue marshals the integer data entry value in its bytes representation.
+func (e IntegerDataEntry) MarshalValue() ([]byte, error) {
+	buf := make([]byte, 1+8)
+	pos := 0
+	buf[pos] = byte(DataInteger)
+	pos++
+	binary.BigEndian.PutUint64(buf[pos:], uint64(e.Value))
+	return buf, nil
+}
+
 //MarshalBinary marshals the integer data entry in its bytes representation.
 func (e IntegerDataEntry) MarshalBinary() ([]byte, error) {
 	buf := make([]byte, e.binarySize())
 	pos := 0
 	PutStringWithUInt16Len(buf[pos:], e.Key)
 	pos += 2 + len(e.Key)
-	buf[pos] = byte(DataInteger)
-	pos++
-	binary.BigEndian.PutUint64(buf[pos:], uint64(e.Value))
+	valueBytes, err := e.MarshalValue()
+	if err != nil {
+		return nil, err
+	}
+	copy(buf[pos:], valueBytes)
 	return buf, nil
 }
 
@@ -1355,15 +1367,27 @@ func (e BooleanDataEntry) binarySize() int {
 	return 2 + len(e.Key) + 1 + 1
 }
 
+//MarshalValue writes a byte representation of the boolean data entry value.
+func (e BooleanDataEntry) MarshalValue() ([]byte, error) {
+	buf := make([]byte, 1+1)
+	pos := 0
+	buf[pos] = byte(DataBoolean)
+	pos++
+	PutBool(buf[pos:], e.Value)
+	return buf, nil
+}
+
 //MarshalBinary writes a byte representation of the boolean data entry.
 func (e BooleanDataEntry) MarshalBinary() ([]byte, error) {
 	buf := make([]byte, e.binarySize())
 	pos := 0
 	PutStringWithUInt16Len(buf[pos:], e.Key)
 	pos += 2 + len(e.Key)
-	buf[pos] = byte(DataBoolean)
-	pos++
-	PutBool(buf[pos:], e.Value)
+	valueBytes, err := e.MarshalValue()
+	if err != nil {
+		return nil, err
+	}
+	copy(buf[pos:], valueBytes)
 	return buf, nil
 }
 
@@ -1447,15 +1471,27 @@ func (e BinaryDataEntry) binarySize() int {
 	return 2 + len(e.Key) + 1 + 2 + len(e.Value)
 }
 
+//MarshalValue writes an entry value to its byte representation.
+func (e BinaryDataEntry) MarshalValue() ([]byte, error) {
+	pos := 0
+	buf := make([]byte, 1+2+len(e.Value))
+	buf[pos] = byte(DataBinary)
+	pos++
+	PutBytesWithUInt16Len(buf[pos:], e.Value)
+	return buf, nil
+}
+
 //MarshalBinary writes an entry to its byte representation.
 func (e BinaryDataEntry) MarshalBinary() ([]byte, error) {
 	buf := make([]byte, e.binarySize())
 	pos := 0
 	PutStringWithUInt16Len(buf[pos:], e.Key)
 	pos += 2 + len(e.Key)
-	buf[pos] = byte(DataBinary)
-	pos++
-	PutBytesWithUInt16Len(buf[pos:], e.Value)
+	valueBytes, err := e.MarshalValue()
+	if err != nil {
+		return nil, err
+	}
+	copy(buf[pos:], valueBytes)
 	return buf, nil
 }
 
@@ -1539,15 +1575,27 @@ func (e StringDataEntry) binarySize() int {
 	return 2 + len(e.Key) + 1 + 2 + len(e.Value)
 }
 
+//MarshalValue converts the data entry value to its byte representation.
+func (e StringDataEntry) MarshalValue() ([]byte, error) {
+	buf := make([]byte, 1+2+len(e.Value))
+	pos := 0
+	buf[pos] = byte(DataString)
+	pos++
+	PutStringWithUInt16Len(buf[pos:], e.Value)
+	return buf, nil
+}
+
 //MarshalBinary converts the data entry to its byte representation.
 func (e StringDataEntry) MarshalBinary() ([]byte, error) {
 	buf := make([]byte, e.binarySize())
 	pos := 0
 	PutStringWithUInt16Len(buf[pos:], e.Key)
 	pos += 2 + len(e.Key)
-	buf[pos] = byte(DataString)
-	pos++
-	PutStringWithUInt16Len(buf[pos:], e.Value)
+	valueBytes, err := e.MarshalValue()
+	if err != nil {
+		return nil, err
+	}
+	copy(buf[pos:], valueBytes)
 	return buf, nil
 }
 
