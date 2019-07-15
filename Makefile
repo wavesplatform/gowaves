@@ -21,8 +21,11 @@ build/bin/forkdetector: $(SOURCE)
 	@mkdir -p build/bin
 	go build -o build/bin/forkdetector ./cmd/forkdetector
 
-build-forkdetector-linux:
+build-forkdetector-linux-amd64:
 	@CGO_ENABLE=0 GOOS=linux GOARCH=amd64 go build -o build/bin/linux-amd64/forkdetector -ldflags="-X main.version=$(VERSION)" ./cmd/forkdetector
+
+build-forkdetector-linux-arm:
+	@CGO_ENABLE=0 GOOS=linux GOARCH=arm go build -o build/bin/linux-arm/forkdetector -ldflags="-X main.version=$(VERSION)" ./cmd/forkdetector
 
 gotest:
 	go test -cover ./...

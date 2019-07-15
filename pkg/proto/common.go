@@ -7,6 +7,28 @@ import (
 	"time"
 )
 
+//PutStringWithUInt8Len converts the string to slice of bytes. The first byte of resulting slice contains the length of the string.
+func PutStringWithUInt8Len(buf []byte, s string) {
+	sl := uint8(len(s))
+	buf[0] = sl
+	copy(buf[1:], s)
+}
+
+//StringWithUInt8Len reads a string from given slice of bytes. The first byte of slice should contain the length of the following string.
+//Function fails then the length of slice is less then 1 byte or the length of remaining slice is less then the length value from first byte.
+func StringWithUInt8Len(buf []byte) (string, error) {
+	if l := len(buf); l < 1 {
+		return "", fmt.Errorf("not enought data, expected not less then %d, received %d", 1, l)
+	}
+	s := uint8(buf[0])
+	buf = buf[1:]
+	if l := len(buf); l < int(s) {
+		return "", fmt.Errorf("not enough data to read sting of lenght %d, recieved only %d bytes", s, l)
+	}
+	r := string(buf[:s])
+	return r, nil
+}
+
 // PutStringWithUInt16Len writes to the buffer `buf` two bytes of the string `s` length followed with the bytes of the string `s`.
 func PutStringWithUInt16Len(buf []byte, s string) {
 	sl := uint16(len(s))

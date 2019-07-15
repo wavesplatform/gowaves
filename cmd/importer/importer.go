@@ -31,8 +31,8 @@ var (
 	verificationGoroutinesNum = flag.Int("verification-goroutines-num", runtime.NumCPU()*2, " Number of goroutines that will be run for verification of transactions/blocks signatures.")
 	writeBufferSize           = flag.Int("write-buffer", 16, "Write buffer size in MiB.")
 	// Debug.
-	cpuProfilePath = flag.String("cpuprofile", "", "Write cpu pofile to this file.")
-	memProfilePath = flag.String("memprofile", "", "Write memory pofile to this file.")
+	cpuProfilePath = flag.String("cpuprofile", "", "Write cpu profile to this file.")
+	memProfilePath = flag.String("memprofile", "", "Write memory profile to this file.")
 )
 
 func blockchainSettings() (*settings.BlockchainSettings, error) {

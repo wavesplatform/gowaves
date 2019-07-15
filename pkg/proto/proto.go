@@ -123,6 +123,29 @@ type Version struct {
 	Major, Minor, Patch uint32
 }
 
+func NewVersionFromString(version string) (*Version, error) {
+	parts := strings.Split(version, ".")
+	if l := len(parts); l <= 0 || l > 3 {
+		return nil, errors.Errorf("invalid version string '%s'", version)
+	}
+	r := &Version{}
+	for n, p := range parts {
+		i, err := strconv.ParseUint(p, 10, 32)
+		if err != nil {
+			return nil, errors.Wrapf(err, "invalid version string '%s'", version)
+		}
+		switch n {
+		case 0:
+			r.Major = uint32(i)
+		case 1:
+			r.Minor = uint32(i)
+		case 2:
+			r.Patch = uint32(i)
+		}
+	}
+	return r, nil
+}
+
 func (a Version) WriteTo(writer io.Writer) (int64, error) {
 	b := make([]byte, 12)
 	binary.BigEndian.PutUint32(b[:4], a.Major)
@@ -148,7 +171,59 @@ func (a *Version) ReadFrom(r io.Reader) (int64, error) {
 }
 
 func (a Version) String() string {
-	return fmt.Sprintf("%d.%d.%d", a.Major, a.Minor, a.Patch)
+	sb := strings.Builder{}
+	sb.WriteString(strconv.Itoa(int(a.Major)))
+	sb.WriteRune('.')
+	sb.WriteString(strconv.Itoa(int(a.Minor)))
+	sb.WriteRune('.')
+	sb.WriteString(strconv.Itoa(int(a.Patch)))
+	return sb.String()
+}
+
+func (a *Version) MarshalJSON() ([]byte, error) {
+	var sb strings.Builder
+	sb.WriteRune('"')
+	sb.WriteString(a.String())
+	sb.WriteRune('"')
+	return []byte(sb.String()), nil
+}
+
+type ByVersion []Version
+
+func (a ByVersion) Len() int {
+	return len(a)
+}
+
+func (a ByVersion) Swap(i, j int) {
+	a[i], a[j] = a[j], a[i]
+}
+
+func (a ByVersion) Less(i, j int) bool {
+	cmp := func(a, b uint32) int {
+		if a < b {
+			return -1
+		} else if a == b {
+			return 0
+		} else {
+			return 1
+		}
+	}
+	x := cmp(a[i].Major, a[j].Major)
+	y := cmp(a[i].Minor, a[j].Minor)
+	z := cmp(a[i].Patch, a[j].Patch)
+	if x < 0 {
+		return true
+	} else if x == 0 {
+		if y < 0 {
+			return true
+		} else if y == 0 {
+			return z < 0
+		} else {
+			return false
+		}
+	} else {
+		return false
+	}
 }
 
 type TCPAddr net.TCPAddr
@@ -191,7 +266,10 @@ func NewTCPAddrFromString(s string) TCPAddr {
 		return TCPAddr{}
 	}
 	ip := net.ParseIP(host)
-	p, _ := strconv.ParseUint(port, 10, 64)
+	p, err := strconv.ParseUint(port, 10, 64)
+	if err != nil {
+		return TCPAddr{}
+	}
 	return NewTCPAddr(ip, int(p))
 }
 
@@ -220,7 +298,6 @@ func NewHandshakeTCPAddr(ip net.IP, port int) HandshakeTCPAddr {
 
 func (a HandshakeTCPAddr) Empty() bool {
 	return TCPAddr(a).Empty()
-	//return len(a.IP) == 0 || a.IP.IsUnspecified()
 }
 
 func (a HandshakeTCPAddr) WriteTo(w io.Writer) (int64, error) {
@@ -281,6 +358,14 @@ func (a HandshakeTCPAddr) ToIpPort() IpPort {
 
 func (a HandshakeTCPAddr) String() string {
 	return TCPAddr(a).String()
+}
+
+func (a HandshakeTCPAddr) Network() string {
+	return "tcp"
+}
+
+func ParseHandshakeTCPAddr(s string) HandshakeTCPAddr {
+	return HandshakeTCPAddr(NewTCPAddrFromString(s))
 }
 
 type U8String struct {

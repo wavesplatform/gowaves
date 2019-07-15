@@ -30,6 +30,15 @@ func (d Digest) String() string {
 	return base58.Encode(d[:])
 }
 
+func (d Digest) ShortString() string {
+	str := base58.Encode(d[:])
+	sb := new(strings.Builder)
+	sb.WriteString(str[:6])
+	sb.WriteRune(0x2026) //22ef
+	sb.WriteString(str[len(str)-6:])
+	return sb.String()
+}
+
 func (d Digest) Bytes() []byte {
 	out := make([]byte, len(d))
 	copy(out, d[:])
@@ -181,6 +190,15 @@ type Signature [SignatureSize]byte
 
 func (s Signature) String() string {
 	return base58.Encode(s[:])
+}
+
+func (s Signature) ShortString() string {
+	str := base58.Encode(s[:])
+	sb := new(strings.Builder)
+	sb.WriteString(str[:6])
+	sb.WriteRune(0x2026) //22ef
+	sb.WriteString(str[len(str)-6:])
+	return sb.String()
 }
 
 func (s Signature) MarshalBinary() ([]byte, error) {

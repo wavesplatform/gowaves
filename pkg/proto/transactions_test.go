@@ -1913,7 +1913,7 @@ func TestExchangeV2FromTestNet(t *testing.T) {
 		sSig, _ := crypto.NewSignatureFromBase58(tc.sellSig)
 		so.ID = &sID
 		so.Signature = &sSig
-		tx := NewUnsignedExchangeV2(*bo, *so, tc.price, tc.amount, tc.buyMatcherFee, tc.sellMatcherFee, tc.fee, tc.timestamp)
+		tx := NewUnsignedExchangeV2(bo, so, tc.price, tc.amount, tc.buyMatcherFee, tc.sellMatcherFee, tc.fee, tc.timestamp)
 		if b, err := tx.bodyMarshalBinary(); assert.NoError(t, err) {
 			if h, err := crypto.FastHash(b); assert.NoError(t, err) {
 				assert.Equal(t, id, h)
@@ -1953,10 +1953,10 @@ func TestExchangeV2BinaryRoundTrip(t *testing.T) {
 		sellFee uint64
 		fee     uint64
 	}{
-		{*bo1, *so1, 123, 456, 789, 987, 654},
-		{*bo2, *so2, 987654321, 544321, 9876, 8765, 13245},
-		{*bo1, *so2, 123, 456, 789, 987, 654},
-		{*bo2, *so1, 987654321, 544321, 9876, 8765, 13245},
+		{bo1, so1, 123, 456, 789, 987, 654},
+		{bo2, so2, 987654321, 544321, 9876, 8765, 13245},
+		{bo1, so2, 123, 456, 789, 987, 654},
+		{bo2, so1, 987654321, 544321, 9876, 8765, 13245},
 	}
 	for _, tc := range tests {
 		ts := uint64(time.Now().UnixNano() / 1000000)
@@ -1990,7 +1990,7 @@ func TestExchangeV2BinaryRoundTrip(t *testing.T) {
 				assert.ElementsMatch(t, *tx.ID, *atx.ID)
 				assert.ElementsMatch(t, tx.Proofs.Proofs[0], atx.Proofs.Proofs[0])
 				assert.Equal(t, mpk, atx.SenderPK)
-				assert.Equal(t, tc.buy, atx.BuyOrder)
+				assert.EqualValues(t, tc.buy, atx.BuyOrder)
 				assert.Equal(t, tc.sell, atx.SellOrder)
 				assert.Equal(t, tc.price, atx.Price)
 				assert.Equal(t, tc.amount, atx.Amount)
@@ -2038,7 +2038,7 @@ func TestExchangeV2ToJSON(t *testing.T) {
 		err = so.Sign(sk)
 		require.NoError(t, err)
 		soj, _ := json.Marshal(so)
-		tx := NewUnsignedExchangeV2(*bo, *so, tc.price, tc.amount, tc.buyFee, tc.sellFee, tc.fee, ts)
+		tx := NewUnsignedExchangeV2(bo, so, tc.price, tc.amount, tc.buyFee, tc.sellFee, tc.fee, ts)
 		if j, err := json.Marshal(tx); assert.NoError(t, err) {
 			ej := fmt.Sprintf("{\"type\":7,\"version\":2,\"senderPublicKey\":\"%s\",\"order1\":%s,\"order2\":%s,\"price\":%d,\"amount\":%d,\"buyMatcherFee\":%d,\"sellMatcherFee\":%d,\"fee\":%d,\"timestamp\":%d}",
 				base58.Encode(mpk[:]), string(boj), string(soj), tc.price, tc.amount, tc.buyFee, tc.sellFee, tc.fee, ts)
@@ -2202,6 +2202,85 @@ func TestExchangeV2FromJSON2(t *testing.T) {
 	so, ok := tx.SellOrder.(*OrderV1)
 	assert.True(t, ok)
 	assert.NotNil(t, so)
+}
+
+func TestExchangeV2FromJSON3(t *testing.T) {
+	var js = `
+{
+  "type": 7,
+  "id": "GR7ZDZFU2K7R9zM1qNqJEaC1vgA7hFbD3qFxvsSB9U84",
+  "sender": "3PJaDyprvekvPXPuAtxrapacuDJopgJRaU3",
+  "senderPublicKey": "7kPFrHDiGw1rCm7LPszuECwWYL3dMf6iMifLRDJQZMzy",
+  "fee": 300000,
+  "timestamp": 1559218968473,
+  "proofs": [
+    "4HdcL9Ppgbf4kKECBvRx28ieSRMtgaFeF97kxSwmB72fLb3FLApkn4KQcKFE4F4pz5UwFcYBP6PB5RqXSrbKLhQM"
+  ],
+  "version": 2,
+  "order1": {
+    "version": 1,
+    "id": "Du7mcUrKveCyBchxfR8RULZK6Ad21AtfWQcR8uqo3WZq",
+    "sender": "3PCdWLg27GMKprpwKcHqcWS2UwXWwQNRwag",
+    "senderPublicKey": "6HfBybJc7E4wJYZgWNpDJf9RnZRDvS4WLbcx7FtYBCbN",
+    "matcherPublicKey": "7kPFrHDiGw1rCm7LPszuECwWYL3dMf6iMifLRDJQZMzy",
+    "assetPair": {
+      "amountAsset": "9JKjU6U2Ho71U7VWHvr14RB7iLpx2qYBtyUZqLpv6pVB",
+      "priceAsset": null
+    },
+    "orderType": "buy",
+    "amount": 139538564044,
+    "price": 105,
+    "timestamp": 1559218968424,
+    "expiration": 1559219033424,
+    "matcherFee": 300000,
+    "signature": "SrzSabfBaGFyw1Ex6S7X4BH6mtujgwVxBMKNwcPb2wsyzTrkAzipybjAZcyoBdkEhBoUooUAUPGmHqFcffcTaVG",
+    "proofs": [
+      "SrzSabfBaGFyw1Ex6S7X4BH6mtujgwVxBMKNwcPb2wsyzTrkAzipybjAZcyoBdkEhBoUooUAUPGmHqFcffcTaVG"
+    ]
+  },
+  "order2": {
+    "version": 1,
+    "id": "8KyKHCgGPYrwco9QNGaNwCbVZgSBvjz8JNW24VxVr5Vb",
+    "sender": "3PCdWLg27GMKprpwKcHqcWS2UwXWwQNRwag",
+    "senderPublicKey": "6HfBybJc7E4wJYZgWNpDJf9RnZRDvS4WLbcx7FtYBCbN",
+    "matcherPublicKey": "7kPFrHDiGw1rCm7LPszuECwWYL3dMf6iMifLRDJQZMzy",
+    "assetPair": {
+      "amountAsset": "9JKjU6U2Ho71U7VWHvr14RB7iLpx2qYBtyUZqLpv6pVB",
+      "priceAsset": null
+    },
+    "orderType": "sell",
+    "amount": 139538564044000,
+    "price": 105,
+    "timestamp": 1559218958940,
+    "expiration": 1559219023940,
+    "matcherFee": 300000,
+    "signature": "3TSrKc3EnZtnULQKDGBW6fMQqqPFZoRzy4fC7n637dHXhHhs9K61mTwAkmXnq8M5sTV4Y7eG7fq1YFUCJVEWVLjC",
+    "proofs": [
+      "3TSrKc3EnZtnULQKDGBW6fMQqqPFZoRzy4fC7n637dHXhHhs9K61mTwAkmXnq8M5sTV4Y7eG7fq1YFUCJVEWVLjC"
+    ]
+  },
+  "amount": 139538095239,
+  "price": 105,
+  "buyMatcherFee": 299998,
+  "sellMatcherFee": 299,
+  "height": 1549429
+}
+`
+	var tx ExchangeV2
+	err := json.Unmarshal([]byte(js), &tx)
+	require.NoError(t, err)
+	assert.Equal(t, ExchangeTransaction, tx.Type)
+	assert.Equal(t, 2, int(tx.Version))
+	bo, ok := tx.BuyOrder.(*OrderV1)
+	assert.True(t, ok)
+	assert.NotNil(t, bo)
+	so, ok := tx.SellOrder.(*OrderV1)
+	assert.True(t, ok)
+	assert.NotNil(t, so)
+
+	b, err := tx.MarshalBinary()
+	require.NoError(t, err)
+	assert.Equal(t, uint8(0xcb), b[6])
 }
 
 func TestLeaseV1Validations(t *testing.T) {
