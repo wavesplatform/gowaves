@@ -220,3 +220,16 @@ func (tp *transactionPerformer) performCreateAliasV2(transaction proto.Transacti
 	}
 	return tp.performCreateAlias(&tx.CreateAlias, info)
 }
+
+func (tp *transactionPerformer) performDataV1(transaction proto.Transaction, info *performerInfo) error {
+	tx, ok := transaction.(*proto.DataV1)
+	if !ok {
+		return errors.New("failed to convert interface to DataV1 transaction")
+	}
+	for _, entry := range tx.Entries {
+		if err := tp.stor.accountsDataStor.appendEntry(entry); err != nil {
+			return err
+		}
+	}
+	return nil
+}

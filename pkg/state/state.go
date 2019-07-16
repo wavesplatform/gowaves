@@ -36,14 +36,15 @@ func wrapErr(stateErrorType ErrorType, err error) error {
 }
 
 type blockchainEntitiesStorage struct {
-	hs         *historyStorage
-	aliases    *aliases
-	assets     *assets
-	leases     *leases
-	scores     *scores
-	blocksInfo *blocksInfo
-	balances   *balances
-	features   *features
+	hs               *historyStorage
+	aliases          *aliases
+	assets           *assets
+	leases           *leases
+	scores           *scores
+	blocksInfo       *blocksInfo
+	balances         *balances
+	features         *features
+	accountsDataStor *accountsDataStorage
 }
 
 func newBlockchainEntitiesStorage(hs *historyStorage, stateDB *stateDB, sets *settings.BlockchainSettings) (*blockchainEntitiesStorage, error) {
@@ -75,7 +76,11 @@ func newBlockchainEntitiesStorage(hs *historyStorage, stateDB *stateDB, sets *se
 	if err != nil {
 		return nil, err
 	}
-	return &blockchainEntitiesStorage{hs, aliases, assets, leases, scores, blocksInfo, balances, features}, nil
+	accountsDataStor, err := newAccountsDataStorage(hs.db, hs.dbBatch, stateDB)
+	if err != nil {
+		return nil, err
+	}
+	return &blockchainEntitiesStorage{hs, aliases, assets, leases, scores, blocksInfo, balances, features, accountsDataStor}, nil
 }
 
 func (s *blockchainEntitiesStorage) reset() {

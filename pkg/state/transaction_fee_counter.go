@@ -165,3 +165,11 @@ func minerFeeMassTransferV1(transaction proto.Transaction, distr *feeDistributio
 	}
 	return minerFee(distr, tx.Fee, calculateCurrentBlockTxFee(tx.Fee, ngActivated), proto.OptionalAsset{Present: false})
 }
+
+func minerFeeDataV1(transaction proto.Transaction, distr *feeDistribution, ngActivated bool) error {
+	tx, ok := transaction.(*proto.DataV1)
+	if !ok {
+		return errors.New("failed to convert interface to DataV1 tx")
+	}
+	return minerFee(distr, tx.Fee, calculateCurrentBlockTxFee(tx.Fee, ngActivated), proto.OptionalAsset{Present: false})
+}
