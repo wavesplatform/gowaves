@@ -226,8 +226,12 @@ func (tp *transactionPerformer) performDataV1(transaction proto.Transaction, inf
 	if !ok {
 		return errors.New("failed to convert interface to DataV1 transaction")
 	}
+	senderAddr, err := proto.NewAddressFromPublicKey(tp.settings.AddressSchemeCharacter, tx.SenderPK)
+	if err != nil {
+		return err
+	}
 	for _, entry := range tx.Entries {
-		if err := tp.stor.accountsDataStor.appendEntry(entry); err != nil {
+		if err := tp.stor.accountsDataStor.appendEntry(senderAddr, entry, info.blockID); err != nil {
 			return err
 		}
 	}

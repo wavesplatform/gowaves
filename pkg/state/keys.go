@@ -19,6 +19,8 @@ const (
 	approvedFeaturesKeySize = 1 + 2
 	votesFeaturesKeySize    = 1 + 2
 
+	minAccountsDataStorKeySize = 1 + 4 + 2 + 1 + 4
+
 	// Balances.
 	wavesBalanceKeyPrefix byte = iota
 	assetBalanceKeyPrefix
@@ -67,6 +69,13 @@ const (
 
 	// Blocks information (fees for now).
 	blocksInfoKeyPrefix
+
+	// Unique address number by address.
+	// These numbers are only used for accounts data storage.
+	lastAccountsStorAddrNumKeyPrefix
+	accountStorAddrToNumKeyPrefix
+	// Prefix for keys of accounts data entries.
+	accountsDataStorKeyPrefix
 )
 
 type wavesBalanceKey struct {
@@ -83,6 +92,9 @@ func (k *wavesBalanceKey) bytes() []byte {
 func (k *wavesBalanceKey) unmarshal(data []byte) error {
 	if len(data) != wavesBalanceKeySize {
 		return errors.New("invalid data size")
+	}
+	if data[0] != wavesBalanceKeyPrefix {
+		return errors.New("invalid prefix for given key")
 	}
 	var err error
 	if k.address, err = proto.NewAddressFromBytes(data[1 : 1+proto.AddressSize]); err != nil {
@@ -107,6 +119,9 @@ func (k *assetBalanceKey) bytes() []byte {
 func (k *assetBalanceKey) unmarshal(data []byte) error {
 	if len(data) != assetBalanceKeySize {
 		return errors.New("invalid data size")
+	}
+	if data[0] != assetBalanceKeyPrefix {
+		return errors.New("invalid prefix for given key")
 	}
 	var err error
 	if k.address, err = proto.NewAddressFromBytes(data[1 : 1+proto.AddressSize]); err != nil {
@@ -231,6 +246,9 @@ func (k *aliasKey) unmarshal(data []byte) error {
 	if len(data) != aliasKeySize {
 		return errors.New("invalid data size")
 	}
+	if data[0] != aliasKeyPrefix {
+		return errors.New("invalid prefix for given key")
+	}
 	var err error
 	k.alias, err = proto.StringWithUInt16Len(data[1:])
 	if err != nil {
@@ -284,6 +302,9 @@ func (k *approvedFeaturesKey) unmarshal(data []byte) error {
 	if len(data) != approvedFeaturesKeySize {
 		return errors.New("invalid data size")
 	}
+	if data[0] != approvedFeaturesKeyPrefix {
+		return errors.New("invalid prefix for given key")
+	}
 	buf := bytes.NewBuffer(data[1:])
 	if err := binary.Read(buf, binary.BigEndian, &k.featureID); err != nil {
 		return err
@@ -310,6 +331,9 @@ func (k *votesFeaturesKey) unmarshal(data []byte) error {
 	if len(data) != votesFeaturesKeySize {
 		return errors.New("invalid data size")
 	}
+	if data[0] != votesFeaturesKeyPrefix {
+		return errors.New("invalid prefix for given key")
+	}
 	buf := bytes.NewBuffer(data[1:])
 	if err := binary.Read(buf, binary.BigEndian, &k.featureID); err != nil {
 		return err
@@ -326,4 +350,61 @@ func (k *blocksInfoKey) bytes() []byte {
 	buf[0] = blocksInfoKeyPrefix
 	copy(buf[1:], k.blockID[:])
 	return buf
+}
+
+type accountStorAddrToNumKey struct {
+	addr proto.Address
+}
+
+func (k *accountStorAddrToNumKey) bytes() []byte {
+	buf := make([]byte, 1+proto.AddressSize)
+	buf[0] = accountStorAddrToNumKeyPrefix
+	copy(buf[1:], k.addr[:])
+	return buf
+}
+
+type accountsDataStorKey struct {
+	addrNum  uint32
+	entryKey string
+	blockNum uint32
+}
+
+func newAccountsDataBytePrefix(addrNum uint32, entryKey string) []byte {
+	prefix := make([]byte, 1+4+2+len(entryKey))
+	prefix[0] = accountsDataStorKeyPrefix
+	binary.LittleEndian.PutUint32(prefix[1:5], addrNum)
+	proto.PutStringWithUInt16Len(prefix[5:], entryKey)
+	return prefix
+}
+
+func properAccountDataKeyLength(entryKey string) int {
+	return 1 + 4 + 2 + len(entryKey) + 4
+}
+
+func (k *accountsDataStorKey) bytes() []byte {
+	buf := make([]byte, 1+4+2+len(k.entryKey)+4)
+	buf[0] = accountsDataStorKeyPrefix
+	binary.LittleEndian.PutUint32(buf[1:5], k.addrNum)
+	proto.PutStringWithUInt16Len(buf[5:], k.entryKey)
+	pos := 5 + 2 + len(k.entryKey)
+	binary.LittleEndian.PutUint32(buf[pos:], k.blockNum)
+	return buf
+}
+
+func (k *accountsDataStorKey) unmarshal(data []byte) error {
+	if len(data) < minAccountsDataStorKeySize {
+		return errors.New("invalid data size")
+	}
+	if data[0] != accountsDataStorKeyPrefix {
+		return errors.New("invalid prefix for given key")
+	}
+	k.addrNum = binary.LittleEndian.Uint32(data[1:5])
+	key, err := proto.StringWithUInt16Len(data[5:])
+	if err != nil {
+		return err
+	}
+	k.entryKey = key
+	pos := 1 + 4 + 2 + len(k.entryKey)
+	k.blockNum = binary.LittleEndian.Uint32(data[pos:])
+	return nil
 }

@@ -76,7 +76,7 @@ func newBlockchainEntitiesStorage(hs *historyStorage, stateDB *stateDB, sets *se
 	if err != nil {
 		return nil, err
 	}
-	accountsDataStor, err := newAccountsDataStorage(hs.db, hs.dbBatch, stateDB)
+	accountsDataStor, err := newAccountsDataStorage(hs.db, hs.dbBatch, hs.rw, stateDB)
 	if err != nil {
 		return nil, err
 	}
@@ -86,10 +86,17 @@ func newBlockchainEntitiesStorage(hs *historyStorage, stateDB *stateDB, sets *se
 func (s *blockchainEntitiesStorage) reset() {
 	s.hs.reset()
 	s.assets.reset()
+	s.accountsDataStor.reset()
 }
 
 func (s *blockchainEntitiesStorage) flush(initialisation bool) error {
-	return s.hs.flush(!initialisation)
+	if err := s.hs.flush(!initialisation); err != nil {
+		return err
+	}
+	if err := s.accountsDataStor.flush(); err != nil {
+		return err
+	}
+	return nil
 }
 
 type txAppender struct {

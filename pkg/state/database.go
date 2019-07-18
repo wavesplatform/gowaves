@@ -92,8 +92,15 @@ func (s *stateDB) addBlock(blockID crypto.Signature) error {
 	if err != nil {
 		return err
 	}
+	if _, ok := s.newestBlockIdToNum[blockID]; ok {
+		// Block is already in there.
+		return nil
+	}
 	// Unique number of new block.
 	newBlockNum := lastBlockNum + uint32(s.blocksNum)
+	if _, ok := s.newestBlockNumToId[newBlockNum]; ok {
+		return errors.Errorf("block numner %d is already taken by some block", newBlockNum)
+	}
 	// Add unique block number to the list of valid nums.
 	validBlocKey := validBlockNumKey{newBlockNum}
 	s.dbBatch.Put(validBlocKey.bytes(), void)
