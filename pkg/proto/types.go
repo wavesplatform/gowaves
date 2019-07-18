@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"io"
 	"math/big"
+	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -1234,10 +1235,41 @@ const (
 //The interface is used to store different types of data entries in one slice.
 type DataEntry interface {
 	GetKey() string
+	SetKey(string)
+
 	GetValueType() DataValueType
+	MarshalValue() ([]byte, error)
+	UnmarshalValue([]byte) error
+
 	MarshalBinary() ([]byte, error)
+	UnmarshalBinary([]byte) error
 	Valid() (bool, error)
 	binarySize() int
+}
+
+var bytesToDataEntry = map[DataValueType]reflect.Type{
+	DataInteger: reflect.TypeOf(IntegerDataEntry{}),
+	DataBoolean: reflect.TypeOf(BooleanDataEntry{}),
+	DataString:  reflect.TypeOf(StringDataEntry{}),
+	DataBinary:  reflect.TypeOf(BinaryDataEntry{}),
+}
+
+func NewDataEntryFromValueBytes(valueBytes []byte) (DataEntry, error) {
+	if len(valueBytes) < 1 {
+		return nil, errors.New("invalid data size")
+	}
+	entryType, ok := bytesToDataEntry[DataValueType(valueBytes[0])]
+	if !ok {
+		return nil, errors.New("invliad data entry type")
+	}
+	entry, ok := reflect.New(entryType).Interface().(DataEntry)
+	if !ok {
+		panic("This entry type does not implement DataEntry interface")
+	}
+	if err := entry.UnmarshalValue(valueBytes); err != nil {
+		return nil, errors.Wrap(err, "failed to unmarshal entry")
+	}
+	return entry, nil
 }
 
 //IntegerDataEntry stores int64 value.
@@ -1261,6 +1293,11 @@ func (e IntegerDataEntry) GetKey() string {
 	return e.Key
 }
 
+//SetKey sets the key of data entry.
+func (e IntegerDataEntry) SetKey(key string) {
+	e.Key = key
+}
+
 //GetValueType returns the value type of the entry.
 func (e IntegerDataEntry) GetValueType() DataValueType {
 	return DataInteger
@@ -1278,6 +1315,19 @@ func (e IntegerDataEntry) MarshalValue() ([]byte, error) {
 	pos++
 	binary.BigEndian.PutUint64(buf[pos:], uint64(e.Value))
 	return buf, nil
+}
+
+//UnmarshalBinary reads binary representation of integer data entry value to the structure.
+func (e *IntegerDataEntry) UnmarshalValue(data []byte) error {
+	const minLen = 1 + 8
+	if l := len(data); l < minLen {
+		return errors.Errorf("invalid length for IntegerDataEntry value, expected not less than %d, received %d", minLen, l)
+	}
+	if t := data[0]; t != byte(DataInteger) {
+		return errors.Errorf("unexpected value type %d for IntegerDataEntry value, expected %d", t, DataInteger)
+	}
+	e.Value = int64(binary.BigEndian.Uint64(data[1:]))
+	return nil
 }
 
 //MarshalBinary marshals the integer data entry in its bytes representation.
@@ -1306,10 +1356,9 @@ func (e *IntegerDataEntry) UnmarshalBinary(data []byte) error {
 	}
 	e.Key = k
 	kl := 2 + len(k)
-	if t := data[kl]; t != byte(DataInteger) {
-		return errors.Errorf("unexpected value type %d for IntegerDataEntry, expected %d", t, DataInteger)
+	if err := e.UnmarshalValue(data[kl:]); err != nil {
+		return err
 	}
-	e.Value = int64(binary.BigEndian.Uint64(data[kl+1:]))
 	return nil
 }
 
@@ -1358,6 +1407,11 @@ func (e BooleanDataEntry) GetKey() string {
 	return e.Key
 }
 
+//SetKey sets the key of data entry.
+func (e BooleanDataEntry) SetKey(key string) {
+	e.Key = key
+}
+
 //GetValueType returns the data type (Boolean) of the entry.
 func (e BooleanDataEntry) GetValueType() DataValueType {
 	return DataBoolean
@@ -1375,6 +1429,23 @@ func (e BooleanDataEntry) MarshalValue() ([]byte, error) {
 	pos++
 	PutBool(buf[pos:], e.Value)
 	return buf, nil
+}
+
+//UnmarshalValue reads a byte representation of the data entry value.
+func (e *BooleanDataEntry) UnmarshalValue(data []byte) error {
+	const minLen = 1 + 1
+	if l := len(data); l < minLen {
+		return errors.Errorf("invalid data length for BooleanDataEntry value, expected not less than %d, received %d", minLen, l)
+	}
+	if t := data[0]; t != byte(DataBoolean) {
+		return errors.Errorf("unexpected value type %d for BooleanDataEntry, value expected %d", t, DataBoolean)
+	}
+	v, err := Bool(data[1:])
+	if err != nil {
+		return errors.Wrap(err, "failed to unmarshal BooleanDataEntry value from bytes")
+	}
+	e.Value = v
+	return nil
 }
 
 //MarshalBinary writes a byte representation of the boolean data entry.
@@ -1403,14 +1474,9 @@ func (e *BooleanDataEntry) UnmarshalBinary(data []byte) error {
 	}
 	e.Key = k
 	kl := 2 + len(k)
-	if t := data[kl]; t != byte(DataBoolean) {
-		return errors.Errorf("unexpected value type %d for BooleanDataEntry, expected %d", t, DataBoolean)
+	if err := e.UnmarshalValue(data[kl:]); err != nil {
+		return err
 	}
-	v, err := Bool(data[kl+1:])
-	if err != nil {
-		return errors.Wrap(err, "failed to unmarshal BooleanDataEntry from bytes")
-	}
-	e.Value = v
 	return nil
 }
 
@@ -1462,6 +1528,11 @@ func (e BinaryDataEntry) GetKey() string {
 	return e.Key
 }
 
+//SetKey sets the key of data entry.
+func (e BinaryDataEntry) SetKey(key string) {
+	e.Key = key
+}
+
 //GetValueType returns the type of value (Binary) stored in an entry.
 func (e BinaryDataEntry) GetValueType() DataValueType {
 	return DataBinary
@@ -1479,6 +1550,23 @@ func (e BinaryDataEntry) MarshalValue() ([]byte, error) {
 	pos++
 	PutBytesWithUInt16Len(buf[pos:], e.Value)
 	return buf, nil
+}
+
+//UnmarshalValue reads an entry value from a binary representation.
+func (e *BinaryDataEntry) UnmarshalValue(data []byte) error {
+	const minLen = 1 + 2
+	if l := len(data); l < minLen {
+		return errors.Errorf("invalid data length for BinaryDataEntry value, expected not less than %d, received %d", minLen, l)
+	}
+	if t := data[0]; t != byte(DataBinary) {
+		return errors.Errorf("unexpected value type %d for BinaryDataEntry value, expected %d", t, DataBinary)
+	}
+	v, err := BytesWithUInt16Len(data[1:])
+	if err != nil {
+		return errors.Wrap(err, "failed to unmarshal BinaryDataEntry value from bytes")
+	}
+	e.Value = v
+	return nil
 }
 
 //MarshalBinary writes an entry to its byte representation.
@@ -1507,14 +1595,9 @@ func (e *BinaryDataEntry) UnmarshalBinary(data []byte) error {
 	}
 	e.Key = k
 	kl := 2 + len(k)
-	if t := data[kl]; t != byte(DataBinary) {
-		return errors.Errorf("unexpected value type %d for BinaryDataEntry, expected %d", t, DataBinary)
+	if err := e.UnmarshalValue(data[kl:]); err != nil {
+		return err
 	}
-	v, err := BytesWithUInt16Len(data[kl+1:])
-	if err != nil {
-		return errors.Wrap(err, "failed to unmarshal BinaryDataEntry from bytes")
-	}
-	e.Value = v
 	return nil
 }
 
@@ -1566,6 +1649,11 @@ func (e StringDataEntry) GetKey() string {
 	return e.Key
 }
 
+//SetKey sets the key of data entry.
+func (e StringDataEntry) SetKey(key string) {
+	e.Key = key
+}
+
 //GetValueType returns the type of value in key-value entry.
 func (e StringDataEntry) GetValueType() DataValueType {
 	return DataString
@@ -1585,6 +1673,23 @@ func (e StringDataEntry) MarshalValue() ([]byte, error) {
 	return buf, nil
 }
 
+//UnmarshalValue reads StringDataEntry value from bytes.
+func (e *StringDataEntry) UnmarshalValue(data []byte) error {
+	const minLen = 1 + 2
+	if l := len(data); l < minLen {
+		return errors.Errorf("invalid data length for StringDataEntry value, expected not less than %d, received %d", minLen, l)
+	}
+	if t := data[0]; t != byte(DataString) {
+		return errors.Errorf("unexpected value type %d for StringDataEntry value, expected %d", t, DataString)
+	}
+	v, err := StringWithUInt16Len(data[1:])
+	if err != nil {
+		return errors.Wrap(err, "failed to unmarshal StringDataEntry value from bytes")
+	}
+	e.Value = v
+	return nil
+}
+
 //MarshalBinary converts the data entry to its byte representation.
 func (e StringDataEntry) MarshalBinary() ([]byte, error) {
 	buf := make([]byte, e.binarySize())
@@ -1599,7 +1704,7 @@ func (e StringDataEntry) MarshalBinary() ([]byte, error) {
 	return buf, nil
 }
 
-//UnmarshalBinary reads an StringDataEntry structure from bytes.
+//UnmarshalBinary reads StringDataEntry structure from bytes.
 func (e *StringDataEntry) UnmarshalBinary(data []byte) error {
 	const minLen = 2 + 1 + 2
 	if l := len(data); l < minLen {
@@ -1611,14 +1716,9 @@ func (e *StringDataEntry) UnmarshalBinary(data []byte) error {
 	}
 	e.Key = k
 	kl := 2 + len(k)
-	if t := data[kl]; t != byte(DataString) {
-		return errors.Errorf("unexpected value type %d for StringDataEntry, expected %d", t, DataString)
+	if err := e.UnmarshalValue(data[kl:]); err != nil {
+		return err
 	}
-	v, err := StringWithUInt16Len(data[kl+1:])
-	if err != nil {
-		return errors.Wrap(err, "failed to unmarshal StringDataEntry from bytes")
-	}
-	e.Value = v
 	return nil
 }
 
