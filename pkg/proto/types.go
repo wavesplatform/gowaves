@@ -52,10 +52,6 @@ func (a Bytes) WriteTo(w io.Writer) (int64, error) {
 	return int64(rs), err
 }
 
-//func (a Bytes) IntoWriteTo() io.WriterTo {
-//	return a
-//}
-
 type WrapWriteTo struct {
 	buf *bytes.Buffer
 }
@@ -63,26 +59,6 @@ type WrapWriteTo struct {
 func (a WrapWriteTo) Read(b []byte) (int, error) {
 	return a.buf.Read(b)
 }
-
-//
-//type InvalidReader struct {
-//	err error
-//}
-//
-//func (a InvalidReader) Read(b []byte) (int, error) {
-//	if a.err != nil {
-//		return 0, a.err
-//	}
-//	return 0, intoReaderError
-//}
-//
-//type BytesIntoReader struct {
-//	Bytes []byte
-//}
-//
-//func (a BytesIntoReader) IntoReader() io.Reader {
-//	return bytes.NewReader(a.Bytes)
-//}
 
 // B58Bytes represents bytes as Base58 string in JSON
 type B58Bytes []byte
