@@ -1294,7 +1294,7 @@ func (e IntegerDataEntry) GetKey() string {
 }
 
 //SetKey sets the key of data entry.
-func (e IntegerDataEntry) SetKey(key string) {
+func (e *IntegerDataEntry) SetKey(key string) {
 	e.Key = key
 }
 
@@ -1408,7 +1408,7 @@ func (e BooleanDataEntry) GetKey() string {
 }
 
 //SetKey sets the key of data entry.
-func (e BooleanDataEntry) SetKey(key string) {
+func (e *BooleanDataEntry) SetKey(key string) {
 	e.Key = key
 }
 
@@ -1529,7 +1529,7 @@ func (e BinaryDataEntry) GetKey() string {
 }
 
 //SetKey sets the key of data entry.
-func (e BinaryDataEntry) SetKey(key string) {
+func (e *BinaryDataEntry) SetKey(key string) {
 	e.Key = key
 }
 
@@ -1650,7 +1650,7 @@ func (e StringDataEntry) GetKey() string {
 }
 
 //SetKey sets the key of data entry.
-func (e StringDataEntry) SetKey(key string) {
+func (e *StringDataEntry) SetKey(key string) {
 	e.Key = key
 }
 
