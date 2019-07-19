@@ -139,7 +139,7 @@ func writeBlock(t *testing.T, rw *blockReadWriter, block *proto.Block) {
 		if err != nil {
 			t.Fatalf("tx.GetID(): %v\n", err)
 		}
-		if err := rw.writeTransaction(txID, transaction[:n+4]); err != nil {
+		if err := rw.writeTransaction(txID, transaction[4:n+4]); err != nil {
 			t.Fatalf("writeTransaction(): %v", err)
 		}
 		transaction = transaction[4+n:]
@@ -213,7 +213,7 @@ func writeBlocks(ctx context.Context, rw *blockReadWriter, blocks []proto.Block,
 			if err != nil {
 				return err
 			}
-			if err := rw.writeTransaction(txID, transaction[:n+4]); err != nil {
+			if err := rw.writeTransaction(txID, transaction[4:n+4]); err != nil {
 				close(readTasks)
 				return err
 			}

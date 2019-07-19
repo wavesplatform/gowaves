@@ -1197,7 +1197,6 @@ func (s *stateManager) rollbackToImpl(removalEdge crypto.Signature) error {
 	if err := s.stor.scores.rollback(newHeight, oldHeight); err != nil {
 		return wrapErr(RollbackError, err)
 	}
-	// Reset recent block IDs storage.
 	return nil
 }
 
