@@ -3,24 +3,19 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
+	"strings"
+	"time"
+
 	"github.com/alecthomas/kong"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/util/genesis_generator"
 	"go.uber.org/zap"
-	"strconv"
-	"strings"
-	"time"
 )
 
 type Cli struct {
-	SchemaByte string `kong:"schemabyte,short='b',help='Schema byte.',required"`
-	//Schema       string   `kong:"schema,short='s',help='Schema byte.',required"`
-	Seed []string `kong:"seed,short='s',help='Seeds.',"`
-	//Run  struct {
-	//	Addresses string `kong:"address,short='a',help='Addresses connect to.'"`
-	//	DeclAddr  string `kong:"decladdr,short='d',help='Address listen on.'"`
-	//	HttpAddr  string `kong:"httpaddr,short='w',help='Http addr bind on.'"`
-	//} `kong:"cmd,help='Run node'"`
+	SchemeByte string   `kong:"schemebyte,help='Scheme byte.',required"`
+	Seed       []string `kong:"seed,help='Seeds.',"`
 }
 
 func init() {
@@ -48,7 +43,7 @@ func main() {
 		inf = append(inf, int(num))
 	}
 
-	genesis, err := genesis_generator.Generate(t, cli.SchemaByte[0], inf...)
+	genesis, err := genesis_generator.Generate(t, cli.SchemeByte[0], inf...)
 	if err != nil {
 		zap.S().Fatal(err)
 	}

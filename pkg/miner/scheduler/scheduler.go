@@ -32,13 +32,13 @@ type SchedulerImpl struct {
 }
 
 type internal interface {
-	schedule(state state.State, keyPairs []proto.KeyPair, schema proto.Schema, AverageBlockDelaySeconds uint64, confirmedBlock *proto.Block, confirmedBlockHeight uint64) []Emit
+	schedule(state state.State, keyPairs []proto.KeyPair, schema proto.Scheme, AverageBlockDelaySeconds uint64, confirmedBlock *proto.Block, confirmedBlockHeight uint64) []Emit
 }
 
 type internalImpl struct {
 }
 
-func (a internalImpl) schedule(state state.State, keyPairs []proto.KeyPair, schema proto.Schema, AverageBlockDelaySeconds uint64, confirmedBlock *proto.Block, confirmedBlockHeight uint64) []Emit {
+func (a internalImpl) schedule(state state.State, keyPairs []proto.KeyPair, schema proto.Scheme, AverageBlockDelaySeconds uint64, confirmedBlock *proto.Block, confirmedBlockHeight uint64) []Emit {
 	var greatGrandParentTimestamp proto.Timestamp = 0
 	if confirmedBlockHeight > 2 {
 		greatGrandParent, err := state.BlockByHeight(confirmedBlockHeight - 2)

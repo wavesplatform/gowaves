@@ -16,16 +16,16 @@ type row struct {
 	MicroBlocks []*proto.MicroBlock
 }
 
-type blocks []interface{}
+type Blocks []interface{}
 
-func shrink(sequence blocks) blocks {
+func shrink(sequence Blocks) Blocks {
 	if l := len(sequence); l > 100 {
 		return sequence[l-100:]
 	}
 	return sequence
 }
 
-func (a blocks) AddBlock(block *proto.Block) (blocks, error) {
+func (a Blocks) AddBlock(block *proto.Block) (Blocks, error) {
 	if a.Len() == 0 {
 		return []interface{}{block}, nil
 	}
@@ -46,7 +46,7 @@ func (a blocks) AddBlock(block *proto.Block) (blocks, error) {
 	return nil, errors.New("parent not found")
 }
 
-func (a blocks) AddMicro(micro *proto.MicroBlock) (blocks, error) {
+func (a Blocks) AddMicro(micro *proto.MicroBlock) (Blocks, error) {
 	if a.Len() == 0 {
 		return nil, nil
 	}
@@ -67,19 +67,19 @@ func (a blocks) AddMicro(micro *proto.MicroBlock) (blocks, error) {
 	return nil, errors.New("parent not found")
 }
 
-func (a blocks) Len() int {
+func (a Blocks) Len() int {
 	return len(a)
 }
 
-func newBlockSequence() blocks {
-	return blocks{}
+func newBlocks() Blocks {
+	return Blocks{}
 }
 
-func newBlockSequenceFromBlock(block *proto.Block) blocks {
+func NewBlocksFromBlock(block *proto.Block) Blocks {
 	return []interface{}{block}
 }
 
-func (a blocks) Row() (row, error) {
+func (a Blocks) Row() (row, error) {
 	for i := len(a) - 1; i >= 0; i-- {
 		switch t := a[i].(type) {
 		case *proto.Block:
@@ -100,22 +100,23 @@ func inf2micro(in []interface{}) []*proto.MicroBlock {
 }
 
 type storage struct {
-	curState  blocks
-	prevState blocks
-	validator validator
+	curState  Blocks
+	prevState Blocks
+	// TODO add validation
+	//validator validator
 }
 
-func newStorage(validator validator) *storage {
+func newStorage() *storage {
 	return &storage{
-		validator: validator,
+		//validator: validator,
 	}
 }
 
 func (a *storage) PushBlock(block *proto.Block) error {
-	err := a.validator.validateKeyBlock(block)
-	if err != nil {
-		return err
-	}
+	//err := a.validator.validateKeyBlock(block)
+	//if err != nil {
+	//	return err
+	//}
 	state, err := a.curState.AddBlock(block)
 	if err != nil {
 		return err
@@ -126,10 +127,10 @@ func (a *storage) PushBlock(block *proto.Block) error {
 }
 
 func (a *storage) PushMicro(m *proto.MicroBlock) error {
-	err := a.validator.validateMicroBlock(m)
-	if err != nil {
-		return err
-	}
+	//err := a.validator.validateMicroBlock(m)
+	//if err != nil {
+	//	return err
+	//}
 	state, err := a.curState.AddMicro(m)
 	if err != nil {
 		return err
@@ -176,12 +177,12 @@ func (a *storage) fromRow(seq row) (*proto.Block, error) {
 
 func (a *storage) newFromBlock(block *proto.Block) *storage {
 	return &storage{
-		curState:  newBlockSequenceFromBlock(block),
-		validator: a.validator,
+		curState: NewBlocksFromBlock(block),
+		//validator: a.validator,
 	}
 }
 
 func (a *storage) Pop() {
 	a.curState = a.prevState
-	a.prevState = newBlockSequence()
+	a.prevState = newBlocks()
 }

@@ -3,6 +3,7 @@ package ng
 import (
 	"sync"
 
+	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"github.com/wavesplatform/gowaves/pkg/types"
@@ -18,10 +19,10 @@ type State struct {
 	historySync    types.StateHistorySynchronizer
 }
 
-func NewState(validator validator, applier types.BlockApplier, state state.State) *State {
+func NewState(applier types.BlockApplier, state state.State) *State {
 	return &State{
 		mu:      sync.Mutex{},
-		storage: newStorage(validator),
+		storage: newStorage(),
 		applier: applier,
 		state:   state,
 	}
@@ -46,7 +47,7 @@ func (a *State) AddBlock(block *proto.Block) {
 	mu.Lock()
 	err = a.state.RollbackTo(block.Parent)
 	if err != nil {
-		zap.S().Error(err)
+		zap.S().Error(errors.Wrapf(err, "can't rollback to sig %s, initiator sig %s", block.Parent, block.BlockSignature))
 		a.storage.Pop()
 		mu.Unlock()
 		return
@@ -94,6 +95,33 @@ func (a *State) AddMicroblock(micro *proto.MicroBlock) {
 		return
 	}
 
+	curHeight, err := a.state.Height()
+	if err != nil {
+		zap.S().Error(err)
+		return
+	}
+
+	curBlock, err := a.state.BlockByHeight(curHeight)
+	if err != nil {
+		zap.S().Error(err)
+		return
+	}
+
+	if curBlock.Parent != block.Parent {
+		zap.S().Errorf("current block parent not equal prev block %q actual %q", curBlock.Parent, block.Parent)
+		return
+	}
+
+	lock := a.state.Mutex()
+	lock.Lock()
+	err = a.state.RollbackTo(curBlock.Parent)
+	if err != nil {
+		zap.S().Error(errors.Wrapf(err, "failed to rollback to sig %s", curBlock.Parent))
+		lock.Unlock()
+		return
+	}
+	lock.Unlock()
+
 	err = a.applier.Apply(block)
 	if err != nil {
 		zap.S().Error(err)
@@ -105,6 +133,7 @@ func (a *State) AddMicroblock(micro *proto.MicroBlock) {
 	a.prevAddedBlock = block
 }
 
+// notify method
 func (a *State) BlockApplied(block *proto.Block) {
 	a.mu.Lock()
 	defer a.mu.Unlock()

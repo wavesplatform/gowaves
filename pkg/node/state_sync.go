@@ -22,6 +22,8 @@ type StateSync struct {
 	interrupt    chan struct{}
 	scheduler    types.Scheduler
 	blockApplier *BlockApplier
+	interrupter  types.MinerInterrupter
+	syncCh       chan struct{}
 }
 
 func NewStateSync(stateManager state.State, peerManager peer_manager.PeerManager, subscribe *Subscribe, scheduler types.Scheduler, interrupter types.MinerInterrupter) *StateSync {
@@ -31,19 +33,39 @@ func NewStateSync(stateManager state.State, peerManager peer_manager.PeerManager
 		subscribe:    subscribe,
 		interrupt:    make(chan struct{}),
 		scheduler:    scheduler,
-		blockApplier: NewBlockApplier(stateManager, peerManager, scheduler, interrupter),
+		blockApplier: NewBlockApplier(stateManager, peerManager, scheduler),
+		interrupter:  interrupter,
+		syncCh:       make(chan struct{}, 20),
 	}
 }
 
 var TimeoutErr = errors.Errorf("Timeout")
 
-func (a *StateSync) Sync() error {
-
-	p, err := a.getPeerWithHighestScore()
-	if err != nil {
-		return err
+func (a *StateSync) Sync() {
+	select {
+	case a.syncCh <- struct{}{}:
+		return
+	default:
+		zap.S().Error("failed add sync job, chan is full")
 	}
+}
 
+func (a *StateSync) run(ctx context.Context) {
+	select {
+	case <-ctx.Done():
+		return
+	case <-a.syncCh:
+		for {
+			p, err := a.getPeerWithHighestScore()
+			if err != nil {
+				return
+			}
+			_ = a.sync(p)
+		}
+	}
+}
+
+func (a *StateSync) sync(p Peer) error {
 	messCh, unsubscribe := a.subscribe.Subscribe(p, &proto.SignaturesMessage{})
 	defer unsubscribe()
 
@@ -61,7 +83,7 @@ func (a *StateSync) Sync() error {
 		return TimeoutErr
 	case received := <-messCh:
 		mess := received.(*proto.SignaturesMessage)
-		downloadSignatures(mess, sigs, p, a.subscribe, a.blockApplier)
+		downloadSignatures(mess, sigs, p, a.subscribe, a.blockApplier, a.interrupter)
 	}
 
 	return nil
@@ -78,6 +100,7 @@ func (a *StateSync) askSignatures(p Peer) (*Signatures, error) {
 	send := &proto.GetSignaturesMessage{
 		Blocks: sigs.Signatures(),
 	}
+
 	p.SendMessage(send)
 	return sigs, nil
 }
@@ -135,8 +158,7 @@ func (a *StateSync) Close() {
 	close(a.interrupt)
 }
 
-func downloadSignatures(receivedSignatures *proto.SignaturesMessage, blockSignatures *Signatures, p Peer, subscribe *Subscribe, applier *BlockApplier) {
-
+func downloadSignatures(receivedSignatures *proto.SignaturesMessage, blockSignatures *Signatures, p Peer, subscribe *Subscribe, applier *BlockApplier, interrupt types.MinerInterrupter) {
 	var sigs []crypto.Signature
 	for _, sig := range receivedSignatures.Signatures {
 		if !blockSignatures.Exists(sig) {
@@ -193,6 +215,8 @@ func downloadSignatures(receivedSignatures *proto.SignaturesMessage, blockSignat
 
 		case bts := <-ch:
 			cancel()
+
+			interrupt.Interrupt()
 			err := applier.ApplyBytes(bts)
 			if err != nil {
 				zap.S().Error(err)

@@ -49,7 +49,7 @@ func (a *noOpValidator) validateMicroBlock(m *proto.MicroBlock) error {
 }
 
 func TestBlockSequence(t *testing.T) {
-	b := newBlockSequence()
+	b := newBlocks()
 	require.Empty(t, b.Len())
 
 	rs1, err := b.AddBlock(newBlock(sig1, emptySig))
@@ -83,7 +83,7 @@ func TestBlockSequence(t *testing.T) {
 }
 
 func TestStorage(t *testing.T) {
-	s := newStorage(&noOpValidator{})
+	s := newStorage()
 
 	require.NoError(t, s.PushBlock(newBlock(sig1, emptySig)))
 	require.NoError(t, s.PushBlock(newBlock(sig2, sig1)))

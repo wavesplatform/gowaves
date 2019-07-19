@@ -34,11 +34,11 @@ func (a byScore) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 
 type PeerManager interface {
 	Connected(unique string) (peer.Peer, bool)
-	EachConnected(func(peer.Peer, *big.Int))
+	EachConnected(func(peer.Peer, *proto.Score))
 	Banned(unique string) bool
 	AddConnected(p peer.Peer)
 	PeerWithHighestScore() (peer.Peer, *big.Int, bool)
-	UpdateScore(id string, score *big.Int)
+	UpdateScore(id string, score *proto.Score)
 	UpdateKnownPeers([]proto.TCPAddr) error
 	KnownPeers() ([]proto.TCPAddr, error)
 	Close()

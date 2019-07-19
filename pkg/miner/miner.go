@@ -18,7 +18,11 @@ import (
 	"time"
 )
 
-type Miner struct {
+type Miner interface {
+	Mine(ctx context.Context, t proto.Timestamp, k proto.KeyPair, parent crypto.Signature, baseTarget consensus.BaseTarget, GenSignature crypto.Digest)
+}
+
+type DefaultMiner struct {
 	utx       *utxpool.Utx
 	state     state.State
 	peer      peer_manager.PeerManager
@@ -26,8 +30,8 @@ type Miner struct {
 	interrupt *atomic.Bool
 }
 
-func New(utx *utxpool.Utx, state state.State, peer peer_manager.PeerManager, scheduler types.Scheduler) *Miner {
-	return &Miner{
+func NewDefaultMiner(utx *utxpool.Utx, state state.State, peer peer_manager.PeerManager, scheduler types.Scheduler) *DefaultMiner {
+	return &DefaultMiner{
 		scheduler: scheduler,
 		utx:       utx,
 		state:     state,
@@ -36,7 +40,7 @@ func New(utx *utxpool.Utx, state state.State, peer peer_manager.PeerManager, sch
 	}
 }
 
-func (a *Miner) Mine(t proto.Timestamp, k proto.KeyPair, parent crypto.Signature, baseTarget consensus.BaseTarget, GenSignature crypto.Digest) {
+func (a *DefaultMiner) Mine(ctx context.Context, t proto.Timestamp, k proto.KeyPair, parent crypto.Signature, baseTarget consensus.BaseTarget, GenSignature crypto.Digest) {
 	a.interrupt.Store(false)
 	defer a.scheduler.Reschedule()
 	lastKnownBlock, err := a.state.Block(parent)
@@ -94,24 +98,24 @@ func (a *Miner) Mine(t proto.Timestamp, k proto.KeyPair, parent crypto.Signature
 		return
 	}
 
-	ba := node.NewBlockApplier(a.state, a.peer, a.scheduler, a)
+	ba := node.NewBlockApplier(a.state, a.peer, a.scheduler)
 	err = ba.Apply(b)
 	if err != nil {
 		zap.S().Error(err)
 	}
 }
 
-func (a *Miner) Interrupt() {
+func (a *DefaultMiner) Interrupt() {
 	a.interrupt.Store(true)
 }
 
-func Run(ctx context.Context, a *Miner, s *scheduler.SchedulerImpl) {
+func Run(ctx context.Context, a Miner, s *scheduler.SchedulerImpl) {
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case v := <-s.Mine():
-			a.Mine(v.Timestamp, v.KeyPair, v.ParentBlockSignature, v.BaseTarget, v.GenSignature)
+			a.Mine(ctx, v.Timestamp, v.KeyPair, v.ParentBlockSignature, v.BaseTarget, v.GenSignature)
 		}
 	}
 }

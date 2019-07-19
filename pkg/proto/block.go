@@ -38,7 +38,7 @@ type BlockHeader struct {
 	GenPublicKey           crypto.PublicKey `json:"-"`
 	BlockSignature         crypto.Signature `json:"signature"`
 
-	Height uint64 `json:"-"`
+	Height uint64 `json:"height"`
 }
 
 func featuresToBinary(features []int16) ([]byte, error) {

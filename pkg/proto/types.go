@@ -39,10 +39,50 @@ const (
 )
 
 type Timestamp = uint64
-type Schema = byte
+type Score = big.Int
+type Scheme = byte
 type Height = uint64
 
 var jsonNullBytes = []byte{0x6e, 0x75, 0x6c, 0x6c}
+
+type Bytes []byte
+
+func (a Bytes) WriteTo(w io.Writer) (int64, error) {
+	rs, err := w.Write(a)
+	return int64(rs), err
+}
+
+//func (a Bytes) IntoWriteTo() io.WriterTo {
+//	return a
+//}
+
+type WrapWriteTo struct {
+	buf *bytes.Buffer
+}
+
+func (a WrapWriteTo) Read(b []byte) (int, error) {
+	return a.buf.Read(b)
+}
+
+//
+//type InvalidReader struct {
+//	err error
+//}
+//
+//func (a InvalidReader) Read(b []byte) (int, error) {
+//	if a.err != nil {
+//		return 0, a.err
+//	}
+//	return 0, intoReaderError
+//}
+//
+//type BytesIntoReader struct {
+//	Bytes []byte
+//}
+//
+//func (a BytesIntoReader) IntoReader() io.Reader {
+//	return bytes.NewReader(a.Bytes)
+//}
 
 // B58Bytes represents bytes as Base58 string in JSON
 type B58Bytes []byte

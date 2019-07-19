@@ -2,16 +2,20 @@ package main
 
 import (
 	"context"
+	"os"
+	"os/signal"
+	"strings"
+	"syscall"
+	"time"
+
 	"github.com/alecthomas/kong"
 	"github.com/wavesplatform/gowaves/pkg/api"
 	"github.com/wavesplatform/gowaves/pkg/miner"
 	"github.com/wavesplatform/gowaves/pkg/miner/scheduler"
+	"github.com/wavesplatform/gowaves/pkg/miner/utxpool"
+	"github.com/wavesplatform/gowaves/pkg/ng"
 	"github.com/wavesplatform/gowaves/pkg/node/peer_manager"
 	"github.com/wavesplatform/gowaves/pkg/settings"
-	"os"
-	"os/signal"
-	"syscall"
-	"time"
 
 	"github.com/wavesplatform/gowaves/pkg/libs/bytespool"
 	"github.com/wavesplatform/gowaves/pkg/node"
@@ -19,7 +23,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"go.uber.org/zap"
-	"strings"
 )
 
 var version = proto.Version{Major: 0, Minor: 16, Patch: 1}
@@ -74,17 +77,21 @@ func main() {
 	mb := 1024 * 1014
 	pool := bytespool.NewBytesPool(64, mb+(mb/2))
 
+	utx := utxpool.New(10000)
+
 	parent := peer.NewParent()
 
 	peerSpawnerImpl := peer_manager.NewPeerSpawner(pool, parent, conf.WavesNetwork, declAddr, "gowaves", 100500, version)
 
 	peerManager := peer_manager.NewPeerManager(peerSpawnerImpl, state)
 
-	schedulerInstance := scheduler.NewScheduler(state, nil, nil)
+	scheduler := scheduler.NewScheduler(state, nil, nil)
 
 	mine := miner.NoOpMiner()
 
-	n := node.NewNode(state, peerManager, declAddr, schedulerInstance, mine)
+	ngState := ng.NewState(node.NewBlockApplier(state, peerManager, scheduler), state)
+	ngRuntime := ng.NewRuntime(peerManager, ngState, scheduler)
+	n := node.NewNode(state, peerManager, declAddr, scheduler, mine, utx, ngRuntime)
 
 	go node.RunNode(ctx, n, parent)
 
@@ -96,7 +103,7 @@ func main() {
 	}
 
 	// TODO hardcore
-	app, err := api.NewApp("integration-test-rest-api", n, schedulerInstance)
+	app, err := api.NewApp("integration-test-rest-api", state, peerManager, scheduler, utx)
 	if err != nil {
 		zap.S().Error(err)
 		cancel()

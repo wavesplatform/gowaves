@@ -45,7 +45,7 @@ type FunctionalitySettings struct {
 	MaxTxTimeBackOffset    uint64
 	MaxTxTimeForwardOffset uint64
 
-	AddressSchemeCharacter proto.Schema
+	AddressSchemeCharacter proto.Scheme
 
 	AverageBlockDelaySeconds uint64
 	// Configurable.

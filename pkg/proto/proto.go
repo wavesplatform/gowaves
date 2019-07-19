@@ -63,6 +63,16 @@ func (h *Header) MarshalBinary() ([]byte, error) {
 	return data, nil
 }
 
+func (h *Header) WriteTo(w io.Writer) (int64, error) {
+	buf := make([]byte, 17)
+	n := h.Copy(buf)
+	rs, err := w.Write(buf[:n])
+	if err != nil {
+		return 0, err
+	}
+	return int64(rs), nil
+}
+
 func (h *Header) HeaderLength() uint32 {
 	if h.PayloadLength > 0 {
 		return HeaderSizeWithPayload
@@ -1181,6 +1191,20 @@ func (m *BlockMessage) MarshalBinary() ([]byte, error) {
 	}
 	hdr = append(hdr, m.BlockBytes...)
 	return hdr, nil
+}
+
+func MakeHeader(contentID uint8, payload []byte) (Header, error) {
+	var h Header
+	h.Length = MaxHeaderLength + uint32(len(payload)) - 4
+	h.Magic = headerMagic
+	h.ContentID = contentID
+	h.PayloadLength = uint32(len(payload))
+	dig, err := crypto.FastHash([]byte{})
+	if err != nil {
+		return Header{}, err
+	}
+	copy(h.PayloadCsum[:], dig[:4])
+	return h, nil
 }
 
 // UnmarshalBinary decodes BlockMessage from binary from
