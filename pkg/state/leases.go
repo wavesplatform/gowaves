@@ -63,6 +63,7 @@ func newLeases(db keyvalue.IterableKeyVal, stateDB *stateDB, hs *historyStorage)
 }
 
 func (l *leases) cancelLeases(bySenders map[proto.Address]struct{}) error {
+	// TODO: this action can not be rolled back now, do we need it?
 	leaseIter, err := l.db.NewKeyIterator([]byte{leaseKeyPrefix})
 	if err != nil {
 		return errors.Errorf("failed to create key iterator to cancel leases: %v\n", err)
@@ -129,7 +130,7 @@ func (l *leases) validLeaseIns() (map[proto.Address]int64, error) {
 			return nil, errors.Errorf("failed to unmarshal lease: %v\n", err)
 		}
 		if lease.isActive {
-			leaseIns[lease.recipient] = int64(lease.leaseAmount)
+			leaseIns[lease.recipient] += int64(lease.leaseAmount)
 		}
 	}
 	return leaseIns, nil

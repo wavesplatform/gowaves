@@ -135,6 +135,7 @@ func (a *aliases) addrByAlias(aliasStr string, filter bool) (*proto.Address, err
 }
 
 func (a *aliases) disableStolenAliases() error {
+	// TODO: this action can not be rolled back now, do we need it?
 	iter, err := a.db.NewKeyIterator([]byte{aliasKeyPrefix})
 	if err != nil {
 		return err

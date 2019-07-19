@@ -100,6 +100,7 @@ func newBalances(db keyvalue.IterableKeyVal, stateDB *stateDB, hs *historyStorag
 }
 
 func (s *balances) cancelAllLeases() error {
+	// TODO: this action can not be rolled back now, do we need it?
 	iter, err := s.db.NewKeyIterator([]byte{wavesBalanceKeyPrefix})
 	if err != nil {
 		return err
@@ -127,6 +128,7 @@ func (s *balances) cancelAllLeases() error {
 }
 
 func (s *balances) cancelLeaseOverflows() (map[proto.Address]struct{}, error) {
+	// TODO: this action can not be rolled back now, do we need it?
 	iter, err := s.db.NewKeyIterator([]byte{wavesBalanceKeyPrefix})
 	if err != nil {
 		return nil, err
@@ -162,6 +164,7 @@ func (s *balances) cancelLeaseOverflows() (map[proto.Address]struct{}, error) {
 }
 
 func (s *balances) cancelInvalidLeaseIns(correctLeaseIns map[proto.Address]int64) error {
+	// TODO: this action can not be rolled back now, do we need it?
 	for addr, leaseIn := range correctLeaseIns {
 		k := wavesBalanceKey{addr}
 		r, err := s.wavesRecord(k.bytes(), true)

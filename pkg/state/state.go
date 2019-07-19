@@ -339,6 +339,8 @@ type stateManager struct {
 	verificationGoroutinesNum int
 	// Indicates whether lease cancellations were performed.
 	leasesCl0, leasesCl1, leasesCl2 bool
+	// Indicates that stolen aliases were disabled.
+	disabledStolenAliases bool
 	// The height when last features voting took place.
 	lastVotingHeight uint64
 }
@@ -867,7 +869,7 @@ func (s *stateManager) needToResetStolenAliases(height uint64) (bool, error) {
 			return false, err
 		}
 		if height == dataTxHeight {
-			return true, nil
+			return !s.disabledStolenAliases, nil
 		}
 	}
 	return false, nil
@@ -1021,6 +1023,7 @@ func (s *stateManager) handleBreak(blocksToFinish [][]byte, initialisation bool,
 		if err := s.stor.aliases.disableStolenAliases(); err != nil {
 			return nil, wrapErr(ModificationError, err)
 		}
+		s.disabledStolenAliases = true
 	}
 	return s.addBlocks(blocksToFinish, initialisation)
 }
