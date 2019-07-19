@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"sort"
 	"strings"
 	"testing"
 
@@ -242,7 +243,7 @@ func TestProtocolMarshalling(t *testing.T) {
 	}
 }
 
-func TestTransactionMessage_UnmarshalBinary(t *testing.T) {
+func TestTransactionMessageUnmarshalBinary(t *testing.T) {
 	p := TransactionMessage{
 		Transaction: []byte("transaction"),
 	}
@@ -259,7 +260,7 @@ func TestTransactionMessage_UnmarshalBinary(t *testing.T) {
 	assert.Equal(t, []byte("transaction"), p2.Transaction)
 }
 
-func TestPeerInfo_MarshalJSON(t *testing.T) {
+func TestPeerInfoMarshalJSON(t *testing.T) {
 	p := PeerInfo{
 		Addr: net.ParseIP("8.8.8.8"),
 		Port: 80,
@@ -281,7 +282,7 @@ func TestNewPeerInfoFromString(t *testing.T) {
 	assert.EqualValues(t, 6868, rs.Port)
 }
 
-func TestPeerInfo_UnmarshalJSON(t *testing.T) {
+func TestPeerInfoUnmarshalJSON(t *testing.T) {
 	p := new(PeerInfo)
 	err := json.Unmarshal([]byte(`"/159.65.239.245:6868"`), p)
 	require.Nil(t, err)
@@ -289,7 +290,7 @@ func TestPeerInfo_UnmarshalJSON(t *testing.T) {
 	assert.Equal(t, uint16(6868), p.Port)
 }
 
-func TestPeerInfo_UnmarshalJSON_WithoutSlash(t *testing.T) {
+func TestPeerInfoUnmarshalJSONWithoutSlash(t *testing.T) {
 	p := new(PeerInfo)
 	err := json.Unmarshal([]byte(`"159.65.239.245:6868"`), p)
 	require.Nil(t, err)
@@ -297,7 +298,7 @@ func TestPeerInfo_UnmarshalJSON_WithoutSlash(t *testing.T) {
 	assert.Equal(t, uint16(6868), p.Port)
 }
 
-func TestPeerInfo_UnmarshalJSON_WithoutPort(t *testing.T) {
+func TestPeerInfoUnmarshalJSONWithoutPort(t *testing.T) {
 	p := new(PeerInfo)
 	err := json.Unmarshal([]byte(`"/159.65.239.245"`), p)
 	require.Nil(t, err)
@@ -305,14 +306,14 @@ func TestPeerInfo_UnmarshalJSON_WithoutPort(t *testing.T) {
 	assert.Equal(t, uint16(0), p.Port)
 }
 
-func TestPeerInfo_UnmarshalJSON_NA(t *testing.T) {
+func TestPeerInfoUnmarshalJSONNotAvailable(t *testing.T) {
 	p := new(PeerInfo)
 	err := json.Unmarshal([]byte(`"N/A"`), p)
 	require.Nil(t, err)
 	assert.Equal(t, &PeerInfo{}, p)
 }
 
-func TestHandshake_ReadFrom(t *testing.T) {
+func TestHandshakeReadFrom(t *testing.T) {
 	b := []byte{6, 119, 97, 118, 101, 115, 84, 0, 0, 0, 0, 0, 0, 0, 13, 0, 0, 0, 2, 11, 78, 111, 100, 101, 45, 53, 49, 52, 49, 55, 56, 0, 0, 0, 0, 0, 7, 216, 130, 0, 0, 0, 0 /*timestamp*/, 0, 0, 0, 0, 0, 0, 0, 0}
 	h := Handshake{}
 	_, err := h.ReadFrom(bytes.NewReader(b))
@@ -323,7 +324,7 @@ func TestHandshake_ReadFrom(t *testing.T) {
 	assert.Empty(t, h.DeclaredAddr)
 }
 
-func TestHandshake_ReadFrom2(t *testing.T) {
+func TestHandshakeReadFrom2(t *testing.T) {
 	b := []byte{
 		6, 119, 97, 118, 101, 115, 84, // app name
 		0, 0, 0, 0, 0, 0, 0, 15, 0, 0, 0, 2, // version
@@ -349,7 +350,7 @@ func TestHandshake_ReadFrom2(t *testing.T) {
 	require.Equal(t, b, buf.Bytes())
 }
 
-func TestHandshake_RoundTrip(t *testing.T) {
+func TestHandshakeRoundTrip(t *testing.T) {
 	buf := new(bytes.Buffer)
 
 	h1 := Handshake{
@@ -368,7 +369,7 @@ func TestHandshake_RoundTrip(t *testing.T) {
 	assert.Equal(t, h1, h2)
 }
 
-func TestTransactionMessage_MarshalRoundTrip(t *testing.T) {
+func TestTransactionMessageMarshalRoundTrip(t *testing.T) {
 	bts := []byte{
 		0, 0, 1, 42, // total length
 		18, 52, 86, 120, // magic
@@ -419,4 +420,59 @@ func TestHandshakeTCPAddr_Empty(t *testing.T) {
 	require.True(t, a.Empty())
 	b := NewHandshakeTCPAddr(net.IPv4(127, 0, 0, 1), 10)
 	require.False(t, b.Empty())
+}
+
+func TestHandshakeTCPAddrCastToTCPAddr(t *testing.T) {
+	ha := NewHandshakeTCPAddr(net.IPv4(1, 1, 1, 1), 8080)
+	ca := net.TCPAddr(ha)
+	assert.Equal(t, "1.1.1.1:8080", ca.String())
+	a := net.Addr(&ca)
+	assert.Equal(t, "1.1.1.1:8080", a.String())
+	ta, ok := a.(*net.TCPAddr)
+	assert.True(t, ok)
+	assert.Equal(t, "1.1.1.1:8080", ta.String())
+}
+
+func TestNewVersionFromString(t *testing.T) {
+	v, err := NewVersionFromString("1.2.3")
+	require.NoError(t, err)
+	assert.Equal(t, Version{1, 2, 3}, *v)
+	v, err = NewVersionFromString("1.2")
+	require.NoError(t, err)
+	assert.Equal(t, Version{1, 2, 0}, *v)
+	v, err = NewVersionFromString("1")
+	require.NoError(t, err)
+	assert.Equal(t, Version{1, 0, 0}, *v)
+	_, err = NewVersionFromString("")
+	assert.Error(t, err)
+	_, err = NewVersionFromString("1.2.3.4")
+	assert.Error(t, err)
+	_, err = NewVersionFromString("1234567890.5555555555.9999999999")
+	assert.Error(t, err)
+	_, err = NewVersionFromString("-1234.-4567.-8900")
+	assert.Error(t, err)
+}
+
+func TestVersionsSort(t *testing.T) {
+	versions := []Version{
+		{0, 16, 1},
+		{0, 13, 4},
+		{0, 16, 5},
+		{0, 15, 5},
+		{0, 16, 1},
+		{1, 0, 0},
+		{1, 2, 3},
+	}
+	v := ByVersion(versions)
+	sort.Sort(v)
+	expected := []Version{
+		{0, 13, 4},
+		{0, 15, 5},
+		{0, 16, 1},
+		{0, 16, 1},
+		{0, 16, 5},
+		{1, 0, 0},
+		{1, 2, 3},
+	}
+	assert.Equal(t, expected, []Version(v))
 }

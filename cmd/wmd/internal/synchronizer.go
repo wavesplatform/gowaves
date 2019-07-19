@@ -3,15 +3,15 @@ package internal
 import (
 	"bytes"
 	"context"
+	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/cmd/wmd/internal/data"
 	"github.com/wavesplatform/gowaves/cmd/wmd/internal/state"
-	"github.com/wavesplatform/gowaves/pkg/client"
+	client "github.com/wavesplatform/gowaves/pkg/client/grpc"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
-	"net/http"
-	"net/url"
+	"google.golang.org/grpc"
 	"strings"
 	"time"
 )
@@ -19,8 +19,7 @@ import (
 type Synchronizer struct {
 	interrupt <-chan struct{}
 	done      chan struct{}
-	client    *client.Client
-	log       *zap.SugaredLogger
+	conn      *grpc.ClientConn
 	storage   *state.Storage
 	scheme    byte
 	matcher   crypto.PublicKey
@@ -28,16 +27,16 @@ type Synchronizer struct {
 	lag       int
 }
 
-func NewSynchronizer(interrupt <-chan struct{}, log *zap.SugaredLogger, storage *state.Storage, scheme byte, matcher crypto.PublicKey, node url.URL, interval int, lag int) (*Synchronizer, error) {
-	c, err := client.NewClient(client.Options{BaseUrl: node.String(), Client: &http.Client{}})
+func NewSynchronizer(interrupt <-chan struct{}, storage *state.Storage, scheme byte, matcher crypto.PublicKey, node string, interval int, lag int) (*Synchronizer, error) {
+	conn, err := grpc.Dial(node, grpc.WithInsecure())
 	if err != nil {
 		return nil, errors.Wrapf(err, "Failed to create new synchronizer")
 	}
 	d := time.Duration(interval) * time.Second
 	t := time.NewTicker(d)
-	log.Infof("Synchronization interval set to %v", d)
+	zap.S().Infof("Synchronization interval set to %v", d)
 	done := make(chan struct{})
-	s := Synchronizer{interrupt: interrupt, done: done, client: c, log: log, storage: storage, scheme: scheme, matcher: matcher, ticker: t, lag: lag}
+	s := Synchronizer{interrupt: interrupt, done: done, conn: conn, storage: storage, scheme: scheme, matcher: matcher, ticker: t, lag: lag}
 	go s.run()
 	return &s, nil
 }
@@ -52,7 +51,7 @@ func (s *Synchronizer) run() {
 		select {
 		case <-s.interrupt:
 			s.ticker.Stop()
-			s.log.Info("Shutting down synchronizer...")
+			zap.S().Info("Shutting down synchronizer...")
 			return
 		case <-s.ticker.C:
 			s.synchronize()
@@ -73,57 +72,61 @@ func (s *Synchronizer) synchronize() {
 	rh, err := s.nodeHeight()
 	rh = rh - s.lag
 	if err != nil {
-		s.log.Error("Failed to synchronize with node", err)
+		zap.S().Errorf("Failed to synchronize with node: %v", err)
 		return
 	}
 	lh, err := s.storage.Height()
 	if err != nil {
-		s.log.Errorf("Failed to synchronize with node: %v", err)
+		zap.S().Errorf("Failed to synchronize with node: %v", err)
 		return
 	}
 	if s.interrupted() {
 		return
 	}
 	if rh > lh {
-		s.log.Infof("Local height %d, node height %d", lh, rh)
+		zap.S().Infof("Local height %d, node height %d", lh, rh)
 		ch, err := s.findLastCommonHeight(1, lh)
 		if err != nil {
-			s.log.Errorf("Failed to find last common height: %v", err)
+			zap.S().Errorf("Failed to find last common height: %v", err)
 			return
 		}
 		if ch < lh {
 			rollbackHeight, err := s.storage.SafeRollbackHeight(ch)
 			if err != nil {
-				s.log.Errorf("Failed to get rollback height: %v", err)
+				zap.S().Errorf("Failed to get rollback height: %v", err)
 				return
 			}
-			s.log.Warnf("Rolling back to safe height %d", rollbackHeight)
+			zap.S().Warnf("Rolling back to safe height %d", rollbackHeight)
 			err = s.storage.Rollback(rollbackHeight)
 			if err != nil {
-				s.log.Errorf("Failed to rollback: %v", err)
+				zap.S().Errorf("Failed to rollback: %v", err)
 				return
 			}
 			ch = rollbackHeight - 1
 		}
 		err = s.applyBlocks(ch+1, rh)
 		if err != nil && !strings.Contains(err.Error(), "Invalid status code") {
-			s.log.Errorf("Failed to apply blocks: %v", err)
+			zap.S().Errorf("Failed to apply blocks: %v", err)
 			return
 		}
 	}
 }
 
 func (s *Synchronizer) applyBlocks(start, end int) error {
-	s.log.Infof("Synchronizing %d blocks starting from height %d", end-start+1, start)
+	zap.S().Infof("Synchronizing %d blocks starting from height %d", end-start+1, start)
 	for h := start; h <= end; h++ {
 		if s.interrupted() {
 			return errors.New("synchronization was interrupted")
 		}
-		b, err := s.nodeBlock(h)
+		header, txs, err := s.nodeBlock(h)
 		if err != nil {
 			return err
 		}
-		err = s.applyBlock(h, b.Signature, b.Transactions, int(b.TransactionCount), b.Generator)
+		addr, err := proto.NewAddressFromPublicKey(s.scheme, header.GenPublicKey)
+		if err != nil {
+			return err
+		}
+		err = s.applyBlock(h, header.BlockSignature, txs, int(len(txs)), addr)
 		if err != nil {
 			return err
 		}
@@ -133,22 +136,22 @@ func (s *Synchronizer) applyBlocks(start, end int) error {
 
 var emptySignature = crypto.Signature{}
 
-func (s *Synchronizer) applyBlock(height int, id crypto.Signature, txs client.TransactionsField, count int, miner proto.Address) error {
+func (s *Synchronizer) applyBlock(height int, id crypto.Signature, txs []proto.Transaction, count int, miner proto.Address) error {
 	if bytes.Equal(id[:], emptySignature[:]) {
 		return errors.Errorf("Empty block signature at height: %d", height)
 	}
-	s.log.Infof("Applying block '%s' at %d containing %d transactions", id.String(), height, count)
+	zap.S().Infof("Applying block '%s' at %d containing %d transactions", id.String(), height, count)
 	trades, issues, assets, accounts, aliases, err := s.extractTransactions(txs, miner)
 	if err != nil {
 		return err
 	}
 	err = s.storage.PutBalances(height, id, issues, assets, accounts, aliases)
 	if err != nil {
-		s.log.Errorf("Failed to update state: %s", err.Error())
+		zap.S().Errorf("Failed to update state: %s", err.Error())
 	}
 	err = s.storage.PutTrades(height, id, trades)
 	if err != nil {
-		s.log.Errorf("Failed to update state: %s", err.Error())
+		zap.S().Errorf("Failed to update state: %s", err.Error())
 	}
 	return nil
 }
@@ -156,31 +159,47 @@ func (s *Synchronizer) applyBlock(height int, id crypto.Signature, txs client.Tr
 func (s *Synchronizer) nodeHeight() (int, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-	bh, _, err := s.client.Blocks.Height(ctx)
+
+	c := client.NewBlocksApiClient(s.conn)
+	h, err := c.GetCurrentHeight(ctx, &empty.Empty{}, grpc.EmptyCallOption{})
 	if err != nil {
 		return 0, err
 	}
-	return int(bh.Height), nil
+	return int(h.Value), nil
+}
+
+func (s *Synchronizer) block(height int, full bool) (*client.BlockWithHeight, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	return client.NewBlocksApiClient(s.conn).GetBlock(ctx, &client.BlockRequest{IncludeTransactions: full, Request: &client.BlockRequest_Height{Height: int32(height)}}, grpc.EmptyCallOption{})
 }
 
 func (s *Synchronizer) nodeBlockSignature(height int) (crypto.Signature, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	header, _, err := s.client.Blocks.HeadersAt(ctx, uint64(height))
+	cnv := client.SafeConverter{}
+	res, err := s.block(height, false)
 	if err != nil {
 		return crypto.Signature{}, err
 	}
-	return header.Signature, nil
+	header, err := cnv.BlockHeader(res)
+	if err != nil {
+		return crypto.Signature{}, err
+	}
+	return header.BlockSignature, nil
 }
 
-func (s *Synchronizer) nodeBlock(height int) (*client.Block, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	block, _, err := s.client.Blocks.At(ctx, uint64(height))
+func (s *Synchronizer) nodeBlock(height int) (proto.BlockHeader, []proto.Transaction, error) {
+	cnv := client.SafeConverter{}
+	res, err := s.block(height, true)
 	if err != nil {
-		return nil, err
+		return proto.BlockHeader{}, nil, err
 	}
-	return block, nil
+	header, err := cnv.BlockHeader(res)
+	if err != nil {
+		return proto.BlockHeader{}, nil, err
+	}
+	cnv.Reset()
+	txs, err := cnv.BlockTransactions(res)
+	return header, txs, nil
 }
 
 func (s *Synchronizer) findLastCommonHeight(start, stop int) (int, error) {
@@ -220,7 +239,7 @@ func (s *Synchronizer) equalSignatures(height int) (bool, error) {
 	return bytes.Equal(rbs[:], lbs[:]), nil
 }
 
-func (s *Synchronizer) extractTransactions(txs client.TransactionsField, miner proto.Address) ([]data.Trade, []data.IssueChange, []data.AssetChange, []data.AccountChange, []data.AliasBind, error) {
+func (s *Synchronizer) extractTransactions(txs []proto.Transaction, miner proto.Address) ([]data.Trade, []data.IssueChange, []data.AssetChange, []data.AccountChange, []data.AliasBind, error) {
 	wrapErr := func(err error, transaction string) error {
 		return errors.Wrapf(err, "failed to extract %s transaction", transaction)
 	}
@@ -234,7 +253,7 @@ func (s *Synchronizer) extractTransactions(txs client.TransactionsField, miner p
 	for i, tx := range []proto.Transaction(txs) {
 		switch t := tx.(type) {
 		case *proto.IssueV1:
-			s.log.Debugf("#%d: IssueV1: %v", i, t)
+			zap.S().Debugf("#%d: IssueV1: %v", i, t)
 			ic, ac, err := data.FromIssueV1(s.scheme, *t)
 			if err != nil {
 				return nil, nil, nil, nil, nil, wrapErr(err, "IssueV1")
@@ -243,7 +262,7 @@ func (s *Synchronizer) extractTransactions(txs client.TransactionsField, miner p
 			accountChanges = append(accountChanges, ac)
 
 		case *proto.IssueV2:
-			s.log.Debugf("%d: IssueV2: %v", i, t)
+			zap.S().Debugf("%d: IssueV2: %v", i, t)
 			ic, ac, err := data.FromIssueV2(s.scheme, *t)
 			if err != nil {
 				return nil, nil, nil, nil, nil, wrapErr(err, "IssueV2")
@@ -252,7 +271,7 @@ func (s *Synchronizer) extractTransactions(txs client.TransactionsField, miner p
 			accountChanges = append(accountChanges, ac)
 
 		case *proto.TransferV1:
-			s.log.Debugf("%d: TransferV1: %v", i, t)
+			zap.S().Debugf("%d: TransferV1: %v", i, t)
 			tt := *t
 			if tt.AmountAsset.Present || tt.FeeAsset.Present {
 				u, err := data.FromTransferV1MinerAddress(s.scheme, tt, miner)
@@ -263,7 +282,7 @@ func (s *Synchronizer) extractTransactions(txs client.TransactionsField, miner p
 			}
 
 		case *proto.TransferV2:
-			s.log.Debugf("%d: TransferV2: %v", i, t)
+			zap.S().Debugf("%d: TransferV2: %v", i, t)
 			tt := *t
 			if tt.AmountAsset.Present || tt.FeeAsset.Present {
 				u, err := data.FromTransferV2MinerAddress(s.scheme, tt, miner)
@@ -274,7 +293,7 @@ func (s *Synchronizer) extractTransactions(txs client.TransactionsField, miner p
 			}
 
 		case *proto.ReissueV1:
-			s.log.Debugf("%d: ReissueV1: %v", i, t)
+			zap.S().Debugf("%d: ReissueV1: %v", i, t)
 			as, ac, err := data.FromReissueV1(s.scheme, *t)
 			if err != nil {
 				return nil, nil, nil, nil, nil, wrapErr(err, "ReissueV1")
@@ -283,7 +302,7 @@ func (s *Synchronizer) extractTransactions(txs client.TransactionsField, miner p
 			accountChanges = append(accountChanges, ac)
 
 		case *proto.ReissueV2:
-			s.log.Debugf("%d: ReissueV2: %v", i, t)
+			zap.S().Debugf("%d: ReissueV2: %v", i, t)
 			as, ac, err := data.FromReissueV2(s.scheme, *t)
 			if err != nil {
 				return nil, nil, nil, nil, nil, wrapErr(err, "ReissueV2")
@@ -292,7 +311,7 @@ func (s *Synchronizer) extractTransactions(txs client.TransactionsField, miner p
 			accountChanges = append(accountChanges, ac)
 
 		case *proto.BurnV1:
-			s.log.Debugf("%d: BurnV1: %v", i, t)
+			zap.S().Debugf("%d: BurnV1: %v", i, t)
 			as, ac, err := data.FromBurnV1(s.scheme, *t)
 			if err != nil {
 				return nil, nil, nil, nil, nil, wrapErr(err, "BurnV1")
@@ -301,7 +320,7 @@ func (s *Synchronizer) extractTransactions(txs client.TransactionsField, miner p
 			accountChanges = append(accountChanges, ac)
 
 		case *proto.BurnV2:
-			s.log.Debugf("%d: BurnV2: %v", i, t)
+			zap.S().Debugf("%d: BurnV2: %v", i, t)
 			as, ac, err := data.FromBurnV2(s.scheme, *t)
 			if err != nil {
 				return nil, nil, nil, nil, nil, wrapErr(err, "BurnV2")
@@ -310,7 +329,7 @@ func (s *Synchronizer) extractTransactions(txs client.TransactionsField, miner p
 			accountChanges = append(accountChanges, ac)
 
 		case *proto.ExchangeV1:
-			s.log.Debugf("%d: ExchangeV1: %v", i, t)
+			zap.S().Debugf("%d: ExchangeV1: %v", i, t)
 			tt := *t
 			if bytes.Equal(s.matcher[:], tt.SenderPK[:]) {
 				t, err := data.NewTradeFromExchangeV1(s.scheme, tt)
@@ -326,7 +345,7 @@ func (s *Synchronizer) extractTransactions(txs client.TransactionsField, miner p
 			accountChanges = append(accountChanges, ac...)
 
 		case *proto.ExchangeV2:
-			s.log.Debugf("%d: ExchangeV2: %v", i, t)
+			zap.S().Debugf("%d: ExchangeV2: %v", i, t)
 			tt := *t
 			if bytes.Equal(s.matcher[:], tt.SenderPK[:]) {
 				t, err := data.NewTradeFromExchangeV2(s.scheme, tt)
@@ -342,11 +361,11 @@ func (s *Synchronizer) extractTransactions(txs client.TransactionsField, miner p
 			accountChanges = append(accountChanges, ac...)
 
 		case *proto.SponsorshipV1:
-			s.log.Debugf("%d: SponsorshipV1: %v", i, t)
+			zap.S().Debugf("%d: SponsorshipV1: %v", i, t)
 			assetChanges = append(assetChanges, data.FromSponsorshipV1(*t))
 
 		case *proto.CreateAliasV1:
-			s.log.Debugf("%d: CreateAliasV1: %v", i, t)
+			zap.S().Debugf("%d: CreateAliasV1: %v", i, t)
 			b, err := data.FromCreateAliasV1(s.scheme, *t)
 			if err != nil {
 				return nil, nil, nil, nil, nil, wrapErr(err, "CreateAliasV1")
@@ -354,7 +373,7 @@ func (s *Synchronizer) extractTransactions(txs client.TransactionsField, miner p
 			binds = append(binds, b)
 
 		case *proto.CreateAliasV2:
-			s.log.Debugf("%d: CreateAliasV2: %v", i, t)
+			zap.S().Debugf("%d: CreateAliasV2: %v", i, t)
 			b, err := data.FromCreateAliasV2(s.scheme, *t)
 			if err != nil {
 				return nil, nil, nil, nil, nil, wrapErr(err, "CreateAliasV2")
@@ -362,7 +381,7 @@ func (s *Synchronizer) extractTransactions(txs client.TransactionsField, miner p
 			binds = append(binds, b)
 
 		case *proto.MassTransferV1:
-			s.log.Debugf("%d: MassTransferV1: %v", i, t)
+			zap.S().Debugf("%d: MassTransferV1: %v", i, t)
 			tt := *t
 			if tt.Asset.Present {
 				ac, err := data.FromMassTransferV1(s.scheme, tt)
@@ -381,9 +400,9 @@ func (s *Synchronizer) extractTransactions(txs client.TransactionsField, miner p
 		case *proto.DataV1:
 		case *proto.SetScriptV1:
 		case *proto.SetAssetScriptV1:
-
+		case *proto.InvokeScriptV1:
 		default:
-			s.log.Warnf("%d: Unknown transaction type", i)
+			zap.S().Warnf("%d: Unknown transaction type", i)
 		}
 	}
 	return trades, issueChanges, assetChanges, accountChanges, binds, nil

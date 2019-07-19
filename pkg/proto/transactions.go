@@ -84,12 +84,14 @@ var (
 
 // Transaction is a set of common transaction functions.
 type Transaction interface {
-	GetID() []byte
+	GetTypeVersion() TransactionTypeVersion
+	GetID() ([]byte, error)
 	Valid() (bool, error)
 	MarshalBinary() ([]byte, error)
 	UnmarshalBinary([]byte) error
 	GetFee() uint64
 	GetTimestamp() uint64
+	GenerateID()
 }
 
 func BytesToTransaction(tx []byte) (Transaction, error) {
@@ -108,7 +110,7 @@ func BytesToTransaction(tx []byte) (Transaction, error) {
 		if err := transaction.UnmarshalBinary(tx); err != nil {
 			return nil, errors.Wrap(err, "failed to unmarshal transaction")
 		}
-		return Transaction(transaction), nil
+		return transaction, nil
 	} else {
 		transactionType, ok := bytesToTransactionsV1[TransactionType(tx[0])]
 		if !ok {
@@ -242,8 +244,26 @@ type Genesis struct {
 	Amount    uint64            `json:"amount"`
 }
 
-func (tx Genesis) GetID() []byte {
-	return tx.ID.Bytes()
+func (tx Genesis) GetTypeVersion() TransactionTypeVersion {
+	return TransactionTypeVersion{tx.Type, 1}
+}
+
+func (tx *Genesis) GenerateID() {
+	if tx.ID == nil {
+		body, err := tx.bodyMarshalBinary()
+		if err != nil {
+			panic(err.Error())
+		}
+		id := tx.generateBodyHash(body)
+		tx.ID = &id
+	}
+}
+
+func (tx Genesis) GetID() ([]byte, error) {
+	if tx.ID == nil {
+		return nil, errors.New("tx ID is not set\n")
+	}
+	return tx.ID.Bytes(), nil
 }
 
 func (tx Genesis) GetFee() uint64 {
@@ -298,21 +318,23 @@ func (tx *Genesis) bodyUnmarshalBinary(data []byte) error {
 	return nil
 }
 
+func (tx *Genesis) generateBodyHash(body []byte) crypto.Signature {
+	d := make([]byte, len(body)+3)
+	copy(d[3:], body)
+	h := crypto.MustFastHash(d)
+	var s crypto.Signature
+	copy(s[0:], h[:])
+	copy(s[crypto.DigestSize:], h[:])
+	return s
+}
+
 //GenerateSigID calculates hash of the transaction and use it as an ID. Also doubled hash is used as a signature.
 func (tx *Genesis) GenerateSigID() error {
 	b, err := tx.bodyMarshalBinary()
 	if err != nil {
 		return errors.Wrap(err, "failed to generate signature of Genesis transaction")
 	}
-	d := make([]byte, len(b)+3)
-	copy(d[3:], b)
-	h, err := crypto.FastHash(d)
-	if err != nil {
-		return errors.Wrap(err, "failed to generate signature of Genesis transaction")
-	}
-	var s crypto.Signature
-	copy(s[0:], h[:])
-	copy(s[crypto.DigestSize:], h[:])
+	s := tx.generateBodyHash(b)
 	tx.ID = &s
 	tx.Signature = &s
 	return nil
@@ -330,7 +352,7 @@ func (tx *Genesis) MarshalBinary() ([]byte, error) {
 //UnmarshalBinary reads transaction values from the slice of bytes.
 func (tx *Genesis) UnmarshalBinary(data []byte) error {
 	if l := len(data); l != genesisBodyLen {
-		return errors.Errorf("incorrect data lenght for Genesis transaction, expected %d, received %d", genesisBodyLen, l)
+		return errors.Errorf("incorrect data length for Genesis transaction, expected %d, received %d", genesisBodyLen, l)
 	}
 	if data[0] != byte(GenesisTransaction) {
 		return errors.Errorf("incorrect transaction type %d for Genesis transaction", data[0])
@@ -359,8 +381,27 @@ type Payment struct {
 	Timestamp uint64            `json:"timestamp"`
 }
 
-func (tx Payment) GetID() []byte {
-	return tx.ID.Bytes()
+func (tx Payment) GetTypeVersion() TransactionTypeVersion {
+	return TransactionTypeVersion{tx.Type, tx.Version}
+}
+
+func (tx *Payment) GenerateID() {
+	if tx.ID == nil {
+		buf := tx.bodyMarshalBinaryBuffer()
+		err := tx.bodyMarshalBinary(buf)
+		if err != nil {
+			panic(err.Error())
+		}
+		id := tx.generateBodyHash(buf)
+		tx.ID = &id
+	}
+}
+
+func (tx Payment) GetID() ([]byte, error) {
+	if tx.ID == nil {
+		return nil, errors.New("tx ID is not set\n")
+	}
+	return tx.ID.Bytes(), nil
 }
 
 func (tx Payment) GetFee() uint64 {
@@ -430,6 +471,16 @@ func (tx *Payment) bodyUnmarshalBinary(data []byte) error {
 	return nil
 }
 
+func (tx *Payment) generateBodyHash(body []byte) crypto.Signature {
+	d := make([]byte, len(body)+3)
+	copy(d[3:], body)
+	h := crypto.MustFastHash(d)
+	var s crypto.Signature
+	copy(s[0:], h[:])
+	copy(s[crypto.DigestSize:], h[:])
+	return s
+}
+
 //Sign calculates transaction signature and set it as an ID.
 func (tx *Payment) Sign(secretKey crypto.SecretKey) error {
 	b := tx.bodyMarshalBinaryBuffer()
@@ -440,7 +491,8 @@ func (tx *Payment) Sign(secretKey crypto.SecretKey) error {
 	d := make([]byte, len(b)+3)
 	copy(d[3:], b)
 	s := crypto.Sign(secretKey, d)
-	tx.ID = &s
+	id := tx.generateBodyHash(b)
+	tx.ID = &id
 	tx.Signature = &s
 	return nil
 }
@@ -810,19 +862,6 @@ func (r *Reissue) unmarshalBinary(data []byte) error {
 	return nil
 }
 
-type Exchange interface {
-	GetID() []byte
-	GetSenderPK() crypto.PublicKey
-	GetBuyOrder() (OrderBody, error)
-	GetSellOrder() (OrderBody, error)
-	GetPrice() uint64
-	GetAmount() uint64
-	GetBuyMatcherFee() uint64
-	GetSellMatcherFee() uint64
-	GetFee() uint64
-	GetTimestamp() uint64
-}
-
 type Burn struct {
 	SenderPK  crypto.PublicKey `json:"senderPublicKey"`
 	AssetID   crypto.Digest    `json:"assetId"`
@@ -881,6 +920,19 @@ func (b *Burn) unmarshalBinary(data []byte) error {
 	data = data[8:]
 	b.Timestamp = binary.BigEndian.Uint64(data)
 	return nil
+}
+
+type Exchange interface {
+	GetID() ([]byte, error)
+	GetSenderPK() crypto.PublicKey
+	GetBuyOrder() (OrderBody, error)
+	GetSellOrder() (OrderBody, error)
+	GetPrice() uint64
+	GetAmount() uint64
+	GetBuyMatcherFee() uint64
+	GetSellMatcherFee() uint64
+	GetFee() uint64
+	GetTimestamp() uint64
 }
 
 type Lease struct {

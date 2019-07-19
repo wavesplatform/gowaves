@@ -30,6 +30,15 @@ func (d Digest) String() string {
 	return base58.Encode(d[:])
 }
 
+func (d Digest) ShortString() string {
+	str := base58.Encode(d[:])
+	sb := new(strings.Builder)
+	sb.WriteString(str[:6])
+	sb.WriteRune(0x2026) //22ef
+	sb.WriteString(str[len(str)-6:])
+	return sb.String()
+}
+
 func (d Digest) Bytes() []byte {
 	out := make([]byte, len(d))
 	copy(out, d[:])
@@ -37,7 +46,7 @@ func (d Digest) Bytes() []byte {
 }
 
 func (d Digest) MarshalBinary() ([]byte, error) {
-	b := make([]byte, 0, DigestSize)
+	b := make([]byte, DigestSize)
 	copy(b, d[:])
 	return b, nil
 }
@@ -87,7 +96,7 @@ func MustDigestFromBase58(s string) Digest {
 type SecretKey [SecretKeySize]byte
 
 func (k SecretKey) MarshalBinary() ([]byte, error) {
-	b := make([]byte, 0, SecretKeySize)
+	b := make([]byte, SecretKeySize)
 	copy(b, k[:])
 	return b, nil
 }
@@ -130,7 +139,7 @@ func NewSecretKeyFromBase58(s string) (SecretKey, error) {
 type PublicKey [PublicKeySize]byte
 
 func (k PublicKey) MarshalBinary() ([]byte, error) {
-	b := make([]byte, 0, PublicKeySize)
+	b := make([]byte, PublicKeySize)
 	copy(b, k[:])
 	return b, nil
 }
@@ -191,8 +200,17 @@ func (s Signature) String() string {
 	return base58.Encode(s[:])
 }
 
+func (s Signature) ShortString() string {
+	str := base58.Encode(s[:])
+	sb := new(strings.Builder)
+	sb.WriteString(str[:6])
+	sb.WriteRune(0x2026) //22ef
+	sb.WriteString(str[len(str)-6:])
+	return sb.String()
+}
+
 func (s Signature) MarshalBinary() ([]byte, error) {
-	b := make([]byte, 0, SignatureSize)
+	b := make([]byte, SignatureSize)
 	copy(b, s[:])
 	return b, nil
 }
@@ -262,6 +280,14 @@ func FastHash(data []byte) (Digest, error) {
 	h.Write(data)
 	h.Sum(d[:0])
 	return d, nil
+}
+
+func MustFastHash(data []byte) Digest {
+	d, err := FastHash(data)
+	if err != nil {
+		panic(err.Error())
+	}
+	return d
 }
 
 func SecureHash(data []byte) (Digest, error) {
@@ -437,7 +463,7 @@ func array32FromBase58(s, name string) ([32]byte, error) {
 		return r, err
 	}
 	if l := len(b); l != 32 {
-		return r, fmt.Errorf("incorrect %s lenght %d, expected %d", name, l, 32)
+		return r, fmt.Errorf("incorrect %s length %d, expected %d", name, l, 32)
 	}
 	copy(r[:], b[:32])
 	return r, nil
@@ -450,7 +476,7 @@ func array64FromBase58(s, name string) ([64]byte, error) {
 		return r, err
 	}
 	if l := len(b); l != 64 {
-		return r, fmt.Errorf("incorrect %s lenght %d, expected %d", name, l, 64)
+		return r, fmt.Errorf("incorrect %s length %d, expected %d", name, l, 64)
 	}
 	copy(r[:], b[:64])
 	return r, nil

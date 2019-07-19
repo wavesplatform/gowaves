@@ -17,14 +17,13 @@ import (
 
 type Importer struct {
 	interruptChannel <-chan struct{}
-	log              *zap.SugaredLogger
 	storage          *state.Storage
 	scheme           byte
 	matcher          crypto.PublicKey
 }
 
-func NewImporter(interrupt <-chan struct{}, log *zap.SugaredLogger, scheme byte, storage *state.Storage, matcher crypto.PublicKey) *Importer {
-	return &Importer{interruptChannel: interrupt, log: log, scheme: scheme, storage: storage, matcher: matcher}
+func NewImporter(interrupt <-chan struct{}, scheme byte, storage *state.Storage, matcher crypto.PublicKey) *Importer {
+	return &Importer{interruptChannel: interrupt, scheme: scheme, storage: storage, matcher: matcher}
 }
 
 type task struct {
@@ -48,7 +47,7 @@ func (im *Importer) Import(n string) error {
 
 	defer func() {
 		elapsed := time.Since(start)
-		im.log.Infof("Import took %s", elapsed)
+		zap.S().Infof("Import took %s", elapsed)
 	}()
 
 	f, err := os.Open(n)
@@ -58,7 +57,7 @@ func (im *Importer) Import(n string) error {
 	defer func() {
 		err = f.Close()
 		if err != nil {
-			im.log.Errorf("Failed to close blockchain file: %s", err.Error())
+			zap.S().Errorf("Failed to close blockchain file: %s", err.Error())
 		}
 	}()
 
@@ -66,7 +65,7 @@ func (im *Importer) Import(n string) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to get file info")
 	}
-	im.log.Infof("Importing blockchain file '%s' of size %d bytes", n, st.Size())
+	zap.S().Infof("Importing blockchain file '%s' of size %d bytes", n, st.Size())
 
 	tasks := im.readBlocks(f)
 
@@ -75,32 +74,32 @@ func (im *Importer) Import(n string) error {
 	for r := range im.worker(tasks) {
 		select {
 		case <-im.interruptChannel:
-			im.log.Errorf("Aborted")
+			zap.S().Errorf("Aborted")
 			break
 		default:
 			if r.error != nil {
-				im.log.Errorf("Failed to collect transactions for block at height %d: %s", r.height, r.error.Error())
+				zap.S().Errorf("Failed to collect transactions for block at height %d: %s", r.height, r.error.Error())
 				break
 			}
 			err := im.storage.PutBalances(r.height, r.id, r.issues, r.assets, r.accounts, r.aliases)
 			if err != nil {
-				im.log.Errorf("Failed to update state: %s", err.Error())
+				zap.S().Errorf("Failed to update state: %s", err.Error())
 			}
 			err = im.storage.PutTrades(r.height, r.id, r.trades)
 			if err != nil {
-				im.log.Errorf("Failed to update state: %s", err.Error())
+				zap.S().Errorf("Failed to update state: %s", err.Error())
 			}
 			c := len(r.trades)
 			total += c
 			th := total / 10000
 			if th > thousands {
-				im.log.Infof("Imported %d transactions at height %d so far", total, r.height)
+				zap.S().Infof("Imported %d transactions at height %d so far", total, r.height)
 				thousands = th
 			}
-			im.log.Debugf("Collected %d transaction at height %d, total transactions so far %d", c, r.height, total)
+			zap.S().Debugf("Collected %d transaction at height %d, total transactions so far %d", c, r.height, total)
 		}
 	}
-	im.log.Infof("Total exchange transactions count: %d", total)
+	zap.S().Infof("Total exchange transactions count: %d", total)
 	return nil
 }
 
@@ -115,7 +114,7 @@ func (im *Importer) readBlocks(f io.Reader) <-chan task {
 		for {
 			select {
 			case <-im.interruptChannel:
-				im.log.Warnf("Block reading aborted")
+				zap.S().Warnf("Block reading aborted")
 				return
 			default:
 				h++
@@ -123,37 +122,37 @@ func (im *Importer) readBlocks(f io.Reader) <-chan task {
 				_, err := io.ReadFull(r, sb)
 				if err != nil {
 					if err != io.EOF {
-						im.log.Errorf("Unable to read data size: %s", err.Error())
+						zap.S().Errorf("Unable to read data size: %s", err.Error())
 						return
 					}
-					im.log.Debug("EOF received while reading size")
+					zap.S().Debug("EOF received while reading size")
 					return
 				}
 
 				s := binary.BigEndian.Uint32(sb)
-				im.log.Debugf("Size: %d", s)
+				zap.S().Debugf("Size: %d", s)
 				bb := buf[:s]
 				_, err = io.ReadFull(r, bb)
 				if err != nil {
 					if err != io.EOF {
-						im.log.Errorf("Unable to read block: %s", err.Error())
+						zap.S().Errorf("Unable to read block: %s", err.Error())
 						return
 					}
-					im.log.Debug("EOF received while reading block")
+					zap.S().Debug("EOF received while reading block")
 					return
 				}
 				err = t.block.UnmarshalBinary(bb)
 				if err != nil {
-					im.log.Errorf("Failed to unmarshal block: %s", err.Error())
+					zap.S().Errorf("Failed to unmarshal block: %s", err.Error())
 					return
 				}
 				if !crypto.Verify(t.block.GenPublicKey, t.block.BlockSignature, bb[:len(bb)-crypto.SignatureSize]) {
-					im.log.Errorf("Block %s has invalid signature. Aborting.", t.block.BlockSignature.String())
+					zap.S().Errorf("Block %s has invalid signature. Aborting.", t.block.BlockSignature.String())
 					return
 				}
 				blockExists, err := im.storage.HasBlock(h, t.block.BlockSignature)
 				if err != nil {
-					im.log.Errorf("Failed to check block existence: %s", err.Error())
+					zap.S().Errorf("Failed to check block existence: %s", err.Error())
 					return
 				}
 				if !blockExists {

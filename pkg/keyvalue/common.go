@@ -40,3 +40,7 @@ type IterableKeyVal interface {
 	KeyValue
 	NewKeyIterator(prefix []byte) (Iterator, error)
 }
+
+type CacheParams struct {
+	Size int
+}

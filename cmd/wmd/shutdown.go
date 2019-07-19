@@ -11,7 +11,7 @@ var (
 	shutdownRequestChannel = make(chan struct{})
 )
 
-func interruptListener(log *zap.SugaredLogger) <-chan struct{} {
+func interruptListener() <-chan struct{} {
 	r := make(chan struct{})
 
 	go func() {
@@ -19,17 +19,17 @@ func interruptListener(log *zap.SugaredLogger) <-chan struct{} {
 		signal.Notify(signals, interruptSignals...)
 		select {
 		case sig := <-signals:
-			log.Infof("Caught signal '%s', shutting down...", sig)
+			zap.S().Infof("Caught signal '%s', shutting down...", sig)
 		case <-shutdownRequestChannel:
-			log.Info("Shutdown requested, shutting down...")
+			zap.S().Info("Shutdown requested, shutting down...")
 		}
 		close(r)
 		for {
 			select {
 			case sig := <-signals:
-				log.Infof("Caught signal '%s' again, already shutting down", sig)
+				zap.S().Infof("Caught signal '%s' again, already shutting down", sig)
 			case <-shutdownRequestChannel:
-				log.Info("Repetitive shutdown request, already shutting down")
+				zap.S().Info("Repetitive shutdown request, already shutting down")
 			}
 		}
 	}()

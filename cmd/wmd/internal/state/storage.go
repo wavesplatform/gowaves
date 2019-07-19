@@ -6,6 +6,7 @@ import (
 	"github.com/wavesplatform/gowaves/cmd/wmd/internal/data"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"go.uber.org/zap"
 	"math"
 	"time"
 )
@@ -238,21 +239,25 @@ func (s *Storage) CandlesRange(amountAsset, priceAsset crypto.Digest, from, to u
 }
 
 func (s *Storage) DayCandle(amountAsset, priceAsset crypto.Digest) (data.Candle, error) {
-	sts := uint64(time.Now().Unix() * 1000)
-	ttf := data.TimeFrameFromTimestampMS(sts)
-	ftf := data.ScaleTimeFrame(ttf, 288)
+	now := uint64(time.Now().Unix() * 1000)
+	ttf := data.TimeFrameFromTimestampMS(now)
+	ftf := ttf - 289
+	zap.S().Debugf("DayCandle: %s - %s", time.Unix(int64(data.TimestampMSFromTimeFrame(ftf)/1000), 0), time.Unix(int64(data.TimestampMSFromTimeFrame(ttf)/1000), 0))
 	snapshot, err := s.db.GetSnapshot()
 	if err != nil {
 		return data.Candle{}, err
 	}
 	defer snapshot.Release()
 	cs, err := candles(snapshot, amountAsset, priceAsset, ftf, ttf, math.MaxInt32)
+	zap.S().Debugf("Combining %d candles", len(cs))
 	if err != nil {
 		return data.Candle{}, err
 	}
-	r := data.NewCandleFromTimestamp(data.TimestampMSFromTimeFrame(ftf))
+	r := data.Candle{}
+	zap.S().Debugf("Empty candle: %v", r)
 	for _, c := range cs {
 		r.Combine(c)
+		zap.S().Debugf("Appended candle: %v, with result: %v", c, r)
 	}
 	return r, nil
 }

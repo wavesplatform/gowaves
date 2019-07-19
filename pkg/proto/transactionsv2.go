@@ -39,8 +39,27 @@ type IssueV2 struct {
 	Issue
 }
 
-func (tx IssueV2) GetID() []byte {
-	return tx.ID.Bytes()
+func (tx IssueV2) GetTypeVersion() TransactionTypeVersion {
+	return TransactionTypeVersion{tx.Type, tx.Version}
+}
+
+func (tx *IssueV2) GenerateID() {
+	if tx.ID == nil {
+		body, err := tx.bodyMarshalBinary()
+		if err != nil {
+			panic(err.Error())
+		}
+		id := crypto.MustFastHash(body)
+		tx.ID = &id
+	}
+
+}
+
+func (tx IssueV2) GetID() ([]byte, error) {
+	if tx.ID == nil {
+		return nil, errors.New("tx ID is not set\n")
+	}
+	return tx.ID.Bytes(), nil
 }
 
 //NewUnsignedIssueV2 creates a new IssueV2 transaction with empty Proofs.
@@ -259,8 +278,27 @@ type TransferV2 struct {
 	Transfer
 }
 
-func (tx TransferV2) GetID() []byte {
-	return tx.ID.Bytes()
+func (tx TransferV2) GetTypeVersion() TransactionTypeVersion {
+	return TransactionTypeVersion{tx.Type, tx.Version}
+}
+
+func (tx *TransferV2) GenerateID() {
+	if tx.ID == nil {
+		body, err := tx.BodyMarshalBinary()
+		if err != nil {
+			panic(err.Error())
+		}
+		id := crypto.MustFastHash(body)
+		tx.ID = &id
+	}
+
+}
+
+func (tx TransferV2) GetID() ([]byte, error) {
+	if tx.ID == nil {
+		return nil, errors.New("tx ID is not set\n")
+	}
+	return tx.ID.Bytes(), nil
 }
 
 //NewUnsignedTransferV2 creates new TransferV2 transaction without proofs and ID.
@@ -421,8 +459,27 @@ type ReissueV2 struct {
 	Reissue
 }
 
-func (tx ReissueV2) GetID() []byte {
-	return tx.ID.Bytes()
+func (tx ReissueV2) GetTypeVersion() TransactionTypeVersion {
+	return TransactionTypeVersion{tx.Type, tx.Version}
+}
+
+func (tx *ReissueV2) GenerateID() {
+	if tx.ID == nil {
+		body, err := tx.bodyMarshalBinary()
+		if err != nil {
+			panic(err.Error())
+		}
+		id := crypto.MustFastHash(body)
+		tx.ID = &id
+	}
+
+}
+
+func (tx ReissueV2) GetID() ([]byte, error) {
+	if tx.ID == nil {
+		return nil, errors.New("tx ID is not set\n")
+	}
+	return tx.ID.Bytes(), nil
 }
 
 //NewUnsignedReissueV2 creates new ReissueV2 transaction without signature and ID.
@@ -572,8 +629,27 @@ type BurnV2 struct {
 	Burn
 }
 
-func (tx BurnV2) GetID() []byte {
-	return tx.ID.Bytes()
+func (tx BurnV2) GetTypeVersion() TransactionTypeVersion {
+	return TransactionTypeVersion{tx.Type, tx.Version}
+}
+
+func (tx *BurnV2) GenerateID() {
+	if tx.ID == nil {
+		body, err := tx.bodyMarshalBinary()
+		if err != nil {
+			panic(err.Error())
+		}
+		id := crypto.MustFastHash(body)
+		tx.ID = &id
+	}
+
+}
+
+func (tx BurnV2) GetID() ([]byte, error) {
+	if tx.ID == nil {
+		return nil, errors.New("tx ID is not set\n")
+	}
+	return tx.ID.Bytes(), nil
 }
 
 //NewUnsignedBurnV2 creates new BurnV2 transaction without proofs and ID.
@@ -729,8 +805,27 @@ type ExchangeV2 struct {
 	Timestamp      uint64           `json:"timestamp,omitempty"`
 }
 
-func (tx ExchangeV2) GetID() []byte {
-	return tx.ID.Bytes()
+func (tx ExchangeV2) GetTypeVersion() TransactionTypeVersion {
+	return TransactionTypeVersion{tx.Type, tx.Version}
+}
+
+func (tx *ExchangeV2) GenerateID() {
+	if tx.ID == nil {
+		body, err := tx.bodyMarshalBinary()
+		if err != nil {
+			panic(err.Error())
+		}
+		id := crypto.MustFastHash(body)
+		tx.ID = &id
+	}
+
+}
+
+func (tx ExchangeV2) GetID() ([]byte, error) {
+	if tx.ID == nil {
+		return nil, errors.New("tx ID is not set\n")
+	}
+	return tx.ID.Bytes(), nil
 }
 
 func (tx ExchangeV2) GetSenderPK() crypto.PublicKey {
@@ -854,7 +949,7 @@ func (tx ExchangeV2) Valid() (bool, error) {
 }
 
 func (tx *ExchangeV2) marshalAsOrderV1(order Order) ([]byte, error) {
-	o, ok := order.(OrderV1)
+	o, ok := order.(*OrderV1)
 	if !ok {
 		return nil, errors.New("failed to cast an order with version 1 to OrderV1")
 	}
@@ -871,13 +966,29 @@ func (tx *ExchangeV2) marshalAsOrderV1(order Order) ([]byte, error) {
 }
 
 func (tx *ExchangeV2) marshalAsOrderV2(order Order) ([]byte, error) {
-	o, ok := order.(OrderV2)
+	o, ok := order.(*OrderV2)
 	if !ok {
 		return nil, errors.New("failed to cast an order with version 2 to OrderV2")
 	}
 	b, err := o.MarshalBinary()
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to marshal OrderV2 to bytes")
+	}
+	l := len(b)
+	buf := make([]byte, 4+l)
+	binary.BigEndian.PutUint32(buf, uint32(l))
+	copy(buf[4:], b)
+	return buf, nil
+}
+
+func (tx *ExchangeV2) marshalAsOrderV3(order Order) ([]byte, error) {
+	o, ok := order.(*OrderV3)
+	if !ok {
+		return nil, errors.New("failed to cast an order with version 3 to OrderV3")
+	}
+	b, err := o.MarshalBinary()
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to marshal OrderV3 to bytes")
 	}
 	l := len(b)
 	buf := make([]byte, 4+l)
@@ -895,6 +1006,8 @@ func (tx *ExchangeV2) bodyMarshalBinary() ([]byte, error) {
 		bob, err = tx.marshalAsOrderV1(tx.BuyOrder)
 	case 2:
 		bob, err = tx.marshalAsOrderV2(tx.BuyOrder)
+	case 3:
+		bob, err = tx.marshalAsOrderV3(tx.BuyOrder)
 	default:
 		err = errors.Errorf("invalid BuyOrder version %d", tx.BuyOrder.GetVersion())
 	}
@@ -907,6 +1020,8 @@ func (tx *ExchangeV2) bodyMarshalBinary() ([]byte, error) {
 		sob, err = tx.marshalAsOrderV1(tx.SellOrder)
 	case 2:
 		sob, err = tx.marshalAsOrderV2(tx.SellOrder)
+	case 3:
+		sob, err = tx.marshalAsOrderV3(tx.SellOrder)
 	default:
 		err = errors.Errorf("invalid SellOrder version %d", tx.SellOrder.GetVersion())
 	}
@@ -938,7 +1053,7 @@ func (tx *ExchangeV2) bodyMarshalBinary() ([]byte, error) {
 	return buf, nil
 }
 
-func (tx *ExchangeV2) unmarshalOrder(data []byte) (int, *Order, error) {
+func (tx *ExchangeV2) unmarshalOrder(data []byte) (int, Order, error) {
 	var r Order
 	n := 0
 	ol := binary.BigEndian.Uint32(data)
@@ -946,7 +1061,7 @@ func (tx *ExchangeV2) unmarshalOrder(data []byte) (int, *Order, error) {
 	switch data[n] {
 	case 1:
 		n++
-		var o OrderV1
+		o := new(OrderV1)
 		err := o.UnmarshalBinary(data[n:])
 		if err != nil {
 			return 0, nil, errors.Wrap(err, "failed to unmarshal OrderV1")
@@ -954,17 +1069,25 @@ func (tx *ExchangeV2) unmarshalOrder(data []byte) (int, *Order, error) {
 		n += int(ol)
 		r = o
 	case 2:
-		var o OrderV2
+		o := new(OrderV2)
 		err := o.UnmarshalBinary(data[n:])
 		if err != nil {
 			return 0, nil, errors.Wrap(err, "failed to unmarshal OrderV2")
 		}
 		n += int(ol)
 		r = o
+	case 3:
+		o := new(OrderV3)
+		err := o.UnmarshalBinary(data[n:])
+		if err != nil {
+			return 0, nil, errors.Wrap(err, "failed to unmarshal OrderV3")
+		}
+		n += int(ol)
+		r = o
 	default:
 		return 0, nil, errors.Errorf("unexpected order version %d", data[n])
 	}
-	return n, &r, nil
+	return n, r, nil
 }
 
 func (tx *ExchangeV2) bodyUnmarshalBinary(data []byte) (int, error) {
@@ -990,13 +1113,13 @@ func (tx *ExchangeV2) bodyUnmarshalBinary(data []byte) (int, error) {
 	if err != nil {
 		return 0, errors.Wrap(err, "failed to unmarshal buy order")
 	}
-	tx.BuyOrder = *o
+	tx.BuyOrder = Order(o)
 	n += l
 	l, o, err = tx.unmarshalOrder(data[n:])
 	if err != nil {
 		return 0, errors.Wrap(err, "failed to unmarshal sell order")
 	}
-	tx.SellOrder = *o
+	tx.SellOrder = Order(o)
 	n += l
 	tx.Price = binary.BigEndian.Uint64(data[n:])
 	n += 8
@@ -1093,10 +1216,12 @@ func (tx *ExchangeV2) UnmarshalJSON(data []byte) error {
 	guessOrderVersion := func(version byte) Order {
 		var r Order
 		switch version {
+		case 3:
+			r = new(OrderV3)
 		case 2:
-			r = &OrderV2{}
+			r = new(OrderV2)
 		default:
-			r = &OrderV1{}
+			r = new(OrderV1)
 		}
 		return r
 	}
@@ -1155,8 +1280,27 @@ type LeaseV2 struct {
 	Lease
 }
 
-func (tx LeaseV2) GetID() []byte {
-	return tx.ID.Bytes()
+func (tx LeaseV2) GetTypeVersion() TransactionTypeVersion {
+	return TransactionTypeVersion{tx.Type, tx.Version}
+}
+
+func (tx *LeaseV2) GenerateID() {
+	if tx.ID == nil {
+		body, err := tx.bodyMarshalBinary()
+		if err != nil {
+			panic(err.Error())
+		}
+		id := crypto.MustFastHash(body)
+		tx.ID = &id
+	}
+
+}
+
+func (tx LeaseV2) GetID() ([]byte, error) {
+	if tx.ID == nil {
+		return nil, errors.New("tx ID is not set\n")
+	}
+	return tx.ID.Bytes(), nil
 }
 
 //NewUnsignedLeaseV2 creates new LeaseV1 transaction without signature and ID set.
@@ -1297,8 +1441,27 @@ type LeaseCancelV2 struct {
 	LeaseCancel
 }
 
-func (tx LeaseCancelV2) GetID() []byte {
-	return tx.ID.Bytes()
+func (tx LeaseCancelV2) GetTypeVersion() TransactionTypeVersion {
+	return TransactionTypeVersion{tx.Type, tx.Version}
+}
+
+func (tx *LeaseCancelV2) GenerateID() {
+	if tx.ID == nil {
+		body, err := tx.bodyMarshalBinary()
+		if err != nil {
+			panic(err.Error())
+		}
+		id := crypto.MustFastHash(body)
+		tx.ID = &id
+	}
+
+}
+
+func (tx LeaseCancelV2) GetID() ([]byte, error) {
+	if tx.ID == nil {
+		return nil, errors.New("tx ID is not set\n")
+	}
+	return tx.ID.Bytes(), nil
 }
 
 //NewUnsignedLeaseCancelV2 creates new LeaseCancelV2 transaction structure without a signature and an ID.
@@ -1445,8 +1608,26 @@ type CreateAliasV2 struct {
 	CreateAlias
 }
 
-func (tx CreateAliasV2) GetID() []byte {
-	return tx.ID.Bytes()
+func (tx CreateAliasV2) GetTypeVersion() TransactionTypeVersion {
+	return TransactionTypeVersion{tx.Type, tx.Version}
+}
+
+func (tx *CreateAliasV2) GenerateID() {
+	if tx.ID == nil {
+		id, err := tx.CreateAlias.id()
+		if err != nil {
+			panic(err.Error())
+		}
+		tx.ID = id
+	}
+
+}
+
+func (tx CreateAliasV2) GetID() ([]byte, error) {
+	if tx.ID == nil {
+		return nil, errors.New("tx ID is not set\n")
+	}
+	return tx.ID.Bytes(), nil
 }
 
 func NewUnsignedCreateAliasV2(senderPK crypto.PublicKey, alias Alias, fee, timestamp uint64) *CreateAliasV2 {

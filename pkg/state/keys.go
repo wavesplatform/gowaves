@@ -14,6 +14,8 @@ const (
 	wavesBalanceKeySize = 1 + proto.AddressSize
 	assetBalanceKeySize = 1 + proto.AddressSize + crypto.DigestSize
 
+	aliasKeySize            = 1 + 2 + proto.AliasMaxLength
+	disabledAliasKeySize    = 1 + 2 + proto.AliasMaxLength
 	approvedFeaturesKeySize = 1 + 2
 	votesFeaturesKeySize    = 1 + 2
 
@@ -21,8 +23,15 @@ const (
 	wavesBalanceKeyPrefix byte = iota
 	assetBalanceKeyPrefix
 
-	// Valid block IDs.
-	blockIdKeyPrefix
+	// Unique block num of the last block.
+	lastBlockNumKeyPrefix
+	// BlockID --> unique block number.
+	// Numbers are increasing sequentially.
+	// These numbers are stored in history records instead of long IDs.
+	blockIdToNumKeyPrefix
+	blockNumToIdKeyPrefix
+	// Valid block unique nums.
+	validBlockNumKeyPrefix
 
 	// For block storage.
 	// IDs of blocks and transactions --> offsets in files.
@@ -49,11 +58,15 @@ const (
 
 	// Aliases.
 	aliasKeyPrefix
+	disabledAliasKeyPrefix
 
 	// Features.
 	activatedFeaturesKeyPrefix
 	approvedFeaturesKeyPrefix
 	votesFeaturesKeyPrefix
+
+	// Blocks information (fees for now).
+	blocksInfoKeyPrefix
 )
 
 type wavesBalanceKey struct {
@@ -104,14 +117,36 @@ func (k *assetBalanceKey) unmarshal(data []byte) error {
 	return nil
 }
 
-type blockIdKey struct {
+type blockIdToNumKey struct {
 	blockID crypto.Signature
 }
 
-func (k *blockIdKey) bytes() []byte {
+func (k *blockIdToNumKey) bytes() []byte {
 	buf := make([]byte, 1+crypto.SignatureSize)
-	buf[0] = blockIdKeyPrefix
+	buf[0] = blockIdToNumKeyPrefix
 	copy(buf[1:], k.blockID[:])
+	return buf
+}
+
+type blockNumToIdKey struct {
+	blockNum uint32
+}
+
+func (k *blockNumToIdKey) bytes() []byte {
+	buf := make([]byte, 1+4)
+	buf[0] = blockNumToIdKeyPrefix
+	binary.LittleEndian.PutUint32(buf[1:], k.blockNum)
+	return buf
+}
+
+type validBlockNumKey struct {
+	blockNum uint32
+}
+
+func (k *validBlockNumKey) bytes() []byte {
+	buf := make([]byte, 1+4)
+	buf[0] = validBlockNumKeyPrefix
+	binary.LittleEndian.PutUint32(buf[1:], k.blockNum)
 	return buf
 }
 
@@ -186,10 +221,32 @@ type aliasKey struct {
 }
 
 func (k *aliasKey) bytes() []byte {
-	aliasBytes := []byte(k.alias)
-	buf := make([]byte, 1+len(aliasBytes))
+	buf := make([]byte, aliasKeySize)
 	buf[0] = aliasKeyPrefix
-	copy(buf[1:], aliasBytes[:])
+	proto.PutStringWithUInt16Len(buf[1:], k.alias)
+	return buf
+}
+
+func (k *aliasKey) unmarshal(data []byte) error {
+	if len(data) != aliasKeySize {
+		return errors.New("invalid data size")
+	}
+	var err error
+	k.alias, err = proto.StringWithUInt16Len(data[1:])
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+type disabledAliasKey struct {
+	alias string
+}
+
+func (k *disabledAliasKey) bytes() []byte {
+	buf := make([]byte, disabledAliasKeySize)
+	buf[0] = disabledAliasKeyPrefix
+	proto.PutStringWithUInt16Len(buf[1:], k.alias)
 	return buf
 }
 
@@ -258,4 +315,15 @@ func (k *votesFeaturesKey) unmarshal(data []byte) error {
 		return err
 	}
 	return nil
+}
+
+type blocksInfoKey struct {
+	blockID crypto.Signature
+}
+
+func (k *blocksInfoKey) bytes() []byte {
+	buf := make([]byte, 1+crypto.SignatureSize)
+	buf[0] = blocksInfoKeyPrefix
+	copy(buf[1:], k.blockID[:])
+	return buf
 }

@@ -244,6 +244,18 @@ func BenchmarkSecureHash(b *testing.B) {
 	}
 }
 
+func TestSecretKey_Marshal(t *testing.T) {
+	k := "YoLY4iripseWvtMt29sc89oJnjxzodDgQ9REmEPFHkK"
+	secretKey, err := NewSecretKeyFromBase58(k)
+	require.Nil(t, err)
+	kBytes, err := secretKey.MarshalBinary()
+	require.Nil(t, err)
+	var secretKey1 SecretKey
+	err = secretKey1.UnmarshalBinary(kBytes)
+	require.Nil(t, err)
+	assert.Equal(t, secretKey, secretKey1)
+}
+
 func TestSecretKey_String(t *testing.T) {
 	k := "YoLY4iripseWvtMt29sc89oJnjxzodDgQ9REmEPFHkK"
 	secretKey, err := NewSecretKeyFromBase58(k)
@@ -263,6 +275,18 @@ func TestNewPublicKeyFromBytes(t *testing.T) {
 	assert.Equal(t, pkStr, pk1.String())
 }
 
+func TestPublicKey_Marshal(t *testing.T) {
+	pkStr := "J3pmMgPHKhaTdi74UENsEXfmetxjCGkYdqWW3rphowYa"
+	pk, err := NewPublicKeyFromBase58(pkStr)
+	require.NoError(t, err)
+	pkBytes, err := pk.MarshalBinary()
+	require.Nil(t, err)
+	var pk1 PublicKey
+	err = pk1.UnmarshalBinary(pkBytes)
+	require.Nil(t, err)
+	assert.Equal(t, pk, pk1)
+}
+
 func TestNewSignatureFromBytes(t *testing.T) {
 	sig := "3eT3sT2zYGpsStNPzMCFosJrCjPzyBvMKWRKaD9vrGQwAourFddCjgKfoqQ4ZDkMU24KjK6bUfExjcB9UFkg1GEf"
 	s1, err := NewSignatureFromBase58(sig)
@@ -275,6 +299,18 @@ func TestNewSignatureFromBytes(t *testing.T) {
 	assert.Equal(t, sig, s1.String())
 }
 
+func TestSignature_Marshal(t *testing.T) {
+	sig := "3eT3sT2zYGpsStNPzMCFosJrCjPzyBvMKWRKaD9vrGQwAourFddCjgKfoqQ4ZDkMU24KjK6bUfExjcB9UFkg1GEf"
+	s, err := NewSignatureFromBase58(sig)
+	require.NoError(t, err)
+	sBytes, err := s.MarshalBinary()
+	require.NoError(t, err)
+	var s1 Signature
+	err = s1.UnmarshalBinary(sBytes)
+	require.NoError(t, err)
+	assert.Equal(t, s, s1)
+}
+
 func TestNewDigestFromBytes(t *testing.T) {
 	s := "BXBUNddxTGTQc3G4qHYn5E67SBwMj18zLncUr871iuRD"
 	d, err := NewDigestFromBase58(s)
@@ -284,4 +320,17 @@ func TestNewDigestFromBytes(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, s, d2.String())
+}
+
+func TestDigest_Marshal(t *testing.T) {
+	s := "BXBUNddxTGTQc3G4qHYn5E67SBwMj18zLncUr871iuRD"
+	d, err := NewDigestFromBase58(s)
+	require.NoError(t, err)
+
+	dBytes, err := d.MarshalBinary()
+	require.NoError(t, err)
+	var d1 Digest
+	err = d1.UnmarshalBinary(dBytes)
+	require.NoError(t, err)
+	assert.Equal(t, d, d1)
 }

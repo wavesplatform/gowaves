@@ -15,7 +15,7 @@ import (
 // Data retrievals (e.g. account balances), as well as modifiers (like adding or rolling back blocks)
 // should all be made using this interface.
 type State interface {
-	// Global mutex of state
+	// Global mutex of state.
 	Mutex() *sync.RWMutex
 	// Block getters.
 	Block(blockID crypto.Signature) (*proto.Block, error)
@@ -30,8 +30,8 @@ type State interface {
 	// Height returns current blockchain height.
 	Height() (uint64, error)
 	// Height <---> blockID converters.
-	BlockIDToHeight(blockID crypto.Signature) (proto.Height, error)
-	HeightToBlockID(height proto.Height) (crypto.Signature, error)
+	BlockIDToHeight(blockID crypto.Signature) (uint64, error)
+	HeightToBlockID(height uint64) (crypto.Signature, error)
 	// AccountBalance retrieves balance of address in specific currency, asset is asset's ID.
 	// nil asset = Waves.
 	AccountBalance(addr proto.Address, asset []byte) (uint64, error)
@@ -60,7 +60,7 @@ type State interface {
 	// Get cumulative blocks score at given height.
 	ScoreAtHeight(height uint64) (*big.Int, error)
 	// Get current blockchain score (at top height).
-	CurrentScore() (*proto.Score, error)
+	CurrentScore() (*big.Int, error)
 	// Retrieve current blockchain settings.
 	BlockchainSettings() (*settings.BlockchainSettings, error)
 	// Effective balance by address in given height range.
@@ -106,16 +106,28 @@ func NewState(dataDir string, params StateParams, settings *settings.BlockchainS
 	return newStateManager(dataDir, params, settings)
 }
 
-// StorageParams are storage parameters, they specify lengths of byte offsets for headers and transactions
-// and Bloom Filter's parameters.
-// Use state.DefaultStorageParams() to create default parameters.
 type StorageParams struct {
-	OffsetLen, HeaderOffsetLen int
-	BloomParams                keyvalue.BloomFilterParams
+	OffsetLen       int
+	HeaderOffsetLen int
+	DbParams        keyvalue.KeyValParams
 }
 
 func DefaultStorageParams() StorageParams {
-	return StorageParams{OffsetLen: 8, HeaderOffsetLen: 8, BloomParams: keyvalue.BloomFilterParams{N: 2e8, FalsePositiveProbability: 0.01}}
+	dbParams := keyvalue.KeyValParams{
+		CacheParams: keyvalue.CacheParams{Size: DefaultCacheSize},
+		BloomFilterParams: keyvalue.BloomFilterParams{
+			N:                        DefaultBloomFilterSize,
+			FalsePositiveProbability: DefaultBloomFilterFalsePostiiveProbability,
+		},
+		WriteBuffer:         DefaultWriteBuffer,
+		CompactionTableSize: DefaultCompactionTableSize,
+		CompactionTotalSize: DefaultCompactionTotalSize,
+	}
+	return StorageParams{
+		OffsetLen:       DefaultOffsetLen,
+		HeaderOffsetLen: DefaultHeaderOffsetLen,
+		DbParams:        dbParams,
+	}
 }
 
 // ValidationParams are validation parameters.

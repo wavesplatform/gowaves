@@ -1,8 +1,9 @@
 package state
 
 import (
+	"encoding/binary"
+
 	"github.com/pkg/errors"
-	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 )
 
@@ -19,6 +20,8 @@ const (
 	featureVote
 	approvedFeature
 	activatedFeature
+
+	idSize = 4
 )
 
 var recordSizes = map[blockchainEntity]int{
@@ -36,15 +39,16 @@ type historyStorage struct {
 	db         keyvalue.IterableKeyVal
 	dbBatch    keyvalue.Batch
 	stor       *localStorage
-	rb         *recentBlocks
+	stateDB    *stateDB
+	rw         *blockReadWriter
 	formatters map[blockchainEntity]historyFormatter
 }
 
 func newHistoryStorage(
 	db keyvalue.IterableKeyVal,
 	dbBatch keyvalue.Batch,
+	rw *blockReadWriter,
 	stateDB *stateDB,
-	rb *recentBlocks,
 ) (*historyStorage, error) {
 	stor, err := newLocalStorage()
 	if err != nil {
@@ -52,13 +56,13 @@ func newHistoryStorage(
 	}
 	formatters := make(map[blockchainEntity]historyFormatter)
 	for entity, size := range recordSizes {
-		fmt, err := newHistoryFormatter(size, crypto.SignatureSize, stateDB, rb)
+		fmt, err := newHistoryFormatter(size, idSize, stateDB, rw)
 		if err != nil {
 			return nil, err
 		}
 		formatters[entity] = *fmt
 	}
-	return &historyStorage{db, dbBatch, stor, rb, formatters}, nil
+	return &historyStorage{db, dbBatch, stor, stateDB, rw, formatters}, nil
 }
 
 func (hs *historyStorage) set(entityType blockchainEntity, key, value []byte) error {
@@ -95,6 +99,12 @@ func (hs *historyStorage) getFresh(entityType blockchainEntity, key []byte, filt
 	return fmt.getLatest(history)
 }
 
+func (hs *historyStorage) cleanDbRecord(key []byte) error {
+	// If the history is empty after normalizing, it means that all the records were removed due to rollback.
+	// In this case, it should be removed from the DB as well.
+	return hs.db.Delete(key)
+}
+
 func (hs *historyStorage) get(entityType blockchainEntity, key []byte, filter bool) ([]byte, error) {
 	history, err := hs.db.Get(key)
 	if err != nil {
@@ -109,6 +119,9 @@ func (hs *historyStorage) get(entityType blockchainEntity, key []byte, filter bo
 		return nil, err
 	}
 	if len(history) == 0 {
+		if err := hs.cleanDbRecord(key); err != nil {
+			return nil, err
+		}
 		return nil, errEmptyHist
 	}
 	return fmt.getLatest(history)
@@ -123,9 +136,15 @@ func (hs *historyStorage) combineHistories(key, newHist []byte, fmt historyForma
 	if err != nil {
 		return nil, err
 	}
+	lenBeforeNormalization := len(prevHist)
 	prevHist, err = fmt.normalize(prevHist, filter)
 	if err != nil {
 		return nil, err
+	}
+	if len(prevHist) != lenBeforeNormalization {
+		if err := hs.db.Put(key, prevHist); err != nil {
+			return nil, err
+		}
 	}
 	return append(prevHist, newHist...), nil
 }
@@ -160,11 +179,12 @@ func (hs *historyStorage) recordsInHeightRange(entityType blockchainEntity, key 
 		if err != nil {
 			return nil, err
 		}
-		blockID, err := crypto.NewSignatureFromBytes(idBytes)
+		blockNum := binary.BigEndian.Uint32(idBytes)
+		blockID, err := hs.stateDB.blockNumToId(blockNum)
 		if err != nil {
 			return nil, err
 		}
-		height, err := hs.rb.newBlockIDToHeight(blockID)
+		height, err := hs.rw.newestHeightByBlockID(blockID)
 		if err != nil {
 			return nil, err
 		}

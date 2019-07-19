@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"runtime"
+	"runtime/debug"
 	"runtime/pprof"
 	"time"
 
@@ -14,6 +15,10 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/importer"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/state"
+)
+
+const (
+	MiB = 1024 * 1024
 )
 
 var (
@@ -24,9 +29,10 @@ var (
 	dataDirPath               = flag.String("data-path", "", "Path to directory with previously created state.")
 	nBlocks                   = flag.Int("blocks-number", 1000, "Number of blocks to import.")
 	verificationGoroutinesNum = flag.Int("verification-goroutines-num", runtime.NumCPU()*2, " Number of goroutines that will be run for verification of transactions/blocks signatures.")
+	writeBufferSize           = flag.Int("write-buffer", 16, "Write buffer size in MiB.")
 	// Debug.
-	cpuProfilePath = flag.String("cpuprofile", "", "Write cpu pofile to this file.")
-	memProfilePath = flag.String("memprofile", "", "Write memory pofile to this file.")
+	cpuProfilePath = flag.String("cpuprofile", "", "Write cpu profile to this file.")
+	memProfilePath = flag.String("memprofile", "", "Write memory profile to this file.")
 )
 
 func blockchainSettings() (*settings.BlockchainSettings, error) {
@@ -66,6 +72,9 @@ func main() {
 		defer pprof.StopCPUProfile()
 	}
 
+	// https://godoc.org/github.com/coocood/freecache#NewCache
+	debug.SetGCPercent(20)
+
 	ss, err := blockchainSettings()
 	if err != nil {
 		log.Fatalf("blockchainSettings: %v\n", err)
@@ -80,6 +89,7 @@ func main() {
 	}
 	params := state.DefaultStateParams()
 	params.VerificationGoroutinesNum = *verificationGoroutinesNum
+	params.DbParams.WriteBuffer = *writeBufferSize * MiB
 	st, err := state.NewState(dataDir, params, ss)
 	if err != nil {
 		log.Fatalf("Failed to create state: %v.\n", err)

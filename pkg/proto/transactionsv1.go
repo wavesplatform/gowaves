@@ -36,7 +36,7 @@ const (
 	sponsorshipV1MinLen          = 1 + 1 + 1 + sponsorshipV1BodyLen + proofsMinLen
 	setAssetScriptV1FixedBodyLen = 1 + 1 + 1 + crypto.PublicKeySize + crypto.DigestSize + 8 + 8 + 1
 	setAssetScriptV1MinLen       = 1 + setScriptV1FixedBodyLen + proofsMinLen
-	invokeScriptV1FixedBodyLen   = 1 + 1 + 1 + crypto.PublicKeySize + AddressSize + 8 + 8
+	invokeScriptV1FixedBodyLen   = 1 + 1 + 1 + crypto.PublicKeySize + 8 + 8
 	invokeScriptV1MinLen         = 1 + invokeScriptV1FixedBodyLen + proofsMinLen
 	maxTransfers                 = 100
 	maxEntries                   = 100
@@ -55,8 +55,26 @@ type IssueV1 struct {
 	Issue
 }
 
-func (tx IssueV1) GetID() []byte {
-	return tx.ID.Bytes()
+func (tx IssueV1) GetTypeVersion() TransactionTypeVersion {
+	return TransactionTypeVersion{tx.Type, tx.Version}
+}
+
+func (tx *IssueV1) GenerateID() {
+	if tx.ID == nil {
+		body, err := tx.bodyMarshalBinary()
+		if err != nil {
+			panic(err.Error())
+		}
+		id := crypto.MustFastHash(body)
+		tx.ID = &id
+	}
+}
+
+func (tx IssueV1) GetID() ([]byte, error) {
+	if tx.ID == nil {
+		return nil, errors.New("tx ID is not set\n")
+	}
+	return tx.ID.Bytes(), nil
 }
 
 //NewUnsignedIssueV1 creates new IssueV1 transaction without signature and ID.
@@ -111,11 +129,8 @@ func (tx *IssueV1) Sign(secretKey crypto.SecretKey) error {
 	}
 	s := crypto.Sign(secretKey, b)
 	tx.Signature = &s
-	d, err := crypto.FastHash(b)
-	if err != nil {
-		return errors.Wrap(err, "failed to sign IssueV1 transaction")
-	}
-	tx.ID = &d
+	id := crypto.MustFastHash(b)
+	tx.ID = &id
 	return nil
 }
 
@@ -180,8 +195,26 @@ type TransferV1 struct {
 	Transfer
 }
 
-func (tx TransferV1) GetID() []byte {
-	return tx.ID.Bytes()
+func (tx TransferV1) GetTypeVersion() TransactionTypeVersion {
+	return TransactionTypeVersion{tx.Type, tx.Version}
+}
+
+func (tx *TransferV1) GenerateID() {
+	if tx.ID == nil {
+		body, err := tx.bodyMarshalBinary()
+		if err != nil {
+			panic(err.Error())
+		}
+		id := crypto.MustFastHash(body)
+		tx.ID = &id
+	}
+}
+
+func (tx TransferV1) GetID() ([]byte, error) {
+	if tx.ID == nil {
+		return nil, errors.New("tx ID is not set\n")
+	}
+	return tx.ID.Bytes(), nil
 }
 
 //NewUnsignedTransferV1 creates new TransferV1 transaction without signature and ID.
@@ -305,8 +338,27 @@ type ReissueV1 struct {
 	Reissue
 }
 
-func (tx ReissueV1) GetID() []byte {
-	return tx.ID.Bytes()
+func (tx ReissueV1) GetTypeVersion() TransactionTypeVersion {
+	return TransactionTypeVersion{tx.Type, tx.Version}
+}
+
+func (tx *ReissueV1) GenerateID() {
+	if tx.ID == nil {
+		body, err := tx.bodyMarshalBinary()
+		if err != nil {
+			panic(err.Error())
+		}
+		id := crypto.MustFastHash(body)
+		tx.ID = &id
+	}
+
+}
+
+func (tx ReissueV1) GetID() ([]byte, error) {
+	if tx.ID == nil {
+		return nil, errors.New("tx ID is not set\n")
+	}
+	return tx.ID.Bytes(), nil
 }
 
 //NewUnsignedReissueV1 creates new ReissueV1 transaction without signature and ID.
@@ -429,8 +481,27 @@ type BurnV1 struct {
 	Burn
 }
 
-func (tx BurnV1) GetID() []byte {
-	return tx.ID.Bytes()
+func (tx BurnV1) GetTypeVersion() TransactionTypeVersion {
+	return TransactionTypeVersion{tx.Type, tx.Version}
+}
+
+func (tx *BurnV1) GenerateID() {
+	if tx.ID == nil {
+		body, err := tx.bodyMarshalBinary()
+		if err != nil {
+			panic(err.Error())
+		}
+		id := crypto.MustFastHash(body)
+		tx.ID = &id
+	}
+
+}
+
+func (tx BurnV1) GetID() ([]byte, error) {
+	if tx.ID == nil {
+		return nil, errors.New("tx ID is not set\n")
+	}
+	return tx.ID.Bytes(), nil
 }
 
 //NewUnsignedBurnV1 creates new BurnV1 transaction with no signature and ID.
@@ -551,8 +622,27 @@ type ExchangeV1 struct {
 	Timestamp      uint64            `json:"timestamp,omitempty"`
 }
 
-func (tx ExchangeV1) GetID() []byte {
-	return tx.ID.Bytes()
+func (tx ExchangeV1) GetTypeVersion() TransactionTypeVersion {
+	return TransactionTypeVersion{tx.Type, tx.Version}
+}
+
+func (tx *ExchangeV1) GenerateID() {
+	if tx.ID == nil {
+		body, err := tx.bodyMarshalBinary()
+		if err != nil {
+			panic(err.Error())
+		}
+		id := crypto.MustFastHash(body)
+		tx.ID = &id
+	}
+
+}
+
+func (tx ExchangeV1) GetID() ([]byte, error) {
+	if tx.ID == nil {
+		return nil, errors.New("tx ID is not set\n")
+	}
+	return tx.ID.Bytes(), nil
 }
 
 func (tx ExchangeV1) GetSenderPK() crypto.PublicKey {
@@ -832,8 +922,27 @@ type LeaseV1 struct {
 	Lease
 }
 
-func (tx LeaseV1) GetID() []byte {
-	return tx.ID.Bytes()
+func (tx LeaseV1) GetTypeVersion() TransactionTypeVersion {
+	return TransactionTypeVersion{tx.Type, tx.Version}
+}
+
+func (tx *LeaseV1) GenerateID() {
+	if tx.ID == nil {
+		body, err := tx.bodyMarshalBinary()
+		if err != nil {
+			panic(err.Error())
+		}
+		id := crypto.MustFastHash(body)
+		tx.ID = &id
+	}
+
+}
+
+func (tx LeaseV1) GetID() ([]byte, error) {
+	if tx.ID == nil {
+		return nil, errors.New("tx ID is not set\n")
+	}
+	return tx.ID.Bytes(), nil
 }
 
 //NewUnsignedLeaseV1 creates new LeaseV1 transaction without signature and ID set.
@@ -954,8 +1063,27 @@ type LeaseCancelV1 struct {
 	LeaseCancel
 }
 
-func (tx LeaseCancelV1) GetID() []byte {
-	return tx.ID.Bytes()
+func (tx LeaseCancelV1) GetTypeVersion() TransactionTypeVersion {
+	return TransactionTypeVersion{tx.Type, tx.Version}
+}
+
+func (tx *LeaseCancelV1) GenerateID() {
+	if tx.ID == nil {
+		body, err := tx.bodyMarshalBinary()
+		if err != nil {
+			panic(err.Error())
+		}
+		id := crypto.MustFastHash(body)
+		tx.ID = &id
+	}
+
+}
+
+func (tx LeaseCancelV1) GetID() ([]byte, error) {
+	if tx.ID == nil {
+		return nil, errors.New("tx ID is not set\n")
+	}
+	return tx.ID.Bytes(), nil
 }
 
 //NewUnsignedLeaseCancelV1 creates new LeaseCancelV1 transaction structure without a signature and an ID.
@@ -1071,8 +1199,26 @@ type CreateAliasV1 struct {
 	CreateAlias
 }
 
-func (tx CreateAliasV1) GetID() []byte {
-	return tx.ID.Bytes()
+func (tx CreateAliasV1) GetTypeVersion() TransactionTypeVersion {
+	return TransactionTypeVersion{tx.Type, tx.Version}
+}
+
+func (tx *CreateAliasV1) GenerateID() {
+	if tx.ID == nil {
+		id, err := tx.CreateAlias.id()
+		if err != nil {
+			panic(err.Error())
+		}
+		tx.ID = id
+	}
+
+}
+
+func (tx CreateAliasV1) GetID() ([]byte, error) {
+	if tx.ID == nil {
+		return nil, errors.New("tx ID is not set\n")
+	}
+	return tx.ID.Bytes(), nil
 }
 
 func NewUnsignedCreateAliasV1(senderPK crypto.PublicKey, alias Alias, fee, timestamp uint64) *CreateAliasV1 {
@@ -1243,8 +1389,27 @@ type MassTransferV1 struct {
 	Attachment Attachment          `json:"attachment,omitempty"`
 }
 
-func (tx MassTransferV1) GetID() []byte {
-	return tx.ID.Bytes()
+func (tx MassTransferV1) GetTypeVersion() TransactionTypeVersion {
+	return TransactionTypeVersion{tx.Type, tx.Version}
+}
+
+func (tx *MassTransferV1) GenerateID() {
+	if tx.ID == nil {
+		body, err := tx.bodyMarshalBinary()
+		if err != nil {
+			panic(err.Error())
+		}
+		id := crypto.MustFastHash(body)
+		tx.ID = &id
+	}
+
+}
+
+func (tx MassTransferV1) GetID() ([]byte, error) {
+	if tx.ID == nil {
+		return nil, errors.New("tx ID is not set\n")
+	}
+	return tx.ID.Bytes(), nil
 }
 
 func (tx MassTransferV1) GetFee() uint64 {
@@ -1475,8 +1640,27 @@ type DataV1 struct {
 	Timestamp uint64           `json:"timestamp,omitempty"`
 }
 
-func (tx DataV1) GetID() []byte {
-	return tx.ID.Bytes()
+func (tx DataV1) GetTypeVersion() TransactionTypeVersion {
+	return TransactionTypeVersion{tx.Type, tx.Version}
+}
+
+func (tx *DataV1) GenerateID() {
+	if tx.ID == nil {
+		body, err := tx.BodyMarshalBinary()
+		if err != nil {
+			panic(err.Error())
+		}
+		id := crypto.MustFastHash(body)
+		tx.ID = &id
+	}
+
+}
+
+func (tx DataV1) GetID() ([]byte, error) {
+	if tx.ID == nil {
+		return nil, errors.New("tx ID is not set\n")
+	}
+	return tx.ID.Bytes(), nil
 }
 
 func (tx DataV1) GetFee() uint64 {
@@ -1595,20 +1779,20 @@ func (tx *DataV1) bodyUnmarshalBinary(data []byte) error {
 		if err != nil {
 			return errors.Errorf("failed to extract type of data entry")
 		}
-		switch ValueType(t) {
-		case Integer:
+		switch DataValueType(t) {
+		case DataInteger:
 			var ie IntegerDataEntry
 			err = ie.UnmarshalBinary(data)
 			e = ie
-		case Boolean:
+		case DataBoolean:
 			var be BooleanDataEntry
 			err = be.UnmarshalBinary(data)
 			e = be
-		case Binary:
+		case DataBinary:
 			var be BinaryDataEntry
 			err = be.UnmarshalBinary(data)
 			e = be
-		case String:
+		case DataString:
 			var se StringDataEntry
 			err = se.UnmarshalBinary(data)
 			e = se
@@ -1631,7 +1815,7 @@ func (tx *DataV1) bodyUnmarshalBinary(data []byte) error {
 	return nil
 }
 
-func (tx *DataV1) extractValueType(data []byte) (ValueType, error) {
+func (tx *DataV1) extractValueType(data []byte) (DataValueType, error) {
 	if l := len(data); l < 3 {
 		return 0, errors.Errorf("not enough data to extract ValueType, expected not less than %d, received %d", 3, l)
 	}
@@ -1639,7 +1823,7 @@ func (tx *DataV1) extractValueType(data []byte) (ValueType, error) {
 	if l := len(data); l < int(kl)+2 {
 		return 0, errors.Errorf("not enough data to extract ValueType, expected not less than %d, received %d", kl+2, l)
 	}
-	return ValueType(data[kl+2]), nil
+	return DataValueType(data[kl+2]), nil
 }
 
 //Sign use given secret key to calculate signature of the transaction.
@@ -1736,8 +1920,27 @@ type SetScriptV1 struct {
 	Timestamp uint64           `json:"timestamp,omitempty"`
 }
 
-func (tx SetScriptV1) GetID() []byte {
-	return tx.ID.Bytes()
+func (tx SetScriptV1) GetTypeVersion() TransactionTypeVersion {
+	return TransactionTypeVersion{tx.Type, tx.Version}
+}
+
+func (tx *SetScriptV1) GenerateID() {
+	if tx.ID == nil {
+		body, err := tx.bodyMarshalBinary()
+		if err != nil {
+			panic(err.Error())
+		}
+		id := crypto.MustFastHash(body)
+		tx.ID = &id
+	}
+
+}
+
+func (tx SetScriptV1) GetID() ([]byte, error) {
+	if tx.ID == nil {
+		return nil, errors.New("tx ID is not set\n")
+	}
+	return tx.ID.Bytes(), nil
 }
 
 func (tx SetScriptV1) GetFee() uint64 {
@@ -1927,8 +2130,27 @@ type SponsorshipV1 struct {
 	Timestamp   uint64           `json:"timestamp,omitempty"`
 }
 
-func (tx SponsorshipV1) GetID() []byte {
-	return tx.ID.Bytes()
+func (tx SponsorshipV1) GetTypeVersion() TransactionTypeVersion {
+	return TransactionTypeVersion{tx.Type, tx.Version}
+}
+
+func (tx *SponsorshipV1) GenerateID() {
+	if tx.ID == nil {
+		body, err := tx.bodyMarshalBinary()
+		if err != nil {
+			panic(err.Error())
+		}
+		id := crypto.MustFastHash(body)
+		tx.ID = &id
+	}
+
+}
+
+func (tx SponsorshipV1) GetID() ([]byte, error) {
+	if tx.ID == nil {
+		return nil, errors.New("tx ID is not set\n")
+	}
+	return tx.ID.Bytes(), nil
 }
 
 func (tx SponsorshipV1) GetFee() uint64 {
@@ -2106,8 +2328,27 @@ type SetAssetScriptV1 struct {
 	Timestamp uint64           `json:"timestamp,omitempty"`
 }
 
-func (tx SetAssetScriptV1) GetID() []byte {
-	return tx.ID.Bytes()
+func (tx SetAssetScriptV1) GetTypeVersion() TransactionTypeVersion {
+	return TransactionTypeVersion{tx.Type, tx.Version}
+}
+
+func (tx *SetAssetScriptV1) GenerateID() {
+	if tx.ID == nil {
+		body, err := tx.bodyMarshalBinary()
+		if err != nil {
+			panic(err.Error())
+		}
+		id := crypto.MustFastHash(body)
+		tx.ID = &id
+	}
+
+}
+
+func (tx SetAssetScriptV1) GetID() ([]byte, error) {
+	if tx.ID == nil {
+		return nil, errors.New("tx ID is not set\n")
+	}
+	return tx.ID.Bytes(), nil
 }
 
 func (tx SetAssetScriptV1) GetFee() uint64 {
@@ -2291,22 +2532,40 @@ func (tx *SetAssetScriptV1) UnmarshalBinary(data []byte) error {
 }
 
 type InvokeScriptV1 struct {
-	Type          TransactionType  `json:"type"`
-	Version       byte             `json:"version,omitempty"`
-	ID            *crypto.Digest   `json:"id,omitempty"`
-	Proofs        *ProofsV1        `json:"proofs,omitempty"`
-	ChainID       byte             `json:"-"`
-	SenderPK      crypto.PublicKey `json:"senderPublicKey"`
-	ScriptAddress Address          `json:"dappAddress"`
-	FunctionCall  FunctionCall     `json:"call"`
-	Payments      ScriptPayments   `json:"payment"`
-	FeeAsset      OptionalAsset    `json:"feeAssetId"`
-	Fee           uint64           `json:"fee"`
-	Timestamp     uint64           `json:"timestamp,omitempty"`
+	Type            TransactionType  `json:"type"`
+	Version         byte             `json:"version,omitempty"`
+	ID              *crypto.Digest   `json:"id,omitempty"`
+	Proofs          *ProofsV1        `json:"proofs,omitempty"`
+	ChainID         byte             `json:"-"`
+	SenderPK        crypto.PublicKey `json:"senderPublicKey"`
+	ScriptRecipient Recipient        `json:"dApp"`
+	FunctionCall    FunctionCall     `json:"call"`
+	Payments        ScriptPayments   `json:"payment"`
+	FeeAsset        OptionalAsset    `json:"feeAssetId"`
+	Fee             uint64           `json:"fee"`
+	Timestamp       uint64           `json:"timestamp,omitempty"`
 }
 
-func (tx InvokeScriptV1) GetID() []byte {
-	return tx.ID.Bytes()
+func (tx *InvokeScriptV1) GenerateID() {
+	if tx.ID == nil {
+		body, err := tx.bodyMarshalBinary()
+		if err != nil {
+			panic(err.Error())
+		}
+		id := crypto.MustFastHash(body)
+		tx.ID = &id
+	}
+}
+
+func (tx InvokeScriptV1) GetTypeVersion() TransactionTypeVersion {
+	return TransactionTypeVersion{tx.Type, tx.Version}
+}
+
+func (tx InvokeScriptV1) GetID() ([]byte, error) {
+	if tx.ID == nil {
+		return nil, errors.New("tx ID is not set\n")
+	}
+	return tx.ID.Bytes(), nil
 }
 
 func (tx InvokeScriptV1) GetFee() uint64 {
@@ -2318,18 +2577,18 @@ func (tx InvokeScriptV1) GetTimestamp() uint64 {
 }
 
 //NewUnsignedSetAssetScriptV1 creates new unsigned SetAssetScriptV1 transaction.
-func NewUnsignedInvokeScriptV1(chain byte, senderPK crypto.PublicKey, scriptAddress Address, call FunctionCall, payments ScriptPayments, feeAsset OptionalAsset, fee, timestamp uint64) *InvokeScriptV1 {
+func NewUnsignedInvokeScriptV1(chain byte, senderPK crypto.PublicKey, scriptRecipient Recipient, call FunctionCall, payments ScriptPayments, feeAsset OptionalAsset, fee, timestamp uint64) *InvokeScriptV1 {
 	return &InvokeScriptV1{
-		Type:          InvokeScriptTransaction,
-		Version:       1,
-		ChainID:       chain,
-		SenderPK:      senderPK,
-		ScriptAddress: scriptAddress,
-		FunctionCall:  call,
-		Payments:      payments,
-		FeeAsset:      feeAsset,
-		Fee:           fee,
-		Timestamp:     timestamp,
+		Type:            InvokeScriptTransaction,
+		Version:         1,
+		ChainID:         chain,
+		SenderPK:        senderPK,
+		ScriptRecipient: scriptRecipient,
+		FunctionCall:    call,
+		Payments:        payments,
+		FeeAsset:        feeAsset,
+		Fee:             fee,
+		Timestamp:       timestamp,
 	}
 }
 
@@ -2372,7 +2631,7 @@ func (tx InvokeScriptV1) Valid() (bool, error) {
 
 func (tx *InvokeScriptV1) bodyMarshalBinary() ([]byte, error) {
 	p := 0
-	buf := make([]byte, invokeScriptV1FixedBodyLen+tx.FunctionCall.binarySize()+tx.Payments.binarySize()+tx.FeeAsset.binarySize())
+	buf := make([]byte, invokeScriptV1FixedBodyLen+tx.ScriptRecipient.len+tx.FunctionCall.binarySize()+tx.Payments.binarySize()+tx.FeeAsset.binarySize())
 	buf[p] = byte(tx.Type)
 	p++
 	buf[p] = tx.Version
@@ -2381,19 +2640,29 @@ func (tx *InvokeScriptV1) bodyMarshalBinary() ([]byte, error) {
 	p++
 	copy(buf[p:], tx.SenderPK[:])
 	p += crypto.PublicKeySize
-	copy(buf[p:], tx.ScriptAddress[:])
-	p += AddressSize
+	rb, err := tx.ScriptRecipient.MarshalBinary()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to marshal InvokeScriptV1 body")
+	}
+	copy(buf[p:], rb)
+	p += tx.ScriptRecipient.len
 	fcb, err := tx.FunctionCall.MarshalBinary()
 	if err != nil {
 		return nil, err
 	}
 	copy(buf[p:], fcb)
+	if len(fcb) != tx.FunctionCall.binarySize() {
+		panic("FUCK FUNCTION CALL")
+	}
 	p += len(fcb)
 	psb, err := tx.Payments.MarshalBinary()
 	if err != nil {
 		return nil, err
 	}
 	copy(buf[p:], psb)
+	if len(psb) != tx.Payments.binarySize() {
+		panic("FUCK PAYMENTS")
+	}
 	p += len(psb)
 	binary.BigEndian.PutUint64(buf[p:], tx.Fee)
 	p += 8
@@ -2423,12 +2692,15 @@ func (tx *InvokeScriptV1) bodyUnmarshalBinary(data []byte) error {
 	data = data[3:]
 	copy(tx.SenderPK[:], data[:crypto.PublicKeySize])
 	data = data[crypto.PublicKeySize:]
-	scriptAddress := Address{}
-	copy(scriptAddress[:], data[:AddressSize])
-	tx.ScriptAddress = scriptAddress
-	data = data[AddressSize:]
+	var recipient Recipient
+	err := recipient.UnmarshalBinary(data)
+	if err != nil {
+		return errors.Wrap(err, "failed to unmarshal InvokeScriptV1 transaction")
+	}
+	tx.ScriptRecipient = recipient
+	data = data[tx.ScriptRecipient.len:]
 	functionCall := FunctionCall{}
-	err := functionCall.UnmarshalBinary(data)
+	err = functionCall.UnmarshalBinary(data)
 	if err != nil {
 		return err
 	}
@@ -2517,7 +2789,7 @@ func (tx *InvokeScriptV1) UnmarshalBinary(data []byte) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to unmarshal InvokeScriptV1 transaction from bytes")
 	}
-	bl := invokeScriptV1FixedBodyLen + tx.FunctionCall.binarySize() + tx.Payments.binarySize() + tx.FeeAsset.binarySize()
+	bl := invokeScriptV1FixedBodyLen + tx.ScriptRecipient.len + tx.FunctionCall.binarySize() + tx.Payments.binarySize() + tx.FeeAsset.binarySize()
 	bb := data[:bl]
 	data = data[bl:]
 	var p ProofsV1

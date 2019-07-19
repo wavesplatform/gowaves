@@ -53,11 +53,12 @@ func New(limit uint) *Utx {
 func (a *Utx) Add(t proto.Transaction) {
 	a.mu.Lock()
 	heap.Push(&a.transactions, t)
+	t.GenerateID()
 	a.transactionIds[makeDigest(t.GetID())] = struct{}{}
 	a.mu.Unlock()
 }
 
-func makeDigest(b []byte) crypto.Digest {
+func makeDigest(b []byte, e error) crypto.Digest {
 	d := crypto.Digest{}
 	copy(d[:], b)
 	return d

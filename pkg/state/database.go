@@ -17,7 +17,10 @@ type stateDB struct {
 	db      keyvalue.KeyValue
 	dbBatch keyvalue.Batch
 
-	heightChange int
+	newestBlockIdToNum map[crypto.Signature]uint32
+	newestBlockNumToId map[uint32]crypto.Signature
+
+	blocksNum int
 }
 
 func newStateDB(db keyvalue.KeyValue, dbBatch keyvalue.Batch) (*stateDB, error) {
@@ -42,7 +45,12 @@ func newStateDB(db keyvalue.KeyValue, dbBatch keyvalue.Batch) (*stateDB, error) 
 			return nil, err
 		}
 	}
-	return &stateDB{db: db, dbBatch: dbBatch}, nil
+	return &stateDB{
+		db:                 db,
+		dbBatch:            dbBatch,
+		newestBlockIdToNum: make(map[crypto.Signature]uint32),
+		newestBlockNumToId: make(map[uint32]crypto.Signature),
+	}, nil
 }
 
 // Sync blockReadWriter's storage (files) with the database.
@@ -78,16 +86,70 @@ func (s *stateDB) syncRw(rw *blockReadWriter) error {
 	return nil
 }
 
+// addBlock() makes block officially valid (but only after batch is flushed).
 func (s *stateDB) addBlock(blockID crypto.Signature) error {
-	s.heightChange++
-	key := blockIdKey{blockID: blockID}
-	s.dbBatch.Put(key.bytes(), void)
+	lastBlockNum, err := s.getLastBlockNum()
+	if err != nil {
+		return err
+	}
+	// Unique number of new block.
+	newBlockNum := lastBlockNum + uint32(s.blocksNum)
+	// Add unique block number to the list of valid nums.
+	validBlocKey := validBlockNumKey{newBlockNum}
+	s.dbBatch.Put(validBlocKey.bytes(), void)
+	// Save block number for this ID.
+	s.newestBlockIdToNum[blockID] = newBlockNum
+	idToNumKey := blockIdToNumKey{blockID}
+	newBlockNumBytes := make([]byte, 4)
+	binary.LittleEndian.PutUint32(newBlockNumBytes, newBlockNum)
+	s.dbBatch.Put(idToNumKey.bytes(), newBlockNumBytes)
+	// Save ID for this block number.
+	s.newestBlockNumToId[newBlockNum] = blockID
+	numToIdKey := blockNumToIdKey{newBlockNum}
+	idBytes, err := blockID.MarshalBinary()
+	if err != nil {
+		return err
+	}
+	s.dbBatch.Put(numToIdKey.bytes(), idBytes)
+	// Increase blocks counter.
+	s.blocksNum++
 	return nil
 }
 
-func (s *stateDB) isValidBlock(blockID crypto.Signature) (bool, error) {
-	key := blockIdKey{blockID: blockID}
+func (s *stateDB) isValidBlock(blockNum uint32) (bool, error) {
+	key := validBlockNumKey{blockNum}
 	return s.db.Has(key.bytes())
+}
+
+func (s *stateDB) blockIdToNum(blockID crypto.Signature) (uint32, error) {
+	blockNum, ok := s.newestBlockIdToNum[blockID]
+	if ok {
+		return blockNum, nil
+	}
+	idToNumKey := blockIdToNumKey{blockID}
+	blockNumBytes, err := s.db.Get(idToNumKey.bytes())
+	if err != nil {
+		return 0, err
+	}
+	blockNum = binary.LittleEndian.Uint32(blockNumBytes)
+	return blockNum, nil
+}
+
+func (s *stateDB) blockNumToId(blockNum uint32) (crypto.Signature, error) {
+	blockId, ok := s.newestBlockNumToId[blockNum]
+	if ok {
+		return blockId, nil
+	}
+	numToIdKey := blockNumToIdKey{blockNum}
+	blockIdBytes, err := s.db.Get(numToIdKey.bytes())
+	if err != nil {
+		return crypto.Signature{}, err
+	}
+	blockId, err = crypto.NewSignatureFromBytes(blockIdBytes)
+	if err != nil {
+		return crypto.Signature{}, err
+	}
+	return blockId, nil
 }
 
 func (s *stateDB) rollbackBlock(blockID crypto.Signature) error {
@@ -99,11 +161,33 @@ func (s *stateDB) rollbackBlock(blockID crypto.Signature) error {
 	if err := s.setHeight(height-1, true); err != nil {
 		return err
 	}
-	key := blockIdKey{blockID: blockID}
+	blockNum, err := s.blockIdToNum(blockID)
+	if err != nil {
+		return err
+	}
+	key := validBlockNumKey{blockNum}
 	if err := s.db.Delete(key.bytes()); err != nil {
 		return err
 	}
 	return nil
+}
+
+func (s *stateDB) setLastBlockNum(lastBlockNum uint32) error {
+	lastBlockNumBytes := make([]byte, 4)
+	binary.LittleEndian.PutUint32(lastBlockNumBytes, lastBlockNum)
+	s.dbBatch.Put([]byte{lastBlockNumKeyPrefix}, lastBlockNumBytes)
+	return nil
+}
+
+func (s *stateDB) getLastBlockNum() (uint32, error) {
+	lastBlockNumBytes, err := s.db.Get([]byte{lastBlockNumKeyPrefix})
+	if err == keyvalue.ErrNotFound {
+		return 0, nil
+	}
+	if err != nil {
+		return 0, err
+	}
+	return binary.LittleEndian.Uint32(lastBlockNumBytes), nil
 }
 
 func (s *stateDB) setRollbackMinHeight(height uint64) error {
@@ -157,14 +241,25 @@ func (s *stateDB) calculateNewRollbackMinHeight(newHeight uint64) (uint64, error
 }
 
 func (s *stateDB) flush() error {
+	// Update last block number.
+	prevLastBlockNum, err := s.getLastBlockNum()
+	if err != nil {
+		return err
+	}
+	newLastBlockNum := prevLastBlockNum + uint32(s.blocksNum)
+	if err := s.setLastBlockNum(newLastBlockNum); err != nil {
+		return err
+	}
+	// Update height.
 	prevHeight, err := s.getHeight()
 	if err != nil {
 		return err
 	}
-	newHeight := prevHeight + uint64(s.heightChange)
+	newHeight := prevHeight + uint64(s.blocksNum)
 	if err := s.setHeight(newHeight, false); err != nil {
 		return err
 	}
+	// Update rollback minimum height.
 	newRollbackMinHeight, err := s.calculateNewRollbackMinHeight(newHeight)
 	if err != nil {
 		return err
@@ -172,6 +267,7 @@ func (s *stateDB) flush() error {
 	if err := s.setRollbackMinHeight(newRollbackMinHeight); err != nil {
 		return err
 	}
+	// Write the whole batch to DB.
 	if err := s.db.Flush(s.dbBatch); err != nil {
 		return err
 	}
@@ -179,7 +275,9 @@ func (s *stateDB) flush() error {
 }
 
 func (s *stateDB) reset() {
-	s.heightChange = 0
+	s.newestBlockIdToNum = make(map[crypto.Signature]uint32)
+	s.newestBlockNumToId = make(map[uint32]crypto.Signature)
+	s.blocksNum = 0
 	s.dbBatch.Reset()
 }
 
