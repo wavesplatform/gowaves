@@ -97,7 +97,7 @@ func (s *accountsDataStorage) appendEntry(addr proto.Address, entry proto.DataEn
 	return nil
 }
 
-func (s *accountsDataStorage) needToClean(blockNum uint32) (bool, error) {
+func (s *accountsDataStorage) isRecentValidBlock(blockNum uint32) (bool, error) {
 	return isRecentValidBlock(s.rw, s.stateDB, blockNum)
 }
 
@@ -111,7 +111,7 @@ func (s *accountsDataStorage) entryBytes(addr proto.Address, key string) ([]byte
 		return nil, err
 	}
 	correctKeyLength := properAccountDataKeyLength(key)
-	maxBlockNum := uint32(0)
+	maxBlockNum := int64(-1)
 	var latestEntry []byte
 	for iter.Next() {
 		keyBytes := keyvalue.SafeKey(iter)
@@ -127,20 +127,20 @@ func (s *accountsDataStorage) entryBytes(addr proto.Address, key string) ([]byte
 		if err := key.unmarshal(keyBytes); err != nil {
 			return nil, err
 		}
-		needToClean, err := s.needToClean(key.blockNum)
+		isRecentValid, err := s.isRecentValidBlock(key.blockNum)
 		if err != nil {
 			return nil, err
 		}
-		if needToClean {
+		if !isRecentValid {
 			// This block is too far in the past or invalid due to rollback.
 			if err := s.db.Delete(keyBytes); err != nil {
 				return nil, err
 			}
 			continue
 		}
-		if key.blockNum > maxBlockNum {
+		if int64(key.blockNum) > maxBlockNum {
 			// Latest key will have maximum block number among valid blocks.
-			maxBlockNum = key.blockNum
+			maxBlockNum = int64(key.blockNum)
 			latestEntry = keyvalue.SafeValue(iter)
 		}
 	}
