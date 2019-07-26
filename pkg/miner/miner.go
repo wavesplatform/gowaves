@@ -53,7 +53,7 @@ func (a *DefaultMiner) Mine(ctx context.Context, t proto.Timestamp, k proto.KeyP
 	var invalidTransactions []proto.Transaction
 	currentTimestamp := proto.NewTimestampFromTime(time.Now())
 	mu := a.state.Mutex()
-	mu.Lock()
+	locked := mu.Lock()
 	for i := 0; i < 100; i++ {
 		t := a.utx.Pop()
 		if t == nil {
@@ -62,7 +62,7 @@ func (a *DefaultMiner) Mine(ctx context.Context, t proto.Timestamp, k proto.KeyP
 
 		if a.interrupt.Load() {
 			a.state.ResetValidationList()
-			mu.Unlock()
+			locked.Unlock()
 			return
 		}
 
@@ -73,7 +73,7 @@ func (a *DefaultMiner) Mine(ctx context.Context, t proto.Timestamp, k proto.KeyP
 		}
 	}
 	a.state.ResetValidationList()
-	mu.Unlock()
+	locked.Unlock()
 
 	buf := new(bytes.Buffer)
 	_, err = transactions.WriteTo(buf)

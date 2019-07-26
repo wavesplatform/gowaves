@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
+	"github.com/valyala/bytebufferpool"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/util/collect_writes"
 )
@@ -901,7 +902,15 @@ func (m *PeersMessage) WriteTo(w io.Writer) (int64, error) {
 
 // MarshalBinary encodes PeersMessage message to binary form
 func (m *PeersMessage) MarshalBinary() ([]byte, error) {
-	return nil, errors.Errorf("deprecated method")
+	buf := bytebufferpool.Get()
+	defer bytebufferpool.Put(buf)
+	_, err := m.WriteTo(buf)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]byte, buf.Len())
+	copy(out, buf.Bytes())
+	return out, nil
 }
 
 // UnmarshalBinary decodes PeersMessage from binary form

@@ -1,6 +1,9 @@
 package api
 
-import "github.com/wavesplatform/gowaves/pkg/proto"
+import (
+	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/proto"
+)
 
 type Score struct {
 	Score string `json:"score"`
@@ -35,4 +38,32 @@ func (a *App) BlocksFirst() (*proto.Block, error) {
 	}
 	block.Height = 1
 	return block, nil
+}
+
+type Generators []Generator
+type Generator struct {
+	Height proto.Height     `json:"height"`
+	PubKey crypto.PublicKey `json:"pub_key"`
+}
+
+func (a *App) BlocksGenerators() (Generators, error) {
+	curHeight, err := a.state.Height()
+	if err != nil {
+		return nil, &InternalError{err}
+	}
+
+	out := Generators{}
+	for i := proto.Height(1); i < curHeight; i++ {
+		block, err := a.state.BlockByHeight(i)
+		if err != nil {
+			return nil, err
+		}
+
+		out = append(out, Generator{
+			Height: i,
+			PubKey: block.GenPublicKey,
+		})
+	}
+
+	return out, nil
 }

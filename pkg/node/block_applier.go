@@ -133,16 +133,17 @@ func (a *BlockApplier) ApplyBytes(b []byte) error {
 
 // 1) interrupt miner
 // 2) notify peers about score
+// 3) reshedule
 func (a *BlockApplier) Apply(block *proto.Block) error {
 	m := a.state.Mutex()
-	m.Lock()
+	locked := m.Lock()
 
 	block, _, err := a.inner.apply(block)
 	if err != nil {
-		m.Unlock()
+		locked.Unlock()
 		return err
 	}
-	m.Unlock()
+	locked.Unlock()
 
 	// TODO remove
 	cur, err := a.state.CurrentScore()

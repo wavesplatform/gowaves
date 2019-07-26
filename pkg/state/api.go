@@ -3,12 +3,12 @@ package state
 import (
 	"math/big"
 	"runtime"
-	"sync"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
+	"github.com/wavesplatform/gowaves/pkg/util/lock"
 )
 
 // State represents overall Node's state.
@@ -16,7 +16,7 @@ import (
 // should all be made using this interface.
 type State interface {
 	// Global mutex of state.
-	Mutex() *sync.RWMutex
+	Mutex() *lock.RwMutex
 	// Block getters.
 	Block(blockID crypto.Signature) (*proto.Block, error)
 	BlockByHeight(height uint64) (*proto.Block, error)

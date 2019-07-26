@@ -157,7 +157,7 @@ func (a *MicroblockMiner) mineMicro(ctx context.Context, rest restLimits, blockA
 	var unAppliedTransactions []proto.Transaction
 
 	mu := a.state.Mutex()
-	mu.Lock()
+	locked := mu.Lock()
 	currentTimestamp := proto.NewTimestampFromTime(time.Now())
 
 	// 255 is max transactions count in microblock
@@ -190,7 +190,7 @@ func (a *MicroblockMiner) mineMicro(ctx context.Context, rest restLimits, blockA
 	}
 
 	a.state.ResetValidationList()
-	mu.Unlock()
+	locked.Unlock()
 
 	// return unapplied transactions
 	for _, unapplied := range unAppliedTransactions {
@@ -239,9 +239,9 @@ func (a *MicroblockMiner) mineMicro(ctx context.Context, rest restLimits, blockA
 		return
 	}
 
-	mu.Lock()
+	locked = mu.Lock()
 	_ = a.state.RollbackTo(blockApplyOn.Parent)
-	mu.Unlock()
+	locked.Unlock()
 
 	ba := node.NewBlockApplier(a.state, a.peer, a.scheduler)
 	err = ba.Apply(newBlock)

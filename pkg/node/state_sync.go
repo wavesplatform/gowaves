@@ -50,18 +50,24 @@ func (a *StateSync) Sync() {
 	}
 }
 
-func (a *StateSync) run(ctx context.Context) {
-	select {
-	case <-ctx.Done():
-		return
-	case <-a.syncCh:
-		for {
-			p, err := a.getPeerWithHighestScore()
-			if err != nil {
-				return
-			}
-			_ = a.sync(p)
+func (a *StateSync) Run(ctx context.Context) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-a.syncCh:
+			a.run(ctx)
 		}
+	}
+}
+
+func (a *StateSync) run(ctx context.Context) {
+	for {
+		p, err := a.getPeerWithHighestScore()
+		if err != nil {
+			return
+		}
+		_ = a.sync(p)
 	}
 }
 
@@ -83,7 +89,7 @@ func (a *StateSync) sync(p Peer) error {
 		return TimeoutErr
 	case received := <-messCh:
 		mess := received.(*proto.SignaturesMessage)
-		downloadSignatures(mess, sigs, p, a.subscribe, a.blockApplier, a.interrupter)
+		downloadSignatures(mess, sigs, p, a.subscribe, a.blockApplier, a.interrupter, a.scheduler)
 	}
 
 	return nil
@@ -158,7 +164,16 @@ func (a *StateSync) Close() {
 	close(a.interrupt)
 }
 
-func downloadSignatures(receivedSignatures *proto.SignaturesMessage, blockSignatures *Signatures, p Peer, subscribe *Subscribe, applier *BlockApplier, interrupt types.MinerInterrupter) {
+func downloadSignatures(
+	receivedSignatures *proto.SignaturesMessage,
+	blockSignatures *Signatures,
+	p Peer,
+	subscribe *Subscribe,
+	applier *BlockApplier,
+	interrupt types.MinerInterrupter,
+	scheduler types.Scheduler) {
+
+	defer scheduler.Reschedule()
 	var sigs []crypto.Signature
 	for _, sig := range receivedSignatures.Signatures {
 		if !blockSignatures.Exists(sig) {
@@ -208,7 +223,7 @@ func downloadSignatures(receivedSignatures *proto.SignaturesMessage, blockSignat
 
 		select {
 		case <-timeout:
-			// TODO HANDLE timeout
+			// TODO HANDLE timeout, maybe block peer ot other
 			zap.S().Error("timeout getting block", sigs[i])
 			cancel()
 			return
@@ -222,6 +237,7 @@ func downloadSignatures(receivedSignatures *proto.SignaturesMessage, blockSignat
 				zap.S().Error(err)
 				continue
 			}
+			scheduler.Reschedule()
 		}
 	}
 }

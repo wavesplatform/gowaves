@@ -3,6 +3,7 @@ package util
 
 import (
 	"os"
+	"runtime/debug"
 	"time"
 
 	"github.com/pkg/errors"
@@ -49,4 +50,25 @@ func CleanTemporaryDirs(dirs []string) error {
 func TimeTrack(start time.Time, name string) {
 	elapsed := time.Since(start)
 	zap.S().Infof("%s took %s", name, elapsed)
+}
+
+// call function like this
+// defer TrackLongFunc()()
+func TrackLongFunc() func() {
+	s := debug.Stack()
+	ch := make(chan struct{}, 1)
+	go func() {
+		for {
+			select {
+			case <-ch:
+				return
+			case <-time.After(1 * time.Second):
+
+				zap.S().Error("took long time", string(s))
+			}
+		}
+	}()
+	return func() {
+		ch <- struct{}{}
+	}
 }

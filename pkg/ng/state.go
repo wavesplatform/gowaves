@@ -44,15 +44,15 @@ func (a *State) AddBlock(block *proto.Block) {
 	}
 
 	mu := a.state.Mutex()
-	mu.Lock()
+	locked := mu.Lock()
 	err = a.state.RollbackTo(block.Parent)
 	if err != nil {
 		zap.S().Error(errors.Wrapf(err, "can't rollback to sig %s, initiator sig %s", block.Parent, block.BlockSignature))
 		a.storage.Pop()
-		mu.Unlock()
+		locked.Unlock()
 		return
 	}
-	mu.Unlock()
+	locked.Unlock()
 
 	err = a.applier.Apply(block)
 	if err != nil {
@@ -64,7 +64,7 @@ func (a *State) AddBlock(block *proto.Block) {
 			err := a.applier.Apply(a.prevAddedBlock)
 			if err != nil { // can't apply previous added block, maybe broken state
 				zap.S().Error(err)
-				a.historySync.Sync()
+				go a.historySync.Sync()
 			}
 		}
 		return
@@ -113,14 +113,14 @@ func (a *State) AddMicroblock(micro *proto.MicroBlock) {
 	}
 
 	lock := a.state.Mutex()
-	lock.Lock()
+	locked := lock.Lock()
 	err = a.state.RollbackTo(curBlock.Parent)
 	if err != nil {
 		zap.S().Error(errors.Wrapf(err, "failed to rollback to sig %s", curBlock.Parent))
-		lock.Unlock()
+		locked.Unlock()
 		return
 	}
-	lock.Unlock()
+	locked.Unlock()
 
 	err = a.applier.Apply(block)
 	if err != nil {

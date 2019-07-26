@@ -411,6 +411,5 @@ func TestStateManager_Mutex(t *testing.T) {
 	defer manager.Close()
 
 	mu := manager.Mutex()
-	mu.Lock()
-	mu.Unlock()
+	mu.Lock().Unlock()
 }

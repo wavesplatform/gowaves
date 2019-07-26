@@ -155,9 +155,9 @@ func (a *Node) handlePeerError(id string, err error) {
 func (a *Node) Close() {
 	a.peerManager.Close()
 	m := a.state.Mutex()
-	m.Lock()
+	locked := m.Lock()
 	a.state.Close()
-	m.Unlock()
+	locked.Unlock()
 	a.sync.Close()
 }
 
@@ -306,7 +306,7 @@ func (a *Node) handleSignaturesMessage(s string, message *proto.SignaturesMessag
 }
 
 func RunNode(ctx context.Context, n *Node, p peer.Parent) {
-	go n.sync.run(ctx)
+	go n.sync.Run(ctx)
 
 	go func() {
 		for {

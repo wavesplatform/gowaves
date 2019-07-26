@@ -35,6 +35,7 @@ func NewApp(apiKey string, state state.State, peers peer_manager.PeerManager, sc
 		state:        state,
 		scheduler:    scheduler,
 		utx:          utx,
+		peers:        peers,
 	}, nil
 }
 

@@ -15,6 +15,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
+	"github.com/wavesplatform/gowaves/pkg/util/lock"
 )
 
 const (
@@ -330,8 +331,8 @@ type stateManager struct {
 	lastVotingHeight uint64
 }
 
-func (s *stateManager) Mutex() *sync.RWMutex {
-	return s.mu
+func (s *stateManager) Mutex() *lock.RwMutex {
+	return lock.NewRwMutex(s.mu)
 }
 
 func (s *stateManager) Peers() ([]proto.TCPAddr, error) {
