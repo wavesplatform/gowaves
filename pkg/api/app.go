@@ -56,7 +56,11 @@ func (a *App) TransactionsBroadcast(b []byte) error {
 		return &BadRequestError{err}
 	}
 
-	a.utx.Add(realType)
+	bts, err := realType.MarshalBinary()
+	if err != nil {
+		return &BadRequestError{err}
+	}
+	a.utx.AddWithBytes(realType, bts)
 	return nil
 }
 

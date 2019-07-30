@@ -154,7 +154,7 @@ func (a *MicroblockMiner) mineMicro(ctx context.Context, rest restLimits, blockA
 	bytesBuf := make([]byte, 0)
 	cnt := 0
 
-	var unAppliedTransactions []proto.Transaction
+	var unAppliedTransactions []*utxpool.TransactionWithBytes
 
 	mu := a.state.Mutex()
 	locked := mu.Lock()
@@ -166,20 +166,14 @@ func (a *MicroblockMiner) mineMicro(ctx context.Context, rest restLimits, blockA
 		if t == nil {
 			break
 		}
-
-		binTr, err := t.MarshalBinary()
-		if err != nil {
-			zap.S().Error(err)
-			continue
-		}
-
+		binTr := t.B
 		transactionLenBytes := 4
 		if len(bytesBuf)+len(binTr)+transactionLenBytes > rest.MaxTxsSizeInBytes {
 			unAppliedTransactions = append(unAppliedTransactions, t)
 			continue
 		}
 
-		err = a.state.ValidateNextTx(t, currentTimestamp, blockApplyOn.Timestamp)
+		err = a.state.ValidateNextTx(t.T, currentTimestamp, blockApplyOn.Timestamp)
 		if err != nil {
 			unAppliedTransactions = append(unAppliedTransactions, t)
 			continue
@@ -194,7 +188,7 @@ func (a *MicroblockMiner) mineMicro(ctx context.Context, rest restLimits, blockA
 
 	// return unapplied transactions
 	for _, unapplied := range unAppliedTransactions {
-		a.utx.Add(unapplied)
+		a.utx.AddWithBytes(unapplied.T, unapplied.B)
 	}
 
 	// no transactions applied, skip

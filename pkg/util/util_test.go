@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestAddInt64(t *testing.T) {
@@ -25,4 +26,13 @@ func TestAddUint64(t *testing.T) {
 	a1 = 1
 	_, err = AddUint64(a1, a0)
 	assert.Error(t, err, "AddUint64 did not fail with arguments causing an overflow")
+}
+
+func TestDup(t *testing.T) {
+	a := []byte{1, 2, 3}
+	b := Dup(a)
+	require.Equal(t, a, b)
+
+	a[0] = 0
+	require.EqualValues(t, 1, b[0])
 }

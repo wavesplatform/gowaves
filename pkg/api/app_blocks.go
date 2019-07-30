@@ -52,8 +52,14 @@ func (a *App) BlocksGenerators() (Generators, error) {
 		return nil, &InternalError{err}
 	}
 
+	// show only last 150 rows
+	initialHeight := proto.Height(1)
+	if curHeight > 150 {
+		initialHeight = curHeight - 150
+	}
+
 	out := Generators{}
-	for i := proto.Height(1); i < curHeight; i++ {
+	for i := initialHeight; i < curHeight; i++ {
 		block, err := a.state.BlockByHeight(i)
 		if err != nil {
 			return nil, err
