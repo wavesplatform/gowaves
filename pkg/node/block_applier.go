@@ -1,11 +1,7 @@
 package node
 
 import (
-	"math/big"
-
 	"github.com/pkg/errors"
-	"github.com/wavesplatform/gowaves/pkg/node/peer_manager"
-	. "github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"github.com/wavesplatform/gowaves/pkg/types"
@@ -104,17 +100,17 @@ func (a *innerBlockApplier) apply(block *proto.Block) (*proto.Block, proto.Heigh
 }
 
 type BlockApplier struct {
-	state     state.State
-	peer      peer_manager.PeerManager
-	scheduler types.Scheduler
-	inner     innerBlockApplier
+	state              state.State
+	scheduler          types.Scheduler
+	inner              innerBlockApplier
+	blockAddedNotifier types.Handler
 }
 
-func NewBlockApplier(state state.State, peer peer_manager.PeerManager, scheduler types.Scheduler) *BlockApplier {
+func NewBlockApplier(state state.State, blockAddedNotifier types.Handler, scheduler types.Scheduler) *BlockApplier {
 	return &BlockApplier{
-		state:     state,
-		peer:      peer,
-		scheduler: scheduler,
+		state:              state,
+		scheduler:          scheduler,
+		blockAddedNotifier: blockAddedNotifier,
 
 		inner: innerBlockApplier{
 			state: state,
@@ -144,16 +140,6 @@ func (a *BlockApplier) Apply(block *proto.Block) error {
 		return err
 	}
 	locked.Unlock()
-
-	// TODO remove
-	cur, err := a.state.CurrentScore()
-	if err == nil {
-		a.peer.EachConnected(func(peer Peer, i *big.Int) {
-			peer.SendMessage(&proto.ScoreMessage{
-				Score: cur.Bytes(),
-			})
-		})
-	}
-
+	go a.blockAddedNotifier.Handle()
 	return nil
 }

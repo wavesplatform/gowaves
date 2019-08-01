@@ -4,10 +4,9 @@ import (
 	"sync"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
-	"github.com/wavesplatform/gowaves/pkg/node/peer_manager"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"github.com/wavesplatform/gowaves/pkg/types"
+	"github.com/wavesplatform/gowaves/pkg/services"
 	"go.uber.org/zap"
 )
 
@@ -16,24 +15,23 @@ type Runtime interface {
 }
 
 type RuntimeImpl struct {
-	mu        sync.Mutex
-	blocks    *MicroblockCache
-	inv       *InvCache
-	peers     peer_manager.PeerManager
-	state     *State
-	scheduler types.Scheduler
+	mu       sync.Mutex
+	blocks   *MicroblockCache
+	inv      *InvCache
+	services services.Services
+	ngState  *State
 
 	// we send request for this microblock and waiting for it
 	waitingOnMicroblock *crypto.Signature
 }
 
-func NewRuntime(peers peer_manager.PeerManager, ngState *State, scheduler types.Scheduler) *RuntimeImpl {
+func NewRuntime(services services.Services, ngState *State) *RuntimeImpl {
 	return &RuntimeImpl{
-		peers:     peers,
-		blocks:    NewMicroblockCache(32),
-		inv:       NewInvCache(32),
-		state:     ngState,
-		scheduler: scheduler,
+		blocks:  NewMicroblockCache(32),
+		inv:     NewInvCache(32),
+		ngState: ngState,
+
+		services: services,
 	}
 }
 
@@ -50,7 +48,7 @@ func (a *RuntimeImpl) MinedMicroblock(block *proto.MicroBlock, inv *proto.MicroB
 			zap.S().Error(err)
 			return
 		}
-		a.peers.EachConnected(func(peer peer.Peer, i *proto.Score) {
+		a.services.Peers.EachConnected(func(peer peer.Peer, i *proto.Score) {
 			peer.SendMessage(&proto.MicroBlockInvMessage{
 				Body: bts,
 			})
@@ -73,7 +71,7 @@ func (a *RuntimeImpl) HandleInvMessage(peerID string, mess *proto.MicroBlockInvM
 		return
 	}
 
-	peer, ok := a.peers.Connected(peerID)
+	peer, ok := a.services.Peers.Connected(peerID)
 	if !ok {
 		return
 	}
@@ -103,7 +101,7 @@ func (a *RuntimeImpl) HandleMicroBlockRequestMessage(s string, message *proto.Mi
 		return
 	}
 
-	peer, ok := a.peers.Connected(s)
+	peer, ok := a.services.Peers.Connected(s)
 	if !ok {
 		return
 	}
@@ -142,11 +140,11 @@ func (a *RuntimeImpl) HandleMicroBlockMessage(s string, message *proto.MicroBloc
 		return
 	}
 
-	a.state.AddMicroblock(microblock)
-	go a.scheduler.Reschedule()
+	a.ngState.AddMicroblock(microblock)
+	go a.services.Scheduler.Reschedule()
 }
 
 func (a *RuntimeImpl) HandleBlockMessage(peerID string, block *proto.Block) {
-	a.state.AddBlock(block)
-	go a.scheduler.Reschedule()
+	a.ngState.AddBlock(block)
+	go a.services.Scheduler.Reschedule()
 }

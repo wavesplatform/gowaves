@@ -10,6 +10,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/node/peer_manager"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/state"
+	"github.com/wavesplatform/gowaves/pkg/types"
 )
 
 type SchedulerEmits interface {
@@ -19,12 +20,12 @@ type SchedulerEmits interface {
 type App struct {
 	hashedApiKey crypto.Digest
 	scheduler    SchedulerEmits
-	utx          *utxpool.Utx
+	utx          types.UtxPool
 	state        state.State
 	peers        peer_manager.PeerManager
 }
 
-func NewApp(apiKey string, state state.State, peers peer_manager.PeerManager, scheduler SchedulerEmits, utx *utxpool.Utx) (*App, error) {
+func NewApp(apiKey string, state state.State, peers peer_manager.PeerManager, scheduler SchedulerEmits, utx *utxpool.UtxImpl) (*App, error) {
 	digest, err := crypto.SecureHash([]byte(apiKey))
 	if err != nil {
 		return nil, err

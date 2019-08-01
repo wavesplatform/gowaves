@@ -5,9 +5,8 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/miner/scheduler"
 	"github.com/wavesplatform/gowaves/pkg/miner/utxpool"
-	"github.com/wavesplatform/gowaves/pkg/node"
-	"github.com/wavesplatform/gowaves/pkg/node/peer_manager"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/services"
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"github.com/wavesplatform/gowaves/pkg/types"
 	"go.uber.org/atomic"
@@ -23,26 +22,23 @@ type Miner interface {
 }
 
 type DefaultMiner struct {
-	utx       *utxpool.Utx
+	utx       types.UtxPool
 	state     state.State
-	peer      peer_manager.PeerManager
-	scheduler types.Scheduler
 	interrupt *atomic.Bool
+	services  services.Services
 }
 
-func NewDefaultMiner(utx *utxpool.Utx, state state.State, peer peer_manager.PeerManager, scheduler types.Scheduler) *DefaultMiner {
+func NewDefaultMiner(services services.Services) *DefaultMiner {
 	return &DefaultMiner{
-		scheduler: scheduler,
-		utx:       utx,
-		state:     state,
-		peer:      peer,
+		utx:       services.UtxPool,
+		state:     services.State,
 		interrupt: atomic.NewBool(false),
 	}
 }
 
 func (a *DefaultMiner) Mine(ctx context.Context, t proto.Timestamp, k proto.KeyPair, parent crypto.Signature, baseTarget consensus.BaseTarget, GenSignature crypto.Digest) {
 	a.interrupt.Store(false)
-	defer a.scheduler.Reschedule()
+	defer a.services.Scheduler.Reschedule()
 	lastKnownBlock, err := a.state.Block(parent)
 	if err != nil {
 		zap.S().Error(err)
@@ -98,8 +94,7 @@ func (a *DefaultMiner) Mine(ctx context.Context, t proto.Timestamp, k proto.KeyP
 		return
 	}
 
-	ba := node.NewBlockApplier(a.state, a.peer, a.scheduler)
-	err = ba.Apply(b)
+	err = a.services.BlockApplier.Apply(b)
 	if err != nil {
 		zap.S().Error(err)
 	}
