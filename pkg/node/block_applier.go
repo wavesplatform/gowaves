@@ -4,6 +4,7 @@ import (
 	"math/big"
 
 	"github.com/pkg/errors"
+	"github.com/wavesplatform/gowaves/pkg/node/peer_manager"
 	. "github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/state"
@@ -41,7 +42,7 @@ func (a *innerBlockApplier) apply(block *proto.Block) (*proto.Block, proto.Heigh
 	// try to find parent. If not - we can't add block, skip it
 	parentHeight, err := a.state.BlockIDToHeight(block.Parent)
 	if err != nil {
-		return nil, 0, errors.Wrap(err, "failed get parent height")
+		return nil, 0, errors.Wrapf(err, "failed get parent height, block sig %s, for block %s", block.Parent, block.BlockSignature)
 	}
 
 	// if new block has highest score apply it
@@ -54,7 +55,7 @@ func (a *innerBlockApplier) apply(block *proto.Block) (*proto.Block, proto.Heigh
 		return nil, 0, errors.Wrapf(err, "failed get score at %d", parentHeight)
 	}
 	sumScore := score.Add(score, parentScore)
-	if curScore.Cmp(sumScore) >= 0 { // same height, or current height is higher
+	if curScore.Cmp(sumScore) > 0 { // current height is higher
 		return nil, 0, errors.New("low score")
 	}
 
@@ -103,19 +104,17 @@ func (a *innerBlockApplier) apply(block *proto.Block) (*proto.Block, proto.Heigh
 }
 
 type BlockApplier struct {
-	state       state.State
-	peer        PeerManager
-	scheduler   types.Scheduler
-	interrupter types.MinerInterrupter
-	inner       innerBlockApplier
+	state     state.State
+	peer      peer_manager.PeerManager
+	scheduler types.Scheduler
+	inner     innerBlockApplier
 }
 
-func NewBlockApplier(state state.State, peer PeerManager, scheduler types.Scheduler, minerInterrupter types.MinerInterrupter) *BlockApplier {
+func NewBlockApplier(state state.State, peer peer_manager.PeerManager, scheduler types.Scheduler) *BlockApplier {
 	return &BlockApplier{
-		state:       state,
-		peer:        peer,
-		scheduler:   scheduler,
-		interrupter: minerInterrupter,
+		state:     state,
+		peer:      peer,
+		scheduler: scheduler,
 
 		inner: innerBlockApplier{
 			state: state,
@@ -132,18 +131,21 @@ func (a *BlockApplier) ApplyBytes(b []byte) error {
 	return a.Apply(block)
 }
 
+// 1) interrupt miner
+// 2) notify peers about score
+// 3) reshedule
 func (a *BlockApplier) Apply(block *proto.Block) error {
-	a.interrupter.Interrupt()
 	m := a.state.Mutex()
-	m.Lock()
+	locked := m.Lock()
 
 	block, _, err := a.inner.apply(block)
 	if err != nil {
-		m.Unlock()
+		locked.Unlock()
 		return err
 	}
-	m.Unlock()
+	locked.Unlock()
 
+	// TODO remove
 	cur, err := a.state.CurrentScore()
 	if err == nil {
 		a.peer.EachConnected(func(peer Peer, i *big.Int) {

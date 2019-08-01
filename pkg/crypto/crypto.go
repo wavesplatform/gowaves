@@ -177,6 +177,14 @@ func NewPublicKeyFromBase58(s string) (PublicKey, error) {
 	return array32FromBase58(s, "PublicKey")
 }
 
+func MustPublicKeyFromBase58(s string) PublicKey {
+	rs, err := NewPublicKeyFromBase58(s)
+	if err != nil {
+		panic(err)
+	}
+	return rs
+}
+
 func NewPublicKeyFromBytes(b []byte) (PublicKey, error) {
 	var pk PublicKey
 	if l := len(b); l < PublicKeySize {

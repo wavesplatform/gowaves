@@ -6,6 +6,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/node"
+	"github.com/wavesplatform/gowaves/pkg/node/peer_manager"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/state"
 )
@@ -18,7 +19,7 @@ func (a mockNode) State() state.State {
 	return a.state
 }
 
-func (a mockNode) PeerManager() node.PeerManager {
+func (a mockNode) PeerManager() peer_manager.PeerManager {
 	panic("implement")
 }
 func (a mockNode) SpawnOutgoingConnection(ctx context.Context, addr proto.TCPAddr) error {
@@ -30,7 +31,7 @@ func TestApp_PeersAll(t *testing.T) {
 		Peers_: []proto.TCPAddr{proto.NewTCPAddrFromString("127.0.0.1:6868")},
 	}
 
-	app, err := NewApp("key", mockNode{s}, nil)
+	app, err := NewApp("key", s, nil, nil, nil)
 	require.NoError(t, err)
 
 	rs2, err := app.PeersAll()

@@ -1,21 +1,17 @@
 package utxpool
 
 import (
+	"github.com/stretchr/testify/require"
+	"github.com/wavesplatform/gowaves/pkg/proto"
+
 	"math/rand"
 	"testing"
 	"time"
-
-	"github.com/stretchr/testify/require"
-	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
 type transaction struct {
 	fee uint64
 	id  []byte
-}
-
-func (a transaction) GetTypeVersion() proto.TransactionTypeVersion {
-	panic("implement me")
 }
 
 func (a transaction) GetID() ([]byte, error) {
@@ -38,12 +34,13 @@ func (transaction) GetTimestamp() uint64 {
 	return 0
 }
 
-func (a transaction) GetFee() uint64 {
-	return a.fee
+func (transaction) GenerateID() {}
+func (transaction) GetTypeVersion() proto.TransactionTypeVersion {
+	panic("implement me")
 }
 
-func (a transaction) GenerateID() {
-	panic("not implemented")
+func (a transaction) GetFee() uint64 {
+	return a.fee
 }
 
 func tr(fee uint64) *transaction {

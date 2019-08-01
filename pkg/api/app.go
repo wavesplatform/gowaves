@@ -1,20 +1,16 @@
 package api
 
 import (
-	"context"
+	"encoding/json"
+
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/miner/scheduler"
-	"github.com/wavesplatform/gowaves/pkg/node"
+	"github.com/wavesplatform/gowaves/pkg/miner/utxpool"
+	"github.com/wavesplatform/gowaves/pkg/node/peer_manager"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/state"
 )
-
-type Node interface {
-	State() state.State
-	SpawnOutgoingConnection(ctx context.Context, addr proto.TCPAddr) error
-	PeerManager() node.PeerManager
-}
 
 type SchedulerEmits interface {
 	Emits() []scheduler.Emit
@@ -22,11 +18,13 @@ type SchedulerEmits interface {
 
 type App struct {
 	hashedApiKey crypto.Digest
-	node         Node
 	scheduler    SchedulerEmits
+	utx          *utxpool.Utx
+	state        state.State
+	peers        peer_manager.PeerManager
 }
 
-func NewApp(apiKey string, node Node, scheduler SchedulerEmits) (*App, error) {
+func NewApp(apiKey string, state state.State, peers peer_manager.PeerManager, scheduler SchedulerEmits, utx *utxpool.Utx) (*App, error) {
 	digest, err := crypto.SecureHash([]byte(apiKey))
 	if err != nil {
 		return nil, err
@@ -34,9 +32,32 @@ func NewApp(apiKey string, node Node, scheduler SchedulerEmits) (*App, error) {
 
 	return &App{
 		hashedApiKey: digest,
-		node:         node,
+		state:        state,
 		scheduler:    scheduler,
+		utx:          utx,
+		peers:        peers,
 	}, nil
+}
+
+func (a *App) TransactionsBroadcast(b []byte) error {
+	tt := proto.TransactionTypeVersion{}
+	err := json.Unmarshal(b, &tt)
+	if err != nil {
+		return &BadRequestError{err}
+	}
+
+	realType, err := proto.GuessTransactionType(&tt)
+	if err != nil {
+		return &BadRequestError{err}
+	}
+
+	err = json.Unmarshal(b, realType)
+	if err != nil {
+		return &BadRequestError{err}
+	}
+
+	a.utx.Add(realType)
+	return nil
 }
 
 func (a *App) checkAuth(key string) error {

@@ -2,6 +2,10 @@ package node
 
 import (
 	"context"
+	"math/big"
+	"net"
+	"sync"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/p2p/mock"
@@ -9,9 +13,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/state"
-	"math/big"
-	"net"
-	"sync"
+	"github.com/wavesplatform/gowaves/pkg/util/lock"
 )
 
 func notFound() state.StateError {
@@ -92,8 +94,8 @@ func (a *MockStateManager) AddressesNumber(wavesonly bool) (uint64, error) {
 	panic("implement me")
 }
 
-func (a *MockStateManager) Mutex() *sync.RWMutex {
-	return &sync.RWMutex{}
+func (a *MockStateManager) Mutex() *lock.RwMutex {
+	return lock.NewRwMutex(&sync.RWMutex{})
 }
 
 func (a *MockStateManager) AddNewBlocks(blocks [][]byte) error {

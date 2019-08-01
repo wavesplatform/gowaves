@@ -2,11 +2,11 @@ package api
 
 import (
 	"context"
+
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
-	"math/big"
 )
 
 type Peer struct {
@@ -19,7 +19,7 @@ type PeersAll struct {
 }
 
 func (a *App) PeersAll() (*PeersAll, error) {
-	peers, err := a.node.State().Peers()
+	peers, err := a.state.Peers()
 	if err != nil {
 		return nil, &InternalError{err}
 	}
@@ -49,7 +49,7 @@ func (a *App) PeersConnect(ctx context.Context, apiKey string, addr string) (*Pe
 		return nil, &BadRequestError{errors.New("invalid address")}
 	}
 
-	err = a.node.SpawnOutgoingConnection(ctx, d)
+	err = a.peers.Connect(ctx, d)
 	if err != nil {
 		return nil, &BadRequestError{err}
 	}
@@ -75,7 +75,7 @@ type PeersConnectedRow struct {
 
 func (a *App) PeersConnected() (*PeersConnectedResponse, error) {
 	var out []PeersConnectedRow
-	a.node.PeerManager().EachConnected(func(peer peer.Peer, i *big.Int) {
+	a.peers.EachConnected(func(peer peer.Peer, i *proto.Score) {
 
 		v := PeersConnectedRow{
 			Address:            "/" + peer.RemoteAddr().String(),

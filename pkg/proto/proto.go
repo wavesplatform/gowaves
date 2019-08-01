@@ -5,14 +5,15 @@ import (
 	"encoding"
 	"encoding/binary"
 	"fmt"
-	"github.com/wavesplatform/gowaves/pkg/util/collect_writes"
 	"io"
 	"net"
 	"strconv"
 	"strings"
 
 	"github.com/pkg/errors"
+	"github.com/valyala/bytebufferpool"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/util/collect_writes"
 )
 
 const (
@@ -26,16 +27,18 @@ const (
 
 // Constants for message IDs
 const (
-	ContentIDGetPeers      = 0x1
-	ContentIDPeers         = 0x2
-	ContentIDGetSignatures = 0x14
-	ContentIDSignatures    = 0x15
-	ContentIDGetBlock      = 0x16
-	ContentIDBlock         = 0x17
-	ContentIDScore         = 0x18
-	ContentIDTransaction   = 0x19
-	ContentIDMicroblock    = 0x1A
-	ContentIDCheckpoint    = 0x64
+	ContentIDGetPeers          = 0x1
+	ContentIDPeers             = 0x2
+	ContentIDGetSignatures     = 0x14
+	ContentIDSignatures        = 0x15
+	ContentIDGetBlock          = 0x16
+	ContentIDBlock             = 0x17
+	ContentIDScore             = 0x18
+	ContentIDTransaction       = 0x19
+	ContentIDInvMicroblock     = 0x1A
+	ContentIDCheckpoint        = 0x64
+	ContentIDMicroblockRequest = 27
+	ContentIDMicroblock        = 28
 
 	HeaderContentIDPosition = 8
 )
@@ -59,6 +62,16 @@ func (h *Header) MarshalBinary() ([]byte, error) {
 	data := make([]byte, h.HeaderLength())
 	h.Copy(data)
 	return data, nil
+}
+
+func (h *Header) WriteTo(w io.Writer) (int64, error) {
+	buf := make([]byte, 17)
+	n := h.Copy(buf)
+	rs, err := w.Write(buf[:n])
+	if err != nil {
+		return 0, err
+	}
+	return int64(rs), nil
 }
 
 func (h *Header) HeaderLength() uint32 {
@@ -889,7 +902,15 @@ func (m *PeersMessage) WriteTo(w io.Writer) (int64, error) {
 
 // MarshalBinary encodes PeersMessage message to binary form
 func (m *PeersMessage) MarshalBinary() ([]byte, error) {
-	return nil, errors.Errorf("deprecated method")
+	buf := bytebufferpool.Get()
+	defer bytebufferpool.Put(buf)
+	_, err := m.WriteTo(buf)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]byte, buf.Len())
+	copy(out, buf.Bytes())
+	return out, nil
 }
 
 // UnmarshalBinary decodes PeersMessage from binary form
@@ -1266,6 +1287,20 @@ func (m *BlockMessage) MarshalBinary() ([]byte, error) {
 	return hdr, nil
 }
 
+func MakeHeader(contentID uint8, payload []byte) (Header, error) {
+	var h Header
+	h.Length = MaxHeaderLength + uint32(len(payload)) - 4
+	h.Magic = headerMagic
+	h.ContentID = contentID
+	h.PayloadLength = uint32(len(payload))
+	dig, err := crypto.FastHash([]byte{})
+	if err != nil {
+		return Header{}, err
+	}
+	copy(h.PayloadCsum[:], dig[:4])
+	return h, nil
+}
+
 // UnmarshalBinary decodes BlockMessage from binary from
 func (m *BlockMessage) UnmarshalBinary(data []byte) error {
 	var h Header
@@ -1450,26 +1485,6 @@ type CheckPointMessage struct {
 	Checkpoints []CheckpointItem
 }
 
-// CheckPointMessage represents a CheckPoint message
-type MicroBlockMessage struct {
-}
-
-func (*MicroBlockMessage) ReadFrom(r io.Reader) (n int64, err error) {
-	panic("implement me")
-}
-
-func (*MicroBlockMessage) WriteTo(w io.Writer) (n int64, err error) {
-	panic("implement me")
-}
-
-func (*MicroBlockMessage) UnmarshalBinary(data []byte) error {
-	return nil
-}
-
-func (*MicroBlockMessage) MarshalBinary() (data []byte, err error) {
-	panic("implement me")
-}
-
 // MarshalBinary encodes CheckPointMessage to binary form
 func (m *CheckPointMessage) MarshalBinary() ([]byte, error) {
 	body := make([]byte, 4, 4+len(m.Checkpoints)*72+100)
@@ -1584,6 +1599,10 @@ func UnmarshalMessage(b []byte) (Message, error) {
 		m = &CheckPointMessage{}
 	case ContentIDMicroblock:
 		m = &MicroBlockMessage{}
+	case ContentIDMicroblockRequest:
+		m = &MicroBlockRequestMessage{}
+	case ContentIDInvMicroblock:
+		m = &MicroBlockInvMessage{}
 	default:
 		return nil, errors.Errorf(
 			"received unknown content id byte %d 0x%x", b[HeaderContentIDPosition], b[HeaderContentIDPosition])

@@ -245,7 +245,7 @@ type Genesis struct {
 }
 
 func (tx Genesis) GetTypeVersion() TransactionTypeVersion {
-	return TransactionTypeVersion{tx.Type, tx.Version}
+	return TransactionTypeVersion{tx.Type, 1}
 }
 
 func (tx *Genesis) GenerateID() {

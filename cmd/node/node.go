@@ -2,14 +2,20 @@ package main
 
 import (
 	"context"
-	"github.com/alecthomas/kong"
-	"github.com/wavesplatform/gowaves/pkg/api"
-	"github.com/wavesplatform/gowaves/pkg/miner/scheduler"
-	"github.com/wavesplatform/gowaves/pkg/settings"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
+
+	"github.com/alecthomas/kong"
+	"github.com/wavesplatform/gowaves/pkg/api"
+	"github.com/wavesplatform/gowaves/pkg/miner"
+	"github.com/wavesplatform/gowaves/pkg/miner/scheduler"
+	"github.com/wavesplatform/gowaves/pkg/miner/utxpool"
+	"github.com/wavesplatform/gowaves/pkg/ng"
+	"github.com/wavesplatform/gowaves/pkg/node/peer_manager"
+	"github.com/wavesplatform/gowaves/pkg/settings"
 
 	"github.com/wavesplatform/gowaves/pkg/libs/bytespool"
 	"github.com/wavesplatform/gowaves/pkg/node"
@@ -17,10 +23,9 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"go.uber.org/zap"
-	"strings"
 )
 
-var version = proto.Version{Major: 0, Minor: 15, Patch: 1}
+var version = proto.Version{Major: 0, Minor: 16, Patch: 1}
 
 type Cli struct {
 	Run struct {
@@ -72,13 +77,21 @@ func main() {
 	mb := 1024 * 1014
 	pool := bytespool.NewBytesPool(64, mb+(mb/2))
 
+	utx := utxpool.New(10000)
+
 	parent := peer.NewParent()
 
-	peerSpawnerImpl := node.NewPeerSpawner(pool, parent, conf.WavesNetwork, declAddr, "gowaves", 100500, version)
+	peerSpawnerImpl := peer_manager.NewPeerSpawner(pool, parent, conf.WavesNetwork, declAddr, "gowaves", 100500, version)
 
-	peerManager := node.NewPeerManager(peerSpawnerImpl, state)
+	peerManager := peer_manager.NewPeerManager(peerSpawnerImpl, state)
 
-	n := node.NewNode(state, peerManager, declAddr, nil, nil)
+	scheduler := scheduler.NewScheduler(state, nil, nil)
+
+	mine := miner.NoOpMiner()
+
+	ngState := ng.NewState(node.NewBlockApplier(state, peerManager, scheduler), state)
+	ngRuntime := ng.NewRuntime(peerManager, ngState, scheduler)
+	n := node.NewNode(state, peerManager, declAddr, scheduler, mine, utx, ngRuntime)
 
 	go node.RunNode(ctx, n, parent)
 
@@ -89,10 +102,8 @@ func main() {
 		}
 	}
 
-	schedulerIns := scheduler.NewScheduler(state, nil, nil)
-
 	// TODO hardcore
-	app, err := api.NewApp("integration-test-rest-api", n, schedulerIns)
+	app, err := api.NewApp("integration-test-rest-api", state, peerManager, scheduler, utx)
 	if err != nil {
 		zap.S().Error(err)
 		cancel()

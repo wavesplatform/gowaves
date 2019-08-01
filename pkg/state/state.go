@@ -3,7 +3,6 @@ package state
 import (
 	"bytes"
 	"context"
-	"encoding/binary"
 	"log"
 	"math/big"
 	"os"
@@ -16,6 +15,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
+	"github.com/wavesplatform/gowaves/pkg/util/lock"
 )
 
 const (
@@ -331,8 +331,8 @@ type stateManager struct {
 	lastVotingHeight uint64
 }
 
-func (s *stateManager) Mutex() *sync.RWMutex {
-	return s.mu
+func (s *stateManager) Mutex() *lock.RwMutex {
+	return lock.NewRwMutex(s.mu)
 }
 
 func (s *stateManager) Peers() ([]proto.TCPAddr, error) {
@@ -548,8 +548,7 @@ func (s *stateManager) Block(blockID crypto.Signature) (*proto.Block, error) {
 		return nil, wrapErr(RetrievalError, err)
 	}
 	block := proto.Block{BlockHeader: *header}
-	block.Transactions = make([]byte, len(transactions))
-	copy(block.Transactions, transactions)
+	block.Transactions = proto.NewReprFromBytes(transactions, block.TransactionCount)
 	return &block, nil
 }
 
@@ -679,19 +678,14 @@ func (s *stateManager) addNewBlock(block, parent *proto.Block, initialisation bo
 	if err := s.rw.writeBlockHeader(block.BlockSignature, headerBytes); err != nil {
 		return err
 	}
-	transactionsBytes := block.Transactions
-	var transactions []proto.Transaction
-	for i := 0; i < block.TransactionCount; i++ {
-		n := int(binary.BigEndian.Uint32(transactionsBytes[0:4]))
-		if n+4 > len(transactionsBytes) {
-			return errors.New("invalid tx size: exceeds bytes slice bounds")
-		}
-		txBytes := transactionsBytes[4 : n+4]
-		tx, err := proto.BytesToTransaction(txBytes)
-		if err != nil {
-			return err
-		}
-		transactions = append(transactions, tx)
+	transactions, err := block.Transactions.Transactions()
+	if err != nil {
+		return err
+	}
+	if block.TransactionCount != transactions.Count() {
+		return errors.Errorf("block.TransactionCount != transactions.Count(), %d != %d", block.TransactionCount, transactions.Count())
+	}
+	for _, tx := range transactions {
 		// Send transaction for signature/data verification.
 		task := &verifyTask{
 			taskType: verifyTx,
@@ -707,10 +701,15 @@ func (s *stateManager) addNewBlock(block, parent *proto.Block, initialisation bo
 		if err != nil {
 			return err
 		}
-		if err := s.rw.writeTransaction(txID, transactionsBytes[:n+4]); err != nil {
+
+		// TODO not all transactions implement WriteTo
+		bts, err := tx.MarshalBinary()
+		if err != nil {
 			return err
 		}
-		transactionsBytes = transactionsBytes[4+n:]
+		if err := s.rw.writeTransaction(txID, bts); err != nil {
+			return err
+		}
 	}
 	var parentHeader *proto.BlockHeader
 	if parent != nil {
@@ -1199,7 +1198,6 @@ func (s *stateManager) rollbackToImpl(removalEdge crypto.Signature) error {
 	if err := s.stor.scores.rollback(newHeight, oldHeight); err != nil {
 		return wrapErr(RollbackError, err)
 	}
-	// Reset recent block IDs storage.
 	return nil
 }
 

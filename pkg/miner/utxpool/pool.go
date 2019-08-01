@@ -53,13 +53,12 @@ func New(limit uint) *Utx {
 func (a *Utx) Add(t proto.Transaction) {
 	a.mu.Lock()
 	heap.Push(&a.transactions, t)
-	// TODO: check GetID() error.
-	tID, _ := t.GetID()
-	a.transactionIds[makeDigest(tID)] = struct{}{}
+	t.GenerateID()
+	a.transactionIds[makeDigest(t.GetID())] = struct{}{}
 	a.mu.Unlock()
 }
 
-func makeDigest(b []byte) crypto.Digest {
+func makeDigest(b []byte, e error) crypto.Digest {
 	d := crypto.Digest{}
 	copy(d[:], b)
 	return d
@@ -68,9 +67,7 @@ func makeDigest(b []byte) crypto.Digest {
 func (a *Utx) Exists(t proto.Transaction) bool {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	// TODO: check GetID() error.
-	tID, _ := t.GetID()
-	_, ok := a.transactionIds[makeDigest(tID)]
+	_, ok := a.transactionIds[makeDigest(t.GetID())]
 	return ok
 }
 
@@ -79,9 +76,7 @@ func (a *Utx) Pop() proto.Transaction {
 	defer a.mu.Unlock()
 	if a.transactions.Len() > 0 {
 		t := heap.Pop(&a.transactions).(proto.Transaction)
-		// TODO: check GetID() error.
-		tID, _ := t.GetID()
-		delete(a.transactionIds, makeDigest(tID))
+		delete(a.transactionIds, makeDigest(t.GetID()))
 		return t
 	}
 	return nil

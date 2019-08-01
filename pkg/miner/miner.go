@@ -6,6 +6,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/miner/scheduler"
 	"github.com/wavesplatform/gowaves/pkg/miner/utxpool"
 	"github.com/wavesplatform/gowaves/pkg/node"
+	"github.com/wavesplatform/gowaves/pkg/node/peer_manager"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"github.com/wavesplatform/gowaves/pkg/types"
@@ -17,16 +18,20 @@ import (
 	"time"
 )
 
-type Miner struct {
+type Miner interface {
+	Mine(ctx context.Context, t proto.Timestamp, k proto.KeyPair, parent crypto.Signature, baseTarget consensus.BaseTarget, GenSignature crypto.Digest)
+}
+
+type DefaultMiner struct {
 	utx       *utxpool.Utx
 	state     state.State
-	peer      node.PeerManager
+	peer      peer_manager.PeerManager
 	scheduler types.Scheduler
 	interrupt *atomic.Bool
 }
 
-func New(utx *utxpool.Utx, state state.State, peer node.PeerManager, scheduler types.Scheduler) *Miner {
-	return &Miner{
+func NewDefaultMiner(utx *utxpool.Utx, state state.State, peer peer_manager.PeerManager, scheduler types.Scheduler) *DefaultMiner {
+	return &DefaultMiner{
 		scheduler: scheduler,
 		utx:       utx,
 		state:     state,
@@ -35,7 +40,7 @@ func New(utx *utxpool.Utx, state state.State, peer node.PeerManager, scheduler t
 	}
 }
 
-func (a *Miner) Mine(t proto.Timestamp, k proto.KeyPair, parent crypto.Signature, baseTarget consensus.BaseTarget, GenSignature crypto.Digest) {
+func (a *DefaultMiner) Mine(ctx context.Context, t proto.Timestamp, k proto.KeyPair, parent crypto.Signature, baseTarget consensus.BaseTarget, GenSignature crypto.Digest) {
 	a.interrupt.Store(false)
 	defer a.scheduler.Reschedule()
 	lastKnownBlock, err := a.state.Block(parent)
@@ -48,7 +53,7 @@ func (a *Miner) Mine(t proto.Timestamp, k proto.KeyPair, parent crypto.Signature
 	var invalidTransactions []proto.Transaction
 	currentTimestamp := proto.NewTimestampFromTime(time.Now())
 	mu := a.state.Mutex()
-	mu.Lock()
+	locked := mu.Lock()
 	for i := 0; i < 100; i++ {
 		t := a.utx.Pop()
 		if t == nil {
@@ -57,7 +62,7 @@ func (a *Miner) Mine(t proto.Timestamp, k proto.KeyPair, parent crypto.Signature
 
 		if a.interrupt.Load() {
 			a.state.ResetValidationList()
-			mu.Unlock()
+			locked.Unlock()
 			return
 		}
 
@@ -68,7 +73,7 @@ func (a *Miner) Mine(t proto.Timestamp, k proto.KeyPair, parent crypto.Signature
 		}
 	}
 	a.state.ResetValidationList()
-	mu.Unlock()
+	locked.Unlock()
 
 	buf := new(bytes.Buffer)
 	_, err = transactions.WriteTo(buf)
@@ -81,7 +86,7 @@ func (a *Miner) Mine(t proto.Timestamp, k proto.KeyPair, parent crypto.Signature
 		GenSignature: GenSignature,
 	}
 
-	b, err := proto.BlockBuilder(transactions, t, parent, k.Public(), nxt)
+	b, err := proto.CreateBlock(proto.NewReprFromTransactions(transactions), t, parent, k.Public(), nxt)
 	if err != nil {
 		zap.S().Error(err)
 		return
@@ -93,24 +98,34 @@ func (a *Miner) Mine(t proto.Timestamp, k proto.KeyPair, parent crypto.Signature
 		return
 	}
 
-	ba := node.NewBlockApplier(a.state, a.peer, a.scheduler, a)
+	ba := node.NewBlockApplier(a.state, a.peer, a.scheduler)
 	err = ba.Apply(b)
 	if err != nil {
 		zap.S().Error(err)
 	}
 }
 
-func (a *Miner) Interrupt() {
+func (a *DefaultMiner) Interrupt() {
 	a.interrupt.Store(true)
 }
 
-func Run(ctx context.Context, a *Miner, s *scheduler.SchedulerImpl) {
+func Run(ctx context.Context, a Miner, s *scheduler.SchedulerImpl) {
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case v := <-s.Mine():
-			a.Mine(v.Timestamp, v.KeyPair, v.ParentBlockSignature, v.BaseTarget, v.GenSignature)
+			a.Mine(ctx, v.Timestamp, v.KeyPair, v.ParentBlockSignature, v.BaseTarget, v.GenSignature)
 		}
 	}
+}
+
+type noOpMiner struct {
+}
+
+func (noOpMiner) Interrupt() {
+}
+
+func NoOpMiner() noOpMiner {
+	return noOpMiner{}
 }

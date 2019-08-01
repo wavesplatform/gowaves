@@ -6,6 +6,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/node/peer_manager"
 	. "github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/state"
@@ -15,34 +16,62 @@ import (
 )
 
 type StateSync struct {
-	peerManager  PeerManager
+	peerManager  peer_manager.PeerManager
 	stateManager state.State
 	subscribe    *Subscribe
 	interrupt    chan struct{}
 	scheduler    types.Scheduler
 	blockApplier *BlockApplier
+	interrupter  types.MinerInterrupter
+	syncCh       chan struct{}
 }
 
-func NewStateSync(stateManager state.State, peerManager PeerManager, subscribe *Subscribe, scheduler types.Scheduler, interrupter types.MinerInterrupter) *StateSync {
+func NewStateSync(stateManager state.State, peerManager peer_manager.PeerManager, subscribe *Subscribe, scheduler types.Scheduler, interrupter types.MinerInterrupter) *StateSync {
 	return &StateSync{
 		peerManager:  peerManager,
 		stateManager: stateManager,
 		subscribe:    subscribe,
 		interrupt:    make(chan struct{}),
 		scheduler:    scheduler,
-		blockApplier: NewBlockApplier(stateManager, peerManager, scheduler, interrupter),
+		blockApplier: NewBlockApplier(stateManager, peerManager, scheduler),
+		interrupter:  interrupter,
+		syncCh:       make(chan struct{}, 20),
 	}
 }
 
 var TimeoutErr = errors.Errorf("Timeout")
 
-func (a *StateSync) Sync() error {
-
-	p, err := a.getPeerWithHighestScore()
-	if err != nil {
-		return err
+func (a *StateSync) Sync() {
+	select {
+	case a.syncCh <- struct{}{}:
+		return
+	default:
+		zap.S().Error("failed add sync job, chan is full")
 	}
+}
 
+func (a *StateSync) Run(ctx context.Context) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-a.syncCh:
+			a.run(ctx)
+		}
+	}
+}
+
+func (a *StateSync) run(ctx context.Context) {
+	for {
+		p, err := a.getPeerWithHighestScore()
+		if err != nil {
+			return
+		}
+		_ = a.sync(p)
+	}
+}
+
+func (a *StateSync) sync(p Peer) error {
 	messCh, unsubscribe := a.subscribe.Subscribe(p, &proto.SignaturesMessage{})
 	defer unsubscribe()
 
@@ -60,7 +89,7 @@ func (a *StateSync) Sync() error {
 		return TimeoutErr
 	case received := <-messCh:
 		mess := received.(*proto.SignaturesMessage)
-		downloadSignatures(mess, sigs, p, a.subscribe, a.blockApplier)
+		downloadSignatures(mess, sigs, p, a.subscribe, a.blockApplier, a.interrupter, a.scheduler)
 	}
 
 	return nil
@@ -77,6 +106,7 @@ func (a *StateSync) askSignatures(p Peer) (*Signatures, error) {
 	send := &proto.GetSignaturesMessage{
 		Blocks: sigs.Signatures(),
 	}
+
 	p.SendMessage(send)
 	return sigs, nil
 }
@@ -134,8 +164,16 @@ func (a *StateSync) Close() {
 	close(a.interrupt)
 }
 
-func downloadSignatures(receivedSignatures *proto.SignaturesMessage, blockSignatures *Signatures, p Peer, subscribe *Subscribe, applier *BlockApplier) {
+func downloadSignatures(
+	receivedSignatures *proto.SignaturesMessage,
+	blockSignatures *Signatures,
+	p Peer,
+	subscribe *Subscribe,
+	applier *BlockApplier,
+	interrupt types.MinerInterrupter,
+	scheduler types.Scheduler) {
 
+	defer scheduler.Reschedule()
 	var sigs []crypto.Signature
 	for _, sig := range receivedSignatures.Signatures {
 		if !blockSignatures.Exists(sig) {
@@ -185,18 +223,21 @@ func downloadSignatures(receivedSignatures *proto.SignaturesMessage, blockSignat
 
 		select {
 		case <-timeout:
-			// TODO HANDLE timeout
+			// TODO HANDLE timeout, maybe block peer ot other
 			zap.S().Error("timeout getting block", sigs[i])
 			cancel()
 			return
 
 		case bts := <-ch:
 			cancel()
+
+			interrupt.Interrupt()
 			err := applier.ApplyBytes(bts)
 			if err != nil {
 				zap.S().Error(err)
 				continue
 			}
+			scheduler.Reschedule()
 		}
 	}
 }

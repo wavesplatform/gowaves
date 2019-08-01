@@ -4,14 +4,18 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/go-chi/chi"
-	"github.com/go-chi/chi/middleware"
-	"github.com/wavesplatform/gowaves/pkg/node"
-	"github.com/wavesplatform/gowaves/pkg/state"
-	"go.uber.org/zap"
+	"io/ioutil"
 	"net/http"
 	"strconv"
 	"time"
+
+	"github.com/go-chi/chi"
+	"github.com/go-chi/chi/middleware"
+	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/node"
+	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/state"
+	"go.uber.org/zap"
 )
 
 // Logger is a middleware that logs the start and end of each request, along
@@ -58,41 +62,48 @@ func (a *NodeApi) routes() chi.Router {
 	r.Get("/blocks/last", a.BlocksLast)
 	r.Get("/blocks/height", a.BlockHeight)
 	r.Get("/blocks/first", a.BlocksFirst)
-	r.Get("/blocks/at/{id:\\d+}", a.BlockAt)
+	r.Get("/blocks/at/{height:\\d+}", a.BlockAt)
 	r.Get("/blocks/score/at/{id:\\d+}", a.BlockScoreAt)
+	r.Get("/blocks/signature/{signature}", a.BlockSignatureAt)
+	r.Get("/blocks/generators", a.BlocksGenerators)
 	r.Route("/peers", func(r chi.Router) {
 		r.Get("/all", a.PeersAll)
 		r.Get("/connected", a.PeersConnected)
 		r.Post("/connect", a.PeersConnect)
 	})
 	r.Get("/miner/info", a.Minerinfo)
+	r.Post("/transactions/broadcast", a.TransactionsBroadcast)
 	return r
 }
 
+func (a *NodeApi) TransactionsBroadcast(w http.ResponseWriter, r *http.Request) {
+	b, err := ioutil.ReadAll(r.Body)
+	defer r.Body.Close()
+	if err != nil {
+		handleError(w, &BadRequestError{err})
+		return
+	}
+
+	err = a.app.TransactionsBroadcast(b)
+	if err != nil {
+		handleError(w, err)
+		return
+	}
+}
+
 func (a *NodeApi) BlocksLast(w http.ResponseWriter, r *http.Request) {
-	h, err := a.state.Height()
+	block, err := a.app.BlocksLast()
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to complete request: %s", err.Error()), http.StatusInternalServerError)
+		handleError(w, err)
 		return
 	}
 
-	block, err := a.state.BlockByHeight(h)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to complete request: %s", err.Error()), http.StatusInternalServerError)
-		return
-	}
-
-	height, err := a.state.BlockIDToHeight(block.BlockSignature)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to complete request: %s", err.Error()), http.StatusInternalServerError)
-		return
-	}
-	block.Height = height
-	err = json.NewEncoder(w).Encode(block)
+	bts, err := proto.BlockEncodeJson(block)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to marshal status to JSON: %s", err.Error()), http.StatusInternalServerError)
 		return
 	}
+	_, _ = w.Write(bts)
 }
 
 func (a *NodeApi) BlocksFirst(w http.ResponseWriter, r *http.Request) {
@@ -102,16 +113,21 @@ func (a *NodeApi) BlocksFirst(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	block.Height = 1
-	err = json.NewEncoder(w).Encode(block)
+	//err = json.NewEncoder(w).Encode(block)
+	//if err != nil {
+	//	http.Error(w, fmt.Sprintf("Failed to marshal status to JSON: %s", err.Error()), http.StatusInternalServerError)
+	//	return
+	//}
+	bts, err := proto.BlockEncodeJson(block)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to marshal status to JSON: %s", err.Error()), http.StatusInternalServerError)
 		return
 	}
+	_, _ = w.Write(bts)
 }
 
 func (a *NodeApi) BlockAt(w http.ResponseWriter, r *http.Request) {
-
-	s := chi.URLParam(r, "id")
+	s := chi.URLParam(r, "height")
 	id, err := strconv.ParseUint(s, 10, 64)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -124,6 +140,31 @@ func (a *NodeApi) BlockAt(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	block.Height = id
+	err = json.NewEncoder(w).Encode(block)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to marshal status to JSON: %s", err.Error()), http.StatusInternalServerError)
+		return
+	}
+}
+
+func (a *NodeApi) BlockSignatureAt(w http.ResponseWriter, r *http.Request) {
+	s := chi.URLParam(r, "signature")
+	sig, err := crypto.NewSignatureFromBase58(s)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	block, err := a.state.Block(sig)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to complete request: %s", err.Error()), http.StatusInternalServerError)
+		return
+	}
+	height, err := a.state.BlockIDToHeight(sig)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to complete request: %s", err.Error()), http.StatusInternalServerError)
+		return
+	}
+	block.Height = height
 	err = json.NewEncoder(w).Encode(block)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to marshal status to JSON: %s", err.Error()), http.StatusInternalServerError)
@@ -152,15 +193,15 @@ func (a *NodeApi) BlockScoreAt(w http.ResponseWriter, r *http.Request) {
 	s := chi.URLParam(r, "id")
 	id, err := strconv.ParseUint(s, 10, 64)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		handleError(w, &BadRequestError{err})
 		return
 	}
 	rs, err := a.app.BlocksScoreAt(id)
 	if err != nil {
-		handleError(err, w)
+		handleError(w, err)
 		return
 	}
-	sendJson(rs, w)
+	sendJson(w, rs)
 }
 
 func Run(ctx context.Context, address string, n *NodeApi) error {
@@ -184,12 +225,12 @@ func Run(ctx context.Context, address string, n *NodeApi) error {
 }
 
 func (a *NodeApi) PeersAll(w http.ResponseWriter, r *http.Request) {
-	peers, err := a.app.PeersAll()
+	rs, err := a.app.PeersAll()
 	if err != nil {
-		handleError(err, w)
+		handleError(w, err)
 		return
 	}
-	sendJson(peers, w)
+	sendJson(w, rs)
 }
 
 type PeersConnectRequest struct {
@@ -213,31 +254,40 @@ func (a *NodeApi) PeersConnect(w http.ResponseWriter, r *http.Request) {
 	apiKey := r.Header.Get("X-API-Key")
 	rs, err := a.app.PeersConnect(context.Background(), apiKey, fmt.Sprintf("%s:%d", req.Host, req.Port))
 	if err != nil {
-		handleError(err, w)
+		handleError(w, err)
 		return
 	}
-	sendJson(rs, w)
+	sendJson(w, rs)
 }
 
 func (a *NodeApi) PeersConnected(w http.ResponseWriter, r *http.Request) {
 	rs, err := a.app.PeersConnected()
 	if err != nil {
-		handleError(err, w)
+		handleError(w, err)
 		return
 	}
-	sendJson(rs, w)
+	sendJson(w, rs)
+}
+
+func (a *NodeApi) BlocksGenerators(w http.ResponseWriter, r *http.Request) {
+	rs, err := a.app.BlocksGenerators()
+	if err != nil {
+		handleError(w, err)
+		return
+	}
+	sendJson(w, rs)
 }
 
 func (a *NodeApi) Minerinfo(w http.ResponseWriter, r *http.Request) {
 	rs, err := a.app.Miner()
 	if err != nil {
-		handleError(err, w)
+		handleError(w, err)
 		return
 	}
-	sendJson(rs, w)
+	sendJson(w, rs)
 }
 
-func handleError(err error, w http.ResponseWriter) {
+func handleError(w http.ResponseWriter, err error) {
 	switch err.(type) {
 	case *AuthError:
 		http.Error(w, fmt.Sprintf("Failed to complete request: %s", err.Error()), http.StatusForbidden)
@@ -248,7 +298,7 @@ func handleError(err error, w http.ResponseWriter) {
 	}
 }
 
-func sendJson(v interface{}, w http.ResponseWriter) {
+func sendJson(w http.ResponseWriter, v interface{}) {
 	err := json.NewEncoder(w).Encode(v)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to marshal status to JSON: %s", err.Error()), http.StatusInternalServerError)

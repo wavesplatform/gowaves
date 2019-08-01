@@ -1,14 +1,15 @@
-package node
+package peer_manager
 
 import (
 	"context"
+	"net"
+
 	"github.com/wavesplatform/gowaves/pkg/libs/bytespool"
 	"github.com/wavesplatform/gowaves/pkg/p2p/conn"
 	"github.com/wavesplatform/gowaves/pkg/p2p/incoming"
 	"github.com/wavesplatform/gowaves/pkg/p2p/outgoing"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"net"
 )
 
 func noSkip(_ proto.Header) bool {
