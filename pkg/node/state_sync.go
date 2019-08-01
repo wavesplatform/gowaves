@@ -9,6 +9,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/node/peer_manager"
 	. "github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/services"
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"github.com/wavesplatform/gowaves/pkg/types"
 	"github.com/wavesplatform/gowaves/pkg/util/cancellable"
@@ -21,19 +22,19 @@ type StateSync struct {
 	subscribe    *Subscribe
 	interrupt    chan struct{}
 	scheduler    types.Scheduler
-	blockApplier *BlockApplier
+	blockApplier types.BlockApplier
 	interrupter  types.MinerInterrupter
 	syncCh       chan struct{}
 }
 
-func NewStateSync(stateManager state.State, peerManager peer_manager.PeerManager, subscribe *Subscribe, scheduler types.Scheduler, interrupter types.MinerInterrupter) *StateSync {
+func NewStateSync(services services.Services, subscribe *Subscribe, interrupter types.MinerInterrupter) *StateSync {
 	return &StateSync{
-		peerManager:  peerManager,
-		stateManager: stateManager,
+		peerManager:  services.Peers,
+		stateManager: services.State,
 		subscribe:    subscribe,
 		interrupt:    make(chan struct{}),
-		scheduler:    scheduler,
-		blockApplier: NewBlockApplier(stateManager, peerManager, scheduler),
+		scheduler:    services.Scheduler,
+		blockApplier: services.BlockApplier,
 		interrupter:  interrupter,
 		syncCh:       make(chan struct{}, 20),
 	}
@@ -169,7 +170,7 @@ func downloadSignatures(
 	blockSignatures *Signatures,
 	p Peer,
 	subscribe *Subscribe,
-	applier *BlockApplier,
+	applier types.BlockApplier,
 	interrupt types.MinerInterrupter,
 	scheduler types.Scheduler) {
 
@@ -237,7 +238,6 @@ func downloadSignatures(
 				zap.S().Error(err)
 				continue
 			}
-			scheduler.Reschedule()
 		}
 	}
 }

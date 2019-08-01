@@ -39,21 +39,21 @@ func (a *transactionsHeap) Pop() interface{} {
 	return item
 }
 
-type Utx struct {
+type UtxImpl struct {
 	mu             sync.Mutex
 	transactions   transactionsHeap
 	transactionIds map[crypto.Digest]struct{}
 	limit          uint // max transaction count
 }
 
-func New(limit uint) *Utx {
-	return &Utx{
+func New(limit uint) *UtxImpl {
+	return &UtxImpl{
 		transactionIds: make(map[crypto.Digest]struct{}),
 		limit:          limit,
 	}
 }
 
-func (a *Utx) AddWithBytes(t proto.Transaction, b []byte) {
+func (a *UtxImpl) AddWithBytes(t proto.Transaction, b []byte) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	tb := &TransactionWithBytes{
@@ -74,14 +74,14 @@ func makeDigest(b []byte, e error) crypto.Digest {
 	return d
 }
 
-func (a *Utx) Exists(t proto.Transaction) bool {
+func (a *UtxImpl) Exists(t proto.Transaction) bool {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	_, ok := a.transactionIds[makeDigest(t.GetID())]
 	return ok
 }
 
-func (a *Utx) Pop() *TransactionWithBytes {
+func (a *UtxImpl) Pop() *TransactionWithBytes {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	if a.transactions.Len() > 0 {
@@ -92,7 +92,7 @@ func (a *Utx) Pop() *TransactionWithBytes {
 	return nil
 }
 
-func (a *Utx) Len() int {
+func (a *UtxImpl) Len() int {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	return a.transactions.Len()

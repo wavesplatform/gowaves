@@ -9,10 +9,10 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/miner/utxpool"
 	"github.com/wavesplatform/gowaves/pkg/ng"
-	"github.com/wavesplatform/gowaves/pkg/node"
 	"github.com/wavesplatform/gowaves/pkg/node/peer_manager"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/services"
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"github.com/wavesplatform/gowaves/pkg/types"
 	"go.uber.org/atomic"
@@ -27,7 +27,7 @@ type restLimits struct {
 }
 
 type MicroblockMiner struct {
-	utx         *utxpool.Utx
+	utx         types.UtxPool
 	state       state.State
 	peer        peer_manager.PeerManager
 	scheduler   types.Scheduler
@@ -35,18 +35,20 @@ type MicroblockMiner struct {
 	constraints Constraints
 	ngRuntime   ng.Runtime
 	scheme      proto.Scheme
+	services    services.Services
 }
 
-func NewMicroblockMiner(utx *utxpool.Utx, state state.State, peer peer_manager.PeerManager, scheduler types.Scheduler, ngRuntime ng.Runtime, scheme proto.Scheme) *MicroblockMiner {
+func NewMicroblockMiner(services services.Services, ngRuntime ng.Runtime, scheme proto.Scheme) *MicroblockMiner {
 	return &MicroblockMiner{
-		scheduler:   scheduler,
-		utx:         utx,
-		state:       state,
-		peer:        peer,
+		scheduler:   services.Scheduler,
+		utx:         services.UtxPool,
+		state:       services.State,
+		peer:        services.Peers,
 		interrupt:   atomic.NewBool(false),
 		constraints: DefaultConstraints(),
 		ngRuntime:   ngRuntime,
 		scheme:      scheme,
+		services:    services,
 	}
 }
 
@@ -71,24 +73,12 @@ func (a *MicroblockMiner) Mine(ctx context.Context, t proto.Timestamp, k proto.K
 		return
 	}
 
-	ba := node.NewBlockApplier(a.state, a.peer, a.scheduler)
-	err = ba.Apply(b)
+	err = a.services.BlockApplier.Apply(b)
 	if err != nil {
 		zap.S().Error(err)
 		return
 	}
 
-	curScore, err := a.state.CurrentScore()
-	if err != nil {
-		zap.S().Error(err)
-		return
-	}
-
-	a.peer.EachConnected(func(peer peer.Peer, score *proto.Score) {
-		peer.SendMessage(&proto.ScoreMessage{
-			Score: curScore.Bytes(),
-		})
-	})
 	blockBytes, err := b.MarshalBinary()
 	if err != nil {
 		zap.S().Error(err)
@@ -237,8 +227,7 @@ func (a *MicroblockMiner) mineMicro(ctx context.Context, rest restLimits, blockA
 	_ = a.state.RollbackTo(blockApplyOn.Parent)
 	locked.Unlock()
 
-	ba := node.NewBlockApplier(a.state, a.peer, a.scheduler)
-	err = ba.Apply(newBlock)
+	err = a.services.BlockApplier.Apply(newBlock)
 	if err != nil {
 		zap.S().Error(err)
 		return

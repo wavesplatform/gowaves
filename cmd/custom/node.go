@@ -18,8 +18,10 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/ng"
 	"github.com/wavesplatform/gowaves/pkg/node"
 	"github.com/wavesplatform/gowaves/pkg/node/peer_manager"
+	"github.com/wavesplatform/gowaves/pkg/node/state_changed"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/services"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"go.uber.org/zap"
@@ -109,14 +111,35 @@ func main() {
 
 	utx := utxpool.New(10000)
 
-	ngState := ng.NewState(node.NewBlockApplier(state, peerManager, scheduler), state)
-	ngRuntime := ng.NewRuntime(peerManager, ngState, scheduler)
+	stateChanged := state_changed.NewStateChanged()
+	blockApplier := node.NewBlockApplier(state, stateChanged, scheduler)
 
-	Mainer := miner.NewMicroblockMiner(utx, state, peerManager, scheduler, ngRuntime, 'E')
+	services := services.Services{
+		State:        state,
+		Peers:        peerManager,
+		Scheduler:    scheduler,
+		BlockApplier: blockApplier,
+		UtxPool:      utx,
+		Scheme:       custom.FunctionalitySettings.AddressSchemeCharacter,
+	}
+
+	ngState := ng.NewState(services)
+	ngRuntime := ng.NewRuntime(services, ngState)
+
+	Mainer := miner.NewMicroblockMiner(services, ngRuntime, 'E')
+
+	stateChanged.AddHandler(state_changed.NewScoreSender(peerManager, state))
+	stateChanged.AddHandler(state_changed.NewFuncHandler(func() {
+		scheduler.Reschedule()
+	}))
+	stateChanged.AddHandler(state_changed.NewFuncHandler(func() {
+		ngState.BlockApplied()
+	}))
+
 	go miner.Run(ctx, Mainer, scheduler)
 	go scheduler.Reschedule()
 
-	n := node.NewNode(state, peerManager, declAddr, scheduler, Mainer, utx, ngRuntime)
+	n := node.NewNode(services, declAddr, ngRuntime, Mainer)
 
 	go node.RunNode(ctx, n, parent)
 

@@ -7,11 +7,11 @@ import (
 	"time"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
-	"github.com/wavesplatform/gowaves/pkg/miner/utxpool"
 	"github.com/wavesplatform/gowaves/pkg/ng"
 	"github.com/wavesplatform/gowaves/pkg/node/peer_manager"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/services"
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"github.com/wavesplatform/gowaves/pkg/types"
 	"github.com/wavesplatform/gowaves/pkg/util"
@@ -26,28 +26,28 @@ type Config struct {
 }
 
 type Node struct {
-	peerManager      peer_manager.PeerManager
+	peers            peer_manager.PeerManager
 	state            state.State
 	subscribe        *Subscribe
 	sync             *StateSync
 	declAddr         proto.TCPAddr
 	scheduler        types.Scheduler
 	minerInterrupter types.MinerInterrupter
-	utx              *utxpool.Utx
+	utx              types.UtxPool
 	ng               *ng.RuntimeImpl
 }
 
-func NewNode(stateManager state.State, peerManager peer_manager.PeerManager, declAddr proto.TCPAddr, scheduler types.Scheduler, minerInterrupter types.MinerInterrupter, utx *utxpool.Utx, ng *ng.RuntimeImpl) *Node {
+func NewNode(services services.Services, declAddr proto.TCPAddr, ng *ng.RuntimeImpl, interrupter types.MinerInterrupter) *Node {
 	s := NewSubscribeService()
 	return &Node{
-		state:            stateManager,
-		peerManager:      peerManager,
+		state:            services.State,
+		peers:            services.Peers,
 		subscribe:        s,
-		sync:             NewStateSync(stateManager, peerManager, s, scheduler, minerInterrupter),
+		sync:             NewStateSync(services, s, interrupter),
 		declAddr:         declAddr,
-		scheduler:        scheduler,
-		minerInterrupter: minerInterrupter,
-		utx:              utx,
+		scheduler:        services.Scheduler,
+		minerInterrupter: interrupter,
+		utx:              services.UtxPool,
 		ng:               ng,
 	}
 }
@@ -57,7 +57,7 @@ func (a *Node) State() state.State {
 }
 
 func (a *Node) PeerManager() peer_manager.PeerManager {
-	return a.peerManager
+	return a.peers
 }
 
 func (a *Node) HandleProtoMessage(mess peer.ProtoMessage) {
@@ -105,19 +105,19 @@ func (a *Node) handlePeersMessage(id string, peers *proto.PeersMessage) {
 		prs = append(prs, proto.NewTCPAddr(p.Addr, int(p.Port)))
 	}
 
-	err := a.peerManager.UpdateKnownPeers(prs)
+	err := a.peers.UpdateKnownPeers(prs)
 	if err != nil {
 		zap.S().Error(err)
 	}
 }
 
 func (a *Node) handleGetPeersMessage(id string, m *proto.GetPeersMessage) {
-	rs, err := a.peerManager.KnownPeers()
+	rs, err := a.peers.KnownPeers()
 	if err != nil {
 		zap.L().Error("failed got known peers", zap.Error(err))
 		return
 	}
-	p, ok := a.peerManager.Connected(id)
+	p, ok := a.peers.Connected(id)
 	if !ok {
 		// peer gone offline, skip
 		return
@@ -144,16 +144,16 @@ func (a *Node) HandleInfoMessage(m peer.InfoMessage) {
 }
 
 func (a *Node) AskPeers() {
-	a.peerManager.AskPeers()
+	a.peers.AskPeers()
 }
 
 func (a *Node) handlePeerError(id string, err error) {
 	zap.S().Debug(err)
-	a.peerManager.Disconnect(id)
+	a.peers.Disconnect(id)
 }
 
 func (a *Node) Close() {
-	a.peerManager.Close()
+	a.peers.Close()
 	m := a.state.Mutex()
 	locked := m.Lock()
 	a.state.Close()
@@ -162,18 +162,18 @@ func (a *Node) Close() {
 }
 
 func (a *Node) handleNewConnection(peer peer.Peer) {
-	_, connected := a.peerManager.Connected(peer.ID())
+	_, connected := a.peers.Connected(peer.ID())
 	if connected {
 		peer.Close()
 		return
 	}
 
-	if a.peerManager.Banned(peer.ID()) {
+	if a.peers.Banned(peer.ID()) {
 		peer.Close()
 		return
 	}
 
-	a.peerManager.AddConnected(peer)
+	a.peers.AddConnected(peer)
 
 	// send score to new connected
 	go func() {
@@ -206,7 +206,7 @@ func (a *Node) handleBlockBySignatureMessage(peer string, sig crypto.Signature) 
 		BlockBytes: bts,
 	}
 
-	p, ok := a.peerManager.Connected(peer)
+	p, ok := a.peers.Connected(peer)
 	if ok {
 		p.SendMessage(&bm)
 	}
@@ -215,7 +215,7 @@ func (a *Node) handleBlockBySignatureMessage(peer string, sig crypto.Signature) 
 func (a *Node) handleScoreMessage(peerID string, score []byte) {
 	b := new(big.Int)
 	b.SetBytes(score)
-	a.peerManager.UpdateScore(peerID, b)
+	a.peers.UpdateScore(peerID, b)
 
 	go func() {
 		<-time.After(4 * time.Second)
@@ -239,7 +239,7 @@ func (a *Node) handleBlockMessage(peerID string, mess *proto.BlockMessage) {
 
 func (a *Node) handleGetSignaturesMessage(peerID string, mess *proto.GetSignaturesMessage) {
 	defer util.TimeTrack(time.Now(), "handleGetSignaturesMessage")
-	p, ok := a.peerManager.Connected(peerID)
+	p, ok := a.peers.Connected(peerID)
 	if !ok {
 		return
 	}
@@ -269,11 +269,11 @@ func (a *Node) handleMicroBlockRequestMessage(peerID string, mess *proto.MicroBl
 }
 
 func (a *Node) SpawnOutgoingConnections(ctx context.Context) {
-	a.peerManager.SpawnOutgoingConnections(ctx)
+	a.peers.SpawnOutgoingConnections(ctx)
 }
 
 func (a *Node) SpawnOutgoingConnection(ctx context.Context, addr proto.TCPAddr) error {
-	return a.peerManager.Connect(ctx, addr)
+	return a.peers.Connect(ctx, addr)
 }
 
 func (a *Node) Serve(ctx context.Context) error {
@@ -293,7 +293,7 @@ func (a *Node) Serve(ctx context.Context) error {
 			continue
 		}
 
-		go a.peerManager.SpawnIncomingConnection(ctx, conn)
+		go a.peers.SpawnIncomingConnection(ctx, conn)
 	}
 }
 

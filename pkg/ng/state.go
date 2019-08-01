@@ -5,6 +5,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/services"
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"github.com/wavesplatform/gowaves/pkg/types"
 	"go.uber.org/zap"
@@ -19,12 +20,12 @@ type State struct {
 	historySync    types.StateHistorySynchronizer
 }
 
-func NewState(applier types.BlockApplier, state state.State) *State {
+func NewState(services services.Services) *State {
 	return &State{
 		mu:      sync.Mutex{},
 		storage: newStorage(),
-		applier: applier,
-		state:   state,
+		applier: services.BlockApplier,
+		state:   services.State,
 	}
 }
 
@@ -62,7 +63,7 @@ func (a *State) AddBlock(block *proto.Block) {
 		// return prev block, if possible
 		if a.prevAddedBlock != nil {
 			err := a.applier.Apply(a.prevAddedBlock)
-			if err != nil { // can't apply previous added block, maybe broken state
+			if err != nil { // can't apply previous added block, maybe broken ngState
 				zap.S().Error(err)
 				go a.historySync.Sync()
 			}
@@ -133,8 +134,22 @@ func (a *State) AddMicroblock(micro *proto.MicroBlock) {
 	a.prevAddedBlock = block
 }
 
+func (a *State) BlockApplied() {
+	h, err := a.state.Height()
+	if err != nil {
+		zap.S().Error(err)
+		return
+	}
+	block, err := a.state.BlockByHeight(h)
+	if err != nil {
+		zap.S().Error(err)
+		return
+	}
+	a.blockApplied(block)
+}
+
 // notify method
-func (a *State) BlockApplied(block *proto.Block) {
+func (a *State) blockApplied(block *proto.Block) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 

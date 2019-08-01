@@ -15,6 +15,8 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/miner/utxpool"
 	"github.com/wavesplatform/gowaves/pkg/ng"
 	"github.com/wavesplatform/gowaves/pkg/node/peer_manager"
+	"github.com/wavesplatform/gowaves/pkg/node/state_changed"
+	"github.com/wavesplatform/gowaves/pkg/services"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 
 	"github.com/wavesplatform/gowaves/pkg/libs/bytespool"
@@ -86,13 +88,32 @@ func main() {
 	peerManager := peer_manager.NewPeerManager(peerSpawnerImpl, state)
 
 	scheduler := scheduler.NewScheduler(state, nil, nil)
+	stateChanged := state_changed.NewStateChanged()
+	blockApplier := node.NewBlockApplier(state, stateChanged, scheduler)
+
+	services := services.Services{
+		State:        state,
+		Peers:        peerManager,
+		Scheduler:    scheduler,
+		BlockApplier: blockApplier,
+		UtxPool:      utx,
+		Scheme:       'W',
+	}
 
 	mine := miner.NoOpMiner()
 
-	ngState := ng.NewState(node.NewBlockApplier(state, peerManager, scheduler), state)
-	ngRuntime := ng.NewRuntime(peerManager, ngState, scheduler)
-	n := node.NewNode(state, peerManager, declAddr, scheduler, mine, utx, ngRuntime)
+	ngState := ng.NewState(services)
+	ngRuntime := ng.NewRuntime(services, ngState)
 
+	stateChanged.AddHandler(state_changed.NewScoreSender(peerManager, state))
+	stateChanged.AddHandler(state_changed.NewFuncHandler(func() {
+		scheduler.Reschedule()
+	}))
+	stateChanged.AddHandler(state_changed.NewFuncHandler(func() {
+		ngState.BlockApplied()
+	}))
+
+	n := node.NewNode(services, declAddr, ngRuntime, mine)
 	go node.RunNode(ctx, n, parent)
 
 	if len(conf.Addresses) > 0 {

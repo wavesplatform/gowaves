@@ -68,7 +68,9 @@ func (a internalImpl) schedule(state state.State, keyPairs []proto.KeyPair, sche
 		c := &consensus.NxtPosCalculator{}
 		//c := &consensus.FairPosCalculator{}
 
+		locked := state.Mutex().RLock()
 		effectiveBalance, err := state.EffectiveBalance(keyPair.Addr(schema), confirmedBlockHeight-1000, confirmedBlockHeight)
+		locked.Unlock()
 		if err != nil {
 			zap.S().Error(err)
 			continue
