@@ -96,7 +96,7 @@ func (a *Node) handleTransactionMessage(id string, mess *proto.TransactionMessag
 		zap.S().Debug(err)
 		return
 	}
-	a.utx.Add(t)
+	a.utx.AddWithBytes(t, util.Dup(mess.Transaction))
 }
 
 func (a *Node) handlePeersMessage(id string, peers *proto.PeersMessage) {

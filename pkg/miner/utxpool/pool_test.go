@@ -54,16 +54,16 @@ func id(b []byte, fee uint64) *transaction {
 func TestTransactionPool(t *testing.T) {
 	a := New(10000)
 
-	a.Add(tr(4))
-	a.Add(tr(1))
-	a.Add(tr(10))
-	a.Add(tr(8))
+	a.AddWithBytes(tr(4), []byte{1})
+	a.AddWithBytes(tr(1), []byte{1})
+	a.AddWithBytes(tr(10), []byte{1})
+	a.AddWithBytes(tr(8), []byte{1})
 
-	require.EqualValues(t, 10, a.Pop().GetFee())
-	require.EqualValues(t, 8, a.Pop().GetFee())
-	require.EqualValues(t, 4, a.Pop().GetFee())
-	require.EqualValues(t, 1, a.Pop().GetFee())
-	require.Equal(t, nil, a.Pop())
+	require.EqualValues(t, 10, a.Pop().T.GetFee())
+	require.EqualValues(t, 8, a.Pop().T.GetFee())
+	require.EqualValues(t, 4, a.Pop().T.GetFee())
+	require.EqualValues(t, 1, a.Pop().T.GetFee())
+	require.Equal(t, (*TransactionWithBytes)(nil), a.Pop())
 }
 
 func BenchmarkTransactionPool(b *testing.B) {
@@ -76,7 +76,7 @@ func BenchmarkTransactionPool(b *testing.B) {
 		b.StopTimer()
 		n := rand.Intn(1000000)
 		b.StartTimer()
-		a.Add(tr(uint64(n)))
+		a.AddWithBytes(tr(uint64(n)), []byte{1})
 	}
 
 	if a.Len() != b.N {
@@ -97,7 +97,7 @@ func TestTransactionPool_Exists(t *testing.T) {
 
 	require.False(t, a.Exists(id([]byte{1, 2, 3}, 0)))
 
-	a.Add(id([]byte{1, 2, 3}, 10))
+	a.AddWithBytes(id([]byte{1, 2, 3}, 10), []byte{1})
 	require.True(t, a.Exists(id([]byte{1, 2, 3}, 0)))
 
 	a.Pop()

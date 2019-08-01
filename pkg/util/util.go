@@ -72,3 +72,10 @@ func TrackLongFunc() func() {
 		ch <- struct{}{}
 	}
 }
+
+// duplicate (copy) bytes
+func Dup(b []byte) []byte {
+	out := make([]byte, len(b))
+	copy(out, b)
+	return out
+}

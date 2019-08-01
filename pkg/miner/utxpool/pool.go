@@ -1,21 +1,25 @@
 package utxpool
 
 import (
-	"github.com/wavesplatform/gowaves/pkg/crypto"
-	"github.com/wavesplatform/gowaves/pkg/proto"
+	"container/heap"
 	"sync"
 
-	"container/heap"
+	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
-type transactionsHeap []proto.Transaction
+type TransactionWithBytes struct {
+	T proto.Transaction
+	B []byte
+}
+
+type transactionsHeap []*TransactionWithBytes
 
 func (a transactionsHeap) Len() int { return len(a) }
 
-// TODO we should compare by fee/len
 func (a transactionsHeap) Less(i, j int) bool {
-	// We want Pop to give us the highest, not lowest, priority so we use greater than here.
-	return a[i].GetFee() > a[j].GetFee()
+	// skip division by zero, check it when we add transaction
+	return a[i].T.GetFee()/uint64(len(a[i].B)) > a[j].T.GetFee()/uint64(len(a[j].B))
 }
 
 func (a transactionsHeap) Swap(i, j int) {
@@ -23,7 +27,7 @@ func (a transactionsHeap) Swap(i, j int) {
 }
 
 func (a *transactionsHeap) Push(x interface{}) {
-	item := x.(proto.Transaction)
+	item := x.(*TransactionWithBytes)
 	*a = append(*a, item)
 }
 
@@ -49,13 +53,19 @@ func New(limit uint) *Utx {
 	}
 }
 
-// TODO add limits
-func (a *Utx) Add(t proto.Transaction) {
+func (a *Utx) AddWithBytes(t proto.Transaction, b []byte) {
 	a.mu.Lock()
-	heap.Push(&a.transactions, t)
+	defer a.mu.Unlock()
+	tb := &TransactionWithBytes{
+		T: t,
+		B: b,
+	}
+	if len(b) == 0 {
+		return
+	}
+	heap.Push(&a.transactions, tb)
 	t.GenerateID()
 	a.transactionIds[makeDigest(t.GetID())] = struct{}{}
-	a.mu.Unlock()
 }
 
 func makeDigest(b []byte, e error) crypto.Digest {
@@ -71,19 +81,15 @@ func (a *Utx) Exists(t proto.Transaction) bool {
 	return ok
 }
 
-func (a *Utx) Pop() proto.Transaction {
+func (a *Utx) Pop() *TransactionWithBytes {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	if a.transactions.Len() > 0 {
-		t := heap.Pop(&a.transactions).(proto.Transaction)
-		delete(a.transactionIds, makeDigest(t.GetID()))
-		return t
+		tb := heap.Pop(&a.transactions).(*TransactionWithBytes)
+		delete(a.transactionIds, makeDigest(tb.T.GetID()))
+		return tb
 	}
 	return nil
-}
-
-func (a *Utx) Map(f func([]proto.Transaction) []proto.Transaction) {
-
 }
 
 func (a *Utx) Len() int {
