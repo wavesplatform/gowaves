@@ -31,7 +31,7 @@ func (a *StateChanged) Handle() {
 	a.mu.Unlock()
 }
 
-func (a StateChanged) Len() int {
+func (a *StateChanged) Len() int {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	return len(a.handlers)
