@@ -92,7 +92,11 @@ func (l *leases) cancelLeases(bySenders map[proto.Address]struct{}) error {
 		}
 		if leaseRecord.isActive && toCancel {
 			// Cancel lease.
-			log.Printf("State: cancelling lease for address %s.", leaseRecord.sender.String())
+			var k leaseKey
+			if err := k.unmarshal(key); err != nil {
+				return errors.Errorf("failed to unmarshal lease key: %v\n", err)
+			}
+			log.Printf("State: cancelling lease %s", k.leaseID.String())
 			leaseRecord.isActive = false
 			leaseBytes, err := leaseRecord.marshalBinary()
 			if err != nil {

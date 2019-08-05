@@ -118,6 +118,15 @@ func (s *balances) cancelAllLeases() error {
 		if err != nil {
 			return err
 		}
+		if r.leaseIn == 0 && r.leaseOut == 0 {
+			// Empty lease balance, no need to reset.
+			continue
+		}
+		var k wavesBalanceKey
+		if err := k.unmarshal(key); err != nil {
+			return err
+		}
+		log.Printf("Resetting lease balance for %s", k.address.String())
 		r.leaseOut = 0
 		r.leaseIn = 0
 		if err := s.setWavesBalanceImpl(key, r); err != nil {
@@ -172,7 +181,7 @@ func (s *balances) cancelInvalidLeaseIns(correctLeaseIns map[proto.Address]int64
 			return err
 		}
 		if r.leaseIn != leaseIn {
-			log.Printf("Invalid leaseIn detected; fixing it: %d ---> %d.", r.leaseIn, leaseIn)
+			log.Printf("Invalid leaseIn for address %s detected; fixing it: %d ---> %d.", addr.String(), r.leaseIn, leaseIn)
 			r.leaseIn = leaseIn
 			if err := s.setWavesBalanceImpl(k.bytes(), r); err != nil {
 				return err

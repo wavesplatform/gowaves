@@ -11,9 +11,9 @@ import (
 
 const (
 	// Key sizes.
-	wavesBalanceKeySize = 1 + proto.AddressSize
-	assetBalanceKeySize = 1 + proto.AddressSize + crypto.DigestSize
-
+	wavesBalanceKeySize     = 1 + proto.AddressSize
+	assetBalanceKeySize     = 1 + proto.AddressSize + crypto.DigestSize
+	leaseKeySize            = 1 + crypto.DigestSize
 	aliasKeySize            = 1 + 2 + proto.AliasMaxLength
 	disabledAliasKeySize    = 1 + 2 + proto.AliasMaxLength
 	approvedFeaturesKeySize = 1 + 2
@@ -222,6 +222,21 @@ func (k *assetHistKey) bytes() []byte {
 
 type leaseKey struct {
 	leaseID crypto.Digest
+}
+
+func (k *leaseKey) unmarshal(data []byte) error {
+	if len(data) != leaseKeySize {
+		return errors.New("invalid data size")
+	}
+	if data[0] != leaseKeyPrefix {
+		return errors.New("invalid prefix for given key")
+	}
+	var err error
+	k.leaseID, err = crypto.NewDigestFromBytes(data[1:])
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (k *leaseKey) bytes() []byte {
