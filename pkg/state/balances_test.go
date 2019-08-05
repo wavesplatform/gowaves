@@ -43,14 +43,6 @@ func genAsset(fillWith byte) []byte {
 	return asset
 }
 
-func genAddr(fillWith byte) proto.Address {
-	var addr proto.Address
-	for i := 0; i < proto.AddressSize; i++ {
-		addr[i] = fillWith
-	}
-	return addr
-}
-
 func TestCancelAllLeases(t *testing.T) {
 	to, path, err := createBalances()
 	assert.NoError(t, err, "createBalances() failed")
@@ -65,17 +57,19 @@ func TestCancelAllLeases(t *testing.T) {
 	to.stor.addBlock(t, blockID0)
 	to.stor.addBlock(t, blockID1)
 	tests := []struct {
-		addr    proto.Address
+		addr    string
 		profile balanceProfile
 		blockID crypto.Signature
 	}{
-		{genAddr(1), balanceProfile{100, 1, 1}, blockID0},
-		{genAddr(2), balanceProfile{2500, 2, 0}, blockID0},
-		{genAddr(3), balanceProfile{10, 0, 10}, blockID1},
-		{genAddr(4), balanceProfile{10, 5, 3}, blockID1},
+		{addr0, balanceProfile{100, 1, 1}, blockID0},
+		{addr1, balanceProfile{2500, 2, 0}, blockID0},
+		{addr2, balanceProfile{10, 0, 10}, blockID1},
+		{addr3, balanceProfile{10, 5, 3}, blockID1},
 	}
 	for _, tc := range tests {
-		err = to.balances.setWavesBalance(tc.addr, &tc.profile, tc.blockID)
+		addr, err := proto.NewAddressFromString(tc.addr)
+		assert.NoError(t, err, "NewAddressFromString() failed")
+		err = to.balances.setWavesBalance(addr, &tc.profile, tc.blockID)
 		assert.NoError(t, err, "setWavesBalance() failed")
 	}
 	to.stor.flush(t)
@@ -83,7 +77,9 @@ func TestCancelAllLeases(t *testing.T) {
 	assert.NoError(t, err, "cancelAllLeases() failed")
 	to.stor.flush(t)
 	for _, tc := range tests {
-		profile, err := to.balances.wavesBalance(tc.addr, true)
+		addr, err := proto.NewAddressFromString(tc.addr)
+		assert.NoError(t, err, "NewAddressFromString() failed")
+		profile, err := to.balances.wavesBalance(addr, true)
 		assert.NoError(t, err, "wavesBalance() failed")
 		assert.Equal(t, profile.balance, tc.profile.balance)
 		assert.Equal(t, profile.leaseIn, int64(0))
@@ -203,7 +199,8 @@ func TestMinBalanceInRange(t *testing.T) {
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
-	addr := genAddr(1)
+	addr, err := proto.NewAddressFromString(addr0)
+	assert.NoError(t, err, "NewAddressFromString() failed")
 	for i := 1; i < totalBlocksNumber; i++ {
 		blockID := genBlockId(byte(i))
 		to.stor.addBlock(t, blockID)
@@ -243,21 +240,23 @@ func TestBalances(t *testing.T) {
 	to.stor.addBlock(t, blockID0)
 	to.stor.addBlock(t, blockID1)
 	wavesTests := []struct {
-		addr    proto.Address
+		addr    string
 		profile balanceProfile
 		blockID crypto.Signature
 	}{
-		{genAddr(1), balanceProfile{100, 0, 0}, blockID0},
-		{genAddr(1), balanceProfile{2500, 0, 0}, blockID0},
-		{genAddr(1), balanceProfile{10, 5, 0}, blockID1},
-		{genAddr(1), balanceProfile{10, 5, 3}, blockID1},
+		{addr0, balanceProfile{100, 0, 0}, blockID0},
+		{addr1, balanceProfile{2500, 0, 0}, blockID0},
+		{addr2, balanceProfile{10, 5, 0}, blockID1},
+		{addr3, balanceProfile{10, 5, 3}, blockID1},
 	}
 	for _, tc := range wavesTests {
-		if err := to.balances.setWavesBalance(tc.addr, &tc.profile, tc.blockID); err != nil {
+		addr, err := proto.NewAddressFromString(tc.addr)
+		assert.NoError(t, err, "NewAddressFromString() failed")
+		if err := to.balances.setWavesBalance(addr, &tc.profile, tc.blockID); err != nil {
 			t.Fatalf("Faied to set waves balance:%v\n", err)
 		}
 		to.stor.flush(t)
-		profile, err := to.balances.wavesBalance(tc.addr, true)
+		profile, err := to.balances.wavesBalance(addr, true)
 		if err != nil {
 			t.Fatalf("Failed to retrieve waves balance: %v\n", err)
 		}
@@ -267,21 +266,23 @@ func TestBalances(t *testing.T) {
 	}
 
 	assetTests := []struct {
-		addr    proto.Address
+		addr    string
 		assetID []byte
 		balance uint64
 		blockID crypto.Signature
 	}{
-		{genAddr(1), genAsset(1), 100, blockID0},
-		{genAddr(1), genAsset(1), 2500, blockID0},
-		{genAddr(1), genAsset(1), 10, blockID1},
+		{addr0, genAsset(1), 100, blockID0},
+		{addr0, genAsset(1), 2500, blockID0},
+		{addr0, genAsset(1), 10, blockID1},
 	}
 	for _, tc := range assetTests {
-		if err := to.balances.setAssetBalance(tc.addr, tc.assetID, tc.balance, tc.blockID); err != nil {
+		addr, err := proto.NewAddressFromString(tc.addr)
+		assert.NoError(t, err, "NewAddressFromString() failed")
+		if err := to.balances.setAssetBalance(addr, tc.assetID, tc.balance, tc.blockID); err != nil {
 			t.Fatalf("Faied to set asset balance: %v\n", err)
 		}
 		to.stor.flush(t)
-		balance, err := to.balances.assetBalance(tc.addr, tc.assetID, true)
+		balance, err := to.balances.assetBalance(addr, tc.assetID, true)
 		if err != nil {
 			t.Fatalf("Failed to retrieve asset balance: %v\n", err)
 		}

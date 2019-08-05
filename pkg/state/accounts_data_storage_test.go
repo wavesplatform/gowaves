@@ -85,3 +85,87 @@ func TestRollbackEntry(t *testing.T) {
 	assert.NoError(t, err, "retrieveEntry() failed")
 	assert.Equal(t, entry0, entry)
 }
+
+func TestRetrieveIntegerEntry(t *testing.T) {
+	to, path, err := createAccountsDataStorgae()
+	assert.NoError(t, err, "createAccountsDataStorgae() failed")
+
+	defer func() {
+		err = to.stor.stateDB.close()
+		assert.NoError(t, err, "failed to close DB")
+		err = util.CleanTemporaryDirs(path)
+		assert.NoError(t, err, "failed to clean test data dirs")
+	}()
+
+	to.stor.addBlock(t, blockID0)
+	addr0 := testGlobal.senderInfo.addr
+	entry0 := &proto.IntegerDataEntry{Key: "TheKey", Value: int64(100500)}
+	to.accountsDataStor.appendEntry(addr0, entry0, blockID0)
+	to.stor.flush(t)
+	entry, err := to.accountsDataStor.retrieveIntegerEntry(addr0, entry0.Key)
+	assert.NoError(t, err, "retrieveIntegerEntry() failed")
+	assert.Equal(t, entry0, entry)
+}
+
+func TestRetrieveBooleanEntry(t *testing.T) {
+	to, path, err := createAccountsDataStorgae()
+	assert.NoError(t, err, "createAccountsDataStorgae() failed")
+
+	defer func() {
+		err = to.stor.stateDB.close()
+		assert.NoError(t, err, "failed to close DB")
+		err = util.CleanTemporaryDirs(path)
+		assert.NoError(t, err, "failed to clean test data dirs")
+	}()
+
+	to.stor.addBlock(t, blockID0)
+	addr0 := testGlobal.senderInfo.addr
+	entry0 := &proto.BooleanDataEntry{Key: "TheKey", Value: true}
+	to.accountsDataStor.appendEntry(addr0, entry0, blockID0)
+	to.stor.flush(t)
+	entry, err := to.accountsDataStor.retrieveBooleanEntry(addr0, entry0.Key)
+	assert.NoError(t, err, "retrieveBooleanEntry() failed")
+	assert.Equal(t, entry0, entry)
+}
+
+func TestRetrieveStringEntry(t *testing.T) {
+	to, path, err := createAccountsDataStorgae()
+	assert.NoError(t, err, "createAccountsDataStorgae() failed")
+
+	defer func() {
+		err = to.stor.stateDB.close()
+		assert.NoError(t, err, "failed to close DB")
+		err = util.CleanTemporaryDirs(path)
+		assert.NoError(t, err, "failed to clean test data dirs")
+	}()
+
+	to.stor.addBlock(t, blockID0)
+	addr0 := testGlobal.senderInfo.addr
+	entry0 := &proto.StringDataEntry{Key: "TheKey", Value: "TheValue"}
+	to.accountsDataStor.appendEntry(addr0, entry0, blockID0)
+	to.stor.flush(t)
+	entry, err := to.accountsDataStor.retrieveStringEntry(addr0, entry0.Key)
+	assert.NoError(t, err, "retrieveStringEntry() failed")
+	assert.Equal(t, entry0, entry)
+}
+
+func TestRetrieveBinaryEntry(t *testing.T) {
+	to, path, err := createAccountsDataStorgae()
+	assert.NoError(t, err, "createAccountsDataStorgae() failed")
+
+	defer func() {
+		err = to.stor.stateDB.close()
+		assert.NoError(t, err, "failed to close DB")
+		err = util.CleanTemporaryDirs(path)
+		assert.NoError(t, err, "failed to clean test data dirs")
+	}()
+
+	to.stor.addBlock(t, blockID0)
+	addr0 := testGlobal.senderInfo.addr
+	entry0 := &proto.BinaryDataEntry{Key: "TheKey", Value: []byte{0xaa, 0xff}}
+	to.accountsDataStor.appendEntry(addr0, entry0, blockID0)
+	to.stor.flush(t)
+	entry, err := to.accountsDataStor.retrieveBinaryEntry(addr0, entry0.Key)
+	assert.NoError(t, err, "retrieveBinaryEntry() failed")
+	assert.Equal(t, entry0, entry)
+}

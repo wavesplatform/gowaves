@@ -915,6 +915,7 @@ func (s *stateManager) needToBreakAddingBlocks(curHeight uint64, task *breakerTa
 	}
 	if cancelLeases {
 		task.cancelLeases = true
+		return true, nil
 	}
 	resetStolenAliases, err := s.needToResetStolenAliases(curHeight)
 	if err != nil {
@@ -922,11 +923,13 @@ func (s *stateManager) needToBreakAddingBlocks(curHeight uint64, task *breakerTa
 	}
 	if resetStolenAliases {
 		task.resetStolenAliases = true
+		return true, nil
 	}
 	if s.needToFinishVotingPeriod(curHeight) {
 		task.finishVotingPeriod = true
+		return true, nil
 	}
-	return task.cancelLeases || task.finishVotingPeriod || task.resetStolenAliases, nil
+	return false, nil
 }
 
 func (s *stateManager) finishVoting() error {
