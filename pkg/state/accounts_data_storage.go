@@ -14,8 +14,8 @@ type accountsDataStorage struct {
 	rw      *blockReadWriter
 	stateDB *stateDB
 
-	newestAddrToNum map[proto.Address]uint32
-	addrNum         uint32
+	newestAddrToNum map[proto.Address]uint64
+	addrNum         uint64
 }
 
 func newAccountsDataStorage(db keyvalue.IterableKeyVal, dbBatch keyvalue.Batch, rw *blockReadWriter, stateDB *stateDB) (*accountsDataStorage, error) {
@@ -24,11 +24,11 @@ func newAccountsDataStorage(db keyvalue.IterableKeyVal, dbBatch keyvalue.Batch, 
 		dbBatch:         dbBatch,
 		rw:              rw,
 		stateDB:         stateDB,
-		newestAddrToNum: make(map[proto.Address]uint32),
+		newestAddrToNum: make(map[proto.Address]uint64),
 	}, nil
 }
 
-func (s *accountsDataStorage) getLastAddrNum() (uint32, error) {
+func (s *accountsDataStorage) getLastAddrNum() (uint64, error) {
 	lastAddrNumBytes, err := s.db.Get([]byte{lastAccountsStorAddrNumKeyPrefix})
 	if err == keyvalue.ErrNotFound {
 		return 0, nil
@@ -36,17 +36,17 @@ func (s *accountsDataStorage) getLastAddrNum() (uint32, error) {
 	if err != nil {
 		return 0, err
 	}
-	return binary.LittleEndian.Uint32(lastAddrNumBytes), nil
+	return binary.LittleEndian.Uint64(lastAddrNumBytes), nil
 }
 
-func (s *accountsDataStorage) setLastAddrNum(lastAddrNum uint32) error {
-	lastAddrNumBytes := make([]byte, 4)
-	binary.LittleEndian.PutUint32(lastAddrNumBytes, lastAddrNum)
+func (s *accountsDataStorage) setLastAddrNum(lastAddrNum uint64) error {
+	lastAddrNumBytes := make([]byte, 8)
+	binary.LittleEndian.PutUint64(lastAddrNumBytes, lastAddrNum)
 	s.dbBatch.Put([]byte{lastAccountsStorAddrNumKeyPrefix}, lastAddrNumBytes)
 	return nil
 }
 
-func (s *accountsDataStorage) appendAddr(addr proto.Address) (uint32, error) {
+func (s *accountsDataStorage) appendAddr(addr proto.Address) (uint64, error) {
 	if addrNum, err := s.addrToNum(addr); err == nil {
 		// Already there.
 		return addrNum, nil
@@ -55,17 +55,17 @@ func (s *accountsDataStorage) appendAddr(addr proto.Address) (uint32, error) {
 	if err != nil {
 		return 0, err
 	}
-	newAddrNum := lastAddrNum + uint32(s.addrNum)
+	newAddrNum := lastAddrNum + uint64(s.addrNum)
 	s.addrNum++
 	s.newestAddrToNum[addr] = newAddrNum
 	addrToNum := accountStorAddrToNumKey{addr}
-	newAddrNumBytes := make([]byte, 4)
-	binary.LittleEndian.PutUint32(newAddrNumBytes, newAddrNum)
+	newAddrNumBytes := make([]byte, 8)
+	binary.LittleEndian.PutUint64(newAddrNumBytes, newAddrNum)
 	s.dbBatch.Put(addrToNum.bytes(), newAddrNumBytes)
 	return newAddrNum, nil
 }
 
-func (s *accountsDataStorage) addrToNum(addr proto.Address) (uint32, error) {
+func (s *accountsDataStorage) addrToNum(addr proto.Address) (uint64, error) {
 	if addrNum, ok := s.newestAddrToNum[addr]; ok {
 		return addrNum, nil
 	}
@@ -74,7 +74,7 @@ func (s *accountsDataStorage) addrToNum(addr proto.Address) (uint32, error) {
 	if err != nil {
 		return 0, err
 	}
-	addrNum := binary.LittleEndian.Uint32(addrNumBytes)
+	addrNum := binary.LittleEndian.Uint64(addrNumBytes)
 	return addrNum, nil
 }
 
@@ -224,7 +224,7 @@ func (s *accountsDataStorage) flush() error {
 	if err != nil {
 		return err
 	}
-	newAddrNum := lastAddrNum + uint32(s.addrNum)
+	newAddrNum := lastAddrNum + uint64(s.addrNum)
 	if err := s.setLastAddrNum(newAddrNum); err != nil {
 		return err
 	}
@@ -232,6 +232,6 @@ func (s *accountsDataStorage) flush() error {
 }
 
 func (s *accountsDataStorage) reset() {
-	s.newestAddrToNum = make(map[proto.Address]uint32)
+	s.newestAddrToNum = make(map[proto.Address]uint64)
 	s.addrNum = 0
 }
