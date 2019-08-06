@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf16"
 
 	"github.com/mr-tron/base58/base58"
 	"github.com/pkg/errors"
@@ -1298,7 +1299,7 @@ func (e IntegerDataEntry) Valid() (bool, error) {
 	if len(e.Key) == 0 {
 		return false, errors.New("empty entry key")
 	}
-	if len(e.Key) > maxKeySize {
+	if len(utf16.Encode([]rune(e.Key))) > maxKeySize {
 		return false, errors.New("key is too large")
 	}
 	return true, nil
@@ -1412,7 +1413,7 @@ func (e BooleanDataEntry) Valid() (bool, error) {
 	if len(e.Key) == 0 {
 		return false, errors.New("empty entry key")
 	}
-	if len(e.Key) > maxKeySize {
+	if len(utf16.Encode([]rune(e.Key))) > maxKeySize {
 		return false, errors.New("key is too large")
 	}
 	return true, nil
@@ -1530,7 +1531,7 @@ func (e BinaryDataEntry) Valid() (bool, error) {
 	if len(e.Key) == 0 {
 		return false, errors.New("empty entry key")
 	}
-	if len(e.Key) > maxKeySize {
+	if len(utf16.Encode([]rune(e.Key))) > maxKeySize {
 		return false, errors.New("key is too large")
 	}
 	if len(e.Value) > maxValueSize {
@@ -1651,7 +1652,7 @@ func (e StringDataEntry) Valid() (bool, error) {
 	if len(e.Key) == 0 {
 		return false, errors.New("empty entry key")
 	}
-	if len(e.Key) > maxKeySize {
+	if len(utf16.Encode([]rune(e.Key))) > maxKeySize {
 		return false, errors.New("key is too large")
 	}
 	if len(e.Value) > maxValueSize {
