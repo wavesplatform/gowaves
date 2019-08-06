@@ -182,6 +182,17 @@ func (tc *transactionChecker) checkBurn(tx *proto.Burn, info *checkerInfo) error
 	if err := tc.checkTimestamps(tx.Timestamp, info.currentTimestamp, info.parentTimestamp); err != nil {
 		return errors.Wrap(err, "invalid timestamp")
 	}
+	assetInfo, err := tc.stor.assets.newestAssetInfo(tx.AssetID, !info.initialisation)
+	if err != nil {
+		return err
+	}
+	burnAnyTokensEnabled, err := tc.stor.features.isActivated(int16(settings.BurnAnyTokens))
+	if err != nil {
+		return err
+	}
+	if !burnAnyTokensEnabled && !bytes.Equal(assetInfo.issuer[:], tx.SenderPK[:]) {
+		return errors.New("asset was issued by other address")
+	}
 	return nil
 }
 

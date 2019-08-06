@@ -29,7 +29,7 @@ var FeaturesInfo = map[Feature]FeatureInfo{
 	MassTransfer:                    {true, "Mass Transfer Transaction"},
 	SmartAccounts:                   {false, "Smart Accounts"},
 	DataTransaction:                 {true, "Data Transaction"},
-	BurnAnyTokens:                   {false, "Burn Any Tokens"},
+	BurnAnyTokens:                   {true, "Burn Any Tokens"},
 	FeeSponsorship:                  {false, "Fee Sponsorship"},
 	FairPoS:                         {true, "Fair PoS"},
 	SmartAssets:                     {false, "Smart Assets"},
