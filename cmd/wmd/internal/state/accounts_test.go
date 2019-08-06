@@ -1,13 +1,14 @@
 package state
 
 import (
+	"testing"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/wavesplatform/gowaves/cmd/wmd/internal/data"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"testing"
 )
 
 func TestSingleAccountsState(t *testing.T) {
@@ -226,7 +227,7 @@ func TestAssetInfoBytesRoundTrip(t *testing.T) {
 	assert.Equal(t, ai.supply, ai2.supply)
 }
 
-func TestAssetInfoIssueReissueRollback1(t *testing.T) {
+func TestAssetInfoIssueReissueRollback(t *testing.T) {
 	db, closeDB := openDB(t, "wmd-asset-state-db")
 	defer closeDB()
 
@@ -357,6 +358,209 @@ func TestAssetInfoIssueReissueRollback1(t *testing.T) {
 		assert.Equal(t, true, ai.reissuable)
 		assert.Equal(t, false, ai.sponsored)
 		assert.Equal(t, 100000, int(ai.supply))
+	}
+
+	snapshot, err = db.GetSnapshot()
+	require.NoError(t, err)
+	batch = new(leveldb.Batch)
+	err = rollbackAssets(snapshot, batch, 1)
+	require.NoError(t, err)
+	err = db.Write(batch, nil)
+	require.NoError(t, err)
+	if snapshot, err := db.GetSnapshot(); assert.NoError(t, err) {
+		bs = newBlockState(snapshot)
+		ok, err := bs.isIssuer(addr1, asset1)
+		require.NoError(t, err)
+		assert.True(t, ok)
+		_, ok, err = bs.assetInfo(asset1)
+		require.NoError(t, err)
+		assert.False(t, ok)
+	}
+
+	snapshot, err = db.GetSnapshot()
+	require.NoError(t, err)
+	batch = new(leveldb.Batch)
+	err = rollbackAssets(snapshot, batch, 2)
+	require.NoError(t, err)
+	err = db.Write(batch, nil)
+	require.NoError(t, err)
+
+	snapshot, err = db.GetSnapshot()
+	require.NoError(t, err)
+	batch = new(leveldb.Batch)
+	bs = newBlockState(snapshot)
+	err = putIssues(bs, batch, scheme, 1, u1)
+	require.NoError(t, err)
+	err = db.Write(batch, nil)
+	require.NoError(t, err)
+	if snapshot, err := db.GetSnapshot(); assert.NoError(t, err) {
+		bs = newBlockState(snapshot)
+		ok, err := bs.isIssuer(addr1, asset1)
+		require.NoError(t, err)
+		assert.True(t, ok)
+		ai, ok, err := bs.assetInfo(asset1)
+		require.NoError(t, err)
+		assert.True(t, ok)
+		assert.Equal(t, "asset1", ai.name)
+		assert.Equal(t, addr1, ai.issuer)
+		assert.Equal(t, 2, int(ai.decimals))
+		assert.Equal(t, true, ai.reissuable)
+		assert.Equal(t, false, ai.sponsored)
+		assert.Equal(t, 100000, int(ai.supply))
+	}
+}
+
+func TestAssetTransferRollback(t *testing.T) {
+	db, closeDB := openDB(t, "wmd-asset-state-db")
+	defer closeDB()
+
+	asset1, err := crypto.NewDigestFromBase58("3Janbh2r7ZQjiUM3sWVswVGHWyQB2TPxm348QvuX5v6c")
+	require.NoError(t, err)
+
+	pk1, err := crypto.NewPublicKeyFromBase58("Hoox6WK7gxNFUYYUKz4oR1iGs7QxTWYPAjgs6RhbDLAL")
+	require.NoError(t, err)
+	addr1, err := proto.NewAddressFromPublicKey(scheme, pk1)
+	require.NoError(t, err)
+	acc1 := data.Account{Address: addr1}
+
+	u11 := []data.IssueChange{{AssetID: asset1, Name: "asset1", Issuer: pk1, Decimals: 2, Quantity: 100000, Reissuable: true}}
+	u12 := []data.AccountChange{{Account: acc1, Asset: asset1, In: 100000, Out: 0}}
+	snapshot, err := db.GetSnapshot()
+	require.NoError(t, err)
+	batch := new(leveldb.Batch)
+	bs := newBlockState(snapshot)
+	err = putIssues(bs, batch, scheme, 1, u11)
+	require.NoError(t, err)
+	err = putAccounts(bs, batch, 1, u12)
+	require.NoError(t, err)
+	err = db.Write(batch, nil)
+	require.NoError(t, err)
+	if snapshot, err := db.GetSnapshot(); assert.NoError(t, err) {
+		bs = newBlockState(snapshot)
+		ai, ok, err := bs.assetInfo(asset1)
+		require.NoError(t, err)
+		assert.True(t, ok)
+		assert.Equal(t, "asset1", ai.name)
+		assert.Equal(t, addr1, ai.issuer)
+		assert.Equal(t, 2, int(ai.decimals))
+		assert.Equal(t, true, ai.reissuable)
+		assert.Equal(t, false, ai.sponsored)
+		assert.Equal(t, 100000, int(ai.supply))
+		b, _, err := bs.balance(addr1, asset1)
+		require.NoError(t, err)
+		assert.Equal(t, 100000, int(b))
+	}
+
+	u2 := []data.AccountChange{{Account: acc1, Asset: asset1, In: 0, Out: 10000}}
+	snapshot, err = db.GetSnapshot()
+	require.NoError(t, err)
+	batch = new(leveldb.Batch)
+	bs = newBlockState(snapshot)
+	err = putAccounts(bs, batch, 2, u2)
+	require.NoError(t, err)
+	err = db.Write(batch, nil)
+	require.NoError(t, err)
+	if snapshot, err := db.GetSnapshot(); assert.NoError(t, err) {
+		bs = newBlockState(snapshot)
+		b, _, err := bs.balance(addr1, asset1)
+		require.NoError(t, err)
+		assert.Equal(t, 90000, int(b))
+	}
+
+	u3 := []data.AccountChange{{Account: acc1, Asset: asset1, In: 5000, Out: 0}}
+	snapshot, err = db.GetSnapshot()
+	require.NoError(t, err)
+	batch = new(leveldb.Batch)
+	bs = newBlockState(snapshot)
+	err = putAccounts(bs, batch, 3, u3)
+	require.NoError(t, err)
+	err = db.Write(batch, nil)
+	require.NoError(t, err)
+	if snapshot, err := db.GetSnapshot(); assert.NoError(t, err) {
+		bs = newBlockState(snapshot)
+		b, _, err := bs.balance(addr1, asset1)
+		require.NoError(t, err)
+		assert.Equal(t, 95000, int(b))
+	}
+
+	snapshot, err = db.GetSnapshot()
+	require.NoError(t, err)
+	batch = new(leveldb.Batch)
+	err = rollbackAccounts(snapshot, batch, 3)
+	require.NoError(t, err)
+	err = rollbackAssets(snapshot, batch, 3)
+	require.NoError(t, err)
+	err = db.Write(batch, nil)
+	require.NoError(t, err)
+	if snapshot, err := db.GetSnapshot(); assert.NoError(t, err) {
+		bs = newBlockState(snapshot)
+		ai, ok, err := bs.assetInfo(asset1)
+		require.NoError(t, err)
+		assert.True(t, ok)
+		assert.Equal(t, "asset1", ai.name)
+		assert.Equal(t, addr1, ai.issuer)
+		assert.Equal(t, 2, int(ai.decimals))
+		assert.Equal(t, true, ai.reissuable)
+		assert.Equal(t, false, ai.sponsored)
+		assert.Equal(t, 100000, int(ai.supply))
+		b, _, err := bs.balance(addr1, asset1)
+		require.NoError(t, err)
+		assert.Equal(t, 90000, int(b))
+	}
+
+	snapshot, err = db.GetSnapshot()
+	require.NoError(t, err)
+	batch = new(leveldb.Batch)
+	err = rollbackAccounts(snapshot, batch, 2)
+	require.NoError(t, err)
+	err = rollbackAssets(snapshot, batch, 2)
+	require.NoError(t, err)
+	err = db.Write(batch, nil)
+	require.NoError(t, err)
+	if snapshot, err := db.GetSnapshot(); assert.NoError(t, err) {
+		bs = newBlockState(snapshot)
+		ok, err := bs.isIssuer(addr1, asset1)
+		require.NoError(t, err)
+		assert.True(t, ok)
+		ai, ok, err := bs.assetInfo(asset1)
+		require.NoError(t, err)
+		assert.True(t, ok)
+		assert.Equal(t, "asset1", ai.name)
+		assert.Equal(t, addr1, ai.issuer)
+		assert.Equal(t, 2, int(ai.decimals))
+		assert.Equal(t, true, ai.reissuable)
+		assert.Equal(t, false, ai.sponsored)
+		assert.Equal(t, 100000, int(ai.supply))
+		b, _, err := bs.balance(addr1, asset1)
+		require.NoError(t, err)
+		assert.Equal(t, 100000, int(b))
+	}
+	snapshot, err = db.GetSnapshot()
+	require.NoError(t, err)
+	batch = new(leveldb.Batch)
+	err = rollbackAccounts(snapshot, batch, 2)
+	require.NoError(t, err)
+	err = rollbackAssets(snapshot, batch, 2)
+	require.NoError(t, err)
+	err = db.Write(batch, nil)
+	require.NoError(t, err)
+	if snapshot, err := db.GetSnapshot(); assert.NoError(t, err) {
+		bs = newBlockState(snapshot)
+		ok, err := bs.isIssuer(addr1, asset1)
+		require.NoError(t, err)
+		assert.True(t, ok)
+		ai, ok, err := bs.assetInfo(asset1)
+		require.NoError(t, err)
+		assert.True(t, ok)
+		assert.Equal(t, "asset1", ai.name)
+		assert.Equal(t, addr1, ai.issuer)
+		assert.Equal(t, 2, int(ai.decimals))
+		assert.Equal(t, true, ai.reissuable)
+		assert.Equal(t, false, ai.sponsored)
+		assert.Equal(t, 100000, int(ai.supply))
+		b, _, err := bs.balance(addr1, asset1)
+		require.NoError(t, err)
+		assert.Equal(t, 100000, int(b))
 	}
 }
 

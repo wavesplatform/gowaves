@@ -3,6 +3,9 @@ package internal
 import (
 	"bytes"
 	"context"
+	"strings"
+	"time"
+
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/cmd/wmd/internal/data"
@@ -12,8 +15,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
-	"strings"
-	"time"
 )
 
 type Synchronizer struct {
@@ -99,7 +100,7 @@ func (s *Synchronizer) synchronize() {
 			zap.S().Warnf("Rolling back to safe height %d", rollbackHeight)
 			err = s.storage.Rollback(rollbackHeight)
 			if err != nil {
-				zap.S().Errorf("Failed to rollback: %v", err)
+				zap.S().Errorf("Failed to rollback to height %d: %v", rollbackHeight, err)
 				return
 			}
 			ch = rollbackHeight - 1
@@ -122,11 +123,7 @@ func (s *Synchronizer) applyBlocks(start, end int) error {
 		if err != nil {
 			return err
 		}
-		addr, err := proto.NewAddressFromPublicKey(s.scheme, header.GenPublicKey)
-		if err != nil {
-			return err
-		}
-		err = s.applyBlock(h, header.BlockSignature, txs, int(len(txs)), addr)
+		err = s.applyBlock(h, header.BlockSignature, txs, len(txs), header.GenPublicKey)
 		if err != nil {
 			return err
 		}
@@ -136,7 +133,7 @@ func (s *Synchronizer) applyBlocks(start, end int) error {
 
 var emptySignature = crypto.Signature{}
 
-func (s *Synchronizer) applyBlock(height int, id crypto.Signature, txs []proto.Transaction, count int, miner proto.Address) error {
+func (s *Synchronizer) applyBlock(height int, id crypto.Signature, txs []proto.Transaction, count int, miner crypto.PublicKey) error {
 	if bytes.Equal(id[:], emptySignature[:]) {
 		return errors.Errorf("Empty block signature at height: %d", height)
 	}
@@ -199,6 +196,9 @@ func (s *Synchronizer) nodeBlock(height int) (proto.BlockHeader, []proto.Transac
 	}
 	cnv.Reset()
 	txs, err := cnv.BlockTransactions(res)
+	if err != nil {
+		return proto.BlockHeader{}, nil, err
+	}
 	return header, txs, nil
 }
 
@@ -239,7 +239,7 @@ func (s *Synchronizer) equalSignatures(height int) (bool, error) {
 	return bytes.Equal(rbs[:], lbs[:]), nil
 }
 
-func (s *Synchronizer) extractTransactions(txs []proto.Transaction, miner proto.Address) ([]data.Trade, []data.IssueChange, []data.AssetChange, []data.AccountChange, []data.AliasBind, error) {
+func (s *Synchronizer) extractTransactions(txs []proto.Transaction, miner crypto.PublicKey) ([]data.Trade, []data.IssueChange, []data.AssetChange, []data.AccountChange, []data.AliasBind, error) {
 	wrapErr := func(err error, transaction string) error {
 		return errors.Wrapf(err, "failed to extract %s transaction", transaction)
 	}
@@ -250,7 +250,7 @@ func (s *Synchronizer) extractTransactions(txs []proto.Transaction, miner proto.
 	issueChanges := make([]data.IssueChange, 0)
 	binds := make([]data.AliasBind, 0)
 
-	for i, tx := range []proto.Transaction(txs) {
+	for i, tx := range txs {
 		switch t := tx.(type) {
 		case *proto.IssueV1:
 			zap.S().Debugf("#%d: IssueV1: %v", i, t)
@@ -274,7 +274,7 @@ func (s *Synchronizer) extractTransactions(txs []proto.Transaction, miner proto.
 			zap.S().Debugf("%d: TransferV1: %v", i, t)
 			tt := *t
 			if tt.AmountAsset.Present || tt.FeeAsset.Present {
-				u, err := data.FromTransferV1MinerAddress(s.scheme, tt, miner)
+				u, err := data.FromTransferV1(s.scheme, tt, miner)
 				if err != nil {
 					return nil, nil, nil, nil, nil, wrapErr(err, "TransferV1")
 				}
@@ -285,7 +285,7 @@ func (s *Synchronizer) extractTransactions(txs []proto.Transaction, miner proto.
 			zap.S().Debugf("%d: TransferV2: %v", i, t)
 			tt := *t
 			if tt.AmountAsset.Present || tt.FeeAsset.Present {
-				u, err := data.FromTransferV2MinerAddress(s.scheme, tt, miner)
+				u, err := data.FromTransferV2(s.scheme, tt, miner)
 				if err != nil {
 					return nil, nil, nil, nil, nil, wrapErr(err, "TransferV2")
 				}

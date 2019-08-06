@@ -3,13 +3,14 @@ package state
 import (
 	"bytes"
 	"encoding/binary"
+	"math"
+
 	"github.com/pkg/errors"
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/util"
 	"github.com/wavesplatform/gowaves/cmd/wmd/internal/data"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"math"
 )
 
 type assetBalanceKey struct {
@@ -319,6 +320,7 @@ func rollbackAssets(snapshot *leveldb.Snapshot, batch *leveldb.Batch, removeHeig
 				ai.supply = aih.supply
 				downgrade[k] = ai
 			}
+			batch.Delete(hk.bytes())
 			if !it.Prev() {
 				break
 			}
@@ -334,28 +336,28 @@ func rollbackAssets(snapshot *leveldb.Snapshot, batch *leveldb.Batch, removeHeig
 	return nil
 }
 
-func putAccounts(bs *blockState, batch *leveldb.Batch, height uint32, accountChanges []data.AccountChange) error {
-	updateBalanceAndHistory := func(addr proto.Address, asset crypto.Digest, in, out uint64) error {
-		//get current state of balance
-		balance, k, err := bs.balance(addr, asset)
-		if err != nil {
-			return errors.Wrapf(err, "failed to get the balance")
-		}
-		// update the balance
-		ch := balanceDiff{prev: balance}
-		balance += in
-		balance -= out
-		ch.curr = balance
-		// put new state of the balance
-		buf := make([]byte, 8)
-		binary.BigEndian.PutUint64(buf, balance)
-		batch.Put(k.bytes(), buf)
-		hk := assetBalanceHistoryKey{height: height, asset: asset, address: addr}
-		batch.Put(hk.bytes(), ch.bytes())
-		bs.balances[k] = balance
-		return nil
+func updateBalanceAndHistory(bs *blockState, batch *leveldb.Batch, height uint32, addr proto.Address, asset crypto.Digest, in, out uint64) error {
+	//get current state of balance
+	balance, k, err := bs.balance(addr, asset)
+	if err != nil {
+		return errors.Wrapf(err, "failed to get the balance")
 	}
+	// update the balance
+	ch := balanceDiff{prev: balance}
+	balance += in
+	balance -= out
+	ch.curr = balance
+	// put new state of the balance
+	buf := make([]byte, 8)
+	binary.BigEndian.PutUint64(buf, balance)
+	batch.Put(k.bytes(), buf)
+	hk := assetBalanceHistoryKey{height: height, asset: asset, address: addr}
+	batch.Put(hk.bytes(), ch.bytes())
+	bs.balances[k] = balance
+	return nil
+}
 
+func putAccounts(bs *blockState, batch *leveldb.Batch, height uint32, accountChanges []data.AccountChange) error {
 	for _, u := range accountChanges {
 		// get the address bytes from the account or from state
 		var addr proto.Address
@@ -376,7 +378,7 @@ func putAccounts(bs *blockState, batch *leveldb.Batch, height uint32, accountCha
 			return errors.Wrapf(err, "failed to find that the address '%s' issued asset '%s'", addr.String(), u.Asset.String())
 		}
 		if ok { //This is an issuer's account
-			err := updateBalanceAndHistory(addr, u.Asset, u.In, u.Out)
+			err := updateBalanceAndHistory(bs, batch, height, addr, u.Asset, u.In, u.Out)
 			if err != nil {
 				return errors.Wrapf(err, "failed to update balance of address '%s' for asset '%s'", addr.String(), u.Asset.String())
 			}
@@ -390,8 +392,10 @@ func putAccounts(bs *blockState, batch *leveldb.Batch, height uint32, accountCha
 					return errors.Errorf("no asset info for an asset '%s'", u.Asset.String())
 				}
 				if a.sponsored {
-					err := updateBalanceAndHistory(a.issuer, u.Asset, u.In, u.Out)
-					return errors.Wrapf(err, "failed to update balance of address '%s' for asset '%s'", a.issuer.String(), u.Asset.String())
+					err := updateBalanceAndHistory(bs, batch, height, a.issuer, u.Asset, u.In, u.Out)
+					if err != nil {
+						return errors.Wrapf(err, "failed to update balance of address '%s' for asset '%s'", a.issuer.String(), u.Asset.String())
+					}
 				}
 			}
 		}
@@ -419,6 +423,7 @@ func rollbackAccounts(snapshot *leveldb.Snapshot, batch *leveldb.Batch, removeHe
 				return errors.Wrap(err, "failed to rollback balances")
 			}
 			downgrade[k] = c.prev
+			batch.Delete(hk.bytes())
 			if !it.Prev() {
 				break
 			}
