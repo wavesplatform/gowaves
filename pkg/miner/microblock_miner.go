@@ -7,7 +7,6 @@ import (
 
 	"github.com/wavesplatform/gowaves/pkg/consensus"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
-	"github.com/wavesplatform/gowaves/pkg/miner/utxpool"
 	"github.com/wavesplatform/gowaves/pkg/ng"
 	"github.com/wavesplatform/gowaves/pkg/node/peer_manager"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
@@ -144,7 +143,7 @@ func (a *MicroblockMiner) mineMicro(ctx context.Context, rest restLimits, blockA
 	bytesBuf := make([]byte, 0)
 	cnt := 0
 
-	var unAppliedTransactions []*utxpool.TransactionWithBytes
+	var unAppliedTransactions []*types.TransactionWithBytes
 
 	mu := a.state.Mutex()
 	locked := mu.Lock()

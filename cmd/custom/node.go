@@ -123,6 +123,9 @@ func main() {
 		Scheme:       custom.FunctionalitySettings.AddressSchemeCharacter,
 	}
 
+	utxClean := utxpool.NewCleaner(services)
+	go utxClean.Run(ctx)
+
 	ngState := ng.NewState(services)
 	ngRuntime := ng.NewRuntime(services, ngState)
 
@@ -135,6 +138,7 @@ func main() {
 	stateChanged.AddHandler(state_changed.NewFuncHandler(func() {
 		ngState.BlockApplied()
 	}))
+	stateChanged.AddHandler(utxClean)
 
 	go miner.Run(ctx, Mainer, scheduler)
 	go scheduler.Reschedule()
