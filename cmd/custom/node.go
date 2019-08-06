@@ -2,25 +2,29 @@ package main
 
 import (
 	"context"
-	"github.com/alecthomas/kong"
-	"github.com/wavesplatform/gowaves/pkg/api"
-	"github.com/wavesplatform/gowaves/pkg/miner"
-	scheduler2 "github.com/wavesplatform/gowaves/pkg/miner/scheduler"
-	"github.com/wavesplatform/gowaves/pkg/miner/utxpool"
-	"github.com/wavesplatform/gowaves/pkg/settings"
 	"math/rand"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
+	"github.com/alecthomas/kong"
+	"github.com/wavesplatform/gowaves/pkg/api"
 	"github.com/wavesplatform/gowaves/pkg/libs/bytespool"
+	"github.com/wavesplatform/gowaves/pkg/miner"
+	scheduler2 "github.com/wavesplatform/gowaves/pkg/miner/scheduler"
+	"github.com/wavesplatform/gowaves/pkg/miner/utxpool"
+	"github.com/wavesplatform/gowaves/pkg/ng"
 	"github.com/wavesplatform/gowaves/pkg/node"
+	"github.com/wavesplatform/gowaves/pkg/node/peer_manager"
+	"github.com/wavesplatform/gowaves/pkg/node/state_changed"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/services"
+	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"go.uber.org/zap"
-	"strings"
 )
 
 var version = proto.Version{Major: 0, Minor: 15, Patch: 1}
@@ -30,7 +34,7 @@ type Cli struct {
 		WavesNetwork string `kong:"wavesnetwork,short='n',help='Waves network.',required"`
 		Addresses    string `kong:"address,short='a',help='Addresses connect to.'"`
 		DeclAddr     string `kong:"decladdr,short='d',help='Address listen on.'"`
-		HttpAddr     string `kong:"httpaddr,short='w',help='Http addr bind on.'"`
+		Http         string `kong:"http addr,help='Http addr bind on.'"`
 		GenesisPath  string `kong:"genesis,short='g',help='Path to genesis json file.'"`
 		Seed         string `kong:"seed,help='Seed for miner.'"`
 	} `kong:"cmd,help='Run node'"`
@@ -68,6 +72,7 @@ func main() {
 	custom := &settings.BlockchainSettings{
 		Type: 'E',
 		FunctionalitySettings: settings.FunctionalitySettings{
+			FeaturesVotingPeriod:   10000,
 			MaxTxTimeBackOffset:    120 * 60000,
 			MaxTxTimeForwardOffset: 90 * 60000,
 
@@ -93,9 +98,9 @@ func main() {
 
 	parent := peer.NewParent()
 
-	peerSpawnerImpl := node.NewPeerSpawner(btsPool, parent, conf.WavesNetwork, declAddr, "gowaves", uint64(rand.Int()), version)
+	peerSpawnerImpl := peer_manager.NewPeerSpawner(btsPool, parent, conf.WavesNetwork, declAddr, "gowaves", uint64(rand.Int()), version)
 
-	peerManager := node.NewPeerManager(peerSpawnerImpl, state)
+	peerManager := peer_manager.NewPeerManager(peerSpawnerImpl, state)
 
 	var keyPairs []proto.KeyPair
 	if len(cli.Run.Seed) > 0 {
@@ -105,12 +110,36 @@ func main() {
 	scheduler := scheduler2.NewScheduler(state, keyPairs, custom)
 
 	utx := utxpool.New(10000)
-	Mainer := miner.New(utx, state, peerManager, scheduler)
+
+	stateChanged := state_changed.NewStateChanged()
+	blockApplier := node.NewBlockApplier(state, stateChanged, scheduler)
+
+	services := services.Services{
+		State:        state,
+		Peers:        peerManager,
+		Scheduler:    scheduler,
+		BlockApplier: blockApplier,
+		UtxPool:      utx,
+		Scheme:       custom.FunctionalitySettings.AddressSchemeCharacter,
+	}
+
+	ngState := ng.NewState(services)
+	ngRuntime := ng.NewRuntime(services, ngState)
+
+	Mainer := miner.NewMicroblockMiner(services, ngRuntime, 'E')
+
+	stateChanged.AddHandler(state_changed.NewScoreSender(peerManager, state))
+	stateChanged.AddHandler(state_changed.NewFuncHandler(func() {
+		scheduler.Reschedule()
+	}))
+	stateChanged.AddHandler(state_changed.NewFuncHandler(func() {
+		ngState.BlockApplied()
+	}))
 
 	go miner.Run(ctx, Mainer, scheduler)
 	go scheduler.Reschedule()
 
-	n := node.NewNode(state, peerManager, declAddr, scheduler, Mainer)
+	n := node.NewNode(services, declAddr, ngRuntime, Mainer)
 
 	go node.RunNode(ctx, n, parent)
 
@@ -122,7 +151,7 @@ func main() {
 	}
 
 	// TODO hardcore
-	app, err := api.NewApp("integration-test-rest-api", n, scheduler)
+	app, err := api.NewApp("integration-test-rest-api", state, peerManager, scheduler, utx)
 	if err != nil {
 		zap.S().Error(err)
 		cancel()
@@ -134,7 +163,7 @@ func main() {
 		zap.S().Info("===== ", conf.HttpAddr)
 		err := api.Run(ctx, conf.HttpAddr, webApi)
 		if err != nil {
-			zap.S().Error("Failed to start API: %v", err)
+			zap.S().Errorf("Failed to start API: %v", err)
 		}
 	}()
 
@@ -144,7 +173,7 @@ func main() {
 
 	select {
 	case sig := <-gracefulStop:
-
+		zap.S().Infow("Caught signal, stopping", "signal", sig)
 		n.Close()
 
 		zap.S().Infow("Caught signal, stopping", "signal", sig)
@@ -152,13 +181,12 @@ func main() {
 
 		<-time.After(2 * time.Second)
 	}
-
 }
 
 func FromArgs(c *Cli) func(s *settings.NodeSettings) {
 	return func(s *settings.NodeSettings) {
 		s.DeclaredAddr = c.Run.DeclAddr
-		s.HttpAddr = c.Run.HttpAddr
+		s.HttpAddr = c.Run.Http
 		s.WavesNetwork = c.Run.WavesNetwork
 		s.Addresses = c.Run.Addresses
 	}

@@ -127,7 +127,7 @@ func writeBlock(t *testing.T, rw *blockReadWriter, block *proto.Block) {
 	if err := rw.writeBlockHeader(blockID, headerBytes); err != nil {
 		t.Fatalf("writeBlockHeader(): %v", err)
 	}
-	transaction := block.Transactions
+	transaction := block.Transactions.BytesUnchecked()
 	for i := 0; i < block.TransactionCount; i++ {
 		n := int(binary.BigEndian.Uint32(transaction[0:4]))
 		txBytes := transaction[4 : n+4]
@@ -139,7 +139,7 @@ func writeBlock(t *testing.T, rw *blockReadWriter, block *proto.Block) {
 		if err != nil {
 			t.Fatalf("tx.GetID(): %v\n", err)
 		}
-		if err := rw.writeTransaction(txID, transaction[:n+4]); err != nil {
+		if err := rw.writeTransaction(txID, transaction[4:n+4]); err != nil {
 			t.Fatalf("writeTransaction(): %v", err)
 		}
 		transaction = transaction[4+n:]
@@ -173,7 +173,7 @@ func testSingleBlock(t *testing.T, rw *blockReadWriter, block *proto.Block) {
 	if err != nil {
 		t.Fatalf("readTransactionsBlock(): %v", err)
 	}
-	if bytes.Compare(block.Transactions, resTransactions) != 0 {
+	if bytes.Compare(block.Transactions.BytesUnchecked(), resTransactions) != 0 {
 		t.Error("Transaction bytes are not equal.")
 	}
 }
@@ -200,7 +200,7 @@ func writeBlocks(ctx context.Context, rw *blockReadWriter, blocks []proto.Block,
 		}
 		task = &readTask{taskType: readHeader, blockID: blockID, correctResult: headerBytes}
 		tasksBuf = append(tasksBuf, task)
-		transaction := block.Transactions
+		transaction := block.Transactions.BytesUnchecked()
 		for i := 0; i < block.TransactionCount; i++ {
 			n := int(binary.BigEndian.Uint32(transaction[0:4]))
 			txBytes := transaction[4 : n+4]
@@ -213,7 +213,7 @@ func writeBlocks(ctx context.Context, rw *blockReadWriter, blocks []proto.Block,
 			if err != nil {
 				return err
 			}
-			if err := rw.writeTransaction(txID, transaction[:n+4]); err != nil {
+			if err := rw.writeTransaction(txID, transaction[4:n+4]); err != nil {
 				close(readTasks)
 				return err
 			}
@@ -233,7 +233,7 @@ func writeBlocks(ctx context.Context, rw *blockReadWriter, blocks []proto.Block,
 			close(readTasks)
 			return err
 		}
-		task = &readTask{taskType: readBlock, blockID: blockID, correctResult: block.Transactions}
+		task = &readTask{taskType: readBlock, blockID: blockID, correctResult: block.Transactions.BytesUnchecked()}
 		tasksBuf = append(tasksBuf, task)
 		for _, task := range tasksBuf {
 			select {

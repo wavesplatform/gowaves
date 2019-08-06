@@ -1,5 +1,10 @@
 package types
 
+import (
+	"github.com/wavesplatform/gowaves/pkg/miner/utxpool"
+	"github.com/wavesplatform/gowaves/pkg/proto"
+)
+
 type Scheduler interface {
 	Reschedule()
 }
@@ -8,4 +13,26 @@ type Scheduler interface {
 // We should interrupt miner, cause block applying has higher priority.
 type MinerInterrupter interface {
 	Interrupt()
+}
+
+type BlockApplier interface {
+	Apply(block *proto.Block) error
+	ApplyBytes([]byte) error
+}
+
+// notify state that it must run synchronization
+type StateHistorySynchronizer interface {
+	Sync()
+}
+
+// Abstract handler that called when event happens
+type Handler interface {
+	Handle()
+}
+
+// UtxPool storage interface
+type UtxPool interface {
+	AddWithBytes(t proto.Transaction, b []byte)
+	Exists(t proto.Transaction) bool
+	Pop() *utxpool.TransactionWithBytes
 }

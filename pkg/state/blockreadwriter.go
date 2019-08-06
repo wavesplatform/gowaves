@@ -186,11 +186,17 @@ func (rw *blockReadWriter) finishBlock(blockID crypto.Signature) error {
 }
 
 func (rw *blockReadWriter) writeTransaction(txID []byte, tx []byte) error {
-	if _, err := rw.blockchainBuf.Write(tx); err != nil {
+	txSize := uint32(len(tx))
+	txSizeBytes := make([]byte, 4)
+	binary.BigEndian.PutUint32(txSizeBytes, txSize)
+	txBytesTotal := make([]byte, 4+txSize)
+	copy(txBytesTotal[:4], txSizeBytes)
+	copy(txBytesTotal[4:], tx)
+	if _, err := rw.blockchainBuf.Write(txBytesTotal); err != nil {
 		return err
 	}
 	binary.LittleEndian.PutUint64(rw.txBounds[:rw.offsetLen], rw.blockchainLen)
-	rw.blockchainLen += uint64(len(tx))
+	rw.blockchainLen += uint64(len(txBytesTotal))
 	if rw.blockchainLen > rw.offsetEnd {
 		return errors.Errorf("offsetLen is not enough for this offset: %d > %d", rw.blockchainLen, rw.offsetEnd)
 	}

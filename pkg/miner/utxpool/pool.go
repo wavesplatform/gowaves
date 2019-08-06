@@ -1,21 +1,25 @@
 package utxpool
 
 import (
-	"github.com/wavesplatform/gowaves/pkg/crypto"
-	"github.com/wavesplatform/gowaves/pkg/proto"
+	"container/heap"
 	"sync"
 
-	"container/heap"
+	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
-type transactionsHeap []proto.Transaction
+type TransactionWithBytes struct {
+	T proto.Transaction
+	B []byte
+}
+
+type transactionsHeap []*TransactionWithBytes
 
 func (a transactionsHeap) Len() int { return len(a) }
 
-// TODO we should compare by fee/len
 func (a transactionsHeap) Less(i, j int) bool {
-	// We want Pop to give us the highest, not lowest, priority so we use greater than here.
-	return a[i].GetFee() > a[j].GetFee()
+	// skip division by zero, check it when we add transaction
+	return a[i].T.GetFee()/uint64(len(a[i].B)) > a[j].T.GetFee()/uint64(len(a[j].B))
 }
 
 func (a transactionsHeap) Swap(i, j int) {
@@ -23,7 +27,7 @@ func (a transactionsHeap) Swap(i, j int) {
 }
 
 func (a *transactionsHeap) Push(x interface{}) {
-	item := x.(proto.Transaction)
+	item := x.(*TransactionWithBytes)
 	*a = append(*a, item)
 }
 
@@ -35,63 +39,60 @@ func (a *transactionsHeap) Pop() interface{} {
 	return item
 }
 
-type Utx struct {
+type UtxImpl struct {
 	mu             sync.Mutex
 	transactions   transactionsHeap
 	transactionIds map[crypto.Digest]struct{}
 	limit          uint // max transaction count
 }
 
-func New(limit uint) *Utx {
-	return &Utx{
+func New(limit uint) *UtxImpl {
+	return &UtxImpl{
 		transactionIds: make(map[crypto.Digest]struct{}),
 		limit:          limit,
 	}
 }
 
-// TODO add limits
-func (a *Utx) Add(t proto.Transaction) {
+func (a *UtxImpl) AddWithBytes(t proto.Transaction, b []byte) {
 	a.mu.Lock()
-	heap.Push(&a.transactions, t)
-	// TODO: check GetID() error.
-	tID, _ := t.GetID()
-	a.transactionIds[makeDigest(tID)] = struct{}{}
-	a.mu.Unlock()
+	defer a.mu.Unlock()
+	tb := &TransactionWithBytes{
+		T: t,
+		B: b,
+	}
+	if len(b) == 0 {
+		return
+	}
+	heap.Push(&a.transactions, tb)
+	t.GenerateID()
+	a.transactionIds[makeDigest(t.GetID())] = struct{}{}
 }
 
-func makeDigest(b []byte) crypto.Digest {
+func makeDigest(b []byte, e error) crypto.Digest {
 	d := crypto.Digest{}
 	copy(d[:], b)
 	return d
 }
 
-func (a *Utx) Exists(t proto.Transaction) bool {
+func (a *UtxImpl) Exists(t proto.Transaction) bool {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	// TODO: check GetID() error.
-	tID, _ := t.GetID()
-	_, ok := a.transactionIds[makeDigest(tID)]
+	_, ok := a.transactionIds[makeDigest(t.GetID())]
 	return ok
 }
 
-func (a *Utx) Pop() proto.Transaction {
+func (a *UtxImpl) Pop() *TransactionWithBytes {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	if a.transactions.Len() > 0 {
-		t := heap.Pop(&a.transactions).(proto.Transaction)
-		// TODO: check GetID() error.
-		tID, _ := t.GetID()
-		delete(a.transactionIds, makeDigest(tID))
-		return t
+		tb := heap.Pop(&a.transactions).(*TransactionWithBytes)
+		delete(a.transactionIds, makeDigest(tb.T.GetID()))
+		return tb
 	}
 	return nil
 }
 
-func (a *Utx) Map(f func([]proto.Transaction) []proto.Transaction) {
-
-}
-
-func (a *Utx) Len() int {
+func (a *UtxImpl) Len() int {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	return a.transactions.Len()

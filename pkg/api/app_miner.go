@@ -1,8 +1,9 @@
 package api
 
 import (
-	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"time"
+
+	"github.com/wavesplatform/gowaves/pkg/crypto"
 )
 
 type Scheduler struct {

@@ -169,7 +169,7 @@ func (im *Importer) worker(tasks <-chan task) <-chan result {
 
 	processTask := func(t task) result {
 		r := result{height: t.height, id: t.block.BlockSignature}
-		r.trades, r.issues, r.assets, r.accounts, r.aliases, r.error = im.extractTransactions(t.block.Transactions, t.block.TransactionCount, t.block.GenPublicKey)
+		r.trades, r.issues, r.assets, r.accounts, r.aliases, r.error = im.extractTransactions(t.block.Transactions.BytesUnchecked(), t.block.TransactionCount, t.block.GenPublicKey)
 		return r
 	}
 
@@ -187,7 +187,7 @@ func (im *Importer) worker(tasks <-chan task) <-chan result {
 	return results
 }
 
-func (im *Importer) extractTransactions(d []byte, n int, miner crypto.PublicKey) ([]data.Trade, []data.IssueChange, []data.AssetChange, []data.AccountChange, []data.AliasBind, error) {
+func (im *Importer) extractTransactions(d []byte, transactionsCount int, miner crypto.PublicKey) ([]data.Trade, []data.IssueChange, []data.AssetChange, []data.AccountChange, []data.AliasBind, error) {
 	wrapErr := func(err error, transaction string) error {
 		return errors.Wrapf(err, "failed to extract %s transaction", transaction)
 	}
@@ -197,7 +197,7 @@ func (im *Importer) extractTransactions(d []byte, n int, miner crypto.PublicKey)
 	assetChanges := make([]data.AssetChange, 0)
 	issueChanges := make([]data.IssueChange, 0)
 	binds := make([]data.AliasBind, 0)
-	for i := 0; i < n; i++ {
+	for i := 0; i < transactionsCount; i++ {
 		s := int(binary.BigEndian.Uint32(d[0:4]))
 		txb := d[4 : s+4]
 		switch txb[0] {

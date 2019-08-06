@@ -1,10 +1,11 @@
 package data
 
 import (
+	"math/big"
+
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"math/big"
 )
 
 type AliasBind struct {
@@ -154,35 +155,6 @@ func FromTransferV1(scheme byte, tx proto.TransferV1, miner crypto.PublicKey) ([
 	return r, nil
 }
 
-func FromTransferV1MinerAddress(scheme byte, tx proto.TransferV1, miner proto.Address) ([]AccountChange, error) {
-	r := make([]AccountChange, 0, 4)
-	if tx.AmountAsset.Present {
-		ch1 := AccountChange{Asset: tx.AmountAsset.ID, Out: tx.Amount}
-		err := ch1.Account.SetFromPublicKey(scheme, tx.SenderPK)
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to convert TransferV1 to Change")
-		}
-		ch2 := AccountChange{Asset: tx.AmountAsset.ID, In: tx.Amount}
-		err = ch2.Account.SetFromRecipient(tx.Recipient)
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to convert TransferV1 to Change")
-		}
-		r = append(r, ch1)
-		r = append(r, ch2)
-	}
-	if tx.FeeAsset.Present {
-		ch1 := AccountChange{Asset: tx.FeeAsset.ID, Out: tx.Fee}
-		err := ch1.Account.SetFromPublicKey(scheme, tx.SenderPK)
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to convert TransferV1 to Change")
-		}
-		ch2 := AccountChange{Account: Account{Address: miner}, Asset: tx.FeeAsset.ID, In: tx.Fee, MinersReward: true}
-		r = append(r, ch1)
-		r = append(r, ch2)
-	}
-	return r, nil
-}
-
 func FromTransferV2(scheme byte, tx proto.TransferV2, miner crypto.PublicKey) ([]AccountChange, error) {
 	r := make([]AccountChange, 0, 4)
 	if tx.AmountAsset.Present {
@@ -210,35 +182,6 @@ func FromTransferV2(scheme byte, tx proto.TransferV2, miner crypto.PublicKey) ([
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to convert TransferV1 to Change")
 		}
-		r = append(r, ch1)
-		r = append(r, ch2)
-	}
-	return r, nil
-}
-
-func FromTransferV2MinerAddress(scheme byte, tx proto.TransferV2, miner proto.Address) ([]AccountChange, error) {
-	r := make([]AccountChange, 0, 4)
-	if tx.AmountAsset.Present {
-		ch1 := AccountChange{Asset: tx.AmountAsset.ID, Out: tx.Amount}
-		err := ch1.Account.SetFromPublicKey(scheme, tx.SenderPK)
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to convert TransferV2 to Change")
-		}
-		ch2 := AccountChange{Asset: tx.AmountAsset.ID, In: tx.Amount}
-		err = ch2.Account.SetFromRecipient(tx.Recipient)
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to convert TransferV2 to Change")
-		}
-		r = append(r, ch1)
-		r = append(r, ch2)
-	}
-	if tx.FeeAsset.Present {
-		ch1 := AccountChange{Asset: tx.FeeAsset.ID, Out: tx.Fee}
-		err := ch1.Account.SetFromPublicKey(scheme, tx.SenderPK)
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to convert TransferV1 to Change")
-		}
-		ch2 := AccountChange{Account: Account{Address: miner}, Asset: tx.FeeAsset.ID, In: tx.Fee, MinersReward: true}
 		r = append(r, ch1)
 		r = append(r, ch2)
 	}

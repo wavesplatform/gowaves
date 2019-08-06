@@ -110,7 +110,7 @@ func TestValidationWithoutBlocks(t *testing.T) {
 	blocks, err := readRealBlocks(t, blocksPath, int(height+1))
 	assert.NoError(t, err, "readRealBlocks() failed")
 	last := blocks[len(blocks)-1]
-	txs, err := proto.BytesToTransactions(last.TransactionCount, last.Transactions)
+	txs, err := last.Transactions.Transactions()
 	assert.NoError(t, err, "BytesToTransactions() failed")
 	err = importer.ApplyFromFile(manager, blocksPath, height, 1, false)
 	assert.NoError(t, err, "ApplyFromFile() failed")
@@ -411,6 +411,5 @@ func TestStateManager_Mutex(t *testing.T) {
 	defer manager.Close()
 
 	mu := manager.Mutex()
-	mu.Lock()
-	mu.Unlock()
+	mu.Lock().Unlock()
 }

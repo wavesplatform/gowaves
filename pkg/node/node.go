@@ -2,16 +2,20 @@ package node
 
 import (
 	"context"
+	"math/big"
+	"net"
+	"time"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/ng"
+	"github.com/wavesplatform/gowaves/pkg/node/peer_manager"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/services"
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"github.com/wavesplatform/gowaves/pkg/types"
 	"github.com/wavesplatform/gowaves/pkg/util"
 	"go.uber.org/zap"
-	"math/big"
-	"net"
-	"time"
 )
 
 type Config struct {
@@ -22,34 +26,38 @@ type Config struct {
 }
 
 type Node struct {
-	peerManager      PeerManager
-	stateManager     state.State
+	peers            peer_manager.PeerManager
+	state            state.State
 	subscribe        *Subscribe
 	sync             *StateSync
 	declAddr         proto.TCPAddr
 	scheduler        types.Scheduler
 	minerInterrupter types.MinerInterrupter
+	utx              types.UtxPool
+	ng               *ng.RuntimeImpl
 }
 
-func NewNode(stateManager state.State, peerManager PeerManager, declAddr proto.TCPAddr, scheduler types.Scheduler, minerInterrupter types.MinerInterrupter) *Node {
+func NewNode(services services.Services, declAddr proto.TCPAddr, ng *ng.RuntimeImpl, interrupter types.MinerInterrupter) *Node {
 	s := NewSubscribeService()
 	return &Node{
-		stateManager:     stateManager,
-		peerManager:      peerManager,
+		state:            services.State,
+		peers:            services.Peers,
 		subscribe:        s,
-		sync:             NewStateSync(stateManager, peerManager, s, scheduler, minerInterrupter),
+		sync:             NewStateSync(services, s, interrupter),
 		declAddr:         declAddr,
-		scheduler:        scheduler,
-		minerInterrupter: minerInterrupter,
+		scheduler:        services.Scheduler,
+		minerInterrupter: interrupter,
+		utx:              services.UtxPool,
+		ng:               ng,
 	}
 }
 
 func (a *Node) State() state.State {
-	return a.stateManager
+	return a.state
 }
 
-func (a *Node) PeerManager() PeerManager {
-	return a.peerManager
+func (a *Node) PeerManager() peer_manager.PeerManager {
+	return a.peers
 }
 
 func (a *Node) HandleProtoMessage(mess peer.ProtoMessage) {
@@ -65,18 +73,30 @@ func (a *Node) HandleProtoMessage(mess peer.ProtoMessage) {
 	case *proto.GetBlockMessage:
 		a.handleBlockBySignatureMessage(mess.ID, t.BlockID)
 	case *proto.SignaturesMessage:
-		a.subscribe.Receive(mess.ID, t)
+		a.handleSignaturesMessage(mess.ID, t)
 	case *proto.GetSignaturesMessage:
 		a.handleGetSignaturesMessage(mess.ID, t)
 	case *proto.TransactionMessage:
-	// nothing to do with transactions
-	// no utx pool exists
+		a.handleTransactionMessage(mess.ID, t)
+	case *proto.MicroBlockInvMessage:
+		a.handleMicroblockInvMessage(mess.ID, t)
+	case *proto.MicroBlockRequestMessage:
+		a.handleMicroBlockRequestMessage(mess.ID, t)
 	case *proto.MicroBlockMessage:
-	// skip to better times
+		a.handleMicroBlockMessage(mess.ID, t)
 
 	default:
 		zap.S().Errorf("unknown proto Message %+v", mess.Message)
 	}
+}
+
+func (a *Node) handleTransactionMessage(id string, mess *proto.TransactionMessage) {
+	t, err := proto.BytesToTransaction(mess.Transaction)
+	if err != nil {
+		zap.S().Debug(err)
+		return
+	}
+	a.utx.AddWithBytes(t, util.Dup(mess.Transaction))
 }
 
 func (a *Node) handlePeersMessage(id string, peers *proto.PeersMessage) {
@@ -85,19 +105,19 @@ func (a *Node) handlePeersMessage(id string, peers *proto.PeersMessage) {
 		prs = append(prs, proto.NewTCPAddr(p.Addr, int(p.Port)))
 	}
 
-	err := a.peerManager.UpdateKnownPeers(prs)
+	err := a.peers.UpdateKnownPeers(prs)
 	if err != nil {
 		zap.S().Error(err)
 	}
 }
 
 func (a *Node) handleGetPeersMessage(id string, m *proto.GetPeersMessage) {
-	rs, err := a.peerManager.KnownPeers()
+	rs, err := a.peers.KnownPeers()
 	if err != nil {
 		zap.L().Error("failed got known peers", zap.Error(err))
 		return
 	}
-	p, ok := a.peerManager.Connected(id)
+	p, ok := a.peers.Connected(id)
 	if !ok {
 		// peer gone offline, skip
 		return
@@ -124,37 +144,40 @@ func (a *Node) HandleInfoMessage(m peer.InfoMessage) {
 }
 
 func (a *Node) AskPeers() {
-	a.peerManager.AskPeers()
+	a.peers.AskPeers()
 }
 
 func (a *Node) handlePeerError(id string, err error) {
 	zap.S().Debug(err)
-	a.peerManager.Disconnect(id)
+	a.peers.Disconnect(id)
 }
 
 func (a *Node) Close() {
-	a.peerManager.Close()
-	a.stateManager.Close()
+	a.peers.Close()
+	m := a.state.Mutex()
+	locked := m.Lock()
+	a.state.Close()
+	locked.Unlock()
 	a.sync.Close()
 }
 
 func (a *Node) handleNewConnection(peer peer.Peer) {
-	_, connected := a.peerManager.Connected(peer.ID())
+	_, connected := a.peers.Connected(peer.ID())
 	if connected {
 		peer.Close()
 		return
 	}
 
-	if a.peerManager.Banned(peer.ID()) {
+	if a.peers.Banned(peer.ID()) {
 		peer.Close()
 		return
 	}
 
-	a.peerManager.AddConnected(peer)
+	a.peers.AddConnected(peer)
 
 	// send score to new connected
 	go func() {
-		score, err := a.stateManager.CurrentScore()
+		score, err := a.state.CurrentScore()
 		if err != nil {
 			zap.S().Error(err)
 			return
@@ -167,7 +190,7 @@ func (a *Node) handleNewConnection(peer peer.Peer) {
 }
 
 func (a *Node) handleBlockBySignatureMessage(peer string, sig crypto.Signature) {
-	block, err := a.stateManager.Block(sig)
+	block, err := a.state.Block(sig)
 	if err != nil {
 		zap.S().Error(err)
 		return
@@ -183,61 +206,47 @@ func (a *Node) handleBlockBySignatureMessage(peer string, sig crypto.Signature) 
 		BlockBytes: bts,
 	}
 
-	p, ok := a.peerManager.Connected(peer)
+	p, ok := a.peers.Connected(peer)
 	if ok {
 		p.SendMessage(&bm)
-	}
-}
-
-// called every n seconds, handle change runtime state
-// TODO this function should be replaced by events
-func (a *Node) SyncState() {
-	for {
-		err := a.sync.Sync()
-		if err != nil {
-			// wait only on errors
-			time.Sleep(500 * time.Millisecond)
-		}
 	}
 }
 
 func (a *Node) handleScoreMessage(peerID string, score []byte) {
 	b := new(big.Int)
 	b.SetBytes(score)
-	a.peerManager.UpdateScore(peerID, b)
+	a.peers.UpdateScore(peerID, b)
+
+	go func() {
+		<-time.After(4 * time.Second)
+		a.sync.Sync()
+	}()
+
 }
 
 func (a *Node) handleBlockMessage(peerID string, mess *proto.BlockMessage) {
 	defer util.TimeTrack(time.Now(), "handleBlockMessage")
 	if !a.subscribe.Receive(peerID, mess) {
-		ba := NewBlockApplier(a.stateManager, a.peerManager, a.scheduler, a.minerInterrupter)
-
 		b := &proto.Block{}
 		err := b.UnmarshalBinary(mess.BlockBytes)
 		if err != nil {
 			zap.S().Debug(err)
 			return
 		}
-
-		err = ba.Apply(b)
-		if err != nil {
-			zap.S().Debug(err)
-			return
-		}
-		go a.scheduler.Reschedule()
+		a.ng.HandleBlockMessage(peerID, b)
 	}
 }
 
 func (a *Node) handleGetSignaturesMessage(peerID string, mess *proto.GetSignaturesMessage) {
 	defer util.TimeTrack(time.Now(), "handleGetSignaturesMessage")
-	p, ok := a.peerManager.Connected(peerID)
+	p, ok := a.peers.Connected(peerID)
 	if !ok {
 		return
 	}
 
 	for _, sig := range mess.Blocks {
 
-		block, err := a.stateManager.Block(sig)
+		block, err := a.state.Block(sig)
 		if err != nil {
 			continue
 		}
@@ -246,17 +255,25 @@ func (a *Node) handleGetSignaturesMessage(peerID string, mess *proto.GetSignatur
 			panic("signature error")
 		}
 
-		sendSignatures(block, a.stateManager, p)
+		sendSignatures(block, a.state, p)
 		return
 	}
 }
 
+func (a *Node) handleMicroblockInvMessage(peerID string, mess *proto.MicroBlockInvMessage) {
+	a.ng.HandleInvMessage(peerID, mess)
+}
+
+func (a *Node) handleMicroBlockRequestMessage(peerID string, mess *proto.MicroBlockRequestMessage) {
+	a.ng.HandleMicroBlockRequestMessage(peerID, mess)
+}
+
 func (a *Node) SpawnOutgoingConnections(ctx context.Context) {
-	a.peerManager.SpawnOutgoingConnections(ctx)
+	a.peers.SpawnOutgoingConnections(ctx)
 }
 
 func (a *Node) SpawnOutgoingConnection(ctx context.Context, addr proto.TCPAddr) error {
-	return a.peerManager.Connect(ctx, addr)
+	return a.peers.Connect(ctx, addr)
 }
 
 func (a *Node) Serve(ctx context.Context) error {
@@ -276,12 +293,20 @@ func (a *Node) Serve(ctx context.Context) error {
 			continue
 		}
 
-		go a.peerManager.SpawnIncomingConnection(ctx, conn)
+		go a.peers.SpawnIncomingConnection(ctx, conn)
 	}
 }
 
+func (a *Node) handleMicroBlockMessage(s string, message *proto.MicroBlockMessage) {
+	a.ng.HandleMicroBlockMessage(s, message)
+}
+
+func (a *Node) handleSignaturesMessage(s string, message *proto.SignaturesMessage) {
+	a.subscribe.Receive(s, message)
+}
+
 func RunNode(ctx context.Context, n *Node, p peer.Parent) {
-	go n.SyncState()
+	go n.sync.Run(ctx)
 
 	go func() {
 		for {

@@ -268,20 +268,20 @@ func (c *SafeConverter) extractOrder(orders []*ExchangeTransactionData_Order, si
 			}
 			switch o.Version {
 			case 3:
-				order = proto.OrderV3{
+				order = &proto.OrderV3{
 					Version:         c.byte(o.Version),
 					Proofs:          c.proofs(o.Proofs),
 					OrderBody:       body,
 					MatcherFeeAsset: c.extractOptionalAsset(o.MatcherFee),
 				}
 			case 2:
-				order = proto.OrderV2{
+				order = &proto.OrderV2{
 					Version:   c.byte(o.Version),
 					Proofs:    c.proofs(o.Proofs),
 					OrderBody: body,
 				}
 			default:
-				order = proto.OrderV1{
+				order = &proto.OrderV1{
 					Signature: c.proof(o.Proofs),
 					OrderBody: body,
 				}
@@ -537,12 +537,21 @@ func (c *SafeConverter) Transaction(tx *Transaction) (proto.Transaction, error) 
 			if bo.GetVersion() != 1 || so.GetVersion() != 1 {
 				return nil, errors.New("unsupported order version")
 			}
+			bo1, ok := bo.(*proto.OrderV1)
+			if !ok {
+				return nil, errors.New("invalid pointer to OrderV1")
+			}
+			so1, ok := so.(*proto.OrderV1)
+			if !ok {
+				return nil, errors.New("invalid pointer to OrderV1")
+			}
+
 			rtx = &proto.ExchangeV1{
 				Type:           proto.ExchangeTransaction,
 				Version:        v,
 				SenderPK:       c.publicKey(tx.SenderPublicKey),
-				BuyOrder:       bo.(proto.OrderV1),
-				SellOrder:      so.(proto.OrderV1),
+				BuyOrder:       *bo1,
+				SellOrder:      *so1,
 				Price:          c.uint64(d.Exchange.Price),
 				Amount:         c.uint64(d.Exchange.Amount),
 				BuyMatcherFee:  c.uint64(d.Exchange.BuyMatcherFee),
@@ -698,84 +707,87 @@ func (c *SafeConverter) Transaction(tx *Transaction) (proto.Transaction, error) 
 	return rtx, nil
 }
 
+func (c *SafeConverter) extractFirstSignature(proofs *proto.ProofsV1) *crypto.Signature {
+	if c.err != nil {
+		return nil
+	}
+	if len(proofs.Proofs) == 0 {
+		c.err = errors.New("unable to extract Signature from empty ProofsV1")
+		return nil
+	}
+	s, err := crypto.NewSignatureFromBytes(proofs.Proofs[0])
+	if err != nil {
+		c.err = err
+		return nil
+	}
+	return &s
+}
+
 func (c *SafeConverter) SignedTransaction(stx *SignedTransaction) (proto.Transaction, error) {
 	tx, err := c.Transaction(stx.Transaction)
 	if err != nil {
 		return nil, err
 	}
-	v := c.byte(stx.Transaction.Version)
+	proofs := c.proofs(stx.Proofs)
 	if c.err != nil {
 		return nil, c.err
 	}
-	var proofs *proto.ProofsV1
-	var sig *crypto.Signature
-	switch v {
-	case 2:
-		proofs = c.proofs(stx.Proofs)
-		if c.err != nil {
-			return nil, c.err
-		}
-	default:
-		s, err := crypto.NewSignatureFromBytes(stx.Proofs[0])
-		if err != nil {
-			return nil, err
-		}
-		sig = &s
-	}
 	switch t := tx.(type) {
 	case *proto.Genesis:
+		sig := c.extractFirstSignature(proofs)
 		t.Signature = sig
 		t.ID = sig
-		return t, nil
+		return t, c.err
 	case *proto.Payment:
+		sig := c.extractFirstSignature(proofs)
 		t.Signature = sig
 		t.ID = sig
-		return t, nil
+		return t, c.err
 	case *proto.IssueV1:
-		t.Signature = sig
-		return t, nil
+		t.Signature = c.extractFirstSignature(proofs)
+		return t, c.err
 	case *proto.IssueV2:
 		t.Proofs = proofs
 		return t, nil
 	case *proto.TransferV1:
-		t.Signature = sig
-		return t, nil
+		t.Signature = c.extractFirstSignature(proofs)
+		return t, c.err
 	case *proto.TransferV2:
 		t.Proofs = proofs
 		return t, nil
 	case *proto.ReissueV1:
-		t.Signature = sig
-		return t, nil
+		t.Signature = c.extractFirstSignature(proofs)
+		return t, c.err
 	case *proto.ReissueV2:
 		t.Proofs = proofs
 		return t, nil
 	case *proto.BurnV1:
-		t.Signature = sig
-		return t, nil
+		t.Signature = c.extractFirstSignature(proofs)
+		return t, c.err
 	case *proto.BurnV2:
 		t.Proofs = proofs
 		return t, nil
 	case *proto.ExchangeV1:
-		t.Signature = sig
-		return t, nil
+		t.Signature = c.extractFirstSignature(proofs)
+		return t, c.err
 	case *proto.ExchangeV2:
 		t.Proofs = proofs
 		return t, nil
 	case *proto.LeaseV1:
-		t.Signature = sig
-		return t, nil
+		t.Signature = c.extractFirstSignature(proofs)
+		return t, c.err
 	case *proto.LeaseV2:
 		t.Proofs = proofs
 		return t, nil
 	case *proto.LeaseCancelV1:
-		t.Signature = sig
-		return t, nil
+		t.Signature = c.extractFirstSignature(proofs)
+		return t, c.err
 	case *proto.LeaseCancelV2:
 		t.Proofs = proofs
 		return t, nil
 	case *proto.CreateAliasV1:
-		t.Signature = sig
-		return t, nil
+		t.Signature = c.extractFirstSignature(proofs)
+		return t, c.err
 	case *proto.CreateAliasV2:
 		t.Proofs = proofs
 		return t, nil

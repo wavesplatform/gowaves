@@ -1,15 +1,16 @@
 package scheduler
 
 import (
+	"time"
+
 	"github.com/wavesplatform/gowaves/pkg/consensus"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"github.com/wavesplatform/gowaves/pkg/util/cancellable"
+	"github.com/wavesplatform/gowaves/pkg/util/lock"
 	"go.uber.org/zap"
-	"sync"
-	"time"
 )
 
 type Emit struct {
@@ -25,20 +26,20 @@ type SchedulerImpl struct {
 	mine     chan Emit
 	cancel   []func()
 	settings *settings.BlockchainSettings
-	mu       sync.Mutex
+	mu       *lock.Mutex
 	internal internal
 	emits    []Emit
 	state    state.State
 }
 
 type internal interface {
-	schedule(state state.State, keyPairs []proto.KeyPair, schema proto.Schema, AverageBlockDelaySeconds uint64, confirmedBlock *proto.Block, confirmedBlockHeight uint64) []Emit
+	schedule(state state.State, keyPairs []proto.KeyPair, schema proto.Scheme, AverageBlockDelaySeconds uint64, confirmedBlock *proto.Block, confirmedBlockHeight uint64) []Emit
 }
 
 type internalImpl struct {
 }
 
-func (a internalImpl) schedule(state state.State, keyPairs []proto.KeyPair, schema proto.Schema, AverageBlockDelaySeconds uint64, confirmedBlock *proto.Block, confirmedBlockHeight uint64) []Emit {
+func (a internalImpl) schedule(state state.State, keyPairs []proto.KeyPair, schema proto.Scheme, AverageBlockDelaySeconds uint64, confirmedBlock *proto.Block, confirmedBlockHeight uint64) []Emit {
 	var greatGrandParentTimestamp proto.Timestamp = 0
 	if confirmedBlockHeight > 2 {
 		greatGrandParent, err := state.BlockByHeight(confirmedBlockHeight - 2)
@@ -67,7 +68,9 @@ func (a internalImpl) schedule(state state.State, keyPairs []proto.KeyPair, sche
 		c := &consensus.NxtPosCalculator{}
 		//c := &consensus.FairPosCalculator{}
 
+		locked := state.Mutex().RLock()
 		effectiveBalance, err := state.EffectiveBalance(keyPair.Addr(schema), confirmedBlockHeight-1000, confirmedBlockHeight)
+		locked.Unlock()
 		if err != nil {
 			zap.S().Error(err)
 			continue
@@ -107,6 +110,7 @@ func newScheduler(internal internal, state state.State, pairs []proto.KeyPair, s
 		settings: settings,
 		internal: internal,
 		state:    state,
+		mu:       lock.NewMutex(),
 	}
 }
 
@@ -121,23 +125,23 @@ func (a *SchedulerImpl) Reschedule() {
 	state := a.state
 
 	mu := state.Mutex()
-	mu.RLock()
+	locked := mu.RLock()
 
 	h, err := state.Height()
 	if err != nil {
 		zap.S().Error(err)
-		mu.RUnlock()
+		locked.Unlock()
 		return
 	}
 
 	block, err := state.BlockByHeight(h)
 	if err != nil {
 		zap.S().Error(err)
-		mu.RUnlock()
+		locked.Unlock()
 		return
 	}
+	locked.Unlock()
 
-	mu.RUnlock()
 	a.reschedule(state, block, h)
 }
 
@@ -145,7 +149,11 @@ func (a *SchedulerImpl) reschedule(state state.State, confirmedBlock *proto.Bloc
 	if len(a.keyPairs) == 0 {
 		return
 	}
-	a.mu.Lock()
+	err := a.mu.Lock(1 * time.Second)
+	if err != nil {
+		zap.S().Error(err)
+		return
+	}
 	defer a.mu.Unlock()
 
 	// stop previous timeouts
@@ -163,17 +171,31 @@ func (a *SchedulerImpl) reschedule(state state.State, confirmedBlock *proto.Bloc
 			timeout := emit.Timestamp - now
 			emit_ := emit
 			cancel := cancellable.After(time.Duration(timeout)*time.Millisecond, func() {
-				a.mine <- emit_
+				select {
+				case a.mine <- emit_:
+				default:
+					zap.S().Debug("cannot emit a.mine, chan is full")
+				}
+
 			})
 			a.cancel = append(a.cancel, cancel)
 		} else {
-			a.mine <- emit
+			select {
+			case a.mine <- emit:
+			default:
+				zap.S().Debug("cannot emit a.mine, chan is full")
+			}
+
 		}
 	}
 }
 
 func (a *SchedulerImpl) Emits() []Emit {
-	a.mu.Lock()
+	err := a.mu.Lock(1 * time.Second)
+	if err != nil {
+		zap.S().Error(err)
+		return nil
+	}
 	defer a.mu.Unlock()
 	return a.emits
 }
