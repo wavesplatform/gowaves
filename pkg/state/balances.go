@@ -185,6 +185,7 @@ func (s *balances) cancelInvalidLeaseIns(correctLeaseIns map[proto.Address]int64
 		}
 	}()
 
+	log.Printf("Started to cancel invalid leaseIns\n")
 	for iter.Next() {
 		key := keyvalue.SafeKey(iter)
 		r, err := s.wavesRecord(key, true)
@@ -207,6 +208,7 @@ func (s *balances) cancelInvalidLeaseIns(correctLeaseIns map[proto.Address]int64
 			}
 		}
 	}
+	log.Printf("Finished to cancel invalid leaseIns\n")
 	return nil
 }
 
