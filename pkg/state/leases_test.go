@@ -127,7 +127,7 @@ func TestValidLeaseIns(t *testing.T) {
 		r := createLease(t, l.sender)
 		err = to.leases.addLeasing(leaseID, r, blockID0)
 		assert.NoError(t, err, "failed to add leasing")
-		properLeaseIns[r.recipient] = int64(r.leaseAmount)
+		properLeaseIns[r.recipient] += int64(r.leaseAmount)
 	}
 	to.stor.flush(t)
 	leaseIns, err := to.leases.validLeaseIns()

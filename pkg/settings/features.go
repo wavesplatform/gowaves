@@ -28,7 +28,7 @@ var FeaturesInfo = map[Feature]FeatureInfo{
 	NG:                              {true, "NG Protocol"},
 	MassTransfer:                    {true, "Mass Transfer Transaction"},
 	SmartAccounts:                   {false, "Smart Accounts"},
-	DataTransaction:                 {false, "Data Transaction"},
+	DataTransaction:                 {true, "Data Transaction"},
 	BurnAnyTokens:                   {false, "Burn Any Tokens"},
 	FeeSponsorship:                  {false, "Fee Sponsorship"},
 	FairPoS:                         {true, "Fair PoS"},

@@ -336,13 +336,13 @@ func (c *SafeConverter) entries(entries []*DataTransactionData_DataEntry) proto.
 		var entry proto.DataEntry
 		switch t := e.Value.(type) {
 		case *DataTransactionData_DataEntry_IntValue:
-			entry = proto.IntegerDataEntry{Key: e.Key, Value: t.IntValue}
+			entry = &proto.IntegerDataEntry{Key: e.Key, Value: t.IntValue}
 		case *DataTransactionData_DataEntry_BoolValue:
-			entry = proto.BooleanDataEntry{Key: e.Key, Value: t.BoolValue}
+			entry = &proto.BooleanDataEntry{Key: e.Key, Value: t.BoolValue}
 		case *DataTransactionData_DataEntry_BinaryValue:
-			entry = proto.BinaryDataEntry{Key: e.Key, Value: t.BinaryValue}
+			entry = &proto.BinaryDataEntry{Key: e.Key, Value: t.BinaryValue}
 		case *DataTransactionData_DataEntry_StringValue:
-			entry = proto.StringDataEntry{Key: e.Key, Value: t.StringValue}
+			entry = &proto.StringDataEntry{Key: e.Key, Value: t.StringValue}
 		}
 		r[i] = entry
 	}

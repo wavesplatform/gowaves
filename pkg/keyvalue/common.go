@@ -36,6 +36,12 @@ func SafeKey(iter Iterator) []byte {
 	return key
 }
 
+func SafeValue(iter Iterator) []byte {
+	value := make([]byte, len(iter.Value()))
+	copy(value[:], iter.Value())
+	return value
+}
+
 type IterableKeyVal interface {
 	KeyValue
 	NewKeyIterator(prefix []byte) (Iterator, error)

@@ -100,6 +100,7 @@ func newBalances(db keyvalue.IterableKeyVal, stateDB *stateDB, hs *historyStorag
 }
 
 func (s *balances) cancelAllLeases() error {
+	// TODO: this action can not be rolled back now, do we need it?
 	iter, err := s.db.NewKeyIterator([]byte{wavesBalanceKeyPrefix})
 	if err != nil {
 		return err
@@ -117,6 +118,15 @@ func (s *balances) cancelAllLeases() error {
 		if err != nil {
 			return err
 		}
+		if r.leaseIn == 0 && r.leaseOut == 0 {
+			// Empty lease balance, no need to reset.
+			continue
+		}
+		var k wavesBalanceKey
+		if err := k.unmarshal(key); err != nil {
+			return err
+		}
+		log.Printf("Resetting lease balance for %s", k.address.String())
 		r.leaseOut = 0
 		r.leaseIn = 0
 		if err := s.setWavesBalanceImpl(key, r); err != nil {
@@ -127,6 +137,7 @@ func (s *balances) cancelAllLeases() error {
 }
 
 func (s *balances) cancelLeaseOverflows() (map[proto.Address]struct{}, error) {
+	// TODO: this action can not be rolled back now, do we need it?
 	iter, err := s.db.NewKeyIterator([]byte{wavesBalanceKeyPrefix})
 	if err != nil {
 		return nil, err
@@ -162,16 +173,36 @@ func (s *balances) cancelLeaseOverflows() (map[proto.Address]struct{}, error) {
 }
 
 func (s *balances) cancelInvalidLeaseIns(correctLeaseIns map[proto.Address]int64) error {
-	for addr, leaseIn := range correctLeaseIns {
-		k := wavesBalanceKey{addr}
-		r, err := s.wavesRecord(k.bytes(), true)
+	// TODO: this action can not be rolled back now, do we need it?
+	iter, err := s.db.NewKeyIterator([]byte{wavesBalanceKeyPrefix})
+	if err != nil {
+		return err
+	}
+	defer func() {
+		iter.Release()
+		if err := iter.Error(); err != nil {
+			log.Fatalf("Iterator error: %v", err)
+		}
+	}()
+
+	for iter.Next() {
+		key := keyvalue.SafeKey(iter)
+		r, err := s.wavesRecord(key, true)
 		if err != nil {
 			return err
 		}
-		if r.leaseIn != leaseIn {
-			log.Printf("Invalid leaseIn detected; fixing it: %d ---> %d.", r.leaseIn, leaseIn)
-			r.leaseIn = leaseIn
-			if err := s.setWavesBalanceImpl(k.bytes(), r); err != nil {
+		var k wavesBalanceKey
+		if err := k.unmarshal(key); err != nil {
+			return err
+		}
+		correctLeaseIn := int64(0)
+		if leaseIn, ok := correctLeaseIns[k.address]; ok {
+			correctLeaseIn = leaseIn
+		}
+		if r.leaseIn != correctLeaseIn {
+			log.Printf("Invalid leaseIn for address %s detected; fixing it: %d ---> %d.", k.address.String(), r.leaseIn, correctLeaseIn)
+			r.leaseIn = correctLeaseIn
+			if err := s.setWavesBalanceImpl(key, r); err != nil {
 				return err
 			}
 		}

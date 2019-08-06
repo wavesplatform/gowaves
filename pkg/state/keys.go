@@ -11,13 +11,15 @@ import (
 
 const (
 	// Key sizes.
-	wavesBalanceKeySize = 1 + proto.AddressSize
-	assetBalanceKeySize = 1 + proto.AddressSize + crypto.DigestSize
-
+	wavesBalanceKeySize     = 1 + proto.AddressSize
+	assetBalanceKeySize     = 1 + proto.AddressSize + crypto.DigestSize
+	leaseKeySize            = 1 + crypto.DigestSize
 	aliasKeySize            = 1 + 2 + proto.AliasMaxLength
 	disabledAliasKeySize    = 1 + 2 + proto.AliasMaxLength
 	approvedFeaturesKeySize = 1 + 2
 	votesFeaturesKeySize    = 1 + 2
+
+	minAccountsDataStorKeySize = 1 + 8 + 2 + 1 + 4
 
 	// Balances.
 	wavesBalanceKeyPrefix byte = iota
@@ -67,6 +69,13 @@ const (
 
 	// Blocks information (fees for now).
 	blocksInfoKeyPrefix
+
+	// Unique address number by address.
+	// These numbers are only used for accounts data storage.
+	lastAccountsStorAddrNumKeyPrefix
+	accountStorAddrToNumKeyPrefix
+	// Prefix for keys of accounts data entries.
+	accountsDataStorKeyPrefix
 )
 
 type wavesBalanceKey struct {
@@ -83,6 +92,9 @@ func (k *wavesBalanceKey) bytes() []byte {
 func (k *wavesBalanceKey) unmarshal(data []byte) error {
 	if len(data) != wavesBalanceKeySize {
 		return errors.New("invalid data size")
+	}
+	if data[0] != wavesBalanceKeyPrefix {
+		return errors.New("invalid prefix for given key")
 	}
 	var err error
 	if k.address, err = proto.NewAddressFromBytes(data[1 : 1+proto.AddressSize]); err != nil {
@@ -107,6 +119,9 @@ func (k *assetBalanceKey) bytes() []byte {
 func (k *assetBalanceKey) unmarshal(data []byte) error {
 	if len(data) != assetBalanceKeySize {
 		return errors.New("invalid data size")
+	}
+	if data[0] != assetBalanceKeyPrefix {
+		return errors.New("invalid prefix for given key")
 	}
 	var err error
 	if k.address, err = proto.NewAddressFromBytes(data[1 : 1+proto.AddressSize]); err != nil {
@@ -209,6 +224,21 @@ type leaseKey struct {
 	leaseID crypto.Digest
 }
 
+func (k *leaseKey) unmarshal(data []byte) error {
+	if len(data) != leaseKeySize {
+		return errors.New("invalid data size")
+	}
+	if data[0] != leaseKeyPrefix {
+		return errors.New("invalid prefix for given key")
+	}
+	var err error
+	k.leaseID, err = crypto.NewDigestFromBytes(data[1:])
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func (k *leaseKey) bytes() []byte {
 	buf := make([]byte, 1+crypto.DigestSize)
 	buf[0] = leaseKeyPrefix
@@ -230,6 +260,9 @@ func (k *aliasKey) bytes() []byte {
 func (k *aliasKey) unmarshal(data []byte) error {
 	if len(data) != aliasKeySize {
 		return errors.New("invalid data size")
+	}
+	if data[0] != aliasKeyPrefix {
+		return errors.New("invalid prefix for given key")
 	}
 	var err error
 	k.alias, err = proto.StringWithUInt16Len(data[1:])
@@ -284,6 +317,9 @@ func (k *approvedFeaturesKey) unmarshal(data []byte) error {
 	if len(data) != approvedFeaturesKeySize {
 		return errors.New("invalid data size")
 	}
+	if data[0] != approvedFeaturesKeyPrefix {
+		return errors.New("invalid prefix for given key")
+	}
 	buf := bytes.NewBuffer(data[1:])
 	if err := binary.Read(buf, binary.BigEndian, &k.featureID); err != nil {
 		return err
@@ -310,6 +346,9 @@ func (k *votesFeaturesKey) unmarshal(data []byte) error {
 	if len(data) != votesFeaturesKeySize {
 		return errors.New("invalid data size")
 	}
+	if data[0] != votesFeaturesKeyPrefix {
+		return errors.New("invalid prefix for given key")
+	}
 	buf := bytes.NewBuffer(data[1:])
 	if err := binary.Read(buf, binary.BigEndian, &k.featureID); err != nil {
 		return err
@@ -326,4 +365,61 @@ func (k *blocksInfoKey) bytes() []byte {
 	buf[0] = blocksInfoKeyPrefix
 	copy(buf[1:], k.blockID[:])
 	return buf
+}
+
+type accountStorAddrToNumKey struct {
+	addr proto.Address
+}
+
+func (k *accountStorAddrToNumKey) bytes() []byte {
+	buf := make([]byte, 1+proto.AddressSize)
+	buf[0] = accountStorAddrToNumKeyPrefix
+	copy(buf[1:], k.addr[:])
+	return buf
+}
+
+type accountsDataStorKey struct {
+	addrNum  uint64
+	entryKey string
+	blockNum uint32
+}
+
+func newAccountsDataBytePrefix(addrNum uint64, entryKey string) []byte {
+	prefix := make([]byte, 1+8+2+len(entryKey))
+	prefix[0] = accountsDataStorKeyPrefix
+	binary.LittleEndian.PutUint64(prefix[1:9], addrNum)
+	proto.PutStringWithUInt16Len(prefix[9:], entryKey)
+	return prefix
+}
+
+func properAccountDataKeyLength(entryKey string) int {
+	return 1 + 8 + 2 + len(entryKey) + 4
+}
+
+func (k *accountsDataStorKey) bytes() []byte {
+	buf := make([]byte, 1+8+2+len(k.entryKey)+4)
+	buf[0] = accountsDataStorKeyPrefix
+	binary.LittleEndian.PutUint64(buf[1:9], k.addrNum)
+	proto.PutStringWithUInt16Len(buf[9:], k.entryKey)
+	pos := 9 + 2 + len(k.entryKey)
+	binary.LittleEndian.PutUint32(buf[pos:], k.blockNum)
+	return buf
+}
+
+func (k *accountsDataStorKey) unmarshal(data []byte) error {
+	if len(data) < minAccountsDataStorKeySize {
+		return errors.New("invalid data size")
+	}
+	if data[0] != accountsDataStorKeyPrefix {
+		return errors.New("invalid prefix for given key")
+	}
+	k.addrNum = binary.LittleEndian.Uint64(data[1:9])
+	key, err := proto.StringWithUInt16Len(data[9:])
+	if err != nil {
+		return err
+	}
+	k.entryKey = key
+	pos := 1 + 8 + 2 + len(k.entryKey)
+	k.blockNum = binary.LittleEndian.Uint32(data[pos:])
+	return nil
 }

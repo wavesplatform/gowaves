@@ -20,7 +20,7 @@ func TestBooleanExpr_Eq(t *testing.T) {
 
 func TestDataEntryListExpr_Get(t *testing.T) {
 	var d []proto.DataEntry
-	d = append(d, proto.IntegerDataEntry{
+	d = append(d, &proto.IntegerDataEntry{
 		Key:   "integer",
 		Value: 100500,
 	})

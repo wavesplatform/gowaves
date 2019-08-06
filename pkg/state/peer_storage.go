@@ -26,7 +26,7 @@ func (a *peerStorage) savePeers(peers []proto.TCPAddr) error {
 	}
 
 	for _, p := range peers {
-		k := IntoBytes(p)
+		k := intoBytes(p)
 		batch.Put(k[:], nil)
 	}
 
@@ -46,7 +46,7 @@ func (a *peerStorage) peers() ([]proto.TCPAddr, error) {
 
 	var peers []proto.TCPAddr
 	for iter.Next() {
-		p, err := FromBytes(iter.Key())
+		p, err := fromBytes(iter.Key())
 		if err != nil {
 			return nil, err
 		}

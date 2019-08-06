@@ -335,6 +335,9 @@ func (tc *transactionChecker) checkMassTransferV1(transaction proto.Transaction,
 	if !ok {
 		return errors.New("failed to convert interface to MassTransferV1 transaction")
 	}
+	if err := tc.checkTimestamps(tx.Timestamp, info.currentTimestamp, info.parentTimestamp); err != nil {
+		return errors.Wrap(err, "invalid timestamp")
+	}
 	activated, err := tc.stor.features.isActivated(int16(settings.MassTransfer))
 	if err != nil {
 		return err
@@ -344,6 +347,24 @@ func (tc *transactionChecker) checkMassTransferV1(transaction proto.Transaction,
 	}
 	if err := tc.checkAsset(&tx.Asset, info.initialisation); err != nil {
 		return err
+	}
+	return nil
+}
+
+func (tc *transactionChecker) checkDataV1(transaction proto.Transaction, info *checkerInfo) error {
+	tx, ok := transaction.(*proto.DataV1)
+	if !ok {
+		return errors.New("failed to convert interface to DataV1 transaction")
+	}
+	if err := tc.checkTimestamps(tx.Timestamp, info.currentTimestamp, info.parentTimestamp); err != nil {
+		return errors.Wrap(err, "invalid timestamp")
+	}
+	activated, err := tc.stor.features.isActivated(int16(settings.DataTransaction))
+	if err != nil {
+		return err
+	}
+	if !activated {
+		return errors.New("Data transaction has not been activated yet")
 	}
 	return nil
 }
