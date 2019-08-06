@@ -142,7 +142,7 @@ func (a *MockStateManager) CurrentScore() (*big.Int, error) {
 	return a.ScoreAtHeight(proto.Height(len(a.state)))
 }
 
-func (a *MockStateManager) EffectiveBalance(addr proto.Address, startHeigth, endHeight uint64) (uint64, error) {
+func (a *MockStateManager) EffectiveBalance(addr proto.Address, startHeight, endHeight uint64) (uint64, error) {
 	panic("implement me")
 }
 
