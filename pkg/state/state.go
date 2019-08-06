@@ -858,6 +858,10 @@ func (s *stateManager) needToFinishVotingPeriod(height uint64) bool {
 }
 
 func (s *stateManager) needToResetStolenAliases(height uint64) (bool, error) {
+	if s.settings.Type == settings.Custom {
+		// No need to reset stolen aliases in custom blockchains.
+		return false, nil
+	}
 	dataTxActivated, err := s.IsActivated(int16(settings.DataTransaction))
 	if err != nil {
 		return false, err
@@ -875,6 +879,10 @@ func (s *stateManager) needToResetStolenAliases(height uint64) (bool, error) {
 }
 
 func (s *stateManager) needToCancelLeases(height uint64) (bool, error) {
+	if s.settings.Type == settings.Custom {
+		// No need to cancel leases in custom blockchains.
+		return false, nil
+	}
 	dataTxActivated, err := s.IsActivated(int16(settings.DataTransaction))
 	if err != nil {
 		return false, err
@@ -890,9 +898,11 @@ func (s *stateManager) needToCancelLeases(height uint64) (bool, error) {
 	case s.settings.ResetEffectiveBalanceAtHeight:
 		return !s.leasesCl0, nil
 	case s.settings.BlockVersion3AfterHeight:
-		return !s.leasesCl1, nil
+		// Only needed for MainNet.
+		return !s.leasesCl1 && (s.settings.Type == settings.MainNet), nil
 	case dataTxHeight:
-		return !s.leasesCl2, nil
+		// Only needed for MainNet.
+		return !s.leasesCl2 && (s.settings.Type == settings.MainNet), nil
 	default:
 		return false, nil
 	}
