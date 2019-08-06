@@ -174,16 +174,35 @@ func (s *balances) cancelLeaseOverflows() (map[proto.Address]struct{}, error) {
 
 func (s *balances) cancelInvalidLeaseIns(correctLeaseIns map[proto.Address]int64) error {
 	// TODO: this action can not be rolled back now, do we need it?
-	for addr, leaseIn := range correctLeaseIns {
-		k := wavesBalanceKey{addr}
-		r, err := s.wavesRecord(k.bytes(), true)
+	iter, err := s.db.NewKeyIterator([]byte{wavesBalanceKeyPrefix})
+	if err != nil {
+		return err
+	}
+	defer func() {
+		iter.Release()
+		if err := iter.Error(); err != nil {
+			log.Fatalf("Iterator error: %v", err)
+		}
+	}()
+
+	for iter.Next() {
+		key := keyvalue.SafeKey(iter)
+		r, err := s.wavesRecord(key, true)
 		if err != nil {
 			return err
 		}
-		if r.leaseIn != leaseIn {
-			log.Printf("Invalid leaseIn for address %s detected; fixing it: %d ---> %d.", addr.String(), r.leaseIn, leaseIn)
-			r.leaseIn = leaseIn
-			if err := s.setWavesBalanceImpl(k.bytes(), r); err != nil {
+		var k wavesBalanceKey
+		if err := k.unmarshal(key); err != nil {
+			return err
+		}
+		correctLeaseIn := int64(0)
+		if leaseIn, ok := correctLeaseIns[k.address]; ok {
+			correctLeaseIn = leaseIn
+		}
+		if r.leaseIn != correctLeaseIn {
+			log.Printf("Invalid leaseIn for address %s detected; fixing it: %d ---> %d.", k.address.String(), r.leaseIn, correctLeaseIn)
+			r.leaseIn = correctLeaseIn
+			if err := s.setWavesBalanceImpl(key, r); err != nil {
 				return err
 			}
 		}
