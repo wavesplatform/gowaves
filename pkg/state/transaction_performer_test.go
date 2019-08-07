@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/util"
 )
@@ -339,4 +340,27 @@ func TestPerformCreateAliasV2(t *testing.T) {
 	to.stor.flush(t)
 	_, err = to.entities.aliases.addrByAlias(tx.Alias.Alias, true)
 	assert.Equal(t, errAliasDisabled, err)
+}
+
+func TestPerformDataV1(t *testing.T) {
+	to, path := createPerformerTestObjects(t)
+
+	defer func() {
+		err := util.CleanTemporaryDirs(path)
+		assert.NoError(t, err, "failed to clean test data dirs")
+	}()
+
+	to.stor.addBlock(t, blockID0)
+
+	tx := createDataV1(t)
+	entry := &proto.IntegerDataEntry{Key: "TheKey", Value: int64(666)}
+	tx.Entries = proto.DataEntries([]proto.DataEntry{entry})
+
+	err := to.tp.performDataV1(tx, defaultPerformerInfo(t))
+	assert.NoError(t, err, "performDataV1() failed")
+	to.stor.flush(t)
+
+	newEntry, err := to.entities.accountsDataStor.retrieveEntry(testGlobal.senderInfo.addr, entry.Key)
+	assert.NoError(t, err, "retrieveEntry() failed")
+	assert.Equal(t, entry, newEntry)
 }

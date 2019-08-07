@@ -7,6 +7,34 @@ import (
 	"github.com/pkg/errors"
 )
 
+func isOldBlock(rw *blockReadWriter, stateDB *stateDB, blockNum uint32) (bool, error) {
+	currentHeight := rw.recentHeight()
+	blockID, err := stateDB.blockNumToId(blockNum)
+	if err != nil {
+		return false, err
+	}
+	blockHeight, err := rw.heightByBlockID(blockID)
+	if err != nil {
+		return false, err
+	}
+	if (blockHeight == 0) || (currentHeight-blockHeight > uint64(rollbackMaxBlocks)) {
+		return true, nil
+	}
+	return false, nil
+}
+
+func isRecentValidBlock(rw *blockReadWriter, stateDB *stateDB, blockNum uint32) (bool, error) {
+	valid, err := stateDB.isValidBlock(blockNum)
+	if err != nil {
+		return false, err
+	}
+	isOld, err := isOldBlock(rw, stateDB, blockNum)
+	if err != nil {
+		return false, err
+	}
+	return valid && !isOld, nil
+}
+
 type historyFormatter struct {
 	recordSize int
 	idSize     int
@@ -88,7 +116,6 @@ func (hfmt *historyFormatter) filter(history []byte) ([]byte, error) {
 }
 
 func (hfmt *historyFormatter) cut(history []byte) ([]byte, error) {
-	currentHeight := hfmt.rw.recentHeight()
 	firstNeeded := 0
 	for i := hfmt.recordSize; i <= len(history); i += hfmt.recordSize {
 		recordStart := i - hfmt.recordSize
@@ -98,15 +125,11 @@ func (hfmt *historyFormatter) cut(history []byte) ([]byte, error) {
 			return nil, err
 		}
 		blockNum := binary.BigEndian.Uint32(blockNumBytes)
-		blockID, err := hfmt.db.blockNumToId(blockNum)
+		isOld, err := isOldBlock(hfmt.rw, hfmt.db, blockNum)
 		if err != nil {
 			return nil, err
 		}
-		blockHeight, err := hfmt.rw.heightByBlockID(blockID)
-		if err != nil {
-			return nil, err
-		}
-		if (blockHeight == 0) || (currentHeight-blockHeight > uint64(rollbackMaxBlocks)) {
+		if isOld {
 			// 1 record BEFORE minHeight is needed.
 			firstNeeded = recordStart
 			continue

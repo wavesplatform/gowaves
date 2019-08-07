@@ -206,19 +206,19 @@ func TestDataFunctions(t *testing.T) {
 	secret, public := crypto.GenerateKeyPair([]byte(seed))
 	data := proto.NewUnsignedData(public, 10000, 1544715621)
 
-	require.NoError(t, data.AppendEntry(proto.IntegerDataEntry{
+	require.NoError(t, data.AppendEntry(&proto.IntegerDataEntry{
 		Key:   "integer",
 		Value: 100500,
 	}))
-	require.NoError(t, data.AppendEntry(proto.BooleanDataEntry{
+	require.NoError(t, data.AppendEntry(&proto.BooleanDataEntry{
 		Key:   "boolean",
 		Value: true,
 	}))
-	require.NoError(t, data.AppendEntry(proto.BinaryDataEntry{
+	require.NoError(t, data.AppendEntry(&proto.BinaryDataEntry{
 		Key:   "binary",
 		Value: []byte("hello"),
 	}))
-	require.NoError(t, data.AppendEntry(proto.StringDataEntry{
+	require.NoError(t, data.AppendEntry(&proto.StringDataEntry{
 		Key:   "string",
 		Value: "world",
 	}))

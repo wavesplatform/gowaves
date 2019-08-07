@@ -467,7 +467,7 @@ func TestCheckMassTransferV1(t *testing.T) {
 	assert.Error(t, err, "checkMassTransferV1 did not fail prior to feature activation")
 	assert.EqualError(t, err, "MassTransfer transaction has not been activated yet")
 
-	// Acivate MassTransfer.
+	// Activate MassTransfer.
 	activateFeature(t, to.entities, to.stor, int16(settings.MassTransfer))
 	err = to.tc.checkMassTransferV1(tx, info)
 	assert.Error(t, err, "checkMassTransferV1 did not fail with unissued asset")
@@ -476,4 +476,30 @@ func TestCheckMassTransferV1(t *testing.T) {
 	createAsset(t, to.entities, to.stor, testGlobal.asset0.asset.ID)
 	err = to.tc.checkMassTransferV1(tx, info)
 	assert.NoError(t, err, "checkMassTransferV1 failed with valid massTransfer tx")
+}
+
+func TestCheckDataV1(t *testing.T) {
+	to, path := createCheckerTestObjects(t)
+
+	defer func() {
+		err := util.CleanTemporaryDirs(path)
+		assert.NoError(t, err, "failed to clean test data dirs")
+	}()
+
+	tx := createDataV1(t)
+	info := defaultCheckerInfo(t)
+
+	err := to.tc.checkDataV1(tx, info)
+	assert.Error(t, err, "checkDataV1 did not fail prior to feature activation")
+	assert.EqualError(t, err, "Data transaction has not been activated yet")
+
+	// Activate Data transactions.
+	activateFeature(t, to.entities, to.stor, int16(settings.DataTransaction))
+	err = to.tc.checkDataV1(tx, info)
+	assert.NoError(t, err, "checkDataV1 failed with valid Data tx")
+
+	// Check invalid timestamp failure.
+	tx.Timestamp = 0
+	err = to.tc.checkDataV1(tx, info)
+	assert.Error(t, err, "checkDataV1 did not fail with invalid Data tx timestamp")
 }
