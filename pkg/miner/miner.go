@@ -4,7 +4,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/consensus"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/miner/scheduler"
-	"github.com/wavesplatform/gowaves/pkg/miner/utxpool"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/services"
 	"github.com/wavesplatform/gowaves/pkg/state"
@@ -46,7 +45,7 @@ func (a *DefaultMiner) Mine(ctx context.Context, t proto.Timestamp, k proto.KeyP
 	}
 
 	transactions := proto.Transactions{}
-	var invalidTransactions []*utxpool.TransactionWithBytes
+	var invalidTransactions []*types.TransactionWithBytes
 	currentTimestamp := proto.NewTimestampFromTime(time.Now())
 	mu := a.state.Mutex()
 	locked := mu.Lock()

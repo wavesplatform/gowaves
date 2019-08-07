@@ -1,6 +1,7 @@
 package scheduler
 
 import (
+	"sync"
 	"time"
 
 	"github.com/wavesplatform/gowaves/pkg/consensus"
@@ -9,7 +10,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"github.com/wavesplatform/gowaves/pkg/util/cancellable"
-	"github.com/wavesplatform/gowaves/pkg/util/lock"
 	"go.uber.org/zap"
 )
 
@@ -26,7 +26,7 @@ type SchedulerImpl struct {
 	mine     chan Emit
 	cancel   []func()
 	settings *settings.BlockchainSettings
-	mu       *lock.Mutex
+	mu       sync.Mutex
 	internal internal
 	emits    []Emit
 	state    state.State
@@ -110,7 +110,7 @@ func newScheduler(internal internal, state state.State, pairs []proto.KeyPair, s
 		settings: settings,
 		internal: internal,
 		state:    state,
-		mu:       lock.NewMutex(),
+		mu:       sync.Mutex{},
 	}
 }
 
@@ -149,11 +149,7 @@ func (a *SchedulerImpl) reschedule(state state.State, confirmedBlock *proto.Bloc
 	if len(a.keyPairs) == 0 {
 		return
 	}
-	err := a.mu.Lock(1 * time.Second)
-	if err != nil {
-		zap.S().Error(err)
-		return
-	}
+	a.mu.Lock()
 	defer a.mu.Unlock()
 
 	// stop previous timeouts
@@ -191,11 +187,7 @@ func (a *SchedulerImpl) reschedule(state state.State, confirmedBlock *proto.Bloc
 }
 
 func (a *SchedulerImpl) Emits() []Emit {
-	err := a.mu.Lock(1 * time.Second)
-	if err != nil {
-		zap.S().Error(err)
-		return nil
-	}
+	a.mu.Lock()
 	defer a.mu.Unlock()
 	return a.emits
 }
