@@ -117,7 +117,7 @@ func DefaultStorageParams() StorageParams {
 		CacheParams: keyvalue.CacheParams{Size: DefaultCacheSize},
 		BloomFilterParams: keyvalue.BloomFilterParams{
 			N:                        DefaultBloomFilterSize,
-			FalsePositiveProbability: DefaultBloomFilterFalsePostiiveProbability,
+			FalsePositiveProbability: DefaultBloomFilterFalsePositiveProbability,
 		},
 		WriteBuffer:         DefaultWriteBuffer,
 		CompactionTableSize: DefaultCompactionTableSize,

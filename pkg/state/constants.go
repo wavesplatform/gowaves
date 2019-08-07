@@ -10,7 +10,7 @@ const (
 	// Number of elements in Bloom Filter.
 	DefaultBloomFilterSize = 2e8
 	// Acceptable false positive for Bloom Filter (0.01%).
-	DefaultBloomFilterFalsePostiiveProbability = 0.0001
+	DefaultBloomFilterFalsePositiveProbability = 0.0001
 
 	// Db parameters.
 	DefaultWriteBuffer         = 32 * 1024 * 1024
