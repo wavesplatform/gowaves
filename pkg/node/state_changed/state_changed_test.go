@@ -2,10 +2,8 @@ package state_changed
 
 import (
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/require"
-	"go.uber.org/atomic"
 )
 
 func TestNewStateChanged(t *testing.T) {
@@ -20,18 +18,20 @@ func TestStateChanged_AddHandler(t *testing.T) {
 }
 
 type notify struct {
-	executed atomic.Bool
+	executed chan struct{}
 }
 
 func (a *notify) Handle() {
-	a.executed.Store(true)
+	a.executed <- struct{}{}
 }
 
 func TestStateChanged_Notify(t *testing.T) {
+	ch := make(chan struct{}, 1)
 	s := NewStateChanged()
-	n := &notify{}
+	n := &notify{
+		executed: ch,
+	}
 	s.AddHandler(n)
 	s.Handle()
-	<-time.After(1 * time.Millisecond)
-	require.True(t, n.executed.Load())
+	<-ch
 }
