@@ -1329,6 +1329,48 @@ func (s *stateManager) ApprovalHeight(featureID int16) (uint64, error) {
 	return height, nil
 }
 
+// Accounts data storage.
+
+func (s *stateManager) RetrieveEntry(addr proto.Address, key string) (proto.DataEntry, error) {
+	entry, err := s.stor.accountsDataStor.retrieveEntry(addr, key)
+	if err != nil {
+		return nil, wrapErr(RetrievalError, err)
+	}
+	return entry, nil
+}
+
+func (s *stateManager) RetrieveIntegerEntry(addr proto.Address, key string) (*proto.IntegerDataEntry, error) {
+	entry, err := s.stor.accountsDataStor.retrieveIntegerEntry(addr, key)
+	if err != nil {
+		return nil, wrapErr(RetrievalError, err)
+	}
+	return entry, nil
+}
+
+func (s *stateManager) RetrieveBooleanEntry(addr proto.Address, key string) (*proto.BooleanDataEntry, error) {
+	entry, err := s.stor.accountsDataStor.retrieveBooleanEntry(addr, key)
+	if err != nil {
+		return nil, wrapErr(RetrievalError, err)
+	}
+	return entry, nil
+}
+
+func (s *stateManager) RetrieveStringEntry(addr proto.Address, key string) (*proto.StringDataEntry, error) {
+	entry, err := s.stor.accountsDataStor.retrieveStringEntry(addr, key)
+	if err != nil {
+		return nil, wrapErr(RetrievalError, err)
+	}
+	return entry, nil
+}
+
+func (s *stateManager) RetrieveBinaryEntry(addr proto.Address, key string) (*proto.BinaryDataEntry, error) {
+	entry, err := s.stor.accountsDataStor.retrieveBinaryEntry(addr, key)
+	if err != nil {
+		return nil, wrapErr(RetrievalError, err)
+	}
+	return entry, nil
+}
+
 func (s *stateManager) Close() error {
 	if err := s.rw.close(); err != nil {
 		return wrapErr(ClosureError, err)

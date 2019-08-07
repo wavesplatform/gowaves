@@ -94,6 +94,13 @@ type State interface {
 	IsApproved(featureID int16) (bool, error)
 	ApprovalHeight(featureID int16) (proto.Height, error)
 
+	// Accounts data storage.
+	RetrieveEntry(addr proto.Address, key string) (proto.DataEntry, error)
+	RetrieveIntegerEntry(addr proto.Address, key string) (*proto.IntegerDataEntry, error)
+	RetrieveBooleanEntry(addr proto.Address, key string) (*proto.BooleanDataEntry, error)
+	RetrieveStringEntry(addr proto.Address, key string) (*proto.StringDataEntry, error)
+	RetrieveBinaryEntry(addr proto.Address, key string) (*proto.BinaryDataEntry, error)
+
 	Close() error
 }
 
