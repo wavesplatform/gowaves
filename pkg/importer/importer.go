@@ -15,7 +15,7 @@ const (
 	KiB = 1024
 	MiB = 1024 * KiB
 
-	initTotalBatchSize = 1 * MiB
+	initTotalBatchSize = 5 * MiB
 	sizeAdjustment     = 1 * MiB
 
 	maxTotalBatchSize  = 32 * MiB
@@ -30,7 +30,7 @@ type State interface {
 	AccountBalance(addr proto.Address, asset []byte) (uint64, error)
 }
 
-func calculateNextMaxSizeAndDirection(maxSize, speed, prevSpeed int, increasingSize bool) (int, bool) {
+func calculateNextMaxSizeAndDirection(maxSize int, speed, prevSpeed float64, increasingSize bool) (int, bool) {
 	if speed > prevSpeed && increasingSize {
 		maxSize += sizeAdjustment
 		if maxSize > maxTotalBatchSize {
@@ -78,8 +78,8 @@ func ApplyFromFile(st State, blockchainPath string, nBlocks, startHeight uint64,
 	blocksIndex := 0
 	readPos := int64(0)
 	totalSize := 0
-	prevSpeed := 0
-	increasingSize := false
+	prevSpeed := float64(0)
+	increasingSize := true
 	maxSize := initTotalBatchSize
 	for height := uint64(1); height <= nBlocks; height++ {
 		if _, err := blockchain.ReadAt(sb, readPos); err != nil {
@@ -116,7 +116,7 @@ func ApplyFromFile(st State, blockchainPath string, nBlocks, startHeight uint64,
 			}
 		}
 		elapsed := time.Since(start)
-		speed := int(elapsed) / totalSize
+		speed := float64(totalSize) / float64(elapsed)
 		maxSize, increasingSize = calculateNextMaxSizeAndDirection(maxSize, speed, prevSpeed, increasingSize)
 		prevSpeed = speed
 		totalSize = 0

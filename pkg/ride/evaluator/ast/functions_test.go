@@ -391,19 +391,19 @@ func TestNativeAssetBalance_FromAlias(t *testing.T) {
 func TestNativeDataFromArray(t *testing.T) {
 
 	var dataEntries []proto.DataEntry
-	dataEntries = append(dataEntries, proto.IntegerDataEntry{
+	dataEntries = append(dataEntries, &proto.IntegerDataEntry{
 		Key:   "integer",
 		Value: 100500,
 	})
-	dataEntries = append(dataEntries, proto.BooleanDataEntry{
+	dataEntries = append(dataEntries, &proto.BooleanDataEntry{
 		Key:   "boolean",
 		Value: true,
 	})
-	dataEntries = append(dataEntries, proto.BinaryDataEntry{
+	dataEntries = append(dataEntries, &proto.BinaryDataEntry{
 		Key:   "binary",
 		Value: []byte("hello"),
 	})
-	dataEntries = append(dataEntries, proto.StringDataEntry{
+	dataEntries = append(dataEntries, &proto.StringDataEntry{
 		Key:   "string",
 		Value: "world",
 	})
@@ -436,19 +436,19 @@ func TestNativeDataFromState(t *testing.T) {
 	require.NoError(t, err)
 
 	var dataEntries []proto.DataEntry
-	dataEntries = append(dataEntries, proto.IntegerDataEntry{
+	dataEntries = append(dataEntries, &proto.IntegerDataEntry{
 		Key:   "integer",
 		Value: 100500,
 	})
-	dataEntries = append(dataEntries, proto.BooleanDataEntry{
+	dataEntries = append(dataEntries, &proto.BooleanDataEntry{
 		Key:   "boolean",
 		Value: true,
 	})
-	dataEntries = append(dataEntries, proto.BinaryDataEntry{
+	dataEntries = append(dataEntries, &proto.BinaryDataEntry{
 		Key:   "binary",
 		Value: []byte("hello"),
 	})
-	dataEntries = append(dataEntries, proto.StringDataEntry{
+	dataEntries = append(dataEntries, &proto.StringDataEntry{
 		Key:   "string",
 		Value: "world",
 	})

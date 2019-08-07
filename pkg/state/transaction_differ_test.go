@@ -571,3 +571,28 @@ func TestCreateDiffMassTransferV1(t *testing.T) {
 	}
 	assert.Equal(t, correctDiff, diff)
 }
+
+func createDataV1(t *testing.T) *proto.DataV1 {
+	tx := proto.NewUnsignedData(testGlobal.senderInfo.pk, defaultFee, defaultTimestamp)
+	tx.Entries = proto.DataEntries([]proto.DataEntry{&proto.IntegerDataEntry{Key: "TheKey", Value: int64(666)}})
+	return tx
+}
+
+func TestCreateDiffDataV1(t *testing.T) {
+	to, path := createDifferTestObjects(t)
+
+	defer func() {
+		err := util.CleanTemporaryDirs(path)
+		assert.NoError(t, err, "failed to clean test data dirs")
+	}()
+
+	tx := createDataV1(t)
+	diff, err := to.td.createDiffDataV1(tx, defaultDifferInfo(t))
+	assert.NoError(t, err, "createDiffDataV1 failed")
+
+	correctDiff := txDiff{
+		testGlobal.senderInfo.wavesKey: newBalanceDiff(-int64(tx.Fee), 0, 0, false),
+		testGlobal.minerInfo.wavesKey:  newBalanceDiff(int64(tx.Fee), 0, 0, false),
+	}
+	assert.Equal(t, correctDiff, diff)
+}

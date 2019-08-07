@@ -68,7 +68,11 @@ func (a *MockStateManager) Header(block crypto.Signature) (*proto.BlockHeader, e
 }
 
 func (a *MockStateManager) HeaderByHeight(height uint64) (*proto.BlockHeader, error) {
-	panic("implement me")
+	rs, err := a.BlockByHeight(height)
+	if err != nil {
+		return nil, err
+	}
+	return &rs.BlockHeader, nil
 }
 
 func (a *MockStateManager) Height() (proto.Height, error) {
@@ -142,7 +146,7 @@ func (a *MockStateManager) CurrentScore() (*big.Int, error) {
 	return a.ScoreAtHeight(proto.Height(len(a.state)))
 }
 
-func (a *MockStateManager) EffectiveBalance(addr proto.Address, startHeigth, endHeight uint64) (uint64, error) {
+func (a *MockStateManager) EffectiveBalance(addr proto.Address, startHeight, endHeight uint64) (uint64, error) {
 	panic("implement me")
 }
 
@@ -155,7 +159,7 @@ func (a *MockStateManager) ValidateNextTx(tx proto.Transaction, currentTimestamp
 }
 
 func (a *MockStateManager) ResetValidationList() {
-	panic("implement me")
+
 }
 
 func (a *MockStateManager) SavePeers([]proto.TCPAddr) error {
@@ -183,9 +187,6 @@ func (a *MockStateManager) AccountBalance(addr proto.Address, asset []byte) (uin
 }
 
 func (a *MockStateManager) AddDeserializedBlock(block *proto.Block) (*proto.Block, error) {
-	if (block.BlockSignature == crypto.Signature{}) {
-		panic("empty signature")
-	}
 	if _, ok := a.blockIDToHeight[block.BlockSignature]; ok {
 		panic("duplicate block")
 	}

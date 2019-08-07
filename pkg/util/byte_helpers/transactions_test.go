@@ -1,12 +1,19 @@
 package byte_helpers
 
 import (
-	"github.com/stretchr/testify/assert"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
-func TestTransaction(t *testing.T) {
-	assert.NotEmpty(t, TransferV1.TransactionBytes)
-	assert.NotEmpty(t, TransferV1.Transaction)
-	assert.NotEmpty(t, TransferV1.MessageBytes)
+func TestTransferV1(t *testing.T) {
+	require.NotEmpty(t, TransferV1.TransactionBytes)
+	require.NotEmpty(t, TransferV1.Transaction)
+	require.NotEmpty(t, TransferV1.MessageBytes)
+}
+
+func TestIssueV1(t *testing.T) {
+	require.NotEmpty(t, IssueV1.TransactionBytes)
+	require.NotEmpty(t, IssueV1.Transaction)
+	require.NotEmpty(t, IssueV1.MessageBytes)
 }

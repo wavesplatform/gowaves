@@ -2,13 +2,14 @@ package state
 
 import (
 	"bytes"
+	"math"
+	"time"
+
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/cmd/wmd/internal/data"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
-	"math"
-	"time"
 )
 
 import (
@@ -123,44 +124,45 @@ func (s *Storage) SafeRollbackHeight(height int) (int, error) {
 }
 
 func (s *Storage) Rollback(removeHeight int) error {
-	wrapError := func(err error) error { return errors.Wrapf(err, "failed to rollback to height %d", removeHeight) }
 	snapshot, err := s.db.GetSnapshot()
 	if err != nil {
-		return wrapError(err)
+		return err
 	}
 	defer snapshot.Release()
 	max, err := height(snapshot)
 	if err != nil {
-		return wrapError(err)
+		return err
 	}
 	if removeHeight > max {
-		return wrapError(errors.Errorf("nothing to rollback, current height is %d", max))
+		return errors.Errorf("nothing to rollback, current height is %d", max)
+	} else {
+		zap.S().Infof("Rolling back from height %d to height %d, removing %d blocks", max, removeHeight-1, max-removeHeight+1)
 	}
 	batch := new(leveldb.Batch)
 	rh := uint32(removeHeight)
 	err = rollbackTrades(snapshot, batch, rh)
 	if err != nil {
-		return wrapError(err)
+		return err
 	}
 	err = rollbackAccounts(snapshot, batch, rh)
 	if err != nil {
-		return wrapError(err)
+		return err
 	}
 	err = rollbackAssets(snapshot, batch, rh)
 	if err != nil {
-		return wrapError(err)
+		return err
 	}
 	err = rollbackAliases(snapshot, batch, rh)
 	if err != nil {
-		return wrapError(err)
+		return err
 	}
 	err = rollbackBlocks(snapshot, batch, rh)
 	if err != nil {
-		return wrapError(err)
+		return err
 	}
 	err = s.db.Write(batch, nil)
 	if err != nil {
-		return wrapError(err)
+		return err
 	}
 	return nil
 }

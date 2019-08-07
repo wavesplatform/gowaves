@@ -5,6 +5,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"sort"
+	"strconv"
+	"strings"
+	"time"
+
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
 	"github.com/rakyll/statik/fs"
@@ -15,11 +21,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/xenolf/lego/log"
 	"go.uber.org/zap"
-	"net/http"
-	"sort"
-	"strconv"
-	"strings"
-	"time"
 )
 
 const (
@@ -65,14 +66,13 @@ type status struct {
 type DataFeedAPI struct {
 	interrupt <-chan struct{}
 	done      chan struct{}
-	log       *zap.SugaredLogger
 	Storage   *state.Storage
 	Symbols   *data.Symbols
 }
 
 func NewDataFeedAPI(interrupt <-chan struct{}, logger *zap.Logger, storage *state.Storage, address string, symbols *data.Symbols) *DataFeedAPI {
-	a := DataFeedAPI{interrupt: interrupt, done: make(chan struct{}), log: logger.Sugar(), Storage: storage, Symbols: symbols}
-	fs, err := fs.New()
+	a := DataFeedAPI{interrupt: interrupt, done: make(chan struct{}), Storage: storage, Symbols: symbols}
+	fileSystem, err := fs.New()
 	if err != nil {
 		log.Fatalf("Failed to initialise Swagger: %v", err)
 	}
@@ -83,13 +83,13 @@ func NewDataFeedAPI(interrupt <-chan struct{}, logger *zap.Logger, storage *stat
 	r.Use(Logger(logger))
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.DefaultCompress)
-	r.Mount("/", a.swagger(fs))
+	r.Mount("/", a.swagger(fileSystem))
 	r.Mount("/api", a.routes())
 	apiServer := &http.Server{Addr: address, Handler: r}
 	go func() {
 		err := apiServer.ListenAndServe()
 		if err != nil && err != http.ErrServerClosed {
-			a.log.Fatalf("Failed to start API: %v", err)
+			zap.S().Fatalf("Failed to start API: %v", err)
 			return
 		}
 	}()
@@ -97,11 +97,11 @@ func NewDataFeedAPI(interrupt <-chan struct{}, logger *zap.Logger, storage *stat
 		for {
 			select {
 			case <-a.interrupt:
-				a.log.Info("Shutting down API...")
+				zap.S().Info("Shutting down API...")
 				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 				err := apiServer.Shutdown(ctx)
 				if err != nil {
-					a.log.Errorf("Failed to shutdown API server: %v", err)
+					zap.S().Errorf("Failed to shutdown API server: %v", err)
 				}
 				cancel()
 				close(a.done)
