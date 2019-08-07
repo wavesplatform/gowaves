@@ -630,13 +630,13 @@ func (a *DataEntryListExpr) Get(key string, valueType proto.DataValueType) Expr 
 		if rs.GetValueType() == valueType {
 			switch valueType {
 			case proto.DataInteger:
-				return NewLong(rs.(proto.IntegerDataEntry).Value)
+				return NewLong(rs.(*proto.IntegerDataEntry).Value)
 			case proto.DataString:
-				return NewString(rs.(proto.StringDataEntry).Value)
+				return NewString(rs.(*proto.StringDataEntry).Value)
 			case proto.DataBoolean:
-				return NewBoolean(rs.(proto.BooleanDataEntry).Value)
+				return NewBoolean(rs.(*proto.BooleanDataEntry).Value)
 			case proto.DataBinary:
-				return NewBytes(rs.(proto.BinaryDataEntry).Value)
+				return NewBytes(rs.(*proto.BinaryDataEntry).Value)
 			}
 		}
 	}
@@ -655,13 +655,13 @@ func (a *DataEntryListExpr) GetByIndex(index int, valueType proto.DataValueType)
 
 	switch valueType {
 	case proto.DataInteger:
-		return NewLong(rs.(proto.IntegerDataEntry).Value)
+		return NewLong(rs.(*proto.IntegerDataEntry).Value)
 	case proto.DataString:
-		return NewString(rs.(proto.StringDataEntry).Value)
+		return NewString(rs.(*proto.StringDataEntry).Value)
 	case proto.DataBoolean:
-		return NewBoolean(rs.(proto.BooleanDataEntry).Value)
+		return NewBoolean(rs.(*proto.BooleanDataEntry).Value)
 	case proto.DataBinary:
-		return NewBytes(rs.(proto.BinaryDataEntry).Value)
+		return NewBytes(rs.(*proto.BinaryDataEntry).Value)
 	default:
 		return NewUnit()
 	}

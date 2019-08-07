@@ -2,11 +2,12 @@ package state
 
 import (
 	"encoding/binary"
+	"math"
+
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/wavesplatform/gowaves/cmd/wmd/internal/data"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"math"
 )
 
 type blockState struct {
@@ -101,7 +102,6 @@ func (s *blockState) assetInfo(assetID crypto.Digest) (asset, bool, error) {
 		if err != nil {
 			return asset{}, false, err
 		}
-
 	}
 	return a, true, nil
 }

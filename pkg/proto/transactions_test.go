@@ -3212,23 +3212,24 @@ func TestMassTransferV1ToJSON(t *testing.T) {
 }
 
 func TestDataV1Validations(t *testing.T) {
-	repeat := func(e BinaryDataEntry, n int) DataEntries {
+	repeat := func(e *BinaryDataEntry, n int) DataEntries {
 		r := DataEntries{}
 		for i := 0; i < n; i++ {
-			ue := e
+			ue := &BinaryDataEntry{}
 			ue.Key = fmt.Sprintf("%s-%d", e.Key, i)
+			ue.Value = e.Value
 			r = append(r, ue)
 		}
 		return r
 	}
-	ieOk := IntegerDataEntry{Key: "integer-entry", Value: 12345}
-	ieFail := IntegerDataEntry{Key: "", Value: 1234567890}
-	beOk := BooleanDataEntry{Key: "boolean-entry", Value: true}
-	beFail := BooleanDataEntry{Key: strings.Repeat("too-big-key", 10), Value: false}
-	seOk := StringDataEntry{Key: "string-entry", Value: "some string value, should be ok"}
-	seFail := StringDataEntry{Key: "fail-string-entry", Value: strings.Repeat("too-big-value", 2521)}
-	deOk := BinaryDataEntry{Key: "binary-entry", Value: []byte{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09}}
-	deBig := BinaryDataEntry{Key: "binary-entry", Value: bytes.Repeat([]byte{0x00}, 1536)}
+	ieOk := &IntegerDataEntry{Key: "integer-entry", Value: 12345}
+	ieFail := &IntegerDataEntry{Key: "", Value: 1234567890}
+	beOk := &BooleanDataEntry{Key: "boolean-entry", Value: true}
+	beFail := &BooleanDataEntry{Key: strings.Repeat("too-big-key", 10), Value: false}
+	seOk := &StringDataEntry{Key: "string-entry", Value: "some string value, should be ok"}
+	seFail := &StringDataEntry{Key: "fail-string-entry", Value: strings.Repeat("too-big-value", 2521)}
+	deOk := &BinaryDataEntry{Key: "binary-entry", Value: []byte{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09}}
+	deBig := &BinaryDataEntry{Key: "binary-entry", Value: bytes.Repeat([]byte{0x00}, 1536)}
 	tests := []struct {
 		entries DataEntries
 		fee     uint64
@@ -3272,7 +3273,7 @@ func TestDataV1FromMainNet(t *testing.T) {
 		sig, _ := crypto.NewSignatureFromBase58(tc.sig)
 		tx := NewUnsignedData(spk, tc.fee, tc.timestamp)
 		for i, k := range tc.keys {
-			e := StringDataEntry{k, tc.values[i]}
+			e := &StringDataEntry{k, tc.values[i]}
 			err := tx.AppendEntry(e)
 			require.NoError(t, err)
 		}
@@ -3305,15 +3306,15 @@ func TestDataV1BinaryRoundTrip(t *testing.T) {
 			switch DataValueType(tc.types[i]) {
 			case DataInteger:
 				v, _ := strconv.Atoi(tc.values[i])
-				e = IntegerDataEntry{k, int64(v)}
+				e = &IntegerDataEntry{k, int64(v)}
 			case DataBoolean:
 				v, _ := strconv.ParseBool(tc.values[i])
-				e = BooleanDataEntry{k, v}
+				e = &BooleanDataEntry{k, v}
 			case DataBinary:
 				v, _ := base58.Decode(tc.values[i])
-				e = BinaryDataEntry{k, v}
+				e = &BinaryDataEntry{k, v}
 			case DataString:
-				e = StringDataEntry{k, tc.values[i]}
+				e = &StringDataEntry{k, tc.values[i]}
 			}
 			err := tx.AppendEntry(e)
 			assert.NoError(t, err)
@@ -3379,7 +3380,7 @@ func TestDataV1ToJSON(t *testing.T) {
 			switch DataValueType(tc.types[i]) {
 			case DataInteger:
 				v, _ := strconv.Atoi(tc.values[i])
-				e = IntegerDataEntry{k, int64(v)}
+				e = &IntegerDataEntry{k, int64(v)}
 				sb.WriteRune('"')
 				sb.WriteString("integer")
 				sb.WriteRune('"')
@@ -3387,7 +3388,7 @@ func TestDataV1ToJSON(t *testing.T) {
 				sb.WriteString(tc.values[i])
 			case DataBoolean:
 				v, _ := strconv.ParseBool(tc.values[i])
-				e = BooleanDataEntry{k, v}
+				e = &BooleanDataEntry{k, v}
 				sb.WriteRune('"')
 				sb.WriteString("boolean")
 				sb.WriteRune('"')
@@ -3395,7 +3396,7 @@ func TestDataV1ToJSON(t *testing.T) {
 				sb.WriteString(tc.values[i])
 			case DataBinary:
 				v, _ := base58.Decode(tc.values[i])
-				e = BinaryDataEntry{k, v}
+				e = &BinaryDataEntry{k, v}
 				sb.WriteRune('"')
 				sb.WriteString("binary")
 				sb.WriteRune('"')
@@ -3405,7 +3406,7 @@ func TestDataV1ToJSON(t *testing.T) {
 				sb.WriteString(base64.StdEncoding.EncodeToString(v))
 				sb.WriteRune('"')
 			case DataString:
-				e = StringDataEntry{k, tc.values[i]}
+				e = &StringDataEntry{k, tc.values[i]}
 				sb.WriteRune('"')
 				sb.WriteString("string")
 				sb.WriteRune('"')

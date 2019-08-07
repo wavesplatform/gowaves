@@ -7,7 +7,7 @@ import (
 
 const KnownPeerKeyLength = proto.IpPortLength + 1
 
-func IntoBytes(p proto.TCPAddr) []byte {
+func intoBytes(p proto.TCPAddr) []byte {
 	out := make([]byte, KnownPeerKeyLength)
 	out[0] = knownPeersPrefix
 	ipPort := p.ToIpPort()
@@ -15,7 +15,7 @@ func IntoBytes(p proto.TCPAddr) []byte {
 	return out
 }
 
-func FromBytes(b []byte) (proto.TCPAddr, error) {
+func fromBytes(b []byte) (proto.TCPAddr, error) {
 	i := proto.IpPort{}
 	if len(b) < KnownPeerKeyLength {
 		return i.ToTcpAddr(), errors.Errorf("not enough bytes to decode to KnownPeerKey")

@@ -36,14 +36,15 @@ func wrapErr(stateErrorType ErrorType, err error) error {
 }
 
 type blockchainEntitiesStorage struct {
-	hs         *historyStorage
-	aliases    *aliases
-	assets     *assets
-	leases     *leases
-	scores     *scores
-	blocksInfo *blocksInfo
-	balances   *balances
-	features   *features
+	hs               *historyStorage
+	aliases          *aliases
+	assets           *assets
+	leases           *leases
+	scores           *scores
+	blocksInfo       *blocksInfo
+	balances         *balances
+	features         *features
+	accountsDataStor *accountsDataStorage
 }
 
 func newBlockchainEntitiesStorage(hs *historyStorage, stateDB *stateDB, sets *settings.BlockchainSettings) (*blockchainEntitiesStorage, error) {
@@ -75,16 +76,27 @@ func newBlockchainEntitiesStorage(hs *historyStorage, stateDB *stateDB, sets *se
 	if err != nil {
 		return nil, err
 	}
-	return &blockchainEntitiesStorage{hs, aliases, assets, leases, scores, blocksInfo, balances, features}, nil
+	accountsDataStor, err := newAccountsDataStorage(hs.db, hs.dbBatch, hs.rw, stateDB)
+	if err != nil {
+		return nil, err
+	}
+	return &blockchainEntitiesStorage{hs, aliases, assets, leases, scores, blocksInfo, balances, features, accountsDataStor}, nil
 }
 
 func (s *blockchainEntitiesStorage) reset() {
 	s.hs.reset()
 	s.assets.reset()
+	s.accountsDataStor.reset()
 }
 
 func (s *blockchainEntitiesStorage) flush(initialisation bool) error {
-	return s.hs.flush(!initialisation)
+	if err := s.hs.flush(!initialisation); err != nil {
+		return err
+	}
+	if err := s.accountsDataStor.flush(); err != nil {
+		return err
+	}
+	return nil
 }
 
 type txAppender struct {
@@ -327,6 +339,8 @@ type stateManager struct {
 	verificationGoroutinesNum int
 	// Indicates whether lease cancellations were performed.
 	leasesCl0, leasesCl1, leasesCl2 bool
+	// Indicates that stolen aliases were disabled.
+	disabledStolenAliases bool
 	// The height when last features voting took place.
 	lastVotingHeight uint64
 }
@@ -702,7 +716,7 @@ func (s *stateManager) addNewBlock(block, parent *proto.Block, initialisation bo
 			return err
 		}
 
-		// TODO not all transactions implement WriteTo
+		// TODO: not all transactions implement WriteTo.
 		bts, err := tx.MarshalBinary()
 		if err != nil {
 			return err
@@ -854,7 +868,7 @@ func (s *stateManager) needToResetStolenAliases(height uint64) (bool, error) {
 			return false, err
 		}
 		if height == dataTxHeight {
-			return true, nil
+			return !s.disabledStolenAliases, nil
 		}
 	}
 	return false, nil
@@ -900,6 +914,7 @@ func (s *stateManager) needToBreakAddingBlocks(curHeight uint64, task *breakerTa
 	}
 	if cancelLeases {
 		task.cancelLeases = true
+		return true, nil
 	}
 	resetStolenAliases, err := s.needToResetStolenAliases(curHeight)
 	if err != nil {
@@ -907,11 +922,13 @@ func (s *stateManager) needToBreakAddingBlocks(curHeight uint64, task *breakerTa
 	}
 	if resetStolenAliases {
 		task.resetStolenAliases = true
+		return true, nil
 	}
 	if s.needToFinishVotingPeriod(curHeight) {
 		task.finishVotingPeriod = true
+		return true, nil
 	}
-	return task.cancelLeases || task.finishVotingPeriod || task.resetStolenAliases, nil
+	return false, nil
 }
 
 func (s *stateManager) finishVoting() error {
@@ -1008,6 +1025,7 @@ func (s *stateManager) handleBreak(blocksToFinish [][]byte, initialisation bool,
 		if err := s.stor.aliases.disableStolenAliases(); err != nil {
 			return nil, wrapErr(ModificationError, err)
 		}
+		s.disabledStolenAliases = true
 	}
 	return s.addBlocks(blocksToFinish, initialisation)
 }

@@ -1783,19 +1783,19 @@ func (tx *DataV1) bodyUnmarshalBinary(data []byte) error {
 		case DataInteger:
 			var ie IntegerDataEntry
 			err = ie.UnmarshalBinary(data)
-			e = ie
+			e = &ie
 		case DataBoolean:
 			var be BooleanDataEntry
 			err = be.UnmarshalBinary(data)
-			e = be
+			e = &be
 		case DataBinary:
 			var be BinaryDataEntry
 			err = be.UnmarshalBinary(data)
-			e = be
+			e = &be
 		case DataString:
 			var se StringDataEntry
 			err = se.UnmarshalBinary(data)
-			e = se
+			e = &se
 		default:
 			return errors.Errorf("unsupported ValueType %d", t)
 		}
