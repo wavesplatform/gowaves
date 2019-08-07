@@ -1,12 +1,13 @@
 package utxpool
 
 import (
-	"github.com/stretchr/testify/require"
-	"github.com/wavesplatform/gowaves/pkg/proto"
-
+	"bytes"
 	"math/rand"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
+	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
 type transaction struct {
@@ -54,16 +55,17 @@ func id(b []byte, fee uint64) *transaction {
 func TestTransactionPool(t *testing.T) {
 	a := New(10000)
 
-	a.AddWithBytes(tr(4), []byte{1})
-	a.AddWithBytes(tr(1), []byte{1})
-	a.AddWithBytes(tr(10), []byte{1})
-	a.AddWithBytes(tr(8), []byte{1})
+	// add unique by id transactions, then check them sorted
+	a.AddWithBytes(id([]byte{}, 4), []byte{1})
+	a.AddWithBytes(id([]byte{1}, 1), []byte{1})
+	a.AddWithBytes(id([]byte{1, 2}, 10), []byte{1})
+	a.AddWithBytes(id([]byte{1, 2, 3}, 8), []byte{1})
 
 	require.EqualValues(t, 10, a.Pop().T.GetFee())
 	require.EqualValues(t, 8, a.Pop().T.GetFee())
 	require.EqualValues(t, 4, a.Pop().T.GetFee())
 	require.EqualValues(t, 1, a.Pop().T.GetFee())
-	require.Equal(t, (*TransactionWithBytes)(nil), a.Pop())
+	require.Nil(t, a.Pop())
 }
 
 func BenchmarkTransactionPool(b *testing.B) {
@@ -102,4 +104,20 @@ func TestTransactionPool_Exists(t *testing.T) {
 
 	a.Pop()
 	require.False(t, a.Exists(id([]byte{1, 2, 3}, 0)))
+}
+
+// check transaction not added when limit
+func TestUtxPool_Limit(t *testing.T) {
+	a := New(10)
+	require.Equal(t, 0, a.Len())
+
+	// added
+	added := a.AddWithBytes(id([]byte{1, 2, 3}, 10), bytes.Repeat([]byte{1, 2}, 5))
+	require.Equal(t, 1, a.Len())
+	require.True(t, added)
+
+	// not added
+	added = a.AddWithBytes(id([]byte{1, 2, 3, 4}, 10), bytes.Repeat([]byte{1, 2}, 5))
+	require.Equal(t, 1, a.Len())
+	require.False(t, added)
 }

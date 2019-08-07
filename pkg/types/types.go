@@ -1,7 +1,6 @@
 package types
 
 import (
-	"github.com/wavesplatform/gowaves/pkg/miner/utxpool"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
@@ -32,7 +31,12 @@ type Handler interface {
 
 // UtxPool storage interface
 type UtxPool interface {
-	AddWithBytes(t proto.Transaction, b []byte)
+	AddWithBytes(t proto.Transaction, b []byte) (added bool)
 	Exists(t proto.Transaction) bool
-	Pop() *utxpool.TransactionWithBytes
+	Pop() *TransactionWithBytes
+}
+
+type TransactionWithBytes struct {
+	T proto.Transaction
+	B []byte
 }

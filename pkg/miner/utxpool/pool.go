@@ -6,14 +6,10 @@ import (
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/types"
 )
 
-type TransactionWithBytes struct {
-	T proto.Transaction
-	B []byte
-}
-
-type transactionsHeap []*TransactionWithBytes
+type transactionsHeap []*types.TransactionWithBytes
 
 func (a transactionsHeap) Len() int { return len(a) }
 
@@ -27,7 +23,7 @@ func (a transactionsHeap) Swap(i, j int) {
 }
 
 func (a *transactionsHeap) Push(x interface{}) {
-	item := x.(*TransactionWithBytes)
+	item := x.(*types.TransactionWithBytes)
 	*a = append(*a, item)
 }
 
@@ -43,29 +39,42 @@ type UtxImpl struct {
 	mu             sync.Mutex
 	transactions   transactionsHeap
 	transactionIds map[crypto.Digest]struct{}
-	limit          uint // max transaction count
+	sizeLimit      uint // max transaction size in bytes
+	curSize        uint
 }
 
-func New(limit uint) *UtxImpl {
+func New(sizeLimit uint) *UtxImpl {
 	return &UtxImpl{
 		transactionIds: make(map[crypto.Digest]struct{}),
-		limit:          limit,
+		sizeLimit:      sizeLimit,
 	}
 }
 
-func (a *UtxImpl) AddWithBytes(t proto.Transaction, b []byte) {
+func (a *UtxImpl) AddWithBytes(t proto.Transaction, b []byte) (added bool) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	tb := &TransactionWithBytes{
+
+	// exceed limit
+	if a.curSize+uint(len(b)) > a.sizeLimit {
+		return
+	}
+
+	tb := &types.TransactionWithBytes{
 		T: t,
 		B: b,
 	}
 	if len(b) == 0 {
 		return
 	}
+	if a.exists(t) {
+		return
+	}
 	heap.Push(&a.transactions, tb)
 	t.GenerateID()
 	a.transactionIds[makeDigest(t.GetID())] = struct{}{}
+	a.curSize += uint(len(b))
+	added = true
+	return
 }
 
 func makeDigest(b []byte, e error) crypto.Digest {
@@ -74,18 +83,22 @@ func makeDigest(b []byte, e error) crypto.Digest {
 	return d
 }
 
-func (a *UtxImpl) Exists(t proto.Transaction) bool {
-	a.mu.Lock()
-	defer a.mu.Unlock()
+func (a *UtxImpl) exists(t proto.Transaction) bool {
 	_, ok := a.transactionIds[makeDigest(t.GetID())]
 	return ok
 }
 
-func (a *UtxImpl) Pop() *TransactionWithBytes {
+func (a *UtxImpl) Exists(t proto.Transaction) bool {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.exists(t)
+}
+
+func (a *UtxImpl) Pop() *types.TransactionWithBytes {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	if a.transactions.Len() > 0 {
-		tb := heap.Pop(&a.transactions).(*TransactionWithBytes)
+		tb := heap.Pop(&a.transactions).(*types.TransactionWithBytes)
 		delete(a.transactionIds, makeDigest(tb.T.GetID()))
 		return tb
 	}

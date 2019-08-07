@@ -24,9 +24,9 @@ type State interface {
 	BlockBytesByHeight(height uint64) ([]byte, error)
 	// Header getters.
 	Header(blockID crypto.Signature) (*proto.BlockHeader, error)
-	HeaderByHeight(height uint64) (*proto.BlockHeader, error)
+	HeaderByHeight(height proto.Height) (*proto.BlockHeader, error)
 	HeaderBytes(blockID crypto.Signature) ([]byte, error)
-	HeaderBytesByHeight(height uint64) ([]byte, error)
+	HeaderBytesByHeight(height proto.Height) ([]byte, error)
 	// Height returns current blockchain height.
 	Height() (uint64, error)
 	// Height <---> blockID converters.
