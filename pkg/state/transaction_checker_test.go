@@ -243,10 +243,22 @@ func TestCheckBurnV1(t *testing.T) {
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
+	createAsset(t, to.entities, to.stor, testGlobal.asset0.asset.ID)
+
 	tx := createBurnV1(t)
 	info := defaultCheckerInfo(t)
 	err := to.tc.checkBurnV1(tx, info)
 	assert.NoError(t, err, "checkBurnV1 failed with valid burn tx")
+
+	// Change sender and make sure tx is invalid before activation of BurnAnyTokens feature.
+	tx.SenderPK = testGlobal.recipientInfo.pk
+	err = to.tc.checkBurnV1(tx, info)
+	assert.Error(t, err, "checkBurnV1 did not fail with burn sender not equal to asset issuer before activation of BurnAnyTokens feature")
+
+	// Activate BurnAnyTokens and make sure previous tx is now valid.
+	activateFeature(t, to.entities, to.stor, int16(settings.BurnAnyTokens))
+	err = to.tc.checkBurnV1(tx, info)
+	assert.NoError(t, err, "checkBurnV1 failed with burn sender not equal to asset issuer after activation of BurnAnyTokens feature")
 
 	tx.Timestamp = 0
 	err = to.tc.checkBurnV1(tx, info)
@@ -261,14 +273,26 @@ func TestCheckBurnV2(t *testing.T) {
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
-	tx := createBurnV1(t)
+	createAsset(t, to.entities, to.stor, testGlobal.asset0.asset.ID)
+
+	tx := createBurnV2(t)
 	info := defaultCheckerInfo(t)
-	err := to.tc.checkBurnV1(tx, info)
-	assert.NoError(t, err, "checkBurnV1 failed with valid burn tx")
+	err := to.tc.checkBurnV2(tx, info)
+	assert.NoError(t, err, "checkBurnV2 failed with valid burn tx")
+
+	// Change sender and make sure tx is invalid before activation of BurnAnyTokens feature.
+	tx.SenderPK = testGlobal.recipientInfo.pk
+	err = to.tc.checkBurnV1(tx, info)
+	assert.Error(t, err, "checkBurnV1 did not fail with burn sender not equal to asset issuer before activation of BurnAnyTokens feature")
+
+	// Activate BurnAnyTokens and make sure previous tx is now valid.
+	activateFeature(t, to.entities, to.stor, int16(settings.BurnAnyTokens))
+	err = to.tc.checkBurnV2(tx, info)
+	assert.NoError(t, err, "checkBurnV1 failed with burn sender not equal to asset issuer after activation of BurnAnyTokens feature")
 
 	tx.Timestamp = 0
-	err = to.tc.checkBurnV1(tx, info)
-	assert.Error(t, err, "checkBurnV1 did not fail with invalid burn timestamp")
+	err = to.tc.checkBurnV2(tx, info)
+	assert.Error(t, err, "checkBurnV2 did not fail with invalid burn timestamp")
 }
 
 func TestCheckExchange(t *testing.T) {

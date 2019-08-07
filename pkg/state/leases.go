@@ -76,6 +76,7 @@ func (l *leases) cancelLeases(bySenders map[proto.Address]struct{}) error {
 	}()
 
 	// Iterate all the leases.
+	log.Printf("Started to cancel leases\n")
 	for leaseIter.Next() {
 		key := keyvalue.SafeKey(leaseIter)
 		leaseBytes, err := l.hs.get(lease, key, true)
@@ -107,6 +108,7 @@ func (l *leases) cancelLeases(bySenders map[proto.Address]struct{}) error {
 			}
 		}
 	}
+	log.Printf("Finished to cancel leases\n")
 	return nil
 }
 
@@ -124,6 +126,7 @@ func (l *leases) validLeaseIns() (map[proto.Address]int64, error) {
 
 	leaseIns := make(map[proto.Address]int64)
 	// Iterate all the leases.
+	log.Printf("Started collecting leases\n")
 	for leaseIter.Next() {
 		leaseBytes, err := l.hs.get(lease, leaseIter.Key(), true)
 		if err != nil {
@@ -137,6 +140,7 @@ func (l *leases) validLeaseIns() (map[proto.Address]int64, error) {
 			leaseIns[lease.recipient] += int64(lease.leaseAmount)
 		}
 	}
+	log.Printf("Finished collecting leases\n")
 	return leaseIns, nil
 }
 

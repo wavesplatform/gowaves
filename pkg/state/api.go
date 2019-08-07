@@ -19,19 +19,19 @@ type State interface {
 	Mutex() *lock.RwMutex
 	// Block getters.
 	Block(blockID crypto.Signature) (*proto.Block, error)
-	BlockByHeight(height uint64) (*proto.Block, error)
+	BlockByHeight(height proto.Height) (*proto.Block, error)
 	BlockBytes(blockID crypto.Signature) ([]byte, error)
-	BlockBytesByHeight(height uint64) ([]byte, error)
+	BlockBytesByHeight(height proto.Height) ([]byte, error)
 	// Header getters.
 	Header(blockID crypto.Signature) (*proto.BlockHeader, error)
 	HeaderByHeight(height proto.Height) (*proto.BlockHeader, error)
 	HeaderBytes(blockID crypto.Signature) ([]byte, error)
 	HeaderBytesByHeight(height proto.Height) ([]byte, error)
 	// Height returns current blockchain height.
-	Height() (uint64, error)
+	Height() (proto.Height, error)
 	// Height <---> blockID converters.
-	BlockIDToHeight(blockID crypto.Signature) (uint64, error)
-	HeightToBlockID(height uint64) (crypto.Signature, error)
+	BlockIDToHeight(blockID crypto.Signature) (proto.Height, error)
+	HeightToBlockID(height proto.Height) (crypto.Signature, error)
 	// AccountBalance retrieves balance of address in specific currency, asset is asset's ID.
 	// nil asset = Waves.
 	AccountBalance(addr proto.Address, asset []byte) (uint64, error)
@@ -55,10 +55,10 @@ type State interface {
 	// AddOldDeserializedBlocks marshals blocks to binary and calls AddOldBlocks().
 	AddOldDeserializedBlocks(blocks []*proto.Block) error
 	// Rollback functionality.
-	RollbackToHeight(height uint64) error
+	RollbackToHeight(height proto.Height) error
 	RollbackTo(removalEdge crypto.Signature) error
 	// Get cumulative blocks score at given height.
-	ScoreAtHeight(height uint64) (*big.Int, error)
+	ScoreAtHeight(height proto.Height) (*big.Int, error)
 	// Get current blockchain score (at top height).
 	CurrentScore() (*big.Int, error)
 	// Retrieve current blockchain settings.
@@ -67,7 +67,7 @@ type State interface {
 	// WARNING: this function takes into account newest blocks (which are currently being added)
 	// and works correctly for height ranges exceeding current Height() if there are such blocks.
 	// It does not work for heights older than rollbackMax blocks before the current block.
-	EffectiveBalance(addr proto.Address, startHeight, endHeight uint64) (uint64, error)
+	EffectiveBalance(addr proto.Address, startHeight, endHeight proto.Height) (uint64, error)
 
 	// -------------------------
 	// Validation functionality.
@@ -90,9 +90,9 @@ type State interface {
 
 	// Features.
 	IsActivated(featureID int16) (bool, error)
-	ActivationHeight(featureID int16) (uint64, error)
+	ActivationHeight(featureID int16) (proto.Height, error)
 	IsApproved(featureID int16) (bool, error)
-	ApprovalHeight(featureID int16) (uint64, error)
+	ApprovalHeight(featureID int16) (proto.Height, error)
 
 	Close() error
 }
@@ -117,7 +117,7 @@ func DefaultStorageParams() StorageParams {
 		CacheParams: keyvalue.CacheParams{Size: DefaultCacheSize},
 		BloomFilterParams: keyvalue.BloomFilterParams{
 			N:                        DefaultBloomFilterSize,
-			FalsePositiveProbability: DefaultBloomFilterFalsePostiiveProbability,
+			FalsePositiveProbability: DefaultBloomFilterFalsePositiveProbability,
 		},
 		WriteBuffer:         DefaultWriteBuffer,
 		CompactionTableSize: DefaultCompactionTableSize,
