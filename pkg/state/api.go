@@ -95,6 +95,9 @@ type State interface {
 	ApprovalHeight(featureID int16) (proto.Height, error)
 
 	// Accounts data storage.
+	// All these methods return newest information
+	// (i.e. data entries appear in state before the whole block is applied but when corresponding Data
+	// transaction is performed). This is needed for RIDE module.
 	RetrieveEntry(addr proto.Address, key string) (proto.DataEntry, error)
 	RetrieveIntegerEntry(addr proto.Address, key string) (*proto.IntegerDataEntry, error)
 	RetrieveBooleanEntry(addr proto.Address, key string) (*proto.BooleanDataEntry, error)
