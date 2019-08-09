@@ -246,21 +246,21 @@ func defaultAssetInfo(reissuable bool) *assetInfo {
 	}
 }
 
-func createAsset(t *testing.T, entities *blockchainEntitiesStorage, stor *storageObjects, assetID crypto.Digest) *assetInfo {
+func createAsset(t *testing.T, assets *assets, stor *storageObjects, assetID crypto.Digest) *assetInfo {
 	stor.addBlock(t, blockID0)
 	assetInfo := defaultAssetInfo(true)
-	err := entities.assets.issueAsset(assetID, assetInfo, blockID0)
+	err := assets.issueAsset(assetID, assetInfo, blockID0)
 	assert.NoError(t, err, "issueAset() failed")
 	stor.flush(t)
 	return assetInfo
 }
 
-func activateFeature(t *testing.T, entities *blockchainEntitiesStorage, stor *storageObjects, featureID int16) {
+func activateFeature(t *testing.T, features *features, stor *storageObjects, featureID int16) {
 	stor.addBlock(t, blockID0)
 	blockNum, err := stor.stateDB.blockIdToNum(blockID0)
 	assert.NoError(t, err, "blockIdToNum() failed")
 	activationReq := &activatedFeaturesRecord{1, blockNum}
-	err = entities.features.activateFeature(featureID, activationReq)
+	err = features.activateFeature(featureID, activationReq)
 	assert.NoError(t, err, "activateFeature() failed")
 	stor.flush(t)
 }

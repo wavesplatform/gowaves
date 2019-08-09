@@ -76,6 +76,8 @@ const (
 	accountStorAddrToNumKeyPrefix
 	// Prefix for keys of accounts data entries.
 	accountsDataStorKeyPrefix
+	// Sponsored assets storage.
+	sponsorshipKeyPrefix
 )
 
 type wavesBalanceKey struct {
@@ -422,4 +424,15 @@ func (k *accountsDataStorKey) unmarshal(data []byte) error {
 	pos := 1 + 8 + 2 + len(k.entryKey)
 	k.blockNum = binary.LittleEndian.Uint32(data[pos:])
 	return nil
+}
+
+type sponsorshipKey struct {
+	assetID crypto.Digest
+}
+
+func (k *sponsorshipKey) bytes() []byte {
+	buf := make([]byte, 1+crypto.DigestSize)
+	buf[0] = sponsorshipKeyPrefix
+	copy(buf[1:], k.assetID[:])
+	return buf
 }

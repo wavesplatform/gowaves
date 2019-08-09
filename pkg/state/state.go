@@ -45,6 +45,7 @@ type blockchainEntitiesStorage struct {
 	balances         *balances
 	features         *features
 	accountsDataStor *accountsDataStorage
+	sponsoredAssets  *sponsoredAssets
 }
 
 func newBlockchainEntitiesStorage(hs *historyStorage, stateDB *stateDB, sets *settings.BlockchainSettings) (*blockchainEntitiesStorage, error) {
@@ -80,7 +81,11 @@ func newBlockchainEntitiesStorage(hs *historyStorage, stateDB *stateDB, sets *se
 	if err != nil {
 		return nil, err
 	}
-	return &blockchainEntitiesStorage{hs, aliases, assets, leases, scores, blocksInfo, balances, features, accountsDataStor}, nil
+	sponsoredAssets, err := newSponsoredAssets(features, stateDB, hs, sets)
+	if err != nil {
+		return nil, err
+	}
+	return &blockchainEntitiesStorage{hs, aliases, assets, leases, scores, blocksInfo, balances, features, accountsDataStor, sponsoredAssets}, nil
 }
 
 func (s *blockchainEntitiesStorage) reset() {

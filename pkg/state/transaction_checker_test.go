@@ -91,7 +91,7 @@ func TestCheckTransferV1(t *testing.T) {
 	err := to.tc.checkTransferV1(tx, info)
 	assert.Error(t, err, "checkTransferV1 did not fail with invalid transfer asset")
 
-	createAsset(t, to.entities, to.stor, testGlobal.asset0.asset.ID)
+	createAsset(t, to.entities.assets, to.stor, testGlobal.asset0.asset.ID)
 	err = to.tc.checkTransferV1(tx, info)
 	assert.NoError(t, err, "checkTransferV1 failed with valid transfer tx")
 
@@ -114,7 +114,7 @@ func TestCheckTransferV2(t *testing.T) {
 	err := to.tc.checkTransferV2(tx, info)
 	assert.Error(t, err, "checkTransferV2 did not fail with invalid transfer asset")
 
-	createAsset(t, to.entities, to.stor, testGlobal.asset0.asset.ID)
+	createAsset(t, to.entities.assets, to.stor, testGlobal.asset0.asset.ID)
 	err = to.tc.checkTransferV2(tx, info)
 	assert.NoError(t, err, "checkTransferV2 failed with valid transfer tx")
 
@@ -167,7 +167,7 @@ func TestCheckReissueV1(t *testing.T) {
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
-	createAsset(t, to.entities, to.stor, testGlobal.asset0.asset.ID)
+	createAsset(t, to.entities.assets, to.stor, testGlobal.asset0.asset.ID)
 
 	tx := createReissueV1(t)
 	info := defaultCheckerInfo(t)
@@ -205,7 +205,7 @@ func TestCheckReissueV2(t *testing.T) {
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
-	createAsset(t, to.entities, to.stor, testGlobal.asset0.asset.ID)
+	createAsset(t, to.entities.assets, to.stor, testGlobal.asset0.asset.ID)
 
 	tx := createReissueV2(t)
 	info := defaultCheckerInfo(t)
@@ -243,7 +243,7 @@ func TestCheckBurnV1(t *testing.T) {
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
-	createAsset(t, to.entities, to.stor, testGlobal.asset0.asset.ID)
+	createAsset(t, to.entities.assets, to.stor, testGlobal.asset0.asset.ID)
 
 	tx := createBurnV1(t)
 	info := defaultCheckerInfo(t)
@@ -256,7 +256,7 @@ func TestCheckBurnV1(t *testing.T) {
 	assert.Error(t, err, "checkBurnV1 did not fail with burn sender not equal to asset issuer before activation of BurnAnyTokens feature")
 
 	// Activate BurnAnyTokens and make sure previous tx is now valid.
-	activateFeature(t, to.entities, to.stor, int16(settings.BurnAnyTokens))
+	activateFeature(t, to.entities.features, to.stor, int16(settings.BurnAnyTokens))
 	err = to.tc.checkBurnV1(tx, info)
 	assert.NoError(t, err, "checkBurnV1 failed with burn sender not equal to asset issuer after activation of BurnAnyTokens feature")
 
@@ -273,7 +273,7 @@ func TestCheckBurnV2(t *testing.T) {
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
-	createAsset(t, to.entities, to.stor, testGlobal.asset0.asset.ID)
+	createAsset(t, to.entities.assets, to.stor, testGlobal.asset0.asset.ID)
 
 	tx := createBurnV2(t)
 	info := defaultCheckerInfo(t)
@@ -286,7 +286,7 @@ func TestCheckBurnV2(t *testing.T) {
 	assert.Error(t, err, "checkBurnV1 did not fail with burn sender not equal to asset issuer before activation of BurnAnyTokens feature")
 
 	// Activate BurnAnyTokens and make sure previous tx is now valid.
-	activateFeature(t, to.entities, to.stor, int16(settings.BurnAnyTokens))
+	activateFeature(t, to.entities.features, to.stor, int16(settings.BurnAnyTokens))
 	err = to.tc.checkBurnV2(tx, info)
 	assert.NoError(t, err, "checkBurnV1 failed with burn sender not equal to asset issuer after activation of BurnAnyTokens feature")
 
@@ -308,8 +308,8 @@ func TestCheckExchange(t *testing.T) {
 	err := to.tc.checkExchange(tx, info)
 	assert.Error(t, err, "checkExchange did not fail with exchange with unknown assets")
 
-	createAsset(t, to.entities, to.stor, testGlobal.asset0.asset.ID)
-	createAsset(t, to.entities, to.stor, testGlobal.asset1.asset.ID)
+	createAsset(t, to.entities.assets, to.stor, testGlobal.asset0.asset.ID)
+	createAsset(t, to.entities.assets, to.stor, testGlobal.asset1.asset.ID)
 	err = to.tc.checkExchange(tx, info)
 	assert.NoError(t, err, "checkExchange failed with valid exchange")
 }
@@ -492,12 +492,12 @@ func TestCheckMassTransferV1(t *testing.T) {
 	assert.EqualError(t, err, "MassTransfer transaction has not been activated yet")
 
 	// Activate MassTransfer.
-	activateFeature(t, to.entities, to.stor, int16(settings.MassTransfer))
+	activateFeature(t, to.entities.features, to.stor, int16(settings.MassTransfer))
 	err = to.tc.checkMassTransferV1(tx, info)
 	assert.Error(t, err, "checkMassTransferV1 did not fail with unissued asset")
 	assert.EqualError(t, err, "unknown asset")
 
-	createAsset(t, to.entities, to.stor, testGlobal.asset0.asset.ID)
+	createAsset(t, to.entities.assets, to.stor, testGlobal.asset0.asset.ID)
 	err = to.tc.checkMassTransferV1(tx, info)
 	assert.NoError(t, err, "checkMassTransferV1 failed with valid massTransfer tx")
 }
@@ -518,7 +518,7 @@ func TestCheckDataV1(t *testing.T) {
 	assert.EqualError(t, err, "Data transaction has not been activated yet")
 
 	// Activate Data transactions.
-	activateFeature(t, to.entities, to.stor, int16(settings.DataTransaction))
+	activateFeature(t, to.entities.features, to.stor, int16(settings.DataTransaction))
 	err = to.tc.checkDataV1(tx, info)
 	assert.NoError(t, err, "checkDataV1 failed with valid Data tx")
 

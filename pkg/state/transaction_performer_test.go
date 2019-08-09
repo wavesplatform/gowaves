@@ -102,7 +102,7 @@ func TestPerformReissueV1(t *testing.T) {
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
-	assetInfo := createAsset(t, to.entities, to.stor, testGlobal.asset0.asset.ID)
+	assetInfo := createAsset(t, to.entities.assets, to.stor, testGlobal.asset0.asset.ID)
 	tx := createReissueV1(t)
 	err := to.tp.performReissueV1(tx, defaultPerformerInfo(t))
 	assert.NoError(t, err, "performReissueV1() failed")
@@ -124,7 +124,7 @@ func TestPerformReissueV2(t *testing.T) {
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
-	assetInfo := createAsset(t, to.entities, to.stor, testGlobal.asset0.asset.ID)
+	assetInfo := createAsset(t, to.entities.assets, to.stor, testGlobal.asset0.asset.ID)
 	tx := createReissueV2(t)
 	err := to.tp.performReissueV2(tx, defaultPerformerInfo(t))
 	assert.NoError(t, err, "performReissueV2() failed")
@@ -146,7 +146,7 @@ func TestPerformBurnV1(t *testing.T) {
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
-	assetInfo := createAsset(t, to.entities, to.stor, testGlobal.asset0.asset.ID)
+	assetInfo := createAsset(t, to.entities.assets, to.stor, testGlobal.asset0.asset.ID)
 	tx := createBurnV1(t)
 	err := to.tp.performBurnV1(tx, defaultPerformerInfo(t))
 	assert.NoError(t, err, "performBurnV1() failed")
@@ -167,7 +167,7 @@ func TestPerformBurnV2(t *testing.T) {
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
-	assetInfo := createAsset(t, to.entities, to.stor, testGlobal.asset0.asset.ID)
+	assetInfo := createAsset(t, to.entities.assets, to.stor, testGlobal.asset0.asset.ID)
 	tx := createBurnV2(t)
 	err := to.tp.performBurnV2(tx, defaultPerformerInfo(t))
 	assert.NoError(t, err, "performBurnV2() failed")
