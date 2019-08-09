@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 
+	"github.com/jinzhu/copier"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 )
@@ -299,6 +300,12 @@ func (tx TransferV2) GetID() ([]byte, error) {
 		return nil, errors.New("tx ID is not set\n")
 	}
 	return tx.ID.Bytes(), nil
+}
+
+func (tx *TransferV2) Clone() *TransferV2 {
+	out := &TransferV2{}
+	_ = copier.Copy(out, tx)
+	return out
 }
 
 //NewUnsignedTransferV2 creates new TransferV2 transaction without proofs and ID.

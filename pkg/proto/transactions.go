@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"reflect"
 
+	"github.com/jinzhu/copier"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 )
@@ -249,19 +250,28 @@ func (tx Genesis) GetTypeVersion() TransactionTypeVersion {
 }
 
 func (tx *Genesis) GenerateID() {
-	if tx.ID == nil {
-		body, err := tx.bodyMarshalBinary()
-		if err != nil {
-			panic(err.Error())
-		}
-		id := tx.generateBodyHash(body)
-		tx.ID = &id
+	err := tx.generateID()
+	if err != nil {
+		panic(err.Error())
 	}
+}
+
+func (tx *Genesis) generateID() error {
+	body, err := tx.bodyMarshalBinary()
+	if err != nil {
+		return err
+	}
+	id := tx.generateBodyHash(body)
+	tx.ID = &id
+	return nil
 }
 
 func (tx Genesis) GetID() ([]byte, error) {
 	if tx.ID == nil {
-		return nil, errors.New("tx ID is not set\n")
+		err := tx.generateID()
+		if err != nil {
+			return nil, err
+		}
 	}
 	return tx.ID.Bytes(), nil
 }
@@ -272,6 +282,12 @@ func (tx Genesis) GetFee() uint64 {
 
 func (tx Genesis) GetTimestamp() uint64 {
 	return tx.Timestamp
+}
+
+func (tx *Genesis) Clone() *Genesis {
+	out := &Genesis{}
+	_ = copier.Copy(out, tx)
+	return out
 }
 
 //NewUnsignedGenesis returns a new unsigned Genesis transaction. Actually Genesis transaction could not be signed.

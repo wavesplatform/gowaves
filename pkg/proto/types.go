@@ -141,8 +141,8 @@ func NewOptionalAssetFromBytes(b []byte) (*OptionalAsset, error) {
 	return &OptionalAsset{Present: true, ID: a}, nil
 }
 
-func NewOptionalAssetFromDigest(d crypto.Digest) (*OptionalAsset, error) {
-	return &OptionalAsset{Present: true, ID: d}, nil
+func NewOptionalAssetFromDigest(d crypto.Digest) *OptionalAsset {
+	return &OptionalAsset{Present: true, ID: d}
 }
 
 // String method converts OptionalAsset to its text representation
@@ -251,6 +251,10 @@ func NewAttachmentFromBase58(s string) (Attachment, error) {
 // String returns Attachment's string representation
 func (a Attachment) String() string {
 	return string(a)
+}
+
+func (a Attachment) Bytes() []byte {
+	return []byte(a)
 }
 
 // MarshalJSON writes Attachment as a JSON string Value
