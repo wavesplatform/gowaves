@@ -3,6 +3,7 @@ package proto
 import (
 	"encoding/binary"
 	"encoding/json"
+	"github.com/jinzhu/copier"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 )
@@ -201,7 +202,7 @@ func (tx TransferV1) GetTypeVersion() TransactionTypeVersion {
 
 func (tx *TransferV1) GenerateID() {
 	if tx.ID == nil {
-		body, err := tx.bodyMarshalBinary()
+		body, err := tx.BodyMarshalBinary()
 		if err != nil {
 			panic(err.Error())
 		}
@@ -215,6 +216,12 @@ func (tx TransferV1) GetID() ([]byte, error) {
 		return nil, errors.New("tx ID is not set\n")
 	}
 	return tx.ID.Bytes(), nil
+}
+
+func (tx *TransferV1) Clone() *TransferV1 {
+	out := &TransferV1{}
+	_ = copier.Copy(out, tx)
+	return out
 }
 
 //NewUnsignedTransferV1 creates new TransferV1 transaction without signature and ID.
@@ -232,7 +239,7 @@ func NewUnsignedTransferV1(senderPK crypto.PublicKey, amountAsset, feeAsset Opti
 	return &TransferV1{Type: TransferTransaction, Version: 1, Transfer: t}
 }
 
-func (tx *TransferV1) bodyMarshalBinary() ([]byte, error) {
+func (tx *TransferV1) BodyMarshalBinary() ([]byte, error) {
 	b, err := tx.Transfer.marshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal TransferV1 body")
@@ -263,7 +270,7 @@ func (tx *TransferV1) bodyUnmarshalBinary(data []byte) error {
 
 //Sign calculates a signature and a digest as an ID of the transaction.
 func (tx *TransferV1) Sign(secretKey crypto.SecretKey) error {
-	b, err := tx.bodyMarshalBinary()
+	b, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return errors.Wrap(err, "failed to sign TransferV1 transaction")
 	}
@@ -282,7 +289,7 @@ func (tx *TransferV1) Verify(publicKey crypto.PublicKey) (bool, error) {
 	if tx.Signature == nil {
 		return false, errors.New("empty signature")
 	}
-	b, err := tx.bodyMarshalBinary()
+	b, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return false, errors.Wrap(err, "failed to verify signature of TransferV1 transaction")
 	}
@@ -292,7 +299,7 @@ func (tx *TransferV1) Verify(publicKey crypto.PublicKey) (bool, error) {
 //MarshalBinary saves transaction to its binary representation.
 func (tx *TransferV1) MarshalBinary() ([]byte, error) {
 	sl := crypto.SignatureSize
-	b, err := tx.bodyMarshalBinary()
+	b, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal TransferV1 transaction to bytes")
 	}

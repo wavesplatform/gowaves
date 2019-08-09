@@ -580,7 +580,7 @@ func TestTransferV1BinaryRoundTrip(t *testing.T) {
 		fa, err := NewOptionalAssetFromString(tc.feeAsset)
 		require.NoError(t, err)
 		tx := NewUnsignedTransferV1(pk, *aa, *fa, ts, tc.amount, tc.fee, rcp, tc.attachment)
-		if bb, err := tx.bodyMarshalBinary(); assert.NoError(t, err) {
+		if bb, err := tx.BodyMarshalBinary(); assert.NoError(t, err) {
 			var atx TransferV1
 			if err := atx.bodyUnmarshalBinary(bb); assert.NoError(t, err) {
 				assert.Equal(t, tx.Type, atx.Type)
@@ -652,7 +652,7 @@ func TestTransferV1FromMainNet(t *testing.T) {
 		tx := NewUnsignedTransferV1(pk, *aa, *fa, tc.timestamp, tc.amount, tc.fee, rcp, tc.attachment)
 		tx.Signature = &sig
 		tx.ID = &id
-		b, err := tx.bodyMarshalBinary()
+		b, err := tx.BodyMarshalBinary()
 		require.NoError(t, err)
 		h, _ := crypto.FastHash(b)
 		assert.Equal(t, *tx.ID, h)

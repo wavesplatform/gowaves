@@ -1120,7 +1120,7 @@ func UserAddressFromString(s Scope, e Exprs) (Expr, error) {
 		return nil, errors.Errorf("UserAddressFromString: invalid params, expected 1, passed %d", l)
 	}
 
-	rs, err := e[0].Evaluate(s)
+	rs, err := e[0].Evaluate(s.Clone())
 	if err != nil {
 		return nil, errors.Wrap(err, "UserAddressFromString")
 	}
@@ -1179,7 +1179,7 @@ func UserIsDefined(s Scope, e Exprs) (Expr, error) {
 }
 
 func UserExtract(s Scope, e Exprs) (Expr, error) {
-	funcName := "UserIsDefined"
+	funcName := "UserExtract"
 
 	if l := len(e); l != 1 {
 		return nil, errors.Errorf("%s: invalid params, expected 1, passed %d", funcName, l)

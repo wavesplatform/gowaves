@@ -800,8 +800,7 @@ func TestNewOptionalAssetFromDigest(t *testing.T) {
 	d, err := crypto.NewDigestFromBase58("BXBUNddxTGTQc3G4qHYn5E67SBwMj18zLncUr871iuRD")
 	require.NoError(t, err)
 
-	asset1, err := NewOptionalAssetFromDigest(d)
-	require.NoError(t, err)
+	asset1 := NewOptionalAssetFromDigest(d)
 	assert.True(t, asset1.Present)
 }
 
