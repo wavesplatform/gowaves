@@ -190,6 +190,26 @@ func (a *MockStateManager) RetrieveBinaryEntry(addr proto.Address, key string) (
 	panic("implement me")
 }
 
+func (a *MockStateManager) RetrieveNewestEntry(addr proto.Address, key string) (proto.DataEntry, error) {
+	panic("implement me")
+}
+
+func (a *MockStateManager) RetrieveNewestIntegerEntry(addr proto.Address, key string) (*proto.IntegerDataEntry, error) {
+	panic("implement me")
+}
+
+func (a *MockStateManager) RetrieveNewestBooleanEntry(addr proto.Address, key string) (*proto.BooleanDataEntry, error) {
+	panic("implement me")
+}
+
+func (a *MockStateManager) RetrieveNewestStringEntry(addr proto.Address, key string) (*proto.StringDataEntry, error) {
+	panic("implement me")
+}
+
+func (a *MockStateManager) RetrieveNewestBinaryEntry(addr proto.Address, key string) (*proto.BinaryDataEntry, error) {
+	panic("implement me")
+}
+
 func (a *MockStateManager) Close() error {
 	panic("implement me")
 }

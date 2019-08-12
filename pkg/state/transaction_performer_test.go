@@ -360,7 +360,7 @@ func TestPerformDataV1(t *testing.T) {
 	assert.NoError(t, err, "performDataV1() failed")
 	to.stor.flush(t)
 
-	newEntry, err := to.entities.accountsDataStor.retrieveEntry(testGlobal.senderInfo.addr, entry.Key)
-	assert.NoError(t, err, "retrieveEntry() failed")
+	newEntry, err := to.entities.accountsDataStor.retrieveNewestEntry(testGlobal.senderInfo.addr, entry.Key)
+	assert.NoError(t, err, "retrieveNewestEntry() failed")
 	assert.Equal(t, entry, newEntry)
 }

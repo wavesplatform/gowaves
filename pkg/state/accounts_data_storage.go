@@ -229,7 +229,7 @@ func (s *accountsDataStorage) entryBytes(addr proto.Address, key string) ([]byte
 	return latestEntry, nil
 }
 
-func (s *accountsDataStorage) retrieveEntry(addr proto.Address, key string) (proto.DataEntry, error) {
+func (s *accountsDataStorage) retrieveNewestEntry(addr proto.Address, key string) (proto.DataEntry, error) {
 	entryBytes, err := s.newestEntryBytes(addr, key)
 	if err != nil {
 		return nil, err
@@ -242,7 +242,20 @@ func (s *accountsDataStorage) retrieveEntry(addr proto.Address, key string) (pro
 	return entry, nil
 }
 
-func (s *accountsDataStorage) retrieveIntegerEntry(addr proto.Address, key string) (*proto.IntegerDataEntry, error) {
+func (s *accountsDataStorage) retrieveEntry(addr proto.Address, key string) (proto.DataEntry, error) {
+	entryBytes, err := s.entryBytes(addr, key)
+	if err != nil {
+		return nil, err
+	}
+	entry, err := proto.NewDataEntryFromValueBytes(entryBytes)
+	if err != nil {
+		return nil, err
+	}
+	entry.SetKey(key)
+	return entry, nil
+}
+
+func (s *accountsDataStorage) retrieveNewestIntegerEntry(addr proto.Address, key string) (*proto.IntegerDataEntry, error) {
 	entryBytes, err := s.newestEntryBytes(addr, key)
 	if err != nil {
 		return nil, err
@@ -255,7 +268,20 @@ func (s *accountsDataStorage) retrieveIntegerEntry(addr proto.Address, key strin
 	return &entry, nil
 }
 
-func (s *accountsDataStorage) retrieveBooleanEntry(addr proto.Address, key string) (*proto.BooleanDataEntry, error) {
+func (s *accountsDataStorage) retrieveIntegerEntry(addr proto.Address, key string) (*proto.IntegerDataEntry, error) {
+	entryBytes, err := s.entryBytes(addr, key)
+	if err != nil {
+		return nil, err
+	}
+	var entry proto.IntegerDataEntry
+	if err := entry.UnmarshalValue(entryBytes); err != nil {
+		return nil, err
+	}
+	entry.Key = key
+	return &entry, nil
+}
+
+func (s *accountsDataStorage) retrieveNewestBooleanEntry(addr proto.Address, key string) (*proto.BooleanDataEntry, error) {
 	entryBytes, err := s.newestEntryBytes(addr, key)
 	if err != nil {
 		return nil, err
@@ -268,7 +294,20 @@ func (s *accountsDataStorage) retrieveBooleanEntry(addr proto.Address, key strin
 	return &entry, nil
 }
 
-func (s *accountsDataStorage) retrieveStringEntry(addr proto.Address, key string) (*proto.StringDataEntry, error) {
+func (s *accountsDataStorage) retrieveBooleanEntry(addr proto.Address, key string) (*proto.BooleanDataEntry, error) {
+	entryBytes, err := s.entryBytes(addr, key)
+	if err != nil {
+		return nil, err
+	}
+	var entry proto.BooleanDataEntry
+	if err := entry.UnmarshalValue(entryBytes); err != nil {
+		return nil, err
+	}
+	entry.Key = key
+	return &entry, nil
+}
+
+func (s *accountsDataStorage) retrieveNewestStringEntry(addr proto.Address, key string) (*proto.StringDataEntry, error) {
 	entryBytes, err := s.newestEntryBytes(addr, key)
 	if err != nil {
 		return nil, err
@@ -281,8 +320,34 @@ func (s *accountsDataStorage) retrieveStringEntry(addr proto.Address, key string
 	return &entry, nil
 }
 
-func (s *accountsDataStorage) retrieveBinaryEntry(addr proto.Address, key string) (*proto.BinaryDataEntry, error) {
+func (s *accountsDataStorage) retrieveStringEntry(addr proto.Address, key string) (*proto.StringDataEntry, error) {
+	entryBytes, err := s.entryBytes(addr, key)
+	if err != nil {
+		return nil, err
+	}
+	var entry proto.StringDataEntry
+	if err := entry.UnmarshalValue(entryBytes); err != nil {
+		return nil, err
+	}
+	entry.Key = key
+	return &entry, nil
+}
+
+func (s *accountsDataStorage) retrieveNewestBinaryEntry(addr proto.Address, key string) (*proto.BinaryDataEntry, error) {
 	entryBytes, err := s.newestEntryBytes(addr, key)
+	if err != nil {
+		return nil, err
+	}
+	var entry proto.BinaryDataEntry
+	if err := entry.UnmarshalValue(entryBytes); err != nil {
+		return nil, err
+	}
+	entry.Key = key
+	return &entry, nil
+}
+
+func (s *accountsDataStorage) retrieveBinaryEntry(addr proto.Address, key string) (*proto.BinaryDataEntry, error) {
+	entryBytes, err := s.entryBytes(addr, key)
 	if err != nil {
 		return nil, err
 	}
