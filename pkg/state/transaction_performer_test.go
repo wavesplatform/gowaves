@@ -352,7 +352,7 @@ func TestPerformDataV1(t *testing.T) {
 
 	to.stor.addBlock(t, blockID0)
 
-	tx := createDataV1(t)
+	tx := createDataV1(t, 1)
 	entry := &proto.IntegerDataEntry{Key: "TheKey", Value: int64(666)}
 	tx.Entries = proto.DataEntries([]proto.DataEntry{entry})
 

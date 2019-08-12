@@ -9,8 +9,6 @@ import (
 )
 
 const (
-	FeeUnit = 100000
-
 	sponsorshipRecordSize = 8 + 4
 )
 

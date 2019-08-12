@@ -15,7 +15,7 @@ import (
 var (
 	defaultTimestamp = settings.MainNetSettings.CheckTempNegativeAfterTime
 	defaultAmount    = uint64(100)
-	defaultFee       = uint64(1)
+	defaultFee       = uint64(FeeUnit)
 	defaultQuantity  = uint64(1000)
 	defaultDecimals  = byte(7)
 )
@@ -572,9 +572,16 @@ func TestCreateDiffMassTransferV1(t *testing.T) {
 	assert.Equal(t, correctDiff, diff)
 }
 
-func createDataV1(t *testing.T) *proto.DataV1 {
+func createDataV1(t *testing.T, entriesNum int) *proto.DataV1 {
 	tx := proto.NewUnsignedData(testGlobal.senderInfo.pk, defaultFee, defaultTimestamp)
-	tx.Entries = proto.DataEntries([]proto.DataEntry{&proto.IntegerDataEntry{Key: "TheKey", Value: int64(666)}})
+	for i := 0; i < entriesNum; i++ {
+		entry := &proto.IntegerDataEntry{Key: "TheKey", Value: int64(666)}
+		tx.Entries = append(tx.Entries, entry)
+	}
+	seed, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
+	sk, _ := crypto.GenerateKeyPair(seed)
+	err := tx.Sign(sk)
+	assert.NoError(t, err, "Sign() failed")
 	return tx
 }
 
@@ -586,7 +593,7 @@ func TestCreateDiffDataV1(t *testing.T) {
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
-	tx := createDataV1(t)
+	tx := createDataV1(t, 1)
 	diff, err := to.td.createDiffDataV1(tx, defaultDifferInfo(t))
 	assert.NoError(t, err, "createDiffDataV1 failed")
 

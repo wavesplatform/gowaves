@@ -510,7 +510,7 @@ func TestCheckDataV1(t *testing.T) {
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
-	tx := createDataV1(t)
+	tx := createDataV1(t, 1)
 	info := defaultCheckerInfo(t)
 
 	err := to.tc.checkDataV1(tx, info)
