@@ -273,3 +273,243 @@ func (a *GenesisTestSuite) Test_version() {
 func TestNewVariablesFromGenesis(t *testing.T) {
 	suite.Run(t, new(GenesisTestSuite))
 }
+
+type PaymentTestSuite struct {
+	suite.Suite
+	tx *proto.Payment
+	f  func(scheme proto.Scheme, tx proto.Transaction) (map[string]Expr, error)
+}
+
+func (a *PaymentTestSuite) SetupTest() {
+	a.tx = byte_helpers.Payment.Transaction.Clone()
+	a.f = NewVariablesFromTransaction
+}
+
+func (a *PaymentTestSuite) Test_amount() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(NewLong(100000), rs["amount"])
+}
+
+func (a *PaymentTestSuite) Test_recipient() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(NewRecipientFromProtoRecipient(proto.NewRecipientFromAddress(a.tx.Recipient)), rs["recipient"])
+}
+
+func (a *PaymentTestSuite) Test_id() {
+	rs, err := a.f(proto.MainNetScheme, a.tx)
+	a.NoError(err)
+	id, err := a.tx.GetID()
+	a.NoError(err)
+	a.Equal(NewBytes(id), rs["id"])
+}
+
+func (a *PaymentTestSuite) Test_fee() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(NewLong(int64(a.tx.Fee)), rs["fee"])
+}
+
+func (a *PaymentTestSuite) Test_timestamp() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(NewLong(int64(a.tx.Timestamp)), rs["timestamp"])
+}
+
+func (a *PaymentTestSuite) Test_version() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(NewLong(int64(a.tx.Version)), rs["version"])
+}
+
+func (a *PaymentTestSuite) Test_sender() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	addr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, a.tx.SenderPK)
+	a.NoError(err)
+	a.Equal(NewAddressFromProtoAddress(addr), rs["sender"])
+}
+
+func (a *PaymentTestSuite) Test_senderPublicKey() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(NewBytes(a.tx.SenderPK.Bytes()), rs["senderPublicKey"])
+}
+
+func (a *PaymentTestSuite) Test_bodyBytes() {
+	_, pub := crypto.GenerateKeyPair([]byte("test"))
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.IsType(&BytesExpr{}, rs["bodyBytes"])
+	a.True(crypto.Verify(pub, *a.tx.Signature, rs["bodyBytes"].(*BytesExpr).Value))
+}
+
+func (a *PaymentTestSuite) Test_proofs() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(Exprs{NewBytes(a.tx.Signature.Bytes())}, rs["proofs"])
+}
+
+func (a *PaymentTestSuite) Test_InstanceFieldName() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(NewString("PaymentTransaction"), rs[InstanceFieldName])
+}
+
+func TestNewVariablesFromPayment(t *testing.T) {
+	suite.Run(t, new(PaymentTestSuite))
+}
+
+type ReissueV1TestSuite struct {
+	suite.Suite
+	tx *proto.ReissueV1
+	f  func(scheme proto.Scheme, tx proto.Transaction) (map[string]Expr, error)
+}
+
+func (a *ReissueV1TestSuite) SetupTest() {
+	a.tx = byte_helpers.ReissueV1.Transaction.Clone()
+	a.f = NewVariablesFromTransaction
+}
+
+func (a *ReissueV1TestSuite) Test_quantity() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(NewLong(100000), rs["quantity"])
+}
+
+func (a *ReissueV1TestSuite) Test_assetId() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(NewBytes(a.tx.AssetID.Bytes()), rs["assetId"])
+}
+
+func (a *ReissueV1TestSuite) Test_reissuable() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(NewBoolean(a.tx.Reissuable), rs["reissuable"])
+}
+
+func (a *ReissueV1TestSuite) Test_id() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	id, _ := a.tx.GetID()
+	a.Equal(NewBytes(id), rs["id"])
+}
+
+func (a *ReissueV1TestSuite) Test_fee() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(NewLong(int64(a.tx.Fee)), rs["fee"])
+}
+
+func (a *ReissueV1TestSuite) Test_timestamp() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(NewLong(int64(a.tx.Timestamp)), rs["timestamp"])
+}
+
+func (a *ReissueV1TestSuite) Test_version() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(NewLong(int64(a.tx.Version)), rs["version"])
+}
+
+func (a *ReissueV1TestSuite) Test_sender() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	addr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, a.tx.SenderPK)
+	a.NoError(err)
+	a.Equal(NewAddressFromProtoAddress(addr), rs["sender"])
+}
+
+func (a *ReissueV1TestSuite) Test_senderPublicKey() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(NewBytes(a.tx.SenderPK.Bytes()), rs["senderPublicKey"])
+}
+
+func (a *ReissueV1TestSuite) Test_bodyBytes() {
+	_, pub := crypto.GenerateKeyPair([]byte("test"))
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.IsType(&BytesExpr{}, rs["bodyBytes"])
+	a.True(crypto.Verify(pub, *a.tx.Signature, rs["bodyBytes"].(*BytesExpr).Value))
+}
+
+func (a *ReissueV1TestSuite) Test_proofs() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(Exprs{NewBytes(a.tx.Signature.Bytes())}, rs["proofs"])
+}
+
+func (a *ReissueV1TestSuite) Test_InstanceFieldName() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(NewString("ReissueTransaction"), rs[InstanceFieldName])
+}
+
+//ReissueTransaction
+func TestNewVariablesFromReissueV1(t *testing.T) {
+	suite.Run(t, new(ReissueV1TestSuite))
+}
+
+type ReissueV2TestSuite struct {
+	suite.Suite
+	tx *proto.ReissueV2
+	f  func(scheme proto.Scheme, tx proto.Transaction) (map[string]Expr, error)
+}
+
+func (a *ReissueV2TestSuite) SetupTest() {
+	a.tx = byte_helpers.ReissueV2.Transaction.Clone()
+	a.f = NewVariablesFromTransaction
+}
+
+func (a *ReissueV2TestSuite) Test_quantity() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(NewLong(100000), rs["quantity"])
+}
+
+func (a *ReissueV2TestSuite) Test_assetId() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(NewBytes(a.tx.AssetID.Bytes()), rs["assetId"])
+}
+
+func (a *ReissueV2TestSuite) Test_reissuable() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(NewBoolean(a.tx.Reissuable), rs["reissuable"])
+}
+
+func (a *ReissueV2TestSuite) Test_id() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	id, _ := a.tx.GetID()
+	a.Equal(NewBytes(id), rs["id"])
+}
+
+func (a *ReissueV2TestSuite) Test_fee() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(NewLong(int64(a.tx.Fee)), rs["fee"])
+}
+
+func (a *ReissueV2TestSuite) Test_timestamp() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(NewLong(int64(a.tx.Timestamp)), rs["timestamp"])
+}
+
+func (a *ReissueV2TestSuite) Test_version() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(NewLong(int64(a.tx.Version)), rs["version"])
+}
+
+func (a *ReissueV2TestSuite) Test_sender() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	addr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, a.tx.SenderPK)
+	a.NoError(err)
+	a.Equal(NewAddressFromProtoAddress(addr), rs["sender"])
+}
+
+func (a *ReissueV2TestSuite) Test_senderPublicKey() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(NewBytes(a.tx.SenderPK.Bytes()), rs["senderPublicKey"])
+}
+
+func (a *ReissueV2TestSuite) Test_bodyBytes() {
+	_, pub := crypto.GenerateKeyPair([]byte("test"))
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.IsType(&BytesExpr{}, rs["bodyBytes"])
+	sig, _ := crypto.NewSignatureFromBytes(a.tx.Proofs.Proofs[0])
+	a.True(crypto.Verify(pub, sig, rs["bodyBytes"].(*BytesExpr).Value))
+}
+
+func (a *ReissueV2TestSuite) Test_proofs() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(Exprs{NewBytes(a.tx.Proofs.Proofs[0].Bytes())}, rs["proofs"])
+}
+
+func (a *ReissueV2TestSuite) Test_InstanceFieldName() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(NewString("ReissueTransaction"), rs[InstanceFieldName])
+}
+
+//ReissueTransaction
+func TestNewVariablesFromReissueV2(t *testing.T) {
+	suite.Run(t, new(ReissueV2TestSuite))
+}
