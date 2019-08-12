@@ -46,9 +46,11 @@ func TestSponsorAsset(t *testing.T) {
 	id := testGlobal.asset0.asset.ID
 	err = to.sponsoredAssets.sponsorAsset(id, properCost, blockID0)
 	assert.NoError(t, err, "sponsorAsset() failed")
-	newestIsSponsored := to.sponsoredAssets.newestIsSponsored(id, true)
+	newestIsSponsored, err := to.sponsoredAssets.newestIsSponsored(id, true)
+	assert.NoError(t, err, "newestIsSponsored() failed")
 	assert.Equal(t, newestIsSponsored, true)
-	isSponsored := to.sponsoredAssets.isSponsored(id, true)
+	isSponsored, err := to.sponsoredAssets.isSponsored(id, true)
+	assert.NoError(t, err, "isSponsored() failed")
 	assert.Equal(t, isSponsored, false)
 	newestCost, err := to.sponsoredAssets.newestAssetCost(id, true)
 	assert.NoError(t, err, "newestAssetCost() failed")
@@ -57,9 +59,11 @@ func TestSponsorAsset(t *testing.T) {
 	assert.Error(t, err, "assetCost() did not fail witn new asset before flushing")
 	// Flush.
 	to.stor.flush(t)
-	newestIsSponsored = to.sponsoredAssets.newestIsSponsored(id, true)
+	newestIsSponsored, err = to.sponsoredAssets.newestIsSponsored(id, true)
+	assert.NoError(t, err, "newestIsSponsored() failed")
 	assert.Equal(t, newestIsSponsored, true)
-	isSponsored = to.sponsoredAssets.isSponsored(id, true)
+	isSponsored, err = to.sponsoredAssets.isSponsored(id, true)
+	assert.NoError(t, err, "isSponsored() failed")
 	assert.Equal(t, isSponsored, true)
 	newestCost, err = to.sponsoredAssets.newestAssetCost(id, true)
 	assert.NoError(t, err, "newestAssetCost() failed")
@@ -67,6 +71,16 @@ func TestSponsorAsset(t *testing.T) {
 	cost, err := to.sponsoredAssets.assetCost(id, true)
 	assert.NoError(t, err, "assetCost() failed")
 	assert.Equal(t, cost, properCost)
+	// Check that asset with 0 cost is no longer considered sponsored.
+	err = to.sponsoredAssets.sponsorAsset(id, 0, blockID0)
+	assert.NoError(t, err, "sponsorAsset() failed")
+	newestIsSponsored, err = to.sponsoredAssets.newestIsSponsored(id, true)
+	assert.NoError(t, err, "newestIsSponsored() failed")
+	assert.Equal(t, newestIsSponsored, false)
+	to.stor.flush(t)
+	isSponsored, err = to.sponsoredAssets.isSponsored(id, true)
+	assert.NoError(t, err, "isSponsored() failed")
+	assert.Equal(t, isSponsored, false)
 }
 
 func TestSponsoredAssetToWaves(t *testing.T) {

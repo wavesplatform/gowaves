@@ -1,8 +1,6 @@
 package state
 
 import (
-	"log"
-
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -80,7 +78,10 @@ func checkMinFeeWaves(tx proto.Transaction) error {
 }
 
 func checkMinFeeAsset(sponsoredAssets *sponsoredAssets, tx proto.Transaction, feeAssetID crypto.Digest) error {
-	isSponsored := sponsoredAssets.newestIsSponsored(feeAssetID, true)
+	isSponsored, err := sponsoredAssets.newestIsSponsored(feeAssetID, true)
+	if err != nil {
+		return errors.Errorf("newestIsSponsored: %v\n", err)
+	}
 	if !isSponsored {
 		return errors.Errorf("asset %s is not sponsored", feeAssetID.String())
 	}
@@ -93,7 +94,6 @@ func checkMinFeeAsset(sponsoredAssets *sponsoredAssets, tx proto.Transaction, fe
 		return errors.Errorf("wavesToSponsoredAsset() failed: %v\n", err)
 	}
 	fee := tx.GetFee()
-	log.Printf("minAsset: %d; minWaves: %d\n", minAsset, minWaves)
 	if fee < minAsset {
 		return errors.Errorf("fee %d is less than minimum value of %d\n", fee, minAsset)
 	}
