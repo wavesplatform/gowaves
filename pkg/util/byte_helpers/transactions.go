@@ -18,6 +18,30 @@ type GenesisStruct struct {
 
 var Genesis GenesisStruct
 
+type PaymentStruct struct {
+	TransactionBytes []byte
+	Transaction      *proto.Payment
+	MessageBytes     []byte
+}
+
+var Payment PaymentStruct
+
+type ReissueV1Struct struct {
+	TransactionBytes []byte
+	Transaction      *proto.ReissueV1
+	MessageBytes     []byte
+}
+
+var ReissueV1 ReissueV1Struct
+
+type ReissueV2Struct struct {
+	TransactionBytes []byte
+	Transaction      *proto.ReissueV2
+	MessageBytes     []byte
+}
+
+var ReissueV2 ReissueV2Struct
+
 type TransferV1Struct struct {
 	TransactionBytes []byte
 	Transaction      *proto.TransferV1
@@ -44,9 +68,12 @@ var IssueV1 IssueV1Struct
 
 func init() {
 	initGenesis()
+	initPayment()
 	initTransferV1()
 	initTransferV2()
 	initIssueV1()
+	initReissueV1()
+	initReissueV2()
 }
 
 func initTransferV1() {
@@ -138,6 +165,81 @@ func initGenesis() {
 	tmb, _ := tm.MarshalBinary()
 
 	Genesis = GenesisStruct{
+		TransactionBytes: b,
+		Transaction:      t,
+		MessageBytes:     tmb,
+	}
+}
+
+func initPayment() {
+	sk, pk := crypto.GenerateKeyPair([]byte("test"))
+	addr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, pk)
+	if err != nil {
+		panic(err)
+	}
+	t := proto.NewUnsignedPayment(pk, addr, 100000, 10000, TIMESTAMP)
+
+	_ = t.Sign(sk)
+	b, err := t.MarshalBinary()
+	if err != nil {
+		panic(err)
+	}
+	tm := proto.TransactionMessage{
+		Transaction: b,
+	}
+	tmb, _ := tm.MarshalBinary()
+
+	Payment = PaymentStruct{
+		TransactionBytes: b,
+		Transaction:      t,
+		MessageBytes:     tmb,
+	}
+}
+
+func initReissueV1() {
+	sk, pk := crypto.GenerateKeyPair([]byte("test"))
+	d, err := crypto.NewDigestFromBase58("9shLH9vfJxRgbhJ1c3dw2gj5fUGRr8asfUpQjj4rZQKQ")
+	if err != nil {
+		panic(err)
+	}
+
+	t := proto.NewUnsignedReissueV1(pk, d, 100000, true, TIMESTAMP, 10000)
+	_ = t.Sign(sk)
+	b, err := t.MarshalBinary()
+	if err != nil {
+		panic(err)
+	}
+	tm := proto.TransactionMessage{
+		Transaction: b,
+	}
+	tmb, _ := tm.MarshalBinary()
+
+	ReissueV1 = ReissueV1Struct{
+		TransactionBytes: b,
+		Transaction:      t,
+		MessageBytes:     tmb,
+	}
+}
+
+func initReissueV2() {
+	sk, pk := crypto.GenerateKeyPair([]byte("test"))
+	d, err := crypto.NewDigestFromBase58("9shLH9vfJxRgbhJ1c3dw2gj5fUGRr8asfUpQjj4rZQKQ")
+	if err != nil {
+		panic(err)
+	}
+
+	t := proto.NewUnsignedReissueV2(proto.MainNetScheme, pk, d, 100000, true, TIMESTAMP, 10000)
+	_ = t.Sign(sk)
+	b, err := t.MarshalBinary()
+	if err != nil {
+		panic(err)
+	}
+	tm := proto.TransactionMessage{
+		Transaction: b,
+	}
+	tmb, _ := tm.MarshalBinary()
+
+	ReissueV2 = ReissueV2Struct{
 		TransactionBytes: b,
 		Transaction:      t,
 		MessageBytes:     tmb,

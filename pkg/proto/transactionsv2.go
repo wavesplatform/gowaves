@@ -472,7 +472,7 @@ func (tx ReissueV2) GetTypeVersion() TransactionTypeVersion {
 
 func (tx *ReissueV2) GenerateID() {
 	if tx.ID == nil {
-		body, err := tx.bodyMarshalBinary()
+		body, err := tx.BodyMarshalBinary()
 		if err != nil {
 			panic(err.Error())
 		}
@@ -487,6 +487,12 @@ func (tx ReissueV2) GetID() ([]byte, error) {
 		return nil, errors.New("tx ID is not set\n")
 	}
 	return tx.ID.Bytes(), nil
+}
+
+func (tx *ReissueV2) Clone() *ReissueV2 {
+	out := &ReissueV2{}
+	_ = copier.Copy(out, tx)
+	return out
 }
 
 //NewUnsignedReissueV2 creates new ReissueV2 transaction without signature and ID.
@@ -511,7 +517,7 @@ func (tx ReissueV2) Valid() (bool, error) {
 	return true, nil
 }
 
-func (tx *ReissueV2) bodyMarshalBinary() ([]byte, error) {
+func (tx *ReissueV2) BodyMarshalBinary() ([]byte, error) {
 	buf := make([]byte, reissueV2BodyLen)
 	buf[0] = byte(tx.Type)
 	buf[1] = tx.Version
@@ -548,7 +554,7 @@ func (tx *ReissueV2) bodyUnmarshalBinary(data []byte) error {
 
 //Sign adds signature as a proof at first position.
 func (tx *ReissueV2) Sign(secretKey crypto.SecretKey) error {
-	b, err := tx.bodyMarshalBinary()
+	b, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return errors.Wrap(err, "failed to sign ReissueV2 transaction")
 	}
@@ -569,7 +575,7 @@ func (tx *ReissueV2) Sign(secretKey crypto.SecretKey) error {
 
 //Verify checks that first proof is a valid signature.
 func (tx *ReissueV2) Verify(publicKey crypto.PublicKey) (bool, error) {
-	b, err := tx.bodyMarshalBinary()
+	b, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return false, errors.Wrap(err, "failed to verify signature of ReissueV2 transaction")
 	}
@@ -578,7 +584,7 @@ func (tx *ReissueV2) Verify(publicKey crypto.PublicKey) (bool, error) {
 
 //MarshalBinary writes ReissueV2 transaction to its bytes representation.
 func (tx *ReissueV2) MarshalBinary() ([]byte, error) {
-	bb, err := tx.bodyMarshalBinary()
+	bb, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal ReissueV2 transaction to bytes")
 	}

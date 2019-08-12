@@ -351,7 +351,7 @@ func (tx ReissueV1) GetTypeVersion() TransactionTypeVersion {
 
 func (tx *ReissueV1) GenerateID() {
 	if tx.ID == nil {
-		body, err := tx.bodyMarshalBinary()
+		body, err := tx.BodyMarshalBinary()
 		if err != nil {
 			panic(err.Error())
 		}
@@ -368,6 +368,12 @@ func (tx ReissueV1) GetID() ([]byte, error) {
 	return tx.ID.Bytes(), nil
 }
 
+func (tx *ReissueV1) Clone() *ReissueV1 {
+	out := &ReissueV1{}
+	_ = copier.Copy(out, tx)
+	return out
+}
+
 //NewUnsignedReissueV1 creates new ReissueV1 transaction without signature and ID.
 func NewUnsignedReissueV1(senderPK crypto.PublicKey, assetID crypto.Digest, quantity uint64, reissuable bool, timestamp, fee uint64) *ReissueV1 {
 	r := Reissue{
@@ -381,7 +387,7 @@ func NewUnsignedReissueV1(senderPK crypto.PublicKey, assetID crypto.Digest, quan
 	return &ReissueV1{Type: ReissueTransaction, Version: 1, Reissue: r}
 }
 
-func (tx *ReissueV1) bodyMarshalBinary() ([]byte, error) {
+func (tx *ReissueV1) BodyMarshalBinary() ([]byte, error) {
 	buf := make([]byte, reissueV1BodyLen)
 	buf[0] = byte(tx.Type)
 	b, err := tx.Reissue.marshalBinary()
@@ -413,7 +419,7 @@ func (tx *ReissueV1) bodyUnmarshalBinary(data []byte) error {
 //Sign use given private key to calculate signature of the transaction.
 //This function also calculates digest of transaction data and assigns it to ID field.
 func (tx *ReissueV1) Sign(secretKey crypto.SecretKey) error {
-	b, err := tx.bodyMarshalBinary()
+	b, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return errors.Wrap(err, "failed to sign ReissueV1 transaction")
 	}
@@ -432,7 +438,7 @@ func (tx *ReissueV1) Verify(publicKey crypto.PublicKey) (bool, error) {
 	if tx.Signature == nil {
 		return false, errors.New("empty signature")
 	}
-	b, err := tx.bodyMarshalBinary()
+	b, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return false, errors.Wrap(err, "failed to verify signature of ReissueV1 transaction")
 	}
@@ -442,7 +448,7 @@ func (tx *ReissueV1) Verify(publicKey crypto.PublicKey) (bool, error) {
 //MarshalBinary saves the transaction to its binary representation.
 func (tx *ReissueV1) MarshalBinary() ([]byte, error) {
 	sl := crypto.SignatureSize
-	b, err := tx.bodyMarshalBinary()
+	b, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal ReissueV1 transaction to bytes")
 	}

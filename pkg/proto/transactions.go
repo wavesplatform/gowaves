@@ -428,6 +428,12 @@ func (tx Payment) GetTimestamp() uint64 {
 	return tx.Timestamp
 }
 
+func (tx *Payment) Clone() *Payment {
+	out := &Payment{}
+	_ = copier.Copy(out, tx)
+	return out
+}
+
 //NewUnsignedPayment creates new Payment transaction with empty Signature and ID fields.
 func NewUnsignedPayment(senderPK crypto.PublicKey, recipient Address, amount, fee, timestamp uint64) *Payment {
 	return &Payment{Type: PaymentTransaction, Version: 1, SenderPK: senderPK, Recipient: recipient, Amount: amount, Fee: fee, Timestamp: timestamp}
@@ -513,6 +519,17 @@ func (tx *Payment) Sign(secretKey crypto.SecretKey) error {
 	return nil
 }
 
+func (tx *Payment) BodyMarshalBinary() ([]byte, error) {
+	b := tx.bodyMarshalBinaryBuffer()
+	err := tx.bodyMarshalBinary(b)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to sign Payment transaction")
+	}
+	d := make([]byte, len(b)+3)
+	copy(d[3:], b)
+	return d, nil
+}
+
 //Verify checks that the Signature is valid for given public key.
 func (tx *Payment) Verify(publicKey crypto.PublicKey) (bool, error) {
 	if tx.Signature == nil {
@@ -537,6 +554,9 @@ func (tx *Payment) MarshalBinary() ([]byte, error) {
 	}
 	buf := make([]byte, paymentBodyLen+crypto.SignatureSize)
 	copy(buf, b)
+	if tx.Signature == nil {
+		return nil, errors.New("marshaling unsigned transaction")
+	}
 	copy(buf[paymentBodyLen:], tx.Signature[:])
 	return buf, nil
 }

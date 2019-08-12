@@ -21,12 +21,15 @@ func NewVariablesFromTransaction(scheme byte, t proto.Transaction) (map[string]E
 	case *proto.Genesis:
 		return newVariableFromGenesis(scheme, tx)
 	case *proto.Payment:
-		out["id"] = NewBytes(tx.ID.Bytes())
-		return out, nil
+		return newVariablesFromPayment(scheme, tx)
 	case *proto.TransferV1:
 		return newVariablesFromTransferV1(scheme, tx)
 	case *proto.TransferV2:
 		return newVariablesFromTransferV2(scheme, tx)
+	case *proto.ReissueV1:
+		return newVariablesFromReissueV1(scheme, tx)
+	case *proto.ReissueV2:
+		return newVariablesFromReissueV2(scheme, tx)
 	case *proto.DataV1:
 		addr, err := proto.NewAddressFromPublicKey(scheme, tx.SenderPK)
 		if err != nil {
@@ -74,6 +77,32 @@ func newVariableFromGenesis(scheme proto.Scheme, tx *proto.Genesis) (map[string]
 	out["fee"] = NewLong(0)
 	out["timestamp"] = NewLong(int64(tx.Timestamp))
 	out["version"] = NewLong(int64(tx.Version))
+	return out, nil
+}
+
+func newVariablesFromPayment(scheme proto.Scheme, tx *proto.Payment) (map[string]Expr, error) {
+	funcName := "newVariablesFromPayment"
+
+	out := make(map[string]Expr)
+	out["amount"] = NewLong(int64(tx.Amount))
+	out["recipient"] = NewRecipientFromProtoRecipient(proto.NewRecipientFromAddress(tx.Recipient))
+	out["id"] = NewBytes(util.Dup(tx.ID.Bytes()))
+	out["fee"] = NewLong(int64(tx.Fee))
+	out["timestamp"] = NewLong(int64(tx.Timestamp))
+	out["version"] = NewLong(int64(tx.Version))
+	addr, err := proto.NewAddressFromPublicKey(scheme, tx.SenderPK)
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	out["sender"] = NewAddressFromProtoAddress(addr)
+	out["senderPublicKey"] = NewBytes(util.Dup(tx.SenderPK.Bytes()))
+	bts, err := tx.BodyMarshalBinary()
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	out["bodyBytes"] = NewBytes(bts)
+	out["proofs"] = Exprs{NewBytes(util.Dup(tx.Signature.Bytes()))}
+	out[InstanceFieldName] = NewString("PaymentTransaction")
 	return out, nil
 }
 
@@ -142,5 +171,73 @@ func newVariablesFromTransferV2(scheme byte, tx *proto.TransferV2) (map[string]E
 	}
 	out["proofs"] = exprs
 	out[InstanceFieldName] = NewString("TransferTransaction")
+	return out, nil
+}
+
+func newVariablesFromReissueV1(scheme proto.Scheme, tx *proto.ReissueV1) (map[string]Expr, error) {
+	funcName := "newVariablesFromReissueV1"
+
+	out := make(map[string]Expr)
+
+	out["quantity"] = NewLong(int64(tx.Quantity))
+	out["assetId"] = NewBytes(util.Dup(tx.AssetID.Bytes()))
+	out["reissuable"] = NewBoolean(tx.Reissuable)
+	id, err := tx.GetID()
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	out["id"] = NewBytes(util.Dup(id))
+	out["fee"] = NewLong(int64(tx.Fee))
+	out["timestamp"] = NewLong(int64(tx.Timestamp))
+	out["version"] = NewLong(int64(tx.Version))
+
+	addr, err := proto.NewAddressFromPublicKey(scheme, tx.SenderPK)
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	out["sender"] = NewAddressFromProtoAddress(addr)
+	out["senderPublicKey"] = NewBytes(util.Dup(tx.SenderPK.Bytes()))
+	bts, err := tx.BodyMarshalBinary()
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	out["bodyBytes"] = NewBytes(bts)
+	out["proofs"] = Exprs{NewBytes(util.Dup(tx.Signature.Bytes()))}
+	out[InstanceFieldName] = NewString("ReissueTransaction")
+	return out, nil
+}
+
+func newVariablesFromReissueV2(scheme proto.Scheme, tx *proto.ReissueV2) (map[string]Expr, error) {
+	funcName := "newVariablesFromReissueV1"
+	out := make(map[string]Expr)
+	out["quantity"] = NewLong(int64(tx.Quantity))
+	out["assetId"] = NewBytes(util.Dup(tx.AssetID.Bytes()))
+	out["reissuable"] = NewBoolean(tx.Reissuable)
+	id, err := tx.GetID()
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	out["id"] = NewBytes(util.Dup(id))
+	out["fee"] = NewLong(int64(tx.Fee))
+	out["timestamp"] = NewLong(int64(tx.Timestamp))
+	out["version"] = NewLong(int64(tx.Version))
+
+	addr, err := proto.NewAddressFromPublicKey(scheme, tx.SenderPK)
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	out["sender"] = NewAddressFromProtoAddress(addr)
+	out["senderPublicKey"] = NewBytes(util.Dup(tx.SenderPK.Bytes()))
+	bts, err := tx.BodyMarshalBinary()
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	out["bodyBytes"] = NewBytes(bts)
+	exprs := Exprs{}
+	for _, proof := range tx.Proofs.Proofs {
+		exprs = append(exprs, NewBytes(util.Dup(proof)))
+	}
+	out["proofs"] = exprs
+	out[InstanceFieldName] = NewString("ReissueTransaction")
 	return out, nil
 }

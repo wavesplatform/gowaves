@@ -29,3 +29,21 @@ func TestGenesis(t *testing.T) {
 	require.NotEmpty(t, Genesis.Transaction)
 	require.NotEmpty(t, Genesis.MessageBytes)
 }
+
+func TestPayment(t *testing.T) {
+	require.NotEmpty(t, Payment.TransactionBytes)
+	require.NotEmpty(t, Payment.Transaction)
+	require.NotEmpty(t, Payment.MessageBytes)
+}
+
+func TestReissueV1(t *testing.T) {
+	require.NotEmpty(t, ReissueV1.TransactionBytes)
+	require.NotEmpty(t, ReissueV1.Transaction)
+	require.NotEmpty(t, ReissueV1.MessageBytes)
+}
+
+func TestReissueV2(t *testing.T) {
+	require.NotEmpty(t, ReissueV2.TransactionBytes)
+	require.NotEmpty(t, ReissueV2.Transaction)
+	require.NotEmpty(t, ReissueV2.MessageBytes)
+}
