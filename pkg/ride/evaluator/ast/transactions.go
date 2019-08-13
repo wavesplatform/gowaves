@@ -30,6 +30,12 @@ func NewVariablesFromTransaction(scheme byte, t proto.Transaction) (map[string]E
 		return newVariablesFromReissueV1(scheme, tx)
 	case *proto.ReissueV2:
 		return newVariablesFromReissueV2(scheme, tx)
+	case *proto.BurnV1:
+		return newVariablesFromBurnV1(scheme, tx)
+	case *proto.BurnV2:
+		return newVariablesFromBurnV2(scheme, tx)
+	case *proto.MassTransferV1:
+		return newVariablesFromMassTransferV1(scheme, tx)
 	case *proto.DataV1:
 		addr, err := proto.NewAddressFromPublicKey(scheme, tx.SenderPK)
 		if err != nil {
@@ -239,5 +245,122 @@ func newVariablesFromReissueV2(scheme proto.Scheme, tx *proto.ReissueV2) (map[st
 	}
 	out["proofs"] = exprs
 	out[InstanceFieldName] = NewString("ReissueTransaction")
+	return out, nil
+}
+
+func newVariablesFromBurnV1(scheme proto.Scheme, tx *proto.BurnV1) (map[string]Expr, error) {
+	funcName := "newVariablesFromBurnV1"
+
+	out := make(map[string]Expr)
+
+	out["quantity"] = NewLong(int64(tx.Amount))
+	out["assetId"] = NewBytes(util.Dup(tx.AssetID.Bytes()))
+	id, err := tx.GetID()
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	out["id"] = NewBytes(util.Dup(id))
+	out["fee"] = NewLong(int64(tx.Fee))
+	out["timestamp"] = NewLong(int64(tx.Timestamp))
+	out["version"] = NewLong(int64(tx.Version))
+	addr, err := proto.NewAddressFromPublicKey(scheme, tx.SenderPK)
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	out["sender"] = NewAddressFromProtoAddress(addr)
+	out["senderPublicKey"] = NewBytes(util.Dup(tx.SenderPK.Bytes()))
+	bts, err := tx.BodyMarshalBinary()
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	out["bodyBytes"] = NewBytes(bts)
+	out["proofs"] = Exprs{NewBytes(util.Dup(tx.Signature.Bytes()))}
+	out[InstanceFieldName] = NewString("BurnTransaction")
+	return out, nil
+}
+
+func newVariablesFromBurnV2(scheme proto.Scheme, tx *proto.BurnV2) (map[string]Expr, error) {
+	funcName := "newVariablesFromBurnV2"
+
+	out := make(map[string]Expr)
+
+	out["quantity"] = NewLong(int64(tx.Amount))
+	out["assetId"] = NewBytes(util.Dup(tx.AssetID.Bytes()))
+	id, err := tx.GetID()
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	out["id"] = NewBytes(util.Dup(id))
+	out["fee"] = NewLong(int64(tx.Fee))
+	out["timestamp"] = NewLong(int64(tx.Timestamp))
+	out["version"] = NewLong(int64(tx.Version))
+	addr, err := proto.NewAddressFromPublicKey(scheme, tx.SenderPK)
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	out["sender"] = NewAddressFromProtoAddress(addr)
+	out["senderPublicKey"] = NewBytes(util.Dup(tx.SenderPK.Bytes()))
+	bts, err := tx.BodyMarshalBinary()
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	out["bodyBytes"] = NewBytes(bts)
+	exprs := Exprs{}
+	for _, proof := range tx.Proofs.Proofs {
+		exprs = append(exprs, NewBytes(util.Dup(proof)))
+	}
+	out["proofs"] = exprs
+	out[InstanceFieldName] = NewString("BurnTransaction")
+	return out, nil
+}
+
+func newVariablesFromMassTransferV1(scheme proto.Scheme, tx *proto.MassTransferV1) (map[string]Expr, error) {
+	funcName := "newVariablesFromMassTransferV1"
+	out := make(map[string]Expr)
+	out["assetId"] = makeOptionalAsset(tx.Asset)
+	var total uint64
+	for _, t := range tx.Transfers {
+		total += t.Amount
+	}
+	out["totalAmount"] = NewLong(int64(total))
+
+	transfers := Exprs{}
+	for _, transfer := range tx.Transfers {
+		m := make(map[string]Expr)
+		m["recipient"] = NewRecipientFromProtoRecipient(transfer.Recipient)
+		m["amount"] = NewLong(int64(transfer.Amount))
+		transfers = append(transfers, NewObject(m))
+	}
+	out["transfers"] = transfers
+	out["transferCount"] = NewLong(int64(len(tx.Transfers)))
+	out["attachment"] = NewBytes(tx.Attachment.Bytes())
+	id, err := tx.GetID()
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	out["id"] = NewBytes(util.Dup(id))
+	out["fee"] = NewLong(int64(tx.Fee))
+	out["timestamp"] = NewLong(int64(tx.Timestamp))
+	out["version"] = NewLong(int64(tx.Version))
+
+	addr, err := proto.NewAddressFromPublicKey(scheme, tx.SenderPK)
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	out["sender"] = NewAddressFromProtoAddress(addr)
+	out["senderPublicKey"] = NewBytes(util.Dup(tx.SenderPK.Bytes()))
+
+	bts, err := tx.BodyMarshalBinary()
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	out["bodyBytes"] = NewBytes(bts)
+	exprs := Exprs{}
+	for _, proof := range tx.Proofs.Proofs {
+		exprs = append(exprs, NewBytes(util.Dup(proof)))
+	}
+	out["proofs"] = exprs
+	out[InstanceFieldName] = NewString("MassTransferTransaction")
+
 	return out, nil
 }
