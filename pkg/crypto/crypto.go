@@ -139,10 +139,10 @@ func NewSecretKeyFromBase58(s string) (SecretKey, error) {
 
 func NewSecretKeyFromBytes(b []byte) (SecretKey, error) {
 	var sk SecretKey
-	if l := len(b); l < SecretKeySize {
-		return sk, fmt.Errorf("insufficient array length %d, expected atleast %d", l, SecretKeySize)
+	if l := len(b); l != SecretKeySize {
+		return sk, fmt.Errorf("invalid array length %d, expected exact %d bytes", l, SecretKeySize)
 	}
-	copy(sk[:], b[:SecretKeySize])
+	copy(sk[:], b)
 	return sk, nil
 }
 
