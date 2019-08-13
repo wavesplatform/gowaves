@@ -513,3 +513,264 @@ func (a *ReissueV2TestSuite) Test_InstanceFieldName() {
 func TestNewVariablesFromReissueV2(t *testing.T) {
 	suite.Run(t, new(ReissueV2TestSuite))
 }
+
+type BurnV1TestSuite struct {
+	suite.Suite
+	tx *proto.BurnV1
+	f  func(scheme proto.Scheme, tx proto.Transaction) (map[string]Expr, error)
+}
+
+func (a *BurnV1TestSuite) SetupTest() {
+	a.tx = byte_helpers.BurnV1.Transaction.Clone()
+	a.f = NewVariablesFromTransaction
+}
+
+func (a *BurnV1TestSuite) Test_quantity() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(NewLong(100000), rs["quantity"])
+}
+
+func (a *BurnV1TestSuite) Test_assetId() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(NewBytes(a.tx.AssetID.Bytes()), rs["assetId"])
+}
+
+func (a *BurnV1TestSuite) Test_id() {
+	rs, err := a.f(proto.MainNetScheme, a.tx)
+	a.NoError(err)
+	a.Equal(NewBytes(a.tx.ID.Bytes()), rs["id"])
+}
+
+func (a *BurnV1TestSuite) Test_fee() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(NewLong(int64(a.tx.Fee)), rs["fee"])
+}
+
+func (a *BurnV1TestSuite) Test_timestamp() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(NewLong(int64(a.tx.Timestamp)), rs["timestamp"])
+}
+
+func (a *BurnV1TestSuite) Test_version() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(NewLong(1), rs["version"])
+}
+
+func (a *BurnV1TestSuite) Test_sender() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	addr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, a.tx.SenderPK)
+	a.NoError(err)
+	a.Equal(NewAddressFromProtoAddress(addr), rs["sender"])
+}
+
+func (a *BurnV1TestSuite) Test_senderPublicKey() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(NewBytes(a.tx.SenderPK.Bytes()), rs["senderPublicKey"])
+}
+
+func (a *BurnV1TestSuite) Test_bodyBytes() {
+	_, pub := crypto.GenerateKeyPair([]byte("test"))
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.IsType(&BytesExpr{}, rs["bodyBytes"])
+	a.True(crypto.Verify(pub, *a.tx.Signature, rs["bodyBytes"].(*BytesExpr).Value))
+}
+
+func (a *BurnV1TestSuite) Test_proofs() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(Exprs{NewBytes(a.tx.Signature.Bytes())}, rs["proofs"])
+}
+
+func (a *BurnV1TestSuite) Test_InstanceFieldName() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(NewString("BurnTransaction"), rs[InstanceFieldName])
+}
+
+//BurnV1
+func TestNewVariablesFromBurnV1(t *testing.T) {
+	suite.Run(t, new(BurnV1TestSuite))
+}
+
+type BurnV2TestSuite struct {
+	suite.Suite
+	tx *proto.BurnV2
+	f  func(scheme proto.Scheme, tx proto.Transaction) (map[string]Expr, error)
+}
+
+func (a *BurnV2TestSuite) SetupTest() {
+	a.tx = byte_helpers.BurnV2.Transaction.Clone()
+	a.f = NewVariablesFromTransaction
+}
+
+func (a *BurnV2TestSuite) Test_quantity() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(NewLong(100000), rs["quantity"])
+}
+
+func (a *BurnV2TestSuite) Test_assetId() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(NewBytes(a.tx.AssetID.Bytes()), rs["assetId"])
+}
+
+func (a *BurnV2TestSuite) Test_id() {
+	rs, err := a.f(proto.MainNetScheme, a.tx)
+	a.NoError(err)
+	a.Equal(NewBytes(a.tx.ID.Bytes()), rs["id"])
+}
+
+func (a *BurnV2TestSuite) Test_fee() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(NewLong(int64(a.tx.Fee)), rs["fee"])
+}
+
+func (a *BurnV2TestSuite) Test_timestamp() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(NewLong(int64(a.tx.Timestamp)), rs["timestamp"])
+}
+
+func (a *BurnV2TestSuite) Test_version() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(NewLong(2), rs["version"])
+}
+
+func (a *BurnV2TestSuite) Test_sender() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	addr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, a.tx.SenderPK)
+	a.NoError(err)
+	a.Equal(NewAddressFromProtoAddress(addr), rs["sender"])
+}
+
+func (a *BurnV2TestSuite) Test_senderPublicKey() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(NewBytes(a.tx.SenderPK.Bytes()), rs["senderPublicKey"])
+}
+
+func (a *BurnV2TestSuite) Test_bodyBytes() {
+	_, pub := crypto.GenerateKeyPair([]byte("test"))
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.IsType(&BytesExpr{}, rs["bodyBytes"])
+	sig, _ := crypto.NewSignatureFromBytes(a.tx.Proofs.Proofs[0])
+	a.True(crypto.Verify(pub, sig, rs["bodyBytes"].(*BytesExpr).Value))
+}
+
+func (a *BurnV2TestSuite) Test_proofs() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(Exprs{NewBytes(a.tx.Proofs.Proofs[0].Bytes())}, rs["proofs"])
+}
+
+func (a *BurnV2TestSuite) Test_InstanceFieldName() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(NewString("BurnTransaction"), rs[InstanceFieldName])
+}
+
+//BurnV2
+func TestNewVariablesFromBurnV2(t *testing.T) {
+	suite.Run(t, new(BurnV2TestSuite))
+}
+
+type MassTransferV1TestSuite struct {
+	suite.Suite
+	tx *proto.MassTransferV1
+	f  func(scheme proto.Scheme, tx proto.Transaction) (map[string]Expr, error)
+}
+
+func (a *MassTransferV1TestSuite) SetupTest() {
+	a.tx = byte_helpers.MassTransferV1.Transaction.Clone()
+	a.f = NewVariablesFromTransaction
+}
+
+func (a *MassTransferV1TestSuite) Test_assetId_presence() {
+	a.tx.Asset = optionalAsset
+	rs, err := a.f(proto.MainNetScheme, a.tx)
+	a.NoError(err)
+	a.Equal(NewBytes(digest.Bytes()), rs["assetId"])
+}
+
+func (a *MassTransferV1TestSuite) Test_assetId_absence() {
+	a.tx.Asset = proto.OptionalAsset{}
+	rs, err := a.f(proto.MainNetScheme, a.tx)
+
+	a.NoError(err)
+	a.Equal(NewUnit(), rs["assetId"])
+}
+
+func (a *MassTransferV1TestSuite) Test_totalAmount() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(NewLong(100000), rs["totalAmount"])
+}
+
+func (a *MassTransferV1TestSuite) Test_transfers() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+
+	m := make(map[string]Expr)
+	m["recipient"] = NewRecipientFromProtoRecipient(a.tx.Transfers[0].Recipient)
+	m["amount"] = NewLong(int64(a.tx.Transfers[0].Amount))
+	obj := NewObject(m)
+	a.Equal(Exprs{obj}, rs["transfers"])
+}
+
+func (a *MassTransferV1TestSuite) Test_transferCount() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(NewLong(1), rs["transferCount"])
+}
+
+func (a *MassTransferV1TestSuite) Test_attachment() {
+	rs, err := a.f(proto.MainNetScheme, a.tx)
+	a.NoError(err)
+	a.Equal(NewBytes(a.tx.Attachment.Bytes()), rs["attachment"])
+}
+
+func (a *MassTransferV1TestSuite) Test_id() {
+	rs, err := a.f(proto.MainNetScheme, a.tx)
+	a.NoError(err)
+	a.Equal(NewBytes(a.tx.ID.Bytes()), rs["id"])
+}
+
+func (a *MassTransferV1TestSuite) Test_fee() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(NewLong(int64(a.tx.Fee)), rs["fee"])
+}
+
+func (a *MassTransferV1TestSuite) Test_timestamp() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(NewLong(int64(a.tx.Timestamp)), rs["timestamp"])
+}
+
+func (a *MassTransferV1TestSuite) Test_version() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(NewLong(1), rs["version"])
+}
+
+func (a *MassTransferV1TestSuite) Test_sender() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	addr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, a.tx.SenderPK)
+	a.NoError(err)
+	a.Equal(NewAddressFromProtoAddress(addr), rs["sender"])
+}
+
+func (a *MassTransferV1TestSuite) Test_senderPublicKey() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(NewBytes(a.tx.SenderPK.Bytes()), rs["senderPublicKey"])
+}
+
+func (a *MassTransferV1TestSuite) Test_bodyBytes() {
+	_, pub := crypto.GenerateKeyPair([]byte("test"))
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.IsType(&BytesExpr{}, rs["bodyBytes"])
+	sig, _ := crypto.NewSignatureFromBytes(a.tx.Proofs.Proofs[0])
+	a.True(crypto.Verify(pub, sig, rs["bodyBytes"].(*BytesExpr).Value))
+}
+
+func (a *MassTransferV1TestSuite) Test_proofs() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(Exprs{NewBytes(a.tx.Proofs.Proofs[0].Bytes())}, rs["proofs"])
+}
+
+func (a *MassTransferV1TestSuite) Test_InstanceFieldName() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(NewString("MassTransferTransaction"), rs[InstanceFieldName])
+}
+
+//MassTransferTransaction
+func TestNewVariablesFromMassTransferV1(t *testing.T) {
+	suite.Run(t, new(MassTransferV1TestSuite))
+}

@@ -50,6 +50,22 @@ type TransferV1Struct struct {
 
 var TransferV1 TransferV1Struct
 
+type BurnV1Struct struct {
+	TransactionBytes []byte
+	Transaction      *proto.BurnV1
+	MessageBytes     []byte
+}
+
+var BurnV1 BurnV1Struct
+
+type BurnV2Struct struct {
+	TransactionBytes []byte
+	Transaction      *proto.BurnV2
+	MessageBytes     []byte
+}
+
+var BurnV2 BurnV2Struct
+
 type TransferV2Struct struct {
 	TransactionBytes []byte
 	Transaction      *proto.TransferV2
@@ -66,6 +82,14 @@ type IssueV1Struct struct {
 
 var IssueV1 IssueV1Struct
 
+type MassTransferV1Struct struct {
+	TransactionBytes []byte
+	Transaction      *proto.MassTransferV1
+	MessageBytes     []byte
+}
+
+var MassTransferV1 MassTransferV1Struct
+
 func init() {
 	initGenesis()
 	initPayment()
@@ -74,6 +98,9 @@ func init() {
 	initIssueV1()
 	initReissueV1()
 	initReissueV2()
+	initBurnV1()
+	initBurnV2()
+	initMassTransferV1()
 }
 
 func initTransferV1() {
@@ -240,6 +267,90 @@ func initReissueV2() {
 	tmb, _ := tm.MarshalBinary()
 
 	ReissueV2 = ReissueV2Struct{
+		TransactionBytes: b,
+		Transaction:      t,
+		MessageBytes:     tmb,
+	}
+}
+
+func initBurnV1() {
+	sk, pk := crypto.GenerateKeyPair([]byte("test"))
+	d, err := crypto.NewDigestFromBase58("9shLH9vfJxRgbhJ1c3dw2gj5fUGRr8asfUpQjj4rZQKQ")
+	if err != nil {
+		panic(err)
+	}
+
+	t := proto.NewUnsignedBurnV1(pk, d, 100000, TIMESTAMP, 10000)
+	_ = t.Sign(sk)
+	b, err := t.MarshalBinary()
+	if err != nil {
+		panic(err)
+	}
+	tm := proto.TransactionMessage{
+		Transaction: b,
+	}
+	tmb, _ := tm.MarshalBinary()
+
+	BurnV1 = BurnV1Struct{
+		TransactionBytes: b,
+		Transaction:      t,
+		MessageBytes:     tmb,
+	}
+}
+
+func initBurnV2() {
+	sk, pk := crypto.GenerateKeyPair([]byte("test"))
+	d, err := crypto.NewDigestFromBase58("9shLH9vfJxRgbhJ1c3dw2gj5fUGRr8asfUpQjj4rZQKQ")
+	if err != nil {
+		panic(err)
+	}
+
+	t := proto.NewUnsignedBurnV2(proto.MainNetScheme, pk, d, 100000, TIMESTAMP, 10000)
+	_ = t.Sign(sk)
+	b, err := t.MarshalBinary()
+	if err != nil {
+		panic(err)
+	}
+	tm := proto.TransactionMessage{
+		Transaction: b,
+	}
+	tmb, _ := tm.MarshalBinary()
+
+	BurnV2 = BurnV2Struct{
+		TransactionBytes: b,
+		Transaction:      t,
+		MessageBytes:     tmb,
+	}
+}
+
+func initMassTransferV1() {
+	sk, pk := crypto.GenerateKeyPair([]byte("test"))
+	d, err := crypto.NewDigestFromBase58("9shLH9vfJxRgbhJ1c3dw2gj5fUGRr8asfUpQjj4rZQKQ")
+	if err != nil {
+		panic(err)
+	}
+
+	addr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, pk)
+	if err != nil {
+		panic(err)
+	}
+
+	entry := proto.MassTransferEntry{
+		Recipient: proto.NewRecipientFromAddress(addr),
+		Amount:    100000,
+	}
+	t := proto.NewUnsignedMassTransferV1(pk, *proto.NewOptionalAssetFromDigest(d), []proto.MassTransferEntry{entry}, 10000, TIMESTAMP, "attachment")
+	_ = t.Sign(sk)
+	b, err := t.MarshalBinary()
+	if err != nil {
+		panic(err)
+	}
+	tm := proto.TransactionMessage{
+		Transaction: b,
+	}
+	tmb, _ := tm.MarshalBinary()
+
+	MassTransferV1 = MassTransferV1Struct{
 		TransactionBytes: b,
 		Transaction:      t,
 		MessageBytes:     tmb,

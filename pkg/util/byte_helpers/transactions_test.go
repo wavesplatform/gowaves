@@ -47,3 +47,21 @@ func TestReissueV2(t *testing.T) {
 	require.NotEmpty(t, ReissueV2.Transaction)
 	require.NotEmpty(t, ReissueV2.MessageBytes)
 }
+
+func TestBurnV1(t *testing.T) {
+	require.NotEmpty(t, BurnV1.TransactionBytes)
+	require.NotEmpty(t, BurnV1.Transaction)
+	require.NotEmpty(t, BurnV1.MessageBytes)
+}
+
+func TestBurnV2(t *testing.T) {
+	require.NotEmpty(t, BurnV2.TransactionBytes)
+	require.NotEmpty(t, BurnV2.Transaction)
+	require.NotEmpty(t, BurnV2.MessageBytes)
+}
+
+func TestMassTransferV1(t *testing.T) {
+	require.NotEmpty(t, MassTransferV1.TransactionBytes)
+	require.NotEmpty(t, MassTransferV1.Transaction)
+	require.NotEmpty(t, MassTransferV1.MessageBytes)
+}

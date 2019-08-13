@@ -1351,7 +1351,7 @@ func TestBurnV1FromMainNet(t *testing.T) {
 		sig, _ := crypto.NewSignatureFromBase58(tc.sig)
 		aid, _ := crypto.NewDigestFromBase58(tc.asset)
 		tx := NewUnsignedBurnV1(spk, aid, tc.amount, tc.timestamp, tc.fee)
-		if b, err := tx.bodyMarshalBinary(); assert.NoError(t, err) {
+		if b, err := tx.BodyMarshalBinary(); assert.NoError(t, err) {
 			if h, err := crypto.FastHash(b); assert.NoError(t, err) {
 				assert.Equal(t, id, h)
 			}
@@ -1466,7 +1466,7 @@ func TestBurnV2FromMainNet(t *testing.T) {
 		sig, _ := crypto.NewSignatureFromBase58(tc.sig)
 		aid, _ := crypto.NewDigestFromBase58(tc.asset)
 		tx := NewUnsignedBurnV2('W', spk, aid, tc.amount, tc.timestamp, tc.fee)
-		if b, err := tx.bodyMarshalBinary(); assert.NoError(t, err) {
+		if b, err := tx.BodyMarshalBinary(); assert.NoError(t, err) {
 			if h, err := crypto.FastHash(b); assert.NoError(t, err) {
 				assert.Equal(t, id, h)
 			}
@@ -1490,7 +1490,7 @@ func TestBurnV2BinaryRoundTrip(t *testing.T) {
 		aid, _ := crypto.NewDigestFromBase58(tc.asset)
 		ts := uint64(time.Now().UnixNano() / 1000000)
 		tx := NewUnsignedBurnV2('T', pk, aid, tc.amount, ts, tc.fee)
-		if bb, err := tx.bodyMarshalBinary(); assert.NoError(t, err) {
+		if bb, err := tx.BodyMarshalBinary(); assert.NoError(t, err) {
 			var atx BurnV2
 			if err := atx.bodyUnmarshalBinary(bb); assert.NoError(t, err) {
 				assert.Equal(t, tx.Type, atx.Type)
@@ -3105,7 +3105,7 @@ func TestMassTransferV1FromMainNet(t *testing.T) {
 			transfers[i] = MassTransferEntry{NewRecipientFromAddress(addr), amount}
 		}
 		tx := NewUnsignedMassTransferV1(spk, *a, transfers, tc.fee, tc.timestamp, tc.attachment)
-		if b, err := tx.bodyMarshalBinary(); assert.NoError(t, err) {
+		if b, err := tx.BodyMarshalBinary(); assert.NoError(t, err) {
 			if h, err := crypto.FastHash(b); assert.NoError(t, err) {
 				assert.Equal(t, id, h)
 			}
@@ -3132,7 +3132,7 @@ func TestMassTransferV1BinaryRoundTrip(t *testing.T) {
 		ts := uint64(time.Now().UnixNano() / 1000000)
 		a, _ := NewOptionalAssetFromString(tc.asset)
 		tx := NewUnsignedMassTransferV1(pk, *a, tc.transfers, tc.fee, ts, tc.attachment)
-		if bb, err := tx.bodyMarshalBinary(); assert.NoError(t, err) {
+		if bb, err := tx.BodyMarshalBinary(); assert.NoError(t, err) {
 			var atx MassTransferV1
 			if err := atx.bodyUnmarshalBinary(bb); assert.NoError(t, err) {
 				assert.Equal(t, tx.Type, atx.Type)

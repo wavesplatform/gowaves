@@ -500,7 +500,7 @@ func (tx BurnV1) GetTypeVersion() TransactionTypeVersion {
 
 func (tx *BurnV1) GenerateID() {
 	if tx.ID == nil {
-		body, err := tx.bodyMarshalBinary()
+		body, err := tx.BodyMarshalBinary()
 		if err != nil {
 			panic(err.Error())
 		}
@@ -517,6 +517,12 @@ func (tx BurnV1) GetID() ([]byte, error) {
 	return tx.ID.Bytes(), nil
 }
 
+func (tx *BurnV1) Clone() *BurnV1 {
+	out := &BurnV1{}
+	_ = copier.Copy(out, tx)
+	return out
+}
+
 //NewUnsignedBurnV1 creates new BurnV1 transaction with no signature and ID.
 func NewUnsignedBurnV1(senderPK crypto.PublicKey, assetID crypto.Digest, amount, timestamp, fee uint64) *BurnV1 {
 	b := Burn{
@@ -529,7 +535,7 @@ func NewUnsignedBurnV1(senderPK crypto.PublicKey, assetID crypto.Digest, amount,
 	return &BurnV1{Type: BurnTransaction, Version: 1, Burn: b}
 }
 
-func (tx *BurnV1) bodyMarshalBinary() ([]byte, error) {
+func (tx *BurnV1) BodyMarshalBinary() ([]byte, error) {
 	buf := make([]byte, burnV1BodyLen)
 	buf[0] = byte(tx.Type)
 	b, err := tx.Burn.marshalBinary()
@@ -560,7 +566,7 @@ func (tx *BurnV1) bodyUnmarshalBinary(data []byte) error {
 
 //Sign calculates and sets signature and ID of the transaction.
 func (tx *BurnV1) Sign(secretKey crypto.SecretKey) error {
-	b, err := tx.bodyMarshalBinary()
+	b, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return errors.Wrap(err, "failed to sign BurnV1 transaction")
 	}
@@ -579,7 +585,7 @@ func (tx *BurnV1) Verify(publicKey crypto.PublicKey) (bool, error) {
 	if tx.Signature == nil {
 		return false, errors.New("empty signature")
 	}
-	b, err := tx.bodyMarshalBinary()
+	b, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return false, errors.Wrap(err, "failed to verify signature of BurnV1 transaction")
 	}
@@ -588,7 +594,7 @@ func (tx *BurnV1) Verify(publicKey crypto.PublicKey) (bool, error) {
 
 //MarshalBinary saves transaction to
 func (tx *BurnV1) MarshalBinary() ([]byte, error) {
-	b, err := tx.bodyMarshalBinary()
+	b, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal BurnV1 transaction to bytes")
 	}
@@ -1406,9 +1412,15 @@ func (tx MassTransferV1) GetTypeVersion() TransactionTypeVersion {
 	return TransactionTypeVersion{tx.Type, tx.Version}
 }
 
+func (tx *MassTransferV1) Clone() *MassTransferV1 {
+	out := &MassTransferV1{}
+	_ = copier.Copy(out, tx)
+	return out
+}
+
 func (tx *MassTransferV1) GenerateID() {
 	if tx.ID == nil {
-		body, err := tx.bodyMarshalBinary()
+		body, err := tx.BodyMarshalBinary()
 		if err != nil {
 			panic(err.Error())
 		}
@@ -1478,7 +1490,7 @@ func (tx *MassTransferV1) bodyAndAssetLen() (int, int) {
 	return massTransferV1FixedLen + l + n*massTransferEntryLen + rls + al, l
 }
 
-func (tx *MassTransferV1) bodyMarshalBinary() ([]byte, error) {
+func (tx *MassTransferV1) BodyMarshalBinary() ([]byte, error) {
 	var p int
 	n := len(tx.Transfers)
 	bl, al := tx.bodyAndAssetLen()
@@ -1563,7 +1575,7 @@ func (tx *MassTransferV1) bodyUnmarshalBinary(data []byte) error {
 
 //Sign calculates signature and ID of the transaction.
 func (tx *MassTransferV1) Sign(secretKey crypto.SecretKey) error {
-	b, err := tx.bodyMarshalBinary()
+	b, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return errors.Wrap(err, "failed to sign MassTransferV1 transaction")
 	}
@@ -1584,7 +1596,7 @@ func (tx *MassTransferV1) Sign(secretKey crypto.SecretKey) error {
 
 //Verify checks that the signature is valid for the given public key.
 func (tx *MassTransferV1) Verify(publicKey crypto.PublicKey) (bool, error) {
-	b, err := tx.bodyMarshalBinary()
+	b, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return false, errors.Wrap(err, "failed to verify signature of MassTransferV1 transaction")
 	}
@@ -1593,7 +1605,7 @@ func (tx *MassTransferV1) Verify(publicKey crypto.PublicKey) (bool, error) {
 
 //MarshalBinary saves the transaction to its binary representation.
 func (tx *MassTransferV1) MarshalBinary() ([]byte, error) {
-	bb, err := tx.bodyMarshalBinary()
+	bb, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal MassTransferV1 transaction to bytes")
 	}
