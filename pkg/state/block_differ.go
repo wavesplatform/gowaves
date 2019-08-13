@@ -78,8 +78,10 @@ func (d *blockDiffer) txDiffFromFees(addr proto.Address, distr *feeDistribution)
 	diff := newTxDiff()
 	wavesKey := wavesBalanceKey{addr}
 	wavesDiff := distr.totalWavesFees - distr.currentWavesBlockFees
-	if err := diff.appendBalanceDiff(wavesKey.bytes(), balanceDiff{balance: int64(wavesDiff)}); err != nil {
-		return txDiff{}, err
+	if wavesDiff != 0 {
+		if err := diff.appendBalanceDiff(wavesKey.bytes(), balanceDiff{balance: int64(wavesDiff)}); err != nil {
+			return txDiff{}, err
+		}
 	}
 	for asset, totalFee := range distr.totalFees {
 		curFee, ok := distr.currentBlockFees[asset]

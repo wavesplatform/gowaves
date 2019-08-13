@@ -36,6 +36,8 @@ const (
 	assetStr  = "B2u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ"
 	assetStr1 = "3gRJoK6f7XUV7fx5jUzHoPwdb9ZdTFjtTPy2HgDinr1N"
 
+	defaultGenSig = "B2u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ"
+
 	genesisSignature = "FSH8eAAzZNqnG8xgTZtz5xuLqXySsXgAjmFEC25hXMbEufiGjqWPnGCZFt6gLiVLJny16ipxRNAkkzjjhqTjBE2"
 )
 
@@ -50,6 +52,22 @@ type testAddrData struct {
 	wavesKey  string
 	assetKey  string
 	assetKey1 string
+}
+
+func assetKeyFromPk(pk crypto.PublicKey, assetID []byte) (string, error) {
+	addr, err := proto.NewAddressFromPublicKey('W', pk)
+	if err != nil {
+		return "", err
+	}
+	return string((&assetBalanceKey{addr, assetID}).bytes()), nil
+}
+
+func wavesKeyFromPk(pk crypto.PublicKey) (string, error) {
+	addr, err := proto.NewAddressFromPublicKey('W', pk)
+	if err != nil {
+		return "", err
+	}
+	return string((&wavesBalanceKey{addr}).bytes()), nil
 }
 
 func newTestAddrData(pkStr, addrStr string, asset, asset1 []byte) (*testAddrData, error) {

@@ -87,7 +87,12 @@ func TestCreateDiffPayment(t *testing.T) {
 }
 
 func createTransferV1(t *testing.T) *proto.TransferV1 {
-	return proto.NewUnsignedTransferV1(testGlobal.senderInfo.pk, *(testGlobal.asset0.asset), *(testGlobal.asset0.asset), defaultTimestamp, defaultAmount, defaultFee, proto.NewRecipientFromAddress(testGlobal.recipientInfo.addr), "attachment")
+	tx := proto.NewUnsignedTransferV1(testGlobal.senderInfo.pk, *(testGlobal.asset0.asset), *(testGlobal.asset0.asset), defaultTimestamp, defaultAmount, defaultFee, proto.NewRecipientFromAddress(testGlobal.recipientInfo.addr), "attachment")
+	seed, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
+	sk, _ := crypto.GenerateKeyPair(seed)
+	err := tx.Sign(sk)
+	assert.NoError(t, err, "Sign() failed")
+	return tx
 }
 
 func TestCreateDiffTransferV1(t *testing.T) {
@@ -113,7 +118,12 @@ func TestCreateDiffTransferV1(t *testing.T) {
 }
 
 func createTransferV2(t *testing.T) *proto.TransferV2 {
-	return proto.NewUnsignedTransferV2(testGlobal.senderInfo.pk, *(testGlobal.asset0.asset), *(testGlobal.asset0.asset), defaultTimestamp, defaultAmount, defaultFee, proto.NewRecipientFromAddress(testGlobal.recipientInfo.addr), "attachment")
+	tx := proto.NewUnsignedTransferV2(testGlobal.senderInfo.pk, *(testGlobal.asset0.asset), *(testGlobal.asset0.asset), defaultTimestamp, defaultAmount, defaultFee, proto.NewRecipientFromAddress(testGlobal.recipientInfo.addr), "attachment")
+	seed, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
+	sk, _ := crypto.GenerateKeyPair(seed)
+	err := tx.Sign(sk)
+	assert.NoError(t, err, "Sign() failed")
+	return tx
 }
 
 func TestCreateDiffTransferV2(t *testing.T) {
