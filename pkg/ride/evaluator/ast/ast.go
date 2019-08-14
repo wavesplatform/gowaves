@@ -3,10 +3,11 @@ package ast
 import (
 	"bytes"
 	"fmt"
+	"io"
+
 	"github.com/mr-tron/base58/base58"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"io"
 )
 
 const InstanceFieldName = "$instance"

@@ -1,10 +1,11 @@
 package ast
 
 import (
+	"testing"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride/mockstate"
-	"testing"
 )
 
 func newEmptyScope() Scope {

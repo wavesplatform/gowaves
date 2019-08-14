@@ -5,14 +5,15 @@ import (
 	"encoding/base64"
 	"encoding/binary"
 	"fmt"
+	"io"
+	"math/big"
+	"unicode/utf8"
+
 	"github.com/mr-tron/base58/base58"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride/mockstate"
-	"io"
-	"math/big"
-	"unicode/utf8"
 )
 
 const MaxBytesResult = 65536
@@ -157,7 +158,7 @@ func NativeMulLong(s Scope, e Exprs) (Expr, error) {
 	}, s, e)
 }
 
-// Integer devision
+// Integer division
 func NativeDivLong(s Scope, e Exprs) (Expr, error) {
 	return mathLong("NativeDivLong", func(i int64, i2 int64) (Expr, error) {
 		if i2 == 0 {
@@ -177,7 +178,7 @@ func NativeModLong(s Scope, e Exprs) (Expr, error) {
 	}, s, e)
 }
 
-// Multiply and dividion with big integer intermediate representation
+// Multiply and division with big integer intermediate representation
 func NativeFractionLong(s Scope, e Exprs) (Expr, error) {
 	funcName := "NativeFractionLong"
 
