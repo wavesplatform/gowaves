@@ -33,20 +33,12 @@ func newTransactionChecker(
 }
 
 func (tc *transactionChecker) checkFee(tx proto.Transaction, feeAsset proto.OptionalAsset, info *checkerInfo) error {
-	sponsorshipActivated, err := tc.stor.features.isActivated(int16(settings.FeeSponsorship))
+	sponsorshipActivated, err := tc.stor.sponsoredAssets.isSponsorshipActivated()
 	if err != nil {
 		return err
 	}
 	if !sponsorshipActivated {
 		// Sponsorship is not yet activated.
-		return nil
-	}
-	sponsorshipSwitchHeight, err := tc.stor.sponsoredAssets.sponsoredFeesSwitchHeight()
-	if err != nil {
-		return err
-	}
-	if info.height < sponsorshipSwitchHeight {
-		// Sponsorship is not yet active.
 		return nil
 	}
 	if !feeAsset.Present {

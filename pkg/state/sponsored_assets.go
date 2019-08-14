@@ -36,14 +36,21 @@ func (s *sponsorshipRecord) unmarshalBinary(data []byte) error {
 }
 
 type sponsoredAssets struct {
+	rw       *blockReadWriter
 	features *features
 	stateDB  *stateDB
 	hs       *historyStorage
 	settings *settings.BlockchainSettings
 }
 
-func newSponsoredAssets(features *features, stateDB *stateDB, hs *historyStorage, settings *settings.BlockchainSettings) (*sponsoredAssets, error) {
-	return &sponsoredAssets{features, stateDB, hs, settings}, nil
+func newSponsoredAssets(
+	rw *blockReadWriter,
+	features *features,
+	stateDB *stateDB,
+	hs *historyStorage,
+	settings *settings.BlockchainSettings,
+) (*sponsoredAssets, error) {
+	return &sponsoredAssets{rw, features, stateDB, hs, settings}, nil
 }
 
 func (s *sponsoredAssets) sponsorAsset(assetID crypto.Digest, assetCost uint64, blockID crypto.Signature) error {
@@ -167,10 +174,21 @@ func (s *sponsoredAssets) wavesToSponsoredAsset(assetID crypto.Digest, wavesAmou
 	return assetAmount.Uint64(), nil
 }
 
-func (s *sponsoredAssets) sponsoredFeesSwitchHeight() (uint64, error) {
+func (s *sponsoredAssets) isSponsorshipActivated() (bool, error) {
+	featureActivated, err := s.features.isActivated(int16(settings.FeeSponsorship))
+	if err != nil {
+		return false, err
+	}
+	if !featureActivated {
+		// Not activated at all.
+		return false, nil
+	}
 	height, err := s.features.activationHeight(int16(settings.FeeSponsorship))
 	if err != nil {
-		return 0, err
+		return false, err
 	}
-	return height + s.settings.ActivationWindowSize(height), nil
+	// Sponsorship has double activation period.
+	curHeight := s.rw.recentHeight()
+	sponsorshipTrueActivationHeight := height + s.settings.ActivationWindowSize(height)
+	return curHeight >= sponsorshipTrueActivationHeight, nil
 }

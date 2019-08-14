@@ -23,7 +23,7 @@ func createSponsoredAssets() (*sponsoredAssetsTestObjects, []string, error) {
 	if err != nil {
 		return nil, path, err
 	}
-	sponsoredAssets, err := newSponsoredAssets(features, stor.stateDB, stor.hs, settings.MainNetSettings)
+	sponsoredAssets, err := newSponsoredAssets(stor.rw, features, stor.stateDB, stor.hs, settings.MainNetSettings)
 	if err != nil {
 		return nil, path, err
 	}
@@ -129,7 +129,7 @@ func TestWavesToSponsoredAsset(t *testing.T) {
 	assert.Equal(t, assetAmount, properAssetAmount)
 }
 
-func TestSponsoredFeesSwitchHeight(t *testing.T) {
+func TestIsSponsorshipActivated(t *testing.T) {
 	to, path, err := createSponsoredAssets()
 	assert.NoError(t, err, "createSponsoredAssets() failed")
 
@@ -140,11 +140,27 @@ func TestSponsoredFeesSwitchHeight(t *testing.T) {
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
+	// False before activation.
+	isSponsorshipActivated, err := to.sponsoredAssets.isSponsorshipActivated()
+	assert.NoError(t, err, "isSponsorshipActivated() failed")
+	assert.Equal(t, false, isSponsorshipActivated)
+
+	// False after activation.
 	activateFeature(t, to.features, to.stor, int16(settings.FeeSponsorship))
-	switchHeight, err := to.sponsoredAssets.sponsoredFeesSwitchHeight()
-	assert.NoError(t, err, "sponsoredFeesSwitchHeight() failed")
-	activationHeight, err := to.features.activationHeight(int16(settings.FeeSponsorship))
-	assert.NoError(t, err, "activationHeight() failed")
-	properSwitchHeight := activationHeight + to.sponsoredAssets.settings.ActivationWindowSize(activationHeight)
-	assert.Equal(t, switchHeight, properSwitchHeight)
+	isSponsorshipActivated, err = to.sponsoredAssets.isSponsorshipActivated()
+	assert.NoError(t, err, "isSponsorshipActivated() failed")
+	assert.Equal(t, false, isSponsorshipActivated)
+
+	// True after windowSize blocks after activation.
+	windowSize := settings.MainNetSettings.ActivationWindowSize(1)
+	ids := genRandBlockIds(t, int(windowSize))
+	for _, id := range ids {
+		err = to.sponsoredAssets.rw.startBlock(id)
+		assert.NoError(t, err, "startBlock() failed")
+		err = to.sponsoredAssets.rw.finishBlock(id)
+		assert.NoError(t, err, "finishBlock() failed")
+	}
+	isSponsorshipActivated, err = to.sponsoredAssets.isSponsorshipActivated()
+	assert.NoError(t, err, "isSponsorshipActivated() failed")
+	assert.Equal(t, true, isSponsorshipActivated)
 }

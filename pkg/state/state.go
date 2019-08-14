@@ -81,7 +81,7 @@ func newBlockchainEntitiesStorage(hs *historyStorage, stateDB *stateDB, sets *se
 	if err != nil {
 		return nil, err
 	}
-	sponsoredAssets, err := newSponsoredAssets(features, stateDB, hs, sets)
+	sponsoredAssets, err := newSponsoredAssets(hs.rw, features, stateDB, hs, sets)
 	if err != nil {
 		return nil, err
 	}

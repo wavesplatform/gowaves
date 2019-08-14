@@ -124,11 +124,7 @@ func (d *blockDiffer) createTransactionsDiffs(transactions []proto.Transaction, 
 		}
 		diffs[i] = diff
 		d.appendBlockInfoToTxDiff(diffs[i], block)
-		ngActivated, err := d.stor.features.isActivated(int16(settings.NG))
-		if err != nil {
-			return nil, err
-		}
-		if err := d.handler.minerFeeTx(tx, &d.curDistr, ngActivated); err != nil {
+		if err := d.handler.minerFeeTx(tx, &d.curDistr); err != nil {
 			return nil, err
 		}
 	}
