@@ -96,6 +96,8 @@ func TestCreateBlockDiffNg(t *testing.T) {
 	_, err = to.blockDiffer.createBlockDiff(txs, &parent.BlockHeader, true, false)
 	assert.NoError(t, err, "createBlockDiff() failed")
 	parentFeeTotal := int64(txs[0].GetFee())
+	parentFeePrevBlock := parentFeeTotal / 5 * 2
+	parentFeeNextBlock := parentFeeTotal - parentFeePrevBlock
 
 	// Create diff from child block.
 	txs, err = child.Transactions.Transactions()
@@ -105,10 +107,57 @@ func TestCreateBlockDiffNg(t *testing.T) {
 	// Verify child block miner's diff.
 	minerAssetKey, err := assetKeyFromPk(child.GenPublicKey, testGlobal.asset0.assetID)
 	assert.NoError(t, err, "assetKeyFromPk() failed")
-	correctMinerAssetBalanceDiff := newBalanceDiff(parentFeeTotal/5*3, 0, 0, false)
+	correctMinerAssetBalanceDiff := newBalanceDiff(parentFeeNextBlock, 0, 0, false)
 	correctMinerAssetBalanceDiff.blockID = child.BlockSignature
 	correctMinerDiff := txDiff{
 		minerAssetKey: correctMinerAssetBalanceDiff,
+	}
+	assert.Equal(t, correctMinerDiff, diff.minerDiff)
+}
+
+func TestCreateBlockDiffSponsorship(t *testing.T) {
+	to, path := createBlockDiffer(t)
+
+	defer func() {
+		err := util.CleanTemporaryDirs(path)
+		assert.NoError(t, err, "failed to clean test data dirs")
+	}()
+
+	parent, child := genBlocks(t, to)
+	// Create asset.
+	createAsset(t, to.entities.assets, to.stor, testGlobal.asset0.asset.ID)
+
+	// Activate NG and FeeSponsorship first of all.
+	activateFeature(t, to.entities.features, to.stor, int16(settings.NG))
+	activateSponsorship(t, to.entities.features, to.stor)
+
+	// Sponsor asset.
+	assetCost := uint64(100500)
+	to.stor.addBlock(t, blockID0)
+	err := to.entities.sponsoredAssets.sponsorAsset(testGlobal.asset0.asset.ID, assetCost, blockID0)
+	assert.NoError(t, err, "sponsorAsset() failed")
+
+	// Create diff from parent block.
+	txs, err := parent.Transactions.Transactions()
+	assert.NoError(t, err, "Transactions() failed")
+	_, err = to.blockDiffer.createBlockDiff(txs, &parent.BlockHeader, true, false)
+	assert.NoError(t, err, "createBlockDiff() failed")
+	parentFeeTotal := int64(txs[0].GetFee() * FeeUnit / assetCost)
+	parentFeePrevBlock := parentFeeTotal / 5 * 2
+	parentFeeNextBlock := parentFeeTotal - parentFeePrevBlock
+
+	// Create diff from child block.
+	txs, err = child.Transactions.Transactions()
+	assert.NoError(t, err, "Transactions() failed")
+	diff, err := to.blockDiffer.createBlockDiff(txs, &child.BlockHeader, true, true)
+	assert.NoError(t, err, "createBlockDiff() failed")
+	// Verify child block miner's diff.
+	minerWavesKey, err := wavesKeyFromPk(child.GenPublicKey)
+	assert.NoError(t, err, "wavesKeyFromPk() failed")
+	correctMinerWavesBalanceDiff := newBalanceDiff(parentFeeNextBlock, 0, 0, false)
+	correctMinerWavesBalanceDiff.blockID = child.BlockSignature
+	correctMinerDiff := txDiff{
+		minerWavesKey: correctMinerWavesBalanceDiff,
 	}
 	assert.Equal(t, correctMinerDiff, diff.minerDiff)
 }

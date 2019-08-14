@@ -12,6 +12,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/settings"
 )
 
 const (
@@ -183,6 +184,14 @@ func (s *storageObjects) addBlock(t *testing.T, blockID crypto.Signature) {
 	assert.NoError(t, err, "finishBlock() failed")
 }
 
+func (s *storageObjects) addBlocks(t *testing.T, blocksNum int) {
+	ids := genRandBlockIds(t, blocksNum)
+	for _, id := range ids {
+		s.addBlock(t, id)
+	}
+	s.flush(t)
+}
+
 func createStorageObjects() (*storageObjects, []string, error) {
 	res := make([]string, 2)
 	dbDir0, err := ioutil.TempDir(os.TempDir(), "dbDir0")
@@ -281,4 +290,10 @@ func activateFeature(t *testing.T, features *features, stor *storageObjects, fea
 	err = features.activateFeature(featureID, activationReq)
 	assert.NoError(t, err, "activateFeature() failed")
 	stor.flush(t)
+}
+
+func activateSponsorship(t *testing.T, features *features, stor *storageObjects) {
+	activateFeature(t, features, stor, int16(settings.FeeSponsorship))
+	windowSize := settings.MainNetSettings.ActivationWindowSize(1)
+	stor.addBlocks(t, int(windowSize))
 }

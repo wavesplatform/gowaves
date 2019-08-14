@@ -152,14 +152,7 @@ func TestIsSponsorshipActivated(t *testing.T) {
 	assert.Equal(t, false, isSponsorshipActivated)
 
 	// True after windowSize blocks after activation.
-	windowSize := settings.MainNetSettings.ActivationWindowSize(1)
-	ids := genRandBlockIds(t, int(windowSize))
-	for _, id := range ids {
-		err = to.sponsoredAssets.rw.startBlock(id)
-		assert.NoError(t, err, "startBlock() failed")
-		err = to.sponsoredAssets.rw.finishBlock(id)
-		assert.NoError(t, err, "finishBlock() failed")
-	}
+	activateSponsorship(t, to.features, to.stor)
 	isSponsorshipActivated, err = to.sponsoredAssets.isSponsorshipActivated()
 	assert.NoError(t, err, "isSponsorshipActivated() failed")
 	assert.Equal(t, true, isSponsorshipActivated)
