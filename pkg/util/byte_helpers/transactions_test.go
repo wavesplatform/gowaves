@@ -65,3 +65,15 @@ func TestMassTransferV1(t *testing.T) {
 	require.NotEmpty(t, MassTransferV1.Transaction)
 	require.NotEmpty(t, MassTransferV1.MessageBytes)
 }
+
+func TestExchangeV1(t *testing.T) {
+	require.NotEmpty(t, ExchangeV1.TransactionBytes)
+	require.NotEmpty(t, ExchangeV1.Transaction)
+	require.NotEmpty(t, ExchangeV1.MessageBytes)
+}
+
+func TestExchangeV2(t *testing.T) {
+	require.NotEmpty(t, ExchangeV2.TransactionBytes)
+	require.NotEmpty(t, ExchangeV2.Transaction)
+	require.NotEmpty(t, ExchangeV2.MessageBytes)
+}

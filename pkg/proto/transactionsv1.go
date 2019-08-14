@@ -647,7 +647,7 @@ func (tx ExchangeV1) GetTypeVersion() TransactionTypeVersion {
 
 func (tx *ExchangeV1) GenerateID() {
 	if tx.ID == nil {
-		body, err := tx.bodyMarshalBinary()
+		body, err := tx.BodyMarshalBinary()
 		if err != nil {
 			panic(err.Error())
 		}
@@ -662,6 +662,12 @@ func (tx ExchangeV1) GetID() ([]byte, error) {
 		return nil, errors.New("tx ID is not set\n")
 	}
 	return tx.ID.Bytes(), nil
+}
+
+func (tx *ExchangeV1) Clone() *ExchangeV1 {
+	out := &ExchangeV1{}
+	_ = copier.Copy(out, tx)
+	return out
 }
 
 func (tx ExchangeV1) GetSenderPK() crypto.PublicKey {
@@ -784,7 +790,7 @@ func (tx ExchangeV1) Valid() (bool, error) {
 	return true, nil
 }
 
-func (tx *ExchangeV1) bodyMarshalBinary() ([]byte, error) {
+func (tx *ExchangeV1) BodyMarshalBinary() ([]byte, error) {
 	bob, err := tx.BuyOrder.MarshalBinary()
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to marshal ExchangeV1 body to bytes")
@@ -868,7 +874,7 @@ func (tx *ExchangeV1) bodyUnmarshalBinary(data []byte) (int, error) {
 
 //Sing calculates ID and Signature of the transaction.
 func (tx *ExchangeV1) Sign(secretKey crypto.SecretKey) error {
-	b, err := tx.bodyMarshalBinary()
+	b, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return errors.Wrap(err, "failed to sign ExchangeV1 transaction")
 	}
@@ -887,7 +893,7 @@ func (tx *ExchangeV1) Verify(publicKey crypto.PublicKey) (bool, error) {
 	if tx.Signature == nil {
 		return false, errors.New("empty signature")
 	}
-	b, err := tx.bodyMarshalBinary()
+	b, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return false, errors.Wrap(err, "failed to verify signature of ExchangeV1 transaction")
 	}
@@ -896,7 +902,7 @@ func (tx *ExchangeV1) Verify(publicKey crypto.PublicKey) (bool, error) {
 
 //MarshalBinary saves the transaction to its binary representation.
 func (tx *ExchangeV1) MarshalBinary() ([]byte, error) {
-	b, err := tx.bodyMarshalBinary()
+	b, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal ExchangeV1 transaction to bytes")
 	}

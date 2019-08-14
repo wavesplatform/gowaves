@@ -774,3 +774,249 @@ func (a *MassTransferV1TestSuite) Test_InstanceFieldName() {
 func TestNewVariablesFromMassTransferV1(t *testing.T) {
 	suite.Run(t, new(MassTransferV1TestSuite))
 }
+
+type ExchangeV1TestSuite struct {
+	suite.Suite
+	tx *proto.ExchangeV1
+	f  func(scheme proto.Scheme, tx proto.Transaction) (map[string]Expr, error)
+}
+
+func (a *ExchangeV1TestSuite) SetupTest() {
+	a.tx = byte_helpers.ExchangeV1.Transaction.Clone()
+	a.f = NewVariablesFromTransaction
+}
+
+func (a *ExchangeV1TestSuite) Test_buyOrder() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(NewLong(100000), rs["buyOrder"])
+}
+
+func (a *ExchangeV1TestSuite) Test_sellOrder() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(NewLong(100000), rs["sellOrder"])
+}
+
+func (a *ExchangeV1TestSuite) Test_price() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(NewLong(100000), rs["price"])
+}
+
+func (a *ExchangeV1TestSuite) Test_amount() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(NewLong(100000), rs["amount"])
+}
+
+func (a *ExchangeV1TestSuite) Test_buyMatcherFee() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(NewLong(10000), rs["buyMatcherFee"])
+}
+
+func (a *ExchangeV1TestSuite) Test_sellMatcherFee() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(NewLong(10000), rs["sellMatcherFee"])
+}
+
+func (a *ExchangeV1TestSuite) Test_id() {
+	rs, err := a.f(proto.MainNetScheme, a.tx)
+	a.NoError(err)
+	a.Equal(NewBytes(a.tx.ID.Bytes()), rs["id"])
+}
+
+func (a *ExchangeV1TestSuite) Test_fee() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(NewLong(int64(a.tx.Fee)), rs["fee"])
+}
+
+func (a *ExchangeV1TestSuite) Test_timestamp() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(NewLong(int64(a.tx.Timestamp)), rs["timestamp"])
+}
+
+func (a *ExchangeV1TestSuite) Test_version() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(NewLong(1), rs["version"])
+}
+
+func (a *ExchangeV1TestSuite) Test_sender() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	addr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, a.tx.SenderPK)
+	a.NoError(err)
+	a.Equal(NewAddressFromProtoAddress(addr), rs["sender"])
+}
+func (a *ExchangeV1TestSuite) Test_senderPublicKey() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(NewBytes(a.tx.SenderPK.Bytes()), rs["senderPublicKey"])
+}
+
+func (a *ExchangeV1TestSuite) Test_bodyBytes() {
+	_, pub := crypto.GenerateKeyPair([]byte("test"))
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.IsType(&BytesExpr{}, rs["bodyBytes"])
+	a.True(crypto.Verify(pub, *a.tx.Signature, rs["bodyBytes"].(*BytesExpr).Value))
+}
+
+func (a *ExchangeV1TestSuite) Test_proofs() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(Exprs{NewBytes(a.tx.Signature.Bytes())}, rs["proofs"])
+}
+
+func (a *ExchangeV1TestSuite) Test_InstanceFieldName() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(NewString("ExchangeTransaction"), rs[InstanceFieldName])
+}
+
+//ExchangeV1
+func TestNewVariablesFromExchangeV1(t *testing.T) {
+	suite.Run(t, new(ExchangeV1TestSuite))
+}
+
+type ExchangeV2TestSuite struct {
+	suite.Suite
+	tx *proto.ExchangeV2
+	f  func(scheme proto.Scheme, tx proto.Transaction) (map[string]Expr, error)
+}
+
+func (a *ExchangeV2TestSuite) SetupTest() {
+	a.tx = byte_helpers.ExchangeV2.Transaction.Clone()
+	a.f = NewVariablesFromTransaction
+}
+
+func (a *ExchangeV2TestSuite) Test_price() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(NewLong(100000), rs["price"])
+}
+
+func (a *ExchangeV2TestSuite) Test_buyOrder() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(NewLong(100000), rs["buyOrder"])
+}
+
+func (a *ExchangeV2TestSuite) Test_sellOrder() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(NewLong(100000), rs["sellOrder"])
+}
+
+func (a *ExchangeV2TestSuite) Test_amount() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(NewLong(100000), rs["amount"])
+}
+
+func (a *ExchangeV2TestSuite) Test_buyMatcherFee() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(NewLong(10000), rs["buyMatcherFee"])
+}
+
+func (a *ExchangeV2TestSuite) Test_sellMatcherFee() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(NewLong(10000), rs["sellMatcherFee"])
+}
+
+func (a *ExchangeV2TestSuite) Test_id() {
+	rs, err := a.f(proto.MainNetScheme, a.tx)
+	a.NoError(err)
+	a.Equal(NewBytes(a.tx.ID.Bytes()), rs["id"])
+}
+
+func (a *ExchangeV2TestSuite) Test_fee() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(NewLong(int64(a.tx.Fee)), rs["fee"])
+}
+
+func (a *ExchangeV2TestSuite) Test_timestamp() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(NewLong(int64(a.tx.Timestamp)), rs["timestamp"])
+}
+
+func (a *ExchangeV2TestSuite) Test_version() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(NewLong(2), rs["version"])
+}
+
+func (a *ExchangeV2TestSuite) Test_sender() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	addr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, a.tx.SenderPK)
+	a.NoError(err)
+	a.Equal(NewAddressFromProtoAddress(addr), rs["sender"])
+}
+func (a *ExchangeV2TestSuite) Test_senderPublicKey() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(NewBytes(a.tx.SenderPK.Bytes()), rs["senderPublicKey"])
+}
+
+func (a *ExchangeV2TestSuite) Test_bodyBytes() {
+	_, pub := crypto.GenerateKeyPair([]byte("test"))
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.IsType(&BytesExpr{}, rs["bodyBytes"])
+	sig, _ := crypto.NewSignatureFromBytes(a.tx.Proofs.Proofs[0])
+	a.True(crypto.Verify(pub, sig, rs["bodyBytes"].(*BytesExpr).Value))
+}
+
+func (a *ExchangeV2TestSuite) Test_proofs() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(Exprs{NewBytes(a.tx.Proofs.Proofs[0].Bytes())}, rs["proofs"])
+}
+
+func (a *ExchangeV2TestSuite) Test_InstanceFieldName() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(NewString("ExchangeTransaction"), rs[InstanceFieldName])
+}
+
+//ExchangeV2
+func TestNewVariablesFromExchangeV2(t *testing.T) {
+	suite.Run(t, new(ExchangeV2TestSuite))
+}
+
+type OrderTestSuite struct {
+	suite.Suite
+	tx proto.Order
+	f  func(scheme proto.Scheme, tx proto.Order) (map[string]Expr, error)
+	d  crypto.Digest
+}
+
+func (a *OrderTestSuite) SetupTest() {
+	sk, pk := crypto.GenerateKeyPair([]byte("test"))
+	a.d, _ = crypto.NewDigestFromBase58("9shLH9vfJxRgbhJ1c3dw2gj5fUGRr8asfUpQjj4rZQKQ")
+
+	_, matcherPk := crypto.GenerateKeyPair([]byte("test1"))
+
+	sellOrder := proto.NewUnsignedOrderV1(
+		pk,
+		matcherPk,
+		*proto.NewOptionalAssetFromDigest(a.d),
+		*proto.NewOptionalAssetFromDigest(a.d),
+		proto.Sell,
+		100000,
+		10000,
+		proto.Timestamp(1544715621),
+		proto.Timestamp(1544715621),
+		10000)
+
+	a.NoError(sellOrder.Sign(sk))
+
+	a.tx = sellOrder
+	a.f = newVariablesFromOrder
+}
+
+func (a *OrderTestSuite) Test_id() {
+	rs, err := a.f(proto.MainNetScheme, a.tx)
+	a.NoError(err)
+	id, err := a.tx.GetID()
+	a.NoError(err)
+	a.Equal(NewBytes(id), rs["id"])
+}
+
+func (a *OrderTestSuite) Test_matcherPublicKey() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	tmp := a.tx.GetMatcherPK()
+	a.Equal(NewBytes(tmp.Bytes()), rs["matcherPublicKey"])
+}
+
+func (a *OrderTestSuite) Test_assetPair() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(NewAssetPair(NewBytes(a.d.Bytes()), NewBytes(a.d.Bytes())), rs["assetPair"])
+}
+
+//Order
+func TestNewVariablesFromOrderV1(t *testing.T) {
+	suite.Run(t, new(OrderTestSuite))
+}

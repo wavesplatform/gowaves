@@ -830,7 +830,7 @@ func (tx ExchangeV2) GetTypeVersion() TransactionTypeVersion {
 
 func (tx *ExchangeV2) GenerateID() {
 	if tx.ID == nil {
-		body, err := tx.bodyMarshalBinary()
+		body, err := tx.BodyMarshalBinary()
 		if err != nil {
 			panic(err.Error())
 		}
@@ -845,6 +845,12 @@ func (tx ExchangeV2) GetID() ([]byte, error) {
 		return nil, errors.New("tx ID is not set\n")
 	}
 	return tx.ID.Bytes(), nil
+}
+
+func (tx *ExchangeV2) Clone() *ExchangeV2 {
+	out := &ExchangeV2{}
+	_ = copier.Copy(out, tx)
+	return out
 }
 
 func (tx ExchangeV2) GetSenderPK() crypto.PublicKey {
@@ -970,7 +976,7 @@ func (tx ExchangeV2) Valid() (bool, error) {
 func (tx *ExchangeV2) marshalAsOrderV1(order Order) ([]byte, error) {
 	o, ok := order.(*OrderV1)
 	if !ok {
-		return nil, errors.New("failed to cast an order with version 1 to OrderV1")
+		return nil, errors.Errorf("failed to cast an order with version 1 to OrderV1, type %T", order)
 	}
 	b, err := o.MarshalBinary()
 	if err != nil {
@@ -1016,7 +1022,7 @@ func (tx *ExchangeV2) marshalAsOrderV3(order Order) ([]byte, error) {
 	return buf, nil
 }
 
-func (tx *ExchangeV2) bodyMarshalBinary() ([]byte, error) {
+func (tx *ExchangeV2) BodyMarshalBinary() ([]byte, error) {
 	var bob []byte
 	var sob []byte
 	var err error
@@ -1158,7 +1164,7 @@ func (tx *ExchangeV2) bodyUnmarshalBinary(data []byte) (int, error) {
 
 //Sign calculates transaction signature using given secret key.
 func (tx *ExchangeV2) Sign(secretKey crypto.SecretKey) error {
-	b, err := tx.bodyMarshalBinary()
+	b, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return errors.Wrap(err, "failed to sign ExchangeV2 transaction")
 	}
@@ -1179,7 +1185,7 @@ func (tx *ExchangeV2) Sign(secretKey crypto.SecretKey) error {
 
 //Verify checks that the transaction signature is valid for given public key.
 func (tx *ExchangeV2) Verify(publicKey crypto.PublicKey) (bool, error) {
-	b, err := tx.bodyMarshalBinary()
+	b, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return false, errors.Wrap(err, "failed to verify signature of ExchangeV2 transaction")
 	}
@@ -1188,7 +1194,7 @@ func (tx *ExchangeV2) Verify(publicKey crypto.PublicKey) (bool, error) {
 
 //MarshalBinary saves the transaction to its binary representation.
 func (tx *ExchangeV2) MarshalBinary() ([]byte, error) {
-	bb, err := tx.bodyMarshalBinary()
+	bb, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal ExchangeV2 transaction to bytes")
 	}

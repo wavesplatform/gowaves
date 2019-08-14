@@ -36,6 +36,10 @@ func NewVariablesFromTransaction(scheme byte, t proto.Transaction) (map[string]E
 		return newVariablesFromBurnV2(scheme, tx)
 	case *proto.MassTransferV1:
 		return newVariablesFromMassTransferV1(scheme, tx)
+	case *proto.ExchangeV1:
+		return newVariablesFromExchangeV1(scheme, tx)
+	case *proto.ExchangeV2:
+		return newVariablesFromExchangeV2(scheme, tx)
 	case *proto.DataV1:
 		addr, err := proto.NewAddressFromPublicKey(scheme, tx.SenderPK)
 		if err != nil {
@@ -361,6 +365,108 @@ func newVariablesFromMassTransferV1(scheme proto.Scheme, tx *proto.MassTransferV
 	}
 	out["proofs"] = exprs
 	out[InstanceFieldName] = NewString("MassTransferTransaction")
+
+	return out, nil
+}
+
+func newVariablesFromExchangeV1(scheme proto.Scheme, tx *proto.ExchangeV1) (map[string]Expr, error) {
+	funcName := "newVariablesFromExchangeV1"
+	out := make(map[string]Expr)
+	out["price"] = NewLong(int64(tx.Price))
+	out["amount"] = NewLong(int64(tx.Amount))
+
+	out["buyMatcherFee"] = NewLong(int64(tx.BuyMatcherFee))
+	out["sellMatcherFee"] = NewLong(int64(tx.SellMatcherFee))
+
+	id, err := tx.GetID()
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	out["id"] = NewBytes(util.Dup(id))
+	out["fee"] = NewLong(int64(tx.Fee))
+	out["timestamp"] = NewLong(int64(tx.Timestamp))
+	out["version"] = NewLong(int64(tx.Version))
+
+	addr, err := proto.NewAddressFromPublicKey(scheme, tx.SenderPK)
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	out["sender"] = NewAddressFromProtoAddress(addr)
+	out["senderPublicKey"] = NewBytes(util.Dup(tx.SenderPK.Bytes()))
+	bts, err := tx.BodyMarshalBinary()
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	out["bodyBytes"] = NewBytes(bts)
+	out["proofs"] = Exprs{NewBytes(util.Dup(tx.Signature.Bytes()))}
+	out[InstanceFieldName] = NewString("ExchangeTransaction")
+	return out, nil
+}
+
+func newVariablesFromExchangeV2(scheme proto.Scheme, tx *proto.ExchangeV2) (map[string]Expr, error) {
+	funcName := "newVariablesFromExchangeV1"
+	out := make(map[string]Expr)
+
+	buy, err := newVariablesFromOrder(scheme, tx.BuyOrder)
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	out["buyOrder"] = NewObject(buy)
+
+	sell, err := newVariablesFromOrder(scheme, tx.SellOrder)
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	out["sellOrder"] = NewObject(sell)
+
+	out["price"] = NewLong(int64(tx.Price))
+	out["amount"] = NewLong(int64(tx.Amount))
+
+	out["buyMatcherFee"] = NewLong(int64(tx.BuyMatcherFee))
+	out["sellMatcherFee"] = NewLong(int64(tx.SellMatcherFee))
+
+	id, err := tx.GetID()
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	out["id"] = NewBytes(util.Dup(id))
+	out["fee"] = NewLong(int64(tx.Fee))
+	out["timestamp"] = NewLong(int64(tx.Timestamp))
+	out["version"] = NewLong(int64(tx.Version))
+
+	addr, err := proto.NewAddressFromPublicKey(scheme, tx.SenderPK)
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	out["sender"] = NewAddressFromProtoAddress(addr)
+	out["senderPublicKey"] = NewBytes(util.Dup(tx.SenderPK.Bytes()))
+	bts, err := tx.BodyMarshalBinary()
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	out["bodyBytes"] = NewBytes(bts)
+	exprs := Exprs{}
+	for _, proof := range tx.Proofs.Proofs {
+		exprs = append(exprs, NewBytes(util.Dup(proof)))
+	}
+	out["proofs"] = exprs
+	out[InstanceFieldName] = NewString("ExchangeTransaction")
+	return out, nil
+}
+
+func newVariablesFromOrder(scheme proto.Scheme, tx proto.Order) (map[string]Expr, error) {
+	funcName := "newVariablesFromOrder"
+	out := make(map[string]Expr)
+
+	id, err := tx.GetID()
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	out["id"] = NewBytes(util.Dup(id))
+	matcherPk := tx.GetMatcherPK()
+	out["matcherPublicKey"] = NewBytes(util.Dup(matcherPk.Bytes()))
+	pair := tx.GetAssetPair()
+	out["assetPair"] = NewAssetPair(makeOptionalAsset(pair.AmountAsset), makeOptionalAsset(pair.PriceAsset))
 
 	return out, nil
 }

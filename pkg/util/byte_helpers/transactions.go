@@ -90,6 +90,22 @@ type MassTransferV1Struct struct {
 
 var MassTransferV1 MassTransferV1Struct
 
+type ExchangeV1Struct struct {
+	TransactionBytes []byte
+	Transaction      *proto.ExchangeV1
+	MessageBytes     []byte
+}
+
+var ExchangeV1 ExchangeV1Struct
+
+type ExchangeV2Struct struct {
+	TransactionBytes []byte
+	Transaction      *proto.ExchangeV2
+	MessageBytes     []byte
+}
+
+var ExchangeV2 ExchangeV2Struct
+
 func init() {
 	initGenesis()
 	initPayment()
@@ -101,6 +117,8 @@ func init() {
 	initBurnV1()
 	initBurnV2()
 	initMassTransferV1()
+	initExchangeV1()
+	initExchangeV2()
 }
 
 func initTransferV1() {
@@ -351,6 +369,132 @@ func initMassTransferV1() {
 	tmb, _ := tm.MarshalBinary()
 
 	MassTransferV1 = MassTransferV1Struct{
+		TransactionBytes: b,
+		Transaction:      t,
+		MessageBytes:     tmb,
+	}
+}
+
+func initExchangeV1() {
+	sk, pk := crypto.GenerateKeyPair([]byte("test"))
+	d, err := crypto.NewDigestFromBase58("9shLH9vfJxRgbhJ1c3dw2gj5fUGRr8asfUpQjj4rZQKQ")
+	if err != nil {
+		panic(err)
+	}
+	_, matcherPk := crypto.GenerateKeyPair([]byte("test1"))
+
+	buyOrder := proto.NewUnsignedOrderV1(
+		pk,
+		matcherPk,
+		*proto.NewOptionalAssetFromDigest(d),
+		*proto.NewOptionalAssetFromDigest(d),
+		proto.Buy,
+		100000,
+		10000,
+		TIMESTAMP,
+		TIMESTAMP,
+		10000)
+
+	_ = buyOrder.Sign(sk)
+
+	sellOrder := proto.NewUnsignedOrderV1(
+		pk,
+		matcherPk,
+		*proto.NewOptionalAssetFromDigest(d),
+		*proto.NewOptionalAssetFromDigest(d),
+		proto.Sell,
+		100000,
+		10000,
+		TIMESTAMP,
+		TIMESTAMP,
+		10000)
+
+	_ = sellOrder.Sign(sk)
+
+	t := proto.NewUnsignedExchangeV1(
+		*buyOrder,
+		*sellOrder,
+		100000,
+		100000,
+		10000,
+		10000,
+		10000,
+		TIMESTAMP,
+	)
+	_ = t.Sign(sk)
+	b, err := t.MarshalBinary()
+	if err != nil {
+		panic(err)
+	}
+	tm := proto.TransactionMessage{
+		Transaction: b,
+	}
+	tmb, _ := tm.MarshalBinary()
+
+	ExchangeV1 = ExchangeV1Struct{
+		TransactionBytes: b,
+		Transaction:      t,
+		MessageBytes:     tmb,
+	}
+}
+
+func initExchangeV2() {
+	sk, pk := crypto.GenerateKeyPair([]byte("test"))
+	d, err := crypto.NewDigestFromBase58("9shLH9vfJxRgbhJ1c3dw2gj5fUGRr8asfUpQjj4rZQKQ")
+	if err != nil {
+		panic(err)
+	}
+	_, matcherPk := crypto.GenerateKeyPair([]byte("test1"))
+
+	buyOrder := proto.NewUnsignedOrderV1(
+		pk,
+		matcherPk,
+		*proto.NewOptionalAssetFromDigest(d),
+		*proto.NewOptionalAssetFromDigest(d),
+		proto.Buy,
+		100000,
+		10000,
+		TIMESTAMP,
+		TIMESTAMP,
+		10000)
+
+	_ = buyOrder.Sign(sk)
+
+	sellOrder := proto.NewUnsignedOrderV1(
+		pk,
+		matcherPk,
+		*proto.NewOptionalAssetFromDigest(d),
+		*proto.NewOptionalAssetFromDigest(d),
+		proto.Sell,
+		100000,
+		10000,
+		TIMESTAMP,
+		TIMESTAMP,
+		10000)
+
+	_ = sellOrder.Sign(sk)
+
+	t := proto.NewUnsignedExchangeV2(
+		buyOrder,
+		sellOrder,
+		100000,
+		100000,
+		10000,
+		10000,
+		10000,
+		TIMESTAMP,
+	)
+	_ = t.Sign(sk)
+	b, err := t.MarshalBinary()
+	if err != nil {
+		panic(err)
+	}
+	tm := proto.TransactionMessage{
+		Transaction: b,
+	}
+	tmb, _ := tm.MarshalBinary()
+
+	ExchangeV2 = ExchangeV2Struct{
 		TransactionBytes: b,
 		Transaction:      t,
 		MessageBytes:     tmb,

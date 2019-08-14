@@ -702,3 +702,12 @@ func (a RecipientExpr) Eq(other Expr) (bool, error) {
 func (a RecipientExpr) InstanceOf() string {
 	return "RecipientExpr"
 }
+
+type AssetPairExpr = ObjectExpr
+
+func NewAssetPair(amountAsset Expr, priceAsset Expr) *AssetPairExpr {
+	m := make(map[string]Expr)
+	m["amountAsset"] = amountAsset
+	m["priceAsset"] = priceAsset
+	return NewObject(m)
+}
