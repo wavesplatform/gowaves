@@ -353,6 +353,7 @@ type OrderVersion struct {
 }
 
 type Order interface {
+	GetID() ([]byte, error)
 	GetVersion() byte
 	GetOrderType() OrderType
 	GetMatcherPK() crypto.PublicKey
@@ -573,6 +574,13 @@ type OrderV1 struct {
 	OrderBody
 }
 
+func (o OrderV1) GetID() ([]byte, error) {
+	if o.ID != nil {
+		return o.ID.Bytes(), nil
+	}
+	return nil, errors.New("no id for OrderV1")
+}
+
 //NewUnsignedOrderV1 creates the new unsigned order.
 func NewUnsignedOrderV1(senderPK, matcherPK crypto.PublicKey, amountAsset, priceAsset OptionalAsset, orderType OrderType, price, amount, timestamp, expiration, matcherFee uint64) *OrderV1 {
 	ob := OrderBody{
@@ -700,6 +708,13 @@ type OrderV2 struct {
 	ID      *crypto.Digest `json:"id,omitempty"`
 	Proofs  *ProofsV1      `json:"proofs,omitempty"`
 	OrderBody
+}
+
+func (o OrderV2) GetID() ([]byte, error) {
+	if o.ID != nil {
+		return o.ID.Bytes(), nil
+	}
+	return nil, errors.New("no id for OrderV2")
 }
 
 //NewUnsignedOrderV2 creates the new unsigned order.
@@ -867,6 +882,13 @@ type OrderV3 struct {
 	Proofs          *ProofsV1      `json:"proofs,omitempty"`
 	MatcherFeeAsset OptionalAsset  `json:"matcherFeeAssetId"`
 	OrderBody
+}
+
+func (o *OrderV3) GetID() ([]byte, error) {
+	if o.ID != nil {
+		return o.ID.Bytes(), nil
+	}
+	return nil, errors.New("no id for OrderV3")
 }
 
 //NewUnsignedOrderV3 creates the new unsigned order.
