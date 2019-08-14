@@ -1,6 +1,7 @@
 package state
 
 import (
+	"fmt"
 	"math"
 	"testing"
 
@@ -495,7 +496,7 @@ func TestCheckMassTransferV1(t *testing.T) {
 	activateFeature(t, to.entities.features, to.stor, int16(settings.MassTransfer))
 	err = to.tc.checkMassTransferV1(tx, info)
 	assert.Error(t, err, "checkMassTransferV1 did not fail with unissued asset")
-	assert.EqualError(t, err, "unknown asset")
+	assert.EqualError(t, err, fmt.Sprintf("unknown asset %s", tx.Asset.ID.String()))
 
 	createAsset(t, to.entities.assets, to.stor, testGlobal.asset0.asset.ID)
 	err = to.tc.checkMassTransferV1(tx, info)

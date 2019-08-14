@@ -316,6 +316,59 @@ func recipientToAddress(rcp proto.Recipient, aliases *aliases, filter bool) (*pr
 	return recipientAddr, nil
 }
 
+func (td *transactionDiffer) handleSponsorship(diff txDiff, fee uint64, feeAsset proto.OptionalAsset, info *differInfo) error {
+	sponsorshipActivated, err := td.stor.sponsoredAssets.isSponsorshipActivated()
+	if err != nil {
+		return err
+	}
+	needToApplySponsorship := sponsorshipActivated && feeAsset.Present
+	if !needToApplySponsorship {
+		// No assets sponsorship.
+		if info.hasMiner() {
+			if err := td.minerPayout(diff, fee, info, feeAsset.ID.Bytes()); err != nil {
+				return errors.Wrap(err, "failed to append miner payout")
+			}
+		}
+		return nil
+	}
+	// Sponsorship logic.
+	updateMinIntermediateBalance := false
+	if info.blockTime >= td.settings.CheckTempNegativeAfterTime {
+		updateMinIntermediateBalance = true
+	}
+	assetInfo, err := td.stor.assets.newestAssetInfo(feeAsset.ID, !info.initialisation)
+	if err != nil {
+		return err
+	}
+	// Append issuer asset balance diff.
+	issuerAddr, err := proto.NewAddressFromPublicKey(td.settings.AddressSchemeCharacter, assetInfo.issuer)
+	if err != nil {
+		return err
+	}
+	issuerAssetKey := byteKey(issuerAddr, feeAsset.ID.Bytes())
+	issuerAssetBalanceDiff := int64(fee)
+	if err := diff.appendBalanceDiff(issuerAssetKey, newBalanceDiff(issuerAssetBalanceDiff, 0, 0, updateMinIntermediateBalance)); err != nil {
+		return err
+	}
+	// Append issuer Waves balance diff.
+	feeInWaves, err := td.stor.sponsoredAssets.sponsoredAssetToWaves(feeAsset.ID, fee)
+	if err != nil {
+		return err
+	}
+	issuerWavesKey := (&wavesBalanceKey{issuerAddr}).bytes()
+	issuerWavesBalanceDiff := -int64(feeInWaves)
+	if err := diff.appendBalanceDiff(issuerWavesKey, newBalanceDiff(issuerWavesBalanceDiff, 0, 0, updateMinIntermediateBalance)); err != nil {
+		return err
+	}
+	// Miner payout using sponsorship.
+	if info.hasMiner() {
+		if err := td.minerPayout(diff, feeInWaves, info, nil); err != nil {
+			return errors.Wrap(err, "failed to append miner payout")
+		}
+	}
+	return nil
+}
+
 func (td *transactionDiffer) createDiffTransfer(tx *proto.Transfer, info *differInfo) (txDiff, error) {
 	diff := newTxDiff()
 	updateMinIntermediateBalance := false
@@ -347,10 +400,8 @@ func (td *transactionDiffer) createDiffTransfer(tx *proto.Transfer, info *differ
 	if err := diff.appendBalanceDiff(receiverKey, newBalanceDiff(receiverBalanceDiff, 0, 0, updateMinIntermediateBalance)); err != nil {
 		return txDiff{}, err
 	}
-	if info.hasMiner() {
-		if err := td.minerPayout(diff, tx.Fee, info, tx.FeeAsset.ToID()); err != nil {
-			return txDiff{}, errors.Wrap(err, "failed to append miner payout")
-		}
+	if err := td.handleSponsorship(diff, tx.Fee, tx.FeeAsset, info); err != nil {
+		return txDiff{}, err
 	}
 	return diff, nil
 }

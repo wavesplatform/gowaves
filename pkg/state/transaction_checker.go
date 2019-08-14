@@ -68,7 +68,29 @@ func (tc *transactionChecker) checkAsset(asset *proto.OptionalAsset, initialisat
 		return nil
 	}
 	if _, err := tc.stor.assets.newestAssetInfo(asset.ID, !initialisation); err != nil {
-		return errors.New("unknown asset")
+		return errors.Errorf("unknown asset %s", asset.ID.String())
+	}
+	return nil
+}
+
+func (tc *transactionChecker) checkFeeAsset(asset *proto.OptionalAsset, initialisation bool) error {
+	if err := tc.checkAsset(asset, initialisation); err != nil {
+		return err
+	}
+	// Check sponsorship.
+	sponsorshipActivated, err := tc.stor.sponsoredAssets.isSponsorshipActivated()
+	if err != nil {
+		return err
+	}
+	if !sponsorshipActivated {
+		return nil
+	}
+	isSponsored, err := tc.stor.sponsoredAssets.newestIsSponsored(asset.ID, !initialisation)
+	if err != nil {
+		return err
+	}
+	if !isSponsored {
+		return errors.Errorf("asset %s is not sponsored and can not be used to pay fees", asset.ID.String())
 	}
 	return nil
 }
@@ -110,7 +132,7 @@ func (tc *transactionChecker) checkTransfer(tx *proto.Transfer, info *checkerInf
 	if err := tc.checkAsset(&tx.AmountAsset, info.initialisation); err != nil {
 		return err
 	}
-	if err := tc.checkAsset(&tx.FeeAsset, info.initialisation); err != nil {
+	if err := tc.checkFeeAsset(&tx.FeeAsset, info.initialisation); err != nil {
 		return err
 	}
 	return nil
