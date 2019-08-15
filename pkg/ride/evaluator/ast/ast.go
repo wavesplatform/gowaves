@@ -3,10 +3,11 @@ package ast
 import (
 	"bytes"
 	"fmt"
+	"io"
+
 	"github.com/mr-tron/base58/base58"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"io"
 )
 
 const InstanceFieldName = "$instance"
@@ -700,16 +701,100 @@ func (a RecipientExpr) Eq(other Expr) (bool, error) {
 }
 
 func (a RecipientExpr) InstanceOf() string {
-	return "RecipientExpr"
+	return "Recipient"
 }
 
-type AssetPairExpr = ObjectExpr
+type AssetPairExpr struct {
+	fields object
+}
 
 func NewAssetPair(amountAsset Expr, priceAsset Expr) *AssetPairExpr {
-	m := make(map[string]Expr)
+	m := newObject()
 	m["amountAsset"] = amountAsset
 	m["priceAsset"] = priceAsset
-	return NewObject(m)
+	return &AssetPairExpr{fields: m}
+}
+
+func (a AssetPairExpr) InstanceOf() string {
+	return "AssetPair"
+}
+
+func (a AssetPairExpr) Evaluate(s Scope) (Expr, error) {
+	return a, nil
+}
+
+func (a AssetPairExpr) Write(w io.Writer) {
+	_, _ = fmt.Fprint(w, "AssetPairExpr")
+}
+
+func (a AssetPairExpr) Eq(other Expr) (bool, error) {
+	if a.InstanceOf() != other.InstanceOf() {
+		return false, errors.Errorf("trying to compare %T with %T", a, other)
+	}
+	o, ok := other.(*AssetPairExpr)
+	if !ok {
+		return false, errors.Errorf("can't cast %T as type *AssetPairExpr", other)
+	}
+	return a.fields.Eq(o.fields)
+}
+
+type object map[string]Expr
+
+//func NewObject(fields map[string]Expr) *ObjectExpr {
+//	return &ObjectExpr{
+//		fields: fields,
+//	}
+//}
+
+func newObject() object {
+	return make(object)
+}
+
+func (a object) Write(w io.Writer) {
+	_, _ = fmt.Fprint(w, "object")
+}
+
+func (a object) Evaluate(s Scope) (Expr, error) {
+	return a, nil
+}
+
+func (a object) Eq(other Expr) (bool, error) {
+	b, ok := other.(object)
+	if !ok {
+		return false, errors.Errorf("trying to compare %T with %T", a, other)
+	}
+
+	if len(a) != len(b) {
+		return false, nil
+	}
+
+	for k1, v1 := range a {
+		v2, ok := b[k1]
+		if !ok {
+			return false, nil
+		}
+		rs, err := v1.Eq(v2)
+		if err != nil {
+			return false, err
+		}
+		if !rs {
+			return false, nil
+		}
+	}
+
+	return true, nil
+}
+
+func (a object) Get(name string) (Expr, error) {
+	out, ok := a[name]
+	if !ok {
+		return nil, errors.Errorf("ObjectExpr no such field %s", name)
+	}
+	return out, nil
+}
+
+func (a object) InstanceOf() string {
+	return "object"
 }
 
 type BuyExpr struct{}

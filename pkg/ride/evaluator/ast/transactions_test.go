@@ -1016,6 +1016,11 @@ func (a *OrderTestSuite) Test_assetPair() {
 	a.Equal(NewAssetPair(NewBytes(a.d.Bytes()), NewBytes(a.d.Bytes())), rs["assetPair"])
 }
 
+func (a *OrderTestSuite) Test_orderType() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(NewAssetPair(NewBytes(a.d.Bytes()), NewBytes(a.d.Bytes())), rs["orderType"])
+}
+
 //Order
 func TestNewVariablesFromOrderV1(t *testing.T) {
 	suite.Run(t, new(OrderTestSuite))
