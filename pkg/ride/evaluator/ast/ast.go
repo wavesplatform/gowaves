@@ -718,7 +718,7 @@ func (a BuyExpr) Eq(other Expr) (bool, error) {
 }
 
 func (a BuyExpr) InstanceOf() string {
-	return "BuyExpr"
+	return "Buy"
 }
 
 type SellExpr struct{}
@@ -736,5 +736,5 @@ func (a SellExpr) Eq(other Expr) (bool, error) {
 }
 
 func (a SellExpr) InstanceOf() string {
-	return "SellExpr"
+	return "Sell"
 }
