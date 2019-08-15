@@ -104,15 +104,39 @@ func TestCreateDiffTransferV1(t *testing.T) {
 	}()
 
 	tx := createTransferV1(t)
+	assetId := tx.FeeAsset.ID
+	assetInfo := createAsset(t, to.entities.assets, to.stor, assetId)
+
 	diff, err := to.td.createDiffTransferV1(tx, defaultDifferInfo(t))
 	assert.NoError(t, err, "createDiffTransferV1() failed")
 
-	senderCorrectDiff := newBalanceDiff(-int64(tx.Amount+tx.Fee), 0, 0, true)
-	senderCorrectDiff.minBalance = -int64(tx.Amount + tx.Fee)
 	correctDiff := txDiff{
-		testGlobal.senderInfo.assetKey:    senderCorrectDiff,
+		testGlobal.senderInfo.assetKey:    newBalanceDiff(-int64(tx.Amount+tx.Fee), 0, 0, true),
 		testGlobal.recipientInfo.assetKey: newBalanceDiff(int64(tx.Amount), 0, 0, true),
 		testGlobal.minerInfo.assetKey:     newBalanceDiff(int64(tx.Fee), 0, 0, false),
+	}
+	assert.Equal(t, correctDiff, diff)
+
+	activateSponsorship(t, to.entities.features, to.stor)
+	diff, err = to.td.createDiffTransferV1(tx, defaultDifferInfo(t))
+	assert.Error(t, err, "createDiffTransferV1() did not fail with unsponsored asset")
+	err = to.entities.sponsoredAssets.sponsorAsset(assetId, 10, blockID0)
+	assert.NoError(t, err, "sponsorAsset() failed")
+	diff, err = to.td.createDiffTransferV1(tx, defaultDifferInfo(t))
+	assert.NoError(t, err, "createDiffTransferV1() failed with valid sponsored asset")
+
+	issuerAssetKey, err := assetKeyFromPk(assetInfo.issuer, assetId.Bytes())
+	assert.NoError(t, err, "assetKeyFromPk() failed")
+	issuerWavesKey, err := wavesKeyFromPk(assetInfo.issuer)
+	assert.NoError(t, err, "wavesKeyFromPk() failed")
+	feeInWaves, err := to.entities.sponsoredAssets.sponsoredAssetToWaves(assetId, tx.Fee)
+	assert.NoError(t, err, "sponsoredAssetToWaves() failed")
+	correctDiff = txDiff{
+		testGlobal.senderInfo.assetKey:    newBalanceDiff(-int64(tx.Amount+tx.Fee), 0, 0, true),
+		testGlobal.recipientInfo.assetKey: newBalanceDiff(int64(tx.Amount), 0, 0, true),
+		issuerAssetKey:                    newBalanceDiff(int64(tx.Fee), 0, 0, true),
+		issuerWavesKey:                    newBalanceDiff(-int64(feeInWaves), 0, 0, true),
+		testGlobal.minerInfo.wavesKey:     newBalanceDiff(int64(feeInWaves), 0, 0, false),
 	}
 	assert.Equal(t, correctDiff, diff)
 }
@@ -135,15 +159,39 @@ func TestCreateDiffTransferV2(t *testing.T) {
 	}()
 
 	tx := createTransferV2(t)
+	assetId := tx.FeeAsset.ID
+	assetInfo := createAsset(t, to.entities.assets, to.stor, assetId)
+
 	diff, err := to.td.createDiffTransferV2(tx, defaultDifferInfo(t))
 	assert.NoError(t, err, "createDiffTransferV2() failed")
 
-	senderCorrectDiff := newBalanceDiff(-int64(tx.Amount+tx.Fee), 0, 0, true)
-	senderCorrectDiff.minBalance = -int64(tx.Amount + tx.Fee)
 	correctDiff := txDiff{
-		testGlobal.senderInfo.assetKey:    senderCorrectDiff,
+		testGlobal.senderInfo.assetKey:    newBalanceDiff(-int64(tx.Amount+tx.Fee), 0, 0, true),
 		testGlobal.recipientInfo.assetKey: newBalanceDiff(int64(tx.Amount), 0, 0, true),
 		testGlobal.minerInfo.assetKey:     newBalanceDiff(int64(tx.Fee), 0, 0, false),
+	}
+	assert.Equal(t, correctDiff, diff)
+
+	activateSponsorship(t, to.entities.features, to.stor)
+	diff, err = to.td.createDiffTransferV2(tx, defaultDifferInfo(t))
+	assert.Error(t, err, "createDiffTransferV2() did not fail with unsponsored asset")
+	err = to.entities.sponsoredAssets.sponsorAsset(assetId, 10, blockID0)
+	assert.NoError(t, err, "sponsorAsset() failed")
+	diff, err = to.td.createDiffTransferV2(tx, defaultDifferInfo(t))
+	assert.NoError(t, err, "createDiffTransferV2() failed with valid sponsored asset")
+
+	issuerAssetKey, err := assetKeyFromPk(assetInfo.issuer, assetId.Bytes())
+	assert.NoError(t, err, "assetKeyFromPk() failed")
+	issuerWavesKey, err := wavesKeyFromPk(assetInfo.issuer)
+	assert.NoError(t, err, "wavesKeyFromPk() failed")
+	feeInWaves, err := to.entities.sponsoredAssets.sponsoredAssetToWaves(assetId, tx.Fee)
+	assert.NoError(t, err, "sponsoredAssetToWaves() failed")
+	correctDiff = txDiff{
+		testGlobal.senderInfo.assetKey:    newBalanceDiff(-int64(tx.Amount+tx.Fee), 0, 0, true),
+		testGlobal.recipientInfo.assetKey: newBalanceDiff(int64(tx.Amount), 0, 0, true),
+		issuerAssetKey:                    newBalanceDiff(int64(tx.Fee), 0, 0, true),
+		issuerWavesKey:                    newBalanceDiff(-int64(feeInWaves), 0, 0, true),
+		testGlobal.minerInfo.wavesKey:     newBalanceDiff(int64(feeInWaves), 0, 0, false),
 	}
 	assert.Equal(t, correctDiff, diff)
 }

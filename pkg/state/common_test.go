@@ -261,7 +261,7 @@ func generateRandomRecipient(t *testing.T) proto.Recipient {
 func defaultAssetInfo(reissuable bool) *assetInfo {
 	return &assetInfo{
 		assetConstInfo: assetConstInfo{
-			issuer:      testGlobal.senderInfo.pk,
+			issuer:      testGlobal.matcherInfo.pk,
 			name:        "asset",
 			description: "description",
 			decimals:    2,

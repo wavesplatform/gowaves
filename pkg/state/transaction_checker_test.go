@@ -89,7 +89,7 @@ func TestCheckTransferV1(t *testing.T) {
 	tx := createTransferV1(t)
 	info := defaultCheckerInfo(t)
 
-	assetId := testGlobal.asset0.asset.ID
+	assetId := tx.FeeAsset.ID
 
 	err := to.tc.checkTransferV1(tx, info)
 	assert.Error(t, err, "checkTransferV1 did not fail with invalid transfer asset")
@@ -124,12 +124,12 @@ func TestCheckTransferV2(t *testing.T) {
 	tx := createTransferV2(t)
 	info := defaultCheckerInfo(t)
 
-	assetId := testGlobal.asset0.asset.ID
+	assetId := tx.FeeAsset.ID
 
 	err := to.tc.checkTransferV2(tx, info)
 	assert.Error(t, err, "checkTransferV2 did not fail with invalid transfer asset")
 
-	createAsset(t, to.entities.assets, to.stor, testGlobal.asset0.asset.ID)
+	createAsset(t, to.entities.assets, to.stor, assetId)
 	err = to.tc.checkTransferV2(tx, info)
 	assert.NoError(t, err, "checkTransferV2 failed with valid transfer tx")
 
@@ -192,9 +192,10 @@ func TestCheckReissueV1(t *testing.T) {
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
-	createAsset(t, to.entities.assets, to.stor, testGlobal.asset0.asset.ID)
+	assetInfo := createAsset(t, to.entities.assets, to.stor, testGlobal.asset0.asset.ID)
 
 	tx := createReissueV1(t)
+	tx.SenderPK = assetInfo.issuer
 	info := defaultCheckerInfo(t)
 	info.currentTimestamp = settings.MainNetSettings.ReissueBugWindowTimeEnd + 1
 	err := to.tc.checkReissueV1(tx, info)
@@ -209,7 +210,7 @@ func TestCheckReissueV1(t *testing.T) {
 	tx.SenderPK = testGlobal.recipientInfo.pk
 	err = to.tc.checkReissueV1(tx, info)
 	assert.EqualError(t, err, "asset was issued by other address")
-	tx.SenderPK = testGlobal.senderInfo.pk
+	tx.SenderPK = assetInfo.issuer
 
 	tx.Reissuable = false
 	err = to.tp.performReissueV1(tx, defaultPerformerInfo(t))
@@ -230,9 +231,10 @@ func TestCheckReissueV2(t *testing.T) {
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
-	createAsset(t, to.entities.assets, to.stor, testGlobal.asset0.asset.ID)
+	assetInfo := createAsset(t, to.entities.assets, to.stor, testGlobal.asset0.asset.ID)
 
 	tx := createReissueV2(t)
+	tx.SenderPK = assetInfo.issuer
 	info := defaultCheckerInfo(t)
 	info.currentTimestamp = settings.MainNetSettings.ReissueBugWindowTimeEnd + 1
 	err := to.tc.checkReissueV2(tx, info)
@@ -247,7 +249,7 @@ func TestCheckReissueV2(t *testing.T) {
 	tx.SenderPK = testGlobal.recipientInfo.pk
 	err = to.tc.checkReissueV2(tx, info)
 	assert.EqualError(t, err, "asset was issued by other address")
-	tx.SenderPK = testGlobal.senderInfo.pk
+	tx.SenderPK = assetInfo.issuer
 
 	tx.Reissuable = false
 	err = to.tp.performReissueV2(tx, defaultPerformerInfo(t))
@@ -268,9 +270,10 @@ func TestCheckBurnV1(t *testing.T) {
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
-	createAsset(t, to.entities.assets, to.stor, testGlobal.asset0.asset.ID)
+	assetInfo := createAsset(t, to.entities.assets, to.stor, testGlobal.asset0.asset.ID)
 
 	tx := createBurnV1(t)
+	tx.SenderPK = assetInfo.issuer
 	info := defaultCheckerInfo(t)
 	err := to.tc.checkBurnV1(tx, info)
 	assert.NoError(t, err, "checkBurnV1 failed with valid burn tx")
@@ -298,9 +301,10 @@ func TestCheckBurnV2(t *testing.T) {
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
-	createAsset(t, to.entities.assets, to.stor, testGlobal.asset0.asset.ID)
+	assetInfo := createAsset(t, to.entities.assets, to.stor, testGlobal.asset0.asset.ID)
 
 	tx := createBurnV2(t)
+	tx.SenderPK = assetInfo.issuer
 	info := defaultCheckerInfo(t)
 	err := to.tc.checkBurnV2(tx, info)
 	assert.NoError(t, err, "checkBurnV2 failed with valid burn tx")
