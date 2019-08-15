@@ -401,6 +401,7 @@ func NativeTransactionByID(s Scope, e Exprs) (Expr, error) {
 
 	tx, err := s.State().TransactionByID(bts.Value)
 	if err != nil {
+		// TODO put real state check
 		if err == mockstate.ErrNotFound {
 			return Unit{}, nil
 		}
