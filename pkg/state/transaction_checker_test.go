@@ -75,7 +75,7 @@ func TestCheckPayment(t *testing.T) {
 
 	tx.Timestamp = 0
 	err = to.tc.checkPayment(tx, info)
-	assert.Error(t, err, "checkPayment did not fail with invalid payment timestamp")
+	assert.Error(t, err, "checkPayment did not fail with invalid timestamp")
 }
 
 func TestCheckTransferV1(t *testing.T) {
@@ -89,16 +89,28 @@ func TestCheckTransferV1(t *testing.T) {
 	tx := createTransferV1(t)
 	info := defaultCheckerInfo(t)
 
+	assetId := testGlobal.asset0.asset.ID
+
 	err := to.tc.checkTransferV1(tx, info)
 	assert.Error(t, err, "checkTransferV1 did not fail with invalid transfer asset")
 
-	createAsset(t, to.entities.assets, to.stor, testGlobal.asset0.asset.ID)
+	createAsset(t, to.entities.assets, to.stor, assetId)
 	err = to.tc.checkTransferV1(tx, info)
 	assert.NoError(t, err, "checkTransferV1 failed with valid transfer tx")
 
+	// Sponsorship checks.
+	activateSponsorship(t, to.entities.features, to.stor)
+	err = to.tc.checkTransferV1(tx, info)
+	assert.Error(t, err, "checkTransferV1 did not fail with unsponsored asset")
+	assert.EqualError(t, err, fmt.Sprintf("checkFee(): asset %s is not sponsored", assetId.String()))
+	err = to.entities.sponsoredAssets.sponsorAsset(assetId, 10, blockID0)
+	assert.NoError(t, err, "sponsorAsset() failed")
+	err = to.tc.checkTransferV1(tx, info)
+	assert.NoError(t, err, "checkTransferV1 failed with valid sponsored asset")
+
 	tx.Timestamp = 0
 	err = to.tc.checkTransferV1(tx, info)
-	assert.Error(t, err, "checkTransferV1 did not fail with invalid payment timestamp")
+	assert.Error(t, err, "checkTransferV1 did not fail with invalid timestamp")
 }
 
 func TestCheckTransferV2(t *testing.T) {
@@ -112,6 +124,8 @@ func TestCheckTransferV2(t *testing.T) {
 	tx := createTransferV2(t)
 	info := defaultCheckerInfo(t)
 
+	assetId := testGlobal.asset0.asset.ID
+
 	err := to.tc.checkTransferV2(tx, info)
 	assert.Error(t, err, "checkTransferV2 did not fail with invalid transfer asset")
 
@@ -119,9 +133,19 @@ func TestCheckTransferV2(t *testing.T) {
 	err = to.tc.checkTransferV2(tx, info)
 	assert.NoError(t, err, "checkTransferV2 failed with valid transfer tx")
 
+	// Sponsorship checks.
+	activateSponsorship(t, to.entities.features, to.stor)
+	err = to.tc.checkTransferV2(tx, info)
+	assert.Error(t, err, "checkTransferV2 did not fail with unsponsored asset")
+	assert.EqualError(t, err, fmt.Sprintf("checkFee(): asset %s is not sponsored", assetId.String()))
+	err = to.entities.sponsoredAssets.sponsorAsset(assetId, 10, blockID0)
+	assert.NoError(t, err, "sponsorAsset() failed")
+	err = to.tc.checkTransferV2(tx, info)
+	assert.NoError(t, err, "checkTransferV2 failed with valid sponsored asset")
+
 	tx.Timestamp = 0
 	err = to.tc.checkTransferV2(tx, info)
-	assert.Error(t, err, "checkTransferV2 did not fail with invalid payment timestamp")
+	assert.Error(t, err, "checkTransferV2 did not fail with invalid timestamp")
 }
 
 func TestCheckIssueV1(t *testing.T) {
@@ -139,7 +163,7 @@ func TestCheckIssueV1(t *testing.T) {
 
 	tx.Timestamp = 0
 	err = to.tc.checkIssueV1(tx, info)
-	assert.Error(t, err, "checkIssueV1 did not fail with invalid issue timestamp")
+	assert.Error(t, err, "checkIssueV1 did not fail with invalid timestamp")
 }
 
 func TestCheckIssueV2(t *testing.T) {
@@ -157,7 +181,7 @@ func TestCheckIssueV2(t *testing.T) {
 
 	tx.Timestamp = 0
 	err = to.tc.checkIssueV1(tx, info)
-	assert.Error(t, err, "checkIssueV2 did not fail with invalid issue timestamp")
+	assert.Error(t, err, "checkIssueV2 did not fail with invalid timestamp")
 }
 
 func TestCheckReissueV1(t *testing.T) {
@@ -263,7 +287,7 @@ func TestCheckBurnV1(t *testing.T) {
 
 	tx.Timestamp = 0
 	err = to.tc.checkBurnV1(tx, info)
-	assert.Error(t, err, "checkBurnV1 did not fail with invalid burn timestamp")
+	assert.Error(t, err, "checkBurnV1 did not fail with invalid timestamp")
 }
 
 func TestCheckBurnV2(t *testing.T) {
@@ -293,7 +317,7 @@ func TestCheckBurnV2(t *testing.T) {
 
 	tx.Timestamp = 0
 	err = to.tc.checkBurnV2(tx, info)
-	assert.Error(t, err, "checkBurnV2 did not fail with invalid burn timestamp")
+	assert.Error(t, err, "checkBurnV2 did not fail with invalid timestamp")
 }
 
 func TestCheckExchange(t *testing.T) {
@@ -526,5 +550,5 @@ func TestCheckDataV1(t *testing.T) {
 	// Check invalid timestamp failure.
 	tx.Timestamp = 0
 	err = to.tc.checkDataV1(tx, info)
-	assert.Error(t, err, "checkDataV1 did not fail with invalid Data tx timestamp")
+	assert.Error(t, err, "checkDataV1 did not fail with invalid timestamp")
 }

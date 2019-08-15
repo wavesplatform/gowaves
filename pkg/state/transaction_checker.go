@@ -103,7 +103,7 @@ func (tc *transactionChecker) checkGenesis(transaction proto.Transaction, info *
 		return errors.New("genesis transaction in non-initialisation mode")
 	}
 	if err := tc.checkFee(transaction, proto.OptionalAsset{Present: false}, info); err != nil {
-		return errors.Errorf("checkFee(): %v\n", err)
+		return errors.Errorf("checkFee(): %v", err)
 	}
 	return nil
 }
@@ -120,7 +120,7 @@ func (tc *transactionChecker) checkPayment(transaction proto.Transaction, info *
 		return errors.Wrap(err, "invalid timestamp")
 	}
 	if err := tc.checkFee(transaction, proto.OptionalAsset{Present: false}, info); err != nil {
-		return errors.Errorf("checkFee(): %v\n", err)
+		return errors.Errorf("checkFee(): %v", err)
 	}
 	return nil
 }
@@ -144,7 +144,7 @@ func (tc *transactionChecker) checkTransferV1(transaction proto.Transaction, inf
 		return errors.New("failed to convert interface to TransferV1 transaction")
 	}
 	if err := tc.checkFee(transaction, tx.FeeAsset, info); err != nil {
-		return errors.Errorf("checkFee(): %v\n", err)
+		return errors.Errorf("checkFee(): %v", err)
 	}
 	return tc.checkTransfer(&tx.Transfer, info)
 }
@@ -155,7 +155,7 @@ func (tc *transactionChecker) checkTransferV2(transaction proto.Transaction, inf
 		return errors.New("failed to convert interface to TransferV2 transaction")
 	}
 	if err := tc.checkFee(transaction, tx.FeeAsset, info); err != nil {
-		return errors.Errorf("checkFee(): %v\n", err)
+		return errors.Errorf("checkFee(): %v", err)
 	}
 	return tc.checkTransfer(&tx.Transfer, info)
 }
@@ -173,7 +173,7 @@ func (tc *transactionChecker) checkIssueV1(transaction proto.Transaction, info *
 		return errors.New("failed to convert interface to IssueV1 transaction")
 	}
 	if err := tc.checkFee(transaction, proto.OptionalAsset{Present: false}, info); err != nil {
-		return errors.Errorf("checkFee(): %v\n", err)
+		return errors.Errorf("checkFee(): %v", err)
 	}
 	return tc.checkIssue(&tx.Issue, info)
 }
@@ -184,7 +184,7 @@ func (tc *transactionChecker) checkIssueV2(transaction proto.Transaction, info *
 		return errors.New("failed to convert interface to IssueV2 transaction")
 	}
 	if err := tc.checkFee(transaction, proto.OptionalAsset{Present: false}, info); err != nil {
-		return errors.Errorf("checkFee(): %v\n", err)
+		return errors.Errorf("checkFee(): %v", err)
 	}
 	return tc.checkIssue(&tx.Issue, info)
 }
@@ -224,7 +224,7 @@ func (tc *transactionChecker) checkReissueV1(transaction proto.Transaction, info
 		return errors.New("failed to convert interface to ReissueV1 transaction")
 	}
 	if err := tc.checkFee(transaction, proto.OptionalAsset{Present: false}, info); err != nil {
-		return errors.Errorf("checkFee(): %v\n", err)
+		return errors.Errorf("checkFee(): %v", err)
 	}
 	return tc.checkReissue(&tx.Reissue, info)
 }
@@ -235,7 +235,7 @@ func (tc *transactionChecker) checkReissueV2(transaction proto.Transaction, info
 		return errors.New("failed to convert interface to ReissueV2 transaction")
 	}
 	if err := tc.checkFee(transaction, proto.OptionalAsset{Present: false}, info); err != nil {
-		return errors.Errorf("checkFee(): %v\n", err)
+		return errors.Errorf("checkFee(): %v", err)
 	}
 	return tc.checkReissue(&tx.Reissue, info)
 }
@@ -264,7 +264,7 @@ func (tc *transactionChecker) checkBurnV1(transaction proto.Transaction, info *c
 		return errors.New("failed to convert interface to BurnV1 transaction")
 	}
 	if err := tc.checkFee(transaction, proto.OptionalAsset{Present: false}, info); err != nil {
-		return errors.Errorf("checkFee(): %v\n", err)
+		return errors.Errorf("checkFee(): %v", err)
 	}
 	return tc.checkBurn(&tx.Burn, info)
 }
@@ -275,7 +275,7 @@ func (tc *transactionChecker) checkBurnV2(transaction proto.Transaction, info *c
 		return errors.New("failed to convert interface to BurnV2 transaction")
 	}
 	if err := tc.checkFee(transaction, proto.OptionalAsset{Present: false}, info); err != nil {
-		return errors.Errorf("checkFee(): %v\n", err)
+		return errors.Errorf("checkFee(): %v", err)
 	}
 	return tc.checkBurn(&tx.Burn, info)
 }
@@ -289,7 +289,7 @@ func (tc *transactionChecker) checkExchange(transaction proto.Transaction, info 
 		return errors.Wrap(err, "invalid timestamp")
 	}
 	if err := tc.checkFee(transaction, proto.OptionalAsset{Present: false}, info); err != nil {
-		return errors.Errorf("checkFee(): %v\n", err)
+		return errors.Errorf("checkFee(): %v", err)
 	}
 	sellOrder, err := tx.GetSellOrder()
 	if err != nil {
@@ -317,7 +317,7 @@ func (tc *transactionChecker) checkLease(tx *proto.Lease, info *checkerInfo) err
 	if tx.Recipient.Address == nil {
 		recipientAddr, err = tc.stor.aliases.newestAddrByAlias(tx.Recipient.Alias.Alias, !info.initialisation)
 		if err != nil {
-			return errors.Errorf("invalid alias: %v\n", err)
+			return errors.Errorf("invalid alias: %v", err)
 		}
 	} else {
 		recipientAddr = tx.Recipient.Address
@@ -334,7 +334,7 @@ func (tc *transactionChecker) checkLeaseV1(transaction proto.Transaction, info *
 		return errors.New("failed to convert interface to LeaseV1 transaction")
 	}
 	if err := tc.checkFee(transaction, proto.OptionalAsset{Present: false}, info); err != nil {
-		return errors.Errorf("checkFee(): %v\n", err)
+		return errors.Errorf("checkFee(): %v", err)
 	}
 	return tc.checkLease(&tx.Lease, info)
 }
@@ -345,7 +345,7 @@ func (tc *transactionChecker) checkLeaseV2(transaction proto.Transaction, info *
 		return errors.New("failed to convert interface to LeaseV2 transaction")
 	}
 	if err := tc.checkFee(transaction, proto.OptionalAsset{Present: false}, info); err != nil {
-		return errors.Errorf("checkFee(): %v\n", err)
+		return errors.Errorf("checkFee(): %v", err)
 	}
 	return tc.checkLease(&tx.Lease, info)
 }
@@ -377,7 +377,7 @@ func (tc *transactionChecker) checkLeaseCancelV1(transaction proto.Transaction, 
 		return errors.New("failed to convert interface to LeaseCancelV1 transaction")
 	}
 	if err := tc.checkFee(transaction, proto.OptionalAsset{Present: false}, info); err != nil {
-		return errors.Errorf("checkFee(): %v\n", err)
+		return errors.Errorf("checkFee(): %v", err)
 	}
 	return tc.checkLeaseCancel(&tx.LeaseCancel, info)
 }
@@ -388,7 +388,7 @@ func (tc *transactionChecker) checkLeaseCancelV2(transaction proto.Transaction, 
 		return errors.New("failed to convert interface to LeaseCancelV2 transaction")
 	}
 	if err := tc.checkFee(transaction, proto.OptionalAsset{Present: false}, info); err != nil {
-		return errors.Errorf("checkFee(): %v\n", err)
+		return errors.Errorf("checkFee(): %v", err)
 	}
 	return tc.checkLeaseCancel(&tx.LeaseCancel, info)
 }
@@ -414,7 +414,7 @@ func (tc *transactionChecker) checkCreateAliasV1(transaction proto.Transaction, 
 		return errors.New("failed to convert interface to CreateAliasV1 transaction")
 	}
 	if err := tc.checkFee(transaction, proto.OptionalAsset{Present: false}, info); err != nil {
-		return errors.Errorf("checkFee(): %v\n", err)
+		return errors.Errorf("checkFee(): %v", err)
 	}
 	return tc.checkCreateAlias(&tx.CreateAlias, info)
 }
@@ -425,7 +425,7 @@ func (tc *transactionChecker) checkCreateAliasV2(transaction proto.Transaction, 
 		return errors.New("failed to convert interface to CreateAliasV2 transaction")
 	}
 	if err := tc.checkFee(transaction, proto.OptionalAsset{Present: false}, info); err != nil {
-		return errors.Errorf("checkFee(): %v\n", err)
+		return errors.Errorf("checkFee(): %v", err)
 	}
 	return tc.checkCreateAlias(&tx.CreateAlias, info)
 }
@@ -439,7 +439,7 @@ func (tc *transactionChecker) checkMassTransferV1(transaction proto.Transaction,
 		return errors.Wrap(err, "invalid timestamp")
 	}
 	if err := tc.checkFee(transaction, proto.OptionalAsset{Present: false}, info); err != nil {
-		return errors.Errorf("checkFee(): %v\n", err)
+		return errors.Errorf("checkFee(): %v", err)
 	}
 	activated, err := tc.stor.features.isActivated(int16(settings.MassTransfer))
 	if err != nil {
@@ -463,7 +463,7 @@ func (tc *transactionChecker) checkDataV1(transaction proto.Transaction, info *c
 		return errors.Wrap(err, "invalid timestamp")
 	}
 	if err := tc.checkFee(transaction, proto.OptionalAsset{Present: false}, info); err != nil {
-		return errors.Errorf("checkFee(): %v\n", err)
+		return errors.Errorf("checkFee(): %v", err)
 	}
 	activated, err := tc.stor.features.isActivated(int16(settings.DataTransaction))
 	if err != nil {
