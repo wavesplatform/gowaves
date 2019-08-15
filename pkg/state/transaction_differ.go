@@ -325,7 +325,7 @@ func (td *transactionDiffer) handleSponsorship(diff txDiff, fee uint64, feeAsset
 	if !needToApplySponsorship {
 		// No assets sponsorship.
 		if info.hasMiner() {
-			if err := td.minerPayout(diff, fee, info, feeAsset.ID.Bytes()); err != nil {
+			if err := td.minerPayout(diff, fee, info, feeAsset.ToID()); err != nil {
 				return errors.Wrap(err, "failed to append miner payout")
 			}
 		}
