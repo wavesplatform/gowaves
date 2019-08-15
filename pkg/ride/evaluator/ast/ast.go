@@ -702,3 +702,39 @@ func (a RecipientExpr) Eq(other Expr) (bool, error) {
 func (a RecipientExpr) InstanceOf() string {
 	return "RecipientExpr"
 }
+
+type BuyExpr struct{}
+
+func (a BuyExpr) Evaluate(s Scope) (Expr, error) {
+	return a, nil
+}
+
+func (a BuyExpr) Write(w io.Writer) {
+	_, _ = fmt.Fprint(w, "BuyExpr")
+}
+
+func (a BuyExpr) Eq(other Expr) (bool, error) {
+	return a.InstanceOf() == other.InstanceOf(), nil
+}
+
+func (a BuyExpr) InstanceOf() string {
+	return "Buy"
+}
+
+type SellExpr struct{}
+
+func (a SellExpr) Evaluate(s Scope) (Expr, error) {
+	return a, nil
+}
+
+func (a SellExpr) Write(w io.Writer) {
+	_, _ = fmt.Fprint(w, "SellExpr")
+}
+
+func (a SellExpr) Eq(other Expr) (bool, error) {
+	return a.InstanceOf() == other.InstanceOf(), nil
+}
+
+func (a SellExpr) InstanceOf() string {
+	return "Sell"
+}
