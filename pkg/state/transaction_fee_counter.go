@@ -202,3 +202,11 @@ func (tf *transactionFeeCounter) minerFeeDataV1(transaction proto.Transaction, d
 	}
 	return tf.minerFee(distr, tx.Fee, proto.OptionalAsset{Present: false})
 }
+
+func (tf *transactionFeeCounter) minerFeeSponsorshipV1(transaction proto.Transaction, distr *feeDistribution) error {
+	tx, ok := transaction.(*proto.SponsorshipV1)
+	if !ok {
+		return errors.New("failed to convert interface to SponsorshipV1 tx")
+	}
+	return tf.minerFee(distr, tx.Fee, proto.OptionalAsset{Present: false})
+}

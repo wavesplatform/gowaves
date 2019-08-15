@@ -92,6 +92,9 @@ func buildHanndles(tc *transactionChecker, tp *transactionPerformer, td *transac
 		proto.TransactionTypeVersion{Type: proto.DataTransaction, Version: 1}: txHandleFuncs{
 			tc.checkDataV1, tp.performDataV1, td.createDiffDataV1, tf.minerFeeDataV1,
 		},
+		proto.TransactionTypeVersion{Type: proto.SponsorshipTransaction, Version: 1}: txHandleFuncs{
+			tc.checkSponsorshipV1, tp.performSponsorshipV1, td.createDiffSponsorshipV1, tf.minerFeeSponsorshipV1,
+		},
 	}
 }
 

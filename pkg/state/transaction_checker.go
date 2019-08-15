@@ -474,3 +474,34 @@ func (tc *transactionChecker) checkDataV1(transaction proto.Transaction, info *c
 	}
 	return nil
 }
+
+func (tc *transactionChecker) checkSponsorshipV1(transaction proto.Transaction, info *checkerInfo) error {
+	tx, ok := transaction.(*proto.SponsorshipV1)
+	if !ok {
+		return errors.New("failed to convert interface to SponsorshipV1 transaction")
+	}
+	if err := tc.checkTimestamps(tx.Timestamp, info.currentTimestamp, info.parentTimestamp); err != nil {
+		return errors.Wrap(err, "invalid timestamp")
+	}
+	if err := tc.checkFee(transaction, proto.OptionalAsset{Present: false}, info); err != nil {
+		return errors.Errorf("checkFee(): %v", err)
+	}
+	activated, err := tc.stor.sponsoredAssets.isSponsorshipActivated()
+	if err != nil {
+		return err
+	}
+	if !activated {
+		return errors.New("sponsorship has not been activated yet")
+	}
+	if err := tc.checkAsset(&proto.OptionalAsset{Present: false, ID: tx.AssetID}, info.initialisation); err != nil {
+		return err
+	}
+	assetInfo, err := tc.stor.assets.newestAssetInfo(tx.AssetID, !info.initialisation)
+	if err != nil {
+		return err
+	}
+	if !bytes.Equal(assetInfo.issuer[:], tx.SenderPK[:]) {
+		return errors.New("asset was issued by other address")
+	}
+	return nil
+}

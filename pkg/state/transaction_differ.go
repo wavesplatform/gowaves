@@ -845,3 +845,27 @@ func (td *transactionDiffer) createDiffDataV1(transaction proto.Transaction, inf
 	}
 	return diff, nil
 }
+
+func (td *transactionDiffer) createDiffSponsorshipV1(transaction proto.Transaction, info *differInfo) (txDiff, error) {
+	tx, ok := transaction.(*proto.SponsorshipV1)
+	if !ok {
+		return txDiff{}, errors.New("failed to convert interface to SponsorshipV1 transaction")
+	}
+	diff := newTxDiff()
+	senderAddr, err := proto.NewAddressFromPublicKey(td.settings.AddressSchemeCharacter, tx.SenderPK)
+	if err != nil {
+		return txDiff{}, err
+	}
+	// Append sender diff.
+	senderFeeKey := wavesBalanceKey{address: senderAddr}
+	senderFeeBalanceDiff := -int64(tx.Fee)
+	if err := diff.appendBalanceDiff(senderFeeKey.bytes(), newBalanceDiff(senderFeeBalanceDiff, 0, 0, false)); err != nil {
+		return txDiff{}, err
+	}
+	if info.hasMiner() {
+		if err := td.minerPayout(diff, tx.Fee, info, nil); err != nil {
+			return txDiff{}, errors.Wrap(err, "failed to append miner payout")
+		}
+	}
+	return diff, nil
+}

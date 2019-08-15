@@ -556,3 +556,50 @@ func TestCheckDataV1(t *testing.T) {
 	err = to.tc.checkDataV1(tx, info)
 	assert.Error(t, err, "checkDataV1 did not fail with invalid timestamp")
 }
+
+func TestCheckSponsorshipV1(t *testing.T) {
+	to, path := createCheckerTestObjects(t)
+
+	defer func() {
+		err := util.CleanTemporaryDirs(path)
+		assert.NoError(t, err, "failed to clean test data dirs")
+	}()
+
+	tx := createSponsorshipV1(t)
+	assetInfo := createAsset(t, to.entities.assets, to.stor, tx.AssetID)
+	tx.SenderPK = assetInfo.issuer
+	info := defaultCheckerInfo(t)
+
+	err := to.tc.checkSponsorshipV1(tx, info)
+	assert.Error(t, err, "checkSponsorshipV1 did not fail prior to feature activation")
+	assert.EqualError(t, err, "sponsorship has not been activated yet")
+
+	// Activate sponsorship.
+	activateSponsorship(t, to.entities.features, to.stor)
+	err = to.tc.checkSponsorshipV1(tx, info)
+	assert.NoError(t, err, "checkSponsorshipV1 failed with valid Sponsorship tx")
+
+	// Check min fee.
+	feeConst, ok := feeConstants[proto.SponsorshipTransaction]
+	assert.Equal(t, ok, true)
+	tx.Fee = FeeUnit*feeConst - 1
+	err = to.tc.checkSponsorshipV1(tx, info)
+	assert.Error(t, err, "checkSponsorshipV1 did not fail with fee less than minimum")
+	assert.EqualError(t, err, fmt.Sprintf("checkFee(): fee %d is less than minimum value of %d\n", tx.Fee, FeeUnit*feeConst))
+	tx.Fee = FeeUnit * feeConst
+	err = to.tc.checkSponsorshipV1(tx, info)
+	assert.NoError(t, err, "checkSponsorshipV1 failed with valid Sponsorship tx")
+
+	// Check invalid sender.
+	tx.SenderPK = testGlobal.recipientInfo.pk
+	err = to.tc.checkSponsorshipV1(tx, info)
+	assert.EqualError(t, err, "asset was issued by other address")
+	tx.SenderPK = assetInfo.issuer
+	err = to.tc.checkSponsorshipV1(tx, info)
+	assert.NoError(t, err, "checkSponsorshipV1 failed with valid Sponsorship tx")
+
+	// Check invalid timestamp failure.
+	tx.Timestamp = 0
+	err = to.tc.checkSponsorshipV1(tx, info)
+	assert.Error(t, err, "checkSponsorshipV1 did not fail with invalid timestamp")
+}

@@ -237,3 +237,14 @@ func (tp *transactionPerformer) performDataV1(transaction proto.Transaction, inf
 	}
 	return nil
 }
+
+func (tp *transactionPerformer) performSponsorshipV1(transaction proto.Transaction, info *performerInfo) error {
+	tx, ok := transaction.(*proto.SponsorshipV1)
+	if !ok {
+		return errors.New("failed to convert interface to SponsorshipV1 transaction")
+	}
+	if err := tp.stor.sponsoredAssets.sponsorAsset(tx.AssetID, tx.MinAssetFee, info.blockID); err != nil {
+		return errors.Wrap(err, "failed to sponsor asset")
+	}
+	return nil
+}

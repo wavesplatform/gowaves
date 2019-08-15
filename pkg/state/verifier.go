@@ -58,7 +58,7 @@ func checkTx(tx proto.Transaction) error {
 		}
 	case *proto.IssueV2:
 		if ok, _ := t.Verify(t.SenderPK); !ok {
-			return errors.New("transfer tx signature verification failed")
+			return errors.New("issue tx signature verification failed")
 		}
 	case *proto.ReissueV1:
 		if ok, _ := t.Verify(t.SenderPK); !ok {
@@ -66,7 +66,7 @@ func checkTx(tx proto.Transaction) error {
 		}
 	case *proto.ReissueV2:
 		if ok, _ := t.Verify(t.SenderPK); !ok {
-			return errors.New("transfer tx signature verification failed")
+			return errors.New("reissue tx signature verification failed")
 		}
 	case *proto.BurnV1:
 		if ok, _ := t.Verify(t.SenderPK); !ok {
@@ -74,7 +74,7 @@ func checkTx(tx proto.Transaction) error {
 		}
 	case *proto.BurnV2:
 		if ok, _ := t.Verify(t.SenderPK); !ok {
-			return errors.New("transfer tx signature verification failed")
+			return errors.New("burn tx signature verification failed")
 		}
 	case *proto.ExchangeV1:
 		if ok, _ := t.Verify(t.SenderPK); !ok {
@@ -82,7 +82,7 @@ func checkTx(tx proto.Transaction) error {
 		}
 	case *proto.ExchangeV2:
 		if ok, _ := t.Verify(t.SenderPK); !ok {
-			return errors.New("transfer tx signature verification failed")
+			return errors.New("exchange tx signature verification failed")
 		}
 	case *proto.LeaseV1:
 		if ok, _ := t.Verify(t.SenderPK); !ok {
@@ -90,7 +90,7 @@ func checkTx(tx proto.Transaction) error {
 		}
 	case *proto.LeaseV2:
 		if ok, _ := t.Verify(t.SenderPK); !ok {
-			return errors.New("transfer tx signature verification failed")
+			return errors.New("lease tx signature verification failed")
 		}
 	case *proto.LeaseCancelV1:
 		if ok, _ := t.Verify(t.SenderPK); !ok {
@@ -98,7 +98,7 @@ func checkTx(tx proto.Transaction) error {
 		}
 	case *proto.LeaseCancelV2:
 		if ok, _ := t.Verify(t.SenderPK); !ok {
-			return errors.New("transfer tx signature verification failed")
+			return errors.New("leasecancel tx signature verification failed")
 		}
 	case *proto.CreateAliasV1:
 		if ok, _ := t.Verify(t.SenderPK); !ok {
@@ -106,31 +106,31 @@ func checkTx(tx proto.Transaction) error {
 		}
 	case *proto.CreateAliasV2:
 		if ok, _ := t.Verify(t.SenderPK); !ok {
-			return errors.New("transfer tx signature verification failed")
+			return errors.New("createalias tx signature verification failed")
 		}
 	case *proto.SponsorshipV1:
 		if ok, _ := t.Verify(t.SenderPK); !ok {
-			return errors.New("transfer tx signature verification failed")
+			return errors.New("sponsorship tx signature verification failed")
 		}
 	case *proto.MassTransferV1:
 		if ok, _ := t.Verify(t.SenderPK); !ok {
-			return errors.New("transfer tx signature verification failed")
+			return errors.New("masstransfer tx signature verification failed")
 		}
 	case *proto.DataV1:
 		if ok, _ := t.Verify(t.SenderPK); !ok {
-			return errors.New("transfer tx signature verification failed")
+			return errors.New("data tx signature verification failed")
 		}
 	case *proto.SetScriptV1:
 		if ok, _ := t.Verify(t.SenderPK); !ok {
-			return errors.New("transfer tx signature verification failed")
+			return errors.New("setscript tx signature verification failed")
 		}
 	case *proto.SetAssetScriptV1:
 		if ok, _ := t.Verify(t.SenderPK); !ok {
-			return errors.New("transfer tx signature verification failed")
+			return errors.New("setassetscript tx signature verification failed")
 		}
 	case *proto.InvokeScriptV1:
 		if ok, _ := t.Verify(t.SenderPK); !ok {
-			return errors.New("transfer tx signature verification failed")
+			return errors.New("invokescript tx signature verification failed")
 		}
 	default:
 		return errors.New("unknown transaction type")

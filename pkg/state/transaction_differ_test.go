@@ -661,3 +661,28 @@ func TestCreateDiffDataV1(t *testing.T) {
 	}
 	assert.Equal(t, correctDiff, diff)
 }
+
+func createSponsorshipV1(t *testing.T) *proto.SponsorshipV1 {
+	feeConst, ok := feeConstants[proto.SponsorshipTransaction]
+	assert.Equal(t, ok, true)
+	return proto.NewUnsignedSponsorshipV1(testGlobal.senderInfo.pk, testGlobal.asset0.asset.ID, defaultQuantity, FeeUnit*feeConst, defaultTimestamp)
+}
+
+func TestCreateDiffSponsorshipV1(t *testing.T) {
+	to, path := createDifferTestObjects(t)
+
+	defer func() {
+		err := util.CleanTemporaryDirs(path)
+		assert.NoError(t, err, "failed to clean test data dirs")
+	}()
+
+	tx := createSponsorshipV1(t)
+	diff, err := to.td.createDiffSponsorshipV1(tx, defaultDifferInfo(t))
+	assert.NoError(t, err, "createDiffSponsorshipV1 failed")
+
+	correctDiff := txDiff{
+		testGlobal.senderInfo.wavesKey: newBalanceDiff(-int64(tx.Fee), 0, 0, false),
+		testGlobal.minerInfo.wavesKey:  newBalanceDiff(int64(tx.Fee), 0, 0, false),
+	}
+	assert.Equal(t, correctDiff, diff)
+}

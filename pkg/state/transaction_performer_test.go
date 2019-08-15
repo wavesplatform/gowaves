@@ -364,3 +364,48 @@ func TestPerformDataV1(t *testing.T) {
 	assert.NoError(t, err, "retrieveNewestEntry() failed")
 	assert.Equal(t, entry, newEntry)
 }
+
+func TestPerformSponsorshipV1(t *testing.T) {
+	to, path := createPerformerTestObjects(t)
+
+	defer func() {
+		err := util.CleanTemporaryDirs(path)
+		assert.NoError(t, err, "failed to clean test data dirs")
+	}()
+
+	to.stor.addBlock(t, blockID0)
+
+	tx := createSponsorshipV1(t)
+	err := to.tp.performSponsorshipV1(tx, defaultPerformerInfo(t))
+	assert.NoError(t, err, "performSponsorshipV1() failed")
+
+	isSponsored, err := to.entities.sponsoredAssets.newestIsSponsored(tx.AssetID, true)
+	assert.NoError(t, err, "newestIsSponsored() failed")
+	assert.Equal(t, isSponsored, true)
+
+	assetCost, err := to.entities.sponsoredAssets.newestAssetCost(tx.AssetID, true)
+	assert.NoError(t, err, "newestAssetCost() failed")
+	assert.Equal(t, assetCost, tx.MinAssetFee)
+
+	isSponsored, err = to.entities.sponsoredAssets.isSponsored(tx.AssetID, true)
+	assert.NoError(t, err, "isSponsored() failed")
+	assert.Equal(t, isSponsored, false)
+
+	to.stor.flush(t)
+
+	isSponsored, err = to.entities.sponsoredAssets.newestIsSponsored(tx.AssetID, true)
+	assert.NoError(t, err, "newestIsSponsored() failed")
+	assert.Equal(t, isSponsored, true)
+
+	assetCost, err = to.entities.sponsoredAssets.newestAssetCost(tx.AssetID, true)
+	assert.NoError(t, err, "newestAssetCost() failed")
+	assert.Equal(t, assetCost, tx.MinAssetFee)
+
+	isSponsored, err = to.entities.sponsoredAssets.isSponsored(tx.AssetID, true)
+	assert.NoError(t, err, "isSponsored() failed")
+	assert.Equal(t, isSponsored, true)
+
+	assetCost, err = to.entities.sponsoredAssets.assetCost(tx.AssetID, true)
+	assert.NoError(t, err, "assetCost() failed")
+	assert.Equal(t, assetCost, tx.MinAssetFee)
+}
