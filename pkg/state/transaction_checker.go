@@ -486,7 +486,7 @@ func (tc *transactionChecker) checkSponsorshipV1(transaction proto.Transaction, 
 	if err := tc.checkFee(transaction, proto.OptionalAsset{Present: false}, info); err != nil {
 		return errors.Errorf("checkFee(): %v", err)
 	}
-	activated, err := tc.stor.sponsoredAssets.isSponsorshipActivated()
+	activated, err := tc.stor.features.isActivated(int16(settings.FeeSponsorship))
 	if err != nil {
 		return err
 	}

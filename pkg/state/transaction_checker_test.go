@@ -575,9 +575,10 @@ func TestCheckSponsorshipV1(t *testing.T) {
 	assert.EqualError(t, err, "sponsorship has not been activated yet")
 
 	// Activate sponsorship.
-	activateSponsorship(t, to.entities.features, to.stor)
+	activateFeature(t, to.entities.features, to.stor, int16(settings.FeeSponsorship))
 	err = to.tc.checkSponsorshipV1(tx, info)
 	assert.NoError(t, err, "checkSponsorshipV1 failed with valid Sponsorship tx")
+	activateSponsorship(t, to.entities.features, to.stor)
 
 	// Check min fee.
 	feeConst, ok := feeConstants[proto.SponsorshipTransaction]
