@@ -77,6 +77,10 @@ func (tc *transactionChecker) checkFeeAsset(asset *proto.OptionalAsset, initiali
 	if err := tc.checkAsset(asset, initialisation); err != nil {
 		return err
 	}
+	if !asset.Present {
+		// No need to check Waves.
+		return nil
+	}
 	// Check sponsorship.
 	sponsorshipActivated, err := tc.stor.sponsoredAssets.isSponsorshipActivated()
 	if err != nil {
