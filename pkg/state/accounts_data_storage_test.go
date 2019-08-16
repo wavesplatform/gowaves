@@ -9,7 +9,7 @@ import (
 )
 
 type accountsDataStorageTestObjects struct {
-	stor             *storageObjects
+	stor             *testStorageObjects
 	accountsDataStor *accountsDataStorage
 }
 

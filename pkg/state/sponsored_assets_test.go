@@ -9,7 +9,7 @@ import (
 )
 
 type sponsoredAssetsTestObjects struct {
-	stor            *storageObjects
+	stor            *testStorageObjects
 	features        *features
 	sponsoredAssets *sponsoredAssets
 }
@@ -146,13 +146,13 @@ func TestIsSponsorshipActivated(t *testing.T) {
 	assert.Equal(t, false, isSponsorshipActivated)
 
 	// False after activation.
-	activateFeature(t, to.features, to.stor, int16(settings.FeeSponsorship))
+	to.stor.activateFeature(t, int16(settings.FeeSponsorship))
 	isSponsorshipActivated, err = to.sponsoredAssets.isSponsorshipActivated()
 	assert.NoError(t, err, "isSponsorshipActivated() failed")
 	assert.Equal(t, false, isSponsorshipActivated)
 
 	// True after windowSize blocks after activation.
-	activateSponsorship(t, to.features, to.stor)
+	to.stor.activateSponsorship(t)
 	isSponsorshipActivated, err = to.sponsoredAssets.isSponsorshipActivated()
 	assert.NoError(t, err, "isSponsorshipActivated() failed")
 	assert.Equal(t, true, isSponsorshipActivated)

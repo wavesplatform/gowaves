@@ -13,22 +13,19 @@ import (
 )
 
 type checkerTestObjects struct {
-	stor     *storageObjects
-	entities *blockchainEntitiesStorage
-	tc       *transactionChecker
-	tp       *transactionPerformer
+	stor *testStorageObjects
+	tc   *transactionChecker
+	tp   *transactionPerformer
 }
 
 func createCheckerTestObjects(t *testing.T) (*checkerTestObjects, []string) {
 	stor, path, err := createStorageObjects()
 	assert.NoError(t, err, "createStorageObjects() failed")
-	entities, err := newBlockchainEntitiesStorage(stor.hs, stor.stateDB, settings.MainNetSettings)
-	assert.NoError(t, err, "newBlockchainEntitiesStorage() failed")
-	tc, err := newTransactionChecker(crypto.MustSignatureFromBase58(genesisSignature), entities, settings.MainNetSettings)
+	tc, err := newTransactionChecker(crypto.MustSignatureFromBase58(genesisSignature), stor.entities, settings.MainNetSettings)
 	assert.NoError(t, err, "newTransactionChecker() failed")
-	tp, err := newTransactionPerformer(entities, settings.MainNetSettings)
+	tp, err := newTransactionPerformer(stor.entities, settings.MainNetSettings)
 	assert.NoError(t, err, "newTransactionPerormer() failed")
-	return &checkerTestObjects{stor, entities, tc, tp}, path
+	return &checkerTestObjects{stor, tc, tp}, path
 }
 
 func defaultCheckerInfo(t *testing.T) *checkerInfo {
@@ -94,16 +91,16 @@ func TestCheckTransferV1(t *testing.T) {
 	err := to.tc.checkTransferV1(tx, info)
 	assert.Error(t, err, "checkTransferV1 did not fail with invalid transfer asset")
 
-	createAsset(t, to.entities.assets, to.stor, assetId)
+	to.stor.createAsset(t, assetId)
 	err = to.tc.checkTransferV1(tx, info)
 	assert.NoError(t, err, "checkTransferV1 failed with valid transfer tx")
 
 	// Sponsorship checks.
-	activateSponsorship(t, to.entities.features, to.stor)
+	to.stor.activateSponsorship(t)
 	err = to.tc.checkTransferV1(tx, info)
 	assert.Error(t, err, "checkTransferV1 did not fail with unsponsored asset")
 	assert.EqualError(t, err, fmt.Sprintf("checkFee(): asset %s is not sponsored", assetId.String()))
-	err = to.entities.sponsoredAssets.sponsorAsset(assetId, 10, blockID0)
+	err = to.stor.entities.sponsoredAssets.sponsorAsset(assetId, 10, blockID0)
 	assert.NoError(t, err, "sponsorAsset() failed")
 	err = to.tc.checkTransferV1(tx, info)
 	assert.NoError(t, err, "checkTransferV1 failed with valid sponsored asset")
@@ -129,16 +126,16 @@ func TestCheckTransferV2(t *testing.T) {
 	err := to.tc.checkTransferV2(tx, info)
 	assert.Error(t, err, "checkTransferV2 did not fail with invalid transfer asset")
 
-	createAsset(t, to.entities.assets, to.stor, assetId)
+	to.stor.createAsset(t, assetId)
 	err = to.tc.checkTransferV2(tx, info)
 	assert.NoError(t, err, "checkTransferV2 failed with valid transfer tx")
 
 	// Sponsorship checks.
-	activateSponsorship(t, to.entities.features, to.stor)
+	to.stor.activateSponsorship(t)
 	err = to.tc.checkTransferV2(tx, info)
 	assert.Error(t, err, "checkTransferV2 did not fail with unsponsored asset")
 	assert.EqualError(t, err, fmt.Sprintf("checkFee(): asset %s is not sponsored", assetId.String()))
-	err = to.entities.sponsoredAssets.sponsorAsset(assetId, 10, blockID0)
+	err = to.stor.entities.sponsoredAssets.sponsorAsset(assetId, 10, blockID0)
 	assert.NoError(t, err, "sponsorAsset() failed")
 	err = to.tc.checkTransferV2(tx, info)
 	assert.NoError(t, err, "checkTransferV2 failed with valid sponsored asset")
@@ -192,7 +189,7 @@ func TestCheckReissueV1(t *testing.T) {
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
-	assetInfo := createAsset(t, to.entities.assets, to.stor, testGlobal.asset0.asset.ID)
+	assetInfo := to.stor.createAsset(t, testGlobal.asset0.asset.ID)
 
 	tx := createReissueV1(t)
 	tx.SenderPK = assetInfo.issuer
@@ -231,7 +228,7 @@ func TestCheckReissueV2(t *testing.T) {
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
-	assetInfo := createAsset(t, to.entities.assets, to.stor, testGlobal.asset0.asset.ID)
+	assetInfo := to.stor.createAsset(t, testGlobal.asset0.asset.ID)
 
 	tx := createReissueV2(t)
 	tx.SenderPK = assetInfo.issuer
@@ -270,7 +267,7 @@ func TestCheckBurnV1(t *testing.T) {
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
-	assetInfo := createAsset(t, to.entities.assets, to.stor, testGlobal.asset0.asset.ID)
+	assetInfo := to.stor.createAsset(t, testGlobal.asset0.asset.ID)
 
 	tx := createBurnV1(t)
 	tx.SenderPK = assetInfo.issuer
@@ -284,7 +281,7 @@ func TestCheckBurnV1(t *testing.T) {
 	assert.Error(t, err, "checkBurnV1 did not fail with burn sender not equal to asset issuer before activation of BurnAnyTokens feature")
 
 	// Activate BurnAnyTokens and make sure previous tx is now valid.
-	activateFeature(t, to.entities.features, to.stor, int16(settings.BurnAnyTokens))
+	to.stor.activateFeature(t, int16(settings.BurnAnyTokens))
 	err = to.tc.checkBurnV1(tx, info)
 	assert.NoError(t, err, "checkBurnV1 failed with burn sender not equal to asset issuer after activation of BurnAnyTokens feature")
 
@@ -301,7 +298,7 @@ func TestCheckBurnV2(t *testing.T) {
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
-	assetInfo := createAsset(t, to.entities.assets, to.stor, testGlobal.asset0.asset.ID)
+	assetInfo := to.stor.createAsset(t, testGlobal.asset0.asset.ID)
 
 	tx := createBurnV2(t)
 	tx.SenderPK = assetInfo.issuer
@@ -315,7 +312,7 @@ func TestCheckBurnV2(t *testing.T) {
 	assert.Error(t, err, "checkBurnV1 did not fail with burn sender not equal to asset issuer before activation of BurnAnyTokens feature")
 
 	// Activate BurnAnyTokens and make sure previous tx is now valid.
-	activateFeature(t, to.entities.features, to.stor, int16(settings.BurnAnyTokens))
+	to.stor.activateFeature(t, int16(settings.BurnAnyTokens))
 	err = to.tc.checkBurnV2(tx, info)
 	assert.NoError(t, err, "checkBurnV1 failed with burn sender not equal to asset issuer after activation of BurnAnyTokens feature")
 
@@ -337,8 +334,8 @@ func TestCheckExchange(t *testing.T) {
 	err := to.tc.checkExchange(tx, info)
 	assert.Error(t, err, "checkExchange did not fail with exchange with unknown assets")
 
-	createAsset(t, to.entities.assets, to.stor, testGlobal.asset0.asset.ID)
-	createAsset(t, to.entities.assets, to.stor, testGlobal.asset1.asset.ID)
+	to.stor.createAsset(t, testGlobal.asset0.asset.ID)
+	to.stor.createAsset(t, testGlobal.asset1.asset.ID)
 	err = to.tc.checkExchange(tx, info)
 	assert.NoError(t, err, "checkExchange failed with valid exchange")
 }
@@ -521,12 +518,12 @@ func TestCheckMassTransferV1(t *testing.T) {
 	assert.EqualError(t, err, "MassTransfer transaction has not been activated yet")
 
 	// Activate MassTransfer.
-	activateFeature(t, to.entities.features, to.stor, int16(settings.MassTransfer))
+	to.stor.activateFeature(t, int16(settings.MassTransfer))
 	err = to.tc.checkMassTransferV1(tx, info)
 	assert.Error(t, err, "checkMassTransferV1 did not fail with unissued asset")
 	assert.EqualError(t, err, fmt.Sprintf("unknown asset %s", tx.Asset.ID.String()))
 
-	createAsset(t, to.entities.assets, to.stor, testGlobal.asset0.asset.ID)
+	to.stor.createAsset(t, testGlobal.asset0.asset.ID)
 	err = to.tc.checkMassTransferV1(tx, info)
 	assert.NoError(t, err, "checkMassTransferV1 failed with valid massTransfer tx")
 }
@@ -547,7 +544,7 @@ func TestCheckDataV1(t *testing.T) {
 	assert.EqualError(t, err, "Data transaction has not been activated yet")
 
 	// Activate Data transactions.
-	activateFeature(t, to.entities.features, to.stor, int16(settings.DataTransaction))
+	to.stor.activateFeature(t, int16(settings.DataTransaction))
 	err = to.tc.checkDataV1(tx, info)
 	assert.NoError(t, err, "checkDataV1 failed with valid Data tx")
 
@@ -566,7 +563,7 @@ func TestCheckSponsorshipV1(t *testing.T) {
 	}()
 
 	tx := createSponsorshipV1(t)
-	assetInfo := createAsset(t, to.entities.assets, to.stor, tx.AssetID)
+	assetInfo := to.stor.createAsset(t, tx.AssetID)
 	tx.SenderPK = assetInfo.issuer
 	info := defaultCheckerInfo(t)
 
@@ -575,10 +572,10 @@ func TestCheckSponsorshipV1(t *testing.T) {
 	assert.EqualError(t, err, "sponsorship has not been activated yet")
 
 	// Activate sponsorship.
-	activateFeature(t, to.entities.features, to.stor, int16(settings.FeeSponsorship))
+	to.stor.activateFeature(t, int16(settings.FeeSponsorship))
 	err = to.tc.checkSponsorshipV1(tx, info)
 	assert.NoError(t, err, "checkSponsorshipV1 failed with valid Sponsorship tx")
-	activateSponsorship(t, to.entities.features, to.stor)
+	to.stor.activateSponsorship(t)
 
 	// Check min fee.
 	feeConst, ok := feeConstants[proto.SponsorshipTransaction]

@@ -10,22 +10,19 @@ import (
 )
 
 type diffApplierTestObjects struct {
-	stor     *storageObjects
-	entities *blockchainEntitiesStorage
-	applier  *diffApplier
-	td       *transactionDiffer
+	stor    *testStorageObjects
+	applier *diffApplier
+	td      *transactionDiffer
 }
 
 func createDiffApplierTestObjects(t *testing.T) (*diffApplierTestObjects, []string) {
 	stor, path, err := createStorageObjects()
 	assert.NoError(t, err, "createStorageObjects() failed")
-	entities, err := newBlockchainEntitiesStorage(stor.hs, stor.stateDB, settings.MainNetSettings)
-	assert.NoError(t, err, "newBlockchainEntitiesStorage() failed")
-	applier, err := newDiffApplier(entities.balances)
+	applier, err := newDiffApplier(stor.entities.balances)
 	assert.NoError(t, err, "newDiffApplier() failed")
-	td, err := newTransactionDiffer(entities, settings.MainNetSettings)
+	td, err := newTransactionDiffer(stor.entities, settings.MainNetSettings)
 	assert.NoError(t, err, "newTransactionDiffer() failed")
-	return &diffApplierTestObjects{stor, entities, applier, td}, path
+	return &diffApplierTestObjects{stor, applier, td}, path
 }
 
 func TestDiffApplierWithWaves(t *testing.T) {
@@ -47,7 +44,7 @@ func TestDiffApplierWithWaves(t *testing.T) {
 	err := to.applier.applyBalancesChanges(changes, true)
 	assert.NoError(t, err, "applyBalancesChanges() failed")
 	to.stor.flush(t)
-	profile, err := to.entities.balances.wavesBalance(testGlobal.senderInfo.addr, true)
+	profile, err := to.stor.entities.balances.wavesBalance(testGlobal.senderInfo.addr, true)
 	assert.NoError(t, err, "wavesBalance() failed")
 	assert.Equal(t, diff.balance, int64(profile.balance))
 	// Test applying invalid balance change.
@@ -72,7 +69,7 @@ func TestDiffApplierWithWaves(t *testing.T) {
 	err = to.applier.applyBalancesChanges(changes, true)
 	assert.NoError(t, err, "applyBalancesChanges() failed")
 	to.stor.flush(t)
-	profile, err = to.entities.balances.wavesBalance(testGlobal.senderInfo.addr, true)
+	profile, err = to.stor.entities.balances.wavesBalance(testGlobal.senderInfo.addr, true)
 	assert.NoError(t, err, "wavesBalance() failed")
 	assert.Equal(t, diff.leaseIn, int64(profile.leaseIn))
 	// Test that leasing leased money leads to error.
@@ -110,7 +107,7 @@ func TestDiffApplierWithAssets(t *testing.T) {
 	err := to.applier.applyBalancesChanges(changes, true)
 	assert.NoError(t, err, "applyBalancesChanges() failed")
 	to.stor.flush(t)
-	balance, err := to.entities.balances.assetBalance(testGlobal.senderInfo.addr, testGlobal.asset0.assetID, true)
+	balance, err := to.stor.entities.balances.assetBalance(testGlobal.senderInfo.addr, testGlobal.asset0.assetID, true)
 	assert.NoError(t, err, "assetBalance() failed")
 	assert.Equal(t, diff.balance, int64(balance))
 	// Test applying invalid balance change.
@@ -141,7 +138,7 @@ func TestTransferOverspend(t *testing.T) {
 	tx.Timestamp = info.blockTime
 	tx.Recipient = proto.NewRecipientFromAddress(testGlobal.senderInfo.addr)
 	// Set balance equal to tx Fee.
-	err := to.entities.balances.setAssetBalance(testGlobal.senderInfo.addr, testGlobal.asset0.assetID, tx.Fee, blockID0)
+	err := to.stor.entities.balances.setAssetBalance(testGlobal.senderInfo.addr, testGlobal.asset0.assetID, tx.Fee, blockID0)
 	assert.NoError(t, err, "setAssetBalacne() failed")
 	to.stor.flush(t)
 
