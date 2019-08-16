@@ -7,15 +7,9 @@ import (
 )
 
 func NewVariablesFromTransaction(scheme byte, t proto.Transaction) (map[string]Expr, error) {
-
 	funcName := "NewVariablesFromTransaction"
 
 	out := make(map[string]Expr)
-	tID, err := t.GetID()
-	if err != nil {
-		return nil, errors.Wrap(err, funcName)
-	}
-	out["id"] = NewBytes(tID)
 
 	switch tx := t.(type) {
 	case *proto.Genesis:
@@ -372,9 +366,19 @@ func newVariablesFromMassTransferV1(scheme proto.Scheme, tx *proto.MassTransferV
 func newVariablesFromExchangeV1(scheme proto.Scheme, tx *proto.ExchangeV1) (map[string]Expr, error) {
 	funcName := "newVariablesFromExchangeV1"
 	out := make(map[string]Expr)
+	buy, err := newVariablesFromOrder(scheme, tx.BuyOrder)
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	out["buyOrder"] = NewObject(buy)
+
+	sell, err := newVariablesFromOrder(scheme, tx.SellOrder)
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	out["sellOrder"] = NewObject(sell)
 	out["price"] = NewLong(int64(tx.Price))
 	out["amount"] = NewLong(int64(tx.Amount))
-
 	out["buyMatcherFee"] = NewLong(int64(tx.BuyMatcherFee))
 	out["sellMatcherFee"] = NewLong(int64(tx.SellMatcherFee))
 
@@ -467,6 +471,42 @@ func newVariablesFromOrder(scheme proto.Scheme, tx proto.Order) (map[string]Expr
 	out["matcherPublicKey"] = NewBytes(util.Dup(matcherPk.Bytes()))
 	pair := tx.GetAssetPair()
 	out["assetPair"] = NewAssetPair(makeOptionalAsset(pair.AmountAsset), makeOptionalAsset(pair.PriceAsset))
+	out["orderType"] = makeOrderType(tx.GetOrderType())
+	out["price"] = NewLong(int64(tx.GetPrice()))
+	out["amount"] = NewLong(int64(tx.GetAmount()))
+	out["timestamp"] = NewLong(int64(tx.GetTimestamp()))
+	out["expiration"] = NewLong(int64(tx.GetExpiration()))
+	out["matcherFee"] = NewLong(int64(tx.GetMatcherFee()))
+	out["matcherFeeAssetId"] = makeOptionalAsset(tx.GetMatcherFeeAsset())
+	addr, err := proto.NewAddressFromPublicKey(scheme, tx.GetSenderPK())
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	out["sender"] = NewAddressFromProtoAddress(addr)
+	pk := tx.GetSenderPK()
+	out["senderPublicKey"] = NewBytes(util.Dup(pk.Bytes()))
+	bts, err := tx.BodyMarshalBinary()
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	out["bodyBytes"] = NewBytes(bts)
+	proofs, _ := tx.GetProofs()
+	exprs := Exprs{}
+	for _, proof := range proofs.Proofs {
+		exprs = append(exprs, NewBytes(util.Dup(proof)))
+	}
+	out["proofs"] = exprs
+	out[InstanceFieldName] = NewString("Order")
 
 	return out, nil
+}
+
+func makeOrderType(orderType proto.OrderType) Expr {
+	if orderType == proto.Buy {
+		return BuyExpr{}
+	}
+	if orderType == proto.Sell {
+		return SellExpr{}
+	}
+	panic("invalid orderType")
 }

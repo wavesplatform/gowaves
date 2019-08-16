@@ -788,12 +788,12 @@ func (a *ExchangeV1TestSuite) SetupTest() {
 
 func (a *ExchangeV1TestSuite) Test_buyOrder() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	a.Equal(NewLong(100000), rs["buyOrder"])
+	a.Equal("Order", rs["buyOrder"].InstanceOf())
 }
 
 func (a *ExchangeV1TestSuite) Test_sellOrder() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	a.Equal(NewLong(100000), rs["sellOrder"])
+	a.Equal("Order", rs["sellOrder"].InstanceOf())
 }
 
 func (a *ExchangeV1TestSuite) Test_price() {
@@ -888,12 +888,12 @@ func (a *ExchangeV2TestSuite) Test_price() {
 
 func (a *ExchangeV2TestSuite) Test_buyOrder() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	a.Equal(NewLong(100000), rs["buyOrder"])
+	a.Equal("Order", rs["buyOrder"].InstanceOf())
 }
 
 func (a *ExchangeV2TestSuite) Test_sellOrder() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	a.Equal(NewLong(100000), rs["sellOrder"])
+	a.Equal("Order", rs["sellOrder"].InstanceOf())
 }
 
 func (a *ExchangeV2TestSuite) Test_amount() {
@@ -1018,7 +1018,70 @@ func (a *OrderTestSuite) Test_assetPair() {
 
 func (a *OrderTestSuite) Test_orderType() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	a.Equal(NewAssetPair(NewBytes(a.d.Bytes()), NewBytes(a.d.Bytes())), rs["orderType"])
+	a.Equal("Sell", rs["orderType"].InstanceOf())
+}
+
+func (a *OrderTestSuite) Test_price() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(NewLong(100000), rs["price"])
+}
+
+func (a *OrderTestSuite) Test_amount() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(NewLong(10000), rs["amount"])
+}
+
+func (a *OrderTestSuite) Test_timestamp() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(NewLong(int64(byte_helpers.TIMESTAMP)), rs["timestamp"])
+}
+
+func (a *OrderTestSuite) Test_expiration() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(NewLong(int64(byte_helpers.TIMESTAMP)), rs["expiration"])
+}
+
+func (a *OrderTestSuite) Test_matcherFee() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(NewLong(10000), rs["matcherFee"])
+}
+
+func (a *OrderTestSuite) Test_matcherFeeAssetId() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(NewUnit(), rs["matcherFeeAssetId"])
+}
+
+func (a *OrderTestSuite) Test_sender() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	addr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, a.tx.GetSenderPK())
+	a.NoError(err)
+	a.Equal(NewAddressFromProtoAddress(addr), rs["sender"])
+}
+
+func (a *OrderTestSuite) Test_senderPublicKey() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	pk := a.tx.GetSenderPK()
+	a.Equal(NewBytes(pk.Bytes()), rs["senderPublicKey"])
+}
+
+func (a *OrderTestSuite) Test_bodyBytes() {
+	_, pub := crypto.GenerateKeyPair([]byte("test"))
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	proofs, _ := a.tx.GetProofs()
+	sig, _ := crypto.NewSignatureFromBytes(proofs.Proofs[0])
+	a.IsType(&BytesExpr{}, rs["bodyBytes"])
+	a.True(crypto.Verify(pub, sig, rs["bodyBytes"].(*BytesExpr).Value))
+}
+
+func (a *OrderTestSuite) Test_proofs() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	p, _ := a.tx.GetProofs()
+	a.Equal(Exprs{NewBytes(p.Proofs[0].Bytes())}, rs["proofs"])
+}
+
+func (a *OrderTestSuite) Test_InstanceFieldName() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal("Order", NewObject(rs).InstanceOf())
 }
 
 //Order

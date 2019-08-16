@@ -68,7 +68,7 @@ func TestMainNetOrder(t *testing.T) {
 		aa, _ := NewOptionalAssetFromString(tc.amountAsset)
 		pa, _ := NewOptionalAssetFromString(tc.priceAsset)
 		o := NewUnsignedOrderV1(spk, mpk, *aa, *pa, tc.orderType, tc.price, tc.amount, tc.timestamp, tc.expiration, tc.fee)
-		if b, err := o.bodyMarshalBinary(); assert.NoError(t, err) {
+		if b, err := o.BodyMarshalBinary(); assert.NoError(t, err) {
 			d, _ := crypto.FastHash(b)
 			assert.Equal(t, id, d)
 			assert.True(t, crypto.Verify(spk, sig, b))

@@ -361,6 +361,13 @@ type Order interface {
 	GetPrice() uint64
 	GetExpiration() uint64
 	Valid() (bool, error)
+	GetAmount() uint64
+	GetTimestamp() uint64
+	GetMatcherFee() uint64
+	GetMatcherFeeAsset() OptionalAsset
+	GetSenderPK() crypto.PublicKey
+	BodyMarshalBinary() ([]byte, error)
+	GetProofs() (*ProofsV1, error)
 }
 
 func OrderToOrderBody(o Order) (OrderBody, error) {
@@ -446,6 +453,10 @@ func (o OrderBody) Valid() (bool, error) {
 		return false, errors.New("expiration should be positive")
 	}
 	return true, nil
+}
+
+func (o OrderBody) GetSenderPK() crypto.PublicKey {
+	return o.SenderPK
 }
 
 func (o *OrderBody) SpendAmount(matchAmount, matchPrice uint64) (uint64, error) {
@@ -581,6 +592,30 @@ func (o OrderV1) GetID() ([]byte, error) {
 	return nil, errors.New("no id for OrderV1")
 }
 
+func (o OrderV1) GetProofs() (*ProofsV1, error) {
+	if o.Signature == nil {
+		return nil, errors.New("not signed")
+	}
+	proofs := &ProofsV1{proofsVersion, []B58Bytes{o.Signature.Bytes()}}
+	return proofs, nil
+}
+
+func (o OrderV1) GetAmount() uint64 {
+	return o.OrderBody.Amount
+}
+
+func (o OrderV1) GetTimestamp() uint64 {
+	return o.Timestamp
+}
+
+func (o OrderV1) GetMatcherFee() uint64 {
+	return o.MatcherFee
+}
+
+func (o OrderV1) GetMatcherFeeAsset() OptionalAsset {
+	return OptionalAsset{}
+}
+
 //NewUnsignedOrderV1 creates the new unsigned order.
 func NewUnsignedOrderV1(senderPK, matcherPK crypto.PublicKey, amountAsset, priceAsset OptionalAsset, orderType OrderType, price, amount, timestamp, expiration, matcherFee uint64) *OrderV1 {
 	ob := OrderBody{
@@ -623,7 +658,7 @@ func (o OrderV1) GetExpiration() uint64 {
 	return o.Expiration
 }
 
-func (o *OrderV1) bodyMarshalBinary() ([]byte, error) {
+func (o OrderV1) BodyMarshalBinary() ([]byte, error) {
 	return o.OrderBody.marshalBinary()
 }
 
@@ -633,7 +668,7 @@ func (o *OrderV1) bodyUnmarshalBinary(data []byte) error {
 
 //Sign adds a signature to the order.
 func (o *OrderV1) Sign(secretKey crypto.SecretKey) error {
-	b, err := o.bodyMarshalBinary()
+	b, err := o.BodyMarshalBinary()
 	if err != nil {
 		return errors.Wrap(err, "failed to sign OrderV1")
 	}
@@ -652,7 +687,7 @@ func (o *OrderV1) Verify(publicKey crypto.PublicKey) (bool, error) {
 	if o.Signature == nil {
 		return false, errors.New("empty signature")
 	}
-	b, err := o.bodyMarshalBinary()
+	b, err := o.BodyMarshalBinary()
 	if err != nil {
 		return false, errors.Wrap(err, "failed to verify signature of OrderV1")
 	}
@@ -661,7 +696,7 @@ func (o *OrderV1) Verify(publicKey crypto.PublicKey) (bool, error) {
 
 //MarshalBinary writes order to its bytes representation.
 func (o *OrderV1) MarshalBinary() ([]byte, error) {
-	b, err := o.bodyMarshalBinary()
+	b, err := o.BodyMarshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal OrderV1 to bytes")
 	}
@@ -717,6 +752,26 @@ func (o OrderV2) GetID() ([]byte, error) {
 	return nil, errors.New("no id for OrderV2")
 }
 
+func (o OrderV2) GetAmount() uint64 {
+	return o.Amount
+}
+
+func (o OrderV2) GetTimestamp() uint64 {
+	return o.Timestamp
+}
+
+func (o OrderV2) GetMatcherFee() uint64 {
+	return o.MatcherFee
+}
+
+func (o OrderV2) GetMatcherFeeAsset() OptionalAsset {
+	return OptionalAsset{}
+}
+
+func (o OrderV2) GetProofs() (*ProofsV1, error) {
+	return o.Proofs, nil
+}
+
 //NewUnsignedOrderV2 creates the new unsigned order.
 func NewUnsignedOrderV2(senderPK, matcherPK crypto.PublicKey, amountAsset, priceAsset OptionalAsset, orderType OrderType, price, amount, timestamp, expiration, matcherFee uint64) *OrderV2 {
 	ob := OrderBody{
@@ -759,7 +814,7 @@ func (o OrderV2) GetExpiration() uint64 {
 	return o.Expiration
 }
 
-func (o *OrderV2) bodyMarshalBinary() ([]byte, error) {
+func (o OrderV2) BodyMarshalBinary() ([]byte, error) {
 	aal := 0
 	if o.AssetPair.AmountAsset.Present {
 		aal += crypto.DigestSize
@@ -797,7 +852,7 @@ func (o *OrderV2) bodyUnmarshalBinary(data []byte) error {
 
 //Sign adds a signature to the order.
 func (o *OrderV2) Sign(secretKey crypto.SecretKey) error {
-	b, err := o.bodyMarshalBinary()
+	b, err := o.BodyMarshalBinary()
 	if err != nil {
 		return errors.Wrap(err, "failed to sign OrderV2")
 	}
@@ -818,7 +873,7 @@ func (o *OrderV2) Sign(secretKey crypto.SecretKey) error {
 
 //Verify checks that the order's signature is valid.
 func (o *OrderV2) Verify(publicKey crypto.PublicKey) (bool, error) {
-	b, err := o.bodyMarshalBinary()
+	b, err := o.BodyMarshalBinary()
 	if err != nil {
 		return false, errors.Wrap(err, "failed to verify signature of OrderV2")
 	}
@@ -827,7 +882,7 @@ func (o *OrderV2) Verify(publicKey crypto.PublicKey) (bool, error) {
 
 //MarshalBinary writes order to its bytes representation.
 func (o *OrderV2) MarshalBinary() ([]byte, error) {
-	bb, err := o.bodyMarshalBinary()
+	bb, err := o.BodyMarshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal OrderV2 to bytes")
 	}
@@ -891,6 +946,26 @@ func (o *OrderV3) GetID() ([]byte, error) {
 	return nil, errors.New("no id for OrderV3")
 }
 
+func (o OrderV3) GetAmount() uint64 {
+	return o.Amount
+}
+
+func (o OrderV3) GetTimestamp() uint64 {
+	return o.Timestamp
+}
+
+func (o OrderV3) GetMatcherFee() uint64 {
+	return o.MatcherFee
+}
+
+func (o OrderV3) GetMatcherFeeAsset() OptionalAsset {
+	return o.MatcherFeeAsset
+}
+
+func (o OrderV3) GetProofs() (*ProofsV1, error) {
+	return o.Proofs, nil
+}
+
 //NewUnsignedOrderV3 creates the new unsigned order.
 func NewUnsignedOrderV3(senderPK, matcherPK crypto.PublicKey, amountAsset, priceAsset OptionalAsset, orderType OrderType, price, amount, timestamp, expiration, matcherFee uint64, matcherFeeAsset OptionalAsset) *OrderV3 {
 	ob := OrderBody{
@@ -933,7 +1008,7 @@ func (o OrderV3) GetExpiration() uint64 {
 	return o.Expiration
 }
 
-func (o *OrderV3) bodyMarshalBinary() ([]byte, error) {
+func (o *OrderV3) BodyMarshalBinary() ([]byte, error) {
 	aal := 0
 	if o.AssetPair.AmountAsset.Present {
 		aal += crypto.DigestSize
@@ -996,7 +1071,7 @@ func (o *OrderV3) bodyUnmarshalBinary(data []byte) error {
 
 //Sign adds a signature to the order.
 func (o *OrderV3) Sign(secretKey crypto.SecretKey) error {
-	b, err := o.bodyMarshalBinary()
+	b, err := o.BodyMarshalBinary()
 	if err != nil {
 		return errors.Wrap(err, "failed to sign OrderV3")
 	}
@@ -1017,7 +1092,7 @@ func (o *OrderV3) Sign(secretKey crypto.SecretKey) error {
 
 //Verify checks that the order's signature is valid.
 func (o *OrderV3) Verify(publicKey crypto.PublicKey) (bool, error) {
-	b, err := o.bodyMarshalBinary()
+	b, err := o.BodyMarshalBinary()
 	if err != nil {
 		return false, errors.Wrap(err, "failed to verify signature of OrderV3")
 	}
@@ -1026,7 +1101,7 @@ func (o *OrderV3) Verify(publicKey crypto.PublicKey) (bool, error) {
 
 //MarshalBinary writes order to its bytes representation.
 func (o *OrderV3) MarshalBinary() ([]byte, error) {
-	bb, err := o.bodyMarshalBinary()
+	bb, err := o.BodyMarshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal OrderV3 to bytes")
 	}
