@@ -8,10 +8,12 @@ import (
 	"os"
 	"testing"
 
+	"github.com/mr-tron/base58/base58"
 	"github.com/stretchr/testify/assert"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/settings"
 )
 
 const (
@@ -24,17 +26,16 @@ const (
 	testPK   = "AfZtLRQxLNYH5iradMkTeuXGe71uAiATVbr8DpXEEQa8"
 	testAddr = "3PDdGex1meSUf4Yq5bjPBpyAbx6us9PaLfo"
 
-	matcherPK     = "AfZtLRQxLNYH5iradMkTeuXGe71uAiATVbr8DpXEEQa6"
-	matcherAddr   = "3P9MUoSW7jfHNVFcq84rurfdWZYZuvVghVi"
-	minerPK       = "AfZtLRQxLNYH5iradMkTeuXGe71uAiATVbr8DpXEEQa7"
-	minerAddr     = "3PP2ywCpyvC57rN4vUZhJjQrmGMTWnjFKi7"
-	senderPK      = "AfZtLRQxLNYH5iradMkTeuXGe71uAiATVbr8DpXEEQa8"
-	senderAddr    = "3PNXHYoWp83VaWudq9ds9LpS5xykWuJHiHp"
-	recipientPK   = "AfZtLRQxLNYH5iradMkTeuXGe71uAiATVbr8DpXEEQa9"
-	recipientAddr = "3PDdGex1meSUf4Yq5bjPBpyAbx6us9PaLfo"
+	issuerSeed    = "5TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk5bc"
+	matcherSeed   = "4TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk4bc"
+	minerSeed     = "3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc"
+	senderSeed    = "2TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk2bc"
+	recipientSeed = "1TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk1bc"
 
 	assetStr  = "B2u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ"
 	assetStr1 = "3gRJoK6f7XUV7fx5jUzHoPwdb9ZdTFjtTPy2HgDinr1N"
+
+	defaultGenSig = "B2u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ"
 
 	genesisSignature = "FSH8eAAzZNqnG8xgTZtz5xuLqXySsXgAjmFEC25hXMbEufiGjqWPnGCZFt6gLiVLJny16ipxRNAkkzjjhqTjBE2"
 )
@@ -45,6 +46,7 @@ var (
 )
 
 type testAddrData struct {
+	sk        crypto.SecretKey
 	pk        crypto.PublicKey
 	addr      proto.Address
 	wavesKey  string
@@ -52,19 +54,20 @@ type testAddrData struct {
 	assetKey1 string
 }
 
-func newTestAddrData(pkStr, addrStr string, asset, asset1 []byte) (*testAddrData, error) {
-	pk, err := crypto.NewPublicKeyFromBase58(pkStr)
+func newTestAddrData(seedStr string, asset, asset1 []byte) (*testAddrData, error) {
+	seedBytes, err := base58.Decode(seedStr)
 	if err != nil {
 		return nil, err
 	}
-	addr, err := proto.NewAddressFromString(addrStr)
+	sk, pk := crypto.GenerateKeyPair(seedBytes)
+	addr, err := proto.NewAddressFromPublicKey('W', pk)
 	if err != nil {
 		return nil, err
 	}
 	wavesKey := string((&wavesBalanceKey{addr}).bytes())
 	assetKey := string((&assetBalanceKey{addr, asset}).bytes())
 	assetKey1 := string((&assetBalanceKey{addr, asset1}).bytes())
-	return &testAddrData{pk: pk, addr: addr, wavesKey: wavesKey, assetKey: assetKey, assetKey1: assetKey1}, nil
+	return &testAddrData{sk: sk, pk: pk, addr: addr, wavesKey: wavesKey, assetKey: assetKey, assetKey1: assetKey1}, nil
 }
 
 type testAssetData struct {
@@ -88,6 +91,7 @@ type testGlobalVars struct {
 	asset0 *testAssetData
 	asset1 *testAssetData
 
+	issuerInfo    *testAddrData
 	matcherInfo   *testAddrData
 	minerInfo     *testAddrData
 	senderInfo    *testAddrData
@@ -106,19 +110,23 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatalf("newTestAssetData(): %v\n", err)
 	}
-	testGlobal.matcherInfo, err = newTestAddrData(matcherPK, matcherAddr, testGlobal.asset0.assetID, testGlobal.asset1.assetID)
+	testGlobal.issuerInfo, err = newTestAddrData(issuerSeed, testGlobal.asset0.assetID, testGlobal.asset1.assetID)
 	if err != nil {
 		log.Fatalf("newTestAddrData(): %v\n", err)
 	}
-	testGlobal.minerInfo, err = newTestAddrData(minerPK, minerAddr, testGlobal.asset0.assetID, testGlobal.asset1.assetID)
+	testGlobal.matcherInfo, err = newTestAddrData(matcherSeed, testGlobal.asset0.assetID, testGlobal.asset1.assetID)
 	if err != nil {
 		log.Fatalf("newTestAddrData(): %v\n", err)
 	}
-	testGlobal.senderInfo, err = newTestAddrData(senderPK, senderAddr, testGlobal.asset0.assetID, testGlobal.asset1.assetID)
+	testGlobal.minerInfo, err = newTestAddrData(minerSeed, testGlobal.asset0.assetID, testGlobal.asset1.assetID)
 	if err != nil {
 		log.Fatalf("newTestAddrData(): %v\n", err)
 	}
-	testGlobal.recipientInfo, err = newTestAddrData(recipientPK, recipientAddr, testGlobal.asset0.assetID, testGlobal.asset1.assetID)
+	testGlobal.senderInfo, err = newTestAddrData(senderSeed, testGlobal.asset0.assetID, testGlobal.asset1.assetID)
+	if err != nil {
+		log.Fatalf("newTestAddrData(): %v\n", err)
+	}
+	testGlobal.recipientInfo, err = newTestAddrData(recipientSeed, testGlobal.asset0.assetID, testGlobal.asset1.assetID)
 	if err != nil {
 		log.Fatalf("newTestAddrData(): %v\n", err)
 	}
@@ -137,35 +145,32 @@ func defaultTestKeyValParams() keyvalue.KeyValParams {
 	return keyvalue.KeyValParams{CacheParams: defaultTestCacheParams(), BloomFilterParams: defaultTestBloomFilterParams()}
 }
 
-type storageObjects struct {
+func defaultAssetInfo(reissuable bool) *assetInfo {
+	return &assetInfo{
+		assetConstInfo: assetConstInfo{
+			issuer:      testGlobal.issuerInfo.pk,
+			name:        "asset",
+			description: "description",
+			decimals:    2,
+		},
+		assetChangeableInfo: assetChangeableInfo{
+			quantity:   *big.NewInt(10000000),
+			reissuable: reissuable,
+		},
+	}
+}
+
+type testStorageObjects struct {
 	db      keyvalue.IterableKeyVal
 	dbBatch keyvalue.Batch
 	rw      *blockReadWriter
 	hs      *historyStorage
 	stateDB *stateDB
+
+	entities *blockchainEntitiesStorage
 }
 
-func (s *storageObjects) flush(t *testing.T) {
-	err := s.rw.flush()
-	assert.NoError(t, err, "rw.flush() failed")
-	s.rw.reset()
-	err = s.hs.flush(true)
-	assert.NoError(t, err, "hs.flush() failed")
-	err = s.stateDB.flush()
-	assert.NoError(t, err, "stateDB.flush() failed")
-	s.stateDB.reset()
-}
-
-func (s *storageObjects) addBlock(t *testing.T, blockID crypto.Signature) {
-	err := s.stateDB.addBlock(blockID)
-	assert.NoError(t, err, "stateDB.addBlock() failed")
-	err = s.rw.startBlock(blockID)
-	assert.NoError(t, err, "startBlock() failed")
-	err = s.rw.finishBlock(blockID)
-	assert.NoError(t, err, "finishBlock() failed")
-}
-
-func createStorageObjects() (*storageObjects, []string, error) {
+func createStorageObjects() (*testStorageObjects, []string, error) {
 	res := make([]string, 2)
 	dbDir0, err := ioutil.TempDir(os.TempDir(), "dbDir0")
 	if err != nil {
@@ -197,7 +202,65 @@ func createStorageObjects() (*storageObjects, []string, error) {
 	if err != nil {
 		return nil, res, err
 	}
-	return &storageObjects{db, dbBatch, rw, hs, stateDB}, res, nil
+	entities, err := newBlockchainEntitiesStorage(hs, stateDB, settings.MainNetSettings)
+	if err != nil {
+		return nil, res, err
+	}
+	return &testStorageObjects{db, dbBatch, rw, hs, stateDB, entities}, res, nil
+}
+
+func (s *testStorageObjects) addBlock(t *testing.T, blockID crypto.Signature) {
+	err := s.stateDB.addBlock(blockID)
+	assert.NoError(t, err, "stateDB.addBlock() failed")
+	err = s.rw.startBlock(blockID)
+	assert.NoError(t, err, "startBlock() failed")
+	err = s.rw.finishBlock(blockID)
+	assert.NoError(t, err, "finishBlock() failed")
+}
+
+func (s *testStorageObjects) addBlocks(t *testing.T, blocksNum int) {
+	ids := genRandBlockIds(t, blocksNum)
+	for _, id := range ids {
+		s.addBlock(t, id)
+	}
+	s.flush(t)
+}
+
+func (s *testStorageObjects) createAsset(t *testing.T, assetID crypto.Digest) *assetInfo {
+	s.addBlock(t, blockID0)
+	assetInfo := defaultAssetInfo(true)
+	err := s.entities.assets.issueAsset(assetID, assetInfo, blockID0)
+	assert.NoError(t, err, "issueAset() failed")
+	s.flush(t)
+	return assetInfo
+}
+
+func (s *testStorageObjects) activateFeature(t *testing.T, featureID int16) {
+	s.addBlock(t, blockID0)
+	blockNum, err := s.stateDB.blockIdToNum(blockID0)
+	assert.NoError(t, err, "blockIdToNum() failed")
+	activationReq := &activatedFeaturesRecord{1, blockNum}
+	err = s.entities.features.activateFeature(featureID, activationReq)
+	assert.NoError(t, err, "activateFeature() failed")
+	s.flush(t)
+}
+
+func (s *testStorageObjects) activateSponsorship(t *testing.T) {
+	s.activateFeature(t, int16(settings.FeeSponsorship))
+	windowSize := settings.MainNetSettings.ActivationWindowSize(1)
+	s.addBlocks(t, int(windowSize))
+}
+
+func (s *testStorageObjects) flush(t *testing.T) {
+	err := s.rw.flush()
+	assert.NoError(t, err, "rw.flush() failed")
+	s.rw.reset()
+	err = s.entities.flush(true)
+	assert.NoError(t, err, "entities.flush() failed")
+	s.entities.reset()
+	err = s.stateDB.flush()
+	assert.NoError(t, err, "stateDB.flush() failed")
+	s.stateDB.reset()
 }
 
 func genRandBlockIds(t *testing.T, amount int) []crypto.Signature {
@@ -229,38 +292,4 @@ func generateRandomRecipient(t *testing.T) proto.Recipient {
 	addr, err := proto.NewAddressFromPublicKey('W', pk)
 	assert.NoError(t, err, "NewAddressFromPublicKey() failed")
 	return proto.NewRecipientFromAddress(addr)
-}
-
-func defaultAssetInfo(reissuable bool) *assetInfo {
-	return &assetInfo{
-		assetConstInfo: assetConstInfo{
-			issuer:      testGlobal.senderInfo.pk,
-			name:        "asset",
-			description: "description",
-			decimals:    2,
-		},
-		assetChangeableInfo: assetChangeableInfo{
-			quantity:   *big.NewInt(10000000),
-			reissuable: reissuable,
-		},
-	}
-}
-
-func createAsset(t *testing.T, entities *blockchainEntitiesStorage, stor *storageObjects, assetID crypto.Digest) *assetInfo {
-	stor.addBlock(t, blockID0)
-	assetInfo := defaultAssetInfo(true)
-	err := entities.assets.issueAsset(assetID, assetInfo, blockID0)
-	assert.NoError(t, err, "issueAset() failed")
-	stor.flush(t)
-	return assetInfo
-}
-
-func activateFeature(t *testing.T, entities *blockchainEntitiesStorage, stor *storageObjects, featureID int16) {
-	stor.addBlock(t, blockID0)
-	blockNum, err := stor.stateDB.blockIdToNum(blockID0)
-	assert.NoError(t, err, "blockIdToNum() failed")
-	activationReq := &activatedFeaturesRecord{1, blockNum}
-	err = entities.features.activateFeature(featureID, activationReq)
-	assert.NoError(t, err, "activateFeature() failed")
-	stor.flush(t)
 }

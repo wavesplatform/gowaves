@@ -11,7 +11,7 @@ import (
 )
 
 type assetsTestObjects struct {
-	stor   *storageObjects
+	stor   *testStorageObjects
 	assets *assets
 }
 

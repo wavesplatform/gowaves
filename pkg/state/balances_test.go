@@ -19,7 +19,7 @@ const (
 )
 
 type balancesTestObjects struct {
-	stor     *storageObjects
+	stor     *testStorageObjects
 	balances *balances
 }
 

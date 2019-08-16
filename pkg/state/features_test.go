@@ -13,7 +13,7 @@ const (
 )
 
 type featuresTestObjects struct {
-	stor     *storageObjects
+	stor     *testStorageObjects
 	features *features
 }
 

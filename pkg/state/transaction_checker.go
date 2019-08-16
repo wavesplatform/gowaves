@@ -32,6 +32,22 @@ func newTransactionChecker(
 	return &transactionChecker{genesis, stor, settings}, nil
 }
 
+func (tc *transactionChecker) checkFee(tx proto.Transaction, feeAsset proto.OptionalAsset, info *checkerInfo) error {
+	sponsorshipActivated, err := tc.stor.sponsoredAssets.isSponsorshipActivated()
+	if err != nil {
+		return err
+	}
+	if !sponsorshipActivated {
+		// Sponsorship is not yet activated.
+		return nil
+	}
+	if !feeAsset.Present {
+		// Waves.
+		return checkMinFeeWaves(tx)
+	}
+	return checkMinFeeAsset(tc.stor.sponsoredAssets, tx, feeAsset.ID)
+}
+
 func (tc *transactionChecker) checkFromFuture(timestamp uint64) bool {
 	return timestamp > tc.settings.TxFromFutureCheckAfterTime
 }
@@ -52,7 +68,33 @@ func (tc *transactionChecker) checkAsset(asset *proto.OptionalAsset, initialisat
 		return nil
 	}
 	if _, err := tc.stor.assets.newestAssetInfo(asset.ID, !initialisation); err != nil {
-		return errors.New("unknown asset")
+		return errors.Errorf("unknown asset %s", asset.ID.String())
+	}
+	return nil
+}
+
+func (tc *transactionChecker) checkFeeAsset(asset *proto.OptionalAsset, initialisation bool) error {
+	if err := tc.checkAsset(asset, initialisation); err != nil {
+		return err
+	}
+	if !asset.Present {
+		// No need to check Waves.
+		return nil
+	}
+	// Check sponsorship.
+	sponsorshipActivated, err := tc.stor.sponsoredAssets.isSponsorshipActivated()
+	if err != nil {
+		return err
+	}
+	if !sponsorshipActivated {
+		return nil
+	}
+	isSponsored, err := tc.stor.sponsoredAssets.newestIsSponsored(asset.ID, !initialisation)
+	if err != nil {
+		return err
+	}
+	if !isSponsored {
+		return errors.Errorf("asset %s is not sponsored and can not be used to pay fees", asset.ID.String())
 	}
 	return nil
 }
@@ -63,6 +105,9 @@ func (tc *transactionChecker) checkGenesis(transaction proto.Transaction, info *
 	}
 	if !info.initialisation {
 		return errors.New("genesis transaction in non-initialisation mode")
+	}
+	if err := tc.checkFee(transaction, proto.OptionalAsset{Present: false}, info); err != nil {
+		return errors.Errorf("checkFee(): %v", err)
 	}
 	return nil
 }
@@ -78,6 +123,9 @@ func (tc *transactionChecker) checkPayment(transaction proto.Transaction, info *
 	if err := tc.checkTimestamps(tx.Timestamp, info.currentTimestamp, info.parentTimestamp); err != nil {
 		return errors.Wrap(err, "invalid timestamp")
 	}
+	if err := tc.checkFee(transaction, proto.OptionalAsset{Present: false}, info); err != nil {
+		return errors.Errorf("checkFee(): %v", err)
+	}
 	return nil
 }
 
@@ -88,7 +136,7 @@ func (tc *transactionChecker) checkTransfer(tx *proto.Transfer, info *checkerInf
 	if err := tc.checkAsset(&tx.AmountAsset, info.initialisation); err != nil {
 		return err
 	}
-	if err := tc.checkAsset(&tx.FeeAsset, info.initialisation); err != nil {
+	if err := tc.checkFeeAsset(&tx.FeeAsset, info.initialisation); err != nil {
 		return err
 	}
 	return nil
@@ -99,6 +147,9 @@ func (tc *transactionChecker) checkTransferV1(transaction proto.Transaction, inf
 	if !ok {
 		return errors.New("failed to convert interface to TransferV1 transaction")
 	}
+	if err := tc.checkFee(transaction, tx.FeeAsset, info); err != nil {
+		return errors.Errorf("checkFee(): %v", err)
+	}
 	return tc.checkTransfer(&tx.Transfer, info)
 }
 
@@ -106,6 +157,9 @@ func (tc *transactionChecker) checkTransferV2(transaction proto.Transaction, inf
 	tx, ok := transaction.(*proto.TransferV2)
 	if !ok {
 		return errors.New("failed to convert interface to TransferV2 transaction")
+	}
+	if err := tc.checkFee(transaction, tx.FeeAsset, info); err != nil {
+		return errors.Errorf("checkFee(): %v", err)
 	}
 	return tc.checkTransfer(&tx.Transfer, info)
 }
@@ -122,6 +176,9 @@ func (tc *transactionChecker) checkIssueV1(transaction proto.Transaction, info *
 	if !ok {
 		return errors.New("failed to convert interface to IssueV1 transaction")
 	}
+	if err := tc.checkFee(transaction, proto.OptionalAsset{Present: false}, info); err != nil {
+		return errors.Errorf("checkFee(): %v", err)
+	}
 	return tc.checkIssue(&tx.Issue, info)
 }
 
@@ -129,6 +186,9 @@ func (tc *transactionChecker) checkIssueV2(transaction proto.Transaction, info *
 	tx, ok := transaction.(*proto.IssueV2)
 	if !ok {
 		return errors.New("failed to convert interface to IssueV2 transaction")
+	}
+	if err := tc.checkFee(transaction, proto.OptionalAsset{Present: false}, info); err != nil {
+		return errors.Errorf("checkFee(): %v", err)
 	}
 	return tc.checkIssue(&tx.Issue, info)
 }
@@ -167,6 +227,9 @@ func (tc *transactionChecker) checkReissueV1(transaction proto.Transaction, info
 	if !ok {
 		return errors.New("failed to convert interface to ReissueV1 transaction")
 	}
+	if err := tc.checkFee(transaction, proto.OptionalAsset{Present: false}, info); err != nil {
+		return errors.Errorf("checkFee(): %v", err)
+	}
 	return tc.checkReissue(&tx.Reissue, info)
 }
 
@@ -174,6 +237,9 @@ func (tc *transactionChecker) checkReissueV2(transaction proto.Transaction, info
 	tx, ok := transaction.(*proto.ReissueV2)
 	if !ok {
 		return errors.New("failed to convert interface to ReissueV2 transaction")
+	}
+	if err := tc.checkFee(transaction, proto.OptionalAsset{Present: false}, info); err != nil {
+		return errors.Errorf("checkFee(): %v", err)
 	}
 	return tc.checkReissue(&tx.Reissue, info)
 }
@@ -201,6 +267,9 @@ func (tc *transactionChecker) checkBurnV1(transaction proto.Transaction, info *c
 	if !ok {
 		return errors.New("failed to convert interface to BurnV1 transaction")
 	}
+	if err := tc.checkFee(transaction, proto.OptionalAsset{Present: false}, info); err != nil {
+		return errors.Errorf("checkFee(): %v", err)
+	}
 	return tc.checkBurn(&tx.Burn, info)
 }
 
@@ -208,6 +277,9 @@ func (tc *transactionChecker) checkBurnV2(transaction proto.Transaction, info *c
 	tx, ok := transaction.(*proto.BurnV2)
 	if !ok {
 		return errors.New("failed to convert interface to BurnV2 transaction")
+	}
+	if err := tc.checkFee(transaction, proto.OptionalAsset{Present: false}, info); err != nil {
+		return errors.Errorf("checkFee(): %v", err)
 	}
 	return tc.checkBurn(&tx.Burn, info)
 }
@@ -219,6 +291,9 @@ func (tc *transactionChecker) checkExchange(transaction proto.Transaction, info 
 	}
 	if err := tc.checkTimestamps(tx.GetTimestamp(), info.currentTimestamp, info.parentTimestamp); err != nil {
 		return errors.Wrap(err, "invalid timestamp")
+	}
+	if err := tc.checkFee(transaction, proto.OptionalAsset{Present: false}, info); err != nil {
+		return errors.Errorf("checkFee(): %v", err)
 	}
 	sellOrder, err := tx.GetSellOrder()
 	if err != nil {
@@ -246,7 +321,7 @@ func (tc *transactionChecker) checkLease(tx *proto.Lease, info *checkerInfo) err
 	if tx.Recipient.Address == nil {
 		recipientAddr, err = tc.stor.aliases.newestAddrByAlias(tx.Recipient.Alias.Alias, !info.initialisation)
 		if err != nil {
-			return errors.Errorf("invalid alias: %v\n", err)
+			return errors.Errorf("invalid alias: %v", err)
 		}
 	} else {
 		recipientAddr = tx.Recipient.Address
@@ -262,6 +337,9 @@ func (tc *transactionChecker) checkLeaseV1(transaction proto.Transaction, info *
 	if !ok {
 		return errors.New("failed to convert interface to LeaseV1 transaction")
 	}
+	if err := tc.checkFee(transaction, proto.OptionalAsset{Present: false}, info); err != nil {
+		return errors.Errorf("checkFee(): %v", err)
+	}
 	return tc.checkLease(&tx.Lease, info)
 }
 
@@ -269,6 +347,9 @@ func (tc *transactionChecker) checkLeaseV2(transaction proto.Transaction, info *
 	tx, ok := transaction.(*proto.LeaseV2)
 	if !ok {
 		return errors.New("failed to convert interface to LeaseV2 transaction")
+	}
+	if err := tc.checkFee(transaction, proto.OptionalAsset{Present: false}, info); err != nil {
+		return errors.Errorf("checkFee(): %v", err)
 	}
 	return tc.checkLease(&tx.Lease, info)
 }
@@ -299,6 +380,9 @@ func (tc *transactionChecker) checkLeaseCancelV1(transaction proto.Transaction, 
 	if !ok {
 		return errors.New("failed to convert interface to LeaseCancelV1 transaction")
 	}
+	if err := tc.checkFee(transaction, proto.OptionalAsset{Present: false}, info); err != nil {
+		return errors.Errorf("checkFee(): %v", err)
+	}
 	return tc.checkLeaseCancel(&tx.LeaseCancel, info)
 }
 
@@ -306,6 +390,9 @@ func (tc *transactionChecker) checkLeaseCancelV2(transaction proto.Transaction, 
 	tx, ok := transaction.(*proto.LeaseCancelV2)
 	if !ok {
 		return errors.New("failed to convert interface to LeaseCancelV2 transaction")
+	}
+	if err := tc.checkFee(transaction, proto.OptionalAsset{Present: false}, info); err != nil {
+		return errors.Errorf("checkFee(): %v", err)
 	}
 	return tc.checkLeaseCancel(&tx.LeaseCancel, info)
 }
@@ -330,6 +417,9 @@ func (tc *transactionChecker) checkCreateAliasV1(transaction proto.Transaction, 
 	if !ok {
 		return errors.New("failed to convert interface to CreateAliasV1 transaction")
 	}
+	if err := tc.checkFee(transaction, proto.OptionalAsset{Present: false}, info); err != nil {
+		return errors.Errorf("checkFee(): %v", err)
+	}
 	return tc.checkCreateAlias(&tx.CreateAlias, info)
 }
 
@@ -337,6 +427,9 @@ func (tc *transactionChecker) checkCreateAliasV2(transaction proto.Transaction, 
 	tx, ok := transaction.(*proto.CreateAliasV2)
 	if !ok {
 		return errors.New("failed to convert interface to CreateAliasV2 transaction")
+	}
+	if err := tc.checkFee(transaction, proto.OptionalAsset{Present: false}, info); err != nil {
+		return errors.Errorf("checkFee(): %v", err)
 	}
 	return tc.checkCreateAlias(&tx.CreateAlias, info)
 }
@@ -348,6 +441,9 @@ func (tc *transactionChecker) checkMassTransferV1(transaction proto.Transaction,
 	}
 	if err := tc.checkTimestamps(tx.Timestamp, info.currentTimestamp, info.parentTimestamp); err != nil {
 		return errors.Wrap(err, "invalid timestamp")
+	}
+	if err := tc.checkFee(transaction, proto.OptionalAsset{Present: false}, info); err != nil {
+		return errors.Errorf("checkFee(): %v", err)
 	}
 	activated, err := tc.stor.features.isActivated(int16(settings.MassTransfer))
 	if err != nil {
@@ -370,12 +466,46 @@ func (tc *transactionChecker) checkDataV1(transaction proto.Transaction, info *c
 	if err := tc.checkTimestamps(tx.Timestamp, info.currentTimestamp, info.parentTimestamp); err != nil {
 		return errors.Wrap(err, "invalid timestamp")
 	}
+	if err := tc.checkFee(transaction, proto.OptionalAsset{Present: false}, info); err != nil {
+		return errors.Errorf("checkFee(): %v", err)
+	}
 	activated, err := tc.stor.features.isActivated(int16(settings.DataTransaction))
 	if err != nil {
 		return err
 	}
 	if !activated {
 		return errors.New("Data transaction has not been activated yet")
+	}
+	return nil
+}
+
+func (tc *transactionChecker) checkSponsorshipV1(transaction proto.Transaction, info *checkerInfo) error {
+	tx, ok := transaction.(*proto.SponsorshipV1)
+	if !ok {
+		return errors.New("failed to convert interface to SponsorshipV1 transaction")
+	}
+	if err := tc.checkTimestamps(tx.Timestamp, info.currentTimestamp, info.parentTimestamp); err != nil {
+		return errors.Wrap(err, "invalid timestamp")
+	}
+	if err := tc.checkFee(transaction, proto.OptionalAsset{Present: false}, info); err != nil {
+		return errors.Errorf("checkFee(): %v", err)
+	}
+	activated, err := tc.stor.features.isActivated(int16(settings.FeeSponsorship))
+	if err != nil {
+		return err
+	}
+	if !activated {
+		return errors.New("sponsorship has not been activated yet")
+	}
+	if err := tc.checkAsset(&proto.OptionalAsset{Present: false, ID: tx.AssetID}, info.initialisation); err != nil {
+		return err
+	}
+	assetInfo, err := tc.stor.assets.newestAssetInfo(tx.AssetID, !info.initialisation)
+	if err != nil {
+		return err
+	}
+	if !bytes.Equal(assetInfo.issuer[:], tx.SenderPK[:]) {
+		return errors.New("asset was issued by other address")
 	}
 	return nil
 }

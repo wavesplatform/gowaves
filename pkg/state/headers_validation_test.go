@@ -136,7 +136,7 @@ func TestHeadersValidation(t *testing.T) {
 
 	randN = rand.Int() % len(blocks)
 	prev = blocks[randN]
-	spoilBlockVersion(&blocks[rand.Int()%len(blocks)])
+	spoilBlockVersion(&blocks[randN])
 	err = applyBlocks(t, blocks, st)
 	assert.Error(t, err, "did not fail with wrong block version")
 	blocks[randN] = prev

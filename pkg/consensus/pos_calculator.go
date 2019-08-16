@@ -152,10 +152,10 @@ func (calc *FairPosCalculator) CalculateBaseTarget(
 	if greatGrandParentTimestamp == 0 {
 		return confirmedTarget, nil
 	}
-	average := float64(applyingBlockTimestamp-greatGrandParentTimestamp) / 3 / 1000
-	if average > maxDelay {
+	average := (applyingBlockTimestamp - greatGrandParentTimestamp) / 3 / 1000
+	if float64(average) > maxDelay {
 		return (confirmedTarget + uint64(math.Max(1, float64(confirmedTarget/100)))), nil
-	} else if average < minDelay {
+	} else if float64(average) < minDelay {
 		return (confirmedTarget - uint64(math.Max(1, float64(confirmedTarget/100)))), nil
 	} else {
 		return confirmedTarget, nil

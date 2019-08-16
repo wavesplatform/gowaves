@@ -8,23 +8,81 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
+type entryHistory struct {
+	maxBlockNum uint32
+	// BlockNum --> entry value bytes.
+	history map[uint32][]byte
+}
+
+func newEntryHistory() entryHistory {
+	return entryHistory{0, make(map[uint32][]byte)}
+}
+
+func (h *entryHistory) getLatest() ([]byte, error) {
+	latest, ok := h.history[h.maxBlockNum]
+	if !ok {
+		return nil, errNotFound
+	}
+	return latest, nil
+}
+
+func (h *entryHistory) appendEntry(value []byte, blockNum uint32) {
+	if blockNum > h.maxBlockNum {
+		h.maxBlockNum = blockNum
+	}
+	h.history[blockNum] = value
+}
+
+// Entry key --> history of entry values by blocks.
+type accountDataStor map[string]entryHistory
+
+func newAccountDataStor() accountDataStor {
+	return make(map[string]entryHistory)
+}
+
+func (s accountDataStor) entryBytes(key string) ([]byte, error) {
+	history, ok := s[key]
+	if !ok {
+		return nil, errNotFound
+	}
+	return history.getLatest()
+}
+
+func (s accountDataStor) appendEntry(entry proto.DataEntry, blockNum uint32) error {
+	key := entry.GetKey()
+	if _, ok := s[key]; !ok {
+		s[key] = newEntryHistory()
+	}
+	history := s[key]
+	valueBytes, err := entry.MarshalValue()
+	if err != nil {
+		return err
+	}
+	history.appendEntry(valueBytes, blockNum)
+	s[key] = history
+	return nil
+}
+
 type accountsDataStorage struct {
 	db      keyvalue.IterableKeyVal
 	dbBatch keyvalue.Batch
 	rw      *blockReadWriter
 	stateDB *stateDB
 
-	newestAddrToNum map[proto.Address]uint64
-	addrNum         uint64
+	// addrNum --> account's data storage.
+	newestDataStorage map[uint64]accountDataStor
+	newestAddrToNum   map[proto.Address]uint64
+	addrNum           uint64
 }
 
 func newAccountsDataStorage(db keyvalue.IterableKeyVal, dbBatch keyvalue.Batch, rw *blockReadWriter, stateDB *stateDB) (*accountsDataStorage, error) {
 	return &accountsDataStorage{
-		db:              db,
-		dbBatch:         dbBatch,
-		rw:              rw,
-		stateDB:         stateDB,
-		newestAddrToNum: make(map[proto.Address]uint64),
+		db:                db,
+		dbBatch:           dbBatch,
+		rw:                rw,
+		stateDB:           stateDB,
+		newestDataStorage: make(map[uint64]accountDataStor),
+		newestAddrToNum:   make(map[proto.Address]uint64),
 	}, nil
 }
 
@@ -83,22 +141,39 @@ func (s *accountsDataStorage) appendEntry(addr proto.Address, entry proto.DataEn
 	if err != nil {
 		return err
 	}
-	entryKey := entry.GetKey()
 	blockNum, err := s.stateDB.blockIdToNum(blockID)
 	if err != nil {
 		return err
 	}
-	key := accountsDataStorKey{addrNum, entryKey, blockNum}
-	valueBytes, err := entry.MarshalValue()
-	if err != nil {
-		return err
+	if _, ok := s.newestDataStorage[addrNum]; !ok {
+		s.newestDataStorage[addrNum] = newAccountDataStor()
 	}
-	s.dbBatch.Put(key.bytes(), valueBytes)
-	return nil
+	stor := s.newestDataStorage[addrNum]
+	return stor.appendEntry(entry, blockNum)
 }
 
 func (s *accountsDataStorage) isRecentValidBlock(blockNum uint32) (bool, error) {
 	return isRecentValidBlock(s.rw, s.stateDB, blockNum)
+}
+
+func (s *accountsDataStorage) newestEntryBytes(addr proto.Address, key string) ([]byte, error) {
+	addrNum, err := s.addrToNum(addr)
+	if err != nil {
+		return nil, err
+	}
+	stor, ok := s.newestDataStorage[addrNum]
+	if !ok {
+		// Not found in newest storage, try DB.
+		return s.entryBytes(addr, key)
+	}
+	entry, err := stor.entryBytes(key)
+	if err == errNotFound {
+		// Not found in newest storage, try DB.
+		return s.entryBytes(addr, key)
+	} else if err != nil {
+		return nil, err
+	}
+	return entry, nil
 }
 
 func (s *accountsDataStorage) entryBytes(addr proto.Address, key string) ([]byte, error) {
@@ -154,6 +229,19 @@ func (s *accountsDataStorage) entryBytes(addr proto.Address, key string) ([]byte
 	return latestEntry, nil
 }
 
+func (s *accountsDataStorage) retrieveNewestEntry(addr proto.Address, key string) (proto.DataEntry, error) {
+	entryBytes, err := s.newestEntryBytes(addr, key)
+	if err != nil {
+		return nil, err
+	}
+	entry, err := proto.NewDataEntryFromValueBytes(entryBytes)
+	if err != nil {
+		return nil, err
+	}
+	entry.SetKey(key)
+	return entry, nil
+}
+
 func (s *accountsDataStorage) retrieveEntry(addr proto.Address, key string) (proto.DataEntry, error) {
 	entryBytes, err := s.entryBytes(addr, key)
 	if err != nil {
@@ -167,12 +255,38 @@ func (s *accountsDataStorage) retrieveEntry(addr proto.Address, key string) (pro
 	return entry, nil
 }
 
+func (s *accountsDataStorage) retrieveNewestIntegerEntry(addr proto.Address, key string) (*proto.IntegerDataEntry, error) {
+	entryBytes, err := s.newestEntryBytes(addr, key)
+	if err != nil {
+		return nil, err
+	}
+	var entry proto.IntegerDataEntry
+	if err := entry.UnmarshalValue(entryBytes); err != nil {
+		return nil, err
+	}
+	entry.Key = key
+	return &entry, nil
+}
+
 func (s *accountsDataStorage) retrieveIntegerEntry(addr proto.Address, key string) (*proto.IntegerDataEntry, error) {
 	entryBytes, err := s.entryBytes(addr, key)
 	if err != nil {
 		return nil, err
 	}
 	var entry proto.IntegerDataEntry
+	if err := entry.UnmarshalValue(entryBytes); err != nil {
+		return nil, err
+	}
+	entry.Key = key
+	return &entry, nil
+}
+
+func (s *accountsDataStorage) retrieveNewestBooleanEntry(addr proto.Address, key string) (*proto.BooleanDataEntry, error) {
+	entryBytes, err := s.newestEntryBytes(addr, key)
+	if err != nil {
+		return nil, err
+	}
+	var entry proto.BooleanDataEntry
 	if err := entry.UnmarshalValue(entryBytes); err != nil {
 		return nil, err
 	}
@@ -193,12 +307,38 @@ func (s *accountsDataStorage) retrieveBooleanEntry(addr proto.Address, key strin
 	return &entry, nil
 }
 
+func (s *accountsDataStorage) retrieveNewestStringEntry(addr proto.Address, key string) (*proto.StringDataEntry, error) {
+	entryBytes, err := s.newestEntryBytes(addr, key)
+	if err != nil {
+		return nil, err
+	}
+	var entry proto.StringDataEntry
+	if err := entry.UnmarshalValue(entryBytes); err != nil {
+		return nil, err
+	}
+	entry.Key = key
+	return &entry, nil
+}
+
 func (s *accountsDataStorage) retrieveStringEntry(addr proto.Address, key string) (*proto.StringDataEntry, error) {
 	entryBytes, err := s.entryBytes(addr, key)
 	if err != nil {
 		return nil, err
 	}
 	var entry proto.StringDataEntry
+	if err := entry.UnmarshalValue(entryBytes); err != nil {
+		return nil, err
+	}
+	entry.Key = key
+	return &entry, nil
+}
+
+func (s *accountsDataStorage) retrieveNewestBinaryEntry(addr proto.Address, key string) (*proto.BinaryDataEntry, error) {
+	entryBytes, err := s.newestEntryBytes(addr, key)
+	if err != nil {
+		return nil, err
+	}
+	var entry proto.BinaryDataEntry
 	if err := entry.UnmarshalValue(entryBytes); err != nil {
 		return nil, err
 	}
@@ -220,6 +360,17 @@ func (s *accountsDataStorage) retrieveBinaryEntry(addr proto.Address, key string
 }
 
 func (s *accountsDataStorage) flush() error {
+	var key accountsDataStorKey
+	for addrNum, stor := range s.newestDataStorage {
+		key.addrNum = addrNum
+		for entryKey, hist := range stor {
+			key.entryKey = entryKey
+			for blockNum, entryValue := range hist.history {
+				key.blockNum = blockNum
+				s.dbBatch.Put(key.bytes(), entryValue)
+			}
+		}
+	}
 	lastAddrNum, err := s.getLastAddrNum()
 	if err != nil {
 		return err
@@ -232,6 +383,7 @@ func (s *accountsDataStorage) flush() error {
 }
 
 func (s *accountsDataStorage) reset() {
+	s.newestDataStorage = make(map[uint64]accountDataStor)
 	s.newestAddrToNum = make(map[proto.Address]uint64)
 	s.addrNum = 0
 }

@@ -17,7 +17,7 @@ const (
 )
 
 type historyTestObjects struct {
-	stor *storageObjects
+	stor *testStorageObjects
 	fmt  *historyFormatter
 }
 

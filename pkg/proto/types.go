@@ -361,15 +361,15 @@ type Order interface {
 func OrderToOrderBody(o Order) (OrderBody, error) {
 	switch o.GetVersion() {
 	case 1:
-		o, ok := o.(OrderV1)
+		o, ok := o.(*OrderV1)
 		if !ok {
-			return OrderBody{}, errors.New("failed to cast an order version 1 to OrderV1")
+			return OrderBody{}, errors.New("failed to cast an order version 1 to *OrderV1")
 		}
 		return o.OrderBody, nil
 	case 2:
-		o, ok := o.(OrderV2)
+		o, ok := o.(*OrderV2)
 		if !ok {
-			return OrderBody{}, errors.New("failed to cast an order version 2 to OrderV2")
+			return OrderBody{}, errors.New("failed to cast an order version 2 to *OrderV2")
 		}
 		return o.OrderBody, nil
 	default:
@@ -587,27 +587,27 @@ func NewUnsignedOrderV1(senderPK, matcherPK crypto.PublicKey, amountAsset, price
 	return &OrderV1{OrderBody: ob}
 }
 
-func (o OrderV1) GetVersion() byte {
+func (o *OrderV1) GetVersion() byte {
 	return 1
 }
 
-func (o OrderV1) GetOrderType() OrderType {
+func (o *OrderV1) GetOrderType() OrderType {
 	return o.OrderType
 }
 
-func (o OrderV1) GetMatcherPK() crypto.PublicKey {
+func (o *OrderV1) GetMatcherPK() crypto.PublicKey {
 	return o.MatcherPK
 }
 
-func (o OrderV1) GetAssetPair() AssetPair {
+func (o *OrderV1) GetAssetPair() AssetPair {
 	return o.AssetPair
 }
 
-func (o OrderV1) GetPrice() uint64 {
+func (o *OrderV1) GetPrice() uint64 {
 	return o.Price
 }
 
-func (o OrderV1) GetExpiration() uint64 {
+func (o *OrderV1) GetExpiration() uint64 {
 	return o.Expiration
 }
 
@@ -716,27 +716,27 @@ func NewUnsignedOrderV2(senderPK, matcherPK crypto.PublicKey, amountAsset, price
 	return &OrderV2{Version: 2, OrderBody: ob}
 }
 
-func (o OrderV2) GetVersion() byte {
+func (o *OrderV2) GetVersion() byte {
 	return o.Version
 }
 
-func (o OrderV2) GetOrderType() OrderType {
+func (o *OrderV2) GetOrderType() OrderType {
 	return o.OrderType
 }
 
-func (o OrderV2) GetMatcherPK() crypto.PublicKey {
+func (o *OrderV2) GetMatcherPK() crypto.PublicKey {
 	return o.MatcherPK
 }
 
-func (o OrderV2) GetAssetPair() AssetPair {
+func (o *OrderV2) GetAssetPair() AssetPair {
 	return o.AssetPair
 }
 
-func (o OrderV2) GetPrice() uint64 {
+func (o *OrderV2) GetPrice() uint64 {
 	return o.Price
 }
 
-func (o OrderV2) GetExpiration() uint64 {
+func (o *OrderV2) GetExpiration() uint64 {
 	return o.Expiration
 }
 
@@ -883,27 +883,27 @@ func NewUnsignedOrderV3(senderPK, matcherPK crypto.PublicKey, amountAsset, price
 	return &OrderV3{Version: 3, MatcherFeeAsset: matcherFeeAsset, OrderBody: ob}
 }
 
-func (o OrderV3) GetVersion() byte {
+func (o *OrderV3) GetVersion() byte {
 	return o.Version
 }
 
-func (o OrderV3) GetOrderType() OrderType {
+func (o *OrderV3) GetOrderType() OrderType {
 	return o.OrderType
 }
 
-func (o OrderV3) GetMatcherPK() crypto.PublicKey {
+func (o *OrderV3) GetMatcherPK() crypto.PublicKey {
 	return o.MatcherPK
 }
 
-func (o OrderV3) GetAssetPair() AssetPair {
+func (o *OrderV3) GetAssetPair() AssetPair {
 	return o.AssetPair
 }
 
-func (o OrderV3) GetPrice() uint64 {
+func (o *OrderV3) GetPrice() uint64 {
 	return o.Price
 }
 
-func (o OrderV3) GetExpiration() uint64 {
+func (o *OrderV3) GetExpiration() uint64 {
 	return o.Expiration
 }
 

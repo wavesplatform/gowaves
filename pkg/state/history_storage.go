@@ -20,6 +20,7 @@ const (
 	featureVote
 	approvedFeature
 	activatedFeature
+	sponsorship
 
 	idSize = 4
 )
@@ -33,6 +34,7 @@ var recordSizes = map[blockchainEntity]int{
 	featureVote:      votesFeaturesRecordSize,
 	approvedFeature:  approvedFeaturesRecordSize,
 	activatedFeature: activatedFeaturesRecordSize,
+	sponsorship:      sponsorshipRecordSize,
 }
 
 type historyStorage struct {

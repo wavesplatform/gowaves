@@ -78,8 +78,10 @@ func (d *blockDiffer) txDiffFromFees(addr proto.Address, distr *feeDistribution)
 	diff := newTxDiff()
 	wavesKey := wavesBalanceKey{addr}
 	wavesDiff := distr.totalWavesFees - distr.currentWavesBlockFees
-	if err := diff.appendBalanceDiff(wavesKey.bytes(), balanceDiff{balance: int64(wavesDiff)}); err != nil {
-		return txDiff{}, err
+	if wavesDiff != 0 {
+		if err := diff.appendBalanceDiff(wavesKey.bytes(), balanceDiff{balance: int64(wavesDiff)}); err != nil {
+			return txDiff{}, err
+		}
 	}
 	for asset, totalFee := range distr.totalFees {
 		curFee, ok := distr.currentBlockFees[asset]
@@ -122,11 +124,7 @@ func (d *blockDiffer) createTransactionsDiffs(transactions []proto.Transaction, 
 		}
 		diffs[i] = diff
 		d.appendBlockInfoToTxDiff(diffs[i], block)
-		ngActivated, err := d.stor.features.isActivated(int16(settings.NG))
-		if err != nil {
-			return nil, err
-		}
-		if err := d.handler.minerFeeTx(tx, &d.curDistr, ngActivated); err != nil {
+		if err := d.handler.minerFeeTx(tx, &d.curDistr); err != nil {
 			return nil, err
 		}
 	}

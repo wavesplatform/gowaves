@@ -1,6 +1,7 @@
 package state
 
 import (
+	"fmt"
 	"math"
 	"testing"
 
@@ -12,22 +13,19 @@ import (
 )
 
 type checkerTestObjects struct {
-	stor     *storageObjects
-	entities *blockchainEntitiesStorage
-	tc       *transactionChecker
-	tp       *transactionPerformer
+	stor *testStorageObjects
+	tc   *transactionChecker
+	tp   *transactionPerformer
 }
 
 func createCheckerTestObjects(t *testing.T) (*checkerTestObjects, []string) {
 	stor, path, err := createStorageObjects()
 	assert.NoError(t, err, "createStorageObjects() failed")
-	entities, err := newBlockchainEntitiesStorage(stor.hs, stor.stateDB, settings.MainNetSettings)
-	assert.NoError(t, err, "newBlockchainEntitiesStorage() failed")
-	tc, err := newTransactionChecker(crypto.MustSignatureFromBase58(genesisSignature), entities, settings.MainNetSettings)
+	tc, err := newTransactionChecker(crypto.MustSignatureFromBase58(genesisSignature), stor.entities, settings.MainNetSettings)
 	assert.NoError(t, err, "newTransactionChecker() failed")
-	tp, err := newTransactionPerformer(entities, settings.MainNetSettings)
+	tp, err := newTransactionPerformer(stor.entities, settings.MainNetSettings)
 	assert.NoError(t, err, "newTransactionPerormer() failed")
-	return &checkerTestObjects{stor, entities, tc, tp}, path
+	return &checkerTestObjects{stor, tc, tp}, path
 }
 
 func defaultCheckerInfo(t *testing.T) *checkerInfo {
@@ -74,7 +72,7 @@ func TestCheckPayment(t *testing.T) {
 
 	tx.Timestamp = 0
 	err = to.tc.checkPayment(tx, info)
-	assert.Error(t, err, "checkPayment did not fail with invalid payment timestamp")
+	assert.Error(t, err, "checkPayment did not fail with invalid timestamp")
 }
 
 func TestCheckTransferV1(t *testing.T) {
@@ -88,16 +86,28 @@ func TestCheckTransferV1(t *testing.T) {
 	tx := createTransferV1(t)
 	info := defaultCheckerInfo(t)
 
+	assetId := tx.FeeAsset.ID
+
 	err := to.tc.checkTransferV1(tx, info)
 	assert.Error(t, err, "checkTransferV1 did not fail with invalid transfer asset")
 
-	createAsset(t, to.entities, to.stor, testGlobal.asset0.asset.ID)
+	to.stor.createAsset(t, assetId)
 	err = to.tc.checkTransferV1(tx, info)
 	assert.NoError(t, err, "checkTransferV1 failed with valid transfer tx")
 
+	// Sponsorship checks.
+	to.stor.activateSponsorship(t)
+	err = to.tc.checkTransferV1(tx, info)
+	assert.Error(t, err, "checkTransferV1 did not fail with unsponsored asset")
+	assert.EqualError(t, err, fmt.Sprintf("checkFee(): asset %s is not sponsored", assetId.String()))
+	err = to.stor.entities.sponsoredAssets.sponsorAsset(assetId, 10, blockID0)
+	assert.NoError(t, err, "sponsorAsset() failed")
+	err = to.tc.checkTransferV1(tx, info)
+	assert.NoError(t, err, "checkTransferV1 failed with valid sponsored asset")
+
 	tx.Timestamp = 0
 	err = to.tc.checkTransferV1(tx, info)
-	assert.Error(t, err, "checkTransferV1 did not fail with invalid payment timestamp")
+	assert.Error(t, err, "checkTransferV1 did not fail with invalid timestamp")
 }
 
 func TestCheckTransferV2(t *testing.T) {
@@ -111,16 +121,28 @@ func TestCheckTransferV2(t *testing.T) {
 	tx := createTransferV2(t)
 	info := defaultCheckerInfo(t)
 
+	assetId := tx.FeeAsset.ID
+
 	err := to.tc.checkTransferV2(tx, info)
 	assert.Error(t, err, "checkTransferV2 did not fail with invalid transfer asset")
 
-	createAsset(t, to.entities, to.stor, testGlobal.asset0.asset.ID)
+	to.stor.createAsset(t, assetId)
 	err = to.tc.checkTransferV2(tx, info)
 	assert.NoError(t, err, "checkTransferV2 failed with valid transfer tx")
 
+	// Sponsorship checks.
+	to.stor.activateSponsorship(t)
+	err = to.tc.checkTransferV2(tx, info)
+	assert.Error(t, err, "checkTransferV2 did not fail with unsponsored asset")
+	assert.EqualError(t, err, fmt.Sprintf("checkFee(): asset %s is not sponsored", assetId.String()))
+	err = to.stor.entities.sponsoredAssets.sponsorAsset(assetId, 10, blockID0)
+	assert.NoError(t, err, "sponsorAsset() failed")
+	err = to.tc.checkTransferV2(tx, info)
+	assert.NoError(t, err, "checkTransferV2 failed with valid sponsored asset")
+
 	tx.Timestamp = 0
 	err = to.tc.checkTransferV2(tx, info)
-	assert.Error(t, err, "checkTransferV2 did not fail with invalid payment timestamp")
+	assert.Error(t, err, "checkTransferV2 did not fail with invalid timestamp")
 }
 
 func TestCheckIssueV1(t *testing.T) {
@@ -138,7 +160,7 @@ func TestCheckIssueV1(t *testing.T) {
 
 	tx.Timestamp = 0
 	err = to.tc.checkIssueV1(tx, info)
-	assert.Error(t, err, "checkIssueV1 did not fail with invalid issue timestamp")
+	assert.Error(t, err, "checkIssueV1 did not fail with invalid timestamp")
 }
 
 func TestCheckIssueV2(t *testing.T) {
@@ -156,7 +178,7 @@ func TestCheckIssueV2(t *testing.T) {
 
 	tx.Timestamp = 0
 	err = to.tc.checkIssueV1(tx, info)
-	assert.Error(t, err, "checkIssueV2 did not fail with invalid issue timestamp")
+	assert.Error(t, err, "checkIssueV2 did not fail with invalid timestamp")
 }
 
 func TestCheckReissueV1(t *testing.T) {
@@ -167,9 +189,10 @@ func TestCheckReissueV1(t *testing.T) {
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
-	createAsset(t, to.entities, to.stor, testGlobal.asset0.asset.ID)
+	assetInfo := to.stor.createAsset(t, testGlobal.asset0.asset.ID)
 
 	tx := createReissueV1(t)
+	tx.SenderPK = assetInfo.issuer
 	info := defaultCheckerInfo(t)
 	info.currentTimestamp = settings.MainNetSettings.ReissueBugWindowTimeEnd + 1
 	err := to.tc.checkReissueV1(tx, info)
@@ -184,7 +207,7 @@ func TestCheckReissueV1(t *testing.T) {
 	tx.SenderPK = testGlobal.recipientInfo.pk
 	err = to.tc.checkReissueV1(tx, info)
 	assert.EqualError(t, err, "asset was issued by other address")
-	tx.SenderPK = testGlobal.senderInfo.pk
+	tx.SenderPK = assetInfo.issuer
 
 	tx.Reissuable = false
 	err = to.tp.performReissueV1(tx, defaultPerformerInfo(t))
@@ -205,9 +228,10 @@ func TestCheckReissueV2(t *testing.T) {
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
-	createAsset(t, to.entities, to.stor, testGlobal.asset0.asset.ID)
+	assetInfo := to.stor.createAsset(t, testGlobal.asset0.asset.ID)
 
 	tx := createReissueV2(t)
+	tx.SenderPK = assetInfo.issuer
 	info := defaultCheckerInfo(t)
 	info.currentTimestamp = settings.MainNetSettings.ReissueBugWindowTimeEnd + 1
 	err := to.tc.checkReissueV2(tx, info)
@@ -222,7 +246,7 @@ func TestCheckReissueV2(t *testing.T) {
 	tx.SenderPK = testGlobal.recipientInfo.pk
 	err = to.tc.checkReissueV2(tx, info)
 	assert.EqualError(t, err, "asset was issued by other address")
-	tx.SenderPK = testGlobal.senderInfo.pk
+	tx.SenderPK = assetInfo.issuer
 
 	tx.Reissuable = false
 	err = to.tp.performReissueV2(tx, defaultPerformerInfo(t))
@@ -243,9 +267,10 @@ func TestCheckBurnV1(t *testing.T) {
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
-	createAsset(t, to.entities, to.stor, testGlobal.asset0.asset.ID)
+	assetInfo := to.stor.createAsset(t, testGlobal.asset0.asset.ID)
 
 	tx := createBurnV1(t)
+	tx.SenderPK = assetInfo.issuer
 	info := defaultCheckerInfo(t)
 	err := to.tc.checkBurnV1(tx, info)
 	assert.NoError(t, err, "checkBurnV1 failed with valid burn tx")
@@ -256,13 +281,13 @@ func TestCheckBurnV1(t *testing.T) {
 	assert.Error(t, err, "checkBurnV1 did not fail with burn sender not equal to asset issuer before activation of BurnAnyTokens feature")
 
 	// Activate BurnAnyTokens and make sure previous tx is now valid.
-	activateFeature(t, to.entities, to.stor, int16(settings.BurnAnyTokens))
+	to.stor.activateFeature(t, int16(settings.BurnAnyTokens))
 	err = to.tc.checkBurnV1(tx, info)
 	assert.NoError(t, err, "checkBurnV1 failed with burn sender not equal to asset issuer after activation of BurnAnyTokens feature")
 
 	tx.Timestamp = 0
 	err = to.tc.checkBurnV1(tx, info)
-	assert.Error(t, err, "checkBurnV1 did not fail with invalid burn timestamp")
+	assert.Error(t, err, "checkBurnV1 did not fail with invalid timestamp")
 }
 
 func TestCheckBurnV2(t *testing.T) {
@@ -273,9 +298,10 @@ func TestCheckBurnV2(t *testing.T) {
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
-	createAsset(t, to.entities, to.stor, testGlobal.asset0.asset.ID)
+	assetInfo := to.stor.createAsset(t, testGlobal.asset0.asset.ID)
 
 	tx := createBurnV2(t)
+	tx.SenderPK = assetInfo.issuer
 	info := defaultCheckerInfo(t)
 	err := to.tc.checkBurnV2(tx, info)
 	assert.NoError(t, err, "checkBurnV2 failed with valid burn tx")
@@ -286,13 +312,13 @@ func TestCheckBurnV2(t *testing.T) {
 	assert.Error(t, err, "checkBurnV1 did not fail with burn sender not equal to asset issuer before activation of BurnAnyTokens feature")
 
 	// Activate BurnAnyTokens and make sure previous tx is now valid.
-	activateFeature(t, to.entities, to.stor, int16(settings.BurnAnyTokens))
+	to.stor.activateFeature(t, int16(settings.BurnAnyTokens))
 	err = to.tc.checkBurnV2(tx, info)
 	assert.NoError(t, err, "checkBurnV1 failed with burn sender not equal to asset issuer after activation of BurnAnyTokens feature")
 
 	tx.Timestamp = 0
 	err = to.tc.checkBurnV2(tx, info)
-	assert.Error(t, err, "checkBurnV2 did not fail with invalid burn timestamp")
+	assert.Error(t, err, "checkBurnV2 did not fail with invalid timestamp")
 }
 
 func TestCheckExchange(t *testing.T) {
@@ -308,8 +334,8 @@ func TestCheckExchange(t *testing.T) {
 	err := to.tc.checkExchange(tx, info)
 	assert.Error(t, err, "checkExchange did not fail with exchange with unknown assets")
 
-	createAsset(t, to.entities, to.stor, testGlobal.asset0.asset.ID)
-	createAsset(t, to.entities, to.stor, testGlobal.asset1.asset.ID)
+	to.stor.createAsset(t, testGlobal.asset0.asset.ID)
+	to.stor.createAsset(t, testGlobal.asset1.asset.ID)
 	err = to.tc.checkExchange(tx, info)
 	assert.NoError(t, err, "checkExchange failed with valid exchange")
 }
@@ -492,12 +518,12 @@ func TestCheckMassTransferV1(t *testing.T) {
 	assert.EqualError(t, err, "MassTransfer transaction has not been activated yet")
 
 	// Activate MassTransfer.
-	activateFeature(t, to.entities, to.stor, int16(settings.MassTransfer))
+	to.stor.activateFeature(t, int16(settings.MassTransfer))
 	err = to.tc.checkMassTransferV1(tx, info)
 	assert.Error(t, err, "checkMassTransferV1 did not fail with unissued asset")
-	assert.EqualError(t, err, "unknown asset")
+	assert.EqualError(t, err, fmt.Sprintf("unknown asset %s", tx.Asset.ID.String()))
 
-	createAsset(t, to.entities, to.stor, testGlobal.asset0.asset.ID)
+	to.stor.createAsset(t, testGlobal.asset0.asset.ID)
 	err = to.tc.checkMassTransferV1(tx, info)
 	assert.NoError(t, err, "checkMassTransferV1 failed with valid massTransfer tx")
 }
@@ -510,7 +536,7 @@ func TestCheckDataV1(t *testing.T) {
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
-	tx := createDataV1(t)
+	tx := createDataV1(t, 1)
 	info := defaultCheckerInfo(t)
 
 	err := to.tc.checkDataV1(tx, info)
@@ -518,12 +544,60 @@ func TestCheckDataV1(t *testing.T) {
 	assert.EqualError(t, err, "Data transaction has not been activated yet")
 
 	// Activate Data transactions.
-	activateFeature(t, to.entities, to.stor, int16(settings.DataTransaction))
+	to.stor.activateFeature(t, int16(settings.DataTransaction))
 	err = to.tc.checkDataV1(tx, info)
 	assert.NoError(t, err, "checkDataV1 failed with valid Data tx")
 
 	// Check invalid timestamp failure.
 	tx.Timestamp = 0
 	err = to.tc.checkDataV1(tx, info)
-	assert.Error(t, err, "checkDataV1 did not fail with invalid Data tx timestamp")
+	assert.Error(t, err, "checkDataV1 did not fail with invalid timestamp")
+}
+
+func TestCheckSponsorshipV1(t *testing.T) {
+	to, path := createCheckerTestObjects(t)
+
+	defer func() {
+		err := util.CleanTemporaryDirs(path)
+		assert.NoError(t, err, "failed to clean test data dirs")
+	}()
+
+	tx := createSponsorshipV1(t)
+	assetInfo := to.stor.createAsset(t, tx.AssetID)
+	tx.SenderPK = assetInfo.issuer
+	info := defaultCheckerInfo(t)
+
+	err := to.tc.checkSponsorshipV1(tx, info)
+	assert.Error(t, err, "checkSponsorshipV1 did not fail prior to feature activation")
+	assert.EqualError(t, err, "sponsorship has not been activated yet")
+
+	// Activate sponsorship.
+	to.stor.activateFeature(t, int16(settings.FeeSponsorship))
+	err = to.tc.checkSponsorshipV1(tx, info)
+	assert.NoError(t, err, "checkSponsorshipV1 failed with valid Sponsorship tx")
+	to.stor.activateSponsorship(t)
+
+	// Check min fee.
+	feeConst, ok := feeConstants[proto.SponsorshipTransaction]
+	assert.Equal(t, ok, true)
+	tx.Fee = FeeUnit*feeConst - 1
+	err = to.tc.checkSponsorshipV1(tx, info)
+	assert.Error(t, err, "checkSponsorshipV1 did not fail with fee less than minimum")
+	assert.EqualError(t, err, fmt.Sprintf("checkFee(): fee %d is less than minimum value of %d\n", tx.Fee, FeeUnit*feeConst))
+	tx.Fee = FeeUnit * feeConst
+	err = to.tc.checkSponsorshipV1(tx, info)
+	assert.NoError(t, err, "checkSponsorshipV1 failed with valid Sponsorship tx")
+
+	// Check invalid sender.
+	tx.SenderPK = testGlobal.recipientInfo.pk
+	err = to.tc.checkSponsorshipV1(tx, info)
+	assert.EqualError(t, err, "asset was issued by other address")
+	tx.SenderPK = assetInfo.issuer
+	err = to.tc.checkSponsorshipV1(tx, info)
+	assert.NoError(t, err, "checkSponsorshipV1 failed with valid Sponsorship tx")
+
+	// Check invalid timestamp failure.
+	tx.Timestamp = 0
+	err = to.tc.checkSponsorshipV1(tx, info)
+	assert.Error(t, err, "checkSponsorshipV1 did not fail with invalid timestamp")
 }
