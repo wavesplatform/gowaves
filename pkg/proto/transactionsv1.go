@@ -612,8 +612,8 @@ type ExchangeV1 struct {
 	ID             *crypto.Digest    `json:"id,omitempty"`
 	Signature      *crypto.Signature `json:"signature,omitempty"`
 	SenderPK       crypto.PublicKey  `json:"senderPublicKey"`
-	BuyOrder       OrderV1           `json:"order1"`
-	SellOrder      OrderV1           `json:"order2"`
+	BuyOrder       *OrderV1          `json:"order1"`
+	SellOrder      *OrderV1          `json:"order2"`
 	Price          uint64            `json:"price"`
 	Amount         uint64            `json:"amount"`
 	BuyMatcherFee  uint64            `json:"buyMatcherFee"`
@@ -680,7 +680,7 @@ func (tx ExchangeV1) GetTimestamp() uint64 {
 	return tx.Timestamp
 }
 
-func NewUnsignedExchangeV1(buy, sell OrderV1, price, amount, buyMatcherFee, sellMatcherFee, fee, timestamp uint64) *ExchangeV1 {
+func NewUnsignedExchangeV1(buy, sell *OrderV1, price, amount, buyMatcherFee, sellMatcherFee, fee, timestamp uint64) *ExchangeV1 {
 	return &ExchangeV1{
 		Type:           ExchangeTransaction,
 		Version:        1,
@@ -822,14 +822,14 @@ func (tx *ExchangeV1) bodyUnmarshalBinary(data []byte) (int, error) {
 	if err != nil {
 		return 0, errors.Wrapf(err, "failed to unmarshal ExchangeV1 body from bytes")
 	}
-	tx.BuyOrder = bo
+	tx.BuyOrder = &bo
 	n += int(bol)
 	var so OrderV1
 	err = so.UnmarshalBinary(data[n:])
 	if err != nil {
 		return 0, errors.Wrapf(err, "failed to unmarshal ExchangeV1 body from bytes")
 	}
-	tx.SellOrder = so
+	tx.SellOrder = &so
 	n += int(sol)
 	tx.Price = binary.BigEndian.Uint64(data[n:])
 	n += 8

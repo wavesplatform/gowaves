@@ -1595,7 +1595,7 @@ func TestExchangeV1Validations(t *testing.T) {
 		{sbo0, sso3, 950000000, 456, 789, 987, 654, MaxOrderTTL + 10, "invalid sell order expiration"},
 	}
 	for _, tc := range tests {
-		tx := NewUnsignedExchangeV1(tc.buy, tc.sell, tc.price, tc.amount, tc.buyFee, tc.sellFee, tc.fee, tc.ts)
+		tx := NewUnsignedExchangeV1(&tc.buy, &tc.sell, tc.price, tc.amount, tc.buyFee, tc.sellFee, tc.fee, tc.ts)
 		v, err := tx.Valid()
 		assert.False(t, v)
 		assert.EqualError(t, err, tc.err, fmt.Sprintf("expected: %s", tc.err))
@@ -1670,7 +1670,7 @@ func TestExchangeV1FromMainNet(t *testing.T) {
 		sSig, _ := crypto.NewSignatureFromBase58(tc.sellSig)
 		so.ID = &sID
 		so.Signature = &sSig
-		tx := NewUnsignedExchangeV1(*bo, *so, tc.price, tc.amount, tc.buyMatcherFee, tc.sellMatcherFee, tc.fee, tc.timestamp)
+		tx := NewUnsignedExchangeV1(bo, so, tc.price, tc.amount, tc.buyMatcherFee, tc.sellMatcherFee, tc.fee, tc.timestamp)
 		if b, err := tx.bodyMarshalBinary(); assert.NoError(t, err) {
 			if h, err := crypto.FastHash(b); assert.NoError(t, err) {
 				assert.Equal(t, id, h)
@@ -1709,7 +1709,7 @@ func TestExchangeV1BinaryRoundTrip(t *testing.T) {
 	}
 	for _, tc := range tests {
 		ts := uint64(time.Now().UnixNano() / 1000000)
-		tx := NewUnsignedExchangeV1(tc.buy, tc.sell, tc.price, tc.amount, tc.buyFee, tc.sellFee, tc.fee, ts)
+		tx := NewUnsignedExchangeV1(&tc.buy, &tc.sell, tc.price, tc.amount, tc.buyFee, tc.sellFee, tc.fee, ts)
 		if bb, err := tx.bodyMarshalBinary(); assert.NoError(t, err) {
 			var atx ExchangeV1
 			if _, err := atx.bodyUnmarshalBinary(bb); assert.NoError(t, err) {
@@ -1787,7 +1787,7 @@ func TestExchangeV1ToJSON(t *testing.T) {
 		err = so.Sign(sk)
 		require.NoError(t, err)
 		soj, _ := json.Marshal(so)
-		tx := NewUnsignedExchangeV1(*bo, *so, tc.price, tc.amount, tc.buyFee, tc.sellFee, tc.fee, ts)
+		tx := NewUnsignedExchangeV1(bo, so, tc.price, tc.amount, tc.buyFee, tc.sellFee, tc.fee, ts)
 		if j, err := json.Marshal(tx); assert.NoError(t, err) {
 			ej := fmt.Sprintf("{\"type\":7,\"version\":1,\"senderPublicKey\":\"%s\",\"order1\":%s,\"order2\":%s,\"price\":%d,\"amount\":%d,\"buyMatcherFee\":%d,\"sellMatcherFee\":%d,\"fee\":%d,\"timestamp\":%d}",
 				base58.Encode(mpk[:]), string(boj), string(soj), tc.price, tc.amount, tc.buyFee, tc.sellFee, tc.fee, ts)
@@ -1853,7 +1853,7 @@ func TestExchangeV2Validations(t *testing.T) {
 		{sbo0, sso3, 950000000, 456, 789, 987, 654, MaxOrderTTL + 10, "invalid sell order expiration"},
 	}
 	for _, tc := range tests {
-		tx := NewUnsignedExchangeV2(tc.buy, tc.sell, tc.price, tc.amount, tc.buyFee, tc.sellFee, tc.fee, tc.ts)
+		tx := NewUnsignedExchangeV2(&tc.buy, &tc.sell, tc.price, tc.amount, tc.buyFee, tc.sellFee, tc.fee, tc.ts)
 		v, err := tx.Valid()
 		assert.False(t, v)
 		assert.EqualError(t, err, tc.err, fmt.Sprintf("expected error: %s", tc.err))
