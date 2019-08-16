@@ -5,12 +5,11 @@ SOURCE_DIRS = cmd pkg
 
 VERSION=$(shell git describe --tags --always --dirty)
 
-.PHONY: vetcheck fmtcheck dep clean build gotest
+export GO111MODULE=on
 
-all: dep vetcheck fmtcheck build gotest
+.PHONY: vendor vetcheck fmtcheck clean build gotest
 
-dep:
-	dep ensure
+all: vendor vetcheck fmtcheck build gotest
 
 ver:
 	@echo Building version: $(VERSION)
@@ -32,8 +31,12 @@ gotest:
 
 fmtcheck:
 	@gofmt -l -s $(SOURCE_DIRS) | grep ".*\.go"; if [ "$$?" = "0" ]; then exit 1; fi
+
 clean:
 	@rm -rf build
+
+vendor:
+	go mod vendor
 
 vetcheck:
 	go vet ./...
