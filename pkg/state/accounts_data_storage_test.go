@@ -19,7 +19,7 @@ func (a *accountsDataStorageTestObjects) flush(t *testing.T) {
 	a.stor.flush(t)
 }
 
-func createAccountsDataStorgae() (*accountsDataStorageTestObjects, []string, error) {
+func createAccountsDataStorage() (*accountsDataStorageTestObjects, []string, error) {
 	stor, path, err := createStorageObjects()
 	if err != nil {
 		return nil, path, err
@@ -32,8 +32,8 @@ func createAccountsDataStorgae() (*accountsDataStorageTestObjects, []string, err
 }
 
 func TestAppendEntry(t *testing.T) {
-	to, path, err := createAccountsDataStorgae()
-	assert.NoError(t, err, "createAccountsDataStorgae() failed")
+	to, path, err := createAccountsDataStorage()
+	assert.NoError(t, err, "createAccountsDataStorage() failed")
 
 	defer func() {
 		err = to.stor.stateDB.close()
@@ -61,8 +61,8 @@ func TestAppendEntry(t *testing.T) {
 }
 
 func TestRollbackEntry(t *testing.T) {
-	to, path, err := createAccountsDataStorgae()
-	assert.NoError(t, err, "createAccountsDataStorgae() failed")
+	to, path, err := createAccountsDataStorage()
+	assert.NoError(t, err, "createAccountsDataStorage() failed")
 
 	defer func() {
 		err = to.stor.stateDB.close()
@@ -94,8 +94,8 @@ func TestRollbackEntry(t *testing.T) {
 }
 
 func TestRetrieveIntegerEntry(t *testing.T) {
-	to, path, err := createAccountsDataStorgae()
-	assert.NoError(t, err, "createAccountsDataStorgae() failed")
+	to, path, err := createAccountsDataStorage()
+	assert.NoError(t, err, "createAccountsDataStorage() failed")
 
 	defer func() {
 		err = to.stor.stateDB.close()
@@ -118,8 +118,8 @@ func TestRetrieveIntegerEntry(t *testing.T) {
 }
 
 func TestRetrieveBooleanEntry(t *testing.T) {
-	to, path, err := createAccountsDataStorgae()
-	assert.NoError(t, err, "createAccountsDataStorgae() failed")
+	to, path, err := createAccountsDataStorage()
+	assert.NoError(t, err, "createAccountsDataStorage() failed")
 
 	defer func() {
 		err = to.stor.stateDB.close()
@@ -142,8 +142,8 @@ func TestRetrieveBooleanEntry(t *testing.T) {
 }
 
 func TestRetrieveStringEntry(t *testing.T) {
-	to, path, err := createAccountsDataStorgae()
-	assert.NoError(t, err, "createAccountsDataStorgae() failed")
+	to, path, err := createAccountsDataStorage()
+	assert.NoError(t, err, "createAccountsDataStorage() failed")
 
 	defer func() {
 		err = to.stor.stateDB.close()
@@ -166,8 +166,8 @@ func TestRetrieveStringEntry(t *testing.T) {
 }
 
 func TestRetrieveBinaryEntry(t *testing.T) {
-	to, path, err := createAccountsDataStorgae()
-	assert.NoError(t, err, "createAccountsDataStorgae() failed")
+	to, path, err := createAccountsDataStorage()
+	assert.NoError(t, err, "createAccountsDataStorage() failed")
 
 	defer func() {
 		err = to.stor.stateDB.close()
