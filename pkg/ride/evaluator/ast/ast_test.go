@@ -1,9 +1,11 @@
 package ast
 
 import (
-	"github.com/stretchr/testify/assert"
-	"github.com/wavesplatform/gowaves/pkg/proto"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
 func TestBooleanExpr_Eq(t *testing.T) {
@@ -26,4 +28,16 @@ func TestDataEntryListExpr_Get(t *testing.T) {
 	})
 	lst := NewDataEntryList(d)
 	assert.Equal(t, NewLong(100500), lst.Get("integer", proto.DataInteger))
+}
+
+func TestBuyExpr_Eq(t *testing.T) {
+	eq, err := BuyExpr{}.Eq(&BuyExpr{})
+	require.NoError(t, err)
+	require.True(t, eq)
+}
+
+func TestSellExpr_Eq(t *testing.T) {
+	eq, err := SellExpr{}.Eq(&SellExpr{})
+	require.NoError(t, err)
+	require.True(t, eq)
 }

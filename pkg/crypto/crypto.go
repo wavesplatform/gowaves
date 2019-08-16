@@ -19,8 +19,9 @@ import (
 
 const (
 	DigestSize    = 32
-	PublicKeySize = 32
-	SecretKeySize = 32
+	KeySize       = 32
+	PublicKeySize = KeySize
+	SecretKeySize = KeySize
 	SignatureSize = 64
 )
 
@@ -134,6 +135,15 @@ func (k SecretKey) Bytes() []byte {
 
 func NewSecretKeyFromBase58(s string) (SecretKey, error) {
 	return array32FromBase58(s, "SecretKey")
+}
+
+func NewSecretKeyFromBytes(b []byte) (SecretKey, error) {
+	var sk SecretKey
+	if l := len(b); l != SecretKeySize {
+		return sk, fmt.Errorf("invalid array length %d, expected exact %d bytes", l, SecretKeySize)
+	}
+	copy(sk[:], b)
+	return sk, nil
 }
 
 type PublicKey [PublicKeySize]byte
