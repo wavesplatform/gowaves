@@ -3,7 +3,7 @@ package ast
 import (
 	"testing"
 
-	"github.com/ericlagergren/decimal"
+	"github.com/alexeykiselev/decimal"
 	"github.com/stretchr/testify/assert"
 )
 

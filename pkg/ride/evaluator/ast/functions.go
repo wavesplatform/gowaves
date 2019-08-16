@@ -9,6 +9,7 @@ import (
 	"math/big"
 	"unicode/utf8"
 
+	"github.com/alexeykiselev/decimal"
 	"github.com/mr-tron/base58/base58"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
@@ -242,6 +243,133 @@ func mathLong(funcName string, f func(int64, int64) (Expr, error), s Scope, e Ex
 	}
 
 	return f(first.Value, second.Value)
+}
+
+//NativePowLong calculates power.
+func NativePowLong(s Scope, e Exprs) (Expr, error) {
+	funcName := "NativePowLong"
+	if l := len(e); l != 6 {
+		return nil, errors.Errorf("%s: invalid number of parameters, expected 6, received %d", funcName, l)
+	}
+
+	rs, err := e.EvaluateAll(s.Clone())
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+
+	base, ok := rs[0].(*LongExpr)
+	if !ok {
+		return nil, errors.Errorf("%s first argument expected to be *LongExpr, got %T", funcName, rs[0])
+	}
+
+	bp, ok := rs[1].(*LongExpr)
+	if !ok {
+		return nil, errors.Errorf("%s second argument expected to be *LongExpr, got %T", funcName, rs[1])
+	}
+
+	exponent, ok := rs[2].(*LongExpr)
+	if !ok {
+		return nil, errors.Errorf("%s third argument expected to be *LongExpr, got %T", funcName, rs[2])
+	}
+
+	ep, ok := rs[3].(*LongExpr)
+	if !ok {
+		return nil, errors.Errorf("%s 4th argument expected to be *LongExpr, got %T", funcName, rs[3])
+	}
+
+	rp, ok := rs[4].(*LongExpr)
+	if !ok {
+		return nil, errors.Errorf("%s 5th argument expected to be *LongExpr, got %T", funcName, rs[4])
+	}
+
+	roundExpr, ok := rs[5].(*RefExpr)
+	if !ok {
+		return nil, errors.Errorf("%s 5th argument expected to be *RefExpr, got %T", funcName, rs[5])
+	}
+	round, err := roundingMode(roundExpr)
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+
+	r, err := pow(base.Value, exponent.Value, int(bp.Value), int(ep.Value), int(rp.Value), round)
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	return NewLong(r), nil
+}
+
+func roundingMode(e *RefExpr) (decimal.RoundingMode, error) {
+	switch e.InstanceOf() {
+	case "Ceiling":
+		return decimal.ToPositiveInf, nil
+	case "Floor":
+		return decimal.ToNegativeInf, nil
+	case "HalfEven":
+		return decimal.ToNearestEven, nil
+	case "Down":
+		return decimal.ToZero, nil
+	case "Up":
+		return decimal.AwayFromZero, nil
+	case "HalfUp":
+		return decimal.ToNearestAway, nil
+	case "HalfDown":
+		return decimal.ToNearestToZero, nil
+	default:
+		return 0, errors.Errorf("unsupported rounding mode %s", e.InstanceOf())
+	}
+}
+
+// NativeLogLong calculates logarithm.
+func NativeLogLong(s Scope, e Exprs) (Expr, error) {
+	funcName := "NativeLogLong"
+	if l := len(e); l != 6 {
+		return nil, errors.Errorf("%s: invalid number of parameters, expected 6, received %d", funcName, l)
+	}
+
+	rs, err := e.EvaluateAll(s.Clone())
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+
+	base, ok := rs[0].(*LongExpr)
+	if !ok {
+		return nil, errors.Errorf("%s first argument expected to be *LongExpr, got %T", funcName, rs[0])
+	}
+
+	bp, ok := rs[1].(*LongExpr)
+	if !ok {
+		return nil, errors.Errorf("%s second argument expected to be *LongExpr, got %T", funcName, rs[1])
+	}
+
+	exponent, ok := rs[2].(*LongExpr)
+	if !ok {
+		return nil, errors.Errorf("%s third argument expected to be *LongExpr, got %T", funcName, rs[2])
+	}
+
+	ep, ok := rs[3].(*LongExpr)
+	if !ok {
+		return nil, errors.Errorf("%s 4th argument expected to be *LongExpr, got %T", funcName, rs[3])
+	}
+
+	rp, ok := rs[4].(*LongExpr)
+	if !ok {
+		return nil, errors.Errorf("%s 5th argument expected to be *LongExpr, got %T", funcName, rs[4])
+	}
+
+	roundExpr, ok := rs[5].(*RefExpr)
+	if !ok {
+		return nil, errors.Errorf("%s 5th argument expected to be *RefExpr, got %T", funcName, rs[5])
+	}
+	round, err := roundingMode(roundExpr)
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+
+	r, err := pow(base.Value, exponent.Value, int(bp.Value), int(ep.Value), int(rp.Value), round)
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	return NewLong(r), nil
 }
 
 // Check signature
@@ -1468,6 +1596,10 @@ func writeNativeFunction(w io.Writer, id int16, e Exprs) {
 		prefix(w, "throw", e)
 	case 103:
 		infix(w, ">=", e)
+	case 108:
+		prefix(w, "pow", e)
+	case 109:
+		prefix(w, "log", e)
 	case 200:
 		prefix(w, "size", e)
 	case 203, 300:

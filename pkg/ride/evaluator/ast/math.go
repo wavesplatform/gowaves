@@ -1,8 +1,8 @@
 package ast
 
 import (
-	"github.com/ericlagergren/decimal"
-	"github.com/ericlagergren/decimal/math"
+	"github.com/alexeykiselev/decimal"
+	"github.com/alexeykiselev/decimal/math"
 	"github.com/pkg/errors"
 )
 

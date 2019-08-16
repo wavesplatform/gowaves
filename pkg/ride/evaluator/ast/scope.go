@@ -114,6 +114,9 @@ func NewFuncScope() *FuncScope {
 	funcs[106] = NativeModLong
 	funcs[107] = NativeFractionLong
 
+	funcs[108] = NativePowLong
+	funcs[109] = NativeLogLong
+
 	funcs[200] = NativeSizeBytes
 	funcs[201] = NativeTakeBytes
 	funcs[202] = NativeDropBytes
