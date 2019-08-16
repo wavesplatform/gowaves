@@ -77,3 +77,9 @@ func TestExchangeV2(t *testing.T) {
 	require.NotEmpty(t, ExchangeV2.Transaction)
 	require.NotEmpty(t, ExchangeV2.MessageBytes)
 }
+
+func TestSetAssetScriptV1(t *testing.T) {
+	require.NotEmpty(t, SetAssetScriptV1.TransactionBytes)
+	require.NotEmpty(t, SetAssetScriptV1.Transaction)
+	require.NotEmpty(t, SetAssetScriptV1.MessageBytes)
+}

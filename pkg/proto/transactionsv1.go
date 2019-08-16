@@ -2365,7 +2365,7 @@ func (tx SetAssetScriptV1) GetTypeVersion() TransactionTypeVersion {
 
 func (tx *SetAssetScriptV1) GenerateID() {
 	if tx.ID == nil {
-		body, err := tx.bodyMarshalBinary()
+		body, err := tx.BodyMarshalBinary()
 		if err != nil {
 			panic(err.Error())
 		}
@@ -2390,6 +2390,12 @@ func (tx SetAssetScriptV1) GetTimestamp() uint64 {
 	return tx.Timestamp
 }
 
+func (tx *SetAssetScriptV1) Clone() *SetAssetScriptV1 {
+	out := &SetAssetScriptV1{}
+	_ = copier.Copy(out, tx)
+	return out
+}
+
 //NewUnsignedSetAssetScriptV1 creates new unsigned SetAssetScriptV1 transaction.
 func NewUnsignedSetAssetScriptV1(chain byte, senderPK crypto.PublicKey, assetID crypto.Digest, script []byte, fee, timestamp uint64) *SetAssetScriptV1 {
 	return &SetAssetScriptV1{Type: SetAssetScriptTransaction, Version: 1, ChainID: chain, SenderPK: senderPK, AssetID: assetID, Script: script, Fee: fee, Timestamp: timestamp}
@@ -2411,7 +2417,7 @@ func (tx *SetAssetScriptV1) NonEmptyScript() bool {
 	return len(tx.Script) != 0
 }
 
-func (tx *SetAssetScriptV1) bodyMarshalBinary() ([]byte, error) {
+func (tx *SetAssetScriptV1) BodyMarshalBinary() ([]byte, error) {
 	var p int
 	sl := 0
 	if tx.NonEmptyScript() {
@@ -2480,7 +2486,7 @@ func (tx *SetAssetScriptV1) bodyUnmarshalBinary(data []byte) error {
 
 //Sign adds signature as a proof at first position.
 func (tx *SetAssetScriptV1) Sign(secretKey crypto.SecretKey) error {
-	b, err := tx.bodyMarshalBinary()
+	b, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return errors.Wrap(err, "failed to sign SetAssetScriptV1 transaction")
 	}
@@ -2501,7 +2507,7 @@ func (tx *SetAssetScriptV1) Sign(secretKey crypto.SecretKey) error {
 
 //Verify checks that first proof is a valid signature.
 func (tx *SetAssetScriptV1) Verify(publicKey crypto.PublicKey) (bool, error) {
-	b, err := tx.bodyMarshalBinary()
+	b, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return false, errors.Wrap(err, "failed to verify signature of SetAssetScriptV1 transaction")
 	}
@@ -2510,7 +2516,7 @@ func (tx *SetAssetScriptV1) Verify(publicKey crypto.PublicKey) (bool, error) {
 
 //MarshalBinary writes SetAssetScriptV1 transaction to its bytes representation.
 func (tx *SetAssetScriptV1) MarshalBinary() ([]byte, error) {
-	bb, err := tx.bodyMarshalBinary()
+	bb, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal SetAssetScriptV1 transaction to bytes")
 	}

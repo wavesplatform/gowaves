@@ -3770,7 +3770,7 @@ func TestSetAssetScriptV1FromMainNet(t *testing.T) {
 		s, _ := base64.StdEncoding.DecodeString(tc.script)
 		a, _ := crypto.NewDigestFromBase58(tc.asset)
 		tx := NewUnsignedSetAssetScriptV1(tc.scheme, spk, a, s, tc.fee, tc.timestamp)
-		if b, err := tx.bodyMarshalBinary(); assert.NoError(t, err) {
+		if b, err := tx.BodyMarshalBinary(); assert.NoError(t, err) {
 			if h, err := crypto.FastHash(b); assert.NoError(t, err) {
 				assert.Equal(t, id, h)
 			}
@@ -3796,7 +3796,7 @@ func TestSetAssetScriptV1BinaryRoundTrip(t *testing.T) {
 		a, _ := crypto.NewDigestFromBase58(tc.asset)
 		s, _ := base64.StdEncoding.DecodeString(tc.script)
 		tx := NewUnsignedSetAssetScriptV1(tc.chainID, pk, a, s, tc.fee, ts)
-		if bb, err := tx.bodyMarshalBinary(); assert.NoError(t, err) {
+		if bb, err := tx.BodyMarshalBinary(); assert.NoError(t, err) {
 			var atx SetAssetScriptV1
 			if err := atx.bodyUnmarshalBinary(bb); assert.NoError(t, err) {
 				assert.Equal(t, tx.Type, atx.Type)

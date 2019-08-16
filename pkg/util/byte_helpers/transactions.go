@@ -106,6 +106,14 @@ type ExchangeV2Struct struct {
 
 var ExchangeV2 ExchangeV2Struct
 
+type SetAssetScriptV1Struct struct {
+	TransactionBytes []byte
+	Transaction      *proto.SetAssetScriptV1
+	MessageBytes     []byte
+}
+
+var SetAssetScriptV1 SetAssetScriptV1Struct
+
 func init() {
 	initGenesis()
 	initPayment()
@@ -119,6 +127,7 @@ func init() {
 	initMassTransferV1()
 	initExchangeV1()
 	initExchangeV2()
+	initSetAssetScriptV1()
 }
 
 func initTransferV1() {
@@ -495,6 +504,32 @@ func initExchangeV2() {
 	tmb, _ := tm.MarshalBinary()
 
 	ExchangeV2 = ExchangeV2Struct{
+		TransactionBytes: b,
+		Transaction:      t,
+		MessageBytes:     tmb,
+	}
+}
+
+//SetAssetScriptV1
+func initSetAssetScriptV1() {
+	sk, pk := crypto.GenerateKeyPair([]byte("test"))
+	d, err := crypto.NewDigestFromBase58("9shLH9vfJxRgbhJ1c3dw2gj5fUGRr8asfUpQjj4rZQKQ")
+	if err != nil {
+		panic(err)
+	}
+
+	t := proto.NewUnsignedSetAssetScriptV1(proto.MainNetScheme, pk, d, []byte("hello"), 10000, TIMESTAMP)
+	_ = t.Sign(sk)
+	b, err := t.MarshalBinary()
+	if err != nil {
+		panic(err)
+	}
+	tm := proto.TransactionMessage{
+		Transaction: b,
+	}
+	tmb, _ := tm.MarshalBinary()
+
+	SetAssetScriptV1 = SetAssetScriptV1Struct{
 		TransactionBytes: b,
 		Transaction:      t,
 		MessageBytes:     tmb,
