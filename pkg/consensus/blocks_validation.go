@@ -180,7 +180,7 @@ func (cv *ConsensusValidator) checkTargetLimit(height, target uint64) error {
 	if !fair {
 		return nil
 	}
-	if target > cv.settings.MaxBaseTarget {
+	if target >= cv.settings.MaxBaseTarget {
 		return errors.New("base target is greater than maximum value from blockchain settings")
 	}
 	return nil

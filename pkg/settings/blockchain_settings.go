@@ -94,7 +94,7 @@ func DefaultSettingsForCustomBlockchain(genesisGetter GenesisGetter) *Blockchain
 			AddressSchemeCharacter: 'C',
 
 			AverageBlockDelaySeconds: 60,
-			MaxBaseTarget:            200,
+			MaxBaseTarget:            math.MaxUint64,
 		},
 		GenesisGetter: genesisGetter,
 	}
@@ -131,7 +131,7 @@ var (
 			AddressSchemeCharacter: proto.MainNetScheme,
 
 			AverageBlockDelaySeconds: 60,
-			MaxBaseTarget:            200,
+			MaxBaseTarget:            math.MaxUint64,
 		},
 		GenesisGetter: MainnetGenesis,
 	}
@@ -164,7 +164,7 @@ var (
 			AddressSchemeCharacter: proto.TestNetScheme,
 
 			AverageBlockDelaySeconds: 60,
-			MaxBaseTarget:            200,
+			MaxBaseTarget:            math.MaxUint64,
 		},
 		GenesisGetter: TestnetGenesis,
 	}
