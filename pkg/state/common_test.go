@@ -59,7 +59,10 @@ func newTestAddrData(seedStr string, asset, asset1 []byte) (*testAddrData, error
 	if err != nil {
 		return nil, err
 	}
-	sk, pk := crypto.GenerateKeyPair(seedBytes)
+	sk, pk, err := crypto.GenerateKeyPair(seedBytes)
+	if err != nil {
+		return nil, err
+	}
 	addr, err := proto.NewAddressFromPublicKey('W', pk)
 	if err != nil {
 		return nil, err
@@ -288,7 +291,8 @@ func generateRandomRecipient(t *testing.T) proto.Recipient {
 	seed := make([]byte, testSeedLen)
 	_, err := rand.Read(seed)
 	assert.NoError(t, err, "rand.Read() failed")
-	_, pk := crypto.GenerateKeyPair(seed)
+	_, pk, err := crypto.GenerateKeyPair(seed)
+	assert.NoError(t, err)
 	addr, err := proto.NewAddressFromPublicKey('W', pk)
 	assert.NoError(t, err, "NewAddressFromPublicKey() failed")
 	return proto.NewRecipientFromAddress(addr)

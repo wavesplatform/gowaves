@@ -207,14 +207,11 @@ func (a *NodeApi) BlockScoreAt(w http.ResponseWriter, r *http.Request) {
 func Run(ctx context.Context, address string, n *NodeApi) error {
 	apiServer := &http.Server{Addr: address, Handler: n.routes()}
 	go func() {
-		select {
-		case <-ctx.Done():
-			zap.S().Info("Shutting down API...")
-			err := apiServer.Shutdown(ctx)
-			if err != nil {
-				zap.S().Errorf("Failed to shutdown API server: %v", err)
-			}
-			return
+		<-ctx.Done()
+		zap.S().Info("Shutting down API...")
+		err := apiServer.Shutdown(ctx)
+		if err != nil {
+			zap.S().Errorf("Failed to shutdown API server: %v", err)
 		}
 	}()
 	err := apiServer.ListenAndServe()

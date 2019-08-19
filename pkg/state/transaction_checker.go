@@ -317,7 +317,7 @@ func (tc *transactionChecker) checkLease(tx *proto.Lease, info *checkerInfo) err
 	if err != nil {
 		return err
 	}
-	recipientAddr := &proto.Address{}
+	var recipientAddr *proto.Address
 	if tx.Recipient.Address == nil {
 		recipientAddr, err = tc.stor.aliases.newestAddrByAlias(tx.Recipient.Alias.Alias, !info.initialisation)
 		if err != nil {

@@ -16,11 +16,6 @@ const (
 	assetRecordSize = maxQuantityLen + 1 + 4
 )
 
-type assetRecord struct {
-	assetConstInfo
-	assetHistoryRecord
-}
-
 type assetInfo struct {
 	assetConstInfo
 	assetChangeableInfo

@@ -302,7 +302,10 @@ func NativeKeccak256(s Scope, e Exprs) (Expr, error) {
 		return nil, errors.Errorf("NativeKeccak256: expected first argument to be *BytesExpr, found %T", val)
 	}
 
-	d := crypto.Keccak256(bts.Value)
+	d, err := crypto.Keccak256(bts.Value)
+	if err != nil {
+		return nil, err
+	}
 	return NewBytes(d.Bytes()), nil
 }
 
@@ -346,7 +349,9 @@ func NativeSha256(s Scope, e Exprs) (Expr, error) {
 	}
 
 	h := sha256.New()
-	h.Write(bts.Value)
+	if _, err = h.Write(bts.Value); err != nil {
+		return nil, err
+	}
 	d := h.Sum(nil)
 
 	return NewBytes(d), nil
@@ -804,7 +809,7 @@ func NativeAssetBalance(s Scope, e Exprs) (Expr, error) {
 		return nil, errors.Wrap(err, funcName)
 	}
 
-	r := proto.Recipient{}
+	var r proto.Recipient
 
 	switch a := addressOrAliasExpr.(type) {
 	case AddressExpr:

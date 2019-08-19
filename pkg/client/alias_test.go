@@ -78,6 +78,7 @@ func TestAlias_Create(t *testing.T) {
 		ApiKey:  "asfasf",
 		Client:  NewMockHttpRequestFromString(aliasCreateResp, 200),
 	})
+	require.NoError(t, err)
 	req := AliasCreateReq{
 		Sender: address,
 		Alias:  "wave",
@@ -139,6 +140,7 @@ func TestAlias_Broadcast(t *testing.T) {
 		BaseUrl: "https://testnode1.wavesnodes.com/",
 		Client:  NewMockHttpRequestFromString(broadcastResp, 200),
 	})
+	require.NoError(t, err)
 
 	req := AliasBroadcastReq{
 		SenderPublicKey: pubKey,

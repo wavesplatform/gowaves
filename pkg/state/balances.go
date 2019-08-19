@@ -32,9 +32,11 @@ func (bp *balanceProfile) effectiveBalance() (uint64, error) {
 	return uint64(val - bp.leaseOut), nil
 }
 
+/* TODO: unused code, need to write tests if it is needed or otherwise remove it.
 func (bp *balanceProfile) spendableBalance() uint64 {
 	return uint64(int64(bp.balance) - bp.leaseOut)
 }
+*/
 
 type wavesBalanceRecord struct {
 	balanceProfile

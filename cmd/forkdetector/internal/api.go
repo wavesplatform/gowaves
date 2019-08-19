@@ -102,20 +102,15 @@ func (a *api) Start() <-chan struct{} {
 	default:
 	}
 	go func() {
-		for {
-			select {
-			case <-a.interrupt:
-				zap.S().Debug("Shutting down API...")
-				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-				err := a.srv.Shutdown(ctx)
-				if err != nil {
-					zap.S().Errorf("Failed to shutdown API server: %v", err)
-				}
-				cancel()
-				close(done)
-				return
-			}
+		<-a.interrupt
+		zap.S().Debug("Shutting down API...")
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		err := a.srv.Shutdown(ctx)
+		if err != nil {
+			zap.S().Errorf("Failed to shutdown API server: %v", err)
 		}
+		cancel()
+		close(done)
 	}()
 	return done
 }
@@ -289,6 +284,10 @@ func (a *api) blocksAtHeight(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	blocks, err := a.storage.blocks(uint32(h))
+	if err != nil {
+		http.Error(w, fmt.Sprintf("blocks(): %v", err), http.StatusInternalServerError)
+		return
+	}
 	err = json.NewEncoder(w).Encode(blocks)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to marshal status to JSON: %v", err), http.StatusInternalServerError)

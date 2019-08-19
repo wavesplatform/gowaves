@@ -23,6 +23,6 @@ func TestStorage(t *testing.T) {
 	assert.Equal(t, bts, ret)
 
 	s.Close()
-	ret, err = s.Read()
+	_, err = s.Read()
 	assert.Contains(t, err.Error(), "closed")
 }

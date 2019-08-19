@@ -89,7 +89,10 @@ func (a *MicroBlock) Sign(secret crypto.SecretKey) error {
 	if err != nil {
 		return err
 	}
-	sig := crypto.Sign(secret, buf.Bytes())
+	sig, err := crypto.Sign(secret, buf.Bytes())
+	if err != nil {
+		return err
+	}
 	a.Signature = sig
 	return nil
 }
@@ -394,7 +397,10 @@ func (a *MicroBlockInv) Sign(key crypto.SecretKey, schema Scheme) error {
 	if err != nil {
 		return err
 	}
-	a.Signature = crypto.Sign(key, buf.Bytes())
+	a.Signature, err = crypto.Sign(key, buf.Bytes())
+	if err != nil {
+		return err
+	}
 	return nil
 }
 

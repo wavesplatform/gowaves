@@ -39,14 +39,16 @@ func (a *MockStateManager) AddBlock([]byte) (*proto.Block, error) {
 	panic("implement me")
 }
 
-func NewMockStateManager(blocks ...*proto.Block) *MockStateManager {
+func NewMockStateManager(blocks ...*proto.Block) (*MockStateManager, error) {
 	m := &MockStateManager{
 		blockIDToHeight: make(map[crypto.Signature]proto.Height),
 	}
 	for _, b := range blocks {
-		m.AddDeserializedBlock(b)
+		if _, err := m.AddDeserializedBlock(b); err != nil {
+			return nil, err
+		}
 	}
-	return m
+	return m, nil
 }
 
 func (a *MockStateManager) Block(blockID crypto.Signature) (*proto.Block, error) {
@@ -236,7 +238,9 @@ func (a *MockStateManager) AddDeserializedBlock(block *proto.Block) (*proto.Bloc
 }
 func (a *MockStateManager) AddNewDeserializedBlocks(blocks []*proto.Block) error {
 	for _, b := range blocks {
-		a.AddDeserializedBlock(b)
+		if _, err := a.AddDeserializedBlock(b); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -326,7 +330,7 @@ func (*mockPeerManager) EachConnected(func(peer.Peer, *big.Int)) {
 	panic("implement me")
 }
 
-func (*mockPeerManager) SpawnIncomingConnection(ctx context.Context, n net.Conn) {
+func (*mockPeerManager) SpawnIncomingConnection(ctx context.Context, n net.Conn) error {
 	panic("implement me")
 }
 

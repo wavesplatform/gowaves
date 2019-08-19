@@ -153,7 +153,7 @@ func (a *aliases) disableStolenAliases() error {
 		}
 		if record.stolen {
 			log.Printf("Forbidding stolen alias %s\n", key.alias)
-			disabledKey := disabledAliasKey{key.alias}
+			disabledKey := disabledAliasKey(key)
 			a.dbBatch.Put(disabledKey.bytes(), void)
 		}
 	}

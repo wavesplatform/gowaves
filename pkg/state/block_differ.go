@@ -48,12 +48,12 @@ func (d *blockDiffer) prevBlockFeeDistr(prevBlock crypto.Signature) (*feeDistrib
 	if err != nil {
 		return nil, err
 	}
-	if bytes.Compare(prevBlock[:], ngActivationBlock[:]) == 0 {
+	if bytes.Equal(prevBlock[:], ngActivationBlock[:]) {
 		// If the last block in current state is the NG activation block,
 		// miner does not get any fees from this (last) block, because it was all taken by the last non-NG miner.
 		return &feeDistribution{}, nil
 	}
-	if bytes.Compare(prevBlock[:], d.prevBlockID[:]) == 0 {
+	if bytes.Equal(prevBlock[:], d.prevBlockID[:]) {
 		// We already have distribution for this block.
 		return &d.prevDistr, nil
 	}

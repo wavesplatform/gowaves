@@ -176,6 +176,7 @@ func TestAddresses_PublicKey(t *testing.T) {
 		BaseUrl: "https://testnode1.wavesnodes.com/",
 		Client:  NewMockHttpRequestFromString(addressPublicKeyJson, 200),
 	})
+	require.NoError(t, err)
 	body, resp, err :=
 		client.Addresses.PublicKey(context.Background(), pubKey)
 	require.NoError(t, err)

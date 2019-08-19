@@ -207,14 +207,6 @@ func fromPath(genesisCfgPath string) (*proto.Block, error) {
 	return &genesis, nil
 }
 
-func getLocalDir() (string, error) {
-	_, filename, _, ok := runtime.Caller(0)
-	if !ok {
-		return "", errors.Errorf("Unable to find current package file")
-	}
-	return filepath.Dir(filename), nil
-}
-
 func getCurrentDir() (string, error) {
 	_, filename, _, ok := runtime.Caller(2)
 	if !ok {

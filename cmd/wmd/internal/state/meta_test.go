@@ -37,6 +37,7 @@ func TestBlocks(t *testing.T) {
 	b2, err := crypto.NewSignatureFromBase58("2iNPrfoUyF6CRxHrTFAT3H7dut1PQ3nJxuhNsuYbd3nCtaHvoXBdw5NqV77CGk6X8xmKkmKd1YsB4czzrWXZbusD")
 	require.NoError(t, err)
 	b3, err := crypto.NewSignatureFromBase58("297ogBEykGSTASsAn5LUDoA58egcQ2JxPK9BV6jXh6oyoPcqrC2PjqwnqcP9ZD8fwvG9epCA7hJFN7syt8u1Cwa3")
+	require.NoError(t, err)
 
 	batch := new(leveldb.Batch)
 	err = putBlock(batch, 1, b1)

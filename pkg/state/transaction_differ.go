@@ -58,9 +58,9 @@ func newBalanceDiff(balance, leaseIn, leaseOut int64, updateMinIntermediateBalan
 }
 
 // spendableBalanceDiff() returns the difference of spendable balance which given diff produces.
-func (diff *balanceDiff) spendableBalanceDiff() int64 {
-	return diff.balance - diff.leaseOut
-}
+//func (diff *balanceDiff) spendableBalanceDiff() int64 {
+//	return diff.balance - diff.leaseOut
+//}
 
 // applyTo() applies diff to the profile given.
 // It does not change input profile, and returns the updated version.
@@ -201,6 +201,7 @@ func (diff txDiff) balancesChanges() []balanceChanges {
 	return changes
 }
 
+/* TODO: unused code, need to write tests if it is needed or otherwise remove it.
 func (diff txDiff) keys() []string {
 	keys := make([]string, 0, len(diff))
 	for k := range diff {
@@ -208,6 +209,7 @@ func (diff txDiff) keys() []string {
 	}
 	return keys
 }
+*/
 
 func (diff txDiff) appendBalanceDiff(key []byte, balanceDiff balanceDiff) error {
 	keyStr := string(key)

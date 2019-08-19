@@ -45,7 +45,7 @@ func (a *DefaultMiner) Mine(ctx context.Context, t proto.Timestamp, k proto.KeyP
 	}
 
 	transactions := proto.Transactions{}
-	var invalidTransactions []*types.TransactionWithBytes
+	//var invalidTransactions []*types.TransactionWithBytes
 	currentTimestamp := proto.NewTimestampFromTime(time.Now())
 	mu := a.state.Mutex()
 	locked := mu.Lock()
@@ -61,11 +61,11 @@ func (a *DefaultMiner) Mine(ctx context.Context, t proto.Timestamp, k proto.KeyP
 			return
 		}
 
-		if err = a.state.ValidateNextTx(t.T, currentTimestamp, lastKnownBlock.Timestamp); err != nil {
-			invalidTransactions = append(invalidTransactions, t)
-		} else {
+		if err = a.state.ValidateNextTx(t.T, currentTimestamp, lastKnownBlock.Timestamp); err == nil {
 			transactions = append(transactions, t.T)
-		}
+		} // else {
+		//invalidTransactions = append(invalidTransactions, t)
+		//}
 	}
 	a.state.ResetValidationList()
 	locked.Unlock()
@@ -81,13 +81,24 @@ func (a *DefaultMiner) Mine(ctx context.Context, t proto.Timestamp, k proto.KeyP
 		GenSignature: GenSignature,
 	}
 
-	b, err := proto.CreateBlock(proto.NewReprFromTransactions(transactions), t, parent, k.Public(), nxt)
+	pub, err := k.Public()
+	if err != nil {
+		zap.S().Error(err)
+		return
+	}
+	b, err := proto.CreateBlock(proto.NewReprFromTransactions(transactions), t, parent, pub, nxt)
 	if err != nil {
 		zap.S().Error(err)
 		return
 	}
 
-	err = b.Sign(k.Private())
+	priv, err := k.Private()
+	if err != nil {
+		zap.S().Error(err)
+		return
+	}
+
+	err = b.Sign(priv)
 	if err != nil {
 		zap.S().Error(err)
 		return

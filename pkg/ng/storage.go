@@ -7,10 +7,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
-type validator interface {
-	validateKeyBlock(block *proto.Block) error
-	validateMicroBlock(block *proto.MicroBlock) error
-}
 type row struct {
 	KeyBlock    *proto.Block
 	MicroBlocks []*proto.MicroBlock

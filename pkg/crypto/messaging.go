@@ -17,17 +17,21 @@ const (
 	messageHeaderSize           = 1 + KeySize + aes.BlockSize + 2*KeySize + aes.BlockSize
 )
 
-func SharedKey(sk SecretKey, pk PublicKey, prefix []byte) []byte {
+func SharedKey(sk SecretKey, pk PublicKey, prefix []byte) ([]byte, error) {
 	var k, k1, k2 [KeySize]byte
 	copy(k1[:], sk[:])
 	copy(k2[:], pk[:])
 	curve25519.ScalarMult(&k, &k1, &k2)
 	h1 := sha256.New()
-	h1.Write(prefix)
+	if _, err := h1.Write(prefix); err != nil {
+		return nil, err
+	}
 	hashedPrefix := h1.Sum(nil)
 	h := hmac.New(sha256.New, hashedPrefix)
-	h.Write(k[:])
-	return h.Sum(nil)
+	if _, err := h.Write(k[:]); err != nil {
+		return nil, err
+	}
+	return h.Sum(nil), nil
 }
 
 func Encrypt(key, message []byte) ([]byte, error) {
@@ -52,11 +56,17 @@ func Encrypt(key, message []byte) ([]byte, error) {
 		return nil, errors.Wrap(err, "failed to encrypt session key")
 	}
 	h := hmac.New(sha256.New, sessionKey)
-	h.Write(message)
+	if _, err := h.Write(message); err != nil {
+		return nil, err
+	}
 	messageHMAC := h.Sum(nil)
 	h = hmac.New(sha256.New, key)
-	h.Write(sessionKey)
-	h.Write(iv)
+	if _, err := h.Write(sessionKey); err != nil {
+		return nil, err
+	}
+	if _, err := h.Write(iv); err != nil {
+		return nil, err
+	}
 	sessionKeyHMAC := h.Sum(nil)
 	copy(buf[1:], encryptedSessionKey)
 	copy(buf[1+KeySize+aes.BlockSize:], sessionKeyHMAC)
@@ -79,8 +89,12 @@ func Decrypt(key, encrypted []byte) ([]byte, error) {
 	iv := encrypted[1+KeySize+aes.BlockSize+2*KeySize : 1+KeySize+aes.BlockSize+2*KeySize+aes.BlockSize]
 	enc := encrypted[1+KeySize+aes.BlockSize+2*KeySize:]
 	h := hmac.New(sha256.New, key)
-	h.Write(sessionKey)
-	h.Write(iv)
+	if _, err := h.Write(sessionKey); err != nil {
+		return nil, errors.Wrap(err, "h.Write() failed")
+	}
+	if _, err := h.Write(iv); err != nil {
+		return nil, errors.Wrap(err, "h.Write() failed")
+	}
 	expectedSessionKeyHMAC := h.Sum(nil)
 	if !hmac.Equal(expectedSessionKeyHMAC, encrypted[1+KeySize+aes.BlockSize:1+KeySize+aes.BlockSize+KeySize]) {
 		return nil, errors.New("invalid message authentication code")
@@ -90,7 +104,9 @@ func Decrypt(key, encrypted []byte) ([]byte, error) {
 		return nil, errors.New("failed to decrypt message")
 	}
 	h = hmac.New(sha256.New, sessionKey)
-	h.Write(message)
+	if _, err := h.Write(message); err != nil {
+		return nil, errors.Wrap(err, "h.Write() failed")
+	}
 	expectedMessageHMAC := h.Sum(nil)
 	if !hmac.Equal(expectedMessageHMAC, encrypted[1+KeySize+aes.BlockSize+KeySize:1+KeySize+aes.BlockSize+KeySize+KeySize]) {
 		return nil, errors.New("invalid message authentication code")

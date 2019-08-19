@@ -516,7 +516,7 @@ func marketsMap(snapshot *leveldb.Snapshot) (map[data.MarketID]data.Market, erro
 	s := marketKey{data.WavesID, data.WavesID}
 	l := marketKey{maxDigest, maxDigest}
 	it := snapshot.NewIterator(&util.Range{Start: s.bytes(), Limit: l.bytes()}, nil)
-	r := make(map[data.MarketID]data.Market, 0)
+	r := make(map[data.MarketID]data.Market)
 	for it.Next() {
 		k := it.Key()
 		var m data.MarketID

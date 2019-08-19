@@ -18,7 +18,8 @@ func TestMockStateManager_ScoreAtHeight(t *testing.T) {
 		},
 	}
 
-	m := NewMockStateManager(genesis)
+	m, err := NewMockStateManager(genesis)
+	require.NoError(t, err)
 	score, _ := m.ScoreAtHeight(1)
 	require.Equal(t, big.NewInt(120000000219), score)
 }
@@ -42,10 +43,12 @@ func TestMockStateManager_RollbackToHeight(t *testing.T) {
 		},
 	}
 
-	m := NewMockStateManager(genesis, block1)
+	m, err := NewMockStateManager(genesis, block1)
+	require.NoError(t, err)
 	actualHeight, _ := m.Height()
 	require.EqualValues(t, 2, actualHeight)
-	m.RollbackToHeight(1)
+	err = m.RollbackToHeight(1)
+	require.NoError(t, err)
 	actualHeight, _ = m.Height()
 	require.EqualValues(t, 1, actualHeight)
 }
@@ -61,7 +64,8 @@ func TestMockStateManager_BlockByHeight(t *testing.T) {
 		},
 	}
 
-	m := NewMockStateManager(genesis)
+	m, err := NewMockStateManager(genesis)
+	require.NoError(t, err)
 	block, _ := m.BlockByHeight(1)
 	require.Equal(t, sig, block.BlockSignature)
 }
@@ -78,6 +82,7 @@ func TestMockStateManager_DuplicateBlock(t *testing.T) {
 	}
 
 	require.Panics(t, func() {
-		NewMockStateManager(genesis, genesis)
+		_, err := NewMockStateManager(genesis, genesis)
+		t.Fatalf("Error: %v\n", err)
 	})
 }

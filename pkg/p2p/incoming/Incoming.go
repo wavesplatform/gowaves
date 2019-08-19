@@ -11,14 +11,6 @@ import (
 	"time"
 )
 
-type IncomingPeer struct {
-	params   IncomingPeerParams
-	conn     conn.Connection
-	remote   peer.Remote
-	uniqueID string
-	cancel   context.CancelFunc
-}
-
 type IncomingPeerParams struct {
 	WavesNetwork string
 	Conn         net.Conn

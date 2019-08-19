@@ -528,8 +528,7 @@ func (o *OrderBody) unmarshalBinary(data []byte) error {
 	data = data[crypto.PublicKeySize:]
 	copy(o.MatcherPK[:], data[:crypto.PublicKeySize])
 	data = data[crypto.PublicKeySize:]
-	var err error
-	err = o.AssetPair.AmountAsset.UnmarshalBinary(data)
+	err := o.AssetPair.AmountAsset.UnmarshalBinary(data)
 	if err != nil {
 		return errors.Wrap(err, "failed to unmarshal OrderBody from bytes")
 	}
@@ -625,7 +624,10 @@ func (o *OrderV1) Sign(secretKey crypto.SecretKey) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to sign OrderV1")
 	}
-	s := crypto.Sign(secretKey, b)
+	s, err := crypto.Sign(secretKey, b)
+	if err != nil {
+		return errors.Wrap(err, "failed to sign OrderV1")
+	}
 	o.Signature = &s
 	d, err := crypto.FastHash(b)
 	if err != nil {
@@ -1152,14 +1154,20 @@ func (p *ProofsV1) Sign(pos int, key crypto.SecretKey, data []byte) error {
 		return errors.Errorf("failed to create proof at position %d, allowed positions from 0 to %d", pos, proofsMaxCount-1)
 	}
 	if len(p.Proofs)-1 < pos {
-		s := crypto.Sign(key, data)
+		s, err := crypto.Sign(key, data)
+		if err != nil {
+			return errors.Errorf("crypto.Sign(): %v", err)
+		}
 		p.Proofs = append(p.Proofs[:pos], append([]B58Bytes{s[:]}, p.Proofs[pos:]...)...)
 	} else {
 		pr := p.Proofs[pos]
 		if len(pr) > 0 {
 			return errors.Errorf("unable to overwrite non-empty proof at position %d", pos)
 		}
-		s := crypto.Sign(key, data)
+		s, err := crypto.Sign(key, data)
+		if err != nil {
+			return errors.Errorf("crypto.Sign(): %v", err)
+		}
 		copy(pr[:], s[:])
 	}
 	return nil

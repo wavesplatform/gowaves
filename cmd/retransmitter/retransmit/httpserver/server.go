@@ -3,6 +3,7 @@ package httpserver
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"net/http"
 	"net/http/pprof"
@@ -79,39 +80,45 @@ func (a *HttpServer) ActiveConnections(rw http.ResponseWriter, r *http.Request) 
 
 	bts, err := json.Marshal(out)
 	if err != nil {
-		rw.WriteHeader(http.StatusInternalServerError)
-		rw.Write([]byte(err.Error()))
+		http.Error(rw, fmt.Sprintf("Failed to marshal JSON: %s", err.Error()), http.StatusInternalServerError)
 		return
 	}
 
 	rw.WriteHeader(http.StatusOK)
-	rw.Write(bts)
+	if _, err := rw.Write(bts); err != nil {
+		http.Error(rw, fmt.Sprintf("Write() failed: %s", err.Error()), http.StatusInternalServerError)
+		return
+	}
 }
 
 func (a *HttpServer) KnownPeers(rw http.ResponseWriter, r *http.Request) {
 	out := a.retransmitter.KnownPeers().GetAll()
 	bts, err := json.Marshal(out)
 	if err != nil {
-		rw.WriteHeader(http.StatusInternalServerError)
-		rw.Write([]byte(err.Error()))
+		http.Error(rw, fmt.Sprintf("Failed to marshal JSON: %s", err.Error()), http.StatusInternalServerError)
 		return
 	}
 
 	rw.WriteHeader(http.StatusOK)
-	rw.Write(bts)
+	if _, err := rw.Write(bts); err != nil {
+		http.Error(rw, fmt.Sprintf("Write() failed: %s", err.Error()), http.StatusInternalServerError)
+		return
+	}
 }
 
 func (a *HttpServer) Spawned(rw http.ResponseWriter, r *http.Request) {
 	out := a.retransmitter.SpawnedPeers().GetAll()
 	bts, err := json.Marshal(out)
 	if err != nil {
-		rw.WriteHeader(http.StatusInternalServerError)
-		rw.Write([]byte(err.Error()))
+		http.Error(rw, fmt.Sprintf("Failed to marshal JSON: %s", err.Error()), http.StatusInternalServerError)
 		return
 	}
 
 	rw.WriteHeader(http.StatusOK)
-	rw.Write(bts)
+	if _, err := rw.Write(bts); err != nil {
+		http.Error(rw, fmt.Sprintf("Write() failed: %s", err.Error()), http.StatusInternalServerError)
+		return
+	}
 }
 
 func (a *HttpServer) counter(rw http.ResponseWriter, r *http.Request) {
@@ -119,13 +126,15 @@ func (a *HttpServer) counter(rw http.ResponseWriter, r *http.Request) {
 	out := c.Get()
 	bts, err := json.Marshal(out)
 	if err != nil {
-		rw.WriteHeader(http.StatusInternalServerError)
-		rw.Write([]byte(err.Error()))
+		http.Error(rw, fmt.Sprintf("Failed to marshal JSON: %s", err.Error()), http.StatusInternalServerError)
 		return
 	}
 
 	rw.WriteHeader(http.StatusOK)
-	rw.Write(bts)
+	if _, err := rw.Write(bts); err != nil {
+		http.Error(rw, fmt.Sprintf("Write() failed: %s", err.Error()), http.StatusInternalServerError)
+		return
+	}
 }
 
 func (a *HttpServer) ListenAndServe() error {

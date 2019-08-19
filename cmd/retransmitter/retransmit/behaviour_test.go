@@ -7,38 +7,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/wavesplatform/gowaves/cmd/retransmitter/retransmit"
 	"github.com/wavesplatform/gowaves/cmd/retransmitter/retransmit/utils"
-	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/util/byte_helpers"
 )
-
-var seed = []byte("test test")
-
-func createTransaction() *proto.TransferV2 {
-	priv, pub := crypto.GenerateKeyPair(seed)
-	addr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, pub)
-	if err != nil {
-		panic(err)
-	}
-
-	t := proto.NewUnsignedTransferV2(
-		pub,
-		proto.OptionalAsset{},
-		proto.OptionalAsset{},
-		1544715621,
-		10000,
-		10000,
-		proto.NewRecipientFromAddress(addr),
-		"",
-	)
-
-	err = t.Sign(priv)
-	if err != nil {
-		panic(err)
-	}
-	return t
-}
 
 // check if first connected peer sends new transaction, then second receive
 // if we send again same transaction, nothing will arrive

@@ -35,7 +35,8 @@ func TestScoreSender_Handle(t *testing.T) {
 	peers := eachConnectedImpl{
 		peers: []Peer{peer},
 	}
-	s := node.NewMockStateManager(g)
+	s, err := node.NewMockStateManager(g)
+	require.NoError(t, err)
 	sender := NewScoreSender(peers, s)
 
 	require.Equal(t, 0, len(peer.SendMessageCalledWith))

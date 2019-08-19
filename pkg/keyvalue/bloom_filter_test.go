@@ -19,7 +19,10 @@ func TestBloomFilter(t *testing.T) {
 		data := make([]byte, 100)
 		_, err := rand.Read(data)
 		assert.NoError(t, err, "rand.Read() failed")
-		filter.add(data)
-		assert.Equal(t, filter.notInTheSet(data), false, "notInTheSet() returned wrong result")
+		err = filter.add(data)
+		assert.NoError(t, err)
+		notInTheSet, err := filter.notInTheSet(data)
+		assert.NoError(t, err)
+		assert.Equal(t, notInTheSet, false, "notInTheSet() returned wrong result")
 	}
 }

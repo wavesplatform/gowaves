@@ -155,7 +155,8 @@ func TestBlockGetSignature(t *testing.T) {
 }
 
 func TestTransactions_WriteTo(t *testing.T) {
-	secret, public := crypto.GenerateKeyPair([]byte("test"))
+	secret, public, err := crypto.GenerateKeyPair([]byte("test"))
+	assert.NoError(t, err)
 	alias, err := NewAliasFromString("alias:T:aaaa")
 	require.NoError(t, err)
 	createAlias := NewUnsignedCreateAliasV1(public, *alias, 10000, NewTimestampFromTime(time.Now()))
@@ -179,7 +180,8 @@ func TestBlock_WriteTo(t *testing.T) {
 	gensig, _ := crypto.NewDigestFromBase58("5fkwJc2yZVT2WLDxXs8qFJHdzb2FXji5MC3PDdAFC145")
 
 	// transaction
-	secret, public := crypto.GenerateKeyPair([]byte("test"))
+	secret, public, err := crypto.GenerateKeyPair([]byte("test"))
+	require.NoError(t, err)
 	alias, err := NewAliasFromString("alias:T:aaaa")
 	require.NoError(t, err)
 	createAlias := NewUnsignedCreateAliasV1(public, *alias, 10000, NewTimestampFromTime(time.Now()))
@@ -187,7 +189,7 @@ func TestBlock_WriteTo(t *testing.T) {
 
 	buf := new(bytes.Buffer)
 	transactions := Transactions{createAlias}
-	transactions.WriteTo(buf)
+	_, _ = transactions.WriteTo(buf)
 
 	block := Block{
 		BlockHeader: BlockHeader{
@@ -211,7 +213,8 @@ func TestBlock_WriteTo(t *testing.T) {
 	}
 
 	buf = new(bytes.Buffer)
-	block.WriteToWithoutSignature(buf)
+	_, err = block.WriteToWithoutSignature(buf)
+	require.NoError(t, err)
 	marshaledBytes, _ := block.MarshalBinary()
 
 	// writeTo doesn't write signature

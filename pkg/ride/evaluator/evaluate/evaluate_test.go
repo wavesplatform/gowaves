@@ -17,8 +17,6 @@ import (
 
 const seed = "test test"
 
-var helloBase58 = "Cn8eVZg"
-
 func newTransferTransaction() *proto.TransferV2 {
 
 	js := `{"type":4,"version":2,"id":"CqjGMbrd5bFmLAv2mUSdphEJSgVWkWa6ZtcMkKmgH2ax","proofs":["5W7hjPpgmmhxevCt4A7y9F8oNJ4V9w2g8jhQgx2qGmBTNsP1p1MpQeKF3cvZULwJ7vQthZfSx2BhL6TWkHSVLzvq"],"senderPublicKey":"14ovLL9a6xbBfftyxGNLKMdbnzGgnaFQjmgUJGdho6nY","assetId":null,"feeAssetId":null,"timestamp":1544715621,"amount":15,"fee":10000,"recipient":"3P2USE3iYK5w7jNahAUHTytNbVRccGZwQH3"}`
@@ -203,7 +201,8 @@ func TestFunctions(t *testing.T) {
 }
 
 func TestDataFunctions(t *testing.T) {
-	secret, public := crypto.GenerateKeyPair([]byte(seed))
+	secret, public, err := crypto.GenerateKeyPair([]byte(seed))
+	require.NoError(t, err)
 	data := proto.NewUnsignedData(public, 10000, 1544715621)
 
 	require.NoError(t, data.AppendEntry(&proto.IntegerDataEntry{
