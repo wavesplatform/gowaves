@@ -320,7 +320,7 @@ func heights(interrupt <-chan struct{}, clients []*client.Client) ([]int, error)
 		heights[nh.id] = nh.height
 	}
 
-	r := make([]int, len(clients))
+	r := make([]int, len(heights))
 	for i, height := range heights {
 		r[i] = height
 	}
