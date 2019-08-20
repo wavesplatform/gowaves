@@ -3946,7 +3946,7 @@ func TestInvokeScriptV1FromTestNet(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, tc.payments, string(pjs))
 		tx := NewUnsignedInvokeScriptV1(tc.scheme, spk, rcp, fc, payments, *fa, tc.fee, tc.timestamp)
-		if b, err := tx.bodyMarshalBinary(); assert.NoError(t, err) {
+		if b, err := tx.BodyMarshalBinary(); assert.NoError(t, err) {
 			if h, err := crypto.FastHash(b); assert.NoError(t, err) {
 				assert.Equal(t, id, h)
 			}
@@ -3983,7 +3983,7 @@ func TestInvokeScriptV1BinaryRoundTrip(t *testing.T) {
 		err = json.Unmarshal([]byte(tc.payments), &sps)
 		require.NoError(t, err)
 		tx := NewUnsignedInvokeScriptV1(tc.chainID, pk, NewRecipientFromAddress(ad), fc, sps, *a, tc.fee, ts)
-		if bb, err := tx.bodyMarshalBinary(); assert.NoError(t, err) {
+		if bb, err := tx.BodyMarshalBinary(); assert.NoError(t, err) {
 			var atx InvokeScriptV1
 			if err := atx.bodyUnmarshalBinary(bb); assert.NoError(t, err) {
 				assert.Equal(t, tx.Type, atx.Type)

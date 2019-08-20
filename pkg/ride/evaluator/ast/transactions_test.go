@@ -938,6 +938,7 @@ func (a *ExchangeV2TestSuite) Test_sender() {
 	a.NoError(err)
 	a.Equal(NewAddressFromProtoAddress(addr), rs["sender"])
 }
+
 func (a *ExchangeV2TestSuite) Test_senderPublicKey() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewBytes(a.tx.SenderPK.Bytes()), rs["senderPublicKey"])
@@ -1160,10 +1161,113 @@ func (a *SetAssetScriptV1TestSuite) Test_proofs() {
 
 func (a *SetAssetScriptV1TestSuite) Test_InstanceFieldName() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	a.Equal(NewString("SetAssetScriptTransaction"), rs[InstanceFieldName])
+	a.Equal("SetAssetScriptTransaction", NewObject(rs).InstanceOf())
 }
 
 //SetAssetScriptV1
 func TestNewVariablesFromSetAssetScriptV1(t *testing.T) {
 	suite.Run(t, new(SetAssetScriptV1TestSuite))
+}
+
+type InvokeScriptV1TestSuite struct {
+	suite.Suite
+	tx *proto.InvokeScriptV1
+	f  func(scheme proto.Scheme, tx proto.Transaction) (map[string]Expr, error)
+}
+
+func (a *InvokeScriptV1TestSuite) SetupTest() {
+	a.tx = byte_helpers.InvokeScriptV1.Transaction.Clone()
+	a.f = NewVariablesFromTransaction
+}
+
+func (a *InvokeScriptV1TestSuite) Test_dappAddress() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(NewRecipientFromProtoRecipient(a.tx.ScriptRecipient), rs["dappAddress"])
+}
+
+func (a *InvokeScriptV1TestSuite) Test_payment_presence() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	payment := rs["payment"].(Getable)
+	asset, _ := payment.Get("assetId")
+	a.Equal(NewBytes(byte_helpers.Digest.Bytes()), asset)
+
+	amount, _ := payment.Get("amount")
+	a.Equal(NewLong(100000), amount)
+}
+
+func (a *InvokeScriptV1TestSuite) Test_payment_absence() {
+	a.tx.Payments = nil
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(NewUnit(), rs["payment"])
+}
+
+func (a *InvokeScriptV1TestSuite) Test_feeAssetId() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(NewBytes(byte_helpers.Digest.Bytes()), rs["feeAssetId"])
+}
+
+func (a *InvokeScriptV1TestSuite) Test_function() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(NewString("funcname"), rs["function"])
+}
+
+func (a *InvokeScriptV1TestSuite) Test_args() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(Params(NewString("StringArgument")), rs["args"])
+}
+
+func (a *InvokeScriptV1TestSuite) Test_id() {
+	rs, err := a.f(proto.MainNetScheme, a.tx)
+	a.NoError(err)
+	a.Equal(NewBytes(a.tx.ID.Bytes()), rs["id"])
+}
+
+func (a *InvokeScriptV1TestSuite) Test_fee() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(NewLong(int64(a.tx.Fee)), rs["fee"])
+}
+
+func (a *InvokeScriptV1TestSuite) Test_timestamp() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(NewLong(int64(a.tx.Timestamp)), rs["timestamp"])
+}
+
+func (a *InvokeScriptV1TestSuite) Test_version() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(NewLong(1), rs["version"])
+}
+
+func (a *InvokeScriptV1TestSuite) Test_sender() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	addr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, a.tx.SenderPK)
+	a.NoError(err)
+	a.Equal(NewAddressFromProtoAddress(addr), rs["sender"])
+}
+
+func (a *InvokeScriptV1TestSuite) Test_senderPublicKey() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(NewBytes(a.tx.SenderPK.Bytes()), rs["senderPublicKey"])
+}
+
+func (a *InvokeScriptV1TestSuite) Test_bodyBytes() {
+	_, pub := crypto.GenerateKeyPair([]byte("test"))
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.IsType(&BytesExpr{}, rs["bodyBytes"])
+	sig, _ := crypto.NewSignatureFromBytes(a.tx.Proofs.Proofs[0])
+	a.True(crypto.Verify(pub, sig, rs["bodyBytes"].(*BytesExpr).Value))
+}
+
+func (a *InvokeScriptV1TestSuite) Test_proofs() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(Exprs{NewBytes(a.tx.Proofs.Proofs[0].Bytes())}, rs["proofs"])
+}
+
+func (a *InvokeScriptV1TestSuite) Test_InstanceFieldName() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal("InvokeScriptTransaction", NewObject(rs).InstanceOf())
+}
+
+//InvokeScriptTransaction
+func TestNewVariablesFromInvokeScriptV1(t *testing.T) {
+	suite.Run(t, new(InvokeScriptV1TestSuite))
 }

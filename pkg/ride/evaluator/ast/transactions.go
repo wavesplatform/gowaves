@@ -34,6 +34,10 @@ func NewVariablesFromTransaction(scheme byte, t proto.Transaction) (map[string]E
 		return newVariablesFromExchangeV1(scheme, tx)
 	case *proto.ExchangeV2:
 		return newVariablesFromExchangeV2(scheme, tx)
+	case *proto.SetAssetScriptV1:
+		return newVariablesFromSetAssetScriptV1(scheme, tx)
+	case *proto.InvokeScriptV1:
+		return newVariablesFromInvokeScriptV1(scheme, tx)
 	case *proto.DataV1:
 		addr, err := proto.NewAddressFromPublicKey(scheme, tx.SenderPK)
 		if err != nil {
@@ -408,7 +412,7 @@ func newVariablesFromExchangeV1(scheme proto.Scheme, tx *proto.ExchangeV1) (map[
 }
 
 func newVariablesFromExchangeV2(scheme proto.Scheme, tx *proto.ExchangeV2) (map[string]Expr, error) {
-	funcName := "newVariablesFromExchangeV1"
+	funcName := "newVariablesFromExchangeV2"
 	out := make(map[string]Expr)
 
 	buy, err := newVariablesFromOrder(scheme, tx.BuyOrder)
@@ -509,4 +513,99 @@ func makeOrderType(orderType proto.OrderType) Expr {
 		return SellExpr{}
 	}
 	panic("invalid orderType")
+}
+
+func newVariablesFromSetAssetScriptV1(scheme proto.Scheme, tx *proto.SetAssetScriptV1) (map[string]Expr, error) {
+	funcName := "newVariablesFromSetAssetScriptV1"
+
+	out := make(map[string]Expr)
+
+	out["script"] = NewBytes(util.Dup(tx.Script))
+	out["assetId"] = NewBytes(util.Dup(tx.AssetID.Bytes()))
+	id, err := tx.GetID()
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	out["id"] = NewBytes(util.Dup(id))
+	out["fee"] = NewLong(int64(tx.Fee))
+	out["timestamp"] = NewLong(int64(tx.Timestamp))
+	out["version"] = NewLong(int64(tx.Version))
+	addr, err := proto.NewAddressFromPublicKey(scheme, tx.SenderPK)
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	out["sender"] = NewAddressFromProtoAddress(addr)
+	out["senderPublicKey"] = NewBytes(util.Dup(tx.SenderPK.Bytes()))
+	bts, err := tx.BodyMarshalBinary()
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	out["bodyBytes"] = NewBytes(bts)
+	exprs := Exprs{}
+	for _, proof := range tx.Proofs.Proofs {
+		exprs = append(exprs, NewBytes(util.Dup(proof)))
+	}
+	out["proofs"] = exprs
+	out[InstanceFieldName] = NewString("SetAssetScriptTransaction")
+	return out, nil
+}
+
+func newVariablesFromInvokeScriptV1(scheme proto.Scheme, tx *proto.InvokeScriptV1) (map[string]Expr, error) {
+	funcName := "newVariablesFromInvokeScriptV1"
+
+	out := make(map[string]Expr)
+
+	out["dappAddress"] = NewRecipientFromProtoRecipient(tx.ScriptRecipient)
+	out["payment"] = NewUnit()
+	if len(tx.Payments) > 0 {
+		out["payment"] = NewAttachedPaymentExpr(
+			makeOptionalAsset(tx.Payments[0].Asset),
+			NewLong(int64(tx.Payments[0].Amount)),
+		)
+	}
+	out["feeAssetId"] = makeOptionalAsset(tx.FeeAsset)
+	out["function"] = NewString(tx.FunctionCall.Name)
+
+	var args Exprs
+	for _, arg := range tx.FunctionCall.Arguments {
+		switch t := arg.(type) {
+		case *proto.BooleanArgument:
+			args = append(args, NewBoolean(t.Value))
+		case *proto.IntegerArgument:
+			args = append(args, NewLong(t.Value))
+		case *proto.StringArgument:
+			args = append(args, NewString(t.Value))
+		case *proto.BinaryArgument:
+			args = append(args, NewBytes(util.Dup(t.Value)))
+		default:
+			return nil, errors.Errorf("%s: invalid argument type %T", funcName, arg)
+		}
+	}
+	out["args"] = args
+	id, err := tx.GetID()
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	out["id"] = NewBytes(util.Dup(id))
+	out["fee"] = NewLong(int64(tx.Fee))
+	out["timestamp"] = NewLong(int64(tx.Timestamp))
+	out["version"] = NewLong(int64(tx.Version))
+	addr, err := proto.NewAddressFromPublicKey(scheme, tx.SenderPK)
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	out["sender"] = NewAddressFromProtoAddress(addr)
+	out["senderPublicKey"] = NewBytes(util.Dup(tx.SenderPK.Bytes()))
+	bts, err := tx.BodyMarshalBinary()
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	out["bodyBytes"] = NewBytes(bts)
+	exprs := Exprs{}
+	for _, proof := range tx.Proofs.Proofs {
+		exprs = append(exprs, NewBytes(util.Dup(proof)))
+	}
+	out["proofs"] = exprs
+	out[InstanceFieldName] = NewString("InvokeScriptTransaction")
+	return out, nil
 }

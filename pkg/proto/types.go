@@ -2092,6 +2092,10 @@ type IntegerArgument struct {
 	Value int64
 }
 
+func NewIntegerArgument(i int64) *IntegerArgument {
+	return &IntegerArgument{i}
+}
+
 //GetValueType returns the value type of the entry.
 func (a IntegerArgument) GetValueType() ArgumentValueType {
 	return ArgumentInteger
@@ -2147,6 +2151,10 @@ func (a *IntegerArgument) UnmarshalJSON(value []byte) error {
 //BooleanArgument represents a key-value pair that stores a bool value.
 type BooleanArgument struct {
 	Value bool
+}
+
+func NewBooleanArgument(b bool) *BooleanArgument {
+	return &BooleanArgument{b}
 }
 
 //GetValueType returns the data type (Boolean) of the argument.
@@ -2211,6 +2219,10 @@ type BinaryArgument struct {
 	Value []byte
 }
 
+func NewBinaryArgument(b []byte) *BinaryArgument {
+	return &BinaryArgument{b}
+}
+
 //GetValueType returns the type of value (Binary) stored in an argument.
 func (a BinaryArgument) GetValueType() ArgumentValueType {
 	return ArgumentBinary
@@ -2270,6 +2282,10 @@ func (a *BinaryArgument) UnmarshalJSON(value []byte) error {
 //StringArgument structure is an argument that store a string value.
 type StringArgument struct {
 	Value string
+}
+
+func NewStringArgument(s string) *StringArgument {
+	return &StringArgument{s}
 }
 
 //GetValueType returns the type of value of the argument.

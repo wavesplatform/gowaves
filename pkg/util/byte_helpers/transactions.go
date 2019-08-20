@@ -10,6 +10,8 @@ import (
 
 const TIMESTAMP = proto.Timestamp(1544715621)
 
+var Digest = crypto.MustDigestFromBase58("WmryL34P6UwwUphNbhjBRwiCWxX15Nf5D8T7AmQY7yx")
+
 type GenesisStruct struct {
 	TransactionBytes []byte
 	Transaction      *proto.Genesis
@@ -114,6 +116,14 @@ type SetAssetScriptV1Struct struct {
 
 var SetAssetScriptV1 SetAssetScriptV1Struct
 
+type InvokeScriptV1Struct struct {
+	TransactionBytes []byte
+	Transaction      *proto.InvokeScriptV1
+	MessageBytes     []byte
+}
+
+var InvokeScriptV1 InvokeScriptV1Struct
+
 func init() {
 	initGenesis()
 	initPayment()
@@ -128,6 +138,7 @@ func init() {
 	initExchangeV1()
 	initExchangeV2()
 	initSetAssetScriptV1()
+	initInvokeScriptV1()
 }
 
 func initTransferV1() {
@@ -144,6 +155,9 @@ func initTransferV1() {
 		MessageBytes:     tmb,
 	}
 }
+
+var secretKey, publicKey = crypto.GenerateKeyPair([]byte("test"))
+var address, _ = proto.NewAddressFromPublicKey(proto.MainNetScheme, publicKey)
 
 func initTransferV2() {
 	sk, pk := crypto.GenerateKeyPair([]byte("test"))
@@ -530,6 +544,44 @@ func initSetAssetScriptV1() {
 	tmb, _ := tm.MarshalBinary()
 
 	SetAssetScriptV1 = SetAssetScriptV1Struct{
+		TransactionBytes: b,
+		Transaction:      t,
+		MessageBytes:     tmb,
+	}
+}
+
+//InvokeScriptV1
+func initInvokeScriptV1() {
+	sk, pk := crypto.GenerateKeyPair([]byte("test"))
+	asset := proto.NewOptionalAssetFromDigest(Digest)
+
+	t := proto.NewUnsignedInvokeScriptV1(
+		proto.MainNetScheme,
+		pk,
+		proto.NewRecipientFromAddress(address),
+		proto.FunctionCall{
+			Default:   true,
+			Name:      "funcname",
+			Arguments: proto.Arguments{proto.NewStringArgument("StringArgument")},
+		},
+		proto.ScriptPayments{proto.ScriptPayment{
+			Amount: 100000,
+			Asset:  *asset,
+		}},
+		*asset,
+		10000,
+		TIMESTAMP)
+	_ = t.Sign(sk)
+	b, err := t.MarshalBinary()
+	if err != nil {
+		panic(err)
+	}
+	tm := proto.TransactionMessage{
+		Transaction: b,
+	}
+	tmb, _ := tm.MarshalBinary()
+
+	InvokeScriptV1 = InvokeScriptV1Struct{
 		TransactionBytes: b,
 		Transaction:      t,
 		MessageBytes:     tmb,

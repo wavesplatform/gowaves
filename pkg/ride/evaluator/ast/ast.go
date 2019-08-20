@@ -56,6 +56,10 @@ func NewExprs(e ...Expr) Exprs {
 	return e
 }
 
+type Getable interface {
+	Get(string) (Expr, error)
+}
+
 type Block struct {
 	Let  *LetExpr
 	Body Expr
@@ -407,14 +411,14 @@ func (a *GetterExpr) Evaluate(s Scope) (Expr, error) {
 		return nil, errors.Wrapf(err, "GetterExpr Evaluate by key %s", a.Key)
 	}
 
-	if obj, ok := val.(*ObjectExpr); ok {
+	if obj, ok := val.(Getable); ok {
 		e, err := obj.Get(a.Key)
 		if err != nil {
 			return nil, err
 		}
 		return e, nil
 	}
-	return nil, errors.Errorf("GetterExpr Evaluate: expected value be *ObjectExpr, got %T", val)
+	return nil, errors.Errorf("GetterExpr Evaluate: expected value be Getable, got %T", val)
 }
 
 func (a *GetterExpr) Eq(other Expr) (bool, error) {
@@ -831,4 +835,43 @@ func (a SellExpr) Eq(other Expr) (bool, error) {
 
 func (a SellExpr) InstanceOf() string {
 	return "Sell"
+}
+
+//assetId ByteVector|Unit
+//amount Int
+type AttachedPaymentExpr struct {
+	fields object
+}
+
+func NewAttachedPaymentExpr(assetId Expr, amount Expr) *AttachedPaymentExpr {
+	fields := newObject()
+	fields["assetId"] = assetId
+	fields["amount"] = amount
+	return &AttachedPaymentExpr{
+		fields: fields,
+	}
+}
+
+func (a AttachedPaymentExpr) Write(w io.Writer) {
+	_, _ = w.Write([]byte("AttachedPaymentExpr"))
+}
+
+func (a AttachedPaymentExpr) Evaluate(Scope) (Expr, error) {
+	return a, nil
+}
+
+func (a AttachedPaymentExpr) Eq(other Expr) (bool, error) {
+	if a.InstanceOf() != other.InstanceOf() {
+		return false, errors.Errorf("trying to compare %T with %T", a, other)
+	}
+	o := other.(*AttachedPaymentExpr)
+	return a.fields.Eq(o.fields)
+}
+
+func (a AttachedPaymentExpr) InstanceOf() string {
+	return "AttachedPayment"
+}
+
+func (a AttachedPaymentExpr) Get(key string) (Expr, error) {
+	return a.fields.Get(key)
 }

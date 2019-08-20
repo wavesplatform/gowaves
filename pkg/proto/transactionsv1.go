@@ -2585,7 +2585,7 @@ type InvokeScriptV1 struct {
 
 func (tx *InvokeScriptV1) GenerateID() {
 	if tx.ID == nil {
-		body, err := tx.bodyMarshalBinary()
+		body, err := tx.BodyMarshalBinary()
 		if err != nil {
 			panic(err.Error())
 		}
@@ -2611,6 +2611,12 @@ func (tx InvokeScriptV1) GetFee() uint64 {
 
 func (tx InvokeScriptV1) GetTimestamp() uint64 {
 	return tx.Timestamp
+}
+
+func (tx *InvokeScriptV1) Clone() *InvokeScriptV1 {
+	out := &InvokeScriptV1{}
+	_ = copier.Copy(out, tx)
+	return out
 }
 
 //NewUnsignedSetAssetScriptV1 creates new unsigned SetAssetScriptV1 transaction.
@@ -2666,7 +2672,7 @@ func (tx InvokeScriptV1) Valid() (bool, error) {
 	return true, nil
 }
 
-func (tx *InvokeScriptV1) bodyMarshalBinary() ([]byte, error) {
+func (tx *InvokeScriptV1) BodyMarshalBinary() ([]byte, error) {
 	p := 0
 	buf := make([]byte, invokeScriptV1FixedBodyLen+tx.ScriptRecipient.len+tx.FunctionCall.binarySize()+tx.Payments.binarySize()+tx.FeeAsset.binarySize())
 	buf[p] = byte(tx.Type)
@@ -2689,7 +2695,7 @@ func (tx *InvokeScriptV1) bodyMarshalBinary() ([]byte, error) {
 	}
 	copy(buf[p:], fcb)
 	if len(fcb) != tx.FunctionCall.binarySize() {
-		panic("FUCK FUNCTION CALL")
+		panic("INVALID FUNCTION CALL")
 	}
 	p += len(fcb)
 	psb, err := tx.Payments.MarshalBinary()
@@ -2698,7 +2704,7 @@ func (tx *InvokeScriptV1) bodyMarshalBinary() ([]byte, error) {
 	}
 	copy(buf[p:], psb)
 	if len(psb) != tx.Payments.binarySize() {
-		panic("FUCK PAYMENTS")
+		panic("INVALID PAYMENTS")
 	}
 	p += len(psb)
 	binary.BigEndian.PutUint64(buf[p:], tx.Fee)
@@ -2765,7 +2771,7 @@ func (tx *InvokeScriptV1) bodyUnmarshalBinary(data []byte) error {
 
 //Sign adds signature as a proof at first position.
 func (tx *InvokeScriptV1) Sign(secretKey crypto.SecretKey) error {
-	b, err := tx.bodyMarshalBinary()
+	b, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return errors.Wrap(err, "failed to sign InvokeScriptV1 transaction")
 	}
@@ -2786,7 +2792,7 @@ func (tx *InvokeScriptV1) Sign(secretKey crypto.SecretKey) error {
 
 //Verify checks that first proof is a valid signature.
 func (tx *InvokeScriptV1) Verify(publicKey crypto.PublicKey) (bool, error) {
-	b, err := tx.bodyMarshalBinary()
+	b, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return false, errors.Wrap(err, "failed to verify signature of InvokeScriptV1 transaction")
 	}
@@ -2795,7 +2801,7 @@ func (tx *InvokeScriptV1) Verify(publicKey crypto.PublicKey) (bool, error) {
 
 //MarshalBinary writes InvokeScriptV1 transaction to its bytes representation.
 func (tx *InvokeScriptV1) MarshalBinary() ([]byte, error) {
-	bb, err := tx.bodyMarshalBinary()
+	bb, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal InvokeScriptV1 transaction to bytes")
 	}

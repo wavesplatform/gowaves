@@ -83,3 +83,9 @@ func TestSetAssetScriptV1(t *testing.T) {
 	require.NotEmpty(t, SetAssetScriptV1.Transaction)
 	require.NotEmpty(t, SetAssetScriptV1.MessageBytes)
 }
+
+func TestInvokeScriptV1(t *testing.T) {
+	require.NotEmpty(t, InvokeScriptV1.TransactionBytes)
+	require.NotEmpty(t, InvokeScriptV1.Transaction)
+	require.NotEmpty(t, InvokeScriptV1.MessageBytes)
+}
