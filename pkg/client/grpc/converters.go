@@ -22,19 +22,6 @@ func (c *SafeConverter) address(scheme byte, addr []byte) proto.Address {
 	return a
 }
 
-/* TODO: unused code, need to write tests if it is needed or otherwise remove it.
-func (c *SafeConverter) uint32(value int32) uint32 {
-	if c.err != nil {
-		return 0
-	}
-	if value < 0 {
-		c.err = errors.New("negative int32 value")
-		return 0
-	}
-	return uint32(value)
-}
-*/
-
 func (c *SafeConverter) uint64(value int64) uint64 {
 	if c.err != nil {
 		return 0
