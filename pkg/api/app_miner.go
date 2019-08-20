@@ -24,8 +24,12 @@ func (a *App) Miner() (*MinerInfo, error) {
 
 	next := make([]Next, 0)
 	for _, row := range e {
+		pk, err := row.KeyPair.Public()
+		if err != nil {
+			return nil, err
+		}
 		next = append(next, Next{
-			PublicKey: row.KeyPair.Public(),
+			PublicKey: pk,
 			Time:      time.Unix(int64(row.Timestamp/1000), 0).Add(time.Duration(row.Timestamp%1000) * time.Millisecond),
 		})
 	}

@@ -12,8 +12,6 @@ import (
 	"go.uber.org/zap"
 )
 
-var defaultVersion = proto.Version{Major: 0, Minor: 15, Patch: 0}
-
 type peerInfo struct {
 	score *big.Int
 	peer  peer.Peer
@@ -43,7 +41,7 @@ type PeerManager interface {
 	KnownPeers() ([]proto.TCPAddr, error)
 	Close()
 	SpawnOutgoingConnections(context.Context)
-	SpawnIncomingConnection(ctx context.Context, conn net.Conn)
+	SpawnIncomingConnection(ctx context.Context, conn net.Conn) error
 	Connect(context.Context, proto.TCPAddr) error
 
 	// for all connected node send GetPeersMessage
@@ -124,7 +122,11 @@ func (a *PeerManagerImpl) Banned(id string) bool {
 }
 
 func (a *PeerManagerImpl) AddAddress(ctx context.Context, addr string) {
-	go a.spawner.SpawnOutgoing(ctx, proto.NewTCPAddrFromString(addr))
+	go func() {
+		if err := a.spawner.SpawnOutgoing(ctx, proto.NewTCPAddrFromString(addr)); err != nil {
+			zap.S().Error(err)
+		}
+	}()
 }
 
 func (a *PeerManagerImpl) UpdateKnownPeers(known []proto.TCPAddr) error {
@@ -146,10 +148,7 @@ func (a *PeerManagerImpl) KnownPeers() ([]proto.TCPAddr, error) {
 	}
 
 	out := make([]proto.TCPAddr, len(rs))
-	for idx, p := range rs {
-		out[idx] = p
-	}
-
+	copy(out, rs)
 	return out, nil
 }
 
@@ -203,8 +202,11 @@ func (a *PeerManagerImpl) SpawnOutgoingConnections(ctx context.Context) {
 	}
 }
 
-func (a *PeerManagerImpl) SpawnIncomingConnection(ctx context.Context, conn net.Conn) {
-	a.spawner.SpawnIncoming(ctx, conn)
+func (a *PeerManagerImpl) SpawnIncomingConnection(ctx context.Context, conn net.Conn) error {
+	if err := a.spawner.SpawnIncoming(ctx, conn); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (a *PeerManagerImpl) RemoveSpawned(addr proto.TCPAddr) {

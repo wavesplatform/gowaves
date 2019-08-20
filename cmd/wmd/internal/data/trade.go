@@ -72,8 +72,6 @@ func NewTradeFromExchangeV2(scheme byte, tx proto.ExchangeV2) (Trade, error) {
 	if err != nil {
 		return Trade{}, wrapError(err)
 	}
-	amountAsset = ap.AmountAsset.ID
-	priceAsset = ap.PriceAsset.ID
 
 	ap, pk, sellTS, err = extractOrderParameters(tx.SellOrder)
 	if err != nil {

@@ -115,7 +115,7 @@ func TestCreateDiffTransferV1(t *testing.T) {
 	assert.Equal(t, correctDiff, diff)
 
 	to.stor.activateSponsorship(t)
-	diff, err = to.td.createDiffTransferV1(tx, defaultDifferInfo(t))
+	_, err = to.td.createDiffTransferV1(tx, defaultDifferInfo(t))
 	assert.Error(t, err, "createDiffTransferV1() did not fail with unsponsored asset")
 	err = to.stor.entities.sponsoredAssets.sponsorAsset(assetId, 10, blockID0)
 	assert.NoError(t, err, "sponsorAsset() failed")
@@ -164,7 +164,7 @@ func TestCreateDiffTransferV2(t *testing.T) {
 	assert.Equal(t, correctDiff, diff)
 
 	to.stor.activateSponsorship(t)
-	diff, err = to.td.createDiffTransferV2(tx, defaultDifferInfo(t))
+	_, err = to.td.createDiffTransferV2(tx, defaultDifferInfo(t))
 	assert.Error(t, err, "createDiffTransferV2() did not fail with unsponsored asset")
 	err = to.stor.entities.sponsoredAssets.sponsorAsset(assetId, 10, blockID0)
 	assert.NoError(t, err, "sponsorAsset() failed")

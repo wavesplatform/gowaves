@@ -18,7 +18,6 @@ type distributor struct {
 	closedConnectionsCh chan *Conn
 	scoreCh             chan *Conn
 	signaturesCh        chan signaturesEvent
-	notificationsCh     chan crypto.Signature
 }
 
 func NewDistributor(shutdown <-chan struct{}, drawer *drawer) (*distributor, error) {

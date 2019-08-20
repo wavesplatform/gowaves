@@ -10,15 +10,19 @@ import (
 
 func TestTSSharedKey(t *testing.T) {
 	seed1 := []byte("1f98af466da54014bdc08bfbaaaf3c67")
-	skA, pkA := GenerateKeyPair(generateAccountSeed(t, seed1))
+	skA, pkA, err := GenerateKeyPair(generateAccountSeed(t, seed1))
+	assert.NoError(t, err)
 	seed2 := append(seed1, seed1...)
-	skB, pkB := GenerateKeyPair(generateAccountSeed(t, seed2))
+	skB, pkB, err := GenerateKeyPair(generateAccountSeed(t, seed2))
+	assert.NoError(t, err)
 	assert.Equal(t, "881b10c3835c4fcd7ec47be7ab4210e233949f2b2a4d9a924c0d26087748374e", hex.EncodeToString(skA[:]))
 	assert.Equal(t, "007f416f254cd057850e06290baa7e2d9324261b34c124344e086b79762fa346", hex.EncodeToString(pkA[:]))
 	assert.Equal(t, "a07ec01cbe12a902714e7c22e1625eb5b85cf4eef292b760d1c908ab38200965", hex.EncodeToString(skB[:]))
 	assert.Equal(t, "ee11c84c2e8796ce751b88838f3f18f09109a8ed857e83da7af965779e061a21", hex.EncodeToString(pkB[:]))
-	shared1 := SharedKey(skA, pkB, []byte("waves"))
-	shared2 := SharedKey(skB, pkA, []byte("waves"))
+	shared1, err := SharedKey(skA, pkB, []byte("waves"))
+	assert.NoError(t, err)
+	shared2, err := SharedKey(skB, pkA, []byte("waves"))
+	assert.NoError(t, err)
 	assert.ElementsMatch(t, shared1, shared2)
 	assert.Equal(t, "3e5333596b876d46f1693d305086b981df86632b064f6e6ea789071cff51b9ef", hex.EncodeToString(shared1))
 }
@@ -57,17 +61,21 @@ func TestSharedKey(t *testing.T) {
 	}
 	for _, tc := range tests {
 		seedA := generateAccountSeed(t, []byte(tc.seedA))
-		skA, pkA := GenerateKeyPair(seedA)
+		skA, pkA, err := GenerateKeyPair(seedA)
+		assert.NoError(t, err)
 		assert.Equal(t, tc.skA, hex.EncodeToString(skA[:]))
 		assert.Equal(t, tc.pkA, hex.EncodeToString(pkA[:]))
 		seedB := generateAccountSeed(t, []byte(tc.seedB))
-		skB, pkB := GenerateKeyPair(seedB)
+		skB, pkB, err := GenerateKeyPair(seedB)
+		assert.NoError(t, err)
 		assert.Equal(t, tc.skB, hex.EncodeToString(skB[:]))
 		assert.Equal(t, tc.pkB, hex.EncodeToString(pkB[:]))
 		prefix, err := hex.DecodeString(tc.prefix)
 		require.NoError(t, err)
-		shared1 := SharedKey(skA, pkB, prefix)
-		shared2 := SharedKey(skB, pkA, prefix)
+		shared1, err := SharedKey(skA, pkB, prefix)
+		require.NoError(t, err)
+		shared2, err := SharedKey(skB, pkA, prefix)
+		require.NoError(t, err)
 		assert.ElementsMatch(t, shared1, shared2)
 		assert.Equal(t, tc.sk, hex.EncodeToString(shared1))
 	}
@@ -100,6 +108,7 @@ func TestPadPKCS7Padding(t *testing.T) {
 		msg, err := hex.DecodeString(tc.msg)
 		require.NoError(t, err)
 		act, err := padPKCS7Padding(msg)
+		require.NoError(t, err)
 		assert.Equal(t, tc.exp, hex.EncodeToString(act))
 	}
 }
@@ -131,6 +140,7 @@ func TestTrimPKCS7Padding(t *testing.T) {
 		msg, err := hex.DecodeString(tc.msg)
 		require.NoError(t, err)
 		act, err := trimPKCS7Padding(msg)
+		require.NoError(t, err)
 		assert.Equal(t, tc.exp, hex.EncodeToString(act))
 	}
 }

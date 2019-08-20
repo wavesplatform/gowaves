@@ -96,7 +96,7 @@ func TestRequestQueueOneConnection(t *testing.T) {
 	assert.Equal(t, b3, b)
 	assert.Equal(t, conn, c)
 
-	b, c, ok = q.pickRandomly(nil)
+	_, c, ok = q.pickRandomly(nil)
 	assert.False(t, ok)
 	assert.Nil(t, c)
 }
@@ -172,7 +172,7 @@ func TestRequestQueueFewConnections(t *testing.T) {
 	assert.Contains(t, []*Conn{conn1, conn2, conn3, conn4}, c)
 	assert.Equal(t, 5, len(q.blocks))
 
-	b, c, ok = q.pickRandomly(nil)
+	_, c, ok = q.pickRandomly(nil)
 	assert.False(t, ok)
 	assert.Nil(t, c)
 	assert.Equal(t, 5, len(q.blocks))
@@ -231,7 +231,7 @@ func TestRequestQueueEnqueueDequeue(t *testing.T) {
 	assert.Equal(t, b3, b)
 	assert.Equal(t, conn, c)
 
-	b, c, ok = q.pickRandomly(nil)
+	_, c, ok = q.pickRandomly(nil)
 	assert.False(t, ok)
 	assert.Nil(t, c)
 
@@ -260,7 +260,7 @@ func TestRequestQueueEnqueueDequeue(t *testing.T) {
 	q.dequeue(b5)
 	assert.Equal(t, 0, len(q.blocks))
 
-	b, c, ok = q.pickRandomly(nil)
+	_, c, ok = q.pickRandomly(nil)
 	assert.False(t, ok)
 	assert.Nil(t, c)
 

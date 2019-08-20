@@ -1,16 +1,14 @@
 package api
 
 import (
-	"context"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/node"
-	"github.com/wavesplatform/gowaves/pkg/node/peer_manager"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"github.com/wavesplatform/gowaves/pkg/state"
 )
 
+/* TODO: unused code, need to write tests if it is needed or otherwise remove it.
 type mockNode struct {
 	state state.State
 }
@@ -25,6 +23,7 @@ func (a mockNode) PeerManager() peer_manager.PeerManager {
 func (a mockNode) SpawnOutgoingConnection(ctx context.Context, addr proto.TCPAddr) error {
 	panic("implement")
 }
+*/
 
 func TestApp_PeersAll(t *testing.T) {
 	s := &node.MockStateManager{

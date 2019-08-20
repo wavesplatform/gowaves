@@ -51,7 +51,10 @@ func (a *Wallet) GenPair() (crypto.SecretKey, crypto.PublicKey, error) {
 		return crypto.SecretKey{}, crypto.PublicKey{}, err
 	}
 
-	priv, pub := crypto.GenerateKeyPair(d.Bytes())
+	priv, pub, err := crypto.GenerateKeyPair(d.Bytes())
+	if err != nil {
+		return crypto.SecretKey{}, crypto.PublicKey{}, err
+	}
 
 	return priv, pub, nil
 }

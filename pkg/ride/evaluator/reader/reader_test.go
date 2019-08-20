@@ -27,15 +27,14 @@ func TestBytesIterator_Next(t *testing.T) {
 }
 
 func TestBytesIterator_Eof(t *testing.T) {
-	var iter *BytesReader
-	iter = NewBytesReader([]byte{})
+	iter := NewBytesReader([]byte{})
 	assert.True(t, iter.Eof())
 
 	iter = NewBytesReader([]byte{2, 120})
 	assert.False(t, iter.Eof())
-	iter.ReadByte()
+	_, _ = iter.ReadByte()
 	assert.False(t, iter.Eof())
-	iter.ReadByte()
+	_, _ = iter.ReadByte()
 	assert.True(t, iter.Eof())
 }
 

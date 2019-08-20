@@ -94,7 +94,7 @@ func DefaultSettingsForCustomBlockchain(genesisGetter GenesisGetter) *Blockchain
 			AddressSchemeCharacter: 'C',
 
 			AverageBlockDelaySeconds: 60,
-			MaxBaseTarget:            200,
+			MaxBaseTarget:            math.MaxUint64,
 		},
 		GenesisGetter: genesisGetter,
 	}
@@ -131,7 +131,7 @@ var (
 			AddressSchemeCharacter: proto.MainNetScheme,
 
 			AverageBlockDelaySeconds: 60,
-			MaxBaseTarget:            200,
+			MaxBaseTarget:            math.MaxUint64,
 		},
 		GenesisGetter: MainnetGenesis,
 	}
@@ -164,7 +164,7 @@ var (
 			AddressSchemeCharacter: proto.TestNetScheme,
 
 			AverageBlockDelaySeconds: 60,
-			MaxBaseTarget:            200,
+			MaxBaseTarget:            math.MaxUint64,
 		},
 		GenesisGetter: TestnetGenesis,
 	}
@@ -205,14 +205,6 @@ func fromPath(genesisCfgPath string) (*proto.Block, error) {
 		return nil, errors.Errorf("failed to close genesis file: %v\n", err)
 	}
 	return &genesis, nil
-}
-
-func getLocalDir() (string, error) {
-	_, filename, _, ok := runtime.Caller(0)
-	if !ok {
-		return "", errors.Errorf("Unable to find current package file")
-	}
-	return filepath.Dir(filename), nil
 }
 
 func getCurrentDir() (string, error) {

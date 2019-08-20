@@ -52,7 +52,12 @@ func (a internalImpl) schedule(state state.State, keyPairs []proto.KeyPair, sche
 
 	var out []Emit
 	for _, keyPair := range keyPairs {
-		genSig, err := consensus.GeneratorSignature(confirmedBlock.BlockHeader.GenSignature, keyPair.Public())
+		pub, err := keyPair.Public()
+		if err != nil {
+			zap.S().Error(err)
+			continue
+		}
+		genSig, err := consensus.GeneratorSignature(confirmedBlock.BlockHeader.GenSignature, pub)
 		if err != nil {
 			zap.S().Error(err)
 			continue
@@ -69,7 +74,12 @@ func (a internalImpl) schedule(state state.State, keyPairs []proto.KeyPair, sche
 		//c := &consensus.FairPosCalculator{}
 
 		locked := state.Mutex().RLock()
-		effectiveBalance, err := state.EffectiveBalance(keyPair.Addr(schema), confirmedBlockHeight-1000, confirmedBlockHeight)
+		addr, err := keyPair.Addr(schema)
+		if err != nil {
+			zap.S().Error(err)
+			continue
+		}
+		effectiveBalance, err := state.EffectiveBalance(addr, confirmedBlockHeight-1000, confirmedBlockHeight)
 		locked.Unlock()
 		if err != nil {
 			zap.S().Error(err)

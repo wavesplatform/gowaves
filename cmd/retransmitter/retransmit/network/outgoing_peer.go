@@ -61,14 +61,17 @@ func RunOutgoingPeer(ctx context.Context, params OutgoingPeerParams) {
 	params.Parent.InfoCh <- connected
 	zap.S().Debugf("connected %s", params.Address)
 
-	peer.Handle(peer.HandlerParams{
+	if err := peer.Handle(peer.HandlerParams{
 		Ctx:        ctx,
 		ID:         params.Address,
 		Connection: p.connection,
 		Remote:     remote,
 		Parent:     params.Parent,
 		Pool:       params.Pool,
-	})
+	}); err != nil {
+		zap.S().Errorf("peer.Handle(): %v\n", err)
+		return
+	}
 }
 
 func (a *OutgoingPeer) connect(ctx context.Context, wavesNetwork string, remote peer.Remote, declAddr proto.TCPAddr) (conn.Connection, *proto.Handshake, error) {

@@ -138,7 +138,8 @@ func TestOrderV1SigningRoundTrip(t *testing.T) {
 	}
 	for _, tc := range tests {
 		seed, _ := base58.Decode(tc.seed)
-		sk, pk := crypto.GenerateKeyPair(seed)
+		sk, pk, err := crypto.GenerateKeyPair(seed)
+		assert.NoError(t, err)
 		mpk, _ := crypto.NewPublicKeyFromBase58(tc.matcher)
 		aa, _ := NewOptionalAssetFromString(tc.amountAsset)
 		pa, _ := NewOptionalAssetFromString(tc.priceAsset)
@@ -186,7 +187,8 @@ func TestOrderV1ToJSON(t *testing.T) {
 	}
 	for _, tc := range tests {
 		seed, _ := base58.Decode(tc.seed)
-		sk, pk := crypto.GenerateKeyPair(seed)
+		sk, pk, err := crypto.GenerateKeyPair(seed)
+		assert.NoError(t, err)
 		mpk, _ := crypto.NewPublicKeyFromBase58(tc.matcher)
 		aa, _ := NewOptionalAssetFromString(tc.amountAsset)
 		pa, _ := NewOptionalAssetFromString(tc.priceAsset)
@@ -280,7 +282,8 @@ func TestOrderV2SigningRoundTrip(t *testing.T) {
 	}
 	for _, tc := range tests {
 		seed, _ := base58.Decode(tc.seed)
-		sk, pk := crypto.GenerateKeyPair(seed)
+		sk, pk, err := crypto.GenerateKeyPair(seed)
+		assert.NoError(t, err)
 		mpk, _ := crypto.NewPublicKeyFromBase58(tc.matcher)
 		aa, _ := NewOptionalAssetFromString(tc.amountAsset)
 		pa, _ := NewOptionalAssetFromString(tc.priceAsset)
@@ -328,7 +331,8 @@ func TestOrderV2ToJSON(t *testing.T) {
 	}
 	for _, tc := range tests {
 		seed, _ := base58.Decode(tc.seed)
-		sk, pk := crypto.GenerateKeyPair(seed)
+		sk, pk, err := crypto.GenerateKeyPair(seed)
+		assert.NoError(t, err)
 		mpk, _ := crypto.NewPublicKeyFromBase58(tc.matcher)
 		aa, _ := NewOptionalAssetFromString(tc.amountAsset)
 		pa, _ := NewOptionalAssetFromString(tc.priceAsset)
@@ -427,7 +431,8 @@ func TestOrderV3SigningRoundTrip(t *testing.T) {
 	for _, tc := range tests {
 		seed, err := base58.Decode(tc.seed)
 		require.NoError(t, err)
-		sk, pk := crypto.GenerateKeyPair(seed)
+		sk, pk, err := crypto.GenerateKeyPair(seed)
+		assert.NoError(t, err)
 		mpk, err := crypto.NewPublicKeyFromBase58(tc.matcher)
 		require.NoError(t, err)
 		aa, err := NewOptionalAssetFromString(tc.amountAsset)
@@ -483,7 +488,8 @@ func TestOrderV3ToJSON(t *testing.T) {
 	for _, tc := range tests {
 		seed, err := base58.Decode(tc.seed)
 		require.NoError(t, err)
-		sk, pk := crypto.GenerateKeyPair(seed)
+		sk, pk, err := crypto.GenerateKeyPair(seed)
+		assert.NoError(t, err)
 		mpk, err := crypto.NewPublicKeyFromBase58(tc.matcher)
 		require.NoError(t, err)
 		aa, err := NewOptionalAssetFromString(tc.amountAsset)
@@ -810,22 +816,22 @@ func TestOptionalAsset_Marshal(t *testing.T) {
 
 	b, _ := d.MarshalBinary()
 	d2 := OptionalAsset{}
-	d2.UnmarshalBinary(b)
+	_ = d2.UnmarshalBinary(b)
 
 	require.Equal(t, d.String(), d2.String())
 
 	buf := new(bytes.Buffer)
-	d.WriteTo(buf)
+	_, _ = d.WriteTo(buf)
 }
 
 func TestOptionalAsset_WriteTo(t *testing.T) {
 	d, _ := NewOptionalAssetFromString("BXBUNddxTGTQc3G4qHYn5E67SBwMj18zLncUr871iuRD")
 
 	buf := new(bytes.Buffer)
-	d.WriteTo(buf)
+	_, _ = d.WriteTo(buf)
 
 	d2 := OptionalAsset{}
-	d2.UnmarshalBinary(buf.Bytes())
+	_ = d2.UnmarshalBinary(buf.Bytes())
 
 	require.Equal(t, d.String(), d2.String())
 }

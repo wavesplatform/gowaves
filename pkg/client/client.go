@@ -144,10 +144,11 @@ func doHttp(ctx context.Context, options Options, req *http.Request, v interface
 
 	if v != nil {
 		if w, ok := v.(io.Writer); ok {
-			io.Copy(w, resp.Body)
+			if _, err := io.Copy(w, resp.Body); err != nil {
+				return nil, err
+			}
 		} else {
-			err = json.NewDecoder(resp.Body).Decode(v)
-			if err != nil {
+			if err = json.NewDecoder(resp.Body).Decode(v); err != nil {
 				return response, &ParseError{Err: err}
 			}
 		}

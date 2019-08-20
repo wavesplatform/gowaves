@@ -3,7 +3,6 @@ package retransmit
 import (
 	"context"
 	"net"
-	"sync"
 
 	"github.com/wavesplatform/gowaves/cmd/retransmitter/retransmit/utils"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
@@ -13,7 +12,6 @@ import (
 )
 
 type BehaviourImpl struct {
-	mu                sync.RWMutex
 	tl                *TransactionList
 	knownPeers        *utils.KnownPeers
 	counter           *utils.Counter

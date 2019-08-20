@@ -60,13 +60,23 @@ func (a *MicroblockMiner) Mine(ctx context.Context, t proto.Timestamp, k proto.K
 		GenSignature: GenSignature,
 	}
 
-	b, err := proto.CreateBlock(proto.NewReprFromTransactions(nil), t, parent, k.Public(), nxt)
+	pub, err := k.Public()
+	if err != nil {
+		zap.S().Error(err)
+		return
+	}
+	b, err := proto.CreateBlock(proto.NewReprFromTransactions(nil), t, parent, pub, nxt)
 	if err != nil {
 		zap.S().Error(err)
 		return
 	}
 
-	err = b.Sign(k.Private())
+	priv, err := k.Private()
+	if err != nil {
+		zap.S().Error(err)
+		return
+	}
+	err = b.Sign(priv)
 	if err != nil {
 		zap.S().Error(err)
 		return
@@ -216,7 +226,12 @@ func (a *MicroblockMiner) mineMicro(ctx context.Context, rest restLimits, blockA
 		return
 	}
 
-	err = newBlock.Sign(keyPair.Private())
+	priv, err := keyPair.Private()
+	if err != nil {
+		zap.S().Error(err)
+		return
+	}
+	err = newBlock.Sign(priv)
 	if err != nil {
 		zap.S().Error(err)
 		return
@@ -232,23 +247,28 @@ func (a *MicroblockMiner) mineMicro(ctx context.Context, rest restLimits, blockA
 		return
 	}
 
+	pub, err := keyPair.Public()
+	if err != nil {
+		zap.S().Error(err)
+		return
+	}
 	micro := proto.MicroBlock{
 		VersionField:          3,
-		SenderPK:              keyPair.Public(),
+		SenderPK:              pub,
 		Transactions:          proto.NewReprFromBytes(bytesBuf, cnt),
 		TransactionCount:      uint32(cnt),
 		PrevResBlockSigField:  lastsig,
 		TotalResBlockSigField: newBlock.BlockSignature,
 	}
 
-	err = micro.Sign(keyPair.Private())
+	err = micro.Sign(priv)
 	if err != nil {
 		zap.S().Error(err)
 		return
 	}
 
 	inv := proto.NewUnsignedMicroblockInv(micro.SenderPK, micro.TotalResBlockSigField, micro.PrevResBlockSigField)
-	err = inv.Sign(keyPair.Private(), scheme)
+	err = inv.Sign(priv, scheme)
 	if err != nil {
 		zap.S().Error(err)
 		return

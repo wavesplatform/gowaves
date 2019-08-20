@@ -60,6 +60,7 @@ func TestTradesState1(t *testing.T) {
 		assert.Equal(t, em, msm[mk])
 		etf, ok := earliestTimeFrame(snapshot, 1)
 		sh, err := earliestAffectedHeight(snapshot, etf)
+		assert.NoError(t, err)
 		assert.True(t, ok)
 		assert.Equal(t, 1, int(sh))
 	}
@@ -99,6 +100,7 @@ func TestTradesState1(t *testing.T) {
 		assert.Equal(t, em, msm[mk])
 		etf, ok := earliestTimeFrame(snapshot, 2)
 		sh, err := earliestAffectedHeight(snapshot, etf)
+		assert.NoError(t, err)
 		assert.True(t, ok)
 		assert.Equal(t, 1, int(sh))
 	}
@@ -146,6 +148,7 @@ func TestTradesState1(t *testing.T) {
 		assert.Equal(t, em, msm[mk])
 		etf, ok := earliestTimeFrame(snapshot, 3)
 		sh, err := earliestAffectedHeight(snapshot, etf)
+		assert.NoError(t, err)
 		assert.True(t, ok)
 		assert.Equal(t, 3, int(sh))
 	}
@@ -180,6 +183,7 @@ func TestTradesState1(t *testing.T) {
 		assert.Equal(t, em, msm[mk])
 		etf, ok := earliestTimeFrame(snapshot, 2)
 		sh, err := earliestAffectedHeight(snapshot, etf)
+		assert.NoError(t, err)
 		assert.True(t, ok)
 		assert.Equal(t, 1, int(sh))
 	}
@@ -205,6 +209,7 @@ func TestTradesState1(t *testing.T) {
 		assert.Equal(t, 0, len(msm))
 		etf, ok := earliestTimeFrame(snapshot, 1)
 		sh, err := earliestAffectedHeight(snapshot, etf)
+		assert.Error(t, err)
 		assert.False(t, ok)
 		assert.Equal(t, 0, int(sh))
 	}

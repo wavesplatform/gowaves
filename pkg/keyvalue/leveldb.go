@@ -41,14 +41,17 @@ func (b *batch) Put(key, val []byte) {
 	b.mu.Unlock()
 }
 
-func (b *batch) addToFilter() {
+func (b *batch) addToFilter() error {
 	b.mu.Lock()
 	for _, pair := range b.pairs {
 		if !pair.deletion {
-			b.filter.add(pair.key)
+			if err := b.filter.add(pair.key); err != nil {
+				return err
+			}
 		}
 	}
 	b.mu.Unlock()
+	return nil
 }
 
 func (b *batch) addToCache(cache *freecache.Cache) {
@@ -109,7 +112,9 @@ func initBloomFilter(kv *KeyVal, params BloomFilterParams) error {
 	}()
 
 	for iter.Next() {
-		filter.add(iter.Key())
+		if err := filter.add(iter.Key()); err != nil {
+			return err
+		}
 	}
 	kv.filter = filter
 	return nil
@@ -149,8 +154,14 @@ func (k *KeyVal) Get(key []byte) ([]byte, error) {
 	if val, err := k.cache.Get(key); err == nil {
 		return val, nil
 	}
-	if k.filter != nil && k.filter.notInTheSet(key) {
-		return nil, ErrNotFound
+	if k.filter != nil {
+		notInTheSet, err := k.filter.notInTheSet(key)
+		if err != nil {
+			return nil, err
+		}
+		if notInTheSet {
+			return nil, ErrNotFound
+		}
 	}
 	val, err := k.db.Get(key, nil)
 	if err == leveldb.ErrNotFound {
@@ -160,8 +171,14 @@ func (k *KeyVal) Get(key []byte) ([]byte, error) {
 }
 
 func (k *KeyVal) Has(key []byte) (bool, error) {
-	if k.filter != nil && k.filter.notInTheSet(key) {
-		return false, nil
+	if k.filter != nil {
+		notInTheSet, err := k.filter.notInTheSet(key)
+		if err != nil {
+			return false, err
+		}
+		if notInTheSet {
+			return false, nil
+		}
 	}
 	if _, err := k.cache.Get(key); err == nil {
 		return true, nil
@@ -178,7 +195,9 @@ func (k *KeyVal) Put(key, val []byte) error {
 	if err := k.db.Put(key, val, nil); err != nil {
 		return err
 	}
-	k.filter.add(key)
+	if err := k.filter.add(key); err != nil {
+		return err
+	}
 	if err := k.cache.Set(key, val, 0); err != nil {
 		// If we can not set the value for some reason, at least make sure the old one is gone.
 		k.cache.Del(key)
@@ -195,7 +214,9 @@ func (k *KeyVal) Flush(b1 Batch) error {
 		return err
 	}
 	b.addToCache(k.cache)
-	b.addToFilter()
+	if err := b.addToFilter(); err != nil {
+		return err
+	}
 	b.Reset()
 	return nil
 }

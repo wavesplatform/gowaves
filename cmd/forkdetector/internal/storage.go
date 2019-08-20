@@ -174,6 +174,9 @@ func NewStorage(path string, genesis crypto.Signature) (*storage, error) {
 		batch := new(leveldb.Batch)
 
 		num, err := s.nextBlockNumber(sn, batch, genesis)
+		if err != nil {
+			return nil, wrapError(err)
+		}
 		l := blockLink{parent: 0, height: 1, signature: genesis}
 		batch.Put(newBlockLinkKey(num).bytes(), l.bytes())
 		k := heightBlockKey{height: 1, block: genesis}
@@ -520,6 +523,7 @@ func (s *storage) peersLastBlocks(include func(ip net.IP) bool) (map[uint32][]ne
 	return r, nil
 }
 
+/* TODO: unused code, need to write tests if it is needed or otherwise remove it.
 func (s *storage) peerLastBlock(peer net.IP) (uint32, error) {
 	sn, err := s.db.GetSnapshot()
 	if err != nil {
@@ -533,6 +537,7 @@ func (s *storage) peerLastBlock(peer net.IP) (uint32, error) {
 	}
 	return binary.BigEndian.Uint32(v), nil
 }
+*/
 
 func (s *storage) link(num uint32) (blockLink, error) {
 	sn, err := s.db.GetSnapshot()

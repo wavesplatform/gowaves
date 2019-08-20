@@ -20,12 +20,12 @@ const (
 	aliasFixedSize = 4
 
 	addressVersion byte = 0x01
-
 	aliasVersion   byte = 0x02
-	AliasMinLength      = 4
-	AliasMaxLength      = 30
-	AliasAlphabet       = "-.0123456789@_abcdefghijklmnopqrstuvwxyz"
-	AliasPrefix         = "alias"
+
+	AliasMinLength = 4
+	AliasMaxLength = 30
+	AliasAlphabet  = "-.0123456789@_abcdefghijklmnopqrstuvwxyz"
+	AliasPrefix    = "alias"
 
 	MainNetScheme byte = 'W'
 	TestNetScheme byte = 'T'
@@ -326,7 +326,7 @@ func NewRecipientFromAlias(a Alias) Recipient {
 }
 
 func NewRecipientFromString(s string) (Recipient, error) {
-	if strings.Index(s, AliasPrefix) != -1 {
+	if strings.Contains(s, AliasPrefix) {
 		a, err := NewAliasFromString(s)
 		if err != nil {
 			return Recipient{}, err
@@ -363,7 +363,7 @@ func (r Recipient) MarshalJSON() ([]byte, error) {
 // UnmarshalJSON reads the Recipient from its JSON representation.
 func (r *Recipient) UnmarshalJSON(value []byte) error {
 	s := string(value)
-	if strings.Index(s, AliasPrefix) != -1 {
+	if strings.Contains(s, AliasPrefix) {
 		var a Alias
 		err := a.UnmarshalJSON(value)
 		if err != nil {

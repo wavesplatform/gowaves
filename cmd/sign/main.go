@@ -49,7 +49,10 @@ func transferTransaction() {
 	f.StringVarP(&opts.Recipient, "recipient", "r", "", "Address of recipient")
 	f.StringVarP(&opts.CustomSecret, "secret", "s", "", "Use this secret key instead of wallet, optional")
 
-	f.Parse(os.Args[1:])
+	if err := f.Parse(os.Args[1:]); err != nil {
+		fmt.Printf("Parse error: %q", err)
+		return
+	}
 
 	pathToWallet := getWalletPath(opts.PathToWallet)
 	if !exists(pathToWallet) {

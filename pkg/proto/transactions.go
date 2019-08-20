@@ -490,7 +490,10 @@ func (tx *Payment) Sign(secretKey crypto.SecretKey) error {
 	}
 	d := make([]byte, len(b)+3)
 	copy(d[3:], b)
-	s := crypto.Sign(secretKey, d)
+	s, err := crypto.Sign(secretKey, d)
+	if err != nil {
+		return errors.Wrap(err, "failed to sign Payment transaction")
+	}
 	id := tx.generateBodyHash(b)
 	tx.ID = &id
 	tx.Signature = &s
@@ -754,8 +757,7 @@ func (tr *Transfer) unmarshalBinary(data []byte) error {
 	}
 	copy(tr.SenderPK[:], data[:crypto.PublicKeySize])
 	data = data[crypto.PublicKeySize:]
-	var err error
-	err = tr.AmountAsset.UnmarshalBinary(data)
+	err := tr.AmountAsset.UnmarshalBinary(data)
 	if err != nil {
 		return errors.Wrap(err, "failed to unmarshal Transfer body from bytes")
 	}
@@ -1150,5 +1152,5 @@ func (ca *CreateAlias) id() (*crypto.Digest, error) {
 }
 
 func validJVMLong(x uint64) bool {
-	return x >= 0 && x <= maxLongValue
+	return x <= maxLongValue
 }

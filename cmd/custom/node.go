@@ -171,20 +171,18 @@ func main() {
 		}
 	}()
 
-	var gracefulStop = make(chan os.Signal)
+	var gracefulStop = make(chan os.Signal, 1)
 	signal.Notify(gracefulStop, syscall.SIGTERM)
 	signal.Notify(gracefulStop, syscall.SIGINT)
 
-	select {
-	case sig := <-gracefulStop:
-		zap.S().Infow("Caught signal, stopping", "signal", sig)
-		n.Close()
+	sig := <-gracefulStop
+	zap.S().Infow("Caught signal, stopping", "signal", sig)
+	n.Close()
 
-		zap.S().Infow("Caught signal, stopping", "signal", sig)
-		cancel()
+	zap.S().Infow("Caught signal, stopping", "signal", sig)
+	cancel()
 
-		<-time.After(2 * time.Second)
-	}
+	<-time.After(2 * time.Second)
 }
 
 func FromArgs(c *Cli) func(s *settings.NodeSettings) {

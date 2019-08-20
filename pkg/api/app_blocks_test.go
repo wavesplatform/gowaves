@@ -16,9 +16,12 @@ func TestApp_BlocksFirst(t *testing.T) {
 		},
 	}
 
-	s := node.NewMockStateManager(g)
-	app, _ := NewApp("api-key", s, nil, nil, nil)
-	first, _ := app.BlocksFirst()
+	s, err := node.NewMockStateManager(g)
+	require.NoError(t, err)
+	app, err := NewApp("api-key", s, nil, nil, nil)
+	require.NoError(t, err)
+	first, err := app.BlocksFirst()
+	require.NoError(t, err)
 	require.EqualValues(t, 1, first.Height)
 }
 func TestApp_BlocksLast(t *testing.T) {
@@ -28,8 +31,11 @@ func TestApp_BlocksLast(t *testing.T) {
 		},
 	}
 
-	s := node.NewMockStateManager(g)
-	app, _ := NewApp("api-key", s, nil, nil, nil)
-	first, _ := app.BlocksLast()
+	s, err := node.NewMockStateManager(g)
+	require.NoError(t, err)
+	app, err := NewApp("api-key", s, nil, nil, nil)
+	require.NoError(t, err)
+	first, err := app.BlocksLast()
+	require.NoError(t, err)
 	require.EqualValues(t, 1, first.Height)
 }

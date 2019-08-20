@@ -36,7 +36,7 @@ func createBalances() (*balancesTestObjects, []string, error) {
 }
 
 func genAsset(fillWith byte) []byte {
-	asset := make([]byte, crypto.DigestSize, crypto.DigestSize)
+	asset := make([]byte, crypto.DigestSize)
 	for i := 0; i < crypto.DigestSize; i++ {
 		asset[i] = fillWith
 	}

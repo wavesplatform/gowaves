@@ -19,7 +19,6 @@ var genesis = &proto.Block{
 		},
 	},
 }
-var genesisScore int64 = 120000000219
 
 func TestApply_NewBlock(t *testing.T) {
 	block := &proto.Block{
@@ -32,9 +31,10 @@ func TestApply_NewBlock(t *testing.T) {
 		},
 	}
 
-	mockState := NewMockStateManager(genesis)
+	mockState, err := NewMockStateManager(genesis)
+	require.NoError(t, err)
 	ba := innerBlockApplier{mockState}
-	block, height, err := ba.apply(block)
+	_, height, err := ba.apply(block)
 	require.NoError(t, err)
 	require.EqualValues(t, 2, height)
 }
@@ -60,7 +60,8 @@ func TestApply_ValidBlockWithRollback(t *testing.T) {
 		},
 	}
 
-	mockState := NewMockStateManager(genesis, block1)
+	mockState, err := NewMockStateManager(genesis, block1)
+	require.NoError(t, err)
 
 	ba := innerBlockApplier{mockState}
 	_, height, err := ba.apply(block2)
@@ -106,10 +107,12 @@ func TestApply_InvalidBlockWithRollback(t *testing.T) {
 		},
 	}
 
-	mockState := &checkErrMock{NewMockStateManager(genesis, block1)}
+	sm, err := NewMockStateManager(genesis, block1)
+	require.NoError(t, err)
+	mockState := &checkErrMock{sm}
 
 	ba := innerBlockApplier{mockState}
-	_, _, err := ba.apply(block2)
+	_, _, err = ba.apply(block2)
 	require.Equal(t, "failed add deserialized block \"sV8beveiVKCiUn9BGZRgZj7V5tRRWPMRj1V9WWzKWnigtfQyZ2eErVXHi7vyGXj5hPuaxF9sGxowZr5XuD4UAwW\": error message", err.Error())
 	// check new block was not added
 	newBlock, err := mockState.BlockByHeight(2)

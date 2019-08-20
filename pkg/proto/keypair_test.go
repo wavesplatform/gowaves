@@ -7,6 +7,10 @@ import (
 
 func TestKeyPair(t *testing.T) {
 	k := NewKeyPair([]byte("test"))
-	require.NotEmpty(t, k.Public())
-	require.NotEmpty(t, k.Private())
+	pub, err := k.Public()
+	require.NoError(t, err)
+	require.NotEmpty(t, pub)
+	priv, err := k.Public()
+	require.NoError(t, err)
+	require.NotEmpty(t, priv)
 }

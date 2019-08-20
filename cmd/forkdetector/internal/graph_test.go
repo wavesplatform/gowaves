@@ -136,22 +136,22 @@ func TestHugeRandomGraph(t *testing.T) {
 			previous = []uint32{uint32(nodesCount)}
 		}
 	}
-	fmt.Printf("Graph with %d nodes was built in %s\n", nodesCount, time.Now().Sub(start))
+	fmt.Printf("Graph with %d nodes was built in %s\n", nodesCount, time.Since(start))
 	PrintMemUsage()
 
 	start = time.Now()
 	l := g.length(uint32(nodesCount))
-	fmt.Printf("Length of the path from the last node (%d) found in %s\n", l, time.Now().Sub(start))
+	fmt.Printf("Length of the path from the last node (%d) found in %s\n", l, time.Since(start))
 	PrintMemUsage()
 
 	start = time.Now()
 	_ = g.path(uint32(nodesCount))
-	fmt.Printf("Path from the last node was found in %s\n", time.Now().Sub(start))
+	fmt.Printf("Path from the last node was found in %s\n", time.Since(start))
 	PrintMemUsage()
 
 	start = time.Now()
 	x := g.intersection(uint32(nodesCount), uint32(nodesCount-1000))
-	fmt.Printf("Intersection %d of paths was found in %s\n", int(x), time.Now().Sub(start))
+	fmt.Printf("Intersection %d of paths was found in %s\n", int(x), time.Since(start))
 	PrintMemUsage()
 }
 

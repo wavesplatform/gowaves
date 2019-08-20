@@ -233,11 +233,11 @@ func TestProtocolMarshalling(t *testing.T) {
 			}
 
 			buf := new(bytes.Buffer)
-			v.testMessage.WriteTo(buf)
+			_, _ = v.testMessage.WriteTo(buf)
 			require.Equal(t, decoded, buf.Bytes())
 
 			m := v.testMessage
-			m.ReadFrom(buf)
+			_, _ = m.ReadFrom(buf)
 			require.Equal(t, v.testMessage, m)
 		})
 	}
@@ -271,7 +271,7 @@ func TestPeerInfoMarshalJSON(t *testing.T) {
 
 	// test incorrect struct
 	p = PeerInfo{}
-	js, err = json.Marshal(p)
+	_, err = json.Marshal(p)
 	require.NotNil(t, err)
 }
 
@@ -346,7 +346,7 @@ func TestHandshakeReadFrom2(t *testing.T) {
 	assert.EqualValues(t, 1, h.Timestamp)
 
 	buf := new(bytes.Buffer)
-	h.WriteTo(buf)
+	_, _ = h.WriteTo(buf)
 	require.Equal(t, b, buf.Bytes())
 }
 
@@ -362,10 +362,10 @@ func TestHandshakeRoundTrip(t *testing.T) {
 		Timestamp:    222233,
 	}
 
-	h1.WriteTo(buf)
+	_, _ = h1.WriteTo(buf)
 
 	h2 := Handshake{}
-	h2.ReadFrom(buf)
+	_, _ = h2.ReadFrom(buf)
 	assert.Equal(t, h1, h2)
 }
 
@@ -390,10 +390,10 @@ func TestU8String(t *testing.T) {
 
 	buf := new(bytes.Buffer)
 
-	s.WriteTo(buf)
+	_, _ = s.WriteTo(buf)
 
 	s2 := NewU8String("")
-	s2.ReadFrom(buf)
+	_, _ = s2.ReadFrom(buf)
 	assert.Equal(t, s, s2)
 }
 

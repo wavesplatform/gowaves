@@ -18,7 +18,7 @@ func noSkip(_ proto.Header) bool {
 
 type PeerSpawner interface {
 	SpawnOutgoing(ctx context.Context, addr proto.TCPAddr) error
-	SpawnIncoming(ctx context.Context, c net.Conn)
+	SpawnIncoming(ctx context.Context, c net.Conn) error
 }
 
 type PeerSpawnerImpl struct {
@@ -60,7 +60,7 @@ func (a *PeerSpawnerImpl) SpawnOutgoing(ctx context.Context, address proto.TCPAd
 	return outgoing.EstablishConnection(ctx, params, a.version)
 }
 
-func (a *PeerSpawnerImpl) SpawnIncoming(ctx context.Context, c net.Conn) {
+func (a *PeerSpawnerImpl) SpawnIncoming(ctx context.Context, c net.Conn) error {
 	params := incoming.IncomingPeerParams{
 		WavesNetwork: a.wavesNetwork,
 		Conn:         c,
@@ -74,5 +74,5 @@ func (a *PeerSpawnerImpl) SpawnIncoming(ctx context.Context, c net.Conn) {
 		Version:   a.version,
 	}
 
-	incoming.RunIncomingPeer(ctx, params)
+	return incoming.RunIncomingPeer(ctx, params)
 }

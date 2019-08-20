@@ -20,10 +20,10 @@ func TestMicroBlock_Marshaling(t *testing.T) {
 	}
 
 	buf := &bytes.Buffer{}
-	m.WriteTo(buf)
+	_, _ = m.WriteTo(buf)
 
 	m2 := MicroBlock{}
-	m2.UnmarshalBinary(buf.Bytes())
+	_ = m2.UnmarshalBinary(buf.Bytes())
 
 	require.Equal(t, m, m2)
 
@@ -41,15 +41,16 @@ func TestMicroBlock_WriteTo(t *testing.T) {
 
 	b := bytes.Buffer{}
 
-	c1.WriteTo(&b)
+	_, _ = c1.WriteTo(&b)
 
 	c2 := &MicroBlockInv{}
-	c2.UnmarshalBinary(b.Bytes())
+	_ = c2.UnmarshalBinary(b.Bytes())
 	require.Equal(t, c1, c2)
 }
 
 func TestMicroBlockInv_SignVerify(t *testing.T) {
-	sec, pub := crypto.GenerateKeyPair([]byte("test1"))
+	sec, pub, err := crypto.GenerateKeyPair([]byte("test1"))
+	require.NoError(t, err)
 	c1 := &MicroBlockInv{
 		PublicKey:     pub,
 		TotalBlockSig: crypto.MustSignatureFromBase58("rBA7qj1nvXCnD8puLzWBWDoyHVkm3TzooDJgwbiaum9oV3vGhxGs45DfqwoM9qAyu4xfP6j8gQL6avub1wrB2zX"),
@@ -79,7 +80,7 @@ func TestMicroBlockInvMessage_WriteTo_And_Marshal(t *testing.T) {
 	require.NoError(t, err)
 
 	rs2 := new(bytes.Buffer)
-	m.WriteTo(rs2)
+	_, _ = m.WriteTo(rs2)
 
 	require.Equal(t, rs1, rs2.Bytes())
 

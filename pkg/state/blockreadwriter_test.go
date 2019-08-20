@@ -166,14 +166,14 @@ func testSingleBlock(t *testing.T, rw *blockReadWriter, block *proto.Block) {
 	if err != nil {
 		t.Fatalf("MarshalHeaderToBinary(): %v", err)
 	}
-	if bytes.Compare(headerBytes, resHeaderBytes) != 0 {
+	if !bytes.Equal(headerBytes, resHeaderBytes) {
 		t.Error("Header bytes are not equal.")
 	}
 	resTransactions, err := rw.readTransactionsBlock(blockID)
 	if err != nil {
 		t.Fatalf("readTransactionsBlock(): %v", err)
 	}
-	if bytes.Compare(block.Transactions.BytesUnchecked(), resTransactions) != 0 {
+	if !bytes.Equal(block.Transactions.BytesUnchecked(), resTransactions) {
 		t.Error("Transaction bytes are not equal.")
 	}
 }
@@ -257,7 +257,7 @@ func testReader(rw *blockReadWriter, readTasks <-chan *readTask) error {
 			if err != nil {
 				return err
 			}
-			if bytes.Compare(task.correctResult, headerBytes) != 0 {
+			if !bytes.Equal(task.correctResult, headerBytes) {
 				return errors.New("Header bytes are not equal.")
 			}
 		case readBlock:
@@ -265,7 +265,7 @@ func testReader(rw *blockReadWriter, readTasks <-chan *readTask) error {
 			if err != nil {
 				return err
 			}
-			if bytes.Compare(task.correctResult, resTransactions) != 0 {
+			if !bytes.Equal(task.correctResult, resTransactions) {
 				return errors.New("Transactions bytes are not equal.")
 			}
 		case readTx:
@@ -273,7 +273,7 @@ func testReader(rw *blockReadWriter, readTasks <-chan *readTask) error {
 			if err != nil {
 				return err
 			}
-			if bytes.Compare(task.correctResult, tx) != 0 {
+			if !bytes.Equal(task.correctResult, tx) {
 				return errors.New("Transaction bytes are not equal.")
 			}
 		case getIDByHeight:
@@ -281,7 +281,7 @@ func testReader(rw *blockReadWriter, readTasks <-chan *readTask) error {
 			if err != nil {
 				return err
 			}
-			if bytes.Compare(task.correctResult, id[:]) != 0 {
+			if !bytes.Equal(task.correctResult, id[:]) {
 				return errors.Errorf("Got wrong ID %s by height %d", string(id[:]), task.height)
 			}
 		}

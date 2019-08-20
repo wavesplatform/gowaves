@@ -147,7 +147,8 @@ func TestNativeTransactionByID(t *testing.T) {
 	require.NoError(t, err)
 
 	seed := "abcde"
-	secret, public := crypto.GenerateKeyPair([]byte(seed))
+	secret, public, err := crypto.GenerateKeyPair([]byte(seed))
+	require.NoError(t, err)
 	sender, _ := proto.NewAddressFromPublicKey(proto.MainNetScheme, public)
 
 	transferV1 := proto.NewUnsignedTransferV1(

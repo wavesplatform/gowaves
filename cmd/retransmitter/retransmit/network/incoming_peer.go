@@ -97,10 +97,12 @@ func RunIncomingPeer(ctx context.Context, params IncomingPeerParams) {
 		},
 	}
 	params.Parent.InfoCh <- out
-	p.run(ctx)
+	if err := p.run(ctx); err != nil {
+		zap.S().Error("peer.run(): ", err)
+	}
 }
 
-func (a *IncomingPeer) run(ctx context.Context) {
+func (a *IncomingPeer) run(ctx context.Context) error {
 	handleParams := peer.HandlerParams{
 		Connection: a.conn,
 		Ctx:        ctx,
@@ -109,7 +111,7 @@ func (a *IncomingPeer) run(ctx context.Context) {
 		Parent:     a.params.Parent,
 		Pool:       a.params.Pool,
 	}
-	peer.Handle(handleParams)
+	return peer.Handle(handleParams)
 }
 
 func (a *IncomingPeer) Close() error {

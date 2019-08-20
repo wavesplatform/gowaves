@@ -106,6 +106,7 @@ func (s *blockState) assetInfo(assetID crypto.Digest) (asset, bool, error) {
 	return a, true, nil
 }
 
+/* TODO: unused code, need to write tests if it is needed or otherwise remove it.
 func (s *blockState) isSponsored(asset crypto.Digest) (bool, error) {
 	a, ok, err := s.assetInfo(asset)
 	if err != nil {
@@ -116,6 +117,7 @@ func (s *blockState) isSponsored(asset crypto.Digest) (bool, error) {
 	}
 	return a.sponsored, nil
 }
+*/
 
 func (s *blockState) candle(amountAsset, priceAsset crypto.Digest, timeFrame uint32) (data.Candle, candleKey, error) {
 	k := candleKey{amountAsset: amountAsset, priceAsset: priceAsset, timeFrame: timeFrame}
