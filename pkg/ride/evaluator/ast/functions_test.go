@@ -2,14 +2,15 @@ package ast
 
 import (
 	"encoding/hex"
+	"math"
+	"testing"
+	"time"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride/mockstate"
-	"math"
-	"testing"
-	"time"
 )
 
 func TestNativeSumLong(t *testing.T) {

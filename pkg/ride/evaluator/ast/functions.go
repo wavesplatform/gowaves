@@ -9,7 +9,7 @@ import (
 	"math/big"
 	"unicode/utf8"
 
-	"github.com/alexeykiselev/decimal"
+	"github.com/ericlagergren/decimal"
 	"github.com/mr-tron/base58/base58"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
