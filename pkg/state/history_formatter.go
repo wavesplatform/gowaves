@@ -36,120 +36,117 @@ func isRecentValidBlock(rw *blockReadWriter, stateDB *stateDB, blockNum uint32) 
 }
 
 type historyFormatter struct {
-	recordSize int
-	idSize     int
-	db         *stateDB
-	rw         *blockReadWriter
+	db *stateDB
+	rw *blockReadWriter
 }
 
-func newHistoryFormatter(recordSize, idSize int, db *stateDB, rw *blockReadWriter) (*historyFormatter, error) {
-	if recordSize <= 0 || idSize <= 0 {
-		return nil, errors.New("invalid record or id size")
-	}
-	if recordSize < idSize {
-		return nil, errors.New("recordSize is < idSize")
-	}
-	return &historyFormatter{recordSize: recordSize, idSize: idSize, db: db, rw: rw}, nil
+func newHistoryFormatter(db *stateDB, rw *blockReadWriter) (*historyFormatter, error) {
+	return &historyFormatter{db, rw}, nil
 }
 
 func (hfmt *historyFormatter) getID(record []byte) ([]byte, error) {
-	if len(record) < hfmt.recordSize {
+	if len(record) < idSize {
 		return nil, errors.New("invalid record size")
 	}
-	return record[hfmt.recordSize-hfmt.idSize:], nil
+	return record[len(record)-idSize:], nil
 }
 
-func (hfmt *historyFormatter) addRecord(history []byte, record []byte) ([]byte, error) {
-	if len(history) < hfmt.recordSize {
+func (hfmt *historyFormatter) addRecord(history *historyRecord, record []byte) error {
+	if len(history.records) == 0 {
 		// History is empty, new record is the first one.
-		return record, nil
+		history.records = append(history.records, record)
+		return nil
 	}
 	lastRecord, err := hfmt.getLatest(history)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	lastID, err := hfmt.getID(lastRecord)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	curID, err := hfmt.getID(record)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	if bytes.Equal(lastID, curID) {
 		// If the last ID is the same, rewrite the last record.
-		copy(history[len(history)-hfmt.recordSize:], record)
+		history.records[len(history.records)-1] = record
 	} else {
 		// Append new record to the end.
-		history = append(history, record...)
+		history.records = append(history.records, record)
 	}
-	return history, nil
+	return nil
 }
 
-func (hfmt *historyFormatter) getLatest(history []byte) ([]byte, error) {
-	if len(history) < hfmt.recordSize {
-		return nil, errors.Errorf("invalid history size %d, min is %d\n", len(history), hfmt.recordSize)
+func (hfmt *historyFormatter) getLatest(history *historyRecord) ([]byte, error) {
+	if len(history.records) < 1 {
+		return nil, errors.Errorf("invalid history size")
 	}
-	return history[len(history)-hfmt.recordSize:], nil
+	return history.records[len(history.records)-1], nil
 }
 
-func (hfmt *historyFormatter) filter(history []byte) ([]byte, error) {
-	for i := len(history); i >= hfmt.recordSize; i -= hfmt.recordSize {
-		record := history[i-hfmt.recordSize : i]
+func (hfmt *historyFormatter) filter(history *historyRecord) (bool, error) {
+	changed := false
+	for i := len(history.records) - 1; i >= 0; i-- {
+		record := history.records[i]
 		blockNumBytes, err := hfmt.getID(record)
 		if err != nil {
-			return nil, err
+			return false, err
 		}
 		blockNum := binary.BigEndian.Uint32(blockNumBytes)
 		valid, err := hfmt.db.isValidBlock(blockNum)
 		if err != nil {
-			return nil, err
+			return false, err
 		}
 		if valid {
 			// Is valid record.
 			break
 		}
 		// Erase invalid record.
-		history = history[:i-hfmt.recordSize]
+		history.records = history.records[:i]
+		changed = true
 	}
-	return history, nil
+	return changed, nil
 }
 
-func (hfmt *historyFormatter) cut(history []byte) ([]byte, error) {
+func (hfmt *historyFormatter) cut(history *historyRecord) (bool, error) {
+	changed := false
 	firstNeeded := 0
-	for i := hfmt.recordSize; i <= len(history); i += hfmt.recordSize {
-		recordStart := i - hfmt.recordSize
-		record := history[recordStart:i]
+	for i, record := range history.records {
 		blockNumBytes, err := hfmt.getID(record)
 		if err != nil {
-			return nil, err
+			return false, err
 		}
 		blockNum := binary.BigEndian.Uint32(blockNumBytes)
 		isOld, err := isOldBlock(hfmt.rw, hfmt.db, blockNum)
 		if err != nil {
-			return nil, err
+			return false, err
 		}
 		if isOld {
 			// 1 record BEFORE minHeight is needed.
-			firstNeeded = recordStart
+			firstNeeded = i
+			changed = true
 			continue
 		}
 		break
 	}
-	return history[firstNeeded:], nil
+	history.records = history.records[firstNeeded:]
+	return changed, nil
 }
 
-func (hfmt *historyFormatter) normalize(history []byte, filter bool) ([]byte, error) {
-	var err error
+func (hfmt *historyFormatter) normalize(history *historyRecord, filter bool) (bool, error) {
+	filtered := false
 	if filter {
-		history, err = hfmt.filter(history)
+		var err error
+		filtered, err = hfmt.filter(history)
 		if err != nil {
-			return nil, err
+			return false, err
 		}
 	}
-	history, err = hfmt.cut(history)
+	cut, err := hfmt.cut(history)
 	if err != nil {
-		return nil, err
+		return false, err
 	}
-	return history, nil
+	return (filtered || cut), nil
 }

@@ -79,7 +79,7 @@ func (l *leases) cancelLeases(bySenders map[proto.Address]struct{}) error {
 	log.Printf("Started to cancel leases\n")
 	for leaseIter.Next() {
 		key := keyvalue.SafeKey(leaseIter)
-		leaseBytes, err := l.hs.get(lease, key, true)
+		leaseBytes, err := l.hs.get(key, true)
 		if err != nil {
 			return err
 		}
@@ -128,7 +128,7 @@ func (l *leases) validLeaseIns() (map[proto.Address]int64, error) {
 	// Iterate all the leases.
 	log.Printf("Started collecting leases\n")
 	for leaseIter.Next() {
-		leaseBytes, err := l.hs.get(lease, leaseIter.Key(), true)
+		leaseBytes, err := l.hs.get(leaseIter.Key(), true)
 		if err != nil {
 			return nil, err
 		}
@@ -147,7 +147,7 @@ func (l *leases) validLeaseIns() (map[proto.Address]int64, error) {
 // Leasing info from DB or local storage.
 func (l *leases) newestLeasingInfo(id crypto.Digest, filter bool) (*leasing, error) {
 	key := leaseKey{leaseID: id}
-	recordBytes, err := l.hs.getFresh(lease, key.bytes(), filter)
+	recordBytes, err := l.hs.getFresh(key.bytes(), filter)
 	if err != nil {
 		return nil, err
 	}
@@ -161,7 +161,7 @@ func (l *leases) newestLeasingInfo(id crypto.Digest, filter bool) (*leasing, err
 // Stable leasing info from DB.
 func (l *leases) leasingInfo(id crypto.Digest, filter bool) (*leasing, error) {
 	key := leaseKey{leaseID: id}
-	recordBytes, err := l.hs.get(lease, key.bytes(), filter)
+	recordBytes, err := l.hs.get(key.bytes(), filter)
 	if err != nil {
 		return nil, err
 	}

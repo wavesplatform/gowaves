@@ -243,7 +243,7 @@ func (s *balances) wavesAddressesNumber() (uint64, error) {
 // have not been flushed to DB yet (and are currently stored in memory).
 func (s *balances) minEffectiveBalanceInRange(addr proto.Address, startHeight, endHeight uint64) (uint64, error) {
 	key := wavesBalanceKey{address: addr}
-	records, err := s.hs.recordsInHeightRange(wavesBalance, key.bytes(), startHeight, endHeight, true)
+	records, err := s.hs.recordsInHeightRange(key.bytes(), startHeight, endHeight, true)
 	if err != nil {
 		return 0, err
 	}
@@ -269,7 +269,7 @@ func (s *balances) minEffectiveBalanceInRange(addr proto.Address, startHeight, e
 
 func (s *balances) assetBalance(addr proto.Address, asset []byte, filter bool) (uint64, error) {
 	key := assetBalanceKey{address: addr, asset: asset}
-	recordBytes, err := s.hs.get(assetBalance, key.bytes(), filter)
+	recordBytes, err := s.hs.get(key.bytes(), filter)
 	if err == keyvalue.ErrNotFound || err == errEmptyHist {
 		// Unknown address, expected behavior is to return 0 and no errors in this case.
 		return 0, nil
@@ -285,7 +285,7 @@ func (s *balances) assetBalance(addr proto.Address, asset []byte, filter bool) (
 }
 
 func (s *balances) wavesRecord(key []byte, filter bool) (*wavesBalanceRecord, error) {
-	recordBytes, err := s.hs.get(wavesBalance, key, filter)
+	recordBytes, err := s.hs.get(key, filter)
 	if err == keyvalue.ErrNotFound || err == errEmptyHist {
 		// Unknown address, expected behavior is to return empty profile and no errors in this case.
 		return &wavesBalanceRecord{}, nil

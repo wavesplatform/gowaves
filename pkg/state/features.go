@@ -128,7 +128,7 @@ func (f *features) featureVotes(featureID int16) (uint64, error) {
 	if err != nil {
 		return 0, err
 	}
-	recordBytes, err := f.hs.getFresh(featureVote, keyBytes, true)
+	recordBytes, err := f.hs.getFresh(keyBytes, true)
 	if err == keyvalue.ErrNotFound || err == errEmptyHist {
 		// 0 votes for unknown feature.
 		return 0, nil
@@ -177,7 +177,7 @@ func (f *features) isActivated(featureID int16) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	_, err = f.hs.get(activatedFeature, keyBytes, true)
+	_, err = f.hs.get(keyBytes, true)
 	if err == keyvalue.ErrNotFound || err == errEmptyHist {
 		return false, nil
 	}
@@ -193,7 +193,7 @@ func (f *features) activatedFeaturesRecord(featureID int16) (*activatedFeaturesR
 	if err != nil {
 		return nil, err
 	}
-	recordBytes, err := f.hs.get(activatedFeature, keyBytes, true)
+	recordBytes, err := f.hs.get(keyBytes, true)
 	if err != nil {
 		return nil, err
 	}
@@ -258,7 +258,7 @@ func (f *features) isApproved(featureID int16) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	_, err = f.hs.get(approvedFeature, keyBytes, true)
+	_, err = f.hs.get(keyBytes, true)
 	if err == keyvalue.ErrNotFound || err == errEmptyHist {
 		return false, nil
 	}
@@ -274,7 +274,7 @@ func (f *features) approvalHeight(featureID int16) (uint64, error) {
 	if err != nil {
 		return 0, err
 	}
-	recordBytes, err := f.hs.get(approvedFeature, keyBytes, true)
+	recordBytes, err := f.hs.get(keyBytes, true)
 	if err != nil {
 		return 0, err
 	}

@@ -75,7 +75,7 @@ func (a *aliases) createAlias(aliasStr string, info *aliasInfo, blockID crypto.S
 
 func (a *aliases) exists(aliasStr string, filter bool) bool {
 	key := aliasKey{alias: aliasStr}
-	if _, err := a.hs.getFresh(alias, key.bytes(), filter); err != nil {
+	if _, err := a.hs.getFresh(key.bytes(), filter); err != nil {
 		return false
 	}
 	return true
@@ -95,7 +95,7 @@ func (a *aliases) newestAddrByAlias(aliasStr string, filter bool) (*proto.Addres
 		return nil, errAliasDisabled
 	}
 	key := aliasKey{alias: aliasStr}
-	recordBytes, err := a.hs.getFresh(alias, key.bytes(), filter)
+	recordBytes, err := a.hs.getFresh(key.bytes(), filter)
 	if err != nil {
 		return nil, err
 	}
@@ -107,7 +107,7 @@ func (a *aliases) newestAddrByAlias(aliasStr string, filter bool) (*proto.Addres
 }
 
 func (a *aliases) recordByAlias(key []byte, filter bool) (*aliasRecord, error) {
-	recordBytes, err := a.hs.get(alias, key, filter)
+	recordBytes, err := a.hs.get(key, filter)
 	if err != nil {
 		return nil, err
 	}
