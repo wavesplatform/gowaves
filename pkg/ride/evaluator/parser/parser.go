@@ -6,17 +6,25 @@ import (
 	. "github.com/wavesplatform/gowaves/pkg/ride/evaluator/reader"
 )
 
-func BuildAst(r *BytesReader) (Expr, error) {
-	b, err := r.ReadByte()
+func BuildAst(r *BytesReader) (Script, error) {
+	version, err := r.ReadByte()
 	if err != nil {
-		return nil, errors.Errorf("ReadByte(): %v\n", err)
+		return Script{}, errors.Wrap(err, "parser: failed to read script version")
 	}
-	// first byte always should be E_BYTES
-	if b != E_BYTES {
-		return nil, errors.Errorf("BuildAst: invalid format, expected 1, found %d", b)
+	if version < 1 || version > 3 {
+		return Script{}, errors.Errorf("parser: unsupported script version %d", version)
 	}
 
-	return Walk(r)
+	exp, err := Walk(r)
+	if err != nil {
+		return Script{}, errors.Wrap(err, "parser")
+	}
+	script := Script{
+		Version:    int(version),
+		HasBlockV2: false,
+		Verifier:   exp,
+	}
+	return script, nil
 }
 
 func Walk(iter *BytesReader) (Expr, error) {

@@ -3,10 +3,11 @@ package evaluate
 import (
 	"encoding/json"
 	"fmt"
+	"testing"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride/mockstate"
-	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -18,11 +19,8 @@ import (
 const seed = "test test"
 
 func newTransferTransaction() *proto.TransferV2 {
-
 	js := `{"type":4,"version":2,"id":"CqjGMbrd5bFmLAv2mUSdphEJSgVWkWa6ZtcMkKmgH2ax","proofs":["5W7hjPpgmmhxevCt4A7y9F8oNJ4V9w2g8jhQgx2qGmBTNsP1p1MpQeKF3cvZULwJ7vQthZfSx2BhL6TWkHSVLzvq"],"senderPublicKey":"14ovLL9a6xbBfftyxGNLKMdbnzGgnaFQjmgUJGdho6nY","assetId":null,"feeAssetId":null,"timestamp":1544715621,"amount":15,"fee":10000,"recipient":"3P2USE3iYK5w7jNahAUHTytNbVRccGZwQH3"}`
-
 	tv2 := &proto.TransferV2{}
-
 	err := json.Unmarshal([]byte(js), tv2)
 	if err != nil {
 		panic(err)
@@ -31,17 +29,15 @@ func newTransferTransaction() *proto.TransferV2 {
 }
 
 func defaultScope() Scope {
-	predefObject := make(map[string]Expr)
-	t := newTransferTransaction()
+	variables := VariablesV3()
 
+	t := newTransferTransaction()
 	vars, err := NewVariablesFromTransaction(proto.MainNetScheme, t)
 	if err != nil {
 		panic(err)
 	}
-
-	predefObject["tx"] = NewObject(vars)
-
-	predefObject["height"] = NewLong(5)
+	variables["tx"] = NewObject(vars)
+	variables["height"] = NewLong(5)
 
 	addr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, t.SenderPK)
 	if err != nil {
@@ -58,17 +54,16 @@ func defaultScope() Scope {
 		Accounts: map[string]mockstate.Account{addr.String(): &am},
 	}
 
-	return NewScope(proto.MainNetScheme, s, NewFuncScope(), predefObject)
+	return NewScope(proto.MainNetScheme, s, FunctionsV3(), variables)
 }
 
-var longScript = `match tx {
+const longScript = `match tx {
   case t : TransferTransaction | MassTransferTransaction | ExchangeTransaction => true
   case _ => false
 }`
 
 func TestEval(t *testing.T) {
-
-	conds := []struct {
+	for _, test := range []struct {
 		Name   string
 		Base64 string
 		Result bool
@@ -86,21 +81,25 @@ func TestEval(t *testing.T) {
 		{`tx.proofs[0] == base58'5W7hjPpgmmhxevCt4A7y9F8oNJ4V9w2g8jhQgx2qGmBTNsP1p1MpQeKF3cvZULwJ7vQthZfSx2BhL6TWkHSVLzvq'`, `AQkAAAAAAAACCQABkQAAAAIIBQAAAAJ0eAAAAAZwcm9vZnMAAAAAAAAAAAABAAAAQOEtF8V5p+9JHReO90FmBf+yKZW1lLJGBsnkZww94TJ8bNcxWIKfohMXm4BsKKIBUTXLaS6Vcgyw1UTNN5iICQ719Fxf`, true},
 		{longScript, `AQQAAAAHJG1hdGNoMAUAAAACdHgDAwkAAAEAAAACBQAAAAckbWF0Y2gwAgAAABNFeGNoYW5nZVRyYW5zYWN0aW9uBgMJAAABAAAAAgUAAAAHJG1hdGNoMAIAAAAXTWFzc1RyYW5zZmVyVHJhbnNhY3Rpb24GCQAAAQAAAAIFAAAAByRtYXRjaDACAAAAE1RyYW5zZmVyVHJhbnNhY3Rpb24EAAAAAXQFAAAAByRtYXRjaDAGB6Ilvok=`, true},
 		{`match transactionById(tx.id) {case  t: Unit => true case _ => false }`, `AQQAAAAHJG1hdGNoMAkAA+gAAAABCAUAAAACdHgAAAACaWQDCQAAAQAAAAIFAAAAByRtYXRjaDACAAAABFVuaXQEAAAAAXQFAAAAByRtYXRjaDAGB1+iIek=`, true},
+		//TODO: The RIDE compiler is broken, test after repair
+		// {`Ceiling() == CEILING`, ``, true},
+		// {`Floor() == FLOOR`, ``, true},
+		// {`HalfEven() == HALFEVEN`, ``, true},
+		{`Down() == DOWN`, `AgkAAAAAAAACCQEAAAAERG93bgAAAAAFAAAABERPV052K6LQ`, true},
+		{`Up() == UP`, `AwkAAAAAAAACCQEAAAACVXAAAAAABQAAAAJVUPGUxeg=`, true},
+		{`HalfUp() == HALFUP`, `AwkAAAAAAAACCQEAAAAGSGFsZlVwAAAAAAUAAAAGSEFMRlVQbUfpTQ==`, true},
+		//TODO: Test after implementation of this rounding mode in decimal library {`HalfDown() == HALFDOWN`, `AgkAAAAAAAACCQEAAAAERG93bgAAAAAFAAAABERPV052K6LQ`, true},
+	} {
+		r, err := reader.NewReaderFromBase64(test.Base64)
+		require.NoError(t, err)
+
+		script, err := BuildAst(r)
+		require.NoError(t, err)
+
+		rs, err := Eval(script.Verifier, defaultScope())
+		require.NoError(t, err)
+		assert.Equal(t, test.Result, rs, fmt.Sprintf("script: %s", test.Name))
 	}
-
-	for _, c := range conds {
-
-		reader, err := reader.NewReaderFromBase64(c.Base64)
-		require.NoError(t, err)
-
-		exprs, err := BuildAst(reader)
-		require.NoError(t, err)
-
-		rs, err := Eval(exprs, defaultScope())
-		require.NoError(t, err)
-		assert.Equal(t, c.Result, rs, fmt.Sprintf("script: %s", c.Name))
-	}
-
 }
 
 func BenchmarkEval(b *testing.B) {
@@ -125,14 +124,14 @@ f == e
 	for i := 0; i < b.N; i++ {
 		b.StopTimer()
 		r, _ := reader.NewReaderFromBase64(base64)
-		e, _ := BuildAst(r)
+		script, _ := BuildAst(r)
 		b.StartTimer()
-		_, _ = Eval(e, s)
+		_, _ = Eval(script.Verifier, s)
 	}
 }
 
 func TestFunctions(t *testing.T) {
-	conds := []struct {
+	for _, test := range []struct {
 		FuncCode int
 		FuncName string
 		Code     string
@@ -153,6 +152,11 @@ func TestFunctions(t *testing.T) {
 		{105, `DIV_LONG`, `4 / 2>0`, `AQkAAGYAAAACCQAAaQAAAAIAAAAAAAAAAAQAAAAAAAAAAAIAAAAAAAAAAAAadVma`, true},
 		{106, `MOD_LONG`, `-10 % 6>0`, `AQkAAGYAAAACCQAAagAAAAIA//////////YAAAAAAAAAAAYAAAAAAAAAAAB5rBSH`, true},
 		{107, `FRACTION`, `fraction(10, 5, 2)>0`, `AQkAAGYAAAACCQAAawAAAAMAAAAAAAAAAAoAAAAAAAAAAAUAAAAAAAAAAAIAAAAAAAAAAACRyFu2`, true},
+		{108, `POW`, `pow(12, 1, 3456, 3, 2, Down()) == 187`, `AwkAAAAAAAACCQAAbAAAAAYAAAAAAAAAAAwAAAAAAAAAAAEAAAAAAAAADYAAAAAAAAAAAAMAAAAAAAAAAAIJAQAAAAREb3duAAAAAAAAAAAAAAAAu9llw2M=`, true},
+		{108, `POW`, `pow(12, 1, 3456, 3, 2, UP) == 187`, `AwkAAAAAAAACCQAAbAAAAAYAAAAAAAAAAAwAAAAAAAAAAAEAAAAAAAAADYAAAAAAAAAAAAMAAAAAAAAAAAIFAAAAAlVQAAAAAAAAAAC7FUMwCQ==`, false},
+		{108, `POW`, `pow(12, 1, 3456, 3, 2, UP) == 188`, `AwkAAAAAAAACCQAAbAAAAAYAAAAAAAAAAAwAAAAAAAAAAAEAAAAAAAAADYAAAAAAAAAAAAMAAAAAAAAAAAIFAAAAAlVQAAAAAAAAAAC8evjDQQ==`, true},
+		{109, `LOG`, `log(16, 0, 2, 0, 0, CEILING) == 4`, `AwkAAAAAAAACCQAAbQAAAAYAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAIAAAAAAAAAAAAAAAAAAAAAAAAFAAAAB0NFSUxJTkcAAAAAAAAAAARh6Dy6`, true},
+		{109, `LOG`, `log(100, 0, 10, 0, 0, CEILING) == 2`, `AwkAAAAAAAACCQAAbQAAAAYAAAAAAAAAAGQAAAAAAAAAAAAAAAAAAAAAAAoAAAAAAAAAAAAAAAAAAAAAAAAFAAAAB0NFSUxJTkcAAAAAAAAAAAJ7Op42`, true},
 
 		{200, `SIZE_BYTES`, `size(base58'abcd') > 0`, `AQkAAGYAAAACCQAAyAAAAAEBAAAAA2QGAgAAAAAAAAAAACMcdM4=`, true},
 		{201, `TAKE_BYTES`, `size(take(base58'abcd', 2)) == 2`, `AQkAAAAAAAACCQAAyAAAAAEJAADJAAAAAgEAAAADZAYCAAAAAAAAAAACAAAAAAAAAAACccrCZg==`, true},
@@ -185,18 +189,16 @@ func TestFunctions(t *testing.T) {
 		{1000, `GETTRANSACTIONBYID`, `match transactionById(tx.id) {case  t: Unit => true case _ => false }`, `AQQAAAAHJG1hdGNoMAkAA+gAAAABCAUAAAACdHgAAAACaWQDCQAAAQAAAAIFAAAAByRtYXRjaDACAAAABFVuaXQEAAAAAXQFAAAAByRtYXRjaDAGB1+iIek=`, true},
 		{1001, `TRANSACTIONHEIGHTBYID`, `transactionHeightById(base58'aaaa') == 5`, `AQkAAAAAAAACCQAD6QAAAAEBAAAAA2P4ZwAAAAAAAAAABSLhRM4=`, false},
 		{1003, `ACCOUNTASSETBALANCE`, `assetBalance(tx.sender, base58'BXBUNddxTGTQc3G4qHYn5E67SBwMj18zLncUr871iuRD') == 5`, `AQkAAAAAAAACCQAD6wAAAAIIBQAAAAJ0eAAAAAZzZW5kZXIBAAAAIJxQIls8iGUc1935JolBz6bYc37eoPDtScOAM0lTNhY0AAAAAAAAAAAFjp6PBg==`, true},
-	}
-
-	for _, c := range conds {
-		reader, err := reader.NewReaderFromBase64(c.Base64)
+	} {
+		r, err := reader.NewReaderFromBase64(test.Base64)
 		require.NoError(t, err)
 
-		exprs, err := BuildAst(reader)
+		script, err := BuildAst(r)
 		require.NoError(t, err)
 
-		rs, err := Eval(exprs, defaultScope())
+		rs, err := Eval(script.Verifier, defaultScope())
 		assert.NoError(t, err)
-		assert.Equal(t, c.Result, rs, fmt.Sprintf("func name: %s, code: %d, script: %s", c.FuncName, c.FuncCode, c.Code))
+		assert.Equal(t, test.Result, rs, fmt.Sprintf("func name: %s, code: %d, script: %s", test.FuncName, test.FuncCode, test.Code))
 	}
 }
 
@@ -227,12 +229,12 @@ func TestDataFunctions(t *testing.T) {
 	vars, err := NewVariablesFromTransaction(proto.MainNetScheme, data)
 	require.NoError(t, err)
 
-	predefObject := make(map[string]Expr)
-	predefObject["tx"] = NewObject(vars)
+	variables := VariablesV3()
+	variables["tx"] = NewObject(vars)
 
-	scope := NewScope(proto.MainNetScheme, mockstate.MockStateImpl{}, NewFuncScope(), predefObject)
+	scope := NewScope(proto.MainNetScheme, mockstate.MockStateImpl{}, FunctionsV3(), variables)
 
-	conds := []struct {
+	for _, test := range []struct {
 		FuncCode int
 		FuncName string
 		Code     string
@@ -248,18 +250,16 @@ func TestDataFunctions(t *testing.T) {
 		{0, "UserDataBooleanFromArrayByIndex", `match tx {case t : DataTransaction => getBoolean(t.data, 1) == true case _ => true}`, `AQQAAAAHJG1hdGNoMAUAAAACdHgDCQAAAQAAAAIFAAAAByRtYXRjaDACAAAAD0RhdGFUcmFuc2FjdGlvbgQAAAABdAUAAAAHJG1hdGNoMAkAAAAAAAACCQEAAAAKZ2V0Qm9vbGVhbgAAAAIIBQAAAAF0AAAABGRhdGEAAAAAAAAAAAEGBk7sdw4=`, true},
 		{0, "UserDataBinaryFromArrayByIndex", `match tx {case t : DataTransaction => getBinary(t.data, 2) == base58'Cn8eVZg' case _ => true}`, `AQQAAAAHJG1hdGNoMAUAAAACdHgDCQAAAQAAAAIFAAAAByRtYXRjaDACAAAAD0RhdGFUcmFuc2FjdGlvbgQAAAABdAUAAAAHJG1hdGNoMAkAAAAAAAACCQEAAAAJZ2V0QmluYXJ5AAAAAggFAAAAAXQAAAAEZGF0YQAAAAAAAAAAAgEAAAAFaGVsbG8GRLZgkQ==`, true},
 		{0, "UserDataStringFromArrayByIndex", `match tx {case t : DataTransaction => getString(t.data, 3) == "world" case _ => false}`, `AQQAAAAHJG1hdGNoMAUAAAACdHgDCQAAAQAAAAIFAAAAByRtYXRjaDACAAAAD0RhdGFUcmFuc2FjdGlvbgQAAAABdAUAAAAHJG1hdGNoMAkAAAAAAAACCQEAAAAJZ2V0U3RyaW5nAAAAAggFAAAAAXQAAAAEZGF0YQAAAAAAAAAAAwIAAAAFd29ybGQHKKHsFw==`, true},
-	}
-
-	for _, c := range conds {
-		reader, err := reader.NewReaderFromBase64(c.Base64)
+	} {
+		reader, err := reader.NewReaderFromBase64(test.Base64)
 		require.NoError(t, err)
 
-		exprs, err := BuildAst(reader)
+		script, err := BuildAst(reader)
 		require.NoError(t, err)
 
-		rs, err := Eval(exprs, scope)
+		rs, err := Eval(script.Verifier, scope)
 		assert.NoError(t, err)
-		assert.Equal(t, c.Result, rs, fmt.Sprintf("func name: %s, code: %d, script: %s", c.FuncName, c.FuncCode, c.Code))
+		assert.Equal(t, test.Result, rs, fmt.Sprintf("func name: %s, code: %d, script: %s", test.FuncName, test.FuncCode, test.Code))
 	}
 }
 

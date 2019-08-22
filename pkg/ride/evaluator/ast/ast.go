@@ -3,13 +3,21 @@ package ast
 import (
 	"bytes"
 	"fmt"
+	"io"
+
 	"github.com/mr-tron/base58/base58"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"io"
 )
 
 const InstanceFieldName = "$instance"
+
+type Script struct {
+	//TODO: update for DApps support
+	Version    int
+	HasBlockV2 bool
+	Verifier   Expr
+}
 
 type Expr interface {
 	Write(io.Writer)
@@ -737,4 +745,130 @@ func (a SellExpr) Eq(other Expr) (bool, error) {
 
 func (a SellExpr) InstanceOf() string {
 	return "Sell"
+}
+
+type CeilingExpr struct{}
+
+func (a CeilingExpr) Evaluate(s Scope) (Expr, error) {
+	return a, nil
+}
+
+func (a CeilingExpr) Write(w io.Writer) {
+	_, _ = fmt.Fprint(w, "CeilingExpr")
+}
+
+func (a CeilingExpr) Eq(other Expr) (bool, error) {
+	return a.InstanceOf() == other.InstanceOf(), nil
+}
+
+func (a CeilingExpr) InstanceOf() string {
+	return "Ceiling"
+}
+
+type FloorExpr struct{}
+
+func (a FloorExpr) Evaluate(s Scope) (Expr, error) {
+	return a, nil
+}
+
+func (a FloorExpr) Write(w io.Writer) {
+	_, _ = fmt.Fprint(w, "FloorExpr")
+}
+
+func (a FloorExpr) Eq(other Expr) (bool, error) {
+	return a.InstanceOf() == other.InstanceOf(), nil
+}
+
+func (a FloorExpr) InstanceOf() string {
+	return "Floor"
+}
+
+type HalfEvenExpr struct{}
+
+func (a HalfEvenExpr) Evaluate(s Scope) (Expr, error) {
+	return a, nil
+}
+
+func (a HalfEvenExpr) Write(w io.Writer) {
+	_, _ = fmt.Fprint(w, "HalfEvenExpr")
+}
+
+func (a HalfEvenExpr) Eq(other Expr) (bool, error) {
+	return a.InstanceOf() == other.InstanceOf(), nil
+}
+
+func (a HalfEvenExpr) InstanceOf() string {
+	return "HalfEven"
+}
+
+type DownExpr struct{}
+
+func (a DownExpr) Evaluate(s Scope) (Expr, error) {
+	return a, nil
+}
+
+func (a DownExpr) Write(w io.Writer) {
+	_, _ = fmt.Fprint(w, "DownExpr")
+}
+
+func (a DownExpr) Eq(other Expr) (bool, error) {
+	return a.InstanceOf() == other.InstanceOf(), nil
+}
+
+func (a DownExpr) InstanceOf() string {
+	return "Down"
+}
+
+type UpExpr struct{}
+
+func (a UpExpr) Evaluate(s Scope) (Expr, error) {
+	return a, nil
+}
+
+func (a UpExpr) Write(w io.Writer) {
+	_, _ = fmt.Fprint(w, "UpExpr")
+}
+
+func (a UpExpr) Eq(other Expr) (bool, error) {
+	return a.InstanceOf() == other.InstanceOf(), nil
+}
+
+func (a UpExpr) InstanceOf() string {
+	return "Up"
+}
+
+type HalfUpExpr struct{}
+
+func (a HalfUpExpr) Evaluate(s Scope) (Expr, error) {
+	return a, nil
+}
+
+func (a HalfUpExpr) Write(w io.Writer) {
+	_, _ = fmt.Fprint(w, "HalfUpExpr")
+}
+
+func (a HalfUpExpr) Eq(other Expr) (bool, error) {
+	return a.InstanceOf() == other.InstanceOf(), nil
+}
+
+func (a HalfUpExpr) InstanceOf() string {
+	return "HalfUp"
+}
+
+type HalfDownExpr struct{}
+
+func (a HalfDownExpr) Evaluate(s Scope) (Expr, error) {
+	return a, nil
+}
+
+func (a HalfDownExpr) Write(w io.Writer) {
+	_, _ = fmt.Fprint(w, "HalfDownExpr")
+}
+
+func (a HalfDownExpr) Eq(other Expr) (bool, error) {
+	return a.InstanceOf() == other.InstanceOf(), nil
+}
+
+func (a HalfDownExpr) InstanceOf() string {
+	return "HalfDown"
 }

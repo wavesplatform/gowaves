@@ -2,14 +2,15 @@ package ast
 
 import (
 	"encoding/hex"
+	"math"
+	"testing"
+	"time"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride/mockstate"
-	"math"
-	"testing"
-	"time"
 )
 
 func TestNativeSumLong(t *testing.T) {
@@ -337,13 +338,13 @@ func TestNativeFromBase58(t *testing.T) {
 }
 
 func TestNativeFromBase64String(t *testing.T) {
-	rs1, err := NativeFromBase64String(newEmptyScope(), Params(NewString("AQa3b8tH")))
+	rs1, err := NativeFromBase64(newEmptyScope(), Params(NewString("AQa3b8tH")))
 	require.NoError(t, err)
 	assert.Equal(t, NewBytes([]uint8{0x1, 0x6, 0xb7, 0x6f, 0xcb, 0x47}), rs1)
 }
 
 func TestNativeToBse64String(t *testing.T) {
-	rs1, err := NativeToBse64String(newEmptyScope(), Params(NewBytes([]uint8{0x1, 0x6, 0xb7, 0x6f, 0xcb, 0x47})))
+	rs1, err := NativeToBase64(newEmptyScope(), Params(NewBytes([]uint8{0x1, 0x6, 0xb7, 0x6f, 0xcb, 0x47})))
 	require.NoError(t, err)
 	assert.Equal(t, NewString("AQa3b8tH"), rs1)
 }
@@ -602,4 +603,28 @@ func TestUserAlias(t *testing.T) {
 	rs1, err := UserAlias(newEmptyScope(), Params(NewString(s)))
 	require.NoError(t, err)
 	assert.Equal(t, NewAliasFromProtoAlias(*alias), rs1)
+}
+
+func TestNativePowLong(t *testing.T) {
+	r, err := NativePowLong(newEmptyScope(), NewExprs(NewLong(12), NewLong(1), NewLong(3456), NewLong(3), NewLong(2), DownExpr{}))
+	require.NoError(t, err)
+	assert.Equal(t, NewLong(187), r)
+
+	r, err = NativePowLong(newEmptyScope(), NewExprs(NewLong(12), NewLong(1), NewLong(3456), NewLong(3), NewLong(2), UpExpr{}))
+	require.NoError(t, err)
+	assert.Equal(t, NewLong(188), r)
+
+	// overflow
+	_, err = NativeFractionLong(newEmptyScope(), NewExprs(NewLong(math.MaxInt64), NewLong(0), NewLong(100), NewLong(0), NewLong(0), UpExpr{}))
+	require.Error(t, err)
+}
+
+func TestNativeLogLong(t *testing.T) {
+	r, err := NativeLogLong(newEmptyScope(), NewExprs(NewLong(16), NewLong(0), NewLong(2), NewLong(0), NewLong(0), UpExpr{}))
+	require.NoError(t, err)
+	assert.Equal(t, NewLong(4), r)
+
+	r, err = NativeLogLong(newEmptyScope(), NewExprs(NewLong(100), NewLong(0), NewLong(10), NewLong(0), NewLong(0), UpExpr{}))
+	require.NoError(t, err)
+	assert.Equal(t, NewLong(2), r)
 }

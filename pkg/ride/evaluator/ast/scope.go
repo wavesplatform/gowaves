@@ -21,7 +21,7 @@ type Scope interface {
 
 type ScopeImpl struct {
 	parent    Scope
-	funcs     *FuncScope
+	funcs     *Functions
 	variables map[string]Expr
 	state     mockstate.MockState
 	scheme    byte
@@ -29,7 +29,7 @@ type ScopeImpl struct {
 
 type Callable func(Scope, Exprs) (Expr, error)
 
-func NewScope(scheme byte, state mockstate.MockState, f *FuncScope, variables map[string]Expr) *ScopeImpl {
+func NewScope(scheme byte, state mockstate.MockState, f *Functions, variables map[string]Expr) *ScopeImpl {
 	return &ScopeImpl{
 		funcs:     f,
 		variables: variables,
@@ -85,120 +85,176 @@ func (a *ScopeImpl) Scheme() byte {
 	return a.scheme
 }
 
-type FuncScope struct {
-	funcs     map[int16]Callable
-	userFuncs map[string]Callable
+type Functions struct {
+	native map[int16]Callable
+	user   map[string]Callable
 }
 
-func EmptyFuncScope() *FuncScope {
-	return &FuncScope{
-		funcs:     make(map[int16]Callable),
-		userFuncs: make(map[string]Callable),
+func EmptyFunctions() *Functions {
+	return &Functions{
+		native: make(map[int16]Callable),
+		user:   make(map[string]Callable),
 	}
 }
 
-func NewFuncScope() *FuncScope {
+func FunctionsV2() *Functions {
+	native := make(map[int16]Callable)
 
-	funcs := make(map[int16]Callable)
+	native[0] = NativeEq
+	native[1] = NativeIsInstanceOf
+	native[2] = NativeThrow
 
-	funcs[0] = NativeEq
-	funcs[1] = NativeIsInstanceOf
-	funcs[2] = NativeThrow
+	native[100] = NativeSumLong
+	native[101] = NativeSubLong
+	native[102] = NativeGtLong
+	native[103] = NativeGeLong
+	native[104] = NativeMulLong
+	native[105] = NativeDivLong
+	native[106] = NativeModLong
+	native[107] = NativeFractionLong
 
-	funcs[100] = NativeSumLong
-	funcs[101] = NativeSubLong
-	funcs[102] = NativeGtLong
-	funcs[103] = NativeGeLong
-	funcs[104] = NativeMulLong
-	funcs[105] = NativeDivLong
-	funcs[106] = NativeModLong
-	funcs[107] = NativeFractionLong
+	native[200] = NativeSizeBytes
+	native[201] = NativeTakeBytes
+	native[202] = NativeDropBytes
+	native[203] = NativeConcatBytes
 
-	funcs[200] = NativeSizeBytes
-	funcs[201] = NativeTakeBytes
-	funcs[202] = NativeDropBytes
-	funcs[203] = NativeConcatBytes
+	native[300] = NativeConcatStrings
+	native[303] = NativeTakeStrings
+	native[304] = NativeDropStrings
+	native[305] = NativeSizeString
 
-	funcs[300] = NativeConcatStrings
-	funcs[303] = NativeTakeStrings
-	funcs[304] = NativeDropStrings
-	funcs[305] = NativeSizeString
+	native[400] = NativeSizeList
+	native[401] = NativeGetList
+	native[410] = NativeLongToBytes
+	native[411] = NativeStringToBytes
+	native[412] = NativeBooleanToBytes
+	native[420] = NativeLongToString
+	native[421] = NativeBooleanToString
 
-	funcs[400] = NativeSizeList
-	funcs[401] = NativeGetList
-	funcs[410] = NativeLongToBytes
-	funcs[411] = NativeStringToBytes
-	funcs[412] = NativeBooleanToBytes
-	funcs[420] = NativeLongToString
-	funcs[421] = NativeBooleanToString
+	native[500] = NativeSigVerify
+	native[501] = NativeKeccak256
+	native[502] = NativeBlake2b256
+	native[503] = NativeSha256
 
-	funcs[500] = NativeSigVerify
-	funcs[501] = NativeKeccak256
-	funcs[502] = NativeBlake2b256
-	funcs[503] = NativeSha256
+	native[600] = NativeToBase58
+	native[601] = NativeFromBase58
+	native[602] = NativeToBase64
+	native[603] = NativeFromBase64
 
-	funcs[600] = NativeToBase58
-	funcs[601] = NativeFromBase58
-	funcs[602] = NativeToBse64String
-	funcs[603] = NativeFromBase64String
+	native[1000] = NativeTransactionByID
+	native[1001] = NativeTransactionHeightByID
+	native[1003] = NativeAssetBalance
 
-	funcs[1000] = NativeTransactionByID
-	funcs[1001] = NativeTransactionHeightByID
-	funcs[1003] = NativeAssetBalance
+	native[1040] = NativeDataLongFromArray
+	native[1041] = NativeDataBooleanFromArray
+	native[1042] = NativeDataBinaryFromArray
+	native[1043] = NativeDataStringFromArray
 
-	funcs[1040] = NativeDataLongFromArray
-	funcs[1041] = NativeDataBooleanFromArray
-	funcs[1042] = NativeDataBinaryFromArray
-	funcs[1043] = NativeDataStringFromArray
+	native[1050] = NativeDataLongFromState
+	native[1051] = NativeDataBooleanFromState
+	native[1052] = NativeDataBytesFromState
+	native[1053] = NativeDataStringFromState
 
-	funcs[1050] = NativeDataLongFromState
-	funcs[1051] = NativeDataBooleanFromState
-	funcs[1052] = NativeDataBytesFromState
-	funcs[1053] = NativeDataStringFromState
+	native[1060] = NativeAddressFromRecipient
 
-	funcs[1060] = NativeAddressFromRecipient
+	user := make(map[string]Callable)
+	user["throw"] = UserThrow
+	user["addressFromString"] = UserAddressFromString
+	user["!="] = UserFunctionNeq
+	user["isDefined"] = UserIsDefined
+	user["extract"] = UserExtract
+	user["dropRightBytes"] = UserDropRightBytes
+	user["takeRightBytes"] = UserTakeRightBytes
+	user["takeRight"] = UserTakeRightString
+	user["dropRight"] = UserDropRightString
+	user["!"] = UserUnaryNot
+	user["-"] = UserUnaryMinus
 
-	userFuncs := make(map[string]Callable)
-	userFuncs["throw"] = UserThrow
-	userFuncs["addressFromString"] = UserAddressFromString
-	userFuncs["!="] = UserFunctionNeq
-	userFuncs["isDefined"] = UserIsDefined
-	userFuncs["extract"] = UserExtract
-	userFuncs["dropRightBytes"] = UserDropRightBytes
-	userFuncs["takeRightBytes"] = UserTakeRightBytes
-	userFuncs["takeRight"] = UserTakeRightString
-	userFuncs["dropRight"] = UserDropRightString
-	userFuncs["!"] = UserUnaryNot
-	userFuncs["-"] = UserUnaryMinus
+	user["getInteger"] = UserDataIntegerFromArrayByIndex
+	user["getBoolean"] = UserDataBooleanFromArrayByIndex
+	user["getBinary"] = UserDataBinaryFromArrayByIndex
+	user["getString"] = UserDataStringFromArrayByIndex
 
-	userFuncs["getInteger"] = UserDataIntegerFromArrayByIndex
-	userFuncs["getBoolean"] = UserDataBooleanFromArrayByIndex
-	userFuncs["getBinary"] = UserDataBinaryFromArrayByIndex
-	userFuncs["getString"] = UserDataStringFromArrayByIndex
-
-	userFuncs["addressFromPublicKey"] = UserAddressFromPublicKey
-	userFuncs["wavesBalance"] = UserWavesBalance
+	user["addressFromPublicKey"] = UserAddressFromPublicKey
+	user["wavesBalance"] = UserWavesBalance
 
 	// type constructors
-	userFuncs["Address"] = UserAddress
-	userFuncs["Alias"] = UserAlias
+	user["Address"] = UserAddress
+	user["Alias"] = UserAlias
 
-	return &FuncScope{
-		funcs:     funcs,
-		userFuncs: userFuncs,
+	return &Functions{
+		native: native,
+		user:   user,
 	}
 }
 
-func (a *FuncScope) GetByShort(id int16) (Callable, bool) {
-	f, ok := a.funcs[id]
+func FunctionsV3() *Functions {
+	s := FunctionsV2()
+	s.native[108] = NativePowLong
+	s.native[109] = NativeLogLong
+
+	//TODO: native[504] = NativeRSAVerify // RIDE v3
+	//TODO: native[604] = NativeToBase16 // RIDE v3
+	//TODO: native[605] = NativeFromBase16 // RIDE v3
+	//TODO: native[700] = NativeCheckMerkleProof // RIDE v3
+	//TODO: native[1004] = NativeAssetInfoByID // RIDE v3
+	//TODO: native[1005] = NativeBlockInfoByHeight // RIDE v3
+	//TODO: native[1006] = NativeTransferTransactionByID // RIDE v3
+	//TODO: native[1061] = NativeAddressToString // RIDE v3
+	//TODO: native[1070] = NativeBlockHeaderFromBytes // RIDE v4
+	//TODO: native[1100] = NativeCreateList // RIDE v3
+	//TODO: native[1200] = NativeBytesToUTF8String // RIDE v3
+	//TODO: native[1201] = NativeBytesToLong // RIDE v3
+	//TODO: native[1202] = NativeBytesToLongWithOffset // RIDE v3
+	//TODO: native[1203] = NativeIndexOfSubstring // RIDE v3
+	//TODO: native[1204] = NativeIndexOfSubstringWithOffset // RIDE v3
+	//TODO: native[1205] = NativeSplitString // RIDE v3
+	//TODO: native[1206] = NativeParseInt // RIDE v3
+	//TODO: native[1207] = NativeLastIndexOfSubstring // RIDE v3
+	//TODO: native[1208] = NativeLastIndexOfSubstringWithOffset // RIDE v3
+
+	// Constructors for simple types
+	s.user["Ceiling"] = SimpleTypeConstructorFactory("Ceiling", CeilingExpr{})
+	s.user["Floor"] = SimpleTypeConstructorFactory("Floor", FloorExpr{})
+	s.user["HalfEven"] = SimpleTypeConstructorFactory("HalfEven", HalfEvenExpr{})
+	s.user["Down"] = SimpleTypeConstructorFactory("Down", DownExpr{})
+	s.user["Up"] = SimpleTypeConstructorFactory("Up", UpExpr{})
+	s.user["HalfUp"] = SimpleTypeConstructorFactory("HalfUp", HalfUpExpr{})
+	s.user["HalfDown"] = SimpleTypeConstructorFactory("HalfDown", HalfDownExpr{})
+
+	return s
+}
+
+func (a *Functions) GetByShort(id int16) (Callable, bool) {
+	f, ok := a.native[id]
 	return f, ok
 }
 
-func (a *FuncScope) GetByName(name string) (Callable, bool) {
-	f, ok := a.userFuncs[name]
+func (a *Functions) GetByName(name string) (Callable, bool) {
+	f, ok := a.user[name]
 	return f, ok
 }
 
-func (a *FuncScope) Clone() *FuncScope {
+func (a *Functions) Clone() *Functions {
 	return a
+}
+
+func VariablesV2() map[string]Expr {
+	v := make(map[string]Expr)
+	v["tx"] = NewObject(nil)
+	v["height"] = NewLong(0)
+	//TODO: add Buy and Sell predefined variables
+	return v
+}
+
+func VariablesV3() map[string]Expr {
+	v := VariablesV2()
+	v["CEILING"] = CeilingExpr{}
+	v["FLOOR"] = FloorExpr{}
+	v["HALFEVEN"] = HalfEvenExpr{}
+	v["DOWN"] = DownExpr{}
+	v["UP"] = UpExpr{}
+	v["HALFUP"] = HalfUpExpr{}
+	v["HALFDOWN"] = HalfDownExpr{}
+	return v
 }
