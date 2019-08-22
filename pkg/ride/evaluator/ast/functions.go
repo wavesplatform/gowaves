@@ -222,29 +222,6 @@ func NativeFractionLong(s Scope, e Exprs) (Expr, error) {
 	return NewLong(a.Int64()), nil
 }
 
-func mathLong(funcName string, f func(int64, int64) (Expr, error), s Scope, e Exprs) (Expr, error) {
-	if l := len(e); l != 2 {
-		return nil, errors.Errorf("%s: invalid params, expected 2, passed %d", funcName, l)
-	}
-
-	rs, err := e.EvaluateAll(s)
-	if err != nil {
-		return nil, errors.Wrap(err, funcName)
-	}
-
-	first, ok := rs[0].(*LongExpr)
-	if !ok {
-		return nil, errors.Errorf("%s first argument expected to be *LongExpr, got %T", funcName, rs[0])
-	}
-
-	second, ok := rs[1].(*LongExpr)
-	if !ok {
-		return nil, errors.Errorf("%s second argument expected to be *LongExpr, got %T", funcName, rs[1])
-	}
-
-	return f(first.Value, second.Value)
-}
-
 //NativePowLong calculates power.
 func NativePowLong(s Scope, e Exprs) (Expr, error) {
 	funcName := "NativePowLong"
@@ -282,11 +259,7 @@ func NativePowLong(s Scope, e Exprs) (Expr, error) {
 		return nil, errors.Errorf("%s 5th argument expected to be *LongExpr, got %T", funcName, rs[4])
 	}
 
-	roundExpr, ok := rs[5].(*RefExpr)
-	if !ok {
-		return nil, errors.Errorf("%s 5th argument expected to be *RefExpr, got %T", funcName, rs[5])
-	}
-	round, err := roundingMode(roundExpr)
+	round, err := roundingMode(rs[5])
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
@@ -296,29 +269,6 @@ func NativePowLong(s Scope, e Exprs) (Expr, error) {
 		return nil, errors.Wrap(err, funcName)
 	}
 	return NewLong(r), nil
-}
-
-func roundingMode(e *RefExpr) (decimal.RoundingMode, error) {
-	switch e.InstanceOf() {
-	case "Ceiling":
-		return decimal.ToPositiveInf, nil
-	case "Floor":
-		return decimal.ToNegativeInf, nil
-	case "HalfEven":
-		return decimal.ToNearestEven, nil
-	case "Down":
-		return decimal.ToZero, nil
-	case "Up":
-		return decimal.AwayFromZero, nil
-	case "HalfUp":
-		return decimal.ToNearestAway, nil
-	case "HalfDown":
-		// TODO: Enable this branch after PR https://github.com/ericlagergren/decimal/pull/136 is accepted. Before that this using this rounding mode will panic.
-		// TODO: return decimal.ToNearestToZero, nil
-		panic("not implemented rounding mode")
-	default:
-		return 0, errors.Errorf("unsupported rounding mode %s", e.InstanceOf())
-	}
 }
 
 // NativeLogLong calculates logarithm.
@@ -358,20 +308,62 @@ func NativeLogLong(s Scope, e Exprs) (Expr, error) {
 		return nil, errors.Errorf("%s 5th argument expected to be *LongExpr, got %T", funcName, rs[4])
 	}
 
-	roundExpr, ok := rs[5].(*RefExpr)
-	if !ok {
-		return nil, errors.Errorf("%s 5th argument expected to be *RefExpr, got %T", funcName, rs[5])
-	}
-	round, err := roundingMode(roundExpr)
+	round, err := roundingMode(rs[5])
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
 
-	r, err := pow(base.Value, exponent.Value, int(bp.Value), int(ep.Value), int(rp.Value), round)
+	r, err := log(base.Value, exponent.Value, int(bp.Value), int(ep.Value), int(rp.Value), round)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
 	return NewLong(r), nil
+}
+
+func mathLong(funcName string, f func(int64, int64) (Expr, error), s Scope, e Exprs) (Expr, error) {
+	if l := len(e); l != 2 {
+		return nil, errors.Errorf("%s: invalid params, expected 2, passed %d", funcName, l)
+	}
+
+	rs, err := e.EvaluateAll(s)
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+
+	first, ok := rs[0].(*LongExpr)
+	if !ok {
+		return nil, errors.Errorf("%s first argument expected to be *LongExpr, got %T", funcName, rs[0])
+	}
+
+	second, ok := rs[1].(*LongExpr)
+	if !ok {
+		return nil, errors.Errorf("%s second argument expected to be *LongExpr, got %T", funcName, rs[1])
+	}
+
+	return f(first.Value, second.Value)
+}
+
+func roundingMode(e Expr) (decimal.RoundingMode, error) {
+	switch e.InstanceOf() {
+	case "Ceiling":
+		return decimal.ToPositiveInf, nil
+	case "Floor":
+		return decimal.ToNegativeInf, nil
+	case "HalfEven":
+		return decimal.ToNearestEven, nil
+	case "Down":
+		return decimal.ToZero, nil
+	case "Up":
+		return decimal.AwayFromZero, nil
+	case "HalfUp":
+		return decimal.ToNearestAway, nil
+	case "HalfDown":
+		// TODO: Enable this branch after PR https://github.com/ericlagergren/decimal/pull/136 is accepted. Before that this using this rounding mode will panic.
+		// TODO: return decimal.ToNearestToZero, nil
+		panic("not implemented rounding mode")
+	default:
+		return 0, errors.Errorf("unsupported rounding mode %s", e.InstanceOf())
+	}
 }
 
 // Check signature
@@ -1085,8 +1077,8 @@ func NativeFromBase58(s Scope, e Exprs) (Expr, error) {
 }
 
 // Base64 decode
-func NativeFromBase64String(s Scope, e Exprs) (Expr, error) {
-	funcName := "NativeFromBase64String"
+func NativeFromBase64(s Scope, e Exprs) (Expr, error) {
+	funcName := "NativeFromBase64"
 
 	if l := len(e); l != 1 {
 		return nil, errors.Errorf("%s: invalid params, expected 1, passed %d", funcName, l)
@@ -1111,8 +1103,8 @@ func NativeFromBase64String(s Scope, e Exprs) (Expr, error) {
 }
 
 // Base64 encode
-func NativeToBse64String(s Scope, e Exprs) (Expr, error) {
-	funcName := "NativeToBse64String"
+func NativeToBase64(s Scope, e Exprs) (Expr, error) {
+	funcName := "NativeToBase64"
 
 	if l := len(e); l != 1 {
 		return nil, errors.Errorf("%s: invalid params, expected 1, passed %d", funcName, l)
@@ -1563,6 +1555,15 @@ func UserAlias(s Scope, e Exprs) (Expr, error) {
 		return nil, errors.Wrap(err, funcName)
 	}
 	return NewAliasFromProtoAlias(*alias), nil
+}
+
+func SimpleTypeConstructorFactory(name string, expr Expr) Callable {
+	return func(s Scope, e Exprs) (Expr, error) {
+		if l := len(e); l != 0 {
+			return nil, errors.Errorf("%s: no params expected, passed %d", name, l)
+		}
+		return expr, nil
+	}
 }
 
 func UserWavesBalance(s Scope, e Exprs) (Expr, error) {
