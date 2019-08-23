@@ -872,3 +872,201 @@ func (a HalfDownExpr) Eq(other Expr) (bool, error) {
 func (a HalfDownExpr) InstanceOf() string {
 	return "HalfDown"
 }
+
+type NoAlgExpr struct{}
+
+func (a NoAlgExpr) Evaluate(s Scope) (Expr, error) {
+	return a, nil
+}
+
+func (a NoAlgExpr) Write(w io.Writer) {
+	_, _ = fmt.Fprint(w, "NoAlgExpr")
+}
+
+func (a NoAlgExpr) Eq(other Expr) (bool, error) {
+	return a.InstanceOf() == other.InstanceOf(), nil
+}
+
+func (a NoAlgExpr) InstanceOf() string {
+	return "NoAlg"
+}
+
+type MD5Expr struct{}
+
+func (a MD5Expr) Evaluate(s Scope) (Expr, error) {
+	return a, nil
+}
+
+func (a MD5Expr) Write(w io.Writer) {
+	_, _ = fmt.Fprint(w, "MD5Expr")
+}
+
+func (a MD5Expr) Eq(other Expr) (bool, error) {
+	return a.InstanceOf() == other.InstanceOf(), nil
+}
+
+func (a MD5Expr) InstanceOf() string {
+	return "Md5"
+}
+
+type SHA1Expr struct{}
+
+func (a SHA1Expr) Evaluate(s Scope) (Expr, error) {
+	return a, nil
+}
+
+func (a SHA1Expr) Write(w io.Writer) {
+	_, _ = fmt.Fprint(w, "SHA1Expr")
+}
+
+func (a SHA1Expr) Eq(other Expr) (bool, error) {
+	return a.InstanceOf() == other.InstanceOf(), nil
+}
+
+func (a SHA1Expr) InstanceOf() string {
+	return "Sha1"
+}
+
+type SHA224Expr struct{}
+
+func (a SHA224Expr) Evaluate(s Scope) (Expr, error) {
+	return a, nil
+}
+
+func (a SHA224Expr) Write(w io.Writer) {
+	_, _ = fmt.Fprint(w, "SHA224Expr")
+}
+
+func (a SHA224Expr) Eq(other Expr) (bool, error) {
+	return a.InstanceOf() == other.InstanceOf(), nil
+}
+
+func (a SHA224Expr) InstanceOf() string {
+	return "Sha224"
+}
+
+type SHA256Expr struct{}
+
+func (a SHA256Expr) Evaluate(s Scope) (Expr, error) {
+	return a, nil
+}
+
+func (a SHA256Expr) Write(w io.Writer) {
+	_, _ = fmt.Fprint(w, "SHA256Expr")
+}
+
+func (a SHA256Expr) Eq(other Expr) (bool, error) {
+	return a.InstanceOf() == other.InstanceOf(), nil
+}
+
+func (a SHA256Expr) InstanceOf() string {
+	return "Sha256"
+}
+
+type SHA384Expr struct{}
+
+func (a SHA384Expr) Evaluate(s Scope) (Expr, error) {
+	return a, nil
+}
+
+func (a SHA384Expr) Write(w io.Writer) {
+	_, _ = fmt.Fprint(w, "SHA384Expr")
+}
+
+func (a SHA384Expr) Eq(other Expr) (bool, error) {
+	return a.InstanceOf() == other.InstanceOf(), nil
+}
+
+func (a SHA384Expr) InstanceOf() string {
+	return "Sha384"
+}
+
+type SHA512Expr struct{}
+
+func (a SHA512Expr) Evaluate(s Scope) (Expr, error) {
+	return a, nil
+}
+
+func (a SHA512Expr) Write(w io.Writer) {
+	_, _ = fmt.Fprint(w, "SHA512Expr")
+}
+
+func (a SHA512Expr) Eq(other Expr) (bool, error) {
+	return a.InstanceOf() == other.InstanceOf(), nil
+}
+
+func (a SHA512Expr) InstanceOf() string {
+	return "Sha512"
+}
+
+type SHA3224Expr struct{}
+
+func (a SHA3224Expr) Evaluate(s Scope) (Expr, error) {
+	return a, nil
+}
+
+func (a SHA3224Expr) Write(w io.Writer) {
+	_, _ = fmt.Fprint(w, "SHA3224Expr")
+}
+
+func (a SHA3224Expr) Eq(other Expr) (bool, error) {
+	return a.InstanceOf() == other.InstanceOf(), nil
+}
+
+func (a SHA3224Expr) InstanceOf() string {
+	return "Sha3224"
+}
+
+type SHA3256Expr struct{}
+
+func (a SHA3256Expr) Evaluate(s Scope) (Expr, error) {
+	return a, nil
+}
+
+func (a SHA3256Expr) Write(w io.Writer) {
+	_, _ = fmt.Fprint(w, "SHA3256Expr")
+}
+
+func (a SHA3256Expr) Eq(other Expr) (bool, error) {
+	return a.InstanceOf() == other.InstanceOf(), nil
+}
+
+func (a SHA3256Expr) InstanceOf() string {
+	return "Sha3256"
+}
+
+type SHA3384Expr struct{}
+
+func (a SHA3384Expr) Evaluate(s Scope) (Expr, error) {
+	return a, nil
+}
+
+func (a SHA3384Expr) Write(w io.Writer) {
+	_, _ = fmt.Fprint(w, "SHA3384Expr")
+}
+
+func (a SHA3384Expr) Eq(other Expr) (bool, error) {
+	return a.InstanceOf() == other.InstanceOf(), nil
+}
+
+func (a SHA3384Expr) InstanceOf() string {
+	return "Sha3384"
+}
+
+type SHA3512Expr struct{}
+
+func (a SHA3512Expr) Evaluate(s Scope) (Expr, error) {
+	return a, nil
+}
+
+func (a SHA3512Expr) Write(w io.Writer) {
+	_, _ = fmt.Fprint(w, "SHA3512Expr")
+}
+
+func (a SHA3512Expr) Eq(other Expr) (bool, error) {
+	return a.InstanceOf() == other.InstanceOf(), nil
+}
+
+func (a SHA3512Expr) InstanceOf() string {
+	return "Sha3512"
+}

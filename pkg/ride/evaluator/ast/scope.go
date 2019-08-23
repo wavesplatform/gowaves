@@ -193,7 +193,7 @@ func FunctionsV3() *Functions {
 	s.native[108] = NativePowLong
 	s.native[109] = NativeLogLong
 
-	//TODO: native[504] = NativeRSAVerify // RIDE v3
+	s.native[504] = NativeRSAVerify
 	//TODO: native[604] = NativeToBase16 // RIDE v3
 	//TODO: native[605] = NativeFromBase16 // RIDE v3
 	//TODO: native[700] = NativeCheckMerkleProof // RIDE v3
@@ -221,6 +221,18 @@ func FunctionsV3() *Functions {
 	s.user["Up"] = SimpleTypeConstructorFactory("Up", UpExpr{})
 	s.user["HalfUp"] = SimpleTypeConstructorFactory("HalfUp", HalfUpExpr{})
 	s.user["HalfDown"] = SimpleTypeConstructorFactory("HalfDown", HalfDownExpr{})
+
+	s.user["NoAlg"] = SimpleTypeConstructorFactory("NoAlg", NoAlgExpr{})
+	s.user["Md5"] = SimpleTypeConstructorFactory("Md5", MD5Expr{})
+	s.user["Sha1"] = SimpleTypeConstructorFactory("Sha1", SHA1Expr{})
+	s.user["Sha224"] = SimpleTypeConstructorFactory("Sha224", SHA224Expr{})
+	s.user["Sha256"] = SimpleTypeConstructorFactory("Sha256", SHA256Expr{})
+	s.user["Sha384"] = SimpleTypeConstructorFactory("Sha384", SHA384Expr{})
+	s.user["Sha512"] = SimpleTypeConstructorFactory("Sha512", SHA512Expr{})
+	s.user["Sha3224"] = SimpleTypeConstructorFactory("Sha3224", SHA3224Expr{})
+	s.user["Sha3256"] = SimpleTypeConstructorFactory("Sha3256", SHA3256Expr{})
+	s.user["Sha3384"] = SimpleTypeConstructorFactory("Sha3384", SHA3384Expr{})
+	s.user["Sha3512"] = SimpleTypeConstructorFactory("Sha3512", SHA3512Expr{})
 
 	return s
 }
@@ -256,5 +268,17 @@ func VariablesV3() map[string]Expr {
 	v["UP"] = UpExpr{}
 	v["HALFUP"] = HalfUpExpr{}
 	v["HALFDOWN"] = HalfDownExpr{}
+
+	v["NOALG"] = NoAlgExpr{}
+	v["MD5"] = MD5Expr{}
+	v["SHA1"] = SHA1Expr{}
+	v["SHA224"] = SHA224Expr{}
+	v["SHA256"] = SHA256Expr{}
+	v["SHA384"] = SHA384Expr{}
+	v["SHA512"] = SHA512Expr{}
+	v["SHA3224"] = SHA3224Expr{}
+	v["SHA3256"] = SHA3256Expr{}
+	v["SHA3384"] = SHA3384Expr{}
+	v["SHA3512"] = SHA3512Expr{}
 	return v
 }
