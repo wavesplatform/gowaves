@@ -1623,7 +1623,7 @@ func NativeRSAVerify(s Scope, e Exprs) (Expr, error) {
 	d := message.Value
 	if digest != 0 {
 		h := digest.New()
-		h.Write(message.Value)
+		_, _ = h.Write(message.Value)
 		d = h.Sum(nil)
 	}
 
