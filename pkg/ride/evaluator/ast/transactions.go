@@ -7,10 +7,6 @@ import (
 )
 
 func NewVariablesFromTransaction(scheme byte, t proto.Transaction) (map[string]Expr, error) {
-	funcName := "NewVariablesFromTransaction"
-
-	out := make(map[string]Expr)
-
 	switch tx := t.(type) {
 	case *proto.Genesis:
 		return newVariableFromGenesis(scheme, tx)
@@ -51,25 +47,7 @@ func NewVariablesFromTransaction(scheme byte, t proto.Transaction) (map[string]E
 	case *proto.LeaseCancelV2:
 		return newVariablesFromLeaseCancelV2(scheme, tx)
 	case *proto.DataV1:
-		addr, err := proto.NewAddressFromPublicKey(scheme, tx.SenderPK)
-		if err != nil {
-			return nil, errors.Wrap(err, funcName)
-		}
-		out["sender"] = NewAddressFromProtoAddress(addr)
-		out["timestamp"] = NewLong(int64(tx.Timestamp))
-		bts, err := tx.BodyMarshalBinary()
-		if err != nil {
-			return nil, errors.Wrap(err, funcName)
-		}
-		out["bodyBytes"] = NewBytes(bts)
-		proofs := Exprs{}
-		for _, row := range tx.Proofs.Proofs {
-			proofs = append(proofs, NewBytes(row.Bytes()))
-		}
-		out["proofs"] = proofs
-		out["data"] = NewDataEntryList(tx.Entries)
-		out[InstanceFieldName] = NewString("DataTransaction")
-		return out, nil
+		return newVariablesFromDataV1(scheme, tx)
 	default:
 		return nil, errors.Errorf("NewVariablesFromTransaction not implemented for %T", tx)
 	}
@@ -826,5 +804,37 @@ func newVariablesFromLeaseCancelV2(scheme proto.Scheme, tx *proto.LeaseCancelV2)
 	out["bodyBytes"] = NewBytes(bts)
 	out["proofs"] = makeProofs(tx.Proofs)
 	out[InstanceFieldName] = NewString("LeaseCancelTransaction")
+	return out, nil
+}
+
+func newVariablesFromDataV1(scheme proto.Scheme, tx *proto.DataV1) (map[string]Expr, error) {
+	funcName := "newVariablesFromDataV1"
+
+	out := make(map[string]Expr)
+
+	out["data"] = NewDataEntryList(tx.Entries)
+
+	id, err := tx.GetID()
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	out["id"] = NewBytes(util.Dup(id))
+	out["fee"] = NewLong(int64(tx.Fee))
+	out["timestamp"] = NewLong(int64(tx.Timestamp))
+	out["version"] = NewLong(int64(tx.Version))
+
+	addr, err := proto.NewAddressFromPublicKey(scheme, tx.SenderPK)
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	out["sender"] = NewAddressFromProtoAddress(addr)
+	out["senderPublicKey"] = NewBytes(util.Dup(tx.SenderPK.Bytes()))
+	bts, err := tx.BodyMarshalBinary()
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	out["bodyBytes"] = NewBytes(bts)
+	out["proofs"] = makeProofs(tx.Proofs)
+	out[InstanceFieldName] = NewString("DataTransaction")
 	return out, nil
 }

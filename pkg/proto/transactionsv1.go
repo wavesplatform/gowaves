@@ -1720,6 +1720,12 @@ func (tx DataV1) GetTimestamp() uint64 {
 	return tx.Timestamp
 }
 
+func (tx *DataV1) Clone() *DataV1 {
+	out := &DataV1{}
+	_ = copier.Copy(out, tx)
+	return out
+}
+
 //NewUnsignedData creates new Data transaction without proofs.
 func NewUnsignedData(senderPK crypto.PublicKey, fee, timestamp uint64) *DataV1 {
 	return &DataV1{Type: DataTransaction, Version: 1, SenderPK: senderPK, Fee: fee, Timestamp: timestamp}

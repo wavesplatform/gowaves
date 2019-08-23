@@ -164,6 +164,14 @@ type LeaseCancelV2Struct struct {
 
 var LeaseCancelV2 LeaseCancelV2Struct
 
+type DataV1Struct struct {
+	TransactionBytes []byte
+	Transaction      *proto.DataV1
+	MessageBytes     []byte
+}
+
+var DataV1 DataV1Struct
+
 func init() {
 	initGenesis()
 	initPayment()
@@ -184,6 +192,7 @@ func init() {
 	initLeaseV2()
 	initLeaseCancelV1()
 	initLeaseCancelV2()
+	initDataV1()
 }
 
 func initTransferV1() {
@@ -754,6 +763,63 @@ func initLeaseCancelV2() {
 	tmb, _ := tm.MarshalBinary()
 
 	LeaseCancelV2 = LeaseCancelV2Struct{
+		TransactionBytes: b,
+		Transaction:      t,
+		MessageBytes:     tmb,
+	}
+}
+
+func initDataV1() {
+	sk, pk := crypto.GenerateKeyPair([]byte("test"))
+	t := proto.NewUnsignedData(
+		pk,
+		10000,
+		TIMESTAMP)
+
+	err := t.AppendEntry(&proto.BinaryDataEntry{
+		Key:   "bin",
+		Value: []byte("hello"),
+	})
+	if err != nil {
+		panic(err)
+	}
+
+	err = t.AppendEntry(&proto.StringDataEntry{
+		Key:   "str",
+		Value: "hello",
+	})
+	if err != nil {
+		panic(err)
+	}
+
+	err = t.AppendEntry(&proto.BooleanDataEntry{
+		Key:   "bool",
+		Value: true,
+	})
+	if err != nil {
+		panic(err)
+	}
+
+	err = t.AppendEntry(&proto.IntegerDataEntry{
+		Key:   "int",
+		Value: 5,
+	})
+	if err != nil {
+		panic(err)
+	}
+
+	_ = t.Sign(sk)
+
+	b, err := t.MarshalBinary()
+	if err != nil {
+		panic(err)
+	}
+	tm := proto.TransactionMessage{
+		Transaction: b,
+	}
+	tmb, _ := tm.MarshalBinary()
+
+	DataV1 = DataV1Struct{
 		TransactionBytes: b,
 		Transaction:      t,
 		MessageBytes:     tmb,
