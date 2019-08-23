@@ -86,6 +86,7 @@ var (
 type Transaction interface {
 	GetTypeVersion() TransactionTypeVersion
 	GetID() ([]byte, error)
+	GetSenderPK() crypto.PublicKey
 	Valid() (bool, error)
 	MarshalBinary() ([]byte, error)
 	UnmarshalBinary([]byte) error
@@ -259,6 +260,10 @@ func (tx *Genesis) GenerateID() {
 	}
 }
 
+func (tx Genesis) GetSenderPK() crypto.PublicKey {
+	return crypto.PublicKey{}
+}
+
 func (tx Genesis) GetID() ([]byte, error) {
 	if tx.ID == nil {
 		return nil, errors.New("tx ID is not set\n")
@@ -395,6 +400,10 @@ func (tx *Payment) GenerateID() {
 		id := tx.generateBodyHash(buf)
 		tx.ID = &id
 	}
+}
+
+func (tx Payment) GetSenderPK() crypto.PublicKey {
+	return tx.SenderPK
 }
 
 func (tx Payment) GetID() ([]byte, error) {
@@ -576,6 +585,10 @@ type Issue struct {
 	Fee         uint64           `json:"fee"`
 }
 
+func (i Issue) GetSenderPK() crypto.PublicKey {
+	return i.SenderPK
+}
+
 func (i Issue) GetFee() uint64 {
 	return i.Fee
 }
@@ -673,6 +686,10 @@ type Transfer struct {
 	Fee         uint64           `json:"fee"`
 	Recipient   Recipient        `json:"recipient"`
 	Attachment  Attachment       `json:"attachment,omitempty"`
+}
+
+func (tr Transfer) GetSenderPK() crypto.PublicKey {
+	return tr.SenderPK
 }
 
 func (tr Transfer) GetFee() uint64 {
@@ -801,6 +818,10 @@ type Reissue struct {
 	Fee        uint64           `json:"fee"`
 }
 
+func (r Reissue) GetSenderPK() crypto.PublicKey {
+	return r.SenderPK
+}
+
 func (r Reissue) GetFee() uint64 {
 	return r.Fee
 }
@@ -870,6 +891,10 @@ type Burn struct {
 	Amount    uint64           `json:"amount"`
 	Timestamp uint64           `json:"timestamp,omitempty"`
 	Fee       uint64           `json:"fee"`
+}
+
+func (b Burn) GetSenderPK() crypto.PublicKey {
+	return b.SenderPK
 }
 
 func (b Burn) GetFee() uint64 {
@@ -943,6 +968,10 @@ type Lease struct {
 	Amount    uint64           `json:"amount"`
 	Fee       uint64           `json:"fee"`
 	Timestamp uint64           `json:"timestamp,omitempty"`
+}
+
+func (l Lease) GetSenderPK() crypto.PublicKey {
+	return l.SenderPK
 }
 
 func (l Lease) GetFee() uint64 {
@@ -1022,6 +1051,10 @@ type LeaseCancel struct {
 	Timestamp uint64           `json:"timestamp,omitempty"`
 }
 
+func (lc LeaseCancel) GetSenderPK() crypto.PublicKey {
+	return lc.SenderPK
+}
+
 func (lc LeaseCancel) GetFee() uint64 {
 	return lc.Fee
 }
@@ -1072,6 +1105,10 @@ type CreateAlias struct {
 	Alias     Alias            `json:"alias"`
 	Fee       uint64           `json:"fee"`
 	Timestamp uint64           `json:"timestamp,omitempty"`
+}
+
+func (ca CreateAlias) GetSenderPK() crypto.PublicKey {
+	return ca.SenderPK
 }
 
 func (ca CreateAlias) GetFee() uint64 {

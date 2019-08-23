@@ -650,15 +650,15 @@ func (tx *ExchangeV1) GenerateID() {
 
 }
 
+func (tx ExchangeV1) GetSenderPK() crypto.PublicKey {
+	return tx.SenderPK
+}
+
 func (tx ExchangeV1) GetID() ([]byte, error) {
 	if tx.ID == nil {
 		return nil, errors.New("tx ID is not set\n")
 	}
 	return tx.ID.Bytes(), nil
-}
-
-func (tx ExchangeV1) GetSenderPK() crypto.PublicKey {
-	return tx.SenderPK
 }
 
 func (tx ExchangeV1) GetBuyOrder() (OrderBody, error) {
@@ -1431,6 +1431,10 @@ func (tx *MassTransferV1) GenerateID() {
 
 }
 
+func (tx MassTransferV1) GetSenderPK() crypto.PublicKey {
+	return tx.SenderPK
+}
+
 func (tx MassTransferV1) GetID() ([]byte, error) {
 	if tx.ID == nil {
 		return nil, errors.New("tx ID is not set\n")
@@ -1680,6 +1684,10 @@ func (tx *DataV1) GenerateID() {
 		tx.ID = &id
 	}
 
+}
+
+func (tx DataV1) GetSenderPK() crypto.PublicKey {
+	return tx.SenderPK
 }
 
 func (tx DataV1) GetID() ([]byte, error) {
@@ -1961,6 +1969,10 @@ func (tx *SetScriptV1) GenerateID() {
 
 }
 
+func (tx SetScriptV1) GetSenderPK() crypto.PublicKey {
+	return tx.SenderPK
+}
+
 func (tx SetScriptV1) GetID() ([]byte, error) {
 	if tx.ID == nil {
 		return nil, errors.New("tx ID is not set\n")
@@ -2171,6 +2183,10 @@ func (tx *SponsorshipV1) GenerateID() {
 
 }
 
+func (tx SponsorshipV1) GetSenderPK() crypto.PublicKey {
+	return tx.SenderPK
+}
+
 func (tx SponsorshipV1) GetID() ([]byte, error) {
 	if tx.ID == nil {
 		return nil, errors.New("tx ID is not set\n")
@@ -2367,6 +2383,10 @@ func (tx *SetAssetScriptV1) GenerateID() {
 		tx.ID = &id
 	}
 
+}
+
+func (tx SetAssetScriptV1) GetSenderPK() crypto.PublicKey {
+	return tx.SenderPK
 }
 
 func (tx SetAssetScriptV1) GetID() ([]byte, error) {
@@ -2583,6 +2603,10 @@ func (tx *InvokeScriptV1) GenerateID() {
 
 func (tx InvokeScriptV1) GetTypeVersion() TransactionTypeVersion {
 	return TransactionTypeVersion{tx.Type, tx.Version}
+}
+
+func (tx InvokeScriptV1) GetSenderPK() crypto.PublicKey {
+	return tx.SenderPK
 }
 
 func (tx InvokeScriptV1) GetID() ([]byte, error) {
