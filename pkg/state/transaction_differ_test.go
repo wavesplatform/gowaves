@@ -707,3 +707,29 @@ func TestCreateDiffSponsorshipV1(t *testing.T) {
 	}
 	assert.Equal(t, correctDiff, diff)
 }
+
+func createSetScriptV1(t *testing.T) *proto.SetScriptV1 {
+	tx := proto.NewUnsignedSetScriptV1('W', testGlobal.senderInfo.pk, testGlobal.scriptBytes, defaultFee, defaultTimestamp)
+	err := tx.Sign(testGlobal.senderInfo.sk)
+	assert.NoError(t, err, "tx.Sign() failed")
+	return tx
+}
+
+func TestCreateDiffSetScriptV1(t *testing.T) {
+	to, path := createDifferTestObjects(t)
+
+	defer func() {
+		err := util.CleanTemporaryDirs(path)
+		assert.NoError(t, err, "failed to clean test data dirs")
+	}()
+
+	tx := createSetScriptV1(t)
+	diff, err := to.td.createDiffSetScriptV1(tx, defaultDifferInfo(t))
+	assert.NoError(t, err, "createDiffSetScriptV1 failed")
+
+	correctDiff := txDiff{
+		testGlobal.senderInfo.wavesKey: newBalanceDiff(-int64(tx.Fee), 0, 0, false),
+		testGlobal.minerInfo.wavesKey:  newBalanceDiff(int64(tx.Fee), 0, 0, false),
+	}
+	assert.Equal(t, correctDiff, diff)
+}

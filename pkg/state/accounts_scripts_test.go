@@ -1,17 +1,11 @@
 package state
 
 import (
-	"encoding/base64"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/wavesplatform/gowaves/pkg/ride/evaluator/parser"
-	"github.com/wavesplatform/gowaves/pkg/ride/evaluator/reader"
+	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/util"
-)
-
-var (
-	scriptBase64 = "AgQAAAALYWxpY2VQdWJLZXkBAAAAID3+K0HJI42oXrHhtHFpHijU5PC4nn1fIFVsJp5UWrYABAAAAAlib2JQdWJLZXkBAAAAIBO1uieokBahePoeVqt4/usbhaXRq+i5EvtfsdBILNtuBAAAAAxjb29wZXJQdWJLZXkBAAAAIOfM/qkwkfi4pdngdn18n5yxNwCrBOBC3ihWaFg4gV4yBAAAAAthbGljZVNpZ25lZAMJAAH0AAAAAwgFAAAAAnR4AAAACWJvZHlCeXRlcwkAAZEAAAACCAUAAAACdHgAAAAGcHJvb2ZzAAAAAAAAAAAABQAAAAthbGljZVB1YktleQAAAAAAAAAAAQAAAAAAAAAAAAQAAAAJYm9iU2lnbmVkAwkAAfQAAAADCAUAAAACdHgAAAAJYm9keUJ5dGVzCQABkQAAAAIIBQAAAAJ0eAAAAAZwcm9vZnMAAAAAAAAAAAEFAAAACWJvYlB1YktleQAAAAAAAAAAAQAAAAAAAAAAAAQAAAAMY29vcGVyU2lnbmVkAwkAAfQAAAADCAUAAAACdHgAAAAJYm9keUJ5dGVzCQABkQAAAAIIBQAAAAJ0eAAAAAZwcm9vZnMAAAAAAAAAAAIFAAAADGNvb3BlclB1YktleQAAAAAAAAAAAQAAAAAAAAAAAAkAAGcAAAACCQAAZAAAAAIJAABkAAAAAgUAAAALYWxpY2VTaWduZWQFAAAACWJvYlNpZ25lZAUAAAAMY29vcGVyU2lnbmVkAAAAAAAAAAACqFBMLg=="
 )
 
 type accountsScriptsTestObjects struct {
@@ -42,14 +36,9 @@ func TestSetScript(t *testing.T) {
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
-	scriptBytes, err := base64.StdEncoding.DecodeString(scriptBase64)
-	assert.NoError(t, err, "DecodeString() failed")
-	correctAst, err := parser.BuildAst(reader.NewBytesReader(scriptBytes))
-	assert.NoError(t, err, "BuildAst() failed")
-
 	to.stor.addBlock(t, blockID0)
 	addr := testGlobal.senderInfo.addr
-	err = to.accountsScripts.setScript(addr, scriptBytes, blockID0)
+	err = to.accountsScripts.setScript(addr, proto.Script(testGlobal.scriptBytes), blockID0)
 	assert.NoError(t, err, "setScript() failed")
 
 	// Test newest before flushing.
@@ -61,7 +50,7 @@ func TestSetScript(t *testing.T) {
 	assert.Equal(t, true, hasVerifier)
 	scriptAst, err := to.accountsScripts.newestScriptByAddr(addr, true)
 	assert.NoError(t, err, "newestScriptByAddr() failed")
-	assert.Equal(t, correctAst, scriptAst)
+	assert.Equal(t, testGlobal.scriptAst, scriptAst)
 
 	// Test stable before flushing.
 	hasScript, err = to.accountsScripts.hasScript(addr, true)
@@ -84,7 +73,7 @@ func TestSetScript(t *testing.T) {
 	assert.Equal(t, true, hasVerifier)
 	scriptAst, err = to.accountsScripts.newestScriptByAddr(addr, true)
 	assert.NoError(t, err, "newestScriptByAddr() failed")
-	assert.Equal(t, correctAst, scriptAst)
+	assert.Equal(t, testGlobal.scriptAst, scriptAst)
 
 	// Test stable after flushing.
 	hasScript, err = to.accountsScripts.hasScript(addr, true)
@@ -95,5 +84,5 @@ func TestSetScript(t *testing.T) {
 	assert.Equal(t, true, hasVerifier)
 	scriptAst, err = to.accountsScripts.scriptByAddr(addr, true)
 	assert.NoError(t, err, "scriptByAddr() failed after flushing")
-	assert.Equal(t, correctAst, scriptAst)
+	assert.Equal(t, testGlobal.scriptAst, scriptAst)
 }

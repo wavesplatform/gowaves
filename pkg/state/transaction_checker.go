@@ -509,3 +509,25 @@ func (tc *transactionChecker) checkSponsorshipV1(transaction proto.Transaction, 
 	}
 	return nil
 }
+
+func (tc *transactionChecker) checkSetScriptV1(transaction proto.Transaction, info *checkerInfo) error {
+	tx, ok := transaction.(*proto.SetScriptV1)
+	if !ok {
+		return errors.New("failed to convert interface to SetScriptV1 transaction")
+	}
+	if err := tc.checkTimestamps(tx.Timestamp, info.currentTimestamp, info.parentTimestamp); err != nil {
+		return errors.Wrap(err, "invalid timestamp")
+	}
+	if err := tc.checkFee(transaction, proto.OptionalAsset{Present: false}, info); err != nil {
+		return errors.Errorf("checkFee(): %v", err)
+	}
+	activated, err := tc.stor.features.isActivated(int16(settings.SmartAccounts))
+	if err != nil {
+		return err
+	}
+	if !activated {
+		return errors.New("SmartAccounts feature has not been activated yet")
+	}
+	return nil
+	// TODO: complete.
+}

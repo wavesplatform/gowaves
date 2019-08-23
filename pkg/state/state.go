@@ -14,6 +14,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/ride/evaluator/ast"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/util/lock"
 )
@@ -333,6 +334,8 @@ type stateManager struct {
 	genesis proto.Block
 	stateDB *stateDB
 
+	scope ast.Scope
+
 	stor  *blockchainEntitiesStorage
 	rw    *blockReadWriter
 	peers *peerStorage
@@ -353,14 +356,6 @@ type stateManager struct {
 	disabledStolenAliases bool
 	// The height when last features voting took place.
 	lastVotingHeight uint64
-}
-
-func (s *stateManager) Mutex() *lock.RwMutex {
-	return lock.NewRwMutex(s.mu)
-}
-
-func (s *stateManager) Peers() ([]proto.TCPAddr, error) {
-	return s.peers.peers()
 }
 
 func newStateManager(dataDir string, params StateParams, settings *settings.BlockchainSettings) (*stateManager, error) {
@@ -423,11 +418,22 @@ func newStateManager(dataDir string, params StateParams, settings *settings.Bloc
 		return nil, wrapErr(Other, err)
 	}
 	state.cv = cv
+	// TODO: create real scope here.
+	//scope := ast.NewScope(settings.AddressSchemeCharacter, state, nil, nil)
+	state.scope = nil
 	// Handle genesis block.
 	if err := state.handleGenesisBlock(settings.GenesisGetter); err != nil {
 		return nil, wrapErr(Other, err)
 	}
 	return state, nil
+}
+
+func (s *stateManager) Mutex() *lock.RwMutex {
+	return lock.NewRwMutex(s.mu)
+}
+
+func (s *stateManager) Peers() ([]proto.TCPAddr, error) {
+	return s.peers.peers()
 }
 
 func (s *stateManager) setGenesisBlock(genesisBlock *proto.Block) error {
@@ -689,6 +695,62 @@ func (s *stateManager) addFeaturesVotes(block *proto.Block) error {
 	return nil
 }
 
+func (s *stateManager) writeTransactionsToStorage(transactions []proto.Transaction) error {
+	for _, tx := range transactions {
+		// Save transaction to storage.
+		txID, err := tx.GetID()
+		if err != nil {
+			return err
+		}
+		// TODO: not all transactions implement WriteTo.
+		bts, err := tx.MarshalBinary()
+		if err != nil {
+			return err
+		}
+		if err := s.rw.writeTransaction(txID, bts); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *stateManager) verifyTransactions(transactions []proto.Transaction, chans *verifierChans, initialisation bool) error {
+	for _, tx := range transactions {
+		sender := tx.GetSenderPK()
+		senderAddr, err := proto.NewAddressFromPublicKey(s.settings.AddressSchemeCharacter, sender)
+		if err != nil {
+			return err
+		}
+		hasVerifierScript, err := s.stor.accountsScripts.newestHasVerifier(senderAddr, !initialisation)
+		if err != nil {
+			return err
+		}
+		if hasVerifierScript {
+			// If there is verifier script, we don't send tx for regular signature verification.
+			// Instead, we call verifier script to check if transaction is legitimate.
+			ok, err := s.stor.accountsScripts.callVerifier(senderAddr, tx, s.scope, !initialisation)
+			if err != nil {
+				return err
+			}
+			if !ok {
+				return errors.New("Verifier script does not allow to send this transaction from Smart Account")
+			}
+			continue
+		}
+		// Send transaction for signature/data verification.
+		task := &verifyTask{
+			taskType: verifyTx,
+			tx:       tx,
+		}
+		select {
+		case verifyError := <-chans.errChan:
+			return verifyError
+		case chans.tasksChan <- task:
+		}
+	}
+	return nil
+}
+
 func (s *stateManager) addNewBlock(block, parent *proto.Block, initialisation bool, chans *verifierChans, height uint64) error {
 	// Indicate new block for storage.
 	if err := s.rw.startBlock(block.BlockSignature); err != nil {
@@ -702,6 +764,7 @@ func (s *stateManager) addNewBlock(block, parent *proto.Block, initialisation bo
 	if err := s.rw.writeBlockHeader(block.BlockSignature, headerBytes); err != nil {
 		return err
 	}
+	// Write transactions to storage and verify them.
 	transactions, err := block.Transactions.Transactions()
 	if err != nil {
 		return err
@@ -709,31 +772,11 @@ func (s *stateManager) addNewBlock(block, parent *proto.Block, initialisation bo
 	if block.TransactionCount != transactions.Count() {
 		return errors.Errorf("block.TransactionCount != transactions.Count(), %d != %d", block.TransactionCount, transactions.Count())
 	}
-	for _, tx := range transactions {
-		// Send transaction for signature/data verification.
-		task := &verifyTask{
-			taskType: verifyTx,
-			tx:       tx,
-		}
-		select {
-		case verifyError := <-chans.errChan:
-			return verifyError
-		case chans.tasksChan <- task:
-		}
-		// Save transaction to storage.
-		txID, err := tx.GetID()
-		if err != nil {
-			return err
-		}
-
-		// TODO: not all transactions implement WriteTo.
-		bts, err := tx.MarshalBinary()
-		if err != nil {
-			return err
-		}
-		if err := s.rw.writeTransaction(txID, bts); err != nil {
-			return err
-		}
+	if err := s.writeTransactionsToStorage(transactions); err != nil {
+		return err
+	}
+	if err := s.verifyTransactions(transactions, chans, initialisation); err != nil {
+		return err
 	}
 	var parentHeader *proto.BlockHeader
 	if parent != nil {

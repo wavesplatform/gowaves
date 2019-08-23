@@ -248,3 +248,18 @@ func (tp *transactionPerformer) performSponsorshipV1(transaction proto.Transacti
 	}
 	return nil
 }
+
+func (tp *transactionPerformer) performSetScriptV1(transaction proto.Transaction, info *performerInfo) error {
+	tx, ok := transaction.(*proto.SetScriptV1)
+	if !ok {
+		return errors.New("failed to convert interface to SetScriptV1 transaction")
+	}
+	senderAddr, err := proto.NewAddressFromPublicKey(tp.settings.AddressSchemeCharacter, tx.SenderPK)
+	if err != nil {
+		return err
+	}
+	if err := tp.stor.accountsScripts.setScript(senderAddr, tx.Script, info.blockID); err != nil {
+		return errors.Wrap(err, "failed to set account script")
+	}
+	return nil
+}

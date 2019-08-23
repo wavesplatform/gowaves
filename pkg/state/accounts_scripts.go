@@ -110,7 +110,7 @@ func (as *accountsScripts) newestHasVerifier(addr proto.Address, filter bool) (b
 	}
 	script, err := as.newestScriptAstFromAddr(addr, filter)
 	if err != nil {
-		return false, err
+		return false, nil
 	}
 	hasVerifier := (script.Verifier != nil)
 	return hasVerifier, nil
@@ -167,6 +167,25 @@ func (as *accountsScripts) scriptByAddr(addr proto.Address, filter bool) (ast.Sc
 		return ast.Script{}, err
 	}
 	return scriptBytesToAst(record.script)
+}
+
+func (as *accountsScripts) callVerifier(addr proto.Address, tx proto.Transaction, scope ast.Scope, filter bool) (bool, error) {
+	script, err := as.newestScriptByAddr(addr, filter)
+	if err != nil {
+		return false, err
+	}
+	if script.Verifier == nil {
+		return false, errors.New("script does not have verifier set")
+	}
+	res, err := script.Verifier.Evaluate(scope)
+	if err != nil {
+		return false, err
+	}
+	isTrue, err := res.Eq(ast.NewBoolean(true))
+	if err != nil {
+		return false, err
+	}
+	return isTrue, nil
 }
 
 func (as *accountsScripts) clear() error {
