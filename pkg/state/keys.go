@@ -76,8 +76,12 @@ const (
 	accountStorAddrToNumKeyPrefix
 	// Prefix for keys of accounts data entries.
 	accountsDataStorKeyPrefix
+
 	// Sponsored assets storage.
 	sponsorshipKeyPrefix
+
+	// Scripts.
+	accountScriptKeyPrefix
 )
 
 type wavesBalanceKey struct {
@@ -434,5 +438,16 @@ func (k *sponsorshipKey) bytes() []byte {
 	buf := make([]byte, 1+crypto.DigestSize)
 	buf[0] = sponsorshipKeyPrefix
 	copy(buf[1:], k.assetID[:])
+	return buf
+}
+
+type accountScriptKey struct {
+	addr proto.Address
+}
+
+func (k *accountScriptKey) bytes() []byte {
+	buf := make([]byte, 1+proto.AddressSize)
+	buf[0] = accountScriptKeyPrefix
+	copy(buf[1:], k.addr[:])
 	return buf
 }

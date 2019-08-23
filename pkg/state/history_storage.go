@@ -22,7 +22,6 @@ const (
 	approvedFeature
 	activatedFeature
 	sponsorship
-	dataEntry
 	accountScript
 
 	idSize = 4
@@ -137,8 +136,8 @@ type historyStorage struct {
 	stateDB *stateDB
 	rw      *blockReadWriter
 
-	stor    *localHistoryStorage
-	fmt     *historyFormatter
+	stor *localHistoryStorage
+	fmt  *historyFormatter
 }
 
 func newHistoryStorage(
@@ -155,7 +154,7 @@ func newHistoryStorage(
 	if err != nil {
 		return nil, err
 	}
-	return &historyStorage{db, dbBatch, stor, stateDB, rw, fmt}, nil
+	return &historyStorage{db, dbBatch, stateDB, rw, stor, fmt}, nil
 }
 
 func (hs *historyStorage) set(entityType blockchainEntity, key, value []byte) error {

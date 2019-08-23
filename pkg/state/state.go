@@ -46,6 +46,7 @@ type blockchainEntitiesStorage struct {
 	features         *features
 	accountsDataStor *accountsDataStorage
 	sponsoredAssets  *sponsoredAssets
+	accountsScripts  *accountsScripts
 }
 
 func newBlockchainEntitiesStorage(hs *historyStorage, stateDB *stateDB, sets *settings.BlockchainSettings) (*blockchainEntitiesStorage, error) {
@@ -85,7 +86,11 @@ func newBlockchainEntitiesStorage(hs *historyStorage, stateDB *stateDB, sets *se
 	if err != nil {
 		return nil, err
 	}
-	return &blockchainEntitiesStorage{hs, aliases, assets, leases, scores, blocksInfo, balances, features, accountsDataStor, sponsoredAssets}, nil
+	accountsScripts, err := newAccountsScripts(hs.db, hs.dbBatch, hs, stateDB)
+	if err != nil {
+		return nil, err
+	}
+	return &blockchainEntitiesStorage{hs, aliases, assets, leases, scores, blocksInfo, balances, features, accountsDataStor, sponsoredAssets, accountsScripts}, nil
 }
 
 func (s *blockchainEntitiesStorage) reset() {
@@ -1229,6 +1234,10 @@ func (s *stateManager) rollbackToImpl(removalEdge crypto.Signature) error {
 	}
 	oldHeight := curHeight + 1
 	if err := s.stor.scores.rollback(newHeight, oldHeight); err != nil {
+		return wrapErr(RollbackError, err)
+	}
+	// Clear scripts cache.
+	if err := s.stor.accountsScripts.clear(); err != nil {
 		return wrapErr(RollbackError, err)
 	}
 	return nil
