@@ -89,3 +89,21 @@ func TestInvokeScriptV1(t *testing.T) {
 	require.NotEmpty(t, InvokeScriptV1.Transaction)
 	require.NotEmpty(t, InvokeScriptV1.MessageBytes)
 }
+
+func TestIssueV2(t *testing.T) {
+	require.NotEmpty(t, IssueV2.TransactionBytes)
+	require.NotEmpty(t, IssueV2.Transaction)
+	require.NotEmpty(t, IssueV2.MessageBytes)
+}
+
+func TestLeaseV1(t *testing.T) {
+	require.NotEmpty(t, LeaseV1.TransactionBytes)
+	require.NotEmpty(t, LeaseV1.Transaction)
+	require.NotEmpty(t, LeaseV1.MessageBytes)
+}
+
+func TestLeaseV2(t *testing.T) {
+	require.NotEmpty(t, LeaseV2.TransactionBytes)
+	require.NotEmpty(t, LeaseV2.Transaction)
+	require.NotEmpty(t, LeaseV2.MessageBytes)
+}

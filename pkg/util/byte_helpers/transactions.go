@@ -84,6 +84,14 @@ type IssueV1Struct struct {
 
 var IssueV1 IssueV1Struct
 
+type IssueV2Struct struct {
+	TransactionBytes []byte
+	Transaction      *proto.IssueV2
+	MessageBytes     []byte
+}
+
+var IssueV2 IssueV2Struct
+
 type MassTransferV1Struct struct {
 	TransactionBytes []byte
 	Transaction      *proto.MassTransferV1
@@ -124,12 +132,29 @@ type InvokeScriptV1Struct struct {
 
 var InvokeScriptV1 InvokeScriptV1Struct
 
+type LeaseV1Struct struct {
+	TransactionBytes []byte
+	Transaction      *proto.LeaseV1
+	MessageBytes     []byte
+}
+
+var LeaseV1 LeaseV1Struct
+
+type LeaseV2Struct struct {
+	TransactionBytes []byte
+	Transaction      *proto.LeaseV2
+	MessageBytes     []byte
+}
+
+var LeaseV2 LeaseV2Struct
+
 func init() {
 	initGenesis()
 	initPayment()
 	initTransferV1()
 	initTransferV2()
 	initIssueV1()
+	initIssueV2()
 	initReissueV1()
 	initReissueV2()
 	initBurnV1()
@@ -139,6 +164,8 @@ func init() {
 	initExchangeV2()
 	initSetAssetScriptV1()
 	initInvokeScriptV1()
+	initLeaseV1()
+	initLeaseV2()
 }
 
 func initTransferV1() {
@@ -200,7 +227,7 @@ func initIssueV1() {
 		"name",
 		"description",
 		1000,
-		0,
+		4,
 		false,
 		proto.NewTimestampFromTime(time.Now()),
 		10000)
@@ -213,6 +240,36 @@ func initIssueV1() {
 	tmb, _ := tm.MarshalBinary()
 
 	IssueV1 = IssueV1Struct{
+		TransactionBytes: b,
+		Transaction:      t,
+		MessageBytes:     tmb,
+	}
+}
+
+func initIssueV2() {
+
+	sk, pk := crypto.GenerateKeyPair([]byte("test"))
+
+	t := proto.NewUnsignedIssueV2(
+		proto.MainNetScheme,
+		pk,
+		"name",
+		"description",
+		1000,
+		4,
+		false,
+		[]byte("script"),
+		proto.NewTimestampFromTime(time.Now()),
+		10000)
+
+	_ = t.Sign(sk)
+	b, _ := t.MarshalBinary()
+	tm := proto.TransactionMessage{
+		Transaction: b,
+	}
+	tmb, _ := tm.MarshalBinary()
+
+	IssueV2 = IssueV2Struct{
 		TransactionBytes: b,
 		Transaction:      t,
 		MessageBytes:     tmb,
@@ -582,6 +639,55 @@ func initInvokeScriptV1() {
 	tmb, _ := tm.MarshalBinary()
 
 	InvokeScriptV1 = InvokeScriptV1Struct{
+		TransactionBytes: b,
+		Transaction:      t,
+		MessageBytes:     tmb,
+	}
+}
+
+func initLeaseV1() {
+	sk, pk := crypto.GenerateKeyPair([]byte("test"))
+	addr, _ := proto.NewAddressFromPublicKey(proto.MainNetScheme, pk)
+
+	t := proto.NewUnsignedLeaseV1(
+		pk,
+		proto.NewRecipientFromAddress(addr),
+		100000, 10000, TIMESTAMP)
+	_ = t.Sign(sk)
+	b, err := t.MarshalBinary()
+	if err != nil {
+		panic(err)
+	}
+	tm := proto.TransactionMessage{
+		Transaction: b,
+	}
+	tmb, _ := tm.MarshalBinary()
+
+	LeaseV1 = LeaseV1Struct{
+		TransactionBytes: b,
+		Transaction:      t,
+		MessageBytes:     tmb,
+	}
+}
+
+func initLeaseV2() {
+	sk, pk := crypto.GenerateKeyPair([]byte("test"))
+	addr, _ := proto.NewAddressFromPublicKey(proto.MainNetScheme, pk)
+	t := proto.NewUnsignedLeaseV2(
+		pk,
+		proto.NewRecipientFromAddress(addr),
+		100000, 10000, TIMESTAMP)
+	_ = t.Sign(sk)
+	b, err := t.MarshalBinary()
+	if err != nil {
+		panic(err)
+	}
+	tm := proto.TransactionMessage{
+		Transaction: b,
+	}
+	tmb, _ := tm.MarshalBinary()
+
+	LeaseV2 = LeaseV2Struct{
 		TransactionBytes: b,
 		Transaction:      t,
 		MessageBytes:     tmb,

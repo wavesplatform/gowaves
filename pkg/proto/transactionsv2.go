@@ -46,7 +46,7 @@ func (tx IssueV2) GetTypeVersion() TransactionTypeVersion {
 
 func (tx *IssueV2) GenerateID() {
 	if tx.ID == nil {
-		body, err := tx.bodyMarshalBinary()
+		body, err := tx.BodyMarshalBinary()
 		if err != nil {
 			panic(err.Error())
 		}
@@ -61,6 +61,12 @@ func (tx IssueV2) GetID() ([]byte, error) {
 		return nil, errors.New("tx ID is not set\n")
 	}
 	return tx.ID.Bytes(), nil
+}
+
+func (tx *IssueV2) Clone() *IssueV2 {
+	out := &IssueV2{}
+	_ = copier.Copy(out, tx)
+	return out
 }
 
 //NewUnsignedIssueV2 creates a new IssueV2 transaction with empty Proofs.
@@ -92,7 +98,7 @@ func (tx *IssueV2) NonEmptyScript() bool {
 	return len(tx.Script) != 0
 }
 
-func (tx *IssueV2) bodyMarshalBinary() ([]byte, error) {
+func (tx *IssueV2) BodyMarshalBinary() ([]byte, error) {
 	var p int
 	nl := len(tx.Name)
 	dl := len(tx.Description)
@@ -184,7 +190,7 @@ func (tx *IssueV2) bodyUnmarshalBinary(data []byte) error {
 
 //Sign calculates transaction signature using given secret key.
 func (tx *IssueV2) Sign(secretKey crypto.SecretKey) error {
-	b, err := tx.bodyMarshalBinary()
+	b, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return errors.Wrap(err, "failed to sign IssueV2 transaction")
 	}
@@ -205,7 +211,7 @@ func (tx *IssueV2) Sign(secretKey crypto.SecretKey) error {
 
 //Verify checks that the transaction signature is valid for given public key.
 func (tx *IssueV2) Verify(publicKey crypto.PublicKey) (bool, error) {
-	b, err := tx.bodyMarshalBinary()
+	b, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return false, errors.Wrap(err, "failed to verify signature of IssueV2 transaction")
 	}
@@ -214,7 +220,7 @@ func (tx *IssueV2) Verify(publicKey crypto.PublicKey) (bool, error) {
 
 //MarshalBinary converts transaction to its binary representation.
 func (tx *IssueV2) MarshalBinary() ([]byte, error) {
-	bb, err := tx.bodyMarshalBinary()
+	bb, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal IssueV2 transaction to bytes")
 	}
@@ -1311,7 +1317,7 @@ func (tx LeaseV2) GetTypeVersion() TransactionTypeVersion {
 
 func (tx *LeaseV2) GenerateID() {
 	if tx.ID == nil {
-		body, err := tx.bodyMarshalBinary()
+		body, err := tx.BodyMarshalBinary()
 		if err != nil {
 			panic(err.Error())
 		}
@@ -1328,6 +1334,12 @@ func (tx LeaseV2) GetID() ([]byte, error) {
 	return tx.ID.Bytes(), nil
 }
 
+func (tx *LeaseV2) Clone() *LeaseV2 {
+	out := &LeaseV2{}
+	_ = copier.Copy(out, tx)
+	return out
+}
+
 //NewUnsignedLeaseV2 creates new LeaseV1 transaction without signature and ID set.
 func NewUnsignedLeaseV2(senderPK crypto.PublicKey, recipient Recipient, amount, fee, timestamp uint64) *LeaseV2 {
 	l := Lease{
@@ -1340,7 +1352,7 @@ func NewUnsignedLeaseV2(senderPK crypto.PublicKey, recipient Recipient, amount, 
 	return &LeaseV2{Type: LeaseTransaction, Version: 2, Lease: l}
 }
 
-func (tx *LeaseV2) bodyMarshalBinary() ([]byte, error) {
+func (tx *LeaseV2) BodyMarshalBinary() ([]byte, error) {
 	rl := tx.Recipient.len
 	buf := make([]byte, leaseV2BodyLen+rl)
 	buf[0] = byte(tx.Type)
@@ -1377,7 +1389,7 @@ func (tx *LeaseV2) bodyUnmarshalBinary(data []byte) error {
 
 //Sign adds signature as a proof at first position.
 func (tx *LeaseV2) Sign(secretKey crypto.SecretKey) error {
-	b, err := tx.bodyMarshalBinary()
+	b, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return errors.Wrap(err, "failed to sign LeaseV2 transaction")
 	}
@@ -1398,7 +1410,7 @@ func (tx *LeaseV2) Sign(secretKey crypto.SecretKey) error {
 
 //Verify checks that first proof is a valid signature.
 func (tx *LeaseV2) Verify(publicKey crypto.PublicKey) (bool, error) {
-	b, err := tx.bodyMarshalBinary()
+	b, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return false, errors.Wrap(err, "failed to verify signature of LeaseV2 transaction")
 	}
@@ -1407,7 +1419,7 @@ func (tx *LeaseV2) Verify(publicKey crypto.PublicKey) (bool, error) {
 
 //MarshalBinary saves the transaction to its binary representation.
 func (tx *LeaseV2) MarshalBinary() ([]byte, error) {
-	bb, err := tx.bodyMarshalBinary()
+	bb, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal LeaseV2 transaction to bytes")
 	}

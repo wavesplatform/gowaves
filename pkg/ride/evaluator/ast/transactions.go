@@ -38,6 +38,14 @@ func NewVariablesFromTransaction(scheme byte, t proto.Transaction) (map[string]E
 		return newVariablesFromSetAssetScriptV1(scheme, tx)
 	case *proto.InvokeScriptV1:
 		return newVariablesFromInvokeScriptV1(scheme, tx)
+	case *proto.IssueV1:
+		return newVariablesFromIssueV1(scheme, tx)
+	case *proto.IssueV2:
+		return newVariablesFromIssueV2(scheme, tx)
+	case *proto.LeaseV1:
+		return newVariablesFromLeaseV1(scheme, tx)
+	case *proto.LeaseV2:
+		return newVariablesFromLeaseV2(scheme, tx)
 	case *proto.DataV1:
 		addr, err := proto.NewAddressFromPublicKey(scheme, tx.SenderPK)
 		if err != nil {
@@ -62,6 +70,14 @@ func NewVariablesFromTransaction(scheme byte, t proto.Transaction) (map[string]E
 		return nil, errors.Errorf("NewVariablesFromTransaction not implemented for %T", tx)
 	}
 
+}
+
+func makeProofs(proofs *proto.ProofsV1) Exprs {
+	out := Exprs{}
+	for _, row := range proofs.Proofs {
+		out = append(out, NewBytes(row.Bytes()))
+	}
+	return out
 }
 
 func makeOptionalAsset(o proto.OptionalAsset) Expr {
@@ -607,5 +623,144 @@ func newVariablesFromInvokeScriptV1(scheme proto.Scheme, tx *proto.InvokeScriptV
 	}
 	out["proofs"] = exprs
 	out[InstanceFieldName] = NewString("InvokeScriptTransaction")
+	return out, nil
+}
+
+func newVariablesFromIssueV1(scheme proto.Scheme, tx *proto.IssueV1) (map[string]Expr, error) {
+	funcName := "newVariablesFromReissueV1"
+
+	out := make(map[string]Expr)
+
+	out["quantity"] = NewLong(int64(tx.Quantity))
+	out["name"] = NewString(tx.Name)
+	out["description"] = NewString(tx.Description)
+	out["reissuable"] = NewBoolean(tx.Reissuable)
+	out["decimals"] = NewLong(int64(tx.Decimals))
+	out["script"] = NewUnit()
+	id, err := tx.GetID()
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	out["id"] = NewBytes(util.Dup(id))
+	out["fee"] = NewLong(int64(tx.Fee))
+	out["timestamp"] = NewLong(int64(tx.Timestamp))
+	out["version"] = NewLong(int64(tx.Version))
+
+	addr, err := proto.NewAddressFromPublicKey(scheme, tx.SenderPK)
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	out["sender"] = NewAddressFromProtoAddress(addr)
+	out["senderPublicKey"] = NewBytes(util.Dup(tx.SenderPK.Bytes()))
+	bts, err := tx.BodyMarshalBinary()
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	out["bodyBytes"] = NewBytes(bts)
+	out["proofs"] = Exprs{NewBytes(util.Dup(tx.Signature.Bytes()))}
+	out[InstanceFieldName] = NewString("IssueTransaction")
+	return out, nil
+}
+
+func newVariablesFromIssueV2(scheme proto.Scheme, tx *proto.IssueV2) (map[string]Expr, error) {
+	funcName := "newVariablesFromReissueV1"
+
+	out := make(map[string]Expr)
+
+	out["quantity"] = NewLong(int64(tx.Quantity))
+	out["name"] = NewString(tx.Name)
+	out["description"] = NewString(tx.Description)
+	out["reissuable"] = NewBoolean(tx.Reissuable)
+	out["decimals"] = NewLong(int64(tx.Decimals))
+	out["script"] = NewUnit()
+	if tx.NonEmptyScript() {
+		out["script"] = NewBytes(util.Dup(tx.Script))
+	}
+	id, err := tx.GetID()
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	out["id"] = NewBytes(util.Dup(id))
+	out["fee"] = NewLong(int64(tx.Fee))
+	out["timestamp"] = NewLong(int64(tx.Timestamp))
+	out["version"] = NewLong(int64(tx.Version))
+
+	addr, err := proto.NewAddressFromPublicKey(scheme, tx.SenderPK)
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	out["sender"] = NewAddressFromProtoAddress(addr)
+	out["senderPublicKey"] = NewBytes(util.Dup(tx.SenderPK.Bytes()))
+	bts, err := tx.BodyMarshalBinary()
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	out["bodyBytes"] = NewBytes(bts)
+	out["proofs"] = makeProofs(tx.Proofs)
+	out[InstanceFieldName] = NewString("IssueTransaction")
+	return out, nil
+}
+
+func newVariablesFromLeaseV1(scheme proto.Scheme, tx *proto.LeaseV1) (map[string]Expr, error) {
+	funcName := "newVariablesFromLeaseV1"
+
+	out := make(map[string]Expr)
+
+	out["amount"] = NewLong(int64(tx.Amount))
+	out["recipient"] = NewRecipientFromProtoRecipient(tx.Recipient)
+	id, err := tx.GetID()
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	out["id"] = NewBytes(util.Dup(id))
+	out["fee"] = NewLong(int64(tx.Fee))
+	out["timestamp"] = NewLong(int64(tx.Timestamp))
+	out["version"] = NewLong(int64(tx.Version))
+
+	addr, err := proto.NewAddressFromPublicKey(scheme, tx.SenderPK)
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	out["sender"] = NewAddressFromProtoAddress(addr)
+	out["senderPublicKey"] = NewBytes(util.Dup(tx.SenderPK.Bytes()))
+	bts, err := tx.BodyMarshalBinary()
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	out["bodyBytes"] = NewBytes(bts)
+	out["proofs"] = Exprs{NewBytes(util.Dup(tx.Signature.Bytes()))}
+	out[InstanceFieldName] = NewString("LeaseTransaction")
+	return out, nil
+}
+
+func newVariablesFromLeaseV2(scheme proto.Scheme, tx *proto.LeaseV2) (map[string]Expr, error) {
+	funcName := "newVariablesFromLeaseV2"
+
+	out := make(map[string]Expr)
+
+	out["amount"] = NewLong(int64(tx.Amount))
+	out["recipient"] = NewRecipientFromProtoRecipient(tx.Recipient)
+	id, err := tx.GetID()
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	out["id"] = NewBytes(util.Dup(id))
+	out["fee"] = NewLong(int64(tx.Fee))
+	out["timestamp"] = NewLong(int64(tx.Timestamp))
+	out["version"] = NewLong(int64(tx.Version))
+
+	addr, err := proto.NewAddressFromPublicKey(scheme, tx.SenderPK)
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	out["sender"] = NewAddressFromProtoAddress(addr)
+	out["senderPublicKey"] = NewBytes(util.Dup(tx.SenderPK.Bytes()))
+	bts, err := tx.BodyMarshalBinary()
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	out["bodyBytes"] = NewBytes(bts)
+	out["proofs"] = makeProofs(tx.Proofs)
+	out[InstanceFieldName] = NewString("LeaseTransaction")
 	return out, nil
 }
