@@ -179,6 +179,9 @@ func (hs *historyStorage) set(entityType blockchainEntity, key, value []byte) er
 }
 
 func (hs *historyStorage) getFresh(key []byte, filter bool) ([]byte, error) {
+	if newHist, err := hs.stor.get(key); err == nil {
+		return hs.fmt.getLatest(newHist)
+	}
 	history, err := hs.fullHistory(key, filter)
 	if err != nil {
 		return nil, err
