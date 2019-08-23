@@ -148,6 +148,22 @@ type LeaseV2Struct struct {
 
 var LeaseV2 LeaseV2Struct
 
+type LeaseCancelV1Struct struct {
+	TransactionBytes []byte
+	Transaction      *proto.LeaseCancelV1
+	MessageBytes     []byte
+}
+
+var LeaseCancelV1 LeaseCancelV1Struct
+
+type LeaseCancelV2Struct struct {
+	TransactionBytes []byte
+	Transaction      *proto.LeaseCancelV2
+	MessageBytes     []byte
+}
+
+var LeaseCancelV2 LeaseCancelV2Struct
+
 func init() {
 	initGenesis()
 	initPayment()
@@ -166,6 +182,8 @@ func init() {
 	initInvokeScriptV1()
 	initLeaseV1()
 	initLeaseV2()
+	initLeaseCancelV1()
+	initLeaseCancelV2()
 }
 
 func initTransferV1() {
@@ -688,6 +706,54 @@ func initLeaseV2() {
 	tmb, _ := tm.MarshalBinary()
 
 	LeaseV2 = LeaseV2Struct{
+		TransactionBytes: b,
+		Transaction:      t,
+		MessageBytes:     tmb,
+	}
+}
+
+func initLeaseCancelV1() {
+	sk, pk := crypto.GenerateKeyPair([]byte("test"))
+
+	t := proto.NewUnsignedLeaseCancelV1(
+		pk,
+		Digest,
+		10000, TIMESTAMP)
+	_ = t.Sign(sk)
+	b, err := t.MarshalBinary()
+	if err != nil {
+		panic(err)
+	}
+	tm := proto.TransactionMessage{
+		Transaction: b,
+	}
+	tmb, _ := tm.MarshalBinary()
+
+	LeaseCancelV1 = LeaseCancelV1Struct{
+		TransactionBytes: b,
+		Transaction:      t,
+		MessageBytes:     tmb,
+	}
+}
+
+func initLeaseCancelV2() {
+	sk, pk := crypto.GenerateKeyPair([]byte("test"))
+	t := proto.NewUnsignedLeaseCancelV2(
+		proto.MainNetScheme,
+		pk,
+		Digest,
+		10000, TIMESTAMP)
+	_ = t.Sign(sk)
+	b, err := t.MarshalBinary()
+	if err != nil {
+		panic(err)
+	}
+	tm := proto.TransactionMessage{
+		Transaction: b,
+	}
+	tmb, _ := tm.MarshalBinary()
+
+	LeaseCancelV2 = LeaseCancelV2Struct{
 		TransactionBytes: b,
 		Transaction:      t,
 		MessageBytes:     tmb,

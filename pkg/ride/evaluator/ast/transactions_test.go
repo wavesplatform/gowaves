@@ -1615,3 +1615,146 @@ func (a *LeaseV2TestSuite) Test_InstanceFieldName() {
 func TestNewVariablesFromLeaseV2(t *testing.T) {
 	suite.Run(t, new(LeaseV2TestSuite))
 }
+
+//
+type LeaseCancelV1TestSuite struct {
+	suite.Suite
+	tx *proto.LeaseCancelV1
+	f  func(scheme proto.Scheme, tx proto.Transaction) (map[string]Expr, error)
+}
+
+func (a *LeaseCancelV1TestSuite) SetupTest() {
+	a.tx = byte_helpers.LeaseCancelV1.Transaction.Clone()
+	a.f = NewVariablesFromTransaction
+}
+
+func (a *LeaseCancelV1TestSuite) Test_leaseId() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(NewBytes(digest.Bytes()), rs["leaseId"])
+}
+
+func (a *LeaseCancelV1TestSuite) Test_id() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	id, _ := a.tx.GetID()
+	a.Equal(NewBytes(id), rs["id"])
+}
+
+func (a *LeaseCancelV1TestSuite) Test_fee() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(NewLong(int64(a.tx.Fee)), rs["fee"])
+}
+
+func (a *LeaseCancelV1TestSuite) Test_timestamp() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(NewLong(int64(a.tx.Timestamp)), rs["timestamp"])
+}
+
+func (a *LeaseCancelV1TestSuite) Test_version() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(NewLong(int64(a.tx.Version)), rs["version"])
+}
+
+func (a *LeaseCancelV1TestSuite) Test_sender() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	addr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, a.tx.SenderPK)
+	a.NoError(err)
+	a.Equal(NewAddressFromProtoAddress(addr), rs["sender"])
+}
+
+func (a *LeaseCancelV1TestSuite) Test_senderPublicKey() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(NewBytes(a.tx.SenderPK.Bytes()), rs["senderPublicKey"])
+}
+
+func (a *LeaseCancelV1TestSuite) Test_bodyBytes() {
+	_, pub := crypto.GenerateKeyPair([]byte("test"))
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.IsType(&BytesExpr{}, rs["bodyBytes"])
+	a.True(crypto.Verify(pub, *a.tx.Signature, rs["bodyBytes"].(*BytesExpr).Value))
+}
+
+func (a *LeaseCancelV1TestSuite) Test_proofs() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(Exprs{NewBytes(a.tx.Signature.Bytes())}, rs["proofs"])
+}
+
+func (a *LeaseCancelV1TestSuite) Test_InstanceFieldName() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal("LeaseCancelTransaction", NewObject(rs).InstanceOf())
+}
+
+func TestNewVariablesFromLeaseCancelV1(t *testing.T) {
+	suite.Run(t, new(LeaseCancelV1TestSuite))
+}
+
+//
+type LeaseCancelV2TestSuite struct {
+	suite.Suite
+	tx *proto.LeaseCancelV2
+	f  func(scheme proto.Scheme, tx proto.Transaction) (map[string]Expr, error)
+}
+
+func (a *LeaseCancelV2TestSuite) SetupTest() {
+	a.tx = byte_helpers.LeaseCancelV2.Transaction.Clone()
+	a.f = NewVariablesFromTransaction
+}
+
+func (a *LeaseCancelV2TestSuite) Test_leaseId() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(NewBytes(a.tx.LeaseID.Bytes()), rs["leaseId"])
+}
+
+func (a *LeaseCancelV2TestSuite) Test_id() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	id, _ := a.tx.GetID()
+	a.Equal(NewBytes(id), rs["id"])
+}
+
+func (a *LeaseCancelV2TestSuite) Test_fee() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(NewLong(int64(a.tx.Fee)), rs["fee"])
+}
+
+func (a *LeaseCancelV2TestSuite) Test_timestamp() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(NewLong(int64(a.tx.Timestamp)), rs["timestamp"])
+}
+
+func (a *LeaseCancelV2TestSuite) Test_version() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(NewLong(int64(a.tx.Version)), rs["version"])
+}
+
+func (a *LeaseCancelV2TestSuite) Test_sender() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	addr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, a.tx.SenderPK)
+	a.NoError(err)
+	a.Equal(NewAddressFromProtoAddress(addr), rs["sender"])
+}
+
+func (a *LeaseCancelV2TestSuite) Test_senderPublicKey() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(NewBytes(a.tx.SenderPK.Bytes()), rs["senderPublicKey"])
+}
+
+func (a *LeaseCancelV2TestSuite) Test_bodyBytes() {
+	_, pub := crypto.GenerateKeyPair([]byte("test"))
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.IsType(&BytesExpr{}, rs["bodyBytes"])
+	sig, _ := crypto.NewSignatureFromBytes(a.tx.Proofs.Proofs[0])
+	a.True(crypto.Verify(pub, sig, rs["bodyBytes"].(*BytesExpr).Value))
+}
+
+func (a *LeaseCancelV2TestSuite) Test_proofs() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(Exprs{NewBytes(a.tx.Proofs.Proofs[0].Bytes())}, rs["proofs"])
+}
+
+func (a *LeaseCancelV2TestSuite) Test_InstanceFieldName() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal("LeaseCancelTransaction", NewObject(rs).InstanceOf())
+}
+
+func TestNewVariablesFromLeaseCancelV2(t *testing.T) {
+	suite.Run(t, new(LeaseCancelV2TestSuite))
+}

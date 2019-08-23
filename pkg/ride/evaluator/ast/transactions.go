@@ -46,6 +46,10 @@ func NewVariablesFromTransaction(scheme byte, t proto.Transaction) (map[string]E
 		return newVariablesFromLeaseV1(scheme, tx)
 	case *proto.LeaseV2:
 		return newVariablesFromLeaseV2(scheme, tx)
+	case *proto.LeaseCancelV1:
+		return newVariablesFromLeaseCancelV1(scheme, tx)
+	case *proto.LeaseCancelV2:
+		return newVariablesFromLeaseCancelV2(scheme, tx)
 	case *proto.DataV1:
 		addr, err := proto.NewAddressFromPublicKey(scheme, tx.SenderPK)
 		if err != nil {
@@ -762,5 +766,65 @@ func newVariablesFromLeaseV2(scheme proto.Scheme, tx *proto.LeaseV2) (map[string
 	out["bodyBytes"] = NewBytes(bts)
 	out["proofs"] = makeProofs(tx.Proofs)
 	out[InstanceFieldName] = NewString("LeaseTransaction")
+	return out, nil
+}
+
+func newVariablesFromLeaseCancelV1(scheme proto.Scheme, tx *proto.LeaseCancelV1) (map[string]Expr, error) {
+	funcName := "newVariablesFromLeaseCancelV1"
+
+	out := make(map[string]Expr)
+	out["leaseId"] = NewBytes(util.Dup(tx.LeaseID.Bytes()))
+	id, err := tx.GetID()
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	out["id"] = NewBytes(util.Dup(id))
+	out["fee"] = NewLong(int64(tx.Fee))
+	out["timestamp"] = NewLong(int64(tx.Timestamp))
+	out["version"] = NewLong(int64(tx.Version))
+
+	addr, err := proto.NewAddressFromPublicKey(scheme, tx.SenderPK)
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	out["sender"] = NewAddressFromProtoAddress(addr)
+	out["senderPublicKey"] = NewBytes(util.Dup(tx.SenderPK.Bytes()))
+	bts, err := tx.BodyMarshalBinary()
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	out["bodyBytes"] = NewBytes(bts)
+	out["proofs"] = Exprs{NewBytes(util.Dup(tx.Signature.Bytes()))}
+	out[InstanceFieldName] = NewString("LeaseCancelTransaction")
+	return out, nil
+}
+
+func newVariablesFromLeaseCancelV2(scheme proto.Scheme, tx *proto.LeaseCancelV2) (map[string]Expr, error) {
+	funcName := "newVariablesFromLeaseCancelV2"
+
+	out := make(map[string]Expr)
+	out["leaseId"] = NewBytes(util.Dup(tx.LeaseID.Bytes()))
+	id, err := tx.GetID()
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	out["id"] = NewBytes(util.Dup(id))
+	out["fee"] = NewLong(int64(tx.Fee))
+	out["timestamp"] = NewLong(int64(tx.Timestamp))
+	out["version"] = NewLong(int64(tx.Version))
+
+	addr, err := proto.NewAddressFromPublicKey(scheme, tx.SenderPK)
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	out["sender"] = NewAddressFromProtoAddress(addr)
+	out["senderPublicKey"] = NewBytes(util.Dup(tx.SenderPK.Bytes()))
+	bts, err := tx.BodyMarshalBinary()
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	out["bodyBytes"] = NewBytes(bts)
+	out["proofs"] = makeProofs(tx.Proofs)
+	out[InstanceFieldName] = NewString("LeaseCancelTransaction")
 	return out, nil
 }

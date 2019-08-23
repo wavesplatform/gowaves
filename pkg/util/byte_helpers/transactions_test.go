@@ -107,3 +107,15 @@ func TestLeaseV2(t *testing.T) {
 	require.NotEmpty(t, LeaseV2.Transaction)
 	require.NotEmpty(t, LeaseV2.MessageBytes)
 }
+
+func TestLeaseCancelV1(t *testing.T) {
+	require.NotEmpty(t, LeaseCancelV1.TransactionBytes)
+	require.NotEmpty(t, LeaseCancelV1.Transaction)
+	require.NotEmpty(t, LeaseCancelV1.MessageBytes)
+}
+
+func TestLeaseCancelV2(t *testing.T) {
+	require.NotEmpty(t, LeaseCancelV2.TransactionBytes)
+	require.NotEmpty(t, LeaseCancelV2.Transaction)
+	require.NotEmpty(t, LeaseCancelV2.MessageBytes)
+}

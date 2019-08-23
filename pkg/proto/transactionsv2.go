@@ -1484,7 +1484,7 @@ func (tx LeaseCancelV2) GetTypeVersion() TransactionTypeVersion {
 
 func (tx *LeaseCancelV2) GenerateID() {
 	if tx.ID == nil {
-		body, err := tx.bodyMarshalBinary()
+		body, err := tx.BodyMarshalBinary()
 		if err != nil {
 			panic(err.Error())
 		}
@@ -1499,6 +1499,12 @@ func (tx LeaseCancelV2) GetID() ([]byte, error) {
 		return nil, errors.New("tx ID is not set\n")
 	}
 	return tx.ID.Bytes(), nil
+}
+
+func (tx *LeaseCancelV2) Clone() *LeaseCancelV2 {
+	out := &LeaseCancelV2{}
+	_ = copier.Copy(out, tx)
+	return out
 }
 
 //NewUnsignedLeaseCancelV2 creates new LeaseCancelV2 transaction structure without a signature and an ID.
@@ -1521,7 +1527,7 @@ func (tx LeaseCancelV2) Valid() (bool, error) {
 	return true, nil
 }
 
-func (tx *LeaseCancelV2) bodyMarshalBinary() ([]byte, error) {
+func (tx *LeaseCancelV2) BodyMarshalBinary() ([]byte, error) {
 	buf := make([]byte, leaseCancelV2BodyLen)
 	buf[0] = byte(tx.Type)
 	buf[1] = tx.Version
@@ -1559,7 +1565,7 @@ func (tx *LeaseCancelV2) bodyUnmarshalBinary(data []byte) error {
 
 //Sign adds signature as a proof at first position.
 func (tx *LeaseCancelV2) Sign(secretKey crypto.SecretKey) error {
-	b, err := tx.bodyMarshalBinary()
+	b, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return errors.Wrap(err, "failed to sign LeaseCancelV2 transaction")
 	}
@@ -1580,7 +1586,7 @@ func (tx *LeaseCancelV2) Sign(secretKey crypto.SecretKey) error {
 
 //Verify checks that first proof is a valid signature.
 func (tx *LeaseCancelV2) Verify(publicKey crypto.PublicKey) (bool, error) {
-	b, err := tx.bodyMarshalBinary()
+	b, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return false, errors.Wrap(err, "failed to verify signature of LeaseCancelV2 transaction")
 	}
@@ -1589,7 +1595,7 @@ func (tx *LeaseCancelV2) Verify(publicKey crypto.PublicKey) (bool, error) {
 
 //MarshalBinary saves the transaction to its binary representation.
 func (tx *LeaseCancelV2) MarshalBinary() ([]byte, error) {
-	bb, err := tx.bodyMarshalBinary()
+	bb, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal LeaseCancelV2 transaction to bytes")
 	}
