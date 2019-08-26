@@ -1,7 +1,10 @@
 package ast
 
 import (
+	. "crypto"
+	"crypto/rsa"
 	"crypto/sha256"
+	"crypto/x509"
 	"encoding/base64"
 	"encoding/binary"
 	"fmt"
@@ -17,9 +20,12 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/ride/mockstate"
 )
 
-const MaxBytesResult = 65536
-const MaxStringResult = 32767
-const DefaultThrowMessage = "Explicit script termination"
+const (
+	MaxBytesResult      = 65536
+	MaxStringResult     = 32767
+	MaxBytesToVerify    = 32 * 1024
+	DefaultThrowMessage = "Explicit script termination"
+)
 
 type Throw struct {
 	Message string
@@ -1568,6 +1574,94 @@ func SimpleTypeConstructorFactory(name string, expr Expr) Callable {
 
 func UserWavesBalance(s Scope, e Exprs) (Expr, error) {
 	return NativeAssetBalance(s, append(e, NewUnit()))
+}
+
+func NativeRSAVerify(s Scope, e Exprs) (Expr, error) {
+	funcName := "NativeRSAVerify"
+	if l := len(e); l != 4 {
+		return nil, errors.Errorf("%s: invalid number of parameters, expected 4, received %d", funcName, l)
+	}
+
+	rs, err := e.EvaluateAll(s.Clone())
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+
+	digest, err := digest(rs[0])
+	if err != nil {
+		return nil, errors.Wrapf(err, "%s: failed to get digest algorithm from first argument", funcName)
+	}
+
+	message, ok := rs[1].(*BytesExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: second argument expected to be *BytesExpr, found %T", funcName, rs[1])
+	}
+
+	sig, ok := rs[2].(*BytesExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: third argument expected to be *BytesExpr, found %T", funcName, rs[2])
+	}
+
+	pk, ok := rs[3].(*BytesExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: 4th argument expected to be *BytesExpr, found %T", funcName, rs[3])
+	}
+
+	if len(message.Value) > MaxBytesToVerify {
+		return nil, errors.Errorf("%s: message is too long, must be no longer than %d bytes", funcName, MaxBytesToVerify)
+	}
+
+	key, err := x509.ParsePKIXPublicKey(pk.Value)
+	if err != nil {
+		return nil, errors.Wrapf(err, "%s: invalid public key", funcName)
+	}
+	k, ok := key.(*rsa.PublicKey)
+	if !ok {
+		return nil, errors.Errorf("%s: not an RSA key", funcName)
+	}
+
+	d := message.Value
+	if digest != 0 {
+		h := digest.New()
+		_, _ = h.Write(message.Value)
+		d = h.Sum(nil)
+	}
+
+	ok, err = VerifyPKCS1v15(k, digest, d, sig.Value)
+	if err != nil {
+		return nil, errors.Wrapf(err, "%s: failed to check RSA signature", funcName)
+	}
+
+	return NewBoolean(ok), nil
+}
+
+func digest(e Expr) (Hash, error) {
+	switch e.InstanceOf() {
+	case "NoAlg":
+		return 0, nil
+	case "Md5":
+		return MD5, nil
+	case "Sha1":
+		return SHA1, nil
+	case "Sha224":
+		return SHA224, nil
+	case "Sha256":
+		return SHA256, nil
+	case "Sha384":
+		return SHA384, nil
+	case "Sha512":
+		return SHA512, nil
+	case "Sha3224":
+		return SHA3_224, nil
+	case "Sha3256":
+		return SHA3_256, nil
+	case "Sha3384":
+		return SHA3_384, nil
+	case "Sha3512":
+		return SHA3_512, nil
+	default:
+		return 0, errors.Errorf("unsupported digest %s", e.InstanceOf())
+	}
 }
 
 func prefix(w io.Writer, name string, e Exprs) {
