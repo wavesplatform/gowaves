@@ -119,3 +119,15 @@ func TestLeaseCancelV2(t *testing.T) {
 	require.NotEmpty(t, LeaseCancelV2.Transaction)
 	require.NotEmpty(t, LeaseCancelV2.MessageBytes)
 }
+
+func TestDataV1(t *testing.T) {
+	require.NotEmpty(t, DataV1.TransactionBytes)
+	require.NotEmpty(t, DataV1.Transaction)
+	require.NotEmpty(t, DataV1.MessageBytes)
+}
+
+func TestSponsorshipV1(t *testing.T) {
+	require.NotEmpty(t, SponsorshipV1.TransactionBytes)
+	require.NotEmpty(t, SponsorshipV1.Transaction)
+	require.NotEmpty(t, SponsorshipV1.MessageBytes)
+}

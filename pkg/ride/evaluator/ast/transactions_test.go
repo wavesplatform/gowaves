@@ -1830,3 +1830,86 @@ func (a *DataV1TestSuite) Test_InstanceFieldName() {
 func TestNewVariablesFromDataV1TestSuite(t *testing.T) {
 	suite.Run(t, new(DataV1TestSuite))
 }
+
+//
+type SponsorshipV1TestSuite struct {
+	suite.Suite
+	tx *proto.SponsorshipV1
+	f  func(scheme proto.Scheme, tx proto.Transaction) (map[string]Expr, error)
+}
+
+func (a *SponsorshipV1TestSuite) SetupTest() {
+	a.tx = byte_helpers.SponsorshipV1.Transaction.Clone()
+	a.f = NewVariablesFromTransaction
+}
+
+func (a *SponsorshipV1TestSuite) Test_assetId() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(NewBytes(digest.Bytes()), rs["assetId"])
+}
+
+func (a *SponsorshipV1TestSuite) Test_minSponsoredAssetFee_presence() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(NewLong(1000), rs["minSponsoredAssetFee"])
+}
+
+func (a *SponsorshipV1TestSuite) Test_minSponsoredAssetFee_absence() {
+	a.tx.MinAssetFee = 0
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(NewUnit(), rs["minSponsoredAssetFee"])
+}
+
+func (a *SponsorshipV1TestSuite) Test_id() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	id, _ := a.tx.GetID()
+	a.Equal(NewBytes(id), rs["id"])
+}
+
+func (a *SponsorshipV1TestSuite) Test_fee() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(NewLong(int64(a.tx.Fee)), rs["fee"])
+}
+
+func (a *SponsorshipV1TestSuite) Test_timestamp() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(NewLong(int64(a.tx.Timestamp)), rs["timestamp"])
+}
+
+func (a *SponsorshipV1TestSuite) Test_version() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(NewLong(int64(a.tx.Version)), rs["version"])
+}
+
+func (a *SponsorshipV1TestSuite) Test_sender() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	addr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, a.tx.SenderPK)
+	a.NoError(err)
+	a.Equal(NewAddressFromProtoAddress(addr), rs["sender"])
+}
+
+func (a *SponsorshipV1TestSuite) Test_senderPublicKey() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(NewBytes(a.tx.SenderPK.Bytes()), rs["senderPublicKey"])
+}
+
+func (a *SponsorshipV1TestSuite) Test_bodyBytes() {
+	_, pub := crypto.GenerateKeyPair([]byte("test"))
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.IsType(&BytesExpr{}, rs["bodyBytes"])
+	sig, _ := crypto.NewSignatureFromBytes(a.tx.Proofs.Proofs[0])
+	a.True(crypto.Verify(pub, sig, rs["bodyBytes"].(*BytesExpr).Value))
+}
+
+func (a *SponsorshipV1TestSuite) Test_proofs() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(Exprs{NewBytes(a.tx.Proofs.Proofs[0].Bytes())}, rs["proofs"])
+}
+
+func (a *SponsorshipV1TestSuite) Test_InstanceFieldName() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal("SponsorFeeTransaction", NewObject(rs).InstanceOf())
+}
+
+func TestNewVariablesFromSponsorshipV1(t *testing.T) {
+	suite.Run(t, new(SponsorshipV1TestSuite))
+}

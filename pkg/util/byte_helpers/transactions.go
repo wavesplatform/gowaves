@@ -172,6 +172,14 @@ type DataV1Struct struct {
 
 var DataV1 DataV1Struct
 
+type SponsorshipV1Struct struct {
+	TransactionBytes []byte
+	Transaction      *proto.SponsorshipV1
+	MessageBytes     []byte
+}
+
+var SponsorshipV1 SponsorshipV1Struct
+
 func init() {
 	initGenesis()
 	initPayment()
@@ -193,6 +201,7 @@ func init() {
 	initLeaseCancelV1()
 	initLeaseCancelV2()
 	initDataV1()
+	initSponsorshipV1()
 }
 
 func initTransferV1() {
@@ -820,6 +829,33 @@ func initDataV1() {
 	tmb, _ := tm.MarshalBinary()
 
 	DataV1 = DataV1Struct{
+		TransactionBytes: b,
+		Transaction:      t,
+		MessageBytes:     tmb,
+	}
+}
+
+func initSponsorshipV1() {
+	sk, pk := crypto.GenerateKeyPair([]byte("test"))
+	t := proto.NewUnsignedSponsorshipV1(
+		pk,
+		Digest,
+		1000,
+		10000,
+		TIMESTAMP)
+
+	_ = t.Sign(sk)
+
+	b, err := t.MarshalBinary()
+	if err != nil {
+		panic(err)
+	}
+	tm := proto.TransactionMessage{
+		Transaction: b,
+	}
+	tmb, _ := tm.MarshalBinary()
+
+	SponsorshipV1 = SponsorshipV1Struct{
 		TransactionBytes: b,
 		Transaction:      t,
 		MessageBytes:     tmb,
