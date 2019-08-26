@@ -7,6 +7,7 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/binary"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"math/big"
@@ -1121,12 +1122,60 @@ func NativeToBase64(s Scope, e Exprs) (Expr, error) {
 		return nil, errors.Wrap(err, funcName)
 	}
 
-	str, ok := first.(*BytesExpr)
+	bytes, ok := first.(*BytesExpr)
 	if !ok {
 		return nil, errors.Errorf("%s expected first argument to be *BytesExpr, found %T", funcName, first)
 	}
 
-	encoded := base64.StdEncoding.EncodeToString(str.Value)
+	encoded := base64.StdEncoding.EncodeToString(bytes.Value)
+	return NewString(encoded), nil
+}
+
+// Base16 (Hex) decode
+func NativeFromBase16(s Scope, e Exprs) (Expr, error) {
+	funcName := "NativeFromBase16"
+
+	if l := len(e); l != 1 {
+		return nil, errors.Errorf("%s: invalid params, expected 1, passed %d", funcName, l)
+	}
+
+	first, err := e[0].Evaluate(s.Clone())
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+
+	str, ok := first.(*StringExpr)
+	if !ok {
+		return nil, errors.Errorf("%s expected first argument to be *StringExpr, found %T", funcName, first)
+	}
+
+	decoded, err := hex.DecodeString(str.Value)
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+
+	return NewBytes(decoded), nil
+}
+
+// Base16 (Hex) encode
+func NativeToBase16(s Scope, e Exprs) (Expr, error) {
+	funcName := "NativeToBase16"
+
+	if l := len(e); l != 1 {
+		return nil, errors.Errorf("%s: invalid params, expected 1, passed %d", funcName, l)
+	}
+
+	first, err := e[0].Evaluate(s.Clone())
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+
+	bytes, ok := first.(*BytesExpr)
+	if !ok {
+		return nil, errors.Errorf("%s expected first argument to be *BytesExpr, found %T", funcName, first)
+	}
+
+	encoded := hex.EncodeToString(bytes.Value)
 	return NewString(encoded), nil
 }
 

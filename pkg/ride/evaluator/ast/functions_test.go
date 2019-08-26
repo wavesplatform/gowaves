@@ -361,16 +361,42 @@ func TestNativeBooleanToString(t *testing.T) {
 	assert.Equal(t, NewString("false"), rs2)
 }
 
+var testBytes = []byte{0x54, 0x68, 0x69, 0x73, 0x20, 0x69, 0x73, 0x20, 0x61, 0x20, 0x73, 0x69, 0x6d, 0x70, 0x6c, 0x65, 0x20, 0x73, 0x74, 0x72, 0x69, 0x6e, 0x67, 0x20, 0x66, 0x6f, 0x72, 0x20, 0x74, 0x65, 0x73, 0x74}
+
 func TestNativeToBase58(t *testing.T) {
-	rs1, err := NativeToBase58(newEmptyScope(), Params(NewBytes([]byte("hello"))))
+	rs1, err := NativeToBase58(newEmptyScope(), Params(NewBytes(testBytes)))
 	require.NoError(t, err)
-	assert.Equal(t, NewString("Cn8eVZg"), rs1)
+	assert.Equal(t, NewString("6gVbAXCUdsa14xdsSk2SKaNBXs271V3Mo4zjb2cvCrsM"), rs1)
 }
 
 func TestNativeFromBase58(t *testing.T) {
-	rs1, err := NativeFromBase58(newEmptyScope(), Params(NewString("abcde")))
+	rs1, err := NativeFromBase58(newEmptyScope(), Params(NewString("6gVbAXCUdsa14xdsSk2SKaNBXs271V3Mo4zjb2cvCrsM")))
 	require.NoError(t, err)
-	assert.Equal(t, NewBytes([]uint8{0x16, 0xa9, 0x5c, 0x99}), rs1)
+	assert.Equal(t, NewBytes(testBytes), rs1)
+}
+
+func TestNativeToBase64(t *testing.T) {
+	rs1, err := NativeToBase64(newEmptyScope(), Params(NewBytes(testBytes)))
+	require.NoError(t, err)
+	assert.Equal(t, NewString("VGhpcyBpcyBhIHNpbXBsZSBzdHJpbmcgZm9yIHRlc3Q="), rs1)
+}
+
+func TestNativeFromBase64(t *testing.T) {
+	rs1, err := NativeFromBase64(newEmptyScope(), Params(NewString("VGhpcyBpcyBhIHNpbXBsZSBzdHJpbmcgZm9yIHRlc3Q=")))
+	require.NoError(t, err)
+	assert.Equal(t, NewBytes(testBytes), rs1)
+}
+
+func TestNativeToBase16(t *testing.T) {
+	rs1, err := NativeToBase16(newEmptyScope(), Params(NewBytes(testBytes)))
+	require.NoError(t, err)
+	assert.Equal(t, NewString("5468697320697320612073696d706c6520737472696e6720666f722074657374"), rs1)
+}
+
+func TestNativeFromBase16(t *testing.T) {
+	rs1, err := NativeFromBase16(newEmptyScope(), Params(NewString("5468697320697320612073696d706c6520737472696e6720666f722074657374")))
+	require.NoError(t, err)
+	assert.Equal(t, NewBytes(testBytes), rs1)
 }
 
 func TestNativeFromBase64String(t *testing.T) {
