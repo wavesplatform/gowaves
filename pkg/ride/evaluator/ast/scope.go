@@ -196,7 +196,7 @@ func FunctionsV3() *Functions {
 	s.native[504] = NativeRSAVerify
 	s.native[604] = NativeToBase16
 	s.native[605] = NativeFromBase16
-	//TODO: native[700] = NativeCheckMerkleProof // RIDE v3
+	s.native[700] = NativeCheckMerkleProof
 	//TODO: native[1004] = NativeAssetInfoByID // RIDE v3
 	//TODO: native[1005] = NativeBlockInfoByHeight // RIDE v3
 	//TODO: native[1006] = NativeTransferTransactionByID // RIDE v3
