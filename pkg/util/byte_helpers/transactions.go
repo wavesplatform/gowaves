@@ -180,6 +180,22 @@ type SponsorshipV1Struct struct {
 
 var SponsorshipV1 SponsorshipV1Struct
 
+type CreateAliasV1Struct struct {
+	TransactionBytes []byte
+	Transaction      *proto.CreateAliasV1
+	MessageBytes     []byte
+}
+
+var CreateAliasV1 CreateAliasV1Struct
+
+type CreateAliasV2Struct struct {
+	TransactionBytes []byte
+	Transaction      *proto.CreateAliasV2
+	MessageBytes     []byte
+}
+
+var CreateAliasV2 CreateAliasV2Struct
+
 func init() {
 	initGenesis()
 	initPayment()
@@ -202,6 +218,8 @@ func init() {
 	initLeaseCancelV2()
 	initDataV1()
 	initSponsorshipV1()
+	initCreateAliasV1()
+	initCreateAliasV2()
 }
 
 func initTransferV1() {
@@ -856,6 +874,60 @@ func initSponsorshipV1() {
 	tmb, _ := tm.MarshalBinary()
 
 	SponsorshipV1 = SponsorshipV1Struct{
+		TransactionBytes: b,
+		Transaction:      t,
+		MessageBytes:     tmb,
+	}
+}
+
+func initCreateAliasV1() {
+	sk, pk := crypto.GenerateKeyPair([]byte("test"))
+	alias := proto.NewAlias(proto.MainNetScheme, "testalias")
+	t := proto.NewUnsignedCreateAliasV1(
+		pk,
+		*alias,
+		10000,
+		TIMESTAMP)
+
+	_ = t.Sign(sk)
+
+	b, err := t.MarshalBinary()
+	if err != nil {
+		panic(err)
+	}
+	tm := proto.TransactionMessage{
+		Transaction: b,
+	}
+	tmb, _ := tm.MarshalBinary()
+
+	CreateAliasV1 = CreateAliasV1Struct{
+		TransactionBytes: b,
+		Transaction:      t,
+		MessageBytes:     tmb,
+	}
+}
+
+func initCreateAliasV2() {
+	sk, pk := crypto.GenerateKeyPair([]byte("test"))
+	alias := proto.NewAlias(proto.MainNetScheme, "testalias")
+	t := proto.NewUnsignedCreateAliasV2(
+		pk,
+		*alias,
+		10000,
+		TIMESTAMP)
+
+	_ = t.Sign(sk)
+
+	b, err := t.MarshalBinary()
+	if err != nil {
+		panic(err)
+	}
+	tm := proto.TransactionMessage{
+		Transaction: b,
+	}
+	tmb, _ := tm.MarshalBinary()
+
+	CreateAliasV2 = CreateAliasV2Struct{
 		TransactionBytes: b,
 		Transaction:      t,
 		MessageBytes:     tmb,

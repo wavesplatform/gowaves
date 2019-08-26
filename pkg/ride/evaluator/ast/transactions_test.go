@@ -1913,3 +1913,74 @@ func (a *SponsorshipV1TestSuite) Test_InstanceFieldName() {
 func TestNewVariablesFromSponsorshipV1(t *testing.T) {
 	suite.Run(t, new(SponsorshipV1TestSuite))
 }
+
+//
+type CreateAliasV1TestSuite struct {
+	suite.Suite
+	tx *proto.CreateAliasV1
+	f  func(scheme proto.Scheme, tx proto.Transaction) (map[string]Expr, error)
+}
+
+func (a *CreateAliasV1TestSuite) SetupTest() {
+	a.tx = byte_helpers.CreateAliasV1.Transaction.Clone()
+	a.f = NewVariablesFromTransaction
+}
+
+func (a *CreateAliasV1TestSuite) Test_alias() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(NewString(a.tx.Alias.String()), rs["alias"])
+}
+
+func (a *CreateAliasV1TestSuite) Test_id() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	id, _ := a.tx.GetID()
+	a.Equal(NewBytes(id), rs["id"])
+}
+
+func (a *CreateAliasV1TestSuite) Test_fee() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(NewLong(int64(a.tx.Fee)), rs["fee"])
+}
+
+func (a *CreateAliasV1TestSuite) Test_timestamp() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(NewLong(int64(a.tx.Timestamp)), rs["timestamp"])
+}
+
+func (a *CreateAliasV1TestSuite) Test_version() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(NewLong(int64(a.tx.Version)), rs["version"])
+}
+
+func (a *CreateAliasV1TestSuite) Test_sender() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	addr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, a.tx.SenderPK)
+	a.NoError(err)
+	a.Equal(NewAddressFromProtoAddress(addr), rs["sender"])
+}
+
+func (a *CreateAliasV1TestSuite) Test_senderPublicKey() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(NewBytes(a.tx.SenderPK.Bytes()), rs["senderPublicKey"])
+}
+
+func (a *CreateAliasV1TestSuite) Test_bodyBytes() {
+	_, pub := crypto.GenerateKeyPair([]byte("test"))
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.IsType(&BytesExpr{}, rs["bodyBytes"])
+	a.True(crypto.Verify(pub, *a.tx.Signature, rs["bodyBytes"].(*BytesExpr).Value))
+}
+
+func (a *CreateAliasV1TestSuite) Test_proofs() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(Exprs{NewBytes(a.tx.Signature.Bytes())}, rs["proofs"])
+}
+
+func (a *CreateAliasV1TestSuite) Test_InstanceFieldName() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal("CreateAliasTransaction", NewObject(rs).InstanceOf())
+}
+
+func TestNewVariablesFromCreateAliasV1TestSuite(t *testing.T) {
+	suite.Run(t, new(CreateAliasV1TestSuite))
+}

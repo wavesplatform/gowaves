@@ -1264,6 +1264,12 @@ func (tx CreateAliasV1) GetID() ([]byte, error) {
 	return tx.ID.Bytes(), nil
 }
 
+func (tx *CreateAliasV1) Clone() *CreateAliasV1 {
+	out := &CreateAliasV1{}
+	_ = copier.Copy(out, tx)
+	return out
+}
+
 func NewUnsignedCreateAliasV1(senderPK crypto.PublicKey, alias Alias, fee, timestamp uint64) *CreateAliasV1 {
 	ca := CreateAlias{
 		SenderPK:  senderPK,
@@ -1274,7 +1280,7 @@ func NewUnsignedCreateAliasV1(senderPK crypto.PublicKey, alias Alias, fee, times
 	return &CreateAliasV1{Type: CreateAliasTransaction, Version: 1, CreateAlias: ca}
 }
 
-func (tx *CreateAliasV1) bodyMarshalBinary() ([]byte, error) {
+func (tx *CreateAliasV1) BodyMarshalBinary() ([]byte, error) {
 	buf := make([]byte, createAliasV1FixedBodyLen+len(tx.Alias.Alias))
 	buf[0] = byte(tx.Type)
 	b, err := tx.CreateAlias.marshalBinary()
@@ -1304,7 +1310,7 @@ func (tx *CreateAliasV1) bodyUnmarshalBinary(data []byte) error {
 }
 
 func (tx *CreateAliasV1) Sign(secretKey crypto.SecretKey) error {
-	b, err := tx.bodyMarshalBinary()
+	b, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return errors.Wrap(err, "failed to sign CreateAliasV1 transaction")
 	}
@@ -1321,7 +1327,7 @@ func (tx *CreateAliasV1) Verify(publicKey crypto.PublicKey) (bool, error) {
 	if tx.Signature == nil {
 		return false, errors.New("empty signature")
 	}
-	b, err := tx.bodyMarshalBinary()
+	b, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return false, errors.Wrap(err, "failed to verify signature of CreateAliasV1 transaction")
 	}
@@ -1329,7 +1335,7 @@ func (tx *CreateAliasV1) Verify(publicKey crypto.PublicKey) (bool, error) {
 }
 
 func (tx *CreateAliasV1) MarshalBinary() ([]byte, error) {
-	b, err := tx.bodyMarshalBinary()
+	b, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal CreateAliasV1 transaction to bytes")
 	}

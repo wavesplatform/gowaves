@@ -131,3 +131,15 @@ func TestSponsorshipV1(t *testing.T) {
 	require.NotEmpty(t, SponsorshipV1.Transaction)
 	require.NotEmpty(t, SponsorshipV1.MessageBytes)
 }
+
+func TestCreateAliasV1(t *testing.T) {
+	require.NotEmpty(t, CreateAliasV1.TransactionBytes)
+	require.NotEmpty(t, CreateAliasV1.Transaction)
+	require.NotEmpty(t, CreateAliasV1.MessageBytes)
+}
+
+func TestCreateAliasV2(t *testing.T) {
+	require.NotEmpty(t, CreateAliasV2.TransactionBytes)
+	require.NotEmpty(t, CreateAliasV2.Transaction)
+	require.NotEmpty(t, CreateAliasV2.MessageBytes)
+}

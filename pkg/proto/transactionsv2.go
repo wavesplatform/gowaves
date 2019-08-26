@@ -1673,6 +1673,12 @@ func (tx CreateAliasV2) GetID() ([]byte, error) {
 	return tx.ID.Bytes(), nil
 }
 
+func (tx *CreateAliasV2) Clone() *CreateAliasV2 {
+	out := &CreateAliasV2{}
+	_ = copier.Copy(out, tx)
+	return out
+}
+
 func NewUnsignedCreateAliasV2(senderPK crypto.PublicKey, alias Alias, fee, timestamp uint64) *CreateAliasV2 {
 	ca := CreateAlias{
 		SenderPK:  senderPK,
