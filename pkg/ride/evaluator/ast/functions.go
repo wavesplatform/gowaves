@@ -1,6 +1,7 @@
 package ast
 
 import (
+	"bytes"
 	. "crypto"
 	"crypto/rsa"
 	"crypto/sha256"
@@ -1711,6 +1712,39 @@ func digest(e Expr) (Hash, error) {
 	default:
 		return 0, errors.Errorf("unsupported digest %s", e.InstanceOf())
 	}
+}
+
+func NativeCheckMerkleProof(s Scope, e Exprs) (Expr, error) {
+	funcName := "NativeMerkleVerify"
+	if l := len(e); l != 3 {
+		return nil, errors.Errorf("%s: invalid number of parameters, expected 3, received %d", funcName, l)
+	}
+
+	rs, err := e.EvaluateAll(s.Clone())
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+
+	root, ok := rs[0].(*BytesExpr)
+	if !ok {
+		return nil, errors.Wrapf(err, "%s: first argument expected to be *BytesExpr, found %T", funcName, rs[0])
+	}
+
+	proof, ok := rs[1].(*BytesExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: second argument expected to be *BytesExpr, found %T", funcName, rs[1])
+	}
+
+	leaf, ok := rs[2].(*BytesExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: third argument expected to be *BytesExpr, found %T", funcName, rs[2])
+	}
+
+	r, err := merkleRootHash(leaf.Value, proof.Value)
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	return NewBoolean(bytes.Equal(root.Value, r)), nil
 }
 
 func prefix(w io.Writer, name string, e Exprs) {
