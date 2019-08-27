@@ -23,18 +23,6 @@ func isOldBlock(rw *blockReadWriter, stateDB *stateDB, blockNum uint32) (bool, e
 	return false, nil
 }
 
-func isRecentValidBlock(rw *blockReadWriter, stateDB *stateDB, blockNum uint32) (bool, error) {
-	valid, err := stateDB.isValidBlock(blockNum)
-	if err != nil {
-		return false, err
-	}
-	isOld, err := isOldBlock(rw, stateDB, blockNum)
-	if err != nil {
-		return false, err
-	}
-	return valid && !isOld, nil
-}
-
 type historyFormatter struct {
 	db *stateDB
 	rw *blockReadWriter

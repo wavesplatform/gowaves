@@ -22,6 +22,7 @@ const (
 	approvedFeature
 	activatedFeature
 	sponsorship
+	dataEntry
 	accountScript
 
 	idSize = 4
