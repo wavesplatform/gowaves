@@ -1322,6 +1322,25 @@ func UserAddressFromString(s Scope, e Exprs) (Expr, error) {
 	return addr, nil
 }
 
+func NativeAddressToString(s Scope, e Exprs) (Expr, error) {
+	const funcName = "NativeAddressToString"
+	if l := len(e); l != 1 {
+		return nil, errors.Errorf("%s: invalid number of parameters, expected 1, received %d", funcName, l)
+	}
+
+	rs, err := e[0].Evaluate(s)
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+
+	addr, ok := rs.(AddressExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: first argument expected to be *AddressExpr, found %T", funcName, rs)
+	}
+	str := proto.Address(addr).String()
+	return NewString(str), nil
+}
+
 // !=
 func UserFunctionNeq(s Scope, e Exprs) (Expr, error) {
 	funcName := "UserFunctionNeq"
