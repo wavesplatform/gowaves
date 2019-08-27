@@ -47,6 +47,8 @@ func TestCreateDiffGenesis(t *testing.T) {
 	to, path := createDifferTestObjects(t)
 
 	defer func() {
+		to.stor.close(t)
+
 		err := util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -69,6 +71,8 @@ func TestCreateDiffPayment(t *testing.T) {
 	to, path := createDifferTestObjects(t)
 
 	defer func() {
+		to.stor.close(t)
+
 		err := util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -96,6 +100,8 @@ func TestCreateDiffTransferV1(t *testing.T) {
 	to, path := createDifferTestObjects(t)
 
 	defer func() {
+		to.stor.close(t)
+
 		err := util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -145,6 +151,8 @@ func TestCreateDiffTransferV2(t *testing.T) {
 	to, path := createDifferTestObjects(t)
 
 	defer func() {
+		to.stor.close(t)
+
 		err := util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -194,6 +202,8 @@ func TestCreateDiffIssueV1(t *testing.T) {
 	to, path := createDifferTestObjects(t)
 
 	defer func() {
+		to.stor.close(t)
+
 		err := util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -221,6 +231,8 @@ func TestCreateDiffIssueV2(t *testing.T) {
 	to, path := createDifferTestObjects(t)
 
 	defer func() {
+		to.stor.close(t)
+
 		err := util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -248,6 +260,8 @@ func TestCreateDiffReissueV1(t *testing.T) {
 	to, path := createDifferTestObjects(t)
 
 	defer func() {
+		to.stor.close(t)
+
 		err := util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -275,6 +289,8 @@ func TestCreateDiffReissueV2(t *testing.T) {
 	to, path := createDifferTestObjects(t)
 
 	defer func() {
+		to.stor.close(t)
+
 		err := util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -302,6 +318,8 @@ func TestCreateDiffBurnV1(t *testing.T) {
 	to, path := createDifferTestObjects(t)
 
 	defer func() {
+		to.stor.close(t)
+
 		err := util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -329,6 +347,8 @@ func TestCreateDiffBurnV2(t *testing.T) {
 	to, path := createDifferTestObjects(t)
 
 	defer func() {
+		to.stor.close(t)
+
 		err := util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -362,6 +382,8 @@ func TestCreateDiffExchangeV1(t *testing.T) {
 	to, path := createDifferTestObjects(t)
 
 	defer func() {
+		to.stor.close(t)
+
 		err := util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -401,6 +423,8 @@ func TestCreateDiffExchangeV2(t *testing.T) {
 	to, path := createDifferTestObjects(t)
 
 	defer func() {
+		to.stor.close(t)
+
 		err := util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -434,6 +458,8 @@ func TestCreateDiffLeaseV1(t *testing.T) {
 	to, path := createDifferTestObjects(t)
 
 	defer func() {
+		to.stor.close(t)
+
 		err := util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -461,6 +487,8 @@ func TestCreateDiffLeaseV2(t *testing.T) {
 	to, path := createDifferTestObjects(t)
 
 	defer func() {
+		to.stor.close(t)
+
 		err := util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -488,6 +516,8 @@ func TestCreateDiffLeaseCancelV1(t *testing.T) {
 	to, path := createDifferTestObjects(t)
 
 	defer func() {
+		to.stor.close(t)
+
 		err := util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -521,6 +551,8 @@ func TestCreateDiffLeaseCancelV2(t *testing.T) {
 	to, path := createDifferTestObjects(t)
 
 	defer func() {
+		to.stor.close(t)
+
 		err := util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -558,6 +590,8 @@ func TestCreateDiffCreateAliasV1(t *testing.T) {
 	to, path := createDifferTestObjects(t)
 
 	defer func() {
+		to.stor.close(t)
+
 		err := util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -588,6 +622,8 @@ func TestCreateDiffCreateAliasV2(t *testing.T) {
 	to, path := createDifferTestObjects(t)
 
 	defer func() {
+		to.stor.close(t)
+
 		err := util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -625,6 +661,8 @@ func TestCreateDiffMassTransferV1(t *testing.T) {
 	to, path := createDifferTestObjects(t)
 
 	defer func() {
+		to.stor.close(t)
+
 		err := util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -665,6 +703,8 @@ func TestCreateDiffDataV1(t *testing.T) {
 	to, path := createDifferTestObjects(t)
 
 	defer func() {
+		to.stor.close(t)
+
 		err := util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -693,6 +733,8 @@ func TestCreateDiffSponsorshipV1(t *testing.T) {
 	to, path := createDifferTestObjects(t)
 
 	defer func() {
+		to.stor.close(t)
+
 		err := util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -719,6 +761,8 @@ func TestCreateDiffSetScriptV1(t *testing.T) {
 	to, path := createDifferTestObjects(t)
 
 	defer func() {
+		to.stor.close(t)
+
 		err := util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()

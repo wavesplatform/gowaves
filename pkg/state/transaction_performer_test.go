@@ -31,6 +31,8 @@ func TestPerformIssueV1(t *testing.T) {
 	to, path := createPerformerTestObjects(t)
 
 	defer func() {
+		to.stor.close(t)
+
 		err := util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -63,6 +65,8 @@ func TestPerformIssueV2(t *testing.T) {
 	to, path := createPerformerTestObjects(t)
 
 	defer func() {
+		to.stor.close(t)
+
 		err := util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -95,6 +99,8 @@ func TestPerformReissueV1(t *testing.T) {
 	to, path := createPerformerTestObjects(t)
 
 	defer func() {
+		to.stor.close(t)
+
 		err := util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -117,6 +123,8 @@ func TestPerformReissueV2(t *testing.T) {
 	to, path := createPerformerTestObjects(t)
 
 	defer func() {
+		to.stor.close(t)
+
 		err := util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -139,6 +147,8 @@ func TestPerformBurnV1(t *testing.T) {
 	to, path := createPerformerTestObjects(t)
 
 	defer func() {
+		to.stor.close(t)
+
 		err := util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -160,6 +170,8 @@ func TestPerformBurnV2(t *testing.T) {
 	to, path := createPerformerTestObjects(t)
 
 	defer func() {
+		to.stor.close(t)
+
 		err := util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -181,6 +193,8 @@ func TestPerformLeaseV1(t *testing.T) {
 	to, path := createPerformerTestObjects(t)
 
 	defer func() {
+		to.stor.close(t)
+
 		err := util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -206,6 +220,8 @@ func TestPerformLeaseV2(t *testing.T) {
 	to, path := createPerformerTestObjects(t)
 
 	defer func() {
+		to.stor.close(t)
+
 		err := util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -231,6 +247,8 @@ func TestPerformLeaseCancelV1(t *testing.T) {
 	to, path := createPerformerTestObjects(t)
 
 	defer func() {
+		to.stor.close(t)
+
 		err := util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -259,6 +277,8 @@ func TestPerformLeaseCancelV2(t *testing.T) {
 	to, path := createPerformerTestObjects(t)
 
 	defer func() {
+		to.stor.close(t)
+
 		err := util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -287,6 +307,8 @@ func TestPerformCreateAliasV1(t *testing.T) {
 	to, path := createPerformerTestObjects(t)
 
 	defer func() {
+		to.stor.close(t)
+
 		err := util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -315,6 +337,8 @@ func TestPerformCreateAliasV2(t *testing.T) {
 	to, path := createPerformerTestObjects(t)
 
 	defer func() {
+		to.stor.close(t)
+
 		err := util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -343,6 +367,8 @@ func TestPerformDataV1(t *testing.T) {
 	to, path := createPerformerTestObjects(t)
 
 	defer func() {
+		to.stor.close(t)
+
 		err := util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -366,6 +392,8 @@ func TestPerformSponsorshipV1(t *testing.T) {
 	to, path := createPerformerTestObjects(t)
 
 	defer func() {
+		to.stor.close(t)
+
 		err := util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -411,6 +439,8 @@ func TestPerfromSetScriptV1(t *testing.T) {
 	to, path := createPerformerTestObjects(t)
 
 	defer func() {
+		to.stor.close(t)
+
 		err := util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()

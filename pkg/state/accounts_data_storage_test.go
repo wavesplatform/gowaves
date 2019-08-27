@@ -30,8 +30,8 @@ func TestAppendEntry(t *testing.T) {
 	assert.NoError(t, err, "createAccountsDataStorage() failed")
 
 	defer func() {
-		err = to.stor.stateDB.close()
-		assert.NoError(t, err, "failed to close DB")
+		to.stor.close(t)
+
 		err = util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -61,8 +61,8 @@ func TestRollbackEntry(t *testing.T) {
 	assert.NoError(t, err, "createAccountsDataStorage() failed")
 
 	defer func() {
-		err = to.stor.stateDB.close()
-		assert.NoError(t, err, "failed to close DB")
+		to.stor.close(t)
+
 		err = util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -96,8 +96,8 @@ func TestRetrieveIntegerEntry(t *testing.T) {
 	assert.NoError(t, err, "createAccountsDataStorage() failed")
 
 	defer func() {
-		err = to.stor.stateDB.close()
-		assert.NoError(t, err, "failed to close DB")
+		to.stor.close(t)
+
 		err = util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -121,8 +121,8 @@ func TestRetrieveBooleanEntry(t *testing.T) {
 	assert.NoError(t, err, "createAccountsDataStorage() failed")
 
 	defer func() {
-		err = to.stor.stateDB.close()
-		assert.NoError(t, err, "failed to close DB")
+		to.stor.close(t)
+
 		err = util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -146,8 +146,8 @@ func TestRetrieveStringEntry(t *testing.T) {
 	assert.NoError(t, err, "createAccountsDataStorage() failed")
 
 	defer func() {
-		err = to.stor.stateDB.close()
-		assert.NoError(t, err, "failed to close DB")
+		to.stor.close(t)
+
 		err = util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -171,8 +171,8 @@ func TestRetrieveBinaryEntry(t *testing.T) {
 	assert.NoError(t, err, "createAccountsDataStorage() failed")
 
 	defer func() {
-		err = to.stor.stateDB.close()
-		assert.NoError(t, err, "failed to close DB")
+		to.stor.close(t)
+
 		err = util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()

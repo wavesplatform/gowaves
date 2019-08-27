@@ -30,8 +30,8 @@ func TestSetScript(t *testing.T) {
 	assert.NoError(t, err, "createAccountsScriptsTestObjects() failed")
 
 	defer func() {
-		err = to.stor.stateDB.close()
-		assert.NoError(t, err, "stateDB.close() failed")
+		to.stor.close(t)
+
 		err = util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()

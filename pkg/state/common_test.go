@@ -283,6 +283,13 @@ func (s *testStorageObjects) flush(t *testing.T) {
 	s.stateDB.reset()
 }
 
+func (s *testStorageObjects) close(t *testing.T) {
+	err := s.rw.close()
+	assert.NoError(t, err)
+	err = s.stateDB.close()
+	assert.NoError(t, err)
+}
+
 func genRandBlockIds(t *testing.T, amount int) []crypto.Signature {
 	ids := make([]crypto.Signature, amount)
 	for i := 0; i < amount; i++ {

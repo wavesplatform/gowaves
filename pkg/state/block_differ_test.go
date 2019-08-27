@@ -55,6 +55,8 @@ func TestCreateBlockDiffWithoutNg(t *testing.T) {
 	to, path := createBlockDiffer(t)
 
 	defer func() {
+		to.stor.close(t)
+
 		err := util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -72,6 +74,8 @@ func TestCreateBlockDiffNg(t *testing.T) {
 	to, path := createBlockDiffer(t)
 
 	defer func() {
+		to.stor.close(t)
+
 		err := util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -107,6 +111,8 @@ func TestCreateBlockDiffSponsorship(t *testing.T) {
 	to, path := createBlockDiffer(t)
 
 	defer func() {
+		to.stor.close(t)
+
 		err := util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()

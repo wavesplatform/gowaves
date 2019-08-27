@@ -36,6 +36,8 @@ func TestCheckGenesis(t *testing.T) {
 	to, path := createCheckerTestObjects(t)
 
 	defer func() {
+		to.stor.close(t)
+
 		err := util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -57,6 +59,8 @@ func TestCheckPayment(t *testing.T) {
 	to, path := createCheckerTestObjects(t)
 
 	defer func() {
+		to.stor.close(t)
+
 		err := util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -79,6 +83,8 @@ func TestCheckTransferV1(t *testing.T) {
 	to, path := createCheckerTestObjects(t)
 
 	defer func() {
+		to.stor.close(t)
+
 		err := util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -114,6 +120,8 @@ func TestCheckTransferV2(t *testing.T) {
 	to, path := createCheckerTestObjects(t)
 
 	defer func() {
+		to.stor.close(t)
+
 		err := util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -156,6 +164,8 @@ func TestCheckIssueV1(t *testing.T) {
 	to, path := createCheckerTestObjects(t)
 
 	defer func() {
+		to.stor.close(t)
+
 		err := util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -174,6 +184,8 @@ func TestCheckIssueV2(t *testing.T) {
 	to, path := createCheckerTestObjects(t)
 
 	defer func() {
+		to.stor.close(t)
+
 		err := util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -193,6 +205,8 @@ func TestCheckReissueV1(t *testing.T) {
 	to, path := createCheckerTestObjects(t)
 
 	defer func() {
+		to.stor.close(t)
+
 		err := util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -232,6 +246,8 @@ func TestCheckReissueV2(t *testing.T) {
 	to, path := createCheckerTestObjects(t)
 
 	defer func() {
+		to.stor.close(t)
+
 		err := util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -277,6 +293,8 @@ func TestCheckBurnV1(t *testing.T) {
 	to, path := createCheckerTestObjects(t)
 
 	defer func() {
+		to.stor.close(t)
+
 		err := util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -308,6 +326,8 @@ func TestCheckBurnV2(t *testing.T) {
 	to, path := createCheckerTestObjects(t)
 
 	defer func() {
+		to.stor.close(t)
+
 		err := util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -344,6 +364,8 @@ func TestCheckExchangeV1(t *testing.T) {
 	to, path := createCheckerTestObjects(t)
 
 	defer func() {
+		to.stor.close(t)
+
 		err := util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -363,6 +385,8 @@ func TestCheckExchangeV2(t *testing.T) {
 	to, path := createCheckerTestObjects(t)
 
 	defer func() {
+		to.stor.close(t)
+
 		err := util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -390,6 +414,8 @@ func TestCheckLeaseV1(t *testing.T) {
 	to, path := createCheckerTestObjects(t)
 
 	defer func() {
+		to.stor.close(t)
+
 		err := util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -409,6 +435,8 @@ func TestCheckLeaseV2(t *testing.T) {
 	to, path := createCheckerTestObjects(t)
 
 	defer func() {
+		to.stor.close(t)
+
 		err := util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -434,6 +462,8 @@ func TestCheckLeaseCancelV1(t *testing.T) {
 	to, path := createCheckerTestObjects(t)
 
 	defer func() {
+		to.stor.close(t)
+
 		err := util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -467,6 +497,8 @@ func TestCheckLeaseCancelV2(t *testing.T) {
 	to, path := createCheckerTestObjects(t)
 
 	defer func() {
+		to.stor.close(t)
+
 		err := util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -507,6 +539,8 @@ func TestCheckCreateAliasV1(t *testing.T) {
 	to, path := createCheckerTestObjects(t)
 
 	defer func() {
+		to.stor.close(t)
+
 		err := util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -535,6 +569,8 @@ func TestCheckCreateAliasV2(t *testing.T) {
 	to, path := createCheckerTestObjects(t)
 
 	defer func() {
+		to.stor.close(t)
+
 		err := util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -568,6 +604,8 @@ func TestCheckMassTransferV1(t *testing.T) {
 	to, path := createCheckerTestObjects(t)
 
 	defer func() {
+		to.stor.close(t)
+
 		err := util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -596,6 +634,8 @@ func TestCheckDataV1(t *testing.T) {
 	to, path := createCheckerTestObjects(t)
 
 	defer func() {
+		to.stor.close(t)
+
 		err := util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -622,6 +662,8 @@ func TestCheckSponsorshipV1(t *testing.T) {
 	to, path := createCheckerTestObjects(t)
 
 	defer func() {
+		to.stor.close(t)
+
 		err := util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()

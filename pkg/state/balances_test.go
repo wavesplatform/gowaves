@@ -48,8 +48,8 @@ func TestCancelAllLeases(t *testing.T) {
 	assert.NoError(t, err, "createBalances() failed")
 
 	defer func() {
-		err = to.stor.stateDB.close()
-		assert.NoError(t, err, "failed to close DB")
+		to.stor.close(t)
+
 		err = util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -92,8 +92,8 @@ func TestCancelLeaseOverflows(t *testing.T) {
 	assert.NoError(t, err, "createBalances() failed")
 
 	defer func() {
-		err = to.stor.stateDB.close()
-		assert.NoError(t, err, "failed to close DB")
+		to.stor.close(t)
+
 		err = util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -146,8 +146,8 @@ func TestCancelInvalidLeaseIns(t *testing.T) {
 	assert.NoError(t, err, "createBalances() failed")
 
 	defer func() {
-		err = to.stor.stateDB.close()
-		assert.NoError(t, err, "failed to close DB")
+		to.stor.close(t)
+
 		err = util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -193,8 +193,8 @@ func TestMinBalanceInRange(t *testing.T) {
 	assert.NoError(t, err, "createBalances() failed")
 
 	defer func() {
-		err = to.stor.stateDB.close()
-		assert.NoError(t, err, "failed to close DB")
+		to.stor.close(t)
+
 		err = util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -231,8 +231,8 @@ func TestBalances(t *testing.T) {
 	assert.NoError(t, err, "createBalances() failed")
 
 	defer func() {
-		err = to.stor.stateDB.close()
-		assert.NoError(t, err, "failed to close DB")
+		to.stor.close(t)
+
 		err = util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
