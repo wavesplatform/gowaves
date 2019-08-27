@@ -2962,7 +2962,7 @@ func TestCreateAliasV2FromMainNet(t *testing.T) {
 		sig, _ := crypto.NewSignatureFromBase58(tc.sig)
 		a := NewAlias(tc.scheme, tc.alias)
 		tx := NewUnsignedCreateAliasV2(spk, *a, tc.fee, tc.timestamp)
-		if b, err := tx.bodyMarshalBinary(); assert.NoError(t, err) {
+		if b, err := tx.BodyMarshalBinary(); assert.NoError(t, err) {
 			if h, err := tx.id(); assert.NoError(t, err) {
 				assert.Equal(t, id, *h)
 			}
@@ -2986,7 +2986,7 @@ func TestCreateAliasV2BinaryRoundTrip(t *testing.T) {
 		ts := uint64(time.Now().UnixNano() / 1000000)
 		a := NewAlias(tc.scheme, tc.alias)
 		tx := NewUnsignedCreateAliasV2(pk, *a, tc.fee, ts)
-		if bb, err := tx.bodyMarshalBinary(); assert.NoError(t, err) {
+		if bb, err := tx.BodyMarshalBinary(); assert.NoError(t, err) {
 			var atx CreateAliasV2
 			if err := atx.bodyUnmarshalBinary(bb); assert.NoError(t, err) {
 				assert.Equal(t, tx.Type, atx.Type)

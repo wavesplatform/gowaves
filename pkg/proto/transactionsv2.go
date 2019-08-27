@@ -1689,7 +1689,7 @@ func NewUnsignedCreateAliasV2(senderPK crypto.PublicKey, alias Alias, fee, times
 	return &CreateAliasV2{Type: CreateAliasTransaction, Version: 2, CreateAlias: ca}
 }
 
-func (tx *CreateAliasV2) bodyMarshalBinary() ([]byte, error) {
+func (tx *CreateAliasV2) BodyMarshalBinary() ([]byte, error) {
 	buf := make([]byte, createAliasV2FixedBodyLen+len(tx.Alias.Alias))
 	buf[0] = byte(tx.Type)
 	buf[1] = tx.Version
@@ -1724,7 +1724,7 @@ func (tx *CreateAliasV2) bodyUnmarshalBinary(data []byte) error {
 
 //Sign adds signature as a proof at first position.
 func (tx *CreateAliasV2) Sign(secretKey crypto.SecretKey) error {
-	b, err := tx.bodyMarshalBinary()
+	b, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return errors.Wrap(err, "failed to sign CreateAliasV2 transaction")
 	}
@@ -1744,7 +1744,7 @@ func (tx *CreateAliasV2) Sign(secretKey crypto.SecretKey) error {
 
 //Verify checks that first proof is a valid signature.
 func (tx *CreateAliasV2) Verify(publicKey crypto.PublicKey) (bool, error) {
-	b, err := tx.bodyMarshalBinary()
+	b, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return false, errors.Wrap(err, "failed to verify signature of CreateAliasV2 transaction")
 	}
@@ -1753,7 +1753,7 @@ func (tx *CreateAliasV2) Verify(publicKey crypto.PublicKey) (bool, error) {
 
 //MarshalBinary saves the transaction to its binary representation.
 func (tx *CreateAliasV2) MarshalBinary() ([]byte, error) {
-	bb, err := tx.bodyMarshalBinary()
+	bb, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal CreateAliasV2 transaction to bytes")
 	}
