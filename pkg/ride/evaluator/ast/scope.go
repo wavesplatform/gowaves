@@ -202,7 +202,7 @@ func FunctionsV3() *Functions {
 	//TODO: native[1006] = NativeTransferTransactionByID // RIDE v3
 	s.native[1061] = NativeAddressToString
 	//TODO: native[1070] = NativeBlockHeaderFromBytes // RIDE v4
-	//TODO: native[1100] = NativeCreateList // RIDE v3
+	s.native[1100] = NativeCreateList
 	//TODO: native[1200] = NativeBytesToUTF8String // RIDE v3
 	//TODO: native[1201] = NativeBytesToLong // RIDE v3
 	//TODO: native[1202] = NativeBytesToLongWithOffset // RIDE v3
@@ -280,5 +280,7 @@ func VariablesV3() map[string]Expr {
 	v["SHA3256"] = SHA3256Expr{}
 	v["SHA3384"] = SHA3384Expr{}
 	v["SHA3512"] = SHA3512Expr{}
+
+	v["nil"] = Exprs(nil)
 	return v
 }

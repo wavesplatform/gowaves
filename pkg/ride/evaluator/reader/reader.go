@@ -18,6 +18,8 @@ const E_FALSE byte = 7
 const E_GETTER byte = 8
 const E_FUNCALL byte = 9
 
+// TODO: const E_BLOCK_V2 byte = 10 // RIDE v3
+
 const FH_NATIVE byte = 0
 const FH_USER byte = 1
 
