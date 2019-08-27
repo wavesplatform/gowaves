@@ -32,6 +32,24 @@ func newTransactionChecker(
 	return &transactionChecker{genesis, stor, settings}, nil
 }
 
+func (tc *transactionChecker) scriptActivation(script proto.Script) error {
+	scriptAst, err := scriptBytesToAst(script)
+	if err != nil {
+		return err
+	}
+	rideForDAppsActivated, err := tc.stor.features.isActivated(int16(settings.Ride4DApps))
+	if err != nil {
+		return err
+	}
+	if scriptAst.Version == 3 && !rideForDAppsActivated {
+		return errors.New("Ride4DApps feature must be activated for scripts version 3")
+	}
+	if scriptAst.HasBlockV2 && !rideForDAppsActivated {
+		return errors.New("Ride4DApps feature must be activated for scripts that have block version 2")
+	}
+	return nil
+}
+
 func (tc *transactionChecker) checkFee(tx proto.Transaction, feeAsset proto.OptionalAsset, info *checkerInfo) error {
 	sponsorshipActivated, err := tc.stor.sponsoredAssets.isSponsorshipActivated()
 	if err != nil {
@@ -161,6 +179,13 @@ func (tc *transactionChecker) checkTransferV2(transaction proto.Transaction, inf
 	if err := tc.checkFee(transaction, tx.FeeAsset, info); err != nil {
 		return errors.Errorf("checkFee(): %v", err)
 	}
+	activated, err := tc.stor.features.isActivated(int16(settings.SmartAccounts))
+	if err != nil {
+		return err
+	}
+	if !activated {
+		return errors.New("SmartAccounts feature has not been activated yet")
+	}
 	return tc.checkTransfer(&tx.Transfer, info)
 }
 
@@ -189,6 +214,9 @@ func (tc *transactionChecker) checkIssueV2(transaction proto.Transaction, info *
 	}
 	if err := tc.checkFee(transaction, proto.OptionalAsset{Present: false}, info); err != nil {
 		return errors.Errorf("checkFee(): %v", err)
+	}
+	if err := tc.scriptActivation(tx.Script); err != nil {
+		return errors.Wrap(err, "script activation check failed")
 	}
 	return tc.checkIssue(&tx.Issue, info)
 }
@@ -241,6 +269,13 @@ func (tc *transactionChecker) checkReissueV2(transaction proto.Transaction, info
 	if err := tc.checkFee(transaction, proto.OptionalAsset{Present: false}, info); err != nil {
 		return errors.Errorf("checkFee(): %v", err)
 	}
+	activated, err := tc.stor.features.isActivated(int16(settings.SmartAccounts))
+	if err != nil {
+		return err
+	}
+	if !activated {
+		return errors.New("SmartAccounts feature has not been activated yet")
+	}
 	return tc.checkReissue(&tx.Reissue, info)
 }
 
@@ -281,6 +316,13 @@ func (tc *transactionChecker) checkBurnV2(transaction proto.Transaction, info *c
 	if err := tc.checkFee(transaction, proto.OptionalAsset{Present: false}, info); err != nil {
 		return errors.Errorf("checkFee(): %v", err)
 	}
+	activated, err := tc.stor.features.isActivated(int16(settings.SmartAccounts))
+	if err != nil {
+		return err
+	}
+	if !activated {
+		return errors.New("SmartAccounts feature has not been activated yet")
+	}
 	return tc.checkBurn(&tx.Burn, info)
 }
 
@@ -307,6 +349,39 @@ func (tc *transactionChecker) checkExchange(transaction proto.Transaction, info 
 		return err
 	}
 	return nil
+}
+
+func (tc *transactionChecker) checkExchangeV1(transaction proto.Transaction, info *checkerInfo) error {
+	tx, ok := transaction.(*proto.ExchangeV1)
+	if !ok {
+		return errors.New("failed to convert interface to Payment transaction")
+	}
+	return tc.checkExchange(tx, info)
+}
+
+func (tc *transactionChecker) checkExchangeV2(transaction proto.Transaction, info *checkerInfo) error {
+	tx, ok := transaction.(*proto.ExchangeV2)
+	if !ok {
+		return errors.New("failed to convert interface to ExchangeV2 transaction")
+	}
+	activated, err := tc.stor.features.isActivated(int16(settings.SmartAccountTrading))
+	if err != nil {
+		return err
+	}
+	if !activated {
+		return errors.New("SmartAccountsTrading feature must be activated for ExchangeV2 transactions")
+	}
+	if (tx.BuyOrder.GetVersion() != 3) && (tx.SellOrder.GetVersion() != 3) {
+		return nil
+	}
+	activated, err = tc.stor.features.isActivated(int16(settings.OrderV3))
+	if err != nil {
+		return err
+	}
+	if !activated {
+		return errors.New("OrderV3 feature must be activated for Exchange transactions with Order version 3")
+	}
+	return tc.checkExchange(tx, info)
 }
 
 func (tc *transactionChecker) checkLease(tx *proto.Lease, info *checkerInfo) error {
@@ -351,6 +426,13 @@ func (tc *transactionChecker) checkLeaseV2(transaction proto.Transaction, info *
 	if err := tc.checkFee(transaction, proto.OptionalAsset{Present: false}, info); err != nil {
 		return errors.Errorf("checkFee(): %v", err)
 	}
+	activated, err := tc.stor.features.isActivated(int16(settings.SmartAccounts))
+	if err != nil {
+		return err
+	}
+	if !activated {
+		return errors.New("SmartAccounts feature has not been activated yet")
+	}
 	return tc.checkLease(&tx.Lease, info)
 }
 
@@ -394,6 +476,13 @@ func (tc *transactionChecker) checkLeaseCancelV2(transaction proto.Transaction, 
 	if err := tc.checkFee(transaction, proto.OptionalAsset{Present: false}, info); err != nil {
 		return errors.Errorf("checkFee(): %v", err)
 	}
+	activated, err := tc.stor.features.isActivated(int16(settings.SmartAccounts))
+	if err != nil {
+		return err
+	}
+	if !activated {
+		return errors.New("SmartAccounts feature has not been activated yet")
+	}
 	return tc.checkLeaseCancel(&tx.LeaseCancel, info)
 }
 
@@ -430,6 +519,13 @@ func (tc *transactionChecker) checkCreateAliasV2(transaction proto.Transaction, 
 	}
 	if err := tc.checkFee(transaction, proto.OptionalAsset{Present: false}, info); err != nil {
 		return errors.Errorf("checkFee(): %v", err)
+	}
+	activated, err := tc.stor.features.isActivated(int16(settings.SmartAccounts))
+	if err != nil {
+		return err
+	}
+	if !activated {
+		return errors.New("SmartAccounts feature has not been activated yet")
 	}
 	return tc.checkCreateAlias(&tx.CreateAlias, info)
 }
@@ -521,13 +617,8 @@ func (tc *transactionChecker) checkSetScriptV1(transaction proto.Transaction, in
 	if err := tc.checkFee(transaction, proto.OptionalAsset{Present: false}, info); err != nil {
 		return errors.Errorf("checkFee(): %v", err)
 	}
-	activated, err := tc.stor.features.isActivated(int16(settings.SmartAccounts))
-	if err != nil {
-		return err
-	}
-	if !activated {
-		return errors.New("SmartAccounts feature has not been activated yet")
+	if err := tc.scriptActivation(tx.Script); err != nil {
+		return errors.Wrap(err, "script activation check failed")
 	}
 	return nil
-	// TODO: complete.
 }

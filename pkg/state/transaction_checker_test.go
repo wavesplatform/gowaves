@@ -127,6 +127,13 @@ func TestCheckTransferV2(t *testing.T) {
 	assert.Error(t, err, "checkTransferV2 did not fail with invalid transfer asset")
 
 	to.stor.createAsset(t, assetId)
+
+	err = to.tc.checkTransferV2(tx, info)
+	assert.Error(t, err, "checkTransferV2 did not fail prior to SmartAccounts activation")
+
+	to.stor.activateFeature(t, int16(settings.SmartAccounts))
+
+	to.stor.createAsset(t, assetId)
 	err = to.tc.checkTransferV2(tx, info)
 	assert.NoError(t, err, "checkTransferV2 failed with valid transfer tx")
 
@@ -173,11 +180,12 @@ func TestCheckIssueV2(t *testing.T) {
 
 	tx := createIssueV2(t)
 	info := defaultCheckerInfo(t)
+
 	err := to.tc.checkIssueV2(tx, info)
 	assert.NoError(t, err, "checkIssueV2 failed with valid issue tx")
 
 	tx.Timestamp = 0
-	err = to.tc.checkIssueV1(tx, info)
+	err = to.tc.checkIssueV2(tx, info)
 	assert.Error(t, err, "checkIssueV2 did not fail with invalid timestamp")
 }
 
@@ -234,7 +242,13 @@ func TestCheckReissueV2(t *testing.T) {
 	tx.SenderPK = assetInfo.issuer
 	info := defaultCheckerInfo(t)
 	info.currentTimestamp = settings.MainNetSettings.ReissueBugWindowTimeEnd + 1
+
 	err := to.tc.checkReissueV2(tx, info)
+	assert.Error(t, err, "checkReissueV2 did not fail prior to SmartAccounts activation")
+
+	to.stor.activateFeature(t, int16(settings.SmartAccounts))
+
+	err = to.tc.checkReissueV2(tx, info)
 	assert.NoError(t, err, "checkReissueV2 failed with valid reissue tx")
 
 	temp := tx.Quantity
@@ -268,10 +282,10 @@ func TestCheckBurnV1(t *testing.T) {
 	}()
 
 	assetInfo := to.stor.createAsset(t, testGlobal.asset0.asset.ID)
-
 	tx := createBurnV1(t)
 	tx.SenderPK = assetInfo.issuer
 	info := defaultCheckerInfo(t)
+
 	err := to.tc.checkBurnV1(tx, info)
 	assert.NoError(t, err, "checkBurnV1 failed with valid burn tx")
 
@@ -299,11 +313,16 @@ func TestCheckBurnV2(t *testing.T) {
 	}()
 
 	assetInfo := to.stor.createAsset(t, testGlobal.asset0.asset.ID)
-
 	tx := createBurnV2(t)
 	tx.SenderPK = assetInfo.issuer
 	info := defaultCheckerInfo(t)
+
 	err := to.tc.checkBurnV2(tx, info)
+	assert.Error(t, err, "checkBurnV2 did not fail prior to SmartAccounts activation")
+
+	to.stor.activateFeature(t, int16(settings.SmartAccounts))
+
+	err = to.tc.checkBurnV2(tx, info)
 	assert.NoError(t, err, "checkBurnV2 failed with valid burn tx")
 
 	// Change sender and make sure tx is invalid before activation of BurnAnyTokens feature.
@@ -321,7 +340,7 @@ func TestCheckBurnV2(t *testing.T) {
 	assert.Error(t, err, "checkBurnV2 did not fail with invalid timestamp")
 }
 
-func TestCheckExchange(t *testing.T) {
+func TestCheckExchangeV1(t *testing.T) {
 	to, path := createCheckerTestObjects(t)
 
 	defer func() {
@@ -331,13 +350,40 @@ func TestCheckExchange(t *testing.T) {
 
 	tx := createExchangeV1(t)
 	info := defaultCheckerInfo(t)
-	err := to.tc.checkExchange(tx, info)
-	assert.Error(t, err, "checkExchange did not fail with exchange with unknown assets")
+	err := to.tc.checkExchangeV1(tx, info)
+	assert.Error(t, err, "checkExchangeV1 did not fail with exchange with unknown assets")
 
 	to.stor.createAsset(t, testGlobal.asset0.asset.ID)
 	to.stor.createAsset(t, testGlobal.asset1.asset.ID)
-	err = to.tc.checkExchange(tx, info)
-	assert.NoError(t, err, "checkExchange failed with valid exchange")
+	err = to.tc.checkExchangeV1(tx, info)
+	assert.NoError(t, err, "checkExchangeV1 failed with valid exchange")
+}
+
+func TestCheckExchangeV2(t *testing.T) {
+	to, path := createCheckerTestObjects(t)
+
+	defer func() {
+		err := util.CleanTemporaryDirs(path)
+		assert.NoError(t, err, "failed to clean test data dirs")
+	}()
+
+	tx := createExchangeV2(t)
+	info := defaultCheckerInfo(t)
+	err := to.tc.checkExchangeV2(tx, info)
+	assert.Error(t, err, "checkExchangeV2 did not fail with exchange with unknown assets")
+
+	to.stor.createAsset(t, testGlobal.asset0.asset.ID)
+	to.stor.createAsset(t, testGlobal.asset1.asset.ID)
+
+	err = to.tc.checkExchangeV2(tx, info)
+	assert.Error(t, err, "checkExchangeV2 did not fail prior to SmartAccountTrading activation")
+
+	// TODO: uncomment when the following features will be implemented.
+	//to.stor.activateFeature(t, int16(settings.SmartAccountTrading))
+	//to.stor.activateFeature(t, int16(settings.OrderV3))
+
+	//err = to.tc.checkExchangeV2(tx, info)
+	//assert.NoError(t, err, "checkExchangeV2 failed with valid exchange")
 }
 
 func TestCheckLeaseV1(t *testing.T) {
@@ -374,6 +420,12 @@ func TestCheckLeaseV2(t *testing.T) {
 	assert.Error(t, err, "checkLeaseV2 did not fail when leasing to self")
 
 	tx = createLeaseV2(t)
+
+	err = to.tc.checkLeaseV2(tx, info)
+	assert.Error(t, err, "checkLeaseV2 did not fail prior to SmartAccounts activation")
+
+	to.stor.activateFeature(t, int16(settings.SmartAccounts))
+
 	err = to.tc.checkLeaseV2(tx, info)
 	assert.NoError(t, err, "checkLeaseV2 failed with valid lease tx")
 }
@@ -438,9 +490,16 @@ func TestCheckLeaseCancelV2(t *testing.T) {
 	tx = createLeaseCancelV2(t, *leaseTx.ID)
 
 	err = to.tc.checkLeaseCancelV2(tx, info)
-	assert.NoError(t, err, "checkLeaseCancelV2 failed with valid leaseCancel tx")
+	assert.Error(t, err, "checkLeaseCancelV2 did not fail prior to SmartAccounts activation")
 
-	err = to.tc.checkLeaseV2(tx, info)
+	to.stor.activateFeature(t, int16(settings.SmartAccounts))
+
+	err = to.tc.checkLeaseCancelV2(tx, info)
+	assert.NoError(t, err, "checkLeaseCancelV2 failed with valid leaseCancel tx")
+	err = to.tp.performLeaseCancelV2(tx, defaultPerformerInfo(t))
+	assert.NoError(t, err, "performLeaseCancelV2() failed")
+
+	err = to.tc.checkLeaseCancelV2(tx, info)
 	assert.Error(t, err, "checkLeaseCancelV2 did not fail when cancelling same lease multiple times")
 }
 
@@ -484,6 +543,11 @@ func TestCheckCreateAliasV2(t *testing.T) {
 	info := defaultCheckerInfo(t)
 
 	err := to.tc.checkCreateAliasV2(tx, info)
+	assert.Error(t, err, "checkCreateAliasV2 did not fail prior to SmartAccounts activation")
+
+	to.stor.activateFeature(t, int16(settings.SmartAccounts))
+
+	err = to.tc.checkCreateAliasV2(tx, info)
 	assert.NoError(t, err, "checkCreateAliasV2 failed with valid createAlias tx")
 
 	to.stor.addBlock(t, blockID0)

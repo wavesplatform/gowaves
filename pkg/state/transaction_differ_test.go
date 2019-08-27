@@ -211,7 +211,7 @@ func TestCreateDiffIssueV1(t *testing.T) {
 }
 
 func createIssueV2(t *testing.T) *proto.IssueV2 {
-	tx := proto.NewUnsignedIssueV2('W', testGlobal.senderInfo.pk, "name", "description", defaultQuantity, defaultDecimals, true, []byte{}, defaultTimestamp, defaultFee)
+	tx := proto.NewUnsignedIssueV2('W', testGlobal.senderInfo.pk, "name", "description", defaultQuantity, defaultDecimals, true, testGlobal.scriptBytes, defaultTimestamp, defaultFee)
 	err := tx.Sign(testGlobal.senderInfo.sk)
 	assert.NoError(t, err, "Sign() failed")
 	return tx
