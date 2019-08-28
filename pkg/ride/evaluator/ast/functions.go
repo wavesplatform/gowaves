@@ -119,6 +119,29 @@ func NativeGetList(s Scope, e Exprs) (Expr, error) {
 	return lst[lng.Value], nil
 }
 
+func NativeCreateList(s Scope, e Exprs) (Expr, error) {
+	const funcName = "NativeCreateList"
+	if l := len(e); l != 2 {
+		return nil, errors.Errorf("%s: invalid parameters, expected 2, received %d", funcName, l)
+	}
+	head, err := e[0].Evaluate(s.Clone())
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	t, err := e[1].Evaluate(s.Clone())
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	tail, ok := t.(Exprs)
+	if !ok {
+		return nil, errors.Errorf("%s: invalid second parameter, expected Exprs, received %T", funcName, e[1])
+	}
+	if len(tail) == 0 {
+		return NewExprs(e[0]), nil
+	}
+	return append(NewExprs(head), tail...), nil
+}
+
 // Internal function to check value type
 func NativeIsInstanceOf(s Scope, e Exprs) (Expr, error) {
 	funcName := "NativeIsInstanceOf"
@@ -1123,12 +1146,12 @@ func NativeToBase64(s Scope, e Exprs) (Expr, error) {
 		return nil, errors.Wrap(err, funcName)
 	}
 
-	bytes, ok := first.(*BytesExpr)
+	b, ok := first.(*BytesExpr)
 	if !ok {
 		return nil, errors.Errorf("%s expected first argument to be *BytesExpr, found %T", funcName, first)
 	}
 
-	encoded := base64.StdEncoding.EncodeToString(bytes.Value)
+	encoded := base64.StdEncoding.EncodeToString(b.Value)
 	return NewString(encoded), nil
 }
 
@@ -1171,12 +1194,12 @@ func NativeToBase16(s Scope, e Exprs) (Expr, error) {
 		return nil, errors.Wrap(err, funcName)
 	}
 
-	bytes, ok := first.(*BytesExpr)
+	b, ok := first.(*BytesExpr)
 	if !ok {
 		return nil, errors.Errorf("%s expected first argument to be *BytesExpr, found %T", funcName, first)
 	}
 
-	encoded := hex.EncodeToString(bytes.Value)
+	encoded := hex.EncodeToString(b.Value)
 	return NewString(encoded), nil
 }
 

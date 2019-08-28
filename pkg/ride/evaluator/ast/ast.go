@@ -35,7 +35,7 @@ func (a Exprs) Write(w io.Writer) {
 }
 
 func (a Exprs) Evaluate(s Scope) (Expr, error) {
-	return nil, errors.New("Exprs Evaluate")
+	return a.EvaluateAll(s)
 }
 
 func (a Exprs) EvaluateAll(s Scope) (Exprs, error) {
