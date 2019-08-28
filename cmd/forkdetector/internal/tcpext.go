@@ -567,17 +567,20 @@ func (s *Server) removeConn(conn *Conn) {
 var (
 	bufferPool1K = &sync.Pool{
 		New: func() interface{} {
-			return make([]byte, 1<<10)
+			buf := make([]byte, 1<<10)
+			return &buf
 		},
 	}
 	bufferPool2K = &sync.Pool{
 		New: func() interface{} {
-			return make([]byte, 2<<10)
+			buf := make([]byte, 2<<10)
+			return &buf
 		},
 	}
 	bufferPool4K = &sync.Pool{
 		New: func() interface{} {
-			return make([]byte, 4<<10)
+			buf := make([]byte, 4<<10)
+			return &buf
 		},
 	}
 	bufferPoolBig = &sync.Pool{}

@@ -3,13 +3,21 @@ package ast
 import (
 	"bytes"
 	"fmt"
+	"io"
+
 	"github.com/mr-tron/base58/base58"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"io"
 )
 
 const InstanceFieldName = "$instance"
+
+type Script struct {
+	//TODO: update for DApps support
+	Version    int
+	HasBlockV2 bool
+	Verifier   Expr
+}
 
 type Expr interface {
 	Write(io.Writer)
@@ -737,4 +745,328 @@ func (a SellExpr) Eq(other Expr) (bool, error) {
 
 func (a SellExpr) InstanceOf() string {
 	return "Sell"
+}
+
+type CeilingExpr struct{}
+
+func (a CeilingExpr) Evaluate(s Scope) (Expr, error) {
+	return a, nil
+}
+
+func (a CeilingExpr) Write(w io.Writer) {
+	_, _ = fmt.Fprint(w, "CeilingExpr")
+}
+
+func (a CeilingExpr) Eq(other Expr) (bool, error) {
+	return a.InstanceOf() == other.InstanceOf(), nil
+}
+
+func (a CeilingExpr) InstanceOf() string {
+	return "Ceiling"
+}
+
+type FloorExpr struct{}
+
+func (a FloorExpr) Evaluate(s Scope) (Expr, error) {
+	return a, nil
+}
+
+func (a FloorExpr) Write(w io.Writer) {
+	_, _ = fmt.Fprint(w, "FloorExpr")
+}
+
+func (a FloorExpr) Eq(other Expr) (bool, error) {
+	return a.InstanceOf() == other.InstanceOf(), nil
+}
+
+func (a FloorExpr) InstanceOf() string {
+	return "Floor"
+}
+
+type HalfEvenExpr struct{}
+
+func (a HalfEvenExpr) Evaluate(s Scope) (Expr, error) {
+	return a, nil
+}
+
+func (a HalfEvenExpr) Write(w io.Writer) {
+	_, _ = fmt.Fprint(w, "HalfEvenExpr")
+}
+
+func (a HalfEvenExpr) Eq(other Expr) (bool, error) {
+	return a.InstanceOf() == other.InstanceOf(), nil
+}
+
+func (a HalfEvenExpr) InstanceOf() string {
+	return "HalfEven"
+}
+
+type DownExpr struct{}
+
+func (a DownExpr) Evaluate(s Scope) (Expr, error) {
+	return a, nil
+}
+
+func (a DownExpr) Write(w io.Writer) {
+	_, _ = fmt.Fprint(w, "DownExpr")
+}
+
+func (a DownExpr) Eq(other Expr) (bool, error) {
+	return a.InstanceOf() == other.InstanceOf(), nil
+}
+
+func (a DownExpr) InstanceOf() string {
+	return "Down"
+}
+
+type UpExpr struct{}
+
+func (a UpExpr) Evaluate(s Scope) (Expr, error) {
+	return a, nil
+}
+
+func (a UpExpr) Write(w io.Writer) {
+	_, _ = fmt.Fprint(w, "UpExpr")
+}
+
+func (a UpExpr) Eq(other Expr) (bool, error) {
+	return a.InstanceOf() == other.InstanceOf(), nil
+}
+
+func (a UpExpr) InstanceOf() string {
+	return "Up"
+}
+
+type HalfUpExpr struct{}
+
+func (a HalfUpExpr) Evaluate(s Scope) (Expr, error) {
+	return a, nil
+}
+
+func (a HalfUpExpr) Write(w io.Writer) {
+	_, _ = fmt.Fprint(w, "HalfUpExpr")
+}
+
+func (a HalfUpExpr) Eq(other Expr) (bool, error) {
+	return a.InstanceOf() == other.InstanceOf(), nil
+}
+
+func (a HalfUpExpr) InstanceOf() string {
+	return "HalfUp"
+}
+
+type HalfDownExpr struct{}
+
+func (a HalfDownExpr) Evaluate(s Scope) (Expr, error) {
+	return a, nil
+}
+
+func (a HalfDownExpr) Write(w io.Writer) {
+	_, _ = fmt.Fprint(w, "HalfDownExpr")
+}
+
+func (a HalfDownExpr) Eq(other Expr) (bool, error) {
+	return a.InstanceOf() == other.InstanceOf(), nil
+}
+
+func (a HalfDownExpr) InstanceOf() string {
+	return "HalfDown"
+}
+
+type NoAlgExpr struct{}
+
+func (a NoAlgExpr) Evaluate(s Scope) (Expr, error) {
+	return a, nil
+}
+
+func (a NoAlgExpr) Write(w io.Writer) {
+	_, _ = fmt.Fprint(w, "NoAlgExpr")
+}
+
+func (a NoAlgExpr) Eq(other Expr) (bool, error) {
+	return a.InstanceOf() == other.InstanceOf(), nil
+}
+
+func (a NoAlgExpr) InstanceOf() string {
+	return "NoAlg"
+}
+
+type MD5Expr struct{}
+
+func (a MD5Expr) Evaluate(s Scope) (Expr, error) {
+	return a, nil
+}
+
+func (a MD5Expr) Write(w io.Writer) {
+	_, _ = fmt.Fprint(w, "MD5Expr")
+}
+
+func (a MD5Expr) Eq(other Expr) (bool, error) {
+	return a.InstanceOf() == other.InstanceOf(), nil
+}
+
+func (a MD5Expr) InstanceOf() string {
+	return "Md5"
+}
+
+type SHA1Expr struct{}
+
+func (a SHA1Expr) Evaluate(s Scope) (Expr, error) {
+	return a, nil
+}
+
+func (a SHA1Expr) Write(w io.Writer) {
+	_, _ = fmt.Fprint(w, "SHA1Expr")
+}
+
+func (a SHA1Expr) Eq(other Expr) (bool, error) {
+	return a.InstanceOf() == other.InstanceOf(), nil
+}
+
+func (a SHA1Expr) InstanceOf() string {
+	return "Sha1"
+}
+
+type SHA224Expr struct{}
+
+func (a SHA224Expr) Evaluate(s Scope) (Expr, error) {
+	return a, nil
+}
+
+func (a SHA224Expr) Write(w io.Writer) {
+	_, _ = fmt.Fprint(w, "SHA224Expr")
+}
+
+func (a SHA224Expr) Eq(other Expr) (bool, error) {
+	return a.InstanceOf() == other.InstanceOf(), nil
+}
+
+func (a SHA224Expr) InstanceOf() string {
+	return "Sha224"
+}
+
+type SHA256Expr struct{}
+
+func (a SHA256Expr) Evaluate(s Scope) (Expr, error) {
+	return a, nil
+}
+
+func (a SHA256Expr) Write(w io.Writer) {
+	_, _ = fmt.Fprint(w, "SHA256Expr")
+}
+
+func (a SHA256Expr) Eq(other Expr) (bool, error) {
+	return a.InstanceOf() == other.InstanceOf(), nil
+}
+
+func (a SHA256Expr) InstanceOf() string {
+	return "Sha256"
+}
+
+type SHA384Expr struct{}
+
+func (a SHA384Expr) Evaluate(s Scope) (Expr, error) {
+	return a, nil
+}
+
+func (a SHA384Expr) Write(w io.Writer) {
+	_, _ = fmt.Fprint(w, "SHA384Expr")
+}
+
+func (a SHA384Expr) Eq(other Expr) (bool, error) {
+	return a.InstanceOf() == other.InstanceOf(), nil
+}
+
+func (a SHA384Expr) InstanceOf() string {
+	return "Sha384"
+}
+
+type SHA512Expr struct{}
+
+func (a SHA512Expr) Evaluate(s Scope) (Expr, error) {
+	return a, nil
+}
+
+func (a SHA512Expr) Write(w io.Writer) {
+	_, _ = fmt.Fprint(w, "SHA512Expr")
+}
+
+func (a SHA512Expr) Eq(other Expr) (bool, error) {
+	return a.InstanceOf() == other.InstanceOf(), nil
+}
+
+func (a SHA512Expr) InstanceOf() string {
+	return "Sha512"
+}
+
+type SHA3224Expr struct{}
+
+func (a SHA3224Expr) Evaluate(s Scope) (Expr, error) {
+	return a, nil
+}
+
+func (a SHA3224Expr) Write(w io.Writer) {
+	_, _ = fmt.Fprint(w, "SHA3224Expr")
+}
+
+func (a SHA3224Expr) Eq(other Expr) (bool, error) {
+	return a.InstanceOf() == other.InstanceOf(), nil
+}
+
+func (a SHA3224Expr) InstanceOf() string {
+	return "Sha3224"
+}
+
+type SHA3256Expr struct{}
+
+func (a SHA3256Expr) Evaluate(s Scope) (Expr, error) {
+	return a, nil
+}
+
+func (a SHA3256Expr) Write(w io.Writer) {
+	_, _ = fmt.Fprint(w, "SHA3256Expr")
+}
+
+func (a SHA3256Expr) Eq(other Expr) (bool, error) {
+	return a.InstanceOf() == other.InstanceOf(), nil
+}
+
+func (a SHA3256Expr) InstanceOf() string {
+	return "Sha3256"
+}
+
+type SHA3384Expr struct{}
+
+func (a SHA3384Expr) Evaluate(s Scope) (Expr, error) {
+	return a, nil
+}
+
+func (a SHA3384Expr) Write(w io.Writer) {
+	_, _ = fmt.Fprint(w, "SHA3384Expr")
+}
+
+func (a SHA3384Expr) Eq(other Expr) (bool, error) {
+	return a.InstanceOf() == other.InstanceOf(), nil
+}
+
+func (a SHA3384Expr) InstanceOf() string {
+	return "Sha3384"
+}
+
+type SHA3512Expr struct{}
+
+func (a SHA3512Expr) Evaluate(s Scope) (Expr, error) {
+	return a, nil
+}
+
+func (a SHA3512Expr) Write(w io.Writer) {
+	_, _ = fmt.Fprint(w, "SHA3512Expr")
+}
+
+func (a SHA3512Expr) Eq(other Expr) (bool, error) {
+	return a.InstanceOf() == other.InstanceOf(), nil
+}
+
+func (a SHA3512Expr) InstanceOf() string {
+	return "Sha3512"
 }
