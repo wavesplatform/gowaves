@@ -1,23 +1,33 @@
 package ast
 
 import (
+	"bytes"
+	. "crypto"
+	"crypto/rsa"
 	"crypto/sha256"
+	"crypto/x509"
 	"encoding/base64"
 	"encoding/binary"
+	"encoding/hex"
 	"fmt"
+	"io"
+	"math/big"
+	"unicode/utf8"
+
+	"github.com/ericlagergren/decimal"
 	"github.com/mr-tron/base58/base58"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride/mockstate"
-	"io"
-	"math/big"
-	"unicode/utf8"
 )
 
-const MaxBytesResult = 65536
-const MaxStringResult = 32767
-const DefaultThrowMessage = "Explicit script termination"
+const (
+	MaxBytesResult      = 65536
+	MaxStringResult     = 32767
+	MaxBytesToVerify    = 32 * 1024
+	DefaultThrowMessage = "Explicit script termination"
+)
 
 type Throw struct {
 	Message string
@@ -109,6 +119,29 @@ func NativeGetList(s Scope, e Exprs) (Expr, error) {
 	return lst[lng.Value], nil
 }
 
+func NativeCreateList(s Scope, e Exprs) (Expr, error) {
+	const funcName = "NativeCreateList"
+	if l := len(e); l != 2 {
+		return nil, errors.Errorf("%s: invalid parameters, expected 2, received %d", funcName, l)
+	}
+	head, err := e[0].Evaluate(s.Clone())
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	t, err := e[1].Evaluate(s.Clone())
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	tail, ok := t.(Exprs)
+	if !ok {
+		return nil, errors.Errorf("%s: invalid second parameter, expected Exprs, received %T", funcName, e[1])
+	}
+	if len(tail) == 0 {
+		return NewExprs(e[0]), nil
+	}
+	return append(NewExprs(head), tail...), nil
+}
+
 // Internal function to check value type
 func NativeIsInstanceOf(s Scope, e Exprs) (Expr, error) {
 	funcName := "NativeIsInstanceOf"
@@ -157,7 +190,7 @@ func NativeMulLong(s Scope, e Exprs) (Expr, error) {
 	}, s, e)
 }
 
-// Integer devision
+// Integer division
 func NativeDivLong(s Scope, e Exprs) (Expr, error) {
 	return mathLong("NativeDivLong", func(i int64, i2 int64) (Expr, error) {
 		if i2 == 0 {
@@ -177,7 +210,7 @@ func NativeModLong(s Scope, e Exprs) (Expr, error) {
 	}, s, e)
 }
 
-// Multiply and dividion with big integer intermediate representation
+// Multiply and division with big integer intermediate representation
 func NativeFractionLong(s Scope, e Exprs) (Expr, error) {
 	funcName := "NativeFractionLong"
 
@@ -220,6 +253,104 @@ func NativeFractionLong(s Scope, e Exprs) (Expr, error) {
 	return NewLong(a.Int64()), nil
 }
 
+//NativePowLong calculates power.
+func NativePowLong(s Scope, e Exprs) (Expr, error) {
+	funcName := "NativePowLong"
+	if l := len(e); l != 6 {
+		return nil, errors.Errorf("%s: invalid number of parameters, expected 6, received %d", funcName, l)
+	}
+
+	rs, err := e.EvaluateAll(s.Clone())
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+
+	base, ok := rs[0].(*LongExpr)
+	if !ok {
+		return nil, errors.Errorf("%s first argument expected to be *LongExpr, got %T", funcName, rs[0])
+	}
+
+	bp, ok := rs[1].(*LongExpr)
+	if !ok {
+		return nil, errors.Errorf("%s second argument expected to be *LongExpr, got %T", funcName, rs[1])
+	}
+
+	exponent, ok := rs[2].(*LongExpr)
+	if !ok {
+		return nil, errors.Errorf("%s third argument expected to be *LongExpr, got %T", funcName, rs[2])
+	}
+
+	ep, ok := rs[3].(*LongExpr)
+	if !ok {
+		return nil, errors.Errorf("%s 4th argument expected to be *LongExpr, got %T", funcName, rs[3])
+	}
+
+	rp, ok := rs[4].(*LongExpr)
+	if !ok {
+		return nil, errors.Errorf("%s 5th argument expected to be *LongExpr, got %T", funcName, rs[4])
+	}
+
+	round, err := roundingMode(rs[5])
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+
+	r, err := pow(base.Value, exponent.Value, int(bp.Value), int(ep.Value), int(rp.Value), round)
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	return NewLong(r), nil
+}
+
+// NativeLogLong calculates logarithm.
+func NativeLogLong(s Scope, e Exprs) (Expr, error) {
+	funcName := "NativeLogLong"
+	if l := len(e); l != 6 {
+		return nil, errors.Errorf("%s: invalid number of parameters, expected 6, received %d", funcName, l)
+	}
+
+	rs, err := e.EvaluateAll(s.Clone())
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+
+	base, ok := rs[0].(*LongExpr)
+	if !ok {
+		return nil, errors.Errorf("%s first argument expected to be *LongExpr, got %T", funcName, rs[0])
+	}
+
+	bp, ok := rs[1].(*LongExpr)
+	if !ok {
+		return nil, errors.Errorf("%s second argument expected to be *LongExpr, got %T", funcName, rs[1])
+	}
+
+	exponent, ok := rs[2].(*LongExpr)
+	if !ok {
+		return nil, errors.Errorf("%s third argument expected to be *LongExpr, got %T", funcName, rs[2])
+	}
+
+	ep, ok := rs[3].(*LongExpr)
+	if !ok {
+		return nil, errors.Errorf("%s 4th argument expected to be *LongExpr, got %T", funcName, rs[3])
+	}
+
+	rp, ok := rs[4].(*LongExpr)
+	if !ok {
+		return nil, errors.Errorf("%s 5th argument expected to be *LongExpr, got %T", funcName, rs[4])
+	}
+
+	round, err := roundingMode(rs[5])
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+
+	r, err := log(base.Value, exponent.Value, int(bp.Value), int(ep.Value), int(rp.Value), round)
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	return NewLong(r), nil
+}
+
 func mathLong(funcName string, f func(int64, int64) (Expr, error), s Scope, e Exprs) (Expr, error) {
 	if l := len(e); l != 2 {
 		return nil, errors.Errorf("%s: invalid params, expected 2, passed %d", funcName, l)
@@ -241,6 +372,29 @@ func mathLong(funcName string, f func(int64, int64) (Expr, error), s Scope, e Ex
 	}
 
 	return f(first.Value, second.Value)
+}
+
+func roundingMode(e Expr) (decimal.RoundingMode, error) {
+	switch e.InstanceOf() {
+	case "Ceiling":
+		return decimal.ToPositiveInf, nil
+	case "Floor":
+		return decimal.ToNegativeInf, nil
+	case "HalfEven":
+		return decimal.ToNearestEven, nil
+	case "Down":
+		return decimal.ToZero, nil
+	case "Up":
+		return decimal.AwayFromZero, nil
+	case "HalfUp":
+		return decimal.ToNearestAway, nil
+	case "HalfDown":
+		// TODO: Enable this branch after PR https://github.com/ericlagergren/decimal/pull/136 is accepted. Before that this using this rounding mode will panic.
+		// TODO: return decimal.ToNearestToZero, nil
+		panic("not implemented rounding mode")
+	default:
+		return 0, errors.Errorf("unsupported rounding mode %s", e.InstanceOf())
+	}
 }
 
 // Check signature
@@ -302,7 +456,10 @@ func NativeKeccak256(s Scope, e Exprs) (Expr, error) {
 		return nil, errors.Errorf("NativeKeccak256: expected first argument to be *BytesExpr, found %T", val)
 	}
 
-	d := crypto.Keccak256(bts.Value)
+	d, err := crypto.Keccak256(bts.Value)
+	if err != nil {
+		return nil, err
+	}
 	return NewBytes(d.Bytes()), nil
 }
 
@@ -346,7 +503,9 @@ func NativeSha256(s Scope, e Exprs) (Expr, error) {
 	}
 
 	h := sha256.New()
-	h.Write(bts.Value)
+	if _, err = h.Write(bts.Value); err != nil {
+		return nil, err
+	}
 	d := h.Sum(nil)
 
 	return NewBytes(d), nil
@@ -805,7 +964,7 @@ func NativeAssetBalance(s Scope, e Exprs) (Expr, error) {
 		return nil, errors.Wrap(err, funcName)
 	}
 
-	r := proto.Recipient{}
+	var r proto.Recipient
 
 	switch a := addressOrAliasExpr.(type) {
 	case AddressExpr:
@@ -950,8 +1109,8 @@ func NativeFromBase58(s Scope, e Exprs) (Expr, error) {
 }
 
 // Base64 decode
-func NativeFromBase64String(s Scope, e Exprs) (Expr, error) {
-	funcName := "NativeFromBase64String"
+func NativeFromBase64(s Scope, e Exprs) (Expr, error) {
+	funcName := "NativeFromBase64"
 
 	if l := len(e); l != 1 {
 		return nil, errors.Errorf("%s: invalid params, expected 1, passed %d", funcName, l)
@@ -976,8 +1135,8 @@ func NativeFromBase64String(s Scope, e Exprs) (Expr, error) {
 }
 
 // Base64 encode
-func NativeToBse64String(s Scope, e Exprs) (Expr, error) {
-	funcName := "NativeToBse64String"
+func NativeToBase64(s Scope, e Exprs) (Expr, error) {
+	funcName := "NativeToBase64"
 
 	if l := len(e); l != 1 {
 		return nil, errors.Errorf("%s: invalid params, expected 1, passed %d", funcName, l)
@@ -988,12 +1147,60 @@ func NativeToBse64String(s Scope, e Exprs) (Expr, error) {
 		return nil, errors.Wrap(err, funcName)
 	}
 
-	str, ok := first.(*BytesExpr)
+	b, ok := first.(*BytesExpr)
 	if !ok {
 		return nil, errors.Errorf("%s expected first argument to be *BytesExpr, found %T", funcName, first)
 	}
 
-	encoded := base64.StdEncoding.EncodeToString(str.Value)
+	encoded := base64.StdEncoding.EncodeToString(b.Value)
+	return NewString(encoded), nil
+}
+
+// Base16 (Hex) decode
+func NativeFromBase16(s Scope, e Exprs) (Expr, error) {
+	funcName := "NativeFromBase16"
+
+	if l := len(e); l != 1 {
+		return nil, errors.Errorf("%s: invalid params, expected 1, passed %d", funcName, l)
+	}
+
+	first, err := e[0].Evaluate(s.Clone())
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+
+	str, ok := first.(*StringExpr)
+	if !ok {
+		return nil, errors.Errorf("%s expected first argument to be *StringExpr, found %T", funcName, first)
+	}
+
+	decoded, err := hex.DecodeString(str.Value)
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+
+	return NewBytes(decoded), nil
+}
+
+// Base16 (Hex) encode
+func NativeToBase16(s Scope, e Exprs) (Expr, error) {
+	funcName := "NativeToBase16"
+
+	if l := len(e); l != 1 {
+		return nil, errors.Errorf("%s: invalid params, expected 1, passed %d", funcName, l)
+	}
+
+	first, err := e[0].Evaluate(s.Clone())
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+
+	b, ok := first.(*BytesExpr)
+	if !ok {
+		return nil, errors.Errorf("%s expected first argument to be *BytesExpr, found %T", funcName, first)
+	}
+
+	encoded := hex.EncodeToString(b.Value)
 	return NewString(encoded), nil
 }
 
@@ -1137,6 +1344,25 @@ func UserAddressFromString(s Scope, e Exprs) (Expr, error) {
 	}
 
 	return addr, nil
+}
+
+func NativeAddressToString(s Scope, e Exprs) (Expr, error) {
+	const funcName = "NativeAddressToString"
+	if l := len(e); l != 1 {
+		return nil, errors.Errorf("%s: invalid number of parameters, expected 1, received %d", funcName, l)
+	}
+
+	rs, err := e[0].Evaluate(s)
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+
+	addr, ok := rs.(AddressExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: first argument expected to be *AddressExpr, found %T", funcName, rs)
+	}
+	str := proto.Address(addr).String()
+	return NewString(str), nil
 }
 
 // !=
@@ -1430,8 +1656,181 @@ func UserAlias(s Scope, e Exprs) (Expr, error) {
 	return NewAliasFromProtoAlias(*alias), nil
 }
 
+func SimpleTypeConstructorFactory(name string, expr Expr) Callable {
+	return func(s Scope, e Exprs) (Expr, error) {
+		if l := len(e); l != 0 {
+			return nil, errors.Errorf("%s: no params expected, passed %d", name, l)
+		}
+		return expr, nil
+	}
+}
+
 func UserWavesBalance(s Scope, e Exprs) (Expr, error) {
 	return NativeAssetBalance(s, append(e, NewUnit()))
+}
+
+func NativeRSAVerify(s Scope, e Exprs) (Expr, error) {
+	funcName := "NativeRSAVerify"
+	if l := len(e); l != 4 {
+		return nil, errors.Errorf("%s: invalid number of parameters, expected 4, received %d", funcName, l)
+	}
+
+	rs, err := e.EvaluateAll(s.Clone())
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+
+	digest, err := digest(rs[0])
+	if err != nil {
+		return nil, errors.Wrapf(err, "%s: failed to get digest algorithm from first argument", funcName)
+	}
+
+	message, ok := rs[1].(*BytesExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: second argument expected to be *BytesExpr, found %T", funcName, rs[1])
+	}
+
+	sig, ok := rs[2].(*BytesExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: third argument expected to be *BytesExpr, found %T", funcName, rs[2])
+	}
+
+	pk, ok := rs[3].(*BytesExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: 4th argument expected to be *BytesExpr, found %T", funcName, rs[3])
+	}
+
+	if len(message.Value) > MaxBytesToVerify {
+		return nil, errors.Errorf("%s: message is too long, must be no longer than %d bytes", funcName, MaxBytesToVerify)
+	}
+
+	key, err := x509.ParsePKIXPublicKey(pk.Value)
+	if err != nil {
+		return nil, errors.Wrapf(err, "%s: invalid public key", funcName)
+	}
+	k, ok := key.(*rsa.PublicKey)
+	if !ok {
+		return nil, errors.Errorf("%s: not an RSA key", funcName)
+	}
+
+	d := message.Value
+	if digest != 0 {
+		h := digest.New()
+		_, _ = h.Write(message.Value)
+		d = h.Sum(nil)
+	}
+
+	ok, err = VerifyPKCS1v15(k, digest, d, sig.Value)
+	if err != nil {
+		return nil, errors.Wrapf(err, "%s: failed to check RSA signature", funcName)
+	}
+
+	return NewBoolean(ok), nil
+}
+
+func digest(e Expr) (Hash, error) {
+	switch e.InstanceOf() {
+	case "NoAlg":
+		return 0, nil
+	case "Md5":
+		return MD5, nil
+	case "Sha1":
+		return SHA1, nil
+	case "Sha224":
+		return SHA224, nil
+	case "Sha256":
+		return SHA256, nil
+	case "Sha384":
+		return SHA384, nil
+	case "Sha512":
+		return SHA512, nil
+	case "Sha3224":
+		return SHA3_224, nil
+	case "Sha3256":
+		return SHA3_256, nil
+	case "Sha3384":
+		return SHA3_384, nil
+	case "Sha3512":
+		return SHA3_512, nil
+	default:
+		return 0, errors.Errorf("unsupported digest %s", e.InstanceOf())
+	}
+}
+
+func NativeCheckMerkleProof(s Scope, e Exprs) (Expr, error) {
+	funcName := "NativeMerkleVerify"
+	if l := len(e); l != 3 {
+		return nil, errors.Errorf("%s: invalid number of parameters, expected 3, received %d", funcName, l)
+	}
+
+	rs, err := e.EvaluateAll(s.Clone())
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+
+	root, ok := rs[0].(*BytesExpr)
+	if !ok {
+		return nil, errors.Wrapf(err, "%s: first argument expected to be *BytesExpr, found %T", funcName, rs[0])
+	}
+
+	proof, ok := rs[1].(*BytesExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: second argument expected to be *BytesExpr, found %T", funcName, rs[1])
+	}
+
+	leaf, ok := rs[2].(*BytesExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: third argument expected to be *BytesExpr, found %T", funcName, rs[2])
+	}
+
+	r, err := merkleRootHash(leaf.Value, proof.Value)
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	return NewBoolean(bytes.Equal(root.Value, r)), nil
+}
+
+func NativeBytesToLong(s Scope, e Exprs) (Expr, error) {
+	const funcName = "NativeBytesToLong"
+	if l := len(e); l != 1 {
+		return nil, errors.Errorf("%s: invalid number of parameters, expected 1, received %d", funcName, l)
+	}
+	rs, err := e.EvaluateAll(s.Clone())
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	b, ok := rs[0].(*BytesExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: first argument expected to be *BytesExpr, found %T", funcName, rs[0])
+	}
+	if l := len(b.Value); l < 8 {
+		return nil, errors.Errorf("%s: %d is not enough bytes to make Long value, required 8 bytes", funcName, l)
+	}
+	return NewLong(int64(binary.BigEndian.Uint64(b.Value))), nil
+}
+
+func NativeBytesToLongWithOffset(s Scope, e Exprs) (Expr, error) {
+	const funcName = "NativeBytesToLongWithOffset"
+	if l := len(e); l != 2 {
+		return nil, errors.Errorf("%s: invalid number of parameters, expected 2, received %d", funcName, l)
+	}
+	rs, err := e.EvaluateAll(s.Clone())
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	b, ok := rs[0].(*BytesExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: first argument expected to be *BytesExpr, found %T", funcName, rs[0])
+	}
+	off, ok := rs[1].(*LongExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: second argument expected to be *LongExpr, found %T", funcName, rs[1])
+	}
+	offset := int(off.Value)
+	if offset < 0 || offset > len(b.Value)-8 {
+		return nil, errors.Errorf("%s: offset %d is out of bytes array bounds", funcName, offset)
+	}
+	return NewLong(int64(binary.BigEndian.Uint64(b.Value[offset:]))), nil
 }
 
 func prefix(w io.Writer, name string, e Exprs) {
@@ -1463,6 +1862,10 @@ func writeNativeFunction(w io.Writer, id int16, e Exprs) {
 		prefix(w, "throw", e)
 	case 103:
 		infix(w, ">=", e)
+	case 108:
+		prefix(w, "pow", e)
+	case 109:
+		prefix(w, "log", e)
 	case 200:
 		prefix(w, "size", e)
 	case 203, 300:

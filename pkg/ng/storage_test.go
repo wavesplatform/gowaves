@@ -37,6 +37,7 @@ func newInv(sig crypto.Signature) *proto.MicroBlockInv {
 	}
 }
 
+/* TODO: unused code, need to write tests if it is needed or otherwise remove it.
 type noOpValidator struct {
 }
 
@@ -47,6 +48,7 @@ func (a *noOpValidator) validateKeyBlock(block *proto.Block) error {
 func (a *noOpValidator) validateMicroBlock(m *proto.MicroBlock) error {
 	return nil
 }
+*/
 
 func TestBlockSequence(t *testing.T) {
 	b := newBlocks()

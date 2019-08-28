@@ -32,6 +32,7 @@ func TestGuessTransaction_Genesis(t *testing.T) {
 	buf := bytes.NewBufferString(genesisJson)
 	genesis := &Genesis{}
 	rs, err := GuessTransactionType(&TransactionTypeVersion{Type: TransactionType(1), Version: 0})
+	require.Nil(t, err)
 	err = json.NewDecoder(buf).Decode(genesis)
 	require.Nil(t, err)
 	require.IsType(t, &Genesis{}, rs)
@@ -212,11 +213,12 @@ func TestPaymentValidations(t *testing.T) {
 
 func TestPaymentToJSON(t *testing.T) {
 	s, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
-	sk, pk := crypto.GenerateKeyPair(s)
+	sk, pk, err := crypto.GenerateKeyPair(s)
+	require.NoError(t, err)
 	rcp, _ := NewAddressFromString("3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ")
 	ts := uint64(time.Now().Unix() * 1000)
 	tx := NewUnsignedPayment(pk, rcp, 1000, 10, ts)
-	err := tx.Sign(sk)
+	err = tx.Sign(sk)
 	require.NoError(t, err)
 	if j, err := json.Marshal(tx); assert.NoError(t, err) {
 		ej := fmt.Sprintf("{\"type\":2,\"version\":1,\"id\":\"%s\",\"signature\":\"%s\",\"senderPublicKey\":\"%s\",\"recipient\":\"%s\",\"amount\":1000,\"fee\":10,\"timestamp\":%d}", base58.Encode(tx.ID[:]), base58.Encode(tx.Signature[:]), base58.Encode(tx.SenderPK[:]), tx.Recipient.String(), ts)
@@ -284,10 +286,11 @@ func TestIssueV1SigningRoundTrip(t *testing.T) {
 	const seed = "3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc"
 	s, err := base58.Decode(seed)
 	if assert.NoError(t, err) {
-		sk, pk := crypto.GenerateKeyPair(s)
+		sk, pk, err := crypto.GenerateKeyPair(s)
+		assert.NoError(t, err)
 		ts := uint64(time.Now().Unix() * 1000)
 		tx := NewUnsignedIssueV1(pk, "TOKEN", "", 1000, 0, false, ts, 100000)
-		err := tx.Sign(sk)
+		err = tx.Sign(sk)
 		if assert.NoError(t, err) {
 			if r, err := tx.Verify(pk); assert.NoError(t, err) {
 				assert.True(t, r)
@@ -298,7 +301,8 @@ func TestIssueV1SigningRoundTrip(t *testing.T) {
 
 func TestIssueV1ToJSON(t *testing.T) {
 	if s, err := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc"); assert.NoError(t, err) {
-		sk, pk := crypto.GenerateKeyPair(s)
+		sk, pk, err := crypto.GenerateKeyPair(s)
+		assert.NoError(t, err)
 		ts := uint64(time.Now().Unix() * 1000)
 		tx := NewUnsignedIssueV1(pk, "TOKEN", "", 1000, 0, false, ts, 100000)
 		if j, err := json.Marshal(tx); assert.NoError(t, err) {
@@ -317,7 +321,8 @@ func TestIssueV1ToJSON(t *testing.T) {
 func TestIssueV1BinaryRoundTrip(t *testing.T) {
 	seed, err := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
 	assert.NoError(t, err)
-	sk, pk := crypto.GenerateKeyPair(seed)
+	sk, pk, err := crypto.GenerateKeyPair(seed)
+	assert.NoError(t, err)
 	tests := []struct {
 		name       string
 		desc       string
@@ -441,7 +446,8 @@ func TestIssueV2BinaryRoundTrip(t *testing.T) {
 		{'X', "TOKEN", "This is a valid description for the token", 9876543210, 2, true, "AQQAAAAEaW5hbAIAAAAESW5hbAQAAAAFZWxlbmECAAAAB0xlbnVza2EEAAAABGxvdmUCAAAAC0luYWxMZW51c2thCQAAAAAAAAIJAAEsAAAAAgUAAAAEaW5hbAUAAAAFZWxlbmEFAAAABGxvdmV4ZFt5", 123456},
 	}
 	seed, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
-	sk, pk := crypto.GenerateKeyPair(seed)
+	sk, pk, err := crypto.GenerateKeyPair(seed)
+	assert.NoError(t, err)
 	for _, tc := range tests {
 		ts := uint64(time.Now().UnixNano() / 1000000)
 		s, _ := base64.StdEncoding.DecodeString(tc.script)
@@ -503,7 +509,8 @@ func TestIssueV2ToJSON(t *testing.T) {
 		{'X', "POKEN", "This is a valid description for the token", 9876543210, 2, true, "base64:AQQAAAAEaW5hbAIAAAAESW5hbAQAAAAFZWxlbmECAAAAB0xlbnVza2EEAAAABGxvdmUCAAAAC0luYWxMZW51c2thCQAAAAAAAAIJAAEsAAAAAgUAAAAEaW5hbAUAAAAFZWxlbmEFAAAABGxvdmV4ZFt5", 123456},
 	}
 	seed, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
-	sk, pk := crypto.GenerateKeyPair(seed)
+	sk, pk, err := crypto.GenerateKeyPair(seed)
+	assert.NoError(t, err)
 	for _, tc := range tests {
 		ts := uint64(time.Now().UnixNano() / 1000000)
 		s, err := base64.StdEncoding.DecodeString(tc.script[7:])
@@ -573,7 +580,8 @@ func TestTransferV1BinaryRoundTrip(t *testing.T) {
 		{'W', "B1u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ", "B1u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ", "", "WAVES", 10, 20, ""},
 	}
 	seed, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
-	sk, pk := crypto.GenerateKeyPair(seed)
+	sk, pk, err := crypto.GenerateKeyPair(seed)
+	assert.NoError(t, err)
 	for _, tc := range tests {
 		ts := uint64(time.Now().UnixNano() / 1000000)
 		addr, err := NewAddressFromPublicKey(tc.scheme, pk)
@@ -682,7 +690,8 @@ func TestTransferV1ToJSON(t *testing.T) {
 	}
 	seed, err := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
 	require.NoError(t, err)
-	sk, pk := crypto.GenerateKeyPair(seed)
+	sk, pk, err := crypto.GenerateKeyPair(seed)
+	require.NoError(t, err)
 	adr, err := NewAddressFromString("3PDgLyMzNLkHF2cV1y7NhpmyS2HQjd57SWu")
 	require.NoError(t, err)
 	rcp := NewRecipientFromAddress(adr)
@@ -794,7 +803,8 @@ func TestTransferV2JSONRoundTrip(t *testing.T) {
 		{'W', "B1u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ", "B1u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ", "", "WAVES", 10, 20, ""},
 	}
 	seed, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
-	sk, pk := crypto.GenerateKeyPair(seed)
+	sk, pk, err := crypto.GenerateKeyPair(seed)
+	require.NoError(t, err)
 	for _, tc := range tests {
 		ts := uint64(time.Now().UnixNano() / 1000000)
 		addr, err := NewAddressFromPublicKey(tc.scheme, pk)
@@ -848,7 +858,8 @@ func TestTransferV2BinaryRoundTrip(t *testing.T) {
 		{'W', "B1u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ", "B1u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ", "", "WAVES", 10, 20, ""},
 	}
 	seed, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
-	sk, pk := crypto.GenerateKeyPair(seed)
+	sk, pk, err := crypto.GenerateKeyPair(seed)
+	require.NoError(t, err)
 	for _, tc := range tests {
 		ts := uint64(time.Now().UnixNano() / 1000000)
 		addr, err := NewAddressFromPublicKey(tc.scheme, pk)
@@ -915,7 +926,8 @@ func BenchmarkTransferV2Binary(t *testing.B) {
 	}{'W', "B1u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ", "B1u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ", "", "WAVES", 10, 20, ""}
 
 	seed, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
-	sk, pk := crypto.GenerateKeyPair(seed)
+	sk, pk, err := crypto.GenerateKeyPair(seed)
+	require.NoError(t, err)
 	for i := 0; i < t.N; i++ {
 		ts := uint64(time.Now().UnixNano() / 1000000)
 		addr, err := NewAddressFromPublicKey(tc.scheme, pk)
@@ -986,7 +998,8 @@ func TestTransferV2ToJSON(t *testing.T) {
 	}
 	seed, err := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
 	require.NoError(t, err)
-	sk, pk := crypto.GenerateKeyPair(seed)
+	sk, pk, err := crypto.GenerateKeyPair(seed)
+	require.NoError(t, err)
 	addr, err := NewAddressFromString("3PDgLyMzNLkHF2cV1y7NhpmyS2HQjd57SWu")
 	require.NoError(t, err)
 	rcp := NewRecipientFromAddress(addr)
@@ -1098,7 +1111,8 @@ func TestReissueV1BinaryRoundTrip(t *testing.T) {
 		{"6zf9mSeHUKRzWR6rCBWPmFPTkhg22qvwUZjTBCfxBkGJ", 9876543210, true, 9876543210},
 	}
 	seed, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
-	sk, pk := crypto.GenerateKeyPair(seed)
+	sk, pk, err := crypto.GenerateKeyPair(seed)
+	require.NoError(t, err)
 	for _, tc := range tests {
 		aid, _ := crypto.NewDigestFromBase58(tc.asset)
 		ts := uint64(time.Now().UnixNano() / 1000000)
@@ -1148,7 +1162,8 @@ func TestReissueV1ToJSON(t *testing.T) {
 		{"6zf9mSeHUKRzWR6rCBWPmFPTkhg22qvwUZjTBCfxBkGJ", 9876543210, true, 9876543210},
 	}
 	seed, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
-	sk, pk := crypto.GenerateKeyPair(seed)
+	sk, pk, err := crypto.GenerateKeyPair(seed)
+	require.NoError(t, err)
 	for _, tc := range tests {
 		aid, err := crypto.NewDigestFromBase58(tc.asset)
 		require.NoError(t, err)
@@ -1238,7 +1253,8 @@ func TestReissueV2BinaryRoundTrip(t *testing.T) {
 		{'W', "6zf9mSeHUKRzWR6rCBWPmFPTkhg22qvwUZjTBCfxBkGJ", 9876543210, true, 9876543210},
 	}
 	seed, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
-	sk, pk := crypto.GenerateKeyPair(seed)
+	sk, pk, err := crypto.GenerateKeyPair(seed)
+	require.NoError(t, err)
 	for _, tc := range tests {
 		aid, _ := crypto.NewDigestFromBase58(tc.asset)
 		ts := uint64(time.Now().UnixNano() / 1000000)
@@ -1290,7 +1306,8 @@ func TestReissueV2ToJSON(t *testing.T) {
 		{'W', "6zf9mSeHUKRzWR6rCBWPmFPTkhg22qvwUZjTBCfxBkGJ", 9876543210, true, 9876543210},
 	}
 	seed, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
-	sk, pk := crypto.GenerateKeyPair(seed)
+	sk, pk, err := crypto.GenerateKeyPair(seed)
+	require.NoError(t, err)
 	for _, tc := range tests {
 		aid, _ := crypto.NewDigestFromBase58(tc.asset)
 		ts := uint64(time.Now().Unix() * 1000)
@@ -1370,7 +1387,8 @@ func TestBurnV1BinaryRoundTrip(t *testing.T) {
 		{"6zf9mSeHUKRzWR6rCBWPmFPTkhg22qvwUZjTBCfxBkGJ", 9876543210, 9876543210},
 	}
 	seed, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
-	sk, pk := crypto.GenerateKeyPair(seed)
+	sk, pk, err := crypto.GenerateKeyPair(seed)
+	require.NoError(t, err)
 	for _, tc := range tests {
 		aid, _ := crypto.NewDigestFromBase58(tc.asset)
 		ts := uint64(time.Now().UnixNano() / 1000000)
@@ -1405,7 +1423,8 @@ func TestBurnV1ToJSON(t *testing.T) {
 		{"6zf9mSeHUKRzWR6rCBWPmFPTkhg22qvwUZjTBCfxBkGJ", 9876543210, 9876543210},
 	}
 	seed, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
-	sk, pk := crypto.GenerateKeyPair(seed)
+	sk, pk, err := crypto.GenerateKeyPair(seed)
+	require.NoError(t, err)
 	for _, tc := range tests {
 		aid, _ := crypto.NewDigestFromBase58(tc.asset)
 		ts := uint64(time.Now().Unix() * 1000)
@@ -1485,7 +1504,8 @@ func TestBurnV2BinaryRoundTrip(t *testing.T) {
 		{"6zf9mSeHUKRzWR6rCBWPmFPTkhg22qvwUZjTBCfxBkGJ", 9876543210, 9876543210},
 	}
 	seed, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
-	sk, pk := crypto.GenerateKeyPair(seed)
+	sk, pk, err := crypto.GenerateKeyPair(seed)
+	require.NoError(t, err)
 	for _, tc := range tests {
 		aid, _ := crypto.NewDigestFromBase58(tc.asset)
 		ts := uint64(time.Now().UnixNano() / 1000000)
@@ -1533,7 +1553,8 @@ func TestBurnV2ToJSON(t *testing.T) {
 		{"6zf9mSeHUKRzWR6rCBWPmFPTkhg22qvwUZjTBCfxBkGJ", 9876543210, 9876543210},
 	}
 	seed, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
-	sk, pk := crypto.GenerateKeyPair(seed)
+	sk, pk, err := crypto.GenerateKeyPair(seed)
+	require.NoError(t, err)
 	for _, tc := range tests {
 		aid, _ := crypto.NewDigestFromBase58(tc.asset)
 		ts := uint64(time.Now().Unix() * 1000)
@@ -1599,7 +1620,7 @@ func TestExchangeV1Validations(t *testing.T) {
 		{sbo0, sso3, 950000000, 456, 789, 987, 654, MaxOrderTTL + 10, "invalid sell order expiration"},
 	}
 	for _, tc := range tests {
-		tx := NewUnsignedExchangeV1(tc.buy, tc.sell, tc.price, tc.amount, tc.buyFee, tc.sellFee, tc.fee, tc.ts)
+		tx := NewUnsignedExchangeV1(&tc.buy, &tc.sell, tc.price, tc.amount, tc.buyFee, tc.sellFee, tc.fee, tc.ts)
 		v, err := tx.Valid()
 		assert.False(t, v)
 		assert.EqualError(t, err, tc.err, fmt.Sprintf("expected: %s", tc.err))
@@ -1674,7 +1695,7 @@ func TestExchangeV1FromMainNet(t *testing.T) {
 		sSig, _ := crypto.NewSignatureFromBase58(tc.sellSig)
 		so.ID = &sID
 		so.Signature = &sSig
-		tx := NewUnsignedExchangeV1(*bo, *so, tc.price, tc.amount, tc.buyMatcherFee, tc.sellMatcherFee, tc.fee, tc.timestamp)
+		tx := NewUnsignedExchangeV1(bo, so, tc.price, tc.amount, tc.buyMatcherFee, tc.sellMatcherFee, tc.fee, tc.timestamp)
 		if b, err := tx.BodyMarshalBinary(); assert.NoError(t, err) {
 			if h, err := crypto.FastHash(b); assert.NoError(t, err) {
 				assert.Equal(t, id, h)
@@ -1686,15 +1707,17 @@ func TestExchangeV1FromMainNet(t *testing.T) {
 
 func TestExchangeV1BinaryRoundTrip(t *testing.T) {
 	seedA, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
-	sk, pk := crypto.GenerateKeyPair(seedA)
+	sk, pk, err := crypto.GenerateKeyPair(seedA)
+	require.NoError(t, err)
 	seedB, _ := base58.Decode("8cLFt3NHL13H5JCBBgbJDkjjcPseZ1YNtqMWnZS1B2n9")
-	msk, mpk := crypto.GenerateKeyPair(seedB)
+	msk, mpk, err := crypto.GenerateKeyPair(seedB)
+	require.NoError(t, err)
 	aa, _ := NewOptionalAssetFromString("3gRJoK6f7XUV7fx5jUzHoPwdb9ZdTFjtTPy2HgDinr1N")
 	pa, _ := NewOptionalAssetFromString("FftTzae2t8r6zZJ2VzEq2pS2Le4Vx9gYGXuDsEFBTYE2")
 	ts := uint64(time.Now().UnixNano() / 1000000)
 	exp := ts + 100*1000
 	bo := NewUnsignedOrderV1(pk, mpk, *aa, *pa, Buy, 12345, 67890, ts, exp, 3)
-	err := bo.Sign(sk)
+	err = bo.Sign(sk)
 	require.NoError(t, err)
 	so := NewUnsignedOrderV1(pk, mpk, *aa, *pa, Sell, 98765, 54321, ts, exp, 3)
 	err = so.Sign(sk)
@@ -1713,7 +1736,7 @@ func TestExchangeV1BinaryRoundTrip(t *testing.T) {
 	}
 	for _, tc := range tests {
 		ts := uint64(time.Now().UnixNano() / 1000000)
-		tx := NewUnsignedExchangeV1(tc.buy, tc.sell, tc.price, tc.amount, tc.buyFee, tc.sellFee, tc.fee, ts)
+		tx := NewUnsignedExchangeV1(&tc.buy, &tc.sell, tc.price, tc.amount, tc.buyFee, tc.sellFee, tc.fee, ts)
 		if bb, err := tx.BodyMarshalBinary(); assert.NoError(t, err) {
 			var atx ExchangeV1
 			if _, err := atx.bodyUnmarshalBinary(bb); assert.NoError(t, err) {
@@ -1758,9 +1781,11 @@ func TestExchangeV1BinaryRoundTrip(t *testing.T) {
 
 func TestExchangeV1ToJSON(t *testing.T) {
 	seedA, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
-	sk, pk := crypto.GenerateKeyPair(seedA)
+	sk, pk, err := crypto.GenerateKeyPair(seedA)
+	require.NoError(t, err)
 	seedB, _ := base58.Decode("8cLFt3NHL13H5JCBBgbJDkjjcPseZ1YNtqMWnZS1B2n9")
-	msk, mpk := crypto.GenerateKeyPair(seedB)
+	msk, mpk, err := crypto.GenerateKeyPair(seedB)
+	require.NoError(t, err)
 	tests := []struct {
 		amountAsset string
 		priceAsset  string
@@ -1791,7 +1816,7 @@ func TestExchangeV1ToJSON(t *testing.T) {
 		err = so.Sign(sk)
 		require.NoError(t, err)
 		soj, _ := json.Marshal(so)
-		tx := NewUnsignedExchangeV1(*bo, *so, tc.price, tc.amount, tc.buyFee, tc.sellFee, tc.fee, ts)
+		tx := NewUnsignedExchangeV1(bo, so, tc.price, tc.amount, tc.buyFee, tc.sellFee, tc.fee, ts)
 		if j, err := json.Marshal(tx); assert.NoError(t, err) {
 			ej := fmt.Sprintf("{\"type\":7,\"version\":1,\"senderPublicKey\":\"%s\",\"order1\":%s,\"order2\":%s,\"price\":%d,\"amount\":%d,\"buyMatcherFee\":%d,\"sellMatcherFee\":%d,\"fee\":%d,\"timestamp\":%d}",
 				base58.Encode(mpk[:]), string(boj), string(soj), tc.price, tc.amount, tc.buyFee, tc.sellFee, tc.fee, ts)
@@ -1857,7 +1882,7 @@ func TestExchangeV2Validations(t *testing.T) {
 		{sbo0, sso3, 950000000, 456, 789, 987, 654, MaxOrderTTL + 10, "invalid sell order expiration"},
 	}
 	for _, tc := range tests {
-		tx := NewUnsignedExchangeV2(tc.buy, tc.sell, tc.price, tc.amount, tc.buyFee, tc.sellFee, tc.fee, tc.ts)
+		tx := NewUnsignedExchangeV2(&tc.buy, &tc.sell, tc.price, tc.amount, tc.buyFee, tc.sellFee, tc.fee, tc.ts)
 		v, err := tx.Valid()
 		assert.False(t, v)
 		assert.EqualError(t, err, tc.err, fmt.Sprintf("expected error: %s", tc.err))
@@ -1929,15 +1954,17 @@ func TestExchangeV2FromTestNet(t *testing.T) {
 
 func TestExchangeV2BinaryRoundTrip(t *testing.T) {
 	seedA, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
-	sk, pk := crypto.GenerateKeyPair(seedA)
+	sk, pk, err := crypto.GenerateKeyPair(seedA)
+	require.NoError(t, err)
 	seedB, _ := base58.Decode("8cLFt3NHL13H5JCBBgbJDkjjcPseZ1YNtqMWnZS1B2n9")
-	msk, mpk := crypto.GenerateKeyPair(seedB)
+	msk, mpk, err := crypto.GenerateKeyPair(seedB)
+	require.NoError(t, err)
 	aa, _ := NewOptionalAssetFromString("3gRJoK6f7XUV7fx5jUzHoPwdb9ZdTFjtTPy2HgDinr1N")
 	pa, _ := NewOptionalAssetFromString("FftTzae2t8r6zZJ2VzEq2pS2Le4Vx9gYGXuDsEFBTYE2")
 	ts := uint64(time.Now().UnixNano() / 1000000)
 	exp := ts + 100*1000
 	bo1 := NewUnsignedOrderV1(pk, mpk, *aa, *pa, Buy, 12345, 67890, ts, exp, 3)
-	err := bo1.Sign(sk)
+	err = bo1.Sign(sk)
 	require.NoError(t, err)
 	so1 := NewUnsignedOrderV1(pk, mpk, *aa, *pa, Sell, 98765, 54321, ts, exp, 3)
 	err = so1.Sign(sk)
@@ -2009,9 +2036,11 @@ func TestExchangeV2BinaryRoundTrip(t *testing.T) {
 
 func TestExchangeV2ToJSON(t *testing.T) {
 	seedA, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
-	sk, pk := crypto.GenerateKeyPair(seedA)
+	sk, pk, err := crypto.GenerateKeyPair(seedA)
+	require.NoError(t, err)
 	seedB, _ := base58.Decode("8cLFt3NHL13H5JCBBgbJDkjjcPseZ1YNtqMWnZS1B2n9")
-	msk, mpk := crypto.GenerateKeyPair(seedB)
+	msk, mpk, err := crypto.GenerateKeyPair(seedB)
+	require.NoError(t, err)
 	tests := []struct {
 		amountAsset string
 		priceAsset  string
@@ -2357,7 +2386,8 @@ func TestLeaseV1BinaryRoundTrip(t *testing.T) {
 		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ", 9876543210, 9876543210},
 	}
 	seed, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
-	sk, pk := crypto.GenerateKeyPair(seed)
+	sk, pk, err := crypto.GenerateKeyPair(seed)
+	require.NoError(t, err)
 	for _, tc := range tests {
 		addr, err := NewAddressFromString(tc.recipient)
 		require.NoError(t, err)
@@ -2406,7 +2436,8 @@ func TestLeaseV1ToJSON(t *testing.T) {
 		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ", 9876543210, 9876543210},
 	}
 	seed, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
-	sk, pk := crypto.GenerateKeyPair(seed)
+	sk, pk, err := crypto.GenerateKeyPair(seed)
+	require.NoError(t, err)
 	for _, tc := range tests {
 		addr, err := NewAddressFromString(tc.recipient)
 		require.NoError(t, err)
@@ -2497,7 +2528,8 @@ func TestLeaseV2BinaryRoundTrip(t *testing.T) {
 		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ", 9876543210, 9876543210},
 	}
 	seed, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
-	sk, pk := crypto.GenerateKeyPair(seed)
+	sk, pk, err := crypto.GenerateKeyPair(seed)
+	require.NoError(t, err)
 	for _, tc := range tests {
 		addr, err := NewAddressFromString(tc.recipient)
 		require.NoError(t, err)
@@ -2546,7 +2578,8 @@ func TestLeaseV2ToJSON(t *testing.T) {
 		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ", 9876543210, 9876543210},
 	}
 	seed, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
-	sk, pk := crypto.GenerateKeyPair(seed)
+	sk, pk, err := crypto.GenerateKeyPair(seed)
+	require.NoError(t, err)
 	for _, tc := range tests {
 		addr, err := NewAddressFromString(tc.recipient)
 		require.NoError(t, err)
@@ -2621,7 +2654,8 @@ func TestLeaseCancelV1BinaryRoundTrip(t *testing.T) {
 		{"Bc83cgvtmBbhpWHgqWPvoPMFVJCsUicocAaDReyyuqSX", 9876543210},
 	}
 	seed, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
-	sk, pk := crypto.GenerateKeyPair(seed)
+	sk, pk, err := crypto.GenerateKeyPair(seed)
+	require.NoError(t, err)
 	for _, tc := range tests {
 		l, _ := crypto.NewDigestFromBase58(tc.lease)
 		ts := uint64(time.Now().UnixNano() / 1000000)
@@ -2665,7 +2699,8 @@ func TestLeaseCancelV1ToJSON(t *testing.T) {
 		{"Bc83cgvtmBbhpWHgqWPvoPMFVJCsUicocAaDReyyuqSX", 9876543210},
 	}
 	seed, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
-	sk, pk := crypto.GenerateKeyPair(seed)
+	sk, pk, err := crypto.GenerateKeyPair(seed)
+	require.NoError(t, err)
 	for _, tc := range tests {
 		l, _ := crypto.NewDigestFromBase58(tc.lease)
 		ts := uint64(time.Now().UnixNano() / 1000000)
@@ -2739,7 +2774,8 @@ func TestLeaseCancelV2BinaryRoundTrip(t *testing.T) {
 		{"Bc83cgvtmBbhpWHgqWPvoPMFVJCsUicocAaDReyyuqSX", 9876543210},
 	}
 	seed, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
-	sk, pk := crypto.GenerateKeyPair(seed)
+	sk, pk, err := crypto.GenerateKeyPair(seed)
+	require.NoError(t, err)
 	for _, tc := range tests {
 		l, _ := crypto.NewDigestFromBase58(tc.lease)
 		ts := uint64(time.Now().UnixNano() / 1000000)
@@ -2783,7 +2819,8 @@ func TestLeaseCancelV2ToJSON(t *testing.T) {
 		{"Bc83cgvtmBbhpWHgqWPvoPMFVJCsUicocAaDReyyuqSX", 9876543210},
 	}
 	seed, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
-	sk, pk := crypto.GenerateKeyPair(seed)
+	sk, pk, err := crypto.GenerateKeyPair(seed)
+	require.NoError(t, err)
 	for _, tc := range tests {
 		l, _ := crypto.NewDigestFromBase58(tc.lease)
 		ts := uint64(time.Now().UnixNano() / 1000000)
@@ -2858,7 +2895,8 @@ func TestCreateAliasV1BinaryRoundTrip(t *testing.T) {
 		{'T', "testnetalias", 9876543210},
 	}
 	seed, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
-	sk, pk := crypto.GenerateKeyPair(seed)
+	sk, pk, err := crypto.GenerateKeyPair(seed)
+	require.NoError(t, err)
 	for _, tc := range tests {
 		ts := uint64(time.Now().UnixNano() / 1000000)
 		a := NewAlias(tc.scheme, tc.alias)
@@ -2904,7 +2942,8 @@ func TestCreateAliasV1ToJSON(t *testing.T) {
 		{'T', "peter", 9876543210},
 	}
 	seed, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
-	sk, pk := crypto.GenerateKeyPair(seed)
+	sk, pk, err := crypto.GenerateKeyPair(seed)
+	require.NoError(t, err)
 	for _, tc := range tests {
 		a := NewAlias(tc.scheme, tc.alias)
 		ts := uint64(time.Now().UnixNano() / 1000000)
@@ -2981,7 +3020,8 @@ func TestCreateAliasV2BinaryRoundTrip(t *testing.T) {
 		{'T', "testnetalias", 9876543210},
 	}
 	seed, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
-	sk, pk := crypto.GenerateKeyPair(seed)
+	sk, pk, err := crypto.GenerateKeyPair(seed)
+	require.NoError(t, err)
 	for _, tc := range tests {
 		ts := uint64(time.Now().UnixNano() / 1000000)
 		a := NewAlias(tc.scheme, tc.alias)
@@ -3027,7 +3067,8 @@ func TestCreateAliasV2ToJSON(t *testing.T) {
 		{'T', "peter", 9876543210},
 	}
 	seed, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
-	sk, pk := crypto.GenerateKeyPair(seed)
+	sk, pk, err := crypto.GenerateKeyPair(seed)
+	require.NoError(t, err)
 	for _, tc := range tests {
 		a := NewAlias(tc.scheme, tc.alias)
 		ts := uint64(time.Now().UnixNano() / 1000000)
@@ -3127,7 +3168,8 @@ func TestMassTransferV1BinaryRoundTrip(t *testing.T) {
 		{"WAVES", []MassTransferEntry{{NewRecipientFromAddress(addr), 12345}, {NewRecipientFromAddress(addr), 67890}}, 987654321, ""},
 	}
 	seed, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
-	sk, pk := crypto.GenerateKeyPair(seed)
+	sk, pk, err := crypto.GenerateKeyPair(seed)
+	require.NoError(t, err)
 	for _, tc := range tests {
 		ts := uint64(time.Now().UnixNano() / 1000000)
 		a, _ := NewOptionalAssetFromString(tc.asset)
@@ -3181,7 +3223,8 @@ func TestMassTransferV1ToJSON(t *testing.T) {
 		{"", "null", []MassTransferEntry{{NewRecipientFromAddress(addr), 12345}, {NewRecipientFromAddress(addr), 67890}}, 987654321, "", ""},
 	}
 	seed, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
-	sk, pk := crypto.GenerateKeyPair(seed)
+	sk, pk, err := crypto.GenerateKeyPair(seed)
+	require.NoError(t, err)
 	for _, tc := range tests {
 		ts := uint64(time.Now().UnixNano() / 1000000)
 		a, _ := NewOptionalAssetFromString(tc.asset)
@@ -3301,7 +3344,8 @@ func TestDataV1BinaryRoundTrip(t *testing.T) {
 		{[]string{"int-val", "bool-val", "bin-val", "string-val"}, []byte{0, 1, 2, 3}, []string{"987654321", "false", "B7WAhQEM95LvpnKSxNVCCv1WrAzjtAVcKX9NqeCPLK46", ""}, 1234567890},
 	}
 	seed, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
-	sk, pk := crypto.GenerateKeyPair(seed)
+	sk, pk, err := crypto.GenerateKeyPair(seed)
+	require.NoError(t, err)
 	for _, tc := range tests {
 		ts := uint64(time.Now().UnixNano() / 1000000)
 		tx := NewUnsignedData(pk, tc.fee, ts)
@@ -3365,7 +3409,8 @@ func TestDataV1ToJSON(t *testing.T) {
 		{[]string{"int-val", "bool-val", "bin-val", "string-val"}, []byte{0, 1, 2, 3}, []string{"987654321", "false", "B7WAhQEM95LvpnKSxNVCCv1WrAzjtAVcKX9NqeCPLK46", ""}, 1234567890},
 	}
 	seed, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
-	sk, pk := crypto.GenerateKeyPair(seed)
+	sk, pk, err := crypto.GenerateKeyPair(seed)
+	require.NoError(t, err)
 	for _, tc := range tests {
 		ts := uint64(time.Now().UnixNano() / 1000000)
 		tx := NewUnsignedData(pk, tc.fee, ts)
@@ -3535,7 +3580,8 @@ func TestSetScriptV1BinaryRoundTrip(t *testing.T) {
 		{'T', "", 9876543210},
 	}
 	seed, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
-	sk, pk := crypto.GenerateKeyPair(seed)
+	sk, pk, err := crypto.GenerateKeyPair(seed)
+	require.NoError(t, err)
 	for _, tc := range tests {
 		ts := uint64(time.Now().UnixNano() / 1000000)
 		s, _ := base64.StdEncoding.DecodeString(tc.script)
@@ -3582,7 +3628,8 @@ func TestSetScriptV1ToJSON(t *testing.T) {
 		{'T', "base64:", 9876543210},
 	}
 	seed, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
-	sk, pk := crypto.GenerateKeyPair(seed)
+	sk, pk, err := crypto.GenerateKeyPair(seed)
+	require.NoError(t, err)
 	for _, tc := range tests {
 		ts := uint64(time.Now().UnixNano() / 1000000)
 		s, err := base64.StdEncoding.DecodeString(tc.script[7:])
@@ -3661,7 +3708,8 @@ func TestSponsorshipV1BinaryRoundTrip(t *testing.T) {
 		{"J8shEVBrQ4BLqsuYw5j6vQGCFJGMLBxr5nu2XvUWFEAR", 0, 9876543210},
 	}
 	seed, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
-	sk, pk := crypto.GenerateKeyPair(seed)
+	sk, pk, err := crypto.GenerateKeyPair(seed)
+	require.NoError(t, err)
 	for _, tc := range tests {
 		ts := uint64(time.Now().UnixNano() / 1000000)
 		a, _ := crypto.NewDigestFromBase58(tc.asset)
@@ -3708,7 +3756,8 @@ func TestSponsorshipV1ToJSON(t *testing.T) {
 		{"J8shEVBrQ4BLqsuYw5j6vQGCFJGMLBxr5nu2XvUWFEAR", 0, 9876543210},
 	}
 	seed, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
-	sk, pk := crypto.GenerateKeyPair(seed)
+	sk, pk, err := crypto.GenerateKeyPair(seed)
+	require.NoError(t, err)
 	for _, tc := range tests {
 		ts := uint64(time.Now().UnixNano() / 1000000)
 		a, _ := crypto.NewDigestFromBase58(tc.asset)
@@ -3790,7 +3839,8 @@ func TestSetAssetScriptV1BinaryRoundTrip(t *testing.T) {
 		{'T', "9yCRXrptsYKnsfFv6E226MXXjjxSzm3kXKL2oquw3HrX", "", 9876543210},
 	}
 	seed, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
-	sk, pk := crypto.GenerateKeyPair(seed)
+	sk, pk, err := crypto.GenerateKeyPair(seed)
+	require.NoError(t, err)
 	for _, tc := range tests {
 		ts := uint64(time.Now().UnixNano() / 1000000)
 		a, _ := crypto.NewDigestFromBase58(tc.asset)
@@ -3841,7 +3891,8 @@ func TestSetAssetScriptV1ToJSON(t *testing.T) {
 		{'T', "9yCRXrptsYKnsfFv6E226MXXjjxSzm3kXKL2oquw3HrX", "base64:", 9876543210},
 	}
 	seed, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
-	sk, pk := crypto.GenerateKeyPair(seed)
+	sk, pk, err := crypto.GenerateKeyPair(seed)
+	require.NoError(t, err)
 	for _, tc := range tests {
 		ts := uint64(time.Now().UnixNano() / 1000000)
 		a, err := crypto.NewDigestFromBase58(tc.asset)
@@ -3969,7 +4020,8 @@ func TestInvokeScriptV1BinaryRoundTrip(t *testing.T) {
 		{'T', "3MrDis17gyNSusZDg8Eo1PuFnm5SQMda3gu", "{\"function\":\"foobar1\",\"args\":[]}", "[{\"amount\":12345,\"assetId\":\"BXBUNddxTGTQc3G4qHYn5E67SBwMj18zLncUr871iuRD\"}]", "WAVES", 9876543210},
 	}
 	seed, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
-	sk, pk := crypto.GenerateKeyPair(seed)
+	sk, pk, err := crypto.GenerateKeyPair(seed)
+	require.NoError(t, err)
 	for _, tc := range tests {
 		ts := uint64(time.Now().UnixNano() / 1000000)
 		a, err := NewOptionalAssetFromString(tc.feeAsset)
@@ -4035,7 +4087,8 @@ func TestInvokeScriptV1ToJSON(t *testing.T) {
 		{'T', "3MrDis17gyNSusZDg8Eo1PuFnm5SQMda3gu", "{\"function\":\"foobar1\",\"args\":[]}", "[{\"amount\":12345,\"assetId\":\"BXBUNddxTGTQc3G4qHYn5E67SBwMj18zLncUr871iuRD\"}]", "WAVES", 9876543210},
 	}
 	seed, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
-	sk, pk := crypto.GenerateKeyPair(seed)
+	sk, pk, err := crypto.GenerateKeyPair(seed)
+	require.NoError(t, err)
 	for _, tc := range tests {
 		ts := uint64(time.Now().UnixNano() / 1000000)
 		a, err := NewOptionalAssetFromString(tc.feeAsset)

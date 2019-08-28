@@ -45,6 +45,7 @@ type blockchainEntitiesStorage struct {
 	balances         *balances
 	features         *features
 	accountsDataStor *accountsDataStorage
+	sponsoredAssets  *sponsoredAssets
 }
 
 func newBlockchainEntitiesStorage(hs *historyStorage, stateDB *stateDB, sets *settings.BlockchainSettings) (*blockchainEntitiesStorage, error) {
@@ -80,7 +81,11 @@ func newBlockchainEntitiesStorage(hs *historyStorage, stateDB *stateDB, sets *se
 	if err != nil {
 		return nil, err
 	}
-	return &blockchainEntitiesStorage{hs, aliases, assets, leases, scores, blocksInfo, balances, features, accountsDataStor}, nil
+	sponsoredAssets, err := newSponsoredAssets(hs.rw, features, stateDB, hs, sets)
+	if err != nil {
+		return nil, err
+	}
+	return &blockchainEntitiesStorage{hs, aliases, assets, leases, scores, blocksInfo, balances, features, accountsDataStor, sponsoredAssets}, nil
 }
 
 func (s *blockchainEntitiesStorage) reset() {
@@ -1327,6 +1332,88 @@ func (s *stateManager) ApprovalHeight(featureID int16) (uint64, error) {
 		return 0, wrapErr(RetrievalError, err)
 	}
 	return height, nil
+}
+
+// Accounts data storage.
+
+func (s *stateManager) RetrieveNewestEntry(addr proto.Address, key string) (proto.DataEntry, error) {
+	entry, err := s.stor.accountsDataStor.retrieveNewestEntry(addr, key)
+	if err != nil {
+		return nil, wrapErr(RetrievalError, err)
+	}
+	return entry, nil
+}
+
+func (s *stateManager) RetrieveEntry(addr proto.Address, key string) (proto.DataEntry, error) {
+	entry, err := s.stor.accountsDataStor.retrieveEntry(addr, key)
+	if err != nil {
+		return nil, wrapErr(RetrievalError, err)
+	}
+	return entry, nil
+}
+
+func (s *stateManager) RetrieveNewestIntegerEntry(addr proto.Address, key string) (*proto.IntegerDataEntry, error) {
+	entry, err := s.stor.accountsDataStor.retrieveNewestIntegerEntry(addr, key)
+	if err != nil {
+		return nil, wrapErr(RetrievalError, err)
+	}
+	return entry, nil
+}
+
+func (s *stateManager) RetrieveIntegerEntry(addr proto.Address, key string) (*proto.IntegerDataEntry, error) {
+	entry, err := s.stor.accountsDataStor.retrieveIntegerEntry(addr, key)
+	if err != nil {
+		return nil, wrapErr(RetrievalError, err)
+	}
+	return entry, nil
+}
+
+func (s *stateManager) RetrieveNewestBooleanEntry(addr proto.Address, key string) (*proto.BooleanDataEntry, error) {
+	entry, err := s.stor.accountsDataStor.retrieveNewestBooleanEntry(addr, key)
+	if err != nil {
+		return nil, wrapErr(RetrievalError, err)
+	}
+	return entry, nil
+}
+
+func (s *stateManager) RetrieveBooleanEntry(addr proto.Address, key string) (*proto.BooleanDataEntry, error) {
+	entry, err := s.stor.accountsDataStor.retrieveBooleanEntry(addr, key)
+	if err != nil {
+		return nil, wrapErr(RetrievalError, err)
+	}
+	return entry, nil
+}
+
+func (s *stateManager) RetrieveNewestStringEntry(addr proto.Address, key string) (*proto.StringDataEntry, error) {
+	entry, err := s.stor.accountsDataStor.retrieveNewestStringEntry(addr, key)
+	if err != nil {
+		return nil, wrapErr(RetrievalError, err)
+	}
+	return entry, nil
+}
+
+func (s *stateManager) RetrieveStringEntry(addr proto.Address, key string) (*proto.StringDataEntry, error) {
+	entry, err := s.stor.accountsDataStor.retrieveStringEntry(addr, key)
+	if err != nil {
+		return nil, wrapErr(RetrievalError, err)
+	}
+	return entry, nil
+}
+
+func (s *stateManager) RetrieveNewestBinaryEntry(addr proto.Address, key string) (*proto.BinaryDataEntry, error) {
+	entry, err := s.stor.accountsDataStor.retrieveNewestBinaryEntry(addr, key)
+	if err != nil {
+		return nil, wrapErr(RetrievalError, err)
+	}
+	return entry, nil
+}
+
+func (s *stateManager) RetrieveBinaryEntry(addr proto.Address, key string) (*proto.BinaryDataEntry, error) {
+	entry, err := s.stor.accountsDataStor.retrieveBinaryEntry(addr, key)
+	if err != nil {
+		return nil, wrapErr(RetrievalError, err)
+	}
+	return entry, nil
 }
 
 func (s *stateManager) Close() error {

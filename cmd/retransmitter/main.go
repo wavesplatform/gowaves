@@ -26,7 +26,9 @@ func cpuProfile(filename string) func() {
 	if err != nil {
 		zap.S().Fatal(err)
 	}
-	pprof.StartCPUProfile(f)
+	if err := pprof.StartCPUProfile(f); err != nil {
+		zap.S().Fatal(err)
+	}
 	return pprof.StopCPUProfile
 }
 
@@ -35,7 +37,9 @@ func memProfile(filename string) {
 	if err != nil {
 		zap.S().Fatal(err)
 	}
-	pprof.WriteHeapProfile(f)
+	if err := pprof.WriteHeapProfile(f); err != nil {
+		zap.S().Fatal(err)
+	}
 	f.Close()
 }
 
@@ -161,17 +165,15 @@ func main() {
 		}
 	}()
 
-	var gracefulStop = make(chan os.Signal)
+	var gracefulStop = make(chan os.Signal, 1)
 	signal.Notify(gracefulStop, syscall.SIGTERM)
 	signal.Notify(gracefulStop, syscall.SIGINT)
 
-	select {
-	case sig := <-gracefulStop:
-		if memprofile != "" {
-			memProfile(memprofile)
-		}
-		zap.S().Infow("Caught signal, stopping", "signal", sig)
-		_ = srv.Shutdown(ctx)
-		cancel()
+	sig := <-gracefulStop
+	if memprofile != "" {
+		memProfile(memprofile)
 	}
+	zap.S().Infow("Caught signal, stopping", "signal", sig)
+	_ = srv.Shutdown(ctx)
+	cancel()
 }

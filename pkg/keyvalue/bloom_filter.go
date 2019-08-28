@@ -24,14 +24,19 @@ func newBloomFilter(params BloomFilterParams) (*bloomFilter, error) {
 	return &bloomFilter{filter: bf}, nil
 }
 
-func (bf *bloomFilter) add(data []byte) {
+func (bf *bloomFilter) add(data []byte) error {
 	f := xxhash.New()
-	f.Write(data)
+	if _, err := f.Write(data); err != nil {
+		return err
+	}
 	bf.filter.Add(f)
+	return nil
 }
 
-func (bf *bloomFilter) notInTheSet(data []byte) bool {
+func (bf *bloomFilter) notInTheSet(data []byte) (bool, error) {
 	f := xxhash.New()
-	f.Write(data)
-	return !bf.filter.Contains(f)
+	if _, err := f.Write(data); err != nil {
+		return false, err
+	}
+	return !bf.filter.Contains(f), nil
 }

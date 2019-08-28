@@ -351,6 +351,9 @@ func (im *Importer) extractTransactions(d []byte, transactionsCount int, miner c
 				return nil, nil, nil, nil, nil, wrapErr(errors.Errorf("Transaction %s has invalid signature", tx.ID.String()), "BurnV1")
 			}
 			as, ac, err := data.FromBurnV1(im.scheme, tx)
+			if err != nil {
+				return nil, nil, nil, nil, nil, wrapErr(err, "BurnV1")
+			}
 			assetChanges = append(assetChanges, as)
 			accountChanges = append(accountChanges, ac)
 		case byte(proto.ExchangeTransaction):

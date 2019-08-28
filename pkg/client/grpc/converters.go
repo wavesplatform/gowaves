@@ -22,17 +22,6 @@ func (c *SafeConverter) address(scheme byte, addr []byte) proto.Address {
 	return a
 }
 
-func (c *SafeConverter) uint32(value int32) uint32 {
-	if c.err != nil {
-		return 0
-	}
-	if value < 0 {
-		c.err = errors.New("negative int32 value")
-		return 0
-	}
-	return uint32(value)
-}
-
 func (c *SafeConverter) uint64(value int64) uint64 {
 	if c.err != nil {
 		return 0
@@ -550,8 +539,8 @@ func (c *SafeConverter) Transaction(tx *Transaction) (proto.Transaction, error) 
 				Type:           proto.ExchangeTransaction,
 				Version:        v,
 				SenderPK:       c.publicKey(tx.SenderPublicKey),
-				BuyOrder:       *bo1,
-				SellOrder:      *so1,
+				BuyOrder:       bo1,
+				SellOrder:      so1,
 				Price:          c.uint64(d.Exchange.Price),
 				Amount:         c.uint64(d.Exchange.Amount),
 				BuyMatcherFee:  c.uint64(d.Exchange.BuyMatcherFee),

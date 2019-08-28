@@ -140,9 +140,6 @@ func parsePart(s string) (uint64, error) {
 	if err != nil {
 		return 0, err
 	}
-	if i < 0 {
-		return 0, errors.Errorf("value '%s' should be positive", s)
-	}
 	return i, nil
 }
 

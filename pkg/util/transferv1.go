@@ -30,7 +30,10 @@ func (a TransferV1Builder) Timestamp(t time.Time) TransferV1Builder {
 }
 
 func (a TransferV1Builder) Build() (*proto.TransferV1, error) {
-	priv, pub := crypto.GenerateKeyPair([]byte(a.seed))
+	priv, pub, err := crypto.GenerateKeyPair([]byte(a.seed))
+	if err != nil {
+		return nil, err
+	}
 	addr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, pub)
 	if err != nil {
 		return nil, err

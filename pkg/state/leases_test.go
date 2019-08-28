@@ -11,7 +11,7 @@ import (
 )
 
 type leasesTestObjects struct {
-	stor   *storageObjects
+	stor   *testStorageObjects
 	leases *leases
 }
 

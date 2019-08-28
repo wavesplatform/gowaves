@@ -134,7 +134,10 @@ func (tx *IssueV1) Sign(secretKey crypto.SecretKey) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to sign IssueV1 transaction")
 	}
-	s := crypto.Sign(secretKey, b)
+	s, err := crypto.Sign(secretKey, b)
+	if err != nil {
+		return errors.Wrap(err, "failed to sign LeaseCancelV1 transaction")
+	}
 	tx.Signature = &s
 	id := crypto.MustFastHash(b)
 	tx.ID = &id
@@ -280,7 +283,10 @@ func (tx *TransferV1) Sign(secretKey crypto.SecretKey) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to sign TransferV1 transaction")
 	}
-	s := crypto.Sign(secretKey, b)
+	s, err := crypto.Sign(secretKey, b)
+	if err != nil {
+		return errors.Wrap(err, "failed to sign LeaseCancelV1 transaction")
+	}
 	tx.Signature = &s
 	d, err := crypto.FastHash(b)
 	if err != nil {
@@ -429,7 +435,10 @@ func (tx *ReissueV1) Sign(secretKey crypto.SecretKey) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to sign ReissueV1 transaction")
 	}
-	s := crypto.Sign(secretKey, b)
+	s, err := crypto.Sign(secretKey, b)
+	if err != nil {
+		return errors.Wrap(err, "failed to sign LeaseCancelV1 transaction")
+	}
 	tx.Signature = &s
 	d, err := crypto.FastHash(b)
 	if err != nil {
@@ -576,7 +585,10 @@ func (tx *BurnV1) Sign(secretKey crypto.SecretKey) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to sign BurnV1 transaction")
 	}
-	s := crypto.Sign(secretKey, b)
+	s, err := crypto.Sign(secretKey, b)
+	if err != nil {
+		return errors.Wrap(err, "failed to sign LeaseCancelV1 transaction")
+	}
 	tx.Signature = &s
 	d, err := crypto.FastHash(b)
 	if err != nil {
@@ -637,8 +649,8 @@ type ExchangeV1 struct {
 	ID             *crypto.Digest    `json:"id,omitempty"`
 	Signature      *crypto.Signature `json:"signature,omitempty"`
 	SenderPK       crypto.PublicKey  `json:"senderPublicKey"`
-	BuyOrder       OrderV1           `json:"order1"`
-	SellOrder      OrderV1           `json:"order2"`
+	BuyOrder       *OrderV1          `json:"order1"`
+	SellOrder      *OrderV1          `json:"order2"`
 	Price          uint64            `json:"price"`
 	Amount         uint64            `json:"amount"`
 	BuyMatcherFee  uint64            `json:"buyMatcherFee"`
@@ -711,7 +723,7 @@ func (tx ExchangeV1) GetTimestamp() uint64 {
 	return tx.Timestamp
 }
 
-func NewUnsignedExchangeV1(buy, sell OrderV1, price, amount, buyMatcherFee, sellMatcherFee, fee, timestamp uint64) *ExchangeV1 {
+func NewUnsignedExchangeV1(buy, sell *OrderV1, price, amount, buyMatcherFee, sellMatcherFee, fee, timestamp uint64) *ExchangeV1 {
 	return &ExchangeV1{
 		Type:           ExchangeTransaction,
 		Version:        1,
@@ -769,15 +781,17 @@ func (tx ExchangeV1) Valid() (bool, error) {
 	if !validJVMLong(tx.Fee) {
 		return false, errors.New("fee is too big")
 	}
-	if tx.BuyMatcherFee < 0 {
-		return false, errors.New("buy matcher's fee should be positive")
-	}
+	//uint64 always positive.
+	//if tx.BuyMatcherFee < 0 {
+	//	return false, errors.New("buy matcher's fee should be positive")
+	//}
 	if !validJVMLong(tx.BuyMatcherFee) {
 		return false, errors.New("buy matcher's fee is too big")
 	}
-	if tx.SellMatcherFee < 0 {
-		return false, errors.New("sell matcher's fee should be positive")
-	}
+	//uint64 always positive.
+	//if tx.SellMatcherFee < 0 {
+	//	return false, errors.New("sell matcher's fee should be positive")
+	//}
 	if !validJVMLong(tx.SellMatcherFee) {
 		return false, errors.New("sell matcher's fee is too big")
 	}
@@ -853,14 +867,14 @@ func (tx *ExchangeV1) bodyUnmarshalBinary(data []byte) (int, error) {
 	if err != nil {
 		return 0, errors.Wrapf(err, "failed to unmarshal ExchangeV1 body from bytes")
 	}
-	tx.BuyOrder = bo
+	tx.BuyOrder = &bo
 	n += int(bol)
 	var so OrderV1
 	err = so.UnmarshalBinary(data[n:])
 	if err != nil {
 		return 0, errors.Wrapf(err, "failed to unmarshal ExchangeV1 body from bytes")
 	}
-	tx.SellOrder = so
+	tx.SellOrder = &so
 	n += int(sol)
 	tx.Price = binary.BigEndian.Uint64(data[n:])
 	n += 8
@@ -884,7 +898,10 @@ func (tx *ExchangeV1) Sign(secretKey crypto.SecretKey) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to sign ExchangeV1 transaction")
 	}
-	s := crypto.Sign(secretKey, b)
+	s, err := crypto.Sign(secretKey, b)
+	if err != nil {
+		return errors.Wrap(err, "crypto.Sign() failed")
+	}
 	tx.Signature = &s
 	d, err := crypto.FastHash(b)
 	if err != nil {
@@ -1030,7 +1047,10 @@ func (tx *LeaseV1) Sign(secretKey crypto.SecretKey) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to sign LeaseV1 transaction")
 	}
-	s := crypto.Sign(secretKey, b)
+	s, err := crypto.Sign(secretKey, b)
+	if err != nil {
+		return errors.Wrap(err, "failed to sign LeaseCancelV1 transaction")
+	}
 	tx.Signature = &s
 	d, err := crypto.FastHash(b)
 	if err != nil {
@@ -1175,7 +1195,10 @@ func (tx *LeaseCancelV1) Sign(secretKey crypto.SecretKey) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to sign LeaseCancelV1 transaction")
 	}
-	s := crypto.Sign(secretKey, b)
+	s, err := crypto.Sign(secretKey, b)
+	if err != nil {
+		return errors.Wrap(err, "failed to sign LeaseCancelV1 transaction")
+	}
 	tx.Signature = &s
 	d, err := crypto.FastHash(b)
 	if err != nil {
@@ -1314,7 +1337,10 @@ func (tx *CreateAliasV1) Sign(secretKey crypto.SecretKey) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to sign CreateAliasV1 transaction")
 	}
-	s := crypto.Sign(secretKey, b)
+	s, err := crypto.Sign(secretKey, b)
+	if err != nil {
+		return errors.Wrap(err, "failed to sign CreateAliasV1 transaction")
+	}
 	tx.Signature = &s
 	tx.ID, err = tx.CreateAlias.id()
 	if err != nil {
@@ -1872,7 +1898,6 @@ func (tx *DataV1) bodyUnmarshalBinary(data []byte) error {
 	tx.Timestamp = binary.BigEndian.Uint64(data)
 	data = data[8:]
 	tx.Fee = binary.BigEndian.Uint64(data)
-	data = data[8:]
 	return nil
 }
 
@@ -2514,7 +2539,6 @@ func (tx *SetAssetScriptV1) bodyUnmarshalBinary(data []byte) error {
 			return errors.Wrap(err, "failed to unmarshal SetAssetScriptV1 transaction body from bytes")
 		}
 		tx.Script = s
-		data = data[2+len(s):]
 	}
 	return nil
 }

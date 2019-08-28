@@ -373,15 +373,15 @@ type Order interface {
 func OrderToOrderBody(o Order) (OrderBody, error) {
 	switch o.GetVersion() {
 	case 1:
-		o, ok := o.(OrderV1)
+		o, ok := o.(*OrderV1)
 		if !ok {
-			return OrderBody{}, errors.New("failed to cast an order version 1 to OrderV1")
+			return OrderBody{}, errors.New("failed to cast an order version 1 to *OrderV1")
 		}
 		return o.OrderBody, nil
 	case 2:
-		o, ok := o.(OrderV2)
+		o, ok := o.(*OrderV2)
 		if !ok {
-			return OrderBody{}, errors.New("failed to cast an order version 2 to OrderV2")
+			return OrderBody{}, errors.New("failed to cast an order version 2 to *OrderV2")
 		}
 		return o.OrderBody, nil
 	default:
@@ -544,8 +544,7 @@ func (o *OrderBody) unmarshalBinary(data []byte) error {
 	data = data[crypto.PublicKeySize:]
 	copy(o.MatcherPK[:], data[:crypto.PublicKeySize])
 	data = data[crypto.PublicKeySize:]
-	var err error
-	err = o.AssetPair.AmountAsset.UnmarshalBinary(data)
+	err := o.AssetPair.AmountAsset.UnmarshalBinary(data)
 	if err != nil {
 		return errors.Wrap(err, "failed to unmarshal OrderBody from bytes")
 	}
@@ -634,27 +633,27 @@ func NewUnsignedOrderV1(senderPK, matcherPK crypto.PublicKey, amountAsset, price
 	return &OrderV1{OrderBody: ob}
 }
 
-func (o OrderV1) GetVersion() byte {
+func (o *OrderV1) GetVersion() byte {
 	return 1
 }
 
-func (o OrderV1) GetOrderType() OrderType {
+func (o *OrderV1) GetOrderType() OrderType {
 	return o.OrderType
 }
 
-func (o OrderV1) GetMatcherPK() crypto.PublicKey {
+func (o *OrderV1) GetMatcherPK() crypto.PublicKey {
 	return o.MatcherPK
 }
 
-func (o OrderV1) GetAssetPair() AssetPair {
+func (o *OrderV1) GetAssetPair() AssetPair {
 	return o.AssetPair
 }
 
-func (o OrderV1) GetPrice() uint64 {
+func (o *OrderV1) GetPrice() uint64 {
 	return o.Price
 }
 
-func (o OrderV1) GetExpiration() uint64 {
+func (o *OrderV1) GetExpiration() uint64 {
 	return o.Expiration
 }
 
@@ -672,7 +671,10 @@ func (o *OrderV1) Sign(secretKey crypto.SecretKey) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to sign OrderV1")
 	}
-	s := crypto.Sign(secretKey, b)
+	s, err := crypto.Sign(secretKey, b)
+	if err != nil {
+		return errors.Wrap(err, "failed to sign OrderV1")
+	}
 	o.Signature = &s
 	d, err := crypto.FastHash(b)
 	if err != nil {
@@ -790,27 +792,27 @@ func NewUnsignedOrderV2(senderPK, matcherPK crypto.PublicKey, amountAsset, price
 	return &OrderV2{Version: 2, OrderBody: ob}
 }
 
-func (o OrderV2) GetVersion() byte {
+func (o *OrderV2) GetVersion() byte {
 	return o.Version
 }
 
-func (o OrderV2) GetOrderType() OrderType {
+func (o *OrderV2) GetOrderType() OrderType {
 	return o.OrderType
 }
 
-func (o OrderV2) GetMatcherPK() crypto.PublicKey {
+func (o *OrderV2) GetMatcherPK() crypto.PublicKey {
 	return o.MatcherPK
 }
 
-func (o OrderV2) GetAssetPair() AssetPair {
+func (o *OrderV2) GetAssetPair() AssetPair {
 	return o.AssetPair
 }
 
-func (o OrderV2) GetPrice() uint64 {
+func (o *OrderV2) GetPrice() uint64 {
 	return o.Price
 }
 
-func (o OrderV2) GetExpiration() uint64 {
+func (o *OrderV2) GetExpiration() uint64 {
 	return o.Expiration
 }
 
@@ -984,27 +986,27 @@ func NewUnsignedOrderV3(senderPK, matcherPK crypto.PublicKey, amountAsset, price
 	return &OrderV3{Version: 3, MatcherFeeAsset: matcherFeeAsset, OrderBody: ob}
 }
 
-func (o OrderV3) GetVersion() byte {
+func (o *OrderV3) GetVersion() byte {
 	return o.Version
 }
 
-func (o OrderV3) GetOrderType() OrderType {
+func (o *OrderV3) GetOrderType() OrderType {
 	return o.OrderType
 }
 
-func (o OrderV3) GetMatcherPK() crypto.PublicKey {
+func (o *OrderV3) GetMatcherPK() crypto.PublicKey {
 	return o.MatcherPK
 }
 
-func (o OrderV3) GetAssetPair() AssetPair {
+func (o *OrderV3) GetAssetPair() AssetPair {
 	return o.AssetPair
 }
 
-func (o OrderV3) GetPrice() uint64 {
+func (o *OrderV3) GetPrice() uint64 {
 	return o.Price
 }
 
-func (o OrderV3) GetExpiration() uint64 {
+func (o *OrderV3) GetExpiration() uint64 {
 	return o.Expiration
 }
 
@@ -1253,14 +1255,20 @@ func (p *ProofsV1) Sign(pos int, key crypto.SecretKey, data []byte) error {
 		return errors.Errorf("failed to create proof at position %d, allowed positions from 0 to %d", pos, proofsMaxCount-1)
 	}
 	if len(p.Proofs)-1 < pos {
-		s := crypto.Sign(key, data)
+		s, err := crypto.Sign(key, data)
+		if err != nil {
+			return errors.Errorf("crypto.Sign(): %v", err)
+		}
 		p.Proofs = append(p.Proofs[:pos], append([]B58Bytes{s[:]}, p.Proofs[pos:]...)...)
 	} else {
 		pr := p.Proofs[pos]
 		if len(pr) > 0 {
 			return errors.Errorf("unable to overwrite non-empty proof at position %d", pos)
 		}
-		s := crypto.Sign(key, data)
+		s, err := crypto.Sign(key, data)
+		if err != nil {
+			return errors.Errorf("crypto.Sign(): %v", err)
+		}
 		copy(pr[:], s[:])
 	}
 	return nil

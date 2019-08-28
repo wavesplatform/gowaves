@@ -135,6 +135,7 @@ func (s *diffStorage) saveTxDiff(diff txDiff) error {
 	}
 	return nil
 }
+
 func (s *diffStorage) saveTransactionsDiffs(diffs []txDiff) error {
 	for _, diff := range diffs {
 		if err := s.saveTxDiff(diff); err != nil {

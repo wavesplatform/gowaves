@@ -70,7 +70,8 @@ func TestCleaner_work(t *testing.T) {
 	block := &proto.Block{BlockHeader: proto.BlockHeader{
 		BlockSignature: crypto.Signature{},
 	}}
-	m := node.NewMockStateManager(block)
+	m, err := node.NewMockStateManager(block)
+	require.NoError(t, err)
 	c := NewCleaner(services.Services{State: m, UtxPool: New(1)})
 	c.work()
 }
@@ -79,7 +80,8 @@ func TestCleaner_Handle(t *testing.T) {
 	block := &proto.Block{BlockHeader: proto.BlockHeader{
 		BlockSignature: crypto.Signature{},
 	}}
-	m := node.NewMockStateManager(block)
+	m, err := node.NewMockStateManager(block)
+	require.NoError(t, err)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	c := NewCleaner(services.Services{State: m, UtxPool: New(1)})
@@ -94,7 +96,8 @@ func TestStateWrapperImpl(t *testing.T) {
 	block := &proto.Block{BlockHeader: proto.BlockHeader{
 		BlockSignature: crypto.Signature{},
 	}}
-	m := node.NewMockStateManager(block)
+	m, err := node.NewMockStateManager(block)
+	require.NoError(t, err)
 	w := stateWrapperImpl{state: m}
 
 	last, err := w.lastHeader()

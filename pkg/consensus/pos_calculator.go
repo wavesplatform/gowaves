@@ -152,10 +152,10 @@ func (calc *FairPosCalculator) CalculateBaseTarget(
 	if greatGrandParentTimestamp == 0 {
 		return confirmedTarget, nil
 	}
-	average := float64(applyingBlockTimestamp-greatGrandParentTimestamp) / 3 / 1000
-	if average > maxDelay {
+	average := (applyingBlockTimestamp - greatGrandParentTimestamp) / 3 / 1000
+	if float64(average) > maxDelay {
 		return (confirmedTarget + uint64(math.Max(1, float64(confirmedTarget/100)))), nil
-	} else if average < minDelay {
+	} else if float64(average) < minDelay {
 		return (confirmedTarget - uint64(math.Max(1, float64(confirmedTarget/100)))), nil
 	} else {
 		return confirmedTarget, nil
@@ -175,15 +175,4 @@ func (calc *FairPosCalculator) CalculateDelay(hit *Hit, confirmedTarget BaseTarg
 	log := math.Log(1 - c2*math.Log(h)/float64(confirmedTarget)/float64(balance))
 	res := uint64(tMin + c1*log)
 	return res, nil
-}
-
-func posAlgo(height uint64) (posCalculator, error) {
-	// TODO: support features concept.
-	// Always return Nxt for now, since FairPos appeared later.
-	return &NxtPosCalculator{}, nil
-}
-
-func fairPosActivated(height uint64) bool {
-	// TODO: support features activation.
-	return false
 }

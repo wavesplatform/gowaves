@@ -344,25 +344,17 @@ func extractOrderParameters(o proto.Order) (proto.AssetPair, crypto.PublicKey, u
 
 	switch o.GetVersion() {
 	case 1:
-		orderV1, ok := o.(proto.OrderV1)
+		orderV1, ok := o.(*proto.OrderV1)
 		if !ok {
-			p, ok := o.(*proto.OrderV1)
-			if !ok {
-				return proto.AssetPair{}, crypto.PublicKey{}, 0, errors.New("failed to extract order parameters")
-			}
-			orderV1 = *p
+			return proto.AssetPair{}, crypto.PublicKey{}, 0, errors.New("failed to extract order parameters")
 		}
 		ap = orderV1.AssetPair
 		spk = orderV1.SenderPK
 		ts = orderV1.Timestamp
 	case 2:
-		orderV2, ok := o.(proto.OrderV2)
+		orderV2, ok := o.(*proto.OrderV2)
 		if !ok {
-			p, ok := o.(*proto.OrderV2)
-			if !ok {
-				return proto.AssetPair{}, crypto.PublicKey{}, 0, errors.New("failed to extract order parameters")
-			}
-			orderV2 = *p
+			return proto.AssetPair{}, crypto.PublicKey{}, 0, errors.New("failed to extract order parameters")
 		}
 		ap = orderV2.AssetPair
 		spk = orderV2.SenderPK

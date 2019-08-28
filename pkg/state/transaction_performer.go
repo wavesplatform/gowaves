@@ -133,7 +133,7 @@ func (tp *transactionPerformer) performLease(tx *proto.Lease, id *crypto.Digest,
 	if err != nil {
 		return err
 	}
-	recipientAddr := &proto.Address{}
+	var recipientAddr *proto.Address
 	if tx.Recipient.Address == nil {
 		recipientAddr, err = tp.stor.aliases.newestAddrByAlias(tx.Recipient.Alias.Alias, !info.initialisation)
 		if err != nil {
@@ -234,6 +234,17 @@ func (tp *transactionPerformer) performDataV1(transaction proto.Transaction, inf
 		if err := tp.stor.accountsDataStor.appendEntry(senderAddr, entry, info.blockID); err != nil {
 			return err
 		}
+	}
+	return nil
+}
+
+func (tp *transactionPerformer) performSponsorshipV1(transaction proto.Transaction, info *performerInfo) error {
+	tx, ok := transaction.(*proto.SponsorshipV1)
+	if !ok {
+		return errors.New("failed to convert interface to SponsorshipV1 transaction")
+	}
+	if err := tp.stor.sponsoredAssets.sponsorAsset(tx.AssetID, tx.MinAssetFee, info.blockID); err != nil {
+		return errors.Wrap(err, "failed to sponsor asset")
 	}
 	return nil
 }

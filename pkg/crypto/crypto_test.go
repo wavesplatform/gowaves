@@ -23,7 +23,8 @@ func TestKeccak(t *testing.T) {
 	for _, tc := range tests {
 		data, err := hex.DecodeString(tc.data)
 		if assert.NoError(t, err) {
-			actual := Keccak256(data)
+			actual, err := Keccak256(data)
+			assert.NoError(t, err)
 			expected, err := hex.DecodeString(tc.hash)
 			if assert.NoError(t, err) {
 				assert.Equal(t, expected, actual[:])
@@ -92,7 +93,8 @@ func TestKeyGeneration(t *testing.T) {
 	for _, tc := range tests {
 		accountSeed, err := base58.Decode(tc.seed)
 		if assert.NoError(t, err) {
-			ask, apk := GenerateKeyPair(accountSeed)
+			ask, apk, err := GenerateKeyPair(accountSeed)
+			assert.NoError(t, err)
 			skBytes, err := base58.Decode(tc.expectedSK)
 			if assert.NoError(t, err) {
 				var esk SecretKey
@@ -129,7 +131,8 @@ func TestSign(t *testing.T) {
 				if assert.NoError(t, err) {
 					var p PublicKey
 					copy(p[:], pkBytes[:DigestSize])
-					sig := Sign(s, messageBytes)
+					sig, err := Sign(s, messageBytes)
+					assert.NoError(t, err)
 					assert.True(t, Verify(p, sig, messageBytes))
 				}
 			}
@@ -169,10 +172,14 @@ func BenchmarkBase58Decode(b *testing.B) {
 	for size := 64; size <= 2048; size *= 2 {
 		b.Run(fmt.Sprintf("%dB", size), func(b *testing.B) {
 			bytes := make([]byte, size)
-			rand.Read(bytes)
+			if _, err := rand.Read(bytes); err != nil {
+				b.Fatalf("rand.Read(): %v\n", err)
+			}
 			s := base58.Encode(bytes)
 			for n := 0; n < b.N; n++ {
-				base58.Decode(s)
+				if _, err := base58.Decode(s); err != nil {
+					b.Fatalf("base58.Decode(): %v\n", err)
+				}
 			}
 		})
 	}
@@ -182,7 +189,9 @@ func BenchmarkBase58Encode(b *testing.B) {
 	for size := 64; size <= 2048; size *= 2 {
 		b.Run(fmt.Sprintf("%dB", size), func(b *testing.B) {
 			bytes := make([]byte, size)
-			rand.Read(bytes)
+			if _, err := rand.Read(bytes); err != nil {
+				b.Fatalf("rand.Read(): %v\n", err)
+			}
 			for n := 0; n < b.N; n++ {
 				base58.Encode(bytes)
 			}
@@ -194,12 +203,18 @@ func BenchmarkSign(b *testing.B) {
 	for size := 64; size <= 2048; size *= 2 {
 		b.Run(fmt.Sprintf("%dB", size), func(b *testing.B) {
 			data := make([]byte, size)
-			rand.Read(data)
+			if _, err := rand.Read(data); err != nil {
+				b.Fatalf("rand.Read(): %v\n", err)
+			}
 			seed := make([]byte, 32)
-			rand.Read(seed)
+			if _, err := rand.Read(seed); err != nil {
+				b.Fatalf("rand.Read(): %v\n", err)
+			}
 			sk := GenerateSecretKey(seed)
 			for n := 0; n < b.N; n++ {
-				Sign(sk, data)
+				if _, err := Sign(sk, data); err != nil {
+					b.Fatalf("Sign() failed: %v\n", err)
+				}
 			}
 		})
 	}
@@ -209,11 +224,21 @@ func BenchmarkVerify(b *testing.B) {
 	for size := 64; size <= 2048; size *= 2 {
 		b.Run(fmt.Sprintf("%dB", size), func(b *testing.B) {
 			data := make([]byte, size)
-			rand.Read(data)
+			if _, err := rand.Read(data); err != nil {
+				b.Fatalf("rand.Read(): %v\n", err)
+			}
 			seed := make([]byte, 32)
-			rand.Read(seed)
-			sk, pk := GenerateKeyPair(seed)
-			s := Sign(sk, data)
+			if _, err := rand.Read(seed); err != nil {
+				b.Fatalf("rand.Read(): %v\n", err)
+			}
+			sk, pk, err := GenerateKeyPair(seed)
+			if err != nil {
+				b.Fatalf("GenerateKeyPair() failed: %v\n", err)
+			}
+			s, err := Sign(sk, data)
+			if err != nil {
+				b.Fatalf("Sign() failed: %v\n", err)
+			}
 			for n := 0; n < b.N; n++ {
 				Verify(pk, s, data)
 			}
@@ -225,9 +250,13 @@ func BenchmarkFastHash(b *testing.B) {
 	for size := 64; size <= 2048; size *= 2 {
 		b.Run(fmt.Sprintf("%dB", size), func(b *testing.B) {
 			data := make([]byte, size)
-			rand.Read(data)
+			if _, err := rand.Read(data); err != nil {
+				b.Fatalf("rand.Read(): %v\n", err)
+			}
 			for n := 0; n < b.N; n++ {
-				FastHash(data)
+				if _, err := FastHash(data); err != nil {
+					b.Fatalf("FastHash(): %v\n", err)
+				}
 			}
 		})
 	}
@@ -237,9 +266,13 @@ func BenchmarkSecureHash(b *testing.B) {
 	for size := 64; size <= 2048; size *= 2 {
 		b.Run(fmt.Sprintf("%dB", size), func(b *testing.B) {
 			data := make([]byte, size)
-			rand.Read(data)
+			if _, err := rand.Read(data); err != nil {
+				b.Fatalf("rand.Read(): %v\n", err)
+			}
 			for n := 0; n < b.N; n++ {
-				SecureHash(data)
+				if _, err := SecureHash(data); err != nil {
+					b.Fatalf("SecureHash(): %v\n", err)
+				}
 			}
 		})
 	}

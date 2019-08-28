@@ -94,7 +94,10 @@ func TestAddressFromBytes(t *testing.T) {
 func BenchmarkNewWavesAddressFromPublicKey(b *testing.B) {
 	seed := make([]byte, 32)
 	_, _ = rand.Read(seed)
-	_, pk := crypto.GenerateKeyPair(seed)
+	_, pk, err := crypto.GenerateKeyPair(seed)
+	if err != nil {
+		b.Fatalf("crypto.GenerateKeyPair(): %v", err)
+	}
 	for n := 0; n < b.N; n++ {
 		_, _ = NewAddressFromPublicKey(MainNetScheme, pk)
 	}
@@ -148,16 +151,20 @@ func TestRecipient_WriteTo(t *testing.T) {
 
 	addr, _ := NewAddressFromString("3PQ8bp1aoqHQo3icNqFv6VM36V1jzPeaG1v")
 	rec := NewRecipientFromAddress(addr)
-	rec.WriteTo(buf)
-	bin, _ := rec.MarshalBinary()
+	_, err := rec.WriteTo(buf)
+	require.NoError(t, err)
+	bin, err := rec.MarshalBinary()
+	require.NoError(t, err)
 	require.Equal(t, bin, buf.Bytes())
 
 	buf.Reset()
 
 	alias, _ := NewAliasFromString("alias:T:blah-blah-blah")
 	rec = NewRecipientFromAlias(*alias)
-	bin, _ = rec.MarshalBinary()
-	rec.WriteTo(buf)
+	bin, err = rec.MarshalBinary()
+	require.NoError(t, err)
+	_, err = rec.WriteTo(buf)
+	require.NoError(t, err)
 	require.Equal(t, bin, buf.Bytes())
 
 }

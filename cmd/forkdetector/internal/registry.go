@@ -1,7 +1,6 @@
 package internal
 
 import (
-	"bytes"
 	"net"
 	"sort"
 	"sync"
@@ -43,8 +42,8 @@ func NewRegistry(scheme byte, self net.Addr, versions []proto.Version, storage *
 		self:        ip,
 		versions:    newVersions(versions),
 		storage:     storage,
-		connections: make(map[uint64]PeerNode, 0),
-		pending:     make(map[uint64]struct{}, 0),
+		connections: make(map[uint64]PeerNode),
+		pending:     make(map[uint64]struct{}),
 	}
 }
 
@@ -62,7 +61,7 @@ func (r *Registry) Check(addr net.Addr, application string) error {
 		return errors.Errorf("incompatible blockchain scheme %d", s)
 	}
 	// Check that this is not a connection to itself
-	if bytes.Equal(ip, r.self) {
+	if ip.Equal(r.self) {
 		return errors.New("connection to itself")
 	}
 	if ip.IsLoopback() {

@@ -21,9 +21,8 @@ import (
 )
 
 const (
-	maxRollbackTestBlocks = 9000
-	blocksToImport        = 1000
-	startScore            = "28856275329634"
+	blocksToImport = 1000
+	startScore     = "28856275329634"
 )
 
 type testCase struct {
@@ -54,6 +53,9 @@ func bigFromStr(s string) *big.Int {
 
 func TestGenesisConfig(t *testing.T) {
 	dataDir, err := ioutil.TempDir(os.TempDir(), "dataDir")
+	if err != nil {
+		t.Fatalf("TempDir(): %v.\n", err)
+	}
 	ss := &settings.BlockchainSettings{
 		Type:          settings.Custom,
 		GenesisGetter: settings.TestnetGenesis,
@@ -120,7 +122,8 @@ func TestValidationWithoutBlocks(t *testing.T) {
 	// Test that in case validation using ValidateNextTx() fails, its diffs are not taken into account for further validation.
 	seed, err := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
 	assert.NoError(t, err, "base58.Decode() failed")
-	sk, pk := crypto.GenerateKeyPair(seed)
+	sk, pk, err := crypto.GenerateKeyPair(seed)
+	assert.NoError(t, err)
 	// This tx tries to send more Waves than exist at all.
 	invalidTx := proto.NewUnsignedPayment(pk, testGlobal.recipientInfo.addr, 19999999500000000, 1, defaultTimestamp)
 	err = invalidTx.Sign(sk)

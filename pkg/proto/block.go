@@ -306,9 +306,14 @@ func (b *Block) Sign(secret crypto.SecretKey) error {
 	if err != nil {
 		return err
 	}
-	sign := crypto.Sign(secret, buf.Bytes())
+	sign, err := crypto.Sign(secret, buf.Bytes())
+	if err != nil {
+		return err
+	}
 	b.BlockSignature = sign
-	buf.Write(sign[:])
+	if _, err := buf.Write(sign[:]); err != nil {
+		return err
+	}
 	return nil
 }
 

@@ -567,17 +567,20 @@ func (s *Server) removeConn(conn *Conn) {
 var (
 	bufferPool1K = &sync.Pool{
 		New: func() interface{} {
-			return make([]byte, 1<<10)
+			buf := make([]byte, 1<<10)
+			return &buf
 		},
 	}
 	bufferPool2K = &sync.Pool{
 		New: func() interface{} {
-			return make([]byte, 2<<10)
+			buf := make([]byte, 2<<10)
+			return &buf
 		},
 	}
 	bufferPool4K = &sync.Pool{
 		New: func() interface{} {
-			return make([]byte, 4<<10)
+			buf := make([]byte, 4<<10)
+			return &buf
 		},
 	}
 	bufferPoolBig = &sync.Pool{}
@@ -669,15 +672,15 @@ func getBufferFromPool(targetSize int) []byte {
 	var buf []byte
 	switch {
 	case targetSize <= 1<<10:
-		buf = bufferPool1K.Get().([]byte)
+		buf = *bufferPool1K.Get().(*[]byte)
 	case targetSize <= 2<<10:
-		buf = bufferPool2K.Get().([]byte)
+		buf = *bufferPool2K.Get().(*[]byte)
 	case targetSize <= 4<<10:
-		buf = bufferPool4K.Get().([]byte)
+		buf = *bufferPool4K.Get().(*[]byte)
 	default:
 		itr := bufferPoolBig.Get()
-		if itr != nil && cap(itr.([]byte)) >= targetSize {
-			buf = itr.([]byte)
+		if itr != nil && cap(*itr.(*[]byte)) >= targetSize {
+			buf = *itr.(*[]byte)
 		} else {
 			buf = make([]byte, targetSize)
 		}
@@ -690,12 +693,16 @@ func putBufferToPool(buf []byte) {
 	c := cap(buf)
 	switch {
 	case c <= 1<<10:
-		bufferPool1K.Put(buf)
+		// To understand why we store pointer to slice here, refer: https://staticcheck.io/docs/checks#SA6002.
+		bufferPool1K.Put(&buf)
 	case c <= 2<<10:
-		bufferPool2K.Put(buf)
+		// To understand why we store pointer to slice here, refer: https://staticcheck.io/docs/checks#SA6002.
+		bufferPool2K.Put(&buf)
 	case c <= 4<<10:
-		bufferPool4K.Put(buf)
+		// To understand why we store pointer to slice here, refer: https://staticcheck.io/docs/checks#SA6002.
+		bufferPool4K.Put(&buf)
 	default:
-		bufferPoolBig.Put(buf)
+		// To understand why we store pointer to slice here, refer: https://staticcheck.io/docs/checks#SA6002.
+		bufferPoolBig.Put(&buf)
 	}
 }

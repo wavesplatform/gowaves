@@ -292,10 +292,8 @@ func height(interrupt <-chan struct{}, c *client.Client, id int, ch chan nodeHei
 	defer cancel()
 
 	go func() {
-		select {
-		case <-interrupt:
-			cancel()
-		}
+		<-interrupt
+		cancel()
 	}()
 
 	bh, _, err := c.Blocks.Height(ctx)
@@ -322,9 +320,9 @@ func heights(interrupt <-chan struct{}, clients []*client.Client) ([]int, error)
 		heights[nh.id] = nh.height
 	}
 
-	r := make([]int, len(clients))
-	for i := range clients {
-		r[i] = heights[i]
+	r := make([]int, len(heights))
+	for i, height := range heights {
+		r[i] = height
 	}
 	return r, nil
 }
@@ -349,16 +347,11 @@ func interruptListener() <-chan struct{} {
 	go func() {
 		signals := make(chan os.Signal, 1)
 		signal.Notify(signals, interruptSignals...)
-		select {
-		case sig := <-signals:
-			zap.S().Infof("Caught signal '%s', shutting down...", sig)
-		}
+		sig := <-signals
+		zap.S().Infof("Caught signal '%s', shutting down...", sig)
 		close(r)
-		for {
-			select {
-			case sig := <-signals:
-				zap.S().Infof("Caught signal '%s' again, already shutting down", sig)
-			}
+		for sig := range signals {
+			zap.S().Infof("Caught signal '%s' again, already shutting down", sig)
 		}
 	}()
 	return r

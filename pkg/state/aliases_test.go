@@ -9,7 +9,7 @@ import (
 )
 
 type aliasesTestObjects struct {
-	stor    *storageObjects
+	stor    *testStorageObjects
 	aliases *aliases
 }
 

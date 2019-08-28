@@ -11,12 +11,27 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/util/lock"
 )
 
-// State represents overall Node's state.
-// Data retrievals (e.g. account balances), as well as modifiers (like adding or rolling back blocks)
-// should all be made using this interface.
-type State interface {
-	// Global mutex of state.
-	Mutex() *lock.RwMutex
+// StateNewest returns information that takes into account any intermediate changes
+// occurring during applying block. This state corresponds to the latest validated transaction,
+// and for now is only needed for Ride and Consensus modules, which are both called during the validation.
+type StateNewest interface {
+	// Effective balance by address in given height range.
+	// WARNING: this function takes into account newest blocks (which are currently being added)
+	// and works correctly for height ranges exceeding current Height() if there are such blocks.
+	// It does not work for heights older than rollbackMax blocks before the current block.
+	EffectiveBalance(addr proto.Address, startHeight, endHeight proto.Height) (uint64, error)
+
+	// Accounts data storage.
+	RetrieveNewestEntry(addr proto.Address, key string) (proto.DataEntry, error)
+	RetrieveNewestIntegerEntry(addr proto.Address, key string) (*proto.IntegerDataEntry, error)
+	RetrieveNewestBooleanEntry(addr proto.Address, key string) (*proto.BooleanDataEntry, error)
+	RetrieveNewestStringEntry(addr proto.Address, key string) (*proto.StringDataEntry, error)
+	RetrieveNewestBinaryEntry(addr proto.Address, key string) (*proto.BinaryDataEntry, error)
+}
+
+// StateStable returns information that corresponds to latest fully applied block.
+// This should be used for APIs and other modules where stable, fully verified state is needed.
+type StateStable interface {
 	// Block getters.
 	Block(blockID crypto.Signature) (*proto.Block, error)
 	BlockByHeight(height proto.Height) (*proto.Block, error)
@@ -38,6 +53,35 @@ type State interface {
 	// WavesAddressesNumber returns total number of Waves addresses in state.
 	// It is extremely slow, so it is recommended to only use for testing purposes.
 	WavesAddressesNumber() (uint64, error)
+
+	// Get cumulative blocks score at given height.
+	ScoreAtHeight(height proto.Height) (*big.Int, error)
+	// Get current blockchain score (at top height).
+	CurrentScore() (*big.Int, error)
+
+	// Retrieve current blockchain settings.
+	BlockchainSettings() (*settings.BlockchainSettings, error)
+
+	Peers() ([]proto.TCPAddr, error)
+
+	// Features.
+	IsActivated(featureID int16) (bool, error)
+	ActivationHeight(featureID int16) (proto.Height, error)
+	IsApproved(featureID int16) (bool, error)
+	ApprovalHeight(featureID int16) (proto.Height, error)
+
+	// Accounts data storage.
+	RetrieveEntry(addr proto.Address, key string) (proto.DataEntry, error)
+	RetrieveIntegerEntry(addr proto.Address, key string) (*proto.IntegerDataEntry, error)
+	RetrieveBooleanEntry(addr proto.Address, key string) (*proto.BooleanDataEntry, error)
+	RetrieveStringEntry(addr proto.Address, key string) (*proto.StringDataEntry, error)
+	RetrieveBinaryEntry(addr proto.Address, key string) (*proto.BinaryDataEntry, error)
+}
+
+// StateModifier contains all the methods needed to modify node's state.
+type StateModifier interface {
+	// Global mutex of state.
+	Mutex() *lock.RwMutex
 	// AddBlock adds single block to state.
 	// It's not recommended to use this function when you are able to accumulate big blocks batch,
 	// since it's much more efficient to add many blocks at once.
@@ -57,17 +101,6 @@ type State interface {
 	// Rollback functionality.
 	RollbackToHeight(height proto.Height) error
 	RollbackTo(removalEdge crypto.Signature) error
-	// Get cumulative blocks score at given height.
-	ScoreAtHeight(height proto.Height) (*big.Int, error)
-	// Get current blockchain score (at top height).
-	CurrentScore() (*big.Int, error)
-	// Retrieve current blockchain settings.
-	BlockchainSettings() (*settings.BlockchainSettings, error)
-	// Effective balance by address in given height range.
-	// WARNING: this function takes into account newest blocks (which are currently being added)
-	// and works correctly for height ranges exceeding current Height() if there are such blocks.
-	// It does not work for heights older than rollbackMax blocks before the current block.
-	EffectiveBalance(addr proto.Address, startHeight, endHeight proto.Height) (uint64, error)
 
 	// -------------------------
 	// Validation functionality.
@@ -86,15 +119,15 @@ type State interface {
 
 	// Create or replace Peers.
 	SavePeers([]proto.TCPAddr) error
-	Peers() ([]proto.TCPAddr, error)
-
-	// Features.
-	IsActivated(featureID int16) (bool, error)
-	ActivationHeight(featureID int16) (proto.Height, error)
-	IsApproved(featureID int16) (bool, error)
-	ApprovalHeight(featureID int16) (proto.Height, error)
 
 	Close() error
+}
+
+// State represents overall Node's state.
+type State interface {
+	StateModifier
+	StateStable
+	StateNewest
 }
 
 // NewState() creates State.

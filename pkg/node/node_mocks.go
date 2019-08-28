@@ -39,14 +39,16 @@ func (a *MockStateManager) AddBlock([]byte) (*proto.Block, error) {
 	panic("implement me")
 }
 
-func NewMockStateManager(blocks ...*proto.Block) *MockStateManager {
+func NewMockStateManager(blocks ...*proto.Block) (*MockStateManager, error) {
 	m := &MockStateManager{
 		blockIDToHeight: make(map[crypto.Signature]proto.Height),
 	}
 	for _, b := range blocks {
-		m.AddDeserializedBlock(b)
+		if _, err := m.AddDeserializedBlock(b); err != nil {
+			return nil, err
+		}
 	}
-	return m
+	return m, nil
 }
 
 func (a *MockStateManager) Block(blockID crypto.Signature) (*proto.Block, error) {
@@ -170,6 +172,46 @@ func (a *MockStateManager) Peers() ([]proto.TCPAddr, error) {
 	return a.Peers_, nil
 }
 
+func (a *MockStateManager) RetrieveEntry(addr proto.Address, key string) (proto.DataEntry, error) {
+	panic("implement me")
+}
+
+func (a *MockStateManager) RetrieveIntegerEntry(addr proto.Address, key string) (*proto.IntegerDataEntry, error) {
+	panic("implement me")
+}
+
+func (a *MockStateManager) RetrieveBooleanEntry(addr proto.Address, key string) (*proto.BooleanDataEntry, error) {
+	panic("implement me")
+}
+
+func (a *MockStateManager) RetrieveStringEntry(addr proto.Address, key string) (*proto.StringDataEntry, error) {
+	panic("implement me")
+}
+
+func (a *MockStateManager) RetrieveBinaryEntry(addr proto.Address, key string) (*proto.BinaryDataEntry, error) {
+	panic("implement me")
+}
+
+func (a *MockStateManager) RetrieveNewestEntry(addr proto.Address, key string) (proto.DataEntry, error) {
+	panic("implement me")
+}
+
+func (a *MockStateManager) RetrieveNewestIntegerEntry(addr proto.Address, key string) (*proto.IntegerDataEntry, error) {
+	panic("implement me")
+}
+
+func (a *MockStateManager) RetrieveNewestBooleanEntry(addr proto.Address, key string) (*proto.BooleanDataEntry, error) {
+	panic("implement me")
+}
+
+func (a *MockStateManager) RetrieveNewestStringEntry(addr proto.Address, key string) (*proto.StringDataEntry, error) {
+	panic("implement me")
+}
+
+func (a *MockStateManager) RetrieveNewestBinaryEntry(addr proto.Address, key string) (*proto.BinaryDataEntry, error) {
+	panic("implement me")
+}
+
 func (a *MockStateManager) Close() error {
 	panic("implement me")
 }
@@ -196,7 +238,9 @@ func (a *MockStateManager) AddDeserializedBlock(block *proto.Block) (*proto.Bloc
 }
 func (a *MockStateManager) AddNewDeserializedBlocks(blocks []*proto.Block) error {
 	for _, b := range blocks {
-		a.AddDeserializedBlock(b)
+		if _, err := a.AddDeserializedBlock(b); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -286,7 +330,7 @@ func (*mockPeerManager) EachConnected(func(peer.Peer, *big.Int)) {
 	panic("implement me")
 }
 
-func (*mockPeerManager) SpawnIncomingConnection(ctx context.Context, n net.Conn) {
+func (*mockPeerManager) SpawnIncomingConnection(ctx context.Context, n net.Conn) error {
 	panic("implement me")
 }
 

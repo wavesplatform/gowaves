@@ -25,7 +25,11 @@ func Genesis(timestamp proto.Timestamp, transactions proto.Transactions) (*proto
 	block.Version = proto.GenesisBlockVersion
 
 	kp := proto.NewKeyPair([]byte{})
-	err = block.Sign(kp.Private())
+	sk, err := kp.Private()
+	if err != nil {
+		return nil, err
+	}
+	err = block.Sign(sk)
 	if err != nil {
 		return nil, err
 	}
@@ -40,8 +44,12 @@ func Generate(timestamp proto.Timestamp, schema byte, v ...interface{}) (*proto.
 
 	transactions := proto.Transactions{}
 	for i := 0; i < len(v); i += 2 {
-		t := proto.NewUnsignedGenesis(v[i].(proto.KeyPair).Addr(schema), uint64(v[i+1].(int)), timestamp)
-		err := t.GenerateSigID()
+		addr, err := v[i].(proto.KeyPair).Addr(schema)
+		if err != nil {
+			return nil, err
+		}
+		t := proto.NewUnsignedGenesis(addr, uint64(v[i+1].(int)), timestamp)
+		err = t.GenerateSigID()
 		if err != nil {
 			panic(err.Error())
 		}

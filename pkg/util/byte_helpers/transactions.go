@@ -274,7 +274,7 @@ func initTransferV2() {
 
 func initIssueV1() {
 
-	sk, pk := crypto.GenerateKeyPair([]byte("test"))
+	sk, pk, _ := crypto.GenerateKeyPair([]byte("test"))
 
 	t := proto.NewUnsignedIssueV1(
 		pk,

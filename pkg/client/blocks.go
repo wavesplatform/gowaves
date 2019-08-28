@@ -189,10 +189,6 @@ func (a *Blocks) At(ctx context.Context, height uint64) (*Block, *Response, erro
 	if err != nil {
 		return nil, response, err
 	}
-
-	if err != nil {
-		return nil, response, &ParseError{Err: err}
-	}
 	return out, response, nil
 }
 

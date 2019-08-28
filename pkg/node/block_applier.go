@@ -134,7 +134,7 @@ func (a *BlockApplier) Apply(block *proto.Block) error {
 	m := a.state.Mutex()
 	locked := m.Lock()
 
-	block, _, err := a.inner.apply(block)
+	_, _, err := a.inner.apply(block)
 	if err != nil {
 		locked.Unlock()
 		return err

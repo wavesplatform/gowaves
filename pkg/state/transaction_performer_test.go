@@ -11,19 +11,16 @@ import (
 )
 
 type performerTestObjects struct {
-	stor     *storageObjects
-	entities *blockchainEntitiesStorage
-	tp       *transactionPerformer
+	stor *testStorageObjects
+	tp   *transactionPerformer
 }
 
 func createPerformerTestObjects(t *testing.T) (*performerTestObjects, []string) {
 	stor, path, err := createStorageObjects()
 	assert.NoError(t, err, "createStorageObjects() failed")
-	entities, err := newBlockchainEntitiesStorage(stor.hs, stor.stateDB, settings.MainNetSettings)
-	assert.NoError(t, err, "newBlockchainEntitiesStorage() failed")
-	tp, err := newTransactionPerformer(entities, settings.MainNetSettings)
+	tp, err := newTransactionPerformer(stor.entities, settings.MainNetSettings)
 	assert.NoError(t, err, "newTransactionPerformer() failed")
-	return &performerTestObjects{stor, entities, tp}, path
+	return &performerTestObjects{stor, tp}, path
 }
 
 func defaultPerformerInfo(t *testing.T) *performerInfo {
@@ -57,7 +54,7 @@ func TestPerformIssueV1(t *testing.T) {
 	}
 
 	// Check asset info.
-	info, err := to.entities.assets.assetInfo(*tx.ID, true)
+	info, err := to.stor.entities.assets.assetInfo(*tx.ID, true)
 	assert.NoError(t, err, "assetInfo() failed")
 	assert.Equal(t, assetInfo, *info, "invalid asset info after performing IssueV1 transaction")
 }
@@ -89,7 +86,7 @@ func TestPerformIssueV2(t *testing.T) {
 	}
 
 	// Check asset info.
-	info, err := to.entities.assets.assetInfo(*tx.ID, true)
+	info, err := to.stor.entities.assets.assetInfo(*tx.ID, true)
 	assert.NoError(t, err, "assetInfo() failed")
 	assert.Equal(t, assetInfo, *info, "invalid asset info after performing IssueV1 transaction")
 }
@@ -102,7 +99,7 @@ func TestPerformReissueV1(t *testing.T) {
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
-	assetInfo := createAsset(t, to.entities, to.stor, testGlobal.asset0.asset.ID)
+	assetInfo := to.stor.createAsset(t, testGlobal.asset0.asset.ID)
 	tx := createReissueV1(t)
 	err := to.tp.performReissueV1(tx, defaultPerformerInfo(t))
 	assert.NoError(t, err, "performReissueV1() failed")
@@ -111,7 +108,7 @@ func TestPerformReissueV1(t *testing.T) {
 	assetInfo.quantity.Add(&assetInfo.quantity, big.NewInt(int64(tx.Quantity)))
 
 	// Check asset info.
-	info, err := to.entities.assets.assetInfo(testGlobal.asset0.asset.ID, true)
+	info, err := to.stor.entities.assets.assetInfo(testGlobal.asset0.asset.ID, true)
 	assert.NoError(t, err, "assetInfo() failed")
 	assert.Equal(t, *assetInfo, *info, "invalid asset info after performing ReissueV1 transaction")
 }
@@ -124,7 +121,7 @@ func TestPerformReissueV2(t *testing.T) {
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
-	assetInfo := createAsset(t, to.entities, to.stor, testGlobal.asset0.asset.ID)
+	assetInfo := to.stor.createAsset(t, testGlobal.asset0.asset.ID)
 	tx := createReissueV2(t)
 	err := to.tp.performReissueV2(tx, defaultPerformerInfo(t))
 	assert.NoError(t, err, "performReissueV2() failed")
@@ -133,7 +130,7 @@ func TestPerformReissueV2(t *testing.T) {
 	assetInfo.quantity.Add(&assetInfo.quantity, big.NewInt(int64(tx.Quantity)))
 
 	// Check asset info.
-	info, err := to.entities.assets.assetInfo(testGlobal.asset0.asset.ID, true)
+	info, err := to.stor.entities.assets.assetInfo(testGlobal.asset0.asset.ID, true)
 	assert.NoError(t, err, "assetInfo() failed")
 	assert.Equal(t, *assetInfo, *info, "invalid asset info after performing ReissueV1 transaction")
 }
@@ -146,7 +143,7 @@ func TestPerformBurnV1(t *testing.T) {
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
-	assetInfo := createAsset(t, to.entities, to.stor, testGlobal.asset0.asset.ID)
+	assetInfo := to.stor.createAsset(t, testGlobal.asset0.asset.ID)
 	tx := createBurnV1(t)
 	err := to.tp.performBurnV1(tx, defaultPerformerInfo(t))
 	assert.NoError(t, err, "performBurnV1() failed")
@@ -154,7 +151,7 @@ func TestPerformBurnV1(t *testing.T) {
 	assetInfo.quantity.Sub(&assetInfo.quantity, big.NewInt(int64(tx.Amount)))
 
 	// Check asset info.
-	info, err := to.entities.assets.assetInfo(testGlobal.asset0.asset.ID, true)
+	info, err := to.stor.entities.assets.assetInfo(testGlobal.asset0.asset.ID, true)
 	assert.NoError(t, err, "assetInfo() failed")
 	assert.Equal(t, *assetInfo, *info, "invalid asset info after performing BurnV1 transaction")
 }
@@ -167,7 +164,7 @@ func TestPerformBurnV2(t *testing.T) {
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
-	assetInfo := createAsset(t, to.entities, to.stor, testGlobal.asset0.asset.ID)
+	assetInfo := to.stor.createAsset(t, testGlobal.asset0.asset.ID)
 	tx := createBurnV2(t)
 	err := to.tp.performBurnV2(tx, defaultPerformerInfo(t))
 	assert.NoError(t, err, "performBurnV2() failed")
@@ -175,7 +172,7 @@ func TestPerformBurnV2(t *testing.T) {
 	assetInfo.quantity.Sub(&assetInfo.quantity, big.NewInt(int64(tx.Amount)))
 
 	// Check asset info.
-	info, err := to.entities.assets.assetInfo(testGlobal.asset0.asset.ID, true)
+	info, err := to.stor.entities.assets.assetInfo(testGlobal.asset0.asset.ID, true)
 	assert.NoError(t, err, "assetInfo() failed")
 	assert.Equal(t, *assetInfo, *info, "invalid asset info after performing BurnV2 transaction")
 }
@@ -200,7 +197,7 @@ func TestPerformLeaseV1(t *testing.T) {
 		sender:      testGlobal.senderInfo.addr,
 	}
 
-	info, err := to.entities.leases.leasingInfo(*tx.ID, true)
+	info, err := to.stor.entities.leases.leasingInfo(*tx.ID, true)
 	assert.NoError(t, err, "leasingInfo() failed")
 	assert.Equal(t, *leasingInfo, *info, "invalid leasing info after performing LeaseV1 transaction")
 }
@@ -225,7 +222,7 @@ func TestPerformLeaseV2(t *testing.T) {
 		sender:      testGlobal.senderInfo.addr,
 	}
 
-	info, err := to.entities.leases.leasingInfo(*tx.ID, true)
+	info, err := to.stor.entities.leases.leasingInfo(*tx.ID, true)
 	assert.NoError(t, err, "leasingInfo() failed")
 	assert.Equal(t, *leasingInfo, *info, "invalid leasing info after performing LeaseV1 transaction")
 }
@@ -253,7 +250,7 @@ func TestPerformLeaseCancelV1(t *testing.T) {
 	err = to.tp.performLeaseCancelV1(tx, defaultPerformerInfo(t))
 	assert.NoError(t, err, "performLeaseCancelV1() failed")
 	to.stor.flush(t)
-	info, err := to.entities.leases.leasingInfo(*leaseTx.ID, true)
+	info, err := to.stor.entities.leases.leasingInfo(*leaseTx.ID, true)
 	assert.NoError(t, err, "leasingInfo() failed")
 	assert.Equal(t, *leasingInfo, *info, "invalid leasing info after performing LeaseCancelV1 transaction")
 }
@@ -281,7 +278,7 @@ func TestPerformLeaseCancelV2(t *testing.T) {
 	err = to.tp.performLeaseCancelV2(tx, defaultPerformerInfo(t))
 	assert.NoError(t, err, "performLeaseCancelV2() failed")
 	to.stor.flush(t)
-	info, err := to.entities.leases.leasingInfo(*leaseTx.ID, true)
+	info, err := to.stor.entities.leases.leasingInfo(*leaseTx.ID, true)
 	assert.NoError(t, err, "leasingInfo() failed")
 	assert.Equal(t, *leasingInfo, *info, "invalid leasing info after performing LeaseCancelV2 transaction")
 }
@@ -299,7 +296,7 @@ func TestPerformCreateAliasV1(t *testing.T) {
 	err := to.tp.performCreateAliasV1(tx, defaultPerformerInfo(t))
 	assert.NoError(t, err, "performCreateAliasV1() failed")
 	to.stor.flush(t)
-	addr, err := to.entities.aliases.addrByAlias(tx.Alias.Alias, true)
+	addr, err := to.stor.entities.aliases.addrByAlias(tx.Alias.Alias, true)
 	assert.NoError(t, err, "addrByAlias failed")
 	assert.Equal(t, testGlobal.senderInfo.addr, *addr, "invalid address by alias after performing CreateAliasV1 transaction")
 
@@ -307,10 +304,10 @@ func TestPerformCreateAliasV1(t *testing.T) {
 	err = to.tp.performCreateAliasV1(tx, defaultPerformerInfo(t))
 	assert.NoError(t, err, "performCreateAliasV1() failed")
 	to.stor.flush(t)
-	err = to.entities.aliases.disableStolenAliases()
+	err = to.stor.entities.aliases.disableStolenAliases()
 	assert.NoError(t, err, "disableStolenAliases() failed")
 	to.stor.flush(t)
-	_, err = to.entities.aliases.addrByAlias(tx.Alias.Alias, true)
+	_, err = to.stor.entities.aliases.addrByAlias(tx.Alias.Alias, true)
 	assert.Equal(t, errAliasDisabled, err)
 }
 
@@ -327,7 +324,7 @@ func TestPerformCreateAliasV2(t *testing.T) {
 	err := to.tp.performCreateAliasV2(tx, defaultPerformerInfo(t))
 	assert.NoError(t, err, "performCreateAliasV2() failed")
 	to.stor.flush(t)
-	addr, err := to.entities.aliases.addrByAlias(tx.Alias.Alias, true)
+	addr, err := to.stor.entities.aliases.addrByAlias(tx.Alias.Alias, true)
 	assert.NoError(t, err, "addrByAlias failed")
 	assert.Equal(t, testGlobal.senderInfo.addr, *addr, "invalid address by alias after performing CreateAliasV2 transaction")
 
@@ -335,10 +332,10 @@ func TestPerformCreateAliasV2(t *testing.T) {
 	err = to.tp.performCreateAliasV2(tx, defaultPerformerInfo(t))
 	assert.NoError(t, err, "performCreateAliasV2() failed")
 	to.stor.flush(t)
-	err = to.entities.aliases.disableStolenAliases()
+	err = to.stor.entities.aliases.disableStolenAliases()
 	assert.NoError(t, err, "disableStolenAliases() failed")
 	to.stor.flush(t)
-	_, err = to.entities.aliases.addrByAlias(tx.Alias.Alias, true)
+	_, err = to.stor.entities.aliases.addrByAlias(tx.Alias.Alias, true)
 	assert.Equal(t, errAliasDisabled, err)
 }
 
@@ -352,7 +349,7 @@ func TestPerformDataV1(t *testing.T) {
 
 	to.stor.addBlock(t, blockID0)
 
-	tx := createDataV1(t)
+	tx := createDataV1(t, 1)
 	entry := &proto.IntegerDataEntry{Key: "TheKey", Value: int64(666)}
 	tx.Entries = proto.DataEntries([]proto.DataEntry{entry})
 
@@ -360,7 +357,52 @@ func TestPerformDataV1(t *testing.T) {
 	assert.NoError(t, err, "performDataV1() failed")
 	to.stor.flush(t)
 
-	newEntry, err := to.entities.accountsDataStor.retrieveEntry(testGlobal.senderInfo.addr, entry.Key)
-	assert.NoError(t, err, "retrieveEntry() failed")
+	newEntry, err := to.stor.entities.accountsDataStor.retrieveNewestEntry(testGlobal.senderInfo.addr, entry.Key)
+	assert.NoError(t, err, "retrieveNewestEntry() failed")
 	assert.Equal(t, entry, newEntry)
+}
+
+func TestPerformSponsorshipV1(t *testing.T) {
+	to, path := createPerformerTestObjects(t)
+
+	defer func() {
+		err := util.CleanTemporaryDirs(path)
+		assert.NoError(t, err, "failed to clean test data dirs")
+	}()
+
+	to.stor.addBlock(t, blockID0)
+
+	tx := createSponsorshipV1(t)
+	err := to.tp.performSponsorshipV1(tx, defaultPerformerInfo(t))
+	assert.NoError(t, err, "performSponsorshipV1() failed")
+
+	isSponsored, err := to.stor.entities.sponsoredAssets.newestIsSponsored(tx.AssetID, true)
+	assert.NoError(t, err, "newestIsSponsored() failed")
+	assert.Equal(t, isSponsored, true)
+
+	assetCost, err := to.stor.entities.sponsoredAssets.newestAssetCost(tx.AssetID, true)
+	assert.NoError(t, err, "newestAssetCost() failed")
+	assert.Equal(t, assetCost, tx.MinAssetFee)
+
+	isSponsored, err = to.stor.entities.sponsoredAssets.isSponsored(tx.AssetID, true)
+	assert.NoError(t, err, "isSponsored() failed")
+	assert.Equal(t, isSponsored, false)
+
+	to.stor.flush(t)
+
+	isSponsored, err = to.stor.entities.sponsoredAssets.newestIsSponsored(tx.AssetID, true)
+	assert.NoError(t, err, "newestIsSponsored() failed")
+	assert.Equal(t, isSponsored, true)
+
+	assetCost, err = to.stor.entities.sponsoredAssets.newestAssetCost(tx.AssetID, true)
+	assert.NoError(t, err, "newestAssetCost() failed")
+	assert.Equal(t, assetCost, tx.MinAssetFee)
+
+	isSponsored, err = to.stor.entities.sponsoredAssets.isSponsored(tx.AssetID, true)
+	assert.NoError(t, err, "isSponsored() failed")
+	assert.Equal(t, isSponsored, true)
+
+	assetCost, err = to.stor.entities.sponsoredAssets.assetCost(tx.AssetID, true)
+	assert.NoError(t, err, "assetCost() failed")
+	assert.Equal(t, assetCost, tx.MinAssetFee)
 }

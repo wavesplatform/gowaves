@@ -489,6 +489,7 @@ func (a *Handshake) WriteTo(w io.Writer) (int64, error) {
 	return c.Ret()
 }
 
+/* TODO: unused code, need to write tests if it is needed or otherwise remove it.
 func (h *Handshake) readApplicationName(buf []byte, r io.Reader) (int, error) {
 	n, err := io.ReadFull(r, buf[0:1])
 	if err != nil {
@@ -566,6 +567,7 @@ func (h *Handshake) readTimestamp(buf []byte, r io.Reader) (int, error) {
 
 	return n, nil
 }
+*/
 
 // ReadFrom reads Handshake from io.Reader
 func (a *Handshake) ReadFrom(r io.Reader) (int64, error) {
@@ -1207,6 +1209,9 @@ func (m *GetBlockMessage) MarshalBinary() ([]byte, error) {
 	h.ContentID = ContentIDGetBlock
 	h.PayloadLength = uint32(len(body))
 	dig, err := crypto.FastHash(body)
+	if err != nil {
+		return nil, err
+	}
 	copy(h.PayloadCsum[:], dig[:4])
 
 	hdr, err := h.MarshalBinary()

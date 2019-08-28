@@ -293,7 +293,12 @@ func (a *Node) Serve(ctx context.Context) error {
 			continue
 		}
 
-		go a.peers.SpawnIncomingConnection(ctx, conn)
+		go func() {
+			if err := a.peers.SpawnIncomingConnection(ctx, conn); err != nil {
+				zap.S().Error(err)
+				return
+			}
+		}()
 	}
 }
 
@@ -351,7 +356,9 @@ func RunNode(ctx context.Context, n *Node, p peer.Parent) {
 	}()
 
 	go func() {
-		n.Serve(ctx)
+		if err := n.Serve(ctx); err != nil {
+			return
+		}
 	}()
 
 	for {

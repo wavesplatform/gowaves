@@ -94,20 +94,15 @@ func NewDataFeedAPI(interrupt <-chan struct{}, logger *zap.Logger, storage *stat
 		}
 	}()
 	go func() {
-		for {
-			select {
-			case <-a.interrupt:
-				zap.S().Info("Shutting down API...")
-				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-				err := apiServer.Shutdown(ctx)
-				if err != nil {
-					zap.S().Errorf("Failed to shutdown API server: %v", err)
-				}
-				cancel()
-				close(a.done)
-				return
-			}
+		<-a.interrupt
+		zap.S().Info("Shutting down API...")
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		err := apiServer.Shutdown(ctx)
+		if err != nil {
+			zap.S().Errorf("Failed to shutdown API server: %v", err)
 		}
+		cancel()
+		close(a.done)
 	}()
 	return &a
 }

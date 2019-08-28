@@ -273,12 +273,14 @@ func MustSignatureFromBase58(s string) Signature {
 	return rs
 }
 
-func Keccak256(data []byte) Digest {
+func Keccak256(data []byte) (Digest, error) {
 	var d Digest
 	h := sha3.NewLegacyKeccak256()
-	h.Write(data)
+	if _, err := h.Write(data); err != nil {
+		return d, err
+	}
 	h.Sum(d[:0])
-	return d
+	return d, nil
 }
 
 func FastHash(data []byte) (Digest, error) {
@@ -287,7 +289,9 @@ func FastHash(data []byte) (Digest, error) {
 	if err != nil {
 		return d, err
 	}
-	h.Write(data)
+	if _, err := h.Write(data); err != nil {
+		return d, err
+	}
 	h.Sum(d[:0])
 	return d, nil
 }
@@ -306,10 +310,14 @@ func SecureHash(data []byte) (Digest, error) {
 	if err != nil {
 		return d, err
 	}
-	fh.Write(data)
+	if _, err := fh.Write(data); err != nil {
+		return d, err
+	}
 	fh.Sum(d[:0])
 	h := sha3.NewLegacyKeccak256()
-	h.Write(d[:DigestSize])
+	if _, err := h.Write(d[:DigestSize]); err != nil {
+		return d, err
+	}
 	h.Sum(d[:0])
 	return d, nil
 }
@@ -342,18 +350,20 @@ func GeneratePublicKey(sk SecretKey) PublicKey {
 	return pk
 }
 
-func GenerateKeyPair(seed []byte) (SecretKey, PublicKey) {
-	h := sha256.New()
-	h.Write(seed)
-	digest := h.Sum(nil)
+func GenerateKeyPair(seed []byte) (SecretKey, PublicKey, error) {
 	var sk SecretKey
 	var pk PublicKey
+	h := sha256.New()
+	if _, err := h.Write(seed); err != nil {
+		return sk, pk, err
+	}
+	digest := h.Sum(nil)
 	sk = GenerateSecretKey(digest)
 	pk = GeneratePublicKey(sk)
-	return sk, pk
+	return sk, pk, nil
 }
 
-func Sign(secretKey SecretKey, data []byte) Signature {
+func Sign(secretKey SecretKey, data []byte) (Signature, error) {
 	var sig Signature
 	var edPubKeyPoint edwards25519.ExtendedGroupElement
 	sk := [SecretKeySize]byte(secretKey)
@@ -362,26 +372,40 @@ func Sign(secretKey SecretKey, data []byte) Signature {
 	var edPubKey = new([PublicKeySize]byte)
 	edPubKeyPoint.ToBytes(edPubKey)
 	signBit := edPubKey[31] & 0x80
-	s := sign(&sk, edPubKey, data)
+	s, err := sign(&sk, edPubKey, data)
+	if err != nil {
+		return sig, err
+	}
 	s[63] &= 0x7f
 	s[63] |= signBit
 	copy(sig[:], s[:SignatureSize])
-	return sig
+	return sig, nil
 }
 
-func sign(curvePrivateKey, edPublicKey *[DigestSize]byte, data []byte) [SignatureSize]byte {
+func sign(curvePrivateKey, edPublicKey *[DigestSize]byte, data []byte) ([SignatureSize]byte, error) {
+	var signature [64]byte
 	var prefix = bytes.Repeat([]byte{0xff}, 32)
 	prefix[0] = 0xfe
 
 	random := make([]byte, 64)
-	rand.Read(random)
+	if _, err := rand.Read(random); err != nil {
+		return signature, err
+	}
 
 	var messageDigest, hramDigest [64]byte
 	h := sha512.New()
-	h.Write(prefix)
-	h.Write(curvePrivateKey[:])
-	h.Write(data)
-	h.Write(random)
+	if _, err := h.Write(prefix); err != nil {
+		return signature, err
+	}
+	if _, err := h.Write(curvePrivateKey[:]); err != nil {
+		return signature, err
+	}
+	if _, err := h.Write(data); err != nil {
+		return signature, err
+	}
+	if _, err := h.Write(random); err != nil {
+		return signature, err
+	}
 	h.Sum(messageDigest[:0])
 
 	var messageDigestReduced [32]byte
@@ -393,9 +417,15 @@ func sign(curvePrivateKey, edPublicKey *[DigestSize]byte, data []byte) [Signatur
 	R.ToBytes(&encodedR)
 
 	h.Reset()
-	h.Write(encodedR[:])
-	h.Write(edPublicKey[:])
-	h.Write(data)
+	if _, err := h.Write(encodedR[:]); err != nil {
+		return signature, err
+	}
+	if _, err := h.Write(edPublicKey[:]); err != nil {
+		return signature, err
+	}
+	if _, err := h.Write(data); err != nil {
+		return signature, err
+	}
 	h.Sum(hramDigest[:0])
 	var hramDigestReduced [32]byte
 	edwards25519.ScReduce(&hramDigestReduced, &hramDigest)
@@ -403,10 +433,9 @@ func sign(curvePrivateKey, edPublicKey *[DigestSize]byte, data []byte) [Signatur
 	var s [32]byte
 	edwards25519.ScMulAdd(&s, &hramDigestReduced, curvePrivateKey, &messageDigestReduced)
 
-	var signature [64]byte
 	copy(signature[:], encodedR[:])
 	copy(signature[32:], s[:])
-	return signature
+	return signature, nil
 }
 
 func Verify(publicKey PublicKey, signature Signature, data []byte) bool {
