@@ -792,6 +792,26 @@ func TestNativeAddressToString(t *testing.T) {
 	}
 }
 
+func TestNativeBytesToUTF8String(t *testing.T) {
+	for _, test := range []struct {
+		expressions Exprs
+		err         bool
+		result      Expr
+	}{
+		//{NewExprs(NewBytes([]byte("blah-blah-blah"))), false, NewString("blah-blah-blah")},
+		//{NewExprs(NewBytes([]byte("blah-blah-blah")), NewString("a-a-a-a")), true, NewString("blah-blah-blah")},
+		{NewExprs(NewString("blah-blah-blah")), true, NewString("blah-blah-blah")},
+	} {
+		r, err := NativeBytesToUTF8String(newEmptyScope(), test.expressions)
+		if test.err {
+			assert.Error(t, err)
+			continue
+		}
+		require.NoError(t, err)
+		assert.Equal(t, test.result, r)
+	}
+}
+
 func b(v int64) []byte {
 	buf := make([]byte, 8)
 	binary.BigEndian.PutUint64(buf, uint64(v))

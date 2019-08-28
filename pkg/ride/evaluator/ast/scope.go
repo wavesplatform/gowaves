@@ -203,7 +203,7 @@ func FunctionsV3() *Functions {
 	s.native[1061] = NativeAddressToString
 	//TODO: native[1070] = NativeBlockHeaderFromBytes // RIDE v4
 	s.native[1100] = NativeCreateList
-	//TODO: native[1200] = NativeBytesToUTF8String // RIDE v3
+	s.native[1200] = NativeBytesToUTF8String
 	s.native[1201] = NativeBytesToLong
 	s.native[1202] = NativeBytesToLongWithOffset
 	//TODO: native[1203] = NativeIndexOfSubstring // RIDE v3
