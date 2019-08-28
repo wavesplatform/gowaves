@@ -179,20 +179,6 @@ func (hs *historyStorage) set(entityType blockchainEntity, key, value []byte) er
 	return nil
 }
 
-func (hs *historyStorage) getFresh(key []byte, filter bool) ([]byte, error) {
-	if newHist, err := hs.stor.get(key); err == nil {
-		return hs.fmt.getLatest(newHist)
-	}
-	history, err := hs.fullHistory(key, filter)
-	if err != nil {
-		return nil, err
-	}
-	if len(history.records) == 0 {
-		return nil, errEmptyHist
-	}
-	return hs.fmt.getLatest(history)
-}
-
 func (hs *historyStorage) cleanDbRecord(key []byte) error {
 	// If the history is empty after normalizing, it means that all the records were removed due to rollback.
 	// In this case, it should be removed from the DB as well.
@@ -235,6 +221,13 @@ func (hs *historyStorage) get(key []byte, filter bool) ([]byte, error) {
 		return nil, err
 	}
 	return hs.fmt.getLatest(history)
+}
+
+func (hs *historyStorage) getFresh(key []byte, filter bool) ([]byte, error) {
+	if newHist, err := hs.stor.get(key); err == nil {
+		return hs.fmt.getLatest(newHist)
+	}
+	return hs.get(key, filter)
 }
 
 func (hs *historyStorage) combineHistories(key []byte, newHist *historyRecord, filter bool) (*historyRecord, error) {
