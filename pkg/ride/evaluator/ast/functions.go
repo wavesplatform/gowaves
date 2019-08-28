@@ -1769,7 +1769,7 @@ func NativeCheckMerkleProof(s Scope, e Exprs) (Expr, error) {
 
 	root, ok := rs[0].(*BytesExpr)
 	if !ok {
-		return nil, errors.Wrapf(err, "%s: first argument expected to be *BytesExpr, found %T", funcName, rs[0])
+		return nil, errors.Errorf("%s: first argument expected to be *BytesExpr, found %T", funcName, rs[0])
 	}
 
 	proof, ok := rs[1].(*BytesExpr)
@@ -1787,6 +1787,24 @@ func NativeCheckMerkleProof(s Scope, e Exprs) (Expr, error) {
 		return nil, errors.Wrap(err, funcName)
 	}
 	return NewBoolean(bytes.Equal(root.Value, r)), nil
+}
+
+func NativeBytesToUTF8String(s Scope, e Exprs) (Expr, error) {
+	const funcName = "NativeBytesToUTF8String"
+	if l := len(e); l != 1 {
+		return nil, errors.Errorf("%s: invalid number of parameters, expected 1, received %d", funcName, l)
+	}
+
+	rs, err := e.EvaluateAll(s.Clone())
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+
+	b, ok := rs[0].(*BytesExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: first argument expected to be *BytesExpr, found %T", funcName, rs[0])
+	}
+	return NewString(string(b.Value)), nil
 }
 
 func NativeBytesToLong(s Scope, e Exprs) (Expr, error) {
