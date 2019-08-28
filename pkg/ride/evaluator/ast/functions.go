@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"io"
 	"math/big"
+	"strings"
 	"unicode/utf8"
 
 	"github.com/ericlagergren/decimal"
@@ -1848,6 +1849,72 @@ func NativeBytesToLongWithOffset(s Scope, e Exprs) (Expr, error) {
 		return nil, errors.Errorf("%s: offset %d is out of bytes array bounds", funcName, offset)
 	}
 	return NewLong(int64(binary.BigEndian.Uint64(b.Value[offset:]))), nil
+}
+
+func NativeIndexOfSubstring(s Scope, e Exprs) (Expr, error) {
+	funcName := "NativeIndexOfSubstring"
+	if l := len(e); l != 2 {
+		return nil, errors.Errorf("%s: invalid number of parameters, expected 2, received %d", funcName, l)
+	}
+
+	rs, err := e.EvaluateAll(s.Clone())
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+
+	str, ok := rs[0].(*StringExpr)
+	if !ok {
+		return nil, errors.Wrapf(err, "%s: first argument expected to be *StringExpr, found %T", funcName, rs[0])
+	}
+
+	sub, ok := rs[1].(*StringExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: second argument expected to be *StringExpr, found %T", funcName, rs[1])
+	}
+
+	i := strings.Index(str.Value, sub.Value)
+	if i == -1 {
+		return NewUnit(), nil
+	}
+	return NewLong(int64(i)), nil
+}
+
+func NativeIndexOfSubstringWithOffset(s Scope, e Exprs) (Expr, error) {
+	funcName := "NativeIndexOfSubstringWithOffset"
+	if l := len(e); l != 3 {
+		return nil, errors.Errorf("%s: invalid number of parameters, expected 3, received %d", funcName, l)
+	}
+
+	rs, err := e.EvaluateAll(s.Clone())
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+
+	str, ok := rs[0].(*StringExpr)
+	if !ok {
+		return nil, errors.Wrapf(err, "%s: first argument expected to be *StringExpr, found %T", funcName, rs[0])
+	}
+
+	sub, ok := rs[1].(*StringExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: second argument expected to be *StringExpr, found %T", funcName, rs[1])
+	}
+
+	off, ok := rs[2].(*LongExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: third argument expected to be *LongExpr, found %T", funcName, rs[2])
+	}
+
+	offset := int(off.Value)
+	if offset < 0 || offset > len(str.Value) {
+		return NewUnit(), nil
+	}
+
+	i := strings.Index(str.Value[offset:], sub.Value)
+	if i == -1 {
+		return NewUnit(), nil
+	}
+	return NewLong(int64(i + offset)), nil
 }
 
 func prefix(w io.Writer, name string, e Exprs) {

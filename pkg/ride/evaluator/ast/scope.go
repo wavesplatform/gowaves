@@ -206,8 +206,8 @@ func FunctionsV3() *Functions {
 	s.native[1200] = NativeBytesToUTF8String
 	s.native[1201] = NativeBytesToLong
 	s.native[1202] = NativeBytesToLongWithOffset
-	//TODO: native[1203] = NativeIndexOfSubstring // RIDE v3
-	//TODO: native[1204] = NativeIndexOfSubstringWithOffset // RIDE v3
+	s.native[1203] = NativeIndexOfSubstring
+	s.native[1204] = NativeIndexOfSubstringWithOffset
 	//TODO: native[1205] = NativeSplitString // RIDE v3
 	//TODO: native[1206] = NativeParseInt // RIDE v3
 	//TODO: native[1207] = NativeLastIndexOfSubstring // RIDE v3
@@ -234,6 +234,7 @@ func FunctionsV3() *Functions {
 	s.user["Sha3384"] = SimpleTypeConstructorFactory("Sha3384", SHA3384Expr{})
 	s.user["Sha3512"] = SimpleTypeConstructorFactory("Sha3512", SHA3512Expr{})
 
+	s.user["Unit"] = SimpleTypeConstructorFactory("Unit", Unit{})
 	return s
 }
 
@@ -282,5 +283,6 @@ func VariablesV3() map[string]Expr {
 	v["SHA3512"] = SHA3512Expr{}
 
 	v["nil"] = Exprs(nil)
+	v["unit"] = Unit{}
 	return v
 }
