@@ -208,7 +208,7 @@ func FunctionsV3() *Functions {
 	s.native[1202] = NativeBytesToLongWithOffset
 	s.native[1203] = NativeIndexOfSubstring
 	s.native[1204] = NativeIndexOfSubstringWithOffset
-	//TODO: native[1205] = NativeSplitString // RIDE v3
+	s.native[1205] = NativeSplitString
 	//TODO: native[1206] = NativeParseInt // RIDE v3
 	//TODO: native[1207] = NativeLastIndexOfSubstring // RIDE v3
 	//TODO: native[1208] = NativeLastIndexOfSubstringWithOffset // RIDE v3

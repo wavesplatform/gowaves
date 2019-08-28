@@ -1917,6 +1917,30 @@ func NativeIndexOfSubstringWithOffset(s Scope, e Exprs) (Expr, error) {
 	return NewLong(int64(i + offset)), nil
 }
 
+func NativeSplitString(s Scope, e Exprs) (Expr, error) {
+	const funcName = "NativeSplitString"
+	if l := len(e); l != 2 {
+		return nil, errors.Errorf("%s: invalid number of parameters, expected 2, received %d", funcName, l)
+	}
+	rs, err := e.EvaluateAll(s.Clone())
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	str, ok := rs[0].(*StringExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: first argument expected to be *StringExpr, found %T", funcName, rs[0])
+	}
+	sep, ok := rs[1].(*StringExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: second argument expected to be *StringExpr, found %T", funcName, rs[1])
+	}
+	r := NewExprs()
+	for _, p := range strings.Split(str.Value, sep.Value) {
+		r = append(r, NewString(p))
+	}
+	return r, nil
+}
+
 func prefix(w io.Writer, name string, e Exprs) {
 	_, _ = fmt.Fprintf(w, "%s(", name)
 	last := len(e) - 1
