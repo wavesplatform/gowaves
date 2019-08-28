@@ -880,3 +880,51 @@ func TestNativeBytesToLongWithOffset(t *testing.T) {
 		assert.Equal(t, test.result, r)
 	}
 }
+
+func TestNativeIndexOfSubstring(t *testing.T) {
+	for _, test := range []struct {
+		expressions Exprs
+		error       bool
+		result      Expr
+	}{
+		{NewExprs(NewString("quick brown fox jumps over the lazy dog"), NewString("brown")), false, NewLong(6)},
+		{NewExprs(NewString("quick brown fox jumps over the lazy dog"), NewString("cafe")), false, NewUnit()},
+		{NewExprs(), true, NewUnit()},
+		{NewExprs(NewString("blah-blah-blah")), true, NewUnit()},
+		{NewExprs(NewString("blah-blah-blah"), NewLong(1)), true, NewUnit()},
+	} {
+		r, err := NativeIndexOfSubstring(newEmptyScope(), test.expressions)
+		if test.error {
+			assert.Error(t, err)
+			continue
+		}
+		require.NoError(t, err)
+		assert.Equal(t, test.result, r)
+	}
+}
+
+func TestNativeIndexOfSubstringWithOffset(t *testing.T) {
+	for _, test := range []struct {
+		expressions Exprs
+		error       bool
+		result      Expr
+	}{
+		{NewExprs(NewString("quick brown fox jumps over the lazy dog"), NewString("brown"), NewLong(0)), false, NewLong(6)},
+		{NewExprs(NewString("cafe bebe dead beef cafe bebe"), NewString("bebe"), NewLong(10)), false, NewLong(25)},
+		{NewExprs(NewString("quick brown fox jumps over the lazy dog"), NewString("brown"), NewLong(10)), false, NewUnit()},
+		{NewExprs(NewString("quick brown fox jumps over the lazy dog"), NewString("fox"), NewLong(1000)), false, NewUnit()},
+		{NewExprs(), true, NewUnit()},
+		{NewExprs(NewString("blah-blah-blah")), true, NewUnit()},
+		{NewExprs(NewString("blah-blah-blah"), NewLong(1)), true, NewUnit()},
+		{NewExprs(NewString("blah-blah-blah"), NewLong(1), NewString("xxx")), true, NewUnit()},
+		{NewExprs(NewString("blah-blah-blah"), NewString("xxx"), NewString("0")), true, NewUnit()},
+	} {
+		r, err := NativeIndexOfSubstringWithOffset(newEmptyScope(), test.expressions)
+		if test.error {
+			assert.Error(t, err)
+			continue
+		}
+		require.NoError(t, err)
+		assert.Equal(t, test.result, r)
+	}
+}
