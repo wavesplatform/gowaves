@@ -200,7 +200,7 @@ func FunctionsV3() *Functions {
 	//TODO: native[1004] = NativeAssetInfoByID // RIDE v3
 	//TODO: native[1005] = NativeBlockInfoByHeight // RIDE v3
 	//TODO: native[1006] = NativeTransferTransactionByID // RIDE v3
-	//TODO: native[1061] = NativeAddressToString // RIDE v3
+	s.native[1061] = NativeAddressToString
 	//TODO: native[1070] = NativeBlockHeaderFromBytes // RIDE v4
 	//TODO: native[1100] = NativeCreateList // RIDE v3
 	//TODO: native[1200] = NativeBytesToUTF8String // RIDE v3

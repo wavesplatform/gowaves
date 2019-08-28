@@ -764,3 +764,29 @@ func TestNativeCheckMerkleProof(t *testing.T) {
 		assert.Equal(t, NewBoolean(test.result), r)
 	}
 }
+
+func TestNativeAddressToString(t *testing.T) {
+	addr, err := proto.NewAddressFromString("3P2HNUd5VUPLMQkJmctTPEeeHumiPN2GkTb")
+	require.NoError(t, err)
+	for _, test := range []struct {
+		expressions Exprs
+		str         string
+		error       bool
+		result      bool
+	}{
+		{NewExprs(AddressExpr(addr)), "3P2HNUd5VUPLMQkJmctTPEeeHumiPN2GkTb", false, true},
+		{NewExprs(AddressExpr(addr)), "3N2HNUd5VUPLMQkJmctTPEeeHumiPN2GkTb", false, false},
+		{NewExprs(NewString("3P2HNUd5VUPLMQkJmctTPEeeHumiPN2GkTb")), "3P2HNUd5VUPLMQkJmctTPEeeHumiPN2GkTb", true, false},
+		{NewExprs(), "3P2HNUd5VUPLMQkJmctTPEeeHumiPN2GkTb", true, false},
+	} {
+		r, err := NativeAddressToString(newEmptyScope(), test.expressions)
+		if test.error {
+			assert.Error(t, err)
+			continue
+		}
+		require.NoError(t, err)
+		s, ok := r.(*StringExpr)
+		assert.True(t, ok)
+		assert.Equal(t, test.result, test.str == s.Value)
+	}
+}
