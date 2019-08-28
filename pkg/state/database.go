@@ -176,6 +176,14 @@ func (s *stateDB) rollbackBlock(blockID crypto.Signature) error {
 	if err := s.db.Delete(key.bytes()); err != nil {
 		return err
 	}
+	numKey := blockIdToNumKey{blockID}
+	if err := s.db.Delete(numKey.bytes()); err != nil {
+		return err
+	}
+	idKey := blockNumToIdKey{blockNum}
+	if err := s.db.Delete(idKey.bytes()); err != nil {
+		return err
+	}
 	return nil
 }
 

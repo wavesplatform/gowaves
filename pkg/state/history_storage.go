@@ -64,6 +64,9 @@ func newHistoryRecordFromBytes(data []byte) (*historyRecord, error) {
 			return nil, errors.New("invalid data size")
 		}
 		recordSize = binary.BigEndian.Uint32(data[1:5])
+		if dataSize < 5+recordSize {
+			return nil, errors.New("invalid data size")
+		}
 		for i := uint32(5); i <= dataSize-recordSize; i += recordSize {
 			record := data[i : i+recordSize]
 			records = append(records, record)
