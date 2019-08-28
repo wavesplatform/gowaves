@@ -2,6 +2,7 @@ package ast
 
 import (
 	"encoding/base64"
+	"encoding/binary"
 	"encoding/hex"
 	"math"
 	"testing"
@@ -788,5 +789,74 @@ func TestNativeAddressToString(t *testing.T) {
 		s, ok := r.(*StringExpr)
 		assert.True(t, ok)
 		assert.Equal(t, test.result, test.str == s.Value)
+	}
+}
+
+func b(v int64) []byte {
+	buf := make([]byte, 8)
+	binary.BigEndian.PutUint64(buf, uint64(v))
+	return buf
+}
+
+func TestNativeBytesToLong(t *testing.T) {
+	for _, test := range []struct {
+		expressions Exprs
+		error       bool
+		result      Expr
+	}{
+		{NewExprs(NewBytes(b(123456))), false, NewLong(123456)},
+		{NewExprs(NewBytes(b(-123456))), false, NewLong(-123456)},
+		{NewExprs(NewBytes(b(math.MaxInt64))), false, NewLong(math.MaxInt64)},
+		{NewExprs(NewBytes(b(math.MinInt64))), false, NewLong(math.MinInt64)},
+		{NewExprs(NewBytes(append(b(0), []byte{1, 2, 3, 4, 5}...))), false, NewLong(0)},
+		{NewExprs(), true, NewLong(0)},
+		{NewExprs(NewBytes(b(12345)), NewString("blah")), true, NewLong(0)},
+		{NewExprs(NewBytes([]byte{0, 1, 2, 3, 4, 5})), true, NewLong(0)},
+	} {
+		r, err := NativeBytesToLong(newEmptyScope(), test.expressions)
+		if test.error {
+			assert.Error(t, err)
+			continue
+		}
+		require.NoError(t, err)
+		assert.Equal(t, test.result, r)
+	}
+}
+
+func in(a, b []byte, p int) []byte {
+	r := make([]byte, len(a))
+	copy(r, a)
+	copy(r[p:], b)
+	return r
+}
+
+func TestNativeBytesToLongWithOffset(t *testing.T) {
+	arr := []byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f}
+	b := func(v int64) []byte {
+		buf := make([]byte, 8)
+		binary.BigEndian.PutUint64(buf, uint64(v))
+		return buf
+	}
+	for _, test := range []struct {
+		expressions Exprs
+		error       bool
+		result      Expr
+	}{
+		{NewExprs(NewBytes(b(123456)), NewLong(0)), false, NewLong(123456)},
+		{NewExprs(NewBytes(b(-123456)), NewLong(0)), false, NewLong(-123456)},
+		{NewExprs(NewBytes(in(arr, b(math.MaxInt64), 3)), NewLong(3)), false, NewLong(math.MaxInt64)},
+		{NewExprs(NewBytes(in(arr, b(math.MinInt64), 6)), NewLong(6)), false, NewLong(math.MinInt64)},
+		{NewExprs(), true, NewLong(0)},
+		{NewExprs(NewBytes(b(12345)), NewString("blah")), true, NewLong(0)},
+		{NewExprs(NewBytes([]byte{0, 1, 2, 3, 4, 5})), true, NewLong(0)},
+		{NewExprs(NewBytes(in(arr, b(math.MinInt64), 6)), NewLong(16)), true, NewLong(0)},
+	} {
+		r, err := NativeBytesToLongWithOffset(newEmptyScope(), test.expressions)
+		if test.error {
+			assert.Error(t, err)
+			continue
+		}
+		require.NoError(t, err)
+		assert.Equal(t, test.result, r)
 	}
 }

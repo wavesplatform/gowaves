@@ -1789,6 +1789,49 @@ func NativeCheckMerkleProof(s Scope, e Exprs) (Expr, error) {
 	return NewBoolean(bytes.Equal(root.Value, r)), nil
 }
 
+func NativeBytesToLong(s Scope, e Exprs) (Expr, error) {
+	const funcName = "NativeBytesToLong"
+	if l := len(e); l != 1 {
+		return nil, errors.Errorf("%s: invalid number of parameters, expected 1, received %d", funcName, l)
+	}
+	rs, err := e.EvaluateAll(s.Clone())
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	b, ok := rs[0].(*BytesExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: first argument expected to be *BytesExpr, found %T", funcName, rs[0])
+	}
+	if l := len(b.Value); l < 8 {
+		return nil, errors.Errorf("%s: %d is not enough bytes to make Long value, required 8 bytes", funcName, l)
+	}
+	return NewLong(int64(binary.BigEndian.Uint64(b.Value))), nil
+}
+
+func NativeBytesToLongWithOffset(s Scope, e Exprs) (Expr, error) {
+	const funcName = "NativeBytesToLongWithOffset"
+	if l := len(e); l != 2 {
+		return nil, errors.Errorf("%s: invalid number of parameters, expected 2, received %d", funcName, l)
+	}
+	rs, err := e.EvaluateAll(s.Clone())
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	b, ok := rs[0].(*BytesExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: first argument expected to be *BytesExpr, found %T", funcName, rs[0])
+	}
+	off, ok := rs[1].(*LongExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: second argument expected to be *LongExpr, found %T", funcName, rs[1])
+	}
+	offset := int(off.Value)
+	if offset < 0 || offset > len(b.Value)-8 {
+		return nil, errors.Errorf("%s: offset %d is out of bytes array bounds", funcName, offset)
+	}
+	return NewLong(int64(binary.BigEndian.Uint64(b.Value[offset:]))), nil
+}
+
 func prefix(w io.Writer, name string, e Exprs) {
 	_, _ = fmt.Fprintf(w, "%s(", name)
 	last := len(e) - 1
