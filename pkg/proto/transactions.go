@@ -4,7 +4,6 @@ import (
 	"encoding/binary"
 	"reflect"
 
-	"github.com/jinzhu/copier"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 )
@@ -284,12 +283,6 @@ func (tx Genesis) GetTimestamp() uint64 {
 	return tx.Timestamp
 }
 
-func (tx *Genesis) Clone() *Genesis {
-	out := &Genesis{}
-	_ = copier.Copy(out, tx)
-	return out
-}
-
 //NewUnsignedGenesis returns a new unsigned Genesis transaction. Actually Genesis transaction could not be signed.
 //That is why it doesn't implement Sing method. Instead it has GenerateSigID method, which calculates ID and uses it also as a signature.
 func NewUnsignedGenesis(recipient Address, amount, timestamp uint64) *Genesis {
@@ -426,12 +419,6 @@ func (tx Payment) GetFee() uint64 {
 
 func (tx Payment) GetTimestamp() uint64 {
 	return tx.Timestamp
-}
-
-func (tx *Payment) Clone() *Payment {
-	out := &Payment{}
-	_ = copier.Copy(out, tx)
-	return out
 }
 
 //NewUnsignedPayment creates new Payment transaction with empty Signature and ID fields.

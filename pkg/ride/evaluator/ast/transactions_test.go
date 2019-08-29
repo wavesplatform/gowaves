@@ -3,6 +3,7 @@ package ast
 import (
 	"testing"
 
+	"github.com/jinzhu/copier"
 	"github.com/stretchr/testify/suite"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -232,7 +233,9 @@ type GenesisTestSuite struct {
 }
 
 func (a *GenesisTestSuite) SetupTest() {
-	a.tx = byte_helpers.Genesis.Transaction.Clone()
+	tx := &proto.Genesis{}
+	_ = copier.Copy(tx, byte_helpers.Genesis.Transaction)
+	a.tx = tx
 	a.f = NewVariablesFromTransaction
 }
 
@@ -281,7 +284,9 @@ type PaymentTestSuite struct {
 }
 
 func (a *PaymentTestSuite) SetupTest() {
-	a.tx = byte_helpers.Payment.Transaction.Clone()
+	tx := &proto.Payment{}
+	_ = copier.Copy(tx, byte_helpers.Payment.Transaction)
+	a.tx = tx
 	a.f = NewVariablesFromTransaction
 }
 
