@@ -3,6 +3,7 @@ package proto
 import (
 	"encoding/binary"
 	"encoding/json"
+	"github.com/jinzhu/copier"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 )
@@ -61,7 +62,7 @@ func (tx IssueV1) GetTypeVersion() TransactionTypeVersion {
 
 func (tx *IssueV1) GenerateID() {
 	if tx.ID == nil {
-		body, err := tx.bodyMarshalBinary()
+		body, err := tx.BodyMarshalBinary()
 		if err != nil {
 			panic(err.Error())
 		}
@@ -75,6 +76,12 @@ func (tx IssueV1) GetID() ([]byte, error) {
 		return nil, errors.New("tx ID is not set\n")
 	}
 	return tx.ID.Bytes(), nil
+}
+
+func (tx *IssueV1) Clone() *IssueV1 {
+	out := &IssueV1{}
+	_ = copier.Copy(out, tx)
+	return out
 }
 
 //NewUnsignedIssueV1 creates new IssueV1 transaction without signature and ID.
@@ -92,7 +99,7 @@ func NewUnsignedIssueV1(senderPK crypto.PublicKey, name, description string, qua
 	return &IssueV1{Type: IssueTransaction, Version: 1, Issue: i}
 }
 
-func (tx *IssueV1) bodyMarshalBinary() ([]byte, error) {
+func (tx *IssueV1) BodyMarshalBinary() ([]byte, error) {
 	b, err := tx.Issue.marshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal IssueV1 body")
@@ -123,7 +130,7 @@ func (tx *IssueV1) bodyUnmarshalBinary(data []byte) error {
 
 //Sign uses secretKey to sing the transaction.
 func (tx *IssueV1) Sign(secretKey crypto.SecretKey) error {
-	b, err := tx.bodyMarshalBinary()
+	b, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return errors.Wrap(err, "failed to sign IssueV1 transaction")
 	}
@@ -142,7 +149,7 @@ func (tx *IssueV1) Verify(publicKey crypto.PublicKey) (bool, error) {
 	if tx.Signature == nil {
 		return false, errors.New("empty signature")
 	}
-	b, err := tx.bodyMarshalBinary()
+	b, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return false, errors.Wrap(err, "failed to verify signature of IssueV1 transaction")
 	}
@@ -152,7 +159,7 @@ func (tx *IssueV1) Verify(publicKey crypto.PublicKey) (bool, error) {
 //MarshalBinary saves transaction's binary representation to slice of bytes.
 func (tx *IssueV1) MarshalBinary() ([]byte, error) {
 	sl := crypto.SignatureSize
-	b, err := tx.bodyMarshalBinary()
+	b, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal IssueV1 transaction to bytes")
 	}
@@ -204,7 +211,7 @@ func (tx TransferV1) GetTypeVersion() TransactionTypeVersion {
 
 func (tx *TransferV1) GenerateID() {
 	if tx.ID == nil {
-		body, err := tx.bodyMarshalBinary()
+		body, err := tx.BodyMarshalBinary()
 		if err != nil {
 			panic(err.Error())
 		}
@@ -218,6 +225,12 @@ func (tx TransferV1) GetID() ([]byte, error) {
 		return nil, errors.New("tx ID is not set\n")
 	}
 	return tx.ID.Bytes(), nil
+}
+
+func (tx *TransferV1) Clone() *TransferV1 {
+	out := &TransferV1{}
+	_ = copier.Copy(out, tx)
+	return out
 }
 
 //NewUnsignedTransferV1 creates new TransferV1 transaction without signature and ID.
@@ -235,7 +248,7 @@ func NewUnsignedTransferV1(senderPK crypto.PublicKey, amountAsset, feeAsset Opti
 	return &TransferV1{Type: TransferTransaction, Version: 1, Transfer: t}
 }
 
-func (tx *TransferV1) bodyMarshalBinary() ([]byte, error) {
+func (tx *TransferV1) BodyMarshalBinary() ([]byte, error) {
 	b, err := tx.Transfer.marshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal TransferV1 body")
@@ -266,7 +279,7 @@ func (tx *TransferV1) bodyUnmarshalBinary(data []byte) error {
 
 //Sign calculates a signature and a digest as an ID of the transaction.
 func (tx *TransferV1) Sign(secretKey crypto.SecretKey) error {
-	b, err := tx.bodyMarshalBinary()
+	b, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return errors.Wrap(err, "failed to sign TransferV1 transaction")
 	}
@@ -288,7 +301,7 @@ func (tx *TransferV1) Verify(publicKey crypto.PublicKey) (bool, error) {
 	if tx.Signature == nil {
 		return false, errors.New("empty signature")
 	}
-	b, err := tx.bodyMarshalBinary()
+	b, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return false, errors.Wrap(err, "failed to verify signature of TransferV1 transaction")
 	}
@@ -298,7 +311,7 @@ func (tx *TransferV1) Verify(publicKey crypto.PublicKey) (bool, error) {
 //MarshalBinary saves transaction to its binary representation.
 func (tx *TransferV1) MarshalBinary() ([]byte, error) {
 	sl := crypto.SignatureSize
-	b, err := tx.bodyMarshalBinary()
+	b, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal TransferV1 transaction to bytes")
 	}
@@ -350,7 +363,7 @@ func (tx ReissueV1) GetTypeVersion() TransactionTypeVersion {
 
 func (tx *ReissueV1) GenerateID() {
 	if tx.ID == nil {
-		body, err := tx.bodyMarshalBinary()
+		body, err := tx.BodyMarshalBinary()
 		if err != nil {
 			panic(err.Error())
 		}
@@ -367,6 +380,12 @@ func (tx ReissueV1) GetID() ([]byte, error) {
 	return tx.ID.Bytes(), nil
 }
 
+func (tx *ReissueV1) Clone() *ReissueV1 {
+	out := &ReissueV1{}
+	_ = copier.Copy(out, tx)
+	return out
+}
+
 //NewUnsignedReissueV1 creates new ReissueV1 transaction without signature and ID.
 func NewUnsignedReissueV1(senderPK crypto.PublicKey, assetID crypto.Digest, quantity uint64, reissuable bool, timestamp, fee uint64) *ReissueV1 {
 	r := Reissue{
@@ -380,7 +399,7 @@ func NewUnsignedReissueV1(senderPK crypto.PublicKey, assetID crypto.Digest, quan
 	return &ReissueV1{Type: ReissueTransaction, Version: 1, Reissue: r}
 }
 
-func (tx *ReissueV1) bodyMarshalBinary() ([]byte, error) {
+func (tx *ReissueV1) BodyMarshalBinary() ([]byte, error) {
 	buf := make([]byte, reissueV1BodyLen)
 	buf[0] = byte(tx.Type)
 	b, err := tx.Reissue.marshalBinary()
@@ -412,7 +431,7 @@ func (tx *ReissueV1) bodyUnmarshalBinary(data []byte) error {
 //Sign use given private key to calculate signature of the transaction.
 //This function also calculates digest of transaction data and assigns it to ID field.
 func (tx *ReissueV1) Sign(secretKey crypto.SecretKey) error {
-	b, err := tx.bodyMarshalBinary()
+	b, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return errors.Wrap(err, "failed to sign ReissueV1 transaction")
 	}
@@ -434,7 +453,7 @@ func (tx *ReissueV1) Verify(publicKey crypto.PublicKey) (bool, error) {
 	if tx.Signature == nil {
 		return false, errors.New("empty signature")
 	}
-	b, err := tx.bodyMarshalBinary()
+	b, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return false, errors.Wrap(err, "failed to verify signature of ReissueV1 transaction")
 	}
@@ -444,7 +463,7 @@ func (tx *ReissueV1) Verify(publicKey crypto.PublicKey) (bool, error) {
 //MarshalBinary saves the transaction to its binary representation.
 func (tx *ReissueV1) MarshalBinary() ([]byte, error) {
 	sl := crypto.SignatureSize
-	b, err := tx.bodyMarshalBinary()
+	b, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal ReissueV1 transaction to bytes")
 	}
@@ -496,7 +515,7 @@ func (tx BurnV1) GetTypeVersion() TransactionTypeVersion {
 
 func (tx *BurnV1) GenerateID() {
 	if tx.ID == nil {
-		body, err := tx.bodyMarshalBinary()
+		body, err := tx.BodyMarshalBinary()
 		if err != nil {
 			panic(err.Error())
 		}
@@ -513,6 +532,12 @@ func (tx BurnV1) GetID() ([]byte, error) {
 	return tx.ID.Bytes(), nil
 }
 
+func (tx *BurnV1) Clone() *BurnV1 {
+	out := &BurnV1{}
+	_ = copier.Copy(out, tx)
+	return out
+}
+
 //NewUnsignedBurnV1 creates new BurnV1 transaction with no signature and ID.
 func NewUnsignedBurnV1(senderPK crypto.PublicKey, assetID crypto.Digest, amount, timestamp, fee uint64) *BurnV1 {
 	b := Burn{
@@ -525,7 +550,7 @@ func NewUnsignedBurnV1(senderPK crypto.PublicKey, assetID crypto.Digest, amount,
 	return &BurnV1{Type: BurnTransaction, Version: 1, Burn: b}
 }
 
-func (tx *BurnV1) bodyMarshalBinary() ([]byte, error) {
+func (tx *BurnV1) BodyMarshalBinary() ([]byte, error) {
 	buf := make([]byte, burnV1BodyLen)
 	buf[0] = byte(tx.Type)
 	b, err := tx.Burn.marshalBinary()
@@ -556,7 +581,7 @@ func (tx *BurnV1) bodyUnmarshalBinary(data []byte) error {
 
 //Sign calculates and sets signature and ID of the transaction.
 func (tx *BurnV1) Sign(secretKey crypto.SecretKey) error {
-	b, err := tx.bodyMarshalBinary()
+	b, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return errors.Wrap(err, "failed to sign BurnV1 transaction")
 	}
@@ -578,7 +603,7 @@ func (tx *BurnV1) Verify(publicKey crypto.PublicKey) (bool, error) {
 	if tx.Signature == nil {
 		return false, errors.New("empty signature")
 	}
-	b, err := tx.bodyMarshalBinary()
+	b, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return false, errors.Wrap(err, "failed to verify signature of BurnV1 transaction")
 	}
@@ -587,7 +612,7 @@ func (tx *BurnV1) Verify(publicKey crypto.PublicKey) (bool, error) {
 
 //MarshalBinary saves transaction to
 func (tx *BurnV1) MarshalBinary() ([]byte, error) {
-	b, err := tx.bodyMarshalBinary()
+	b, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal BurnV1 transaction to bytes")
 	}
@@ -640,7 +665,7 @@ func (tx ExchangeV1) GetTypeVersion() TransactionTypeVersion {
 
 func (tx *ExchangeV1) GenerateID() {
 	if tx.ID == nil {
-		body, err := tx.bodyMarshalBinary()
+		body, err := tx.BodyMarshalBinary()
 		if err != nil {
 			panic(err.Error())
 		}
@@ -655,6 +680,12 @@ func (tx ExchangeV1) GetID() ([]byte, error) {
 		return nil, errors.New("tx ID is not set\n")
 	}
 	return tx.ID.Bytes(), nil
+}
+
+func (tx *ExchangeV1) Clone() *ExchangeV1 {
+	out := &ExchangeV1{}
+	_ = copier.Copy(out, tx)
+	return out
 }
 
 func (tx ExchangeV1) GetSenderPK() crypto.PublicKey {
@@ -779,7 +810,7 @@ func (tx ExchangeV1) Valid() (bool, error) {
 	return true, nil
 }
 
-func (tx *ExchangeV1) bodyMarshalBinary() ([]byte, error) {
+func (tx *ExchangeV1) BodyMarshalBinary() ([]byte, error) {
 	bob, err := tx.BuyOrder.MarshalBinary()
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to marshal ExchangeV1 body to bytes")
@@ -863,7 +894,7 @@ func (tx *ExchangeV1) bodyUnmarshalBinary(data []byte) (int, error) {
 
 //Sing calculates ID and Signature of the transaction.
 func (tx *ExchangeV1) Sign(secretKey crypto.SecretKey) error {
-	b, err := tx.bodyMarshalBinary()
+	b, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return errors.Wrap(err, "failed to sign ExchangeV1 transaction")
 	}
@@ -885,7 +916,7 @@ func (tx *ExchangeV1) Verify(publicKey crypto.PublicKey) (bool, error) {
 	if tx.Signature == nil {
 		return false, errors.New("empty signature")
 	}
-	b, err := tx.bodyMarshalBinary()
+	b, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return false, errors.Wrap(err, "failed to verify signature of ExchangeV1 transaction")
 	}
@@ -894,7 +925,7 @@ func (tx *ExchangeV1) Verify(publicKey crypto.PublicKey) (bool, error) {
 
 //MarshalBinary saves the transaction to its binary representation.
 func (tx *ExchangeV1) MarshalBinary() ([]byte, error) {
-	b, err := tx.bodyMarshalBinary()
+	b, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal ExchangeV1 transaction to bytes")
 	}
@@ -945,7 +976,7 @@ func (tx LeaseV1) GetTypeVersion() TransactionTypeVersion {
 
 func (tx *LeaseV1) GenerateID() {
 	if tx.ID == nil {
-		body, err := tx.bodyMarshalBinary()
+		body, err := tx.BodyMarshalBinary()
 		if err != nil {
 			panic(err.Error())
 		}
@@ -962,6 +993,12 @@ func (tx LeaseV1) GetID() ([]byte, error) {
 	return tx.ID.Bytes(), nil
 }
 
+func (tx *LeaseV1) Clone() *LeaseV1 {
+	out := &LeaseV1{}
+	_ = copier.Copy(out, tx)
+	return out
+}
+
 //NewUnsignedLeaseV1 creates new LeaseV1 transaction without signature and ID set.
 func NewUnsignedLeaseV1(senderPK crypto.PublicKey, recipient Recipient, amount, fee, timestamp uint64) *LeaseV1 {
 	l := Lease{
@@ -974,7 +1011,7 @@ func NewUnsignedLeaseV1(senderPK crypto.PublicKey, recipient Recipient, amount, 
 	return &LeaseV1{Type: LeaseTransaction, Version: 1, Lease: l}
 }
 
-func (tx *LeaseV1) bodyMarshalBinary() ([]byte, error) {
+func (tx *LeaseV1) BodyMarshalBinary() ([]byte, error) {
 	rl := tx.Recipient.len
 	buf := make([]byte, leaseV1BodyLen+rl)
 	buf[0] = byte(tx.Type)
@@ -1006,7 +1043,7 @@ func (tx *LeaseV1) bodyUnmarshalBinary(data []byte) error {
 
 //Sign calculates ID and Signature of the transaction.
 func (tx *LeaseV1) Sign(secretKey crypto.SecretKey) error {
-	b, err := tx.bodyMarshalBinary()
+	b, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return errors.Wrap(err, "failed to sign LeaseV1 transaction")
 	}
@@ -1028,7 +1065,7 @@ func (tx *LeaseV1) Verify(publicKey crypto.PublicKey) (bool, error) {
 	if tx.Signature == nil {
 		return false, errors.New("empty signature")
 	}
-	b, err := tx.bodyMarshalBinary()
+	b, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return false, errors.Wrap(err, "failed to verify signature of LeaseV1 transaction")
 	}
@@ -1037,7 +1074,7 @@ func (tx *LeaseV1) Verify(publicKey crypto.PublicKey) (bool, error) {
 
 //MarshalBinary saves the transaction to its binary representation.
 func (tx *LeaseV1) MarshalBinary() ([]byte, error) {
-	b, err := tx.bodyMarshalBinary()
+	b, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal LeaseV1 transaction to bytes")
 	}
@@ -1089,7 +1126,7 @@ func (tx LeaseCancelV1) GetTypeVersion() TransactionTypeVersion {
 
 func (tx *LeaseCancelV1) GenerateID() {
 	if tx.ID == nil {
-		body, err := tx.bodyMarshalBinary()
+		body, err := tx.BodyMarshalBinary()
 		if err != nil {
 			panic(err.Error())
 		}
@@ -1106,6 +1143,12 @@ func (tx LeaseCancelV1) GetID() ([]byte, error) {
 	return tx.ID.Bytes(), nil
 }
 
+func (tx *LeaseCancelV1) Clone() *LeaseCancelV1 {
+	out := &LeaseCancelV1{}
+	_ = copier.Copy(out, tx)
+	return out
+}
+
 //NewUnsignedLeaseCancelV1 creates new LeaseCancelV1 transaction structure without a signature and an ID.
 func NewUnsignedLeaseCancelV1(senderPK crypto.PublicKey, leaseID crypto.Digest, fee, timestamp uint64) *LeaseCancelV1 {
 	lc := LeaseCancel{
@@ -1117,7 +1160,7 @@ func NewUnsignedLeaseCancelV1(senderPK crypto.PublicKey, leaseID crypto.Digest, 
 	return &LeaseCancelV1{Type: LeaseCancelTransaction, Version: 1, LeaseCancel: lc}
 }
 
-func (tx *LeaseCancelV1) bodyMarshalBinary() ([]byte, error) {
+func (tx *LeaseCancelV1) BodyMarshalBinary() ([]byte, error) {
 	buf := make([]byte, leaseCancelV1BodyLen)
 	buf[0] = byte(tx.Type)
 	b, err := tx.LeaseCancel.marshalBinary()
@@ -1148,7 +1191,7 @@ func (tx *LeaseCancelV1) bodyUnmarshalBinary(data []byte) error {
 }
 
 func (tx *LeaseCancelV1) Sign(secretKey crypto.SecretKey) error {
-	b, err := tx.bodyMarshalBinary()
+	b, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return errors.Wrap(err, "failed to sign LeaseCancelV1 transaction")
 	}
@@ -1170,7 +1213,7 @@ func (tx *LeaseCancelV1) Verify(publicKey crypto.PublicKey) (bool, error) {
 	if tx.Signature == nil {
 		return false, errors.New("empty signature")
 	}
-	b, err := tx.bodyMarshalBinary()
+	b, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return false, errors.Wrap(err, "failed to verify signature of LeaseCancelV1 transaction")
 	}
@@ -1179,7 +1222,7 @@ func (tx *LeaseCancelV1) Verify(publicKey crypto.PublicKey) (bool, error) {
 
 //MarshalBinary saves transaction to its binary representation.
 func (tx *LeaseCancelV1) MarshalBinary() ([]byte, error) {
-	b, err := tx.bodyMarshalBinary()
+	b, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal LeaseCancelV1 transaction to bytes")
 	}
@@ -1244,6 +1287,12 @@ func (tx CreateAliasV1) GetID() ([]byte, error) {
 	return tx.ID.Bytes(), nil
 }
 
+func (tx *CreateAliasV1) Clone() *CreateAliasV1 {
+	out := &CreateAliasV1{}
+	_ = copier.Copy(out, tx)
+	return out
+}
+
 func NewUnsignedCreateAliasV1(senderPK crypto.PublicKey, alias Alias, fee, timestamp uint64) *CreateAliasV1 {
 	ca := CreateAlias{
 		SenderPK:  senderPK,
@@ -1254,7 +1303,7 @@ func NewUnsignedCreateAliasV1(senderPK crypto.PublicKey, alias Alias, fee, times
 	return &CreateAliasV1{Type: CreateAliasTransaction, Version: 1, CreateAlias: ca}
 }
 
-func (tx *CreateAliasV1) bodyMarshalBinary() ([]byte, error) {
+func (tx *CreateAliasV1) BodyMarshalBinary() ([]byte, error) {
 	buf := make([]byte, createAliasV1FixedBodyLen+len(tx.Alias.Alias))
 	buf[0] = byte(tx.Type)
 	b, err := tx.CreateAlias.marshalBinary()
@@ -1284,7 +1333,7 @@ func (tx *CreateAliasV1) bodyUnmarshalBinary(data []byte) error {
 }
 
 func (tx *CreateAliasV1) Sign(secretKey crypto.SecretKey) error {
-	b, err := tx.bodyMarshalBinary()
+	b, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return errors.Wrap(err, "failed to sign CreateAliasV1 transaction")
 	}
@@ -1304,7 +1353,7 @@ func (tx *CreateAliasV1) Verify(publicKey crypto.PublicKey) (bool, error) {
 	if tx.Signature == nil {
 		return false, errors.New("empty signature")
 	}
-	b, err := tx.bodyMarshalBinary()
+	b, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return false, errors.Wrap(err, "failed to verify signature of CreateAliasV1 transaction")
 	}
@@ -1312,7 +1361,7 @@ func (tx *CreateAliasV1) Verify(publicKey crypto.PublicKey) (bool, error) {
 }
 
 func (tx *CreateAliasV1) MarshalBinary() ([]byte, error) {
-	b, err := tx.bodyMarshalBinary()
+	b, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal CreateAliasV1 transaction to bytes")
 	}
@@ -1419,9 +1468,15 @@ func (tx MassTransferV1) GetTypeVersion() TransactionTypeVersion {
 	return TransactionTypeVersion{tx.Type, tx.Version}
 }
 
+func (tx *MassTransferV1) Clone() *MassTransferV1 {
+	out := &MassTransferV1{}
+	_ = copier.Copy(out, tx)
+	return out
+}
+
 func (tx *MassTransferV1) GenerateID() {
 	if tx.ID == nil {
-		body, err := tx.bodyMarshalBinary()
+		body, err := tx.BodyMarshalBinary()
 		if err != nil {
 			panic(err.Error())
 		}
@@ -1491,7 +1546,7 @@ func (tx *MassTransferV1) bodyAndAssetLen() (int, int) {
 	return massTransferV1FixedLen + l + n*massTransferEntryLen + rls + al, l
 }
 
-func (tx *MassTransferV1) bodyMarshalBinary() ([]byte, error) {
+func (tx *MassTransferV1) BodyMarshalBinary() ([]byte, error) {
 	var p int
 	n := len(tx.Transfers)
 	bl, al := tx.bodyAndAssetLen()
@@ -1576,7 +1631,7 @@ func (tx *MassTransferV1) bodyUnmarshalBinary(data []byte) error {
 
 //Sign calculates signature and ID of the transaction.
 func (tx *MassTransferV1) Sign(secretKey crypto.SecretKey) error {
-	b, err := tx.bodyMarshalBinary()
+	b, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return errors.Wrap(err, "failed to sign MassTransferV1 transaction")
 	}
@@ -1597,7 +1652,7 @@ func (tx *MassTransferV1) Sign(secretKey crypto.SecretKey) error {
 
 //Verify checks that the signature is valid for the given public key.
 func (tx *MassTransferV1) Verify(publicKey crypto.PublicKey) (bool, error) {
-	b, err := tx.bodyMarshalBinary()
+	b, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return false, errors.Wrap(err, "failed to verify signature of MassTransferV1 transaction")
 	}
@@ -1606,7 +1661,7 @@ func (tx *MassTransferV1) Verify(publicKey crypto.PublicKey) (bool, error) {
 
 //MarshalBinary saves the transaction to its binary representation.
 func (tx *MassTransferV1) MarshalBinary() ([]byte, error) {
-	bb, err := tx.bodyMarshalBinary()
+	bb, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal MassTransferV1 transaction to bytes")
 	}
@@ -1695,6 +1750,12 @@ func (tx DataV1) GetFee() uint64 {
 
 func (tx DataV1) GetTimestamp() uint64 {
 	return tx.Timestamp
+}
+
+func (tx *DataV1) Clone() *DataV1 {
+	out := &DataV1{}
+	_ = copier.Copy(out, tx)
+	return out
 }
 
 //NewUnsignedData creates new Data transaction without proofs.
@@ -2161,7 +2222,7 @@ func (tx SponsorshipV1) GetTypeVersion() TransactionTypeVersion {
 
 func (tx *SponsorshipV1) GenerateID() {
 	if tx.ID == nil {
-		body, err := tx.bodyMarshalBinary()
+		body, err := tx.BodyMarshalBinary()
 		if err != nil {
 			panic(err.Error())
 		}
@@ -2186,6 +2247,12 @@ func (tx SponsorshipV1) GetTimestamp() uint64 {
 	return tx.Timestamp
 }
 
+func (tx *SponsorshipV1) Clone() *SponsorshipV1 {
+	out := &SponsorshipV1{}
+	_ = copier.Copy(out, tx)
+	return out
+}
+
 //NewUnsignedSponsorshipV1 creates new unsigned SponsorshipV1 transaction
 func NewUnsignedSponsorshipV1(senderPK crypto.PublicKey, assetID crypto.Digest, minAssetFee, fee, timestamp uint64) *SponsorshipV1 {
 	return &SponsorshipV1{Type: SponsorshipTransaction, Version: 1, SenderPK: senderPK, AssetID: assetID, MinAssetFee: minAssetFee, Fee: fee, Timestamp: timestamp}
@@ -2204,7 +2271,7 @@ func (tx SponsorshipV1) Valid() (bool, error) {
 	return true, nil
 }
 
-func (tx *SponsorshipV1) bodyMarshalBinary() ([]byte, error) {
+func (tx *SponsorshipV1) BodyMarshalBinary() ([]byte, error) {
 	var p int
 	buf := make([]byte, sponsorshipV1BodyLen)
 	buf[p] = byte(tx.Type)
@@ -2250,7 +2317,7 @@ func (tx *SponsorshipV1) bodyUnmarshalBinary(data []byte) error {
 
 //Sign adds signature as a proof at first position.
 func (tx *SponsorshipV1) Sign(secretKey crypto.SecretKey) error {
-	b, err := tx.bodyMarshalBinary()
+	b, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return errors.Wrap(err, "failed to sign SponsorshipV1 transaction")
 	}
@@ -2271,7 +2338,7 @@ func (tx *SponsorshipV1) Sign(secretKey crypto.SecretKey) error {
 
 //Verify checks that first proof is a valid signature.
 func (tx *SponsorshipV1) Verify(publicKey crypto.PublicKey) (bool, error) {
-	b, err := tx.bodyMarshalBinary()
+	b, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return false, errors.Wrap(err, "failed to verify signature of SponsorshipV1 transaction")
 	}
@@ -2280,7 +2347,7 @@ func (tx *SponsorshipV1) Verify(publicKey crypto.PublicKey) (bool, error) {
 
 //MarshalBinary writes SponsorshipV1 transaction to its bytes representation.
 func (tx *SponsorshipV1) MarshalBinary() ([]byte, error) {
-	bb, err := tx.bodyMarshalBinary()
+	bb, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal SponsorshipV1 transaction to bytes")
 	}
@@ -2359,14 +2426,13 @@ func (tx SetAssetScriptV1) GetTypeVersion() TransactionTypeVersion {
 
 func (tx *SetAssetScriptV1) GenerateID() {
 	if tx.ID == nil {
-		body, err := tx.bodyMarshalBinary()
+		body, err := tx.BodyMarshalBinary()
 		if err != nil {
 			panic(err.Error())
 		}
 		id := crypto.MustFastHash(body)
 		tx.ID = &id
 	}
-
 }
 
 func (tx SetAssetScriptV1) GetID() ([]byte, error) {
@@ -2382,6 +2448,12 @@ func (tx SetAssetScriptV1) GetFee() uint64 {
 
 func (tx SetAssetScriptV1) GetTimestamp() uint64 {
 	return tx.Timestamp
+}
+
+func (tx *SetAssetScriptV1) Clone() *SetAssetScriptV1 {
+	out := &SetAssetScriptV1{}
+	_ = copier.Copy(out, tx)
+	return out
 }
 
 //NewUnsignedSetAssetScriptV1 creates new unsigned SetAssetScriptV1 transaction.
@@ -2405,7 +2477,7 @@ func (tx *SetAssetScriptV1) NonEmptyScript() bool {
 	return len(tx.Script) != 0
 }
 
-func (tx *SetAssetScriptV1) bodyMarshalBinary() ([]byte, error) {
+func (tx *SetAssetScriptV1) BodyMarshalBinary() ([]byte, error) {
 	var p int
 	sl := 0
 	if tx.NonEmptyScript() {
@@ -2473,7 +2545,7 @@ func (tx *SetAssetScriptV1) bodyUnmarshalBinary(data []byte) error {
 
 //Sign adds signature as a proof at first position.
 func (tx *SetAssetScriptV1) Sign(secretKey crypto.SecretKey) error {
-	b, err := tx.bodyMarshalBinary()
+	b, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return errors.Wrap(err, "failed to sign SetAssetScriptV1 transaction")
 	}
@@ -2494,7 +2566,7 @@ func (tx *SetAssetScriptV1) Sign(secretKey crypto.SecretKey) error {
 
 //Verify checks that first proof is a valid signature.
 func (tx *SetAssetScriptV1) Verify(publicKey crypto.PublicKey) (bool, error) {
-	b, err := tx.bodyMarshalBinary()
+	b, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return false, errors.Wrap(err, "failed to verify signature of SetAssetScriptV1 transaction")
 	}
@@ -2503,7 +2575,7 @@ func (tx *SetAssetScriptV1) Verify(publicKey crypto.PublicKey) (bool, error) {
 
 //MarshalBinary writes SetAssetScriptV1 transaction to its bytes representation.
 func (tx *SetAssetScriptV1) MarshalBinary() ([]byte, error) {
-	bb, err := tx.bodyMarshalBinary()
+	bb, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal SetAssetScriptV1 transaction to bytes")
 	}
@@ -2572,7 +2644,7 @@ type InvokeScriptV1 struct {
 
 func (tx *InvokeScriptV1) GenerateID() {
 	if tx.ID == nil {
-		body, err := tx.bodyMarshalBinary()
+		body, err := tx.BodyMarshalBinary()
 		if err != nil {
 			panic(err.Error())
 		}
@@ -2598,6 +2670,12 @@ func (tx InvokeScriptV1) GetFee() uint64 {
 
 func (tx InvokeScriptV1) GetTimestamp() uint64 {
 	return tx.Timestamp
+}
+
+func (tx *InvokeScriptV1) Clone() *InvokeScriptV1 {
+	out := &InvokeScriptV1{}
+	_ = copier.Copy(out, tx)
+	return out
 }
 
 //NewUnsignedSetAssetScriptV1 creates new unsigned SetAssetScriptV1 transaction.
@@ -2653,7 +2731,7 @@ func (tx InvokeScriptV1) Valid() (bool, error) {
 	return true, nil
 }
 
-func (tx *InvokeScriptV1) bodyMarshalBinary() ([]byte, error) {
+func (tx *InvokeScriptV1) BodyMarshalBinary() ([]byte, error) {
 	p := 0
 	buf := make([]byte, invokeScriptV1FixedBodyLen+tx.ScriptRecipient.len+tx.FunctionCall.binarySize()+tx.Payments.binarySize()+tx.FeeAsset.binarySize())
 	buf[p] = byte(tx.Type)
@@ -2676,7 +2754,7 @@ func (tx *InvokeScriptV1) bodyMarshalBinary() ([]byte, error) {
 	}
 	copy(buf[p:], fcb)
 	if len(fcb) != tx.FunctionCall.binarySize() {
-		panic("FUCK FUNCTION CALL")
+		panic("INVALID FUNCTION CALL")
 	}
 	p += len(fcb)
 	psb, err := tx.Payments.MarshalBinary()
@@ -2685,7 +2763,7 @@ func (tx *InvokeScriptV1) bodyMarshalBinary() ([]byte, error) {
 	}
 	copy(buf[p:], psb)
 	if len(psb) != tx.Payments.binarySize() {
-		panic("FUCK PAYMENTS")
+		panic("INVALID PAYMENTS")
 	}
 	p += len(psb)
 	binary.BigEndian.PutUint64(buf[p:], tx.Fee)
@@ -2752,7 +2830,7 @@ func (tx *InvokeScriptV1) bodyUnmarshalBinary(data []byte) error {
 
 //Sign adds signature as a proof at first position.
 func (tx *InvokeScriptV1) Sign(secretKey crypto.SecretKey) error {
-	b, err := tx.bodyMarshalBinary()
+	b, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return errors.Wrap(err, "failed to sign InvokeScriptV1 transaction")
 	}
@@ -2773,7 +2851,7 @@ func (tx *InvokeScriptV1) Sign(secretKey crypto.SecretKey) error {
 
 //Verify checks that first proof is a valid signature.
 func (tx *InvokeScriptV1) Verify(publicKey crypto.PublicKey) (bool, error) {
-	b, err := tx.bodyMarshalBinary()
+	b, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return false, errors.Wrap(err, "failed to verify signature of InvokeScriptV1 transaction")
 	}
@@ -2782,7 +2860,7 @@ func (tx *InvokeScriptV1) Verify(publicKey crypto.PublicKey) (bool, error) {
 
 //MarshalBinary writes InvokeScriptV1 transaction to its bytes representation.
 func (tx *InvokeScriptV1) MarshalBinary() ([]byte, error) {
-	bb, err := tx.bodyMarshalBinary()
+	bb, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal InvokeScriptV1 transaction to bytes")
 	}

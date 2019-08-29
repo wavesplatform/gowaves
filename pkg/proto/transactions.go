@@ -249,19 +249,28 @@ func (tx Genesis) GetTypeVersion() TransactionTypeVersion {
 }
 
 func (tx *Genesis) GenerateID() {
-	if tx.ID == nil {
-		body, err := tx.bodyMarshalBinary()
-		if err != nil {
-			panic(err.Error())
-		}
-		id := tx.generateBodyHash(body)
-		tx.ID = &id
+	err := tx.generateID()
+	if err != nil {
+		panic(err.Error())
 	}
+}
+
+func (tx *Genesis) generateID() error {
+	body, err := tx.bodyMarshalBinary()
+	if err != nil {
+		return err
+	}
+	id := tx.generateBodyHash(body)
+	tx.ID = &id
+	return nil
 }
 
 func (tx Genesis) GetID() ([]byte, error) {
 	if tx.ID == nil {
-		return nil, errors.New("tx ID is not set\n")
+		err := tx.generateID()
+		if err != nil {
+			return nil, err
+		}
 	}
 	return tx.ID.Bytes(), nil
 }
@@ -500,6 +509,17 @@ func (tx *Payment) Sign(secretKey crypto.SecretKey) error {
 	return nil
 }
 
+func (tx *Payment) BodyMarshalBinary() ([]byte, error) {
+	b := tx.bodyMarshalBinaryBuffer()
+	err := tx.bodyMarshalBinary(b)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to sign Payment transaction")
+	}
+	d := make([]byte, len(b)+3)
+	copy(d[3:], b)
+	return d, nil
+}
+
 //Verify checks that the Signature is valid for given public key.
 func (tx *Payment) Verify(publicKey crypto.PublicKey) (bool, error) {
 	if tx.Signature == nil {
@@ -524,6 +544,9 @@ func (tx *Payment) MarshalBinary() ([]byte, error) {
 	}
 	buf := make([]byte, paymentBodyLen+crypto.SignatureSize)
 	copy(buf, b)
+	if tx.Signature == nil {
+		return nil, errors.New("marshaling unsigned transaction")
+	}
 	copy(buf[paymentBodyLen:], tx.Signature[:])
 	return buf, nil
 }
