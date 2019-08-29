@@ -239,7 +239,7 @@ func initTransferV1() {
 	}
 }
 
-var secretKey, publicKey, _ = crypto.GenerateKeyPair([]byte("test"))
+var _, publicKey, _ = crypto.GenerateKeyPair([]byte("test"))
 var address, _ = proto.NewAddressFromPublicKey(proto.MainNetScheme, publicKey)
 
 func initTransferV2() {
@@ -575,7 +575,7 @@ func initExchangeV2() {
 	if err != nil {
 		panic(err)
 	}
-	_, matcherPk, err := crypto.GenerateKeyPair([]byte("test1"))
+	_, matcherPk, _ := crypto.GenerateKeyPair([]byte("test1"))
 
 	buyOrder := proto.NewUnsignedOrderV1(
 		pk,
