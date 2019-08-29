@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/hex"
+	"fmt"
 	"math"
 	"testing"
 	"time"
@@ -943,6 +944,60 @@ func TestNativeSplitString(t *testing.T) {
 		{NewExprs(NewString("one two three four"), NewLong(0)), true, NewExprs()},
 	} {
 		r, err := NativeSplitString(newEmptyScope(), test.expressions)
+		if test.error {
+			assert.Error(t, err)
+			continue
+		}
+		require.NoError(t, err)
+		assert.Equal(t, test.result, r)
+	}
+}
+
+func TestNativeParseInt(t *testing.T) {
+	for _, test := range []struct {
+		expressions Exprs
+		error       bool
+		result      Expr
+	}{
+		{NewExprs(NewString("123345")), false, NewLong(123345)},
+		{NewExprs(NewString("0")), false, NewLong(0)},
+		{NewExprs(NewString(fmt.Sprint(math.MaxInt64))), false, NewLong(math.MaxInt64)},
+		{NewExprs(NewString(fmt.Sprint(math.MinInt64))), false, NewLong(math.MinInt64)},
+		{NewExprs(NewString("")), false, NewUnit()},
+		{NewExprs(NewString("abcd")), false, NewUnit()},
+		{NewExprs(NewString("123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890")), false, NewUnit()},
+		{NewExprs(), true, NewUnit()},
+		{NewExprs(NewString("blah-blah-blah"), NewLong(1)), true, NewUnit()},
+		{NewExprs(NewLong(1)), true, NewUnit()},
+	} {
+		r, err := NativeParseInt(newEmptyScope(), test.expressions)
+		if test.error {
+			assert.Error(t, err)
+			continue
+		}
+		require.NoError(t, err)
+		assert.Equal(t, test.result, r)
+	}
+}
+
+func TestUserParseIntValue(t *testing.T) {
+	for _, test := range []struct {
+		expressions Exprs
+		error       bool
+		result      Expr
+	}{
+		{NewExprs(NewString("123345")), false, NewLong(123345)},
+		{NewExprs(NewString("0")), false, NewLong(0)},
+		{NewExprs(NewString(fmt.Sprint(math.MaxInt64))), false, NewLong(math.MaxInt64)},
+		{NewExprs(NewString(fmt.Sprint(math.MinInt64))), false, NewLong(math.MinInt64)},
+		{NewExprs(NewString("")), true, NewUnit()},
+		{NewExprs(NewString("abcd")), true, NewUnit()},
+		{NewExprs(NewString("123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890")), true, NewUnit()},
+		{NewExprs(), true, NewUnit()},
+		{NewExprs(NewString("blah-blah-blah"), NewLong(1)), true, NewUnit()},
+		{NewExprs(NewLong(1)), true, NewUnit()},
+	} {
+		r, err := UserParseIntValue(newEmptyScope(), test.expressions)
 		if test.error {
 			assert.Error(t, err)
 			continue

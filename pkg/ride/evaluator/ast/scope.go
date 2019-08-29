@@ -209,7 +209,7 @@ func FunctionsV3() *Functions {
 	s.native[1203] = NativeIndexOfSubstring
 	s.native[1204] = NativeIndexOfSubstringWithOffset
 	s.native[1205] = NativeSplitString
-	//TODO: native[1206] = NativeParseInt // RIDE v3
+	s.native[1206] = NativeParseInt
 	//TODO: native[1207] = NativeLastIndexOfSubstring // RIDE v3
 	//TODO: native[1208] = NativeLastIndexOfSubstringWithOffset // RIDE v3
 
@@ -235,6 +235,9 @@ func FunctionsV3() *Functions {
 	s.user["Sha3512"] = SimpleTypeConstructorFactory("Sha3512", SHA3512Expr{})
 
 	s.user["Unit"] = SimpleTypeConstructorFactory("Unit", Unit{})
+
+	// New user functions
+	s.user["parseIntValue"] = UserParseIntValue
 	return s
 }
 
