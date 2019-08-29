@@ -52,7 +52,23 @@ func (a Exprs) EvaluateAll(s Scope) (Exprs, error) {
 }
 
 func (a Exprs) Eq(other Expr) (bool, error) {
-	return false, errors.Errorf("trying to compare %T with %T", a, other)
+	o, ok := other.(Exprs)
+	if !ok {
+		return false, errors.Errorf("trying to compare %T with %T", a, other)
+	}
+	if len(a) != len(o) {
+		return false, nil
+	}
+	for i := 0; i < len(a); i++ {
+		eq, err := a[i].Eq(o[i])
+		if err != nil {
+			return false, errors.Wrapf(err, "compare Exprs")
+		}
+		if !eq {
+			return false, nil
+		}
+	}
+	return true, nil
 }
 
 func (a Exprs) InstanceOf() string {

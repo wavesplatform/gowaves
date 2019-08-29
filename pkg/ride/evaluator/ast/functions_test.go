@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/hex"
+	"fmt"
 	"math"
 	"testing"
 	"time"
@@ -792,6 +793,26 @@ func TestNativeAddressToString(t *testing.T) {
 	}
 }
 
+func TestNativeBytesToUTF8String(t *testing.T) {
+	for _, test := range []struct {
+		expressions Exprs
+		err         bool
+		result      Expr
+	}{
+		//{NewExprs(NewBytes([]byte("blah-blah-blah"))), false, NewString("blah-blah-blah")},
+		//{NewExprs(NewBytes([]byte("blah-blah-blah")), NewString("a-a-a-a")), true, NewString("blah-blah-blah")},
+		{NewExprs(NewString("blah-blah-blah")), true, NewString("blah-blah-blah")},
+	} {
+		r, err := NativeBytesToUTF8String(newEmptyScope(), test.expressions)
+		if test.err {
+			assert.Error(t, err)
+			continue
+		}
+		require.NoError(t, err)
+		assert.Equal(t, test.result, r)
+	}
+}
+
 func b(v int64) []byte {
 	buf := make([]byte, 8)
 	binary.BigEndian.PutUint64(buf, uint64(v))
@@ -852,6 +873,131 @@ func TestNativeBytesToLongWithOffset(t *testing.T) {
 		{NewExprs(NewBytes(in(arr, b(math.MinInt64), 6)), NewLong(16)), true, NewLong(0)},
 	} {
 		r, err := NativeBytesToLongWithOffset(newEmptyScope(), test.expressions)
+		if test.error {
+			assert.Error(t, err)
+			continue
+		}
+		require.NoError(t, err)
+		assert.Equal(t, test.result, r)
+	}
+}
+
+func TestNativeIndexOfSubstring(t *testing.T) {
+	for _, test := range []struct {
+		expressions Exprs
+		error       bool
+		result      Expr
+	}{
+		{NewExprs(NewString("quick brown fox jumps over the lazy dog"), NewString("brown")), false, NewLong(6)},
+		{NewExprs(NewString("quick brown fox jumps over the lazy dog"), NewString("cafe")), false, NewUnit()},
+		{NewExprs(), true, NewUnit()},
+		{NewExprs(NewString("blah-blah-blah")), true, NewUnit()},
+		{NewExprs(NewString("blah-blah-blah"), NewLong(1)), true, NewUnit()},
+	} {
+		r, err := NativeIndexOfSubstring(newEmptyScope(), test.expressions)
+		if test.error {
+			assert.Error(t, err)
+			continue
+		}
+		require.NoError(t, err)
+		assert.Equal(t, test.result, r)
+	}
+}
+
+func TestNativeIndexOfSubstringWithOffset(t *testing.T) {
+	for _, test := range []struct {
+		expressions Exprs
+		error       bool
+		result      Expr
+	}{
+		{NewExprs(NewString("quick brown fox jumps over the lazy dog"), NewString("brown"), NewLong(0)), false, NewLong(6)},
+		{NewExprs(NewString("cafe bebe dead beef cafe bebe"), NewString("bebe"), NewLong(10)), false, NewLong(25)},
+		{NewExprs(NewString("quick brown fox jumps over the lazy dog"), NewString("brown"), NewLong(10)), false, NewUnit()},
+		{NewExprs(NewString("quick brown fox jumps over the lazy dog"), NewString("fox"), NewLong(1000)), false, NewUnit()},
+		{NewExprs(), true, NewUnit()},
+		{NewExprs(NewString("blah-blah-blah")), true, NewUnit()},
+		{NewExprs(NewString("blah-blah-blah"), NewLong(1)), true, NewUnit()},
+		{NewExprs(NewString("blah-blah-blah"), NewLong(1), NewString("xxx")), true, NewUnit()},
+		{NewExprs(NewString("blah-blah-blah"), NewString("xxx"), NewString("0")), true, NewUnit()},
+	} {
+		r, err := NativeIndexOfSubstringWithOffset(newEmptyScope(), test.expressions)
+		if test.error {
+			assert.Error(t, err)
+			continue
+		}
+		require.NoError(t, err)
+		assert.Equal(t, test.result, r)
+	}
+}
+
+func TestNativeSplitString(t *testing.T) {
+	for _, test := range []struct {
+		expressions Exprs
+		error       bool
+		result      Expr
+	}{
+		{NewExprs(NewString("abcdefg"), NewString("")), false, NewExprs(NewString("a"), NewString("b"), NewString("c"), NewString("d"), NewString("e"), NewString("f"), NewString("g"))},
+		{NewExprs(NewString("one two three four"), NewString(" ")), false, NewExprs(NewString("one"), NewString("two"), NewString("three"), NewString("four"))},
+		{NewExprs(), true, NewExprs()},
+		{NewExprs(NewString("blah-blah-blah")), true, NewExprs()},
+		{NewExprs(NewLong(0), NewString("one two three four")), true, NewExprs()},
+		{NewExprs(NewString("one two three four"), NewLong(0)), true, NewExprs()},
+	} {
+		r, err := NativeSplitString(newEmptyScope(), test.expressions)
+		if test.error {
+			assert.Error(t, err)
+			continue
+		}
+		require.NoError(t, err)
+		assert.Equal(t, test.result, r)
+	}
+}
+
+func TestNativeParseInt(t *testing.T) {
+	for _, test := range []struct {
+		expressions Exprs
+		error       bool
+		result      Expr
+	}{
+		{NewExprs(NewString("123345")), false, NewLong(123345)},
+		{NewExprs(NewString("0")), false, NewLong(0)},
+		{NewExprs(NewString(fmt.Sprint(math.MaxInt64))), false, NewLong(math.MaxInt64)},
+		{NewExprs(NewString(fmt.Sprint(math.MinInt64))), false, NewLong(math.MinInt64)},
+		{NewExprs(NewString("")), false, NewUnit()},
+		{NewExprs(NewString("abcd")), false, NewUnit()},
+		{NewExprs(NewString("123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890")), false, NewUnit()},
+		{NewExprs(), true, NewUnit()},
+		{NewExprs(NewString("blah-blah-blah"), NewLong(1)), true, NewUnit()},
+		{NewExprs(NewLong(1)), true, NewUnit()},
+	} {
+		r, err := NativeParseInt(newEmptyScope(), test.expressions)
+		if test.error {
+			assert.Error(t, err)
+			continue
+		}
+		require.NoError(t, err)
+		assert.Equal(t, test.result, r)
+	}
+}
+
+func TestUserParseIntValue(t *testing.T) {
+	for _, test := range []struct {
+		expressions Exprs
+		error       bool
+		result      Expr
+	}{
+		{NewExprs(NewString("123345")), false, NewLong(123345)},
+		{NewExprs(NewString("0")), false, NewLong(0)},
+		{NewExprs(NewString(fmt.Sprint(math.MaxInt64))), false, NewLong(math.MaxInt64)},
+		{NewExprs(NewString(fmt.Sprint(math.MinInt64))), false, NewLong(math.MinInt64)},
+		{NewExprs(NewString("")), true, NewUnit()},
+		{NewExprs(NewString("abcd")), true, NewUnit()},
+		{NewExprs(NewString("123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890")), true, NewUnit()},
+		{NewExprs(), true, NewUnit()},
+		{NewExprs(NewString("blah-blah-blah"), NewLong(1)), true, NewUnit()},
+		{NewExprs(NewLong(1)), true, NewUnit()},
+	} {
+		r, err := UserParseIntValue(newEmptyScope(), test.expressions)
 		if test.error {
 			assert.Error(t, err)
 			continue

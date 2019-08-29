@@ -12,6 +12,8 @@ import (
 	"fmt"
 	"io"
 	"math/big"
+	"strconv"
+	"strings"
 	"unicode/utf8"
 
 	"github.com/ericlagergren/decimal"
@@ -1770,7 +1772,7 @@ func NativeCheckMerkleProof(s Scope, e Exprs) (Expr, error) {
 
 	root, ok := rs[0].(*BytesExpr)
 	if !ok {
-		return nil, errors.Wrapf(err, "%s: first argument expected to be *BytesExpr, found %T", funcName, rs[0])
+		return nil, errors.Errorf("%s: first argument expected to be *BytesExpr, found %T", funcName, rs[0])
 	}
 
 	proof, ok := rs[1].(*BytesExpr)
@@ -1788,6 +1790,24 @@ func NativeCheckMerkleProof(s Scope, e Exprs) (Expr, error) {
 		return nil, errors.Wrap(err, funcName)
 	}
 	return NewBoolean(bytes.Equal(root.Value, r)), nil
+}
+
+func NativeBytesToUTF8String(s Scope, e Exprs) (Expr, error) {
+	const funcName = "NativeBytesToUTF8String"
+	if l := len(e); l != 1 {
+		return nil, errors.Errorf("%s: invalid number of parameters, expected 1, received %d", funcName, l)
+	}
+
+	rs, err := e.EvaluateAll(s.Clone())
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+
+	b, ok := rs[0].(*BytesExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: first argument expected to be *BytesExpr, found %T", funcName, rs[0])
+	}
+	return NewString(string(b.Value)), nil
 }
 
 func NativeBytesToLong(s Scope, e Exprs) (Expr, error) {
@@ -1831,6 +1851,140 @@ func NativeBytesToLongWithOffset(s Scope, e Exprs) (Expr, error) {
 		return nil, errors.Errorf("%s: offset %d is out of bytes array bounds", funcName, offset)
 	}
 	return NewLong(int64(binary.BigEndian.Uint64(b.Value[offset:]))), nil
+}
+
+func NativeIndexOfSubstring(s Scope, e Exprs) (Expr, error) {
+	funcName := "NativeIndexOfSubstring"
+	if l := len(e); l != 2 {
+		return nil, errors.Errorf("%s: invalid number of parameters, expected 2, received %d", funcName, l)
+	}
+
+	rs, err := e.EvaluateAll(s.Clone())
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+
+	str, ok := rs[0].(*StringExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: first argument expected to be *StringExpr, found %T", funcName, rs[0])
+	}
+
+	sub, ok := rs[1].(*StringExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: second argument expected to be *StringExpr, found %T", funcName, rs[1])
+	}
+
+	i := strings.Index(str.Value, sub.Value)
+	if i == -1 {
+		return NewUnit(), nil
+	}
+	return NewLong(int64(i)), nil
+}
+
+func NativeIndexOfSubstringWithOffset(s Scope, e Exprs) (Expr, error) {
+	funcName := "NativeIndexOfSubstringWithOffset"
+	if l := len(e); l != 3 {
+		return nil, errors.Errorf("%s: invalid number of parameters, expected 3, received %d", funcName, l)
+	}
+
+	rs, err := e.EvaluateAll(s.Clone())
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+
+	str, ok := rs[0].(*StringExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: first argument expected to be *StringExpr, found %T", funcName, rs[0])
+	}
+
+	sub, ok := rs[1].(*StringExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: second argument expected to be *StringExpr, found %T", funcName, rs[1])
+	}
+
+	off, ok := rs[2].(*LongExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: third argument expected to be *LongExpr, found %T", funcName, rs[2])
+	}
+
+	offset := int(off.Value)
+	if offset < 0 || offset > len(str.Value) {
+		return NewUnit(), nil
+	}
+
+	i := strings.Index(str.Value[offset:], sub.Value)
+	if i == -1 {
+		return NewUnit(), nil
+	}
+	return NewLong(int64(i + offset)), nil
+}
+
+func NativeSplitString(s Scope, e Exprs) (Expr, error) {
+	const funcName = "NativeSplitString"
+	if l := len(e); l != 2 {
+		return nil, errors.Errorf("%s: invalid number of parameters, expected 2, received %d", funcName, l)
+	}
+	rs, err := e.EvaluateAll(s.Clone())
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	str, ok := rs[0].(*StringExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: first argument expected to be *StringExpr, found %T", funcName, rs[0])
+	}
+	sep, ok := rs[1].(*StringExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: second argument expected to be *StringExpr, found %T", funcName, rs[1])
+	}
+	r := NewExprs()
+	for _, p := range strings.Split(str.Value, sep.Value) {
+		r = append(r, NewString(p))
+	}
+	return r, nil
+}
+
+func NativeParseInt(s Scope, e Exprs) (Expr, error) {
+	funcName := "NativeParseInt"
+	if l := len(e); l != 1 {
+		return nil, errors.Errorf("%s: invalid number of parameters, expected 1, received %d", funcName, l)
+	}
+
+	rs, err := e.EvaluateAll(s.Clone())
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+
+	str, ok := rs[0].(*StringExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: first argument expected to be *StringExpr, found %T", funcName, rs[0])
+	}
+	i, err := strconv.ParseInt(str.Value, 10, 64)
+	if err != nil {
+		return NewUnit(), nil
+	}
+	return NewLong(i), nil
+}
+
+func UserParseIntValue(s Scope, e Exprs) (Expr, error) {
+	funcName := "UserParseIntValue"
+	if l := len(e); l != 1 {
+		return nil, errors.Errorf("%s: invalid number of parameters, expected 1, received %d", funcName, l)
+	}
+
+	rs, err := e.EvaluateAll(s.Clone())
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+
+	str, ok := rs[0].(*StringExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: first argument expected to be *StringExpr, found %T", funcName, rs[0])
+	}
+	i, err := strconv.ParseInt(str.Value, 10, 64)
+	if err != nil {
+		return nil, errors.Wrapf(err, funcName)
+	}
+	return NewLong(i), nil
 }
 
 func prefix(w io.Writer, name string, e Exprs) {
