@@ -196,6 +196,8 @@ type CreateAliasV2Struct struct {
 
 var CreateAliasV2 CreateAliasV2Struct
 
+var sk, pk, _ = crypto.GenerateKeyPair([]byte("test"))
+
 func init() {
 	initGenesis()
 	initPayment()
@@ -237,11 +239,11 @@ func initTransferV1() {
 	}
 }
 
-var secretKey, publicKey = crypto.GenerateKeyPair([]byte("test"))
+var secretKey, publicKey, _ = crypto.GenerateKeyPair([]byte("test"))
 var address, _ = proto.NewAddressFromPublicKey(proto.MainNetScheme, publicKey)
 
 func initTransferV2() {
-	sk, pk := crypto.GenerateKeyPair([]byte("test"))
+	sk, pk, _ := crypto.GenerateKeyPair([]byte("test"))
 	addr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, pk)
 	if err != nil {
 		panic(err)
@@ -302,7 +304,7 @@ func initIssueV1() {
 
 func initIssueV2() {
 
-	sk, pk := crypto.GenerateKeyPair([]byte("test"))
+	sk, pk, _ := crypto.GenerateKeyPair([]byte("test"))
 
 	t := proto.NewUnsignedIssueV2(
 		proto.MainNetScheme,
@@ -331,7 +333,7 @@ func initIssueV2() {
 }
 
 func initGenesis() {
-	_, pk := crypto.GenerateKeyPair([]byte("test"))
+	_, pk, _ := crypto.GenerateKeyPair([]byte("test"))
 	addr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, pk)
 	if err != nil {
 		panic(err)
@@ -351,7 +353,7 @@ func initGenesis() {
 }
 
 func initPayment() {
-	sk, pk := crypto.GenerateKeyPair([]byte("test"))
+	sk, pk, _ := crypto.GenerateKeyPair([]byte("test"))
 	addr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, pk)
 	if err != nil {
 		panic(err)
@@ -376,7 +378,7 @@ func initPayment() {
 }
 
 func initReissueV1() {
-	sk, pk := crypto.GenerateKeyPair([]byte("test"))
+
 	d, err := crypto.NewDigestFromBase58("9shLH9vfJxRgbhJ1c3dw2gj5fUGRr8asfUpQjj4rZQKQ")
 	if err != nil {
 		panic(err)
@@ -401,7 +403,6 @@ func initReissueV1() {
 }
 
 func initReissueV2() {
-	sk, pk := crypto.GenerateKeyPair([]byte("test"))
 	d, err := crypto.NewDigestFromBase58("9shLH9vfJxRgbhJ1c3dw2gj5fUGRr8asfUpQjj4rZQKQ")
 	if err != nil {
 		panic(err)
@@ -426,7 +427,7 @@ func initReissueV2() {
 }
 
 func initBurnV1() {
-	sk, pk := crypto.GenerateKeyPair([]byte("test"))
+
 	d, err := crypto.NewDigestFromBase58("9shLH9vfJxRgbhJ1c3dw2gj5fUGRr8asfUpQjj4rZQKQ")
 	if err != nil {
 		panic(err)
@@ -451,7 +452,6 @@ func initBurnV1() {
 }
 
 func initBurnV2() {
-	sk, pk := crypto.GenerateKeyPair([]byte("test"))
 	d, err := crypto.NewDigestFromBase58("9shLH9vfJxRgbhJ1c3dw2gj5fUGRr8asfUpQjj4rZQKQ")
 	if err != nil {
 		panic(err)
@@ -476,7 +476,6 @@ func initBurnV2() {
 }
 
 func initMassTransferV1() {
-	sk, pk := crypto.GenerateKeyPair([]byte("test"))
 	d, err := crypto.NewDigestFromBase58("9shLH9vfJxRgbhJ1c3dw2gj5fUGRr8asfUpQjj4rZQKQ")
 	if err != nil {
 		panic(err)
@@ -510,12 +509,11 @@ func initMassTransferV1() {
 }
 
 func initExchangeV1() {
-	sk, pk := crypto.GenerateKeyPair([]byte("test"))
 	d, err := crypto.NewDigestFromBase58("9shLH9vfJxRgbhJ1c3dw2gj5fUGRr8asfUpQjj4rZQKQ")
 	if err != nil {
 		panic(err)
 	}
-	_, matcherPk := crypto.GenerateKeyPair([]byte("test1"))
+	_, matcherPk, _ := crypto.GenerateKeyPair([]byte("test1"))
 
 	buyOrder := proto.NewUnsignedOrderV1(
 		pk,
@@ -546,8 +544,8 @@ func initExchangeV1() {
 	_ = sellOrder.Sign(sk)
 
 	t := proto.NewUnsignedExchangeV1(
-		*buyOrder,
-		*sellOrder,
+		buyOrder,
+		sellOrder,
 		100000,
 		100000,
 		10000,
@@ -573,12 +571,11 @@ func initExchangeV1() {
 }
 
 func initExchangeV2() {
-	sk, pk := crypto.GenerateKeyPair([]byte("test"))
 	d, err := crypto.NewDigestFromBase58("9shLH9vfJxRgbhJ1c3dw2gj5fUGRr8asfUpQjj4rZQKQ")
 	if err != nil {
 		panic(err)
 	}
-	_, matcherPk := crypto.GenerateKeyPair([]byte("test1"))
+	_, matcherPk, err := crypto.GenerateKeyPair([]byte("test1"))
 
 	buyOrder := proto.NewUnsignedOrderV1(
 		pk,
@@ -637,7 +634,6 @@ func initExchangeV2() {
 
 //SetAssetScriptV1
 func initSetAssetScriptV1() {
-	sk, pk := crypto.GenerateKeyPair([]byte("test"))
 	d, err := crypto.NewDigestFromBase58("9shLH9vfJxRgbhJ1c3dw2gj5fUGRr8asfUpQjj4rZQKQ")
 	if err != nil {
 		panic(err)
@@ -663,7 +659,6 @@ func initSetAssetScriptV1() {
 
 //InvokeScriptV1
 func initInvokeScriptV1() {
-	sk, pk := crypto.GenerateKeyPair([]byte("test"))
 	asset := proto.NewOptionalAssetFromDigest(Digest)
 
 	t := proto.NewUnsignedInvokeScriptV1(
@@ -700,7 +695,6 @@ func initInvokeScriptV1() {
 }
 
 func initLeaseV1() {
-	sk, pk := crypto.GenerateKeyPair([]byte("test"))
 	addr, _ := proto.NewAddressFromPublicKey(proto.MainNetScheme, pk)
 
 	t := proto.NewUnsignedLeaseV1(
@@ -725,7 +719,6 @@ func initLeaseV1() {
 }
 
 func initLeaseV2() {
-	sk, pk := crypto.GenerateKeyPair([]byte("test"))
 	addr, _ := proto.NewAddressFromPublicKey(proto.MainNetScheme, pk)
 	t := proto.NewUnsignedLeaseV2(
 		pk,
@@ -749,8 +742,6 @@ func initLeaseV2() {
 }
 
 func initLeaseCancelV1() {
-	sk, pk := crypto.GenerateKeyPair([]byte("test"))
-
 	t := proto.NewUnsignedLeaseCancelV1(
 		pk,
 		Digest,
@@ -773,7 +764,6 @@ func initLeaseCancelV1() {
 }
 
 func initLeaseCancelV2() {
-	sk, pk := crypto.GenerateKeyPair([]byte("test"))
 	t := proto.NewUnsignedLeaseCancelV2(
 		proto.MainNetScheme,
 		pk,
@@ -797,7 +787,6 @@ func initLeaseCancelV2() {
 }
 
 func initDataV1() {
-	sk, pk := crypto.GenerateKeyPair([]byte("test"))
 	t := proto.NewUnsignedData(
 		pk,
 		10000,
@@ -854,7 +843,6 @@ func initDataV1() {
 }
 
 func initSponsorshipV1() {
-	sk, pk := crypto.GenerateKeyPair([]byte("test"))
 	t := proto.NewUnsignedSponsorshipV1(
 		pk,
 		Digest,
@@ -881,7 +869,6 @@ func initSponsorshipV1() {
 }
 
 func initCreateAliasV1() {
-	sk, pk := crypto.GenerateKeyPair([]byte("test"))
 	alias := proto.NewAlias(proto.MainNetScheme, "testalias")
 	t := proto.NewUnsignedCreateAliasV1(
 		pk,
@@ -908,7 +895,6 @@ func initCreateAliasV1() {
 }
 
 func initCreateAliasV2() {
-	sk, pk := crypto.GenerateKeyPair([]byte("test"))
 	alias := proto.NewAlias(proto.MainNetScheme, "testalias")
 	t := proto.NewUnsignedCreateAliasV2(
 		pk,

@@ -9,7 +9,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/util/byte_helpers"
 )
 
-var digest = crypto.MustDigestFromBase58("WmryL34P6UwwUphNbhjBRwiCWxX15Nf5D8T7AmQY7yx")
+var _digest = crypto.MustDigestFromBase58("WmryL34P6UwwUphNbhjBRwiCWxX15Nf5D8T7AmQY7yx")
 var optionalAsset = *proto.NewOptionalAssetFromDigest(crypto.MustDigestFromBase58("WmryL34P6UwwUphNbhjBRwiCWxX15Nf5D8T7AmQY7yx"))
 
 type TransferV1TestSuite struct {
@@ -26,7 +26,7 @@ func (a *TransferV1TestSuite) SetupTest() {
 func (a *TransferV1TestSuite) Test_feeAssetId_Presence() {
 	a.tx.Transfer.FeeAsset = optionalAsset
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	a.Equal(NewBytes(digest.Bytes()), rs["feeAssetId"])
+	a.Equal(NewBytes(_digest.Bytes()), rs["feeAssetId"])
 }
 
 func (a *TransferV1TestSuite) Test_feeAssetId_Absence() {
@@ -43,7 +43,7 @@ func (a *TransferV1TestSuite) Test_assetId_presence() {
 	a.tx.Transfer.AmountAsset = optionalAsset
 	rs, err := a.f(proto.MainNetScheme, a.tx)
 	a.NoError(err)
-	a.Equal(NewBytes(digest.Bytes()), rs["assetId"])
+	a.Equal(NewBytes(_digest.Bytes()), rs["assetId"])
 }
 
 func (a *TransferV1TestSuite) Test_assetId_absence() {
@@ -98,7 +98,7 @@ func (a *TransferV1TestSuite) Test_senderPublicKey() {
 }
 
 func (a *TransferV1TestSuite) Test_bodyBytes() {
-	_, pub := crypto.GenerateKeyPair([]byte("test"))
+	_, pub, _ := crypto.GenerateKeyPair([]byte("test"))
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.IsType(&BytesExpr{}, rs["bodyBytes"])
 	a.True(crypto.Verify(pub, *a.tx.Signature, rs["bodyBytes"].(*BytesExpr).Value))
@@ -132,7 +132,7 @@ func (a *TransferV2TestSuite) SetupTest() {
 func (a *TransferV2TestSuite) Test_feeAssetId_Presence() {
 	a.tx.Transfer.FeeAsset = optionalAsset
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	a.Equal(NewBytes(digest.Bytes()), rs["feeAssetId"])
+	a.Equal(NewBytes(_digest.Bytes()), rs["feeAssetId"])
 }
 
 func (a *TransferV2TestSuite) Test_feeAssetId_Absence() {
@@ -149,7 +149,7 @@ func (a *TransferV2TestSuite) Test_assetId_presence() {
 	a.tx.Transfer.AmountAsset = optionalAsset
 	rs, err := a.f(proto.MainNetScheme, a.tx)
 	a.NoError(err)
-	a.Equal(NewBytes(digest.Bytes()), rs["assetId"])
+	a.Equal(NewBytes(_digest.Bytes()), rs["assetId"])
 }
 
 func (a *TransferV2TestSuite) Test_assetId_absence() {
@@ -204,7 +204,7 @@ func (a *TransferV2TestSuite) Test_senderPublicKey() {
 }
 
 func (a *TransferV2TestSuite) Test_bodyBytes() {
-	_, pub := crypto.GenerateKeyPair([]byte("test"))
+	_, pub, _ := crypto.GenerateKeyPair([]byte("test"))
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.IsType(&BytesExpr{}, rs["bodyBytes"])
 	sig, _ := crypto.NewSignatureFromBytes(a.tx.Proofs.Proofs[0].Bytes())
@@ -331,7 +331,7 @@ func (a *PaymentTestSuite) Test_senderPublicKey() {
 }
 
 func (a *PaymentTestSuite) Test_bodyBytes() {
-	_, pub := crypto.GenerateKeyPair([]byte("test"))
+	_, pub, _ := crypto.GenerateKeyPair([]byte("test"))
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.IsType(&BytesExpr{}, rs["bodyBytes"])
 	a.True(crypto.Verify(pub, *a.tx.Signature, rs["bodyBytes"].(*BytesExpr).Value))
@@ -411,7 +411,7 @@ func (a *ReissueV1TestSuite) Test_senderPublicKey() {
 }
 
 func (a *ReissueV1TestSuite) Test_bodyBytes() {
-	_, pub := crypto.GenerateKeyPair([]byte("test"))
+	_, pub, _ := crypto.GenerateKeyPair([]byte("test"))
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.IsType(&BytesExpr{}, rs["bodyBytes"])
 	a.True(crypto.Verify(pub, *a.tx.Signature, rs["bodyBytes"].(*BytesExpr).Value))
@@ -492,7 +492,7 @@ func (a *ReissueV2TestSuite) Test_senderPublicKey() {
 }
 
 func (a *ReissueV2TestSuite) Test_bodyBytes() {
-	_, pub := crypto.GenerateKeyPair([]byte("test"))
+	_, pub, _ := crypto.GenerateKeyPair([]byte("test"))
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.IsType(&BytesExpr{}, rs["bodyBytes"])
 	sig, _ := crypto.NewSignatureFromBytes(a.tx.Proofs.Proofs[0])
@@ -569,7 +569,7 @@ func (a *BurnV1TestSuite) Test_senderPublicKey() {
 }
 
 func (a *BurnV1TestSuite) Test_bodyBytes() {
-	_, pub := crypto.GenerateKeyPair([]byte("test"))
+	_, pub, _ := crypto.GenerateKeyPair([]byte("test"))
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.IsType(&BytesExpr{}, rs["bodyBytes"])
 	a.True(crypto.Verify(pub, *a.tx.Signature, rs["bodyBytes"].(*BytesExpr).Value))
@@ -645,7 +645,7 @@ func (a *BurnV2TestSuite) Test_senderPublicKey() {
 }
 
 func (a *BurnV2TestSuite) Test_bodyBytes() {
-	_, pub := crypto.GenerateKeyPair([]byte("test"))
+	_, pub, _ := crypto.GenerateKeyPair([]byte("test"))
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.IsType(&BytesExpr{}, rs["bodyBytes"])
 	sig, _ := crypto.NewSignatureFromBytes(a.tx.Proofs.Proofs[0])
@@ -682,7 +682,7 @@ func (a *MassTransferV1TestSuite) Test_assetId_presence() {
 	a.tx.Asset = optionalAsset
 	rs, err := a.f(proto.MainNetScheme, a.tx)
 	a.NoError(err)
-	a.Equal(NewBytes(digest.Bytes()), rs["assetId"])
+	a.Equal(NewBytes(_digest.Bytes()), rs["assetId"])
 }
 
 func (a *MassTransferV1TestSuite) Test_assetId_absence() {
@@ -753,7 +753,7 @@ func (a *MassTransferV1TestSuite) Test_senderPublicKey() {
 }
 
 func (a *MassTransferV1TestSuite) Test_bodyBytes() {
-	_, pub := crypto.GenerateKeyPair([]byte("test"))
+	_, pub, _ := crypto.GenerateKeyPair([]byte("test"))
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.IsType(&BytesExpr{}, rs["bodyBytes"])
 	sig, _ := crypto.NewSignatureFromBytes(a.tx.Proofs.Proofs[0])
@@ -849,7 +849,7 @@ func (a *ExchangeV1TestSuite) Test_senderPublicKey() {
 }
 
 func (a *ExchangeV1TestSuite) Test_bodyBytes() {
-	_, pub := crypto.GenerateKeyPair([]byte("test"))
+	_, pub, _ := crypto.GenerateKeyPair([]byte("test"))
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.IsType(&BytesExpr{}, rs["bodyBytes"])
 	a.True(crypto.Verify(pub, *a.tx.Signature, rs["bodyBytes"].(*BytesExpr).Value))
@@ -945,7 +945,7 @@ func (a *ExchangeV2TestSuite) Test_senderPublicKey() {
 }
 
 func (a *ExchangeV2TestSuite) Test_bodyBytes() {
-	_, pub := crypto.GenerateKeyPair([]byte("test"))
+	_, pub, _ := crypto.GenerateKeyPair([]byte("test"))
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.IsType(&BytesExpr{}, rs["bodyBytes"])
 	sig, _ := crypto.NewSignatureFromBytes(a.tx.Proofs.Proofs[0])
@@ -975,10 +975,10 @@ type OrderTestSuite struct {
 }
 
 func (a *OrderTestSuite) SetupTest() {
-	sk, pk := crypto.GenerateKeyPair([]byte("test"))
+	sk, pk, _ := crypto.GenerateKeyPair([]byte("test"))
 	a.d, _ = crypto.NewDigestFromBase58("9shLH9vfJxRgbhJ1c3dw2gj5fUGRr8asfUpQjj4rZQKQ")
 
-	_, matcherPk := crypto.GenerateKeyPair([]byte("test1"))
+	_, matcherPk, _ := crypto.GenerateKeyPair([]byte("test1"))
 
 	sellOrder := proto.NewUnsignedOrderV1(
 		pk,
@@ -1066,7 +1066,7 @@ func (a *OrderTestSuite) Test_senderPublicKey() {
 }
 
 func (a *OrderTestSuite) Test_bodyBytes() {
-	_, pub := crypto.GenerateKeyPair([]byte("test"))
+	_, pub, _ := crypto.GenerateKeyPair([]byte("test"))
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	proofs, _ := a.tx.GetProofs()
 	sig, _ := crypto.NewSignatureFromBytes(proofs.Proofs[0])
@@ -1147,7 +1147,7 @@ func (a *SetAssetScriptV1TestSuite) Test_senderPublicKey() {
 }
 
 func (a *SetAssetScriptV1TestSuite) Test_bodyBytes() {
-	_, pub := crypto.GenerateKeyPair([]byte("test"))
+	_, pub, _ := crypto.GenerateKeyPair([]byte("test"))
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.IsType(&BytesExpr{}, rs["bodyBytes"])
 	sig, _ := crypto.NewSignatureFromBytes(a.tx.Proofs.Proofs[0])
@@ -1250,7 +1250,7 @@ func (a *InvokeScriptV1TestSuite) Test_senderPublicKey() {
 }
 
 func (a *InvokeScriptV1TestSuite) Test_bodyBytes() {
-	_, pub := crypto.GenerateKeyPair([]byte("test"))
+	_, pub, _ := crypto.GenerateKeyPair([]byte("test"))
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.IsType(&BytesExpr{}, rs["bodyBytes"])
 	sig, _ := crypto.NewSignatureFromBytes(a.tx.Proofs.Proofs[0])
@@ -1347,7 +1347,7 @@ func (a *IssueV1TestSuite) Test_senderPublicKey() {
 }
 
 func (a *IssueV1TestSuite) Test_bodyBytes() {
-	_, pub := crypto.GenerateKeyPair([]byte("test"))
+	_, pub, _ := crypto.GenerateKeyPair([]byte("test"))
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.IsType(&BytesExpr{}, rs["bodyBytes"])
 	a.True(crypto.Verify(pub, *a.tx.Signature, rs["bodyBytes"].(*BytesExpr).Value))
@@ -1442,7 +1442,7 @@ func (a *IssueV2TestSuite) Test_senderPublicKey() {
 }
 
 func (a *IssueV2TestSuite) Test_bodyBytes() {
-	_, pub := crypto.GenerateKeyPair([]byte("test"))
+	_, pub, _ := crypto.GenerateKeyPair([]byte("test"))
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.IsType(&BytesExpr{}, rs["bodyBytes"])
 	sig, _ := crypto.NewSignatureFromBytes(a.tx.Proofs.Proofs[0])
@@ -1519,7 +1519,7 @@ func (a *LeaseV1TestSuite) Test_senderPublicKey() {
 }
 
 func (a *LeaseV1TestSuite) Test_bodyBytes() {
-	_, pub := crypto.GenerateKeyPair([]byte("test"))
+	_, pub, _ := crypto.GenerateKeyPair([]byte("test"))
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.IsType(&BytesExpr{}, rs["bodyBytes"])
 	a.True(crypto.Verify(pub, *a.tx.Signature, rs["bodyBytes"].(*BytesExpr).Value))
@@ -1595,7 +1595,7 @@ func (a *LeaseV2TestSuite) Test_senderPublicKey() {
 }
 
 func (a *LeaseV2TestSuite) Test_bodyBytes() {
-	_, pub := crypto.GenerateKeyPair([]byte("test"))
+	_, pub, _ := crypto.GenerateKeyPair([]byte("test"))
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.IsType(&BytesExpr{}, rs["bodyBytes"])
 	sig, _ := crypto.NewSignatureFromBytes(a.tx.Proofs.Proofs[0])
@@ -1630,7 +1630,7 @@ func (a *LeaseCancelV1TestSuite) SetupTest() {
 
 func (a *LeaseCancelV1TestSuite) Test_leaseId() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	a.Equal(NewBytes(digest.Bytes()), rs["leaseId"])
+	a.Equal(NewBytes(_digest.Bytes()), rs["leaseId"])
 }
 
 func (a *LeaseCancelV1TestSuite) Test_id() {
@@ -1667,7 +1667,7 @@ func (a *LeaseCancelV1TestSuite) Test_senderPublicKey() {
 }
 
 func (a *LeaseCancelV1TestSuite) Test_bodyBytes() {
-	_, pub := crypto.GenerateKeyPair([]byte("test"))
+	_, pub, _ := crypto.GenerateKeyPair([]byte("test"))
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.IsType(&BytesExpr{}, rs["bodyBytes"])
 	a.True(crypto.Verify(pub, *a.tx.Signature, rs["bodyBytes"].(*BytesExpr).Value))
@@ -1738,7 +1738,7 @@ func (a *LeaseCancelV2TestSuite) Test_senderPublicKey() {
 }
 
 func (a *LeaseCancelV2TestSuite) Test_bodyBytes() {
-	_, pub := crypto.GenerateKeyPair([]byte("test"))
+	_, pub, _ := crypto.GenerateKeyPair([]byte("test"))
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.IsType(&BytesExpr{}, rs["bodyBytes"])
 	sig, _ := crypto.NewSignatureFromBytes(a.tx.Proofs.Proofs[0])
@@ -1810,7 +1810,7 @@ func (a *DataV1TestSuite) Test_senderPublicKey() {
 }
 
 func (a *DataV1TestSuite) Test_bodyBytes() {
-	_, pub := crypto.GenerateKeyPair([]byte("test"))
+	_, pub, _ := crypto.GenerateKeyPair([]byte("test"))
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.IsType(&BytesExpr{}, rs["bodyBytes"])
 	sig, _ := crypto.NewSignatureFromBytes(a.tx.Proofs.Proofs[0])
@@ -1845,7 +1845,7 @@ func (a *SponsorshipV1TestSuite) SetupTest() {
 
 func (a *SponsorshipV1TestSuite) Test_assetId() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	a.Equal(NewBytes(digest.Bytes()), rs["assetId"])
+	a.Equal(NewBytes(_digest.Bytes()), rs["assetId"])
 }
 
 func (a *SponsorshipV1TestSuite) Test_minSponsoredAssetFee_presence() {
@@ -1893,7 +1893,7 @@ func (a *SponsorshipV1TestSuite) Test_senderPublicKey() {
 }
 
 func (a *SponsorshipV1TestSuite) Test_bodyBytes() {
-	_, pub := crypto.GenerateKeyPair([]byte("test"))
+	_, pub, _ := crypto.GenerateKeyPair([]byte("test"))
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.IsType(&BytesExpr{}, rs["bodyBytes"])
 	sig, _ := crypto.NewSignatureFromBytes(a.tx.Proofs.Proofs[0])
@@ -1965,7 +1965,7 @@ func (a *CreateAliasV1TestSuite) Test_senderPublicKey() {
 }
 
 func (a *CreateAliasV1TestSuite) Test_bodyBytes() {
-	_, pub := crypto.GenerateKeyPair([]byte("test"))
+	_, pub, _ := crypto.GenerateKeyPair([]byte("test"))
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.IsType(&BytesExpr{}, rs["bodyBytes"])
 	a.True(crypto.Verify(pub, *a.tx.Signature, rs["bodyBytes"].(*BytesExpr).Value))
@@ -2036,7 +2036,7 @@ func (a *CreateAliasV2TestSuite) Test_senderPublicKey() {
 }
 
 func (a *CreateAliasV2TestSuite) Test_bodyBytes() {
-	_, pub := crypto.GenerateKeyPair([]byte("test"))
+	_, pub, _ := crypto.GenerateKeyPair([]byte("test"))
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.IsType(&BytesExpr{}, rs["bodyBytes"])
 	sig, _ := crypto.NewSignatureFromBytes(a.tx.Proofs.Proofs[0])
