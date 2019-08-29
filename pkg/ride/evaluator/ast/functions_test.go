@@ -1006,3 +1006,62 @@ func TestUserParseIntValue(t *testing.T) {
 		assert.Equal(t, test.result, r)
 	}
 }
+
+func TestNativeLastIndexOfSubstring(t *testing.T) {
+	for _, test := range []struct {
+		expressions Exprs
+		error       bool
+		result      Expr
+	}{
+		{NewExprs(NewString("cafe bebe dead beef cafe bebe"), NewString("bebe")), false, NewLong(25)},
+		{NewExprs(NewString("quick brown fox jumps over the lazy dog"), NewString("cafe")), false, NewUnit()},
+		{NewExprs(), true, NewUnit()},
+		{NewExprs(NewString("blah-blah-blah")), true, NewUnit()},
+		{NewExprs(NewString("blah-blah-blah"), NewLong(1)), true, NewUnit()},
+	} {
+		r, err := NativeLastIndexOfSubstring(newEmptyScope(), test.expressions)
+		if test.error {
+			assert.Error(t, err)
+			continue
+		}
+		require.NoError(t, err)
+		assert.Equal(t, test.result, r)
+	}
+}
+
+func TestNativeLastIndexOfSubstringWithOffset(t *testing.T) {
+	for _, test := range []struct {
+		expressions Exprs
+		error       bool
+		result      Expr
+	}{
+		{NewExprs(NewString("cafe bebe dead beef cafe bebe"), NewString("bebe"), NewLong(30)), false, NewLong(25)},
+		{NewExprs(NewString("cafe bebe dead beef cafe bebe"), NewString("bebe"), NewLong(25)), false, NewLong(25)},
+		{NewExprs(NewString("cafe bebe dead beef cafe bebe"), NewString("bebe"), NewLong(10)), false, NewLong(5)},
+		{NewExprs(NewString("cafe bebe dead beef cafe bebe"), NewString("bebe"), NewLong(5)), false, NewLong(5)},
+		{NewExprs(NewString("cafe bebe dead beef cafe bebe"), NewString("bebe"), NewLong(4)), false, NewUnit()},
+		{NewExprs(NewString("cafe bebe dead beef cafe bebe"), NewString("bebe"), NewLong(0)), false, NewUnit()},
+		{NewExprs(NewString("cafe bebe dead beef cafe bebe"), NewString("bebe"), NewLong(-2)), false, NewUnit()},
+		{NewExprs(NewString("aaa"), NewString("a"), NewLong(0)), false, NewLong(0)},
+		{NewExprs(NewString("aaa"), NewString("b"), NewLong(0)), false, NewUnit()},
+		{NewExprs(NewString("cafe bebe dead beef cafe bebe"), NewString("dead"), NewLong(11)), false, NewLong(10)},
+		{NewExprs(NewString("cafe bebe dead beef cafe bebe"), NewString("dead"), NewLong(10)), false, NewLong(10)},
+		{NewExprs(NewString("cafe bebe dead beef cafe bebe"), NewString("dead"), NewLong(9)), false, NewUnit()},
+		{NewExprs(NewString("quick brown fox jumps over the lazy dog"), NewString("brown"), NewLong(12)), false, NewLong(6)},
+		{NewExprs(NewString("quick brown fox jumps over the lazy dog"), NewString("fox"), NewLong(14)), false, NewLong(12)},
+		{NewExprs(NewString("quick brown fox jumps over the lazy dog"), NewString("fox"), NewLong(13)), false, NewLong(12)},
+		{NewExprs(), true, NewUnit()},
+		{NewExprs(NewString("blah-blah-blah")), true, NewUnit()},
+		{NewExprs(NewString("blah-blah-blah"), NewLong(1)), true, NewUnit()},
+		{NewExprs(NewString("blah-blah-blah"), NewLong(1), NewString("xxx")), true, NewUnit()},
+		{NewExprs(NewString("blah-blah-blah"), NewString("xxx"), NewString("0")), true, NewUnit()},
+	} {
+		r, err := NativeLastIndexOfSubstringWithOffset(newEmptyScope(), test.expressions)
+		if test.error {
+			assert.Error(t, err)
+			continue
+		}
+		require.NoError(t, err)
+		assert.Equal(t, test.result, r)
+	}
+}

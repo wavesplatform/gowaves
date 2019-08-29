@@ -1987,6 +1987,74 @@ func UserParseIntValue(s Scope, e Exprs) (Expr, error) {
 	return NewLong(i), nil
 }
 
+func NativeLastIndexOfSubstring(s Scope, e Exprs) (Expr, error) {
+	funcName := "NativeLastIndexOfSubstring"
+	if l := len(e); l != 2 {
+		return nil, errors.Errorf("%s: invalid number of parameters, expected 2, received %d", funcName, l)
+	}
+
+	rs, err := e.EvaluateAll(s.Clone())
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+
+	str, ok := rs[0].(*StringExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: first argument expected to be *StringExpr, found %T", funcName, rs[0])
+	}
+
+	sub, ok := rs[1].(*StringExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: second argument expected to be *StringExpr, found %T", funcName, rs[1])
+	}
+
+	i := strings.LastIndex(str.Value, sub.Value)
+	if i == -1 {
+		return NewUnit(), nil
+	}
+	return NewLong(int64(i)), nil
+}
+
+func NativeLastIndexOfSubstringWithOffset(s Scope, e Exprs) (Expr, error) {
+	funcName := "NativeLastIndexOfSubstringWithOffset"
+	if l := len(e); l != 3 {
+		return nil, errors.Errorf("%s: invalid number of parameters, expected 3, received %d", funcName, l)
+	}
+
+	rs, err := e.EvaluateAll(s.Clone())
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+
+	str, ok := rs[0].(*StringExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: first argument expected to be *StringExpr, found %T", funcName, rs[0])
+	}
+
+	sub, ok := rs[1].(*StringExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: second argument expected to be *StringExpr, found %T", funcName, rs[1])
+	}
+
+	off, ok := rs[2].(*LongExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: third argument expected to be *LongExpr, found %T", funcName, rs[2])
+	}
+
+	offset := int(off.Value)
+	if offset < 0 {
+		return NewUnit(), nil
+	}
+	i := strings.LastIndex(str.Value, sub.Value)
+	for i > offset {
+		i = strings.LastIndex(str.Value[:i], sub.Value)
+	}
+	if i == -1 {
+		return NewUnit(), nil
+	}
+	return NewLong(int64(i)), nil
+}
+
 func prefix(w io.Writer, name string, e Exprs) {
 	_, _ = fmt.Fprintf(w, "%s(", name)
 	last := len(e) - 1
