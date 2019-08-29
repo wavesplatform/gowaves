@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"io"
 	"math/big"
+	"strconv"
 	"strings"
 	"unicode/utf8"
 
@@ -1864,7 +1865,7 @@ func NativeIndexOfSubstring(s Scope, e Exprs) (Expr, error) {
 
 	str, ok := rs[0].(*StringExpr)
 	if !ok {
-		return nil, errors.Wrapf(err, "%s: first argument expected to be *StringExpr, found %T", funcName, rs[0])
+		return nil, errors.Errorf("%s: first argument expected to be *StringExpr, found %T", funcName, rs[0])
 	}
 
 	sub, ok := rs[1].(*StringExpr)
@@ -1892,7 +1893,7 @@ func NativeIndexOfSubstringWithOffset(s Scope, e Exprs) (Expr, error) {
 
 	str, ok := rs[0].(*StringExpr)
 	if !ok {
-		return nil, errors.Wrapf(err, "%s: first argument expected to be *StringExpr, found %T", funcName, rs[0])
+		return nil, errors.Errorf("%s: first argument expected to be *StringExpr, found %T", funcName, rs[0])
 	}
 
 	sub, ok := rs[1].(*StringExpr)
@@ -1939,6 +1940,50 @@ func NativeSplitString(s Scope, e Exprs) (Expr, error) {
 		r = append(r, NewString(p))
 	}
 	return r, nil
+}
+
+func NativeParseInt(s Scope, e Exprs) (Expr, error) {
+	funcName := "NativeParseInt"
+	if l := len(e); l != 1 {
+		return nil, errors.Errorf("%s: invalid number of parameters, expected 1, received %d", funcName, l)
+	}
+
+	rs, err := e.EvaluateAll(s.Clone())
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+
+	str, ok := rs[0].(*StringExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: first argument expected to be *StringExpr, found %T", funcName, rs[0])
+	}
+	i, err := strconv.ParseInt(str.Value, 10, 64)
+	if err != nil {
+		return NewUnit(), nil
+	}
+	return NewLong(i), nil
+}
+
+func UserParseIntValue(s Scope, e Exprs) (Expr, error) {
+	funcName := "UserParseIntValue"
+	if l := len(e); l != 1 {
+		return nil, errors.Errorf("%s: invalid number of parameters, expected 1, received %d", funcName, l)
+	}
+
+	rs, err := e.EvaluateAll(s.Clone())
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+
+	str, ok := rs[0].(*StringExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: first argument expected to be *StringExpr, found %T", funcName, rs[0])
+	}
+	i, err := strconv.ParseInt(str.Value, 10, 64)
+	if err != nil {
+		return nil, errors.Wrapf(err, funcName)
+	}
+	return NewLong(i), nil
 }
 
 func prefix(w io.Writer, name string, e Exprs) {
