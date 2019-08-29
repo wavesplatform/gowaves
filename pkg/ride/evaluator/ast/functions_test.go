@@ -928,3 +928,26 @@ func TestNativeIndexOfSubstringWithOffset(t *testing.T) {
 		assert.Equal(t, test.result, r)
 	}
 }
+
+func TestNativeSplitString(t *testing.T) {
+	for _, test := range []struct {
+		expressions Exprs
+		error       bool
+		result      Expr
+	}{
+		{NewExprs(NewString("abcdefg"), NewString("")), false, NewExprs(NewString("a"), NewString("b"), NewString("c"), NewString("d"), NewString("e"), NewString("f"), NewString("g"))},
+		{NewExprs(NewString("one two three four"), NewString(" ")), false, NewExprs(NewString("one"), NewString("two"), NewString("three"), NewString("four"))},
+		{NewExprs(), true, NewExprs()},
+		{NewExprs(NewString("blah-blah-blah")), true, NewExprs()},
+		{NewExprs(NewLong(0), NewString("one two three four")), true, NewExprs()},
+		{NewExprs(NewString("one two three four"), NewLong(0)), true, NewExprs()},
+	} {
+		r, err := NativeSplitString(newEmptyScope(), test.expressions)
+		if test.error {
+			assert.Error(t, err)
+			continue
+		}
+		require.NoError(t, err)
+		assert.Equal(t, test.result, r)
+	}
+}
