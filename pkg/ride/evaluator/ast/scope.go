@@ -210,8 +210,8 @@ func FunctionsV3() *Functions {
 	s.native[1204] = NativeIndexOfSubstringWithOffset
 	s.native[1205] = NativeSplitString
 	s.native[1206] = NativeParseInt
-	//TODO: native[1207] = NativeLastIndexOfSubstring // RIDE v3
-	//TODO: native[1208] = NativeLastIndexOfSubstringWithOffset // RIDE v3
+	s.native[1207] = NativeLastIndexOfSubstring
+	s.native[1208] = NativeLastIndexOfSubstringWithOffset
 
 	// Constructors for simple types
 	s.user["Ceiling"] = SimpleTypeConstructorFactory("Ceiling", CeilingExpr{})
