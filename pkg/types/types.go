@@ -43,7 +43,7 @@ type TransactionWithBytes struct {
 
 // state for smart contracts
 type SmartState interface {
-	NewLastHeight() (uint64, error)
+	NewestHeight() (uint64, error)
 	TransactionByID([]byte) (proto.Transaction, error)
 	TransactionHeightByID([]byte) (uint64, error)
 	Account(proto.Recipient) Account

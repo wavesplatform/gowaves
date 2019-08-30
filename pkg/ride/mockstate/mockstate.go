@@ -35,7 +35,7 @@ func (a MockStateImpl) Account(r proto.Recipient) types.Account {
 	return a.Accounts[r.String()]
 }
 
-func (a MockStateImpl) NewLastHeight() (uint64, error) {
+func (a MockStateImpl) NewestHeight() (uint64, error) {
 	return 0, nil
 }
 

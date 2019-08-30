@@ -31,7 +31,7 @@ func Verify(scheme byte, state types.SmartState, script *ast.Script, transaction
 		return false, err
 	}
 
-	height, err := state.NewLastHeight()
+	height, err := state.NewestHeight()
 	if err != nil {
 		return false, err
 	}
