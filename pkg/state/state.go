@@ -1343,6 +1343,22 @@ func (s *stateManager) ValidateNextTx(tx proto.Transaction, currentTimestamp, pa
 	return nil
 }
 
+func (s *stateManager) NewestAddrByAlias(alias proto.Alias) (proto.Address, error) {
+	addr, err := s.stor.aliases.newestAddrByAlias(alias.Alias, true)
+	if err != nil {
+		return proto.Address{}, wrapErr(RetrievalError, err)
+	}
+	return *addr, nil
+}
+
+func (s *stateManager) AddrByAlias(alias proto.Alias) (proto.Address, error) {
+	addr, err := s.stor.aliases.addrByAlias(alias.Alias, true)
+	if err != nil {
+		return proto.Address{}, wrapErr(RetrievalError, err)
+	}
+	return *addr, nil
+}
+
 func (s *stateManager) IsActivated(featureID int16) (bool, error) {
 	activated, err := s.stor.features.isActivated(featureID)
 	if err != nil {

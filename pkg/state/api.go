@@ -23,6 +23,9 @@ type StateNewest interface {
 
 	NewestAccountBalance(account proto.Recipient, asset []byte) (uint64, error)
 
+	// Aliases.
+	NewestAddrByAlias(alias proto.Alias) (proto.Address, error)
+
 	// Accounts data storage.
 	RetrieveNewestEntry(account proto.Recipient, key string) (proto.DataEntry, error)
 	RetrieveNewestIntegerEntry(account proto.Recipient, key string) (*proto.IntegerDataEntry, error)
@@ -71,6 +74,9 @@ type StateStable interface {
 	ActivationHeight(featureID int16) (proto.Height, error)
 	IsApproved(featureID int16) (bool, error)
 	ApprovalHeight(featureID int16) (proto.Height, error)
+
+	// Aliases.
+	AddrByAlias(alias proto.Alias) (proto.Address, error)
 
 	// Accounts data storage.
 	RetrieveEntry(account proto.Recipient, key string) (proto.DataEntry, error)

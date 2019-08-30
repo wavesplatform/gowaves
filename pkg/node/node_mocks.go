@@ -224,6 +224,14 @@ func (a *MockStateManager) BlockchainSettings() (*settings.BlockchainSettings, e
 	panic("implement me")
 }
 
+func (a *MockStateManager) NewestAddrByAlias(alias proto.Alias) (proto.Address, error) {
+	panic("implement me")
+}
+
+func (a *MockStateManager) AddrByAlias(alias proto.Alias) (proto.Address, error) {
+	panic("implement me")
+}
+
 func (a *MockStateManager) NewestAccountBalance(account proto.Recipient, asset []byte) (uint64, error) {
 	panic("implement me")
 }
