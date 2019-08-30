@@ -826,6 +826,10 @@ func (a object) InstanceOf() string {
 
 type BuyExpr struct{}
 
+func NewBuy() *BuyExpr {
+	return &BuyExpr{}
+}
+
 func (a BuyExpr) Evaluate(s Scope) (Expr, error) {
 	return a, nil
 }
@@ -843,6 +847,10 @@ func (a BuyExpr) InstanceOf() string {
 }
 
 type SellExpr struct{}
+
+func NewSell() *SellExpr {
+	return &SellExpr{}
+}
 
 func (a SellExpr) Evaluate(s Scope) (Expr, error) {
 	return a, nil

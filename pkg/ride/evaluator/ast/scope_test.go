@@ -6,13 +6,14 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride/mockstate"
+	"github.com/wavesplatform/gowaves/pkg/types"
 )
 
 func newEmptyScope() Scope {
 	return NewScope(proto.MainNetScheme, mockstate.MockStateImpl{}, EmptyFunctions(), nil)
 }
 
-func newScopeWithState(s mockstate.MockState) Scope {
+func newScopeWithState(s types.SmartState) Scope {
 	return NewScope(proto.MainNetScheme, s, EmptyFunctions(), nil)
 }
 

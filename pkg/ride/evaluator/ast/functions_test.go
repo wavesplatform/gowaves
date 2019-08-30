@@ -14,6 +14,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride/mockstate"
+	"github.com/wavesplatform/gowaves/pkg/types"
 )
 
 func TestNativeSumLong(t *testing.T) {
@@ -419,7 +420,7 @@ func TestNativeAssetBalance_FromAddress(t *testing.T) {
 	}
 
 	s := mockstate.MockStateImpl{
-		Accounts: map[string]mockstate.Account{"3N2YHKSnQTUmka4pocTt71HwSSAiUWBcojK": &am},
+		Accounts: map[string]types.Account{"3N2YHKSnQTUmka4pocTt71HwSSAiUWBcojK": &am},
 	}
 
 	addr, err := proto.NewAddressFromString("3N2YHKSnQTUmka4pocTt71HwSSAiUWBcojK")
@@ -439,7 +440,7 @@ func TestNativeAssetBalance_FromAlias(t *testing.T) {
 	}
 
 	s := mockstate.MockStateImpl{
-		Accounts: map[string]mockstate.Account{"alias:W:test": &am},
+		Accounts: map[string]types.Account{"alias:W:test": &am},
 	}
 
 	scope := newScopeWithState(s)
@@ -524,7 +525,7 @@ func TestNativeDataFromState(t *testing.T) {
 	}
 
 	s := mockstate.MockStateImpl{
-		Accounts: map[string]mockstate.Account{saddr: &am},
+		Accounts: map[string]types.Account{saddr: &am},
 	}
 
 	rs1, err := NativeDataLongFromState(newScopeWithState(s), Params(addr, NewString("integer")))
@@ -641,7 +642,7 @@ func TestNativeAddressFromRecipient(t *testing.T) {
 	}
 
 	s := mockstate.MockStateImpl{
-		Accounts: map[string]mockstate.Account{r.String(): &acc},
+		Accounts: map[string]types.Account{r.String(): &acc},
 	}
 
 	rs, err := NativeAddressFromRecipient(newScopeWithState(s), Params(NewRecipientFromProtoRecipient(proto.NewRecipientFromAddress(addr))))

@@ -40,3 +40,18 @@ type TransactionWithBytes struct {
 	T proto.Transaction
 	B []byte
 }
+
+// state for smart contracts
+type SmartState interface {
+	NewLastHeight() (uint64, error)
+	TransactionByID([]byte) (proto.Transaction, error)
+	TransactionHeightByID([]byte) (uint64, error)
+	Account(proto.Recipient) Account
+}
+
+// Some abstract way to get account related info
+type Account interface {
+	Data() []proto.DataEntry
+	AssetBalance(*proto.OptionalAsset) uint64
+	Address() proto.Address
+}

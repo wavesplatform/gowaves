@@ -4,26 +4,15 @@ import (
 	"github.com/mr-tron/base58/base58"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/types"
 )
 
 var ErrNotFound = errors.New("Not found")
 
-type Account interface {
-	Data() []proto.DataEntry
-	AssetBalance(*proto.OptionalAsset) uint64
-	Address() proto.Address
-}
-
-type MockState interface {
-	TransactionByID([]byte) (proto.Transaction, error)
-	TransactionHeightByID([]byte) (uint64, error)
-	Account(proto.Recipient) Account
-}
-
 type MockStateImpl struct {
 	TransactionsByID       map[string]proto.Transaction
 	TransactionsHeightByID map[string]uint64
-	Accounts               map[string]Account // recipient to account
+	Accounts               map[string]types.Account // recipient to account
 }
 
 func (a MockStateImpl) TransactionByID(b []byte) (proto.Transaction, error) {
@@ -42,8 +31,12 @@ func (a MockStateImpl) TransactionHeightByID(b []byte) (uint64, error) {
 	return h, nil
 }
 
-func (a MockStateImpl) Account(r proto.Recipient) Account {
+func (a MockStateImpl) Account(r proto.Recipient) types.Account {
 	return a.Accounts[r.String()]
+}
+
+func (a MockStateImpl) NewLastHeight() (uint64, error) {
+	return 0, nil
 }
 
 type MockAccount struct {

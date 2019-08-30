@@ -8,6 +8,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride/mockstate"
+	"github.com/wavesplatform/gowaves/pkg/types"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -29,15 +30,12 @@ func newTransferTransaction() *proto.TransferV2 {
 }
 
 func defaultScope() Scope {
-	variables := VariablesV3()
-
 	t := newTransferTransaction()
 	vars, err := NewVariablesFromTransaction(proto.MainNetScheme, t)
 	if err != nil {
 		panic(err)
 	}
-	variables["tx"] = NewObject(vars)
-	variables["height"] = NewLong(5)
+	variables := VariablesV3(vars, 5)
 
 	addr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, t.SenderPK)
 	if err != nil {
@@ -49,9 +47,7 @@ func defaultScope() Scope {
 	}
 
 	s := mockstate.MockStateImpl{
-		//TransactionsHeightByID: map[string]uint64{},
-		//AssetsByID: map[string]uint64{addr.String() + "BXBUNddxTGTQc3G4qHYn5E67SBwMj18zLncUr871iuRD": 5},
-		Accounts: map[string]mockstate.Account{addr.String(): &am},
+		Accounts: map[string]types.Account{addr.String(): &am},
 	}
 
 	return NewScope(proto.MainNetScheme, s, FunctionsV3(), variables)
@@ -289,8 +285,7 @@ func TestDataFunctions(t *testing.T) {
 	vars, err := NewVariablesFromTransaction(proto.MainNetScheme, data)
 	require.NoError(t, err)
 
-	variables := VariablesV3()
-	variables["tx"] = NewObject(vars)
+	variables := VariablesV3(vars, 100500)
 
 	scope := NewScope(proto.MainNetScheme, mockstate.MockStateImpl{}, FunctionsV3(), variables)
 
