@@ -1944,7 +1944,7 @@ func NativeSplitString(s Scope, e Exprs) (Expr, error) {
 }
 
 func NativeParseInt(s Scope, e Exprs) (Expr, error) {
-	funcName := "NativeParseInt"
+	const funcName = "NativeParseInt"
 	if l := len(e); l != 1 {
 		return nil, errors.Errorf("%s: invalid number of parameters, expected 1, received %d", funcName, l)
 	}
@@ -1966,7 +1966,7 @@ func NativeParseInt(s Scope, e Exprs) (Expr, error) {
 }
 
 func UserParseIntValue(s Scope, e Exprs) (Expr, error) {
-	funcName := "UserParseIntValue"
+	const funcName = "UserParseIntValue"
 	if l := len(e); l != 1 {
 		return nil, errors.Errorf("%s: invalid number of parameters, expected 1, received %d", funcName, l)
 	}
@@ -2053,6 +2053,40 @@ func NativeLastIndexOfSubstringWithOffset(s Scope, e Exprs) (Expr, error) {
 		return NewUnit(), nil
 	}
 	return NewLong(int64(i)), nil
+}
+
+func UserValue(s Scope, e Exprs) (Expr, error) {
+	const funcName = "UserValue"
+	if l := len(e); l != 1 {
+		return nil, errors.Errorf("%s: invalid number of parameters, expected 1, received %d", funcName, l)
+	}
+	rs, err := e.EvaluateAll(s.Clone())
+	if err != nil {
+		return nil, errors.Wrapf(err, funcName)
+	}
+	if _, ok := rs[0].(Unit); ok {
+		return nil, Throw{Message: DefaultThrowMessage}
+	}
+	return rs[0], nil
+}
+
+func UserValueOrErrorMessage(s Scope, e Exprs) (Expr, error) {
+	const funcName = "UserValueOrErrorMessage"
+	if l := len(e); l != 2 {
+		return nil, errors.Errorf("%s: invalid number of parameters, expected 2, received %d", funcName, l)
+	}
+	rs, err := e.EvaluateAll(s.Clone())
+	if err != nil {
+		return nil, errors.Wrapf(err, funcName)
+	}
+	msg, ok := rs[1].(*StringExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: second argument expected to be *StringExpr, found %T", funcName, rs[1])
+	}
+	if _, ok := rs[0].(Unit); ok {
+		return nil, Throw{Message: msg.Value}
+	}
+	return rs[0], nil
 }
 
 func prefix(w io.Writer, name string, e Exprs) {

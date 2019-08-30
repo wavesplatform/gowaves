@@ -1065,3 +1065,49 @@ func TestNativeLastIndexOfSubstringWithOffset(t *testing.T) {
 		assert.Equal(t, test.result, r)
 	}
 }
+
+func TestUserValue(t *testing.T) {
+	for _, test := range []struct {
+		expressions Exprs
+		error       bool
+		message     string
+		result      Expr
+	}{
+		{NewExprs(NewString("123345")), false, "", NewString("123345")},
+		{NewExprs(NewLong(1)), false, "", NewLong(1)},
+		{NewExprs(NewUnit()), true, "Explicit script termination", NewUnit()},
+		{NewExprs(), true, "UserValue: invalid number of parameters, expected 1, received 0", NewUnit()},
+		{NewExprs(NewString("blah-blah-blah"), NewLong(1)), true, "UserValue: invalid number of parameters, expected 1, received 2", NewUnit()},
+	} {
+		r, err := UserValue(newEmptyScope(), test.expressions)
+		if test.error {
+			assert.EqualError(t, err, test.message)
+			continue
+		}
+		require.NoError(t, err)
+		assert.Equal(t, test.result, r)
+	}
+}
+
+func TestUserValueOrErrorMessage(t *testing.T) {
+	for _, test := range []struct {
+		expressions Exprs
+		error       bool
+		message     string
+		result      Expr
+	}{
+		{NewExprs(NewString("123345"), NewString("ALARM!!!")), false, "", NewString("123345")},
+		{NewExprs(NewLong(1), NewString("ALARM!!!")), false, "", NewLong(1)},
+		{NewExprs(NewUnit(), NewString("ALARM!!!")), true, "ALARM!!!", NewUnit()},
+		{NewExprs(), true, "UserValueOrErrorMessage: invalid number of parameters, expected 2, received 0", NewUnit()},
+		{NewExprs(NewString("blah-blah-blah"), NewString("ALARM!!!"), NewLong(1)), true, "UserValueOrErrorMessage: invalid number of parameters, expected 2, received 3", NewUnit()},
+	} {
+		r, err := UserValueOrErrorMessage(newEmptyScope(), test.expressions)
+		if test.error {
+			assert.EqualError(t, err, test.message)
+			continue
+		}
+		require.NoError(t, err)
+		assert.Equal(t, test.result, r)
+	}
+}
