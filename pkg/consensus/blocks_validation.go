@@ -37,7 +37,7 @@ func isInvalidMainNetBlock(blockID crypto.Signature, height uint64) bool {
 type stateInfoProvider interface {
 	BlockchainSettings() (*settings.BlockchainSettings, error)
 	HeaderByHeight(height uint64) (*proto.BlockHeader, error)
-	EffectiveBalance(addr proto.Address, startHeight, endHeight uint64) (uint64, error)
+	EffectiveBalance(addr proto.Recipient, startHeight, endHeight uint64) (uint64, error)
 	IsActivated(featureID int16) (bool, error)
 }
 
@@ -147,7 +147,7 @@ func (cv *ConsensusValidator) generatingBalance(height uint64, addr proto.Addres
 	if height < depth {
 		bottomLimit = 1
 	}
-	balance, err := cv.state.EffectiveBalance(addr, bottomLimit, height)
+	balance, err := cv.state.EffectiveBalance(proto.NewRecipientFromAddress(addr), bottomLimit, height)
 	if err != nil {
 		return 0, err
 	}

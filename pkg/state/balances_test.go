@@ -255,8 +255,15 @@ func TestBalances(t *testing.T) {
 		if err := to.balances.setWavesBalance(addr, &tc.profile, tc.blockID); err != nil {
 			t.Fatalf("Faied to set waves balance:%v\n", err)
 		}
+		profile, err := to.balances.newestWavesBalance(addr, true)
+		if err != nil {
+			t.Fatalf("Failed to retrieve waves balance: %v\n", err)
+		}
+		if *profile != tc.profile {
+			t.Errorf("Waves balance profiles are not equal: %v and %v\n", profile, tc.profile)
+		}
 		to.stor.flush(t)
-		profile, err := to.balances.wavesBalance(addr, true)
+		profile, err = to.balances.wavesBalance(addr, true)
 		if err != nil {
 			t.Fatalf("Failed to retrieve waves balance: %v\n", err)
 		}
@@ -281,8 +288,15 @@ func TestBalances(t *testing.T) {
 		if err := to.balances.setAssetBalance(addr, tc.assetID, tc.balance, tc.blockID); err != nil {
 			t.Fatalf("Faied to set asset balance: %v\n", err)
 		}
+		balance, err := to.balances.newestAssetBalance(addr, tc.assetID, true)
+		if err != nil {
+			t.Fatalf("Failed to retrieve asset balance: %v\n", err)
+		}
+		if balance != tc.balance {
+			t.Errorf("Asset balances are not equal: %d and %d\n", balance, tc.balance)
+		}
 		to.stor.flush(t)
-		balance, err := to.balances.assetBalance(addr, tc.assetID, true)
+		balance, err = to.balances.assetBalance(addr, tc.assetID, true)
 		if err != nil {
 			t.Fatalf("Failed to retrieve asset balance: %v\n", err)
 		}

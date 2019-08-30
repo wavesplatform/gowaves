@@ -46,6 +46,17 @@ type SmartState interface {
 	NewestHeight() (uint64, error)
 	TransactionByID([]byte) (proto.Transaction, error)
 	TransactionHeightByID([]byte) (uint64, error)
+
+	/*
+		NewestAccountBalance(account proto.Recipient, asset []byte) (uint64, error)
+
+		RetrieveNewestEntry(account proto.Recipient, key string) (proto.DataEntry, error)
+		RetrieveNewestIntegerEntry(account proto.Recipient, key string) (*proto.IntegerDataEntry, error)
+		RetrieveNewestBooleanEntry(account proto.Recipient, key string) (*proto.BooleanDataEntry, error)
+		RetrieveNewestStringEntry(account proto.Recipient, key string) (*proto.StringDataEntry, error)
+		RetrieveNewestBinaryEntry(account proto.Recipient, key string) (*proto.BinaryDataEntry, error)
+	*/
+
 	Account(proto.Recipient) Account
 }
 
