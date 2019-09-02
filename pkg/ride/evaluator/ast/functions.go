@@ -21,6 +21,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride/mockstate"
+	"github.com/wavesplatform/gowaves/pkg/state"
 )
 
 const (
@@ -437,9 +438,8 @@ func NativeTransactionByID(s Scope, e Exprs) (Expr, error) {
 	}
 	tx, err := s.State().TransactionByID(bts.Value)
 	if err != nil {
-		// TODO put real state check
-		if err == mockstate.ErrNotFound {
-			return Unit{}, nil
+		if state.IsNotFound(err) {
+			return NewUnit(), nil
 		}
 		return nil, errors.Wrap(err, funcName)
 	}
@@ -448,6 +448,47 @@ func NativeTransactionByID(s Scope, e Exprs) (Expr, error) {
 		return nil, errors.Wrap(err, funcName)
 	}
 	return NewObject(vars), nil
+}
+
+//
+//1006: returns Union[TransferTransaction, Unit]
+func NativeTransferTransactionByID(s Scope, e Exprs) (Expr, error) {
+	const funcName = "NativeTransferTransactionByID"
+	if l := len(e); l != 1 {
+		return nil, errors.Errorf("%s: invalid params, expected 1, passed %d", funcName, l)
+	}
+	rs, err := e[0].Evaluate(s.Clone())
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	bts, ok := rs.(*BytesExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: expected first argument to be *BytesExpr, got %T", funcName, rs)
+	}
+	tx, err := s.State().TransactionByID(bts.Value)
+	if err != nil {
+		if state.IsNotFound(err) {
+			return NewUnit(), nil
+		}
+		return nil, errors.Wrap(err, funcName)
+	}
+
+	switch t := tx.(type) {
+	case *proto.TransferV2:
+		rs, err := newVariablesFromTransferV2(s.Scheme(), t)
+		if err != nil {
+			return nil, errors.Wrap(err, funcName)
+		}
+		return NewObject(rs), nil
+	case *proto.TransferV1:
+		rs, err := newVariablesFromTransferV1(s.Scheme(), t)
+		if err != nil {
+			return nil, errors.Wrap(err, funcName)
+		}
+		return NewObject(rs), nil
+	default:
+		return NewUnit(), nil
+	}
 }
 
 // Size of bytes vector
@@ -1726,73 +1767,6 @@ func UserValueOrErrorMessage(s Scope, e Exprs) (Expr, error) {
 		return nil, Throw{Message: msg.Value}
 	}
 	return rs[0], nil
-}
-
-func dataFromArray(funcName string, s Scope, e Exprs, valueType proto.DataValueType) (Expr, error) {
-	if l := len(e); l != 2 {
-		return nil, errors.Errorf("%s: invalid params, expected 2, passed %d", funcName, l)
-	}
-	lstExpr, err := e[0].Evaluate(s.Clone())
-	if err != nil {
-		return nil, errors.Wrap(err, funcName)
-	}
-	keyExpr, err := e[1].Evaluate(s.Clone())
-	if err != nil {
-		return nil, errors.Wrap(err, funcName)
-	}
-	lst, ok := lstExpr.(*DataEntryListExpr)
-	if !ok {
-		return nil, errors.Errorf("%s expected first argument to be *DataEntryListExpr, found %T", funcName, lstExpr)
-	}
-	key, ok := keyExpr.(*StringExpr)
-	if !ok {
-		return nil, errors.Errorf("%s expected second argument to be *StringExpr, found %T", funcName, keyExpr)
-	}
-	return lst.Get(key.Value, valueType), nil
-}
-
-func dataFromState(funcName string, s Scope, e Exprs, valueType proto.DataValueType) (Expr, error) {
-	if l := len(e); l != 2 {
-		return nil, errors.Errorf("%s: invalid params, expected 2, passed %d", funcName, l)
-	}
-	addOrAliasExpr, err := e[0].Evaluate(s.Clone())
-	if err != nil {
-		return nil, err
-	}
-	if alias, ok := addOrAliasExpr.(AliasExpr); ok {
-		r := proto.NewRecipientFromAlias(proto.Alias(alias))
-		acc := s.State().Account(r)
-		return dataFromArray(funcName, s.Clone(), Params(NewDataEntryList(acc.Data()), e[1]), valueType)
-	}
-	if addr, ok := addOrAliasExpr.(AddressExpr); ok {
-		r := proto.NewRecipientFromAddress(proto.Address(addr))
-		acc := s.State().Account(r)
-		return dataFromArray(funcName, s.Clone(), Params(NewDataEntryList(acc.Data()), e[1]), valueType)
-	}
-	return nil, errors.Errorf("%s expected addOrAliasExpr argument to be AliasExpr or AddressExpr, found %T", funcName, addOrAliasExpr)
-}
-
-func dataFromArrayByIndex(funcName string, s Scope, e Exprs, valueType proto.DataValueType) (Expr, error) {
-	if l := len(e); l != 2 {
-		return nil, errors.Errorf("%s: invalid params, expected 2, passed %d", funcName, l)
-	}
-	lstExpr, err := e[0].Evaluate(s.Clone())
-	if err != nil {
-		return nil, errors.Wrap(err, funcName)
-	}
-	indexExpr, err := e[1].Evaluate(s.Clone())
-	if err != nil {
-		return nil, errors.Wrap(err, funcName)
-	}
-	lst, ok := lstExpr.(*DataEntryListExpr)
-	if !ok {
-		return nil, errors.Errorf("%s expected first argument to be *DataEntryListExpr, found %T", funcName, lstExpr)
-	}
-	key, ok := indexExpr.(*LongExpr)
-	if !ok {
-		return nil, errors.Errorf("%s expected second argument to be *LongExpr, found %T", funcName, indexExpr)
-	}
-	return lst.GetByIndex(int(key.Value), valueType), nil
 }
 
 func digest(e Expr) (Hash, error) {

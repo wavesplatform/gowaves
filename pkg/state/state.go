@@ -35,6 +35,10 @@ func wrapErr(stateErrorType ErrorType, err error) error {
 	}
 }
 
+func NewNotFoundError(err error) error {
+	return wrapErr(NotFoundError, err)
+}
+
 type blockchainEntitiesStorage struct {
 	hs               *historyStorage
 	aliases          *aliases
@@ -522,7 +526,7 @@ func (s *stateManager) Header(blockID crypto.Signature) (*proto.BlockHeader, err
 	headerBytes, err := s.rw.readBlockHeader(blockID)
 	if err != nil {
 		if err == keyvalue.ErrNotFound {
-			return nil, wrapErr(NotFoundError, err)
+			return nil, NewNotFoundError(err)
 		}
 		return nil, wrapErr(RetrievalError, err)
 	}

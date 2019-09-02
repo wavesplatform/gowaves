@@ -14,6 +14,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride/mockstate"
+	"github.com/wavesplatform/gowaves/pkg/util/byte_helpers"
 )
 
 func TestNativeSumLong(t *testing.T) {
@@ -213,6 +214,37 @@ func TestNativeTransactionByID(t *testing.T) {
 	default:
 		t.Fail()
 	}
+}
+
+func TestNativeTransferTransactionByID(t *testing.T) {
+	t.Run("transfer v1", func(t *testing.T) {
+		scope := newScopeWithState(&mockstate.MockStateImpl{
+			TransactionsByID: map[string]proto.Transaction{
+				byte_helpers.TransferV1.Transaction.ID.String(): byte_helpers.TransferV1.Transaction.Clone(),
+			},
+		})
+
+		rs, err := NativeTransferTransactionByID(scope, Params(NewBytes(byte_helpers.TransferV1.Transaction.ID.Bytes())))
+		require.NoError(t, err)
+		require.Equal(t, "TransferTransaction", rs.InstanceOf())
+	})
+	t.Run("transfer v2", func(t *testing.T) {
+		scope := newScopeWithState(&mockstate.MockStateImpl{
+			TransactionsByID: map[string]proto.Transaction{
+				byte_helpers.TransferV2.Transaction.ID.String(): byte_helpers.TransferV2.Transaction.Clone(),
+			},
+		})
+
+		rs, err := NativeTransferTransactionByID(scope, Params(NewBytes(byte_helpers.TransferV2.Transaction.ID.Bytes())))
+		require.NoError(t, err)
+		require.Equal(t, "TransferTransaction", rs.InstanceOf())
+	})
+	t.Run("not found", func(t *testing.T) {
+		scope := newScopeWithState(&mockstate.MockStateImpl{})
+		rs, err := NativeTransferTransactionByID(scope, Params(NewBytes(byte_helpers.TransferV2.Transaction.ID.Bytes())))
+		require.NoError(t, err)
+		require.Equal(t, NewUnit(), rs)
+	})
 }
 
 func TestNativeSizeBytes(t *testing.T) {

@@ -4,6 +4,7 @@ import (
 	"github.com/mr-tron/base58/base58"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/state"
 )
 
 var ErrNotFound = errors.New("Not found")
@@ -30,7 +31,7 @@ func (a MockStateImpl) RetrieveNewestEntry(account proto.Recipient, key string) 
 func (a MockStateImpl) TransactionByID(b []byte) (proto.Transaction, error) {
 	t, ok := a.TransactionsByID[base58.Encode(b)]
 	if !ok {
-		return nil, ErrNotFound
+		return nil, state.NewNotFoundError(errors.New("not found"))
 	}
 	return t, nil
 }
