@@ -5,16 +5,14 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/wavesplatform/gowaves/pkg/crypto"
-	"github.com/wavesplatform/gowaves/pkg/proto"
-	"github.com/wavesplatform/gowaves/pkg/ride/mockstate"
-	"github.com/wavesplatform/gowaves/pkg/types"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/proto"
 	. "github.com/wavesplatform/gowaves/pkg/ride/evaluator/ast"
 	. "github.com/wavesplatform/gowaves/pkg/ride/evaluator/parser"
 	"github.com/wavesplatform/gowaves/pkg/ride/evaluator/reader"
+	"github.com/wavesplatform/gowaves/pkg/ride/mockstate"
 )
 
 const seed = "test test"
@@ -36,18 +34,8 @@ func defaultScope() Scope {
 		panic(err)
 	}
 	variables := VariablesV3(vars, 5)
-
-	addr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, t.SenderPK)
-	if err != nil {
-		panic(err)
-	}
-
-	am := mockstate.MockAccount{
-		Assets: map[string]uint64{"BXBUNddxTGTQc3G4qHYn5E67SBwMj18zLncUr871iuRD": 5},
-	}
-
 	s := mockstate.MockStateImpl{
-		Accounts: map[string]types.Account{addr.String(): &am},
+		AccountsBalance: 5,
 	}
 
 	return NewScope(proto.MainNetScheme, s, FunctionsV3(), variables)

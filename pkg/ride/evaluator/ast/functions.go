@@ -978,7 +978,11 @@ func NativeAssetBalance(s Scope, e Exprs) (Expr, error) {
 	}
 
 	if _, ok := assetId.(Unit); ok {
-		return NewLong(int64(s.State().Account(r).AssetBalance(&proto.OptionalAsset{}))), nil
+		balance, err := s.State().NewestAccountBalance(r, nil)
+		if err != nil {
+			return nil, errors.Wrap(err, funcName)
+		}
+		return NewLong(int64(balance)), nil
 	}
 
 	assetBts, ok := assetId.(*BytesExpr)
@@ -986,12 +990,12 @@ func NativeAssetBalance(s Scope, e Exprs) (Expr, error) {
 		return nil, errors.Errorf("%s expected second argument to be *BytesExpr, found %T", funcName, assetId)
 	}
 
-	asset, err := proto.NewOptionalAssetFromBytes(assetBts.Value)
+	balance, err := s.State().NewestAccountBalance(r, assetBts.Value)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
 
-	return NewLong(int64(s.State().Account(r).AssetBalance(asset))), nil
+	return NewLong(int64(balance)), nil
 }
 
 // Fail script
@@ -1241,9 +1245,9 @@ func dataFromArray(funcName string, s Scope, e Exprs, valueType proto.DataValueT
 		return nil, errors.Wrap(err, funcName)
 	}
 
-	lst, ok := lstExpr.(*DataEntryListExpr)
+	lst, ok := lstExpr.(DataByKey)
 	if !ok {
-		return nil, errors.Errorf("%s expected first argument to be *DataEntryListExpr, found %T", funcName, lstExpr)
+		return nil, errors.Errorf("%s expected first argument implements DataByKey, found %T", funcName, lstExpr)
 	}
 
 	key, ok := keyExpr.(*StringExpr)
@@ -1251,7 +1255,7 @@ func dataFromArray(funcName string, s Scope, e Exprs, valueType proto.DataValueT
 		return nil, errors.Errorf("%s expected second argument to be *StringExpr, found %T", funcName, keyExpr)
 	}
 
-	return lst.Get(key.Value, valueType), nil
+	return lst.GetByKey(key.Value, valueType)
 }
 
 // Get integer from account state
@@ -1286,14 +1290,12 @@ func dataFromState(funcName string, s Scope, e Exprs, valueType proto.DataValueT
 
 	if alias, ok := addOrAliasExpr.(AliasExpr); ok {
 		r := proto.NewRecipientFromAlias(proto.Alias(alias))
-		acc := s.State().Account(r)
-		return dataFromArray(funcName, s.Clone(), Params(NewDataEntryList(acc.Data()), e[1]), valueType)
+		return dataFromArray(funcName, s.Clone(), Params(NewDataEntryStateWrapperExpr(s.State(), r), e[1]), valueType)
 	}
 
 	if addr, ok := addOrAliasExpr.(AddressExpr); ok {
 		r := proto.NewRecipientFromAddress(proto.Address(addr))
-		acc := s.State().Account(r)
-		return dataFromArray(funcName, s.Clone(), Params(NewDataEntryList(acc.Data()), e[1]), valueType)
+		return dataFromArray(funcName, s.Clone(), Params(NewDataEntryStateWrapperExpr(s.State(), r), e[1]), valueType)
 	}
 
 	return nil, errors.Errorf("%s expected addOrAliasExpr argument to be AliasExpr or AddressExpr, found %T", funcName, addOrAliasExpr)
@@ -1316,7 +1318,19 @@ func NativeAddressFromRecipient(s Scope, e Exprs) (Expr, error) {
 		return nil, errors.Errorf("%s expected first argument to be RecipientExpr, found %T", funcName, recipient)
 	}
 
-	return NewAddressFromProtoAddress(s.State().Account(proto.Recipient(recipient)).Address()), nil
+	if recipient.Address != nil {
+		return NewAddressFromProtoAddress(*recipient.Address), nil
+	}
+
+	if recipient.Alias != nil {
+		addr, err := s.State().NewestAddrByAlias(*recipient.Alias)
+		if err != nil {
+			return nil, errors.Wrap(err, funcName)
+		}
+		return NewAddressFromProtoAddress(addr), nil
+	}
+
+	return nil, errors.Errorf("can't get address from recipient, recipient %v", recipient)
 }
 
 // Fail script without message (default will be used)
@@ -1545,7 +1559,7 @@ func dataFromArrayByIndex(funcName string, s Scope, e Exprs, valueType proto.Dat
 		return nil, errors.Wrap(err, funcName)
 	}
 
-	lst, ok := lstExpr.(*DataEntryListExpr)
+	lst, ok := lstExpr.(DataByIndex)
 	if !ok {
 		return nil, errors.Errorf("%s expected first argument to be *DataEntryListExpr, found %T", funcName, lstExpr)
 	}

@@ -4,7 +4,6 @@ import (
 	"github.com/mr-tron/base58/base58"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"github.com/wavesplatform/gowaves/pkg/types"
 )
 
 var ErrNotFound = errors.New("Not found")
@@ -12,7 +11,20 @@ var ErrNotFound = errors.New("Not found")
 type MockStateImpl struct {
 	TransactionsByID       map[string]proto.Transaction
 	TransactionsHeightByID map[string]uint64
-	Accounts               map[string]types.Account // recipient to account
+	AccountsBalance        uint64
+	DataEntry              proto.DataEntry
+}
+
+func (a MockStateImpl) NewestAccountBalance(account proto.Recipient, asset []byte) (uint64, error) {
+	return a.AccountsBalance, nil
+}
+
+func (a MockStateImpl) NewestAddrByAlias(alias proto.Alias) (proto.Address, error) {
+	panic("implement NewestAddrByAlias")
+}
+
+func (a MockStateImpl) RetrieveNewestEntry(account proto.Recipient, key string) (proto.DataEntry, error) {
+	return a.DataEntry, nil
 }
 
 func (a MockStateImpl) TransactionByID(b []byte) (proto.Transaction, error) {
@@ -29,10 +41,6 @@ func (a MockStateImpl) TransactionHeightByID(b []byte) (uint64, error) {
 		return 0, ErrNotFound
 	}
 	return h, nil
-}
-
-func (a MockStateImpl) Account(r proto.Recipient) types.Account {
-	return a.Accounts[r.String()]
 }
 
 func (a MockStateImpl) NewestHeight() (uint64, error) {
