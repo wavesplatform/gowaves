@@ -238,6 +238,8 @@ func FunctionsV3() *Functions {
 
 	// New user functions
 	s.user["parseIntValue"] = UserParseIntValue
+	s.user["value"] = UserValue
+	s.user["valueOrErrorMessage"] = UserValueOrErrorMessage
 	return s
 }
 

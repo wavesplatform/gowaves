@@ -24,7 +24,7 @@ var hashPrefixes = map[crypto.Hash][]byte{
 	crypto.SHA3_512:  {0x30, 0x51, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x0a, 0x05, 0x00, 0x04, 0x40},
 }
 
-func VerifyPKCS1v15(pub *rsa.PublicKey, hash crypto.Hash, hashed []byte, sig []byte) (bool, error) {
+func verifyPKCS1v15(pub *rsa.PublicKey, hash crypto.Hash, hashed []byte, sig []byte) (bool, error) {
 	hashLen, prefix, err := pkcs1v15HashInfo(hash, len(hashed))
 	if err != nil {
 		return false, errors.Wrap(err, "rsa: invalid hash")
@@ -50,11 +50,9 @@ func VerifyPKCS1v15(pub *rsa.PublicKey, hash crypto.Hash, hashed []byte, sig []b
 	for i := 2; i < k-tLen-1; i++ {
 		ok &= subtle.ConstantTimeByteEq(em[i], 0xff)
 	}
-
 	if ok != 1 {
 		return false, nil
 	}
-
 	return true, nil
 }
 
@@ -80,7 +78,6 @@ func pkcs1v15HashInfo(hash crypto.Hash, inLen int) (hashLen int, prefix []byte, 
 	if hash == 0 {
 		return inLen, nil, nil
 	}
-
 	hashLen = hash.Size()
 	if inLen != hashLen {
 		return 0, nil, errors.New("rsa: input must be hashed message")
