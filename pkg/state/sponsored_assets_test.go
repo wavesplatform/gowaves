@@ -19,11 +19,11 @@ func createSponsoredAssets() (*sponsoredAssetsTestObjects, []string, error) {
 	if err != nil {
 		return nil, path, err
 	}
-	features, err := newFeatures(stor.db, stor.dbBatch, stor.hs, stor.stateDB, settings.MainNetSettings, settings.FeaturesInfo)
+	features, err := newFeatures(stor.db, stor.dbBatch, stor.hs, settings.MainNetSettings, settings.FeaturesInfo)
 	if err != nil {
 		return nil, path, err
 	}
-	sponsoredAssets, err := newSponsoredAssets(stor.rw, features, stor.stateDB, stor.hs, settings.MainNetSettings)
+	sponsoredAssets, err := newSponsoredAssets(stor.rw, features, stor.hs, settings.MainNetSettings)
 	if err != nil {
 		return nil, path, err
 	}
@@ -44,7 +44,7 @@ func TestSponsorAsset(t *testing.T) {
 	to.stor.addBlock(t, blockID0)
 	properCost := uint64(100500)
 	id := testGlobal.asset0.asset.ID
-	err = to.sponsoredAssets.sponsorAsset(id, properCost, blockID0)
+	err = to.sponsoredAssets.sponsorAsset(id, properCost)
 	assert.NoError(t, err, "sponsorAsset() failed")
 	newestIsSponsored, err := to.sponsoredAssets.newestIsSponsored(id, true)
 	assert.NoError(t, err, "newestIsSponsored() failed")
@@ -72,7 +72,7 @@ func TestSponsorAsset(t *testing.T) {
 	assert.NoError(t, err, "assetCost() failed")
 	assert.Equal(t, cost, properCost)
 	// Check that asset with 0 cost is no longer considered sponsored.
-	err = to.sponsoredAssets.sponsorAsset(id, 0, blockID0)
+	err = to.sponsoredAssets.sponsorAsset(id, 0)
 	assert.NoError(t, err, "sponsorAsset() failed")
 	newestIsSponsored, err = to.sponsoredAssets.newestIsSponsored(id, true)
 	assert.NoError(t, err, "newestIsSponsored() failed")
@@ -99,7 +99,7 @@ func TestSponsoredAssetToWaves(t *testing.T) {
 	assetAmount := uint64(100500)
 	properWavesAmount := assetAmount / cost * FeeUnit
 	id := testGlobal.asset0.asset.ID
-	err = to.sponsoredAssets.sponsorAsset(id, cost, blockID0)
+	err = to.sponsoredAssets.sponsorAsset(id, cost)
 	assert.NoError(t, err, "sponsorAsset() failed")
 	wavesAmount, err := to.sponsoredAssets.sponsoredAssetToWaves(id, assetAmount)
 	assert.NoError(t, err, "sponsoredAssetToWaves() failed")
@@ -122,7 +122,7 @@ func TestWavesToSponsoredAsset(t *testing.T) {
 	wavesAmount := uint64(100500)
 	properAssetAmount := wavesAmount / FeeUnit * cost
 	id := testGlobal.asset0.asset.ID
-	err = to.sponsoredAssets.sponsorAsset(id, cost, blockID0)
+	err = to.sponsoredAssets.sponsorAsset(id, cost)
 	assert.NoError(t, err, "sponsorAsset() failed")
 	assetAmount, err := to.sponsoredAssets.wavesToSponsoredAsset(id, wavesAmount)
 	assert.NoError(t, err, "wavesToSponsoredAsset() failed")

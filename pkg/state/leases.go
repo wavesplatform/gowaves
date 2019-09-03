@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	leasingRecordSize = 1 + 8 + proto.AddressSize*2 + 4
+	leasingRecordSize = 1 + 8 + proto.AddressSize*2
 )
 
 type leasing struct {
@@ -23,7 +23,6 @@ type leasing struct {
 
 type leasingRecord struct {
 	leasing
-	blockNum uint32
 }
 
 func (l *leasingRecord) marshalBinary() ([]byte, error) {
@@ -32,7 +31,6 @@ func (l *leasingRecord) marshalBinary() ([]byte, error) {
 	binary.BigEndian.PutUint64(res[1:9], l.leaseAmount)
 	copy(res[9:9+proto.AddressSize], l.recipient[:])
 	copy(res[9+proto.AddressSize:9+proto.AddressSize*2], l.sender[:])
-	binary.BigEndian.PutUint32(res[9+proto.AddressSize*2:], l.blockNum)
 	return res, nil
 }
 
@@ -48,18 +46,16 @@ func (l *leasingRecord) unmarshalBinary(data []byte) error {
 	l.leaseAmount = binary.BigEndian.Uint64(data[1:9])
 	copy(l.recipient[:], data[9:9+proto.AddressSize])
 	copy(l.sender[:], data[9+proto.AddressSize:9+proto.AddressSize*2])
-	l.blockNum = binary.BigEndian.Uint32(data[9+proto.AddressSize*2:])
 	return nil
 }
 
 type leases struct {
-	db      keyvalue.IterableKeyVal
-	stateDB *stateDB
-	hs      *historyStorage
+	db keyvalue.IterableKeyVal
+	hs *historyStorage
 }
 
-func newLeases(db keyvalue.IterableKeyVal, stateDB *stateDB, hs *historyStorage) (*leases, error) {
-	return &leases{db, stateDB, hs}, nil
+func newLeases(db keyvalue.IterableKeyVal, hs *historyStorage) (*leases, error) {
+	return &leases{db, hs}, nil
 }
 
 func (l *leases) cancelLeases(bySenders map[proto.Address]struct{}) error {
@@ -79,7 +75,7 @@ func (l *leases) cancelLeases(bySenders map[proto.Address]struct{}) error {
 	log.Printf("Started to cancel leases\n")
 	for leaseIter.Next() {
 		key := keyvalue.SafeKey(leaseIter)
-		leaseBytes, err := l.hs.get(key, true)
+		leaseBytes, err := l.hs.latestEntryData(key, true)
 		if err != nil {
 			return err
 		}
@@ -103,7 +99,7 @@ func (l *leases) cancelLeases(bySenders map[proto.Address]struct{}) error {
 			if err != nil {
 				return errors.Errorf("failed to marshal lease: %v\n", err)
 			}
-			if err := l.hs.set(lease, key, leaseBytes); err != nil {
+			if err := l.hs.addNewEntry(lease, key, leaseBytes); err != nil {
 				return errors.Errorf("failed to save lease to storage: %v\n", err)
 			}
 		}
@@ -128,7 +124,7 @@ func (l *leases) validLeaseIns() (map[proto.Address]int64, error) {
 	// Iterate all the leases.
 	log.Printf("Started collecting leases\n")
 	for leaseIter.Next() {
-		leaseBytes, err := l.hs.get(leaseIter.Key(), true)
+		leaseBytes, err := l.hs.latestEntryData(leaseIter.Key(), true)
 		if err != nil {
 			return nil, err
 		}
@@ -147,7 +143,7 @@ func (l *leases) validLeaseIns() (map[proto.Address]int64, error) {
 // Leasing info from DB or local storage.
 func (l *leases) newestLeasingInfo(id crypto.Digest, filter bool) (*leasing, error) {
 	key := leaseKey{leaseID: id}
-	recordBytes, err := l.hs.getFresh(key.bytes(), filter)
+	recordBytes, err := l.hs.freshLatestEntryData(key.bytes(), filter)
 	if err != nil {
 		return nil, err
 	}
@@ -161,7 +157,7 @@ func (l *leases) newestLeasingInfo(id crypto.Digest, filter bool) (*leasing, err
 // Stable leasing info from DB.
 func (l *leases) leasingInfo(id crypto.Digest, filter bool) (*leasing, error) {
 	key := leaseKey{leaseID: id}
-	recordBytes, err := l.hs.get(key.bytes(), filter)
+	recordBytes, err := l.hs.latestEntryData(key.bytes(), filter)
 	if err != nil {
 		return nil, err
 	}
@@ -172,28 +168,24 @@ func (l *leases) leasingInfo(id crypto.Digest, filter bool) (*leasing, error) {
 	return &record.leasing, nil
 }
 
-func (l *leases) addLeasing(id crypto.Digest, leasing *leasing, blockID crypto.Signature) error {
+func (l *leases) addLeasing(id crypto.Digest, leasing *leasing) error {
 	key := leaseKey{leaseID: id}
-	blockNum, err := l.stateDB.blockIdToNum(blockID)
-	if err != nil {
-		return err
-	}
-	r := &leasingRecord{*leasing, blockNum}
+	r := &leasingRecord{*leasing}
 	recordBytes, err := r.marshalBinary()
 	if err != nil {
 		return errors.Errorf("failed to marshal record: %v\n", err)
 	}
-	if err := l.hs.set(lease, key.bytes(), recordBytes); err != nil {
+	if err := l.hs.addNewEntry(lease, key.bytes(), recordBytes); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (l *leases) cancelLeasing(id crypto.Digest, blockID crypto.Signature, filter bool) error {
+func (l *leases) cancelLeasing(id crypto.Digest, filter bool) error {
 	leasing, err := l.newestLeasingInfo(id, filter)
 	if err != nil {
 		return errors.Errorf("failed to get leasing info: %v\n", err)
 	}
 	leasing.isActive = false
-	return l.addLeasing(id, leasing, blockID)
+	return l.addLeasing(id, leasing)
 }

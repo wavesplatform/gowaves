@@ -135,9 +135,11 @@ func TestValidationWithoutBlocks(t *testing.T) {
 	assert.NoError(t, err, "NewAddressFromPublicKey() failed")
 	blockID, err := crypto.NewSignatureFromBase58("m2RcwouGn8iMbiN5e8NB6ZNHFaJu6H2CFewYhwXUXZFmg5UTADtvBvdebFupNTzxsqvxsCUaL2VRQXh3iuK4AeA")
 	assert.NoError(t, err, "NewSignatureFromBase58() failed")
-	err = manager.stor.balances.setWavesBalance(addr, &balanceProfile{2, 0, 0}, blockID)
+	err = manager.stateDB.addBlock(blockID)
+	assert.NoError(t, err, "addBlock() failed")
+	err = manager.stor.balances.setWavesBalance(addr, &balanceProfile{2, 0, 0}, &blockID)
 	assert.NoError(t, err, "setWavesBalance() failed")
-	err = manager.flush(true)
+	err = manager.flush(false)
 	assert.NoError(t, err, "manager.flush() failed")
 	// Valid tx with same sender must be valid after validation of previous invalid tx.
 	validTx := proto.NewUnsignedPayment(pk, testGlobal.recipientInfo.addr, 1, 1, defaultTimestamp)
@@ -171,6 +173,7 @@ func TestStateRollback(t *testing.T) {
 		{8001, 7001, filepath.Join(dir, "testdata", "accounts-8001")},
 		{7001, 7001, filepath.Join(dir, "testdata", "accounts-7001")},
 		{7501, 7001, filepath.Join(dir, "testdata", "accounts-7501")},
+		{7501, 7001, filepath.Join(dir, "testdata", "accounts-7501")},
 		{9501, 7501, filepath.Join(dir, "testdata", "accounts-9501")},
 		{7501, 7501, filepath.Join(dir, "testdata", "accounts-7501")},
 	}
@@ -189,7 +192,7 @@ func TestStateRollback(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Height(): %v\n", err)
 		}
-		if tc.nextHeight >= height {
+		if tc.nextHeight > height {
 			if err := importer.ApplyFromFile(manager, blocksPath, tc.nextHeight-1, height, false); err != nil {
 				t.Fatalf("Failed to import: %v\n", err)
 			}

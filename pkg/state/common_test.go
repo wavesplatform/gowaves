@@ -210,19 +210,19 @@ func createStorageObjects() (*testStorageObjects, []string, error) {
 	if err != nil {
 		return nil, res, err
 	}
-	stateDB, err := newStateDB(db, dbBatch)
-	if err != nil {
-		return nil, res, err
-	}
 	rw, err := newBlockReadWriter(rwDir, 8, 8, db, dbBatch)
 	if err != nil {
 		return nil, res, err
 	}
-	hs, err := newHistoryStorage(db, dbBatch, rw, stateDB)
+	stateDB, err := newStateDB(db, dbBatch, rw)
 	if err != nil {
 		return nil, res, err
 	}
-	entities, err := newBlockchainEntitiesStorage(hs, stateDB, settings.MainNetSettings)
+	hs, err := newHistoryStorage(db, dbBatch, stateDB)
+	if err != nil {
+		return nil, res, err
+	}
+	entities, err := newBlockchainEntitiesStorage(hs, settings.MainNetSettings, rw)
 	if err != nil {
 		return nil, res, err
 	}
@@ -249,7 +249,7 @@ func (s *testStorageObjects) addBlocks(t *testing.T, blocksNum int) {
 func (s *testStorageObjects) createAsset(t *testing.T, assetID crypto.Digest) *assetInfo {
 	s.addBlock(t, blockID0)
 	assetInfo := defaultAssetInfo(true)
-	err := s.entities.assets.issueAsset(assetID, assetInfo, blockID0)
+	err := s.entities.assets.issueAsset(assetID, assetInfo)
 	assert.NoError(t, err, "issueAset() failed")
 	s.flush(t)
 	return assetInfo
@@ -257,10 +257,8 @@ func (s *testStorageObjects) createAsset(t *testing.T, assetID crypto.Digest) *a
 
 func (s *testStorageObjects) activateFeature(t *testing.T, featureID int16) {
 	s.addBlock(t, blockID0)
-	blockNum, err := s.stateDB.blockIdToNum(blockID0)
-	assert.NoError(t, err, "blockIdToNum() failed")
-	activationReq := &activatedFeaturesRecord{1, blockNum}
-	err = s.entities.features.activateFeature(featureID, activationReq)
+	activationReq := &activatedFeaturesRecord{1}
+	err := s.entities.features.activateFeature(featureID, activationReq)
 	assert.NoError(t, err, "activateFeature() failed")
 	s.flush(t)
 }

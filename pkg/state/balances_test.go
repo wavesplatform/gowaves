@@ -28,7 +28,7 @@ func createBalances() (*balancesTestObjects, []string, error) {
 	if err != nil {
 		return nil, path, err
 	}
-	balances, err := newBalances(stor.db, stor.stateDB, stor.hs)
+	balances, err := newBalances(stor.db, stor.hs)
 	if err != nil {
 		return nil, path, err
 	}
@@ -69,7 +69,7 @@ func TestCancelAllLeases(t *testing.T) {
 	for _, tc := range tests {
 		addr, err := proto.NewAddressFromString(tc.addr)
 		assert.NoError(t, err, "NewAddressFromString() failed")
-		err = to.balances.setWavesBalance(addr, &tc.profile, tc.blockID)
+		err = to.balances.setWavesBalance(addr, &tc.profile, &tc.blockID)
 		assert.NoError(t, err, "setWavesBalance() failed")
 	}
 	to.stor.flush(t)
@@ -113,7 +113,7 @@ func TestCancelLeaseOverflows(t *testing.T) {
 	for _, tc := range tests {
 		addr, err := proto.NewAddressFromString(tc.addr)
 		assert.NoError(t, err, "NewAddressFromString() failed")
-		err = to.balances.setWavesBalance(addr, &tc.profile, tc.blockID)
+		err = to.balances.setWavesBalance(addr, &tc.profile, &tc.blockID)
 		assert.NoError(t, err, "setWavesBalance() failed")
 	}
 	to.stor.flush(t)
@@ -169,7 +169,7 @@ func TestCancelInvalidLeaseIns(t *testing.T) {
 	for _, tc := range tests {
 		addr, err := proto.NewAddressFromString(tc.addr)
 		assert.NoError(t, err, "NewAddressFromString() failed")
-		err = to.balances.setWavesBalance(addr, &tc.profile, tc.blockID)
+		err = to.balances.setWavesBalance(addr, &tc.profile, &tc.blockID)
 		assert.NoError(t, err, "setWavesBalance() failed")
 		leaseIns[addr] = tc.validLeaseIn
 	}
@@ -201,11 +201,11 @@ func TestMinBalanceInRange(t *testing.T) {
 
 	addr, err := proto.NewAddressFromString(addr0)
 	assert.NoError(t, err, "NewAddressFromString() failed")
-	for i := 1; i < totalBlocksNumber; i++ {
+	for i := 1; i <= totalBlocksNumber; i++ {
 		blockID := genBlockId(byte(i))
 		to.stor.addBlock(t, blockID)
 		p := &balanceProfile{uint64(i), 0, 0}
-		if err := to.balances.setWavesBalance(addr, p, blockID); err != nil {
+		if err := to.balances.setWavesBalance(addr, p, &blockID); err != nil {
 			t.Fatalf("Faied to set waves balance: %v\n", err)
 		}
 	}
@@ -252,7 +252,7 @@ func TestBalances(t *testing.T) {
 	for _, tc := range wavesTests {
 		addr, err := proto.NewAddressFromString(tc.addr)
 		assert.NoError(t, err, "NewAddressFromString() failed")
-		if err := to.balances.setWavesBalance(addr, &tc.profile, tc.blockID); err != nil {
+		if err := to.balances.setWavesBalance(addr, &tc.profile, &tc.blockID); err != nil {
 			t.Fatalf("Faied to set waves balance:%v\n", err)
 		}
 		to.stor.flush(t)
@@ -278,7 +278,7 @@ func TestBalances(t *testing.T) {
 	for _, tc := range assetTests {
 		addr, err := proto.NewAddressFromString(tc.addr)
 		assert.NoError(t, err, "NewAddressFromString() failed")
-		if err := to.balances.setAssetBalance(addr, tc.assetID, tc.balance, tc.blockID); err != nil {
+		if err := to.balances.setAssetBalance(addr, tc.assetID, tc.balance, &tc.blockID); err != nil {
 			t.Fatalf("Faied to set asset balance: %v\n", err)
 		}
 		to.stor.flush(t)

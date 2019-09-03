@@ -33,7 +33,7 @@ func (a *diffApplier) applyWavesBalanceChanges(change *balanceChanges, filter, v
 		if validateOnly {
 			continue
 		}
-		if err := a.balances.setWavesBalance(k.address, newProfile, diff.blockID); err != nil {
+		if err := a.balances.setWavesBalance(k.address, newProfile, &diff.blockID); err != nil {
 			return errors.Errorf("failed to set account balance: %v\n", err)
 		}
 	}
@@ -57,7 +57,7 @@ func (a *diffApplier) applyAssetBalanceChanges(change *balanceChanges, filter, v
 		if validateOnly {
 			continue
 		}
-		if err := a.balances.setAssetBalance(k.address, k.asset, newBalance, diff.blockID); err != nil {
+		if err := a.balances.setAssetBalance(k.address, k.asset, newBalance, &diff.blockID); err != nil {
 			return errors.Errorf("failed to set asset balance: %v\n", err)
 		}
 	}

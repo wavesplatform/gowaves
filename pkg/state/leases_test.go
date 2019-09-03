@@ -20,7 +20,7 @@ func createLeases() (*leasesTestObjects, []string, error) {
 	if err != nil {
 		return nil, path, err
 	}
-	leases, err := newLeases(stor.db, stor.stateDB, stor.hs)
+	leases, err := newLeases(stor.db, stor.hs)
 	if err != nil {
 		return nil, path, err
 	}
@@ -63,7 +63,7 @@ func TestCancelLeases(t *testing.T) {
 		leaseID, err := crypto.NewDigestFromBytes(bytes.Repeat([]byte{l.leaseIDByte}, crypto.DigestSize))
 		assert.NoError(t, err, "failed to create digest from bytes")
 		r := createLease(t, l.sender)
-		err = to.leases.addLeasing(leaseID, r, blockID0)
+		err = to.leases.addLeasing(leaseID, r)
 		assert.NoError(t, err, "failed to add leasing")
 	}
 	to.stor.flush(t)
@@ -125,7 +125,7 @@ func TestValidLeaseIns(t *testing.T) {
 		leaseID, err := crypto.NewDigestFromBytes(bytes.Repeat([]byte{l.leaseIDByte}, crypto.DigestSize))
 		assert.NoError(t, err, "failed to create digest from bytes")
 		r := createLease(t, l.sender)
-		err = to.leases.addLeasing(leaseID, r, blockID0)
+		err = to.leases.addLeasing(leaseID, r)
 		assert.NoError(t, err, "failed to add leasing")
 		properLeaseIns[r.recipient] += int64(r.leaseAmount)
 	}
@@ -155,7 +155,7 @@ func TestAddLeasing(t *testing.T) {
 	assert.NoError(t, err, "failed to create digest from bytes")
 	senderStr := "3PNXHYoWp83VaWudq9ds9LpS5xykWuJHiHp"
 	r := createLease(t, senderStr)
-	err = to.leases.addLeasing(leaseID, r, blockID0)
+	err = to.leases.addLeasing(leaseID, r)
 	assert.NoError(t, err, "failed to add leasing")
 	l, err := to.leases.newestLeasingInfo(leaseID, true)
 	assert.NoError(t, err, "failed to get newest leasing info")
@@ -182,9 +182,9 @@ func TestCancelLeasing(t *testing.T) {
 	assert.NoError(t, err, "failed to create digest from bytes")
 	senderStr := "3PNXHYoWp83VaWudq9ds9LpS5xykWuJHiHp"
 	r := createLease(t, senderStr)
-	err = to.leases.addLeasing(leaseID, r, blockID0)
+	err = to.leases.addLeasing(leaseID, r)
 	assert.NoError(t, err, "failed to add leasing")
-	err = to.leases.cancelLeasing(leaseID, blockID0, true)
+	err = to.leases.cancelLeasing(leaseID, true)
 	assert.NoError(t, err, "failed to cancel leasing")
 	r.isActive = false
 	to.stor.flush(t)

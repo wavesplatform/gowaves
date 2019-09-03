@@ -50,16 +50,16 @@ type blockchainEntitiesStorage struct {
 	accountsScripts  *accountsScripts
 }
 
-func newBlockchainEntitiesStorage(hs *historyStorage, stateDB *stateDB, sets *settings.BlockchainSettings) (*blockchainEntitiesStorage, error) {
-	aliases, err := newAliases(hs.db, hs.dbBatch, stateDB, hs)
+func newBlockchainEntitiesStorage(hs *historyStorage, sets *settings.BlockchainSettings, rw *blockReadWriter) (*blockchainEntitiesStorage, error) {
+	aliases, err := newAliases(hs.db, hs.dbBatch, hs)
 	if err != nil {
 		return nil, err
 	}
-	assets, err := newAssets(hs.db, hs.dbBatch, stateDB, hs)
+	assets, err := newAssets(hs.db, hs.dbBatch, hs)
 	if err != nil {
 		return nil, err
 	}
-	leases, err := newLeases(hs.db, stateDB, hs)
+	leases, err := newLeases(hs.db, hs)
 	if err != nil {
 		return nil, err
 	}
@@ -71,23 +71,23 @@ func newBlockchainEntitiesStorage(hs *historyStorage, stateDB *stateDB, sets *se
 	if err != nil {
 		return nil, err
 	}
-	balances, err := newBalances(hs.db, stateDB, hs)
+	balances, err := newBalances(hs.db, hs)
 	if err != nil {
 		return nil, err
 	}
-	features, err := newFeatures(hs.db, hs.dbBatch, hs, stateDB, sets, settings.FeaturesInfo)
+	features, err := newFeatures(hs.db, hs.dbBatch, hs, sets, settings.FeaturesInfo)
 	if err != nil {
 		return nil, err
 	}
-	accountsDataStor, err := newAccountsDataStorage(hs.db, hs.dbBatch, hs, stateDB)
+	accountsDataStor, err := newAccountsDataStorage(hs.db, hs.dbBatch, hs)
 	if err != nil {
 		return nil, err
 	}
-	sponsoredAssets, err := newSponsoredAssets(hs.rw, features, stateDB, hs, sets)
+	sponsoredAssets, err := newSponsoredAssets(rw, features, hs, sets)
 	if err != nil {
 		return nil, err
 	}
-	accountsScripts, err := newAccountsScripts(hs.db, hs.dbBatch, hs, stateDB)
+	accountsScripts, err := newAccountsScripts(hs.db, hs.dbBatch, hs)
 	if err != nil {
 		return nil, err
 	}
@@ -233,7 +233,7 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 		if err := a.txHandler.checkTx(tx, checkerInfo); err != nil {
 			return err
 		}
-		if err := a.txHandler.performTx(tx, &performerInfo{params.initialisation, params.block.BlockSignature}); err != nil {
+		if err := a.txHandler.performTx(tx, &performerInfo{params.initialisation}); err != nil {
 			return err
 		}
 	}
@@ -377,23 +377,23 @@ func newStateManager(dataDir string, params StateParams, settings *settings.Bloc
 	if err != nil {
 		return nil, wrapErr(Other, errors.Errorf("failed to create db batch: %v\n", err))
 	}
-	stateDB, err := newStateDB(db, dbBatch)
-	if err != nil {
-		return nil, wrapErr(Other, errors.Errorf("failed to create stateDB: %v\n", err))
-	}
 	// rw is storage for blocks.
 	rw, err := newBlockReadWriter(blockStorageDir, params.OffsetLen, params.HeaderOffsetLen, db, dbBatch)
 	if err != nil {
 		return nil, wrapErr(Other, errors.Errorf("failed to create block storage: %v\n", err))
 	}
-	if err := stateDB.syncRw(rw); err != nil {
+	stateDB, err := newStateDB(db, dbBatch, rw)
+	if err != nil {
+		return nil, wrapErr(Other, errors.Errorf("failed to create stateDB: %v\n", err))
+	}
+	if err := stateDB.syncRw(); err != nil {
 		return nil, wrapErr(Other, errors.Errorf("failed to sync block storage and DB: %v\n", err))
 	}
-	hs, err := newHistoryStorage(db, dbBatch, rw, stateDB)
+	hs, err := newHistoryStorage(db, dbBatch, stateDB)
 	if err != nil {
 		return nil, wrapErr(Other, errors.Errorf("failed to create history storage: %v\n", err))
 	}
-	stor, err := newBlockchainEntitiesStorage(hs, stateDB, settings)
+	stor, err := newBlockchainEntitiesStorage(hs, settings, rw)
 	if err != nil {
 		return nil, wrapErr(Other, errors.Errorf("failed to create blockchain entities storage: %v\n", err))
 	}
@@ -475,17 +475,12 @@ func (s *stateManager) addGenesisBlock() error {
 }
 
 func (s *stateManager) applyPreactivatedFeatures(features []int16) error {
-	genesisID := s.genesis.BlockSignature
-	genesisBlockNum, err := s.stateDB.blockIdToNum(genesisID)
-	if err != nil {
-		return err
-	}
 	for _, featureID := range features {
-		approvalRequest := &approvedFeaturesRecord{1, genesisBlockNum}
+		approvalRequest := &approvedFeaturesRecord{1}
 		if err := s.stor.features.approveFeature(featureID, approvalRequest); err != nil {
 			return err
 		}
-		activationRequest := &activatedFeaturesRecord{1, genesisBlockNum}
+		activationRequest := &activatedFeaturesRecord{1}
 		if err := s.stor.features.activateFeature(featureID, activationRequest); err != nil {
 			return err
 		}
@@ -688,7 +683,7 @@ func (s *stateManager) addFeaturesVotes(block *proto.Block) error {
 			log.Printf("Block has vote for featureID %v, but it is already approved.", featureID)
 			continue
 		}
-		if err := s.stor.features.addVote(featureID, block.BlockSignature); err != nil {
+		if err := s.stor.features.addVote(featureID); err != nil {
 			return err
 		}
 	}
@@ -829,7 +824,7 @@ func (s *stateManager) undoBlockAddition() error {
 	if err := s.reset(); err != nil {
 		return err
 	}
-	if err := s.stateDB.syncRw(s.rw); err != nil {
+	if err := s.stateDB.syncRw(); err != nil {
 		return err
 	}
 	return nil
@@ -999,11 +994,7 @@ func (s *stateManager) finishVoting() error {
 	if err != nil {
 		return err
 	}
-	last, err := s.topBlock()
-	if err != nil {
-		return err
-	}
-	if err := s.stor.features.finishVoting(height, last.BlockSignature); err != nil {
+	if err := s.stor.features.finishVoting(height); err != nil {
 		return err
 	}
 	s.lastVotingHeight = height
@@ -1288,7 +1279,7 @@ func (s *stateManager) rollbackToImpl(removalEdge crypto.Signature) error {
 
 func (s *stateManager) RollbackTo(removalEdge crypto.Signature) error {
 	if err := s.rollbackToImpl(removalEdge); err != nil {
-		if err1 := s.stateDB.syncRw(s.rw); err1 != nil {
+		if err1 := s.stateDB.syncRw(); err1 != nil {
 			panic("Failed to rollback and can not sync state components after failure.")
 		}
 		return err

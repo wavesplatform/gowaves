@@ -1,10 +1,7 @@
 package state
 
 import (
-	"encoding/binary"
-
 	"github.com/pkg/errors"
-	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride/evaluator/ast"
@@ -24,25 +21,19 @@ func scriptBytesToAst(script proto.Script) (ast.Script, error) {
 }
 
 type accountScriptRecord struct {
-	script   proto.Script
-	blockNum uint32
+	script proto.Script
 }
 
 func (r *accountScriptRecord) marshalBinary() ([]byte, error) {
-	res := make([]byte, len(r.script)+4)
-	copy(res[:len(r.script)], r.script)
-	binary.BigEndian.PutUint32(res[len(r.script):len(r.script)+4], r.blockNum)
+	res := make([]byte, len(r.script))
+	copy(res, r.script)
 	return res, nil
 }
 
 func (r *accountScriptRecord) unmarshalBinary(data []byte) error {
-	if len(data) < 4 {
-		return errors.New("invalid data size")
-	}
-	scriptBytes := make([]byte, len(data)-4)
-	copy(scriptBytes, data[:len(data)-4])
+	scriptBytes := make([]byte, len(data))
+	copy(scriptBytes, data)
 	r.script = proto.Script(scriptBytes)
-	r.blockNum = binary.BigEndian.Uint32(data[len(data)-4:])
 	return nil
 }
 
@@ -50,12 +41,11 @@ type accountsScripts struct {
 	db      keyvalue.IterableKeyVal
 	dbBatch keyvalue.Batch
 	hs      *historyStorage
-	stateDB *stateDB
 
 	cache *lru
 }
 
-func newAccountsScripts(db keyvalue.IterableKeyVal, dbBatch keyvalue.Batch, hs *historyStorage, stateDB *stateDB) (*accountsScripts, error) {
+func newAccountsScripts(db keyvalue.IterableKeyVal, dbBatch keyvalue.Batch, hs *historyStorage) (*accountsScripts, error) {
 	cache, err := newLru(maxCacheSize, maxCacheBytes)
 	if err != nil {
 		return nil, err
@@ -64,23 +54,18 @@ func newAccountsScripts(db keyvalue.IterableKeyVal, dbBatch keyvalue.Batch, hs *
 		db:      db,
 		dbBatch: dbBatch,
 		hs:      hs,
-		stateDB: stateDB,
 		cache:   cache,
 	}, nil
 }
 
-func (as *accountsScripts) setScript(addr proto.Address, script proto.Script, blockID crypto.Signature) error {
+func (as *accountsScripts) setScript(addr proto.Address, script proto.Script) error {
 	key := accountScriptKey{addr}
-	blockNum, err := as.stateDB.blockIdToNum(blockID)
-	if err != nil {
-		return err
-	}
-	record := accountScriptRecord{script, blockNum}
+	record := accountScriptRecord{script}
 	recordBytes, err := record.marshalBinary()
 	if err != nil {
 		return err
 	}
-	if err := as.hs.set(accountScript, key.bytes(), recordBytes); err != nil {
+	if err := as.hs.addNewEntry(accountScript, key.bytes(), recordBytes); err != nil {
 		return err
 	}
 	scriptAst, err := scriptBytesToAst(record.script)
@@ -93,7 +78,7 @@ func (as *accountsScripts) setScript(addr proto.Address, script proto.Script, bl
 
 func (as *accountsScripts) newestScriptAstFromAddr(addr proto.Address, filter bool) (ast.Script, error) {
 	key := accountScriptKey{addr: addr}
-	recordBytes, err := as.hs.getFresh(key.bytes(), filter)
+	recordBytes, err := as.hs.freshLatestEntryData(key.bytes(), filter)
 	if err != nil {
 		return ast.Script{}, err
 	}
@@ -130,7 +115,7 @@ func (as *accountsScripts) newestHasScript(addr proto.Address, filter bool) (boo
 		return true, nil
 	}
 	key := accountScriptKey{addr: addr}
-	if _, err := as.hs.getFresh(key.bytes(), filter); err == nil {
+	if _, err := as.hs.freshLatestEntryData(key.bytes(), filter); err == nil {
 		return true, nil
 	}
 	return false, nil
@@ -138,7 +123,7 @@ func (as *accountsScripts) newestHasScript(addr proto.Address, filter bool) (boo
 
 func (as *accountsScripts) hasScript(addr proto.Address, filter bool) (bool, error) {
 	key := accountScriptKey{addr: addr}
-	if _, err := as.hs.get(key.bytes(), filter); err == nil {
+	if _, err := as.hs.latestEntryData(key.bytes(), filter); err == nil {
 		return true, nil
 	}
 	return false, nil
@@ -158,7 +143,7 @@ func (as *accountsScripts) newestScriptByAddr(addr proto.Address, filter bool) (
 
 func (as *accountsScripts) scriptByAddr(addr proto.Address, filter bool) (ast.Script, error) {
 	key := accountScriptKey{addr: addr}
-	recordBytes, err := as.hs.get(key.bytes(), filter)
+	recordBytes, err := as.hs.latestEntryData(key.bytes(), filter)
 	if err != nil {
 		return ast.Script{}, err
 	}

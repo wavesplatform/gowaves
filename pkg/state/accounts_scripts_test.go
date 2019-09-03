@@ -18,7 +18,7 @@ func createAccountsScriptsTestObjects() (*accountsScriptsTestObjects, []string, 
 	if err != nil {
 		return nil, path, err
 	}
-	accountsScripts, err := newAccountsScripts(stor.db, stor.dbBatch, stor.hs, stor.stateDB)
+	accountsScripts, err := newAccountsScripts(stor.db, stor.dbBatch, stor.hs)
 	if err != nil {
 		return nil, path, err
 	}
@@ -38,7 +38,7 @@ func TestSetScript(t *testing.T) {
 
 	to.stor.addBlock(t, blockID0)
 	addr := testGlobal.senderInfo.addr
-	err = to.accountsScripts.setScript(addr, proto.Script(testGlobal.scriptBytes), blockID0)
+	err = to.accountsScripts.setScript(addr, proto.Script(testGlobal.scriptBytes))
 	assert.NoError(t, err, "setScript() failed")
 
 	// Test newest before flushing.

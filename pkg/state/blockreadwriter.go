@@ -28,7 +28,8 @@ type blockReadWriter struct {
 	headersBuf        *bufio.Writer
 	blockHeight2IDBuf *bufio.Writer
 
-	blockInfo map[blockOffsetKey][]byte
+	height2IDCache map[uint64]crypto.Signature
+	blockInfo      map[blockOffsetKey][]byte
 
 	blockBounds  []byte
 	txBounds     []byte
@@ -116,6 +117,7 @@ func newBlockReadWriter(
 		blockchainBuf:     bufio.NewWriter(blockchain),
 		headersBuf:        bufio.NewWriter(headers),
 		blockHeight2IDBuf: bufio.NewWriter(blockHeight2ID),
+		height2IDCache:    make(map[uint64]crypto.Signature),
 		blockInfo:         make(map[blockOffsetKey][]byte),
 		txBounds:          make([]byte, offsetLen*2),
 		headerBounds:      make([]byte, headerOffsetLen*2),
@@ -168,6 +170,7 @@ func (rw *blockReadWriter) startBlock(blockID crypto.Signature) error {
 	if _, err := rw.blockHeight2IDBuf.Write(blockID[:]); err != nil {
 		return err
 	}
+	rw.height2IDCache[rw.height+1] = blockID
 	binary.LittleEndian.PutUint64(rw.blockBounds[:rw.offsetLen], rw.blockchainLen)
 	binary.LittleEndian.PutUint64(rw.headerBounds[:rw.headerOffsetLen], rw.headersLen)
 	return nil
@@ -215,6 +218,14 @@ func (rw *blockReadWriter) writeBlockHeader(blockID crypto.Signature, header []b
 		return errors.Errorf("offsetLen is not enough for this offset: %d > %d", rw.headersLen, rw.offsetEnd)
 	}
 	return nil
+}
+
+func (rw *blockReadWriter) newestBlockIDByHeight(height uint64) (crypto.Signature, error) {
+	// For blockReadWriter, heights start from 0.
+	if id, ok := rw.height2IDCache[height]; ok {
+		return id, nil
+	}
+	return rw.blockIDByHeight(height)
 }
 
 func (rw *blockReadWriter) blockIDByHeight(height uint64) (crypto.Signature, error) {
@@ -505,6 +516,7 @@ func (rw *blockReadWriter) rollback(removalEdge crypto.Signature, cleanIDs bool)
 func (rw *blockReadWriter) reset() {
 	rw.blockchainBuf.Reset(rw.blockchain)
 	rw.blockInfo = make(map[blockOffsetKey][]byte)
+	rw.height2IDCache = make(map[uint64]crypto.Signature)
 }
 
 func (rw *blockReadWriter) flush() error {

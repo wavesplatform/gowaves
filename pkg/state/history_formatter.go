@@ -1,125 +1,66 @@
 package state
 
-import (
-	"bytes"
-	"encoding/binary"
-
-	"github.com/pkg/errors"
-)
-
-func isOldBlock(rw *blockReadWriter, stateDB *stateDB, blockNum uint32) (bool, error) {
-	currentHeight := rw.recentHeight()
-	blockID, err := stateDB.blockNumToId(blockNum)
-	if err != nil {
-		return false, err
-	}
-	blockHeight, err := rw.heightByBlockID(blockID)
-	if err != nil {
-		return false, err
-	}
-	if (blockHeight == 0) || (currentHeight-blockHeight > uint64(rollbackMaxBlocks)) {
-		return true, nil
-	}
-	return false, nil
-}
-
+// historyFormatter formats histories. It can `cut` and `filter` histories.
+// `Cut` removes outdated blocks (blocks that are more than `rollbackMaxBlocks` in the past)
+// from the beginning of the history.
+// `Filter` removes invalid blocks from the end of the history. Blocks become invalid when they are rolled back.
+// It simply looks at the list of valid blocks, and marks block as invalid if its unique number is not in this list.
 type historyFormatter struct {
 	db *stateDB
-	rw *blockReadWriter
 }
 
-func newHistoryFormatter(db *stateDB, rw *blockReadWriter) (*historyFormatter, error) {
-	return &historyFormatter{db, rw}, nil
-}
-
-func (hfmt *historyFormatter) getID(record []byte) ([]byte, error) {
-	if len(record) < idSize {
-		return nil, errors.New("invalid record size")
-	}
-	return record[len(record)-idSize:], nil
-}
-
-func (hfmt *historyFormatter) addRecord(history *historyRecord, record []byte) error {
-	if len(history.records) == 0 {
-		// History is empty, new record is the first one.
-		history.records = append(history.records, record)
-		return nil
-	}
-	lastRecord, err := hfmt.getLatest(history)
-	if err != nil {
-		return err
-	}
-	lastID, err := hfmt.getID(lastRecord)
-	if err != nil {
-		return err
-	}
-	curID, err := hfmt.getID(record)
-	if err != nil {
-		return err
-	}
-	if bytes.Equal(lastID, curID) {
-		// If the last ID is the same, rewrite the last record.
-		history.records[len(history.records)-1] = record
-	} else {
-		// Append new record to the end.
-		history.records = append(history.records, record)
-	}
-	return nil
-}
-
-func (hfmt *historyFormatter) getLatest(history *historyRecord) ([]byte, error) {
-	if len(history.records) < 1 {
-		return nil, errors.Errorf("invalid history size")
-	}
-	return history.records[len(history.records)-1], nil
+func newHistoryFormatter(db *stateDB) (*historyFormatter, error) {
+	return &historyFormatter{db}, nil
 }
 
 func (hfmt *historyFormatter) filter(history *historyRecord) (bool, error) {
 	changed := false
-	for i := len(history.records) - 1; i >= 0; i-- {
-		record := history.records[i]
-		blockNumBytes, err := hfmt.getID(record)
-		if err != nil {
-			return false, err
-		}
-		blockNum := binary.BigEndian.Uint32(blockNumBytes)
-		valid, err := hfmt.db.isValidBlock(blockNum)
+	for i := len(history.entries) - 1; i >= 0; i-- {
+		entry := history.entries[i]
+		valid, err := hfmt.db.isValidBlock(entry.blockNum)
 		if err != nil {
 			return false, err
 		}
 		if valid {
-			// Is valid record.
+			// Is valid entry.
 			break
 		}
-		// Erase invalid record.
-		history.records = history.records[:i]
+		// Erase invalid entry.
+		history.entries = history.entries[:i]
 		changed = true
 	}
 	return changed, nil
 }
 
+func (hfmt *historyFormatter) calculateMinAcceptableBlockNum() (uint32, error) {
+	rollbackMinHeight, err := hfmt.db.getRollbackMinHeight()
+	if err != nil {
+		return 0, err
+	}
+	minAcceptableBlockNum, err := hfmt.db.blockNumByHeight(rollbackMinHeight)
+	if err != nil {
+		return 0, err
+	}
+	return minAcceptableBlockNum, nil
+}
+
 func (hfmt *historyFormatter) cut(history *historyRecord) (bool, error) {
 	changed := false
 	firstNeeded := 0
-	for i, record := range history.records {
-		blockNumBytes, err := hfmt.getID(record)
-		if err != nil {
-			return false, err
-		}
-		blockNum := binary.BigEndian.Uint32(blockNumBytes)
-		isOld, err := isOldBlock(hfmt.rw, hfmt.db, blockNum)
-		if err != nil {
-			return false, err
-		}
-		if isOld {
-			// 1 record BEFORE minHeight is needed.
+	minAcceptableBlockNum, err := hfmt.calculateMinAcceptableBlockNum()
+	if err != nil {
+		return false, err
+	}
+	for i, entry := range history.entries {
+		if entry.blockNum < minAcceptableBlockNum {
+			// 1 entry BEFORE minAcceptableHeight is needed.
 			firstNeeded = i
 			changed = true
 			continue
 		}
 		break
 	}
-	history.records = history.records[firstNeeded:]
+	history.entries = history.entries[firstNeeded:]
 	return changed, nil
 }
 

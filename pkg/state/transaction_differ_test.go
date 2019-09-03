@@ -123,7 +123,7 @@ func TestCreateDiffTransferV1(t *testing.T) {
 	to.stor.activateSponsorship(t)
 	_, err = to.td.createDiffTransferV1(tx, defaultDifferInfo(t))
 	assert.Error(t, err, "createDiffTransferV1() did not fail with unsponsored asset")
-	err = to.stor.entities.sponsoredAssets.sponsorAsset(assetId, 10, blockID0)
+	err = to.stor.entities.sponsoredAssets.sponsorAsset(assetId, 10)
 	assert.NoError(t, err, "sponsorAsset() failed")
 	diff, err = to.td.createDiffTransferV1(tx, defaultDifferInfo(t))
 	assert.NoError(t, err, "createDiffTransferV1() failed with valid sponsored asset")
@@ -174,7 +174,7 @@ func TestCreateDiffTransferV2(t *testing.T) {
 	to.stor.activateSponsorship(t)
 	_, err = to.td.createDiffTransferV2(tx, defaultDifferInfo(t))
 	assert.Error(t, err, "createDiffTransferV2() did not fail with unsponsored asset")
-	err = to.stor.entities.sponsoredAssets.sponsorAsset(assetId, 10, blockID0)
+	err = to.stor.entities.sponsoredAssets.sponsorAsset(assetId, 10)
 	assert.NoError(t, err, "sponsorAsset() failed")
 	diff, err = to.td.createDiffTransferV2(tx, defaultDifferInfo(t))
 	assert.NoError(t, err, "createDiffTransferV2() failed with valid sponsored asset")
@@ -524,7 +524,7 @@ func TestCreateDiffLeaseCancelV1(t *testing.T) {
 
 	leaseTx := createLeaseV1(t)
 	info := defaultPerformerInfo(t)
-	to.stor.addBlock(t, info.blockID)
+	to.stor.addBlock(t, blockID0)
 	err := to.tp.performLeaseV1(leaseTx, info)
 	assert.NoError(t, err, "performLeaseV1 failed")
 
@@ -559,7 +559,7 @@ func TestCreateDiffLeaseCancelV2(t *testing.T) {
 
 	leaseTx := createLeaseV2(t)
 	info := defaultPerformerInfo(t)
-	to.stor.addBlock(t, info.blockID)
+	to.stor.addBlock(t, blockID0)
 	err := to.tp.performLeaseV2(leaseTx, info)
 	assert.NoError(t, err, "performLeaseV2 failed")
 

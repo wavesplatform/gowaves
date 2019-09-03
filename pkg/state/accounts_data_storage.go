@@ -3,31 +3,23 @@ package state
 import (
 	"encoding/binary"
 
-	"github.com/pkg/errors"
-	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
 type dataEntryRecord struct {
-	value    []byte
-	blockNum uint32
+	value []byte
 }
 
 func (r *dataEntryRecord) marshalBinary() ([]byte, error) {
-	res := make([]byte, len(r.value)+4)
-	copy(res[:len(r.value)], r.value)
-	binary.BigEndian.PutUint32(res[len(r.value):len(r.value)+4], r.blockNum)
+	res := make([]byte, len(r.value))
+	copy(res, r.value)
 	return res, nil
 }
 
 func (r *dataEntryRecord) unmarshalBinary(data []byte) error {
-	if len(data) < 4 {
-		return errors.New("invalid data size")
-	}
-	r.value = make([]byte, len(data)-4)
-	copy(r.value, data[:len(data)-4])
-	r.blockNum = binary.BigEndian.Uint32(data[len(data)-4:])
+	r.value = make([]byte, len(data))
+	copy(r.value, data)
 	return nil
 }
 
@@ -35,18 +27,16 @@ type accountsDataStorage struct {
 	db      keyvalue.IterableKeyVal
 	dbBatch keyvalue.Batch
 	hs      *historyStorage
-	stateDB *stateDB
 
 	newestAddrToNum map[proto.Address]uint64
 	addrNum         uint64
 }
 
-func newAccountsDataStorage(db keyvalue.IterableKeyVal, dbBatch keyvalue.Batch, hs *historyStorage, stateDB *stateDB) (*accountsDataStorage, error) {
+func newAccountsDataStorage(db keyvalue.IterableKeyVal, dbBatch keyvalue.Batch, hs *historyStorage) (*accountsDataStorage, error) {
 	return &accountsDataStorage{
 		db:              db,
 		dbBatch:         dbBatch,
 		hs:              hs,
-		stateDB:         stateDB,
 		newestAddrToNum: make(map[proto.Address]uint64),
 	}, nil
 }
@@ -101,26 +91,22 @@ func (s *accountsDataStorage) appendAddr(addr proto.Address) (uint64, error) {
 	return newAddrNum, nil
 }
 
-func (s *accountsDataStorage) appendEntry(addr proto.Address, entry proto.DataEntry, blockID crypto.Signature) error {
+func (s *accountsDataStorage) appendEntry(addr proto.Address, entry proto.DataEntry) error {
 	addrNum, err := s.appendAddr(addr)
 	if err != nil {
 		return err
 	}
 	key := accountsDataStorKey{addrNum, entry.GetKey()}
-	blockNum, err := s.stateDB.blockIdToNum(blockID)
-	if err != nil {
-		return err
-	}
 	valueBytes, err := entry.MarshalValue()
 	if err != nil {
 		return err
 	}
-	record := &dataEntryRecord{valueBytes, blockNum}
+	record := &dataEntryRecord{valueBytes}
 	recordBytes, err := record.marshalBinary()
 	if err != nil {
 		return err
 	}
-	if err := s.hs.set(dataEntry, key.bytes(), recordBytes); err != nil {
+	if err := s.hs.addNewEntry(dataEntry, key.bytes(), recordBytes); err != nil {
 		return err
 	}
 	return nil
@@ -132,7 +118,7 @@ func (s *accountsDataStorage) newestEntryBytes(addr proto.Address, entryKey stri
 		return nil, err
 	}
 	key := accountsDataStorKey{addrNum, entryKey}
-	recordBytes, err := s.hs.getFresh(key.bytes(), filter)
+	recordBytes, err := s.hs.freshLatestEntryData(key.bytes(), filter)
 	if err != nil {
 		return nil, err
 	}
@@ -149,7 +135,7 @@ func (s *accountsDataStorage) entryBytes(addr proto.Address, entryKey string, fi
 		return nil, err
 	}
 	key := accountsDataStorKey{addrNum, entryKey}
-	recordBytes, err := s.hs.get(key.bytes(), filter)
+	recordBytes, err := s.hs.latestEntryData(key.bytes(), filter)
 	if err != nil {
 		return nil, err
 	}

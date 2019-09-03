@@ -20,7 +20,7 @@ func createAssets() (*assetsTestObjects, []string, error) {
 	if err != nil {
 		return nil, path, err
 	}
-	assets, err := newAssets(stor.db, stor.dbBatch, stor.stateDB, stor.hs)
+	assets, err := newAssets(stor.db, stor.dbBatch, stor.hs)
 	if err != nil {
 		return nil, path, err
 	}
@@ -42,7 +42,7 @@ func TestIssueAsset(t *testing.T) {
 	assetID, err := crypto.NewDigestFromBytes(bytes.Repeat([]byte{0xff}, crypto.DigestSize))
 	assert.NoError(t, err, "failed to create digest from bytes")
 	asset := defaultAssetInfo(false)
-	err = to.assets.issueAsset(assetID, asset, blockID0)
+	err = to.assets.issueAsset(assetID, asset)
 	assert.NoError(t, err, "failed to issue asset")
 	inf, err := to.assets.newestAssetInfo(assetID, true)
 	assert.NoError(t, err, "failed to get newest asset info")
@@ -72,9 +72,9 @@ func TestReissueAsset(t *testing.T) {
 	assetID, err := crypto.NewDigestFromBytes(bytes.Repeat([]byte{0xff}, crypto.DigestSize))
 	assert.NoError(t, err, "failed to create digest from bytes")
 	asset := defaultAssetInfo(true)
-	err = to.assets.issueAsset(assetID, asset, blockID0)
+	err = to.assets.issueAsset(assetID, asset)
 	assert.NoError(t, err, "failed to issue asset")
-	err = to.assets.reissueAsset(assetID, &assetReissueChange{false, 1, blockID0}, true)
+	err = to.assets.reissueAsset(assetID, &assetReissueChange{false, 1}, true)
 	assert.NoError(t, err, "failed to reissue asset")
 	asset.reissuable = false
 	asset.quantity.Add(&asset.quantity, big.NewInt(1))
@@ -101,9 +101,9 @@ func TestBurnAsset(t *testing.T) {
 	assetID, err := crypto.NewDigestFromBytes(bytes.Repeat([]byte{0xff}, crypto.DigestSize))
 	assert.NoError(t, err, "failed to create digest from bytes")
 	asset := defaultAssetInfo(false)
-	err = to.assets.issueAsset(assetID, asset, blockID0)
+	err = to.assets.issueAsset(assetID, asset)
 	assert.NoError(t, err, "failed to issue asset")
-	err = to.assets.burnAsset(assetID, &assetBurnChange{1, blockID0}, true)
+	err = to.assets.burnAsset(assetID, &assetBurnChange{1}, true)
 	assert.NoError(t, err, "failed to burn asset")
 	asset.quantity.Sub(&asset.quantity, big.NewInt(1))
 	to.stor.flush(t)
