@@ -70,3 +70,57 @@ func log(base, exponent int64, baseScale, exponentScale, resultScale int, mode d
 	}
 	return i, nil
 }
+
+func modDivision(x int64, y int64) int64 {
+	return x - floorDiv(x, y)*y
+}
+
+func floorDiv(x int64, y int64) int64 {
+	r := x / y
+	if (x^y) < 0 && (r*y != x) {
+		r--
+	}
+	return r
+}
+
+func mathLong(funcName string, f func(int64, int64) (Expr, error), s Scope, e Exprs) (Expr, error) {
+	if l := len(e); l != 2 {
+		return nil, errors.Errorf("%s: invalid params, expected 2, passed %d", funcName, l)
+	}
+	rs, err := e.EvaluateAll(s)
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	first, ok := rs[0].(*LongExpr)
+	if !ok {
+		return nil, errors.Errorf("%s first argument expected to be *LongExpr, got %T", funcName, rs[0])
+	}
+	second, ok := rs[1].(*LongExpr)
+	if !ok {
+		return nil, errors.Errorf("%s second argument expected to be *LongExpr, got %T", funcName, rs[1])
+	}
+	return f(first.Value, second.Value)
+}
+
+func roundingMode(e Expr) (decimal.RoundingMode, error) {
+	switch e.InstanceOf() {
+	case "Ceiling":
+		return decimal.ToPositiveInf, nil
+	case "Floor":
+		return decimal.ToNegativeInf, nil
+	case "HalfEven":
+		return decimal.ToNearestEven, nil
+	case "Down":
+		return decimal.ToZero, nil
+	case "Up":
+		return decimal.AwayFromZero, nil
+	case "HalfUp":
+		return decimal.ToNearestAway, nil
+	case "HalfDown":
+		// TODO: Enable this branch after PR https://github.com/ericlagergren/decimal/pull/136 is accepted. Before that this using this rounding mode will panic.
+		// TODO: return decimal.ToNearestToZero, nil
+		panic("not implemented rounding mode")
+	default:
+		return 0, errors.Errorf("unsupported rounding mode %s", e.InstanceOf())
+	}
+}

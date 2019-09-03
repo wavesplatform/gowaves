@@ -148,7 +148,7 @@ func (a *MockStateManager) CurrentScore() (*big.Int, error) {
 	return a.ScoreAtHeight(proto.Height(len(a.state)))
 }
 
-func (a *MockStateManager) EffectiveBalance(addr proto.Address, startHeight, endHeight uint64) (uint64, error) {
+func (a *MockStateManager) EffectiveBalance(account proto.Recipient, startHeight, endHeight uint64) (uint64, error) {
 	panic("implement me")
 }
 
@@ -172,43 +172,43 @@ func (a *MockStateManager) Peers() ([]proto.TCPAddr, error) {
 	return a.Peers_, nil
 }
 
-func (a *MockStateManager) RetrieveEntry(addr proto.Address, key string) (proto.DataEntry, error) {
+func (a *MockStateManager) RetrieveEntry(account proto.Recipient, key string) (proto.DataEntry, error) {
 	panic("implement me")
 }
 
-func (a *MockStateManager) RetrieveIntegerEntry(addr proto.Address, key string) (*proto.IntegerDataEntry, error) {
+func (a *MockStateManager) RetrieveIntegerEntry(account proto.Recipient, key string) (*proto.IntegerDataEntry, error) {
 	panic("implement me")
 }
 
-func (a *MockStateManager) RetrieveBooleanEntry(addr proto.Address, key string) (*proto.BooleanDataEntry, error) {
+func (a *MockStateManager) RetrieveBooleanEntry(account proto.Recipient, key string) (*proto.BooleanDataEntry, error) {
 	panic("implement me")
 }
 
-func (a *MockStateManager) RetrieveStringEntry(addr proto.Address, key string) (*proto.StringDataEntry, error) {
+func (a *MockStateManager) RetrieveStringEntry(account proto.Recipient, key string) (*proto.StringDataEntry, error) {
 	panic("implement me")
 }
 
-func (a *MockStateManager) RetrieveBinaryEntry(addr proto.Address, key string) (*proto.BinaryDataEntry, error) {
+func (a *MockStateManager) RetrieveBinaryEntry(account proto.Recipient, key string) (*proto.BinaryDataEntry, error) {
 	panic("implement me")
 }
 
-func (a *MockStateManager) RetrieveNewestEntry(addr proto.Address, key string) (proto.DataEntry, error) {
+func (a *MockStateManager) RetrieveNewestEntry(account proto.Recipient, key string) (proto.DataEntry, error) {
 	panic("implement me")
 }
 
-func (a *MockStateManager) RetrieveNewestIntegerEntry(addr proto.Address, key string) (*proto.IntegerDataEntry, error) {
+func (a *MockStateManager) RetrieveNewestIntegerEntry(account proto.Recipient, key string) (*proto.IntegerDataEntry, error) {
 	panic("implement me")
 }
 
-func (a *MockStateManager) RetrieveNewestBooleanEntry(addr proto.Address, key string) (*proto.BooleanDataEntry, error) {
+func (a *MockStateManager) RetrieveNewestBooleanEntry(account proto.Recipient, key string) (*proto.BooleanDataEntry, error) {
 	panic("implement me")
 }
 
-func (a *MockStateManager) RetrieveNewestStringEntry(addr proto.Address, key string) (*proto.StringDataEntry, error) {
+func (a *MockStateManager) RetrieveNewestStringEntry(account proto.Recipient, key string) (*proto.StringDataEntry, error) {
 	panic("implement me")
 }
 
-func (a *MockStateManager) RetrieveNewestBinaryEntry(addr proto.Address, key string) (*proto.BinaryDataEntry, error) {
+func (a *MockStateManager) RetrieveNewestBinaryEntry(account proto.Recipient, key string) (*proto.BinaryDataEntry, error) {
 	panic("implement me")
 }
 
@@ -224,7 +224,19 @@ func (a *MockStateManager) BlockchainSettings() (*settings.BlockchainSettings, e
 	panic("implement me")
 }
 
-func (a *MockStateManager) AccountBalance(addr proto.Address, asset []byte) (uint64, error) {
+func (a *MockStateManager) NewestAddrByAlias(alias proto.Alias) (proto.Address, error) {
+	panic("implement me")
+}
+
+func (a *MockStateManager) AddrByAlias(alias proto.Alias) (proto.Address, error) {
+	panic("implement me")
+}
+
+func (a *MockStateManager) NewestAccountBalance(account proto.Recipient, asset []byte) (uint64, error) {
+	panic("implement me")
+}
+
+func (a *MockStateManager) AccountBalance(account proto.Recipient, asset []byte) (uint64, error) {
 	panic("implement me")
 }
 

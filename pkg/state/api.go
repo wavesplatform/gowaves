@@ -15,18 +15,23 @@ import (
 // occurring during applying block. This state corresponds to the latest validated transaction,
 // and for now is only needed for Ride and Consensus modules, which are both called during the validation.
 type StateNewest interface {
-	// Effective balance by address in given height range.
+	// Effective balance by account in given height range.
 	// WARNING: this function takes into account newest blocks (which are currently being added)
 	// and works correctly for height ranges exceeding current Height() if there are such blocks.
 	// It does not work for heights older than rollbackMax blocks before the current block.
-	EffectiveBalance(addr proto.Address, startHeight, endHeight proto.Height) (uint64, error)
+	EffectiveBalance(account proto.Recipient, startHeight, endHeight proto.Height) (uint64, error)
+
+	NewestAccountBalance(account proto.Recipient, asset []byte) (uint64, error)
+
+	// Aliases.
+	NewestAddrByAlias(alias proto.Alias) (proto.Address, error)
 
 	// Accounts data storage.
-	RetrieveNewestEntry(addr proto.Address, key string) (proto.DataEntry, error)
-	RetrieveNewestIntegerEntry(addr proto.Address, key string) (*proto.IntegerDataEntry, error)
-	RetrieveNewestBooleanEntry(addr proto.Address, key string) (*proto.BooleanDataEntry, error)
-	RetrieveNewestStringEntry(addr proto.Address, key string) (*proto.StringDataEntry, error)
-	RetrieveNewestBinaryEntry(addr proto.Address, key string) (*proto.BinaryDataEntry, error)
+	RetrieveNewestEntry(account proto.Recipient, key string) (proto.DataEntry, error)
+	RetrieveNewestIntegerEntry(account proto.Recipient, key string) (*proto.IntegerDataEntry, error)
+	RetrieveNewestBooleanEntry(account proto.Recipient, key string) (*proto.BooleanDataEntry, error)
+	RetrieveNewestStringEntry(account proto.Recipient, key string) (*proto.StringDataEntry, error)
+	RetrieveNewestBinaryEntry(account proto.Recipient, key string) (*proto.BinaryDataEntry, error)
 }
 
 // StateStable returns information that corresponds to latest fully applied block.
@@ -47,9 +52,9 @@ type StateStable interface {
 	// Height <---> blockID converters.
 	BlockIDToHeight(blockID crypto.Signature) (proto.Height, error)
 	HeightToBlockID(height proto.Height) (crypto.Signature, error)
-	// AccountBalance retrieves balance of address in specific currency, asset is asset's ID.
+	// AccountBalance retrieves balance of account in specific currency, asset is asset's ID.
 	// nil asset = Waves.
-	AccountBalance(addr proto.Address, asset []byte) (uint64, error)
+	AccountBalance(account proto.Recipient, asset []byte) (uint64, error)
 	// WavesAddressesNumber returns total number of Waves addresses in state.
 	// It is extremely slow, so it is recommended to only use for testing purposes.
 	WavesAddressesNumber() (uint64, error)
@@ -70,12 +75,15 @@ type StateStable interface {
 	IsApproved(featureID int16) (bool, error)
 	ApprovalHeight(featureID int16) (proto.Height, error)
 
+	// Aliases.
+	AddrByAlias(alias proto.Alias) (proto.Address, error)
+
 	// Accounts data storage.
-	RetrieveEntry(addr proto.Address, key string) (proto.DataEntry, error)
-	RetrieveIntegerEntry(addr proto.Address, key string) (*proto.IntegerDataEntry, error)
-	RetrieveBooleanEntry(addr proto.Address, key string) (*proto.BooleanDataEntry, error)
-	RetrieveStringEntry(addr proto.Address, key string) (*proto.StringDataEntry, error)
-	RetrieveBinaryEntry(addr proto.Address, key string) (*proto.BinaryDataEntry, error)
+	RetrieveEntry(account proto.Recipient, key string) (proto.DataEntry, error)
+	RetrieveIntegerEntry(account proto.Recipient, key string) (*proto.IntegerDataEntry, error)
+	RetrieveBooleanEntry(account proto.Recipient, key string) (*proto.BooleanDataEntry, error)
+	RetrieveStringEntry(account proto.Recipient, key string) (*proto.StringDataEntry, error)
+	RetrieveBinaryEntry(account proto.Recipient, key string) (*proto.BinaryDataEntry, error)
 }
 
 // StateModifier contains all the methods needed to modify node's state.

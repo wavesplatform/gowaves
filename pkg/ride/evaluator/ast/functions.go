@@ -12,9 +12,10 @@ import (
 	"fmt"
 	"io"
 	"math/big"
+	"strconv"
+	"strings"
 	"unicode/utf8"
 
-	"github.com/ericlagergren/decimal"
 	"github.com/mr-tron/base58/base58"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
@@ -35,18 +36,6 @@ type Throw struct {
 
 func (a Throw) Error() string {
 	return a.Message
-}
-
-func modDivision(x int64, y int64) int64 {
-	return x - floorDiv(x, y)*y
-}
-
-func floorDiv(x int64, y int64) int64 {
-	r := x / y
-	if (x^y) < 0 && (r*y != x) {
-		r--
-	}
-	return r
 }
 
 func Params(params ...Expr) Exprs {
@@ -70,7 +59,6 @@ func NativeEq(s Scope, e Exprs) (Expr, error) {
 	if l := len(e); l != 2 {
 		return nil, errors.Errorf("NativeEq: invalid params, expected 2, passed %d", l)
 	}
-
 	first, err := e[0].Evaluate(s.Clone())
 	if err != nil {
 		return nil, errors.Wrap(err, "NativeEq evaluate first param")
@@ -79,69 +67,79 @@ func NativeEq(s Scope, e Exprs) (Expr, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "NativeEq evaluate second param")
 	}
-
 	b, err := first.Eq(second)
 	return NewBoolean(b), err
 }
 
 // Get list element by position
 func NativeGetList(s Scope, e Exprs) (Expr, error) {
-	funcName := "NativeGetList"
-
+	const funcName = "NativeGetList"
 	if l := len(e); l != 2 {
 		return nil, errors.Errorf("%s: invalid params, expected 2, passed %d", funcName, l)
 	}
-
 	first, err := e[0].Evaluate(s.Clone())
 	if err != nil {
 		return nil, err
 	}
-
 	second, err := e[1].Evaluate(s.Clone())
 	if err != nil {
 		return nil, err
 	}
-
 	lst, ok := first.(Exprs)
 	if !ok {
 		return nil, errors.Errorf("%s: expected first argument Exprs, got %T", funcName, first)
 	}
-
 	lng, ok := second.(*LongExpr)
 	if !ok {
 		return nil, errors.Errorf("%s: expected second argument *LongExpr, got %T", funcName, second)
 	}
-
 	if lng.Value < 0 || lng.Value >= int64(len(lst)) {
 		return nil, errors.Errorf("%s: invalid index %d, len %d", funcName, lng.Value, len(lst))
 	}
-
 	return lst[lng.Value], nil
+}
+
+func NativeCreateList(s Scope, e Exprs) (Expr, error) {
+	const funcName = "NativeCreateList"
+	if l := len(e); l != 2 {
+		return nil, errors.Errorf("%s: invalid parameters, expected 2, received %d", funcName, l)
+	}
+	head, err := e[0].Evaluate(s.Clone())
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	t, err := e[1].Evaluate(s.Clone())
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	tail, ok := t.(Exprs)
+	if !ok {
+		return nil, errors.Errorf("%s: invalid second parameter, expected Exprs, received %T", funcName, e[1])
+	}
+	if len(tail) == 0 {
+		return NewExprs(e[0]), nil
+	}
+	return append(NewExprs(head), tail...), nil
 }
 
 // Internal function to check value type
 func NativeIsInstanceOf(s Scope, e Exprs) (Expr, error) {
-	funcName := "NativeIsInstanceOf"
-
+	const funcName = "NativeIsInstanceOf"
 	if l := len(e); l != 2 {
 		return nil, errors.Errorf("%s: invalid params, expected 2, passed %d", funcName, l)
 	}
-
 	first, err := e[0].Evaluate(s.Clone())
 	if err != nil {
 		return nil, err
 	}
-
 	second, err := e[1].Evaluate(s.Clone())
 	if err != nil {
 		return nil, err
 	}
-
 	str, ok := second.(*StringExpr)
 	if !ok {
 		return nil, errors.Errorf("%s: expected second argument to be *StringExpr, got %T", funcName, second)
 	}
-
 	strVal := first.InstanceOf()
 	return NewBoolean(strVal == str.Value), nil
 }
@@ -189,89 +187,72 @@ func NativeModLong(s Scope, e Exprs) (Expr, error) {
 
 // Multiply and division with big integer intermediate representation
 func NativeFractionLong(s Scope, e Exprs) (Expr, error) {
-	funcName := "NativeFractionLong"
-
+	const funcName = "NativeFractionLong"
 	if l := len(e); l != 3 {
 		return nil, errors.Errorf("%s: invalid params, expected 2, passed %d", funcName, l)
 	}
-
 	rs, err := e.EvaluateAll(s.Clone())
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
-
 	originalValue, ok := rs[0].(*LongExpr)
 	if !ok {
 		return nil, errors.Errorf("%s first argument expected to be *LongExpr, got %T", funcName, rs[0])
 	}
-
 	multiplier, ok := rs[1].(*LongExpr)
 	if !ok {
 		return nil, errors.Errorf("%s second argument expected to be *LongExpr, got %T", funcName, rs[1])
 	}
-
 	divider, ok := rs[2].(*LongExpr)
 	if !ok {
 		return nil, errors.Errorf("%s third argument expected to be *LongExpr, got %T", funcName, rs[2])
 	}
-
 	if divider.Value == 0 {
 		return nil, errors.Errorf("%s division by zero", funcName)
 	}
-
 	a := big.NewInt(0)
 	a.Mul(big.NewInt(originalValue.Value), big.NewInt(multiplier.Value))
 	a.Div(a, big.NewInt(divider.Value))
-
 	if !a.IsInt64() {
 		return nil, errors.Errorf("%s long overflow %s", funcName, a.String())
 	}
-
 	return NewLong(a.Int64()), nil
 }
 
 //NativePowLong calculates power.
 func NativePowLong(s Scope, e Exprs) (Expr, error) {
-	funcName := "NativePowLong"
+	const funcName = "NativePowLong"
 	if l := len(e); l != 6 {
 		return nil, errors.Errorf("%s: invalid number of parameters, expected 6, received %d", funcName, l)
 	}
-
 	rs, err := e.EvaluateAll(s.Clone())
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
-
 	base, ok := rs[0].(*LongExpr)
 	if !ok {
 		return nil, errors.Errorf("%s first argument expected to be *LongExpr, got %T", funcName, rs[0])
 	}
-
 	bp, ok := rs[1].(*LongExpr)
 	if !ok {
 		return nil, errors.Errorf("%s second argument expected to be *LongExpr, got %T", funcName, rs[1])
 	}
-
 	exponent, ok := rs[2].(*LongExpr)
 	if !ok {
 		return nil, errors.Errorf("%s third argument expected to be *LongExpr, got %T", funcName, rs[2])
 	}
-
 	ep, ok := rs[3].(*LongExpr)
 	if !ok {
 		return nil, errors.Errorf("%s 4th argument expected to be *LongExpr, got %T", funcName, rs[3])
 	}
-
 	rp, ok := rs[4].(*LongExpr)
 	if !ok {
 		return nil, errors.Errorf("%s 5th argument expected to be *LongExpr, got %T", funcName, rs[4])
 	}
-
 	round, err := roundingMode(rs[5])
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
-
 	r, err := pow(base.Value, exponent.Value, int(bp.Value), int(ep.Value), int(rp.Value), round)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
@@ -281,46 +262,38 @@ func NativePowLong(s Scope, e Exprs) (Expr, error) {
 
 // NativeLogLong calculates logarithm.
 func NativeLogLong(s Scope, e Exprs) (Expr, error) {
-	funcName := "NativeLogLong"
+	const funcName = "NativeLogLong"
 	if l := len(e); l != 6 {
 		return nil, errors.Errorf("%s: invalid number of parameters, expected 6, received %d", funcName, l)
 	}
-
 	rs, err := e.EvaluateAll(s.Clone())
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
-
 	base, ok := rs[0].(*LongExpr)
 	if !ok {
 		return nil, errors.Errorf("%s first argument expected to be *LongExpr, got %T", funcName, rs[0])
 	}
-
 	bp, ok := rs[1].(*LongExpr)
 	if !ok {
 		return nil, errors.Errorf("%s second argument expected to be *LongExpr, got %T", funcName, rs[1])
 	}
-
 	exponent, ok := rs[2].(*LongExpr)
 	if !ok {
 		return nil, errors.Errorf("%s third argument expected to be *LongExpr, got %T", funcName, rs[2])
 	}
-
 	ep, ok := rs[3].(*LongExpr)
 	if !ok {
 		return nil, errors.Errorf("%s 4th argument expected to be *LongExpr, got %T", funcName, rs[3])
 	}
-
 	rp, ok := rs[4].(*LongExpr)
 	if !ok {
 		return nil, errors.Errorf("%s 5th argument expected to be *LongExpr, got %T", funcName, rs[4])
 	}
-
 	round, err := roundingMode(rs[5])
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
-
 	r, err := log(base.Value, exponent.Value, int(bp.Value), int(ep.Value), int(rp.Value), round)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
@@ -328,91 +301,37 @@ func NativeLogLong(s Scope, e Exprs) (Expr, error) {
 	return NewLong(r), nil
 }
 
-func mathLong(funcName string, f func(int64, int64) (Expr, error), s Scope, e Exprs) (Expr, error) {
-	if l := len(e); l != 2 {
-		return nil, errors.Errorf("%s: invalid params, expected 2, passed %d", funcName, l)
-	}
-
-	rs, err := e.EvaluateAll(s)
-	if err != nil {
-		return nil, errors.Wrap(err, funcName)
-	}
-
-	first, ok := rs[0].(*LongExpr)
-	if !ok {
-		return nil, errors.Errorf("%s first argument expected to be *LongExpr, got %T", funcName, rs[0])
-	}
-
-	second, ok := rs[1].(*LongExpr)
-	if !ok {
-		return nil, errors.Errorf("%s second argument expected to be *LongExpr, got %T", funcName, rs[1])
-	}
-
-	return f(first.Value, second.Value)
-}
-
-func roundingMode(e Expr) (decimal.RoundingMode, error) {
-	switch e.InstanceOf() {
-	case "Ceiling":
-		return decimal.ToPositiveInf, nil
-	case "Floor":
-		return decimal.ToNegativeInf, nil
-	case "HalfEven":
-		return decimal.ToNearestEven, nil
-	case "Down":
-		return decimal.ToZero, nil
-	case "Up":
-		return decimal.AwayFromZero, nil
-	case "HalfUp":
-		return decimal.ToNearestAway, nil
-	case "HalfDown":
-		// TODO: Enable this branch after PR https://github.com/ericlagergren/decimal/pull/136 is accepted. Before that this using this rounding mode will panic.
-		// TODO: return decimal.ToNearestToZero, nil
-		panic("not implemented rounding mode")
-	default:
-		return 0, errors.Errorf("unsupported rounding mode %s", e.InstanceOf())
-	}
-}
-
 // Check signature
 // accepts Value, signature and public key
 func NativeSigVerify(s Scope, e Exprs) (Expr, error) {
-	funcName := "NativeSigVerify"
-
+	const funcName = "NativeSigVerify"
 	if l := len(e); l != 3 {
 		return nil, errors.Errorf("%s: invalid params, expected 2, passed %d", funcName, l)
 	}
-
 	rs, err := e.EvaluateAll(s)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
-
 	bytesExpr, ok := rs[0].(*BytesExpr)
 	if !ok {
 		return nil, errors.Errorf("%s: first argument expects to be *BytesExpr, found %T", funcName, rs[0])
 	}
-
 	signatureExpr, ok := rs[1].(*BytesExpr)
 	if !ok {
 		return nil, errors.Errorf("%s: second argument expects to be *BytesExpr, found %T", funcName, rs[1])
 	}
-
 	pkExpr, ok := rs[2].(*BytesExpr)
 	if !ok {
 		return nil, errors.Errorf("%s: third argument expects to be *BytesExpr, found %T", funcName, rs[2])
 	}
-
 	pk, err := crypto.NewPublicKeyFromBytes(pkExpr.Value)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
-
 	signature, err := crypto.NewSignatureFromBytes(signatureExpr.Value)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
-
 	out := crypto.Verify(pk, signature, bytesExpr.Value)
 	return NewBoolean(out), nil
 }
@@ -422,17 +341,14 @@ func NativeKeccak256(s Scope, e Exprs) (Expr, error) {
 	if l := len(e); l != 1 {
 		return nil, errors.Errorf("NativeKeccak256: invalid params, expected 1, passed %d", l)
 	}
-
 	val, err := e[0].Evaluate(s.Clone())
 	if err != nil {
 		return nil, errors.Wrapf(err, "NativeKeccak256")
 	}
-
 	bts, ok := val.(*BytesExpr)
 	if !ok {
 		return nil, errors.Errorf("NativeKeccak256: expected first argument to be *BytesExpr, found %T", val)
 	}
-
 	d, err := crypto.Keccak256(bts.Value)
 	if err != nil {
 		return nil, err
@@ -445,17 +361,14 @@ func NativeBlake2b256(s Scope, e Exprs) (Expr, error) {
 	if l := len(e); l != 1 {
 		return nil, errors.Errorf("NativeBlake2b256: invalid params, expected 1, passed %d", l)
 	}
-
 	val, err := e[0].Evaluate(s.Clone())
 	if err != nil {
 		return nil, errors.Wrapf(err, "NativeBlake2b256")
 	}
-
 	bts, ok := val.(*BytesExpr)
 	if !ok {
 		return nil, errors.Errorf("NativeBlake2b256: expected first argument to be *BytesExpr, found %T", val)
 	}
-
 	d, err := crypto.FastHash(bts.Value)
 	if err != nil {
 		return nil, errors.Wrap(err, "NativeBlake2b256")
@@ -468,44 +381,36 @@ func NativeSha256(s Scope, e Exprs) (Expr, error) {
 	if l := len(e); l != 1 {
 		return nil, errors.Errorf("NativeSha256: invalid params, expected 1, passed %d", l)
 	}
-
 	val, err := e[0].Evaluate(s.Clone())
 	if err != nil {
 		return nil, errors.Wrapf(err, "NativeSha256")
 	}
-
 	bts, ok := val.(*BytesExpr)
 	if !ok {
 		return nil, errors.Errorf("NativeSha256: expected first argument to be *BytesExpr, found %T", val)
 	}
-
 	h := sha256.New()
 	if _, err = h.Write(bts.Value); err != nil {
 		return nil, err
 	}
 	d := h.Sum(nil)
-
 	return NewBytes(d), nil
 }
 
-// Рeight when transaction was stored to blockchain
+// Height when transaction was stored to blockchain
 func NativeTransactionHeightByID(s Scope, e Exprs) (Expr, error) {
-	funcName := "NativeTransactionHeightByID"
-
+	const funcName = "NativeTransactionHeightByID"
 	if l := len(e); l != 1 {
 		return nil, errors.Errorf("%s: invalid params, expected 1, passed %d", funcName, l)
 	}
-
 	rs, err := e[0].Evaluate(s.Clone())
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
-
 	bts, ok := rs.(*BytesExpr)
 	if !ok {
 		return nil, errors.Errorf("%s: expected first argument to be *BytesExpr, got %T", funcName, rs)
 	}
-
 	height, err := s.State().TransactionHeightByID(bts.Value)
 	if err != nil {
 		if err == mockstate.ErrNotFound {
@@ -513,408 +418,325 @@ func NativeTransactionHeightByID(s Scope, e Exprs) (Expr, error) {
 		}
 		return nil, errors.Wrap(err, funcName)
 	}
-
 	return NewLong(int64(height)), nil
 }
 
 // Lookup transaction
 func NativeTransactionByID(s Scope, e Exprs) (Expr, error) {
-	funcName := "NativeTransactionByID"
-
+	const funcName = "NativeTransactionByID"
 	if l := len(e); l != 1 {
 		return nil, errors.Errorf("%s: invalid params, expected 1, passed %d", funcName, l)
 	}
-
 	rs, err := e[0].Evaluate(s.Clone())
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
-
 	bts, ok := rs.(*BytesExpr)
 	if !ok {
 		return nil, errors.Errorf("%s: expected first argument to be *BytesExpr, got %T", funcName, rs)
 	}
-
 	tx, err := s.State().TransactionByID(bts.Value)
 	if err != nil {
+		// TODO put real state check
 		if err == mockstate.ErrNotFound {
 			return Unit{}, nil
 		}
 		return nil, errors.Wrap(err, funcName)
 	}
-
 	vars, err := NewVariablesFromTransaction(s.Scheme(), tx)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
-
 	return NewObject(vars), nil
 }
 
 // Size of bytes vector
 func NativeSizeBytes(s Scope, e Exprs) (Expr, error) {
-	funcName := "NativeSizeBytes"
-
+	const funcName = "NativeSizeBytes"
 	if l := len(e); l != 1 {
 		return nil, errors.Errorf("%s: invalid params, expected 1, passed %d", funcName, l)
 	}
-
 	rs, err := e[0].Evaluate(s.Clone())
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
-
 	bts, ok := rs.(*BytesExpr)
 	if !ok {
 		return nil, errors.Errorf("%s expected first argument to be *BytesExpr, found %T", funcName, rs)
 	}
-
 	return NewLong(int64(len(bts.Value))), nil
 }
 
 // Take firsts bytes
 func NativeTakeBytes(s Scope, e Exprs) (Expr, error) {
-	funcName := "NativeTakeBytes"
-
+	const funcName = "NativeTakeBytes"
 	if l := len(e); l != 2 {
 		return nil, errors.Errorf("%s: invalid params, expected 2, passed %d", funcName, l)
 	}
-
 	rs, err := e.EvaluateAll(s.Clone())
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
-
 	bts, ok := rs[0].(*BytesExpr)
 	if !ok {
 		return nil, errors.Errorf("%s expected first argument to be *BytesExpr, found %T", funcName, rs[0])
 	}
-
 	length, ok := rs[1].(*LongExpr)
 	if !ok {
 		return nil, errors.Errorf("%s expected second argument to be *LongExpr, found %T", funcName, rs[1])
 	}
-
 	l := int(length.Value)
-
 	if l >= len(bts.Value) {
 		return nil, errors.Errorf("%s index %d out of range", funcName, length.Value)
 	}
-
 	if l < 0 {
 		return nil, errors.Errorf("%s index %d out of range", funcName, length.Value)
 	}
-
 	out := make([]byte, l)
 	copy(out, bts.Value[:l])
-
 	return NewBytes(out), nil
 }
 
 // Skip firsts bytes
 func NativeDropBytes(s Scope, e Exprs) (Expr, error) {
-	funcName := "NativeDropBytes"
-
+	const funcName = "NativeDropBytes"
 	if l := len(e); l != 2 {
 		return nil, errors.Errorf("%s: invalid params, expected 2, passed %d", funcName, l)
 	}
-
 	rs, err := e.EvaluateAll(s.Clone())
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
-
 	bts, ok := rs[0].(*BytesExpr)
 	if !ok {
 		return nil, errors.Errorf("%s expected first argument to be *BytesExpr, found %T", funcName, rs[0])
 	}
-
 	length, ok := rs[1].(*LongExpr)
 	if !ok {
 		return nil, errors.Errorf("%s expected second argument to be *LongExpr, found %T", funcName, rs[1])
 	}
-
 	l := int(length.Value)
-
 	if l >= len(bts.Value) {
 		return nil, errors.Errorf("%s index %d out of range", funcName, length.Value)
 	}
-
 	if l < 0 {
 		return nil, errors.Errorf("%s index %d out of range", funcName, length.Value)
 	}
-
 	out := make([]byte, len(bts.Value)-l)
 	copy(out, bts.Value[l:])
-
 	return NewBytes(out), nil
 }
 
 // Limited bytes concatenation
 func NativeConcatBytes(s Scope, e Exprs) (Expr, error) {
-	funcName := "NativeDropBytes"
-
+	const funcName = "NativeDropBytes"
 	if l := len(e); l != 2 {
 		return nil, errors.Errorf("%s: invalid params, expected 2, passed %d", funcName, l)
 	}
-
 	rs, err := e.EvaluateAll(s.Clone())
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
-
 	prefix, ok := rs[0].(*BytesExpr)
 	if !ok {
 		return nil, errors.Errorf("%s expected first argument to be *BytesExpr, found %T", funcName, rs[0])
 	}
-
 	suffix, ok := rs[1].(*BytesExpr)
 	if !ok {
 		return nil, errors.Errorf("%s expected second argument to be *BytesExpr, found %T", funcName, rs[1])
 	}
-
 	l := len(prefix.Value) + len(suffix.Value)
-
 	if l > MaxBytesResult {
 		return nil, errors.Errorf("%s byte length %d is greater than max %d", funcName, l, MaxBytesResult)
 	}
-
 	out := make([]byte, l)
 	out = append(out[:0], prefix.Value...)
 	out = append(out[:len(prefix.Value)], suffix.Value...)
-
 	return NewBytes(out), nil
 }
 
 // Limited strings concatenation
 func NativeConcatStrings(s Scope, e Exprs) (Expr, error) {
-	funcName := "NativeConcatStrings"
-
+	const funcName = "NativeConcatStrings"
 	if l := len(e); l != 2 {
 		return nil, errors.Errorf("%s: invalid params, expected 2, passed %d", funcName, l)
 	}
-
 	rs, err := e.EvaluateAll(s.Clone())
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
-
 	prefix, ok := rs[0].(*StringExpr)
 	if !ok {
 		return nil, errors.Errorf("%s expected first argument to be *StringExpr, found %T", funcName, rs[0])
 	}
-
 	suffix, ok := rs[1].(*StringExpr)
 	if !ok {
 		return nil, errors.Errorf("%s expected second argument to be *StringExpr, found %T", funcName, rs[1])
 	}
-
 	l := len(prefix.Value) + len(suffix.Value)
-
 	if l > MaxBytesResult {
 		return nil, errors.Errorf("%s byte length %d is greater than max %d", funcName, l, MaxBytesResult)
 	}
-
 	out := prefix.Value + suffix.Value
 	lengthInRunes := utf8.RuneCountInString(out)
 	if lengthInRunes > MaxStringResult {
 		return nil, errors.Errorf("%s string length %d is greater than max %d", funcName, lengthInRunes, MaxStringResult)
 	}
-
 	return NewString(out), nil
 }
 
 // Take string prefix
 func NativeTakeStrings(s Scope, e Exprs) (Expr, error) {
-	funcName := "NativeTakeStrings"
-
+	const funcName = "NativeTakeStrings"
 	if l := len(e); l != 2 {
 		return nil, errors.Errorf("%s: invalid params, expected 2, passed %d", funcName, l)
 	}
-
 	rs, err := e.EvaluateAll(s.Clone())
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
-
 	str, ok := rs[0].(*StringExpr)
 	if !ok {
 		return nil, errors.Errorf("%s expected first argument to be *StringExpr, found %T", funcName, rs[0])
 	}
-
 	length, ok := rs[1].(*LongExpr)
 	if !ok {
 		return nil, errors.Errorf("%s expected second argument to be *LongExpr, found %T", funcName, rs[1])
 	}
-
 	runeStr := []rune(str.Value)
 	runeLen := len(runeStr)
 	l := int(length.Value)
-
 	if l >= runeLen {
 		return nil, errors.Errorf("%s index %d out of range", funcName, l)
 	}
-
 	if l < 0 {
 		return nil, errors.Errorf("%s index %d out of range", funcName, l)
 	}
-
 	out := make([]rune, l)
 	copy(out, runeStr[:l])
-
 	return NewString(string(out)), nil
 }
 
 // Remove string prefix
 func NativeDropStrings(s Scope, e Exprs) (Expr, error) {
-	funcName := "NativeDropStrings"
-
+	const funcName = "NativeDropStrings"
 	if l := len(e); l != 2 {
 		return nil, errors.Errorf("%s: invalid params, expected 2, passed %d", funcName, l)
 	}
-
 	rs, err := e.EvaluateAll(s.Clone())
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
-
 	str, ok := rs[0].(*StringExpr)
 	if !ok {
 		return nil, errors.Errorf("%s expected first argument to be *StringExpr, found %T", funcName, rs[0])
 	}
-
 	length, ok := rs[1].(*LongExpr)
 	if !ok {
 		return nil, errors.Errorf("%s expected second argument to be *LongExpr, found %T", funcName, rs[1])
 	}
-
 	runeStr := []rune(str.Value)
 	runeLen := len(runeStr)
 	l := int(length.Value)
-
 	if l >= runeLen {
 		return nil, errors.Errorf("%s index %d out of range", funcName, l)
 	}
-
 	if l < 0 {
 		return nil, errors.Errorf("%s index %d out of range", funcName, l)
 	}
-
 	out := make([]rune, runeLen-l)
 	copy(out, runeStr[l:])
-
 	return NewString(string(out)), nil
 }
 
 // String size in characters
 func NativeSizeString(s Scope, e Exprs) (Expr, error) {
-	funcName := "NativeSizeBytes"
-
+	const funcName = "NativeSizeBytes"
 	if l := len(e); l != 1 {
 		return nil, errors.Errorf("%s: invalid params, expected 1, passed %d", funcName, l)
 	}
-
 	rs, err := e[0].Evaluate(s.Clone())
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
-
 	str, ok := rs.(*StringExpr)
 	if !ok {
 		return nil, errors.Errorf("%s expected first argument to be *StringExpr, found %T", funcName, rs)
 	}
-
 	return NewLong(int64(utf8.RuneCountInString(str.Value))), nil
 }
 
 // Size of list
 func NativeSizeList(s Scope, e Exprs) (Expr, error) {
-	funcName := "NativeSizeList"
-
+	const funcName = "NativeSizeList"
 	if l := len(e); l != 1 {
 		return nil, errors.Errorf("%s: invalid params, expected 1, passed %d", funcName, l)
 	}
-
 	// optimize not evaluate inner list
 	if v, ok := e[0].(Exprs); ok {
 		return NewLong(int64(len(v))), nil
 	}
-
 	rs, err := e[0].Evaluate(s.Clone())
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
-
 	lst, ok := rs.(Exprs)
 	if !ok {
 		return nil, errors.Errorf("%s: expected first argument Exprs, got %T", funcName, rs)
 	}
-
 	return NewLong(int64(len(lst))), nil
 }
 
 // Long to big endian bytes
 func NativeLongToBytes(s Scope, e Exprs) (Expr, error) {
-	funcName := "NativeLongToBytes"
-
+	const funcName = "NativeLongToBytes"
 	if l := len(e); l != 1 {
 		return nil, errors.Errorf("%s: invalid params, expected 1, passed %d", funcName, l)
 	}
-
 	first, err := e[0].Evaluate(s.Clone())
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
-
 	long, ok := first.(*LongExpr)
 	if !ok {
 		return nil, errors.Errorf("%s: expected first argument *LongExpr, got %T", funcName, first)
 	}
 	out := make([]byte, 8)
 	binary.BigEndian.PutUint64(out, uint64(long.Value))
-
 	return NewBytes(out), nil
 }
 
 // String to bytes representation
 func NativeStringToBytes(s Scope, e Exprs) (Expr, error) {
-	funcName := "NativeStringToBytes"
-
+	const funcName = "NativeStringToBytes"
 	if l := len(e); l != 1 {
 		return nil, errors.Errorf("%s: invalid params, expected 1, passed %d", funcName, l)
 	}
-
 	first, err := e[0].Evaluate(s.Clone())
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
-
 	str, ok := first.(*StringExpr)
 	if !ok {
 		return nil, errors.Errorf("%s: expected first argument *StringExpr, got %T", funcName, first)
 	}
-
 	return NewBytes([]byte(str.Value)), nil
 }
 
 // Boolean to bytes representation (1 - true, 0 - false)
 func NativeBooleanToBytes(s Scope, e Exprs) (Expr, error) {
-	funcName := "NativeBooleanToBytes"
-
+	const funcName = "NativeBooleanToBytes"
 	if l := len(e); l != 1 {
 		return nil, errors.Errorf("%s: invalid params, expected 1, passed %d", funcName, l)
 	}
-
 	rs, err := e[0].Evaluate(s.Clone())
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
-
 	b, ok := rs.(*BooleanExpr)
 	if !ok {
 		return nil, errors.Errorf("%s: exptected first argument to be *BooleanExpr, got %T", funcName, rs)
 	}
-
 	if b.Value {
 		return NewBytes([]byte{1}), nil
 	} else {
@@ -924,24 +746,19 @@ func NativeBooleanToBytes(s Scope, e Exprs) (Expr, error) {
 
 // Asset balance for account
 func NativeAssetBalance(s Scope, e Exprs) (Expr, error) {
-	funcName := "NativeAssetBalance"
-
+	const funcName = "NativeAssetBalance"
 	if l := len(e); l != 2 {
 		return nil, errors.Errorf("%s: invalid params, expected 2, passed %d", funcName, l)
 	}
-
 	addressOrAliasExpr, err := e[0].Evaluate(s.Clone())
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
-
 	assetId, err := e[1].Evaluate(s.Clone())
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
-
 	var r proto.Recipient
-
 	switch a := addressOrAliasExpr.(type) {
 	case AddressExpr:
 		r = proto.NewRecipientFromAddress(proto.Address(a))
@@ -950,42 +767,38 @@ func NativeAssetBalance(s Scope, e Exprs) (Expr, error) {
 	default:
 		return nil, errors.Errorf("%s first argument expected to be AddressExpr or AliasExpr, found %T", funcName, addressOrAliasExpr)
 	}
-
 	if _, ok := assetId.(Unit); ok {
-		return NewLong(int64(s.State().Account(r).AssetBalance(&proto.OptionalAsset{}))), nil
+		balance, err := s.State().NewestAccountBalance(r, nil)
+		if err != nil {
+			return nil, errors.Wrap(err, funcName)
+		}
+		return NewLong(int64(balance)), nil
 	}
-
 	assetBts, ok := assetId.(*BytesExpr)
 	if !ok {
 		return nil, errors.Errorf("%s expected second argument to be *BytesExpr, found %T", funcName, assetId)
 	}
-
-	asset, err := proto.NewOptionalAssetFromBytes(assetBts.Value)
+	balance, err := s.State().NewestAccountBalance(r, assetBts.Value)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
-
-	return NewLong(int64(s.State().Account(r).AssetBalance(asset))), nil
+	return NewLong(int64(balance)), nil
 }
 
 // Fail script
 func NativeThrow(s Scope, e Exprs) (Expr, error) {
-	funcName := "NativeThrow"
-
+	const funcName = "NativeThrow"
 	if l := len(e); l != 1 {
 		return nil, errors.Errorf("%s: invalid params, expected 1, passed %d", funcName, l)
 	}
-
 	first, err := e[0].Evaluate(s.Clone())
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
-
 	str, ok := first.(*StringExpr)
 	if !ok {
 		return nil, errors.Errorf("%s: expected first argument to be *StringExpr, found %T", funcName, first)
 	}
-
 	return nil, Throw{
 		Message: str.Value,
 	}
@@ -993,43 +806,35 @@ func NativeThrow(s Scope, e Exprs) (Expr, error) {
 
 // String representation
 func NativeLongToString(s Scope, e Exprs) (Expr, error) {
-	funcName := "NativeLongToString"
-
+	const funcName = "NativeLongToString"
 	if l := len(e); l != 1 {
 		return nil, errors.Errorf("%s: invalid params, expected 1, passed %d", funcName, l)
 	}
-
 	first, err := e[0].Evaluate(s.Clone())
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
-
 	long, ok := first.(*LongExpr)
 	if !ok {
 		return nil, errors.Errorf("%s: expected first argument to be *LongExpr, found %T", funcName, first)
 	}
-
 	return NewString(fmt.Sprintf("%d", long.Value)), nil
 }
 
 // String representation
 func NativeBooleanToString(s Scope, e Exprs) (Expr, error) {
-	funcName := "NativeBooleanToString"
-
+	const funcName = "NativeBooleanToString"
 	if l := len(e); l != 1 {
 		return nil, errors.Errorf("%s: invalid params, expected 1, passed %d", funcName, l)
 	}
-
 	first, err := e[0].Evaluate(s.Clone())
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
-
 	b, ok := first.(*BooleanExpr)
 	if !ok {
 		return nil, errors.Errorf("%s: expected first argument to be *BooleanExpr, found %T", funcName, first)
 	}
-
 	if b.Value {
 		return NewString("true"), nil
 	} else {
@@ -1039,144 +844,117 @@ func NativeBooleanToString(s Scope, e Exprs) (Expr, error) {
 
 // Base58 encode
 func NativeToBase58(s Scope, e Exprs) (Expr, error) {
-	funcName := "NativeToBase58"
-
+	const funcName = "NativeToBase58"
 	if l := len(e); l != 1 {
 		return nil, errors.Errorf("%s: invalid params, expected 1, passed %d", funcName, l)
 	}
-
 	first, err := e[0].Evaluate(s.Clone())
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
-
 	b, ok := first.(*BytesExpr)
 	if !ok {
 		return nil, errors.Errorf("%s: expected first argument to be *BytesExpr, found %T", funcName, first)
 	}
-
 	return NewString(base58.Encode(b.Value)), nil
 }
 
 // Base58 decode
 func NativeFromBase58(s Scope, e Exprs) (Expr, error) {
-	funcName := "NativeFromBase58"
-
+	const funcName = "NativeFromBase58"
 	if l := len(e); l != 1 {
 		return nil, errors.Errorf("%s: invalid params, expected 1, passed %d", funcName, l)
 	}
-
 	first, err := e[0].Evaluate(s.Clone())
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
-
 	str, ok := first.(*StringExpr)
 	if !ok {
 		return nil, errors.Errorf("%s: expected first argument to be *StringExpr, found %T", funcName, first)
 	}
-
 	rs, err := base58.Decode(str.Value)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
-
 	return NewBytes(rs), nil
 }
 
 // Base64 decode
 func NativeFromBase64(s Scope, e Exprs) (Expr, error) {
-	funcName := "NativeFromBase64"
-
+	const funcName = "NativeFromBase64"
 	if l := len(e); l != 1 {
 		return nil, errors.Errorf("%s: invalid params, expected 1, passed %d", funcName, l)
 	}
-
 	first, err := e[0].Evaluate(s.Clone())
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
-
 	str, ok := first.(*StringExpr)
 	if !ok {
 		return nil, errors.Errorf("%s expected first argument to be *StringExpr, found %T", funcName, first)
 	}
-
 	decoded, err := base64.StdEncoding.DecodeString(str.Value)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
-
 	return NewBytes(decoded), nil
 }
 
 // Base64 encode
 func NativeToBase64(s Scope, e Exprs) (Expr, error) {
-	funcName := "NativeToBase64"
-
+	const funcName = "NativeToBase64"
 	if l := len(e); l != 1 {
 		return nil, errors.Errorf("%s: invalid params, expected 1, passed %d", funcName, l)
 	}
-
 	first, err := e[0].Evaluate(s.Clone())
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
-
-	bytes, ok := first.(*BytesExpr)
+	b, ok := first.(*BytesExpr)
 	if !ok {
 		return nil, errors.Errorf("%s expected first argument to be *BytesExpr, found %T", funcName, first)
 	}
-
-	encoded := base64.StdEncoding.EncodeToString(bytes.Value)
+	encoded := base64.StdEncoding.EncodeToString(b.Value)
 	return NewString(encoded), nil
 }
 
 // Base16 (Hex) decode
 func NativeFromBase16(s Scope, e Exprs) (Expr, error) {
-	funcName := "NativeFromBase16"
-
+	const funcName = "NativeFromBase16"
 	if l := len(e); l != 1 {
 		return nil, errors.Errorf("%s: invalid params, expected 1, passed %d", funcName, l)
 	}
-
 	first, err := e[0].Evaluate(s.Clone())
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
-
 	str, ok := first.(*StringExpr)
 	if !ok {
 		return nil, errors.Errorf("%s expected first argument to be *StringExpr, found %T", funcName, first)
 	}
-
 	decoded, err := hex.DecodeString(str.Value)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
-
 	return NewBytes(decoded), nil
 }
 
 // Base16 (Hex) encode
 func NativeToBase16(s Scope, e Exprs) (Expr, error) {
-	funcName := "NativeToBase16"
-
+	const funcName = "NativeToBase16"
 	if l := len(e); l != 1 {
 		return nil, errors.Errorf("%s: invalid params, expected 1, passed %d", funcName, l)
 	}
-
 	first, err := e[0].Evaluate(s.Clone())
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
-
-	bytes, ok := first.(*BytesExpr)
+	b, ok := first.(*BytesExpr)
 	if !ok {
 		return nil, errors.Errorf("%s expected first argument to be *BytesExpr, found %T", funcName, first)
 	}
-
-	encoded := hex.EncodeToString(bytes.Value)
+	encoded := hex.EncodeToString(b.Value)
 	return NewString(encoded), nil
 }
 
@@ -1215,9 +993,9 @@ func dataFromArray(funcName string, s Scope, e Exprs, valueType proto.DataValueT
 		return nil, errors.Wrap(err, funcName)
 	}
 
-	lst, ok := lstExpr.(*DataEntryListExpr)
+	lst, ok := lstExpr.(DataByKey)
 	if !ok {
-		return nil, errors.Errorf("%s expected first argument to be *DataEntryListExpr, found %T", funcName, lstExpr)
+		return nil, errors.Errorf("%s expected first argument implements DataByKey, found %T", funcName, lstExpr)
 	}
 
 	key, ok := keyExpr.(*StringExpr)
@@ -1225,7 +1003,7 @@ func dataFromArray(funcName string, s Scope, e Exprs, valueType proto.DataValueT
 		return nil, errors.Errorf("%s expected second argument to be *StringExpr, found %T", funcName, keyExpr)
 	}
 
-	return lst.Get(key.Value, valueType), nil
+	return lst.GetByKey(key.Value, valueType)
 }
 
 // Get integer from account state
@@ -1260,37 +1038,44 @@ func dataFromState(funcName string, s Scope, e Exprs, valueType proto.DataValueT
 
 	if alias, ok := addOrAliasExpr.(AliasExpr); ok {
 		r := proto.NewRecipientFromAlias(proto.Alias(alias))
-		acc := s.State().Account(r)
-		return dataFromArray(funcName, s.Clone(), Params(NewDataEntryList(acc.Data()), e[1]), valueType)
+		return dataFromArray(funcName, s.Clone(), Params(NewDataEntryStateWrapperExpr(s.State(), r), e[1]), valueType)
 	}
 
 	if addr, ok := addOrAliasExpr.(AddressExpr); ok {
 		r := proto.NewRecipientFromAddress(proto.Address(addr))
-		acc := s.State().Account(r)
-		return dataFromArray(funcName, s.Clone(), Params(NewDataEntryList(acc.Data()), e[1]), valueType)
+		return dataFromArray(funcName, s.Clone(), Params(NewDataEntryStateWrapperExpr(s.State(), r), e[1]), valueType)
 	}
 
 	return nil, errors.Errorf("%s expected addOrAliasExpr argument to be AliasExpr or AddressExpr, found %T", funcName, addOrAliasExpr)
 }
 
 func NativeAddressFromRecipient(s Scope, e Exprs) (Expr, error) {
-	funcName := "NativeAddressFromRecipient"
-
+	const funcName = "NativeAddressFromRecipient"
 	if l := len(e); l != 1 {
 		return nil, errors.Errorf("%s: invalid params, expected 1, passed %d", funcName, l)
 	}
-
 	first, err := e[0].Evaluate(s.Clone())
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
-
 	recipient, ok := first.(RecipientExpr)
 	if !ok {
 		return nil, errors.Errorf("%s expected first argument to be RecipientExpr, found %T", funcName, recipient)
 	}
 
-	return NewAddressFromProtoAddress(s.State().Account(proto.Recipient(recipient)).Address()), nil
+	if recipient.Address != nil {
+		return NewAddressFromProtoAddress(*recipient.Address), nil
+	}
+
+	if recipient.Alias != nil {
+		addr, err := s.State().NewestAddrByAlias(*recipient.Alias)
+		if err != nil {
+			return nil, errors.Wrap(err, funcName)
+		}
+		return NewAddressFromProtoAddress(addr), nil
+	}
+
+	return nil, errors.Errorf("can't get address from recipient, recipient %v", recipient)
 }
 
 // Fail script without message (default will be used)
@@ -1303,22 +1088,18 @@ func UserAddressFromString(s Scope, e Exprs) (Expr, error) {
 	if l := len(e); l != 1 {
 		return nil, errors.Errorf("UserAddressFromString: invalid params, expected 1, passed %d", l)
 	}
-
-	rs, err := e[0].Evaluate(s)
+	rs, err := e[0].Evaluate(s.Clone())
 	if err != nil {
 		return nil, errors.Wrap(err, "UserAddressFromString")
 	}
-
 	str, ok := rs.(*StringExpr)
 	if !ok {
 		return nil, errors.Errorf("UserAddressFromString: expected first argument to be *StringExpr, found %T", rs)
 	}
-
 	addr, err := NewAddressFromString(str.Value)
 	if err != nil {
 		return nil, errors.Wrap(err, "UserAddressFromString")
 	}
-
 	return addr, nil
 }
 
@@ -1327,12 +1108,10 @@ func NativeAddressToString(s Scope, e Exprs) (Expr, error) {
 	if l := len(e); l != 1 {
 		return nil, errors.Errorf("%s: invalid number of parameters, expected 1, received %d", funcName, l)
 	}
-
 	rs, err := e[0].Evaluate(s)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
-
 	addr, ok := rs.(AddressExpr)
 	if !ok {
 		return nil, errors.Errorf("%s: first argument expected to be *AddressExpr, found %T", funcName, rs)
@@ -1343,140 +1122,112 @@ func NativeAddressToString(s Scope, e Exprs) (Expr, error) {
 
 // !=
 func UserFunctionNeq(s Scope, e Exprs) (Expr, error) {
-	funcName := "UserFunctionNeq"
-
+	const funcName = "UserFunctionNeq"
 	if l := len(e); l != 2 {
 		return nil, errors.Errorf("%s: invalid params, expected 2, passed %d", funcName, l)
 	}
-
 	rs, err := e.EvaluateAll(s.Clone())
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
-
 	eq, err := rs[0].Eq(rs[1])
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
-
 	return NewBoolean(!eq), nil
 }
 
 func UserIsDefined(s Scope, e Exprs) (Expr, error) {
-	funcName := "UserIsDefined"
-
+	const funcName = "UserIsDefined"
 	if l := len(e); l != 1 {
 		return nil, errors.Errorf("%s: invalid params, expected 1, passed %d", funcName, l)
 	}
-
 	val, err := e[0].Evaluate(s.Clone())
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
-
 	if val.InstanceOf() == (Unit{}).InstanceOf() {
 		return NewBoolean(false), nil
 	}
-
 	return NewBoolean(true), nil
 }
 
 func UserExtract(s Scope, e Exprs) (Expr, error) {
-	funcName := "UserIsDefined"
-
+	const funcName = "UserExtract"
 	if l := len(e); l != 1 {
 		return nil, errors.Errorf("%s: invalid params, expected 1, passed %d", funcName, l)
 	}
-
 	val, err := e[0].Evaluate(s.Clone())
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
-
 	if val.InstanceOf() == (Unit{}).InstanceOf() {
 		return NativeThrow(s.Clone(), Params(NewString("extract() called on unit value")))
 	}
-
 	return val, nil
 }
 
 func UserDropRightBytes(s Scope, e Exprs) (Expr, error) {
-	funcName := "UserDropRightBytes"
-
+	const funcName = "UserDropRightBytes"
 	if l := len(e); l != 2 {
 		return nil, errors.Errorf("%s: invalid params, expected 2, passed %d", funcName, l)
 	}
-
 	length, err := NativeSizeBytes(s.Clone(), Params(e[0]))
 	if err != nil {
 		return nil, err
 	}
-
 	takeLeft, err := NativeSubLong(s.Clone(), Params(length, e[1]))
 	if err != nil {
 		return nil, err
 	}
-
 	return NativeTakeBytes(s.Clone(), Params(e[0], takeLeft))
 }
 
 func UserTakeRightBytes(s Scope, e Exprs) (Expr, error) {
-	funcName := "UserTakeRightBytes"
-
+	const funcName = "UserTakeRightBytes"
 	if l := len(e); l != 2 {
 		return nil, errors.Errorf("%s: invalid params, expected 2, passed %d", funcName, l)
 	}
-
 	length, err := NativeSizeBytes(s.Clone(), Params(e[0]))
 	if err != nil {
 		return nil, err
 	}
-
 	takeLeft, err := NativeSubLong(s.Clone(), Params(length, e[1]))
 	if err != nil {
 		return nil, err
 	}
-
 	return NativeDropBytes(s.Clone(), Params(e[0], takeLeft))
 }
 
 func UserTakeRightString(s Scope, e Exprs) (Expr, error) {
-	funcName := "UserTakeRightString"
-
+	const funcName = "UserTakeRightString"
 	if l := len(e); l != 2 {
 		return nil, errors.Errorf("%s: invalid params, expected 2, passed %d", funcName, l)
 	}
-
 	length, err := NativeSizeString(s.Clone(), Params(e[0]))
 	if err != nil {
 		return nil, err
 	}
-
 	takeLeft, err := NativeSubLong(s.Clone(), Params(length, e[1]))
 	if err != nil {
 		return nil, err
 	}
-
 	return NativeDropStrings(s.Clone(), Params(e[0], takeLeft))
 }
 
 func UserDropRightString(s Scope, e Exprs) (Expr, error) {
-	funcName := "UserDropRightString"
-
+	const funcName = "UserDropRightString"
 	if l := len(e); l != 2 {
 		return nil, errors.Errorf("%s: invalid params, expected 2, passed %d", funcName, l)
 	}
-
 	length, err := NativeSizeString(s.Clone(), Params(e[0]))
 	if err != nil {
 		return nil, err
 	}
-
 	takeLeft, err := NativeSubLong(s.Clone(), Params(length, e[1]))
 	if err != nil {
 		return nil, err
 	}
-
 	return NativeTakeStrings(s.Clone(), Params(e[0], takeLeft))
 }
 
@@ -1485,22 +1236,18 @@ func UserUnaryMinus(s Scope, e Exprs) (Expr, error) {
 }
 
 func UserUnaryNot(s Scope, e Exprs) (Expr, error) {
-	funcName := "UserUnaryNot"
-
+	const funcName = "UserUnaryNot"
 	if l := len(e); l != 1 {
 		return nil, errors.Errorf("%s: invalid params, expected 1, passed %d", funcName, l)
 	}
-
 	first, err := e[0].Evaluate(s.Clone())
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
-
 	boolExpr, ok := first.(*BooleanExpr)
 	if !ok {
 		return nil, errors.Errorf("%s expected first argument to be *BooleanExpr, found %T", funcName, first)
 	}
-
 	return NewBoolean(!boolExpr.Value), nil
 }
 
@@ -1519,7 +1266,7 @@ func dataFromArrayByIndex(funcName string, s Scope, e Exprs, valueType proto.Dat
 		return nil, errors.Wrap(err, funcName)
 	}
 
-	lst, ok := lstExpr.(*DataEntryListExpr)
+	lst, ok := lstExpr.(DataByIndex)
 	if !ok {
 		return nil, errors.Errorf("%s expected first argument to be *DataEntryListExpr, found %T", funcName, lstExpr)
 	}
@@ -1533,98 +1280,83 @@ func dataFromArrayByIndex(funcName string, s Scope, e Exprs, valueType proto.Dat
 }
 
 func UserDataIntegerFromArrayByIndex(s Scope, e Exprs) (Expr, error) {
-	funcName := "UserDataIntegerFromArrayByIndex"
+	const funcName = "UserDataIntegerFromArrayByIndex"
 	return dataFromArrayByIndex(funcName, s, e, proto.DataInteger)
 }
 
 func UserDataBooleanFromArrayByIndex(s Scope, e Exprs) (Expr, error) {
-	funcName := "UserDataBooleanFromArrayByIndex"
+	const funcName = "UserDataBooleanFromArrayByIndex"
 	return dataFromArrayByIndex(funcName, s, e, proto.DataBoolean)
 }
 
 func UserDataBinaryFromArrayByIndex(s Scope, e Exprs) (Expr, error) {
-	funcName := "UserDataBinaryFromArrayByIndex"
+	const funcName = "UserDataBinaryFromArrayByIndex"
 	return dataFromArrayByIndex(funcName, s, e, proto.DataBinary)
 }
 
 func UserDataStringFromArrayByIndex(s Scope, e Exprs) (Expr, error) {
-	funcName := "UserDataStringFromArrayByIndex"
+	const funcName = "UserDataStringFromArrayByIndex"
 	return dataFromArrayByIndex(funcName, s, e, proto.DataString)
 }
 
 func UserAddressFromPublicKey(s Scope, e Exprs) (Expr, error) {
-	funcName := "UserAddressFromPublicKey"
-
+	const funcName = "UserAddressFromPublicKey"
 	if l := len(e); l != 1 {
 		return nil, errors.Errorf("%s: invalid params, expected 2, passed %d", funcName, l)
 	}
-
 	publicKeyExpr, err := e[0].Evaluate(s.Clone())
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
-
 	bts, ok := publicKeyExpr.(*BytesExpr)
 	if !ok {
 		return nil, errors.Errorf("%s expected first argument to be *BytesExpr, found %T", funcName, publicKeyExpr)
 	}
-
 	public, err := crypto.NewPublicKeyFromBytes(bts.Value)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
-
 	addr, err := proto.NewAddressFromPublicKey(s.Scheme(), public)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
-
 	return NewAddressFromProtoAddress(addr), nil
 }
 
 // type constructor
 func UserAddress(s Scope, e Exprs) (Expr, error) {
-	funcName := "UserAddress"
-
+	const funcName = "UserAddress"
 	if l := len(e); l != 1 {
 		return nil, errors.Errorf("%s: invalid params, expected 1, passed %d", funcName, l)
 	}
-
 	first, err := e[0].Evaluate(s.Clone())
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
-
 	bts, ok := first.(*BytesExpr)
 	if !ok {
 		return nil, errors.Errorf("%s: first argument expected to be *BytesExpr, found %T", funcName, first)
 	}
-
 	addr, err := proto.NewAddressFromBytes(bts.Value)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
-
 	return NewAddressFromProtoAddress(addr), nil
 }
 
 func UserAlias(s Scope, e Exprs) (Expr, error) {
-	funcName := "UserAlias"
-
+	const funcName = "UserAlias"
 	if l := len(e); l != 1 {
 		return nil, errors.Errorf("%s: invalid params, expected 1, passed %d", funcName, l)
 	}
-
 	first, err := e[0].Evaluate(s.Clone())
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
-
 	str, ok := first.(*StringExpr)
 	if !ok {
 		return nil, errors.Errorf("%s: first argument expected to be *BytesExpr, found %T", funcName, first)
 	}
-
 	alias, err := proto.NewAliasFromString(str.Value)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
@@ -1646,40 +1378,33 @@ func UserWavesBalance(s Scope, e Exprs) (Expr, error) {
 }
 
 func NativeRSAVerify(s Scope, e Exprs) (Expr, error) {
-	funcName := "NativeRSAVerify"
+	const funcName = "NativeRSAVerify"
 	if l := len(e); l != 4 {
 		return nil, errors.Errorf("%s: invalid number of parameters, expected 4, received %d", funcName, l)
 	}
-
 	rs, err := e.EvaluateAll(s.Clone())
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
-
 	digest, err := digest(rs[0])
 	if err != nil {
 		return nil, errors.Wrapf(err, "%s: failed to get digest algorithm from first argument", funcName)
 	}
-
 	message, ok := rs[1].(*BytesExpr)
 	if !ok {
 		return nil, errors.Errorf("%s: second argument expected to be *BytesExpr, found %T", funcName, rs[1])
 	}
-
 	sig, ok := rs[2].(*BytesExpr)
 	if !ok {
 		return nil, errors.Errorf("%s: third argument expected to be *BytesExpr, found %T", funcName, rs[2])
 	}
-
 	pk, ok := rs[3].(*BytesExpr)
 	if !ok {
 		return nil, errors.Errorf("%s: 4th argument expected to be *BytesExpr, found %T", funcName, rs[3])
 	}
-
 	if len(message.Value) > MaxBytesToVerify {
 		return nil, errors.Errorf("%s: message is too long, must be no longer than %d bytes", funcName, MaxBytesToVerify)
 	}
-
 	key, err := x509.ParsePKIXPublicKey(pk.Value)
 	if err != nil {
 		return nil, errors.Wrapf(err, "%s: invalid public key", funcName)
@@ -1688,20 +1413,319 @@ func NativeRSAVerify(s Scope, e Exprs) (Expr, error) {
 	if !ok {
 		return nil, errors.Errorf("%s: not an RSA key", funcName)
 	}
-
 	d := message.Value
 	if digest != 0 {
 		h := digest.New()
 		_, _ = h.Write(message.Value)
 		d = h.Sum(nil)
 	}
-
-	ok, err = VerifyPKCS1v15(k, digest, d, sig.Value)
+	ok, err = verifyPKCS1v15(k, digest, d, sig.Value)
 	if err != nil {
 		return nil, errors.Wrapf(err, "%s: failed to check RSA signature", funcName)
 	}
-
 	return NewBoolean(ok), nil
+}
+
+func NativeCheckMerkleProof(s Scope, e Exprs) (Expr, error) {
+	const funcName = "NativeMerkleVerify"
+	if l := len(e); l != 3 {
+		return nil, errors.Errorf("%s: invalid number of parameters, expected 3, received %d", funcName, l)
+	}
+	rs, err := e.EvaluateAll(s.Clone())
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	root, ok := rs[0].(*BytesExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: first argument expected to be *BytesExpr, found %T", funcName, rs[0])
+	}
+	proof, ok := rs[1].(*BytesExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: second argument expected to be *BytesExpr, found %T", funcName, rs[1])
+	}
+	leaf, ok := rs[2].(*BytesExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: third argument expected to be *BytesExpr, found %T", funcName, rs[2])
+	}
+	r, err := merkleRootHash(leaf.Value, proof.Value)
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	return NewBoolean(bytes.Equal(root.Value, r)), nil
+}
+
+func NativeBytesToUTF8String(s Scope, e Exprs) (Expr, error) {
+	const funcName = "NativeBytesToUTF8String"
+	if l := len(e); l != 1 {
+		return nil, errors.Errorf("%s: invalid number of parameters, expected 1, received %d", funcName, l)
+	}
+	rs, err := e.EvaluateAll(s.Clone())
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	b, ok := rs[0].(*BytesExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: first argument expected to be *BytesExpr, found %T", funcName, rs[0])
+	}
+	return NewString(string(b.Value)), nil
+}
+
+func NativeBytesToLong(s Scope, e Exprs) (Expr, error) {
+	const funcName = "NativeBytesToLong"
+	if l := len(e); l != 1 {
+		return nil, errors.Errorf("%s: invalid number of parameters, expected 1, received %d", funcName, l)
+	}
+	rs, err := e.EvaluateAll(s.Clone())
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	b, ok := rs[0].(*BytesExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: first argument expected to be *BytesExpr, found %T", funcName, rs[0])
+	}
+	if l := len(b.Value); l < 8 {
+		return nil, errors.Errorf("%s: %d is not enough bytes to make Long value, required 8 bytes", funcName, l)
+	}
+	return NewLong(int64(binary.BigEndian.Uint64(b.Value))), nil
+}
+
+func NativeBytesToLongWithOffset(s Scope, e Exprs) (Expr, error) {
+	const funcName = "NativeBytesToLongWithOffset"
+	if l := len(e); l != 2 {
+		return nil, errors.Errorf("%s: invalid number of parameters, expected 2, received %d", funcName, l)
+	}
+	rs, err := e.EvaluateAll(s.Clone())
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	b, ok := rs[0].(*BytesExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: first argument expected to be *BytesExpr, found %T", funcName, rs[0])
+	}
+	off, ok := rs[1].(*LongExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: second argument expected to be *LongExpr, found %T", funcName, rs[1])
+	}
+	offset := int(off.Value)
+	if offset < 0 || offset > len(b.Value)-8 {
+		return nil, errors.Errorf("%s: offset %d is out of bytes array bounds", funcName, offset)
+	}
+	return NewLong(int64(binary.BigEndian.Uint64(b.Value[offset:]))), nil
+}
+
+func NativeIndexOfSubstring(s Scope, e Exprs) (Expr, error) {
+	const funcName = "NativeIndexOfSubstring"
+	if l := len(e); l != 2 {
+		return nil, errors.Errorf("%s: invalid number of parameters, expected 2, received %d", funcName, l)
+	}
+	rs, err := e.EvaluateAll(s.Clone())
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	str, ok := rs[0].(*StringExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: first argument expected to be *StringExpr, found %T", funcName, rs[0])
+	}
+	sub, ok := rs[1].(*StringExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: second argument expected to be *StringExpr, found %T", funcName, rs[1])
+	}
+	i := strings.Index(str.Value, sub.Value)
+	if i == -1 {
+		return NewUnit(), nil
+	}
+	return NewLong(int64(i)), nil
+}
+
+func NativeIndexOfSubstringWithOffset(s Scope, e Exprs) (Expr, error) {
+	const funcName = "NativeIndexOfSubstringWithOffset"
+	if l := len(e); l != 3 {
+		return nil, errors.Errorf("%s: invalid number of parameters, expected 3, received %d", funcName, l)
+	}
+	rs, err := e.EvaluateAll(s.Clone())
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	str, ok := rs[0].(*StringExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: first argument expected to be *StringExpr, found %T", funcName, rs[0])
+	}
+	sub, ok := rs[1].(*StringExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: second argument expected to be *StringExpr, found %T", funcName, rs[1])
+	}
+	off, ok := rs[2].(*LongExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: third argument expected to be *LongExpr, found %T", funcName, rs[2])
+	}
+	offset := int(off.Value)
+	if offset < 0 || offset > len(str.Value) {
+		return NewUnit(), nil
+	}
+	i := strings.Index(str.Value[offset:], sub.Value)
+	if i == -1 {
+		return NewUnit(), nil
+	}
+	return NewLong(int64(i + offset)), nil
+}
+
+func NativeSplitString(s Scope, e Exprs) (Expr, error) {
+	const funcName = "NativeSplitString"
+	if l := len(e); l != 2 {
+		return nil, errors.Errorf("%s: invalid number of parameters, expected 2, received %d", funcName, l)
+	}
+	rs, err := e.EvaluateAll(s.Clone())
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	str, ok := rs[0].(*StringExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: first argument expected to be *StringExpr, found %T", funcName, rs[0])
+	}
+	sep, ok := rs[1].(*StringExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: second argument expected to be *StringExpr, found %T", funcName, rs[1])
+	}
+	r := NewExprs()
+	for _, p := range strings.Split(str.Value, sep.Value) {
+		r = append(r, NewString(p))
+	}
+	return r, nil
+}
+
+func NativeParseInt(s Scope, e Exprs) (Expr, error) {
+	const funcName = "NativeParseInt"
+	if l := len(e); l != 1 {
+		return nil, errors.Errorf("%s: invalid number of parameters, expected 1, received %d", funcName, l)
+	}
+
+	rs, err := e.EvaluateAll(s.Clone())
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+
+	str, ok := rs[0].(*StringExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: first argument expected to be *StringExpr, found %T", funcName, rs[0])
+	}
+	i, err := strconv.ParseInt(str.Value, 10, 64)
+	if err != nil {
+		return NewUnit(), nil
+	}
+	return NewLong(i), nil
+}
+
+func UserParseIntValue(s Scope, e Exprs) (Expr, error) {
+	const funcName = "UserParseIntValue"
+	if l := len(e); l != 1 {
+		return nil, errors.Errorf("%s: invalid number of parameters, expected 1, received %d", funcName, l)
+	}
+	rs, err := e.EvaluateAll(s.Clone())
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	str, ok := rs[0].(*StringExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: first argument expected to be *StringExpr, found %T", funcName, rs[0])
+	}
+	i, err := strconv.ParseInt(str.Value, 10, 64)
+	if err != nil {
+		return nil, errors.Wrapf(err, funcName)
+	}
+	return NewLong(i), nil
+}
+
+func NativeLastIndexOfSubstring(s Scope, e Exprs) (Expr, error) {
+	const funcName = "NativeLastIndexOfSubstring"
+	if l := len(e); l != 2 {
+		return nil, errors.Errorf("%s: invalid number of parameters, expected 2, received %d", funcName, l)
+	}
+	rs, err := e.EvaluateAll(s.Clone())
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	str, ok := rs[0].(*StringExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: first argument expected to be *StringExpr, found %T", funcName, rs[0])
+	}
+	sub, ok := rs[1].(*StringExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: second argument expected to be *StringExpr, found %T", funcName, rs[1])
+	}
+	i := strings.LastIndex(str.Value, sub.Value)
+	if i == -1 {
+		return NewUnit(), nil
+	}
+	return NewLong(int64(i)), nil
+}
+
+func NativeLastIndexOfSubstringWithOffset(s Scope, e Exprs) (Expr, error) {
+	const funcName = "NativeLastIndexOfSubstringWithOffset"
+	if l := len(e); l != 3 {
+		return nil, errors.Errorf("%s: invalid number of parameters, expected 3, received %d", funcName, l)
+	}
+	rs, err := e.EvaluateAll(s.Clone())
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	str, ok := rs[0].(*StringExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: first argument expected to be *StringExpr, found %T", funcName, rs[0])
+	}
+	sub, ok := rs[1].(*StringExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: second argument expected to be *StringExpr, found %T", funcName, rs[1])
+	}
+	off, ok := rs[2].(*LongExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: third argument expected to be *LongExpr, found %T", funcName, rs[2])
+	}
+	offset := int(off.Value)
+	if offset < 0 {
+		return NewUnit(), nil
+	}
+	i := strings.LastIndex(str.Value, sub.Value)
+	for i > offset {
+		i = strings.LastIndex(str.Value[:i], sub.Value)
+	}
+	if i == -1 {
+		return NewUnit(), nil
+	}
+	return NewLong(int64(i)), nil
+}
+
+func UserValue(s Scope, e Exprs) (Expr, error) {
+	const funcName = "UserValue"
+	if l := len(e); l != 1 {
+		return nil, errors.Errorf("%s: invalid number of parameters, expected 1, received %d", funcName, l)
+	}
+	rs, err := e.EvaluateAll(s.Clone())
+	if err != nil {
+		return nil, errors.Wrapf(err, funcName)
+	}
+	if _, ok := rs[0].(Unit); ok {
+		return nil, Throw{Message: DefaultThrowMessage}
+	}
+	return rs[0], nil
+}
+
+func UserValueOrErrorMessage(s Scope, e Exprs) (Expr, error) {
+	const funcName = "UserValueOrErrorMessage"
+	if l := len(e); l != 2 {
+		return nil, errors.Errorf("%s: invalid number of parameters, expected 2, received %d", funcName, l)
+	}
+	rs, err := e.EvaluateAll(s.Clone())
+	if err != nil {
+		return nil, errors.Wrapf(err, funcName)
+	}
+	msg, ok := rs[1].(*StringExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: second argument expected to be *StringExpr, found %T", funcName, rs[1])
+	}
+	if _, ok := rs[0].(Unit); ok {
+		return nil, Throw{Message: msg.Value}
+	}
+	return rs[0], nil
 }
 
 func digest(e Expr) (Hash, error) {
@@ -1733,39 +1757,6 @@ func digest(e Expr) (Hash, error) {
 	}
 }
 
-func NativeCheckMerkleProof(s Scope, e Exprs) (Expr, error) {
-	funcName := "NativeMerkleVerify"
-	if l := len(e); l != 3 {
-		return nil, errors.Errorf("%s: invalid number of parameters, expected 3, received %d", funcName, l)
-	}
-
-	rs, err := e.EvaluateAll(s.Clone())
-	if err != nil {
-		return nil, errors.Wrap(err, funcName)
-	}
-
-	root, ok := rs[0].(*BytesExpr)
-	if !ok {
-		return nil, errors.Wrapf(err, "%s: first argument expected to be *BytesExpr, found %T", funcName, rs[0])
-	}
-
-	proof, ok := rs[1].(*BytesExpr)
-	if !ok {
-		return nil, errors.Errorf("%s: second argument expected to be *BytesExpr, found %T", funcName, rs[1])
-	}
-
-	leaf, ok := rs[2].(*BytesExpr)
-	if !ok {
-		return nil, errors.Errorf("%s: third argument expected to be *BytesExpr, found %T", funcName, rs[2])
-	}
-
-	r, err := merkleRootHash(leaf.Value, proof.Value)
-	if err != nil {
-		return nil, errors.Wrap(err, funcName)
-	}
-	return NewBoolean(bytes.Equal(root.Value, r)), nil
-}
-
 func prefix(w io.Writer, name string, e Exprs) {
 	_, _ = fmt.Fprintf(w, "%s(", name)
 	last := len(e) - 1
@@ -1785,7 +1776,6 @@ func infix(w io.Writer, name string, e Exprs) {
 }
 
 func writeNativeFunction(w io.Writer, id int16, e Exprs) {
-
 	switch id {
 	case 0:
 		infix(w, "==", e)

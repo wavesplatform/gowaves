@@ -13,8 +13,10 @@ require (
 	github.com/golang/protobuf v1.3.2
 	github.com/gorilla/mux v1.7.3
 	github.com/howeyc/gopass v0.0.0-20170109162249-bf9dde6d0d2c
+	github.com/jinzhu/copier v0.0.0-20190625015134-976e0346caa8
 	github.com/magiconair/properties v1.8.1
 	github.com/mr-tron/base58 v1.1.2
+	github.com/onsi/ginkgo v1.9.0 // indirect
 	github.com/pkg/errors v0.8.1
 	github.com/rakyll/statik v0.1.6
 	github.com/seiflotfy/cuckoofilter v0.0.0-20190302225222-764cb5258d9b

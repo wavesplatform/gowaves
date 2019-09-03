@@ -8,6 +8,7 @@ import (
 	"github.com/mr-tron/base58/base58"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/types"
 )
 
 const InstanceFieldName = "$instance"
@@ -35,7 +36,7 @@ func (a Exprs) Write(w io.Writer) {
 }
 
 func (a Exprs) Evaluate(s Scope) (Expr, error) {
-	return nil, errors.New("Exprs Evaluate")
+	return a.EvaluateAll(s)
 }
 
 func (a Exprs) EvaluateAll(s Scope) (Exprs, error) {
@@ -52,7 +53,23 @@ func (a Exprs) EvaluateAll(s Scope) (Exprs, error) {
 }
 
 func (a Exprs) Eq(other Expr) (bool, error) {
-	return false, errors.Errorf("trying to compare %T with %T", a, other)
+	o, ok := other.(Exprs)
+	if !ok {
+		return false, errors.Errorf("trying to compare %T with %T", a, other)
+	}
+	if len(a) != len(o) {
+		return false, nil
+	}
+	for i := 0; i < len(a); i++ {
+		eq, err := a[i].Eq(o[i])
+		if err != nil {
+			return false, errors.Wrapf(err, "compare Exprs")
+		}
+		if !eq {
+			return false, nil
+		}
+	}
+	return true, nil
 }
 
 func (a Exprs) InstanceOf() string {
@@ -61,6 +78,19 @@ func (a Exprs) InstanceOf() string {
 
 func NewExprs(e ...Expr) Exprs {
 	return e
+}
+
+// get property from object
+type Getable interface {
+	Get(string) (Expr, error)
+}
+
+type DataByIndex interface {
+	GetByIndex(index int, valueType proto.DataValueType) Expr
+}
+
+type DataByKey interface {
+	GetByKey(key string, valueType proto.DataValueType) (Expr, error)
 }
 
 type Block struct {
@@ -414,14 +444,14 @@ func (a *GetterExpr) Evaluate(s Scope) (Expr, error) {
 		return nil, errors.Wrapf(err, "GetterExpr Evaluate by key %s", a.Key)
 	}
 
-	if obj, ok := val.(*ObjectExpr); ok {
+	if obj, ok := val.(Getable); ok {
 		e, err := obj.Get(a.Key)
 		if err != nil {
 			return nil, err
 		}
 		return e, nil
 	}
-	return nil, errors.Errorf("GetterExpr Evaluate: expected value be *ObjectExpr, got %T", val)
+	return nil, errors.Errorf("GetterExpr Evaluate: expected value be Getable, got %T", val)
 }
 
 func (a *GetterExpr) Eq(other Expr) (bool, error) {
@@ -607,6 +637,54 @@ func NewAliasFromProtoAlias(a proto.Alias) AliasExpr {
 	return AliasExpr(a)
 }
 
+type DataEntryStateWrapperExpr struct {
+	state  types.SmartState
+	accout proto.Recipient
+}
+
+func (a DataEntryStateWrapperExpr) Write(w io.Writer) {
+	_, _ = w.Write([]byte("DataEntryStateWrapperExpr"))
+}
+
+func (a DataEntryStateWrapperExpr) Evaluate(Scope) (Expr, error) {
+	return a, nil
+}
+
+func (a DataEntryStateWrapperExpr) Eq(Expr) (bool, error) {
+	return false, errors.New("DataEntryStateWrapperExpr is not compariable")
+}
+
+func (a DataEntryStateWrapperExpr) InstanceOf() string {
+	return "DataEntryStateWrapper"
+}
+
+func (a DataEntryStateWrapperExpr) GetByKey(key string, valueType proto.DataValueType) (Expr, error) {
+	rs, err := a.state.RetrieveNewestEntry(a.accout, key)
+	if err != nil {
+		return nil, errors.Wrapf(err, "DataEntryStateWrapperExpr GetByKey")
+	}
+	if rs.GetValueType() == valueType {
+		switch valueType {
+		case proto.DataInteger:
+			return NewLong(rs.(*proto.IntegerDataEntry).Value), nil
+		case proto.DataString:
+			return NewString(rs.(*proto.StringDataEntry).Value), nil
+		case proto.DataBoolean:
+			return NewBoolean(rs.(*proto.BooleanDataEntry).Value), nil
+		case proto.DataBinary:
+			return NewBytes(rs.(*proto.BinaryDataEntry).Value), nil
+		}
+	}
+	return NewUnit(), nil
+}
+
+func NewDataEntryStateWrapperExpr(s types.SmartState, accout proto.Recipient) *DataEntryStateWrapperExpr {
+	return &DataEntryStateWrapperExpr{
+		state:  s,
+		accout: accout,
+	}
+}
+
 type DataEntryListExpr struct {
 	source []proto.DataEntry
 	cached bool
@@ -629,7 +707,8 @@ func (a DataEntryListExpr) InstanceOf() string {
 	return "DataEntryList"
 }
 
-func (a *DataEntryListExpr) Get(key string, valueType proto.DataValueType) Expr {
+// this func can't return error
+func (a *DataEntryListExpr) GetByKey(key string, valueType proto.DataValueType) (Expr, error) {
 	if !a.cached {
 		a.cache()
 	}
@@ -638,17 +717,17 @@ func (a *DataEntryListExpr) Get(key string, valueType proto.DataValueType) Expr 
 		if rs.GetValueType() == valueType {
 			switch valueType {
 			case proto.DataInteger:
-				return NewLong(rs.(*proto.IntegerDataEntry).Value)
+				return NewLong(rs.(*proto.IntegerDataEntry).Value), nil
 			case proto.DataString:
-				return NewString(rs.(*proto.StringDataEntry).Value)
+				return NewString(rs.(*proto.StringDataEntry).Value), nil
 			case proto.DataBoolean:
-				return NewBoolean(rs.(*proto.BooleanDataEntry).Value)
+				return NewBoolean(rs.(*proto.BooleanDataEntry).Value), nil
 			case proto.DataBinary:
-				return NewBytes(rs.(*proto.BinaryDataEntry).Value)
+				return NewBytes(rs.(*proto.BinaryDataEntry).Value), nil
 			}
 		}
 	}
-	return Unit{}
+	return NewUnit(), nil
 }
 
 func (a *DataEntryListExpr) GetByIndex(index int, valueType proto.DataValueType) Expr {
@@ -708,10 +787,107 @@ func (a RecipientExpr) Eq(other Expr) (bool, error) {
 }
 
 func (a RecipientExpr) InstanceOf() string {
-	return "RecipientExpr"
+	return "Recipient"
+}
+
+type AssetPairExpr struct {
+	fields object
+}
+
+func NewAssetPair(amountAsset Expr, priceAsset Expr) *AssetPairExpr {
+	m := newObject()
+	m["amountAsset"] = amountAsset
+	m["priceAsset"] = priceAsset
+	return &AssetPairExpr{fields: m}
+}
+
+func (a AssetPairExpr) InstanceOf() string {
+	return "AssetPair"
+}
+
+func (a AssetPairExpr) Evaluate(s Scope) (Expr, error) {
+	return a, nil
+}
+
+func (a AssetPairExpr) Write(w io.Writer) {
+	_, _ = fmt.Fprint(w, "AssetPairExpr")
+}
+
+func (a AssetPairExpr) Eq(other Expr) (bool, error) {
+	if a.InstanceOf() != other.InstanceOf() {
+		return false, errors.Errorf("trying to compare %T with %T", a, other)
+	}
+	o, ok := other.(*AssetPairExpr)
+	if !ok {
+		return false, errors.Errorf("can't cast %T as type *AssetPairExpr", other)
+	}
+	return a.fields.Eq(o.fields)
+}
+
+type object map[string]Expr
+
+//func NewObject(fields map[string]Expr) *ObjectExpr {
+//	return &ObjectExpr{
+//		fields: fields,
+//	}
+//}
+
+func newObject() object {
+	return make(object)
+}
+
+func (a object) Write(w io.Writer) {
+	_, _ = fmt.Fprint(w, "object")
+}
+
+func (a object) Evaluate(s Scope) (Expr, error) {
+	return a, nil
+}
+
+func (a object) Eq(other Expr) (bool, error) {
+	b, ok := other.(object)
+	if !ok {
+		return false, errors.Errorf("trying to compare %T with %T", a, other)
+	}
+
+	if len(a) != len(b) {
+		return false, nil
+	}
+
+	for k1, v1 := range a {
+		v2, ok := b[k1]
+		if !ok {
+			return false, nil
+		}
+		rs, err := v1.Eq(v2)
+		if err != nil {
+			return false, err
+		}
+		if !rs {
+			return false, nil
+		}
+	}
+
+	return true, nil
+}
+
+func (a object) Get(name string) (Expr, error) {
+	out, ok := a[name]
+	if !ok {
+		return nil, errors.Errorf("ObjectExpr no such field %s", name)
+	}
+	return out, nil
+}
+
+func (a object) InstanceOf() string {
+	return "object"
 }
 
 type BuyExpr struct{}
+
+func NewBuy() *BuyExpr {
+	return &BuyExpr{}
+}
 
 func (a BuyExpr) Evaluate(s Scope) (Expr, error) {
 	return a, nil
@@ -730,6 +906,10 @@ func (a BuyExpr) InstanceOf() string {
 }
 
 type SellExpr struct{}
+
+func NewSell() *SellExpr {
+	return &SellExpr{}
+}
 
 func (a SellExpr) Evaluate(s Scope) (Expr, error) {
 	return a, nil
@@ -1069,4 +1249,43 @@ func (a SHA3512Expr) Eq(other Expr) (bool, error) {
 
 func (a SHA3512Expr) InstanceOf() string {
 	return "Sha3512"
+}
+
+//assetId ByteVector|Unit
+//amount Int
+type AttachedPaymentExpr struct {
+	fields object
+}
+
+func NewAttachedPaymentExpr(assetId Expr, amount Expr) *AttachedPaymentExpr {
+	fields := newObject()
+	fields["assetId"] = assetId
+	fields["amount"] = amount
+	return &AttachedPaymentExpr{
+		fields: fields,
+	}
+}
+
+func (a AttachedPaymentExpr) Write(w io.Writer) {
+	_, _ = w.Write([]byte("AttachedPaymentExpr"))
+}
+
+func (a AttachedPaymentExpr) Evaluate(Scope) (Expr, error) {
+	return a, nil
+}
+
+func (a AttachedPaymentExpr) Eq(other Expr) (bool, error) {
+	if a.InstanceOf() != other.InstanceOf() {
+		return false, errors.Errorf("trying to compare %T with %T", a, other)
+	}
+	o := other.(*AttachedPaymentExpr)
+	return a.fields.Eq(o.fields)
+}
+
+func (a AttachedPaymentExpr) InstanceOf() string {
+	return "AttachedPayment"
+}
+
+func (a AttachedPaymentExpr) Get(key string) (Expr, error) {
+	return a.fields.Get(key)
 }

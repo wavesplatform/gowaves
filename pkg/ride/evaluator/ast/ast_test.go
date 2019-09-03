@@ -27,7 +27,8 @@ func TestDataEntryListExpr_Get(t *testing.T) {
 		Value: 100500,
 	})
 	lst := NewDataEntryList(d)
-	assert.Equal(t, NewLong(100500), lst.Get("integer", proto.DataInteger))
+	rs, _ := lst.GetByKey("integer", proto.DataInteger)
+	assert.Equal(t, NewLong(100500), rs)
 }
 
 func TestBuyExpr_Eq(t *testing.T) {
