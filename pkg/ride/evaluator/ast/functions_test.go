@@ -414,12 +414,8 @@ func TestNativeToBse64String(t *testing.T) {
 }
 
 func TestNativeAssetBalance_FromAddress(t *testing.T) {
-	am := mockstate.MockAccount{
-		Assets: map[string]uint64{"BXBUNddxTGTQc3G4qHYn5E67SBwMj18zLncUr871iuRD": 5},
-	}
-
 	s := mockstate.MockStateImpl{
-		Accounts: map[string]mockstate.Account{"3N2YHKSnQTUmka4pocTt71HwSSAiUWBcojK": &am},
+		AccountsBalance: 5,
 	}
 
 	addr, err := proto.NewAddressFromString("3N2YHKSnQTUmka4pocTt71HwSSAiUWBcojK")
@@ -434,12 +430,8 @@ func TestNativeAssetBalance_FromAddress(t *testing.T) {
 }
 
 func TestNativeAssetBalance_FromAlias(t *testing.T) {
-	am := mockstate.MockAccount{
-		Assets: map[string]uint64{"BXBUNddxTGTQc3G4qHYn5E67SBwMj18zLncUr871iuRD": 5},
-	}
-
 	s := mockstate.MockStateImpl{
-		Accounts: map[string]mockstate.Account{"alias:W:test": &am},
+		AccountsBalance: 5,
 	}
 
 	scope := newScopeWithState(s)
@@ -501,47 +493,60 @@ func TestNativeDataFromState(t *testing.T) {
 	addr, err := NewAddressFromString(saddr)
 	require.NoError(t, err)
 
-	var dataEntries []proto.DataEntry
-	dataEntries = append(dataEntries, &proto.IntegerDataEntry{
-		Key:   "integer",
-		Value: 100500,
-	})
-	dataEntries = append(dataEntries, &proto.BooleanDataEntry{
-		Key:   "boolean",
-		Value: true,
-	})
-	dataEntries = append(dataEntries, &proto.BinaryDataEntry{
-		Key:   "binary",
-		Value: []byte("hello"),
-	})
-	dataEntries = append(dataEntries, &proto.StringDataEntry{
-		Key:   "string",
-		Value: "world",
+	t.Run("integer", func(t *testing.T) {
+		s := mockstate.MockStateImpl{
+			DataEntry: &proto.IntegerDataEntry{
+				Key:   "integer",
+				Value: 100500,
+			},
+		}
+
+		rs1, err := NativeDataLongFromState(newScopeWithState(s), Params(addr, NewString("integer")))
+		require.NoError(t, err)
+		assert.Equal(t, NewLong(100500), rs1)
 	})
 
-	am := mockstate.MockAccount{
-		DataEntries: dataEntries,
-	}
+	t.Run("boolean", func(t *testing.T) {
 
-	s := mockstate.MockStateImpl{
-		Accounts: map[string]mockstate.Account{saddr: &am},
-	}
+		s := mockstate.MockStateImpl{
+			DataEntry: &proto.BooleanDataEntry{
+				Key:   "boolean",
+				Value: true,
+			},
+		}
 
-	rs1, err := NativeDataLongFromState(newScopeWithState(s), Params(addr, NewString("integer")))
-	require.NoError(t, err)
-	assert.Equal(t, NewLong(100500), rs1)
+		rs2, err := NativeDataBooleanFromState(newScopeWithState(s), Params(addr, NewString("boolean")))
+		require.NoError(t, err)
+		assert.Equal(t, NewBoolean(true), rs2)
 
-	rs2, err := NativeDataBooleanFromState(newScopeWithState(s), Params(addr, NewString("boolean")))
-	require.NoError(t, err)
-	assert.Equal(t, NewBoolean(true), rs2)
+	})
+	t.Run("binary", func(t *testing.T) {
 
-	rs3, err := NativeDataBytesFromState(newScopeWithState(s), Params(addr, NewString("binary")))
-	require.NoError(t, err)
-	assert.Equal(t, NewBytes([]byte("hello")), rs3)
+		s := mockstate.MockStateImpl{
+			DataEntry: &proto.BinaryDataEntry{
+				Key:   "binary",
+				Value: []byte("hello"),
+			},
+		}
 
-	rs4, err := NativeDataStringFromState(newScopeWithState(s), Params(addr, NewString("string")))
-	require.NoError(t, err)
-	assert.Equal(t, NewString("world"), rs4)
+		rs3, err := NativeDataBytesFromState(newScopeWithState(s), Params(addr, NewString("binary")))
+		require.NoError(t, err)
+		assert.Equal(t, NewBytes([]byte("hello")), rs3)
+	})
+	t.Run("string", func(t *testing.T) {
+
+		s := mockstate.MockStateImpl{
+			DataEntry: &proto.StringDataEntry{
+				Key:   "string",
+				Value: "world",
+			},
+		}
+
+		rs4, err := NativeDataStringFromState(newScopeWithState(s), Params(addr, NewString("string")))
+		require.NoError(t, err)
+		assert.Equal(t, NewString("world"), rs4)
+	})
+
 }
 
 func TestUserIsDefined(t *testing.T) {
@@ -634,15 +639,7 @@ func TestNativeAddressFromRecipient(t *testing.T) {
 	addr, err := proto.NewAddressFromString(a)
 	require.NoError(t, err)
 
-	r := proto.NewRecipientFromAddress(addr)
-
-	acc := mockstate.MockAccount{
-		AddressField: addr,
-	}
-
-	s := mockstate.MockStateImpl{
-		Accounts: map[string]mockstate.Account{r.String(): &acc},
-	}
+	s := mockstate.MockStateImpl{}
 
 	rs, err := NativeAddressFromRecipient(newScopeWithState(s), Params(NewRecipientFromProtoRecipient(proto.NewRecipientFromAddress(addr))))
 	require.NoError(t, err)

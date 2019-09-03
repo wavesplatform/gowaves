@@ -1,13 +1,6 @@
 package ast
 
-import (
-	"github.com/wavesplatform/gowaves/pkg/proto"
-	"github.com/wavesplatform/gowaves/pkg/ride/mockstate"
-)
-
-type Account interface {
-	Data() []proto.DataEntry
-}
+import "github.com/wavesplatform/gowaves/pkg/types"
 
 type Scope interface {
 	Clone() Scope
@@ -15,7 +8,7 @@ type Scope interface {
 	FuncByShort(int16) (Callable, bool)
 	FuncByName(string) (Callable, bool)
 	Value(string) (Expr, bool)
-	State() mockstate.MockState
+	State() types.SmartState
 	Scheme() byte
 }
 
@@ -23,13 +16,13 @@ type ScopeImpl struct {
 	parent    Scope
 	funcs     *Functions
 	variables map[string]Expr
-	state     mockstate.MockState
+	state     types.SmartState
 	scheme    byte
 }
 
 type Callable func(Scope, Exprs) (Expr, error)
 
-func NewScope(scheme byte, state mockstate.MockState, f *Functions, variables map[string]Expr) *ScopeImpl {
+func NewScope(scheme byte, state types.SmartState, f *Functions, variables map[string]Expr) *ScopeImpl {
 	return &ScopeImpl{
 		funcs:     f,
 		variables: variables,
@@ -46,7 +39,7 @@ func (a *ScopeImpl) Clone() Scope {
 	}
 }
 
-func (a *ScopeImpl) State() mockstate.MockState {
+func (a *ScopeImpl) State() types.SmartState {
 	return a.state
 }
 
@@ -188,6 +181,8 @@ func FunctionsV2() *Functions {
 	}
 }
 
+var VarFunctionsV2 = FunctionsV2()
+
 func FunctionsV3() *Functions {
 	s := FunctionsV2()
 	s.native[108] = NativePowLong
@@ -257,16 +252,17 @@ func (a *Functions) Clone() *Functions {
 	return a
 }
 
-func VariablesV2() map[string]Expr {
+func VariablesV2(tx map[string]Expr, height uint64) map[string]Expr {
 	v := make(map[string]Expr)
-	v["tx"] = NewObject(nil)
-	v["height"] = NewLong(0)
-	//TODO: add Buy and Sell predefined variables
+	v["tx"] = NewObject(tx)
+	v["height"] = NewLong(int64(height))
+	v["Sell"] = NewSell()
+	v["Buy"] = NewBuy()
 	return v
 }
 
-func VariablesV3() map[string]Expr {
-	v := VariablesV2()
+func VariablesV3(tx map[string]Expr, height uint64) map[string]Expr {
+	v := VariablesV2(tx, height)
 	v["CEILING"] = CeilingExpr{}
 	v["FLOOR"] = FloorExpr{}
 	v["HALFEVEN"] = HalfEvenExpr{}
@@ -288,6 +284,6 @@ func VariablesV3() map[string]Expr {
 	v["SHA3512"] = SHA3512Expr{}
 
 	v["nil"] = Exprs(nil)
-	v["unit"] = Unit{}
+	v["unit"] = NewUnit()
 	return v
 }

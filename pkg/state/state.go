@@ -634,15 +634,38 @@ func (s *stateManager) HeightToBlockID(height uint64) (crypto.Signature, error) 
 	return blockID, nil
 }
 
-func (s *stateManager) AccountBalance(addr proto.Address, asset []byte) (uint64, error) {
+func (s *stateManager) NewestAccountBalance(account proto.Recipient, asset []byte) (uint64, error) {
+	addr, err := s.newestRecipientToAddress(account)
+	if err != nil {
+		return 0, wrapErr(RetrievalError, err)
+	}
 	if asset == nil {
-		profile, err := s.stor.balances.wavesBalance(addr, true)
+		profile, err := s.stor.balances.newestWavesBalance(*addr, true)
 		if err != nil {
 			return 0, wrapErr(RetrievalError, err)
 		}
 		return profile.balance, nil
 	}
-	balance, err := s.stor.balances.assetBalance(addr, asset, true)
+	balance, err := s.stor.balances.newestAssetBalance(*addr, asset, true)
+	if err != nil {
+		return 0, wrapErr(RetrievalError, err)
+	}
+	return balance, nil
+}
+
+func (s *stateManager) AccountBalance(account proto.Recipient, asset []byte) (uint64, error) {
+	addr, err := s.recipientToAddress(account)
+	if err != nil {
+		return 0, wrapErr(RetrievalError, err)
+	}
+	if asset == nil {
+		profile, err := s.stor.balances.wavesBalance(*addr, true)
+		if err != nil {
+			return 0, wrapErr(RetrievalError, err)
+		}
+		return profile.balance, nil
+	}
+	balance, err := s.stor.balances.assetBalance(*addr, asset, true)
 	if err != nil {
 		return 0, wrapErr(RetrievalError, err)
 	}
@@ -1267,8 +1290,26 @@ func (s *stateManager) CurrentScore() (*big.Int, error) {
 	return s.ScoreAtHeight(height)
 }
 
-func (s *stateManager) EffectiveBalance(addr proto.Address, startHeight, endHeight uint64) (uint64, error) {
-	effectiveBalance, err := s.stor.balances.minEffectiveBalanceInRange(addr, startHeight, endHeight)
+func (s *stateManager) newestRecipientToAddress(recipient proto.Recipient) (*proto.Address, error) {
+	if recipient.Address == nil {
+		return s.stor.aliases.newestAddrByAlias(recipient.Alias.Alias, true)
+	}
+	return recipient.Address, nil
+}
+
+func (s *stateManager) recipientToAddress(recipient proto.Recipient) (*proto.Address, error) {
+	if recipient.Address == nil {
+		return s.stor.aliases.addrByAlias(recipient.Alias.Alias, true)
+	}
+	return recipient.Address, nil
+}
+
+func (s *stateManager) EffectiveBalance(account proto.Recipient, startHeight, endHeight uint64) (uint64, error) {
+	addr, err := s.newestRecipientToAddress(account)
+	if err != nil {
+		return 0, wrapErr(RetrievalError, err)
+	}
+	effectiveBalance, err := s.stor.balances.minEffectiveBalanceInRange(*addr, startHeight, endHeight)
 	if err != nil {
 		return 0, wrapErr(RetrievalError, err)
 	}
@@ -1300,6 +1341,22 @@ func (s *stateManager) ValidateNextTx(tx proto.Transaction, currentTimestamp, pa
 		return wrapErr(TxValidationError, err)
 	}
 	return nil
+}
+
+func (s *stateManager) NewestAddrByAlias(alias proto.Alias) (proto.Address, error) {
+	addr, err := s.stor.aliases.newestAddrByAlias(alias.Alias, true)
+	if err != nil {
+		return proto.Address{}, wrapErr(RetrievalError, err)
+	}
+	return *addr, nil
+}
+
+func (s *stateManager) AddrByAlias(alias proto.Alias) (proto.Address, error) {
+	addr, err := s.stor.aliases.addrByAlias(alias.Alias, true)
+	if err != nil {
+		return proto.Address{}, wrapErr(RetrievalError, err)
+	}
+	return *addr, nil
 }
 
 func (s *stateManager) IsActivated(featureID int16) (bool, error) {
@@ -1336,80 +1393,120 @@ func (s *stateManager) ApprovalHeight(featureID int16) (uint64, error) {
 
 // Accounts data storage.
 
-func (s *stateManager) RetrieveNewestEntry(addr proto.Address, key string) (proto.DataEntry, error) {
-	entry, err := s.stor.accountsDataStor.retrieveNewestEntry(addr, key)
+func (s *stateManager) RetrieveNewestEntry(account proto.Recipient, key string) (proto.DataEntry, error) {
+	addr, err := s.newestRecipientToAddress(account)
+	if err != nil {
+		return nil, wrapErr(RetrievalError, err)
+	}
+	entry, err := s.stor.accountsDataStor.retrieveNewestEntry(*addr, key)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
 	return entry, nil
 }
 
-func (s *stateManager) RetrieveEntry(addr proto.Address, key string) (proto.DataEntry, error) {
-	entry, err := s.stor.accountsDataStor.retrieveEntry(addr, key)
+func (s *stateManager) RetrieveEntry(account proto.Recipient, key string) (proto.DataEntry, error) {
+	addr, err := s.recipientToAddress(account)
+	if err != nil {
+		return nil, wrapErr(RetrievalError, err)
+	}
+	entry, err := s.stor.accountsDataStor.retrieveEntry(*addr, key)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
 	return entry, nil
 }
 
-func (s *stateManager) RetrieveNewestIntegerEntry(addr proto.Address, key string) (*proto.IntegerDataEntry, error) {
-	entry, err := s.stor.accountsDataStor.retrieveNewestIntegerEntry(addr, key)
+func (s *stateManager) RetrieveNewestIntegerEntry(account proto.Recipient, key string) (*proto.IntegerDataEntry, error) {
+	addr, err := s.newestRecipientToAddress(account)
+	if err != nil {
+		return nil, wrapErr(RetrievalError, err)
+	}
+	entry, err := s.stor.accountsDataStor.retrieveNewestIntegerEntry(*addr, key)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
 	return entry, nil
 }
 
-func (s *stateManager) RetrieveIntegerEntry(addr proto.Address, key string) (*proto.IntegerDataEntry, error) {
-	entry, err := s.stor.accountsDataStor.retrieveIntegerEntry(addr, key)
+func (s *stateManager) RetrieveIntegerEntry(account proto.Recipient, key string) (*proto.IntegerDataEntry, error) {
+	addr, err := s.recipientToAddress(account)
+	if err != nil {
+		return nil, wrapErr(RetrievalError, err)
+	}
+	entry, err := s.stor.accountsDataStor.retrieveIntegerEntry(*addr, key)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
 	return entry, nil
 }
 
-func (s *stateManager) RetrieveNewestBooleanEntry(addr proto.Address, key string) (*proto.BooleanDataEntry, error) {
-	entry, err := s.stor.accountsDataStor.retrieveNewestBooleanEntry(addr, key)
+func (s *stateManager) RetrieveNewestBooleanEntry(account proto.Recipient, key string) (*proto.BooleanDataEntry, error) {
+	addr, err := s.newestRecipientToAddress(account)
+	if err != nil {
+		return nil, wrapErr(RetrievalError, err)
+	}
+	entry, err := s.stor.accountsDataStor.retrieveNewestBooleanEntry(*addr, key)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
 	return entry, nil
 }
 
-func (s *stateManager) RetrieveBooleanEntry(addr proto.Address, key string) (*proto.BooleanDataEntry, error) {
-	entry, err := s.stor.accountsDataStor.retrieveBooleanEntry(addr, key)
+func (s *stateManager) RetrieveBooleanEntry(account proto.Recipient, key string) (*proto.BooleanDataEntry, error) {
+	addr, err := s.recipientToAddress(account)
+	if err != nil {
+		return nil, wrapErr(RetrievalError, err)
+	}
+	entry, err := s.stor.accountsDataStor.retrieveBooleanEntry(*addr, key)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
 	return entry, nil
 }
 
-func (s *stateManager) RetrieveNewestStringEntry(addr proto.Address, key string) (*proto.StringDataEntry, error) {
-	entry, err := s.stor.accountsDataStor.retrieveNewestStringEntry(addr, key)
+func (s *stateManager) RetrieveNewestStringEntry(account proto.Recipient, key string) (*proto.StringDataEntry, error) {
+	addr, err := s.newestRecipientToAddress(account)
+	if err != nil {
+		return nil, wrapErr(RetrievalError, err)
+	}
+	entry, err := s.stor.accountsDataStor.retrieveNewestStringEntry(*addr, key)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
 	return entry, nil
 }
 
-func (s *stateManager) RetrieveStringEntry(addr proto.Address, key string) (*proto.StringDataEntry, error) {
-	entry, err := s.stor.accountsDataStor.retrieveStringEntry(addr, key)
+func (s *stateManager) RetrieveStringEntry(account proto.Recipient, key string) (*proto.StringDataEntry, error) {
+	addr, err := s.recipientToAddress(account)
+	if err != nil {
+		return nil, wrapErr(RetrievalError, err)
+	}
+	entry, err := s.stor.accountsDataStor.retrieveStringEntry(*addr, key)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
 	return entry, nil
 }
 
-func (s *stateManager) RetrieveNewestBinaryEntry(addr proto.Address, key string) (*proto.BinaryDataEntry, error) {
-	entry, err := s.stor.accountsDataStor.retrieveNewestBinaryEntry(addr, key)
+func (s *stateManager) RetrieveNewestBinaryEntry(account proto.Recipient, key string) (*proto.BinaryDataEntry, error) {
+	addr, err := s.newestRecipientToAddress(account)
+	if err != nil {
+		return nil, wrapErr(RetrievalError, err)
+	}
+	entry, err := s.stor.accountsDataStor.retrieveNewestBinaryEntry(*addr, key)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
 	return entry, nil
 }
 
-func (s *stateManager) RetrieveBinaryEntry(addr proto.Address, key string) (*proto.BinaryDataEntry, error) {
-	entry, err := s.stor.accountsDataStor.retrieveBinaryEntry(addr, key)
+func (s *stateManager) RetrieveBinaryEntry(account proto.Recipient, key string) (*proto.BinaryDataEntry, error) {
+	addr, err := s.recipientToAddress(account)
+	if err != nil {
+		return nil, wrapErr(RetrievalError, err)
+	}
+	entry, err := s.stor.accountsDataStor.retrieveBinaryEntry(*addr, key)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}

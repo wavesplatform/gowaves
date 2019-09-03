@@ -116,7 +116,7 @@ func (s *balances) cancelAllLeases() error {
 
 	for iter.Next() {
 		key := keyvalue.SafeKey(iter)
-		r, err := s.wavesRecord(key, true)
+		r, err := s.wavesRecord(key, false, true)
 		if err != nil {
 			return err
 		}
@@ -154,7 +154,7 @@ func (s *balances) cancelLeaseOverflows() (map[proto.Address]struct{}, error) {
 	overflowedAddresses := make(map[proto.Address]struct{})
 	for iter.Next() {
 		key := keyvalue.SafeKey(iter)
-		r, err := s.wavesRecord(key, true)
+		r, err := s.wavesRecord(key, false, true)
 		if err != nil {
 			return nil, err
 		}
@@ -190,7 +190,7 @@ func (s *balances) cancelInvalidLeaseIns(correctLeaseIns map[proto.Address]int64
 	log.Printf("Started to cancel invalid leaseIns\n")
 	for iter.Next() {
 		key := keyvalue.SafeKey(iter)
-		r, err := s.wavesRecord(key, true)
+		r, err := s.wavesRecord(key, false, true)
 		if err != nil {
 			return err
 		}
@@ -228,7 +228,7 @@ func (s *balances) wavesAddressesNumber() (uint64, error) {
 
 	addressesNumber := uint64(0)
 	for iter.Next() {
-		profile, err := s.wavesBalanceImpl(iter.Key(), true)
+		profile, err := s.wavesBalanceImpl(iter.Key(), false, true)
 		if err != nil {
 			return 0, err
 		}
@@ -267,14 +267,19 @@ func (s *balances) minEffectiveBalanceInRange(addr proto.Address, startHeight, e
 	return minBalance, nil
 }
 
-func (s *balances) assetBalance(addr proto.Address, asset []byte, filter bool) (uint64, error) {
+func (s *balances) assetBalanceImpl(addr proto.Address, asset []byte, newest, filter bool) (uint64, error) {
+	var recordBytes []byte
+	var err error
 	key := assetBalanceKey{address: addr, asset: asset}
-	recordBytes, err := s.hs.get(assetBalance, key.bytes(), filter)
+	if newest {
+		recordBytes, err = s.hs.getFresh(assetBalance, key.bytes(), filter)
+	} else {
+		recordBytes, err = s.hs.get(assetBalance, key.bytes(), filter)
+	}
 	if err == keyvalue.ErrNotFound || err == errEmptyHist {
 		// Unknown address, expected behavior is to return 0 and no errors in this case.
 		return 0, nil
-	}
-	if err != nil {
+	} else if err != nil {
 		return 0, err
 	}
 	var record assetBalanceRecord
@@ -284,13 +289,26 @@ func (s *balances) assetBalance(addr proto.Address, asset []byte, filter bool) (
 	return record.balance, nil
 }
 
-func (s *balances) wavesRecord(key []byte, filter bool) (*wavesBalanceRecord, error) {
-	recordBytes, err := s.hs.get(wavesBalance, key, filter)
+func (s *balances) newestAssetBalance(addr proto.Address, asset []byte, filter bool) (uint64, error) {
+	return s.assetBalanceImpl(addr, asset, true, filter)
+}
+
+func (s *balances) assetBalance(addr proto.Address, asset []byte, filter bool) (uint64, error) {
+	return s.assetBalanceImpl(addr, asset, false, filter)
+}
+
+func (s *balances) wavesRecord(key []byte, newest, filter bool) (*wavesBalanceRecord, error) {
+	var recordBytes []byte
+	var err error
+	if newest {
+		recordBytes, err = s.hs.getFresh(wavesBalance, key, filter)
+	} else {
+		recordBytes, err = s.hs.get(wavesBalance, key, filter)
+	}
 	if err == keyvalue.ErrNotFound || err == errEmptyHist {
 		// Unknown address, expected behavior is to return empty profile and no errors in this case.
 		return &wavesBalanceRecord{}, nil
-	}
-	if err != nil {
+	} else if err != nil {
 		return nil, err
 	}
 	var record wavesBalanceRecord
@@ -300,17 +318,22 @@ func (s *balances) wavesRecord(key []byte, filter bool) (*wavesBalanceRecord, er
 	return &record, nil
 }
 
-func (s *balances) wavesBalanceImpl(key []byte, filter bool) (*balanceProfile, error) {
-	r, err := s.wavesRecord(key, filter)
+func (s *balances) wavesBalanceImpl(key []byte, newest, filter bool) (*balanceProfile, error) {
+	r, err := s.wavesRecord(key, newest, filter)
 	if err != nil {
 		return nil, err
 	}
 	return &r.balanceProfile, nil
 }
 
+func (s *balances) newestWavesBalance(addr proto.Address, filter bool) (*balanceProfile, error) {
+	key := wavesBalanceKey{address: addr}
+	return s.wavesBalanceImpl(key.bytes(), true, filter)
+}
+
 func (s *balances) wavesBalance(addr proto.Address, filter bool) (*balanceProfile, error) {
 	key := wavesBalanceKey{address: addr}
-	return s.wavesBalanceImpl(key.bytes(), filter)
+	return s.wavesBalanceImpl(key.bytes(), false, filter)
 }
 
 func (s *balances) setAssetBalance(addr proto.Address, asset []byte, balance uint64, blockID crypto.Signature) error {

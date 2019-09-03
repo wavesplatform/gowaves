@@ -8,6 +8,7 @@ import (
 	"github.com/mr-tron/base58/base58"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/types"
 )
 
 const InstanceFieldName = "$instance"
@@ -79,8 +80,17 @@ func NewExprs(e ...Expr) Exprs {
 	return e
 }
 
+// get property from object
 type Getable interface {
 	Get(string) (Expr, error)
+}
+
+type DataByIndex interface {
+	GetByIndex(index int, valueType proto.DataValueType) Expr
+}
+
+type DataByKey interface {
+	GetByKey(key string, valueType proto.DataValueType) (Expr, error)
 }
 
 type Block struct {
@@ -627,6 +637,54 @@ func NewAliasFromProtoAlias(a proto.Alias) AliasExpr {
 	return AliasExpr(a)
 }
 
+type DataEntryStateWrapperExpr struct {
+	state  types.SmartState
+	accout proto.Recipient
+}
+
+func (a DataEntryStateWrapperExpr) Write(w io.Writer) {
+	_, _ = w.Write([]byte("DataEntryStateWrapperExpr"))
+}
+
+func (a DataEntryStateWrapperExpr) Evaluate(Scope) (Expr, error) {
+	return a, nil
+}
+
+func (a DataEntryStateWrapperExpr) Eq(Expr) (bool, error) {
+	return false, errors.New("DataEntryStateWrapperExpr is not compariable")
+}
+
+func (a DataEntryStateWrapperExpr) InstanceOf() string {
+	return "DataEntryStateWrapper"
+}
+
+func (a DataEntryStateWrapperExpr) GetByKey(key string, valueType proto.DataValueType) (Expr, error) {
+	rs, err := a.state.RetrieveNewestEntry(a.accout, key)
+	if err != nil {
+		return nil, errors.Wrapf(err, "DataEntryStateWrapperExpr GetByKey")
+	}
+	if rs.GetValueType() == valueType {
+		switch valueType {
+		case proto.DataInteger:
+			return NewLong(rs.(*proto.IntegerDataEntry).Value), nil
+		case proto.DataString:
+			return NewString(rs.(*proto.StringDataEntry).Value), nil
+		case proto.DataBoolean:
+			return NewBoolean(rs.(*proto.BooleanDataEntry).Value), nil
+		case proto.DataBinary:
+			return NewBytes(rs.(*proto.BinaryDataEntry).Value), nil
+		}
+	}
+	return NewUnit(), nil
+}
+
+func NewDataEntryStateWrapperExpr(s types.SmartState, accout proto.Recipient) *DataEntryStateWrapperExpr {
+	return &DataEntryStateWrapperExpr{
+		state:  s,
+		accout: accout,
+	}
+}
+
 type DataEntryListExpr struct {
 	source []proto.DataEntry
 	cached bool
@@ -649,7 +707,8 @@ func (a DataEntryListExpr) InstanceOf() string {
 	return "DataEntryList"
 }
 
-func (a *DataEntryListExpr) Get(key string, valueType proto.DataValueType) Expr {
+// this func can't return error
+func (a *DataEntryListExpr) GetByKey(key string, valueType proto.DataValueType) (Expr, error) {
 	if !a.cached {
 		a.cache()
 	}
@@ -658,17 +717,17 @@ func (a *DataEntryListExpr) Get(key string, valueType proto.DataValueType) Expr 
 		if rs.GetValueType() == valueType {
 			switch valueType {
 			case proto.DataInteger:
-				return NewLong(rs.(*proto.IntegerDataEntry).Value)
+				return NewLong(rs.(*proto.IntegerDataEntry).Value), nil
 			case proto.DataString:
-				return NewString(rs.(*proto.StringDataEntry).Value)
+				return NewString(rs.(*proto.StringDataEntry).Value), nil
 			case proto.DataBoolean:
-				return NewBoolean(rs.(*proto.BooleanDataEntry).Value)
+				return NewBoolean(rs.(*proto.BooleanDataEntry).Value), nil
 			case proto.DataBinary:
-				return NewBytes(rs.(*proto.BinaryDataEntry).Value)
+				return NewBytes(rs.(*proto.BinaryDataEntry).Value), nil
 			}
 		}
 	}
-	return Unit{}
+	return NewUnit(), nil
 }
 
 func (a *DataEntryListExpr) GetByIndex(index int, valueType proto.DataValueType) Expr {
@@ -826,6 +885,10 @@ func (a object) InstanceOf() string {
 
 type BuyExpr struct{}
 
+func NewBuy() *BuyExpr {
+	return &BuyExpr{}
+}
+
 func (a BuyExpr) Evaluate(s Scope) (Expr, error) {
 	return a, nil
 }
@@ -843,6 +906,10 @@ func (a BuyExpr) InstanceOf() string {
 }
 
 type SellExpr struct{}
+
+func NewSell() *SellExpr {
+	return &SellExpr{}
+}
 
 func (a SellExpr) Evaluate(s Scope) (Expr, error) {
 	return a, nil

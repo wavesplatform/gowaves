@@ -8,22 +8,23 @@ import (
 
 var ErrNotFound = errors.New("Not found")
 
-type Account interface {
-	Data() []proto.DataEntry
-	AssetBalance(*proto.OptionalAsset) uint64
-	Address() proto.Address
-}
-
-type MockState interface {
-	TransactionByID([]byte) (proto.Transaction, error)
-	TransactionHeightByID([]byte) (uint64, error)
-	Account(proto.Recipient) Account
-}
-
 type MockStateImpl struct {
 	TransactionsByID       map[string]proto.Transaction
 	TransactionsHeightByID map[string]uint64
-	Accounts               map[string]Account // recipient to account
+	AccountsBalance        uint64
+	DataEntry              proto.DataEntry
+}
+
+func (a MockStateImpl) NewestAccountBalance(account proto.Recipient, asset []byte) (uint64, error) {
+	return a.AccountsBalance, nil
+}
+
+func (a MockStateImpl) NewestAddrByAlias(alias proto.Alias) (proto.Address, error) {
+	panic("implement NewestAddrByAlias")
+}
+
+func (a MockStateImpl) RetrieveNewestEntry(account proto.Recipient, key string) (proto.DataEntry, error) {
+	return a.DataEntry, nil
 }
 
 func (a MockStateImpl) TransactionByID(b []byte) (proto.Transaction, error) {
@@ -42,8 +43,8 @@ func (a MockStateImpl) TransactionHeightByID(b []byte) (uint64, error) {
 	return h, nil
 }
 
-func (a MockStateImpl) Account(r proto.Recipient) Account {
-	return a.Accounts[r.String()]
+func (a MockStateImpl) NewestHeight() (uint64, error) {
+	return 0, nil
 }
 
 type MockAccount struct {
