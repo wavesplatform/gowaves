@@ -1289,3 +1289,37 @@ func (a AttachedPaymentExpr) InstanceOf() string {
 func (a AttachedPaymentExpr) Get(key string) (Expr, error) {
 	return a.fields.Get(key)
 }
+
+type BlockHeaderExpr struct {
+	fields object
+}
+
+func (a BlockHeaderExpr) Write(w io.Writer) {
+	_, _ = fmt.Fprintf(w, "BlockHeaderExpr")
+}
+
+func (a BlockHeaderExpr) Evaluate(Scope) (Expr, error) {
+	return a, nil
+}
+
+func (a BlockHeaderExpr) Eq(other Expr) (bool, error) {
+	return false, errors.Errorf("trying to compare %T with %T", a, other)
+}
+
+func (a BlockHeaderExpr) InstanceOf() string {
+	return "BlockHeader"
+}
+
+func NewBlockHeader(fields object) *BlockHeaderExpr {
+	return &BlockHeaderExpr{
+		fields: fields,
+	}
+}
+
+func makeFeatures(features []int16) Exprs {
+	out := Exprs{}
+	for _, f := range features {
+		out = append(out, NewLong(int64(f)))
+	}
+	return out
+}
