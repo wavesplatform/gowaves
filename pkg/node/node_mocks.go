@@ -212,6 +212,14 @@ func (a *MockStateManager) RetrieveNewestBinaryEntry(account proto.Recipient, ke
 	panic("implement me")
 }
 
+func (a *MockStateManager) NewestAssetIsSponsored(assetID crypto.Digest) (bool, error) {
+	panic("implement me")
+}
+
+func (a *MockStateManager) AssetIsSponsored(assetID crypto.Digest) (bool, error) {
+	panic("implement me")
+}
+
 func (a *MockStateManager) Close() error {
 	panic("implement me")
 }

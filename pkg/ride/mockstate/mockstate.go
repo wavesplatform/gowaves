@@ -3,6 +3,7 @@ package mockstate
 import (
 	"github.com/mr-tron/base58/base58"
 	"github.com/pkg/errors"
+	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/state"
 )
@@ -46,6 +47,10 @@ func (a MockStateImpl) TransactionHeightByID(b []byte) (uint64, error) {
 
 func (a MockStateImpl) NewestHeight() (uint64, error) {
 	return 0, nil
+}
+
+func (a MockStateImpl) NewestAssetIsSponsored(assetID crypto.Digest) (bool, error) {
+	return false, nil
 }
 
 type MockAccount struct {

@@ -1517,6 +1517,22 @@ func (s *stateManager) RetrieveBinaryEntry(account proto.Recipient, key string) 
 	return entry, nil
 }
 
+func (s *stateManager) NewestAssetIsSponsored(assetID crypto.Digest) (bool, error) {
+	sponsored, err := s.stor.sponsoredAssets.newestIsSponsored(assetID, true)
+	if err != nil {
+		return false, wrapErr(RetrievalError, err)
+	}
+	return sponsored, nil
+}
+
+func (s *stateManager) AssetIsSponsored(assetID crypto.Digest) (bool, error) {
+	sponsored, err := s.stor.sponsoredAssets.isSponsored(assetID, true)
+	if err != nil {
+		return false, wrapErr(RetrievalError, err)
+	}
+	return sponsored, nil
+}
+
 func (s *stateManager) Close() error {
 	if err := s.rw.close(); err != nil {
 		return wrapErr(ClosureError, err)
