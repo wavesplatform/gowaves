@@ -42,3 +42,13 @@ func TestNewMapAssetInfoV2(t *testing.T) {
 	require.Equal(t, NewBoolean(true), rs["scripted"])
 	require.Equal(t, NewBoolean(true), rs["sponsored"])
 }
+
+func TestAssetInfoExprIsObject(t *testing.T) {
+	var a Expr = NewAssetInfo(nil)
+	_ = a.(Getable)
+}
+
+func TestAssetPairExprIsObject(t *testing.T) {
+	var e Expr = NewAssetPair(nil, nil)
+	_ = e.(Getable)
+}

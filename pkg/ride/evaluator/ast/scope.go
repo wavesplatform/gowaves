@@ -192,11 +192,11 @@ func FunctionsV3() *Functions {
 	s.native[604] = NativeToBase16
 	s.native[605] = NativeFromBase16
 	s.native[700] = NativeCheckMerkleProof
-	//TODO: native[1004] = NativeAssetInfoByID // RIDE v3
-	//TODO: native[1005] = NativeBlockInfoByHeight // RIDE v3
-	//TODO: native[1006] = NativeTransferTransactionByID // RIDE v3
+	s.native[1004] = NativeAssetInfo
+	s.native[1005] = NativeBlockInfoByHeight
+	s.native[1006] = NativeTransferTransactionByID
 	s.native[1061] = NativeAddressToString
-	//TODO: native[1070] = NativeBlockHeaderFromBytes // RIDE v4
+	s.native[1070] = NativeParseBlockHeader // RIDE v4
 	s.native[1100] = NativeCreateList
 	s.native[1200] = NativeBytesToUTF8String
 	s.native[1201] = NativeBytesToLong

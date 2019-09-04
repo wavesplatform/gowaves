@@ -57,4 +57,6 @@ type SmartState interface {
 	RetrieveNewestEntry(account proto.Recipient, key string) (proto.DataEntry, error)
 
 	NewestAssetIsSponsored(assetID crypto.Digest) (bool, error)
+
+	HeaderByHeight(height proto.Height) (*proto.BlockHeader, error)
 }

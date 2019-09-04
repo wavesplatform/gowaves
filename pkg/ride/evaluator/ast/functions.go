@@ -1173,6 +1173,34 @@ func NativeAssetInfo(s Scope, e Exprs) (Expr, error) {
 	return NewAssetInfo(obj), nil
 }
 
+//1005:
+func NativeBlockInfoByHeight(s Scope, e Exprs) (Expr, error) {
+	const funcName = "NativeBlockInfoByHeight"
+	if l := len(e); l != 1 {
+		return nil, errors.Errorf("%s: invalid params, expected 1, passed %d", funcName, l)
+	}
+	first, err := e[0].Evaluate(s.Clone())
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	height, ok := first.(*LongExpr)
+	if !ok {
+		return nil, errors.Errorf("%s expected first argument to be *LongExpr, found %T", funcName, first)
+	}
+
+	h, err := s.State().HeaderByHeight(proto.Height(height.Value))
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+
+	obj, err := newMapFromBlockHeader(s.Scheme(), h)
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+
+	return NewBlockInfo(obj, proto.Height(height.Value)), nil
+}
+
 // Fail script without message (default will be used)
 func UserThrow(_ Scope, _ Exprs) (Expr, error) {
 	return nil, Throw{Message: DefaultThrowMessage}
