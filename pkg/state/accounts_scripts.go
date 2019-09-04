@@ -2,6 +2,7 @@ package state
 
 import (
 	"github.com/pkg/errors"
+	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride/evaluator/ast"
@@ -58,14 +59,14 @@ func newAccountsScripts(db keyvalue.IterableKeyVal, dbBatch keyvalue.Batch, hs *
 	}, nil
 }
 
-func (as *accountsScripts) setScript(addr proto.Address, script proto.Script) error {
+func (as *accountsScripts) setScript(addr proto.Address, script proto.Script, blockID crypto.Signature) error {
 	key := accountScriptKey{addr}
 	record := accountScriptRecord{script}
 	recordBytes, err := record.marshalBinary()
 	if err != nil {
 		return err
 	}
-	if err := as.hs.addNewEntry(accountScript, key.bytes(), recordBytes); err != nil {
+	if err := as.hs.addNewEntry(accountScript, key.bytes(), recordBytes, blockID); err != nil {
 		return err
 	}
 	scriptAst, err := scriptBytesToAst(record.script)

@@ -129,17 +129,17 @@ func newAssets(db keyvalue.KeyValue, dbBatch keyvalue.Batch, hs *historyStorage)
 	}, nil
 }
 
-func (a *assets) addNewRecord(assetID crypto.Digest, record *assetHistoryRecord) error {
+func (a *assets) addNewRecord(assetID crypto.Digest, record *assetHistoryRecord, blockID crypto.Signature) error {
 	recordBytes, err := record.marshalBinary()
 	if err != nil {
 		return errors.Errorf("failed to marshal record: %v\n", err)
 	}
 	// Add new record to history.
 	histKey := assetHistKey{assetID: assetID}
-	return a.hs.addNewEntry(asset, histKey.bytes(), recordBytes)
+	return a.hs.addNewEntry(asset, histKey.bytes(), recordBytes, blockID)
 }
 
-func (a *assets) issueAsset(assetID crypto.Digest, asset *assetInfo) error {
+func (a *assets) issueAsset(assetID crypto.Digest, asset *assetInfo, blockID crypto.Signature) error {
 	assetConstBytes, err := asset.assetConstInfo.marshalBinary()
 	if err != nil {
 		return errors.Errorf("failed to marshal asset const info: %v\n", err)
@@ -148,7 +148,7 @@ func (a *assets) issueAsset(assetID crypto.Digest, asset *assetInfo) error {
 	a.dbBatch.Put(constKey.bytes(), assetConstBytes)
 	a.freshConstInfo[assetID] = asset.assetConstInfo
 	r := &assetHistoryRecord{asset.assetChangeableInfo}
-	return a.addNewRecord(assetID, r)
+	return a.addNewRecord(assetID, r, blockID)
 }
 
 type assetReissueChange struct {
@@ -156,7 +156,7 @@ type assetReissueChange struct {
 	diff       int64
 }
 
-func (a *assets) reissueAsset(assetID crypto.Digest, ch *assetReissueChange, filter bool) error {
+func (a *assets) reissueAsset(assetID crypto.Digest, ch *assetReissueChange, blockID crypto.Signature, filter bool) error {
 	info, err := a.newestChangeableInfo(assetID, filter)
 	if err != nil {
 		return errors.Errorf("failed to get asset info: %v\n", err)
@@ -164,14 +164,14 @@ func (a *assets) reissueAsset(assetID crypto.Digest, ch *assetReissueChange, fil
 	newValue := info.quantity.Int64() + ch.diff
 	info.quantity.SetInt64(newValue)
 	record := &assetHistoryRecord{assetChangeableInfo: assetChangeableInfo{info.quantity, ch.reissuable}}
-	return a.addNewRecord(assetID, record)
+	return a.addNewRecord(assetID, record, blockID)
 }
 
 type assetBurnChange struct {
 	diff int64
 }
 
-func (a *assets) burnAsset(assetID crypto.Digest, ch *assetBurnChange, filter bool) error {
+func (a *assets) burnAsset(assetID crypto.Digest, ch *assetBurnChange, blockID crypto.Signature, filter bool) error {
 	info, err := a.newestChangeableInfo(assetID, filter)
 	if err != nil {
 		return errors.Errorf("failed to get asset info: %v\n", err)
@@ -182,7 +182,7 @@ func (a *assets) burnAsset(assetID crypto.Digest, ch *assetBurnChange, filter bo
 	}
 	info.quantity.Sub(&info.quantity, quantityDiff)
 	record := &assetHistoryRecord{assetChangeableInfo: assetChangeableInfo{info.quantity, info.reissuable}}
-	return a.addNewRecord(assetID, record)
+	return a.addNewRecord(assetID, record, blockID)
 }
 
 func (a *assets) constInfo(assetID crypto.Digest) (*assetConstInfo, error) {

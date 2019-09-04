@@ -65,7 +65,7 @@ func TestCheckMinFeeAsset(t *testing.T) {
 
 	to.stor.addBlock(t, blockID0)
 	assetCost := uint64(4)
-	err = to.sponsoredAssets.sponsorAsset(tx.FeeAsset.ID, assetCost)
+	err = to.sponsoredAssets.sponsorAsset(tx.FeeAsset.ID, assetCost, blockID0)
 	assert.NoError(t, err, "sponsorAsset() failed")
 	to.stor.flush(t)
 

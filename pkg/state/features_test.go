@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/util"
 )
@@ -43,7 +44,7 @@ func TestAddFeatureVote(t *testing.T) {
 	}()
 
 	to.stor.addBlock(t, blockID0)
-	err = to.features.addVote(featureID)
+	err = to.features.addVote(featureID, blockID0)
 	assert.NoError(t, err, "addVote() failed")
 	votes, err := to.features.featureVotes(featureID)
 	assert.NoError(t, err, "featureVotes() failed")
@@ -73,7 +74,7 @@ func TestApproveFeature(t *testing.T) {
 	assert.Equal(t, false, approved)
 	to.stor.addBlock(t, blockID0)
 	r := &approvedFeaturesRecord{1}
-	err = to.features.approveFeature(featureID, r)
+	err = to.features.approveFeature(featureID, r, blockID0)
 	assert.NoError(t, err, "approveFeature() failed")
 	to.stor.flush(t)
 	approved, err = to.features.isApproved(featureID)
@@ -100,7 +101,7 @@ func TestActivateFeature(t *testing.T) {
 	assert.NoError(t, err, "isActivated failed")
 	assert.Equal(t, false, activated)
 	r := &activatedFeaturesRecord{1}
-	err = to.features.activateFeature(featureID, r)
+	err = to.features.activateFeature(featureID, r, blockID0)
 	assert.NoError(t, err, "activateFeature() failed")
 	to.stor.flush(t)
 	activated, err = to.features.isActivated(featureID)
@@ -143,17 +144,19 @@ func TestFinishVoting(t *testing.T) {
 		for i := uint64(0); i < tc.votesNum; i++ {
 			heightCounter++
 			to.stor.addBlock(t, ids[i])
-			err = to.features.addVote(featureID)
+			err = to.features.addVote(featureID, ids[i])
 			assert.NoError(t, err, "addVote() failed")
 		}
+		var lastBlockId crypto.Signature
 		// Add remaining blocks until curHeight.
 		for i := heightCounter; i < tc.curHeight; i++ {
 			to.stor.addBlock(t, ids[i])
+			lastBlockId = ids[i]
 		}
 		// Flush votes.
 		to.stor.flush(t)
 		// Call finishVoting().
-		err = to.features.finishVoting(tc.curHeight)
+		err = to.features.finishVoting(tc.curHeight, lastBlockId)
 		assert.NoError(t, err, "finishVoting() failed")
 		// Flush updates.
 		to.stor.flush(t)

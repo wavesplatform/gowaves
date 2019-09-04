@@ -63,9 +63,6 @@ func TestAddBlock(t *testing.T) {
 	isValid, err := to.stateDB.isValidBlock(blockNum)
 	assert.NoError(t, err, "isValidBlock() failed")
 	assert.Equal(t, false, isValid)
-	curBlockNum, err := to.stateDB.currentBlockNum()
-	assert.NoError(t, err, "currentBlockNum() failed")
-	assert.Equal(t, uint32(0), curBlockNum)
 
 	to.flush(t)
 

@@ -89,7 +89,7 @@ func newFeatures(
 }
 
 // addVote adds vote for feature by its featureID at given blockID.
-func (f *features) addVote(featureID int16) error {
+func (f *features) addVote(featureID int16, blockID crypto.Signature) error {
 	key := votesFeaturesKey{featureID: featureID}
 	keyBytes, err := key.bytes()
 	if err != nil {
@@ -104,7 +104,7 @@ func (f *features) addVote(featureID int16) error {
 	if err != nil {
 		return err
 	}
-	return f.hs.addNewEntry(featureVote, keyBytes, recordBytes)
+	return f.hs.addNewEntry(featureVote, keyBytes, recordBytes, blockID)
 }
 
 func (f *features) featureVotes(featureID int16) (uint64, error) {
@@ -142,7 +142,7 @@ func (f *features) printActivationLog(featureID int16) {
 	}
 }
 
-func (f *features) activateFeature(featureID int16, r *activatedFeaturesRecord) error {
+func (f *features) activateFeature(featureID int16, r *activatedFeaturesRecord, blockID crypto.Signature) error {
 	key := activatedFeaturesKey{featureID: featureID}
 	keyBytes, err := key.bytes()
 	if err != nil {
@@ -153,7 +153,7 @@ func (f *features) activateFeature(featureID int16, r *activatedFeaturesRecord) 
 		return err
 	}
 	f.printActivationLog(featureID)
-	return f.hs.addNewEntry(activatedFeature, keyBytes, recordBytes)
+	return f.hs.addNewEntry(activatedFeature, keyBytes, recordBytes, blockID)
 }
 
 func (f *features) isActivated(featureID int16) (bool, error) {
@@ -220,7 +220,7 @@ func (f *features) printApprovalLog(featureID int16) {
 	}
 }
 
-func (f *features) approveFeature(featureID int16, r *approvedFeaturesRecord) error {
+func (f *features) approveFeature(featureID int16, r *approvedFeaturesRecord, blockID crypto.Signature) error {
 	key := approvedFeaturesKey{featureID: featureID}
 	keyBytes, err := key.bytes()
 	if err != nil {
@@ -231,7 +231,7 @@ func (f *features) approveFeature(featureID int16, r *approvedFeaturesRecord) er
 		return err
 	}
 	f.printApprovalLog(featureID)
-	return f.hs.addNewEntry(approvedFeature, keyBytes, recordBytes)
+	return f.hs.addNewEntry(approvedFeature, keyBytes, recordBytes, blockID)
 }
 
 func (f *features) isApproved(featureID int16) (bool, error) {
@@ -276,7 +276,7 @@ func (f *features) isElected(height uint64, featureID int16) (bool, error) {
 }
 
 // Check voting results, update approval list, reset voting list.
-func (f *features) approveFeatures(curHeight uint64) error {
+func (f *features) approveFeatures(curHeight uint64, blockID crypto.Signature) error {
 	iter, err := f.db.NewKeyIterator([]byte{votesFeaturesKeyPrefix})
 	if err != nil {
 		return err
@@ -302,7 +302,7 @@ func (f *features) approveFeatures(curHeight uint64) error {
 		if elected {
 			// Add feature to the list of approved.
 			r := &approvedFeaturesRecord{curHeight}
-			if err := f.approveFeature(k.featureID, r); err != nil {
+			if err := f.approveFeature(k.featureID, r, blockID); err != nil {
 				return err
 			}
 		}
@@ -318,7 +318,7 @@ func (f *features) approveFeatures(curHeight uint64) error {
 			if err != nil {
 				return err
 			}
-			if err := f.hs.addNewEntry(featureVote, key, newRecordBytes); err != nil {
+			if err := f.hs.addNewEntry(featureVote, key, newRecordBytes, blockID); err != nil {
 				return err
 			}
 		}
@@ -327,7 +327,7 @@ func (f *features) approveFeatures(curHeight uint64) error {
 }
 
 // Update activation list.
-func (f *features) activateFeatures(curHeight uint64) error {
+func (f *features) activateFeatures(curHeight uint64, blockID crypto.Signature) error {
 	iter, err := f.db.NewKeyIterator([]byte{approvedFeaturesKeyPrefix})
 	if err != nil {
 		return err
@@ -360,7 +360,7 @@ func (f *features) activateFeatures(curHeight uint64) error {
 		if needToActivate {
 			// Add feature to the list of activated.
 			r := &activatedFeaturesRecord{curHeight}
-			if err := f.activateFeature(k.featureID, r); err != nil {
+			if err := f.activateFeature(k.featureID, r, blockID); err != nil {
 				return err
 			}
 		}
@@ -368,11 +368,11 @@ func (f *features) activateFeatures(curHeight uint64) error {
 	return nil
 }
 
-func (f *features) finishVoting(curHeight uint64) error {
-	if err := f.activateFeatures(curHeight); err != nil {
+func (f *features) finishVoting(curHeight uint64, blockID crypto.Signature) error {
+	if err := f.activateFeatures(curHeight, blockID); err != nil {
 		return err
 	}
-	if err := f.approveFeatures(curHeight); err != nil {
+	if err := f.approveFeatures(curHeight, blockID); err != nil {
 		return err
 	}
 	return nil

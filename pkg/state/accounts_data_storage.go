@@ -3,6 +3,7 @@ package state
 import (
 	"encoding/binary"
 
+	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
@@ -91,7 +92,7 @@ func (s *accountsDataStorage) appendAddr(addr proto.Address) (uint64, error) {
 	return newAddrNum, nil
 }
 
-func (s *accountsDataStorage) appendEntry(addr proto.Address, entry proto.DataEntry) error {
+func (s *accountsDataStorage) appendEntry(addr proto.Address, entry proto.DataEntry, blockID crypto.Signature) error {
 	addrNum, err := s.appendAddr(addr)
 	if err != nil {
 		return err
@@ -106,7 +107,7 @@ func (s *accountsDataStorage) appendEntry(addr proto.Address, entry proto.DataEn
 	if err != nil {
 		return err
 	}
-	if err := s.hs.addNewEntry(dataEntry, key.bytes(), recordBytes); err != nil {
+	if err := s.hs.addNewEntry(dataEntry, key.bytes(), recordBytes, blockID); err != nil {
 		return err
 	}
 	return nil

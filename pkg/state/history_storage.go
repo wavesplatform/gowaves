@@ -224,7 +224,12 @@ func newHistoryStorage(db keyvalue.IterableKeyVal, dbBatch keyvalue.Batch, state
 	}, nil
 }
 
-func (hs *historyStorage) addNewEntryImpl(entityType blockchainEntity, key []byte, entry historyEntry) error {
+func (hs *historyStorage) addNewEntry(entityType blockchainEntity, key, value []byte, blockID crypto.Signature) error {
+	blockNum, err := hs.stateDB.blockIdToNum(blockID)
+	if err != nil {
+		return err
+	}
+	entry := historyEntry{value, blockNum}
 	history, err := hs.stor.get(key)
 	if err == errNotFound {
 		if history, err = newHistoryRecord(entityType); err != nil {
@@ -240,27 +245,6 @@ func (hs *historyStorage) addNewEntryImpl(entityType blockchainEntity, key []byt
 		return err
 	}
 	return nil
-}
-
-func (hs *historyStorage) addNewEntry(entityType blockchainEntity, key, value []byte) error {
-	curBlockNum, err := hs.stateDB.currentBlockNum()
-	if err != nil {
-		return err
-	}
-	entry := historyEntry{value, curBlockNum}
-	return hs.addNewEntryImpl(entityType, key, entry)
-}
-
-func (hs *historyStorage) addNewEntryWithBlockID(entityType blockchainEntity, key, value []byte, blockID *crypto.Signature) error {
-	if blockID == nil {
-		return hs.addNewEntry(entityType, key, value)
-	}
-	blockNum, err := hs.stateDB.blockIdToNum(*blockID)
-	if err != nil {
-		return err
-	}
-	entry := historyEntry{value, blockNum}
-	return hs.addNewEntryImpl(entityType, key, entry)
 }
 
 func (hs *historyStorage) cleanDbRecord(key []byte) error {

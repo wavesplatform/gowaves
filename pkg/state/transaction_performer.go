@@ -11,6 +11,7 @@ import (
 
 type performerInfo struct {
 	initialisation bool
+	blockID        crypto.Signature
 }
 
 type transactionPerformer struct {
@@ -40,7 +41,7 @@ func (tp *transactionPerformer) performIssue(tx *proto.Issue, id []byte, info *p
 			reissuable: tx.Reissuable,
 		},
 	}
-	if err := tp.stor.assets.issueAsset(assetID, assetInfo); err != nil {
+	if err := tp.stor.assets.issueAsset(assetID, assetInfo, info.blockID); err != nil {
 		return errors.Wrap(err, "failed to issue asset")
 	}
 	return nil
@@ -76,7 +77,7 @@ func (tp *transactionPerformer) performReissue(tx *proto.Reissue, info *performe
 		reissuable: tx.Reissuable,
 		diff:       int64(tx.Quantity),
 	}
-	if err := tp.stor.assets.reissueAsset(tx.AssetID, change, !info.initialisation); err != nil {
+	if err := tp.stor.assets.reissueAsset(tx.AssetID, change, info.blockID, !info.initialisation); err != nil {
 		return errors.Wrap(err, "failed to reissue asset")
 	}
 	return nil
@@ -103,7 +104,7 @@ func (tp *transactionPerformer) performBurn(tx *proto.Burn, info *performerInfo)
 	change := &assetBurnChange{
 		diff: int64(tx.Amount),
 	}
-	if err := tp.stor.assets.burnAsset(tx.AssetID, change, !info.initialisation); err != nil {
+	if err := tp.stor.assets.burnAsset(tx.AssetID, change, info.blockID, !info.initialisation); err != nil {
 		return errors.Wrap(err, "failed to burn asset")
 	}
 	return nil
@@ -141,7 +142,7 @@ func (tp *transactionPerformer) performLease(tx *proto.Lease, id *crypto.Digest,
 	}
 	// Add leasing to lease state.
 	l := &leasing{true, tx.Amount, *recipientAddr, senderAddr}
-	if err := tp.stor.leases.addLeasing(*id, l); err != nil {
+	if err := tp.stor.leases.addLeasing(*id, l, info.blockID); err != nil {
 		return errors.Wrap(err, "failed to add leasing")
 	}
 	return nil
@@ -164,7 +165,7 @@ func (tp *transactionPerformer) performLeaseV2(transaction proto.Transaction, in
 }
 
 func (tp *transactionPerformer) performLeaseCancel(tx *proto.LeaseCancel, info *performerInfo) error {
-	if err := tp.stor.leases.cancelLeasing(tx.LeaseID, !info.initialisation); err != nil {
+	if err := tp.stor.leases.cancelLeasing(tx.LeaseID, info.blockID, !info.initialisation); err != nil {
 		return errors.Wrap(err, "failed to cancel leasing")
 	}
 	return nil
@@ -196,7 +197,7 @@ func (tp *transactionPerformer) performCreateAlias(tx *proto.CreateAlias, info *
 		stolen: tp.stor.aliases.exists(tx.Alias.Alias, !info.initialisation),
 		addr:   senderAddr,
 	}
-	if err := tp.stor.aliases.createAlias(tx.Alias.Alias, inf); err != nil {
+	if err := tp.stor.aliases.createAlias(tx.Alias.Alias, inf, info.blockID); err != nil {
 		return err
 	}
 	return nil
@@ -228,7 +229,7 @@ func (tp *transactionPerformer) performDataV1(transaction proto.Transaction, inf
 		return err
 	}
 	for _, entry := range tx.Entries {
-		if err := tp.stor.accountsDataStor.appendEntry(senderAddr, entry); err != nil {
+		if err := tp.stor.accountsDataStor.appendEntry(senderAddr, entry, info.blockID); err != nil {
 			return err
 		}
 	}
@@ -240,7 +241,7 @@ func (tp *transactionPerformer) performSponsorshipV1(transaction proto.Transacti
 	if !ok {
 		return errors.New("failed to convert interface to SponsorshipV1 transaction")
 	}
-	if err := tp.stor.sponsoredAssets.sponsorAsset(tx.AssetID, tx.MinAssetFee); err != nil {
+	if err := tp.stor.sponsoredAssets.sponsorAsset(tx.AssetID, tx.MinAssetFee, info.blockID); err != nil {
 		return errors.Wrap(err, "failed to sponsor asset")
 	}
 	return nil
@@ -255,7 +256,7 @@ func (tp *transactionPerformer) performSetScriptV1(transaction proto.Transaction
 	if err != nil {
 		return err
 	}
-	if err := tp.stor.accountsScripts.setScript(senderAddr, tx.Script); err != nil {
+	if err := tp.stor.accountsScripts.setScript(senderAddr, tx.Script, info.blockID); err != nil {
 		return errors.Wrap(err, "failed to set account script")
 	}
 	return nil

@@ -48,14 +48,14 @@ func newSponsoredAssets(
 	return &sponsoredAssets{rw, features, hs, settings}, nil
 }
 
-func (s *sponsoredAssets) sponsorAsset(assetID crypto.Digest, assetCost uint64) error {
+func (s *sponsoredAssets) sponsorAsset(assetID crypto.Digest, assetCost uint64, blockID crypto.Signature) error {
 	key := sponsorshipKey{assetID}
 	record := &sponsorshipRecord{assetCost}
 	recordBytes, err := record.marshalBinary()
 	if err != nil {
 		return err
 	}
-	if err := s.hs.addNewEntry(sponsorship, key.bytes(), recordBytes); err != nil {
+	if err := s.hs.addNewEntry(sponsorship, key.bytes(), recordBytes, blockID); err != nil {
 		return err
 	}
 	return nil

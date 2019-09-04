@@ -4,6 +4,7 @@ import (
 	"log"
 
 	"github.com/pkg/errors"
+	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
@@ -53,14 +54,14 @@ func newAliases(db keyvalue.IterableKeyVal, dbBatch keyvalue.Batch, hs *historyS
 	return &aliases{db, dbBatch, hs}, nil
 }
 
-func (a *aliases) createAlias(aliasStr string, info *aliasInfo) error {
+func (a *aliases) createAlias(aliasStr string, info *aliasInfo, blockID crypto.Signature) error {
 	key := aliasKey{aliasStr}
 	r := aliasRecord{*info}
 	recordBytes, err := r.marshalBinary()
 	if err != nil {
 		return err
 	}
-	return a.hs.addNewEntry(alias, key.bytes(), recordBytes)
+	return a.hs.addNewEntry(alias, key.bytes(), recordBytes, blockID)
 }
 
 func (a *aliases) exists(aliasStr string, filter bool) bool {

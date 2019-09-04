@@ -249,7 +249,7 @@ func (s *testStorageObjects) addBlocks(t *testing.T, blocksNum int) {
 func (s *testStorageObjects) createAsset(t *testing.T, assetID crypto.Digest) *assetInfo {
 	s.addBlock(t, blockID0)
 	assetInfo := defaultAssetInfo(true)
-	err := s.entities.assets.issueAsset(assetID, assetInfo)
+	err := s.entities.assets.issueAsset(assetID, assetInfo, blockID0)
 	assert.NoError(t, err, "issueAset() failed")
 	s.flush(t)
 	return assetInfo
@@ -258,7 +258,7 @@ func (s *testStorageObjects) createAsset(t *testing.T, assetID crypto.Digest) *a
 func (s *testStorageObjects) activateFeature(t *testing.T, featureID int16) {
 	s.addBlock(t, blockID0)
 	activationReq := &activatedFeaturesRecord{1}
-	err := s.entities.features.activateFeature(featureID, activationReq)
+	err := s.entities.features.activateFeature(featureID, activationReq, blockID0)
 	assert.NoError(t, err, "activateFeature() failed")
 	s.flush(t)
 }

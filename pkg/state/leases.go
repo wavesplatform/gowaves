@@ -58,8 +58,7 @@ func newLeases(db keyvalue.IterableKeyVal, hs *historyStorage) (*leases, error) 
 	return &leases{db, hs}, nil
 }
 
-func (l *leases) cancelLeases(bySenders map[proto.Address]struct{}) error {
-	// TODO: this action can not be rolled back now, do we need it?
+func (l *leases) cancelLeases(bySenders map[proto.Address]struct{}, blockID crypto.Signature) error {
 	leaseIter, err := l.db.NewKeyIterator([]byte{leaseKeyPrefix})
 	if err != nil {
 		return errors.Errorf("failed to create key iterator to cancel leases: %v\n", err)
@@ -99,7 +98,7 @@ func (l *leases) cancelLeases(bySenders map[proto.Address]struct{}) error {
 			if err != nil {
 				return errors.Errorf("failed to marshal lease: %v\n", err)
 			}
-			if err := l.hs.addNewEntry(lease, key, leaseBytes); err != nil {
+			if err := l.hs.addNewEntry(lease, key, leaseBytes, blockID); err != nil {
 				return errors.Errorf("failed to save lease to storage: %v\n", err)
 			}
 		}
@@ -168,24 +167,24 @@ func (l *leases) leasingInfo(id crypto.Digest, filter bool) (*leasing, error) {
 	return &record.leasing, nil
 }
 
-func (l *leases) addLeasing(id crypto.Digest, leasing *leasing) error {
+func (l *leases) addLeasing(id crypto.Digest, leasing *leasing, blockID crypto.Signature) error {
 	key := leaseKey{leaseID: id}
 	r := &leasingRecord{*leasing}
 	recordBytes, err := r.marshalBinary()
 	if err != nil {
 		return errors.Errorf("failed to marshal record: %v\n", err)
 	}
-	if err := l.hs.addNewEntry(lease, key.bytes(), recordBytes); err != nil {
+	if err := l.hs.addNewEntry(lease, key.bytes(), recordBytes, blockID); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (l *leases) cancelLeasing(id crypto.Digest, filter bool) error {
+func (l *leases) cancelLeasing(id crypto.Digest, blockID crypto.Signature, filter bool) error {
 	leasing, err := l.newestLeasingInfo(id, filter)
 	if err != nil {
 		return errors.Errorf("failed to get leasing info: %v\n", err)
 	}
 	leasing.isActive = false
-	return l.addLeasing(id, leasing)
+	return l.addLeasing(id, leasing, blockID)
 }

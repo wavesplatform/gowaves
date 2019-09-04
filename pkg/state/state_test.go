@@ -137,7 +137,7 @@ func TestValidationWithoutBlocks(t *testing.T) {
 	assert.NoError(t, err, "NewSignatureFromBase58() failed")
 	err = manager.stateDB.addBlock(blockID)
 	assert.NoError(t, err, "addBlock() failed")
-	err = manager.stor.balances.setWavesBalance(addr, &balanceProfile{2, 0, 0}, &blockID)
+	err = manager.stor.balances.setWavesBalance(addr, &balanceProfile{2, 0, 0}, blockID)
 	assert.NoError(t, err, "setWavesBalance() failed")
 	err = manager.flush(false)
 	assert.NoError(t, err, "manager.flush() failed")

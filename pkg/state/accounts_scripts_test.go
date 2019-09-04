@@ -38,7 +38,7 @@ func TestSetScript(t *testing.T) {
 
 	to.stor.addBlock(t, blockID0)
 	addr := testGlobal.senderInfo.addr
-	err = to.accountsScripts.setScript(addr, proto.Script(testGlobal.scriptBytes))
+	err = to.accountsScripts.setScript(addr, proto.Script(testGlobal.scriptBytes), blockID0)
 	assert.NoError(t, err, "setScript() failed")
 
 	// Test newest before flushing.

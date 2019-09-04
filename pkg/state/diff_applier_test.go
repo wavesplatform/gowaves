@@ -138,7 +138,7 @@ func TestTransferOverspend(t *testing.T) {
 	tx.Timestamp = info.blockTime
 	tx.Recipient = proto.NewRecipientFromAddress(testGlobal.senderInfo.addr)
 	// Set balance equal to tx Fee.
-	err := to.stor.entities.balances.setAssetBalance(testGlobal.senderInfo.addr, testGlobal.asset0.assetID, tx.Fee, &blockID0)
+	err := to.stor.entities.balances.setAssetBalance(testGlobal.senderInfo.addr, testGlobal.asset0.assetID, tx.Fee, blockID0)
 	assert.NoError(t, err, "setAssetBalacne() failed")
 	to.stor.flush(t)
 

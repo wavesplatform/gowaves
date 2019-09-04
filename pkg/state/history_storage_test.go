@@ -27,7 +27,7 @@ func TestAddNewEntry(t *testing.T) {
 	to.addBlock(t, blockID0)
 	key := bytes.Repeat([]byte{0xff}, keySize)
 	val := bytes.Repeat([]byte{0x1a}, valSize)
-	err = to.hs.addNewEntry(accountScript, key, val)
+	err = to.hs.addNewEntry(accountScript, key, val, blockID0)
 	assert.NoError(t, err, "addNewEntry() failed")
 	entry, err := to.hs.freshLatestEntry(key, true)
 	assert.NoError(t, err, "freshLatestEntry() failed")

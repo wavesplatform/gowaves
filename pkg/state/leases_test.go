@@ -63,7 +63,7 @@ func TestCancelLeases(t *testing.T) {
 		leaseID, err := crypto.NewDigestFromBytes(bytes.Repeat([]byte{l.leaseIDByte}, crypto.DigestSize))
 		assert.NoError(t, err, "failed to create digest from bytes")
 		r := createLease(t, l.sender)
-		err = to.leases.addLeasing(leaseID, r)
+		err = to.leases.addLeasing(leaseID, r, blockID0)
 		assert.NoError(t, err, "failed to add leasing")
 	}
 	to.stor.flush(t)
@@ -74,7 +74,7 @@ func TestCancelLeases(t *testing.T) {
 	sendersToCancel := make(map[proto.Address]struct{})
 	var empty struct{}
 	sendersToCancel[badSender] = empty
-	err = to.leases.cancelLeases(sendersToCancel)
+	err = to.leases.cancelLeases(sendersToCancel, blockID0)
 	assert.NoError(t, err, "cancelLeases() failed")
 	to.stor.flush(t)
 	for _, l := range leasings {
@@ -89,7 +89,7 @@ func TestCancelLeases(t *testing.T) {
 		}
 	}
 	// Cancel all the leases and check.
-	err = to.leases.cancelLeases(nil)
+	err = to.leases.cancelLeases(nil, blockID0)
 	assert.NoError(t, err, "cancelLeases() failed")
 	to.stor.flush(t)
 	for _, l := range leasings {
@@ -125,7 +125,7 @@ func TestValidLeaseIns(t *testing.T) {
 		leaseID, err := crypto.NewDigestFromBytes(bytes.Repeat([]byte{l.leaseIDByte}, crypto.DigestSize))
 		assert.NoError(t, err, "failed to create digest from bytes")
 		r := createLease(t, l.sender)
-		err = to.leases.addLeasing(leaseID, r)
+		err = to.leases.addLeasing(leaseID, r, blockID0)
 		assert.NoError(t, err, "failed to add leasing")
 		properLeaseIns[r.recipient] += int64(r.leaseAmount)
 	}
@@ -155,7 +155,7 @@ func TestAddLeasing(t *testing.T) {
 	assert.NoError(t, err, "failed to create digest from bytes")
 	senderStr := "3PNXHYoWp83VaWudq9ds9LpS5xykWuJHiHp"
 	r := createLease(t, senderStr)
-	err = to.leases.addLeasing(leaseID, r)
+	err = to.leases.addLeasing(leaseID, r, blockID0)
 	assert.NoError(t, err, "failed to add leasing")
 	l, err := to.leases.newestLeasingInfo(leaseID, true)
 	assert.NoError(t, err, "failed to get newest leasing info")
@@ -182,9 +182,9 @@ func TestCancelLeasing(t *testing.T) {
 	assert.NoError(t, err, "failed to create digest from bytes")
 	senderStr := "3PNXHYoWp83VaWudq9ds9LpS5xykWuJHiHp"
 	r := createLease(t, senderStr)
-	err = to.leases.addLeasing(leaseID, r)
+	err = to.leases.addLeasing(leaseID, r, blockID0)
 	assert.NoError(t, err, "failed to add leasing")
-	err = to.leases.cancelLeasing(leaseID, true)
+	err = to.leases.cancelLeasing(leaseID, blockID0, true)
 	assert.NoError(t, err, "failed to cancel leasing")
 	r.isActive = false
 	to.stor.flush(t)

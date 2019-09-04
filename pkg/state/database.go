@@ -88,18 +88,6 @@ func (s *stateDB) syncRw() error {
 	return nil
 }
 
-func (s *stateDB) currentBlockNum() (uint32, error) {
-	lastBlockNum, err := s.getLastBlockNum()
-	if err != nil {
-		return 0, err
-	}
-	nextBlockNum := lastBlockNum + uint32(s.blocksNum)
-	if nextBlockNum == 0 {
-		return 0, nil
-	}
-	return nextBlockNum - 1, nil
-}
-
 // addBlock() makes block officially valid (but only after batch is flushed).
 func (s *stateDB) addBlock(blockID crypto.Signature) error {
 	lastBlockNum, err := s.getLastBlockNum()

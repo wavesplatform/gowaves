@@ -24,7 +24,7 @@ func createPerformerTestObjects(t *testing.T) (*performerTestObjects, []string) 
 }
 
 func defaultPerformerInfo(t *testing.T) *performerInfo {
-	return &performerInfo{false}
+	return &performerInfo{false, blockID0}
 }
 
 func TestPerformIssueV1(t *testing.T) {

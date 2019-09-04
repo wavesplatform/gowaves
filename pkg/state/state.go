@@ -233,7 +233,7 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 		if err := a.txHandler.checkTx(tx, checkerInfo); err != nil {
 			return err
 		}
-		if err := a.txHandler.performTx(tx, &performerInfo{params.initialisation}); err != nil {
+		if err := a.txHandler.performTx(tx, &performerInfo{params.initialisation, params.block.BlockSignature}); err != nil {
 			return err
 		}
 	}
@@ -474,14 +474,14 @@ func (s *stateManager) addGenesisBlock() error {
 	return nil
 }
 
-func (s *stateManager) applyPreactivatedFeatures(features []int16) error {
+func (s *stateManager) applyPreactivatedFeatures(features []int16, blockID crypto.Signature) error {
 	for _, featureID := range features {
 		approvalRequest := &approvedFeaturesRecord{1}
-		if err := s.stor.features.approveFeature(featureID, approvalRequest); err != nil {
+		if err := s.stor.features.approveFeature(featureID, approvalRequest, blockID); err != nil {
 			return err
 		}
 		activationRequest := &activatedFeaturesRecord{1}
-		if err := s.stor.features.activateFeature(featureID, activationRequest); err != nil {
+		if err := s.stor.features.activateFeature(featureID, activationRequest, blockID); err != nil {
 			return err
 		}
 	}
@@ -514,7 +514,7 @@ func (s *stateManager) handleGenesisBlock(g settings.GenesisGetter) error {
 		if err := s.stateDB.addBlock(block.BlockSignature); err != nil {
 			return err
 		}
-		if err := s.applyPreactivatedFeatures(s.settings.PreactivatedFeatures); err != nil {
+		if err := s.applyPreactivatedFeatures(s.settings.PreactivatedFeatures, block.BlockSignature); err != nil {
 			return errors.Errorf("failed to apply preactivated features: %v\n", err)
 		}
 		if err := s.addGenesisBlock(); err != nil {
@@ -706,7 +706,7 @@ func (s *stateManager) addFeaturesVotes(block *proto.Block) error {
 			log.Printf("Block has vote for featureID %v, but it is already approved.", featureID)
 			continue
 		}
-		if err := s.stor.features.addVote(featureID); err != nil {
+		if err := s.stor.features.addVote(featureID, block.BlockSignature); err != nil {
 			return err
 		}
 	}
@@ -980,6 +980,8 @@ func (s *stateManager) needToCancelLeases(height uint64) (bool, error) {
 }
 
 type breakerTask struct {
+	// ID of latest block before performing task.
+	blockID crypto.Signature
 	// Indicates that the task to perform before calling addBlocks() is to cancel leases.
 	cancelLeases bool
 	// Indicates that the task to perfrom before calling addBlocks() is to reset stolen aliases.
@@ -1012,12 +1014,12 @@ func (s *stateManager) needToBreakAddingBlocks(curHeight uint64, task *breakerTa
 	return false, nil
 }
 
-func (s *stateManager) finishVoting() error {
+func (s *stateManager) finishVoting(blockID crypto.Signature) error {
 	height, err := s.Height()
 	if err != nil {
 		return err
 	}
-	if err := s.stor.features.finishVoting(height); err != nil {
+	if err := s.stor.features.finishVoting(height, blockID); err != nil {
 		return err
 	}
 	s.lastVotingHeight = height
@@ -1030,7 +1032,7 @@ func (s *stateManager) finishVoting() error {
 	return nil
 }
 
-func (s *stateManager) cancelLeases() error {
+func (s *stateManager) cancelLeases(blockID crypto.Signature) error {
 	height, err := s.Height()
 	if err != nil {
 		return err
@@ -1047,19 +1049,19 @@ func (s *stateManager) cancelLeases() error {
 		}
 	}
 	if height == s.settings.ResetEffectiveBalanceAtHeight {
-		if err := s.stor.leases.cancelLeases(nil); err != nil {
+		if err := s.stor.leases.cancelLeases(nil, blockID); err != nil {
 			return err
 		}
-		if err := s.stor.balances.cancelAllLeases(); err != nil {
+		if err := s.stor.balances.cancelAllLeases(blockID); err != nil {
 			return err
 		}
 		s.leasesCl0 = true
 	} else if height == s.settings.BlockVersion3AfterHeight {
-		overflowAddrs, err := s.stor.balances.cancelLeaseOverflows()
+		overflowAddrs, err := s.stor.balances.cancelLeaseOverflows(blockID)
 		if err != nil {
 			return err
 		}
-		if err := s.stor.leases.cancelLeases(overflowAddrs); err != nil {
+		if err := s.stor.leases.cancelLeases(overflowAddrs, blockID); err != nil {
 			return err
 		}
 		s.leasesCl1 = true
@@ -1068,7 +1070,7 @@ func (s *stateManager) cancelLeases() error {
 		if err != nil {
 			return err
 		}
-		if err := s.stor.balances.cancelInvalidLeaseIns(leaseIns); err != nil {
+		if err := s.stor.balances.cancelInvalidLeaseIns(leaseIns, blockID); err != nil {
 			return err
 		}
 		s.leasesCl2 = true
@@ -1087,13 +1089,13 @@ func (s *stateManager) handleBreak(blocksToFinish [][]byte, initialisation bool,
 		return nil, wrapErr(Other, errors.New("handleBreak received empty task"))
 	}
 	if task.finishVotingPeriod {
-		if err := s.finishVoting(); err != nil {
+		if err := s.finishVoting(task.blockID); err != nil {
 			return nil, wrapErr(ModificationError, err)
 		}
 	}
 	if task.cancelLeases {
 		// Need to cancel leases due to bugs in historical blockchain.
-		if err := s.cancelLeases(); err != nil {
+		if err := s.cancelLeases(task.blockID); err != nil {
 			return nil, wrapErr(ModificationError, err)
 		}
 	}
@@ -1137,7 +1139,7 @@ func (s *stateManager) addBlocks(blocks [][]byte, initialisation bool) (*proto.B
 	// After performing the event, addBlocks() calls itself with the rest of the blocks batch.
 	// blocksToFinish stores these blocks, breakerInfo specifies type of the event.
 	var blocksToFinish [][]byte
-	breakerInfo := &breakerTask{}
+	breakerInfo := &breakerTask{blockID: parent.BlockSignature}
 
 	// Launch verifier that checks signatures of blocks and transactions.
 	chans := newVerifierChans()
@@ -1159,6 +1161,7 @@ func (s *stateManager) addBlocks(blocks [][]byte, initialisation bool) (*proto.B
 		if err := block.UnmarshalBinary(blockBytes); err != nil {
 			return nil, wrapErr(DeserializationError, err)
 		}
+		breakerInfo.blockID = block.BlockSignature
 		// Send block for signature verification, which works in separate goroutine.
 		task := &verifyTask{
 			taskType:   verifyBlock,

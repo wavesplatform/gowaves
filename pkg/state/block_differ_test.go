@@ -128,7 +128,7 @@ func TestCreateBlockDiffSponsorship(t *testing.T) {
 	// Sponsor asset.
 	assetCost := uint64(100500)
 	to.stor.addBlock(t, blockID0)
-	err := to.stor.entities.sponsoredAssets.sponsorAsset(testGlobal.asset0.asset.ID, assetCost)
+	err := to.stor.entities.sponsoredAssets.sponsorAsset(testGlobal.asset0.asset.ID, assetCost, blockID0)
 	assert.NoError(t, err, "sponsorAsset() failed")
 
 	// Create diff from parent block.

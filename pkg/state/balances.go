@@ -94,8 +94,7 @@ func newBalances(db keyvalue.IterableKeyVal, hs *historyStorage) (*balances, err
 	return &balances{db, hs}, nil
 }
 
-func (s *balances) cancelAllLeases() error {
-	// TODO: this action can not be rolled back now, do we need it?
+func (s *balances) cancelAllLeases(blockID crypto.Signature) error {
 	iter, err := s.db.NewKeyIterator([]byte{wavesBalanceKeyPrefix})
 	if err != nil {
 		return err
@@ -124,15 +123,14 @@ func (s *balances) cancelAllLeases() error {
 		log.Printf("Resetting lease balance for %s", k.address.String())
 		r.leaseOut = 0
 		r.leaseIn = 0
-		if err := s.setWavesBalanceImpl(key, r, nil); err != nil {
+		if err := s.setWavesBalanceImpl(key, r, blockID); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (s *balances) cancelLeaseOverflows() (map[proto.Address]struct{}, error) {
-	// TODO: this action can not be rolled back now, do we need it?
+func (s *balances) cancelLeaseOverflows(blockID crypto.Signature) (map[proto.Address]struct{}, error) {
 	iter, err := s.db.NewKeyIterator([]byte{wavesBalanceKeyPrefix})
 	if err != nil {
 		return nil, err
@@ -160,15 +158,14 @@ func (s *balances) cancelLeaseOverflows() (map[proto.Address]struct{}, error) {
 			overflowedAddresses[k.address] = empty
 			r.leaseOut = 0
 		}
-		if err := s.setWavesBalanceImpl(key, r, nil); err != nil {
+		if err := s.setWavesBalanceImpl(key, r, blockID); err != nil {
 			return nil, err
 		}
 	}
 	return overflowedAddresses, err
 }
 
-func (s *balances) cancelInvalidLeaseIns(correctLeaseIns map[proto.Address]int64) error {
-	// TODO: this action can not be rolled back now, do we need it?
+func (s *balances) cancelInvalidLeaseIns(correctLeaseIns map[proto.Address]int64, blockID crypto.Signature) error {
 	iter, err := s.db.NewKeyIterator([]byte{wavesBalanceKeyPrefix})
 	if err != nil {
 		return err
@@ -198,7 +195,7 @@ func (s *balances) cancelInvalidLeaseIns(correctLeaseIns map[proto.Address]int64
 		if r.leaseIn != correctLeaseIn {
 			log.Printf("Invalid leaseIn for address %s detected; fixing it: %d ---> %d.", k.address.String(), r.leaseIn, correctLeaseIn)
 			r.leaseIn = correctLeaseIn
-			if err := s.setWavesBalanceImpl(key, r, nil); err != nil {
+			if err := s.setWavesBalanceImpl(key, r, blockID); err != nil {
 				return err
 			}
 		}
@@ -346,25 +343,25 @@ func (s *balances) wavesBalance(addr proto.Address, filter bool) (*balanceProfil
 	return s.wavesBalanceImpl(key.bytes(), false, filter)
 }
 
-func (s *balances) setAssetBalance(addr proto.Address, asset []byte, balance uint64, blockID *crypto.Signature) error {
+func (s *balances) setAssetBalance(addr proto.Address, asset []byte, balance uint64, blockID crypto.Signature) error {
 	key := assetBalanceKey{address: addr, asset: asset}
 	record := &assetBalanceRecord{balance}
 	recordBytes, err := record.marshalBinary()
 	if err != nil {
 		return err
 	}
-	return s.hs.addNewEntryWithBlockID(assetBalance, key.bytes(), recordBytes, blockID)
+	return s.hs.addNewEntry(assetBalance, key.bytes(), recordBytes, blockID)
 }
 
-func (s *balances) setWavesBalanceImpl(key []byte, record *wavesBalanceRecord, blockID *crypto.Signature) error {
+func (s *balances) setWavesBalanceImpl(key []byte, record *wavesBalanceRecord, blockID crypto.Signature) error {
 	recordBytes, err := record.marshalBinary()
 	if err != nil {
 		return err
 	}
-	return s.hs.addNewEntryWithBlockID(wavesBalance, key, recordBytes, blockID)
+	return s.hs.addNewEntry(wavesBalance, key, recordBytes, blockID)
 }
 
-func (s *balances) setWavesBalance(addr proto.Address, profile *balanceProfile, blockID *crypto.Signature) error {
+func (s *balances) setWavesBalance(addr proto.Address, profile *balanceProfile, blockID crypto.Signature) error {
 	key := wavesBalanceKey{address: addr}
 	record := &wavesBalanceRecord{*profile}
 	return s.setWavesBalanceImpl(key.bytes(), record, blockID)
