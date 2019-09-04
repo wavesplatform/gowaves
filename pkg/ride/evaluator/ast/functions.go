@@ -1025,8 +1025,8 @@ func NativeToBase16(s Scope, e Exprs) (Expr, error) {
 }
 
 // Get integer from data of DataTransaction
-func NativeDataLongFromArray(s Scope, e Exprs) (Expr, error) {
-	return dataFromArray("NativeDataLongFromArray", s, e, proto.DataInteger)
+func NativeDataIntegerFromArray(s Scope, e Exprs) (Expr, error) {
+	return dataFromArray("NativeDataIntegerFromArray", s, e, proto.DataInteger)
 }
 
 // Get boolean from data of DataTransaction
@@ -1073,8 +1073,8 @@ func dataFromArray(funcName string, s Scope, e Exprs, valueType proto.DataValueT
 }
 
 // Get integer from account state
-func NativeDataLongFromState(s Scope, e Exprs) (Expr, error) {
-	return dataFromState("NativeDataLongFromState", s, e, proto.DataInteger)
+func NativeDataIntegerFromState(s Scope, e Exprs) (Expr, error) {
+	return dataFromState("NativeDataIntegerFromState", s, e, proto.DataInteger)
 }
 
 // Get bool from account state
@@ -1083,8 +1083,8 @@ func NativeDataBooleanFromState(s Scope, e Exprs) (Expr, error) {
 }
 
 // Get bytes from account state
-func NativeDataBytesFromState(s Scope, e Exprs) (Expr, error) {
-	return dataFromState("NativeDataBytesFromState", s, e, proto.DataBinary)
+func NativeDataBinaryFromState(s Scope, e Exprs) (Expr, error) {
+	return dataFromState("NativeDataBinaryFromState", s, e, proto.DataBinary)
 }
 
 // Get string from account state
@@ -1222,7 +1222,10 @@ func UserAddressFromString(s Scope, e Exprs) (Expr, error) {
 	}
 	addr, err := NewAddressFromString(str.Value)
 	if err != nil {
-		return nil, errors.Wrap(err, "UserAddressFromString")
+		return NewUnit(), nil
+	}
+	if addr[1] != s.Scheme() {
+		return NewUnit(), nil
 	}
 	return addr, nil
 }
@@ -1488,6 +1491,33 @@ func UserAlias(s Scope, e Exprs) (Expr, error) {
 	return NewAliasFromProtoAlias(*alias), nil
 }
 
+func DataEntry(s Scope, e Exprs) (Expr, error) {
+	const funcName = "DataEntry"
+	if l := len(e); l != 2 {
+		return nil, errors.Errorf("%s: invalid params, expected 2, passed %d", funcName, l)
+	}
+	rs, err := e.EvaluateAll(s.Clone())
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	key, ok := rs[0].(*StringExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: first argument expected to be *StringExpr, found %T", funcName, rs[0])
+	}
+	switch t := rs[1].(type) {
+	case *LongExpr:
+		return NewDataEntryList([]proto.DataEntry{&proto.IntegerDataEntry{Key: key.Value, Value: t.Value}}), nil
+	case *BooleanExpr:
+		return NewDataEntryList([]proto.DataEntry{&proto.BooleanDataEntry{Key: key.Value, Value: t.Value}}), nil
+	case *BytesExpr:
+		return NewDataEntryList([]proto.DataEntry{&proto.BinaryDataEntry{Key: key.Value, Value: t.Value}}), nil
+	case *StringExpr:
+		return NewDataEntryList([]proto.DataEntry{&proto.StringDataEntry{Key: key.Value, Value: t.Value}}), nil
+	default:
+		return nil, errors.Errorf("%s: unsupported value type %T", funcName, t)
+	}
+}
+
 func SimpleTypeConstructorFactory(name string, expr Expr) Callable {
 	return func(s Scope, e Exprs) (Expr, error) {
 		if l := len(e); l != 0 {
@@ -1739,26 +1769,6 @@ func NativeParseInt(s Scope, e Exprs) (Expr, error) {
 	return NewLong(i), nil
 }
 
-func UserParseIntValue(s Scope, e Exprs) (Expr, error) {
-	const funcName = "UserParseIntValue"
-	if l := len(e); l != 1 {
-		return nil, errors.Errorf("%s: invalid number of parameters, expected 1, received %d", funcName, l)
-	}
-	rs, err := e.EvaluateAll(s.Clone())
-	if err != nil {
-		return nil, errors.Wrap(err, funcName)
-	}
-	str, ok := rs[0].(*StringExpr)
-	if !ok {
-		return nil, errors.Errorf("%s: first argument expected to be *StringExpr, found %T", funcName, rs[0])
-	}
-	i, err := strconv.ParseInt(str.Value, 10, 64)
-	if err != nil {
-		return nil, errors.Wrapf(err, funcName)
-	}
-	return NewLong(i), nil
-}
-
 func NativeLastIndexOfSubstring(s Scope, e Exprs) (Expr, error) {
 	const funcName = "NativeLastIndexOfSubstring"
 	if l := len(e); l != 2 {
@@ -1850,6 +1860,86 @@ func UserValueOrErrorMessage(s Scope, e Exprs) (Expr, error) {
 		return nil, Throw{Message: msg.Value}
 	}
 	return rs[0], nil
+}
+
+func wrapWithExtract(c Callable, name string) Callable {
+	return func(s Scope, e Exprs) (Expr, error) {
+		rs, err := c(s, e)
+		if err != nil {
+			return nil, errors.Wrap(err, name)
+		}
+		if _, ok := rs.(Unit); ok {
+			return nil, Throw{Message: "failed to extract from Unit value"}
+		}
+		return rs, err
+	}
+}
+
+func dataFromArray(funcName string, s Scope, e Exprs, valueType proto.DataValueType) (Expr, error) {
+	if l := len(e); l != 2 {
+		return nil, errors.Errorf("%s: invalid params, expected 2, passed %d", funcName, l)
+	}
+	lstExpr, err := e[0].Evaluate(s.Clone())
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	keyExpr, err := e[1].Evaluate(s.Clone())
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	lst, ok := lstExpr.(*DataEntryListExpr)
+	if !ok {
+		return nil, errors.Errorf("%s expected first argument to be *DataEntryListExpr, found %T", funcName, lstExpr)
+	}
+	key, ok := keyExpr.(*StringExpr)
+	if !ok {
+		return nil, errors.Errorf("%s expected second argument to be *StringExpr, found %T", funcName, keyExpr)
+	}
+	return lst.Get(key.Value, valueType), nil
+}
+
+func dataFromState(funcName string, s Scope, e Exprs, valueType proto.DataValueType) (Expr, error) {
+	if l := len(e); l != 2 {
+		return nil, errors.Errorf("%s: invalid params, expected 2, passed %d", funcName, l)
+	}
+	addOrAliasExpr, err := e[0].Evaluate(s.Clone())
+	if err != nil {
+		return nil, err
+	}
+	if alias, ok := addOrAliasExpr.(AliasExpr); ok {
+		r := proto.NewRecipientFromAlias(proto.Alias(alias))
+		acc := s.State().Account(r)
+		return dataFromArray(funcName, s.Clone(), Params(NewDataEntryList(acc.Data()), e[1]), valueType)
+	}
+	if addr, ok := addOrAliasExpr.(AddressExpr); ok {
+		r := proto.NewRecipientFromAddress(proto.Address(addr))
+		acc := s.State().Account(r)
+		return dataFromArray(funcName, s.Clone(), Params(NewDataEntryList(acc.Data()), e[1]), valueType)
+	}
+	return nil, errors.Errorf("%s expected addOrAliasExpr argument to be AliasExpr or AddressExpr, found %T", funcName, addOrAliasExpr)
+}
+
+func dataFromArrayByIndex(funcName string, s Scope, e Exprs, valueType proto.DataValueType) (Expr, error) {
+	if l := len(e); l != 2 {
+		return nil, errors.Errorf("%s: invalid params, expected 2, passed %d", funcName, l)
+	}
+	lstExpr, err := e[0].Evaluate(s.Clone())
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	indexExpr, err := e[1].Evaluate(s.Clone())
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	lst, ok := lstExpr.(*DataEntryListExpr)
+	if !ok {
+		return nil, errors.Errorf("%s expected first argument to be *DataEntryListExpr, found %T", funcName, lstExpr)
+	}
+	key, ok := indexExpr.(*LongExpr)
+	if !ok {
+		return nil, errors.Errorf("%s expected second argument to be *LongExpr, found %T", funcName, indexExpr)
+	}
+	return lst.GetByIndex(int(key.Value), valueType), nil
 }
 
 func digest(e Expr) (Hash, error) {

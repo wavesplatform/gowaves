@@ -89,11 +89,54 @@ func TestNativeDivLong(t *testing.T) {
 }
 
 func TestUserAddressFromString(t *testing.T) {
-	params1 := NewString("3PJaDyprvekvPXPuAtxrapacuDJopgJRaU3")
-	rs, err := UserAddressFromString(newEmptyScope(), NewExprs(params1))
+	ma, err := proto.NewAddressFromString("3PJaDyprvekvPXPuAtxrapacuDJopgJRaU3")
 	require.NoError(t, err)
-	addr, _ := NewAddressFromString("3PJaDyprvekvPXPuAtxrapacuDJopgJRaU3")
-	assert.Equal(t, addr, rs)
+	ta, err := proto.NewAddressFromString("3MpV2xvvcWUcv8FLDKJ9ZRrQpEyF8nFwRUM")
+	require.NoError(t, err)
+	for _, test := range []struct {
+		expressions Exprs
+		error       bool
+		result      Expr
+	}{
+		{NewExprs(NewString(ma.String())), false, AddressExpr(ma)},
+		{NewExprs(NewString(ta.String())), false, NewUnit()},
+		{NewExprs(NewString("fake address")), false, NewUnit()},
+		{NewExprs(), true, NewUnit()},
+		{NewExprs(NewLong(12345)), true, NewUnit()},
+		{NewExprs(NewString(ma.String()), NewLong(12345)), true, NewUnit()},
+	} {
+		rs, err := UserAddressFromString(newEmptyScope(), test.expressions)
+		if test.error {
+			assert.Error(t, err)
+			continue
+		}
+		assert.Equal(t, test.result, rs)
+	}
+}
+
+func TestUserAddressFromStringValue(t *testing.T) {
+	f := wrapWithExtract(UserAddressFromString, "UserAddressFromStringValue")
+	addr, err := proto.NewAddressFromString("3PJaDyprvekvPXPuAtxrapacuDJopgJRaU3")
+	require.NoError(t, err)
+	for _, test := range []struct {
+		expressions Exprs
+		error       bool
+		result      Expr
+	}{
+		{NewExprs(NewString(addr.String())), false, AddressExpr(addr)},
+		{NewExprs(NewString(addr.String())), false, AddressExpr(addr)},
+		{NewExprs(NewString("fake address")), true, NewUnit()},
+		{NewExprs(), true, NewUnit()},
+		{NewExprs(NewLong(12345)), true, NewUnit()},
+		{NewExprs(NewString(addr.String()), NewLong(12345)), true, NewUnit()},
+	} {
+		rs, err := f(newEmptyScope(), test.expressions)
+		if test.error {
+			assert.Error(t, err)
+			continue
+		}
+		assert.Equal(t, test.result, rs)
+	}
 }
 
 func TestNativeSigVerify(t *testing.T) {
@@ -498,7 +541,7 @@ func TestNativeDataFromArray(t *testing.T) {
 		Value: "world",
 	})
 
-	rs1, err := NativeDataLongFromArray(newEmptyScope(), Params(NewDataEntryList(dataEntries), NewString("integer")))
+	rs1, err := NativeDataIntegerFromArray(newEmptyScope(), Params(NewDataEntryList(dataEntries), NewString("integer")))
 	require.NoError(t, err)
 	assert.Equal(t, NewLong(100500), rs1)
 
@@ -533,7 +576,7 @@ func TestNativeDataFromState(t *testing.T) {
 			},
 		}
 
-		rs1, err := NativeDataLongFromState(newScopeWithState(s), Params(addr, NewString("integer")))
+		rs1, err := NativeDataIntegerFromState(newScopeWithState(s), Params(addr, NewString("integer")))
 		require.NoError(t, err)
 		assert.Equal(t, NewLong(100500), rs1)
 	})
@@ -561,7 +604,7 @@ func TestNativeDataFromState(t *testing.T) {
 			},
 		}
 
-		rs3, err := NativeDataBytesFromState(newScopeWithState(s), Params(addr, NewString("binary")))
+		rs3, err := NativeDataBinaryFromState(newScopeWithState(s), Params(addr, NewString("binary")))
 		require.NoError(t, err)
 		assert.Equal(t, NewBytes([]byte("hello")), rs3)
 	})
@@ -1010,6 +1053,7 @@ func TestNativeParseInt(t *testing.T) {
 }
 
 func TestUserParseIntValue(t *testing.T) {
+	f := wrapWithExtract(NativeParseInt, "UserParseIntValue")
 	for _, test := range []struct {
 		expressions Exprs
 		error       bool
@@ -1026,7 +1070,7 @@ func TestUserParseIntValue(t *testing.T) {
 		{NewExprs(NewString("blah-blah-blah"), NewLong(1)), true, NewUnit()},
 		{NewExprs(NewLong(1)), true, NewUnit()},
 	} {
-		r, err := UserParseIntValue(newEmptyScope(), test.expressions)
+		r, err := f(newEmptyScope(), test.expressions)
 		if test.error {
 			assert.Error(t, err)
 			continue
