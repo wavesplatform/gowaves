@@ -108,7 +108,7 @@ func (s *balances) cancelAllLeases(blockID crypto.Signature) error {
 
 	for iter.Next() {
 		key := keyvalue.SafeKey(iter)
-		r, err := s.wavesRecord(key, false, true)
+		r, err := s.wavesRecord(key, true)
 		if err != nil {
 			return err
 		}
@@ -145,7 +145,7 @@ func (s *balances) cancelLeaseOverflows(blockID crypto.Signature) (map[proto.Add
 	overflowedAddresses := make(map[proto.Address]struct{})
 	for iter.Next() {
 		key := keyvalue.SafeKey(iter)
-		r, err := s.wavesRecord(key, false, true)
+		r, err := s.wavesRecord(key, true)
 		if err != nil {
 			return nil, err
 		}
@@ -180,7 +180,7 @@ func (s *balances) cancelInvalidLeaseIns(correctLeaseIns map[proto.Address]int64
 	log.Printf("Started to cancel invalid leaseIns\n")
 	for iter.Next() {
 		key := keyvalue.SafeKey(iter)
-		r, err := s.wavesRecord(key, false, true)
+		r, err := s.wavesRecord(key, true)
 		if err != nil {
 			return err
 		}
@@ -218,7 +218,7 @@ func (s *balances) wavesAddressesNumber() (uint64, error) {
 
 	addressesNumber := uint64(0)
 	for iter.Next() {
-		profile, err := s.wavesBalanceImpl(iter.Key(), false, true)
+		profile, err := s.wavesBalanceImpl(iter.Key(), true)
 		if err != nil {
 			return 0, err
 		}
@@ -274,15 +274,9 @@ func (s *balances) minEffectiveBalanceInRange(addr proto.Address, startHeight, e
 	return minBalance, nil
 }
 
-func (s *balances) assetBalanceImpl(addr proto.Address, asset []byte, newest, filter bool) (uint64, error) {
-	var recordBytes []byte
-	var err error
+func (s *balances) assetBalance(addr proto.Address, asset []byte, filter bool) (uint64, error) {
 	key := assetBalanceKey{address: addr, asset: asset}
-	if newest {
-		recordBytes, err = s.hs.freshLatestEntryData(key.bytes(), filter)
-	} else {
-		recordBytes, err = s.hs.latestEntryData(key.bytes(), filter)
-	}
+	recordBytes, err := s.hs.latestEntryData(key.bytes(), filter)
 	if err == keyvalue.ErrNotFound || err == errEmptyHist {
 		// Unknown address, expected behavior is to return 0 and no errors in this case.
 		return 0, nil
@@ -296,22 +290,8 @@ func (s *balances) assetBalanceImpl(addr proto.Address, asset []byte, newest, fi
 	return record.balance, nil
 }
 
-func (s *balances) newestAssetBalance(addr proto.Address, asset []byte, filter bool) (uint64, error) {
-	return s.assetBalanceImpl(addr, asset, true, filter)
-}
-
-func (s *balances) assetBalance(addr proto.Address, asset []byte, filter bool) (uint64, error) {
-	return s.assetBalanceImpl(addr, asset, false, filter)
-}
-
-func (s *balances) wavesRecord(key []byte, newest, filter bool) (*wavesBalanceRecord, error) {
-	var recordBytes []byte
-	var err error
-	if newest {
-		recordBytes, err = s.hs.freshLatestEntryData(key, filter)
-	} else {
-		recordBytes, err = s.hs.latestEntryData(key, filter)
-	}
+func (s *balances) wavesRecord(key []byte, filter bool) (*wavesBalanceRecord, error) {
+	recordBytes, err := s.hs.latestEntryData(key, filter)
 	if err == keyvalue.ErrNotFound || err == errEmptyHist {
 		// Unknown address, expected behavior is to return empty profile and no errors in this case.
 		return &wavesBalanceRecord{}, nil
@@ -325,22 +305,17 @@ func (s *balances) wavesRecord(key []byte, newest, filter bool) (*wavesBalanceRe
 	return &record, nil
 }
 
-func (s *balances) wavesBalanceImpl(key []byte, newest, filter bool) (*balanceProfile, error) {
-	r, err := s.wavesRecord(key, newest, filter)
+func (s *balances) wavesBalanceImpl(key []byte, filter bool) (*balanceProfile, error) {
+	r, err := s.wavesRecord(key, filter)
 	if err != nil {
 		return nil, err
 	}
 	return &r.balanceProfile, nil
 }
 
-func (s *balances) newestWavesBalance(addr proto.Address, filter bool) (*balanceProfile, error) {
-	key := wavesBalanceKey{address: addr}
-	return s.wavesBalanceImpl(key.bytes(), true, filter)
-}
-
 func (s *balances) wavesBalance(addr proto.Address, filter bool) (*balanceProfile, error) {
 	key := wavesBalanceKey{address: addr}
-	return s.wavesBalanceImpl(key.bytes(), false, filter)
+	return s.wavesBalanceImpl(key.bytes(), filter)
 }
 
 func (s *balances) setAssetBalance(addr proto.Address, asset []byte, balance uint64, blockID crypto.Signature) error {

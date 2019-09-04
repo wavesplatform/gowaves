@@ -44,6 +44,13 @@ func (ch *balanceChanges) addDiff(newDiff balanceDiff) error {
 	return nil
 }
 
+func (ch *balanceChanges) latestDiff() (balanceDiff, error) {
+	if len(ch.balanceDiffs) == 0 {
+		return balanceDiff{}, errNotFound
+	}
+	return ch.balanceDiffs[len(ch.balanceDiffs)-1], nil
+}
+
 // Diff storage stores balances diffs, grouping them by keys.
 // For each key, a complete history for all the blocks is stored.
 // These changes can be retrieved either altogether or by the keys list.
@@ -54,6 +61,14 @@ type diffStorage struct {
 
 func newDiffStorage() (*diffStorage, error) {
 	return &diffStorage{keys: make(map[string]int)}, nil
+}
+
+func (s *diffStorage) latestDiffByKey(key string) (balanceDiff, error) {
+	index, ok := s.keys[key]
+	if !ok {
+		return balanceDiff{}, errNotFound
+	}
+	return s.changes[index].latestDiff()
 }
 
 func (s *diffStorage) setBalanceChanges(changes *balanceChanges) error {

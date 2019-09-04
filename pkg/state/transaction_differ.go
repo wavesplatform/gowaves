@@ -94,7 +94,7 @@ func (diff *balanceDiff) applyTo(profile *balanceProfile) (*balanceProfile, erro
 	if (newBalance-newLeaseOut < 0) && !diff.allowLeasedTransfer {
 		return nil, errors.New("leased balance is greater than own")
 	}
-	// Update profile.
+	// Create new profile.
 	newProfile := &balanceProfile{}
 	newProfile.balance = uint64(newBalance)
 	newProfile.leaseIn = newLeaseIn

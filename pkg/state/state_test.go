@@ -10,7 +10,6 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/mr-tron/base58/base58"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -119,34 +118,32 @@ func TestValidationWithoutBlocks(t *testing.T) {
 	err = validateTxs(manager, last.Timestamp, txs)
 	assert.NoError(t, err, "validateTxs() failed")
 
-	// Test that in case validation using ValidateNextTx() fails, its diffs are not taken into account for further validation.
-	seed, err := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
-	assert.NoError(t, err, "base58.Decode() failed")
-	sk, pk, err := crypto.GenerateKeyPair(seed)
-	assert.NoError(t, err)
+	// Test that in case validation using ValidateNextTx() fails,
+	// its diffs are not taken into account for further validation.
 	// This tx tries to send more Waves than exist at all.
-	invalidTx := proto.NewUnsignedPayment(pk, testGlobal.recipientInfo.addr, 19999999500000000, 1, defaultTimestamp)
-	err = invalidTx.Sign(sk)
-	assert.NoError(t, err, "tx.Sign() failed")
+	invalidTx := createPayment(t)
+	invalidTx.Amount = 19999999500000000
 	err = manager.ValidateNextTx(invalidTx, defaultTimestamp, defaultTimestamp)
 	assert.Error(t, err, "ValidateNextTx did not fail with invalid tx")
 	// Now set some balance for sender.
-	addr, err := proto.NewAddressFromPublicKey('W', pk)
-	assert.NoError(t, err, "NewAddressFromPublicKey() failed")
-	blockID, err := crypto.NewSignatureFromBase58("m2RcwouGn8iMbiN5e8NB6ZNHFaJu6H2CFewYhwXUXZFmg5UTADtvBvdebFupNTzxsqvxsCUaL2VRQXh3iuK4AeA")
-	assert.NoError(t, err, "NewSignatureFromBase58() failed")
-	err = manager.stateDB.addBlock(blockID)
+	validTx := createPayment(t)
+	err = manager.stateDB.addBlock(blockID0)
 	assert.NoError(t, err, "addBlock() failed")
-	err = manager.stor.balances.setWavesBalance(addr, &balanceProfile{2, 0, 0}, blockID)
+	err = manager.stor.balances.setWavesBalance(testGlobal.senderInfo.addr, &balanceProfile{validTx.Amount + validTx.Fee, 0, 0}, blockID0)
 	assert.NoError(t, err, "setWavesBalance() failed")
 	err = manager.flush(false)
 	assert.NoError(t, err, "manager.flush() failed")
 	// Valid tx with same sender must be valid after validation of previous invalid tx.
-	validTx := proto.NewUnsignedPayment(pk, testGlobal.recipientInfo.addr, 1, 1, defaultTimestamp)
-	err = validTx.Sign(sk)
-	assert.NoError(t, err, "tx.Sign() failed")
 	err = manager.ValidateNextTx(validTx, defaultTimestamp, defaultTimestamp)
 	assert.NoError(t, err, "ValidateNextTx failed with valid tx")
+
+	// Check NewestBalance() results after applying `validTx` from above.
+	recipientBalance, err := manager.NewestAccountBalance(proto.NewRecipientFromAddress(testGlobal.recipientInfo.addr), nil)
+	assert.NoError(t, err, "manager.NewestAccountBalance() failed")
+	assert.Equal(t, validTx.Amount, recipientBalance)
+	senderBalance, err := manager.NewestAccountBalance(proto.NewRecipientFromAddress(testGlobal.senderInfo.addr), nil)
+	assert.NoError(t, err, "manager.NewestAccountBalance() failed")
+	assert.Equal(t, uint64(0), senderBalance)
 }
 
 func TestStateRollback(t *testing.T) {

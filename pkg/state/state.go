@@ -200,7 +200,17 @@ type appendBlockParams struct {
 
 func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	hasParent := (params.parent != nil)
-	for _, tx := range params.transactions {
+	// Create balance diffs of all transactions.
+	blockDiff, err := a.blockDiffer.createBlockDiff(params.transactions, params.block, params.initialisation, hasParent)
+	if err != nil {
+		return err
+	}
+	// Save miner diff first.
+	if err := a.diffStor.saveTxDiff(blockDiff.minerDiff); err != nil {
+		return err
+	}
+	for i, tx := range params.transactions {
+		txDiff := blockDiff.txDiffs[i]
 		checkerInfo := &checkerInfo{
 			initialisation:   params.initialisation,
 			currentTimestamp: params.block.Timestamp,
@@ -225,13 +235,10 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 		if err := a.txHandler.performTx(tx, &performerInfo{params.initialisation, params.block.BlockSignature}); err != nil {
 			return err
 		}
-	}
-	blockDiff, err := a.blockDiffer.createBlockDiff(params.transactions, params.block, params.initialisation, hasParent)
-	if err != nil {
-		return err
-	}
-	if err := a.diffStor.saveBlockDiff(blockDiff); err != nil {
-		return err
+		// Save balance diff of this tx.
+		if err := a.diffStor.saveTxDiff(txDiff); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -629,19 +636,65 @@ func (s *stateManager) HeightToBlockID(height uint64) (crypto.Signature, error) 
 	return blockID, nil
 }
 
+func (s *stateManager) newestAssetBalance(addr proto.Address, asset []byte) (uint64, error) {
+	// Retrieve old balance.
+	balance, err := s.stor.balances.assetBalance(addr, asset, true)
+	if err != nil {
+		return 0, err
+	}
+	// Retrieve latest balance diff as for the moment of this function call.
+	key := assetBalanceKey{address: addr, asset: asset}
+	diff, err := s.appender.diffStor.latestDiffByKey(string(key.bytes()))
+	if err == errNotFound {
+		// If there is no diff, old balance is the newest.
+		return balance, nil
+	} else if err != nil {
+		// Something weird happened.
+		return 0, err
+	}
+	balance, err = diff.applyToAssetBalance(balance)
+	if err != nil {
+		return 0, errors.Errorf("given account has negative balance at this point: %v\n", err)
+	}
+	return balance, nil
+}
+
+func (s *stateManager) newestWavesBalance(addr proto.Address) (uint64, error) {
+	// Retrieve old balance.
+	profile, err := s.stor.balances.wavesBalance(addr, true)
+	if err != nil {
+		return 0, err
+	}
+	// Retrieve latest balance diff as for the moment of this function call.
+	key := wavesBalanceKey{address: addr}
+	diff, err := s.appender.diffStor.latestDiffByKey(string(key.bytes()))
+	if err == errNotFound {
+		// If there is no diff, old balance is the newest.
+		return profile.balance, nil
+	} else if err != nil {
+		// Something weird happened.
+		return 0, err
+	}
+	newProfile, err := diff.applyTo(profile)
+	if err != nil {
+		return 0, errors.Errorf("given account has negative balance at this point: %v\n", err)
+	}
+	return newProfile.balance, nil
+}
+
 func (s *stateManager) NewestAccountBalance(account proto.Recipient, asset []byte) (uint64, error) {
 	addr, err := s.newestRecipientToAddress(account)
 	if err != nil {
 		return 0, wrapErr(RetrievalError, err)
 	}
 	if asset == nil {
-		profile, err := s.stor.balances.newestWavesBalance(*addr, true)
+		balance, err := s.newestWavesBalance(*addr)
 		if err != nil {
 			return 0, wrapErr(RetrievalError, err)
 		}
-		return profile.balance, nil
+		return balance, nil
 	}
-	balance, err := s.stor.balances.newestAssetBalance(*addr, asset, true)
+	balance, err := s.newestAssetBalance(*addr, asset)
 	if err != nil {
 		return 0, wrapErr(RetrievalError, err)
 	}
