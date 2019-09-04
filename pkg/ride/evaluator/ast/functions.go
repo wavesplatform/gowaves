@@ -1044,34 +1044,6 @@ func NativeDataBinaryFromArray(s Scope, e Exprs) (Expr, error) {
 	return dataFromArray("NativeDataBooleanFromArray", s, e, proto.DataBinary)
 }
 
-func dataFromArray(funcName string, s Scope, e Exprs, valueType proto.DataValueType) (Expr, error) {
-	if l := len(e); l != 2 {
-		return nil, errors.Errorf("%s: invalid params, expected 2, passed %d", funcName, l)
-	}
-
-	lstExpr, err := e[0].Evaluate(s.Clone())
-	if err != nil {
-		return nil, errors.Wrap(err, funcName)
-	}
-
-	keyExpr, err := e[1].Evaluate(s.Clone())
-	if err != nil {
-		return nil, errors.Wrap(err, funcName)
-	}
-
-	lst, ok := lstExpr.(DataByKey)
-	if !ok {
-		return nil, errors.Errorf("%s expected first argument implements DataByKey, found %T", funcName, lstExpr)
-	}
-
-	key, ok := keyExpr.(*StringExpr)
-	if !ok {
-		return nil, errors.Errorf("%s expected second argument to be *StringExpr, found %T", funcName, keyExpr)
-	}
-
-	return lst.GetByKey(key.Value, valueType)
-}
-
 // Get integer from account state
 func NativeDataIntegerFromState(s Scope, e Exprs) (Expr, error) {
 	return dataFromState("NativeDataIntegerFromState", s, e, proto.DataInteger)
@@ -1090,29 +1062,6 @@ func NativeDataBinaryFromState(s Scope, e Exprs) (Expr, error) {
 // Get string from account state
 func NativeDataStringFromState(s Scope, e Exprs) (Expr, error) {
 	return dataFromState("NativeDataStringFromState", s, e, proto.DataString)
-}
-
-func dataFromState(funcName string, s Scope, e Exprs, valueType proto.DataValueType) (Expr, error) {
-	if l := len(e); l != 2 {
-		return nil, errors.Errorf("%s: invalid params, expected 2, passed %d", funcName, l)
-	}
-
-	addOrAliasExpr, err := e[0].Evaluate(s.Clone())
-	if err != nil {
-		return nil, err
-	}
-
-	if alias, ok := addOrAliasExpr.(AliasExpr); ok {
-		r := proto.NewRecipientFromAlias(proto.Alias(alias))
-		return dataFromArray(funcName, s.Clone(), Params(NewDataEntryStateWrapperExpr(s.State(), r), e[1]), valueType)
-	}
-
-	if addr, ok := addOrAliasExpr.(AddressExpr); ok {
-		r := proto.NewRecipientFromAddress(proto.Address(addr))
-		return dataFromArray(funcName, s.Clone(), Params(NewDataEntryStateWrapperExpr(s.State(), r), e[1]), valueType)
-	}
-
-	return nil, errors.Errorf("%s expected addOrAliasExpr argument to be AliasExpr or AddressExpr, found %T", funcName, addOrAliasExpr)
 }
 
 func NativeAddressFromRecipient(s Scope, e Exprs) (Expr, error) {
@@ -1376,34 +1325,6 @@ func UserUnaryNot(s Scope, e Exprs) (Expr, error) {
 		return nil, errors.Errorf("%s expected first argument to be *BooleanExpr, found %T", funcName, first)
 	}
 	return NewBoolean(!boolExpr.Value), nil
-}
-
-func dataFromArrayByIndex(funcName string, s Scope, e Exprs, valueType proto.DataValueType) (Expr, error) {
-	if l := len(e); l != 2 {
-		return nil, errors.Errorf("%s: invalid params, expected 2, passed %d", funcName, l)
-	}
-
-	lstExpr, err := e[0].Evaluate(s.Clone())
-	if err != nil {
-		return nil, errors.Wrap(err, funcName)
-	}
-
-	indexExpr, err := e[1].Evaluate(s.Clone())
-	if err != nil {
-		return nil, errors.Wrap(err, funcName)
-	}
-
-	lst, ok := lstExpr.(DataByIndex)
-	if !ok {
-		return nil, errors.Errorf("%s expected first argument to be *DataEntryListExpr, found %T", funcName, lstExpr)
-	}
-
-	key, ok := indexExpr.(*LongExpr)
-	if !ok {
-		return nil, errors.Errorf("%s expected second argument to be *LongExpr, found %T", funcName, indexExpr)
-	}
-
-	return lst.GetByIndex(int(key.Value), valueType), nil
 }
 
 func UserDataIntegerFromArrayByIndex(s Scope, e Exprs) (Expr, error) {
@@ -1887,15 +1808,15 @@ func dataFromArray(funcName string, s Scope, e Exprs, valueType proto.DataValueT
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
-	lst, ok := lstExpr.(*DataEntryListExpr)
+	lst, ok := lstExpr.(DataByKey)
 	if !ok {
-		return nil, errors.Errorf("%s expected first argument to be *DataEntryListExpr, found %T", funcName, lstExpr)
+		return nil, errors.Errorf("%s expected first argument implements DataByKey, found %T", funcName, lstExpr)
 	}
 	key, ok := keyExpr.(*StringExpr)
 	if !ok {
 		return nil, errors.Errorf("%s expected second argument to be *StringExpr, found %T", funcName, keyExpr)
 	}
-	return lst.Get(key.Value, valueType), nil
+	return lst.GetByKey(key.Value, valueType)
 }
 
 func dataFromState(funcName string, s Scope, e Exprs, valueType proto.DataValueType) (Expr, error) {
@@ -1908,13 +1829,11 @@ func dataFromState(funcName string, s Scope, e Exprs, valueType proto.DataValueT
 	}
 	if alias, ok := addOrAliasExpr.(AliasExpr); ok {
 		r := proto.NewRecipientFromAlias(proto.Alias(alias))
-		acc := s.State().Account(r)
-		return dataFromArray(funcName, s.Clone(), Params(NewDataEntryList(acc.Data()), e[1]), valueType)
+		return dataFromArray(funcName, s.Clone(), Params(NewDataEntryStateWrapperExpr(s.State(), r), e[1]), valueType)
 	}
 	if addr, ok := addOrAliasExpr.(AddressExpr); ok {
 		r := proto.NewRecipientFromAddress(proto.Address(addr))
-		acc := s.State().Account(r)
-		return dataFromArray(funcName, s.Clone(), Params(NewDataEntryList(acc.Data()), e[1]), valueType)
+		return dataFromArray(funcName, s.Clone(), Params(NewDataEntryStateWrapperExpr(s.State(), r), e[1]), valueType)
 	}
 	return nil, errors.Errorf("%s expected addOrAliasExpr argument to be AliasExpr or AddressExpr, found %T", funcName, addOrAliasExpr)
 }
@@ -1931,7 +1850,7 @@ func dataFromArrayByIndex(funcName string, s Scope, e Exprs, valueType proto.Dat
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
-	lst, ok := lstExpr.(*DataEntryListExpr)
+	lst, ok := lstExpr.(DataByIndex)
 	if !ok {
 		return nil, errors.Errorf("%s expected first argument to be *DataEntryListExpr, found %T", funcName, lstExpr)
 	}

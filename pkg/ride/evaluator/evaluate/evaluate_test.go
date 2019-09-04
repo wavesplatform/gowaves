@@ -35,36 +35,16 @@ func defaultScope() Scope {
 	}
 	variables := VariablesV3(vars, 5)
 
-	addr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, t.SenderPK) // Address: 3P2USE3iYK5w7jNahAUHTytNbVRccGZwQH3
-	if err != nil {
-		panic(err)
+	dataEntries := map[string]proto.DataEntry{
+		"integer": &proto.IntegerDataEntry{Key: "integer", Value: 100500},
+		"boolean": &proto.BooleanDataEntry{Key: "boolean", Value: true},
+		"binary":  &proto.BinaryDataEntry{Key: "binary", Value: []byte("hello")},
+		"string":  &proto.StringDataEntry{Key: "string", Value: "world"},
 	}
 
-	var dataEntries []proto.DataEntry
-	dataEntries = append(dataEntries, &proto.IntegerDataEntry{
-		Key:   "integer",
-		Value: 100500,
-	})
-	dataEntries = append(dataEntries, &proto.BooleanDataEntry{
-		Key:   "boolean",
-		Value: true,
-	})
-	dataEntries = append(dataEntries, &proto.BinaryDataEntry{
-		Key:   "binary",
-		Value: []byte("hello"),
-	})
-	dataEntries = append(dataEntries, &proto.StringDataEntry{
-		Key:   "string",
-		Value: "world",
-	})
-
-	am := mockstate.MockAccount{
-		Assets:      map[string]uint64{"BXBUNddxTGTQc3G4qHYn5E67SBwMj18zLncUr871iuRD": 5},
-		DataEntries: dataEntries,
-	}
-
-	s := mockstate.MockStateImpl{
+	s := mockstate.State{
 		AccountsBalance: 5,
+		DataEntries:     dataEntries,
 	}
 
 	return NewScope(proto.MainNetScheme, s, FunctionsV3(), variables)
@@ -341,7 +321,7 @@ func TestDataFunctions(t *testing.T) {
 
 	variables := VariablesV3(vars, 100500)
 
-	scope := NewScope(proto.MainNetScheme, mockstate.MockStateImpl{}, FunctionsV3(), variables)
+	scope := NewScope(proto.MainNetScheme, mockstate.State{}, FunctionsV3(), variables)
 
 	for _, test := range []struct {
 		FuncCode int
