@@ -47,6 +47,15 @@ const (
 	maxInvokeScriptV1Bytes       = 5 * 1024
 )
 
+type IIssueTransaction interface {
+	Transaction
+	GetSenderPK() crypto.PublicKey
+	GetReissuable() bool
+	GetQuantity() uint64
+	GetDecimals() byte
+	NonEmptyScript() bool
+}
+
 //IssueV1 transaction is a transaction to issue new asset.
 type IssueV1 struct {
 	Type      TransactionType   `json:"type"`
@@ -54,6 +63,14 @@ type IssueV1 struct {
 	ID        *crypto.Digest    `json:"id,omitempty"`
 	Signature *crypto.Signature `json:"signature,omitempty"`
 	Issue
+}
+
+func (tx IssueV1) GetQuantity() uint64 {
+	return tx.Quantity
+}
+
+func (tx IssueV1) GetDecimals() byte {
+	return tx.Decimals
 }
 
 func (tx IssueV1) GetTypeVersion() TransactionTypeVersion {
@@ -76,6 +93,19 @@ func (tx IssueV1) GetID() ([]byte, error) {
 		return nil, errors.New("tx ID is not set\n")
 	}
 	return tx.ID.Bytes(), nil
+}
+
+//NonEmptyScript returns true if the script of the transaction is not empty, otherwise false.
+func (tx *IssueV1) NonEmptyScript() bool {
+	return false
+}
+
+func (tx *IssueV1) GetSenderPK() crypto.PublicKey {
+	return tx.SenderPK
+}
+
+func (tx *IssueV1) GetReissuable() bool {
+	return tx.Reissuable
 }
 
 func (tx *IssueV1) Clone() *IssueV1 {

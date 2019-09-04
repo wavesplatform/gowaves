@@ -15,6 +15,7 @@ type MockStateImpl struct {
 	TransactionsHeightByID map[string]uint64
 	AccountsBalance        uint64
 	DataEntry              proto.DataEntry
+	AssetIsSponsored       bool
 }
 
 func (a MockStateImpl) NewestAccountBalance(account proto.Recipient, asset []byte) (uint64, error) {
@@ -50,7 +51,7 @@ func (a MockStateImpl) NewestHeight() (uint64, error) {
 }
 
 func (a MockStateImpl) NewestAssetIsSponsored(assetID crypto.Digest) (bool, error) {
-	return false, nil
+	return a.AssetIsSponsored, nil
 }
 
 type MockAccount struct {

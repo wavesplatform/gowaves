@@ -40,6 +40,22 @@ type IssueV2 struct {
 	Issue
 }
 
+func (tx IssueV2) GetSenderPK() crypto.PublicKey {
+	return tx.SenderPK
+}
+
+func (tx IssueV2) GetReissuable() bool {
+	return tx.Reissuable
+}
+
+func (tx IssueV2) GetQuantity() uint64 {
+	return tx.Quantity
+}
+
+func (tx IssueV2) GetDecimals() byte {
+	return tx.Decimals
+}
+
 func (tx IssueV2) GetTypeVersion() TransactionTypeVersion {
 	return TransactionTypeVersion{tx.Type, tx.Version}
 }

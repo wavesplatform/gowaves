@@ -1323,3 +1323,27 @@ func makeFeatures(features []int16) Exprs {
 	}
 	return out
 }
+
+type AssetInfoExpr struct {
+	fields object
+}
+
+func (a AssetInfoExpr) Write(w io.Writer) {
+	_, _ = fmt.Fprintf(w, "AssetInfoExpr")
+}
+
+func (a AssetInfoExpr) Evaluate(Scope) (Expr, error) {
+	return a, nil
+}
+
+func (a AssetInfoExpr) Eq(other Expr) (bool, error) {
+	return false, errors.Errorf("trying to compare %T with %T", a, other)
+}
+
+func (a AssetInfoExpr) InstanceOf() string {
+	return "AssetInfo"
+}
+
+func NewAssetInfo(obj object) *AssetInfoExpr {
+	return &AssetInfoExpr{fields: obj}
+}

@@ -1126,7 +1126,7 @@ func NativeAddressFromRecipient(s Scope, e Exprs) (Expr, error) {
 	}
 	recipient, ok := first.(RecipientExpr)
 	if !ok {
-		return nil, errors.Errorf("%s expected first argument to be RecipientExpr, found %T", funcName, recipient)
+		return nil, errors.Errorf("%s expected first argument to be RecipientExpr, found %T", funcName, first)
 	}
 
 	if recipient.Address != nil {
@@ -1142,6 +1142,35 @@ func NativeAddressFromRecipient(s Scope, e Exprs) (Expr, error) {
 	}
 
 	return nil, errors.Errorf("can't get address from recipient, recipient %v", recipient)
+}
+
+// 1004: accepts id: []byte
+func NativeAssetInfo(s Scope, e Exprs) (Expr, error) {
+	const funcName = "NativeAssetInfo"
+	if l := len(e); l != 1 {
+		return nil, errors.Errorf("%s: invalid params, expected 1, passed %d", funcName, l)
+	}
+	first, err := e[0].Evaluate(s.Clone())
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	id, ok := first.(*BytesExpr)
+	if !ok {
+		return nil, errors.Errorf("%s expected first argument to be *BytesExpr, found %T", funcName, first)
+	}
+	tx, err := s.State().TransactionByID(id.Value)
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	issueTx, ok := tx.(proto.IIssueTransaction)
+	if !ok {
+		return nil, errors.Errorf("%s expected first argument to be proto.IIssueTransaction, found %T", funcName, tx)
+	}
+	obj, err := newMapAssetInfo(s.Scheme(), s.State(), issueTx)
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	return NewAssetInfo(obj), nil
 }
 
 // Fail script without message (default will be used)
