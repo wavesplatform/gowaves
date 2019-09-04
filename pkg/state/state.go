@@ -120,16 +120,11 @@ type txAppender struct {
 	txHandler *transactionHandler
 	// Block differ is used to create diffs from blocks.
 	blockDiffer *blockDiffer
-	// Storage for diffs of transactions coming in added blocks.
-	diffStorAppendedBlocks *diffStorage
-	// Ids of all transactions whose diffs are currently in diffStorAppendedBlocks.
+	// Storage for diffs of incoming transactions (from added blocks or UTX).
+	diffStor *diffStorage
+	// Ids of all transactions whose diffs are currently in diffStor.
 	// This is needed to check that transaction ids are unique.
-	appendedBlocksTxIds map[string]struct{}
-	// Storage for diffs of transactions coming for validation without blocks.
-	diffStorNoBlocks *diffStorage
-	// Ids of all transactions whose diffs are currently in diffStorNoBlocks.
-	// This is needed to check that transaction ids are unique.
-	noBlocksTxIds map[string]struct{}
+	recentTxIds map[string]struct{}
 	// diffApplier is used to both validate and apply balance diffs.
 	diffApplier *diffApplier
 }
@@ -147,11 +142,7 @@ func newTxAppender(rw *blockReadWriter, stor *blockchainEntitiesStorage, setting
 	if err != nil {
 		return nil, err
 	}
-	diffStorAppendedBlocks, err := newDiffStorage()
-	if err != nil {
-		return nil, err
-	}
-	diffStorNoBlocks, err := newDiffStorage()
+	diffStor, err := newDiffStorage()
 	if err != nil {
 		return nil, err
 	}
@@ -160,15 +151,13 @@ func newTxAppender(rw *blockReadWriter, stor *blockchainEntitiesStorage, setting
 		return nil, err
 	}
 	return &txAppender{
-		rw:                     rw,
-		settings:               settings,
-		txHandler:              txHandler,
-		blockDiffer:            blockDiffer,
-		appendedBlocksTxIds:    make(map[string]struct{}),
-		diffStorAppendedBlocks: diffStorAppendedBlocks,
-		noBlocksTxIds:          make(map[string]struct{}),
-		diffStorNoBlocks:       diffStorNoBlocks,
-		diffApplier:            diffApplier,
+		rw:          rw,
+		settings:    settings,
+		txHandler:   txHandler,
+		blockDiffer: blockDiffer,
+		recentTxIds: make(map[string]struct{}),
+		diffStor:    diffStor,
+		diffApplier: diffApplier,
 	}, nil
 }
 
@@ -218,7 +207,7 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 			blockID:          params.block.BlockSignature,
 			height:           params.height,
 		}
-		if err := a.checkDuplicateTxIds(tx, a.appendedBlocksTxIds, params.block.Timestamp); err != nil {
+		if err := a.checkDuplicateTxIds(tx, a.recentTxIds, params.block.Timestamp); err != nil {
 			return err
 		}
 		// Add transaction ID.
@@ -226,7 +215,7 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 		if err != nil {
 			return err
 		}
-		a.appendedBlocksTxIds[string(txID)] = empty
+		a.recentTxIds[string(txID)] = empty
 		if hasParent {
 			checkerInfo.parentTimestamp = params.parent.Timestamp
 		}
@@ -241,16 +230,16 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	if err != nil {
 		return err
 	}
-	if err := a.diffStorAppendedBlocks.saveBlockDiff(blockDiff); err != nil {
+	if err := a.diffStor.saveBlockDiff(blockDiff); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (a *txAppender) applyAllDiffs(initialisation bool) error {
-	changes := a.diffStorAppendedBlocks.allChanges()
-	a.appendedBlocksTxIds = make(map[string]struct{})
-	a.diffStorAppendedBlocks.reset()
+	changes := a.diffStor.allChanges()
+	a.recentTxIds = make(map[string]struct{})
+	a.diffStor.reset()
 	if err := a.diffApplier.applyBalancesChanges(changes, !initialisation); err != nil {
 		return err
 	}
@@ -282,12 +271,12 @@ func (a *txAppender) validateSingleTx(tx proto.Transaction, currentTimestamp, pa
 }
 
 func (a *txAppender) resetValidationList() {
-	a.noBlocksTxIds = make(map[string]struct{})
-	a.diffStorNoBlocks.reset()
+	a.recentTxIds = make(map[string]struct{})
+	a.diffStor.reset()
 }
 
 func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64) error {
-	if err := a.checkDuplicateTxIds(tx, a.noBlocksTxIds, currentTimestamp); err != nil {
+	if err := a.checkDuplicateTxIds(tx, a.recentTxIds, currentTimestamp); err != nil {
 		return err
 	}
 	// Add transaction ID.
@@ -295,7 +284,7 @@ func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, pare
 	if err != nil {
 		return err
 	}
-	a.noBlocksTxIds[string(txID)] = empty
+	a.recentTxIds[string(txID)] = empty
 	// Check tx signature and data.
 	if err := checkTx(tx); err != nil {
 		return err
@@ -309,22 +298,22 @@ func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, pare
 	if err != nil {
 		return err
 	}
-	changes, err := a.diffStorNoBlocks.changesByTxDiff(diff)
+	changes, err := a.diffStor.changesByTxDiff(diff)
 	if err != nil {
 		return err
 	}
 	if err := a.diffApplier.validateBalancesChanges(changes, true); err != nil {
 		return err
 	}
-	if err := a.diffStorNoBlocks.saveBalanceChanges(changes); err != nil {
+	if err := a.diffStor.saveBalanceChanges(changes); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (a *txAppender) reset() {
-	a.appendedBlocksTxIds = make(map[string]struct{})
-	a.diffStorAppendedBlocks.reset()
+	a.recentTxIds = make(map[string]struct{})
+	a.diffStor.reset()
 	a.blockDiffer.reset()
 }
 
@@ -854,6 +843,8 @@ func (s *stateManager) undoBlockAddition() error {
 }
 
 func (s *stateManager) AddBlock(block []byte) (*proto.Block, error) {
+	// Make sure appender doesn't store any diffs from previous validations (e.g. UTX).
+	s.appender.reset()
 	rs, err := s.addBlocks([][]byte{block}, false)
 	if err != nil {
 		if err := s.undoBlockAddition(); err != nil {
@@ -873,6 +864,8 @@ func (s *stateManager) AddDeserializedBlock(block *proto.Block) (*proto.Block, e
 }
 
 func (s *stateManager) AddNewBlocks(blocks [][]byte) error {
+	// Make sure appender doesn't store any diffs from previous validations (e.g. UTX).
+	s.appender.reset()
 	if _, err := s.addBlocks(blocks, false); err != nil {
 		if err := s.undoBlockAddition(); err != nil {
 			panic("Failed to add blocks and can not rollback to previous state after failure.")
@@ -903,6 +896,8 @@ func (s *stateManager) AddNewDeserializedBlocks(blocks []*proto.Block) error {
 }
 
 func (s *stateManager) AddOldBlocks(blocks [][]byte) error {
+	// Make sure appender doesn't store any diffs from previous validations (e.g. UTX).
+	s.appender.reset()
 	if _, err := s.addBlocks(blocks, true); err != nil {
 		if err := s.undoBlockAddition(); err != nil {
 			panic("Failed to add blocks and can not rollback to previous state after failure.")
