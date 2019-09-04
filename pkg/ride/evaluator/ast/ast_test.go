@@ -5,7 +5,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
 func TestBooleanExpr_Eq(t *testing.T) {
@@ -18,17 +17,6 @@ func TestBooleanExpr_Eq(t *testing.T) {
 	assert.False(t, eq2)
 	eq3, _ := b1.Eq(NewLong(5))
 	assert.False(t, eq3)
-}
-
-func TestDataEntryListExpr_Get(t *testing.T) {
-	var d []proto.DataEntry
-	d = append(d, &proto.IntegerDataEntry{
-		Key:   "integer",
-		Value: 100500,
-	})
-	lst := NewDataEntryList(d)
-	rs, _ := lst.GetByKey("integer", proto.DataInteger)
-	assert.Equal(t, NewLong(100500), rs)
 }
 
 func TestBuyExpr_Eq(t *testing.T) {

@@ -1778,7 +1778,13 @@ func (a *DataV1TestSuite) SetupTest() {
 
 func (a *DataV1TestSuite) Test_data() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	a.Equal(NewBytes([]byte("hello")), rs["data"].(*DataEntryListExpr).GetByIndex(0, proto.DataBinary))
+	list, ok := rs["data"].(Exprs)
+	a.Assert().True(ok)
+	o, ok := list[0].(*ObjectExpr)
+	a.Assert().True(ok)
+	v, ok := o.fields["value"].(*BytesExpr)
+	a.Assert().True(ok)
+	a.Equal(NewBytes([]byte("hello")), v)
 }
 
 func (a *DataV1TestSuite) Test_id() {
