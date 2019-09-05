@@ -1,7 +1,6 @@
 package state
 
 import (
-	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -153,25 +152,6 @@ func (as *accountsScripts) scriptByAddr(addr proto.Address, filter bool) (ast.Sc
 		return ast.Script{}, err
 	}
 	return scriptBytesToAst(record.script)
-}
-
-func (as *accountsScripts) callVerifier(addr proto.Address, tx proto.Transaction, scope ast.Scope, filter bool) (bool, error) {
-	script, err := as.newestScriptByAddr(addr, filter)
-	if err != nil {
-		return false, err
-	}
-	if script.Verifier == nil {
-		return false, errors.New("script does not have verifier set")
-	}
-	res, err := script.Verifier.Evaluate(scope)
-	if err != nil {
-		return false, err
-	}
-	isTrue, err := res.Eq(ast.NewBoolean(true))
-	if err != nil {
-		return false, err
-	}
-	return isTrue, nil
 }
 
 func (as *accountsScripts) clear() error {

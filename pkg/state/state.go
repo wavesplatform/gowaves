@@ -14,8 +14,9 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"github.com/wavesplatform/gowaves/pkg/ride/evaluator/ast"
+	"github.com/wavesplatform/gowaves/pkg/ride/evaluator/evaluate"
 	"github.com/wavesplatform/gowaves/pkg/settings"
+	"github.com/wavesplatform/gowaves/pkg/types"
 	"github.com/wavesplatform/gowaves/pkg/util/lock"
 )
 
@@ -111,9 +112,12 @@ func (s *blockchainEntitiesStorage) flush(initialisation bool) error {
 }
 
 type txAppender struct {
+	state types.SmartState
+
 	// rw is needed to check for duplicate tx IDs.
 	rw *blockReadWriter
 
+	stor     *blockchainEntitiesStorage
 	settings *settings.BlockchainSettings
 
 	// TransactionHandler is handler for any operations on transactions.
@@ -129,7 +133,12 @@ type txAppender struct {
 	diffApplier *diffApplier
 }
 
-func newTxAppender(rw *blockReadWriter, stor *blockchainEntitiesStorage, settings *settings.BlockchainSettings) (*txAppender, error) {
+func newTxAppender(
+	state types.SmartState,
+	rw *blockReadWriter,
+	stor *blockchainEntitiesStorage,
+	settings *settings.BlockchainSettings,
+) (*txAppender, error) {
 	genesis, err := settings.GenesisGetter.Get()
 	if err != nil {
 		return nil, err
@@ -151,7 +160,9 @@ func newTxAppender(rw *blockReadWriter, stor *blockchainEntitiesStorage, setting
 		return nil, err
 	}
 	return &txAppender{
+		state:       state,
 		rw:          rw,
+		stor:        stor,
 		settings:    settings,
 		txHandler:   txHandler,
 		blockDiffer: blockDiffer,
@@ -193,9 +204,51 @@ func (a *txAppender) checkDuplicateTxIds(tx proto.Transaction, recentIds map[str
 
 type appendBlockParams struct {
 	transactions   []proto.Transaction
+	scriptedIds    map[string]struct{}
 	block, parent  *proto.BlockHeader
 	height         uint64
 	initialisation bool
+}
+
+func (a *txAppender) callVerifyScript(tx proto.Transaction, initialisation bool) error {
+	senderAddr, err := proto.NewAddressFromPublicKey(a.settings.AddressSchemeCharacter, tx.GetSenderPK())
+	if err != nil {
+		return err
+	}
+	script, err := a.stor.accountsScripts.newestScriptByAddr(senderAddr, !initialisation)
+	if err != nil {
+		return errors.Errorf("failed to retrieve account script: %v\n", err)
+	}
+	ok, err := evaluate.Verify(a.settings.AddressSchemeCharacter, a.state, &script, tx)
+	if err != nil {
+		return errors.Errorf("verifier script failed: %v\n", err)
+	}
+	if !ok {
+		return errors.New("verifier script does not allow to send this transaction from smart account")
+	}
+	return nil
+}
+
+func (a *txAppender) hasVerifyScript(tx proto.Transaction, initialisation bool) (bool, error) {
+	senderAddr, err := proto.NewAddressFromPublicKey(a.settings.AddressSchemeCharacter, tx.GetSenderPK())
+	if err != nil {
+		return false, err
+	}
+	return a.stor.accountsScripts.newestHasVerifier(senderAddr, !initialisation)
+}
+
+func (a *txAppender) checkTxAgainstState(tx proto.Transaction, scripted bool, checkerInfo *checkerInfo) error {
+	if scripted {
+		// Check script.
+		if err := a.callVerifyScript(tx, checkerInfo.initialisation); err != nil {
+			return err
+		}
+	}
+	// Check against state.
+	if err := a.txHandler.checkTx(tx, checkerInfo); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (a *txAppender) appendBlock(params *appendBlockParams) error {
@@ -217,6 +270,9 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 			blockID:          params.block.BlockSignature,
 			height:           params.height,
 		}
+		if hasParent {
+			checkerInfo.parentTimestamp = params.parent.Timestamp
+		}
 		if err := a.checkDuplicateTxIds(tx, a.recentTxIds, params.block.Timestamp); err != nil {
 			return err
 		}
@@ -226,13 +282,17 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 			return err
 		}
 		a.recentTxIds[string(txID)] = empty
-		if hasParent {
-			checkerInfo.parentTimestamp = params.parent.Timestamp
-		}
-		if err := a.txHandler.checkTx(tx, checkerInfo); err != nil {
+		// Check against state.
+		_, scripted := params.scriptedIds[string(txID)]
+		if err := a.checkTxAgainstState(tx, scripted, checkerInfo); err != nil {
 			return err
 		}
-		if err := a.txHandler.performTx(tx, &performerInfo{params.initialisation, params.block.BlockSignature}); err != nil {
+		// Perform state changes.
+		performerInfo := &performerInfo{
+			initialisation: params.initialisation,
+			blockID:        params.block.BlockSignature,
+		}
+		if err := a.txHandler.performTx(tx, performerInfo); err != nil {
 			return err
 		}
 		// Save balance diff of this tx.
@@ -258,15 +318,20 @@ func (a *txAppender) validateSingleTx(tx proto.Transaction, currentTimestamp, pa
 	if err := a.checkDuplicateTxIds(tx, dummy, currentTimestamp); err != nil {
 		return err
 	}
+	scripted, err := a.hasVerifyScript(tx, false)
+	if err != nil {
+		return err
+	}
 	// Check tx signature and data.
-	if err := checkTx(tx); err != nil {
+	if err := checkTx(tx, !scripted); err != nil {
 		return err
 	}
 	// Check tx data against state.
 	checkerInfo := &checkerInfo{initialisation: false, currentTimestamp: currentTimestamp, parentTimestamp: parentTimestamp}
-	if err := a.txHandler.checkTx(tx, checkerInfo); err != nil {
+	if err := a.checkTxAgainstState(tx, scripted, checkerInfo); err != nil {
 		return err
 	}
+	// Create and validate balance diff.
 	diff, err := a.txHandler.createDiffTx(tx, &differInfo{initialisation: false, blockTime: currentTimestamp})
 	if err != nil {
 		return err
@@ -292,15 +357,20 @@ func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, pare
 		return err
 	}
 	a.recentTxIds[string(txID)] = empty
+	scripted, err := a.hasVerifyScript(tx, false)
+	if err != nil {
+		return err
+	}
 	// Check tx signature and data.
-	if err := checkTx(tx); err != nil {
+	if err := checkTx(tx, !scripted); err != nil {
 		return err
 	}
 	// Check tx data against state.
 	checkerInfo := &checkerInfo{initialisation: false, currentTimestamp: currentTimestamp, parentTimestamp: parentTimestamp}
-	if err := a.txHandler.checkTx(tx, checkerInfo); err != nil {
+	if err := a.checkTxAgainstState(tx, scripted, checkerInfo); err != nil {
 		return err
 	}
+	// Create, validate and save balance diff.
 	diff, err := a.txHandler.createDiffTx(tx, &differInfo{initialisation: false, blockTime: currentTimestamp})
 	if err != nil {
 		return err
@@ -329,8 +399,6 @@ type stateManager struct {
 
 	genesis proto.Block
 	stateDB *stateDB
-
-	scope ast.Scope
 
 	stor  *blockchainEntitiesStorage
 	rw    *blockReadWriter
@@ -393,30 +461,27 @@ func newStateManager(dataDir string, params StateParams, settings *settings.Bloc
 	if err != nil {
 		return nil, wrapErr(Other, errors.Errorf("failed to create blockchain entities storage: %v\n", err))
 	}
-	appender, err := newTxAppender(rw, stor, settings)
-	if err != nil {
-		return nil, wrapErr(Other, err)
-	}
 	state := &stateManager{
 		stateDB:                   stateDB,
 		stor:                      stor,
 		rw:                        rw,
 		settings:                  settings,
 		peers:                     newPeerStorage(db),
-		appender:                  appender,
 		verificationGoroutinesNum: params.VerificationGoroutinesNum,
 		mu:                        &sync.RWMutex{},
 	}
 	// Set fields which depend on state.
 	// Consensus validator is needed to check block headers.
+	appender, err := newTxAppender(nil, rw, stor, settings)
+	if err != nil {
+		return nil, wrapErr(Other, err)
+	}
+	state.appender = appender
 	cv, err := consensus.NewConsensusValidator(state)
 	if err != nil {
 		return nil, wrapErr(Other, err)
 	}
 	state.cv = cv
-	// TODO: create real scope here.
-	//scope := ast.NewScope(settings.AddressSchemeCharacter, state, nil, nil)
-	state.scope = nil
 	// Handle genesis block.
 	if err := state.handleGenesisBlock(settings.GenesisGetter); err != nil {
 		return nil, wrapErr(Other, err)
@@ -774,41 +839,41 @@ func (s *stateManager) writeTransactionsToStorage(transactions []proto.Transacti
 	return nil
 }
 
-func (s *stateManager) verifyTransactions(transactions []proto.Transaction, chans *verifierChans, initialisation bool) error {
+func (s *stateManager) verifyTransactions(transactions []proto.Transaction, chans *verifierChans, initialisation bool) (map[string]struct{}, error) {
+	scriptedTransactionIds := make(map[string]struct{})
 	for _, tx := range transactions {
 		sender := tx.GetSenderPK()
 		senderAddr, err := proto.NewAddressFromPublicKey(s.settings.AddressSchemeCharacter, sender)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		hasVerifierScript, err := s.stor.accountsScripts.newestHasVerifier(senderAddr, !initialisation)
 		if err != nil {
-			return err
+			return nil, err
 		}
+		txID, err := tx.GetID()
+		if err != nil {
+			return nil, err
+		}
+		checkTxSig := true
 		if hasVerifierScript {
-			// If there is verifier script, we don't send tx for regular signature verification.
-			// Instead, we call verifier script to check if transaction is legitimate.
-			ok, err := s.stor.accountsScripts.callVerifier(senderAddr, tx, s.scope, !initialisation)
-			if err != nil {
-				return err
-			}
-			if !ok {
-				return errors.New("Verifier script does not allow to send this transaction from Smart Account")
-			}
-			continue
+			// For transaction with SmartAccount we don't check signatures.
+			checkTxSig = false
+			scriptedTransactionIds[string(txID)] = empty
 		}
 		// Send transaction for signature/data verification.
 		task := &verifyTask{
-			taskType: verifyTx,
-			tx:       tx,
+			taskType:   verifyTx,
+			tx:         tx,
+			checkTxSig: checkTxSig,
 		}
 		select {
 		case verifyError := <-chans.errChan:
-			return verifyError
+			return nil, verifyError
 		case chans.tasksChan <- task:
 		}
 	}
-	return nil
+	return scriptedTransactionIds, nil
 }
 
 func (s *stateManager) addNewBlock(block, parent *proto.Block, initialisation bool, chans *verifierChans, height uint64) error {
@@ -835,7 +900,8 @@ func (s *stateManager) addNewBlock(block, parent *proto.Block, initialisation bo
 	if err := s.writeTransactionsToStorage(transactions); err != nil {
 		return err
 	}
-	if err := s.verifyTransactions(transactions, chans, initialisation); err != nil {
+	scriptedIds, err := s.verifyTransactions(transactions, chans, initialisation)
+	if err != nil {
 		return err
 	}
 	var parentHeader *proto.BlockHeader
@@ -844,6 +910,7 @@ func (s *stateManager) addNewBlock(block, parent *proto.Block, initialisation bo
 	}
 	params := &appendBlockParams{
 		transactions:   transactions,
+		scriptedIds:    scriptedIds,
 		block:          &block.BlockHeader,
 		parent:         parentHeader,
 		height:         height,

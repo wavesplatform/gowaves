@@ -42,5 +42,5 @@ func IsNotFound(err error) bool {
 	if !ok {
 		return false
 	}
-	return s.errorType == NotFoundError
+	return (s.errorType == NotFoundError) || (s.errorType == RetrievalError)
 }
