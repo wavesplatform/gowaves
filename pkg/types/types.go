@@ -1,6 +1,7 @@
 package types
 
 import (
+	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
@@ -54,4 +55,8 @@ type SmartState interface {
 	NewestAddrByAlias(alias proto.Alias) (proto.Address, error)
 
 	RetrieveNewestEntry(account proto.Recipient, key string) (proto.DataEntry, error)
+
+	NewestAssetIsSponsored(assetID crypto.Digest) (bool, error)
+
+	HeaderByHeight(height proto.Height) (*proto.BlockHeader, error)
 }

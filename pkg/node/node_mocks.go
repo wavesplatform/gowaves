@@ -179,7 +179,6 @@ func (a *MockStateManager) RetrieveEntry(account proto.Recipient, key string) (p
 func (a *MockStateManager) RetrieveIntegerEntry(account proto.Recipient, key string) (*proto.IntegerDataEntry, error) {
 	panic("implement me")
 }
-
 func (a *MockStateManager) RetrieveBooleanEntry(account proto.Recipient, key string) (*proto.BooleanDataEntry, error) {
 	panic("implement me")
 }
@@ -209,6 +208,14 @@ func (a *MockStateManager) RetrieveNewestStringEntry(account proto.Recipient, ke
 }
 
 func (a *MockStateManager) RetrieveNewestBinaryEntry(account proto.Recipient, key string) (*proto.BinaryDataEntry, error) {
+	panic("implement me")
+}
+
+func (a *MockStateManager) NewestAssetIsSponsored(assetID crypto.Digest) (bool, error) {
+	panic("implement me")
+}
+
+func (a *MockStateManager) AssetIsSponsored(assetID crypto.Digest) (bool, error) {
 	panic("implement me")
 }
 

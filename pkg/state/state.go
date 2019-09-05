@@ -35,6 +35,10 @@ func wrapErr(stateErrorType ErrorType, err error) error {
 	}
 }
 
+func NewNotFoundError(err error) error {
+	return wrapErr(NotFoundError, err)
+}
+
 type blockchainEntitiesStorage struct {
 	hs               *historyStorage
 	aliases          *aliases
@@ -522,7 +526,7 @@ func (s *stateManager) Header(blockID crypto.Signature) (*proto.BlockHeader, err
 	headerBytes, err := s.rw.readBlockHeader(blockID)
 	if err != nil {
 		if err == keyvalue.ErrNotFound {
-			return nil, wrapErr(NotFoundError, err)
+			return nil, NewNotFoundError(err)
 		}
 		return nil, wrapErr(RetrievalError, err)
 	}
@@ -1511,6 +1515,22 @@ func (s *stateManager) RetrieveBinaryEntry(account proto.Recipient, key string) 
 		return nil, wrapErr(RetrievalError, err)
 	}
 	return entry, nil
+}
+
+func (s *stateManager) NewestAssetIsSponsored(assetID crypto.Digest) (bool, error) {
+	sponsored, err := s.stor.sponsoredAssets.newestIsSponsored(assetID, true)
+	if err != nil {
+		return false, wrapErr(RetrievalError, err)
+	}
+	return sponsored, nil
+}
+
+func (s *stateManager) AssetIsSponsored(assetID crypto.Digest) (bool, error) {
+	sponsored, err := s.stor.sponsoredAssets.isSponsored(assetID, true)
+	if err != nil {
+		return false, wrapErr(RetrievalError, err)
+	}
+	return sponsored, nil
 }
 
 func (s *stateManager) Close() error {

@@ -32,6 +32,9 @@ type StateNewest interface {
 	RetrieveNewestBooleanEntry(account proto.Recipient, key string) (*proto.BooleanDataEntry, error)
 	RetrieveNewestStringEntry(account proto.Recipient, key string) (*proto.StringDataEntry, error)
 	RetrieveNewestBinaryEntry(account proto.Recipient, key string) (*proto.BinaryDataEntry, error)
+
+	// Asset fee sponsorship.
+	NewestAssetIsSponsored(assetID crypto.Digest) (bool, error)
 }
 
 // StateStable returns information that corresponds to latest fully applied block.
@@ -84,6 +87,9 @@ type StateStable interface {
 	RetrieveBooleanEntry(account proto.Recipient, key string) (*proto.BooleanDataEntry, error)
 	RetrieveStringEntry(account proto.Recipient, key string) (*proto.StringDataEntry, error)
 	RetrieveBinaryEntry(account proto.Recipient, key string) (*proto.BinaryDataEntry, error)
+
+	// Asset fee sponsorship.
+	AssetIsSponsored(assetID crypto.Digest) (bool, error)
 }
 
 // StateModifier contains all the methods needed to modify node's state.

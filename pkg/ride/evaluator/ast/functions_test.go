@@ -14,6 +14,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride/mockstate"
+	"github.com/wavesplatform/gowaves/pkg/util/byte_helpers"
 )
 
 func TestNativeSumLong(t *testing.T) {
@@ -213,6 +214,37 @@ func TestNativeTransactionByID(t *testing.T) {
 	default:
 		t.Fail()
 	}
+}
+
+func TestNativeTransferTransactionByID(t *testing.T) {
+	t.Run("transfer v1", func(t *testing.T) {
+		scope := newScopeWithState(&mockstate.MockStateImpl{
+			TransactionsByID: map[string]proto.Transaction{
+				byte_helpers.TransferV1.Transaction.ID.String(): byte_helpers.TransferV1.Transaction.Clone(),
+			},
+		})
+
+		rs, err := NativeTransferTransactionByID(scope, Params(NewBytes(byte_helpers.TransferV1.Transaction.ID.Bytes())))
+		require.NoError(t, err)
+		require.Equal(t, "TransferTransaction", rs.InstanceOf())
+	})
+	t.Run("transfer v2", func(t *testing.T) {
+		scope := newScopeWithState(&mockstate.MockStateImpl{
+			TransactionsByID: map[string]proto.Transaction{
+				byte_helpers.TransferV2.Transaction.ID.String(): byte_helpers.TransferV2.Transaction.Clone(),
+			},
+		})
+
+		rs, err := NativeTransferTransactionByID(scope, Params(NewBytes(byte_helpers.TransferV2.Transaction.ID.Bytes())))
+		require.NoError(t, err)
+		require.Equal(t, "TransferTransaction", rs.InstanceOf())
+	})
+	t.Run("not found", func(t *testing.T) {
+		scope := newScopeWithState(&mockstate.MockStateImpl{})
+		rs, err := NativeTransferTransactionByID(scope, Params(NewBytes(byte_helpers.TransferV2.Transaction.ID.Bytes())))
+		require.NoError(t, err)
+		require.Equal(t, NewUnit(), rs)
+	})
 }
 
 func TestNativeSizeBytes(t *testing.T) {
@@ -1107,4 +1139,97 @@ func TestUserValueOrErrorMessage(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, test.result, r)
 	}
+}
+
+func ok(e Expr, err error) Expr {
+	if err != nil {
+		panic("value not found")
+	}
+	return e
+}
+
+func TestNativeBlockInfoByHeight(t *testing.T) {
+	_, publicKey, _ := crypto.GenerateKeyPair([]byte("test"))
+	parent := crypto.MustSignatureFromBase58("4sukfbjbbkBnFevQrGN7VvpBSwvufsuqvq5fmfiMdp1pBDMF5TanbFejRHhsiUQSWPkvWRdagwWD3oxnX3eEqzvM")
+	addr := proto.MustAddressFromPublicKey(proto.MainNetScheme, publicKey)
+	signa := crypto.MustSignatureFromBase58("5X76YVeG8T6iTxFmD5WNSaR13hxtsgJPQ2oELeZUsrQfZWSXtnUbq1kRqqMjfBngPvaEKVVV2FSujdTXm3hTW172")
+	gensig := crypto.MustDigestFromBase58("6a1hWT8QNGw8wnacXQ8vT2YEFLuxRxVpEuaaSf6AbSvU")
+
+	h := proto.BlockHeader{
+		Version:       3,
+		Timestamp:     1567506205718,
+		Parent:        parent,
+		FeaturesCount: 2,
+		Features:      []int16{7, 99},
+		NxtConsensus: proto.NxtConsensus{
+			BaseTarget:   1310,
+			GenSignature: gensig,
+		},
+		TransactionCount: 12,
+		GenPublicKey:     publicKey,
+		BlockSignature:   signa,
+		Height:           659687,
+	}
+	state := mockstate.MockStateImpl{
+		BlockHeaderByHeight: &h,
+	}
+	s := newScopeWithState(state)
+
+	rs, err := NativeBlockInfoByHeight(s, Params(NewLong(10)))
+	b := rs.(Getable)
+	require.NoError(t, err)
+	require.Equal(t, NewLong(1567506205718), ok(b.Get("timestamp")))
+	require.Equal(t, NewLong(10), ok(b.Get("height")))
+	require.Equal(t, NewLong(1310), ok(b.Get("baseTarget")))
+	require.Equal(t, NewBytes(gensig.Bytes()), ok(b.Get("generationSignature")))
+	require.Equal(t, NewBytes(addr.Bytes()), ok(b.Get("generator")))
+	require.Equal(t, NewBytes(publicKey.Bytes()), ok(b.Get("generatorPublicKey")))
+}
+
+func TestNativeAssetInfo(t *testing.T) {
+	tx := byte_helpers.IssueV1.Transaction.Clone()
+	s := mockstate.MockStateImpl{
+		TransactionsByID: map[string]proto.Transaction{tx.ID.String(): tx},
+	}
+	rs, err := NativeAssetInfo(newScopeWithState(s), Params(NewBytes(tx.ID.Bytes())))
+	require.NoError(t, err)
+	v := rs.(Getable)
+	require.Equal(t, NewBytes(tx.ID.Bytes()), ok(v.Get("id")))
+}
+
+func TestNativeParseBlockHeader(t *testing.T) {
+	_, publicKey, _ := crypto.GenerateKeyPair([]byte("test"))
+	parent := crypto.MustSignatureFromBase58("4sukfbjbbkBnFevQrGN7VvpBSwvufsuqvq5fmfiMdp1pBDMF5TanbFejRHhsiUQSWPkvWRdagwWD3oxnX3eEqzvM")
+	signa := crypto.MustSignatureFromBase58("5X76YVeG8T6iTxFmD5WNSaR13hxtsgJPQ2oELeZUsrQfZWSXtnUbq1kRqqMjfBngPvaEKVVV2FSujdTXm3hTW172")
+	gensig := crypto.MustDigestFromBase58("6a1hWT8QNGw8wnacXQ8vT2YEFLuxRxVpEuaaSf6AbSvU")
+
+	h := proto.BlockHeader{
+		Version:       3,
+		Timestamp:     1567506205718,
+		Parent:        parent,
+		FeaturesCount: 2,
+		Features:      []int16{7, 99},
+		NxtConsensus: proto.NxtConsensus{
+			BaseTarget:   1310,
+			GenSignature: gensig,
+		},
+		TransactionCount:       12,
+		GenPublicKey:           publicKey,
+		BlockSignature:         signa,
+		Height:                 659687,
+		TransactionBlockLength: 4,
+	}
+	state := mockstate.MockStateImpl{
+		BlockHeaderByHeight: &h,
+	}
+	s := newScopeWithState(state)
+	bts, err := h.MarshalHeaderToBinary()
+	require.NoError(t, err)
+
+	rs, err := NativeParseBlockHeader(s, Params(NewBytes(bts)))
+	require.NoError(t, err)
+
+	v := rs.(Getable)
+
+	require.Equal(t, NewLong(1567506205718), ok(v.Get("timestamp")))
 }

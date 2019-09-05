@@ -824,13 +824,11 @@ func (a AssetPairExpr) Eq(other Expr) (bool, error) {
 	return a.fields.Eq(o.fields)
 }
 
-type object map[string]Expr
+func (a AssetPairExpr) Get(name string) (Expr, error) {
+	return a.fields.Get(name)
+}
 
-//func NewObject(fields map[string]Expr) *ObjectExpr {
-//	return &ObjectExpr{
-//		fields: fields,
-//	}
-//}
+type object map[string]Expr
 
 func newObject() object {
 	return make(object)
@@ -1288,4 +1286,107 @@ func (a AttachedPaymentExpr) InstanceOf() string {
 
 func (a AttachedPaymentExpr) Get(key string) (Expr, error) {
 	return a.fields.Get(key)
+}
+
+type BlockHeaderExpr struct {
+	fields object
+}
+
+func (a BlockHeaderExpr) Write(w io.Writer) {
+	_, _ = fmt.Fprintf(w, "BlockHeaderExpr")
+}
+
+func (a BlockHeaderExpr) Evaluate(Scope) (Expr, error) {
+	return a, nil
+}
+
+func (a BlockHeaderExpr) Eq(other Expr) (bool, error) {
+	return false, errors.Errorf("trying to compare %T with %T", a, other)
+}
+
+func (a BlockHeaderExpr) InstanceOf() string {
+	return "BlockHeader"
+}
+
+func (a BlockHeaderExpr) Get(name string) (Expr, error) {
+	return a.fields.Get(name)
+}
+
+func NewBlockHeader(fields object) *BlockHeaderExpr {
+	return &BlockHeaderExpr{
+		fields: fields,
+	}
+}
+
+func makeFeatures(features []int16) Exprs {
+	out := Exprs{}
+	for _, f := range features {
+		out = append(out, NewLong(int64(f)))
+	}
+	return out
+}
+
+type AssetInfoExpr struct {
+	fields object
+}
+
+func (a AssetInfoExpr) Write(w io.Writer) {
+	_, _ = fmt.Fprintf(w, "AssetInfoExpr")
+}
+
+func (a AssetInfoExpr) Evaluate(Scope) (Expr, error) {
+	return a, nil
+}
+
+func (a AssetInfoExpr) Eq(other Expr) (bool, error) {
+	return false, errors.Errorf("trying to compare %T with %T", a, other)
+}
+
+func (a AssetInfoExpr) InstanceOf() string {
+	return "AssetInfo"
+}
+
+func (a AssetInfoExpr) Get(name string) (Expr, error) {
+	return a.fields.Get(name)
+}
+
+func NewAssetInfo(obj object) *AssetInfoExpr {
+	return &AssetInfoExpr{fields: obj}
+}
+
+type BlockInfoExpr struct {
+	fields object
+}
+
+func (a *BlockInfoExpr) Write(w io.Writer) {
+	_, _ = fmt.Fprintf(w, "BlockInfoExpr")
+}
+
+func (a *BlockInfoExpr) Evaluate(Scope) (Expr, error) {
+	return a, nil
+}
+
+func (a BlockInfoExpr) Get(name string) (Expr, error) {
+	return a.fields.Get(name)
+}
+
+func (a BlockInfoExpr) Eq(other Expr) (bool, error) {
+	return false, errors.Errorf("trying to compare %T with %T", a, other)
+}
+
+func (a BlockInfoExpr) InstanceOf() string {
+	return "BlockInfo"
+}
+
+func NewBlockInfo(obj object, height proto.Height) *BlockInfoExpr {
+	fields := newObject()
+	fields["timestamp"] = obj["timestamp"]
+	fields["height"] = NewLong(int64(height))
+	fields["baseTarget"] = obj["baseTarget"]
+	fields["generationSignature"] = obj["generationSignature"]
+	fields["generator"] = obj["generator"]
+	fields["generatorPublicKey"] = obj["generatorPublicKey"]
+	return &BlockInfoExpr{
+		fields: fields,
+	}
 }
