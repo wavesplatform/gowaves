@@ -414,7 +414,7 @@ func NativeTransactionHeightByID(s Scope, e Exprs) (Expr, error) {
 	}
 	height, err := s.State().TransactionHeightByID(bts.Value)
 	if err != nil {
-		if err == mockstate.ErrNotFound {
+		if err == mockstate.ErrNotFound { //FIXME: is it ok to check mock error here?
 			return Unit{}, nil
 		}
 		return nil, errors.Wrap(err, funcName)
@@ -1162,6 +1162,7 @@ func NativeAssetInfo(s Scope, e Exprs) (Expr, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
+	//TODO: Do not pass transaction here, replace with passing it's ID
 	issueTx, ok := tx.(proto.IIssueTransaction)
 	if !ok {
 		return nil, errors.Errorf("%s expected first argument to be proto.IIssueTransaction, found %T", funcName, tx)

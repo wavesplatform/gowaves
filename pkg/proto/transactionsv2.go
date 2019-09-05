@@ -40,18 +40,22 @@ type IssueV2 struct {
 	Issue
 }
 
+//TODO: remove this
 func (tx IssueV2) GetSenderPK() crypto.PublicKey {
 	return tx.SenderPK
 }
 
+//TODO: remove this
 func (tx IssueV2) GetReissuable() bool {
 	return tx.Reissuable
 }
 
+//TODO: remove this
 func (tx IssueV2) GetQuantity() uint64 {
 	return tx.Quantity
 }
 
+//TODO: remove this
 func (tx IssueV2) GetDecimals() byte {
 	return tx.Decimals
 }

@@ -6,6 +6,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/types"
 )
 
+//TODO: Rewrite this method to use special method to get AssetInfo from state. With the new method we don't need a whole `transaction` but only it's ID, so change the signature to accept only transaction's ID and get rid of IInterface.
 func newMapAssetInfo(scheme proto.Scheme, state types.SmartState, transaction proto.IIssueTransaction) (object, error) {
 	obj := newObject()
 	id, err := transaction.GetID()

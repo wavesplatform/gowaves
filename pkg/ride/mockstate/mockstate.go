@@ -8,6 +8,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/state"
 )
 
+//TODO: Get rid of this error
 var ErrNotFound = errors.New("Not found")
 
 type MockStateImpl struct {
@@ -42,7 +43,7 @@ func (a MockStateImpl) TransactionByID(b []byte) (proto.Transaction, error) {
 func (a MockStateImpl) TransactionHeightByID(b []byte) (uint64, error) {
 	h, ok := a.TransactionsHeightByID[base58.Encode(b)]
 	if !ok {
-		return 0, ErrNotFound
+		return 0, ErrNotFound //FIXME: return proper error
 	}
 	return h, nil
 }

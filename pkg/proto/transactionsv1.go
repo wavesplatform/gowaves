@@ -47,6 +47,7 @@ const (
 	maxInvokeScriptV1Bytes       = 5 * 1024
 )
 
+//TODO: remove this after switching to new method to get AssetInfo in RIDE
 type IIssueTransaction interface {
 	Transaction
 	GetSenderPK() crypto.PublicKey
@@ -65,9 +66,13 @@ type IssueV1 struct {
 	Issue
 }
 
+//TODO: remove this
+
 func (tx IssueV1) GetQuantity() uint64 {
 	return tx.Quantity
 }
+
+//TODO: remove this
 
 func (tx IssueV1) GetDecimals() byte {
 	return tx.Decimals
@@ -95,15 +100,18 @@ func (tx IssueV1) GetID() ([]byte, error) {
 	return tx.ID.Bytes(), nil
 }
 
+//TODO: remove this
 //NonEmptyScript returns true if the script of the transaction is not empty, otherwise false.
 func (tx *IssueV1) NonEmptyScript() bool {
 	return false
 }
 
+//TODO: remove this
 func (tx *IssueV1) GetSenderPK() crypto.PublicKey {
 	return tx.SenderPK
 }
 
+//TODO: remove this
 func (tx *IssueV1) GetReissuable() bool {
 	return tx.Reissuable
 }
