@@ -34,6 +34,7 @@ func (err StateError) Error() string {
 	return err.originalError.Error()
 }
 
+//TODO: Check that this is OK
 func IsNotFound(err error) bool {
 	if err == nil {
 		return false

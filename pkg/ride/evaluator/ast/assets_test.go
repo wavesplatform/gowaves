@@ -10,7 +10,7 @@ import (
 )
 
 func TestNewMapAssetInfoV1(t *testing.T) {
-	state := mockstate.MockStateImpl{
+	state := mockstate.State{
 		AssetIsSponsored: true,
 	}
 	tx := byte_helpers.IssueV1.Transaction.Clone()
@@ -27,7 +27,7 @@ func TestNewMapAssetInfoV1(t *testing.T) {
 }
 
 func TestNewMapAssetInfoV2(t *testing.T) {
-	state := mockstate.MockStateImpl{
+	state := mockstate.State{
 		AssetIsSponsored: true,
 	}
 	tx := byte_helpers.IssueV2.Transaction.Clone()

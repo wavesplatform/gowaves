@@ -20,7 +20,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"github.com/wavesplatform/gowaves/pkg/ride/mockstate"
 	"github.com/wavesplatform/gowaves/pkg/state"
 )
 
@@ -414,7 +413,7 @@ func NativeTransactionHeightByID(s Scope, e Exprs) (Expr, error) {
 	}
 	height, err := s.State().TransactionHeightByID(bts.Value)
 	if err != nil {
-		if err == mockstate.ErrNotFound { //FIXME: is it ok to check mock error here?
+		if state.IsNotFound(err) {
 			return Unit{}, nil
 		}
 		return nil, errors.Wrap(err, funcName)
@@ -1951,8 +1950,10 @@ func dataFromState(s Scope, e Exprs) (Expr, error) {
 	}
 	d, err := s.State().RetrieveNewestEntry(r, key.Value)
 	if err != nil {
-		//TODO: it is better to return unit only on NotFound error
-		return NewUnit(), nil
+		if state.IsNotFound(err) {
+			return NewUnit(), nil
+		}
+		return nil, err
 	}
 	switch v := d.(type) {
 	case *proto.IntegerDataEntry:

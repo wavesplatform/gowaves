@@ -261,7 +261,7 @@ func TestNativeTransactionByID(t *testing.T) {
 
 func TestNativeTransferTransactionByID(t *testing.T) {
 	t.Run("transfer v1", func(t *testing.T) {
-		scope := newScopeWithState(&mockstate.MockStateImpl{
+		scope := newScopeWithState(&mockstate.State{
 			TransactionsByID: map[string]proto.Transaction{
 				byte_helpers.TransferV1.Transaction.ID.String(): byte_helpers.TransferV1.Transaction.Clone(),
 			},
@@ -272,7 +272,7 @@ func TestNativeTransferTransactionByID(t *testing.T) {
 		require.Equal(t, "TransferTransaction", rs.InstanceOf())
 	})
 	t.Run("transfer v2", func(t *testing.T) {
-		scope := newScopeWithState(&mockstate.MockStateImpl{
+		scope := newScopeWithState(&mockstate.State{
 			TransactionsByID: map[string]proto.Transaction{
 				byte_helpers.TransferV2.Transaction.ID.String(): byte_helpers.TransferV2.Transaction.Clone(),
 			},
@@ -283,7 +283,7 @@ func TestNativeTransferTransactionByID(t *testing.T) {
 		require.Equal(t, "TransferTransaction", rs.InstanceOf())
 	})
 	t.Run("not found", func(t *testing.T) {
-		scope := newScopeWithState(&mockstate.MockStateImpl{})
+		scope := newScopeWithState(&mockstate.State{})
 		rs, err := NativeTransferTransactionByID(scope, Params(NewBytes(byte_helpers.TransferV2.Transaction.ID.Bytes())))
 		require.NoError(t, err)
 		require.Equal(t, NewUnit(), rs)
@@ -1196,7 +1196,7 @@ func TestNativeBlockInfoByHeight(t *testing.T) {
 		BlockSignature:   signa,
 		Height:           659687,
 	}
-	state := mockstate.MockStateImpl{
+	state := mockstate.State{
 		BlockHeaderByHeight: &h,
 	}
 	s := newScopeWithState(state)
@@ -1214,7 +1214,7 @@ func TestNativeBlockInfoByHeight(t *testing.T) {
 
 func TestNativeAssetInfo(t *testing.T) {
 	tx := byte_helpers.IssueV1.Transaction.Clone()
-	s := mockstate.MockStateImpl{
+	s := mockstate.State{
 		TransactionsByID: map[string]proto.Transaction{tx.ID.String(): tx},
 	}
 	rs, err := NativeAssetInfo(newScopeWithState(s), Params(NewBytes(tx.ID.Bytes())))
@@ -1245,7 +1245,7 @@ func TestNativeParseBlockHeader(t *testing.T) {
 		Height:                 659687,
 		TransactionBlockLength: 4,
 	}
-	state := mockstate.MockStateImpl{
+	state := mockstate.State{
 		BlockHeaderByHeight: &h,
 	}
 	s := newScopeWithState(state)

@@ -8,9 +8,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/state"
 )
 
-//TODO: Get rid of this error
-var ErrNotFound = errors.New("Not found")
-
 type State struct {
 	TransactionsByID       map[string]proto.Transaction
 	TransactionsHeightByID map[string]uint64
@@ -47,7 +44,7 @@ func (a State) TransactionByID(b []byte) (proto.Transaction, error) {
 func (a State) TransactionHeightByID(b []byte) (uint64, error) {
 	h, ok := a.TransactionsHeightByID[base58.Encode(b)]
 	if !ok {
-		return 0, ErrNotFound //FIXME: return proper error
+		return 0, state.NewNotFoundError(errors.New("not found"))
 	}
 	return h, nil
 }
