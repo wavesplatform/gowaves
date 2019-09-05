@@ -1077,54 +1077,54 @@ func NativeDataStringFromArray(s Scope, e Exprs) (Expr, error) {
 
 // Get integer from account state
 func NativeDataIntegerFromState(s Scope, e Exprs) (Expr, error) {
-	d, err := dataFromState(s, e)
+	r, k, err := extractRecipientAndKey(s, e)
 	if err != nil {
 		return nil, errors.Wrap(err, "NativeDataIntegerFromState")
 	}
-	_, ok := d.(*LongExpr)
-	if !ok {
+	entry, err := s.State().RetrieveNewestIntegerEntry(r, k)
+	if err != nil {
 		return NewUnit(), nil
 	}
-	return d, nil
+	return NewLong(entry.Value), nil
 }
 
 // Get bool from account state
 func NativeDataBooleanFromState(s Scope, e Exprs) (Expr, error) {
-	d, err := dataFromState(s, e)
+	r, k, err := extractRecipientAndKey(s, e)
 	if err != nil {
 		return nil, errors.Wrap(err, "NativeDataBooleanFromState")
 	}
-	_, ok := d.(*BooleanExpr)
-	if !ok {
+	entry, err := s.State().RetrieveNewestBooleanEntry(r, k)
+	if err != nil {
 		return NewUnit(), nil
 	}
-	return d, nil
+	return NewBoolean(entry.Value), nil
 }
 
 // Get bytes from account state
 func NativeDataBinaryFromState(s Scope, e Exprs) (Expr, error) {
-	d, err := dataFromState(s, e)
+	r, k, err := extractRecipientAndKey(s, e)
 	if err != nil {
 		return nil, errors.Wrap(err, "NativeDataBinaryFromState")
 	}
-	_, ok := d.(*BytesExpr)
-	if !ok {
+	entry, err := s.State().RetrieveNewestBinaryEntry(r, k)
+	if err != nil {
 		return NewUnit(), nil
 	}
-	return d, nil
+	return NewBytes(entry.Value), nil
 }
 
 // Get string from account state
 func NativeDataStringFromState(s Scope, e Exprs) (Expr, error) {
-	d, err := dataFromState(s, e)
+	r, k, err := extractRecipientAndKey(s, e)
 	if err != nil {
 		return nil, errors.Wrap(err, "NativeDataStringFromState")
 	}
-	_, ok := d.(*StringExpr)
-	if !ok {
+	entry, err := s.State().RetrieveNewestStringEntry(r, k)
+	if err != nil {
 		return NewUnit(), nil
 	}
-	return d, nil
+	return NewString(entry.Value), nil
 }
 
 func NativeAddressFromRecipient(s Scope, e Exprs) (Expr, error) {
@@ -1923,13 +1923,13 @@ func dataFromArray(s Scope, e Exprs) (Expr, error) {
 	return NewUnit(), nil
 }
 
-func dataFromState(s Scope, e Exprs) (Expr, error) {
+func extractRecipientAndKey(s Scope, e Exprs) (proto.Recipient, string, error) {
 	if l := len(e); l != 2 {
-		return nil, errors.Errorf("invalid params, expected 2, passed %d", l)
+		return proto.Recipient{}, "", errors.Errorf("invalid params, expected 2, passed %d", l)
 	}
 	addOrAliasExpr, err := e[0].Evaluate(s.Clone())
 	if err != nil {
-		return nil, err
+		return proto.Recipient{}, "", err
 	}
 	var r proto.Recipient
 	switch a := addOrAliasExpr.(type) {
@@ -1938,35 +1938,17 @@ func dataFromState(s Scope, e Exprs) (Expr, error) {
 	case AddressExpr:
 		r = proto.NewRecipientFromAddress(proto.Address(a))
 	default:
-		return nil, errors.Errorf("expected first argument of types AliasExpr of AddressExpr, found %T", addOrAliasExpr)
+		return proto.Recipient{}, "", errors.Errorf("expected first argument of types AliasExpr of AddressExpr, found %T", addOrAliasExpr)
 	}
 	second, err := e[1].Evaluate(s.Clone())
 	if err != nil {
-		return nil, err
+		return proto.Recipient{}, "", err
 	}
 	key, ok := second.(*StringExpr)
 	if !ok {
-		return nil, errors.Errorf("second argument expected to be *StringExpr, found %T", second)
+		return proto.Recipient{}, "", errors.Errorf("second argument expected to be *StringExpr, found %T", second)
 	}
-	d, err := s.State().RetrieveNewestEntry(r, key.Value)
-	if err != nil {
-		if state.IsNotFound(err) {
-			return NewUnit(), nil
-		}
-		return nil, err
-	}
-	switch v := d.(type) {
-	case *proto.IntegerDataEntry:
-		return NewLong(v.Value), nil
-	case *proto.BooleanDataEntry:
-		return NewBoolean(v.Value), nil
-	case *proto.BinaryDataEntry:
-		return NewBytes(v.Value), nil
-	case *proto.StringDataEntry:
-		return NewString(v.Value), nil
-	default:
-		return nil, errors.Errorf("unsupported entry type '%T'", d)
-	}
+	return r, key.Value, nil
 }
 
 func dataFromArrayByIndex(s Scope, e Exprs) (Expr, error) {
