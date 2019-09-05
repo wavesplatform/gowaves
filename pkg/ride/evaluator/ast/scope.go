@@ -36,6 +36,7 @@ func (a *ScopeImpl) Clone() Scope {
 		funcs:  a.funcs.Clone(),
 		parent: a,
 		state:  a.state,
+		scheme: a.scheme,
 	}
 }
 
@@ -138,14 +139,14 @@ func FunctionsV2() *Functions {
 	native[1001] = NativeTransactionHeightByID
 	native[1003] = NativeAssetBalance
 
-	native[1040] = NativeDataLongFromArray
+	native[1040] = NativeDataIntegerFromArray
 	native[1041] = NativeDataBooleanFromArray
 	native[1042] = NativeDataBinaryFromArray
 	native[1043] = NativeDataStringFromArray
 
-	native[1050] = NativeDataLongFromState
+	native[1050] = NativeDataIntegerFromState
 	native[1051] = NativeDataBooleanFromState
-	native[1052] = NativeDataBytesFromState
+	native[1052] = NativeDataBinaryFromState
 	native[1053] = NativeDataStringFromState
 
 	native[1060] = NativeAddressFromRecipient
@@ -174,6 +175,7 @@ func FunctionsV2() *Functions {
 	// type constructors
 	user["Address"] = UserAddress
 	user["Alias"] = UserAlias
+	user["DataEntry"] = DataEntry
 
 	return &Functions{
 		native: native,
@@ -232,7 +234,20 @@ func FunctionsV3() *Functions {
 	s.user["Unit"] = SimpleTypeConstructorFactory("Unit", Unit{})
 
 	// New user functions
-	s.user["parseIntValue"] = UserParseIntValue
+	s.user["@extrNative(1050)"] = wrapWithExtract(NativeDataIntegerFromState, "UserDataIntegerValueFromState")
+	s.user["@extrNative(1051)"] = wrapWithExtract(NativeDataBooleanFromState, "UserDataBooleanValueFromState")
+	s.user["@extrNative(1052)"] = wrapWithExtract(NativeDataBinaryFromState, "UserDataBinaryValueFromState")
+	s.user["@extrNative(1053)"] = wrapWithExtract(NativeDataStringFromState, "UserDataStringValueFromState")
+	s.user["@extrNative(1040)"] = wrapWithExtract(NativeDataIntegerFromArray, "UserDataIntegerValueFromArray")
+	s.user["@extrNative(1041)"] = wrapWithExtract(NativeDataBooleanFromArray, "UserDataBooleanValueFromArray")
+	s.user["@extrNative(1042)"] = wrapWithExtract(NativeDataBinaryFromArray, "UserDataBinaryValueFromArray")
+	s.user["@extrNative(1043)"] = wrapWithExtract(NativeDataStringFromArray, "UserDataStringValueFromArray")
+	s.user["@extrUser(getInteger)"] = wrapWithExtract(UserDataIntegerFromArrayByIndex, "UserDataIntegerValueFromArrayByIndex")
+	s.user["@extrUser(getBoolean)"] = wrapWithExtract(UserDataBooleanFromArrayByIndex, "UserDataBooleanValueFromArrayByIndex")
+	s.user["@extrUser(getBinary)"] = wrapWithExtract(UserDataBinaryFromArrayByIndex, "UserDataBinaryValueFromArrayByIndex")
+	s.user["@extrUser(getString)"] = wrapWithExtract(UserDataStringFromArrayByIndex, "UserDataStringValueFromArrayByIndex")
+	s.user["@extrUser(addressFromString)"] = wrapWithExtract(UserAddressFromString, "UserAddressValueFromString")
+	s.user["parseIntValue"] = wrapWithExtract(NativeParseInt, "UserParseIntValue")
 	s.user["value"] = UserValue
 	s.user["valueOrErrorMessage"] = UserValueOrErrorMessage
 	return s
