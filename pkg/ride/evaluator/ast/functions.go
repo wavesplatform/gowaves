@@ -411,7 +411,7 @@ func NativeTransactionHeightByID(s Scope, e Exprs) (Expr, error) {
 	if !ok {
 		return nil, errors.Errorf("%s: expected first argument to be *BytesExpr, got %T", funcName, rs)
 	}
-	height, err := s.State().TransactionHeightByID(bts.Value)
+	height, err := s.State().NewestTransactionHeightByID(bts.Value)
 	if err != nil {
 		if err == mockstate.ErrNotFound {
 			return Unit{}, nil
@@ -435,7 +435,7 @@ func NativeTransactionByID(s Scope, e Exprs) (Expr, error) {
 	if !ok {
 		return nil, errors.Errorf("%s: expected first argument to be *BytesExpr, got %T", funcName, rs)
 	}
-	tx, err := s.State().TransactionByID(bts.Value)
+	tx, err := s.State().NewestTransactionByID(bts.Value)
 	if err != nil {
 		// TODO put real state check
 		if err == mockstate.ErrNotFound {

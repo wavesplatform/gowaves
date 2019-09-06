@@ -44,8 +44,8 @@ type TransactionWithBytes struct {
 // state for smart contracts
 type SmartState interface {
 	NewestHeight() (uint64, error)
-	TransactionByID([]byte) (proto.Transaction, error)
-	TransactionHeightByID([]byte) (uint64, error)
+	NewestTransactionByID([]byte) (proto.Transaction, error)
+	NewestTransactionHeightByID([]byte) (uint64, error)
 
 	// NewestAccountBalance retrieves balance of address in specific currency, asset is asset's ID.
 	// nil asset = Waves.

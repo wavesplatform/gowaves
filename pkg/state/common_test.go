@@ -319,3 +319,19 @@ func generateRandomRecipient(t *testing.T) proto.Recipient {
 	assert.NoError(t, err, "NewAddressFromPublicKey() failed")
 	return proto.NewRecipientFromAddress(addr)
 }
+
+func existingGenesisTx(t *testing.T) proto.Transaction {
+	sig, err := crypto.NewSignatureFromBase58("2DVtfgXjpMeFf2PQCqvwxAiaGbiDsxDjSdNQkc5JQ74eWxjWFYgwvqzC4dn7iB1AhuM32WxEiVi1SGijsBtYQwn8")
+	assert.NoError(t, err, "NewSignatureFromBase58() failed")
+	addr, err := proto.NewAddressFromString("3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ")
+	assert.NoError(t, err, "NewAddressFromString() failed")
+	return &proto.Genesis{
+		Type:      proto.GenesisTransaction,
+		Version:   1,
+		ID:        &sig,
+		Signature: &sig,
+		Timestamp: 1465742577614,
+		Recipient: addr,
+		Amount:    9999999500000000,
+	}
+}

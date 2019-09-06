@@ -77,6 +77,10 @@ func (a *MockStateManager) HeaderByHeight(height uint64) (*proto.BlockHeader, er
 	return &rs.BlockHeader, nil
 }
 
+func (a *MockStateManager) NewestHeight() (proto.Height, error) {
+	panic("implement me")
+}
+
 func (a *MockStateManager) Height() (proto.Height, error) {
 	return proto.Height(len(a.state)), nil
 }
@@ -209,6 +213,22 @@ func (a *MockStateManager) RetrieveNewestStringEntry(account proto.Recipient, ke
 }
 
 func (a *MockStateManager) RetrieveNewestBinaryEntry(account proto.Recipient, key string) (*proto.BinaryDataEntry, error) {
+	panic("implement me")
+}
+
+func (a *MockStateManager) NewestTransactionHeightByID(id []byte) (proto.Height, error) {
+	panic("implement me")
+}
+
+func (a *MockStateManager) TransactionHeightByID(id []byte) (proto.Height, error) {
+	panic("implement me")
+}
+
+func (a *MockStateManager) NewestTransactionByID(id []byte) (proto.Transaction, error) {
+	panic("implement me")
+}
+
+func (a *MockStateManager) TransactionByID(id []byte) (proto.Transaction, error) {
 	panic("implement me")
 }
 

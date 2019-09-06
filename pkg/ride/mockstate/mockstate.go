@@ -27,7 +27,7 @@ func (a MockStateImpl) RetrieveNewestEntry(account proto.Recipient, key string) 
 	return a.DataEntry, nil
 }
 
-func (a MockStateImpl) TransactionByID(b []byte) (proto.Transaction, error) {
+func (a MockStateImpl) NewestTransactionByID(b []byte) (proto.Transaction, error) {
 	t, ok := a.TransactionsByID[base58.Encode(b)]
 	if !ok {
 		return nil, ErrNotFound
@@ -35,7 +35,7 @@ func (a MockStateImpl) TransactionByID(b []byte) (proto.Transaction, error) {
 	return t, nil
 }
 
-func (a MockStateImpl) TransactionHeightByID(b []byte) (uint64, error) {
+func (a MockStateImpl) NewestTransactionHeightByID(b []byte) (uint64, error) {
 	h, ok := a.TransactionsHeightByID[base58.Encode(b)]
 	if !ok {
 		return 0, ErrNotFound

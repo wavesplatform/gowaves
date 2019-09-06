@@ -37,6 +37,8 @@ const (
 	// IDs of blocks and transactions --> offsets in files.
 	blockOffsetKeyPrefix
 	txOffsetKeyPrefix
+	// Transaction heights by IDs.
+	txHeightKeyPrefix
 
 	// Minimum height to which rollback is possible.
 	rollbackMinHeightKeyPrefix
@@ -187,6 +189,17 @@ type txOffsetKey struct {
 func (k *txOffsetKey) bytes() []byte {
 	buf := make([]byte, 1+crypto.DigestSize)
 	buf[0] = txOffsetKeyPrefix
+	copy(buf[1:], k.txID)
+	return buf
+}
+
+type txHeightKey struct {
+	txID []byte
+}
+
+func (k *txHeightKey) bytes() []byte {
+	buf := make([]byte, 1+crypto.DigestSize)
+	buf[0] = txHeightKeyPrefix
 	copy(buf[1:], k.txID)
 	return buf
 }

@@ -102,7 +102,7 @@ func BytesToTransaction(tx []byte) (Transaction, error) {
 	if tx[0] == 0 {
 		transactionType, ok := bytesToTransactionsV2[TransactionType(tx[1])]
 		if !ok {
-			return nil, errors.New("invalid transaction type")
+			return nil, errors.Errorf("invalid transaction type %v", tx[1])
 		}
 		transaction, ok := reflect.New(transactionType).Interface().(Transaction)
 		if !ok {
@@ -115,7 +115,7 @@ func BytesToTransaction(tx []byte) (Transaction, error) {
 	} else {
 		transactionType, ok := bytesToTransactionsV1[TransactionType(tx[0])]
 		if !ok {
-			return nil, errors.New("invalid transaction type")
+			return nil, errors.Errorf("invalid transaction type %v", tx[0])
 		}
 		transaction, ok := reflect.New(transactionType).Interface().(Transaction)
 		if !ok {

@@ -114,7 +114,6 @@ func (s *blockchainEntitiesStorage) flush(initialisation bool) error {
 type txAppender struct {
 	state types.SmartState
 
-	// rw is needed to check for duplicate tx IDs.
 	rw *blockReadWriter
 
 	stor     *blockchainEntitiesStorage
@@ -299,6 +298,15 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 		if err := a.diffStor.saveTxDiff(txDiff); err != nil {
 			return err
 		}
+		// Save transaction to storage.
+		// TODO: not all transactions implement WriteTo.
+		bts, err := tx.MarshalBinary()
+		if err != nil {
+			return err
+		}
+		if err := a.rw.writeTransaction(txID, bts); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -472,7 +480,7 @@ func newStateManager(dataDir string, params StateParams, settings *settings.Bloc
 	}
 	// Set fields which depend on state.
 	// Consensus validator is needed to check block headers.
-	appender, err := newTxAppender(nil, rw, stor, settings)
+	appender, err := newTxAppender(state, rw, stor, settings)
 	if err != nil {
 		return nil, wrapErr(Other, err)
 	}
@@ -670,6 +678,10 @@ func (s *stateManager) BlockBytesByHeight(height uint64) ([]byte, error) {
 	return s.BlockBytes(blockID)
 }
 
+func (s *stateManager) NewestHeight() (uint64, error) {
+	return s.rw.recentHeight(), nil
+}
+
 func (s *stateManager) Height() (uint64, error) {
 	height, err := s.rw.currentHeight()
 	if err != nil {
@@ -820,25 +832,6 @@ func (s *stateManager) addFeaturesVotes(block *proto.Block) error {
 	return nil
 }
 
-func (s *stateManager) writeTransactionsToStorage(transactions []proto.Transaction) error {
-	for _, tx := range transactions {
-		// Save transaction to storage.
-		txID, err := tx.GetID()
-		if err != nil {
-			return err
-		}
-		// TODO: not all transactions implement WriteTo.
-		bts, err := tx.MarshalBinary()
-		if err != nil {
-			return err
-		}
-		if err := s.rw.writeTransaction(txID, bts); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 func (s *stateManager) verifyTransactions(transactions []proto.Transaction, chans *verifierChans, initialisation bool) (map[string]struct{}, error) {
 	scriptedTransactionIds := make(map[string]struct{})
 	for _, tx := range transactions {
@@ -889,7 +882,6 @@ func (s *stateManager) addNewBlock(block, parent *proto.Block, initialisation bo
 	if err := s.rw.writeBlockHeader(block.BlockSignature, headerBytes); err != nil {
 		return err
 	}
-	// Write transactions to storage and verify them.
 	transactions, err := block.Transactions.Transactions()
 	if err != nil {
 		return err
@@ -897,9 +889,7 @@ func (s *stateManager) addNewBlock(block, parent *proto.Block, initialisation bo
 	if block.TransactionCount != transactions.Count() {
 		return errors.Errorf("block.TransactionCount != transactions.Count(), %d != %d", block.TransactionCount, transactions.Count())
 	}
-	if err := s.writeTransactionsToStorage(transactions); err != nil {
-		return err
-	}
+	// Start verifying txs signatures, detect scripted transactions.
 	scriptedIds, err := s.verifyTransactions(transactions, chans, initialisation)
 	if err != nil {
 		return err
@@ -916,7 +906,7 @@ func (s *stateManager) addNewBlock(block, parent *proto.Block, initialisation bo
 		height:         height,
 		initialisation: initialisation,
 	}
-	// Check and perform block's transactions, create balance diffs.
+	// Check and perform block's transactions, create balance diffs, write transactions to storage.
 	if err := s.appender.appendBlock(params); err != nil {
 		return err
 	}
@@ -1295,7 +1285,7 @@ func (s *stateManager) addBlocks(blocks [][]byte, initialisation bool) (*proto.B
 		if err != nil {
 			return nil, wrapErr(Other, err)
 		}
-		if err := s.stor.scores.addScore(prevScore, score, s.rw.recentHeight()); err != nil {
+		if err := s.stor.scores.addScore(prevScore, score, curHeight+1); err != nil {
 			return nil, wrapErr(ModificationError, err)
 		}
 		prevScore = score
@@ -1672,6 +1662,46 @@ func (s *stateManager) RetrieveBinaryEntry(account proto.Recipient, key string) 
 		return nil, wrapErr(RetrievalError, err)
 	}
 	return entry, nil
+}
+
+func (s *stateManager) NewestTransactionByID(id []byte) (proto.Transaction, error) {
+	txBytes, err := s.rw.readNewestTransaction(id)
+	if err != nil {
+		return nil, wrapErr(RetrievalError, err)
+	}
+	tx, err := proto.BytesToTransaction(txBytes)
+	if err != nil {
+		return nil, wrapErr(DeserializationError, err)
+	}
+	return tx, nil
+}
+
+func (s *stateManager) TransactionByID(id []byte) (proto.Transaction, error) {
+	txBytes, err := s.rw.readTransaction(id)
+	if err != nil {
+		return nil, wrapErr(RetrievalError, err)
+	}
+	tx, err := proto.BytesToTransaction(txBytes)
+	if err != nil {
+		return nil, wrapErr(DeserializationError, err)
+	}
+	return tx, nil
+}
+
+func (s *stateManager) NewestTransactionHeightByID(id []byte) (uint64, error) {
+	txHeight, err := s.rw.newestTransactionHeightByID(id)
+	if err != nil {
+		return 0, wrapErr(RetrievalError, err)
+	}
+	return txHeight, nil
+}
+
+func (s *stateManager) TransactionHeightByID(id []byte) (uint64, error) {
+	txHeight, err := s.rw.transactionHeightByID(id)
+	if err != nil {
+		return 0, wrapErr(RetrievalError, err)
+	}
+	return txHeight, nil
 }
 
 func (s *stateManager) Close() error {
