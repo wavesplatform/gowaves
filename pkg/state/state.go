@@ -252,17 +252,16 @@ func (a *txAppender) checkTxAgainstState(tx proto.Transaction, scripted bool, ch
 
 func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	hasParent := (params.parent != nil)
-	// Create balance diffs of all transactions.
-	blockDiff, err := a.blockDiffer.createBlockDiff(params.transactions, params.block, params.initialisation, hasParent)
+	// Create miner balance diff.
+	minerDiff, err := a.blockDiffer.createMinerDiff(params.transactions, params.block, hasParent)
 	if err != nil {
 		return err
 	}
 	// Save miner diff first.
-	if err := a.diffStor.saveTxDiff(blockDiff.minerDiff); err != nil {
+	if err := a.diffStor.saveTxDiff(minerDiff); err != nil {
 		return err
 	}
-	for i, tx := range params.transactions {
-		txDiff := blockDiff.txDiffs[i]
+	for _, tx := range params.transactions {
 		checkerInfo := &checkerInfo{
 			initialisation:   params.initialisation,
 			currentTimestamp: params.block.Timestamp,
@@ -294,11 +293,16 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 		if err := a.txHandler.performTx(tx, performerInfo); err != nil {
 			return err
 		}
+		// Create balance diff of this tx.
+		txDiff, err := a.blockDiffer.createTransactionDiff(tx, params.block, params.initialisation)
+		if err != nil {
+			return err
+		}
 		// Save balance diff of this tx.
 		if err := a.diffStor.saveTxDiff(txDiff); err != nil {
 			return err
 		}
-		// Save transaction to storage.
+		// Save transaction bytes to storage.
 		// TODO: not all transactions implement WriteTo.
 		bts, err := tx.MarshalBinary()
 		if err != nil {

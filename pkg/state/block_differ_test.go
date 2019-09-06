@@ -64,10 +64,10 @@ func TestCreateBlockDiffWithoutNg(t *testing.T) {
 	block, _ := genBlocks(t, to)
 	txs, err := block.Transactions.Transactions()
 	assert.NoError(t, err, "Transactions() failed")
-	diff, err := to.blockDiffer.createBlockDiff(txs, &block.BlockHeader, true, true)
-	assert.NoError(t, err, "createBlockDiff() failed")
+	minerDiff, err := to.blockDiffer.createMinerDiff(txs, &block.BlockHeader, true)
+	assert.NoError(t, err, "createMinerDiff() failed")
 	// Empty miner diff before NG activation.
-	assert.Equal(t, txDiff{}, diff.minerDiff)
+	assert.Equal(t, txDiff{}, minerDiff)
 }
 
 func TestCreateBlockDiffNg(t *testing.T) {
@@ -87,8 +87,8 @@ func TestCreateBlockDiffNg(t *testing.T) {
 	// Create diff from parent block.
 	txs, err := parent.Transactions.Transactions()
 	assert.NoError(t, err, "Transactions() failed")
-	_, err = to.blockDiffer.createBlockDiff(txs, &parent.BlockHeader, true, false)
-	assert.NoError(t, err, "createBlockDiff() failed")
+	_, err = to.blockDiffer.createMinerDiff(txs, &parent.BlockHeader, false)
+	assert.NoError(t, err, "createMinerDiff() failed")
 	parentFeeTotal := int64(txs[0].GetFee())
 	parentFeePrevBlock := parentFeeTotal / 5 * 2
 	parentFeeNextBlock := parentFeeTotal - parentFeePrevBlock
@@ -96,15 +96,15 @@ func TestCreateBlockDiffNg(t *testing.T) {
 	// Create diff from child block.
 	txs, err = child.Transactions.Transactions()
 	assert.NoError(t, err, "Transactions() failed")
-	diff, err := to.blockDiffer.createBlockDiff(txs, &child.BlockHeader, true, true)
-	assert.NoError(t, err, "createBlockDiff() failed")
+	minerDiff, err := to.blockDiffer.createMinerDiff(txs, &child.BlockHeader, true)
+	assert.NoError(t, err, "createMinerDiff() failed")
 	// Verify child block miner's diff.
 	correctMinerAssetBalanceDiff := newBalanceDiff(parentFeeNextBlock, 0, 0, false)
 	correctMinerAssetBalanceDiff.blockID = child.BlockSignature
 	correctMinerDiff := txDiff{
 		testGlobal.minerInfo.assetKey: correctMinerAssetBalanceDiff,
 	}
-	assert.Equal(t, correctMinerDiff, diff.minerDiff)
+	assert.Equal(t, correctMinerDiff, minerDiff)
 }
 
 func TestCreateBlockDiffSponsorship(t *testing.T) {
@@ -134,8 +134,8 @@ func TestCreateBlockDiffSponsorship(t *testing.T) {
 	// Create diff from parent block.
 	txs, err := parent.Transactions.Transactions()
 	assert.NoError(t, err, "Transactions() failed")
-	_, err = to.blockDiffer.createBlockDiff(txs, &parent.BlockHeader, true, false)
-	assert.NoError(t, err, "createBlockDiff() failed")
+	_, err = to.blockDiffer.createMinerDiff(txs, &parent.BlockHeader, false)
+	assert.NoError(t, err, "createMinerDiff() failed")
 	parentFeeTotal := int64(txs[0].GetFee() * FeeUnit / assetCost)
 	parentFeePrevBlock := parentFeeTotal / 5 * 2
 	parentFeeNextBlock := parentFeeTotal - parentFeePrevBlock
@@ -143,13 +143,13 @@ func TestCreateBlockDiffSponsorship(t *testing.T) {
 	// Create diff from child block.
 	txs, err = child.Transactions.Transactions()
 	assert.NoError(t, err, "Transactions() failed")
-	diff, err := to.blockDiffer.createBlockDiff(txs, &child.BlockHeader, true, true)
-	assert.NoError(t, err, "createBlockDiff() failed")
+	minerDiff, err := to.blockDiffer.createMinerDiff(txs, &child.BlockHeader, true)
+	assert.NoError(t, err, "createMinerDiff() failed")
 	// Verify child block miner's diff.
 	correctMinerWavesBalanceDiff := newBalanceDiff(parentFeeNextBlock, 0, 0, false)
 	correctMinerWavesBalanceDiff.blockID = child.BlockSignature
 	correctMinerDiff := txDiff{
 		testGlobal.minerInfo.wavesKey: correctMinerWavesBalanceDiff,
 	}
-	assert.Equal(t, correctMinerDiff, diff.minerDiff)
+	assert.Equal(t, correctMinerDiff, minerDiff)
 }

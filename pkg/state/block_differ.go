@@ -113,47 +113,40 @@ func (d *blockDiffer) createPrevBlockMinerFeeDiff(prevBlockID crypto.Signature, 
 	return diff, nil
 }
 
-func (d *blockDiffer) createTransactionsDiffs(transactions []proto.Transaction, block *proto.BlockHeader, initialisation bool) ([]txDiff, error) {
+func (d *blockDiffer) createTransactionDiff(tx proto.Transaction, block *proto.BlockHeader, initialisation bool) (txDiff, error) {
+	differInfo := &differInfo{initialisation, block.GenPublicKey, block.Timestamp}
+	diff, err := d.handler.createDiffTx(tx, differInfo)
+	if err != nil {
+		return txDiff{}, err
+	}
+	d.appendBlockInfoToTxDiff(diff, block)
+	return diff, nil
+}
+
+func (d *blockDiffer) createMinerDiff(transactions []proto.Transaction, block *proto.BlockHeader, hasParent bool) (txDiff, error) {
 	d.curDistr = newFeeDistribution()
-	diffs := make([]txDiff, len(transactions))
-	for i, tx := range transactions {
-		differInfo := &differInfo{initialisation, block.GenPublicKey, block.Timestamp}
-		diff, err := d.handler.createDiffTx(tx, differInfo)
+	var err error
+	var minerDiff txDiff
+	if hasParent {
+		minerDiff, err = d.createPrevBlockMinerFeeDiff(block.Parent, block.GenPublicKey)
 		if err != nil {
-			return nil, err
+			return txDiff{}, err
 		}
-		diffs[i] = diff
-		d.appendBlockInfoToTxDiff(diffs[i], block)
+		d.appendBlockInfoToTxDiff(minerDiff, block)
+	}
+	for _, tx := range transactions {
 		if err := d.handler.minerFeeTx(tx, &d.curDistr); err != nil {
-			return nil, err
+			return txDiff{}, err
 		}
 	}
 	// Save fee distribution to DB.
 	if err := d.stor.blocksInfo.saveFeeDistribution(block.BlockSignature, &d.curDistr); err != nil {
-		return nil, err
+		return txDiff{}, err
 	}
 	// Update fee distribution.
 	d.prevDistr = d.curDistr
 	d.prevBlockID = block.BlockSignature
-	return diffs, nil
-}
-
-func (d *blockDiffer) createBlockDiff(blockTxs []proto.Transaction, block *proto.BlockHeader, initialisation, hasParent bool) (blockDiff, error) {
-	var diff blockDiff
-	if hasParent {
-		minerDiff, err := d.createPrevBlockMinerFeeDiff(block.Parent, block.GenPublicKey)
-		if err != nil {
-			return blockDiff{}, err
-		}
-		diff.minerDiff = minerDiff
-		d.appendBlockInfoToTxDiff(diff.minerDiff, block)
-	}
-	txDiffs, err := d.createTransactionsDiffs(blockTxs, block, initialisation)
-	if err != nil {
-		return blockDiff{}, err
-	}
-	diff.txDiffs = txDiffs
-	return diff, nil
+	return minerDiff, nil
 }
 
 func (d *blockDiffer) reset() {
