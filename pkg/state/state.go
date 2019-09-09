@@ -253,7 +253,9 @@ func (a *txAppender) checkTxAgainstState(tx proto.Transaction, scripted bool, ch
 func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	hasParent := (params.parent != nil)
 	// Create miner balance diff.
-	minerDiff, err := a.blockDiffer.createMinerDiff(params.transactions, params.block, hasParent)
+	// This adds 60% of prev block fees as very first balance diff of the current block
+	// in case NG is activated, or empty diff otherwise.
+	minerDiff, err := a.blockDiffer.createMinerDiff(params.block, hasParent)
 	if err != nil {
 		return err
 	}
@@ -285,14 +287,6 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 		if err := a.checkTxAgainstState(tx, scripted, checkerInfo); err != nil {
 			return err
 		}
-		// Perform state changes.
-		performerInfo := &performerInfo{
-			initialisation: params.initialisation,
-			blockID:        params.block.BlockSignature,
-		}
-		if err := a.txHandler.performTx(tx, performerInfo); err != nil {
-			return err
-		}
 		// Create balance diff of this tx.
 		txDiff, err := a.blockDiffer.createTransactionDiff(tx, params.block, params.initialisation)
 		if err != nil {
@@ -300,6 +294,18 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 		}
 		// Save balance diff of this tx.
 		if err := a.diffStor.saveTxDiff(txDiff); err != nil {
+			return err
+		}
+		// Count current tx fee.
+		if err := a.blockDiffer.countMinerFee(tx); err != nil {
+			return err
+		}
+		// Perform state changes.
+		performerInfo := &performerInfo{
+			initialisation: params.initialisation,
+			blockID:        params.block.BlockSignature,
+		}
+		if err := a.txHandler.performTx(tx, performerInfo); err != nil {
 			return err
 		}
 		// Save transaction bytes to storage.
@@ -311,6 +317,11 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 		if err := a.rw.writeTransaction(txID, bts); err != nil {
 			return err
 		}
+	}
+	// Save fee distribution of this block.
+	// This will be needed for createMinerDiff() of next block due to NG.
+	if err := a.blockDiffer.saveCurFeeDistr(params.block); err != nil {
+		return err
 	}
 	return nil
 }

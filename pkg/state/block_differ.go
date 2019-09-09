@@ -123,8 +123,26 @@ func (d *blockDiffer) createTransactionDiff(tx proto.Transaction, block *proto.B
 	return diff, nil
 }
 
-func (d *blockDiffer) createMinerDiff(transactions []proto.Transaction, block *proto.BlockHeader, hasParent bool) (txDiff, error) {
+func (d *blockDiffer) countMinerFee(tx proto.Transaction) error {
+	if err := d.handler.minerFeeTx(tx, &d.curDistr); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (d *blockDiffer) saveCurFeeDistr(block *proto.BlockHeader) error {
+	// Save fee distribution to DB.
+	if err := d.stor.blocksInfo.saveFeeDistribution(block.BlockSignature, &d.curDistr); err != nil {
+		return err
+	}
+	// Update fee distribution.
+	d.prevDistr = d.curDistr
+	d.prevBlockID = block.BlockSignature
 	d.curDistr = newFeeDistribution()
+	return nil
+}
+
+func (d *blockDiffer) createMinerDiff(block *proto.BlockHeader, hasParent bool) (txDiff, error) {
 	var err error
 	var minerDiff txDiff
 	if hasParent {
@@ -134,18 +152,6 @@ func (d *blockDiffer) createMinerDiff(transactions []proto.Transaction, block *p
 		}
 		d.appendBlockInfoToTxDiff(minerDiff, block)
 	}
-	for _, tx := range transactions {
-		if err := d.handler.minerFeeTx(tx, &d.curDistr); err != nil {
-			return txDiff{}, err
-		}
-	}
-	// Save fee distribution to DB.
-	if err := d.stor.blocksInfo.saveFeeDistribution(block.BlockSignature, &d.curDistr); err != nil {
-		return txDiff{}, err
-	}
-	// Update fee distribution.
-	d.prevDistr = d.curDistr
-	d.prevBlockID = block.BlockSignature
 	return minerDiff, nil
 }
 
