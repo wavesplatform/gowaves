@@ -2050,7 +2050,7 @@ func (tx SetScriptV1) GetTypeVersion() TransactionTypeVersion {
 
 func (tx *SetScriptV1) GenerateID() {
 	if tx.ID == nil {
-		body, err := tx.bodyMarshalBinary()
+		body, err := tx.BodyMarshalBinary()
 		if err != nil {
 			panic(err.Error())
 		}
@@ -2095,7 +2095,7 @@ func (tx *SetScriptV1) NonEmptyScript() bool {
 	return len(tx.Script) != 0
 }
 
-func (tx *SetScriptV1) bodyMarshalBinary() ([]byte, error) {
+func (tx *SetScriptV1) BodyMarshalBinary() ([]byte, error) {
 	var p int
 	sl := 0
 	if tx.NonEmptyScript() {
@@ -2159,7 +2159,7 @@ func (tx *SetScriptV1) bodyUnmarshalBinary(data []byte) error {
 
 //Sign adds signature as a proof at first position.
 func (tx *SetScriptV1) Sign(secretKey crypto.SecretKey) error {
-	b, err := tx.bodyMarshalBinary()
+	b, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return errors.Wrap(err, "failed to sign SetScriptV1 transaction")
 	}
@@ -2180,7 +2180,7 @@ func (tx *SetScriptV1) Sign(secretKey crypto.SecretKey) error {
 
 //Verify checks that first proof is a valid signature.
 func (tx *SetScriptV1) Verify(publicKey crypto.PublicKey) (bool, error) {
-	b, err := tx.bodyMarshalBinary()
+	b, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return false, errors.Wrap(err, "failed to verify signature of SetScriptV1 transaction")
 	}
@@ -2189,7 +2189,7 @@ func (tx *SetScriptV1) Verify(publicKey crypto.PublicKey) (bool, error) {
 
 //MarshalBinary writes SetScriptV1 transaction to its bytes representation.
 func (tx *SetScriptV1) MarshalBinary() ([]byte, error) {
-	bb, err := tx.bodyMarshalBinary()
+	bb, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal SetScriptV1 transaction to bytes")
 	}
