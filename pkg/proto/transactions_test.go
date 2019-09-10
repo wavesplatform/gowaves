@@ -3561,7 +3561,7 @@ func TestSetScriptV1FromMainNet(t *testing.T) {
 		sig, _ := crypto.NewSignatureFromBase58(tc.sig)
 		s, _ := base64.StdEncoding.DecodeString(tc.script)
 		tx := NewUnsignedSetScriptV1(tc.scheme, spk, s, tc.fee, tc.timestamp)
-		if b, err := tx.bodyMarshalBinary(); assert.NoError(t, err) {
+		if b, err := tx.BodyMarshalBinary(); assert.NoError(t, err) {
 			if h, err := crypto.FastHash(b); assert.NoError(t, err) {
 				assert.Equal(t, id, h)
 			}
@@ -3586,7 +3586,7 @@ func TestSetScriptV1BinaryRoundTrip(t *testing.T) {
 		ts := uint64(time.Now().UnixNano() / 1000000)
 		s, _ := base64.StdEncoding.DecodeString(tc.script)
 		tx := NewUnsignedSetScriptV1(tc.chainID, pk, s, tc.fee, ts)
-		if bb, err := tx.bodyMarshalBinary(); assert.NoError(t, err) {
+		if bb, err := tx.BodyMarshalBinary(); assert.NoError(t, err) {
 			var atx SetScriptV1
 			if err := atx.bodyUnmarshalBinary(bb); assert.NoError(t, err) {
 				assert.Equal(t, tx.Type, atx.Type)

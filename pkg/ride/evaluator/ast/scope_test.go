@@ -10,7 +10,7 @@ import (
 )
 
 func newEmptyScope() Scope {
-	return NewScope(proto.MainNetScheme, mockstate.MockStateImpl{}, EmptyFunctions(), nil)
+	return NewScope(proto.MainNetScheme, mockstate.State{}, EmptyFunctions(), nil)
 }
 
 func newScopeWithState(s types.SmartState) Scope {

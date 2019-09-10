@@ -38,6 +38,9 @@ type StateNewest interface {
 	// Transactions.
 	NewestTransactionByID(id []byte) (proto.Transaction, error)
 	NewestTransactionHeightByID(id []byte) (uint64, error)
+
+	// Asset fee sponsorship.
+	NewestAssetIsSponsored(assetID crypto.Digest) (bool, error)
 }
 
 // StateStable returns information that corresponds to latest fully applied block.
@@ -94,6 +97,9 @@ type StateStable interface {
 	// Transactions.
 	TransactionByID(id []byte) (proto.Transaction, error)
 	TransactionHeightByID(id []byte) (uint64, error)
+
+	// Asset fee sponsorship.
+	AssetIsSponsored(assetID crypto.Digest) (bool, error)
 }
 
 // StateModifier contains all the methods needed to modify node's state.
@@ -146,6 +152,8 @@ type State interface {
 	StateModifier
 	StateStable
 	StateNewest
+
+	IsNotFound(err error) bool
 }
 
 // NewState() creates State.

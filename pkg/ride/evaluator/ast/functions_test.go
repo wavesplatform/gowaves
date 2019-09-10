@@ -14,6 +14,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride/mockstate"
+	"github.com/wavesplatform/gowaves/pkg/util/byte_helpers"
 )
 
 func TestNativeSumLong(t *testing.T) {
@@ -88,11 +89,54 @@ func TestNativeDivLong(t *testing.T) {
 }
 
 func TestUserAddressFromString(t *testing.T) {
-	params1 := NewString("3PJaDyprvekvPXPuAtxrapacuDJopgJRaU3")
-	rs, err := UserAddressFromString(newEmptyScope(), NewExprs(params1))
+	ma, err := proto.NewAddressFromString("3PJaDyprvekvPXPuAtxrapacuDJopgJRaU3")
 	require.NoError(t, err)
-	addr, _ := NewAddressFromString("3PJaDyprvekvPXPuAtxrapacuDJopgJRaU3")
-	assert.Equal(t, addr, rs)
+	ta, err := proto.NewAddressFromString("3MpV2xvvcWUcv8FLDKJ9ZRrQpEyF8nFwRUM")
+	require.NoError(t, err)
+	for _, test := range []struct {
+		expressions Exprs
+		error       bool
+		result      Expr
+	}{
+		{NewExprs(NewString(ma.String())), false, AddressExpr(ma)},
+		{NewExprs(NewString(ta.String())), false, NewUnit()},
+		{NewExprs(NewString("fake address")), false, NewUnit()},
+		{NewExprs(), true, NewUnit()},
+		{NewExprs(NewLong(12345)), true, NewUnit()},
+		{NewExprs(NewString(ma.String()), NewLong(12345)), true, NewUnit()},
+	} {
+		rs, err := UserAddressFromString(newEmptyScope(), test.expressions)
+		if test.error {
+			assert.Error(t, err)
+			continue
+		}
+		assert.Equal(t, test.result, rs)
+	}
+}
+
+func TestUserAddressFromStringValue(t *testing.T) {
+	f := wrapWithExtract(UserAddressFromString, "UserAddressFromStringValue")
+	addr, err := proto.NewAddressFromString("3PJaDyprvekvPXPuAtxrapacuDJopgJRaU3")
+	require.NoError(t, err)
+	for _, test := range []struct {
+		expressions Exprs
+		error       bool
+		result      Expr
+	}{
+		{NewExprs(NewString(addr.String())), false, AddressExpr(addr)},
+		{NewExprs(NewString(addr.String())), false, AddressExpr(addr)},
+		{NewExprs(NewString("fake address")), true, NewUnit()},
+		{NewExprs(), true, NewUnit()},
+		{NewExprs(NewLong(12345)), true, NewUnit()},
+		{NewExprs(NewString(addr.String()), NewLong(12345)), true, NewUnit()},
+	} {
+		rs, err := f(newEmptyScope(), test.expressions)
+		if test.error {
+			assert.Error(t, err)
+			continue
+		}
+		assert.Equal(t, test.result, rs)
+	}
 }
 
 func TestNativeSigVerify(t *testing.T) {
@@ -167,7 +211,7 @@ func TestNativeTransactionHeightByID(t *testing.T) {
 	sign, err := crypto.NewSignatureFromBase58("hVTTxvgCuezXDsZgh3rDreHzf4AULe5LB1J7zveRbBD4nz3Bzb9yJ2aXKchD4Ls3y2fvYAxnpHXx54S9ZghRx67")
 	require.NoError(t, err)
 
-	scope := newScopeWithState(&mockstate.MockStateImpl{
+	scope := newScopeWithState(&mockstate.State{
 		TransactionsHeightByID: map[string]uint64{sign.String(): 15},
 	})
 
@@ -199,7 +243,7 @@ func TestNativeTransactionByID(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, transferV1.Sign(secret))
 
-	scope := newScopeWithState(&mockstate.MockStateImpl{
+	scope := newScopeWithState(&mockstate.State{
 		TransactionsByID: map[string]proto.Transaction{sign.String(): transferV1},
 	})
 
@@ -213,6 +257,37 @@ func TestNativeTransactionByID(t *testing.T) {
 	default:
 		t.Fail()
 	}
+}
+
+func TestNativeTransferTransactionByID(t *testing.T) {
+	t.Run("transfer v1", func(t *testing.T) {
+		scope := newScopeWithState(&mockstate.State{
+			TransactionsByID: map[string]proto.Transaction{
+				byte_helpers.TransferV1.Transaction.ID.String(): byte_helpers.TransferV1.Transaction.Clone(),
+			},
+		})
+
+		rs, err := NativeTransferTransactionByID(scope, Params(NewBytes(byte_helpers.TransferV1.Transaction.ID.Bytes())))
+		require.NoError(t, err)
+		require.Equal(t, "TransferTransaction", rs.InstanceOf())
+	})
+	t.Run("transfer v2", func(t *testing.T) {
+		scope := newScopeWithState(&mockstate.State{
+			TransactionsByID: map[string]proto.Transaction{
+				byte_helpers.TransferV2.Transaction.ID.String(): byte_helpers.TransferV2.Transaction.Clone(),
+			},
+		})
+
+		rs, err := NativeTransferTransactionByID(scope, Params(NewBytes(byte_helpers.TransferV2.Transaction.ID.Bytes())))
+		require.NoError(t, err)
+		require.Equal(t, "TransferTransaction", rs.InstanceOf())
+	})
+	t.Run("not found", func(t *testing.T) {
+		scope := newScopeWithState(&mockstate.State{})
+		rs, err := NativeTransferTransactionByID(scope, Params(NewBytes(byte_helpers.TransferV2.Transaction.ID.Bytes())))
+		require.NoError(t, err)
+		require.Equal(t, NewUnit(), rs)
+	})
 }
 
 func TestNativeSizeBytes(t *testing.T) {
@@ -414,7 +489,7 @@ func TestNativeToBse64String(t *testing.T) {
 }
 
 func TestNativeAssetBalance_FromAddress(t *testing.T) {
-	s := mockstate.MockStateImpl{
+	s := mockstate.State{
 		AccountsBalance: 5,
 	}
 
@@ -430,7 +505,7 @@ func TestNativeAssetBalance_FromAddress(t *testing.T) {
 }
 
 func TestNativeAssetBalance_FromAlias(t *testing.T) {
-	s := mockstate.MockStateImpl{
+	s := mockstate.State{
 		AccountsBalance: 5,
 	}
 
@@ -466,7 +541,7 @@ func TestNativeDataFromArray(t *testing.T) {
 		Value: "world",
 	})
 
-	rs1, err := NativeDataLongFromArray(newEmptyScope(), Params(NewDataEntryList(dataEntries), NewString("integer")))
+	rs1, err := NativeDataIntegerFromArray(newEmptyScope(), Params(NewDataEntryList(dataEntries), NewString("integer")))
 	require.NoError(t, err)
 	assert.Equal(t, NewLong(100500), rs1)
 
@@ -489,64 +564,46 @@ func TestNativeDataFromArray(t *testing.T) {
 }
 
 func TestNativeDataFromState(t *testing.T) {
-	saddr := "3N9WtaPoD1tMrDZRG26wA142Byd35tLhnLU"
-	addr, err := NewAddressFromString(saddr)
+	a := "3N9WtaPoD1tMrDZRG26wA142Byd35tLhnLU"
+	addr, err := NewAddressFromString(a)
 	require.NoError(t, err)
 
 	t.Run("integer", func(t *testing.T) {
-		s := mockstate.MockStateImpl{
-			DataEntry: &proto.IntegerDataEntry{
-				Key:   "integer",
-				Value: 100500,
-			},
+		s := mockstate.State{
+			DataEntries: map[string]proto.DataEntry{"integer": &proto.IntegerDataEntry{Key: "integer", Value: 100500}},
 		}
-
-		rs1, err := NativeDataLongFromState(newScopeWithState(s), Params(addr, NewString("integer")))
+		rs1, err := NativeDataIntegerFromState(newScopeWithState(s), Params(addr, NewString("integer")))
 		require.NoError(t, err)
 		assert.Equal(t, NewLong(100500), rs1)
 	})
 
 	t.Run("boolean", func(t *testing.T) {
-
-		s := mockstate.MockStateImpl{
-			DataEntry: &proto.BooleanDataEntry{
-				Key:   "boolean",
-				Value: true,
-			},
+		s := mockstate.State{
+			DataEntries: map[string]proto.DataEntry{"boolean": &proto.BooleanDataEntry{Key: "boolean", Value: true}},
 		}
-
 		rs2, err := NativeDataBooleanFromState(newScopeWithState(s), Params(addr, NewString("boolean")))
 		require.NoError(t, err)
 		assert.Equal(t, NewBoolean(true), rs2)
 
 	})
+
 	t.Run("binary", func(t *testing.T) {
-
-		s := mockstate.MockStateImpl{
-			DataEntry: &proto.BinaryDataEntry{
-				Key:   "binary",
-				Value: []byte("hello"),
-			},
+		s := mockstate.State{
+			DataEntries: map[string]proto.DataEntry{"binary": &proto.BinaryDataEntry{Key: "binary", Value: []byte("hello")}},
 		}
-
-		rs3, err := NativeDataBytesFromState(newScopeWithState(s), Params(addr, NewString("binary")))
+		rs3, err := NativeDataBinaryFromState(newScopeWithState(s), Params(addr, NewString("binary")))
 		require.NoError(t, err)
 		assert.Equal(t, NewBytes([]byte("hello")), rs3)
 	})
+
 	t.Run("string", func(t *testing.T) {
-
-		s := mockstate.MockStateImpl{
-			DataEntry: &proto.StringDataEntry{
-				Key:   "string",
-				Value: "world",
-			},
+		s := mockstate.State{
+			DataEntries: map[string]proto.DataEntry{"string": &proto.StringDataEntry{Key: "string", Value: "world"}},
 		}
-
 		rs4, err := NativeDataStringFromState(newScopeWithState(s), Params(addr, NewString("string")))
 		require.NoError(t, err)
 		assert.Equal(t, NewString("world"), rs4)
 	})
-
 }
 
 func TestUserIsDefined(t *testing.T) {
@@ -639,7 +696,7 @@ func TestNativeAddressFromRecipient(t *testing.T) {
 	addr, err := proto.NewAddressFromString(a)
 	require.NoError(t, err)
 
-	s := mockstate.MockStateImpl{}
+	s := mockstate.State{}
 
 	rs, err := NativeAddressFromRecipient(newScopeWithState(s), Params(NewRecipientFromProtoRecipient(proto.NewRecipientFromAddress(addr))))
 	require.NoError(t, err)
@@ -978,6 +1035,7 @@ func TestNativeParseInt(t *testing.T) {
 }
 
 func TestUserParseIntValue(t *testing.T) {
+	f := wrapWithExtract(NativeParseInt, "UserParseIntValue")
 	for _, test := range []struct {
 		expressions Exprs
 		error       bool
@@ -994,7 +1052,7 @@ func TestUserParseIntValue(t *testing.T) {
 		{NewExprs(NewString("blah-blah-blah"), NewLong(1)), true, NewUnit()},
 		{NewExprs(NewLong(1)), true, NewUnit()},
 	} {
-		r, err := UserParseIntValue(newEmptyScope(), test.expressions)
+		r, err := f(newEmptyScope(), test.expressions)
 		if test.error {
 			assert.Error(t, err)
 			continue
@@ -1107,4 +1165,97 @@ func TestUserValueOrErrorMessage(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, test.result, r)
 	}
+}
+
+func ok(e Expr, err error) Expr {
+	if err != nil {
+		panic("value not found")
+	}
+	return e
+}
+
+func TestNativeBlockInfoByHeight(t *testing.T) {
+	_, publicKey, _ := crypto.GenerateKeyPair([]byte("test"))
+	parent := crypto.MustSignatureFromBase58("4sukfbjbbkBnFevQrGN7VvpBSwvufsuqvq5fmfiMdp1pBDMF5TanbFejRHhsiUQSWPkvWRdagwWD3oxnX3eEqzvM")
+	addr := proto.MustAddressFromPublicKey(proto.MainNetScheme, publicKey)
+	signa := crypto.MustSignatureFromBase58("5X76YVeG8T6iTxFmD5WNSaR13hxtsgJPQ2oELeZUsrQfZWSXtnUbq1kRqqMjfBngPvaEKVVV2FSujdTXm3hTW172")
+	gensig := crypto.MustDigestFromBase58("6a1hWT8QNGw8wnacXQ8vT2YEFLuxRxVpEuaaSf6AbSvU")
+
+	h := proto.BlockHeader{
+		Version:       3,
+		Timestamp:     1567506205718,
+		Parent:        parent,
+		FeaturesCount: 2,
+		Features:      []int16{7, 99},
+		NxtConsensus: proto.NxtConsensus{
+			BaseTarget:   1310,
+			GenSignature: gensig,
+		},
+		TransactionCount: 12,
+		GenPublicKey:     publicKey,
+		BlockSignature:   signa,
+		Height:           659687,
+	}
+	state := mockstate.State{
+		BlockHeaderByHeight: &h,
+	}
+	s := newScopeWithState(state)
+
+	rs, err := NativeBlockInfoByHeight(s, Params(NewLong(10)))
+	b := rs.(Getable)
+	require.NoError(t, err)
+	require.Equal(t, NewLong(1567506205718), ok(b.Get("timestamp")))
+	require.Equal(t, NewLong(10), ok(b.Get("height")))
+	require.Equal(t, NewLong(1310), ok(b.Get("baseTarget")))
+	require.Equal(t, NewBytes(gensig.Bytes()), ok(b.Get("generationSignature")))
+	require.Equal(t, NewBytes(addr.Bytes()), ok(b.Get("generator")))
+	require.Equal(t, NewBytes(publicKey.Bytes()), ok(b.Get("generatorPublicKey")))
+}
+
+func TestNativeAssetInfo(t *testing.T) {
+	tx := byte_helpers.IssueV1.Transaction.Clone()
+	s := mockstate.State{
+		TransactionsByID: map[string]proto.Transaction{tx.ID.String(): tx},
+	}
+	rs, err := NativeAssetInfo(newScopeWithState(s), Params(NewBytes(tx.ID.Bytes())))
+	require.NoError(t, err)
+	v := rs.(Getable)
+	require.Equal(t, NewBytes(tx.ID.Bytes()), ok(v.Get("id")))
+}
+
+func TestNativeParseBlockHeader(t *testing.T) {
+	_, publicKey, _ := crypto.GenerateKeyPair([]byte("test"))
+	parent := crypto.MustSignatureFromBase58("4sukfbjbbkBnFevQrGN7VvpBSwvufsuqvq5fmfiMdp1pBDMF5TanbFejRHhsiUQSWPkvWRdagwWD3oxnX3eEqzvM")
+	signa := crypto.MustSignatureFromBase58("5X76YVeG8T6iTxFmD5WNSaR13hxtsgJPQ2oELeZUsrQfZWSXtnUbq1kRqqMjfBngPvaEKVVV2FSujdTXm3hTW172")
+	gensig := crypto.MustDigestFromBase58("6a1hWT8QNGw8wnacXQ8vT2YEFLuxRxVpEuaaSf6AbSvU")
+
+	h := proto.BlockHeader{
+		Version:       3,
+		Timestamp:     1567506205718,
+		Parent:        parent,
+		FeaturesCount: 2,
+		Features:      []int16{7, 99},
+		NxtConsensus: proto.NxtConsensus{
+			BaseTarget:   1310,
+			GenSignature: gensig,
+		},
+		TransactionCount:       12,
+		GenPublicKey:           publicKey,
+		BlockSignature:         signa,
+		Height:                 659687,
+		TransactionBlockLength: 4,
+	}
+	state := mockstate.State{
+		BlockHeaderByHeight: &h,
+	}
+	s := newScopeWithState(state)
+	bts, err := h.MarshalHeaderToBinary()
+	require.NoError(t, err)
+
+	rs, err := NativeParseBlockHeader(s, Params(NewBytes(bts)))
+	require.NoError(t, err)
+
+	v := rs.(Getable)
+
+	require.Equal(t, NewLong(1567506205718), ok(v.Get("timestamp")))
 }

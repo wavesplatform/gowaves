@@ -1,5 +1,9 @@
 package state
 
+import (
+	"github.com/wavesplatform/gowaves/pkg/proto"
+)
+
 type ErrorType byte
 
 const (
@@ -38,9 +42,13 @@ func IsNotFound(err error) bool {
 	if err == nil {
 		return false
 	}
-	s, ok := err.(StateError)
+	if err == proto.ErrNotFound {
+		// Special case: sometimes proto.ErrNotFound might be used as well.
+		return true
+	}
+	se, ok := err.(StateError)
 	if !ok {
 		return false
 	}
-	return (s.errorType == NotFoundError) || (s.errorType == RetrievalError)
+	return (se.errorType == NotFoundError) || (se.errorType == RetrievalError)
 }

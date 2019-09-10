@@ -7,7 +7,6 @@ import (
 	"sync"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
-	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/p2p/mock"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -17,7 +16,7 @@ import (
 )
 
 func notFound() state.StateError {
-	return state.NewStateError(state.NotFoundError, keyvalue.ErrNotFound)
+	return state.NewStateError(state.NotFoundError, proto.ErrNotFound)
 }
 
 type MockStateManager struct {
@@ -183,7 +182,6 @@ func (a *MockStateManager) RetrieveEntry(account proto.Recipient, key string) (p
 func (a *MockStateManager) RetrieveIntegerEntry(account proto.Recipient, key string) (*proto.IntegerDataEntry, error) {
 	panic("implement me")
 }
-
 func (a *MockStateManager) RetrieveBooleanEntry(account proto.Recipient, key string) (*proto.BooleanDataEntry, error) {
 	panic("implement me")
 }
@@ -229,6 +227,18 @@ func (a *MockStateManager) NewestTransactionByID(id []byte) (proto.Transaction, 
 }
 
 func (a *MockStateManager) TransactionByID(id []byte) (proto.Transaction, error) {
+	panic("implement me")
+}
+
+func (a *MockStateManager) NewestAssetIsSponsored(assetID crypto.Digest) (bool, error) {
+	panic("implement me")
+}
+
+func (a *MockStateManager) AssetIsSponsored(assetID crypto.Digest) (bool, error) {
+	panic("implement me")
+}
+
+func (a *MockStateManager) IsNotFound(err error) bool {
 	panic("implement me")
 }
 

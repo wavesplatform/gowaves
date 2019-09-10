@@ -1,6 +1,7 @@
 package types
 
 import (
+	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
@@ -50,8 +51,13 @@ type SmartState interface {
 	// NewestAccountBalance retrieves balance of address in specific currency, asset is asset's ID.
 	// nil asset = Waves.
 	NewestAccountBalance(account proto.Recipient, asset []byte) (uint64, error)
-
 	NewestAddrByAlias(alias proto.Alias) (proto.Address, error)
+	RetrieveNewestIntegerEntry(account proto.Recipient, key string) (*proto.IntegerDataEntry, error)
+	RetrieveNewestBooleanEntry(account proto.Recipient, key string) (*proto.BooleanDataEntry, error)
+	RetrieveNewestStringEntry(account proto.Recipient, key string) (*proto.StringDataEntry, error)
+	RetrieveNewestBinaryEntry(account proto.Recipient, key string) (*proto.BinaryDataEntry, error)
+	NewestAssetIsSponsored(assetID crypto.Digest) (bool, error)
+	HeaderByHeight(height proto.Height) (*proto.BlockHeader, error)
 
-	RetrieveNewestEntry(account proto.Recipient, key string) (proto.DataEntry, error)
+	IsNotFound(err error) bool
 }

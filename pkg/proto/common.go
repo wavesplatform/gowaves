@@ -7,6 +7,8 @@ import (
 	"time"
 )
 
+var ErrNotFound = errors.New("not found")
+
 //PutStringWithUInt8Len converts the string to slice of bytes. The first byte of resulting slice contains the length of the string.
 func PutStringWithUInt8Len(buf []byte, s string) {
 	sl := uint8(len(s))

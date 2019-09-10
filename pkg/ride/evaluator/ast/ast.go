@@ -8,7 +8,6 @@ import (
 	"github.com/mr-tron/base58/base58"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"github.com/wavesplatform/gowaves/pkg/types"
 )
 
 const InstanceFieldName = "$instance"
@@ -637,135 +636,33 @@ func NewAliasFromProtoAlias(a proto.Alias) AliasExpr {
 	return AliasExpr(a)
 }
 
-type DataEntryStateWrapperExpr struct {
-	state  types.SmartState
-	accout proto.Recipient
-}
-
-func (a DataEntryStateWrapperExpr) Write(w io.Writer) {
-	_, _ = w.Write([]byte("DataEntryStateWrapperExpr"))
-}
-
-func (a DataEntryStateWrapperExpr) Evaluate(Scope) (Expr, error) {
-	return a, nil
-}
-
-func (a DataEntryStateWrapperExpr) Eq(Expr) (bool, error) {
-	return false, errors.New("DataEntryStateWrapperExpr is not compariable")
-}
-
-func (a DataEntryStateWrapperExpr) InstanceOf() string {
-	return "DataEntryStateWrapper"
-}
-
-func (a DataEntryStateWrapperExpr) GetByKey(key string, valueType proto.DataValueType) (Expr, error) {
-	rs, err := a.state.RetrieveNewestEntry(a.accout, key)
-	if err != nil {
-		return nil, errors.Wrapf(err, "DataEntryStateWrapperExpr GetByKey")
-	}
-	if rs.GetValueType() == valueType {
-		switch valueType {
-		case proto.DataInteger:
-			return NewLong(rs.(*proto.IntegerDataEntry).Value), nil
-		case proto.DataString:
-			return NewString(rs.(*proto.StringDataEntry).Value), nil
-		case proto.DataBoolean:
-			return NewBoolean(rs.(*proto.BooleanDataEntry).Value), nil
-		case proto.DataBinary:
-			return NewBytes(rs.(*proto.BinaryDataEntry).Value), nil
-		}
-	}
-	return NewUnit(), nil
-}
-
-func NewDataEntryStateWrapperExpr(s types.SmartState, accout proto.Recipient) *DataEntryStateWrapperExpr {
-	return &DataEntryStateWrapperExpr{
-		state:  s,
-		accout: accout,
-	}
-}
-
-type DataEntryListExpr struct {
-	source []proto.DataEntry
-	cached bool
-	data   map[string]proto.DataEntry
-}
-
-func (a DataEntryListExpr) Write(w io.Writer) {
-	_, _ = fmt.Fprint(w, "Alias")
-}
-
-func (a *DataEntryListExpr) Evaluate(s Scope) (Expr, error) {
-	return a, nil
-}
-
-func (a DataEntryListExpr) Eq(other Expr) (bool, error) {
-	return false, errors.Errorf("trying to compare %T with %T", a, other)
-}
-
-func (a DataEntryListExpr) InstanceOf() string {
-	return "DataEntryList"
-}
-
-// this func can't return error
-func (a *DataEntryListExpr) GetByKey(key string, valueType proto.DataValueType) (Expr, error) {
-	if !a.cached {
-		a.cache()
-	}
-	rs, ok := a.data[key]
-	if ok {
-		if rs.GetValueType() == valueType {
-			switch valueType {
-			case proto.DataInteger:
-				return NewLong(rs.(*proto.IntegerDataEntry).Value), nil
-			case proto.DataString:
-				return NewString(rs.(*proto.StringDataEntry).Value), nil
-			case proto.DataBoolean:
-				return NewBoolean(rs.(*proto.BooleanDataEntry).Value), nil
-			case proto.DataBinary:
-				return NewBytes(rs.(*proto.BinaryDataEntry).Value), nil
-			}
-		}
-	}
-	return NewUnit(), nil
-}
-
-func (a *DataEntryListExpr) GetByIndex(index int, valueType proto.DataValueType) Expr {
-	if index > len(a.source)-1 {
-		return NewUnit()
-	}
-
-	rs := a.source[index]
-	if rs.GetValueType() != valueType {
-		return NewUnit()
-	}
-
-	switch valueType {
-	case proto.DataInteger:
-		return NewLong(rs.(*proto.IntegerDataEntry).Value)
-	case proto.DataString:
-		return NewString(rs.(*proto.StringDataEntry).Value)
-	case proto.DataBoolean:
-		return NewBoolean(rs.(*proto.BooleanDataEntry).Value)
-	case proto.DataBinary:
-		return NewBytes(rs.(*proto.BinaryDataEntry).Value)
+func newObjectExprFromDataEntry(entry proto.DataEntry) (*ObjectExpr, error) {
+	fields := map[string]Expr{"key": NewString(entry.GetKey())}
+	switch e := entry.(type) {
+	case *proto.IntegerDataEntry:
+		fields["value"] = NewLong(e.Value)
+	case *proto.BooleanDataEntry:
+		fields["value"] = NewBoolean(e.Value)
+	case *proto.BinaryDataEntry:
+		fields["value"] = NewBytes(e.Value)
+	case *proto.StringDataEntry:
+		fields["value"] = NewString(e.Value)
 	default:
-		return NewUnit()
+		return nil, errors.Errorf("unsupported data entry type '%T'", entry)
 	}
+	return NewObject(fields), nil
 }
 
-func (a *DataEntryListExpr) cache() {
-	a.data = make(map[string]proto.DataEntry)
-	for _, row := range a.source {
-		a.data[row.GetKey()] = row
+func NewDataEntryList(entries []proto.DataEntry) Exprs {
+	r := make([]Expr, len(entries))
+	for i, entry := range entries {
+		v, err := newObjectExprFromDataEntry(entry)
+		if err != nil {
+			r[i] = NewUnit()
+		}
+		r[i] = v
 	}
-	a.cached = true
-}
-
-func NewDataEntryList(d []proto.DataEntry) *DataEntryListExpr {
-	return &DataEntryListExpr{
-		source: d,
-	}
+	return r
 }
 
 type RecipientExpr proto.Recipient
@@ -824,13 +721,11 @@ func (a AssetPairExpr) Eq(other Expr) (bool, error) {
 	return a.fields.Eq(o.fields)
 }
 
-type object map[string]Expr
+func (a AssetPairExpr) Get(name string) (Expr, error) {
+	return a.fields.Get(name)
+}
 
-//func NewObject(fields map[string]Expr) *ObjectExpr {
-//	return &ObjectExpr{
-//		fields: fields,
-//	}
-//}
+type object map[string]Expr
 
 func newObject() object {
 	return make(object)
@@ -1288,4 +1183,107 @@ func (a AttachedPaymentExpr) InstanceOf() string {
 
 func (a AttachedPaymentExpr) Get(key string) (Expr, error) {
 	return a.fields.Get(key)
+}
+
+type BlockHeaderExpr struct {
+	fields object
+}
+
+func (a BlockHeaderExpr) Write(w io.Writer) {
+	_, _ = fmt.Fprintf(w, "BlockHeaderExpr")
+}
+
+func (a BlockHeaderExpr) Evaluate(Scope) (Expr, error) {
+	return a, nil
+}
+
+func (a BlockHeaderExpr) Eq(other Expr) (bool, error) {
+	return false, errors.Errorf("trying to compare %T with %T", a, other)
+}
+
+func (a BlockHeaderExpr) InstanceOf() string {
+	return "BlockHeader"
+}
+
+func (a BlockHeaderExpr) Get(name string) (Expr, error) {
+	return a.fields.Get(name)
+}
+
+func NewBlockHeader(fields object) *BlockHeaderExpr {
+	return &BlockHeaderExpr{
+		fields: fields,
+	}
+}
+
+func makeFeatures(features []int16) Exprs {
+	out := Exprs{}
+	for _, f := range features {
+		out = append(out, NewLong(int64(f)))
+	}
+	return out
+}
+
+type AssetInfoExpr struct {
+	fields object
+}
+
+func (a AssetInfoExpr) Write(w io.Writer) {
+	_, _ = fmt.Fprintf(w, "AssetInfoExpr")
+}
+
+func (a AssetInfoExpr) Evaluate(Scope) (Expr, error) {
+	return a, nil
+}
+
+func (a AssetInfoExpr) Eq(other Expr) (bool, error) {
+	return false, errors.Errorf("trying to compare %T with %T", a, other)
+}
+
+func (a AssetInfoExpr) InstanceOf() string {
+	return "AssetInfo"
+}
+
+func (a AssetInfoExpr) Get(name string) (Expr, error) {
+	return a.fields.Get(name)
+}
+
+func NewAssetInfo(obj object) *AssetInfoExpr {
+	return &AssetInfoExpr{fields: obj}
+}
+
+type BlockInfoExpr struct {
+	fields object
+}
+
+func (a *BlockInfoExpr) Write(w io.Writer) {
+	_, _ = fmt.Fprintf(w, "BlockInfoExpr")
+}
+
+func (a *BlockInfoExpr) Evaluate(Scope) (Expr, error) {
+	return a, nil
+}
+
+func (a BlockInfoExpr) Get(name string) (Expr, error) {
+	return a.fields.Get(name)
+}
+
+func (a BlockInfoExpr) Eq(other Expr) (bool, error) {
+	return false, errors.Errorf("trying to compare %T with %T", a, other)
+}
+
+func (a BlockInfoExpr) InstanceOf() string {
+	return "BlockInfo"
+}
+
+func NewBlockInfo(obj object, height proto.Height) *BlockInfoExpr {
+	fields := newObject()
+	fields["timestamp"] = obj["timestamp"]
+	fields["height"] = NewLong(int64(height))
+	fields["baseTarget"] = obj["baseTarget"]
+	fields["generationSignature"] = obj["generationSignature"]
+	fields["generator"] = obj["generator"]
+	fields["generatorPublicKey"] = obj["generatorPublicKey"]
+	return &BlockInfoExpr{
+		fields: fields,
+	}
 }

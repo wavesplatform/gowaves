@@ -78,6 +78,14 @@ func NewAddressFromPublicKey(scheme byte, publicKey crypto.PublicKey) (Address, 
 	return a, nil
 }
 
+func MustAddressFromPublicKey(scheme byte, publicKey crypto.PublicKey) Address {
+	rs, err := NewAddressFromPublicKey(scheme, publicKey)
+	if err != nil {
+		panic(err)
+	}
+	return rs
+}
+
 func RebuildAddress(scheme byte, body []byte) (Address, error) {
 	var a Address
 	a[0] = addressVersion

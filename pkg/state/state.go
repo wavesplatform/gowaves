@@ -1719,6 +1719,26 @@ func (s *stateManager) TransactionHeightByID(id []byte) (uint64, error) {
 	return txHeight, nil
 }
 
+func (s *stateManager) NewestAssetIsSponsored(assetID crypto.Digest) (bool, error) {
+	sponsored, err := s.stor.sponsoredAssets.newestIsSponsored(assetID, true)
+	if err != nil {
+		return false, wrapErr(RetrievalError, err)
+	}
+	return sponsored, nil
+}
+
+func (s *stateManager) AssetIsSponsored(assetID crypto.Digest) (bool, error) {
+	sponsored, err := s.stor.sponsoredAssets.isSponsored(assetID, true)
+	if err != nil {
+		return false, wrapErr(RetrievalError, err)
+	}
+	return sponsored, nil
+}
+
+func (s *stateManager) IsNotFound(err error) bool {
+	return IsNotFound(err)
+}
+
 func (s *stateManager) Close() error {
 	if err := s.rw.close(); err != nil {
 		return wrapErr(ClosureError, err)
