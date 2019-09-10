@@ -5,7 +5,6 @@ import "github.com/wavesplatform/gowaves/pkg/types"
 type Scope interface {
 	Clone() Scope
 	AddValue(name string, expr Expr)
-	FuncByShort(int16) (Callable, bool)
 	Value(string) (Expr, bool)
 	State() types.SmartState
 	Scheme() byte
@@ -14,7 +13,6 @@ type Scope interface {
 
 type ScopeImpl struct {
 	parent    Scope
-	funcs     *Functions
 	variables map[string]Expr
 	state     types.SmartState
 	scheme    byte
@@ -22,9 +20,8 @@ type ScopeImpl struct {
 
 type Callable func(Scope, Exprs) (Expr, error)
 
-func NewScope(scheme byte, state types.SmartState, f *Functions, variables map[string]Expr) *ScopeImpl {
+func NewScope(scheme byte, state types.SmartState, variables map[string]Expr) *ScopeImpl {
 	return &ScopeImpl{
-		funcs:     f,
 		variables: variables,
 		state:     state,
 		scheme:    scheme,
@@ -33,7 +30,6 @@ func NewScope(scheme byte, state types.SmartState, f *Functions, variables map[s
 
 func (a *ScopeImpl) Clone() Scope {
 	return &ScopeImpl{
-		funcs:  a.funcs.Clone(),
 		parent: a,
 		state:  a.state,
 		scheme: a.scheme,
@@ -50,10 +46,6 @@ func (a *ScopeImpl) Initial() Scope {
 
 func (a *ScopeImpl) State() types.SmartState {
 	return a.state
-}
-
-func (a *ScopeImpl) FuncByShort(id int16) (Callable, bool) {
-	return a.funcs.GetByShort(id)
 }
 
 func (a *ScopeImpl) AddValue(name string, value Expr) {
@@ -83,187 +75,169 @@ func (a *ScopeImpl) Scheme() byte {
 	return a.scheme
 }
 
-type Functions struct {
-	native map[int16]Callable
-	user   map[string]Expr
+type Functions map[string]Expr
+
+func EmptyFunctions() Functions {
+	return Functions{}
 }
 
-func EmptyFunctions() *Functions {
-	return &Functions{
-		native: make(map[int16]Callable),
-		user:   make(map[string]Expr),
-	}
-}
+func FunctionsV2() Functions {
+	fns := make(map[string]Expr)
 
-func FunctionsV2() *Functions {
-	native := make(map[int16]Callable)
+	fns["0"] = FunctionFromPredefined(NativeEq, 2)
+	fns["1"] = FunctionFromPredefined(NativeIsInstanceOf, 2)
+	fns["2"] = FunctionFromPredefined(NativeThrow, 1)
 
-	native[0] = NativeEq
-	native[1] = NativeIsInstanceOf
-	native[2] = NativeThrow
+	fns["100"] = FunctionFromPredefined(NativeSumLong, 2)
+	fns["101"] = FunctionFromPredefined(NativeSubLong, 2)
+	fns["102"] = FunctionFromPredefined(NativeGtLong, 2)
+	fns["103"] = FunctionFromPredefined(NativeGeLong, 2)
+	fns["104"] = FunctionFromPredefined(NativeMulLong, 2)
+	fns["105"] = FunctionFromPredefined(NativeDivLong, 2)
+	fns["106"] = FunctionFromPredefined(NativeModLong, 2)
+	fns["107"] = FunctionFromPredefined(NativeFractionLong, 3)
 
-	native[100] = NativeSumLong
-	native[101] = NativeSubLong
-	native[102] = NativeGtLong
-	native[103] = NativeGeLong
-	native[104] = NativeMulLong
-	native[105] = NativeDivLong
-	native[106] = NativeModLong
-	native[107] = NativeFractionLong
+	fns["200"] = FunctionFromPredefined(NativeSizeBytes, 1)
+	fns["201"] = FunctionFromPredefined(NativeTakeBytes, 2)
+	fns["202"] = FunctionFromPredefined(NativeDropBytes, 2)
+	fns["203"] = FunctionFromPredefined(NativeConcatBytes, 2)
 
-	native[200] = NativeSizeBytes
-	native[201] = NativeTakeBytes
-	native[202] = NativeDropBytes
-	native[203] = NativeConcatBytes
+	fns["300"] = FunctionFromPredefined(NativeConcatStrings, 2)
+	fns["303"] = FunctionFromPredefined(NativeTakeStrings, 2)
+	fns["304"] = FunctionFromPredefined(NativeDropStrings, 2)
+	fns["305"] = FunctionFromPredefined(NativeSizeString, 1)
 
-	native[300] = NativeConcatStrings
-	native[303] = NativeTakeStrings
-	native[304] = NativeDropStrings
-	native[305] = NativeSizeString
+	fns["400"] = FunctionFromPredefined(NativeSizeList, 1)
+	fns["401"] = FunctionFromPredefined(NativeGetList, 2)
+	fns["410"] = FunctionFromPredefined(NativeLongToBytes, 1)
+	fns["411"] = FunctionFromPredefined(NativeStringToBytes, 1)
+	fns["412"] = FunctionFromPredefined(NativeBooleanToBytes, 1)
+	fns["420"] = FunctionFromPredefined(NativeLongToString, 1)
+	fns["421"] = FunctionFromPredefined(NativeBooleanToString, 1)
 
-	native[400] = NativeSizeList
-	native[401] = NativeGetList
-	native[410] = NativeLongToBytes
-	native[411] = NativeStringToBytes
-	native[412] = NativeBooleanToBytes
-	native[420] = NativeLongToString
-	native[421] = NativeBooleanToString
+	fns["500"] = FunctionFromPredefined(NativeSigVerify, 3)
+	fns["501"] = FunctionFromPredefined(NativeKeccak256, 1)
+	fns["502"] = FunctionFromPredefined(NativeBlake2b256, 1)
+	fns["503"] = FunctionFromPredefined(NativeSha256, 1)
 
-	native[500] = NativeSigVerify
-	native[501] = NativeKeccak256
-	native[502] = NativeBlake2b256
-	native[503] = NativeSha256
+	fns["600"] = FunctionFromPredefined(NativeToBase58, 1)
+	fns["601"] = FunctionFromPredefined(NativeFromBase58, 1)
+	fns["602"] = FunctionFromPredefined(NativeToBase64, 1)
+	fns["603"] = FunctionFromPredefined(NativeFromBase64, 1)
 
-	native[600] = NativeToBase58
-	native[601] = NativeFromBase58
-	native[602] = NativeToBase64
-	native[603] = NativeFromBase64
+	fns["1000"] = FunctionFromPredefined(NativeTransactionByID, 1)
+	fns["1001"] = FunctionFromPredefined(NativeTransactionHeightByID, 1)
+	fns["1003"] = FunctionFromPredefined(NativeAssetBalance, 2)
 
-	native[1000] = NativeTransactionByID
-	native[1001] = NativeTransactionHeightByID
-	native[1003] = NativeAssetBalance
+	fns["1040"] = FunctionFromPredefined(NativeDataIntegerFromArray, 2)
+	fns["1041"] = FunctionFromPredefined(NativeDataBooleanFromArray, 2)
+	fns["1042"] = FunctionFromPredefined(NativeDataBinaryFromArray, 2)
+	fns["1043"] = FunctionFromPredefined(NativeDataStringFromArray, 2)
 
-	native[1040] = NativeDataIntegerFromArray
-	native[1041] = NativeDataBooleanFromArray
-	native[1042] = NativeDataBinaryFromArray
-	native[1043] = NativeDataStringFromArray
+	fns["1050"] = FunctionFromPredefined(NativeDataIntegerFromState, 2)
+	fns["1051"] = FunctionFromPredefined(NativeDataBooleanFromState, 2)
+	fns["1052"] = FunctionFromPredefined(NativeDataBinaryFromState, 2)
+	fns["1053"] = FunctionFromPredefined(NativeDataStringFromState, 2)
 
-	native[1050] = NativeDataIntegerFromState
-	native[1051] = NativeDataBooleanFromState
-	native[1052] = NativeDataBinaryFromState
-	native[1053] = NativeDataStringFromState
+	fns["1060"] = FunctionFromPredefined(NativeAddressFromRecipient, 1)
 
-	native[1060] = NativeAddressFromRecipient
+	// user functions
+	fns["throw"] = FunctionFromPredefined(UserThrow, 0)
+	fns["addressFromString"] = FunctionFromPredefined(UserAddressFromString, 1)
+	fns["!="] = FunctionFromPredefined(UserFunctionNeq, 2)
+	fns["isDefined"] = FunctionFromPredefined(UserIsDefined, 1)
+	fns["extract"] = FunctionFromPredefined(UserExtract, 1)
+	fns["dropRightBytes"] = FunctionFromPredefined(UserDropRightBytes, 2)
+	fns["takeRightBytes"] = FunctionFromPredefined(UserTakeRightBytes, 2)
+	fns["takeRight"] = FunctionFromPredefined(UserTakeRightString, 2)
+	fns["dropRight"] = FunctionFromPredefined(UserDropRightString, 2)
+	fns["!"] = FunctionFromPredefined(UserUnaryNot, 1)
+	fns["-"] = FunctionFromPredefined(UserUnaryMinus, 1)
 
-	user := make(map[string]Expr)
-	user["throw"] = UserFunctionFromPredefined(UserThrow, 0)
-	user["addressFromString"] = UserFunctionFromPredefined(UserAddressFromString, 1)
-	user["!="] = UserFunctionFromPredefined(UserFunctionNeq, 2)
-	user["isDefined"] = UserFunctionFromPredefined(UserIsDefined, 1)
-	user["extract"] = UserFunctionFromPredefined(UserExtract, 1)
-	user["dropRightBytes"] = UserFunctionFromPredefined(UserDropRightBytes, 2)
-	user["takeRightBytes"] = UserFunctionFromPredefined(UserTakeRightBytes, 2)
-	user["takeRight"] = UserFunctionFromPredefined(UserTakeRightString, 2)
-	user["dropRight"] = UserFunctionFromPredefined(UserDropRightString, 2)
-	user["!"] = UserFunctionFromPredefined(UserUnaryNot, 1)
-	user["-"] = UserFunctionFromPredefined(UserUnaryMinus, 1)
+	fns["getInteger"] = FunctionFromPredefined(UserDataIntegerFromArrayByIndex, 2)
+	fns["getBoolean"] = FunctionFromPredefined(UserDataBooleanFromArrayByIndex, 2)
+	fns["getBinary"] = FunctionFromPredefined(UserDataBinaryFromArrayByIndex, 2)
+	fns["getString"] = FunctionFromPredefined(UserDataStringFromArrayByIndex, 2)
 
-	user["getInteger"] = UserFunctionFromPredefined(UserDataIntegerFromArrayByIndex, 2)
-	user["getBoolean"] = UserFunctionFromPredefined(UserDataBooleanFromArrayByIndex, 2)
-	user["getBinary"] = UserFunctionFromPredefined(UserDataBinaryFromArrayByIndex, 2)
-	user["getString"] = UserFunctionFromPredefined(UserDataStringFromArrayByIndex, 2)
-
-	user["addressFromPublicKey"] = UserFunctionFromPredefined(UserAddressFromPublicKey, 1)
-	user["wavesBalance"] = UserFunctionFromPredefined(UserWavesBalance, 1)
+	fns["addressFromPublicKey"] = FunctionFromPredefined(UserAddressFromPublicKey, 1)
+	fns["wavesBalance"] = FunctionFromPredefined(UserWavesBalance, 1)
 
 	// type constructors
-	user["Address"] = UserFunctionFromPredefined(UserAddress, 1)
-	user["Alias"] = UserFunctionFromPredefined(UserAlias, 1)
-	user["DataEntry"] = UserFunctionFromPredefined(DataEntry, 2)
+	fns["Address"] = FunctionFromPredefined(UserAddress, 1)
+	fns["Alias"] = FunctionFromPredefined(UserAlias, 1)
+	fns["DataEntry"] = FunctionFromPredefined(DataEntry, 2)
 
-	return &Functions{
-		native: native,
-		user:   user,
-	}
+	return fns
 }
 
 var VarFunctionsV2 = FunctionsV2()
 
-func FunctionsV3() *Functions {
+func FunctionsV3() Functions {
 	s := FunctionsV2()
-	s.native[108] = NativePowLong
-	s.native[109] = NativeLogLong
+	s["108"] = FunctionFromPredefined(NativePowLong, 6)
+	s["109"] = FunctionFromPredefined(NativeLogLong, 6)
 
-	s.native[504] = NativeRSAVerify
-	s.native[604] = NativeToBase16
-	s.native[605] = NativeFromBase16
-	s.native[700] = NativeCheckMerkleProof
-	s.native[1004] = NativeAssetInfo
-	s.native[1005] = NativeBlockInfoByHeight
-	s.native[1006] = NativeTransferTransactionByID
-	s.native[1061] = NativeAddressToString
-	s.native[1070] = NativeParseBlockHeader // RIDE v4
-	s.native[1100] = NativeCreateList
-	s.native[1200] = NativeBytesToUTF8String
-	s.native[1201] = NativeBytesToLong
-	s.native[1202] = NativeBytesToLongWithOffset
-	s.native[1203] = NativeIndexOfSubstring
-	s.native[1204] = NativeIndexOfSubstringWithOffset
-	s.native[1205] = NativeSplitString
-	s.native[1206] = NativeParseInt
-	s.native[1207] = NativeLastIndexOfSubstring
-	s.native[1208] = NativeLastIndexOfSubstringWithOffset
+	s["504"] = FunctionFromPredefined(NativeRSAVerify, 4)
+	s["604"] = FunctionFromPredefined(NativeToBase16, 1)
+	s["605"] = FunctionFromPredefined(NativeFromBase16, 1)
+	s["700"] = FunctionFromPredefined(NativeCheckMerkleProof, 3)
+	s["1004"] = FunctionFromPredefined(NativeAssetInfo, 1)
+	s["1005"] = FunctionFromPredefined(NativeBlockInfoByHeight, 1)
+	s["1006"] = FunctionFromPredefined(NativeTransferTransactionByID, 1)
+	s["1061"] = FunctionFromPredefined(NativeAddressToString, 1)
+	s["1070"] = FunctionFromPredefined(NativeParseBlockHeader, 1) // RIDE v4
+	s["1100"] = FunctionFromPredefined(NativeCreateList, 2)
+	s["1200"] = FunctionFromPredefined(NativeBytesToUTF8String, 1)
+	s["1201"] = FunctionFromPredefined(NativeBytesToLong, 1)
+	s["1202"] = FunctionFromPredefined(NativeBytesToLongWithOffset, 2)
+	s["1203"] = FunctionFromPredefined(NativeIndexOfSubstring, 2)
+	s["1204"] = FunctionFromPredefined(NativeIndexOfSubstringWithOffset, 3)
+	s["1205"] = FunctionFromPredefined(NativeSplitString, 2)
+	s["1206"] = FunctionFromPredefined(NativeParseInt, 1)
+	s["1207"] = FunctionFromPredefined(NativeLastIndexOfSubstring, 2)
+	s["1208"] = FunctionFromPredefined(NativeLastIndexOfSubstringWithOffset, 3)
 
 	// Constructors for simple types
-	s.user["Ceiling"] = UserFunctionFromPredefined(SimpleTypeConstructorFactory("Ceiling", CeilingExpr{}), 0)
-	s.user["Floor"] = UserFunctionFromPredefined(SimpleTypeConstructorFactory("Floor", FloorExpr{}), 0)
-	s.user["HalfEven"] = UserFunctionFromPredefined(SimpleTypeConstructorFactory("HalfEven", HalfEvenExpr{}), 0)
-	s.user["Down"] = UserFunctionFromPredefined(SimpleTypeConstructorFactory("Down", DownExpr{}), 0)
-	s.user["Up"] = UserFunctionFromPredefined(SimpleTypeConstructorFactory("Up", UpExpr{}), 0)
-	s.user["HalfUp"] = UserFunctionFromPredefined(SimpleTypeConstructorFactory("HalfUp", HalfUpExpr{}), 0)
-	s.user["HalfDown"] = UserFunctionFromPredefined(SimpleTypeConstructorFactory("HalfDown", HalfDownExpr{}), 0)
+	s["Ceiling"] = FunctionFromPredefined(SimpleTypeConstructorFactory("Ceiling", CeilingExpr{}), 0)
+	s["Floor"] = FunctionFromPredefined(SimpleTypeConstructorFactory("Floor", FloorExpr{}), 0)
+	s["HalfEven"] = FunctionFromPredefined(SimpleTypeConstructorFactory("HalfEven", HalfEvenExpr{}), 0)
+	s["Down"] = FunctionFromPredefined(SimpleTypeConstructorFactory("Down", DownExpr{}), 0)
+	s["Up"] = FunctionFromPredefined(SimpleTypeConstructorFactory("Up", UpExpr{}), 0)
+	s["HalfUp"] = FunctionFromPredefined(SimpleTypeConstructorFactory("HalfUp", HalfUpExpr{}), 0)
+	s["HalfDown"] = FunctionFromPredefined(SimpleTypeConstructorFactory("HalfDown", HalfDownExpr{}), 0)
 
-	s.user["NoAlg"] = UserFunctionFromPredefined(SimpleTypeConstructorFactory("NoAlg", NoAlgExpr{}), 0)
-	s.user["Md5"] = UserFunctionFromPredefined(SimpleTypeConstructorFactory("Md5", MD5Expr{}), 0)
-	s.user["Sha1"] = UserFunctionFromPredefined(SimpleTypeConstructorFactory("Sha1", SHA1Expr{}), 0)
-	s.user["Sha224"] = UserFunctionFromPredefined(SimpleTypeConstructorFactory("Sha224", SHA224Expr{}), 0)
-	s.user["Sha256"] = UserFunctionFromPredefined(SimpleTypeConstructorFactory("Sha256", SHA256Expr{}), 0)
-	s.user["Sha384"] = UserFunctionFromPredefined(SimpleTypeConstructorFactory("Sha384", SHA384Expr{}), 0)
-	s.user["Sha512"] = UserFunctionFromPredefined(SimpleTypeConstructorFactory("Sha512", SHA512Expr{}), 0)
-	s.user["Sha3224"] = UserFunctionFromPredefined(SimpleTypeConstructorFactory("Sha3224", SHA3224Expr{}), 0)
-	s.user["Sha3256"] = UserFunctionFromPredefined(SimpleTypeConstructorFactory("Sha3256", SHA3256Expr{}), 0)
-	s.user["Sha3384"] = UserFunctionFromPredefined(SimpleTypeConstructorFactory("Sha3384", SHA3384Expr{}), 0)
-	s.user["Sha3512"] = UserFunctionFromPredefined(SimpleTypeConstructorFactory("Sha3512", SHA3512Expr{}), 0)
+	s["NoAlg"] = FunctionFromPredefined(SimpleTypeConstructorFactory("NoAlg", NoAlgExpr{}), 0)
+	s["Md5"] = FunctionFromPredefined(SimpleTypeConstructorFactory("Md5", MD5Expr{}), 0)
+	s["Sha1"] = FunctionFromPredefined(SimpleTypeConstructorFactory("Sha1", SHA1Expr{}), 0)
+	s["Sha224"] = FunctionFromPredefined(SimpleTypeConstructorFactory("Sha224", SHA224Expr{}), 0)
+	s["Sha256"] = FunctionFromPredefined(SimpleTypeConstructorFactory("Sha256", SHA256Expr{}), 0)
+	s["Sha384"] = FunctionFromPredefined(SimpleTypeConstructorFactory("Sha384", SHA384Expr{}), 0)
+	s["Sha512"] = FunctionFromPredefined(SimpleTypeConstructorFactory("Sha512", SHA512Expr{}), 0)
+	s["Sha3224"] = FunctionFromPredefined(SimpleTypeConstructorFactory("Sha3224", SHA3224Expr{}), 0)
+	s["Sha3256"] = FunctionFromPredefined(SimpleTypeConstructorFactory("Sha3256", SHA3256Expr{}), 0)
+	s["Sha3384"] = FunctionFromPredefined(SimpleTypeConstructorFactory("Sha3384", SHA3384Expr{}), 0)
+	s["Sha3512"] = FunctionFromPredefined(SimpleTypeConstructorFactory("Sha3512", SHA3512Expr{}), 0)
 
-	s.user["Unit"] = UserFunctionFromPredefined(SimpleTypeConstructorFactory("Unit", Unit{}), 0)
+	s["Unit"] = FunctionFromPredefined(SimpleTypeConstructorFactory("Unit", Unit{}), 0)
 
 	// New user functions
-	s.user["@extrNative(1050)"] = UserFunctionFromPredefined(wrapWithExtract(NativeDataIntegerFromState, "UserDataIntegerValueFromState"), 2)
-	s.user["@extrNative(1051)"] = UserFunctionFromPredefined(wrapWithExtract(NativeDataBooleanFromState, "UserDataBooleanValueFromState"), 2)
-	s.user["@extrNative(1052)"] = UserFunctionFromPredefined(wrapWithExtract(NativeDataBinaryFromState, "UserDataBinaryValueFromState"), 2)
-	s.user["@extrNative(1053)"] = UserFunctionFromPredefined(wrapWithExtract(NativeDataStringFromState, "UserDataStringValueFromState"), 2)
-	s.user["@extrNative(1040)"] = UserFunctionFromPredefined(wrapWithExtract(NativeDataIntegerFromArray, "UserDataIntegerValueFromArray"), 2)
-	s.user["@extrNative(1041)"] = UserFunctionFromPredefined(wrapWithExtract(NativeDataBooleanFromArray, "UserDataBooleanValueFromArray"), 2)
-	s.user["@extrNative(1042)"] = UserFunctionFromPredefined(wrapWithExtract(NativeDataBinaryFromArray, "UserDataBinaryValueFromArray"), 2)
-	s.user["@extrNative(1043)"] = UserFunctionFromPredefined(wrapWithExtract(NativeDataStringFromArray, "UserDataStringValueFromArray"), 2)
-	s.user["@extrUser(getInteger)"] = UserFunctionFromPredefined(wrapWithExtract(UserDataIntegerFromArrayByIndex, "UserDataIntegerValueFromArrayByIndex"), 2)
-	s.user["@extrUser(getBoolean)"] = UserFunctionFromPredefined(wrapWithExtract(UserDataBooleanFromArrayByIndex, "UserDataBooleanValueFromArrayByIndex"), 2)
-	s.user["@extrUser(getBinary)"] = UserFunctionFromPredefined(wrapWithExtract(UserDataBinaryFromArrayByIndex, "UserDataBinaryValueFromArrayByIndex"), 2)
-	s.user["@extrUser(getString)"] = UserFunctionFromPredefined(wrapWithExtract(UserDataStringFromArrayByIndex, "UserDataStringValueFromArrayByIndex"), 2)
-	s.user["@extrUser(addressFromString)"] = UserFunctionFromPredefined(wrapWithExtract(UserAddressFromString, "UserAddressValueFromString"), 1)
-	s.user["parseIntValue"] = UserFunctionFromPredefined(wrapWithExtract(NativeParseInt, "UserParseIntValue"), 1)
-	s.user["value"] = UserFunctionFromPredefined(UserValue, 1)
-	s.user["valueOrErrorMessage"] = UserFunctionFromPredefined(UserValueOrErrorMessage, 2)
+	s["@extrNative(1050)"] = FunctionFromPredefined(wrapWithExtract(NativeDataIntegerFromState, "UserDataIntegerValueFromState"), 2)
+	s["@extrNative(1051)"] = FunctionFromPredefined(wrapWithExtract(NativeDataBooleanFromState, "UserDataBooleanValueFromState"), 2)
+	s["@extrNative(1052)"] = FunctionFromPredefined(wrapWithExtract(NativeDataBinaryFromState, "UserDataBinaryValueFromState"), 2)
+	s["@extrNative(1053)"] = FunctionFromPredefined(wrapWithExtract(NativeDataStringFromState, "UserDataStringValueFromState"), 2)
+	s["@extrNative(1040)"] = FunctionFromPredefined(wrapWithExtract(NativeDataIntegerFromArray, "UserDataIntegerValueFromArray"), 2)
+	s["@extrNative(1041)"] = FunctionFromPredefined(wrapWithExtract(NativeDataBooleanFromArray, "UserDataBooleanValueFromArray"), 2)
+	s["@extrNative(1042)"] = FunctionFromPredefined(wrapWithExtract(NativeDataBinaryFromArray, "UserDataBinaryValueFromArray"), 2)
+	s["@extrNative(1043)"] = FunctionFromPredefined(wrapWithExtract(NativeDataStringFromArray, "UserDataStringValueFromArray"), 2)
+	s["@extrUser(getInteger)"] = FunctionFromPredefined(wrapWithExtract(UserDataIntegerFromArrayByIndex, "UserDataIntegerValueFromArrayByIndex"), 2)
+	s["@extrUser(getBoolean)"] = FunctionFromPredefined(wrapWithExtract(UserDataBooleanFromArrayByIndex, "UserDataBooleanValueFromArrayByIndex"), 2)
+	s["@extrUser(getBinary)"] = FunctionFromPredefined(wrapWithExtract(UserDataBinaryFromArrayByIndex, "UserDataBinaryValueFromArrayByIndex"), 2)
+	s["@extrUser(getString)"] = FunctionFromPredefined(wrapWithExtract(UserDataStringFromArrayByIndex, "UserDataStringValueFromArrayByIndex"), 2)
+	s["@extrUser(addressFromString)"] = FunctionFromPredefined(wrapWithExtract(UserAddressFromString, "UserAddressValueFromString"), 1)
+	s["parseIntValue"] = FunctionFromPredefined(wrapWithExtract(NativeParseInt, "UserParseIntValue"), 1)
+	s["value"] = FunctionFromPredefined(UserValue, 1)
+	s["valueOrErrorMessage"] = FunctionFromPredefined(UserValueOrErrorMessage, 2)
 	return s
-}
-
-func (a *Functions) GetByShort(id int16) (Callable, bool) {
-	f, ok := a.native[id]
-	return f, ok
-}
-
-func (a *Functions) UserFunctions() map[string]Expr {
-	return a.user
 }
 
 func (a *Functions) Clone() *Functions {

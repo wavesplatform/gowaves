@@ -26,6 +26,13 @@ func BuildAst(r *BytesReader) (Script, error) {
 	return script, nil
 }
 
+type Dapp struct {
+}
+
+func readDapp(r *BytesReader) (Dapp, error) {
+	return Dapp{}, nil
+}
+
 func Walk(iter *BytesReader) (Expr, error) {
 	if iter.Eof() {
 		return nil, ErrUnexpectedEOF
@@ -84,7 +91,7 @@ func readBlock(r *BytesReader) (*Block, error) {
 	}, nil
 }
 
-func deserializeDeclaration(r *BytesReader) (Declaration, error) {
+func deserializeDeclaration(r *BytesReader) (Expr, error) {
 	declType, err := r.ReadByte()
 	if err != nil {
 		return nil, err
@@ -136,7 +143,7 @@ func readBlockV2(r *BytesReader) (*BlockV2, error) {
 	}, nil
 }
 
-func readFuncCAll(iter *BytesReader) (*FuncCall, error) {
+func readFuncCAll(iter *BytesReader) (*FuncCallExpr, error) {
 	nativeOrUser, err := iter.ReadByte()
 	if err != nil {
 		return nil, err

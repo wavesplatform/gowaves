@@ -45,20 +45,7 @@ func defaultScope() Scope {
 		AccountsBalance: 5,
 		DataEntries:     dataEntries,
 	}
-
-	funcs := FunctionsV3()
-	return NewScope(proto.MainNetScheme, s, FunctionsV3(), merge(variables, funcs.UserFunctions()))
-}
-
-func merge(x map[string]Expr, y map[string]Expr) map[string]Expr {
-	out := make(map[string]Expr)
-	for k, v := range x {
-		out[k] = v
-	}
-	for k, v := range y {
-		out[k] = v
-	}
-	return out
+	return NewScope(proto.MainNetScheme, s, Merge(variables, FunctionsV3()))
 }
 
 const (
@@ -330,8 +317,7 @@ func TestDataFunctions(t *testing.T) {
 	require.NoError(t, err)
 
 	variables := VariablesV3(vars, 100500)
-	funcs := FunctionsV3()
-	scope := NewScope(proto.MainNetScheme, mockstate.State{}, FunctionsV3(), merge(variables, funcs.UserFunctions()))
+	scope := NewScope(proto.MainNetScheme, mockstate.State{}, Merge(variables, FunctionsV3()))
 
 	for _, test := range []struct {
 		FuncCode int
@@ -380,4 +366,56 @@ func Benchmark_Verify(b *testing.B) {
 			b.Fail()
 		}
 	}
+}
+
+func TestEvaluateBlockV3False(t *testing.T) {
+
+	_ = `
+{-# STDLIB_VERSION 3 #-}
+{-# CONTENT_TYPE EXPRESSION #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+func fn(name: String) = {
+    name
+}
+fn("bbb") == "aaa"
+`
+
+	b64 := "AwoBAAAAAmZuAAAAAQAAAARuYW1lBQAAAARuYW1lCQAAAAAAAAIJAQAAAAJmbgAAAAECAAAAA2JiYgIAAAADYWFhbCbxUQ=="
+	r, err := reader.NewReaderFromBase64(b64)
+	require.NoError(t, err)
+
+	script, err := BuildAst(r)
+	require.NoError(t, err)
+
+	s := defaultScope()
+
+	rs, err := Eval(script.Verifier, s)
+	require.NoError(t, err)
+	require.False(t, rs, rs)
+}
+
+func TestEvaluateBlockV3True(t *testing.T) {
+
+	//	_ = `
+	//{-# STDLIB_VERSION 3 #-}
+	//{-# CONTENT_TYPE EXPRESSION #-}
+	//{-# SCRIPT_TYPE ACCOUNT #-}
+	//func fn(name: String) = {
+	//    name
+	//}
+	//fn("bbb") == "aaa"
+	//`
+
+	b64 := "AwQAAAACenoCAAAAA2NjYwoBAAAAAmZuAAAAAQAAAARuYW1lBQAAAAJ6egkAAAAAAAACCQEAAAACZm4AAAABAgAAAANhYmMCAAAAA2NjYyBIzew="
+	r, err := reader.NewReaderFromBase64(b64)
+	require.NoError(t, err)
+
+	script, err := BuildAst(r)
+	require.NoError(t, err)
+
+	s := defaultScope()
+
+	rs, err := Eval(script.Verifier, s)
+	require.NoError(t, err)
+	require.True(t, rs, rs)
 }

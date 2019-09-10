@@ -10,11 +10,11 @@ import (
 )
 
 func newEmptyScope() Scope {
-	return NewScope(proto.MainNetScheme, mockstate.State{}, EmptyFunctions(), nil)
+	return NewScope(proto.MainNetScheme, mockstate.State{}, EmptyFunctions())
 }
 
 func newScopeWithState(s types.SmartState) Scope {
-	return NewScope(proto.MainNetScheme, s, EmptyFunctions(), nil)
+	return NewScope(proto.MainNetScheme, s, EmptyFunctions())
 }
 
 func TestFuncScope_Clone(t *testing.T) {
