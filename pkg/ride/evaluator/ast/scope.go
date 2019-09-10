@@ -6,10 +6,10 @@ type Scope interface {
 	Clone() Scope
 	AddValue(name string, expr Expr)
 	FuncByShort(int16) (Callable, bool)
-	FuncByName(string) (Callable, bool)
 	Value(string) (Expr, bool)
 	State() types.SmartState
 	Scheme() byte
+	Initial() Scope
 }
 
 type ScopeImpl struct {
@@ -40,16 +40,20 @@ func (a *ScopeImpl) Clone() Scope {
 	}
 }
 
+// clone scope with only predefined variables
+func (a *ScopeImpl) Initial() Scope {
+	if a.parent != nil {
+		return a.parent.Initial()
+	}
+	return a.Clone()
+}
+
 func (a *ScopeImpl) State() types.SmartState {
 	return a.state
 }
 
 func (a *ScopeImpl) FuncByShort(id int16) (Callable, bool) {
 	return a.funcs.GetByShort(id)
-}
-
-func (a *ScopeImpl) FuncByName(name string) (Callable, bool) {
-	return a.funcs.GetByName(name)
 }
 
 func (a *ScopeImpl) AddValue(name string, value Expr) {
@@ -81,13 +85,13 @@ func (a *ScopeImpl) Scheme() byte {
 
 type Functions struct {
 	native map[int16]Callable
-	user   map[string]Callable
+	user   map[string]Expr
 }
 
 func EmptyFunctions() *Functions {
 	return &Functions{
 		native: make(map[int16]Callable),
-		user:   make(map[string]Callable),
+		user:   make(map[string]Expr),
 	}
 }
 
@@ -151,31 +155,31 @@ func FunctionsV2() *Functions {
 
 	native[1060] = NativeAddressFromRecipient
 
-	user := make(map[string]Callable)
-	user["throw"] = UserThrow
-	user["addressFromString"] = UserAddressFromString
-	user["!="] = UserFunctionNeq
-	user["isDefined"] = UserIsDefined
-	user["extract"] = UserExtract
-	user["dropRightBytes"] = UserDropRightBytes
-	user["takeRightBytes"] = UserTakeRightBytes
-	user["takeRight"] = UserTakeRightString
-	user["dropRight"] = UserDropRightString
-	user["!"] = UserUnaryNot
-	user["-"] = UserUnaryMinus
+	user := make(map[string]Expr)
+	user["throw"] = UserFunctionFromPredefined(UserThrow, 0)
+	user["addressFromString"] = UserFunctionFromPredefined(UserAddressFromString, 1)
+	user["!="] = UserFunctionFromPredefined(UserFunctionNeq, 2)
+	user["isDefined"] = UserFunctionFromPredefined(UserIsDefined, 1)
+	user["extract"] = UserFunctionFromPredefined(UserExtract, 1)
+	user["dropRightBytes"] = UserFunctionFromPredefined(UserDropRightBytes, 2)
+	user["takeRightBytes"] = UserFunctionFromPredefined(UserTakeRightBytes, 2)
+	user["takeRight"] = UserFunctionFromPredefined(UserTakeRightString, 2)
+	user["dropRight"] = UserFunctionFromPredefined(UserDropRightString, 2)
+	user["!"] = UserFunctionFromPredefined(UserUnaryNot, 1)
+	user["-"] = UserFunctionFromPredefined(UserUnaryMinus, 1)
 
-	user["getInteger"] = UserDataIntegerFromArrayByIndex
-	user["getBoolean"] = UserDataBooleanFromArrayByIndex
-	user["getBinary"] = UserDataBinaryFromArrayByIndex
-	user["getString"] = UserDataStringFromArrayByIndex
+	user["getInteger"] = UserFunctionFromPredefined(UserDataIntegerFromArrayByIndex, 2)
+	user["getBoolean"] = UserFunctionFromPredefined(UserDataBooleanFromArrayByIndex, 2)
+	user["getBinary"] = UserFunctionFromPredefined(UserDataBinaryFromArrayByIndex, 2)
+	user["getString"] = UserFunctionFromPredefined(UserDataStringFromArrayByIndex, 2)
 
-	user["addressFromPublicKey"] = UserAddressFromPublicKey
-	user["wavesBalance"] = UserWavesBalance
+	user["addressFromPublicKey"] = UserFunctionFromPredefined(UserAddressFromPublicKey, 1)
+	user["wavesBalance"] = UserFunctionFromPredefined(UserWavesBalance, 1)
 
 	// type constructors
-	user["Address"] = UserAddress
-	user["Alias"] = UserAlias
-	user["DataEntry"] = DataEntry
+	user["Address"] = UserFunctionFromPredefined(UserAddress, 1)
+	user["Alias"] = UserFunctionFromPredefined(UserAlias, 1)
+	user["DataEntry"] = UserFunctionFromPredefined(DataEntry, 2)
 
 	return &Functions{
 		native: native,
@@ -211,45 +215,45 @@ func FunctionsV3() *Functions {
 	s.native[1208] = NativeLastIndexOfSubstringWithOffset
 
 	// Constructors for simple types
-	s.user["Ceiling"] = SimpleTypeConstructorFactory("Ceiling", CeilingExpr{})
-	s.user["Floor"] = SimpleTypeConstructorFactory("Floor", FloorExpr{})
-	s.user["HalfEven"] = SimpleTypeConstructorFactory("HalfEven", HalfEvenExpr{})
-	s.user["Down"] = SimpleTypeConstructorFactory("Down", DownExpr{})
-	s.user["Up"] = SimpleTypeConstructorFactory("Up", UpExpr{})
-	s.user["HalfUp"] = SimpleTypeConstructorFactory("HalfUp", HalfUpExpr{})
-	s.user["HalfDown"] = SimpleTypeConstructorFactory("HalfDown", HalfDownExpr{})
+	s.user["Ceiling"] = UserFunctionFromPredefined(SimpleTypeConstructorFactory("Ceiling", CeilingExpr{}), 0)
+	s.user["Floor"] = UserFunctionFromPredefined(SimpleTypeConstructorFactory("Floor", FloorExpr{}), 0)
+	s.user["HalfEven"] = UserFunctionFromPredefined(SimpleTypeConstructorFactory("HalfEven", HalfEvenExpr{}), 0)
+	s.user["Down"] = UserFunctionFromPredefined(SimpleTypeConstructorFactory("Down", DownExpr{}), 0)
+	s.user["Up"] = UserFunctionFromPredefined(SimpleTypeConstructorFactory("Up", UpExpr{}), 0)
+	s.user["HalfUp"] = UserFunctionFromPredefined(SimpleTypeConstructorFactory("HalfUp", HalfUpExpr{}), 0)
+	s.user["HalfDown"] = UserFunctionFromPredefined(SimpleTypeConstructorFactory("HalfDown", HalfDownExpr{}), 0)
 
-	s.user["NoAlg"] = SimpleTypeConstructorFactory("NoAlg", NoAlgExpr{})
-	s.user["Md5"] = SimpleTypeConstructorFactory("Md5", MD5Expr{})
-	s.user["Sha1"] = SimpleTypeConstructorFactory("Sha1", SHA1Expr{})
-	s.user["Sha224"] = SimpleTypeConstructorFactory("Sha224", SHA224Expr{})
-	s.user["Sha256"] = SimpleTypeConstructorFactory("Sha256", SHA256Expr{})
-	s.user["Sha384"] = SimpleTypeConstructorFactory("Sha384", SHA384Expr{})
-	s.user["Sha512"] = SimpleTypeConstructorFactory("Sha512", SHA512Expr{})
-	s.user["Sha3224"] = SimpleTypeConstructorFactory("Sha3224", SHA3224Expr{})
-	s.user["Sha3256"] = SimpleTypeConstructorFactory("Sha3256", SHA3256Expr{})
-	s.user["Sha3384"] = SimpleTypeConstructorFactory("Sha3384", SHA3384Expr{})
-	s.user["Sha3512"] = SimpleTypeConstructorFactory("Sha3512", SHA3512Expr{})
+	s.user["NoAlg"] = UserFunctionFromPredefined(SimpleTypeConstructorFactory("NoAlg", NoAlgExpr{}), 0)
+	s.user["Md5"] = UserFunctionFromPredefined(SimpleTypeConstructorFactory("Md5", MD5Expr{}), 0)
+	s.user["Sha1"] = UserFunctionFromPredefined(SimpleTypeConstructorFactory("Sha1", SHA1Expr{}), 0)
+	s.user["Sha224"] = UserFunctionFromPredefined(SimpleTypeConstructorFactory("Sha224", SHA224Expr{}), 0)
+	s.user["Sha256"] = UserFunctionFromPredefined(SimpleTypeConstructorFactory("Sha256", SHA256Expr{}), 0)
+	s.user["Sha384"] = UserFunctionFromPredefined(SimpleTypeConstructorFactory("Sha384", SHA384Expr{}), 0)
+	s.user["Sha512"] = UserFunctionFromPredefined(SimpleTypeConstructorFactory("Sha512", SHA512Expr{}), 0)
+	s.user["Sha3224"] = UserFunctionFromPredefined(SimpleTypeConstructorFactory("Sha3224", SHA3224Expr{}), 0)
+	s.user["Sha3256"] = UserFunctionFromPredefined(SimpleTypeConstructorFactory("Sha3256", SHA3256Expr{}), 0)
+	s.user["Sha3384"] = UserFunctionFromPredefined(SimpleTypeConstructorFactory("Sha3384", SHA3384Expr{}), 0)
+	s.user["Sha3512"] = UserFunctionFromPredefined(SimpleTypeConstructorFactory("Sha3512", SHA3512Expr{}), 0)
 
-	s.user["Unit"] = SimpleTypeConstructorFactory("Unit", Unit{})
+	s.user["Unit"] = UserFunctionFromPredefined(SimpleTypeConstructorFactory("Unit", Unit{}), 0)
 
 	// New user functions
-	s.user["@extrNative(1050)"] = wrapWithExtract(NativeDataIntegerFromState, "UserDataIntegerValueFromState")
-	s.user["@extrNative(1051)"] = wrapWithExtract(NativeDataBooleanFromState, "UserDataBooleanValueFromState")
-	s.user["@extrNative(1052)"] = wrapWithExtract(NativeDataBinaryFromState, "UserDataBinaryValueFromState")
-	s.user["@extrNative(1053)"] = wrapWithExtract(NativeDataStringFromState, "UserDataStringValueFromState")
-	s.user["@extrNative(1040)"] = wrapWithExtract(NativeDataIntegerFromArray, "UserDataIntegerValueFromArray")
-	s.user["@extrNative(1041)"] = wrapWithExtract(NativeDataBooleanFromArray, "UserDataBooleanValueFromArray")
-	s.user["@extrNative(1042)"] = wrapWithExtract(NativeDataBinaryFromArray, "UserDataBinaryValueFromArray")
-	s.user["@extrNative(1043)"] = wrapWithExtract(NativeDataStringFromArray, "UserDataStringValueFromArray")
-	s.user["@extrUser(getInteger)"] = wrapWithExtract(UserDataIntegerFromArrayByIndex, "UserDataIntegerValueFromArrayByIndex")
-	s.user["@extrUser(getBoolean)"] = wrapWithExtract(UserDataBooleanFromArrayByIndex, "UserDataBooleanValueFromArrayByIndex")
-	s.user["@extrUser(getBinary)"] = wrapWithExtract(UserDataBinaryFromArrayByIndex, "UserDataBinaryValueFromArrayByIndex")
-	s.user["@extrUser(getString)"] = wrapWithExtract(UserDataStringFromArrayByIndex, "UserDataStringValueFromArrayByIndex")
-	s.user["@extrUser(addressFromString)"] = wrapWithExtract(UserAddressFromString, "UserAddressValueFromString")
-	s.user["parseIntValue"] = wrapWithExtract(NativeParseInt, "UserParseIntValue")
-	s.user["value"] = UserValue
-	s.user["valueOrErrorMessage"] = UserValueOrErrorMessage
+	s.user["@extrNative(1050)"] = UserFunctionFromPredefined(wrapWithExtract(NativeDataIntegerFromState, "UserDataIntegerValueFromState"), 2)
+	s.user["@extrNative(1051)"] = UserFunctionFromPredefined(wrapWithExtract(NativeDataBooleanFromState, "UserDataBooleanValueFromState"), 2)
+	s.user["@extrNative(1052)"] = UserFunctionFromPredefined(wrapWithExtract(NativeDataBinaryFromState, "UserDataBinaryValueFromState"), 2)
+	s.user["@extrNative(1053)"] = UserFunctionFromPredefined(wrapWithExtract(NativeDataStringFromState, "UserDataStringValueFromState"), 2)
+	s.user["@extrNative(1040)"] = UserFunctionFromPredefined(wrapWithExtract(NativeDataIntegerFromArray, "UserDataIntegerValueFromArray"), 2)
+	s.user["@extrNative(1041)"] = UserFunctionFromPredefined(wrapWithExtract(NativeDataBooleanFromArray, "UserDataBooleanValueFromArray"), 2)
+	s.user["@extrNative(1042)"] = UserFunctionFromPredefined(wrapWithExtract(NativeDataBinaryFromArray, "UserDataBinaryValueFromArray"), 2)
+	s.user["@extrNative(1043)"] = UserFunctionFromPredefined(wrapWithExtract(NativeDataStringFromArray, "UserDataStringValueFromArray"), 2)
+	s.user["@extrUser(getInteger)"] = UserFunctionFromPredefined(wrapWithExtract(UserDataIntegerFromArrayByIndex, "UserDataIntegerValueFromArrayByIndex"), 2)
+	s.user["@extrUser(getBoolean)"] = UserFunctionFromPredefined(wrapWithExtract(UserDataBooleanFromArrayByIndex, "UserDataBooleanValueFromArrayByIndex"), 2)
+	s.user["@extrUser(getBinary)"] = UserFunctionFromPredefined(wrapWithExtract(UserDataBinaryFromArrayByIndex, "UserDataBinaryValueFromArrayByIndex"), 2)
+	s.user["@extrUser(getString)"] = UserFunctionFromPredefined(wrapWithExtract(UserDataStringFromArrayByIndex, "UserDataStringValueFromArrayByIndex"), 2)
+	s.user["@extrUser(addressFromString)"] = UserFunctionFromPredefined(wrapWithExtract(UserAddressFromString, "UserAddressValueFromString"), 1)
+	s.user["parseIntValue"] = UserFunctionFromPredefined(wrapWithExtract(NativeParseInt, "UserParseIntValue"), 1)
+	s.user["value"] = UserFunctionFromPredefined(UserValue, 1)
+	s.user["valueOrErrorMessage"] = UserFunctionFromPredefined(UserValueOrErrorMessage, 2)
 	return s
 }
 
@@ -258,9 +262,8 @@ func (a *Functions) GetByShort(id int16) (Callable, bool) {
 	return f, ok
 }
 
-func (a *Functions) GetByName(name string) (Callable, bool) {
-	f, ok := a.user[name]
-	return f, ok
+func (a *Functions) UserFunctions() map[string]Expr {
+	return a.user
 }
 
 func (a *Functions) Clone() *Functions {

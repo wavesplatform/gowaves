@@ -17,6 +17,10 @@ const E_TRUE byte = 6
 const E_FALSE byte = 7
 const E_GETTER byte = 8
 const E_FUNCALL byte = 9
+const E_BLOCK_V2 byte = 10
+
+const DEC_LET byte = 0
+const DEC_FUNC byte = 1
 
 // TODO: const E_BLOCK_V2 byte = 10 // RIDE v3
 
@@ -109,4 +113,8 @@ func (a *BytesReader) ReadBytes() []byte {
 
 func (a *BytesReader) Pos() int {
 	return a.pos
+}
+
+func (a *BytesReader) Rest() []byte {
+	return a.bytes[a.pos:]
 }

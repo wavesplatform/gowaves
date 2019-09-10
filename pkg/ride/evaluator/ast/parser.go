@@ -1,8 +1,7 @@
-package parser
+package ast
 
 import (
 	"github.com/pkg/errors"
-	. "github.com/wavesplatform/gowaves/pkg/ride/evaluator/ast"
 	. "github.com/wavesplatform/gowaves/pkg/ride/evaluator/reader"
 )
 
@@ -60,6 +59,8 @@ func Walk(iter *BytesReader) (Expr, error) {
 		return readGetter(iter)
 	case E_FUNCALL:
 		return readFuncCAll(iter)
+	case E_BLOCK_V2:
+		return readBlockV2(iter)
 	default:
 		return nil, errors.Errorf("invalid byte %d", next)
 	}
@@ -79,6 +80,58 @@ func readBlock(r *BytesReader) (*Block, error) {
 
 	return &Block{
 		Let:  NewLet(letName, letValue),
+		Body: body,
+	}, nil
+}
+
+func deserializeDeclaration(r *BytesReader) (Declaration, error) {
+	declType, err := r.ReadByte()
+	if err != nil {
+		return nil, err
+	}
+	switch declType {
+	case DEC_LET:
+		name := r.ReadString()
+		body, err := Walk(r)
+		if err != nil {
+			return nil, err
+		}
+		return NewLet(name, body), nil
+	case DEC_FUNC:
+		name := r.ReadString()
+		argc := r.ReadInt()
+		args := make([]string, argc)
+		for i := int32(0); i < argc; i++ {
+			args[i] = r.ReadString()
+		}
+		body, err := Walk(r)
+		if err != nil {
+			return nil, err
+		}
+		return &FuncDeclaration{
+			Name: name,
+			Args: args,
+			Body: body,
+		}, nil
+
+	default:
+		return nil, errors.Errorf("unknown declaration byte, expected %d or %d, found %d", DEC_LET, DEC_FUNC, declType)
+	}
+}
+
+func readBlockV2(r *BytesReader) (*BlockV2, error) {
+	rs, err := deserializeDeclaration(r)
+	if err != nil {
+		return nil, err
+	}
+
+	body, err := Walk(r)
+	if err != nil {
+		return nil, err
+	}
+
+	return &BlockV2{
+		Decl: rs,
 		Body: body,
 	}, nil
 }
@@ -123,7 +176,7 @@ func readNativeFunction(iter *BytesReader) (*NativeFunction, error) {
 	return NewNativeFunction(funcNumber, int(argc), argv), nil
 }
 
-func readUserFunction(iter *BytesReader) (*UserFunction, error) {
+func readUserFunction(iter *BytesReader) (*UserFunctionCall, error) {
 	funcNumber := iter.ReadString()
 	argc := iter.ReadInt()
 	argv := make([]Expr, argc)
@@ -135,7 +188,7 @@ func readUserFunction(iter *BytesReader) (*UserFunction, error) {
 		argv[i] = v
 	}
 
-	return NewUserFunction(funcNumber, int(argc), argv), nil
+	return NewUserFunctionCall(funcNumber, int(argc), argv), nil
 }
 
 func readIf(r *BytesReader) (*IfExpr, error) {

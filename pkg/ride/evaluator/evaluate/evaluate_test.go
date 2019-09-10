@@ -10,7 +10,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	. "github.com/wavesplatform/gowaves/pkg/ride/evaluator/ast"
-	. "github.com/wavesplatform/gowaves/pkg/ride/evaluator/parser"
 	"github.com/wavesplatform/gowaves/pkg/ride/evaluator/reader"
 	"github.com/wavesplatform/gowaves/pkg/ride/mockstate"
 )
@@ -47,7 +46,19 @@ func defaultScope() Scope {
 		DataEntries:     dataEntries,
 	}
 
-	return NewScope(proto.MainNetScheme, s, FunctionsV3(), variables)
+	funcs := FunctionsV3()
+	return NewScope(proto.MainNetScheme, s, FunctionsV3(), merge(variables, funcs.UserFunctions()))
+}
+
+func merge(x map[string]Expr, y map[string]Expr) map[string]Expr {
+	out := make(map[string]Expr)
+	for k, v := range x {
+		out[k] = v
+	}
+	for k, v := range y {
+		out[k] = v
+	}
+	return out
 }
 
 const (
@@ -286,7 +297,7 @@ func TestFunctions(t *testing.T) {
 		require.NoError(t, err)
 
 		rs, err := Eval(script.Verifier, defaultScope())
-		assert.NoError(t, err)
+		assert.NoError(t, err, test.FuncName)
 		assert.Equal(t, test.Result, rs, fmt.Sprintf("func name: %s, code: %d, script: %s", test.FuncName, test.FuncCode, test.Code))
 	}
 }
@@ -319,8 +330,8 @@ func TestDataFunctions(t *testing.T) {
 	require.NoError(t, err)
 
 	variables := VariablesV3(vars, 100500)
-
-	scope := NewScope(proto.MainNetScheme, mockstate.State{}, FunctionsV3(), variables)
+	funcs := FunctionsV3()
+	scope := NewScope(proto.MainNetScheme, mockstate.State{}, FunctionsV3(), merge(variables, funcs.UserFunctions()))
 
 	for _, test := range []struct {
 		FuncCode int

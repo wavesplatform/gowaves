@@ -116,9 +116,60 @@ func (a *Block) InstanceOf() string {
 	return "Block"
 }
 
+type Declaration interface {
+	Eval(s Scope)
+}
+
+type LetDeclaration struct {
+	name string
+	body Expr
+}
+
+func (a *LetDeclaration) Eval(s Scope) {
+	s.AddValue(a.name, a.body)
+}
+
+type FuncDeclaration struct {
+	Name string
+	Args []string
+	Body Expr
+}
+
+func (a *FuncDeclaration) Eval(s Scope) {
+	//NewUserFunctionCall()
+	//s.AddValue()
+	panic("FuncDeclaration Eval")
+}
+
+type BlockV2 struct {
+	Decl Declaration
+	Body Expr
+}
+
+func (a *BlockV2) Write(io.Writer) {
+	panic("implement me")
+}
+
+func (a *BlockV2) Evaluate(s Scope) (Expr, error) {
+	a.Decl.Eval(s)
+	return a.Body.Evaluate(s.Clone())
+}
+
+func (a *BlockV2) Eq(other Expr) (bool, error) {
+	return false, errors.Errorf("trying to compare %T with %T", a, other)
+}
+
+func (a *BlockV2) InstanceOf() string {
+	panic("implement me")
+}
+
 type LetExpr struct {
 	Name  string
 	Value Expr
+}
+
+func (a *LetExpr) Eval(s Scope) {
+	panic("implement me")
 }
 
 func (a *LetExpr) Write(w io.Writer) {
@@ -255,21 +306,21 @@ func (a *NativeFunction) InstanceOf() string {
 	return "NativeFunction"
 }
 
-type UserFunction struct {
+type UserFunctionCall struct {
 	Name string
 	Argc int
 	Argv Exprs
 }
 
-func NewUserFunction(name string, argc int, argv Exprs) *UserFunction {
-	return &UserFunction{
+func NewUserFunctionCall(name string, argc int, argv Exprs) *UserFunctionCall {
+	return &UserFunctionCall{
 		Name: name,
 		Argc: argc,
 		Argv: argv,
 	}
 }
 
-func (a *UserFunction) Write(w io.Writer) {
+func (a *UserFunctionCall) Write(w io.Writer) {
 	if a.Name == "!=" {
 		infix(w, " != ", a.Argv)
 		return
@@ -277,13 +328,49 @@ func (a *UserFunction) Write(w io.Writer) {
 	prefix(w, a.Name, a.Argv)
 }
 
-func (a *UserFunction) Evaluate(s Scope) (Expr, error) {
-	f, ok := s.FuncByName(a.Name)
+func (a *UserFunctionCall) Evaluate(s Scope) (Expr, error) {
+	e, ok := s.Value(a.Name)
 	if !ok {
-		return nil, errors.Errorf("evaluate user function: function name %s not found in scope", a.Name)
+		return nil, errors.Errorf("evaluate user function: function named '%s' not found in scope", a.Name)
 	}
+	fn, ok := e.(*UserFunction)
+	if !ok {
+		return nil, errors.Errorf("evaluate user function: expected value 'fn' to be *UserFunction, found %T", e)
+	}
+	if fn.Argc != a.Argc {
+		return nil, errors.Errorf("evaluate user function: function %s expects %d arguments, passed %d", a.Name, fn.Argc, a.Argc)
+	}
+	initial := s.Initial()
+	for i := 0; i < a.Argc; i++ {
+		evaluatedParam, err := a.Argv[i].Evaluate(s.Clone())
+		if err != nil {
+			return nil, errors.Wrapf(err, "evaluate user function: %s", a.Name)
+		}
+		initial.AddValue(fn.Argv[i], evaluatedParam)
+	}
+	return fn.Evaluate(initial)
+}
 
-	return f(s.Clone(), a.Argv)
+func (a *UserFunctionCall) Eq(other Expr) (bool, error) {
+	return false, errors.Errorf("trying to compare %T with %T", a, other)
+}
+
+func (a *UserFunctionCall) InstanceOf() string {
+	return "UserFunctionCall"
+}
+
+type UserFunction struct {
+	Argc int
+	Argv []string
+	Body Expr
+}
+
+func (a *UserFunction) Write(io.Writer) {
+	panic("implement me")
+}
+
+func (a *UserFunction) Evaluate(s Scope) (Expr, error) {
+	return a.Body.Evaluate(s)
 }
 
 func (a *UserFunction) Eq(other Expr) (bool, error) {
@@ -292,6 +379,73 @@ func (a *UserFunction) Eq(other Expr) (bool, error) {
 
 func (a *UserFunction) InstanceOf() string {
 	return "UserFunction"
+}
+
+func NewUserFunction(Argc int, Argv []string, Body Expr) *UserFunction {
+	if Argc != len(Argv) {
+		panic(fmt.Sprintf("NewUserFunction: Argc(%d) != len(Argv)(%d)", Argc, len(Argv)))
+	}
+	return &UserFunction{
+		Argc: Argc,
+		Argv: Argv,
+		Body: Body,
+	}
+}
+
+func DefUserFunction(body Expr, argv ...string) *UserFunction {
+	return &UserFunction{
+		Argc: len(argv),
+		Argv: argv,
+		Body: body,
+	}
+}
+
+func UserFunctionFromPredefined(c Callable, argc uint32) *UserFunction {
+	return &UserFunction{
+		Argc: int(argc),
+		Argv: buildParams(argc),
+		Body: &PredefinedUserFunction{
+			argv: buildParams(argc),
+			fn:   c,
+		},
+	}
+}
+
+func buildParams(argc uint32) []string {
+	var out []string
+	for i := uint32(0); i < argc; i++ {
+		out = append(out, fmt.Sprintf("param%d", i))
+	}
+	return out
+}
+
+type PredefinedUserFunction struct {
+	argv []string
+	fn   Callable
+}
+
+func (a PredefinedUserFunction) Write(io.Writer) {
+	panic("implement me")
+}
+
+func (a PredefinedUserFunction) Evaluate(s Scope) (Expr, error) {
+	params := Params()
+	for i := 0; i < len(a.argv); i++ {
+		e, ok := s.Value(a.argv[i])
+		if !ok {
+			return nil, errors.Errorf("PredefinedUserFunction: param %s not found in scope", a.argv[i])
+		}
+		params = append(params, e)
+	}
+	return a.fn(s.Clone(), params)
+}
+
+func (a PredefinedUserFunction) Eq(Expr) (bool, error) {
+	panic("PredefinedUserFunction: implement me eq")
+}
+
+func (a PredefinedUserFunction) InstanceOf() string {
+	panic("implement me")
 }
 
 type RefExpr struct {
