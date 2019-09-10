@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"sync"
 
+	"github.com/mr-tron/base58/base58"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/consensus"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
@@ -223,7 +224,8 @@ func (a *txAppender) callVerifyScript(tx proto.Transaction, initialisation bool)
 		return errors.Errorf("verifier script failed: %v\n", err)
 	}
 	if !ok {
-		return errors.New("verifier script does not allow to send this transaction from smart account")
+		id, _ := tx.GetID()
+		return errors.Errorf("verifier script does not allow to send transaction %s from smart account %s", base58.Encode(id), senderAddr.String())
 	}
 	return nil
 }

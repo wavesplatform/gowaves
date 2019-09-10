@@ -116,7 +116,6 @@ func (l *lru) set(key proto.Address, value ast.Script, bytes uint64) (existed bo
 	return has
 }
 
-/*
 func (l *lru) deleteIfExists(key proto.Address) (existed bool) {
 	e, has := l.m[key]
 	if has {
@@ -124,4 +123,3 @@ func (l *lru) deleteIfExists(key proto.Address) (existed bool) {
 	}
 	return has
 }
-*/

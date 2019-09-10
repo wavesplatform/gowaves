@@ -68,6 +68,11 @@ func (as *accountsScripts) setScript(addr proto.Address, script proto.Script, bl
 	if err := as.hs.addNewEntry(accountScript, key.bytes(), recordBytes, blockID); err != nil {
 		return err
 	}
+	if len(script) == 0 {
+		// There is no AST for empty script.
+		as.cache.deleteIfExists(addr)
+		return nil
+	}
 	scriptAst, err := scriptBytesToAst(record.script)
 	if err != nil {
 		return err
@@ -85,6 +90,10 @@ func (as *accountsScripts) newestScriptAstFromAddr(addr proto.Address, filter bo
 	var record accountScriptRecord
 	if err := record.unmarshalBinary(recordBytes); err != nil {
 		return ast.Script{}, err
+	}
+	if len(record.script) == 0 {
+		// Empty script = no script.
+		return ast.Script{}, proto.ErrNotFound
 	}
 	return scriptBytesToAst(record.script)
 }
@@ -114,16 +123,14 @@ func (as *accountsScripts) newestHasScript(addr proto.Address, filter bool) (boo
 	if _, has := as.cache.get(addr); has {
 		return true, nil
 	}
-	key := accountScriptKey{addr: addr}
-	if _, err := as.hs.freshLatestEntryData(key.bytes(), filter); err == nil {
+	if _, err := as.newestScriptAstFromAddr(addr, filter); err == nil {
 		return true, nil
 	}
 	return false, nil
 }
 
 func (as *accountsScripts) hasScript(addr proto.Address, filter bool) (bool, error) {
-	key := accountScriptKey{addr: addr}
-	if _, err := as.hs.latestEntryData(key.bytes(), filter); err == nil {
+	if _, err := as.scriptByAddr(addr, filter); err == nil {
 		return true, nil
 	}
 	return false, nil
@@ -135,7 +142,7 @@ func (as *accountsScripts) newestScriptByAddr(addr proto.Address, filter bool) (
 	}
 	script, err := as.newestScriptAstFromAddr(addr, filter)
 	if err != nil {
-		return ast.Script{}, nil
+		return ast.Script{}, err
 	}
 	as.cache.set(addr, script, scriptSize)
 	return script, nil
@@ -150,6 +157,10 @@ func (as *accountsScripts) scriptByAddr(addr proto.Address, filter bool) (ast.Sc
 	var record accountScriptRecord
 	if err := record.unmarshalBinary(recordBytes); err != nil {
 		return ast.Script{}, err
+	}
+	if len(record.script) == 0 {
+		// Empty script = no script.
+		return ast.Script{}, proto.ErrNotFound
 	}
 	return scriptBytesToAst(record.script)
 }

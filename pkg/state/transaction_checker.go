@@ -33,6 +33,10 @@ func newTransactionChecker(
 }
 
 func (tc *transactionChecker) scriptActivation(script proto.Script) error {
+	if len(script) == 0 {
+		// Empty script is always valid.
+		return nil
+	}
 	scriptAst, err := scriptBytesToAst(script)
 	if err != nil {
 		return err
