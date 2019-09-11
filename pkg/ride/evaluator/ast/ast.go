@@ -416,14 +416,6 @@ func NewFunction(Argv []string, Body Expr) *Function {
 	}
 }
 
-func DefUserFunction(body Expr, argv ...string) *Function {
-	return &Function{
-		Argc: len(argv),
-		Argv: argv,
-		Body: body,
-	}
-}
-
 func FunctionFromPredefined(c Callable, argc uint32) *Function {
 	return &Function{
 		Argc: int(argc),

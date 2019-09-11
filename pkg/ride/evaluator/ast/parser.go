@@ -26,9 +26,6 @@ func BuildAst(r *BytesReader) (Script, error) {
 	return script, nil
 }
 
-type Dapp struct {
-}
-
 func Walk(iter *BytesReader) (Expr, error) {
 	if iter.Eof() {
 		return nil, ErrUnexpectedEOF
@@ -49,7 +46,6 @@ func Walk(iter *BytesReader) (Expr, error) {
 		return readIf(iter)
 	case E_BLOCK:
 		return readBlock(iter)
-	// TODO: case E_BLOCK_V2: // RIDE v3
 	case E_REF:
 		return &RefExpr{
 			Name: iter.ReadString(),
