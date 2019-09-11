@@ -86,7 +86,7 @@ func (e *EstimatorV1) estimate(expr ast.Expr) (int64, error) {
 		e.context = tmp
 		return bc + 5, nil
 
-	case *ast.FuncCall:
+	case *ast.FuncCallExpr:
 		cc, err := e.estimate(expression.Func)
 		if err != nil {
 			return 0, err
@@ -104,7 +104,7 @@ func (e *EstimatorV1) estimate(expr ast.Expr) (int64, error) {
 		}
 		return fc + ac, nil
 
-	case *ast.UserFunction:
+	case *ast.UserFunctionCall:
 		fc, ok := e.catalogue.UserFunctionCost(expression.Name)
 		if !ok {
 			return 0, errors.Errorf("no user function '%s' in scope", expression.Name)

@@ -6,7 +6,6 @@ import (
 
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride/evaluator/ast"
-	"github.com/wavesplatform/gowaves/pkg/ride/evaluator/parser"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -73,7 +72,7 @@ func TestEstimatorV1Estimate(t *testing.T) {
 	} {
 		r, err := reader.NewReaderFromBase64(test.script)
 		require.NoError(t, err, test.code)
-		script, err := parser.BuildAst(r)
+		script, err := ast.BuildAst(r)
 		require.NoError(t, err, test.code)
 		e := NewEstimatorV1(test.catalogue, ast.VariablesV3(tx, 12345))
 		cost, err := e.Estimate(script)
