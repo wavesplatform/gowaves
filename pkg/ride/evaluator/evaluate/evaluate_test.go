@@ -10,7 +10,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	. "github.com/wavesplatform/gowaves/pkg/ride/evaluator/ast"
-	. "github.com/wavesplatform/gowaves/pkg/ride/evaluator/parser"
 	"github.com/wavesplatform/gowaves/pkg/ride/evaluator/reader"
 	"github.com/wavesplatform/gowaves/pkg/ride/mockstate"
 )
@@ -46,8 +45,7 @@ func defaultScope() Scope {
 		AccountsBalance: 5,
 		DataEntries:     dataEntries,
 	}
-
-	return NewScope(proto.MainNetScheme, s, FunctionsV3(), variables)
+	return NewScope(proto.MainNetScheme, s, Merge(variables, FunctionsV3()))
 }
 
 const (
@@ -286,7 +284,7 @@ func TestFunctions(t *testing.T) {
 		require.NoError(t, err)
 
 		rs, err := Eval(script.Verifier, defaultScope())
-		assert.NoError(t, err)
+		assert.NoError(t, err, test.FuncName)
 		assert.Equal(t, test.Result, rs, fmt.Sprintf("func name: %s, code: %d, script: %s", test.FuncName, test.FuncCode, test.Code))
 	}
 }
@@ -319,8 +317,7 @@ func TestDataFunctions(t *testing.T) {
 	require.NoError(t, err)
 
 	variables := VariablesV3(vars, 100500)
-
-	scope := NewScope(proto.MainNetScheme, mockstate.State{}, FunctionsV3(), variables)
+	scope := NewScope(proto.MainNetScheme, mockstate.State{}, Merge(variables, FunctionsV3()))
 
 	for _, test := range []struct {
 		FuncCode int
@@ -369,4 +366,56 @@ func Benchmark_Verify(b *testing.B) {
 			b.Fail()
 		}
 	}
+}
+
+func TestEvaluateBlockV3False(t *testing.T) {
+
+	_ = `
+{-# STDLIB_VERSION 3 #-}
+{-# CONTENT_TYPE EXPRESSION #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+func fn(name: String) = {
+    name
+}
+fn("bbb") == "aaa"
+`
+
+	b64 := "AwoBAAAAAmZuAAAAAQAAAARuYW1lBQAAAARuYW1lCQAAAAAAAAIJAQAAAAJmbgAAAAECAAAAA2JiYgIAAAADYWFhbCbxUQ=="
+	r, err := reader.NewReaderFromBase64(b64)
+	require.NoError(t, err)
+
+	script, err := BuildAst(r)
+	require.NoError(t, err)
+
+	s := defaultScope()
+
+	rs, err := Eval(script.Verifier, s)
+	require.NoError(t, err)
+	require.False(t, rs, rs)
+}
+
+func TestEvaluateBlockV3True(t *testing.T) {
+
+	//	_ = `
+	//{-# STDLIB_VERSION 3 #-}
+	//{-# CONTENT_TYPE EXPRESSION #-}
+	//{-# SCRIPT_TYPE ACCOUNT #-}
+	//func fn(name: String) = {
+	//    name
+	//}
+	//fn("bbb") == "aaa"
+	//`
+
+	b64 := "AwQAAAACenoCAAAAA2NjYwoBAAAAAmZuAAAAAQAAAARuYW1lBQAAAAJ6egkAAAAAAAACCQEAAAACZm4AAAABAgAAAANhYmMCAAAAA2NjYyBIzew="
+	r, err := reader.NewReaderFromBase64(b64)
+	require.NoError(t, err)
+
+	script, err := BuildAst(r)
+	require.NoError(t, err)
+
+	s := defaultScope()
+
+	rs, err := Eval(script.Verifier, s)
+	require.NoError(t, err)
+	require.True(t, rs, rs)
 }
