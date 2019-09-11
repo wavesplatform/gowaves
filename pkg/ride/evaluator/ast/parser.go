@@ -29,10 +29,6 @@ func BuildAst(r *BytesReader) (Script, error) {
 type Dapp struct {
 }
 
-func readDapp(r *BytesReader) (Dapp, error) {
-	return Dapp{}, nil
-}
-
 func Walk(iter *BytesReader) (Expr, error) {
 	if iter.Eof() {
 		return nil, ErrUnexpectedEOF

@@ -163,7 +163,7 @@ func (a *BlockV2) Write(w io.Writer) {
 }
 
 func (a *BlockV2) Evaluate(s Scope) (Expr, error) {
-	a.Decl.Evaluate(s)
+	_, _ = a.Decl.Evaluate(s)
 	return a.Body.Evaluate(s.Clone())
 }
 
