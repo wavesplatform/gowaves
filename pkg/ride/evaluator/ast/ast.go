@@ -48,7 +48,6 @@ func (a Exprs) EvaluateAll(s Scope) (Exprs, error) {
 		}
 		out[i] = rs
 	}
-
 	return out, nil
 }
 
@@ -83,14 +82,6 @@ func NewExprs(e ...Expr) Exprs {
 // get property from object
 type Getable interface {
 	Get(string) (Expr, error)
-}
-
-type DataByIndex interface {
-	GetByIndex(index int, valueType proto.DataValueType) Expr
-}
-
-type DataByKey interface {
-	GetByKey(key string, valueType proto.DataValueType) (Expr, error)
 }
 
 type Block struct {
@@ -245,7 +236,7 @@ func NewBoolean(value bool) *BooleanExpr {
 	}
 }
 
-func (a *BooleanExpr) Evaluate(scope Scope) (Expr, error) {
+func (a *BooleanExpr) Evaluate(Scope) (Expr, error) {
 	return a, nil
 }
 
@@ -497,7 +488,6 @@ func (a *RefExpr) Write(w io.Writer) {
 }
 
 func (a *RefExpr) Evaluate(s Scope) (Expr, error) {
-
 	if a.cached {
 		return a.cache.Expr, a.cache.Err
 	}
@@ -590,7 +580,7 @@ func (a *BytesExpr) Write(w io.Writer) {
 	_, _ = fmt.Fprint(w, "base58'", base58.Encode(a.Value), "'")
 }
 
-func (a *BytesExpr) Evaluate(s Scope) (Expr, error) {
+func (a *BytesExpr) Evaluate(Scope) (Expr, error) {
 	return a, nil
 }
 
@@ -662,7 +652,7 @@ func (a *ObjectExpr) Write(w io.Writer) {
 	_, _ = fmt.Fprint(w, "object")
 }
 
-func (a *ObjectExpr) Evaluate(s Scope) (Expr, error) {
+func (a *ObjectExpr) Evaluate(Scope) (Expr, error) {
 	return a, nil
 }
 
@@ -722,7 +712,7 @@ func (a *StringExpr) Write(w io.Writer) {
 	_, _ = fmt.Fprint(w, `"`, a.Value, `"`)
 }
 
-func (a *StringExpr) Evaluate(s Scope) (Expr, error) {
+func (a *StringExpr) Evaluate(Scope) (Expr, error) {
 	return a, nil
 }
 
@@ -745,7 +735,7 @@ func (a AddressExpr) Write(w io.Writer) {
 	_, _ = fmt.Fprint(w, proto.Address(a).String())
 }
 
-func (a AddressExpr) Evaluate(s Scope) (Expr, error) {
+func (a AddressExpr) Evaluate(Scope) (Expr, error) {
 	return a, nil
 }
 
@@ -778,7 +768,7 @@ func (a Unit) Write(w io.Writer) {
 	_, _ = fmt.Fprint(w, "Unit")
 }
 
-func (a Unit) Evaluate(s Scope) (Expr, error) {
+func (a Unit) Evaluate(Scope) (Expr, error) {
 	return a, nil
 }
 
@@ -803,7 +793,7 @@ func (a AliasExpr) Write(w io.Writer) {
 	_, _ = fmt.Fprint(w, "Alias")
 }
 
-func (a AliasExpr) Evaluate(s Scope) (Expr, error) {
+func (a AliasExpr) Evaluate(Scope) (Expr, error) {
 	return a, nil
 }
 
@@ -858,7 +848,7 @@ func NewRecipientFromProtoRecipient(a proto.Recipient) RecipientExpr {
 	return RecipientExpr(a)
 }
 
-func (a RecipientExpr) Evaluate(s Scope) (Expr, error) {
+func (a RecipientExpr) Evaluate(Scope) (Expr, error) {
 	return a, nil
 }
 
@@ -898,7 +888,7 @@ func (a AssetPairExpr) InstanceOf() string {
 	return "AssetPair"
 }
 
-func (a AssetPairExpr) Evaluate(s Scope) (Expr, error) {
+func (a AssetPairExpr) Evaluate(Scope) (Expr, error) {
 	return a, nil
 }
 
@@ -931,7 +921,7 @@ func (a object) Write(w io.Writer) {
 	_, _ = fmt.Fprint(w, "object")
 }
 
-func (a object) Evaluate(s Scope) (Expr, error) {
+func (a object) Evaluate(Scope) (Expr, error) {
 	return a, nil
 }
 
@@ -980,7 +970,7 @@ func NewBuy() *BuyExpr {
 	return &BuyExpr{}
 }
 
-func (a BuyExpr) Evaluate(s Scope) (Expr, error) {
+func (a BuyExpr) Evaluate(Scope) (Expr, error) {
 	return a, nil
 }
 
@@ -1002,7 +992,7 @@ func NewSell() *SellExpr {
 	return &SellExpr{}
 }
 
-func (a SellExpr) Evaluate(s Scope) (Expr, error) {
+func (a SellExpr) Evaluate(Scope) (Expr, error) {
 	return a, nil
 }
 
@@ -1020,7 +1010,7 @@ func (a SellExpr) InstanceOf() string {
 
 type CeilingExpr struct{}
 
-func (a CeilingExpr) Evaluate(s Scope) (Expr, error) {
+func (a CeilingExpr) Evaluate(Scope) (Expr, error) {
 	return a, nil
 }
 
@@ -1038,7 +1028,7 @@ func (a CeilingExpr) InstanceOf() string {
 
 type FloorExpr struct{}
 
-func (a FloorExpr) Evaluate(s Scope) (Expr, error) {
+func (a FloorExpr) Evaluate(Scope) (Expr, error) {
 	return a, nil
 }
 
@@ -1056,7 +1046,7 @@ func (a FloorExpr) InstanceOf() string {
 
 type HalfEvenExpr struct{}
 
-func (a HalfEvenExpr) Evaluate(s Scope) (Expr, error) {
+func (a HalfEvenExpr) Evaluate(Scope) (Expr, error) {
 	return a, nil
 }
 
@@ -1074,7 +1064,7 @@ func (a HalfEvenExpr) InstanceOf() string {
 
 type DownExpr struct{}
 
-func (a DownExpr) Evaluate(s Scope) (Expr, error) {
+func (a DownExpr) Evaluate(Scope) (Expr, error) {
 	return a, nil
 }
 
@@ -1092,7 +1082,7 @@ func (a DownExpr) InstanceOf() string {
 
 type UpExpr struct{}
 
-func (a UpExpr) Evaluate(s Scope) (Expr, error) {
+func (a UpExpr) Evaluate(Scope) (Expr, error) {
 	return a, nil
 }
 
@@ -1110,7 +1100,7 @@ func (a UpExpr) InstanceOf() string {
 
 type HalfUpExpr struct{}
 
-func (a HalfUpExpr) Evaluate(s Scope) (Expr, error) {
+func (a HalfUpExpr) Evaluate(Scope) (Expr, error) {
 	return a, nil
 }
 
@@ -1128,7 +1118,7 @@ func (a HalfUpExpr) InstanceOf() string {
 
 type HalfDownExpr struct{}
 
-func (a HalfDownExpr) Evaluate(s Scope) (Expr, error) {
+func (a HalfDownExpr) Evaluate(Scope) (Expr, error) {
 	return a, nil
 }
 
@@ -1146,7 +1136,7 @@ func (a HalfDownExpr) InstanceOf() string {
 
 type NoAlgExpr struct{}
 
-func (a NoAlgExpr) Evaluate(s Scope) (Expr, error) {
+func (a NoAlgExpr) Evaluate(Scope) (Expr, error) {
 	return a, nil
 }
 
@@ -1164,7 +1154,7 @@ func (a NoAlgExpr) InstanceOf() string {
 
 type MD5Expr struct{}
 
-func (a MD5Expr) Evaluate(s Scope) (Expr, error) {
+func (a MD5Expr) Evaluate(Scope) (Expr, error) {
 	return a, nil
 }
 
@@ -1182,7 +1172,7 @@ func (a MD5Expr) InstanceOf() string {
 
 type SHA1Expr struct{}
 
-func (a SHA1Expr) Evaluate(s Scope) (Expr, error) {
+func (a SHA1Expr) Evaluate(Scope) (Expr, error) {
 	return a, nil
 }
 
@@ -1200,7 +1190,7 @@ func (a SHA1Expr) InstanceOf() string {
 
 type SHA224Expr struct{}
 
-func (a SHA224Expr) Evaluate(s Scope) (Expr, error) {
+func (a SHA224Expr) Evaluate(Scope) (Expr, error) {
 	return a, nil
 }
 
@@ -1218,7 +1208,7 @@ func (a SHA224Expr) InstanceOf() string {
 
 type SHA256Expr struct{}
 
-func (a SHA256Expr) Evaluate(s Scope) (Expr, error) {
+func (a SHA256Expr) Evaluate(Scope) (Expr, error) {
 	return a, nil
 }
 
@@ -1236,7 +1226,7 @@ func (a SHA256Expr) InstanceOf() string {
 
 type SHA384Expr struct{}
 
-func (a SHA384Expr) Evaluate(s Scope) (Expr, error) {
+func (a SHA384Expr) Evaluate(Scope) (Expr, error) {
 	return a, nil
 }
 
@@ -1254,7 +1244,7 @@ func (a SHA384Expr) InstanceOf() string {
 
 type SHA512Expr struct{}
 
-func (a SHA512Expr) Evaluate(s Scope) (Expr, error) {
+func (a SHA512Expr) Evaluate(Scope) (Expr, error) {
 	return a, nil
 }
 
@@ -1272,7 +1262,7 @@ func (a SHA512Expr) InstanceOf() string {
 
 type SHA3224Expr struct{}
 
-func (a SHA3224Expr) Evaluate(s Scope) (Expr, error) {
+func (a SHA3224Expr) Evaluate(Scope) (Expr, error) {
 	return a, nil
 }
 
@@ -1290,7 +1280,7 @@ func (a SHA3224Expr) InstanceOf() string {
 
 type SHA3256Expr struct{}
 
-func (a SHA3256Expr) Evaluate(s Scope) (Expr, error) {
+func (a SHA3256Expr) Evaluate(Scope) (Expr, error) {
 	return a, nil
 }
 
@@ -1308,7 +1298,7 @@ func (a SHA3256Expr) InstanceOf() string {
 
 type SHA3384Expr struct{}
 
-func (a SHA3384Expr) Evaluate(s Scope) (Expr, error) {
+func (a SHA3384Expr) Evaluate(Scope) (Expr, error) {
 	return a, nil
 }
 
@@ -1326,7 +1316,7 @@ func (a SHA3384Expr) InstanceOf() string {
 
 type SHA3512Expr struct{}
 
-func (a SHA3512Expr) Evaluate(s Scope) (Expr, error) {
+func (a SHA3512Expr) Evaluate(Scope) (Expr, error) {
 	return a, nil
 }
 
