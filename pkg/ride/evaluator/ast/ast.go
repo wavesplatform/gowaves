@@ -867,7 +867,16 @@ func (a RecipientExpr) Write(w io.Writer) {
 }
 
 func (a RecipientExpr) Eq(other Expr) (bool, error) {
-	return false, errors.Errorf("trying to compare %T with %T", a, other)
+	switch o := other.(type) {
+	case RecipientExpr:
+		return a.Alias == o.Alias && a.Address == o.Address, nil
+	case AddressExpr:
+		return *a.Address == proto.Address(o), nil
+	case AliasExpr:
+		return *a.Alias == proto.Alias(o), nil
+	default:
+		return false, errors.Errorf("trying to compare %T with %T", a, other)
+	}
 }
 
 func (a RecipientExpr) InstanceOf() string {
