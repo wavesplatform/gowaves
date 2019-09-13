@@ -181,6 +181,7 @@ func FunctionsV3() Functions {
 	s["604"] = FunctionFromPredefined(NativeToBase16, 1)
 	s["605"] = FunctionFromPredefined(NativeFromBase16, 1)
 	s["700"] = FunctionFromPredefined(NativeCheckMerkleProof, 3)
+	delete(s, "1000") // Native function transactionByID was disabled since v3
 	s["1004"] = FunctionFromPredefined(NativeAssetInfo, 1)
 	s["1005"] = FunctionFromPredefined(NativeBlockInfoByHeight, 1)
 	s["1006"] = FunctionFromPredefined(NativeTransferTransactionByID, 1)
