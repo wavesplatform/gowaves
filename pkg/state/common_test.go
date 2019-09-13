@@ -15,7 +15,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride/evaluator/ast"
-	"github.com/wavesplatform/gowaves/pkg/ride/evaluator/parser"
 	"github.com/wavesplatform/gowaves/pkg/ride/evaluator/reader"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 )
@@ -146,7 +145,7 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatalf("Failed to decode script from base64: %v\n", err)
 	}
-	testGlobal.scriptAst, err = parser.BuildAst(reader.NewBytesReader(testGlobal.scriptBytes))
+	testGlobal.scriptAst, err = ast.BuildAst(reader.NewBytesReader(testGlobal.scriptBytes))
 	if err != nil {
 		log.Fatalf("BuildAst: %v\n", err)
 	}

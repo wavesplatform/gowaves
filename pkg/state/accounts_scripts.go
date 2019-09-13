@@ -5,7 +5,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride/evaluator/ast"
-	"github.com/wavesplatform/gowaves/pkg/ride/evaluator/parser"
 	"github.com/wavesplatform/gowaves/pkg/ride/evaluator/reader"
 )
 
@@ -17,7 +16,7 @@ const (
 )
 
 func scriptBytesToAst(script proto.Script) (ast.Script, error) {
-	return parser.BuildAst(reader.NewBytesReader(script[:]))
+	return ast.BuildAst(reader.NewBytesReader(script[:]))
 }
 
 type accountScriptRecord struct {

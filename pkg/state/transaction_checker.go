@@ -65,9 +65,9 @@ func (tc *transactionChecker) checkFee(tx proto.Transaction, feeAsset proto.Opti
 	}
 	if !feeAsset.Present {
 		// Waves.
-		return checkMinFeeWaves(tx)
+		return checkMinFeeWaves(tc.stor, tx)
 	}
-	return checkMinFeeAsset(tc.stor.sponsoredAssets, tx, feeAsset.ID)
+	return checkMinFeeAsset(tc.stor, tx, feeAsset.ID)
 }
 
 func (tc *transactionChecker) checkFromFuture(timestamp uint64) bool {

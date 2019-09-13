@@ -20,11 +20,11 @@ func TestCheckMinFeeWaves(t *testing.T) {
 
 	// Burn.
 	tx := createBurnV1(t)
-	err = checkMinFeeWaves(tx)
+	err = checkMinFeeWaves(to.stor.entities, tx)
 	assert.NoError(t, err, "checkMinFeeWaves() failed with valid Burn fee")
 
 	tx.Fee = 1
-	err = checkMinFeeWaves(tx)
+	err = checkMinFeeWaves(to.stor.entities, tx)
 	assert.Error(t, err, "checkMinFeeWaves() did not fail with invalid Burn fee")
 
 	// MassTransfer special case.
@@ -32,21 +32,21 @@ func TestCheckMinFeeWaves(t *testing.T) {
 	entries := generateMassTransferEntries(t, entriesNum)
 	tx1 := createMassTransferV1(t, entries)
 	tx1.Fee = FeeUnit * 34
-	err = checkMinFeeWaves(tx1)
+	err = checkMinFeeWaves(to.stor.entities, tx1)
 	assert.NoError(t, err, "checkMinFeeWaves() failed with valid MassTransfer fee")
 
 	tx1.Fee -= 1
-	err = checkMinFeeWaves(tx1)
+	err = checkMinFeeWaves(to.stor.entities, tx1)
 	assert.Error(t, err, "checkMinFeeWaves did not fail with invalid MassTransfer fee")
 
 	// Data transaction special case.
 	tx2 := createDataV1(t, 100)
 	tx2.Fee = FeeUnit * 2
-	err = checkMinFeeWaves(tx2)
+	err = checkMinFeeWaves(to.stor.entities, tx2)
 	assert.NoError(t, err, "checkMinFeeWaves() failed with valid Data transaction fee")
 
 	tx2.Fee -= 1
-	err = checkMinFeeWaves(tx2)
+	err = checkMinFeeWaves(to.stor.entities, tx2)
 	assert.Error(t, err, "checkMinFeeWaves() did not fail with invalid Data transaction fee")
 }
 
@@ -70,10 +70,10 @@ func TestCheckMinFeeAsset(t *testing.T) {
 	to.stor.flush(t)
 
 	tx.Fee = 1 * assetCost
-	err = checkMinFeeAsset(to.sponsoredAssets, tx, tx.FeeAsset.ID)
+	err = checkMinFeeAsset(to.stor.entities, tx, tx.FeeAsset.ID)
 	assert.NoError(t, err, "checkMinFeeAsset() failed with valid Transfer transaction fee in asset")
 
 	tx.Fee -= 1
-	err = checkMinFeeAsset(to.sponsoredAssets, tx, tx.FeeAsset.ID)
+	err = checkMinFeeAsset(to.stor.entities, tx, tx.FeeAsset.ID)
 	assert.Error(t, err, "checkMinFeeAsset() did not fail with invalid Transfer transaction fee in asset")
 }
