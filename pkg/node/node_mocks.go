@@ -76,6 +76,10 @@ func (a *MockStateManager) HeaderByHeight(height uint64) (*proto.BlockHeader, er
 	return &rs.BlockHeader, nil
 }
 
+func (a *MockStateManager) AddingBlockHeight() (proto.Height, error) {
+	panic("implement me")
+}
+
 func (a *MockStateManager) NewestHeight() (proto.Height, error) {
 	panic("implement me")
 }

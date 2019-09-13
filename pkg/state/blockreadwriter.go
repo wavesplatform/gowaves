@@ -99,6 +99,8 @@ type blockReadWriter struct {
 	offsetLen, headerOffsetLen int
 	height                     uint64
 
+	addingBlock bool
+
 	mtx sync.RWMutex
 }
 
@@ -226,6 +228,7 @@ func (rw *blockReadWriter) syncFiles() error {
 func (rw *blockReadWriter) startBlock(blockID crypto.Signature) error {
 	rw.mtx.Lock()
 	defer rw.mtx.Unlock()
+	rw.addingBlock = true
 	if _, err := rw.blockHeight2IDBuf.Write(blockID[:]); err != nil {
 		return err
 	}
@@ -238,6 +241,7 @@ func (rw *blockReadWriter) startBlock(blockID crypto.Signature) error {
 func (rw *blockReadWriter) finishBlock(blockID crypto.Signature) error {
 	rw.mtx.Lock()
 	defer rw.mtx.Unlock()
+	rw.addingBlock = false
 	binary.LittleEndian.PutUint64(rw.blockBounds[rw.offsetLen:], rw.blockchainLen)
 	binary.LittleEndian.PutUint64(rw.headerBounds[rw.headerOffsetLen:], rw.headersLen)
 	binary.LittleEndian.PutUint64(rw.heightBuf, rw.height+1)
@@ -341,6 +345,13 @@ func (rw *blockReadWriter) heightByBlockID(blockID crypto.Signature) (uint64, er
 		return 0, err
 	}
 	return rw.heightFromBlockInfo(blockInfo)
+}
+
+func (rw *blockReadWriter) addingBlockHeight() uint64 {
+	if rw.addingBlock {
+		return rw.height + 1
+	}
+	return rw.height
 }
 
 func (rw *blockReadWriter) recentHeight() uint64 {

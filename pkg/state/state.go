@@ -695,6 +695,10 @@ func (s *stateManager) BlockBytesByHeight(height uint64) ([]byte, error) {
 	return s.BlockBytes(blockID)
 }
 
+func (s *stateManager) AddingBlockHeight() (uint64, error) {
+	return s.rw.addingBlockHeight(), nil
+}
+
 func (s *stateManager) NewestHeight() (uint64, error) {
 	return s.rw.recentHeight(), nil
 }

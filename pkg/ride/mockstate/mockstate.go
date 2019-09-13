@@ -96,7 +96,7 @@ func (a State) NewestTransactionHeightByID(b []byte) (uint64, error) {
 	return h, nil
 }
 
-func (a State) NewestHeight() (uint64, error) {
+func (a State) AddingBlockHeight() (uint64, error) {
 	return 0, nil
 }
 

@@ -15,6 +15,7 @@ import (
 // occurring during applying block. This state corresponds to the latest validated transaction,
 // and for now is only needed for Ride and Consensus modules, which are both called during the validation.
 type StateNewest interface {
+	AddingBlockHeight() (proto.Height, error)
 	NewestHeight() (proto.Height, error)
 
 	// Effective balance by account in given height range.
