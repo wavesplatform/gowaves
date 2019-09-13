@@ -164,8 +164,6 @@ func TestNativeSigVerify(t *testing.T) {
 	require.Error(t, err)
 	_, err = NativeSigVerify(newEmptyScope(), NewExprs(NewBytes(msg), NewBytes(sig), NewString("BAD")))
 	require.Error(t, err)
-	_, err = NativeSigVerify(newEmptyScope(), NewExprs(NewBytes(msg), NewBytes(pk), NewBytes(pk)))
-	require.Error(t, err)
 	_, err = NativeSigVerify(newEmptyScope(), NewExprs(NewBytes(msg), NewBytes(sig), NewBytes(pk[:10])))
 	require.Error(t, err)
 }

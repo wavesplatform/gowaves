@@ -330,7 +330,7 @@ func NativeSigVerify(s Scope, e Exprs) (Expr, error) {
 	}
 	signature, err := crypto.NewSignatureFromBytes(signatureExpr.Value)
 	if err != nil {
-		return nil, errors.Wrap(err, funcName)
+		return NewBoolean(false), nil
 	}
 	out := crypto.Verify(pk, signature, bytesExpr.Value)
 	return NewBoolean(out), nil
