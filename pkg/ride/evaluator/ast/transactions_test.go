@@ -107,7 +107,7 @@ func (a *TransferV1TestSuite) Test_bodyBytes() {
 
 func (a *TransferV1TestSuite) Test_proofs() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	a.Equal(Exprs{NewBytes(a.tx.Signature.Bytes())}, rs["proofs"])
+	a.Equal(Exprs{NewBytes(a.tx.Signature.Bytes()), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil)}, rs["proofs"])
 }
 
 func (a *TransferV1TestSuite) Test_InstanceFieldName() {
@@ -214,7 +214,7 @@ func (a *TransferV2TestSuite) Test_bodyBytes() {
 
 func (a *TransferV2TestSuite) Test_proofs() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	a.Equal(Exprs{NewBytes(a.tx.Proofs.Proofs[0].Bytes())}, rs["proofs"])
+	a.Equal(Exprs{NewBytes(a.tx.Proofs.Proofs[0].Bytes()), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil)}, rs["proofs"])
 }
 
 func (a *TransferV2TestSuite) Test_InstanceFieldName() {
@@ -344,7 +344,7 @@ func (a *PaymentTestSuite) Test_bodyBytes() {
 
 func (a *PaymentTestSuite) Test_proofs() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	a.Equal(Exprs{NewBytes(a.tx.Signature.Bytes())}, rs["proofs"])
+	a.Equal(Exprs{NewBytes(a.tx.Signature.Bytes()), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil)}, rs["proofs"])
 }
 
 func (a *PaymentTestSuite) Test_InstanceFieldName() {
@@ -424,7 +424,7 @@ func (a *ReissueV1TestSuite) Test_bodyBytes() {
 
 func (a *ReissueV1TestSuite) Test_proofs() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	a.Equal(Exprs{NewBytes(a.tx.Signature.Bytes())}, rs["proofs"])
+	a.Equal(Exprs{NewBytes(a.tx.Signature.Bytes()), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil)}, rs["proofs"])
 }
 
 func (a *ReissueV1TestSuite) Test_InstanceFieldName() {
@@ -506,7 +506,7 @@ func (a *ReissueV2TestSuite) Test_bodyBytes() {
 
 func (a *ReissueV2TestSuite) Test_proofs() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	a.Equal(Exprs{NewBytes(a.tx.Proofs.Proofs[0].Bytes())}, rs["proofs"])
+	a.Equal(Exprs{NewBytes(a.tx.Proofs.Proofs[0].Bytes()), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil)}, rs["proofs"])
 }
 
 func (a *ReissueV2TestSuite) Test_InstanceFieldName() {
@@ -582,7 +582,7 @@ func (a *BurnV1TestSuite) Test_bodyBytes() {
 
 func (a *BurnV1TestSuite) Test_proofs() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	a.Equal(Exprs{NewBytes(a.tx.Signature.Bytes())}, rs["proofs"])
+	a.Equal(Exprs{NewBytes(a.tx.Signature.Bytes()), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil)}, rs["proofs"])
 }
 
 func (a *BurnV1TestSuite) Test_InstanceFieldName() {
@@ -659,7 +659,7 @@ func (a *BurnV2TestSuite) Test_bodyBytes() {
 
 func (a *BurnV2TestSuite) Test_proofs() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	a.Equal(Exprs{NewBytes(a.tx.Proofs.Proofs[0].Bytes())}, rs["proofs"])
+	a.Equal(Exprs{NewBytes(a.tx.Proofs.Proofs[0].Bytes()), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil)}, rs["proofs"])
 }
 
 func (a *BurnV2TestSuite) Test_InstanceFieldName() {
@@ -767,7 +767,7 @@ func (a *MassTransferV1TestSuite) Test_bodyBytes() {
 
 func (a *MassTransferV1TestSuite) Test_proofs() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	a.Equal(Exprs{NewBytes(a.tx.Proofs.Proofs[0].Bytes())}, rs["proofs"])
+	a.Equal(Exprs{NewBytes(a.tx.Proofs.Proofs[0].Bytes()), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil)}, rs["proofs"])
 }
 
 func (a *MassTransferV1TestSuite) Test_InstanceFieldName() {
@@ -862,7 +862,7 @@ func (a *ExchangeV1TestSuite) Test_bodyBytes() {
 
 func (a *ExchangeV1TestSuite) Test_proofs() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	a.Equal(Exprs{NewBytes(a.tx.Signature.Bytes())}, rs["proofs"])
+	a.Equal(Exprs{NewBytes(a.tx.Signature.Bytes()), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil)}, rs["proofs"])
 }
 
 func (a *ExchangeV1TestSuite) Test_InstanceFieldName() {
@@ -959,7 +959,7 @@ func (a *ExchangeV2TestSuite) Test_bodyBytes() {
 
 func (a *ExchangeV2TestSuite) Test_proofs() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	a.Equal(Exprs{NewBytes(a.tx.Proofs.Proofs[0].Bytes())}, rs["proofs"])
+	a.Equal(Exprs{NewBytes(a.tx.Proofs.Proofs[0].Bytes()), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil)}, rs["proofs"])
 }
 
 func (a *ExchangeV2TestSuite) Test_InstanceFieldName() {
@@ -1082,7 +1082,7 @@ func (a *OrderTestSuite) Test_bodyBytes() {
 func (a *OrderTestSuite) Test_proofs() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	p, _ := a.tx.GetProofs()
-	a.Equal(Exprs{NewBytes(p.Proofs[0].Bytes())}, rs["proofs"])
+	a.Equal(Exprs{NewBytes(p.Proofs[0].Bytes()), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil)}, rs["proofs"])
 }
 
 func (a *OrderTestSuite) Test_InstanceFieldName() {
@@ -1161,7 +1161,7 @@ func (a *SetAssetScriptV1TestSuite) Test_bodyBytes() {
 
 func (a *SetAssetScriptV1TestSuite) Test_proofs() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	a.Equal(Exprs{NewBytes(a.tx.Proofs.Proofs[0].Bytes())}, rs["proofs"])
+	a.Equal(Exprs{NewBytes(a.tx.Proofs.Proofs[0].Bytes()), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil)}, rs["proofs"])
 }
 
 func (a *SetAssetScriptV1TestSuite) Test_InstanceFieldName() {
@@ -1264,7 +1264,7 @@ func (a *InvokeScriptV1TestSuite) Test_bodyBytes() {
 
 func (a *InvokeScriptV1TestSuite) Test_proofs() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	a.Equal(Exprs{NewBytes(a.tx.Proofs.Proofs[0].Bytes())}, rs["proofs"])
+	a.Equal(Exprs{NewBytes(a.tx.Proofs.Proofs[0].Bytes()), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil)}, rs["proofs"])
 }
 
 func (a *InvokeScriptV1TestSuite) Test_InstanceFieldName() {
@@ -1360,7 +1360,7 @@ func (a *IssueV1TestSuite) Test_bodyBytes() {
 
 func (a *IssueV1TestSuite) Test_proofs() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	a.Equal(Exprs{NewBytes(a.tx.Signature.Bytes())}, rs["proofs"])
+	a.Equal(Exprs{NewBytes(a.tx.Signature.Bytes()), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil)}, rs["proofs"])
 }
 
 func (a *IssueV1TestSuite) Test_InstanceFieldName() {
@@ -1456,7 +1456,7 @@ func (a *IssueV2TestSuite) Test_bodyBytes() {
 
 func (a *IssueV2TestSuite) Test_proofs() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	a.Equal(Exprs{NewBytes(a.tx.Proofs.Proofs[0].Bytes())}, rs["proofs"])
+	a.Equal(Exprs{NewBytes(a.tx.Proofs.Proofs[0].Bytes()), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil)}, rs["proofs"])
 }
 
 func (a *IssueV2TestSuite) Test_InstanceFieldName() {
@@ -1532,7 +1532,7 @@ func (a *LeaseV1TestSuite) Test_bodyBytes() {
 
 func (a *LeaseV1TestSuite) Test_proofs() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	a.Equal(Exprs{NewBytes(a.tx.Signature.Bytes())}, rs["proofs"])
+	a.Equal(Exprs{NewBytes(a.tx.Signature.Bytes()), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil)}, rs["proofs"])
 }
 
 func (a *LeaseV1TestSuite) Test_InstanceFieldName() {
@@ -1609,7 +1609,7 @@ func (a *LeaseV2TestSuite) Test_bodyBytes() {
 
 func (a *LeaseV2TestSuite) Test_proofs() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	a.Equal(Exprs{NewBytes(a.tx.Proofs.Proofs[0].Bytes())}, rs["proofs"])
+	a.Equal(Exprs{NewBytes(a.tx.Proofs.Proofs[0].Bytes()), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil)}, rs["proofs"])
 }
 
 func (a *LeaseV2TestSuite) Test_InstanceFieldName() {
@@ -1680,7 +1680,7 @@ func (a *LeaseCancelV1TestSuite) Test_bodyBytes() {
 
 func (a *LeaseCancelV1TestSuite) Test_proofs() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	a.Equal(Exprs{NewBytes(a.tx.Signature.Bytes())}, rs["proofs"])
+	a.Equal(Exprs{NewBytes(a.tx.Signature.Bytes()), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil)}, rs["proofs"])
 }
 
 func (a *LeaseCancelV1TestSuite) Test_InstanceFieldName() {
@@ -1752,7 +1752,7 @@ func (a *LeaseCancelV2TestSuite) Test_bodyBytes() {
 
 func (a *LeaseCancelV2TestSuite) Test_proofs() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	a.Equal(Exprs{NewBytes(a.tx.Proofs.Proofs[0].Bytes())}, rs["proofs"])
+	a.Equal(Exprs{NewBytes(a.tx.Proofs.Proofs[0].Bytes()), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil)}, rs["proofs"])
 }
 
 func (a *LeaseCancelV2TestSuite) Test_InstanceFieldName() {
@@ -1830,7 +1830,7 @@ func (a *DataV1TestSuite) Test_bodyBytes() {
 
 func (a *DataV1TestSuite) Test_proofs() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	a.Equal(Exprs{NewBytes(a.tx.Proofs.Proofs[0].Bytes())}, rs["proofs"])
+	a.Equal(Exprs{NewBytes(a.tx.Proofs.Proofs[0].Bytes()), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil)}, rs["proofs"])
 }
 
 func (a *DataV1TestSuite) Test_InstanceFieldName() {
@@ -1913,7 +1913,7 @@ func (a *SponsorshipV1TestSuite) Test_bodyBytes() {
 
 func (a *SponsorshipV1TestSuite) Test_proofs() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	a.Equal(Exprs{NewBytes(a.tx.Proofs.Proofs[0].Bytes())}, rs["proofs"])
+	a.Equal(Exprs{NewBytes(a.tx.Proofs.Proofs[0].Bytes()), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil)}, rs["proofs"])
 }
 
 func (a *SponsorshipV1TestSuite) Test_InstanceFieldName() {
@@ -1984,7 +1984,7 @@ func (a *CreateAliasV1TestSuite) Test_bodyBytes() {
 
 func (a *CreateAliasV1TestSuite) Test_proofs() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	a.Equal(Exprs{NewBytes(a.tx.Signature.Bytes())}, rs["proofs"])
+	a.Equal(Exprs{NewBytes(a.tx.Signature.Bytes()), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil)}, rs["proofs"])
 }
 
 func (a *CreateAliasV1TestSuite) Test_InstanceFieldName() {
@@ -2056,7 +2056,7 @@ func (a *CreateAliasV2TestSuite) Test_bodyBytes() {
 
 func (a *CreateAliasV2TestSuite) Test_proofs() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	a.Equal(Exprs{NewBytes(a.tx.Proofs.Proofs[0].Bytes())}, rs["proofs"])
+	a.Equal(Exprs{NewBytes(a.tx.Proofs.Proofs[0].Bytes()), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil)}, rs["proofs"])
 }
 
 func (a *CreateAliasV2TestSuite) Test_InstanceFieldName() {

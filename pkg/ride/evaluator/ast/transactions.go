@@ -2,6 +2,7 @@ package ast
 
 import (
 	"github.com/pkg/errors"
+	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/util"
 )
@@ -62,10 +63,27 @@ func NewVariablesFromTransaction(scheme byte, t proto.Transaction) (map[string]E
 
 }
 
+func makeProofsFromSignature(sig *crypto.Signature) Exprs {
+	out := make([]Expr, 8)
+	for i := 0; i < 8; i++ {
+		if i == 0 && sig != nil {
+			out[i] = NewBytes(sig.Bytes()) //already a copy of bytes of signature
+			continue
+		}
+		out[i] = NewBytes(nil)
+	}
+	return out
+}
+
 func makeProofs(proofs *proto.ProofsV1) Exprs {
-	out := Exprs{}
-	for _, row := range proofs.Proofs {
-		out = append(out, NewBytes(row.Bytes()))
+	out := make([]Expr, 8)
+	pl := len(proofs.Proofs)
+	for i := 0; i < 8; i++ {
+		if i < pl {
+			out[i] = NewBytes(util.Dup(proofs.Proofs[i].Bytes()))
+			continue
+		}
+		out[i] = NewBytes(nil)
 	}
 	return out
 }
@@ -115,7 +133,7 @@ func newVariablesFromPayment(scheme proto.Scheme, tx *proto.Payment) (map[string
 		return nil, errors.Wrap(err, funcName)
 	}
 	out["bodyBytes"] = NewBytes(bts)
-	out["proofs"] = Exprs{NewBytes(util.Dup(tx.Signature.Bytes()))}
+	out["proofs"] = makeProofsFromSignature(tx.Signature)
 	out[InstanceFieldName] = NewString("PaymentTransaction")
 	return out, nil
 }
@@ -146,7 +164,7 @@ func newVariablesFromTransferV1(scheme byte, tx *proto.TransferV1) (map[string]E
 		return nil, errors.Wrap(err, funcName)
 	}
 	out["bodyBytes"] = NewBytes(bts)
-	out["proofs"] = Exprs{NewBytes(util.Dup(tx.Signature.Bytes()))}
+	out["proofs"] = makeProofsFromSignature(tx.Signature)
 	out[InstanceFieldName] = NewString("TransferTransaction")
 	return out, nil
 }
@@ -178,12 +196,7 @@ func newVariablesFromTransferV2(scheme byte, tx *proto.TransferV2) (map[string]E
 		return nil, errors.Wrap(err, funcName)
 	}
 	out["bodyBytes"] = NewBytes(bts)
-
-	exprs := Exprs{}
-	for _, proof := range tx.Proofs.Proofs {
-		exprs = append(exprs, NewBytes(util.Dup(proof)))
-	}
-	out["proofs"] = exprs
+	out["proofs"] = makeProofs(tx.Proofs)
 	out[InstanceFieldName] = NewString("TransferTransaction")
 	return out, nil
 }
@@ -216,7 +229,7 @@ func newVariablesFromReissueV1(scheme proto.Scheme, tx *proto.ReissueV1) (map[st
 		return nil, errors.Wrap(err, funcName)
 	}
 	out["bodyBytes"] = NewBytes(bts)
-	out["proofs"] = Exprs{NewBytes(util.Dup(tx.Signature.Bytes()))}
+	out["proofs"] = makeProofsFromSignature(tx.Signature)
 	out[InstanceFieldName] = NewString("ReissueTransaction")
 	return out, nil
 }
@@ -247,11 +260,7 @@ func newVariablesFromReissueV2(scheme proto.Scheme, tx *proto.ReissueV2) (map[st
 		return nil, errors.Wrap(err, funcName)
 	}
 	out["bodyBytes"] = NewBytes(bts)
-	exprs := Exprs{}
-	for _, proof := range tx.Proofs.Proofs {
-		exprs = append(exprs, NewBytes(util.Dup(proof)))
-	}
-	out["proofs"] = exprs
+	out["proofs"] = makeProofs(tx.Proofs)
 	out[InstanceFieldName] = NewString("ReissueTransaction")
 	return out, nil
 }
@@ -282,7 +291,7 @@ func newVariablesFromBurnV1(scheme proto.Scheme, tx *proto.BurnV1) (map[string]E
 		return nil, errors.Wrap(err, funcName)
 	}
 	out["bodyBytes"] = NewBytes(bts)
-	out["proofs"] = Exprs{NewBytes(util.Dup(tx.Signature.Bytes()))}
+	out["proofs"] = makeProofsFromSignature(tx.Signature)
 	out[InstanceFieldName] = NewString("BurnTransaction")
 	return out, nil
 }
@@ -313,11 +322,7 @@ func newVariablesFromBurnV2(scheme proto.Scheme, tx *proto.BurnV2) (map[string]E
 		return nil, errors.Wrap(err, funcName)
 	}
 	out["bodyBytes"] = NewBytes(bts)
-	exprs := Exprs{}
-	for _, proof := range tx.Proofs.Proofs {
-		exprs = append(exprs, NewBytes(util.Dup(proof)))
-	}
-	out["proofs"] = exprs
+	out["proofs"] = makeProofs(tx.Proofs)
 	out[InstanceFieldName] = NewString("BurnTransaction")
 	return out, nil
 }
@@ -363,11 +368,7 @@ func newVariablesFromMassTransferV1(scheme proto.Scheme, tx *proto.MassTransferV
 		return nil, errors.Wrap(err, funcName)
 	}
 	out["bodyBytes"] = NewBytes(bts)
-	exprs := Exprs{}
-	for _, proof := range tx.Proofs.Proofs {
-		exprs = append(exprs, NewBytes(util.Dup(proof)))
-	}
-	out["proofs"] = exprs
+	out["proofs"] = makeProofs(tx.Proofs)
 	out[InstanceFieldName] = NewString("MassTransferTransaction")
 
 	return out, nil
@@ -412,7 +413,7 @@ func newVariablesFromExchangeV1(scheme proto.Scheme, tx *proto.ExchangeV1) (map[
 		return nil, errors.Wrap(err, funcName)
 	}
 	out["bodyBytes"] = NewBytes(bts)
-	out["proofs"] = Exprs{NewBytes(util.Dup(tx.Signature.Bytes()))}
+	out["proofs"] = makeProofsFromSignature(tx.Signature)
 	out[InstanceFieldName] = NewString("ExchangeTransaction")
 	return out, nil
 }
@@ -459,11 +460,7 @@ func newVariablesFromExchangeV2(scheme proto.Scheme, tx *proto.ExchangeV2) (map[
 		return nil, errors.Wrap(err, funcName)
 	}
 	out["bodyBytes"] = NewBytes(bts)
-	exprs := Exprs{}
-	for _, proof := range tx.Proofs.Proofs {
-		exprs = append(exprs, NewBytes(util.Dup(proof)))
-	}
-	out["proofs"] = exprs
+	out["proofs"] = makeProofs(tx.Proofs)
 	out[InstanceFieldName] = NewString("ExchangeTransaction")
 	return out, nil
 }
@@ -500,12 +497,11 @@ func newVariablesFromOrder(scheme proto.Scheme, tx proto.Order) (map[string]Expr
 		return nil, errors.Wrap(err, funcName)
 	}
 	out["bodyBytes"] = NewBytes(bts)
-	proofs, _ := tx.GetProofs()
-	exprs := Exprs{}
-	for _, proof := range proofs.Proofs {
-		exprs = append(exprs, NewBytes(util.Dup(proof)))
+	proofs, err := tx.GetProofs()
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
 	}
-	out["proofs"] = exprs
+	out["proofs"] = makeProofs(proofs)
 	out[InstanceFieldName] = NewString("Order")
 
 	return out, nil
@@ -547,11 +543,7 @@ func newVariablesFromSetAssetScriptV1(scheme proto.Scheme, tx *proto.SetAssetScr
 		return nil, errors.Wrap(err, funcName)
 	}
 	out["bodyBytes"] = NewBytes(bts)
-	exprs := Exprs{}
-	for _, proof := range tx.Proofs.Proofs {
-		exprs = append(exprs, NewBytes(util.Dup(proof)))
-	}
-	out["proofs"] = exprs
+	out["proofs"] = makeProofs(tx.Proofs)
 	out[InstanceFieldName] = NewString("SetAssetScriptTransaction")
 	return out, nil
 }
@@ -607,11 +599,7 @@ func newVariablesFromInvokeScriptV1(scheme proto.Scheme, tx *proto.InvokeScriptV
 		return nil, errors.Wrap(err, funcName)
 	}
 	out["bodyBytes"] = NewBytes(bts)
-	exprs := Exprs{}
-	for _, proof := range tx.Proofs.Proofs {
-		exprs = append(exprs, NewBytes(util.Dup(proof)))
-	}
-	out["proofs"] = exprs
+	out["proofs"] = makeProofs(tx.Proofs)
 	out[InstanceFieldName] = NewString("InvokeScriptTransaction")
 	return out, nil
 }
@@ -647,7 +635,7 @@ func newVariablesFromIssueV1(scheme proto.Scheme, tx *proto.IssueV1) (map[string
 		return nil, errors.Wrap(err, funcName)
 	}
 	out["bodyBytes"] = NewBytes(bts)
-	out["proofs"] = Exprs{NewBytes(util.Dup(tx.Signature.Bytes()))}
+	out["proofs"] = makeProofsFromSignature(tx.Signature)
 	out[InstanceFieldName] = NewString("IssueTransaction")
 	return out, nil
 }
@@ -718,7 +706,7 @@ func newVariablesFromLeaseV1(scheme proto.Scheme, tx *proto.LeaseV1) (map[string
 		return nil, errors.Wrap(err, funcName)
 	}
 	out["bodyBytes"] = NewBytes(bts)
-	out["proofs"] = Exprs{NewBytes(util.Dup(tx.Signature.Bytes()))}
+	out["proofs"] = makeProofsFromSignature(tx.Signature)
 	out[InstanceFieldName] = NewString("LeaseTransaction")
 	return out, nil
 }
@@ -780,7 +768,7 @@ func newVariablesFromLeaseCancelV1(scheme proto.Scheme, tx *proto.LeaseCancelV1)
 		return nil, errors.Wrap(err, funcName)
 	}
 	out["bodyBytes"] = NewBytes(bts)
-	out["proofs"] = Exprs{NewBytes(util.Dup(tx.Signature.Bytes()))}
+	out["proofs"] = makeProofsFromSignature(tx.Signature)
 	out[InstanceFieldName] = NewString("LeaseCancelTransaction")
 	return out, nil
 }
@@ -910,7 +898,7 @@ func newVariablesFromCreateAliasV1(scheme proto.Scheme, tx *proto.CreateAliasV1)
 		return nil, errors.Wrap(err, funcName)
 	}
 	out["bodyBytes"] = NewBytes(bts)
-	out["proofs"] = Exprs{NewBytes(util.Dup(tx.Signature.Bytes()))}
+	out["proofs"] = makeProofsFromSignature(tx.Signature)
 	out[InstanceFieldName] = NewString("CreateAliasTransaction")
 	return out, nil
 }

@@ -306,7 +306,7 @@ func NativeLogLong(s Scope, e Exprs) (Expr, error) {
 func NativeSigVerify(s Scope, e Exprs) (Expr, error) {
 	const funcName = "NativeSigVerify"
 	if l := len(e); l != 3 {
-		return nil, errors.Errorf("%s: invalid params, expected 2, passed %d", funcName, l)
+		return nil, errors.Errorf("%s: invalid params, expected 3, passed %d", funcName, l)
 	}
 	rs, err := e.EvaluateAll(s)
 	if err != nil {
@@ -316,6 +316,7 @@ func NativeSigVerify(s Scope, e Exprs) (Expr, error) {
 	if !ok {
 		return nil, errors.Errorf("%s: first argument expects to be *BytesExpr, found %T", funcName, rs[0])
 	}
+	//TODO: Add check that the length of first argument (bytesExpr) can't be more than 32KB for scripts V1 and V2, V3 has no limit.
 	signatureExpr, ok := rs[1].(*BytesExpr)
 	if !ok {
 		return nil, errors.Errorf("%s: second argument expects to be *BytesExpr, found %T", funcName, rs[1])
