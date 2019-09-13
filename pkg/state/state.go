@@ -204,7 +204,7 @@ func (a *txAppender) checkDuplicateTxIds(tx proto.Transaction, recentIds map[str
 
 type appendBlockParams struct {
 	transactions   []proto.Transaction
-	scriptedIds    map[string]struct{}
+	chans          *verifierChans
 	block, parent  *proto.BlockHeader
 	height         uint64
 	initialisation bool
@@ -266,6 +266,30 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 		return err
 	}
 	for _, tx := range params.transactions {
+		senderAddr, err := proto.NewAddressFromPublicKey(a.settings.AddressSchemeCharacter, tx.GetSenderPK())
+		if err != nil {
+			return err
+		}
+		hasVerifierScript, err := a.stor.accountsScripts.newestHasVerifier(senderAddr, !params.initialisation)
+		if err != nil {
+			return err
+		}
+		checkTxSig := true
+		if hasVerifierScript {
+			// For transaction with SmartAccount we don't check signatures.
+			checkTxSig = false
+		}
+		// Send transaction for signature/data verification.
+		task := &verifyTask{
+			taskType:   verifyTx,
+			tx:         tx,
+			checkTxSig: checkTxSig,
+		}
+		select {
+		case verifyError := <-params.chans.errChan:
+			return verifyError
+		case params.chans.tasksChan <- task:
+		}
 		checkerInfo := &checkerInfo{
 			initialisation:   params.initialisation,
 			currentTimestamp: params.block.Timestamp,
@@ -285,8 +309,7 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 		}
 		a.recentTxIds[string(txID)] = empty
 		// Check against state.
-		_, scripted := params.scriptedIds[string(txID)]
-		if err := a.checkTxAgainstState(tx, scripted, checkerInfo); err != nil {
+		if err := a.checkTxAgainstState(tx, hasVerifierScript, checkerInfo); err != nil {
 			return err
 		}
 		// Create balance diff of this tx.
@@ -853,43 +876,6 @@ func (s *stateManager) addFeaturesVotes(block *proto.Block) error {
 	return nil
 }
 
-func (s *stateManager) verifyTransactions(transactions []proto.Transaction, chans *verifierChans, initialisation bool) (map[string]struct{}, error) {
-	scriptedTransactionIds := make(map[string]struct{})
-	for _, tx := range transactions {
-		sender := tx.GetSenderPK()
-		senderAddr, err := proto.NewAddressFromPublicKey(s.settings.AddressSchemeCharacter, sender)
-		if err != nil {
-			return nil, err
-		}
-		hasVerifierScript, err := s.stor.accountsScripts.newestHasVerifier(senderAddr, !initialisation)
-		if err != nil {
-			return nil, err
-		}
-		txID, err := tx.GetID()
-		if err != nil {
-			return nil, err
-		}
-		checkTxSig := true
-		if hasVerifierScript {
-			// For transaction with SmartAccount we don't check signatures.
-			checkTxSig = false
-			scriptedTransactionIds[string(txID)] = empty
-		}
-		// Send transaction for signature/data verification.
-		task := &verifyTask{
-			taskType:   verifyTx,
-			tx:         tx,
-			checkTxSig: checkTxSig,
-		}
-		select {
-		case verifyError := <-chans.errChan:
-			return nil, verifyError
-		case chans.tasksChan <- task:
-		}
-	}
-	return scriptedTransactionIds, nil
-}
-
 func (s *stateManager) addNewBlock(block, parent *proto.Block, initialisation bool, chans *verifierChans, height uint64) error {
 	// Indicate new block for storage.
 	if err := s.rw.startBlock(block.BlockSignature); err != nil {
@@ -910,18 +896,13 @@ func (s *stateManager) addNewBlock(block, parent *proto.Block, initialisation bo
 	if block.TransactionCount != transactions.Count() {
 		return errors.Errorf("block.TransactionCount != transactions.Count(), %d != %d", block.TransactionCount, transactions.Count())
 	}
-	// Start verifying txs signatures, detect scripted transactions.
-	scriptedIds, err := s.verifyTransactions(transactions, chans, initialisation)
-	if err != nil {
-		return err
-	}
 	var parentHeader *proto.BlockHeader
 	if parent != nil {
 		parentHeader = &parent.BlockHeader
 	}
 	params := &appendBlockParams{
 		transactions:   transactions,
-		scriptedIds:    scriptedIds,
+		chans:          chans,
 		block:          &block.BlockHeader,
 		parent:         parentHeader,
 		height:         height,
