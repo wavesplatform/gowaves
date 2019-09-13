@@ -2,6 +2,11 @@ package ast
 
 import "github.com/wavesplatform/gowaves/pkg/types"
 
+type evaluation struct {
+	expr Expr
+	err  error
+}
+
 type Scope interface {
 	Clone() Scope
 	AddValue(name string, expr Expr)
@@ -9,30 +14,35 @@ type Scope interface {
 	State() types.SmartState
 	Scheme() byte
 	Initial() Scope
+	evaluation(string) (evaluation, bool)
+	setEvaluation(string, evaluation)
 }
 
 type ScopeImpl struct {
-	parent    Scope
-	variables map[string]Expr
-	state     types.SmartState
-	scheme    byte
+	parent      Scope
+	variables   map[string]Expr
+	state       types.SmartState
+	scheme      byte
+	evaluations map[string]evaluation
 }
 
 type Callable func(Scope, Exprs) (Expr, error)
 
 func NewScope(scheme byte, state types.SmartState, variables map[string]Expr) *ScopeImpl {
 	return &ScopeImpl{
-		variables: variables,
-		state:     state,
-		scheme:    scheme,
+		variables:   variables,
+		state:       state,
+		scheme:      scheme,
+		evaluations: make(map[string]evaluation),
 	}
 }
 
 func (a *ScopeImpl) Clone() Scope {
 	return &ScopeImpl{
-		parent: a,
-		state:  a.state,
-		scheme: a.scheme,
+		parent:      a,
+		state:       a.state,
+		scheme:      a.scheme,
+		evaluations: a.evaluations,
 	}
 }
 
@@ -73,6 +83,15 @@ func (a *ScopeImpl) Value(name string) (Expr, bool) {
 
 func (a *ScopeImpl) Scheme() byte {
 	return a.scheme
+}
+
+func (a *ScopeImpl) evaluation(name string) (evaluation, bool) {
+	e, ok := a.evaluations[name]
+	return e, ok
+}
+
+func (a *ScopeImpl) setEvaluation(name string, e evaluation) {
+	a.evaluations[name] = e
 }
 
 type Functions map[string]Expr
