@@ -465,14 +465,7 @@ func (a PredefinedUserFunction) InstanceOf() string {
 }
 
 type RefExpr struct {
-	Name   string
-	cached bool
-	cache  RefCache
-}
-
-type RefCache struct {
-	Expr Expr
-	Err  error
+	Name string
 }
 
 func (a *RefExpr) Write(w io.Writer) {
@@ -480,24 +473,17 @@ func (a *RefExpr) Write(w io.Writer) {
 }
 
 func (a *RefExpr) Evaluate(s Scope) (Expr, error) {
-	if a.cached {
-		return a.cache.Expr, a.cache.Err
+	c, ok := s.evaluation(a.Name)
+	if ok {
+		return c.expr, c.err
 	}
-
 	expr, ok := s.Value(a.Name)
 	if !ok {
 		return nil, errors.Errorf("RefExpr evaluate: not found expr by name %s", a.Name)
 	}
-
 	rs, err := expr.Evaluate(s.Clone())
-
-	a.cache = RefCache{
-		Expr: rs,
-		Err:  err,
-	}
-	a.cached = true
-
-	return a.cache.Expr, a.cache.Err
+	s.setEvaluation(a.Name, evaluation{rs, err})
+	return rs, err
 }
 
 func (a *RefExpr) Eq(other Expr) (bool, error) {
