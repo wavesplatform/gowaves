@@ -853,8 +853,8 @@ func TestNativeBytesToUTF8String(t *testing.T) {
 		err         bool
 		result      Expr
 	}{
-		//{NewExprs(NewBytes([]byte("blah-blah-blah"))), false, NewString("blah-blah-blah")},
-		//{NewExprs(NewBytes([]byte("blah-blah-blah")), NewString("a-a-a-a")), true, NewString("blah-blah-blah")},
+		{NewExprs(NewBytes([]byte("blah-blah-blah"))), false, NewString("blah-blah-blah")},
+		{NewExprs(NewBytes([]byte("blah-blah-blah")), NewString("a-a-a-a")), true, NewString("blah-blah-blah")},
 		{NewExprs(NewString("blah-blah-blah")), true, NewString("blah-blah-blah")},
 	} {
 		r, err := NativeBytesToUTF8String(newEmptyScope(), test.expressions)
@@ -1258,4 +1258,28 @@ func TestNativeParseBlockHeader(t *testing.T) {
 	v := rs.(Getable)
 
 	require.Equal(t, NewLong(1567506205718), ok(v.Get("timestamp")))
+}
+
+func TestNativeList(t *testing.T) {
+	for _, test := range []struct {
+		expressions Exprs
+		error       bool
+		message     string
+		result      Expr
+	}{
+		{NewExprs(NewExprs(NewLong(1), NewLong(2), NewLong(3)), NewLong(0)), false, "", NewLong(1)},
+		{NewExprs(NewExprs(NewString("A"), NewString("B"), NewString("C")), NewLong(2)), false, "", NewString("C")},
+		{NewExprs(NewExprs(NewString("A")), NewLong(1)), true, "NativeGetList: invalid index 1, len 1", NewUnit()},
+		{NewExprs(NewExprs(), NewLong(0)), true, "NativeGetList: invalid index 0, len 0", NewUnit()},
+		{NewExprs(), true, "NativeGetList: invalid params, expected 2, passed 0", NewUnit()},
+		{NewExprs(NewString("blah-blah-blah"), NewString("ALARM!!!"), NewLong(1)), true, "NativeGetList: invalid params, expected 2, passed 3", NewUnit()},
+	} {
+		r, err := NativeGetList(newEmptyScope(), test.expressions)
+		if test.error {
+			assert.EqualError(t, err, test.message)
+			continue
+		}
+		require.NoError(t, err)
+		assert.Equal(t, test.result, r)
+	}
 }
