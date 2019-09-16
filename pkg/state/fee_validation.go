@@ -8,7 +8,8 @@ import (
 )
 
 const (
-	FeeUnit = 100000
+	scriptExtraFee = 400000
+	FeeUnit        = 100000
 )
 
 var feeConstants = map[proto.TransactionType]uint64{
@@ -28,6 +29,12 @@ var feeConstants = map[proto.TransactionType]uint64{
 	proto.SponsorshipTransaction:    1000,
 	proto.SetAssetScriptTransaction: (1000 - 4),
 	proto.InvokeScriptTransaction:   5,
+}
+
+type feeValidationParams struct {
+	stor           *blockchainEntitiesStorage
+	settings       *settings.BlockchainSettings
+	initialisation bool
 }
 
 func minFeeInUnits(features *features, tx proto.Transaction) (uint64, error) {
@@ -70,16 +77,28 @@ func minFeeInUnits(features *features, tx proto.Transaction) (uint64, error) {
 	return fee, nil
 }
 
-func minFeeInWaves(features *features, tx proto.Transaction) (uint64, error) {
-	feeInUnits, err := minFeeInUnits(features, tx)
+func minFeeInWaves(tx proto.Transaction, params *feeValidationParams) (uint64, error) {
+	feeInUnits, err := minFeeInUnits(params.stor.features, tx)
 	if err != nil {
 		return 0, err
 	}
-	return feeInUnits * FeeUnit, nil
+	minFee := feeInUnits * FeeUnit
+	senderAddr, err := proto.NewAddressFromPublicKey(params.settings.AddressSchemeCharacter, tx.GetSenderPK())
+	if err != nil {
+		return 0, err
+	}
+	scripted, err := params.stor.accountsScripts.newestHasVerifier(senderAddr, !params.initialisation)
+	if err != nil {
+		return 0, err
+	}
+	if scripted {
+		minFee += scriptExtraFee
+	}
+	return minFee, nil
 }
 
-func checkMinFeeWaves(stor *blockchainEntitiesStorage, tx proto.Transaction) error {
-	minWaves, err := minFeeInWaves(stor.features, tx)
+func checkMinFeeWaves(tx proto.Transaction, params *feeValidationParams) error {
+	minWaves, err := minFeeInWaves(tx, params)
 	if err != nil {
 		return errors.Errorf("failed to calculate min fee in Waves: %v\n", err)
 	}
@@ -90,19 +109,19 @@ func checkMinFeeWaves(stor *blockchainEntitiesStorage, tx proto.Transaction) err
 	return nil
 }
 
-func checkMinFeeAsset(stor *blockchainEntitiesStorage, tx proto.Transaction, feeAssetID crypto.Digest) error {
-	isSponsored, err := stor.sponsoredAssets.newestIsSponsored(feeAssetID, true)
+func checkMinFeeAsset(tx proto.Transaction, feeAssetID crypto.Digest, params *feeValidationParams) error {
+	isSponsored, err := params.stor.sponsoredAssets.newestIsSponsored(feeAssetID, !params.initialisation)
 	if err != nil {
 		return errors.Errorf("newestIsSponsored: %v\n", err)
 	}
 	if !isSponsored {
 		return errors.Errorf("asset %s is not sponsored", feeAssetID.String())
 	}
-	minWaves, err := minFeeInWaves(stor.features, tx)
+	minWaves, err := minFeeInWaves(tx, params)
 	if err != nil {
 		return errors.Errorf("failed to calculate min fee in Waves: %v\n", err)
 	}
-	minAsset, err := stor.sponsoredAssets.wavesToSponsoredAsset(feeAssetID, minWaves)
+	minAsset, err := params.stor.sponsoredAssets.wavesToSponsoredAsset(feeAssetID, minWaves)
 	if err != nil {
 		return errors.Errorf("wavesToSponsoredAsset() failed: %v\n", err)
 	}

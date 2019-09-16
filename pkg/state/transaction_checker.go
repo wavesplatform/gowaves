@@ -63,11 +63,12 @@ func (tc *transactionChecker) checkFee(tx proto.Transaction, feeAsset proto.Opti
 		// Sponsorship is not yet activated.
 		return nil
 	}
+	params := &feeValidationParams{stor: tc.stor, settings: tc.settings, initialisation: info.initialisation}
 	if !feeAsset.Present {
 		// Waves.
-		return checkMinFeeWaves(tc.stor, tx)
+		return checkMinFeeWaves(tx, params)
 	}
-	return checkMinFeeAsset(tc.stor, tx, feeAsset.ID)
+	return checkMinFeeAsset(tx, feeAsset.ID, params)
 }
 
 func (tc *transactionChecker) checkFromFuture(timestamp uint64) bool {
