@@ -223,7 +223,7 @@ func (a *LongExpr) Eq(other Expr) (bool, error) {
 }
 
 func (a *LongExpr) InstanceOf() string {
-	return "Long"
+	return "Int"
 }
 
 type BooleanExpr struct {
