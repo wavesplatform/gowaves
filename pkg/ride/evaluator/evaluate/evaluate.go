@@ -26,20 +26,17 @@ func Eval(e ast.Expr, s ast.Scope) (bool, error) {
 }
 
 func Verify(scheme byte, state types.SmartState, script *ast.Script, transaction proto.Transaction) (bool, error) {
-	txVars, err := ast.NewVariablesFromTransaction(scheme, transaction)
+	tx, err := ast.NewVariablesFromTransaction(scheme, transaction)
 	if err != nil {
 		return false, err
 	}
-
 	height, err := state.NewestHeight()
 	if err != nil {
 		return false, err
 	}
-
-	funcsV2 := ast.VarFunctionsV2
-	varsV2 := ast.VariablesV2(txVars, height)
-
-	scope := ast.NewScope(scheme, state, ast.Merge(funcsV2, varsV2))
+	scope := ast.NewScope(script.Version, scheme, state)
+	scope.SetTransaction(tx)
+	scope.SetHeight(height)
 
 	return Eval(script.Verifier, scope)
 }
