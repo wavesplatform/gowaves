@@ -17,6 +17,10 @@ func newContext(variables map[string]ast.Expr) *context {
 		r[k] = struct{}{}
 		e[k] = v
 	}
+	e["height"] = ast.NewLong(0)
+	r["height"] = struct{}{}
+	e["tx"] = ast.NewObject(map[string]ast.Expr{})
+	r["tx"] = struct{}{}
 	return &context{
 		expressions: e,
 		references:  r,

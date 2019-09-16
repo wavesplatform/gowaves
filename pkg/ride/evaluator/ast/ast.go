@@ -79,6 +79,8 @@ func NewExprs(e ...Expr) Exprs {
 	return e
 }
 
+type Callable func(Scope, Exprs) (Expr, error)
+
 // get property from object
 type Getable interface {
 	Get(string) (Expr, error)
@@ -1450,15 +1452,4 @@ func NewBlockInfo(obj object, height proto.Height) *BlockInfoExpr {
 	return &BlockInfoExpr{
 		fields: fields,
 	}
-}
-
-func Merge(x map[string]Expr, y map[string]Expr) map[string]Expr {
-	out := make(map[string]Expr)
-	for k, v := range x {
-		out[k] = v
-	}
-	for k, v := range y {
-		out[k] = v
-	}
-	return out
 }

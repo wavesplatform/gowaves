@@ -316,7 +316,9 @@ func NativeSigVerify(s Scope, e Exprs) (Expr, error) {
 	if !ok {
 		return nil, errors.Errorf("%s: first argument expects to be *BytesExpr, found %T", funcName, rs[0])
 	}
-	//TODO: Add check that the length of first argument (bytesExpr) can't be more than 32KB for scripts V1 and V2, V3 has no limit.
+	if l := len(bytesExpr.Value); !s.validMessageLength(l) {
+		return nil, errors.Errorf("%s: invalid message size %d", funcName, l)
+	}
 	signatureExpr, ok := rs[1].(*BytesExpr)
 	if !ok {
 		return nil, errors.Errorf("%s: second argument expects to be *BytesExpr, found %T", funcName, rs[1])

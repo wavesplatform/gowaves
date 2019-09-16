@@ -1,6 +1,7 @@
 package ast
 
 import (
+	"bytes"
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/hex"
@@ -19,72 +20,72 @@ import (
 
 func TestNativeSumLong(t *testing.T) {
 	params1 := Exprs{NewLong(5), NewLong(4)}
-	rs, err := NativeSumLong(newEmptyScope(), params1)
+	rs, err := NativeSumLong(newEmptyScopeV1(), params1)
 	require.NoError(t, err)
 	assert.Equal(t, NewLong(9), rs)
 
 	params2 := Exprs{NewLong(5), NewBoolean(true)}
-	_, err = NativeSumLong(newEmptyScope(), params2)
+	_, err = NativeSumLong(newEmptyScopeV1(), params2)
 	require.Error(t, err)
 }
 
 func TestNativeSubLong(t *testing.T) {
 	params1 := Exprs{NewLong(5), NewLong(4)}
-	rs, err := NativeSubLong(newEmptyScope(), params1)
+	rs, err := NativeSubLong(newEmptyScopeV1(), params1)
 	require.NoError(t, err)
 	assert.Equal(t, NewLong(1), rs)
 
 	params2 := Exprs{NewLong(5), NewBoolean(true)}
-	_, err = NativeSubLong(newEmptyScope(), params2)
+	_, err = NativeSubLong(newEmptyScopeV1(), params2)
 	require.Error(t, err)
 }
 
 func TestNativeMulLong(t *testing.T) {
 	params1 := Exprs{NewLong(5), NewLong(2)}
-	rs, err := NativeMulLong(newEmptyScope(), params1)
+	rs, err := NativeMulLong(newEmptyScopeV1(), params1)
 	require.NoError(t, err)
 	assert.Equal(t, NewLong(10), rs)
 
 	params2 := Exprs{NewLong(5), NewBoolean(true)}
-	_, err = NativeMulLong(newEmptyScope(), params2)
+	_, err = NativeMulLong(newEmptyScopeV1(), params2)
 	require.Error(t, err)
 }
 
 func TestNativeGeLong(t *testing.T) {
 	params1 := Exprs{NewLong(5), NewLong(5)}
-	rs, err := NativeGeLong(newEmptyScope(), params1)
+	rs, err := NativeGeLong(newEmptyScopeV1(), params1)
 	require.NoError(t, err)
 	assert.Equal(t, NewBoolean(true), rs)
 
 	params2 := Exprs{NewLong(5), NewBoolean(true)}
-	_, err = NativeGeLong(newEmptyScope(), params2)
+	_, err = NativeGeLong(newEmptyScopeV1(), params2)
 	require.Error(t, err)
 }
 
 func TestNativeGtLong(t *testing.T) {
 	params1 := Exprs{NewLong(5), NewLong(4)}
-	rs, err := NativeGtLong(newEmptyScope(), params1)
+	rs, err := NativeGtLong(newEmptyScopeV1(), params1)
 	require.NoError(t, err)
 	assert.Equal(t, NewBoolean(true), rs)
 
 	params2 := Exprs{NewLong(5), NewBoolean(true)}
-	_, err = NativeGtLong(newEmptyScope(), params2)
+	_, err = NativeGtLong(newEmptyScopeV1(), params2)
 	require.Error(t, err)
 }
 
 func TestNativeDivLong(t *testing.T) {
 	params1 := Exprs{NewLong(9), NewLong(2)}
-	rs, err := NativeDivLong(newEmptyScope(), params1)
+	rs, err := NativeDivLong(newEmptyScopeV1(), params1)
 	require.NoError(t, err)
 	assert.Equal(t, NewLong(4), rs)
 
 	params2 := Exprs{NewLong(5), NewBoolean(true)}
-	_, err = NativeDivLong(newEmptyScope(), params2)
+	_, err = NativeDivLong(newEmptyScopeV1(), params2)
 	require.Error(t, err)
 
 	// zero division
 	params3 := Exprs{NewLong(9), NewLong(0)}
-	_, err = NativeDivLong(newEmptyScope(), params3)
+	_, err = NativeDivLong(newEmptyScopeV1(), params3)
 	require.Error(t, err)
 }
 
@@ -105,7 +106,7 @@ func TestUserAddressFromString(t *testing.T) {
 		{NewExprs(NewLong(12345)), true, NewUnit()},
 		{NewExprs(NewString(ma.String()), NewLong(12345)), true, NewUnit()},
 	} {
-		rs, err := UserAddressFromString(newEmptyScope(), test.expressions)
+		rs, err := UserAddressFromString(newEmptyScopeV1(), test.expressions)
 		if test.error {
 			assert.Error(t, err)
 			continue
@@ -130,7 +131,7 @@ func TestUserAddressFromStringValue(t *testing.T) {
 		{NewExprs(NewLong(12345)), true, NewUnit()},
 		{NewExprs(NewString(addr.String()), NewLong(12345)), true, NewUnit()},
 	} {
-		rs, err := f(newEmptyScope(), test.expressions)
+		rs, err := f(newEmptyScopeV1(), test.expressions)
 		if test.error {
 			assert.Error(t, err)
 			continue
@@ -149,25 +150,33 @@ func TestNativeSigVerify(t *testing.T) {
 	pk, err := hex.DecodeString("ba9e7203ca62efbaa49098ec408bdf8a3dfed5a7fa7c200ece40aade905e535f")
 	require.NoError(t, err)
 
-	rs, err := NativeSigVerify(newEmptyScope(), NewExprs(NewBytes(msg), NewBytes(sig), NewBytes(pk)))
+	rs, err := NativeSigVerify(newEmptyScopeV1(), NewExprs(NewBytes(msg), NewBytes(sig), NewBytes(pk)))
 	require.NoError(t, err)
 	assert.Equal(t, NewBoolean(true), rs)
-	rs, err = NativeSigVerify(newEmptyScope(), NewExprs(NewBytes(msg), NewBytes(bad), NewBytes(pk)))
+	rs, err = NativeSigVerify(newEmptyScopeV1(), NewExprs(NewBytes(msg), NewBytes(bad), NewBytes(pk)))
 	require.NoError(t, err)
 	assert.Equal(t, NewBoolean(false), rs)
 
-	_, err = NativeSigVerify(newEmptyScope(), nil)
+	_, err = NativeSigVerify(newEmptyScopeV1(), nil)
 	require.Error(t, err)
-	_, err = NativeSigVerify(newEmptyScope(), NewExprs(NewString("BAD"), NewBytes(sig), NewBytes(pk)))
+	_, err = NativeSigVerify(newEmptyScopeV1(), NewExprs(NewString("BAD"), NewBytes(sig), NewBytes(pk)))
 	require.Error(t, err)
-	_, err = NativeSigVerify(newEmptyScope(), NewExprs(NewBytes(msg), NewString("BAD"), NewBytes(pk)))
+	_, err = NativeSigVerify(newEmptyScopeV1(), NewExprs(NewBytes(msg), NewString("BAD"), NewBytes(pk)))
 	require.Error(t, err)
-	_, err = NativeSigVerify(newEmptyScope(), NewExprs(NewBytes(msg), NewBytes(sig), NewString("BAD")))
+	_, err = NativeSigVerify(newEmptyScopeV1(), NewExprs(NewBytes(msg), NewBytes(sig), NewString("BAD")))
 	require.Error(t, err)
-	_, err = NativeSigVerify(newEmptyScope(), NewExprs(NewBytes(msg), NewBytes(pk), NewBytes(pk)))
+	_, err = NativeSigVerify(newEmptyScopeV1(), NewExprs(NewBytes(msg), NewBytes(pk), NewBytes(pk)))
 	require.Error(t, err)
-	_, err = NativeSigVerify(newEmptyScope(), NewExprs(NewBytes(msg), NewBytes(sig), NewBytes(pk[:10])))
+	_, err = NativeSigVerify(newEmptyScopeV1(), NewExprs(NewBytes(msg), NewBytes(sig), NewBytes(pk[:10])))
 	require.Error(t, err)
+}
+
+func TestNativeSigVerifyLengthCheck(t *testing.T) {
+	msg := bytes.Repeat([]byte{0xCA, 0xFE, 0xBA, 0xBE}, 8193)
+	sig := bytes.Repeat([]byte{0xDE, 0xAD, 0xBE, 0xEF}, 8)
+	pk := bytes.Repeat([]byte{0x01}, 32)
+	_, err := NativeSigVerify(newEmptyScopeV1(), NewExprs(NewBytes(msg), NewBytes(sig), NewBytes(pk)))
+	assert.Error(t, err, "NativeSigVerify: invalid message length")
 }
 
 func TestNativeKeccak256(t *testing.T) {
@@ -175,7 +184,7 @@ func TestNativeKeccak256(t *testing.T) {
 	data, err := hex.DecodeString(str)
 	require.NoError(t, err)
 	result := "8f54f1c2d0eb5771cd5bf67a6689fcd6eed9444d91a39e5ef32a9b4ae5ca14ff"
-	rs, err := NativeKeccak256(newEmptyScope(), NewExprs(NewBytes(data)))
+	rs, err := NativeKeccak256(newEmptyScopeV1(), NewExprs(NewBytes(data)))
 	require.NoError(t, err)
 
 	expected, err := hex.DecodeString(result)
@@ -188,7 +197,7 @@ func TestNativeBlake2b256(t *testing.T) {
 	data, err := hex.DecodeString(str)
 	require.NoError(t, err)
 	result := "a035872d6af8639ede962dfe7536b0c150b590f3234a922fb7064cd11971b58e"
-	rs, err := NativeBlake2b256(newEmptyScope(), NewExprs(NewBytes(data)))
+	rs, err := NativeBlake2b256(newEmptyScopeV1(), NewExprs(NewBytes(data)))
 	require.NoError(t, err)
 
 	expected, err := hex.DecodeString(result)
@@ -199,7 +208,7 @@ func TestNativeBlake2b256(t *testing.T) {
 func TestNativeSha256(t *testing.T) {
 	data := "123"
 	result := "A665A45920422F9D417E4867EFDC4FB8A04A1F3FFF1FA07E998E86F7F7A27AE3"
-	rs, err := NativeSha256(newEmptyScope(), NewExprs(NewBytes([]byte(data))))
+	rs, err := NativeSha256(newEmptyScopeV1(), NewExprs(NewBytes([]byte(data))))
 	require.NoError(t, err)
 
 	expected, err := hex.DecodeString(result)
@@ -291,81 +300,81 @@ func TestNativeTransferTransactionByID(t *testing.T) {
 }
 
 func TestNativeSizeBytes(t *testing.T) {
-	rs, err := NativeSizeBytes(newEmptyScope(), NewExprs(NewBytes([]byte("abc"))))
+	rs, err := NativeSizeBytes(newEmptyScopeV1(), NewExprs(NewBytes([]byte("abc"))))
 	require.NoError(t, err)
 	assert.Equal(t, NewLong(3), rs)
 }
 
 func TestNativeTake(t *testing.T) {
-	rs, err := NativeTakeBytes(newEmptyScope(), NewExprs(NewBytes([]byte("abc")), NewLong(2)))
+	rs, err := NativeTakeBytes(newEmptyScopeV1(), NewExprs(NewBytes([]byte("abc")), NewLong(2)))
 	require.NoError(t, err)
 	assert.Equal(t, NewBytes([]byte("ab")), rs)
 
-	_, err = NativeTakeBytes(newEmptyScope(), NewExprs(NewBytes([]byte("abc")), NewLong(4)))
+	_, err = NativeTakeBytes(newEmptyScopeV1(), NewExprs(NewBytes([]byte("abc")), NewLong(4)))
 	require.Error(t, err)
 }
 
 func TestNativeDropBytes(t *testing.T) {
-	rs, err := NativeDropBytes(newEmptyScope(), NewExprs(NewBytes([]byte("abcdef")), NewLong(2)))
+	rs, err := NativeDropBytes(newEmptyScopeV1(), NewExprs(NewBytes([]byte("abcdef")), NewLong(2)))
 	require.NoError(t, err)
 	assert.Equal(t, NewBytes([]byte("cdef")), rs)
 
-	_, err = NativeDropBytes(newEmptyScope(), NewExprs(NewBytes([]byte("abc")), NewLong(4)))
+	_, err = NativeDropBytes(newEmptyScopeV1(), NewExprs(NewBytes([]byte("abc")), NewLong(4)))
 	require.Error(t, err)
 }
 
 func TestNativeConcatBytes(t *testing.T) {
-	rs, err := NativeConcatBytes(newEmptyScope(), NewExprs(NewBytes([]byte("abc")), NewBytes([]byte("def"))))
+	rs, err := NativeConcatBytes(newEmptyScopeV1(), NewExprs(NewBytes([]byte("abc")), NewBytes([]byte("def"))))
 	require.NoError(t, err)
 	assert.Equal(t, NewBytes([]byte("abcdef")), rs)
 }
 
 func TestNativeConcatStrings(t *testing.T) {
-	rs, err := NativeConcatStrings(newEmptyScope(), NewExprs(NewString("abc"), NewString("def")))
+	rs, err := NativeConcatStrings(newEmptyScopeV1(), NewExprs(NewString("abc"), NewString("def")))
 	require.NoError(t, err)
 	assert.Equal(t, NewString("abcdef"), rs)
 }
 
 func TestNativeTakeStrings(t *testing.T) {
-	rs, err := NativeTakeStrings(newEmptyScope(), NewExprs(NewString("abcdef"), NewLong(3)))
+	rs, err := NativeTakeStrings(newEmptyScopeV1(), NewExprs(NewString("abcdef"), NewLong(3)))
 	require.NoError(t, err)
 	assert.Equal(t, NewString("abc"), rs)
 
-	rs2, err := NativeTakeStrings(newEmptyScope(), NewExprs(NewString("привет"), NewLong(3)))
+	rs2, err := NativeTakeStrings(newEmptyScopeV1(), NewExprs(NewString("привет"), NewLong(3)))
 	require.NoError(t, err)
 	assert.Equal(t, NewString("при"), rs2)
 }
 
 func TestNativeDropStrings(t *testing.T) {
-	rs, err := NativeDropStrings(newEmptyScope(), NewExprs(NewString("abcdef"), NewLong(4)))
+	rs, err := NativeDropStrings(newEmptyScopeV1(), NewExprs(NewString("abcdef"), NewLong(4)))
 	require.NoError(t, err)
 	assert.Equal(t, NewString("ef"), rs)
 
-	rs2, err := NativeDropStrings(newEmptyScope(), NewExprs(NewString("привет"), NewLong(4)))
+	rs2, err := NativeDropStrings(newEmptyScopeV1(), NewExprs(NewString("привет"), NewLong(4)))
 	require.NoError(t, err)
 	assert.Equal(t, NewString("ет"), rs2)
 }
 
 func TestNativeSizeString(t *testing.T) {
-	rs2, err := NativeSizeString(newEmptyScope(), NewExprs(NewString("привет")))
+	rs2, err := NativeSizeString(newEmptyScopeV1(), NewExprs(NewString("привет")))
 	require.NoError(t, err)
 	assert.Equal(t, NewLong(6), rs2)
 }
 
 func TestNativeSizeList(t *testing.T) {
-	rs, err := NativeSizeList(newEmptyScope(), Params(NewExprs(NewLong(1))))
+	rs, err := NativeSizeList(newEmptyScopeV1(), Params(NewExprs(NewLong(1))))
 	require.NoError(t, err)
 	assert.Equal(t, NewLong(1), rs)
 }
 
 func TestNativeLongToBytes(t *testing.T) {
-	rs, err := NativeLongToBytes(newEmptyScope(), Params(NewLong(1)))
+	rs, err := NativeLongToBytes(newEmptyScopeV1(), Params(NewLong(1)))
 	require.NoError(t, err)
 	assert.Equal(t, NewBytes([]byte{0, 0, 0, 0, 0, 0, 0, 1}), rs)
 }
 
 func TestNativeThrow(t *testing.T) {
-	rs, err := NativeThrow(newEmptyScope(), Params(NewString("mess")))
+	rs, err := NativeThrow(newEmptyScopeV1(), Params(NewString("mess")))
 	require.Nil(t, rs)
 	if err != nil {
 		assert.Equal(t, "mess", err.Error())
@@ -375,7 +384,7 @@ func TestNativeThrow(t *testing.T) {
 }
 
 func TestNativeModLong(t *testing.T) {
-	rs, err := NativeModLong(newEmptyScope(), Params(NewLong(-10), NewLong(6)))
+	rs, err := NativeModLong(newEmptyScopeV1(), Params(NewLong(-10), NewLong(6)))
 	require.NoError(t, err)
 	assert.Equal(t, NewLong(2), rs)
 }
@@ -389,51 +398,51 @@ func TestModDivision(t *testing.T) {
 
 func TestNativeFractionLong(t *testing.T) {
 	// works with big integers
-	rs1, err := NativeFractionLong(newEmptyScope(), Params(NewLong(math.MaxInt64), NewLong(4), NewLong(6)))
+	rs1, err := NativeFractionLong(newEmptyScopeV1(), Params(NewLong(math.MaxInt64), NewLong(4), NewLong(6)))
 	require.NoError(t, err)
 	assert.Equal(t, NewLong(6148914691236517204), rs1)
 
 	// and works with usual integers
-	rs2, err := NativeFractionLong(newEmptyScope(), NewExprs(NewLong(8), NewLong(4), NewLong(2)))
+	rs2, err := NativeFractionLong(newEmptyScopeV1(), NewExprs(NewLong(8), NewLong(4), NewLong(2)))
 	require.NoError(t, err)
 	assert.Equal(t, NewLong(16), rs2)
 
 	// overflow
-	_, err = NativeFractionLong(newEmptyScope(), NewExprs(NewLong(math.MaxInt64), NewLong(4), NewLong(1)))
+	_, err = NativeFractionLong(newEmptyScopeV1(), NewExprs(NewLong(math.MaxInt64), NewLong(4), NewLong(1)))
 	require.Error(t, err)
 
 	// zero division
-	_, err = NativeFractionLong(newEmptyScope(), NewExprs(NewLong(math.MaxInt64), NewLong(4), NewLong(0)))
+	_, err = NativeFractionLong(newEmptyScopeV1(), NewExprs(NewLong(math.MaxInt64), NewLong(4), NewLong(0)))
 	require.Error(t, err)
 }
 
 func TestNativeStringToBytes(t *testing.T) {
-	rs, err := NativeStringToBytes(newEmptyScope(), NewExprs(NewString("привет")))
+	rs, err := NativeStringToBytes(newEmptyScopeV1(), NewExprs(NewString("привет")))
 	require.NoError(t, err)
 	assert.Equal(t, NewBytes([]byte("привет")), rs)
 }
 
 func TestNativeBooleanToBytes(t *testing.T) {
-	rs1, err := NativeBooleanToBytes(newEmptyScope(), Params(NewBoolean(true)))
+	rs1, err := NativeBooleanToBytes(newEmptyScopeV1(), Params(NewBoolean(true)))
 	require.NoError(t, err)
 	assert.Equal(t, NewBytes([]byte{1}), rs1)
-	rs2, err := NativeBooleanToBytes(newEmptyScope(), Params(NewBoolean(false)))
+	rs2, err := NativeBooleanToBytes(newEmptyScopeV1(), Params(NewBoolean(false)))
 	require.NoError(t, err)
 	assert.Equal(t, NewBytes([]byte{0}), rs2)
 }
 
 func TestNativeLongToString(t *testing.T) {
-	rs1, err := NativeLongToString(newEmptyScope(), Params(NewLong(100500)))
+	rs1, err := NativeLongToString(newEmptyScopeV1(), Params(NewLong(100500)))
 	require.NoError(t, err)
 	assert.Equal(t, NewString("100500"), rs1)
 }
 
 func TestNativeBooleanToString(t *testing.T) {
-	rs1, err := NativeBooleanToString(newEmptyScope(), Params(NewBoolean(true)))
+	rs1, err := NativeBooleanToString(newEmptyScopeV1(), Params(NewBoolean(true)))
 	require.NoError(t, err)
 	assert.Equal(t, NewString("true"), rs1)
 
-	rs2, err := NativeBooleanToString(newEmptyScope(), Params(NewBoolean(false)))
+	rs2, err := NativeBooleanToString(newEmptyScopeV1(), Params(NewBoolean(false)))
 	require.NoError(t, err)
 	assert.Equal(t, NewString("false"), rs2)
 }
@@ -441,49 +450,49 @@ func TestNativeBooleanToString(t *testing.T) {
 var testBytes = []byte{0x54, 0x68, 0x69, 0x73, 0x20, 0x69, 0x73, 0x20, 0x61, 0x20, 0x73, 0x69, 0x6d, 0x70, 0x6c, 0x65, 0x20, 0x73, 0x74, 0x72, 0x69, 0x6e, 0x67, 0x20, 0x66, 0x6f, 0x72, 0x20, 0x74, 0x65, 0x73, 0x74}
 
 func TestNativeToBase58(t *testing.T) {
-	rs1, err := NativeToBase58(newEmptyScope(), Params(NewBytes(testBytes)))
+	rs1, err := NativeToBase58(newEmptyScopeV1(), Params(NewBytes(testBytes)))
 	require.NoError(t, err)
 	assert.Equal(t, NewString("6gVbAXCUdsa14xdsSk2SKaNBXs271V3Mo4zjb2cvCrsM"), rs1)
 }
 
 func TestNativeFromBase58(t *testing.T) {
-	rs1, err := NativeFromBase58(newEmptyScope(), Params(NewString("6gVbAXCUdsa14xdsSk2SKaNBXs271V3Mo4zjb2cvCrsM")))
+	rs1, err := NativeFromBase58(newEmptyScopeV1(), Params(NewString("6gVbAXCUdsa14xdsSk2SKaNBXs271V3Mo4zjb2cvCrsM")))
 	require.NoError(t, err)
 	assert.Equal(t, NewBytes(testBytes), rs1)
 }
 
 func TestNativeToBase64(t *testing.T) {
-	rs1, err := NativeToBase64(newEmptyScope(), Params(NewBytes(testBytes)))
+	rs1, err := NativeToBase64(newEmptyScopeV1(), Params(NewBytes(testBytes)))
 	require.NoError(t, err)
 	assert.Equal(t, NewString("VGhpcyBpcyBhIHNpbXBsZSBzdHJpbmcgZm9yIHRlc3Q="), rs1)
 }
 
 func TestNativeFromBase64(t *testing.T) {
-	rs1, err := NativeFromBase64(newEmptyScope(), Params(NewString("VGhpcyBpcyBhIHNpbXBsZSBzdHJpbmcgZm9yIHRlc3Q=")))
+	rs1, err := NativeFromBase64(newEmptyScopeV1(), Params(NewString("VGhpcyBpcyBhIHNpbXBsZSBzdHJpbmcgZm9yIHRlc3Q=")))
 	require.NoError(t, err)
 	assert.Equal(t, NewBytes(testBytes), rs1)
 }
 
 func TestNativeToBase16(t *testing.T) {
-	rs1, err := NativeToBase16(newEmptyScope(), Params(NewBytes(testBytes)))
+	rs1, err := NativeToBase16(newEmptyScopeV1(), Params(NewBytes(testBytes)))
 	require.NoError(t, err)
 	assert.Equal(t, NewString("5468697320697320612073696d706c6520737472696e6720666f722074657374"), rs1)
 }
 
 func TestNativeFromBase16(t *testing.T) {
-	rs1, err := NativeFromBase16(newEmptyScope(), Params(NewString("5468697320697320612073696d706c6520737472696e6720666f722074657374")))
+	rs1, err := NativeFromBase16(newEmptyScopeV1(), Params(NewString("5468697320697320612073696d706c6520737472696e6720666f722074657374")))
 	require.NoError(t, err)
 	assert.Equal(t, NewBytes(testBytes), rs1)
 }
 
 func TestNativeFromBase64String(t *testing.T) {
-	rs1, err := NativeFromBase64(newEmptyScope(), Params(NewString("AQa3b8tH")))
+	rs1, err := NativeFromBase64(newEmptyScopeV1(), Params(NewString("AQa3b8tH")))
 	require.NoError(t, err)
 	assert.Equal(t, NewBytes([]uint8{0x1, 0x6, 0xb7, 0x6f, 0xcb, 0x47}), rs1)
 }
 
 func TestNativeToBse64String(t *testing.T) {
-	rs1, err := NativeToBase64(newEmptyScope(), Params(NewBytes([]uint8{0x1, 0x6, 0xb7, 0x6f, 0xcb, 0x47})))
+	rs1, err := NativeToBase64(newEmptyScopeV1(), Params(NewBytes([]uint8{0x1, 0x6, 0xb7, 0x6f, 0xcb, 0x47})))
 	require.NoError(t, err)
 	assert.Equal(t, NewString("AQa3b8tH"), rs1)
 }
@@ -541,24 +550,24 @@ func TestNativeDataFromArray(t *testing.T) {
 		Value: "world",
 	})
 
-	rs1, err := NativeDataIntegerFromArray(newEmptyScope(), Params(NewDataEntryList(dataEntries), NewString("integer")))
+	rs1, err := NativeDataIntegerFromArray(newEmptyScopeV1(), Params(NewDataEntryList(dataEntries), NewString("integer")))
 	require.NoError(t, err)
 	assert.Equal(t, NewLong(100500), rs1)
 
-	rs2, err := NativeDataBooleanFromArray(newEmptyScope(), Params(NewDataEntryList(dataEntries), NewString("boolean")))
+	rs2, err := NativeDataBooleanFromArray(newEmptyScopeV1(), Params(NewDataEntryList(dataEntries), NewString("boolean")))
 	require.NoError(t, err)
 	assert.Equal(t, NewBoolean(true), rs2)
 
-	rs3, err := NativeDataStringFromArray(newEmptyScope(), Params(NewDataEntryList(dataEntries), NewString("string")))
+	rs3, err := NativeDataStringFromArray(newEmptyScopeV1(), Params(NewDataEntryList(dataEntries), NewString("string")))
 	require.NoError(t, err)
 	assert.Equal(t, NewString("world"), rs3)
 
-	rs4, err := NativeDataBinaryFromArray(newEmptyScope(), Params(NewDataEntryList(dataEntries), NewString("binary")))
+	rs4, err := NativeDataBinaryFromArray(newEmptyScopeV1(), Params(NewDataEntryList(dataEntries), NewString("binary")))
 	require.NoError(t, err)
 	assert.Equal(t, NewBytes([]byte("hello")), rs4)
 
 	// test no value
-	rs5, err := NativeDataBinaryFromArray(newEmptyScope(), Params(NewDataEntryList(dataEntries), NewString("unknown")))
+	rs5, err := NativeDataBinaryFromArray(newEmptyScopeV1(), Params(NewDataEntryList(dataEntries), NewString("unknown")))
 	require.NoError(t, err)
 	assert.Equal(t, Unit{}, rs5)
 }
@@ -607,74 +616,74 @@ func TestNativeDataFromState(t *testing.T) {
 }
 
 func TestUserIsDefined(t *testing.T) {
-	rs1, err := UserIsDefined(newEmptyScope(), Params(NewString("")))
+	rs1, err := UserIsDefined(newEmptyScopeV1(), Params(NewString("")))
 	require.NoError(t, err)
 	assert.Equal(t, NewBoolean(true), rs1)
 
-	rs2, err := UserIsDefined(newEmptyScope(), Params(NewUnit()))
+	rs2, err := UserIsDefined(newEmptyScopeV1(), Params(NewUnit()))
 	require.NoError(t, err)
 	assert.Equal(t, NewBoolean(false), rs2)
 }
 
 func TestUserExtract(t *testing.T) {
-	rs1, err := UserExtract(newEmptyScope(), Params(NewString("")))
+	rs1, err := UserExtract(newEmptyScopeV1(), Params(NewString("")))
 	require.NoError(t, err)
 	assert.Equal(t, NewString(""), rs1)
 
-	_, err = UserExtract(newEmptyScope(), Params(NewUnit()))
+	_, err = UserExtract(newEmptyScopeV1(), Params(NewUnit()))
 	require.EqualError(t, err, "extract() called on unit value")
 }
 
 func TestUserDropRightBytes(t *testing.T) {
-	rs1, err := UserDropRightBytes(newEmptyScope(), Params(NewBytes([]byte("hello")), NewLong(2)))
+	rs1, err := UserDropRightBytes(newEmptyScopeV1(), Params(NewBytes([]byte("hello")), NewLong(2)))
 	require.NoError(t, err)
 	assert.Equal(t, NewBytes([]byte("hel")), rs1)
 
-	_, err = UserDropRightBytes(newEmptyScope(), Params(NewBytes([]byte("hello")), NewLong(10)))
+	_, err = UserDropRightBytes(newEmptyScopeV1(), Params(NewBytes([]byte("hello")), NewLong(10)))
 	require.Error(t, err)
 
-	_, err = UserDropRightBytes(newEmptyScope(), Params(NewBytes([]byte("hello")), NewLong(5)))
+	_, err = UserDropRightBytes(newEmptyScopeV1(), Params(NewBytes([]byte("hello")), NewLong(5)))
 	require.NoError(t, err)
 }
 
 func TestUserTakeRight(t *testing.T) {
-	rs1, err := UserTakeRightBytes(newEmptyScope(), Params(NewBytes([]byte("hello")), NewLong(2)))
+	rs1, err := UserTakeRightBytes(newEmptyScopeV1(), Params(NewBytes([]byte("hello")), NewLong(2)))
 	require.NoError(t, err)
 	assert.Equal(t, NewBytes([]byte("lo")), rs1)
 
-	_, err = UserTakeRightBytes(newEmptyScope(), Params(NewBytes([]byte("hello")), NewLong(10)))
+	_, err = UserTakeRightBytes(newEmptyScopeV1(), Params(NewBytes([]byte("hello")), NewLong(10)))
 	require.Error(t, err)
 
-	_, err = UserTakeRightBytes(newEmptyScope(), Params(NewBytes([]byte("hello")), NewLong(5)))
+	_, err = UserTakeRightBytes(newEmptyScopeV1(), Params(NewBytes([]byte("hello")), NewLong(5)))
 	require.NoError(t, err)
 }
 
 func TestUserTakeRightString(t *testing.T) {
-	rs1, err := UserTakeRightString(newEmptyScope(), Params(NewString("hello"), NewLong(2)))
+	rs1, err := UserTakeRightString(newEmptyScopeV1(), Params(NewString("hello"), NewLong(2)))
 	require.NoError(t, err)
 	assert.Equal(t, NewString("lo"), rs1)
 
-	_, err = UserTakeRightString(newEmptyScope(), Params(NewString("hello"), NewLong(20)))
+	_, err = UserTakeRightString(newEmptyScopeV1(), Params(NewString("hello"), NewLong(20)))
 	require.Error(t, err)
 }
 
 func TestUserDropRightString(t *testing.T) {
-	rs1, err := UserDropRightString(newEmptyScope(), Params(NewString("hello"), NewLong(2)))
+	rs1, err := UserDropRightString(newEmptyScopeV1(), Params(NewString("hello"), NewLong(2)))
 	require.NoError(t, err)
 	assert.Equal(t, NewString("hel"), rs1)
 
-	_, err = UserDropRightString(newEmptyScope(), Params(NewString("hello"), NewLong(20)))
+	_, err = UserDropRightString(newEmptyScopeV1(), Params(NewString("hello"), NewLong(20)))
 	require.Error(t, err)
 }
 
 func TestUserUnaryMinus(t *testing.T) {
-	rs1, err := UserUnaryMinus(newEmptyScope(), Params(NewLong(2)))
+	rs1, err := UserUnaryMinus(newEmptyScopeV1(), Params(NewLong(2)))
 	require.NoError(t, err)
 	assert.Equal(t, NewLong(-2), rs1)
 }
 
 func TestUserUnaryNot(t *testing.T) {
-	rs1, err := UserUnaryNot(newEmptyScope(), Params(NewBoolean(true)))
+	rs1, err := UserUnaryNot(newEmptyScopeV1(), Params(NewBoolean(true)))
 	require.NoError(t, err)
 	assert.Equal(t, NewBoolean(false), rs1)
 }
@@ -686,7 +695,7 @@ func TestUserAddressFromPublicKey(t *testing.T) {
 	addr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, pub)
 	require.NoError(t, err)
 
-	rs, err := UserAddressFromPublicKey(newEmptyScope(), Params(NewBytes(pub.Bytes())))
+	rs, err := UserAddressFromPublicKey(newEmptyScopeV1(), Params(NewBytes(pub.Bytes())))
 	require.NoError(t, err)
 	assert.Equal(t, NewAddressFromProtoAddress(addr), rs)
 }
@@ -708,7 +717,7 @@ func TestUserAddress(t *testing.T) {
 	addr, err := proto.NewAddressFromString(s)
 	require.NoError(t, err)
 
-	rs1, err := UserAddress(newEmptyScope(), Params(NewBytes(addr.Bytes())))
+	rs1, err := UserAddress(newEmptyScopeV1(), Params(NewBytes(addr.Bytes())))
 	require.NoError(t, err)
 	assert.Equal(t, NewAddressFromProtoAddress(addr), rs1)
 }
@@ -718,31 +727,31 @@ func TestUserAlias(t *testing.T) {
 	alias, err := proto.NewAliasFromString(s)
 	require.NoError(t, err)
 
-	rs1, err := UserAlias(newEmptyScope(), Params(NewString(s)))
+	rs1, err := UserAlias(newEmptyScopeV1(), Params(NewString(s)))
 	require.NoError(t, err)
 	assert.Equal(t, NewAliasFromProtoAlias(*alias), rs1)
 }
 
 func TestNativePowLong(t *testing.T) {
-	r, err := NativePowLong(newEmptyScope(), NewExprs(NewLong(12), NewLong(1), NewLong(3456), NewLong(3), NewLong(2), DownExpr{}))
+	r, err := NativePowLong(newEmptyScopeV1(), NewExprs(NewLong(12), NewLong(1), NewLong(3456), NewLong(3), NewLong(2), DownExpr{}))
 	require.NoError(t, err)
 	assert.Equal(t, NewLong(187), r)
 
-	r, err = NativePowLong(newEmptyScope(), NewExprs(NewLong(12), NewLong(1), NewLong(3456), NewLong(3), NewLong(2), UpExpr{}))
+	r, err = NativePowLong(newEmptyScopeV1(), NewExprs(NewLong(12), NewLong(1), NewLong(3456), NewLong(3), NewLong(2), UpExpr{}))
 	require.NoError(t, err)
 	assert.Equal(t, NewLong(188), r)
 
 	// overflow
-	_, err = NativeFractionLong(newEmptyScope(), NewExprs(NewLong(math.MaxInt64), NewLong(0), NewLong(100), NewLong(0), NewLong(0), UpExpr{}))
+	_, err = NativeFractionLong(newEmptyScopeV1(), NewExprs(NewLong(math.MaxInt64), NewLong(0), NewLong(100), NewLong(0), NewLong(0), UpExpr{}))
 	require.Error(t, err)
 }
 
 func TestNativeLogLong(t *testing.T) {
-	r, err := NativeLogLong(newEmptyScope(), NewExprs(NewLong(16), NewLong(0), NewLong(2), NewLong(0), NewLong(0), UpExpr{}))
+	r, err := NativeLogLong(newEmptyScopeV1(), NewExprs(NewLong(16), NewLong(0), NewLong(2), NewLong(0), NewLong(0), UpExpr{}))
 	require.NoError(t, err)
 	assert.Equal(t, NewLong(4), r)
 
-	r, err = NativeLogLong(newEmptyScope(), NewExprs(NewLong(100), NewLong(0), NewLong(10), NewLong(0), NewLong(0), UpExpr{}))
+	r, err = NativeLogLong(newEmptyScopeV1(), NewExprs(NewLong(100), NewLong(0), NewLong(10), NewLong(0), NewLong(0), UpExpr{}))
 	require.NoError(t, err)
 	assert.Equal(t, NewLong(2), r)
 }
@@ -788,7 +797,7 @@ func TestNativeRSAVerify(t *testing.T) {
 		require.NoError(t, err)
 		sig, err := base64.StdEncoding.DecodeString(test.sig)
 		require.NoErrorf(t, err, "#%d", i)
-		r, err := NativeRSAVerify(newEmptyScope(), NewExprs(test.alg, NewBytes(msg), NewBytes(sig), NewBytes(pk)))
+		r, err := NativeRSAVerify(newEmptyScopeV1(), NewExprs(test.alg, NewBytes(msg), NewBytes(sig), NewBytes(pk)))
 		require.NoErrorf(t, err, "#%d", i)
 		assert.Equalf(t, NewBoolean(test.ok), r, "#%d", i)
 	}
@@ -815,7 +824,7 @@ func TestNativeCheckMerkleProof(t *testing.T) {
 		require.NoError(t, err)
 		leaf, err := base64.StdEncoding.DecodeString(test.leaf)
 		require.NoError(t, err)
-		r, err := NativeCheckMerkleProof(newEmptyScope(), NewExprs(NewBytes(root), NewBytes(proof), NewBytes(leaf)))
+		r, err := NativeCheckMerkleProof(newEmptyScopeV1(), NewExprs(NewBytes(root), NewBytes(proof), NewBytes(leaf)))
 		require.NoError(t, err)
 		assert.Equal(t, NewBoolean(test.result), r)
 	}
@@ -835,7 +844,7 @@ func TestNativeAddressToString(t *testing.T) {
 		{NewExprs(NewString("3P2HNUd5VUPLMQkJmctTPEeeHumiPN2GkTb")), "3P2HNUd5VUPLMQkJmctTPEeeHumiPN2GkTb", true, false},
 		{NewExprs(), "3P2HNUd5VUPLMQkJmctTPEeeHumiPN2GkTb", true, false},
 	} {
-		r, err := NativeAddressToString(newEmptyScope(), test.expressions)
+		r, err := NativeAddressToString(newEmptyScopeV1(), test.expressions)
 		if test.error {
 			assert.Error(t, err)
 			continue
@@ -857,7 +866,7 @@ func TestNativeBytesToUTF8String(t *testing.T) {
 		{NewExprs(NewBytes([]byte("blah-blah-blah")), NewString("a-a-a-a")), true, NewString("blah-blah-blah")},
 		{NewExprs(NewString("blah-blah-blah")), true, NewString("blah-blah-blah")},
 	} {
-		r, err := NativeBytesToUTF8String(newEmptyScope(), test.expressions)
+		r, err := NativeBytesToUTF8String(newEmptyScopeV1(), test.expressions)
 		if test.err {
 			assert.Error(t, err)
 			continue
@@ -888,7 +897,7 @@ func TestNativeBytesToLong(t *testing.T) {
 		{NewExprs(NewBytes(b(12345)), NewString("blah")), true, NewLong(0)},
 		{NewExprs(NewBytes([]byte{0, 1, 2, 3, 4, 5})), true, NewLong(0)},
 	} {
-		r, err := NativeBytesToLong(newEmptyScope(), test.expressions)
+		r, err := NativeBytesToLong(newEmptyScopeV1(), test.expressions)
 		if test.error {
 			assert.Error(t, err)
 			continue
@@ -926,7 +935,7 @@ func TestNativeBytesToLongWithOffset(t *testing.T) {
 		{NewExprs(NewBytes([]byte{0, 1, 2, 3, 4, 5})), true, NewLong(0)},
 		{NewExprs(NewBytes(in(arr, b(math.MinInt64), 6)), NewLong(16)), true, NewLong(0)},
 	} {
-		r, err := NativeBytesToLongWithOffset(newEmptyScope(), test.expressions)
+		r, err := NativeBytesToLongWithOffset(newEmptyScopeV1(), test.expressions)
 		if test.error {
 			assert.Error(t, err)
 			continue
@@ -948,7 +957,7 @@ func TestNativeIndexOfSubstring(t *testing.T) {
 		{NewExprs(NewString("blah-blah-blah")), true, NewUnit()},
 		{NewExprs(NewString("blah-blah-blah"), NewLong(1)), true, NewUnit()},
 	} {
-		r, err := NativeIndexOfSubstring(newEmptyScope(), test.expressions)
+		r, err := NativeIndexOfSubstring(newEmptyScopeV1(), test.expressions)
 		if test.error {
 			assert.Error(t, err)
 			continue
@@ -974,7 +983,7 @@ func TestNativeIndexOfSubstringWithOffset(t *testing.T) {
 		{NewExprs(NewString("blah-blah-blah"), NewLong(1), NewString("xxx")), true, NewUnit()},
 		{NewExprs(NewString("blah-blah-blah"), NewString("xxx"), NewString("0")), true, NewUnit()},
 	} {
-		r, err := NativeIndexOfSubstringWithOffset(newEmptyScope(), test.expressions)
+		r, err := NativeIndexOfSubstringWithOffset(newEmptyScopeV1(), test.expressions)
 		if test.error {
 			assert.Error(t, err)
 			continue
@@ -997,7 +1006,7 @@ func TestNativeSplitString(t *testing.T) {
 		{NewExprs(NewLong(0), NewString("one two three four")), true, NewExprs()},
 		{NewExprs(NewString("one two three four"), NewLong(0)), true, NewExprs()},
 	} {
-		r, err := NativeSplitString(newEmptyScope(), test.expressions)
+		r, err := NativeSplitString(newEmptyScopeV1(), test.expressions)
 		if test.error {
 			assert.Error(t, err)
 			continue
@@ -1024,7 +1033,7 @@ func TestNativeParseInt(t *testing.T) {
 		{NewExprs(NewString("blah-blah-blah"), NewLong(1)), true, NewUnit()},
 		{NewExprs(NewLong(1)), true, NewUnit()},
 	} {
-		r, err := NativeParseInt(newEmptyScope(), test.expressions)
+		r, err := NativeParseInt(newEmptyScopeV1(), test.expressions)
 		if test.error {
 			assert.Error(t, err)
 			continue
@@ -1052,7 +1061,7 @@ func TestUserParseIntValue(t *testing.T) {
 		{NewExprs(NewString("blah-blah-blah"), NewLong(1)), true, NewUnit()},
 		{NewExprs(NewLong(1)), true, NewUnit()},
 	} {
-		r, err := f(newEmptyScope(), test.expressions)
+		r, err := f(newEmptyScopeV1(), test.expressions)
 		if test.error {
 			assert.Error(t, err)
 			continue
@@ -1074,7 +1083,7 @@ func TestNativeLastIndexOfSubstring(t *testing.T) {
 		{NewExprs(NewString("blah-blah-blah")), true, NewUnit()},
 		{NewExprs(NewString("blah-blah-blah"), NewLong(1)), true, NewUnit()},
 	} {
-		r, err := NativeLastIndexOfSubstring(newEmptyScope(), test.expressions)
+		r, err := NativeLastIndexOfSubstring(newEmptyScopeV1(), test.expressions)
 		if test.error {
 			assert.Error(t, err)
 			continue
@@ -1111,7 +1120,7 @@ func TestNativeLastIndexOfSubstringWithOffset(t *testing.T) {
 		{NewExprs(NewString("blah-blah-blah"), NewLong(1), NewString("xxx")), true, NewUnit()},
 		{NewExprs(NewString("blah-blah-blah"), NewString("xxx"), NewString("0")), true, NewUnit()},
 	} {
-		r, err := NativeLastIndexOfSubstringWithOffset(newEmptyScope(), test.expressions)
+		r, err := NativeLastIndexOfSubstringWithOffset(newEmptyScopeV1(), test.expressions)
 		if test.error {
 			assert.Error(t, err)
 			continue
@@ -1134,7 +1143,7 @@ func TestUserValue(t *testing.T) {
 		{NewExprs(), true, "UserValue: invalid number of parameters, expected 1, received 0", NewUnit()},
 		{NewExprs(NewString("blah-blah-blah"), NewLong(1)), true, "UserValue: invalid number of parameters, expected 1, received 2", NewUnit()},
 	} {
-		r, err := UserValue(newEmptyScope(), test.expressions)
+		r, err := UserValue(newEmptyScopeV1(), test.expressions)
 		if test.error {
 			assert.EqualError(t, err, test.message)
 			continue
@@ -1157,7 +1166,7 @@ func TestUserValueOrErrorMessage(t *testing.T) {
 		{NewExprs(), true, "UserValueOrErrorMessage: invalid number of parameters, expected 2, received 0", NewUnit()},
 		{NewExprs(NewString("blah-blah-blah"), NewString("ALARM!!!"), NewLong(1)), true, "UserValueOrErrorMessage: invalid number of parameters, expected 2, received 3", NewUnit()},
 	} {
-		r, err := UserValueOrErrorMessage(newEmptyScope(), test.expressions)
+		r, err := UserValueOrErrorMessage(newEmptyScopeV1(), test.expressions)
 		if test.error {
 			assert.EqualError(t, err, test.message)
 			continue
@@ -1274,7 +1283,7 @@ func TestNativeList(t *testing.T) {
 		{NewExprs(), true, "NativeGetList: invalid params, expected 2, passed 0", NewUnit()},
 		{NewExprs(NewString("blah-blah-blah"), NewString("ALARM!!!"), NewLong(1)), true, "NativeGetList: invalid params, expected 2, passed 3", NewUnit()},
 	} {
-		r, err := NativeGetList(newEmptyScope(), test.expressions)
+		r, err := NativeGetList(newEmptyScopeV1(), test.expressions)
 		if test.error {
 			assert.EqualError(t, err, test.message)
 			continue

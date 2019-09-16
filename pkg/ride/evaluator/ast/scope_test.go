@@ -9,16 +9,16 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/types"
 )
 
-func newEmptyScope() Scope {
-	return NewScope(proto.MainNetScheme, mockstate.State{}, EmptyFunctions())
+func newEmptyScopeV1() Scope {
+	return NewScope(1, proto.MainNetScheme, mockstate.State{})
 }
 
 func newScopeWithState(s types.SmartState) Scope {
-	return NewScope(proto.MainNetScheme, s, EmptyFunctions())
+	return NewScope(3, proto.MainNetScheme, s)
 }
 
 func TestFuncScope_Clone(t *testing.T) {
-	parent := newEmptyScope()
+	parent := newEmptyScopeV1()
 	parent.AddValue("x", NewBoolean(true))
 	e, _ := parent.Value("x")
 	assert.Equal(t, NewBoolean(true), e)
@@ -42,6 +42,6 @@ func TestFuncScope_Clone(t *testing.T) {
 }
 
 func TestScopeImpl_Scheme(t *testing.T) {
-	s := newEmptyScope()
+	s := newEmptyScopeV1()
 	assert.Equal(t, proto.MainNetScheme, s.Scheme())
 }

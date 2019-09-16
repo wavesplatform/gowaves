@@ -1,10 +1,8 @@
 package estimation
 
 import (
-	"encoding/json"
 	"testing"
 
-	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride/evaluator/ast"
 
 	"github.com/stretchr/testify/assert"
@@ -13,8 +11,6 @@ import (
 )
 
 func TestEstimatorV1Estimate(t *testing.T) {
-	tx, err := ast.NewVariablesFromTransaction(proto.MainNetScheme, transfer())
-	require.NoError(t, err)
 	for _, test := range []struct {
 		code      string
 		script    string
@@ -74,19 +70,9 @@ func TestEstimatorV1Estimate(t *testing.T) {
 		require.NoError(t, err, test.code)
 		script, err := ast.BuildAst(r)
 		require.NoError(t, err, test.code)
-		e := NewEstimatorV1(test.catalogue, ast.VariablesV3(tx, 12345))
+		e := NewEstimatorV1(test.catalogue, ast.VariablesV3())
 		cost, err := e.Estimate(script)
 		require.NoError(t, err, test.code)
 		assert.Equal(t, test.cost, cost, test.code)
 	}
-}
-
-func transfer() *proto.TransferV2 {
-	js := `{"type":4,"version":2,"id":"CqjGMbrd5bFmLAv2mUSdphEJSgVWkWa6ZtcMkKmgH2ax","proofs":["5W7hjPpgmmhxevCt4A7y9F8oNJ4V9w2g8jhQgx2qGmBTNsP1p1MpQeKF3cvZULwJ7vQthZfSx2BhL6TWkHSVLzvq"],"senderPublicKey":"14ovLL9a6xbBfftyxGNLKMdbnzGgnaFQjmgUJGdho6nY","assetId":null,"feeAssetId":null,"timestamp":1544715621,"amount":15,"fee":10000,"recipient":"3P2USE3iYK5w7jNahAUHTytNbVRccGZwQH3"}`
-	tx := &proto.TransferV2{}
-	err := json.Unmarshal([]byte(js), tx)
-	if err != nil {
-		panic(err)
-	}
-	return tx
 }
