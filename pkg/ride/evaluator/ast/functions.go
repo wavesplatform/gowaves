@@ -939,6 +939,9 @@ func NativeFromBase58(s Scope, e Exprs) (Expr, error) {
 	if !ok {
 		return nil, errors.Errorf("%s: expected first argument to be *StringExpr, found %T", funcName, first)
 	}
+	if str.Value == "" {
+		return NewBytes(nil), nil
+	}
 	rs, err := base58.Decode(str.Value)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
