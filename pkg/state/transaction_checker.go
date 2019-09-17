@@ -7,6 +7,9 @@ import (
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/ride/evaluator/ast"
+	"github.com/wavesplatform/gowaves/pkg/ride/evaluator/estimation"
+	"github.com/wavesplatform/gowaves/pkg/ride/evaluator/reader"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 )
 
@@ -32,25 +35,73 @@ func newTransactionChecker(
 	return &transactionChecker{genesis, stor, settings}, nil
 }
 
-func (tc *transactionChecker) scriptActivation(script proto.Script) error {
-	if len(script) == 0 {
-		// Empty script is always valid.
-		return nil
-	}
-	scriptAst, err := scriptBytesToAst(script)
-	if err != nil {
-		return err
-	}
+func (tc *transactionChecker) scriptActivation(script ast.Script) error {
 	rideForDAppsActivated, err := tc.stor.features.isActivated(int16(settings.Ride4DApps))
 	if err != nil {
 		return err
 	}
-	if scriptAst.Version == 3 && !rideForDAppsActivated {
+	if script.Version == 3 && !rideForDAppsActivated {
 		return errors.New("Ride4DApps feature must be activated for scripts version 3")
 	}
-	if scriptAst.HasBlockV2 && !rideForDAppsActivated {
+	if script.HasBlockV2 && !rideForDAppsActivated {
 		return errors.New("Ride4DApps feature must be activated for scripts that have block version 2")
 	}
+	return nil
+}
+
+func (tc *transactionChecker) checkScriptComplexity(script ast.Script, complexity int64) error {
+	var maxComplexity int64
+	switch script.Version {
+	case 1, 2:
+		maxComplexity = 2000
+	case 3, 4:
+		maxComplexity = 4000
+	}
+	if complexity > maxComplexity {
+		return errors.Errorf(
+			"script complexity %d exceeds maximum allowed complexity of %d\n",
+			complexity,
+			maxComplexity,
+		)
+	}
+	return nil
+}
+
+func (tc *transactionChecker) estimatorByScript(script ast.Script) *estimation.EstimatorV1 {
+	var variables map[string]ast.Expr
+	var cat *estimation.Catalogue
+	switch script.Version {
+	case 1, 2:
+		variables = ast.VariablesV2()
+		cat = estimation.NewCatalogueV2()
+	case 3:
+		variables = ast.VariablesV3()
+		cat = estimation.NewCatalogueV3()
+	}
+	return estimation.NewEstimatorV1(cat, variables)
+}
+
+func (tc *transactionChecker) checkScript(scriptBytes proto.Script) error {
+	if len(scriptBytes) == 0 {
+		// Empty script is always valid.
+		return nil
+	}
+	script, err := ast.BuildAst(reader.NewBytesReader(scriptBytes))
+	if err != nil {
+		return errors.Wrap(err, "failed to build ast from script bytes")
+	}
+	if err := tc.scriptActivation(script); err != nil {
+		return errors.Wrap(err, "script activation check failed")
+	}
+	estimator := tc.estimatorByScript(script)
+	complexity, err := estimator.Estimate(script)
+	if err != nil {
+		return errors.Wrap(err, "failed to estimate script complexity")
+	}
+	if err := tc.checkScriptComplexity(script, complexity); err != nil {
+		return errors.Errorf("checkScriptComplexity(): %v\n", err)
+	}
+	// TODO: use RIDE package to check script size depending on whether it's dApp or simple Verifier.
 	return nil
 }
 
@@ -220,8 +271,8 @@ func (tc *transactionChecker) checkIssueV2(transaction proto.Transaction, info *
 	if err := tc.checkFee(transaction, proto.OptionalAsset{Present: false}, info); err != nil {
 		return errors.Errorf("checkFee(): %v", err)
 	}
-	if err := tc.scriptActivation(tx.Script); err != nil {
-		return errors.Wrap(err, "script activation check failed")
+	if err := tc.checkScript(tx.Script); err != nil {
+		return errors.Errorf("checkScript(): %v\n", err)
 	}
 	return tc.checkIssue(&tx.Issue, info)
 }
@@ -622,8 +673,8 @@ func (tc *transactionChecker) checkSetScriptV1(transaction proto.Transaction, in
 	if err := tc.checkFee(transaction, proto.OptionalAsset{Present: false}, info); err != nil {
 		return errors.Errorf("checkFee(): %v", err)
 	}
-	if err := tc.scriptActivation(tx.Script); err != nil {
-		return errors.Wrap(err, "script activation check failed")
+	if err := tc.checkScript(tx.Script); err != nil {
+		return errors.Errorf("checkScript(): %v\n", err)
 	}
 	return nil
 }

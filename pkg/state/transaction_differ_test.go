@@ -751,7 +751,9 @@ func TestCreateDiffSponsorshipV1(t *testing.T) {
 }
 
 func createSetScriptV1(t *testing.T) *proto.SetScriptV1 {
-	tx := proto.NewUnsignedSetScriptV1('W', testGlobal.senderInfo.pk, testGlobal.scriptBytes, defaultFee, defaultTimestamp)
+	feeConst, ok := feeConstants[proto.SetScriptTransaction]
+	assert.Equal(t, ok, true)
+	tx := proto.NewUnsignedSetScriptV1('W', testGlobal.senderInfo.pk, testGlobal.scriptBytes, FeeUnit*feeConst, defaultTimestamp)
 	err := tx.Sign(testGlobal.senderInfo.sk)
 	assert.NoError(t, err, "tx.Sign() failed")
 	return tx

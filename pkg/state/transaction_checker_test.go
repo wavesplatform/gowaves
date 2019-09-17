@@ -2,7 +2,9 @@ package state
 
 import (
 	"fmt"
+	"io/ioutil"
 	"math"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -706,4 +708,66 @@ func TestCheckSponsorshipV1(t *testing.T) {
 	tx.Timestamp = 0
 	err = to.tc.checkSponsorshipV1(tx, info)
 	assert.Error(t, err, "checkSponsorshipV1 did not fail with invalid timestamp")
+}
+
+func TestCheckSetScriptV1(t *testing.T) {
+	to, path := createCheckerTestObjects(t)
+
+	defer func() {
+		to.stor.close(t)
+
+		err := util.CleanTemporaryDirs(path)
+		assert.NoError(t, err, "failed to clean test data dirs")
+	}()
+
+	tx := createSetScriptV1(t)
+	info := defaultCheckerInfo(t)
+
+	// Activate sponsorship.
+	to.stor.activateSponsorship(t)
+
+	// Activate SmartAccounts.
+	to.stor.activateFeature(t, int16(settings.SmartAccounts))
+	err := to.tc.checkSetScriptV1(tx, info)
+	assert.NoError(t, err, "checkSetScriptV1 failed with valid SetScriptV1 tx")
+
+	// Check min fee.
+	feeConst, ok := feeConstants[proto.SetScriptTransaction]
+	assert.Equal(t, ok, true)
+	tx.Fee = FeeUnit*feeConst - 1
+	err = to.tc.checkSetScriptV1(tx, info)
+	assert.Error(t, err, "checkSetScriptV1 did not fail with fee less than minimum")
+	assert.EqualError(t, err, fmt.Sprintf("checkFee(): fee %d is less than minimum value of %d\n", tx.Fee, FeeUnit*feeConst))
+	tx.Fee = FeeUnit * feeConst
+	err = to.tc.checkSetScriptV1(tx, info)
+	assert.NoError(t, err, "checkSetScriptV1 failed with valid SetScriptV1 tx")
+
+	// Test script activation rules.
+	dir, err := getLocalDir()
+	assert.NoError(t, err, "getLocalDir() failed")
+	scriptV3Path := filepath.Join(dir, "testdata", "scripts", "version3.base64")
+	scriptBytes, err := ioutil.ReadFile(scriptV3Path)
+	assert.NoError(t, err)
+	prevScript := tx.Script
+	tx.Script = proto.Script(scriptBytes)
+	err = to.tc.checkSetScriptV1(tx, info)
+	assert.Error(t, err, "checkSetScriptV1 did not fail with Script V3 before Ride4DApps activation")
+	tx.Script = prevScript
+	err = to.tc.checkSetScriptV1(tx, info)
+	assert.NoError(t, err, "checkSetScriptV1 failed with valid SetScriptV1 tx")
+
+	complexScriptPath := filepath.Join(dir, "testdata", "scripts", "exceeds_complexity.base64")
+	scriptBytes, err = ioutil.ReadFile(complexScriptPath)
+	assert.NoError(t, err)
+	tx.Script = proto.Script(scriptBytes)
+	err = to.tc.checkSetScriptV1(tx, info)
+	assert.Error(t, err, "checkSetScriptV1 did not fail with Script that exceeds complexity limit")
+	tx.Script = prevScript
+	err = to.tc.checkSetScriptV1(tx, info)
+	assert.NoError(t, err, "checkSetScriptV1 failed with valid SetScriptV1 tx")
+
+	// Check invalid timestamp failure.
+	tx.Timestamp = 0
+	err = to.tc.checkSetScriptV1(tx, info)
+	assert.Error(t, err, "checkSetScriptV1 did not fail with invalid timestamp")
 }
