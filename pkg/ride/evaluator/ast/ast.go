@@ -42,7 +42,7 @@ func (a Exprs) Evaluate(s Scope) (Expr, error) {
 func (a Exprs) EvaluateAll(s Scope) (Exprs, error) {
 	out := make(Exprs, len(a))
 	for i, row := range a {
-		rs, err := row.Evaluate(s.Clone())
+		rs, err := row.Evaluate(s)
 		if err != nil {
 			return nil, err
 		}
@@ -318,7 +318,7 @@ func (a *NativeFunction) Evaluate(s Scope) (Expr, error) {
 	}
 	initial := s.Initial()
 	for i := 0; i < a.Argc; i++ {
-		evaluatedParam, err := a.Argv[i].Evaluate(s.Clone())
+		evaluatedParam, err := a.Argv[i].Evaluate(s)
 		if err != nil {
 			return nil, errors.Wrapf(err, "evaluate native function: %s", name)
 		}
@@ -371,7 +371,7 @@ func (a *UserFunctionCall) Evaluate(s Scope) (Expr, error) {
 	}
 	initial := s.Initial()
 	for i := 0; i < a.Argc; i++ {
-		evaluatedParam, err := a.Argv[i].Evaluate(s.Clone())
+		evaluatedParam, err := a.Argv[i].Evaluate(s)
 		if err != nil {
 			return nil, errors.Wrapf(err, "evaluate user function: %s", a.Name)
 		}
@@ -455,7 +455,7 @@ func (a PredefinedUserFunction) Evaluate(s Scope) (Expr, error) {
 		}
 		params = append(params, e)
 	}
-	return a.fn(s.Clone(), params)
+	return a.fn(s, params)
 }
 
 func (a PredefinedUserFunction) Eq(other Expr) (bool, error) {
@@ -483,7 +483,7 @@ func (a *RefExpr) Evaluate(s Scope) (Expr, error) {
 	if !ok {
 		return nil, errors.Errorf("RefExpr evaluate: not found expr by name %s", a.Name)
 	}
-	rs, err := expr.Evaluate(s.Clone())
+	rs, err := expr.Evaluate(s)
 	s.setEvaluation(a.Name, evaluation{rs, err})
 	return rs, err
 }
@@ -521,7 +521,7 @@ func (a *IfExpr) Write(w io.Writer) {
 }
 
 func (a *IfExpr) Evaluate(s Scope) (Expr, error) {
-	cond, err := a.Condition.Evaluate(s.Clone())
+	cond, err := a.Condition.Evaluate(s)
 	if err != nil {
 		return nil, err
 	}
@@ -595,7 +595,7 @@ func (a *GetterExpr) Write(w io.Writer) {
 }
 
 func (a *GetterExpr) Evaluate(s Scope) (Expr, error) {
-	val, err := a.Object.Evaluate(s.Clone())
+	val, err := a.Object.Evaluate(s)
 	if err != nil {
 		return nil, errors.Wrapf(err, "GetterExpr Evaluate by key %s", a.Key)
 	}
