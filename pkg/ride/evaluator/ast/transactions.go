@@ -10,7 +10,7 @@ import (
 func NewVariablesFromTransaction(scheme byte, t proto.Transaction) (map[string]Expr, error) {
 	switch tx := t.(type) {
 	case *proto.Genesis:
-		return newVariableFromGenesis(scheme, tx)
+		return newVariableFromGenesis(tx)
 	case *proto.Payment:
 		return newVariablesFromPayment(scheme, tx)
 	case *proto.TransferV1:
@@ -60,7 +60,6 @@ func NewVariablesFromTransaction(scheme byte, t proto.Transaction) (map[string]E
 	default:
 		return nil, errors.Errorf("NewVariablesFromTransaction not implemented for %T", tx)
 	}
-
 }
 
 func makeProofsFromSignature(sig *crypto.Signature) Exprs {
@@ -95,7 +94,7 @@ func makeOptionalAsset(o proto.OptionalAsset) Expr {
 	return NewUnit()
 }
 
-func newVariableFromGenesis(scheme proto.Scheme, tx *proto.Genesis) (map[string]Expr, error) {
+func newVariableFromGenesis(tx *proto.Genesis) (map[string]Expr, error) {
 	funcName := "newVariableFromGenesis"
 
 	out := make(map[string]Expr)
