@@ -69,7 +69,6 @@ func (a *ScopeImpl) Clone() Scope {
 		parent:           a,
 		state:            a.state,
 		scheme:           a.scheme,
-		evaluations:      a.evaluations,
 		msgLenValidation: a.msgLenValidation,
 	}
 }
@@ -122,11 +121,22 @@ func (a *ScopeImpl) SetHeight(height uint64) {
 }
 
 func (a *ScopeImpl) evaluation(name string) (evaluation, bool) {
-	e, ok := a.evaluations[name]
-	return e, ok
+	if a.evaluations != nil {
+		if v, ok := a.evaluations[name]; ok {
+			return v, true
+		}
+	}
+	if a.parent != nil {
+		return a.parent.evaluation(name)
+	} else {
+		return evaluation{}, false
+	}
 }
 
 func (a *ScopeImpl) setEvaluation(name string, e evaluation) {
+	if a.evaluations == nil {
+		a.evaluations = make(map[string]evaluation)
+	}
 	a.evaluations[name] = e
 }
 
