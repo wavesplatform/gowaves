@@ -25,6 +25,8 @@ const (
 	rollbackMaxBlocks = 2000
 	blocksStorDir     = "blocks_storage"
 	keyvalueDir       = "key_value"
+
+	maxScriptsRunsInBlock = 100
 )
 
 var empty struct{}
@@ -252,6 +254,26 @@ func (a *txAppender) checkTxAgainstState(tx proto.Transaction, scripted bool, ch
 	return nil
 }
 
+func (a *txAppender) checkScriptsRunsNum(scriptsRuns int) error {
+	smartAccountsActivated, err := a.stor.features.isActivated(int16(settings.SmartAccounts))
+	if err != nil {
+		return err
+	}
+	ride4DAppsActivated, err := a.stor.features.isActivated(int16(settings.Ride4DApps))
+	if err != nil {
+		return err
+	}
+	if ride4DAppsActivated {
+		// TODO: check total complexity of all scripts in block here.
+		return nil
+	} else if smartAccountsActivated {
+		if scriptsRuns > maxScriptsRunsInBlock {
+			return errors.Errorf("more sctips runs in block than allowed: %d > %d", scriptsRuns, maxScriptsRunsInBlock)
+		}
+	}
+	return nil
+}
+
 func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	hasParent := (params.parent != nil)
 	// Create miner balance diff.
@@ -265,6 +287,7 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	if err := a.diffStor.saveTxDiff(minerDiff); err != nil {
 		return err
 	}
+	scriptsRuns := 0
 	for _, tx := range params.transactions {
 		senderAddr, err := proto.NewAddressFromPublicKey(a.settings.AddressSchemeCharacter, tx.GetSenderPK())
 		if err != nil {
@@ -276,6 +299,7 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 		}
 		checkTxSig := true
 		if hasVerifierScript {
+			scriptsRuns++
 			// For transaction with SmartAccount we don't check signatures.
 			checkTxSig = false
 		}
@@ -342,6 +366,9 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 		if err := a.rw.writeTransaction(txID, bts); err != nil {
 			return err
 		}
+	}
+	if err := a.checkScriptsRunsNum(scriptsRuns); err != nil {
+		return err
 	}
 	// Save fee distribution of this block.
 	// This will be needed for createMinerDiff() of next block due to NG.
