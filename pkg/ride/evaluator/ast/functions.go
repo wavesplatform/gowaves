@@ -59,11 +59,11 @@ func NativeEq(s Scope, e Exprs) (Expr, error) {
 	if l := len(e); l != 2 {
 		return nil, errors.Errorf("NativeEq: invalid params, expected 2, passed %d", l)
 	}
-	first, err := e[0].Evaluate(s.Clone())
+	first, err := e[0].Evaluate(s)
 	if err != nil {
 		return nil, errors.Wrap(err, "NativeEq evaluate first param")
 	}
-	second, err := e[1].Evaluate(s.Clone())
+	second, err := e[1].Evaluate(s)
 	if err != nil {
 		return nil, errors.Wrap(err, "NativeEq evaluate second param")
 	}
@@ -77,11 +77,11 @@ func NativeGetList(s Scope, e Exprs) (Expr, error) {
 	if l := len(e); l != 2 {
 		return nil, errors.Errorf("%s: invalid params, expected 2, passed %d", funcName, l)
 	}
-	first, err := e[0].Evaluate(s.Clone())
+	first, err := e[0].Evaluate(s)
 	if err != nil {
 		return nil, err
 	}
-	second, err := e[1].Evaluate(s.Clone())
+	second, err := e[1].Evaluate(s)
 	if err != nil {
 		return nil, err
 	}
@@ -104,11 +104,11 @@ func NativeCreateList(s Scope, e Exprs) (Expr, error) {
 	if l := len(e); l != 2 {
 		return nil, errors.Errorf("%s: invalid parameters, expected 2, received %d", funcName, l)
 	}
-	head, err := e[0].Evaluate(s.Clone())
+	head, err := e[0].Evaluate(s)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
-	t, err := e[1].Evaluate(s.Clone())
+	t, err := e[1].Evaluate(s)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
@@ -128,11 +128,11 @@ func NativeIsInstanceOf(s Scope, e Exprs) (Expr, error) {
 	if l := len(e); l != 2 {
 		return nil, errors.Errorf("%s: invalid params, expected 2, passed %d", funcName, l)
 	}
-	first, err := e[0].Evaluate(s.Clone())
+	first, err := e[0].Evaluate(s)
 	if err != nil {
 		return nil, err
 	}
-	second, err := e[1].Evaluate(s.Clone())
+	second, err := e[1].Evaluate(s)
 	if err != nil {
 		return nil, err
 	}
@@ -191,7 +191,7 @@ func NativeFractionLong(s Scope, e Exprs) (Expr, error) {
 	if l := len(e); l != 3 {
 		return nil, errors.Errorf("%s: invalid params, expected 2, passed %d", funcName, l)
 	}
-	rs, err := e.EvaluateAll(s.Clone())
+	rs, err := e.EvaluateAll(s)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
@@ -225,7 +225,7 @@ func NativePowLong(s Scope, e Exprs) (Expr, error) {
 	if l := len(e); l != 6 {
 		return nil, errors.Errorf("%s: invalid number of parameters, expected 6, received %d", funcName, l)
 	}
-	rs, err := e.EvaluateAll(s.Clone())
+	rs, err := e.EvaluateAll(s)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
@@ -266,7 +266,7 @@ func NativeLogLong(s Scope, e Exprs) (Expr, error) {
 	if l := len(e); l != 6 {
 		return nil, errors.Errorf("%s: invalid number of parameters, expected 6, received %d", funcName, l)
 	}
-	rs, err := e.EvaluateAll(s.Clone())
+	rs, err := e.EvaluateAll(s)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
@@ -344,7 +344,7 @@ func NativeKeccak256(s Scope, e Exprs) (Expr, error) {
 	if l := len(e); l != 1 {
 		return nil, errors.Errorf("NativeKeccak256: invalid params, expected 1, passed %d", l)
 	}
-	val, err := e[0].Evaluate(s.Clone())
+	val, err := e[0].Evaluate(s)
 	if err != nil {
 		return nil, errors.Wrapf(err, "NativeKeccak256")
 	}
@@ -364,7 +364,7 @@ func NativeBlake2b256(s Scope, e Exprs) (Expr, error) {
 	if l := len(e); l != 1 {
 		return nil, errors.Errorf("NativeBlake2b256: invalid params, expected 1, passed %d", l)
 	}
-	val, err := e[0].Evaluate(s.Clone())
+	val, err := e[0].Evaluate(s)
 	if err != nil {
 		return nil, errors.Wrapf(err, "NativeBlake2b256")
 	}
@@ -384,7 +384,7 @@ func NativeSha256(s Scope, e Exprs) (Expr, error) {
 	if l := len(e); l != 1 {
 		return nil, errors.Errorf("NativeSha256: invalid params, expected 1, passed %d", l)
 	}
-	val, err := e[0].Evaluate(s.Clone())
+	val, err := e[0].Evaluate(s)
 	if err != nil {
 		return nil, errors.Wrapf(err, "NativeSha256")
 	}
@@ -406,7 +406,7 @@ func NativeTransactionHeightByID(s Scope, e Exprs) (Expr, error) {
 	if l := len(e); l != 1 {
 		return nil, errors.Errorf("%s: invalid params, expected 1, passed %d", funcName, l)
 	}
-	rs, err := e[0].Evaluate(s.Clone())
+	rs, err := e[0].Evaluate(s)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
@@ -430,7 +430,7 @@ func NativeTransactionByID(s Scope, e Exprs) (Expr, error) {
 	if l := len(e); l != 1 {
 		return nil, errors.Errorf("%s: invalid params, expected 1, passed %d", funcName, l)
 	}
-	rs, err := e[0].Evaluate(s.Clone())
+	rs, err := e[0].Evaluate(s)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
@@ -458,7 +458,7 @@ func NativeTransferTransactionByID(s Scope, e Exprs) (Expr, error) {
 	if l := len(e); l != 1 {
 		return nil, errors.Errorf("%s: invalid params, expected 1, passed %d", funcName, l)
 	}
-	rs, err := e[0].Evaluate(s.Clone())
+	rs, err := e[0].Evaluate(s)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
@@ -497,7 +497,7 @@ func NativeParseBlockHeader(s Scope, e Exprs) (Expr, error) {
 	if l := len(e); l != 1 {
 		return nil, errors.Errorf("%s: invalid params, expected 1, passed %d", funcName, l)
 	}
-	rs, err := e[0].Evaluate(s.Clone())
+	rs, err := e[0].Evaluate(s)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
@@ -524,7 +524,7 @@ func NativeSizeBytes(s Scope, e Exprs) (Expr, error) {
 	if l := len(e); l != 1 {
 		return nil, errors.Errorf("%s: invalid params, expected 1, passed %d", funcName, l)
 	}
-	rs, err := e[0].Evaluate(s.Clone())
+	rs, err := e[0].Evaluate(s)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
@@ -541,7 +541,7 @@ func NativeTakeBytes(s Scope, e Exprs) (Expr, error) {
 	if l := len(e); l != 2 {
 		return nil, errors.Errorf("%s: invalid params, expected 2, passed %d", funcName, l)
 	}
-	rs, err := e.EvaluateAll(s.Clone())
+	rs, err := e.EvaluateAll(s)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
@@ -571,7 +571,7 @@ func NativeDropBytes(s Scope, e Exprs) (Expr, error) {
 	if l := len(e); l != 2 {
 		return nil, errors.Errorf("%s: invalid params, expected 2, passed %d", funcName, l)
 	}
-	rs, err := e.EvaluateAll(s.Clone())
+	rs, err := e.EvaluateAll(s)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
@@ -601,7 +601,7 @@ func NativeConcatBytes(s Scope, e Exprs) (Expr, error) {
 	if l := len(e); l != 2 {
 		return nil, errors.Errorf("%s: invalid params, expected 2, passed %d", funcName, l)
 	}
-	rs, err := e.EvaluateAll(s.Clone())
+	rs, err := e.EvaluateAll(s)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
@@ -629,7 +629,7 @@ func NativeConcatStrings(s Scope, e Exprs) (Expr, error) {
 	if l := len(e); l != 2 {
 		return nil, errors.Errorf("%s: invalid params, expected 2, passed %d", funcName, l)
 	}
-	rs, err := e.EvaluateAll(s.Clone())
+	rs, err := e.EvaluateAll(s)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
@@ -659,7 +659,7 @@ func NativeTakeStrings(s Scope, e Exprs) (Expr, error) {
 	if l := len(e); l != 2 {
 		return nil, errors.Errorf("%s: invalid params, expected 2, passed %d", funcName, l)
 	}
-	rs, err := e.EvaluateAll(s.Clone())
+	rs, err := e.EvaluateAll(s)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
@@ -691,7 +691,7 @@ func NativeDropStrings(s Scope, e Exprs) (Expr, error) {
 	if l := len(e); l != 2 {
 		return nil, errors.Errorf("%s: invalid params, expected 2, passed %d", funcName, l)
 	}
-	rs, err := e.EvaluateAll(s.Clone())
+	rs, err := e.EvaluateAll(s)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
@@ -723,7 +723,7 @@ func NativeSizeString(s Scope, e Exprs) (Expr, error) {
 	if l := len(e); l != 1 {
 		return nil, errors.Errorf("%s: invalid params, expected 1, passed %d", funcName, l)
 	}
-	rs, err := e[0].Evaluate(s.Clone())
+	rs, err := e[0].Evaluate(s)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
@@ -744,7 +744,7 @@ func NativeSizeList(s Scope, e Exprs) (Expr, error) {
 	if v, ok := e[0].(Exprs); ok {
 		return NewLong(int64(len(v))), nil
 	}
-	rs, err := e[0].Evaluate(s.Clone())
+	rs, err := e[0].Evaluate(s)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
@@ -761,7 +761,7 @@ func NativeLongToBytes(s Scope, e Exprs) (Expr, error) {
 	if l := len(e); l != 1 {
 		return nil, errors.Errorf("%s: invalid params, expected 1, passed %d", funcName, l)
 	}
-	first, err := e[0].Evaluate(s.Clone())
+	first, err := e[0].Evaluate(s)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
@@ -780,7 +780,7 @@ func NativeStringToBytes(s Scope, e Exprs) (Expr, error) {
 	if l := len(e); l != 1 {
 		return nil, errors.Errorf("%s: invalid params, expected 1, passed %d", funcName, l)
 	}
-	first, err := e[0].Evaluate(s.Clone())
+	first, err := e[0].Evaluate(s)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
@@ -797,7 +797,7 @@ func NativeBooleanToBytes(s Scope, e Exprs) (Expr, error) {
 	if l := len(e); l != 1 {
 		return nil, errors.Errorf("%s: invalid params, expected 1, passed %d", funcName, l)
 	}
-	rs, err := e[0].Evaluate(s.Clone())
+	rs, err := e[0].Evaluate(s)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
@@ -818,11 +818,11 @@ func NativeAssetBalance(s Scope, e Exprs) (Expr, error) {
 	if l := len(e); l != 2 {
 		return nil, errors.Errorf("%s: invalid params, expected 2, passed %d", funcName, l)
 	}
-	addressOrAliasExpr, err := e[0].Evaluate(s.Clone())
+	addressOrAliasExpr, err := e[0].Evaluate(s)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
-	assetId, err := e[1].Evaluate(s.Clone())
+	assetId, err := e[1].Evaluate(s)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
@@ -859,7 +859,7 @@ func NativeThrow(s Scope, e Exprs) (Expr, error) {
 	if l := len(e); l != 1 {
 		return nil, errors.Errorf("%s: invalid params, expected 1, passed %d", funcName, l)
 	}
-	first, err := e[0].Evaluate(s.Clone())
+	first, err := e[0].Evaluate(s)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
@@ -878,7 +878,7 @@ func NativeLongToString(s Scope, e Exprs) (Expr, error) {
 	if l := len(e); l != 1 {
 		return nil, errors.Errorf("%s: invalid params, expected 1, passed %d", funcName, l)
 	}
-	first, err := e[0].Evaluate(s.Clone())
+	first, err := e[0].Evaluate(s)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
@@ -895,7 +895,7 @@ func NativeBooleanToString(s Scope, e Exprs) (Expr, error) {
 	if l := len(e); l != 1 {
 		return nil, errors.Errorf("%s: invalid params, expected 1, passed %d", funcName, l)
 	}
-	first, err := e[0].Evaluate(s.Clone())
+	first, err := e[0].Evaluate(s)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
@@ -916,7 +916,7 @@ func NativeToBase58(s Scope, e Exprs) (Expr, error) {
 	if l := len(e); l != 1 {
 		return nil, errors.Errorf("%s: invalid params, expected 1, passed %d", funcName, l)
 	}
-	first, err := e[0].Evaluate(s.Clone())
+	first, err := e[0].Evaluate(s)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
@@ -933,7 +933,7 @@ func NativeFromBase58(s Scope, e Exprs) (Expr, error) {
 	if l := len(e); l != 1 {
 		return nil, errors.Errorf("%s: invalid params, expected 1, passed %d", funcName, l)
 	}
-	first, err := e[0].Evaluate(s.Clone())
+	first, err := e[0].Evaluate(s)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
@@ -957,7 +957,7 @@ func NativeFromBase64(s Scope, e Exprs) (Expr, error) {
 	if l := len(e); l != 1 {
 		return nil, errors.Errorf("%s: invalid params, expected 1, passed %d", funcName, l)
 	}
-	first, err := e[0].Evaluate(s.Clone())
+	first, err := e[0].Evaluate(s)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
@@ -978,7 +978,7 @@ func NativeToBase64(s Scope, e Exprs) (Expr, error) {
 	if l := len(e); l != 1 {
 		return nil, errors.Errorf("%s: invalid params, expected 1, passed %d", funcName, l)
 	}
-	first, err := e[0].Evaluate(s.Clone())
+	first, err := e[0].Evaluate(s)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
@@ -996,7 +996,7 @@ func NativeFromBase16(s Scope, e Exprs) (Expr, error) {
 	if l := len(e); l != 1 {
 		return nil, errors.Errorf("%s: invalid params, expected 1, passed %d", funcName, l)
 	}
-	first, err := e[0].Evaluate(s.Clone())
+	first, err := e[0].Evaluate(s)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
@@ -1017,7 +1017,7 @@ func NativeToBase16(s Scope, e Exprs) (Expr, error) {
 	if l := len(e); l != 1 {
 		return nil, errors.Errorf("%s: invalid params, expected 1, passed %d", funcName, l)
 	}
-	first, err := e[0].Evaluate(s.Clone())
+	first, err := e[0].Evaluate(s)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
@@ -1138,7 +1138,7 @@ func NativeAddressFromRecipient(s Scope, e Exprs) (Expr, error) {
 	if l := len(e); l != 1 {
 		return nil, errors.Errorf("%s: invalid params, expected 1, passed %d", funcName, l)
 	}
-	first, err := e[0].Evaluate(s.Clone())
+	first, err := e[0].Evaluate(s)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
@@ -1168,7 +1168,7 @@ func NativeAssetInfo(s Scope, e Exprs) (Expr, error) {
 	if l := len(e); l != 1 {
 		return nil, errors.Errorf("%s: invalid params, expected 1, passed %d", funcName, l)
 	}
-	first, err := e[0].Evaluate(s.Clone())
+	first, err := e[0].Evaluate(s)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
@@ -1198,7 +1198,7 @@ func NativeBlockInfoByHeight(s Scope, e Exprs) (Expr, error) {
 	if l := len(e); l != 1 {
 		return nil, errors.Errorf("%s: invalid params, expected 1, passed %d", funcName, l)
 	}
-	first, err := e[0].Evaluate(s.Clone())
+	first, err := e[0].Evaluate(s)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
@@ -1230,7 +1230,7 @@ func UserAddressFromString(s Scope, e Exprs) (Expr, error) {
 	if l := len(e); l != 1 {
 		return nil, errors.Errorf("UserAddressFromString: invalid params, expected 1, passed %d", l)
 	}
-	rs, err := e[0].Evaluate(s.Clone())
+	rs, err := e[0].Evaluate(s)
 	if err != nil {
 		return nil, errors.Wrap(err, "UserAddressFromString")
 	}
@@ -1271,7 +1271,7 @@ func UserFunctionNeq(s Scope, e Exprs) (Expr, error) {
 	if l := len(e); l != 2 {
 		return nil, errors.Errorf("%s: invalid params, expected 2, passed %d", funcName, l)
 	}
-	rs, err := e.EvaluateAll(s.Clone())
+	rs, err := e.EvaluateAll(s)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
@@ -1287,7 +1287,7 @@ func UserIsDefined(s Scope, e Exprs) (Expr, error) {
 	if l := len(e); l != 1 {
 		return nil, errors.Errorf("%s: invalid params, expected 1, passed %d", funcName, l)
 	}
-	val, err := e[0].Evaluate(s.Clone())
+	val, err := e[0].Evaluate(s)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
@@ -1302,12 +1302,12 @@ func UserExtract(s Scope, e Exprs) (Expr, error) {
 	if l := len(e); l != 1 {
 		return nil, errors.Errorf("%s: invalid params, expected 1, passed %d", funcName, l)
 	}
-	val, err := e[0].Evaluate(s.Clone())
+	val, err := e[0].Evaluate(s)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
 	if val.InstanceOf() == (Unit{}).InstanceOf() {
-		return NativeThrow(s.Clone(), Params(NewString("extract() called on unit value")))
+		return NativeThrow(s, Params(NewString("extract() called on unit value")))
 	}
 	return val, nil
 }
@@ -1317,15 +1317,15 @@ func UserDropRightBytes(s Scope, e Exprs) (Expr, error) {
 	if l := len(e); l != 2 {
 		return nil, errors.Errorf("%s: invalid params, expected 2, passed %d", funcName, l)
 	}
-	length, err := NativeSizeBytes(s.Clone(), Params(e[0]))
+	length, err := NativeSizeBytes(s, Params(e[0]))
 	if err != nil {
 		return nil, err
 	}
-	takeLeft, err := NativeSubLong(s.Clone(), Params(length, e[1]))
+	takeLeft, err := NativeSubLong(s, Params(length, e[1]))
 	if err != nil {
 		return nil, err
 	}
-	return NativeTakeBytes(s.Clone(), Params(e[0], takeLeft))
+	return NativeTakeBytes(s, Params(e[0], takeLeft))
 }
 
 func UserTakeRightBytes(s Scope, e Exprs) (Expr, error) {
@@ -1333,15 +1333,15 @@ func UserTakeRightBytes(s Scope, e Exprs) (Expr, error) {
 	if l := len(e); l != 2 {
 		return nil, errors.Errorf("%s: invalid params, expected 2, passed %d", funcName, l)
 	}
-	length, err := NativeSizeBytes(s.Clone(), Params(e[0]))
+	length, err := NativeSizeBytes(s, Params(e[0]))
 	if err != nil {
 		return nil, err
 	}
-	takeLeft, err := NativeSubLong(s.Clone(), Params(length, e[1]))
+	takeLeft, err := NativeSubLong(s, Params(length, e[1]))
 	if err != nil {
 		return nil, err
 	}
-	return NativeDropBytes(s.Clone(), Params(e[0], takeLeft))
+	return NativeDropBytes(s, Params(e[0], takeLeft))
 }
 
 func UserTakeRightString(s Scope, e Exprs) (Expr, error) {
@@ -1349,15 +1349,15 @@ func UserTakeRightString(s Scope, e Exprs) (Expr, error) {
 	if l := len(e); l != 2 {
 		return nil, errors.Errorf("%s: invalid params, expected 2, passed %d", funcName, l)
 	}
-	length, err := NativeSizeString(s.Clone(), Params(e[0]))
+	length, err := NativeSizeString(s, Params(e[0]))
 	if err != nil {
 		return nil, err
 	}
-	takeLeft, err := NativeSubLong(s.Clone(), Params(length, e[1]))
+	takeLeft, err := NativeSubLong(s, Params(length, e[1]))
 	if err != nil {
 		return nil, err
 	}
-	return NativeDropStrings(s.Clone(), Params(e[0], takeLeft))
+	return NativeDropStrings(s, Params(e[0], takeLeft))
 }
 
 func UserDropRightString(s Scope, e Exprs) (Expr, error) {
@@ -1365,15 +1365,15 @@ func UserDropRightString(s Scope, e Exprs) (Expr, error) {
 	if l := len(e); l != 2 {
 		return nil, errors.Errorf("%s: invalid params, expected 2, passed %d", funcName, l)
 	}
-	length, err := NativeSizeString(s.Clone(), Params(e[0]))
+	length, err := NativeSizeString(s, Params(e[0]))
 	if err != nil {
 		return nil, err
 	}
-	takeLeft, err := NativeSubLong(s.Clone(), Params(length, e[1]))
+	takeLeft, err := NativeSubLong(s, Params(length, e[1]))
 	if err != nil {
 		return nil, err
 	}
-	return NativeTakeStrings(s.Clone(), Params(e[0], takeLeft))
+	return NativeTakeStrings(s, Params(e[0], takeLeft))
 }
 
 func UserUnaryMinus(s Scope, e Exprs) (Expr, error) {
@@ -1385,7 +1385,7 @@ func UserUnaryNot(s Scope, e Exprs) (Expr, error) {
 	if l := len(e); l != 1 {
 		return nil, errors.Errorf("%s: invalid params, expected 1, passed %d", funcName, l)
 	}
-	first, err := e[0].Evaluate(s.Clone())
+	first, err := e[0].Evaluate(s)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
@@ -1449,7 +1449,7 @@ func UserAddressFromPublicKey(s Scope, e Exprs) (Expr, error) {
 	if l := len(e); l != 1 {
 		return nil, errors.Errorf("%s: invalid params, expected 2, passed %d", funcName, l)
 	}
-	publicKeyExpr, err := e[0].Evaluate(s.Clone())
+	publicKeyExpr, err := e[0].Evaluate(s)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
@@ -1474,7 +1474,7 @@ func UserAddress(s Scope, e Exprs) (Expr, error) {
 	if l := len(e); l != 1 {
 		return nil, errors.Errorf("%s: invalid params, expected 1, passed %d", funcName, l)
 	}
-	first, err := e[0].Evaluate(s.Clone())
+	first, err := e[0].Evaluate(s)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
@@ -1494,7 +1494,7 @@ func UserAlias(s Scope, e Exprs) (Expr, error) {
 	if l := len(e); l != 1 {
 		return nil, errors.Errorf("%s: invalid params, expected 1, passed %d", funcName, l)
 	}
-	first, err := e[0].Evaluate(s.Clone())
+	first, err := e[0].Evaluate(s)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
@@ -1514,7 +1514,7 @@ func DataEntry(s Scope, e Exprs) (Expr, error) {
 	if l := len(e); l != 2 {
 		return nil, errors.Errorf("%s: invalid params, expected 2, passed %d", funcName, l)
 	}
-	rs, err := e.EvaluateAll(s.Clone())
+	rs, err := e.EvaluateAll(s)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
@@ -1550,7 +1550,7 @@ func NativeRSAVerify(s Scope, e Exprs) (Expr, error) {
 	if l := len(e); l != 4 {
 		return nil, errors.Errorf("%s: invalid number of parameters, expected 4, received %d", funcName, l)
 	}
-	rs, err := e.EvaluateAll(s.Clone())
+	rs, err := e.EvaluateAll(s)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
@@ -1599,7 +1599,7 @@ func NativeCheckMerkleProof(s Scope, e Exprs) (Expr, error) {
 	if l := len(e); l != 3 {
 		return nil, errors.Errorf("%s: invalid number of parameters, expected 3, received %d", funcName, l)
 	}
-	rs, err := e.EvaluateAll(s.Clone())
+	rs, err := e.EvaluateAll(s)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
@@ -1627,7 +1627,7 @@ func NativeBytesToUTF8String(s Scope, e Exprs) (Expr, error) {
 	if l := len(e); l != 1 {
 		return nil, errors.Errorf("%s: invalid number of parameters, expected 1, received %d", funcName, l)
 	}
-	rs, err := e.EvaluateAll(s.Clone())
+	rs, err := e.EvaluateAll(s)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
@@ -1643,7 +1643,7 @@ func NativeBytesToLong(s Scope, e Exprs) (Expr, error) {
 	if l := len(e); l != 1 {
 		return nil, errors.Errorf("%s: invalid number of parameters, expected 1, received %d", funcName, l)
 	}
-	rs, err := e.EvaluateAll(s.Clone())
+	rs, err := e.EvaluateAll(s)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
@@ -1662,7 +1662,7 @@ func NativeBytesToLongWithOffset(s Scope, e Exprs) (Expr, error) {
 	if l := len(e); l != 2 {
 		return nil, errors.Errorf("%s: invalid number of parameters, expected 2, received %d", funcName, l)
 	}
-	rs, err := e.EvaluateAll(s.Clone())
+	rs, err := e.EvaluateAll(s)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
@@ -1686,7 +1686,7 @@ func NativeIndexOfSubstring(s Scope, e Exprs) (Expr, error) {
 	if l := len(e); l != 2 {
 		return nil, errors.Errorf("%s: invalid number of parameters, expected 2, received %d", funcName, l)
 	}
-	rs, err := e.EvaluateAll(s.Clone())
+	rs, err := e.EvaluateAll(s)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
@@ -1710,7 +1710,7 @@ func NativeIndexOfSubstringWithOffset(s Scope, e Exprs) (Expr, error) {
 	if l := len(e); l != 3 {
 		return nil, errors.Errorf("%s: invalid number of parameters, expected 3, received %d", funcName, l)
 	}
-	rs, err := e.EvaluateAll(s.Clone())
+	rs, err := e.EvaluateAll(s)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
@@ -1742,7 +1742,7 @@ func NativeSplitString(s Scope, e Exprs) (Expr, error) {
 	if l := len(e); l != 2 {
 		return nil, errors.Errorf("%s: invalid number of parameters, expected 2, received %d", funcName, l)
 	}
-	rs, err := e.EvaluateAll(s.Clone())
+	rs, err := e.EvaluateAll(s)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
@@ -1767,7 +1767,7 @@ func NativeParseInt(s Scope, e Exprs) (Expr, error) {
 		return nil, errors.Errorf("%s: invalid number of parameters, expected 1, received %d", funcName, l)
 	}
 
-	rs, err := e.EvaluateAll(s.Clone())
+	rs, err := e.EvaluateAll(s)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
@@ -1788,7 +1788,7 @@ func NativeLastIndexOfSubstring(s Scope, e Exprs) (Expr, error) {
 	if l := len(e); l != 2 {
 		return nil, errors.Errorf("%s: invalid number of parameters, expected 2, received %d", funcName, l)
 	}
-	rs, err := e.EvaluateAll(s.Clone())
+	rs, err := e.EvaluateAll(s)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
@@ -1812,7 +1812,7 @@ func NativeLastIndexOfSubstringWithOffset(s Scope, e Exprs) (Expr, error) {
 	if l := len(e); l != 3 {
 		return nil, errors.Errorf("%s: invalid number of parameters, expected 3, received %d", funcName, l)
 	}
-	rs, err := e.EvaluateAll(s.Clone())
+	rs, err := e.EvaluateAll(s)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
@@ -1847,7 +1847,7 @@ func UserValue(s Scope, e Exprs) (Expr, error) {
 	if l := len(e); l != 1 {
 		return nil, errors.Errorf("%s: invalid number of parameters, expected 1, received %d", funcName, l)
 	}
-	rs, err := e.EvaluateAll(s.Clone())
+	rs, err := e.EvaluateAll(s)
 	if err != nil {
 		return nil, errors.Wrapf(err, funcName)
 	}
@@ -1862,7 +1862,7 @@ func UserValueOrErrorMessage(s Scope, e Exprs) (Expr, error) {
 	if l := len(e); l != 2 {
 		return nil, errors.Errorf("%s: invalid number of parameters, expected 2, received %d", funcName, l)
 	}
-	rs, err := e.EvaluateAll(s.Clone())
+	rs, err := e.EvaluateAll(s)
 	if err != nil {
 		return nil, errors.Wrapf(err, funcName)
 	}
@@ -1893,7 +1893,7 @@ func dataFromArray(s Scope, e Exprs) (Expr, error) {
 	if l := len(e); l != 2 {
 		return nil, errors.Errorf("invalid params, expected 2, passed %d", l)
 	}
-	rs, err := e.EvaluateAll(s.Clone())
+	rs, err := e.EvaluateAll(s)
 	if err != nil {
 		return nil, err
 	}
@@ -1933,7 +1933,7 @@ func extractRecipientAndKey(s Scope, e Exprs) (proto.Recipient, string, error) {
 	if l := len(e); l != 2 {
 		return proto.Recipient{}, "", errors.Errorf("invalid params, expected 2, passed %d", l)
 	}
-	addOrAliasExpr, err := e[0].Evaluate(s.Clone())
+	addOrAliasExpr, err := e[0].Evaluate(s)
 	if err != nil {
 		return proto.Recipient{}, "", err
 	}
@@ -1946,7 +1946,7 @@ func extractRecipientAndKey(s Scope, e Exprs) (proto.Recipient, string, error) {
 	default:
 		return proto.Recipient{}, "", errors.Errorf("expected first argument of types AliasExpr of AddressExpr, found %T", addOrAliasExpr)
 	}
-	second, err := e[1].Evaluate(s.Clone())
+	second, err := e[1].Evaluate(s)
 	if err != nil {
 		return proto.Recipient{}, "", err
 	}
@@ -1961,7 +1961,7 @@ func dataFromArrayByIndex(s Scope, e Exprs) (Expr, error) {
 	if l := len(e); l != 2 {
 		return nil, errors.Errorf("invalid params, expected 2, passed %d", l)
 	}
-	rs, err := e.EvaluateAll(s.Clone())
+	rs, err := e.EvaluateAll(s)
 	if err != nil {
 		return nil, err
 	}
