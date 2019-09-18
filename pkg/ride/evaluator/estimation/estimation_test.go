@@ -10,7 +10,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/ride/evaluator/reader"
 )
 
-func TestEstimatorV1Estimate(t *testing.T) {
+func TestEstimatorCommon(t *testing.T) {
 	for _, test := range []struct {
 		code      string
 		script    string
@@ -59,10 +59,7 @@ func TestEstimatorV1Estimate(t *testing.T) {
 		{`match tx {case t: TransferTransaction => isDefined(t.feeAssetId) case _ => false}`, "AgQAAAAHJG1hdGNoMAUAAAACdHgDCQAAAQAAAAIFAAAAByRtYXRjaDACAAAAE1RyYW5zZmVyVHJhbnNhY3Rpb24EAAAAAXQFAAAAByRtYXRjaDAJAQAAAAlpc0RlZmluZWQAAAABCAUAAAABdAAAAApmZWVBc3NldElkB9Agf0U=", NewCatalogueV2(), 58},
 		{`let a = addressFromStringValue("3P2USE3iYK5w7jNahAUHTytNbVRccGZwQH3"); let i = getInteger(a, "integer"); let x = match i {case i: Int => i case _ => 0}; x == 100500`, "AwQAAAABYQkBAAAAHEBleHRyVXNlcihhZGRyZXNzRnJvbVN0cmluZykAAAABAgAAACMzUDJVU0UzaVlLNXc3ak5haEFVSFR5dE5iVlJjY0dad1FIMwQAAAABaQkABBoAAAACBQAAAAFhAgAAAAdpbnRlZ2VyBAAAAAF4BAAAAAckbWF0Y2gwBQAAAAFpAwkAAAEAAAACBQAAAAckbWF0Y2gwAgAAAANJbnQEAAAAAWkFAAAAByRtYXRjaDAFAAAAAWkAAAAAAAAAAAAJAAAAAAAAAgUAAAABeAAAAAAAAAGIlKWtlDk=", NewCatalogueV3(), 268},
 		{`func first(a: Int, b: Int) = {let x = a + b; x}; first(1, 2) == 0`, "AwoBAAAABWZpcnN0AAAAAgAAAAFhAAAAAWIEAAAAAXgJAABkAAAAAgUAAAABYQUAAAABYgUAAAABeAkAAAAAAAACCQEAAAAFZmlyc3QAAAACAAAAAAAAAAABAAAAAAAAAAACAAAAAAAAAAAAm+QHtw==", NewCatalogueV3(), 33},
-		{`let me = addressFromStringValue("");func get() = getStringValue(me, "");get() + get() == ""`, "AwQAAAACbWUJAQAAABxAZXh0clVzZXIoYWRkcmVzc0Zyb21TdHJpbmcpAAAAAQIAAAAACgEAAAADZ2V0AAAAAAkBAAAAEUBleHRyTmF0aXZlKDEwNTMpAAAAAgUAAAACbWUCAAAAAAkAAAAAAAACCQABLAAAAAIJAQAAAANnZXQAAAAACQEAAAADZ2V0AAAAAAIAAAAAiXGA4g==", NewCatalogueV3(), 478},
-		{`let me = addressFromStringValue(""); func get() = getStringValue(me, ""); get() + get() + get() == ""`, "AwQAAAACbWUJAQAAABxAZXh0clVzZXIoYWRkcmVzc0Zyb21TdHJpbmcpAAAAAQIAAAAACgEAAAADZ2V0AAAAAAkBAAAAEUBleHRyTmF0aXZlKDEwNTMpAAAAAgUAAAACbWUCAAAAAAkAAAAAAAACCQABLAAAAAIJAAEsAAAAAgkBAAAAA2dldAAAAAAJAQAAAANnZXQAAAAACQEAAAADZ2V0AAAAAAIAAAAA/XlIOQ==", NewCatalogueV3(), 716},
 		{`func f(a: Int) = 1; func g(a: Int) = 2; f(g(1)) == 0`, "AwoBAAAAAWYAAAABAAAAAWEAAAAAAAAAAAEKAQAAAAFnAAAAAQAAAAFhAAAAAAAAAAACCQAAAAAAAAIJAQAAAAFmAAAAAQkBAAAAAWcAAAABAAAAAAAAAAABAAAAAAAAAAAAT0GP5g==", NewCatalogueV3(), 25},
-		{`func inc(xxx: Int) = xxx + 1; let xxx = 5; inc(xxx) == 1`, "AwoBAAAAA2luYwAAAAEAAAADeHh4CQAAZAAAAAIFAAAAA3h4eAAAAAAAAAAAAQQAAAADeHh4AAAAAAAAAAAFCQAAAAAAAAIJAQAAAANpbmMAAAABBQAAAAN4eHgAAAAAAAAAAAFgML5p", NewCatalogueV3(), 25},
 		{`func inc(y: Int) = y + 1; let xxx = 5; inc(xxx) == 1`, "AwoBAAAAA2luYwAAAAEAAAABeQkAAGQAAAACBQAAAAF5AAAAAAAAAAABBAAAAAN4eHgAAAAAAAAAAAUJAAAAAAAAAgkBAAAAA2luYwAAAAEFAAAAA3h4eAAAAAAAAAAAAbumbXA=", NewCatalogueV3(), 25},
 		{`func f() = {func f() = {func f() = {1}; f()}; f()}; f() == 0`, "AwoBAAAAAWYAAAAACgEAAAABZgAAAAAKAQAAAAFmAAAAAAAAAAAAAAAAAQkBAAAAAWYAAAAACQEAAAABZgAAAAAJAAAAAAAAAgkBAAAAAWYAAAAAAAAAAAAAAAAAYYLPvQ==", NewCatalogueV3(), 18},
 		//TODO: add test on estimation with `this`
@@ -72,7 +69,39 @@ func TestEstimatorV1Estimate(t *testing.T) {
 		require.NoError(t, err, test.code)
 		script, err := ast.BuildScript(r)
 		require.NoError(t, err, test.code)
-		e := NewEstimatorV1(test.catalogue, ast.VariablesV3())
+		e1 := NewEstimator(1, test.catalogue, ast.VariablesV3())
+		e2 := NewEstimator(2, test.catalogue, ast.VariablesV3())
+		cost1, err := e1.Estimate(script)
+		require.NoError(t, err, test.code)
+		cost2, err := e2.Estimate(script)
+		require.NoError(t, err, test.code)
+		assert.Equal(t, test.cost, cost1, test.code)
+		assert.Equal(t, test.cost, cost2, test.code)
+	}
+}
+
+func TestEstimatorFix(t *testing.T) {
+	for _, test := range []struct {
+		version   int
+		code      string
+		script    string
+		catalogue *Catalogue
+		cost      int64
+	}{
+		{1, `let me = addressFromStringValue(""); func get() = getStringValue(me, ""); get() + get() == ""`, "AwQAAAACbWUJAQAAABxAZXh0clVzZXIoYWRkcmVzc0Zyb21TdHJpbmcpAAAAAQIAAAAACgEAAAADZ2V0AAAAAAkBAAAAEUBleHRyTmF0aXZlKDEwNTMpAAAAAgUAAAACbWUCAAAAAAkAAAAAAAACCQABLAAAAAIJAQAAAANnZXQAAAAACQEAAAADZ2V0AAAAAAIAAAAAiXGA4g==", NewCatalogueV3(), 478},
+		{2, `let me = addressFromStringValue(""); func get() = getStringValue(me, ""); get() + get() == ""`, "AwQAAAACbWUJAQAAABxAZXh0clVzZXIoYWRkcmVzc0Zyb21TdHJpbmcpAAAAAQIAAAAACgEAAAADZ2V0AAAAAAkBAAAAEUBleHRyTmF0aXZlKDEwNTMpAAAAAgUAAAACbWUCAAAAAAkAAAAAAAACCQABLAAAAAIJAQAAAANnZXQAAAAACQEAAAADZ2V0AAAAAAIAAAAAiXGA4g==", NewCatalogueV3(), 353},
+		{1, `func inc(xxx: Int) = xxx + 1; let xxx = 5; inc(xxx) == 1`, "AwoBAAAAA2luYwAAAAEAAAADeHh4CQAAZAAAAAIFAAAAA3h4eAAAAAAAAAAAAQQAAAADeHh4AAAAAAAAAAAFCQAAAAAAAAIJAQAAAANpbmMAAAABBQAAAAN4eHgAAAAAAAAAAAFgML5p", NewCatalogueV3(), 25},
+		{2, `func inc(xxx: Int) = xxx + 1; let xxx = 5; inc(xxx) == 1`, "AwoBAAAAA2luYwAAAAEAAAADeHh4CQAAZAAAAAIFAAAAA3h4eAAAAAAAAAAAAQQAAAADeHh4AAAAAAAAAAAFCQAAAAAAAAIJAQAAAANpbmMAAAABBQAAAAN4eHgAAAAAAAAAAAFgML5p", NewCatalogueV3(), 24},
+		{1, `let f124 = addressFromStringValue(""); func get() = getStringValue(f124, ""); get() + get() + get() == ""`, "AwQAAAAEZjEyNAkBAAAAHEBleHRyVXNlcihhZGRyZXNzRnJvbVN0cmluZykAAAABAgAAAAAKAQAAAANnZXQAAAAACQEAAAARQGV4dHJOYXRpdmUoMTA1MykAAAACBQAAAARmMTI0AgAAAAAJAAAAAAAAAgkAASwAAAACCQABLAAAAAIJAQAAAANnZXQAAAAACQEAAAADZ2V0AAAAAAkBAAAAA2dldAAAAAACAAAAAOS3o9c=", NewCatalogueV3(), 716},
+		{2, `let f124 = addressFromStringValue(""); func get() = getStringValue(f124, ""); get() + get() + get() == ""`, "AwQAAAAEZjEyNAkBAAAAHEBleHRyVXNlcihhZGRyZXNzRnJvbVN0cmluZykAAAABAgAAAAAKAQAAAANnZXQAAAAACQEAAAARQGV4dHJOYXRpdmUoMTA1MykAAAACBQAAAARmMTI0AgAAAAAJAAAAAAAAAgkAASwAAAACCQABLAAAAAIJAQAAAANnZXQAAAAACQEAAAADZ2V0AAAAAAkBAAAAA2dldAAAAAACAAAAAOS3o9c=", NewCatalogueV3(), 466},
+		{1, `let f1 = Address(base58''); func get() = getStringValue(f1, ""); get() + get() + get() == ""`, "AwQAAAACZjEJAQAAAAdBZGRyZXNzAAAAAQEAAAAACgEAAAADZ2V0AAAAAAkBAAAAEUBleHRyTmF0aXZlKDEwNTMpAAAAAgUAAAACZjECAAAAAAkAAAAAAAACCQABLAAAAAIJAAEsAAAAAgkBAAAAA2dldAAAAAAJAQAAAANnZXQAAAAACQEAAAADZ2V0AAAAAAIAAAAA9CXWjw==", NewCatalogueV3(), 347},
+		{2, `let f1 = Address(base58''); func get() = getStringValue(f1, ""); get() + get() + get() == ""`, "AwQAAAACZjEJAQAAAAdBZGRyZXNzAAAAAQEAAAAACgEAAAADZ2V0AAAAAAkBAAAAEUBleHRyTmF0aXZlKDEwNTMpAAAAAgUAAAACZjECAAAAAAkAAAAAAAACCQABLAAAAAIJAAEsAAAAAgkBAAAAA2dldAAAAAAJAQAAAANnZXQAAAAACQEAAAADZ2V0AAAAAAIAAAAA9CXWjw==", NewCatalogueV3(), 343},
+	} {
+		r, err := reader.NewReaderFromBase64(test.script)
+		require.NoError(t, err, test.code)
+		script, err := ast.BuildAst(r)
+		require.NoError(t, err, test.code)
+		e := NewEstimator(test.version, test.catalogue, ast.VariablesV3())
 		cost, err := e.Estimate(script)
 		require.NoError(t, err, test.code)
 		assert.Equal(t, test.cost, cost, test.code)

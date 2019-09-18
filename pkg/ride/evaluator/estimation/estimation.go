@@ -5,9 +5,15 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/ride/evaluator/ast"
 )
 
+type function struct {
+	expr     ast.Expr
+	argsCost int64
+}
+
 type context struct {
 	expressions map[string]ast.Expr
 	references  map[string]struct{}
+	functions   map[string]function
 }
 
 func newContext(variables map[string]ast.Expr) *context {
@@ -24,6 +30,7 @@ func newContext(variables map[string]ast.Expr) *context {
 	return &context{
 		expressions: e,
 		references:  r,
+		functions:   make(map[string]function),
 	}
 }
 
@@ -36,25 +43,32 @@ func (c *context) clone() *context {
 	for k, v := range c.references {
 		r[k] = v
 	}
+	f := make(map[string]function, len(c.functions))
+	for k, v := range c.functions {
+		f[k] = v
+	}
 	return &context{
 		expressions: e,
 		references:  r,
+		functions:   f,
 	}
 }
 
-type EstimatorV1 struct {
+type Estimator struct {
+	version   int
 	catalogue *Catalogue
 	context   *context
 }
 
-func NewEstimatorV1(catalogue *Catalogue, variables map[string]ast.Expr) *EstimatorV1 {
-	return &EstimatorV1{
+func NewEstimator(version int, catalogue *Catalogue, variables map[string]ast.Expr) *Estimator {
+	return &Estimator{
+		version:   version,
 		catalogue: catalogue,
 		context:   newContext(variables),
 	}
 }
 
-func (e *EstimatorV1) Estimate(script *ast.Script) (int64, error) {
+func (e *Estimator) Estimate(script *ast.Script) (int64, error) {
 	verifierCost, err := e.estimate(script.Verifier)
 	if err != nil {
 		return 0, errors.Wrap(err, "estimation")
@@ -63,7 +77,7 @@ func (e *EstimatorV1) Estimate(script *ast.Script) (int64, error) {
 	return verifierCost, nil
 }
 
-func (e *EstimatorV1) estimate(expr ast.Expr) (int64, error) {
+func (e *Estimator) estimate(expr ast.Expr) (int64, error) {
 	switch expression := expr.(type) {
 	case *ast.StringExpr, *ast.LongExpr, *ast.BooleanExpr, *ast.BytesExpr:
 		return 1, nil
@@ -103,16 +117,26 @@ func (e *EstimatorV1) estimate(expr ast.Expr) (int64, error) {
 			e.context = tmp
 			return bc + 5, nil
 		case *ast.FuncDeclaration:
-			ac := int64(len(declaration.Args) * 5)
-			for _, a := range declaration.Args {
-				e.context.expressions[a] = &ast.BooleanExpr{Value: true}
-				delete(e.context.references, a)
+			switch e.version {
+			case 2:
+				ac := int64(len(declaration.Args) * 5)
+				for _, a := range declaration.Args {
+					e.context.expressions[a] = &ast.BooleanExpr{Value: true}
+					delete(e.context.references, a)
+				}
+				e.context.functions[declaration.Name] = function{declaration.Body, ac}
+			default:
+				ac := int64(len(declaration.Args) * 5)
+				for _, a := range declaration.Args {
+					e.context.expressions[a] = &ast.BooleanExpr{Value: true}
+					delete(e.context.references, a)
+				}
+				fc, err := e.estimate(declaration.Body)
+				if err != nil {
+					return 0, err
+				}
+				e.catalogue.user[declaration.Name] = ac + fc
 			}
-			fc, err := e.estimate(declaration.Body)
-			if err != nil {
-				return 0, err
-			}
-			e.catalogue.user[declaration.Name] = ac + fc
 			bc, err := e.estimate(expression.Body)
 			if err != nil {
 				return 0, err
@@ -131,9 +155,19 @@ func (e *EstimatorV1) estimate(expr ast.Expr) (int64, error) {
 		return cc, nil
 
 	case *ast.FunctionCall:
-		fc, ok := e.catalogue.FunctionCost(expression.Name)
-		if !ok {
-			return 0, errors.Errorf("EstimatorV1: no user function '%s' in scope", expression.Name)
+		var fc int64
+		var err error
+		if fd, ok := e.context.functions[expression.Name]; ok {
+			fc, err = e.estimate(fd.expr)
+			if err != nil {
+				return 0, err
+			}
+			fc = fc + fd.argsCost
+		} else {
+			fc, ok = e.catalogue.FunctionCost(expression.Name)
+			if !ok {
+				return 0, errors.Errorf("EstimatorV1: no user function '%s' in scope", expression.Name)
+			}
 		}
 		ac, err := e.estimate(expression.Argv)
 		if err != nil {
