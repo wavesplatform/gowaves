@@ -90,6 +90,39 @@ func (e *EstimatorV1) estimate(expr ast.Expr) (int64, error) {
 		e.context = tmp
 		return bc + 5, nil
 
+	case *ast.BlockV2:
+		tmp := e.context.clone()
+		switch declaration := expression.Decl.(type) {
+		case *ast.LetExpr:
+			e.context.expressions[declaration.Name] = declaration.Value
+			delete(e.context.references, declaration.Name)
+			bc, err := e.estimate(expression.Body)
+			if err != nil {
+				return 0, err
+			}
+			e.context = tmp
+			return bc + 5, nil
+		case *ast.FuncDeclaration:
+			ac := int64(len(declaration.Args) * 5)
+			for _, a := range declaration.Args {
+				e.context.expressions[a] = &ast.BooleanExpr{Value: true}
+				delete(e.context.references, a)
+			}
+			fc, err := e.estimate(declaration.Body)
+			if err != nil {
+				return 0, err
+			}
+			e.catalogue.user[declaration.Name] = ac + fc
+			bc, err := e.estimate(expression.Body)
+			if err != nil {
+				return 0, err
+			}
+			e.context = tmp
+			return bc + 5, nil
+		default:
+			return 0, errors.Errorf("unsupported content of type %T", expression.Decl)
+		}
+
 	case *ast.FuncCallExpr:
 		cc, err := e.estimate(expression.Func)
 		if err != nil {
