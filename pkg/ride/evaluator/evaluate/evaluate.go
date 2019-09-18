@@ -37,9 +37,10 @@ func Verify(scheme byte, state types.SmartState, script *ast.Script, transaction
 	}
 
 	funcsV2 := ast.VarFunctionsV2
-	varsV2 := ast.VariablesV2(txVars, height)
+	varsV2 := ast.VariablesV2(height)
 
 	scope := ast.NewScope(scheme, state, ast.Merge(funcsV2, varsV2))
+	scope.AddValue("tx", ast.NewObject(txVars))
 
 	return Eval(script.Verifier, scope)
 }

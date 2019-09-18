@@ -15,6 +15,7 @@ type State struct {
 	DataEntries            map[string]proto.DataEntry
 	AssetIsSponsored       bool
 	BlockHeaderByHeight    *proto.BlockHeader
+	NewestHeightVal        proto.Height
 }
 
 func (a State) NewestAccountBalance(account proto.Recipient, asset []byte) (uint64, error) {
@@ -98,7 +99,7 @@ func (a State) TransactionHeightByID(b []byte) (uint64, error) {
 }
 
 func (a State) NewestHeight() (uint64, error) {
-	return 0, nil
+	return a.NewestHeightVal, nil
 }
 
 func (a State) NewestAssetIsSponsored(assetID crypto.Digest) (bool, error) {

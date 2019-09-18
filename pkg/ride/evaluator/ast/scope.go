@@ -237,24 +237,30 @@ func FunctionsV3() Functions {
 	s["parseIntValue"] = FunctionFromPredefined(wrapWithExtract(NativeParseInt, "UserParseIntValue"), 1)
 	s["value"] = FunctionFromPredefined(UserValue, 1)
 	s["valueOrErrorMessage"] = FunctionFromPredefined(UserValueOrErrorMessage, 2)
+	s["WriteSet"] = FunctionFromPredefined(UserWriteSet, 1)
+	s["TransferSet"] = FunctionFromPredefined(UserTransferSet, 1)
+	s["ScriptTransfer"] = FunctionFromPredefined(ScriptTransfer, 3)
+	s["ScriptResult"] = FunctionFromPredefined(ScriptResult, 2)
+
 	return s
 }
+
+var VarFunctionsV3 = FunctionsV3()
 
 func (a *Functions) Clone() *Functions {
 	return a
 }
 
-func VariablesV2(tx map[string]Expr, height uint64) map[string]Expr {
+func VariablesV2(height uint64) map[string]Expr {
 	v := make(map[string]Expr)
-	v["tx"] = NewObject(tx)
 	v["height"] = NewLong(int64(height))
 	v["Sell"] = NewSell()
 	v["Buy"] = NewBuy()
 	return v
 }
 
-func VariablesV3(tx map[string]Expr, height uint64) map[string]Expr {
-	v := VariablesV2(tx, height)
+func VariablesV3(height uint64) map[string]Expr {
+	v := VariablesV2(height)
 	v["CEILING"] = CeilingExpr{}
 	v["FLOOR"] = FloorExpr{}
 	v["HALFEVEN"] = HalfEvenExpr{}

@@ -1411,6 +1411,16 @@ func UserDataBooleanFromArrayByIndex(s Scope, e Exprs) (Expr, error) {
 	if !ok {
 		return NewUnit(), nil
 	}
+	if d.InstanceOf() == "DataEntry" {
+		val, err := d.(*DataEntryExpr).Get("value")
+		if err != nil {
+			return nil, errors.Wrap(err, "UserDataBooleanFromArrayByIndex")
+		}
+		_, ok := val.(*BooleanExpr)
+		if !ok {
+			return NewUnit(), nil
+		}
+	}
 	return d, nil
 }
 
@@ -1516,11 +1526,9 @@ func DataEntry(s Scope, e Exprs) (Expr, error) {
 	if !ok {
 		return nil, errors.Errorf("%s: first argument expected to be *StringExpr, found %T", funcName, rs[0])
 	}
-	fields := map[string]Expr{"key": key, "value": NewUnit()}
 	switch t := rs[1].(type) {
 	case *LongExpr, *BooleanExpr, *BytesExpr, *StringExpr:
-		fields["value"] = t
-		return NewObject(fields), nil
+		return NewDataEntry(key.Value, t), nil
 	default:
 		return nil, errors.Errorf("%s: unsupported value type %T", funcName, t)
 	}
@@ -1870,6 +1878,89 @@ func UserValueOrErrorMessage(s Scope, e Exprs) (Expr, error) {
 	return rs[0], nil
 }
 
+func UserWriteSet(s Scope, e Exprs) (Expr, error) {
+	const funcName = "UserWriteSet"
+	if l := len(e); l != 1 {
+		return nil, errors.Errorf("%s: invalid number of parameters, expected 1, received %d", funcName, l)
+	}
+	rs, err := e.EvaluateAll(s.Clone())
+	if err != nil {
+		return nil, errors.Wrapf(err, funcName)
+	}
+	listOfDataEntries, ok := rs[0].(Exprs)
+	if !ok {
+		return nil, errors.Errorf("%s: first argument expected to be Exprs, found %T", funcName, rs[0])
+	}
+
+	for _, expr := range listOfDataEntries {
+		if expr.InstanceOf() != "DataEntry" {
+			return nil, errors.Errorf("Expected instance of DataEntry, found %s, %T", expr.InstanceOf(), expr)
+		}
+	}
+	return NewWriteSet(listOfDataEntries), nil
+}
+
+func UserTransferSet(s Scope, e Exprs) (Expr, error) {
+	const funcName = "UserTransferSet"
+	if l := len(e); l != 1 {
+		return nil, errors.Errorf("%s: invalid number of parameters, expected 1, received %d", funcName, l)
+	}
+	rs, err := e.EvaluateAll(s.Clone())
+	if err != nil {
+		return nil, errors.Wrapf(err, funcName)
+	}
+	listOfScriptTransfer, ok := rs[0].(Exprs)
+	if !ok {
+		return nil, errors.Errorf("%s: first argument expected to be Exprs, found %T", funcName, rs[0])
+	}
+	for _, expr := range listOfScriptTransfer {
+		if expr.InstanceOf() != "ScriptTransfer" {
+			return nil, errors.Errorf("Expected instance of ScriptTransfer, found %s, %T", expr.InstanceOf(), expr)
+		}
+	}
+	return NewTransferSet(listOfScriptTransfer), nil
+}
+
+func ScriptTransfer(s Scope, e Exprs) (Expr, error) {
+	const funcName = "ScriptTransfer"
+	if l := len(e); l != 3 {
+		return nil, errors.Errorf("%s: invalid number of parameters, expected 3, received %d", funcName, l)
+	}
+	rs, err := e.EvaluateAll(s.Clone())
+	if err != nil {
+		return nil, errors.Wrapf(err, funcName)
+	}
+	recipient, ok := rs[0].(Recipient)
+	if !ok {
+		return nil, errors.Errorf("%s: expected first argument to be 'RecipientExpr', got '%T'", funcName, rs[0])
+	}
+	amount, ok := rs[1].(*LongExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: expected secnd argument to be '*LongExpr', got '%T'", funcName, rs[1])
+	}
+	return NewScriptTransfer(recipient, amount, rs[2])
+}
+
+func ScriptResult(s Scope, e Exprs) (Expr, error) {
+	const funcName = "ScriptResult"
+	if l := len(e); l != 2 {
+		return nil, errors.Errorf("%s: invalid number of parameters, expected 2, received %d", funcName, l)
+	}
+	rs, err := e.EvaluateAll(s.Clone())
+	if err != nil {
+		return nil, errors.Wrapf(err, funcName)
+	}
+	writeSet, ok := rs[0].(*WriteSetExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: expected first argument to be 'Exprs', got '%T'", funcName, rs[0])
+	}
+	transferSet, ok := rs[1].(*TransferSetExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: expected secnd argument to be 'Exprs', got '%T'", funcName, rs[1])
+	}
+	return NewScriptResult(writeSet, transferSet), nil
+}
+
 func wrapWithExtract(c Callable, name string) Callable {
 	return func(s Scope, e Exprs) (Expr, error) {
 		rs, err := c(s, e)
@@ -1900,22 +1991,22 @@ func dataFromArray(s Scope, e Exprs) (Expr, error) {
 		return nil, errors.Errorf("expected second argument to be *StringExpr, found %T", rs[1])
 	}
 	for i, e := range lst {
-		item, ok := e.(*ObjectExpr)
+		item, ok := e.(Getable)
 		if !ok {
 			return nil, errors.Errorf("unexpected list element of type %T", e)
 		}
-		k, ok := item.fields["key"]
-		if !ok {
-			return nil, errors.Errorf("%dth element doesn't have 'key' field", i)
+		k, err := item.Get("key")
+		if err != nil {
+			return nil, errors.Wrapf(err, "%dth element doesn't have 'key' field", i)
 		}
 		b, err := key.Eq(k)
 		if err != nil {
 			return nil, err
 		}
 		if b {
-			v, ok := item.fields["value"]
-			if !ok {
-				return nil, errors.Errorf("%dth element doesn't have 'value' field", i)
+			v, err := item.Get("value")
+			if err != nil {
+				return nil, errors.Wrapf(err, "%dth element doesn't have 'value' field", i)
 			}
 			return v, nil
 		}
@@ -1971,13 +2062,13 @@ func dataFromArrayByIndex(s Scope, e Exprs) (Expr, error) {
 	if i < 0 || i >= len(lst) {
 		return nil, errors.Errorf("invalid index %d", i)
 	}
-	item, ok := lst[i].(*ObjectExpr)
+	item, ok := lst[i].(Getable)
 	if !ok {
 		return nil, errors.Errorf("unexpected list element of type %T", e)
 	}
-	v, ok := item.fields["value"]
-	if !ok {
-		return nil, errors.Errorf("%dth element doesn't have 'value' field", i)
+	v, err := item.Get("value")
+	if err != nil {
+		return nil, errors.Wrapf(err, "%dth element doesn't have 'value' field", i)
 	}
 	return v, nil
 }

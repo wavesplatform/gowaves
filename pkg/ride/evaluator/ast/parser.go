@@ -5,28 +5,124 @@ import (
 	. "github.com/wavesplatform/gowaves/pkg/ride/evaluator/reader"
 )
 
-func BuildAst(r *BytesReader) (Script, error) {
+func BuildScript(r *BytesReader) (*Script, error) {
 	version, err := r.ReadByte()
 	if err != nil {
-		return Script{}, errors.Wrap(err, "parser: failed to read script version")
-	}
-	if version < 1 || version > 3 {
-		return Script{}, errors.Errorf("parser: unsupported script version %d", version)
+		return nil, errors.Wrap(err, "parser: failed to read script version")
 	}
 
+	if version == 0 {
+		dapp, err := parseDApp(r)
+		if err != nil {
+			return nil, err
+		}
+		return &Script{
+			Version:    0,
+			HasBlockV2: false,
+			Verifier:   nil,
+			DApp:       dapp,
+			dApp:       true,
+		}, nil
+	}
+
+	if version < 1 || version > 3 {
+		return nil, errors.Errorf("parser: unsupported script version %d", version)
+	}
 	exp, err := Walk(r)
 	if err != nil {
-		return Script{}, errors.Wrap(err, "parser")
+		return nil, errors.Wrap(err, "parser")
 	}
 	script := Script{
 		Version:    int(version),
 		HasBlockV2: false,
 		Verifier:   exp,
 	}
-	return script, nil
+	return &script, nil
 }
 
-type Dapp struct {
+type DApp struct {
+	DAppVersion   byte
+	LibVersion    byte
+	Meta          DappMeta
+	Declarations  Exprs
+	callableFuncs map[string]*DappCallableFunc
+	varifier      *DappCallableFunc
+}
+
+type DappMeta struct {
+	Version int32
+	Bytes   []byte
+}
+
+func parseDApp(r *BytesReader) (DApp, error) {
+	dApp := DApp{}
+	dApp.DAppVersion = r.Next()
+	dApp.LibVersion = r.Next()
+	// meta
+	meta := DappMeta{
+		Version: r.ReadInt(),
+		Bytes:   r.ReadBytes(),
+	}
+	dApp.Meta = meta
+
+	declarations := Exprs{}
+	cnt := r.ReadInt()
+	for i := int32(0); i < cnt; i++ {
+		d, err := deserializeDeclaration(r)
+		if err != nil {
+			return dApp, err
+		}
+		declarations = append(declarations, d)
+	}
+	dApp.Declarations = declarations
+
+	// callable func declarations
+	var callableFuncs = make(map[string]*DappCallableFunc)
+	cnt = r.ReadInt()
+	for i := int32(0); i < cnt; i++ {
+		rest := r.Rest()
+		_ = rest
+		annotationInvocName := r.ReadString()
+		d, err := deserializeDeclaration(r)
+		if err != nil {
+			return dApp, err
+		}
+		f, ok := d.(*FuncDeclaration)
+		if !ok {
+			return dApp, errors.Errorf("expected to be *FuncDeclaration, found %T", f)
+		}
+		callableFuncs[f.Name] = &DappCallableFunc{
+			annotationInvocName: annotationInvocName,
+			funcDecl:            f,
+		}
+	}
+	dApp.callableFuncs = callableFuncs
+
+	// parse verifier
+	cnt = r.ReadInt()
+	_ = cnt
+	if cnt != 0 {
+		annotationInvocName := r.ReadString()
+		d, err := deserializeDeclaration(r)
+		if err != nil {
+			return dApp, err
+		}
+		f, ok := d.(*FuncDeclaration)
+		if !ok {
+			return dApp, errors.Errorf("expected to be *FuncDeclaration, found %T", f)
+		}
+		dApp.varifier = &DappCallableFunc{
+			annotationInvocName: annotationInvocName,
+			funcDecl:            f,
+		}
+	}
+
+	return dApp, nil
+}
+
+type DappCallableFunc struct {
+	annotationInvocName string
+	funcDecl            *FuncDeclaration
 }
 
 func Walk(iter *BytesReader) (Expr, error) {
@@ -191,7 +287,7 @@ func readUserFunction(iter *BytesReader) (*UserFunctionCall, error) {
 		argv[i] = v
 	}
 
-	return NewUserFunctionCall(funcNumber, int(argc), argv), nil
+	return NewUserFunctionCall(funcNumber, argv), nil
 }
 
 func readIf(r *BytesReader) (*IfExpr, error) {

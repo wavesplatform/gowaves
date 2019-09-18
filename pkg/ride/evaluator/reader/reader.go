@@ -22,8 +22,6 @@ const E_BLOCK_V2 byte = 10
 const DEC_LET byte = 0
 const DEC_FUNC byte = 1
 
-// TODO: const E_BLOCK_V2 byte = 10 // RIDE v3
-
 const FH_NATIVE byte = 0
 const FH_USER byte = 1
 
