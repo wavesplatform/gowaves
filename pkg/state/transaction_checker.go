@@ -13,6 +13,13 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/settings"
 )
 
+const (
+	KiB = 1024
+
+	maxVerifierScriptSize = 8 * KiB
+	//maxContractScriptSize = 32 * KiB
+)
+
 type checkerInfo struct {
 	initialisation   bool
 	currentTimestamp uint64
@@ -86,6 +93,10 @@ func (tc *transactionChecker) checkScript(scriptBytes proto.Script) error {
 		// Empty script is always valid.
 		return nil
 	}
+	// TODO: use RIDE package to check script size depending on whether it's dApp or simple Verifier.
+	if len(scriptBytes) > maxVerifierScriptSize {
+		return errors.Errorf("script size %d is greater than limit of %d\n", len(scriptBytes), maxVerifierScriptSize)
+	}
 	script, err := ast.BuildAst(reader.NewBytesReader(scriptBytes))
 	if err != nil {
 		return errors.Wrap(err, "failed to build ast from script bytes")
@@ -101,7 +112,6 @@ func (tc *transactionChecker) checkScript(scriptBytes proto.Script) error {
 	if err := tc.checkScriptComplexity(script, complexity); err != nil {
 		return errors.Errorf("checkScriptComplexity(): %v\n", err)
 	}
-	// TODO: use RIDE package to check script size depending on whether it's dApp or simple Verifier.
 	return nil
 }
 
