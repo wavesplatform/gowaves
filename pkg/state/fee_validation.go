@@ -4,10 +4,12 @@ import (
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/settings"
 )
 
 const (
-	FeeUnit = 100000
+	scriptExtraFee = 400000
+	FeeUnit        = 100000
 )
 
 var feeConstants = map[proto.TransactionType]uint64{
@@ -29,7 +31,13 @@ var feeConstants = map[proto.TransactionType]uint64{
 	proto.InvokeScriptTransaction:   5,
 }
 
-func minFeeInUnits(tx proto.Transaction) (uint64, error) {
+type feeValidationParams struct {
+	stor           *blockchainEntitiesStorage
+	settings       *settings.BlockchainSettings
+	initialisation bool
+}
+
+func minFeeInUnits(features *features, tx proto.Transaction) (uint64, error) {
 	txType := tx.GetTypeVersion().Type
 	baseFee, ok := feeConstants[txType]
 	if !ok {
@@ -48,25 +56,49 @@ func minFeeInUnits(tx proto.Transaction) (uint64, error) {
 		if !ok {
 			return 0, errors.New("failed to convert interface to DataTransaction")
 		}
-		dtxBytes, err := dtx.MarshalBinary()
+		smartAccountsActive, err := features.isActivated(int16(settings.SmartAccounts))
 		if err != nil {
 			return 0, err
+		}
+		var dtxBytes []byte
+		if smartAccountsActive {
+			dtxBytes, err = dtx.BodyMarshalBinary()
+			if err != nil {
+				return 0, err
+			}
+		} else {
+			dtxBytes, err = dtx.MarshalBinary()
+			if err != nil {
+				return 0, err
+			}
 		}
 		fee += uint64((len(dtxBytes) - 1) / 1024)
 	}
 	return fee, nil
 }
 
-func minFeeInWaves(tx proto.Transaction) (uint64, error) {
-	feeInUnits, err := minFeeInUnits(tx)
+func minFeeInWaves(tx proto.Transaction, params *feeValidationParams) (uint64, error) {
+	feeInUnits, err := minFeeInUnits(params.stor.features, tx)
 	if err != nil {
 		return 0, err
 	}
-	return feeInUnits * FeeUnit, nil
+	minFee := feeInUnits * FeeUnit
+	senderAddr, err := proto.NewAddressFromPublicKey(params.settings.AddressSchemeCharacter, tx.GetSenderPK())
+	if err != nil {
+		return 0, err
+	}
+	scripted, err := params.stor.accountsScripts.newestHasVerifier(senderAddr, !params.initialisation)
+	if err != nil {
+		return 0, err
+	}
+	if scripted {
+		minFee += scriptExtraFee
+	}
+	return minFee, nil
 }
 
-func checkMinFeeWaves(tx proto.Transaction) error {
-	minWaves, err := minFeeInWaves(tx)
+func checkMinFeeWaves(tx proto.Transaction, params *feeValidationParams) error {
+	minWaves, err := minFeeInWaves(tx, params)
 	if err != nil {
 		return errors.Errorf("failed to calculate min fee in Waves: %v\n", err)
 	}
@@ -77,19 +109,19 @@ func checkMinFeeWaves(tx proto.Transaction) error {
 	return nil
 }
 
-func checkMinFeeAsset(sponsoredAssets *sponsoredAssets, tx proto.Transaction, feeAssetID crypto.Digest) error {
-	isSponsored, err := sponsoredAssets.newestIsSponsored(feeAssetID, true)
+func checkMinFeeAsset(tx proto.Transaction, feeAssetID crypto.Digest, params *feeValidationParams) error {
+	isSponsored, err := params.stor.sponsoredAssets.newestIsSponsored(feeAssetID, !params.initialisation)
 	if err != nil {
 		return errors.Errorf("newestIsSponsored: %v\n", err)
 	}
 	if !isSponsored {
 		return errors.Errorf("asset %s is not sponsored", feeAssetID.String())
 	}
-	minWaves, err := minFeeInWaves(tx)
+	minWaves, err := minFeeInWaves(tx, params)
 	if err != nil {
 		return errors.Errorf("failed to calculate min fee in Waves: %v\n", err)
 	}
-	minAsset, err := sponsoredAssets.wavesToSponsoredAsset(feeAssetID, minWaves)
+	minAsset, err := params.stor.sponsoredAssets.wavesToSponsoredAsset(feeAssetID, minWaves)
 	if err != nil {
 		return errors.Errorf("wavesToSponsoredAsset() failed: %v\n", err)
 	}

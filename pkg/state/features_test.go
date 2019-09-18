@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/util"
 )
@@ -24,7 +25,7 @@ func createFeatures(sets *settings.BlockchainSettings) (*featuresTestObjects, []
 	}
 	definedFeaturesInfo := make(map[settings.Feature]settings.FeatureInfo)
 	definedFeaturesInfo[settings.Feature(featureID)] = settings.FeatureInfo{Implemented: true, Description: "test feature"}
-	features, err := newFeatures(stor.db, stor.dbBatch, stor.hs, stor.stateDB, sets, definedFeaturesInfo)
+	features, err := newFeatures(stor.db, stor.dbBatch, stor.hs, sets, definedFeaturesInfo)
 	if err != nil {
 		return nil, path, err
 	}
@@ -36,8 +37,8 @@ func TestAddFeatureVote(t *testing.T) {
 	assert.NoError(t, err, "createFeatures() failed")
 
 	defer func() {
-		err = to.stor.stateDB.close()
-		assert.NoError(t, err, "stateDB.close() failed")
+		to.stor.close(t)
+
 		err = util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -62,8 +63,8 @@ func TestApproveFeature(t *testing.T) {
 	assert.NoError(t, err, "createFeatures() failed")
 
 	defer func() {
-		err = to.stor.stateDB.close()
-		assert.NoError(t, err, "stateDB.close() failed")
+		to.stor.close(t)
+
 		err = util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -72,10 +73,8 @@ func TestApproveFeature(t *testing.T) {
 	assert.NoError(t, err, "isApproved failed")
 	assert.Equal(t, false, approved)
 	to.stor.addBlock(t, blockID0)
-	blockNum, err := to.stor.stateDB.blockIdToNum(blockID0)
-	assert.NoError(t, err, "blockIdToNum() failed")
-	r := &approvedFeaturesRecord{1, blockNum}
-	err = to.features.approveFeature(featureID, r)
+	r := &approvedFeaturesRecord{1}
+	err = to.features.approveFeature(featureID, r, blockID0)
 	assert.NoError(t, err, "approveFeature() failed")
 	to.stor.flush(t)
 	approved, err = to.features.isApproved(featureID)
@@ -91,8 +90,8 @@ func TestActivateFeature(t *testing.T) {
 	assert.NoError(t, err, "createFeatures() failed")
 
 	defer func() {
-		err = to.stor.stateDB.close()
-		assert.NoError(t, err, "stateDB.close() failed")
+		to.stor.close(t)
+
 		err = util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -101,10 +100,8 @@ func TestActivateFeature(t *testing.T) {
 	activated, err := to.features.isActivated(featureID)
 	assert.NoError(t, err, "isActivated failed")
 	assert.Equal(t, false, activated)
-	blockNum, err := to.stor.stateDB.blockIdToNum(blockID0)
-	assert.NoError(t, err, "blockIdToNum() failed")
-	r := &activatedFeaturesRecord{1, blockNum}
-	err = to.features.activateFeature(featureID, r)
+	r := &activatedFeaturesRecord{1}
+	err = to.features.activateFeature(featureID, r, blockID0)
 	assert.NoError(t, err, "activateFeature() failed")
 	to.stor.flush(t)
 	activated, err = to.features.isActivated(featureID)
@@ -121,17 +118,14 @@ func TestFinishVoting(t *testing.T) {
 	assert.NoError(t, err, "createFeatures() failed")
 
 	defer func() {
-		err = to.stor.stateDB.close()
-		assert.NoError(t, err, "stateDB.close() failed")
+		to.stor.close(t)
+
 		err = util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
 	height := settings.ActivationWindowSize(1)
-	ids := genRandBlockIds(t, int(height*2))
-	for _, id := range ids {
-		to.stor.addBlock(t, id)
-	}
+	ids := genRandBlockIds(t, int(height*3))
 	tests := []struct {
 		curHeight        uint64
 		votesNum         uint64
@@ -141,20 +135,28 @@ func TestFinishVoting(t *testing.T) {
 		activationHeight uint64
 	}{
 		{height, settings.VotesForFeatureElection(1) - 1, false, false, 0, 0},
-		{height, settings.VotesForFeatureElection(1), true, false, height, 0},
-		{height * 2, 0, true, true, height, height * 2},
+		{height * 2, settings.VotesForFeatureElection(1), true, false, height * 2, 0},
+		{height * 3, 0, true, true, height * 2, height * 3},
 	}
+	heightCounter := uint64(0)
 	for _, tc := range tests {
 		// Add required amount of votes first.
 		for i := uint64(0); i < tc.votesNum; i++ {
+			heightCounter++
+			to.stor.addBlock(t, ids[i])
 			err = to.features.addVote(featureID, ids[i])
 			assert.NoError(t, err, "addVote() failed")
+		}
+		var lastBlockId crypto.Signature
+		// Add remaining blocks until curHeight.
+		for i := heightCounter; i < tc.curHeight; i++ {
+			to.stor.addBlock(t, ids[i])
+			lastBlockId = ids[i]
 		}
 		// Flush votes.
 		to.stor.flush(t)
 		// Call finishVoting().
-		lastId := ids[tc.curHeight-1]
-		err = to.features.finishVoting(tc.curHeight, lastId)
+		err = to.features.finishVoting(tc.curHeight, lastBlockId)
 		assert.NoError(t, err, "finishVoting() failed")
 		// Flush updates.
 		to.stor.flush(t)
@@ -168,14 +170,14 @@ func TestFinishVoting(t *testing.T) {
 		approvalHeight, err := to.features.approvalHeight(featureID)
 		if tc.isApproved {
 			assert.NoError(t, err, "approvalHeight() failed")
-			assert.Equal(t, height, approvalHeight)
+			assert.Equal(t, height*2, approvalHeight)
 		} else {
 			assert.Error(t, err, "approvalHeight() did not fail with unapproved feature")
 		}
 		activationHeight, err := to.features.activationHeight(featureID)
 		if tc.isActivated {
 			assert.NoError(t, err, "activationHeight() failed")
-			assert.Equal(t, height*2, activationHeight)
+			assert.Equal(t, height*3, activationHeight)
 		} else {
 			assert.Error(t, err, "activationHeight() did not fail with not activated feature")
 		}

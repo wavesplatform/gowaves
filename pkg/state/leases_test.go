@@ -20,7 +20,7 @@ func createLeases() (*leasesTestObjects, []string, error) {
 	if err != nil {
 		return nil, path, err
 	}
-	leases, err := newLeases(stor.db, stor.stateDB, stor.hs)
+	leases, err := newLeases(stor.db, stor.hs)
 	if err != nil {
 		return nil, path, err
 	}
@@ -45,8 +45,8 @@ func TestCancelLeases(t *testing.T) {
 	assert.NoError(t, err, "createLeases() failed")
 
 	defer func() {
-		err = to.stor.stateDB.close()
-		assert.NoError(t, err, "stateDB.close() failed")
+		to.stor.close(t)
+
 		err = util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -74,7 +74,7 @@ func TestCancelLeases(t *testing.T) {
 	sendersToCancel := make(map[proto.Address]struct{})
 	var empty struct{}
 	sendersToCancel[badSender] = empty
-	err = to.leases.cancelLeases(sendersToCancel)
+	err = to.leases.cancelLeases(sendersToCancel, blockID0)
 	assert.NoError(t, err, "cancelLeases() failed")
 	to.stor.flush(t)
 	for _, l := range leasings {
@@ -89,7 +89,7 @@ func TestCancelLeases(t *testing.T) {
 		}
 	}
 	// Cancel all the leases and check.
-	err = to.leases.cancelLeases(nil)
+	err = to.leases.cancelLeases(nil, blockID0)
 	assert.NoError(t, err, "cancelLeases() failed")
 	to.stor.flush(t)
 	for _, l := range leasings {
@@ -106,8 +106,8 @@ func TestValidLeaseIns(t *testing.T) {
 	assert.NoError(t, err, "createLeases() failed")
 
 	defer func() {
-		err = to.stor.stateDB.close()
-		assert.NoError(t, err, "stateDB.close() failed")
+		to.stor.close(t)
+
 		err = util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -144,8 +144,8 @@ func TestAddLeasing(t *testing.T) {
 	assert.NoError(t, err, "createLeases() failed")
 
 	defer func() {
-		err = to.stor.stateDB.close()
-		assert.NoError(t, err, "stateDB.close() failed")
+		to.stor.close(t)
+
 		err = util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -171,8 +171,8 @@ func TestCancelLeasing(t *testing.T) {
 	assert.NoError(t, err, "createLeases() failed")
 
 	defer func() {
-		err = to.stor.stateDB.close()
-		assert.NoError(t, err, "stateDB.close() failed")
+		to.stor.close(t)
+
 		err = util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()

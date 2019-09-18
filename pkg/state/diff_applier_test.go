@@ -29,9 +29,9 @@ func TestDiffApplierWithWaves(t *testing.T) {
 	to, path := createDiffApplierTestObjects(t)
 
 	defer func() {
-		err := to.stor.stateDB.close()
-		assert.NoError(t, err, "failed to close DB")
-		err = util.CleanTemporaryDirs(path)
+		to.stor.close(t)
+
+		err := util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
@@ -92,9 +92,9 @@ func TestDiffApplierWithAssets(t *testing.T) {
 	to, path := createDiffApplierTestObjects(t)
 
 	defer func() {
-		err := to.stor.stateDB.close()
-		assert.NoError(t, err, "failed to close DB")
-		err = util.CleanTemporaryDirs(path)
+		to.stor.close(t)
+
+		err := util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
@@ -124,9 +124,9 @@ func TestTransferOverspend(t *testing.T) {
 	to, path := createDiffApplierTestObjects(t)
 
 	defer func() {
-		err := to.stor.stateDB.close()
-		assert.NoError(t, err, "failed to close DB")
-		err = util.CleanTemporaryDirs(path)
+		to.stor.close(t)
+
+		err := util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 

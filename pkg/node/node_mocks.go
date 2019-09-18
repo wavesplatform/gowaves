@@ -7,7 +7,6 @@ import (
 	"sync"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
-	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/p2p/mock"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -17,7 +16,7 @@ import (
 )
 
 func notFound() state.StateError {
-	return state.NewStateError(state.NotFoundError, keyvalue.ErrNotFound)
+	return state.NewStateError(state.NotFoundError, proto.ErrNotFound)
 }
 
 type MockStateManager struct {
@@ -75,6 +74,14 @@ func (a *MockStateManager) HeaderByHeight(height uint64) (*proto.BlockHeader, er
 		return nil, err
 	}
 	return &rs.BlockHeader, nil
+}
+
+func (a *MockStateManager) AddingBlockHeight() (proto.Height, error) {
+	panic("implement me")
+}
+
+func (a *MockStateManager) NewestHeight() (proto.Height, error) {
+	panic("implement me")
 }
 
 func (a *MockStateManager) Height() (proto.Height, error) {
@@ -211,11 +218,31 @@ func (a *MockStateManager) RetrieveNewestBinaryEntry(account proto.Recipient, ke
 	panic("implement me")
 }
 
+func (a *MockStateManager) NewestTransactionHeightByID(id []byte) (proto.Height, error) {
+	panic("implement me")
+}
+
+func (a *MockStateManager) TransactionHeightByID(id []byte) (proto.Height, error) {
+	panic("implement me")
+}
+
+func (a *MockStateManager) NewestTransactionByID(id []byte) (proto.Transaction, error) {
+	panic("implement me")
+}
+
+func (a *MockStateManager) TransactionByID(id []byte) (proto.Transaction, error) {
+	panic("implement me")
+}
+
 func (a *MockStateManager) NewestAssetIsSponsored(assetID crypto.Digest) (bool, error) {
 	panic("implement me")
 }
 
 func (a *MockStateManager) AssetIsSponsored(assetID crypto.Digest) (bool, error) {
+	panic("implement me")
+}
+
+func (a *MockStateManager) IsNotFound(err error) bool {
 	panic("implement me")
 }
 

@@ -18,7 +18,7 @@ func createAliases() (*aliasesTestObjects, []string, error) {
 	if err != nil {
 		return nil, path, err
 	}
-	aliases, err := newAliases(stor.db, stor.dbBatch, stor.stateDB, stor.hs)
+	aliases, err := newAliases(stor.db, stor.dbBatch, stor.hs)
 	if err != nil {
 		return nil, path, err
 	}
@@ -30,8 +30,8 @@ func TestCreateAlias(t *testing.T) {
 	assert.NoError(t, err, "createAliases() failed")
 
 	defer func() {
-		err = to.stor.stateDB.close()
-		assert.NoError(t, err, "stateDB.close() failed")
+		to.stor.close(t)
+
 		err = util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -57,8 +57,8 @@ func TestDisableStolenAliases(t *testing.T) {
 	assert.NoError(t, err, "createAliases() failed")
 
 	defer func() {
-		err = to.stor.stateDB.close()
-		assert.NoError(t, err, "stateDB.close() failed")
+		to.stor.close(t)
+
 		err = util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()

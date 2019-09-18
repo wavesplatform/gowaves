@@ -34,6 +34,7 @@ type readCommandType byte
 
 const (
 	readHeader readCommandType = iota
+	readTxHeight
 	readTx
 	readBlock
 	getIDByHeight
@@ -178,7 +179,7 @@ func testSingleBlock(t *testing.T, rw *blockReadWriter, block *proto.Block) {
 	}
 }
 
-func writeBlocks(ctx context.Context, rw *blockReadWriter, blocks []proto.Block, readTasks chan<- *readTask) error {
+func writeBlocks(ctx context.Context, rw *blockReadWriter, blocks []proto.Block, readTasks chan<- *readTask, flush bool) error {
 	height := 1
 	for _, block := range blocks {
 		var tasksBuf []*readTask
@@ -217,7 +218,9 @@ func writeBlocks(ctx context.Context, rw *blockReadWriter, blocks []proto.Block,
 				close(readTasks)
 				return err
 			}
-			task = &readTask{taskType: readTx, txID: txID, correctResult: transaction[:n+4]}
+			task = &readTask{taskType: readTx, txID: txID, correctResult: transaction[4 : n+4]}
+			tasksBuf = append(tasksBuf, task)
+			task = &readTask{taskType: readTxHeight, txID: txID, height: uint64(height)}
 			tasksBuf = append(tasksBuf, task)
 			transaction = transaction[4+n:]
 		}
@@ -225,13 +228,15 @@ func writeBlocks(ctx context.Context, rw *blockReadWriter, blocks []proto.Block,
 			close(readTasks)
 			return err
 		}
-		if err := rw.flush(); err != nil {
-			close(readTasks)
-			return err
-		}
-		if err := rw.db.Flush(rw.dbBatch); err != nil {
-			close(readTasks)
-			return err
+		if flush {
+			if err := rw.flush(); err != nil {
+				close(readTasks)
+				return err
+			}
+			if err := rw.db.Flush(rw.dbBatch); err != nil {
+				close(readTasks)
+				return err
+			}
 		}
 		task = &readTask{taskType: readBlock, blockID: blockID, correctResult: block.Transactions.BytesUnchecked()}
 		tasksBuf = append(tasksBuf, task)
@@ -246,6 +251,38 @@ func writeBlocks(ctx context.Context, rw *blockReadWriter, blocks []proto.Block,
 		height++
 	}
 	close(readTasks)
+	return nil
+}
+
+func testNewestReader(rw *blockReadWriter, readTasks <-chan *readTask) error {
+	for task := range readTasks {
+		switch task.taskType {
+		case readTxHeight:
+			height, err := rw.newestTransactionHeightByID(task.txID)
+			if err != nil {
+				return err
+			}
+			if height != task.height {
+				return errors.New("Transaction heights are not equal")
+			}
+		case readTx:
+			tx, err := rw.readNewestTransaction(task.txID)
+			if err != nil {
+				return err
+			}
+			if !bytes.Equal(task.correctResult, tx) {
+				return errors.New("Transaction bytes are not equal.")
+			}
+		case getIDByHeight:
+			id, err := rw.newestBlockIDByHeight(task.height)
+			if err != nil {
+				return err
+			}
+			if !bytes.Equal(task.correctResult, id[:]) {
+				return errors.Errorf("Got wrong ID %s by height %d", string(id[:]), task.height)
+			}
+		}
+	}
 	return nil
 }
 
@@ -267,6 +304,14 @@ func testReader(rw *blockReadWriter, readTasks <-chan *readTask) error {
 			}
 			if !bytes.Equal(task.correctResult, resTransactions) {
 				return errors.New("Transactions bytes are not equal.")
+			}
+		case readTxHeight:
+			height, err := rw.transactionHeightByID(task.txID)
+			if err != nil {
+				return err
+			}
+			if height != task.height {
+				return errors.New("Transaction heights are not equal")
 			}
 		case readTx:
 			tx, err := rw.readTransaction(task.txID)
@@ -346,7 +391,7 @@ func TestSimultaneousReadWrite(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		err1 := writeBlocks(ctx, rw, blocks, readTasks)
+		err1 := writeBlocks(ctx, rw, blocks, readTasks, true)
 		if err1 != nil {
 			mtx.Lock()
 			errCounter++
@@ -360,6 +405,65 @@ func TestSimultaneousReadWrite(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			err1 := testReader(rw, readTasks)
+			if err1 != nil {
+				mtx.Lock()
+				errCounter++
+				mtx.Unlock()
+				fmt.Printf("Reader error: %v\n", err1)
+				cancel()
+			}
+		}()
+	}
+	wg.Wait()
+	if errCounter != 0 {
+		t.Fatalf("Reader/writer error.")
+	}
+}
+
+func TestReadNewest(t *testing.T) {
+	rw, path, err := createBlockReadWriter(8, 8)
+	if err != nil {
+		t.Fatalf("createBlockReadWriter: %v", err)
+	}
+
+	defer func() {
+		if err := rw.close(); err != nil {
+			t.Fatalf("Failed to close blockReadWriter: %v", err)
+		}
+		if err := rw.db.Close(); err != nil {
+			t.Fatalf("Failed to close DB: %v", err)
+		}
+		if err := util.CleanTemporaryDirs(path); err != nil {
+			t.Fatalf("Failed to clean test data dirs: %v", err)
+		}
+	}()
+
+	blocks, err := readRealBlocks(t, blocksPath(t), blocksNumber)
+	if err != nil {
+		t.Fatalf("Can not read blocks from blockchain file: %v", err)
+	}
+	var mtx sync.Mutex
+	var wg sync.WaitGroup
+	ctx, cancel := context.WithCancel(context.Background())
+	errCounter := 0
+	readTasks := make(chan *readTask, tasksChanBufferSize)
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		err1 := writeBlocks(ctx, rw, blocks, readTasks, false)
+		if err1 != nil {
+			mtx.Lock()
+			errCounter++
+			mtx.Unlock()
+			fmt.Printf("Writer error: %v\n", err1)
+			cancel()
+		}
+	}()
+	for i := 0; i < readersNumber; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			err1 := testNewestReader(rw, readTasks)
 			if err1 != nil {
 				mtx.Lock()
 				errCounter++

@@ -63,10 +63,10 @@ func buildHanndles(tc *transactionChecker, tp *transactionPerformer, td *transac
 			tc.checkBurnV2, tp.performBurnV2, td.createDiffBurnV2, tf.minerFeeBurnV2,
 		},
 		proto.TransactionTypeVersion{Type: proto.ExchangeTransaction, Version: 1}: txHandleFuncs{
-			tc.checkExchange, nil, td.createDiffExchange, tf.minerFeeExchange,
+			tc.checkExchangeV1, nil, td.createDiffExchange, tf.minerFeeExchange,
 		},
 		proto.TransactionTypeVersion{Type: proto.ExchangeTransaction, Version: 2}: txHandleFuncs{
-			tc.checkExchange, nil, td.createDiffExchange, tf.minerFeeExchange,
+			tc.checkExchangeV2, nil, td.createDiffExchange, tf.minerFeeExchange,
 		},
 		proto.TransactionTypeVersion{Type: proto.LeaseTransaction, Version: 1}: txHandleFuncs{
 			tc.checkLeaseV1, tp.performLeaseV1, td.createDiffLeaseV1, tf.minerFeeLeaseV1,
@@ -94,6 +94,9 @@ func buildHanndles(tc *transactionChecker, tp *transactionPerformer, td *transac
 		},
 		proto.TransactionTypeVersion{Type: proto.SponsorshipTransaction, Version: 1}: txHandleFuncs{
 			tc.checkSponsorshipV1, tp.performSponsorshipV1, td.createDiffSponsorshipV1, tf.minerFeeSponsorshipV1,
+		},
+		proto.TransactionTypeVersion{Type: proto.SetScriptTransaction, Version: 1}: txHandleFuncs{
+			tc.checkSetScriptV1, tp.performSetScriptV1, td.createDiffSetScriptV1, tf.minerFeeSetScriptV1,
 		},
 	}
 }

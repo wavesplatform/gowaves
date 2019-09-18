@@ -13,8 +13,9 @@ import (
 func verifyTransactions(transactions []proto.Transaction, chans *verifierChans) error {
 	for _, tx := range transactions {
 		task := &verifyTask{
-			taskType: verifyTx,
-			tx:       tx,
+			taskType:   verifyTx,
+			tx:         tx,
+			checkTxSig: true,
 		}
 		select {
 		case verifyError := <-chans.errChan:

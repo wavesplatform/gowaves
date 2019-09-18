@@ -28,7 +28,7 @@ func createBalances() (*balancesTestObjects, []string, error) {
 	if err != nil {
 		return nil, path, err
 	}
-	balances, err := newBalances(stor.db, stor.stateDB, stor.hs)
+	balances, err := newBalances(stor.db, stor.hs)
 	if err != nil {
 		return nil, path, err
 	}
@@ -48,8 +48,8 @@ func TestCancelAllLeases(t *testing.T) {
 	assert.NoError(t, err, "createBalances() failed")
 
 	defer func() {
-		err = to.stor.stateDB.close()
-		assert.NoError(t, err, "failed to close DB")
+		to.stor.close(t)
+
 		err = util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -73,7 +73,7 @@ func TestCancelAllLeases(t *testing.T) {
 		assert.NoError(t, err, "setWavesBalance() failed")
 	}
 	to.stor.flush(t)
-	err = to.balances.cancelAllLeases()
+	err = to.balances.cancelAllLeases(blockID1)
 	assert.NoError(t, err, "cancelAllLeases() failed")
 	to.stor.flush(t)
 	for _, tc := range tests {
@@ -92,8 +92,8 @@ func TestCancelLeaseOverflows(t *testing.T) {
 	assert.NoError(t, err, "createBalances() failed")
 
 	defer func() {
-		err = to.stor.stateDB.close()
-		assert.NoError(t, err, "failed to close DB")
+		to.stor.close(t)
+
 		err = util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -117,7 +117,7 @@ func TestCancelLeaseOverflows(t *testing.T) {
 		assert.NoError(t, err, "setWavesBalance() failed")
 	}
 	to.stor.flush(t)
-	overflows, err := to.balances.cancelLeaseOverflows()
+	overflows, err := to.balances.cancelLeaseOverflows(blockID1)
 	assert.NoError(t, err, "cancelLeaseOverflows() failed")
 	to.stor.flush(t)
 	overflowsCount := 0
@@ -146,8 +146,8 @@ func TestCancelInvalidLeaseIns(t *testing.T) {
 	assert.NoError(t, err, "createBalances() failed")
 
 	defer func() {
-		err = to.stor.stateDB.close()
-		assert.NoError(t, err, "failed to close DB")
+		to.stor.close(t)
+
 		err = util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -174,7 +174,7 @@ func TestCancelInvalidLeaseIns(t *testing.T) {
 		leaseIns[addr] = tc.validLeaseIn
 	}
 	to.stor.flush(t)
-	err = to.balances.cancelInvalidLeaseIns(leaseIns)
+	err = to.balances.cancelInvalidLeaseIns(leaseIns, blockID1)
 	assert.NoError(t, err, "cancelInvalidLeaseIns() failed")
 	to.stor.flush(t)
 	for _, tc := range tests {
@@ -193,15 +193,15 @@ func TestMinBalanceInRange(t *testing.T) {
 	assert.NoError(t, err, "createBalances() failed")
 
 	defer func() {
-		err = to.stor.stateDB.close()
-		assert.NoError(t, err, "failed to close DB")
+		to.stor.close(t)
+
 		err = util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
 	addr, err := proto.NewAddressFromString(addr0)
 	assert.NoError(t, err, "NewAddressFromString() failed")
-	for i := 1; i < totalBlocksNumber; i++ {
+	for i := 1; i <= totalBlocksNumber; i++ {
 		blockID := genBlockId(byte(i))
 		to.stor.addBlock(t, blockID)
 		p := &balanceProfile{uint64(i), 0, 0}
@@ -231,8 +231,8 @@ func TestBalances(t *testing.T) {
 	assert.NoError(t, err, "createBalances() failed")
 
 	defer func() {
-		err = to.stor.stateDB.close()
-		assert.NoError(t, err, "failed to close DB")
+		to.stor.close(t)
+
 		err = util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -255,15 +255,8 @@ func TestBalances(t *testing.T) {
 		if err := to.balances.setWavesBalance(addr, &tc.profile, tc.blockID); err != nil {
 			t.Fatalf("Faied to set waves balance:%v\n", err)
 		}
-		profile, err := to.balances.newestWavesBalance(addr, true)
-		if err != nil {
-			t.Fatalf("Failed to retrieve waves balance: %v\n", err)
-		}
-		if *profile != tc.profile {
-			t.Errorf("Waves balance profiles are not equal: %v and %v\n", profile, tc.profile)
-		}
 		to.stor.flush(t)
-		profile, err = to.balances.wavesBalance(addr, true)
+		profile, err := to.balances.wavesBalance(addr, true)
 		if err != nil {
 			t.Fatalf("Failed to retrieve waves balance: %v\n", err)
 		}
@@ -288,15 +281,8 @@ func TestBalances(t *testing.T) {
 		if err := to.balances.setAssetBalance(addr, tc.assetID, tc.balance, tc.blockID); err != nil {
 			t.Fatalf("Faied to set asset balance: %v\n", err)
 		}
-		balance, err := to.balances.newestAssetBalance(addr, tc.assetID, true)
-		if err != nil {
-			t.Fatalf("Failed to retrieve asset balance: %v\n", err)
-		}
-		if balance != tc.balance {
-			t.Errorf("Asset balances are not equal: %d and %d\n", balance, tc.balance)
-		}
 		to.stor.flush(t)
-		balance, err = to.balances.assetBalance(addr, tc.assetID, true)
+		balance, err := to.balances.assetBalance(addr, tc.assetID, true)
 		if err != nil {
 			t.Fatalf("Failed to retrieve asset balance: %v\n", err)
 		}

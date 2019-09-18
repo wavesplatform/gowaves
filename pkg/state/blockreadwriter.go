@@ -13,6 +13,60 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
+type txInfo struct {
+	pos    int
+	height uint64
+}
+
+type recentTransactions struct {
+	id2Pos map[string]txInfo
+	txs    [][]byte
+}
+
+func newRecentTransactions() *recentTransactions {
+	return &recentTransactions{id2Pos: make(map[string]txInfo)}
+}
+
+func (r *recentTransactions) appendTx(txId, tx []byte, height uint64) error {
+	r.id2Pos[string(txId)] = txInfo{len(r.txs), height}
+	r.txs = append(r.txs, tx)
+	return nil
+}
+
+func (r *recentTransactions) txById(txId []byte) ([]byte, error) {
+	info, ok := r.id2Pos[string(txId)]
+	if !ok {
+		return nil, errNotFound
+	}
+	if info.pos < 0 || info.pos >= len(r.txs) {
+		return nil, errors.New("invalid pos")
+	}
+	return r.txs[info.pos], nil
+}
+
+func (r *recentTransactions) heightByTxId(txId []byte) (uint64, error) {
+	info, ok := r.id2Pos[string(txId)]
+	if !ok {
+		return 0, errNotFound
+	}
+	return info.height, nil
+}
+
+func (r *recentTransactions) writeToBuffer(buf *bufio.Writer) error {
+	for _, tx := range r.txs {
+		if _, err := buf.Write(tx); err != nil {
+			return err
+		}
+	}
+	r.reset()
+	return nil
+}
+
+func (r *recentTransactions) reset() {
+	r.id2Pos = make(map[string]txInfo)
+	r.txs = nil
+}
+
 type blockReadWriter struct {
 	db      keyvalue.KeyValue
 	dbBatch keyvalue.Batch
@@ -28,10 +82,13 @@ type blockReadWriter struct {
 	headersBuf        *bufio.Writer
 	blockHeight2IDBuf *bufio.Writer
 
-	blockInfo map[blockOffsetKey][]byte
+	// Storages for recent data that is not in persistent storage yet.
+	rtx            *recentTransactions
+	height2IDCache map[uint64]crypto.Signature
+	blockInfo      map[blockOffsetKey][]byte
 
 	blockBounds  []byte
-	txBounds     []byte
+	txStarts     []byte
 	headerBounds []byte
 	heightBuf    []byte
 
@@ -41,6 +98,8 @@ type blockReadWriter struct {
 
 	offsetLen, headerOffsetLen int
 	height                     uint64
+
+	addingBlock bool
 
 	mtx sync.RWMutex
 }
@@ -116,8 +175,10 @@ func newBlockReadWriter(
 		blockchainBuf:     bufio.NewWriter(blockchain),
 		headersBuf:        bufio.NewWriter(headers),
 		blockHeight2IDBuf: bufio.NewWriter(blockHeight2ID),
+		rtx:               newRecentTransactions(),
+		height2IDCache:    make(map[uint64]crypto.Signature),
 		blockInfo:         make(map[blockOffsetKey][]byte),
-		txBounds:          make([]byte, offsetLen*2),
+		txStarts:          make([]byte, offsetLen),
 		headerBounds:      make([]byte, headerOffsetLen*2),
 		blockBounds:       make([]byte, offsetLen*2),
 		heightBuf:         make([]byte, 8),
@@ -165,18 +226,25 @@ func (rw *blockReadWriter) syncFiles() error {
 }
 
 func (rw *blockReadWriter) startBlock(blockID crypto.Signature) error {
+	rw.mtx.Lock()
+	defer rw.mtx.Unlock()
+	rw.addingBlock = true
 	if _, err := rw.blockHeight2IDBuf.Write(blockID[:]); err != nil {
 		return err
 	}
+	rw.height2IDCache[rw.height+1] = blockID
 	binary.LittleEndian.PutUint64(rw.blockBounds[:rw.offsetLen], rw.blockchainLen)
 	binary.LittleEndian.PutUint64(rw.headerBounds[:rw.headerOffsetLen], rw.headersLen)
 	return nil
 }
 
 func (rw *blockReadWriter) finishBlock(blockID crypto.Signature) error {
+	rw.mtx.Lock()
+	defer rw.mtx.Unlock()
+	rw.addingBlock = false
 	binary.LittleEndian.PutUint64(rw.blockBounds[rw.offsetLen:], rw.blockchainLen)
 	binary.LittleEndian.PutUint64(rw.headerBounds[rw.headerOffsetLen:], rw.headersLen)
-	binary.LittleEndian.PutUint64(rw.heightBuf, rw.height)
+	binary.LittleEndian.PutUint64(rw.heightBuf, rw.height+1)
 	val := append(rw.blockBounds, rw.headerBounds...)
 	val = append(val, rw.heightBuf...)
 	key := blockOffsetKey{blockID: blockID}
@@ -186,23 +254,32 @@ func (rw *blockReadWriter) finishBlock(blockID crypto.Signature) error {
 }
 
 func (rw *blockReadWriter) writeTransaction(txID []byte, tx []byte) error {
+	rw.mtx.Lock()
+	defer rw.mtx.Unlock()
+	// Append tx size at the beginning.
 	txSize := uint32(len(tx))
 	txSizeBytes := make([]byte, 4)
 	binary.BigEndian.PutUint32(txSizeBytes, txSize)
 	txBytesTotal := make([]byte, 4+txSize)
 	copy(txBytesTotal[:4], txSizeBytes)
 	copy(txBytesTotal[4:], tx)
-	if _, err := rw.blockchainBuf.Write(txBytesTotal); err != nil {
+	// Save tx to local storage.
+	if err := rw.rtx.appendTx(txID, txBytesTotal, rw.height+1); err != nil {
 		return err
 	}
-	binary.LittleEndian.PutUint64(rw.txBounds[:rw.offsetLen], rw.blockchainLen)
+	// Write tx start pos to DB batch.
+	binary.LittleEndian.PutUint64(rw.txStarts[:rw.offsetLen], rw.blockchainLen)
 	rw.blockchainLen += uint64(len(txBytesTotal))
 	if rw.blockchainLen > rw.offsetEnd {
 		return errors.Errorf("offsetLen is not enough for this offset: %d > %d", rw.blockchainLen, rw.offsetEnd)
 	}
-	binary.LittleEndian.PutUint64(rw.txBounds[rw.offsetLen:], rw.blockchainLen)
 	key := txOffsetKey{txID: txID}
-	rw.dbBatch.Put(key.bytes(), rw.txBounds)
+	rw.dbBatch.Put(key.bytes(), rw.txStarts)
+	// Write tx height by ID.
+	heightKey := txHeightKey{txID: txID}
+	heightBytes := make([]byte, 8)
+	binary.LittleEndian.PutUint64(heightBytes, rw.height+1)
+	rw.dbBatch.Put(heightKey.bytes(), heightBytes)
 	return nil
 }
 
@@ -215,6 +292,16 @@ func (rw *blockReadWriter) writeBlockHeader(blockID crypto.Signature, header []b
 		return errors.Errorf("offsetLen is not enough for this offset: %d > %d", rw.headersLen, rw.offsetEnd)
 	}
 	return nil
+}
+
+func (rw *blockReadWriter) newestBlockIDByHeight(height uint64) (crypto.Signature, error) {
+	rw.mtx.RLock()
+	defer rw.mtx.RUnlock()
+	// For blockReadWriter, heights start from 0.
+	if id, ok := rw.height2IDCache[height]; ok {
+		return id, nil
+	}
+	return rw.blockIDByHeight(height)
 }
 
 func (rw *blockReadWriter) blockIDByHeight(height uint64) (crypto.Signature, error) {
@@ -239,7 +326,7 @@ func (rw *blockReadWriter) heightFromBlockInfo(blockInfo []byte) (uint64, error)
 		return 0, errors.New("invalid data size")
 	}
 	height := binary.LittleEndian.Uint64(blockInfo[len(blockInfo)-8:])
-	return height + 1, nil
+	return height, nil
 }
 
 func (rw *blockReadWriter) newestHeightByBlockID(blockID crypto.Signature) (uint64, error) {
@@ -260,8 +347,15 @@ func (rw *blockReadWriter) heightByBlockID(blockID crypto.Signature) (uint64, er
 	return rw.heightFromBlockInfo(blockInfo)
 }
 
+func (rw *blockReadWriter) addingBlockHeight() uint64 {
+	if rw.addingBlock {
+		return rw.height + 1
+	}
+	return rw.height
+}
+
 func (rw *blockReadWriter) recentHeight() uint64 {
-	return rw.height + 1
+	return rw.height
 }
 
 func (rw *blockReadWriter) currentHeight() (uint64, error) {
@@ -272,22 +366,81 @@ func (rw *blockReadWriter) currentHeight() (uint64, error) {
 	return height, nil
 }
 
+func (rw *blockReadWriter) newestTransactionHeightByID(txID []byte) (uint64, error) {
+	rw.mtx.RLock()
+	defer rw.mtx.RUnlock()
+	height, err := rw.rtx.heightByTxId(txID)
+	if err == nil {
+		return height, nil
+	}
+	return rw.transactionHeightByID(txID)
+}
+
+func (rw *blockReadWriter) transactionHeightByID(txID []byte) (uint64, error) {
+	rw.mtx.RLock()
+	defer rw.mtx.RUnlock()
+	key := txHeightKey{txID: txID}
+	heightBytes, err := rw.db.Get(key.bytes())
+	if err != nil {
+		return 0, err
+	}
+	return binary.LittleEndian.Uint64(heightBytes), nil
+}
+
+func (rw *blockReadWriter) readTransactionSize(txID []byte) (uint32, error) {
+	key := txOffsetKey{txID: txID}
+	txStarts, err := rw.db.Get(key.bytes())
+	if err != nil {
+		return 0, err
+	}
+	txStart := binary.LittleEndian.Uint64(txStarts[:rw.offsetLen])
+	sizeBytes := make([]byte, 4)
+	n, err := rw.blockchain.ReadAt(sizeBytes, int64(txStart))
+	if err != nil {
+		return 0, err
+	} else if n != 4 {
+		return 0, errors.New("ReadAt did not read 4 bytes")
+	}
+	return binary.BigEndian.Uint32(sizeBytes), nil
+}
+
+func (rw *blockReadWriter) readNewestTransaction(txID []byte) ([]byte, error) {
+	rw.mtx.RLock()
+	defer rw.mtx.RUnlock()
+	tx, err := rw.rtx.txById(txID)
+	if err != nil {
+		return rw.readTransaction(txID)
+	}
+	if len(tx) < 4 {
+		return nil, errors.New("invalid tx size")
+	}
+	return tx[4:], nil
+}
+
 func (rw *blockReadWriter) readTransaction(txID []byte) ([]byte, error) {
 	rw.mtx.RLock()
 	defer rw.mtx.RUnlock()
-	key := txOffsetKey{txID: txID}
-	txBounds, err := rw.db.Get(key.bytes())
+	txSize, err := rw.readTransactionSize(txID)
 	if err != nil {
 		return nil, err
 	}
-	txStart := binary.LittleEndian.Uint64(txBounds[:rw.offsetLen])
-	txEnd := binary.LittleEndian.Uint64(txBounds[rw.offsetLen:])
-	txBytes := make([]byte, txEnd-txStart)
-	n, err := rw.blockchain.ReadAt(txBytes, int64(txStart))
+	key := txOffsetKey{txID: txID}
+	txStarts, err := rw.db.Get(key.bytes())
+	if err != nil {
+		return nil, err
+	}
+	txStart := binary.LittleEndian.Uint64(txStarts[:rw.offsetLen])
+	// First 4 bytes are tx size, actual tx starts at `txStart + 4`.
+	txRealStart := txStart + 4
+	txBytes := make([]byte, txSize)
+	n, err := rw.blockchain.ReadAt(txBytes, int64(txRealStart))
 	if err != nil {
 		return nil, err
 	} else if n != len(txBytes) {
 		return nil, errors.New("ReadAt did not read the whole tx")
+	}
+	if len(txBytes) < 4 {
+		return nil, errors.New("Tx size is less than 4")
 	}
 	return txBytes, nil
 }
@@ -447,7 +600,7 @@ func (rw *blockReadWriter) rollback(removalEdge crypto.Signature, cleanIDs bool)
 	if err != nil {
 		return err
 	}
-	newHeight := binary.LittleEndian.Uint64(blockInfo[len(blockInfo)-8:]) + 1
+	newHeight := binary.LittleEndian.Uint64(blockInfo[len(blockInfo)-8:])
 	// Set new height first of all.
 	oldHeight, err := rw.getHeight()
 	if err != nil {
@@ -504,10 +657,17 @@ func (rw *blockReadWriter) rollback(removalEdge crypto.Signature, cleanIDs bool)
 
 func (rw *blockReadWriter) reset() {
 	rw.blockchainBuf.Reset(rw.blockchain)
+	rw.headersBuf.Reset(rw.headers)
+	rw.blockHeight2IDBuf.Reset(rw.blockHeight2ID)
 	rw.blockInfo = make(map[blockOffsetKey][]byte)
+	rw.height2IDCache = make(map[uint64]crypto.Signature)
+	rw.rtx.reset()
 }
 
 func (rw *blockReadWriter) flush() error {
+	if err := rw.rtx.writeToBuffer(rw.blockchainBuf); err != nil {
+		return err
+	}
 	if err := rw.blockchainBuf.Flush(); err != nil {
 		return err
 	}

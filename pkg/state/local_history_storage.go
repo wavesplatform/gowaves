@@ -9,14 +9,12 @@ import (
 
 var errNotFound = errors.New("not found")
 
-type keyValueEntry struct {
+type history struct {
 	key   []byte
-	value []byte
-	// Specifies what type of blockchain entity is stored in this entry.
-	entityType blockchainEntity
+	value *historyRecord
 }
 
-type byKey []keyValueEntry
+type byKey []history
 
 func (k byKey) Len() int {
 	return len(k)
@@ -30,22 +28,22 @@ func (k byKey) Less(i, j int) bool {
 	return bytes.Compare(k[i].key, k[j].key) == -1
 }
 
-func sortEntries(entries []keyValueEntry) {
+func sortEntries(entries []history) {
 	sort.Sort(byKey(entries))
 }
 
-type localStorage struct {
-	entries []keyValueEntry
+type localHistoryStorage struct {
+	entries []history
 	index   map[string]int
 }
 
-func newLocalStorage() (*localStorage, error) {
-	return &localStorage{index: make(map[string]int)}, nil
+func newLocalHistoryStorage() (*localHistoryStorage, error) {
+	return &localHistoryStorage{index: make(map[string]int)}, nil
 }
 
-func (l *localStorage) set(entityType blockchainEntity, key, value []byte) error {
+func (l *localHistoryStorage) set(key []byte, value *historyRecord) error {
 	index, ok := l.index[string(key)]
-	entry := keyValueEntry{key, value, entityType}
+	entry := history{key, value}
 	if !ok {
 		l.index[string(key)] = len(l.entries)
 		l.entries = append(l.entries, entry)
@@ -55,7 +53,7 @@ func (l *localStorage) set(entityType blockchainEntity, key, value []byte) error
 	return nil
 }
 
-func (l *localStorage) get(key []byte) ([]byte, error) {
+func (l *localHistoryStorage) get(key []byte) (*historyRecord, error) {
 	index, ok := l.index[string(key)]
 	if !ok {
 		return nil, errNotFound
@@ -66,11 +64,11 @@ func (l *localStorage) get(key []byte) ([]byte, error) {
 	return l.entries[index].value, nil
 }
 
-func (l *localStorage) getEntries() []keyValueEntry {
+func (l *localHistoryStorage) getEntries() []history {
 	return l.entries
 }
 
-func (l *localStorage) reset() {
+func (l *localHistoryStorage) reset() {
 	l.entries = nil
 	l.index = make(map[string]int)
 }

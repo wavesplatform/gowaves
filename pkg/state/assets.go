@@ -1,7 +1,6 @@
 package state
 
 import (
-	"encoding/binary"
 	"math/big"
 
 	"github.com/pkg/errors"
@@ -13,7 +12,7 @@ import (
 const (
 	// maxQuantityLen is maximum length of quantity (it's represented as big.Int) bytes in asset history records.
 	maxQuantityLen  = 16
-	assetRecordSize = maxQuantityLen + 1 + 4
+	assetRecordSize = maxQuantityLen + 1
 )
 
 type assetInfo struct {
@@ -86,7 +85,6 @@ func (r *assetChangeableInfo) equal(r1 *assetChangeableInfo) bool {
 
 type assetHistoryRecord struct {
 	assetChangeableInfo
-	blockNum uint32
 }
 
 func (r *assetHistoryRecord) marshalBinary() ([]byte, error) {
@@ -98,7 +96,6 @@ func (r *assetHistoryRecord) marshalBinary() ([]byte, error) {
 	res := make([]byte, assetRecordSize)
 	copy(res[maxQuantityLen-l:maxQuantityLen], quantityBytes)
 	proto.PutBool(res[maxQuantityLen:maxQuantityLen+1], r.reissuable)
-	binary.BigEndian.PutUint32(res[maxQuantityLen+1:], r.blockNum)
 	return res, nil
 }
 
@@ -112,37 +109,34 @@ func (r *assetHistoryRecord) unmarshalBinary(data []byte) error {
 	if err != nil {
 		return err
 	}
-	r.blockNum = binary.BigEndian.Uint32(data[maxQuantityLen+1:])
 	return nil
 }
 
 type assets struct {
 	db      keyvalue.KeyValue
 	dbBatch keyvalue.Batch
-	stateDB *stateDB
 	hs      *historyStorage
 
 	freshConstInfo map[crypto.Digest]assetConstInfo
 }
 
-func newAssets(db keyvalue.KeyValue, dbBatch keyvalue.Batch, stateDB *stateDB, hs *historyStorage) (*assets, error) {
+func newAssets(db keyvalue.KeyValue, dbBatch keyvalue.Batch, hs *historyStorage) (*assets, error) {
 	return &assets{
 		db:             db,
 		dbBatch:        dbBatch,
 		hs:             hs,
-		stateDB:        stateDB,
 		freshConstInfo: make(map[crypto.Digest]assetConstInfo),
 	}, nil
 }
 
-func (a *assets) addNewRecord(assetID crypto.Digest, record *assetHistoryRecord) error {
+func (a *assets) addNewRecord(assetID crypto.Digest, record *assetHistoryRecord, blockID crypto.Signature) error {
 	recordBytes, err := record.marshalBinary()
 	if err != nil {
 		return errors.Errorf("failed to marshal record: %v\n", err)
 	}
 	// Add new record to history.
 	histKey := assetHistKey{assetID: assetID}
-	return a.hs.set(asset, histKey.bytes(), recordBytes)
+	return a.hs.addNewEntry(asset, histKey.bytes(), recordBytes, blockID)
 }
 
 func (a *assets) issueAsset(assetID crypto.Digest, asset *assetInfo, blockID crypto.Signature) error {
@@ -153,41 +147,31 @@ func (a *assets) issueAsset(assetID crypto.Digest, asset *assetInfo, blockID cry
 	constKey := assetConstKey{assetID}
 	a.dbBatch.Put(constKey.bytes(), assetConstBytes)
 	a.freshConstInfo[assetID] = asset.assetConstInfo
-	blockNum, err := a.stateDB.blockIdToNum(blockID)
-	if err != nil {
-		return err
-	}
-	r := &assetHistoryRecord{asset.assetChangeableInfo, blockNum}
-	return a.addNewRecord(assetID, r)
+	r := &assetHistoryRecord{asset.assetChangeableInfo}
+	return a.addNewRecord(assetID, r, blockID)
 }
 
 type assetReissueChange struct {
 	reissuable bool
 	diff       int64
-	blockID    crypto.Signature
 }
 
-func (a *assets) reissueAsset(assetID crypto.Digest, ch *assetReissueChange, filter bool) error {
+func (a *assets) reissueAsset(assetID crypto.Digest, ch *assetReissueChange, blockID crypto.Signature, filter bool) error {
 	info, err := a.newestChangeableInfo(assetID, filter)
 	if err != nil {
 		return errors.Errorf("failed to get asset info: %v\n", err)
 	}
 	newValue := info.quantity.Int64() + ch.diff
 	info.quantity.SetInt64(newValue)
-	blockNum, err := a.stateDB.blockIdToNum(ch.blockID)
-	if err != nil {
-		return err
-	}
-	record := &assetHistoryRecord{assetChangeableInfo: assetChangeableInfo{info.quantity, ch.reissuable}, blockNum: blockNum}
-	return a.addNewRecord(assetID, record)
+	record := &assetHistoryRecord{assetChangeableInfo: assetChangeableInfo{info.quantity, ch.reissuable}}
+	return a.addNewRecord(assetID, record, blockID)
 }
 
 type assetBurnChange struct {
-	diff    int64
-	blockID crypto.Signature
+	diff int64
 }
 
-func (a *assets) burnAsset(assetID crypto.Digest, ch *assetBurnChange, filter bool) error {
+func (a *assets) burnAsset(assetID crypto.Digest, ch *assetBurnChange, blockID crypto.Signature, filter bool) error {
 	info, err := a.newestChangeableInfo(assetID, filter)
 	if err != nil {
 		return errors.Errorf("failed to get asset info: %v\n", err)
@@ -197,12 +181,8 @@ func (a *assets) burnAsset(assetID crypto.Digest, ch *assetBurnChange, filter bo
 		return errors.New("trying to burn more assets than exist at all")
 	}
 	info.quantity.Sub(&info.quantity, quantityDiff)
-	blockNum, err := a.stateDB.blockIdToNum(ch.blockID)
-	if err != nil {
-		return err
-	}
-	record := &assetHistoryRecord{assetChangeableInfo: assetChangeableInfo{info.quantity, info.reissuable}, blockNum: blockNum}
-	return a.addNewRecord(assetID, record)
+	record := &assetHistoryRecord{assetChangeableInfo: assetChangeableInfo{info.quantity, info.reissuable}}
+	return a.addNewRecord(assetID, record, blockID)
 }
 
 func (a *assets) constInfo(assetID crypto.Digest) (*assetConstInfo, error) {
@@ -228,7 +208,7 @@ func (a *assets) newestConstInfo(assetID crypto.Digest) (*assetConstInfo, error)
 
 func (a *assets) newestChangeableInfo(assetID crypto.Digest, filter bool) (*assetChangeableInfo, error) {
 	histKey := assetHistKey{assetID: assetID}
-	recordBytes, err := a.hs.getFresh(asset, histKey.bytes(), filter)
+	recordBytes, err := a.hs.freshLatestEntryData(histKey.bytes(), filter)
 	if err != nil {
 		return nil, err
 	}
@@ -261,7 +241,7 @@ func (a *assets) assetInfo(assetID crypto.Digest, filter bool) (*assetInfo, erro
 		return nil, err
 	}
 	histKey := assetHistKey{assetID: assetID}
-	recordBytes, err := a.hs.get(asset, histKey.bytes(), filter)
+	recordBytes, err := a.hs.latestEntryData(histKey.bytes(), filter)
 	if err != nil {
 		return nil, err
 	}

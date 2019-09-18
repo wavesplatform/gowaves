@@ -150,6 +150,13 @@ func (k *KeyVal) NewBatch() (Batch, error) {
 	return &batch{filter: k.filter, mu: &sync.Mutex{}}, nil
 }
 
+func (k *KeyVal) addToCache(key, val []byte) {
+	if err := k.cache.Set(key, val, 0); err != nil {
+		// If we can not set the value for some reason, at least make sure the old one is gone.
+		k.cache.Del(key)
+	}
+}
+
 func (k *KeyVal) Get(key []byte) ([]byte, error) {
 	if val, err := k.cache.Get(key); err == nil {
 		return val, nil
@@ -167,6 +174,7 @@ func (k *KeyVal) Get(key []byte) ([]byte, error) {
 	if err == leveldb.ErrNotFound {
 		return nil, ErrNotFound
 	}
+	k.addToCache(key, val)
 	return val, err
 }
 
@@ -198,10 +206,7 @@ func (k *KeyVal) Put(key, val []byte) error {
 	if err := k.filter.add(key); err != nil {
 		return err
 	}
-	if err := k.cache.Set(key, val, 0); err != nil {
-		// If we can not set the value for some reason, at least make sure the old one is gone.
-		k.cache.Del(key)
-	}
+	k.addToCache(key, val)
 	return nil
 }
 

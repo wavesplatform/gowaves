@@ -27,7 +27,7 @@ var FeaturesInfo = map[Feature]FeatureInfo{
 	SmallerMinimalGeneratingBalance: {true, "Minimum Generating Balance of 1000 WAVES"},
 	NG:                              {true, "NG Protocol"},
 	MassTransfer:                    {true, "Mass Transfer Transaction"},
-	SmartAccounts:                   {false, "Smart Accounts"},
+	SmartAccounts:                   {true, "Smart Accounts"},
 	DataTransaction:                 {true, "Data Transaction"},
 	BurnAnyTokens:                   {true, "Burn Any Tokens"},
 	FeeSponsorship:                  {true, "Fee Sponsorship"},

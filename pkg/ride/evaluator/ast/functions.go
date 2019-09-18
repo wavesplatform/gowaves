@@ -20,7 +20,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"github.com/wavesplatform/gowaves/pkg/state"
 )
 
 const (
@@ -333,7 +332,7 @@ func NativeSigVerify(s Scope, e Exprs) (Expr, error) {
 	}
 	signature, err := crypto.NewSignatureFromBytes(signatureExpr.Value)
 	if err != nil {
-		return nil, errors.Wrap(err, funcName)
+		return NewBoolean(false), nil
 	}
 	out := crypto.Verify(pk, signature, bytesExpr.Value)
 	return NewBoolean(out), nil
@@ -414,9 +413,9 @@ func NativeTransactionHeightByID(s Scope, e Exprs) (Expr, error) {
 	if !ok {
 		return nil, errors.Errorf("%s: expected first argument to be *BytesExpr, got %T", funcName, rs)
 	}
-	height, err := s.State().TransactionHeightByID(bts.Value)
+	height, err := s.State().NewestTransactionHeightByID(bts.Value)
 	if err != nil {
-		if state.IsNotFound(err) {
+		if s.State().IsNotFound(err) {
 			return Unit{}, nil
 		}
 		return nil, errors.Wrap(err, funcName)
@@ -438,9 +437,9 @@ func NativeTransactionByID(s Scope, e Exprs) (Expr, error) {
 	if !ok {
 		return nil, errors.Errorf("%s: expected first argument to be *BytesExpr, got %T", funcName, rs)
 	}
-	tx, err := s.State().TransactionByID(bts.Value)
+	tx, err := s.State().NewestTransactionByID(bts.Value)
 	if err != nil {
-		if state.IsNotFound(err) {
+		if s.State().IsNotFound(err) {
 			return NewUnit(), nil
 		}
 		return nil, errors.Wrap(err, funcName)
@@ -466,9 +465,9 @@ func NativeTransferTransactionByID(s Scope, e Exprs) (Expr, error) {
 	if !ok {
 		return nil, errors.Errorf("%s: expected first argument to be *BytesExpr, got %T", funcName, rs)
 	}
-	tx, err := s.State().TransactionByID(bts.Value)
+	tx, err := s.State().NewestTransactionByID(bts.Value)
 	if err != nil {
-		if state.IsNotFound(err) {
+		if s.State().IsNotFound(err) {
 			return NewUnit(), nil
 		}
 		return nil, errors.Wrap(err, funcName)
@@ -1176,7 +1175,7 @@ func NativeAssetInfo(s Scope, e Exprs) (Expr, error) {
 	if !ok {
 		return nil, errors.Errorf("%s expected first argument to be *BytesExpr, found %T", funcName, first)
 	}
-	tx, err := s.State().TransactionByID(id.Value)
+	tx, err := s.State().NewestTransactionByID(id.Value)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
