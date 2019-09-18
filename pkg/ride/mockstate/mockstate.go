@@ -5,7 +5,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"github.com/wavesplatform/gowaves/pkg/state"
 )
 
 type State struct {
@@ -82,18 +81,18 @@ func (a State) RetrieveNewestBinaryEntry(account proto.Recipient, key string) (*
 	return bv, nil
 }
 
-func (a State) TransactionByID(b []byte) (proto.Transaction, error) {
+func (a State) NewestTransactionByID(b []byte) (proto.Transaction, error) {
 	t, ok := a.TransactionsByID[base58.Encode(b)]
 	if !ok {
-		return nil, state.NewNotFoundError(errors.New("not found"))
+		return nil, proto.ErrNotFound
 	}
 	return t, nil
 }
 
-func (a State) TransactionHeightByID(b []byte) (uint64, error) {
+func (a State) NewestTransactionHeightByID(b []byte) (uint64, error) {
 	h, ok := a.TransactionsHeightByID[base58.Encode(b)]
 	if !ok {
-		return 0, state.NewNotFoundError(errors.New("not found"))
+		return 0, proto.ErrNotFound
 	}
 	return h, nil
 }
@@ -102,10 +101,18 @@ func (a State) NewestHeight() (uint64, error) {
 	return a.NewestHeightVal, nil
 }
 
+func (a State) AddingBlockHeight() (uint64, error) {
+	return 0, nil
+}
+
 func (a State) NewestAssetIsSponsored(assetID crypto.Digest) (bool, error) {
 	return a.AssetIsSponsored, nil
 }
 
 func (a State) HeaderByHeight(height proto.Height) (*proto.BlockHeader, error) {
 	return a.BlockHeaderByHeight, nil
+}
+
+func (a State) IsNotFound(err error) bool {
+	return err == proto.ErrNotFound
 }

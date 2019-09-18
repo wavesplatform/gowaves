@@ -117,9 +117,7 @@ func roundingMode(e Expr) (decimal.RoundingMode, error) {
 	case "HalfUp":
 		return decimal.ToNearestAway, nil
 	case "HalfDown":
-		// TODO: Enable this branch after PR https://github.com/ericlagergren/decimal/pull/136 is accepted. Before that this using this rounding mode will panic.
-		// TODO: return decimal.ToNearestToZero, nil
-		panic("not implemented rounding mode")
+		return decimal.ToNearestTowardZero, nil
 	default:
 		return 0, errors.Errorf("unsupported rounding mode %s", e.InstanceOf())
 	}

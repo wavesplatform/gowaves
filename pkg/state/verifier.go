@@ -32,11 +32,15 @@ type verifyTask struct {
 	block      *proto.Block
 	blockBytes []byte
 	tx         proto.Transaction
+	checkTxSig bool
 }
 
-func checkTx(tx proto.Transaction) error {
+func checkTx(tx proto.Transaction, checkSig bool) error {
 	if ok, err := tx.Valid(); !ok {
 		return errors.Wrap(err, "invalid tx data")
+	}
+	if !checkSig {
+		return nil
 	}
 	switch t := tx.(type) {
 	case *proto.Genesis:
@@ -150,7 +154,7 @@ func handleTask(task *verifyTask) error {
 			return errors.New("invalid block signature")
 		}
 	case verifyTx:
-		if err := checkTx(task.tx); err != nil {
+		if err := checkTx(task.tx, task.checkTxSig); err != nil {
 			return err
 		}
 	}

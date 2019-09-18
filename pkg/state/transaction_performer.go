@@ -76,9 +76,8 @@ func (tp *transactionPerformer) performReissue(tx *proto.Reissue, info *performe
 	change := &assetReissueChange{
 		reissuable: tx.Reissuable,
 		diff:       int64(tx.Quantity),
-		blockID:    info.blockID,
 	}
-	if err := tp.stor.assets.reissueAsset(tx.AssetID, change, !info.initialisation); err != nil {
+	if err := tp.stor.assets.reissueAsset(tx.AssetID, change, info.blockID, !info.initialisation); err != nil {
 		return errors.Wrap(err, "failed to reissue asset")
 	}
 	return nil
@@ -103,10 +102,9 @@ func (tp *transactionPerformer) performReissueV2(transaction proto.Transaction, 
 func (tp *transactionPerformer) performBurn(tx *proto.Burn, info *performerInfo) error {
 	// Modify asset.
 	change := &assetBurnChange{
-		diff:    int64(tx.Amount),
-		blockID: info.blockID,
+		diff: int64(tx.Amount),
 	}
-	if err := tp.stor.assets.burnAsset(tx.AssetID, change, !info.initialisation); err != nil {
+	if err := tp.stor.assets.burnAsset(tx.AssetID, change, info.blockID, !info.initialisation); err != nil {
 		return errors.Wrap(err, "failed to burn asset")
 	}
 	return nil
@@ -245,6 +243,21 @@ func (tp *transactionPerformer) performSponsorshipV1(transaction proto.Transacti
 	}
 	if err := tp.stor.sponsoredAssets.sponsorAsset(tx.AssetID, tx.MinAssetFee, info.blockID); err != nil {
 		return errors.Wrap(err, "failed to sponsor asset")
+	}
+	return nil
+}
+
+func (tp *transactionPerformer) performSetScriptV1(transaction proto.Transaction, info *performerInfo) error {
+	tx, ok := transaction.(*proto.SetScriptV1)
+	if !ok {
+		return errors.New("failed to convert interface to SetScriptV1 transaction")
+	}
+	senderAddr, err := proto.NewAddressFromPublicKey(tp.settings.AddressSchemeCharacter, tx.SenderPK)
+	if err != nil {
+		return err
+	}
+	if err := tp.stor.accountsScripts.setScript(senderAddr, tx.Script, info.blockID); err != nil {
+		return errors.Wrap(err, "failed to set account script")
 	}
 	return nil
 }

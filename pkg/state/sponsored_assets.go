@@ -10,19 +10,17 @@ import (
 )
 
 const (
-	sponsorshipRecordSize = 8 + 4
+	sponsorshipRecordSize = 8
 )
 
 type sponsorshipRecord struct {
 	// Cost in assets equal to FeeUnit Waves.
 	assetCost uint64
-	blockNum  uint32
 }
 
 func (s *sponsorshipRecord) marshalBinary() ([]byte, error) {
 	res := make([]byte, sponsorshipRecordSize)
 	binary.BigEndian.PutUint64(res[:8], s.assetCost)
-	binary.BigEndian.PutUint32(res[8:12], s.blockNum)
 	return res, nil
 }
 
@@ -31,14 +29,12 @@ func (s *sponsorshipRecord) unmarshalBinary(data []byte) error {
 		return errors.New("invalid data size")
 	}
 	s.assetCost = binary.BigEndian.Uint64(data[:8])
-	s.blockNum = binary.BigEndian.Uint32(data[8:12])
 	return nil
 }
 
 type sponsoredAssets struct {
 	rw       *blockReadWriter
 	features *features
-	stateDB  *stateDB
 	hs       *historyStorage
 	settings *settings.BlockchainSettings
 }
@@ -46,25 +42,20 @@ type sponsoredAssets struct {
 func newSponsoredAssets(
 	rw *blockReadWriter,
 	features *features,
-	stateDB *stateDB,
 	hs *historyStorage,
 	settings *settings.BlockchainSettings,
 ) (*sponsoredAssets, error) {
-	return &sponsoredAssets{rw, features, stateDB, hs, settings}, nil
+	return &sponsoredAssets{rw, features, hs, settings}, nil
 }
 
 func (s *sponsoredAssets) sponsorAsset(assetID crypto.Digest, assetCost uint64, blockID crypto.Signature) error {
 	key := sponsorshipKey{assetID}
-	blockNum, err := s.stateDB.blockIdToNum(blockID)
-	if err != nil {
-		return err
-	}
-	record := &sponsorshipRecord{assetCost, blockNum}
+	record := &sponsorshipRecord{assetCost}
 	recordBytes, err := record.marshalBinary()
 	if err != nil {
 		return err
 	}
-	if err := s.hs.set(sponsorship, key.bytes(), recordBytes); err != nil {
+	if err := s.hs.addNewEntry(sponsorship, key.bytes(), recordBytes, blockID); err != nil {
 		return err
 	}
 	return nil
@@ -72,7 +63,7 @@ func (s *sponsoredAssets) sponsorAsset(assetID crypto.Digest, assetCost uint64, 
 
 func (s *sponsoredAssets) newestIsSponsored(assetID crypto.Digest, filter bool) (bool, error) {
 	key := sponsorshipKey{assetID}
-	if _, err := s.hs.getFresh(sponsorship, key.bytes(), filter); err != nil {
+	if _, err := s.hs.freshLatestEntryData(key.bytes(), filter); err != nil {
 		// No sponsorship info for this asset at all.
 		return false, nil
 	}
@@ -89,7 +80,7 @@ func (s *sponsoredAssets) newestIsSponsored(assetID crypto.Digest, filter bool) 
 
 func (s *sponsoredAssets) isSponsored(assetID crypto.Digest, filter bool) (bool, error) {
 	key := sponsorshipKey{assetID}
-	if _, err := s.hs.get(sponsorship, key.bytes(), filter); err != nil {
+	if _, err := s.hs.latestEntryData(key.bytes(), filter); err != nil {
 		// No sponsorship info for this asset at all.
 		return false, nil
 	}
@@ -106,7 +97,7 @@ func (s *sponsoredAssets) isSponsored(assetID crypto.Digest, filter bool) (bool,
 
 func (s *sponsoredAssets) newestAssetCost(assetID crypto.Digest, filter bool) (uint64, error) {
 	key := sponsorshipKey{assetID}
-	recordBytes, err := s.hs.getFresh(sponsorship, key.bytes(), filter)
+	recordBytes, err := s.hs.freshLatestEntryData(key.bytes(), filter)
 	if err != nil {
 		return 0, err
 	}
@@ -119,7 +110,7 @@ func (s *sponsoredAssets) newestAssetCost(assetID crypto.Digest, filter bool) (u
 
 func (s *sponsoredAssets) assetCost(assetID crypto.Digest, filter bool) (uint64, error) {
 	key := sponsorshipKey{assetID}
-	recordBytes, err := s.hs.get(sponsorship, key.bytes(), filter)
+	recordBytes, err := s.hs.latestEntryData(key.bytes(), filter)
 	if err != nil {
 		return 0, err
 	}

@@ -15,6 +15,9 @@ import (
 // occurring during applying block. This state corresponds to the latest validated transaction,
 // and for now is only needed for Ride and Consensus modules, which are both called during the validation.
 type StateNewest interface {
+	AddingBlockHeight() (proto.Height, error)
+	NewestHeight() (proto.Height, error)
+
 	// Effective balance by account in given height range.
 	// WARNING: this function takes into account newest blocks (which are currently being added)
 	// and works correctly for height ranges exceeding current Height() if there are such blocks.
@@ -32,6 +35,10 @@ type StateNewest interface {
 	RetrieveNewestBooleanEntry(account proto.Recipient, key string) (*proto.BooleanDataEntry, error)
 	RetrieveNewestStringEntry(account proto.Recipient, key string) (*proto.StringDataEntry, error)
 	RetrieveNewestBinaryEntry(account proto.Recipient, key string) (*proto.BinaryDataEntry, error)
+
+	// Transactions.
+	NewestTransactionByID(id []byte) (proto.Transaction, error)
+	NewestTransactionHeightByID(id []byte) (uint64, error)
 
 	// Asset fee sponsorship.
 	NewestAssetIsSponsored(assetID crypto.Digest) (bool, error)
@@ -88,6 +95,10 @@ type StateStable interface {
 	RetrieveStringEntry(account proto.Recipient, key string) (*proto.StringDataEntry, error)
 	RetrieveBinaryEntry(account proto.Recipient, key string) (*proto.BinaryDataEntry, error)
 
+	// Transactions.
+	TransactionByID(id []byte) (proto.Transaction, error)
+	TransactionHeightByID(id []byte) (uint64, error)
+
 	// Asset fee sponsorship.
 	AssetIsSponsored(assetID crypto.Digest) (bool, error)
 }
@@ -142,6 +153,8 @@ type State interface {
 	StateModifier
 	StateStable
 	StateNewest
+
+	IsNotFound(err error) bool
 }
 
 // NewState() creates State.

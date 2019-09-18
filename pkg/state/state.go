@@ -9,12 +9,15 @@ import (
 	"path/filepath"
 	"sync"
 
+	"github.com/mr-tron/base58/base58"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/consensus"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/ride/evaluator/evaluate"
 	"github.com/wavesplatform/gowaves/pkg/settings"
+	"github.com/wavesplatform/gowaves/pkg/types"
 	"github.com/wavesplatform/gowaves/pkg/util/lock"
 )
 
@@ -22,6 +25,8 @@ const (
 	rollbackMaxBlocks = 2000
 	blocksStorDir     = "blocks_storage"
 	keyvalueDir       = "key_value"
+
+	maxScriptsRunsInBlock = 100
 )
 
 var empty struct{}
@@ -35,10 +40,6 @@ func wrapErr(stateErrorType ErrorType, err error) error {
 	}
 }
 
-func NewNotFoundError(err error) error {
-	return wrapErr(NotFoundError, err)
-}
-
 type blockchainEntitiesStorage struct {
 	hs               *historyStorage
 	aliases          *aliases
@@ -50,18 +51,19 @@ type blockchainEntitiesStorage struct {
 	features         *features
 	accountsDataStor *accountsDataStorage
 	sponsoredAssets  *sponsoredAssets
+	accountsScripts  *accountsScripts
 }
 
-func newBlockchainEntitiesStorage(hs *historyStorage, stateDB *stateDB, sets *settings.BlockchainSettings) (*blockchainEntitiesStorage, error) {
-	aliases, err := newAliases(hs.db, hs.dbBatch, stateDB, hs)
+func newBlockchainEntitiesStorage(hs *historyStorage, sets *settings.BlockchainSettings, rw *blockReadWriter) (*blockchainEntitiesStorage, error) {
+	aliases, err := newAliases(hs.db, hs.dbBatch, hs)
 	if err != nil {
 		return nil, err
 	}
-	assets, err := newAssets(hs.db, hs.dbBatch, stateDB, hs)
+	assets, err := newAssets(hs.db, hs.dbBatch, hs)
 	if err != nil {
 		return nil, err
 	}
-	leases, err := newLeases(hs.db, stateDB, hs)
+	leases, err := newLeases(hs.db, hs)
 	if err != nil {
 		return nil, err
 	}
@@ -73,23 +75,27 @@ func newBlockchainEntitiesStorage(hs *historyStorage, stateDB *stateDB, sets *se
 	if err != nil {
 		return nil, err
 	}
-	balances, err := newBalances(hs.db, stateDB, hs)
+	balances, err := newBalances(hs.db, hs)
 	if err != nil {
 		return nil, err
 	}
-	features, err := newFeatures(hs.db, hs.dbBatch, hs, stateDB, sets, settings.FeaturesInfo)
+	features, err := newFeatures(hs.db, hs.dbBatch, hs, sets, settings.FeaturesInfo)
 	if err != nil {
 		return nil, err
 	}
-	accountsDataStor, err := newAccountsDataStorage(hs.db, hs.dbBatch, hs.rw, stateDB)
+	accountsDataStor, err := newAccountsDataStorage(hs.db, hs.dbBatch, hs)
 	if err != nil {
 		return nil, err
 	}
-	sponsoredAssets, err := newSponsoredAssets(hs.rw, features, stateDB, hs, sets)
+	sponsoredAssets, err := newSponsoredAssets(rw, features, hs, sets)
 	if err != nil {
 		return nil, err
 	}
-	return &blockchainEntitiesStorage{hs, aliases, assets, leases, scores, blocksInfo, balances, features, accountsDataStor, sponsoredAssets}, nil
+	accountsScripts, err := newAccountsScripts(hs.db, hs.dbBatch, hs)
+	if err != nil {
+		return nil, err
+	}
+	return &blockchainEntitiesStorage{hs, aliases, assets, leases, scores, blocksInfo, balances, features, accountsDataStor, sponsoredAssets, accountsScripts}, nil
 }
 
 func (s *blockchainEntitiesStorage) reset() {
@@ -109,30 +115,32 @@ func (s *blockchainEntitiesStorage) flush(initialisation bool) error {
 }
 
 type txAppender struct {
-	// rw is needed to check for duplicate tx IDs.
+	state types.SmartState
+
 	rw *blockReadWriter
 
+	stor     *blockchainEntitiesStorage
 	settings *settings.BlockchainSettings
 
 	// TransactionHandler is handler for any operations on transactions.
 	txHandler *transactionHandler
 	// Block differ is used to create diffs from blocks.
 	blockDiffer *blockDiffer
-	// Storage for diffs of transactions coming in added blocks.
-	diffStorAppendedBlocks *diffStorage
-	// Ids of all transactions whose diffs are currently in diffStorAppendedBlocks.
+	// Storage for diffs of incoming transactions (from added blocks or UTX).
+	diffStor *diffStorage
+	// Ids of all transactions whose diffs are currently in diffStor.
 	// This is needed to check that transaction ids are unique.
-	appendedBlocksTxIds map[string]struct{}
-	// Storage for diffs of transactions coming for validation without blocks.
-	diffStorNoBlocks *diffStorage
-	// Ids of all transactions whose diffs are currently in diffStorNoBlocks.
-	// This is needed to check that transaction ids are unique.
-	noBlocksTxIds map[string]struct{}
+	recentTxIds map[string]struct{}
 	// diffApplier is used to both validate and apply balance diffs.
 	diffApplier *diffApplier
 }
 
-func newTxAppender(rw *blockReadWriter, stor *blockchainEntitiesStorage, settings *settings.BlockchainSettings) (*txAppender, error) {
+func newTxAppender(
+	state types.SmartState,
+	rw *blockReadWriter,
+	stor *blockchainEntitiesStorage,
+	settings *settings.BlockchainSettings,
+) (*txAppender, error) {
 	genesis, err := settings.GenesisGetter.Get()
 	if err != nil {
 		return nil, err
@@ -145,11 +153,7 @@ func newTxAppender(rw *blockReadWriter, stor *blockchainEntitiesStorage, setting
 	if err != nil {
 		return nil, err
 	}
-	diffStorAppendedBlocks, err := newDiffStorage()
-	if err != nil {
-		return nil, err
-	}
-	diffStorNoBlocks, err := newDiffStorage()
+	diffStor, err := newDiffStorage()
 	if err != nil {
 		return nil, err
 	}
@@ -158,15 +162,15 @@ func newTxAppender(rw *blockReadWriter, stor *blockchainEntitiesStorage, setting
 		return nil, err
 	}
 	return &txAppender{
-		rw:                     rw,
-		settings:               settings,
-		txHandler:              txHandler,
-		blockDiffer:            blockDiffer,
-		appendedBlocksTxIds:    make(map[string]struct{}),
-		diffStorAppendedBlocks: diffStorAppendedBlocks,
-		noBlocksTxIds:          make(map[string]struct{}),
-		diffStorNoBlocks:       diffStorNoBlocks,
-		diffApplier:            diffApplier,
+		state:       state,
+		rw:          rw,
+		stor:        stor,
+		settings:    settings,
+		txHandler:   txHandler,
+		blockDiffer: blockDiffer,
+		recentTxIds: make(map[string]struct{}),
+		diffStor:    diffStor,
+		diffApplier: diffApplier,
 	}, nil
 }
 
@@ -202,21 +206,124 @@ func (a *txAppender) checkDuplicateTxIds(tx proto.Transaction, recentIds map[str
 
 type appendBlockParams struct {
 	transactions   []proto.Transaction
+	chans          *verifierChans
 	block, parent  *proto.BlockHeader
 	height         uint64
 	initialisation bool
 }
 
+func (a *txAppender) callVerifyScript(tx proto.Transaction, initialisation bool) error {
+	senderAddr, err := proto.NewAddressFromPublicKey(a.settings.AddressSchemeCharacter, tx.GetSenderPK())
+	if err != nil {
+		return err
+	}
+	script, err := a.stor.accountsScripts.newestScriptByAddr(senderAddr, !initialisation)
+	if err != nil {
+		return errors.Errorf("failed to retrieve account script: %v\n", err)
+	}
+	ok, err := evaluate.Verify(a.settings.AddressSchemeCharacter, a.state, &script, tx)
+	if err != nil {
+		return errors.Errorf("verifier script failed: %v\n", err)
+	}
+	if !ok {
+		id, _ := tx.GetID()
+		return errors.Errorf("verifier script does not allow to send transaction %s from smart account %s", base58.Encode(id), senderAddr.String())
+	}
+	return nil
+}
+
+func (a *txAppender) hasVerifyScript(tx proto.Transaction, initialisation bool) (bool, error) {
+	senderAddr, err := proto.NewAddressFromPublicKey(a.settings.AddressSchemeCharacter, tx.GetSenderPK())
+	if err != nil {
+		return false, err
+	}
+	return a.stor.accountsScripts.newestHasVerifier(senderAddr, !initialisation)
+}
+
+func (a *txAppender) checkTxAgainstState(tx proto.Transaction, scripted bool, checkerInfo *checkerInfo) error {
+	if scripted {
+		// Check script.
+		if err := a.callVerifyScript(tx, checkerInfo.initialisation); err != nil {
+			return err
+		}
+	}
+	// Check against state.
+	if err := a.txHandler.checkTx(tx, checkerInfo); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (a *txAppender) checkScriptsRunsNum(scriptsRuns int) error {
+	smartAccountsActivated, err := a.stor.features.isActivated(int16(settings.SmartAccounts))
+	if err != nil {
+		return err
+	}
+	ride4DAppsActivated, err := a.stor.features.isActivated(int16(settings.Ride4DApps))
+	if err != nil {
+		return err
+	}
+	if ride4DAppsActivated {
+		// TODO: check total complexity of all scripts in block here.
+		return nil
+	} else if smartAccountsActivated {
+		if scriptsRuns > maxScriptsRunsInBlock {
+			return errors.Errorf("more sctips runs in block than allowed: %d > %d", scriptsRuns, maxScriptsRunsInBlock)
+		}
+	}
+	return nil
+}
+
 func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	hasParent := (params.parent != nil)
+	// Create miner balance diff.
+	// This adds 60% of prev block fees as very first balance diff of the current block
+	// in case NG is activated, or empty diff otherwise.
+	minerDiff, err := a.blockDiffer.createMinerDiff(params.block, hasParent)
+	if err != nil {
+		return err
+	}
+	// Save miner diff first.
+	if err := a.diffStor.saveTxDiff(minerDiff); err != nil {
+		return err
+	}
+	scriptsRuns := 0
 	for _, tx := range params.transactions {
+		senderAddr, err := proto.NewAddressFromPublicKey(a.settings.AddressSchemeCharacter, tx.GetSenderPK())
+		if err != nil {
+			return err
+		}
+		hasVerifierScript, err := a.stor.accountsScripts.newestHasVerifier(senderAddr, !params.initialisation)
+		if err != nil {
+			return err
+		}
+		checkTxSig := true
+		if hasVerifierScript {
+			scriptsRuns++
+			// For transaction with SmartAccount we don't check signatures.
+			checkTxSig = false
+		}
+		// Send transaction for signature/data verification.
+		task := &verifyTask{
+			taskType:   verifyTx,
+			tx:         tx,
+			checkTxSig: checkTxSig,
+		}
+		select {
+		case verifyError := <-params.chans.errChan:
+			return verifyError
+		case params.chans.tasksChan <- task:
+		}
 		checkerInfo := &checkerInfo{
 			initialisation:   params.initialisation,
 			currentTimestamp: params.block.Timestamp,
 			blockID:          params.block.BlockSignature,
 			height:           params.height,
 		}
-		if err := a.checkDuplicateTxIds(tx, a.appendedBlocksTxIds, params.block.Timestamp); err != nil {
+		if hasParent {
+			checkerInfo.parentTimestamp = params.parent.Timestamp
+		}
+		if err := a.checkDuplicateTxIds(tx, a.recentTxIds, params.block.Timestamp); err != nil {
 			return err
 		}
 		// Add transaction ID.
@@ -224,31 +331,57 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 		if err != nil {
 			return err
 		}
-		a.appendedBlocksTxIds[string(txID)] = empty
-		if hasParent {
-			checkerInfo.parentTimestamp = params.parent.Timestamp
-		}
-		if err := a.txHandler.checkTx(tx, checkerInfo); err != nil {
+		a.recentTxIds[string(txID)] = empty
+		// Check against state.
+		if err := a.checkTxAgainstState(tx, hasVerifierScript, checkerInfo); err != nil {
 			return err
 		}
-		if err := a.txHandler.performTx(tx, &performerInfo{params.initialisation, params.block.BlockSignature}); err != nil {
+		// Create balance diff of this tx.
+		txDiff, err := a.blockDiffer.createTransactionDiff(tx, params.block, params.initialisation)
+		if err != nil {
+			return err
+		}
+		// Save balance diff of this tx.
+		if err := a.diffStor.saveTxDiff(txDiff); err != nil {
+			return err
+		}
+		// Count current tx fee.
+		if err := a.blockDiffer.countMinerFee(tx); err != nil {
+			return err
+		}
+		// Perform state changes.
+		performerInfo := &performerInfo{
+			initialisation: params.initialisation,
+			blockID:        params.block.BlockSignature,
+		}
+		if err := a.txHandler.performTx(tx, performerInfo); err != nil {
+			return err
+		}
+		// Save transaction bytes to storage.
+		// TODO: not all transactions implement WriteTo.
+		bts, err := tx.MarshalBinary()
+		if err != nil {
+			return err
+		}
+		if err := a.rw.writeTransaction(txID, bts); err != nil {
 			return err
 		}
 	}
-	blockDiff, err := a.blockDiffer.createBlockDiff(params.transactions, params.block, params.initialisation, hasParent)
-	if err != nil {
+	if err := a.checkScriptsRunsNum(scriptsRuns); err != nil {
 		return err
 	}
-	if err := a.diffStorAppendedBlocks.saveBlockDiff(blockDiff); err != nil {
+	// Save fee distribution of this block.
+	// This will be needed for createMinerDiff() of next block due to NG.
+	if err := a.blockDiffer.saveCurFeeDistr(params.block); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (a *txAppender) applyAllDiffs(initialisation bool) error {
-	changes := a.diffStorAppendedBlocks.allChanges()
-	a.appendedBlocksTxIds = make(map[string]struct{})
-	a.diffStorAppendedBlocks.reset()
+	changes := a.diffStor.allChanges()
+	a.recentTxIds = make(map[string]struct{})
+	a.diffStor.reset()
 	if err := a.diffApplier.applyBalancesChanges(changes, !initialisation); err != nil {
 		return err
 	}
@@ -260,15 +393,20 @@ func (a *txAppender) validateSingleTx(tx proto.Transaction, currentTimestamp, pa
 	if err := a.checkDuplicateTxIds(tx, dummy, currentTimestamp); err != nil {
 		return err
 	}
+	scripted, err := a.hasVerifyScript(tx, false)
+	if err != nil {
+		return err
+	}
 	// Check tx signature and data.
-	if err := checkTx(tx); err != nil {
+	if err := checkTx(tx, !scripted); err != nil {
 		return err
 	}
 	// Check tx data against state.
 	checkerInfo := &checkerInfo{initialisation: false, currentTimestamp: currentTimestamp, parentTimestamp: parentTimestamp}
-	if err := a.txHandler.checkTx(tx, checkerInfo); err != nil {
+	if err := a.checkTxAgainstState(tx, scripted, checkerInfo); err != nil {
 		return err
 	}
+	// Create and validate balance diff.
 	diff, err := a.txHandler.createDiffTx(tx, &differInfo{initialisation: false, blockTime: currentTimestamp})
 	if err != nil {
 		return err
@@ -280,12 +418,12 @@ func (a *txAppender) validateSingleTx(tx proto.Transaction, currentTimestamp, pa
 }
 
 func (a *txAppender) resetValidationList() {
-	a.noBlocksTxIds = make(map[string]struct{})
-	a.diffStorNoBlocks.reset()
+	a.recentTxIds = make(map[string]struct{})
+	a.diffStor.reset()
 }
 
 func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64) error {
-	if err := a.checkDuplicateTxIds(tx, a.noBlocksTxIds, currentTimestamp); err != nil {
+	if err := a.checkDuplicateTxIds(tx, a.recentTxIds, currentTimestamp); err != nil {
 		return err
 	}
 	// Add transaction ID.
@@ -293,36 +431,41 @@ func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, pare
 	if err != nil {
 		return err
 	}
-	a.noBlocksTxIds[string(txID)] = empty
+	a.recentTxIds[string(txID)] = empty
+	scripted, err := a.hasVerifyScript(tx, false)
+	if err != nil {
+		return err
+	}
 	// Check tx signature and data.
-	if err := checkTx(tx); err != nil {
+	if err := checkTx(tx, !scripted); err != nil {
 		return err
 	}
 	// Check tx data against state.
 	checkerInfo := &checkerInfo{initialisation: false, currentTimestamp: currentTimestamp, parentTimestamp: parentTimestamp}
-	if err := a.txHandler.checkTx(tx, checkerInfo); err != nil {
+	if err := a.checkTxAgainstState(tx, scripted, checkerInfo); err != nil {
 		return err
 	}
+	// Create, validate and save balance diff.
 	diff, err := a.txHandler.createDiffTx(tx, &differInfo{initialisation: false, blockTime: currentTimestamp})
 	if err != nil {
 		return err
 	}
-	changes, err := a.diffStorNoBlocks.changesByTxDiff(diff)
+	changes, err := a.diffStor.changesByTxDiff(diff)
 	if err != nil {
 		return err
 	}
 	if err := a.diffApplier.validateBalancesChanges(changes, true); err != nil {
 		return err
 	}
-	if err := a.diffStorNoBlocks.saveBalanceChanges(changes); err != nil {
+	if err := a.diffStor.saveBalanceChanges(changes); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (a *txAppender) reset() {
-	a.appendedBlocksTxIds = make(map[string]struct{})
-	a.diffStorAppendedBlocks.reset()
+	a.recentTxIds = make(map[string]struct{})
+	a.diffStor.reset()
 	a.blockDiffer.reset()
 }
 
@@ -354,14 +497,6 @@ type stateManager struct {
 	lastVotingHeight uint64
 }
 
-func (s *stateManager) Mutex() *lock.RwMutex {
-	return lock.NewRwMutex(s.mu)
-}
-
-func (s *stateManager) Peers() ([]proto.TCPAddr, error) {
-	return s.peers.peers()
-}
-
 func newStateManager(dataDir string, params StateParams, settings *settings.BlockchainSettings) (*stateManager, error) {
 	blockStorageDir := filepath.Join(dataDir, blocksStorDir)
 	if _, err := os.Stat(blockStorageDir); os.IsNotExist(err) {
@@ -381,29 +516,25 @@ func newStateManager(dataDir string, params StateParams, settings *settings.Bloc
 	if err != nil {
 		return nil, wrapErr(Other, errors.Errorf("failed to create db batch: %v\n", err))
 	}
-	stateDB, err := newStateDB(db, dbBatch)
-	if err != nil {
-		return nil, wrapErr(Other, errors.Errorf("failed to create stateDB: %v\n", err))
-	}
 	// rw is storage for blocks.
 	rw, err := newBlockReadWriter(blockStorageDir, params.OffsetLen, params.HeaderOffsetLen, db, dbBatch)
 	if err != nil {
 		return nil, wrapErr(Other, errors.Errorf("failed to create block storage: %v\n", err))
 	}
-	if err := stateDB.syncRw(rw); err != nil {
+	stateDB, err := newStateDB(db, dbBatch, rw)
+	if err != nil {
+		return nil, wrapErr(Other, errors.Errorf("failed to create stateDB: %v\n", err))
+	}
+	if err := stateDB.syncRw(); err != nil {
 		return nil, wrapErr(Other, errors.Errorf("failed to sync block storage and DB: %v\n", err))
 	}
-	hs, err := newHistoryStorage(db, dbBatch, rw, stateDB)
+	hs, err := newHistoryStorage(db, dbBatch, stateDB)
 	if err != nil {
 		return nil, wrapErr(Other, errors.Errorf("failed to create history storage: %v\n", err))
 	}
-	stor, err := newBlockchainEntitiesStorage(hs, stateDB, settings)
+	stor, err := newBlockchainEntitiesStorage(hs, settings, rw)
 	if err != nil {
 		return nil, wrapErr(Other, errors.Errorf("failed to create blockchain entities storage: %v\n", err))
-	}
-	appender, err := newTxAppender(rw, stor, settings)
-	if err != nil {
-		return nil, wrapErr(Other, err)
 	}
 	state := &stateManager{
 		stateDB:                   stateDB,
@@ -411,12 +542,16 @@ func newStateManager(dataDir string, params StateParams, settings *settings.Bloc
 		rw:                        rw,
 		settings:                  settings,
 		peers:                     newPeerStorage(db),
-		appender:                  appender,
 		verificationGoroutinesNum: params.VerificationGoroutinesNum,
 		mu:                        &sync.RWMutex{},
 	}
 	// Set fields which depend on state.
 	// Consensus validator is needed to check block headers.
+	appender, err := newTxAppender(state, rw, stor, settings)
+	if err != nil {
+		return nil, wrapErr(Other, err)
+	}
+	state.appender = appender
 	cv, err := consensus.NewConsensusValidator(state)
 	if err != nil {
 		return nil, wrapErr(Other, err)
@@ -427,6 +562,14 @@ func newStateManager(dataDir string, params StateParams, settings *settings.Bloc
 		return nil, wrapErr(Other, err)
 	}
 	return state, nil
+}
+
+func (s *stateManager) Mutex() *lock.RwMutex {
+	return lock.NewRwMutex(s.mu)
+}
+
+func (s *stateManager) Peers() ([]proto.TCPAddr, error) {
+	return s.peers.peers()
 }
 
 func (s *stateManager) setGenesisBlock(genesisBlock *proto.Block) error {
@@ -467,19 +610,14 @@ func (s *stateManager) addGenesisBlock() error {
 	return nil
 }
 
-func (s *stateManager) applyPreactivatedFeatures(features []int16) error {
-	genesisID := s.genesis.BlockSignature
-	genesisBlockNum, err := s.stateDB.blockIdToNum(genesisID)
-	if err != nil {
-		return err
-	}
+func (s *stateManager) applyPreactivatedFeatures(features []int16, blockID crypto.Signature) error {
 	for _, featureID := range features {
-		approvalRequest := &approvedFeaturesRecord{1, genesisBlockNum}
-		if err := s.stor.features.approveFeature(featureID, approvalRequest); err != nil {
+		approvalRequest := &approvedFeaturesRecord{1}
+		if err := s.stor.features.approveFeature(featureID, approvalRequest, blockID); err != nil {
 			return err
 		}
-		activationRequest := &activatedFeaturesRecord{1, genesisBlockNum}
-		if err := s.stor.features.activateFeature(featureID, activationRequest); err != nil {
+		activationRequest := &activatedFeaturesRecord{1}
+		if err := s.stor.features.activateFeature(featureID, activationRequest, blockID); err != nil {
 			return err
 		}
 	}
@@ -512,7 +650,7 @@ func (s *stateManager) handleGenesisBlock(g settings.GenesisGetter) error {
 		if err := s.stateDB.addBlock(block.BlockSignature); err != nil {
 			return err
 		}
-		if err := s.applyPreactivatedFeatures(s.settings.PreactivatedFeatures); err != nil {
+		if err := s.applyPreactivatedFeatures(s.settings.PreactivatedFeatures, block.BlockSignature); err != nil {
 			return errors.Errorf("failed to apply preactivated features: %v\n", err)
 		}
 		if err := s.addGenesisBlock(); err != nil {
@@ -526,7 +664,7 @@ func (s *stateManager) Header(blockID crypto.Signature) (*proto.BlockHeader, err
 	headerBytes, err := s.rw.readBlockHeader(blockID)
 	if err != nil {
 		if err == keyvalue.ErrNotFound {
-			return nil, NewNotFoundError(err)
+			return nil, wrapErr(NotFoundError, err)
 		}
 		return nil, wrapErr(RetrievalError, err)
 	}
@@ -607,6 +745,14 @@ func (s *stateManager) BlockBytesByHeight(height uint64) ([]byte, error) {
 	return s.BlockBytes(blockID)
 }
 
+func (s *stateManager) AddingBlockHeight() (uint64, error) {
+	return s.rw.addingBlockHeight(), nil
+}
+
+func (s *stateManager) NewestHeight() (uint64, error) {
+	return s.rw.recentHeight(), nil
+}
+
 func (s *stateManager) Height() (uint64, error) {
 	height, err := s.rw.currentHeight()
 	if err != nil {
@@ -638,19 +784,65 @@ func (s *stateManager) HeightToBlockID(height uint64) (crypto.Signature, error) 
 	return blockID, nil
 }
 
+func (s *stateManager) newestAssetBalance(addr proto.Address, asset []byte) (uint64, error) {
+	// Retrieve old balance.
+	balance, err := s.stor.balances.assetBalance(addr, asset, true)
+	if err != nil {
+		return 0, err
+	}
+	// Retrieve latest balance diff as for the moment of this function call.
+	key := assetBalanceKey{address: addr, asset: asset}
+	diff, err := s.appender.diffStor.latestDiffByKey(string(key.bytes()))
+	if err == errNotFound {
+		// If there is no diff, old balance is the newest.
+		return balance, nil
+	} else if err != nil {
+		// Something weird happened.
+		return 0, err
+	}
+	balance, err = diff.applyToAssetBalance(balance)
+	if err != nil {
+		return 0, errors.Errorf("given account has negative balance at this point: %v\n", err)
+	}
+	return balance, nil
+}
+
+func (s *stateManager) newestWavesBalance(addr proto.Address) (uint64, error) {
+	// Retrieve old balance.
+	profile, err := s.stor.balances.wavesBalance(addr, true)
+	if err != nil {
+		return 0, err
+	}
+	// Retrieve latest balance diff as for the moment of this function call.
+	key := wavesBalanceKey{address: addr}
+	diff, err := s.appender.diffStor.latestDiffByKey(string(key.bytes()))
+	if err == errNotFound {
+		// If there is no diff, old balance is the newest.
+		return profile.balance, nil
+	} else if err != nil {
+		// Something weird happened.
+		return 0, err
+	}
+	newProfile, err := diff.applyTo(profile)
+	if err != nil {
+		return 0, errors.Errorf("given account has negative balance at this point: %v\n", err)
+	}
+	return newProfile.balance, nil
+}
+
 func (s *stateManager) NewestAccountBalance(account proto.Recipient, asset []byte) (uint64, error) {
 	addr, err := s.newestRecipientToAddress(account)
 	if err != nil {
 		return 0, wrapErr(RetrievalError, err)
 	}
 	if asset == nil {
-		profile, err := s.stor.balances.newestWavesBalance(*addr, true)
+		balance, err := s.newestWavesBalance(*addr)
 		if err != nil {
 			return 0, wrapErr(RetrievalError, err)
 		}
-		return profile.balance, nil
+		return balance, nil
 	}
-	balance, err := s.stor.balances.newestAssetBalance(*addr, asset, true)
+	balance, err := s.newestAssetBalance(*addr, asset)
 	if err != nil {
 		return 0, wrapErr(RetrievalError, err)
 	}
@@ -731,44 +923,19 @@ func (s *stateManager) addNewBlock(block, parent *proto.Block, initialisation bo
 	if block.TransactionCount != transactions.Count() {
 		return errors.Errorf("block.TransactionCount != transactions.Count(), %d != %d", block.TransactionCount, transactions.Count())
 	}
-	for _, tx := range transactions {
-		// Send transaction for signature/data verification.
-		task := &verifyTask{
-			taskType: verifyTx,
-			tx:       tx,
-		}
-		select {
-		case verifyError := <-chans.errChan:
-			return verifyError
-		case chans.tasksChan <- task:
-		}
-		// Save transaction to storage.
-		txID, err := tx.GetID()
-		if err != nil {
-			return err
-		}
-
-		// TODO: not all transactions implement WriteTo.
-		bts, err := tx.MarshalBinary()
-		if err != nil {
-			return err
-		}
-		if err := s.rw.writeTransaction(txID, bts); err != nil {
-			return err
-		}
-	}
 	var parentHeader *proto.BlockHeader
 	if parent != nil {
 		parentHeader = &parent.BlockHeader
 	}
 	params := &appendBlockParams{
 		transactions:   transactions,
+		chans:          chans,
 		block:          &block.BlockHeader,
 		parent:         parentHeader,
 		height:         height,
 		initialisation: initialisation,
 	}
-	// Check and perform block's transactions, create balance diffs.
+	// Check and perform block's transactions, create balance diffs, write transactions to storage.
 	if err := s.appender.appendBlock(params); err != nil {
 		return err
 	}
@@ -808,13 +975,15 @@ func (s *stateManager) undoBlockAddition() error {
 	if err := s.reset(); err != nil {
 		return err
 	}
-	if err := s.stateDB.syncRw(s.rw); err != nil {
+	if err := s.stateDB.syncRw(); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (s *stateManager) AddBlock(block []byte) (*proto.Block, error) {
+	// Make sure appender doesn't store any diffs from previous validations (e.g. UTX).
+	s.appender.reset()
 	rs, err := s.addBlocks([][]byte{block}, false)
 	if err != nil {
 		if err := s.undoBlockAddition(); err != nil {
@@ -834,6 +1003,8 @@ func (s *stateManager) AddDeserializedBlock(block *proto.Block) (*proto.Block, e
 }
 
 func (s *stateManager) AddNewBlocks(blocks [][]byte) error {
+	// Make sure appender doesn't store any diffs from previous validations (e.g. UTX).
+	s.appender.reset()
 	if _, err := s.addBlocks(blocks, false); err != nil {
 		if err := s.undoBlockAddition(); err != nil {
 			panic("Failed to add blocks and can not rollback to previous state after failure.")
@@ -864,6 +1035,8 @@ func (s *stateManager) AddNewDeserializedBlocks(blocks []*proto.Block) error {
 }
 
 func (s *stateManager) AddOldBlocks(blocks [][]byte) error {
+	// Make sure appender doesn't store any diffs from previous validations (e.g. UTX).
+	s.appender.reset()
 	if _, err := s.addBlocks(blocks, true); err != nil {
 		if err := s.undoBlockAddition(); err != nil {
 			panic("Failed to add blocks and can not rollback to previous state after failure.")
@@ -941,6 +1114,8 @@ func (s *stateManager) needToCancelLeases(height uint64) (bool, error) {
 }
 
 type breakerTask struct {
+	// ID of latest block before performing task.
+	blockID crypto.Signature
 	// Indicates that the task to perform before calling addBlocks() is to cancel leases.
 	cancelLeases bool
 	// Indicates that the task to perfrom before calling addBlocks() is to reset stolen aliases.
@@ -973,16 +1148,12 @@ func (s *stateManager) needToBreakAddingBlocks(curHeight uint64, task *breakerTa
 	return false, nil
 }
 
-func (s *stateManager) finishVoting() error {
+func (s *stateManager) finishVoting(blockID crypto.Signature) error {
 	height, err := s.Height()
 	if err != nil {
 		return err
 	}
-	last, err := s.topBlock()
-	if err != nil {
-		return err
-	}
-	if err := s.stor.features.finishVoting(height, last.BlockSignature); err != nil {
+	if err := s.stor.features.finishVoting(height, blockID); err != nil {
 		return err
 	}
 	s.lastVotingHeight = height
@@ -995,7 +1166,7 @@ func (s *stateManager) finishVoting() error {
 	return nil
 }
 
-func (s *stateManager) cancelLeases() error {
+func (s *stateManager) cancelLeases(blockID crypto.Signature) error {
 	height, err := s.Height()
 	if err != nil {
 		return err
@@ -1012,19 +1183,19 @@ func (s *stateManager) cancelLeases() error {
 		}
 	}
 	if height == s.settings.ResetEffectiveBalanceAtHeight {
-		if err := s.stor.leases.cancelLeases(nil); err != nil {
+		if err := s.stor.leases.cancelLeases(nil, blockID); err != nil {
 			return err
 		}
-		if err := s.stor.balances.cancelAllLeases(); err != nil {
+		if err := s.stor.balances.cancelAllLeases(blockID); err != nil {
 			return err
 		}
 		s.leasesCl0 = true
 	} else if height == s.settings.BlockVersion3AfterHeight {
-		overflowAddrs, err := s.stor.balances.cancelLeaseOverflows()
+		overflowAddrs, err := s.stor.balances.cancelLeaseOverflows(blockID)
 		if err != nil {
 			return err
 		}
-		if err := s.stor.leases.cancelLeases(overflowAddrs); err != nil {
+		if err := s.stor.leases.cancelLeases(overflowAddrs, blockID); err != nil {
 			return err
 		}
 		s.leasesCl1 = true
@@ -1033,7 +1204,7 @@ func (s *stateManager) cancelLeases() error {
 		if err != nil {
 			return err
 		}
-		if err := s.stor.balances.cancelInvalidLeaseIns(leaseIns); err != nil {
+		if err := s.stor.balances.cancelInvalidLeaseIns(leaseIns, blockID); err != nil {
 			return err
 		}
 		s.leasesCl2 = true
@@ -1052,13 +1223,13 @@ func (s *stateManager) handleBreak(blocksToFinish [][]byte, initialisation bool,
 		return nil, wrapErr(Other, errors.New("handleBreak received empty task"))
 	}
 	if task.finishVotingPeriod {
-		if err := s.finishVoting(); err != nil {
+		if err := s.finishVoting(task.blockID); err != nil {
 			return nil, wrapErr(ModificationError, err)
 		}
 	}
 	if task.cancelLeases {
 		// Need to cancel leases due to bugs in historical blockchain.
-		if err := s.cancelLeases(); err != nil {
+		if err := s.cancelLeases(task.blockID); err != nil {
 			return nil, wrapErr(ModificationError, err)
 		}
 	}
@@ -1102,7 +1273,7 @@ func (s *stateManager) addBlocks(blocks [][]byte, initialisation bool) (*proto.B
 	// After performing the event, addBlocks() calls itself with the rest of the blocks batch.
 	// blocksToFinish stores these blocks, breakerInfo specifies type of the event.
 	var blocksToFinish [][]byte
-	breakerInfo := &breakerTask{}
+	breakerInfo := &breakerTask{blockID: parent.BlockSignature}
 
 	// Launch verifier that checks signatures of blocks and transactions.
 	chans := newVerifierChans()
@@ -1124,6 +1295,7 @@ func (s *stateManager) addBlocks(blocks [][]byte, initialisation bool) (*proto.B
 		if err := block.UnmarshalBinary(blockBytes); err != nil {
 			return nil, wrapErr(DeserializationError, err)
 		}
+		breakerInfo.blockID = block.BlockSignature
 		// Send block for signature verification, which works in separate goroutine.
 		task := &verifyTask{
 			taskType:   verifyBlock,
@@ -1142,7 +1314,7 @@ func (s *stateManager) addBlocks(blocks [][]byte, initialisation bool) (*proto.B
 		if err != nil {
 			return nil, wrapErr(Other, err)
 		}
-		if err := s.stor.scores.addScore(prevScore, score, s.rw.recentHeight()); err != nil {
+		if err := s.stor.scores.addScore(prevScore, score, curHeight+1); err != nil {
 			return nil, wrapErr(ModificationError, err)
 		}
 		prevScore = score
@@ -1258,12 +1430,16 @@ func (s *stateManager) rollbackToImpl(removalEdge crypto.Signature) error {
 	if err := s.stor.scores.rollback(newHeight, oldHeight); err != nil {
 		return wrapErr(RollbackError, err)
 	}
+	// Clear scripts cache.
+	if err := s.stor.accountsScripts.clear(); err != nil {
+		return wrapErr(RollbackError, err)
+	}
 	return nil
 }
 
 func (s *stateManager) RollbackTo(removalEdge crypto.Signature) error {
 	if err := s.rollbackToImpl(removalEdge); err != nil {
-		if err1 := s.stateDB.syncRw(s.rw); err1 != nil {
+		if err1 := s.stateDB.syncRw(); err1 != nil {
 			panic("Failed to rollback and can not sync state components after failure.")
 		}
 		return err
@@ -1402,7 +1578,7 @@ func (s *stateManager) RetrieveNewestEntry(account proto.Recipient, key string) 
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
-	entry, err := s.stor.accountsDataStor.retrieveNewestEntry(*addr, key)
+	entry, err := s.stor.accountsDataStor.retrieveNewestEntry(*addr, key, true)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
@@ -1414,7 +1590,7 @@ func (s *stateManager) RetrieveEntry(account proto.Recipient, key string) (proto
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
-	entry, err := s.stor.accountsDataStor.retrieveEntry(*addr, key)
+	entry, err := s.stor.accountsDataStor.retrieveEntry(*addr, key, true)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
@@ -1426,7 +1602,7 @@ func (s *stateManager) RetrieveNewestIntegerEntry(account proto.Recipient, key s
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
-	entry, err := s.stor.accountsDataStor.retrieveNewestIntegerEntry(*addr, key)
+	entry, err := s.stor.accountsDataStor.retrieveNewestIntegerEntry(*addr, key, true)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
@@ -1438,7 +1614,7 @@ func (s *stateManager) RetrieveIntegerEntry(account proto.Recipient, key string)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
-	entry, err := s.stor.accountsDataStor.retrieveIntegerEntry(*addr, key)
+	entry, err := s.stor.accountsDataStor.retrieveIntegerEntry(*addr, key, true)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
@@ -1450,7 +1626,7 @@ func (s *stateManager) RetrieveNewestBooleanEntry(account proto.Recipient, key s
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
-	entry, err := s.stor.accountsDataStor.retrieveNewestBooleanEntry(*addr, key)
+	entry, err := s.stor.accountsDataStor.retrieveNewestBooleanEntry(*addr, key, true)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
@@ -1462,7 +1638,7 @@ func (s *stateManager) RetrieveBooleanEntry(account proto.Recipient, key string)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
-	entry, err := s.stor.accountsDataStor.retrieveBooleanEntry(*addr, key)
+	entry, err := s.stor.accountsDataStor.retrieveBooleanEntry(*addr, key, true)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
@@ -1474,7 +1650,7 @@ func (s *stateManager) RetrieveNewestStringEntry(account proto.Recipient, key st
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
-	entry, err := s.stor.accountsDataStor.retrieveNewestStringEntry(*addr, key)
+	entry, err := s.stor.accountsDataStor.retrieveNewestStringEntry(*addr, key, true)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
@@ -1486,7 +1662,7 @@ func (s *stateManager) RetrieveStringEntry(account proto.Recipient, key string) 
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
-	entry, err := s.stor.accountsDataStor.retrieveStringEntry(*addr, key)
+	entry, err := s.stor.accountsDataStor.retrieveStringEntry(*addr, key, true)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
@@ -1498,7 +1674,7 @@ func (s *stateManager) RetrieveNewestBinaryEntry(account proto.Recipient, key st
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
-	entry, err := s.stor.accountsDataStor.retrieveNewestBinaryEntry(*addr, key)
+	entry, err := s.stor.accountsDataStor.retrieveNewestBinaryEntry(*addr, key, true)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
@@ -1510,11 +1686,51 @@ func (s *stateManager) RetrieveBinaryEntry(account proto.Recipient, key string) 
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
-	entry, err := s.stor.accountsDataStor.retrieveBinaryEntry(*addr, key)
+	entry, err := s.stor.accountsDataStor.retrieveBinaryEntry(*addr, key, true)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
 	return entry, nil
+}
+
+func (s *stateManager) NewestTransactionByID(id []byte) (proto.Transaction, error) {
+	txBytes, err := s.rw.readNewestTransaction(id)
+	if err != nil {
+		return nil, wrapErr(RetrievalError, err)
+	}
+	tx, err := proto.BytesToTransaction(txBytes)
+	if err != nil {
+		return nil, wrapErr(DeserializationError, err)
+	}
+	return tx, nil
+}
+
+func (s *stateManager) TransactionByID(id []byte) (proto.Transaction, error) {
+	txBytes, err := s.rw.readTransaction(id)
+	if err != nil {
+		return nil, wrapErr(RetrievalError, err)
+	}
+	tx, err := proto.BytesToTransaction(txBytes)
+	if err != nil {
+		return nil, wrapErr(DeserializationError, err)
+	}
+	return tx, nil
+}
+
+func (s *stateManager) NewestTransactionHeightByID(id []byte) (uint64, error) {
+	txHeight, err := s.rw.newestTransactionHeightByID(id)
+	if err != nil {
+		return 0, wrapErr(RetrievalError, err)
+	}
+	return txHeight, nil
+}
+
+func (s *stateManager) TransactionHeightByID(id []byte) (uint64, error) {
+	txHeight, err := s.rw.transactionHeightByID(id)
+	if err != nil {
+		return 0, wrapErr(RetrievalError, err)
+	}
+	return txHeight, nil
 }
 
 func (s *stateManager) NewestAssetIsSponsored(assetID crypto.Digest) (bool, error) {
@@ -1531,6 +1747,10 @@ func (s *stateManager) AssetIsSponsored(assetID crypto.Digest) (bool, error) {
 		return false, wrapErr(RetrievalError, err)
 	}
 	return sponsored, nil
+}
+
+func (s *stateManager) IsNotFound(err error) bool {
+	return IsNotFound(err)
 }
 
 func (s *stateManager) Close() error {

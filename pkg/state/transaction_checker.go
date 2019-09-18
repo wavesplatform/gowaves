@@ -7,7 +7,17 @@ import (
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/ride/evaluator/ast"
+	"github.com/wavesplatform/gowaves/pkg/ride/evaluator/estimation"
+	"github.com/wavesplatform/gowaves/pkg/ride/evaluator/reader"
 	"github.com/wavesplatform/gowaves/pkg/settings"
+)
+
+const (
+	KiB = 1024
+
+	maxVerifierScriptSize = 8 * KiB
+	//maxContractScriptSize = 32 * KiB
 )
 
 type checkerInfo struct {
@@ -32,6 +42,79 @@ func newTransactionChecker(
 	return &transactionChecker{genesis, stor, settings}, nil
 }
 
+func (tc *transactionChecker) scriptActivation(script ast.Script) error {
+	rideForDAppsActivated, err := tc.stor.features.isActivated(int16(settings.Ride4DApps))
+	if err != nil {
+		return err
+	}
+	if script.Version == 3 && !rideForDAppsActivated {
+		return errors.New("Ride4DApps feature must be activated for scripts version 3")
+	}
+	if script.HasBlockV2 && !rideForDAppsActivated {
+		return errors.New("Ride4DApps feature must be activated for scripts that have block version 2")
+	}
+	return nil
+}
+
+func (tc *transactionChecker) checkScriptComplexity(script ast.Script, complexity int64) error {
+	var maxComplexity int64
+	switch script.Version {
+	case 1, 2:
+		maxComplexity = 2000
+	case 3, 4:
+		maxComplexity = 4000
+	}
+	if complexity > maxComplexity {
+		return errors.Errorf(
+			"script complexity %d exceeds maximum allowed complexity of %d\n",
+			complexity,
+			maxComplexity,
+		)
+	}
+	return nil
+}
+
+func (tc *transactionChecker) estimatorByScript(script ast.Script) *estimation.EstimatorV1 {
+	var variables map[string]ast.Expr
+	var cat *estimation.Catalogue
+	switch script.Version {
+	case 1, 2:
+		variables = ast.VariablesV2()
+		cat = estimation.NewCatalogueV2()
+	case 3:
+		variables = ast.VariablesV3()
+		cat = estimation.NewCatalogueV3()
+	}
+	return estimation.NewEstimatorV1(cat, variables)
+}
+
+func (tc *transactionChecker) checkScript(scriptBytes proto.Script) error {
+	if len(scriptBytes) == 0 {
+		// Empty script is always valid.
+		return nil
+	}
+	// TODO: use RIDE package to check script size depending on whether it's dApp or simple Verifier.
+	if len(scriptBytes) > maxVerifierScriptSize {
+		return errors.Errorf("script size %d is greater than limit of %d\n", len(scriptBytes), maxVerifierScriptSize)
+	}
+	script, err := ast.BuildAst(reader.NewBytesReader(scriptBytes))
+	if err != nil {
+		return errors.Wrap(err, "failed to build ast from script bytes")
+	}
+	if err := tc.scriptActivation(script); err != nil {
+		return errors.Wrap(err, "script activation check failed")
+	}
+	estimator := tc.estimatorByScript(script)
+	complexity, err := estimator.Estimate(script)
+	if err != nil {
+		return errors.Wrap(err, "failed to estimate script complexity")
+	}
+	if err := tc.checkScriptComplexity(script, complexity); err != nil {
+		return errors.Errorf("checkScriptComplexity(): %v\n", err)
+	}
+	return nil
+}
+
 func (tc *transactionChecker) checkFee(tx proto.Transaction, feeAsset proto.OptionalAsset, info *checkerInfo) error {
 	sponsorshipActivated, err := tc.stor.sponsoredAssets.isSponsorshipActivated()
 	if err != nil {
@@ -41,11 +124,12 @@ func (tc *transactionChecker) checkFee(tx proto.Transaction, feeAsset proto.Opti
 		// Sponsorship is not yet activated.
 		return nil
 	}
+	params := &feeValidationParams{stor: tc.stor, settings: tc.settings, initialisation: info.initialisation}
 	if !feeAsset.Present {
 		// Waves.
-		return checkMinFeeWaves(tx)
+		return checkMinFeeWaves(tx, params)
 	}
-	return checkMinFeeAsset(tc.stor.sponsoredAssets, tx, feeAsset.ID)
+	return checkMinFeeAsset(tx, feeAsset.ID, params)
 }
 
 func (tc *transactionChecker) checkFromFuture(timestamp uint64) bool {
@@ -161,6 +245,13 @@ func (tc *transactionChecker) checkTransferV2(transaction proto.Transaction, inf
 	if err := tc.checkFee(transaction, tx.FeeAsset, info); err != nil {
 		return errors.Errorf("checkFee(): %v", err)
 	}
+	activated, err := tc.stor.features.isActivated(int16(settings.SmartAccounts))
+	if err != nil {
+		return err
+	}
+	if !activated {
+		return errors.New("SmartAccounts feature has not been activated yet")
+	}
 	return tc.checkTransfer(&tx.Transfer, info)
 }
 
@@ -189,6 +280,9 @@ func (tc *transactionChecker) checkIssueV2(transaction proto.Transaction, info *
 	}
 	if err := tc.checkFee(transaction, proto.OptionalAsset{Present: false}, info); err != nil {
 		return errors.Errorf("checkFee(): %v", err)
+	}
+	if err := tc.checkScript(tx.Script); err != nil {
+		return errors.Errorf("checkScript(): %v\n", err)
 	}
 	return tc.checkIssue(&tx.Issue, info)
 }
@@ -241,6 +335,13 @@ func (tc *transactionChecker) checkReissueV2(transaction proto.Transaction, info
 	if err := tc.checkFee(transaction, proto.OptionalAsset{Present: false}, info); err != nil {
 		return errors.Errorf("checkFee(): %v", err)
 	}
+	activated, err := tc.stor.features.isActivated(int16(settings.SmartAccounts))
+	if err != nil {
+		return err
+	}
+	if !activated {
+		return errors.New("SmartAccounts feature has not been activated yet")
+	}
 	return tc.checkReissue(&tx.Reissue, info)
 }
 
@@ -281,6 +382,13 @@ func (tc *transactionChecker) checkBurnV2(transaction proto.Transaction, info *c
 	if err := tc.checkFee(transaction, proto.OptionalAsset{Present: false}, info); err != nil {
 		return errors.Errorf("checkFee(): %v", err)
 	}
+	activated, err := tc.stor.features.isActivated(int16(settings.SmartAccounts))
+	if err != nil {
+		return err
+	}
+	if !activated {
+		return errors.New("SmartAccounts feature has not been activated yet")
+	}
 	return tc.checkBurn(&tx.Burn, info)
 }
 
@@ -307,6 +415,39 @@ func (tc *transactionChecker) checkExchange(transaction proto.Transaction, info 
 		return err
 	}
 	return nil
+}
+
+func (tc *transactionChecker) checkExchangeV1(transaction proto.Transaction, info *checkerInfo) error {
+	tx, ok := transaction.(*proto.ExchangeV1)
+	if !ok {
+		return errors.New("failed to convert interface to Payment transaction")
+	}
+	return tc.checkExchange(tx, info)
+}
+
+func (tc *transactionChecker) checkExchangeV2(transaction proto.Transaction, info *checkerInfo) error {
+	tx, ok := transaction.(*proto.ExchangeV2)
+	if !ok {
+		return errors.New("failed to convert interface to ExchangeV2 transaction")
+	}
+	activated, err := tc.stor.features.isActivated(int16(settings.SmartAccountTrading))
+	if err != nil {
+		return err
+	}
+	if !activated {
+		return errors.New("SmartAccountsTrading feature must be activated for ExchangeV2 transactions")
+	}
+	if (tx.BuyOrder.GetVersion() != 3) && (tx.SellOrder.GetVersion() != 3) {
+		return nil
+	}
+	activated, err = tc.stor.features.isActivated(int16(settings.OrderV3))
+	if err != nil {
+		return err
+	}
+	if !activated {
+		return errors.New("OrderV3 feature must be activated for Exchange transactions with Order version 3")
+	}
+	return tc.checkExchange(tx, info)
 }
 
 func (tc *transactionChecker) checkLease(tx *proto.Lease, info *checkerInfo) error {
@@ -351,6 +492,13 @@ func (tc *transactionChecker) checkLeaseV2(transaction proto.Transaction, info *
 	if err := tc.checkFee(transaction, proto.OptionalAsset{Present: false}, info); err != nil {
 		return errors.Errorf("checkFee(): %v", err)
 	}
+	activated, err := tc.stor.features.isActivated(int16(settings.SmartAccounts))
+	if err != nil {
+		return err
+	}
+	if !activated {
+		return errors.New("SmartAccounts feature has not been activated yet")
+	}
 	return tc.checkLease(&tx.Lease, info)
 }
 
@@ -394,6 +542,13 @@ func (tc *transactionChecker) checkLeaseCancelV2(transaction proto.Transaction, 
 	if err := tc.checkFee(transaction, proto.OptionalAsset{Present: false}, info); err != nil {
 		return errors.Errorf("checkFee(): %v", err)
 	}
+	activated, err := tc.stor.features.isActivated(int16(settings.SmartAccounts))
+	if err != nil {
+		return err
+	}
+	if !activated {
+		return errors.New("SmartAccounts feature has not been activated yet")
+	}
 	return tc.checkLeaseCancel(&tx.LeaseCancel, info)
 }
 
@@ -430,6 +585,13 @@ func (tc *transactionChecker) checkCreateAliasV2(transaction proto.Transaction, 
 	}
 	if err := tc.checkFee(transaction, proto.OptionalAsset{Present: false}, info); err != nil {
 		return errors.Errorf("checkFee(): %v", err)
+	}
+	activated, err := tc.stor.features.isActivated(int16(settings.SmartAccounts))
+	if err != nil {
+		return err
+	}
+	if !activated {
+		return errors.New("SmartAccounts feature has not been activated yet")
 	}
 	return tc.checkCreateAlias(&tx.CreateAlias, info)
 }
@@ -506,6 +668,23 @@ func (tc *transactionChecker) checkSponsorshipV1(transaction proto.Transaction, 
 	}
 	if !bytes.Equal(assetInfo.issuer[:], tx.SenderPK[:]) {
 		return errors.New("asset was issued by other address")
+	}
+	return nil
+}
+
+func (tc *transactionChecker) checkSetScriptV1(transaction proto.Transaction, info *checkerInfo) error {
+	tx, ok := transaction.(*proto.SetScriptV1)
+	if !ok {
+		return errors.New("failed to convert interface to SetScriptV1 transaction")
+	}
+	if err := tc.checkTimestamps(tx.Timestamp, info.currentTimestamp, info.parentTimestamp); err != nil {
+		return errors.Wrap(err, "invalid timestamp")
+	}
+	if err := tc.checkFee(transaction, proto.OptionalAsset{Present: false}, info); err != nil {
+		return errors.Errorf("checkFee(): %v", err)
+	}
+	if err := tc.checkScript(tx.Script); err != nil {
+		return errors.Errorf("checkScript(): %v\n", err)
 	}
 	return nil
 }

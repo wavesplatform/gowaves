@@ -1,6 +1,7 @@
 package state
 
 import (
+	"encoding/base64"
 	"io/ioutil"
 	"log"
 	"math/big"
@@ -13,6 +14,8 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/ride/evaluator/ast"
+	"github.com/wavesplatform/gowaves/pkg/ride/evaluator/reader"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 )
 
@@ -38,6 +41,8 @@ const (
 	defaultGenSig = "B2u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ"
 
 	genesisSignature = "FSH8eAAzZNqnG8xgTZtz5xuLqXySsXgAjmFEC25hXMbEufiGjqWPnGCZFt6gLiVLJny16ipxRNAkkzjjhqTjBE2"
+
+	scriptBase64 = "AgQAAAALYWxpY2VQdWJLZXkBAAAAID3+K0HJI42oXrHhtHFpHijU5PC4nn1fIFVsJp5UWrYABAAAAAlib2JQdWJLZXkBAAAAIBO1uieokBahePoeVqt4/usbhaXRq+i5EvtfsdBILNtuBAAAAAxjb29wZXJQdWJLZXkBAAAAIOfM/qkwkfi4pdngdn18n5yxNwCrBOBC3ihWaFg4gV4yBAAAAAthbGljZVNpZ25lZAMJAAH0AAAAAwgFAAAAAnR4AAAACWJvZHlCeXRlcwkAAZEAAAACCAUAAAACdHgAAAAGcHJvb2ZzAAAAAAAAAAAABQAAAAthbGljZVB1YktleQAAAAAAAAAAAQAAAAAAAAAAAAQAAAAJYm9iU2lnbmVkAwkAAfQAAAADCAUAAAACdHgAAAAJYm9keUJ5dGVzCQABkQAAAAIIBQAAAAJ0eAAAAAZwcm9vZnMAAAAAAAAAAAEFAAAACWJvYlB1YktleQAAAAAAAAAAAQAAAAAAAAAAAAQAAAAMY29vcGVyU2lnbmVkAwkAAfQAAAADCAUAAAACdHgAAAAJYm9keUJ5dGVzCQABkQAAAAIIBQAAAAJ0eAAAAAZwcm9vZnMAAAAAAAAAAAIFAAAADGNvb3BlclB1YktleQAAAAAAAAAAAQAAAAAAAAAAAAkAAGcAAAACCQAAZAAAAAIJAABkAAAAAgUAAAALYWxpY2VTaWduZWQFAAAACWJvYlNpZ25lZAUAAAAMY29vcGVyU2lnbmVkAAAAAAAAAAACqFBMLg=="
 )
 
 var (
@@ -99,6 +104,9 @@ type testGlobalVars struct {
 	minerInfo     *testAddrData
 	senderInfo    *testAddrData
 	recipientInfo *testAddrData
+
+	scriptBytes []byte
+	scriptAst   ast.Script
 }
 
 var testGlobal testGlobalVars
@@ -132,6 +140,14 @@ func TestMain(m *testing.M) {
 	testGlobal.recipientInfo, err = newTestAddrData(recipientSeed, testGlobal.asset0.assetID, testGlobal.asset1.assetID)
 	if err != nil {
 		log.Fatalf("newTestAddrData(): %v\n", err)
+	}
+	testGlobal.scriptBytes, err = base64.StdEncoding.DecodeString(scriptBase64)
+	if err != nil {
+		log.Fatalf("Failed to decode script from base64: %v\n", err)
+	}
+	testGlobal.scriptAst, err = ast.BuildAst(reader.NewBytesReader(testGlobal.scriptBytes))
+	if err != nil {
+		log.Fatalf("BuildAst: %v\n", err)
 	}
 	os.Exit(m.Run())
 }
@@ -193,19 +209,19 @@ func createStorageObjects() (*testStorageObjects, []string, error) {
 	if err != nil {
 		return nil, res, err
 	}
-	stateDB, err := newStateDB(db, dbBatch)
-	if err != nil {
-		return nil, res, err
-	}
 	rw, err := newBlockReadWriter(rwDir, 8, 8, db, dbBatch)
 	if err != nil {
 		return nil, res, err
 	}
-	hs, err := newHistoryStorage(db, dbBatch, rw, stateDB)
+	stateDB, err := newStateDB(db, dbBatch, rw)
 	if err != nil {
 		return nil, res, err
 	}
-	entities, err := newBlockchainEntitiesStorage(hs, stateDB, settings.MainNetSettings)
+	hs, err := newHistoryStorage(db, dbBatch, stateDB)
+	if err != nil {
+		return nil, res, err
+	}
+	entities, err := newBlockchainEntitiesStorage(hs, settings.MainNetSettings, rw)
 	if err != nil {
 		return nil, res, err
 	}
@@ -240,10 +256,8 @@ func (s *testStorageObjects) createAsset(t *testing.T, assetID crypto.Digest) *a
 
 func (s *testStorageObjects) activateFeature(t *testing.T, featureID int16) {
 	s.addBlock(t, blockID0)
-	blockNum, err := s.stateDB.blockIdToNum(blockID0)
-	assert.NoError(t, err, "blockIdToNum() failed")
-	activationReq := &activatedFeaturesRecord{1, blockNum}
-	err = s.entities.features.activateFeature(featureID, activationReq)
+	activationReq := &activatedFeaturesRecord{1}
+	err := s.entities.features.activateFeature(featureID, activationReq, blockID0)
 	assert.NoError(t, err, "activateFeature() failed")
 	s.flush(t)
 }
@@ -264,6 +278,13 @@ func (s *testStorageObjects) flush(t *testing.T) {
 	err = s.stateDB.flush()
 	assert.NoError(t, err, "stateDB.flush() failed")
 	s.stateDB.reset()
+}
+
+func (s *testStorageObjects) close(t *testing.T) {
+	err := s.rw.close()
+	assert.NoError(t, err)
+	err = s.stateDB.close()
+	assert.NoError(t, err)
 }
 
 func genRandBlockIds(t *testing.T, amount int) []crypto.Signature {
@@ -296,4 +317,20 @@ func generateRandomRecipient(t *testing.T) proto.Recipient {
 	addr, err := proto.NewAddressFromPublicKey('W', pk)
 	assert.NoError(t, err, "NewAddressFromPublicKey() failed")
 	return proto.NewRecipientFromAddress(addr)
+}
+
+func existingGenesisTx(t *testing.T) proto.Transaction {
+	sig, err := crypto.NewSignatureFromBase58("2DVtfgXjpMeFf2PQCqvwxAiaGbiDsxDjSdNQkc5JQ74eWxjWFYgwvqzC4dn7iB1AhuM32WxEiVi1SGijsBtYQwn8")
+	assert.NoError(t, err, "NewSignatureFromBase58() failed")
+	addr, err := proto.NewAddressFromString("3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ")
+	assert.NoError(t, err, "NewAddressFromString() failed")
+	return &proto.Genesis{
+		Type:      proto.GenesisTransaction,
+		Version:   1,
+		ID:        &sig,
+		Signature: &sig,
+		Timestamp: 1465742577614,
+		Recipient: addr,
+		Amount:    9999999500000000,
+	}
 }

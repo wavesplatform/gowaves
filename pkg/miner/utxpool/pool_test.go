@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
@@ -42,6 +43,10 @@ func (transaction) GetTypeVersion() proto.TransactionTypeVersion {
 
 func (a transaction) GetFee() uint64 {
 	return a.fee
+}
+
+func (a transaction) GetSenderPK() crypto.PublicKey {
+	panic("implement me")
 }
 
 func tr(fee uint64) *transaction {

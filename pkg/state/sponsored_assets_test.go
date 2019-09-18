@@ -19,11 +19,11 @@ func createSponsoredAssets() (*sponsoredAssetsTestObjects, []string, error) {
 	if err != nil {
 		return nil, path, err
 	}
-	features, err := newFeatures(stor.db, stor.dbBatch, stor.hs, stor.stateDB, settings.MainNetSettings, settings.FeaturesInfo)
+	features, err := newFeatures(stor.db, stor.dbBatch, stor.hs, settings.MainNetSettings, settings.FeaturesInfo)
 	if err != nil {
 		return nil, path, err
 	}
-	sponsoredAssets, err := newSponsoredAssets(stor.rw, features, stor.stateDB, stor.hs, settings.MainNetSettings)
+	sponsoredAssets, err := newSponsoredAssets(stor.rw, features, stor.hs, settings.MainNetSettings)
 	if err != nil {
 		return nil, path, err
 	}
@@ -35,8 +35,8 @@ func TestSponsorAsset(t *testing.T) {
 	assert.NoError(t, err, "createSponsoredAssets() failed")
 
 	defer func() {
-		err = to.stor.stateDB.close()
-		assert.NoError(t, err, "stateDB.close() failed")
+		to.stor.close(t)
+
 		err = util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -88,8 +88,8 @@ func TestSponsoredAssetToWaves(t *testing.T) {
 	assert.NoError(t, err, "createSponsoredAssets() failed")
 
 	defer func() {
-		err = to.stor.stateDB.close()
-		assert.NoError(t, err, "stateDB.close() failed")
+		to.stor.close(t)
+
 		err = util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -111,8 +111,8 @@ func TestWavesToSponsoredAsset(t *testing.T) {
 	assert.NoError(t, err, "createSponsoredAssets() failed")
 
 	defer func() {
-		err = to.stor.stateDB.close()
-		assert.NoError(t, err, "stateDB.close() failed")
+		to.stor.close(t)
+
 		err = util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -134,8 +134,8 @@ func TestIsSponsorshipActivated(t *testing.T) {
 	assert.NoError(t, err, "createSponsoredAssets() failed")
 
 	defer func() {
-		err = to.stor.stateDB.close()
-		assert.NoError(t, err, "stateDB.close() failed")
+		to.stor.close(t)
+
 		err = util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()

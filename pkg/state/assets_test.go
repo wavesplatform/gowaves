@@ -20,7 +20,7 @@ func createAssets() (*assetsTestObjects, []string, error) {
 	if err != nil {
 		return nil, path, err
 	}
-	assets, err := newAssets(stor.db, stor.dbBatch, stor.stateDB, stor.hs)
+	assets, err := newAssets(stor.db, stor.dbBatch, stor.hs)
 	if err != nil {
 		return nil, path, err
 	}
@@ -32,8 +32,8 @@ func TestIssueAsset(t *testing.T) {
 	assert.NoError(t, err, "createAssets() failed")
 
 	defer func() {
-		err = to.stor.stateDB.close()
-		assert.NoError(t, err, "stateDB.close() failed")
+		to.stor.close(t)
+
 		err = util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -62,8 +62,8 @@ func TestReissueAsset(t *testing.T) {
 	assert.NoError(t, err, "createAssets() failed")
 
 	defer func() {
-		err = to.stor.stateDB.close()
-		assert.NoError(t, err, "stateDB.close() failed")
+		to.stor.close(t)
+
 		err = util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -74,7 +74,7 @@ func TestReissueAsset(t *testing.T) {
 	asset := defaultAssetInfo(true)
 	err = to.assets.issueAsset(assetID, asset, blockID0)
 	assert.NoError(t, err, "failed to issue asset")
-	err = to.assets.reissueAsset(assetID, &assetReissueChange{false, 1, blockID0}, true)
+	err = to.assets.reissueAsset(assetID, &assetReissueChange{false, 1}, blockID0, true)
 	assert.NoError(t, err, "failed to reissue asset")
 	asset.reissuable = false
 	asset.quantity.Add(&asset.quantity, big.NewInt(1))
@@ -91,8 +91,8 @@ func TestBurnAsset(t *testing.T) {
 	assert.NoError(t, err, "createAssets() failed")
 
 	defer func() {
-		err = to.stor.stateDB.close()
-		assert.NoError(t, err, "stateDB.close() failed")
+		to.stor.close(t)
+
 		err = util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -103,7 +103,7 @@ func TestBurnAsset(t *testing.T) {
 	asset := defaultAssetInfo(false)
 	err = to.assets.issueAsset(assetID, asset, blockID0)
 	assert.NoError(t, err, "failed to issue asset")
-	err = to.assets.burnAsset(assetID, &assetBurnChange{1, blockID0}, true)
+	err = to.assets.burnAsset(assetID, &assetBurnChange{1}, blockID0, true)
 	assert.NoError(t, err, "failed to burn asset")
 	asset.quantity.Sub(&asset.quantity, big.NewInt(1))
 	to.stor.flush(t)

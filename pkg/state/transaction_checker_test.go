@@ -2,7 +2,9 @@ package state
 
 import (
 	"fmt"
+	"io/ioutil"
 	"math"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -36,6 +38,8 @@ func TestCheckGenesis(t *testing.T) {
 	to, path := createCheckerTestObjects(t)
 
 	defer func() {
+		to.stor.close(t)
+
 		err := util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -57,6 +61,8 @@ func TestCheckPayment(t *testing.T) {
 	to, path := createCheckerTestObjects(t)
 
 	defer func() {
+		to.stor.close(t)
+
 		err := util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -79,6 +85,8 @@ func TestCheckTransferV1(t *testing.T) {
 	to, path := createCheckerTestObjects(t)
 
 	defer func() {
+		to.stor.close(t)
+
 		err := util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -100,7 +108,7 @@ func TestCheckTransferV1(t *testing.T) {
 	err = to.tc.checkTransferV1(tx, info)
 	assert.Error(t, err, "checkTransferV1 did not fail with unsponsored asset")
 	assert.EqualError(t, err, fmt.Sprintf("checkFee(): asset %s is not sponsored", assetId.String()))
-	err = to.stor.entities.sponsoredAssets.sponsorAsset(assetId, 10, blockID0)
+	err = to.stor.entities.sponsoredAssets.sponsorAsset(assetId, 10, info.blockID)
 	assert.NoError(t, err, "sponsorAsset() failed")
 	err = to.tc.checkTransferV1(tx, info)
 	assert.NoError(t, err, "checkTransferV1 failed with valid sponsored asset")
@@ -114,6 +122,8 @@ func TestCheckTransferV2(t *testing.T) {
 	to, path := createCheckerTestObjects(t)
 
 	defer func() {
+		to.stor.close(t)
+
 		err := util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -127,6 +137,13 @@ func TestCheckTransferV2(t *testing.T) {
 	assert.Error(t, err, "checkTransferV2 did not fail with invalid transfer asset")
 
 	to.stor.createAsset(t, assetId)
+
+	err = to.tc.checkTransferV2(tx, info)
+	assert.Error(t, err, "checkTransferV2 did not fail prior to SmartAccounts activation")
+
+	to.stor.activateFeature(t, int16(settings.SmartAccounts))
+
+	to.stor.createAsset(t, assetId)
 	err = to.tc.checkTransferV2(tx, info)
 	assert.NoError(t, err, "checkTransferV2 failed with valid transfer tx")
 
@@ -135,7 +152,7 @@ func TestCheckTransferV2(t *testing.T) {
 	err = to.tc.checkTransferV2(tx, info)
 	assert.Error(t, err, "checkTransferV2 did not fail with unsponsored asset")
 	assert.EqualError(t, err, fmt.Sprintf("checkFee(): asset %s is not sponsored", assetId.String()))
-	err = to.stor.entities.sponsoredAssets.sponsorAsset(assetId, 10, blockID0)
+	err = to.stor.entities.sponsoredAssets.sponsorAsset(assetId, 10, info.blockID)
 	assert.NoError(t, err, "sponsorAsset() failed")
 	err = to.tc.checkTransferV2(tx, info)
 	assert.NoError(t, err, "checkTransferV2 failed with valid sponsored asset")
@@ -149,6 +166,8 @@ func TestCheckIssueV1(t *testing.T) {
 	to, path := createCheckerTestObjects(t)
 
 	defer func() {
+		to.stor.close(t)
+
 		err := util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -167,17 +186,20 @@ func TestCheckIssueV2(t *testing.T) {
 	to, path := createCheckerTestObjects(t)
 
 	defer func() {
+		to.stor.close(t)
+
 		err := util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
 	tx := createIssueV2(t)
 	info := defaultCheckerInfo(t)
+
 	err := to.tc.checkIssueV2(tx, info)
 	assert.NoError(t, err, "checkIssueV2 failed with valid issue tx")
 
 	tx.Timestamp = 0
-	err = to.tc.checkIssueV1(tx, info)
+	err = to.tc.checkIssueV2(tx, info)
 	assert.Error(t, err, "checkIssueV2 did not fail with invalid timestamp")
 }
 
@@ -185,6 +207,8 @@ func TestCheckReissueV1(t *testing.T) {
 	to, path := createCheckerTestObjects(t)
 
 	defer func() {
+		to.stor.close(t)
+
 		err := util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -224,6 +248,8 @@ func TestCheckReissueV2(t *testing.T) {
 	to, path := createCheckerTestObjects(t)
 
 	defer func() {
+		to.stor.close(t)
+
 		err := util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -234,7 +260,13 @@ func TestCheckReissueV2(t *testing.T) {
 	tx.SenderPK = assetInfo.issuer
 	info := defaultCheckerInfo(t)
 	info.currentTimestamp = settings.MainNetSettings.ReissueBugWindowTimeEnd + 1
+
 	err := to.tc.checkReissueV2(tx, info)
+	assert.Error(t, err, "checkReissueV2 did not fail prior to SmartAccounts activation")
+
+	to.stor.activateFeature(t, int16(settings.SmartAccounts))
+
+	err = to.tc.checkReissueV2(tx, info)
 	assert.NoError(t, err, "checkReissueV2 failed with valid reissue tx")
 
 	temp := tx.Quantity
@@ -263,15 +295,17 @@ func TestCheckBurnV1(t *testing.T) {
 	to, path := createCheckerTestObjects(t)
 
 	defer func() {
+		to.stor.close(t)
+
 		err := util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
 	assetInfo := to.stor.createAsset(t, testGlobal.asset0.asset.ID)
-
 	tx := createBurnV1(t)
 	tx.SenderPK = assetInfo.issuer
 	info := defaultCheckerInfo(t)
+
 	err := to.tc.checkBurnV1(tx, info)
 	assert.NoError(t, err, "checkBurnV1 failed with valid burn tx")
 
@@ -294,16 +328,23 @@ func TestCheckBurnV2(t *testing.T) {
 	to, path := createCheckerTestObjects(t)
 
 	defer func() {
+		to.stor.close(t)
+
 		err := util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
 	assetInfo := to.stor.createAsset(t, testGlobal.asset0.asset.ID)
-
 	tx := createBurnV2(t)
 	tx.SenderPK = assetInfo.issuer
 	info := defaultCheckerInfo(t)
+
 	err := to.tc.checkBurnV2(tx, info)
+	assert.Error(t, err, "checkBurnV2 did not fail prior to SmartAccounts activation")
+
+	to.stor.activateFeature(t, int16(settings.SmartAccounts))
+
+	err = to.tc.checkBurnV2(tx, info)
 	assert.NoError(t, err, "checkBurnV2 failed with valid burn tx")
 
 	// Change sender and make sure tx is invalid before activation of BurnAnyTokens feature.
@@ -321,29 +362,62 @@ func TestCheckBurnV2(t *testing.T) {
 	assert.Error(t, err, "checkBurnV2 did not fail with invalid timestamp")
 }
 
-func TestCheckExchange(t *testing.T) {
+func TestCheckExchangeV1(t *testing.T) {
 	to, path := createCheckerTestObjects(t)
 
 	defer func() {
+		to.stor.close(t)
+
 		err := util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
 	tx := createExchangeV1(t)
 	info := defaultCheckerInfo(t)
-	err := to.tc.checkExchange(tx, info)
-	assert.Error(t, err, "checkExchange did not fail with exchange with unknown assets")
+	err := to.tc.checkExchangeV1(tx, info)
+	assert.Error(t, err, "checkExchangeV1 did not fail with exchange with unknown assets")
 
 	to.stor.createAsset(t, testGlobal.asset0.asset.ID)
 	to.stor.createAsset(t, testGlobal.asset1.asset.ID)
-	err = to.tc.checkExchange(tx, info)
-	assert.NoError(t, err, "checkExchange failed with valid exchange")
+	err = to.tc.checkExchangeV1(tx, info)
+	assert.NoError(t, err, "checkExchangeV1 failed with valid exchange")
+}
+
+func TestCheckExchangeV2(t *testing.T) {
+	to, path := createCheckerTestObjects(t)
+
+	defer func() {
+		to.stor.close(t)
+
+		err := util.CleanTemporaryDirs(path)
+		assert.NoError(t, err, "failed to clean test data dirs")
+	}()
+
+	tx := createExchangeV2(t)
+	info := defaultCheckerInfo(t)
+	err := to.tc.checkExchangeV2(tx, info)
+	assert.Error(t, err, "checkExchangeV2 did not fail with exchange with unknown assets")
+
+	to.stor.createAsset(t, testGlobal.asset0.asset.ID)
+	to.stor.createAsset(t, testGlobal.asset1.asset.ID)
+
+	err = to.tc.checkExchangeV2(tx, info)
+	assert.Error(t, err, "checkExchangeV2 did not fail prior to SmartAccountTrading activation")
+
+	// TODO: uncomment when the following features will be implemented.
+	//to.stor.activateFeature(t, int16(settings.SmartAccountTrading))
+	//to.stor.activateFeature(t, int16(settings.OrderV3))
+
+	//err = to.tc.checkExchangeV2(tx, info)
+	//assert.NoError(t, err, "checkExchangeV2 failed with valid exchange")
 }
 
 func TestCheckLeaseV1(t *testing.T) {
 	to, path := createCheckerTestObjects(t)
 
 	defer func() {
+		to.stor.close(t)
+
 		err := util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -363,6 +437,8 @@ func TestCheckLeaseV2(t *testing.T) {
 	to, path := createCheckerTestObjects(t)
 
 	defer func() {
+		to.stor.close(t)
+
 		err := util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -374,6 +450,12 @@ func TestCheckLeaseV2(t *testing.T) {
 	assert.Error(t, err, "checkLeaseV2 did not fail when leasing to self")
 
 	tx = createLeaseV2(t)
+
+	err = to.tc.checkLeaseV2(tx, info)
+	assert.Error(t, err, "checkLeaseV2 did not fail prior to SmartAccounts activation")
+
+	to.stor.activateFeature(t, int16(settings.SmartAccounts))
+
 	err = to.tc.checkLeaseV2(tx, info)
 	assert.NoError(t, err, "checkLeaseV2 failed with valid lease tx")
 }
@@ -382,6 +464,8 @@ func TestCheckLeaseCancelV1(t *testing.T) {
 	to, path := createCheckerTestObjects(t)
 
 	defer func() {
+		to.stor.close(t)
+
 		err := util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -415,6 +499,8 @@ func TestCheckLeaseCancelV2(t *testing.T) {
 	to, path := createCheckerTestObjects(t)
 
 	defer func() {
+		to.stor.close(t)
+
 		err := util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -438,9 +524,16 @@ func TestCheckLeaseCancelV2(t *testing.T) {
 	tx = createLeaseCancelV2(t, *leaseTx.ID)
 
 	err = to.tc.checkLeaseCancelV2(tx, info)
-	assert.NoError(t, err, "checkLeaseCancelV2 failed with valid leaseCancel tx")
+	assert.Error(t, err, "checkLeaseCancelV2 did not fail prior to SmartAccounts activation")
 
-	err = to.tc.checkLeaseV2(tx, info)
+	to.stor.activateFeature(t, int16(settings.SmartAccounts))
+
+	err = to.tc.checkLeaseCancelV2(tx, info)
+	assert.NoError(t, err, "checkLeaseCancelV2 failed with valid leaseCancel tx")
+	err = to.tp.performLeaseCancelV2(tx, defaultPerformerInfo(t))
+	assert.NoError(t, err, "performLeaseCancelV2() failed")
+
+	err = to.tc.checkLeaseCancelV2(tx, info)
 	assert.Error(t, err, "checkLeaseCancelV2 did not fail when cancelling same lease multiple times")
 }
 
@@ -448,6 +541,8 @@ func TestCheckCreateAliasV1(t *testing.T) {
 	to, path := createCheckerTestObjects(t)
 
 	defer func() {
+		to.stor.close(t)
+
 		err := util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -476,6 +571,8 @@ func TestCheckCreateAliasV2(t *testing.T) {
 	to, path := createCheckerTestObjects(t)
 
 	defer func() {
+		to.stor.close(t)
+
 		err := util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -484,6 +581,11 @@ func TestCheckCreateAliasV2(t *testing.T) {
 	info := defaultCheckerInfo(t)
 
 	err := to.tc.checkCreateAliasV2(tx, info)
+	assert.Error(t, err, "checkCreateAliasV2 did not fail prior to SmartAccounts activation")
+
+	to.stor.activateFeature(t, int16(settings.SmartAccounts))
+
+	err = to.tc.checkCreateAliasV2(tx, info)
 	assert.NoError(t, err, "checkCreateAliasV2 failed with valid createAlias tx")
 
 	to.stor.addBlock(t, blockID0)
@@ -504,6 +606,8 @@ func TestCheckMassTransferV1(t *testing.T) {
 	to, path := createCheckerTestObjects(t)
 
 	defer func() {
+		to.stor.close(t)
+
 		err := util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -532,6 +636,8 @@ func TestCheckDataV1(t *testing.T) {
 	to, path := createCheckerTestObjects(t)
 
 	defer func() {
+		to.stor.close(t)
+
 		err := util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -558,6 +664,8 @@ func TestCheckSponsorshipV1(t *testing.T) {
 	to, path := createCheckerTestObjects(t)
 
 	defer func() {
+		to.stor.close(t)
+
 		err := util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -600,4 +708,66 @@ func TestCheckSponsorshipV1(t *testing.T) {
 	tx.Timestamp = 0
 	err = to.tc.checkSponsorshipV1(tx, info)
 	assert.Error(t, err, "checkSponsorshipV1 did not fail with invalid timestamp")
+}
+
+func TestCheckSetScriptV1(t *testing.T) {
+	to, path := createCheckerTestObjects(t)
+
+	defer func() {
+		to.stor.close(t)
+
+		err := util.CleanTemporaryDirs(path)
+		assert.NoError(t, err, "failed to clean test data dirs")
+	}()
+
+	tx := createSetScriptV1(t)
+	info := defaultCheckerInfo(t)
+
+	// Activate sponsorship.
+	to.stor.activateSponsorship(t)
+
+	// Activate SmartAccounts.
+	to.stor.activateFeature(t, int16(settings.SmartAccounts))
+	err := to.tc.checkSetScriptV1(tx, info)
+	assert.NoError(t, err, "checkSetScriptV1 failed with valid SetScriptV1 tx")
+
+	// Check min fee.
+	feeConst, ok := feeConstants[proto.SetScriptTransaction]
+	assert.Equal(t, ok, true)
+	tx.Fee = FeeUnit*feeConst - 1
+	err = to.tc.checkSetScriptV1(tx, info)
+	assert.Error(t, err, "checkSetScriptV1 did not fail with fee less than minimum")
+	assert.EqualError(t, err, fmt.Sprintf("checkFee(): fee %d is less than minimum value of %d\n", tx.Fee, FeeUnit*feeConst))
+	tx.Fee = FeeUnit * feeConst
+	err = to.tc.checkSetScriptV1(tx, info)
+	assert.NoError(t, err, "checkSetScriptV1 failed with valid SetScriptV1 tx")
+
+	// Test script activation rules.
+	dir, err := getLocalDir()
+	assert.NoError(t, err, "getLocalDir() failed")
+	scriptV3Path := filepath.Join(dir, "testdata", "scripts", "version3.base64")
+	scriptBytes, err := ioutil.ReadFile(scriptV3Path)
+	assert.NoError(t, err)
+	prevScript := tx.Script
+	tx.Script = proto.Script(scriptBytes)
+	err = to.tc.checkSetScriptV1(tx, info)
+	assert.Error(t, err, "checkSetScriptV1 did not fail with Script V3 before Ride4DApps activation")
+	tx.Script = prevScript
+	err = to.tc.checkSetScriptV1(tx, info)
+	assert.NoError(t, err, "checkSetScriptV1 failed with valid SetScriptV1 tx")
+
+	complexScriptPath := filepath.Join(dir, "testdata", "scripts", "exceeds_complexity.base64")
+	scriptBytes, err = ioutil.ReadFile(complexScriptPath)
+	assert.NoError(t, err)
+	tx.Script = proto.Script(scriptBytes)
+	err = to.tc.checkSetScriptV1(tx, info)
+	assert.Error(t, err, "checkSetScriptV1 did not fail with Script that exceeds complexity limit")
+	tx.Script = prevScript
+	err = to.tc.checkSetScriptV1(tx, info)
+	assert.NoError(t, err, "checkSetScriptV1 failed with valid SetScriptV1 tx")
+
+	// Check invalid timestamp failure.
+	tx.Timestamp = 0
+	err = to.tc.checkSetScriptV1(tx, info)
+	assert.Error(t, err, "checkSetScriptV1 did not fail with invalid timestamp")
 }

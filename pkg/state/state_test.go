@@ -10,11 +10,9 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/mr-tron/base58/base58"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/importer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
@@ -119,32 +117,32 @@ func TestValidationWithoutBlocks(t *testing.T) {
 	err = validateTxs(manager, last.Timestamp, txs)
 	assert.NoError(t, err, "validateTxs() failed")
 
-	// Test that in case validation using ValidateNextTx() fails, its diffs are not taken into account for further validation.
-	seed, err := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
-	assert.NoError(t, err, "base58.Decode() failed")
-	sk, pk, err := crypto.GenerateKeyPair(seed)
-	assert.NoError(t, err)
+	// Test that in case validation using ValidateNextTx() fails,
+	// its diffs are not taken into account for further validation.
 	// This tx tries to send more Waves than exist at all.
-	invalidTx := proto.NewUnsignedPayment(pk, testGlobal.recipientInfo.addr, 19999999500000000, 1, defaultTimestamp)
-	err = invalidTx.Sign(sk)
-	assert.NoError(t, err, "tx.Sign() failed")
+	invalidTx := createPayment(t)
+	invalidTx.Amount = 19999999500000000
 	err = manager.ValidateNextTx(invalidTx, defaultTimestamp, defaultTimestamp)
 	assert.Error(t, err, "ValidateNextTx did not fail with invalid tx")
 	// Now set some balance for sender.
-	addr, err := proto.NewAddressFromPublicKey('W', pk)
-	assert.NoError(t, err, "NewAddressFromPublicKey() failed")
-	blockID, err := crypto.NewSignatureFromBase58("m2RcwouGn8iMbiN5e8NB6ZNHFaJu6H2CFewYhwXUXZFmg5UTADtvBvdebFupNTzxsqvxsCUaL2VRQXh3iuK4AeA")
-	assert.NoError(t, err, "NewSignatureFromBase58() failed")
-	err = manager.stor.balances.setWavesBalance(addr, &balanceProfile{2, 0, 0}, blockID)
+	validTx := createPayment(t)
+	err = manager.stateDB.addBlock(blockID0)
+	assert.NoError(t, err, "addBlock() failed")
+	err = manager.stor.balances.setWavesBalance(testGlobal.senderInfo.addr, &balanceProfile{validTx.Amount + validTx.Fee, 0, 0}, blockID0)
 	assert.NoError(t, err, "setWavesBalance() failed")
-	err = manager.flush(true)
+	err = manager.flush(false)
 	assert.NoError(t, err, "manager.flush() failed")
 	// Valid tx with same sender must be valid after validation of previous invalid tx.
-	validTx := proto.NewUnsignedPayment(pk, testGlobal.recipientInfo.addr, 1, 1, defaultTimestamp)
-	err = validTx.Sign(sk)
-	assert.NoError(t, err, "tx.Sign() failed")
 	err = manager.ValidateNextTx(validTx, defaultTimestamp, defaultTimestamp)
 	assert.NoError(t, err, "ValidateNextTx failed with valid tx")
+
+	// Check NewestBalance() results after applying `validTx` from above.
+	recipientBalance, err := manager.NewestAccountBalance(proto.NewRecipientFromAddress(testGlobal.recipientInfo.addr), nil)
+	assert.NoError(t, err, "manager.NewestAccountBalance() failed")
+	assert.Equal(t, validTx.Amount, recipientBalance)
+	senderBalance, err := manager.NewestAccountBalance(proto.NewRecipientFromAddress(testGlobal.senderInfo.addr), nil)
+	assert.NoError(t, err, "manager.NewestAccountBalance() failed")
+	assert.Equal(t, uint64(0), senderBalance)
 }
 
 func TestStateRollback(t *testing.T) {
@@ -171,6 +169,7 @@ func TestStateRollback(t *testing.T) {
 		{8001, 7001, filepath.Join(dir, "testdata", "accounts-8001")},
 		{7001, 7001, filepath.Join(dir, "testdata", "accounts-7001")},
 		{7501, 7001, filepath.Join(dir, "testdata", "accounts-7501")},
+		{7501, 7001, filepath.Join(dir, "testdata", "accounts-7501")},
 		{9501, 7501, filepath.Join(dir, "testdata", "accounts-9501")},
 		{7501, 7501, filepath.Join(dir, "testdata", "accounts-7501")},
 	}
@@ -189,7 +188,7 @@ func TestStateRollback(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Height(): %v\n", err)
 		}
-		if tc.nextHeight >= height {
+		if tc.nextHeight > height {
 			if err := importer.ApplyFromFile(manager, blocksPath, tc.nextHeight-1, height, false); err != nil {
 				t.Fatalf("Failed to import: %v\n", err)
 			}
@@ -285,7 +284,14 @@ func TestStateIntegrated(t *testing.T) {
 			t.Fatalf("Height(): %v\n", err)
 		}
 		if height != tc.height {
-			t.Errorf("Height after rollback is not correct.")
+			t.Errorf("Height after rollback is not correct: %d; must be %d", height, tc.height)
+		}
+		height, err = manager.NewestHeight()
+		if err != nil {
+			t.Fatalf("NewestHeight(): %v\n", err)
+		}
+		if height != tc.height {
+			t.Errorf("Height after rollback is not correct: %d; must be %d", height, tc.height)
 		}
 	}
 }
@@ -376,19 +382,7 @@ func TestDisallowDuplicateTxIds(t *testing.T) {
 	err = importer.ApplyFromFile(manager, blocksPath, height, 1, false)
 	assert.NoError(t, err, "ApplyFromFile() failed")
 	// Now validate tx with ID which is already in the state.
-	sig, err := crypto.NewSignatureFromBase58("2DVtfgXjpMeFf2PQCqvwxAiaGbiDsxDjSdNQkc5JQ74eWxjWFYgwvqzC4dn7iB1AhuM32WxEiVi1SGijsBtYQwn8")
-	assert.NoError(t, err, "NewSignatureFromBase58() failed")
-	addr, err := proto.NewAddressFromString("3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ")
-	assert.NoError(t, err, "NewAddressFromString() failed")
-	tx := &proto.Genesis{
-		Type:      proto.GenesisTransaction,
-		Version:   0,
-		ID:        &sig,
-		Signature: &sig,
-		Timestamp: 1465742577614,
-		Recipient: addr,
-		Amount:    9999999500000000,
-	}
+	tx := existingGenesisTx(t)
 	txID, err := tx.GetID()
 	assert.NoError(t, err, "tx.GetID() failed")
 	expectedErrStr := fmt.Sprintf("transaction with ID %v already in state", txID)
@@ -398,6 +392,34 @@ func TestDisallowDuplicateTxIds(t *testing.T) {
 	err = manager.ValidateNextTx(tx, 1460678400000, 1460678400000)
 	assert.Error(t, err, "duplicate transacton ID was accepted by state")
 	assert.EqualError(t, err, expectedErrStr)
+}
+
+func TestTransactionByID(t *testing.T) {
+	blocksPath := blocksPath(t)
+	dataDir, err := ioutil.TempDir(os.TempDir(), "dataDir")
+	assert.NoError(t, err, "failed to create dir for test data")
+	manager, err := newStateManager(dataDir, DefaultStateParams(), settings.MainNetSettings)
+	assert.NoError(t, err, "newStateManager() failed")
+
+	defer func() {
+		err := manager.Close()
+		assert.NoError(t, err, "manager.Close() failed")
+		err = os.RemoveAll(dataDir)
+		assert.NoError(t, err, "failed to remove test data dirs")
+	}()
+
+	// Apply blocks.
+	height := uint64(75)
+	err = importer.ApplyFromFile(manager, blocksPath, height, 1, false)
+	assert.NoError(t, err, "ApplyFromFile() failed")
+
+	// Retrieve existing MainNet genesis tx by its ID.
+	correctTx := existingGenesisTx(t)
+	id, err := correctTx.GetID()
+	assert.NoError(t, err, "GetID() failed")
+	tx, err := manager.TransactionByID(id)
+	assert.NoError(t, err, "TransactionByID() failed")
+	assert.Equal(t, correctTx, tx)
 }
 
 func TestStateManager_Mutex(t *testing.T) {

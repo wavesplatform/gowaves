@@ -31,6 +31,8 @@ func TestPerformIssueV1(t *testing.T) {
 	to, path := createPerformerTestObjects(t)
 
 	defer func() {
+		to.stor.close(t)
+
 		err := util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -63,6 +65,8 @@ func TestPerformIssueV2(t *testing.T) {
 	to, path := createPerformerTestObjects(t)
 
 	defer func() {
+		to.stor.close(t)
+
 		err := util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -95,6 +99,8 @@ func TestPerformReissueV1(t *testing.T) {
 	to, path := createPerformerTestObjects(t)
 
 	defer func() {
+		to.stor.close(t)
+
 		err := util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -117,6 +123,8 @@ func TestPerformReissueV2(t *testing.T) {
 	to, path := createPerformerTestObjects(t)
 
 	defer func() {
+		to.stor.close(t)
+
 		err := util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -139,6 +147,8 @@ func TestPerformBurnV1(t *testing.T) {
 	to, path := createPerformerTestObjects(t)
 
 	defer func() {
+		to.stor.close(t)
+
 		err := util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -160,6 +170,8 @@ func TestPerformBurnV2(t *testing.T) {
 	to, path := createPerformerTestObjects(t)
 
 	defer func() {
+		to.stor.close(t)
+
 		err := util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -181,6 +193,8 @@ func TestPerformLeaseV1(t *testing.T) {
 	to, path := createPerformerTestObjects(t)
 
 	defer func() {
+		to.stor.close(t)
+
 		err := util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -206,6 +220,8 @@ func TestPerformLeaseV2(t *testing.T) {
 	to, path := createPerformerTestObjects(t)
 
 	defer func() {
+		to.stor.close(t)
+
 		err := util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -231,6 +247,8 @@ func TestPerformLeaseCancelV1(t *testing.T) {
 	to, path := createPerformerTestObjects(t)
 
 	defer func() {
+		to.stor.close(t)
+
 		err := util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -259,6 +277,8 @@ func TestPerformLeaseCancelV2(t *testing.T) {
 	to, path := createPerformerTestObjects(t)
 
 	defer func() {
+		to.stor.close(t)
+
 		err := util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -287,6 +307,8 @@ func TestPerformCreateAliasV1(t *testing.T) {
 	to, path := createPerformerTestObjects(t)
 
 	defer func() {
+		to.stor.close(t)
+
 		err := util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -315,6 +337,8 @@ func TestPerformCreateAliasV2(t *testing.T) {
 	to, path := createPerformerTestObjects(t)
 
 	defer func() {
+		to.stor.close(t)
+
 		err := util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -343,6 +367,8 @@ func TestPerformDataV1(t *testing.T) {
 	to, path := createPerformerTestObjects(t)
 
 	defer func() {
+		to.stor.close(t)
+
 		err := util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -357,7 +383,7 @@ func TestPerformDataV1(t *testing.T) {
 	assert.NoError(t, err, "performDataV1() failed")
 	to.stor.flush(t)
 
-	newEntry, err := to.stor.entities.accountsDataStor.retrieveNewestEntry(testGlobal.senderInfo.addr, entry.Key)
+	newEntry, err := to.stor.entities.accountsDataStor.retrieveNewestEntry(testGlobal.senderInfo.addr, entry.Key, true)
 	assert.NoError(t, err, "retrieveNewestEntry() failed")
 	assert.Equal(t, entry, newEntry)
 }
@@ -366,6 +392,8 @@ func TestPerformSponsorshipV1(t *testing.T) {
 	to, path := createPerformerTestObjects(t)
 
 	defer func() {
+		to.stor.close(t)
+
 		err := util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
@@ -405,4 +433,68 @@ func TestPerformSponsorshipV1(t *testing.T) {
 	assetCost, err = to.stor.entities.sponsoredAssets.assetCost(tx.AssetID, true)
 	assert.NoError(t, err, "assetCost() failed")
 	assert.Equal(t, assetCost, tx.MinAssetFee)
+}
+
+func TestPerfromSetScriptV1(t *testing.T) {
+	to, path := createPerformerTestObjects(t)
+
+	defer func() {
+		to.stor.close(t)
+
+		err := util.CleanTemporaryDirs(path)
+		assert.NoError(t, err, "failed to clean test data dirs")
+	}()
+
+	to.stor.addBlock(t, blockID0)
+
+	tx := createSetScriptV1(t)
+	err := to.tp.performSetScriptV1(tx, defaultPerformerInfo(t))
+	assert.NoError(t, err, "performSetScriptV1() failed")
+
+	addr := testGlobal.senderInfo.addr
+
+	// Test newest before flushing.
+	hasScript, err := to.stor.entities.accountsScripts.newestHasScript(addr, true)
+	assert.NoError(t, err, "newestHasScript() failed")
+	assert.Equal(t, true, hasScript)
+	hasVerifier, err := to.stor.entities.accountsScripts.newestHasVerifier(addr, true)
+	assert.NoError(t, err, "newestHasVerifier() failed")
+	assert.Equal(t, true, hasVerifier)
+	scriptAst, err := to.stor.entities.accountsScripts.newestScriptByAddr(addr, true)
+	assert.NoError(t, err, "newestScriptByAddr() failed")
+	assert.Equal(t, testGlobal.scriptAst, scriptAst)
+
+	// Test stable before flushing.
+	hasScript, err = to.stor.entities.accountsScripts.hasScript(addr, true)
+	assert.NoError(t, err, "hasScript() failed")
+	assert.Equal(t, false, hasScript)
+	hasVerifier, err = to.stor.entities.accountsScripts.hasVerifier(addr, true)
+	assert.NoError(t, err, "hasVerifier() failed")
+	assert.Equal(t, false, hasVerifier)
+	_, err = to.stor.entities.accountsScripts.scriptByAddr(addr, true)
+	assert.Error(t, err, "scriptByAddr() did not fail before flushing")
+
+	to.stor.flush(t)
+
+	// Test newest after flushing.
+	hasScript, err = to.stor.entities.accountsScripts.newestHasScript(addr, true)
+	assert.NoError(t, err, "newestHasScript() failed")
+	assert.Equal(t, true, hasScript)
+	hasVerifier, err = to.stor.entities.accountsScripts.newestHasVerifier(addr, true)
+	assert.NoError(t, err, "newestHasVerifier() failed")
+	assert.Equal(t, true, hasVerifier)
+	scriptAst, err = to.stor.entities.accountsScripts.newestScriptByAddr(addr, true)
+	assert.NoError(t, err, "newestScriptByAddr() failed")
+	assert.Equal(t, testGlobal.scriptAst, scriptAst)
+
+	// Test stable after flushing.
+	hasScript, err = to.stor.entities.accountsScripts.hasScript(addr, true)
+	assert.NoError(t, err, "hasScript() failed")
+	assert.Equal(t, true, hasScript)
+	hasVerifier, err = to.stor.entities.accountsScripts.hasVerifier(addr, true)
+	assert.NoError(t, err, "hasVerifier() failed")
+	assert.Equal(t, true, hasVerifier)
+	scriptAst, err = to.stor.entities.accountsScripts.scriptByAddr(addr, true)
+	assert.NoError(t, err, "scriptByAddr() failed after flushing")
+	assert.Equal(t, testGlobal.scriptAst, scriptAst)
 }

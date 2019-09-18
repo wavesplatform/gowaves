@@ -16,6 +16,7 @@ var void = []byte{}
 type stateDB struct {
 	db      keyvalue.KeyValue
 	dbBatch keyvalue.Batch
+	rw      *blockReadWriter
 
 	newestBlockIdToNum map[crypto.Signature]uint32
 	newestBlockNumToId map[uint32]crypto.Signature
@@ -23,7 +24,7 @@ type stateDB struct {
 	blocksNum int
 }
 
-func newStateDB(db keyvalue.KeyValue, dbBatch keyvalue.Batch) (*stateDB, error) {
+func newStateDB(db keyvalue.KeyValue, dbBatch keyvalue.Batch, rw *blockReadWriter) (*stateDB, error) {
 	heightBuf := make([]byte, 8)
 	has, err := db.Has([]byte{dbHeightKeyPrefix})
 	if err != nil {
@@ -48,13 +49,14 @@ func newStateDB(db keyvalue.KeyValue, dbBatch keyvalue.Batch) (*stateDB, error) 
 	return &stateDB{
 		db:                 db,
 		dbBatch:            dbBatch,
+		rw:                 rw,
 		newestBlockIdToNum: make(map[crypto.Signature]uint32),
 		newestBlockNumToId: make(map[uint32]crypto.Signature),
 	}, nil
 }
 
 // Sync blockReadWriter's storage (files) with the database.
-func (s *stateDB) syncRw(rw *blockReadWriter) error {
+func (s *stateDB) syncRw() error {
 	dbHeightBytes, err := s.db.Get([]byte{dbHeightKeyPrefix})
 	if err != nil {
 		return err
@@ -71,15 +73,15 @@ func (s *stateDB) syncRw(rw *blockReadWriter) error {
 		panic("Impossible to sync: DB is ahead of block storage; remove data dir and restart the node.")
 	}
 	if dbHeight == 0 {
-		if err := rw.removeEverything(false); err != nil {
+		if err := s.rw.removeEverything(false); err != nil {
 			return err
 		}
 	} else {
-		last, err := rw.blockIDByHeight(dbHeight)
+		last, err := s.rw.blockIDByHeight(dbHeight)
 		if err != nil {
 			return err
 		}
-		if err := rw.rollback(last, false); err != nil {
+		if err := s.rw.rollback(last, false); err != nil {
 			return errors.Errorf("failed to remove blocks from block storage: %v", err)
 		}
 	}
@@ -92,14 +94,14 @@ func (s *stateDB) addBlock(blockID crypto.Signature) error {
 	if err != nil {
 		return err
 	}
-	if _, ok := s.newestBlockIdToNum[blockID]; ok {
+	if _, err := s.blockIdToNum(blockID); err == nil {
 		// Block is already in there.
 		return nil
 	}
 	// Unique number of new block.
 	newBlockNum := lastBlockNum + uint32(s.blocksNum)
 	if _, ok := s.newestBlockNumToId[newBlockNum]; ok {
-		return errors.Errorf("block numner %d is already taken by some block", newBlockNum)
+		return errors.Errorf("block number %d is already taken by some block", newBlockNum)
 	}
 	// Add unique block number to the list of valid nums.
 	validBlocKey := validBlockNumKey{newBlockNum}
@@ -159,6 +161,22 @@ func (s *stateDB) blockNumToId(blockNum uint32) (crypto.Signature, error) {
 	return blockId, nil
 }
 
+func (s *stateDB) newestBlockNumByHeight(height uint64) (uint32, error) {
+	blockID, err := s.rw.newestBlockIDByHeight(height)
+	if err != nil {
+		return 0, err
+	}
+	return s.blockIdToNum(blockID)
+}
+
+func (s *stateDB) blockNumByHeight(height uint64) (uint32, error) {
+	blockID, err := s.rw.blockIDByHeight(height)
+	if err != nil {
+		return 0, err
+	}
+	return s.blockIdToNum(blockID)
+}
+
 func (s *stateDB) rollbackBlock(blockID crypto.Signature) error {
 	// Decrease DB's height (for sync/recovery).
 	height, err := s.getHeight()
@@ -174,6 +192,14 @@ func (s *stateDB) rollbackBlock(blockID crypto.Signature) error {
 	}
 	key := validBlockNumKey{blockNum}
 	if err := s.db.Delete(key.bytes()); err != nil {
+		return err
+	}
+	numKey := blockIdToNumKey{blockID}
+	if err := s.db.Delete(numKey.bytes()); err != nil {
+		return err
+	}
+	idKey := blockNumToIdKey{blockNum}
+	if err := s.db.Delete(idKey.bytes()); err != nil {
 		return err
 	}
 	return nil

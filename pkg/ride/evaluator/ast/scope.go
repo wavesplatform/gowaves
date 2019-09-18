@@ -1,6 +1,15 @@
 package ast
 
-import "github.com/wavesplatform/gowaves/pkg/types"
+import (
+	"github.com/wavesplatform/gowaves/pkg/types"
+)
+
+const maxMessageLengthV12 = 32 * 1024
+
+type evaluation struct {
+	expr Expr
+	err  error
+}
 
 type Scope interface {
 	Clone() Scope
@@ -9,34 +18,64 @@ type Scope interface {
 	State() types.SmartState
 	Scheme() byte
 	Initial() Scope
+	SetTransaction(transaction map[string]Expr)
+	SetHeight(height uint64)
+	evaluation(string) (evaluation, bool)
+	setEvaluation(string, evaluation)
+	validMessageLength(len int) bool
 }
+
+type Functions map[string]Expr
 
 type ScopeImpl struct {
-	parent    Scope
-	variables map[string]Expr
-	state     types.SmartState
-	scheme    byte
+	parent           Scope
+	expressions      map[string]Expr
+	state            types.SmartState
+	scheme           byte
+	evaluations      map[string]evaluation
+	msgLenValidation func(int) bool
 }
 
-type Callable func(Scope, Exprs) (Expr, error)
-
-func NewScope(scheme byte, state types.SmartState, variables map[string]Expr) *ScopeImpl {
+func NewScope(version int, scheme byte, state types.SmartState) *ScopeImpl {
+	var v func(int) bool
+	switch version {
+	case 1, 2:
+		v = func(l int) bool {
+			return l <= maxMessageLengthV12
+		}
+	default:
+		v = func(int) bool {
+			return true
+		}
+	}
+	var e map[string]Expr
+	switch version {
+	case 1:
+		e = expressionsV1()
+	case 2:
+		e = expressionsV2()
+	default:
+		e = expressionsV3()
+	}
 	return &ScopeImpl{
-		variables: variables,
-		state:     state,
-		scheme:    scheme,
+		expressions:      e,
+		state:            state,
+		scheme:           scheme,
+		evaluations:      make(map[string]evaluation),
+		msgLenValidation: v,
 	}
 }
 
 func (a *ScopeImpl) Clone() Scope {
 	return &ScopeImpl{
-		parent: a,
-		state:  a.state,
-		scheme: a.scheme,
+		parent:           a,
+		state:            a.state,
+		scheme:           a.scheme,
+		msgLenValidation: a.msgLenValidation,
 	}
 }
 
-// clone scope with only predefined variables
+// clone scope with only predefined expressions
 func (a *ScopeImpl) Initial() Scope {
 	if a.parent != nil {
 		return a.parent.Initial()
@@ -49,20 +88,19 @@ func (a *ScopeImpl) State() types.SmartState {
 }
 
 func (a *ScopeImpl) AddValue(name string, value Expr) {
-	if a.variables == nil {
-		a.variables = make(map[string]Expr)
+	if a.expressions == nil {
+		a.expressions = make(map[string]Expr)
 	}
-	a.variables[name] = value
+	a.expressions[name] = value
 }
 
 func (a *ScopeImpl) Value(name string) (Expr, bool) {
 	// first look in current scope
-	if a.variables != nil {
-		if v, ok := a.variables[name]; ok {
+	if a.expressions != nil {
+		if v, ok := a.expressions[name]; ok {
 			return v, true
 		}
 	}
-
 	// try find in parent
 	if a.parent != nil {
 		return a.parent.Value(name)
@@ -75,13 +113,46 @@ func (a *ScopeImpl) Scheme() byte {
 	return a.scheme
 }
 
-type Functions map[string]Expr
+
+func (a *ScopeImpl) SetTransaction(transaction map[string]Expr) {
+	a.expressions["tx"] = NewObject(transaction)
+}
+
+func (a *ScopeImpl) SetHeight(height uint64) {
+	a.expressions["height"] = NewLong(int64(height))
+}
+
+func (a *ScopeImpl) evaluation(name string) (evaluation, bool) {
+	if a.evaluations != nil {
+		if v, ok := a.evaluations[name]; ok {
+			return v, true
+		}
+	}
+	if a.parent != nil {
+		return a.parent.evaluation(name)
+	} else {
+		return evaluation{}, false
+	}
+}
 
 func EmptyFunctions() Functions {
 	return Functions{}
 }
+func (a *ScopeImpl) setEvaluation(name string, e evaluation) {
+	if a.evaluations == nil {
+		a.evaluations = make(map[string]evaluation)
+	}
+	a.evaluations[name] = e
+}
 
-func FunctionsV2() Functions {
+func (a *ScopeImpl) validMessageLength(l int) bool {
+	if a.msgLenValidation != nil {
+		return a.msgLenValidation(l)
+	}
+	return false
+}
+
+func functionsV2() map[string]Expr {
 	fns := make(map[string]Expr)
 
 	fns["0"] = FunctionFromPredefined(NativeEq, 2)
@@ -170,10 +241,8 @@ func FunctionsV2() Functions {
 	return fns
 }
 
-var VarFunctionsV2 = FunctionsV2()
-
-func FunctionsV3() Functions {
-	s := FunctionsV2()
+func functionsV3() map[string]Expr {
+	s := functionsV2()
 	s["108"] = FunctionFromPredefined(NativePowLong, 6)
 	s["109"] = FunctionFromPredefined(NativeLogLong, 6)
 
@@ -181,6 +250,7 @@ func FunctionsV3() Functions {
 	s["604"] = FunctionFromPredefined(NativeToBase16, 1)
 	s["605"] = FunctionFromPredefined(NativeFromBase16, 1)
 	s["700"] = FunctionFromPredefined(NativeCheckMerkleProof, 3)
+	delete(s, "1000") // Native function transactionByID was disabled since v3
 	s["1004"] = FunctionFromPredefined(NativeAssetInfo, 1)
 	s["1005"] = FunctionFromPredefined(NativeBlockInfoByHeight, 1)
 	s["1006"] = FunctionFromPredefined(NativeTransferTransactionByID, 1)
@@ -241,26 +311,22 @@ func FunctionsV3() Functions {
 	s["TransferSet"] = FunctionFromPredefined(UserTransferSet, 1)
 	s["ScriptTransfer"] = FunctionFromPredefined(ScriptTransfer, 3)
 	s["ScriptResult"] = FunctionFromPredefined(ScriptResult, 2)
-
 	return s
 }
 
-var VarFunctionsV3 = FunctionsV3()
-
-func (a *Functions) Clone() *Functions {
-	return a
+func VariablesV1() map[string]Expr {
+	return make(map[string]Expr)
 }
 
-func VariablesV2(height uint64) map[string]Expr {
-	v := make(map[string]Expr)
-	v["height"] = NewLong(int64(height))
+func VariablesV2() map[string]Expr {
+	v := VariablesV1()
 	v["Sell"] = NewSell()
 	v["Buy"] = NewBuy()
 	return v
 }
 
-func VariablesV3(height uint64) map[string]Expr {
-	v := VariablesV2(height)
+func VariablesV3() map[string]Expr {
+	v := VariablesV2()
 	v["CEILING"] = CeilingExpr{}
 	v["FLOOR"] = FloorExpr{}
 	v["HALFEVEN"] = HalfEvenExpr{}
@@ -284,4 +350,27 @@ func VariablesV3(height uint64) map[string]Expr {
 	v["nil"] = Exprs(nil)
 	v["unit"] = NewUnit()
 	return v
+}
+
+func merge(x map[string]Expr, y map[string]Expr) map[string]Expr {
+	out := make(map[string]Expr)
+	for k, v := range x {
+		out[k] = v
+	}
+	for k, v := range y {
+		out[k] = v
+	}
+	return out
+}
+
+func expressionsV1() map[string]Expr {
+	return merge(VariablesV1(), functionsV2())
+}
+
+func expressionsV2() map[string]Expr {
+	return merge(VariablesV2(), functionsV2())
+}
+
+func expressionsV3() map[string]Expr {
+	return merge(VariablesV3(), functionsV3())
 }

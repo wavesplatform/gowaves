@@ -19,8 +19,6 @@ const (
 	approvedFeaturesKeySize = 1 + 2
 	votesFeaturesKeySize    = 1 + 2
 
-	minAccountsDataStorKeySize = 1 + 8 + 2 + 1 + 4
-
 	// Balances.
 	wavesBalanceKeyPrefix byte = iota
 	assetBalanceKeyPrefix
@@ -39,6 +37,8 @@ const (
 	// IDs of blocks and transactions --> offsets in files.
 	blockOffsetKeyPrefix
 	txOffsetKeyPrefix
+	// Transaction heights by IDs.
+	txHeightKeyPrefix
 
 	// Minimum height to which rollback is possible.
 	rollbackMinHeightKeyPrefix
@@ -76,8 +76,12 @@ const (
 	accountStorAddrToNumKeyPrefix
 	// Prefix for keys of accounts data entries.
 	accountsDataStorKeyPrefix
+
 	// Sponsored assets storage.
 	sponsorshipKeyPrefix
+
+	// Scripts.
+	accountScriptKeyPrefix
 )
 
 type wavesBalanceKey struct {
@@ -185,6 +189,17 @@ type txOffsetKey struct {
 func (k *txOffsetKey) bytes() []byte {
 	buf := make([]byte, 1+crypto.DigestSize)
 	buf[0] = txOffsetKeyPrefix
+	copy(buf[1:], k.txID)
+	return buf
+}
+
+type txHeightKey struct {
+	txID []byte
+}
+
+func (k *txHeightKey) bytes() []byte {
+	buf := make([]byte, 1+crypto.DigestSize)
+	buf[0] = txHeightKeyPrefix
 	copy(buf[1:], k.txID)
 	return buf
 }
@@ -383,47 +398,14 @@ func (k *accountStorAddrToNumKey) bytes() []byte {
 type accountsDataStorKey struct {
 	addrNum  uint64
 	entryKey string
-	blockNum uint32
-}
-
-func newAccountsDataBytePrefix(addrNum uint64, entryKey string) []byte {
-	prefix := make([]byte, 1+8+2+len(entryKey))
-	prefix[0] = accountsDataStorKeyPrefix
-	binary.LittleEndian.PutUint64(prefix[1:9], addrNum)
-	proto.PutStringWithUInt16Len(prefix[9:], entryKey)
-	return prefix
-}
-
-func properAccountDataKeyLength(entryKey string) int {
-	return 1 + 8 + 2 + len(entryKey) + 4
 }
 
 func (k *accountsDataStorKey) bytes() []byte {
-	buf := make([]byte, 1+8+2+len(k.entryKey)+4)
+	buf := make([]byte, 1+8+2+len(k.entryKey))
 	buf[0] = accountsDataStorKeyPrefix
 	binary.LittleEndian.PutUint64(buf[1:9], k.addrNum)
 	proto.PutStringWithUInt16Len(buf[9:], k.entryKey)
-	pos := 9 + 2 + len(k.entryKey)
-	binary.LittleEndian.PutUint32(buf[pos:], k.blockNum)
 	return buf
-}
-
-func (k *accountsDataStorKey) unmarshal(data []byte) error {
-	if len(data) < minAccountsDataStorKeySize {
-		return errors.New("invalid data size")
-	}
-	if data[0] != accountsDataStorKeyPrefix {
-		return errors.New("invalid prefix for given key")
-	}
-	k.addrNum = binary.LittleEndian.Uint64(data[1:9])
-	key, err := proto.StringWithUInt16Len(data[9:])
-	if err != nil {
-		return err
-	}
-	k.entryKey = key
-	pos := 1 + 8 + 2 + len(k.entryKey)
-	k.blockNum = binary.LittleEndian.Uint32(data[pos:])
-	return nil
 }
 
 type sponsorshipKey struct {
@@ -434,5 +416,16 @@ func (k *sponsorshipKey) bytes() []byte {
 	buf := make([]byte, 1+crypto.DigestSize)
 	buf[0] = sponsorshipKeyPrefix
 	copy(buf[1:], k.assetID[:])
+	return buf
+}
+
+type accountScriptKey struct {
+	addr proto.Address
+}
+
+func (k *accountScriptKey) bytes() []byte {
+	buf := make([]byte, 1+proto.AddressSize)
+	buf[0] = accountScriptKeyPrefix
+	copy(buf[1:], k.addr[:])
 	return buf
 }

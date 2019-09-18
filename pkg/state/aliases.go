@@ -1,7 +1,6 @@
 package state
 
 import (
-	"encoding/binary"
 	"log"
 
 	"github.com/pkg/errors"
@@ -13,7 +12,7 @@ import (
 var errAliasDisabled = errors.New("alias was stolen and is now disabled")
 
 const (
-	aliasRecordSize = 1 + proto.AddressSize + 4
+	aliasRecordSize = 1 + proto.AddressSize
 )
 
 type aliasInfo struct {
@@ -22,15 +21,13 @@ type aliasInfo struct {
 }
 
 type aliasRecord struct {
-	aliasInfo
-	blockNum uint32
+	info aliasInfo
 }
 
 func (r *aliasRecord) marshalBinary() ([]byte, error) {
 	res := make([]byte, aliasRecordSize)
-	proto.PutBool(res[:1], r.stolen)
-	copy(res[1:1+proto.AddressSize], r.addr[:])
-	binary.BigEndian.PutUint32(res[1+proto.AddressSize:], r.blockNum)
+	proto.PutBool(res[:1], r.info.stolen)
+	copy(res[1:1+proto.AddressSize], r.info.addr[:])
 	return res, nil
 }
 
@@ -39,43 +36,37 @@ func (r *aliasRecord) unmarshalBinary(data []byte) error {
 		return errors.New("invalid data size")
 	}
 	var err error
-	r.stolen, err = proto.Bool(data[:1])
+	r.info.stolen, err = proto.Bool(data[:1])
 	if err != nil {
 		return err
 	}
-	copy(r.addr[:], data[1:1+proto.AddressSize])
-	r.blockNum = binary.BigEndian.Uint32(data[1+proto.AddressSize:])
+	copy(r.info.addr[:], data[1:1+proto.AddressSize])
 	return nil
 }
 
 type aliases struct {
 	db      keyvalue.IterableKeyVal
 	dbBatch keyvalue.Batch
-	stateDB *stateDB
 	hs      *historyStorage
 }
 
-func newAliases(db keyvalue.IterableKeyVal, dbBatch keyvalue.Batch, stateDB *stateDB, hs *historyStorage) (*aliases, error) {
-	return &aliases{db, dbBatch, stateDB, hs}, nil
+func newAliases(db keyvalue.IterableKeyVal, dbBatch keyvalue.Batch, hs *historyStorage) (*aliases, error) {
+	return &aliases{db, dbBatch, hs}, nil
 }
 
 func (a *aliases) createAlias(aliasStr string, info *aliasInfo, blockID crypto.Signature) error {
 	key := aliasKey{aliasStr}
-	blockNum, err := a.stateDB.blockIdToNum(blockID)
-	if err != nil {
-		return err
-	}
-	r := aliasRecord{*info, blockNum}
+	r := aliasRecord{*info}
 	recordBytes, err := r.marshalBinary()
 	if err != nil {
 		return err
 	}
-	return a.hs.set(alias, key.bytes(), recordBytes)
+	return a.hs.addNewEntry(alias, key.bytes(), recordBytes, blockID)
 }
 
 func (a *aliases) exists(aliasStr string, filter bool) bool {
 	key := aliasKey{alias: aliasStr}
-	if _, err := a.hs.getFresh(alias, key.bytes(), filter); err != nil {
+	if _, err := a.hs.freshLatestEntryData(key.bytes(), filter); err != nil {
 		return false
 	}
 	return true
@@ -95,7 +86,7 @@ func (a *aliases) newestAddrByAlias(aliasStr string, filter bool) (*proto.Addres
 		return nil, errAliasDisabled
 	}
 	key := aliasKey{alias: aliasStr}
-	recordBytes, err := a.hs.getFresh(alias, key.bytes(), filter)
+	recordBytes, err := a.hs.freshLatestEntryData(key.bytes(), filter)
 	if err != nil {
 		return nil, err
 	}
@@ -103,11 +94,11 @@ func (a *aliases) newestAddrByAlias(aliasStr string, filter bool) (*proto.Addres
 	if err := record.unmarshalBinary(recordBytes); err != nil {
 		return nil, errors.Errorf("failed to unmarshal record: %v\n", err)
 	}
-	return &record.addr, nil
+	return &record.info.addr, nil
 }
 
 func (a *aliases) recordByAlias(key []byte, filter bool) (*aliasRecord, error) {
-	recordBytes, err := a.hs.get(alias, key, filter)
+	recordBytes, err := a.hs.latestEntryData(key, filter)
 	if err != nil {
 		return nil, err
 	}
@@ -131,7 +122,7 @@ func (a *aliases) addrByAlias(aliasStr string, filter bool) (*proto.Address, err
 	if err != nil {
 		return nil, err
 	}
-	return &record.addr, nil
+	return &record.info.addr, nil
 }
 
 func (a *aliases) disableStolenAliases() error {
@@ -151,7 +142,7 @@ func (a *aliases) disableStolenAliases() error {
 		if err := key.unmarshal(keyBytes); err != nil {
 			return err
 		}
-		if record.stolen {
+		if record.info.stolen {
 			log.Printf("Forbidding stolen alias %s\n", key.alias)
 			disabledKey := disabledAliasKey(key)
 			a.dbBatch.Put(disabledKey.bytes(), void)

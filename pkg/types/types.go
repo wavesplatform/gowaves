@@ -44,9 +44,12 @@ type TransactionWithBytes struct {
 
 // state for smart contracts
 type SmartState interface {
-	NewestHeight() (uint64, error)
-	TransactionByID([]byte) (proto.Transaction, error)
-	TransactionHeightByID([]byte) (uint64, error)
+	AddingBlockHeight() (uint64, error)
+	NewestTransactionByID([]byte) (proto.Transaction, error)
+	NewestTransactionHeightByID([]byte) (uint64, error)
+
+	// NewestAccountBalance retrieves balance of address in specific currency, asset is asset's ID.
+	// nil asset = Waves.
 	NewestAccountBalance(account proto.Recipient, asset []byte) (uint64, error)
 	NewestAddrByAlias(alias proto.Alias) (proto.Address, error)
 	RetrieveNewestIntegerEntry(account proto.Recipient, key string) (*proto.IntegerDataEntry, error)
@@ -55,4 +58,6 @@ type SmartState interface {
 	RetrieveNewestBinaryEntry(account proto.Recipient, key string) (*proto.BinaryDataEntry, error)
 	NewestAssetIsSponsored(assetID crypto.Digest) (bool, error)
 	HeaderByHeight(height proto.Height) (*proto.BlockHeader, error)
+
+	IsNotFound(err error) bool
 }
