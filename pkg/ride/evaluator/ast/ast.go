@@ -15,6 +15,8 @@ import (
 
 const InstanceFieldName = "$instance"
 
+type Callable func(Scope, Exprs) (Expr, error)
+
 type Script struct {
 	Version    int
 	HasBlockV2 bool
@@ -42,13 +44,12 @@ func (a *Script) CallFunction(scheme proto.Scheme, state types.SmartState, tx *p
 	if err != nil {
 		return nil, err
 	}
-	height, err := state.NewestHeight()
+	height, err := state.AddingBlockHeight()
 	if err != nil {
 		return nil, err
 	}
-	funcsV3 := VarFunctionsV3
-	varsV3 := VariablesV3(height)
-	scope := NewScope(scheme, state, Merge(funcsV3, varsV3))
+	scope := NewScope(3, scheme, state)
+	scope.SetHeight(height)
 
 	if len(fn.funcDecl.Args) != len(args) {
 		return nil, errors.Errorf("invalid func '%s' args count, expected %d, got %d", fn.funcDecl.Name, len(fn.funcDecl.Args), len(args))
@@ -76,7 +77,7 @@ func (a *Script) Verify(scheme byte, state types.SmartState, transaction proto.T
 	if err != nil {
 		return false, err
 	}
-	height, err := state.NewestHeight()
+	height, err := state.AddingBlockHeight()
 	if err != nil {
 		return false, err
 	}
@@ -84,9 +85,8 @@ func (a *Script) Verify(scheme byte, state types.SmartState, transaction proto.T
 		if a.DApp.varifier == nil {
 			return false, errors.New("verify function not defined")
 		}
-		funcsV3 := VarFunctionsV3
-		varsV3 := VariablesV3(height)
-		scope := NewScope(scheme, state, Merge(funcsV3, varsV3))
+		scope := NewScope(3, scheme, state)
+		scope.SetHeight(height)
 
 		fn := a.DApp.varifier
 		// pass function arguments
@@ -102,10 +102,9 @@ func (a *Script) Verify(scheme byte, state types.SmartState, transaction proto.T
 		}
 		return evalAsBool(fn.funcDecl.Body, curScope)
 	} else {
-		funcsV2 := VarFunctionsV2
-		varsV2 := VariablesV2(height)
-		scope := NewScope(scheme, state, Merge(funcsV2, varsV2))
+		scope := NewScope(2, scheme, state)
 		scope.AddValue("tx", NewObject(txVars))
+		scope.SetHeight(height)
 		return evalAsBool(a.Verifier, scope)
 	}
 }
@@ -128,19 +127,6 @@ func evalAsBool(e Expr, s Scope) (bool, error) {
 
 func (a *Script) Eval(s Scope) (bool, error) {
 	return evalAsBool(a.Verifier, s)
-	//rs, err := a.Verifier.Evaluate(s)
-	//if err != nil {
-	//	if _, ok := err.(Throw); ok {
-	//		// maybe log error
-	//		return false, nil
-	//	}
-	//	return false, err
-	//}
-	//b, ok := rs.(*BooleanExpr)
-	//if !ok {
-	//	return false, errors.Errorf("expected evaluate return *BooleanExpr, but found %T", b)
-	//}
-	//return b.Value, nil
 }
 
 type Expr interface {

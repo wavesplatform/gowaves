@@ -54,7 +54,7 @@ func NewEstimatorV1(catalogue *Catalogue, variables map[string]ast.Expr) *Estima
 	}
 }
 
-func (e *EstimatorV1) Estimate(script ast.Script) (int64, error) {
+func (e *EstimatorV1) Estimate(script *ast.Script) (int64, error) {
 	verifierCost, err := e.estimate(script.Verifier)
 	if err != nil {
 		return 0, errors.Wrap(err, "estimation")

@@ -320,12 +320,6 @@ func TestFunctions(t *testing.T) {
 		script, err := BuildScript(r)
 		require.NoError(t, err)
 
-
-		//rs, err := script.Eval(defaultScope())
-		//assert.NoError(t, err, fmt.Sprintf("func name: %s, code: %d, script: %s", test.FuncName, test.FuncCode, test.Code))
-		//assert.Equal(t, test.Result, rs, fmt.Sprintf("func name: %s, code: %d, script: %s", test.FuncName, test.FuncCode, test.Code))
-
-
 		rs, err := Eval(script.Verifier, test.scope)
 		assert.NoError(t, err, test.name)
 		assert.Equal(t, test.result, rs, fmt.Sprintf("func name: %s, code: %d, text: %s", test.name, test.code, test.text))
@@ -358,13 +352,6 @@ func TestDataFunctions(t *testing.T) {
 
 	vars, err := NewVariablesFromTransaction(proto.MainNetScheme, data)
 	require.NoError(t, err)
-
-
-	// old version
-	//variables := VariablesV3(100500)
-	//scope := NewScope(proto.MainNetScheme, mockstate.State{}, Merge(variables, FunctionsV3()))
-	//scope.AddValue("tx", NewObject(vars))
-
 
 	scope := NewScope(2, proto.MainNetScheme, mockstate.State{})
 	scope.SetHeight(100500)
@@ -706,7 +693,6 @@ func tellme(question: String) = {
 		rs)
 }
 
-
 func TestMatchOverwrite(t *testing.T) {
 	/*
 		{-# STDLIB_VERSION 1 #-}
@@ -757,7 +743,7 @@ func TestMatchOverwrite(t *testing.T) {
 	scope.SetTransaction(tv)
 	scope.SetHeight(368430)
 
-	script, err := BuildAst(r)
+	script, err := BuildScript(r)
 	require.NoError(t, err)
 
 	rs, err := Eval(script.Verifier, scope)
@@ -799,7 +785,7 @@ func TestFailSript1(t *testing.T) {
 	scope.SetTransaction(tv)
 	scope.SetHeight(368430)
 
-	scr, err := BuildAst(r)
+	scr, err := BuildScript(r)
 	require.NoError(t, err)
 
 	rs, err := Eval(scr.Verifier, scope)

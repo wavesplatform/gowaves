@@ -113,7 +113,6 @@ func (a *ScopeImpl) Scheme() byte {
 	return a.scheme
 }
 
-
 func (a *ScopeImpl) SetTransaction(transaction map[string]Expr) {
 	a.expressions["tx"] = NewObject(transaction)
 }
