@@ -771,3 +771,36 @@ func TestCheckSetScriptV1(t *testing.T) {
 	err = to.tc.checkSetScriptV1(tx, info)
 	assert.Error(t, err, "checkSetScriptV1 did not fail with invalid timestamp")
 }
+
+func TestCheckSetAssetScriptV1(t *testing.T) {
+	to, path := createCheckerTestObjects(t)
+
+	defer func() {
+		to.stor.close(t)
+
+		err := util.CleanTemporaryDirs(path)
+		assert.NoError(t, err, "failed to clean test data dirs")
+	}()
+
+	tx := createSetAssetScriptV1(t)
+	info := defaultCheckerInfo(t)
+
+	to.stor.addBlock(t, blockID0)
+
+	// Must fail on non-smart assets.
+	err := to.tc.checkSetAssetScriptV1(tx, info)
+	assert.Error(t, err, "checkSetAssetScriptV1 did not fail with non-smart asset")
+
+	// Make it smart.
+	err = to.stor.entities.scriptsStorage.setAssetScript(tx.AssetID, tx.Script, blockID0)
+	assert.NoError(t, err, "setAssetScript failed")
+
+	// Now should pass.
+	err = to.tc.checkSetAssetScriptV1(tx, info)
+	assert.NoError(t, err, "checkSetAssetScriptV1 failed with valid SetAssetScriptV1 tx")
+
+	// Check invalid timestamp failure.
+	tx.Timestamp = 0
+	err = to.tc.checkSetAssetScriptV1(tx, info)
+	assert.Error(t, err, "checkSetAssetScriptV1 did not fail with invalid timestamp")
+}

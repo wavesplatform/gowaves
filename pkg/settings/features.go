@@ -32,7 +32,7 @@ var FeaturesInfo = map[Feature]FeatureInfo{
 	BurnAnyTokens:                   {true, "Burn Any Tokens"},
 	FeeSponsorship:                  {true, "Fee Sponsorship"},
 	FairPoS:                         {true, "Fair PoS"},
-	SmartAssets:                     {false, "Smart Assets"},
+	SmartAssets:                     {true, "Smart Assets"},
 	SmartAccountTrading:             {false, "Smart Account Trading"},
 	Ride4DApps:                      {false, "RIDE 4 DAPPS"},
 	OrderV3:                         {false, "Order Version 3"},

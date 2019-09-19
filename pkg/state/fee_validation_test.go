@@ -23,13 +23,17 @@ func TestScriptExtraFee(t *testing.T) {
 	// Set script.
 	to.stor.addBlock(t, blockID0)
 	addr := testGlobal.senderInfo.addr
-	err = to.stor.entities.accountsScripts.setScript(addr, proto.Script(testGlobal.scriptBytes), blockID0)
+	err = to.stor.entities.scriptsStorage.setAccountScript(addr, proto.Script(testGlobal.scriptBytes), blockID0)
 	assert.NoError(t, err)
 
 	// Burn.
 	tx := createBurnV1(t)
 	tx.Fee = 1 * FeeUnit
-	params := &feeValidationParams{to.stor.entities, settings.MainNetSettings, false}
+	params := &feeValidationParams{
+		stor:           to.stor.entities,
+		settings:       settings.MainNetSettings,
+		initialisation: false,
+	}
 	err = checkMinFeeWaves(tx, params)
 	assert.Error(t, err, "checkMinFeeWaves() did not fail with invalid Burn fee")
 	tx.Fee += scriptExtraFee
@@ -50,7 +54,11 @@ func TestCheckMinFeeWaves(t *testing.T) {
 
 	// Burn.
 	tx := createBurnV1(t)
-	params := &feeValidationParams{to.stor.entities, settings.MainNetSettings, false}
+	params := &feeValidationParams{
+		stor:           to.stor.entities,
+		settings:       settings.MainNetSettings,
+		initialisation: false,
+	}
 	err = checkMinFeeWaves(tx, params)
 	assert.NoError(t, err, "checkMinFeeWaves() failed with valid Burn fee")
 
@@ -93,7 +101,11 @@ func TestCheckMinFeeAsset(t *testing.T) {
 	}()
 
 	tx := createTransferV1(t)
-	params := &feeValidationParams{to.stor.entities, settings.MainNetSettings, false}
+	params := &feeValidationParams{
+		stor:           to.stor.entities,
+		settings:       settings.MainNetSettings,
+		initialisation: false,
+	}
 
 	to.stor.addBlock(t, blockID0)
 	assetCost := uint64(4)

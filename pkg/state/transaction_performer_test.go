@@ -435,7 +435,7 @@ func TestPerformSponsorshipV1(t *testing.T) {
 	assert.Equal(t, assetCost, tx.MinAssetFee)
 }
 
-func TestPerfromSetScriptV1(t *testing.T) {
+func TestPerformSetScriptV1(t *testing.T) {
 	to, path := createPerformerTestObjects(t)
 
 	defer func() {
@@ -454,47 +454,134 @@ func TestPerfromSetScriptV1(t *testing.T) {
 	addr := testGlobal.senderInfo.addr
 
 	// Test newest before flushing.
-	hasScript, err := to.stor.entities.accountsScripts.newestHasScript(addr, true)
-	assert.NoError(t, err, "newestHasScript() failed")
-	assert.Equal(t, true, hasScript)
-	hasVerifier, err := to.stor.entities.accountsScripts.newestHasVerifier(addr, true)
-	assert.NoError(t, err, "newestHasVerifier() failed")
-	assert.Equal(t, true, hasVerifier)
-	scriptAst, err := to.stor.entities.accountsScripts.newestScriptByAddr(addr, true)
+	accountHasScript, err := to.stor.entities.scriptsStorage.newestAccountHasScript(addr, true)
+	assert.NoError(t, err, "newestAccountHasScript() failed")
+	assert.Equal(t, true, accountHasScript)
+	accountHasVerifier, err := to.stor.entities.scriptsStorage.newestAccountHasVerifier(addr, true)
+	assert.NoError(t, err, "newestAccountHasVerifier() failed")
+	assert.Equal(t, true, accountHasVerifier)
+	scriptAst, err := to.stor.entities.scriptsStorage.newestScriptByAddr(addr, true)
 	assert.NoError(t, err, "newestScriptByAddr() failed")
 	assert.Equal(t, testGlobal.scriptAst, scriptAst)
 
 	// Test stable before flushing.
-	hasScript, err = to.stor.entities.accountsScripts.hasScript(addr, true)
-	assert.NoError(t, err, "hasScript() failed")
-	assert.Equal(t, false, hasScript)
-	hasVerifier, err = to.stor.entities.accountsScripts.hasVerifier(addr, true)
-	assert.NoError(t, err, "hasVerifier() failed")
-	assert.Equal(t, false, hasVerifier)
-	_, err = to.stor.entities.accountsScripts.scriptByAddr(addr, true)
+	accountHasScript, err = to.stor.entities.scriptsStorage.accountHasScript(addr, true)
+	assert.NoError(t, err, "accountHasScript() failed")
+	assert.Equal(t, false, accountHasScript)
+	accountHasVerifier, err = to.stor.entities.scriptsStorage.accountHasVerifier(addr, true)
+	assert.NoError(t, err, "accountHasVerifier() failed")
+	assert.Equal(t, false, accountHasVerifier)
+	_, err = to.stor.entities.scriptsStorage.scriptByAddr(addr, true)
 	assert.Error(t, err, "scriptByAddr() did not fail before flushing")
 
 	to.stor.flush(t)
 
 	// Test newest after flushing.
-	hasScript, err = to.stor.entities.accountsScripts.newestHasScript(addr, true)
-	assert.NoError(t, err, "newestHasScript() failed")
-	assert.Equal(t, true, hasScript)
-	hasVerifier, err = to.stor.entities.accountsScripts.newestHasVerifier(addr, true)
-	assert.NoError(t, err, "newestHasVerifier() failed")
-	assert.Equal(t, true, hasVerifier)
-	scriptAst, err = to.stor.entities.accountsScripts.newestScriptByAddr(addr, true)
+	accountHasScript, err = to.stor.entities.scriptsStorage.newestAccountHasScript(addr, true)
+	assert.NoError(t, err, "newestAccountHasScript() failed")
+	assert.Equal(t, true, accountHasScript)
+	accountHasVerifier, err = to.stor.entities.scriptsStorage.newestAccountHasVerifier(addr, true)
+	assert.NoError(t, err, "newestAccountHasVerifier() failed")
+	assert.Equal(t, true, accountHasVerifier)
+	scriptAst, err = to.stor.entities.scriptsStorage.newestScriptByAddr(addr, true)
 	assert.NoError(t, err, "newestScriptByAddr() failed")
 	assert.Equal(t, testGlobal.scriptAst, scriptAst)
 
 	// Test stable after flushing.
-	hasScript, err = to.stor.entities.accountsScripts.hasScript(addr, true)
-	assert.NoError(t, err, "hasScript() failed")
-	assert.Equal(t, true, hasScript)
-	hasVerifier, err = to.stor.entities.accountsScripts.hasVerifier(addr, true)
-	assert.NoError(t, err, "hasVerifier() failed")
-	assert.Equal(t, true, hasVerifier)
-	scriptAst, err = to.stor.entities.accountsScripts.scriptByAddr(addr, true)
+	accountHasScript, err = to.stor.entities.scriptsStorage.accountHasScript(addr, true)
+	assert.NoError(t, err, "accountHasScript() failed")
+	assert.Equal(t, true, accountHasScript)
+	accountHasVerifier, err = to.stor.entities.scriptsStorage.accountHasVerifier(addr, true)
+	assert.NoError(t, err, "accountHasVerifier() failed")
+	assert.Equal(t, true, accountHasVerifier)
+	scriptAst, err = to.stor.entities.scriptsStorage.scriptByAddr(addr, true)
 	assert.NoError(t, err, "scriptByAddr() failed after flushing")
 	assert.Equal(t, testGlobal.scriptAst, scriptAst)
+}
+
+func TestPerformSetAssetScriptV1(t *testing.T) {
+	to, path := createPerformerTestObjects(t)
+
+	defer func() {
+		to.stor.close(t)
+
+		err := util.CleanTemporaryDirs(path)
+		assert.NoError(t, err, "failed to clean test data dirs")
+	}()
+
+	to.stor.addBlock(t, blockID0)
+
+	tx := createSetAssetScriptV1(t)
+	err := to.tp.performSetAssetScriptV1(tx, defaultPerformerInfo(t))
+	assert.NoError(t, err, "performSetAssetScriptV1() failed")
+
+	assetID := tx.AssetID
+
+	// Test newest before flushing.
+	isSmartAsset, err := to.stor.entities.scriptsStorage.newestIsSmartAsset(assetID, true)
+	assert.NoError(t, err, "newestIsSmartAsset() failed")
+	assert.Equal(t, true, isSmartAsset)
+	scriptAst, err := to.stor.entities.scriptsStorage.newestScriptByAsset(assetID, true)
+	assert.NoError(t, err, "newestScriptByAsset() failed")
+	assert.Equal(t, testGlobal.scriptAst, scriptAst)
+
+	// Test stable before flushing.
+	isSmartAsset, err = to.stor.entities.scriptsStorage.isSmartAsset(assetID, true)
+	assert.NoError(t, err, "isSmartAsset() failed")
+	assert.Equal(t, false, isSmartAsset)
+	_, err = to.stor.entities.scriptsStorage.scriptByAsset(assetID, true)
+	assert.Error(t, err, "scriptByAsset() did not fail before flushing")
+
+	to.stor.flush(t)
+
+	// Test newest after flushing.
+	isSmartAsset, err = to.stor.entities.scriptsStorage.newestIsSmartAsset(assetID, true)
+	assert.NoError(t, err, "newestIsSmartAsset() failed")
+	assert.Equal(t, true, isSmartAsset)
+	scriptAst, err = to.stor.entities.scriptsStorage.newestScriptByAsset(assetID, true)
+	assert.NoError(t, err, "newestScriptByAsset() failed")
+	assert.Equal(t, testGlobal.scriptAst, scriptAst)
+
+	// Test stable after flushing.
+	isSmartAsset, err = to.stor.entities.scriptsStorage.isSmartAsset(assetID, true)
+	assert.NoError(t, err, "isSmartAsset() failed")
+	assert.Equal(t, true, isSmartAsset)
+	scriptAst, err = to.stor.entities.scriptsStorage.scriptByAsset(assetID, true)
+	assert.NoError(t, err, "scriptByAsset() failed after flushing")
+	assert.Equal(t, testGlobal.scriptAst, scriptAst)
+
+	// Test discarding script.
+	err = to.stor.entities.scriptsStorage.setAssetScript(assetID, proto.Script{}, blockID0)
+	assert.NoError(t, err, "setAssetScript() failed")
+
+	// Test newest before flushing.
+	isSmartAsset, err = to.stor.entities.scriptsStorage.newestIsSmartAsset(assetID, true)
+	assert.NoError(t, err, "newestIsSmartAsset() failed")
+	assert.Equal(t, false, isSmartAsset)
+	_, err = to.stor.entities.scriptsStorage.newestScriptByAsset(assetID, true)
+	assert.Error(t, err)
+
+	// Test stable before flushing.
+	isSmartAsset, err = to.stor.entities.scriptsStorage.isSmartAsset(assetID, true)
+	assert.NoError(t, err, "isSmartAsset() failed")
+	assert.Equal(t, true, isSmartAsset)
+	scriptAst, err = to.stor.entities.scriptsStorage.scriptByAsset(assetID, true)
+	assert.NoError(t, err)
+	assert.Equal(t, testGlobal.scriptAst, scriptAst)
+
+	to.stor.flush(t)
+
+	// Test newest after flushing.
+	isSmartAsset, err = to.stor.entities.scriptsStorage.newestIsSmartAsset(assetID, true)
+	assert.NoError(t, err, "newestIsSmartAsset() failed")
+	assert.Equal(t, false, isSmartAsset)
+	_, err = to.stor.entities.scriptsStorage.newestScriptByAsset(assetID, true)
+	assert.Error(t, err)
+
+	// Test stable after flushing.
+	isSmartAsset, err = to.stor.entities.scriptsStorage.isSmartAsset(assetID, true)
+	assert.NoError(t, err, "isSmartAsset() failed")
+	assert.Equal(t, false, isSmartAsset)
+	_, err = to.stor.entities.scriptsStorage.scriptByAsset(assetID, true)
+	assert.Error(t, err)
 }

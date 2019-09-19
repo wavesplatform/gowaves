@@ -51,7 +51,7 @@ type blockchainEntitiesStorage struct {
 	features         *features
 	accountsDataStor *accountsDataStorage
 	sponsoredAssets  *sponsoredAssets
-	accountsScripts  *accountsScripts
+	scriptsStorage   *scriptsStorage
 }
 
 func newBlockchainEntitiesStorage(hs *historyStorage, sets *settings.BlockchainSettings, rw *blockReadWriter) (*blockchainEntitiesStorage, error) {
@@ -91,11 +91,11 @@ func newBlockchainEntitiesStorage(hs *historyStorage, sets *settings.BlockchainS
 	if err != nil {
 		return nil, err
 	}
-	accountsScripts, err := newAccountsScripts(hs.db, hs.dbBatch, hs)
+	scriptsStorage, err := newScriptsStorage(hs)
 	if err != nil {
 		return nil, err
 	}
-	return &blockchainEntitiesStorage{hs, aliases, assets, leases, scores, blocksInfo, balances, features, accountsDataStor, sponsoredAssets, accountsScripts}, nil
+	return &blockchainEntitiesStorage{hs, aliases, assets, leases, scores, blocksInfo, balances, features, accountsDataStor, sponsoredAssets, scriptsStorage}, nil
 }
 
 func (s *blockchainEntitiesStorage) reset() {
@@ -217,7 +217,7 @@ func (a *txAppender) callVerifyScript(tx proto.Transaction, initialisation bool)
 	if err != nil {
 		return err
 	}
-	script, err := a.stor.accountsScripts.newestScriptByAddr(senderAddr, !initialisation)
+	script, err := a.stor.scriptsStorage.newestScriptByAddr(senderAddr, !initialisation)
 	if err != nil {
 		return errors.Errorf("failed to retrieve account script: %v\n", err)
 	}
@@ -237,7 +237,7 @@ func (a *txAppender) hasVerifyScript(tx proto.Transaction, initialisation bool) 
 	if err != nil {
 		return false, err
 	}
-	return a.stor.accountsScripts.newestHasVerifier(senderAddr, !initialisation)
+	return a.stor.scriptsStorage.newestAccountHasVerifier(senderAddr, !initialisation)
 }
 
 func (a *txAppender) checkTxAgainstState(tx proto.Transaction, scripted bool, checkerInfo *checkerInfo) error {
@@ -293,12 +293,12 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 		if err != nil {
 			return err
 		}
-		hasVerifierScript, err := a.stor.accountsScripts.newestHasVerifier(senderAddr, !params.initialisation)
+		accountHasVerifierScript, err := a.stor.scriptsStorage.newestAccountHasVerifier(senderAddr, !params.initialisation)
 		if err != nil {
 			return err
 		}
 		checkTxSig := true
-		if hasVerifierScript {
+		if accountHasVerifierScript {
 			scriptsRuns++
 			// For transaction with SmartAccount we don't check signatures.
 			checkTxSig = false
@@ -333,7 +333,7 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 		}
 		a.recentTxIds[string(txID)] = empty
 		// Check against state.
-		if err := a.checkTxAgainstState(tx, hasVerifierScript, checkerInfo); err != nil {
+		if err := a.checkTxAgainstState(tx, accountHasVerifierScript, checkerInfo); err != nil {
 			return err
 		}
 		// Create balance diff of this tx.
@@ -1431,7 +1431,7 @@ func (s *stateManager) rollbackToImpl(removalEdge crypto.Signature) error {
 		return wrapErr(RollbackError, err)
 	}
 	// Clear scripts cache.
-	if err := s.stor.accountsScripts.clear(); err != nil {
+	if err := s.stor.scriptsStorage.clear(); err != nil {
 		return wrapErr(RollbackError, err)
 	}
 	return nil
