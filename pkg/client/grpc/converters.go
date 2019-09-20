@@ -55,23 +55,14 @@ func (c *SafeConverter) digest(digest []byte) crypto.Digest {
 	return r
 }
 
-func (c *SafeConverter) optionalAsset(asset *AssetId) proto.OptionalAsset {
+func (c *SafeConverter) optionalAsset(asset []byte) proto.OptionalAsset {
 	if c.err != nil {
 		return proto.OptionalAsset{}
 	}
-	if asset == nil {
-		c.err = errors.New("empty asset")
+	if len(asset) == 0 {
 		return proto.OptionalAsset{}
 	}
-	switch as := asset.Asset.(type) {
-	case *AssetId_Waves:
-		return proto.OptionalAsset{}
-	case *AssetId_IssuedAsset:
-		return proto.OptionalAsset{Present: true, ID: c.digest(as.IssuedAsset)}
-	default:
-		c.err = errors.New("unsupported asset")
-		return proto.OptionalAsset{}
-	}
+	return proto.OptionalAsset{Present: true, ID: c.digest(asset)}
 }
 
 func (c *SafeConverter) convertAmount(amount *Amount) (proto.OptionalAsset, uint64) {
@@ -81,7 +72,7 @@ func (c *SafeConverter) convertAmount(amount *Amount) (proto.OptionalAsset, uint
 	return c.extractOptionalAsset(amount), c.amount(amount)
 }
 
-func (c *SafeConverter) convertAssetAmount(aa *AssetAmount) (crypto.Digest, uint64) {
+func (c *SafeConverter) convertAssetAmount(aa *Amount) (crypto.Digest, uint64) {
 	if c.err != nil {
 		return crypto.Digest{}, 0
 	}
@@ -184,7 +175,7 @@ func (c *SafeConverter) recipient(scheme byte, recipient *Recipient) proto.Recip
 	}
 }
 
-func (c *SafeConverter) assetPair(pair *ExchangeTransactionData_Order_AssetPair) proto.AssetPair {
+func (c *SafeConverter) assetPair(pair *AssetPair) proto.AssetPair {
 	if c.err != nil {
 		return proto.AssetPair{}
 	}
@@ -194,7 +185,7 @@ func (c *SafeConverter) assetPair(pair *ExchangeTransactionData_Order_AssetPair)
 	}
 }
 
-func (c *SafeConverter) orderType(side ExchangeTransactionData_Order_Side) proto.OrderType {
+func (c *SafeConverter) orderType(side Order_Side) proto.OrderType {
 	return proto.OrderType(c.byte(int32(side)))
 }
 
@@ -237,7 +228,7 @@ func (c *SafeConverter) signature(data []byte) crypto.Signature {
 	return sig
 }
 
-func (c *SafeConverter) extractOrder(orders []*ExchangeTransactionData_Order, side ExchangeTransactionData_Order_Side) proto.Order {
+func (c *SafeConverter) extractOrder(orders []*Order, side Order_Side) proto.Order {
 	if c.err != nil {
 		return nil
 	}
@@ -282,12 +273,12 @@ func (c *SafeConverter) extractOrder(orders []*ExchangeTransactionData_Order, si
 	return nil
 }
 
-func (c *SafeConverter) buyOrder(orders []*ExchangeTransactionData_Order) proto.Order {
-	return c.extractOrder(orders, ExchangeTransactionData_Order_BUY)
+func (c *SafeConverter) buyOrder(orders []*Order) proto.Order {
+	return c.extractOrder(orders, Order_BUY)
 }
 
-func (c *SafeConverter) sellOrder(orders []*ExchangeTransactionData_Order) proto.Order {
-	return c.extractOrder(orders, ExchangeTransactionData_Order_SELL)
+func (c *SafeConverter) sellOrder(orders []*Order) proto.Order {
+	return c.extractOrder(orders, Order_SELL)
 }
 
 func (c *SafeConverter) transfers(scheme byte, transfers []*MassTransferTransactionData_Transfer) []proto.MassTransferEntry {
