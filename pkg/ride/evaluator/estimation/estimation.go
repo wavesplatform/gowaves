@@ -6,42 +6,39 @@ import (
 )
 
 type function struct {
-	expr     ast.Expr
-	argsCost int64
+	expr ast.Expr
+	args []string
+}
+
+type expression struct {
+	expr      ast.Expr
+	evaluated bool
 }
 
 type context struct {
-	expressions map[string]ast.Expr
-	references  map[string]struct{}
-	functions   map[string]function
+	expressions  map[string]expression
+	functions    map[string]function
+	replacements map[string]expression
 }
 
 func newContext(variables map[string]ast.Expr) *context {
-	r := make(map[string]struct{}, len(variables))
-	e := make(map[string]ast.Expr, len(variables))
+	e := make(map[string]expression, len(variables))
 	for k, v := range variables {
-		r[k] = struct{}{}
-		e[k] = v
+		e[k] = expression{expr: v, evaluated: true}
 	}
-	e["height"] = ast.NewLong(0)
-	r["height"] = struct{}{}
-	e["tx"] = ast.NewObject(map[string]ast.Expr{})
-	r["tx"] = struct{}{}
+	e["height"] = expression{expr: ast.NewLong(0), evaluated: true}
+	e["tx"] = expression{expr: ast.NewObject(map[string]ast.Expr{}), evaluated: true}
 	return &context{
-		expressions: e,
-		references:  r,
-		functions:   make(map[string]function),
+		expressions:  e,
+		functions:    make(map[string]function),
+		replacements: make(map[string]expression),
 	}
 }
 
 func (c *context) clone() *context {
-	e := make(map[string]ast.Expr, len(c.expressions))
+	e := make(map[string]expression, len(c.expressions))
 	for k, v := range c.expressions {
 		e[k] = v
-	}
-	r := make(map[string]struct{}, len(c.references))
-	for k, v := range c.references {
-		r[k] = v
 	}
 	f := make(map[string]function, len(c.functions))
 	for k, v := range c.functions {
@@ -49,7 +46,6 @@ func (c *context) clone() *context {
 	}
 	return &context{
 		expressions: e,
-		references:  r,
 		functions:   f,
 	}
 }
@@ -78,13 +74,13 @@ func (e *Estimator) Estimate(script *ast.Script) (int64, error) {
 }
 
 func (e *Estimator) estimate(expr ast.Expr) (int64, error) {
-	switch expression := expr.(type) {
+	switch ce := expr.(type) {
 	case *ast.StringExpr, *ast.LongExpr, *ast.BooleanExpr, *ast.BytesExpr:
 		return 1, nil
 
 	case ast.Exprs:
 		var total int64 = 0
-		for _, item := range expression {
+		for _, item := range ce {
 			c, err := e.estimate(item)
 			if err != nil {
 				return 0, err
@@ -95,9 +91,8 @@ func (e *Estimator) estimate(expr ast.Expr) (int64, error) {
 
 	case *ast.Block:
 		tmp := e.context.clone()
-		e.context.expressions[expression.Let.Name] = expression.Let.Value
-		delete(e.context.references, expression.Let.Name)
-		bc, err := e.estimate(expression.Body)
+		e.context.expressions[ce.Let.Name] = expression{ce.Let.Value, false}
+		bc, err := e.estimate(ce.Body)
 		if err != nil {
 			return 0, err
 		}
@@ -106,11 +101,10 @@ func (e *Estimator) estimate(expr ast.Expr) (int64, error) {
 
 	case *ast.BlockV2:
 		tmp := e.context.clone()
-		switch declaration := expression.Decl.(type) {
+		switch declaration := ce.Decl.(type) {
 		case *ast.LetExpr:
-			e.context.expressions[declaration.Name] = declaration.Value
-			delete(e.context.references, declaration.Name)
-			bc, err := e.estimate(expression.Body)
+			e.context.expressions[declaration.Name] = expression{declaration.Value, false}
+			bc, err := e.estimate(ce.Body)
 			if err != nil {
 				return 0, err
 			}
@@ -119,91 +113,119 @@ func (e *Estimator) estimate(expr ast.Expr) (int64, error) {
 		case *ast.FuncDeclaration:
 			switch e.version {
 			case 2:
-				ac := int64(len(declaration.Args) * 5)
-				for _, a := range declaration.Args {
-					e.context.expressions[a] = &ast.BooleanExpr{Value: true}
-					delete(e.context.references, a)
-				}
-				e.context.functions[declaration.Name] = function{declaration.Body, ac}
+				e.context.functions[declaration.Name] = function{declaration.Body, declaration.Args}
 			default:
-				ac := int64(len(declaration.Args) * 5)
 				for _, a := range declaration.Args {
-					e.context.expressions[a] = &ast.BooleanExpr{Value: true}
-					delete(e.context.references, a)
+					e.context.expressions[a] = expression{&ast.BooleanExpr{Value: true}, false}
 				}
 				fc, err := e.estimate(declaration.Body)
 				if err != nil {
 					return 0, err
 				}
+				ac := int64(len(declaration.Args) * 5) // arguments cost = 5 * number of arguments
 				e.catalogue.user[declaration.Name] = ac + fc
 			}
-			bc, err := e.estimate(expression.Body)
+			bc, err := e.estimate(ce.Body)
 			if err != nil {
 				return 0, err
 			}
 			e.context = tmp
-			return bc + 5, nil
+			return 5 + bc, nil
 		default:
-			return 0, errors.Errorf("unsupported content of type %T", expression.Decl)
+			return 0, errors.Errorf("unsupported content of type %T", ce.Decl)
 		}
 
 	case *ast.FuncCallExpr:
-		cc, err := e.estimate(expression.Func)
+		cc, err := e.estimate(ce.Func)
 		if err != nil {
 			return 0, err
 		}
 		return cc, nil
 
-	case *ast.FunctionCall:
-		var fc int64
-		var err error
-		if fd, ok := e.context.functions[expression.Name]; ok {
-			fc, err = e.estimate(fd.expr)
-			if err != nil {
-				return 0, err
-			}
-			fc = fc + fd.argsCost
-		} else {
-			fc, ok = e.catalogue.FunctionCost(expression.Name)
-			if !ok {
-				return 0, errors.Errorf("EstimatorV1: no user function '%s' in scope", expression.Name)
-			}
+	case *ast.NativeFunction:
+		fc, ok := e.catalogue.NativeFunctionCost(ce.FunctionID)
+		if !ok {
+			return 0, errors.Errorf("no native function %d in scope", ce.FunctionID)
 		}
-		ac, err := e.estimate(expression.Argv)
+		ac, err := e.estimate(ce.Argv)
 		if err != nil {
 			return 0, err
 		}
 		return fc + ac, nil
 
-	case *ast.RefExpr:
-		inner, ok := e.context.expressions[expression.Name]
-		if !ok {
-			return 0, errors.Errorf("no variable '%s' in context", expression.Name)
-		}
-		_, ok = e.context.references[expression.Name]
-		if !ok {
-			ic, err := e.estimate(inner)
+	case *ast.UserFunctionCall:
+	case *ast.FunctionCall:
+		var fc int64
+		var err error
+		if fd, ok := e.context.functions[ce.Name]; ok {
+			if na := len(fd.args); na != ce.Argc {
+				return 0, errors.Errorf("unexpected number of arguments %d, function '%s' accepts %d arguments", ce.Argc, ce.Name, na)
+			}
+			for k, v := range e.context.replacements {
+				e.context.expressions[k] = v
+				delete(e.context.replacements, k)
+			}
+			var tac int64
+			for i := 0; i < ce.Argc; i++ {
+				ac, err := e.estimate(ce.Argv[i])
+				if err != nil {
+					return 0, err
+				}
+				if existing, ok := e.context.expressions[fd.args[i]]; ok {
+					e.context.replacements[fd.args[i]] = existing
+				}
+				e.context.expressions[fd.args[i]] = expression{&ast.BooleanExpr{Value: true}, false}
+				tac += ac + 5
+			}
+			fc, err = e.estimate(fd.expr)
 			if err != nil {
 				return 0, err
 			}
-			e.context.references[expression.Name] = struct{}{}
+			for k, v := range e.context.replacements {
+				e.context.expressions[k] = v
+				delete(e.context.replacements, k)
+			}
+			return fc + tac, nil
+		} else {
+			fc, ok = e.catalogue.FunctionCost(ce.Name)
+			if !ok {
+				return 0, errors.Errorf("EstimatorV1: no user function '%s' in scope", ce.Name)
+			}
+			ac, err := e.estimate(ce.Argv)
+			if err != nil {
+				return 0, err
+			}
+			return fc + ac, nil
+		}
+
+	case *ast.RefExpr:
+		inner, ok := e.context.expressions[ce.Name]
+		if !ok {
+			return 0, errors.Errorf("no variable '%s' in context", ce.Name)
+		}
+		if !inner.evaluated {
+			ic, err := e.estimate(inner.expr)
+			if err != nil {
+				return 0, err
+			}
+			e.context.expressions[ce.Name] = expression{inner.expr, true}
 			return ic + 2, nil
 		}
 		return 2, nil
 
 	case *ast.IfExpr:
-		cc, err := e.estimate(expression.Condition)
+		cc, err := e.estimate(ce.Condition)
 		if err != nil {
 			return 0, err
 		}
 		tmp := e.context.clone()
-		tc, err := e.estimate(expression.True)
+		tc, err := e.estimate(ce.True)
 		if err != nil {
 			return 0, err
 		}
 		trueContext := e.context.clone()
 		e.context = tmp
-		fc, err := e.estimate(expression.False)
+		fc, err := e.estimate(ce.False)
 		if err != nil {
 			return 0, err
 		}
@@ -214,7 +236,7 @@ func (e *Estimator) estimate(expr ast.Expr) (int64, error) {
 		return fc + cc + 1, nil
 
 	case *ast.GetterExpr:
-		c, err := e.estimate(expression.Object)
+		c, err := e.estimate(ce.Object)
 		if err != nil {
 			return 0, err
 		}
