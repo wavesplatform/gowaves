@@ -326,6 +326,53 @@ func TestFunctions(t *testing.T) {
 	}
 }
 
+// variables refers to each other in the same scope
+func TestRerefOnEachOther(t *testing.T) {
+	/*
+	   let x = 5;
+	   let y = x;
+	   let x = y;
+	*/
+
+	tree := &Block{
+		Let: &LetExpr{
+			Name:  "x",
+			Value: NewLong(5),
+		},
+		Body: &Block{
+			Let: &LetExpr{
+				Name:  "y",
+				Value: &RefExpr{Name: "x"},
+			},
+			Body: &Block{
+				Let: &LetExpr{
+					Name:  "x",
+					Value: &RefExpr{Name: "y"},
+				},
+				Body: &RefExpr{Name: "x"},
+			},
+		},
+	}
+
+	rs, err := tree.Evaluate(NewScope(3, proto.MainNetScheme, nil))
+	require.NoError(t, err)
+	require.Equal(t, NewLong(5), rs)
+}
+
+func TestSimpleFuncEvaluate(t *testing.T) {
+	tree := &FunctionCall{
+		Name: "1206",
+		Argc: 1,
+		Argv: Params(NewString("12345")),
+	}
+
+	s := NewScope(3, proto.MainNetScheme, nil)
+
+	rs, err := tree.Evaluate(s)
+	require.NoError(t, err)
+	require.Equal(t, NewLong(12345), rs)
+}
+
 func TestDataFunctions(t *testing.T) {
 	secret, public, err := crypto.GenerateKeyPair([]byte(seed))
 	require.NoError(t, err)

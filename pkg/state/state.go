@@ -221,7 +221,7 @@ func (a *txAppender) callVerifyScript(tx proto.Transaction, initialisation bool)
 	if err != nil {
 		return errors.Errorf("failed to retrieve account script: %v\n", err)
 	}
-	ok, err := evaluate.Verify(a.settings.AddressSchemeCharacter, a.state, &script, tx)
+	ok, err := evaluate.Verify(a.settings.AddressSchemeCharacter, a.state, script, tx)
 	if err != nil {
 		return errors.Errorf("verifier script failed: %v\n", err)
 	}

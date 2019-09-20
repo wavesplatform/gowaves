@@ -36,6 +36,22 @@ type ScopeImpl struct {
 	msgLenValidation func(int) bool
 }
 
+func newScopeImpl(scheme byte, state types.SmartState, v func(int) bool) *ScopeImpl {
+	return &ScopeImpl{
+		state:            state,
+		scheme:           scheme,
+		evaluations:      make(map[string]evaluation),
+		msgLenValidation: v,
+	}
+}
+
+func (a *ScopeImpl) withExprs(e map[string]Expr) *ScopeImpl {
+	for k, v := range e {
+		a.AddValue(k, v)
+	}
+	return a
+}
+
 func NewScope(version int, scheme byte, state types.SmartState) *ScopeImpl {
 	var v func(int) bool
 	switch version {
@@ -48,21 +64,20 @@ func NewScope(version int, scheme byte, state types.SmartState) *ScopeImpl {
 			return true
 		}
 	}
+
+	out := newScopeImpl(scheme, state, v)
+
 	var e map[string]Expr
 	switch version {
 	case 1:
 		e = expressionsV1()
+		return out.withExprs(e)
 	case 2:
 		e = expressionsV2()
+		return out.withExprs(e)
 	default:
 		e = expressionsV3()
-	}
-	return &ScopeImpl{
-		expressions:      e,
-		state:            state,
-		scheme:           scheme,
-		evaluations:      make(map[string]evaluation),
-		msgLenValidation: v,
+		return out.withExprs(e)
 	}
 }
 

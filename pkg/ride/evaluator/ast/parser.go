@@ -1,6 +1,8 @@
 package ast
 
 import (
+	"strconv"
+
 	"github.com/pkg/errors"
 	. "github.com/wavesplatform/gowaves/pkg/ride/evaluator/reader"
 )
@@ -259,8 +261,9 @@ func readFuncCAll(iter *BytesReader) (*FuncCallExpr, error) {
 
 }
 
-func readNativeFunction(iter *BytesReader) (*NativeFunction, error) {
+func readNativeFunction(iter *BytesReader) (*FunctionCall, error) {
 	funcNumber := iter.ReadShort()
+	name := strconv.Itoa(int(funcNumber))
 	argc := iter.ReadInt()
 	argv := make([]Expr, argc)
 
@@ -271,12 +274,11 @@ func readNativeFunction(iter *BytesReader) (*NativeFunction, error) {
 		}
 		argv[i] = v
 	}
-
-	return NewNativeFunction(funcNumber, int(argc), argv), nil
+	return NewFunctionCall(name, argv), nil
 }
 
-func readUserFunction(iter *BytesReader) (*UserFunctionCall, error) {
-	funcNumber := iter.ReadString()
+func readUserFunction(iter *BytesReader) (*FunctionCall, error) {
+	name := iter.ReadString()
 	argc := iter.ReadInt()
 	argv := make([]Expr, argc)
 	for i := int32(0); i < argc; i++ {
@@ -287,7 +289,7 @@ func readUserFunction(iter *BytesReader) (*UserFunctionCall, error) {
 		argv[i] = v
 	}
 
-	return NewUserFunctionCall(funcNumber, argv), nil
+	return NewFunctionCall(name, argv), nil
 }
 
 func readIf(r *BytesReader) (*IfExpr, error) {

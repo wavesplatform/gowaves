@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"strconv"
 
 	"github.com/mr-tron/base58/base58"
 	"github.com/pkg/errors"
@@ -188,6 +187,35 @@ func NewExprs(e ...Expr) Exprs {
 	return e
 }
 
+// will be calculated in future, with known Scope
+type LazyValueExpr struct {
+	Expr  Expr
+	Scope Scope
+}
+
+func NewLazyValue(Expr Expr, Scope Scope) LazyValueExpr {
+	return LazyValueExpr{
+		Expr:  Expr,
+		Scope: Scope,
+	}
+}
+
+func (a LazyValueExpr) Write(w io.Writer) {
+	_, _ = fmt.Fprint(w, "LazyValueExpr")
+}
+
+func (a LazyValueExpr) Evaluate(Scope) (Expr, error) {
+	return a.Expr.Evaluate(a.Scope)
+}
+
+func (a LazyValueExpr) Eq(other Expr) (bool, error) {
+	return false, errors.Errorf("trying to compare %T with %T", a, other)
+}
+
+func (a LazyValueExpr) InstanceOf() string {
+	return "LazyValue"
+}
+
 // get property from object
 type Getable interface {
 	Get(string) (Expr, error)
@@ -205,7 +233,7 @@ func (a *Block) Write(w io.Writer) {
 }
 
 func (a *Block) Evaluate(s Scope) (Expr, error) {
-	s.AddValue(a.Let.Name, a.Let.Value)
+	s.AddValue(a.Let.Name, NewLazyValue(a.Let.Value, s))
 	return a.Body.Evaluate(s.Clone())
 }
 
@@ -395,71 +423,21 @@ func NewFuncCall(f Expr) *FuncCallExpr {
 	}
 }
 
-type NativeFunction struct {
-	FunctionID int16
-	Argc       int
-	Argv       Exprs
-}
-
-func NewNativeFunction(id int16, argc int, argv Exprs) *NativeFunction {
-	return &NativeFunction{
-		FunctionID: id,
-		Argc:       argc,
-		Argv:       argv,
-	}
-}
-
-func (a *NativeFunction) Write(w io.Writer) {
-	writeNativeFunction(w, a.FunctionID, a.Argv)
-}
-
-func (a *NativeFunction) Evaluate(s Scope) (Expr, error) {
-	name := strconv.Itoa(int(a.FunctionID))
-	e, ok := s.Value(name)
-	if !ok {
-		return nil, errors.Errorf("evaluate native function: function named '%s' not found in scope", name)
-	}
-	fn, ok := e.(*Function)
-	if !ok {
-		return nil, errors.Errorf("evaluate native function: expected value 'fn' to be *Function, found %T", e)
-	}
-	if fn.Argc != a.Argc {
-		return nil, errors.Errorf("evaluate native function: function %s expects %d arguments, passed %d", name, fn.Argc, a.Argc)
-	}
-	initial := s.Initial()
-	for i := 0; i < a.Argc; i++ {
-		evaluatedParam, err := a.Argv[i].Evaluate(s.Clone())
-		if err != nil {
-			return nil, errors.Wrapf(err, "evaluate native function: %s", name)
-		}
-		initial.AddValue(fn.Argv[i], evaluatedParam)
-	}
-	return fn.Evaluate(initial)
-}
-
-func (a *NativeFunction) Eq(other Expr) (bool, error) {
-	return false, errors.Errorf("trying to compare %T with %T", a, other)
-}
-
-func (a *NativeFunction) InstanceOf() string {
-	return "NativeFunction"
-}
-
-type UserFunctionCall struct {
+type FunctionCall struct {
 	Name string
 	Argc int
 	Argv Exprs
 }
 
-func NewUserFunctionCall(name string, argv Exprs) *UserFunctionCall {
-	return &UserFunctionCall{
+func NewFunctionCall(name string, argv Exprs) *FunctionCall {
+	return &FunctionCall{
 		Name: name,
 		Argc: len(argv),
 		Argv: argv,
 	}
 }
 
-func (a *UserFunctionCall) Write(w io.Writer) {
+func (a *FunctionCall) Write(w io.Writer) {
 	if a.Name == "!=" {
 		infix(w, " != ", a.Argv)
 		return
@@ -467,7 +445,7 @@ func (a *UserFunctionCall) Write(w io.Writer) {
 	prefix(w, a.Name, a.Argv)
 }
 
-func (a *UserFunctionCall) Evaluate(s Scope) (Expr, error) {
+func (a *FunctionCall) Evaluate(s Scope) (Expr, error) {
 	e, ok := s.Value(a.Name)
 	if !ok {
 		return nil, errors.Errorf("evaluate user function: function named '%s' not found in scope", a.Name)
@@ -490,12 +468,12 @@ func (a *UserFunctionCall) Evaluate(s Scope) (Expr, error) {
 	return fn.Evaluate(initial)
 }
 
-func (a *UserFunctionCall) Eq(other Expr) (bool, error) {
+func (a *FunctionCall) Eq(other Expr) (bool, error) {
 	return false, errors.Errorf("trying to compare %T with %T", a, other)
 }
 
-func (a *UserFunctionCall) InstanceOf() string {
-	return "UserFunctionCall"
+func (a *FunctionCall) InstanceOf() string {
+	return "FunctionCall"
 }
 
 type Function struct {
@@ -540,7 +518,7 @@ func FunctionFromPredefined(c Callable, argc uint32) *Function {
 	return &Function{
 		Argc: int(argc),
 		Argv: buildParams(argc),
-		Body: &PredefinedUserFunction{
+		Body: &PredefFunction{
 			argv: buildParams(argc),
 			fn:   c,
 		},
@@ -555,33 +533,33 @@ func buildParams(argc uint32) []string {
 	return out
 }
 
-type PredefinedUserFunction struct {
+type PredefFunction struct {
 	argv []string
 	fn   Callable
 }
 
-func (a PredefinedUserFunction) Write(w io.Writer) {
-	_, _ = fmt.Fprintf(w, "PredefinedUserFunction")
+func (a PredefFunction) Write(w io.Writer) {
+	_, _ = fmt.Fprintf(w, "PredefFunction")
 }
 
-func (a PredefinedUserFunction) Evaluate(s Scope) (Expr, error) {
+func (a PredefFunction) Evaluate(s Scope) (Expr, error) {
 	params := Params()
 	for i := 0; i < len(a.argv); i++ {
 		e, ok := s.Value(a.argv[i])
 		if !ok {
-			return nil, errors.Errorf("PredefinedUserFunction: param %s not found in scope", a.argv[i])
+			return nil, errors.Errorf("PredefFunction: param %s not found in scope", a.argv[i])
 		}
 		params = append(params, e)
 	}
 	return a.fn(s.Clone(), params)
 }
 
-func (a PredefinedUserFunction) Eq(other Expr) (bool, error) {
+func (a PredefFunction) Eq(other Expr) (bool, error) {
 	return false, errors.Errorf("trying to compare %T with %T", a, other)
 }
 
-func (a PredefinedUserFunction) InstanceOf() string {
-	return "PredefinedUserFunction"
+func (a PredefFunction) InstanceOf() string {
+	return "PredefFunction"
 }
 
 type RefExpr struct {
@@ -601,7 +579,7 @@ func (a *RefExpr) Evaluate(s Scope) (Expr, error) {
 	if !ok {
 		return nil, errors.Errorf("RefExpr evaluate: not found expr by name '%s'", a.Name)
 	}
-	rs, err := expr.Evaluate(s)
+	rs, err := expr.Evaluate(s.Clone())
 	s.setEvaluation(a.Name, evaluation{rs, err})
 	return rs, err
 }
