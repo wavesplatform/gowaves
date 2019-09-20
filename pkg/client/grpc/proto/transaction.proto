@@ -6,26 +6,10 @@ option java_package = "com.wavesplatform.protobuf.transaction";
 option csharp_namespace = "Waves";
 option go_package = "client/grpc";
 
+import "amount.proto";
 import "script.proto";
 import "recipient.proto";
-import "google/protobuf/empty.proto";
-
-message AssetId {
-    oneof asset {
-        google.protobuf.Empty waves = 1;
-        bytes issued_asset = 2;
-    }
-}
-
-message AssetAmount {
-    bytes asset_id = 1; // Shouldn't be empty
-    int64 amount = 2;
-}
-
-message Amount {
-    AssetId asset_id = 1;
-    int64 amount = 2;
-}
+import "order.proto";
 
 message SignedTransaction {
     Transaction transaction = 1;
@@ -99,7 +83,7 @@ message MassTransferTransactionData {
         int64 amount = 2;
     };
 
-    AssetId asset_id = 1;
+    bytes asset_id = 1;
     repeated Transfer transfers = 2;
     bytes attachment = 3;
 };
@@ -114,7 +98,7 @@ message LeaseCancelTransactionData {
 };
 
 message BurnTransactionData {
-    AssetAmount asset_amount = 1;
+    Amount asset_amount = 1;
 };
 
 message IssueTransactionData {
@@ -128,7 +112,7 @@ message IssueTransactionData {
 
 
 message ReissueTransactionData {
-    AssetAmount asset_amount = 1;
+    Amount asset_amount = 1;
     bool reissuable = 2;
 };
 
@@ -142,45 +126,19 @@ message SetScriptTransactionData {
 };
 
 message ExchangeTransactionData {
-    message Order {
-        enum Side {
-            BUY = 0;
-            SELL = 1;
-        };
-
-        message AssetPair {
-            AssetId amount_asset_id = 1;
-            AssetId price_asset_id = 2;
-        };
-
-        int32 chain_id = 1;
-        bytes sender_public_key = 2;
-        bytes matcher_public_key = 3;
-        AssetPair asset_pair = 4;
-        Side order_side = 5;
-        int64 amount = 6;
-        int64 price = 7;
-        int64 timestamp = 8;
-        int64 expiration = 9;
-        Amount matcher_fee = 10;
-        int32 version = 11;
-        repeated bytes proofs = 12;
-    };
-
     int64 amount = 1;
     int64 price = 2;
     int64 buy_matcher_fee = 3;
     int64 sell_matcher_fee = 4;
     repeated Order orders = 5;
-    int32 taker = 6;
 };
 
 message SponsorFeeTransactionData {
-    AssetAmount min_fee = 1;
+    Amount min_fee = 1;
 };
 
 message InvokeScriptTransactionData {
-    Recipient dApp = 1;
+    Recipient d_app = 1;
     bytes function_call = 2;
     repeated Amount payments = 3;
 }
