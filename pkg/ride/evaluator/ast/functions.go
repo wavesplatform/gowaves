@@ -2125,56 +2125,56 @@ func infix(w io.Writer, name string, e Exprs) {
 	e[1].Write(w)
 }
 
-func writeNativeFunction(w io.Writer, id int16, e Exprs) {
+func writeFunction(w io.Writer, id string, e Exprs) {
 	switch id {
-	case 0:
+	case "0":
 		infix(w, "==", e)
-	case 1:
+	case "1":
 		prefix(w, "_isInstanceOf", e)
-	case 2:
+	case "2":
 		prefix(w, "throw", e)
-	case 103:
+	case "103":
 		infix(w, ">=", e)
-	case 108:
+	case "108":
 		prefix(w, "pow", e)
-	case 109:
+	case "109":
 		prefix(w, "log", e)
-	case 200:
+	case "200":
 		prefix(w, "size", e)
-	case 203, 300:
+	case "203", "300":
 		infix(w, "+", e)
-	case 305:
+	case "305":
 		prefix(w, "size", e)
-	case 401:
+	case "401":
 		e[0].Write(w)
 		_, _ = fmt.Fprint(w, "[")
 		e[1].Write(w)
 		_, _ = fmt.Fprint(w, "]")
-	case 410, 411, 412:
+	case "410", "411", "412":
 		prefix(w, "toBytes", e)
-	case 420, 421:
+	case "420", "421":
 		prefix(w, "toString", e)
-	case 500:
+	case "500":
 		prefix(w, "sigVerify", e)
-	case 501:
+	case "501":
 		prefix(w, "keccak256", e)
-	case 502:
+	case "502":
 		prefix(w, "blake2b256", e)
-	case 503:
+	case "503":
 		prefix(w, "sha256", e)
-	case 600:
+	case "600":
 		prefix(w, "toBase58String", e)
-	case 601:
+	case "601":
 		prefix(w, "fromBase58String", e)
-	case 1000:
+	case "1000":
 		prefix(w, "transactionById", e)
-	case 1001:
+	case "1001":
 		prefix(w, "transactionHeightById", e)
-	case 1003:
+	case "1003":
 		prefix(w, "assetBalance", e)
-	case 1060:
+	case "1060":
 		prefix(w, "addressFromRecipient", e)
 	default:
-		prefix(w, fmt.Sprintf("FUNCTION_%d(", id), e)
+		prefix(w, fmt.Sprintf("FUNCTION_%s(", id), e)
 	}
 }

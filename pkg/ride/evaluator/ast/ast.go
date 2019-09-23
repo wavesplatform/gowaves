@@ -442,7 +442,7 @@ func (a *FunctionCall) Write(w io.Writer) {
 		infix(w, " != ", a.Argv)
 		return
 	}
-	prefix(w, a.Name, a.Argv)
+	writeFunction(w, a.Name, a.Argv)
 }
 
 func (a *FunctionCall) Evaluate(s Scope) (Expr, error) {
