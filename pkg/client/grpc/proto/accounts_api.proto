@@ -1,17 +1,20 @@
 syntax = "proto3";
-package waves.grpc;
+package waves.node.grpc;
 option java_package = "com.wavesplatform.api.grpc";
-option csharp_namespace = "Waves.Grpc";
+option csharp_namespace = "Waves.Node.Grpc";
 option go_package = "client/grpc";
 
 import "transactions_api.proto";
+import "amount.proto";
 import "transaction.proto";
+import "google/protobuf/wrappers.proto";
 
 service AccountsApi {
     rpc GetBalances (BalancesRequest) returns (stream BalanceResponse);
     rpc GetScript (AccountRequest) returns (ScriptData);
     rpc GetActiveLeases (AccountRequest) returns (stream TransactionResponse);
     rpc GetDataEntries (DataRequest) returns (stream DataEntryResponse);
+    rpc ResolveAlias (google.protobuf.StringValue) returns (google.protobuf.BytesValue);
 }
 
 message AccountRequest {
@@ -25,7 +28,7 @@ message DataRequest {
 
 message BalancesRequest {
     bytes address = 1;
-    repeated waves.AssetId assets = 4;
+    repeated bytes assets = 4;
 }
 
 message BalanceResponse {
@@ -38,16 +41,15 @@ message BalanceResponse {
         int64 lease_out = 6;
     }
 
-    bytes address = 1; // TODO: ???
     oneof balance {
-        WavesBalances waves = 2;
-        waves.AssetAmount asset = 3;
+        WavesBalances waves = 1;
+        Amount asset = 2;
     }
 }
 
 message DataEntryResponse {
     bytes address = 1;
-    waves.DataTransactionData.DataEntry entry = 2;
+    DataTransactionData.DataEntry entry = 2;
 }
 
 message ScriptData {

@@ -1,0 +1,10 @@
+syntax = "proto3";
+package waves;
+option java_package = "com.wavesplatform.protobuf";
+option csharp_namespace = "Waves";
+option go_package = "client/grpc";
+
+message Amount {
+    bytes asset_id = 1;
+    int64 amount = 2;
+};

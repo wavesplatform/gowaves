@@ -1,0 +1,33 @@
+// Orders
+syntax = "proto3";
+package waves;
+option java_package = "com.wavesplatform.protobuf.order";
+option csharp_namespace = "Waves";
+option go_package = "client/grpc";
+
+import "amount.proto";
+
+message AssetPair {
+    bytes amount_asset_id = 1;
+    bytes price_asset_id = 2;
+};
+
+message Order {
+    enum Side {
+        BUY = 0;
+        SELL = 1;
+    };
+
+    int32 chain_id = 1;
+    bytes sender_public_key = 2;
+    bytes matcher_public_key = 3;
+    AssetPair asset_pair = 4;
+    Side order_side = 5;
+    int64 amount = 6;
+    int64 price = 7;
+    int64 timestamp = 8;
+    int64 expiration = 9;
+    Amount matcher_fee = 10;
+    int32 version = 11;
+    repeated bytes proofs = 12;
+};
