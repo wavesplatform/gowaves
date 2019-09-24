@@ -236,18 +236,6 @@ func (e *Estimator) estimate(expr ast.Expr) (int64, error) {
 		}
 		return cc, nil
 
-	case *ast.NativeFunction:
-		fc, ok := e.catalogue.NativeFunctionCost(ce.FunctionID)
-		if !ok {
-			return 0, errors.Errorf("no native function %d in scope", ce.FunctionID)
-		}
-		ac, err := e.estimate(ce.Argv)
-		if err != nil {
-			return 0, err
-		}
-		return fc + ac, nil
-
-	case *ast.UserFunctionCall:
 	case *ast.FunctionCall:
 		var fc int64
 		callContext, err := e.context()
