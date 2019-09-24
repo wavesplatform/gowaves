@@ -54,7 +54,7 @@ func NewEstimatorV1(catalogue *Catalogue, variables map[string]ast.Expr) *Estima
 	}
 }
 
-func (e *EstimatorV1) Estimate(script ast.Script) (int64, error) {
+func (e *EstimatorV1) Estimate(script *ast.Script) (int64, error) {
 	verifierCost, err := e.estimate(script.Verifier)
 	if err != nil {
 		return 0, errors.Wrap(err, "estimation")
@@ -97,21 +97,10 @@ func (e *EstimatorV1) estimate(expr ast.Expr) (int64, error) {
 		}
 		return cc, nil
 
-	case *ast.NativeFunction:
-		fc, ok := e.catalogue.NativeFunctionCost(expression.FunctionID)
+	case *ast.FunctionCall:
+		fc, ok := e.catalogue.FunctionCost(expression.Name)
 		if !ok {
-			return 0, errors.Errorf("no native function %d in scope", expression.FunctionID)
-		}
-		ac, err := e.estimate(expression.Argv)
-		if err != nil {
-			return 0, err
-		}
-		return fc + ac, nil
-
-	case *ast.UserFunctionCall:
-		fc, ok := e.catalogue.UserFunctionCost(expression.Name)
-		if !ok {
-			return 0, errors.Errorf("no user function '%s' in scope", expression.Name)
+			return 0, errors.Errorf("EstimatorV1: no user function '%s' in scope", expression.Name)
 		}
 		ac, err := e.estimate(expression.Argv)
 		if err != nil {
@@ -174,12 +163,7 @@ type Catalogue struct {
 	user   map[string]int64
 }
 
-func (c *Catalogue) NativeFunctionCost(id int16) (int64, bool) {
-	v, ok := c.native[id]
-	return v, ok
-}
-
-func (c *Catalogue) UserFunctionCost(id string) (int64, bool) {
+func (c *Catalogue) FunctionCost(id string) (int64, bool) {
 	v, ok := c.user[id]
 	return v, ok
 }
@@ -190,52 +174,52 @@ func NewCatalogueV2() *Catalogue {
 		user:   make(map[string]int64),
 	}
 
-	c.native[0] = 1
-	c.native[1] = 1
-	c.native[2] = 1
-	c.native[100] = 1
-	c.native[101] = 1
-	c.native[102] = 1
-	c.native[103] = 1
-	c.native[104] = 1
-	c.native[105] = 1
-	c.native[106] = 1
-	c.native[107] = 1
-	c.native[200] = 1
-	c.native[201] = 1
-	c.native[202] = 1
-	c.native[203] = 10
-	c.native[300] = 10
-	c.native[303] = 1
-	c.native[304] = 1
-	c.native[305] = 1
-	c.native[400] = 2
-	c.native[401] = 2
-	c.native[410] = 1
-	c.native[411] = 1
-	c.native[412] = 1
-	c.native[420] = 1
-	c.native[421] = 1
-	c.native[500] = 100
-	c.native[501] = 10
-	c.native[502] = 10
-	c.native[503] = 10
-	c.native[600] = 10
-	c.native[601] = 10
-	c.native[602] = 10
-	c.native[603] = 10
-	c.native[1000] = 100
-	c.native[1001] = 100
-	c.native[1003] = 100
-	c.native[1040] = 10
-	c.native[1041] = 10
-	c.native[1042] = 10
-	c.native[1043] = 10
-	c.native[1050] = 100
-	c.native[1051] = 100
-	c.native[1052] = 100
-	c.native[1053] = 100
-	c.native[1060] = 100
+	c.user["0"] = 1
+	c.user["1"] = 1
+	c.user["2"] = 1
+	c.user["100"] = 1
+	c.user["101"] = 1
+	c.user["102"] = 1
+	c.user["103"] = 1
+	c.user["104"] = 1
+	c.user["105"] = 1
+	c.user["106"] = 1
+	c.user["107"] = 1
+	c.user["200"] = 1
+	c.user["201"] = 1
+	c.user["202"] = 1
+	c.user["203"] = 10
+	c.user["300"] = 10
+	c.user["303"] = 1
+	c.user["304"] = 1
+	c.user["305"] = 1
+	c.user["400"] = 2
+	c.user["401"] = 2
+	c.user["410"] = 1
+	c.user["411"] = 1
+	c.user["412"] = 1
+	c.user["420"] = 1
+	c.user["421"] = 1
+	c.user["500"] = 100
+	c.user["501"] = 10
+	c.user["502"] = 10
+	c.user["503"] = 10
+	c.user["600"] = 10
+	c.user["601"] = 10
+	c.user["602"] = 10
+	c.user["603"] = 10
+	c.user["1000"] = 100
+	c.user["1001"] = 100
+	c.user["1003"] = 100
+	c.user["1040"] = 10
+	c.user["1041"] = 10
+	c.user["1042"] = 10
+	c.user["1043"] = 10
+	c.user["1050"] = 100
+	c.user["1051"] = 100
+	c.user["1052"] = 100
+	c.user["1053"] = 100
+	c.user["1060"] = 100
 
 	c.user["throw"] = 2
 	c.user["addressFromString"] = 124
@@ -267,27 +251,27 @@ func NewCatalogueV3() *Catalogue {
 	c := NewCatalogueV2()
 
 	// New native functions
-	c.native[108] = 100
-	c.native[109] = 100
-	c.native[504] = 300
-	c.native[604] = 10
-	c.native[605] = 10
-	c.native[1004] = 100
-	c.native[1005] = 100
-	c.native[1006] = 100
-	c.native[700] = 30
-	c.native[1061] = 10
-	c.native[1070] = 100
-	c.native[1100] = 2
-	c.native[1200] = 20
-	c.native[1201] = 10
-	c.native[1202] = 10
-	c.native[1203] = 20
-	c.native[1204] = 20
-	c.native[1205] = 100
-	c.native[1206] = 20
-	c.native[1207] = 20
-	c.native[1208] = 20
+	c.user["108"] = 100
+	c.user["109"] = 100
+	c.user["504"] = 300
+	c.user["604"] = 10
+	c.user["605"] = 10
+	c.user["1004"] = 100
+	c.user["1005"] = 100
+	c.user["1006"] = 100
+	c.user["700"] = 30
+	c.user["1061"] = 10
+	c.user["1070"] = 100
+	c.user["1100"] = 2
+	c.user["1200"] = 20
+	c.user["1201"] = 10
+	c.user["1202"] = 10
+	c.user["1203"] = 20
+	c.user["1204"] = 20
+	c.user["1205"] = 100
+	c.user["1206"] = 20
+	c.user["1207"] = 20
+	c.user["1208"] = 20
 
 	// Cost updates for existing user functions
 	c.user["throw"] = 1

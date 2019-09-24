@@ -4,20 +4,128 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"strconv"
 
 	"github.com/mr-tron/base58/base58"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/types"
+	"github.com/wavesplatform/gowaves/pkg/util"
 )
 
 const InstanceFieldName = "$instance"
 
+type Callable func(Scope, Exprs) (Expr, error)
+
 type Script struct {
-	//TODO: update for DApps support
 	Version    int
 	HasBlockV2 bool
 	Verifier   Expr
+	DApp       DApp
+	dApp       bool
+}
+
+func (a *Script) IsDapp() bool {
+	return a.dApp
+}
+
+func (a *Script) CallFunction(scheme proto.Scheme, state types.SmartState, tx *proto.InvokeScriptV1, name string, args Exprs) (Expr, error) {
+	if !a.IsDapp() {
+		return nil, errors.New("can't call Script.CallFunction on non DApp")
+	}
+	if name == "" {
+		name = "default"
+	}
+	fn, ok := a.DApp.callableFuncs[name]
+	if !ok {
+		return nil, errors.Errorf("Callable function named '%s' not found", name)
+	}
+	invoke, err := BuildInvocation(scheme, tx)
+	if err != nil {
+		return nil, err
+	}
+	height, err := state.AddingBlockHeight()
+	if err != nil {
+		return nil, err
+	}
+	scope := NewScope(3, scheme, state)
+	scope.SetHeight(height)
+
+	if len(fn.funcDecl.Args) != len(args) {
+		return nil, errors.Errorf("invalid func '%s' args count, expected %d, got %d", fn.funcDecl.Name, len(fn.funcDecl.Args), len(args))
+	}
+	// pass function arguments
+	curScope := scope.Clone()
+	for i := 0; i < len(args); i++ {
+		curScope.AddValue(fn.funcDecl.Args[i], args[i])
+	}
+	// invocation type
+	curScope.AddValue(fn.annotationInvocName, invoke)
+
+	// here should be only assign of vars and function
+	for _, expr := range a.DApp.Declarations {
+		_, err = expr.Evaluate(curScope)
+		if err != nil {
+			return nil, errors.Wrap(err, "Script.CallFunction")
+		}
+	}
+	return fn.funcDecl.Body.Evaluate(curScope)
+}
+
+func (a *Script) Verify(scheme byte, state types.SmartState, transaction proto.Transaction) (bool, error) {
+	txVars, err := NewVariablesFromTransaction(scheme, transaction)
+	if err != nil {
+		return false, err
+	}
+	height, err := state.AddingBlockHeight()
+	if err != nil {
+		return false, err
+	}
+	if a.IsDapp() {
+		if a.DApp.varifier == nil {
+			return false, errors.New("verify function not defined")
+		}
+		scope := NewScope(3, scheme, state)
+		scope.SetHeight(height)
+
+		fn := a.DApp.varifier
+		// pass function arguments
+		curScope := scope //.Clone()
+		// annotated tx type
+		curScope.AddValue(fn.annotationInvocName, NewObject(txVars))
+		// here should be only assign of vars and function
+		for _, expr := range a.DApp.Declarations {
+			_, err = expr.Evaluate(curScope)
+			if err != nil {
+				return false, errors.Wrap(err, "Script.Verify")
+			}
+		}
+		return evalAsBool(fn.funcDecl.Body, curScope)
+	} else {
+		scope := NewScope(2, scheme, state)
+		scope.AddValue("tx", NewObject(txVars))
+		scope.SetHeight(height)
+		return evalAsBool(a.Verifier, scope)
+	}
+}
+
+func evalAsBool(e Expr, s Scope) (bool, error) {
+	rs, err := e.Evaluate(s)
+	if err != nil {
+		if _, ok := err.(Throw); ok {
+			// maybe log error
+			return false, nil
+		}
+		return false, err
+	}
+	b, ok := rs.(*BooleanExpr)
+	if !ok {
+		return false, errors.Errorf("expected evaluate return *BooleanExpr, but found %T", b)
+	}
+	return b.Value, nil
+}
+
+func (a *Script) Eval(s Scope) (bool, error) {
+	return evalAsBool(a.Verifier, s)
 }
 
 type Expr interface {
@@ -79,7 +187,34 @@ func NewExprs(e ...Expr) Exprs {
 	return e
 }
 
-type Callable func(Scope, Exprs) (Expr, error)
+// will be calculated in future, with known Scope
+type LazyValueExpr struct {
+	Expr  Expr
+	Scope Scope
+}
+
+func NewLazyValue(Expr Expr, Scope Scope) LazyValueExpr {
+	return LazyValueExpr{
+		Expr:  Expr,
+		Scope: Scope,
+	}
+}
+
+func (a LazyValueExpr) Write(w io.Writer) {
+	_, _ = fmt.Fprint(w, "LazyValueExpr")
+}
+
+func (a LazyValueExpr) Evaluate(Scope) (Expr, error) {
+	return a.Expr.Evaluate(a.Scope)
+}
+
+func (a LazyValueExpr) Eq(other Expr) (bool, error) {
+	return false, errors.Errorf("trying to compare %T with %T", a, other)
+}
+
+func (a LazyValueExpr) InstanceOf() string {
+	return "LazyValue"
+}
 
 // get property from object
 type Getable interface {
@@ -98,7 +233,7 @@ func (a *Block) Write(w io.Writer) {
 }
 
 func (a *Block) Evaluate(s Scope) (Expr, error) {
-	s.AddValue(a.Let.Name, a.Let.Value)
+	s.AddValue(a.Let.Name, NewLazyValue(a.Let.Value, s))
 	return a.Body.Evaluate(s.Clone())
 }
 
@@ -156,7 +291,10 @@ func (a *BlockV2) Write(w io.Writer) {
 }
 
 func (a *BlockV2) Evaluate(s Scope) (Expr, error) {
-	_, _ = a.Decl.Evaluate(s)
+	_, err := a.Decl.Evaluate(s)
+	if err != nil {
+		return nil, err
+	}
 	return a.Body.Evaluate(s.Clone())
 }
 
@@ -285,79 +423,29 @@ func NewFuncCall(f Expr) *FuncCallExpr {
 	}
 }
 
-type NativeFunction struct {
-	FunctionID int16
-	Argc       int
-	Argv       Exprs
-}
-
-func NewNativeFunction(id int16, argc int, argv Exprs) *NativeFunction {
-	return &NativeFunction{
-		FunctionID: id,
-		Argc:       argc,
-		Argv:       argv,
-	}
-}
-
-func (a *NativeFunction) Write(w io.Writer) {
-	writeNativeFunction(w, a.FunctionID, a.Argv)
-}
-
-func (a *NativeFunction) Evaluate(s Scope) (Expr, error) {
-	name := strconv.Itoa(int(a.FunctionID))
-	e, ok := s.Value(name)
-	if !ok {
-		return nil, errors.Errorf("evaluate native function: function named '%s' not found in scope", name)
-	}
-	fn, ok := e.(*Function)
-	if !ok {
-		return nil, errors.Errorf("evaluate native function: expected value 'fn' to be *Function, found %T", e)
-	}
-	if fn.Argc != a.Argc {
-		return nil, errors.Errorf("evaluate native function: function %s expects %d arguments, passed %d", name, fn.Argc, a.Argc)
-	}
-	initial := s.Initial()
-	for i := 0; i < a.Argc; i++ {
-		evaluatedParam, err := a.Argv[i].Evaluate(s)
-		if err != nil {
-			return nil, errors.Wrapf(err, "evaluate native function: %s", name)
-		}
-		initial.AddValue(fn.Argv[i], evaluatedParam)
-	}
-	return fn.Evaluate(initial)
-}
-
-func (a *NativeFunction) Eq(other Expr) (bool, error) {
-	return false, errors.Errorf("trying to compare %T with %T", a, other)
-}
-
-func (a *NativeFunction) InstanceOf() string {
-	return "NativeFunction"
-}
-
-type UserFunctionCall struct {
+type FunctionCall struct {
 	Name string
 	Argc int
 	Argv Exprs
 }
 
-func NewUserFunctionCall(name string, argc int, argv Exprs) *UserFunctionCall {
-	return &UserFunctionCall{
+func NewFunctionCall(name string, argv Exprs) *FunctionCall {
+	return &FunctionCall{
 		Name: name,
-		Argc: argc,
+		Argc: len(argv),
 		Argv: argv,
 	}
 }
 
-func (a *UserFunctionCall) Write(w io.Writer) {
+func (a *FunctionCall) Write(w io.Writer) {
 	if a.Name == "!=" {
 		infix(w, " != ", a.Argv)
 		return
 	}
-	prefix(w, a.Name, a.Argv)
+	writeFunction(w, a.Name, a.Argv)
 }
 
-func (a *UserFunctionCall) Evaluate(s Scope) (Expr, error) {
+func (a *FunctionCall) Evaluate(s Scope) (Expr, error) {
 	e, ok := s.Value(a.Name)
 	if !ok {
 		return nil, errors.Errorf("evaluate user function: function named '%s' not found in scope", a.Name)
@@ -371,7 +459,7 @@ func (a *UserFunctionCall) Evaluate(s Scope) (Expr, error) {
 	}
 	initial := s.Initial()
 	for i := 0; i < a.Argc; i++ {
-		evaluatedParam, err := a.Argv[i].Evaluate(s)
+		evaluatedParam, err := a.Argv[i].Evaluate(s.Clone())
 		if err != nil {
 			return nil, errors.Wrapf(err, "evaluate user function: %s", a.Name)
 		}
@@ -380,12 +468,12 @@ func (a *UserFunctionCall) Evaluate(s Scope) (Expr, error) {
 	return fn.Evaluate(initial)
 }
 
-func (a *UserFunctionCall) Eq(other Expr) (bool, error) {
+func (a *FunctionCall) Eq(other Expr) (bool, error) {
 	return false, errors.Errorf("trying to compare %T with %T", a, other)
 }
 
-func (a *UserFunctionCall) InstanceOf() string {
-	return "UserFunctionCall"
+func (a *FunctionCall) InstanceOf() string {
+	return "FunctionCall"
 }
 
 type Function struct {
@@ -418,11 +506,19 @@ func NewFunction(Argv []string, Body Expr) *Function {
 	}
 }
 
+func DefUserFunction(body Expr, argv ...string) *Function {
+	return &Function{
+		Argc: len(argv),
+		Argv: argv,
+		Body: body,
+	}
+}
+
 func FunctionFromPredefined(c Callable, argc uint32) *Function {
 	return &Function{
 		Argc: int(argc),
 		Argv: buildParams(argc),
-		Body: &PredefinedUserFunction{
+		Body: &PredefFunction{
 			argv: buildParams(argc),
 			fn:   c,
 		},
@@ -437,33 +533,33 @@ func buildParams(argc uint32) []string {
 	return out
 }
 
-type PredefinedUserFunction struct {
+type PredefFunction struct {
 	argv []string
 	fn   Callable
 }
 
-func (a PredefinedUserFunction) Write(w io.Writer) {
-	_, _ = fmt.Fprintf(w, "PredefinedUserFunction")
+func (a PredefFunction) Write(w io.Writer) {
+	_, _ = fmt.Fprintf(w, "PredefFunction")
 }
 
-func (a PredefinedUserFunction) Evaluate(s Scope) (Expr, error) {
+func (a PredefFunction) Evaluate(s Scope) (Expr, error) {
 	params := Params()
 	for i := 0; i < len(a.argv); i++ {
 		e, ok := s.Value(a.argv[i])
 		if !ok {
-			return nil, errors.Errorf("PredefinedUserFunction: param %s not found in scope", a.argv[i])
+			return nil, errors.Errorf("PredefFunction: param %s not found in scope", a.argv[i])
 		}
 		params = append(params, e)
 	}
-	return a.fn(s, params)
+	return a.fn(s.Clone(), params)
 }
 
-func (a PredefinedUserFunction) Eq(other Expr) (bool, error) {
+func (a PredefFunction) Eq(other Expr) (bool, error) {
 	return false, errors.Errorf("trying to compare %T with %T", a, other)
 }
 
-func (a PredefinedUserFunction) InstanceOf() string {
-	return "PredefinedUserFunction"
+func (a PredefFunction) InstanceOf() string {
+	return "PredefFunction"
 }
 
 type RefExpr struct {
@@ -481,9 +577,9 @@ func (a *RefExpr) Evaluate(s Scope) (Expr, error) {
 	}
 	expr, ok := s.Value(a.Name)
 	if !ok {
-		return nil, errors.Errorf("RefExpr evaluate: not found expr by name %s", a.Name)
+		return nil, errors.Errorf("RefExpr evaluate: not found expr by name '%s'", a.Name)
 	}
-	rs, err := expr.Evaluate(s)
+	rs, err := expr.Evaluate(s.Clone())
 	s.setEvaluation(a.Name, evaluation{rs, err})
 	return rs, err
 }
@@ -525,12 +621,10 @@ func (a *IfExpr) Evaluate(s Scope) (Expr, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	b, ok := cond.(*BooleanExpr)
 	if !ok {
 		return nil, errors.Errorf("IfExpr evaluate: expected bool in condition found %T", cond)
 	}
-
 	if b.Value {
 		return a.True.Evaluate(s.Clone())
 	} else {
@@ -678,6 +772,38 @@ func (a *ObjectExpr) InstanceOf() string {
 	return ""
 }
 
+type DataEntryExpr struct {
+	fields object
+}
+
+func NewDataEntry(key string, value Expr) *DataEntryExpr {
+	return &DataEntryExpr{fields: object{"key": NewString(key), "value": value}}
+}
+
+func (a *DataEntryExpr) Write(w io.Writer) {
+	_, _ = fmt.Fprintf(w, "DataEntryExpr")
+}
+
+func (a *DataEntryExpr) Evaluate(Scope) (Expr, error) {
+	return a, nil
+}
+
+func (a *DataEntryExpr) Eq(other Expr) (bool, error) {
+	return false, errors.Errorf("trying to compare %T with %T", a, other)
+}
+
+func (a *DataEntryExpr) InstanceOf() string {
+	return "DataEntry"
+}
+
+func (a *DataEntryExpr) Get(name string) (Expr, error) {
+	out, ok := a.fields[name]
+	if !ok {
+		return nil, errors.Errorf("ObjectExpr no such field %s", name)
+	}
+	return out, nil
+}
+
 type StringExpr struct {
 	Value string
 }
@@ -729,7 +855,20 @@ func (a AddressExpr) Eq(other Expr) (bool, error) {
 }
 
 func (a AddressExpr) InstanceOf() string {
-	return "AddressExpr"
+	return "Address"
+}
+
+func (a AddressExpr) Get(name string) (Expr, error) {
+	switch name {
+	case "bytes":
+		return NewBytes(util.Dup(proto.Address(a).Bytes())), nil
+	default:
+		return nil, errors.Errorf("unknown fields '%s' on AddressExpr", name)
+	}
+}
+
+func (a AddressExpr) Recipient() {
+
 }
 
 func NewAddressFromString(s string) (AddressExpr, error) {
@@ -789,6 +928,9 @@ func (a AliasExpr) InstanceOf() string {
 	return "Alias"
 }
 
+// Recipient interface
+func (a AliasExpr) Recipient() {}
+
 func NewAliasFromProtoAlias(a proto.Alias) AliasExpr {
 	return AliasExpr(a)
 }
@@ -820,6 +962,11 @@ func NewDataEntryList(entries []proto.DataEntry) Exprs {
 		r[i] = v
 	}
 	return r
+}
+
+type Recipient interface {
+	Expr
+	Recipient()
 }
 
 type RecipientExpr proto.Recipient
@@ -1451,5 +1598,166 @@ func NewBlockInfo(obj object, height proto.Height) *BlockInfoExpr {
 	fields["generatorPublicKey"] = obj["generatorPublicKey"]
 	return &BlockInfoExpr{
 		fields: fields,
+	}
+}
+
+type WriteSetExpr struct {
+	body Exprs
+}
+
+func (a *WriteSetExpr) Write(io.Writer) {
+	panic("implement me")
+}
+
+func (a *WriteSetExpr) Evaluate(Scope) (Expr, error) {
+	return a, nil
+}
+
+func (a *WriteSetExpr) Eq(other Expr) (bool, error) {
+	return false, errors.Errorf("trying to compare %T with %T", a, other)
+}
+
+func (a *WriteSetExpr) InstanceOf() string {
+	return "WriteSet"
+}
+
+func NewWriteSet(e Exprs) *WriteSetExpr {
+	return &WriteSetExpr{
+		body: e,
+	}
+}
+
+type TransferSetExpr struct {
+	body Exprs
+}
+
+func (a *TransferSetExpr) Write(io.Writer) {
+	panic("implement me")
+}
+
+func (a *TransferSetExpr) Evaluate(Scope) (Expr, error) {
+	return a, nil
+}
+
+func (a *TransferSetExpr) Eq(other Expr) (bool, error) {
+	return false, errors.Errorf("trying to compare %T with %T", a, other)
+}
+
+func (a *TransferSetExpr) InstanceOf() string {
+	return "TransferSet"
+}
+
+func NewTransferSet(e Exprs) *TransferSetExpr {
+	return &TransferSetExpr{body: e}
+}
+
+type InvocationExpr struct {
+	fields object
+}
+
+func (a *InvocationExpr) Get(name string) (Expr, error) {
+	return a.fields.Get(name)
+}
+
+func (a *InvocationExpr) Write(w io.Writer) {
+	_, _ = fmt.Fprintf(w, "InvocationExpr")
+}
+
+func (a *InvocationExpr) Evaluate(Scope) (Expr, error) {
+	return a, nil
+}
+
+func (a *InvocationExpr) Eq(other Expr) (bool, error) {
+	return false, errors.Errorf("trying to compare %T with %T", a, other)
+}
+
+func (a *InvocationExpr) InstanceOf() string {
+	return "Invocation"
+}
+
+func BuildInvocation(scheme proto.Scheme, tx *proto.InvokeScriptV1) (*InvocationExpr, error) {
+	fields := object{}
+	addr, err := proto.NewAddressFromPublicKey(scheme, tx.SenderPK)
+	if err != nil {
+		return nil, err
+	}
+	fields["caller"] = NewAddressFromProtoAddress(addr)
+	fields["callerPublicKey"] = NewBytes(tx.SenderPK.Bytes())
+	fields["payment"] = NewUnit()
+	if len(tx.Payments) > 0 {
+		fields["payment"] = NewAttachedPaymentExpr(
+			makeOptionalAsset(tx.Payments[0].Asset),
+			NewLong(int64(tx.Payments[0].Amount)),
+		)
+	}
+	fields["transactionId"] = NewBytes(tx.ID.Bytes())
+	fields["fee"] = NewLong(int64(tx.Fee))
+	fields["feeAssetId"] = makeOptionalAsset(tx.FeeAsset)
+
+	return &InvocationExpr{
+		fields: fields,
+	}, nil
+}
+
+type ScriptTransferExpr struct {
+	fields object
+}
+
+func (a *ScriptTransferExpr) Write(w io.Writer) {
+	_, _ = fmt.Fprint(w, "ScriptTransferExpr")
+}
+
+func (a *ScriptTransferExpr) Evaluate(Scope) (Expr, error) {
+	return a, nil
+}
+
+func (a *ScriptTransferExpr) Eq(other Expr) (bool, error) {
+	return false, errors.Errorf("trying to compare %T with %T", a, other)
+}
+
+func (a *ScriptTransferExpr) InstanceOf() string {
+	return "ScriptTransfer"
+}
+
+func NewScriptTransfer(recipient Recipient, amount *LongExpr, asset Expr) (*ScriptTransferExpr, error) {
+	switch asset.(type) {
+	case Unit, *BytesExpr:
+	default:
+		return nil, errors.Errorf("expected 'Unit' or '*BytesExpr' as asset, found %T", asset)
+	}
+	fields := object{}
+	fields["recipient"] = recipient
+	fields["amount"] = amount
+	fields["asset"] = asset
+	return &ScriptTransferExpr{
+		fields: fields,
+	}, nil
+}
+
+type ScriptResultExpr struct {
+	WriteSet    *WriteSetExpr
+	TransferSet *TransferSetExpr
+}
+
+func (a *ScriptResultExpr) Write(w io.Writer) {
+	_, _ = fmt.Fprintf(w, "ScriptResultExpr")
+}
+
+func (a *ScriptResultExpr) Evaluate(Scope) (Expr, error) {
+	return a, nil
+}
+
+func (a *ScriptResultExpr) Eq(other Expr) (bool, error) {
+	return false, errors.Errorf("trying to compare %T with %T", a, other)
+}
+
+func (a *ScriptResultExpr) InstanceOf() string {
+	return "ScriptResult"
+}
+
+func NewScriptResult(writeSet *WriteSetExpr, transferSet *TransferSetExpr) *ScriptResultExpr {
+	return &ScriptResultExpr{
+		WriteSet:    writeSet,
+		TransferSet: transferSet,
 	}
 }

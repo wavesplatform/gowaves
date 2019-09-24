@@ -69,7 +69,7 @@ func TestEstimatorV1Estimate(t *testing.T) {
 	} {
 		r, err := reader.NewReaderFromBase64(test.script)
 		require.NoError(t, err, test.code)
-		script, err := ast.BuildAst(r)
+		script, err := ast.BuildScript(r)
 		require.NoError(t, err, test.code)
 		e := NewEstimatorV1(test.catalogue, ast.VariablesV3())
 		cost, err := e.Estimate(script)

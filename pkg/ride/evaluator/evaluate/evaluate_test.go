@@ -12,6 +12,7 @@ import (
 	. "github.com/wavesplatform/gowaves/pkg/ride/evaluator/ast"
 	"github.com/wavesplatform/gowaves/pkg/ride/evaluator/reader"
 	"github.com/wavesplatform/gowaves/pkg/ride/mockstate"
+	"github.com/wavesplatform/gowaves/pkg/util/byte_helpers"
 )
 
 const seed = "test test"
@@ -135,7 +136,7 @@ func TestEval(t *testing.T) {
 		r, err := reader.NewReaderFromBase64(test.script)
 		require.NoError(t, err)
 
-		script, err := BuildAst(r)
+		script, err := BuildScript(r)
 		require.NoError(t, err)
 
 		rs, err := Eval(script.Verifier, test.scope)
@@ -166,7 +167,7 @@ f == e
 	for i := 0; i < b.N; i++ {
 		b.StopTimer()
 		r, _ := reader.NewReaderFromBase64(base64)
-		script, _ := BuildAst(r)
+		script, _ := BuildScript(r)
 		b.StartTimer()
 		_, _ = Eval(script.Verifier, s)
 	}
@@ -316,13 +317,60 @@ func TestFunctions(t *testing.T) {
 		r, err := reader.NewReaderFromBase64(test.script)
 		require.NoError(t, err)
 
-		script, err := BuildAst(r)
+		script, err := BuildScript(r)
 		require.NoError(t, err)
 
 		rs, err := Eval(script.Verifier, test.scope)
 		assert.NoError(t, err, test.name)
 		assert.Equal(t, test.result, rs, fmt.Sprintf("func name: %s, code: %d, text: %s", test.name, test.code, test.text))
 	}
+}
+
+// variables refers to each other in the same scope
+func TestRerefOnEachOther(t *testing.T) {
+	/*
+	   let x = 5;
+	   let y = x;
+	   let x = y;
+	*/
+
+	tree := &Block{
+		Let: &LetExpr{
+			Name:  "x",
+			Value: NewLong(5),
+		},
+		Body: &Block{
+			Let: &LetExpr{
+				Name:  "y",
+				Value: &RefExpr{Name: "x"},
+			},
+			Body: &Block{
+				Let: &LetExpr{
+					Name:  "x",
+					Value: &RefExpr{Name: "y"},
+				},
+				Body: &RefExpr{Name: "x"},
+			},
+		},
+	}
+
+	rs, err := tree.Evaluate(NewScope(3, proto.MainNetScheme, nil))
+	require.NoError(t, err)
+	require.Equal(t, NewLong(5), rs)
+}
+
+func TestSimpleFuncEvaluate(t *testing.T) {
+	tree := &FunctionCall{
+		Name: "1206",
+		Argc: 1,
+		Argv: Params(NewString("12345")),
+	}
+
+	s := NewScope(3, proto.MainNetScheme, nil)
+
+	rs, err := tree.Evaluate(s)
+	require.NoError(t, err)
+	require.Equal(t, NewLong(12345), rs)
 }
 
 func TestDataFunctions(t *testing.T) {
@@ -375,7 +423,7 @@ func TestDataFunctions(t *testing.T) {
 		reader, err := reader.NewReaderFromBase64(test.Base64)
 		require.NoError(t, err)
 
-		script, err := BuildAst(reader)
+		script, err := BuildScript(reader)
 		require.NoError(t, err)
 
 		rs, err := Eval(script.Verifier, scope)
@@ -405,7 +453,6 @@ func Benchmark_Verify(b *testing.B) {
 }
 
 func TestEvaluateBlockV3False(t *testing.T) {
-
 	_ = `
 {-# STDLIB_VERSION 3 #-}
 {-# CONTENT_TYPE EXPRESSION #-}
@@ -420,7 +467,7 @@ fn("bbb") == "aaa"
 	r, err := reader.NewReaderFromBase64(b64)
 	require.NoError(t, err)
 
-	script, err := BuildAst(r)
+	script, err := BuildScript(r)
 	require.NoError(t, err)
 
 	s := defaultScope(3)
@@ -431,22 +478,21 @@ fn("bbb") == "aaa"
 }
 
 func TestEvaluateBlockV3True(t *testing.T) {
+	_ = `
+{-# STDLIB_VERSION 3 #-}
+{-# CONTENT_TYPE EXPRESSION #-}
+let zz = "ccc"
 
-	//	_ = `
-	//{-# STDLIB_VERSION 3 #-}
-	//{-# CONTENT_TYPE EXPRESSION #-}
-	//{-# SCRIPT_TYPE ACCOUNT #-}
-	//func fn(name: String) = {
-	//    name
-	//}
-	//fn("bbb") == "aaa"
-	//`
+func fn(name: String) = zz
+
+fn("abc") == "ccc"
+`
 
 	b64 := "AwQAAAACenoCAAAAA2NjYwoBAAAAAmZuAAAAAQAAAARuYW1lBQAAAAJ6egkAAAAAAAACCQEAAAACZm4AAAABAgAAAANhYmMCAAAAA2NjYyBIzew="
 	r, err := reader.NewReaderFromBase64(b64)
 	require.NoError(t, err)
 
-	script, err := BuildAst(r)
+	script, err := BuildScript(r)
 	require.NoError(t, err)
 
 	s := defaultScope(3)
@@ -454,6 +500,244 @@ func TestEvaluateBlockV3True(t *testing.T) {
 	rs, err := Eval(script.Verifier, s)
 	require.NoError(t, err)
 	require.True(t, rs, rs)
+}
+
+func TestDappCallable(t *testing.T) {
+	_ = `
+{-# STDLIB_VERSION 3 #-}
+{-# CONTENT_TYPE DAPP #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
+func getPreviousAnswer(address: String) = {
+  address
+}
+
+@Callable(i)
+func tellme(question: String) = {
+    let answer = getPreviousAnswer(question)
+
+    WriteSet([
+        DataEntry(answer + "_q", question),
+        DataEntry(answer + "_a", answer)
+        ])
+}
+
+@Verifier(tx)
+func verify() = {
+    getPreviousAnswer(toString(tx.sender)) == "1"
+}
+
+`
+	b64 := "AAIDAAAAAAAAAAAAAAABAQAAABFnZXRQcmV2aW91c0Fuc3dlcgAAAAEAAAAHYWRkcmVzcwUAAAAHYWRkcmVzcwAAAAEAAAABaQEAAAAGdGVsbG1lAAAAAQAAAAhxdWVzdGlvbgQAAAAGYW5zd2VyCQEAAAARZ2V0UHJldmlvdXNBbnN3ZXIAAAABBQAAAAhxdWVzdGlvbgkBAAAACFdyaXRlU2V0AAAAAQkABEwAAAACCQEAAAAJRGF0YUVudHJ5AAAAAgkAASwAAAACBQAAAAZhbnN3ZXICAAAAAl9xBQAAAAhxdWVzdGlvbgkABEwAAAACCQEAAAAJRGF0YUVudHJ5AAAAAgkAASwAAAACBQAAAAZhbnN3ZXICAAAAAl9hBQAAAAZhbnN3ZXIFAAAAA25pbAAAAAEAAAACdHgBAAAABnZlcmlmeQAAAAAJAAAAAAAAAgkBAAAAEWdldFByZXZpb3VzQW5zd2VyAAAAAQkABCUAAAABCAUAAAACdHgAAAAGc2VuZGVyAgAAAAEx7gicPQ=="
+
+	r, err := reader.NewReaderFromBase64(b64)
+	require.NoError(t, err)
+
+	script, err := BuildScript(r)
+	require.NoError(t, err)
+
+	tx := byte_helpers.InvokeScriptV1.Transaction.Clone()
+
+	rs, err := script.CallFunction(proto.MainNetScheme, mockstate.State{}, tx, "tellme", Params(NewString("abc")))
+	require.NoError(t, err)
+	require.Equal(t, NewWriteSet(
+		Params(
+			NewDataEntry("abc_q", NewString("abc")),
+			NewDataEntry("abc_a", NewString("abc")),
+		)), rs)
+}
+
+func TestDappDefaultFunc(t *testing.T) {
+	_ = `
+{-# STDLIB_VERSION 3 #-}
+{-# CONTENT_TYPE DAPP #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
+func getPreviousAnswer(address: String) = {
+  address
+}
+
+@Callable(i)
+func tellme(question: String) = {
+    let answer = getPreviousAnswer(question)
+
+    WriteSet([
+        DataEntry(answer + "_q", question),
+        DataEntry(answer + "_a", answer)
+        ])
+}
+
+@Callable(invocation)
+func default() = {
+    let sender0 = invocation.caller.bytes
+    WriteSet([DataEntry("a", "b"), DataEntry("sender", sender0)])
+}
+
+@Verifier(tx)
+func verify() = {
+    getPreviousAnswer(toString(tx.sender)) == "1"
+}
+`
+	b64 := "AAIDAAAAAAAAAAAAAAABAQAAABFnZXRQcmV2aW91c0Fuc3dlcgAAAAEAAAAHYWRkcmVzcwUAAAAHYWRkcmVzcwAAAAIAAAABaQEAAAAGdGVsbG1lAAAAAQAAAAhxdWVzdGlvbgQAAAAGYW5zd2VyCQEAAAARZ2V0UHJldmlvdXNBbnN3ZXIAAAABBQAAAAhxdWVzdGlvbgkBAAAACFdyaXRlU2V0AAAAAQkABEwAAAACCQEAAAAJRGF0YUVudHJ5AAAAAgkAASwAAAACBQAAAAZhbnN3ZXICAAAAAl9xBQAAAAhxdWVzdGlvbgkABEwAAAACCQEAAAAJRGF0YUVudHJ5AAAAAgkAASwAAAACBQAAAAZhbnN3ZXICAAAAAl9hBQAAAAZhbnN3ZXIFAAAAA25pbAAAAAppbnZvY2F0aW9uAQAAAAdkZWZhdWx0AAAAAAQAAAAHc2VuZGVyMAgIBQAAAAppbnZvY2F0aW9uAAAABmNhbGxlcgAAAAVieXRlcwkBAAAACFdyaXRlU2V0AAAAAQkABEwAAAACCQEAAAAJRGF0YUVudHJ5AAAAAgIAAAABYQIAAAABYgkABEwAAAACCQEAAAAJRGF0YUVudHJ5AAAAAgIAAAAGc2VuZGVyBQAAAAdzZW5kZXIwBQAAAANuaWwAAAABAAAAAnR4AQAAAAZ2ZXJpZnkAAAAACQAAAAAAAAIJAQAAABFnZXRQcmV2aW91c0Fuc3dlcgAAAAEJAAQlAAAAAQgFAAAAAnR4AAAABnNlbmRlcgIAAAABMcP91gY="
+	r, err := reader.NewReaderFromBase64(b64)
+	require.NoError(t, err)
+
+	script, err := BuildScript(r)
+	require.NoError(t, err)
+
+	tx := byte_helpers.InvokeScriptV1.Transaction.Clone()
+
+	addr, _ := proto.NewAddressFromPublicKey(proto.MainNetScheme, tx.SenderPK)
+
+	rs, err := script.CallFunction(proto.MainNetScheme, mockstate.State{}, tx, "", Params())
+	require.NoError(t, err)
+	require.Equal(t, NewWriteSet(
+		Params(
+			NewDataEntry("a", NewString("b")),
+			NewDataEntry("sender", NewBytes(addr.Bytes())),
+		)), rs)
+}
+
+func TestDappVerify(t *testing.T) {
+	_ = `
+{-# STDLIB_VERSION 3 #-}
+{-# CONTENT_TYPE DAPP #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
+func getPreviousAnswer(address: String) = {
+ address
+}
+
+@Callable(i)
+func tellme(question: String) = {
+   let answer = getPreviousAnswer(question)
+
+   WriteSet([
+       DataEntry(answer + "_q", question),
+       DataEntry(answer + "_a", answer)
+       ])
+}
+
+@Callable(invocation)
+func default() = {
+   let sender0 = invocation.caller.bytes
+   WriteSet([DataEntry("a", "b"), DataEntry("sender", sender0)])
+}
+
+@Verifier(tx)
+func verify() = {
+   getPreviousAnswer(toString(tx.sender)) == "1"
+}
+`
+	b64 := "AAIDAAAAAAAAAAAAAAABAQAAABFnZXRQcmV2aW91c0Fuc3dlcgAAAAEAAAAHYWRkcmVzcwUAAAAHYWRkcmVzcwAAAAIAAAABaQEAAAAGdGVsbG1lAAAAAQAAAAhxdWVzdGlvbgQAAAAGYW5zd2VyCQEAAAARZ2V0UHJldmlvdXNBbnN3ZXIAAAABBQAAAAhxdWVzdGlvbgkBAAAACFdyaXRlU2V0AAAAAQkABEwAAAACCQEAAAAJRGF0YUVudHJ5AAAAAgkAASwAAAACBQAAAAZhbnN3ZXICAAAAAl9xBQAAAAhxdWVzdGlvbgkABEwAAAACCQEAAAAJRGF0YUVudHJ5AAAAAgkAASwAAAACBQAAAAZhbnN3ZXICAAAAAl9hBQAAAAZhbnN3ZXIFAAAAA25pbAAAAAppbnZvY2F0aW9uAQAAAAdkZWZhdWx0AAAAAAQAAAAHc2VuZGVyMAgIBQAAAAppbnZvY2F0aW9uAAAABmNhbGxlcgAAAAVieXRlcwkBAAAACFdyaXRlU2V0AAAAAQkABEwAAAACCQEAAAAJRGF0YUVudHJ5AAAAAgIAAAABYQIAAAABYgkABEwAAAACCQEAAAAJRGF0YUVudHJ5AAAAAgIAAAAGc2VuZGVyBQAAAAdzZW5kZXIwBQAAAANuaWwAAAABAAAAAnR4AQAAAAZ2ZXJpZnkAAAAACQAAAAAAAAIJAQAAABFnZXRQcmV2aW91c0Fuc3dlcgAAAAEJAAQlAAAAAQgFAAAAAnR4AAAABnNlbmRlcgIAAAABMcP91gY="
+	r, err := reader.NewReaderFromBase64(b64)
+	require.NoError(t, err)
+
+	script, err := BuildScript(r)
+	require.NoError(t, err)
+
+	tx := byte_helpers.TransferV2.Transaction.Clone()
+
+	rs, err := script.Verify(proto.MainNetScheme, mockstate.State{}, tx)
+	require.NoError(t, err)
+	require.Equal(t, false, rs)
+}
+
+func TestDappVerifySuccessful(t *testing.T) {
+	_ = `
+{-# STDLIB_VERSION 3 #-}
+{-# CONTENT_TYPE DAPP #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
+let x = 100500
+
+func getPreviousAnswer() = {
+ x
+}
+
+@Verifier(tx)
+func verify() = {
+   getPreviousAnswer() == 100500
+}
+`
+	b64 := "AAIDAAAAAAAAAAAAAAACAAAAAAF4AAAAAAAAAYiUAQAAABFnZXRQcmV2aW91c0Fuc3dlcgAAAAAFAAAAAXgAAAAAAAAAAQAAAAJ0eAEAAAAGdmVyaWZ5AAAAAAkAAAAAAAACCQEAAAARZ2V0UHJldmlvdXNBbnN3ZXIAAAAAAAAAAAAAAYiUa4pU5Q=="
+	r, err := reader.NewReaderFromBase64(b64)
+	require.NoError(t, err)
+
+	script, err := BuildScript(r)
+	require.NoError(t, err)
+
+	tx := byte_helpers.TransferV2.Transaction.Clone()
+
+	rs, err := script.Verify(proto.MainNetScheme, mockstate.State{}, tx)
+	require.NoError(t, err)
+	require.Equal(t, true, rs)
+}
+
+func TestTransferSet(t *testing.T) {
+	_ = `
+{-# STDLIB_VERSION 3 #-}
+{-# CONTENT_TYPE DAPP #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
+@Callable(i)
+func tellme(question: String) = {
+    TransferSet([ScriptTransfer(i.caller, 100, unit)])
+}`
+
+	b64 := "AAIDAAAAAAAAAAAAAAAAAAAAAQAAAAFpAQAAAAZ0ZWxsbWUAAAABAAAACHF1ZXN0aW9uCQEAAAALVHJhbnNmZXJTZXQAAAABCQAETAAAAAIJAQAAAA5TY3JpcHRUcmFuc2ZlcgAAAAMIBQAAAAFpAAAABmNhbGxlcgAAAAAAAAAAZAUAAAAEdW5pdAUAAAADbmlsAAAAAH5a2L0="
+	r, err := reader.NewReaderFromBase64(b64)
+	require.NoError(t, err)
+
+	script, err := BuildScript(r)
+	require.NoError(t, err)
+
+	tx := byte_helpers.InvokeScriptV1.Transaction.Clone()
+
+	addr, _ := proto.NewAddressFromPublicKey(proto.MainNetScheme, tx.SenderPK)
+
+	rs, err := script.CallFunction(proto.MainNetScheme, mockstate.State{}, tx, "tellme", Params(NewLong(100500)))
+	require.NoError(t, err)
+	scriptTransfer, err := NewScriptTransfer(NewAddressFromProtoAddress(addr), NewLong(100), NewUnit())
+	require.NoError(t, err)
+	require.Equal(t, NewTransferSet(Params(scriptTransfer)), rs)
+}
+
+func TestScriptResult(t *testing.T) {
+	var _ = `
+{-# STDLIB_VERSION 3 #-}
+{-# CONTENT_TYPE DAPP #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
+@Callable(i)
+func tellme(question: String) = {
+    ScriptResult(
+        WriteSet([DataEntry("key", 100)]),
+        TransferSet([ScriptTransfer(i.caller, 100500, unit)])
+    )
+}
+`
+	b64 := "AAIDAAAAAAAAAAAAAAAAAAAAAQAAAAFpAQAAAAZ0ZWxsbWUAAAABAAAACHF1ZXN0aW9uCQEAAAAMU2NyaXB0UmVzdWx0AAAAAgkBAAAACFdyaXRlU2V0AAAAAQkABEwAAAACCQEAAAAJRGF0YUVudHJ5AAAAAgIAAAADa2V5AAAAAAAAAABkBQAAAANuaWwJAQAAAAtUcmFuc2ZlclNldAAAAAEJAARMAAAAAgkBAAAADlNjcmlwdFRyYW5zZmVyAAAAAwgFAAAAAWkAAAAGY2FsbGVyAAAAAAAAAYiUBQAAAAR1bml0BQAAAANuaWwAAAAARKRntw=="
+	r, err := reader.NewReaderFromBase64(b64)
+	require.NoError(t, err)
+
+	script, err := BuildScript(r)
+	require.NoError(t, err)
+
+	tx := byte_helpers.InvokeScriptV1.Transaction.Clone()
+
+	addr, _ := proto.NewAddressFromPublicKey(proto.MainNetScheme, tx.SenderPK)
+
+	rs, err := script.CallFunction(proto.MainNetScheme, mockstate.State{}, tx, "tellme", Params(NewLong(100)))
+	require.NoError(t, err)
+	scriptTransfer, err := NewScriptTransfer(NewAddressFromProtoAddress(addr), NewLong(100500), NewUnit())
+	require.NoError(t, err)
+	require.Equal(t,
+		NewScriptResult(
+			NewWriteSet(Params(NewDataEntry("key", NewLong(100)))),
+			NewTransferSet(Params(scriptTransfer)),
+		),
+		rs)
 }
 
 func TestMatchOverwrite(t *testing.T) {
@@ -506,7 +790,7 @@ func TestMatchOverwrite(t *testing.T) {
 	scope.SetTransaction(tv)
 	scope.SetHeight(368430)
 
-	script, err := BuildAst(r)
+	script, err := BuildScript(r)
 	require.NoError(t, err)
 
 	rs, err := Eval(script.Verifier, scope)
@@ -548,7 +832,7 @@ func TestFailSript1(t *testing.T) {
 	scope.SetTransaction(tv)
 	scope.SetHeight(368430)
 
-	scr, err := BuildAst(r)
+	scr, err := BuildScript(r)
 	require.NoError(t, err)
 
 	rs, err := Eval(scr.Verifier, scope)

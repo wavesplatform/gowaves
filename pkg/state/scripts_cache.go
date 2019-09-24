@@ -9,12 +9,10 @@ import (
 
 type element struct {
 	key        proto.Address
-	value      ast.Script
+	value      *ast.Script
 	prev, next *element
 	bytes      uint64
 }
-
-var defaultValue ast.Script
 
 type lru struct {
 	maxSize, maxBytes, size, bytesUsed uint64
@@ -74,7 +72,7 @@ func (l *lru) del(e *element) {
 	l.cut(e)
 	l.size -= 1
 	l.bytesUsed -= e.bytes
-	e.value = defaultValue
+	e.value = nil
 	l.removed = e
 }
 
@@ -84,7 +82,7 @@ func (l *lru) makeFreeSpace(bytes uint64) {
 	}
 }
 
-func (l *lru) get(key proto.Address) (value ast.Script, has bool) {
+func (l *lru) get(key proto.Address) (value *ast.Script, has bool) {
 	var e *element
 	e, has = l.m[key]
 	if !has {
@@ -95,7 +93,7 @@ func (l *lru) get(key proto.Address) (value ast.Script, has bool) {
 	return e.value, true
 }
 
-func (l *lru) set(key proto.Address, value ast.Script, bytes uint64) (existed bool) {
+func (l *lru) set(key proto.Address, value *ast.Script, bytes uint64) (existed bool) {
 	e, has := l.m[key]
 	if has {
 		l.del(e)

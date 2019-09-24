@@ -15,8 +15,8 @@ const (
 	maxCacheBytes = maxCacheSize * scriptSize
 )
 
-func scriptBytesToAst(script proto.Script) (ast.Script, error) {
-	return ast.BuildAst(reader.NewBytesReader(script[:]))
+func scriptBytesToAst(script proto.Script) (*ast.Script, error) {
+	return ast.BuildScript(reader.NewBytesReader(script[:]))
 }
 
 type accountScriptRecord struct {
@@ -80,19 +80,19 @@ func (as *accountsScripts) setScript(addr proto.Address, script proto.Script, bl
 	return nil
 }
 
-func (as *accountsScripts) newestScriptAstFromAddr(addr proto.Address, filter bool) (ast.Script, error) {
+func (as *accountsScripts) newestScriptAstFromAddr(addr proto.Address, filter bool) (*ast.Script, error) {
 	key := accountScriptKey{addr: addr}
 	recordBytes, err := as.hs.freshLatestEntryData(key.bytes(), filter)
 	if err != nil {
-		return ast.Script{}, err
+		return nil, err
 	}
 	var record accountScriptRecord
 	if err := record.unmarshalBinary(recordBytes); err != nil {
-		return ast.Script{}, err
+		return nil, err
 	}
 	if len(record.script) == 0 {
 		// Empty script = no script.
-		return ast.Script{}, proto.ErrNotFound
+		return nil, proto.ErrNotFound
 	}
 	return scriptBytesToAst(record.script)
 }
@@ -135,31 +135,31 @@ func (as *accountsScripts) hasScript(addr proto.Address, filter bool) (bool, err
 	return false, nil
 }
 
-func (as *accountsScripts) newestScriptByAddr(addr proto.Address, filter bool) (ast.Script, error) {
+func (as *accountsScripts) newestScriptByAddr(addr proto.Address, filter bool) (*ast.Script, error) {
 	if script, has := as.cache.get(addr); has {
 		return script, nil
 	}
 	script, err := as.newestScriptAstFromAddr(addr, filter)
 	if err != nil {
-		return ast.Script{}, err
+		return nil, err
 	}
 	as.cache.set(addr, script, scriptSize)
 	return script, nil
 }
 
-func (as *accountsScripts) scriptByAddr(addr proto.Address, filter bool) (ast.Script, error) {
+func (as *accountsScripts) scriptByAddr(addr proto.Address, filter bool) (*ast.Script, error) {
 	key := accountScriptKey{addr: addr}
 	recordBytes, err := as.hs.latestEntryData(key.bytes(), filter)
 	if err != nil {
-		return ast.Script{}, err
+		return nil, err
 	}
 	var record accountScriptRecord
 	if err := record.unmarshalBinary(recordBytes); err != nil {
-		return ast.Script{}, err
+		return nil, err
 	}
 	if len(record.script) == 0 {
 		// Empty script = no script.
-		return ast.Script{}, proto.ErrNotFound
+		return nil, proto.ErrNotFound
 	}
 	return scriptBytesToAst(record.script)
 }

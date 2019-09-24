@@ -106,7 +106,7 @@ type testGlobalVars struct {
 	recipientInfo *testAddrData
 
 	scriptBytes []byte
-	scriptAst   ast.Script
+	scriptAst   *ast.Script
 }
 
 var testGlobal testGlobalVars
@@ -145,7 +145,7 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatalf("Failed to decode script from base64: %v\n", err)
 	}
-	testGlobal.scriptAst, err = ast.BuildAst(reader.NewBytesReader(testGlobal.scriptBytes))
+	testGlobal.scriptAst, err = ast.BuildScript(reader.NewBytesReader(testGlobal.scriptBytes))
 	if err != nil {
 		log.Fatalf("BuildAst: %v\n", err)
 	}
