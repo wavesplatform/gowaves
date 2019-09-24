@@ -1601,17 +1601,6 @@ func NewBlockInfo(obj object, height proto.Height) *BlockInfoExpr {
 	}
 }
 
-func Merge(x map[string]Expr, y map[string]Expr) map[string]Expr {
-	out := make(map[string]Expr)
-	for k, v := range x {
-		out[k] = v
-	}
-	for k, v := range y {
-		out[k] = v
-	}
-	return out
-}
-
 type WriteSetExpr struct {
 	body Exprs
 }
