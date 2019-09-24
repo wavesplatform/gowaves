@@ -16,12 +16,13 @@ type expression struct {
 }
 
 type context struct {
-	expressions  map[string]expression
-	functions    map[string]function
-	replacements map[string]expression
+	name        string
+	parent      *context
+	expressions map[string]expression
+	functions   map[string]function
 }
 
-func newContext(variables map[string]ast.Expr) *context {
+func root(variables map[string]ast.Expr) *context {
 	e := make(map[string]expression, len(variables))
 	for k, v := range variables {
 		e[k] = expression{expr: v, evaluated: true}
@@ -29,38 +30,66 @@ func newContext(variables map[string]ast.Expr) *context {
 	e["height"] = expression{expr: ast.NewLong(0), evaluated: true}
 	e["tx"] = expression{expr: ast.NewObject(map[string]ast.Expr{}), evaluated: true}
 	return &context{
-		expressions:  e,
-		functions:    make(map[string]function),
-		replacements: make(map[string]expression),
+		name:        "root",
+		expressions: e,
+		functions:   make(map[string]function),
 	}
 }
 
-func (c *context) clone() *context {
-	e := make(map[string]expression, len(c.expressions))
-	for k, v := range c.expressions {
-		e[k] = v
-	}
-	f := make(map[string]function, len(c.functions))
-	for k, v := range c.functions {
-		f[k] = v
-	}
+func (c *context) branch(name string) *context {
 	return &context{
-		expressions: e,
-		functions:   f,
+		name:        name,
+		parent:      c,
+		expressions: make(map[string]expression),
+		functions:   make(map[string]function),
 	}
+}
+
+func (c *context) express(name string, e expression) {
+	c.expressions[name] = e
+}
+
+func (c *context) expression(name string) (expression, bool) {
+	e, ok := c.expressions[name]
+	if ok {
+		return e, true
+	}
+	if c.parent != nil {
+		return c.parent.expression(name)
+	}
+	return expression{}, false
+}
+
+func (c *context) declare(name string, f function) {
+	c.functions[name] = f
+}
+
+func (c *context) declaration(name string) (function, bool) {
+	f, ok := c.functions[name]
+	if ok {
+		return f, true
+	}
+	if c.parent != nil {
+		return c.parent.declaration(name)
+	}
+	return function{}, false
 }
 
 type Estimator struct {
 	version   int
 	catalogue *Catalogue
-	context   *context
+	contexts  map[string]*context
+	current   string
 }
 
 func NewEstimator(version int, catalogue *Catalogue, variables map[string]ast.Expr) *Estimator {
+	rc := root(variables)
+	cs := map[string]*context{rc.name: rc}
 	return &Estimator{
 		version:   version,
 		catalogue: catalogue,
-		context:   newContext(variables),
+		contexts:  cs,
+		current:   rc.name,
 	}
 }
 
@@ -71,6 +100,58 @@ func (e *Estimator) Estimate(script *ast.Script) (int64, error) {
 	}
 	//TODO: add estimation of other entry points and take max among them and the verifier
 	return verifierCost, nil
+}
+
+func (e *Estimator) context() (*context, error) {
+	c, ok := e.contexts[e.current]
+	if !ok {
+		return nil, errors.Errorf("failed to get current context by name '%s'", e.current)
+	}
+	return c, nil
+}
+
+func (e *Estimator) change(name string) (*context, error) {
+	c, ok := e.contexts[name]
+	if !ok {
+		return nil, errors.Errorf("failed to change context to context named '%s'", name)
+	}
+	e.current = name
+	return c, nil
+}
+
+func (e *Estimator) copyContexts() (map[string]*context, string) {
+	cp := make(map[string]*context)
+	for k, v := range e.contexts {
+		e := make(map[string]expression)
+		for ke, ve := range v.expressions {
+			e[ke] = ve
+		}
+		f := make(map[string]function)
+		for kf, vf := range v.functions {
+			f[kf] = vf
+		}
+		c := context{
+			name:        k,
+			parent:      nil,
+			expressions: e,
+			functions:   f,
+		}
+		cp[k] = &c
+	}
+	for k, v := range e.contexts {
+		if v.parent != nil {
+			p, ok := cp[v.parent.name]
+			if ok {
+				cp[k].parent = p
+			}
+		}
+	}
+	return cp, e.current
+}
+
+func (e *Estimator) restoreContexts(cp map[string]*context, current string) {
+	e.contexts = cp
+	e.current = current
 }
 
 func (e *Estimator) estimate(expr ast.Expr) (int64, error) {
@@ -90,33 +171,47 @@ func (e *Estimator) estimate(expr ast.Expr) (int64, error) {
 		return total, nil
 
 	case *ast.Block:
-		tmp := e.context.clone()
-		e.context.expressions[ce.Let.Name] = expression{ce.Let.Value, false}
+		cc, err := e.context()
+		if err != nil {
+			return 0, err
+		}
+		cc.express(ce.Let.Name, expression{ce.Let.Value, false})
 		bc, err := e.estimate(ce.Body)
 		if err != nil {
 			return 0, err
 		}
-		e.context = tmp
 		return bc + 5, nil
 
 	case *ast.BlockV2:
-		tmp := e.context.clone()
 		switch declaration := ce.Decl.(type) {
 		case *ast.LetExpr:
-			e.context.expressions[declaration.Name] = expression{declaration.Value, false}
+			cc, err := e.context()
+			if err != nil {
+				return 0, err
+			}
+			cc.express(declaration.Name, expression{declaration.Value, false})
 			bc, err := e.estimate(ce.Body)
 			if err != nil {
 				return 0, err
 			}
-			e.context = tmp
 			return bc + 5, nil
 		case *ast.FuncDeclaration:
 			switch e.version {
 			case 2:
-				e.context.functions[declaration.Name] = function{declaration.Body, declaration.Args}
+				cc, err := e.context()
+				if err != nil {
+					return 0, err
+				}
+				cc.declare(declaration.Name, function{declaration.Body, declaration.Args})
+				nc := cc.branch(declaration.Name)
+				e.contexts[nc.name] = nc
 			default:
+				rc, ok := e.contexts["root"]
+				if !ok {
+					return 0, errors.New("no root context")
+				}
 				for _, a := range declaration.Args {
-					e.context.expressions[a] = expression{&ast.BooleanExpr{Value: true}, false}
+					rc.express(a, expression{&ast.BooleanExpr{Value: true}, false})
 				}
 				fc, err := e.estimate(declaration.Body)
 				if err != nil {
@@ -129,7 +224,6 @@ func (e *Estimator) estimate(expr ast.Expr) (int64, error) {
 			if err != nil {
 				return 0, err
 			}
-			e.context = tmp
 			return 5 + bc, nil
 		default:
 			return 0, errors.Errorf("unsupported content of type %T", ce.Decl)
@@ -156,36 +250,34 @@ func (e *Estimator) estimate(expr ast.Expr) (int64, error) {
 	case *ast.UserFunctionCall:
 	case *ast.FunctionCall:
 		var fc int64
-		var err error
-		if fd, ok := e.context.functions[ce.Name]; ok {
-			if na := len(fd.args); na != ce.Argc {
-				return 0, errors.Errorf("unexpected number of arguments %d, function '%s' accepts %d arguments", ce.Argc, ce.Name, na)
-			}
-			for k, v := range e.context.replacements {
-				e.context.expressions[k] = v
-				delete(e.context.replacements, k)
-			}
-			var tac int64
-			for i := 0; i < ce.Argc; i++ {
-				ac, err := e.estimate(ce.Argv[i])
-				if err != nil {
-					return 0, err
-				}
-				if existing, ok := e.context.expressions[fd.args[i]]; ok {
-					e.context.replacements[fd.args[i]] = existing
-				}
-				e.context.expressions[fd.args[i]] = expression{&ast.BooleanExpr{Value: true}, false}
-				tac += ac + 5
-			}
-			fc, err = e.estimate(fd.expr)
+		callContext, err := e.context()
+		if err != nil {
+			return 0, err
+		}
+		if fd, ok := callContext.declaration(ce.Name); ok {
+			// Estimate parameters that was passed to the function
+			fc += int64(ce.Argc * 5)
+			ac, err := e.estimate(ce.Argv)
 			if err != nil {
 				return 0, err
 			}
-			for k, v := range e.context.replacements {
-				e.context.expressions[k] = v
-				delete(e.context.replacements, k)
+			// Change context to the function's one
+			functionContext, err := e.change(ce.Name)
+			if err != nil {
+				return 0, err
 			}
-			return fc + tac, nil
+			if na := len(fd.args); na != ce.Argc {
+				return 0, errors.Errorf("unexpected number of arguments %d, function '%s' accepts %d arguments", ce.Argc, ce.Name, na)
+			}
+			// Create or reset function parameters in order to evaluate them on every call of the function
+			for _, a := range fd.args {
+				functionContext.express(a, expression{&ast.BooleanExpr{Value: true}, false})
+			}
+			pc, err := e.estimate(fd.expr)
+			if err != nil {
+				return 0, err
+			}
+			return fc + ac + pc, nil
 		} else {
 			fc, ok = e.catalogue.FunctionCost(ce.Name)
 			if !ok {
@@ -199,7 +291,11 @@ func (e *Estimator) estimate(expr ast.Expr) (int64, error) {
 		}
 
 	case *ast.RefExpr:
-		inner, ok := e.context.expressions[ce.Name]
+		cc, err := e.context()
+		if err != nil {
+			return 0, err
+		}
+		inner, ok := cc.expression(ce.Name)
 		if !ok {
 			return 0, errors.Errorf("no variable '%s' in context", ce.Name)
 		}
@@ -208,7 +304,11 @@ func (e *Estimator) estimate(expr ast.Expr) (int64, error) {
 			if err != nil {
 				return 0, err
 			}
-			e.context.expressions[ce.Name] = expression{inner.expr, true}
+			cc, err := e.context()
+			if err != nil {
+				return 0, err
+			}
+			cc.express(ce.Name, expression{inner.expr, true})
 			return ic + 2, nil
 		}
 		return 2, nil
@@ -218,19 +318,19 @@ func (e *Estimator) estimate(expr ast.Expr) (int64, error) {
 		if err != nil {
 			return 0, err
 		}
-		tmp := e.context.clone()
+		tmp, tmpCurr := e.copyContexts()
 		tc, err := e.estimate(ce.True)
 		if err != nil {
 			return 0, err
 		}
-		trueContext := e.context.clone()
-		e.context = tmp
+		trueContext, trueCurr := e.copyContexts()
+		e.restoreContexts(tmp, tmpCurr)
 		fc, err := e.estimate(ce.False)
 		if err != nil {
 			return 0, err
 		}
 		if tc > fc {
-			e.context = trueContext
+			e.restoreContexts(trueContext, trueCurr)
 			return tc + cc + 1, nil
 		}
 		return fc + cc + 1, nil
