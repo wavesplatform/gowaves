@@ -26,9 +26,10 @@ type Synchronizer struct {
 	matcher   crypto.PublicKey
 	ticker    *time.Ticker
 	lag       int
+	symbols   *data.Symbols
 }
 
-func NewSynchronizer(interrupt <-chan struct{}, storage *state.Storage, scheme byte, matcher crypto.PublicKey, node string, interval int, lag int) (*Synchronizer, error) {
+func NewSynchronizer(interrupt <-chan struct{}, storage *state.Storage, scheme byte, matcher crypto.PublicKey, node string, interval int, lag int, symbols *data.Symbols) (*Synchronizer, error) {
 	conn, err := grpc.Dial(node, grpc.WithInsecure())
 	if err != nil {
 		return nil, errors.Wrapf(err, "Failed to create new synchronizer")
@@ -37,7 +38,7 @@ func NewSynchronizer(interrupt <-chan struct{}, storage *state.Storage, scheme b
 	t := time.NewTicker(d)
 	zap.S().Infof("Synchronization interval set to %v", d)
 	done := make(chan struct{})
-	s := Synchronizer{interrupt: interrupt, done: done, conn: conn, storage: storage, scheme: scheme, matcher: matcher, ticker: t, lag: lag}
+	s := Synchronizer{interrupt: interrupt, done: done, conn: conn, storage: storage, scheme: scheme, matcher: matcher, ticker: t, lag: lag, symbols: symbols}
 	go s.run()
 	return &s, nil
 }
@@ -109,6 +110,12 @@ func (s *Synchronizer) synchronize() {
 		if err != nil && !strings.Contains(err.Error(), "Invalid status code") {
 			zap.S().Errorf("Failed to apply blocks: %v", err)
 			return
+		}
+		if s.symbols != nil {
+			err = s.symbols.UpdateFromOracle(s.conn)
+			if err != nil {
+				zap.S().Warnf("Failed to update tickers from oracle: %v", err)
+			}
 		}
 	}
 }

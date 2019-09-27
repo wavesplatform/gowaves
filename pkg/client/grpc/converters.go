@@ -303,28 +303,43 @@ func (c *SafeConverter) transfers(scheme byte, transfers []*MassTransferTransact
 	return r
 }
 
+func (c *SafeConverter) entry(entry *DataTransactionData_DataEntry) proto.DataEntry {
+	if c.err != nil {
+		return nil
+	}
+	if entry == nil {
+		c.err = errors.New("empty data entry")
+		return nil
+	}
+	var e proto.DataEntry
+	switch t := entry.Value.(type) {
+	case *DataTransactionData_DataEntry_IntValue:
+		e = &proto.IntegerDataEntry{Key: entry.Key, Value: t.IntValue}
+	case *DataTransactionData_DataEntry_BoolValue:
+		e = &proto.BooleanDataEntry{Key: entry.Key, Value: t.BoolValue}
+	case *DataTransactionData_DataEntry_BinaryValue:
+		e = &proto.BinaryDataEntry{Key: entry.Key, Value: t.BinaryValue}
+	case *DataTransactionData_DataEntry_StringValue:
+		e = &proto.StringDataEntry{Key: entry.Key, Value: t.StringValue}
+	}
+	return e
+}
+
+func (c *SafeConverter) Entry(entry *DataTransactionData_DataEntry) (proto.DataEntry, error) {
+	e := c.entry(entry)
+	if c.err != nil {
+		return nil, c.err
+	}
+	return e, nil
+}
+
 func (c *SafeConverter) entries(entries []*DataTransactionData_DataEntry) proto.DataEntries {
 	if c.err != nil {
 		return nil
 	}
 	r := make([]proto.DataEntry, len(entries))
 	for i, e := range entries {
-		if e == nil {
-			c.err = errors.New("empty data entry")
-			return nil
-		}
-		var entry proto.DataEntry
-		switch t := e.Value.(type) {
-		case *DataTransactionData_DataEntry_IntValue:
-			entry = &proto.IntegerDataEntry{Key: e.Key, Value: t.IntValue}
-		case *DataTransactionData_DataEntry_BoolValue:
-			entry = &proto.BooleanDataEntry{Key: e.Key, Value: t.BoolValue}
-		case *DataTransactionData_DataEntry_BinaryValue:
-			entry = &proto.BinaryDataEntry{Key: e.Key, Value: t.BinaryValue}
-		case *DataTransactionData_DataEntry_StringValue:
-			entry = &proto.StringDataEntry{Key: e.Key, Value: t.StringValue}
-		}
-		r[i] = entry
+		r[i] = c.entry(e)
 	}
 	return r
 }

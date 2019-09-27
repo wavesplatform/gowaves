@@ -626,10 +626,10 @@ func (a *DataFeedAPI) convertToTradesInfos(trades []data.Trade, amountAssetDecim
 
 func (a *DataFeedAPI) convertToTickerInfo(aa, pa *data.AssetInfo, aaBalance, paBalance uint64, c data.Candle) data.TickerInfo {
 	var sb strings.Builder
-	aat, ok := a.Symbols.Tokens()[aa.ID]
+	aat, ok := a.Symbols.Token(aa.ID)
 	if ok {
 		sb.WriteString(aat)
-		pat, ok := a.Symbols.Tokens()[pa.ID]
+		pat, ok := a.Symbols.Token(pa.ID)
 		if ok {
 			sb.WriteRune('/')
 			sb.WriteString(pat)
