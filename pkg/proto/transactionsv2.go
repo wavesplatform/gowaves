@@ -1211,6 +1211,20 @@ func (tx *ExchangeV2) Sign(secretKey crypto.SecretKey) error {
 
 //Verify checks that the transaction signature is valid for given public key.
 func (tx *ExchangeV2) Verify(publicKey crypto.PublicKey) (bool, error) {
+	ok, err := tx.BuyOrder.Verify(tx.BuyOrder.GetSenderPK())
+	if err != nil {
+		return false, errors.Wrap(err, "failed to verify signature of BuyOrder")
+	}
+	if !ok {
+		return false, errors.New("invalid BuyOrder signature")
+	}
+	ok, err = tx.SellOrder.Verify(tx.SellOrder.GetSenderPK())
+	if err != nil {
+		return false, errors.Wrap(err, "failed to verify signature of SellOrder")
+	}
+	if !ok {
+		return false, errors.New("invalid SellOrder signature")
+	}
 	b, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return false, errors.Wrap(err, "failed to verify signature of ExchangeV2 transaction")
