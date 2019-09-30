@@ -254,6 +254,13 @@ func (s *testStorageObjects) createAsset(t *testing.T, assetID crypto.Digest) *a
 	return assetInfo
 }
 
+func (s *testStorageObjects) createSmartAsset(t *testing.T, assetID crypto.Digest) {
+	s.addBlock(t, blockID0)
+	err := s.entities.scriptsStorage.setAssetScript(assetID, testGlobal.scriptBytes, blockID0)
+	assert.NoError(t, err, "setAssetScript failed")
+	s.flush(t)
+}
+
 func (s *testStorageObjects) activateFeature(t *testing.T, featureID int16) {
 	s.addBlock(t, blockID0)
 	activationReq := &activatedFeaturesRecord{1}

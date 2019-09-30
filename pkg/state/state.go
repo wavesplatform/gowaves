@@ -15,6 +15,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/ride/evaluator/ast"
 	"github.com/wavesplatform/gowaves/pkg/ride/evaluator/evaluate"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/types"
@@ -212,7 +213,19 @@ type appendBlockParams struct {
 	initialisation bool
 }
 
-func (a *txAppender) callVerifyScript(tx proto.Transaction, initialisation bool) error {
+func (a *txAppender) callVerifyScript(tx proto.Transaction, script ast.Script) error {
+	ok, err := evaluate.Verify(a.settings.AddressSchemeCharacter, a.state, &script, tx)
+	if err != nil {
+		return errors.Errorf("verifier script failed: %v\n", err)
+	}
+	if !ok {
+		id, _ := tx.GetID()
+		return errors.Errorf("verifier script does not allow to send transaction %s", base58.Encode(id))
+	}
+	return nil
+}
+
+func (a *txAppender) callAccountScript(tx proto.Transaction, initialisation bool) error {
 	senderAddr, err := proto.NewAddressFromPublicKey(a.settings.AddressSchemeCharacter, tx.GetSenderPK())
 	if err != nil {
 		return err
@@ -221,18 +234,18 @@ func (a *txAppender) callVerifyScript(tx proto.Transaction, initialisation bool)
 	if err != nil {
 		return errors.Errorf("failed to retrieve account script: %v\n", err)
 	}
-	ok, err := evaluate.Verify(a.settings.AddressSchemeCharacter, a.state, &script, tx)
-	if err != nil {
-		return errors.Errorf("verifier script failed: %v\n", err)
-	}
-	if !ok {
-		id, _ := tx.GetID()
-		return errors.Errorf("verifier script does not allow to send transaction %s from smart account %s", base58.Encode(id), senderAddr.String())
-	}
-	return nil
+	return a.callVerifyScript(tx, script)
 }
 
-func (a *txAppender) hasVerifyScript(tx proto.Transaction, initialisation bool) (bool, error) {
+func (a *txAppender) callAssetScript(tx proto.Transaction, assetID crypto.Digest, initialisation bool) error {
+	script, err := a.stor.scriptsStorage.newestScriptByAsset(assetID, !initialisation)
+	if err != nil {
+		return errors.Errorf("failed to retrieve asset script: %v\n", err)
+	}
+	return a.callVerifyScript(tx, script)
+}
+
+func (a *txAppender) hasAccountVerifyScript(tx proto.Transaction, initialisation bool) (bool, error) {
 	senderAddr, err := proto.NewAddressFromPublicKey(a.settings.AddressSchemeCharacter, tx.GetSenderPK())
 	if err != nil {
 		return false, err
@@ -240,21 +253,30 @@ func (a *txAppender) hasVerifyScript(tx proto.Transaction, initialisation bool) 
 	return a.stor.scriptsStorage.newestAccountHasVerifier(senderAddr, !initialisation)
 }
 
-func (a *txAppender) checkTxAgainstState(tx proto.Transaction, scripted bool, checkerInfo *checkerInfo) error {
-	if scripted {
+func (a *txAppender) checkTxAgainstState(tx proto.Transaction, accountScripted bool, checkerInfo *checkerInfo) (uint64, error) {
+	scriptsRuns := uint64(0)
+	if accountScripted {
+		scriptsRuns++
 		// Check script.
-		if err := a.callVerifyScript(tx, checkerInfo.initialisation); err != nil {
-			return err
+		if err := a.callAccountScript(tx, checkerInfo.initialisation); err != nil {
+			return 0, errors.Errorf("callAccountScript(): %v\n", err)
 		}
 	}
 	// Check against state.
-	if err := a.txHandler.checkTx(tx, checkerInfo); err != nil {
-		return err
+	txSmartAssets, err := a.txHandler.checkTx(tx, checkerInfo)
+	if err != nil {
+		return 0, err
 	}
-	return nil
+	for _, smartAsset := range txSmartAssets {
+		if err := a.callAssetScript(tx, smartAsset, checkerInfo.initialisation); err != nil {
+			return 0, errors.Errorf("callAssetScript(): %v\n", err)
+		}
+		scriptsRuns++
+	}
+	return scriptsRuns, nil
 }
 
-func (a *txAppender) checkScriptsRunsNum(scriptsRuns int) error {
+func (a *txAppender) checkScriptsRunsNum(scriptsRuns uint64) error {
 	smartAccountsActivated, err := a.stor.features.isActivated(int16(settings.SmartAccounts))
 	if err != nil {
 		return err
@@ -287,7 +309,7 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	if err := a.diffStor.saveTxDiff(minerDiff); err != nil {
 		return err
 	}
-	scriptsRuns := 0
+	scriptsRuns := uint64(0)
 	for _, tx := range params.transactions {
 		senderAddr, err := proto.NewAddressFromPublicKey(a.settings.AddressSchemeCharacter, tx.GetSenderPK())
 		if err != nil {
@@ -299,7 +321,6 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 		}
 		checkTxSig := true
 		if accountHasVerifierScript {
-			scriptsRuns++
 			// For transaction with SmartAccount we don't check signatures.
 			checkTxSig = false
 		}
@@ -333,9 +354,11 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 		}
 		a.recentTxIds[string(txID)] = empty
 		// Check against state.
-		if err := a.checkTxAgainstState(tx, accountHasVerifierScript, checkerInfo); err != nil {
+		txScriptsRuns, err := a.checkTxAgainstState(tx, accountHasVerifierScript, checkerInfo)
+		if err != nil {
 			return err
 		}
+		scriptsRuns += txScriptsRuns
 		// Create balance diff of this tx.
 		txDiff, err := a.blockDiffer.createTransactionDiff(tx, params.block, params.initialisation)
 		if err != nil {
@@ -393,7 +416,7 @@ func (a *txAppender) validateSingleTx(tx proto.Transaction, currentTimestamp, pa
 	if err := a.checkDuplicateTxIds(tx, dummy, currentTimestamp); err != nil {
 		return err
 	}
-	scripted, err := a.hasVerifyScript(tx, false)
+	scripted, err := a.hasAccountVerifyScript(tx, false)
 	if err != nil {
 		return err
 	}
@@ -403,7 +426,7 @@ func (a *txAppender) validateSingleTx(tx proto.Transaction, currentTimestamp, pa
 	}
 	// Check tx data against state.
 	checkerInfo := &checkerInfo{initialisation: false, currentTimestamp: currentTimestamp, parentTimestamp: parentTimestamp}
-	if err := a.checkTxAgainstState(tx, scripted, checkerInfo); err != nil {
+	if _, err := a.checkTxAgainstState(tx, scripted, checkerInfo); err != nil {
 		return err
 	}
 	// Create and validate balance diff.
@@ -432,7 +455,7 @@ func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, pare
 		return err
 	}
 	a.recentTxIds[string(txID)] = empty
-	scripted, err := a.hasVerifyScript(tx, false)
+	scripted, err := a.hasAccountVerifyScript(tx, false)
 	if err != nil {
 		return err
 	}
@@ -442,7 +465,7 @@ func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, pare
 	}
 	// Check tx data against state.
 	checkerInfo := &checkerInfo{initialisation: false, currentTimestamp: currentTimestamp, parentTimestamp: parentTimestamp}
-	if err := a.checkTxAgainstState(tx, scripted, checkerInfo); err != nil {
+	if _, err := a.checkTxAgainstState(tx, scripted, checkerInfo); err != nil {
 		return err
 	}
 	// Create, validate and save balance diff.

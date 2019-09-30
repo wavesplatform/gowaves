@@ -7,7 +7,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/settings"
 )
 
-type txCheckFunc func(proto.Transaction, *checkerInfo) error
+type txCheckFunc func(proto.Transaction, *checkerInfo) ([]crypto.Digest, error)
 type txPerformFunc func(proto.Transaction, *performerInfo) error
 type txCreateDiffFunc func(proto.Transaction, *differInfo) (txDiff, error)
 type txCountFeeFunc func(proto.Transaction, *feeDistribution) error
@@ -128,15 +128,15 @@ func newTransactionHandler(
 	return &transactionHandler{tc: tc, tp: tp, td: td, tf: tf, funcs: buildHanndles(tc, tp, td, tf)}, nil
 }
 
-func (h *transactionHandler) checkTx(tx proto.Transaction, info *checkerInfo) error {
+func (h *transactionHandler) checkTx(tx proto.Transaction, info *checkerInfo) ([]crypto.Digest, error) {
 	tv := tx.GetTypeVersion()
 	funcs, ok := h.funcs[tv]
 	if !ok {
-		return errors.Errorf("No function handler implemented for tx type %d and version %v\n", tv.Type, tv.Version)
+		return nil, errors.Errorf("No function handler implemented for tx type %d and version %v\n", tv.Type, tv.Version)
 	}
 	if funcs.check == nil {
 		// No check func for this combination of transaction type and version.
-		return nil
+		return nil, nil
 	}
 	return funcs.check(tx, info)
 }

@@ -35,7 +35,7 @@ type feeValidationParams struct {
 	stor           *blockchainEntitiesStorage
 	settings       *settings.BlockchainSettings
 	initialisation bool
-	assets         []proto.OptionalAsset
+	txAssets       *txAssets
 }
 
 func minFeeInUnits(features *features, tx proto.Transaction) (uint64, error) {
@@ -92,13 +92,17 @@ func scriptsCost(tx proto.Transaction, params *feeValidationParams) (uint64, err
 	if accountScripted {
 		scriptsCost += scriptExtraFee
 	}
-	// Add extra fee for each of smart assets found.
-	for _, asset := range params.assets {
-		if !asset.Present {
-			// Waves can not be scripted.
-			continue
-		}
-		hasScript, err := params.stor.scriptsStorage.newestIsSmartAsset(asset.ID, !params.initialisation)
+	if params.txAssets.smartAssets != nil {
+		// Add extra fee for each of smart assets found.
+		scriptsCost += scriptExtraFee * uint64(len(params.txAssets.smartAssets))
+	}
+	// TODO: the code below is wrong, because scripts for fee assets are never run.
+	// Even if sponsorship is disabled, and fee assets can be smart, we don't run scripts for them,
+	// because Scala implementation does not.
+	// Therefore, the extra fee for smart fee asset below is also wrong, but it must be there,
+	// again for compatibility with Scala.
+	if params.txAssets.feeAsset.Present {
+		hasScript, err := params.stor.scriptsStorage.newestIsSmartAsset(params.txAssets.feeAsset.ID, !params.initialisation)
 		if err != nil {
 			return 0, err
 		}
