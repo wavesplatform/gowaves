@@ -42,6 +42,11 @@ var blockTests = []test{
 		jsonEncoded: "{\"version\":2,\"timestamp\":1485529182634,\"reference\":\"5uqnLK3Z9eiot6FyYBfwUnbyid3abicQbAZjz38GQ1Q8XigQMxTK4C1zNkqS1SVw7FqSidbZKxWAKLVoEsp4nNqa\",\"desiredReward\":-1,\"nxt-consensus\":{\"base-target\":153722867,\"generation-signature\":\"BqxfUrYe27eJf96JnSEu7zG76V54gh3gydy5ZxnVaaV2\"},\"transactionBlockLength\":1,\"transactionCount\":0,\"signature\":\"22G6NgN3PgcjYsgWmkpkNHQV6eZiYecRtSt6kNXuFwxDDC3CSLkP11WY3HzkdgeVxW9dfyF2FUypfBXTFLxrTxoT\",\"height\":0}",
 		signature:   "22G6NgN3PgcjYsgWmkpkNHQV6eZiYecRtSt6kNXuFwxDDC3CSLkP11WY3HzkdgeVxW9dfyF2FUypfBXTFLxrTxoT",
 	},
+	{
+		hexEncoded:  "040000016d81652266095c1e11ec1eaec2a9dccb0853b446db84a68af68bb764cc4d26355fa0cf87bdbb01203963d71ba9ea65535bc44b3deb2c9092b918edcd46bf69456d789a8802000000280000000000000f529b5c33b3d589e42366024456e870180fe1097edb7619217235c26f515cfa88ab0000000400000000000000000000000029b927004d4b45109482931d0774585e610e9bce168f70070339d673ecd6a3047275415496924d7f841d3ccb45023c5fc6e6af9dafbbdd5c2a60ed48873e08a288b012f0853c117503eeec3f4bdac248027918c475ad59b05caeddd38dcfafccc8cf4f04",
+		jsonEncoded: "{\"version\":4,\"timestamp\":1569833951846,\"reference\":\"BrWuVmpSvbLBSAb6juXXcy9w81dCrU4ykvKTpu3T6KJe8VbRvKFnphMECYDVQvBbViLjeVSEmWoFYp6DS9hy6ND\",\"desiredReward\":700000000,\"nxt-consensus\":{\"base-target\":3922,\"generation-signature\":\"BTTjkPdMoUexBcwgLGwyHT1YSctWA8TiW2MSxnUjKMWz\"},\"transactionBlockLength\":4,\"transactionCount\":0,\"signature\":\"41c1RfETCxmLkJJuUQQE5kaGoEKRHztG6vjUtSk17AUNdJvDH6tHRpCxZAZG1b77QFsSx4zRk5aJUre2jFsa4Vfq\",\"height\":0}",
+		signature:   "41c1RfETCxmLkJJuUQQE5kaGoEKRHztG6vjUtSk17AUNdJvDH6tHRpCxZAZG1b77QFsSx4zRk5aJUre2jFsa4Vfq",
+	},
 }
 
 func makeBlock(t *testing.T) *Block {
