@@ -25,6 +25,8 @@ type Scope interface {
 	validMessageLength(len int) bool
 }
 
+type Functions map[string]Expr
+
 type ScopeImpl struct {
 	parent           Scope
 	expressions      map[string]Expr
@@ -32,6 +34,22 @@ type ScopeImpl struct {
 	scheme           byte
 	evaluations      map[string]evaluation
 	msgLenValidation func(int) bool
+}
+
+func newScopeImpl(scheme byte, state types.SmartState, v func(int) bool) *ScopeImpl {
+	return &ScopeImpl{
+		state:            state,
+		scheme:           scheme,
+		evaluations:      make(map[string]evaluation),
+		msgLenValidation: v,
+	}
+}
+
+func (a *ScopeImpl) withExprs(e map[string]Expr) *ScopeImpl {
+	for k, v := range e {
+		a.AddValue(k, v)
+	}
+	return a
 }
 
 func NewScope(version int, scheme byte, state types.SmartState) *ScopeImpl {
@@ -46,21 +64,20 @@ func NewScope(version int, scheme byte, state types.SmartState) *ScopeImpl {
 			return true
 		}
 	}
+
+	out := newScopeImpl(scheme, state, v)
+
 	var e map[string]Expr
 	switch version {
 	case 1:
 		e = expressionsV1()
+		return out.withExprs(e)
 	case 2:
 		e = expressionsV2()
+		return out.withExprs(e)
 	default:
 		e = expressionsV3()
-	}
-	return &ScopeImpl{
-		expressions:      e,
-		state:            state,
-		scheme:           scheme,
-		evaluations:      make(map[string]evaluation),
-		msgLenValidation: v,
+		return out.withExprs(e)
 	}
 }
 
@@ -99,7 +116,6 @@ func (a *ScopeImpl) Value(name string) (Expr, bool) {
 			return v, true
 		}
 	}
-
 	// try find in parent
 	if a.parent != nil {
 		return a.parent.Value(name)
@@ -133,6 +149,9 @@ func (a *ScopeImpl) evaluation(name string) (evaluation, bool) {
 	}
 }
 
+func EmptyFunctions() Functions {
+	return Functions{}
+}
 func (a *ScopeImpl) setEvaluation(name string, e evaluation) {
 	if a.evaluations == nil {
 		a.evaluations = make(map[string]evaluation)
@@ -302,6 +321,10 @@ func functionsV3() map[string]Expr {
 	s["parseIntValue"] = FunctionFromPredefined(wrapWithExtract(NativeParseInt, "UserParseIntValue"), 1)
 	s["value"] = FunctionFromPredefined(UserValue, 1)
 	s["valueOrErrorMessage"] = FunctionFromPredefined(UserValueOrErrorMessage, 2)
+	s["WriteSet"] = FunctionFromPredefined(UserWriteSet, 1)
+	s["TransferSet"] = FunctionFromPredefined(UserTransferSet, 1)
+	s["ScriptTransfer"] = FunctionFromPredefined(ScriptTransfer, 3)
+	s["ScriptResult"] = FunctionFromPredefined(ScriptResult, 2)
 	return s
 }
 

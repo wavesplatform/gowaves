@@ -42,7 +42,7 @@ func newTransactionChecker(
 	return &transactionChecker{genesis, stor, settings}, nil
 }
 
-func (tc *transactionChecker) scriptActivation(script ast.Script) error {
+func (tc *transactionChecker) scriptActivation(script *ast.Script) error {
 	rideForDAppsActivated, err := tc.stor.features.isActivated(int16(settings.Ride4DApps))
 	if err != nil {
 		return err
@@ -56,7 +56,7 @@ func (tc *transactionChecker) scriptActivation(script ast.Script) error {
 	return nil
 }
 
-func (tc *transactionChecker) checkScriptComplexity(script ast.Script, complexity int64) error {
+func (tc *transactionChecker) checkScriptComplexity(script *ast.Script, complexity int64) error {
 	var maxComplexity int64
 	switch script.Version {
 	case 1, 2:
@@ -74,7 +74,7 @@ func (tc *transactionChecker) checkScriptComplexity(script ast.Script, complexit
 	return nil
 }
 
-func (tc *transactionChecker) estimatorByScript(script ast.Script) *estimation.EstimatorV1 {
+func (tc *transactionChecker) estimatorByScript(script *ast.Script) *estimation.EstimatorV1 {
 	var variables map[string]ast.Expr
 	var cat *estimation.Catalogue
 	switch script.Version {
@@ -97,7 +97,7 @@ func (tc *transactionChecker) checkScript(scriptBytes proto.Script) error {
 	if len(scriptBytes) > maxVerifierScriptSize {
 		return errors.Errorf("script size %d is greater than limit of %d\n", len(scriptBytes), maxVerifierScriptSize)
 	}
-	script, err := ast.BuildAst(reader.NewBytesReader(scriptBytes))
+	script, err := ast.BuildScript(reader.NewBytesReader(scriptBytes))
 	if err != nil {
 		return errors.Wrap(err, "failed to build ast from script bytes")
 	}

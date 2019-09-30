@@ -15,7 +15,11 @@ const (
 )
 
 func scriptBytesToAst(script proto.Script) (ast.Script, error) {
-	return ast.BuildAst(reader.NewBytesReader(script[:]))
+	scriptAst, err := ast.BuildScript(reader.NewBytesReader(script[:]))
+	if err != nil {
+		return ast.Script{}, nil
+	}
+	return *scriptAst, nil
 }
 
 type scriptRecord struct {

@@ -1,29 +1,130 @@
 package ast
 
 import (
+	"strconv"
+
 	"github.com/pkg/errors"
 	. "github.com/wavesplatform/gowaves/pkg/ride/evaluator/reader"
 )
 
-func BuildAst(r *BytesReader) (Script, error) {
+func BuildScript(r *BytesReader) (*Script, error) {
 	version, err := r.ReadByte()
 	if err != nil {
-		return Script{}, errors.Wrap(err, "parser: failed to read script version")
-	}
-	if version < 1 || version > 3 {
-		return Script{}, errors.Errorf("parser: unsupported script version %d", version)
+		return nil, errors.Wrap(err, "parser: failed to read script version")
 	}
 
+	if version == 0 {
+		dapp, err := parseDApp(r)
+		if err != nil {
+			return nil, err
+		}
+		return &Script{
+			Version:    0,
+			HasBlockV2: false,
+			Verifier:   nil,
+			DApp:       dapp,
+			dApp:       true,
+		}, nil
+	}
+
+	if version < 1 || version > 3 {
+		return nil, errors.Errorf("parser: unsupported script version %d", version)
+	}
 	exp, err := Walk(r)
 	if err != nil {
-		return Script{}, errors.Wrap(err, "parser")
+		return nil, errors.Wrap(err, "parser")
 	}
 	script := Script{
 		Version:    int(version),
 		HasBlockV2: false,
 		Verifier:   exp,
 	}
-	return script, nil
+	return &script, nil
+}
+
+type DApp struct {
+	DAppVersion   byte
+	LibVersion    byte
+	Meta          DappMeta
+	Declarations  Exprs
+	callableFuncs map[string]*DappCallableFunc
+	varifier      *DappCallableFunc
+}
+
+type DappMeta struct {
+	Version int32
+	Bytes   []byte
+}
+
+func parseDApp(r *BytesReader) (DApp, error) {
+	dApp := DApp{}
+	dApp.DAppVersion = r.Next()
+	dApp.LibVersion = r.Next()
+	// meta
+	meta := DappMeta{
+		Version: r.ReadInt(),
+		Bytes:   r.ReadBytes(),
+	}
+	dApp.Meta = meta
+
+	declarations := Exprs{}
+	cnt := r.ReadInt()
+	for i := int32(0); i < cnt; i++ {
+		d, err := deserializeDeclaration(r)
+		if err != nil {
+			return dApp, err
+		}
+		declarations = append(declarations, d)
+	}
+	dApp.Declarations = declarations
+
+	// callable func declarations
+	var callableFuncs = make(map[string]*DappCallableFunc)
+	cnt = r.ReadInt()
+	for i := int32(0); i < cnt; i++ {
+		rest := r.Rest()
+		_ = rest
+		annotationInvocName := r.ReadString()
+		d, err := deserializeDeclaration(r)
+		if err != nil {
+			return dApp, err
+		}
+		f, ok := d.(*FuncDeclaration)
+		if !ok {
+			return dApp, errors.Errorf("expected to be *FuncDeclaration, found %T", f)
+		}
+		callableFuncs[f.Name] = &DappCallableFunc{
+			annotationInvocName: annotationInvocName,
+			funcDecl:            f,
+		}
+	}
+	dApp.callableFuncs = callableFuncs
+
+	// parse verifier
+	cnt = r.ReadInt()
+	_ = cnt
+	if cnt != 0 {
+		annotationInvocName := r.ReadString()
+		d, err := deserializeDeclaration(r)
+		if err != nil {
+			return dApp, err
+		}
+		f, ok := d.(*FuncDeclaration)
+		if !ok {
+			return dApp, errors.Errorf("expected to be *FuncDeclaration, found %T", f)
+		}
+		dApp.varifier = &DappCallableFunc{
+			annotationInvocName: annotationInvocName,
+			funcDecl:            f,
+		}
+	}
+
+	return dApp, nil
+}
+
+type DappCallableFunc struct {
+	annotationInvocName string
+	funcDecl            *FuncDeclaration
 }
 
 func Walk(iter *BytesReader) (Expr, error) {
@@ -46,6 +147,7 @@ func Walk(iter *BytesReader) (Expr, error) {
 		return readIf(iter)
 	case E_BLOCK:
 		return readBlock(iter)
+	// TODO: case E_BLOCK_V2: // RIDE v3
 	case E_REF:
 		return &RefExpr{
 			Name: iter.ReadString(),
@@ -57,7 +159,7 @@ func Walk(iter *BytesReader) (Expr, error) {
 	case E_GETTER:
 		return readGetter(iter)
 	case E_FUNCALL:
-		return readFuncCall(iter)
+		return readFuncCAll(iter)
 	case E_BLOCK_V2:
 		return readBlockV2(iter)
 	default:
@@ -135,7 +237,7 @@ func readBlockV2(r *BytesReader) (*BlockV2, error) {
 	}, nil
 }
 
-func readFuncCall(iter *BytesReader) (*FuncCallExpr, error) {
+func readFuncCAll(iter *BytesReader) (*FuncCallExpr, error) {
 	nativeOrUser, err := iter.ReadByte()
 	if err != nil {
 		return nil, err
@@ -159,8 +261,9 @@ func readFuncCall(iter *BytesReader) (*FuncCallExpr, error) {
 
 }
 
-func readNativeFunction(iter *BytesReader) (*NativeFunction, error) {
+func readNativeFunction(iter *BytesReader) (*FunctionCall, error) {
 	funcNumber := iter.ReadShort()
+	name := strconv.Itoa(int(funcNumber))
 	argc := iter.ReadInt()
 	argv := make([]Expr, argc)
 
@@ -171,12 +274,11 @@ func readNativeFunction(iter *BytesReader) (*NativeFunction, error) {
 		}
 		argv[i] = v
 	}
-
-	return NewNativeFunction(funcNumber, int(argc), argv), nil
+	return NewFunctionCall(name, argv), nil
 }
 
-func readUserFunction(iter *BytesReader) (*UserFunctionCall, error) {
-	funcNumber := iter.ReadString()
+func readUserFunction(iter *BytesReader) (*FunctionCall, error) {
+	name := iter.ReadString()
 	argc := iter.ReadInt()
 	argv := make([]Expr, argc)
 	for i := int32(0); i < argc; i++ {
@@ -187,7 +289,7 @@ func readUserFunction(iter *BytesReader) (*UserFunctionCall, error) {
 		argv[i] = v
 	}
 
-	return NewUserFunctionCall(funcNumber, int(argc), argv), nil
+	return NewFunctionCall(name, argv), nil
 }
 
 func readIf(r *BytesReader) (*IfExpr, error) {

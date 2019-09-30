@@ -145,10 +145,11 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatalf("Failed to decode script from base64: %v\n", err)
 	}
-	testGlobal.scriptAst, err = ast.BuildAst(reader.NewBytesReader(testGlobal.scriptBytes))
+	scriptAst, err := ast.BuildScript(reader.NewBytesReader(testGlobal.scriptBytes))
 	if err != nil {
 		log.Fatalf("BuildAst: %v\n", err)
 	}
+	testGlobal.scriptAst = *scriptAst
 	os.Exit(m.Run())
 }
 
