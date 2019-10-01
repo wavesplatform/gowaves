@@ -222,7 +222,7 @@ func (a *txAppender) callVerifyScript(tx proto.Transaction, initialisation bool)
 	if err != nil {
 		return errors.Wrap(err, "failed to retrieve account script")
 	}
-	ok, err := evaluate.Verify(a.settings.AddressSchemeCharacter, a.state, script, tx)
+	obj, err := ast.NewVariablesFromTransaction(a.settings.AddressSchemeCharacter, tx)
 	if err != nil {
 		return errors.Wrap(err, "failed to convert transaction")
 	}

@@ -237,15 +237,46 @@ func (e *Estimator) estimate(expr ast.Expr) (int64, error) {
 		return cc, nil
 
 	case *ast.FunctionCall:
-		fc, ok := e.catalogue.FunctionCost(expression.Name)
-		if !ok {
-			return 0, errors.Errorf("EstimatorV1: no user function '%s' in scope", expression.Name)
-		}
-		ac, err := e.estimate(expression.Argv)
+		var fc int64
+		callContext, err := e.context()
 		if err != nil {
 			return 0, err
 		}
-		return fc + ac, nil
+		if fd, ok := callContext.declaration(ce.Name); ok {
+			// Estimate parameters that was passed to the function
+			fc += int64(ce.Argc * 5)
+			ac, err := e.estimate(ce.Argv)
+			if err != nil {
+				return 0, err
+			}
+			// Change context to the function's one
+			functionContext, err := e.change(ce.Name)
+			if err != nil {
+				return 0, err
+			}
+			if na := len(fd.args); na != ce.Argc {
+				return 0, errors.Errorf("unexpected number of arguments %d, function '%s' accepts %d arguments", ce.Argc, ce.Name, na)
+			}
+			// Create or reset function parameters in order to evaluate them on every call of the function
+			for _, a := range fd.args {
+				functionContext.express(a, expression{&ast.BooleanExpr{Value: true}, false})
+			}
+			pc, err := e.estimate(fd.expr)
+			if err != nil {
+				return 0, err
+			}
+			return fc + ac + pc, nil
+		} else {
+			fc, ok = e.catalogue.FunctionCost(ce.Name)
+			if !ok {
+				return 0, errors.Errorf("EstimatorV1: no user function '%s' in scope", ce.Name)
+			}
+			ac, err := e.estimate(ce.Argv)
+			if err != nil {
+				return 0, err
+			}
+			return fc + ac, nil
+		}
 
 	case *ast.RefExpr:
 		cc, err := e.context()
