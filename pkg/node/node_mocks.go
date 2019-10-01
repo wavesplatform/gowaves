@@ -336,6 +336,10 @@ type mockPeerManager struct {
 	connected map[string]peer.Peer
 }
 
+func (a *mockPeerManager) Score(p peer.Peer) (*proto.Score, error) {
+	panic("implement me")
+}
+
 func (a *mockPeerManager) PeerWithHighestScore() (peer.Peer, *big.Int, bool) {
 	panic("implement me")
 }

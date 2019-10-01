@@ -7,6 +7,7 @@ import (
 	"sort"
 	"sync"
 
+	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
@@ -43,6 +44,7 @@ type PeerManager interface {
 	SpawnOutgoingConnections(context.Context)
 	SpawnIncomingConnection(ctx context.Context, conn net.Conn) error
 	Connect(context.Context, proto.TCPAddr) error
+	Score(p peer.Peer) (*proto.Score, error)
 
 	// for all connected node send GetPeersMessage
 	AskPeers()
@@ -57,6 +59,17 @@ type PeerManagerImpl struct {
 	mu         sync.RWMutex
 	state      PeerStorage
 	spawned    map[proto.IpPort]struct{}
+}
+
+func (a *PeerManagerImpl) Score(p peer.Peer) (*proto.Score, error) {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+
+	info, ok := a.active[p.ID()]
+	if !ok {
+		return nil, errors.New("peer not found")
+	}
+	return info.score, nil
 }
 
 func NewPeerManager(spawner PeerSpawner, storage PeerStorage) *PeerManagerImpl {
