@@ -62,8 +62,7 @@ func TestEstimatorCommon(t *testing.T) {
 		{`func f(a: Int) = 1; func g(a: Int) = 2; f(g(1)) == 0`, "AwoBAAAAAWYAAAABAAAAAWEAAAAAAAAAAAEKAQAAAAFnAAAAAQAAAAFhAAAAAAAAAAACCQAAAAAAAAIJAQAAAAFmAAAAAQkBAAAAAWcAAAABAAAAAAAAAAABAAAAAAAAAAAAT0GP5g==", NewCatalogueV3(), 25},
 		{`func inc(y: Int) = y + 1; let xxx = 5; inc(xxx) == 1`, "AwoBAAAAA2luYwAAAAEAAAABeQkAAGQAAAACBQAAAAF5AAAAAAAAAAABBAAAAAN4eHgAAAAAAAAAAAUJAAAAAAAAAgkBAAAAA2luYwAAAAEFAAAAA3h4eAAAAAAAAAAAAbumbXA=", NewCatalogueV3(), 25},
 		{`func f() = {func f() = {func f() = {1}; f()}; f()}; f() == 0`, "AwoBAAAAAWYAAAAACgEAAAABZgAAAAAKAQAAAAFmAAAAAAAAAAAAAAAAAQkBAAAAAWYAAAAACQEAAAABZgAAAAAJAAAAAAAAAgkBAAAAAWYAAAAAAAAAAAAAAAAAYYLPvQ==", NewCatalogueV3(), 18},
-		//TODO: add test on estimation with `this`
-		// {`et me = addressFromStringValue(""); func get() = getStringValue(this, ""); get() + get() + get() == ""`, "AwQAAAACbWUJAQAAABxAZXh0clVzZXIoYWRkcmVzc0Zyb21TdHJpbmcpAAAAAQIAAAAACgEAAAADZ2V0AAAAAAkBAAAAEUBleHRyTmF0aXZlKDEwNTMpAAAAAgUAAAAEdGhpcwIAAAAACQAAAAAAAAIJAAEsAAAAAgkAASwAAAACCQEAAAADZ2V0AAAAAAkBAAAAA2dldAAAAAAJAQAAAANnZXQAAAAAAgAAAACvuyuT", NewCatalogueV3(), 341},
+		{`let me = addressFromStringValue(""); func get() = getStringValue(this, ""); get() + get() + get() == ""`, "AwQAAAACbWUJAQAAABxAZXh0clVzZXIoYWRkcmVzc0Zyb21TdHJpbmcpAAAAAQIAAAAACgEAAAADZ2V0AAAAAAkBAAAAEUBleHRyTmF0aXZlKDEwNTMpAAAAAgUAAAAEdGhpcwIAAAAACQAAAAAAAAIJAAEsAAAAAgkAASwAAAACCQEAAAADZ2V0AAAAAAkBAAAAA2dldAAAAAAJAQAAAANnZXQAAAAAAgAAAACvuyuT", NewCatalogueV3(), 341},
 	} {
 		r, err := reader.NewReaderFromBase64(test.script)
 		require.NoError(t, err, test.code)

@@ -68,7 +68,7 @@ func (a *Script) CallFunction(scheme proto.Scheme, state types.SmartState, tx *p
 		curScope.AddValue(fn.funcDecl.Args[i], args[i])
 	}
 	// invocation type
-	curScope.AddValue(fn.annotationInvocName, invoke)
+	curScope.AddValue(fn.annotationInvokeName, invoke)
 
 	rs, err := fn.funcDecl.Body.Evaluate(curScope)
 	if err != nil {
@@ -107,7 +107,7 @@ func (a *Script) Verify(scheme byte, state types.SmartState, transaction proto.T
 		// pass function arguments
 		curScope := scope //.Clone()
 		// annotated tx type
-		curScope.AddValue(fn.annotationInvocName, NewObject(txVars))
+		curScope.AddValue(fn.annotationInvokeName, NewObject(txVars))
 		// here should be only assign of vars and function
 		for _, expr := range a.DApp.Declarations {
 			_, err = expr.Evaluate(curScope)
@@ -519,14 +519,6 @@ func NewFunction(Argv []string, Body Expr) *Function {
 		Argc: len(Argv),
 		Argv: Argv,
 		Body: Body,
-	}
-}
-
-func DefUserFunction(body Expr, argv ...string) *Function {
-	return &Function{
-		Argc: len(argv),
-		Argv: argv,
-		Body: body,
 	}
 }
 
@@ -1617,17 +1609,6 @@ func NewBlockInfo(obj object, height proto.Height) *BlockInfoExpr {
 	}
 }
 
-func Merge(x map[string]Expr, y map[string]Expr) map[string]Expr {
-	out := make(map[string]Expr)
-	for k, v := range x {
-		out[k] = v
-	}
-	for k, v := range y {
-		out[k] = v
-	}
-	return out
-}
-
 type WriteSetExpr struct {
 	body []*DataEntryExpr
 }
@@ -1811,8 +1792,4 @@ func (a *AssetExpr) Eq(other Expr) (bool, error) {
 
 func (a *AssetExpr) InstanceOf() string {
 	return "Asset"
-}
-
-func NewAsset(obj object) *AssetExpr {
-	return &AssetExpr{fields: obj}
 }

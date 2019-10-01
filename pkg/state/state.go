@@ -226,7 +226,13 @@ func (a *txAppender) callVerifyScript(tx proto.Transaction, initialisation bool)
 	if err != nil {
 		return errors.Wrap(err, "failed to convert transaction")
 	}
-	ok, err := evaluate.Verify(a.settings.AddressSchemeCharacter, a.state, script, obj)
+	//TODO: Implement lastBlockInfo made from the block that we applying now
+	lastBlockInfo := proto.BlockInfo{}
+	//TODO: Pass to `this` an AssetInfo
+	this := ast.NewObjectFromAssetInfo(proto.AssetInfo{})
+	//TODO: or an Address
+	// this = ast.NewAddressFromProtoAddress(senderAddr)
+	ok, err := evaluate.Verify(a.settings.AddressSchemeCharacter, a.state, script, obj, this, ast.NewObjectFromBlockInfo(lastBlockInfo))
 	if err != nil {
 		return errors.Wrap(err, "verifier script failed")
 	}
