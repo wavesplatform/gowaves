@@ -15,6 +15,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/ride/evaluator/ast"
 	"github.com/wavesplatform/gowaves/pkg/ride/evaluator/evaluate"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/types"
@@ -219,11 +220,15 @@ func (a *txAppender) callVerifyScript(tx proto.Transaction, initialisation bool)
 	}
 	script, err := a.stor.accountsScripts.newestScriptByAddr(senderAddr, !initialisation)
 	if err != nil {
-		return errors.Errorf("failed to retrieve account script: %v\n", err)
+		return errors.Wrap(err, "failed to retrieve account script")
 	}
-	ok, err := evaluate.Verify(a.settings.AddressSchemeCharacter, a.state, script, tx)
+	obj, err := ast.NewVariablesFromTransaction(a.settings.AddressSchemeCharacter, tx)
 	if err != nil {
-		return errors.Errorf("verifier script failed: %v\n", err)
+		return errors.Wrap(err, "failed to convert transaction")
+	}
+	ok, err := evaluate.Verify(a.settings.AddressSchemeCharacter, a.state, script, obj)
+	if err != nil {
+		return errors.Wrap(err, "verifier script failed")
 	}
 	if !ok {
 		id, _ := tx.GetID()
