@@ -2,19 +2,23 @@ package data
 
 import (
 	"bufio"
+	"context"
+	"io"
 	"os"
 	"sort"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/pkg/errors"
+	client "github.com/wavesplatform/gowaves/pkg/client/grpc"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-)
+	"go.uber.org/zap"
+	"google.golang.org/grpc"
 
-type Symbols struct {
-	tickers map[string]crypto.Digest
-	tokens  map[crypto.Digest]string
-}
+	"google.golang.org/grpc/connectivity"
+)
 
 type Substitution struct {
 	Symbol  string  `json:"symbol"`
@@ -35,51 +39,18 @@ func (a BySymbols) Less(i, j int) bool {
 	return a[i].Symbol < a[j].Symbol
 }
 
-func (s *Symbols) put(ticker string, id crypto.Digest) {
-	s.tickers[ticker] = id
-	s.tokens[id] = ticker
+type Symbols struct {
+	tickers map[string]crypto.Digest
+	tokens  map[crypto.Digest]string
+	mu      sync.RWMutex
+	oracle  proto.Address
 }
 
-func (s *Symbols) Count() int {
-	return len(s.tickers)
-}
-
-func (s *Symbols) All() []Substitution {
-	r := make([]Substitution, len(s.tickers))
-	i := 0
-	for k, v := range s.tickers {
-		r[i] = Substitution{k, AssetID(v)}
-		i++
-	}
-	sort.Sort(BySymbols(r))
-	return r
-}
-
-func (s *Symbols) Tokens() map[crypto.Digest]string {
-	return s.tokens
-}
-
-func (s *Symbols) ParseTicker(ticker string) (crypto.Digest, error) {
-	id, err := crypto.NewDigestFromBase58(ticker)
-	if err != nil {
-		ticker = strings.ToUpper(ticker)
-		if ticker == proto.WavesAssetName {
-			return crypto.Digest{}, nil
-		}
-		id, ok := s.tickers[ticker]
-		if !ok {
-			return crypto.Digest{}, errors.Errorf("unknown ticker or invalid asset ID '%s'", ticker)
-		}
-		return id, nil
-	}
-	return id, nil
-}
-
-func ImportSymbols(name string) (*Symbols, error) {
+func NewSymbolsFromFile(name string, oracle proto.Address) (*Symbols, error) {
 	wrapError := func(err error) error {
 		return errors.Wrapf(err, "failed to import symbols from file '%s'", name)
 	}
-	r := &Symbols{map[string]crypto.Digest{proto.WavesAssetName: WavesID}, map[crypto.Digest]string{WavesID: proto.WavesAssetName}}
+	r := &Symbols{map[string]crypto.Digest{proto.WavesAssetName: WavesID}, map[crypto.Digest]string{WavesID: proto.WavesAssetName}, sync.RWMutex{}, oracle}
 	f, err := os.Open(name)
 	if err != nil {
 		return nil, wrapError(err)
@@ -100,4 +71,95 @@ func ImportSymbols(name string) (*Symbols, error) {
 		i++
 	}
 	return r, nil
+}
+
+func (s *Symbols) Count() int {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return len(s.tickers)
+}
+
+func (s *Symbols) All() []Substitution {
+	r := make([]Substitution, len(s.tickers))
+	i := 0
+	s.mu.RLock()
+	for k, v := range s.tickers {
+		r[i] = Substitution{k, AssetID(v)}
+		i++
+	}
+	s.mu.RUnlock()
+	sort.Sort(BySymbols(r))
+	return r
+}
+
+func (s *Symbols) Token(id crypto.Digest) (string, bool) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	v, ok := s.tokens[id]
+	return v, ok
+}
+
+func (s *Symbols) ParseTicker(ticker string) (crypto.Digest, error) {
+	id, err := crypto.NewDigestFromBase58(ticker)
+	if err != nil {
+		ticker = strings.ToUpper(ticker)
+		if ticker == proto.WavesAssetName {
+			return crypto.Digest{}, nil
+		}
+		s.mu.RLock()
+		defer s.mu.RUnlock()
+		id, ok := s.tickers[ticker]
+		if !ok {
+			return crypto.Digest{}, errors.Errorf("unknown ticker or invalid asset ID '%s'", ticker)
+		}
+		return id, nil
+	}
+	return id, nil
+}
+
+func (s *Symbols) UpdateFromOracle(conn *grpc.ClientConn) error {
+	if state := conn.GetState(); state != connectivity.Ready {
+		return errors.Errorf("invalid gRPC connection state: %s", state.String())
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+
+	c := client.NewAccountsApiClient(conn)
+	req := &client.DataRequest{Address: s.oracle.Bytes()}
+	dc, err := c.GetDataEntries(ctx, req)
+	if err != nil {
+		return err
+	}
+	var msg client.DataEntryResponse
+	converter := client.SafeConverter{}
+	count := 0
+	for err = dc.RecvMsg(&msg); err == nil; err = dc.RecvMsg(&msg) {
+		entry, err := converter.Entry(msg.Entry)
+		if err != nil {
+			return err
+		}
+		id, err := crypto.NewDigestFromBase58(entry.GetKey())
+		if err != nil {
+			continue
+		}
+		switch te := entry.(type) {
+		case *proto.StringDataEntry:
+			s.put(te.Value, id)
+			count++
+		default:
+			continue
+		}
+	}
+	if err != io.EOF {
+		return err
+	}
+	zap.S().Infof("Oracle: %d tickers updated", count)
+	return nil
+}
+
+func (s *Symbols) put(ticker string, id crypto.Digest) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.tickers[ticker] = id
+	s.tokens[id] = ticker
 }

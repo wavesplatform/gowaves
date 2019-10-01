@@ -405,13 +405,13 @@ func (o OrderBody) Valid() (bool, error) {
 	if o.AssetPair.AmountAsset == o.AssetPair.PriceAsset {
 		return false, errors.New("invalid asset pair")
 	}
-	if o.Price <= 0 {
+	if o.Price == 0 {
 		return false, errors.New("price should be positive")
 	}
 	if !validJVMLong(o.Price) {
 		return false, errors.New("price is too big")
 	}
-	if o.Amount <= 0 {
+	if o.Amount == 0 {
 		return false, errors.New("amount should be positive")
 	}
 	if !validJVMLong(o.Amount) {
@@ -420,7 +420,7 @@ func (o OrderBody) Valid() (bool, error) {
 	if o.Amount > MaxOrderAmount {
 		return false, errors.New("amount is larger than maximum allowed")
 	}
-	if o.MatcherFee <= 0 {
+	if o.MatcherFee == 0 {
 		return false, errors.New("matcher's fee should be positive")
 	}
 	if !validJVMLong(o.MatcherFee) {
@@ -433,7 +433,7 @@ func (o OrderBody) Valid() (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	if s <= 0 {
+	if s == 0 {
 		return false, errors.New("spend amount should be positive")
 	}
 	if !o.SpendAsset().Present && !validJVMLong(s+o.MatcherFee) {
@@ -443,13 +443,13 @@ func (o OrderBody) Valid() (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	if r <= 0 {
+	if r == 0 {
 		return false, errors.New("receive amount should be positive")
 	}
-	if o.Timestamp <= 0 {
+	if o.Timestamp == 0 {
 		return false, errors.New("timestamp should be positive")
 	}
-	if o.Expiration <= 0 {
+	if o.Expiration == 0 {
 		return false, errors.New("expiration should be positive")
 	}
 	return true, nil
