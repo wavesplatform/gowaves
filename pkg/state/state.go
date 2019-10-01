@@ -268,6 +268,7 @@ func (a *txAppender) checkTxAgainstState(tx proto.Transaction, accountScripted b
 		return 0, err
 	}
 	for _, smartAsset := range txSmartAssets {
+		// Check smart asset's script.
 		if err := a.callAssetScript(tx, smartAsset, checkerInfo.initialisation); err != nil {
 			return 0, errors.Errorf("callAssetScript(): %v\n", err)
 		}
