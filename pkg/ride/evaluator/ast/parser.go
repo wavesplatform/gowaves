@@ -48,7 +48,7 @@ type DApp struct {
 	Meta          DappMeta
 	Declarations  Exprs
 	callableFuncs map[string]*DappCallableFunc
-	varifier      *DappCallableFunc
+	verifier      *DappCallableFunc
 }
 
 type DappMeta struct {
@@ -113,7 +113,7 @@ func parseDApp(r *BytesReader) (DApp, error) {
 		if !ok {
 			return dApp, errors.Errorf("expected to be *FuncDeclaration, found %T", f)
 		}
-		dApp.varifier = &DappCallableFunc{
+		dApp.verifier = &DappCallableFunc{
 			annotationInvocName: annotationInvocName,
 			funcDecl:            f,
 		}

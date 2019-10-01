@@ -33,5 +33,7 @@ func Verify(scheme byte, state types.SmartState, script *ast.Script, object map[
 	scope.SetTransaction(object)
 	scope.SetHeight(height)
 
+	//scope.AddValue("tx", ast.NewObject(txVars))
+
 	return Eval(script.Verifier, scope)
 }

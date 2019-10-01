@@ -541,11 +541,15 @@ func verify() = {
 
 	rs, err := script.CallFunction(proto.MainNetScheme, mockstate.State{}, tx, "tellme", Params(NewString("abc")))
 	require.NoError(t, err)
-	require.Equal(t, NewWriteSet(
-		Params(
-			NewDataEntry("abc_q", NewString("abc")),
-			NewDataEntry("abc_a", NewString("abc")),
-		)), rs)
+	require.Equal(t,
+		NewScriptResult(
+			NewWriteSet(
+				NewDataEntry("abc_q", NewString("abc")),
+				NewDataEntry("abc_a", NewString("abc")),
+			),
+			NewTransferSet(),
+		),
+		rs)
 }
 
 func TestDappDefaultFunc(t *testing.T) {
@@ -592,11 +596,14 @@ func verify() = {
 
 	rs, err := script.CallFunction(proto.MainNetScheme, mockstate.State{}, tx, "", Params())
 	require.NoError(t, err)
-	require.Equal(t, NewWriteSet(
-		Params(
-			NewDataEntry("a", NewString("b")),
-			NewDataEntry("sender", NewBytes(addr.Bytes())),
-		)), rs)
+	require.Equal(t,
+		NewScriptResult(
+			NewWriteSet(
+				NewDataEntry("a", NewString("b")),
+				NewDataEntry("sender", NewBytes(addr.Bytes())),
+			),
+			NewTransferSet()),
+		rs)
 }
 
 func TestDappVerify(t *testing.T) {
@@ -701,7 +708,11 @@ func tellme(question: String) = {
 	require.NoError(t, err)
 	scriptTransfer, err := NewScriptTransfer(NewAddressFromProtoAddress(addr), NewLong(100), NewUnit())
 	require.NoError(t, err)
-	require.Equal(t, NewTransferSet(Params(scriptTransfer)), rs)
+	require.Equal(t,
+		NewScriptResult(
+			NewWriteSet(),
+			NewTransferSet(scriptTransfer)),
+		rs)
 }
 
 func TestScriptResult(t *testing.T) {
@@ -735,8 +746,8 @@ func tellme(question: String) = {
 	require.NoError(t, err)
 	require.Equal(t,
 		NewScriptResult(
-			NewWriteSet(Params(NewDataEntry("key", NewLong(100)))),
-			NewTransferSet(Params(scriptTransfer)),
+			NewWriteSet(NewDataEntry("key", NewLong(100))),
+			NewTransferSet(scriptTransfer),
 		),
 		rs)
 }
