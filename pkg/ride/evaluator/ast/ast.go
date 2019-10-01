@@ -1813,6 +1813,6 @@ func (a *AssetExpr) InstanceOf() string {
 	return "Asset"
 }
 
-func newAsset(obj object) *AssetExpr {
+func NewAsset(obj object) *AssetExpr {
 	return &AssetExpr{fields: obj}
 }
