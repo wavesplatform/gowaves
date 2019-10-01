@@ -20,6 +20,7 @@ type Scope interface {
 	Initial() Scope
 	SetTransaction(transaction map[string]Expr)
 	SetHeight(height uint64)
+	SetThis(this Expr)
 	evaluation(string) (evaluation, bool)
 	setEvaluation(string, evaluation)
 	validMessageLength(len int) bool
@@ -134,6 +135,10 @@ func (a *ScopeImpl) SetTransaction(transaction map[string]Expr) {
 
 func (a *ScopeImpl) SetHeight(height uint64) {
 	a.expressions["height"] = NewLong(int64(height))
+}
+
+func (a *ScopeImpl) SetThis(this Expr) {
+	a.expressions["this"] = this
 }
 
 func (a *ScopeImpl) evaluation(name string) (evaluation, bool) {

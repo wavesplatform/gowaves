@@ -28,6 +28,7 @@ func (a *Script) IsDapp() bool {
 	return a.dApp
 }
 
+// returns *ScriptResultExpr
 func (a *Script) CallFunction(scheme proto.Scheme, state types.SmartState, tx *proto.InvokeScriptV1, name string, args Exprs) (Expr, error) {
 	if !a.IsDapp() {
 		return nil, errors.New("can't call Script.CallFunction on non DApp")
@@ -50,6 +51,14 @@ func (a *Script) CallFunction(scheme proto.Scheme, state types.SmartState, tx *p
 	scope := NewScope(3, scheme, state)
 	scope.SetHeight(height)
 
+	// assign of global vars and function
+	for _, expr := range a.DApp.Declarations {
+		_, err = expr.Evaluate(scope)
+		if err != nil {
+			return nil, errors.Wrap(err, "Script.CallFunction")
+		}
+	}
+
 	if len(fn.funcDecl.Args) != len(args) {
 		return nil, errors.Errorf("invalid func '%s' args count, expected %d, got %d", fn.funcDecl.Name, len(fn.funcDecl.Args), len(args))
 	}
@@ -61,14 +70,21 @@ func (a *Script) CallFunction(scheme proto.Scheme, state types.SmartState, tx *p
 	// invocation type
 	curScope.AddValue(fn.annotationInvocName, invoke)
 
-	// here should be only assign of vars and function
-	for _, expr := range a.DApp.Declarations {
-		_, err = expr.Evaluate(curScope)
-		if err != nil {
-			return nil, errors.Wrap(err, "Script.CallFunction")
-		}
+	rs, err := fn.funcDecl.Body.Evaluate(curScope)
+	if err != nil {
+		return nil, errors.Wrap(err, "Script.CallFunction")
 	}
-	return fn.funcDecl.Body.Evaluate(curScope)
+
+	switch t := rs.(type) {
+	case *WriteSetExpr:
+		return NewScriptResult(t, NewTransferSet()), nil
+	case *TransferSetExpr:
+		return NewScriptResult(NewWriteSet(), t), nil
+	case *ScriptResultExpr:
+		return t, nil
+	default:
+		return nil, errors.Errorf("Script.CallFunction: unexpected result type '%T'", t)
+	}
 }
 
 func (a *Script) Verify(scheme byte, state types.SmartState, transaction proto.Transaction) (bool, error) {
@@ -81,13 +97,13 @@ func (a *Script) Verify(scheme byte, state types.SmartState, transaction proto.T
 		return false, err
 	}
 	if a.IsDapp() {
-		if a.DApp.varifier == nil {
+		if a.DApp.verifier == nil {
 			return false, errors.New("verify function not defined")
 		}
 		scope := NewScope(3, scheme, state)
 		scope.SetHeight(height)
 
-		fn := a.DApp.varifier
+		fn := a.DApp.verifier
 		// pass function arguments
 		curScope := scope //.Clone()
 		// annotated tx type
@@ -1601,12 +1617,23 @@ func NewBlockInfo(obj object, height proto.Height) *BlockInfoExpr {
 	}
 }
 
-type WriteSetExpr struct {
-	body Exprs
+func Merge(x map[string]Expr, y map[string]Expr) map[string]Expr {
+	out := make(map[string]Expr)
+	for k, v := range x {
+		out[k] = v
+	}
+	for k, v := range y {
+		out[k] = v
+	}
+	return out
 }
 
-func (a *WriteSetExpr) Write(io.Writer) {
-	panic("implement me")
+type WriteSetExpr struct {
+	body []*DataEntryExpr
+}
+
+func (a *WriteSetExpr) Write(w io.Writer) {
+	_, _ = fmt.Fprintf(w, "WriteSetExpr")
 }
 
 func (a *WriteSetExpr) Evaluate(Scope) (Expr, error) {
@@ -1621,18 +1648,18 @@ func (a *WriteSetExpr) InstanceOf() string {
 	return "WriteSet"
 }
 
-func NewWriteSet(e Exprs) *WriteSetExpr {
+func NewWriteSet(e ...*DataEntryExpr) *WriteSetExpr {
 	return &WriteSetExpr{
 		body: e,
 	}
 }
 
 type TransferSetExpr struct {
-	body Exprs
+	body []*ScriptTransferExpr
 }
 
-func (a *TransferSetExpr) Write(io.Writer) {
-	panic("implement me")
+func (a *TransferSetExpr) Write(w io.Writer) {
+	_, _ = fmt.Fprintf(w, "TransferSetExpr")
 }
 
 func (a *TransferSetExpr) Evaluate(Scope) (Expr, error) {
@@ -1647,7 +1674,7 @@ func (a *TransferSetExpr) InstanceOf() string {
 	return "TransferSet"
 }
 
-func NewTransferSet(e Exprs) *TransferSetExpr {
+func NewTransferSet(e ...*ScriptTransferExpr) *TransferSetExpr {
 	return &TransferSetExpr{body: e}
 }
 
@@ -1760,4 +1787,32 @@ func NewScriptResult(writeSet *WriteSetExpr, transferSet *TransferSetExpr) *Scri
 		WriteSet:    writeSet,
 		TransferSet: transferSet,
 	}
+}
+
+type AssetExpr struct {
+	fields object
+}
+
+func (a *AssetExpr) Get(name string) (Expr, error) {
+	return a.fields.Get(name)
+}
+
+func (a *AssetExpr) Write(w io.Writer) {
+	_, _ = fmt.Fprintf(w, "Asset")
+}
+
+func (a *AssetExpr) Evaluate(Scope) (Expr, error) {
+	return a, nil
+}
+
+func (a *AssetExpr) Eq(other Expr) (bool, error) {
+	return false, errors.Errorf("trying to compare %T with %T", a, other)
+}
+
+func (a *AssetExpr) InstanceOf() string {
+	return "Asset"
+}
+
+func NewAsset(obj object) *AssetExpr {
+	return &AssetExpr{fields: obj}
 }
