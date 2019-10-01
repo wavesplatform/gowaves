@@ -797,13 +797,13 @@ func (tx ExchangeV1) Valid() (bool, error) {
 	if tx.SellOrder.AssetPair != tx.BuyOrder.AssetPair {
 		return false, errors.New("different asset pairs")
 	}
-	if tx.Amount <= 0 {
+	if tx.Amount == 0 {
 		return false, errors.New("amount should be positive")
 	}
 	if !validJVMLong(tx.Amount) {
 		return false, errors.New("amount is too big")
 	}
-	if tx.Price <= 0 {
+	if tx.Price == 0 {
 		return false, errors.New("price should be positive")
 	}
 	if !validJVMLong(tx.Price) {
@@ -812,23 +812,15 @@ func (tx ExchangeV1) Valid() (bool, error) {
 	if tx.Price > tx.BuyOrder.Price || tx.Price < tx.SellOrder.Price {
 		return false, errors.New("invalid price")
 	}
-	if tx.Fee <= 0 {
+	if tx.Fee == 0 {
 		return false, errors.New("fee should be positive")
 	}
 	if !validJVMLong(tx.Fee) {
 		return false, errors.New("fee is too big")
 	}
-	//uint64 always positive.
-	//if tx.BuyMatcherFee < 0 {
-	//	return false, errors.New("buy matcher's fee should be positive")
-	//}
 	if !validJVMLong(tx.BuyMatcherFee) {
 		return false, errors.New("buy matcher's fee is too big")
 	}
-	//uint64 always positive.
-	//if tx.SellMatcherFee < 0 {
-	//	return false, errors.New("sell matcher's fee should be positive")
-	//}
 	if !validJVMLong(tx.SellMatcherFee) {
 		return false, errors.New("sell matcher's fee is too big")
 	}
@@ -1551,7 +1543,7 @@ func (tx MassTransferV1) Valid() (bool, error) {
 	if len(tx.Transfers) > maxTransfers {
 		return false, errors.Errorf("number of transfers is greater than %d", maxTransfers)
 	}
-	if tx.Fee <= 0 {
+	if tx.Fee == 0 {
 		return false, errors.New("fee should be positive")
 	}
 	if !validJVMLong(tx.Fee) {
@@ -1829,7 +1821,7 @@ func (tx DataV1) Valid() (bool, error) {
 	if size > maxDataV1Bytes {
 		return false, errors.Errorf("total size of DataV1 transaction is bigger than %d bytes", maxDataV1Bytes)
 	}
-	if tx.Fee <= 0 {
+	if tx.Fee == 0 {
 		return false, errors.New("fee should be positive")
 	}
 	if !validJVMLong(tx.Fee) {
@@ -2092,7 +2084,7 @@ func NewUnsignedSetScriptV1(chain byte, senderPK crypto.PublicKey, script []byte
 }
 
 func (tx SetScriptV1) Valid() (bool, error) {
-	if tx.Fee <= 0 {
+	if tx.Fee == 0 {
 		return false, errors.New("fee should be positive")
 	}
 	if !validJVMLong(tx.Fee) {
@@ -2312,7 +2304,7 @@ func NewUnsignedSponsorshipV1(senderPK crypto.PublicKey, assetID crypto.Digest, 
 }
 
 func (tx SponsorshipV1) Valid() (bool, error) {
-	if tx.Fee <= 0 {
+	if tx.Fee == 0 {
 		return false, errors.New("fee should be positive")
 	}
 	if !validJVMLong(tx.Fee) {
@@ -2519,7 +2511,7 @@ func NewUnsignedSetAssetScriptV1(chain byte, senderPK crypto.PublicKey, assetID 
 }
 
 func (tx SetAssetScriptV1) Valid() (bool, error) {
-	if tx.Fee <= 0 {
+	if tx.Fee == 0 {
 		return false, errors.New("fee should be positive")
 	}
 	if !validJVMLong(tx.Fee) {
@@ -2756,7 +2748,7 @@ func NewUnsignedInvokeScriptV1(chain byte, senderPK crypto.PublicKey, scriptReci
 }
 
 func (tx InvokeScriptV1) Valid() (bool, error) {
-	if tx.Fee <= 0 {
+	if tx.Fee == 0 {
 		return false, errors.New("fee should be positive")
 	}
 	if !validJVMLong(tx.Fee) {
@@ -2773,7 +2765,7 @@ func (tx InvokeScriptV1) Valid() (bool, error) {
 	}
 	assets := make(map[OptionalAsset]struct{})
 	for _, p := range tx.Payments {
-		if p.Amount <= 0 {
+		if p.Amount == 0 {
 			return false, errors.New("at least one payment has a non-positive amount")
 		}
 		if !validJVMLong(p.Amount) {

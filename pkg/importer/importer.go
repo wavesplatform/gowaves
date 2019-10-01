@@ -86,7 +86,7 @@ func ApplyFromFile(st State, blockchainPath string, nBlocks, startHeight uint64,
 			return err
 		}
 		size := binary.BigEndian.Uint32(sb)
-		if size > maxBlockSize || size <= 0 {
+		if size > maxBlockSize || size == 0 {
 			return errors.New("corrupted blockchain file: invalid block size")
 		}
 		totalSize += int(size)
