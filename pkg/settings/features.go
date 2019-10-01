@@ -33,7 +33,7 @@ var FeaturesInfo = map[Feature]FeatureInfo{
 	FeeSponsorship:                  {true, "Fee Sponsorship"},
 	FairPoS:                         {true, "Fair PoS"},
 	SmartAssets:                     {true, "Smart Assets"},
-	SmartAccountTrading:             {false, "Smart Account Trading"},
+	SmartAccountTrading:             {true, "Smart Account Trading"},
 	Ride4DApps:                      {false, "RIDE 4 DAPPS"},
 	OrderV3:                         {false, "Order Version 3"},
 	ReduceNFTFee:                    {false, "Reduce NFT fee"},

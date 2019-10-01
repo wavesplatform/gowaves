@@ -424,9 +424,31 @@ func TestCheckExchangeV1(t *testing.T) {
 	_, err = to.tc.checkExchangeV1(tx, info)
 	assert.NoError(t, err, "checkExchangeV1 failed with valid exchange")
 
-	// Check that smart assets are detected properly.
+	// Set script.
+	to.stor.addBlock(t, blockID0)
+	addr := testGlobal.recipientInfo.addr
+	err = to.stor.entities.scriptsStorage.setAccountScript(addr, proto.Script(testGlobal.scriptBytes), blockID0)
+	assert.NoError(t, err)
+
+	_, err = to.tc.checkExchangeV1(tx, info)
+	assert.Error(t, err, "checkExchangeV1 did not fail with exchange with smart account before SmartAccountTrading activation")
+
+	to.stor.activateFeature(t, int16(settings.SmartAccountTrading))
+	_, err = to.tc.checkExchangeV1(tx, info)
+	assert.NoError(t, err, "checkExchangeV1 failed with valid exchange")
+
+	// Make one of involved assets smart.
 	smartAsset := tx.BuyOrder.AssetPair.AmountAsset.ID
 	to.stor.createSmartAsset(t, smartAsset)
+
+	_, err = to.tc.checkExchangeV1(tx, info)
+	assert.Error(t, err, "checkExchangeV1 did not fail with exchange with smart assets before SmartAssets activation")
+
+	to.stor.activateFeature(t, int16(settings.SmartAssets))
+	_, err = to.tc.checkExchangeV1(tx, info)
+	assert.NoError(t, err, "checkExchangeV1 failed with valid exchange")
+
+	// Check that smart assets are detected properly.
 	smartAssets, err := to.tc.checkExchangeV1(tx, info)
 	assert.NoError(t, err)
 	assert.Equal(t, 1, len(smartAssets))
@@ -454,20 +476,33 @@ func TestCheckExchangeV2(t *testing.T) {
 	_, err = to.tc.checkExchangeV2(tx, info)
 	assert.Error(t, err, "checkExchangeV2 did not fail prior to SmartAccountTrading activation")
 
-	/* TODO: uncomment when the following features will be implemented.
+	_, err = to.tc.checkExchangeV2(tx, info)
+	assert.Error(t, err, "checkExchangeV2 did not fail prior to SmartAccountTrading activation")
+
 	to.stor.activateFeature(t, int16(settings.SmartAccountTrading))
-	to.stor.activateFeature(t, int16(settings.OrderV3))
 
 	_, err = to.tc.checkExchangeV2(tx, info)
 	assert.NoError(t, err, "checkExchangeV2 failed with valid exchange")
 
-	// Check that smart assets are detected properly.
-	smartAsset := tx.BuyOrder.AssetPair.AmountAsset.ToID()
+	// Make one of involved assets smart.
+	smartAsset := tx.GetBuyOrderFull().GetAssetPair().AmountAsset.ID
 	to.stor.createSmartAsset(t, smartAsset)
+
+	_, err = to.tc.checkExchangeV2(tx, info)
+	assert.Error(t, err, "checkExchangeV2 did not fail with exchange with smart assets before SmartAssets activation")
+
+	to.stor.activateFeature(t, int16(settings.SmartAssets))
+	_, err = to.tc.checkExchangeV2(tx, info)
+	assert.NoError(t, err, "checkExchangeV2 failed with valid exchange")
+
+	// Check that smart assets are detected properly.
 	smartAssets, err := to.tc.checkExchangeV2(tx, info)
 	assert.NoError(t, err)
 	assert.Equal(t, 1, len(smartAssets))
 	assert.Equal(t, smartAsset, smartAssets[0])
+
+	/* TODO: uncomment when the following feature will be implemented.
+	to.stor.activateFeature(t, int16(settings.OrderV3))
 	*/
 }
 

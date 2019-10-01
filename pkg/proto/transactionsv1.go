@@ -737,6 +737,14 @@ func (tx ExchangeV1) GetSellOrder() (OrderBody, error) {
 	return tx.SellOrder.OrderBody, nil
 }
 
+func (tx ExchangeV1) GetBuyOrderFull() Order {
+	return tx.BuyOrder
+}
+
+func (tx ExchangeV1) GetSellOrderFull() Order {
+	return tx.SellOrder
+}
+
 func (tx ExchangeV1) GetPrice() uint64 {
 	return tx.Price
 }

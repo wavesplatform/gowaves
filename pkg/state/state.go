@@ -213,7 +213,23 @@ type appendBlockParams struct {
 	initialisation bool
 }
 
-func (a *txAppender) callVerifyScript(tx proto.Transaction, script ast.Script) error {
+func (a *txAppender) callVerifyScriptWithOrder(order proto.Order, script ast.Script) error {
+	obj, err := ast.NewVariablesFromOrder(a.settings.AddressSchemeCharacter, order)
+	if err != nil {
+		return errors.Wrap(err, "failed to convert order")
+	}
+	ok, err := evaluate.Verify(a.settings.AddressSchemeCharacter, a.state, &script, obj)
+	if err != nil {
+		return errors.Wrap(err, "verifier script failed")
+	}
+	if !ok {
+		id, _ := order.GetID()
+		return errors.Errorf("verifier script does not allow to send order %s", base58.Encode(id))
+	}
+	return nil
+}
+
+func (a *txAppender) callVerifyScriptWithTx(tx proto.Transaction, script ast.Script) error {
 	obj, err := ast.NewVariablesFromTransaction(a.settings.AddressSchemeCharacter, tx)
 	if err != nil {
 		return errors.Wrap(err, "failed to convert transaction")
@@ -229,7 +245,19 @@ func (a *txAppender) callVerifyScript(tx proto.Transaction, script ast.Script) e
 	return nil
 }
 
-func (a *txAppender) callAccountScript(tx proto.Transaction, initialisation bool) error {
+func (a *txAppender) callAccountScriptWithOrder(order proto.Order, initialisation bool) error {
+	sender, err := proto.NewAddressFromPublicKey(a.settings.AddressSchemeCharacter, order.GetSenderPK())
+	if err != nil {
+		return err
+	}
+	script, err := a.stor.scriptsStorage.newestScriptByAddr(sender, !initialisation)
+	if err != nil {
+		return errors.Wrap(err, "failed to retrieve account script")
+	}
+	return a.callVerifyScriptWithOrder(order, script)
+}
+
+func (a *txAppender) callAccountScriptWithTx(tx proto.Transaction, initialisation bool) error {
 	senderAddr, err := proto.NewAddressFromPublicKey(a.settings.AddressSchemeCharacter, tx.GetSenderPK())
 	if err != nil {
 		return err
@@ -238,7 +266,7 @@ func (a *txAppender) callAccountScript(tx proto.Transaction, initialisation bool
 	if err != nil {
 		return errors.Wrap(err, "failed to retrieve account script")
 	}
-	return a.callVerifyScript(tx, script)
+	return a.callVerifyScriptWithTx(tx, script)
 }
 
 func (a *txAppender) callAssetScript(tx proto.Transaction, assetID crypto.Digest, initialisation bool) error {
@@ -246,7 +274,7 @@ func (a *txAppender) callAssetScript(tx proto.Transaction, assetID crypto.Digest
 	if err != nil {
 		return errors.Errorf("failed to retrieve asset script: %v\n", err)
 	}
-	return a.callVerifyScript(tx, script)
+	return a.callVerifyScriptWithTx(tx, script)
 }
 
 func (a *txAppender) hasAccountVerifyScript(tx proto.Transaction, initialisation bool) (bool, error) {
@@ -257,14 +285,66 @@ func (a *txAppender) hasAccountVerifyScript(tx proto.Transaction, initialisation
 	return a.stor.scriptsStorage.newestAccountHasVerifier(senderAddr, !initialisation)
 }
 
+func (a *txAppender) orderIsScripted(order proto.Order, initialisation bool) (bool, error) {
+	return a.txHandler.tc.orderScripted(order, initialisation)
+}
+
+func (a *txAppender) handleExchange(tx proto.Transaction, initialisation bool) (uint64, error) {
+	// Smart account trading.
+	activated, err := a.stor.features.isActivated(int16(settings.SmartAccountTrading))
+	if err != nil {
+		return 0, err
+	}
+	if !activated {
+		// Functionality is not yet activated.
+		return 0, nil
+	}
+	exchange, ok := tx.(proto.Exchange)
+	if !ok {
+		return 0, errors.New("failed to convert tx to Exchange")
+	}
+	bo := exchange.GetBuyOrderFull()
+	so := exchange.GetSellOrderFull()
+	boScripted, err := a.orderIsScripted(bo, initialisation)
+	if err != nil {
+		return 0, err
+	}
+	soScripted, err := a.orderIsScripted(so, initialisation)
+	if err != nil {
+		return 0, err
+	}
+	scriptsRuns := uint64(0)
+	if boScripted {
+		if err := a.callAccountScriptWithOrder(bo, initialisation); err != nil {
+			return 0, errors.Errorf("BUY ORDER: callAccountScriptWithOrder(): %v\n", err)
+		}
+		scriptsRuns++
+	}
+	if soScripted {
+		if err := a.callAccountScriptWithOrder(so, initialisation); err != nil {
+			return 0, errors.Errorf("SELL ORDER: callAccountScriptWithOrder(): %v\n", err)
+		}
+		scriptsRuns++
+	}
+	activated, err = a.stor.features.isActivated(int16(settings.Ride4DApps))
+	if err != nil {
+		return 0, err
+	}
+	if !activated {
+		// Don't count before Ride4DApps activation.
+		scriptsRuns = 0
+	}
+	return scriptsRuns, nil
+}
+
 func (a *txAppender) checkTxAgainstState(tx proto.Transaction, accountScripted bool, checkerInfo *checkerInfo) (uint64, error) {
 	scriptsRuns := uint64(0)
 	if accountScripted {
-		scriptsRuns++
 		// Check script.
-		if err := a.callAccountScript(tx, checkerInfo.initialisation); err != nil {
-			return 0, errors.Errorf("callAccountScript(): %v\n", err)
+		if err := a.callAccountScriptWithTx(tx, checkerInfo.initialisation); err != nil {
+			return 0, errors.Errorf("callAccountScriptWithTx(): %v\n", err)
 		}
+		scriptsRuns++
 	}
 	// Check against state.
 	txSmartAssets, err := a.txHandler.checkTx(tx, checkerInfo)
@@ -277,6 +357,13 @@ func (a *txAppender) checkTxAgainstState(tx proto.Transaction, accountScripted b
 			return 0, errors.Errorf("callAssetScript(): %v\n", err)
 		}
 		scriptsRuns++
+	}
+	if tx.GetTypeVersion().Type == proto.ExchangeTransaction {
+		exchangeScripsRuns, err := a.handleExchange(tx, checkerInfo.initialisation)
+		if err != nil {
+			return 0, errors.Errorf("failed to handle exchange tx: %v\n", err)
+		}
+		scriptsRuns += exchangeScripsRuns
 	}
 	return scriptsRuns, nil
 }
