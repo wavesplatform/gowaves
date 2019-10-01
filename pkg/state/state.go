@@ -214,9 +214,13 @@ type appendBlockParams struct {
 }
 
 func (a *txAppender) callVerifyScript(tx proto.Transaction, script ast.Script) error {
-	ok, err := evaluate.Verify(a.settings.AddressSchemeCharacter, a.state, &script, tx)
+	obj, err := ast.NewVariablesFromTransaction(a.settings.AddressSchemeCharacter, tx)
 	if err != nil {
-		return errors.Errorf("verifier script failed: %v\n", err)
+		return errors.Wrap(err, "failed to convert transaction")
+	}
+	ok, err := evaluate.Verify(a.settings.AddressSchemeCharacter, a.state, &script, obj)
+	if err != nil {
+		return errors.Wrap(err, "verifier script failed")
 	}
 	if !ok {
 		id, _ := tx.GetID()
@@ -232,7 +236,7 @@ func (a *txAppender) callAccountScript(tx proto.Transaction, initialisation bool
 	}
 	script, err := a.stor.scriptsStorage.newestScriptByAddr(senderAddr, !initialisation)
 	if err != nil {
-		return errors.Errorf("failed to retrieve account script: %v\n", err)
+		return errors.Wrap(err, "failed to retrieve account script")
 	}
 	return a.callVerifyScript(tx, script)
 }

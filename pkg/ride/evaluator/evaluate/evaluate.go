@@ -2,7 +2,6 @@ package evaluate
 
 import (
 	"github.com/pkg/errors"
-	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride/evaluator/ast"
 	"github.com/wavesplatform/gowaves/pkg/types"
 )
@@ -25,21 +24,14 @@ func Eval(e ast.Expr, s ast.Scope) (bool, error) {
 	return b.Value, nil
 }
 
-func Verify(scheme byte, state types.SmartState, script *ast.Script, transaction proto.Transaction) (bool, error) {
-	tx, err := ast.NewVariablesFromTransaction(scheme, transaction)
-	if err != nil {
-		return false, err
-	}
-
+func Verify(scheme byte, state types.SmartState, script *ast.Script, object map[string]ast.Expr) (bool, error) {
 	height, err := state.AddingBlockHeight()
 	if err != nil {
 		return false, err
 	}
 	scope := ast.NewScope(script.Version, scheme, state)
-	scope.SetTransaction(tx)
+	scope.SetTransaction(object)
 	scope.SetHeight(height)
-
-	//scope.AddValue("tx", ast.NewObject(txVars))
 
 	return Eval(script.Verifier, scope)
 }

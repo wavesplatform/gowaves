@@ -1000,7 +1000,7 @@ func (a *OrderTestSuite) SetupTest() {
 	a.NoError(sellOrder.Sign(sk))
 
 	a.tx = sellOrder
-	a.f = newVariablesFromOrder
+	a.f = NewVariablesFromOrder
 }
 
 func (a *OrderTestSuite) Test_id() {
