@@ -4,14 +4,16 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	"google.golang.org/grpc"
 	"io"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"github.com/wavesplatform/gowaves/pkg/proto"
+	"google.golang.org/grpc"
 )
 
 func TestTransactionsAPIClient(t *testing.T) {
@@ -82,8 +84,33 @@ func TestBlocksAPIClient(t *testing.T) {
 	assert.Equal(t, io.EOF, err)
 }
 
+func TestAccountData(t *testing.T) {
+	t.SkipNow()
+	conn := connect(t)
+	defer conn.Close()
+
+	c := NewAccountsApiClient(conn)
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(20*time.Second))
+	defer cancel()
+	addr, err := proto.NewAddressFromString("3MxHxW5VWq4KrWcbhFfxKrafXm4mL6rZHfj")
+	require.NoError(t, err)
+	b := make([]byte, len(addr.Bytes()))
+	copy(b, addr.Bytes())
+	req := &DataRequest{Address: b /*, Key: "13QuhSAkAueic5ncc8YRwyNxGQ6tRwVSS44a7uFgWsnk"*/}
+	dc, err := c.GetDataEntries(ctx, req)
+	require.NoError(t, err)
+	var msg DataEntryResponse
+	for err = dc.RecvMsg(&msg); err == nil; err = dc.RecvMsg(&msg) {
+		con := SafeConverter{}
+		e := con.entry(msg.Entry)
+		require.NoError(t, con.err)
+		fmt.Println(e.GetKey(), ":", e)
+	}
+	assert.Equal(t, io.EOF, err)
+}
+
 func connect(t *testing.T) *grpc.ClientConn {
-	conn, err := grpc.Dial("testnet-aws-ir-2.wavesnodes.com:6870", grpc.WithInsecure())
+	conn, err := grpc.Dial("testnet-aws-fr-1.wavesnodes.com:6870", grpc.WithInsecure())
 	require.NoError(t, err)
 	return conn
 }

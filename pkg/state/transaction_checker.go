@@ -74,7 +74,7 @@ func (tc *transactionChecker) checkScriptComplexity(script *ast.Script, complexi
 	return nil
 }
 
-func (tc *transactionChecker) estimatorByScript(script *ast.Script) *estimation.EstimatorV1 {
+func (tc *transactionChecker) estimatorByScript(script *ast.Script) *estimation.Estimator {
 	var variables map[string]ast.Expr
 	var cat *estimation.Catalogue
 	switch script.Version {
@@ -85,7 +85,7 @@ func (tc *transactionChecker) estimatorByScript(script *ast.Script) *estimation.
 		variables = ast.VariablesV3()
 		cat = estimation.NewCatalogueV3()
 	}
-	return estimation.NewEstimatorV1(cat, variables)
+	return estimation.NewEstimator(1, cat, variables) //TODO: pass version 2 after BlockReward (feature 14) activation
 }
 
 func (tc *transactionChecker) checkScript(scriptBytes proto.Script) error {

@@ -50,6 +50,13 @@ func (a *NonFallableSerializer) Uint64(v uint64) {
 	a.n += n
 }
 
+func (a *NonFallableSerializer) Int64(v int64) {
+	buf := make([]byte, 8)
+	binary.BigEndian.PutUint64(buf, uint64(v))
+	n, _ := a.w.Write(buf)
+	a.n += n
+}
+
 func (a *NonFallableSerializer) String(s string) {
 	n, _ := a.w.Write([]byte(s))
 	a.n += n

@@ -4,11 +4,12 @@ import (
 	"bytes"
 	"encoding/binary"
 	"encoding/json"
+	"io"
+
 	"github.com/pkg/errors"
 	"github.com/valyala/bytebufferpool"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/libs/serializer"
-	"io"
 )
 
 type BlockVersion byte
@@ -17,6 +18,7 @@ const (
 	GenesisBlockVersion BlockVersion = iota + 1
 	PlainBlockVersion
 	NgBlockVersion
+	RewardBlockVersion
 )
 
 type NxtConsensus struct {
@@ -31,6 +33,7 @@ type BlockHeader struct {
 	Parent                 crypto.Signature `json:"reference"`
 	FeaturesCount          int              `json:"-"`
 	Features               []int16          `json:"features,omitempty"`
+	RewardVote             int64            `json:"desiredReward"`
 	ConsensusBlockLength   uint32           `json:"-"`
 	NxtConsensus           `json:"nxt-consensus"`
 	TransactionBlockLength uint32           `json:"transactionBlockLength,omitempty"`
@@ -79,6 +82,11 @@ func (b *BlockHeader) MarshalHeaderToBinary() ([]byte, error) {
 			return nil, err
 		}
 		res = append(res, fb...)
+		if b.Version >= RewardBlockVersion {
+			rvb := make([]byte, 8)
+			binary.BigEndian.PutUint64(rvb, uint64(b.RewardVote))
+			res = append(res, rvb...)
+		}
 	} else {
 		res = append(res, byte(b.TransactionCount))
 	}
@@ -104,6 +112,7 @@ func (b *BlockHeader) UnmarshalHeaderFromBinary(data []byte) (err error) {
 	b.BaseTarget = binary.BigEndian.Uint64(data[77:85])
 	copy(b.GenSignature[:], data[85:117])
 	b.TransactionBlockLength = binary.BigEndian.Uint32(data[117:121])
+	b.RewardVote = -1
 	if b.Version >= NgBlockVersion {
 		if b.TransactionBlockLength < 4 {
 			return errors.New("TransactionBlockLength is too small")
@@ -116,13 +125,16 @@ func (b *BlockHeader) UnmarshalHeaderFromBinary(data []byte) (err error) {
 			return errors.Wrap(err, "failed to convert features from binary representation")
 		}
 		copy(b.Features, fb)
+		if b.Version >= RewardBlockVersion {
+			pos := 129 + 2*b.FeaturesCount
+			b.RewardVote = int64(binary.BigEndian.Uint64(data[pos : pos+8]))
+		}
 	} else {
 		if b.TransactionBlockLength < 1 {
 			return errors.New("TransactionBlockLength is too small")
 		}
 		b.TransactionCount = int(data[121])
 	}
-
 	copy(b.GenPublicKey[:], data[len(data)-64-32:len(data)-64])
 	copy(b.BlockSignature[:], data[len(data)-64:])
 
@@ -388,6 +400,9 @@ func (b *Block) WriteToWithoutSignature(w io.Writer) (int64, error) {
 			return 0, err
 		}
 		s.Bytes(fb)
+		if b.Version >= RewardBlockVersion {
+			s.Int64(b.RewardVote)
+		}
 	}
 
 	s.Bytes(b.GenPublicKey[:])
@@ -412,6 +427,7 @@ func (b *Block) UnmarshalBinary(data []byte) (err error) {
 	copy(b.GenSignature[:], data[85:117])
 
 	b.TransactionBlockLength = binary.BigEndian.Uint32(data[117:121])
+	b.RewardVote = -1
 	if b.Version >= NgBlockVersion {
 		if b.TransactionBlockLength < 4 {
 			return errors.New("TransactionBlockLength is too small")
@@ -420,7 +436,7 @@ func (b *Block) UnmarshalBinary(data []byte) (err error) {
 		txEnd := 121 + b.TransactionBlockLength
 		transBytes := data[125:txEnd]
 		b.Transactions = NewReprFromBytes(transBytes, b.TransactionCount)
-		featuresStart := uint32(txEnd + 4)
+		featuresStart := txEnd + 4
 		b.FeaturesCount = int(binary.BigEndian.Uint32(data[txEnd:featuresStart]))
 		b.Features = make([]int16, b.FeaturesCount)
 		fb, err := featuresFromBinary(data[featuresStart : featuresStart+uint32(2*b.FeaturesCount)])
@@ -428,7 +444,10 @@ func (b *Block) UnmarshalBinary(data []byte) (err error) {
 			return errors.Wrap(err, "failed to convert features from binary representation")
 		}
 		copy(b.Features, fb)
-
+		if b.Version >= RewardBlockVersion {
+			pos := featuresStart + uint32(2*b.FeaturesCount)
+			b.RewardVote = int64(binary.BigEndian.Uint64(data[pos : pos+8]))
+		}
 	} else {
 		if b.TransactionBlockLength < 1 {
 			return errors.New("TransactionBlockLength is too small")

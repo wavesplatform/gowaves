@@ -296,7 +296,7 @@ func NewUnsignedGenesis(recipient Address, amount, timestamp uint64) *Genesis {
 
 //Valid checks the validity of transaction parameters and it's signature.
 func (tx Genesis) Valid() (bool, error) {
-	if tx.Amount <= 0 {
+	if tx.Amount == 0 {
 		return false, errors.New("amount should be positive")
 	}
 	if !validJVMLong(tx.Amount) {
@@ -439,13 +439,13 @@ func (tx Payment) Valid() (bool, error) {
 	if ok, err := tx.Recipient.Valid(); !ok {
 		return false, errors.Wrapf(err, "invalid recipient address '%s'", tx.Recipient.String())
 	}
-	if tx.Amount <= 0 {
+	if tx.Amount == 0 {
 		return false, errors.New("amount should be positive")
 	}
 	if !validJVMLong(tx.Amount) {
 		return false, errors.New("amount is too big")
 	}
-	if tx.Fee <= 0 {
+	if tx.Fee == 0 {
 		return false, errors.New("fee should be positive")
 	}
 	if !validJVMLong(tx.Fee) {
@@ -621,13 +621,13 @@ func (i Issue) GetTimestamp() uint64 {
 }
 
 func (i Issue) Valid() (bool, error) {
-	if i.Quantity <= 0 {
+	if i.Quantity == 0 {
 		return false, errors.New("quantity should be positive")
 	}
 	if !validJVMLong(i.Quantity) {
 		return false, errors.New("quantity is too big")
 	}
-	if i.Fee <= 0 {
+	if i.Fee == 0 {
 		return false, errors.New("fee should be positive")
 	}
 	if !validJVMLong(i.Fee) {
@@ -724,13 +724,13 @@ func (tr Transfer) GetTimestamp() uint64 {
 }
 
 func (tr Transfer) Valid() (bool, error) {
-	if tr.Amount <= 0 {
+	if tr.Amount == 0 {
 		return false, errors.New("amount should be positive")
 	}
 	if !validJVMLong(tr.Amount) {
 		return false, errors.New("amount is too big")
 	}
-	if tr.Fee <= 0 {
+	if tr.Fee == 0 {
 		return false, errors.New("fee should be positive")
 	}
 	if !validJVMLong(tr.Fee) {
@@ -854,13 +854,13 @@ func (r Reissue) GetTimestamp() uint64 {
 }
 
 func (r Reissue) Valid() (bool, error) {
-	if r.Quantity <= 0 {
+	if r.Quantity == 0 {
 		return false, errors.New("quantity should be positive")
 	}
 	if !validJVMLong(r.Quantity) {
 		return false, errors.New("quantity is too big")
 	}
-	if r.Fee <= 0 {
+	if r.Fee == 0 {
 		return false, errors.New("fee should be positive")
 	}
 	if !validJVMLong(r.Fee) {
@@ -932,7 +932,7 @@ func (b Burn) Valid() (bool, error) {
 	if !validJVMLong(b.Amount) {
 		return false, errors.New("amount is too big")
 	}
-	if b.Fee <= 0 {
+	if b.Fee == 0 {
 		return false, errors.New("fee should be positive")
 	}
 	if !validJVMLong(b.Fee) {
@@ -1009,13 +1009,13 @@ func (l Lease) Valid() (bool, error) {
 	if ok, err := l.Recipient.Valid(); !ok {
 		return false, errors.Wrap(err, "failed to create new unsigned Lease transaction")
 	}
-	if l.Amount <= 0 {
+	if l.Amount == 0 {
 		return false, errors.New("amount should be positive")
 	}
 	if !validJVMLong(l.Amount) {
 		return false, errors.New("amount is too big")
 	}
-	if l.Fee <= 0 {
+	if l.Fee == 0 {
 		return false, errors.New("fee should be positive")
 	}
 	if !validJVMLong(l.Fee) {
@@ -1087,7 +1087,7 @@ func (lc LeaseCancel) GetTimestamp() uint64 {
 }
 
 func (lc LeaseCancel) Valid() (bool, error) {
-	if lc.Fee <= 0 {
+	if lc.Fee == 0 {
 		return false, errors.New("fee should be positive")
 	}
 	if !validJVMLong(lc.Fee) {
@@ -1143,7 +1143,7 @@ func (ca CreateAlias) GetTimestamp() uint64 {
 }
 
 func (ca CreateAlias) Valid() (bool, error) {
-	if ca.Fee <= 0 {
+	if ca.Fee == 0 {
 		return false, errors.New("fee should be positive")
 	}
 	if !validJVMLong(ca.Fee) {

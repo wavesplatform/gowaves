@@ -951,13 +951,13 @@ func (tx ExchangeV2) Valid() (bool, error) {
 	if tx.SellOrder.GetAssetPair() != tx.BuyOrder.GetAssetPair() {
 		return false, errors.New("different asset pairs")
 	}
-	if tx.Amount <= 0 {
+	if tx.Amount == 0 {
 		return false, errors.New("amount should be positive")
 	}
 	if !validJVMLong(tx.Amount) {
 		return false, errors.New("amount is too big")
 	}
-	if tx.Price <= 0 {
+	if tx.Price == 0 {
 		return false, errors.New("price should be positive")
 	}
 	if !validJVMLong(tx.Price) {
@@ -966,19 +966,19 @@ func (tx ExchangeV2) Valid() (bool, error) {
 	if tx.Price > tx.BuyOrder.GetPrice() || tx.Price < tx.SellOrder.GetPrice() {
 		return false, errors.New("invalid price")
 	}
-	if tx.Fee <= 0 {
+	if tx.Fee == 0 {
 		return false, errors.New("fee should be positive")
 	}
 	if !validJVMLong(tx.Fee) {
 		return false, errors.New("fee is too big")
 	}
-	if tx.BuyMatcherFee <= 0 {
+	if tx.BuyMatcherFee == 0 {
 		return false, errors.New("buy matcher's fee should be positive")
 	}
 	if !validJVMLong(tx.BuyMatcherFee) {
 		return false, errors.New("buy matcher's fee is too big")
 	}
-	if tx.SellMatcherFee <= 0 {
+	if tx.SellMatcherFee == 0 {
 		return false, errors.New("sell matcher's fee should be positive")
 	}
 	if !validJVMLong(tx.SellMatcherFee) {
