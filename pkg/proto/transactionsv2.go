@@ -980,14 +980,8 @@ func (tx ExchangeV2) Valid() (bool, error) {
 	if !validJVMLong(tx.Fee) {
 		return false, errors.New("fee is too big")
 	}
-	if tx.BuyMatcherFee == 0 {
-		return false, errors.New("buy matcher's fee should be positive")
-	}
 	if !validJVMLong(tx.BuyMatcherFee) {
 		return false, errors.New("buy matcher's fee is too big")
-	}
-	if tx.SellMatcherFee == 0 {
-		return false, errors.New("sell matcher's fee should be positive")
 	}
 	if !validJVMLong(tx.SellMatcherFee) {
 		return false, errors.New("sell matcher's fee is too big")
