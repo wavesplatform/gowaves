@@ -24,16 +24,16 @@ func Eval(e ast.Expr, s ast.Scope) (bool, error) {
 	return b.Value, nil
 }
 
-func Verify(scheme byte, state types.SmartState, script *ast.Script, object map[string]ast.Expr) (bool, error) {
+func Verify(scheme byte, state types.SmartState, script *ast.Script, object map[string]ast.Expr, this, lastBlock ast.Expr) (bool, error) {
 	height, err := state.AddingBlockHeight()
 	if err != nil {
 		return false, err
 	}
 	scope := ast.NewScope(script.Version, scheme, state)
 	scope.SetTransaction(object)
+	scope.SetThis(this)
+	scope.SetLastBlockInfo(lastBlock)
 	scope.SetHeight(height)
-
-	//scope.AddValue("tx", ast.NewObject(txVars))
 
 	return Eval(script.Verifier, scope)
 }

@@ -84,7 +84,7 @@ func parseDApp(r *BytesReader) (DApp, error) {
 	for i := int32(0); i < cnt; i++ {
 		rest := r.Rest()
 		_ = rest
-		annotationInvocName := r.ReadString()
+		annotationInvokeName := r.ReadString()
 		d, err := deserializeDeclaration(r)
 		if err != nil {
 			return dApp, err
@@ -94,8 +94,8 @@ func parseDApp(r *BytesReader) (DApp, error) {
 			return dApp, errors.Errorf("expected to be *FuncDeclaration, found %T", f)
 		}
 		callableFuncs[f.Name] = &DappCallableFunc{
-			annotationInvocName: annotationInvocName,
-			funcDecl:            f,
+			annotationInvokeName: annotationInvokeName,
+			funcDecl:             f,
 		}
 	}
 	dApp.callableFuncs = callableFuncs
@@ -104,7 +104,7 @@ func parseDApp(r *BytesReader) (DApp, error) {
 	cnt = r.ReadInt()
 	_ = cnt
 	if cnt != 0 {
-		annotationInvocName := r.ReadString()
+		annotationInvokeName := r.ReadString()
 		d, err := deserializeDeclaration(r)
 		if err != nil {
 			return dApp, err
@@ -114,8 +114,8 @@ func parseDApp(r *BytesReader) (DApp, error) {
 			return dApp, errors.Errorf("expected to be *FuncDeclaration, found %T", f)
 		}
 		dApp.verifier = &DappCallableFunc{
-			annotationInvocName: annotationInvocName,
-			funcDecl:            f,
+			annotationInvokeName: annotationInvokeName,
+			funcDecl:             f,
 		}
 	}
 
@@ -123,8 +123,8 @@ func parseDApp(r *BytesReader) (DApp, error) {
 }
 
 type DappCallableFunc struct {
-	annotationInvocName string
-	funcDecl            *FuncDeclaration
+	annotationInvokeName string
+	funcDecl             *FuncDeclaration
 }
 
 func Walk(iter *BytesReader) (Expr, error) {
@@ -147,7 +147,6 @@ func Walk(iter *BytesReader) (Expr, error) {
 		return readIf(iter)
 	case E_BLOCK:
 		return readBlock(iter)
-	// TODO: case E_BLOCK_V2: // RIDE v3
 	case E_REF:
 		return &RefExpr{
 			Name: iter.ReadString(),
