@@ -2,10 +2,10 @@ package node
 
 import (
 	"fmt"
-	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
-	"github.com/wavesplatform/gowaves/pkg/proto"
 	"reflect"
 	"sync"
+
+	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
 type Subscribe struct {
@@ -32,8 +32,12 @@ func (a *Subscribe) Receive(id string, responseMessage proto.Message) bool {
 	return false
 }
 
+type id interface {
+	ID() string
+}
+
 // non thread safe
-func (a *Subscribe) add(p peer.Peer, responseMessage proto.Message) (chan proto.Message, func()) {
+func (a *Subscribe) add(p id, responseMessage proto.Message) (chan proto.Message, func()) {
 
 	name := name(p.ID(), responseMessage)
 
@@ -59,7 +63,7 @@ func (a *Subscribe) Exists(id string, responseMessage proto.Message) bool {
 	return ok
 }
 
-func (a *Subscribe) Subscribe(p peer.Peer, responseMessage proto.Message) (chan proto.Message, func()) {
+func (a *Subscribe) Subscribe(p id, responseMessage proto.Message) (chan proto.Message, func()) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	return a.add(p, responseMessage)

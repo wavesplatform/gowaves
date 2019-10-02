@@ -225,7 +225,6 @@ func (a *Node) handleScoreMessage(peerID string, score []byte) {
 }
 
 func (a *Node) handleBlockMessage(peerID string, mess *proto.BlockMessage) {
-	defer util.TimeTrack(time.Now(), "handleBlockMessage")
 	if !a.subscribe.Receive(peerID, mess) {
 		b := &proto.Block{}
 		err := b.UnmarshalBinary(mess.BlockBytes)
@@ -380,7 +379,7 @@ func (a *Signatures) Signatures() []crypto.Signature {
 	return a.signatures
 }
 
-func NewSignatures(signatures []crypto.Signature) *Signatures {
+func NewSignatures(signatures ...crypto.Signature) *Signatures {
 	unique := make(map[crypto.Signature]struct{})
 	for _, v := range signatures {
 		unique[v] = struct{}{}
@@ -395,4 +394,12 @@ func NewSignatures(signatures []crypto.Signature) *Signatures {
 func (a *Signatures) Exists(sig crypto.Signature) bool {
 	_, ok := a.unique[sig]
 	return ok
+}
+
+func (a *Signatures) Revert() *Signatures {
+	out := make([]crypto.Signature, len(a.signatures))
+	for k, v := range a.signatures {
+		out[len(a.signatures)-1-k] = v
+	}
+	return NewSignatures(out...)
 }

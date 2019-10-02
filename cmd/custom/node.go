@@ -27,7 +27,7 @@ import (
 	"go.uber.org/zap"
 )
 
-var version = proto.Version{Major: 0, Minor: 15, Patch: 1}
+var version = proto.Version{Major: 1, Minor: 1, Patch: 2}
 
 type Cli struct {
 	Run struct {

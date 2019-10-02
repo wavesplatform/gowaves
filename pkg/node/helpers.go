@@ -33,3 +33,24 @@ func sendSignatures(block *proto.Block, stateManager state.State, p peer.Peer) {
 		})
 	}
 }
+
+func LastSignatures(state state.State) (*Signatures, error) {
+	var signatures []crypto.Signature
+
+	height, err := state.Height()
+	if err != nil {
+		zap.S().Error(err)
+		return nil, err
+	}
+
+	for i := 0; i < 100 && height > 0; i++ {
+		sig, err := state.HeightToBlockID(height)
+		if err != nil {
+			zap.S().Error(err)
+			return nil, err
+		}
+		signatures = append(signatures, sig)
+		height -= 1
+	}
+	return NewSignatures(signatures...), nil
+}
