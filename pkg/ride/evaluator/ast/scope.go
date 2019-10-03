@@ -257,6 +257,7 @@ func functionsV2() map[string]Expr {
 	fns["Address"] = FunctionFromPredefined(UserAddress, 1)
 	fns["Alias"] = FunctionFromPredefined(UserAlias, 1)
 	fns["DataEntry"] = FunctionFromPredefined(DataEntry, 2)
+	fns["AssetPair"] = FunctionFromPredefined(AssetPair, 2)
 
 	return fns
 }
@@ -342,11 +343,7 @@ func VariablesV2() map[string]Expr {
 	v := VariablesV1()
 	v["Sell"] = NewSell()
 	v["Buy"] = NewBuy()
-	return v
-}
 
-func VariablesV3() map[string]Expr {
-	v := VariablesV2()
 	v["CEILING"] = CeilingExpr{}
 	v["FLOOR"] = FloorExpr{}
 	v["HALFEVEN"] = HalfEvenExpr{}
@@ -355,6 +352,13 @@ func VariablesV3() map[string]Expr {
 	v["HALFUP"] = HalfUpExpr{}
 	v["HALFDOWN"] = HalfDownExpr{}
 
+	v["nil"] = Exprs(nil)
+	v["unit"] = NewUnit()
+	return v
+}
+
+func VariablesV3() map[string]Expr {
+	v := VariablesV2()
 	v["NOALG"] = NoAlgExpr{}
 	v["MD5"] = MD5Expr{}
 	v["SHA1"] = SHA1Expr{}
@@ -367,8 +371,6 @@ func VariablesV3() map[string]Expr {
 	v["SHA3384"] = SHA3384Expr{}
 	v["SHA3512"] = SHA3512Expr{}
 
-	v["nil"] = Exprs(nil)
-	v["unit"] = NewUnit()
 	v["this"] = NewUnit()
 	v["lastBlock"] = NewUnit()
 	return v

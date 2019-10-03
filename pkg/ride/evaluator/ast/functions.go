@@ -557,7 +557,7 @@ func NativeTakeBytes(s Scope, e Exprs) (Expr, error) {
 		return nil, errors.Errorf("%s expected second argument to be *LongExpr, found %T", funcName, rs[1])
 	}
 	l := int(length.Value)
-	if l >= len(bts.Value) {
+	if l > len(bts.Value) {
 		return nil, errors.Errorf("%s index %d out of range", funcName, length.Value)
 	}
 	if l < 0 {
@@ -677,7 +677,7 @@ func NativeTakeStrings(s Scope, e Exprs) (Expr, error) {
 	runeStr := []rune(str.Value)
 	runeLen := len(runeStr)
 	l := int(length.Value)
-	if l >= runeLen {
+	if l > runeLen {
 		return nil, errors.Errorf("%s index %d out of range", funcName, l)
 	}
 	if l < 0 {
@@ -835,6 +835,8 @@ func NativeAssetBalance(s Scope, e Exprs) (Expr, error) {
 		r = proto.NewRecipientFromAddress(proto.Address(a))
 	case AliasExpr:
 		r = proto.NewRecipientFromAlias(proto.Alias(a))
+	case RecipientExpr:
+		r = proto.Recipient(a)
 	default:
 		return nil, errors.Errorf("%s first argument expected to be AddressExpr or AliasExpr, found %T", funcName, addressOrAliasExpr)
 	}
@@ -1536,6 +1538,18 @@ func DataEntry(s Scope, e Exprs) (Expr, error) {
 	default:
 		return nil, errors.Errorf("%s: unsupported value type %T", funcName, t)
 	}
+}
+
+func AssetPair(s Scope, e Exprs) (Expr, error) {
+	const funcName = "AssetPair"
+	if l := len(e); l != 2 {
+		return nil, errors.Errorf("%s: invalid params, expected 2, passed %d", funcName, l)
+	}
+	rs, err := e.EvaluateAll(s)
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	return NewAssetPair(rs[0], rs[1]), nil
 }
 
 func SimpleTypeConstructorFactory(name string, expr Expr) Callable {
