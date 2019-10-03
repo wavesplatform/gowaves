@@ -854,12 +854,14 @@ func (a AddressExpr) Evaluate(Scope) (Expr, error) {
 }
 
 func (a AddressExpr) Eq(other Expr) (bool, error) {
-	b, ok := other.(AddressExpr)
-	if !ok {
-		return false, errors.Errorf("trying to compare AddressExpr with %T", other)
+	switch o := other.(type) {
+	case RecipientExpr:
+		return o.Address != nil && bytes.Equal(a[:], o.Address.Bytes()), nil
+	case AddressExpr:
+		return bytes.Equal(a[:], o[:]), nil
+	default:
+		return false, errors.Errorf("trying to compare %T with %T", a, other)
 	}
-
-	return bytes.Equal(a[:], b[:]), nil
 }
 
 func (a AddressExpr) InstanceOf() string {
@@ -925,11 +927,14 @@ func (a AliasExpr) Evaluate(Scope) (Expr, error) {
 }
 
 func (a AliasExpr) Eq(other Expr) (bool, error) {
-	if b, ok := other.(AliasExpr); ok {
-		return proto.Alias(a).String() == proto.Alias(b).String(), nil
+	switch o := other.(type) {
+	case RecipientExpr:
+		return o.Alias != nil && proto.Alias(a).String() == o.Alias.String(), nil
+	case AliasExpr:
+		return proto.Alias(a).String() == proto.Alias(o).String(), nil
+	default:
+		return false, errors.Errorf("trying to compare %T with %T", a, other)
 	}
-
-	return false, errors.Errorf("trying to compare %T with %T", a, other)
 }
 
 func (a AliasExpr) InstanceOf() string {
@@ -994,7 +999,7 @@ func (a RecipientExpr) Write(w io.Writer) {
 func (a RecipientExpr) Eq(other Expr) (bool, error) {
 	switch o := other.(type) {
 	case RecipientExpr:
-		return a.Alias == o.Alias && a.Address == o.Address, nil
+		return a.Alias == o.Alias || a.Address == o.Address, nil
 	case AddressExpr:
 		return *a.Address == proto.Address(o), nil
 	case AliasExpr:
