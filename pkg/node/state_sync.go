@@ -8,23 +8,24 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/node/peer_manager"
 	. "github.com/wavesplatform/gowaves/pkg/p2p/peer"
-	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/services"
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"github.com/wavesplatform/gowaves/pkg/types"
-	"github.com/wavesplatform/gowaves/pkg/util/cancellable"
 	"go.uber.org/zap"
 )
+
+type interrupt = chan struct{}
 
 type StateSync struct {
 	peerManager  peer_manager.PeerManager
 	stateManager state.State
 	subscribe    *Subscribe
-	interrupt    chan struct{}
+	interrupt    interrupt
 	scheduler    types.Scheduler
 	blockApplier types.BlockApplier
 	interrupter  types.MinerInterrupter
 	syncCh       chan struct{}
+	services     services.Services
 }
 
 func NewStateSync(services services.Services, subscribe *Subscribe, interrupter types.MinerInterrupter) *StateSync {
@@ -37,6 +38,7 @@ func NewStateSync(services services.Services, subscribe *Subscribe, interrupter 
 		blockApplier: services.BlockApplier,
 		interrupter:  interrupter,
 		syncCh:       make(chan struct{}, 20),
+		services:     services,
 	}
 }
 
@@ -57,6 +59,7 @@ func (a *StateSync) Run(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-a.syncCh:
+			zap.S().Info("StateSync.Run: <-a.syncCh")
 			a.run(ctx)
 		}
 	}
@@ -68,48 +71,37 @@ func (a *StateSync) run(ctx context.Context) {
 		if err != nil {
 			return
 		}
-		_ = a.sync(p)
+		_ = a.sync(ctx, p)
 	}
 }
 
-func (a *StateSync) sync(p Peer) error {
-	messCh, unsubscribe := a.subscribe.Subscribe(p, &proto.SignaturesMessage{})
-	defer unsubscribe()
-
-	sigs, err := a.askSignatures(p)
+func (a *StateSync) sync(ctx context.Context, p Peer) error {
+	ctx, cancel := context.WithCancel(ctx)
+	sigs, err := LastSignatures(a.stateManager)
 	if err != nil {
+		zap.S().Error(err)
+		cancel()
 		return err
 	}
 
-	select {
-	case <-a.interrupt:
-		return errors.Errorf("interrupt error")
-	case <-time.After(15 * time.Second):
-		// TODO handle timeout
-		zap.S().Info("timeout waiting &proto.SignaturesMessage{}")
-		return TimeoutErr
-	case received := <-messCh:
-		mess := received.(*proto.SignaturesMessage)
-		downloadSignatures(mess, sigs, p, a.subscribe, a.blockApplier, a.interrupter, a.scheduler)
+	errCh := make(chan error, 2)
+	incoming := make(chan crypto.Signature, 256)
+
+	go func() {
+		errCh <- PreloadSignatures(ctx, incoming, p, sigs, a.subscribe)
+	}()
+	go func() {
+		errCh <- downloadBlocks(ctx, incoming, p, a.subscribe, a.services, a.interrupter)
+	}()
+
+	err = <-errCh
+	if err != nil {
+		// TODO switch on error type, maybe suspend node
+		zap.S().Error(err)
 	}
+	cancel()
 
 	return nil
-}
-
-// Send GetSignaturesMessage to peer with 100 last signatures
-func (a *StateSync) askSignatures(p Peer) (*Signatures, error) {
-	sigs, err := a.lastSignatures()
-	if err != nil {
-		zap.S().Error(err)
-		return nil, err
-	}
-
-	send := &proto.GetSignaturesMessage{
-		Blocks: sigs.Signatures(),
-	}
-
-	p.SendMessage(send)
-	return sigs, nil
 }
 
 func (a *StateSync) getPeerWithHighestScore() (Peer, error) {
@@ -132,120 +124,81 @@ func (a *StateSync) getPeerWithHighestScore() (Peer, error) {
 	return p, nil
 }
 
-// get last 100 signatures from db, from highest to lowest
-func (a *StateSync) lastSignatures() (*Signatures, error) {
-	var signatures []crypto.Signature
-
-	// getting signatures
-	height, err := a.stateManager.Height()
-	if err != nil {
-		zap.S().Error(err)
-		return nil, err
-	}
-
-	for i := 0; i < 100 && height > 0; i++ {
-		select {
-		case <-a.interrupt:
-			return nil, errors.Errorf("interrupt")
-		default:
-		}
-
-		sig, err := a.stateManager.HeightToBlockID(height)
-		if err != nil {
-			zap.S().Error(err)
-			return nil, err
-		}
-		signatures = append(signatures, sig)
-		height -= 1
-	}
-	return NewSignatures(signatures), nil
-}
-
 func (a *StateSync) Close() {
 	close(a.interrupt)
 }
 
-func downloadSignatures(
-	receivedSignatures *proto.SignaturesMessage,
-	blockSignatures *Signatures,
+func downloadBlocks(
+	ctx context.Context,
+	signaturesCh chan crypto.Signature,
 	p Peer,
 	subscribe *Subscribe,
-	applier types.BlockApplier,
-	interrupt types.MinerInterrupter,
-	scheduler types.Scheduler) {
+	services services.Services,
+	interrupt types.MinerInterrupter) error {
 
-	defer scheduler.Reschedule()
-	var sigs []crypto.Signature
-	for _, sig := range receivedSignatures.Signatures {
-		if !blockSignatures.Exists(sig) {
-			sigs = append(sigs, sig)
-		}
-	}
+	defer services.Scheduler.Reschedule()
 
-	ch := make(chan blockBytes, len(sigs))
+	errCh := make(chan error, 1)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	subscribeCh, unsubscribe := subscribe.Subscribe(p, &proto.BlockMessage{})
-	defer unsubscribe()
-	defer cancel()
+	receivedBlocksCh := make(chan blockBytes, 256)
+
+	downloader := newBlockDownloader(64, p, subscribe, receivedBlocksCh)
+	go downloader.run(ctx)
 
 	go func() {
-		e := newExpectedBlocks(sigs, ch)
-		sendBulk(sigs, p)
-
-		// expect that all messages will income in 2 minutes
-		timeout := time.After(120 * time.Second)
-
-		// wait until we receive all signatures
-		for e.hasNext() {
+		for {
 			select {
-			case <-timeout:
-				return
-			case blockMessage := <-subscribeCh:
-				bts := blockMessage.(*proto.BlockMessage).BlockBytes
-				err := e.add(bts)
-				if err != nil {
-					zap.S().Warn(err)
-				}
 			case <-ctx.Done():
 				return
+			case <-time.After(15 * time.Second):
+				// TODO handle timeout
+				zap.S().Info("timeout waiting &proto.SignaturesMessage{}")
+				errCh <- TimeoutErr
+				return
+			case sig := <-signaturesCh:
+				downloader.download(sig)
 			}
 		}
 	}()
 
-	for i := 0; i < len(sigs); i++ {
-
-		timeout := time.After(30 * time.Second)
-
-		// ask block again after 5 second
-		cancel := cancellable.After(5*time.Second, func() {
-			p.SendMessage(&proto.GetBlockMessage{BlockID: sigs[i]})
-		})
-
-		select {
-		case <-timeout:
-			// TODO HANDLE timeout, maybe block peer ot other
-			zap.S().Error("timeout getting block", sigs[i])
-			cancel()
-			return
-
-		case bts := <-ch:
-			cancel()
-
-			interrupt.Interrupt()
-			err := applier.ApplyBytes(bts)
+	go func() {
+		for {
+			score, err := services.Peers.Score(p)
 			if err != nil {
-				zap.S().Error(err)
-				continue
+				errCh <- err
+				return
+			}
+
+			curScore, err := services.State.CurrentScore()
+			if err != nil {
+				errCh <- err
+				return
+			}
+
+			if score.Cmp(curScore) == 0 {
+				errCh <- nil
+				return
+			}
+
+			select {
+			case <-ctx.Done():
+				return
+
+			case bts := <-receivedBlocksCh:
+				interrupt.Interrupt()
+				err := services.BlockApplier.ApplyBytes(bts)
+				if err != nil {
+					errCh <- err
+					return
+				}
 			}
 		}
-	}
-}
+	}()
 
-func sendBulk(sigs []crypto.Signature, p Peer) {
-	bulkMessages := proto.BulkMessage{}
-	for _, sig := range sigs {
-		bulkMessages = append(bulkMessages, &proto.GetBlockMessage{BlockID: sig})
+	select {
+	case mess := <-errCh:
+		return mess
+	case <-ctx.Done():
+		return ctx.Err()
 	}
-	p.SendMessage(bulkMessages)
 }

@@ -104,6 +104,34 @@ func NewVariablesFromOrder(scheme proto.Scheme, tx proto.Order) (map[string]Expr
 	return out, nil
 }
 
+func NewObjectFromBlockInfo(info proto.BlockInfo) Expr {
+	m := make(map[string]Expr)
+	m["timestamp"] = NewLong(int64(info.Timestamp))
+	m["height"] = NewLong(int64(info.Height))
+	m["baseTarget"] = NewLong(int64(info.BaseTarget))
+	m["generationSignature"] = NewBytes(info.GenerationSignature.Bytes())
+	m["generator"] = NewBytes(util.Dup(info.Generator.Bytes()))
+	m["generatorPublicKey"] = NewBytes(util.Dup(info.GeneratorPublicKey.Bytes()))
+	return NewObject(m)
+}
+
+func newMapAssetInfo(info proto.AssetInfo) object {
+	obj := newObject()
+	obj["id"] = NewBytes(info.ID.Bytes())
+	obj["quantity"] = NewLong(int64(info.Quantity))
+	obj["decimals"] = NewLong(int64(info.Decimals))
+	obj["issuer"] = NewAddressFromProtoAddress(info.Issuer)
+	obj["issuerPublicKey"] = NewBytes(util.Dup(info.IssuerPublicKey.Bytes()))
+	obj["reissuable"] = NewBoolean(info.Reissuable)
+	obj["scripted"] = NewBoolean(info.Scripted)
+	obj["sponsored"] = NewBoolean(info.Sponsored)
+	return obj
+}
+
+func NewObjectFromAssetInfo(info proto.AssetInfo) Expr {
+	return NewObject(newMapAssetInfo(info))
+}
+
 func makeProofsFromSignature(sig *crypto.Signature) Exprs {
 	out := make([]Expr, 8)
 	for i := 0; i < 8; i++ {

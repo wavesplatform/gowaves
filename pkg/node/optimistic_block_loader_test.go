@@ -1,9 +1,13 @@
 package node
 
 import (
+	"context"
+	"testing"
+	"time"
+
 	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
-	"testing"
+	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
 func TestExpectedBlocks(t *testing.T) {
@@ -43,4 +47,43 @@ func TestExpectedBlocks(t *testing.T) {
 	default:
 		t.Fatal("no block")
 	}
+}
+
+type peerImpl struct {
+}
+
+func (a *peerImpl) ID() string {
+	return "aaa"
+}
+
+func (a *peerImpl) SendMessage(message proto.Message) {}
+
+type subscriberImpl struct {
+	ch chan proto.Message
+}
+
+func (a subscriberImpl) Subscribe(p id, responseMessage proto.Message) (chan proto.Message, func()) {
+	return a.ch, func() {}
+}
+
+func TestPreloadSignatures(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	sig1 := crypto.MustSignatureFromBase58("3EQ3k2n8KtSVVSsNfYbGp2LLwTc45SYWEACcME9KjLKCZSSeuVbVtdxroVysAJRdpoP3tDpy9MNTJMj6TjZ4b4aV")
+	sig2 := crypto.MustSignatureFromBase58("ygSR7JmuxSN86VWLeaCx3mu8VtgRkUdh29s5ANtTAW7Lu5mans3WcNWGGWGu1mMxu9cS1HMRNMnr3bV9nWPEPKE")
+	incoming := make(chan crypto.Signature, 10)
+
+	last := NewSignatures(sig1)
+	ch := make(chan proto.Message, 10)
+	subscribe := &subscriberImpl{ch: ch}
+
+	ch <- &proto.SignaturesMessage{
+		Signatures: []crypto.Signature{sig2},
+	}
+	go func() {
+		<-time.After(500 * time.Millisecond)
+		cancel()
+	}()
+	_ = PreloadSignatures(ctx, incoming, &peerImpl{}, last, subscribe)
+
+	require.Equal(t, sig2, <-incoming)
 }

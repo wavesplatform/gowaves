@@ -1,11 +1,15 @@
 package node
 
 import (
+	"context"
 	"sync"
+	"time"
 
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"go.uber.org/zap"
 )
 
 type blockBytes []byte
@@ -64,4 +68,168 @@ func (a *expectedBlocks) hasNext() bool {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	return a.curPosition < len(a.lst)
+}
+
+type sigs struct {
+	sigSequence    []crypto.Signature
+	uniqSignatures map[crypto.Signature]blockBytes
+	mu             sync.Mutex
+}
+
+func newSigs() *sigs {
+	return &sigs{
+		sigSequence:    nil,
+		uniqSignatures: make(map[crypto.Signature]blockBytes),
+		mu:             sync.Mutex{},
+	}
+}
+
+func (a *sigs) contains(sig crypto.Signature) bool {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	_, ok := a.uniqSignatures[sig]
+	return ok
+}
+
+func (a *sigs) setBytes(sig crypto.Signature, b blockBytes) {
+	a.mu.Lock()
+	a.uniqSignatures[sig] = b
+	a.mu.Unlock()
+}
+
+func (a *sigs) pop() (crypto.Signature, blockBytes, bool) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if len(a.sigSequence) == 0 {
+		return crypto.Signature{}, nil, false
+	}
+	firstSig := a.sigSequence[0]
+	bts := a.uniqSignatures[firstSig]
+	if bts != nil {
+		delete(a.uniqSignatures, firstSig)
+		a.sigSequence = a.sigSequence[1:]
+		return firstSig, bts, true
+	}
+	return crypto.Signature{}, nil, false
+}
+
+// true - added, false - not added
+func (a *sigs) add(sig crypto.Signature) bool {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	// already contains
+	if _, ok := a.uniqSignatures[sig]; ok {
+		return false
+	}
+	a.sigSequence = append(a.sigSequence, sig)
+	a.uniqSignatures[sig] = nil
+	return true
+}
+
+type blockDownload struct {
+	threads   chan int
+	sigs      *sigs
+	p         peer.Peer
+	subscribe *Subscribe
+	out       chan blockBytes
+}
+
+func newBlockDownloader(workersCount int, p peer.Peer, subscribe *Subscribe, out chan blockBytes) *blockDownload {
+	return &blockDownload{
+		threads:   make(chan int, workersCount),
+		sigs:      newSigs(),
+		p:         p,
+		subscribe: subscribe,
+		out:       out,
+	}
+}
+
+func (a *blockDownload) download(sig crypto.Signature) {
+	if a.sigs.add(sig) {
+		a.threads <- 1
+		go func() {
+			a.p.SendMessage(&proto.GetBlockMessage{BlockID: sig})
+		}()
+	}
+}
+
+func (a *blockDownload) run(ctx context.Context) {
+	subscribeCh, unsubscribe := a.subscribe.Subscribe(a.p, &proto.BlockMessage{})
+	defer unsubscribe()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case mess := <-subscribeCh:
+			bb := mess.(*proto.BlockMessage).BlockBytes
+			sig, err := proto.BlockGetSignature(bb)
+			if err != nil {
+				continue
+			}
+			// we are not waiting for this sig
+			if !a.sigs.contains(sig) {
+				continue
+			}
+			a.sigs.setBytes(sig, bb)
+			<-a.threads
+
+			for {
+				_, bts, ok := a.sigs.pop()
+				if ok {
+					select {
+					case a.out <- bts:
+					case <-ctx.Done():
+						return
+					}
+					continue
+				}
+				break
+			}
+		}
+	}
+}
+
+type sendMessage interface {
+	id
+	SendMessage(proto.Message)
+}
+
+type subscriber interface {
+	Subscribe(p id, responseMessage proto.Message) (chan proto.Message, func())
+}
+
+func PreloadSignatures(ctx context.Context, out chan crypto.Signature, p sendMessage, lastSignatures *Signatures, subscribe subscriber) error {
+	messCh, unsubscribe := subscribe.Subscribe(p, &proto.SignaturesMessage{})
+	defer unsubscribe()
+	for {
+		send := &proto.GetSignaturesMessage{
+			Blocks: lastSignatures.Signatures(),
+		}
+		p.SendMessage(send)
+
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(15 * time.Second):
+			// TODO handle timeout
+			zap.S().Info("timeout waiting &proto.SignaturesMessage{}")
+			return TimeoutErr
+		case received := <-messCh:
+			mess := received.(*proto.SignaturesMessage)
+			var newSigs []crypto.Signature
+			for _, sig := range mess.Signatures {
+				if lastSignatures.Exists(sig) {
+					continue
+				}
+				newSigs = append(newSigs, sig)
+				select {
+				case out <- sig:
+				case <-ctx.Done():
+					return ctx.Err()
+				}
+			}
+			lastSignatures = NewSignatures(newSigs...).Revert()
+		}
+	}
 }

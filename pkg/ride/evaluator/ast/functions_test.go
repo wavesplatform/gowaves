@@ -1220,14 +1220,16 @@ func TestNativeBlockInfoByHeight(t *testing.T) {
 }
 
 func TestNativeAssetInfo(t *testing.T) {
-	tx := byte_helpers.IssueV1.Transaction.Clone()
-	s := mockstate.State{
-		TransactionsByID: map[string]proto.Transaction{tx.ID.String(): tx},
+	info := proto.AssetInfo{
+		ID: crypto.MustDigestFromBase58("6a1hWT8QNGw8wnacXQ8vT2YEFLuxRxVpEuaaSf6AbSvU"),
 	}
-	rs, err := NativeAssetInfo(newScopeWithState(s), Params(NewBytes(tx.ID.Bytes())))
+	s := mockstate.State{
+		Assets: map[crypto.Digest]proto.AssetInfo{info.ID: info},
+	}
+	rs, err := NativeAssetInfo(newScopeWithState(s), Params(NewBytes(info.ID.Bytes())))
 	require.NoError(t, err)
 	v := rs.(Getable)
-	require.Equal(t, NewBytes(tx.ID.Bytes()), ok(v.Get("id")))
+	require.Equal(t, NewBytes(info.ID.Bytes()), ok(v.Get("id")))
 }
 
 func TestNativeParseBlockHeader(t *testing.T) {

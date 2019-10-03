@@ -68,6 +68,10 @@ func (a *MockStateManager) Header(block crypto.Signature) (*proto.BlockHeader, e
 	panic("implement me")
 }
 
+func (a *MockStateManager) NewestHeaderByHeight(height uint64) (*proto.BlockHeader, error) {
+	panic("implement me")
+}
+
 func (a *MockStateManager) HeaderByHeight(height uint64) (*proto.BlockHeader, error) {
 	rs, err := a.BlockByHeight(height)
 	if err != nil {
@@ -242,6 +246,14 @@ func (a *MockStateManager) AssetIsSponsored(assetID crypto.Digest) (bool, error)
 	panic("implement me")
 }
 
+func (a *MockStateManager) NewestAssetInfo(assetID crypto.Digest) (*proto.AssetInfo, error) {
+	panic("implement me")
+}
+
+func (a *MockStateManager) AssetInfo(assetID crypto.Digest) (*proto.AssetInfo, error) {
+	panic("implement me")
+}
+
 func (a *MockStateManager) IsNotFound(err error) bool {
 	panic("implement me")
 }
@@ -334,6 +346,10 @@ func newMockStateWithGenesis() *MockStateManager {
 
 type mockPeerManager struct {
 	connected map[string]peer.Peer
+}
+
+func (a *mockPeerManager) Score(p peer.Peer) (*proto.Score, error) {
+	panic("implement me")
 }
 
 func (a *mockPeerManager) PeerWithHighestScore() (peer.Peer, *big.Int, bool) {

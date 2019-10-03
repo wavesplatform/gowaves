@@ -1179,20 +1179,15 @@ func NativeAssetInfo(s Scope, e Exprs) (Expr, error) {
 	if !ok {
 		return nil, errors.Errorf("%s expected first argument to be *BytesExpr, found %T", funcName, first)
 	}
-	tx, err := s.State().NewestTransactionByID(id.Value)
+	assetId, err := crypto.NewDigestFromBytes(id.Value)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
-	//TODO: Do not pass transaction here, replace with passing it's ID
-	issueTx, ok := tx.(proto.IIssueTransaction)
-	if !ok {
-		return nil, errors.Errorf("%s expected first argument to be proto.IIssueTransaction, found %T", funcName, tx)
-	}
-	obj, err := newMapAssetInfo(s.Scheme(), s.State(), issueTx)
+	info, err := s.State().NewestAssetInfo(assetId)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
-	return NewAssetInfo(obj), nil
+	return NewAssetInfo(newMapAssetInfo(*info)), nil
 }
 
 //1005:
@@ -1210,7 +1205,7 @@ func NativeBlockInfoByHeight(s Scope, e Exprs) (Expr, error) {
 		return nil, errors.Errorf("%s expected first argument to be *LongExpr, found %T", funcName, first)
 	}
 
-	h, err := s.State().HeaderByHeight(proto.Height(height.Value))
+	h, err := s.State().NewestHeaderByHeight(proto.Height(height.Value))
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
