@@ -20,6 +20,7 @@ type Scope interface {
 	Initial() Scope
 	SetTransaction(transaction map[string]Expr)
 	SetHeight(height uint64)
+	SetThis(this Expr)
 	evaluation(string) (evaluation, bool)
 	setEvaluation(string, evaluation)
 	validMessageLength(len int) bool
@@ -136,6 +137,14 @@ func (a *ScopeImpl) SetHeight(height uint64) {
 	a.expressions["height"] = NewLong(int64(height))
 }
 
+func (a *ScopeImpl) SetThis(this Expr) {
+	a.expressions["this"] = this
+}
+
+func (a *ScopeImpl) SetLastBlockInfo(lastBlock Expr) {
+	a.expressions["lastBlock"] = lastBlock
+}
+
 func (a *ScopeImpl) evaluation(name string) (evaluation, bool) {
 	if a.evaluations != nil {
 		if v, ok := a.evaluations[name]; ok {
@@ -149,9 +158,6 @@ func (a *ScopeImpl) evaluation(name string) (evaluation, bool) {
 	}
 }
 
-func EmptyFunctions() Functions {
-	return Functions{}
-}
 func (a *ScopeImpl) setEvaluation(name string, e evaluation) {
 	if a.evaluations == nil {
 		a.evaluations = make(map[string]evaluation)
@@ -329,7 +335,7 @@ func functionsV3() map[string]Expr {
 }
 
 func VariablesV1() map[string]Expr {
-	return make(map[string]Expr)
+	return map[string]Expr{"tx": NewUnit()}
 }
 
 func VariablesV2() map[string]Expr {
@@ -363,6 +369,8 @@ func VariablesV3() map[string]Expr {
 
 	v["nil"] = Exprs(nil)
 	v["unit"] = NewUnit()
+	v["this"] = NewUnit()
+	v["lastBlock"] = NewUnit()
 	return v
 }
 

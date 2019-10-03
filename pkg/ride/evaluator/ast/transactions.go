@@ -104,6 +104,30 @@ func NewVariablesFromOrder(scheme proto.Scheme, tx proto.Order) (map[string]Expr
 	return out, nil
 }
 
+func NewObjectFromBlockInfo(info proto.BlockInfo) Expr {
+	m := make(map[string]Expr)
+	m["timestamp"] = NewLong(int64(info.Timestamp))
+	m["height"] = NewLong(int64(info.Height))
+	m["baseTarget"] = NewLong(int64(info.BaseTarget))
+	m["generationSignature"] = NewBytes(info.GenerationSignature.Bytes())
+	m["generator"] = NewBytes(util.Dup(info.Generator.Bytes()))
+	m["generatorPublicKey"] = NewBytes(util.Dup(info.GeneratorPublicKey.Bytes()))
+	return NewObject(m)
+}
+
+func NewObjectFromAssetInfo(info proto.AssetInfo) Expr {
+	m := make(map[string]Expr)
+	m["id"] = NewBytes(info.ID.Bytes())
+	m["quantity"] = NewLong(int64(info.Quantity))
+	m["decimals"] = NewLong(int64(info.Decimals))
+	m["issuer"] = NewRecipientFromProtoRecipient(info.Issuer)
+	m["issuerPublicKey"] = NewBytes(util.Dup(info.IssuerPublicKey.Bytes()))
+	m["reissuable"] = NewBoolean(info.Reissuable)
+	m["scripted"] = NewBoolean(info.Scripted)
+	m["sponsored"] = NewBoolean(info.Sponsored)
+	return NewObject(m)
+}
+
 func makeProofsFromSignature(sig *crypto.Signature) Exprs {
 	out := make([]Expr, 8)
 	for i := 0; i < 8; i++ {

@@ -41,6 +41,10 @@ func Params(params ...Expr) Exprs {
 	return NewExprs(params...)
 }
 
+func DataEntries(params ...*DataEntryExpr) []*DataEntryExpr {
+	return params
+}
+
 func NativeGtLong(s Scope, e Exprs) (Expr, error) {
 	return mathLong("NativeGtLong", func(i int64, i2 int64) (Expr, error) {
 		return NewBoolean(i > i2), nil
@@ -1897,12 +1901,14 @@ func UserWriteSet(s Scope, e Exprs) (Expr, error) {
 		return nil, errors.Errorf("%s: first argument expected to be Exprs, found %T", funcName, rs[0])
 	}
 
+	var dataEntries []*DataEntryExpr
 	for _, expr := range listOfDataEntries {
 		if expr.InstanceOf() != "DataEntry" {
 			return nil, errors.Errorf("Expected instance of DataEntry, found %s, %T", expr.InstanceOf(), expr)
 		}
+		dataEntries = append(dataEntries, expr.(*DataEntryExpr))
 	}
-	return NewWriteSet(listOfDataEntries), nil
+	return NewWriteSet(dataEntries...), nil
 }
 
 func UserTransferSet(s Scope, e Exprs) (Expr, error) {
@@ -1918,12 +1924,14 @@ func UserTransferSet(s Scope, e Exprs) (Expr, error) {
 	if !ok {
 		return nil, errors.Errorf("%s: first argument expected to be Exprs, found %T", funcName, rs[0])
 	}
+	var transfers []*ScriptTransferExpr
 	for _, expr := range listOfScriptTransfer {
 		if expr.InstanceOf() != "ScriptTransfer" {
 			return nil, errors.Errorf("Expected instance of ScriptTransfer, found %s, %T", expr.InstanceOf(), expr)
 		}
+		transfers = append(transfers, expr.(*ScriptTransferExpr))
 	}
-	return NewTransferSet(listOfScriptTransfer), nil
+	return NewTransferSet(transfers...), nil
 }
 
 func ScriptTransfer(s Scope, e Exprs) (Expr, error) {
