@@ -27,7 +27,7 @@ const (
 	blocksStorDir     = "blocks_storage"
 	keyvalueDir       = "key_value"
 
-	maxScriptsRunsInBlock = 100
+	maxScriptsRunsInBlock = 101
 )
 
 var empty struct{}
@@ -407,10 +407,26 @@ func (a *txAppender) checkScriptsRunsNum(scriptsRuns uint64) error {
 		return nil
 	} else if smartAccountsActivated {
 		if scriptsRuns > maxScriptsRunsInBlock {
-			return errors.Errorf("more sctips runs in block than allowed: %d > %d", scriptsRuns, maxScriptsRunsInBlock)
+			return errors.Errorf("more scripts runs in block than allowed: %d > %d", scriptsRuns, maxScriptsRunsInBlock)
 		}
 	}
 	return nil
+}
+
+func (a *txAppender) needToCheckOrdersSigs(transaction proto.Transaction, initialisation bool) (bool, bool, error) {
+	tx, ok := transaction.(proto.Exchange)
+	if !ok {
+		return false, false, nil
+	}
+	soScripted, err := a.orderIsScripted(tx.GetSellOrderFull(), initialisation)
+	if err != nil {
+		return false, false, err
+	}
+	boScripted, err := a.orderIsScripted(tx.GetBuyOrderFull(), initialisation)
+	if err != nil {
+		return false, false, err
+	}
+	return !soScripted, !boScripted, nil
 }
 
 func (a *txAppender) appendBlock(params *appendBlockParams) error {
@@ -428,6 +444,7 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	}
 	scriptsRuns := uint64(0)
 	for _, tx := range params.transactions {
+		// Detect what signatures must be checked for this transaction.
 		senderAddr, err := proto.NewAddressFromPublicKey(a.settings.AddressSchemeCharacter, tx.GetSenderPK())
 		if err != nil {
 			return err
@@ -441,11 +458,17 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 			// For transaction with SmartAccount we don't check signatures.
 			checkTxSig = false
 		}
+		checkSellOrder, checkBuyOrder, err := a.needToCheckOrdersSigs(tx, params.initialisation)
+		if err != nil {
+			return err
+		}
 		// Send transaction for signature/data verification.
 		task := &verifyTask{
-			taskType:   verifyTx,
-			tx:         tx,
-			checkTxSig: checkTxSig,
+			taskType:       verifyTx,
+			tx:             tx,
+			checkTxSig:     checkTxSig,
+			checkSellOrder: checkSellOrder,
+			checkBuyOrder:  checkBuyOrder,
 		}
 		select {
 		case verifyError := <-params.chans.errChan:
@@ -528,6 +551,18 @@ func (a *txAppender) applyAllDiffs(initialisation bool) error {
 	return nil
 }
 
+func (a *txAppender) checkUtxTxSig(tx proto.Transaction, scripted bool) error {
+	// Check tx signature and data.
+	checkSellOrder, checkBuyOrder, err := a.needToCheckOrdersSigs(tx, false)
+	if err != nil {
+		return err
+	}
+	if err := checkTx(tx, !scripted, checkSellOrder, checkBuyOrder); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (a *txAppender) validateSingleTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64) error {
 	dummy := make(map[string]struct{})
 	if err := a.checkDuplicateTxIds(tx, dummy, currentTimestamp); err != nil {
@@ -538,7 +573,7 @@ func (a *txAppender) validateSingleTx(tx proto.Transaction, currentTimestamp, pa
 		return err
 	}
 	// Check tx signature and data.
-	if err := checkTx(tx, !scripted); err != nil {
+	if err := a.checkUtxTxSig(tx, scripted); err != nil {
 		return err
 	}
 	// Check tx data against state.
@@ -586,7 +621,7 @@ func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, pare
 		return err
 	}
 	// Check tx signature and data.
-	if err := checkTx(tx, !scripted); err != nil {
+	if err := a.checkUtxTxSig(tx, scripted); err != nil {
 		return err
 	}
 	// Check tx data against state.

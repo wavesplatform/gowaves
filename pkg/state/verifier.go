@@ -27,19 +27,21 @@ func newVerifierChans() *verifierChans {
 }
 
 type verifyTask struct {
-	taskType   verifyTaskType
-	parentSig  crypto.Signature
-	block      *proto.Block
-	blockBytes []byte
-	tx         proto.Transaction
-	checkTxSig bool
+	taskType       verifyTaskType
+	parentSig      crypto.Signature
+	block          *proto.Block
+	blockBytes     []byte
+	tx             proto.Transaction
+	checkTxSig     bool
+	checkSellOrder bool
+	checkBuyOrder  bool
 }
 
-func checkTx(tx proto.Transaction, checkSig bool) error {
+func checkTx(tx proto.Transaction, checkTxSig, checkSellOrder, checkBuyOrder bool) error {
 	if ok, err := tx.Valid(); !ok {
 		return errors.Wrap(err, "invalid tx data")
 	}
-	if !checkSig {
+	if !checkTxSig {
 		return nil
 	}
 	switch t := tx.(type) {
@@ -84,9 +86,29 @@ func checkTx(tx proto.Transaction, checkSig bool) error {
 		if ok, _ := t.Verify(t.SenderPK); !ok {
 			return errors.New("exchange tx signature verification failed")
 		}
+		if checkSellOrder {
+			if ok, _ := t.SellOrder.Verify(t.SellOrder.SenderPK); !ok {
+				return errors.New("sell order signature verification failed")
+			}
+		}
+		if checkBuyOrder {
+			if ok, _ := t.BuyOrder.Verify(t.BuyOrder.SenderPK); !ok {
+				return errors.New("buy order signature verification failed")
+			}
+		}
 	case *proto.ExchangeV2:
 		if ok, _ := t.Verify(t.SenderPK); !ok {
 			return errors.New("exchange tx signature verification failed")
+		}
+		if checkSellOrder {
+			if ok, _ := t.SellOrder.Verify(t.SellOrder.GetSenderPK()); !ok {
+				return errors.New("sell order signature verification failed")
+			}
+		}
+		if checkBuyOrder {
+			if ok, _ := t.BuyOrder.Verify(t.BuyOrder.GetSenderPK()); !ok {
+				return errors.New("buy order signature verification failed")
+			}
 		}
 	case *proto.LeaseV1:
 		if ok, _ := t.Verify(t.SenderPK); !ok {
@@ -154,7 +176,7 @@ func handleTask(task *verifyTask) error {
 			return errors.New("invalid block signature")
 		}
 	case verifyTx:
-		if err := checkTx(task.tx, task.checkTxSig); err != nil {
+		if err := checkTx(task.tx, task.checkTxSig, task.checkSellOrder, task.checkBuyOrder); err != nil {
 			return err
 		}
 	}

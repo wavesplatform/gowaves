@@ -913,20 +913,6 @@ func (tx *ExchangeV1) Sign(secretKey crypto.SecretKey) error {
 
 //Verify checks that signature of the transaction is valid.
 func (tx *ExchangeV1) Verify(publicKey crypto.PublicKey) (bool, error) {
-	ok, err := tx.BuyOrder.Verify(tx.BuyOrder.SenderPK)
-	if err != nil {
-		return false, errors.Wrap(err, "failed to verify signature of BuyOrder")
-	}
-	if !ok {
-		return false, errors.New("invalid BuyOrder signature")
-	}
-	ok, err = tx.SellOrder.Verify(tx.SellOrder.SenderPK)
-	if err != nil {
-		return false, errors.Wrap(err, "failed to verify signature of SellOrder")
-	}
-	if !ok {
-		return false, errors.New("invalid SellOrder signature")
-	}
 	if tx.Signature == nil {
 		return false, errors.New("empty signature")
 	}
