@@ -170,11 +170,16 @@ func NativeMulLong(s Scope, e Exprs) (Expr, error) {
 
 // Integer division
 func NativeDivLong(s Scope, e Exprs) (Expr, error) {
-	return mathLong("NativeDivLong", func(i int64, i2 int64) (Expr, error) {
-		if i2 == 0 {
+	return mathLong("NativeDivLong", func(x int64, y int64) (Expr, error) {
+		if y == 0 {
 			return nil, errors.New("zero division")
 		}
-		return NewLong(i / i2), nil
+		r := x / y
+		// if the signs are different and modulo not zero, round down
+		if (x^y) < 0 && (r*y != x) {
+			r--
+		}
+		return NewLong(r), nil
 	}, s, e)
 }
 
