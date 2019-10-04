@@ -79,6 +79,10 @@ func TestNativeDivLong(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, NewLong(4), rs)
 
+	rs, err = NativeDivLong(newEmptyScopeV1(), Exprs{NewLong(-1), NewLong(20000)})
+	require.NoError(t, err)
+	assert.Equal(t, NewLong(-1), rs)
+
 	params2 := Exprs{NewLong(5), NewBoolean(true)}
 	_, err = NativeDivLong(newEmptyScopeV1(), params2)
 	require.Error(t, err)
