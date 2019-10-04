@@ -425,7 +425,7 @@ func NativeTransactionHeightByID(s Scope, e Exprs) (Expr, error) {
 	height, err := s.State().NewestTransactionHeightByID(bts.Value)
 	if err != nil {
 		if s.State().IsNotFound(err) {
-			return Unit{}, nil
+			return &Unit{}, nil
 		}
 		return nil, errors.Wrap(err, funcName)
 	}
@@ -836,16 +836,16 @@ func NativeAssetBalance(s Scope, e Exprs) (Expr, error) {
 	}
 	var r proto.Recipient
 	switch a := addressOrAliasExpr.(type) {
-	case AddressExpr:
-		r = proto.NewRecipientFromAddress(proto.Address(a))
-	case AliasExpr:
-		r = proto.NewRecipientFromAlias(proto.Alias(a))
-	case RecipientExpr:
-		r = proto.Recipient(a)
+	case *AddressExpr:
+		r = proto.NewRecipientFromAddress(proto.Address(*a))
+	case *AliasExpr:
+		r = proto.NewRecipientFromAlias(proto.Alias(*a))
+	case *RecipientExpr:
+		r = proto.Recipient(*a)
 	default:
 		return nil, errors.Errorf("%s first argument expected to be AddressExpr or AliasExpr, found %T", funcName, addressOrAliasExpr)
 	}
-	if _, ok := assetId.(Unit); ok {
+	if _, ok := assetId.(*Unit); ok {
 		balance, err := s.State().NewestAccountBalance(r, nil)
 		if err != nil {
 			return nil, errors.Wrap(err, funcName)
@@ -1152,7 +1152,7 @@ func NativeAddressFromRecipient(s Scope, e Exprs) (Expr, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
-	recipient, ok := first.(RecipientExpr)
+	recipient, ok := first.(*RecipientExpr)
 	if !ok {
 		return nil, errors.Errorf("%s expected first argument to be RecipientExpr, found %T", funcName, first)
 	}
@@ -1262,11 +1262,11 @@ func NativeAddressToString(s Scope, e Exprs) (Expr, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
-	addr, ok := rs.(AddressExpr)
+	addr, ok := rs.(*AddressExpr)
 	if !ok {
 		return nil, errors.Errorf("%s: first argument expected to be *AddressExpr, found %T", funcName, rs)
 	}
-	str := proto.Address(addr).String()
+	str := proto.Address(*addr).String()
 	return NewString(str), nil
 }
 
@@ -1296,7 +1296,7 @@ func UserIsDefined(s Scope, e Exprs) (Expr, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
-	if val.InstanceOf() == (Unit{}).InstanceOf() {
+	if val.InstanceOf() == (&Unit{}).InstanceOf() {
 		return NewBoolean(false), nil
 	}
 	return NewBoolean(true), nil
@@ -1311,7 +1311,7 @@ func UserExtract(s Scope, e Exprs) (Expr, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
-	if val.InstanceOf() == (Unit{}).InstanceOf() {
+	if val.InstanceOf() == (&Unit{}).InstanceOf() {
 		return NativeThrow(s, Params(NewString("extract() called on unit value")))
 	}
 	return val, nil
@@ -1876,7 +1876,7 @@ func UserValue(s Scope, e Exprs) (Expr, error) {
 	if err != nil {
 		return nil, errors.Wrapf(err, funcName)
 	}
-	if _, ok := rs[0].(Unit); ok {
+	if _, ok := rs[0].(*Unit); ok {
 		return nil, Throw{Message: DefaultThrowMessage}
 	}
 	return rs[0], nil
@@ -1895,7 +1895,7 @@ func UserValueOrErrorMessage(s Scope, e Exprs) (Expr, error) {
 	if !ok {
 		return nil, errors.Errorf("%s: second argument expected to be *StringExpr, found %T", funcName, rs[1])
 	}
-	if _, ok := rs[0].(Unit); ok {
+	if _, ok := rs[0].(*Unit); ok {
 		return nil, Throw{Message: msg.Value}
 	}
 	return rs[0], nil
@@ -1994,7 +1994,7 @@ func wrapWithExtract(c Callable, name string) Callable {
 		if err != nil {
 			return nil, errors.Wrap(err, name)
 		}
-		if _, ok := rs.(Unit); ok {
+		if _, ok := rs.(*Unit); ok {
 			return nil, Throw{Message: "failed to extract from Unit value"}
 		}
 		return rs, err
@@ -2051,10 +2051,10 @@ func extractRecipientAndKey(s Scope, e Exprs) (proto.Recipient, string, error) {
 	}
 	var r proto.Recipient
 	switch a := addOrAliasExpr.(type) {
-	case AliasExpr:
-		r = proto.NewRecipientFromAlias(proto.Alias(a))
-	case AddressExpr:
-		r = proto.NewRecipientFromAddress(proto.Address(a))
+	case *AliasExpr:
+		r = proto.NewRecipientFromAlias(proto.Alias(*a))
+	case *AddressExpr:
+		r = proto.NewRecipientFromAddress(proto.Address(*a))
 	default:
 		return proto.Recipient{}, "", errors.Errorf("expected first argument of types AliasExpr of AddressExpr, found %T", addOrAliasExpr)
 	}

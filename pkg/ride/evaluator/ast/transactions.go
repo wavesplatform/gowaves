@@ -536,10 +536,10 @@ func newVariablesFromExchangeV2(scheme proto.Scheme, tx *proto.ExchangeV2) (map[
 
 func makeOrderType(orderType proto.OrderType) Expr {
 	if orderType == proto.Buy {
-		return BuyExpr{}
+		return &BuyExpr{}
 	}
 	if orderType == proto.Sell {
-		return SellExpr{}
+		return &SellExpr{}
 	}
 	panic("invalid orderType")
 }

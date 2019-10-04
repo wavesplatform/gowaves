@@ -289,27 +289,27 @@ func functionsV3() map[string]Expr {
 	s["1208"] = FunctionFromPredefined(NativeLastIndexOfSubstringWithOffset, 3)
 
 	// Constructors for simple types
-	s["Ceiling"] = FunctionFromPredefined(SimpleTypeConstructorFactory("Ceiling", CeilingExpr{}), 0)
-	s["Floor"] = FunctionFromPredefined(SimpleTypeConstructorFactory("Floor", FloorExpr{}), 0)
-	s["HalfEven"] = FunctionFromPredefined(SimpleTypeConstructorFactory("HalfEven", HalfEvenExpr{}), 0)
-	s["Down"] = FunctionFromPredefined(SimpleTypeConstructorFactory("Down", DownExpr{}), 0)
-	s["Up"] = FunctionFromPredefined(SimpleTypeConstructorFactory("Up", UpExpr{}), 0)
-	s["HalfUp"] = FunctionFromPredefined(SimpleTypeConstructorFactory("HalfUp", HalfUpExpr{}), 0)
-	s["HalfDown"] = FunctionFromPredefined(SimpleTypeConstructorFactory("HalfDown", HalfDownExpr{}), 0)
+	s["Ceiling"] = FunctionFromPredefined(SimpleTypeConstructorFactory("Ceiling", &CeilingExpr{}), 0)
+	s["Floor"] = FunctionFromPredefined(SimpleTypeConstructorFactory("Floor", &FloorExpr{}), 0)
+	s["HalfEven"] = FunctionFromPredefined(SimpleTypeConstructorFactory("HalfEven", &HalfEvenExpr{}), 0)
+	s["Down"] = FunctionFromPredefined(SimpleTypeConstructorFactory("Down", &DownExpr{}), 0)
+	s["Up"] = FunctionFromPredefined(SimpleTypeConstructorFactory("Up", &UpExpr{}), 0)
+	s["HalfUp"] = FunctionFromPredefined(SimpleTypeConstructorFactory("HalfUp", &HalfUpExpr{}), 0)
+	s["HalfDown"] = FunctionFromPredefined(SimpleTypeConstructorFactory("HalfDown", &HalfDownExpr{}), 0)
 
-	s["NoAlg"] = FunctionFromPredefined(SimpleTypeConstructorFactory("NoAlg", NoAlgExpr{}), 0)
-	s["Md5"] = FunctionFromPredefined(SimpleTypeConstructorFactory("Md5", MD5Expr{}), 0)
-	s["Sha1"] = FunctionFromPredefined(SimpleTypeConstructorFactory("Sha1", SHA1Expr{}), 0)
-	s["Sha224"] = FunctionFromPredefined(SimpleTypeConstructorFactory("Sha224", SHA224Expr{}), 0)
-	s["Sha256"] = FunctionFromPredefined(SimpleTypeConstructorFactory("Sha256", SHA256Expr{}), 0)
-	s["Sha384"] = FunctionFromPredefined(SimpleTypeConstructorFactory("Sha384", SHA384Expr{}), 0)
-	s["Sha512"] = FunctionFromPredefined(SimpleTypeConstructorFactory("Sha512", SHA512Expr{}), 0)
-	s["Sha3224"] = FunctionFromPredefined(SimpleTypeConstructorFactory("Sha3224", SHA3224Expr{}), 0)
-	s["Sha3256"] = FunctionFromPredefined(SimpleTypeConstructorFactory("Sha3256", SHA3256Expr{}), 0)
-	s["Sha3384"] = FunctionFromPredefined(SimpleTypeConstructorFactory("Sha3384", SHA3384Expr{}), 0)
-	s["Sha3512"] = FunctionFromPredefined(SimpleTypeConstructorFactory("Sha3512", SHA3512Expr{}), 0)
+	s["NoAlg"] = FunctionFromPredefined(SimpleTypeConstructorFactory("NoAlg", &NoAlgExpr{}), 0)
+	s["Md5"] = FunctionFromPredefined(SimpleTypeConstructorFactory("Md5", &MD5Expr{}), 0)
+	s["Sha1"] = FunctionFromPredefined(SimpleTypeConstructorFactory("Sha1", &SHA1Expr{}), 0)
+	s["Sha224"] = FunctionFromPredefined(SimpleTypeConstructorFactory("Sha224", &SHA224Expr{}), 0)
+	s["Sha256"] = FunctionFromPredefined(SimpleTypeConstructorFactory("Sha256", &SHA256Expr{}), 0)
+	s["Sha384"] = FunctionFromPredefined(SimpleTypeConstructorFactory("Sha384", &SHA384Expr{}), 0)
+	s["Sha512"] = FunctionFromPredefined(SimpleTypeConstructorFactory("Sha512", &SHA512Expr{}), 0)
+	s["Sha3224"] = FunctionFromPredefined(SimpleTypeConstructorFactory("Sha3224", &SHA3224Expr{}), 0)
+	s["Sha3256"] = FunctionFromPredefined(SimpleTypeConstructorFactory("Sha3256", &SHA3256Expr{}), 0)
+	s["Sha3384"] = FunctionFromPredefined(SimpleTypeConstructorFactory("Sha3384", &SHA3384Expr{}), 0)
+	s["Sha3512"] = FunctionFromPredefined(SimpleTypeConstructorFactory("Sha3512", &SHA3512Expr{}), 0)
 
-	s["Unit"] = FunctionFromPredefined(SimpleTypeConstructorFactory("Unit", Unit{}), 0)
+	s["Unit"] = FunctionFromPredefined(SimpleTypeConstructorFactory("Unit", &Unit{}), 0)
 
 	// New user functions
 	s["@extrNative(1050)"] = FunctionFromPredefined(wrapWithExtract(NativeDataIntegerFromState, "UserDataIntegerValueFromState"), 2)
@@ -344,13 +344,13 @@ func VariablesV2() map[string]Expr {
 	v["Sell"] = NewSell()
 	v["Buy"] = NewBuy()
 
-	v["CEILING"] = CeilingExpr{}
-	v["FLOOR"] = FloorExpr{}
-	v["HALFEVEN"] = HalfEvenExpr{}
-	v["DOWN"] = DownExpr{}
-	v["UP"] = UpExpr{}
-	v["HALFUP"] = HalfUpExpr{}
-	v["HALFDOWN"] = HalfDownExpr{}
+	v["CEILING"] = &CeilingExpr{}
+	v["FLOOR"] = &FloorExpr{}
+	v["HALFEVEN"] = &HalfEvenExpr{}
+	v["DOWN"] = &DownExpr{}
+	v["UP"] = &UpExpr{}
+	v["HALFUP"] = &HalfUpExpr{}
+	v["HALFDOWN"] = &HalfDownExpr{}
 
 	v["nil"] = Exprs(nil)
 	v["unit"] = NewUnit()
@@ -359,17 +359,17 @@ func VariablesV2() map[string]Expr {
 
 func VariablesV3() map[string]Expr {
 	v := VariablesV2()
-	v["NOALG"] = NoAlgExpr{}
-	v["MD5"] = MD5Expr{}
-	v["SHA1"] = SHA1Expr{}
-	v["SHA224"] = SHA224Expr{}
-	v["SHA256"] = SHA256Expr{}
-	v["SHA384"] = SHA384Expr{}
-	v["SHA512"] = SHA512Expr{}
-	v["SHA3224"] = SHA3224Expr{}
-	v["SHA3256"] = SHA3256Expr{}
-	v["SHA3384"] = SHA3384Expr{}
-	v["SHA3512"] = SHA3512Expr{}
+	v["NOALG"] = &NoAlgExpr{}
+	v["MD5"] = &MD5Expr{}
+	v["SHA1"] = &SHA1Expr{}
+	v["SHA224"] = &SHA224Expr{}
+	v["SHA256"] = &SHA256Expr{}
+	v["SHA384"] = &SHA384Expr{}
+	v["SHA512"] = &SHA512Expr{}
+	v["SHA3224"] = &SHA3224Expr{}
+	v["SHA3256"] = &SHA3256Expr{}
+	v["SHA3384"] = &SHA3384Expr{}
+	v["SHA3512"] = &SHA3512Expr{}
 
 	v["this"] = NewUnit()
 	v["lastBlock"] = NewUnit()

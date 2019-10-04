@@ -20,13 +20,15 @@ func TestBooleanExpr_Eq(t *testing.T) {
 }
 
 func TestBuyExpr_Eq(t *testing.T) {
-	eq, err := BuyExpr{}.Eq(&BuyExpr{})
+	be := &BuyExpr{}
+	eq, err := be.Eq(&BuyExpr{})
 	require.NoError(t, err)
 	require.True(t, eq)
 }
 
 func TestSellExpr_Eq(t *testing.T) {
-	eq, err := SellExpr{}.Eq(&SellExpr{})
+	se := &SellExpr{}
+	eq, err := se.Eq(&SellExpr{})
 	require.NoError(t, err)
 	require.True(t, eq)
 }
