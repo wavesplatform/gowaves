@@ -725,11 +725,11 @@ func TestUserAddress(t *testing.T) {
 }
 
 func TestUserAlias(t *testing.T) {
-	s := "alias:T:testme"
+	s := "alias:W:testme"
 	alias, err := proto.NewAliasFromString(s)
 	require.NoError(t, err)
 
-	rs1, err := UserAlias(newEmptyScopeV1(), Params(NewString(s)))
+	rs1, err := UserAlias(newEmptyScopeV1(), Params(NewString("testme")))
 	require.NoError(t, err)
 	assert.Equal(t, NewAliasFromProtoAlias(*alias), rs1)
 }

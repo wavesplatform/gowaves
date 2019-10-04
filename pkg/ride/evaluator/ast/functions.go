@@ -1517,10 +1517,7 @@ func UserAlias(s Scope, e Exprs) (Expr, error) {
 	if !ok {
 		return nil, errors.Errorf("%s: first argument expected to be *BytesExpr, found %T", funcName, first)
 	}
-	alias, err := proto.NewAliasFromString(str.Value)
-	if err != nil {
-		return nil, errors.Wrap(err, funcName)
-	}
+	alias := proto.NewAlias(s.Scheme(), str.Value)
 	return NewAliasFromProtoAlias(*alias), nil
 }
 
