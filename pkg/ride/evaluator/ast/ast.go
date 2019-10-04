@@ -117,7 +117,7 @@ func (a *Script) Verify(scheme byte, state types.SmartState, transaction proto.T
 		}
 		return evalAsBool(fn.funcDecl.Body, curScope)
 	} else {
-		scope := NewScope(2, scheme, state)
+		scope := NewScope(a.Version, scheme, state)
 		scope.AddValue("tx", NewObject(txVars))
 		scope.SetHeight(height)
 		return evalAsBool(a.Verifier, scope)
@@ -285,7 +285,7 @@ func (a *FuncDeclaration) Write(w io.Writer) {
 }
 
 func (a *FuncDeclaration) Evaluate(s Scope) (Expr, error) {
-	s.AddValue(a.Name, NewFunction(a.Args, a.Body))
+	s.AddValue(a.Name, NewFunctionWithScope(a.Args, a.Body, s))
 	return a, nil
 }
 
@@ -474,6 +474,9 @@ func (a *FunctionCall) Evaluate(s Scope) (Expr, error) {
 		return nil, errors.Errorf("evaluate user function: function %s expects %d arguments, passed %d", a.Name, fn.Argc, a.Argc)
 	}
 	initial := s.Initial()
+	if fn.Scope != nil {
+		initial = fn.Scope
+	}
 	for i := 0; i < a.Argc; i++ {
 		evaluatedParam, err := a.Argv[i].Evaluate(s.Clone())
 		if err != nil {
@@ -493,9 +496,10 @@ func (a *FunctionCall) InstanceOf() string {
 }
 
 type Function struct {
-	Argc int
-	Argv []string
-	Body Expr
+	Argc  int
+	Argv  []string
+	Body  Expr
+	Scope Scope
 }
 
 func (a *Function) Write(w io.Writer) {
@@ -514,11 +518,12 @@ func (a *Function) InstanceOf() string {
 	return "Function"
 }
 
-func NewFunction(Argv []string, Body Expr) *Function {
+func NewFunctionWithScope(Argv []string, Body Expr, s Scope) *Function {
 	return &Function{
-		Argc: len(Argv),
-		Argv: Argv,
-		Body: Body,
+		Argc:  len(Argv),
+		Argv:  Argv,
+		Body:  Body,
+		Scope: s,
 	}
 }
 

@@ -41,7 +41,7 @@ func genBlocks(t *testing.T, to *blockDifferTestObjects) (*proto.Block, *proto.B
 	assert.NoError(t, err, "Block.Sign() failed")
 
 	// Create and sign child block.
-	txsRepr = proto.NewReprFromTransactions([]proto.Transaction{createIssueV1(t)})
+	txsRepr = proto.NewReprFromTransactions([]proto.Transaction{createIssueV1(t, 1000)})
 	genSig, err = consensus.GeneratorSignature(parent.GenSignature, testGlobal.minerInfo.pk)
 	assert.NoError(t, err, "GeneratorSignature() failed")
 	child, err := proto.CreateBlock(txsRepr, 1565694219944, parent.BlockSignature, testGlobal.minerInfo.pk, proto.NxtConsensus{BaseTarget: 66, GenSignature: genSig})

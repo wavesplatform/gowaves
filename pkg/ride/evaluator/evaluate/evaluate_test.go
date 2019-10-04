@@ -189,7 +189,6 @@ func TestFunctions(t *testing.T) {
 		scope  Scope
 		result bool
 	}{
-		//TODO: Test overlapping: {-1, `overlapping`, `let ref = 999; func g(a: Int) = ref; func f(ref: Int) = g(ref); f(1) == 999`, `AwQAAAADcmVmAAAAAAAAAAPnCgEAAAABZwAAAAEAAAABYQUAAAADcmVmCgEAAAABZgAAAAEAAAADcmVmCQEAAAABZwAAAAEFAAAAA3JlZgkAAAAAAAACCQEAAAABZgAAAAEAAAAAAAAAAAEAAAAAAAAAA+fjknmW`, defaultScope(3), true},
 		{-1, `parseIntValue`, `parseInt("12345") == 12345`, `AwkAAAAAAAACCQAEtgAAAAECAAAABTEyMzQ1AAAAAAAAADA57cmovA==`, defaultScope(3), true},
 		{-1, `value`, `let c = if true then 1 else Unit();value(c) == 1`, `AwQAAAABYwMGAAAAAAAAAAABCQEAAAAEVW5pdAAAAAAJAAAAAAAAAgkBAAAABXZhbHVlAAAAAQUAAAABYwAAAAAAAAAAARfpQ5M=`, defaultScope(3), true},
 		{-1, `valueOrErrorMessage`, `let c = if true then 1 else Unit(); valueOrErrorMessage(c, "ALARM!!!") == 1`, `AwQAAAABYwMGAAAAAAAAAAABCQEAAAAEVW5pdAAAAAAJAAAAAAAAAgkBAAAAE3ZhbHVlT3JFcnJvck1lc3NhZ2UAAAACBQAAAAFjAgAAAAhBTEFSTSEhIQAAAAAAAAAAAa5tVyw=`, defaultScope(3), true},
@@ -327,6 +326,54 @@ func TestFunctions(t *testing.T) {
 		assert.NoError(t, err, test.name)
 		assert.Equal(t, test.result, rs, fmt.Sprintf("func name: %s, code: %d, text: %s", test.name, test.code, test.text))
 	}
+}
+
+func TestOverlapping(t *testing.T) {
+	_ = `
+{-# STDLIB_VERSION 3 #-}
+{-# CONTENT_TYPE EXPRESSION #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
+let ref = 999
+func g(a: Int) = ref
+func f(ref: Int) = g(ref)
+f(1) == 999
+`
+
+	s := "AwQAAAADcmVmAAAAAAAAAAPnCgEAAAABZwAAAAEAAAABYQUAAAADcmVmCgEAAAABZgAAAAEAAAADcmVmCQEAAAABZwAAAAEFAAAAA3JlZgkAAAAAAAACCQEAAAABZgAAAAEAAAAAAAAAAAEAAAAAAAAAA+fjknmW"
+
+	r, err := reader.NewReaderFromBase64(s)
+	require.NoError(t, err)
+
+	script, err := BuildScript(r)
+	require.NoError(t, err)
+
+	rs, err := script.Verify(proto.MainNetScheme, mockstate.State{}, byte_helpers.TransferV2.Transaction.Clone())
+	require.NoError(t, err)
+	require.Equal(t, true, rs)
+}
+
+func TestUserFunctionsInExpression(t *testing.T) {
+	_ = `
+{-# STDLIB_VERSION 3 #-}
+{-# CONTENT_TYPE EXPRESSION #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
+func g() = 5
+
+g() == 5
+`
+	b64 := `AwoBAAAAAWcAAAAAAAAAAAAAAAAFCQAAAAAAAAIJAQAAAAFnAAAAAAAAAAAAAAAABWtYRqw=`
+
+	r, err := reader.NewReaderFromBase64(b64)
+	require.NoError(t, err)
+
+	script, err := BuildScript(r)
+	require.NoError(t, err)
+
+	rs, err := script.Verify(proto.MainNetScheme, mockstate.State{}, byte_helpers.TransferV2.Transaction.Clone())
+	require.NoError(t, err)
+	require.Equal(t, true, rs)
 }
 
 // variables refers to each other in the same scope
