@@ -172,7 +172,7 @@ func TestCheckIssueV1(t *testing.T) {
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
-	tx := createIssueV1(t)
+	tx := createIssueV1(t, 1000)
 	info := defaultCheckerInfo(t)
 	err := to.tc.checkIssueV1(tx, info)
 	assert.NoError(t, err, "checkIssueV1 failed with valid issue tx")
@@ -192,7 +192,7 @@ func TestCheckIssueV2(t *testing.T) {
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
-	tx := createIssueV2(t)
+	tx := createIssueV2(t, 1000)
 	info := defaultCheckerInfo(t)
 
 	err := to.tc.checkIssueV2(tx, info)

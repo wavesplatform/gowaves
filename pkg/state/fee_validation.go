@@ -27,7 +27,7 @@ var feeConstants = map[proto.TransactionType]uint64{
 	proto.DataTransaction:           1,
 	proto.SetScriptTransaction:      10,
 	proto.SponsorshipTransaction:    1000,
-	proto.SetAssetScriptTransaction: (1000 - 4),
+	proto.SetAssetScriptTransaction: 1000 - 4,
 	proto.InvokeScriptTransaction:   5,
 }
 
@@ -45,6 +45,26 @@ func minFeeInUnits(features *features, tx proto.Transaction) (uint64, error) {
 	}
 	fee := baseFee
 	switch txType {
+	case proto.IssueTransaction:
+		nft := false
+		switch itx := tx.(type) {
+		case *proto.IssueV1:
+			nft = itx.Quantity == 1 && itx.Decimals == 0 && !itx.Reissuable
+		case *proto.IssueV2:
+			nft = itx.Quantity == 1 && itx.Decimals == 0 && !itx.Reissuable
+		default:
+			return 0, errors.New("failed to convert interface to Issue transaction")
+		}
+		if nft {
+			nftActive, err := features.isActivated(int16(settings.ReduceNFTFee))
+			if err != nil {
+				return 0, err
+			}
+			if nftActive {
+				return fee / 1000, nil
+			}
+		}
+		return fee, nil
 	case proto.MassTransferTransaction:
 		mtx, ok := tx.(*proto.MassTransferV1)
 		if !ok {

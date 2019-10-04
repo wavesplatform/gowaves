@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/util"
@@ -108,4 +109,42 @@ func TestCheckMinFeeAsset(t *testing.T) {
 	tx.Fee -= 1
 	err = checkMinFeeAsset(tx, tx.FeeAsset.ID, params)
 	assert.Error(t, err, "checkMinFeeAsset() did not fail with invalid Transfer transaction fee in asset")
+}
+
+func TestNFTMinFee(t *testing.T) {
+	storage, path, err := createStorageObjects()
+	require.NoError(t, err)
+
+	defer func() {
+		storage.close(t)
+		err = util.CleanTemporaryDirs(path)
+		assert.NoError(t, err, "failed to clean test data dirs")
+	}()
+
+	params := &feeValidationParams{storage.entities, settings.MainNetSettings, false}
+
+	issueA1 := createIssueV1(t, 500)
+	issueA2 := createIssueV2(t, 500)
+	issueB1 := createIssueV1(t, 1000)
+	issueB2 := createIssueV2(t, 1000)
+	nftA1 := createNFTIssueV1(t)
+	nftA2 := createNFTIssueV2(t)
+
+	require.Error(t, checkMinFeeWaves(issueA1, params))
+	require.Error(t, checkMinFeeWaves(issueA2, params))
+	require.NoError(t, checkMinFeeWaves(issueB1, params))
+	require.NoError(t, checkMinFeeWaves(issueB2, params))
+
+	require.Error(t, checkMinFeeWaves(nftA1, params))
+	require.Error(t, checkMinFeeWaves(nftA2, params))
+
+	storage.activateFeature(t, int16(settings.ReduceNFTFee))
+
+	require.Error(t, checkMinFeeWaves(issueA1, params))
+	require.Error(t, checkMinFeeWaves(issueA2, params))
+	require.NoError(t, checkMinFeeWaves(issueB1, params))
+	require.NoError(t, checkMinFeeWaves(issueB2, params))
+
+	require.NoError(t, checkMinFeeWaves(nftA1, params))
+	require.NoError(t, checkMinFeeWaves(nftA2, params))
 }

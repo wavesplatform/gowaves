@@ -191,8 +191,15 @@ func TestCreateDiffTransferV2(t *testing.T) {
 	assert.Equal(t, correctDiff, diff)
 }
 
-func createIssueV1(t *testing.T) *proto.IssueV1 {
-	tx := proto.NewUnsignedIssueV1(testGlobal.senderInfo.pk, "name", "description", defaultQuantity, defaultDecimals, true, defaultTimestamp, defaultFee)
+func createIssueV1(t *testing.T, feeUnits int) *proto.IssueV1 {
+	tx := proto.NewUnsignedIssueV1(testGlobal.senderInfo.pk, "name", "description", defaultQuantity, defaultDecimals, true, defaultTimestamp, uint64(feeUnits*FeeUnit))
+	err := tx.Sign(testGlobal.senderInfo.sk)
+	assert.NoError(t, err, "Sign() failed")
+	return tx
+}
+
+func createNFTIssueV1(t *testing.T) *proto.IssueV1 {
+	tx := proto.NewUnsignedIssueV1(testGlobal.senderInfo.pk, "nft", "nft asset", 1, 0, false, defaultTimestamp, defaultFee)
 	err := tx.Sign(testGlobal.senderInfo.sk)
 	assert.NoError(t, err, "Sign() failed")
 	return tx
@@ -208,7 +215,7 @@ func TestCreateDiffIssueV1(t *testing.T) {
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
-	tx := createIssueV1(t)
+	tx := createIssueV1(t, 1000)
 	diff, err := to.td.createDiffIssueV1(tx, defaultDifferInfo(t))
 	assert.NoError(t, err, "createDiffIssueV1() failed")
 
@@ -220,8 +227,15 @@ func TestCreateDiffIssueV1(t *testing.T) {
 	assert.Equal(t, correctDiff, diff)
 }
 
-func createIssueV2(t *testing.T) *proto.IssueV2 {
-	tx := proto.NewUnsignedIssueV2('W', testGlobal.senderInfo.pk, "name", "description", defaultQuantity, defaultDecimals, true, testGlobal.scriptBytes, defaultTimestamp, defaultFee)
+func createIssueV2(t *testing.T, feeUnits int) *proto.IssueV2 {
+	tx := proto.NewUnsignedIssueV2('W', testGlobal.senderInfo.pk, "name", "description", defaultQuantity, defaultDecimals, true, testGlobal.scriptBytes, defaultTimestamp, uint64(feeUnits*FeeUnit))
+	err := tx.Sign(testGlobal.senderInfo.sk)
+	assert.NoError(t, err, "Sign() failed")
+	return tx
+}
+
+func createNFTIssueV2(t *testing.T) *proto.IssueV2 {
+	tx := proto.NewUnsignedIssueV2('W', testGlobal.senderInfo.pk, "nfg", "nft like asset", 1, 0, false, testGlobal.scriptBytes, defaultTimestamp, defaultFee)
 	err := tx.Sign(testGlobal.senderInfo.sk)
 	assert.NoError(t, err, "Sign() failed")
 	return tx
@@ -237,7 +251,7 @@ func TestCreateDiffIssueV2(t *testing.T) {
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
-	tx := createIssueV2(t)
+	tx := createIssueV2(t, 1000)
 	diff, err := to.td.createDiffIssueV2(tx, defaultDifferInfo(t))
 	assert.NoError(t, err, "createDiffIssueV2() failed")
 

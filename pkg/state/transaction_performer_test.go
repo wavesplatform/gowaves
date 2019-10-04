@@ -38,7 +38,7 @@ func TestPerformIssueV1(t *testing.T) {
 	}()
 
 	to.stor.addBlock(t, blockID0)
-	tx := createIssueV1(t)
+	tx := createIssueV1(t, 1000)
 	err := to.tp.performIssueV1(tx, defaultPerformerInfo(t))
 	assert.NoError(t, err, "performIssueV1() failed")
 	to.stor.flush(t)
@@ -72,7 +72,7 @@ func TestPerformIssueV2(t *testing.T) {
 	}()
 
 	to.stor.addBlock(t, blockID0)
-	tx := createIssueV2(t)
+	tx := createIssueV2(t, 1000)
 	err := to.tp.performIssueV2(tx, defaultPerformerInfo(t))
 	assert.NoError(t, err, "performIssueV2() failed")
 	to.stor.flush(t)
