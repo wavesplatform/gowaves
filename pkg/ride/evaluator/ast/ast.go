@@ -209,26 +209,26 @@ type LazyValueExpr struct {
 	Scope Scope
 }
 
-func NewLazyValue(Expr Expr, Scope Scope) LazyValueExpr {
-	return LazyValueExpr{
+func NewLazyValue(Expr Expr, Scope Scope) *LazyValueExpr {
+	return &LazyValueExpr{
 		Expr:  Expr,
 		Scope: Scope,
 	}
 }
 
-func (a LazyValueExpr) Write(w io.Writer) {
+func (a *LazyValueExpr) Write(w io.Writer) {
 	_, _ = fmt.Fprint(w, "LazyValueExpr")
 }
 
-func (a LazyValueExpr) Evaluate(Scope) (Expr, error) {
+func (a *LazyValueExpr) Evaluate(Scope) (Expr, error) {
 	return a.Expr.Evaluate(a.Scope)
 }
 
-func (a LazyValueExpr) Eq(other Expr) (bool, error) {
+func (a *LazyValueExpr) Eq(other Expr) (bool, error) {
 	return false, errors.Errorf("trying to compare %T with %T", a, other)
 }
 
-func (a LazyValueExpr) InstanceOf() string {
+func (a *LazyValueExpr) InstanceOf() string {
 	return "LazyValue"
 }
 
@@ -551,11 +551,11 @@ type PredefFunction struct {
 	fn   Callable
 }
 
-func (a PredefFunction) Write(w io.Writer) {
+func (a *PredefFunction) Write(w io.Writer) {
 	_, _ = fmt.Fprintf(w, "PredefFunction")
 }
 
-func (a PredefFunction) Evaluate(s Scope) (Expr, error) {
+func (a *PredefFunction) Evaluate(s Scope) (Expr, error) {
 	params := Params()
 	for i := 0; i < len(a.argv); i++ {
 		e, ok := s.Value(a.argv[i])
@@ -567,11 +567,11 @@ func (a PredefFunction) Evaluate(s Scope) (Expr, error) {
 	return a.fn(s.Clone(), params)
 }
 
-func (a PredefFunction) Eq(other Expr) (bool, error) {
+func (a *PredefFunction) Eq(other Expr) (bool, error) {
 	return false, errors.Errorf("trying to compare %T with %T", a, other)
 }
 
-func (a PredefFunction) InstanceOf() string {
+func (a *PredefFunction) InstanceOf() string {
 	return "PredefFunction"
 }
 
@@ -850,107 +850,108 @@ func (a *StringExpr) InstanceOf() string {
 
 type AddressExpr proto.Address
 
-func (a AddressExpr) Write(w io.Writer) {
-	_, _ = fmt.Fprint(w, proto.Address(a).String())
+func (a *AddressExpr) Write(w io.Writer) {
+	_, _ = fmt.Fprint(w, proto.Address(*a).String())
 }
 
-func (a AddressExpr) Evaluate(Scope) (Expr, error) {
+func (a *AddressExpr) Evaluate(Scope) (Expr, error) {
 	return a, nil
 }
 
-func (a AddressExpr) Eq(other Expr) (bool, error) {
+func (a *AddressExpr) Eq(other Expr) (bool, error) {
 	switch o := other.(type) {
-	case RecipientExpr:
+	case *RecipientExpr:
 		return o.Address != nil && bytes.Equal(a[:], o.Address.Bytes()), nil
-	case AddressExpr:
+	case *AddressExpr:
 		return bytes.Equal(a[:], o[:]), nil
 	default:
 		return false, errors.Errorf("trying to compare %T with %T", a, other)
 	}
 }
 
-func (a AddressExpr) InstanceOf() string {
+func (a *AddressExpr) InstanceOf() string {
 	return "Address"
 }
 
-func (a AddressExpr) Get(name string) (Expr, error) {
+func (a *AddressExpr) Get(name string) (Expr, error) {
 	switch name {
 	case "bytes":
-		return NewBytes(util.Dup(proto.Address(a).Bytes())), nil
+		return NewBytes(util.Dup(proto.Address(*a).Bytes())), nil
 	default:
 		return nil, errors.Errorf("unknown fields '%s' on AddressExpr", name)
 	}
 }
 
-func (a AddressExpr) Recipient() {
+func (a *AddressExpr) Recipient() {}
 
-}
-
-func NewAddressFromString(s string) (AddressExpr, error) {
+func NewAddressFromString(s string) (*AddressExpr, error) {
 	addr, err := proto.NewAddressFromString(s)
-	return AddressExpr(addr), err
+	a := AddressExpr(addr)
+	return &a, err
 }
 
-func NewAddressFromProtoAddress(a proto.Address) AddressExpr {
-	return AddressExpr(a)
+func NewAddressFromProtoAddress(a proto.Address) *AddressExpr {
+	addr := AddressExpr(a)
+	return &addr
 }
 
 type Unit struct {
 }
 
-func (a Unit) Write(w io.Writer) {
+func (a *Unit) Write(w io.Writer) {
 	_, _ = fmt.Fprint(w, "Unit")
 }
 
-func (a Unit) Evaluate(Scope) (Expr, error) {
+func (a *Unit) Evaluate(Scope) (Expr, error) {
 	return a, nil
 }
 
-func (a Unit) Eq(other Expr) (bool, error) {
+func (a *Unit) Eq(other Expr) (bool, error) {
 	if other.InstanceOf() == a.InstanceOf() {
 		return true, nil
 	}
 	return false, nil
 }
 
-func (a Unit) InstanceOf() string {
+func (a *Unit) InstanceOf() string {
 	return "Unit"
 }
 
-func NewUnit() Unit {
-	return Unit{}
+func NewUnit() *Unit {
+	return &Unit{}
 }
 
 type AliasExpr proto.Alias
 
-func (a AliasExpr) Write(w io.Writer) {
+func (a *AliasExpr) Write(w io.Writer) {
 	_, _ = fmt.Fprint(w, "Alias")
 }
 
-func (a AliasExpr) Evaluate(Scope) (Expr, error) {
+func (a *AliasExpr) Evaluate(Scope) (Expr, error) {
 	return a, nil
 }
 
-func (a AliasExpr) Eq(other Expr) (bool, error) {
+func (a *AliasExpr) Eq(other Expr) (bool, error) {
 	switch o := other.(type) {
-	case RecipientExpr:
-		return o.Alias != nil && proto.Alias(a).String() == o.Alias.String(), nil
-	case AliasExpr:
-		return proto.Alias(a).String() == proto.Alias(o).String(), nil
+	case *RecipientExpr:
+		return o.Alias != nil && proto.Alias(*a).String() == o.Alias.String(), nil
+	case *AliasExpr:
+		return proto.Alias(*a).String() == proto.Alias(*o).String(), nil
 	default:
 		return false, errors.Errorf("trying to compare %T with %T", a, other)
 	}
 }
 
-func (a AliasExpr) InstanceOf() string {
+func (a *AliasExpr) InstanceOf() string {
 	return "Alias"
 }
 
 // Recipient interface
-func (a AliasExpr) Recipient() {}
+func (a *AliasExpr) Recipient() {}
 
-func NewAliasFromProtoAlias(a proto.Alias) AliasExpr {
-	return AliasExpr(a)
+func NewAliasFromProtoAlias(a proto.Alias) *AliasExpr {
+	al := AliasExpr(a)
+	return &al
 }
 
 func newObjectExprFromDataEntry(entry proto.DataEntry) (*ObjectExpr, error) {
@@ -989,32 +990,33 @@ type Recipient interface {
 
 type RecipientExpr proto.Recipient
 
-func NewRecipientFromProtoRecipient(a proto.Recipient) RecipientExpr {
-	return RecipientExpr(a)
+func NewRecipientFromProtoRecipient(a proto.Recipient) *RecipientExpr {
+	r := RecipientExpr(a)
+	return &r
 }
 
-func (a RecipientExpr) Evaluate(Scope) (Expr, error) {
+func (a *RecipientExpr) Evaluate(Scope) (Expr, error) {
 	return a, nil
 }
 
-func (a RecipientExpr) Write(w io.Writer) {
+func (a *RecipientExpr) Write(w io.Writer) {
 	_, _ = fmt.Fprint(w, "RecipientExpr")
 }
 
-func (a RecipientExpr) Eq(other Expr) (bool, error) {
+func (a *RecipientExpr) Eq(other Expr) (bool, error) {
 	switch o := other.(type) {
-	case RecipientExpr:
+	case *RecipientExpr:
 		return a.Alias == o.Alias || a.Address == o.Address, nil
-	case AddressExpr:
-		return *a.Address == proto.Address(o), nil
-	case AliasExpr:
-		return *a.Alias == proto.Alias(o), nil
+	case *AddressExpr:
+		return *a.Address == proto.Address(*o), nil
+	case *AliasExpr:
+		return *a.Alias == proto.Alias(*o), nil
 	default:
 		return false, errors.Errorf("trying to compare %T with %T", a, other)
 	}
 }
 
-func (a RecipientExpr) InstanceOf() string {
+func (a *RecipientExpr) InstanceOf() string {
 	return "Recipient"
 }
 
@@ -1029,19 +1031,19 @@ func NewAssetPair(amountAsset Expr, priceAsset Expr) *AssetPairExpr {
 	return &AssetPairExpr{fields: m}
 }
 
-func (a AssetPairExpr) InstanceOf() string {
+func (a *AssetPairExpr) InstanceOf() string {
 	return "AssetPair"
 }
 
-func (a AssetPairExpr) Evaluate(Scope) (Expr, error) {
+func (a *AssetPairExpr) Evaluate(Scope) (Expr, error) {
 	return a, nil
 }
 
-func (a AssetPairExpr) Write(w io.Writer) {
+func (a *AssetPairExpr) Write(w io.Writer) {
 	_, _ = fmt.Fprint(w, "AssetPairExpr")
 }
 
-func (a AssetPairExpr) Eq(other Expr) (bool, error) {
+func (a *AssetPairExpr) Eq(other Expr) (bool, error) {
 	if a.InstanceOf() != other.InstanceOf() {
 		return false, errors.Errorf("trying to compare %T with %T", a, other)
 	}
@@ -1052,7 +1054,7 @@ func (a AssetPairExpr) Eq(other Expr) (bool, error) {
 	return a.fields.Eq(o.fields)
 }
 
-func (a AssetPairExpr) Get(name string) (Expr, error) {
+func (a *AssetPairExpr) Get(name string) (Expr, error) {
 	return a.fields.Get(name)
 }
 
@@ -1115,19 +1117,19 @@ func NewBuy() *BuyExpr {
 	return &BuyExpr{}
 }
 
-func (a BuyExpr) Evaluate(Scope) (Expr, error) {
+func (a *BuyExpr) Evaluate(Scope) (Expr, error) {
 	return a, nil
 }
 
-func (a BuyExpr) Write(w io.Writer) {
+func (a *BuyExpr) Write(w io.Writer) {
 	_, _ = fmt.Fprint(w, "BuyExpr")
 }
 
-func (a BuyExpr) Eq(other Expr) (bool, error) {
+func (a *BuyExpr) Eq(other Expr) (bool, error) {
 	return a.InstanceOf() == other.InstanceOf(), nil
 }
 
-func (a BuyExpr) InstanceOf() string {
+func (a *BuyExpr) InstanceOf() string {
 	return "Buy"
 }
 
@@ -1137,263 +1139,263 @@ func NewSell() *SellExpr {
 	return &SellExpr{}
 }
 
-func (a SellExpr) Evaluate(Scope) (Expr, error) {
+func (a *SellExpr) Evaluate(Scope) (Expr, error) {
 	return a, nil
 }
 
-func (a SellExpr) Write(w io.Writer) {
+func (a *SellExpr) Write(w io.Writer) {
 	_, _ = fmt.Fprint(w, "SellExpr")
 }
 
-func (a SellExpr) Eq(other Expr) (bool, error) {
+func (a *SellExpr) Eq(other Expr) (bool, error) {
 	return a.InstanceOf() == other.InstanceOf(), nil
 }
 
-func (a SellExpr) InstanceOf() string {
+func (a *SellExpr) InstanceOf() string {
 	return "Sell"
 }
 
 type CeilingExpr struct{}
 
-func (a CeilingExpr) Evaluate(Scope) (Expr, error) {
+func (a *CeilingExpr) Evaluate(Scope) (Expr, error) {
 	return a, nil
 }
 
-func (a CeilingExpr) Write(w io.Writer) {
+func (a *CeilingExpr) Write(w io.Writer) {
 	_, _ = fmt.Fprint(w, "CeilingExpr")
 }
 
-func (a CeilingExpr) Eq(other Expr) (bool, error) {
+func (a *CeilingExpr) Eq(other Expr) (bool, error) {
 	return a.InstanceOf() == other.InstanceOf(), nil
 }
 
-func (a CeilingExpr) InstanceOf() string {
+func (a *CeilingExpr) InstanceOf() string {
 	return "Ceiling"
 }
 
 type FloorExpr struct{}
 
-func (a FloorExpr) Evaluate(Scope) (Expr, error) {
+func (a *FloorExpr) Evaluate(Scope) (Expr, error) {
 	return a, nil
 }
 
-func (a FloorExpr) Write(w io.Writer) {
+func (a *FloorExpr) Write(w io.Writer) {
 	_, _ = fmt.Fprint(w, "FloorExpr")
 }
 
-func (a FloorExpr) Eq(other Expr) (bool, error) {
+func (a *FloorExpr) Eq(other Expr) (bool, error) {
 	return a.InstanceOf() == other.InstanceOf(), nil
 }
 
-func (a FloorExpr) InstanceOf() string {
+func (a *FloorExpr) InstanceOf() string {
 	return "Floor"
 }
 
 type HalfEvenExpr struct{}
 
-func (a HalfEvenExpr) Evaluate(Scope) (Expr, error) {
+func (a *HalfEvenExpr) Evaluate(Scope) (Expr, error) {
 	return a, nil
 }
 
-func (a HalfEvenExpr) Write(w io.Writer) {
+func (a *HalfEvenExpr) Write(w io.Writer) {
 	_, _ = fmt.Fprint(w, "HalfEvenExpr")
 }
 
-func (a HalfEvenExpr) Eq(other Expr) (bool, error) {
+func (a *HalfEvenExpr) Eq(other Expr) (bool, error) {
 	return a.InstanceOf() == other.InstanceOf(), nil
 }
 
-func (a HalfEvenExpr) InstanceOf() string {
+func (a *HalfEvenExpr) InstanceOf() string {
 	return "HalfEven"
 }
 
 type DownExpr struct{}
 
-func (a DownExpr) Evaluate(Scope) (Expr, error) {
+func (a *DownExpr) Evaluate(Scope) (Expr, error) {
 	return a, nil
 }
 
-func (a DownExpr) Write(w io.Writer) {
+func (a *DownExpr) Write(w io.Writer) {
 	_, _ = fmt.Fprint(w, "DownExpr")
 }
 
-func (a DownExpr) Eq(other Expr) (bool, error) {
+func (a *DownExpr) Eq(other Expr) (bool, error) {
 	return a.InstanceOf() == other.InstanceOf(), nil
 }
 
-func (a DownExpr) InstanceOf() string {
+func (a *DownExpr) InstanceOf() string {
 	return "Down"
 }
 
 type UpExpr struct{}
 
-func (a UpExpr) Evaluate(Scope) (Expr, error) {
+func (a *UpExpr) Evaluate(Scope) (Expr, error) {
 	return a, nil
 }
 
-func (a UpExpr) Write(w io.Writer) {
+func (a *UpExpr) Write(w io.Writer) {
 	_, _ = fmt.Fprint(w, "UpExpr")
 }
 
-func (a UpExpr) Eq(other Expr) (bool, error) {
+func (a *UpExpr) Eq(other Expr) (bool, error) {
 	return a.InstanceOf() == other.InstanceOf(), nil
 }
 
-func (a UpExpr) InstanceOf() string {
+func (a *UpExpr) InstanceOf() string {
 	return "Up"
 }
 
 type HalfUpExpr struct{}
 
-func (a HalfUpExpr) Evaluate(Scope) (Expr, error) {
+func (a *HalfUpExpr) Evaluate(Scope) (Expr, error) {
 	return a, nil
 }
 
-func (a HalfUpExpr) Write(w io.Writer) {
+func (a *HalfUpExpr) Write(w io.Writer) {
 	_, _ = fmt.Fprint(w, "HalfUpExpr")
 }
 
-func (a HalfUpExpr) Eq(other Expr) (bool, error) {
+func (a *HalfUpExpr) Eq(other Expr) (bool, error) {
 	return a.InstanceOf() == other.InstanceOf(), nil
 }
 
-func (a HalfUpExpr) InstanceOf() string {
+func (a *HalfUpExpr) InstanceOf() string {
 	return "HalfUp"
 }
 
 type HalfDownExpr struct{}
 
-func (a HalfDownExpr) Evaluate(Scope) (Expr, error) {
+func (a *HalfDownExpr) Evaluate(Scope) (Expr, error) {
 	return a, nil
 }
 
-func (a HalfDownExpr) Write(w io.Writer) {
+func (a *HalfDownExpr) Write(w io.Writer) {
 	_, _ = fmt.Fprint(w, "HalfDownExpr")
 }
 
-func (a HalfDownExpr) Eq(other Expr) (bool, error) {
+func (a *HalfDownExpr) Eq(other Expr) (bool, error) {
 	return a.InstanceOf() == other.InstanceOf(), nil
 }
 
-func (a HalfDownExpr) InstanceOf() string {
+func (a *HalfDownExpr) InstanceOf() string {
 	return "HalfDown"
 }
 
 type NoAlgExpr struct{}
 
-func (a NoAlgExpr) Evaluate(Scope) (Expr, error) {
+func (a *NoAlgExpr) Evaluate(Scope) (Expr, error) {
 	return a, nil
 }
 
-func (a NoAlgExpr) Write(w io.Writer) {
+func (a *NoAlgExpr) Write(w io.Writer) {
 	_, _ = fmt.Fprint(w, "NoAlgExpr")
 }
 
-func (a NoAlgExpr) Eq(other Expr) (bool, error) {
+func (a *NoAlgExpr) Eq(other Expr) (bool, error) {
 	return a.InstanceOf() == other.InstanceOf(), nil
 }
 
-func (a NoAlgExpr) InstanceOf() string {
+func (a *NoAlgExpr) InstanceOf() string {
 	return "NoAlg"
 }
 
 type MD5Expr struct{}
 
-func (a MD5Expr) Evaluate(Scope) (Expr, error) {
+func (a *MD5Expr) Evaluate(Scope) (Expr, error) {
 	return a, nil
 }
 
-func (a MD5Expr) Write(w io.Writer) {
+func (a *MD5Expr) Write(w io.Writer) {
 	_, _ = fmt.Fprint(w, "MD5Expr")
 }
 
-func (a MD5Expr) Eq(other Expr) (bool, error) {
+func (a *MD5Expr) Eq(other Expr) (bool, error) {
 	return a.InstanceOf() == other.InstanceOf(), nil
 }
 
-func (a MD5Expr) InstanceOf() string {
+func (a *MD5Expr) InstanceOf() string {
 	return "Md5"
 }
 
 type SHA1Expr struct{}
 
-func (a SHA1Expr) Evaluate(Scope) (Expr, error) {
+func (a *SHA1Expr) Evaluate(Scope) (Expr, error) {
 	return a, nil
 }
 
-func (a SHA1Expr) Write(w io.Writer) {
+func (a *SHA1Expr) Write(w io.Writer) {
 	_, _ = fmt.Fprint(w, "SHA1Expr")
 }
 
-func (a SHA1Expr) Eq(other Expr) (bool, error) {
+func (a *SHA1Expr) Eq(other Expr) (bool, error) {
 	return a.InstanceOf() == other.InstanceOf(), nil
 }
 
-func (a SHA1Expr) InstanceOf() string {
+func (a *SHA1Expr) InstanceOf() string {
 	return "Sha1"
 }
 
 type SHA224Expr struct{}
 
-func (a SHA224Expr) Evaluate(Scope) (Expr, error) {
+func (a *SHA224Expr) Evaluate(Scope) (Expr, error) {
 	return a, nil
 }
 
-func (a SHA224Expr) Write(w io.Writer) {
+func (a *SHA224Expr) Write(w io.Writer) {
 	_, _ = fmt.Fprint(w, "SHA224Expr")
 }
 
-func (a SHA224Expr) Eq(other Expr) (bool, error) {
+func (a *SHA224Expr) Eq(other Expr) (bool, error) {
 	return a.InstanceOf() == other.InstanceOf(), nil
 }
 
-func (a SHA224Expr) InstanceOf() string {
+func (a *SHA224Expr) InstanceOf() string {
 	return "Sha224"
 }
 
 type SHA256Expr struct{}
 
-func (a SHA256Expr) Evaluate(Scope) (Expr, error) {
+func (a *SHA256Expr) Evaluate(Scope) (Expr, error) {
 	return a, nil
 }
 
-func (a SHA256Expr) Write(w io.Writer) {
+func (a *SHA256Expr) Write(w io.Writer) {
 	_, _ = fmt.Fprint(w, "SHA256Expr")
 }
 
-func (a SHA256Expr) Eq(other Expr) (bool, error) {
+func (a *SHA256Expr) Eq(other Expr) (bool, error) {
 	return a.InstanceOf() == other.InstanceOf(), nil
 }
 
-func (a SHA256Expr) InstanceOf() string {
+func (a *SHA256Expr) InstanceOf() string {
 	return "Sha256"
 }
 
 type SHA384Expr struct{}
 
-func (a SHA384Expr) Evaluate(Scope) (Expr, error) {
+func (a *SHA384Expr) Evaluate(Scope) (Expr, error) {
 	return a, nil
 }
 
-func (a SHA384Expr) Write(w io.Writer) {
+func (a *SHA384Expr) Write(w io.Writer) {
 	_, _ = fmt.Fprint(w, "SHA384Expr")
 }
 
-func (a SHA384Expr) Eq(other Expr) (bool, error) {
+func (a *SHA384Expr) Eq(other Expr) (bool, error) {
 	return a.InstanceOf() == other.InstanceOf(), nil
 }
 
-func (a SHA384Expr) InstanceOf() string {
+func (a *SHA384Expr) InstanceOf() string {
 	return "Sha384"
 }
 
 type SHA512Expr struct{}
 
-func (a SHA512Expr) Evaluate(Scope) (Expr, error) {
+func (a *SHA512Expr) Evaluate(Scope) (Expr, error) {
 	return a, nil
 }
 
-func (a SHA512Expr) Write(w io.Writer) {
+func (a *SHA512Expr) Write(w io.Writer) {
 	_, _ = fmt.Fprint(w, "SHA512Expr")
 }
 
@@ -1401,79 +1403,79 @@ func (a SHA512Expr) Eq(other Expr) (bool, error) {
 	return a.InstanceOf() == other.InstanceOf(), nil
 }
 
-func (a SHA512Expr) InstanceOf() string {
+func (a *SHA512Expr) InstanceOf() string {
 	return "Sha512"
 }
 
 type SHA3224Expr struct{}
 
-func (a SHA3224Expr) Evaluate(Scope) (Expr, error) {
+func (a *SHA3224Expr) Evaluate(Scope) (Expr, error) {
 	return a, nil
 }
 
-func (a SHA3224Expr) Write(w io.Writer) {
+func (a *SHA3224Expr) Write(w io.Writer) {
 	_, _ = fmt.Fprint(w, "SHA3224Expr")
 }
 
-func (a SHA3224Expr) Eq(other Expr) (bool, error) {
+func (a *SHA3224Expr) Eq(other Expr) (bool, error) {
 	return a.InstanceOf() == other.InstanceOf(), nil
 }
 
-func (a SHA3224Expr) InstanceOf() string {
+func (a *SHA3224Expr) InstanceOf() string {
 	return "Sha3224"
 }
 
 type SHA3256Expr struct{}
 
-func (a SHA3256Expr) Evaluate(Scope) (Expr, error) {
+func (a *SHA3256Expr) Evaluate(Scope) (Expr, error) {
 	return a, nil
 }
 
-func (a SHA3256Expr) Write(w io.Writer) {
+func (a *SHA3256Expr) Write(w io.Writer) {
 	_, _ = fmt.Fprint(w, "SHA3256Expr")
 }
 
-func (a SHA3256Expr) Eq(other Expr) (bool, error) {
+func (a *SHA3256Expr) Eq(other Expr) (bool, error) {
 	return a.InstanceOf() == other.InstanceOf(), nil
 }
 
-func (a SHA3256Expr) InstanceOf() string {
+func (a *SHA3256Expr) InstanceOf() string {
 	return "Sha3256"
 }
 
 type SHA3384Expr struct{}
 
-func (a SHA3384Expr) Evaluate(Scope) (Expr, error) {
+func (a *SHA3384Expr) Evaluate(Scope) (Expr, error) {
 	return a, nil
 }
 
-func (a SHA3384Expr) Write(w io.Writer) {
+func (a *SHA3384Expr) Write(w io.Writer) {
 	_, _ = fmt.Fprint(w, "SHA3384Expr")
 }
 
-func (a SHA3384Expr) Eq(other Expr) (bool, error) {
+func (a *SHA3384Expr) Eq(other Expr) (bool, error) {
 	return a.InstanceOf() == other.InstanceOf(), nil
 }
 
-func (a SHA3384Expr) InstanceOf() string {
+func (a *SHA3384Expr) InstanceOf() string {
 	return "Sha3384"
 }
 
 type SHA3512Expr struct{}
 
-func (a SHA3512Expr) Evaluate(Scope) (Expr, error) {
+func (a *SHA3512Expr) Evaluate(Scope) (Expr, error) {
 	return a, nil
 }
 
-func (a SHA3512Expr) Write(w io.Writer) {
+func (a *SHA3512Expr) Write(w io.Writer) {
 	_, _ = fmt.Fprint(w, "SHA3512Expr")
 }
 
-func (a SHA3512Expr) Eq(other Expr) (bool, error) {
+func (a *SHA3512Expr) Eq(other Expr) (bool, error) {
 	return a.InstanceOf() == other.InstanceOf(), nil
 }
 
-func (a SHA3512Expr) InstanceOf() string {
+func (a *SHA3512Expr) InstanceOf() string {
 	return "Sha3512"
 }
 
@@ -1492,15 +1494,15 @@ func NewAttachedPaymentExpr(assetId Expr, amount Expr) *AttachedPaymentExpr {
 	}
 }
 
-func (a AttachedPaymentExpr) Write(w io.Writer) {
+func (a *AttachedPaymentExpr) Write(w io.Writer) {
 	_, _ = w.Write([]byte("AttachedPaymentExpr"))
 }
 
-func (a AttachedPaymentExpr) Evaluate(Scope) (Expr, error) {
+func (a *AttachedPaymentExpr) Evaluate(Scope) (Expr, error) {
 	return a, nil
 }
 
-func (a AttachedPaymentExpr) Eq(other Expr) (bool, error) {
+func (a *AttachedPaymentExpr) Eq(other Expr) (bool, error) {
 	if a.InstanceOf() != other.InstanceOf() {
 		return false, errors.Errorf("trying to compare %T with %T", a, other)
 	}
@@ -1508,11 +1510,11 @@ func (a AttachedPaymentExpr) Eq(other Expr) (bool, error) {
 	return a.fields.Eq(o.fields)
 }
 
-func (a AttachedPaymentExpr) InstanceOf() string {
+func (a *AttachedPaymentExpr) InstanceOf() string {
 	return "AttachedPayment"
 }
 
-func (a AttachedPaymentExpr) Get(key string) (Expr, error) {
+func (a *AttachedPaymentExpr) Get(key string) (Expr, error) {
 	return a.fields.Get(key)
 }
 
@@ -1520,23 +1522,23 @@ type BlockHeaderExpr struct {
 	fields object
 }
 
-func (a BlockHeaderExpr) Write(w io.Writer) {
+func (a *BlockHeaderExpr) Write(w io.Writer) {
 	_, _ = fmt.Fprintf(w, "BlockHeaderExpr")
 }
 
-func (a BlockHeaderExpr) Evaluate(Scope) (Expr, error) {
+func (a *BlockHeaderExpr) Evaluate(Scope) (Expr, error) {
 	return a, nil
 }
 
-func (a BlockHeaderExpr) Eq(other Expr) (bool, error) {
+func (a *BlockHeaderExpr) Eq(other Expr) (bool, error) {
 	return false, errors.Errorf("trying to compare %T with %T", a, other)
 }
 
-func (a BlockHeaderExpr) InstanceOf() string {
+func (a *BlockHeaderExpr) InstanceOf() string {
 	return "BlockHeader"
 }
 
-func (a BlockHeaderExpr) Get(name string) (Expr, error) {
+func (a *BlockHeaderExpr) Get(name string) (Expr, error) {
 	return a.fields.Get(name)
 }
 
@@ -1558,23 +1560,23 @@ type AssetInfoExpr struct {
 	fields object
 }
 
-func (a AssetInfoExpr) Write(w io.Writer) {
+func (a *AssetInfoExpr) Write(w io.Writer) {
 	_, _ = fmt.Fprintf(w, "AssetInfoExpr")
 }
 
-func (a AssetInfoExpr) Evaluate(Scope) (Expr, error) {
+func (a *AssetInfoExpr) Evaluate(Scope) (Expr, error) {
 	return a, nil
 }
 
-func (a AssetInfoExpr) Eq(other Expr) (bool, error) {
+func (a *AssetInfoExpr) Eq(other Expr) (bool, error) {
 	return false, errors.Errorf("trying to compare %T with %T", a, other)
 }
 
-func (a AssetInfoExpr) InstanceOf() string {
+func (a *AssetInfoExpr) InstanceOf() string {
 	return "AssetInfo"
 }
 
-func (a AssetInfoExpr) Get(name string) (Expr, error) {
+func (a *AssetInfoExpr) Get(name string) (Expr, error) {
 	return a.fields.Get(name)
 }
 
@@ -1594,15 +1596,15 @@ func (a *BlockInfoExpr) Evaluate(Scope) (Expr, error) {
 	return a, nil
 }
 
-func (a BlockInfoExpr) Get(name string) (Expr, error) {
+func (a *BlockInfoExpr) Get(name string) (Expr, error) {
 	return a.fields.Get(name)
 }
 
-func (a BlockInfoExpr) Eq(other Expr) (bool, error) {
+func (a *BlockInfoExpr) Eq(other Expr) (bool, error) {
 	return false, errors.Errorf("trying to compare %T with %T", a, other)
 }
 
-func (a BlockInfoExpr) InstanceOf() string {
+func (a *BlockInfoExpr) InstanceOf() string {
 	return "BlockInfo"
 }
 
@@ -1739,7 +1741,7 @@ func (a *ScriptTransferExpr) InstanceOf() string {
 
 func NewScriptTransfer(recipient Recipient, amount *LongExpr, asset Expr) (*ScriptTransferExpr, error) {
 	switch asset.(type) {
-	case Unit, *BytesExpr:
+	case *Unit, *BytesExpr:
 	default:
 		return nil, errors.Errorf("expected 'Unit' or '*BytesExpr' as asset, found %T", asset)
 	}
