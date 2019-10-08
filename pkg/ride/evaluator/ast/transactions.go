@@ -159,7 +159,7 @@ func makeProofs(proofs *proto.ProofsV1) Exprs {
 
 func makeOptionalAsset(o proto.OptionalAsset) Expr {
 	if o.Present {
-		return NewBytes(util.Dup(o.ID.Bytes()))
+		return NewBytes(o.ID.Bytes())
 	}
 	return NewUnit()
 }

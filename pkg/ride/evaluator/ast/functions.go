@@ -1903,7 +1903,7 @@ func UserWriteSet(s Scope, e Exprs) (Expr, error) {
 	if l := len(e); l != 1 {
 		return nil, errors.Errorf("%s: invalid number of parameters, expected 1, received %d", funcName, l)
 	}
-	rs, err := e.EvaluateAll(s.Clone())
+	rs, err := e.EvaluateAll(s)
 	if err != nil {
 		return nil, errors.Wrapf(err, funcName)
 	}
@@ -1927,7 +1927,7 @@ func UserTransferSet(s Scope, e Exprs) (Expr, error) {
 	if l := len(e); l != 1 {
 		return nil, errors.Errorf("%s: invalid number of parameters, expected 1, received %d", funcName, l)
 	}
-	rs, err := e.EvaluateAll(s.Clone())
+	rs, err := e.EvaluateAll(s)
 	if err != nil {
 		return nil, errors.Wrapf(err, funcName)
 	}
@@ -1950,7 +1950,7 @@ func ScriptTransfer(s Scope, e Exprs) (Expr, error) {
 	if l := len(e); l != 3 {
 		return nil, errors.Errorf("%s: invalid number of parameters, expected 3, received %d", funcName, l)
 	}
-	rs, err := e.EvaluateAll(s.Clone())
+	rs, err := e.EvaluateAll(s)
 	if err != nil {
 		return nil, errors.Wrapf(err, funcName)
 	}
@@ -1970,7 +1970,7 @@ func ScriptResult(s Scope, e Exprs) (Expr, error) {
 	if l := len(e); l != 2 {
 		return nil, errors.Errorf("%s: invalid number of parameters, expected 2, received %d", funcName, l)
 	}
-	rs, err := e.EvaluateAll(s.Clone())
+	rs, err := e.EvaluateAll(s)
 	if err != nil {
 		return nil, errors.Wrapf(err, funcName)
 	}
