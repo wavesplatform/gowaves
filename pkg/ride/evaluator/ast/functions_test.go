@@ -177,7 +177,7 @@ func TestNativeSigVerifyLengthCheck(t *testing.T) {
 	msg := bytes.Repeat([]byte{0xCA, 0xFE, 0xBA, 0xBE}, 8193)
 	sig := bytes.Repeat([]byte{0xDE, 0xAD, 0xBE, 0xEF}, 8)
 	pk := bytes.Repeat([]byte{0x01}, 32)
-	_, err := NativeSigVerify(newEmptyScopeV1(), NewExprs(NewBytes(msg), NewBytes(sig), NewBytes(pk)))
+	_, err := NativeSigVerify(newEmptyScopeV3(), NewExprs(NewBytes(msg), NewBytes(sig), NewBytes(pk)))
 	assert.Error(t, err, "NativeSigVerify: invalid message length")
 }
 

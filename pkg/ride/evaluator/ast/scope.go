@@ -4,7 +4,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/types"
 )
 
-const maxMessageLengthV12 = 32 * 1024
+const maxMessageLengthV3 = 32 * 1024
 
 type evaluation struct {
 	expr Expr
@@ -57,12 +57,12 @@ func NewScope(version int, scheme byte, state types.SmartState) *ScopeImpl {
 	var v func(int) bool
 	switch version {
 	case 1, 2:
-		v = func(l int) bool {
-			return l <= maxMessageLengthV12
-		}
-	default:
 		v = func(int) bool {
 			return true
+		}
+	default:
+		v = func(l int) bool {
+			return l <= maxMessageLengthV3
 		}
 	}
 

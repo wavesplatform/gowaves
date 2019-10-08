@@ -672,16 +672,18 @@ func (a *BytesExpr) Evaluate(Scope) (Expr, error) {
 }
 
 func (a *BytesExpr) Eq(other Expr) (bool, error) {
-	b, ok := other.(*BytesExpr)
-	if !ok {
+	switch o := other.(type) {
+	case *Unit:
+		return false, nil
+	case *BytesExpr:
+		return bytes.Equal(a.Value, o.Value), nil
+	default:
 		return false, errors.Errorf("trying to compare %T with %T", a, other)
 	}
-
-	return bytes.Equal(a.Value, b.Value), nil
 }
 
 func (a *BytesExpr) InstanceOf() string {
-	return "Bytes"
+	return "ByteVector"
 }
 
 type GetterExpr struct {
