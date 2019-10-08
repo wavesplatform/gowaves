@@ -478,7 +478,7 @@ func (a *FunctionCall) Evaluate(s Scope) (Expr, error) {
 		initial = fn.Scope
 	}
 	for i := 0; i < a.Argc; i++ {
-		evaluatedParam, err := a.Argv[i].Evaluate(s.Clone())
+		evaluatedParam, err := a.Argv[i].Evaluate(s)
 		if err != nil {
 			return nil, errors.Wrapf(err, "evaluate user function: %s", a.Name)
 		}
@@ -564,7 +564,7 @@ func (a *PredefFunction) Evaluate(s Scope) (Expr, error) {
 		}
 		params = append(params, e)
 	}
-	return a.fn(s.Clone(), params)
+	return a.fn(s, params)
 }
 
 func (a *PredefFunction) Eq(other Expr) (bool, error) {
@@ -592,7 +592,7 @@ func (a *RefExpr) Evaluate(s Scope) (Expr, error) {
 	if !ok {
 		return nil, errors.Errorf("RefExpr evaluate: not found expr by name '%s'", a.Name)
 	}
-	rs, err := expr.Evaluate(s.Clone())
+	rs, err := expr.Evaluate(s)
 	s.setEvaluation(a.Name, evaluation{rs, err})
 	return rs, err
 }
@@ -681,7 +681,7 @@ func (a *BytesExpr) Eq(other Expr) (bool, error) {
 }
 
 func (a *BytesExpr) InstanceOf() string {
-	return "Bytes"
+	return "ByteVector"
 }
 
 type GetterExpr struct {
@@ -864,6 +864,8 @@ func (a *AddressExpr) Eq(other Expr) (bool, error) {
 		return o.Address != nil && bytes.Equal(a[:], o.Address.Bytes()), nil
 	case *AddressExpr:
 		return bytes.Equal(a[:], o[:]), nil
+	case *BytesExpr:
+		return bytes.Equal(a[:], o.Value), nil
 	default:
 		return false, errors.Errorf("trying to compare %T with %T", a, other)
 	}
