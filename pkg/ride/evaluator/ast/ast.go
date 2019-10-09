@@ -147,7 +147,7 @@ func (a *Script) Eval(s Scope) (bool, error) {
 type Expr interface {
 	Write(io.Writer)
 	Evaluate(Scope) (Expr, error)
-	Eq(Expr) (bool, error)
+	Eq(Expr) bool
 	InstanceOf() string
 }
 
@@ -175,24 +175,20 @@ func (a Exprs) EvaluateAll(s Scope) (Exprs, error) {
 	return out, nil
 }
 
-func (a Exprs) Eq(other Expr) (bool, error) {
+func (a Exprs) Eq(other Expr) bool {
 	o, ok := other.(Exprs)
 	if !ok {
-		return false, nil
+		return false
 	}
 	if len(a) != len(o) {
-		return false, nil
+		return false
 	}
 	for i := 0; i < len(a); i++ {
-		eq, err := a[i].Eq(o[i])
-		if err != nil {
-			return false, errors.Wrapf(err, "compare Exprs")
-		}
-		if !eq {
-			return false, nil
+		if !a[i].Eq(o[i]) {
+			return false
 		}
 	}
-	return true, nil
+	return true
 }
 
 func (a Exprs) InstanceOf() string {
@@ -224,8 +220,8 @@ func (a *LazyValueExpr) Evaluate(Scope) (Expr, error) {
 	return a.Expr.Evaluate(a.Scope)
 }
 
-func (a *LazyValueExpr) Eq(other Expr) (bool, error) {
-	return false, nil
+func (a *LazyValueExpr) Eq(other Expr) bool {
+	return false
 }
 
 func (a *LazyValueExpr) InstanceOf() string {
@@ -253,8 +249,8 @@ func (a *Block) Evaluate(s Scope) (Expr, error) {
 	return a.Body.Evaluate(s.Clone())
 }
 
-func (a *Block) Eq(other Expr) (bool, error) {
-	return false, nil
+func (a *Block) Eq(other Expr) bool {
+	return false
 }
 
 func (a *Block) InstanceOf() string {
@@ -289,8 +285,8 @@ func (a *FuncDeclaration) Evaluate(s Scope) (Expr, error) {
 	return a, nil
 }
 
-func (a *FuncDeclaration) Eq(other Expr) (bool, error) {
-	return false, nil
+func (a *FuncDeclaration) Eq(other Expr) bool {
+	return false
 }
 
 func (a *FuncDeclaration) InstanceOf() string {
@@ -314,8 +310,8 @@ func (a *BlockV2) Evaluate(s Scope) (Expr, error) {
 	return a.Body.Evaluate(s.Clone())
 }
 
-func (a *BlockV2) Eq(other Expr) (bool, error) {
-	return false, nil
+func (a *BlockV2) Eq(other Expr) bool {
+	return false
 }
 
 func (a *BlockV2) InstanceOf() string {
@@ -332,8 +328,8 @@ func (a *LetExpr) Evaluate(s Scope) (Expr, error) {
 	return a, nil
 }
 
-func (a *LetExpr) Eq(other Expr) (bool, error) {
-	return false, nil
+func (a *LetExpr) Eq(other Expr) bool {
+	return false
 }
 
 func (a *LetExpr) InstanceOf() string {
@@ -370,12 +366,12 @@ func (a *LongExpr) Evaluate(Scope) (Expr, error) {
 	return a, nil
 }
 
-func (a *LongExpr) Eq(other Expr) (bool, error) {
+func (a *LongExpr) Eq(other Expr) bool {
 	b, ok := other.(*LongExpr)
 	if !ok {
-		return false, nil
+		return false
 	}
-	return a.Value == b.Value, nil
+	return a.Value == b.Value
 }
 
 func (a *LongExpr) InstanceOf() string {
@@ -400,13 +396,13 @@ func (a *BooleanExpr) Write(w io.Writer) {
 	_, _ = fmt.Fprint(w, a.Value)
 }
 
-func (a *BooleanExpr) Eq(other Expr) (bool, error) {
+func (a *BooleanExpr) Eq(other Expr) bool {
 	b, ok := other.(*BooleanExpr)
 	if !ok {
-		return false, nil
+		return false
 	}
 
-	return a.Value == b.Value, nil
+	return a.Value == b.Value
 }
 
 func (a *BooleanExpr) InstanceOf() string {
@@ -425,8 +421,8 @@ func (a *FuncCallExpr) Evaluate(s Scope) (Expr, error) {
 	return a.Func.Evaluate(s)
 }
 
-func (a *FuncCallExpr) Eq(other Expr) (bool, error) {
-	return false, nil
+func (a *FuncCallExpr) Eq(other Expr) bool {
+	return false
 }
 
 func (a *FuncCallExpr) InstanceOf() string {
@@ -487,8 +483,8 @@ func (a *FunctionCall) Evaluate(s Scope) (Expr, error) {
 	return fn.Evaluate(initial)
 }
 
-func (a *FunctionCall) Eq(other Expr) (bool, error) {
-	return false, nil
+func (a *FunctionCall) Eq(other Expr) bool {
+	return false
 }
 
 func (a *FunctionCall) InstanceOf() string {
@@ -510,8 +506,8 @@ func (a *Function) Evaluate(s Scope) (Expr, error) {
 	return a.Body.Evaluate(s)
 }
 
-func (a *Function) Eq(other Expr) (bool, error) {
-	return false, nil
+func (a *Function) Eq(other Expr) bool {
+	return false
 }
 
 func (a *Function) InstanceOf() string {
@@ -567,8 +563,8 @@ func (a *PredefFunction) Evaluate(s Scope) (Expr, error) {
 	return a.fn(s, params)
 }
 
-func (a *PredefFunction) Eq(other Expr) (bool, error) {
-	return false, nil
+func (a *PredefFunction) Eq(other Expr) bool {
+	return false
 }
 
 func (a *PredefFunction) InstanceOf() string {
@@ -597,8 +593,8 @@ func (a *RefExpr) Evaluate(s Scope) (Expr, error) {
 	return rs, err
 }
 
-func (a *RefExpr) Eq(other Expr) (bool, error) {
-	return false, nil
+func (a *RefExpr) Eq(other Expr) bool {
+	return false
 }
 
 func (a *RefExpr) InstanceOf() string {
@@ -645,8 +641,8 @@ func (a *IfExpr) Evaluate(s Scope) (Expr, error) {
 	}
 }
 
-func (a *IfExpr) Eq(other Expr) (bool, error) {
-	return false, nil
+func (a *IfExpr) Eq(other Expr) bool {
+	return false
 }
 
 func (a *IfExpr) InstanceOf() string {
@@ -671,14 +667,14 @@ func (a *BytesExpr) Evaluate(Scope) (Expr, error) {
 	return a, nil
 }
 
-func (a *BytesExpr) Eq(other Expr) (bool, error) {
+func (a *BytesExpr) Eq(other Expr) bool {
 	switch o := other.(type) {
 	case *Unit:
-		return false, nil
+		return false
 	case *BytesExpr:
-		return bytes.Equal(a.Value, o.Value), nil
+		return bytes.Equal(a.Value, o.Value)
 	default:
-		return false, nil
+		return false
 	}
 }
 
@@ -719,8 +715,8 @@ func (a *GetterExpr) Evaluate(s Scope) (Expr, error) {
 	return nil, errors.Errorf("GetterExpr Evaluate: expected value be Getable, got %T", val)
 }
 
-func (a *GetterExpr) Eq(other Expr) (bool, error) {
-	return false, nil
+func (a *GetterExpr) Eq(other Expr) bool {
+	return false
 }
 
 func (a *GetterExpr) InstanceOf() string {
@@ -745,31 +741,24 @@ func (a *ObjectExpr) Evaluate(Scope) (Expr, error) {
 	return a, nil
 }
 
-func (a *ObjectExpr) Eq(other Expr) (bool, error) {
+func (a *ObjectExpr) Eq(other Expr) bool {
 	b, ok := other.(*ObjectExpr)
 	if !ok {
-		return false, nil
+		return false
 	}
-
 	if len(a.fields) != len(b.fields) {
-		return false, nil
+		return false
 	}
-
 	for k1, v1 := range a.fields {
 		v2, ok := b.fields[k1]
 		if !ok {
-			return false, nil
+			return false
 		}
-		rs, err := v1.Eq(v2)
-		if err != nil {
-			return false, err
-		}
-		if !rs {
-			return false, nil
+		if !v1.Eq(v2) {
+			return false
 		}
 	}
-
-	return true, nil
+	return true
 }
 
 func (a *ObjectExpr) Get(name string) (Expr, error) {
@@ -803,8 +792,8 @@ func (a *DataEntryExpr) Evaluate(Scope) (Expr, error) {
 	return a, nil
 }
 
-func (a *DataEntryExpr) Eq(other Expr) (bool, error) {
-	return false, nil
+func (a *DataEntryExpr) Eq(other Expr) bool {
+	return false
 }
 
 func (a *DataEntryExpr) InstanceOf() string {
@@ -837,13 +826,13 @@ func (a *StringExpr) Evaluate(Scope) (Expr, error) {
 	return a, nil
 }
 
-func (a *StringExpr) Eq(other Expr) (bool, error) {
+func (a *StringExpr) Eq(other Expr) bool {
 	b, ok := other.(*StringExpr)
 	if !ok {
-		return false, nil
+		return false
 	}
 
-	return a.Value == b.Value, nil
+	return a.Value == b.Value
 }
 
 func (a *StringExpr) InstanceOf() string {
@@ -860,16 +849,16 @@ func (a *AddressExpr) Evaluate(Scope) (Expr, error) {
 	return a, nil
 }
 
-func (a *AddressExpr) Eq(other Expr) (bool, error) {
+func (a *AddressExpr) Eq(other Expr) bool {
 	switch o := other.(type) {
 	case *RecipientExpr:
-		return o.Address != nil && bytes.Equal(a[:], o.Address.Bytes()), nil
+		return o.Address != nil && bytes.Equal(a[:], o.Address.Bytes())
 	case *AddressExpr:
-		return bytes.Equal(a[:], o[:]), nil
+		return bytes.Equal(a[:], o[:])
 	case *BytesExpr:
-		return bytes.Equal(a[:], o.Value), nil
+		return bytes.Equal(a[:], o.Value)
 	default:
-		return false, nil
+		return false
 	}
 }
 
@@ -910,11 +899,8 @@ func (a *Unit) Evaluate(Scope) (Expr, error) {
 	return a, nil
 }
 
-func (a *Unit) Eq(other Expr) (bool, error) {
-	if other.InstanceOf() == a.InstanceOf() {
-		return true, nil
-	}
-	return false, nil
+func (a *Unit) Eq(other Expr) bool {
+	return other.InstanceOf() == a.InstanceOf()
 }
 
 func (a *Unit) InstanceOf() string {
@@ -935,14 +921,14 @@ func (a *AliasExpr) Evaluate(Scope) (Expr, error) {
 	return a, nil
 }
 
-func (a *AliasExpr) Eq(other Expr) (bool, error) {
+func (a *AliasExpr) Eq(other Expr) bool {
 	switch o := other.(type) {
 	case *RecipientExpr:
-		return o.Alias != nil && proto.Alias(*a).String() == o.Alias.String(), nil
+		return o.Alias != nil && proto.Alias(*a).String() == o.Alias.String()
 	case *AliasExpr:
-		return proto.Alias(*a).String() == proto.Alias(*o).String(), nil
+		return proto.Alias(*a).String() == proto.Alias(*o).String()
 	default:
-		return false, nil
+		return false
 	}
 }
 
@@ -1007,16 +993,16 @@ func (a *RecipientExpr) Write(w io.Writer) {
 	_, _ = fmt.Fprint(w, "RecipientExpr")
 }
 
-func (a *RecipientExpr) Eq(other Expr) (bool, error) {
+func (a *RecipientExpr) Eq(other Expr) bool {
 	switch o := other.(type) {
 	case *RecipientExpr:
-		return a.Alias == o.Alias || a.Address == o.Address, nil
+		return a.Alias == o.Alias || a.Address == o.Address
 	case *AddressExpr:
-		return *a.Address == proto.Address(*o), nil
+		return *a.Address == proto.Address(*o)
 	case *AliasExpr:
-		return *a.Alias == proto.Alias(*o), nil
+		return *a.Alias == proto.Alias(*o)
 	default:
-		return false, nil
+		return false
 	}
 }
 
@@ -1047,13 +1033,13 @@ func (a *AssetPairExpr) Write(w io.Writer) {
 	_, _ = fmt.Fprint(w, "AssetPairExpr")
 }
 
-func (a *AssetPairExpr) Eq(other Expr) (bool, error) {
+func (a *AssetPairExpr) Eq(other Expr) bool {
 	if a.InstanceOf() != other.InstanceOf() {
-		return false, nil
+		return false
 	}
 	o, ok := other.(*AssetPairExpr)
 	if !ok {
-		return false, nil
+		return false
 	}
 	return a.fields.Eq(o.fields)
 }
@@ -1076,31 +1062,26 @@ func (a object) Evaluate(Scope) (Expr, error) {
 	return a, nil
 }
 
-func (a object) Eq(other Expr) (bool, error) {
+func (a object) Eq(other Expr) bool {
 	b, ok := other.(object)
 	if !ok {
-		return false, nil
+		return false
 	}
 
 	if len(a) != len(b) {
-		return false, nil
+		return false
 	}
 
 	for k1, v1 := range a {
 		v2, ok := b[k1]
 		if !ok {
-			return false, nil
+			return false
 		}
-		rs, err := v1.Eq(v2)
-		if err != nil {
-			return false, err
-		}
-		if !rs {
-			return false, nil
+		if !v1.Eq(v2) {
+			return false
 		}
 	}
-
-	return true, nil
+	return true
 }
 
 func (a object) Get(name string) (Expr, error) {
@@ -1129,8 +1110,8 @@ func (a *BuyExpr) Write(w io.Writer) {
 	_, _ = fmt.Fprint(w, "BuyExpr")
 }
 
-func (a *BuyExpr) Eq(other Expr) (bool, error) {
-	return a.InstanceOf() == other.InstanceOf(), nil
+func (a *BuyExpr) Eq(other Expr) bool {
+	return a.InstanceOf() == other.InstanceOf()
 }
 
 func (a *BuyExpr) InstanceOf() string {
@@ -1151,8 +1132,8 @@ func (a *SellExpr) Write(w io.Writer) {
 	_, _ = fmt.Fprint(w, "SellExpr")
 }
 
-func (a *SellExpr) Eq(other Expr) (bool, error) {
-	return a.InstanceOf() == other.InstanceOf(), nil
+func (a *SellExpr) Eq(other Expr) bool {
+	return a.InstanceOf() == other.InstanceOf()
 }
 
 func (a *SellExpr) InstanceOf() string {
@@ -1169,8 +1150,8 @@ func (a *CeilingExpr) Write(w io.Writer) {
 	_, _ = fmt.Fprint(w, "CeilingExpr")
 }
 
-func (a *CeilingExpr) Eq(other Expr) (bool, error) {
-	return a.InstanceOf() == other.InstanceOf(), nil
+func (a *CeilingExpr) Eq(other Expr) bool {
+	return a.InstanceOf() == other.InstanceOf()
 }
 
 func (a *CeilingExpr) InstanceOf() string {
@@ -1187,8 +1168,8 @@ func (a *FloorExpr) Write(w io.Writer) {
 	_, _ = fmt.Fprint(w, "FloorExpr")
 }
 
-func (a *FloorExpr) Eq(other Expr) (bool, error) {
-	return a.InstanceOf() == other.InstanceOf(), nil
+func (a *FloorExpr) Eq(other Expr) bool {
+	return a.InstanceOf() == other.InstanceOf()
 }
 
 func (a *FloorExpr) InstanceOf() string {
@@ -1205,8 +1186,8 @@ func (a *HalfEvenExpr) Write(w io.Writer) {
 	_, _ = fmt.Fprint(w, "HalfEvenExpr")
 }
 
-func (a *HalfEvenExpr) Eq(other Expr) (bool, error) {
-	return a.InstanceOf() == other.InstanceOf(), nil
+func (a *HalfEvenExpr) Eq(other Expr) bool {
+	return a.InstanceOf() == other.InstanceOf()
 }
 
 func (a *HalfEvenExpr) InstanceOf() string {
@@ -1223,8 +1204,8 @@ func (a *DownExpr) Write(w io.Writer) {
 	_, _ = fmt.Fprint(w, "DownExpr")
 }
 
-func (a *DownExpr) Eq(other Expr) (bool, error) {
-	return a.InstanceOf() == other.InstanceOf(), nil
+func (a *DownExpr) Eq(other Expr) bool {
+	return a.InstanceOf() == other.InstanceOf()
 }
 
 func (a *DownExpr) InstanceOf() string {
@@ -1241,8 +1222,8 @@ func (a *UpExpr) Write(w io.Writer) {
 	_, _ = fmt.Fprint(w, "UpExpr")
 }
 
-func (a *UpExpr) Eq(other Expr) (bool, error) {
-	return a.InstanceOf() == other.InstanceOf(), nil
+func (a *UpExpr) Eq(other Expr) bool {
+	return a.InstanceOf() == other.InstanceOf()
 }
 
 func (a *UpExpr) InstanceOf() string {
@@ -1259,8 +1240,8 @@ func (a *HalfUpExpr) Write(w io.Writer) {
 	_, _ = fmt.Fprint(w, "HalfUpExpr")
 }
 
-func (a *HalfUpExpr) Eq(other Expr) (bool, error) {
-	return a.InstanceOf() == other.InstanceOf(), nil
+func (a *HalfUpExpr) Eq(other Expr) bool {
+	return a.InstanceOf() == other.InstanceOf()
 }
 
 func (a *HalfUpExpr) InstanceOf() string {
@@ -1277,8 +1258,8 @@ func (a *HalfDownExpr) Write(w io.Writer) {
 	_, _ = fmt.Fprint(w, "HalfDownExpr")
 }
 
-func (a *HalfDownExpr) Eq(other Expr) (bool, error) {
-	return a.InstanceOf() == other.InstanceOf(), nil
+func (a *HalfDownExpr) Eq(other Expr) bool {
+	return a.InstanceOf() == other.InstanceOf()
 }
 
 func (a *HalfDownExpr) InstanceOf() string {
@@ -1295,8 +1276,8 @@ func (a *NoAlgExpr) Write(w io.Writer) {
 	_, _ = fmt.Fprint(w, "NoAlgExpr")
 }
 
-func (a *NoAlgExpr) Eq(other Expr) (bool, error) {
-	return a.InstanceOf() == other.InstanceOf(), nil
+func (a *NoAlgExpr) Eq(other Expr) bool {
+	return a.InstanceOf() == other.InstanceOf()
 }
 
 func (a *NoAlgExpr) InstanceOf() string {
@@ -1313,8 +1294,8 @@ func (a *MD5Expr) Write(w io.Writer) {
 	_, _ = fmt.Fprint(w, "MD5Expr")
 }
 
-func (a *MD5Expr) Eq(other Expr) (bool, error) {
-	return a.InstanceOf() == other.InstanceOf(), nil
+func (a *MD5Expr) Eq(other Expr) bool {
+	return a.InstanceOf() == other.InstanceOf()
 }
 
 func (a *MD5Expr) InstanceOf() string {
@@ -1331,8 +1312,8 @@ func (a *SHA1Expr) Write(w io.Writer) {
 	_, _ = fmt.Fprint(w, "SHA1Expr")
 }
 
-func (a *SHA1Expr) Eq(other Expr) (bool, error) {
-	return a.InstanceOf() == other.InstanceOf(), nil
+func (a *SHA1Expr) Eq(other Expr) bool {
+	return a.InstanceOf() == other.InstanceOf()
 }
 
 func (a *SHA1Expr) InstanceOf() string {
@@ -1349,8 +1330,8 @@ func (a *SHA224Expr) Write(w io.Writer) {
 	_, _ = fmt.Fprint(w, "SHA224Expr")
 }
 
-func (a *SHA224Expr) Eq(other Expr) (bool, error) {
-	return a.InstanceOf() == other.InstanceOf(), nil
+func (a *SHA224Expr) Eq(other Expr) bool {
+	return a.InstanceOf() == other.InstanceOf()
 }
 
 func (a *SHA224Expr) InstanceOf() string {
@@ -1367,8 +1348,8 @@ func (a *SHA256Expr) Write(w io.Writer) {
 	_, _ = fmt.Fprint(w, "SHA256Expr")
 }
 
-func (a *SHA256Expr) Eq(other Expr) (bool, error) {
-	return a.InstanceOf() == other.InstanceOf(), nil
+func (a *SHA256Expr) Eq(other Expr) bool {
+	return a.InstanceOf() == other.InstanceOf()
 }
 
 func (a *SHA256Expr) InstanceOf() string {
@@ -1385,8 +1366,8 @@ func (a *SHA384Expr) Write(w io.Writer) {
 	_, _ = fmt.Fprint(w, "SHA384Expr")
 }
 
-func (a *SHA384Expr) Eq(other Expr) (bool, error) {
-	return a.InstanceOf() == other.InstanceOf(), nil
+func (a *SHA384Expr) Eq(other Expr) bool {
+	return a.InstanceOf() == other.InstanceOf()
 }
 
 func (a *SHA384Expr) InstanceOf() string {
@@ -1403,8 +1384,8 @@ func (a *SHA512Expr) Write(w io.Writer) {
 	_, _ = fmt.Fprint(w, "SHA512Expr")
 }
 
-func (a SHA512Expr) Eq(other Expr) (bool, error) {
-	return a.InstanceOf() == other.InstanceOf(), nil
+func (a SHA512Expr) Eq(other Expr) bool {
+	return a.InstanceOf() == other.InstanceOf()
 }
 
 func (a *SHA512Expr) InstanceOf() string {
@@ -1421,8 +1402,8 @@ func (a *SHA3224Expr) Write(w io.Writer) {
 	_, _ = fmt.Fprint(w, "SHA3224Expr")
 }
 
-func (a *SHA3224Expr) Eq(other Expr) (bool, error) {
-	return a.InstanceOf() == other.InstanceOf(), nil
+func (a *SHA3224Expr) Eq(other Expr) bool {
+	return a.InstanceOf() == other.InstanceOf()
 }
 
 func (a *SHA3224Expr) InstanceOf() string {
@@ -1439,8 +1420,8 @@ func (a *SHA3256Expr) Write(w io.Writer) {
 	_, _ = fmt.Fprint(w, "SHA3256Expr")
 }
 
-func (a *SHA3256Expr) Eq(other Expr) (bool, error) {
-	return a.InstanceOf() == other.InstanceOf(), nil
+func (a *SHA3256Expr) Eq(other Expr) bool {
+	return a.InstanceOf() == other.InstanceOf()
 }
 
 func (a *SHA3256Expr) InstanceOf() string {
@@ -1457,8 +1438,8 @@ func (a *SHA3384Expr) Write(w io.Writer) {
 	_, _ = fmt.Fprint(w, "SHA3384Expr")
 }
 
-func (a *SHA3384Expr) Eq(other Expr) (bool, error) {
-	return a.InstanceOf() == other.InstanceOf(), nil
+func (a *SHA3384Expr) Eq(other Expr) bool {
+	return a.InstanceOf() == other.InstanceOf()
 }
 
 func (a *SHA3384Expr) InstanceOf() string {
@@ -1475,8 +1456,8 @@ func (a *SHA3512Expr) Write(w io.Writer) {
 	_, _ = fmt.Fprint(w, "SHA3512Expr")
 }
 
-func (a *SHA3512Expr) Eq(other Expr) (bool, error) {
-	return a.InstanceOf() == other.InstanceOf(), nil
+func (a *SHA3512Expr) Eq(other Expr) bool {
+	return a.InstanceOf() == other.InstanceOf()
 }
 
 func (a *SHA3512Expr) InstanceOf() string {
@@ -1506,9 +1487,9 @@ func (a *AttachedPaymentExpr) Evaluate(Scope) (Expr, error) {
 	return a, nil
 }
 
-func (a *AttachedPaymentExpr) Eq(other Expr) (bool, error) {
+func (a *AttachedPaymentExpr) Eq(other Expr) bool {
 	if a.InstanceOf() != other.InstanceOf() {
-		return false, nil
+		return false
 	}
 	o := other.(*AttachedPaymentExpr)
 	return a.fields.Eq(o.fields)
@@ -1534,8 +1515,8 @@ func (a *BlockHeaderExpr) Evaluate(Scope) (Expr, error) {
 	return a, nil
 }
 
-func (a *BlockHeaderExpr) Eq(other Expr) (bool, error) {
-	return false, nil
+func (a *BlockHeaderExpr) Eq(other Expr) bool {
+	return false
 }
 
 func (a *BlockHeaderExpr) InstanceOf() string {
@@ -1572,8 +1553,8 @@ func (a *AssetInfoExpr) Evaluate(Scope) (Expr, error) {
 	return a, nil
 }
 
-func (a *AssetInfoExpr) Eq(other Expr) (bool, error) {
-	return false, nil
+func (a *AssetInfoExpr) Eq(other Expr) bool {
+	return false
 }
 
 func (a *AssetInfoExpr) InstanceOf() string {
@@ -1604,8 +1585,8 @@ func (a *BlockInfoExpr) Get(name string) (Expr, error) {
 	return a.fields.Get(name)
 }
 
-func (a *BlockInfoExpr) Eq(other Expr) (bool, error) {
-	return false, nil
+func (a *BlockInfoExpr) Eq(other Expr) bool {
+	return false
 }
 
 func (a *BlockInfoExpr) InstanceOf() string {
@@ -1637,8 +1618,8 @@ func (a *WriteSetExpr) Evaluate(Scope) (Expr, error) {
 	return a, nil
 }
 
-func (a *WriteSetExpr) Eq(other Expr) (bool, error) {
-	return false, nil
+func (a *WriteSetExpr) Eq(other Expr) bool {
+	return false
 }
 
 func (a *WriteSetExpr) InstanceOf() string {
@@ -1663,8 +1644,8 @@ func (a *TransferSetExpr) Evaluate(Scope) (Expr, error) {
 	return a, nil
 }
 
-func (a *TransferSetExpr) Eq(other Expr) (bool, error) {
-	return false, nil
+func (a *TransferSetExpr) Eq(other Expr) bool {
+	return false
 }
 
 func (a *TransferSetExpr) InstanceOf() string {
@@ -1691,8 +1672,8 @@ func (a *InvocationExpr) Evaluate(Scope) (Expr, error) {
 	return a, nil
 }
 
-func (a *InvocationExpr) Eq(other Expr) (bool, error) {
-	return false, nil
+func (a *InvocationExpr) Eq(other Expr) bool {
+	return false
 }
 
 func (a *InvocationExpr) InstanceOf() string {
@@ -1735,8 +1716,8 @@ func (a *ScriptTransferExpr) Evaluate(Scope) (Expr, error) {
 	return a, nil
 }
 
-func (a *ScriptTransferExpr) Eq(other Expr) (bool, error) {
-	return false, nil
+func (a *ScriptTransferExpr) Eq(other Expr) bool {
+	return false
 }
 
 func (a *ScriptTransferExpr) InstanceOf() string {
@@ -1771,8 +1752,8 @@ func (a *ScriptResultExpr) Evaluate(Scope) (Expr, error) {
 	return a, nil
 }
 
-func (a *ScriptResultExpr) Eq(other Expr) (bool, error) {
-	return false, nil
+func (a *ScriptResultExpr) Eq(other Expr) bool {
+	return false
 }
 
 func (a *ScriptResultExpr) InstanceOf() string {
@@ -1802,8 +1783,8 @@ func (a *AssetExpr) Evaluate(Scope) (Expr, error) {
 	return a, nil
 }
 
-func (a *AssetExpr) Eq(other Expr) (bool, error) {
-	return false, nil
+func (a *AssetExpr) Eq(other Expr) bool {
+	return false
 }
 
 func (a *AssetExpr) InstanceOf() string {

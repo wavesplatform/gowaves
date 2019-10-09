@@ -70,7 +70,7 @@ func NativeEq(s Scope, e Exprs) (Expr, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "NativeEq evaluate second param")
 	}
-	b, err := first.Eq(second)
+	b := first.Eq(second)
 	return NewBoolean(b), err
 }
 
@@ -1290,10 +1290,7 @@ func UserFunctionNeq(s Scope, e Exprs) (Expr, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
-	eq, err := rs[0].Eq(rs[1])
-	if err != nil {
-		return nil, errors.Wrap(err, funcName)
-	}
+	eq := rs[0].Eq(rs[1])
 	return NewBoolean(!eq), nil
 }
 
@@ -2033,10 +2030,7 @@ func dataFromArray(s Scope, e Exprs) (Expr, error) {
 		if err != nil {
 			return nil, errors.Wrapf(err, "%dth element doesn't have 'key' field", i)
 		}
-		b, err := key.Eq(k)
-		if err != nil {
-			return nil, err
-		}
+		b := key.Eq(k)
 		if b {
 			v, err := item.Get("value")
 			if err != nil {

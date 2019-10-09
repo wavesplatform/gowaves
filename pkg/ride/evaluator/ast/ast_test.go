@@ -11,25 +11,23 @@ func TestBooleanExpr_Eq(t *testing.T) {
 	b1 := NewBoolean(true)
 	b2 := NewBoolean(true)
 	b3 := NewBoolean(false)
-	eq1, _ := b1.Eq(b2)
+	eq1 := b1.Eq(b2)
 	assert.True(t, eq1)
-	eq2, _ := b1.Eq(b3)
+	eq2 := b1.Eq(b3)
 	assert.False(t, eq2)
-	eq3, _ := b1.Eq(NewLong(5))
+	eq3 := b1.Eq(NewLong(5))
 	assert.False(t, eq3)
 }
 
 func TestBuyExpr_Eq(t *testing.T) {
 	be := &BuyExpr{}
-	eq, err := be.Eq(&BuyExpr{})
-	require.NoError(t, err)
+	eq := be.Eq(&BuyExpr{})
 	require.True(t, eq)
 }
 
 func TestSellExpr_Eq(t *testing.T) {
 	se := &SellExpr{}
-	eq, err := se.Eq(&SellExpr{})
-	require.NoError(t, err)
+	eq := se.Eq(&SellExpr{})
 	require.True(t, eq)
 }
 
