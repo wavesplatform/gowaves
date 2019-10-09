@@ -336,7 +336,7 @@ func functionsV3() map[string]Expr {
 }
 
 func VariablesV1() map[string]Expr {
-	return map[string]Expr{"tx": NewUnit()}
+	return map[string]Expr{"tx": NewUnit(), "unit": NewUnit()}
 }
 
 func VariablesV2() map[string]Expr {
@@ -353,7 +353,6 @@ func VariablesV2() map[string]Expr {
 	v["HALFDOWN"] = &HalfDownExpr{}
 
 	v["nil"] = Exprs(nil)
-	v["unit"] = NewUnit()
 	return v
 }
 

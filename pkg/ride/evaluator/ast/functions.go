@@ -337,7 +337,7 @@ func NativeSigVerify(s Scope, e Exprs) (Expr, error) {
 	}
 	pk, err := crypto.NewPublicKeyFromBytes(pkExpr.Value)
 	if err != nil {
-		return nil, errors.Wrap(err, funcName)
+		return NewBoolean(false), nil
 	}
 	signature, err := crypto.NewSignatureFromBytes(signatureExpr.Value)
 	if err != nil {
@@ -396,12 +396,17 @@ func NativeSha256(s Scope, e Exprs) (Expr, error) {
 	if err != nil {
 		return nil, errors.Wrapf(err, "NativeSha256")
 	}
-	bts, ok := val.(*BytesExpr)
-	if !ok {
-		return nil, errors.Errorf("NativeSha256: expected first argument to be *BytesExpr, found %T", val)
+	var bytes []byte
+	switch s := val.(type) {
+	case *BytesExpr:
+		bytes = s.Value
+	case *StringExpr:
+		bytes = []byte(s.Value)
+	default:
+		return nil, errors.Errorf("NativeSha256: expected first argument to be *BytesExpr or *StringExpr, found %T", val)
 	}
 	h := sha256.New()
-	if _, err = h.Write(bts.Value); err != nil {
+	if _, err = h.Write(bytes); err != nil {
 		return nil, err
 	}
 	d := h.Sum(nil)
@@ -977,7 +982,12 @@ func NativeFromBase64(s Scope, e Exprs) (Expr, error) {
 	}
 	decoded, err := base64.StdEncoding.DecodeString(str.Value)
 	if err != nil {
-		return nil, errors.Wrap(err, funcName)
+		// Try no padding.
+		decoded, err = base64.RawStdEncoding.DecodeString(str.Value)
+		if err != nil {
+			return nil, errors.Wrap(err, funcName)
+		}
+		return NewBytes(decoded), nil
 	}
 	return NewBytes(decoded), nil
 }
@@ -1478,7 +1488,7 @@ func UserAddressFromPublicKey(s Scope, e Exprs) (Expr, error) {
 	}
 	addr, err := proto.NewAddressFromPublicKey(s.Scheme(), public)
 	if err != nil {
-		return nil, errors.Wrap(err, funcName)
+		return NewUnit(), nil
 	}
 	return NewAddressFromProtoAddress(addr), nil
 }
@@ -1499,7 +1509,7 @@ func UserAddress(s Scope, e Exprs) (Expr, error) {
 	}
 	addr, err := proto.NewAddressFromBytes(bts.Value)
 	if err != nil {
-		return nil, errors.Wrap(err, funcName)
+		return NewUnit(), nil
 	}
 	return NewAddressFromProtoAddress(addr), nil
 }
@@ -2052,6 +2062,8 @@ func extractRecipientAndKey(s Scope, e Exprs) (proto.Recipient, string, error) {
 		r = proto.NewRecipientFromAlias(proto.Alias(*a))
 	case *AddressExpr:
 		r = proto.NewRecipientFromAddress(proto.Address(*a))
+	case *RecipientExpr:
+		r = proto.Recipient(*a)
 	default:
 		return proto.Recipient{}, "", errors.Errorf("expected first argument of types AliasExpr of AddressExpr, found %T", addOrAliasExpr)
 	}

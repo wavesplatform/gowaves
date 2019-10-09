@@ -377,6 +377,10 @@ func (a *txAppender) checkTxAgainstState(tx proto.Transaction, accountScripted b
 		return 0, err
 	}
 	for _, smartAsset := range txSmartAssets {
+		if tx.GetTypeVersion().Type == proto.SetAssetScriptTransaction {
+			// Exception: don't count before Ride4DApps activation.
+			break
+		}
 		// Check smart asset's script.
 		if err := a.callAssetScript(tx, smartAsset, blockInfo, checkerInfo.initialisation); err != nil {
 			return 0, errors.Errorf("callAssetScript(): %v\n", err)
@@ -531,7 +535,7 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 		}
 	}
 	if err := a.checkScriptsRunsNum(scriptsRuns); err != nil {
-		return err
+		return errors.Errorf("%s: %v\n", params.block.BlockSignature.String(), err)
 	}
 	// Save fee distribution of this block.
 	// This will be needed for createMinerDiff() of next block due to NG.

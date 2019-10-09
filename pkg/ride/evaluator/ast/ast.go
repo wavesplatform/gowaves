@@ -178,7 +178,7 @@ func (a Exprs) EvaluateAll(s Scope) (Exprs, error) {
 func (a Exprs) Eq(other Expr) (bool, error) {
 	o, ok := other.(Exprs)
 	if !ok {
-		return false, errors.Errorf("trying to compare %T with %T", a, other)
+		return false, nil
 	}
 	if len(a) != len(o) {
 		return false, nil
@@ -225,7 +225,7 @@ func (a *LazyValueExpr) Evaluate(Scope) (Expr, error) {
 }
 
 func (a *LazyValueExpr) Eq(other Expr) (bool, error) {
-	return false, errors.Errorf("trying to compare %T with %T", a, other)
+	return false, nil
 }
 
 func (a *LazyValueExpr) InstanceOf() string {
@@ -254,7 +254,7 @@ func (a *Block) Evaluate(s Scope) (Expr, error) {
 }
 
 func (a *Block) Eq(other Expr) (bool, error) {
-	return false, errors.Errorf("trying to compare %T with %T", a, other)
+	return false, nil
 }
 
 func (a *Block) InstanceOf() string {
@@ -290,7 +290,7 @@ func (a *FuncDeclaration) Evaluate(s Scope) (Expr, error) {
 }
 
 func (a *FuncDeclaration) Eq(other Expr) (bool, error) {
-	return false, errors.Errorf("trying to compare %T with %T", a, other)
+	return false, nil
 }
 
 func (a *FuncDeclaration) InstanceOf() string {
@@ -315,7 +315,7 @@ func (a *BlockV2) Evaluate(s Scope) (Expr, error) {
 }
 
 func (a *BlockV2) Eq(other Expr) (bool, error) {
-	return false, errors.Errorf("trying to compare %T with %T", a, other)
+	return false, nil
 }
 
 func (a *BlockV2) InstanceOf() string {
@@ -333,7 +333,7 @@ func (a *LetExpr) Evaluate(s Scope) (Expr, error) {
 }
 
 func (a *LetExpr) Eq(other Expr) (bool, error) {
-	return false, errors.Errorf("trying to compare %T with %T", a, other)
+	return false, nil
 }
 
 func (a *LetExpr) InstanceOf() string {
@@ -373,7 +373,7 @@ func (a *LongExpr) Evaluate(Scope) (Expr, error) {
 func (a *LongExpr) Eq(other Expr) (bool, error) {
 	b, ok := other.(*LongExpr)
 	if !ok {
-		return false, errors.Errorf("trying to compare %T with %T", a, other)
+		return false, nil
 	}
 	return a.Value == b.Value, nil
 }
@@ -403,7 +403,7 @@ func (a *BooleanExpr) Write(w io.Writer) {
 func (a *BooleanExpr) Eq(other Expr) (bool, error) {
 	b, ok := other.(*BooleanExpr)
 	if !ok {
-		return false, errors.Errorf("trying to compare %T with %T", a, other)
+		return false, nil
 	}
 
 	return a.Value == b.Value, nil
@@ -426,7 +426,7 @@ func (a *FuncCallExpr) Evaluate(s Scope) (Expr, error) {
 }
 
 func (a *FuncCallExpr) Eq(other Expr) (bool, error) {
-	return false, errors.Errorf("trying to compare %T with %T", a, other)
+	return false, nil
 }
 
 func (a *FuncCallExpr) InstanceOf() string {
@@ -488,7 +488,7 @@ func (a *FunctionCall) Evaluate(s Scope) (Expr, error) {
 }
 
 func (a *FunctionCall) Eq(other Expr) (bool, error) {
-	return false, errors.Errorf("trying to compare %T with %T", a, other)
+	return false, nil
 }
 
 func (a *FunctionCall) InstanceOf() string {
@@ -511,7 +511,7 @@ func (a *Function) Evaluate(s Scope) (Expr, error) {
 }
 
 func (a *Function) Eq(other Expr) (bool, error) {
-	return false, errors.Errorf("trying to compare %T with %T", a, other)
+	return false, nil
 }
 
 func (a *Function) InstanceOf() string {
@@ -568,7 +568,7 @@ func (a *PredefFunction) Evaluate(s Scope) (Expr, error) {
 }
 
 func (a *PredefFunction) Eq(other Expr) (bool, error) {
-	return false, errors.Errorf("trying to compare %T with %T", a, other)
+	return false, nil
 }
 
 func (a *PredefFunction) InstanceOf() string {
@@ -598,7 +598,7 @@ func (a *RefExpr) Evaluate(s Scope) (Expr, error) {
 }
 
 func (a *RefExpr) Eq(other Expr) (bool, error) {
-	return false, errors.Errorf("trying to compare %T with %T", a, other)
+	return false, nil
 }
 
 func (a *RefExpr) InstanceOf() string {
@@ -646,7 +646,7 @@ func (a *IfExpr) Evaluate(s Scope) (Expr, error) {
 }
 
 func (a *IfExpr) Eq(other Expr) (bool, error) {
-	return false, errors.Errorf("trying to compare %T with %T", a, other)
+	return false, nil
 }
 
 func (a *IfExpr) InstanceOf() string {
@@ -678,7 +678,7 @@ func (a *BytesExpr) Eq(other Expr) (bool, error) {
 	case *BytesExpr:
 		return bytes.Equal(a.Value, o.Value), nil
 	default:
-		return false, errors.Errorf("trying to compare %T with %T", a, other)
+		return false, nil
 	}
 }
 
@@ -720,7 +720,7 @@ func (a *GetterExpr) Evaluate(s Scope) (Expr, error) {
 }
 
 func (a *GetterExpr) Eq(other Expr) (bool, error) {
-	return false, errors.Errorf("trying to compare %T with %T", a, other)
+	return false, nil
 }
 
 func (a *GetterExpr) InstanceOf() string {
@@ -748,7 +748,7 @@ func (a *ObjectExpr) Evaluate(Scope) (Expr, error) {
 func (a *ObjectExpr) Eq(other Expr) (bool, error) {
 	b, ok := other.(*ObjectExpr)
 	if !ok {
-		return false, errors.Errorf("trying to compare %T with %T", a, other)
+		return false, nil
 	}
 
 	if len(a.fields) != len(b.fields) {
@@ -804,7 +804,7 @@ func (a *DataEntryExpr) Evaluate(Scope) (Expr, error) {
 }
 
 func (a *DataEntryExpr) Eq(other Expr) (bool, error) {
-	return false, errors.Errorf("trying to compare %T with %T", a, other)
+	return false, nil
 }
 
 func (a *DataEntryExpr) InstanceOf() string {
@@ -840,7 +840,7 @@ func (a *StringExpr) Evaluate(Scope) (Expr, error) {
 func (a *StringExpr) Eq(other Expr) (bool, error) {
 	b, ok := other.(*StringExpr)
 	if !ok {
-		return false, errors.Errorf("trying to compare %T with %T", a, other)
+		return false, nil
 	}
 
 	return a.Value == b.Value, nil
@@ -869,7 +869,7 @@ func (a *AddressExpr) Eq(other Expr) (bool, error) {
 	case *BytesExpr:
 		return bytes.Equal(a[:], o.Value), nil
 	default:
-		return false, errors.Errorf("trying to compare %T with %T", a, other)
+		return false, nil
 	}
 }
 
@@ -942,7 +942,7 @@ func (a *AliasExpr) Eq(other Expr) (bool, error) {
 	case *AliasExpr:
 		return proto.Alias(*a).String() == proto.Alias(*o).String(), nil
 	default:
-		return false, errors.Errorf("trying to compare %T with %T", a, other)
+		return false, nil
 	}
 }
 
@@ -1016,7 +1016,7 @@ func (a *RecipientExpr) Eq(other Expr) (bool, error) {
 	case *AliasExpr:
 		return *a.Alias == proto.Alias(*o), nil
 	default:
-		return false, errors.Errorf("trying to compare %T with %T", a, other)
+		return false, nil
 	}
 }
 
@@ -1049,11 +1049,11 @@ func (a *AssetPairExpr) Write(w io.Writer) {
 
 func (a *AssetPairExpr) Eq(other Expr) (bool, error) {
 	if a.InstanceOf() != other.InstanceOf() {
-		return false, errors.Errorf("trying to compare %T with %T", a, other)
+		return false, nil
 	}
 	o, ok := other.(*AssetPairExpr)
 	if !ok {
-		return false, errors.Errorf("can't cast %T as type *AssetPairExpr", other)
+		return false, nil
 	}
 	return a.fields.Eq(o.fields)
 }
@@ -1079,7 +1079,7 @@ func (a object) Evaluate(Scope) (Expr, error) {
 func (a object) Eq(other Expr) (bool, error) {
 	b, ok := other.(object)
 	if !ok {
-		return false, errors.Errorf("trying to compare %T with %T", a, other)
+		return false, nil
 	}
 
 	if len(a) != len(b) {
@@ -1508,7 +1508,7 @@ func (a *AttachedPaymentExpr) Evaluate(Scope) (Expr, error) {
 
 func (a *AttachedPaymentExpr) Eq(other Expr) (bool, error) {
 	if a.InstanceOf() != other.InstanceOf() {
-		return false, errors.Errorf("trying to compare %T with %T", a, other)
+		return false, nil
 	}
 	o := other.(*AttachedPaymentExpr)
 	return a.fields.Eq(o.fields)
@@ -1535,7 +1535,7 @@ func (a *BlockHeaderExpr) Evaluate(Scope) (Expr, error) {
 }
 
 func (a *BlockHeaderExpr) Eq(other Expr) (bool, error) {
-	return false, errors.Errorf("trying to compare %T with %T", a, other)
+	return false, nil
 }
 
 func (a *BlockHeaderExpr) InstanceOf() string {
@@ -1573,7 +1573,7 @@ func (a *AssetInfoExpr) Evaluate(Scope) (Expr, error) {
 }
 
 func (a *AssetInfoExpr) Eq(other Expr) (bool, error) {
-	return false, errors.Errorf("trying to compare %T with %T", a, other)
+	return false, nil
 }
 
 func (a *AssetInfoExpr) InstanceOf() string {
@@ -1605,7 +1605,7 @@ func (a *BlockInfoExpr) Get(name string) (Expr, error) {
 }
 
 func (a *BlockInfoExpr) Eq(other Expr) (bool, error) {
-	return false, errors.Errorf("trying to compare %T with %T", a, other)
+	return false, nil
 }
 
 func (a *BlockInfoExpr) InstanceOf() string {
@@ -1638,7 +1638,7 @@ func (a *WriteSetExpr) Evaluate(Scope) (Expr, error) {
 }
 
 func (a *WriteSetExpr) Eq(other Expr) (bool, error) {
-	return false, errors.Errorf("trying to compare %T with %T", a, other)
+	return false, nil
 }
 
 func (a *WriteSetExpr) InstanceOf() string {
@@ -1664,7 +1664,7 @@ func (a *TransferSetExpr) Evaluate(Scope) (Expr, error) {
 }
 
 func (a *TransferSetExpr) Eq(other Expr) (bool, error) {
-	return false, errors.Errorf("trying to compare %T with %T", a, other)
+	return false, nil
 }
 
 func (a *TransferSetExpr) InstanceOf() string {
@@ -1692,7 +1692,7 @@ func (a *InvocationExpr) Evaluate(Scope) (Expr, error) {
 }
 
 func (a *InvocationExpr) Eq(other Expr) (bool, error) {
-	return false, errors.Errorf("trying to compare %T with %T", a, other)
+	return false, nil
 }
 
 func (a *InvocationExpr) InstanceOf() string {
@@ -1736,7 +1736,7 @@ func (a *ScriptTransferExpr) Evaluate(Scope) (Expr, error) {
 }
 
 func (a *ScriptTransferExpr) Eq(other Expr) (bool, error) {
-	return false, errors.Errorf("trying to compare %T with %T", a, other)
+	return false, nil
 }
 
 func (a *ScriptTransferExpr) InstanceOf() string {
@@ -1772,7 +1772,7 @@ func (a *ScriptResultExpr) Evaluate(Scope) (Expr, error) {
 }
 
 func (a *ScriptResultExpr) Eq(other Expr) (bool, error) {
-	return false, errors.Errorf("trying to compare %T with %T", a, other)
+	return false, nil
 }
 
 func (a *ScriptResultExpr) InstanceOf() string {
@@ -1803,7 +1803,7 @@ func (a *AssetExpr) Evaluate(Scope) (Expr, error) {
 }
 
 func (a *AssetExpr) Eq(other Expr) (bool, error) {
-	return false, errors.Errorf("trying to compare %T with %T", a, other)
+	return false, nil
 }
 
 func (a *AssetExpr) InstanceOf() string {
