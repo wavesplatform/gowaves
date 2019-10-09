@@ -42,6 +42,9 @@ type StateNewest interface {
 
 	// Asset fee sponsorship.
 	NewestAssetIsSponsored(assetID crypto.Digest) (bool, error)
+	NewestAssetInfo(assetID crypto.Digest) (*proto.AssetInfo, error)
+
+	NewestHeaderByHeight(height proto.Height) (*proto.BlockHeader, error)
 }
 
 // StateStable returns information that corresponds to latest fully applied block.
@@ -101,6 +104,7 @@ type StateStable interface {
 
 	// Asset fee sponsorship.
 	AssetIsSponsored(assetID crypto.Digest) (bool, error)
+	AssetInfo(assetID crypto.Digest) (*proto.AssetInfo, error)
 }
 
 // StateModifier contains all the methods needed to modify node's state.

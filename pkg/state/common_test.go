@@ -106,7 +106,7 @@ type testGlobalVars struct {
 	recipientInfo *testAddrData
 
 	scriptBytes []byte
-	scriptAst   *ast.Script
+	scriptAst   ast.Script
 }
 
 var testGlobal testGlobalVars
@@ -145,10 +145,11 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatalf("Failed to decode script from base64: %v\n", err)
 	}
-	testGlobal.scriptAst, err = ast.BuildScript(reader.NewBytesReader(testGlobal.scriptBytes))
+	scriptAst, err := ast.BuildScript(reader.NewBytesReader(testGlobal.scriptBytes))
 	if err != nil {
 		log.Fatalf("BuildAst: %v\n", err)
 	}
+	testGlobal.scriptAst = *scriptAst
 	os.Exit(m.Run())
 }
 
@@ -252,6 +253,13 @@ func (s *testStorageObjects) createAsset(t *testing.T, assetID crypto.Digest) *a
 	assert.NoError(t, err, "issueAset() failed")
 	s.flush(t)
 	return assetInfo
+}
+
+func (s *testStorageObjects) createSmartAsset(t *testing.T, assetID crypto.Digest) {
+	s.addBlock(t, blockID0)
+	err := s.entities.scriptsStorage.setAssetScript(assetID, testGlobal.scriptBytes, blockID0)
+	assert.NoError(t, err, "setAssetScript failed")
+	s.flush(t)
 }
 
 func (s *testStorageObjects) activateFeature(t *testing.T, featureID int16) {

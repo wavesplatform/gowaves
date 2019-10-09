@@ -82,6 +82,7 @@ const (
 
 	// Scripts.
 	accountScriptKeyPrefix
+	assetScriptKeyPrefix
 )
 
 type wavesBalanceKey struct {
@@ -427,5 +428,16 @@ func (k *accountScriptKey) bytes() []byte {
 	buf := make([]byte, 1+proto.AddressSize)
 	buf[0] = accountScriptKeyPrefix
 	copy(buf[1:], k.addr[:])
+	return buf
+}
+
+type assetScriptKey struct {
+	asset crypto.Digest
+}
+
+func (k *assetScriptKey) bytes() []byte {
+	buf := make([]byte, 1+crypto.DigestSize)
+	buf[0] = assetScriptKeyPrefix
+	copy(buf[1:], k.asset[:])
 	return buf
 }

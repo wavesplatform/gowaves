@@ -368,6 +368,7 @@ type Order interface {
 	GetSenderPK() crypto.PublicKey
 	BodyMarshalBinary() ([]byte, error)
 	GetProofs() (*ProofsV1, error)
+	Verify(crypto.PublicKey) (bool, error)
 }
 
 func OrderToOrderBody(o Order) (OrderBody, error) {

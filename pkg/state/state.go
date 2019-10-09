@@ -27,7 +27,7 @@ const (
 	blocksStorDir     = "blocks_storage"
 	keyvalueDir       = "key_value"
 
-	maxScriptsRunsInBlock = 100
+	maxScriptsRunsInBlock = 101
 )
 
 var empty struct{}
@@ -52,7 +52,7 @@ type blockchainEntitiesStorage struct {
 	features         *features
 	accountsDataStor *accountsDataStorage
 	sponsoredAssets  *sponsoredAssets
-	accountsScripts  *accountsScripts
+	scriptsStorage   *scriptsStorage
 }
 
 func newBlockchainEntitiesStorage(hs *historyStorage, sets *settings.BlockchainSettings, rw *blockReadWriter) (*blockchainEntitiesStorage, error) {
@@ -92,11 +92,11 @@ func newBlockchainEntitiesStorage(hs *historyStorage, sets *settings.BlockchainS
 	if err != nil {
 		return nil, err
 	}
-	accountsScripts, err := newAccountsScripts(hs.db, hs.dbBatch, hs)
+	scriptsStorage, err := newScriptsStorage(hs)
 	if err != nil {
 		return nil, err
 	}
-	return &blockchainEntitiesStorage{hs, aliases, assets, leases, scores, blocksInfo, balances, features, accountsDataStor, sponsoredAssets, accountsScripts}, nil
+	return &blockchainEntitiesStorage{hs, aliases, assets, leases, scores, blocksInfo, balances, features, accountsDataStor, sponsoredAssets, scriptsStorage}, nil
 }
 
 func (s *blockchainEntitiesStorage) reset() {
@@ -213,12 +213,45 @@ type appendBlockParams struct {
 	initialisation bool
 }
 
-func (a *txAppender) callVerifyScript(tx proto.Transaction, initialisation bool) error {
+func (a *txAppender) callVerifyScript(script ast.Script, obj map[string]ast.Expr, this, lastBlock ast.Expr) error {
+	ok, err := evaluate.Verify(a.settings.AddressSchemeCharacter, a.state, &script, obj, this, lastBlock)
+	if err != nil {
+		return errors.Wrap(err, "verifier script failed")
+	}
+	if !ok {
+		return errors.New("verifier script does not allow to send transaction")
+	}
+	return nil
+}
+
+func (a *txAppender) callAccountScriptWithOrder(order proto.Order, lastBlockInfo *proto.BlockInfo, initialisation bool) error {
+	sender, err := proto.NewAddressFromPublicKey(a.settings.AddressSchemeCharacter, order.GetSenderPK())
+	if err != nil {
+		return err
+	}
+	script, err := a.stor.scriptsStorage.newestScriptByAddr(sender, !initialisation)
+	if err != nil {
+		return errors.Wrap(err, "failed to retrieve account script")
+	}
+	obj, err := ast.NewVariablesFromOrder(a.settings.AddressSchemeCharacter, order)
+	if err != nil {
+		return errors.Wrap(err, "failed to convert order")
+	}
+	this := ast.NewAddressFromProtoAddress(sender)
+	lastBlock := ast.NewObjectFromBlockInfo(*lastBlockInfo)
+	if err := a.callVerifyScript(script, obj, this, lastBlock); err != nil {
+		id, _ := order.GetID()
+		return errors.Errorf("account script; order ID %s: %v\n", base58.Encode(id), err)
+	}
+	return nil
+}
+
+func (a *txAppender) callAccountScriptWithTx(tx proto.Transaction, lastBlockInfo *proto.BlockInfo, initialisation bool) error {
 	senderAddr, err := proto.NewAddressFromPublicKey(a.settings.AddressSchemeCharacter, tx.GetSenderPK())
 	if err != nil {
 		return err
 	}
-	script, err := a.stor.accountsScripts.newestScriptByAddr(senderAddr, !initialisation)
+	script, err := a.stor.scriptsStorage.newestScriptByAddr(senderAddr, !initialisation)
 	if err != nil {
 		return errors.Wrap(err, "failed to retrieve account script")
 	}
@@ -226,46 +259,145 @@ func (a *txAppender) callVerifyScript(tx proto.Transaction, initialisation bool)
 	if err != nil {
 		return errors.Wrap(err, "failed to convert transaction")
 	}
-	//TODO: Implement lastBlockInfo made from the block that we applying now
-	lastBlockInfo := proto.BlockInfo{}
-	//TODO: Pass to `this` an AssetInfo
-	this := ast.NewObjectFromAssetInfo(proto.AssetInfo{})
-	//TODO: or an Address
-	// this = ast.NewAddressFromProtoAddress(senderAddr)
-	ok, err := evaluate.Verify(a.settings.AddressSchemeCharacter, a.state, script, obj, this, ast.NewObjectFromBlockInfo(lastBlockInfo))
-	if err != nil {
-		return errors.Wrap(err, "verifier script failed")
-	}
-	if !ok {
+	this := ast.NewAddressFromProtoAddress(senderAddr)
+	lastBlock := ast.NewObjectFromBlockInfo(*lastBlockInfo)
+	if err := a.callVerifyScript(script, obj, this, lastBlock); err != nil {
 		id, _ := tx.GetID()
-		return errors.Errorf("verifier script does not allow to send transaction %s from smart account %s", base58.Encode(id), senderAddr.String())
+		return errors.Errorf("account script; transaction ID %s: %v\n", base58.Encode(id), err)
 	}
 	return nil
 }
 
-func (a *txAppender) hasVerifyScript(tx proto.Transaction, initialisation bool) (bool, error) {
+func (a *txAppender) callAssetScript(tx proto.Transaction, assetID crypto.Digest, lastBlockInfo *proto.BlockInfo, initialisation bool) error {
+	script, err := a.stor.scriptsStorage.newestScriptByAsset(assetID, !initialisation)
+	if err != nil {
+		return errors.Errorf("failed to retrieve asset script: %v\n", err)
+	}
+	obj, err := ast.NewVariablesFromTransaction(a.settings.AddressSchemeCharacter, tx)
+	if err != nil {
+		return errors.Wrap(err, "failed to convert transaction")
+	}
+	assetInfo, err := a.state.NewestAssetInfo(assetID)
+	if err != nil {
+		return errors.Wrap(err, "failed to retrieve asset info")
+	}
+	this := ast.NewObjectFromAssetInfo(*assetInfo)
+	lastBlock := ast.NewObjectFromBlockInfo(*lastBlockInfo)
+	if err := a.callVerifyScript(script, obj, this, lastBlock); err != nil {
+		id, _ := tx.GetID()
+		return errors.Errorf("asset script; transaction ID %s: %v\n", base58.Encode(id), err)
+	}
+	return nil
+}
+
+func (a *txAppender) hasAccountVerifyScript(tx proto.Transaction, initialisation bool) (bool, error) {
 	senderAddr, err := proto.NewAddressFromPublicKey(a.settings.AddressSchemeCharacter, tx.GetSenderPK())
 	if err != nil {
 		return false, err
 	}
-	return a.stor.accountsScripts.newestHasVerifier(senderAddr, !initialisation)
+	return a.stor.scriptsStorage.newestAccountHasVerifier(senderAddr, !initialisation)
 }
 
-func (a *txAppender) checkTxAgainstState(tx proto.Transaction, scripted bool, checkerInfo *checkerInfo) error {
-	if scripted {
-		// Check script.
-		if err := a.callVerifyScript(tx, checkerInfo.initialisation); err != nil {
-			return err
+func (a *txAppender) orderIsScripted(order proto.Order, initialisation bool) (bool, error) {
+	return a.txHandler.tc.orderScripted(order, initialisation)
+}
+
+func (a *txAppender) handleExchange(tx proto.Transaction, blockInfo *proto.BlockInfo, initialisation bool) (uint64, error) {
+	// Smart account trading.
+	activated, err := a.stor.features.isActivated(int16(settings.SmartAccountTrading))
+	if err != nil {
+		return 0, err
+	}
+	if !activated {
+		// Functionality is not yet activated.
+		return 0, nil
+	}
+	exchange, ok := tx.(proto.Exchange)
+	if !ok {
+		return 0, errors.New("failed to convert tx to Exchange")
+	}
+	bo := exchange.GetBuyOrderFull()
+	so := exchange.GetSellOrderFull()
+	boScripted, err := a.orderIsScripted(bo, initialisation)
+	if err != nil {
+		return 0, err
+	}
+	soScripted, err := a.orderIsScripted(so, initialisation)
+	if err != nil {
+		return 0, err
+	}
+	scriptsRuns := uint64(0)
+	if boScripted {
+		if err := a.callAccountScriptWithOrder(bo, blockInfo, initialisation); err != nil {
+			return 0, errors.Errorf("BUY ORDER: callAccountScriptWithOrder(): %v\n", err)
 		}
+		scriptsRuns++
+	}
+	if soScripted {
+		if err := a.callAccountScriptWithOrder(so, blockInfo, initialisation); err != nil {
+			return 0, errors.Errorf("SELL ORDER: callAccountScriptWithOrder(): %v\n", err)
+		}
+		scriptsRuns++
+	}
+	activated, err = a.stor.features.isActivated(int16(settings.Ride4DApps))
+	if err != nil {
+		return 0, err
+	}
+	if !activated {
+		// Don't count before Ride4DApps activation.
+		scriptsRuns = 0
+	}
+	return scriptsRuns, nil
+}
+
+func (a *txAppender) checkTxAgainstState(tx proto.Transaction, accountScripted bool, checkerInfo *checkerInfo) (uint64, error) {
+	curBlockHeight, err := a.state.AddingBlockHeight()
+	if err != nil {
+		return 0, err
+	}
+	curHeader, err := a.state.NewestHeaderByHeight(curBlockHeight)
+	if err != nil {
+		return 0, err
+	}
+	blockInfo, err := proto.BlockInfoFromHeader(a.settings.AddressSchemeCharacter, curHeader, curBlockHeight)
+	if err != nil {
+		return 0, err
+	}
+	scriptsRuns := uint64(0)
+	if accountScripted {
+		// Check script.
+		if err := a.callAccountScriptWithTx(tx, blockInfo, checkerInfo.initialisation); err != nil {
+			return 0, errors.Errorf("callAccountScriptWithTx(): %v\n", err)
+		}
+		scriptsRuns++
 	}
 	// Check against state.
-	if err := a.txHandler.checkTx(tx, checkerInfo); err != nil {
-		return err
+	txSmartAssets, err := a.txHandler.checkTx(tx, checkerInfo)
+	if err != nil {
+		return 0, err
 	}
-	return nil
+	for _, smartAsset := range txSmartAssets {
+		if tx.GetTypeVersion().Type == proto.SetAssetScriptTransaction {
+			// Exception: don't count before Ride4DApps activation.
+			break
+		}
+		// Check smart asset's script.
+		if err := a.callAssetScript(tx, smartAsset, blockInfo, checkerInfo.initialisation); err != nil {
+			return 0, errors.Errorf("callAssetScript(): %v\n", err)
+		}
+		scriptsRuns++
+	}
+	if tx.GetTypeVersion().Type == proto.ExchangeTransaction {
+		exchangeScripsRuns, err := a.handleExchange(tx, blockInfo, checkerInfo.initialisation)
+		if err != nil {
+			return 0, errors.Errorf("failed to handle exchange tx: %v\n", err)
+		}
+		scriptsRuns += exchangeScripsRuns
+	}
+	return scriptsRuns, nil
 }
 
-func (a *txAppender) checkScriptsRunsNum(scriptsRuns int) error {
+func (a *txAppender) checkScriptsRunsNum(scriptsRuns uint64) error {
 	smartAccountsActivated, err := a.stor.features.isActivated(int16(settings.SmartAccounts))
 	if err != nil {
 		return err
@@ -279,10 +411,26 @@ func (a *txAppender) checkScriptsRunsNum(scriptsRuns int) error {
 		return nil
 	} else if smartAccountsActivated {
 		if scriptsRuns > maxScriptsRunsInBlock {
-			return errors.Errorf("more sctips runs in block than allowed: %d > %d", scriptsRuns, maxScriptsRunsInBlock)
+			return errors.Errorf("more scripts runs in block than allowed: %d > %d", scriptsRuns, maxScriptsRunsInBlock)
 		}
 	}
 	return nil
+}
+
+func (a *txAppender) needToCheckOrdersSigs(transaction proto.Transaction, initialisation bool) (bool, bool, error) {
+	tx, ok := transaction.(proto.Exchange)
+	if !ok {
+		return false, false, nil
+	}
+	soScripted, err := a.orderIsScripted(tx.GetSellOrderFull(), initialisation)
+	if err != nil {
+		return false, false, err
+	}
+	boScripted, err := a.orderIsScripted(tx.GetBuyOrderFull(), initialisation)
+	if err != nil {
+		return false, false, err
+	}
+	return !soScripted, !boScripted, nil
 }
 
 func (a *txAppender) appendBlock(params *appendBlockParams) error {
@@ -298,27 +446,33 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	if err := a.diffStor.saveTxDiff(minerDiff); err != nil {
 		return err
 	}
-	scriptsRuns := 0
+	scriptsRuns := uint64(0)
 	for _, tx := range params.transactions {
+		// Detect what signatures must be checked for this transaction.
 		senderAddr, err := proto.NewAddressFromPublicKey(a.settings.AddressSchemeCharacter, tx.GetSenderPK())
 		if err != nil {
 			return err
 		}
-		hasVerifierScript, err := a.stor.accountsScripts.newestHasVerifier(senderAddr, !params.initialisation)
+		accountHasVerifierScript, err := a.stor.scriptsStorage.newestAccountHasVerifier(senderAddr, !params.initialisation)
 		if err != nil {
 			return err
 		}
 		checkTxSig := true
-		if hasVerifierScript {
-			scriptsRuns++
+		if accountHasVerifierScript {
 			// For transaction with SmartAccount we don't check signatures.
 			checkTxSig = false
 		}
+		checkSellOrder, checkBuyOrder, err := a.needToCheckOrdersSigs(tx, params.initialisation)
+		if err != nil {
+			return err
+		}
 		// Send transaction for signature/data verification.
 		task := &verifyTask{
-			taskType:   verifyTx,
-			tx:         tx,
-			checkTxSig: checkTxSig,
+			taskType:       verifyTx,
+			tx:             tx,
+			checkTxSig:     checkTxSig,
+			checkSellOrder: checkSellOrder,
+			checkBuyOrder:  checkBuyOrder,
 		}
 		select {
 		case verifyError := <-params.chans.errChan:
@@ -344,9 +498,11 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 		}
 		a.recentTxIds[string(txID)] = empty
 		// Check against state.
-		if err := a.checkTxAgainstState(tx, hasVerifierScript, checkerInfo); err != nil {
+		txScriptsRuns, err := a.checkTxAgainstState(tx, accountHasVerifierScript, checkerInfo)
+		if err != nil {
 			return err
 		}
+		scriptsRuns += txScriptsRuns
 		// Create balance diff of this tx.
 		txDiff, err := a.blockDiffer.createTransactionDiff(tx, params.block, params.initialisation)
 		if err != nil {
@@ -379,7 +535,7 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 		}
 	}
 	if err := a.checkScriptsRunsNum(scriptsRuns); err != nil {
-		return err
+		return errors.Errorf("%s: %v\n", params.block.BlockSignature.String(), err)
 	}
 	// Save fee distribution of this block.
 	// This will be needed for createMinerDiff() of next block due to NG.
@@ -399,22 +555,43 @@ func (a *txAppender) applyAllDiffs(initialisation bool) error {
 	return nil
 }
 
+func (a *txAppender) checkUtxTxSig(tx proto.Transaction, scripted bool) error {
+	// Check tx signature and data.
+	checkSellOrder, checkBuyOrder, err := a.needToCheckOrdersSigs(tx, false)
+	if err != nil {
+		return err
+	}
+	if err := checkTx(tx, !scripted, checkSellOrder, checkBuyOrder); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (a *txAppender) validateSingleTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64) error {
 	dummy := make(map[string]struct{})
 	if err := a.checkDuplicateTxIds(tx, dummy, currentTimestamp); err != nil {
 		return err
 	}
-	scripted, err := a.hasVerifyScript(tx, false)
+	scripted, err := a.hasAccountVerifyScript(tx, false)
 	if err != nil {
 		return err
 	}
 	// Check tx signature and data.
-	if err := checkTx(tx, !scripted); err != nil {
+	if err := a.checkUtxTxSig(tx, scripted); err != nil {
 		return err
 	}
 	// Check tx data against state.
-	checkerInfo := &checkerInfo{initialisation: false, currentTimestamp: currentTimestamp, parentTimestamp: parentTimestamp}
-	if err := a.checkTxAgainstState(tx, scripted, checkerInfo); err != nil {
+	height, err := a.state.AddingBlockHeight()
+	if err != nil {
+		return err
+	}
+	checkerInfo := &checkerInfo{
+		initialisation:   false,
+		currentTimestamp: currentTimestamp,
+		parentTimestamp:  parentTimestamp,
+		height:           height,
+	}
+	if _, err := a.checkTxAgainstState(tx, scripted, checkerInfo); err != nil {
 		return err
 	}
 	// Create and validate balance diff.
@@ -443,17 +620,26 @@ func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, pare
 		return err
 	}
 	a.recentTxIds[string(txID)] = empty
-	scripted, err := a.hasVerifyScript(tx, false)
+	scripted, err := a.hasAccountVerifyScript(tx, false)
 	if err != nil {
 		return err
 	}
 	// Check tx signature and data.
-	if err := checkTx(tx, !scripted); err != nil {
+	if err := a.checkUtxTxSig(tx, scripted); err != nil {
 		return err
 	}
 	// Check tx data against state.
-	checkerInfo := &checkerInfo{initialisation: false, currentTimestamp: currentTimestamp, parentTimestamp: parentTimestamp}
-	if err := a.checkTxAgainstState(tx, scripted, checkerInfo); err != nil {
+	height, err := a.state.AddingBlockHeight()
+	if err != nil {
+		return err
+	}
+	checkerInfo := &checkerInfo{
+		initialisation:   false,
+		currentTimestamp: currentTimestamp,
+		parentTimestamp:  parentTimestamp,
+		height:           height,
+	}
+	if _, err := a.checkTxAgainstState(tx, scripted, checkerInfo); err != nil {
 		return err
 	}
 	// Create, validate and save balance diff.
@@ -692,6 +878,22 @@ func (s *stateManager) HeaderBytes(blockID crypto.Signature) ([]byte, error) {
 		return nil, wrapErr(RetrievalError, err)
 	}
 	return headerBytes, nil
+}
+
+func (s *stateManager) NewestHeaderByHeight(height uint64) (*proto.BlockHeader, error) {
+	blockID, err := s.rw.newestBlockIDByHeight(height)
+	if err != nil {
+		return nil, wrapErr(RetrievalError, err)
+	}
+	headerBytes, err := s.rw.readNewestBlockHeader(blockID)
+	if err != nil {
+		return nil, wrapErr(RetrievalError, err)
+	}
+	var header proto.BlockHeader
+	if err := header.UnmarshalHeaderFromBinary(headerBytes); err != nil {
+		return nil, wrapErr(DeserializationError, err)
+	}
+	return &header, nil
 }
 
 func (s *stateManager) HeaderByHeight(height uint64) (*proto.BlockHeader, error) {
@@ -1442,7 +1644,7 @@ func (s *stateManager) rollbackToImpl(removalEdge crypto.Signature) error {
 		return wrapErr(RollbackError, err)
 	}
 	// Clear scripts cache.
-	if err := s.stor.accountsScripts.clear(); err != nil {
+	if err := s.stor.scriptsStorage.clear(); err != nil {
 		return wrapErr(RollbackError, err)
 	}
 	return nil
@@ -1758,6 +1960,70 @@ func (s *stateManager) AssetIsSponsored(assetID crypto.Digest) (bool, error) {
 		return false, wrapErr(RetrievalError, err)
 	}
 	return sponsored, nil
+}
+
+func (s *stateManager) NewestAssetInfo(assetID crypto.Digest) (*proto.AssetInfo, error) {
+	info, err := s.stor.assets.newestAssetInfo(assetID, true)
+	if err != nil {
+		return nil, wrapErr(RetrievalError, err)
+	}
+	if !info.quantity.IsUint64() {
+		return nil, wrapErr(Other, errors.New("asset quantity overflows uint64"))
+	}
+	issuer, err := proto.NewAddressFromPublicKey(s.settings.AddressSchemeCharacter, info.issuer)
+	if err != nil {
+		return nil, wrapErr(Other, err)
+	}
+	sponsored, err := s.stor.sponsoredAssets.newestIsSponsored(assetID, true)
+	if err != nil {
+		return nil, wrapErr(RetrievalError, err)
+	}
+	scripted, err := s.stor.scriptsStorage.newestIsSmartAsset(assetID, true)
+	if err != nil {
+		return nil, wrapErr(RetrievalError, err)
+	}
+	return &proto.AssetInfo{
+		ID:              assetID,
+		Quantity:        info.quantity.Uint64(),
+		Decimals:        byte(info.decimals),
+		Issuer:          issuer,
+		IssuerPublicKey: info.issuer,
+		Reissuable:      info.reissuable,
+		Scripted:        scripted,
+		Sponsored:       sponsored,
+	}, nil
+}
+
+func (s *stateManager) AssetInfo(assetID crypto.Digest) (*proto.AssetInfo, error) {
+	info, err := s.stor.assets.assetInfo(assetID, true)
+	if err != nil {
+		return nil, wrapErr(RetrievalError, err)
+	}
+	if !info.quantity.IsUint64() {
+		return nil, wrapErr(Other, errors.New("asset quantity overflows uint64"))
+	}
+	issuer, err := proto.NewAddressFromPublicKey(s.settings.AddressSchemeCharacter, info.issuer)
+	if err != nil {
+		return nil, wrapErr(Other, err)
+	}
+	sponsored, err := s.stor.sponsoredAssets.isSponsored(assetID, true)
+	if err != nil {
+		return nil, wrapErr(RetrievalError, err)
+	}
+	scripted, err := s.stor.scriptsStorage.isSmartAsset(assetID, true)
+	if err != nil {
+		return nil, wrapErr(RetrievalError, err)
+	}
+	return &proto.AssetInfo{
+		ID:              assetID,
+		Quantity:        info.quantity.Uint64(),
+		Decimals:        byte(info.decimals),
+		Issuer:          issuer,
+		IssuerPublicKey: info.issuer,
+		Reissuable:      info.reissuable,
+		Scripted:        scripted,
+		Sponsored:       sponsored,
+	}, nil
 }
 
 func (s *stateManager) IsNotFound(err error) bool {

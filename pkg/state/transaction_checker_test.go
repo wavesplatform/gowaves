@@ -46,14 +46,14 @@ func TestCheckGenesis(t *testing.T) {
 
 	tx := createGenesis(t)
 	info := defaultCheckerInfo(t)
-	err := to.tc.checkGenesis(tx, info)
+	_, err := to.tc.checkGenesis(tx, info)
 	info.blockID = crypto.MustSignatureFromBase58(genesisSignature)
 	assert.Error(t, err, "checkGenesis accepted genesis tx in non-initialisation mode")
 	info.initialisation = true
-	err = to.tc.checkGenesis(tx, info)
+	_, err = to.tc.checkGenesis(tx, info)
 	assert.NoError(t, err, "checkGenesis failed with valid genesis tx")
 	info.blockID = blockID0
-	err = to.tc.checkGenesis(tx, info)
+	_, err = to.tc.checkGenesis(tx, info)
 	assert.Error(t, err, "checkGenesis accepted genesis tx in non-genesis block")
 }
 
@@ -70,14 +70,14 @@ func TestCheckPayment(t *testing.T) {
 	tx := createPayment(t)
 	info := defaultCheckerInfo(t)
 	info.height = settings.MainNetSettings.BlockVersion3AfterHeight
-	err := to.tc.checkPayment(tx, info)
+	_, err := to.tc.checkPayment(tx, info)
 	assert.Error(t, err, "checkPayment accepted payment tx after Block v3 height")
 	info.height = 10
-	err = to.tc.checkPayment(tx, info)
+	_, err = to.tc.checkPayment(tx, info)
 	assert.NoError(t, err, "checkPayment failed with valid payment tx")
 
 	tx.Timestamp = 0
-	err = to.tc.checkPayment(tx, info)
+	_, err = to.tc.checkPayment(tx, info)
 	assert.Error(t, err, "checkPayment did not fail with invalid timestamp")
 }
 
@@ -96,25 +96,32 @@ func TestCheckTransferV1(t *testing.T) {
 
 	assetId := tx.FeeAsset.ID
 
-	err := to.tc.checkTransferV1(tx, info)
+	_, err := to.tc.checkTransferV1(tx, info)
 	assert.Error(t, err, "checkTransferV1 did not fail with invalid transfer asset")
 
 	to.stor.createAsset(t, assetId)
-	err = to.tc.checkTransferV1(tx, info)
+	_, err = to.tc.checkTransferV1(tx, info)
 	assert.NoError(t, err, "checkTransferV1 failed with valid transfer tx")
+
+	// Check that smart assets are detected properly.
+	to.stor.createSmartAsset(t, tx.AmountAsset.ID)
+	smartAssets, err := to.tc.checkTransferV1(tx, info)
+	assert.NoError(t, err)
+	assert.Equal(t, 1, len(smartAssets))
+	assert.Equal(t, tx.AmountAsset.ID, smartAssets[0])
 
 	// Sponsorship checks.
 	to.stor.activateSponsorship(t)
-	err = to.tc.checkTransferV1(tx, info)
+	_, err = to.tc.checkTransferV1(tx, info)
 	assert.Error(t, err, "checkTransferV1 did not fail with unsponsored asset")
 	assert.EqualError(t, err, fmt.Sprintf("checkFee(): asset %s is not sponsored", assetId.String()))
 	err = to.stor.entities.sponsoredAssets.sponsorAsset(assetId, 10, info.blockID)
 	assert.NoError(t, err, "sponsorAsset() failed")
-	err = to.tc.checkTransferV1(tx, info)
+	_, err = to.tc.checkTransferV1(tx, info)
 	assert.NoError(t, err, "checkTransferV1 failed with valid sponsored asset")
 
 	tx.Timestamp = 0
-	err = to.tc.checkTransferV1(tx, info)
+	_, err = to.tc.checkTransferV1(tx, info)
 	assert.Error(t, err, "checkTransferV1 did not fail with invalid timestamp")
 }
 
@@ -133,32 +140,39 @@ func TestCheckTransferV2(t *testing.T) {
 
 	assetId := tx.FeeAsset.ID
 
-	err := to.tc.checkTransferV2(tx, info)
+	_, err := to.tc.checkTransferV2(tx, info)
 	assert.Error(t, err, "checkTransferV2 did not fail with invalid transfer asset")
 
 	to.stor.createAsset(t, assetId)
 
-	err = to.tc.checkTransferV2(tx, info)
+	_, err = to.tc.checkTransferV2(tx, info)
 	assert.Error(t, err, "checkTransferV2 did not fail prior to SmartAccounts activation")
 
 	to.stor.activateFeature(t, int16(settings.SmartAccounts))
 
 	to.stor.createAsset(t, assetId)
-	err = to.tc.checkTransferV2(tx, info)
+	_, err = to.tc.checkTransferV2(tx, info)
 	assert.NoError(t, err, "checkTransferV2 failed with valid transfer tx")
+
+	// Check that smart assets are detected properly.
+	to.stor.createSmartAsset(t, tx.AmountAsset.ID)
+	smartAssets, err := to.tc.checkTransferV2(tx, info)
+	assert.NoError(t, err)
+	assert.Equal(t, 1, len(smartAssets))
+	assert.Equal(t, tx.AmountAsset.ID, smartAssets[0])
 
 	// Sponsorship checks.
 	to.stor.activateSponsorship(t)
-	err = to.tc.checkTransferV2(tx, info)
+	_, err = to.tc.checkTransferV2(tx, info)
 	assert.Error(t, err, "checkTransferV2 did not fail with unsponsored asset")
 	assert.EqualError(t, err, fmt.Sprintf("checkFee(): asset %s is not sponsored", assetId.String()))
 	err = to.stor.entities.sponsoredAssets.sponsorAsset(assetId, 10, info.blockID)
 	assert.NoError(t, err, "sponsorAsset() failed")
-	err = to.tc.checkTransferV2(tx, info)
+	_, err = to.tc.checkTransferV2(tx, info)
 	assert.NoError(t, err, "checkTransferV2 failed with valid sponsored asset")
 
 	tx.Timestamp = 0
-	err = to.tc.checkTransferV2(tx, info)
+	_, err = to.tc.checkTransferV2(tx, info)
 	assert.Error(t, err, "checkTransferV2 did not fail with invalid timestamp")
 }
 
@@ -174,11 +188,11 @@ func TestCheckIssueV1(t *testing.T) {
 
 	tx := createIssueV1(t, 1000)
 	info := defaultCheckerInfo(t)
-	err := to.tc.checkIssueV1(tx, info)
+	_, err := to.tc.checkIssueV1(tx, info)
 	assert.NoError(t, err, "checkIssueV1 failed with valid issue tx")
 
 	tx.Timestamp = 0
-	err = to.tc.checkIssueV1(tx, info)
+	_, err = to.tc.checkIssueV1(tx, info)
 	assert.Error(t, err, "checkIssueV1 did not fail with invalid timestamp")
 }
 
@@ -195,11 +209,11 @@ func TestCheckIssueV2(t *testing.T) {
 	tx := createIssueV2(t, 1000)
 	info := defaultCheckerInfo(t)
 
-	err := to.tc.checkIssueV2(tx, info)
+	_, err := to.tc.checkIssueV2(tx, info)
 	assert.NoError(t, err, "checkIssueV2 failed with valid issue tx")
 
 	tx.Timestamp = 0
-	err = to.tc.checkIssueV2(tx, info)
+	_, err = to.tc.checkIssueV2(tx, info)
 	assert.Error(t, err, "checkIssueV2 did not fail with invalid timestamp")
 }
 
@@ -219,17 +233,24 @@ func TestCheckReissueV1(t *testing.T) {
 	tx.SenderPK = assetInfo.issuer
 	info := defaultCheckerInfo(t)
 	info.currentTimestamp = settings.MainNetSettings.ReissueBugWindowTimeEnd + 1
-	err := to.tc.checkReissueV1(tx, info)
+	_, err := to.tc.checkReissueV1(tx, info)
 	assert.NoError(t, err, "checkReissueV1 failed with valid reissue tx")
+
+	// Check that smart assets are detected properly.
+	to.stor.createSmartAsset(t, tx.AssetID)
+	smartAssets, err := to.tc.checkReissueV1(tx, info)
+	assert.NoError(t, err)
+	assert.Equal(t, 1, len(smartAssets))
+	assert.Equal(t, tx.AssetID, smartAssets[0])
 
 	temp := tx.Quantity
 	tx.Quantity = math.MaxInt64 + 1
-	err = to.tc.checkReissueV1(tx, info)
+	_, err = to.tc.checkReissueV1(tx, info)
 	assert.EqualError(t, err, "asset total value overflow")
 	tx.Quantity = temp
 
 	tx.SenderPK = testGlobal.recipientInfo.pk
-	err = to.tc.checkReissueV1(tx, info)
+	_, err = to.tc.checkReissueV1(tx, info)
 	assert.EqualError(t, err, "asset was issued by other address")
 	tx.SenderPK = assetInfo.issuer
 
@@ -239,7 +260,7 @@ func TestCheckReissueV1(t *testing.T) {
 	to.stor.addBlock(t, blockID0)
 	to.stor.flush(t)
 
-	err = to.tc.checkReissueV1(tx, info)
+	_, err = to.tc.checkReissueV1(tx, info)
 	assert.Error(t, err, "checkReissueV1 did not fail when trying to reissue unreissueable asset")
 	assert.EqualError(t, err, "attempt to reissue asset which is not reissuable")
 }
@@ -261,22 +282,29 @@ func TestCheckReissueV2(t *testing.T) {
 	info := defaultCheckerInfo(t)
 	info.currentTimestamp = settings.MainNetSettings.ReissueBugWindowTimeEnd + 1
 
-	err := to.tc.checkReissueV2(tx, info)
+	_, err := to.tc.checkReissueV2(tx, info)
 	assert.Error(t, err, "checkReissueV2 did not fail prior to SmartAccounts activation")
 
 	to.stor.activateFeature(t, int16(settings.SmartAccounts))
 
-	err = to.tc.checkReissueV2(tx, info)
+	_, err = to.tc.checkReissueV2(tx, info)
 	assert.NoError(t, err, "checkReissueV2 failed with valid reissue tx")
+
+	// Check that smart assets are detected properly.
+	to.stor.createSmartAsset(t, tx.AssetID)
+	smartAssets, err := to.tc.checkReissueV2(tx, info)
+	assert.NoError(t, err)
+	assert.Equal(t, 1, len(smartAssets))
+	assert.Equal(t, tx.AssetID, smartAssets[0])
 
 	temp := tx.Quantity
 	tx.Quantity = math.MaxInt64 + 1
-	err = to.tc.checkReissueV2(tx, info)
+	_, err = to.tc.checkReissueV2(tx, info)
 	assert.EqualError(t, err, "asset total value overflow")
 	tx.Quantity = temp
 
 	tx.SenderPK = testGlobal.recipientInfo.pk
-	err = to.tc.checkReissueV2(tx, info)
+	_, err = to.tc.checkReissueV2(tx, info)
 	assert.EqualError(t, err, "asset was issued by other address")
 	tx.SenderPK = assetInfo.issuer
 
@@ -286,7 +314,7 @@ func TestCheckReissueV2(t *testing.T) {
 	to.stor.addBlock(t, blockID0)
 	to.stor.flush(t)
 
-	err = to.tc.checkReissueV2(tx, info)
+	_, err = to.tc.checkReissueV2(tx, info)
 	assert.Error(t, err, "checkReissueV2 did not fail when trying to reissue unreissueable asset")
 	assert.EqualError(t, err, "attempt to reissue asset which is not reissuable")
 }
@@ -306,21 +334,28 @@ func TestCheckBurnV1(t *testing.T) {
 	tx.SenderPK = assetInfo.issuer
 	info := defaultCheckerInfo(t)
 
-	err := to.tc.checkBurnV1(tx, info)
+	_, err := to.tc.checkBurnV1(tx, info)
 	assert.NoError(t, err, "checkBurnV1 failed with valid burn tx")
+
+	// Check that smart assets are detected properly.
+	to.stor.createSmartAsset(t, tx.AssetID)
+	smartAssets, err := to.tc.checkBurnV1(tx, info)
+	assert.NoError(t, err)
+	assert.Equal(t, 1, len(smartAssets))
+	assert.Equal(t, tx.AssetID, smartAssets[0])
 
 	// Change sender and make sure tx is invalid before activation of BurnAnyTokens feature.
 	tx.SenderPK = testGlobal.recipientInfo.pk
-	err = to.tc.checkBurnV1(tx, info)
+	_, err = to.tc.checkBurnV1(tx, info)
 	assert.Error(t, err, "checkBurnV1 did not fail with burn sender not equal to asset issuer before activation of BurnAnyTokens feature")
 
 	// Activate BurnAnyTokens and make sure previous tx is now valid.
 	to.stor.activateFeature(t, int16(settings.BurnAnyTokens))
-	err = to.tc.checkBurnV1(tx, info)
+	_, err = to.tc.checkBurnV1(tx, info)
 	assert.NoError(t, err, "checkBurnV1 failed with burn sender not equal to asset issuer after activation of BurnAnyTokens feature")
 
 	tx.Timestamp = 0
-	err = to.tc.checkBurnV1(tx, info)
+	_, err = to.tc.checkBurnV1(tx, info)
 	assert.Error(t, err, "checkBurnV1 did not fail with invalid timestamp")
 }
 
@@ -339,26 +374,33 @@ func TestCheckBurnV2(t *testing.T) {
 	tx.SenderPK = assetInfo.issuer
 	info := defaultCheckerInfo(t)
 
-	err := to.tc.checkBurnV2(tx, info)
+	_, err := to.tc.checkBurnV2(tx, info)
 	assert.Error(t, err, "checkBurnV2 did not fail prior to SmartAccounts activation")
 
 	to.stor.activateFeature(t, int16(settings.SmartAccounts))
 
-	err = to.tc.checkBurnV2(tx, info)
+	_, err = to.tc.checkBurnV2(tx, info)
 	assert.NoError(t, err, "checkBurnV2 failed with valid burn tx")
+
+	// Check that smart assets are detected properly.
+	to.stor.createSmartAsset(t, tx.AssetID)
+	smartAssets, err := to.tc.checkBurnV2(tx, info)
+	assert.NoError(t, err)
+	assert.Equal(t, 1, len(smartAssets))
+	assert.Equal(t, tx.AssetID, smartAssets[0])
 
 	// Change sender and make sure tx is invalid before activation of BurnAnyTokens feature.
 	tx.SenderPK = testGlobal.recipientInfo.pk
-	err = to.tc.checkBurnV1(tx, info)
+	_, err = to.tc.checkBurnV1(tx, info)
 	assert.Error(t, err, "checkBurnV1 did not fail with burn sender not equal to asset issuer before activation of BurnAnyTokens feature")
 
 	// Activate BurnAnyTokens and make sure previous tx is now valid.
 	to.stor.activateFeature(t, int16(settings.BurnAnyTokens))
-	err = to.tc.checkBurnV2(tx, info)
+	_, err = to.tc.checkBurnV2(tx, info)
 	assert.NoError(t, err, "checkBurnV1 failed with burn sender not equal to asset issuer after activation of BurnAnyTokens feature")
 
 	tx.Timestamp = 0
-	err = to.tc.checkBurnV2(tx, info)
+	_, err = to.tc.checkBurnV2(tx, info)
 	assert.Error(t, err, "checkBurnV2 did not fail with invalid timestamp")
 }
 
@@ -374,13 +416,43 @@ func TestCheckExchangeV1(t *testing.T) {
 
 	tx := createExchangeV1(t)
 	info := defaultCheckerInfo(t)
-	err := to.tc.checkExchangeV1(tx, info)
+	_, err := to.tc.checkExchangeV1(tx, info)
 	assert.Error(t, err, "checkExchangeV1 did not fail with exchange with unknown assets")
 
 	to.stor.createAsset(t, testGlobal.asset0.asset.ID)
 	to.stor.createAsset(t, testGlobal.asset1.asset.ID)
-	err = to.tc.checkExchangeV1(tx, info)
+	_, err = to.tc.checkExchangeV1(tx, info)
 	assert.NoError(t, err, "checkExchangeV1 failed with valid exchange")
+
+	// Set script.
+	to.stor.addBlock(t, blockID0)
+	addr := testGlobal.recipientInfo.addr
+	err = to.stor.entities.scriptsStorage.setAccountScript(addr, proto.Script(testGlobal.scriptBytes), blockID0)
+	assert.NoError(t, err)
+
+	_, err = to.tc.checkExchangeV1(tx, info)
+	assert.Error(t, err, "checkExchangeV1 did not fail with exchange with smart account before SmartAccountTrading activation")
+
+	to.stor.activateFeature(t, int16(settings.SmartAccountTrading))
+	_, err = to.tc.checkExchangeV1(tx, info)
+	assert.NoError(t, err, "checkExchangeV1 failed with valid exchange")
+
+	// Make one of involved assets smart.
+	smartAsset := tx.BuyOrder.AssetPair.AmountAsset.ID
+	to.stor.createSmartAsset(t, smartAsset)
+
+	_, err = to.tc.checkExchangeV1(tx, info)
+	assert.Error(t, err, "checkExchangeV1 did not fail with exchange with smart assets before SmartAssets activation")
+
+	to.stor.activateFeature(t, int16(settings.SmartAssets))
+	_, err = to.tc.checkExchangeV1(tx, info)
+	assert.NoError(t, err, "checkExchangeV1 failed with valid exchange")
+
+	// Check that smart assets are detected properly.
+	smartAssets, err := to.tc.checkExchangeV1(tx, info)
+	assert.NoError(t, err)
+	assert.Equal(t, 1, len(smartAssets))
+	assert.Equal(t, smartAsset, smartAssets[0])
 }
 
 func TestCheckExchangeV2(t *testing.T) {
@@ -395,21 +467,43 @@ func TestCheckExchangeV2(t *testing.T) {
 
 	tx := createExchangeV2(t)
 	info := defaultCheckerInfo(t)
-	err := to.tc.checkExchangeV2(tx, info)
+	_, err := to.tc.checkExchangeV2(tx, info)
 	assert.Error(t, err, "checkExchangeV2 did not fail with exchange with unknown assets")
 
 	to.stor.createAsset(t, testGlobal.asset0.asset.ID)
 	to.stor.createAsset(t, testGlobal.asset1.asset.ID)
 
-	err = to.tc.checkExchangeV2(tx, info)
+	_, err = to.tc.checkExchangeV2(tx, info)
 	assert.Error(t, err, "checkExchangeV2 did not fail prior to SmartAccountTrading activation")
 
-	// TODO: uncomment when the following features will be implemented.
-	//to.stor.activateFeature(t, int16(settings.SmartAccountTrading))
-	//to.stor.activateFeature(t, int16(settings.OrderV3))
+	_, err = to.tc.checkExchangeV2(tx, info)
+	assert.Error(t, err, "checkExchangeV2 did not fail prior to SmartAccountTrading activation")
 
-	//err = to.tc.checkExchangeV2(tx, info)
-	//assert.NoError(t, err, "checkExchangeV2 failed with valid exchange")
+	to.stor.activateFeature(t, int16(settings.SmartAccountTrading))
+
+	_, err = to.tc.checkExchangeV2(tx, info)
+	assert.NoError(t, err, "checkExchangeV2 failed with valid exchange")
+
+	// Make one of involved assets smart.
+	smartAsset := tx.GetBuyOrderFull().GetAssetPair().AmountAsset.ID
+	to.stor.createSmartAsset(t, smartAsset)
+
+	_, err = to.tc.checkExchangeV2(tx, info)
+	assert.Error(t, err, "checkExchangeV2 did not fail with exchange with smart assets before SmartAssets activation")
+
+	to.stor.activateFeature(t, int16(settings.SmartAssets))
+	_, err = to.tc.checkExchangeV2(tx, info)
+	assert.NoError(t, err, "checkExchangeV2 failed with valid exchange")
+
+	// Check that smart assets are detected properly.
+	smartAssets, err := to.tc.checkExchangeV2(tx, info)
+	assert.NoError(t, err)
+	assert.Equal(t, 1, len(smartAssets))
+	assert.Equal(t, smartAsset, smartAssets[0])
+
+	/* TODO: uncomment when the following feature will be implemented.
+	to.stor.activateFeature(t, int16(settings.OrderV3))
+	*/
 }
 
 func TestCheckLeaseV1(t *testing.T) {
@@ -425,11 +519,11 @@ func TestCheckLeaseV1(t *testing.T) {
 	tx := createLeaseV1(t)
 	info := defaultCheckerInfo(t)
 	tx.Recipient = proto.NewRecipientFromAddress(testGlobal.senderInfo.addr)
-	err := to.tc.checkLeaseV1(tx, info)
+	_, err := to.tc.checkLeaseV1(tx, info)
 	assert.Error(t, err, "checkLeaseV1 did not fail when leasing to self")
 
 	tx = createLeaseV1(t)
-	err = to.tc.checkLeaseV1(tx, info)
+	_, err = to.tc.checkLeaseV1(tx, info)
 	assert.NoError(t, err, "checkLeaseV1 failed with valid lease tx")
 }
 
@@ -446,17 +540,17 @@ func TestCheckLeaseV2(t *testing.T) {
 	tx := createLeaseV2(t)
 	info := defaultCheckerInfo(t)
 	tx.Recipient = proto.NewRecipientFromAddress(testGlobal.senderInfo.addr)
-	err := to.tc.checkLeaseV2(tx, info)
+	_, err := to.tc.checkLeaseV2(tx, info)
 	assert.Error(t, err, "checkLeaseV2 did not fail when leasing to self")
 
 	tx = createLeaseV2(t)
 
-	err = to.tc.checkLeaseV2(tx, info)
+	_, err = to.tc.checkLeaseV2(tx, info)
 	assert.Error(t, err, "checkLeaseV2 did not fail prior to SmartAccounts activation")
 
 	to.stor.activateFeature(t, int16(settings.SmartAccounts))
 
-	err = to.tc.checkLeaseV2(tx, info)
+	_, err = to.tc.checkLeaseV2(tx, info)
 	assert.NoError(t, err, "checkLeaseV2 failed with valid lease tx")
 }
 
@@ -475,7 +569,7 @@ func TestCheckLeaseCancelV1(t *testing.T) {
 	info.currentTimestamp = settings.MainNetSettings.AllowMultipleLeaseCancelUntilTime + 1
 	tx := createLeaseCancelV1(t, *leaseTx.ID)
 
-	err := to.tc.checkLeaseCancelV1(tx, info)
+	_, err := to.tc.checkLeaseCancelV1(tx, info)
 	assert.Error(t, err, "checkLeaseCancelV1 did not fail when cancelling nonexistent lease")
 
 	to.stor.addBlock(t, blockID0)
@@ -484,14 +578,14 @@ func TestCheckLeaseCancelV1(t *testing.T) {
 	to.stor.flush(t)
 
 	tx.SenderPK = testGlobal.recipientInfo.pk
-	err = to.tc.checkLeaseCancelV1(tx, info)
+	_, err = to.tc.checkLeaseCancelV1(tx, info)
 	assert.Error(t, err, "checkLeaseCancelV1 did not fail when cancelling lease with different sender")
 	tx = createLeaseCancelV1(t, *leaseTx.ID)
 
-	err = to.tc.checkLeaseCancelV1(tx, info)
+	_, err = to.tc.checkLeaseCancelV1(tx, info)
 	assert.NoError(t, err, "checkLeaseCancelV1 failed with valid leaseCancel tx")
 
-	err = to.tc.checkLeaseV1(tx, info)
+	_, err = to.tc.checkLeaseV1(tx, info)
 	assert.Error(t, err, "checkLeaseCancelV1 did not fail when cancelling same lease multiple times")
 }
 
@@ -510,7 +604,7 @@ func TestCheckLeaseCancelV2(t *testing.T) {
 	info.currentTimestamp = settings.MainNetSettings.AllowMultipleLeaseCancelUntilTime + 1
 	tx := createLeaseCancelV2(t, *leaseTx.ID)
 
-	err := to.tc.checkLeaseCancelV2(tx, info)
+	_, err := to.tc.checkLeaseCancelV2(tx, info)
 	assert.Error(t, err, "checkLeaseCancelV2 did not fail when cancelling nonexistent lease")
 
 	to.stor.addBlock(t, blockID0)
@@ -519,21 +613,21 @@ func TestCheckLeaseCancelV2(t *testing.T) {
 	to.stor.flush(t)
 
 	tx.SenderPK = testGlobal.recipientInfo.pk
-	err = to.tc.checkLeaseCancelV2(tx, info)
+	_, err = to.tc.checkLeaseCancelV2(tx, info)
 	assert.Error(t, err, "checkLeaseCancelV2 did not fail when cancelling lease with different sender")
 	tx = createLeaseCancelV2(t, *leaseTx.ID)
 
-	err = to.tc.checkLeaseCancelV2(tx, info)
+	_, err = to.tc.checkLeaseCancelV2(tx, info)
 	assert.Error(t, err, "checkLeaseCancelV2 did not fail prior to SmartAccounts activation")
 
 	to.stor.activateFeature(t, int16(settings.SmartAccounts))
 
-	err = to.tc.checkLeaseCancelV2(tx, info)
+	_, err = to.tc.checkLeaseCancelV2(tx, info)
 	assert.NoError(t, err, "checkLeaseCancelV2 failed with valid leaseCancel tx")
 	err = to.tp.performLeaseCancelV2(tx, defaultPerformerInfo(t))
 	assert.NoError(t, err, "performLeaseCancelV2() failed")
 
-	err = to.tc.checkLeaseCancelV2(tx, info)
+	_, err = to.tc.checkLeaseCancelV2(tx, info)
 	assert.Error(t, err, "checkLeaseCancelV2 did not fail when cancelling same lease multiple times")
 }
 
@@ -550,7 +644,7 @@ func TestCheckCreateAliasV1(t *testing.T) {
 	tx := createCreateAliasV1(t)
 	info := defaultCheckerInfo(t)
 
-	err := to.tc.checkCreateAliasV1(tx, info)
+	_, err := to.tc.checkCreateAliasV1(tx, info)
 	assert.NoError(t, err, "checkCreateAliasV1 failed with valid createAlias tx")
 
 	to.stor.addBlock(t, blockID0)
@@ -558,12 +652,12 @@ func TestCheckCreateAliasV1(t *testing.T) {
 	assert.NoError(t, err, "performCreateAliasV1 failed")
 	to.stor.flush(t)
 
-	err = to.tc.checkCreateAliasV1(tx, info)
+	_, err = to.tc.checkCreateAliasV1(tx, info)
 	assert.Error(t, err, "checkCreateAliasV1 did not fail when using alias which is alredy taken")
 
 	// Check that checker allows to steal aliases at specified timestamp window on MainNet.
 	info.currentTimestamp = settings.MainNetSettings.StolenAliasesWindowTimeStart
-	err = to.tc.checkCreateAliasV1(tx, info)
+	_, err = to.tc.checkCreateAliasV1(tx, info)
 	assert.NoError(t, err, "checkCreateAliasV1 failed when stealing aliases is allowed")
 }
 
@@ -580,12 +674,12 @@ func TestCheckCreateAliasV2(t *testing.T) {
 	tx := createCreateAliasV2(t)
 	info := defaultCheckerInfo(t)
 
-	err := to.tc.checkCreateAliasV2(tx, info)
+	_, err := to.tc.checkCreateAliasV2(tx, info)
 	assert.Error(t, err, "checkCreateAliasV2 did not fail prior to SmartAccounts activation")
 
 	to.stor.activateFeature(t, int16(settings.SmartAccounts))
 
-	err = to.tc.checkCreateAliasV2(tx, info)
+	_, err = to.tc.checkCreateAliasV2(tx, info)
 	assert.NoError(t, err, "checkCreateAliasV2 failed with valid createAlias tx")
 
 	to.stor.addBlock(t, blockID0)
@@ -593,12 +687,12 @@ func TestCheckCreateAliasV2(t *testing.T) {
 	assert.NoError(t, err, "performCreateAliasV2 failed")
 	to.stor.flush(t)
 
-	err = to.tc.checkCreateAliasV2(tx, info)
+	_, err = to.tc.checkCreateAliasV2(tx, info)
 	assert.Error(t, err, "checkCreateAliasV2 did not fail when using alias which is alredy taken")
 
 	// Check that checker allows to steal aliases at specified timestamp window on MainNet.
 	info.currentTimestamp = settings.MainNetSettings.StolenAliasesWindowTimeStart
-	err = to.tc.checkCreateAliasV2(tx, info)
+	_, err = to.tc.checkCreateAliasV2(tx, info)
 	assert.NoError(t, err, "checkCreateAliasV1 failed when stealing aliases is allowed")
 }
 
@@ -617,19 +711,26 @@ func TestCheckMassTransferV1(t *testing.T) {
 	tx := createMassTransferV1(t, entries)
 	info := defaultCheckerInfo(t)
 
-	err := to.tc.checkMassTransferV1(tx, info)
+	_, err := to.tc.checkMassTransferV1(tx, info)
 	assert.Error(t, err, "checkMassTransferV1 did not fail prior to feature activation")
 	assert.EqualError(t, err, "MassTransfer transaction has not been activated yet")
 
 	// Activate MassTransfer.
 	to.stor.activateFeature(t, int16(settings.MassTransfer))
-	err = to.tc.checkMassTransferV1(tx, info)
+	_, err = to.tc.checkMassTransferV1(tx, info)
 	assert.Error(t, err, "checkMassTransferV1 did not fail with unissued asset")
 	assert.EqualError(t, err, fmt.Sprintf("unknown asset %s", tx.Asset.ID.String()))
 
 	to.stor.createAsset(t, testGlobal.asset0.asset.ID)
-	err = to.tc.checkMassTransferV1(tx, info)
+	_, err = to.tc.checkMassTransferV1(tx, info)
 	assert.NoError(t, err, "checkMassTransferV1 failed with valid massTransfer tx")
+
+	// Check that smart assets are detected properly.
+	to.stor.createSmartAsset(t, tx.Asset.ID)
+	smartAssets, err := to.tc.checkMassTransferV1(tx, info)
+	assert.NoError(t, err)
+	assert.Equal(t, 1, len(smartAssets))
+	assert.Equal(t, tx.Asset.ID, smartAssets[0])
 }
 
 func TestCheckDataV1(t *testing.T) {
@@ -645,18 +746,18 @@ func TestCheckDataV1(t *testing.T) {
 	tx := createDataV1(t, 1)
 	info := defaultCheckerInfo(t)
 
-	err := to.tc.checkDataV1(tx, info)
+	_, err := to.tc.checkDataV1(tx, info)
 	assert.Error(t, err, "checkDataV1 did not fail prior to feature activation")
 	assert.EqualError(t, err, "Data transaction has not been activated yet")
 
 	// Activate Data transactions.
 	to.stor.activateFeature(t, int16(settings.DataTransaction))
-	err = to.tc.checkDataV1(tx, info)
+	_, err = to.tc.checkDataV1(tx, info)
 	assert.NoError(t, err, "checkDataV1 failed with valid Data tx")
 
 	// Check invalid timestamp failure.
 	tx.Timestamp = 0
-	err = to.tc.checkDataV1(tx, info)
+	_, err = to.tc.checkDataV1(tx, info)
 	assert.Error(t, err, "checkDataV1 did not fail with invalid timestamp")
 }
 
@@ -675,13 +776,13 @@ func TestCheckSponsorshipV1(t *testing.T) {
 	tx.SenderPK = assetInfo.issuer
 	info := defaultCheckerInfo(t)
 
-	err := to.tc.checkSponsorshipV1(tx, info)
+	_, err := to.tc.checkSponsorshipV1(tx, info)
 	assert.Error(t, err, "checkSponsorshipV1 did not fail prior to feature activation")
 	assert.EqualError(t, err, "sponsorship has not been activated yet")
 
 	// Activate sponsorship.
 	to.stor.activateFeature(t, int16(settings.FeeSponsorship))
-	err = to.tc.checkSponsorshipV1(tx, info)
+	_, err = to.tc.checkSponsorshipV1(tx, info)
 	assert.NoError(t, err, "checkSponsorshipV1 failed with valid Sponsorship tx")
 	to.stor.activateSponsorship(t)
 
@@ -689,24 +790,24 @@ func TestCheckSponsorshipV1(t *testing.T) {
 	feeConst, ok := feeConstants[proto.SponsorshipTransaction]
 	assert.Equal(t, ok, true)
 	tx.Fee = FeeUnit*feeConst - 1
-	err = to.tc.checkSponsorshipV1(tx, info)
+	_, err = to.tc.checkSponsorshipV1(tx, info)
 	assert.Error(t, err, "checkSponsorshipV1 did not fail with fee less than minimum")
 	assert.EqualError(t, err, fmt.Sprintf("checkFee(): fee %d is less than minimum value of %d\n", tx.Fee, FeeUnit*feeConst))
 	tx.Fee = FeeUnit * feeConst
-	err = to.tc.checkSponsorshipV1(tx, info)
+	_, err = to.tc.checkSponsorshipV1(tx, info)
 	assert.NoError(t, err, "checkSponsorshipV1 failed with valid Sponsorship tx")
 
 	// Check invalid sender.
 	tx.SenderPK = testGlobal.recipientInfo.pk
-	err = to.tc.checkSponsorshipV1(tx, info)
+	_, err = to.tc.checkSponsorshipV1(tx, info)
 	assert.EqualError(t, err, "asset was issued by other address")
 	tx.SenderPK = assetInfo.issuer
-	err = to.tc.checkSponsorshipV1(tx, info)
+	_, err = to.tc.checkSponsorshipV1(tx, info)
 	assert.NoError(t, err, "checkSponsorshipV1 failed with valid Sponsorship tx")
 
 	// Check invalid timestamp failure.
 	tx.Timestamp = 0
-	err = to.tc.checkSponsorshipV1(tx, info)
+	_, err = to.tc.checkSponsorshipV1(tx, info)
 	assert.Error(t, err, "checkSponsorshipV1 did not fail with invalid timestamp")
 }
 
@@ -728,18 +829,18 @@ func TestCheckSetScriptV1(t *testing.T) {
 
 	// Activate SmartAccounts.
 	to.stor.activateFeature(t, int16(settings.SmartAccounts))
-	err := to.tc.checkSetScriptV1(tx, info)
+	_, err := to.tc.checkSetScriptV1(tx, info)
 	assert.NoError(t, err, "checkSetScriptV1 failed with valid SetScriptV1 tx")
 
 	// Check min fee.
 	feeConst, ok := feeConstants[proto.SetScriptTransaction]
 	assert.Equal(t, ok, true)
 	tx.Fee = FeeUnit*feeConst - 1
-	err = to.tc.checkSetScriptV1(tx, info)
+	_, err = to.tc.checkSetScriptV1(tx, info)
 	assert.Error(t, err, "checkSetScriptV1 did not fail with fee less than minimum")
 	assert.EqualError(t, err, fmt.Sprintf("checkFee(): fee %d is less than minimum value of %d\n", tx.Fee, FeeUnit*feeConst))
 	tx.Fee = FeeUnit * feeConst
-	err = to.tc.checkSetScriptV1(tx, info)
+	_, err = to.tc.checkSetScriptV1(tx, info)
 	assert.NoError(t, err, "checkSetScriptV1 failed with valid SetScriptV1 tx")
 
 	// Test script activation rules.
@@ -750,24 +851,64 @@ func TestCheckSetScriptV1(t *testing.T) {
 	assert.NoError(t, err)
 	prevScript := tx.Script
 	tx.Script = proto.Script(scriptBytes)
-	err = to.tc.checkSetScriptV1(tx, info)
+	_, err = to.tc.checkSetScriptV1(tx, info)
 	assert.Error(t, err, "checkSetScriptV1 did not fail with Script V3 before Ride4DApps activation")
 	tx.Script = prevScript
-	err = to.tc.checkSetScriptV1(tx, info)
+	_, err = to.tc.checkSetScriptV1(tx, info)
 	assert.NoError(t, err, "checkSetScriptV1 failed with valid SetScriptV1 tx")
 
 	complexScriptPath := filepath.Join(dir, "testdata", "scripts", "exceeds_complexity.base64")
 	scriptBytes, err = ioutil.ReadFile(complexScriptPath)
 	assert.NoError(t, err)
 	tx.Script = proto.Script(scriptBytes)
-	err = to.tc.checkSetScriptV1(tx, info)
+	_, err = to.tc.checkSetScriptV1(tx, info)
 	assert.Error(t, err, "checkSetScriptV1 did not fail with Script that exceeds complexity limit")
 	tx.Script = prevScript
-	err = to.tc.checkSetScriptV1(tx, info)
+	_, err = to.tc.checkSetScriptV1(tx, info)
 	assert.NoError(t, err, "checkSetScriptV1 failed with valid SetScriptV1 tx")
 
 	// Check invalid timestamp failure.
 	tx.Timestamp = 0
-	err = to.tc.checkSetScriptV1(tx, info)
+	_, err = to.tc.checkSetScriptV1(tx, info)
 	assert.Error(t, err, "checkSetScriptV1 did not fail with invalid timestamp")
+}
+
+func TestCheckSetAssetScriptV1(t *testing.T) {
+	to, path := createCheckerTestObjects(t)
+
+	defer func() {
+		to.stor.close(t)
+
+		err := util.CleanTemporaryDirs(path)
+		assert.NoError(t, err, "failed to clean test data dirs")
+	}()
+
+	tx := createSetAssetScriptV1(t)
+	info := defaultCheckerInfo(t)
+
+	to.stor.addBlock(t, blockID0)
+
+	// Must fail on non-smart assets.
+	_, err := to.tc.checkSetAssetScriptV1(tx, info)
+	assert.Error(t, err, "checkSetAssetScriptV1 did not fail with non-smart asset")
+
+	// Make it smart.
+	err = to.stor.entities.scriptsStorage.setAssetScript(tx.AssetID, tx.Script, blockID0)
+	assert.NoError(t, err, "setAssetScript failed")
+
+	// Now should pass.
+	_, err = to.tc.checkSetAssetScriptV1(tx, info)
+	assert.NoError(t, err, "checkSetAssetScriptV1 failed with valid SetAssetScriptV1 tx")
+
+	// Check that smart assets are detected properly.
+	to.stor.createSmartAsset(t, tx.AssetID)
+	smartAssets, err := to.tc.checkSetAssetScriptV1(tx, info)
+	assert.NoError(t, err)
+	assert.Equal(t, 1, len(smartAssets))
+	assert.Equal(t, tx.AssetID, smartAssets[0])
+
+	// Check invalid timestamp failure.
+	tx.Timestamp = 0
+	_, err = to.tc.checkSetAssetScriptV1(tx, info)
+	assert.Error(t, err, "checkSetAssetScriptV1 did not fail with invalid timestamp")
 }

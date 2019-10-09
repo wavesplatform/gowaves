@@ -115,17 +115,21 @@ func NewObjectFromBlockInfo(info proto.BlockInfo) Expr {
 	return NewObject(m)
 }
 
+func newMapAssetInfo(info proto.AssetInfo) object {
+	obj := newObject()
+	obj["id"] = NewBytes(info.ID.Bytes())
+	obj["quantity"] = NewLong(int64(info.Quantity))
+	obj["decimals"] = NewLong(int64(info.Decimals))
+	obj["issuer"] = NewAddressFromProtoAddress(info.Issuer)
+	obj["issuerPublicKey"] = NewBytes(util.Dup(info.IssuerPublicKey.Bytes()))
+	obj["reissuable"] = NewBoolean(info.Reissuable)
+	obj["scripted"] = NewBoolean(info.Scripted)
+	obj["sponsored"] = NewBoolean(info.Sponsored)
+	return obj
+}
+
 func NewObjectFromAssetInfo(info proto.AssetInfo) Expr {
-	m := make(map[string]Expr)
-	m["id"] = NewBytes(info.ID.Bytes())
-	m["quantity"] = NewLong(int64(info.Quantity))
-	m["decimals"] = NewLong(int64(info.Decimals))
-	m["issuer"] = NewRecipientFromProtoRecipient(info.Issuer)
-	m["issuerPublicKey"] = NewBytes(util.Dup(info.IssuerPublicKey.Bytes()))
-	m["reissuable"] = NewBoolean(info.Reissuable)
-	m["scripted"] = NewBoolean(info.Scripted)
-	m["sponsored"] = NewBoolean(info.Sponsored)
-	return NewObject(m)
+	return NewObject(newMapAssetInfo(info))
 }
 
 func makeProofsFromSignature(sig *crypto.Signature) Exprs {
@@ -155,7 +159,7 @@ func makeProofs(proofs *proto.ProofsV1) Exprs {
 
 func makeOptionalAsset(o proto.OptionalAsset) Expr {
 	if o.Present {
-		return NewBytes(util.Dup(o.ID.Bytes()))
+		return NewBytes(o.ID.Bytes())
 	}
 	return NewUnit()
 }
@@ -532,10 +536,10 @@ func newVariablesFromExchangeV2(scheme proto.Scheme, tx *proto.ExchangeV2) (map[
 
 func makeOrderType(orderType proto.OrderType) Expr {
 	if orderType == proto.Buy {
-		return BuyExpr{}
+		return &BuyExpr{}
 	}
 	if orderType == proto.Sell {
-		return SellExpr{}
+		return &SellExpr{}
 	}
 	panic("invalid orderType")
 }

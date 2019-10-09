@@ -13,6 +13,10 @@ func newEmptyScopeV1() Scope {
 	return NewScope(1, proto.MainNetScheme, mockstate.State{})
 }
 
+func newEmptyScopeV3() Scope {
+	return NewScope(3, proto.MainNetScheme, mockstate.State{})
+}
+
 func newScopeWithState(s types.SmartState) Scope {
 	return NewScope(3, proto.MainNetScheme, s)
 }

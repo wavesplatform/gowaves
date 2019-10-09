@@ -115,7 +115,16 @@ func (tc *transactionChecker) checkScript(scriptBytes proto.Script) error {
 	return nil
 }
 
-func (tc *transactionChecker) checkFee(tx proto.Transaction, feeAsset proto.OptionalAsset, info *checkerInfo) error {
+type txAssets struct {
+	feeAsset    proto.OptionalAsset
+	smartAssets []crypto.Digest
+}
+
+func (tc *transactionChecker) checkFee(
+	tx proto.Transaction,
+	assets *txAssets,
+	info *checkerInfo,
+) error {
 	sponsorshipActivated, err := tc.stor.sponsoredAssets.isSponsorshipActivated()
 	if err != nil {
 		return err
@@ -124,12 +133,17 @@ func (tc *transactionChecker) checkFee(tx proto.Transaction, feeAsset proto.Opti
 		// Sponsorship is not yet activated.
 		return nil
 	}
-	params := &feeValidationParams{stor: tc.stor, settings: tc.settings, initialisation: info.initialisation}
-	if !feeAsset.Present {
+	params := &feeValidationParams{
+		stor:           tc.stor,
+		settings:       tc.settings,
+		initialisation: info.initialisation,
+		txAssets:       assets,
+	}
+	if !assets.feeAsset.Present {
 		// Waves.
 		return checkMinFeeWaves(tx, params)
 	}
-	return checkMinFeeAsset(tx, feeAsset.ID, params)
+	return checkMinFeeAsset(tx, assets.feeAsset.ID, params)
 }
 
 func (tc *transactionChecker) checkFromFuture(timestamp uint64) bool {
@@ -183,34 +197,54 @@ func (tc *transactionChecker) checkFeeAsset(asset *proto.OptionalAsset, initiali
 	return nil
 }
 
-func (tc *transactionChecker) checkGenesis(transaction proto.Transaction, info *checkerInfo) error {
-	if info.blockID != tc.genesis {
-		return errors.New("genesis transaction inside of non-genesis block")
+func (tc *transactionChecker) smartAssets(assets []proto.OptionalAsset, initialisation bool) ([]crypto.Digest, error) {
+	var smartAssets []crypto.Digest
+	for _, asset := range assets {
+		if !asset.Present {
+			// Waves can not be scripted.
+			continue
+		}
+		hasScript, err := tc.stor.scriptsStorage.newestIsSmartAsset(asset.ID, !initialisation)
+		if err != nil {
+			return nil, err
+		}
+		if hasScript {
+			smartAssets = append(smartAssets, asset.ID)
+		}
 	}
-	if !info.initialisation {
-		return errors.New("genesis transaction in non-initialisation mode")
-	}
-	if err := tc.checkFee(transaction, proto.OptionalAsset{Present: false}, info); err != nil {
-		return errors.Errorf("checkFee(): %v", err)
-	}
-	return nil
+	return smartAssets, nil
 }
 
-func (tc *transactionChecker) checkPayment(transaction proto.Transaction, info *checkerInfo) error {
+func (tc *transactionChecker) checkGenesis(transaction proto.Transaction, info *checkerInfo) ([]crypto.Digest, error) {
+	if info.blockID != tc.genesis {
+		return nil, errors.New("genesis transaction inside of non-genesis block")
+	}
+	if !info.initialisation {
+		return nil, errors.New("genesis transaction in non-initialisation mode")
+	}
+	assets := &txAssets{feeAsset: proto.OptionalAsset{Present: false}}
+	if err := tc.checkFee(transaction, assets, info); err != nil {
+		return nil, errors.Errorf("checkFee(): %v", err)
+	}
+	return nil, nil
+}
+
+func (tc *transactionChecker) checkPayment(transaction proto.Transaction, info *checkerInfo) ([]crypto.Digest, error) {
 	tx, ok := transaction.(*proto.Payment)
 	if !ok {
-		return errors.New("failed to convert interface to Payment transaction")
+		return nil, errors.New("failed to convert interface to Payment transaction")
 	}
 	if info.height >= tc.settings.BlockVersion3AfterHeight {
-		return errors.Errorf("Payment transaction is deprecated after height %d", tc.settings.BlockVersion3AfterHeight)
+		return nil, errors.Errorf("Payment transaction is deprecated after height %d", tc.settings.BlockVersion3AfterHeight)
 	}
 	if err := tc.checkTimestamps(tx.Timestamp, info.currentTimestamp, info.parentTimestamp); err != nil {
-		return errors.Wrap(err, "invalid timestamp")
+		return nil, errors.Wrap(err, "invalid timestamp")
 	}
-	if err := tc.checkFee(transaction, proto.OptionalAsset{Present: false}, info); err != nil {
-		return errors.Errorf("checkFee(): %v", err)
+	assets := &txAssets{feeAsset: proto.OptionalAsset{Present: false}}
+	if err := tc.checkFee(transaction, assets, info); err != nil {
+		return nil, errors.Errorf("checkFee(): %v", err)
 	}
-	return nil
+	return nil, nil
 }
 
 func (tc *transactionChecker) checkTransfer(tx *proto.Transfer, info *checkerInfo) error {
@@ -226,33 +260,51 @@ func (tc *transactionChecker) checkTransfer(tx *proto.Transfer, info *checkerInf
 	return nil
 }
 
-func (tc *transactionChecker) checkTransferV1(transaction proto.Transaction, info *checkerInfo) error {
+func (tc *transactionChecker) checkTransferV1(transaction proto.Transaction, info *checkerInfo) ([]crypto.Digest, error) {
 	tx, ok := transaction.(*proto.TransferV1)
 	if !ok {
-		return errors.New("failed to convert interface to TransferV1 transaction")
+		return nil, errors.New("failed to convert interface to TransferV1 transaction")
 	}
-	if err := tc.checkFee(transaction, tx.FeeAsset, info); err != nil {
-		return errors.Errorf("checkFee(): %v", err)
+	allAssets := []proto.OptionalAsset{tx.AmountAsset}
+	smartAssets, err := tc.smartAssets(allAssets, info.initialisation)
+	if err != nil {
+		return nil, err
 	}
-	return tc.checkTransfer(&tx.Transfer, info)
+	assets := &txAssets{feeAsset: tx.FeeAsset, smartAssets: smartAssets}
+	if err := tc.checkFee(transaction, assets, info); err != nil {
+		return nil, errors.Errorf("checkFee(): %v", err)
+	}
+	if err := tc.checkTransfer(&tx.Transfer, info); err != nil {
+		return nil, err
+	}
+	return smartAssets, nil
 }
 
-func (tc *transactionChecker) checkTransferV2(transaction proto.Transaction, info *checkerInfo) error {
+func (tc *transactionChecker) checkTransferV2(transaction proto.Transaction, info *checkerInfo) ([]crypto.Digest, error) {
 	tx, ok := transaction.(*proto.TransferV2)
 	if !ok {
-		return errors.New("failed to convert interface to TransferV2 transaction")
+		return nil, errors.New("failed to convert interface to TransferV2 transaction")
 	}
-	if err := tc.checkFee(transaction, tx.FeeAsset, info); err != nil {
-		return errors.Errorf("checkFee(): %v", err)
+	allAssets := []proto.OptionalAsset{tx.AmountAsset}
+	smartAssets, err := tc.smartAssets(allAssets, info.initialisation)
+	if err != nil {
+		return nil, err
+	}
+	assets := &txAssets{feeAsset: tx.FeeAsset, smartAssets: smartAssets}
+	if err := tc.checkFee(transaction, assets, info); err != nil {
+		return nil, errors.Errorf("checkFee(): %v", err)
 	}
 	activated, err := tc.stor.features.isActivated(int16(settings.SmartAccounts))
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if !activated {
-		return errors.New("SmartAccounts feature has not been activated yet")
+		return nil, errors.New("SmartAccounts feature has not been activated yet")
 	}
-	return tc.checkTransfer(&tx.Transfer, info)
+	if err := tc.checkTransfer(&tx.Transfer, info); err != nil {
+		return nil, err
+	}
+	return smartAssets, nil
 }
 
 func (tc *transactionChecker) checkIssue(tx *proto.Issue, info *checkerInfo) error {
@@ -262,29 +314,37 @@ func (tc *transactionChecker) checkIssue(tx *proto.Issue, info *checkerInfo) err
 	return nil
 }
 
-func (tc *transactionChecker) checkIssueV1(transaction proto.Transaction, info *checkerInfo) error {
+func (tc *transactionChecker) checkIssueV1(transaction proto.Transaction, info *checkerInfo) ([]crypto.Digest, error) {
 	tx, ok := transaction.(*proto.IssueV1)
 	if !ok {
-		return errors.New("failed to convert interface to IssueV1 transaction")
+		return nil, errors.New("failed to convert interface to IssueV1 transaction")
 	}
-	if err := tc.checkFee(transaction, proto.OptionalAsset{Present: false}, info); err != nil {
-		return errors.Errorf("checkFee(): %v", err)
+	assets := &txAssets{feeAsset: proto.OptionalAsset{Present: false}}
+	if err := tc.checkFee(transaction, assets, info); err != nil {
+		return nil, errors.Errorf("checkFee(): %v", err)
 	}
-	return tc.checkIssue(&tx.Issue, info)
+	if err := tc.checkIssue(&tx.Issue, info); err != nil {
+		return nil, err
+	}
+	return nil, nil
 }
 
-func (tc *transactionChecker) checkIssueV2(transaction proto.Transaction, info *checkerInfo) error {
+func (tc *transactionChecker) checkIssueV2(transaction proto.Transaction, info *checkerInfo) ([]crypto.Digest, error) {
 	tx, ok := transaction.(*proto.IssueV2)
 	if !ok {
-		return errors.New("failed to convert interface to IssueV2 transaction")
+		return nil, errors.New("failed to convert interface to IssueV2 transaction")
 	}
-	if err := tc.checkFee(transaction, proto.OptionalAsset{Present: false}, info); err != nil {
-		return errors.Errorf("checkFee(): %v", err)
+	assets := &txAssets{feeAsset: proto.OptionalAsset{Present: false}}
+	if err := tc.checkFee(transaction, assets, info); err != nil {
+		return nil, errors.Errorf("checkFee(): %v", err)
 	}
 	if err := tc.checkScript(tx.Script); err != nil {
-		return errors.Errorf("checkScript(): %v\n", err)
+		return nil, errors.Errorf("checkScript(): %v\n", err)
 	}
-	return tc.checkIssue(&tx.Issue, info)
+	if err := tc.checkIssue(&tx.Issue, info); err != nil {
+		return nil, err
+	}
+	return nil, nil
 }
 
 func (tc *transactionChecker) checkReissue(tx *proto.Reissue, info *checkerInfo) error {
@@ -316,33 +376,51 @@ func (tc *transactionChecker) checkReissue(tx *proto.Reissue, info *checkerInfo)
 	return nil
 }
 
-func (tc *transactionChecker) checkReissueV1(transaction proto.Transaction, info *checkerInfo) error {
+func (tc *transactionChecker) checkReissueV1(transaction proto.Transaction, info *checkerInfo) ([]crypto.Digest, error) {
 	tx, ok := transaction.(*proto.ReissueV1)
 	if !ok {
-		return errors.New("failed to convert interface to ReissueV1 transaction")
+		return nil, errors.New("failed to convert interface to ReissueV1 transaction")
 	}
-	if err := tc.checkFee(transaction, proto.OptionalAsset{Present: false}, info); err != nil {
-		return errors.Errorf("checkFee(): %v", err)
+	allAssets := []proto.OptionalAsset{*proto.NewOptionalAssetFromDigest(tx.AssetID)}
+	smartAssets, err := tc.smartAssets(allAssets, info.initialisation)
+	if err != nil {
+		return nil, err
 	}
-	return tc.checkReissue(&tx.Reissue, info)
+	assets := &txAssets{feeAsset: proto.OptionalAsset{Present: false}, smartAssets: smartAssets}
+	if err := tc.checkFee(transaction, assets, info); err != nil {
+		return nil, errors.Errorf("checkFee(): %v", err)
+	}
+	if err := tc.checkReissue(&tx.Reissue, info); err != nil {
+		return nil, err
+	}
+	return smartAssets, nil
 }
 
-func (tc *transactionChecker) checkReissueV2(transaction proto.Transaction, info *checkerInfo) error {
+func (tc *transactionChecker) checkReissueV2(transaction proto.Transaction, info *checkerInfo) ([]crypto.Digest, error) {
 	tx, ok := transaction.(*proto.ReissueV2)
 	if !ok {
-		return errors.New("failed to convert interface to ReissueV2 transaction")
+		return nil, errors.New("failed to convert interface to ReissueV2 transaction")
 	}
-	if err := tc.checkFee(transaction, proto.OptionalAsset{Present: false}, info); err != nil {
-		return errors.Errorf("checkFee(): %v", err)
+	allAssets := []proto.OptionalAsset{*proto.NewOptionalAssetFromDigest(tx.AssetID)}
+	smartAssets, err := tc.smartAssets(allAssets, info.initialisation)
+	if err != nil {
+		return nil, err
+	}
+	assets := &txAssets{feeAsset: proto.OptionalAsset{Present: false}, smartAssets: smartAssets}
+	if err := tc.checkFee(transaction, assets, info); err != nil {
+		return nil, errors.Errorf("checkFee(): %v", err)
 	}
 	activated, err := tc.stor.features.isActivated(int16(settings.SmartAccounts))
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if !activated {
-		return errors.New("SmartAccounts feature has not been activated yet")
+		return nil, errors.New("SmartAccounts feature has not been activated yet")
 	}
-	return tc.checkReissue(&tx.Reissue, info)
+	if err := tc.checkReissue(&tx.Reissue, info); err != nil {
+		return nil, err
+	}
+	return smartAssets, nil
 }
 
 func (tc *transactionChecker) checkBurn(tx *proto.Burn, info *checkerInfo) error {
@@ -363,91 +441,157 @@ func (tc *transactionChecker) checkBurn(tx *proto.Burn, info *checkerInfo) error
 	return nil
 }
 
-func (tc *transactionChecker) checkBurnV1(transaction proto.Transaction, info *checkerInfo) error {
+func (tc *transactionChecker) checkBurnV1(transaction proto.Transaction, info *checkerInfo) ([]crypto.Digest, error) {
 	tx, ok := transaction.(*proto.BurnV1)
 	if !ok {
-		return errors.New("failed to convert interface to BurnV1 transaction")
+		return nil, errors.New("failed to convert interface to BurnV1 transaction")
 	}
-	if err := tc.checkFee(transaction, proto.OptionalAsset{Present: false}, info); err != nil {
-		return errors.Errorf("checkFee(): %v", err)
+	allAssets := []proto.OptionalAsset{*proto.NewOptionalAssetFromDigest(tx.AssetID)}
+	smartAssets, err := tc.smartAssets(allAssets, info.initialisation)
+	if err != nil {
+		return nil, err
 	}
-	return tc.checkBurn(&tx.Burn, info)
+	assets := &txAssets{feeAsset: proto.OptionalAsset{Present: false}, smartAssets: smartAssets}
+	if err := tc.checkFee(transaction, assets, info); err != nil {
+		return nil, errors.Errorf("checkFee(): %v", err)
+	}
+	if err := tc.checkBurn(&tx.Burn, info); err != nil {
+		return nil, err
+	}
+	return smartAssets, nil
 }
 
-func (tc *transactionChecker) checkBurnV2(transaction proto.Transaction, info *checkerInfo) error {
+func (tc *transactionChecker) checkBurnV2(transaction proto.Transaction, info *checkerInfo) ([]crypto.Digest, error) {
 	tx, ok := transaction.(*proto.BurnV2)
 	if !ok {
-		return errors.New("failed to convert interface to BurnV2 transaction")
+		return nil, errors.New("failed to convert interface to BurnV2 transaction")
 	}
-	if err := tc.checkFee(transaction, proto.OptionalAsset{Present: false}, info); err != nil {
-		return errors.Errorf("checkFee(): %v", err)
+	allAssets := []proto.OptionalAsset{*proto.NewOptionalAssetFromDigest(tx.AssetID)}
+	smartAssets, err := tc.smartAssets(allAssets, info.initialisation)
+	if err != nil {
+		return nil, err
+	}
+	assets := &txAssets{feeAsset: proto.OptionalAsset{Present: false}, smartAssets: smartAssets}
+	if err := tc.checkFee(transaction, assets, info); err != nil {
+		return nil, errors.Errorf("checkFee(): %v", err)
 	}
 	activated, err := tc.stor.features.isActivated(int16(settings.SmartAccounts))
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if !activated {
-		return errors.New("SmartAccounts feature has not been activated yet")
+		return nil, errors.New("SmartAccounts feature has not been activated yet")
 	}
-	return tc.checkBurn(&tx.Burn, info)
+	if err := tc.checkBurn(&tx.Burn, info); err != nil {
+		return nil, err
+	}
+	return smartAssets, nil
 }
 
-func (tc *transactionChecker) checkExchange(transaction proto.Transaction, info *checkerInfo) error {
+func (tc *transactionChecker) orderScripted(order proto.Order, initialisation bool) (bool, error) {
+	sender, err := proto.NewAddressFromPublicKey(tc.settings.AddressSchemeCharacter, order.GetSenderPK())
+	if err != nil {
+		return false, err
+	}
+	return tc.stor.scriptsStorage.newestAccountHasVerifier(sender, !initialisation)
+}
+
+func (tc *transactionChecker) checkExchange(transaction proto.Transaction, info *checkerInfo) ([]crypto.Digest, error) {
 	tx, ok := transaction.(proto.Exchange)
 	if !ok {
-		return errors.New("failed to convert interface to Exchange transaction")
+		return nil, errors.New("failed to convert interface to Exchange transaction")
 	}
 	if err := tc.checkTimestamps(tx.GetTimestamp(), info.currentTimestamp, info.parentTimestamp); err != nil {
-		return errors.Wrap(err, "invalid timestamp")
-	}
-	if err := tc.checkFee(transaction, proto.OptionalAsset{Present: false}, info); err != nil {
-		return errors.Errorf("checkFee(): %v", err)
+		return nil, errors.Wrap(err, "invalid timestamp")
 	}
 	sellOrder, err := tx.GetSellOrder()
 	if err != nil {
-		return err
+		return nil, err
+	}
+	allAssets := []proto.OptionalAsset{sellOrder.AssetPair.AmountAsset, sellOrder.AssetPair.PriceAsset}
+	smartAssets, err := tc.smartAssets(allAssets, info.initialisation)
+	if err != nil {
+		return nil, err
+	}
+	assets := &txAssets{feeAsset: proto.OptionalAsset{Present: false}, smartAssets: smartAssets}
+	if err := tc.checkFee(transaction, assets, info); err != nil {
+		return nil, errors.Errorf("checkFee(): %v", err)
 	}
 	// Check assets.
 	if err := tc.checkAsset(&sellOrder.AssetPair.AmountAsset, info.initialisation); err != nil {
-		return err
+		return nil, err
 	}
 	if err := tc.checkAsset(&sellOrder.AssetPair.PriceAsset, info.initialisation); err != nil {
-		return err
+		return nil, err
 	}
-	return nil
+	smartAssetsActivated, err := tc.stor.features.isActivated(int16(settings.SmartAssets))
+	if err != nil {
+		return nil, err
+	}
+	if !smartAssetsActivated && (len(smartAssets) != 0) {
+		return nil, errors.New("smart assets can't participate in Exchange because smart assets feature is disabled")
+	}
+	// Check smart accounts trading.
+	smartTradingActivated, err := tc.stor.features.isActivated(int16(settings.SmartAccountTrading))
+	if err != nil {
+		return nil, err
+	}
+	soScripted, err := tc.orderScripted(tx.GetSellOrderFull(), info.initialisation)
+	if err != nil {
+		return nil, err
+	}
+	boScripted, err := tc.orderScripted(tx.GetBuyOrderFull(), info.initialisation)
+	if err != nil {
+		return nil, err
+	}
+	if boScripted && !smartTradingActivated {
+		return nil, errors.New("buyer can't participate in Exchange because it is scripted, and smart trading is disabled")
+	}
+	if soScripted && !smartTradingActivated {
+		return nil, errors.New("seller can't participate in Exchange because it is scripted, and smart trading is disabled")
+	}
+	return smartAssets, nil
 }
 
-func (tc *transactionChecker) checkExchangeV1(transaction proto.Transaction, info *checkerInfo) error {
+func (tc *transactionChecker) checkExchangeV1(transaction proto.Transaction, info *checkerInfo) ([]crypto.Digest, error) {
 	tx, ok := transaction.(*proto.ExchangeV1)
 	if !ok {
-		return errors.New("failed to convert interface to Payment transaction")
+		return nil, errors.New("failed to convert interface to Payment transaction")
 	}
-	return tc.checkExchange(tx, info)
+	smartAssets, err := tc.checkExchange(tx, info)
+	if err != nil {
+		return nil, err
+	}
+	return smartAssets, nil
 }
 
-func (tc *transactionChecker) checkExchangeV2(transaction proto.Transaction, info *checkerInfo) error {
+func (tc *transactionChecker) checkExchangeV2(transaction proto.Transaction, info *checkerInfo) ([]crypto.Digest, error) {
 	tx, ok := transaction.(*proto.ExchangeV2)
 	if !ok {
-		return errors.New("failed to convert interface to ExchangeV2 transaction")
+		return nil, errors.New("failed to convert interface to ExchangeV2 transaction")
 	}
 	activated, err := tc.stor.features.isActivated(int16(settings.SmartAccountTrading))
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if !activated {
-		return errors.New("SmartAccountsTrading feature must be activated for ExchangeV2 transactions")
+		return nil, errors.New("SmartAccountsTrading feature must be activated for ExchangeV2 transactions")
+	}
+	smartAssets, err := tc.checkExchange(tx, info)
+	if err != nil {
+		return nil, err
 	}
 	if (tx.BuyOrder.GetVersion() != 3) && (tx.SellOrder.GetVersion() != 3) {
-		return nil
+		return smartAssets, nil
 	}
 	activated, err = tc.stor.features.isActivated(int16(settings.OrderV3))
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if !activated {
-		return errors.New("OrderV3 feature must be activated for Exchange transactions with Order version 3")
+		return nil, errors.New("OrderV3 feature must be activated for Exchange transactions with Order version 3")
 	}
-	return tc.checkExchange(tx, info)
+	return smartAssets, nil
 }
 
 func (tc *transactionChecker) checkLease(tx *proto.Lease, info *checkerInfo) error {
@@ -473,33 +617,41 @@ func (tc *transactionChecker) checkLease(tx *proto.Lease, info *checkerInfo) err
 	return nil
 }
 
-func (tc *transactionChecker) checkLeaseV1(transaction proto.Transaction, info *checkerInfo) error {
+func (tc *transactionChecker) checkLeaseV1(transaction proto.Transaction, info *checkerInfo) ([]crypto.Digest, error) {
 	tx, ok := transaction.(*proto.LeaseV1)
 	if !ok {
-		return errors.New("failed to convert interface to LeaseV1 transaction")
+		return nil, errors.New("failed to convert interface to LeaseV1 transaction")
 	}
-	if err := tc.checkFee(transaction, proto.OptionalAsset{Present: false}, info); err != nil {
-		return errors.Errorf("checkFee(): %v", err)
+	assets := &txAssets{feeAsset: proto.OptionalAsset{Present: false}}
+	if err := tc.checkFee(transaction, assets, info); err != nil {
+		return nil, errors.Errorf("checkFee(): %v", err)
 	}
-	return tc.checkLease(&tx.Lease, info)
+	if err := tc.checkLease(&tx.Lease, info); err != nil {
+		return nil, err
+	}
+	return nil, nil
 }
 
-func (tc *transactionChecker) checkLeaseV2(transaction proto.Transaction, info *checkerInfo) error {
+func (tc *transactionChecker) checkLeaseV2(transaction proto.Transaction, info *checkerInfo) ([]crypto.Digest, error) {
 	tx, ok := transaction.(*proto.LeaseV2)
 	if !ok {
-		return errors.New("failed to convert interface to LeaseV2 transaction")
+		return nil, errors.New("failed to convert interface to LeaseV2 transaction")
 	}
-	if err := tc.checkFee(transaction, proto.OptionalAsset{Present: false}, info); err != nil {
-		return errors.Errorf("checkFee(): %v", err)
+	assets := &txAssets{feeAsset: proto.OptionalAsset{Present: false}}
+	if err := tc.checkFee(transaction, assets, info); err != nil {
+		return nil, errors.Errorf("checkFee(): %v", err)
 	}
 	activated, err := tc.stor.features.isActivated(int16(settings.SmartAccounts))
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if !activated {
-		return errors.New("SmartAccounts feature has not been activated yet")
+		return nil, errors.New("SmartAccounts feature has not been activated yet")
 	}
-	return tc.checkLease(&tx.Lease, info)
+	if err := tc.checkLease(&tx.Lease, info); err != nil {
+		return nil, err
+	}
+	return nil, nil
 }
 
 func (tc *transactionChecker) checkLeaseCancel(tx *proto.LeaseCancel, info *checkerInfo) error {
@@ -523,33 +675,41 @@ func (tc *transactionChecker) checkLeaseCancel(tx *proto.LeaseCancel, info *chec
 	return nil
 }
 
-func (tc *transactionChecker) checkLeaseCancelV1(transaction proto.Transaction, info *checkerInfo) error {
+func (tc *transactionChecker) checkLeaseCancelV1(transaction proto.Transaction, info *checkerInfo) ([]crypto.Digest, error) {
 	tx, ok := transaction.(*proto.LeaseCancelV1)
 	if !ok {
-		return errors.New("failed to convert interface to LeaseCancelV1 transaction")
+		return nil, errors.New("failed to convert interface to LeaseCancelV1 transaction")
 	}
-	if err := tc.checkFee(transaction, proto.OptionalAsset{Present: false}, info); err != nil {
-		return errors.Errorf("checkFee(): %v", err)
+	assets := &txAssets{feeAsset: proto.OptionalAsset{Present: false}}
+	if err := tc.checkFee(transaction, assets, info); err != nil {
+		return nil, errors.Errorf("checkFee(): %v", err)
 	}
-	return tc.checkLeaseCancel(&tx.LeaseCancel, info)
+	if err := tc.checkLeaseCancel(&tx.LeaseCancel, info); err != nil {
+		return nil, err
+	}
+	return nil, nil
 }
 
-func (tc *transactionChecker) checkLeaseCancelV2(transaction proto.Transaction, info *checkerInfo) error {
+func (tc *transactionChecker) checkLeaseCancelV2(transaction proto.Transaction, info *checkerInfo) ([]crypto.Digest, error) {
 	tx, ok := transaction.(*proto.LeaseCancelV2)
 	if !ok {
-		return errors.New("failed to convert interface to LeaseCancelV2 transaction")
+		return nil, errors.New("failed to convert interface to LeaseCancelV2 transaction")
 	}
-	if err := tc.checkFee(transaction, proto.OptionalAsset{Present: false}, info); err != nil {
-		return errors.Errorf("checkFee(): %v", err)
+	assets := &txAssets{feeAsset: proto.OptionalAsset{Present: false}}
+	if err := tc.checkFee(transaction, assets, info); err != nil {
+		return nil, errors.Errorf("checkFee(): %v", err)
 	}
 	activated, err := tc.stor.features.isActivated(int16(settings.SmartAccounts))
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if !activated {
-		return errors.New("SmartAccounts feature has not been activated yet")
+		return nil, errors.New("SmartAccounts feature has not been activated yet")
 	}
-	return tc.checkLeaseCancel(&tx.LeaseCancel, info)
+	if err := tc.checkLeaseCancel(&tx.LeaseCancel, info); err != nil {
+		return nil, err
+	}
+	return nil, nil
 }
 
 func (tc *transactionChecker) checkCreateAlias(tx *proto.CreateAlias, info *checkerInfo) error {
@@ -567,124 +727,174 @@ func (tc *transactionChecker) checkCreateAlias(tx *proto.CreateAlias, info *chec
 	return nil
 }
 
-func (tc *transactionChecker) checkCreateAliasV1(transaction proto.Transaction, info *checkerInfo) error {
+func (tc *transactionChecker) checkCreateAliasV1(transaction proto.Transaction, info *checkerInfo) ([]crypto.Digest, error) {
 	tx, ok := transaction.(*proto.CreateAliasV1)
 	if !ok {
-		return errors.New("failed to convert interface to CreateAliasV1 transaction")
+		return nil, errors.New("failed to convert interface to CreateAliasV1 transaction")
 	}
-	if err := tc.checkFee(transaction, proto.OptionalAsset{Present: false}, info); err != nil {
-		return errors.Errorf("checkFee(): %v", err)
+	assets := &txAssets{feeAsset: proto.OptionalAsset{Present: false}}
+	if err := tc.checkFee(transaction, assets, info); err != nil {
+		return nil, errors.Errorf("checkFee(): %v", err)
 	}
-	return tc.checkCreateAlias(&tx.CreateAlias, info)
+	if err := tc.checkCreateAlias(&tx.CreateAlias, info); err != nil {
+		return nil, err
+	}
+	return nil, nil
 }
 
-func (tc *transactionChecker) checkCreateAliasV2(transaction proto.Transaction, info *checkerInfo) error {
+func (tc *transactionChecker) checkCreateAliasV2(transaction proto.Transaction, info *checkerInfo) ([]crypto.Digest, error) {
 	tx, ok := transaction.(*proto.CreateAliasV2)
 	if !ok {
-		return errors.New("failed to convert interface to CreateAliasV2 transaction")
+		return nil, errors.New("failed to convert interface to CreateAliasV2 transaction")
 	}
-	if err := tc.checkFee(transaction, proto.OptionalAsset{Present: false}, info); err != nil {
-		return errors.Errorf("checkFee(): %v", err)
+	assets := &txAssets{feeAsset: proto.OptionalAsset{Present: false}}
+	if err := tc.checkFee(transaction, assets, info); err != nil {
+		return nil, errors.Errorf("checkFee(): %v", err)
 	}
 	activated, err := tc.stor.features.isActivated(int16(settings.SmartAccounts))
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if !activated {
-		return errors.New("SmartAccounts feature has not been activated yet")
+		return nil, errors.New("SmartAccounts feature has not been activated yet")
 	}
-	return tc.checkCreateAlias(&tx.CreateAlias, info)
+	if err := tc.checkCreateAlias(&tx.CreateAlias, info); err != nil {
+		return nil, err
+	}
+	return nil, nil
 }
 
-func (tc *transactionChecker) checkMassTransferV1(transaction proto.Transaction, info *checkerInfo) error {
+func (tc *transactionChecker) checkMassTransferV1(transaction proto.Transaction, info *checkerInfo) ([]crypto.Digest, error) {
 	tx, ok := transaction.(*proto.MassTransferV1)
 	if !ok {
-		return errors.New("failed to convert interface to MassTransferV1 transaction")
+		return nil, errors.New("failed to convert interface to MassTransferV1 transaction")
 	}
 	if err := tc.checkTimestamps(tx.Timestamp, info.currentTimestamp, info.parentTimestamp); err != nil {
-		return errors.Wrap(err, "invalid timestamp")
+		return nil, errors.Wrap(err, "invalid timestamp")
 	}
-	if err := tc.checkFee(transaction, proto.OptionalAsset{Present: false}, info); err != nil {
-		return errors.Errorf("checkFee(): %v", err)
+	allAssets := []proto.OptionalAsset{tx.Asset}
+	smartAssets, err := tc.smartAssets(allAssets, info.initialisation)
+	if err != nil {
+		return nil, err
+	}
+	assets := &txAssets{feeAsset: proto.OptionalAsset{Present: false}, smartAssets: smartAssets}
+	if err := tc.checkFee(transaction, assets, info); err != nil {
+		return nil, errors.Errorf("checkFee(): %v", err)
 	}
 	activated, err := tc.stor.features.isActivated(int16(settings.MassTransfer))
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if !activated {
-		return errors.New("MassTransfer transaction has not been activated yet")
+		return nil, errors.New("MassTransfer transaction has not been activated yet")
 	}
 	if err := tc.checkAsset(&tx.Asset, info.initialisation); err != nil {
-		return err
+		return nil, err
 	}
-	return nil
+	return smartAssets, nil
 }
 
-func (tc *transactionChecker) checkDataV1(transaction proto.Transaction, info *checkerInfo) error {
+func (tc *transactionChecker) checkDataV1(transaction proto.Transaction, info *checkerInfo) ([]crypto.Digest, error) {
 	tx, ok := transaction.(*proto.DataV1)
 	if !ok {
-		return errors.New("failed to convert interface to DataV1 transaction")
+		return nil, errors.New("failed to convert interface to DataV1 transaction")
 	}
 	if err := tc.checkTimestamps(tx.Timestamp, info.currentTimestamp, info.parentTimestamp); err != nil {
-		return errors.Wrap(err, "invalid timestamp")
+		return nil, errors.Wrap(err, "invalid timestamp")
 	}
-	if err := tc.checkFee(transaction, proto.OptionalAsset{Present: false}, info); err != nil {
-		return errors.Errorf("checkFee(): %v", err)
+	assets := &txAssets{feeAsset: proto.OptionalAsset{Present: false}}
+	if err := tc.checkFee(transaction, assets, info); err != nil {
+		return nil, errors.Errorf("checkFee(): %v", err)
 	}
 	activated, err := tc.stor.features.isActivated(int16(settings.DataTransaction))
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if !activated {
-		return errors.New("Data transaction has not been activated yet")
+		return nil, errors.New("Data transaction has not been activated yet")
 	}
-	return nil
+	return nil, nil
 }
 
-func (tc *transactionChecker) checkSponsorshipV1(transaction proto.Transaction, info *checkerInfo) error {
+func (tc *transactionChecker) checkSponsorshipV1(transaction proto.Transaction, info *checkerInfo) ([]crypto.Digest, error) {
 	tx, ok := transaction.(*proto.SponsorshipV1)
 	if !ok {
-		return errors.New("failed to convert interface to SponsorshipV1 transaction")
+		return nil, errors.New("failed to convert interface to SponsorshipV1 transaction")
 	}
 	if err := tc.checkTimestamps(tx.Timestamp, info.currentTimestamp, info.parentTimestamp); err != nil {
-		return errors.Wrap(err, "invalid timestamp")
+		return nil, errors.Wrap(err, "invalid timestamp")
 	}
-	if err := tc.checkFee(transaction, proto.OptionalAsset{Present: false}, info); err != nil {
-		return errors.Errorf("checkFee(): %v", err)
+	assets := &txAssets{feeAsset: proto.OptionalAsset{Present: false}}
+	if err := tc.checkFee(transaction, assets, info); err != nil {
+		return nil, errors.Errorf("checkFee(): %v", err)
 	}
 	activated, err := tc.stor.features.isActivated(int16(settings.FeeSponsorship))
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if !activated {
-		return errors.New("sponsorship has not been activated yet")
+		return nil, errors.New("sponsorship has not been activated yet")
 	}
 	if err := tc.checkAsset(&proto.OptionalAsset{Present: false, ID: tx.AssetID}, info.initialisation); err != nil {
-		return err
+		return nil, err
 	}
 	assetInfo, err := tc.stor.assets.newestAssetInfo(tx.AssetID, !info.initialisation)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if !bytes.Equal(assetInfo.issuer[:], tx.SenderPK[:]) {
-		return errors.New("asset was issued by other address")
+		return nil, errors.New("asset was issued by other address")
 	}
-	return nil
+	isSmart, err := tc.stor.scriptsStorage.newestIsSmartAsset(tx.AssetID, !info.initialisation)
+	if err != nil {
+		return nil, err
+	}
+	if isSmart {
+		return nil, errors.Errorf("can not sponsor smart asset %s", tx.AssetID.String())
+	}
+	return nil, nil
 }
 
-func (tc *transactionChecker) checkSetScriptV1(transaction proto.Transaction, info *checkerInfo) error {
+func (tc *transactionChecker) checkSetScriptV1(transaction proto.Transaction, info *checkerInfo) ([]crypto.Digest, error) {
 	tx, ok := transaction.(*proto.SetScriptV1)
 	if !ok {
-		return errors.New("failed to convert interface to SetScriptV1 transaction")
+		return nil, errors.New("failed to convert interface to SetScriptV1 transaction")
 	}
 	if err := tc.checkTimestamps(tx.Timestamp, info.currentTimestamp, info.parentTimestamp); err != nil {
-		return errors.Wrap(err, "invalid timestamp")
+		return nil, errors.Wrap(err, "invalid timestamp")
 	}
-	if err := tc.checkFee(transaction, proto.OptionalAsset{Present: false}, info); err != nil {
-		return errors.Errorf("checkFee(): %v", err)
+	assets := &txAssets{feeAsset: proto.OptionalAsset{Present: false}}
+	if err := tc.checkFee(transaction, assets, info); err != nil {
+		return nil, errors.Errorf("checkFee(): %v", err)
 	}
 	if err := tc.checkScript(tx.Script); err != nil {
-		return errors.Errorf("checkScript(): %v\n", err)
+		return nil, errors.Errorf("checkScript(): %v\n", err)
 	}
-	return nil
+	return nil, nil
+}
+
+func (tc *transactionChecker) checkSetAssetScriptV1(transaction proto.Transaction, info *checkerInfo) ([]crypto.Digest, error) {
+	tx, ok := transaction.(*proto.SetAssetScriptV1)
+	if !ok {
+		return nil, errors.New("failed to convert interface to SetAssetScriptV1 transaction")
+	}
+	if err := tc.checkTimestamps(tx.Timestamp, info.currentTimestamp, info.parentTimestamp); err != nil {
+		return nil, errors.Wrap(err, "invalid timestamp")
+	}
+	isSmartAsset, err := tc.stor.scriptsStorage.newestIsSmartAsset(tx.AssetID, !info.initialisation)
+	if err != nil {
+		return nil, err
+	}
+	if !isSmartAsset {
+		return nil, errors.Errorf("asset %s is not smart, can not set script for it", tx.AssetID.String())
+	}
+	smartAssets := []crypto.Digest{tx.AssetID}
+	assets := &txAssets{feeAsset: proto.OptionalAsset{Present: false}, smartAssets: smartAssets}
+	if err := tc.checkFee(transaction, assets, info); err != nil {
+		return nil, errors.Errorf("checkFee(): %v", err)
+	}
+	if err := tc.checkScript(tx.Script); err != nil {
+		return nil, errors.Errorf("checkScript(): %v\n", err)
+	}
+	return smartAssets, nil
 }
