@@ -68,12 +68,6 @@ func newBloomFilterFromStore(params BloomFilterParams) (*bloomFilter, error) {
 }
 
 func storeBloomFilter(a *bloomFilter) error {
-	buf := &bytes.Buffer{}
-	_, err := a.WriteTo(buf)
-	if err != nil {
-		return err
-	}
-
 	return a.params.Store.save(a.filter)
 }
 
