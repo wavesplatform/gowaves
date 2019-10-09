@@ -97,10 +97,13 @@ func (bf *bloomFilter) notInTheSet(data []byte) (bool, error) {
 type store interface {
 	save(*bloomfilter.Filter) error
 	load() ([]byte, error)
+	WithPath(string)
 }
 
 type NoOpStore struct {
 }
+
+func (NoOpStore) WithPath(string) {}
 
 func (a NoOpStore) save(*bloomfilter.Filter) error {
 	return nil
@@ -112,6 +115,10 @@ func (a NoOpStore) load() ([]byte, error) {
 
 type storeImpl struct {
 	path string
+}
+
+func (a *storeImpl) WithPath(path string) {
+	a.path = path
 }
 
 func (a *storeImpl) tmpFileName() string {

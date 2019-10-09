@@ -178,6 +178,7 @@ func DefaultStorageParams() StorageParams {
 		BloomFilterParams: keyvalue.BloomFilterParams{
 			N:                        DefaultBloomFilterSize,
 			FalsePositiveProbability: DefaultBloomFilterFalsePositiveProbability,
+			Store:                    keyvalue.NewStore(""),
 		},
 		WriteBuffer:         DefaultWriteBuffer,
 		CompactionTableSize: DefaultCompactionTableSize,
