@@ -384,6 +384,12 @@ func OrderToOrderBody(o Order) (OrderBody, error) {
 			return OrderBody{}, errors.New("failed to cast an order version 2 to *OrderV2")
 		}
 		return o.OrderBody, nil
+	case 3:
+		o, ok := o.(*OrderV3)
+		if !ok {
+			return OrderBody{}, errors.New("failed to cast an order version 3 to *OrderV3")
+		}
+		return o.OrderBody, nil
 	default:
 		return OrderBody{}, errors.New("invalid order version")
 	}
