@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/importer"
+	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 )
@@ -58,7 +59,9 @@ func TestGenesisConfig(t *testing.T) {
 		Type:          settings.Custom,
 		GenesisGetter: settings.TestnetGenesis,
 	}
-	manager, err := newStateManager(dataDir, DefaultStateParams(), ss)
+	stateParams := DefaultStateParams()
+	stateParams.DbParams.Store = &keyvalue.NoOpStore{}
+	manager, err := newStateManager(dataDir, stateParams, ss)
 	if err != nil {
 		t.Fatalf("Failed to create state manager: %v.\n", err)
 	}
