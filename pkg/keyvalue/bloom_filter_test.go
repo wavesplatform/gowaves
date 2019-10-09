@@ -18,7 +18,7 @@ const (
 )
 
 func TestBloomFilter(t *testing.T) {
-	filter, err := newBloomFilter(BloomFilterParams{n, falsePositiveProbability, ""})
+	filter, err := newBloomFilter(BloomFilterParams{n, falsePositiveProbability, nil})
 	assert.NoError(t, err, "newBloomFilter() failed")
 	for i := 0; i < n; i++ {
 		data := make([]byte, 100)
@@ -39,8 +39,9 @@ func TestSaveLoad(t *testing.T) {
 		_ = os.RemoveAll(dir)
 	}()
 	cacheFile := path.Join(dir, "bloom_cache")
-	params := BloomFilterParams{n, falsePositiveProbability, cacheFile}
-	filter, err := newBloomFilter(BloomFilterParams{n, falsePositiveProbability, cacheFile})
+
+	params := NewBloomFilterParams(n, falsePositiveProbability, NewStore(cacheFile))
+	filter, err := newBloomFilter(params)
 	require.NoError(t, err)
 
 	sig := crypto.MustSignatureFromBase58("5Sqy6nibWVBtHiok8WJfx3p2kiRkAidGuGzY7Aqb7jCZauJCSdEicvQj9HLbiopEtU33RzJ1ErXN7aB16GRuEPqB")

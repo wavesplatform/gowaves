@@ -16,8 +16,16 @@ type BloomFilterParams struct {
 	N int
 	// FalsePositiveProbability is acceptable false positive rate {0..1}.
 	FalsePositiveProbability float64
-	// Path where bloom cache stored
-	Path string
+	// Bloom store
+	Store store
+}
+
+func NewBloomFilterParams(N int, FalsePositiveProbability float64, store store) BloomFilterParams {
+	return BloomFilterParams{
+		N:                        N,
+		FalsePositiveProbability: FalsePositiveProbability,
+		Store:                    store,
+	}
 }
 
 type bloomFilter struct {
@@ -47,57 +55,26 @@ func newBloomFilterFromStore(params BloomFilterParams) (*bloomFilter, error) {
 		return nil, err
 	}
 	bf := &bloomFilter{filter: f, params: params}
-	file, err := os.Open(params.Path)
+
+	bts, err := params.Store.load()
 	if err != nil {
 		return nil, err
 	}
-	bts, err := ioutil.ReadAll(file)
-	if err != nil {
-		_ = file.Close()
-		return nil, err
-	}
-	err = file.Close()
+	_, err = bf.ReadFrom(bytes.NewBuffer(bts))
 	if err != nil {
 		return nil, err
-	}
-	err = os.Remove(params.Path)
-	if err != nil {
-		return nil, err
-	}
-	if !bytes.Equal(bts[len(bts)-4:], []byte{0xaa, 0xbb, 0xcc, 0xdd}) {
-		return nil, errors.New("bloomFilter: invalid data")
-	}
-	_, err = bf.ReadFrom(bytes.NewReader(bts[:len(bts)-4]))
-	if err != nil {
-		return nil, errors.Wrap(err, "UnmarshalBinary")
 	}
 	return bf, nil
 }
 
-func storeBloomFilter(f *bloomFilter) error {
-	file, err := os.OpenFile(f.params.Path, os.O_RDWR|os.O_CREATE, 0644)
+func storeBloomFilter(a *bloomFilter) error {
+	buf := &bytes.Buffer{}
+	_, err := a.WriteTo(buf)
 	if err != nil {
 		return err
 	}
-	defer file.Close()
 
-	err = file.Truncate(0)
-	if err != nil {
-		return err
-	}
-	_, err = file.Seek(0, 0)
-	if err != nil {
-		return err
-	}
-	_, err = f.WriteTo(file)
-	if err != nil {
-		return err
-	}
-	_, err = file.Write([]byte{0xaa, 0xbb, 0xcc, 0xdd})
-	if err != nil {
-		return err
-	}
-	return err
+	return a.params.Store.save(a.filter)
 }
 
 func (bf *bloomFilter) add(data []byte) error {
@@ -115,4 +92,72 @@ func (bf *bloomFilter) notInTheSet(data []byte) (bool, error) {
 		return false, err
 	}
 	return !bf.filter.Contains(f), nil
+}
+
+type store interface {
+	save(*bloomfilter.Filter) error
+	load() ([]byte, error)
+}
+
+type NoOpStore struct {
+}
+
+func (a NoOpStore) save(*bloomfilter.Filter) error {
+	return nil
+}
+
+func (a NoOpStore) load() ([]byte, error) {
+	return nil, errors.New("noop")
+}
+
+type storeImpl struct {
+	path string
+}
+
+func (a *storeImpl) tmpFileName() string {
+	return a.path + "tmp"
+}
+
+func (a *storeImpl) saveData(f *bloomfilter.Filter) error {
+	file, err := os.OpenFile(a.tmpFileName(), os.O_RDWR|os.O_CREATE, 0644)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	err = file.Truncate(0)
+	if err != nil {
+		return err
+	}
+	_, err = file.Seek(0, 0)
+	if err != nil {
+		return err
+	}
+	_, err = f.WriteTo(file)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (a *storeImpl) save(f *bloomfilter.Filter) error {
+	if err := a.saveData(f); err != nil {
+		return err
+	}
+	if err := os.Rename(a.tmpFileName(), a.path); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (a *storeImpl) load() ([]byte, error) {
+	bts, err := ioutil.ReadFile(a.path)
+	if err != nil {
+		return nil, err
+	}
+	return bts, os.Remove(a.path)
+}
+
+func NewStore(path string) *storeImpl {
+	return &storeImpl{path: path}
 }
