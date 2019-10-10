@@ -22,6 +22,7 @@ const (
 	featureVote
 	approvedFeature
 	activatedFeature
+	ordersVolume
 	sponsorship
 	dataEntry
 	accountScript
