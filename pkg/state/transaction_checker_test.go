@@ -465,45 +465,65 @@ func TestCheckExchangeV2(t *testing.T) {
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
-	tx := createExchangeV2(t)
+	txOV2 := createExchangeV2(t)
 	info := defaultCheckerInfo(t)
-	_, err := to.tc.checkExchangeV2(tx, info)
+	_, err := to.tc.checkExchangeV2(txOV2, info)
 	assert.Error(t, err, "checkExchangeV2 did not fail with exchange with unknown assets")
 
 	to.stor.createAsset(t, testGlobal.asset0.asset.ID)
 	to.stor.createAsset(t, testGlobal.asset1.asset.ID)
 
-	_, err = to.tc.checkExchangeV2(tx, info)
+	_, err = to.tc.checkExchangeV2(txOV2, info)
 	assert.Error(t, err, "checkExchangeV2 did not fail prior to SmartAccountTrading activation")
 
-	_, err = to.tc.checkExchangeV2(tx, info)
+	_, err = to.tc.checkExchangeV2(txOV2, info)
 	assert.Error(t, err, "checkExchangeV2 did not fail prior to SmartAccountTrading activation")
 
 	to.stor.activateFeature(t, int16(settings.SmartAccountTrading))
 
-	_, err = to.tc.checkExchangeV2(tx, info)
+	_, err = to.tc.checkExchangeV2(txOV2, info)
 	assert.NoError(t, err, "checkExchangeV2 failed with valid exchange")
 
 	// Make one of involved assets smart.
-	smartAsset := tx.GetBuyOrderFull().GetAssetPair().AmountAsset.ID
+	smartAsset := txOV2.GetBuyOrderFull().GetAssetPair().AmountAsset.ID
 	to.stor.createSmartAsset(t, smartAsset)
 
-	_, err = to.tc.checkExchangeV2(tx, info)
+	_, err = to.tc.checkExchangeV2(txOV2, info)
 	assert.Error(t, err, "checkExchangeV2 did not fail with exchange with smart assets before SmartAssets activation")
 
 	to.stor.activateFeature(t, int16(settings.SmartAssets))
-	_, err = to.tc.checkExchangeV2(tx, info)
+	_, err = to.tc.checkExchangeV2(txOV2, info)
 	assert.NoError(t, err, "checkExchangeV2 failed with valid exchange")
 
 	// Check that smart assets are detected properly.
-	smartAssets, err := to.tc.checkExchangeV2(tx, info)
+	smartAssets, err := to.tc.checkExchangeV2(txOV2, info)
 	assert.NoError(t, err)
 	assert.Equal(t, 1, len(smartAssets))
 	assert.Equal(t, smartAsset, smartAssets[0])
 
-	/* TODO: uncomment when the following feature will be implemented.
+	// Check validation of ExchangeV2 with Orders version 3
 	to.stor.activateFeature(t, int16(settings.OrderV3))
-	*/
+
+	_, err = to.tc.checkExchangeV2(txOV2, info)
+	assert.NoError(t, err, "checkExchangeV2 failed with valid exchange")
+
+	smartAssets, err = to.tc.checkExchangeV2(txOV2, info)
+	assert.NoError(t, err)
+	assert.Equal(t, 1, len(smartAssets))
+	assert.Equal(t, smartAsset, smartAssets[0])
+
+	txOV3 := createExchangeV2WithOrdersV3(t)
+
+	smartAsset2 := txOV3.GetBuyOrderFull().GetMatcherFeeAsset().ID
+	to.stor.createSmartAsset(t, smartAsset2)
+
+	_, err = to.tc.checkExchangeV2(txOV3, info)
+	assert.NoError(t, err, "checkExchangeV2 failed with valid exchange")
+
+	smartAssets, err = to.tc.checkExchangeV2(txOV3, info)
+	assert.NoError(t, err)
+	assert.Equal(t, 2, len(smartAssets))
+	assert.ElementsMatch(t, []crypto.Digest{smartAsset, smartAsset2}, smartAssets)
 }
 
 func TestCheckLeaseV1(t *testing.T) {

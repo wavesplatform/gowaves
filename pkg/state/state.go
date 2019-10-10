@@ -299,7 +299,7 @@ func (a *txAppender) hasAccountVerifyScript(tx proto.Transaction, initialisation
 }
 
 func (a *txAppender) orderIsScripted(order proto.Order, initialisation bool) (bool, error) {
-	return a.txHandler.tc.orderScripted(order, initialisation)
+	return a.txHandler.tc.orderScriptedAccount(order, initialisation)
 }
 
 func (a *txAppender) handleExchange(tx proto.Transaction, blockInfo *proto.BlockInfo, initialisation bool) (uint64, error) {

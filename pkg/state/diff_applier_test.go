@@ -102,7 +102,7 @@ func TestDiffApplierWithAssets(t *testing.T) {
 	// Test applying valid change.
 	diff := balanceDiff{balance: 100, blockID: blockID0}
 	changes := []balanceChanges{
-		{[]byte(testGlobal.senderInfo.assetKey), []balanceDiff{diff}},
+		{[]byte(testGlobal.senderInfo.assetKeys[0]), []balanceDiff{diff}},
 	}
 	err := to.applier.applyBalancesChanges(changes, true)
 	assert.NoError(t, err, "applyBalancesChanges() failed")
@@ -113,7 +113,7 @@ func TestDiffApplierWithAssets(t *testing.T) {
 	// Test applying invalid balance change.
 	diff = balanceDiff{balance: -101, blockID: blockID0}
 	changes = []balanceChanges{
-		{[]byte(testGlobal.senderInfo.assetKey), []balanceDiff{diff}},
+		{[]byte(testGlobal.senderInfo.assetKeys[0]), []balanceDiff{diff}},
 	}
 	err = to.applier.applyBalancesChanges(changes, true)
 	assert.Error(t, err, "applyBalancesChanges() did not fail with balance change leading to negative balance")

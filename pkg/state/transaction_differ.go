@@ -559,20 +559,26 @@ func (td *transactionDiffer) createDiffBurnV2(transaction proto.Transaction, inf
 	return td.createDiffBurn(&tx.Burn, info)
 }
 
+func (td *transactionDiffer) orderFeeKey(address proto.Address, order proto.Order) []byte {
+	switch o := order.(type) {
+	case *proto.OrderV3:
+		return byteKey(address, o.MatcherFeeAsset.ToID())
+	default:
+		k := wavesBalanceKey{address}
+		return k.bytes()
+	}
+}
+
 func (td *transactionDiffer) createDiffExchange(transaction proto.Transaction, info *differInfo) (txDiff, error) {
 	tx, ok := transaction.(proto.Exchange)
 	if !ok {
 		return txDiff{}, errors.New("failed to convert interface to Exchange transaction")
 	}
 	diff := newTxDiff()
-	buyOrder, err := tx.GetBuyOrder()
-	if err != nil {
-		return txDiff{}, err
-	}
-	sellOrder, err := tx.GetSellOrder()
-	if err != nil {
-		return txDiff{}, err
-	}
+	buyOrder := tx.GetBuyOrderFull()
+	sellOrder := tx.GetSellOrderFull()
+	amountAsset := buyOrder.GetAssetPair().AmountAsset
+	priceAsset := buyOrder.GetAssetPair().PriceAsset
 	// Perform exchange.
 	var val, amount, price big.Int
 	priceConst := big.NewInt(priceConstant)
@@ -585,52 +591,56 @@ func (td *transactionDiffer) createDiffExchange(transaction proto.Transaction, i
 	}
 	priceDiff := val.Int64()
 	amountDiff := int64(tx.GetAmount())
-	senderAddr, err := proto.NewAddressFromPublicKey(td.settings.AddressSchemeCharacter, sellOrder.SenderPK)
+	senderAddr, err := proto.NewAddressFromPublicKey(td.settings.AddressSchemeCharacter, sellOrder.GetSenderPK())
 	if err != nil {
 		return txDiff{}, err
 	}
-	senderPriceKey := byteKey(senderAddr, sellOrder.AssetPair.PriceAsset.ToID())
+	senderPriceKey := byteKey(senderAddr, priceAsset.ToID())
 	if err := diff.appendBalanceDiff(senderPriceKey, newBalanceDiff(priceDiff, 0, 0, false)); err != nil {
 		return txDiff{}, err
 	}
-	senderAmountKey := byteKey(senderAddr, sellOrder.AssetPair.AmountAsset.ToID())
+	senderAmountKey := byteKey(senderAddr, amountAsset.ToID())
 	if err := diff.appendBalanceDiff(senderAmountKey, newBalanceDiff(-amountDiff, 0, 0, false)); err != nil {
 		return txDiff{}, err
 	}
-	senderFeeKey := wavesBalanceKey{senderAddr}
-	senderFeeDiff := -int64(tx.GetSellMatcherFee())
-	if err := diff.appendBalanceDiff(senderFeeKey.bytes(), newBalanceDiff(senderFeeDiff, 0, 0, false)); err != nil {
-		return txDiff{}, err
-	}
-	receiverAddr, err := proto.NewAddressFromPublicKey(td.settings.AddressSchemeCharacter, buyOrder.SenderPK)
+	receiverAddr, err := proto.NewAddressFromPublicKey(td.settings.AddressSchemeCharacter, buyOrder.GetSenderPK())
 	if err != nil {
 		return txDiff{}, err
 	}
-	receiverPriceKey := byteKey(receiverAddr, sellOrder.AssetPair.PriceAsset.ToID())
+	receiverPriceKey := byteKey(receiverAddr, priceAsset.ToID())
 	if err := diff.appendBalanceDiff(receiverPriceKey, newBalanceDiff(-priceDiff, 0, 0, false)); err != nil {
 		return txDiff{}, err
 	}
-	receiverAmountKey := byteKey(receiverAddr, sellOrder.AssetPair.AmountAsset.ToID())
+	receiverAmountKey := byteKey(receiverAddr, amountAsset.ToID())
 	if err := diff.appendBalanceDiff(receiverAmountKey, newBalanceDiff(amountDiff, 0, 0, false)); err != nil {
 		return txDiff{}, err
 	}
-	receiverFeeKey := wavesBalanceKey{receiverAddr}
-	receiverFeeDiff := -int64(tx.GetBuyMatcherFee())
-	if err := diff.appendBalanceDiff(receiverFeeKey.bytes(), newBalanceDiff(receiverFeeDiff, 0, 0, false)); err != nil {
+	// Fees
+	matcherAddr, err := proto.NewAddressFromPublicKey(td.settings.AddressSchemeCharacter, buyOrder.GetMatcherPK())
+	if err != nil {
 		return txDiff{}, err
 	}
-	// Update matcher.
-	matcherAddr, err := proto.NewAddressFromPublicKey(td.settings.AddressSchemeCharacter, buyOrder.MatcherPK)
-	if err != nil {
+	senderFee := int64(tx.GetSellMatcherFee())
+	senderFeeKey := td.orderFeeKey(senderAddr, sellOrder)
+	if err := diff.appendBalanceDiff(senderFeeKey, newBalanceDiff(-senderFee, 0, 0, false)); err != nil {
+		return txDiff{}, err
+	}
+	matcherFeeFromSenderKey := td.orderFeeKey(matcherAddr, sellOrder)
+	if err := diff.appendBalanceDiff(matcherFeeFromSenderKey, newBalanceDiff(senderFee, 0, 0, false)); err != nil {
+		return txDiff{}, err
+	}
+	receiverFee := int64(tx.GetBuyMatcherFee())
+	receiverFeeKey := td.orderFeeKey(receiverAddr, buyOrder)
+	if err := diff.appendBalanceDiff(receiverFeeKey, newBalanceDiff(-receiverFee, 0, 0, false)); err != nil {
+		return txDiff{}, err
+	}
+	matcherFeeFromReceiverKey := td.orderFeeKey(matcherAddr, buyOrder)
+	if err := diff.appendBalanceDiff(matcherFeeFromReceiverKey, newBalanceDiff(receiverFee, 0, 0, false)); err != nil {
 		return txDiff{}, err
 	}
 	matcherKey := wavesBalanceKey{matcherAddr}
-	matcherFee, err := util.AddInt64(int64(tx.GetBuyMatcherFee()), int64(tx.GetSellMatcherFee()))
-	if err != nil {
-		return txDiff{}, err
-	}
-	matcherBalanceDiff := matcherFee - int64(tx.GetFee())
-	if err := diff.appendBalanceDiff(matcherKey.bytes(), newBalanceDiff(matcherBalanceDiff, 0, 0, false)); err != nil {
+	matcherFee := int64(tx.GetFee())
+	if err := diff.appendBalanceDiff(matcherKey.bytes(), newBalanceDiff(-matcherFee, 0, 0, false)); err != nil {
 		return txDiff{}, err
 	}
 	if info.hasMiner() {
