@@ -103,7 +103,7 @@ func initBloomFilter(kv *KeyVal, params BloomFilterParams) error {
 		log.Printf("Successful")
 		return nil
 	}
-	log.Printf("Failure, creating from db")
+	log.Printf("Bloom: creating from db")
 	filter, err = newBloomFilter(params)
 	if err != nil {
 		return err

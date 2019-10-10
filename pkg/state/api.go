@@ -191,6 +191,12 @@ func DefaultStorageParams() StorageParams {
 	}
 }
 
+func DefaultTestingStorageParams() StorageParams {
+	d := DefaultStorageParams()
+	d.DbParams.N = 10
+	return d
+}
+
 // ValidationParams are validation parameters.
 // VerificationGoroutinesNum specifies how many goroutines will be run for verification of transactions and blocks signatures.
 type ValidationParams struct {
@@ -204,4 +210,8 @@ type StateParams struct {
 
 func DefaultStateParams() StateParams {
 	return StateParams{DefaultStorageParams(), ValidationParams{runtime.NumCPU() * 2}}
+}
+
+func DefaultTestingStateParams() StateParams {
+	return StateParams{DefaultTestingStorageParams(), ValidationParams{runtime.NumCPU() * 2}}
 }

@@ -98,7 +98,7 @@ func TestValidationWithoutBlocks(t *testing.T) {
 	blocksPath := blocksPath(t)
 	dataDir, err := ioutil.TempDir(os.TempDir(), "dataDir")
 	assert.NoError(t, err, "failed to create dir for test data")
-	manager, err := newStateManager(dataDir, DefaultStateParams(), settings.MainNetSettings)
+	manager, err := newStateManager(dataDir, DefaultTestingStateParams(), settings.MainNetSettings)
 	assert.NoError(t, err, "newStateManager() failed")
 
 	defer func() {
@@ -158,7 +158,7 @@ func TestStateRollback(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temp dir for data: %v\n", err)
 	}
-	manager, err := newStateManager(dataDir, DefaultStateParams(), settings.MainNetSettings)
+	manager, err := newStateManager(dataDir, DefaultTestingStateParams(), settings.MainNetSettings)
 	if err != nil {
 		t.Fatalf("Failed to create state manager: %v.\n", err)
 	}
@@ -220,7 +220,7 @@ func TestStateIntegrated(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temp dir for data: %v\n", err)
 	}
-	manager, err := newStateManager(dataDir, DefaultStateParams(), settings.MainNetSettings)
+	manager, err := newStateManager(dataDir, DefaultTestingStateParams(), settings.MainNetSettings)
 	if err != nil {
 		t.Fatalf("Failed to create state manager: %v.\n", err)
 	}
@@ -306,7 +306,7 @@ func TestStateManager_SavePeers(t *testing.T) {
 	}
 	defer os.RemoveAll(dataDir)
 
-	manager, err := newStateManager(dataDir, DefaultStateParams(), settings.MainNetSettings)
+	manager, err := newStateManager(dataDir, DefaultTestingStateParams(), settings.MainNetSettings)
 	if err != nil {
 		t.Fatalf("Failed to create state manager: %v.\n", err)
 	}
@@ -336,7 +336,7 @@ func TestPreactivatedFeatures(t *testing.T) {
 	featureID := int16(1)
 	sets := settings.MainNetSettings
 	sets.PreactivatedFeatures = []int16{featureID}
-	manager, err := newStateManager(dataDir, DefaultStateParams(), sets)
+	manager, err := newStateManager(dataDir, DefaultTestingStateParams(), sets)
 	assert.NoError(t, err, "newStateManager() failed")
 
 	defer func() {
@@ -370,7 +370,7 @@ func TestDisallowDuplicateTxIds(t *testing.T) {
 	blocksPath := blocksPath(t)
 	dataDir, err := ioutil.TempDir(os.TempDir(), "dataDir")
 	assert.NoError(t, err, "failed to create dir for test data")
-	manager, err := newStateManager(dataDir, DefaultStateParams(), settings.MainNetSettings)
+	manager, err := newStateManager(dataDir, DefaultTestingStateParams(), settings.MainNetSettings)
 	assert.NoError(t, err, "newStateManager() failed")
 
 	defer func() {
@@ -401,7 +401,7 @@ func TestTransactionByID(t *testing.T) {
 	blocksPath := blocksPath(t)
 	dataDir, err := ioutil.TempDir(os.TempDir(), "dataDir")
 	assert.NoError(t, err, "failed to create dir for test data")
-	manager, err := newStateManager(dataDir, DefaultStateParams(), settings.MainNetSettings)
+	manager, err := newStateManager(dataDir, DefaultTestingStateParams(), settings.MainNetSettings)
 	assert.NoError(t, err, "newStateManager() failed")
 
 	defer func() {
@@ -432,7 +432,7 @@ func TestStateManager_Mutex(t *testing.T) {
 	}
 	defer os.RemoveAll(dataDir)
 
-	manager, err := newStateManager(dataDir, DefaultStateParams(), settings.MainNetSettings)
+	manager, err := newStateManager(dataDir, DefaultTestingStateParams(), settings.MainNetSettings)
 	if err != nil {
 		t.Fatalf("Failed to create state manager: %v.\n", err)
 	}
