@@ -37,6 +37,7 @@ const (
 
 	assetStr  = "B2u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ"
 	assetStr1 = "3gRJoK6f7XUV7fx5jUzHoPwdb9ZdTFjtTPy2HgDinr1N"
+	assetStr3 = "6nqXFE9J94dX17MPZRB7Hkk4aYDBpybq98n25jMexYVF"
 
 	defaultGenSig = "B2u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ"
 
@@ -55,11 +56,10 @@ type testAddrData struct {
 	pk        crypto.PublicKey
 	addr      proto.Address
 	wavesKey  string
-	assetKey  string
-	assetKey1 string
+	assetKeys []string
 }
 
-func newTestAddrData(seedStr string, asset, asset1 []byte) (*testAddrData, error) {
+func newTestAddrData(seedStr string, assets [][]byte) (*testAddrData, error) {
 	seedBytes, err := base58.Decode(seedStr)
 	if err != nil {
 		return nil, err
@@ -73,9 +73,12 @@ func newTestAddrData(seedStr string, asset, asset1 []byte) (*testAddrData, error
 		return nil, err
 	}
 	wavesKey := string((&wavesBalanceKey{addr}).bytes())
-	assetKey := string((&assetBalanceKey{addr, asset}).bytes())
-	assetKey1 := string((&assetBalanceKey{addr, asset1}).bytes())
-	return &testAddrData{sk: sk, pk: pk, addr: addr, wavesKey: wavesKey, assetKey: assetKey, assetKey1: assetKey1}, nil
+
+	assetKeys := make([]string, len(assets))
+	for i, a := range assets {
+		assetKeys[i] = string((&assetBalanceKey{addr, a}).bytes())
+	}
+	return &testAddrData{sk: sk, pk: pk, addr: addr, wavesKey: wavesKey, assetKeys: assetKeys}, nil
 }
 
 type testAssetData struct {
@@ -98,6 +101,7 @@ func newTestAssetData(assetStr string) (*testAssetData, error) {
 type testGlobalVars struct {
 	asset0 *testAssetData
 	asset1 *testAssetData
+	asset3 *testAssetData
 
 	issuerInfo    *testAddrData
 	matcherInfo   *testAddrData
@@ -121,23 +125,27 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatalf("newTestAssetData(): %v\n", err)
 	}
-	testGlobal.issuerInfo, err = newTestAddrData(issuerSeed, testGlobal.asset0.assetID, testGlobal.asset1.assetID)
+	testGlobal.asset3, err = newTestAssetData(assetStr3)
+	if err != nil {
+		log.Fatalf("newTestAssetData(): %v\n", err)
+	}
+	testGlobal.issuerInfo, err = newTestAddrData(issuerSeed, [][]byte{testGlobal.asset0.assetID, testGlobal.asset1.assetID})
 	if err != nil {
 		log.Fatalf("newTestAddrData(): %v\n", err)
 	}
-	testGlobal.matcherInfo, err = newTestAddrData(matcherSeed, testGlobal.asset0.assetID, testGlobal.asset1.assetID)
+	testGlobal.matcherInfo, err = newTestAddrData(matcherSeed, [][]byte{testGlobal.asset0.assetID, testGlobal.asset1.assetID, testGlobal.asset3.assetID})
 	if err != nil {
 		log.Fatalf("newTestAddrData(): %v\n", err)
 	}
-	testGlobal.minerInfo, err = newTestAddrData(minerSeed, testGlobal.asset0.assetID, testGlobal.asset1.assetID)
+	testGlobal.minerInfo, err = newTestAddrData(minerSeed, [][]byte{testGlobal.asset0.assetID, testGlobal.asset1.assetID})
 	if err != nil {
 		log.Fatalf("newTestAddrData(): %v\n", err)
 	}
-	testGlobal.senderInfo, err = newTestAddrData(senderSeed, testGlobal.asset0.assetID, testGlobal.asset1.assetID)
+	testGlobal.senderInfo, err = newTestAddrData(senderSeed, [][]byte{testGlobal.asset0.assetID, testGlobal.asset1.assetID, testGlobal.asset3.assetID})
 	if err != nil {
 		log.Fatalf("newTestAddrData(): %v\n", err)
 	}
-	testGlobal.recipientInfo, err = newTestAddrData(recipientSeed, testGlobal.asset0.assetID, testGlobal.asset1.assetID)
+	testGlobal.recipientInfo, err = newTestAddrData(recipientSeed, [][]byte{testGlobal.asset0.assetID, testGlobal.asset1.assetID, testGlobal.asset3.assetID})
 	if err != nil {
 		log.Fatalf("newTestAddrData(): %v\n", err)
 	}

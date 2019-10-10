@@ -35,6 +35,6 @@ var FeaturesInfo = map[Feature]FeatureInfo{
 	SmartAssets:                     {true, "Smart Assets"},
 	SmartAccountTrading:             {true, "Smart Account Trading"},
 	Ride4DApps:                      {false, "RIDE 4 DAPPS"},
-	OrderV3:                         {false, "Order Version 3"},
+	OrderV3:                         {true, "Order Version 3"},
 	ReduceNFTFee:                    {true, "Reduce NFT fee"},
 }
