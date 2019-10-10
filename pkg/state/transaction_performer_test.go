@@ -189,6 +189,62 @@ func TestPerformBurnV2(t *testing.T) {
 	assert.Equal(t, *assetInfo, *info, "invalid asset info after performing BurnV2 transaction")
 }
 
+func TestPerformExchange(t *testing.T) {
+	to, path := createPerformerTestObjects(t)
+
+	defer func() {
+		to.stor.close(t)
+
+		err := util.CleanTemporaryDirs(path)
+		assert.NoError(t, err, "failed to clean test data dirs")
+	}()
+
+	to.stor.addBlock(t, blockID0)
+	tx := createExchangeV1(t)
+	err := to.tp.performExchange(tx, defaultPerformerInfo(t))
+	assert.NoError(t, err, "performExchange() failed")
+
+	sellOrderId, err := tx.GetSellOrderFull().GetID()
+	assert.NoError(t, err)
+
+	filledFee, err := to.stor.entities.ordersVolumes.newestFilledFee(sellOrderId, true)
+	assert.NoError(t, err)
+	assert.Equal(t, tx.GetSellMatcherFee(), filledFee)
+
+	filledAmount, err := to.stor.entities.ordersVolumes.newestFilledAmount(sellOrderId, true)
+	assert.NoError(t, err)
+	assert.Equal(t, tx.GetAmount(), filledAmount)
+
+	buyOrderId, err := tx.GetBuyOrderFull().GetID()
+	assert.NoError(t, err)
+
+	filledFee, err = to.stor.entities.ordersVolumes.newestFilledFee(buyOrderId, true)
+	assert.NoError(t, err)
+	assert.Equal(t, tx.GetBuyMatcherFee(), filledFee)
+
+	filledAmount, err = to.stor.entities.ordersVolumes.newestFilledAmount(buyOrderId, true)
+	assert.NoError(t, err)
+	assert.Equal(t, tx.GetAmount(), filledAmount)
+
+	to.stor.flush(t)
+
+	filledFee, err = to.stor.entities.ordersVolumes.newestFilledFee(sellOrderId, true)
+	assert.NoError(t, err)
+	assert.Equal(t, tx.GetSellMatcherFee(), filledFee)
+
+	filledAmount, err = to.stor.entities.ordersVolumes.newestFilledAmount(sellOrderId, true)
+	assert.NoError(t, err)
+	assert.Equal(t, tx.GetAmount(), filledAmount)
+
+	filledFee, err = to.stor.entities.ordersVolumes.newestFilledFee(buyOrderId, true)
+	assert.NoError(t, err)
+	assert.Equal(t, tx.GetBuyMatcherFee(), filledFee)
+
+	filledAmount, err = to.stor.entities.ordersVolumes.newestFilledAmount(buyOrderId, true)
+	assert.NoError(t, err)
+	assert.Equal(t, tx.GetAmount(), filledAmount)
+}
+
 func TestPerformLeaseV1(t *testing.T) {
 	to, path := createPerformerTestObjects(t)
 
