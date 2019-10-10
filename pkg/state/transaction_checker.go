@@ -488,7 +488,7 @@ func (tc *transactionChecker) checkBurnV2(transaction proto.Transaction, info *c
 	return smartAssets, nil
 }
 
-func (tc *transactionChecker) orderScripted(order proto.Order, initialisation bool) (bool, error) {
+func (tc *transactionChecker) orderScriptedAccount(order proto.Order, initialisation bool) (bool, error) {
 	sender, err := proto.NewAddressFromPublicKey(tc.settings.AddressSchemeCharacter, order.GetSenderPK())
 	if err != nil {
 		return false, err
@@ -508,7 +508,20 @@ func (tc *transactionChecker) checkExchange(transaction proto.Transaction, info 
 	if err != nil {
 		return nil, err
 	}
-	allAssets := []proto.OptionalAsset{sellOrder.AssetPair.AmountAsset, sellOrder.AssetPair.PriceAsset}
+	m := make(map[proto.OptionalAsset]struct{})
+	m[sellOrder.AssetPair.AmountAsset] = struct{}{}
+	m[sellOrder.AssetPair.PriceAsset] = struct{}{}
+	// TODO: The following code have to be updated to handle not counting the fee's assets complexity while calculating total complexity of the block
+	if so3, ok := tx.GetSellOrderFull().(*proto.OrderV3); ok {
+		m[so3.MatcherFeeAsset] = struct{}{}
+	}
+	if bo3, ok := tx.GetBuyOrderFull().(*proto.OrderV3); ok {
+		m[bo3.MatcherFeeAsset] = struct{}{}
+	}
+	allAssets := make([]proto.OptionalAsset, 0, len(m))
+	for a := range m {
+		allAssets = append(allAssets, a)
+	}
 	smartAssets, err := tc.smartAssets(allAssets, info.initialisation)
 	if err != nil {
 		return nil, err
@@ -536,18 +549,18 @@ func (tc *transactionChecker) checkExchange(transaction proto.Transaction, info 
 	if err != nil {
 		return nil, err
 	}
-	soScripted, err := tc.orderScripted(tx.GetSellOrderFull(), info.initialisation)
+	soScriptedAccount, err := tc.orderScriptedAccount(tx.GetSellOrderFull(), info.initialisation)
 	if err != nil {
 		return nil, err
 	}
-	boScripted, err := tc.orderScripted(tx.GetBuyOrderFull(), info.initialisation)
+	boScriptedAccount, err := tc.orderScriptedAccount(tx.GetBuyOrderFull(), info.initialisation)
 	if err != nil {
 		return nil, err
 	}
-	if boScripted && !smartTradingActivated {
+	if boScriptedAccount && !smartTradingActivated {
 		return nil, errors.New("buyer can't participate in Exchange because it is scripted, and smart trading is disabled")
 	}
-	if soScripted && !smartTradingActivated {
+	if soScriptedAccount && !smartTradingActivated {
 		return nil, errors.New("seller can't participate in Exchange because it is scripted, and smart trading is disabled")
 	}
 	return smartAssets, nil

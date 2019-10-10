@@ -102,7 +102,7 @@ func TestCreateBlockDiffNg(t *testing.T) {
 	correctMinerAssetBalanceDiff := newBalanceDiff(parentFeeNextBlock, 0, 0, false)
 	correctMinerAssetBalanceDiff.blockID = child.BlockSignature
 	correctMinerDiff := txDiff{
-		testGlobal.minerInfo.assetKey: correctMinerAssetBalanceDiff,
+		testGlobal.minerInfo.assetKeys[0]: correctMinerAssetBalanceDiff,
 	}
 	assert.Equal(t, correctMinerDiff, minerDiff)
 }
