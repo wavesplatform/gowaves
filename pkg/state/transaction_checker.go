@@ -496,6 +496,36 @@ func (tc *transactionChecker) orderScriptedAccount(order proto.Order, initialisa
 	return tc.stor.scriptsStorage.newestAccountHasVerifier(sender, !initialisation)
 }
 
+func (tc *transactionChecker) checkEnoughVolume(order proto.Order, newFee, newAmount uint64, info *checkerInfo) error {
+	orderId, err := order.GetID()
+	if err != nil {
+		return err
+	}
+	fullAmount := order.GetAmount()
+	if newAmount > fullAmount {
+		return errors.New("current amount exceeds total order amount")
+	}
+	fullFee := order.GetMatcherFee()
+	if newFee > fullFee {
+		return errors.New("current fee exceeds total order fee")
+	}
+	filledAmount, err := tc.stor.ordersVolumes.newestFilledAmount(orderId, !info.initialisation)
+	if err != nil {
+		return err
+	}
+	if fullAmount-newAmount < filledAmount {
+		return errors.New("order amount volume is overflowed")
+	}
+	filledFee, err := tc.stor.ordersVolumes.newestFilledFee(orderId, !info.initialisation)
+	if err != nil {
+		return err
+	}
+	if fullFee-newFee < filledFee {
+		return errors.New("order fee volume is overflowed")
+	}
+	return nil
+}
+
 func (tc *transactionChecker) checkExchange(transaction proto.Transaction, info *checkerInfo) ([]crypto.Digest, error) {
 	tx, ok := transaction.(proto.Exchange)
 	if !ok {
@@ -503,6 +533,12 @@ func (tc *transactionChecker) checkExchange(transaction proto.Transaction, info 
 	}
 	if err := tc.checkTimestamps(tx.GetTimestamp(), info.currentTimestamp, info.parentTimestamp); err != nil {
 		return nil, errors.Wrap(err, "invalid timestamp")
+	}
+	if err := tc.checkEnoughVolume(tx.GetSellOrderFull(), tx.GetSellMatcherFee(), tx.GetAmount(), info); err != nil {
+		return nil, errors.Wrap(err, "exchange transaction; sell order")
+	}
+	if err := tc.checkEnoughVolume(tx.GetBuyOrderFull(), tx.GetBuyMatcherFee(), tx.GetAmount(), info); err != nil {
+		return nil, errors.Wrap(err, "exchange transaction; buy order")
 	}
 	sellOrder, err := tx.GetSellOrder()
 	if err != nil {

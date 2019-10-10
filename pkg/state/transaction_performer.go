@@ -135,6 +135,34 @@ func (tp *transactionPerformer) performBurnV2(transaction proto.Transaction, inf
 	return tp.performBurn(&tx.Burn, info)
 }
 
+func (tp *transactionPerformer) increaseOrderVolume(order proto.Order, info *performerInfo) error {
+	orderId, err := order.GetID()
+	if err != nil {
+		return err
+	}
+	if err := tp.stor.ordersVolumes.increaseFilledFee(orderId, order.GetMatcherFee(), info.blockID, !info.initialisation); err != nil {
+		return err
+	}
+	if err := tp.stor.ordersVolumes.increaseFilledAmount(orderId, order.GetAmount(), info.blockID, !info.initialisation); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (tp *transactionPerformer) performExchange(transaction proto.Transaction, info *performerInfo) error {
+	tx, ok := transaction.(proto.Exchange)
+	if !ok {
+		return errors.New("failed to convert interface to Exchange transaction")
+	}
+	if err := tp.increaseOrderVolume(tx.GetSellOrderFull(), info); err != nil {
+		return err
+	}
+	if err := tp.increaseOrderVolume(tx.GetBuyOrderFull(), info); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (tp *transactionPerformer) performLease(tx *proto.Lease, id *crypto.Digest, info *performerInfo) error {
 	senderAddr, err := proto.NewAddressFromPublicKey(tp.settings.AddressSchemeCharacter, tx.SenderPK)
 	if err != nil {

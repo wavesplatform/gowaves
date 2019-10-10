@@ -85,7 +85,8 @@ func (ov *ordersVolumes) increaseFilledAmount(orderId []byte, amountChange uint6
 func (ov *ordersVolumes) newestFilledFee(orderId []byte, filter bool) (uint64, error) {
 	volume, err := ov.newestVolumeById(orderId, filter)
 	if err != nil {
-		return 0, errors.Errorf("failed to get volume by id: %v\n", err)
+		// No fee volume filled yet.
+		return 0, nil
 	}
 	return volume.feeFilled, nil
 }
@@ -93,7 +94,8 @@ func (ov *ordersVolumes) newestFilledFee(orderId []byte, filter bool) (uint64, e
 func (ov *ordersVolumes) newestFilledAmount(orderId []byte, filter bool) (uint64, error) {
 	volume, err := ov.newestVolumeById(orderId, filter)
 	if err != nil {
-		return 0, errors.Errorf("failed to get volume by id: %v\n", err)
+		// No amount volume filled yet.
+		return 0, nil
 	}
 	return volume.amountFilled, nil
 }
