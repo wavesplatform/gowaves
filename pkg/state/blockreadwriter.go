@@ -13,48 +13,48 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
-type txInfo struct {
+type bytesInfo struct {
 	pos    int
 	height uint64
 }
 
-type recentTransactions struct {
-	id2Pos map[string]txInfo
-	txs    [][]byte
+type recentDataStorage struct {
+	id2Pos map[string]bytesInfo
+	stor   [][]byte
 }
 
-func newRecentTransactions() *recentTransactions {
-	return &recentTransactions{id2Pos: make(map[string]txInfo)}
+func newRecentDataStorage() *recentDataStorage {
+	return &recentDataStorage{id2Pos: make(map[string]bytesInfo)}
 }
 
-func (r *recentTransactions) appendTx(txId, tx []byte, height uint64) error {
-	r.id2Pos[string(txId)] = txInfo{len(r.txs), height}
-	r.txs = append(r.txs, tx)
+func (r *recentDataStorage) appendBytes(id, data []byte, height uint64) error {
+	r.id2Pos[string(id)] = bytesInfo{len(r.stor), height}
+	r.stor = append(r.stor, data)
 	return nil
 }
 
-func (r *recentTransactions) txById(txId []byte) ([]byte, error) {
-	info, ok := r.id2Pos[string(txId)]
+func (r *recentDataStorage) bytesById(id []byte) ([]byte, error) {
+	info, ok := r.id2Pos[string(id)]
 	if !ok {
 		return nil, errNotFound
 	}
-	if info.pos < 0 || info.pos >= len(r.txs) {
+	if info.pos < 0 || info.pos >= len(r.stor) {
 		return nil, errors.New("invalid pos")
 	}
-	return r.txs[info.pos], nil
+	return r.stor[info.pos], nil
 }
 
-func (r *recentTransactions) heightByTxId(txId []byte) (uint64, error) {
-	info, ok := r.id2Pos[string(txId)]
+func (r *recentDataStorage) heightById(id []byte) (uint64, error) {
+	info, ok := r.id2Pos[string(id)]
 	if !ok {
 		return 0, errNotFound
 	}
 	return info.height, nil
 }
 
-func (r *recentTransactions) writeToBuffer(buf *bufio.Writer) error {
-	for _, tx := range r.txs {
-		if _, err := buf.Write(tx); err != nil {
+func (r *recentDataStorage) writeToBuffer(buf *bufio.Writer) error {
+	for _, data := range r.stor {
+		if _, err := buf.Write(data); err != nil {
 			return err
 		}
 	}
@@ -62,9 +62,9 @@ func (r *recentTransactions) writeToBuffer(buf *bufio.Writer) error {
 	return nil
 }
 
-func (r *recentTransactions) reset() {
-	r.id2Pos = make(map[string]txInfo)
-	r.txs = nil
+func (r *recentDataStorage) reset() {
+	r.id2Pos = make(map[string]bytesInfo)
+	r.stor = nil
 }
 
 type blockReadWriter struct {
@@ -83,7 +83,8 @@ type blockReadWriter struct {
 	blockHeight2IDBuf *bufio.Writer
 
 	// Storages for recent data that is not in persistent storage yet.
-	rtx            *recentTransactions
+	rtx            *recentDataStorage
+	rheaders       *recentDataStorage
 	height2IDCache map[uint64]crypto.Signature
 	blockInfo      map[blockOffsetKey][]byte
 
@@ -175,7 +176,8 @@ func newBlockReadWriter(
 		blockchainBuf:     bufio.NewWriter(blockchain),
 		headersBuf:        bufio.NewWriter(headers),
 		blockHeight2IDBuf: bufio.NewWriter(blockHeight2ID),
-		rtx:               newRecentTransactions(),
+		rtx:               newRecentDataStorage(),
+		rheaders:          newRecentDataStorage(),
 		height2IDCache:    make(map[uint64]crypto.Signature),
 		blockInfo:         make(map[blockOffsetKey][]byte),
 		txStarts:          make([]byte, offsetLen),
@@ -264,7 +266,7 @@ func (rw *blockReadWriter) writeTransaction(txID []byte, tx []byte) error {
 	copy(txBytesTotal[:4], txSizeBytes)
 	copy(txBytesTotal[4:], tx)
 	// Save tx to local storage.
-	if err := rw.rtx.appendTx(txID, txBytesTotal, rw.height+1); err != nil {
+	if err := rw.rtx.appendBytes(txID, txBytesTotal, rw.height+1); err != nil {
 		return err
 	}
 	// Write tx start pos to DB batch.
@@ -284,7 +286,9 @@ func (rw *blockReadWriter) writeTransaction(txID []byte, tx []byte) error {
 }
 
 func (rw *blockReadWriter) writeBlockHeader(blockID crypto.Signature, header []byte) error {
-	if _, err := rw.headersBuf.Write(header); err != nil {
+	rw.mtx.Lock()
+	defer rw.mtx.Unlock()
+	if err := rw.rheaders.appendBytes(blockID[:], header, rw.height+1); err != nil {
 		return err
 	}
 	rw.headersLen += uint64(len(header))
@@ -369,7 +373,7 @@ func (rw *blockReadWriter) currentHeight() (uint64, error) {
 func (rw *blockReadWriter) newestTransactionHeightByID(txID []byte) (uint64, error) {
 	rw.mtx.RLock()
 	defer rw.mtx.RUnlock()
-	height, err := rw.rtx.heightByTxId(txID)
+	height, err := rw.rtx.heightById(txID)
 	if err == nil {
 		return height, nil
 	}
@@ -407,7 +411,7 @@ func (rw *blockReadWriter) readTransactionSize(txID []byte) (uint32, error) {
 func (rw *blockReadWriter) readNewestTransaction(txID []byte) ([]byte, error) {
 	rw.mtx.RLock()
 	defer rw.mtx.RUnlock()
-	tx, err := rw.rtx.txById(txID)
+	tx, err := rw.rtx.bytesById(txID)
 	if err != nil {
 		return rw.readTransaction(txID)
 	}
@@ -443,6 +447,16 @@ func (rw *blockReadWriter) readTransaction(txID []byte) ([]byte, error) {
 		return nil, errors.New("Tx size is less than 4")
 	}
 	return txBytes, nil
+}
+
+func (rw *blockReadWriter) readNewestBlockHeader(blockID crypto.Signature) ([]byte, error) {
+	rw.mtx.RLock()
+	defer rw.mtx.RUnlock()
+	header, err := rw.rheaders.bytesById(blockID[:])
+	if err != nil {
+		return rw.readBlockHeader(blockID)
+	}
+	return header, nil
 }
 
 func (rw *blockReadWriter) readBlockHeader(blockID crypto.Signature) ([]byte, error) {
@@ -656,12 +670,13 @@ func (rw *blockReadWriter) rollback(removalEdge crypto.Signature, cleanIDs bool)
 }
 
 func (rw *blockReadWriter) reset() {
+	rw.rtx.reset()
 	rw.blockchainBuf.Reset(rw.blockchain)
+	rw.rheaders.reset()
 	rw.headersBuf.Reset(rw.headers)
+	rw.height2IDCache = make(map[uint64]crypto.Signature)
 	rw.blockHeight2IDBuf.Reset(rw.blockHeight2ID)
 	rw.blockInfo = make(map[blockOffsetKey][]byte)
-	rw.height2IDCache = make(map[uint64]crypto.Signature)
-	rw.rtx.reset()
 }
 
 func (rw *blockReadWriter) flush() error {
@@ -669,6 +684,9 @@ func (rw *blockReadWriter) flush() error {
 		return err
 	}
 	if err := rw.blockchainBuf.Flush(); err != nil {
+		return err
+	}
+	if err := rw.rheaders.writeToBuffer(rw.headersBuf); err != nil {
 		return err
 	}
 	if err := rw.headersBuf.Flush(); err != nil {

@@ -977,6 +977,8 @@ type Exchange interface {
 	GetSenderPK() crypto.PublicKey
 	GetBuyOrder() (OrderBody, error)
 	GetSellOrder() (OrderBody, error)
+	GetBuyOrderFull() Order
+	GetSellOrderFull() Order
 	GetPrice() uint64
 	GetAmount() uint64
 	GetBuyMatcherFee() uint64

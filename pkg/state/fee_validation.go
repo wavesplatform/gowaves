@@ -35,6 +35,7 @@ type feeValidationParams struct {
 	stor           *blockchainEntitiesStorage
 	settings       *settings.BlockchainSettings
 	initialisation bool
+	txAssets       *txAssets
 }
 
 func minFeeInUnits(features *features, tx proto.Transaction) (uint64, error) {
@@ -97,23 +98,52 @@ func minFeeInUnits(features *features, tx proto.Transaction) (uint64, error) {
 	return fee, nil
 }
 
+func scriptsCost(tx proto.Transaction, params *feeValidationParams) (uint64, error) {
+	scriptsCost := uint64(0)
+	senderAddr, err := proto.NewAddressFromPublicKey(params.settings.AddressSchemeCharacter, tx.GetSenderPK())
+	if err != nil {
+		return 0, err
+	}
+	// TODO: figure out if scripts without verifier count here.
+	accountScripted, err := params.stor.scriptsStorage.newestAccountHasVerifier(senderAddr, !params.initialisation)
+	if err != nil {
+		return 0, err
+	}
+	if accountScripted {
+		scriptsCost += scriptExtraFee
+	}
+	if params.txAssets.smartAssets != nil {
+		// Add extra fee for each of smart assets found.
+		scriptsCost += scriptExtraFee * uint64(len(params.txAssets.smartAssets))
+	}
+	// TODO: the code below is wrong, because scripts for fee assets are never run.
+	// Even if sponsorship is disabled, and fee assets can be smart, we don't run scripts for them,
+	// because Scala implementation does not.
+	// Therefore, the extra fee for smart fee asset below is also wrong, but it must be there,
+	// again for compatibility with Scala.
+	if params.txAssets.feeAsset.Present {
+		hasScript, err := params.stor.scriptsStorage.newestIsSmartAsset(params.txAssets.feeAsset.ID, !params.initialisation)
+		if err != nil {
+			return 0, err
+		}
+		if hasScript {
+			scriptsCost += scriptExtraFee
+		}
+	}
+	return scriptsCost, nil
+}
+
 func minFeeInWaves(tx proto.Transaction, params *feeValidationParams) (uint64, error) {
 	feeInUnits, err := minFeeInUnits(params.stor.features, tx)
 	if err != nil {
 		return 0, err
 	}
 	minFee := feeInUnits * FeeUnit
-	senderAddr, err := proto.NewAddressFromPublicKey(params.settings.AddressSchemeCharacter, tx.GetSenderPK())
+	scriptsCost, err := scriptsCost(tx, params)
 	if err != nil {
 		return 0, err
 	}
-	scripted, err := params.stor.accountsScripts.newestHasVerifier(senderAddr, !params.initialisation)
-	if err != nil {
-		return 0, err
-	}
-	if scripted {
-		minFee += scriptExtraFee
-	}
+	minFee += scriptsCost
 	return minFee, nil
 }
 

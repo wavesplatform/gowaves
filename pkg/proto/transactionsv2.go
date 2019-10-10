@@ -40,26 +40,6 @@ type IssueV2 struct {
 	Issue
 }
 
-//TODO: remove this
-func (tx IssueV2) GetSenderPK() crypto.PublicKey {
-	return tx.SenderPK
-}
-
-//TODO: remove this
-func (tx IssueV2) GetReissuable() bool {
-	return tx.Reissuable
-}
-
-//TODO: remove this
-func (tx IssueV2) GetQuantity() uint64 {
-	return tx.Quantity
-}
-
-//TODO: remove this
-func (tx IssueV2) GetDecimals() byte {
-	return tx.Decimals
-}
-
 func (tx IssueV2) GetTypeVersion() TransactionTypeVersion {
 	return TransactionTypeVersion{tx.Type, tx.Version}
 }
@@ -891,6 +871,14 @@ func (tx ExchangeV2) GetSellOrder() (OrderBody, error) {
 	return OrderToOrderBody(tx.SellOrder)
 }
 
+func (tx ExchangeV2) GetBuyOrderFull() Order {
+	return tx.BuyOrder
+}
+
+func (tx ExchangeV2) GetSellOrderFull() Order {
+	return tx.SellOrder
+}
+
 func (tx ExchangeV2) GetPrice() uint64 {
 	return tx.Price
 }
@@ -972,14 +960,8 @@ func (tx ExchangeV2) Valid() (bool, error) {
 	if !validJVMLong(tx.Fee) {
 		return false, errors.New("fee is too big")
 	}
-	if tx.BuyMatcherFee == 0 {
-		return false, errors.New("buy matcher's fee should be positive")
-	}
 	if !validJVMLong(tx.BuyMatcherFee) {
 		return false, errors.New("buy matcher's fee is too big")
-	}
-	if tx.SellMatcherFee == 0 {
-		return false, errors.New("sell matcher's fee should be positive")
 	}
 	if !validJVMLong(tx.SellMatcherFee) {
 		return false, errors.New("sell matcher's fee is too big")

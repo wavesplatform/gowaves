@@ -3,21 +3,22 @@ package state
 import (
 	"fmt"
 
-	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride/evaluator/ast"
 )
 
 type element struct {
-	key        proto.Address
-	value      *ast.Script
+	key        string
+	value      ast.Script
 	prev, next *element
 	bytes      uint64
 }
 
+var defaultValue ast.Script
+
 type lru struct {
 	maxSize, maxBytes, size, bytesUsed uint64
 
-	m              map[proto.Address]*element
+	m              map[string]*element
 	newest, oldest *element
 	removed        *element // Created in del(), removed in set().
 }
@@ -29,7 +30,7 @@ func newLru(maxSize, maxBytes uint64) (*lru, error) {
 	return &lru{
 		maxSize:  maxSize,
 		maxBytes: maxBytes,
-		m:        make(map[proto.Address]*element),
+		m:        make(map[string]*element),
 	}, nil
 }
 
@@ -72,7 +73,7 @@ func (l *lru) del(e *element) {
 	l.cut(e)
 	l.size -= 1
 	l.bytesUsed -= e.bytes
-	e.value = nil
+	e.value = defaultValue
 	l.removed = e
 }
 
@@ -82,9 +83,9 @@ func (l *lru) makeFreeSpace(bytes uint64) {
 	}
 }
 
-func (l *lru) get(key proto.Address) (value *ast.Script, has bool) {
+func (l *lru) get(key []byte) (value ast.Script, has bool) {
 	var e *element
-	e, has = l.m[key]
+	e, has = l.m[string(key)]
 	if !has {
 		return
 	}
@@ -93,8 +94,9 @@ func (l *lru) get(key proto.Address) (value *ast.Script, has bool) {
 	return e.value, true
 }
 
-func (l *lru) set(key proto.Address, value *ast.Script, bytes uint64) (existed bool) {
-	e, has := l.m[key]
+func (l *lru) set(key []byte, value ast.Script, bytes uint64) (existed bool) {
+	keyStr := string(key)
+	e, has := l.m[keyStr]
 	if has {
 		l.del(e)
 	}
@@ -103,10 +105,10 @@ func (l *lru) set(key proto.Address, value *ast.Script, bytes uint64) (existed b
 	if e == nil {
 		e = &element{}
 	}
-	e.key = key
+	e.key = keyStr
 	e.value = value
 	e.bytes = bytes
-	l.m[key] = e
+	l.m[keyStr] = e
 	l.size += 1
 	l.bytesUsed += bytes
 	l.setNewest(e)
@@ -114,8 +116,8 @@ func (l *lru) set(key proto.Address, value *ast.Script, bytes uint64) (existed b
 	return has
 }
 
-func (l *lru) deleteIfExists(key proto.Address) (existed bool) {
-	e, has := l.m[key]
+func (l *lru) deleteIfExists(key []byte) (existed bool) {
+	e, has := l.m[string(key)]
 	if has {
 		l.del(e)
 	}

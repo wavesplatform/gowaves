@@ -257,6 +257,14 @@ func writeBlocks(ctx context.Context, rw *blockReadWriter, blocks []proto.Block,
 func testNewestReader(rw *blockReadWriter, readTasks <-chan *readTask) error {
 	for task := range readTasks {
 		switch task.taskType {
+		case readHeader:
+			headerBytes, err := rw.readNewestBlockHeader(task.blockID)
+			if err != nil {
+				return err
+			}
+			if !bytes.Equal(task.correctResult, headerBytes) {
+				return errors.New("Header bytes are not equal.")
+			}
 		case readTxHeight:
 			height, err := rw.newestTransactionHeightByID(task.txID)
 			if err != nil {
