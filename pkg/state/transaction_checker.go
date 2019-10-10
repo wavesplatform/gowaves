@@ -508,9 +508,19 @@ func (tc *transactionChecker) checkExchange(transaction proto.Transaction, info 
 	if err != nil {
 		return nil, err
 	}
-	allAssets := []proto.OptionalAsset{sellOrder.AssetPair.AmountAsset, sellOrder.AssetPair.PriceAsset}
+	m := make(map[proto.OptionalAsset]struct{})
+	m[sellOrder.AssetPair.AmountAsset] = struct{}{}
+	m[sellOrder.AssetPair.PriceAsset] = struct{}{}
+	// TODO: The following code have to be updated to handle not counting the fee's assets complexity while calculating total complexity of the block
 	if so3, ok := tx.GetSellOrderFull().(*proto.OrderV3); ok {
-		allAssets = append(allAssets, so3.MatcherFeeAsset)
+		m[so3.MatcherFeeAsset] = struct{}{}
+	}
+	if bo3, ok := tx.GetBuyOrderFull().(*proto.OrderV3); ok {
+		m[bo3.MatcherFeeAsset] = struct{}{}
+	}
+	allAssets := make([]proto.OptionalAsset, 0, len(m))
+	for a := range m {
+		allAssets = append(allAssets, a)
 	}
 	smartAssets, err := tc.smartAssets(allAssets, info.initialisation)
 	if err != nil {
