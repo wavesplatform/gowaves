@@ -23,11 +23,7 @@ func newTransactionPerformer(stor *blockchainEntitiesStorage, settings *settings
 	return &transactionPerformer{stor, settings}, nil
 }
 
-func (tp *transactionPerformer) performIssue(tx *proto.Issue, id []byte, info *performerInfo) error {
-	assetID, err := crypto.NewDigestFromBytes(id)
-	if err != nil {
-		return err
-	}
+func (tp *transactionPerformer) performIssue(tx *proto.Issue, assetID crypto.Digest, info *performerInfo) error {
 	// Create new asset.
 	assetInfo := &assetInfo{
 		assetConstInfo: assetConstInfo{
@@ -56,7 +52,11 @@ func (tp *transactionPerformer) performIssueV1(transaction proto.Transaction, in
 	if err != nil {
 		return errors.Errorf("failed to get transaction ID: %v\n", err)
 	}
-	return tp.performIssue(&tx.Issue, txID, info)
+	assetID, err := crypto.NewDigestFromBytes(txID)
+	if err != nil {
+		return err
+	}
+	return tp.performIssue(&tx.Issue, assetID, info)
 }
 
 func (tp *transactionPerformer) performIssueV2(transaction proto.Transaction, info *performerInfo) error {
@@ -68,7 +68,16 @@ func (tp *transactionPerformer) performIssueV2(transaction proto.Transaction, in
 	if err != nil {
 		return errors.Errorf("failed to get transaction ID: %v\n", err)
 	}
-	return tp.performIssue(&tx.Issue, txID, info)
+	assetID, err := crypto.NewDigestFromBytes(txID)
+	if err != nil {
+		return err
+	}
+	if len(tx.Script) != 0 {
+		if err := tp.stor.scriptsStorage.setAssetScript(assetID, tx.Script, info.blockID); err != nil {
+			return err
+		}
+	}
+	return tp.performIssue(&tx.Issue, assetID, info)
 }
 
 func (tp *transactionPerformer) performReissue(tx *proto.Reissue, info *performerInfo) error {
@@ -124,6 +133,38 @@ func (tp *transactionPerformer) performBurnV2(transaction proto.Transaction, inf
 		return errors.New("failed to convert interface to BurnV2 transaction")
 	}
 	return tp.performBurn(&tx.Burn, info)
+}
+
+func (tp *transactionPerformer) increaseOrderVolume(order proto.Order, tx proto.Exchange, info *performerInfo) error {
+	orderId, err := order.GetID()
+	if err != nil {
+		return err
+	}
+	fee := tx.GetBuyMatcherFee()
+	if order.GetOrderType() == proto.Sell {
+		fee = tx.GetSellMatcherFee()
+	}
+	if err := tp.stor.ordersVolumes.increaseFilledFee(orderId, fee, info.blockID, !info.initialisation); err != nil {
+		return err
+	}
+	if err := tp.stor.ordersVolumes.increaseFilledAmount(orderId, tx.GetAmount(), info.blockID, !info.initialisation); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (tp *transactionPerformer) performExchange(transaction proto.Transaction, info *performerInfo) error {
+	tx, ok := transaction.(proto.Exchange)
+	if !ok {
+		return errors.New("failed to convert interface to Exchange transaction")
+	}
+	if err := tp.increaseOrderVolume(tx.GetSellOrderFull(), tx, info); err != nil {
+		return err
+	}
+	if err := tp.increaseOrderVolume(tx.GetBuyOrderFull(), tx, info); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (tp *transactionPerformer) performLease(tx *proto.Lease, id *crypto.Digest, info *performerInfo) error {
@@ -256,8 +297,19 @@ func (tp *transactionPerformer) performSetScriptV1(transaction proto.Transaction
 	if err != nil {
 		return err
 	}
-	if err := tp.stor.accountsScripts.setScript(senderAddr, tx.Script, info.blockID); err != nil {
+	if err := tp.stor.scriptsStorage.setAccountScript(senderAddr, tx.Script, info.blockID); err != nil {
 		return errors.Wrap(err, "failed to set account script")
+	}
+	return nil
+}
+
+func (tp *transactionPerformer) performSetAssetScriptV1(transaction proto.Transaction, info *performerInfo) error {
+	tx, ok := transaction.(*proto.SetAssetScriptV1)
+	if !ok {
+		return errors.New("failed to convert interface to SetAssetAccountScriptV1 transaction")
+	}
+	if err := tp.stor.scriptsStorage.setAssetScript(tx.AssetID, tx.Script, info.blockID); err != nil {
+		return errors.Wrap(err, "failed to set asset script")
 	}
 	return nil
 }

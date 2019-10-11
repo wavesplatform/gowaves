@@ -70,7 +70,7 @@ func NativeEq(s Scope, e Exprs) (Expr, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "NativeEq evaluate second param")
 	}
-	b, err := first.Eq(second)
+	b := first.Eq(second)
 	return NewBoolean(b), err
 }
 
@@ -170,11 +170,16 @@ func NativeMulLong(s Scope, e Exprs) (Expr, error) {
 
 // Integer division
 func NativeDivLong(s Scope, e Exprs) (Expr, error) {
-	return mathLong("NativeDivLong", func(i int64, i2 int64) (Expr, error) {
-		if i2 == 0 {
+	return mathLong("NativeDivLong", func(x int64, y int64) (Expr, error) {
+		if y == 0 {
 			return nil, errors.New("zero division")
 		}
-		return NewLong(i / i2), nil
+		r := x / y
+		// if the signs are different and modulo not zero, round down
+		if (x^y) < 0 && (r*y != x) {
+			r--
+		}
+		return NewLong(r), nil
 	}, s, e)
 }
 
@@ -332,7 +337,7 @@ func NativeSigVerify(s Scope, e Exprs) (Expr, error) {
 	}
 	pk, err := crypto.NewPublicKeyFromBytes(pkExpr.Value)
 	if err != nil {
-		return nil, errors.Wrap(err, funcName)
+		return NewBoolean(false), nil
 	}
 	signature, err := crypto.NewSignatureFromBytes(signatureExpr.Value)
 	if err != nil {
@@ -391,12 +396,17 @@ func NativeSha256(s Scope, e Exprs) (Expr, error) {
 	if err != nil {
 		return nil, errors.Wrapf(err, "NativeSha256")
 	}
-	bts, ok := val.(*BytesExpr)
-	if !ok {
-		return nil, errors.Errorf("NativeSha256: expected first argument to be *BytesExpr, found %T", val)
+	var bytes []byte
+	switch s := val.(type) {
+	case *BytesExpr:
+		bytes = s.Value
+	case *StringExpr:
+		bytes = []byte(s.Value)
+	default:
+		return nil, errors.Errorf("NativeSha256: expected first argument to be *BytesExpr or *StringExpr, found %T", val)
 	}
 	h := sha256.New()
-	if _, err = h.Write(bts.Value); err != nil {
+	if _, err = h.Write(bytes); err != nil {
 		return nil, err
 	}
 	d := h.Sum(nil)
@@ -420,7 +430,7 @@ func NativeTransactionHeightByID(s Scope, e Exprs) (Expr, error) {
 	height, err := s.State().NewestTransactionHeightByID(bts.Value)
 	if err != nil {
 		if s.State().IsNotFound(err) {
-			return Unit{}, nil
+			return &Unit{}, nil
 		}
 		return nil, errors.Wrap(err, funcName)
 	}
@@ -557,7 +567,7 @@ func NativeTakeBytes(s Scope, e Exprs) (Expr, error) {
 		return nil, errors.Errorf("%s expected second argument to be *LongExpr, found %T", funcName, rs[1])
 	}
 	l := int(length.Value)
-	if l >= len(bts.Value) {
+	if l > len(bts.Value) {
 		return nil, errors.Errorf("%s index %d out of range", funcName, length.Value)
 	}
 	if l < 0 {
@@ -677,7 +687,7 @@ func NativeTakeStrings(s Scope, e Exprs) (Expr, error) {
 	runeStr := []rune(str.Value)
 	runeLen := len(runeStr)
 	l := int(length.Value)
-	if l >= runeLen {
+	if l > runeLen {
 		return nil, errors.Errorf("%s index %d out of range", funcName, l)
 	}
 	if l < 0 {
@@ -831,14 +841,16 @@ func NativeAssetBalance(s Scope, e Exprs) (Expr, error) {
 	}
 	var r proto.Recipient
 	switch a := addressOrAliasExpr.(type) {
-	case AddressExpr:
-		r = proto.NewRecipientFromAddress(proto.Address(a))
-	case AliasExpr:
-		r = proto.NewRecipientFromAlias(proto.Alias(a))
+	case *AddressExpr:
+		r = proto.NewRecipientFromAddress(proto.Address(*a))
+	case *AliasExpr:
+		r = proto.NewRecipientFromAlias(proto.Alias(*a))
+	case *RecipientExpr:
+		r = proto.Recipient(*a)
 	default:
 		return nil, errors.Errorf("%s first argument expected to be AddressExpr or AliasExpr, found %T", funcName, addressOrAliasExpr)
 	}
-	if _, ok := assetId.(Unit); ok {
+	if _, ok := assetId.(*Unit); ok {
 		balance, err := s.State().NewestAccountBalance(r, nil)
 		if err != nil {
 			return nil, errors.Wrap(err, funcName)
@@ -970,7 +982,12 @@ func NativeFromBase64(s Scope, e Exprs) (Expr, error) {
 	}
 	decoded, err := base64.StdEncoding.DecodeString(str.Value)
 	if err != nil {
-		return nil, errors.Wrap(err, funcName)
+		// Try no padding.
+		decoded, err = base64.RawStdEncoding.DecodeString(str.Value)
+		if err != nil {
+			return nil, errors.Wrap(err, funcName)
+		}
+		return NewBytes(decoded), nil
 	}
 	return NewBytes(decoded), nil
 }
@@ -1145,7 +1162,7 @@ func NativeAddressFromRecipient(s Scope, e Exprs) (Expr, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
-	recipient, ok := first.(RecipientExpr)
+	recipient, ok := first.(*RecipientExpr)
 	if !ok {
 		return nil, errors.Errorf("%s expected first argument to be RecipientExpr, found %T", funcName, first)
 	}
@@ -1179,20 +1196,15 @@ func NativeAssetInfo(s Scope, e Exprs) (Expr, error) {
 	if !ok {
 		return nil, errors.Errorf("%s expected first argument to be *BytesExpr, found %T", funcName, first)
 	}
-	tx, err := s.State().NewestTransactionByID(id.Value)
+	assetId, err := crypto.NewDigestFromBytes(id.Value)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
-	//TODO: Do not pass transaction here, replace with passing it's ID
-	issueTx, ok := tx.(proto.IIssueTransaction)
-	if !ok {
-		return nil, errors.Errorf("%s expected first argument to be proto.IIssueTransaction, found %T", funcName, tx)
-	}
-	obj, err := newMapAssetInfo(s.Scheme(), s.State(), issueTx)
+	info, err := s.State().NewestAssetInfo(assetId)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
-	return NewAssetInfo(obj), nil
+	return NewAssetInfo(newMapAssetInfo(*info)), nil
 }
 
 //1005:
@@ -1210,7 +1222,7 @@ func NativeBlockInfoByHeight(s Scope, e Exprs) (Expr, error) {
 		return nil, errors.Errorf("%s expected first argument to be *LongExpr, found %T", funcName, first)
 	}
 
-	h, err := s.State().HeaderByHeight(proto.Height(height.Value))
+	h, err := s.State().NewestHeaderByHeight(proto.Height(height.Value))
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
@@ -1260,11 +1272,11 @@ func NativeAddressToString(s Scope, e Exprs) (Expr, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
-	addr, ok := rs.(AddressExpr)
+	addr, ok := rs.(*AddressExpr)
 	if !ok {
 		return nil, errors.Errorf("%s: first argument expected to be *AddressExpr, found %T", funcName, rs)
 	}
-	str := proto.Address(addr).String()
+	str := proto.Address(*addr).String()
 	return NewString(str), nil
 }
 
@@ -1278,10 +1290,7 @@ func UserFunctionNeq(s Scope, e Exprs) (Expr, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
-	eq, err := rs[0].Eq(rs[1])
-	if err != nil {
-		return nil, errors.Wrap(err, funcName)
-	}
+	eq := rs[0].Eq(rs[1])
 	return NewBoolean(!eq), nil
 }
 
@@ -1294,7 +1303,7 @@ func UserIsDefined(s Scope, e Exprs) (Expr, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
-	if val.InstanceOf() == (Unit{}).InstanceOf() {
+	if val.InstanceOf() == (&Unit{}).InstanceOf() {
 		return NewBoolean(false), nil
 	}
 	return NewBoolean(true), nil
@@ -1309,7 +1318,7 @@ func UserExtract(s Scope, e Exprs) (Expr, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
-	if val.InstanceOf() == (Unit{}).InstanceOf() {
+	if val.InstanceOf() == (&Unit{}).InstanceOf() {
 		return NativeThrow(s, Params(NewString("extract() called on unit value")))
 	}
 	return val, nil
@@ -1476,7 +1485,7 @@ func UserAddressFromPublicKey(s Scope, e Exprs) (Expr, error) {
 	}
 	addr, err := proto.NewAddressFromPublicKey(s.Scheme(), public)
 	if err != nil {
-		return nil, errors.Wrap(err, funcName)
+		return NewUnit(), nil
 	}
 	return NewAddressFromProtoAddress(addr), nil
 }
@@ -1497,7 +1506,7 @@ func UserAddress(s Scope, e Exprs) (Expr, error) {
 	}
 	addr, err := proto.NewAddressFromBytes(bts.Value)
 	if err != nil {
-		return nil, errors.Wrap(err, funcName)
+		return NewUnit(), nil
 	}
 	return NewAddressFromProtoAddress(addr), nil
 }
@@ -1515,10 +1524,7 @@ func UserAlias(s Scope, e Exprs) (Expr, error) {
 	if !ok {
 		return nil, errors.Errorf("%s: first argument expected to be *BytesExpr, found %T", funcName, first)
 	}
-	alias, err := proto.NewAliasFromString(str.Value)
-	if err != nil {
-		return nil, errors.Wrap(err, funcName)
-	}
+	alias := proto.NewAlias(s.Scheme(), str.Value)
 	return NewAliasFromProtoAlias(*alias), nil
 }
 
@@ -1541,6 +1547,18 @@ func DataEntry(s Scope, e Exprs) (Expr, error) {
 	default:
 		return nil, errors.Errorf("%s: unsupported value type %T", funcName, t)
 	}
+}
+
+func AssetPair(s Scope, e Exprs) (Expr, error) {
+	const funcName = "AssetPair"
+	if l := len(e); l != 2 {
+		return nil, errors.Errorf("%s: invalid params, expected 2, passed %d", funcName, l)
+	}
+	rs, err := e.EvaluateAll(s)
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	return NewAssetPair(rs[0], rs[1]), nil
 }
 
 func SimpleTypeConstructorFactory(name string, expr Expr) Callable {
@@ -1862,7 +1880,7 @@ func UserValue(s Scope, e Exprs) (Expr, error) {
 	if err != nil {
 		return nil, errors.Wrapf(err, funcName)
 	}
-	if _, ok := rs[0].(Unit); ok {
+	if _, ok := rs[0].(*Unit); ok {
 		return nil, Throw{Message: DefaultThrowMessage}
 	}
 	return rs[0], nil
@@ -1881,7 +1899,7 @@ func UserValueOrErrorMessage(s Scope, e Exprs) (Expr, error) {
 	if !ok {
 		return nil, errors.Errorf("%s: second argument expected to be *StringExpr, found %T", funcName, rs[1])
 	}
-	if _, ok := rs[0].(Unit); ok {
+	if _, ok := rs[0].(*Unit); ok {
 		return nil, Throw{Message: msg.Value}
 	}
 	return rs[0], nil
@@ -1892,7 +1910,7 @@ func UserWriteSet(s Scope, e Exprs) (Expr, error) {
 	if l := len(e); l != 1 {
 		return nil, errors.Errorf("%s: invalid number of parameters, expected 1, received %d", funcName, l)
 	}
-	rs, err := e.EvaluateAll(s.Clone())
+	rs, err := e.EvaluateAll(s)
 	if err != nil {
 		return nil, errors.Wrapf(err, funcName)
 	}
@@ -1916,7 +1934,7 @@ func UserTransferSet(s Scope, e Exprs) (Expr, error) {
 	if l := len(e); l != 1 {
 		return nil, errors.Errorf("%s: invalid number of parameters, expected 1, received %d", funcName, l)
 	}
-	rs, err := e.EvaluateAll(s.Clone())
+	rs, err := e.EvaluateAll(s)
 	if err != nil {
 		return nil, errors.Wrapf(err, funcName)
 	}
@@ -1939,7 +1957,7 @@ func ScriptTransfer(s Scope, e Exprs) (Expr, error) {
 	if l := len(e); l != 3 {
 		return nil, errors.Errorf("%s: invalid number of parameters, expected 3, received %d", funcName, l)
 	}
-	rs, err := e.EvaluateAll(s.Clone())
+	rs, err := e.EvaluateAll(s)
 	if err != nil {
 		return nil, errors.Wrapf(err, funcName)
 	}
@@ -1959,7 +1977,7 @@ func ScriptResult(s Scope, e Exprs) (Expr, error) {
 	if l := len(e); l != 2 {
 		return nil, errors.Errorf("%s: invalid number of parameters, expected 2, received %d", funcName, l)
 	}
-	rs, err := e.EvaluateAll(s.Clone())
+	rs, err := e.EvaluateAll(s)
 	if err != nil {
 		return nil, errors.Wrapf(err, funcName)
 	}
@@ -1980,7 +1998,7 @@ func wrapWithExtract(c Callable, name string) Callable {
 		if err != nil {
 			return nil, errors.Wrap(err, name)
 		}
-		if _, ok := rs.(Unit); ok {
+		if _, ok := rs.(*Unit); ok {
 			return nil, Throw{Message: "failed to extract from Unit value"}
 		}
 		return rs, err
@@ -2012,10 +2030,7 @@ func dataFromArray(s Scope, e Exprs) (Expr, error) {
 		if err != nil {
 			return nil, errors.Wrapf(err, "%dth element doesn't have 'key' field", i)
 		}
-		b, err := key.Eq(k)
-		if err != nil {
-			return nil, err
-		}
+		b := key.Eq(k)
 		if b {
 			v, err := item.Get("value")
 			if err != nil {
@@ -2037,10 +2052,12 @@ func extractRecipientAndKey(s Scope, e Exprs) (proto.Recipient, string, error) {
 	}
 	var r proto.Recipient
 	switch a := addOrAliasExpr.(type) {
-	case AliasExpr:
-		r = proto.NewRecipientFromAlias(proto.Alias(a))
-	case AddressExpr:
-		r = proto.NewRecipientFromAddress(proto.Address(a))
+	case *AliasExpr:
+		r = proto.NewRecipientFromAlias(proto.Alias(*a))
+	case *AddressExpr:
+		r = proto.NewRecipientFromAddress(proto.Address(*a))
+	case *RecipientExpr:
+		r = proto.Recipient(*a)
 	default:
 		return proto.Recipient{}, "", errors.Errorf("expected first argument of types AliasExpr of AddressExpr, found %T", addOrAliasExpr)
 	}

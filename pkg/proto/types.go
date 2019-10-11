@@ -368,6 +368,7 @@ type Order interface {
 	GetSenderPK() crypto.PublicKey
 	BodyMarshalBinary() ([]byte, error)
 	GetProofs() (*ProofsV1, error)
+	Verify(crypto.PublicKey) (bool, error)
 }
 
 func OrderToOrderBody(o Order) (OrderBody, error) {
@@ -382,6 +383,12 @@ func OrderToOrderBody(o Order) (OrderBody, error) {
 		o, ok := o.(*OrderV2)
 		if !ok {
 			return OrderBody{}, errors.New("failed to cast an order version 2 to *OrderV2")
+		}
+		return o.OrderBody, nil
+	case 3:
+		o, ok := o.(*OrderV3)
+		if !ok {
+			return OrderBody{}, errors.New("failed to cast an order version 3 to *OrderV3")
 		}
 		return o.OrderBody, nil
 	default:

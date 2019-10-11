@@ -22,9 +22,11 @@ const (
 	featureVote
 	approvedFeature
 	activatedFeature
+	ordersVolume
 	sponsorship
 	dataEntry
 	accountScript
+	assetScript
 )
 
 // + 4 bytes for blockNum at the end of each record.

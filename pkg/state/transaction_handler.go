@@ -7,7 +7,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/settings"
 )
 
-type txCheckFunc func(proto.Transaction, *checkerInfo) error
+type txCheckFunc func(proto.Transaction, *checkerInfo) ([]crypto.Digest, error)
 type txPerformFunc func(proto.Transaction, *performerInfo) error
 type txCreateDiffFunc func(proto.Transaction, *differInfo) (txDiff, error)
 type txCountFeeFunc func(proto.Transaction, *feeDistribution) error
@@ -63,10 +63,10 @@ func buildHanndles(tc *transactionChecker, tp *transactionPerformer, td *transac
 			tc.checkBurnV2, tp.performBurnV2, td.createDiffBurnV2, tf.minerFeeBurnV2,
 		},
 		proto.TransactionTypeVersion{Type: proto.ExchangeTransaction, Version: 1}: txHandleFuncs{
-			tc.checkExchangeV1, nil, td.createDiffExchange, tf.minerFeeExchange,
+			tc.checkExchangeV1, tp.performExchange, td.createDiffExchange, tf.minerFeeExchange,
 		},
 		proto.TransactionTypeVersion{Type: proto.ExchangeTransaction, Version: 2}: txHandleFuncs{
-			tc.checkExchangeV2, nil, td.createDiffExchange, tf.minerFeeExchange,
+			tc.checkExchangeV2, tp.performExchange, td.createDiffExchange, tf.minerFeeExchange,
 		},
 		proto.TransactionTypeVersion{Type: proto.LeaseTransaction, Version: 1}: txHandleFuncs{
 			tc.checkLeaseV1, tp.performLeaseV1, td.createDiffLeaseV1, tf.minerFeeLeaseV1,
@@ -98,6 +98,9 @@ func buildHanndles(tc *transactionChecker, tp *transactionPerformer, td *transac
 		proto.TransactionTypeVersion{Type: proto.SetScriptTransaction, Version: 1}: txHandleFuncs{
 			tc.checkSetScriptV1, tp.performSetScriptV1, td.createDiffSetScriptV1, tf.minerFeeSetScriptV1,
 		},
+		proto.TransactionTypeVersion{Type: proto.SetAssetScriptTransaction, Version: 1}: txHandleFuncs{
+			tc.checkSetAssetScriptV1, tp.performSetAssetScriptV1, td.createDiffSetAssetScriptV1, tf.minerFeeSetAssetScriptV1,
+		},
 	}
 }
 
@@ -125,15 +128,15 @@ func newTransactionHandler(
 	return &transactionHandler{tc: tc, tp: tp, td: td, tf: tf, funcs: buildHanndles(tc, tp, td, tf)}, nil
 }
 
-func (h *transactionHandler) checkTx(tx proto.Transaction, info *checkerInfo) error {
+func (h *transactionHandler) checkTx(tx proto.Transaction, info *checkerInfo) ([]crypto.Digest, error) {
 	tv := tx.GetTypeVersion()
 	funcs, ok := h.funcs[tv]
 	if !ok {
-		return errors.Errorf("No function handler implemented for tx type %d and version %v\n", tv.Type, tv.Version)
+		return nil, errors.Errorf("No function handler implemented for tx type %d and version %v\n", tv.Type, tv.Version)
 	}
 	if funcs.check == nil {
 		// No check func for this combination of transaction type and version.
-		return nil
+		return nil, nil
 	}
 	return funcs.check(tx, info)
 }

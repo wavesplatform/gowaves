@@ -67,6 +67,9 @@ const (
 	approvedFeaturesKeyPrefix
 	votesFeaturesKeyPrefix
 
+	// Orders volume.
+	ordersVolumeKeyPrefix
+
 	// Blocks information (fees for now).
 	blocksInfoKeyPrefix
 
@@ -82,6 +85,7 @@ const (
 
 	// Scripts.
 	accountScriptKeyPrefix
+	assetScriptKeyPrefix
 )
 
 type wavesBalanceKey struct {
@@ -373,6 +377,17 @@ func (k *votesFeaturesKey) unmarshal(data []byte) error {
 	return nil
 }
 
+type ordersVolumeKey struct {
+	orderId []byte
+}
+
+func (k *ordersVolumeKey) bytes() []byte {
+	buf := make([]byte, 1+len(k.orderId))
+	buf[0] = ordersVolumeKeyPrefix
+	copy(buf[1:], k.orderId)
+	return buf
+}
+
 type blocksInfoKey struct {
 	blockID crypto.Signature
 }
@@ -427,5 +442,16 @@ func (k *accountScriptKey) bytes() []byte {
 	buf := make([]byte, 1+proto.AddressSize)
 	buf[0] = accountScriptKeyPrefix
 	copy(buf[1:], k.addr[:])
+	return buf
+}
+
+type assetScriptKey struct {
+	asset crypto.Digest
+}
+
+func (k *assetScriptKey) bytes() []byte {
+	buf := make([]byte, 1+crypto.DigestSize)
+	buf[0] = assetScriptKeyPrefix
+	copy(buf[1:], k.asset[:])
 	return buf
 }
