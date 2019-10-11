@@ -591,6 +591,10 @@ fn("abc") == "ccc"
 	require.True(t, rs, rs)
 }
 
+func invokeTxWithFunctionCall(tx *proto.InvokeScriptV1, fc *proto.FunctionCall) {
+	tx.FunctionCall = *fc
+}
+
 func TestDappCallable(t *testing.T) {
 	_ = `
 {-# STDLIB_VERSION 3 #-}
@@ -626,8 +630,13 @@ func verify() = {
 	require.NoError(t, err)
 
 	tx := byte_helpers.InvokeScriptV1.Transaction.Clone()
+	invokeTxWithFunctionCall(tx, &proto.FunctionCall{
+		Default:   false,
+		Name:      "tellme",
+		Arguments: proto.Arguments{proto.NewStringArgument("abc")},
+	})
 
-	rs, err := script.CallFunction(proto.MainNetScheme, mockstate.State{}, tx, "tellme", Params(NewString("abc")))
+	rs, err := script.CallFunction(proto.MainNetScheme, mockstate.State{}, tx)
 	require.NoError(t, err)
 	require.Equal(t,
 		NewScriptResult(
@@ -679,10 +688,15 @@ func verify() = {
 	require.NoError(t, err)
 
 	tx := byte_helpers.InvokeScriptV1.Transaction.Clone()
+	invokeTxWithFunctionCall(tx, &proto.FunctionCall{
+		Default:   true,
+		Name:      "",
+		Arguments: proto.Arguments{},
+	})
 
 	addr, _ := proto.NewAddressFromPublicKey(proto.MainNetScheme, tx.SenderPK)
 
-	rs, err := script.CallFunction(proto.MainNetScheme, mockstate.State{}, tx, "", Params())
+	rs, err := script.CallFunction(proto.MainNetScheme, mockstate.State{}, tx)
 	require.NoError(t, err)
 	require.Equal(t,
 		NewScriptResult(
@@ -789,10 +803,15 @@ func tellme(question: String) = {
 	require.NoError(t, err)
 
 	tx := byte_helpers.InvokeScriptV1.Transaction.Clone()
+	invokeTxWithFunctionCall(tx, &proto.FunctionCall{
+		Default:   false,
+		Name:      "tellme",
+		Arguments: proto.Arguments{proto.NewIntegerArgument(100500)},
+	})
 
 	addr, _ := proto.NewAddressFromPublicKey(proto.MainNetScheme, tx.SenderPK)
 
-	rs, err := script.CallFunction(proto.MainNetScheme, mockstate.State{}, tx, "tellme", Params(NewLong(100500)))
+	rs, err := script.CallFunction(proto.MainNetScheme, mockstate.State{}, tx)
 	require.NoError(t, err)
 	scriptTransfer, err := NewScriptTransfer(NewAddressFromProtoAddress(addr), NewLong(100), NewUnit())
 	require.NoError(t, err)
@@ -825,10 +844,15 @@ func tellme(question: String) = {
 	require.NoError(t, err)
 
 	tx := byte_helpers.InvokeScriptV1.Transaction.Clone()
+	invokeTxWithFunctionCall(tx, &proto.FunctionCall{
+		Default:   false,
+		Name:      "tellme",
+		Arguments: proto.Arguments{proto.NewIntegerArgument(100)},
+	})
 
 	addr, _ := proto.NewAddressFromPublicKey(proto.MainNetScheme, tx.SenderPK)
 
-	rs, err := script.CallFunction(proto.MainNetScheme, mockstate.State{}, tx, "tellme", Params(NewLong(100)))
+	rs, err := script.CallFunction(proto.MainNetScheme, mockstate.State{}, tx)
 	require.NoError(t, err)
 	scriptTransfer, err := NewScriptTransfer(NewAddressFromProtoAddress(addr), NewLong(100500), NewUnit())
 	require.NoError(t, err)

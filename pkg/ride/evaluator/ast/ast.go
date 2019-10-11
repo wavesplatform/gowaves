@@ -28,12 +28,28 @@ func (a *Script) IsDapp() bool {
 	return a.dApp
 }
 
+func protoArgToArgExpr(arg proto.Argument) (Expr, error) {
+	switch a := arg.(type) {
+	case *proto.IntegerArgument:
+		return &LongExpr{a.Value}, nil
+	case *proto.BooleanArgument:
+		return &BooleanExpr{a.Value}, nil
+	case *proto.StringArgument:
+		return &StringExpr{a.Value}, nil
+	case *proto.BinaryArgument:
+		return &BytesExpr{a.Value}, nil
+	default:
+		return nil, errors.New("unknown argument type")
+	}
+}
+
 // returns *ScriptResultExpr
-func (a *Script) CallFunction(scheme proto.Scheme, state types.SmartState, tx *proto.InvokeScriptV1, name string, args Exprs) (Expr, error) {
+func (a *Script) CallFunction(scheme proto.Scheme, state types.SmartState, tx *proto.InvokeScriptV1) (Expr, error) {
 	if !a.IsDapp() {
 		return nil, errors.New("can't call Script.CallFunction on non DApp")
 	}
-	if name == "" {
+	name := tx.FunctionCall.Name
+	if name == "" && tx.FunctionCall.Default {
 		name = "default"
 	}
 	fn, ok := a.DApp.callableFuncs[name]
@@ -59,13 +75,17 @@ func (a *Script) CallFunction(scheme proto.Scheme, state types.SmartState, tx *p
 		}
 	}
 
-	if len(fn.funcDecl.Args) != len(args) {
-		return nil, errors.Errorf("invalid func '%s' args count, expected %d, got %d", fn.funcDecl.Name, len(fn.funcDecl.Args), len(args))
+	if len(fn.funcDecl.Args) != len(tx.FunctionCall.Arguments) {
+		return nil, errors.Errorf("invalid func '%s' args count, expected %d, got %d", fn.funcDecl.Name, len(fn.funcDecl.Args), len(tx.FunctionCall.Arguments))
 	}
 	// pass function arguments
 	curScope := scope.Clone()
-	for i := 0; i < len(args); i++ {
-		curScope.AddValue(fn.funcDecl.Args[i], args[i])
+	for i, arg := range tx.FunctionCall.Arguments {
+		argExpr, err := protoArgToArgExpr(arg)
+		if err != nil {
+			return nil, errors.Wrap(err, "Script.CallFunction")
+		}
+		curScope.AddValue(fn.funcDecl.Args[i], argExpr)
 	}
 	// invocation type
 	curScope.AddValue(fn.annotationInvokeName, invoke)

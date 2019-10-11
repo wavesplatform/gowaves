@@ -34,6 +34,7 @@ fmtcheck:
 
 clean:
 	@rm -rf build
+	go mod tidy
 
 vendor:
 	go mod vendor
