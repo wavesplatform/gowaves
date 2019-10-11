@@ -162,7 +162,7 @@ func TestMain(m *testing.M) {
 }
 
 func defaultTestBloomFilterParams() keyvalue.BloomFilterParams {
-	return keyvalue.BloomFilterParams{N: testBloomFilterSize, FalsePositiveProbability: testBloomFilterFalsePositiveProbability}
+	return keyvalue.NewBloomFilterParams(testBloomFilterSize, testBloomFilterFalsePositiveProbability, keyvalue.NoOpStore{})
 }
 
 func defaultTestCacheParams() keyvalue.CacheParams {

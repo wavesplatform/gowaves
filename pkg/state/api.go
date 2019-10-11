@@ -182,6 +182,7 @@ func DefaultStorageParams() StorageParams {
 		BloomFilterParams: keyvalue.BloomFilterParams{
 			N:                        DefaultBloomFilterSize,
 			FalsePositiveProbability: DefaultBloomFilterFalsePositiveProbability,
+			Store:                    keyvalue.NewStore(""),
 		},
 		WriteBuffer:         DefaultWriteBuffer,
 		CompactionTableSize: DefaultCompactionTableSize,
@@ -192,6 +193,12 @@ func DefaultStorageParams() StorageParams {
 		HeaderOffsetLen: DefaultHeaderOffsetLen,
 		DbParams:        dbParams,
 	}
+}
+
+func DefaultTestingStorageParams() StorageParams {
+	d := DefaultStorageParams()
+	d.DbParams.N = 10
+	return d
 }
 
 // ValidationParams are validation parameters.
@@ -207,4 +214,8 @@ type StateParams struct {
 
 func DefaultStateParams() StateParams {
 	return StateParams{DefaultStorageParams(), ValidationParams{runtime.NumCPU() * 2}}
+}
+
+func DefaultTestingStateParams() StateParams {
+	return StateParams{DefaultTestingStorageParams(), ValidationParams{runtime.NumCPU() * 2}}
 }

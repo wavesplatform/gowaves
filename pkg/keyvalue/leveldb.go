@@ -96,7 +96,15 @@ type KeyVal struct {
 }
 
 func initBloomFilter(kv *KeyVal, params BloomFilterParams) error {
-	filter, err := newBloomFilter(params)
+	log.Printf("Loading stored bloom...")
+	filter, err := newBloomFilterFromStore(params)
+	if err == nil {
+		kv.filter = filter
+		log.Printf("Successful")
+		return nil
+	}
+	log.Printf("Bloom: creating from db")
+	filter, err = newBloomFilter(params)
 	if err != nil {
 		return err
 	}
@@ -236,5 +244,9 @@ func (k *KeyVal) NewKeyIterator(prefix []byte) (Iterator, error) {
 
 func (k *KeyVal) Close() error {
 	log.Printf("Cache HitRate: %v\n", k.cache.HitRate())
+	err := storeBloomFilter(k.filter)
+	if err != nil {
+		log.Println(err.Error())
+	}
 	return k.db.Close()
 }

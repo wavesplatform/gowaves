@@ -1,10 +1,15 @@
 package keyvalue
 
 import (
+	"io/ioutil"
 	"math/rand"
+	"os"
+	"path"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"github.com/wavesplatform/gowaves/pkg/crypto"
 )
 
 const (
@@ -13,7 +18,7 @@ const (
 )
 
 func TestBloomFilter(t *testing.T) {
-	filter, err := newBloomFilter(BloomFilterParams{n, falsePositiveProbability})
+	filter, err := newBloomFilter(BloomFilterParams{n, falsePositiveProbability, nil})
 	assert.NoError(t, err, "newBloomFilter() failed")
 	for i := 0; i < n; i++ {
 		data := make([]byte, 100)
@@ -25,4 +30,39 @@ func TestBloomFilter(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, notInTheSet, false, "notInTheSet() returned wrong result")
 	}
+}
+
+func TestSaveLoad(t *testing.T) {
+	dir, err := ioutil.TempDir(os.TempDir(), "bloom")
+	require.NoError(t, err)
+	defer func() {
+		_ = os.RemoveAll(dir)
+	}()
+	cacheFile := path.Join(dir, "bloom_cache")
+
+	params := NewBloomFilterParams(n, falsePositiveProbability, NewStore(cacheFile))
+	filter, err := newBloomFilter(params)
+	require.NoError(t, err)
+
+	sig := crypto.MustSignatureFromBase58("5Sqy6nibWVBtHiok8WJfx3p2kiRkAidGuGzY7Aqb7jCZauJCSdEicvQj9HLbiopEtU33RzJ1ErXN7aB16GRuEPqB")
+
+	err = filter.add(sig.Bytes())
+	require.NoError(t, err)
+
+	err = storeBloomFilter(filter)
+	require.NoError(t, err)
+
+	filter, err = newBloomFilter(params)
+	require.NoError(t, err)
+
+	rs, err := filter.notInTheSet(sig.Bytes())
+	require.NoError(t, err)
+	require.Equal(t, true, rs)
+
+	filter, err = newBloomFilterFromStore(params)
+	require.NoError(t, err)
+
+	rs, err = filter.notInTheSet(sig.Bytes())
+	require.NoError(t, err)
+	require.False(t, rs)
 }

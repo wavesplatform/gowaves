@@ -19,7 +19,7 @@ func TestKeyVal(t *testing.T) {
 	dbDir, err := ioutil.TempDir(os.TempDir(), "dbDir0")
 	params := KeyValParams{
 		CacheParams:         CacheParams{cacheSize},
-		BloomFilterParams:   BloomFilterParams{n, falsePositiveProbability},
+		BloomFilterParams:   BloomFilterParams{n, falsePositiveProbability, NoOpStore{}},
 		WriteBuffer:         writeBuffer,
 		CompactionTableSize: sstableSize,
 		CompactionTotalSize: compactionTotalSize,

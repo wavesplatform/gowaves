@@ -5,11 +5,13 @@ import (
 	"io/ioutil"
 	"math/rand"
 	"os"
+	"runtime"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 )
@@ -67,6 +69,14 @@ func spoilBlockVersion(block *proto.Block) {
 	block.Version = proto.NgBlockVersion
 }
 
+func stateParams() StateParams {
+	s := DefaultStorageParams()
+	s.DbParams.Store = keyvalue.NoOpStore{}
+	return StateParams{
+		StorageParams:    s,
+		ValidationParams: ValidationParams{runtime.NumCPU() * 2}}
+}
+
 func TestHeadersValidation(t *testing.T) {
 	blocks, err := readRealBlocks(t, blocksPath(t), blocksNumber)
 	if err != nil {
@@ -76,7 +86,7 @@ func TestHeadersValidation(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temp dir for data: %v\n", err)
 	}
-	st, err := NewState(dataDir, DefaultStateParams(), settings.MainNetSettings)
+	st, err := NewState(dataDir, stateParams(), settings.MainNetSettings)
 	if err != nil {
 		t.Fatalf("NewState(): %v\n", err)
 	}
