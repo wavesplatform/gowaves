@@ -63,10 +63,10 @@ func buildHanndles(tc *transactionChecker, tp *transactionPerformer, td *transac
 			tc.checkBurnV2, tp.performBurnV2, td.createDiffBurnV2, tf.minerFeeBurnV2,
 		},
 		proto.TransactionTypeVersion{Type: proto.ExchangeTransaction, Version: 1}: txHandleFuncs{
-			tc.checkExchangeV1, nil, td.createDiffExchange, tf.minerFeeExchange,
+			tc.checkExchangeV1, tp.performExchange, td.createDiffExchange, tf.minerFeeExchange,
 		},
 		proto.TransactionTypeVersion{Type: proto.ExchangeTransaction, Version: 2}: txHandleFuncs{
-			tc.checkExchangeV2, nil, td.createDiffExchange, tf.minerFeeExchange,
+			tc.checkExchangeV2, tp.performExchange, td.createDiffExchange, tf.minerFeeExchange,
 		},
 		proto.TransactionTypeVersion{Type: proto.LeaseTransaction, Version: 1}: txHandleFuncs{
 			tc.checkLeaseV1, tp.performLeaseV1, td.createDiffLeaseV1, tf.minerFeeLeaseV1,

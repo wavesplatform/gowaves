@@ -453,6 +453,27 @@ func TestCheckExchangeV1(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, 1, len(smartAssets))
 	assert.Equal(t, smartAsset, smartAssets[0])
+
+	// Now overfill volume and make sure check fails.
+	tx.Amount = tx.SellOrder.Amount + 1
+	_, err = to.tc.checkExchangeV1(tx, info)
+	assert.Error(t, err, "checkExchangeV1 did not fail with exchange that overfills sell order amount volume")
+	tx.Amount = tx.SellOrder.Amount
+
+	tx.BuyMatcherFee = tx.SellOrder.MatcherFee + 1
+	_, err = to.tc.checkExchangeV1(tx, info)
+	assert.Error(t, err, "checkExchangeV1 did not fail with exchange that overfills sell order matcher fee volume")
+	tx.BuyMatcherFee = tx.SellOrder.MatcherFee
+
+	tx.BuyMatcherFee = tx.BuyOrder.MatcherFee + 1
+	_, err = to.tc.checkExchangeV1(tx, info)
+	assert.Error(t, err, "checkExchangeV1 did not fail with exchange that overfills buy order matcher fee volume")
+	tx.BuyMatcherFee = tx.BuyOrder.MatcherFee
+
+	tx.Amount = tx.BuyOrder.Amount + 1
+	_, err = to.tc.checkExchangeV1(tx, info)
+	assert.Error(t, err, "checkExchangeV1 did not fail with exchange that overfills buy order amount volume")
+	tx.Amount = tx.BuyOrder.Amount
 }
 
 func TestCheckExchangeV2(t *testing.T) {
@@ -524,6 +545,29 @@ func TestCheckExchangeV2(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, 2, len(smartAssets))
 	assert.ElementsMatch(t, []crypto.Digest{smartAsset, smartAsset2}, smartAssets)
+
+	// Now overfill volume and make sure check fails.
+	bo := txOV2.GetBuyOrderFull()
+	so := txOV2.GetSellOrderFull()
+	txOV2.Amount = so.GetAmount() + 1
+	_, err = to.tc.checkExchangeV2(txOV2, info)
+	assert.Error(t, err, "checkExchangeV2 did not fail with exchange that overfills sell order amount volume")
+	txOV2.Amount = so.GetAmount()
+
+	txOV2.BuyMatcherFee = so.GetMatcherFee() + 1
+	_, err = to.tc.checkExchangeV2(txOV2, info)
+	assert.Error(t, err, "checkExchangeV2 did not fail with exchange that overfills sell order matcher fee volume")
+	txOV2.BuyMatcherFee = so.GetMatcherFee()
+
+	txOV2.BuyMatcherFee = bo.GetMatcherFee() + 1
+	_, err = to.tc.checkExchangeV2(txOV2, info)
+	assert.Error(t, err, "checkExchangeV2 did not fail with exchange that overfills buy order matcher fee volume")
+	txOV2.BuyMatcherFee = bo.GetMatcherFee()
+
+	txOV2.Amount = bo.GetAmount() + 1
+	_, err = to.tc.checkExchangeV2(txOV2, info)
+	assert.Error(t, err, "checkExchangeV2 did not fail with exchange that overfills buy order amount volume")
+	txOV2.Amount = bo.GetAmount()
 }
 
 func TestCheckLeaseV1(t *testing.T) {
