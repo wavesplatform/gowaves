@@ -10,19 +10,18 @@ import (
 
 	"github.com/alecthomas/kong"
 	"github.com/wavesplatform/gowaves/pkg/api"
+	"github.com/wavesplatform/gowaves/pkg/libs/bytespool"
 	"github.com/wavesplatform/gowaves/pkg/miner"
 	"github.com/wavesplatform/gowaves/pkg/miner/scheduler"
 	"github.com/wavesplatform/gowaves/pkg/miner/utxpool"
 	"github.com/wavesplatform/gowaves/pkg/ng"
+	"github.com/wavesplatform/gowaves/pkg/node"
 	"github.com/wavesplatform/gowaves/pkg/node/peer_manager"
 	"github.com/wavesplatform/gowaves/pkg/node/state_changed"
-	"github.com/wavesplatform/gowaves/pkg/services"
-	"github.com/wavesplatform/gowaves/pkg/settings"
-
-	"github.com/wavesplatform/gowaves/pkg/libs/bytespool"
-	"github.com/wavesplatform/gowaves/pkg/node"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/services"
+	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"go.uber.org/zap"
 )
@@ -44,6 +43,10 @@ func init() {
 }
 
 func main() {
+	err := setMaxOpenFiles(1024)
+	if err != nil {
+		panic(err)
+	}
 	ctx, cancel := context.WithCancel(context.Background())
 
 	zap.S().Info(os.Args)
@@ -60,7 +63,7 @@ func main() {
 
 	zap.S().Info("conf", conf)
 
-	err := conf.Validate()
+	err = conf.Validate()
 	if err != nil {
 		zap.S().Error(err)
 		cancel()
@@ -150,7 +153,6 @@ func main() {
 	cancel()
 
 	<-time.After(2 * time.Second)
-
 }
 
 func FromArgs(c *Cli) func(s *settings.NodeSettings) {
