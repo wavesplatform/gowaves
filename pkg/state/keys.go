@@ -67,6 +67,9 @@ const (
 	approvedFeaturesKeyPrefix
 	votesFeaturesKeyPrefix
 
+	// Orders volume.
+	ordersVolumeKeyPrefix
+
 	// Blocks information (fees for now).
 	blocksInfoKeyPrefix
 
@@ -372,6 +375,17 @@ func (k *votesFeaturesKey) unmarshal(data []byte) error {
 		return err
 	}
 	return nil
+}
+
+type ordersVolumeKey struct {
+	orderId []byte
+}
+
+func (k *ordersVolumeKey) bytes() []byte {
+	buf := make([]byte, 1+len(k.orderId))
+	buf[0] = ordersVolumeKeyPrefix
+	copy(buf[1:], k.orderId)
+	return buf
 }
 
 type blocksInfoKey struct {

@@ -135,6 +135,38 @@ func (tp *transactionPerformer) performBurnV2(transaction proto.Transaction, inf
 	return tp.performBurn(&tx.Burn, info)
 }
 
+func (tp *transactionPerformer) increaseOrderVolume(order proto.Order, tx proto.Exchange, info *performerInfo) error {
+	orderId, err := order.GetID()
+	if err != nil {
+		return err
+	}
+	fee := tx.GetBuyMatcherFee()
+	if order.GetOrderType() == proto.Sell {
+		fee = tx.GetSellMatcherFee()
+	}
+	if err := tp.stor.ordersVolumes.increaseFilledFee(orderId, fee, info.blockID, !info.initialisation); err != nil {
+		return err
+	}
+	if err := tp.stor.ordersVolumes.increaseFilledAmount(orderId, tx.GetAmount(), info.blockID, !info.initialisation); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (tp *transactionPerformer) performExchange(transaction proto.Transaction, info *performerInfo) error {
+	tx, ok := transaction.(proto.Exchange)
+	if !ok {
+		return errors.New("failed to convert interface to Exchange transaction")
+	}
+	if err := tp.increaseOrderVolume(tx.GetSellOrderFull(), tx, info); err != nil {
+		return err
+	}
+	if err := tp.increaseOrderVolume(tx.GetBuyOrderFull(), tx, info); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (tp *transactionPerformer) performLease(tx *proto.Lease, id *crypto.Digest, info *performerInfo) error {
 	senderAddr, err := proto.NewAddressFromPublicKey(tp.settings.AddressSchemeCharacter, tx.SenderPK)
 	if err != nil {
