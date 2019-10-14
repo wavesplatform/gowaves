@@ -9,14 +9,11 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/mr-tron/base58/base58"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/consensus"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"github.com/wavesplatform/gowaves/pkg/ride/evaluator/ast"
-	"github.com/wavesplatform/gowaves/pkg/ride/evaluator/evaluate"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/types"
 	"github.com/wavesplatform/gowaves/pkg/util/lock"
@@ -135,6 +132,7 @@ func (s *blockchainEntitiesStorage) flush(initialisation bool) error {
 
 type txAppender struct {
 	state types.SmartState
+	sc    *scriptCaller
 
 	rw *blockReadWriter
 
@@ -160,6 +158,10 @@ func newTxAppender(
 	stor *blockchainEntitiesStorage,
 	settings *settings.BlockchainSettings,
 ) (*txAppender, error) {
+	sc, err := newScriptCaller(state, stor, settings)
+	if err != nil {
+		return nil, err
+	}
 	genesis, err := settings.GenesisGetter.Get()
 	if err != nil {
 		return nil, err
@@ -182,6 +184,7 @@ func newTxAppender(
 	}
 	return &txAppender{
 		state:       state,
+		sc:          sc,
 		rw:          rw,
 		stor:        stor,
 		settings:    settings,
@@ -231,83 +234,6 @@ type appendBlockParams struct {
 	initialisation bool
 }
 
-func (a *txAppender) callVerifyScript(script ast.Script, obj map[string]ast.Expr, this, lastBlock ast.Expr) error {
-	ok, err := evaluate.Verify(a.settings.AddressSchemeCharacter, a.state, &script, obj, this, lastBlock)
-	if err != nil {
-		return errors.Wrap(err, "verifier script failed")
-	}
-	if !ok {
-		return errors.New("verifier script does not allow to send transaction")
-	}
-	return nil
-}
-
-func (a *txAppender) callAccountScriptWithOrder(order proto.Order, lastBlockInfo *proto.BlockInfo, initialisation bool) error {
-	sender, err := proto.NewAddressFromPublicKey(a.settings.AddressSchemeCharacter, order.GetSenderPK())
-	if err != nil {
-		return err
-	}
-	script, err := a.stor.scriptsStorage.newestScriptByAddr(sender, !initialisation)
-	if err != nil {
-		return errors.Wrap(err, "failed to retrieve account script")
-	}
-	obj, err := ast.NewVariablesFromOrder(a.settings.AddressSchemeCharacter, order)
-	if err != nil {
-		return errors.Wrap(err, "failed to convert order")
-	}
-	this := ast.NewAddressFromProtoAddress(sender)
-	lastBlock := ast.NewObjectFromBlockInfo(*lastBlockInfo)
-	if err := a.callVerifyScript(script, obj, this, lastBlock); err != nil {
-		id, _ := order.GetID()
-		return errors.Errorf("account script; order ID %s: %v\n", base58.Encode(id), err)
-	}
-	return nil
-}
-
-func (a *txAppender) callAccountScriptWithTx(tx proto.Transaction, lastBlockInfo *proto.BlockInfo, initialisation bool) error {
-	senderAddr, err := proto.NewAddressFromPublicKey(a.settings.AddressSchemeCharacter, tx.GetSenderPK())
-	if err != nil {
-		return err
-	}
-	script, err := a.stor.scriptsStorage.newestScriptByAddr(senderAddr, !initialisation)
-	if err != nil {
-		return errors.Wrap(err, "failed to retrieve account script")
-	}
-	obj, err := ast.NewVariablesFromTransaction(a.settings.AddressSchemeCharacter, tx)
-	if err != nil {
-		return errors.Wrap(err, "failed to convert transaction")
-	}
-	this := ast.NewAddressFromProtoAddress(senderAddr)
-	lastBlock := ast.NewObjectFromBlockInfo(*lastBlockInfo)
-	if err := a.callVerifyScript(script, obj, this, lastBlock); err != nil {
-		id, _ := tx.GetID()
-		return errors.Errorf("account script; transaction ID %s: %v\n", base58.Encode(id), err)
-	}
-	return nil
-}
-
-func (a *txAppender) callAssetScript(tx proto.Transaction, assetID crypto.Digest, lastBlockInfo *proto.BlockInfo, initialisation bool) error {
-	script, err := a.stor.scriptsStorage.newestScriptByAsset(assetID, !initialisation)
-	if err != nil {
-		return errors.Errorf("failed to retrieve asset script: %v\n", err)
-	}
-	obj, err := ast.NewVariablesFromTransaction(a.settings.AddressSchemeCharacter, tx)
-	if err != nil {
-		return errors.Wrap(err, "failed to convert transaction")
-	}
-	assetInfo, err := a.state.NewestAssetInfo(assetID)
-	if err != nil {
-		return errors.Wrap(err, "failed to retrieve asset info")
-	}
-	this := ast.NewObjectFromAssetInfo(*assetInfo)
-	lastBlock := ast.NewObjectFromBlockInfo(*lastBlockInfo)
-	if err := a.callVerifyScript(script, obj, this, lastBlock); err != nil {
-		id, _ := tx.GetID()
-		return errors.Errorf("asset script; transaction ID %s: %v\n", base58.Encode(id), err)
-	}
-	return nil
-}
-
 func (a *txAppender) hasAccountVerifyScript(tx proto.Transaction, initialisation bool) (bool, error) {
 	senderAddr, err := proto.NewAddressFromPublicKey(a.settings.AddressSchemeCharacter, tx.GetSenderPK())
 	if err != nil {
@@ -346,13 +272,13 @@ func (a *txAppender) handleExchange(tx proto.Transaction, blockInfo *proto.Block
 	}
 	scriptsRuns := uint64(0)
 	if boScripted {
-		if err := a.callAccountScriptWithOrder(bo, blockInfo, initialisation); err != nil {
+		if err := a.sc.callAccountScriptWithOrder(bo, blockInfo, initialisation); err != nil {
 			return 0, errors.Errorf("BUY ORDER: callAccountScriptWithOrder(): %v\n", err)
 		}
 		scriptsRuns++
 	}
 	if soScripted {
-		if err := a.callAccountScriptWithOrder(so, blockInfo, initialisation); err != nil {
+		if err := a.sc.callAccountScriptWithOrder(so, blockInfo, initialisation); err != nil {
 			return 0, errors.Errorf("SELL ORDER: callAccountScriptWithOrder(): %v\n", err)
 		}
 		scriptsRuns++
@@ -384,7 +310,7 @@ func (a *txAppender) checkTxAgainstState(tx proto.Transaction, accountScripted b
 	scriptsRuns := uint64(0)
 	if accountScripted {
 		// Check script.
-		if err := a.callAccountScriptWithTx(tx, blockInfo, checkerInfo.initialisation); err != nil {
+		if err := a.sc.callAccountScriptWithTx(tx, blockInfo, checkerInfo.initialisation); err != nil {
 			return 0, errors.Errorf("callAccountScriptWithTx(): %v\n", err)
 		}
 		scriptsRuns++
@@ -400,7 +326,7 @@ func (a *txAppender) checkTxAgainstState(tx proto.Transaction, accountScripted b
 			break
 		}
 		// Check smart asset's script.
-		if err := a.callAssetScript(tx, smartAsset, blockInfo, checkerInfo.initialisation); err != nil {
+		if err := a.sc.callAssetScript(tx, smartAsset, blockInfo, checkerInfo.initialisation); err != nil {
 			return 0, errors.Errorf("callAssetScript(): %v\n", err)
 		}
 		scriptsRuns++
