@@ -9,7 +9,7 @@ export GO111MODULE=on
 
 .PHONY: vendor vetcheck fmtcheck clean build gotest
 
-all: vendor vetcheck fmtcheck build gotest
+all: vendor vetcheck fmtcheck build gotest mod-clean
 
 ver:
 	@echo Building version: $(VERSION)
@@ -31,6 +31,9 @@ gotest:
 
 fmtcheck:
 	@gofmt -l -s $(SOURCE_DIRS) | grep ".*\.go"; if [ "$$?" = "0" ]; then exit 1; fi
+
+mod-clean:
+	go mod tidy
 
 clean:
 	@rm -rf build
