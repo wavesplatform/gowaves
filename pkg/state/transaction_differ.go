@@ -909,7 +909,7 @@ func (td *transactionDiffer) createDiffSetScriptV1(transaction proto.Transaction
 func (td *transactionDiffer) createDiffSetAssetScriptV1(transaction proto.Transaction, info *differInfo) (txDiff, error) {
 	tx, ok := transaction.(*proto.SetAssetScriptV1)
 	if !ok {
-		return txDiff{}, errors.New("failed to convert interface to SetAssetAccountScriptV1 transaction")
+		return txDiff{}, errors.New("failed to convert interface to SetAssetScriptV1 transaction")
 	}
 	diff := newTxDiff()
 	senderAddr, err := proto.NewAddressFromPublicKey(td.settings.AddressSchemeCharacter, tx.SenderPK)

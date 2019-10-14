@@ -222,7 +222,7 @@ func (tf *transactionFeeCounter) minerFeeSetScriptV1(transaction proto.Transacti
 func (tf *transactionFeeCounter) minerFeeSetAssetScriptV1(transaction proto.Transaction, distr *feeDistribution) error {
 	tx, ok := transaction.(*proto.SetAssetScriptV1)
 	if !ok {
-		return errors.New("failed to convert interface to SetAssetAccountScriptV1 tx")
+		return errors.New("failed to convert interface to SetAssetScriptV1 tx")
 	}
 	return tf.minerFee(distr, tx.Fee, proto.OptionalAsset{Present: false})
 }
