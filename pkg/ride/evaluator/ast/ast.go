@@ -43,8 +43,7 @@ func protoArgToArgExpr(arg proto.Argument) (Expr, error) {
 	}
 }
 
-// returns *ScriptResultExpr
-func (a *Script) CallFunction(scheme proto.Scheme, state types.SmartState, tx *proto.InvokeScriptV1) (Expr, error) {
+func (a *Script) CallFunction(scheme proto.Scheme, state types.SmartState, tx *proto.InvokeScriptV1) (*proto.ScriptResult, error) {
 	if !a.IsDapp() {
 		return nil, errors.New("can't call Script.CallFunction on non DApp")
 	}
@@ -95,16 +94,18 @@ func (a *Script) CallFunction(scheme proto.Scheme, state types.SmartState, tx *p
 		return nil, errors.Wrap(err, "Script.CallFunction")
 	}
 
+	var resExpr *ScriptResultExpr
 	switch t := rs.(type) {
 	case *WriteSetExpr:
-		return NewScriptResult(t, NewTransferSet()), nil
+		resExpr = &ScriptResultExpr{WriteSet: t}
 	case *TransferSetExpr:
-		return NewScriptResult(NewWriteSet(), t), nil
+		resExpr = &ScriptResultExpr{TransferSet: t}
 	case *ScriptResultExpr:
-		return t, nil
+		resExpr = t
 	default:
 		return nil, errors.Errorf("Script.CallFunction: unexpected result type '%T'", t)
 	}
+	return resExpr.ConvertToProto()
 }
 
 func (a *Script) Verify(scheme byte, state types.SmartState, transaction proto.Transaction) (bool, error) {
@@ -828,6 +829,32 @@ func (a *DataEntryExpr) Get(name string) (Expr, error) {
 	return out, nil
 }
 
+func (a *DataEntryExpr) toProto() (proto.DataEntry, error) {
+	keyExpr, err := a.Get("key")
+	if err != nil {
+		return nil, err
+	}
+	keyStrExpr, ok := keyExpr.(*StringExpr)
+	if !ok {
+		return nil, errors.New("invalid key type")
+	}
+	valExpr, err := a.Get("value")
+	if err != nil {
+		return nil, err
+	}
+	switch v := valExpr.(type) {
+	case *LongExpr:
+		return &proto.IntegerDataEntry{Key: keyStrExpr.Value, Value: v.Value}, nil
+	case *BooleanExpr:
+		return &proto.BooleanDataEntry{Key: keyStrExpr.Value, Value: v.Value}, nil
+	case *BytesExpr:
+		return &proto.BinaryDataEntry{Key: keyStrExpr.Value, Value: v.Value}, nil
+	case *StringExpr:
+		return &proto.StringDataEntry{Key: keyStrExpr.Value, Value: v.Value}, nil
+	}
+	return nil, errors.New("unknown value type")
+}
+
 type StringExpr struct {
 	Value string
 }
@@ -895,7 +922,9 @@ func (a *AddressExpr) Get(name string) (Expr, error) {
 	}
 }
 
-func (a *AddressExpr) Recipient() {}
+func (a *AddressExpr) Recipient() proto.Recipient {
+	return proto.NewRecipientFromAddress(proto.Address(*a))
+}
 
 func NewAddressFromString(s string) (*AddressExpr, error) {
 	addr, err := proto.NewAddressFromString(s)
@@ -957,7 +986,9 @@ func (a *AliasExpr) InstanceOf() string {
 }
 
 // Recipient interface
-func (a *AliasExpr) Recipient() {}
+func (a *AliasExpr) Recipient() proto.Recipient {
+	return proto.NewRecipientFromAlias(proto.Alias(*a))
+}
 
 func NewAliasFromProtoAlias(a proto.Alias) *AliasExpr {
 	al := AliasExpr(a)
@@ -995,7 +1026,7 @@ func NewDataEntryList(entries []proto.DataEntry) Exprs {
 
 type Recipient interface {
 	Expr
-	Recipient()
+	Recipient() proto.Recipient
 }
 
 type RecipientExpr proto.Recipient
@@ -1028,6 +1059,10 @@ func (a *RecipientExpr) Eq(other Expr) bool {
 
 func (a *RecipientExpr) InstanceOf() string {
 	return "Recipient"
+}
+
+func (a *RecipientExpr) Recipient() proto.Recipient {
+	return proto.Recipient(*a)
 }
 
 type AssetPairExpr struct {
@@ -1646,6 +1681,18 @@ func (a *WriteSetExpr) InstanceOf() string {
 	return "WriteSet"
 }
 
+func (a *WriteSetExpr) toProto() ([]proto.DataEntry, error) {
+	res := make([]proto.DataEntry, len(a.body))
+	for i, entryExpr := range a.body {
+		entry, err := entryExpr.toProto()
+		if err != nil {
+			return nil, err
+		}
+		res[i] = entry
+	}
+	return res, nil
+}
+
 func NewWriteSet(e ...*DataEntryExpr) *WriteSetExpr {
 	return &WriteSetExpr{
 		body: e,
@@ -1670,6 +1717,18 @@ func (a *TransferSetExpr) Eq(other Expr) bool {
 
 func (a *TransferSetExpr) InstanceOf() string {
 	return "TransferSet"
+}
+
+func (a *TransferSetExpr) toProto() ([]proto.ScriptResultTransfer, error) {
+	res := make([]proto.ScriptResultTransfer, len(a.body))
+	for i, transferExpr := range a.body {
+		transfer, err := transferExpr.toProto()
+		if err != nil {
+			return nil, err
+		}
+		res[i] = *transfer
+	}
+	return res, nil
 }
 
 func NewTransferSet(e ...*ScriptTransferExpr) *TransferSetExpr {
@@ -1744,6 +1803,47 @@ func (a *ScriptTransferExpr) InstanceOf() string {
 	return "ScriptTransfer"
 }
 
+func (a *ScriptTransferExpr) toProto() (*proto.ScriptResultTransfer, error) {
+	recipientExpr, ok := a.fields["recipient"]
+	if !ok {
+		return nil, errors.New("recipient is not found")
+	}
+	recipientExprDed, ok := recipientExpr.(Recipient)
+	if !ok {
+		return nil, errors.New("invalid recipient type")
+	}
+	amountExpr, ok := a.fields["amount"]
+	if !ok {
+		return nil, errors.New("amount is not found")
+	}
+	amountExprDed, ok := amountExpr.(*LongExpr)
+	if !ok {
+		return nil, errors.New("invalid amount type")
+	}
+	assetExpr, ok := a.fields["asset"]
+	if !ok {
+		return nil, errors.New("asset is not found")
+	}
+	var oa *proto.OptionalAsset
+	var err error
+	switch asset := assetExpr.(type) {
+	case *Unit:
+		oa = &proto.OptionalAsset{Present: false}
+	case *BytesExpr:
+		oa, err = proto.NewOptionalAssetFromBytes(asset.Value)
+		if err != nil {
+			return nil, errors.Wrap(err, "invalid asset id bytes")
+		}
+	default:
+		return nil, errors.New("invalid type for asset expr")
+	}
+	return &proto.ScriptResultTransfer{
+		Recipient: recipientExprDed.Recipient(),
+		Amount:    amountExprDed.Value,
+		Asset:     *oa,
+	}, nil
+}
+
 func NewScriptTransfer(recipient Recipient, amount *LongExpr, asset Expr) (*ScriptTransferExpr, error) {
 	switch asset.(type) {
 	case *Unit, *BytesExpr:
@@ -1778,6 +1878,25 @@ func (a *ScriptResultExpr) Eq(other Expr) bool {
 
 func (a *ScriptResultExpr) InstanceOf() string {
 	return "ScriptResult"
+}
+
+func (a *ScriptResultExpr) ConvertToProto() (*proto.ScriptResult, error) {
+	res := &proto.ScriptResult{}
+	if a.TransferSet != nil {
+		transfers, err := a.TransferSet.toProto()
+		if err != nil {
+			return nil, err
+		}
+		res.Transfers = transfers
+	}
+	if a.WriteSet != nil {
+		writes, err := a.WriteSet.toProto()
+		if err != nil {
+			return nil, err
+		}
+		res.Writes = writes
+	}
+	return res, nil
 }
 
 func NewScriptResult(writeSet *WriteSetExpr, transferSet *TransferSetExpr) *ScriptResultExpr {

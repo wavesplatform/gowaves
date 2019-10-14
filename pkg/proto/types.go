@@ -2456,6 +2456,17 @@ func (c FunctionCall) binarySize() int {
 	return 1 + 1 + 1 + 4 + len(c.Name) + c.Arguments.binarySize()
 }
 
+type ScriptResult struct {
+	Transfers []ScriptResultTransfer
+	Writes    []DataEntry
+}
+
+type ScriptResultTransfer struct {
+	Recipient Recipient
+	Amount    int64
+	Asset     OptionalAsset
+}
+
 type ScriptPayment struct {
 	Amount uint64        `json:"amount"`
 	Asset  OptionalAsset `json:"assetId"`

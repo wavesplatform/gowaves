@@ -639,14 +639,14 @@ func verify() = {
 	rs, err := script.CallFunction(proto.MainNetScheme, mockstate.State{}, tx)
 	require.NoError(t, err)
 	require.Equal(t,
-		NewScriptResult(
-			NewWriteSet(
-				NewDataEntry("abc_q", NewString("abc")),
-				NewDataEntry("abc_a", NewString("abc")),
-			),
-			NewTransferSet(),
-		),
-		rs)
+		&proto.ScriptResult{
+			Writes: []proto.DataEntry{
+				&proto.StringDataEntry{Key: "abc_q", Value: "abc"},
+				&proto.StringDataEntry{Key: "abc_a", Value: "abc"},
+			},
+		},
+		rs,
+	)
 }
 
 func TestDappDefaultFunc(t *testing.T) {
@@ -699,13 +699,14 @@ func verify() = {
 	rs, err := script.CallFunction(proto.MainNetScheme, mockstate.State{}, tx)
 	require.NoError(t, err)
 	require.Equal(t,
-		NewScriptResult(
-			NewWriteSet(
-				NewDataEntry("a", NewString("b")),
-				NewDataEntry("sender", NewBytes(addr.Bytes())),
-			),
-			NewTransferSet()),
-		rs)
+		&proto.ScriptResult{
+			Writes: []proto.DataEntry{
+				&proto.StringDataEntry{Key: "a", Value: "b"},
+				&proto.BinaryDataEntry{Key: "sender", Value: addr.Bytes()},
+			},
+		},
+		rs,
+	)
 }
 
 func TestDappVerify(t *testing.T) {
@@ -813,13 +814,18 @@ func tellme(question: String) = {
 
 	rs, err := script.CallFunction(proto.MainNetScheme, mockstate.State{}, tx)
 	require.NoError(t, err)
-	scriptTransfer, err := NewScriptTransfer(NewAddressFromProtoAddress(addr), NewLong(100), NewUnit())
+	scriptTransfer := proto.ScriptResultTransfer{
+		Recipient: proto.NewRecipientFromAddress(addr),
+		Amount:    100,
+		Asset:     proto.OptionalAsset{Present: false},
+	}
 	require.NoError(t, err)
 	require.Equal(t,
-		NewScriptResult(
-			NewWriteSet(),
-			NewTransferSet(scriptTransfer)),
-		rs)
+		&proto.ScriptResult{
+			Transfers: []proto.ScriptResultTransfer{scriptTransfer},
+		},
+		rs,
+	)
 }
 
 func TestScriptResult(t *testing.T) {
@@ -854,14 +860,18 @@ func tellme(question: String) = {
 
 	rs, err := script.CallFunction(proto.MainNetScheme, mockstate.State{}, tx)
 	require.NoError(t, err)
-	scriptTransfer, err := NewScriptTransfer(NewAddressFromProtoAddress(addr), NewLong(100500), NewUnit())
-	require.NoError(t, err)
+	scriptTransfer := proto.ScriptResultTransfer{
+		Recipient: proto.NewRecipientFromAddress(addr),
+		Amount:    100500,
+		Asset:     proto.OptionalAsset{Present: false},
+	}
 	require.Equal(t,
-		NewScriptResult(
-			NewWriteSet(NewDataEntry("key", NewLong(100))),
-			NewTransferSet(scriptTransfer),
-		),
-		rs)
+		&proto.ScriptResult{
+			Writes:    []proto.DataEntry{&proto.IntegerDataEntry{Key: "key", Value: 100}},
+			Transfers: []proto.ScriptResultTransfer{scriptTransfer},
+		},
+		rs,
+	)
 }
 
 func TestMatchOverwrite(t *testing.T) {
