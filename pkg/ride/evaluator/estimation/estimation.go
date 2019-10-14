@@ -110,12 +110,11 @@ func (e *Estimator) Estimate(script *ast.Script) (int64, error) {
 				rc.express(decl.Name, expression{decl.Value, false})
 				declarationsCost += 5
 			case *ast.FuncDeclaration:
-				for _, a := range decl.Args {
-					rc.express(a, expression{&ast.BooleanExpr{Value: true}, false})
-				}
 				c := rc.branch(decl.Name)
 				e.contexts[c.name] = c
-
+				for _, a := range decl.Args {
+					c.express(a, expression{&ast.BooleanExpr{Value: true}, false})
+				}
 				_, err := e.change(decl.Name)
 				if err != nil {
 					return 0, errors.Wrap(err, "estimation")
