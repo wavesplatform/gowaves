@@ -47,8 +47,8 @@ type DApp struct {
 	LibVersion    byte
 	Meta          DappMeta
 	Declarations  Exprs
-	callableFuncs map[string]*DappCallableFunc
-	verifier      *DappCallableFunc
+	CallableFuncs map[string]*DappCallableFunc
+	Verifier      *DappCallableFunc
 }
 
 type DappMeta struct {
@@ -94,11 +94,11 @@ func parseDApp(r *BytesReader) (DApp, error) {
 			return dApp, errors.Errorf("expected to be *FuncDeclaration, found %T", f)
 		}
 		callableFuncs[f.Name] = &DappCallableFunc{
-			annotationInvokeName: annotationInvokeName,
-			funcDecl:             f,
+			AnnotationInvokeName: annotationInvokeName,
+			FuncDecl:             f,
 		}
 	}
-	dApp.callableFuncs = callableFuncs
+	dApp.CallableFuncs = callableFuncs
 
 	// parse verifier
 	cnt = r.ReadInt()
@@ -113,9 +113,9 @@ func parseDApp(r *BytesReader) (DApp, error) {
 		if !ok {
 			return dApp, errors.Errorf("expected to be *FuncDeclaration, found %T", f)
 		}
-		dApp.verifier = &DappCallableFunc{
-			annotationInvokeName: annotationInvokeName,
-			funcDecl:             f,
+		dApp.Verifier = &DappCallableFunc{
+			AnnotationInvokeName: annotationInvokeName,
+			FuncDecl:             f,
 		}
 	}
 
@@ -123,8 +123,8 @@ func parseDApp(r *BytesReader) (DApp, error) {
 }
 
 type DappCallableFunc struct {
-	annotationInvokeName string
-	funcDecl             *FuncDeclaration
+	AnnotationInvokeName string
+	FuncDecl             *FuncDeclaration
 }
 
 func Walk(iter *BytesReader) (Expr, error) {

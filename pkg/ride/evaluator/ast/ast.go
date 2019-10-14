@@ -51,7 +51,7 @@ func (a *Script) CallFunction(scheme proto.Scheme, state types.SmartState, tx *p
 	if name == "" && tx.FunctionCall.Default {
 		name = "default"
 	}
-	fn, ok := a.DApp.callableFuncs[name]
+	fn, ok := a.DApp.CallableFuncs[name]
 	if !ok {
 		return nil, errors.Errorf("Callable function named '%s' not found", name)
 	}
@@ -74,8 +74,8 @@ func (a *Script) CallFunction(scheme proto.Scheme, state types.SmartState, tx *p
 		}
 	}
 
-	if len(fn.funcDecl.Args) != len(tx.FunctionCall.Arguments) {
-		return nil, errors.Errorf("invalid func '%s' args count, expected %d, got %d", fn.funcDecl.Name, len(fn.funcDecl.Args), len(tx.FunctionCall.Arguments))
+	if len(fn.FuncDecl.Args) != len(tx.FunctionCall.Arguments) {
+		return nil, errors.Errorf("invalid func '%s' args count, expected %d, got %d", fn.FuncDecl.Name, len(fn.FuncDecl.Args), len(tx.FunctionCall.Arguments))
 	}
 	// pass function arguments
 	curScope := scope.Clone()
@@ -84,12 +84,12 @@ func (a *Script) CallFunction(scheme proto.Scheme, state types.SmartState, tx *p
 		if err != nil {
 			return nil, errors.Wrap(err, "Script.CallFunction")
 		}
-		curScope.AddValue(fn.funcDecl.Args[i], argExpr)
+		curScope.AddValue(fn.FuncDecl.Args[i], argExpr)
 	}
 	// invocation type
-	curScope.AddValue(fn.annotationInvokeName, invoke)
+	curScope.AddValue(fn.AnnotationInvokeName, invoke)
 
-	rs, err := fn.funcDecl.Body.Evaluate(curScope)
+	rs, err := fn.FuncDecl.Body.Evaluate(curScope)
 	if err != nil {
 		return nil, errors.Wrap(err, "Script.CallFunction")
 	}
@@ -118,17 +118,17 @@ func (a *Script) Verify(scheme byte, state types.SmartState, transaction proto.T
 		return false, err
 	}
 	if a.IsDapp() {
-		if a.DApp.verifier == nil {
+		if a.DApp.Verifier == nil {
 			return false, errors.New("verify function not defined")
 		}
 		scope := NewScope(3, scheme, state)
 		scope.SetHeight(height)
 
-		fn := a.DApp.verifier
+		fn := a.DApp.Verifier
 		// pass function arguments
 		curScope := scope //.Clone()
 		// annotated tx type
-		curScope.AddValue(fn.annotationInvokeName, NewObject(txVars))
+		curScope.AddValue(fn.AnnotationInvokeName, NewObject(txVars))
 		// here should be only assign of vars and function
 		for _, expr := range a.DApp.Declarations {
 			_, err = expr.Evaluate(curScope)
@@ -136,7 +136,7 @@ func (a *Script) Verify(scheme byte, state types.SmartState, transaction proto.T
 				return false, errors.Wrap(err, "Script.Verify")
 			}
 		}
-		return evalAsBool(fn.funcDecl.Body, curScope)
+		return evalAsBool(fn.FuncDecl.Body, curScope)
 	} else {
 		scope := NewScope(a.Version, scheme, state)
 		scope.AddValue("tx", NewObject(txVars))

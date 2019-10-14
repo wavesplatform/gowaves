@@ -29,6 +29,7 @@ func root(variables map[string]ast.Expr) *context {
 	}
 	e["height"] = expression{expr: ast.NewLong(0), evaluated: true}
 	e["tx"] = expression{expr: ast.NewObject(map[string]ast.Expr{}), evaluated: true}
+	e["this"] = expression{expr: ast.NewObject(map[string]ast.Expr{}), evaluated: true}
 	return &context{
 		name:        "root",
 		expressions: e,
@@ -94,11 +95,69 @@ func NewEstimator(version int, catalogue *Catalogue, variables map[string]ast.Ex
 }
 
 func (e *Estimator) Estimate(script *ast.Script) (int64, error) {
+	if script.IsDapp() {
+		rc, ok := e.contexts["root"]
+		if !ok {
+			return 0, errors.New("estimation: no root context")
+		}
+		delete(rc.expressions, "tx")
+		rc.expressions["height"] = expression{expr: ast.NewLong(0), evaluated: true}
+		rc.expressions["this"] = expression{expr: ast.NewUnit(), evaluated: false}
+		var declarationsCost int64 = 0
+		for _, d := range script.DApp.Declarations {
+			switch decl := d.(type) {
+			case *ast.LetExpr:
+				rc.express(decl.Name, expression{decl.Value, false})
+				declarationsCost += 5
+			case *ast.FuncDeclaration:
+				for _, a := range decl.Args {
+					rc.express(a, expression{&ast.BooleanExpr{Value: true}, false})
+				}
+				c := rc.branch(decl.Name)
+				e.contexts[c.name] = c
+
+				_, err := e.change(decl.Name)
+				if err != nil {
+					return 0, errors.Wrap(err, "estimation")
+				}
+				fc, err := e.estimate(decl.Body)
+				if err != nil {
+					return 0, errors.Wrap(err, "estimation")
+				}
+				ac := int64(len(decl.Args) * 5)
+				e.catalogue.user[decl.Name] = ac + fc
+				_, err = e.change("root")
+				if err != nil {
+					return 0, errors.Wrap(err, "estimation")
+				}
+				declarationsCost += 5
+			}
+		}
+		var callableCost int64 = 0
+		for _, cf := range script.DApp.CallableFuncs {
+			cc, cn := e.copyContexts()
+			c, err := e.estimateCallable(cf)
+			if err != nil {
+				return 0, errors.Wrap(err, "estimation")
+			}
+			e.restoreContexts(cc, cn)
+			if c > callableCost {
+				callableCost = c
+			}
+		}
+		c, err := e.estimateCallable(script.DApp.Verifier)
+		if err != nil {
+			return 0, errors.Wrap(err, "estimation")
+		}
+		if c > callableCost {
+			callableCost = c
+		}
+		return declarationsCost + callableCost, nil
+	}
 	verifierCost, err := e.estimate(script.Verifier)
 	if err != nil {
 		return 0, errors.Wrap(err, "estimation")
 	}
-	//TODO: add estimation of other entry points and take max among them and the verifier
 	return verifierCost, nil
 }
 
@@ -152,6 +211,22 @@ func (e *Estimator) copyContexts() (map[string]*context, string) {
 func (e *Estimator) restoreContexts(cp map[string]*context, current string) {
 	e.contexts = cp
 	e.current = current
+}
+
+func (e *Estimator) estimateCallable(callable *ast.DappCallableFunc) (int64, error) {
+	if callable == nil {
+		return 0, nil
+	}
+	rc, ok := e.contexts["root"]
+	if !ok {
+		return 0, errors.New("no root context")
+	}
+	rc.express(callable.AnnotationInvokeName, expression{&ast.BooleanExpr{Value: true}, false})
+	cost, err := e.estimate(callable.FuncDecl)
+	if err != nil {
+		return 0, err
+	}
+	return cost + 10, nil
 }
 
 func (e *Estimator) estimate(expr ast.Expr) (int64, error) {
@@ -330,6 +405,20 @@ func (e *Estimator) estimate(expr ast.Expr) (int64, error) {
 		}
 		return c + 2, nil
 
+	case *ast.FuncDeclaration:
+		cc, err := e.context()
+		if err != nil {
+			return 0, err
+		}
+		for _, a := range ce.Args {
+			cc.express(a, expression{&ast.BooleanExpr{Value: true}, false})
+		}
+		c, err := e.estimate(ce.Body)
+		if err != nil {
+			return 0, err
+		}
+		return c + int64(len(ce.Args)*6), nil
+
 	default:
 		return 0, nil
 	}
@@ -497,5 +586,9 @@ func NewCatalogueV3() *Catalogue {
 	c.user["value"] = 13
 	c.user["valueOrErrorMessage"] = 13
 
+	c.user["WriteSet"] = 1
+	c.user["TransferSet"] = 1
+	c.user["ScriptTransfer"] = 3
+	c.user["ScriptResult"] = 2
 	return c
 }
