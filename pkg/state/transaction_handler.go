@@ -108,6 +108,7 @@ func newTransactionHandler(
 	genesis crypto.Signature,
 	stor *blockchainEntitiesStorage,
 	settings *settings.BlockchainSettings,
+	sc *scriptCaller,
 ) (*transactionHandler, error) {
 	tc, err := newTransactionChecker(genesis, stor, settings)
 	if err != nil {
@@ -117,7 +118,7 @@ func newTransactionHandler(
 	if err != nil {
 		return nil, err
 	}
-	td, err := newTransactionDiffer(stor, settings)
+	td, err := newTransactionDiffer(stor, settings, sc)
 	if err != nil {
 		return nil, err
 	}

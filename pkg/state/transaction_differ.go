@@ -178,12 +178,11 @@ func (diff *balanceDiff) addInsideBlock(prevDiff *balanceDiff) error {
 
 type differInfo struct {
 	initialisation bool
-	minerPK        crypto.PublicKey
-	blockTime      uint64
+	blockInfo      *proto.BlockInfo
 }
 
 func (i *differInfo) hasMiner() bool {
-	return i.minerPK != (crypto.PublicKey{})
+	return i.blockInfo.GeneratorPublicKey != (crypto.PublicKey{})
 }
 
 type txDiff map[string]balanceDiff
@@ -228,10 +227,11 @@ func (diff txDiff) appendBalanceDiff(key []byte, balanceDiff balanceDiff) error 
 type transactionDiffer struct {
 	stor     *blockchainEntitiesStorage
 	settings *settings.BlockchainSettings
+	sc       *scriptCaller
 }
 
-func newTransactionDiffer(stor *blockchainEntitiesStorage, settings *settings.BlockchainSettings) (*transactionDiffer, error) {
-	return &transactionDiffer{stor, settings}, nil
+func newTransactionDiffer(stor *blockchainEntitiesStorage, settings *settings.BlockchainSettings, sc *scriptCaller) (*transactionDiffer, error) {
+	return &transactionDiffer{stor, settings, sc}, nil
 }
 
 func (td *transactionDiffer) calculateTxFee(txFee uint64) (uint64, error) {
@@ -244,7 +244,7 @@ func (td *transactionDiffer) calculateTxFee(txFee uint64) (uint64, error) {
 
 // minerPayout adds current fee part of given tx to txDiff.
 func (td *transactionDiffer) minerPayout(diff txDiff, fee uint64, info *differInfo, feeAsset []byte) error {
-	minerAddr, err := proto.NewAddressFromPublicKey(td.settings.AddressSchemeCharacter, info.minerPK)
+	minerAddr, err := proto.NewAddressFromPublicKey(td.settings.AddressSchemeCharacter, info.blockInfo.GeneratorPublicKey)
 	if err != nil {
 		return err
 	}
@@ -280,7 +280,7 @@ func (td *transactionDiffer) createDiffPayment(transaction proto.Transaction, in
 	}
 	diff := newTxDiff()
 	updateMinIntermediateBalance := false
-	if info.blockTime >= td.settings.CheckTempNegativeAfterTime {
+	if info.blockInfo.Timestamp >= td.settings.CheckTempNegativeAfterTime {
 		updateMinIntermediateBalance = true
 	}
 	// Append sender diff.
@@ -335,7 +335,7 @@ func (td *transactionDiffer) handleSponsorship(diff txDiff, fee uint64, feeAsset
 	}
 	// Sponsorship logic.
 	updateMinIntermediateBalance := false
-	if info.blockTime >= td.settings.CheckTempNegativeAfterTime {
+	if info.blockInfo.Timestamp >= td.settings.CheckTempNegativeAfterTime {
 		updateMinIntermediateBalance = true
 	}
 	assetInfo, err := td.stor.assets.newestAssetInfo(feeAsset.ID, !info.initialisation)
@@ -374,7 +374,7 @@ func (td *transactionDiffer) handleSponsorship(diff txDiff, fee uint64, feeAsset
 func (td *transactionDiffer) createDiffTransfer(tx *proto.Transfer, info *differInfo) (txDiff, error) {
 	diff := newTxDiff()
 	updateMinIntermediateBalance := false
-	if info.blockTime >= td.settings.CheckTempNegativeAfterTime {
+	if info.blockInfo.Timestamp >= td.settings.CheckTempNegativeAfterTime {
 		updateMinIntermediateBalance = true
 	}
 	// Append sender diff.
@@ -794,7 +794,7 @@ func (td *transactionDiffer) createDiffMassTransferV1(transaction proto.Transact
 	}
 	diff := newTxDiff()
 	updateMinIntermediateBalance := false
-	if info.blockTime >= td.settings.CheckTempNegativeAfterTime {
+	if info.blockInfo.Timestamp >= td.settings.CheckTempNegativeAfterTime {
 		updateMinIntermediateBalance = true
 	}
 	// Append sender fee diff.

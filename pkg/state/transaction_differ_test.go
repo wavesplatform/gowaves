@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/ride/mockstate"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/util"
 )
@@ -29,7 +30,9 @@ type differTestObjects struct {
 func createDifferTestObjects(t *testing.T) (*differTestObjects, []string) {
 	stor, path, err := createStorageObjects()
 	assert.NoError(t, err, "createStorageObjects() failed")
-	td, err := newTransactionDiffer(stor.entities, settings.MainNetSettings)
+	sc, err := newScriptCaller(&mockstate.State{}, stor.entities, settings.MainNetSettings)
+	assert.NoError(t, err, "newScriptCaller() failed")
+	td, err := newTransactionDiffer(stor.entities, settings.MainNetSettings, sc)
 	assert.NoError(t, err, "newTransactionDiffer() failed")
 	tp, err := newTransactionPerformer(stor.entities, settings.MainNetSettings)
 	assert.NoError(t, err, "newTransactionPerformer() failed")
@@ -37,7 +40,17 @@ func createDifferTestObjects(t *testing.T) (*differTestObjects, []string) {
 }
 
 func defaultDifferInfo(t *testing.T) *differInfo {
-	return &differInfo{false, testGlobal.minerInfo.pk, defaultTimestamp}
+	genSig, err := crypto.NewDigestFromBase58("2eYyRDZwRCuXJhJTfwKYsqVFpBTg8v69RBppZzStWtaR")
+	assert.NoError(t, err)
+	blockInfo := &proto.BlockInfo{
+		Timestamp:           defaultTimestamp,
+		Height:              400000,
+		BaseTarget:          943,
+		GenerationSignature: genSig,
+		Generator:           testGlobal.minerInfo.addr,
+		GeneratorPublicKey:  testGlobal.minerInfo.pk,
+	}
+	return &differInfo{false, blockInfo}
 }
 
 func createGenesis(t *testing.T) *proto.Genesis {

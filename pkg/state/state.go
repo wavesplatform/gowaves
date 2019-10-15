@@ -166,7 +166,7 @@ func newTxAppender(
 	if err != nil {
 		return nil, err
 	}
-	txHandler, err := newTransactionHandler(genesis.BlockSignature, stor, settings)
+	txHandler, err := newTransactionHandler(genesis.BlockSignature, stor, settings, sc)
 	if err != nil {
 		return nil, err
 	}
@@ -390,6 +390,7 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	if err := a.diffStor.saveTxDiff(minerDiff); err != nil {
 		return err
 	}
+	curHeight := params.height + 1
 	scriptsRuns := uint64(0)
 	for _, tx := range params.transactions {
 		// Detect what signatures must be checked for this transaction.
@@ -448,7 +449,7 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 		}
 		scriptsRuns += txScriptsRuns
 		// Create balance diff of this tx.
-		txDiff, err := a.blockDiffer.createTransactionDiff(tx, params.block, params.initialisation)
+		txDiff, err := a.blockDiffer.createTransactionDiff(tx, params.block, curHeight, params.initialisation)
 		if err != nil {
 			return err
 		}
@@ -539,7 +540,7 @@ func (a *txAppender) validateSingleTx(tx proto.Transaction, currentTimestamp, pa
 		return err
 	}
 	// Create and validate balance diff.
-	diff, err := a.txHandler.createDiffTx(tx, &differInfo{initialisation: false, blockTime: currentTimestamp})
+	diff, err := a.txHandler.createDiffTx(tx, &differInfo{false, &proto.BlockInfo{Timestamp: currentTimestamp}})
 	if err != nil {
 		return err
 	}
@@ -587,7 +588,7 @@ func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, pare
 		return err
 	}
 	// Create, validate and save balance diff.
-	diff, err := a.txHandler.createDiffTx(tx, &differInfo{initialisation: false, blockTime: currentTimestamp})
+	diff, err := a.txHandler.createDiffTx(tx, &differInfo{false, &proto.BlockInfo{Timestamp: currentTimestamp}})
 	if err != nil {
 		return err
 	}
