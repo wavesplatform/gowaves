@@ -1,6 +1,7 @@
 package state
 
 import (
+	"fmt"
 	"math"
 	"testing"
 
@@ -61,7 +62,7 @@ func TestAddVote(t *testing.T) {
 	}()
 
 	storage.addBlock(t, blockID0)
-	err = mo.addVote(700000000, blockID0)
+	err = mo.vote(700000000, 99001, 0, blockID0)
 	require.NoError(t, err)
 	votes, err := mo.votes()
 	require.NoError(t, err)
@@ -71,9 +72,10 @@ func TestAddVote(t *testing.T) {
 	votes, err = mo.votes()
 	require.NoError(t, err)
 	assert.Equal(t, uint32(1), votes.increase)
+	assert.Equal(t, uint32(0), votes.decrease)
 
 	storage.addBlock(t, blockID1)
-	err = mo.addVote(500000000, blockID1)
+	err = mo.vote(500000000, 99002, 0, blockID1)
 	require.NoError(t, err)
 	votes, err = mo.votes()
 	require.NoError(t, err)
@@ -86,12 +88,97 @@ func TestAddVote(t *testing.T) {
 	assert.Equal(t, uint32(1), votes.decrease)
 }
 
+func TestRollbackVote(t *testing.T) {
+	mo, storage, path, err := createTestObjects(settings.MainNetSettings)
+	require.NoError(t, err)
+	defer func() {
+		storage.close(t)
+		err = util.CleanTemporaryDirs(path)
+		require.NoError(t, err)
+	}()
+
+	storage.addBlock(t, blockID0)
+	err = mo.vote(700000000, 99001, 0, blockID0)
+	require.NoError(t, err)
+	votes, err := mo.votes()
+	require.NoError(t, err)
+	assert.Equal(t, uint32(1), votes.increase)
+	assert.Equal(t, uint32(0), votes.decrease)
+	storage.flush(t)
+	votes, err = mo.votes()
+	require.NoError(t, err)
+	assert.Equal(t, uint32(1), votes.increase)
+	assert.Equal(t, uint32(0), votes.decrease)
+
+	err = storage.stateDB.rollbackBlock(blockID0)
+	require.NoError(t, err)
+	votes, err = mo.votes()
+	require.NoError(t, err)
+	assert.Equal(t, uint32(0), votes.increase)
+	assert.Equal(t, uint32(0), votes.decrease)
+	storage.flush(t)
+	votes, err = mo.votes()
+	require.NoError(t, err)
+	assert.Equal(t, uint32(0), votes.increase)
+	assert.Equal(t, uint32(0), votes.decrease)
+}
+
+func TestFinishRewardVoting(t *testing.T) {
+	s := settings.MainNetSettings
+	s.FunctionalitySettings.BlockRewardTerm = 5
+	s.FunctionalitySettings.BlockRewardVotingPeriod = 2
+	mo, storage, path, err := createTestObjects(s)
+	require.NoError(t, err)
+	defer func() {
+		storage.close(t)
+		err = util.CleanTemporaryDirs(path)
+		assert.NoError(t, err, "failed to clean test data dirs")
+	}()
+
+	ids := genRandBlockIds(t, 10)
+	var initial uint64 = 600000000
+	var up int64 = 700000000
+	var down int64 = 500000000
+	for i, step := range []struct {
+		vote     int64
+		increase uint32
+		decrease uint32
+		reward   uint64
+	}{
+		{up, 0, 0, initial},
+		{up, 0, 0, initial},
+		{up, 1, 0, initial},
+		{up, 2, 0, initial},
+		{down, 0, 0, initial + 50000000},
+		{down, 0, 0, initial + 50000000},
+		{down, 0, 0, initial + 50000000},
+		{down, 0, 1, initial + 50000000},
+		{down, 0, 2, initial + 50000000},
+		{up, 0, 0, initial},
+	} {
+		h := uint64(i + 11)
+		msg := fmt.Sprintf("height %d", h)
+		id := ids[i]
+		storage.addBlock(t, id)
+		err = mo.vote(step.vote, h, 10, id)
+		require.NoError(t, err, msg)
+		votes, err := mo.votes()
+		require.NoError(t, err, msg)
+		assert.Equal(t, step.increase, votes.increase, "increase: "+msg)
+		assert.Equal(t, step.decrease, votes.decrease, "decrease: "+msg)
+		storage.flush(t)
+		reward, err := mo.reward()
+		require.NoError(t, err, msg)
+		assert.Equal(t, step.reward, reward, fmt.Sprintf("unexpected reward %d: %s", reward, msg))
+	}
+}
+
 func createTestObjects(sets *settings.BlockchainSettings) (*monetaryPolicy, *testStorageObjects, []string, error) {
 	storage, path, err := createStorageObjects()
 	if err != nil {
 		return nil, nil, path, err
 	}
-	mp, err := newMonetaryPolicy(storage.db, storage.dbBatch, storage.hs, sets)
+	mp, err := newMonetaryPolicy(storage.db, storage.hs, sets)
 	if err != nil {
 		return nil, storage, path, err
 	}

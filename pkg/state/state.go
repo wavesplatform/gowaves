@@ -81,7 +81,7 @@ func newBlockchainEntitiesStorage(hs *historyStorage, sets *settings.BlockchainS
 	if err != nil {
 		return nil, err
 	}
-	features, err := newFeatures(hs.db, hs.dbBatch, hs, sets, settings.FeaturesInfo)
+	features, err := newFeatures(hs.db, hs, sets, settings.FeaturesInfo)
 	if err != nil {
 		return nil, err
 	}
@@ -1377,6 +1377,7 @@ func (s *stateManager) needToBreakAddingBlocks(curHeight uint64, task *breakerTa
 		task.finishVotingPeriod = true
 		return true, nil
 	}
+	//TODO: add voting and reward update
 	return false, nil
 }
 

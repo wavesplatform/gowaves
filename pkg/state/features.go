@@ -72,7 +72,6 @@ func (r *votesFeaturesRecord) unmarshalBinary(data []byte) error {
 
 type features struct {
 	db                  keyvalue.IterableKeyVal
-	dbBatch             keyvalue.Batch
 	hs                  *historyStorage
 	settings            *settings.BlockchainSettings
 	definedFeaturesInfo map[settings.Feature]settings.FeatureInfo
@@ -80,12 +79,11 @@ type features struct {
 
 func newFeatures(
 	db keyvalue.IterableKeyVal,
-	dbBatch keyvalue.Batch,
 	hs *historyStorage,
 	settings *settings.BlockchainSettings,
 	definedFeaturesInfo map[settings.Feature]settings.FeatureInfo,
 ) (*features, error) {
-	return &features{db, dbBatch, hs, settings, definedFeaturesInfo}, nil
+	return &features{db, hs, settings, definedFeaturesInfo}, nil
 }
 
 // addVote adds vote for feature by its featureID at given blockID.

@@ -59,10 +59,10 @@ type FunctionalitySettings struct {
 	MaxBaseTarget uint64
 
 	// Block Reward
-	BlockRewardTerm    uint32
-	InitialBlockReward uint64
-	Increment          uint64
-	VotingPeriod       uint32
+	BlockRewardTerm         uint64
+	InitialBlockReward      uint64
+	BlockRewardIncrement    uint64
+	BlockRewardVotingPeriod uint64
 }
 
 func (f *FunctionalitySettings) VotesForFeatureElection(height uint64) uint64 {
@@ -137,8 +137,8 @@ var (
 			MaxBaseTarget:                                 math.MaxUint64,
 			BlockRewardTerm:                               100000,
 			InitialBlockReward:                            600000000,
-			Increment:                                     50000000,
-			VotingPeriod:                                  10000,
+			BlockRewardIncrement:                          50000000,
+			BlockRewardVotingPeriod:                       10000,
 		},
 		GenesisGetter: MainnetGenesis,
 	}
@@ -172,8 +172,8 @@ var (
 			MaxBaseTarget:                                 math.MaxUint64,
 			BlockRewardTerm:                               100000,
 			InitialBlockReward:                            600000000,
-			Increment:                                     50000000,
-			VotingPeriod:                                  10000,
+			BlockRewardIncrement:                          50000000,
+			BlockRewardVotingPeriod:                       10000,
 		},
 		GenesisGetter: TestnetGenesis,
 	}
