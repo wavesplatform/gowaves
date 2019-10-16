@@ -201,16 +201,6 @@ func (diff txDiff) balancesChanges() []balanceChanges {
 	return changes
 }
 
-/* TODO: unused code, need to write tests if it is needed or otherwise remove it.
-func (diff txDiff) keys() []string {
-	keys := make([]string, 0, len(diff))
-	for k := range diff {
-		keys = append(keys, k)
-	}
-	return keys
-}
-*/
-
 func (diff txDiff) appendBalanceDiff(key []byte, balanceDiff balanceDiff) error {
 	keyStr := string(key)
 	if prevDiff, ok := diff[keyStr]; ok {

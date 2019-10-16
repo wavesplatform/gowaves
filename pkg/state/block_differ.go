@@ -2,6 +2,7 @@ package state
 
 import (
 	"bytes"
+	"math"
 
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
@@ -97,20 +98,20 @@ func (d *blockDiffer) txDiffFromFees(addr proto.Address, distr *feeDistribution)
 	return diff, nil
 }
 
-func (d *blockDiffer) createPrevBlockMinerFeeDiff(prevBlockID crypto.Signature, minerPK crypto.PublicKey) (txDiff, error) {
+func (d *blockDiffer) createPrevBlockMinerFeeDiff(prevBlockID crypto.Signature, minerPK crypto.PublicKey) (txDiff, proto.Address, error) {
 	feeDistr, err := d.prevBlockFeeDistr(prevBlockID)
 	if err != nil {
-		return txDiff{}, err
+		return txDiff{}, proto.Address{}, err
 	}
 	minerAddr, err := proto.NewAddressFromPublicKey(d.settings.AddressSchemeCharacter, minerPK)
 	if err != nil {
-		return txDiff{}, err
+		return txDiff{}, proto.Address{}, err
 	}
 	diff, err := d.txDiffFromFees(minerAddr, feeDistr)
 	if err != nil {
-		return txDiff{}, err
+		return txDiff{}, minerAddr, err
 	}
-	return diff, nil
+	return diff, minerAddr, nil
 }
 
 func (d *blockDiffer) createTransactionDiff(tx proto.Transaction, block *proto.BlockHeader, initialisation bool) (txDiff, error) {
@@ -145,14 +146,41 @@ func (d *blockDiffer) saveCurFeeDistr(block *proto.BlockHeader) error {
 func (d *blockDiffer) createMinerDiff(block *proto.BlockHeader, hasParent bool) (txDiff, error) {
 	var err error
 	var minerDiff txDiff
+	var minerAddr proto.Address
 	if hasParent {
-		minerDiff, err = d.createPrevBlockMinerFeeDiff(block.Parent, block.GenPublicKey)
+		minerDiff, minerAddr, err = d.createPrevBlockMinerFeeDiff(block.Parent, block.GenPublicKey)
 		if err != nil {
 			return txDiff{}, err
 		}
 		d.appendBlockInfoToTxDiff(minerDiff, block)
 	}
+	err = d.xxx(minerDiff, minerAddr)
+	if err != nil {
+		return txDiff{}, err
+	}
 	return minerDiff, nil
+}
+
+func (d *blockDiffer) xxx(diff txDiff, addr proto.Address) error {
+	activated, err := d.stor.features.isActivated(int16(settings.BlockReward))
+	if err != nil {
+		return err
+	}
+	if activated {
+		reward, err := d.stor.monetaryPolicy.reward()
+		if err != nil {
+			return err
+		}
+		if reward > math.MaxInt64 {
+			return errors.New("reward overflows int64")
+		}
+		wavesKey := wavesBalanceKey{addr}
+		err = diff.appendBalanceDiff(wavesKey.bytes(), balanceDiff{balance: int64(reward)})
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (d *blockDiffer) reset() {

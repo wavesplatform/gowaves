@@ -16,6 +16,7 @@ const (
 
 var (
 	rewardVotesKeyBytes = []byte{rewardVotesKey}
+	blockRewardKeyBytes = []byte{blockRewardKey}
 )
 
 type blockRewardRecord struct {
@@ -68,9 +69,8 @@ func newMonetaryPolicy(db keyvalue.IterableKeyVal, hs *historyStorage, settings 
 }
 
 func (m *monetaryPolicy) reward() (uint64, error) {
-	key := []byte{blockRewardKey}
 	var record blockRewardRecord
-	b, err := m.hs.freshLatestEntryData(key, true)
+	b, err := m.hs.freshLatestEntryData(blockRewardKeyBytes, true)
 	if err == keyvalue.ErrNotFound || err == errEmptyHist {
 		return m.settings.InitialBlockReward, nil
 	}
@@ -135,6 +135,42 @@ func (m *monetaryPolicy) vote(desired int64, height, activation uint64, blockID 
 		return err
 	}
 	return m.hs.addNewEntry(rewardVotes, rewardVotesKeyBytes, recordBytes, blockID)
+}
+
+func (m *monetaryPolicy) updateBlockReward(h uint64, blockID crypto.Signature) error {
+	votes, err := m.votes()
+	if err != nil {
+		return err
+	}
+	reward, err := m.reward()
+	if err != nil {
+		return err
+	}
+	threshold := uint32(m.settings.BlockRewardVotingPeriod)/2 + 1
+	switch {
+	case votes.increase >= threshold:
+		reward += m.settings.BlockRewardIncrement
+	case votes.decrease >= threshold:
+		reward -= m.settings.BlockRewardIncrement
+	}
+	record := blockRewardRecord{reward}
+	recordBytes, err := record.marshalBinary()
+	if err != nil {
+		return err
+	}
+	err = m.hs.addNewEntry(blockReward, blockRewardKeyBytes, recordBytes, blockID)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func blockRewardTermBoundaries(height, activation uint64, settings settings.FunctionalitySettings) (uint64, uint64) {
+	diff := height - activation
+	next := activation + ((diff/settings.BlockRewardTerm)+1)*settings.BlockRewardTerm
+	start := next - settings.BlockRewardVotingPeriod
+	end := next - 1
+	return start, end
 }
 
 func isVotingPeriod(height, activation uint64, settings settings.FunctionalitySettings) bool {

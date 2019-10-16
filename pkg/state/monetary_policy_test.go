@@ -145,16 +145,16 @@ func TestFinishRewardVoting(t *testing.T) {
 		decrease uint32
 		reward   uint64
 	}{
-		{up, 0, 0, initial},
-		{up, 0, 0, initial},
-		{up, 1, 0, initial},
-		{up, 2, 0, initial},
-		{down, 0, 0, initial + 50000000},
-		{down, 0, 0, initial + 50000000},
-		{down, 0, 0, initial + 50000000},
-		{down, 0, 1, initial + 50000000},
-		{down, 0, 2, initial + 50000000},
-		{up, 0, 0, initial},
+		{up, 0, 0, initial},              //11
+		{up, 0, 0, initial},              //12
+		{up, 1, 0, initial},              //13
+		{up, 2, 0, initial},              //14 end of term
+		{down, 0, 0, initial + 50000000}, //15 start of term
+		{down, 0, 0, initial + 50000000}, //16
+		{down, 0, 0, initial + 50000000}, //17
+		{down, 0, 1, initial + 50000000}, //18
+		{down, 0, 2, initial + 50000000}, //19 end of term
+		{up, 0, 0, initial},              //20 start of term
 	} {
 		h := uint64(i + 11)
 		msg := fmt.Sprintf("height %d", h)
@@ -170,6 +170,11 @@ func TestFinishRewardVoting(t *testing.T) {
 		reward, err := mo.reward()
 		require.NoError(t, err, msg)
 		assert.Equal(t, step.reward, reward, fmt.Sprintf("unexpected reward %d: %s", reward, msg))
+		_, end := blockRewardTermBoundaries(h, 10, s.FunctionalitySettings)
+		if h == end {
+			err = mo.updateBlockReward(h, id)
+			require.NoError(t, err)
+		}
 	}
 }
 
