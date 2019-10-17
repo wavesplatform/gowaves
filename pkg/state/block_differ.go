@@ -154,14 +154,14 @@ func (d *blockDiffer) createMinerDiff(block *proto.BlockHeader, hasParent bool) 
 		}
 		d.appendBlockInfoToTxDiff(minerDiff, block)
 	}
-	err = d.xxx(minerDiff, minerAddr)
+	err = d.xxx(minerDiff, minerAddr, block)
 	if err != nil {
 		return txDiff{}, err
 	}
 	return minerDiff, nil
 }
 
-func (d *blockDiffer) xxx(diff txDiff, addr proto.Address) error {
+func (d *blockDiffer) xxx(diff txDiff, addr proto.Address, block *proto.BlockHeader) error {
 	activated, err := d.stor.features.isActivated(int16(settings.BlockReward))
 	if err != nil {
 		return err
@@ -179,6 +179,7 @@ func (d *blockDiffer) xxx(diff txDiff, addr proto.Address) error {
 		if err != nil {
 			return err
 		}
+		d.appendBlockInfoToTxDiff(diff, block)
 	}
 	return nil
 }
