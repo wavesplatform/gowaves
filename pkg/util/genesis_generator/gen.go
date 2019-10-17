@@ -16,13 +16,12 @@ func Genesis(timestamp proto.Timestamp, transactions proto.Transactions) (*proto
 			BaseTarget:   153722867,
 			GenSignature: crypto.MustDigestFromBase58("11111111111111111111111111111111"),
 		},
+		proto.GenesisBlockVersion,
 	)
 
 	if err != nil {
 		return nil, err
 	}
-
-	block.Version = proto.GenesisBlockVersion
 
 	kp := proto.NewKeyPair([]byte{})
 	sk, err := kp.Private()
