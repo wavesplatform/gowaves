@@ -43,7 +43,7 @@ func protoArgToArgExpr(arg proto.Argument) (Expr, error) {
 	}
 }
 
-func (a *Script) CallFunction(scheme proto.Scheme, state types.SmartState, tx *proto.InvokeScriptV1) (*proto.ScriptResult, error) {
+func (a *Script) CallFunction(scheme proto.Scheme, state types.SmartState, tx *proto.InvokeScriptV1, this, lastBlock Expr) (*proto.ScriptResult, error) {
 	if !a.IsDapp() {
 		return nil, errors.New("can't call Script.CallFunction on non DApp")
 	}
@@ -64,6 +64,8 @@ func (a *Script) CallFunction(scheme proto.Scheme, state types.SmartState, tx *p
 		return nil, err
 	}
 	scope := NewScope(3, scheme, state)
+	scope.SetThis(this)
+	scope.SetLastBlockInfo(lastBlock)
 	scope.SetHeight(height)
 
 	// assign of global vars and function
@@ -108,11 +110,7 @@ func (a *Script) CallFunction(scheme proto.Scheme, state types.SmartState, tx *p
 	return resExpr.ConvertToProto()
 }
 
-func (a *Script) Verify(scheme byte, state types.SmartState, transaction proto.Transaction) (bool, error) {
-	txVars, err := NewVariablesFromTransaction(scheme, transaction)
-	if err != nil {
-		return false, err
-	}
+func (a *Script) Verify(scheme byte, state types.SmartState, object map[string]Expr, this, lastBlock Expr) (bool, error) {
 	height, err := state.AddingBlockHeight()
 	if err != nil {
 		return false, err
@@ -122,13 +120,15 @@ func (a *Script) Verify(scheme byte, state types.SmartState, transaction proto.T
 			return false, errors.New("verify function not defined")
 		}
 		scope := NewScope(3, scheme, state)
+		scope.SetThis(this)
+		scope.SetLastBlockInfo(lastBlock)
 		scope.SetHeight(height)
 
 		fn := a.DApp.Verifier
 		// pass function arguments
 		curScope := scope //.Clone()
 		// annotated tx type
-		curScope.AddValue(fn.AnnotationInvokeName, NewObject(txVars))
+		curScope.AddValue(fn.AnnotationInvokeName, NewObject(object))
 		// here should be only assign of vars and function
 		for _, expr := range a.DApp.Declarations {
 			_, err = expr.Evaluate(curScope)
@@ -139,7 +139,9 @@ func (a *Script) Verify(scheme byte, state types.SmartState, transaction proto.T
 		return evalAsBool(fn.FuncDecl.Body, curScope)
 	} else {
 		scope := NewScope(a.Version, scheme, state)
-		scope.AddValue("tx", NewObject(txVars))
+		scope.SetTransaction(object)
+		scope.SetThis(this)
+		scope.SetLastBlockInfo(lastBlock)
 		scope.SetHeight(height)
 		return evalAsBool(a.Verifier, scope)
 	}

@@ -7,7 +7,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/consensus"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"github.com/wavesplatform/gowaves/pkg/ride/mockstate"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/util"
 )
@@ -23,9 +22,7 @@ func createBlockDiffer(t *testing.T) (*blockDifferTestObjects, []string) {
 	assert.NoError(t, err, "createStorageObjects() failed")
 	genesis, err := sets.GenesisGetter.Get()
 	assert.NoError(t, err, "GenesisGetter.Get() failed")
-	sc, err := newScriptCaller(&mockstate.State{}, stor.entities, settings.MainNetSettings)
-	assert.NoError(t, err, "newScriptCaller() failed")
-	handler, err := newTransactionHandler(genesis.BlockSignature, stor.entities, sets, sc)
+	handler, err := newTransactionHandler(genesis.BlockSignature, stor.entities, sets)
 	assert.NoError(t, err, "newTransactionHandler() failed")
 	blockDiffer, err := newBlockDiffer(handler, stor.entities, sets)
 	assert.NoError(t, err, "newBlockDiffer() failed")

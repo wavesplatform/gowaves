@@ -61,15 +61,19 @@ func (d *blockDiffer) prevBlockFeeDistr(prevBlock crypto.Signature) (*feeDistrib
 	return d.stor.blocksInfo.feeDistribution(prevBlock)
 }
 
+func (d *blockDiffer) appendBlockInfoToBalanceDiff(diff *balanceDiff, block *proto.BlockHeader) {
+	allowLeasedTransfer := true
+	if block.Timestamp >= d.settings.AllowLeasedBalanceTransferUntilTime {
+		allowLeasedTransfer = false
+	}
+	diff.allowLeasedTransfer = allowLeasedTransfer
+	diff.blockID = block.BlockSignature
+}
+
 func (d *blockDiffer) appendBlockInfoToTxDiff(diff txDiff, block *proto.BlockHeader) {
 	for key := range diff {
 		balanceDiff := diff[key]
-		allowLeasedTransfer := true
-		if block.Timestamp >= d.settings.AllowLeasedBalanceTransferUntilTime {
-			allowLeasedTransfer = false
-		}
-		balanceDiff.allowLeasedTransfer = allowLeasedTransfer
-		balanceDiff.blockID = block.BlockSignature
+		d.appendBlockInfoToBalanceDiff(&balanceDiff, block)
 		diff[key] = balanceDiff
 	}
 }

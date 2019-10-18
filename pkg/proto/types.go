@@ -40,6 +40,11 @@ const (
 	MaxOrderTTL          = uint64((30 * 24 * time.Hour) / time.Millisecond)
 	maxKeySize           = 100
 	maxValueSize         = 32767
+
+	maxInvokeTransfers           = 10
+	maxInvokeWrites              = 100
+	maxInvokeWriteKeySizeInBytes = 100
+	maxWriteSetSizeInBytes       = 5 * 1024
 )
 
 type Timestamp = uint64
@@ -2457,8 +2462,51 @@ func (c FunctionCall) binarySize() int {
 }
 
 type ScriptResult struct {
-	Transfers []ScriptResultTransfer
-	Writes    []DataEntry
+	Transfers TransferSet
+	Writes    WriteSet
+}
+
+func (sr *ScriptResult) Valid() error {
+	if err := sr.Transfers.Valid(); err != nil {
+		return err
+	}
+	if err := sr.Writes.Valid(); err != nil {
+		return err
+	}
+	return nil
+}
+
+type TransferSet []ScriptResultTransfer
+
+func (ts *TransferSet) Valid() error {
+	if len(*ts) > maxInvokeTransfers {
+		return errors.Errorf("transfer set of size %d is greater than allowed maximum of %d\n", len(*ts), maxInvokeTransfers)
+	}
+	for _, tr := range *ts {
+		if tr.Amount <= 0 {
+			return errors.New("transfer amount is <= 0")
+		}
+	}
+	return nil
+}
+
+type WriteSet []DataEntry
+
+func (ws *WriteSet) Valid() error {
+	if len(*ws) > maxInvokeWrites {
+		return errors.Errorf("write set of size %d is greater than allowed maximum of %d\n", len(*ws), maxInvokeWrites)
+	}
+	totalSize := 0
+	for _, entry := range *ws {
+		if len(utf16.Encode([]rune(entry.GetKey()))) > maxInvokeWriteKeySizeInBytes {
+			return errors.New("key is too large")
+		}
+		totalSize += entry.binarySize()
+	}
+	if totalSize > maxWriteSetSizeInBytes {
+		return errors.Errorf("total write set size %d is greater than maximum %d\n", totalSize, maxWriteSetSizeInBytes)
+	}
+	return nil
 }
 
 type ScriptResultTransfer struct {

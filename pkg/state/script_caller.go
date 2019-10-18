@@ -6,7 +6,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride/evaluator/ast"
-	"github.com/wavesplatform/gowaves/pkg/ride/evaluator/evaluate"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/types"
 )
@@ -31,7 +30,7 @@ func newScriptCaller(
 }
 
 func (a *scriptCaller) callVerifyScript(script ast.Script, obj map[string]ast.Expr, this, lastBlock ast.Expr) error {
-	ok, err := evaluate.Verify(a.settings.AddressSchemeCharacter, a.state, &script, obj, this, lastBlock)
+	ok, err := script.Verify(a.settings.AddressSchemeCharacter, a.state, obj, this, lastBlock)
 	if err != nil {
 		return errors.Wrap(err, "verifier script failed")
 	}
@@ -105,4 +104,18 @@ func (a *scriptCaller) callAssetScript(tx proto.Transaction, assetID crypto.Dige
 		return errors.Errorf("asset script; transaction ID %s: %v\n", base58.Encode(id), err)
 	}
 	return nil
+}
+
+func (a *scriptCaller) invokeFunction(tx *proto.InvokeScriptV1, lastBlockInfo *proto.BlockInfo, initialisation bool) (*proto.ScriptResult, error) {
+	scriptAddr, err := recipientToAddress(tx.ScriptRecipient, a.stor.aliases, !initialisation)
+	if err != nil {
+		return nil, err
+	}
+	script, err := a.stor.scriptsStorage.newestScriptByAddr(*scriptAddr, !initialisation)
+	if err != nil {
+		return nil, err
+	}
+	this := ast.NewAddressFromProtoAddress(*scriptAddr)
+	lastBlock := ast.NewObjectFromBlockInfo(*lastBlockInfo)
+	return script.CallFunction(a.settings.AddressSchemeCharacter, a.state, tx, this, lastBlock)
 }

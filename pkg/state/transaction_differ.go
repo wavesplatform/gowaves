@@ -143,7 +143,7 @@ func (diff *balanceDiff) addCommon(prevDiff *balanceDiff) error {
 func (diff *balanceDiff) addInsideTx(prevDiff *balanceDiff) error {
 	if diff.updateMinIntermediateBalance {
 		// If updateMinIntermediateBalance is true, this tx may produce negative intermediate changes.
-		// It is only true for few tx types: Payment, Transfer, MassTransfer.
+		// It is only true for few tx types: Payment, Transfer, MassTransfer, InvokeScript.
 		// Add current diff to previous minBalance (aka intermediate change) to get newMinBalance.
 		newMinBalance, err := util.AddInt64(diff.balance, prevDiff.minBalance)
 		if err != nil {
@@ -227,11 +227,10 @@ func (diff txDiff) appendBalanceDiff(key []byte, balanceDiff balanceDiff) error 
 type transactionDiffer struct {
 	stor     *blockchainEntitiesStorage
 	settings *settings.BlockchainSettings
-	sc       *scriptCaller
 }
 
-func newTransactionDiffer(stor *blockchainEntitiesStorage, settings *settings.BlockchainSettings, sc *scriptCaller) (*transactionDiffer, error) {
-	return &transactionDiffer{stor, settings, sc}, nil
+func newTransactionDiffer(stor *blockchainEntitiesStorage, settings *settings.BlockchainSettings) (*transactionDiffer, error) {
+	return &transactionDiffer{stor, settings}, nil
 }
 
 func (td *transactionDiffer) calculateTxFee(txFee uint64) (uint64, error) {
@@ -926,6 +925,32 @@ func (td *transactionDiffer) createDiffSetAssetScriptV1(transaction proto.Transa
 		if err := td.minerPayout(diff, tx.Fee, info, nil); err != nil {
 			return txDiff{}, errors.Wrap(err, "failed to append miner payout")
 		}
+	}
+	return diff, nil
+}
+
+func (td *transactionDiffer) createDiffInvokeScriptV1(transaction proto.Transaction, info *differInfo) (txDiff, error) {
+	tx, ok := transaction.(*proto.InvokeScriptV1)
+	if !ok {
+		return txDiff{}, errors.New("failed to convert interface to InvokeScriptV1 transaction")
+	}
+	updateMinIntermediateBalance := false
+	if info.blockInfo.Timestamp >= td.settings.CheckTempNegativeAfterTime {
+		updateMinIntermediateBalance = true
+	}
+	diff := newTxDiff()
+	// Append sender diff.
+	senderAddr, err := proto.NewAddressFromPublicKey(td.settings.AddressSchemeCharacter, tx.SenderPK)
+	if err != nil {
+		return txDiff{}, err
+	}
+	senderFeeKey := byteKey(senderAddr, tx.FeeAsset.ToID())
+	senderFeeBalanceDiff := -int64(tx.Fee)
+	if err := diff.appendBalanceDiff(senderFeeKey, newBalanceDiff(senderFeeBalanceDiff, 0, 0, updateMinIntermediateBalance)); err != nil {
+		return txDiff{}, err
+	}
+	if err := td.handleSponsorship(diff, tx.Fee, tx.FeeAsset, info); err != nil {
+		return txDiff{}, err
 	}
 	return diff, nil
 }

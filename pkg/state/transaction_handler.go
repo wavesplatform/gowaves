@@ -101,6 +101,9 @@ func buildHanndles(tc *transactionChecker, tp *transactionPerformer, td *transac
 		proto.TransactionTypeVersion{Type: proto.SetAssetScriptTransaction, Version: 1}: txHandleFuncs{
 			tc.checkSetAssetScriptV1, tp.performSetAssetScriptV1, td.createDiffSetAssetScriptV1, tf.minerFeeSetAssetScriptV1,
 		},
+		proto.TransactionTypeVersion{Type: proto.InvokeScriptTransaction, Version: 1}: txHandleFuncs{
+			tc.checkInvokeScriptV1, nil, td.createDiffInvokeScriptV1, tf.minerFeeInvokeScriptV1,
+		},
 	}
 }
 
@@ -108,7 +111,6 @@ func newTransactionHandler(
 	genesis crypto.Signature,
 	stor *blockchainEntitiesStorage,
 	settings *settings.BlockchainSettings,
-	sc *scriptCaller,
 ) (*transactionHandler, error) {
 	tc, err := newTransactionChecker(genesis, stor, settings)
 	if err != nil {
@@ -118,7 +120,7 @@ func newTransactionHandler(
 	if err != nil {
 		return nil, err
 	}
-	td, err := newTransactionDiffer(stor, settings, sc)
+	td, err := newTransactionDiffer(stor, settings)
 	if err != nil {
 		return nil, err
 	}

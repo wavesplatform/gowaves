@@ -161,11 +161,7 @@ func (tc *transactionChecker) checkTimestamps(txTimestamp, blockTimestamp, prevB
 }
 
 func (tc *transactionChecker) checkAsset(asset *proto.OptionalAsset, initialisation bool) error {
-	if !asset.Present {
-		// Waves always valid.
-		return nil
-	}
-	if _, err := tc.stor.assets.newestAssetInfo(asset.ID, !initialisation); err != nil {
+	if !tc.stor.assets.newestAssetExists(*asset, !initialisation) {
 		return errors.Errorf("unknown asset %s", asset.ID.String())
 	}
 	return nil
@@ -944,6 +940,40 @@ func (tc *transactionChecker) checkSetAssetScriptV1(transaction proto.Transactio
 	}
 	if err := tc.checkScript(tx.Script); err != nil {
 		return nil, errors.Errorf("checkScript(): %v\n", err)
+	}
+	return smartAssets, nil
+}
+
+func (tc *transactionChecker) checkInvokeScriptV1(transaction proto.Transaction, info *checkerInfo) ([]crypto.Digest, error) {
+	tx, ok := transaction.(*proto.InvokeScriptV1)
+	if !ok {
+		return nil, errors.New("failed to convert interface to InvokeScriptV1 transaction")
+	}
+	if err := tc.checkTimestamps(tx.Timestamp, info.currentTimestamp, info.parentTimestamp); err != nil {
+		return nil, errors.Wrap(err, "invalid timestamp")
+	}
+	activated, err := tc.stor.features.isActivated(int16(settings.Ride4DApps))
+	if err != nil {
+		return nil, err
+	}
+	if !activated {
+		return nil, errors.New("can not use InvokeScript before Ride4DApps activation")
+	}
+	if err := tc.checkFeeAsset(&tx.FeeAsset, info.initialisation); err != nil {
+		return nil, err
+	}
+	var paymentAssets []proto.OptionalAsset
+	for _, payment := range tx.Payments {
+		if err := tc.checkAsset(&payment.Asset, info.initialisation); err != nil {
+			return nil, errors.Wrap(err, "bad payment asset")
+		}
+		paymentAssets = append(paymentAssets, payment.Asset)
+	}
+	// Only payment assets' scripts are called before invoke function and with
+	// state that doesn't have any changes caused by this invokeScript tx yet.
+	smartAssets, err := tc.smartAssets(paymentAssets, info.initialisation)
+	if err != nil {
+		return nil, err
 	}
 	return smartAssets, nil
 }

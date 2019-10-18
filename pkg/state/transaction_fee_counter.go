@@ -226,3 +226,11 @@ func (tf *transactionFeeCounter) minerFeeSetAssetScriptV1(transaction proto.Tran
 	}
 	return tf.minerFee(distr, tx.Fee, proto.OptionalAsset{Present: false})
 }
+
+func (tf *transactionFeeCounter) minerFeeInvokeScriptV1(transaction proto.Transaction, distr *feeDistribution) error {
+	tx, ok := transaction.(*proto.InvokeScriptV1)
+	if !ok {
+		return errors.New("failed to convert interface to InvokeScriptV1 tx")
+	}
+	return tf.minerFee(distr, tx.Fee, tx.FeeAsset)
+}

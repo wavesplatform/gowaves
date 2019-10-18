@@ -133,6 +133,7 @@ func (s *blockchainEntitiesStorage) flush(initialisation bool) error {
 type txAppender struct {
 	state types.SmartState
 	sc    *scriptCaller
+	ia    *invokeApplier
 
 	rw *blockReadWriter
 
@@ -166,7 +167,7 @@ func newTxAppender(
 	if err != nil {
 		return nil, err
 	}
-	txHandler, err := newTransactionHandler(genesis.BlockSignature, stor, settings, sc)
+	txHandler, err := newTransactionHandler(genesis.BlockSignature, stor, settings)
 	if err != nil {
 		return nil, err
 	}
@@ -178,6 +179,7 @@ func newTxAppender(
 	if err != nil {
 		return nil, err
 	}
+	ia := newInvokeApplier(state, sc, stor, settings, blockDiffer, diffStor)
 	diffApplier, err := newDiffApplier(stor.balances)
 	if err != nil {
 		return nil, err
@@ -185,6 +187,7 @@ func newTxAppender(
 	return &txAppender{
 		state:       state,
 		sc:          sc,
+		ia:          ia,
 		rw:          rw,
 		stor:        stor,
 		settings:    settings,
@@ -448,14 +451,30 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 			return err
 		}
 		scriptsRuns += txScriptsRuns
-		// Create balance diff of this tx.
-		txDiff, err := a.blockDiffer.createTransactionDiff(tx, params.block, curHeight, params.initialisation)
-		if err != nil {
-			return err
-		}
-		// Save balance diff of this tx.
-		if err := a.diffStor.saveTxDiff(txDiff); err != nil {
-			return err
+		if tx.GetTypeVersion().Type == proto.InvokeScriptTransaction {
+			invokeTx, ok := tx.(*proto.InvokeScriptV1)
+			if !ok {
+				return errors.New("failed to convert InvokeScriptTransaction to type InvokeScriptV1")
+			}
+			invokeInfo := &invokeAddlInfo{
+				previousScriptRuns: txScriptsRuns,
+				initialisation:     params.initialisation,
+				block:              params.block,
+				height:             curHeight,
+			}
+			if err := a.ia.applyInvokeScriptV1(invokeTx, invokeInfo); err != nil {
+				return errors.Wrap(err, "failed to apply InvokeScript transaction to state")
+			}
+		} else {
+			// Create balance diff of this tx.
+			txDiff, err := a.blockDiffer.createTransactionDiff(tx, params.block, curHeight, params.initialisation)
+			if err != nil {
+				return err
+			}
+			// Save balance diff of this tx.
+			if err := a.diffStor.saveTxDiff(txDiff); err != nil {
+				return err
+			}
 		}
 		// Count current tx fee.
 		if err := a.blockDiffer.countMinerFee(tx); err != nil {
@@ -540,7 +559,10 @@ func (a *txAppender) validateSingleTx(tx proto.Transaction, currentTimestamp, pa
 		return err
 	}
 	// Create and validate balance diff.
-	diff, err := a.txHandler.createDiffTx(tx, &differInfo{false, &proto.BlockInfo{Timestamp: currentTimestamp}})
+	diff, err := a.txHandler.createDiffTx(tx, &differInfo{
+		initialisation: false,
+		blockInfo:      &proto.BlockInfo{Timestamp: currentTimestamp},
+	})
 	if err != nil {
 		return err
 	}
@@ -588,7 +610,10 @@ func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, pare
 		return err
 	}
 	// Create, validate and save balance diff.
-	diff, err := a.txHandler.createDiffTx(tx, &differInfo{false, &proto.BlockInfo{Timestamp: currentTimestamp}})
+	diff, err := a.txHandler.createDiffTx(tx, &differInfo{
+		initialisation: false,
+		blockInfo:      &proto.BlockInfo{Timestamp: currentTimestamp},
+	})
 	if err != nil {
 		return err
 	}

@@ -5,7 +5,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"github.com/wavesplatform/gowaves/pkg/ride/mockstate"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/util"
 )
@@ -21,9 +20,7 @@ func createDiffApplierTestObjects(t *testing.T) (*diffApplierTestObjects, []stri
 	assert.NoError(t, err, "createStorageObjects() failed")
 	applier, err := newDiffApplier(stor.entities.balances)
 	assert.NoError(t, err, "newDiffApplier() failed")
-	sc, err := newScriptCaller(&mockstate.State{}, stor.entities, settings.MainNetSettings)
-	assert.NoError(t, err, "newScriptCaller() failed")
-	td, err := newTransactionDiffer(stor.entities, settings.MainNetSettings, sc)
+	td, err := newTransactionDiffer(stor.entities, settings.MainNetSettings)
 	assert.NoError(t, err, "newTransactionDiffer() failed")
 	return &diffApplierTestObjects{stor, applier, td}, path
 }

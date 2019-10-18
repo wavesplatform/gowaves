@@ -8,7 +8,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"github.com/wavesplatform/gowaves/pkg/ride/mockstate"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/util"
 )
@@ -30,9 +29,7 @@ type differTestObjects struct {
 func createDifferTestObjects(t *testing.T) (*differTestObjects, []string) {
 	stor, path, err := createStorageObjects()
 	assert.NoError(t, err, "createStorageObjects() failed")
-	sc, err := newScriptCaller(&mockstate.State{}, stor.entities, settings.MainNetSettings)
-	assert.NoError(t, err, "newScriptCaller() failed")
-	td, err := newTransactionDiffer(stor.entities, settings.MainNetSettings, sc)
+	td, err := newTransactionDiffer(stor.entities, settings.MainNetSettings)
 	assert.NoError(t, err, "newTransactionDiffer() failed")
 	tp, err := newTransactionPerformer(stor.entities, settings.MainNetSettings)
 	assert.NoError(t, err, "newTransactionPerformer() failed")

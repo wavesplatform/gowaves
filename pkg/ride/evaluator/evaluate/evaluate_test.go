@@ -387,7 +387,10 @@ f(1) == 999
 	script, err := BuildScript(r)
 	require.NoError(t, err)
 
-	rs, err := script.Verify(proto.MainNetScheme, mockstate.State{}, byte_helpers.TransferV2.Transaction.Clone())
+	tx := byte_helpers.TransferV2.Transaction.Clone()
+	obj, err := NewVariablesFromTransaction(proto.MainNetScheme, tx)
+	require.NoError(t, err)
+	rs, err := script.Verify(proto.MainNetScheme, mockstate.State{}, obj, nil, nil)
 	require.NoError(t, err)
 	require.Equal(t, true, rs)
 }
@@ -410,7 +413,10 @@ g() == 5
 	script, err := BuildScript(r)
 	require.NoError(t, err)
 
-	rs, err := script.Verify(proto.MainNetScheme, mockstate.State{}, byte_helpers.TransferV2.Transaction.Clone())
+	tx := byte_helpers.TransferV2.Transaction.Clone()
+	obj, err := NewVariablesFromTransaction(proto.MainNetScheme, tx)
+	require.NoError(t, err)
+	rs, err := script.Verify(proto.MainNetScheme, mockstate.State{}, obj, nil, nil)
 	require.NoError(t, err)
 	require.Equal(t, true, rs)
 }
@@ -636,7 +642,7 @@ func verify() = {
 		Arguments: proto.Arguments{proto.NewStringArgument("abc")},
 	})
 
-	rs, err := script.CallFunction(proto.MainNetScheme, mockstate.State{}, tx)
+	rs, err := script.CallFunction(proto.MainNetScheme, mockstate.State{}, tx, nil, nil)
 	require.NoError(t, err)
 	require.Equal(t,
 		&proto.ScriptResult{
@@ -696,7 +702,7 @@ func verify() = {
 
 	addr, _ := proto.NewAddressFromPublicKey(proto.MainNetScheme, tx.SenderPK)
 
-	rs, err := script.CallFunction(proto.MainNetScheme, mockstate.State{}, tx)
+	rs, err := script.CallFunction(proto.MainNetScheme, mockstate.State{}, tx, nil, nil)
 	require.NoError(t, err)
 	require.Equal(t,
 		&proto.ScriptResult{
@@ -748,8 +754,9 @@ func verify() = {
 	require.NoError(t, err)
 
 	tx := byte_helpers.TransferV2.Transaction.Clone()
-
-	rs, err := script.Verify(proto.MainNetScheme, mockstate.State{}, tx)
+	obj, err := NewVariablesFromTransaction(proto.MainNetScheme, tx)
+	require.NoError(t, err)
+	rs, err := script.Verify(proto.MainNetScheme, mockstate.State{}, obj, nil, nil)
 	require.NoError(t, err)
 	require.Equal(t, false, rs)
 }
@@ -779,8 +786,9 @@ func verify() = {
 	require.NoError(t, err)
 
 	tx := byte_helpers.TransferV2.Transaction.Clone()
-
-	rs, err := script.Verify(proto.MainNetScheme, mockstate.State{}, tx)
+	obj, err := NewVariablesFromTransaction(proto.MainNetScheme, tx)
+	require.NoError(t, err)
+	rs, err := script.Verify(proto.MainNetScheme, mockstate.State{}, obj, nil, nil)
 	require.NoError(t, err)
 	require.Equal(t, true, rs)
 }
@@ -812,7 +820,7 @@ func tellme(question: String) = {
 
 	addr, _ := proto.NewAddressFromPublicKey(proto.MainNetScheme, tx.SenderPK)
 
-	rs, err := script.CallFunction(proto.MainNetScheme, mockstate.State{}, tx)
+	rs, err := script.CallFunction(proto.MainNetScheme, mockstate.State{}, tx, nil, nil)
 	require.NoError(t, err)
 	scriptTransfer := proto.ScriptResultTransfer{
 		Recipient: proto.NewRecipientFromAddress(addr),
@@ -858,7 +866,7 @@ func tellme(question: String) = {
 
 	addr, _ := proto.NewAddressFromPublicKey(proto.MainNetScheme, tx.SenderPK)
 
-	rs, err := script.CallFunction(proto.MainNetScheme, mockstate.State{}, tx)
+	rs, err := script.CallFunction(proto.MainNetScheme, mockstate.State{}, tx, nil, nil)
 	require.NoError(t, err)
 	scriptTransfer := proto.ScriptResultTransfer{
 		Recipient: proto.NewRecipientFromAddress(addr),
