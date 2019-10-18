@@ -30,6 +30,23 @@ func stringKey(addr proto.Address, assetID []byte) string {
 
 // balanceDiff represents atomic balance change, which is a result of applying transaction.
 // Transaction may produce one or more balance diffs, with single diff corresponding to certain address.
+// Same diffs are then used to store balance changes by blocks in `diffStorage`.
+
+/* Note About minBalance.
+`minBalance` is sum of all negative diffs that were added to single transaction.
+It is needed to check that total spend amount does not lead to negative balance.
+For instance, if someone sent more money to himself than he ever had, minBalance would help to detect it.
+See balanceDiff.addInsideTx() for more info.
+
+When dealing with diffs at block level, minBalance takes the lowest minBalance among all transactions
+for given key (address). But it also takes into account previous changes for this address, so overspend
+will be checked like:
+`balance_from_db` + `all_diffs_before` - `minBalance_for_thix_tx` > 0;
+not just `balance_from_db` - `minBalance_for_thix_tx` > 0.
+So we increase transactions' minBalances by `all_diffs_before` when adding them to block.
+See balanceDiff.addInsideBlock() for more info.
+*/
+
 type balanceDiff struct {
 	allowLeasedTransfer          bool
 	updateMinIntermediateBalance bool
@@ -153,6 +170,7 @@ func (diff *balanceDiff) addInsideTx(prevDiff *balanceDiff) error {
 		diff.minBalance = prevDiff.minBalance
 		if newMinBalance < diff.minBalance {
 			// newMinBalance is less than previous minBalance, so we should use it.
+			// This is basically always the case when diff.balance < 0.
 			diff.minBalance = newMinBalance
 		}
 	}
@@ -169,7 +187,7 @@ func (diff *balanceDiff) addInsideBlock(prevDiff *balanceDiff) error {
 	}
 	// Copy previous minBalance at first.
 	diff.minBalance = prevDiff.minBalance
-	if newMinBalance < prevDiff.minBalance {
+	if newMinBalance < diff.minBalance {
 		// newMinBalance is less than previous minBalance, so we should use it.
 		diff.minBalance = newMinBalance
 	}
