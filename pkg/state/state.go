@@ -550,64 +550,12 @@ func (a *txAppender) handleInvoke(tx proto.Transaction, height uint64, block *pr
 	return nil
 }
 
-func (a *txAppender) validateSingleTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64) error {
-	dummy := make(map[string]struct{})
-	if err := a.checkDuplicateTxIds(tx, dummy, currentTimestamp); err != nil {
-		return err
-	}
-	scripted, err := a.hasAccountVerifyScript(tx, false)
-	if err != nil {
-		return err
-	}
-	// Check tx signature and data.
-	if err := a.checkUtxTxSig(tx, scripted); err != nil {
-		return err
-	}
-	// Check tx data against state.
-	height, err := a.state.AddingBlockHeight()
-	if err != nil {
-		return err
-	}
-	checkerInfo := &checkerInfo{
-		initialisation:   false,
-		currentTimestamp: currentTimestamp,
-		parentTimestamp:  parentTimestamp,
-		height:           height,
-	}
-	// TODO: count script runs here as well.
-	if _, err := a.checkTxAgainstState(tx, scripted, checkerInfo); err != nil {
-		return err
-	}
-	// TODO: pass real block from block info (from miner) instead of fake block here.
-	fakeBlock := &proto.BlockHeader{Timestamp: currentTimestamp}
-	if tx.GetTypeVersion().Type == proto.InvokeScriptTransaction {
-		// Invoke is handled in a special way.
-		if err := a.handleInvoke(tx, height+1, fakeBlock); err != nil {
-			return err
-		}
-		// validateSingleTx() should not remember diffs, so we reset diffStor here.
-		a.diffStor.reset()
-		return nil
-	}
-	// Create and validate balance diff.
-	diff, err := a.txHandler.createDiffTx(tx, &differInfo{
-		initialisation: false,
-		blockInfo:      &proto.BlockInfo{Timestamp: currentTimestamp},
-	})
-	if err != nil {
-		return err
-	}
-	if err := a.diffApplier.validateBalancesChanges(diff.balancesChanges(), true); err != nil {
-		return err
-	}
-	return nil
-}
-
 func (a *txAppender) resetValidationList() {
 	a.recentTxIds = make(map[string]struct{})
 	a.diffStor.reset()
 }
 
+// For UTX validation.
 func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64) error {
 	if err := a.checkDuplicateTxIds(tx, a.recentTxIds, currentTimestamp); err != nil {
 		return err
@@ -1727,17 +1675,11 @@ func (s *stateManager) SavePeers(peers []proto.TCPAddr) error {
 
 }
 
-func (s *stateManager) ValidateSingleTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64) error {
-	if err := s.appender.validateSingleTx(tx, currentTimestamp, parentTimestamp); err != nil {
-		return wrapErr(TxValidationError, err)
-	}
-	return nil
-}
-
 func (s *stateManager) ResetValidationList() {
 	s.appender.resetValidationList()
 }
 
+// For UTX validation.
 func (s *stateManager) ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64) error {
 	if err := s.appender.validateNextTx(tx, currentTimestamp, parentTimestamp); err != nil {
 		return wrapErr(TxValidationError, err)

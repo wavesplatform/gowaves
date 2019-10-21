@@ -132,12 +132,8 @@ type StateModifier interface {
 	RollbackTo(removalEdge crypto.Signature) error
 
 	// -------------------------
-	// Validation functionality.
+	// Validation functionality (for UTX).
 	// -------------------------
-	// ValidateSingleTx() validates single transaction against current state.
-	// It does not change state. When validating, it does not take into account previous transactions that were validated.
-	// Returns TxValidationError or nil.
-	ValidateSingleTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64) error
 	// ValidateNextTx() validates transaction against state, taking into account all the previous changes from transactions
 	// that were added using ValidateNextTx() until you call ResetValidationList().
 	// Does not change state.

@@ -163,10 +163,6 @@ func (a *MockStateManager) EffectiveBalance(account proto.Recipient, startHeight
 	panic("implement me")
 }
 
-func (a *MockStateManager) ValidateSingleTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64) error {
-	panic("implement me")
-}
-
 func (a *MockStateManager) ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64) error {
 	panic("implement me")
 }
