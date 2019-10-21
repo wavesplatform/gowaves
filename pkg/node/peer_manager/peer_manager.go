@@ -207,10 +207,7 @@ func (a *PeerManagerImpl) SpawnOutgoingConnections(ctx context.Context) {
 
 		go func(addr proto.TCPAddr) {
 			defer a.RemoveSpawned(addr)
-			err := a.spawner.SpawnOutgoing(ctx, addr)
-			if err != nil {
-				zap.S().Error(err)
-			}
+			_ = a.spawner.SpawnOutgoing(ctx, addr)
 		}(addr)
 	}
 }
