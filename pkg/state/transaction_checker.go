@@ -17,7 +17,7 @@ const (
 	KiB = 1024
 
 	maxVerifierScriptSize = 8 * KiB
-	//maxContractScriptSize = 32 * KiB
+	maxContractScriptSize = 32 * KiB
 )
 
 type checkerInfo struct {
@@ -93,13 +93,16 @@ func (tc *transactionChecker) checkScript(scriptBytes proto.Script) error {
 		// Empty script is always valid.
 		return nil
 	}
-	// TODO: use RIDE package to check script size depending on whether it's dApp or simple Verifier.
-	if len(scriptBytes) > maxVerifierScriptSize {
-		return errors.Errorf("script size %d is greater than limit of %d\n", len(scriptBytes), maxVerifierScriptSize)
-	}
 	script, err := ast.BuildScript(reader.NewBytesReader(scriptBytes))
 	if err != nil {
 		return errors.Wrap(err, "failed to build ast from script bytes")
+	}
+	maxSize := maxVerifierScriptSize
+	if script.IsDapp() {
+		maxSize = maxContractScriptSize
+	}
+	if len(scriptBytes) > maxSize {
+		return errors.Errorf("script size %d is greater than limit of %d\n", len(scriptBytes), maxSize)
 	}
 	if err := tc.scriptActivation(script); err != nil {
 		return errors.Wrap(err, "script activation check failed")
