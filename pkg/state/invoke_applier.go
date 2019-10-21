@@ -17,7 +17,7 @@ type invokeAddlInfo struct {
 
 	// When validatingUtx flag is true, it means that we should validate balance diffs
 	// before saving them to storage.
-	// validatingUtx bool
+	validatingUtx bool
 }
 
 func (i *invokeAddlInfo) hasBlock() bool {
@@ -28,27 +28,34 @@ type invokeApplier struct {
 	state types.SmartState
 	sc    *scriptCaller
 
+	txHandler *transactionHandler
+
 	stor     *blockchainEntitiesStorage
 	settings *settings.BlockchainSettings
 
 	blockDiffer *blockDiffer
 	diffStor    *diffStorage
+	diffApplier *diffApplier
 }
 
 func newInvokeApplier(
 	state types.SmartState,
 	sc *scriptCaller,
+	txHandler *transactionHandler,
 	stor *blockchainEntitiesStorage,
 	settings *settings.BlockchainSettings,
 	blockDiffer *blockDiffer,
 	diffStor *diffStorage,
+	diffApplier *diffApplier,
 ) *invokeApplier {
 	return &invokeApplier{
 		state:       state,
 		sc:          sc,
+		txHandler:   txHandler,
 		stor:        stor,
 		blockDiffer: blockDiffer,
 		diffStor:    diffStor,
+		diffApplier: diffApplier,
 	}
 }
 
@@ -87,9 +94,29 @@ func (ia *invokeApplier) newTxDiffFromPayment(pmt *payment, updateMinIntermediat
 	if err := diff.appendBalanceDiff(receiverKey, newBalanceDiff(receiverBalanceDiff, 0, 0, updateMinIntermediateBalance)); err != nil {
 		return txDiff{}, err
 	}
-	// This is needed because we save this diff to storage manually.
-	ia.blockDiffer.appendBlockInfoToTxDiff(diff, info.block)
+	if !info.validatingUtx {
+		// This is needed because we save this diff to storage manually.
+		ia.blockDiffer.appendBlockInfoToTxDiff(diff, info.block)
+	}
 	return diff, nil
+}
+
+func (ia *invokeApplier) saveDiff(diff txDiff, info *invokeAddlInfo) error {
+	if !info.validatingUtx {
+		return ia.diffStor.saveTxDiff(diff)
+	}
+	// For UTX, we must validate changes before we save them.
+	changes, err := ia.diffStor.changesByTxDiff(diff)
+	if err != nil {
+		return err
+	}
+	if err := ia.diffApplier.validateBalancesChanges(changes, true); err != nil {
+		return err
+	}
+	if err := ia.diffStor.saveBalanceChanges(changes); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (ia *invokeApplier) applyPayment(pmt *payment, updateMinIntermediateBalance bool, info *invokeAddlInfo) error {
@@ -99,10 +126,20 @@ func (ia *invokeApplier) applyPayment(pmt *payment, updateMinIntermediateBalance
 	}
 	// diff must be saved to storage, because further asset scripts must take
 	// recent balance changes into account.
-	if err := ia.diffStor.saveTxDiff(diff); err != nil {
+	if err := ia.saveDiff(diff, info); err != nil {
 		return err
 	}
 	return nil
+}
+
+func (ia *invokeApplier) createTxDiff(tx *proto.InvokeScriptV1, info *invokeAddlInfo) (txDiff, error) {
+	if info.validatingUtx {
+		return ia.txHandler.createDiffTx(tx, &differInfo{
+			initialisation: false,
+			blockInfo:      &proto.BlockInfo{Timestamp: info.block.Timestamp},
+		})
+	}
+	return ia.blockDiffer.createTransactionDiff(tx, info.block, info.height, info.initialisation)
 }
 
 // For InvokeScript transactions there is no performer function.
@@ -118,13 +155,16 @@ func (ia *invokeApplier) applyPayment(pmt *payment, updateMinIntermediateBalance
 // That is why invoke transaction is applied to state in a different way - here, unlike other
 // transaction types.
 func (ia *invokeApplier) applyInvokeScriptV1(tx *proto.InvokeScriptV1, info *invokeAddlInfo) error {
+	if !info.validatingUtx && !info.hasBlock() {
+		return errors.New("no block is provided and not validating UTX")
+	}
 	// Perform fee and payment changes first.
 	// Basic differ for InvokeScript creates only fee and payment diff.
-	feeAndPaymentDiff, err := ia.blockDiffer.createTransactionDiff(tx, info.block, info.height, info.initialisation)
+	feeAndPaymentDiff, err := ia.createTxDiff(tx, info)
 	if err != nil {
 		return err
 	}
-	if err := ia.diffStor.saveTxDiff(feeAndPaymentDiff); err != nil {
+	if err := ia.saveDiff(feeAndPaymentDiff, info); err != nil {
 		return err
 	}
 	// Now call script.
@@ -145,7 +185,7 @@ func (ia *invokeApplier) applyInvokeScriptV1(tx *proto.InvokeScriptV1, info *inv
 	if err != nil {
 		return errors.Wrap(err, "recipientToAddress() failed")
 	}
-	if info.hasBlock() {
+	if !info.validatingUtx {
 		// TODO: when UTX transactions are validated, there is no block,
 		// and we can not perform state changes.
 		for _, entry := range scriptRes.Writes {

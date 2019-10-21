@@ -179,11 +179,11 @@ func newTxAppender(
 	if err != nil {
 		return nil, err
 	}
-	ia := newInvokeApplier(state, sc, stor, settings, blockDiffer, diffStor)
 	diffApplier, err := newDiffApplier(stor.balances)
 	if err != nil {
 		return nil, err
 	}
+	ia := newInvokeApplier(state, sc, txHandler, stor, settings, blockDiffer, diffStor, diffApplier)
 	return &txAppender{
 		state:       state,
 		sc:          sc,
@@ -452,6 +452,7 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 		}
 		scriptsRuns += txScriptsRuns
 		if tx.GetTypeVersion().Type == proto.InvokeScriptTransaction {
+			// Invoke is handled in a special way.
 			invokeTx, ok := tx.(*proto.InvokeScriptV1)
 			if !ok {
 				return errors.New("failed to convert InvokeScriptTransaction to type InvokeScriptV1")
@@ -461,6 +462,7 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 				initialisation:     params.initialisation,
 				block:              params.block,
 				height:             curHeight,
+				validatingUtx:      false,
 			}
 			if err := a.ia.applyInvokeScriptV1(invokeTx, invokeInfo); err != nil {
 				return errors.Wrap(err, "failed to apply InvokeScript transaction to state")
@@ -531,6 +533,23 @@ func (a *txAppender) checkUtxTxSig(tx proto.Transaction, scripted bool) error {
 	return nil
 }
 
+func (a *txAppender) handleInvoke(tx proto.Transaction, height uint64, block *proto.BlockHeader) error {
+	invokeTx, ok := tx.(*proto.InvokeScriptV1)
+	if !ok {
+		return errors.New("failed to convert transaction to type InvokeScriptV1")
+	}
+	invokeInfo := &invokeAddlInfo{
+		initialisation: false,
+		block:          block,
+		height:         height,
+		validatingUtx:  true,
+	}
+	if err := a.ia.applyInvokeScriptV1(invokeTx, invokeInfo); err != nil {
+		return errors.Wrap(err, "InvokeScript validation failed")
+	}
+	return nil
+}
+
 func (a *txAppender) validateSingleTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64) error {
 	dummy := make(map[string]struct{})
 	if err := a.checkDuplicateTxIds(tx, dummy, currentTimestamp); err != nil {
@@ -555,8 +574,20 @@ func (a *txAppender) validateSingleTx(tx proto.Transaction, currentTimestamp, pa
 		parentTimestamp:  parentTimestamp,
 		height:           height,
 	}
+	// TODO: count script runs here as well.
 	if _, err := a.checkTxAgainstState(tx, scripted, checkerInfo); err != nil {
 		return err
+	}
+	// TODO: pass real block from block info (from miner) instead of fake block here.
+	fakeBlock := &proto.BlockHeader{Timestamp: currentTimestamp}
+	if tx.GetTypeVersion().Type == proto.InvokeScriptTransaction {
+		// Invoke is handled in a special way.
+		if err := a.handleInvoke(tx, height+1, fakeBlock); err != nil {
+			return err
+		}
+		// validateSingleTx() should not remember diffs, so we reset diffStor here.
+		a.diffStor.reset()
+		return nil
 	}
 	// Create and validate balance diff.
 	diff, err := a.txHandler.createDiffTx(tx, &differInfo{
@@ -606,8 +637,15 @@ func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, pare
 		parentTimestamp:  parentTimestamp,
 		height:           height,
 	}
+	// TODO: count script runs here as well.
 	if _, err := a.checkTxAgainstState(tx, scripted, checkerInfo); err != nil {
 		return err
+	}
+	// TODO: pass real block from block info (from miner) instead of fake block here.
+	fakeBlock := &proto.BlockHeader{Timestamp: currentTimestamp}
+	if tx.GetTypeVersion().Type == proto.InvokeScriptTransaction {
+		// Invoke is handled in a special way.
+		return a.handleInvoke(tx, height+1, fakeBlock)
 	}
 	// Create, validate and save balance diff.
 	diff, err := a.txHandler.createDiffTx(tx, &differInfo{
