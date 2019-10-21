@@ -297,19 +297,34 @@ func (a *txAppender) handleExchange(tx proto.Transaction, blockInfo *proto.Block
 	return scriptsRuns, nil
 }
 
-func (a *txAppender) checkTxAgainstState(tx proto.Transaction, accountScripted bool, checkerInfo *checkerInfo) (uint64, error) {
+// For UTX validation, this returns the last stable block, which is in fact
+// current block.
+// For appendBlock(), this returns block that is currently being added.
+func (a *txAppender) currentBlock() (*proto.BlockHeader, error) {
 	curBlockHeight, err := a.state.AddingBlockHeight()
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 	curHeader, err := a.state.NewestHeaderByHeight(curBlockHeight)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
-	blockInfo, err := proto.BlockInfoFromHeader(a.settings.AddressSchemeCharacter, curHeader, curBlockHeight)
+	return curHeader, nil
+}
+
+func (a *txAppender) currentBlockInfo() (*proto.BlockInfo, error) {
+	height, err := a.state.AddingBlockHeight()
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
+	curHeader, err := a.currentBlock()
+	if err != nil {
+		return nil, err
+	}
+	return proto.BlockInfoFromHeader(a.settings.AddressSchemeCharacter, curHeader, height)
+}
+
+func (a *txAppender) checkTxAgainstState(tx proto.Transaction, accountScripted bool, checkerInfo *checkerInfo, blockInfo *proto.BlockInfo) (uint64, error) {
 	scriptsRuns := uint64(0)
 	if accountScripted {
 		// Check script.
@@ -446,7 +461,11 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 		}
 		a.recentTxIds[string(txID)] = empty
 		// Check against state.
-		txScriptsRuns, err := a.checkTxAgainstState(tx, accountHasVerifierScript, checkerInfo)
+		blockInfo, err := a.currentBlockInfo()
+		if err != nil {
+			return err
+		}
+		txScriptsRuns, err := a.checkTxAgainstState(tx, accountHasVerifierScript, checkerInfo, blockInfo)
 		if err != nil {
 			return err
 		}
@@ -585,15 +604,24 @@ func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, pare
 		parentTimestamp:  parentTimestamp,
 		height:           height,
 	}
-	// TODO: count script runs here as well.
-	if _, err := a.checkTxAgainstState(tx, scripted, checkerInfo); err != nil {
+	// TODO: Doesn't work correctly if miner doesn't work in NG mode.
+	// In this case it returns the last block instead of what is being mined.
+	block, err := a.currentBlock()
+	if err != nil {
 		return err
 	}
-	// TODO: pass real block from block info (from miner) instead of fake block here.
-	fakeBlock := &proto.BlockHeader{Timestamp: currentTimestamp}
+	blockInfo, err := proto.BlockInfoFromHeader(a.settings.AddressSchemeCharacter, block, height)
+	if err != nil {
+		return err
+	}
+
+	// TODO: count script runs here as well.
+	if _, err := a.checkTxAgainstState(tx, scripted, checkerInfo, blockInfo); err != nil {
+		return err
+	}
 	if tx.GetTypeVersion().Type == proto.InvokeScriptTransaction {
 		// Invoke is handled in a special way.
-		return a.handleInvoke(tx, height+1, fakeBlock)
+		return a.handleInvoke(tx, height, block)
 	}
 	// Create, validate and save balance diff.
 	diff, err := a.txHandler.createDiffTx(tx, &differInfo{
