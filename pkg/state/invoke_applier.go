@@ -14,6 +14,10 @@ type invokeAddlInfo struct {
 	initialisation     bool
 	block              *proto.BlockHeader
 	height             uint64
+
+	// When validatingUtx flag is true, it means that we should validate balance diffs
+	// before saving them to storage.
+	// validatingUtx bool
 }
 
 func (i *invokeAddlInfo) hasBlock() bool {
@@ -53,15 +57,6 @@ type payment struct {
 	receiver proto.Address
 	amount   uint64
 	asset    proto.OptionalAsset
-}
-
-func (ia *invokeApplier) newPaymentFromScriptPayment(scriptAddr, senderAddr proto.Address, pmt proto.ScriptPayment) *payment {
-	return &payment{
-		sender:   senderAddr,
-		receiver: scriptAddr,
-		amount:   pmt.Amount,
-		asset:    pmt.Asset,
-	}
 }
 
 func (ia *invokeApplier) newPaymentFromScriptTransfer(scriptAddr proto.Address, tr proto.ScriptResultTransfer, info *invokeAddlInfo) (*payment, error) {
@@ -123,23 +118,19 @@ func (ia *invokeApplier) applyPayment(pmt *payment, updateMinIntermediateBalance
 // That is why invoke transaction is applied to state in a different way - here, unlike other
 // transaction types.
 func (ia *invokeApplier) applyInvokeScriptV1(tx *proto.InvokeScriptV1, info *invokeAddlInfo) error {
-	// Perform fee changes first.
-	// Basic differ for InvokeScript creates only fee diff.
-	feeDiff, err := ia.blockDiffer.createTransactionDiff(tx, info.block, info.height, info.initialisation)
+	// Perform fee and payment changes first.
+	// Basic differ for InvokeScript creates only fee and payment diff.
+	feeAndPaymentDiff, err := ia.blockDiffer.createTransactionDiff(tx, info.block, info.height, info.initialisation)
 	if err != nil {
 		return err
 	}
-	if err := ia.diffStor.saveTxDiff(feeDiff); err != nil {
+	if err := ia.diffStor.saveTxDiff(feeAndPaymentDiff); err != nil {
 		return err
 	}
 	// Now call script.
 	blockInfo, err := proto.BlockInfoFromHeader(ia.settings.AddressSchemeCharacter, info.block, info.height)
 	if err != nil {
 		return err
-	}
-	updateMinIntermediateBalance := false
-	if blockInfo.Timestamp >= ia.settings.CheckTempNegativeAfterTime {
-		updateMinIntermediateBalance = true
 	}
 	scriptRes, err := ia.sc.invokeFunction(tx, blockInfo, info.initialisation)
 	if err != nil {
@@ -149,22 +140,11 @@ func (ia *invokeApplier) applyInvokeScriptV1(tx *proto.InvokeScriptV1, info *inv
 	if err := scriptRes.Valid(); err != nil {
 		return errors.Wrap(err, "invalid script result")
 	}
-	// Perform payments.
+	// Perform data storage writes.
 	scriptAddr, err := recipientToAddress(tx.ScriptRecipient, ia.stor.aliases, !info.initialisation)
 	if err != nil {
 		return errors.Wrap(err, "recipientToAddress() failed")
 	}
-	senderAddr, err := proto.NewAddressFromPublicKey(ia.settings.AddressSchemeCharacter, tx.SenderPK)
-	if err != nil {
-		return errors.Wrap(err, "failed to get sender address from pk")
-	}
-	for _, payment := range tx.Payments {
-		pmt := ia.newPaymentFromScriptPayment(*scriptAddr, senderAddr, payment)
-		if err := ia.applyPayment(pmt, updateMinIntermediateBalance, info); err != nil {
-			return errors.Wrap(err, "failed to apply payment")
-		}
-	}
-	// Perform data storage writes.
 	if info.hasBlock() {
 		// TODO: when UTX transactions are validated, there is no block,
 		// and we can not perform state changes.
@@ -174,6 +154,9 @@ func (ia *invokeApplier) applyInvokeScriptV1(tx *proto.InvokeScriptV1, info *inv
 			}
 		}
 	}
+	// updateMinIntermediateBalance is set to false here, because in Scala implementation
+	// only fee and payments are checked for temporary negative balance.
+	updateMinIntermediateBalance := false
 	// Perform transfers.
 	scriptRuns := info.previousScriptRuns
 	for _, transfer := range scriptRes.Transfers {
@@ -197,9 +180,7 @@ func (ia *invokeApplier) applyInvokeScriptV1(tx *proto.InvokeScriptV1, info *inv
 		if err != nil {
 			return err
 		}
-		// updateMinIntermediateBalance is set to false here, because in Scala implementation
-		// only payments are checked for temporary negative balance.
-		if err := ia.applyPayment(pmt, false, info); err != nil {
+		if err := ia.applyPayment(pmt, updateMinIntermediateBalance, info); err != nil {
 			return errors.Wrap(err, "failed to apply script transfer")
 		}
 	}

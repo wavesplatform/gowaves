@@ -970,5 +970,21 @@ func (td *transactionDiffer) createDiffInvokeScriptV1(transaction proto.Transact
 	if err := td.handleSponsorship(diff, tx.Fee, tx.FeeAsset, info); err != nil {
 		return txDiff{}, err
 	}
+	scriptAddr, err := recipientToAddress(tx.ScriptRecipient, td.stor.aliases, !info.initialisation)
+	if err != nil {
+		return txDiff{}, err
+	}
+	for _, payment := range tx.Payments {
+		senderPaymentKey := byteKey(senderAddr, payment.Asset.ToID())
+		senderBalanceDiff := -int64(payment.Amount)
+		if err := diff.appendBalanceDiff(senderPaymentKey, newBalanceDiff(senderBalanceDiff, 0, 0, updateMinIntermediateBalance)); err != nil {
+			return txDiff{}, err
+		}
+		receiverKey := byteKey(*scriptAddr, payment.Asset.ToID())
+		receiverBalanceDiff := int64(payment.Amount)
+		if err := diff.appendBalanceDiff(receiverKey, newBalanceDiff(receiverBalanceDiff, 0, 0, updateMinIntermediateBalance)); err != nil {
+			return txDiff{}, err
+		}
+	}
 	return diff, nil
 }
