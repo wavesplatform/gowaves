@@ -2,9 +2,10 @@ package serializer
 
 import (
 	"encoding/binary"
-	"github.com/pkg/errors"
 	"io"
 	"math"
+
+	"github.com/pkg/errors"
 )
 
 type Serializer struct {
@@ -17,6 +18,15 @@ func New(w io.Writer) *Serializer {
 		w: w,
 		n: 0,
 	}
+}
+
+func (a *Serializer) Write(b []byte) (int, error) {
+	n, err := a.w.Write(b)
+	if err != nil {
+		return 0, err
+	}
+	a.n += n
+	return n, nil
 }
 
 func (a *Serializer) StringWithUInt16Len(s string) error {
@@ -32,6 +42,32 @@ func (a *Serializer) StringWithUInt16Len(s string) error {
 		return err
 	}
 	return nil
+}
+
+// StringWithUInt32Len writes to the buffer `buf` four bytes of the string's `s` length followed with the bytes of string itself.
+func (a *Serializer) StringWithUInt32Len(s string) error {
+	if len(s) > math.MaxUint32 {
+		return errors.Errorf("too long string, expected max %d, found %d", math.MaxUint32, len(s))
+	}
+	err := a.Uint32(uint32(len(s)))
+	if err != nil {
+		return err
+	}
+	err = a.String(s)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+//PutBytesWithUInt32Len prepends given buf with 4 bytes of it's length.
+func (a *Serializer) BytesWithUInt32Len(data []byte) error {
+	sl := uint32(len(data))
+	err := a.Uint32(sl)
+	if err != nil {
+		return err
+	}
+	return a.Bytes(data)
 }
 
 func (a *Serializer) Uint16(v uint16) error {
