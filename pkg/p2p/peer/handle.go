@@ -28,7 +28,7 @@ func bytesToMessage(b []byte, id string, resendTo chan ProtoMessage, pool bytesp
 	select {
 	case resendTo <- mess:
 	default:
-		zap.L().Warn("failed to resend to Parent, channel is full", zap.String("ID", id))
+		zap.S().Infof("failed to resend to Parent, channel is full: %s, %T", id, m)
 	}
 }
 
