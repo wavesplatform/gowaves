@@ -493,6 +493,7 @@ func TestCheckExchangeV2(t *testing.T) {
 
 	to.stor.createAsset(t, testGlobal.asset0.asset.ID)
 	to.stor.createAsset(t, testGlobal.asset1.asset.ID)
+	to.stor.createAsset(t, testGlobal.asset2.asset.ID)
 
 	_, err = to.tc.checkExchangeV2(txOV2, info)
 	assert.Error(t, err, "checkExchangeV2 did not fail prior to SmartAccountTrading activation")
@@ -535,6 +536,7 @@ func TestCheckExchangeV2(t *testing.T) {
 
 	txOV3 := createExchangeV2WithOrdersV3(t)
 
+	// Matcher fee asset should not be added to the list of smart assets even if it is smart.
 	smartAsset2 := txOV3.GetBuyOrderFull().GetMatcherFeeAsset().ID
 	to.stor.createSmartAsset(t, smartAsset2)
 
@@ -543,8 +545,8 @@ func TestCheckExchangeV2(t *testing.T) {
 
 	smartAssets, err = to.tc.checkExchangeV2(txOV3, info)
 	assert.NoError(t, err)
-	assert.Equal(t, 2, len(smartAssets))
-	assert.ElementsMatch(t, []crypto.Digest{smartAsset, smartAsset2}, smartAssets)
+	assert.Equal(t, 1, len(smartAssets))
+	assert.ElementsMatch(t, []crypto.Digest{smartAsset}, smartAssets)
 
 	// Now overfill volume and make sure check fails.
 	bo := txOV2.GetBuyOrderFull()

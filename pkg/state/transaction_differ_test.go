@@ -473,10 +473,10 @@ func TestCreateDiffExchangeV2(t *testing.T) {
 }
 
 func createExchangeV2WithOrdersV3(t *testing.T) *proto.ExchangeV2 {
-	bo := proto.NewUnsignedOrderV3(testGlobal.senderInfo.pk, testGlobal.matcherInfo.pk, *testGlobal.asset0.asset, *testGlobal.asset1.asset, proto.Buy, 10e8, 100, 0, 0, 3, *testGlobal.asset3.asset)
+	bo := proto.NewUnsignedOrderV3(testGlobal.senderInfo.pk, testGlobal.matcherInfo.pk, *testGlobal.asset0.asset, *testGlobal.asset1.asset, proto.Buy, 10e8, 100, 0, 0, 3, *testGlobal.asset2.asset)
 	err := bo.Sign(testGlobal.senderInfo.sk)
 	require.NoError(t, err, "bo.Sign() failed")
-	so := proto.NewUnsignedOrderV3(testGlobal.recipientInfo.pk, testGlobal.matcherInfo.pk, *testGlobal.asset0.asset, *testGlobal.asset1.asset, proto.Sell, 10e8, 100, 0, 0, 3, *testGlobal.asset3.asset)
+	so := proto.NewUnsignedOrderV3(testGlobal.recipientInfo.pk, testGlobal.matcherInfo.pk, *testGlobal.asset0.asset, *testGlobal.asset1.asset, proto.Sell, 10e8, 100, 0, 0, 3, *testGlobal.asset2.asset)
 	err = so.Sign(testGlobal.recipientInfo.sk)
 	require.NoError(t, err, "so.Sign() failed")
 	tx := proto.NewUnsignedExchangeV2(bo, so, bo.Price, bo.Amount, 1, 2, defaultFee, defaultTimestamp)
