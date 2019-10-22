@@ -48,7 +48,7 @@ func (a *State) AddBlock(block *proto.Block) {
 	locked := mu.Lock()
 	err = a.state.RollbackTo(block.Parent)
 	if err != nil {
-		zap.S().Error(errors.Wrapf(err, "can't rollback to sig %s, initiator sig %s", block.Parent, block.BlockSignature))
+		zap.S().Info(errors.Wrapf(err, "can't rollback to sig %s, initiator sig %s", block.Parent, block.BlockSignature))
 		a.storage.Pop()
 		locked.Unlock()
 		return
