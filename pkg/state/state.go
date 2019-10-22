@@ -151,6 +151,11 @@ type txAppender struct {
 	recentTxIds map[string]struct{}
 	// diffApplier is used to both validate and apply balance diffs.
 	diffApplier *diffApplier
+
+	// totalScriptsRuns counts script runs for UTX validation.
+	// It is increased every time ValidateNextTx() is called with transaction
+	// that involed calling scripts.
+	totalScriptsRuns uint64
 }
 
 func newTxAppender(
@@ -570,6 +575,7 @@ func (a *txAppender) handleInvoke(tx proto.Transaction, height uint64, block *pr
 }
 
 func (a *txAppender) resetValidationList() {
+	a.totalScriptsRuns = 0
 	a.recentTxIds = make(map[string]struct{})
 	a.diffStor.reset()
 }
@@ -615,10 +621,14 @@ func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, pare
 		return err
 	}
 
-	// TODO: count script runs here as well.
-	if _, err := a.checkTxAgainstState(tx, scripted, checkerInfo, blockInfo); err != nil {
+	txScriptsRuns, err := a.checkTxAgainstState(tx, scripted, checkerInfo, blockInfo)
+	if err != nil {
 		return err
 	}
+	if err := a.checkScriptsRunsNum(a.totalScriptsRuns + txScriptsRuns); err != nil {
+		return err
+	}
+	a.totalScriptsRuns += txScriptsRuns
 	if tx.GetTypeVersion().Type == proto.InvokeScriptTransaction {
 		// Invoke is handled in a special way.
 		return a.handleInvoke(tx, height, block)
@@ -645,6 +655,7 @@ func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, pare
 }
 
 func (a *txAppender) reset() {
+	a.totalScriptsRuns = 0
 	a.recentTxIds = make(map[string]struct{})
 	a.diffStor.reset()
 	a.blockDiffer.reset()
