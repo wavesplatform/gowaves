@@ -77,9 +77,9 @@ func (c *context) declaration(name string) (function, bool) {
 }
 
 type Costs struct {
-	Functions map[string]int64
-	DApp      int64
-	Verifier  int64
+	Functions map[string]uint64
+	DApp      uint64
+	Verifier  uint64
 }
 
 type Estimator struct {
