@@ -16,7 +16,7 @@ func TestEstimatorCommon(t *testing.T) {
 		code      string
 		script    string
 		catalogue *Catalogue
-		cost      int64
+		cost      uint64
 	}{
 		{`false`, "AweHXCN1", NewCatalogueV3(), 1},
 		{`unit == Unit()`, "AwkAAAAAAAACBQAAAAR1bml0CQEAAAAEVW5pdAAAAACd7sMa", NewCatalogueV3(), 3},
@@ -86,7 +86,7 @@ func TestEstimatorFix(t *testing.T) {
 		code      string
 		script    string
 		catalogue *Catalogue
-		cost      int64
+		cost      uint64
 	}{
 		{1, `V1: func f(a: Int) = a; f(1) == 1`, "AwoBAAAAAWYAAAABAAAAAWEFAAAAAWEJAAAAAAAAAgkBAAAAAWYAAAABAAAAAAAAAAABAAAAAAAAAAABAYVjTw==", NewCatalogueV3(), 16},
 		{2, `V2: func f(a: Int) = a; f(1) == 1`, "AwoBAAAAAWYAAAABAAAAAWEFAAAAAWEJAAAAAAAAAgkBAAAAAWYAAAABAAAAAAAAAAABAAAAAAAAAAABAYVjTw==", NewCatalogueV3(), 16},
@@ -130,7 +130,7 @@ func TestDAppEstimation(t *testing.T) {
 		version int
 		code    string
 		script  string
-		cost    int64
+		cost    uint64
 		count   int
 	}{
 		{1, "@Verifier(tx) func verify() = false", "AAIDAAAAAAAAAAIIAQAAAAAAAAAAAAAAAQAAAAJ0eAEAAAAGdmVyaWZ5AAAAAAcysh6J", 11, 0},

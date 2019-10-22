@@ -77,9 +77,9 @@ func (c *context) declaration(name string) (function, bool) {
 }
 
 type Costs struct {
-	Functions map[string]int64
-	DApp      int64
-	Verifier  int64
+	Functions map[string]uint64
+	DApp      uint64
+	Verifier  uint64
 }
 
 type Estimator struct {
@@ -111,7 +111,7 @@ func (e *Estimator) EstimateDApp(script *ast.Script) (Costs, error) {
 	delete(rc.expressions, "tx")
 	rc.expressions["height"] = expression{expr: ast.NewLong(0), evaluated: true}
 	rc.expressions["this"] = expression{expr: ast.NewUnit(), evaluated: false}
-	var declarationsCost int64 = 0
+	var declarationsCost uint64 = 0
 	for _, d := range script.DApp.Declarations {
 		switch decl := d.(type) {
 		case *ast.LetExpr:
@@ -132,7 +132,7 @@ func (e *Estimator) EstimateDApp(script *ast.Script) (Costs, error) {
 			if err != nil {
 				return Costs{}, errors.Wrap(err, "estimation")
 			}
-			ac := int64(len(decl.Args) * 5)
+			ac := uint64(len(decl.Args) * 5)
 			e.catalogue.user[decl.Name] = ac + fc
 			_, err = e.change("root")
 			if err != nil {
@@ -142,11 +142,11 @@ func (e *Estimator) EstimateDApp(script *ast.Script) (Costs, error) {
 		}
 	}
 	r := Costs{
-		Functions: make(map[string]int64, len(script.DApp.CallableFuncs)),
+		Functions: make(map[string]uint64, len(script.DApp.CallableFuncs)),
 		DApp:      0,
 		Verifier:  0,
 	}
-	var callableCost int64 = 0
+	var callableCost uint64 = 0
 	for _, cf := range script.DApp.CallableFuncs {
 		cc, cn := e.copyContexts()
 		c, err := e.estimateCallable(cf)
@@ -154,7 +154,7 @@ func (e *Estimator) EstimateDApp(script *ast.Script) (Costs, error) {
 			return Costs{}, errors.Wrap(err, "estimation")
 		}
 		e.restoreContexts(cc, cn)
-		r.Functions[cf.FuncDecl.Name] = c
+		r.Functions[cf.FuncDecl.Name] = c + declarationsCost
 		if c > callableCost {
 			callableCost = c
 		}
@@ -163,7 +163,7 @@ func (e *Estimator) EstimateDApp(script *ast.Script) (Costs, error) {
 	if err != nil {
 		return Costs{}, errors.Wrap(err, "estimation")
 	}
-	r.Verifier = v
+	r.Verifier = v + declarationsCost
 	if v > callableCost {
 		callableCost = v
 	}
@@ -171,7 +171,7 @@ func (e *Estimator) EstimateDApp(script *ast.Script) (Costs, error) {
 	return r, nil
 }
 
-func (e *Estimator) Estimate(script *ast.Script) (int64, error) {
+func (e *Estimator) Estimate(script *ast.Script) (uint64, error) {
 	if script.IsDapp() {
 		return 0, errors.New("estimation: not a simple script")
 	}
@@ -234,7 +234,7 @@ func (e *Estimator) restoreContexts(cp map[string]*context, current string) {
 	e.current = current
 }
 
-func (e *Estimator) estimateCallable(callable *ast.DappCallableFunc) (int64, error) {
+func (e *Estimator) estimateCallable(callable *ast.DappCallableFunc) (uint64, error) {
 	if callable == nil {
 		return 0, nil
 	}
@@ -250,13 +250,13 @@ func (e *Estimator) estimateCallable(callable *ast.DappCallableFunc) (int64, err
 	return cost + 10, nil
 }
 
-func (e *Estimator) estimate(expr ast.Expr) (int64, error) {
+func (e *Estimator) estimate(expr ast.Expr) (uint64, error) {
 	switch ce := expr.(type) {
 	case *ast.StringExpr, *ast.LongExpr, *ast.BooleanExpr, *ast.BytesExpr:
 		return 1, nil
 
 	case ast.Exprs:
-		var total int64 = 0
+		var total uint64 = 0
 		for _, item := range ce {
 			c, err := e.estimate(item)
 			if err != nil {
@@ -313,7 +313,7 @@ func (e *Estimator) estimate(expr ast.Expr) (int64, error) {
 				if err != nil {
 					return 0, err
 				}
-				ac := int64(len(declaration.Args) * 5) // arguments cost = 5 * number of arguments
+				ac := uint64(len(declaration.Args) * 5) // arguments cost = 5 * number of arguments
 				e.catalogue.user[declaration.Name] = ac + fc
 			}
 			bc, err := e.estimate(ce.Body)
@@ -333,14 +333,14 @@ func (e *Estimator) estimate(expr ast.Expr) (int64, error) {
 		return cc, nil
 
 	case *ast.FunctionCall:
-		var fc int64
+		var fc uint64
 		callContext, err := e.context()
 		if err != nil {
 			return 0, err
 		}
 		if fd, ok := callContext.declaration(ce.Name); ok {
 			// Estimate parameters that was passed to the function
-			fc += int64(ce.Argc * 5)
+			fc += uint64(ce.Argc * 5)
 			ac, err := e.estimate(ce.Argv)
 			if err != nil {
 				return 0, err
@@ -438,7 +438,7 @@ func (e *Estimator) estimate(expr ast.Expr) (int64, error) {
 		if err != nil {
 			return 0, err
 		}
-		return c + int64(len(ce.Args)*6), nil
+		return c + uint64(len(ce.Args)*6), nil
 
 	default:
 		return 0, nil
@@ -446,19 +446,19 @@ func (e *Estimator) estimate(expr ast.Expr) (int64, error) {
 }
 
 type Catalogue struct {
-	native map[int16]int64
-	user   map[string]int64
+	native map[int16]uint64
+	user   map[string]uint64
 }
 
-func (c *Catalogue) FunctionCost(id string) (int64, bool) {
+func (c *Catalogue) FunctionCost(id string) (uint64, bool) {
 	v, ok := c.user[id]
 	return v, ok
 }
 
 func NewCatalogueV2() *Catalogue {
 	c := &Catalogue{
-		native: make(map[int16]int64),
-		user:   make(map[string]int64),
+		native: make(map[int16]uint64),
+		user:   make(map[string]uint64),
 	}
 
 	c.user["0"] = 1
