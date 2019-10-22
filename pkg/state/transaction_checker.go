@@ -56,8 +56,8 @@ func (tc *transactionChecker) scriptActivation(script *ast.Script) error {
 	return nil
 }
 
-func (tc *transactionChecker) checkScriptComplexity(script *ast.Script, complexity int64) error {
-	var maxComplexity int64
+func (tc *transactionChecker) checkScriptComplexity(script *ast.Script, complexity uint64) error {
+	var maxComplexity uint64
 	switch script.Version {
 	case 1, 2:
 		maxComplexity = 2000
