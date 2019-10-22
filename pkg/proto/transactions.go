@@ -6,6 +6,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/libs/serializer"
 )
 
 //TransactionType
@@ -789,6 +790,42 @@ func (tr *Transfer) marshalBinary() ([]byte, error) {
 	p += rl
 	PutStringWithUInt16Len(buf[p:], tr.Attachment.String())
 	return buf, nil
+}
+
+func (tr *Transfer) Serialize(s *serializer.Serializer) error {
+	err := s.Bytes(tr.SenderPK[:])
+	if err != nil {
+		return err
+	}
+	err = tr.AmountAsset.Serialize(s)
+	if err != nil {
+		return err
+	}
+	err = tr.FeeAsset.Serialize(s)
+	if err != nil {
+		return err
+	}
+	err = s.Uint64(tr.Timestamp)
+	if err != nil {
+		return err
+	}
+	err = s.Uint64(tr.Amount)
+	if err != nil {
+		return err
+	}
+	err = s.Uint64(tr.Fee)
+	if err != nil {
+		return err
+	}
+	err = tr.Recipient.Serialize(s)
+	if err != nil {
+		return err
+	}
+	err = s.StringWithUInt16Len(tr.Attachment.String())
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (tr *Transfer) unmarshalBinary(data []byte) error {

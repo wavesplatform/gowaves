@@ -3,9 +3,13 @@ package proto
 import (
 	"encoding/binary"
 	"encoding/json"
+	"io"
+
 	"github.com/jinzhu/copier"
 	"github.com/pkg/errors"
+	"github.com/valyala/bytebufferpool"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/libs/serializer"
 )
 
 const (
@@ -257,6 +261,43 @@ func (tx *TransferV1) BodyMarshalBinary() ([]byte, error) {
 	buf[0] = byte(tx.Type)
 	copy(buf[1:], b)
 	return buf, nil
+}
+
+func (tx *TransferV1) BodySerialize(s *serializer.Serializer) error {
+	err := s.Byte(byte(tx.Type))
+	if err != nil {
+		return err
+	}
+	err = tx.Transfer.Serialize(s)
+	if err != nil {
+		return errors.Wrap(err, "failed to serialize TransferV1 body")
+	}
+	return nil
+}
+
+func (tx *TransferV1) WriteTo(w io.Writer) (int64, error) {
+	s := serializer.New(w)
+	err := tx.Serialize(s)
+	if err != nil {
+		return 0, err
+	}
+	return s.N(), nil
+}
+
+func (tx *TransferV1) Serialize(s *serializer.Serializer) error {
+	err := s.Byte(byte(tx.Type))
+	if err != nil {
+		return err
+	}
+	err = s.Bytes(tx.Signature[:])
+	if err != nil {
+		return err
+	}
+	err = tx.BodySerialize(s)
+	if err != nil {
+		return errors.Wrap(err, "failed to marshal TransferV1 transaction to bytes")
+	}
+	return nil
 }
 
 func (tx *TransferV1) bodyUnmarshalBinary(data []byte) error {
@@ -845,6 +886,67 @@ func (tx *ExchangeV1) BodyMarshalBinary() ([]byte, error) {
 	p += 8
 	binary.BigEndian.PutUint64(buf[p:], tx.Timestamp)
 	return buf, nil
+}
+
+func (tx *ExchangeV1) BodySerialize(s *serializer.Serializer) error {
+	err := s.Byte(byte(tx.Type))
+	if err != nil {
+		return err
+	}
+	bob := bytebufferpool.Get()
+	defer bytebufferpool.Put(bob)
+	s1 := serializer.New(bob)
+	err = tx.BuyOrder.Serialize(s1)
+	if err != nil {
+		return errors.Wrapf(err, "failed to marshal ExchangeV1 body to bytes")
+	}
+	bol := uint32(len(bob.B))
+
+	sob := bytebufferpool.Get()
+	defer bytebufferpool.Put(sob)
+	s2 := serializer.New(bob)
+	err = tx.SellOrder.Serialize(s2)
+	if err != nil {
+		return errors.Wrapf(err, "failed to marshal ExchangeV1 body to bytes")
+	}
+	sol := uint32(len(sob.B))
+	err = s.Uint32(bol)
+	if err != nil {
+		return err
+	}
+	err = s.Uint32(sol)
+	if err != nil {
+		return err
+	}
+	err = s.Bytes(bob.B)
+	if err != nil {
+		return err
+	}
+	err = s.Bytes(sob.B)
+	if err != nil {
+		return err
+	}
+	err = s.Uint64(tx.Price)
+	if err != nil {
+		return err
+	}
+	err = s.Uint64(tx.Amount)
+	if err != nil {
+		return err
+	}
+	err = s.Uint64(tx.BuyMatcherFee)
+	if err != nil {
+		return err
+	}
+	err = s.Uint64(tx.SellMatcherFee)
+	if err != nil {
+		return err
+	}
+	err = s.Uint64(tx.Fee)
+	if err != nil {
+		return err
+	}
+	return s.Uint64(tx.Timestamp)
 }
 
 func (tx *ExchangeV1) bodyUnmarshalBinary(data []byte) (int, error) {
@@ -2802,6 +2904,46 @@ func (tx *InvokeScriptV1) BodyMarshalBinary() ([]byte, error) {
 	return buf, nil
 }
 
+func (tx *InvokeScriptV1) BodySerialize(s *serializer.Serializer) error {
+	err := s.Byte(byte(tx.Type))
+	if err != nil {
+		return err
+	}
+	err = s.Byte(tx.Version)
+	if err != nil {
+		return err
+	}
+	err = s.Byte(tx.ChainID)
+	if err != nil {
+		return err
+	}
+	err = s.Bytes(tx.SenderPK[:])
+	if err != nil {
+		return err
+	}
+	err = tx.ScriptRecipient.Serialize(s)
+	if err != nil {
+		return err
+	}
+	err = tx.FunctionCall.Serialize(s)
+	if err != nil {
+		return err
+	}
+	err = tx.Payments.Serialize(s)
+	if err != nil {
+		return err
+	}
+	err = s.Uint64(tx.Fee)
+	if err != nil {
+		return err
+	}
+	err = tx.FeeAsset.Serialize(s)
+	if err != nil {
+		return err
+	}
+	return s.Uint64(tx.Timestamp)
+}
+
 func (tx *InvokeScriptV1) bodyUnmarshalBinary(data []byte) error {
 	if l := len(data); l < invokeScriptV1FixedBodyLen {
 		return errors.Errorf("not enough data for InvokeScriptV1 transaction, expected not less then %d, received %d", invokeScriptV1FixedBodyLen, l)
@@ -2900,6 +3042,22 @@ func (tx *InvokeScriptV1) MarshalBinary() ([]byte, error) {
 	copy(buf[1:], bb)
 	copy(buf[1+bl:], pb)
 	return buf, nil
+}
+
+//Serialize InvokeScriptV1 transaction to its bytes representation.
+func (tx *InvokeScriptV1) Serialize(s *serializer.Serializer) error {
+	err := s.Byte(0)
+	if err != nil {
+		return err
+	}
+	err = tx.BodySerialize(s)
+	if err != nil {
+		return errors.Wrap(err, "failed to marshal InvokeScriptV1 transaction to bytes")
+	}
+	if tx.Proofs == nil {
+		return errors.New("failed to marshal InvokeScriptV1 transaction to bytes: no proofs")
+	}
+	return tx.Proofs.Serialize(s)
 }
 
 //UnmarshalBinary reads InvokeScriptV1 transaction from its binary representation.

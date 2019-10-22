@@ -199,17 +199,26 @@ func (a OptionalAsset) MarshalBinary() ([]byte, error) {
 //WriteTo writes its binary representation.
 func (a OptionalAsset) WriteTo(w io.Writer) (int64, error) {
 	s := serializer.New(w)
-	err := s.Bool(a.Present)
+	err := a.Serialize(s)
 	if err != nil {
 		return 0, err
+	}
+	return s.N(), nil
+}
+
+//Serialize into binary representation.
+func (a OptionalAsset) Serialize(s *serializer.Serializer) error {
+	err := s.Bool(a.Present)
+	if err != nil {
+		return err
 	}
 	if a.Present {
 		err = s.Bytes(a.ID[:])
 		if err != nil {
-			return 0, err
+			return err
 		}
 	}
-	return s.N(), nil
+	return nil
 }
 
 //UnmarshalBinary reads the OptionalAsset structure from its binary representation.
@@ -543,6 +552,46 @@ func (o *OrderBody) marshalBinary() ([]byte, error) {
 	return buf, nil
 }
 
+func (o *OrderBody) Serialize(s *serializer.Serializer) error {
+	err := s.Bytes(o.SenderPK[:])
+	if err != nil {
+		return err
+	}
+	err = s.Bytes(o.MatcherPK[:])
+	if err != nil {
+		return err
+	}
+	err = o.AssetPair.AmountAsset.Serialize(s)
+	if err != nil {
+		return errors.Wrapf(err, "failed marshal OrderBody to bytes")
+	}
+	err = o.AssetPair.PriceAsset.Serialize(s)
+	if err != nil {
+		return errors.Wrapf(err, "failed marshal OrderBody to bytes")
+	}
+	err = s.Byte(byte(o.OrderType))
+	if err != nil {
+		return err
+	}
+	err = s.Uint64(o.Price)
+	if err != nil {
+		return err
+	}
+	err = s.Uint64(o.Amount)
+	if err != nil {
+		return err
+	}
+	err = s.Uint64(o.Timestamp)
+	if err != nil {
+		return err
+	}
+	err = s.Uint64(o.Expiration)
+	if err != nil {
+		return err
+	}
+	return s.Uint64(o.MatcherFee)
+}
+
 func (o *OrderBody) unmarshalBinary(data []byte) error {
 	if l := len(data); l < orderLen {
 		return errors.Errorf("not enough data for OrderBody, expected not less then %d, received %d", orderLen, l)
@@ -668,6 +717,10 @@ func (o OrderV1) BodyMarshalBinary() ([]byte, error) {
 	return o.OrderBody.marshalBinary()
 }
 
+func (o OrderV1) BodySerialize(s *serializer.Serializer) error {
+	return o.OrderBody.Serialize(s)
+}
+
 func (o *OrderV1) bodyUnmarshalBinary(data []byte) error {
 	return o.OrderBody.unmarshalBinary(data)
 }
@@ -714,6 +767,15 @@ func (o *OrderV1) MarshalBinary() ([]byte, error) {
 	copy(buf[0:], b)
 	copy(buf[bl:], o.Signature[:])
 	return buf, nil
+}
+
+//Serialize order to its bytes representation.
+func (o *OrderV1) Serialize(s *serializer.Serializer) error {
+	err := o.BodySerialize(s)
+	if err != nil {
+		return errors.Wrap(err, "failed to marshal OrderV1 to bytes")
+	}
+	return s.Bytes(o.Signature[:])
 }
 
 //UnmarshalBinary reads an order from its binary representation.
@@ -1225,6 +1287,30 @@ func (p *ProofsV1) MarshalBinary() ([]byte, error) {
 		pos += el
 	}
 	return buf, nil
+}
+
+//Serialize proofs to its binary form.
+func (p *ProofsV1) Serialize(s *serializer.Serializer) error {
+	err := s.Byte(proofsVersion)
+	if err != nil {
+		return err
+	}
+	err = s.Uint16(uint16(len(p.Proofs)))
+	if err != nil {
+		return err
+	}
+	for _, e := range p.Proofs {
+		el := len(e)
+		err = s.Uint16(uint16(el))
+		if err != nil {
+			return err
+		}
+		err = s.Bytes(e)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 //UnmarshalBinary reads the proofs from its binary representation.
@@ -1982,6 +2068,7 @@ type Argument interface {
 	GetValueType() ArgumentValueType
 	MarshalBinary() ([]byte, error)
 	binarySize() int
+	Serialize(*serializer.Serializer) error
 }
 
 //DataEntryType is the assistive structure used to get the type of DataEntry while unmarshal form JSON.
@@ -2057,6 +2144,20 @@ func (a Arguments) MarshalBinary() ([]byte, error) {
 	return buf, nil
 }
 
+func (a Arguments) Serialize(s *serializer.Serializer) error {
+	err := s.Uint32(uint32(len(a)))
+	if err != nil {
+		return err
+	}
+	for _, arg := range a {
+		err := arg.Serialize(s)
+		if err != nil {
+			return errors.Wrap(err, "failed to marshal Arguments to bytes")
+		}
+	}
+	return nil
+}
+
 func (a *Arguments) UnmarshalBinary(data []byte) error {
 	if l := len(data); l < 4 {
 		return errors.Errorf("%d is not enough bytes for Arguments", l)
@@ -2130,6 +2231,15 @@ func (a IntegerArgument) MarshalBinary() ([]byte, error) {
 	return buf, nil
 }
 
+//Serialize the integer argument in its bytes representation.
+func (a IntegerArgument) Serialize(s *serializer.Serializer) error {
+	err := s.Byte(byte(ArgumentInteger))
+	if err != nil {
+		return err
+	}
+	return s.Uint64(uint64(a.Value))
+}
+
 //UnmarshalBinary reads binary representation of integer argument to the structure.
 func (a *IntegerArgument) UnmarshalBinary(data []byte) error {
 	if l := len(data); l < integerArgumentLen {
@@ -2190,6 +2300,17 @@ func (a BooleanArgument) MarshalBinary() ([]byte, error) {
 		buf[0] = BooleanFalse
 	}
 	return buf, nil
+}
+
+//Serialize argument to its byte representation.
+func (a BooleanArgument) Serialize(s *serializer.Serializer) error {
+	buf := byte(0)
+	if a.Value {
+		buf = BooleanTrue
+	} else {
+		buf = BooleanFalse
+	}
+	return s.Byte(buf)
 }
 
 //UnmarshalBinary reads a byte representation of the data entry.
@@ -2257,6 +2378,15 @@ func (a BinaryArgument) MarshalBinary() ([]byte, error) {
 	return buf, nil
 }
 
+//Serialize argument to its byte representation.
+func (a BinaryArgument) Serialize(s *serializer.Serializer) error {
+	err := s.Byte(byte(ArgumentBinary))
+	if err != nil {
+		return err
+	}
+	return s.BytesWithUInt32Len(a.Value)
+}
+
 //UnmarshalBinary reads an argument from a binary representation.
 func (a *BinaryArgument) UnmarshalBinary(data []byte) error {
 	if l := len(data); l < binaryArgumentMinLen {
@@ -2322,6 +2452,15 @@ func (a StringArgument) MarshalBinary() ([]byte, error) {
 	return buf, nil
 }
 
+//Serialize argument to its byte representation.
+func (a StringArgument) Serialize(s *serializer.Serializer) error {
+	err := s.Byte(byte(ArgumentString))
+	if err != nil {
+		return err
+	}
+	return s.StringWithUInt32Len(a.Value)
+}
+
 //UnmarshalBinary reads an StringArgument structure from bytes.
 func (a *StringArgument) UnmarshalBinary(data []byte) error {
 	if l := len(data); l < stringArgumentMinLen {
@@ -2364,6 +2503,25 @@ type FunctionCall struct {
 	Default   bool
 	Name      string
 	Arguments Arguments
+}
+
+func (c FunctionCall) Serialize(s *serializer.Serializer) error {
+	if c.Default {
+		return s.Byte(0)
+	}
+	err := s.Bytes([]byte{1, reader.E_FUNCALL, reader.FH_USER})
+	if err != nil {
+		return err
+	}
+	err = s.StringWithUInt32Len(c.Name)
+	if err != nil {
+		return err
+	}
+	err = c.Arguments.Serialize(s)
+	if err != nil {
+		return errors.Wrap(err, "failed to serialize FunctionCall to bytes")
+	}
+	return nil
 }
 
 func (c FunctionCall) MarshalBinary() ([]byte, error) {
@@ -2477,6 +2635,23 @@ func (p ScriptPayment) MarshalBinary() ([]byte, error) {
 	return buf, nil
 }
 
+func (p ScriptPayment) Serialize(s *serializer.Serializer) error {
+	size := p.binarySize()
+	err := s.Uint16(uint16(size - 2))
+	if err != nil {
+		return err
+	}
+	err = s.Uint64(p.Amount)
+	if err != nil {
+		return err
+	}
+	err = p.Asset.Serialize(s)
+	if err != nil {
+		return errors.Wrap(err, "failed to serialize ScriptPayment to bytes")
+	}
+	return nil
+}
+
 func (p *ScriptPayment) UnmarshalBinary(data []byte) error {
 	if l := len(data); l < 2 {
 		return errors.Errorf("%d is not enough bytes for ScriptPayment", l)
@@ -2519,6 +2694,20 @@ func (sps ScriptPayments) MarshalBinary() ([]byte, error) {
 		p += len(b)
 	}
 	return buf, nil
+}
+
+func (sps ScriptPayments) Serialize(s *serializer.Serializer) error {
+	err := s.Uint16(uint16(len(sps)))
+	if err != nil {
+		return err
+	}
+	for _, sp := range sps {
+		err := sp.Serialize(s)
+		if err != nil {
+			return errors.Wrap(err, "failed to marshal ScriptPayments to bytes")
+		}
+	}
+	return nil
 }
 
 func (sps *ScriptPayments) UnmarshalBinary(data []byte) error {

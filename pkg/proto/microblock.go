@@ -8,7 +8,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/libs/deserializer"
 	"github.com/wavesplatform/gowaves/pkg/libs/serializer"
-	"go.uber.org/zap"
 )
 
 type MicroBlock struct {
@@ -153,9 +152,7 @@ func (a *MicroBlockMessage) WriteTo(w io.Writer) (int64, error) {
 	if err != nil {
 		return n1 + n2, err
 	}
-
 	return n1 + n2, nil
-
 }
 
 func (a *MicroBlockMessage) UnmarshalBinary(data []byte) error {
@@ -171,9 +168,6 @@ func (a *MicroBlockMessage) UnmarshalBinary(data []byte) error {
 	if len(data) < crypto.SignatureSize*2+1 {
 		return errors.New("invalid micro block size")
 	}
-
-	zap.S().Infof("header %+v", h)
-
 	b := make([]byte, len(data[:h.PayloadLength]))
 	copy(b, data)
 	a.Body = Bytes(b)
