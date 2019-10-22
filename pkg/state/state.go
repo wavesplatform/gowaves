@@ -11,6 +11,7 @@ import (
 
 	"github.com/mr-tron/base58/base58"
 	"github.com/pkg/errors"
+	"github.com/valyala/bytebufferpool"
 	"github.com/wavesplatform/gowaves/pkg/consensus"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
@@ -1214,9 +1215,27 @@ func (s *stateManager) undoBlockAddition() error {
 }
 
 func (s *stateManager) AddBlock(block []byte) (*proto.Block, error) {
+	b := &proto.Block{}
+	err := b.UnmarshalBinary(block)
+	if err != nil {
+		return nil, err
+	}
 	// Make sure appender doesn't store any diffs from previous validations (e.g. UTX).
 	s.appender.reset()
-	rs, err := s.addBlocks([][]byte{block}, false)
+	rs, err := s.addBlocks([]*proto.Block{b}, false)
+	if err != nil {
+		if err := s.undoBlockAddition(); err != nil {
+			panic("Failed to add blocks and can not rollback to previous state after failure.")
+		}
+		return nil, err
+	}
+	return rs, nil
+}
+
+func (s *stateManager) addBlock(block *proto.Block) (*proto.Block, error) {
+	// Make sure appender doesn't store any diffs from previous validations (e.g. UTX).
+	s.appender.reset()
+	rs, err := s.addBlocks([]*proto.Block{block}, false)
 	if err != nil {
 		if err := s.undoBlockAddition(); err != nil {
 			panic("Failed to add blocks and can not rollback to previous state after failure.")
@@ -1227,14 +1246,19 @@ func (s *stateManager) AddBlock(block []byte) (*proto.Block, error) {
 }
 
 func (s *stateManager) AddDeserializedBlock(block *proto.Block) (*proto.Block, error) {
-	blockBytes, err := block.MarshalBinary()
-	if err != nil {
-		return nil, wrapErr(SerializationError, err)
-	}
-	return s.AddBlock(blockBytes)
+	return s.addBlock(block)
 }
 
-func (s *stateManager) AddNewBlocks(blocks [][]byte) error {
+func (s *stateManager) AddNewBlocks(blockBytes [][]byte) error {
+	var blocks []*proto.Block
+	for _, bts := range blockBytes {
+		block := &proto.Block{}
+		err := block.UnmarshalBinary(bts)
+		if err != nil {
+			return err
+		}
+		blocks = append(blocks, block)
+	}
 	// Make sure appender doesn't store any diffs from previous validations (e.g. UTX).
 	s.appender.reset()
 	if _, err := s.addBlocks(blocks, false); err != nil {
@@ -1266,7 +1290,16 @@ func (s *stateManager) AddNewDeserializedBlocks(blocks []*proto.Block) error {
 	return s.AddNewBlocks(blocksBytes)
 }
 
-func (s *stateManager) AddOldBlocks(blocks [][]byte) error {
+func (s *stateManager) AddOldBlocks(blockBytes [][]byte) error {
+	var blocks []*proto.Block
+	for _, bts := range blockBytes {
+		block := &proto.Block{}
+		err := block.UnmarshalBinary(bts)
+		if err != nil {
+			return err
+		}
+		blocks = append(blocks, block)
+	}
 	// Make sure appender doesn't store any diffs from previous validations (e.g. UTX).
 	s.appender.reset()
 	if _, err := s.addBlocks(blocks, true); err != nil {
@@ -1450,7 +1483,7 @@ func (s *stateManager) cancelLeases(blockID crypto.Signature) error {
 	return nil
 }
 
-func (s *stateManager) handleBreak(blocksToFinish [][]byte, initialisation bool, task *breakerTask) (*proto.Block, error) {
+func (s *stateManager) handleBreak(blocksToFinish []*proto.Block, initialisation bool, task *breakerTask) (*proto.Block, error) {
 	if task == nil {
 		return nil, wrapErr(Other, errors.New("handleBreak received empty task"))
 	}
@@ -1475,7 +1508,7 @@ func (s *stateManager) handleBreak(blocksToFinish [][]byte, initialisation bool,
 	return s.addBlocks(blocksToFinish, initialisation)
 }
 
-func (s *stateManager) addBlocks(blocks [][]byte, initialisation bool) (*proto.Block, error) {
+func (s *stateManager) addBlocks(blocks []*proto.Block, initialisation bool) (*proto.Block, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	blocksNumber := len(blocks)
@@ -1504,7 +1537,7 @@ func (s *stateManager) addBlocks(blocks [][]byte, initialisation bool) (*proto.B
 	// can be performed with consistent database state, with all the recent changes being saved to disk.
 	// After performing the event, addBlocks() calls itself with the rest of the blocks batch.
 	// blocksToFinish stores these blocks, breakerInfo specifies type of the event.
-	var blocksToFinish [][]byte
+	var blocksToFinish []*proto.Block
 	breakerInfo := &breakerTask{blockID: parent.BlockSignature}
 
 	// Launch verifier that checks signatures of blocks and transactions.
@@ -1512,7 +1545,7 @@ func (s *stateManager) addBlocks(blocks [][]byte, initialisation bool) (*proto.B
 	go launchVerifier(ctx, chans, s.verificationGoroutinesNum)
 
 	var lastBlock *proto.Block
-	for i, blockBytes := range blocks {
+	for i, block := range blocks {
 		curHeight := height + uint64(i)
 		breakAdding, err := s.needToBreakAddingBlocks(curHeight, breakerInfo)
 		if err != nil {
@@ -1523,16 +1556,16 @@ func (s *stateManager) addBlocks(blocks [][]byte, initialisation bool) (*proto.B
 			blocksToFinish = blocks[i:]
 			break
 		}
-		var block proto.Block
-		if err := block.UnmarshalBinary(blockBytes); err != nil {
-			return nil, wrapErr(DeserializationError, err)
-		}
 		breakerInfo.blockID = block.BlockSignature
+		blockBytes, err := blockToBytes(block)
+		if err != nil {
+			return nil, err
+		}
 		// Send block for signature verification, which works in separate goroutine.
 		task := &verifyTask{
 			taskType:   verifyBlock,
 			parentSig:  parent.BlockSignature,
-			block:      &block,
+			block:      block,
 			blockBytes: blockBytes[:len(blockBytes)-crypto.SignatureSize],
 		}
 		select {
@@ -1540,7 +1573,7 @@ func (s *stateManager) addBlocks(blocks [][]byte, initialisation bool) (*proto.B
 			return nil, wrapErr(ValidationError, verifyError)
 		case chans.tasksChan <- task:
 		}
-		lastBlock = &block
+		lastBlock = block
 		// Add score.
 		score, err := CalculateScore(block.BaseTarget)
 		if err != nil {
@@ -1555,11 +1588,11 @@ func (s *stateManager) addBlocks(blocks [][]byte, initialisation bool) (*proto.B
 			return nil, wrapErr(ModificationError, err)
 		}
 		// Save block to storage, check its transactions, create and save balance diffs for its transactions.
-		if err := s.addNewBlock(&block, parent, initialisation, chans, curHeight); err != nil {
+		if err := s.addNewBlock(block, parent, initialisation, chans, curHeight); err != nil {
 			return nil, wrapErr(TxValidationError, err)
 		}
 		headers[i] = block.BlockHeader
-		parent = &block
+		parent = block
 	}
 	// Tasks chan can now be closed, since all the blocks and transactions have been already sent for verification.
 	close(chans.tasksChan)
@@ -2057,4 +2090,17 @@ func (s *stateManager) Close() error {
 		return wrapErr(ClosureError, err)
 	}
 	return nil
+}
+
+func blockToBytes(block *proto.Block) ([]byte, error) {
+	buf := bytebufferpool.Get()
+	_, err := block.WriteTo(buf)
+	if err != nil {
+		bytebufferpool.Put(buf)
+		return nil, err
+	}
+	blockBytes := make([]byte, len(buf.B))
+	copy(blockBytes, buf.B)
+	bytebufferpool.Put(buf)
+	return blockBytes, nil
 }
