@@ -100,6 +100,13 @@ func NewEstimator(version int, catalogue *Catalogue, variables map[string]ast.Ex
 	}
 }
 
+func (e *Estimator) Estimate(script *ast.Script) (Costs, error) {
+	if script.IsDapp() {
+		return e.EstimateDApp(script)
+	}
+	return e.EstimateVerifier(script)
+}
+
 func (e *Estimator) EstimateDApp(script *ast.Script) (Costs, error) {
 	if !script.IsDapp() {
 		return Costs{}, errors.New("estimation: not a DApp")
@@ -171,15 +178,15 @@ func (e *Estimator) EstimateDApp(script *ast.Script) (Costs, error) {
 	return r, nil
 }
 
-func (e *Estimator) Estimate(script *ast.Script) (uint64, error) {
+func (e *Estimator) EstimateVerifier(script *ast.Script) (Costs, error) {
 	if script.IsDapp() {
-		return 0, errors.New("estimation: not a simple script")
+		return Costs{}, errors.New("estimation: not a simple script")
 	}
 	verifierCost, err := e.estimate(script.Verifier)
 	if err != nil {
-		return 0, errors.Wrap(err, "estimation")
+		return Costs{}, errors.Wrap(err, "estimation")
 	}
-	return verifierCost, nil
+	return Costs{Verifier: verifierCost}, nil
 }
 
 func (e *Estimator) context() (*context, error) {

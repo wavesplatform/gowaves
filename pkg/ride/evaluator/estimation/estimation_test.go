@@ -71,12 +71,12 @@ func TestEstimatorCommon(t *testing.T) {
 		require.NoError(t, err, test.code)
 		e1 := NewEstimator(1, test.catalogue, ast.VariablesV3())
 		e2 := NewEstimator(2, test.catalogue, ast.VariablesV3())
-		cost1, err := e1.Estimate(script)
+		cost1, err := e1.EstimateVerifier(script)
 		require.NoError(t, err, test.code)
-		cost2, err := e2.Estimate(script)
+		cost2, err := e2.EstimateVerifier(script)
 		require.NoError(t, err, test.code)
-		assert.Equal(t, test.cost, cost1, test.code)
-		assert.Equal(t, test.cost, cost2, test.code)
+		assert.Equal(t, test.cost, cost1.Verifier, test.code)
+		assert.Equal(t, test.cost, cost2.Verifier, test.code)
 	}
 }
 
@@ -119,9 +119,9 @@ func TestEstimatorFix(t *testing.T) {
 		script, err := ast.BuildScript(r)
 		require.NoError(t, err, test.code)
 		e := NewEstimator(test.version, test.catalogue, ast.VariablesV3())
-		cost, err := e.Estimate(script)
+		cost, err := e.EstimateVerifier(script)
 		require.NoError(t, err, test.code)
-		assert.Equal(t, test.cost, cost, test.code)
+		assert.Equal(t, test.cost, cost.Verifier, test.code)
 	}
 }
 
