@@ -7,6 +7,7 @@ import (
 	"github.com/jinzhu/copier"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/libs/serializer"
 )
 
 const (
@@ -350,6 +351,19 @@ func (tx *TransferV2) BodyMarshalBinary() ([]byte, error) {
 	return buf, nil
 }
 
+func (tx *TransferV2) BodySerialize(s *serializer.Serializer) error {
+	buf := [2]byte{byte(tx.Type), tx.Version}
+	err := s.Bytes(buf[:])
+	if err != nil {
+		return err
+	}
+	err = tx.Transfer.Serialize(s)
+	if err != nil {
+		return errors.Wrap(err, "failed to marshal TransferV2 body")
+	}
+	return nil
+}
+
 func (tx *TransferV2) BodyUnmarshalBinary(data []byte) error {
 	if l := len(data); l < transferV2FixedBodyLen {
 		return errors.Errorf("%d bytes is not enough for TransferV2 transaction, expected not less then %d bytes", l, transferV2FixedBodyLen)
@@ -420,6 +434,25 @@ func (tx *TransferV2) MarshalBinary() ([]byte, error) {
 	copy(buf[1:], bb)
 	copy(buf[1+bl:], pb)
 	return buf, nil
+}
+
+func (tx *TransferV2) Serialize(s *serializer.Serializer) error {
+	err := s.Byte(0)
+	if err != nil {
+		return err
+	}
+	err = tx.BodySerialize(s)
+	if err != nil {
+		return errors.Wrap(err, "failed to marshal TransferV2 transaction to bytes")
+	}
+	if tx.Proofs == nil {
+		return errors.New("failed to marshal TransferV2 transaction to bytes: no proofs")
+	}
+	err = tx.Proofs.Serialize(s)
+	if err != nil {
+		return errors.Wrap(err, "failed to marshal TransferV2 transaction to bytes")
+	}
+	return nil
 }
 
 //UnmarshalBinary reads TransferV2 from its bytes representation.

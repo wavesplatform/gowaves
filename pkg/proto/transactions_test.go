@@ -16,6 +16,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/libs/serializer"
 )
 
 func TestGuessTransaction_Genesis(t *testing.T) {
@@ -627,6 +628,21 @@ func TestTransferV1BinaryRoundTrip(t *testing.T) {
 				assert.Equal(t, tc.attachment, atx.Attachment.String())
 			}
 		}
+		buf := &bytes.Buffer{}
+		_, err = tx.WriteTo(buf)
+		require.NoError(t, err)
+		var atx TransferV1
+		if err := atx.UnmarshalBinary(buf.Bytes()); assert.NoError(t, err) {
+			assert.Equal(t, tx.ID, atx.ID)
+			assert.ElementsMatch(t, *tx.Signature, *atx.Signature)
+			assert.ElementsMatch(t, pk, atx.SenderPK)
+			assert.Equal(t, tc.expectedAmountAsset, atx.AmountAsset.String())
+			assert.Equal(t, tc.expectedFeeAsset, atx.FeeAsset.String())
+			assert.Equal(t, tc.amount, atx.Amount)
+			assert.Equal(t, tc.fee, atx.Fee)
+			assert.Equal(t, ts, atx.Timestamp)
+			assert.Equal(t, tc.attachment, atx.Attachment.String())
+		}
 	}
 }
 
@@ -914,6 +930,8 @@ func BenchmarkTransferV2Binary(t *testing.B) {
 	t.StopTimer()
 	t.ReportAllocs()
 
+	buf := bytes.NewBuffer(make([]byte, 1024*1024))
+
 	tc := struct {
 		scheme              byte
 		amountAsset         string
@@ -938,47 +956,16 @@ func BenchmarkTransferV2Binary(t *testing.B) {
 		fa, err := NewOptionalAssetFromString(tc.feeAsset)
 		require.NoError(t, err)
 		tx := NewUnsignedTransferV2(pk, *aa, *fa, ts, tc.amount, tc.fee, rcp, tc.attachment)
-		if bb, err := tx.BodyMarshalBinary(); assert.NoError(t, err) {
-			var atx TransferV2
-			if err := atx.BodyUnmarshalBinary(bb); assert.NoError(t, err) {
-				assert.Equal(t, tx.Type, atx.Type)
-				assert.Equal(t, tx.Version, atx.Version)
-				assert.Equal(t, tx.SenderPK, atx.SenderPK)
-				assert.Equal(t, tx.Recipient, atx.Recipient)
-				assert.Equal(t, tx.AmountAsset.Present, atx.AmountAsset.Present)
-				assert.ElementsMatch(t, tx.AmountAsset.ID, atx.AmountAsset.ID)
-				assert.Equal(t, tx.FeeAsset.Present, atx.FeeAsset.Present)
-				assert.ElementsMatch(t, tx.FeeAsset.ID, atx.FeeAsset.ID)
-				assert.Equal(t, tx.Amount, atx.Amount)
-				assert.Equal(t, tx.Fee, atx.Fee)
-				assert.Equal(t, tx.Timestamp, atx.Timestamp)
-				assert.Equal(t, tx.Attachment.String(), atx.Attachment.String())
-			}
-		}
 		if err := tx.Sign(sk); assert.NoError(t, err) {
 			if r, err := tx.Verify(pk); assert.NoError(t, err) {
 				assert.True(t, r)
 			}
 		}
-
+		buf.Reset()
+		s := serializer.New(buf)
 		t.StartTimer()
-		_, _ = tx.MarshalBinary()
+		_ = tx.Serialize(s)
 		t.StopTimer()
-
-		//if b, err :=  assert.NoError(t, err) {
-		//	var atx TransferV2
-		//	if err := atx.UnmarshalBinary(b); assert.NoError(t, err) {
-		//		assert.Equal(t, tx.ID, atx.ID)
-		//		assert.ElementsMatch(t, tx.Proofs.Proofs, atx.Proofs.Proofs)
-		//		assert.Equal(t, pk, atx.SenderPK)
-		//		assert.Equal(t, tc.expectedAmountAsset, atx.AmountAsset.String())
-		//		assert.Equal(t, tc.expectedFeeAsset, atx.FeeAsset.String())
-		//		assert.Equal(t, tc.amount, atx.Amount)
-		//		assert.Equal(t, tc.fee, atx.Fee)
-		//		assert.Equal(t, ts, atx.Timestamp)
-		//		assert.Equal(t, tc.attachment, atx.Attachment.String())
-		//	}
-		//}
 	}
 }
 

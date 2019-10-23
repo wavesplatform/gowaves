@@ -49,7 +49,7 @@ func (a *StateSync) Sync() {
 	case a.syncCh <- struct{}{}:
 		return
 	default:
-		zap.S().Error("failed add sync job, chan is full")
+		zap.S().Info("failed add sync job, chan is full")
 	}
 }
 
@@ -97,9 +97,17 @@ func (a *StateSync) sync(ctx context.Context, p Peer) error {
 	err = <-errCh
 	if err != nil {
 		// TODO switch on error type, maybe suspend node
-		zap.S().Error(err)
+		if err == TimeoutErr {
+			zap.S().Info("timeout err", err)
+		} else {
+			zap.S().Info(err)
+		}
 	}
 	cancel()
+	go func() {
+		<-time.After(2 * time.Second)
+		a.Sync()
+	}()
 
 	return nil
 }
@@ -138,11 +146,11 @@ func downloadBlocks(
 
 	defer services.Scheduler.Reschedule()
 
-	errCh := make(chan error, 1)
+	errCh := make(chan error, 3)
 
-	receivedBlocksCh := make(chan blockBytes, 256)
+	receivedBlocksCh := make(chan blockBytes, 128)
 
-	downloader := newBlockDownloader(64, p, subscribe, receivedBlocksCh)
+	downloader := newBlockDownloader(128, p, subscribe, receivedBlocksCh)
 	go downloader.run(ctx)
 
 	go func() {
@@ -150,7 +158,7 @@ func downloadBlocks(
 			select {
 			case <-ctx.Done():
 				return
-			case <-time.After(15 * time.Second):
+			case <-time.After(30 * time.Second):
 				// TODO handle timeout
 				zap.S().Info("timeout waiting &proto.SignaturesMessage{}")
 				errCh <- TimeoutErr
@@ -161,7 +169,11 @@ func downloadBlocks(
 		}
 	}()
 
+	blocksBulk := make(chan [][]byte, 1)
+
 	go func() {
+		const blockCnt = 50
+		blocks := make([][]byte, 0, blockCnt)
 		for {
 			score, err := services.Peers.Score(p)
 			if err != nil {
@@ -185,8 +197,28 @@ func downloadBlocks(
 				return
 
 			case bts := <-receivedBlocksCh:
+				blocks = append(blocks, bts)
+				if len(blocks) == blockCnt {
+					out := make([][]byte, blockCnt)
+					copy(out, blocks)
+					blocksBulk <- out
+					blocks = blocks[:0]
+				}
+			}
+		}
+	}()
+
+	// block applier
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case blocks := <-blocksBulk:
 				interrupt.Interrupt()
-				err := services.BlockApplier.ApplyBytes(bts)
+				locked := services.State.Mutex().Lock()
+				err := services.State.AddNewBlocks(blocks)
+				locked.Unlock()
 				if err != nil {
 					errCh <- err
 					return

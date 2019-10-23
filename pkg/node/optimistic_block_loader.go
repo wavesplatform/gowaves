@@ -147,9 +147,7 @@ func newBlockDownloader(workersCount int, p peer.Peer, subscribe *Subscribe, out
 func (a *blockDownload) download(sig crypto.Signature) {
 	if a.sigs.add(sig) {
 		a.threads <- 1
-		go func() {
-			a.p.SendMessage(&proto.GetBlockMessage{BlockID: sig})
-		}()
+		a.p.SendMessage(&proto.GetBlockMessage{BlockID: sig})
 	}
 }
 
