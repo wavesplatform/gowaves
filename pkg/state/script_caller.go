@@ -15,6 +15,8 @@ type scriptCaller struct {
 
 	stor     *blockchainEntitiesStorage
 	settings *settings.BlockchainSettings
+
+	totalComplexity uint64
 }
 
 func newScriptCaller(
@@ -59,6 +61,12 @@ func (a *scriptCaller) callAccountScriptWithOrder(order proto.Order, lastBlockIn
 		id, _ := order.GetID()
 		return errors.Errorf("account script; order ID %s: %v\n", base58.Encode(id), err)
 	}
+	// Increase complexity.
+	complexity, err := a.stor.scriptsComplexity.newestScriptComplexityByAddr(sender, !initialisation)
+	if err != nil {
+		return errors.Wrap(err, "newestScriptComplexityByAddr")
+	}
+	a.totalComplexity += complexity.verifierComplexity
 	return nil
 }
 
@@ -81,6 +89,12 @@ func (a *scriptCaller) callAccountScriptWithTx(tx proto.Transaction, lastBlockIn
 		id, _ := tx.GetID()
 		return errors.Errorf("account script; transaction ID %s: %v\n", base58.Encode(id), err)
 	}
+	// Increase complexity.
+	complexity, err := a.stor.scriptsComplexity.newestScriptComplexityByAddr(senderAddr, !initialisation)
+	if err != nil {
+		return errors.Wrap(err, "newestScriptComplexityByAddr")
+	}
+	a.totalComplexity += complexity.verifierComplexity
 	return nil
 }
 
@@ -103,6 +117,12 @@ func (a *scriptCaller) callAssetScript(tx proto.Transaction, assetID crypto.Dige
 		id, _ := tx.GetID()
 		return errors.Errorf("asset script; transaction ID %s: %v\n", base58.Encode(id), err)
 	}
+	// Increase complexity.
+	complexityRecord, err := a.stor.scriptsComplexity.newestScriptComplexityByAsset(assetID, !initialisation)
+	if err != nil {
+		return errors.Wrap(err, "newestScriptComplexityByAsset()")
+	}
+	a.totalComplexity += complexityRecord.complexity
 	return nil
 }
 
@@ -117,5 +137,23 @@ func (a *scriptCaller) invokeFunction(tx *proto.InvokeScriptV1, lastBlockInfo *p
 	}
 	this := ast.NewAddressFromProtoAddress(*scriptAddr)
 	lastBlock := ast.NewObjectFromBlockInfo(*lastBlockInfo)
-	return script.CallFunction(a.settings.AddressSchemeCharacter, a.state, tx, this, lastBlock)
+	sr, err := script.CallFunction(a.settings.AddressSchemeCharacter, a.state, tx, this, lastBlock)
+	if err != nil {
+		return nil, err
+	}
+	// Increase complexity.
+	complexityRecord, err := a.stor.scriptsComplexity.newestScriptComplexityByAddr(*scriptAddr, !initialisation)
+	if err != nil {
+		return nil, errors.Wrap(err, "newestScriptComplexityByAsset()")
+	}
+	a.totalComplexity += complexityRecord.verifierComplexity
+	return sr, nil
+}
+
+func (a *scriptCaller) getTotalComplexity() uint64 {
+	return a.totalComplexity
+}
+
+func (a *scriptCaller) resetComplexity() {
+	a.totalComplexity = 0
 }

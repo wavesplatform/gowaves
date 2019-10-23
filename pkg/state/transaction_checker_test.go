@@ -208,6 +208,7 @@ func TestCheckIssueV2(t *testing.T) {
 
 	tx := createIssueV2(t, 1000)
 	info := defaultCheckerInfo(t)
+	to.stor.addBlock(t, blockID0)
 
 	_, err := to.tc.checkIssueV2(tx, info)
 	assert.NoError(t, err, "checkIssueV2 failed with valid issue tx")

@@ -88,34 +88,37 @@ func (tc *transactionChecker) estimatorByScript(script *ast.Script) *estimation.
 	return estimation.NewEstimator(1, cat, variables) //TODO: pass version 2 after BlockReward (feature 14) activation
 }
 
-func (tc *transactionChecker) checkScript(scriptBytes proto.Script) error {
+func (tc *transactionChecker) checkScript(scriptBytes proto.Script) (*assetScriptComplexityRecord, error) {
 	if len(scriptBytes) == 0 {
 		// Empty script is always valid.
-		return nil
+		return nil, nil
 	}
 	script, err := ast.BuildScript(reader.NewBytesReader(scriptBytes))
 	if err != nil {
-		return errors.Wrap(err, "failed to build ast from script bytes")
+		return nil, errors.Wrap(err, "failed to build ast from script bytes")
 	}
 	maxSize := maxVerifierScriptSize
 	if script.IsDapp() {
 		maxSize = maxContractScriptSize
 	}
 	if len(scriptBytes) > maxSize {
-		return errors.Errorf("script size %d is greater than limit of %d\n", len(scriptBytes), maxSize)
+		return nil, errors.Errorf("script size %d is greater than limit of %d\n", len(scriptBytes), maxSize)
 	}
 	if err := tc.scriptActivation(script); err != nil {
-		return errors.Wrap(err, "script activation check failed")
+		return nil, errors.Wrap(err, "script activation check failed")
 	}
 	estimator := tc.estimatorByScript(script)
 	complexity, err := estimator.Estimate(script)
 	if err != nil {
-		return errors.Wrap(err, "failed to estimate script complexity")
+		return nil, errors.Wrap(err, "failed to estimate script complexity")
 	}
 	if err := tc.checkScriptComplexity(script, complexity); err != nil {
-		return errors.Errorf("checkScriptComplexity(): %v\n", err)
+		return nil, errors.Errorf("checkScriptComplexity(): %v\n", err)
 	}
-	return nil
+	if complexity < 0 {
+		return nil, errors.New("negative complexity")
+	}
+	return &assetScriptComplexityRecord{uint64(complexity), byte(estimator.Version)}, nil
 }
 
 type txAssets struct {
@@ -337,8 +340,21 @@ func (tc *transactionChecker) checkIssueV2(transaction proto.Transaction, info *
 	if err := tc.checkFee(transaction, assets, info); err != nil {
 		return nil, errors.Errorf("checkFee(): %v", err)
 	}
-	if err := tc.checkScript(tx.Script); err != nil {
+	complexity, err := tc.checkScript(tx.Script)
+	if err != nil {
 		return nil, errors.Errorf("checkScript(): %v\n", err)
+	}
+	txID, err := tx.GetID()
+	if err != nil {
+		return nil, err
+	}
+	assetID, err := crypto.NewDigestFromBytes(txID)
+	if err != nil {
+		return nil, err
+	}
+	// Save complexity to storage so we won't have to calculate it every time the script is called.
+	if err := tc.stor.scriptsComplexity.saveComplexityForAsset(assetID, complexity, info.blockID); err != nil {
+		return nil, err
 	}
 	if err := tc.checkIssue(&tx.Issue, info); err != nil {
 		return nil, err
@@ -915,9 +931,19 @@ func (tc *transactionChecker) checkSetScriptV1(transaction proto.Transaction, in
 	if err := tc.checkFee(transaction, assets, info); err != nil {
 		return nil, errors.Errorf("checkFee(): %v", err)
 	}
-	if err := tc.checkScript(tx.Script); err != nil {
+	if _, err := tc.checkScript(tx.Script); err != nil {
 		return nil, errors.Errorf("checkScript(): %v\n", err)
 	}
+	/*
+		senderAddr, err := proto.NewAddressFromPublicKey(tc.settings.AddressSchemeCharacter, tx.SenderPK)
+		if err != nil {
+			return nil, err
+		}
+		// Save complexity to storage so we won't have to calculate it every time the script is called.
+		if err := tc.stor.scriptsComplexity.saveComplexityForAddr(senderAddr, complexity, info.blockID); err != nil {
+			return nil, err
+		}
+	*/
 	return nil, nil
 }
 
@@ -941,8 +967,13 @@ func (tc *transactionChecker) checkSetAssetScriptV1(transaction proto.Transactio
 	if err := tc.checkFee(transaction, assets, info); err != nil {
 		return nil, errors.Errorf("checkFee(): %v", err)
 	}
-	if err := tc.checkScript(tx.Script); err != nil {
+	complexity, err := tc.checkScript(tx.Script)
+	if err != nil {
 		return nil, errors.Errorf("checkScript(): %v\n", err)
+	}
+	// Save complexity to storage so we won't have to calculate it every time the script is called.
+	if err := tc.stor.scriptsComplexity.saveComplexityForAsset(tx.AssetID, complexity, info.blockID); err != nil {
+		return nil, err
 	}
 	return smartAssets, nil
 }

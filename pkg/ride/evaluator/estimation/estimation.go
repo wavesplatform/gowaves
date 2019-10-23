@@ -77,7 +77,7 @@ func (c *context) declaration(name string) (function, bool) {
 }
 
 type Estimator struct {
-	version   int
+	Version   int
 	catalogue *Catalogue
 	contexts  map[string]*context
 	current   string
@@ -87,7 +87,7 @@ func NewEstimator(version int, catalogue *Catalogue, variables map[string]ast.Ex
 	rc := root(variables)
 	cs := map[string]*context{rc.name: rc}
 	return &Estimator{
-		version:   version,
+		Version:   version,
 		catalogue: catalogue,
 		contexts:  cs,
 		current:   rc.name,
@@ -271,7 +271,7 @@ func (e *Estimator) estimate(expr ast.Expr) (int64, error) {
 			}
 			return bc + 5, nil
 		case *ast.FuncDeclaration:
-			switch e.version {
+			switch e.Version {
 			case 2:
 				cc, err := e.context()
 				if err != nil {

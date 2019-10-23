@@ -24,7 +24,8 @@ const (
 	blocksStorDir     = "blocks_storage"
 	keyvalueDir       = "key_value"
 
-	maxScriptsRunsInBlock = 101
+	maxScriptsRunsInBlock       = 101
+	maxScriptsComplexityInBlock = 1000000
 )
 
 var empty struct{}
@@ -39,18 +40,19 @@ func wrapErr(stateErrorType ErrorType, err error) error {
 }
 
 type blockchainEntitiesStorage struct {
-	hs               *historyStorage
-	aliases          *aliases
-	assets           *assets
-	leases           *leases
-	scores           *scores
-	blocksInfo       *blocksInfo
-	balances         *balances
-	features         *features
-	ordersVolumes    *ordersVolumes
-	accountsDataStor *accountsDataStorage
-	sponsoredAssets  *sponsoredAssets
-	scriptsStorage   *scriptsStorage
+	hs                *historyStorage
+	aliases           *aliases
+	assets            *assets
+	leases            *leases
+	scores            *scores
+	blocksInfo        *blocksInfo
+	balances          *balances
+	features          *features
+	ordersVolumes     *ordersVolumes
+	accountsDataStor  *accountsDataStorage
+	sponsoredAssets   *sponsoredAssets
+	scriptsStorage    *scriptsStorage
+	scriptsComplexity *scriptsComplexity
 }
 
 func newBlockchainEntitiesStorage(hs *historyStorage, sets *settings.BlockchainSettings, rw *blockReadWriter) (*blockchainEntitiesStorage, error) {
@@ -98,6 +100,10 @@ func newBlockchainEntitiesStorage(hs *historyStorage, sets *settings.BlockchainS
 	if err != nil {
 		return nil, err
 	}
+	scriptsComplexity, err := newScriptsComplexity(hs)
+	if err != nil {
+		return nil, err
+	}
 	return &blockchainEntitiesStorage{
 		hs,
 		aliases,
@@ -111,6 +117,7 @@ func newBlockchainEntitiesStorage(hs *historyStorage, sets *settings.BlockchainS
 		accountsDataStor,
 		sponsoredAssets,
 		scriptsStorage,
+		scriptsComplexity,
 	}, nil
 }
 
@@ -364,7 +371,7 @@ func (a *txAppender) checkTxAgainstState(tx proto.Transaction, accountScripted b
 	return scriptsRuns, nil
 }
 
-func (a *txAppender) checkScriptsRunsNum(scriptsRuns uint64) error {
+func (a *txAppender) checkScriptsLimits(scriptsRuns uint64) error {
 	smartAccountsActivated, err := a.stor.features.isActivated(int16(settings.SmartAccounts))
 	if err != nil {
 		return err
@@ -374,7 +381,9 @@ func (a *txAppender) checkScriptsRunsNum(scriptsRuns uint64) error {
 		return err
 	}
 	if ride4DAppsActivated {
-		// TODO: check total complexity of all scripts in block here.
+		if a.sc.getTotalComplexity() > maxScriptsComplexityInBlock {
+			return errors.New("complexity limit per block is exceeded")
+		}
 		return nil
 	} else if smartAccountsActivated {
 		if scriptsRuns > maxScriptsRunsInBlock {
@@ -524,9 +533,11 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 			return err
 		}
 	}
-	if err := a.checkScriptsRunsNum(scriptsRuns); err != nil {
+	if err := a.checkScriptsLimits(scriptsRuns); err != nil {
 		return errors.Errorf("%s: %v\n", params.block.BlockSignature.String(), err)
 	}
+	// Reset block complexity counter.
+	a.sc.resetComplexity()
 	// Save fee distribution of this block.
 	// This will be needed for createMinerDiff() of next block due to NG.
 	if err := a.blockDiffer.saveCurFeeDistr(params.block); err != nil {
@@ -557,16 +568,17 @@ func (a *txAppender) checkUtxTxSig(tx proto.Transaction, scripted bool) error {
 	return nil
 }
 
-func (a *txAppender) handleInvoke(tx proto.Transaction, height uint64, block *proto.BlockHeader) error {
+func (a *txAppender) handleInvoke(tx proto.Transaction, height uint64, block *proto.BlockHeader, prevScriptRuns uint64) error {
 	invokeTx, ok := tx.(*proto.InvokeScriptV1)
 	if !ok {
 		return errors.New("failed to convert transaction to type InvokeScriptV1")
 	}
 	invokeInfo := &invokeAddlInfo{
-		initialisation: false,
-		block:          block,
-		height:         height,
-		validatingUtx:  true,
+		previousScriptRuns: prevScriptRuns,
+		initialisation:     false,
+		block:              block,
+		height:             height,
+		validatingUtx:      true,
 	}
 	if err := a.ia.applyInvokeScriptV1(invokeTx, invokeInfo); err != nil {
 		return errors.Wrap(err, "InvokeScript validation failed")
@@ -575,6 +587,7 @@ func (a *txAppender) handleInvoke(tx proto.Transaction, height uint64, block *pr
 }
 
 func (a *txAppender) resetValidationList() {
+	a.sc.resetComplexity()
 	a.totalScriptsRuns = 0
 	a.recentTxIds = make(map[string]struct{})
 	a.diffStor.reset()
@@ -625,13 +638,13 @@ func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, pare
 	if err != nil {
 		return err
 	}
-	if err := a.checkScriptsRunsNum(a.totalScriptsRuns + txScriptsRuns); err != nil {
+	if err := a.checkScriptsLimits(a.totalScriptsRuns + txScriptsRuns); err != nil {
 		return err
 	}
 	a.totalScriptsRuns += txScriptsRuns
 	if tx.GetTypeVersion().Type == proto.InvokeScriptTransaction {
 		// Invoke is handled in a special way.
-		return a.handleInvoke(tx, height, block)
+		return a.handleInvoke(tx, height, block, txScriptsRuns)
 	}
 	// Create, validate and save balance diff.
 	diff, err := a.txHandler.createDiffTx(tx, &differInfo{
@@ -655,6 +668,7 @@ func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, pare
 }
 
 func (a *txAppender) reset() {
+	a.sc.resetComplexity()
 	a.totalScriptsRuns = 0
 	a.recentTxIds = make(map[string]struct{})
 	a.diffStor.reset()
