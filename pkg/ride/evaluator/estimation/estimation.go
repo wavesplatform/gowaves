@@ -76,6 +76,27 @@ func (c *context) declaration(name string) (function, bool) {
 	return function{}, false
 }
 
+func (c *context) deepCopy() *context {
+	e := make(map[string]expression)
+	for k, v := range c.expressions {
+		e[k] = v
+	}
+	f := make(map[string]function)
+	for k, v := range c.functions {
+		f[k] = v
+	}
+	var pc *context = nil
+	if c.parent != nil {
+		pc = c.parent.deepCopy()
+	}
+	return &context{
+		name:        c.name,
+		parent:      pc,
+		expressions: e,
+		functions:   f,
+	}
+}
+
 type Costs struct {
 	Functions map[string]uint64
 	DApp      uint64
@@ -202,29 +223,7 @@ func (e *Estimator) change(name string) (*context, error) {
 func (e *Estimator) copyContexts() (map[string]*context, string) {
 	cp := make(map[string]*context)
 	for k, v := range e.contexts {
-		e := make(map[string]expression)
-		for ke, ve := range v.expressions {
-			e[ke] = ve
-		}
-		f := make(map[string]function)
-		for kf, vf := range v.functions {
-			f[kf] = vf
-		}
-		c := context{
-			name:        k,
-			parent:      nil,
-			expressions: e,
-			functions:   f,
-		}
-		cp[k] = &c
-	}
-	for k, v := range e.contexts {
-		if v.parent != nil {
-			p, ok := cp[v.parent.name]
-			if ok {
-				cp[k].parent = p
-			}
-		}
+		cp[k] = v.deepCopy()
 	}
 	return cp, e.current
 }
