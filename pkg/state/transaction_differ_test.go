@@ -875,3 +875,73 @@ func TestCreateDiffSetAssetScriptV1(t *testing.T) {
 	}
 	assert.Equal(t, correctDiff, diff)
 }
+
+func createInvokeScriptV1(t *testing.T, pmts proto.ScriptPayments, fc proto.FunctionCall, fee uint64) *proto.InvokeScriptV1 {
+	tx := proto.NewUnsignedInvokeScriptV1(
+		'W',
+		testGlobal.senderInfo.pk,
+		proto.NewRecipientFromAddress(testGlobal.recipientInfo.addr),
+		fc,
+		pmts,
+		*testGlobal.asset0.asset,
+		fee,
+		defaultTimestamp,
+	)
+	err := tx.Sign(testGlobal.senderInfo.sk)
+	assert.NoError(t, err, "tx.Sign() failed")
+	return tx
+}
+
+func TestCreateDiffInvokeScriptV1(t *testing.T) {
+	to, path := createDifferTestObjects(t)
+
+	defer func() {
+		to.stor.close(t)
+
+		err := util.CleanTemporaryDirs(path)
+		assert.NoError(t, err, "failed to clean test data dirs")
+	}()
+
+	feeConst, ok := feeConstants[proto.InvokeScriptTransaction]
+	assert.Equal(t, ok, true)
+	paymentAmount0 := uint64(100500)
+	paymentAmount1 := uint64(90)
+	paymentAmount2 := uint64(42)
+	pmts := []proto.ScriptPayment{
+		proto.ScriptPayment{Amount: paymentAmount0, Asset: *testGlobal.asset0.asset},
+		proto.ScriptPayment{Amount: paymentAmount1, Asset: proto.OptionalAsset{Present: false}},
+		proto.ScriptPayment{Amount: paymentAmount2, Asset: *testGlobal.asset0.asset},
+	}
+	totalAssetAmount := paymentAmount0 + paymentAmount2
+	totalWavesAmount := paymentAmount1
+	tx := createInvokeScriptV1(t, pmts, proto.FunctionCall{}, feeConst*FeeUnit)
+
+	assetId := tx.FeeAsset.ID
+	to.stor.createAsset(t, assetId)
+
+	to.stor.activateSponsorship(t)
+	_, err := to.td.createDiffInvokeScriptV1(tx, defaultDifferInfo(t))
+	assert.Error(t, err, "createDiffInvokeScriptV1() did not fail with unsponsored asset")
+	err = to.stor.entities.sponsoredAssets.sponsorAsset(assetId, 10, blockID0)
+	assert.NoError(t, err, "sponsorAsset() failed")
+	diff, err := to.td.createDiffInvokeScriptV1(tx, defaultDifferInfo(t))
+	assert.NoError(t, err, "createDiffInvokeScriptV1() failed with valid sponsored asset")
+
+	feeInWaves, err := to.stor.entities.sponsoredAssets.sponsoredAssetToWaves(assetId, tx.Fee)
+	assert.NoError(t, err, "sponsoredAssetToWaves() failed")
+	recipientAssetDiff := balanceDiff{
+		balance:                      int64(totalAssetAmount),
+		updateMinIntermediateBalance: true,
+		minBalance:                   int64(paymentAmount0),
+	}
+	correctDiff := txDiff{
+		testGlobal.senderInfo.assetKeys[0]:    newBalanceDiff(-int64(tx.Fee+totalAssetAmount), 0, 0, true),
+		testGlobal.senderInfo.wavesKey:        newBalanceDiff(-int64(totalWavesAmount), 0, 0, true),
+		testGlobal.recipientInfo.assetKeys[0]: recipientAssetDiff,
+		testGlobal.recipientInfo.wavesKey:     newBalanceDiff(int64(totalWavesAmount), 0, 0, true),
+		testGlobal.issuerInfo.assetKeys[0]:    newBalanceDiff(int64(tx.Fee), 0, 0, true),
+		testGlobal.issuerInfo.wavesKey:        newBalanceDiff(-int64(feeInWaves), 0, 0, true),
+		testGlobal.minerInfo.wavesKey:         newBalanceDiff(int64(feeInWaves), 0, 0, false),
+	}
+	assert.Equal(t, correctDiff, diff)
+}
