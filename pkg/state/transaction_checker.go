@@ -56,8 +56,8 @@ func (tc *transactionChecker) scriptActivation(script *ast.Script) error {
 	return nil
 }
 
-func (tc *transactionChecker) checkScriptComplexity(script *ast.Script, complexity int64) error {
-	var maxComplexity int64
+func (tc *transactionChecker) checkScriptComplexity(script *ast.Script, complexity uint64) error {
+	var maxComplexity uint64
 	switch script.Version {
 	case 1, 2:
 		maxComplexity = 2000
@@ -115,10 +115,7 @@ func (tc *transactionChecker) checkScript(scriptBytes proto.Script) (*assetScrip
 	if err := tc.checkScriptComplexity(script, complexity); err != nil {
 		return nil, errors.Errorf("checkScriptComplexity(): %v\n", err)
 	}
-	if complexity < 0 {
-		return nil, errors.New("negative complexity")
-	}
-	return &assetScriptComplexityRecord{uint64(complexity), byte(estimator.Version)}, nil
+	return &assetScriptComplexityRecord{complexity, byte(estimator.Version)}, nil
 }
 
 type txAssets struct {
