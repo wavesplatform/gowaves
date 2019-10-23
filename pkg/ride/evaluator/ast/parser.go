@@ -19,7 +19,7 @@ func BuildScript(r *BytesReader) (*Script, error) {
 			return nil, err
 		}
 		return &Script{
-			Version:    0,
+			Version:    3,
 			HasBlockV2: false,
 			Verifier:   nil,
 			DApp:       dapp,

@@ -908,9 +908,9 @@ func TestCreateDiffInvokeScriptV1(t *testing.T) {
 	paymentAmount1 := uint64(90)
 	paymentAmount2 := uint64(42)
 	pmts := []proto.ScriptPayment{
-		proto.ScriptPayment{Amount: paymentAmount0, Asset: *testGlobal.asset0.asset},
-		proto.ScriptPayment{Amount: paymentAmount1, Asset: proto.OptionalAsset{Present: false}},
-		proto.ScriptPayment{Amount: paymentAmount2, Asset: *testGlobal.asset0.asset},
+		{Amount: paymentAmount0, Asset: *testGlobal.asset0.asset},
+		{Amount: paymentAmount1, Asset: proto.OptionalAsset{Present: false}},
+		{Amount: paymentAmount2, Asset: *testGlobal.asset0.asset},
 	}
 	totalAssetAmount := paymentAmount0 + paymentAmount2
 	totalWavesAmount := paymentAmount1

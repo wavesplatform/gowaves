@@ -352,16 +352,9 @@ func (tc *transactionChecker) checkIssueV2(transaction proto.Transaction, info *
 	}
 	scriptInf, err := tc.checkScript(tx.Script)
 	if err != nil {
-		return nil, errors.Errorf("checkScript(): %v\n", err)
+		return nil, errors.Errorf("checkScript() tx %s: %v\n", tx.ID.String(), err)
 	}
-	txID, err := tx.GetID()
-	if err != nil {
-		return nil, err
-	}
-	assetID, err := crypto.NewDigestFromBytes(txID)
-	if err != nil {
-		return nil, err
-	}
+	assetID := *tx.ID
 	r := &assetScriptComplexityRecord{
 		complexity: scriptInf.complexity.Verifier,
 		estimator:  scriptInf.estimatorVersion,
@@ -959,7 +952,7 @@ func (tc *transactionChecker) checkSetScriptV1(transaction proto.Transaction, in
 	}
 	scriptInf, err := tc.checkScript(tx.Script)
 	if err != nil {
-		return nil, errors.Errorf("checkScript(): %v\n", err)
+		return nil, errors.Errorf("checkScript() tx %s: %v\n", tx.ID.String(), err)
 	}
 	senderAddr, err := proto.NewAddressFromPublicKey(tc.settings.AddressSchemeCharacter, tx.SenderPK)
 	if err != nil {
@@ -1002,7 +995,7 @@ func (tc *transactionChecker) checkSetAssetScriptV1(transaction proto.Transactio
 	}
 	scriptInf, err := tc.checkScript(tx.Script)
 	if err != nil {
-		return nil, errors.Errorf("checkScript(): %v\n", err)
+		return nil, errors.Errorf("checkScript() tx %s: %v\n", tx.ID.String(), err)
 	}
 	r := &assetScriptComplexityRecord{
 		complexity: scriptInf.complexity.Verifier,

@@ -53,6 +53,7 @@ func newInvokeApplier(
 		sc:          sc,
 		txHandler:   txHandler,
 		stor:        stor,
+		settings:    settings,
 		blockDiffer: blockDiffer,
 		diffStor:    diffStor,
 		diffApplier: diffApplier,

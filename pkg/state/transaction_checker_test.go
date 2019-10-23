@@ -991,7 +991,7 @@ func TestCheckInvokeScriptV1(t *testing.T) {
 	}()
 
 	pmts := []proto.ScriptPayment{
-		proto.ScriptPayment{Amount: 1, Asset: *testGlobal.asset0.asset},
+		{Amount: 1, Asset: *testGlobal.asset0.asset},
 	}
 	tx := createInvokeScriptV1(t, pmts, proto.FunctionCall{}, 1)
 	info := defaultCheckerInfo(t)
