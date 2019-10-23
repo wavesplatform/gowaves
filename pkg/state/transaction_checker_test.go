@@ -979,3 +979,48 @@ func TestCheckSetAssetScriptV1(t *testing.T) {
 	_, err = to.tc.checkSetAssetScriptV1(tx, info)
 	assert.Error(t, err, "checkSetAssetScriptV1 did not fail with invalid timestamp")
 }
+
+func TestCheckInvokeScriptV1(t *testing.T) {
+	to, path := createCheckerTestObjects(t)
+
+	defer func() {
+		to.stor.close(t)
+
+		err := util.CleanTemporaryDirs(path)
+		assert.NoError(t, err, "failed to clean test data dirs")
+	}()
+
+	pmts := []proto.ScriptPayment{
+		proto.ScriptPayment{Amount: 1, Asset: *testGlobal.asset0.asset},
+	}
+	tx := createInvokeScriptV1(t, pmts, proto.FunctionCall{}, 1)
+	info := defaultCheckerInfo(t)
+	to.stor.addBlock(t, blockID0)
+	assetId := tx.Payments[0].Asset.ID
+	to.stor.createAsset(t, assetId)
+
+	// Check activation.
+	_, err := to.tc.checkInvokeScriptV1(tx, info)
+	assert.Error(t, err, "checkInvokeScriptV1 did not fail prior to Ride4DApps activation")
+	to.stor.activateFeature(t, int16(settings.Ride4DApps))
+	_, err = to.tc.checkInvokeScriptV1(tx, info)
+	assert.NoError(t, err, "checkInvokeScriptV1 failed with valid tx")
+
+	// Check non-issued asset.
+	tx.Payments[0].Asset = *testGlobal.asset2.asset
+	_, err = to.tc.checkInvokeScriptV1(tx, info)
+	assert.Error(t, err, "checkInvokeScriptV1 did not fail with invalid asset")
+	tx.Payments[0].Asset = *testGlobal.asset0.asset
+
+	// Check that smart assets are detected properly.
+	to.stor.createSmartAsset(t, assetId)
+	smartAssets, err := to.tc.checkInvokeScriptV1(tx, info)
+	assert.NoError(t, err)
+	assert.Equal(t, 1, len(smartAssets))
+	assert.Equal(t, assetId, smartAssets[0])
+
+	// Check invalid timestamp failure.
+	tx.Timestamp = 0
+	_, err = to.tc.checkInvokeScriptV1(tx, info)
+	assert.Error(t, err, "checkInvokeScriptV1 did not fail with invalid timestamp")
+}
