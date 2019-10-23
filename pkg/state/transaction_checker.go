@@ -99,10 +99,6 @@ type scriptInfo struct {
 }
 
 func (tc *transactionChecker) checkScript(scriptBytes proto.Script) (*scriptInfo, error) {
-	if len(scriptBytes) == 0 {
-		// Empty script is always valid.
-		return nil, nil
-	}
 	script, err := ast.BuildScript(reader.NewBytesReader(scriptBytes))
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to build ast from script bytes")
@@ -347,6 +343,13 @@ func (tc *transactionChecker) checkIssueV2(transaction proto.Transaction, info *
 	if err := tc.checkFee(transaction, assets, info); err != nil {
 		return nil, errors.Errorf("checkFee(): %v", err)
 	}
+	if err := tc.checkIssue(&tx.Issue, info); err != nil {
+		return nil, err
+	}
+	if len(tx.Script) == 0 {
+		// No script checks / actions are needed.
+		return nil, nil
+	}
 	scriptInf, err := tc.checkScript(tx.Script)
 	if err != nil {
 		return nil, errors.Errorf("checkScript(): %v\n", err)
@@ -365,9 +368,6 @@ func (tc *transactionChecker) checkIssueV2(transaction proto.Transaction, info *
 	}
 	// Save complexity to storage so we won't have to calculate it every time the script is called.
 	if err := tc.stor.scriptsComplexity.saveComplexityForAsset(assetID, r, info.blockID); err != nil {
-		return nil, err
-	}
-	if err := tc.checkIssue(&tx.Issue, info); err != nil {
 		return nil, err
 	}
 	return nil, nil
@@ -953,6 +953,10 @@ func (tc *transactionChecker) checkSetScriptV1(transaction proto.Transaction, in
 	if err := tc.checkFee(transaction, assets, info); err != nil {
 		return nil, errors.Errorf("checkFee(): %v", err)
 	}
+	if len(tx.Script) == 0 {
+		// No script checks / actions are needed.
+		return nil, nil
+	}
 	scriptInf, err := tc.checkScript(tx.Script)
 	if err != nil {
 		return nil, errors.Errorf("checkScript(): %v\n", err)
@@ -991,6 +995,10 @@ func (tc *transactionChecker) checkSetAssetScriptV1(transaction proto.Transactio
 	assets := &txAssets{feeAsset: proto.OptionalAsset{Present: false}, smartAssets: smartAssets}
 	if err := tc.checkFee(transaction, assets, info); err != nil {
 		return nil, errors.Errorf("checkFee(): %v", err)
+	}
+	if len(tx.Script) == 0 {
+		// No script checks / actions are needed.
+		return nil, nil
 	}
 	scriptInf, err := tc.checkScript(tx.Script)
 	if err != nil {
