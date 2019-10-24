@@ -502,6 +502,7 @@ func (a *FunctionCall) Evaluate(s Scope) (Expr, error) {
 			return nil, errors.Wrapf(err, "evaluate user function: %s", a.Name)
 		}
 		initial.AddValue(fn.Argv[i], evaluatedParam)
+		initial.setEvaluation(fn.Argv[i], evaluation{evaluatedParam, nil})
 	}
 	return fn.Evaluate(initial)
 }
