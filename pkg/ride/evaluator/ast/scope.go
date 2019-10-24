@@ -21,8 +21,6 @@ type Scope interface {
 	SetTransaction(transaction map[string]Expr)
 	SetHeight(height uint64)
 	SetThis(this Expr)
-	evaluation(string) (evaluation, bool)
-	setEvaluation(string, evaluation)
 	validMessageLength(len int) bool
 }
 
@@ -33,7 +31,6 @@ type ScopeImpl struct {
 	expressions      map[string]Expr
 	state            types.SmartState
 	scheme           byte
-	evaluations      map[string]evaluation
 	msgLenValidation func(int) bool
 }
 
@@ -41,7 +38,6 @@ func newScopeImpl(scheme byte, state types.SmartState, v func(int) bool) *ScopeI
 	return &ScopeImpl{
 		state:            state,
 		scheme:           scheme,
-		evaluations:      make(map[string]evaluation),
 		msgLenValidation: v,
 	}
 }
@@ -143,26 +139,6 @@ func (a *ScopeImpl) SetThis(this Expr) {
 
 func (a *ScopeImpl) SetLastBlockInfo(lastBlock Expr) {
 	a.expressions["lastBlock"] = lastBlock
-}
-
-func (a *ScopeImpl) evaluation(name string) (evaluation, bool) {
-	if a.evaluations != nil {
-		if v, ok := a.evaluations[name]; ok {
-			return v, true
-		}
-	}
-	if a.parent != nil {
-		return a.parent.evaluation(name)
-	} else {
-		return evaluation{}, false
-	}
-}
-
-func (a *ScopeImpl) setEvaluation(name string, e evaluation) {
-	if a.evaluations == nil {
-		a.evaluations = make(map[string]evaluation)
-	}
-	a.evaluations[name] = e
 }
 
 func (a *ScopeImpl) validMessageLength(l int) bool {

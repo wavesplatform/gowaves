@@ -603,17 +603,11 @@ func (a *RefExpr) Write(w io.Writer) {
 }
 
 func (a *RefExpr) Evaluate(s Scope) (Expr, error) {
-	c, ok := s.evaluation(a.Name)
-	if ok {
-		return c.expr, c.err
-	}
 	expr, ok := s.Value(a.Name)
 	if !ok {
 		return nil, errors.Errorf("RefExpr evaluate: not found expr by name '%s'", a.Name)
 	}
-	rs, err := expr.Evaluate(s)
-	s.setEvaluation(a.Name, evaluation{rs, err})
-	return rs, err
+	return expr.Evaluate(s)
 }
 
 func (a *RefExpr) Eq(other Expr) bool {
