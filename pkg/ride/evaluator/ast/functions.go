@@ -968,6 +968,7 @@ func NativeFromBase58(s Scope, e Exprs) (Expr, error) {
 
 // Base64 decode
 func NativeFromBase64(s Scope, e Exprs) (Expr, error) {
+	const prefix = "base64:"
 	const funcName = "NativeFromBase64"
 	if l := len(e); l != 1 {
 		return nil, errors.Errorf("%s: invalid params, expected 1, passed %d", funcName, l)
@@ -980,10 +981,11 @@ func NativeFromBase64(s Scope, e Exprs) (Expr, error) {
 	if !ok {
 		return nil, errors.Errorf("%s expected first argument to be *StringExpr, found %T", funcName, first)
 	}
-	decoded, err := base64.StdEncoding.DecodeString(str.Value)
+	ev := strings.TrimPrefix(str.Value, prefix)
+	decoded, err := base64.StdEncoding.DecodeString(ev)
 	if err != nil {
 		// Try no padding.
-		decoded, err = base64.RawStdEncoding.DecodeString(str.Value)
+		decoded, err = base64.RawStdEncoding.DecodeString(ev)
 		if err != nil {
 			return nil, errors.Wrap(err, funcName)
 		}

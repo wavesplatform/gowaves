@@ -495,9 +495,18 @@ func TestNativeFromBase16(t *testing.T) {
 }
 
 func TestNativeFromBase64String(t *testing.T) {
-	rs1, err := NativeFromBase64(newEmptyScopeV1(), Params(NewString("AQa3b8tH")))
-	require.NoError(t, err)
-	assert.Equal(t, NewBytes([]uint8{0x1, 0x6, 0xb7, 0x6f, 0xcb, 0x47}), rs1)
+	for _, test := range []struct {
+		str string
+		b   []byte
+	}{
+		{"AQa3b8tH", []uint8{0x1, 0x6, 0xb7, 0x6f, 0xcb, 0x47}},
+		{"base64:AQa3b8tH", []uint8{0x1, 0x6, 0xb7, 0x6f, 0xcb, 0x47}},
+		{"base64:", []byte{}},
+	} {
+		rs, err := NativeFromBase64(newEmptyScopeV1(), Params(NewString(test.str)))
+		require.NoError(t, err)
+		assert.Equal(t, NewBytes(test.b), rs)
+	}
 }
 
 func TestNativeToBse64String(t *testing.T) {
