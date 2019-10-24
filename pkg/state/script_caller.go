@@ -139,7 +139,7 @@ func (a *scriptCaller) invokeFunction(tx *proto.InvokeScriptV1, lastBlockInfo *p
 	lastBlock := ast.NewObjectFromBlockInfo(*lastBlockInfo)
 	sr, err := script.CallFunction(a.settings.AddressSchemeCharacter, a.state, tx, this, lastBlock)
 	if err != nil {
-		return nil, err
+		return nil, errors.Errorf("transaction ID %s: %v\n", tx.ID.String(), err)
 	}
 	// Increase complexity.
 	complexityRecord, err := a.stor.scriptsComplexity.newestScriptComplexityByAddr(*scriptAddr, !initialisation)
