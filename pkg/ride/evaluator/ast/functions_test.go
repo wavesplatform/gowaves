@@ -349,13 +349,19 @@ func TestNativeTakeStrings(t *testing.T) {
 }
 
 func TestNativeDropStrings(t *testing.T) {
-	rs, err := NativeDropStrings(newEmptyScopeV1(), NewExprs(NewString("abcdef"), NewLong(4)))
-	require.NoError(t, err)
-	assert.Equal(t, NewString("ef"), rs)
-
-	rs2, err := NativeDropStrings(newEmptyScopeV1(), NewExprs(NewString("привет"), NewLong(4)))
-	require.NoError(t, err)
-	assert.Equal(t, NewString("ет"), rs2)
+	for _, test := range []struct {
+		in  string
+		len int64
+		out string
+	}{
+		{"abcdef", 4, "ef"},
+		{"привет", 4, "ет"},
+		{"t", 1, ""},
+	} {
+		rs, err := NativeDropStrings(newEmptyScopeV1(), NewExprs(NewString(test.in), NewLong(test.len)))
+		require.NoError(t, err)
+		assert.Equal(t, NewString(test.out), rs)
+	}
 }
 
 func TestNativeSizeString(t *testing.T) {

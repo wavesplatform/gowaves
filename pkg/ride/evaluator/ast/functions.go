@@ -719,7 +719,7 @@ func NativeDropStrings(s Scope, e Exprs) (Expr, error) {
 	runeStr := []rune(str.Value)
 	runeLen := len(runeStr)
 	l := int(length.Value)
-	if l >= runeLen {
+	if l > runeLen {
 		return nil, errors.Errorf("%s index %d out of range", funcName, l)
 	}
 	if l < 0 {
