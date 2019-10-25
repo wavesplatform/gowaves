@@ -158,13 +158,13 @@ func (ss *scriptsStorage) newestAccountHasVerifier(addr proto.Address, filter bo
 	key := accountScriptKey{addr}
 	keyBytes := key.bytes()
 	if script, has := ss.cache.get(keyBytes); has {
-		return (script.Verifier != nil), nil
+		return script.HasVerifier(), nil
 	}
 	script, err := ss.newestScriptAstByKey(keyBytes, filter)
 	if err != nil {
 		return false, nil
 	}
-	accountHasVerifier := (script.Verifier != nil)
+	accountHasVerifier := script.HasVerifier()
 	return accountHasVerifier, nil
 }
 
@@ -173,7 +173,7 @@ func (ss *scriptsStorage) accountHasVerifier(addr proto.Address, filter bool) (b
 	if err != nil {
 		return false, nil
 	}
-	accountHasVerifier := (script.Verifier != nil)
+	accountHasVerifier := script.HasVerifier()
 	return accountHasVerifier, nil
 }
 

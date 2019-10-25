@@ -499,7 +499,7 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 				validatingUtx:      false,
 			}
 			if err := a.ia.applyInvokeScriptV1(invokeTx, invokeInfo); err != nil {
-				return errors.Wrap(err, "failed to apply InvokeScript transaction to state")
+				return errors.Errorf("failed to apply InvokeScript transaction %s to state: %v", invokeTx.ID.String(), err)
 			}
 		} else {
 			// Create balance diff of this tx.

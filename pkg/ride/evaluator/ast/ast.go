@@ -24,6 +24,13 @@ type Script struct {
 	dApp       bool
 }
 
+func (a *Script) HasVerifier() bool {
+	if a.IsDapp() {
+		return a.DApp.Verifier != nil
+	}
+	return a.Verifier != nil
+}
+
 func (a *Script) IsDapp() bool {
 	return a.dApp
 }

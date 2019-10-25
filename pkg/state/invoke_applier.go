@@ -72,8 +72,8 @@ func (ia *invokeApplier) newPaymentFromScriptTransfer(scriptAddr proto.Address, 
 	if err != nil {
 		return nil, errors.Wrap(err, "recipientToAddress() failed")
 	}
-	if tr.Amount <= 0 {
-		return nil, errors.New("transfer amount is <= 0")
+	if tr.Amount < 0 {
+		return nil, errors.New("transfer amount is < 0")
 	}
 	return &payment{
 		sender:   scriptAddr,

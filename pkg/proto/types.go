@@ -2641,8 +2641,8 @@ func (ts *TransferSet) Valid() error {
 		return errors.Errorf("transfer set of size %d is greater than allowed maximum of %d\n", len(*ts), maxInvokeTransfers)
 	}
 	for _, tr := range *ts {
-		if tr.Amount <= 0 {
-			return errors.New("transfer amount is <= 0")
+		if tr.Amount < 0 {
+			return errors.New("transfer amount is < 0")
 		}
 	}
 	return nil
