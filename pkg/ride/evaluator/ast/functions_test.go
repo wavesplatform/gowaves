@@ -393,16 +393,35 @@ func TestNativeThrow(t *testing.T) {
 }
 
 func TestNativeModLong(t *testing.T) {
-	rs, err := NativeModLong(newEmptyScopeV1(), Params(NewLong(-10), NewLong(6)))
-	require.NoError(t, err)
-	assert.Equal(t, NewLong(2), rs)
+	for _, test := range []struct {
+		x int64
+		y int64
+		z int64
+	}{
+		{10, 6, 4},
+		{-10, 6, 2},
+		{10, -6, -2},
+		{-10, -6, -4},
+	} {
+		rs, err := NativeModLong(newEmptyScopeV1(), Params(NewLong(test.x), NewLong(test.y)))
+		require.NoError(t, err)
+		assert.Equal(t, NewLong(test.z), rs)
+	}
 }
 
-func TestModDivision(t *testing.T) {
-	assert.EqualValues(t, 4, modDivision(10, 6))
-	assert.EqualValues(t, 2, modDivision(-10, 6))
-	assert.EqualValues(t, -2, modDivision(10, -6))
-	assert.EqualValues(t, -4, modDivision(-10, -6))
+func TestFloorDiv(t *testing.T) {
+	for _, test := range []struct {
+		x int64
+		y int64
+		z int64
+	}{
+		{10, 6, 1},
+		{-10, 6, -2},
+		{10, -6, -2},
+		{-10, -6, 1},
+	} {
+		assert.EqualValues(t, test.z, floorDiv(test.x, test.y))
+	}
 }
 
 func TestNativeFractionLong(t *testing.T) {

@@ -174,12 +174,7 @@ func NativeDivLong(s Scope, e Exprs) (Expr, error) {
 		if y == 0 {
 			return nil, errors.New("zero division")
 		}
-		r := x / y
-		// if the signs are different and modulo not zero, round down
-		if (x^y) < 0 && (r*y != x) {
-			r--
-		}
-		return NewLong(r), nil
+		return NewLong(floorDiv(x, y)), nil
 	}, s, e)
 }
 
