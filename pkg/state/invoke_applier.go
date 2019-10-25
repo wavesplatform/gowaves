@@ -159,16 +159,7 @@ func (ia *invokeApplier) applyInvokeScriptV1(tx *proto.InvokeScriptV1, info *inv
 	if !info.validatingUtx && !info.hasBlock() {
 		return errors.New("no block is provided and not validating UTX")
 	}
-	// Perform fee and payment changes first.
-	// Basic differ for InvokeScript creates only fee and payment diff.
-	feeAndPaymentDiff, err := ia.createTxDiff(tx, info)
-	if err != nil {
-		return err
-	}
-	if err := ia.saveDiff(feeAndPaymentDiff, info); err != nil {
-		return err
-	}
-	// Now call script.
+	// Call script function.
 	blockInfo, err := proto.BlockInfoFromHeader(ia.settings.AddressSchemeCharacter, info.block, info.height)
 	if err != nil {
 		return err
@@ -180,6 +171,15 @@ func (ia *invokeApplier) applyInvokeScriptV1(tx *proto.InvokeScriptV1, info *inv
 	// Check script result.
 	if err := scriptRes.Valid(); err != nil {
 		return errors.Wrap(err, "invalid script result")
+	}
+	// Perform fee and payment changes first.
+	// Basic differ for InvokeScript creates only fee and payment diff.
+	feeAndPaymentDiff, err := ia.createTxDiff(tx, info)
+	if err != nil {
+		return err
+	}
+	if err := ia.saveDiff(feeAndPaymentDiff, info); err != nil {
+		return err
 	}
 	// Perform data storage writes.
 	scriptAddr, err := recipientToAddress(tx.ScriptRecipient, ia.stor.aliases, !info.initialisation)
