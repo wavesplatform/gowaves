@@ -1195,7 +1195,7 @@ func NativeAssetInfo(s Scope, e Exprs) (Expr, error) {
 	}
 	assetId, err := crypto.NewDigestFromBytes(id.Value)
 	if err != nil {
-		return nil, errors.Wrap(err, funcName)
+		return NewUnit(), nil // Return Unit not an error on invalid Asset IDs
 	}
 	info, err := s.State().NewestAssetInfo(assetId)
 	if err != nil {
