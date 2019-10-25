@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/mr-tron/base58/base58"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
@@ -1270,6 +1271,12 @@ func TestNativeAssetInfo(t *testing.T) {
 	require.NoError(t, err)
 	v := rs.(Getable)
 	require.Equal(t, NewBytes(info.ID.Bytes()), ok(v.Get("id")))
+
+	wID, err := base58.Decode("WAVES")
+	require.NoError(t, err)
+	rs2, err := NativeAssetInfo(newScopeWithState(s), Params(NewBytes(wID)))
+	require.NoError(t, err)
+	assert.Equal(t, NewUnit(), rs2)
 }
 
 func TestNativeParseBlockHeader(t *testing.T) {
