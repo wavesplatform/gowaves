@@ -190,3 +190,39 @@ func (s *diffStorage) reset() {
 	s.changes = nil
 	s.keys = make(map[string]int)
 }
+
+// diffStorageWrapped consists of two regular diffStorages.
+// invokeDiffsStor is used for invoke partial diffs to provide intermediate balances
+// to RIDE when validating InvokeScript transactions.
+type diffStorageWrapped struct {
+	diffStorage     *diffStorage
+	invokeDiffsStor *diffStorage
+}
+
+func newDiffStorageWrapped(mainStor *diffStorage) (*diffStorageWrapped, error) {
+	invokeStor, err := newDiffStorage()
+	if err != nil {
+		return nil, err
+	}
+	return &diffStorageWrapped{diffStorage: mainStor, invokeDiffsStor: invokeStor}, nil
+}
+
+func (s *diffStorageWrapped) saveTxDiff(diff txDiff) error {
+	return s.invokeDiffsStor.saveTxDiff(diff)
+}
+
+func (s *diffStorageWrapped) latestDiffByKey(key string) (balanceDiff, error) {
+	if diff, err := s.invokeDiffsStor.latestDiffByKey(key); err == nil {
+		// Found diff in invoke storage, return from there.
+		// `minBalance` field should be ignored, since it isn't correct in invoke storage.
+		diff.minBalance = 0
+		return diff, nil
+	}
+	// Not found, return diff from main diff stor.
+	return s.diffStorage.latestDiffByKey(key)
+}
+
+func (s *diffStorageWrapped) reset() {
+	s.invokeDiffsStor.reset()
+	s.diffStorage.reset()
+}

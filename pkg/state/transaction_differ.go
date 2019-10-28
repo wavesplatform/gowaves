@@ -228,18 +228,21 @@ func (diff txDiff) keys() []string {
 }
 */
 
-func (diff txDiff) appendBalanceDiff(key []byte, balanceDiff balanceDiff) error {
-	keyStr := string(key)
-	if prevDiff, ok := diff[keyStr]; ok {
+func (diff txDiff) appendBalanceDiffStr(key string, balanceDiff balanceDiff) error {
+	if prevDiff, ok := diff[key]; ok {
 		if err := balanceDiff.addInsideTx(&prevDiff); err != nil {
 			return err
 		}
-		diff[keyStr] = balanceDiff
+		diff[key] = balanceDiff
 	} else {
 		// New balance diff for this key.
-		diff[keyStr] = balanceDiff
+		diff[key] = balanceDiff
 	}
 	return nil
+}
+
+func (diff txDiff) appendBalanceDiff(key []byte, balanceDiff balanceDiff) error {
+	return diff.appendBalanceDiffStr(string(key), balanceDiff)
 }
 
 type transactionDiffer struct {

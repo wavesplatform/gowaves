@@ -33,9 +33,9 @@ type invokeApplier struct {
 	stor     *blockchainEntitiesStorage
 	settings *settings.BlockchainSettings
 
-	blockDiffer *blockDiffer
-	diffStor    *diffStorage
-	diffApplier *diffApplier
+	blockDiffer    *blockDiffer
+	invokeDiffStor *diffStorageWrapped
+	diffApplier    *diffApplier
 }
 
 func newInvokeApplier(
@@ -45,18 +45,18 @@ func newInvokeApplier(
 	stor *blockchainEntitiesStorage,
 	settings *settings.BlockchainSettings,
 	blockDiffer *blockDiffer,
-	diffStor *diffStorage,
+	diffStor *diffStorageWrapped,
 	diffApplier *diffApplier,
 ) *invokeApplier {
 	return &invokeApplier{
-		state:       state,
-		sc:          sc,
-		txHandler:   txHandler,
-		stor:        stor,
-		settings:    settings,
-		blockDiffer: blockDiffer,
-		diffStor:    diffStor,
-		diffApplier: diffApplier,
+		state:          state,
+		sc:             sc,
+		txHandler:      txHandler,
+		stor:           stor,
+		settings:       settings,
+		blockDiffer:    blockDiffer,
+		invokeDiffStor: diffStor,
+		diffApplier:    diffApplier,
 	}
 }
 
@@ -102,32 +102,33 @@ func (ia *invokeApplier) newTxDiffFromPayment(pmt *payment, updateMinIntermediat
 	return diff, nil
 }
 
+func (ia *invokeApplier) newTxDiffFromScriptTransfer(scriptAddr proto.Address, tr proto.ScriptResultTransfer, info *invokeAddlInfo) (txDiff, error) {
+	pmt, err := ia.newPaymentFromScriptTransfer(scriptAddr, tr, info)
+	if err != nil {
+		return txDiff{}, err
+	}
+	// updateMinIntermediateBalance is set to false here, because in Scala implementation
+	// only fee and payments are checked for temporary negative balance.
+	return ia.newTxDiffFromPayment(pmt, false, info)
+}
+
+func (ia *invokeApplier) saveIntermediateDiff(diff txDiff) error {
+	return ia.invokeDiffStor.saveTxDiff(diff)
+}
+
 func (ia *invokeApplier) saveDiff(diff txDiff, info *invokeAddlInfo) error {
 	if !info.validatingUtx {
-		return ia.diffStor.saveTxDiff(diff)
+		return ia.invokeDiffStor.diffStorage.saveTxDiff(diff)
 	}
 	// For UTX, we must validate changes before we save them.
-	changes, err := ia.diffStor.changesByTxDiff(diff)
+	changes, err := ia.invokeDiffStor.diffStorage.changesByTxDiff(diff)
 	if err != nil {
 		return err
 	}
 	if err := ia.diffApplier.validateBalancesChanges(changes, true); err != nil {
 		return err
 	}
-	if err := ia.diffStor.saveBalanceChanges(changes); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (ia *invokeApplier) applyPayment(pmt *payment, updateMinIntermediateBalance bool, info *invokeAddlInfo) error {
-	diff, err := ia.newTxDiffFromPayment(pmt, updateMinIntermediateBalance, info)
-	if err != nil {
-		return err
-	}
-	// diff must be saved to storage, because further asset scripts must take
-	// recent balance changes into account.
-	if err := ia.saveDiff(diff, info); err != nil {
+	if err := ia.invokeDiffStor.diffStorage.saveBalanceChanges(changes); err != nil {
 		return err
 	}
 	return nil
@@ -164,6 +165,10 @@ func (ia *invokeApplier) applyInvokeScriptV1(tx *proto.InvokeScriptV1, info *inv
 	if err != nil {
 		return err
 	}
+	scriptAddr, err := recipientToAddress(tx.ScriptRecipient, ia.stor.aliases, !info.initialisation)
+	if err != nil {
+		return errors.Wrap(err, "recipientToAddress() failed")
+	}
 	scriptRes, err := ia.sc.invokeFunction(tx, blockInfo, info.initialisation)
 	if err != nil {
 		return errors.Wrap(err, "invokeFunction() failed")
@@ -178,14 +183,11 @@ func (ia *invokeApplier) applyInvokeScriptV1(tx *proto.InvokeScriptV1, info *inv
 	if err != nil {
 		return err
 	}
-	if err := ia.saveDiff(feeAndPaymentDiff, info); err != nil {
+	commonDiff := feeAndPaymentDiff
+	if err := ia.saveIntermediateDiff(feeAndPaymentDiff); err != nil {
 		return err
 	}
 	// Perform data storage writes.
-	scriptAddr, err := recipientToAddress(tx.ScriptRecipient, ia.stor.aliases, !info.initialisation)
-	if err != nil {
-		return errors.Wrap(err, "recipientToAddress() failed")
-	}
 	if !info.validatingUtx {
 		// TODO: when UTX transactions are validated, there is no block,
 		// and we can not perform state changes.
@@ -195,9 +197,6 @@ func (ia *invokeApplier) applyInvokeScriptV1(tx *proto.InvokeScriptV1, info *inv
 			}
 		}
 	}
-	// updateMinIntermediateBalance is set to false here, because in Scala implementation
-	// only fee and payments are checked for temporary negative balance.
-	updateMinIntermediateBalance := false
 	// Perform transfers.
 	scriptRuns := info.previousScriptRuns
 	for _, transfer := range scriptRes.Transfers {
@@ -217,13 +216,24 @@ func (ia *invokeApplier) applyInvokeScriptV1(tx *proto.InvokeScriptV1, info *inv
 			scriptRuns++
 		}
 		// Perform transfer.
-		pmt, err := ia.newPaymentFromScriptTransfer(*scriptAddr, transfer, info)
+		txDiff, err := ia.newTxDiffFromScriptTransfer(*scriptAddr, transfer, info)
 		if err != nil {
 			return err
 		}
-		if err := ia.applyPayment(pmt, updateMinIntermediateBalance, info); err != nil {
-			return errors.Wrap(err, "failed to apply script transfer")
+		// diff must be saved to storage, because further asset scripts must take
+		// recent balance changes into account.
+		if err := ia.saveIntermediateDiff(txDiff); err != nil {
+			return err
 		}
+		// Append intermediate diff to common diff.
+		for key, balanceDiff := range txDiff {
+			if err := commonDiff.appendBalanceDiffStr(key, balanceDiff); err != nil {
+				return err
+			}
+		}
+	}
+	if err := ia.saveDiff(commonDiff, info); err != nil {
+		return err
 	}
 	// Check transaction fee.
 	sponsorshipActivated, err := ia.stor.features.isActivated(int16(settings.FeeSponsorship))
