@@ -94,3 +94,12 @@ func (a *App) PeersConnected() (*PeersConnectedResponse, error) {
 		Peers: out,
 	}, nil
 }
+
+type PeersSuspendedResponse struct {
+	Peers []string `json:"peers"`
+}
+
+func (a *App) PeersSuspended() (*PeersSuspendedResponse, error) {
+	peers := a.peers.Suspended()
+	return &PeersSuspendedResponse{peers}, nil
+}

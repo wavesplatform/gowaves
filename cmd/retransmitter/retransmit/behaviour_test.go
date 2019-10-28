@@ -1,12 +1,13 @@
 package retransmit_test
 
 import (
-	"github.com/wavesplatform/gowaves/pkg/p2p/mock"
+	"net"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/wavesplatform/gowaves/cmd/retransmitter/retransmit"
 	"github.com/wavesplatform/gowaves/cmd/retransmitter/retransmit/utils"
+	"github.com/wavesplatform/gowaves/pkg/p2p/mock"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/util/byte_helpers"
@@ -20,21 +21,23 @@ func TestClientRecvTransaction(t *testing.T) {
 	behaviour := retransmit.NewBehaviour(knownPeers, nil)
 
 	peer1 := &mock.Peer{
-		Addr: "peer1",
+		Addr:          "peer1",
+		RemoteAddress: proto.NewTCPAddr(net.IPv4(8, 8, 8, 8), 80),
 	}
 	peer2 := &mock.Peer{
-		Addr: "peer2",
+		Addr:          "peer2",
+		RemoteAddress: proto.NewTCPAddr(net.IPv4(8, 8, 8, 8), 90),
 	}
 
 	peer1Connected := peer.InfoMessage{
-		ID: peer1.Addr,
+		Peer: peer1,
 		Value: &peer.Connected{
 			Peer: peer1,
 		},
 	}
 
 	peer2Connected := peer.InfoMessage{
-		ID: peer2.Addr,
+		Peer: peer2,
 		Value: &peer.Connected{
 			Peer: peer2,
 		},
@@ -46,7 +49,7 @@ func TestClientRecvTransaction(t *testing.T) {
 	assert.Len(t, behaviour.ActiveConnections().Addresses(), 2)
 
 	protomess := peer.ProtoMessage{
-		ID: peer1.Addr,
+		ID: peer1,
 		Message: &proto.TransactionMessage{
 			Transaction: byte_helpers.TransferV1.TransactionBytes,
 		},

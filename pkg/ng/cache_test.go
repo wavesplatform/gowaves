@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
 func TestMicroblockCache(t *testing.T) {
@@ -26,4 +27,11 @@ func TestInvCache(t *testing.T) {
 	rs, ok := a.Inv(sig1)
 	require.True(t, ok)
 	require.Equal(t, sig1, rs.TotalBlockSig)
+}
+
+func TestKnownBlocks(t *testing.T) {
+	b := knownBlocks{}
+
+	require.Equal(t, true, b.add(&proto.Block{}))
+	require.Equal(t, false, b.add(&proto.Block{}))
 }

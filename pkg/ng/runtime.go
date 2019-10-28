@@ -56,7 +56,7 @@ func (a *RuntimeImpl) MinedMicroblock(block *proto.MicroBlock, inv *proto.MicroB
 	}
 }
 
-func (a *RuntimeImpl) HandleInvMessage(peerID string, mess *proto.MicroBlockInvMessage) {
+func (a *RuntimeImpl) HandleInvMessage(p peer.Peer, mess *proto.MicroBlockInvMessage) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	inv := proto.MicroBlockInv{}
@@ -71,21 +71,21 @@ func (a *RuntimeImpl) HandleInvMessage(peerID string, mess *proto.MicroBlockInvM
 		return
 	}
 
-	peer, ok := a.services.Peers.Connected(peerID)
+	_, ok = a.services.Peers.Connected(p)
 	if !ok {
 		return
 	}
 
 	a.waitingOnMicroblock = &inv.TotalBlockSig
 
-	peer.SendMessage(&proto.MicroBlockRequestMessage{
+	p.SendMessage(&proto.MicroBlockRequestMessage{
 		Body: &proto.MicroBlockRequest{
 			TotalBlockSig: inv.TotalBlockSig,
 		},
 	})
 }
 
-func (a *RuntimeImpl) HandleMicroBlockRequestMessage(s string, message *proto.MicroBlockRequestMessage) {
+func (a *RuntimeImpl) HandleMicroBlockRequestMessage(p peer.Peer, message *proto.MicroBlockRequestMessage) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
@@ -95,22 +95,20 @@ func (a *RuntimeImpl) HandleMicroBlockRequestMessage(s string, message *proto.Mi
 		zap.S().Error(err)
 		return
 	}
-
 	microBlock, ok := a.blocks.MicroBlock(mess.TotalBlockSig)
 	if !ok {
 		return
 	}
-
-	peer, ok := a.services.Peers.Connected(s)
+	_, ok = a.services.Peers.Connected(p)
 	if !ok {
 		return
 	}
-	peer.SendMessage(&proto.MicroBlockMessage{
+	p.SendMessage(&proto.MicroBlockMessage{
 		Body: microBlock,
 	})
 }
 
-func (a *RuntimeImpl) HandleMicroBlockMessage(s string, message *proto.MicroBlockMessage) {
+func (a *RuntimeImpl) HandleMicroBlockMessage(_ peer.Peer, message *proto.MicroBlockMessage) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
@@ -144,7 +142,7 @@ func (a *RuntimeImpl) HandleMicroBlockMessage(s string, message *proto.MicroBloc
 	go a.services.Scheduler.Reschedule()
 }
 
-func (a *RuntimeImpl) HandleBlockMessage(peerID string, block *proto.Block) {
+func (a *RuntimeImpl) HandleBlockMessage(_ peer.Peer, block *proto.Block) {
 	a.ngState.AddBlock(block)
 	go a.services.Scheduler.Reschedule()
 }

@@ -41,8 +41,6 @@ func RunIncomingPeer(ctx context.Context, params IncomingPeerParams) error {
 	default:
 	}
 
-	zap.S().Debugf("read handshake from %s %+v", c.RemoteAddr().String(), readHandshake)
-
 	writeHandshake := proto.Handshake{
 		AppName:      params.WavesNetwork,
 		Version:      params.Version,
@@ -68,12 +66,10 @@ func RunIncomingPeer(ctx context.Context, params IncomingPeerParams) error {
 
 	remote := peer.NewRemote()
 	connection := conn.WrapConnection(c, params.Pool, remote.ToCh, remote.FromCh, remote.ErrCh, params.Skip)
-	zap.S().Debugf("%s, readhandshake %+v", c.RemoteAddr().String(), readHandshake)
-
 	peerImpl := peer.NewPeerImpl(readHandshake, connection, peer.Incoming, remote)
 
 	out := peer.InfoMessage{
-		ID: peerImpl.ID(),
+		Peer: peerImpl,
 		Value: &peer.Connected{
 			Peer: peerImpl,
 		},
@@ -87,5 +83,6 @@ func RunIncomingPeer(ctx context.Context, params IncomingPeerParams) error {
 		Remote:     remote,
 		Parent:     params.Parent,
 		Pool:       params.Pool,
+		Peer:       peerImpl,
 	})
 }

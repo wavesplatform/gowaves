@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"sync"
 
+	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
 )
@@ -21,9 +22,9 @@ func NewSubscribeService() *Subscribe {
 }
 
 //Receive tries to apply block to any listener, if no one accepted return `false`, otherwise `true`
-func (a *Subscribe) Receive(id string, responseMessage proto.Message) bool {
+func (a *Subscribe) Receive(p peer.Peer, responseMessage proto.Message) bool {
 	a.mu.Lock()
-	name := name(id, responseMessage)
+	name := name(p.ID(), responseMessage)
 	if ch, ok := a.running[name]; ok {
 		a.mu.Unlock()
 		select {

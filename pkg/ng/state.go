@@ -18,20 +18,27 @@ type State struct {
 	state          state.State
 	mu             sync.Mutex
 	historySync    types.StateHistorySynchronizer
+	knownBlocks    knownBlocks
 }
 
 func NewState(services services.Services) *State {
 	return &State{
-		mu:      sync.Mutex{},
-		storage: newStorage(),
-		applier: services.BlockApplier,
-		state:   services.State,
+		mu:          sync.Mutex{},
+		storage:     newStorage(),
+		applier:     services.BlockApplier,
+		state:       services.State,
+		knownBlocks: knownBlocks{},
 	}
 }
 
 func (a *State) AddBlock(block *proto.Block) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
+
+	added := a.knownBlocks.add(block)
+	if !added { // already tried
+		return
+	}
 
 	// same block
 	if a.prevAddedBlock != nil && a.prevAddedBlock.BlockSignature == block.BlockSignature {
@@ -40,7 +47,7 @@ func (a *State) AddBlock(block *proto.Block) {
 
 	err := a.storage.PushBlock(block)
 	if err != nil {
-		zap.S().Error(err)
+		zap.S().Debug(err)
 		return
 	}
 
@@ -137,12 +144,12 @@ func (a *State) AddMicroblock(micro *proto.MicroBlock) {
 func (a *State) BlockApplied() {
 	h, err := a.state.Height()
 	if err != nil {
-		zap.S().Error(err)
+		zap.S().Debug(err)
 		return
 	}
 	block, err := a.state.BlockByHeight(h)
 	if err != nil {
-		zap.S().Error(err)
+		zap.S().Debug(err)
 		return
 	}
 	a.blockApplied(block)
