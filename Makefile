@@ -86,11 +86,11 @@ build-retransmitter-windows:
 release-retransmitter: ver build-retransmitter-linux build-retransmitter-darwin build-retransmitter-windows
 
 build-node-linux:
-	@CGO_ENABLE=0 GOOS=linux GOARCH=amd64 go build -o build/bin/linux-amd64/node ./cmd/node
+	@GOOS=linux GOARCH=amd64 go build -o build/bin/linux-amd64/node ./cmd/node
 build-node-darwin:
-	@CGO_ENABLE=0 GOOS=darwin GOARCH=amd64 go build -o build/bin/darwin-amd64/node ./cmd/node
+	@GOOS=darwin GOARCH=amd64 go build -o build/bin/darwin-amd64/node ./cmd/node
 build-node-windows:
-	@CGO_ENABLE=0 GOOS=windows GOARCH=amd64 go build -o build/bin/windows-amd64/node.exe ./cmd/node
+	@GOOS=windows GOARCH=amd64 go build -o build/bin/windows-amd64/node.exe ./cmd/node
 
 release-node: ver build-node-linux build-node-darwin build-node-windows
 

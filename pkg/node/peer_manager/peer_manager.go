@@ -6,6 +6,7 @@ import (
 	"net"
 	"sort"
 	"sync"
+	"time"
 
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
@@ -32,12 +33,14 @@ func (a byScore) Less(i, j int) bool { return a[i].score.Cmp(a[j].score) < 0 }
 func (a byScore) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 
 type PeerManager interface {
-	Connected(unique string) (peer.Peer, bool)
+	Connected(peer.Peer) (peer.Peer, bool)
 	EachConnected(func(peer.Peer, *proto.Score))
-	Banned(unique string) bool
-	AddConnected(p peer.Peer)
+	IsSuspended(peer.Peer) bool
+	Suspend(peer.Peer)
+	Suspended() []string
+	AddConnected(peer.Peer)
 	PeerWithHighestScore() (peer.Peer, *big.Int, bool)
-	UpdateScore(id string, score *proto.Score)
+	UpdateScore(p peer.Peer, score *proto.Score)
 	UpdateKnownPeers([]proto.TCPAddr) error
 	KnownPeers() ([]proto.TCPAddr, error)
 	Close()
@@ -49,23 +52,71 @@ type PeerManager interface {
 	// for all connected node send GetPeersMessage
 	AskPeers()
 
-	Disconnect(id string)
+	Disconnect(peer.Peer)
+}
+
+type Ip = [net.IPv6len]byte
+
+type suspended map[Ip]time.Time
+
+func (a suspended) Blocked(ipPort proto.IpPort, now time.Time) bool {
+	ip := Ip{}
+	copy(ip[:], ipPort[:net.IPv6len])
+	v, ok := a[ip]
+	if !ok {
+		return false
+	}
+	if v.Add(5 * time.Minute).After(now) { //suspended
+		return true
+	} else {
+		return false
+	}
+}
+
+func (a suspended) AllBlocked() []string {
+	out := make([]string, 0, len(a))
+	for ip := range a {
+		out = append(out, net.IP(ip[:]).String())
+	}
+	return out
+}
+
+func (a suspended) clear(now time.Time) {
+	for ip, v := range a {
+		if v.Add(5 * time.Minute).Before(now) {
+			delete(a, ip)
+		}
+	}
+}
+
+func (a suspended) Block(ip proto.IpPort, d time.Duration) {
+	a[ipPortToIp(ip)] = time.Now().Add(d)
+}
+
+func ipPortToIp(ipPort proto.IpPort) [net.IPv6len]byte {
+	ip := Ip{}
+	copy(ip[:], ipPort[:net.IPv6len])
+	return ip
+}
+
+func (a suspended) Len() int {
+	return len(a)
 }
 
 type PeerManagerImpl struct {
 	spawner    PeerSpawner
-	active     map[string]peerInfo //peer.Peer
+	active     map[peer.Peer]peerInfo
 	knownPeers map[string]proto.Version
 	mu         sync.RWMutex
 	state      PeerStorage
 	spawned    map[proto.IpPort]struct{}
+	suspended  suspended
 }
 
 func (a *PeerManagerImpl) Score(p peer.Peer) (*proto.Score, error) {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
-
-	info, ok := a.active[p.ID()]
+	info, ok := a.active[p]
 	if !ok {
 		return nil, errors.New("peer not found")
 	}
@@ -75,25 +126,39 @@ func (a *PeerManagerImpl) Score(p peer.Peer) (*proto.Score, error) {
 func NewPeerManager(spawner PeerSpawner, storage PeerStorage) *PeerManagerImpl {
 	return &PeerManagerImpl{
 		spawner:    spawner,
-		active:     make(map[string]peerInfo),
+		active:     make(map[peer.Peer]peerInfo),
 		knownPeers: make(map[string]proto.Version),
 		state:      storage,
 		spawned:    make(map[proto.IpPort]struct{}),
+		suspended:  suspended{},
 	}
 }
 
-func (a *PeerManagerImpl) Connected(unique string) (peer.Peer, bool) {
+func (a *PeerManagerImpl) Connected(p peer.Peer) (peer.Peer, bool) {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
-	p, ok := a.active[unique]
-	return p.peer, ok
+	p1, ok := a.active[p]
+	return p1.peer, ok
+}
+
+func (a *PeerManagerImpl) Run(ctx context.Context) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(1 * time.Minute):
+			a.mu.Lock()
+			a.suspended.clear(time.Now())
+			a.mu.Unlock()
+		}
+	}
 }
 
 // TODO check remove spawned
 func (a *PeerManagerImpl) AddConnected(peer peer.Peer) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	a.active[peer.ID()] = newPeerInfo(peer)
+	a.active[peer] = newPeerInfo(peer)
 }
 
 func (a *PeerManagerImpl) PeerWithHighestScore() (peer.Peer, *big.Int, bool) {
@@ -115,23 +180,32 @@ func (a *PeerManagerImpl) PeerWithHighestScore() (peer.Peer, *big.Int, bool) {
 	return highest.peer, highest.score, true
 }
 
-func (a *PeerManagerImpl) UpdateScore(id string, score *big.Int) {
+func (a *PeerManagerImpl) UpdateScore(p peer.Peer, score *big.Int) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-
-	zap.S().Debugf("update score for %s, set %s", id, score.String())
-
-	if row, ok := a.active[id]; ok {
+	if row, ok := a.active[p]; ok {
 		row.score = score
-		a.active[id] = row
-	} else {
-		zap.S().Warnf("no peer with id %s found in active peers", id, a.active)
+		a.active[p] = row
 	}
 }
 
-// TODO implement banned logic
-func (a *PeerManagerImpl) Banned(id string) bool {
-	return false
+func (a *PeerManagerImpl) IsSuspended(p peer.Peer) bool {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	return a.suspended.Blocked(p.RemoteAddr().ToIpPort(), time.Now())
+}
+
+func (a *PeerManagerImpl) Suspend(p peer.Peer) {
+	a.Disconnect(p)
+	a.mu.Lock()
+	a.suspended.Block(p.RemoteAddr().ToIpPort(), 5*time.Minute)
+	a.mu.Unlock()
+}
+
+func (a *PeerManagerImpl) Suspended() []string {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	return a.suspended.AllBlocked()
 }
 
 func (a *PeerManagerImpl) AddAddress(ctx context.Context, addr string) {
@@ -155,11 +229,9 @@ func (a *PeerManagerImpl) KnownPeers() ([]proto.TCPAddr, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	if len(rs) == 0 {
 		return nil, nil
 	}
-
 	out := make([]proto.TCPAddr, len(rs))
 	copy(out, rs)
 	return out, nil
@@ -195,11 +267,14 @@ func (a *PeerManagerImpl) SpawnOutgoingConnections(ctx context.Context) {
 	}
 
 	for _, addr := range known {
-		if _, ok := active[addr.ToIpPort()]; ok {
+		addrIpPort := addr.ToIpPort()
+		if _, ok := active[addrIpPort]; ok {
 			continue
 		}
-
-		if _, ok := a.spawned[addr.ToIpPort()]; ok {
+		if _, ok := a.spawned[addrIpPort]; ok {
+			continue
+		}
+		if a.suspended.Blocked(addrIpPort, time.Now()) {
 			continue
 		}
 
@@ -213,10 +288,7 @@ func (a *PeerManagerImpl) SpawnOutgoingConnections(ctx context.Context) {
 }
 
 func (a *PeerManagerImpl) SpawnIncomingConnection(ctx context.Context, conn net.Conn) error {
-	if err := a.spawner.SpawnIncoming(ctx, conn); err != nil {
-		return err
-	}
-	return nil
+	return a.spawner.SpawnIncoming(ctx, conn)
 }
 
 func (a *PeerManagerImpl) RemoveSpawned(addr proto.TCPAddr) {
@@ -234,14 +306,11 @@ func (a *PeerManagerImpl) AskPeers() {
 	}
 }
 
-func (a *PeerManagerImpl) Disconnect(id string) {
+func (a *PeerManagerImpl) Disconnect(p peer.Peer) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	p, ok := a.active[id]
-	if ok {
-		p.peer.Close()
-		delete(a.active, id)
-	}
+	delete(a.active, p)
+	_ = p.Close()
 }
 
 func (a *PeerManagerImpl) EachConnected(f func(peer peer.Peer, score *big.Int)) {

@@ -2,11 +2,13 @@ package peer
 
 import (
 	"fmt"
+	"net"
+	"strings"
+
+	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/p2p/conn"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
-	"net"
-	"strings"
 )
 
 type PeerImpl struct {
@@ -44,7 +46,7 @@ func (a *PeerImpl) SendMessage(m proto.Message) {
 	select {
 	case a.remote.ToCh <- b:
 	default:
-		zap.S().Warnf("can't send bytes to remote, chan is full id %s", a.ID())
+		a.remote.ErrCh <- errors.Errorf("remote, chan is full id %s, name %s", a.ID(), a.handshake.NodeName)
 	}
 }
 

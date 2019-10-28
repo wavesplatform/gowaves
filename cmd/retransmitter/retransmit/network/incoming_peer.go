@@ -91,7 +91,7 @@ func RunIncomingPeer(ctx context.Context, params IncomingPeerParams) {
 	zap.S().Debugf("%s, readhandshake %+v", c.RemoteAddr().String(), readHandshake)
 
 	out := peer.InfoMessage{
-		ID: p.ID(),
+		Peer: p,
 		Value: &peer.Connected{
 			Peer: p,
 		},
@@ -110,6 +110,7 @@ func (a *IncomingPeer) run(ctx context.Context) error {
 		ID:         a.uniqueID,
 		Parent:     a.params.Parent,
 		Pool:       a.params.Pool,
+		Peer:       a,
 	}
 	return peer.Handle(handleParams)
 }

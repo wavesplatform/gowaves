@@ -34,6 +34,7 @@ type Cli struct {
 		Addresses    string `kong:"address,short='a',help='Addresses connect to.'"`
 		DeclAddr     string `kong:"decladdr,short='d',help='Address listen on.'"`
 		HttpAddr     string `kong:"httpaddr,short='w',help='Http addr bind on.'"`
+		GenesisPath  string `kong:"genesis,short='g',help='Path to genesis json file.'"`
 	} `kong:"cmd,help='Run node'"`
 }
 
@@ -70,7 +71,12 @@ func main() {
 		return
 	}
 
-	state, err := state.NewState("./", state.DefaultStateParams(), settings.MainNetSettings)
+	cfg := settings.MainNetSettings
+	if cli.Run.GenesisPath != "" {
+		cfg.GenesisGetter = settings.FromPath(cli.Run.GenesisPath)
+	}
+
+	state, err := state.NewState("./", state.DefaultStateParams(), cfg)
 	if err != nil {
 		zap.S().Error(err)
 		cancel()
@@ -89,18 +95,20 @@ func main() {
 	peerSpawnerImpl := peer_manager.NewPeerSpawner(pool, parent, conf.WavesNetwork, declAddr, "gowaves", 100500, version)
 
 	peerManager := peer_manager.NewPeerManager(peerSpawnerImpl, state)
+	go peerManager.Run(ctx)
 
 	scheduler := scheduler.NewScheduler(state, nil, nil)
 	stateChanged := state_changed.NewStateChanged()
 	blockApplier := node.NewBlockApplier(state, stateChanged, scheduler)
 
 	services := services.Services{
-		State:        state,
-		Peers:        peerManager,
-		Scheduler:    scheduler,
-		BlockApplier: blockApplier,
-		UtxPool:      utx,
-		Scheme:       'W',
+		State:              state,
+		Peers:              peerManager,
+		Scheduler:          scheduler,
+		BlockApplier:       blockApplier,
+		UtxPool:            utx,
+		Scheme:             'W',
+		BlockAddedNotifier: stateChanged,
 	}
 
 	mine := miner.NoOpMiner()
@@ -108,7 +116,6 @@ func main() {
 	ngState := ng.NewState(services)
 	ngRuntime := ng.NewRuntime(services, ngState)
 
-	stateChanged.AddHandler(state_changed.NewScoreSender(peerManager, state))
 	stateChanged.AddHandler(state_changed.NewFuncHandler(func() {
 		scheduler.Reschedule()
 	}))
@@ -147,10 +154,10 @@ func main() {
 	signal.Notify(gracefulStop, syscall.SIGINT)
 
 	sig := <-gracefulStop
-	n.Close()
-
 	zap.S().Infow("Caught signal, stopping", "signal", sig)
 	cancel()
+	<-time.After(2 * time.Second)
+	n.Close()
 
 	<-time.After(2 * time.Second)
 }

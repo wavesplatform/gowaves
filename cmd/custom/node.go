@@ -101,6 +101,7 @@ func main() {
 	peerSpawnerImpl := peer_manager.NewPeerSpawner(btsPool, parent, conf.WavesNetwork, declAddr, "gowaves", uint64(rand.Int()), version)
 
 	peerManager := peer_manager.NewPeerManager(peerSpawnerImpl, state)
+	go peerManager.Run(ctx)
 
 	var keyPairs []proto.KeyPair
 	if len(cli.Run.Seed) > 0 {

@@ -39,7 +39,7 @@ func (a Blocks) AddBlock(block *proto.Block) (Blocks, error) {
 			panic(fmt.Sprintf("invalid type %T", t))
 		}
 	}
-	return nil, errors.New("parent not found")
+	return nil, errors.Errorf("parent %s not found", block.Parent.String())
 }
 
 func (a Blocks) AddMicro(micro *proto.MicroBlock) (Blocks, error) {
@@ -109,10 +109,6 @@ func newStorage() *storage {
 }
 
 func (a *storage) PushBlock(block *proto.Block) error {
-	//err := a.validator.validateKeyBlock(block)
-	//if err != nil {
-	//	return err
-	//}
 	state, err := a.curState.AddBlock(block)
 	if err != nil {
 		return err
@@ -123,10 +119,6 @@ func (a *storage) PushBlock(block *proto.Block) error {
 }
 
 func (a *storage) PushMicro(m *proto.MicroBlock) error {
-	//err := a.validator.validateMicroBlock(m)
-	//if err != nil {
-	//	return err
-	//}
 	state, err := a.curState.AddMicro(m)
 	if err != nil {
 		return err

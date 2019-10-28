@@ -345,7 +345,31 @@ func newMockStateWithGenesis() *MockStateManager {
 }
 
 type mockPeerManager struct {
-	connected map[string]peer.Peer
+	connected map[peer.Peer]struct{}
+}
+
+func (a *mockPeerManager) IsSuspended(peer.Peer) bool {
+	panic("implement me")
+}
+
+func (a *mockPeerManager) Suspend(peer.Peer) {
+	panic("implement me")
+}
+
+func (a *mockPeerManager) Suspended() []string {
+	panic("implement me")
+}
+
+func (a *mockPeerManager) Disconnect(peer.Peer) {
+	panic("implement me")
+}
+
+func (a *mockPeerManager) Block(peer.Peer) {
+	panic("implement me")
+}
+
+func (a *mockPeerManager) UpdateScore(p peer.Peer, score *proto.Score) {
+	panic("implement me")
 }
 
 func (a *mockPeerManager) Score(p peer.Peer) (*proto.Score, error) {
@@ -360,7 +384,7 @@ func (a *mockPeerManager) Close() {
 	panic("implement me")
 }
 
-func (*mockPeerManager) Banned(unique string) bool {
+func (*mockPeerManager) Banned(peer.Peer) bool {
 	panic("implement me")
 }
 
@@ -372,19 +396,11 @@ func (*mockPeerManager) UpdateKnownPeers([]proto.TCPAddr) error {
 	panic("implement me")
 }
 
-func (*mockPeerManager) UpdateScore(string, *big.Int) {
-	panic("implement me")
-}
-
 func (*mockPeerManager) AddConnected(p peer.Peer) {
 	panic("implement me")
 }
 
 func (*mockPeerManager) AskPeers() {
-	panic("implement me")
-}
-
-func (*mockPeerManager) Disconnect(string) {
 	panic("implement me")
 }
 
@@ -396,19 +412,18 @@ func (*mockPeerManager) SpawnIncomingConnection(ctx context.Context, n net.Conn)
 	panic("implement me")
 }
 
-func NewMockPeerManagerWithDefaultPeer() (*mockPeerManager, string, *mock.Peer) {
-	peerName := "peer"
+func NewMockPeerManagerWithDefaultPeer() (*mockPeerManager, *mock.Peer) {
 	p := mock.NewPeer()
-	m := make(map[string]peer.Peer)
-	m[peerName] = p
+	m := make(map[peer.Peer]struct{})
+	m[p] = struct{}{}
 
 	return &mockPeerManager{
 		connected: m,
-	}, peerName, p
+	}, p
 }
 
-func (a *mockPeerManager) Connected(id string) (peer.Peer, bool) {
-	p, ok := a.connected[id]
+func (a *mockPeerManager) Connected(p peer.Peer) (peer.Peer, bool) {
+	_, ok := a.connected[p]
 	return p, ok
 }
 

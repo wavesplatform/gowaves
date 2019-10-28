@@ -8,6 +8,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/node/peer_manager"
 	. "github.com/wavesplatform/gowaves/pkg/p2p/peer"
+	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/services"
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"github.com/wavesplatform/gowaves/pkg/types"
@@ -33,7 +34,7 @@ func NewStateSync(services services.Services, subscribe *Subscribe, interrupter 
 		peerManager:  services.Peers,
 		stateManager: services.State,
 		subscribe:    subscribe,
-		interrupt:    make(chan struct{}),
+		interrupt:    make(chan struct{}, 1),
 		scheduler:    services.Scheduler,
 		blockApplier: services.BlockApplier,
 		interrupter:  interrupter,
@@ -49,7 +50,6 @@ func (a *StateSync) Sync() {
 	case a.syncCh <- struct{}{}:
 		return
 	default:
-		zap.S().Info("failed add sync job, chan is full")
 	}
 }
 
@@ -67,6 +67,11 @@ func (a *StateSync) Run(ctx context.Context) {
 
 func (a *StateSync) run(ctx context.Context) {
 	for {
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
 		p, err := a.getPeerWithHighestScore()
 		if err != nil {
 			return
@@ -96,9 +101,9 @@ func (a *StateSync) sync(ctx context.Context, p Peer) error {
 
 	err = <-errCh
 	if err != nil {
-		// TODO switch on error type, maybe suspend node
 		if err == TimeoutErr {
 			zap.S().Info("timeout err", err)
+			a.peerManager.Suspend(p)
 		} else {
 			zap.S().Info(err)
 		}
@@ -180,13 +185,11 @@ func downloadBlocks(
 				errCh <- err
 				return
 			}
-
 			curScore, err := services.State.CurrentScore()
 			if err != nil {
 				errCh <- err
 				return
 			}
-
 			if score.Cmp(curScore) == 0 {
 				errCh <- nil
 				return
@@ -208,6 +211,8 @@ func downloadBlocks(
 		}
 	}()
 
+	scoreUpdated := make(chan struct{}, 1)
+
 	// block applier
 	go func() {
 		for {
@@ -223,6 +228,37 @@ func downloadBlocks(
 					errCh <- err
 					return
 				}
+				go services.BlockAddedNotifier.Handle()
+				select {
+				case scoreUpdated <- struct{}{}:
+				default:
+				}
+			}
+		}
+	}()
+
+	// send score to nodes
+	go func() {
+		tick := time.NewTicker(10 * time.Second)
+		update := false
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-scoreUpdated:
+				update = true
+			case <-tick.C:
+				if update {
+					curScore, err := services.State.CurrentScore()
+					if err != nil {
+						zap.S().Info(err)
+						continue
+					}
+					services.Peers.EachConnected(func(peer Peer, score *proto.Score) {
+						peer.SendMessage(&proto.ScoreMessage{Score: curScore.Bytes()})
+					})
+				}
+				update = false
 			}
 		}
 	}()

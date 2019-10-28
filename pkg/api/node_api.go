@@ -70,6 +70,7 @@ func (a *NodeApi) routes() chi.Router {
 		r.Get("/all", a.PeersAll)
 		r.Get("/connected", a.PeersConnected)
 		r.Post("/connect", a.PeersConnect)
+		r.Get("/suspended", a.PeersSuspended)
 	})
 	r.Get("/miner/info", a.Minerinfo)
 	r.Post("/transactions/broadcast", a.TransactionsBroadcast)
@@ -259,6 +260,15 @@ func (a *NodeApi) PeersConnect(w http.ResponseWriter, r *http.Request) {
 
 func (a *NodeApi) PeersConnected(w http.ResponseWriter, r *http.Request) {
 	rs, err := a.app.PeersConnected()
+	if err != nil {
+		handleError(w, err)
+		return
+	}
+	sendJson(w, rs)
+}
+
+func (a *NodeApi) PeersSuspended(w http.ResponseWriter, r *http.Request) {
+	rs, err := a.app.PeersSuspended()
 	if err != nil {
 		handleError(w, err)
 		return
