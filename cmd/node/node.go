@@ -34,7 +34,6 @@ type Cli struct {
 		Addresses    string `kong:"address,short='a',help='Addresses connect to.'"`
 		DeclAddr     string `kong:"decladdr,short='d',help='Address listen on.'"`
 		HttpAddr     string `kong:"httpaddr,short='w',help='Http addr bind on.'"`
-		GenesisPath  string `kong:"genesis,short='g',help='Path to genesis json file.'"`
 	} `kong:"cmd,help='Run node'"`
 }
 
@@ -72,9 +71,7 @@ func main() {
 	}
 
 	cfg := settings.MainNetSettings
-	if cli.Run.GenesisPath != "" {
-		cfg.GenesisGetter = settings.FromPath(cli.Run.GenesisPath)
-	}
+	cfg.GenesisGetter = settings.EmbeddedGenesisGetter{}
 
 	state, err := state.NewState("./", state.DefaultStateParams(), cfg)
 	if err != nil {
