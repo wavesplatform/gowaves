@@ -504,6 +504,7 @@ func (a *FunctionCall) Evaluate(s Scope) (Expr, error) {
 		initial = fn.Scope
 	}
 	for i := 0; i < a.Argc; i++ {
+		initial.removeEvaluation(fn.Argv[i])
 		evaluatedParam, err := a.Argv[i].Evaluate(s)
 		if err != nil {
 			return nil, errors.Wrapf(err, "evaluate user function: %s", a.Name)

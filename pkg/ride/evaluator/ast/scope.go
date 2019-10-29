@@ -23,6 +23,7 @@ type Scope interface {
 	SetThis(this Expr)
 	evaluation(string) (evaluation, bool)
 	setEvaluation(string, evaluation)
+	removeEvaluation(string)
 	validMessageLength(len int) bool
 }
 
@@ -163,6 +164,12 @@ func (a *ScopeImpl) setEvaluation(name string, e evaluation) {
 		a.evaluations = make(map[string]evaluation)
 	}
 	a.evaluations[name] = e
+}
+
+func (a *ScopeImpl) removeEvaluation(name string) {
+	if a.evaluations != nil {
+		delete(a.evaluations, name)
+	}
 }
 
 func (a *ScopeImpl) validMessageLength(l int) bool {
