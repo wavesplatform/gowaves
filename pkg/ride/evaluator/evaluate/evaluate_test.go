@@ -1092,7 +1092,7 @@ func TestWhaleDApp(t *testing.T) {
 	recipient := proto.NewRecipientFromAddress(address)
 	arguments := proto.Arguments{}
 	arguments.Append(&proto.StringArgument{Value: "3P9yVruoCbs4cveU8HpTdFUvzwY59ADaQm3"})
-	arguments.Append(&proto.StringArgument{Value: `"{"name":"James May","message":"Hello!","isWhale":false,"address":"3P9yVruoCbs4cveU8HpTdFUvzwY59ADaQm3"}"`})
+	arguments.Append(&proto.StringArgument{Value: `{"name":"James May","message":"Hello!","isWhale":false,"address":"3P9yVruoCbs4cveU8HpTdFUvzwY59ADaQm3"}`})
 	call := proto.FunctionCall{
 		Default:   false,
 		Name:      "inviteuser",
@@ -1141,7 +1141,7 @@ func TestWhaleDApp(t *testing.T) {
 	require.NoError(t, err)
 	expectedDataWrites := proto.WriteSet{
 		&proto.StringDataEntry{Key: "wl_ref_3P9yVruoCbs4cveU8HpTdFUvzwY59ADaQm3", Value: "3P8Fvy1yDwNHvVrabe4ek5b9dAwxFjDKV7R"},
-		&proto.StringDataEntry{Key: "wl_bio_3P9yVruoCbs4cveU8HpTdFUvzwY59ADaQm3", Value: `"{"name":"James May","message":"Hello!","isWhale":false,"address":"3P9yVruoCbs4cveU8HpTdFUvzwY59ADaQm3"}"`},
+		&proto.StringDataEntry{Key: "wl_bio_3P9yVruoCbs4cveU8HpTdFUvzwY59ADaQm3", Value: `{"name":"James May","message":"Hello!","isWhale":false,"address":"3P9yVruoCbs4cveU8HpTdFUvzwY59ADaQm3"}`},
 		&proto.StringDataEntry{Key: "wl_sts_3P9yVruoCbs4cveU8HpTdFUvzwY59ADaQm3", Value: "invited"},
 	}
 	expectedResult := &proto.ScriptResult{
