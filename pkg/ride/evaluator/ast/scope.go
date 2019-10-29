@@ -152,11 +152,7 @@ func (a *ScopeImpl) evaluation(name string) (evaluation, bool) {
 			return v, true
 		}
 	}
-	if a.parent != nil {
-		return a.parent.evaluation(name)
-	} else {
-		return evaluation{}, false
-	}
+	return evaluation{}, false
 }
 
 func (a *ScopeImpl) setEvaluation(name string, e evaluation) {
