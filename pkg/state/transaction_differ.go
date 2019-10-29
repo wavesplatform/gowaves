@@ -956,7 +956,8 @@ func (td *transactionDiffer) createDiffInvokeScriptV1(transaction proto.Transact
 		return txDiff{}, errors.New("failed to convert interface to InvokeScriptV1 transaction")
 	}
 	updateMinIntermediateBalance := false
-	if info.blockInfo.Timestamp >= td.settings.CheckTempNegativeAfterTime {
+	noPayments := len(tx.Payments) == 0
+	if info.blockInfo.Timestamp >= td.settings.CheckTempNegativeAfterTime && !noPayments {
 		updateMinIntermediateBalance = true
 	}
 	diff := newTxDiff()
