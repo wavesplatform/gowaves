@@ -172,3 +172,78 @@ func TestApplyInvokeScriptV1PaymentsAndData(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, &proto.IntegerDataEntry{Key: key, Value: int64(amount)}, entry)
 }
+
+func TestApplyInvokeScriptV1Transfers(t *testing.T) {
+	to, path := createInvokeApplierTestObjects(t)
+
+	defer func() {
+		err := to.state.Close()
+		assert.NoError(t, err, "state.Close() failed")
+		err = os.RemoveAll(path)
+		assert.NoError(t, err, "failed to remove test data dir")
+	}()
+
+	// Invoke applier object.
+	ia := to.state.appender.ia
+	info := &invokeAddlInfo{
+		block:  &proto.BlockHeader{BlockSignature: blockID0, Timestamp: to.state.settings.CheckTempNegativeAfterTime},
+		height: 1,
+	}
+	err := to.state.stateDB.addBlock(info.block.BlockSignature)
+	assert.NoError(t, err)
+	dir, err := getLocalDir()
+	assert.NoError(t, err, "getLocalDir() failed")
+	dAppPath := filepath.Join(dir, "testdata", "scripts", "dapp.base64")
+	scriptBase64, err := ioutil.ReadFile(dAppPath)
+	assert.NoError(t, err, "ReadFile() failed")
+	scriptBytes, err := reader.ScriptBytesFromBase64(scriptBase64)
+	assert.NoError(t, err, "ScriptBytesFromBase64() failed")
+	to.setScript(t, testGlobal.recipientInfo.addr, proto.Script(scriptBytes))
+
+	amount := uint64(34)
+	withdrawAmount := amount / 2
+	fee := FeeUnit * feeConstants[proto.InvokeScriptTransaction]
+	startBalance := amount + fee*2
+	to.setInitialWavesBalance(t, testGlobal.senderInfo.addr, startBalance)
+	senderBalance, err := to.state.NewestAccountBalance(proto.NewRecipientFromAddress(testGlobal.senderInfo.addr), nil)
+	assert.NoError(t, err)
+	assert.Equal(t, startBalance, senderBalance)
+
+	pmts := []proto.ScriptPayment{
+		{Amount: amount},
+	}
+	fc := proto.FunctionCall{Name: "deposit"}
+	tx := createInvokeScriptV1(t, pmts, fc, fee)
+	tx.FeeAsset = proto.OptionalAsset{Present: false}
+	err = ia.applyInvokeScriptV1(tx, info)
+	assert.NoError(t, err, "failed to apply valid InvokeScriptV1 tx")
+
+	fc = proto.FunctionCall{Name: "withdraw", Arguments: proto.Arguments{&proto.IntegerArgument{Value: int64(withdrawAmount)}}}
+	tx = createInvokeScriptV1(t, []proto.ScriptPayment{}, fc, fee)
+	tx.FeeAsset = proto.OptionalAsset{Present: false}
+	err = ia.applyInvokeScriptV1(tx, info)
+	assert.NoError(t, err, "failed to apply valid InvokeScriptV1 tx")
+
+	// Check newest result state here.
+	senderBalance, err = to.state.NewestAccountBalance(proto.NewRecipientFromAddress(testGlobal.senderInfo.addr), nil)
+	assert.NoError(t, err)
+	assert.Equal(t, withdrawAmount, senderBalance)
+	recipientBalance, err := to.state.NewestAccountBalance(tx.ScriptRecipient, nil)
+	assert.NoError(t, err)
+	assert.Equal(t, amount-withdrawAmount, recipientBalance)
+
+	err = to.state.appender.applyAllDiffs(false)
+	assert.NoError(t, err, "applyAllDiffs() failed")
+	err = to.state.flush(false)
+	assert.NoError(t, err, "state.flush() failed")
+	err = to.state.reset()
+	assert.NoError(t, err, "state.reset() failed")
+
+	// Check after flushing.
+	senderBalance, err = to.state.AccountBalance(proto.NewRecipientFromAddress(testGlobal.senderInfo.addr), nil)
+	assert.NoError(t, err)
+	assert.Equal(t, withdrawAmount, senderBalance)
+	recipientBalance, err = to.state.AccountBalance(tx.ScriptRecipient, nil)
+	assert.NoError(t, err)
+	assert.Equal(t, amount-withdrawAmount, recipientBalance)
+}
