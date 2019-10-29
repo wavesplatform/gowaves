@@ -1,7 +1,6 @@
 package state
 
 import (
-	"encoding/base64"
 	"io/ioutil"
 	"log"
 	"math/big"
@@ -149,10 +148,11 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatalf("newTestAddrData(): %v\n", err)
 	}
-	testGlobal.scriptBytes, err = base64.StdEncoding.DecodeString(scriptBase64)
+	scriptBytes, err := reader.ScriptBytesFromBase64Str(scriptBase64)
 	if err != nil {
 		log.Fatalf("Failed to decode script from base64: %v\n", err)
 	}
+	testGlobal.scriptBytes = scriptBytes
 	scriptAst, err := ast.BuildScript(reader.NewBytesReader(testGlobal.scriptBytes))
 	if err != nil {
 		log.Fatalf("BuildAst: %v\n", err)

@@ -118,6 +118,7 @@ func (ia *invokeApplier) saveIntermediateDiff(diff txDiff) error {
 
 func (ia *invokeApplier) saveDiff(diff txDiff, info *invokeAddlInfo) error {
 	if !info.validatingUtx {
+		ia.blockDiffer.appendBlockInfoToTxDiff(diff, info.block)
 		return ia.invokeDiffStor.diffStorage.saveTxDiff(diff)
 	}
 	// For UTX, we must validate changes before we save them.
@@ -157,6 +158,8 @@ func (ia *invokeApplier) createTxDiff(tx *proto.InvokeScriptV1, info *invokeAddl
 // That is why invoke transaction is applied to state in a different way - here, unlike other
 // transaction types.
 func (ia *invokeApplier) applyInvokeScriptV1(tx *proto.InvokeScriptV1, info *invokeAddlInfo) error {
+	// At first, clear invoke diff storage from any previus diffs.
+	ia.invokeDiffStor.invokeDiffsStor.reset()
 	if !info.validatingUtx && !info.hasBlock() {
 		return errors.New("no block is provided and not validating UTX")
 	}
@@ -232,6 +235,9 @@ func (ia *invokeApplier) applyInvokeScriptV1(tx *proto.InvokeScriptV1, info *inv
 			}
 		}
 	}
+	// Remove diffs from invoke stor.
+	ia.invokeDiffStor.invokeDiffsStor.reset()
+	// Add these diffs as a common diff to main stor.
 	if err := ia.saveDiff(commonDiff, info); err != nil {
 		return err
 	}

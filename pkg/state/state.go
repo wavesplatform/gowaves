@@ -560,7 +560,6 @@ func (a *txAppender) applyAllDiffs(initialisation bool) error {
 	changes := a.diffStor.allChanges()
 	a.recentTxIds = make(map[string]struct{})
 	a.diffStor.reset()
-	a.diffStorInvoke.reset()
 	if err := a.diffApplier.applyBalancesChanges(changes, !initialisation); err != nil {
 		return err
 	}
@@ -602,7 +601,6 @@ func (a *txAppender) resetValidationList() {
 	a.totalScriptsRuns = 0
 	a.recentTxIds = make(map[string]struct{})
 	a.diffStor.reset()
-	a.diffStorInvoke.reset()
 }
 
 // For UTX validation.
@@ -684,7 +682,6 @@ func (a *txAppender) reset() {
 	a.totalScriptsRuns = 0
 	a.recentTxIds = make(map[string]struct{})
 	a.diffStor.reset()
-	a.diffStorInvoke.reset()
 	a.blockDiffer.reset()
 }
 

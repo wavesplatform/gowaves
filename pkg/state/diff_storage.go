@@ -208,7 +208,28 @@ func newDiffStorageWrapped(mainStor *diffStorage) (*diffStorageWrapped, error) {
 }
 
 func (s *diffStorageWrapped) saveTxDiff(diff txDiff) error {
-	return s.invokeDiffsStor.saveTxDiff(diff)
+	for key, balanceDiff := range diff {
+		if _, ok := s.invokeDiffsStor.keys[key]; ok {
+			// If invoke stor already has changes for this key,
+			// they are newer than ones from main stor, so we just need to add new diff
+			// to these changes.
+			if err := s.invokeDiffsStor.addBalanceDiff(key, balanceDiff); err != nil {
+				return err
+			}
+			continue
+		}
+		// We don't have any changes for this key yet.
+		// Changes are retrieved from main stor and new diffs are applied to them.
+		change, err := s.diffStorage.balanceChangesWithNewDiff(key, balanceDiff)
+		if err != nil {
+			return err
+		}
+		// The result is saved to invoke stor.
+		if err := s.invokeDiffsStor.setBalanceChanges(change); err != nil {
+			return errors.Wrap(err, "failed to save changes to changes storage")
+		}
+	}
+	return nil
 }
 
 func (s *diffStorageWrapped) latestDiffByKey(key string) (balanceDiff, error) {
@@ -220,9 +241,4 @@ func (s *diffStorageWrapped) latestDiffByKey(key string) (balanceDiff, error) {
 	}
 	// Not found, return diff from main diff stor.
 	return s.diffStorage.latestDiffByKey(key)
-}
-
-func (s *diffStorageWrapped) reset() {
-	s.invokeDiffsStor.reset()
-	s.diffStorage.reset()
 }
