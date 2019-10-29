@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/ride/evaluator/reader"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/util"
 )
@@ -914,7 +915,9 @@ func TestCheckSetScriptV1(t *testing.T) {
 	dir, err := getLocalDir()
 	assert.NoError(t, err, "getLocalDir() failed")
 	scriptV3Path := filepath.Join(dir, "testdata", "scripts", "version3.base64")
-	scriptBytes, err := ioutil.ReadFile(scriptV3Path)
+	scriptBase64, err := ioutil.ReadFile(scriptV3Path)
+	assert.NoError(t, err)
+	scriptBytes, err := reader.ScriptBytesFromBase64(scriptBase64)
 	assert.NoError(t, err)
 	prevScript := tx.Script
 	tx.Script = proto.Script(scriptBytes)
@@ -925,7 +928,9 @@ func TestCheckSetScriptV1(t *testing.T) {
 	assert.NoError(t, err, "checkSetScriptV1 failed with valid SetScriptV1 tx")
 
 	complexScriptPath := filepath.Join(dir, "testdata", "scripts", "exceeds_complexity.base64")
-	scriptBytes, err = ioutil.ReadFile(complexScriptPath)
+	scriptBase64, err = ioutil.ReadFile(complexScriptPath)
+	assert.NoError(t, err)
+	scriptBytes, err = reader.ScriptBytesFromBase64(scriptBase64)
 	assert.NoError(t, err)
 	tx.Script = proto.Script(scriptBytes)
 	_, err = to.tc.checkSetScriptV1(tx, info)

@@ -78,7 +78,7 @@ func (tc *transactionChecker) checkScriptComplexity(script *ast.Script, complexi
 	return nil
 }
 
-func (tc *transactionChecker) estimatorByScript(script *ast.Script) *estimation.Estimator {
+func estimatorByScript(script *ast.Script) *estimation.Estimator {
 	var variables map[string]ast.Expr
 	var cat *estimation.Catalogue
 	switch script.Version {
@@ -113,7 +113,7 @@ func (tc *transactionChecker) checkScript(scriptBytes proto.Script) (*scriptInfo
 	if err := tc.scriptActivation(script); err != nil {
 		return nil, errors.Wrap(err, "script activation check failed")
 	}
-	estimator := tc.estimatorByScript(script)
+	estimator := estimatorByScript(script)
 	complexity, err := estimator.Estimate(script)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to estimate script complexity")

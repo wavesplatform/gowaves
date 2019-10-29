@@ -40,7 +40,7 @@ func NewBytesReader(bytes []byte) *BytesReader {
 	}
 }
 
-func NewReaderFromBase64(base64String string) (*BytesReader, error) {
+func ScriptBytesFromBase64Str(base64String string) ([]byte, error) {
 	decoded, err := base64.StdEncoding.DecodeString(base64String)
 	if err != nil {
 		return nil, err
@@ -51,8 +51,27 @@ func NewReaderFromBase64(base64String string) (*BytesReader, error) {
 	if l < 4 {
 		return nil, errors.Errorf("expected script len at least 4 bytes, got %d", l)
 	}
+	return decoded[:l-4], nil
+}
 
-	return NewBytesReader(decoded[:l-4]), nil
+func NewReaderFromBase64(base64String string) (*BytesReader, error) {
+	decoded, err := ScriptBytesFromBase64Str(base64String)
+	if err != nil {
+		return nil, err
+	}
+	return NewBytesReader(decoded), nil
+}
+
+func ScriptBytesFromBase64(base64Bytes []byte) ([]byte, error) {
+	res := make([]byte, len(base64Bytes))
+	n, err := base64.StdEncoding.Decode(res, base64Bytes)
+	if err != nil {
+		return nil, err
+	}
+	if n < 4 {
+		return nil, errors.Errorf("expected script len at least 4 bytes, got %d", n)
+	}
+	return res[:n-4], nil
 }
 
 func (a *BytesReader) Len() int {
