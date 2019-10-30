@@ -569,7 +569,6 @@ func TestNativeAssetBalance_FromAlias(t *testing.T) {
 }
 
 func TestNativeDataFromArray(t *testing.T) {
-
 	var dataEntries []proto.DataEntry
 	dataEntries = append(dataEntries, &proto.IntegerDataEntry{
 		Key:   "integer",
@@ -1331,6 +1330,28 @@ func TestNativeList(t *testing.T) {
 		{NewExprs(NewString("blah-blah-blah"), NewString("ALARM!!!"), NewLong(1)), true, "NativeGetList: invalid params, expected 2, passed 3", NewUnit()},
 	} {
 		r, err := NativeGetList(newEmptyScopeV1(), test.expressions)
+		if test.error {
+			assert.EqualError(t, err, test.message)
+			continue
+		}
+		require.NoError(t, err)
+		assert.Equal(t, test.result, r)
+	}
+}
+
+func TestDataTransaction(t *testing.T) {
+	addr, err := NewAddressFromString("3NAJMMGLfxUF91apoYJQnwY4RQrf5gSfynu")
+	require.NoError(t, err)
+	for _, test := range []struct {
+		expressions Exprs
+		error       bool
+		message     string
+		result      Expr
+	}{
+		{NewExprs(NewExprs(NewBytes(nil)), NewBytes(nil), NewLong(0), NewLong(0), NewLong(0), addr, NewBytes(nil), NewBytes(nil), NewExprs(NewBytes(nil))), false, "", NewObject(map[string]Expr{"$instance": NewString("DataTransaction"), "bodyBytes": NewBytes(nil), "data": NewExprs(NewBytes(nil)), "fee": NewLong(0), "id": NewBytes(nil), "proofs": NewExprs(NewBytes(nil)), "sender": addr, "senderPublicKey": NewBytes(nil), "timestamp": NewLong(0), "version": NewLong(0)})},
+		{NewExprs(), true, "DataTransaction: invalid params, expected 9, passed 0", NewUnit()},
+	} {
+		r, err := DataTransaction(newEmptyScopeV1(), test.expressions)
 		if test.error {
 			assert.EqualError(t, err, test.message)
 			continue

@@ -541,6 +541,7 @@ func NewCatalogueV2() *Catalogue {
 	c.user["Address"] = 1
 	c.user["Alias"] = 1
 	c.user["DataEntry"] = 2
+	c.user["DataTransaction"] = 9
 	c.user["AssetPair"] = 2
 
 	return c

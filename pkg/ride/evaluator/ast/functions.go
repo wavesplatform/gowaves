@@ -811,7 +811,7 @@ func NativeBooleanToBytes(s Scope, e Exprs) (Expr, error) {
 	}
 	b, ok := rs.(*BooleanExpr)
 	if !ok {
-		return nil, errors.Errorf("%s: exptected first argument to be *BooleanExpr, got %T", funcName, rs)
+		return nil, errors.Errorf("%s: expected first argument to be *BooleanExpr, got %T", funcName, rs)
 	}
 	if b.Value {
 		return NewBytes([]byte{1}), nil
@@ -1544,6 +1544,75 @@ func DataEntry(s Scope, e Exprs) (Expr, error) {
 	default:
 		return nil, errors.Errorf("%s: unsupported value type %T", funcName, t)
 	}
+}
+
+func DataTransaction(s Scope, e Exprs) (Expr, error) {
+	const funcName = "DataTransaction"
+	if l := len(e); l != 9 {
+		return nil, errors.Errorf("%s: invalid params, expected 9, passed %d", funcName, l)
+	}
+	rs, err := e.EvaluateAll(s)
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	out := make(map[string]Expr)
+
+	entries, ok := rs[0].(Exprs)
+	if !ok {
+		return nil, errors.Errorf("%s: first argument expected to be List, found %T", funcName, rs[0])
+	}
+	out["data"] = entries
+
+	id, ok := rs[1].(*BytesExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: second argument expected to be *BytesExpr, found %T", funcName, rs[1])
+	}
+	out["id"] = id
+
+	fee, ok := rs[2].(*LongExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: third argument expected to be *LongExpr, found %T", funcName, rs[2])
+	}
+	out["fee"] = fee
+
+	timestamp, ok := rs[3].(*LongExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: 4th argument expected to be *LongExpr, found %T", funcName, rs[3])
+	}
+	out["timestamp"] = timestamp
+
+	version, ok := rs[4].(*LongExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: 5th argument expected to be *LongExpr, found %T", funcName, rs[4])
+	}
+	out["version"] = version
+
+	addr, ok := rs[5].(*AddressExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: 6th argument expected to be *AddressExpr, found %T", funcName, rs[5])
+	}
+	out["sender"] = addr
+
+	pk, ok := rs[6].(*BytesExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: 7th argument expected to be *BytesExpr, found %T", funcName, rs[6])
+	}
+	out["senderPublicKey"] = pk
+
+	body, ok := rs[7].(*BytesExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: 8th argument expected to be *BytesExpr, found %T", funcName, rs[7])
+	}
+	out["bodyBytes"] = body
+
+	proofs, ok := rs[8].(Exprs)
+	if !ok {
+		return nil, errors.Errorf("%s: 9th argument expected to be List, found %T", funcName, rs[8])
+	}
+	out["proofs"] = proofs
+	out[InstanceFieldName] = NewString("DataTransaction")
+
+	return NewObject(out), nil
 }
 
 func AssetPair(s Scope, e Exprs) (Expr, error) {

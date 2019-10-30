@@ -261,6 +261,7 @@ func functionsV2() map[string]Expr {
 	fns["Alias"] = FunctionFromPredefined(UserAlias, 1)
 	fns["DataEntry"] = FunctionFromPredefined(DataEntry, 2)
 	fns["AssetPair"] = FunctionFromPredefined(AssetPair, 2)
+	fns["DataTransaction"] = FunctionFromPredefined(DataTransaction, 9)
 
 	return fns
 }
