@@ -311,7 +311,7 @@ func (a *FuncDeclaration) Write(w io.Writer) {
 }
 
 func (a *FuncDeclaration) Evaluate(s Scope) (Expr, error) {
-	s.AddValue(a.Name, NewFunctionWithScope(a.Args, a.Body, s))
+	s.AddValue(a.Name, NewFunctionWithScope(a.Args, a.Body, s.Clone()))
 	return a, nil
 }
 
