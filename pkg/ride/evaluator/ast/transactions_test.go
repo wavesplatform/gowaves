@@ -1187,7 +1187,7 @@ func (a *InvokeScriptV1TestSuite) SetupTest() {
 
 func (a *InvokeScriptV1TestSuite) Test_dappAddress() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	a.Equal(NewRecipientFromProtoRecipient(a.tx.ScriptRecipient), rs["dappAddress"])
+	a.Equal(NewRecipientFromProtoRecipient(a.tx.ScriptRecipient), rs["dApp"])
 }
 
 func (a *InvokeScriptV1TestSuite) Test_payment_presence() {

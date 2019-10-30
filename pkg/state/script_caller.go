@@ -98,14 +98,10 @@ func (a *scriptCaller) callAccountScriptWithTx(tx proto.Transaction, lastBlockIn
 	return nil
 }
 
-func (a *scriptCaller) callAssetScript(tx proto.Transaction, assetID crypto.Digest, lastBlockInfo *proto.BlockInfo, initialisation bool) error {
+func (a *scriptCaller) callAssetScriptCommon(obj map[string]ast.Expr, assetID crypto.Digest, lastBlockInfo *proto.BlockInfo, initialisation bool) error {
 	script, err := a.stor.scriptsStorage.newestScriptByAsset(assetID, !initialisation)
 	if err != nil {
 		return errors.Errorf("failed to retrieve asset script: %v\n", err)
-	}
-	obj, err := ast.NewVariablesFromTransaction(a.settings.AddressSchemeCharacter, tx)
-	if err != nil {
-		return errors.Wrap(err, "failed to convert transaction")
 	}
 	assetInfo, err := a.state.NewestAssetInfo(assetID)
 	if err != nil {
@@ -114,8 +110,7 @@ func (a *scriptCaller) callAssetScript(tx proto.Transaction, assetID crypto.Dige
 	this := ast.NewObjectFromAssetInfo(*assetInfo)
 	lastBlock := ast.NewObjectFromBlockInfo(*lastBlockInfo)
 	if err := a.callVerifyScript(script, obj, this, lastBlock); err != nil {
-		id, _ := tx.GetID()
-		return errors.Errorf("asset script; transaction ID %s: %v\n", base58.Encode(id), err)
+		return errors.Wrap(err, "callVerifyScript failed")
 	}
 	// Increase complexity.
 	complexityRecord, err := a.stor.scriptsComplexity.newestScriptComplexityByAsset(assetID, !initialisation)
@@ -123,6 +118,29 @@ func (a *scriptCaller) callAssetScript(tx proto.Transaction, assetID crypto.Dige
 		return errors.Wrap(err, "newestScriptComplexityByAsset()")
 	}
 	a.totalComplexity += complexityRecord.complexity
+	return nil
+}
+
+func (a *scriptCaller) callAssetScriptWithScriptTransfer(tr *proto.FullScriptTransfer, assetID crypto.Digest, lastBlockInfo *proto.BlockInfo, initialisation bool) error {
+	obj, err := ast.NewVariablesFromScriptTransfer(tr)
+	if err != nil {
+		return errors.Wrap(err, "failed to convert transaction")
+	}
+	if err := a.callAssetScriptCommon(obj, assetID, lastBlockInfo, initialisation); err != nil {
+		return errors.Errorf("asset script; script transfer ID %s: %v\n", tr.ID.String(), err)
+	}
+	return nil
+}
+
+func (a *scriptCaller) callAssetScript(tx proto.Transaction, assetID crypto.Digest, lastBlockInfo *proto.BlockInfo, initialisation bool) error {
+	obj, err := ast.NewVariablesFromTransaction(a.settings.AddressSchemeCharacter, tx)
+	if err != nil {
+		return errors.Wrap(err, "failed to convert transaction")
+	}
+	if err := a.callAssetScriptCommon(obj, assetID, lastBlockInfo, initialisation); err != nil {
+		id, _ := tx.GetID()
+		return errors.Errorf("asset script; transaction ID %s: %v\n", base58.Encode(id), err)
+	}
 	return nil
 }
 

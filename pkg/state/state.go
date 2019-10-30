@@ -714,6 +714,11 @@ type stateManager struct {
 }
 
 func newStateManager(dataDir string, params StateParams, settings *settings.BlockchainSettings) (*stateManager, error) {
+	if _, err := os.Stat(dataDir); os.IsNotExist(err) {
+		if err := os.Mkdir(dataDir, 0755); err != nil {
+			return nil, wrapErr(Other, errors.Errorf("failed to create state directory: %v\n", err))
+		}
+	}
 	blockStorageDir := filepath.Join(dataDir, blocksStorDir)
 	if _, err := os.Stat(blockStorageDir); os.IsNotExist(err) {
 		if err := os.Mkdir(blockStorageDir, 0755); err != nil {

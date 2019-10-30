@@ -212,8 +212,12 @@ func (ia *invokeApplier) applyInvokeScriptV1(tx *proto.InvokeScriptV1, info *inv
 			return err
 		}
 		if isSmartAsset {
+			fullTr, err := proto.NewFullScriptTransfer(ia.settings.AddressSchemeCharacter, &transfer, tx)
+			if err != nil {
+				return errors.Wrap(err, "failed to convert transfer to full script transfer")
+			}
 			// Call asset script if transferring smart asset.
-			if err := ia.sc.callAssetScript(tx, transfer.Asset.ID, blockInfo, info.initialisation); err != nil {
+			if err := ia.sc.callAssetScriptWithScriptTransfer(fullTr, transfer.Asset.ID, blockInfo, info.initialisation); err != nil {
 				return errors.Wrap(err, "asset script failed on transfer set")
 			}
 			scriptRuns++
