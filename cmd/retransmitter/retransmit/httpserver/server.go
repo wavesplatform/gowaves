@@ -60,10 +60,10 @@ type FullState struct {
 func (a *HttpServer) ActiveConnections(rw http.ResponseWriter, r *http.Request) {
 	var out ActiveConnections
 	addr2peer := a.retransmitter.ActiveConnections()
-	addr2peer.Each(func(id string, p peer.Peer) {
+	addr2peer.Each(func(p peer.Peer) {
 		c := p.Connection()
 		out = append(out, ActiveConnection{
-			Addr:          id,
+			Addr:          p.RemoteAddr().String(),
 			Direction:     p.Direction().String(),
 			DeclAddr:      p.Handshake().DeclaredAddr.String(),
 			RemoteAddr:    p.RemoteAddr().String(),

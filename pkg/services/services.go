@@ -8,10 +8,11 @@ import (
 )
 
 type Services struct {
-	State        state.State
-	Peers        peer_manager.PeerManager
-	Scheduler    types.Scheduler
-	BlockApplier types.BlockApplier
-	UtxPool      types.UtxPool
-	Scheme       proto.Scheme
+	State              state.State
+	Peers              peer_manager.PeerManager
+	Scheduler          types.Scheduler
+	BlockApplier       types.BlockApplier
+	UtxPool            types.UtxPool
+	Scheme             proto.Scheme
+	BlockAddedNotifier types.Handler
 }

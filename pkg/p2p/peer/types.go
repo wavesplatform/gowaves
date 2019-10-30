@@ -1,18 +1,20 @@
 package peer
 
-import "github.com/wavesplatform/gowaves/pkg/proto"
+import (
+	"github.com/wavesplatform/gowaves/pkg/proto"
+)
 
 type Connected struct {
 	Peer Peer
 }
 
 type ProtoMessage struct {
-	ID      string
+	ID      Peer
 	Message proto.Message
 }
 
 type InfoMessage struct {
-	ID    string
+	Peer  Peer
 	Value interface{}
 }
 
