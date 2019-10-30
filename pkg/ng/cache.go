@@ -1,6 +1,7 @@
 package ng
 
 import (
+	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/util/fifo_cache"
 )
@@ -75,4 +76,20 @@ func (a *InvCache) Inv(sig proto.MicroblockTotalSig) (*proto.MicroBlockInv, bool
 		return rs.(*proto.MicroBlockInv), ok
 	}
 	return nil, false
+}
+
+// blocks, that we already tried to apply
+type knownBlocks []crypto.Signature
+
+func (a *knownBlocks) add(block *proto.Block) (added bool) {
+	for _, b := range *a {
+		if b == block.BlockSignature {
+			return false
+		}
+	}
+	*a = append(*a, block.BlockSignature)
+	if len(*a) > 4 {
+		*a = (*a)[1:]
+	}
+	return true
 }

@@ -703,10 +703,8 @@ func (a *IpPort) UnmarshalBinary(b []byte) error {
 	return nil
 }
 
-type StaticIP [net.IPv6len]byte
-
-func (a StaticIP) String() string {
-	return net.IP(a[:]).String()
+func (a *IpPort) String() string {
+	return NewTCPAddr(a.Addr(), a.Port()).String()
 }
 
 // PeerInfo represents the address of a single peer

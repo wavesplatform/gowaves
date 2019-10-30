@@ -10,6 +10,77 @@ import (
 	"runtime"
 )
 
+const mainnetGenesis = `
+{
+  "version": 1,
+  "timestamp": 1460678400000,
+  "reference": "67rpwLCuS5DGA8KGZXKsVQ7dnPb9goRLoKfgGbLfQg9WoLUgNY77E2jT11fem3coV9nAkguBACzrU1iyZM4B8roQ",
+  "nxt-consensus": {
+    "base-target": 153722867,
+    "generation-signature": "11111111111111111111111111111111"
+  },
+  "signature": "FSH8eAAzZNqnG8xgTZtz5xuLqXySsXgAjmFEC25hXMbEufiGjqWPnGCZFt6gLiVLJny16ipxRNAkkzjjhqTjBE2",
+  "transactionBlockLength": 283,
+  "transactionCount": 6,
+  "transactions": [
+    {
+      "type": 1,
+      "id": "2DVtfgXjpMeFf2PQCqvwxAiaGbiDsxDjSdNQkc5JQ74eWxjWFYgwvqzC4dn7iB1AhuM32WxEiVi1SGijsBtYQwn8",
+      "fee": 0,
+      "timestamp": 1465742577614,
+      "signature": "2DVtfgXjpMeFf2PQCqvwxAiaGbiDsxDjSdNQkc5JQ74eWxjWFYgwvqzC4dn7iB1AhuM32WxEiVi1SGijsBtYQwn8",
+      "recipient": "3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ",
+      "amount": 9999999500000000
+    },
+    {
+      "type": 1,
+      "id": "2TsxPS216SsZJAiep7HrjZ3stHERVkeZWjMPFcvMotrdGpFa6UCCmoFiBGNizx83Ks8DnP3qdwtJ8WFcN9J4exa3",
+      "fee": 0,
+      "timestamp": 1465742577614,
+      "signature": "2TsxPS216SsZJAiep7HrjZ3stHERVkeZWjMPFcvMotrdGpFa6UCCmoFiBGNizx83Ks8DnP3qdwtJ8WFcN9J4exa3",
+      "recipient": "3P8JdJGYc7vaLu4UXUZc1iRLdzrkGtdCyJM",
+      "amount": 100000000
+    },
+    {
+      "type": 1,
+      "id": "3gF8LFjhnZdgEVjP7P6o1rvwapqdgxn7GCykCo8boEQRwxCufhrgqXwdYKEg29jyPWthLF5cFyYcKbAeFvhtRNTc",
+      "fee": 0,
+      "timestamp": 1465742577614,
+      "signature": "3gF8LFjhnZdgEVjP7P6o1rvwapqdgxn7GCykCo8boEQRwxCufhrgqXwdYKEg29jyPWthLF5cFyYcKbAeFvhtRNTc",
+      "recipient": "3PAGPDPqnGkyhcihyjMHe9v36Y4hkAh9yDy",
+      "amount": 100000000
+    },
+    {
+      "type": 1,
+      "id": "5hjSPLDyqic7otvtTJgVv73H3o6GxgTBqFMTY2PqAFzw2GHAnoQddC4EgWWFrAiYrtPadMBUkoepnwFHV1yR6u6g",
+      "fee": 0,
+      "timestamp": 1465742577614,
+      "signature": "5hjSPLDyqic7otvtTJgVv73H3o6GxgTBqFMTY2PqAFzw2GHAnoQddC4EgWWFrAiYrtPadMBUkoepnwFHV1yR6u6g",
+      "recipient": "3P9o3ZYwtHkaU1KxsKkFjJqJKS3dLHLC9oF",
+      "amount": 100000000
+    },
+    {
+      "type": 1,
+      "id": "ivP1MzTd28yuhJPkJsiurn2rH2hovXqxr7ybHZWoRGUYKazkfaL9MYoTUym4sFgwW7WB5V252QfeFTsM6Uiz3DM",
+      "fee": 0,
+      "timestamp": 1465742577614,
+      "signature": "ivP1MzTd28yuhJPkJsiurn2rH2hovXqxr7ybHZWoRGUYKazkfaL9MYoTUym4sFgwW7WB5V252QfeFTsM6Uiz3DM",
+      "recipient": "3PJaDyprvekvPXPuAtxrapacuDJopgJRaU3",
+      "amount": 100000000
+    },
+    {
+      "type": 1,
+      "id": "29gnRjk8urzqc9kvqaxAfr6niQTuTZnq7LXDAbd77nydHkvrTA4oepoMLsiPkJ8wj2SeFB5KXASSPmbScvBbfLiV",
+      "fee": 0,
+      "timestamp": 1465742577614,
+      "signature": "29gnRjk8urzqc9kvqaxAfr6niQTuTZnq7LXDAbd77nydHkvrTA4oepoMLsiPkJ8wj2SeFB5KXASSPmbScvBbfLiV",
+      "recipient": "3PBWXDFUc86N2EQxKJmW8eFco65xTyMZx6J",
+      "amount": 100000000
+    }
+  ]
+}
+`
+
 type BlockchainType byte
 
 const (
@@ -174,6 +245,18 @@ type GenesisGetter interface {
 	Get() (*proto.Block, error)
 }
 
+type EmbeddedGenesisGetter struct {
+}
+
+func (a EmbeddedGenesisGetter) Get() (*proto.Block, error) {
+	genesis := &proto.Block{}
+	err := json.Unmarshal([]byte(mainnetGenesis), genesis)
+	if err != nil {
+		return nil, err
+	}
+	return genesis, nil
+}
+
 type localGenesisGetter struct {
 	paths []string
 }
@@ -228,5 +311,5 @@ func FromPath(path ...string) GenesisGetter {
 	}
 }
 
-var MainnetGenesis = FromCurrentDir("../state/genesis", "mainnet.json")
+var MainnetGenesis = EmbeddedGenesisGetter{}
 var TestnetGenesis = FromCurrentDir("../state/genesis", "testnet.json")

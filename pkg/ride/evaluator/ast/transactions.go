@@ -15,6 +15,7 @@ func NewVariablesFromScriptTransfer(tx *proto.FullScriptTransfer) (map[string]Ex
 	out["id"] = NewBytes(util.Dup(tx.ID.Bytes()))
 	out["timestamp"] = NewLong(int64(tx.Timestamp))
 	out["sender"] = NewAddressFromProtoAddress(tx.Sender)
+	out["senderPublicKey"] = NewBytes(util.Dup(tx.SenderPK.Bytes()))
 	out[InstanceFieldName] = NewString("TransferTransaction")
 	return out, nil
 }
