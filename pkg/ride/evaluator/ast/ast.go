@@ -1624,7 +1624,7 @@ func (a *AssetInfoExpr) Eq(other Expr) bool {
 }
 
 func (a *AssetInfoExpr) InstanceOf() string {
-	return "AssetInfo"
+	return "Asset"
 }
 
 func (a *AssetInfoExpr) Get(name string) (Expr, error) {
@@ -1915,28 +1915,4 @@ func NewScriptResult(writeSet *WriteSetExpr, transferSet *TransferSetExpr) *Scri
 		WriteSet:    writeSet,
 		TransferSet: transferSet,
 	}
-}
-
-type AssetExpr struct {
-	fields object
-}
-
-func (a *AssetExpr) Get(name string) (Expr, error) {
-	return a.fields.Get(name)
-}
-
-func (a *AssetExpr) Write(w io.Writer) {
-	_, _ = fmt.Fprintf(w, "Asset")
-}
-
-func (a *AssetExpr) Evaluate(Scope) (Expr, error) {
-	return a, nil
-}
-
-func (a *AssetExpr) Eq(other Expr) bool {
-	return false
-}
-
-func (a *AssetExpr) InstanceOf() string {
-	return "Asset"
 }
