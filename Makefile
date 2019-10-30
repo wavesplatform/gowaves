@@ -109,3 +109,12 @@ build-custom: ver build-custom-linux build-custom-darwin build-custom-windows
 
 build-docker:
 	docker build -t com.wavesplatform/node-it:latest .
+
+build-importer-linux:
+	@CGO_ENABLE=0 GOOS=linux GOARCH=amd64 go install ./cmd/importer
+build-importer-darwin:
+	@CGO_ENABLE=0 GOOS=darwin GOARCH=amd64 go install ./cmd/importer
+build-importer-windows:
+	@CGO_ENABLE=0 GOOS=windows GOARCH=amd64 go install ./cmd/importer
+
+release-importer: ver build-importer-linux build-importer-darwin build-importer-windows
