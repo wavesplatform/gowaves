@@ -499,20 +499,19 @@ func (a *FunctionCall) Evaluate(s Scope) (Expr, error) {
 	if fn.Argc != a.Argc {
 		return nil, errors.Errorf("evaluate user function: function %s expects %d arguments, passed %d", a.Name, fn.Argc, a.Argc)
 	}
-	initial := s.Initial()
+	functionScope := s.Initial()
 	if fn.Scope != nil {
-		initial = fn.Scope
+		functionScope = fn.Scope.Clone()
 	}
 	for i := 0; i < a.Argc; i++ {
-		initial.removeEvaluation(fn.Argv[i])
 		evaluatedParam, err := a.Argv[i].Evaluate(s)
 		if err != nil {
 			return nil, errors.Wrapf(err, "evaluate user function: %s", a.Name)
 		}
-		initial.AddValue(fn.Argv[i], evaluatedParam)
-		initial.setEvaluation(fn.Argv[i], evaluation{evaluatedParam, nil})
+		functionScope.AddValue(fn.Argv[i], evaluatedParam)
+		functionScope.setEvaluation(fn.Argv[i], evaluation{evaluatedParam, nil})
 	}
-	return fn.Evaluate(initial)
+	return fn.Evaluate(functionScope)
 }
 
 func (a *FunctionCall) Eq(other Expr) bool {

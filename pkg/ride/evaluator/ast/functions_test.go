@@ -536,15 +536,15 @@ func TestNativeToBse64String(t *testing.T) {
 }
 
 func TestNativeAssetBalance_FromAddress(t *testing.T) {
-	s := mockstate.State{
-		AccountsBalance: 5,
-	}
-
 	addr, err := proto.NewAddressFromString("3N2YHKSnQTUmka4pocTt71HwSSAiUWBcojK")
 	require.NoError(t, err)
 
 	d, err := crypto.NewDigestFromBase58("BXBUNddxTGTQc3G4qHYn5E67SBwMj18zLncUr871iuRD")
 	require.NoError(t, err)
+
+	s := mockstate.State{
+		AssetsBalances: map[crypto.Digest]uint64{d: 5},
+	}
 
 	rs, err := NativeAssetBalance(newScopeWithState(s), Params(NewAddressFromProtoAddress(addr), NewBytes(d.Bytes())))
 	require.NoError(t, err)
@@ -552,16 +552,15 @@ func TestNativeAssetBalance_FromAddress(t *testing.T) {
 }
 
 func TestNativeAssetBalance_FromAlias(t *testing.T) {
-	s := mockstate.State{
-		AccountsBalance: 5,
-	}
+	d, err := crypto.NewDigestFromBase58("BXBUNddxTGTQc3G4qHYn5E67SBwMj18zLncUr871iuRD")
+	require.NoError(t, err)
 
+	s := mockstate.State{
+		AssetsBalances: map[crypto.Digest]uint64{d: 5},
+	}
 	scope := newScopeWithState(s)
 
 	alias := proto.NewAlias(scope.Scheme(), "test")
-
-	d, err := crypto.NewDigestFromBase58("BXBUNddxTGTQc3G4qHYn5E67SBwMj18zLncUr871iuRD")
-	require.NoError(t, err)
 
 	rs, err := NativeAssetBalance(scope, Params(NewAliasFromProtoAlias(*alias), NewBytes(d.Bytes())))
 	require.NoError(t, err)
