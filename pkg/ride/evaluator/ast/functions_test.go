@@ -1255,7 +1255,7 @@ func TestNativeBlockInfoByHeight(t *testing.T) {
 	require.Equal(t, NewLong(10), ok(b.Get("height")))
 	require.Equal(t, NewLong(1310), ok(b.Get("baseTarget")))
 	require.Equal(t, NewBytes(gensig.Bytes()), ok(b.Get("generationSignature")))
-	require.Equal(t, NewBytes(addr.Bytes()), ok(b.Get("generator")))
+	require.Equal(t, NewAddressFromProtoAddress(addr), ok(b.Get("generator")))
 	require.Equal(t, NewBytes(publicKey.Bytes()), ok(b.Get("generatorPublicKey")))
 }
 

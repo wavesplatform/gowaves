@@ -14,7 +14,7 @@ func newMapFromBlockHeader(scheme proto.Scheme, h *proto.BlockHeader) (object, e
 	if err != nil {
 		return nil, err
 	}
-	obj["generator"] = NewBytes(addr.Bytes())
+	obj["generator"] = NewAddressFromProtoAddress(addr)
 	obj["generatorPublicKey"] = NewBytes(util.Dup(h.GenPublicKey.Bytes()))
 	obj["signature"] = NewBytes(util.Dup(h.BlockSignature.Bytes()))
 	obj["baseTarget"] = NewLong(int64(h.BaseTarget))
