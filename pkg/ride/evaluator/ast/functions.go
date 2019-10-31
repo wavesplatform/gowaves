@@ -1476,11 +1476,7 @@ func UserAddressFromPublicKey(s Scope, e Exprs) (Expr, error) {
 	if !ok {
 		return nil, errors.Errorf("%s expected first argument to be *BytesExpr, found %T", funcName, publicKeyExpr)
 	}
-	public, err := crypto.NewPublicKeyFromBytes(bts.Value)
-	if err != nil {
-		return nil, errors.Wrap(err, funcName)
-	}
-	addr, err := proto.NewAddressFromPublicKey(s.Scheme(), public)
+	addr, err := proto.NewAddressLikeFromAnyBytes(s.Scheme(), bts.Value)
 	if err != nil {
 		return NewUnit(), nil
 	}

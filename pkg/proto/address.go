@@ -78,6 +78,24 @@ func NewAddressFromPublicKey(scheme byte, publicKey crypto.PublicKey) (Address, 
 	return a, nil
 }
 
+// NewAddressFromPublicKey produces an Address from given scheme and Public Key bytes.
+func NewAddressLikeFromAnyBytes(scheme byte, b []byte) (Address, error) {
+	var a Address
+	a[0] = addressVersion
+	a[1] = scheme
+	h, err := crypto.SecureHash(b)
+	if err != nil {
+		return a, errors.Wrap(err, "failed to produce Digest from any bytes")
+	}
+	copy(a[headerSize:], h[:bodySize])
+	cs, err := addressChecksum(a[:headerSize+bodySize])
+	if err != nil {
+		return a, errors.Wrap(err, "failed to calculate Address checksum")
+	}
+	copy(a[headerSize+bodySize:], cs)
+	return a, nil
+}
+
 func MustAddressFromPublicKey(scheme byte, publicKey crypto.PublicKey) Address {
 	rs, err := NewAddressFromPublicKey(scheme, publicKey)
 	if err != nil {

@@ -2670,20 +2670,14 @@ func (ws *WriteSet) Valid() error {
 type FullScriptTransfer struct {
 	ScriptResultTransfer
 	Sender    Address
-	SenderPK  crypto.PublicKey
 	Timestamp uint64
 	ID        *crypto.Digest
 }
 
 func NewFullScriptTransfer(scheme byte, tr *ScriptResultTransfer, tx *InvokeScriptV1) (*FullScriptTransfer, error) {
-	sender, err := NewAddressFromPublicKey(scheme, tx.SenderPK)
-	if err != nil {
-		return nil, err
-	}
 	return &FullScriptTransfer{
 		ScriptResultTransfer: *tr,
-		Sender:               sender,
-		SenderPK:             tx.SenderPK,
+		Sender:               *tx.ScriptRecipient.Address,
 		Timestamp:            tx.Timestamp,
 		ID:                   tx.ID,
 	}, nil
