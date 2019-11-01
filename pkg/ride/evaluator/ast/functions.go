@@ -930,11 +930,14 @@ func NativeToBase58(s Scope, e Exprs) (Expr, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
-	b, ok := first.(*BytesExpr)
-	if !ok {
+	switch arg := first.(type) {
+	case *BytesExpr:
+		return NewString(base58.Encode(arg.Value)), nil
+	case *Unit:
+		return NewString(base58.Encode(nil)), nil
+	default:
 		return nil, errors.Errorf("%s: expected first argument to be *BytesExpr, found %T", funcName, first)
 	}
-	return NewString(base58.Encode(b.Value)), nil
 }
 
 // Base58 decode
@@ -1499,7 +1502,7 @@ func UserAddress(s Scope, e Exprs) (Expr, error) {
 	}
 	addr, err := proto.NewAddressFromBytes(bts.Value)
 	if err != nil {
-		return NewUnit(), nil
+		return &InvalidAddressExpr{Value: bts.Value}, nil
 	}
 	return NewAddressFromProtoAddress(addr), nil
 }

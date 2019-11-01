@@ -713,6 +713,42 @@ func (a *BytesExpr) InstanceOf() string {
 	return "ByteVector"
 }
 
+type InvalidAddressExpr BytesExpr
+
+func (a *InvalidAddressExpr) Write(w io.Writer) {
+	_, _ = fmt.Fprint(w, "base58'", base58.Encode(a.Value), "'")
+}
+
+func (a *InvalidAddressExpr) Evaluate(Scope) (Expr, error) {
+	return a, nil
+}
+
+func (a *InvalidAddressExpr) Eq(other Expr) bool {
+	switch o := other.(type) {
+	case *Unit:
+		return false
+	case *BytesExpr:
+		return bytes.Equal(a.Value, o.Value)
+	case *AddressExpr:
+		return bytes.Equal(a.Value, o[:])
+	default:
+		return false
+	}
+}
+
+func (a *InvalidAddressExpr) InstanceOf() string {
+	return "Address"
+}
+
+func (a *InvalidAddressExpr) Get(name string) (Expr, error) {
+	switch name {
+	case "bytes":
+		return NewBytes(util.Dup(a.Value)), nil
+	default:
+		return nil, errors.Errorf("unknown fields '%s' on InvalidAddressExpr", name)
+	}
+}
+
 type GetterExpr struct {
 	Object Expr
 	Key    string
@@ -735,15 +771,18 @@ func (a *GetterExpr) Evaluate(s Scope) (Expr, error) {
 	if err != nil {
 		return nil, errors.Wrapf(err, "GetterExpr Evaluate by key %s", a.Key)
 	}
-
-	if obj, ok := val.(Getable); ok {
+	switch obj := val.(type) {
+	case Getable:
 		e, err := obj.Get(a.Key)
 		if err != nil {
 			return nil, err
 		}
 		return e, nil
+	case *Unit:
+		return NewUnit(), nil
+	default:
+		return nil, errors.Errorf("GetterExpr Evaluate: expected value be Getable, got %T", val)
 	}
-	return nil, errors.Errorf("GetterExpr Evaluate: expected value be Getable, got %T", val)
 }
 
 func (a *GetterExpr) Eq(other Expr) bool {

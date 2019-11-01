@@ -1535,5 +1535,86 @@ func TestLigaDApp1(t *testing.T) {
 		Writes:    expectedDataWrites,
 	}
 	assert.Equal(t, expectedResult, sr)
+}
 
+func TestTestingDApp(t *testing.T) {
+	code := "AAIDAAAAAAAAAAAAAAABAAAAAAhudWxsSG9tZQIAAAABMAAAAAIAAAABaQEAAAAHc2V0aG9tZQAAAAEAAAAGaG9tZUlkBAAAAAxzZWxsZXJCYXNlNTgJAAJYAAAAAQgIBQAAAAFpAAAABmNhbGxlcgAAAAVieXRlcwQAAAAFd3JpdGUJAQAAAAhXcml0ZVNldAAAAAEJAARMAAAAAgkBAAAACURhdGFFbnRyeQAAAAIFAAAADHNlbGxlckJhc2U1OAUAAAAGaG9tZUlkCQAETAAAAAIJAQAAAAlEYXRhRW50cnkAAAACAgAAAApzZXRob21lTG9nCQABLAAAAAIJAAEsAAAAAgUAAAAMc2VsbGVyQmFzZTU4AgAAAAQgLT4gBQAAAAZob21lSWQFAAAAA25pbAkBAAAADFNjcmlwdFJlc3VsdAAAAAIFAAAABXdyaXRlCQEAAAALVHJhbnNmZXJTZXQAAAABBQAAAANuaWwAAAABaQEAAAAEbWFpbgAAAAIAAAAMc2VsbGVyVmVjdG9yAAAABmhvbWVJZAQAAAADcG10CQEAAAAHZXh0cmFjdAAAAAEIBQAAAAFpAAAAB3BheW1lbnQDCQEAAAAJaXNEZWZpbmVkAAAAAQgFAAAAA3BtdAAAAAdhc3NldElkCQAAAgAAAAECAAAAFXBheW1lbnQgaXMgb25seSB3YXZlcwQAAAAKYnVlckJhc2U1OAkAAlgAAAABCAgFAAAAAWkAAAAGY2FsbGVyAAAABWJ5dGVzBAAAAA1zZWxsZXJBZGRyZXNzCQEAAAAUYWRkcmVzc0Zyb21QdWJsaWNLZXkAAAABBQAAAAxzZWxsZXJWZWN0b3IEAAAAAWEJAQAAAAdBZGRyZXNzAAAAAQUAAAAMc2VsbGVyVmVjdG9yBAAAAAJzMQkAAlgAAAABBQAAAAxzZWxsZXJWZWN0b3IEAAAAAnMyCQACWAAAAAEIBQAAAA1zZWxsZXJBZGRyZXNzAAAABWJ5dGVzBAAAAAJzMwkAAlgAAAABCAUAAAABYQAAAAVieXRlcwkBAAAADFNjcmlwdFJlc3VsdAAAAAIJAQAAAAhXcml0ZVNldAAAAAEJAARMAAAAAgkBAAAACURhdGFFbnRyeQAAAAICAAAAB21haW5Mb2cJAAEsAAAAAgkAASwAAAACCQABLAAAAAIJAAEsAAAAAgkAASwAAAACCQABLAAAAAIFAAAAAnMxAgAAAAMgLSAFAAAAAnMyAgAAAAMgLSAFAAAAAnMzAgAAAAQgLT4gBQAAAApidWVyQmFzZTU4BQAAAANuaWwJAQAAAAtUcmFuc2ZlclNldAAAAAEFAAAAA25pbAAAAAAonzwX"
+	r, err := reader.NewReaderFromBase64(code)
+	require.NoError(t, err)
+	script, err := BuildScript(r)
+	require.NoError(t, err)
+
+	txID, err := crypto.NewDigestFromBase58("GSUXtkuw1jgVdbkZ3BAVP7kP7VL5RJ2kYyZiaTebW8Xs")
+	require.NoError(t, err)
+	proof, err := crypto.NewSignatureFromBase58("cvxrRfTStMSYpjybWHG7bBZAGChqWczD1MfbFcapcofSDK7HBuHGm6e3uouD7vuqHEFbqL2k8L4i2vBSFvHcjj1")
+	require.NoError(t, err)
+	proofs := proto.NewProofs()
+	proofs.Proofs = []proto.B58Bytes{proof[:]}
+	sender, err := crypto.NewPublicKeyFromBase58("HGT44HrsSSD5cjANV6wtWNB9VKS3y7hhoNXEDWB56Lu9")
+	require.NoError(t, err)
+	address, err := proto.NewAddressFromString("3MvqUEAdK8oa1jDS82eqYYVoHTX3S71rRPa")
+	require.NoError(t, err)
+	av1, err := base64.StdEncoding.DecodeString("ANLvS9cUXfiHVkxyrfhPuJUWnPrALiWiXhaEaqkNb86h")
+	require.NoError(t, err)
+	recipient := proto.NewRecipientFromAddress(address)
+	arguments := proto.Arguments{}
+	arguments.Append(&proto.BinaryArgument{Value: av1})
+	arguments.Append(&proto.StringArgument{Value: "10"})
+	call := proto.FunctionCall{
+		Default:   false,
+		Name:      "main",
+		Arguments: arguments,
+	}
+	tx := &proto.InvokeScriptV1{
+		Type:            proto.InvokeScriptTransaction,
+		Version:         1,
+		ID:              &txID,
+		Proofs:          proofs,
+		ChainID:         proto.TestNetScheme,
+		SenderPK:        sender,
+		ScriptRecipient: recipient,
+		FunctionCall:    call,
+		Payments:        proto.ScriptPayments{proto.ScriptPayment{Amount: 1, Asset: proto.OptionalAsset{}}},
+		FeeAsset:        proto.OptionalAsset{},
+		Fee:             500000,
+		Timestamp:       1567938316714,
+	}
+	v, err := base64.StdEncoding.DecodeString("AAAAAAABhqAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWyt9GyysOW84u/u5V5Ah/SzLfef4c28UqXxowxFZS4SLiC6+XBh8D7aJDXyTTjpkPPED06ZPOzUE23V6VYCsLw==")
+	require.NoError(t, err)
+	entries := map[string]proto.DataEntry{"B9spbWQ1rk7YqJUFjW8mLHw6cRcngyh7G9YgRuyFtLv6": &proto.BinaryDataEntry{Key: "B9spbWQ1rk7YqJUFjW8mLHw6cRcngyh7G9YgRuyFtLv6", Value: v}}
+	state := mockstate.State{
+		TransactionsByID:       nil,
+		TransactionsHeightByID: nil,
+		WavesBalance:           5000000000, // ~50 WAVES
+		DataEntries:            entries,
+		AssetIsSponsored:       false,
+		BlockHeaderByHeight:    nil,
+		NewestHeightVal:        666972,
+		Assets:                 nil,
+	}
+	this := NewAddressFromProtoAddress(address)
+	gs, err := crypto.NewDigestFromBase58("AWH9QVEnmN6VjRyEfs93UtAiCkwrNJ2phKYe25KFNCz")
+	require.NoError(t, err)
+	gen, err := proto.NewAddressFromString("3MxTeL8dKLUGh9B1A2aaZxQ8BLL22bDdm6G")
+	require.NoError(t, err)
+	blockInfo := proto.BlockInfo{
+		Timestamp:           1567938316714,
+		Height:              666972,
+		BaseTarget:          1550,
+		GenerationSignature: gs,
+		Generator:           gen,
+		GeneratorPublicKey:  sender,
+	}
+	lastBlock := NewObjectFromBlockInfo(blockInfo)
+	sr, err := script.CallFunction(proto.TestNetScheme, state, tx, this, lastBlock)
+	require.NoError(t, err)
+
+	expectedDataWrites := proto.WriteSet{
+		&proto.StringDataEntry{Key: "mainLog", Value: "1FCQFaXp6A3s2po6M3iP3ECkjzjMojE5hNA1s8NyvxzgY - 3N4XM8G5WXzdkLXYDL6X229Entc5Hqgz7DM - 1FCQFaXp6A3s2po6M3iP3ECkjzjMojE5hNA1s8NyvxzgY -> 3NBQxw1ZzTfWbrLjWj2euMwizncrGG4nXJX"},
+	}
+	expectedResult := &proto.ScriptResult{
+		Transfers: proto.TransferSet{},
+		Writes:    expectedDataWrites,
+	}
+	assert.Equal(t, expectedResult, sr)
 }
