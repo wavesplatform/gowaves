@@ -44,6 +44,12 @@ func (a *DefaultMiner) Mine(ctx context.Context, t proto.Timestamp, k proto.KeyP
 		return
 	}
 
+	v, err := blockVersion(a.state)
+	if err != nil {
+		zap.S().Error(err)
+		return
+	}
+
 	transactions := proto.Transactions{}
 	//var invalidTransactions []*types.TransactionWithBytes
 	mu := a.state.Mutex()
@@ -60,7 +66,7 @@ func (a *DefaultMiner) Mine(ctx context.Context, t proto.Timestamp, k proto.KeyP
 			return
 		}
 
-		if err = a.state.ValidateNextTx(tx.T, t, lastKnownBlock.Timestamp); err == nil {
+		if err = a.state.ValidateNextTx(tx.T, t, lastKnownBlock.Timestamp, v); err == nil {
 			transactions = append(transactions, tx.T)
 		} // else {
 		//invalidTransactions = append(invalidTransactions, t)
@@ -81,11 +87,6 @@ func (a *DefaultMiner) Mine(ctx context.Context, t proto.Timestamp, k proto.KeyP
 	}
 
 	pub, err := k.Public()
-	if err != nil {
-		zap.S().Error(err)
-		return
-	}
-	v, err := blockVersion(a.state)
 	if err != nil {
 		zap.S().Error(err)
 		return

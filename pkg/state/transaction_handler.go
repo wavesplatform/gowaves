@@ -30,7 +30,7 @@ type transactionHandler struct {
 	funcs handles
 }
 
-func buildHanndles(tc *transactionChecker, tp *transactionPerformer, td *transactionDiffer, tf *transactionFeeCounter) handles {
+func buildHandles(tc *transactionChecker, tp *transactionPerformer, td *transactionDiffer, tf *transactionFeeCounter) handles {
 	return handles{
 		proto.TransactionTypeVersion{Type: proto.GenesisTransaction, Version: 1}: txHandleFuncs{
 			tc.checkGenesis, nil, td.createDiffGenesis, nil,
@@ -128,7 +128,7 @@ func newTransactionHandler(
 	if err != nil {
 		return nil, err
 	}
-	return &transactionHandler{tc: tc, tp: tp, td: td, tf: tf, funcs: buildHanndles(tc, tp, td, tf)}, nil
+	return &transactionHandler{tc: tc, tp: tp, td: td, tf: tf, funcs: buildHandles(tc, tp, td, tf)}, nil
 }
 
 func (h *transactionHandler) checkTx(tx proto.Transaction, info *checkerInfo) ([]crypto.Digest, error) {

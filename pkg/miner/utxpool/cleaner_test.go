@@ -41,7 +41,7 @@ func (a mockStateWrapper) HeaderByHeight(height uint64) (*proto.BlockHeader, err
 	return a._lastHeader, nil
 }
 
-func (a *mockStateWrapper) ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64) error {
+func (a *mockStateWrapper) ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64, version proto.BlockVersion) error {
 	a.index += 1
 	if a.index%2 == 0 {
 		return nil
