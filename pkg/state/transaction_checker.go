@@ -2,6 +2,7 @@ package state
 
 import (
 	"bytes"
+	"log"
 	"math"
 
 	"github.com/pkg/errors"
@@ -70,8 +71,9 @@ func (tc *transactionChecker) checkScriptComplexity(script *ast.Script, complexi
 		complexityVal = complexity.DApp
 	}
 	if complexityVal > maxComplexity {
-		return errors.Errorf(
-			"script complexity %d exceeds maximum allowed complexity of %d\n",
+		// TODO: fix estimator and enable this check later.
+		log.Printf(
+			"ERROR: script complexity %d exceeds maximum allowed complexity of %d\n",
 			complexityVal,
 			maxComplexity,
 		)
