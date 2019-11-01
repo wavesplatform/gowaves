@@ -151,7 +151,7 @@ func (d *blockDiffer) saveCurFeeDistr(block *proto.BlockHeader) error {
 	return nil
 }
 
-func (d *blockDiffer) createMinerDiff(block *proto.BlockHeader, hasParent bool) (txDiff, error) {
+func (d *blockDiffer) createMinerDiff(block *proto.BlockHeader, hasParent bool, height uint64) (txDiff, error) {
 	var err error
 	var minerDiff txDiff
 	var minerAddr proto.Address
@@ -162,33 +162,38 @@ func (d *blockDiffer) createMinerDiff(block *proto.BlockHeader, hasParent bool) 
 		}
 		d.appendBlockInfoToTxDiff(minerDiff, block)
 	}
-	err = d.addBlockReward(minerDiff, minerAddr, block)
+	err = d.addBlockReward(minerDiff, minerAddr, block, height)
 	if err != nil {
 		return txDiff{}, err
 	}
 	return minerDiff, nil
 }
 
-func (d *blockDiffer) addBlockReward(diff txDiff, addr proto.Address, block *proto.BlockHeader) error {
+func (d *blockDiffer) addBlockReward(diff txDiff, addr proto.Address, block *proto.BlockHeader, height uint64) error {
+	// We use isOneBlockBeforeActivation() here as workaround, because in existing blockchain
+	// reward was charged at 000 block, but block v4 appeared one block after.
+	oneBeforeActivation := d.stor.features.isOneBlockBeforeActivation(int16(settings.BlockReward), height)
 	activated, err := d.stor.features.isActivated(int16(settings.BlockReward))
 	if err != nil {
 		return err
 	}
-	if activated {
-		reward, err := d.stor.monetaryPolicy.reward()
-		if err != nil {
-			return err
-		}
-		if reward > math.MaxInt64 {
-			return errors.New("reward overflows int64")
-		}
-		wavesKey := wavesBalanceKey{addr}
-		err = diff.appendBalanceDiff(wavesKey.bytes(), balanceDiff{balance: int64(reward)})
-		if err != nil {
-			return err
-		}
-		d.appendBlockInfoToTxDiff(diff, block)
+	if !activated && !oneBeforeActivation {
+		// Monetary policy is not working yet.
+		return nil
 	}
+	reward, err := d.stor.monetaryPolicy.reward()
+	if err != nil {
+		return err
+	}
+	if reward > math.MaxInt64 {
+		return errors.New("reward overflows int64")
+	}
+	wavesKey := wavesBalanceKey{addr}
+	err = diff.appendBalanceDiff(wavesKey.bytes(), balanceDiff{balance: int64(reward)})
+	if err != nil {
+		return err
+	}
+	d.appendBlockInfoToTxDiff(diff, block)
 	return nil
 }
 

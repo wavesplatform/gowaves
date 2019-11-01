@@ -170,6 +170,15 @@ func (f *features) isActivated(featureID int16) (bool, error) {
 	return true, nil
 }
 
+func (f *features) isOneBlockBeforeActivation(featureID int16, curHeight uint64) bool {
+	approvalHeight, err := f.approvalHeight(featureID)
+	if err != nil {
+		// Not even approved yet.
+		return false
+	}
+	return (curHeight - approvalHeight) == (f.settings.ActivationWindowSize(curHeight) - 1)
+}
+
 func (f *features) activatedFeaturesRecord(featureID int16) (*activatedFeaturesRecord, error) {
 	key := activatedFeaturesKey{featureID: featureID}
 	keyBytes, err := key.bytes()
