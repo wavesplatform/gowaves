@@ -5,14 +5,16 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"github.com/mr-tron/base58/base58"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"math"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/mr-tron/base58/base58"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/libs/serializer"
 )
 
 func TestOrderType_String(t *testing.T) {
@@ -166,8 +168,83 @@ func TestOrderV1SigningRoundTrip(t *testing.T) {
 					assert.Equal(t, o.MatcherFee, ao.MatcherFee)
 				}
 			}
+			buf := &bytes.Buffer{}
+			s := serializer.New(buf)
+			if err := o.Serialize(s); assert.NoError(t, err) {
+				var ao OrderV1
+				if err := ao.UnmarshalBinary(buf.Bytes()); assert.NoError(t, err) {
+					assert.Equal(t, o.ID, ao.ID)
+					assert.Equal(t, o.Signature, ao.Signature)
+					assert.Equal(t, o.SenderPK, ao.SenderPK)
+					assert.Equal(t, o.MatcherPK, ao.MatcherPK)
+					assert.Equal(t, o.AssetPair, ao.AssetPair)
+					assert.Equal(t, o.OrderType, ao.OrderType)
+					assert.Equal(t, o.Price, ao.Price)
+					assert.Equal(t, o.Amount, ao.Amount)
+					assert.Equal(t, o.Timestamp, ao.Timestamp)
+					assert.Equal(t, o.Expiration, ao.Expiration)
+					assert.Equal(t, o.MatcherFee, ao.MatcherFee)
+				}
+			}
 		}
 	}
+}
+
+func BenchmarkOrderV1SigningRoundTrip(t *testing.B) {
+	bts := make([]byte, 0, 1024*1024)
+	buf := bytes.NewBuffer(bts)
+
+	tests := []struct {
+		seed        string
+		matcher     string
+		amountAsset string
+		priceAsset  string
+		orderType   OrderType
+		amount      uint64
+		price       uint64
+		fee         uint64
+	}{
+		{"3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc", "7kPFrHDiGw1rCm7LPszuECwWYL3dMf6iMifLRDJQZMzy", "8LQW8f7P5d5PZM7GtZEBgaqRPGSzS3DfPuiXrURJ4AJS", "2bkjzFqTMM3cQpbgGYKE8r7J73SrXFH8YfxFBRBterLt", Sell, 1000, 100, 10},
+	}
+	tc := tests[0]
+
+	seed, _ := base58.Decode(tc.seed)
+	sk, pk, _ := crypto.GenerateKeyPair(seed)
+	mpk, _ := crypto.NewPublicKeyFromBase58(tc.matcher)
+	aa, _ := NewOptionalAssetFromString(tc.amountAsset)
+	pa, _ := NewOptionalAssetFromString(tc.priceAsset)
+	ts := uint64(time.Now().UnixNano() / 1000000)
+	exp := ts + 100*1000
+	o := NewUnsignedOrderV1(pk, mpk, *aa, *pa, tc.orderType, tc.price, tc.amount, ts, exp, tc.fee)
+	err := o.Sign(sk)
+	require.NoError(t, err)
+
+	t.Run("serialize", func(b *testing.B) {
+		b.ReportAllocs()
+		b.StopTimer()
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			buf.Reset()
+			s := serializer.New(buf)
+			b.StartTimer()
+			for j := 0; j < 10; j++ {
+				_ = o.Serialize(s)
+			}
+			b.StopTimer()
+		}
+	})
+	t.Run("marshal", func(b *testing.B) {
+		b.ReportAllocs()
+		b.StopTimer()
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			b.StartTimer()
+			for j := 0; j < 10; j++ {
+				_, _ = o.MarshalBinary()
+			}
+			b.StopTimer()
+		}
+	})
 }
 
 func TestOrderV1ToJSON(t *testing.T) {

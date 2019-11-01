@@ -54,6 +54,10 @@ func blockchainSettings() (*settings.BlockchainSettings, error) {
 }
 
 func main() {
+	err := setMaxOpenFiles(1024)
+	if err != nil {
+		panic(err)
+	}
 	flag.Parse()
 	if *blockchainPath == "" {
 		log.Fatalf("You must specify blockchain-path option.")

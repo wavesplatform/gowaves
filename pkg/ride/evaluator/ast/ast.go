@@ -24,16 +24,38 @@ type Script struct {
 	dApp       bool
 }
 
+func (a *Script) HasVerifier() bool {
+	if a.IsDapp() {
+		return a.DApp.Verifier != nil
+	}
+	return a.Verifier != nil
+}
+
 func (a *Script) IsDapp() bool {
 	return a.dApp
 }
 
-// returns *ScriptResultExpr
-func (a *Script) CallFunction(scheme proto.Scheme, state types.SmartState, tx *proto.InvokeScriptV1, name string, args Exprs) (Expr, error) {
+func protoArgToArgExpr(arg proto.Argument) (Expr, error) {
+	switch a := arg.(type) {
+	case *proto.IntegerArgument:
+		return &LongExpr{a.Value}, nil
+	case *proto.BooleanArgument:
+		return &BooleanExpr{a.Value}, nil
+	case *proto.StringArgument:
+		return &StringExpr{a.Value}, nil
+	case *proto.BinaryArgument:
+		return &BytesExpr{a.Value}, nil
+	default:
+		return nil, errors.New("unknown argument type")
+	}
+}
+
+func (a *Script) CallFunction(scheme proto.Scheme, state types.SmartState, tx *proto.InvokeScriptV1, this, lastBlock Expr) (*proto.ScriptResult, error) {
 	if !a.IsDapp() {
 		return nil, errors.New("can't call Script.CallFunction on non DApp")
 	}
-	if name == "" {
+	name := tx.FunctionCall.Name
+	if name == "" && tx.FunctionCall.Default {
 		name = "default"
 	}
 	fn, ok := a.DApp.CallableFuncs[name]
@@ -49,6 +71,8 @@ func (a *Script) CallFunction(scheme proto.Scheme, state types.SmartState, tx *p
 		return nil, err
 	}
 	scope := NewScope(3, scheme, state)
+	scope.SetThis(this)
+	scope.SetLastBlockInfo(lastBlock)
 	scope.SetHeight(height)
 
 	// assign of global vars and function
@@ -59,13 +83,17 @@ func (a *Script) CallFunction(scheme proto.Scheme, state types.SmartState, tx *p
 		}
 	}
 
-	if len(fn.FuncDecl.Args) != len(args) {
-		return nil, errors.Errorf("invalid func '%s' args count, expected %d, got %d", fn.FuncDecl.Name, len(fn.FuncDecl.Args), len(args))
+	if len(fn.FuncDecl.Args) != len(tx.FunctionCall.Arguments) {
+		return nil, errors.Errorf("invalid func '%s' args count, expected %d, got %d", fn.FuncDecl.Name, len(fn.FuncDecl.Args), len(tx.FunctionCall.Arguments))
 	}
 	// pass function arguments
 	curScope := scope.Clone()
-	for i := 0; i < len(args); i++ {
-		curScope.AddValue(fn.FuncDecl.Args[i], args[i])
+	for i, arg := range tx.FunctionCall.Arguments {
+		argExpr, err := protoArgToArgExpr(arg)
+		if err != nil {
+			return nil, errors.Wrap(err, "Script.CallFunction")
+		}
+		curScope.AddValue(fn.FuncDecl.Args[i], argExpr)
 	}
 	// invocation type
 	curScope.AddValue(fn.AnnotationInvokeName, invoke)
@@ -75,23 +103,21 @@ func (a *Script) CallFunction(scheme proto.Scheme, state types.SmartState, tx *p
 		return nil, errors.Wrap(err, "Script.CallFunction")
 	}
 
+	var resExpr *ScriptResultExpr
 	switch t := rs.(type) {
 	case *WriteSetExpr:
-		return NewScriptResult(t, NewTransferSet()), nil
+		resExpr = &ScriptResultExpr{WriteSet: t}
 	case *TransferSetExpr:
-		return NewScriptResult(NewWriteSet(), t), nil
+		resExpr = &ScriptResultExpr{TransferSet: t}
 	case *ScriptResultExpr:
-		return t, nil
+		resExpr = t
 	default:
 		return nil, errors.Errorf("Script.CallFunction: unexpected result type '%T'", t)
 	}
+	return resExpr.ConvertToProto()
 }
 
-func (a *Script) Verify(scheme byte, state types.SmartState, transaction proto.Transaction) (bool, error) {
-	txVars, err := NewVariablesFromTransaction(scheme, transaction)
-	if err != nil {
-		return false, err
-	}
+func (a *Script) Verify(scheme byte, state types.SmartState, object map[string]Expr, this, lastBlock Expr) (bool, error) {
 	height, err := state.AddingBlockHeight()
 	if err != nil {
 		return false, err
@@ -101,13 +127,15 @@ func (a *Script) Verify(scheme byte, state types.SmartState, transaction proto.T
 			return false, errors.New("verify function not defined")
 		}
 		scope := NewScope(3, scheme, state)
+		scope.SetThis(this)
+		scope.SetLastBlockInfo(lastBlock)
 		scope.SetHeight(height)
 
 		fn := a.DApp.Verifier
 		// pass function arguments
 		curScope := scope //.Clone()
 		// annotated tx type
-		curScope.AddValue(fn.AnnotationInvokeName, NewObject(txVars))
+		curScope.AddValue(fn.AnnotationInvokeName, NewObject(object))
 		// here should be only assign of vars and function
 		for _, expr := range a.DApp.Declarations {
 			_, err = expr.Evaluate(curScope)
@@ -118,7 +146,9 @@ func (a *Script) Verify(scheme byte, state types.SmartState, transaction proto.T
 		return evalAsBool(fn.FuncDecl.Body, curScope)
 	} else {
 		scope := NewScope(a.Version, scheme, state)
-		scope.AddValue("tx", NewObject(txVars))
+		scope.SetTransaction(object)
+		scope.SetThis(this)
+		scope.SetLastBlockInfo(lastBlock)
 		scope.SetHeight(height)
 		return evalAsBool(a.Verifier, scope)
 	}
@@ -281,7 +311,7 @@ func (a *FuncDeclaration) Write(w io.Writer) {
 }
 
 func (a *FuncDeclaration) Evaluate(s Scope) (Expr, error) {
-	s.AddValue(a.Name, NewFunctionWithScope(a.Args, a.Body, s))
+	s.AddValue(a.Name, NewFunctionWithScope(a.Args, a.Body, s.Clone()))
 	return a, nil
 }
 
@@ -469,18 +499,19 @@ func (a *FunctionCall) Evaluate(s Scope) (Expr, error) {
 	if fn.Argc != a.Argc {
 		return nil, errors.Errorf("evaluate user function: function %s expects %d arguments, passed %d", a.Name, fn.Argc, a.Argc)
 	}
-	initial := s.Initial()
+	functionScope := s.Initial()
 	if fn.Scope != nil {
-		initial = fn.Scope
+		functionScope = fn.Scope.Clone()
 	}
 	for i := 0; i < a.Argc; i++ {
 		evaluatedParam, err := a.Argv[i].Evaluate(s)
 		if err != nil {
 			return nil, errors.Wrapf(err, "evaluate user function: %s", a.Name)
 		}
-		initial.AddValue(fn.Argv[i], evaluatedParam)
+		functionScope.AddValue(fn.Argv[i], evaluatedParam)
+		functionScope.setEvaluation(fn.Argv[i], evaluation{evaluatedParam, nil})
 	}
-	return fn.Evaluate(initial)
+	return fn.Evaluate(functionScope)
 }
 
 func (a *FunctionCall) Eq(other Expr) bool {
@@ -682,6 +713,42 @@ func (a *BytesExpr) InstanceOf() string {
 	return "ByteVector"
 }
 
+type InvalidAddressExpr BytesExpr
+
+func (a *InvalidAddressExpr) Write(w io.Writer) {
+	_, _ = fmt.Fprint(w, "base58'", base58.Encode(a.Value), "'")
+}
+
+func (a *InvalidAddressExpr) Evaluate(Scope) (Expr, error) {
+	return a, nil
+}
+
+func (a *InvalidAddressExpr) Eq(other Expr) bool {
+	switch o := other.(type) {
+	case *Unit:
+		return false
+	case *BytesExpr:
+		return bytes.Equal(a.Value, o.Value)
+	case *AddressExpr:
+		return bytes.Equal(a.Value, o[:])
+	default:
+		return false
+	}
+}
+
+func (a *InvalidAddressExpr) InstanceOf() string {
+	return "Address"
+}
+
+func (a *InvalidAddressExpr) Get(name string) (Expr, error) {
+	switch name {
+	case "bytes":
+		return NewBytes(util.Dup(a.Value)), nil
+	default:
+		return nil, errors.Errorf("unknown fields '%s' on InvalidAddressExpr", name)
+	}
+}
+
 type GetterExpr struct {
 	Object Expr
 	Key    string
@@ -704,15 +771,18 @@ func (a *GetterExpr) Evaluate(s Scope) (Expr, error) {
 	if err != nil {
 		return nil, errors.Wrapf(err, "GetterExpr Evaluate by key %s", a.Key)
 	}
-
-	if obj, ok := val.(Getable); ok {
+	switch obj := val.(type) {
+	case Getable:
 		e, err := obj.Get(a.Key)
 		if err != nil {
 			return nil, err
 		}
 		return e, nil
+	case *Unit:
+		return NewUnit(), nil
+	default:
+		return nil, errors.Errorf("GetterExpr Evaluate: expected value be Getable, got %T", val)
 	}
-	return nil, errors.Errorf("GetterExpr Evaluate: expected value be Getable, got %T", val)
 }
 
 func (a *GetterExpr) Eq(other Expr) bool {
@@ -808,6 +878,32 @@ func (a *DataEntryExpr) Get(name string) (Expr, error) {
 	return out, nil
 }
 
+func (a *DataEntryExpr) toProto() (proto.DataEntry, error) {
+	keyExpr, err := a.Get("key")
+	if err != nil {
+		return nil, err
+	}
+	keyStrExpr, ok := keyExpr.(*StringExpr)
+	if !ok {
+		return nil, errors.New("invalid key type")
+	}
+	valExpr, err := a.Get("value")
+	if err != nil {
+		return nil, err
+	}
+	switch v := valExpr.(type) {
+	case *LongExpr:
+		return &proto.IntegerDataEntry{Key: keyStrExpr.Value, Value: v.Value}, nil
+	case *BooleanExpr:
+		return &proto.BooleanDataEntry{Key: keyStrExpr.Value, Value: v.Value}, nil
+	case *BytesExpr:
+		return &proto.BinaryDataEntry{Key: keyStrExpr.Value, Value: v.Value}, nil
+	case *StringExpr:
+		return &proto.StringDataEntry{Key: keyStrExpr.Value, Value: v.Value}, nil
+	}
+	return nil, errors.New("unknown value type")
+}
+
 type StringExpr struct {
 	Value string
 }
@@ -875,7 +971,9 @@ func (a *AddressExpr) Get(name string) (Expr, error) {
 	}
 }
 
-func (a *AddressExpr) Recipient() {}
+func (a *AddressExpr) Recipient() proto.Recipient {
+	return proto.NewRecipientFromAddress(proto.Address(*a))
+}
 
 func NewAddressFromString(s string) (*AddressExpr, error) {
 	addr, err := proto.NewAddressFromString(s)
@@ -937,7 +1035,9 @@ func (a *AliasExpr) InstanceOf() string {
 }
 
 // Recipient interface
-func (a *AliasExpr) Recipient() {}
+func (a *AliasExpr) Recipient() proto.Recipient {
+	return proto.NewRecipientFromAlias(proto.Alias(*a))
+}
 
 func NewAliasFromProtoAlias(a proto.Alias) *AliasExpr {
 	al := AliasExpr(a)
@@ -975,7 +1075,7 @@ func NewDataEntryList(entries []proto.DataEntry) Exprs {
 
 type Recipient interface {
 	Expr
-	Recipient()
+	Recipient() proto.Recipient
 }
 
 type RecipientExpr proto.Recipient
@@ -1008,6 +1108,10 @@ func (a *RecipientExpr) Eq(other Expr) bool {
 
 func (a *RecipientExpr) InstanceOf() string {
 	return "Recipient"
+}
+
+func (a *RecipientExpr) Recipient() proto.Recipient {
+	return proto.Recipient(*a)
 }
 
 type AssetPairExpr struct {
@@ -1558,7 +1662,7 @@ func (a *AssetInfoExpr) Eq(other Expr) bool {
 }
 
 func (a *AssetInfoExpr) InstanceOf() string {
-	return "AssetInfo"
+	return "Asset"
 }
 
 func (a *AssetInfoExpr) Get(name string) (Expr, error) {
@@ -1626,6 +1730,18 @@ func (a *WriteSetExpr) InstanceOf() string {
 	return "WriteSet"
 }
 
+func (a *WriteSetExpr) toProto() ([]proto.DataEntry, error) {
+	res := make([]proto.DataEntry, len(a.body))
+	for i, entryExpr := range a.body {
+		entry, err := entryExpr.toProto()
+		if err != nil {
+			return nil, err
+		}
+		res[i] = entry
+	}
+	return res, nil
+}
+
 func NewWriteSet(e ...*DataEntryExpr) *WriteSetExpr {
 	return &WriteSetExpr{
 		body: e,
@@ -1650,6 +1766,18 @@ func (a *TransferSetExpr) Eq(other Expr) bool {
 
 func (a *TransferSetExpr) InstanceOf() string {
 	return "TransferSet"
+}
+
+func (a *TransferSetExpr) toProto() ([]proto.ScriptResultTransfer, error) {
+	res := make([]proto.ScriptResultTransfer, len(a.body))
+	for i, transferExpr := range a.body {
+		transfer, err := transferExpr.toProto()
+		if err != nil {
+			return nil, err
+		}
+		res[i] = *transfer
+	}
+	return res, nil
 }
 
 func NewTransferSet(e ...*ScriptTransferExpr) *TransferSetExpr {
@@ -1724,6 +1852,47 @@ func (a *ScriptTransferExpr) InstanceOf() string {
 	return "ScriptTransfer"
 }
 
+func (a *ScriptTransferExpr) toProto() (*proto.ScriptResultTransfer, error) {
+	recipientExpr, ok := a.fields["recipient"]
+	if !ok {
+		return nil, errors.New("recipient is not found")
+	}
+	recipientExprDed, ok := recipientExpr.(Recipient)
+	if !ok {
+		return nil, errors.New("invalid recipient type")
+	}
+	amountExpr, ok := a.fields["amount"]
+	if !ok {
+		return nil, errors.New("amount is not found")
+	}
+	amountExprDed, ok := amountExpr.(*LongExpr)
+	if !ok {
+		return nil, errors.New("invalid amount type")
+	}
+	assetExpr, ok := a.fields["asset"]
+	if !ok {
+		return nil, errors.New("asset is not found")
+	}
+	var oa *proto.OptionalAsset
+	var err error
+	switch asset := assetExpr.(type) {
+	case *Unit:
+		oa = &proto.OptionalAsset{Present: false}
+	case *BytesExpr:
+		oa, err = proto.NewOptionalAssetFromBytes(asset.Value)
+		if err != nil {
+			return nil, errors.Wrap(err, "invalid asset id bytes")
+		}
+	default:
+		return nil, errors.New("invalid type for asset expr")
+	}
+	return &proto.ScriptResultTransfer{
+		Recipient: recipientExprDed.Recipient(),
+		Amount:    amountExprDed.Value,
+		Asset:     *oa,
+	}, nil
+}
+
 func NewScriptTransfer(recipient Recipient, amount *LongExpr, asset Expr) (*ScriptTransferExpr, error) {
 	switch asset.(type) {
 	case *Unit, *BytesExpr:
@@ -1760,33 +1929,28 @@ func (a *ScriptResultExpr) InstanceOf() string {
 	return "ScriptResult"
 }
 
+func (a *ScriptResultExpr) ConvertToProto() (*proto.ScriptResult, error) {
+	res := &proto.ScriptResult{}
+	if a.TransferSet != nil {
+		transfers, err := a.TransferSet.toProto()
+		if err != nil {
+			return nil, err
+		}
+		res.Transfers = transfers
+	}
+	if a.WriteSet != nil {
+		writes, err := a.WriteSet.toProto()
+		if err != nil {
+			return nil, err
+		}
+		res.Writes = writes
+	}
+	return res, nil
+}
+
 func NewScriptResult(writeSet *WriteSetExpr, transferSet *TransferSetExpr) *ScriptResultExpr {
 	return &ScriptResultExpr{
 		WriteSet:    writeSet,
 		TransferSet: transferSet,
 	}
-}
-
-type AssetExpr struct {
-	fields object
-}
-
-func (a *AssetExpr) Get(name string) (Expr, error) {
-	return a.fields.Get(name)
-}
-
-func (a *AssetExpr) Write(w io.Writer) {
-	_, _ = fmt.Fprintf(w, "Asset")
-}
-
-func (a *AssetExpr) Evaluate(Scope) (Expr, error) {
-	return a, nil
-}
-
-func (a *AssetExpr) Eq(other Expr) bool {
-	return false
-}
-
-func (a *AssetExpr) InstanceOf() string {
-	return "Asset"
 }

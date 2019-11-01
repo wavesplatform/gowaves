@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/mr-tron/base58/base58"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
@@ -349,13 +350,19 @@ func TestNativeTakeStrings(t *testing.T) {
 }
 
 func TestNativeDropStrings(t *testing.T) {
-	rs, err := NativeDropStrings(newEmptyScopeV1(), NewExprs(NewString("abcdef"), NewLong(4)))
-	require.NoError(t, err)
-	assert.Equal(t, NewString("ef"), rs)
-
-	rs2, err := NativeDropStrings(newEmptyScopeV1(), NewExprs(NewString("привет"), NewLong(4)))
-	require.NoError(t, err)
-	assert.Equal(t, NewString("ет"), rs2)
+	for _, test := range []struct {
+		in  string
+		len int64
+		out string
+	}{
+		{"abcdef", 4, "ef"},
+		{"привет", 4, "ет"},
+		{"t", 1, ""},
+	} {
+		rs, err := NativeDropStrings(newEmptyScopeV1(), NewExprs(NewString(test.in), NewLong(test.len)))
+		require.NoError(t, err)
+		assert.Equal(t, NewString(test.out), rs)
+	}
 }
 
 func TestNativeSizeString(t *testing.T) {
@@ -387,16 +394,35 @@ func TestNativeThrow(t *testing.T) {
 }
 
 func TestNativeModLong(t *testing.T) {
-	rs, err := NativeModLong(newEmptyScopeV1(), Params(NewLong(-10), NewLong(6)))
-	require.NoError(t, err)
-	assert.Equal(t, NewLong(2), rs)
+	for _, test := range []struct {
+		x int64
+		y int64
+		z int64
+	}{
+		{10, 6, 4},
+		{-10, 6, 2},
+		{10, -6, -2},
+		{-10, -6, -4},
+	} {
+		rs, err := NativeModLong(newEmptyScopeV1(), Params(NewLong(test.x), NewLong(test.y)))
+		require.NoError(t, err)
+		assert.Equal(t, NewLong(test.z), rs)
+	}
 }
 
-func TestModDivision(t *testing.T) {
-	assert.EqualValues(t, 4, modDivision(10, 6))
-	assert.EqualValues(t, 2, modDivision(-10, 6))
-	assert.EqualValues(t, -2, modDivision(10, -6))
-	assert.EqualValues(t, -4, modDivision(-10, -6))
+func TestFloorDiv(t *testing.T) {
+	for _, test := range []struct {
+		x int64
+		y int64
+		z int64
+	}{
+		{10, 6, 1},
+		{-10, 6, -2},
+		{10, -6, -2},
+		{-10, -6, 1},
+	} {
+		assert.EqualValues(t, test.z, floorDiv(test.x, test.y))
+	}
 }
 
 func TestNativeFractionLong(t *testing.T) {
@@ -489,9 +515,18 @@ func TestNativeFromBase16(t *testing.T) {
 }
 
 func TestNativeFromBase64String(t *testing.T) {
-	rs1, err := NativeFromBase64(newEmptyScopeV1(), Params(NewString("AQa3b8tH")))
-	require.NoError(t, err)
-	assert.Equal(t, NewBytes([]uint8{0x1, 0x6, 0xb7, 0x6f, 0xcb, 0x47}), rs1)
+	for _, test := range []struct {
+		str string
+		b   []byte
+	}{
+		{"AQa3b8tH", []uint8{0x1, 0x6, 0xb7, 0x6f, 0xcb, 0x47}},
+		{"base64:AQa3b8tH", []uint8{0x1, 0x6, 0xb7, 0x6f, 0xcb, 0x47}},
+		{"base64:", []byte{}},
+	} {
+		rs, err := NativeFromBase64(newEmptyScopeV1(), Params(NewString(test.str)))
+		require.NoError(t, err)
+		assert.Equal(t, NewBytes(test.b), rs)
+	}
 }
 
 func TestNativeToBse64String(t *testing.T) {
@@ -501,15 +536,15 @@ func TestNativeToBse64String(t *testing.T) {
 }
 
 func TestNativeAssetBalance_FromAddress(t *testing.T) {
-	s := mockstate.State{
-		AccountsBalance: 5,
-	}
-
 	addr, err := proto.NewAddressFromString("3N2YHKSnQTUmka4pocTt71HwSSAiUWBcojK")
 	require.NoError(t, err)
 
 	d, err := crypto.NewDigestFromBase58("BXBUNddxTGTQc3G4qHYn5E67SBwMj18zLncUr871iuRD")
 	require.NoError(t, err)
+
+	s := mockstate.State{
+		AssetsBalances: map[crypto.Digest]uint64{d: 5},
+	}
 
 	rs, err := NativeAssetBalance(newScopeWithState(s), Params(NewAddressFromProtoAddress(addr), NewBytes(d.Bytes())))
 	require.NoError(t, err)
@@ -517,16 +552,15 @@ func TestNativeAssetBalance_FromAddress(t *testing.T) {
 }
 
 func TestNativeAssetBalance_FromAlias(t *testing.T) {
-	s := mockstate.State{
-		AccountsBalance: 5,
-	}
+	d, err := crypto.NewDigestFromBase58("BXBUNddxTGTQc3G4qHYn5E67SBwMj18zLncUr871iuRD")
+	require.NoError(t, err)
 
+	s := mockstate.State{
+		AssetsBalances: map[crypto.Digest]uint64{d: 5},
+	}
 	scope := newScopeWithState(s)
 
 	alias := proto.NewAlias(scope.Scheme(), "test")
-
-	d, err := crypto.NewDigestFromBase58("BXBUNddxTGTQc3G4qHYn5E67SBwMj18zLncUr871iuRD")
-	require.NoError(t, err)
 
 	rs, err := NativeAssetBalance(scope, Params(NewAliasFromProtoAlias(*alias), NewBytes(d.Bytes())))
 	require.NoError(t, err)
@@ -534,7 +568,6 @@ func TestNativeAssetBalance_FromAlias(t *testing.T) {
 }
 
 func TestNativeDataFromArray(t *testing.T) {
-
 	var dataEntries []proto.DataEntry
 	dataEntries = append(dataEntries, &proto.IntegerDataEntry{
 		Key:   "integer",
@@ -1221,7 +1254,7 @@ func TestNativeBlockInfoByHeight(t *testing.T) {
 	require.Equal(t, NewLong(10), ok(b.Get("height")))
 	require.Equal(t, NewLong(1310), ok(b.Get("baseTarget")))
 	require.Equal(t, NewBytes(gensig.Bytes()), ok(b.Get("generationSignature")))
-	require.Equal(t, NewBytes(addr.Bytes()), ok(b.Get("generator")))
+	require.Equal(t, NewAddressFromProtoAddress(addr), ok(b.Get("generator")))
 	require.Equal(t, NewBytes(publicKey.Bytes()), ok(b.Get("generatorPublicKey")))
 }
 
@@ -1236,6 +1269,12 @@ func TestNativeAssetInfo(t *testing.T) {
 	require.NoError(t, err)
 	v := rs.(Getable)
 	require.Equal(t, NewBytes(info.ID.Bytes()), ok(v.Get("id")))
+
+	wID, err := base58.Decode("WAVES")
+	require.NoError(t, err)
+	rs2, err := NativeAssetInfo(newScopeWithState(s), Params(NewBytes(wID)))
+	require.NoError(t, err)
+	assert.Equal(t, NewUnit(), rs2)
 }
 
 func TestNativeParseBlockHeader(t *testing.T) {
@@ -1290,6 +1329,28 @@ func TestNativeList(t *testing.T) {
 		{NewExprs(NewString("blah-blah-blah"), NewString("ALARM!!!"), NewLong(1)), true, "NativeGetList: invalid params, expected 2, passed 3", NewUnit()},
 	} {
 		r, err := NativeGetList(newEmptyScopeV1(), test.expressions)
+		if test.error {
+			assert.EqualError(t, err, test.message)
+			continue
+		}
+		require.NoError(t, err)
+		assert.Equal(t, test.result, r)
+	}
+}
+
+func TestDataTransaction(t *testing.T) {
+	addr, err := NewAddressFromString("3NAJMMGLfxUF91apoYJQnwY4RQrf5gSfynu")
+	require.NoError(t, err)
+	for _, test := range []struct {
+		expressions Exprs
+		error       bool
+		message     string
+		result      Expr
+	}{
+		{NewExprs(NewExprs(NewBytes(nil)), NewBytes(nil), NewLong(0), NewLong(0), NewLong(0), addr, NewBytes(nil), NewBytes(nil), NewExprs(NewBytes(nil))), false, "", NewObject(map[string]Expr{"$instance": NewString("DataTransaction"), "bodyBytes": NewBytes(nil), "data": NewExprs(NewBytes(nil)), "fee": NewLong(0), "id": NewBytes(nil), "proofs": NewExprs(NewBytes(nil)), "sender": addr, "senderPublicKey": NewBytes(nil), "timestamp": NewLong(0), "version": NewLong(0)})},
+		{NewExprs(), true, "DataTransaction: invalid params, expected 9, passed 0", NewUnit()},
+	} {
+		r, err := DataTransaction(newEmptyScopeV1(), test.expressions)
 		if test.error {
 			assert.EqualError(t, err, test.message)
 			continue

@@ -10,7 +10,8 @@ import (
 type State struct {
 	TransactionsByID       map[string]proto.Transaction
 	TransactionsHeightByID map[string]uint64
-	AccountsBalance        uint64
+	WavesBalance           uint64
+	AssetsBalances         map[crypto.Digest]uint64
 	DataEntries            map[string]proto.DataEntry
 	AssetIsSponsored       bool
 	BlockHeaderByHeight    *proto.BlockHeader
@@ -19,7 +20,20 @@ type State struct {
 }
 
 func (a State) NewestAccountBalance(account proto.Recipient, asset []byte) (uint64, error) {
-	return a.AccountsBalance, nil
+	if asset == nil {
+		return a.WavesBalance, nil
+	} else {
+		d, err := crypto.NewDigestFromBytes(asset)
+		if err != nil {
+			return 0, err
+		}
+		if a.AssetsBalances != nil {
+			if b, ok := a.AssetsBalances[d]; ok {
+				return b, nil
+			}
+		}
+		return 0, nil
+	}
 }
 
 func (a State) NewestAddrByAlias(alias proto.Alias) (proto.Address, error) {
@@ -103,7 +117,7 @@ func (a State) NewestHeight() (uint64, error) {
 }
 
 func (a State) AddingBlockHeight() (uint64, error) {
-	return 0, nil
+	return a.NewestHeightVal, nil
 }
 
 func (a State) NewestAssetIsSponsored(assetID crypto.Digest) (bool, error) {

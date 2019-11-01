@@ -38,7 +38,7 @@ func RunOutgoingPeer(ctx context.Context, params OutgoingPeerParams) {
 
 	ctx, cancel := context.WithCancel(ctx)
 	remote := peer.NewRemote()
-	p := OutgoingPeer{
+	p := &OutgoingPeer{
 		params: params,
 		cancel: cancel,
 		remote: remote,
@@ -53,9 +53,9 @@ func RunOutgoingPeer(ctx context.Context, params OutgoingPeerParams) {
 	p.handshake = *handshake
 
 	connected := peer.InfoMessage{
-		ID: params.Address,
+		Peer: p,
 		Value: &peer.Connected{
-			Peer: &p,
+			Peer: p,
 		},
 	}
 	params.Parent.InfoCh <- connected

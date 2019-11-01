@@ -145,6 +145,15 @@ func (a *MicroblockMiner) mineMicro(ctx context.Context, rest restLimits, blockA
 		// block changed, exit
 		return
 	}
+	parentTimestamp := lastBlock.Timestamp
+	if height > 1 {
+		parent, err := a.state.BlockByHeight(height - 1)
+		if err != nil {
+			zap.S().Error(err)
+			return
+		}
+		parentTimestamp = parent.Timestamp
+	}
 
 	bts_, err := blockApplyOn.Transactions.Bytes()
 	if err != nil {
@@ -162,7 +171,6 @@ func (a *MicroblockMiner) mineMicro(ctx context.Context, rest restLimits, blockA
 
 	mu := a.state.Mutex()
 	locked := mu.Lock()
-	currentTimestamp := proto.NewTimestampFromTime(time.Now())
 
 	// 255 is max transactions count in microblock
 	for i := 0; i < 255; i++ {
@@ -177,7 +185,7 @@ func (a *MicroblockMiner) mineMicro(ctx context.Context, rest restLimits, blockA
 			continue
 		}
 
-		err = a.state.ValidateNextTx(t.T, currentTimestamp, blockApplyOn.Timestamp)
+		err = a.state.ValidateNextTx(t.T, blockApplyOn.Timestamp, parentTimestamp)
 		if err != nil {
 			unAppliedTransactions = append(unAppliedTransactions, t)
 			continue

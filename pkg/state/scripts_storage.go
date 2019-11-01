@@ -17,7 +17,7 @@ const (
 func scriptBytesToAst(script proto.Script) (ast.Script, error) {
 	scriptAst, err := ast.BuildScript(reader.NewBytesReader(script[:]))
 	if err != nil {
-		return ast.Script{}, nil
+		return ast.Script{}, err
 	}
 	return *scriptAst, nil
 }
@@ -158,13 +158,13 @@ func (ss *scriptsStorage) newestAccountHasVerifier(addr proto.Address, filter bo
 	key := accountScriptKey{addr}
 	keyBytes := key.bytes()
 	if script, has := ss.cache.get(keyBytes); has {
-		return (script.Verifier != nil), nil
+		return script.HasVerifier(), nil
 	}
 	script, err := ss.newestScriptAstByKey(keyBytes, filter)
 	if err != nil {
 		return false, nil
 	}
-	accountHasVerifier := (script.Verifier != nil)
+	accountHasVerifier := script.HasVerifier()
 	return accountHasVerifier, nil
 }
 
@@ -173,7 +173,7 @@ func (ss *scriptsStorage) accountHasVerifier(addr proto.Address, filter bool) (b
 	if err != nil {
 		return false, nil
 	}
-	accountHasVerifier := (script.Verifier != nil)
+	accountHasVerifier := script.HasVerifier()
 	return accountHasVerifier, nil
 }
 

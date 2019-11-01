@@ -78,6 +78,24 @@ func NewAddressFromPublicKey(scheme byte, publicKey crypto.PublicKey) (Address, 
 	return a, nil
 }
 
+// NewAddressFromPublicKey produces an Address from given scheme and Public Key bytes.
+func NewAddressLikeFromAnyBytes(scheme byte, b []byte) (Address, error) {
+	var a Address
+	a[0] = addressVersion
+	a[1] = scheme
+	h, err := crypto.SecureHash(b)
+	if err != nil {
+		return a, errors.Wrap(err, "failed to produce Digest from any bytes")
+	}
+	copy(a[headerSize:], h[:bodySize])
+	cs, err := addressChecksum(a[:headerSize+bodySize])
+	if err != nil {
+		return a, errors.Wrap(err, "failed to calculate Address checksum")
+	}
+	copy(a[headerSize+bodySize:], cs)
+	return a, nil
+}
+
 func MustAddressFromPublicKey(scheme byte, publicKey crypto.PublicKey) Address {
 	rs, err := NewAddressFromPublicKey(scheme, publicKey)
 	if err != nil {
@@ -241,22 +259,27 @@ func (a *Alias) MarshalBinary() ([]byte, error) {
 
 func (a *Alias) WriteTo(w io.Writer) (int64, error) {
 	s := serializer.New(w)
+	err := a.Serialize(s)
+	if err != nil {
+		return 0, err
+	}
+	return s.N(), nil
+}
+
+func (a *Alias) Serialize(s *serializer.Serializer) error {
 	err := s.Byte(a.Version)
 	if err != nil {
-		return 0, err
+		return err
 	}
-
 	err = s.Byte(a.Scheme)
 	if err != nil {
-		return 0, err
+		return err
 	}
-
 	err = s.StringWithUInt16Len(a.Alias)
 	if err != nil {
-		return 0, err
+		return err
 	}
-
-	return s.N(), nil
+	return nil
 }
 
 // Bytes converts the Alias to the slice of bytes.
@@ -400,14 +423,23 @@ func (r *Recipient) MarshalBinary() ([]byte, error) {
 }
 
 func (r *Recipient) WriteTo(w io.Writer) (int64, error) {
-	if r.Alias != nil {
-		return r.Alias.WriteTo(w)
-	}
-	n, err := w.Write(r.Address[:])
+	s := serializer.New(w)
+	err := r.Serialize(s)
 	if err != nil {
-		return int64(n), err
+		return 0, err
 	}
-	return int64(n), nil
+	return s.N(), nil
+}
+
+func (r *Recipient) Serialize(s *serializer.Serializer) error {
+	if r.Alias != nil {
+		return r.Alias.Serialize(s)
+	}
+	err := s.Bytes(r.Address[:])
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 // UnmarshalBinary reads the Recipient from bytes. Validates the result.

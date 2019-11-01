@@ -7,6 +7,27 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/util"
 )
 
+func NewVariablesFromScriptTransfer(tx *proto.FullScriptTransfer) (map[string]Expr, error) {
+	out := make(map[string]Expr)
+	out["amount"] = NewLong(int64(tx.Amount))
+	out["assetId"] = makeOptionalAsset(tx.Asset)
+	out["recipient"] = NewRecipientFromProtoRecipient(tx.Recipient)
+	out["id"] = NewBytes(util.Dup(tx.ID.Bytes()))
+	out["timestamp"] = NewLong(int64(tx.Timestamp))
+	out["sender"] = NewAddressFromProtoAddress(tx.Sender)
+	out[InstanceFieldName] = NewString("TransferTransaction")
+
+	out["senderPublicKey"] = NewUnit()
+	out["feeAssetId"] = NewUnit()
+	out["attachment"] = NewUnit()
+	out["fee"] = NewUnit()
+	out["version"] = NewUnit()
+	out["bodyBytes"] = NewUnit()
+	out["proofs"] = NewUnit()
+
+	return out, nil
+}
+
 func NewVariablesFromTransaction(scheme byte, t proto.Transaction) (map[string]Expr, error) {
 	switch tx := t.(type) {
 	case *proto.Genesis:
@@ -580,7 +601,7 @@ func newVariablesFromInvokeScriptV1(scheme proto.Scheme, tx *proto.InvokeScriptV
 
 	out := make(map[string]Expr)
 
-	out["dappAddress"] = NewRecipientFromProtoRecipient(tx.ScriptRecipient)
+	out["dApp"] = NewRecipientFromProtoRecipient(tx.ScriptRecipient)
 	out["payment"] = NewUnit()
 	if len(tx.Payments) > 0 {
 		out["payment"] = NewAttachedPaymentExpr(

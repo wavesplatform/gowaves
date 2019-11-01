@@ -46,3 +46,43 @@ func TestSerializer_Uint64(t *testing.T) {
 	require.NoError(t, s.Uint64(billion))
 	require.Equal(t, binary.BigEndian.Uint64(buf.Bytes()), billion)
 }
+
+func TestSerializer_Write(t *testing.T) {
+	buf := &bytes.Buffer{}
+	o := bytes.NewBuffer([]byte{1, 2, 3, 4, 5})
+	s := New(buf)
+	_, _ = o.WriteTo(s)
+
+	require.EqualValues(t, 5, s.N())
+	require.Equal(t, []byte{1, 2, 3, 4, 5}, buf.Bytes())
+}
+
+func BenchmarkSerializer_Bytes(b *testing.B) {
+	b.ReportAllocs()
+	b.StopTimer()
+	b.ResetTimer()
+
+	buf := bytes.NewBuffer(make([]byte, 1024))
+	s := New(buf)
+	for i := 0; i < b.N; i++ {
+		b.StartTimer()
+		_, _ = s.Write([]byte{1, 2})
+		b.StopTimer()
+	}
+}
+
+func TestSerializer_StringWithUInt32Len(t *testing.T) {
+	buf := &bytes.Buffer{}
+	s := New(buf)
+	require.NoError(t, s.StringWithUInt32Len("abc"))
+	require.Equal(t, []byte{0, 0, 0, 3, 'a', 'b', 'c'}, buf.Bytes())
+	require.EqualValues(t, 7, s.N())
+}
+
+func TestSerializer_BytesWithUInt32Len(t *testing.T) {
+	buf := &bytes.Buffer{}
+	s := New(buf)
+	require.NoError(t, s.BytesWithUInt32Len([]byte("abc")))
+	require.Equal(t, []byte{0, 0, 0, 3, 'a', 'b', 'c'}, buf.Bytes())
+	require.EqualValues(t, 7, s.N())
+}

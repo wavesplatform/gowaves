@@ -37,7 +37,7 @@ func TestNewMapFromBlockHeader(t *testing.T) {
 	require.Equal(t, NewLong(1567506205718), rs["timestamp"])
 	require.Equal(t, NewLong(3), rs["version"])
 	require.Equal(t, NewBytes(parent.Bytes()), rs["reference"])
-	require.Equal(t, NewBytes(addr.Bytes()), rs["generator"])
+	require.Equal(t, NewAddressFromProtoAddress(addr), rs["generator"])
 	require.Equal(t, NewBytes(publicKey.Bytes()), rs["generatorPublicKey"])
 	require.Equal(t, NewBytes(signa.Bytes()), rs["signature"])
 	require.Equal(t, NewLong(1310), rs["baseTarget"])

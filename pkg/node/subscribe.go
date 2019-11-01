@@ -5,7 +5,9 @@ import (
 	"reflect"
 	"sync"
 
+	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"go.uber.org/zap"
 )
 
 type Subscribe struct {
@@ -20,15 +22,20 @@ func NewSubscribeService() *Subscribe {
 }
 
 //Receive tries to apply block to any listener, if no one accepted return `false`, otherwise `true`
-func (a *Subscribe) Receive(id string, responseMessage proto.Message) bool {
+func (a *Subscribe) Receive(p peer.Peer, responseMessage proto.Message) bool {
 	a.mu.Lock()
-	defer a.mu.Unlock()
-
-	name := name(id, responseMessage)
+	name := name(p.ID(), responseMessage)
 	if ch, ok := a.running[name]; ok {
-		ch <- responseMessage
+		a.mu.Unlock()
+		select {
+		case ch <- responseMessage:
+		default:
+			zap.S().Info("Subscribe.Receive ch is full")
+		}
+
 		return true
 	}
+	a.mu.Unlock()
 	return false
 }
 
@@ -47,7 +54,7 @@ func (a *Subscribe) add(p id, responseMessage proto.Message) (chan proto.Message
 		a.mu.Unlock()
 	}
 
-	ch := make(chan proto.Message, 10)
+	ch := make(chan proto.Message, 150)
 	if _, ok := a.running[name]; ok {
 		panic("multiple subscribe on " + name)
 	}

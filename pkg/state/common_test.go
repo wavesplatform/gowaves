@@ -1,7 +1,6 @@
 package state
 
 import (
-	"encoding/base64"
 	"io/ioutil"
 	"log"
 	"math/big"
@@ -101,7 +100,7 @@ func newTestAssetData(assetStr string) (*testAssetData, error) {
 type testGlobalVars struct {
 	asset0 *testAssetData
 	asset1 *testAssetData
-	asset3 *testAssetData
+	asset2 *testAssetData
 
 	issuerInfo    *testAddrData
 	matcherInfo   *testAddrData
@@ -125,7 +124,7 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatalf("newTestAssetData(): %v\n", err)
 	}
-	testGlobal.asset3, err = newTestAssetData(assetStr3)
+	testGlobal.asset2, err = newTestAssetData(assetStr3)
 	if err != nil {
 		log.Fatalf("newTestAssetData(): %v\n", err)
 	}
@@ -133,7 +132,7 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatalf("newTestAddrData(): %v\n", err)
 	}
-	testGlobal.matcherInfo, err = newTestAddrData(matcherSeed, [][]byte{testGlobal.asset0.assetID, testGlobal.asset1.assetID, testGlobal.asset3.assetID})
+	testGlobal.matcherInfo, err = newTestAddrData(matcherSeed, [][]byte{testGlobal.asset0.assetID, testGlobal.asset1.assetID, testGlobal.asset2.assetID})
 	if err != nil {
 		log.Fatalf("newTestAddrData(): %v\n", err)
 	}
@@ -141,18 +140,19 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatalf("newTestAddrData(): %v\n", err)
 	}
-	testGlobal.senderInfo, err = newTestAddrData(senderSeed, [][]byte{testGlobal.asset0.assetID, testGlobal.asset1.assetID, testGlobal.asset3.assetID})
+	testGlobal.senderInfo, err = newTestAddrData(senderSeed, [][]byte{testGlobal.asset0.assetID, testGlobal.asset1.assetID, testGlobal.asset2.assetID})
 	if err != nil {
 		log.Fatalf("newTestAddrData(): %v\n", err)
 	}
-	testGlobal.recipientInfo, err = newTestAddrData(recipientSeed, [][]byte{testGlobal.asset0.assetID, testGlobal.asset1.assetID, testGlobal.asset3.assetID})
+	testGlobal.recipientInfo, err = newTestAddrData(recipientSeed, [][]byte{testGlobal.asset0.assetID, testGlobal.asset1.assetID, testGlobal.asset2.assetID})
 	if err != nil {
 		log.Fatalf("newTestAddrData(): %v\n", err)
 	}
-	testGlobal.scriptBytes, err = base64.StdEncoding.DecodeString(scriptBase64)
+	scriptBytes, err := reader.ScriptBytesFromBase64Str(scriptBase64)
 	if err != nil {
 		log.Fatalf("Failed to decode script from base64: %v\n", err)
 	}
+	testGlobal.scriptBytes = scriptBytes
 	scriptAst, err := ast.BuildScript(reader.NewBytesReader(testGlobal.scriptBytes))
 	if err != nil {
 		log.Fatalf("BuildAst: %v\n", err)

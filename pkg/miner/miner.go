@@ -14,7 +14,6 @@ import (
 
 	"bytes"
 	"context"
-	"time"
 )
 
 type Miner interface {
@@ -47,12 +46,11 @@ func (a *DefaultMiner) Mine(ctx context.Context, t proto.Timestamp, k proto.KeyP
 
 	transactions := proto.Transactions{}
 	//var invalidTransactions []*types.TransactionWithBytes
-	currentTimestamp := proto.NewTimestampFromTime(time.Now())
 	mu := a.state.Mutex()
 	locked := mu.Lock()
 	for i := 0; i < 100; i++ {
-		t := a.utx.Pop()
-		if t == nil {
+		tx := a.utx.Pop()
+		if tx == nil {
 			break
 		}
 
@@ -62,8 +60,8 @@ func (a *DefaultMiner) Mine(ctx context.Context, t proto.Timestamp, k proto.KeyP
 			return
 		}
 
-		if err = a.state.ValidateNextTx(t.T, currentTimestamp, lastKnownBlock.Timestamp); err == nil {
-			transactions = append(transactions, t.T)
+		if err = a.state.ValidateNextTx(tx.T, t, lastKnownBlock.Timestamp); err == nil {
+			transactions = append(transactions, tx.T)
 		} // else {
 		//invalidTransactions = append(invalidTransactions, t)
 		//}

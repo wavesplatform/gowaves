@@ -101,6 +101,9 @@ func buildHanndles(tc *transactionChecker, tp *transactionPerformer, td *transac
 		proto.TransactionTypeVersion{Type: proto.SetAssetScriptTransaction, Version: 1}: txHandleFuncs{
 			tc.checkSetAssetScriptV1, tp.performSetAssetScriptV1, td.createDiffSetAssetScriptV1, tf.minerFeeSetAssetScriptV1,
 		},
+		proto.TransactionTypeVersion{Type: proto.InvokeScriptTransaction, Version: 1}: txHandleFuncs{
+			tc.checkInvokeScriptV1, nil, td.createDiffInvokeScriptV1, tf.minerFeeInvokeScriptV1,
+		},
 	}
 }
 

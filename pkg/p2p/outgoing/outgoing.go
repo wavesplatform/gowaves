@@ -2,13 +2,15 @@ package outgoing
 
 import (
 	"context"
+	"net"
+	"time"
+
+	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/libs/bytespool"
 	"github.com/wavesplatform/gowaves/pkg/p2p/conn"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
-	"net"
-	"time"
 )
 
 type EstablishParams struct {
@@ -33,21 +35,20 @@ func EstablishConnection(ctx context.Context, params EstablishParams, v proto.Ve
 
 	c, err := net.Dial("tcp", params.Address.String())
 	if err != nil {
-		zap.S().Error(err)
 		return err
 	}
 
 	connection, handshake, err := p.connect(ctx, c, v)
 	if err != nil {
-		zap.S().Error(err, params.Address)
-		return err
+		zap.S().Info(err, params.Address)
+		return errors.Wrapf(err, "%q", params.Address)
 	}
 	p.connection = connection
 
 	peerImpl := peer.NewPeerImpl(*handshake, connection, peer.Outgoing, remote)
 
 	connected := peer.InfoMessage{
-		ID: params.Address.String(),
+		Peer: peerImpl,
 		Value: &peer.Connected{
 			Peer: peerImpl,
 		},
@@ -62,6 +63,7 @@ func EstablishConnection(ctx context.Context, params EstablishParams, v proto.Ve
 		Remote:     remote,
 		Parent:     params.Parent,
 		Pool:       params.Pool,
+		Peer:       peerImpl,
 	})
 }
 

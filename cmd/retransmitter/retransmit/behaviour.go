@@ -43,8 +43,8 @@ func (a *BehaviourImpl) ProtoMessage(incomeMessage peer.ProtoMessage) {
 		if !a.tl.Exists(transaction) {
 			a.tl.Add(transaction)
 			a.counter.IncUniqueTransaction()
-			a.activeConnections.Each(func(id string, c Peer) {
-				if id != incomeMessage.ID {
+			a.activeConnections.Each(func(c Peer) {
+				if c != incomeMessage.ID {
 					c.SendMessage(incomeMessage.Message)
 					a.counter.IncEachTransaction()
 				}
@@ -65,8 +65,8 @@ func (a *BehaviourImpl) ProtoMessage(incomeMessage peer.ProtoMessage) {
 
 func (a *BehaviourImpl) Stop() {
 	a.knownPeers.Stop()
-	a.activeConnections.Each(func(id string, p Peer) {
-		p.Close()
+	a.activeConnections.Each(func(p Peer) {
+		_ = p.Close()
 	})
 	a.counter.Stop()
 }
@@ -74,10 +74,10 @@ func (a *BehaviourImpl) Stop() {
 func (a *BehaviourImpl) InfoMessage(info peer.InfoMessage) {
 	switch t := info.Value.(type) {
 	case error:
-		zap.S().Infof("got error message %s from %s", t, info.ID)
-		a.errorHandler(info.ID, t)
+		zap.S().Infof("got error message %s from %s", t, info.Peer)
+		a.errorHandler(info.Peer, t)
 	case *peer.Connected:
-		a.activeConnections.Add(t.Peer.ID(), t.Peer)
+		a.activeConnections.Add(t.Peer.RemoteAddr().String(), t.Peer)
 		if !t.Peer.Handshake().DeclaredAddr.Empty() {
 			a.knownPeers.Add(proto.TCPAddr(t.Peer.Handshake().DeclaredAddr), t.Peer.Handshake().Version)
 		}
@@ -88,27 +88,24 @@ func (a *BehaviourImpl) InfoMessage(info peer.InfoMessage) {
 
 func (a *BehaviourImpl) AskAboutKnownPeers() {
 	zap.S().Debug("ask about peers")
-	a.activeConnections.Each(func(id string, p Peer) {
+	a.activeConnections.Each(func(p Peer) {
 		p.SendMessage(&proto.GetPeersMessage{})
 	})
 }
 
-func (a *BehaviourImpl) sendToPeerMyKnownHosts(id string) {
-	p := a.knownPeers.Addresses()
+func (a *BehaviourImpl) sendToPeerMyKnownHosts(p peer.Peer) {
+	addrs := a.knownPeers.Addresses()
 	pm := proto.PeersMessage{
-		Peers: p,
+		Peers: addrs,
 	}
-	c := a.activeConnections.Get(id)
-	if c != nil {
-		c.SendMessage(&pm)
-	}
+	p.SendMessage(&pm)
 }
 
 func (a *BehaviourImpl) SendAllMyKnownPeers() {
 	pm := proto.PeersMessage{
 		Peers: a.knownPeers.Addresses(),
 	}
-	a.activeConnections.Each(func(id string, p Peer) {
+	a.activeConnections.Each(func(p Peer) {
 		p.SendMessage(&pm)
 	})
 }
@@ -127,11 +124,10 @@ func (a *BehaviourImpl) SpawnKnownPeers(ctx context.Context) {
 	}
 }
 
-func (a *BehaviourImpl) errorHandler(id string, e error) {
-	p := a.activeConnections.Get(id)
+func (a *BehaviourImpl) errorHandler(p peer.Peer, e error) {
+	_ = p.Close()
 	if p != nil {
-		p.Close()
-		a.activeConnections.Delete(id)
+		a.activeConnections.Delete(p)
 	}
 }
 

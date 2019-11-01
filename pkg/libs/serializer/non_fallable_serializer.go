@@ -20,6 +20,15 @@ func NewNonFallable(w io.Writer) *NonFallableSerializer {
 	}
 }
 
+func (a *NonFallableSerializer) Write(b []byte) (int, error) {
+	n, err := a.w.Write(b)
+	if err != nil {
+		return 0, err
+	}
+	a.n += n
+	return n, nil
+}
+
 func (a *NonFallableSerializer) StringWithUInt16Len(s string) error {
 	if len(s) > math.MaxUint16 {
 		return errors.Errorf("too long string, expected max %d, found %d", math.MaxUint16, len(s))

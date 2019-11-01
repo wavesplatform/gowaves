@@ -33,6 +33,14 @@ func (a mockStateWrapper) lastHeader() (*proto.BlockHeader, error) {
 	return a._lastHeader, nil
 }
 
+func (a mockStateWrapper) Height() (uint64, error) {
+	return 1, nil
+}
+
+func (a mockStateWrapper) HeaderByHeight(height uint64) (*proto.BlockHeader, error) {
+	return a._lastHeader, nil
+}
+
 func (a *mockStateWrapper) ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64) error {
 	a.index += 1
 	if a.index%2 == 0 {

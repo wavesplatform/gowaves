@@ -21,7 +21,7 @@ func TestSubscribe(t *testing.T) {
 		t.Error("we subscribed on event, should exists")
 	}
 
-	service.Receive(p.ID(), &proto.GetSignaturesMessage{})
+	service.Receive(p, &proto.GetSignaturesMessage{})
 
 	if !assert.IsType(t, &proto.GetSignaturesMessage{}, <-ch) {
 		t.Error("we should receive message")
