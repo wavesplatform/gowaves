@@ -86,7 +86,7 @@ func TestGenesisConfig(t *testing.T) {
 
 func validateTxs(st *stateManager, timestamp uint64, txs []proto.Transaction) error {
 	for _, tx := range txs {
-		if err := st.ValidateNextTx(tx, timestamp, timestamp); err != nil {
+		if err := st.ValidateNextTx(tx, timestamp, timestamp, 3); err != nil {
 			return err
 		}
 	}
@@ -125,7 +125,7 @@ func TestValidationWithoutBlocks(t *testing.T) {
 	// This tx tries to send more Waves than exist at all.
 	invalidTx := createPayment(t)
 	invalidTx.Amount = 19999999500000000
-	err = manager.ValidateNextTx(invalidTx, defaultTimestamp, defaultTimestamp)
+	err = manager.ValidateNextTx(invalidTx, defaultTimestamp, defaultTimestamp, 3)
 	assert.Error(t, err, "ValidateNextTx did not fail with invalid tx")
 	// Now set some balance for sender.
 	validTx := createPayment(t)
@@ -136,7 +136,7 @@ func TestValidationWithoutBlocks(t *testing.T) {
 	err = manager.flush(false)
 	assert.NoError(t, err, "manager.flush() failed")
 	// Valid tx with same sender must be valid after validation of previous invalid tx.
-	err = manager.ValidateNextTx(validTx, defaultTimestamp, defaultTimestamp)
+	err = manager.ValidateNextTx(validTx, defaultTimestamp, defaultTimestamp, 3)
 	assert.NoError(t, err, "ValidateNextTx failed with valid tx")
 
 	// Check NewestBalance() results after applying `validTx` from above.
@@ -389,7 +389,7 @@ func TestDisallowDuplicateTxIds(t *testing.T) {
 	txID, err := tx.GetID()
 	assert.NoError(t, err, "tx.GetID() failed")
 	expectedErrStr := fmt.Sprintf("transaction with ID %v already in state", txID)
-	err = manager.ValidateNextTx(tx, 1460678400000, 1460678400000)
+	err = manager.ValidateNextTx(tx, 1460678400000, 1460678400000, 3)
 	assert.Error(t, err, "duplicate transacton ID was accepted by state")
 	assert.EqualError(t, err, expectedErrStr)
 }

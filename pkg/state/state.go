@@ -476,6 +476,7 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 			initialisation:   params.initialisation,
 			currentTimestamp: params.block.Timestamp,
 			blockID:          params.block.BlockSignature,
+			blockVersion:     params.block.Version,
 			height:           params.height,
 		}
 		if hasParent {
@@ -610,7 +611,7 @@ func (a *txAppender) resetValidationList() {
 }
 
 // For UTX validation.
-func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64) error {
+func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64, version proto.BlockVersion) error {
 	if err := a.checkDuplicateTxIds(tx, a.recentTxIds, currentTimestamp); err != nil {
 		return err
 	}
@@ -637,6 +638,7 @@ func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, pare
 		initialisation:   false,
 		currentTimestamp: currentTimestamp,
 		parentTimestamp:  parentTimestamp,
+		blockVersion:     version,
 		height:           height,
 	}
 	// TODO: Doesn't work correctly if miner doesn't work in NG mode.
@@ -1862,8 +1864,8 @@ func (s *stateManager) ResetValidationList() {
 }
 
 // For UTX validation.
-func (s *stateManager) ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64) error {
-	if err := s.appender.validateNextTx(tx, currentTimestamp, parentTimestamp); err != nil {
+func (s *stateManager) ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64, v proto.BlockVersion) error {
+	if err := s.appender.validateNextTx(tx, currentTimestamp, parentTimestamp, v); err != nil {
 		return wrapErr(TxValidationError, err)
 	}
 	return nil

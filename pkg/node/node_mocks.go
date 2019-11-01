@@ -167,7 +167,7 @@ func (a *MockStateManager) EffectiveBalance(account proto.Recipient, startHeight
 	panic("implement me")
 }
 
-func (a *MockStateManager) ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64) error {
+func (a *MockStateManager) ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64, version proto.BlockVersion) error {
 	panic("implement me")
 }
 
