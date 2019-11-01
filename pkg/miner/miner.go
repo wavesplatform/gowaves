@@ -6,6 +6,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/miner/scheduler"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/services"
+	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"github.com/wavesplatform/gowaves/pkg/types"
 	"go.uber.org/atomic"
@@ -43,6 +44,12 @@ func (a *DefaultMiner) Mine(ctx context.Context, t proto.Timestamp, k proto.KeyP
 		return
 	}
 
+	v, err := blockVersion(a.state)
+	if err != nil {
+		zap.S().Error(err)
+		return
+	}
+
 	transactions := proto.Transactions{}
 	//var invalidTransactions []*types.TransactionWithBytes
 	mu := a.state.Mutex()
@@ -59,7 +66,7 @@ func (a *DefaultMiner) Mine(ctx context.Context, t proto.Timestamp, k proto.KeyP
 			return
 		}
 
-		if err = a.state.ValidateNextTx(tx.T, t, lastKnownBlock.Timestamp); err == nil {
+		if err = a.state.ValidateNextTx(tx.T, t, lastKnownBlock.Timestamp, v); err == nil {
 			transactions = append(transactions, tx.T)
 		} // else {
 		//invalidTransactions = append(invalidTransactions, t)
@@ -84,7 +91,7 @@ func (a *DefaultMiner) Mine(ctx context.Context, t proto.Timestamp, k proto.KeyP
 		zap.S().Error(err)
 		return
 	}
-	b, err := proto.CreateBlock(proto.NewReprFromTransactions(transactions), t, parent, pub, nxt)
+	b, err := proto.CreateBlock(proto.NewReprFromTransactions(transactions), t, parent, pub, nxt, v)
 	if err != nil {
 		zap.S().Error(err)
 		return
@@ -131,4 +138,15 @@ func (noOpMiner) Interrupt() {
 
 func NoOpMiner() noOpMiner {
 	return noOpMiner{}
+}
+
+func blockVersion(state state.State) (proto.BlockVersion, error) {
+	blockRewardActivated, err := state.IsActivated(int16(settings.BlockReward))
+	if err != nil {
+		return 0, err
+	}
+	if blockRewardActivated {
+		return proto.RewardBlockVersion, nil
+	}
+	return proto.NgBlockVersion, nil
 }

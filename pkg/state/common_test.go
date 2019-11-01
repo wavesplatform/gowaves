@@ -303,9 +303,9 @@ func (s *testStorageObjects) close(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func genRandBlockIds(t *testing.T, amount int) []crypto.Signature {
-	ids := make([]crypto.Signature, amount)
-	for i := 0; i < amount; i++ {
+func genRandBlockIds(t *testing.T, number int) []crypto.Signature {
+	ids := make([]crypto.Signature, number)
+	for i := 0; i < number; i++ {
 		id := make([]byte, crypto.SignatureSize)
 		_, err := rand.Read(id)
 		assert.NoError(t, err, "rand.Read() failed")

@@ -40,7 +40,7 @@ func (to *invokeApplierTestObjects) setInitialWavesBalance(t *testing.T, addr pr
 func (to *invokeApplierTestObjects) setScript(t *testing.T, addr proto.Address, script proto.Script) {
 	scriptAst, err := ast.BuildScript(reader.NewBytesReader(script))
 	assert.NoError(t, err)
-	estimator := estimatorByScript(scriptAst)
+	estimator := estimatorByScript(scriptAst, 1)
 	complexity, err := estimator.Estimate(scriptAst)
 	assert.NoError(t, err)
 	r := &accountScriptComplexityRecord{

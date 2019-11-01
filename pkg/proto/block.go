@@ -463,21 +463,22 @@ func (b *Block) UnmarshalBinary(data []byte) (err error) {
 	return nil
 }
 
-func CreateBlock(transactions *TransactionsRepresentation, timestamp Timestamp, parentSig crypto.Signature, publicKey crypto.PublicKey, NxtConsensus NxtConsensus) (*Block, error) {
-	bytes, err := transactions.Bytes()
+func CreateBlock(transactions *TransactionsRepresentation, timestamp Timestamp, parentSig crypto.Signature, publicKey crypto.PublicKey, NxtConsensus NxtConsensus, version BlockVersion) (*Block, error) {
+	txb, err := transactions.Bytes()
 	if err != nil {
 		return nil, err
 	}
 
 	b := Block{
 		BlockHeader: BlockHeader{
-			Version:                3,
+			Version:                version,
 			Timestamp:              timestamp,
 			Parent:                 parentSig,
-			FeaturesCount:          0,   // TODO
-			Features:               nil, // TODO
+			FeaturesCount:          0,   // TODO implement features counting here
+			Features:               nil, // TODO implement features here
+			RewardVote:             -1,  // TODO implement setting desired reward
 			ConsensusBlockLength:   40,  // digest size (32) + uint64 (8)
-			TransactionBlockLength: uint32(len(bytes) + 4),
+			TransactionBlockLength: uint32(len(txb) + 4),
 			TransactionCount:       transactions.Count(),
 			GenPublicKey:           publicKey,
 			NxtConsensus:           NxtConsensus,

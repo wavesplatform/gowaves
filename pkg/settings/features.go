@@ -16,6 +16,7 @@ const (
 	Ride4DApps
 	OrderV3
 	ReduceNFTFee
+	BlockReward
 )
 
 type FeatureInfo struct {
@@ -37,4 +38,5 @@ var FeaturesInfo = map[Feature]FeatureInfo{
 	Ride4DApps:                      {true, "RIDE 4 DAPPS"},
 	OrderV3:                         {true, "Order Version 3"},
 	ReduceNFTFee:                    {true, "Reduce NFT fee"},
+	BlockReward:                     {true, "Block Reward and Community Driven Monetary Policy"},
 }

@@ -138,7 +138,7 @@ type StateModifier interface {
 	// that were added using ValidateNextTx() until you call ResetValidationList().
 	// Does not change state.
 	// Returns TxValidationError or nil.
-	ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64) error
+	ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64, blockVersion proto.BlockVersion) error
 	// ResetValidationList() resets the validation list, so you can ValidateNextTx() from scratch after calling it.
 	ResetValidationList()
 

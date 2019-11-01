@@ -104,7 +104,7 @@ func (a inner) handle() ([]*types.TransactionWithBytes, error) {
 			break
 		}
 
-		if err := a.state.ValidateNextTx(t.T, currentTimestamp, lastKnownBlock.Timestamp); err == nil {
+		if err := a.state.ValidateNextTx(t.T, currentTimestamp, lastKnownBlock.Timestamp, lastKnownBlock.Version); err == nil {
 			transactions = append(transactions, t)
 		}
 	}
@@ -114,7 +114,7 @@ func (a inner) handle() ([]*types.TransactionWithBytes, error) {
 
 type stateWrapper interface {
 	lastHeader() (*proto.BlockHeader, error)
-	ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64) error
+	ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64, version proto.BlockVersion) error
 	ResetValidationList()
 	Mutex() *lock.RwMutex
 }
@@ -131,8 +131,8 @@ func (a stateWrapperImpl) lastHeader() (*proto.BlockHeader, error) {
 	return a.state.HeaderByHeight(height)
 }
 
-func (a stateWrapperImpl) ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64) error {
-	return a.state.ValidateNextTx(tx, currentTimestamp, parentTimestamp)
+func (a stateWrapperImpl) ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64, version proto.BlockVersion) error {
+	return a.state.ValidateNextTx(tx, currentTimestamp, parentTimestamp, version)
 }
 
 func (a stateWrapperImpl) ResetValidationList() {

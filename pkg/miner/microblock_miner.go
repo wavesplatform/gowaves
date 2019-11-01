@@ -65,7 +65,12 @@ func (a *MicroblockMiner) Mine(ctx context.Context, t proto.Timestamp, k proto.K
 		zap.S().Error(err)
 		return
 	}
-	b, err := proto.CreateBlock(proto.NewReprFromTransactions(nil), t, parent, pub, nxt)
+	v, err := blockVersion(a.state)
+	if err != nil {
+		zap.S().Error(err)
+		return
+	}
+	b, err := proto.CreateBlock(proto.NewReprFromTransactions(nil), t, parent, pub, nxt, v)
 	if err != nil {
 		zap.S().Error(err)
 		return
@@ -180,7 +185,7 @@ func (a *MicroblockMiner) mineMicro(ctx context.Context, rest restLimits, blockA
 			continue
 		}
 
-		err = a.state.ValidateNextTx(t.T, blockApplyOn.Timestamp, parentTimestamp)
+		err = a.state.ValidateNextTx(t.T, blockApplyOn.Timestamp, parentTimestamp, blockApplyOn.Version)
 		if err != nil {
 			unAppliedTransactions = append(unAppliedTransactions, t)
 			continue
@@ -228,7 +233,8 @@ func (a *MicroblockMiner) mineMicro(ctx context.Context, rest restLimits, blockA
 		blockApplyOn.Timestamp,
 		blockApplyOn.Parent,
 		blockApplyOn.GenPublicKey,
-		blockApplyOn.NxtConsensus)
+		blockApplyOn.NxtConsensus,
+		blockApplyOn.Version)
 	if err != nil {
 		zap.S().Error(err)
 		return

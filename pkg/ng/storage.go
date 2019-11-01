@@ -155,7 +155,8 @@ func (a *storage) fromRow(seq row) (*proto.Block, error) {
 		keyBlock.Timestamp,
 		keyBlock.Parent,
 		keyBlock.GenPublicKey,
-		keyBlock.NxtConsensus)
+		keyBlock.NxtConsensus,
+		keyBlock.Version)
 	if err != nil {
 		return nil, err
 	}

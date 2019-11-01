@@ -49,6 +49,7 @@ type blockchainEntitiesStorage struct {
 	blocksInfo        *blocksInfo
 	balances          *balances
 	features          *features
+	monetaryPolicy    *monetaryPolicy
 	ordersVolumes     *ordersVolumes
 	accountsDataStor  *accountsDataStorage
 	sponsoredAssets   *sponsoredAssets
@@ -81,7 +82,11 @@ func newBlockchainEntitiesStorage(hs *historyStorage, sets *settings.BlockchainS
 	if err != nil {
 		return nil, err
 	}
-	features, err := newFeatures(hs.db, hs.dbBatch, hs, sets, settings.FeaturesInfo)
+	features, err := newFeatures(hs.db, hs, sets, settings.FeaturesInfo)
+	if err != nil {
+		return nil, err
+	}
+	monetaryPolicy, err := newMonetaryPolicy(hs.db, hs, sets)
 	if err != nil {
 		return nil, err
 	}
@@ -114,6 +119,7 @@ func newBlockchainEntitiesStorage(hs *historyStorage, sets *settings.BlockchainS
 		blocksInfo,
 		balances,
 		features,
+		monetaryPolicy,
 		ordersVolumes,
 		accountsDataStor,
 		sponsoredAssets,
@@ -420,11 +426,11 @@ func (a *txAppender) needToCheckOrdersSigs(transaction proto.Transaction, initia
 }
 
 func (a *txAppender) appendBlock(params *appendBlockParams) error {
-	hasParent := (params.parent != nil)
+	hasParent := params.parent != nil
 	// Create miner balance diff.
 	// This adds 60% of prev block fees as very first balance diff of the current block
 	// in case NG is activated, or empty diff otherwise.
-	minerDiff, err := a.blockDiffer.createMinerDiff(params.block, hasParent)
+	minerDiff, err := a.blockDiffer.createMinerDiff(params.block, hasParent, params.height)
 	if err != nil {
 		return err
 	}
@@ -470,6 +476,7 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 			initialisation:   params.initialisation,
 			currentTimestamp: params.block.Timestamp,
 			blockID:          params.block.BlockSignature,
+			blockVersion:     params.block.Version,
 			height:           params.height,
 		}
 		if hasParent {
@@ -604,7 +611,7 @@ func (a *txAppender) resetValidationList() {
 }
 
 // For UTX validation.
-func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64) error {
+func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64, version proto.BlockVersion) error {
 	if err := a.checkDuplicateTxIds(tx, a.recentTxIds, currentTimestamp); err != nil {
 		return err
 	}
@@ -631,6 +638,7 @@ func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, pare
 		initialisation:   false,
 		currentTimestamp: currentTimestamp,
 		parentTimestamp:  parentTimestamp,
+		blockVersion:     version,
 		height:           height,
 	}
 	// TODO: Doesn't work correctly if miner doesn't work in NG mode.
@@ -710,7 +718,8 @@ type stateManager struct {
 	// Indicates that stolen aliases were disabled.
 	disabledStolenAliases bool
 	// The height when last features voting took place.
-	lastVotingHeight uint64
+	lastVotingHeight             uint64
+	lastBlockRewardTermEndHeight uint64
 }
 
 func newStateManager(dataDir string, params StateParams, settings *settings.BlockchainSettings) (*stateManager, error) {
@@ -1141,7 +1150,27 @@ func (s *stateManager) addFeaturesVotes(block *proto.Block) error {
 	return nil
 }
 
+func (s *stateManager) addRewardVote(block *proto.Block, height uint64) error {
+	activation, err := s.ActivationHeight(int16(settings.BlockReward))
+	if err != nil {
+		return err
+	}
+	err = s.stor.monetaryPolicy.vote(block.RewardVote, height, activation, block.BlockSignature)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func (s *stateManager) addNewBlock(block, parent *proto.Block, initialisation bool, chans *verifierChans, height uint64) error {
+	// Check the block version
+	blockRewardActivated, err := s.IsActivated(int16(settings.BlockReward))
+	if err != nil {
+		return err
+	}
+	if blockRewardActivated && block.Version != proto.RewardBlockVersion {
+		return errors.Errorf("invalid block version %d after activation of BlockReward feature", block.Version)
+	}
 	// Indicate new block for storage.
 	if err := s.rw.startBlock(block.BlockSignature); err != nil {
 		return err
@@ -1184,6 +1213,13 @@ func (s *stateManager) addNewBlock(block, parent *proto.Block, initialisation bo
 	// Count features votes.
 	if err := s.addFeaturesVotes(block); err != nil {
 		return err
+	}
+	// Count reward vote
+	if blockRewardActivated {
+		err := s.addRewardVote(block, height)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -1332,6 +1368,25 @@ func (s *stateManager) needToFinishVotingPeriod(height uint64) bool {
 	return false
 }
 
+func (s *stateManager) isBlockRewardTermOver(height uint64) (bool, error) {
+	feature := int16(settings.BlockReward)
+	activated, err := s.IsActivated(feature)
+	if err != nil {
+		return false, err
+	}
+	if activated {
+		activation, err := s.ActivationHeight(int16(settings.BlockReward))
+		if err != nil {
+			return false, err
+		}
+		_, end := blockRewardTermBoundaries(height, activation, s.settings.FunctionalitySettings)
+		if end == height {
+			return s.lastBlockRewardTermEndHeight != height, nil
+		}
+	}
+	return false, nil
+}
+
 func (s *stateManager) needToResetStolenAliases(height uint64) (bool, error) {
 	if s.settings.Type == settings.Custom {
 		// No need to reset stolen aliases in custom blockchains.
@@ -1388,10 +1443,12 @@ type breakerTask struct {
 	blockID crypto.Signature
 	// Indicates that the task to perform before calling addBlocks() is to cancel leases.
 	cancelLeases bool
-	// Indicates that the task to perfrom before calling addBlocks() is to reset stolen aliases.
+	// Indicates that the task to perform before calling addBlocks() is to reset stolen aliases.
 	resetStolenAliases bool
 	// Indicates that the task to perform before calling addBlocks() is to finish features voting period.
 	finishVotingPeriod bool
+	// Indication of the end of block reward term and block reward voting period.
+	finishBlockRewardTerm bool
 }
 
 func (s *stateManager) needToBreakAddingBlocks(curHeight uint64, task *breakerTask) (bool, error) {
@@ -1415,6 +1472,13 @@ func (s *stateManager) needToBreakAddingBlocks(curHeight uint64, task *breakerTa
 		task.finishVotingPeriod = true
 		return true, nil
 	}
+	termIsOver, err := s.isBlockRewardTermOver(curHeight)
+	if err != nil {
+		return false, err
+	}
+	if termIsOver {
+		task.finishBlockRewardTerm = true
+	}
 	return false, nil
 }
 
@@ -1430,6 +1494,21 @@ func (s *stateManager) finishVoting(blockID crypto.Signature) error {
 	if err := s.flush(true); err != nil {
 		return err
 	}
+	if err := s.reset(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *stateManager) updateBlockReward(blockID crypto.Signature) error {
+	h, err := s.Height()
+	if err != nil {
+		return err
+	}
+	if err := s.stor.monetaryPolicy.updateBlockReward(h, blockID); err != nil {
+		return err
+	}
+	s.lastBlockRewardTermEndHeight = h
 	if err := s.reset(); err != nil {
 		return err
 	}
@@ -1494,6 +1573,11 @@ func (s *stateManager) handleBreak(blocksToFinish []*proto.Block, initialisation
 	}
 	if task.finishVotingPeriod {
 		if err := s.finishVoting(task.blockID); err != nil {
+			return nil, wrapErr(ModificationError, err)
+		}
+	}
+	if task.finishBlockRewardTerm {
+		if err := s.updateBlockReward(task.blockID); err != nil {
 			return nil, wrapErr(ModificationError, err)
 		}
 	}
@@ -1780,8 +1864,8 @@ func (s *stateManager) ResetValidationList() {
 }
 
 // For UTX validation.
-func (s *stateManager) ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64) error {
-	if err := s.appender.validateNextTx(tx, currentTimestamp, parentTimestamp); err != nil {
+func (s *stateManager) ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64, v proto.BlockVersion) error {
+	if err := s.appender.validateNextTx(tx, currentTimestamp, parentTimestamp, v); err != nil {
 		return wrapErr(TxValidationError, err)
 	}
 	return nil

@@ -72,7 +72,6 @@ func (r *votesFeaturesRecord) unmarshalBinary(data []byte) error {
 
 type features struct {
 	db                  keyvalue.IterableKeyVal
-	dbBatch             keyvalue.Batch
 	hs                  *historyStorage
 	settings            *settings.BlockchainSettings
 	definedFeaturesInfo map[settings.Feature]settings.FeatureInfo
@@ -80,12 +79,11 @@ type features struct {
 
 func newFeatures(
 	db keyvalue.IterableKeyVal,
-	dbBatch keyvalue.Batch,
 	hs *historyStorage,
 	settings *settings.BlockchainSettings,
 	definedFeaturesInfo map[settings.Feature]settings.FeatureInfo,
 ) (*features, error) {
-	return &features{db, dbBatch, hs, settings, definedFeaturesInfo}, nil
+	return &features{db, hs, settings, definedFeaturesInfo}, nil
 }
 
 // addVote adds vote for feature by its featureID at given blockID.
@@ -170,6 +168,15 @@ func (f *features) isActivated(featureID int16) (bool, error) {
 		return false, err
 	}
 	return true, nil
+}
+
+func (f *features) isOneBlockBeforeActivation(featureID int16, curHeight uint64) bool {
+	approvalHeight, err := f.approvalHeight(featureID)
+	if err != nil {
+		// Not even approved yet.
+		return false
+	}
+	return (curHeight - approvalHeight) == (f.settings.ActivationWindowSize(curHeight) - 1)
 }
 
 func (f *features) activatedFeaturesRecord(featureID int16) (*activatedFeaturesRecord, error) {

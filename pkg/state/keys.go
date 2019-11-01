@@ -88,6 +88,10 @@ const (
 	assetScriptKeyPrefix
 	accountScriptComplexityKeyPrefix
 	assetScriptComplexityKeyPrefix
+
+	// Block Reward
+	blockRewardKey
+	rewardVotesKey
 )
 
 type wavesBalanceKey struct {

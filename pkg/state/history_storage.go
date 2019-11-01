@@ -29,6 +29,8 @@ const (
 	assetScript
 	accountScriptComplexity
 	assetScriptComplexity
+	rewardVotes
+	blockReward
 )
 
 // + 4 bytes for blockNum at the end of each record.
@@ -43,6 +45,8 @@ var recordSizes = map[blockchainEntity]int{
 	activatedFeature:      activatedFeaturesRecordSize + 4,
 	sponsorship:           sponsorshipRecordSize + 4,
 	assetScriptComplexity: assetScriptComplexityRecordSize + 4,
+	rewardVotes:           rewardVotesRecordSize + 4,
+	blockReward:           blockRewardRecordSize + 4,
 }
 
 type historyEntry struct {
