@@ -69,7 +69,11 @@ func (a *MockStateManager) Header(block crypto.Signature) (*proto.BlockHeader, e
 }
 
 func (a *MockStateManager) NewestHeaderByHeight(height uint64) (*proto.BlockHeader, error) {
-	panic("implement me")
+	rs, err := a.BlockByHeight(height)
+	if err != nil {
+		return nil, err
+	}
+	return &rs.BlockHeader, nil
 }
 
 func (a *MockStateManager) HeaderByHeight(height uint64) (*proto.BlockHeader, error) {
@@ -85,7 +89,7 @@ func (a *MockStateManager) AddingBlockHeight() (proto.Height, error) {
 }
 
 func (a *MockStateManager) NewestHeight() (proto.Height, error) {
-	panic("implement me")
+	return proto.Height(len(a.state)), nil
 }
 
 func (a *MockStateManager) Height() (proto.Height, error) {
@@ -160,10 +164,6 @@ func (a *MockStateManager) CurrentScore() (*big.Int, error) {
 }
 
 func (a *MockStateManager) EffectiveBalance(account proto.Recipient, startHeight, endHeight uint64) (uint64, error) {
-	panic("implement me")
-}
-
-func (a *MockStateManager) ValidateSingleTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64) error {
 	panic("implement me")
 }
 

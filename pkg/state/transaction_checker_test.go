@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/ride/evaluator/reader"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/util"
 )
@@ -208,6 +209,7 @@ func TestCheckIssueV2(t *testing.T) {
 
 	tx := createIssueV2(t, 1000)
 	info := defaultCheckerInfo(t)
+	to.stor.addBlock(t, blockID0)
 
 	_, err := to.tc.checkIssueV2(tx, info)
 	assert.NoError(t, err, "checkIssueV2 failed with valid issue tx")
@@ -493,6 +495,7 @@ func TestCheckExchangeV2(t *testing.T) {
 
 	to.stor.createAsset(t, testGlobal.asset0.asset.ID)
 	to.stor.createAsset(t, testGlobal.asset1.asset.ID)
+	to.stor.createAsset(t, testGlobal.asset2.asset.ID)
 
 	_, err = to.tc.checkExchangeV2(txOV2, info)
 	assert.Error(t, err, "checkExchangeV2 did not fail prior to SmartAccountTrading activation")
@@ -535,6 +538,7 @@ func TestCheckExchangeV2(t *testing.T) {
 
 	txOV3 := createExchangeV2WithOrdersV3(t)
 
+	// Matcher fee asset should not be added to the list of smart assets even if it is smart.
 	smartAsset2 := txOV3.GetBuyOrderFull().GetMatcherFeeAsset().ID
 	to.stor.createSmartAsset(t, smartAsset2)
 
@@ -543,8 +547,8 @@ func TestCheckExchangeV2(t *testing.T) {
 
 	smartAssets, err = to.tc.checkExchangeV2(txOV3, info)
 	assert.NoError(t, err)
-	assert.Equal(t, 2, len(smartAssets))
-	assert.ElementsMatch(t, []crypto.Digest{smartAsset, smartAsset2}, smartAssets)
+	assert.Equal(t, 1, len(smartAssets))
+	assert.ElementsMatch(t, []crypto.Digest{smartAsset}, smartAssets)
 
 	// Now overfill volume and make sure check fails.
 	bo := txOV2.GetBuyOrderFull()
@@ -911,7 +915,9 @@ func TestCheckSetScriptV1(t *testing.T) {
 	dir, err := getLocalDir()
 	assert.NoError(t, err, "getLocalDir() failed")
 	scriptV3Path := filepath.Join(dir, "testdata", "scripts", "version3.base64")
-	scriptBytes, err := ioutil.ReadFile(scriptV3Path)
+	scriptBase64, err := ioutil.ReadFile(scriptV3Path)
+	assert.NoError(t, err)
+	scriptBytes, err := reader.ScriptBytesFromBase64(scriptBase64)
 	assert.NoError(t, err)
 	prevScript := tx.Script
 	tx.Script = proto.Script(scriptBytes)
@@ -922,7 +928,9 @@ func TestCheckSetScriptV1(t *testing.T) {
 	assert.NoError(t, err, "checkSetScriptV1 failed with valid SetScriptV1 tx")
 
 	complexScriptPath := filepath.Join(dir, "testdata", "scripts", "exceeds_complexity.base64")
-	scriptBytes, err = ioutil.ReadFile(complexScriptPath)
+	scriptBase64, err = ioutil.ReadFile(complexScriptPath)
+	assert.NoError(t, err)
+	scriptBytes, err = reader.ScriptBytesFromBase64(scriptBase64)
 	assert.NoError(t, err)
 	tx.Script = proto.Script(scriptBytes)
 	_, err = to.tc.checkSetScriptV1(tx, info)
@@ -975,4 +983,49 @@ func TestCheckSetAssetScriptV1(t *testing.T) {
 	tx.Timestamp = 0
 	_, err = to.tc.checkSetAssetScriptV1(tx, info)
 	assert.Error(t, err, "checkSetAssetScriptV1 did not fail with invalid timestamp")
+}
+
+func TestCheckInvokeScriptV1(t *testing.T) {
+	to, path := createCheckerTestObjects(t)
+
+	defer func() {
+		to.stor.close(t)
+
+		err := util.CleanTemporaryDirs(path)
+		assert.NoError(t, err, "failed to clean test data dirs")
+	}()
+
+	pmts := []proto.ScriptPayment{
+		{Amount: 1, Asset: *testGlobal.asset0.asset},
+	}
+	tx := createInvokeScriptV1(t, pmts, proto.FunctionCall{}, 1)
+	info := defaultCheckerInfo(t)
+	to.stor.addBlock(t, blockID0)
+	assetId := tx.Payments[0].Asset.ID
+	to.stor.createAsset(t, assetId)
+
+	// Check activation.
+	_, err := to.tc.checkInvokeScriptV1(tx, info)
+	assert.Error(t, err, "checkInvokeScriptV1 did not fail prior to Ride4DApps activation")
+	to.stor.activateFeature(t, int16(settings.Ride4DApps))
+	_, err = to.tc.checkInvokeScriptV1(tx, info)
+	assert.NoError(t, err, "checkInvokeScriptV1 failed with valid tx")
+
+	// Check non-issued asset.
+	tx.Payments[0].Asset = *testGlobal.asset2.asset
+	_, err = to.tc.checkInvokeScriptV1(tx, info)
+	assert.Error(t, err, "checkInvokeScriptV1 did not fail with invalid asset")
+	tx.Payments[0].Asset = *testGlobal.asset0.asset
+
+	// Check that smart assets are detected properly.
+	to.stor.createSmartAsset(t, assetId)
+	smartAssets, err := to.tc.checkInvokeScriptV1(tx, info)
+	assert.NoError(t, err)
+	assert.Equal(t, 1, len(smartAssets))
+	assert.Equal(t, assetId, smartAssets[0])
+
+	// Check invalid timestamp failure.
+	tx.Timestamp = 0
+	_, err = to.tc.checkInvokeScriptV1(tx, info)
+	assert.Error(t, err, "checkInvokeScriptV1 did not fail with invalid timestamp")
 }

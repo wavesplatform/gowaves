@@ -151,11 +151,7 @@ func (a *ScopeImpl) evaluation(name string) (evaluation, bool) {
 			return v, true
 		}
 	}
-	if a.parent != nil {
-		return a.parent.evaluation(name)
-	} else {
-		return evaluation{}, false
-	}
+	return evaluation{}, false
 }
 
 func (a *ScopeImpl) setEvaluation(name string, e evaluation) {
@@ -258,6 +254,7 @@ func functionsV2() map[string]Expr {
 	fns["Alias"] = FunctionFromPredefined(UserAlias, 1)
 	fns["DataEntry"] = FunctionFromPredefined(DataEntry, 2)
 	fns["AssetPair"] = FunctionFromPredefined(AssetPair, 2)
+	fns["DataTransaction"] = FunctionFromPredefined(DataTransaction, 9)
 
 	return fns
 }

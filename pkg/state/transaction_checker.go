@@ -17,7 +17,7 @@ const (
 	KiB = 1024
 
 	maxVerifierScriptSize = 8 * KiB
-	//maxContractScriptSize = 32 * KiB
+	maxContractScriptSize = 32 * KiB
 )
 
 type checkerInfo struct {
@@ -56,25 +56,29 @@ func (tc *transactionChecker) scriptActivation(script *ast.Script) error {
 	return nil
 }
 
-func (tc *transactionChecker) checkScriptComplexity(script *ast.Script, complexity int64) error {
-	var maxComplexity int64
+func (tc *transactionChecker) checkScriptComplexity(script *ast.Script, complexity estimation.Costs) error {
+	var maxComplexity uint64
 	switch script.Version {
 	case 1, 2:
 		maxComplexity = 2000
 	case 3, 4:
 		maxComplexity = 4000
 	}
-	if complexity > maxComplexity {
+	complexityVal := complexity.Verifier
+	if script.IsDapp() {
+		complexityVal = complexity.DApp
+	}
+	if complexityVal > maxComplexity {
 		return errors.Errorf(
 			"script complexity %d exceeds maximum allowed complexity of %d\n",
-			complexity,
+			complexityVal,
 			maxComplexity,
 		)
 	}
 	return nil
 }
 
-func (tc *transactionChecker) estimatorByScript(script *ast.Script) *estimation.Estimator {
+func estimatorByScript(script *ast.Script) *estimation.Estimator {
 	var variables map[string]ast.Expr
 	var cat *estimation.Catalogue
 	switch script.Version {
@@ -88,31 +92,36 @@ func (tc *transactionChecker) estimatorByScript(script *ast.Script) *estimation.
 	return estimation.NewEstimator(1, cat, variables) //TODO: pass version 2 after BlockReward (feature 14) activation
 }
 
-func (tc *transactionChecker) checkScript(scriptBytes proto.Script) error {
-	if len(scriptBytes) == 0 {
-		// Empty script is always valid.
-		return nil
-	}
-	// TODO: use RIDE package to check script size depending on whether it's dApp or simple Verifier.
-	if len(scriptBytes) > maxVerifierScriptSize {
-		return errors.Errorf("script size %d is greater than limit of %d\n", len(scriptBytes), maxVerifierScriptSize)
-	}
+type scriptInfo struct {
+	complexity       estimation.Costs
+	estimatorVersion byte
+	isDApp           bool
+}
+
+func (tc *transactionChecker) checkScript(scriptBytes proto.Script) (*scriptInfo, error) {
 	script, err := ast.BuildScript(reader.NewBytesReader(scriptBytes))
 	if err != nil {
-		return errors.Wrap(err, "failed to build ast from script bytes")
+		return nil, errors.Wrap(err, "failed to build ast from script bytes")
+	}
+	maxSize := maxVerifierScriptSize
+	if script.IsDapp() {
+		maxSize = maxContractScriptSize
+	}
+	if len(scriptBytes) > maxSize {
+		return nil, errors.Errorf("script size %d is greater than limit of %d\n", len(scriptBytes), maxSize)
 	}
 	if err := tc.scriptActivation(script); err != nil {
-		return errors.Wrap(err, "script activation check failed")
+		return nil, errors.Wrap(err, "script activation check failed")
 	}
-	estimator := tc.estimatorByScript(script)
+	estimator := estimatorByScript(script)
 	complexity, err := estimator.Estimate(script)
 	if err != nil {
-		return errors.Wrap(err, "failed to estimate script complexity")
+		return nil, errors.Wrap(err, "failed to estimate script complexity")
 	}
 	if err := tc.checkScriptComplexity(script, complexity); err != nil {
-		return errors.Errorf("checkScriptComplexity(): %v\n", err)
+		return nil, errors.Errorf("checkScriptComplexity(): %v\n", err)
 	}
-	return nil
+	return &scriptInfo{complexity, byte(estimator.Version), script.IsDapp()}, nil
 }
 
 type txAssets struct {
@@ -161,11 +170,7 @@ func (tc *transactionChecker) checkTimestamps(txTimestamp, blockTimestamp, prevB
 }
 
 func (tc *transactionChecker) checkAsset(asset *proto.OptionalAsset, initialisation bool) error {
-	if !asset.Present {
-		// Waves always valid.
-		return nil
-	}
-	if _, err := tc.stor.assets.newestAssetInfo(asset.ID, !initialisation); err != nil {
+	if !tc.stor.assets.newestAssetExists(*asset, !initialisation) {
 		return errors.Errorf("unknown asset %s", asset.ID.String())
 	}
 	return nil
@@ -338,10 +343,24 @@ func (tc *transactionChecker) checkIssueV2(transaction proto.Transaction, info *
 	if err := tc.checkFee(transaction, assets, info); err != nil {
 		return nil, errors.Errorf("checkFee(): %v", err)
 	}
-	if err := tc.checkScript(tx.Script); err != nil {
-		return nil, errors.Errorf("checkScript(): %v\n", err)
-	}
 	if err := tc.checkIssue(&tx.Issue, info); err != nil {
+		return nil, err
+	}
+	if len(tx.Script) == 0 {
+		// No script checks / actions are needed.
+		return nil, nil
+	}
+	scriptInf, err := tc.checkScript(tx.Script)
+	if err != nil {
+		return nil, errors.Errorf("checkScript() tx %s: %v\n", tx.ID.String(), err)
+	}
+	assetID := *tx.ID
+	r := &assetScriptComplexityRecord{
+		complexity: scriptInf.complexity.Verifier,
+		estimator:  scriptInf.estimatorVersion,
+	}
+	// Save complexity to storage so we won't have to calculate it every time the script is called.
+	if err := tc.stor.scriptsComplexity.saveComplexityForAsset(assetID, r, info.blockID); err != nil {
 		return nil, err
 	}
 	return nil, nil
@@ -544,19 +563,26 @@ func (tc *transactionChecker) checkExchange(transaction proto.Transaction, info 
 	if err != nil {
 		return nil, err
 	}
+	// Check assets.
 	m := make(map[proto.OptionalAsset]struct{})
 	m[sellOrder.AssetPair.AmountAsset] = struct{}{}
 	m[sellOrder.AssetPair.PriceAsset] = struct{}{}
-	// TODO: The following code have to be updated to handle not counting the fee's assets complexity while calculating total complexity of the block
+	// allAssets does not include matcher fee assets.
+	allAssets := make([]proto.OptionalAsset, 0, len(m))
+	for a := range m {
+		allAssets = append(allAssets, a)
+	}
+	// Add matcher fee assets to map to checkAsset() them later.
 	if so3, ok := tx.GetSellOrderFull().(*proto.OrderV3); ok {
 		m[so3.MatcherFeeAsset] = struct{}{}
 	}
 	if bo3, ok := tx.GetBuyOrderFull().(*proto.OrderV3); ok {
 		m[bo3.MatcherFeeAsset] = struct{}{}
 	}
-	allAssets := make([]proto.OptionalAsset, 0, len(m))
 	for a := range m {
-		allAssets = append(allAssets, a)
+		if err := tc.checkAsset(&a, info.initialisation); err != nil {
+			return nil, err
+		}
 	}
 	smartAssets, err := tc.smartAssets(allAssets, info.initialisation)
 	if err != nil {
@@ -565,13 +591,6 @@ func (tc *transactionChecker) checkExchange(transaction proto.Transaction, info 
 	assets := &txAssets{feeAsset: proto.OptionalAsset{Present: false}, smartAssets: smartAssets}
 	if err := tc.checkFee(transaction, assets, info); err != nil {
 		return nil, errors.Errorf("checkFee(): %v", err)
-	}
-	// Check assets.
-	if err := tc.checkAsset(&sellOrder.AssetPair.AmountAsset, info.initialisation); err != nil {
-		return nil, err
-	}
-	if err := tc.checkAsset(&sellOrder.AssetPair.PriceAsset, info.initialisation); err != nil {
-		return nil, err
 	}
 	smartAssetsActivated, err := tc.stor.features.isActivated(int16(settings.SmartAssets))
 	if err != nil {
@@ -904,6 +923,17 @@ func (tc *transactionChecker) checkSponsorshipV1(transaction proto.Transaction, 
 	return nil, nil
 }
 
+func (tc *transactionChecker) newAccountScriptComplexityRecordFromInfo(info *scriptInfo) *accountScriptComplexityRecord {
+	r := &accountScriptComplexityRecord{
+		verifierComplexity: info.complexity.Verifier,
+		estimator:          info.estimatorVersion,
+	}
+	if info.isDApp {
+		r.byFuncs = info.complexity.Functions
+	}
+	return r
+}
+
 func (tc *transactionChecker) checkSetScriptV1(transaction proto.Transaction, info *checkerInfo) ([]crypto.Digest, error) {
 	tx, ok := transaction.(*proto.SetScriptV1)
 	if !ok {
@@ -916,8 +946,25 @@ func (tc *transactionChecker) checkSetScriptV1(transaction proto.Transaction, in
 	if err := tc.checkFee(transaction, assets, info); err != nil {
 		return nil, errors.Errorf("checkFee(): %v", err)
 	}
-	if err := tc.checkScript(tx.Script); err != nil {
-		return nil, errors.Errorf("checkScript(): %v\n", err)
+	if len(tx.Script) == 0 {
+		// No script checks / actions are needed.
+		return nil, nil
+	}
+	scriptInf, err := tc.checkScript(tx.Script)
+	if err != nil {
+		return nil, errors.Errorf("checkScript() tx %s: %v\n", tx.ID.String(), err)
+	}
+	senderAddr, err := proto.NewAddressFromPublicKey(tc.settings.AddressSchemeCharacter, tx.SenderPK)
+	if err != nil {
+		return nil, err
+	}
+	// Save complexity to storage so we won't have to calculate it every time the script is called.
+	if err := tc.stor.scriptsComplexity.saveComplexityForAddr(
+		senderAddr,
+		tc.newAccountScriptComplexityRecordFromInfo(scriptInf),
+		info.blockID,
+	); err != nil {
+		return nil, err
 	}
 	return nil, nil
 }
@@ -942,8 +989,55 @@ func (tc *transactionChecker) checkSetAssetScriptV1(transaction proto.Transactio
 	if err := tc.checkFee(transaction, assets, info); err != nil {
 		return nil, errors.Errorf("checkFee(): %v", err)
 	}
-	if err := tc.checkScript(tx.Script); err != nil {
-		return nil, errors.Errorf("checkScript(): %v\n", err)
+	if len(tx.Script) == 0 {
+		// No script checks / actions are needed.
+		return nil, nil
+	}
+	scriptInf, err := tc.checkScript(tx.Script)
+	if err != nil {
+		return nil, errors.Errorf("checkScript() tx %s: %v\n", tx.ID.String(), err)
+	}
+	r := &assetScriptComplexityRecord{
+		complexity: scriptInf.complexity.Verifier,
+		estimator:  scriptInf.estimatorVersion,
+	}
+	// Save complexity to storage so we won't have to calculate it every time the script is called.
+	if err := tc.stor.scriptsComplexity.saveComplexityForAsset(tx.AssetID, r, info.blockID); err != nil {
+		return nil, err
+	}
+	return smartAssets, nil
+}
+
+func (tc *transactionChecker) checkInvokeScriptV1(transaction proto.Transaction, info *checkerInfo) ([]crypto.Digest, error) {
+	tx, ok := transaction.(*proto.InvokeScriptV1)
+	if !ok {
+		return nil, errors.New("failed to convert interface to InvokeScriptV1 transaction")
+	}
+	if err := tc.checkTimestamps(tx.Timestamp, info.currentTimestamp, info.parentTimestamp); err != nil {
+		return nil, errors.Wrap(err, "invalid timestamp")
+	}
+	activated, err := tc.stor.features.isActivated(int16(settings.Ride4DApps))
+	if err != nil {
+		return nil, err
+	}
+	if !activated {
+		return nil, errors.New("can not use InvokeScript before Ride4DApps activation")
+	}
+	if err := tc.checkFeeAsset(&tx.FeeAsset, info.initialisation); err != nil {
+		return nil, err
+	}
+	var paymentAssets []proto.OptionalAsset
+	for _, payment := range tx.Payments {
+		if err := tc.checkAsset(&payment.Asset, info.initialisation); err != nil {
+			return nil, errors.Wrap(err, "bad payment asset")
+		}
+		paymentAssets = append(paymentAssets, payment.Asset)
+	}
+	// Only payment assets' scripts are called before invoke function and with
+	// state that doesn't have any changes caused by this invokeScript tx yet.
+	smartAssets, err := tc.smartAssets(paymentAssets, info.initialisation)
+	if err != nil {
+		return nil, err
 	}
 	return smartAssets, nil
 }

@@ -219,6 +219,17 @@ func (a *assets) newestChangeableInfo(assetID crypto.Digest, filter bool) (*asse
 	return &record.assetChangeableInfo, nil
 }
 
+func (a *assets) newestAssetExists(asset proto.OptionalAsset, filter bool) bool {
+	if !asset.Present {
+		// Waves.
+		return true
+	}
+	if _, err := a.newestAssetInfo(asset.ID, filter); err != nil {
+		return false
+	}
+	return true
+}
+
 // Newest asset info (from local storage, or from DB if given asset has not been changed).
 // This is needed for transactions validation.
 func (a *assets) newestAssetInfo(assetID crypto.Digest, filter bool) (*assetInfo, error) {

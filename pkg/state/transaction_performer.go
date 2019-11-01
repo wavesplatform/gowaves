@@ -306,7 +306,7 @@ func (tp *transactionPerformer) performSetScriptV1(transaction proto.Transaction
 func (tp *transactionPerformer) performSetAssetScriptV1(transaction proto.Transaction, info *performerInfo) error {
 	tx, ok := transaction.(*proto.SetAssetScriptV1)
 	if !ok {
-		return errors.New("failed to convert interface to SetAssetAccountScriptV1 transaction")
+		return errors.New("failed to convert interface to SetAssetScriptV1 transaction")
 	}
 	if err := tp.stor.scriptsStorage.setAssetScript(tx.AssetID, tx.Script, info.blockID); err != nil {
 		return errors.Wrap(err, "failed to set asset script")

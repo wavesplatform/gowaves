@@ -9,7 +9,7 @@ export GO111MODULE=on
 
 .PHONY: vendor vetcheck fmtcheck clean build gotest
 
-all: vendor vetcheck fmtcheck build gotest
+all: vendor vetcheck fmtcheck build gotest mod-clean
 
 ver:
 	@echo Building version: $(VERSION)
@@ -32,8 +32,12 @@ gotest:
 fmtcheck:
 	@gofmt -l -s $(SOURCE_DIRS) | grep ".*\.go"; if [ "$$?" = "0" ]; then exit 1; fi
 
+mod-clean:
+	go mod tidy
+
 clean:
 	@rm -rf build
+	go mod tidy
 
 vendor:
 	go mod vendor
@@ -105,3 +109,12 @@ build-custom: ver build-custom-linux build-custom-darwin build-custom-windows
 
 build-docker:
 	docker build -t com.wavesplatform/node-it:latest .
+
+build-importer-linux:
+	@CGO_ENABLE=0 GOOS=linux GOARCH=amd64 go build -o build/bin/linux-amd64/importer ./cmd/importer
+build-importer-darwin:
+	@CGO_ENABLE=0 GOOS=darwin GOARCH=amd64 go build -o build/bin/darwin-amd64/importer ./cmd/importer
+build-importer-windows:
+	@CGO_ENABLE=0 GOOS=windows GOARCH=amd64 go build -o build/bin/windows-amd64/importer.exe ./cmd/importer
+
+release-importer: ver build-importer-linux build-importer-darwin build-importer-windows

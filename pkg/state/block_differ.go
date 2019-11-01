@@ -61,15 +61,19 @@ func (d *blockDiffer) prevBlockFeeDistr(prevBlock crypto.Signature) (*feeDistrib
 	return d.stor.blocksInfo.feeDistribution(prevBlock)
 }
 
+func (d *blockDiffer) appendBlockInfoToBalanceDiff(diff *balanceDiff, block *proto.BlockHeader) {
+	allowLeasedTransfer := true
+	if block.Timestamp >= d.settings.AllowLeasedBalanceTransferUntilTime {
+		allowLeasedTransfer = false
+	}
+	diff.allowLeasedTransfer = allowLeasedTransfer
+	diff.blockID = block.BlockSignature
+}
+
 func (d *blockDiffer) appendBlockInfoToTxDiff(diff txDiff, block *proto.BlockHeader) {
 	for key := range diff {
 		balanceDiff := diff[key]
-		allowLeasedTransfer := true
-		if block.Timestamp >= d.settings.AllowLeasedBalanceTransferUntilTime {
-			allowLeasedTransfer = false
-		}
-		balanceDiff.allowLeasedTransfer = allowLeasedTransfer
-		balanceDiff.blockID = block.BlockSignature
+		d.appendBlockInfoToBalanceDiff(&balanceDiff, block)
 		diff[key] = balanceDiff
 	}
 }
@@ -113,8 +117,12 @@ func (d *blockDiffer) createPrevBlockMinerFeeDiff(prevBlockID crypto.Signature, 
 	return diff, nil
 }
 
-func (d *blockDiffer) createTransactionDiff(tx proto.Transaction, block *proto.BlockHeader, initialisation bool) (txDiff, error) {
-	differInfo := &differInfo{initialisation, block.GenPublicKey, block.Timestamp}
+func (d *blockDiffer) createTransactionDiff(tx proto.Transaction, block *proto.BlockHeader, height uint64, initialisation bool) (txDiff, error) {
+	blockInfo, err := proto.BlockInfoFromHeader(d.settings.AddressSchemeCharacter, block, height)
+	if err != nil {
+		return txDiff{}, err
+	}
+	differInfo := &differInfo{initialisation, blockInfo}
 	diff, err := d.handler.createDiffTx(tx, differInfo)
 	if err != nil {
 		return txDiff{}, err

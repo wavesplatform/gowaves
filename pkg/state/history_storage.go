@@ -27,19 +27,22 @@ const (
 	dataEntry
 	accountScript
 	assetScript
+	accountScriptComplexity
+	assetScriptComplexity
 )
 
 // + 4 bytes for blockNum at the end of each record.
 var recordSizes = map[blockchainEntity]int{
-	alias:            aliasRecordSize + 4,
-	asset:            assetRecordSize + 4,
-	lease:            leasingRecordSize + 4,
-	wavesBalance:     wavesBalanceRecordSize + 4,
-	assetBalance:     assetBalanceRecordSize + 4,
-	featureVote:      votesFeaturesRecordSize + 4,
-	approvedFeature:  approvedFeaturesRecordSize + 4,
-	activatedFeature: activatedFeaturesRecordSize + 4,
-	sponsorship:      sponsorshipRecordSize + 4,
+	alias:                 aliasRecordSize + 4,
+	asset:                 assetRecordSize + 4,
+	lease:                 leasingRecordSize + 4,
+	wavesBalance:          wavesBalanceRecordSize + 4,
+	assetBalance:          assetBalanceRecordSize + 4,
+	featureVote:           votesFeaturesRecordSize + 4,
+	approvedFeature:       approvedFeaturesRecordSize + 4,
+	activatedFeature:      activatedFeaturesRecordSize + 4,
+	sponsorship:           sponsorshipRecordSize + 4,
+	assetScriptComplexity: assetScriptComplexityRecordSize + 4,
 }
 
 type historyEntry struct {

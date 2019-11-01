@@ -190,3 +190,55 @@ func (s *diffStorage) reset() {
 	s.changes = nil
 	s.keys = make(map[string]int)
 }
+
+// diffStorageWrapped consists of two regular diffStorages.
+// invokeDiffsStor is used for invoke partial diffs to provide intermediate balances
+// to RIDE when validating InvokeScript transactions.
+type diffStorageWrapped struct {
+	diffStorage     *diffStorage
+	invokeDiffsStor *diffStorage
+}
+
+func newDiffStorageWrapped(mainStor *diffStorage) (*diffStorageWrapped, error) {
+	invokeStor, err := newDiffStorage()
+	if err != nil {
+		return nil, err
+	}
+	return &diffStorageWrapped{diffStorage: mainStor, invokeDiffsStor: invokeStor}, nil
+}
+
+func (s *diffStorageWrapped) saveTxDiff(diff txDiff) error {
+	for key, balanceDiff := range diff {
+		if _, ok := s.invokeDiffsStor.keys[key]; ok {
+			// If invoke stor already has changes for this key,
+			// they are newer than ones from main stor, so we just need to add new diff
+			// to these changes.
+			if err := s.invokeDiffsStor.addBalanceDiff(key, balanceDiff); err != nil {
+				return err
+			}
+			continue
+		}
+		// We don't have any changes for this key yet.
+		// Changes are retrieved from main stor and new diffs are applied to them.
+		change, err := s.diffStorage.balanceChangesWithNewDiff(key, balanceDiff)
+		if err != nil {
+			return err
+		}
+		// The result is saved to invoke stor.
+		if err := s.invokeDiffsStor.setBalanceChanges(change); err != nil {
+			return errors.Wrap(err, "failed to save changes to changes storage")
+		}
+	}
+	return nil
+}
+
+func (s *diffStorageWrapped) latestDiffByKey(key string) (balanceDiff, error) {
+	if diff, err := s.invokeDiffsStor.latestDiffByKey(key); err == nil {
+		// Found diff in invoke storage, return from there.
+		// `minBalance` field should be ignored, since it isn't correct in invoke storage.
+		diff.minBalance = 0
+		return diff, nil
+	}
+	// Not found, return diff from main diff stor.
+	return s.diffStorage.latestDiffByKey(key)
+}

@@ -134,8 +134,8 @@ func TestTransferOverspend(t *testing.T) {
 	// Create overspend transfer to self.
 	tx := createTransferV1(t)
 	info := defaultDifferInfo(t)
-	info.blockTime = settings.MainNetSettings.CheckTempNegativeAfterTime - 1
-	tx.Timestamp = info.blockTime
+	info.blockInfo.Timestamp = settings.MainNetSettings.CheckTempNegativeAfterTime - 1
+	tx.Timestamp = info.blockInfo.Timestamp
 	tx.Recipient = proto.NewRecipientFromAddress(testGlobal.senderInfo.addr)
 	// Set balance equal to tx Fee.
 	err := to.stor.entities.balances.setAssetBalance(testGlobal.senderInfo.addr, testGlobal.asset0.assetID, tx.Fee, blockID0)
@@ -148,8 +148,8 @@ func TestTransferOverspend(t *testing.T) {
 	err = to.applier.validateBalancesChanges(diff.balancesChanges(), true)
 	assert.NoError(t, err, "validateBalancesChanges() failed with overspend when it is allowed")
 	// Sending to self more than possess after settings.MainNetSettings.CheckTempNegativeAfterTime must lead to error.
-	info.blockTime = settings.MainNetSettings.CheckTempNegativeAfterTime
-	tx.Timestamp = info.blockTime
+	info.blockInfo.Timestamp = settings.MainNetSettings.CheckTempNegativeAfterTime
+	tx.Timestamp = info.blockInfo.Timestamp
 	diff, err = to.td.createDiffTransferV1(tx, info)
 	assert.NoError(t, err, "createDiffTransferV1() failed")
 	err = to.applier.validateBalancesChanges(diff.balancesChanges(), true)

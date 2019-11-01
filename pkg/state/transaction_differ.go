@@ -30,6 +30,23 @@ func stringKey(addr proto.Address, assetID []byte) string {
 
 // balanceDiff represents atomic balance change, which is a result of applying transaction.
 // Transaction may produce one or more balance diffs, with single diff corresponding to certain address.
+// Same diffs are then used to store balance changes by blocks in `diffStorage`.
+
+/* Note About minBalance.
+`minBalance` is sum of all negative diffs that were added to single transaction.
+It is needed to check that total spend amount does not lead to negative balance.
+For instance, if someone sent more money to himself than he ever had, minBalance would help to detect it.
+See balanceDiff.addInsideTx() for more info.
+
+When dealing with diffs at block level, minBalance takes the lowest minBalance among all transactions
+for given key (address). But it also takes into account previous changes for this address, so overspend
+will be checked like:
+`balance_from_db` + `all_diffs_before` - `minBalance_for_thix_tx` > 0;
+not just `balance_from_db` - `minBalance_for_thix_tx` > 0.
+So we increase transactions' minBalances by `all_diffs_before` when adding them to block.
+See balanceDiff.addInsideBlock() for more info.
+*/
+
 type balanceDiff struct {
 	allowLeasedTransfer          bool
 	updateMinIntermediateBalance bool
@@ -143,7 +160,7 @@ func (diff *balanceDiff) addCommon(prevDiff *balanceDiff) error {
 func (diff *balanceDiff) addInsideTx(prevDiff *balanceDiff) error {
 	if diff.updateMinIntermediateBalance {
 		// If updateMinIntermediateBalance is true, this tx may produce negative intermediate changes.
-		// It is only true for few tx types: Payment, Transfer, MassTransfer.
+		// It is only true for few tx types: Payment, Transfer, MassTransfer, InvokeScript.
 		// Add current diff to previous minBalance (aka intermediate change) to get newMinBalance.
 		newMinBalance, err := util.AddInt64(diff.balance, prevDiff.minBalance)
 		if err != nil {
@@ -153,6 +170,7 @@ func (diff *balanceDiff) addInsideTx(prevDiff *balanceDiff) error {
 		diff.minBalance = prevDiff.minBalance
 		if newMinBalance < diff.minBalance {
 			// newMinBalance is less than previous minBalance, so we should use it.
+			// This is basically always the case when diff.balance < 0.
 			diff.minBalance = newMinBalance
 		}
 	}
@@ -169,7 +187,7 @@ func (diff *balanceDiff) addInsideBlock(prevDiff *balanceDiff) error {
 	}
 	// Copy previous minBalance at first.
 	diff.minBalance = prevDiff.minBalance
-	if newMinBalance < prevDiff.minBalance {
+	if newMinBalance < diff.minBalance {
 		// newMinBalance is less than previous minBalance, so we should use it.
 		diff.minBalance = newMinBalance
 	}
@@ -178,12 +196,11 @@ func (diff *balanceDiff) addInsideBlock(prevDiff *balanceDiff) error {
 
 type differInfo struct {
 	initialisation bool
-	minerPK        crypto.PublicKey
-	blockTime      uint64
+	blockInfo      *proto.BlockInfo
 }
 
 func (i *differInfo) hasMiner() bool {
-	return i.minerPK != (crypto.PublicKey{})
+	return i.blockInfo.GeneratorPublicKey != (crypto.PublicKey{})
 }
 
 type txDiff map[string]balanceDiff
@@ -211,18 +228,21 @@ func (diff txDiff) keys() []string {
 }
 */
 
-func (diff txDiff) appendBalanceDiff(key []byte, balanceDiff balanceDiff) error {
-	keyStr := string(key)
-	if prevDiff, ok := diff[keyStr]; ok {
+func (diff txDiff) appendBalanceDiffStr(key string, balanceDiff balanceDiff) error {
+	if prevDiff, ok := diff[key]; ok {
 		if err := balanceDiff.addInsideTx(&prevDiff); err != nil {
 			return err
 		}
-		diff[keyStr] = balanceDiff
+		diff[key] = balanceDiff
 	} else {
 		// New balance diff for this key.
-		diff[keyStr] = balanceDiff
+		diff[key] = balanceDiff
 	}
 	return nil
+}
+
+func (diff txDiff) appendBalanceDiff(key []byte, balanceDiff balanceDiff) error {
+	return diff.appendBalanceDiffStr(string(key), balanceDiff)
 }
 
 type transactionDiffer struct {
@@ -244,7 +264,7 @@ func (td *transactionDiffer) calculateTxFee(txFee uint64) (uint64, error) {
 
 // minerPayout adds current fee part of given tx to txDiff.
 func (td *transactionDiffer) minerPayout(diff txDiff, fee uint64, info *differInfo, feeAsset []byte) error {
-	minerAddr, err := proto.NewAddressFromPublicKey(td.settings.AddressSchemeCharacter, info.minerPK)
+	minerAddr, err := proto.NewAddressFromPublicKey(td.settings.AddressSchemeCharacter, info.blockInfo.GeneratorPublicKey)
 	if err != nil {
 		return err
 	}
@@ -280,7 +300,7 @@ func (td *transactionDiffer) createDiffPayment(transaction proto.Transaction, in
 	}
 	diff := newTxDiff()
 	updateMinIntermediateBalance := false
-	if info.blockTime >= td.settings.CheckTempNegativeAfterTime {
+	if info.blockInfo.Timestamp >= td.settings.CheckTempNegativeAfterTime {
 		updateMinIntermediateBalance = true
 	}
 	// Append sender diff.
@@ -335,7 +355,7 @@ func (td *transactionDiffer) handleSponsorship(diff txDiff, fee uint64, feeAsset
 	}
 	// Sponsorship logic.
 	updateMinIntermediateBalance := false
-	if info.blockTime >= td.settings.CheckTempNegativeAfterTime {
+	if info.blockInfo.Timestamp >= td.settings.CheckTempNegativeAfterTime {
 		updateMinIntermediateBalance = true
 	}
 	assetInfo, err := td.stor.assets.newestAssetInfo(feeAsset.ID, !info.initialisation)
@@ -374,7 +394,7 @@ func (td *transactionDiffer) handleSponsorship(diff txDiff, fee uint64, feeAsset
 func (td *transactionDiffer) createDiffTransfer(tx *proto.Transfer, info *differInfo) (txDiff, error) {
 	diff := newTxDiff()
 	updateMinIntermediateBalance := false
-	if info.blockTime >= td.settings.CheckTempNegativeAfterTime {
+	if info.blockInfo.Timestamp >= td.settings.CheckTempNegativeAfterTime {
 		updateMinIntermediateBalance = true
 	}
 	// Append sender diff.
@@ -794,7 +814,7 @@ func (td *transactionDiffer) createDiffMassTransferV1(transaction proto.Transact
 	}
 	diff := newTxDiff()
 	updateMinIntermediateBalance := false
-	if info.blockTime >= td.settings.CheckTempNegativeAfterTime {
+	if info.blockInfo.Timestamp >= td.settings.CheckTempNegativeAfterTime {
 		updateMinIntermediateBalance = true
 	}
 	// Append sender fee diff.
@@ -909,7 +929,7 @@ func (td *transactionDiffer) createDiffSetScriptV1(transaction proto.Transaction
 func (td *transactionDiffer) createDiffSetAssetScriptV1(transaction proto.Transaction, info *differInfo) (txDiff, error) {
 	tx, ok := transaction.(*proto.SetAssetScriptV1)
 	if !ok {
-		return txDiff{}, errors.New("failed to convert interface to SetAssetAccountScriptV1 transaction")
+		return txDiff{}, errors.New("failed to convert interface to SetAssetScriptV1 transaction")
 	}
 	diff := newTxDiff()
 	senderAddr, err := proto.NewAddressFromPublicKey(td.settings.AddressSchemeCharacter, tx.SenderPK)
@@ -925,6 +945,49 @@ func (td *transactionDiffer) createDiffSetAssetScriptV1(transaction proto.Transa
 	if info.hasMiner() {
 		if err := td.minerPayout(diff, tx.Fee, info, nil); err != nil {
 			return txDiff{}, errors.Wrap(err, "failed to append miner payout")
+		}
+	}
+	return diff, nil
+}
+
+func (td *transactionDiffer) createDiffInvokeScriptV1(transaction proto.Transaction, info *differInfo) (txDiff, error) {
+	tx, ok := transaction.(*proto.InvokeScriptV1)
+	if !ok {
+		return txDiff{}, errors.New("failed to convert interface to InvokeScriptV1 transaction")
+	}
+	updateMinIntermediateBalance := false
+	noPayments := len(tx.Payments) == 0
+	if info.blockInfo.Timestamp >= td.settings.CheckTempNegativeAfterTime && !noPayments {
+		updateMinIntermediateBalance = true
+	}
+	diff := newTxDiff()
+	// Append sender diff.
+	senderAddr, err := proto.NewAddressFromPublicKey(td.settings.AddressSchemeCharacter, tx.SenderPK)
+	if err != nil {
+		return txDiff{}, err
+	}
+	senderFeeKey := byteKey(senderAddr, tx.FeeAsset.ToID())
+	senderFeeBalanceDiff := -int64(tx.Fee)
+	if err := diff.appendBalanceDiff(senderFeeKey, newBalanceDiff(senderFeeBalanceDiff, 0, 0, updateMinIntermediateBalance)); err != nil {
+		return txDiff{}, err
+	}
+	if err := td.handleSponsorship(diff, tx.Fee, tx.FeeAsset, info); err != nil {
+		return txDiff{}, err
+	}
+	scriptAddr, err := recipientToAddress(tx.ScriptRecipient, td.stor.aliases, !info.initialisation)
+	if err != nil {
+		return txDiff{}, err
+	}
+	for _, payment := range tx.Payments {
+		senderPaymentKey := byteKey(senderAddr, payment.Asset.ToID())
+		senderBalanceDiff := -int64(payment.Amount)
+		if err := diff.appendBalanceDiff(senderPaymentKey, newBalanceDiff(senderBalanceDiff, 0, 0, updateMinIntermediateBalance)); err != nil {
+			return txDiff{}, err
+		}
+		receiverKey := byteKey(*scriptAddr, payment.Asset.ToID())
+		receiverBalanceDiff := int64(payment.Amount)
+		if err := diff.appendBalanceDiff(receiverKey, newBalanceDiff(receiverBalanceDiff, 0, 0, updateMinIntermediateBalance)); err != nil {
+			return txDiff{}, err
 		}
 	}
 	return diff, nil
