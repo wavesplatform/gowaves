@@ -8,7 +8,6 @@ import (
 	"runtime"
 	"runtime/debug"
 	"runtime/pprof"
-	"strings"
 
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/cmd/wmd/internal"
@@ -16,8 +15,8 @@ import (
 	"github.com/wavesplatform/gowaves/cmd/wmd/internal/state"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/util"
 	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
 )
 
 var version = "0.0.0"
@@ -47,7 +46,7 @@ func run() error {
 	flag.Parse()
 
 	// Set up log
-	logger, _ := setupLogger(*logLevel)
+	logger, _ := util.SetupLogger(*logLevel)
 	defer func() {
 		err := logger.Sync()
 		if err != nil && err == os.ErrInvalid {
@@ -239,27 +238,4 @@ func main() {
 	if err := run(); err != nil {
 		os.Exit(1)
 	}
-}
-
-func setupLogger(level string) (*zap.Logger, *zap.SugaredLogger) {
-	al := zap.NewAtomicLevel()
-	switch strings.ToUpper(level) {
-	case "DEBUG":
-		al.SetLevel(zap.DebugLevel)
-	case "INFO":
-		al.SetLevel(zap.InfoLevel)
-	case "ERROR":
-		al.SetLevel(zap.ErrorLevel)
-	case "WARN":
-		al.SetLevel(zap.WarnLevel)
-	case "FATAL":
-		al.SetLevel(zap.FatalLevel)
-	default:
-		al.SetLevel(zap.InfoLevel)
-	}
-	ec := zap.NewDevelopmentEncoderConfig()
-	core := zapcore.NewCore(zapcore.NewConsoleEncoder(ec), zapcore.Lock(os.Stdout), al)
-	logger := zap.New(core)
-	zap.ReplaceGlobals(logger)
-	return logger, logger.Sugar()
 }

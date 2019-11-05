@@ -87,6 +87,8 @@ type BlockchainType byte
 const (
 	MainNet BlockchainType = iota
 	TestNet
+	DevNet
+	StageNet
 	Custom
 )
 

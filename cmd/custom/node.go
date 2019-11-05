@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"flag"
 	"math/rand"
 	"os"
 	"os/signal"
@@ -9,7 +10,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/alecthomas/kong"
 	"github.com/wavesplatform/gowaves/pkg/api"
 	"github.com/wavesplatform/gowaves/pkg/libs/bytespool"
 	"github.com/wavesplatform/gowaves/pkg/miner"
@@ -24,41 +24,44 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/services"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/state"
+	"github.com/wavesplatform/gowaves/pkg/util"
 	"go.uber.org/zap"
 )
 
 var version = proto.Version{Major: 1, Minor: 1, Patch: 2}
 
-type Cli struct {
-	Run struct {
-		WavesNetwork string `kong:"wavesnetwork,short='n',help='Waves network.',required"`
-		Addresses    string `kong:"address,short='a',help='Addresses connect to.'"`
-		DeclAddr     string `kong:"decladdr,short='d',help='Address listen on.'"`
-		Http         string `kong:"http addr,help='Http addr bind on.'"`
-		GenesisPath  string `kong:"genesis,short='g',help='Path to genesis json file.'"`
-		Seed         string `kong:"seed,help='Seed for miner.'"`
-	} `kong:"cmd,help='Run node'"`
-}
+var (
+	logLevel      = flag.String("log-level", "INFO", "Logging level. Supported levels: DEBUG, INFO, WARN, ERROR, FATAL. Default logging level INFO.")
+	statePath     = flag.String("statePath", "", "Path to node's state directory")
+	peerAddresses = flag.String("peers", "", "Addresses of peers to connect to")
+	declAddr      = flag.String("declAddr", "", "Address to listen on")
+	apiAddr       = flag.String("apiAddr", "", "Address for API")
+	genesisPath   = flag.String("genesisPath", "", "Path to genesis json file")
+	seed          = flag.String("seed", "", "Seed for miner")
+)
 
 func init() {
-	logger, _ := zap.NewDevelopment()
-	zap.ReplaceGlobals(logger)
+	util.SetupLogger(*logLevel)
 }
 
 func main() {
+	flag.Parse()
+	if *genesisPath == "" {
+		zap.S().Error("Please provide path to genesis JSON file")
+		return
+	}
 	ctx, cancel := context.WithCancel(context.Background())
 
 	zap.S().Info(os.Args)
 	zap.S().Info(os.Environ())
 	zap.S().Info(os.LookupEnv("WAVES_OPTS"))
 
-	var cli Cli
-	kong.Parse(&cli)
-
 	conf := &settings.NodeSettings{}
-	settings.ApplySettings(conf,
-		FromArgs(&cli),
-		settings.FromJavaEnviron)
+	if err := settings.ApplySettings(conf, FromArgs(), settings.FromJavaEnviron); err != nil {
+		zap.S().Error(err)
+		cancel()
+		return
+	}
 
 	zap.S().Info("conf", conf)
 
@@ -70,21 +73,30 @@ func main() {
 	}
 
 	custom := &settings.BlockchainSettings{
-		Type: 'E',
+		Type: settings.Custom,
 		FunctionalitySettings: settings.FunctionalitySettings{
 			FeaturesVotingPeriod:   10000,
 			MaxTxTimeBackOffset:    120 * 60000,
 			MaxTxTimeForwardOffset: 90 * 60000,
 
-			AddressSchemeCharacter: 'E',
+			AddressSchemeCharacter: proto.CustomNetScheme,
 
 			AverageBlockDelaySeconds: 60,
 			MaxBaseTarget:            200,
 		},
-		GenesisGetter: settings.FromPath(cli.Run.GenesisPath),
+		GenesisGetter: settings.FromPath(*genesisPath),
 	}
 
-	state, err := state.NewState("./", state.DefaultStateParams(), custom)
+	path := *statePath
+	if path == "" {
+		path, err = util.GetStatePath()
+		if err != nil {
+			zap.S().Error(err)
+			cancel()
+			return
+		}
+	}
+	state, err := state.NewState(path, state.DefaultStateParams(), custom)
 	if err != nil {
 		zap.S().Error(err)
 		cancel()
@@ -104,8 +116,8 @@ func main() {
 	go peerManager.Run(ctx)
 
 	var keyPairs []proto.KeyPair
-	if len(cli.Run.Seed) > 0 {
-		keyPairs = append(keyPairs, proto.NewKeyPair([]byte(cli.Run.Seed)))
+	if *seed != "" {
+		keyPairs = append(keyPairs, proto.NewKeyPair([]byte(*seed)))
 	}
 
 	scheduler := scheduler2.NewScheduler(state, keyPairs, custom)
@@ -130,7 +142,7 @@ func main() {
 	ngState := ng.NewState(services)
 	ngRuntime := ng.NewRuntime(services, ngState)
 
-	Mainer := miner.NewMicroblockMiner(services, ngRuntime, 'E')
+	Mainer := miner.NewMicroblockMiner(services, ngRuntime, proto.CustomNetScheme)
 
 	stateChanged.AddHandler(state_changed.NewScoreSender(peerManager, state))
 	stateChanged.AddHandler(state_changed.NewFuncHandler(func() {
@@ -186,11 +198,16 @@ func main() {
 	<-time.After(2 * time.Second)
 }
 
-func FromArgs(c *Cli) func(s *settings.NodeSettings) {
-	return func(s *settings.NodeSettings) {
-		s.DeclaredAddr = c.Run.DeclAddr
-		s.HttpAddr = c.Run.Http
-		s.WavesNetwork = c.Run.WavesNetwork
-		s.Addresses = c.Run.Addresses
+func FromArgs() func(s *settings.NodeSettings) error {
+	return func(s *settings.NodeSettings) error {
+		s.DeclaredAddr = *declAddr
+		s.HttpAddr = *apiAddr
+		networkStr, err := proto.NetworkStrByType("custom")
+		if err != nil {
+			return err
+		}
+		s.WavesNetwork = networkStr
+		s.Addresses = *peerAddresses
+		return nil
 	}
 }

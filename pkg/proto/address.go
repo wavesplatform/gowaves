@@ -27,9 +27,11 @@ const (
 	AliasAlphabet  = "-.0123456789@_abcdefghijklmnopqrstuvwxyz"
 	AliasPrefix    = "alias"
 
-	MainNetScheme byte = 'W'
-	TestNetScheme byte = 'T'
-	DevNetScheme  byte = 'D'
+	MainNetScheme   byte = 'W'
+	TestNetScheme   byte = 'T'
+	DevNetScheme    byte = 'D'
+	StageNetScheme  byte = 'S'
+	CustomNetScheme byte = 'E'
 )
 
 // Address is the transformed Public Key with additional bytes of the version, a blockchain scheme and a checksum.

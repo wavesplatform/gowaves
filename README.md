@@ -12,7 +12,14 @@ Go libraries and tools for Waves blockchain
  * Run `importer -h` to read help info.
  * To import MainNet blockchain, you will usually need to execute:
 `importer -blockchain-path </path/to/blocks/file> -data-path </path/to/node/state/dir> -blocks-number <desired_height-1>`.
- * To run the node after import, switch to `/path/to/node/state`, and start node as usually.
+
+## How to build and start node
+
+ * `make release-node`
+ * `cd build/bin && ./node -h` for help info
+ * `./node` to start <br>
+ If you wish to start node with already imported state, specify `-statePath` with the directory you imported to.
+ By default, `~/.gowaves` will be used.
 
 ## Tools
 

@@ -2,13 +2,13 @@ package main
 
 import (
 	"context"
+	"flag"
 	"os"
 	"os/signal"
 	"strings"
 	"syscall"
 	"time"
 
-	"github.com/alecthomas/kong"
 	"github.com/wavesplatform/gowaves/pkg/api"
 	"github.com/wavesplatform/gowaves/pkg/libs/bytespool"
 	"github.com/wavesplatform/gowaves/pkg/miner"
@@ -23,23 +23,23 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/services"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/state"
+	"github.com/wavesplatform/gowaves/pkg/util"
 	"go.uber.org/zap"
 )
 
 var version = proto.Version{Major: 1, Minor: 1, Patch: 2}
 
-type Cli struct {
-	Run struct {
-		WavesNetwork string `kong:"wavesnetwork,short='n',help='Waves network.',required"`
-		Addresses    string `kong:"address,short='a',help='Addresses connect to.'"`
-		DeclAddr     string `kong:"decladdr,short='d',help='Address listen on.'"`
-		HttpAddr     string `kong:"httpaddr,short='w',help='Http addr bind on.'"`
-	} `kong:"cmd,help='Run node'"`
-}
+var (
+	logLevel       = flag.String("log-level", "INFO", "Logging level. Supported levels: DEBUG, INFO, WARN, ERROR, FATAL. Default logging level INFO.")
+	statePath      = flag.String("statePath", "", "Path to node's state directory")
+	blockchainType = flag.String("blockchainType", "mainnet", "Blockchain type: mainnet/testnet/stagenet/devnet/custom")
+	peerAddresses  = flag.String("peers", "35.156.19.4:6868,52.50.69.247:6868,52.52.46.76:6868,52.57.147.71:6868,52.214.55.18:6868,54.176.190.226:6868", "Addresses of peers to connect to")
+	declAddr       = flag.String("declAddr", "", "Address to listen on")
+	apiAddr        = flag.String("apiAddr", "", "Address for API")
+)
 
 func init() {
-	logger, _ := zap.NewDevelopment()
-	zap.ReplaceGlobals(logger)
+	util.SetupLogger(*logLevel)
 }
 
 func main() {
@@ -47,19 +47,19 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+	flag.Parse()
 	ctx, cancel := context.WithCancel(context.Background())
 
 	zap.S().Info(os.Args)
 	zap.S().Info(os.Environ())
 	zap.S().Info(os.LookupEnv("WAVES_OPTS"))
 
-	var cli Cli
-	kong.Parse(&cli)
-
 	conf := &settings.NodeSettings{}
-	settings.ApplySettings(conf,
-		FromArgs(&cli),
-		settings.FromJavaEnviron)
+	if err := settings.ApplySettings(conf, FromArgs(), settings.FromJavaEnviron); err != nil {
+		zap.S().Error(err)
+		cancel()
+		return
+	}
 
 	zap.S().Info("conf", conf)
 
@@ -73,7 +73,16 @@ func main() {
 	cfg := settings.MainNetSettings
 	cfg.GenesisGetter = settings.EmbeddedGenesisGetter{}
 
-	state, err := state.NewState("./", state.DefaultStateParams(), cfg)
+	path := *statePath
+	if path == "" {
+		path, err = util.GetStatePath()
+		if err != nil {
+			zap.S().Error(err)
+			cancel()
+			return
+		}
+	}
+	state, err := state.NewState(path, state.DefaultStateParams(), cfg)
 	if err != nil {
 		zap.S().Error(err)
 		cancel()
@@ -98,13 +107,19 @@ func main() {
 	stateChanged := state_changed.NewStateChanged()
 	blockApplier := node.NewBlockApplier(state, stateChanged, scheduler)
 
+	scheme, err := proto.NetworkSchemeByType(*blockchainType)
+	if err != nil {
+		zap.S().Error(err)
+		cancel()
+		return
+	}
 	services := services.Services{
 		State:              state,
 		Peers:              peerManager,
 		Scheduler:          scheduler,
 		BlockApplier:       blockApplier,
 		UtxPool:            utx,
-		Scheme:             'W',
+		Scheme:             scheme,
 		BlockAddedNotifier: stateChanged,
 	}
 
@@ -159,11 +174,16 @@ func main() {
 	<-time.After(2 * time.Second)
 }
 
-func FromArgs(c *Cli) func(s *settings.NodeSettings) {
-	return func(s *settings.NodeSettings) {
-		s.DeclaredAddr = c.Run.DeclAddr
-		s.HttpAddr = c.Run.HttpAddr
-		s.WavesNetwork = c.Run.WavesNetwork
-		s.Addresses = c.Run.Addresses
+func FromArgs() func(s *settings.NodeSettings) error {
+	return func(s *settings.NodeSettings) error {
+		s.DeclaredAddr = *declAddr
+		s.HttpAddr = *apiAddr
+		networkStr, err := proto.NetworkStrByType(*blockchainType)
+		if err != nil {
+			return err
+		}
+		s.WavesNetwork = networkStr
+		s.Addresses = *peerAddresses
+		return nil
 	}
 }
