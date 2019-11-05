@@ -31,8 +31,9 @@ import (
 var version = proto.Version{Major: 1, Minor: 1, Patch: 2}
 
 var (
+	logLevel      = flag.String("log-level", "INFO", "Logging level. Supported levels: DEBUG, INFO, WARN, ERROR, FATAL. Default logging level INFO.")
 	statePath     = flag.String("statePath", "", "Path to node's state directory")
-	peerAddresses = flag.String("peers", "13.228.86.201:6868,13.229.0.149:6868,18.195.170.147:6868,34.253.153.4:6868", "Addresses of peers to connect to")
+	peerAddresses = flag.String("peers", "", "Addresses of peers to connect to")
 	declAddr      = flag.String("declAddr", "", "Address to listen on")
 	apiAddr       = flag.String("apiAddr", "", "Address for API")
 	genesisPath   = flag.String("genesisPath", "", "Path to genesis json file")
@@ -40,12 +41,15 @@ var (
 )
 
 func init() {
-	logger, _ := zap.NewDevelopment()
-	zap.ReplaceGlobals(logger)
+	util.SetupLogger(*logLevel)
 }
 
 func main() {
 	flag.Parse()
+	if *genesisPath == "" {
+		zap.S().Error("Please provide path to genesis JSON file")
+		return
+	}
 	ctx, cancel := context.WithCancel(context.Background())
 
 	zap.S().Info(os.Args)
