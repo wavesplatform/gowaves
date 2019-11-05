@@ -3,6 +3,8 @@ package util
 
 import (
 	"os"
+	"os/user"
+	"path"
 	"runtime/debug"
 	"time"
 
@@ -78,4 +80,12 @@ func Dup(b []byte) []byte {
 	out := make([]byte, len(b))
 	copy(out, b)
 	return out
+}
+
+func GetStatePath() (string, error) {
+	u, err := user.Current()
+	if err != nil {
+		return "", err
+	}
+	return path.Join(u.HomeDir, ".gowaves"), nil
 }

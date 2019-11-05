@@ -146,3 +146,29 @@ func NewTimestampFromTime(t time.Time) uint64 {
 func NewTimestampFromUnixNano(nano int64) uint64 {
 	return uint64(nano / 1000000)
 }
+
+func NetworkSchemeByType(networkType string) (byte, error) {
+	switch networkType {
+	case "mainnet":
+		return MainNetScheme, nil
+	case "testnet":
+		return TestNetScheme, nil
+	case "devnet":
+		return DevNetScheme, nil
+	case "stagenet":
+		return StageNetScheme, nil
+	case "custom":
+		return CustomNetScheme, nil
+	default:
+		return 0, errors.New("invalid network type string")
+	}
+}
+
+func NetworkStrByType(networkType string) (string, error) {
+	prefix := "waves"
+	scheme, err := NetworkSchemeByType(networkType)
+	if err != nil {
+		return "", nil
+	}
+	return prefix + string(scheme), nil
+}

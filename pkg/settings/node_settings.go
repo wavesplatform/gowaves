@@ -30,13 +30,17 @@ func FromJavaEnvironString(settings *NodeSettings, s string) {
 	}
 }
 
-func FromJavaEnviron(settings *NodeSettings) {
+func FromJavaEnviron(settings *NodeSettings) error {
 	s, _ := os.LookupEnv("WAVES_OPTS")
 	FromJavaEnvironString(settings, s)
+	return nil
 }
 
-func ApplySettings(settings *NodeSettings, f ...func(*NodeSettings)) {
+func ApplySettings(settings *NodeSettings, f ...func(*NodeSettings) error) error {
 	for _, fn := range f {
-		fn(settings)
+		if err := fn(settings); err != nil {
+			return err
+		}
 	}
+	return nil
 }
