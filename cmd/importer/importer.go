@@ -2,9 +2,7 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"io/ioutil"
-	"log"
 	"os"
 	"runtime"
 	"runtime/debug"
@@ -15,6 +13,8 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/importer"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/state"
+	"github.com/wavesplatform/gowaves/pkg/util"
+	"go.uber.org/zap"
 )
 
 const (
@@ -22,6 +22,7 @@ const (
 )
 
 var (
+	logLevel                  = flag.String("log-level", "INFO", "Logging level. Supported levels: DEBUG, INFO, WARN, ERROR, FATAL. Default logging level INFO.")
 	genesisCfgPath            = flag.String("genesis-cfg-path", "", "Path to genesis JSON config for custom blockchains.")
 	blockchainType            = flag.String("blockchain-type", "mainnet", "Blockchain type: mainnet/testnet/custom.")
 	blockchainPath            = flag.String("blockchain-path", "", "Path to binary blockchain file.")
@@ -56,22 +57,25 @@ func blockchainSettings() (*settings.BlockchainSettings, error) {
 func main() {
 	err := setMaxOpenFiles(1024)
 	if err != nil {
-		panic(err)
+		zap.S().Fatalf("Failed to setup MaxOpenFiles: %v", err)
 	}
 	flag.Parse()
+
+	util.SetupLogger(*logLevel)
+
 	if *blockchainPath == "" {
-		log.Fatalf("You must specify blockchain-path option.")
+		zap.S().Fatalf("You must specify blockchain-path option.")
 	}
 
 	// Debug.
 	if *cpuProfilePath != "" {
 		f, err := os.Create(*cpuProfilePath)
 		if err != nil {
-			log.Fatal("Could not create CPU profile: ", err)
+			zap.S().Fatal("Could not create CPU profile: ", err)
 		}
 		defer f.Close()
 		if err := pprof.StartCPUProfile(f); err != nil {
-			log.Fatal("Could not start CPU profile: ", err)
+			zap.S().Fatal("Could not start CPU profile: ", err)
 		}
 		defer pprof.StopCPUProfile()
 	}
@@ -81,13 +85,13 @@ func main() {
 
 	ss, err := blockchainSettings()
 	if err != nil {
-		log.Fatalf("blockchainSettings: %v\n", err)
+		zap.S().Fatalf("blockchainSettings: %v", err)
 	}
 	dataDir := *dataDirPath
 	if dataDir == "" {
 		tempDir, err := ioutil.TempDir(os.TempDir(), "dataDir")
 		if err != nil {
-			log.Fatalf("Faied to create temp dir for data: %v\n", err)
+			zap.S().Fatalf("Faied to create temp dir for data: %v", err)
 		}
 		dataDir = tempDir
 	}
@@ -96,37 +100,37 @@ func main() {
 	params.DbParams.WriteBuffer = *writeBufferSize * MiB
 	st, err := state.NewState(dataDir, params, ss)
 	if err != nil {
-		log.Fatalf("Failed to create state: %v.\n", err)
+		zap.S().Fatalf("Failed to create state: %v", err)
 	}
 
 	defer func() {
 		if err := st.Close(); err != nil {
-			log.Fatalf("Failed to close State: %v\n", err)
+			zap.S().Fatalf("Failed to close State: %v", err)
 		}
 		if *dataDirPath == "" {
 			if err := os.RemoveAll(dataDir); err != nil {
-				log.Fatalf("Failed to clean data dir: %v\n", err)
+				zap.S().Fatalf("Failed to clean data dir: %v", err)
 			}
 		}
 	}()
 
 	height, err := st.Height()
 	if err != nil {
-		log.Fatalf("Failed to get current height: %v\n", err)
+		zap.S().Fatalf("Failed to get current height: %v", err)
 	}
 	start := time.Now()
 	if err := importer.ApplyFromFile(st, *blockchainPath, uint64(*nBlocks), height, true); err != nil {
 		height, err1 := st.Height()
 		if err1 != nil {
-			log.Fatalf("Failed to get current height: %v\n", err1)
+			zap.S().Fatalf("Failed to get current height: %v", err1)
 		}
-		log.Fatalf("Failed to apply blocks after height %d: %v\n", height, err)
+		zap.S().Fatalf("Failed to apply blocks after height %d: %v", height, err)
 	}
 	elapsed := time.Since(start)
-	fmt.Printf("Import took %s\n", elapsed)
+	zap.S().Infof("Import took %s", elapsed)
 	if len(*balancesPath) != 0 {
 		if err := importer.CheckBalances(st, *balancesPath); err != nil {
-			log.Fatalf("CheckBalances(): %v\n", err)
+			zap.S().Fatalf("CheckBalances(): %v", err)
 		}
 	}
 
@@ -134,12 +138,12 @@ func main() {
 	if *memProfilePath != "" {
 		f, err := os.Create(*memProfilePath)
 		if err != nil {
-			log.Fatal("Could not create memory profile: ", err)
+			zap.S().Fatal("Could not create memory profile: ", err)
 		}
 		defer f.Close()
 		runtime.GC() // get up-to-date statistics
 		if err := pprof.WriteHeapProfile(f); err != nil {
-			log.Fatal("Could not write memory profile: ", err)
+			zap.S().Fatal("Could not write memory profile: ", err)
 		}
 	}
 }
