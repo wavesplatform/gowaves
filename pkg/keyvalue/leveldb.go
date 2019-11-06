@@ -1,7 +1,6 @@
 package keyvalue
 
 import (
-	"log"
 	"sync"
 
 	"github.com/coocood/freecache"
@@ -9,6 +8,7 @@ import (
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/opt"
 	"github.com/syndtr/goleveldb/leveldb/util"
+	"go.uber.org/zap"
 )
 
 type pair struct {
@@ -96,14 +96,14 @@ type KeyVal struct {
 }
 
 func initBloomFilter(kv *KeyVal, params BloomFilterParams) error {
-	log.Printf("Loading stored bloom...")
+	zap.S().Info("Loading stored bloom filter...")
 	filter, err := newBloomFilterFromStore(params)
 	if err == nil {
 		kv.filter = filter
-		log.Printf("Successful")
+		zap.S().Info("Bloom filter loaded successfully")
 		return nil
 	}
-	log.Printf("Bloom: creating from db")
+	zap.S().Info("Creating a bloom filter from DB could take up a few minutes")
 	filter, err = newBloomFilter(params)
 	if err != nil {
 		return err
@@ -115,7 +115,7 @@ func initBloomFilter(kv *KeyVal, params BloomFilterParams) error {
 	defer func() {
 		iter.Release()
 		if err := iter.Error(); err != nil {
-			log.Fatalf("Iterator error: %v", err)
+			zap.S().Fatalf("Iterator error: %v", err)
 		}
 	}()
 
@@ -243,10 +243,10 @@ func (k *KeyVal) NewKeyIterator(prefix []byte) (Iterator, error) {
 }
 
 func (k *KeyVal) Close() error {
-	log.Printf("Cache HitRate: %v\n", k.cache.HitRate())
+	zap.S().Infof("Cache hit rate: %v", k.cache.HitRate())
 	err := storeBloomFilter(k.filter)
 	if err != nil {
-		log.Println(err.Error())
+		zap.S().Errorf("Failed to save bloom filter: %v", err)
 	}
 	return k.db.Close()
 }

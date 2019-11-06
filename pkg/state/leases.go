@@ -2,12 +2,12 @@ package state
 
 import (
 	"encoding/binary"
-	"log"
 
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"go.uber.org/zap"
 )
 
 const (
@@ -61,17 +61,17 @@ func newLeases(db keyvalue.IterableKeyVal, hs *historyStorage) (*leases, error) 
 func (l *leases) cancelLeases(bySenders map[proto.Address]struct{}, blockID crypto.Signature) error {
 	leaseIter, err := l.db.NewKeyIterator([]byte{leaseKeyPrefix})
 	if err != nil {
-		return errors.Errorf("failed to create key iterator to cancel leases: %v\n", err)
+		return errors.Errorf("failed to create key iterator to cancel leases: %v", err)
 	}
 	defer func() {
 		leaseIter.Release()
 		if err := leaseIter.Error(); err != nil {
-			log.Fatalf("Iterator error: %v", err)
+			zap.S().Fatalf("Iterator error: %v", err)
 		}
 	}()
 
 	// Iterate all the leases.
-	log.Printf("Started to cancel leases\n")
+	zap.S().Info("Started to cancel leases")
 	for leaseIter.Next() {
 		key := keyvalue.SafeKey(leaseIter)
 		leaseBytes, err := l.hs.latestEntryData(key, true)
@@ -80,7 +80,7 @@ func (l *leases) cancelLeases(bySenders map[proto.Address]struct{}, blockID cryp
 		}
 		var leaseRecord leasingRecord
 		if err := leaseRecord.unmarshalBinary(leaseBytes); err != nil {
-			return errors.Errorf("failed to unmarshal lease: %v\n", err)
+			return errors.Errorf("failed to unmarshal lease: %v", err)
 		}
 		toCancel := true
 		if bySenders != nil {
@@ -90,38 +90,38 @@ func (l *leases) cancelLeases(bySenders map[proto.Address]struct{}, blockID cryp
 			// Cancel lease.
 			var k leaseKey
 			if err := k.unmarshal(key); err != nil {
-				return errors.Errorf("failed to unmarshal lease key: %v\n", err)
+				return errors.Errorf("failed to unmarshal lease key: %v", err)
 			}
-			log.Printf("State: cancelling lease %s", k.leaseID.String())
+			zap.S().Infof("State: cancelling lease %s", k.leaseID.String())
 			leaseRecord.isActive = false
 			leaseBytes, err := leaseRecord.marshalBinary()
 			if err != nil {
-				return errors.Errorf("failed to marshal lease: %v\n", err)
+				return errors.Errorf("failed to marshal lease: %v", err)
 			}
 			if err := l.hs.addNewEntry(lease, key, leaseBytes, blockID); err != nil {
-				return errors.Errorf("failed to save lease to storage: %v\n", err)
+				return errors.Errorf("failed to save lease to storage: %v", err)
 			}
 		}
 	}
-	log.Printf("Finished to cancel leases\n")
+	zap.S().Info("Finished to cancel leases")
 	return nil
 }
 
 func (l *leases) validLeaseIns() (map[proto.Address]int64, error) {
 	leaseIter, err := l.db.NewKeyIterator([]byte{leaseKeyPrefix})
 	if err != nil {
-		return nil, errors.Errorf("failed to create key iterator to cancel leases: %v\n", err)
+		return nil, errors.Errorf("failed to create key iterator to cancel leases: %v", err)
 	}
 	defer func() {
 		leaseIter.Release()
 		if err := leaseIter.Error(); err != nil {
-			log.Fatalf("Iterator error: %v", err)
+			zap.S().Fatalf("Iterator error: %v", err)
 		}
 	}()
 
 	leaseIns := make(map[proto.Address]int64)
 	// Iterate all the leases.
-	log.Printf("Started collecting leases\n")
+	zap.S().Info("Started collecting leases")
 	for leaseIter.Next() {
 		leaseBytes, err := l.hs.latestEntryData(leaseIter.Key(), true)
 		if err != nil {
@@ -129,13 +129,13 @@ func (l *leases) validLeaseIns() (map[proto.Address]int64, error) {
 		}
 		var lease leasingRecord
 		if err := lease.unmarshalBinary(leaseBytes); err != nil {
-			return nil, errors.Errorf("failed to unmarshal lease: %v\n", err)
+			return nil, errors.Errorf("failed to unmarshal lease: %v", err)
 		}
 		if lease.isActive {
 			leaseIns[lease.recipient] += int64(lease.leaseAmount)
 		}
 	}
-	log.Printf("Finished collecting leases\n")
+	zap.S().Info("Finished collecting leases")
 	return leaseIns, nil
 }
 
@@ -148,7 +148,7 @@ func (l *leases) newestLeasingInfo(id crypto.Digest, filter bool) (*leasing, err
 	}
 	var record leasingRecord
 	if err := record.unmarshalBinary(recordBytes); err != nil {
-		return nil, errors.Errorf("failed to unmarshal record: %v\n", err)
+		return nil, errors.Errorf("failed to unmarshal record: %v", err)
 	}
 	return &record.leasing, nil
 }
@@ -162,7 +162,7 @@ func (l *leases) leasingInfo(id crypto.Digest, filter bool) (*leasing, error) {
 	}
 	var record leasingRecord
 	if err := record.unmarshalBinary(recordBytes); err != nil {
-		return nil, errors.Errorf("failed to unmarshal record: %v\n", err)
+		return nil, errors.Errorf("failed to unmarshal record: %v", err)
 	}
 	return &record.leasing, nil
 }
@@ -172,7 +172,7 @@ func (l *leases) addLeasing(id crypto.Digest, leasing *leasing, blockID crypto.S
 	r := &leasingRecord{*leasing}
 	recordBytes, err := r.marshalBinary()
 	if err != nil {
-		return errors.Errorf("failed to marshal record: %v\n", err)
+		return errors.Errorf("failed to marshal record: %v", err)
 	}
 	if err := l.hs.addNewEntry(lease, key.bytes(), recordBytes, blockID); err != nil {
 		return err
@@ -183,7 +183,7 @@ func (l *leases) addLeasing(id crypto.Digest, leasing *leasing, blockID crypto.S
 func (l *leases) cancelLeasing(id crypto.Digest, blockID crypto.Signature, filter bool) error {
 	leasing, err := l.newestLeasingInfo(id, filter)
 	if err != nil {
-		return errors.Errorf("failed to get leasing info: %v\n", err)
+		return errors.Errorf("failed to get leasing info: %v", err)
 	}
 	leasing.isActive = false
 	return l.addLeasing(id, leasing, blockID)

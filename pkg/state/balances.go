@@ -3,7 +3,6 @@ package state
 import (
 	"bytes"
 	"encoding/binary"
-	"log"
 	"math"
 
 	"github.com/pkg/errors"
@@ -11,6 +10,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/util"
+	"go.uber.org/zap"
 )
 
 const (
@@ -102,7 +102,7 @@ func (s *balances) cancelAllLeases(blockID crypto.Signature) error {
 	defer func() {
 		iter.Release()
 		if err := iter.Error(); err != nil {
-			log.Fatalf("Iterator error: %v", err)
+			zap.S().Fatalf("Iterator error: %v", err)
 		}
 	}()
 
@@ -120,7 +120,7 @@ func (s *balances) cancelAllLeases(blockID crypto.Signature) error {
 		if err := k.unmarshal(key); err != nil {
 			return err
 		}
-		log.Printf("Resetting lease balance for %s", k.address.String())
+		zap.S().Infof("Resetting lease balance for %s", k.address.String())
 		r.leaseOut = 0
 		r.leaseIn = 0
 		if err := s.setWavesBalanceImpl(key, r, blockID); err != nil {
@@ -138,7 +138,7 @@ func (s *balances) cancelLeaseOverflows(blockID crypto.Signature) (map[proto.Add
 	defer func() {
 		iter.Release()
 		if err := iter.Error(); err != nil {
-			log.Fatalf("Iterator error: %v", err)
+			zap.S().Fatalf("Iterator error: %v", err)
 		}
 	}()
 
@@ -154,7 +154,7 @@ func (s *balances) cancelLeaseOverflows(blockID crypto.Signature) (map[proto.Add
 			if err := k.unmarshal(key); err != nil {
 				return nil, err
 			}
-			log.Printf("Resolving lease overflow for address %s: %d ---> %d", k.address.String(), r.leaseOut, 0)
+			zap.S().Infof("Resolving lease overflow for address %s: %d ---> %d", k.address.String(), r.leaseOut, 0)
 			overflowedAddresses[k.address] = empty
 			r.leaseOut = 0
 		}
@@ -173,11 +173,11 @@ func (s *balances) cancelInvalidLeaseIns(correctLeaseIns map[proto.Address]int64
 	defer func() {
 		iter.Release()
 		if err := iter.Error(); err != nil {
-			log.Fatalf("Iterator error: %v", err)
+			zap.S().Fatalf("Iterator error: %v", err)
 		}
 	}()
 
-	log.Printf("Started to cancel invalid leaseIns\n")
+	zap.S().Infof("Started to cancel invalid leaseIns")
 	for iter.Next() {
 		key := keyvalue.SafeKey(iter)
 		r, err := s.wavesRecord(key, true)
@@ -193,14 +193,14 @@ func (s *balances) cancelInvalidLeaseIns(correctLeaseIns map[proto.Address]int64
 			correctLeaseIn = leaseIn
 		}
 		if r.leaseIn != correctLeaseIn {
-			log.Printf("Invalid leaseIn for address %s detected; fixing it: %d ---> %d.", k.address.String(), r.leaseIn, correctLeaseIn)
+			zap.S().Infof("Invalid leaseIn for address %s detected; fixing it: %d ---> %d.", k.address.String(), r.leaseIn, correctLeaseIn)
 			r.leaseIn = correctLeaseIn
 			if err := s.setWavesBalanceImpl(key, r, blockID); err != nil {
 				return err
 			}
 		}
 	}
-	log.Printf("Finished to cancel invalid leaseIns\n")
+	zap.S().Infof("Finished to cancel invalid leaseIns")
 	return nil
 }
 
@@ -212,7 +212,7 @@ func (s *balances) wavesAddressesNumber() (uint64, error) {
 	defer func() {
 		iter.Release()
 		if err := iter.Error(); err != nil {
-			log.Fatalf("Iterator error: %v", err)
+			zap.S().Fatalf("Iterator error: %v", err)
 		}
 	}()
 

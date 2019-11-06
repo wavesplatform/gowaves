@@ -2,12 +2,12 @@ package state
 
 import (
 	"encoding/binary"
-	"log"
 
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/settings"
+	"go.uber.org/zap"
 )
 
 const (
@@ -129,14 +129,14 @@ func (f *features) featureVotes(featureID int16) (uint64, error) {
 func (f *features) printActivationLog(featureID int16) {
 	info, ok := f.definedFeaturesInfo[settings.Feature(featureID)]
 	if ok {
-		log.Printf("Activating feature %d (%s).\n", featureID, info.Description)
+		zap.S().Infof("Activating feature %d (%s)", featureID, info.Description)
 	} else {
-		log.Printf("Activating UNKNOWN feature %d.\n", featureID)
+		zap.S().Warnf("Activating UNKNOWN feature %d", featureID)
 	}
 	if !ok || !info.Implemented {
-		log.Printf("FATAL: UNKNOWN/UNIMPLEMENTED feature has been activated on the blockchain!\n")
-		log.Printf("FOR THIS REASON THE NODE IS STOPPED AUTOMATICALLY.\n")
-		log.Fatalf("PLEASE, UPDATE THE NODE IMMEDIATELY!\n")
+		zap.S().Warn("FATAL: UNKNOWN/UNIMPLEMENTED feature has been activated on the blockchain!")
+		zap.S().Warn("FOR THIS REASON THE NODE IS STOPPED AUTOMATICALLY.")
+		zap.S().Fatalf("PLEASE, UPDATE THE NODE IMMEDIATELY!")
 	}
 }
 
@@ -216,14 +216,14 @@ func (f *features) activationBlock(featureID int16) (crypto.Signature, error) {
 func (f *features) printApprovalLog(featureID int16) {
 	info, ok := f.definedFeaturesInfo[settings.Feature(featureID)]
 	if ok {
-		log.Printf("Approving feature %d (%s).\n", featureID, info.Description)
+		zap.S().Infof("Approving feature %d (%s)", featureID, info.Description)
 	} else {
-		log.Printf("Approving UNKNOWN feature %d.\n", featureID)
+		zap.S().Infof("Approving UNKNOWN feature %d", featureID)
 	}
 	if !ok || !info.Implemented {
-		log.Printf("WARNING: UNKNOWN/UNIMPLEMENTED feature has been approved on the blockchain!\n")
-		log.Printf("PLEASE UPDATE THE NODE AS SOON AS POSSIBLE!\n")
-		log.Printf("OTHERWISE THE NODE WILL BE STOPPED OR FORKED UPON FEATURE ACTIVATION.\n")
+		zap.S().Warn("WARNING: UNKNOWN/UNIMPLEMENTED feature has been approved on the blockchain!")
+		zap.S().Warn("PLEASE UPDATE THE NODE AS SOON AS POSSIBLE!")
+		zap.S().Warn("OTHERWISE THE NODE WILL BE STOPPED OR FORKED UPON FEATURE ACTIVATION.")
 	}
 }
 
@@ -291,7 +291,7 @@ func (f *features) approveFeatures(curHeight uint64, blockID crypto.Signature) e
 	defer func() {
 		iter.Release()
 		if err := iter.Error(); err != nil {
-			log.Fatalf("Iterator error: %v", err)
+			zap.S().Fatalf("Iterator error: %v", err)
 		}
 	}()
 
@@ -342,7 +342,7 @@ func (f *features) activateFeatures(curHeight uint64, blockID crypto.Signature) 
 	defer func() {
 		iter.Release()
 		if err := iter.Error(); err != nil {
-			log.Fatalf("Iterator error: %v", err)
+			zap.S().Fatalf("Iterator error: %v", err)
 		}
 	}()
 

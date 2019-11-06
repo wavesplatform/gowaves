@@ -38,16 +38,15 @@ var (
 	apiAddr        = flag.String("apiAddr", "", "Address for API")
 )
 
-func init() {
-	util.SetupLogger(*logLevel)
-}
-
 func main() {
 	err := setMaxOpenFiles(1024)
 	if err != nil {
 		panic(err)
 	}
 	flag.Parse()
+
+	util.SetupLogger(*logLevel)
+
 	ctx, cancel := context.WithCancel(context.Background())
 
 	zap.S().Info(os.Args)
