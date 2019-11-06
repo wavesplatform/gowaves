@@ -3,7 +3,6 @@ package state
 import (
 	"bytes"
 	"context"
-	"log"
 	"math/big"
 	"os"
 	"path/filepath"
@@ -18,6 +17,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/types"
 	"github.com/wavesplatform/gowaves/pkg/util/lock"
+	"go.uber.org/zap"
 )
 
 const (
@@ -304,13 +304,13 @@ func (a *txAppender) handleExchange(tx proto.Transaction, blockInfo *proto.Block
 	scriptsRuns := uint64(0)
 	if boScripted {
 		if err := a.sc.callAccountScriptWithOrder(bo, blockInfo, initialisation); err != nil {
-			return 0, errors.Errorf("BUY ORDER: callAccountScriptWithOrder(): %v\n", err)
+			return 0, errors.Errorf("BUY ORDER: callAccountScriptWithOrder(): %v", err)
 		}
 		scriptsRuns++
 	}
 	if soScripted {
 		if err := a.sc.callAccountScriptWithOrder(so, blockInfo, initialisation); err != nil {
-			return 0, errors.Errorf("SELL ORDER: callAccountScriptWithOrder(): %v\n", err)
+			return 0, errors.Errorf("SELL ORDER: callAccountScriptWithOrder(): %v", err)
 		}
 		scriptsRuns++
 	}
@@ -357,7 +357,7 @@ func (a *txAppender) checkTxAgainstState(tx proto.Transaction, accountScripted b
 	if accountScripted {
 		// Check script.
 		if err := a.sc.callAccountScriptWithTx(tx, blockInfo, checkerInfo.initialisation); err != nil {
-			return 0, errors.Errorf("callAccountScriptWithTx(): %v\n", err)
+			return 0, errors.Errorf("callAccountScriptWithTx(): %v", err)
 		}
 		scriptsRuns++
 	}
@@ -373,14 +373,14 @@ func (a *txAppender) checkTxAgainstState(tx proto.Transaction, accountScripted b
 		}
 		// Check smart asset's script.
 		if err := a.sc.callAssetScript(tx, smartAsset, blockInfo, checkerInfo.initialisation); err != nil {
-			return 0, errors.Errorf("callAssetScript(): %v\n", err)
+			return 0, errors.Errorf("callAssetScript(): %v", err)
 		}
 		scriptsRuns++
 	}
 	if tx.GetTypeVersion().Type == proto.ExchangeTransaction {
 		exchangeScripsRuns, err := a.handleExchange(tx, blockInfo, checkerInfo.initialisation)
 		if err != nil {
-			return 0, errors.Errorf("failed to handle exchange tx: %v\n", err)
+			return 0, errors.Errorf("failed to handle exchange tx: %v", err)
 		}
 		scriptsRuns += exchangeScripsRuns
 	}
@@ -551,7 +551,7 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 		}
 	}
 	if err := a.checkScriptsLimits(scriptsRuns); err != nil {
-		return errors.Errorf("%s: %v\n", params.block.BlockSignature.String(), err)
+		return errors.Errorf("%s: %v", params.block.BlockSignature.String(), err)
 	}
 	// Reset block complexity counter.
 	a.sc.resetComplexity()
@@ -725,47 +725,47 @@ type stateManager struct {
 func newStateManager(dataDir string, params StateParams, settings *settings.BlockchainSettings) (*stateManager, error) {
 	if _, err := os.Stat(dataDir); os.IsNotExist(err) {
 		if err := os.Mkdir(dataDir, 0755); err != nil {
-			return nil, wrapErr(Other, errors.Errorf("failed to create state directory: %v\n", err))
+			return nil, wrapErr(Other, errors.Errorf("failed to create state directory: %v", err))
 		}
 	}
 	blockStorageDir := filepath.Join(dataDir, blocksStorDir)
 	if _, err := os.Stat(blockStorageDir); os.IsNotExist(err) {
 		if err := os.Mkdir(blockStorageDir, 0755); err != nil {
-			return nil, wrapErr(Other, errors.Errorf("failed to create blocks directory: %v\n", err))
+			return nil, wrapErr(Other, errors.Errorf("failed to create blocks directory: %v", err))
 		}
 	}
 	// Initialize database.
 	dbDir := filepath.Join(dataDir, keyvalueDir)
-	log.Printf("Initializing state database, will take up to few minutes...\n")
+	zap.S().Info("Initializing state database, will take up to few minutes...")
 	params.DbParams.BloomFilterParams.Store.WithPath(filepath.Join(blockStorageDir, "bloom"))
 	db, err := keyvalue.NewKeyVal(dbDir, params.DbParams)
 	if err != nil {
-		return nil, wrapErr(Other, errors.Errorf("failed to create db: %v\n", err))
+		return nil, wrapErr(Other, errors.Errorf("failed to create db: %v", err))
 	}
-	log.Printf("Finished initializing database.\n")
+	zap.S().Info("Finished initializing database")
 	dbBatch, err := db.NewBatch()
 	if err != nil {
-		return nil, wrapErr(Other, errors.Errorf("failed to create db batch: %v\n", err))
+		return nil, wrapErr(Other, errors.Errorf("failed to create db batch: %v", err))
 	}
 	// rw is storage for blocks.
 	rw, err := newBlockReadWriter(blockStorageDir, params.OffsetLen, params.HeaderOffsetLen, db, dbBatch)
 	if err != nil {
-		return nil, wrapErr(Other, errors.Errorf("failed to create block storage: %v\n", err))
+		return nil, wrapErr(Other, errors.Errorf("failed to create block storage: %v", err))
 	}
 	stateDB, err := newStateDB(db, dbBatch, rw)
 	if err != nil {
-		return nil, wrapErr(Other, errors.Errorf("failed to create stateDB: %v\n", err))
+		return nil, wrapErr(Other, errors.Errorf("failed to create stateDB: %v", err))
 	}
 	if err := stateDB.syncRw(); err != nil {
-		return nil, wrapErr(Other, errors.Errorf("failed to sync block storage and DB: %v\n", err))
+		return nil, wrapErr(Other, errors.Errorf("failed to sync block storage and DB: %v", err))
 	}
 	hs, err := newHistoryStorage(db, dbBatch, stateDB)
 	if err != nil {
-		return nil, wrapErr(Other, errors.Errorf("failed to create history storage: %v\n", err))
+		return nil, wrapErr(Other, errors.Errorf("failed to create history storage: %v", err))
 	}
 	stor, err := newBlockchainEntitiesStorage(hs, settings, rw)
 	if err != nil {
-		return nil, wrapErr(Other, errors.Errorf("failed to create blockchain entities storage: %v\n", err))
+		return nil, wrapErr(Other, errors.Errorf("failed to create blockchain entities storage: %v", err))
 	}
 	state := &stateManager{
 		stateDB:                   stateDB,
@@ -882,10 +882,10 @@ func (s *stateManager) handleGenesisBlock(g settings.GenesisGetter) error {
 			return err
 		}
 		if err := s.applyPreactivatedFeatures(s.settings.PreactivatedFeatures, block.BlockSignature); err != nil {
-			return errors.Errorf("failed to apply preactivated features: %v\n", err)
+			return errors.Errorf("failed to apply preactivated features: %v", err)
 		}
 		if err := s.addGenesisBlock(); err != nil {
-			return errors.Errorf("failed to apply/save genesis: %v\n", err)
+			return errors.Errorf("failed to apply/save genesis: %v", err)
 		}
 	}
 	return nil
@@ -1049,7 +1049,7 @@ func (s *stateManager) newestAssetBalance(addr proto.Address, asset []byte) (uin
 	}
 	balance, err = diff.applyToAssetBalance(balance)
 	if err != nil {
-		return 0, errors.Errorf("given account has negative balance at this point: %v\n", err)
+		return 0, errors.Errorf("given account has negative balance at this point: %v", err)
 	}
 	return balance, nil
 }
@@ -1072,7 +1072,7 @@ func (s *stateManager) newestWavesBalance(addr proto.Address) (uint64, error) {
 	}
 	newProfile, err := diff.applyTo(profile)
 	if err != nil {
-		return 0, errors.Errorf("given account has negative balance at this point: %v\n", err)
+		return 0, errors.Errorf("given account has negative balance at this point: %v", err)
 	}
 	return newProfile.balance, nil
 }
@@ -1140,7 +1140,7 @@ func (s *stateManager) addFeaturesVotes(block *proto.Block) error {
 			return err
 		}
 		if approved {
-			log.Printf("Block has vote for featureID %v, but it is already approved.", featureID)
+			zap.S().Warnf("Block has vote for featureID %v, but it is already approved", featureID)
 			continue
 		}
 		if err := s.stor.features.addVote(featureID, block.BlockSignature); err != nil {
@@ -1266,7 +1266,7 @@ func (s *stateManager) AddBlock(block []byte) (*proto.Block, error) {
 	rs, err := s.addBlocks([]*proto.Block{b}, false)
 	if err != nil {
 		if err := s.undoBlockAddition(); err != nil {
-			panic("Failed to add blocks and can not rollback to previous state after failure.")
+			zap.S().Fatal("Failed to add blocks and can not rollback to previous state after failure")
 		}
 		return nil, err
 	}
@@ -1279,7 +1279,7 @@ func (s *stateManager) addBlock(block *proto.Block) (*proto.Block, error) {
 	rs, err := s.addBlocks([]*proto.Block{block}, false)
 	if err != nil {
 		if err := s.undoBlockAddition(); err != nil {
-			panic("Failed to add blocks and can not rollback to previous state after failure.")
+			zap.S().Fatal("Failed to add blocks and can not rollback to previous state after failure")
 		}
 		return nil, err
 	}
@@ -1304,7 +1304,7 @@ func (s *stateManager) AddNewBlocks(blockBytes [][]byte) error {
 	s.appender.reset()
 	if _, err := s.addBlocks(blocks, false); err != nil {
 		if err := s.undoBlockAddition(); err != nil {
-			panic("Failed to add blocks and can not rollback to previous state after failure.")
+			zap.S().Fatal("Failed to add blocks and can not rollback to previous state after failure")
 		}
 		return err
 	}
@@ -1345,7 +1345,7 @@ func (s *stateManager) AddOldBlocks(blockBytes [][]byte) error {
 	s.appender.reset()
 	if _, err := s.addBlocks(blocks, true); err != nil {
 		if err := s.undoBlockAddition(); err != nil {
-			panic("Failed to add blocks and can not rollback to previous state after failure.")
+			zap.S().Fatal("Failed to add blocks and can not rollback to previous state after failure")
 		}
 		return err
 	}
@@ -1711,7 +1711,7 @@ func (s *stateManager) addBlocks(blocks []*proto.Block, initialisation bool) (*p
 	if blocksToFinish != nil {
 		return s.handleBreak(blocksToFinish, initialisation, breakerInfo)
 	}
-	log.Printf("State: blocks to height %d added.\n", height+uint64(blocksNumber))
+	zap.S().Infof("State: blocks to height %d added", height+uint64(blocksNumber))
 	return lastBlock, nil
 }
 
@@ -1794,7 +1794,7 @@ func (s *stateManager) rollbackToImpl(removalEdge crypto.Signature) error {
 func (s *stateManager) RollbackTo(removalEdge crypto.Signature) error {
 	if err := s.rollbackToImpl(removalEdge); err != nil {
 		if err1 := s.stateDB.syncRw(); err1 != nil {
-			panic("Failed to rollback and can not sync state components after failure.")
+			zap.S().Fatal("Failed to rollback and can not sync state components after failure")
 		}
 		return err
 	}

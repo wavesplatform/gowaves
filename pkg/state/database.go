@@ -2,11 +2,11 @@ package state
 
 import (
 	"encoding/binary"
-	"log"
 
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
+	"go.uber.org/zap"
 )
 
 var void = []byte{}
@@ -67,10 +67,10 @@ func (s *stateDB) syncRw() error {
 		return err
 	}
 	rwHeight := binary.LittleEndian.Uint64(rwHeightBytes)
-	log.Printf("Synced to initial height %d.\n", dbHeight)
+	zap.S().Infof("Synced to initial height %d", dbHeight)
 	if rwHeight < dbHeight {
 		// This should never happen, because we update block storage before writing changes into DB.
-		panic("Impossible to sync: DB is ahead of block storage; remove data dir and restart the node.")
+		zap.S().Fatal("Impossible to sync: DB is ahead of block storage; remove data dir and restart the node")
 	}
 	if dbHeight == 0 {
 		if err := s.rw.removeEverything(false); err != nil {
