@@ -1,12 +1,11 @@
 package state
 
 import (
-	"log"
-
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"go.uber.org/zap"
 )
 
 var errAliasDisabled = errors.New("alias was stolen and is now disabled")
@@ -92,7 +91,7 @@ func (a *aliases) newestAddrByAlias(aliasStr string, filter bool) (*proto.Addres
 	}
 	var record aliasRecord
 	if err := record.unmarshalBinary(recordBytes); err != nil {
-		return nil, errors.Errorf("failed to unmarshal record: %v\n", err)
+		return nil, errors.Errorf("failed to unmarshal record: %v", err)
 	}
 	return &record.info.addr, nil
 }
@@ -104,7 +103,7 @@ func (a *aliases) recordByAlias(key []byte, filter bool) (*aliasRecord, error) {
 	}
 	var record aliasRecord
 	if err := record.unmarshalBinary(recordBytes); err != nil {
-		return nil, errors.Errorf("failed to unmarshal record: %v\n", err)
+		return nil, errors.Errorf("failed to unmarshal record: %v", err)
 	}
 	return &record, nil
 }
@@ -143,7 +142,7 @@ func (a *aliases) disableStolenAliases() error {
 			return err
 		}
 		if record.info.stolen {
-			log.Printf("Forbidding stolen alias %s\n", key.alias)
+			zap.S().Debugf("Forbidding stolen alias %s", key.alias)
 			disabledKey := disabledAliasKey(key)
 			a.dbBatch.Put(disabledKey.bytes(), void)
 		}

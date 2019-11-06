@@ -2,7 +2,6 @@ package state
 
 import (
 	"bytes"
-	"log"
 	"math"
 
 	"github.com/pkg/errors"
@@ -12,6 +11,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/ride/evaluator/estimation"
 	"github.com/wavesplatform/gowaves/pkg/ride/evaluator/reader"
 	"github.com/wavesplatform/gowaves/pkg/settings"
+	"go.uber.org/zap"
 )
 
 const (
@@ -72,11 +72,7 @@ func (tc *transactionChecker) checkScriptComplexity(script *ast.Script, complexi
 	}
 	if complexityVal > maxComplexity {
 		// TODO: fix estimator and enable this check later.
-		log.Printf(
-			"ERROR: script complexity %d exceeds maximum allowed complexity of %d\n",
-			complexityVal,
-			maxComplexity,
-		)
+		zap.S().Warnf("ERROR: script complexity %d exceeds maximum allowed complexity of %d", complexityVal, maxComplexity)
 	}
 	return nil
 }
@@ -111,7 +107,7 @@ func (tc *transactionChecker) checkScript(scriptBytes proto.Script, estimatorVer
 		maxSize = maxContractScriptSize
 	}
 	if len(scriptBytes) > maxSize {
-		return nil, errors.Errorf("script size %d is greater than limit of %d\n", len(scriptBytes), maxSize)
+		return nil, errors.Errorf("script size %d is greater than limit of %d", len(scriptBytes), maxSize)
 	}
 	if err := tc.scriptActivation(script); err != nil {
 		return nil, errors.Wrap(err, "script activation check failed")
@@ -122,7 +118,7 @@ func (tc *transactionChecker) checkScript(scriptBytes proto.Script, estimatorVer
 		return nil, errors.Wrap(err, "failed to estimate script complexity")
 	}
 	if err := tc.checkScriptComplexity(script, complexity); err != nil {
-		return nil, errors.Errorf("checkScriptComplexity(): %v\n", err)
+		return nil, errors.Errorf("checkScriptComplexity(): %v", err)
 	}
 	return &scriptInfo{complexity, byte(estimator.Version), script.IsDapp()}, nil
 }
@@ -363,7 +359,7 @@ func (tc *transactionChecker) checkIssueV2(transaction proto.Transaction, info *
 	}
 	scriptInf, err := tc.checkScript(tx.Script, tc.estimatorVersion(info))
 	if err != nil {
-		return nil, errors.Errorf("checkScript() tx %s: %v\n", tx.ID.String(), err)
+		return nil, errors.Errorf("checkScript() tx %s: %v", tx.ID.String(), err)
 	}
 	assetID := *tx.ID
 	r := &assetScriptComplexityRecord{
@@ -963,7 +959,7 @@ func (tc *transactionChecker) checkSetScriptV1(transaction proto.Transaction, in
 	}
 	scriptInf, err := tc.checkScript(tx.Script, tc.estimatorVersion(info))
 	if err != nil {
-		return nil, errors.Errorf("checkScript() tx %s: %v\n", tx.ID.String(), err)
+		return nil, errors.Errorf("checkScript() tx %s: %v", tx.ID.String(), err)
 	}
 	senderAddr, err := proto.NewAddressFromPublicKey(tc.settings.AddressSchemeCharacter, tx.SenderPK)
 	if err != nil {
@@ -1006,7 +1002,7 @@ func (tc *transactionChecker) checkSetAssetScriptV1(transaction proto.Transactio
 	}
 	scriptInf, err := tc.checkScript(tx.Script, tc.estimatorVersion(info))
 	if err != nil {
-		return nil, errors.Errorf("checkScript() tx %s: %v\n", tx.ID.String(), err)
+		return nil, errors.Errorf("checkScript() tx %s: %v", tx.ID.String(), err)
 	}
 	r := &assetScriptComplexityRecord{
 		complexity: scriptInf.complexity.Verifier,
