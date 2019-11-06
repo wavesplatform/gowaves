@@ -201,8 +201,12 @@ func PreloadSignatures(ctx context.Context, out chan crypto.Signature, p sendMes
 	messCh, unsubscribe := subscribe.Subscribe(p, &proto.SignaturesMessage{})
 	defer unsubscribe()
 	for {
+		es := lastSignatures.Signatures()
+		if len(es) == 0 {
+			return errors.New("nothing to request")
+		}
 		send := &proto.GetSignaturesMessage{
-			Blocks: lastSignatures.Signatures(),
+			Blocks: es,
 		}
 		p.SendMessage(send)
 
@@ -211,7 +215,7 @@ func PreloadSignatures(ctx context.Context, out chan crypto.Signature, p sendMes
 			return ctx.Err()
 		case <-time.After(15 * time.Second):
 			// TODO handle timeout
-			zap.S().Info("timeout waiting &proto.SignaturesMessage{}")
+			zap.S().Debugf("Optimistic Loader: timeout while waiting for new signature")
 			return TimeoutErr
 		case received := <-messCh:
 			mess := received.(*proto.SignaturesMessage)
@@ -228,6 +232,7 @@ func PreloadSignatures(ctx context.Context, out chan crypto.Signature, p sendMes
 				}
 			}
 			lastSignatures = NewSignatures(newSigs...).Revert()
+			zap.S().Debugf("Optimistic loader: %d new signatures received", len(lastSignatures.Signatures()))
 		}
 	}
 }
