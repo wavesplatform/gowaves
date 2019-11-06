@@ -31,12 +31,12 @@ import (
 var version = proto.Version{Major: 1, Minor: 1, Patch: 2}
 
 var (
-	logLevel      = flag.String("logLevel", "INFO", "Logging level. Supported levels: DEBUG, INFO, WARN, ERROR, FATAL. Default logging level INFO.")
-	statePath     = flag.String("statePath", "", "Path to node's state directory")
+	logLevel      = flag.String("log-level", "INFO", "Logging level. Supported levels: DEBUG, INFO, WARN, ERROR, FATAL. Default logging level INFO.")
+	statePath     = flag.String("state-path", "", "Path to node's state directory")
 	peerAddresses = flag.String("peers", "", "Addresses of peers to connect to")
-	declAddr      = flag.String("declAddr", "", "Address to listen on")
-	apiAddr       = flag.String("apiAddr", "", "Address for API")
-	genesisPath   = flag.String("genesisPath", "", "Path to genesis json file")
+	declAddr      = flag.String("declared-address", "", "Address to listen on")
+	apiAddr       = flag.String("api-address", "", "Address for API")
+	genesisPath   = flag.String("genesis-path", "", "Path to genesis json file")
 	seed          = flag.String("seed", "", "Seed for miner")
 )
 
