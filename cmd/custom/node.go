@@ -31,7 +31,7 @@ import (
 var version = proto.Version{Major: 1, Minor: 1, Patch: 2}
 
 var (
-	logLevel      = flag.String("log-level", "INFO", "Logging level. Supported levels: DEBUG, INFO, WARN, ERROR, FATAL. Default logging level INFO.")
+	logLevel      = flag.String("logLevel", "INFO", "Logging level. Supported levels: DEBUG, INFO, WARN, ERROR, FATAL. Default logging level INFO.")
 	statePath     = flag.String("statePath", "", "Path to node's state directory")
 	peerAddresses = flag.String("peers", "", "Addresses of peers to connect to")
 	declAddr      = flag.String("declAddr", "", "Address to listen on")
@@ -72,20 +72,7 @@ func main() {
 		return
 	}
 
-	custom := &settings.BlockchainSettings{
-		Type: settings.Custom,
-		FunctionalitySettings: settings.FunctionalitySettings{
-			FeaturesVotingPeriod:   10000,
-			MaxTxTimeBackOffset:    120 * 60000,
-			MaxTxTimeForwardOffset: 90 * 60000,
-
-			AddressSchemeCharacter: proto.CustomNetScheme,
-
-			AverageBlockDelaySeconds: 60,
-			MaxBaseTarget:            200,
-		},
-		GenesisGetter: settings.FromPath(*genesisPath),
-	}
+	custom := settings.DefaultSettingsForCustomBlockchain(settings.FromPath(*genesisPath))
 
 	path := *statePath
 	if path == "" {

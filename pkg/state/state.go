@@ -881,11 +881,13 @@ func (s *stateManager) handleGenesisBlock(g settings.GenesisGetter) error {
 		if err := s.stateDB.addBlock(block.BlockSignature); err != nil {
 			return err
 		}
-		if err := s.applyPreactivatedFeatures(s.settings.PreactivatedFeatures, block.BlockSignature); err != nil {
-			return errors.Errorf("failed to apply preactivated features: %v", err)
-		}
 		if err := s.addGenesisBlock(); err != nil {
 			return errors.Errorf("failed to apply/save genesis: %v", err)
+		}
+		// TODO: we apply preactivated features after genesis block, so they aren't active in genesis itself.
+		// Probably it makes sense though, because genesis must be block version 1.
+		if err := s.applyPreactivatedFeatures(s.settings.PreactivatedFeatures, block.BlockSignature); err != nil {
+			return errors.Errorf("failed to apply preactivated features: %v\n", err)
 		}
 	}
 	return nil
