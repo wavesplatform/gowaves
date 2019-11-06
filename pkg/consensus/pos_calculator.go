@@ -84,6 +84,9 @@ type NxtPosCalculator struct {
 }
 
 func (calc *NxtPosCalculator) heightForHit(height uint64) uint64 {
+	if nxtPosHeightDiffForHit >= height {
+		return height
+	}
 	return height - nxtPosHeightDiffForHit
 }
 
@@ -136,6 +139,9 @@ type FairPosCalculator struct {
 }
 
 func (calc *FairPosCalculator) heightForHit(height uint64) uint64 {
+	if fairPosHeightDiffForHit >= height {
+		return height
+	}
 	return height - fairPosHeightDiffForHit
 }
 

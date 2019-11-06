@@ -87,7 +87,6 @@ type BlockchainType byte
 const (
 	MainNet BlockchainType = iota
 	TestNet
-	DevNet
 	StageNet
 	Custom
 )
@@ -171,7 +170,7 @@ func DefaultSettingsForCustomBlockchain(genesisGetter GenesisGetter) *Blockchain
 			MaxTxTimeBackOffset:    120 * 60000,
 			MaxTxTimeForwardOffset: 90 * 60000,
 
-			AddressSchemeCharacter: 'C',
+			AddressSchemeCharacter: proto.CustomNetScheme,
 
 			AverageBlockDelaySeconds: 60,
 			MaxBaseTarget:            math.MaxUint64,
@@ -250,6 +249,26 @@ var (
 		},
 		GenesisGetter: TestnetGenesis,
 	}
+
+	StageNetSettings = &BlockchainSettings{
+		Type: StageNet,
+		FunctionalitySettings: FunctionalitySettings{
+			FeaturesVotingPeriod:             100,
+			VotesForFeatureActivation:        40,
+			PreactivatedFeatures:             []int16{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13},
+			DoubleFeaturesPeriodsAfterHeight: 1000000000,
+			MaxTxTimeBackOffset:              120 * 60000,
+			MaxTxTimeForwardOffset:           90 * 60000,
+			AddressSchemeCharacter:           proto.StageNetScheme,
+			AverageBlockDelaySeconds:         60,
+			MaxBaseTarget:                    math.MaxUint64,
+			BlockRewardTerm:                  100000,
+			InitialBlockReward:               600000000,
+			BlockRewardIncrement:             50000000,
+			BlockRewardVotingPeriod:          10000,
+		},
+		GenesisGetter: StagenetGenesis,
+	}
 )
 
 type GenesisGetter interface {
@@ -324,3 +343,19 @@ func FromPath(path ...string) GenesisGetter {
 
 var MainnetGenesis = EmbeddedGenesisGetter{}
 var TestnetGenesis = FromCurrentDir("../state/genesis", "testnet.json")
+var StagenetGenesis = FromCurrentDir("../state/genesis", "stagenet.json")
+
+func NetworkSettingsByType(networkType string) (*BlockchainSettings, error) {
+	switch networkType {
+	case "mainnet":
+		return MainNetSettings, nil
+	case "testnet":
+		return TestNetSettings, nil
+	case "stagenet":
+		return StageNetSettings, nil
+	case "custom":
+		return nil, errors.New("no predefined settings for custom blockchain")
+	default:
+		return nil, errors.New("invalid network type string")
+	}
+}

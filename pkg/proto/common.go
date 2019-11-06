@@ -153,8 +153,6 @@ func NetworkSchemeByType(networkType string) (byte, error) {
 		return MainNetScheme, nil
 	case "testnet":
 		return TestNetScheme, nil
-	case "devnet":
-		return DevNetScheme, nil
 	case "stagenet":
 		return StageNetScheme, nil
 	case "custom":

@@ -29,7 +29,6 @@ const (
 
 	MainNetScheme   byte = 'W'
 	TestNetScheme   byte = 'T'
-	DevNetScheme    byte = 'D'
 	StageNetScheme  byte = 'S'
 	CustomNetScheme byte = 'E'
 )
