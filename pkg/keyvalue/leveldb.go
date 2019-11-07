@@ -103,7 +103,8 @@ func initBloomFilter(kv *KeyVal, params BloomFilterParams) error {
 		zap.S().Info("Bloom filter loaded successfully")
 		return nil
 	}
-	zap.S().Info("Creating a bloom filter from DB could take up a few minutes")
+	zap.S().Info("No stored bloom filter found")
+	zap.S().Info("Rebuilding bloom filter from DB can take up a few minutes")
 	filter, err = newBloomFilter(params)
 	if err != nil {
 		return err
