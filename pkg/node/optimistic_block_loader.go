@@ -126,6 +126,12 @@ func (a *sigs) add(sig crypto.Signature) bool {
 	return true
 }
 
+func (a *sigs) len() int {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return len(a.sigSequence)
+}
+
 type blockDownload struct {
 	threads   chan int
 	sigs      *sigs
@@ -144,11 +150,14 @@ func newBlockDownloader(workersCount int, p peer.Peer, subscribe *Subscribe, out
 	}
 }
 
-func (a *blockDownload) download(sig crypto.Signature) {
-	if a.sigs.add(sig) {
+func (a *blockDownload) download(sig crypto.Signature) bool {
+	r := a.sigs.add(sig)
+	if r {
+		zap.S().Debugf("[%s] BlockLoader: Requesting block %s", a.p.ID(), sig.String())
 		a.threads <- 1
 		a.p.SendMessage(&proto.GetBlockMessage{BlockID: sig})
 	}
+	return r
 }
 
 func (a *blockDownload) run(ctx context.Context) {
@@ -165,6 +174,7 @@ func (a *blockDownload) run(ctx context.Context) {
 			if err != nil {
 				continue
 			}
+			zap.S().Debugf("[%s] BlockDownloader: Received block %s", a.p.ID(), sig.String())
 			// we are not waiting for this sig
 			if !a.sigs.contains(sig) {
 				continue
@@ -203,7 +213,7 @@ func PreloadSignatures(ctx context.Context, out chan crypto.Signature, p sendMes
 	for {
 		es := lastSignatures.Signatures()
 		if len(es) == 0 {
-			return errors.New("nothing to request")
+			return NothingToRequestErr
 		}
 		send := &proto.GetSignaturesMessage{
 			Blocks: es,
@@ -214,7 +224,7 @@ func PreloadSignatures(ctx context.Context, out chan crypto.Signature, p sendMes
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-time.After(15 * time.Second):
-			zap.S().Debugf("Optimistic Loader: timeout while waiting for new signature")
+			zap.S().Debugf("[%s] Optimistic Loader: timeout while waiting for new signature", p.ID())
 			return TimeoutErr
 		case received := <-messCh:
 			mess := received.(*proto.SignaturesMessage)
@@ -231,7 +241,7 @@ func PreloadSignatures(ctx context.Context, out chan crypto.Signature, p sendMes
 				}
 			}
 			lastSignatures = NewSignatures(newSigs...).Revert()
-			zap.S().Debugf("Optimistic loader: %d new signatures received", len(lastSignatures.Signatures()))
+			zap.S().Debugf("[%s] Optimistic loader: %d new signatures received", p.ID(), len(lastSignatures.Signatures()))
 		}
 	}
 }
