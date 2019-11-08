@@ -16,7 +16,6 @@ type State struct {
 	applier        types.BlockApplier
 	state          state.State
 	mu             sync.Mutex
-	historySync    types.StateHistorySynchronizer
 	knownBlocks    knownBlocks
 }
 
@@ -71,7 +70,6 @@ func (a *State) AddBlock(block *proto.Block) {
 			err := a.applier.Apply(a.prevAddedBlock)
 			if err != nil { // can't apply previous added block, maybe broken ngState
 				zap.S().Error(err)
-				go a.historySync.Sync()
 			}
 		}
 		return
