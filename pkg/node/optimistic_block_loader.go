@@ -126,12 +126,6 @@ func (a *sigs) add(sig crypto.Signature) bool {
 	return true
 }
 
-func (a *sigs) len() int {
-	a.mu.Lock()
-	defer a.mu.Unlock()
-	return len(a.sigSequence)
-}
-
 type blockDownload struct {
 	threads   chan int
 	sigs      *sigs
