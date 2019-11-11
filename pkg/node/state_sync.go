@@ -83,13 +83,11 @@ func (a *StateSync) run(ctx context.Context) {
 }
 
 func (a *StateSync) sync(ctx context.Context, p Peer) error {
-	ctx1, cancel1 := context.WithCancel(ctx)
-	ctx2, cancel2 := context.WithCancel(ctx)
+	ctx, cancel := context.WithCancel(ctx)
 	sigs, err := LastSignatures(a.stateManager)
 	if err != nil {
 		zap.S().Error(err)
-		cancel1()
-		cancel2()
+		cancel()
 		return err
 	}
 
@@ -97,10 +95,10 @@ func (a *StateSync) sync(ctx context.Context, p Peer) error {
 	incoming := make(chan crypto.Signature, 256)
 
 	go func() {
-		errCh <- PreloadSignatures(ctx1, incoming, p, sigs, a.subscribe)
+		errCh <- PreloadSignatures(ctx, incoming, p, sigs, a.subscribe)
 	}()
 	go func() {
-		errCh <- downloadBlocks(ctx2, incoming, p, a.subscribe, a.services, a.interrupter)
+		errCh <- downloadBlocks(ctx, incoming, p, a.subscribe, a.services, a.interrupter)
 	}()
 
 	n := 0
@@ -108,15 +106,14 @@ func (a *StateSync) sync(ctx context.Context, p Peer) error {
 		switch err {
 		case TimeoutErr:
 			a.peerManager.Suspend(p)
-			cancel1()
-			cancel2()
+			cancel()
 			go func() {
 				<-time.After(2 * time.Second)
 				a.Sync()
 			}()
 			return nil
 		case NothingToRequestErr:
-			cancel1()
+			cancel()
 		default:
 			if err != nil {
 				zap.S().Errorf("[%s] StateSync: Error: %v", p.ID(), err)
@@ -127,8 +124,7 @@ func (a *StateSync) sync(ctx context.Context, p Peer) error {
 			break
 		}
 	}
-	cancel1()
-	cancel2()
+	cancel()
 	return nil
 }
 
