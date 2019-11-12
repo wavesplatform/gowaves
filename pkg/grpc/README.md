@@ -2,20 +2,12 @@
 
 ## Installation
 
-Install required packages.
+Install gRPC & Protobuf:
 
 ```bash
 go get -u google.golang.org/grpc
+go get -u github.com/golang/protobuf/proto
 go get -u github.com/golang/protobuf/protoc-gen-go
-```
-
-Install Protobuf compiler.  
-
-On Mac OS X:
-
-```bash
-brew update
-brew install protobuf
 ```
 
 ## Package structure
@@ -34,5 +26,5 @@ option go_package = "grpc";
 Execute the following command to regenerate the code.
 
 ```bash
-protoc --proto_path=pkg/grpc/proto --go_out=plugins=grpc:pkg/grpc pkg/grpc/proto/*.proto 
+protoc --proto_path=pkg/grpc/proto --go_out=plugins=grpc:pkg/grpc pkg/grpc/proto/*.proto
 ```

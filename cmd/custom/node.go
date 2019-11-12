@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/wavesplatform/gowaves/pkg/api"
+	"github.com/wavesplatform/gowaves/pkg/grpc/server"
 	"github.com/wavesplatform/gowaves/pkg/libs/bytespool"
 	"github.com/wavesplatform/gowaves/pkg/miner"
 	scheduler2 "github.com/wavesplatform/gowaves/pkg/miner/scheduler"
@@ -35,7 +36,8 @@ var (
 	statePath     = flag.String("state-path", "", "Path to node's state directory")
 	peerAddresses = flag.String("peers", "", "Addresses of peers to connect to")
 	declAddr      = flag.String("declared-address", "", "Address to listen on")
-	apiAddr       = flag.String("api-address", "", "Address for API")
+	apiAddr       = flag.String("api-address", "", "Address for REST API")
+	grpcAddr      = flag.String("grpc-address", "127.0.0.1:7475", "Address for gRPC API")
 	genesisPath   = flag.String("genesis-path", "", "Path to genesis json file")
 	seed          = flag.String("seed", "", "Seed for miner")
 )
@@ -171,6 +173,14 @@ func main() {
 		}
 	}()
 
+	grpcServer := server.NewServer(state)
+	go func() {
+		err := grpcServer.Run(ctx, conf.GrpcAddr)
+		if err != nil {
+			zap.S().Errorf("grpcServer.Run(): %v", err)
+		}
+	}()
+
 	var gracefulStop = make(chan os.Signal, 1)
 	signal.Notify(gracefulStop, syscall.SIGTERM)
 	signal.Notify(gracefulStop, syscall.SIGINT)
@@ -189,6 +199,7 @@ func FromArgs() func(s *settings.NodeSettings) error {
 	return func(s *settings.NodeSettings) error {
 		s.DeclaredAddr = *declAddr
 		s.HttpAddr = *apiAddr
+		s.GrpcAddr = *grpcAddr
 		networkStr, err := proto.NetworkStrByType("custom")
 		if err != nil {
 			return err
