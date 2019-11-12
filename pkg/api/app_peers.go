@@ -103,3 +103,12 @@ func (a *App) PeersSuspended() (*PeersSuspendedResponse, error) {
 	peers := a.peers.Suspended()
 	return &PeersSuspendedResponse{peers}, nil
 }
+
+type PeersSpawnedResponse struct {
+	Peers []proto.IpPort
+}
+
+func (a *App) PeersSpawned() *PeersSpawnedResponse {
+	rs := a.peers.Spawned()
+	return &PeersSpawnedResponse{Peers: rs}
+}
