@@ -226,7 +226,6 @@ func (a *Node) handleBlockMessage(p peer.Peer, mess *proto.BlockMessage) {
 }
 
 func (a *Node) handleGetSignaturesMessage(p peer.Peer, mess *proto.GetSignaturesMessage) {
-	defer util.TimeTrack(time.Now(), "handleGetSignaturesMessage")
 	for _, sig := range mess.Blocks {
 		block, err := a.state.Block(sig)
 		if err != nil {

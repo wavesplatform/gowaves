@@ -168,7 +168,6 @@ func downloadBlocks(ctx context.Context, signaturesCh chan crypto.Signature, p P
 			case <-ctx.Done():
 				return
 			case <-time.After(30 * time.Second):
-				// TODO handle timeout
 				zap.S().Infof("[%s] StateSync: timeout waiting for SignaturesMessage", p.ID())
 				errCh <- TimeoutErr
 				return

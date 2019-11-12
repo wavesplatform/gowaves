@@ -46,6 +46,7 @@ type PeerManager interface {
 	Close()
 	SpawnOutgoingConnections(context.Context)
 	SpawnIncomingConnection(ctx context.Context, conn net.Conn) error
+	Spawned() []proto.IpPort
 	Connect(context.Context, proto.TCPAddr) error
 	Score(p peer.Peer) (*proto.Score, error)
 
@@ -104,13 +105,12 @@ func (a suspended) Len() int {
 }
 
 type PeerManagerImpl struct {
-	spawner    PeerSpawner
-	active     map[peer.Peer]peerInfo
-	knownPeers map[string]proto.Version
-	mu         sync.RWMutex
-	state      PeerStorage
-	spawned    map[proto.IpPort]struct{}
-	suspended  suspended
+	spawner   PeerSpawner
+	active    map[peer.Peer]peerInfo
+	mu        sync.RWMutex
+	state     PeerStorage
+	spawned   map[proto.IpPort]struct{}
+	suspended suspended
 }
 
 func (a *PeerManagerImpl) Score(p peer.Peer) (*proto.Score, error) {
@@ -125,12 +125,11 @@ func (a *PeerManagerImpl) Score(p peer.Peer) (*proto.Score, error) {
 
 func NewPeerManager(spawner PeerSpawner, storage PeerStorage) *PeerManagerImpl {
 	return &PeerManagerImpl{
-		spawner:    spawner,
-		active:     make(map[peer.Peer]peerInfo),
-		knownPeers: make(map[string]proto.Version),
-		state:      storage,
-		spawned:    make(map[proto.IpPort]struct{}),
-		suspended:  suspended{},
+		spawner:   spawner,
+		active:    make(map[peer.Peer]peerInfo),
+		state:     storage,
+		spawned:   make(map[proto.IpPort]struct{}),
+		suspended: suspended{},
 	}
 }
 
@@ -154,10 +153,10 @@ func (a *PeerManagerImpl) Run(ctx context.Context) {
 	}
 }
 
-// TODO check remove spawned
 func (a *PeerManagerImpl) AddConnected(peer peer.Peer) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
+	delete(a.spawned, peer.RemoteAddr().ToIpPort())
 	a.active[peer] = newPeerInfo(peer)
 }
 
@@ -209,9 +208,23 @@ func (a *PeerManagerImpl) Suspended() []string {
 }
 
 func (a *PeerManagerImpl) AddAddress(ctx context.Context, addr string) {
+	peers, err := a.state.Peers()
+	if err == nil {
+		tcpAddr := proto.NewTCPAddrFromString(addr)
+		if tcpAddr.Port > 0 {
+			peers = append(peers, tcpAddr)
+			err = a.state.SavePeers(peers)
+			if err != nil {
+				zap.S().Info(err)
+			}
+		}
+	} else {
+		zap.S().Info(err)
+	}
+
 	go func() {
 		if err := a.spawner.SpawnOutgoing(ctx, proto.NewTCPAddrFromString(addr)); err != nil {
-			zap.S().Error(err)
+			zap.S().Info(err)
 		}
 	}()
 }
@@ -220,7 +233,6 @@ func (a *PeerManagerImpl) UpdateKnownPeers(known []proto.TCPAddr) error {
 	if len(known) == 0 {
 		return nil
 	}
-
 	return a.state.SavePeers(known)
 }
 
@@ -285,6 +297,17 @@ func (a *PeerManagerImpl) SpawnOutgoingConnections(ctx context.Context) {
 			_ = a.spawner.SpawnOutgoing(ctx, addr)
 		}(addr)
 	}
+}
+
+func (a *PeerManagerImpl) Spawned() []proto.IpPort {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+
+	out := make([]proto.IpPort, 0, len(a.spawned))
+	for k := range a.spawned {
+		out = append(out, k)
+	}
+	return out
 }
 
 func (a *PeerManagerImpl) SpawnIncomingConnection(ctx context.Context, conn net.Conn) error {

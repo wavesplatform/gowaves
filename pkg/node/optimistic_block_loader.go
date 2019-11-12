@@ -218,7 +218,6 @@ func PreloadSignatures(ctx context.Context, out chan crypto.Signature, p sendMes
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-time.After(15 * time.Second):
-			// TODO handle timeout
 			zap.S().Debugf("[%s] Optimistic Loader: timeout while waiting for new signature", p.ID())
 			return TimeoutErr
 		case received := <-messCh:
