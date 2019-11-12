@@ -164,8 +164,7 @@ func downloadBlocks(
 			case <-ctx.Done():
 				return
 			case <-time.After(30 * time.Second):
-				// TODO handle timeout
-				zap.S().Info("timeout waiting &proto.SignaturesMessage{}")
+				zap.S().Debug("timeout waiting &proto.SignaturesMessage{}")
 				errCh <- TimeoutErr
 				return
 			case sig := <-signaturesCh:

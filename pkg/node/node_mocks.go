@@ -348,6 +348,10 @@ type mockPeerManager struct {
 	connected map[peer.Peer]struct{}
 }
 
+func (a *mockPeerManager) Spawned() []proto.IpPort {
+	panic("implement me")
+}
+
 func (a *mockPeerManager) IsSuspended(peer.Peer) bool {
 	panic("implement me")
 }
