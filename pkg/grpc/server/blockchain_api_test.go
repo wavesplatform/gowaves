@@ -2,11 +2,13 @@ package server
 
 import (
 	"context"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"testing"
 
 	"github.com/golang/protobuf/ptypes/empty"
+	"github.com/phayes/freeport"
 	"github.com/stretchr/testify/assert"
 	g "github.com/wavesplatform/gowaves/pkg/grpc"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -15,23 +17,20 @@ import (
 	"google.golang.org/grpc"
 )
 
-const (
-	grpcTestAddr = "127.0.0.1:1265"
-)
-
-func connect(t *testing.T) *grpc.ClientConn {
-	conn, err := grpc.Dial(grpcTestAddr, grpc.WithInsecure())
+func connect(t *testing.T, addr string) *grpc.ClientConn {
+	conn, err := grpc.Dial(addr, grpc.WithInsecure())
 	assert.NoError(t, err, "grpc.Dial() failed")
 	return conn
 }
 
 func TestGetBaseTarget(t *testing.T) {
+	grpcTestAddr := fmt.Sprintf("127.0.0.1:%d", freeport.GetPort())
 	dataDir, err := ioutil.TempDir(os.TempDir(), "dataDir")
 	assert.NoError(t, err)
 	st, err := state.NewState(dataDir, state.DefaultTestingStateParams(), settings.MainNetSettings)
 	assert.NoError(t, err)
 
-	conn := connect(t)
+	conn := connect(t, grpcTestAddr)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer func() {
 		cancel()
@@ -67,12 +66,13 @@ func TestGetBaseTarget(t *testing.T) {
 }
 
 func TestGetCumulativeScore(t *testing.T) {
+	grpcTestAddr := fmt.Sprintf("127.0.0.1:%d", freeport.GetPort())
 	dataDir, err := ioutil.TempDir(os.TempDir(), "dataDir")
 	assert.NoError(t, err)
 	st, err := state.NewState(dataDir, state.DefaultTestingStateParams(), settings.MainNetSettings)
 	assert.NoError(t, err)
 
-	conn := connect(t)
+	conn := connect(t, grpcTestAddr)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer func() {
 		cancel()
