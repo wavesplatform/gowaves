@@ -14,9 +14,25 @@ func (s *Server) GetActivationStatus(ctx context.Context, req *g.ActivationStatu
 }
 
 func (s *Server) GetBaseTarget(ctx context.Context, req *empty.Empty) (*g.BaseTargetResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "Not implemented")
+	height, err := s.state.Height()
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, err.Error())
+	}
+	block, err := s.state.BlockByHeight(height)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, err.Error())
+	}
+	return &g.BaseTargetResponse{BaseTarget: int64(block.BaseTarget)}, nil
 }
 
 func (s *Server) GetCumulativeScore(ctx context.Context, req *empty.Empty) (*g.ScoreResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "Not implemented")
+	score, err := s.state.CurrentScore()
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, err.Error())
+	}
+	scoreBytes, err := score.GobEncode()
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, err.Error())
+	}
+	return &g.ScoreResponse{Score: scoreBytes}, nil
 }

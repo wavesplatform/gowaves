@@ -37,6 +37,8 @@ func (s *Server) Run(ctx context.Context, address string) error {
 	if err != nil {
 		return errors.Errorf("net.Listen: %v", err)
 	}
+	defer conn.Close()
+
 	if err := grpcServer.Serve(conn); err != nil {
 		return errors.Errorf("grpcServer.Serve: %v", err)
 	}
