@@ -20,7 +20,7 @@ func (a *innerBlockApplier) apply(block *proto.Block) (*proto.Block, proto.Heigh
 	// check if such block already exists
 	_, err := a.state.Block(block.BlockSignature)
 	if err == nil {
-		return nil, 0, errors.New("block exists")
+		return nil, 0, errors.Errorf("block %s exists", block.BlockSignature.String())
 	}
 	if !state.IsNotFound(err) {
 		return nil, 0, errors.Wrap(err, "unknown error")

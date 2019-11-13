@@ -143,6 +143,7 @@ func (a *RuntimeImpl) HandleMicroBlockMessage(_ peer.Peer, message *proto.MicroB
 }
 
 func (a *RuntimeImpl) HandleBlockMessage(_ peer.Peer, block *proto.Block) {
+	zap.S().Debugf("NG State: New block %s", block.BlockSignature.String())
 	a.ngState.AddBlock(block)
 	go a.services.Scheduler.Reschedule()
 }

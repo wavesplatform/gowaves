@@ -1612,6 +1612,7 @@ func (s *stateManager) addBlocks(blocks []*proto.Block, initialisation bool) (*p
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
+	zap.S().Debugf("StateManager: parent (top) block signature: %s", parent.BlockSignature.String())
 	height, err := s.Height()
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
