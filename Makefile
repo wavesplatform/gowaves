@@ -76,10 +76,6 @@ dist-wmd: release-wmd
 	@cd ./build/bin/linux-amd64/; tar pzcvf ../../dist/wmd_$(VERSION)_Linux-64bit.tar.gz ./wmd*
 	@cd ./build/bin/darwin-amd64/; tar pzcvf ../../dist/wmd_$(VERSION)_macOS-64bit.tar.gz ./wmd*
 
-dist: clean dist-chaincmp dist-wmd
-
-
-
 build-retransmitter-linux:
 	@CGO_ENABLE=0 GOOS=linux GOARCH=amd64 go build -o build/bin/linux-amd64/retransmitter -ldflags="-X main.version=$(VERSION)" ./cmd/retransmitter
 build-retransmitter-darwin:
@@ -118,3 +114,17 @@ build-importer-windows:
 	@CGO_ENABLE=0 GOOS=windows GOARCH=amd64 go build -o build/bin/windows-amd64/importer.exe ./cmd/importer
 
 release-importer: ver build-importer-linux build-importer-darwin build-importer-windows
+
+dist-importer: release-importer
+	@mkdir -p build/dist
+	@cd ./build/; zip -j ./dist/importer_$(VERSION)_Windows-64bit.zip ./bin/windows-amd64/importer*
+	@cd ./build/bin/linux-amd64/; tar pzcvf ../../dist/importer_$(VERSION)_Linux-64bit.tar.gz ./importer*
+	@cd ./build/bin/darwin-amd64/; tar pzcvf ../../dist/importer_$(VERSION)_macOS-64bit.tar.gz ./importer*
+
+dist-node: release-node
+	@mkdir -p build/dist
+	@cd ./build/; zip -j ./dist/node_$(VERSION)_Windows-64bit.zip ./bin/windows-amd64/node*
+	@cd ./build/bin/linux-amd64/; tar pzcvf ../../dist/node_$(VERSION)_Linux-64bit.tar.gz ./node*
+	@cd ./build/bin/darwin-amd64/; tar pzcvf ../../dist/node_$(VERSION)_macOS-64bit.tar.gz ./node*
+
+dist: clean dist-chaincmp dist-wmd dist-importer dist-node
