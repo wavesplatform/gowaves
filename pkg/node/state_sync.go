@@ -1,6 +1,7 @@
 package node
 
 import (
+	"bytes"
 	"context"
 	"time"
 
@@ -43,7 +44,8 @@ func NewStateSync(services services.Services, subscribe *Subscribe, interrupter 
 	}
 }
 
-var TimeoutErr = errors.Errorf("Timeout")
+var TimeoutErr = errors.New("timeout")
+var NothingToRequestErr = errors.New("nothing ot request")
 
 func (a *StateSync) Sync() {
 	select {
@@ -59,7 +61,6 @@ func (a *StateSync) Run(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-a.syncCh:
-			zap.S().Info("StateSync.Run: <-a.syncCh")
 			a.run(ctx)
 		}
 	}
@@ -76,16 +77,19 @@ func (a *StateSync) run(ctx context.Context) {
 		if err != nil {
 			return
 		}
+		zap.S().Infof("[%s] StateSync: Starting synchronization with %s", p.ID(), p.ID())
 		_ = a.sync(ctx, p)
 	}
 }
 
 func (a *StateSync) sync(ctx context.Context, p Peer) error {
-	ctx, cancel := context.WithCancel(ctx)
+	ctx1, cancel1 := context.WithCancel(ctx)
+	ctx2, cancel2 := context.WithCancel(ctx)
 	sigs, err := LastSignatures(a.stateManager)
 	if err != nil {
 		zap.S().Error(err)
-		cancel()
+		cancel1()
+		cancel2()
 		return err
 	}
 
@@ -93,27 +97,38 @@ func (a *StateSync) sync(ctx context.Context, p Peer) error {
 	incoming := make(chan crypto.Signature, 256)
 
 	go func() {
-		errCh <- PreloadSignatures(ctx, incoming, p, sigs, a.subscribe)
+		errCh <- PreloadSignatures(ctx1, incoming, p, sigs, a.subscribe)
 	}()
 	go func() {
-		errCh <- downloadBlocks(ctx, incoming, p, a.subscribe, a.services, a.interrupter)
+		errCh <- downloadBlocks(ctx2, incoming, p, a.subscribe, a.services, a.interrupter)
 	}()
 
-	err = <-errCh
-	if err != nil {
-		if err == TimeoutErr {
-			zap.S().Info("timeout err", err)
+	n := 0
+	for err := range errCh {
+		switch err {
+		case TimeoutErr:
 			a.peerManager.Suspend(p)
-		} else {
-			zap.S().Info(err)
+			cancel1()
+			cancel2()
+			go func() {
+				<-time.After(2 * time.Second)
+				a.Sync()
+			}()
+			return nil
+		case NothingToRequestErr:
+			cancel1()
+		default:
+			if err != nil {
+				zap.S().Errorf("[%s] StateSync: Error: %v", p.ID(), err)
+			}
+		}
+		n++
+		if n == 2 {
+			break
 		}
 	}
-	cancel()
-	go func() {
-		<-time.After(2 * time.Second)
-		a.Sync()
-	}()
-
+	cancel1()
+	cancel2()
 	return nil
 }
 
@@ -121,7 +136,7 @@ func (a *StateSync) getPeerWithHighestScore() (Peer, error) {
 	p, score, ok := a.peerManager.PeerWithHighestScore()
 	if !ok || score.String() == "0" {
 		// no peers, skip
-		zap.S().Info("no peers, skip ", score.String())
+		zap.S().Infof("StateSync: no peers, skip %s", score.String())
 		return nil, errors.Errorf("no score found")
 	}
 
@@ -141,14 +156,7 @@ func (a *StateSync) Close() {
 	close(a.interrupt)
 }
 
-func downloadBlocks(
-	ctx context.Context,
-	signaturesCh chan crypto.Signature,
-	p Peer,
-	subscribe *Subscribe,
-	services services.Services,
-	interrupt types.MinerInterrupter) error {
-
+func downloadBlocks(ctx context.Context, signaturesCh chan crypto.Signature, p Peer, subscribe *Subscribe, services services.Services, interrupt types.MinerInterrupter) error {
 	defer services.Scheduler.Reschedule()
 
 	errCh := make(chan error, 3)
@@ -157,18 +165,21 @@ func downloadBlocks(
 
 	downloader := newBlockDownloader(128, p, subscribe, receivedBlocksCh)
 	go downloader.run(ctx)
-
+	requested := 0
 	go func() {
 		for {
 			select {
 			case <-ctx.Done():
 				return
 			case <-time.After(30 * time.Second):
-				zap.S().Debug("timeout waiting &proto.SignaturesMessage{}")
+				// TODO handle timeout
+				zap.S().Infof("[%s] StateSync: timeout waiting for SignaturesMessage", p.ID())
 				errCh <- TimeoutErr
 				return
 			case sig := <-signaturesCh:
-				downloader.download(sig)
+				if downloader.download(sig) {
+					requested++
+				}
 			}
 		}
 	}()
@@ -200,11 +211,16 @@ func downloadBlocks(
 
 			case bts := <-receivedBlocksCh:
 				blocks = append(blocks, bts)
-				if len(blocks) == blockCnt {
-					out := make([][]byte, blockCnt)
+				size := blockCnt
+				if requested < size {
+					size = requested
+				}
+				if l := len(blocks); l == size {
+					out := make([][]byte, l)
 					copy(out, blocks)
 					blocksBulk <- out
 					blocks = blocks[:0]
+					requested = requested - size
 				}
 			}
 		}
@@ -219,9 +235,34 @@ func downloadBlocks(
 			case <-ctx.Done():
 				return
 			case blocks := <-blocksBulk:
+				if len(blocks) == 0 {
+					return
+				}
 				interrupt.Interrupt()
 				locked := services.State.Mutex().Lock()
-				err := services.State.AddNewBlocks(blocks)
+				h, err := services.State.Height()
+				if err != nil {
+					errCh <- err
+					return
+				}
+				id, err := services.State.HeightToBlockID(h)
+				if err != nil {
+					errCh <- err
+					return
+				}
+				parent, err := proto.BlockGetParent(blocks[0])
+				if err != nil {
+					errCh <- err
+					return
+				}
+				if !bytes.Equal(id[:], parent[:]) {
+					err := services.State.RollbackTo(parent)
+					if err != nil {
+						errCh <- err
+						return
+					}
+				}
+				err = services.State.AddNewBlocks(blocks)
 				locked.Unlock()
 				if err != nil {
 					errCh <- err

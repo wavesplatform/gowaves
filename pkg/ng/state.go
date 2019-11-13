@@ -3,7 +3,6 @@ package ng
 import (
 	"sync"
 
-	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/services"
 	"github.com/wavesplatform/gowaves/pkg/state"
@@ -17,7 +16,6 @@ type State struct {
 	applier        types.BlockApplier
 	state          state.State
 	mu             sync.Mutex
-	historySync    types.StateHistorySynchronizer
 	knownBlocks    knownBlocks
 }
 
@@ -47,7 +45,7 @@ func (a *State) AddBlock(block *proto.Block) {
 
 	err := a.storage.PushBlock(block)
 	if err != nil {
-		zap.S().Debug(err)
+		zap.S().Debugf("NG State: %v", err)
 		return
 	}
 
@@ -55,7 +53,7 @@ func (a *State) AddBlock(block *proto.Block) {
 	locked := mu.Lock()
 	err = a.state.RollbackTo(block.Parent)
 	if err != nil {
-		zap.S().Info(errors.Wrapf(err, "can't rollback to sig %s, initiator sig %s", block.Parent, block.BlockSignature))
+		zap.S().Infof("NG State: can't rollback to sig %s, initiator sig %s: %v", block.Parent, block.BlockSignature, err)
 		a.storage.Pop()
 		locked.Unlock()
 		return
@@ -64,7 +62,7 @@ func (a *State) AddBlock(block *proto.Block) {
 
 	err = a.applier.Apply(block)
 	if err != nil {
-		zap.S().Error(err)
+		zap.S().Errorf("NG State: failed to apply block %s: %v", block.BlockSignature.String(), err)
 		a.storage.Pop()
 
 		// return prev block, if possible
@@ -72,7 +70,6 @@ func (a *State) AddBlock(block *proto.Block) {
 			err := a.applier.Apply(a.prevAddedBlock)
 			if err != nil { // can't apply previous added block, maybe broken ngState
 				zap.S().Error(err)
-				go a.historySync.Sync()
 			}
 		}
 		return
@@ -99,7 +96,7 @@ func (a *State) AddMicroblock(micro *proto.MicroBlock) {
 	}
 
 	if a.prevAddedBlock.Parent != block.Parent {
-		zap.S().Errorf("parents not equal expected %q actual %q", a.prevAddedBlock.Parent, block.Parent)
+		zap.S().Errorf("NG State: parents not equal, expected %q actual %q", a.prevAddedBlock.Parent, block.Parent)
 		return
 	}
 
@@ -116,7 +113,7 @@ func (a *State) AddMicroblock(micro *proto.MicroBlock) {
 	}
 
 	if curBlock.Parent != block.Parent {
-		zap.S().Errorf("current block parent not equal prev block %q actual %q", curBlock.Parent, block.Parent)
+		zap.S().Errorf("NG State: current block parent not equal prev block %q actual %q", curBlock.Parent, block.Parent)
 		return
 	}
 
@@ -124,7 +121,7 @@ func (a *State) AddMicroblock(micro *proto.MicroBlock) {
 	locked := lock.Lock()
 	err = a.state.RollbackTo(curBlock.Parent)
 	if err != nil {
-		zap.S().Error(errors.Wrapf(err, "failed to rollback to sig %s", curBlock.Parent))
+		zap.S().Errorf("NG State: failed to rollback to sig %s: %v", curBlock.Parent, err)
 		locked.Unlock()
 		return
 	}
