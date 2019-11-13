@@ -67,10 +67,11 @@ func (a *NodeApi) routes() chi.Router {
 	r.Get("/blocks/signature/{signature}", a.BlockSignatureAt)
 	r.Get("/blocks/generators", a.BlocksGenerators)
 	r.Route("/peers", func(r chi.Router) {
-		r.Get("/all", a.PeersAll)
+		r.Get("/known", a.PeersAll)
 		r.Get("/connected", a.PeersConnected)
 		r.Post("/connect", a.PeersConnect)
 		r.Get("/suspended", a.PeersSuspended)
+		r.Get("/spawned", a.PeersSpawned)
 	})
 	r.Get("/miner/info", a.Minerinfo)
 	r.Post("/transactions/broadcast", a.TransactionsBroadcast)
@@ -114,11 +115,6 @@ func (a *NodeApi) BlocksFirst(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	block.Height = 1
-	//err = json.NewEncoder(w).Encode(block)
-	//if err != nil {
-	//	http.Error(w, fmt.Sprintf("Failed to marshal status to JSON: %s", err.Error()), http.StatusInternalServerError)
-	//	return
-	//}
 	bts, err := proto.BlockEncodeJson(block)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to marshal status to JSON: %s", err.Error()), http.StatusInternalServerError)
@@ -228,6 +224,11 @@ func (a *NodeApi) PeersAll(w http.ResponseWriter, r *http.Request) {
 		handleError(w, err)
 		return
 	}
+	sendJson(w, rs)
+}
+
+func (a *NodeApi) PeersSpawned(w http.ResponseWriter, r *http.Request) {
+	rs := a.app.PeersSpawned()
 	sendJson(w, rs)
 }
 

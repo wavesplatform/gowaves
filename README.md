@@ -59,12 +59,14 @@ By default the node starts as MainNet node. To start TestNet node pass the `test
  * Unstable network synchronization, first thing to improve
  * Uneven script estimation, overestimated scripts leads to warning
  * Reduced REST API, only few methods are available
+ * No block generation (mining) for now, it's implemented but intentionally switched off
 
 ### Future plans
 
  * Complete gRPC API and extensive integration testing
  * RIDE optimization
  * Support of RIDE v4 and Waves v1.2 new features
+ * Built-in wallet for full block generation (mining) support
  
 ### Building from sources
 

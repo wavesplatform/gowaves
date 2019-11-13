@@ -299,24 +299,50 @@ func (e *Estimator) estimate(expr ast.Expr) (uint64, error) {
 		return total, nil
 
 	case *ast.Block:
-		cc := e.contexts.curr()
-		cc.express(ce.Let.Name, expression{ce.Let.Value, false})
-		bc, err := e.estimate(ce.Body)
-		if err != nil {
-			return 0, err
-		}
-		return bc + 5, nil
-
-	case *ast.BlockV2:
-		switch declaration := ce.Decl.(type) {
-		case *ast.LetExpr:
+		switch e.Version {
+		case 2:
+			tmp := e.contexts.copy()
 			cc := e.contexts.curr()
-			cc.express(declaration.Name, expression{declaration.Value, false})
+			cc.express(ce.Let.Name, expression{ce.Let.Value, false})
+			bc, err := e.estimate(ce.Body)
+			if err != nil {
+				return 0, err
+			}
+			e.contexts = tmp
+			return bc + 5, nil
+		default:
+			cc := e.contexts.curr()
+			cc.express(ce.Let.Name, expression{ce.Let.Value, false})
 			bc, err := e.estimate(ce.Body)
 			if err != nil {
 				return 0, err
 			}
 			return bc + 5, nil
+		}
+
+	case *ast.BlockV2:
+		switch declaration := ce.Decl.(type) {
+		case *ast.LetExpr:
+			switch e.Version {
+			case 2:
+				tmp := e.contexts.copy()
+				cc := e.contexts.curr()
+				cc.express(declaration.Name, expression{declaration.Value, false})
+				bc, err := e.estimate(ce.Body)
+				if err != nil {
+					return 0, err
+				}
+				e.contexts = tmp
+				return bc + 5, nil
+			default:
+				cc := e.contexts.curr()
+				cc.express(declaration.Name, expression{declaration.Value, false})
+				bc, err := e.estimate(ce.Body)
+				if err != nil {
+					return 0, err
+				}
+				return bc + 5, nil
+			}
 		case *ast.FuncDeclaration:
 			switch e.Version {
 			case 2:
@@ -412,26 +438,46 @@ func (e *Estimator) estimate(expr ast.Expr) (uint64, error) {
 		return 2, nil
 
 	case *ast.IfExpr:
-		cc, err := e.estimate(ce.Condition)
-		if err != nil {
-			return 0, err
+		switch e.Version {
+		case 2:
+			cc, err := e.estimate(ce.Condition)
+			if err != nil {
+				return 0, err
+			}
+			tc, err := e.estimate(ce.True)
+			if err != nil {
+				return 0, err
+			}
+			fc, err := e.estimate(ce.False)
+			if err != nil {
+				return 0, err
+			}
+			if tc > fc {
+				return tc + cc + 1, nil
+			}
+			return fc + cc + 1, nil
+		default:
+			cc, err := e.estimate(ce.Condition)
+			if err != nil {
+				return 0, err
+			}
+			tmp := e.contexts.copy()
+			tc, err := e.estimate(ce.True)
+			if err != nil {
+				return 0, err
+			}
+			trueContext := e.contexts.copy()
+			e.contexts = tmp
+			fc, err := e.estimate(ce.False)
+			if err != nil {
+				return 0, err
+			}
+			if tc > fc {
+				e.contexts = trueContext
+				return tc + cc + 1, nil
+			}
+			return fc + cc + 1, nil
 		}
-		tmp := e.contexts.copy()
-		tc, err := e.estimate(ce.True)
-		if err != nil {
-			return 0, err
-		}
-		trueContext := e.contexts.copy()
-		e.contexts = tmp
-		fc, err := e.estimate(ce.False)
-		if err != nil {
-			return 0, err
-		}
-		if tc > fc {
-			e.contexts = trueContext
-			return tc + cc + 1, nil
-		}
-		return fc + cc + 1, nil
 
 	case *ast.GetterExpr:
 		c, err := e.estimate(ce.Object)
@@ -441,15 +487,16 @@ func (e *Estimator) estimate(expr ast.Expr) (uint64, error) {
 		return c + 2, nil
 
 	case *ast.FuncDeclaration:
-		cc := e.contexts.curr()
+		rc := e.contexts.root()
 		for _, a := range ce.Args {
-			cc.express(a, expression{&ast.BooleanExpr{Value: true}, false})
+			rc.express(a, expression{&ast.BooleanExpr{Value: true}, false})
 		}
-		c, err := e.estimate(ce.Body)
+		fc, err := e.estimate(ce.Body)
 		if err != nil {
 			return 0, err
 		}
-		return c + uint64(len(ce.Args)*6), nil
+		ac := uint64(len(ce.Args) * 6)
+		return ac + fc, nil
 
 	default:
 		return 0, nil
