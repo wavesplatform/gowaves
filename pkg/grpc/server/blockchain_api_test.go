@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/phayes/freeport"
@@ -49,6 +50,7 @@ func TestGetBaseTarget(t *testing.T) {
 		}
 	}()
 
+	time.Sleep(5 * time.Second)
 	res, err := cl.GetBaseTarget(ctx, &empty.Empty{})
 	assert.NoError(t, err)
 	// MainNet Genesis base target.
@@ -91,6 +93,7 @@ func TestGetCumulativeScore(t *testing.T) {
 		}
 	}()
 
+	time.Sleep(5 * time.Second)
 	res, err := cl.GetCumulativeScore(ctx, &empty.Empty{})
 	assert.NoError(t, err)
 	genesisTarget := uint64(153722867)
