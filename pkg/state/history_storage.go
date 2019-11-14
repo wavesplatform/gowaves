@@ -47,6 +47,8 @@ var recordSizes = map[blockchainEntity]int{
 	assetScriptComplexity: assetScriptComplexityRecordSize + 4,
 	rewardVotes:           rewardVotesRecordSize + 4,
 	blockReward:           blockRewardRecordSize + 4,
+	// TODO: uncomment when changing state structure next time.
+	//ordersVolume:        orderVolumeRecordSize + 4,
 }
 
 type historyEntry struct {
@@ -311,7 +313,7 @@ func (hs *historyStorage) freshLatestEntry(key []byte, filter bool) (historyEntr
 
 func (hs *historyStorage) combineHistories(key []byte, newHist *historyRecord, filter bool) (*historyRecord, error) {
 	prevHist, err := hs.getHistory(key, filter, true)
-	if err == keyvalue.ErrNotFound {
+	if err == keyvalue.ErrNotFound || err == errEmptyHist {
 		// New history.
 		return newHist, nil
 	} else if err != nil {
