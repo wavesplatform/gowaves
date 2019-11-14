@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/wavesplatform/gowaves/pkg/api"
+	"github.com/wavesplatform/gowaves/pkg/grpc/server"
 	"github.com/wavesplatform/gowaves/pkg/libs/bytespool"
 	"github.com/wavesplatform/gowaves/pkg/miner"
 	"github.com/wavesplatform/gowaves/pkg/miner/scheduler"
@@ -35,7 +36,8 @@ var (
 	blockchainType = flag.String("blockchain-type", "mainnet", "Blockchain type: mainnet/testnet/stagenet")
 	peerAddresses  = flag.String("peers", "35.156.19.4:6868,52.50.69.247:6868,52.52.46.76:6868,52.57.147.71:6868,52.214.55.18:6868,54.176.190.226:6868", "Addresses of peers to connect to")
 	declAddr       = flag.String("declared-address", "", "Address to listen on")
-	apiAddr        = flag.String("api-address", "", "Address for API")
+	apiAddr        = flag.String("api-address", "", "Address for REST API")
+	grpcAddr       = flag.String("grpc-address", "127.0.0.1:7475", "Address for gRPC API")
 )
 
 func main() {
@@ -160,7 +162,15 @@ func main() {
 	go func() {
 		err := api.Run(ctx, conf.HttpAddr, webApi)
 		if err != nil {
-			zap.S().Error("Failed to start API: %v", err)
+			zap.S().Errorf("Failed to start API: %v", err)
+		}
+	}()
+
+	grpcServer := server.NewServer(state)
+	go func() {
+		err := grpcServer.Run(ctx, conf.GrpcAddr)
+		if err != nil {
+			zap.S().Errorf("grpcServer.Run(): %v", err)
 		}
 	}()
 
@@ -181,6 +191,7 @@ func FromArgs() func(s *settings.NodeSettings) error {
 	return func(s *settings.NodeSettings) error {
 		s.DeclaredAddr = *declAddr
 		s.HttpAddr = *apiAddr
+		s.GrpcAddr = *grpcAddr
 		networkStr, err := proto.NetworkStrByType(*blockchainType)
 		if err != nil {
 			return err
