@@ -5,7 +5,7 @@ import (
 	"net"
 
 	"github.com/pkg/errors"
-	g "github.com/wavesplatform/gowaves/pkg/grpc"
+	g "github.com/wavesplatform/gowaves/pkg/grpc/generated"
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"

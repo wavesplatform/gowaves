@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/golang/protobuf/ptypes/wrappers"
-	g "github.com/wavesplatform/gowaves/pkg/grpc"
+	g "github.com/wavesplatform/gowaves/pkg/grpc/generated"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )

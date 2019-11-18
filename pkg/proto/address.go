@@ -3,13 +3,15 @@ package proto
 import (
 	"bytes"
 	"encoding/binary"
-	"github.com/mr-tron/base58/base58"
-	"github.com/pkg/errors"
-	"github.com/wavesplatform/gowaves/pkg/crypto"
-	"github.com/wavesplatform/gowaves/pkg/libs/serializer"
 	"io"
 	"strconv"
 	"strings"
+
+	"github.com/mr-tron/base58/base58"
+	"github.com/pkg/errors"
+	"github.com/wavesplatform/gowaves/pkg/crypto"
+	g "github.com/wavesplatform/gowaves/pkg/grpc/generated"
+	"github.com/wavesplatform/gowaves/pkg/libs/serializer"
 )
 
 const (
@@ -370,6 +372,13 @@ func NewRecipientFromString(s string) (Recipient, error) {
 		return Recipient{}, err
 	}
 	return NewRecipientFromAddress(a), nil
+}
+
+func (r Recipient) ToProtobuf() *g.Recipient {
+	if r.Address != nil {
+		return &g.Recipient{Recipient: &g.Recipient_Address{Address: r.Address.Bytes()}}
+	}
+	return &g.Recipient{Recipient: &g.Recipient_Alias{Alias: r.Alias.Alias}}
 }
 
 // Valid checks that either an Address or an Alias is set then checks the validity of the set field.
