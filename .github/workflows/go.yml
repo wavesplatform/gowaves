@@ -21,7 +21,7 @@ jobs:
       - name: Test PATH
         run: echo $PATH
         env:
-          PATH: $PATH:$HOME/bin/
+          PATH: PATH:`HOME/bin/
 
       - name: Check out code into the Go module directory
         uses: actions/checkout@v1
