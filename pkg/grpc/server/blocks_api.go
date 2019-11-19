@@ -62,5 +62,9 @@ func (s *Server) GetBlockRange(req *g.BlockRangeRequest, srv g.BlocksApi_GetBloc
 }
 
 func (s *Server) GetCurrentHeight(ctx context.Context, req *empty.Empty) (*wrappers.UInt32Value, error) {
-	return nil, status.Errorf(codes.Unimplemented, "Not implemented")
+	height, err := s.state.Height()
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, err.Error())
+	}
+	return &wrappers.UInt32Value{Value: uint32(height)}, nil
 }

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	protobuf "github.com/golang/protobuf/proto"
+	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/phayes/freeport"
 	"github.com/stretchr/testify/assert"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
@@ -95,4 +96,47 @@ func TestGetBlock(t *testing.T) {
 	res, err = cl.GetBlock(ctx, req)
 	assert.NoError(t, err)
 	assert.True(t, protobuf.Equal(noTransactionsProto, res))
+}
+
+func TestGetCurrentHeight(t *testing.T) {
+	grpcTestAddr := fmt.Sprintf("127.0.0.1:%d", freeport.GetPort())
+	dataDir, err := ioutil.TempDir(os.TempDir(), "dataDir")
+	assert.NoError(t, err)
+	st, err := state.NewState(dataDir, state.DefaultTestingStateParams(), settings.MainNetSettings)
+	assert.NoError(t, err)
+
+	conn := connect(t, grpcTestAddr)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer func() {
+		cancel()
+		conn.Close()
+		err = st.Close()
+		assert.NoError(t, err)
+		err = os.RemoveAll(dataDir)
+		assert.NoError(t, err)
+	}()
+
+	cl := g.NewBlocksApiClient(conn)
+	server, err := NewServer(st)
+	assert.NoError(t, err)
+	go func() {
+		if err := server.Run(ctx, grpcTestAddr); err != nil {
+			t.Error("server.Run failed")
+		}
+	}()
+
+	time.Sleep(5 * time.Second)
+	res, err := cl.GetCurrentHeight(ctx, &empty.Empty{})
+	assert.NoError(t, err)
+	assert.Equal(t, uint32(1), res.Value)
+
+	// Add some blocks.
+	blockHeight := proto.Height(99)
+	blocks := state.ReadMainnetBlocksToHeight(t, blockHeight)
+	err = st.AddOldDeserializedBlocks(blocks)
+	assert.NoError(t, err)
+
+	res, err = cl.GetCurrentHeight(ctx, &empty.Empty{})
+	assert.NoError(t, err)
+	assert.Equal(t, uint32(blockHeight), res.Value)
 }
