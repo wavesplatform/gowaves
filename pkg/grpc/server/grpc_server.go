@@ -6,17 +6,23 @@ import (
 
 	"github.com/pkg/errors"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated"
+	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 )
 
 type Server struct {
-	state state.State
+	state  state.State
+	scheme proto.Scheme
 }
 
-func NewServer(state state.State) *Server {
-	return &Server{state: state}
+func NewServer(state state.State) (*Server, error) {
+	settings, err := state.BlockchainSettings()
+	if err != nil {
+		return nil, err
+	}
+	return &Server{state: state, scheme: settings.AddressSchemeCharacter}, nil
 }
 
 func (s *Server) Run(ctx context.Context, address string) error {

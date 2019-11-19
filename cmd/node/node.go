@@ -166,7 +166,10 @@ func main() {
 		}
 	}()
 
-	grpcServer := server.NewServer(state)
+	grpcServer, err := server.NewServer(state)
+	if err != nil {
+		zap.S().Errorf("Failed to create gRPC server: %v", err)
+	}
 	go func() {
 		err := grpcServer.Run(ctx, conf.GrpcAddr)
 		if err != nil {

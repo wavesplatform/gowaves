@@ -20,7 +20,7 @@ func (s *Server) GetBaseTarget(ctx context.Context, req *empty.Empty) (*g.BaseTa
 	}
 	block, err := s.state.BlockByHeight(height)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, err.Error())
+		return nil, status.Errorf(codes.NotFound, err.Error())
 	}
 	return &g.BaseTargetResponse{BaseTarget: int64(block.BaseTarget)}, nil
 }

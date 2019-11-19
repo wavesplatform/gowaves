@@ -43,7 +43,8 @@ func TestGetBaseTarget(t *testing.T) {
 	}()
 
 	cl := g.NewBlockchainApiClient(conn)
-	server := NewServer(st)
+	server, err := NewServer(st)
+	assert.NoError(t, err)
 	go func() {
 		if err := server.Run(ctx, grpcTestAddr); err != nil {
 			t.Error("server.Run failed")
@@ -86,7 +87,8 @@ func TestGetCumulativeScore(t *testing.T) {
 	}()
 
 	cl := g.NewBlockchainApiClient(conn)
-	server := NewServer(st)
+	server, err := NewServer(st)
+	assert.NoError(t, err)
 	go func() {
 		if err := server.Run(ctx, grpcTestAddr); err != nil {
 			t.Error("server.Run failed")
