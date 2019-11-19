@@ -199,6 +199,7 @@ func (a *PeerManagerImpl) Suspend(p peer.Peer) {
 	a.mu.Lock()
 	a.suspended.Block(p.RemoteAddr().ToIpPort(), 5*time.Minute)
 	a.mu.Unlock()
+	zap.S().Debugf("[%s] Suspend peer ", p.ID())
 }
 
 func (a *PeerManagerImpl) Suspended() []string {

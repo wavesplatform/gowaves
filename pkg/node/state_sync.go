@@ -125,7 +125,8 @@ func (a *StateSync) sync(ctx context.Context, p Peer) error {
 		errCh <- downloadBlocks(ctx, incoming, p, a.subscribe, a.services, a.interrupter)
 	}()
 
-	switch <-errCh {
+	err = <-errCh
+	switch err {
 	case TimeoutErr:
 		a.peerManager.Suspend(p)
 		cancel()

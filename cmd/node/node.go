@@ -51,10 +51,6 @@ func main() {
 
 	ctx, cancel := context.WithCancel(context.Background())
 
-	zap.S().Info(os.Args)
-	zap.S().Info(os.Environ())
-	zap.S().Info(os.LookupEnv("WAVES_OPTS"))
-
 	conf := &settings.NodeSettings{}
 	if err := settings.ApplySettings(conf, FromArgs(), settings.FromJavaEnviron); err != nil {
 		zap.S().Error(err)
