@@ -348,7 +348,11 @@ func (e *Estimator) estimate(expr ast.Expr) (uint64, error) {
 			case 2:
 				cc := e.contexts.curr()
 				cc.declare(declaration.Name, function{declaration.Body, declaration.Args})
-				e.contexts.branch(declaration.Name)
+				for _, a := range declaration.Args {
+					cc.express(a, expression{&ast.BooleanExpr{Value: true}, false})
+				}
+				// TODO: no branching, estimation is broken
+				//e.contexts.branch(declaration.Name)
 			default:
 				rc := e.contexts.root()
 				for _, a := range declaration.Args {
@@ -387,21 +391,22 @@ func (e *Estimator) estimate(expr ast.Expr) (uint64, error) {
 			if err != nil {
 				return 0, err
 			}
+			// TODO no branching for a while
 			// Change context to the function's one
-			functionContext, ok := e.contexts.items[ce.Name]
-			if !ok {
-				return 0, errors.Errorf("no function context '%s'", ce.Name)
-			}
-			err = e.contexts.change(functionContext)
-			if err != nil {
-				return 0, err
-			}
+			//functionContext, ok := e.contexts.items[ce.Name]
+			//if !ok {
+			//	return 0, errors.Errorf("no function context '%s'", ce.Name)
+			//}
+			//err = e.contexts.change(functionContext)
+			//if err != nil {
+			//	return 0, err
+			//}
 			if na := len(fd.args); na != ce.Argc {
 				return 0, errors.Errorf("unexpected number of arguments %d, function '%s' accepts %d arguments", ce.Argc, ce.Name, na)
 			}
 			// Create or reset function parameters in order to evaluate them on every call of the function
 			for _, a := range fd.args {
-				functionContext.express(a, expression{&ast.BooleanExpr{Value: true}, false})
+				callContext.express(a, expression{&ast.BooleanExpr{Value: true}, false})
 			}
 			pc, err := e.estimate(fd.expr)
 			if err != nil {
