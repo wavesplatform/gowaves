@@ -20,7 +20,7 @@ jobs:
 
       - name: Test PATH
         run: |
-          setenv PATH '$HOTE/bin':"$PATH"
+          export PATH="$HOTE/bin:$PATH"
           echo $PATH
 
       - name: Check out code into the Go module directory
