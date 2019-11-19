@@ -1,6 +1,7 @@
 package server
 
 import (
+	"bytes"
 	"context"
 
 	"github.com/golang/protobuf/ptypes/empty"
@@ -74,7 +75,21 @@ func (s *Server) GetBlock(ctx context.Context, req *g.BlockRequest) (*g.BlockWit
 }
 
 func (s *Server) GetBlockRange(req *g.BlockRangeRequest, srv g.BlocksApi_GetBlockRangeServer) error {
-	return status.Errorf(codes.Unimplemented, "Not implemented")
+	generator := req.GetGenerator()
+	hasFilter := generator != nil
+	for height := proto.Height(req.FromHeight); height <= proto.Height(req.ToHeight); height++ {
+		block, err := s.headerOrBlockByHeight(height, req.IncludeTransactions)
+		if err != nil {
+			return status.Errorf(codes.NotFound, err.Error())
+		}
+		if hasFilter && !bytes.Equal(block.Block.Header.Generator, generator) {
+			continue
+		}
+		if err := srv.Send(block); err != nil {
+			return status.Errorf(codes.Internal, err.Error())
+		}
+	}
+	return nil
 }
 
 func (s *Server) GetCurrentHeight(ctx context.Context, req *empty.Empty) (*wrappers.UInt32Value, error) {
