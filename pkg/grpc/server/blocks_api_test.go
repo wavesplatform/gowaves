@@ -46,7 +46,7 @@ func TestGetBlock(t *testing.T) {
 		}
 	}()
 
-	time.Sleep(5 * time.Second)
+	time.Sleep(sleepTime)
 	// Prepare state.
 	blockHeight := proto.Height(99)
 	blocks := state.ReadMainnetBlocksToHeight(t, blockHeight)
@@ -125,7 +125,7 @@ func TestGetCurrentHeight(t *testing.T) {
 		}
 	}()
 
-	time.Sleep(5 * time.Second)
+	time.Sleep(sleepTime)
 	res, err := cl.GetCurrentHeight(ctx, &empty.Empty{})
 	assert.NoError(t, err)
 	assert.Equal(t, uint32(1), res.Value)

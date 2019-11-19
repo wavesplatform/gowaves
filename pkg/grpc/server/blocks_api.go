@@ -12,7 +12,19 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-func (s *Server) getBlockByHeight(height proto.Height, includeTransactions bool) (*g.BlockWithHeight, error) {
+func (s *Server) headerByHeight(height proto.Height) (*g.BlockWithHeight, error) {
+	header, err := s.state.HeaderByHeight(height)
+	if err != nil {
+		return nil, status.Errorf(codes.NotFound, err.Error())
+	}
+	res, err := header.HeaderToProtobuf(s.scheme, height)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, err.Error())
+	}
+	return res, nil
+}
+
+func (s *Server) blockByHeight(height proto.Height) (*g.BlockWithHeight, error) {
 	block, err := s.state.BlockByHeight(height)
 	if err != nil {
 		return nil, status.Errorf(codes.NotFound, err.Error())
@@ -21,10 +33,14 @@ func (s *Server) getBlockByHeight(height proto.Height, includeTransactions bool)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, err.Error())
 	}
-	if !includeTransactions {
-		res.Block.Transactions = nil
-	}
 	return res, nil
+}
+
+func (s *Server) headerOrBlockByHeight(height proto.Height, includeTransactions bool) (*g.BlockWithHeight, error) {
+	if includeTransactions {
+		return s.blockByHeight(height)
+	}
+	return s.headerByHeight(height)
 }
 
 func (s *Server) GetBlock(ctx context.Context, req *g.BlockRequest) (*g.BlockWithHeight, error) {
@@ -38,9 +54,9 @@ func (s *Server) GetBlock(ctx context.Context, req *g.BlockRequest) (*g.BlockWit
 		if err != nil {
 			return nil, status.Errorf(codes.NotFound, err.Error())
 		}
-		return s.getBlockByHeight(blockHeight, req.IncludeTransactions)
+		return s.headerOrBlockByHeight(blockHeight, req.IncludeTransactions)
 	case *g.BlockRequest_Height:
-		return s.getBlockByHeight(proto.Height(r.Height), req.IncludeTransactions)
+		return s.headerOrBlockByHeight(proto.Height(r.Height), req.IncludeTransactions)
 	case *g.BlockRequest_Reference:
 		id, err := crypto.NewSignatureFromBytes(r.Reference)
 		if err != nil {
@@ -51,7 +67,7 @@ func (s *Server) GetBlock(ctx context.Context, req *g.BlockRequest) (*g.BlockWit
 			return nil, status.Errorf(codes.NotFound, err.Error())
 		}
 		blockHeight := parentHeight + 1
-		return s.getBlockByHeight(blockHeight, req.IncludeTransactions)
+		return s.headerOrBlockByHeight(blockHeight, req.IncludeTransactions)
 	default:
 		return nil, status.Errorf(codes.InvalidArgument, "Unknown argument type")
 	}

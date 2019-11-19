@@ -18,6 +18,10 @@ import (
 	"google.golang.org/grpc"
 )
 
+const (
+	sleepTime = 2 * time.Second
+)
+
 func connect(t *testing.T, addr string) *grpc.ClientConn {
 	conn, err := grpc.Dial(addr, grpc.WithInsecure())
 	assert.NoError(t, err, "grpc.Dial() failed")
@@ -51,7 +55,7 @@ func TestGetBaseTarget(t *testing.T) {
 		}
 	}()
 
-	time.Sleep(5 * time.Second)
+	time.Sleep(sleepTime)
 	res, err := cl.GetBaseTarget(ctx, &empty.Empty{})
 	assert.NoError(t, err)
 	// MainNet Genesis base target.
@@ -95,7 +99,7 @@ func TestGetCumulativeScore(t *testing.T) {
 		}
 	}()
 
-	time.Sleep(5 * time.Second)
+	time.Sleep(sleepTime)
 	res, err := cl.GetCumulativeScore(ctx, &empty.Empty{})
 	assert.NoError(t, err)
 	genesisTarget := uint64(153722867)

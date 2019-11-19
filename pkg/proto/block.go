@@ -45,52 +45,6 @@ type BlockHeader struct {
 	Height uint64 `json:"height"`
 }
 
-func (b *Block) ToProtobuf(currentScheme Scheme, height uint64) (*g.BlockWithHeight, error) {
-	ref, err := b.Parent.MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
-	sig, err := b.BlockSignature.MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
-	pkBytes := b.GenPublicKey.Bytes()
-	features := make([]uint32, len(b.Features))
-	for i := range b.Features {
-		features[i] = uint32(b.Features[i])
-	}
-	txs, err := b.Transactions.Transactions()
-	if err != nil {
-		return nil, err
-	}
-	protoTransactions := make([]*g.SignedTransaction, len(txs))
-	for i := range txs {
-		protoTx, err := txs[i].ToProtobufSigned(currentScheme)
-		if err != nil {
-			return nil, err
-		}
-		protoTransactions[i] = protoTx
-	}
-	return &g.BlockWithHeight{
-		Block: &g.Block{
-			Header: &g.Block_Header{
-				ChainId:             int32(currentScheme),
-				Reference:           ref,
-				BaseTarget:          int64(b.BaseTarget),
-				GenerationSignature: b.GenSignature.Bytes(),
-				FeatureVotes:        features,
-				Timestamp:           int64(b.Timestamp),
-				Version:             int32(b.Version),
-				Generator:           pkBytes,
-				RewardVote:          b.RewardVote,
-			},
-			Signature:    sig,
-			Transactions: protoTransactions,
-		},
-		Height: uint32(height),
-	}, nil
-}
-
 func featuresToBinary(features []int16) ([]byte, error) {
 	buf := new(bytes.Buffer)
 	if err := binary.Write(buf, binary.BigEndian, features); err != nil {
@@ -106,6 +60,39 @@ func featuresFromBinary(data []byte) ([]int16, error) {
 		return nil, err
 	}
 	return res, nil
+}
+
+func (b *BlockHeader) HeaderToProtobuf(currentScheme Scheme, height uint64) (*g.BlockWithHeight, error) {
+	ref, err := b.Parent.MarshalBinary()
+	if err != nil {
+		return nil, err
+	}
+	sig, err := b.BlockSignature.MarshalBinary()
+	if err != nil {
+		return nil, err
+	}
+	pkBytes := b.GenPublicKey.Bytes()
+	features := make([]uint32, len(b.Features))
+	for i := range b.Features {
+		features[i] = uint32(b.Features[i])
+	}
+	return &g.BlockWithHeight{
+		Block: &g.Block{
+			Header: &g.Block_Header{
+				ChainId:             int32(currentScheme),
+				Reference:           ref,
+				BaseTarget:          int64(b.BaseTarget),
+				GenerationSignature: b.GenSignature.Bytes(),
+				FeatureVotes:        features,
+				Timestamp:           int64(b.Timestamp),
+				Version:             int32(b.Version),
+				Generator:           pkBytes,
+				RewardVote:          b.RewardVote,
+			},
+			Signature: sig,
+		},
+		Height: uint32(height),
+	}, nil
 }
 
 func (b *BlockHeader) MarshalHeaderToBinary() ([]byte, error) {
@@ -413,6 +400,27 @@ func (b *Block) WriteTo(w io.Writer) (int64, error) {
 	}
 
 	return n + int64(n2), nil
+}
+
+func (b *Block) ToProtobuf(currentScheme Scheme, height uint64) (*g.BlockWithHeight, error) {
+	txs, err := b.Transactions.Transactions()
+	if err != nil {
+		return nil, err
+	}
+	protoTransactions := make([]*g.SignedTransaction, len(txs))
+	for i := range txs {
+		protoTx, err := txs[i].ToProtobufSigned(currentScheme)
+		if err != nil {
+			return nil, err
+		}
+		protoTransactions[i] = protoTx
+	}
+	block, err := b.BlockHeader.HeaderToProtobuf(currentScheme, height)
+	if err != nil {
+		return nil, err
+	}
+	block.Block.Transactions = protoTransactions
+	return block, nil
 }
 
 //WriteToWithoutSignature writes binary representation of block into Writer.
