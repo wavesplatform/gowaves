@@ -11,8 +11,8 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	client "github.com/wavesplatform/gowaves/pkg/client/grpc"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	client "github.com/wavesplatform/gowaves/pkg/grpc"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"

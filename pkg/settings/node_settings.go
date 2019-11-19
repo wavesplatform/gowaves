@@ -11,6 +11,7 @@ type NodeSettings struct {
 	WavesNetwork string
 	Addresses    string
 	HttpAddr     string
+	GrpcAddr     string
 }
 
 func (a NodeSettings) Validate() error {

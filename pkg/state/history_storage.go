@@ -47,6 +47,8 @@ var recordSizes = map[blockchainEntity]int{
 	assetScriptComplexity: assetScriptComplexityRecordSize + 4,
 	rewardVotes:           rewardVotesRecordSize + 4,
 	blockReward:           blockRewardRecordSize + 4,
+	// TODO: uncomment when changing state structure next time.
+	//ordersVolume:        orderVolumeRecordSize + 4,
 }
 
 type historyEntry struct {

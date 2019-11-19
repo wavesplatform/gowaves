@@ -225,7 +225,7 @@ func (cv *ConsensusValidator) validateGeneratorSignature(height uint64, header *
 		return errors.Errorf("failed to calculate generator signature: %v\n", err)
 	}
 	if expectedGenSig != header.GenSignature {
-		return errors.Errorf("invalid generation signature")
+		return errors.Errorf("invalid generation signature %s, expected %s", header.GenSignature.String(), expectedGenSig.String())
 	}
 	return nil
 }

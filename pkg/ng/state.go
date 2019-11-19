@@ -93,13 +93,13 @@ func (a *State) AddBlock(block *proto.Block) {
 
 	err = a.applier.Apply(block)
 	if err != nil {
-		zap.S().Errorf("NG State: failed to apply block %s: %v", block.BlockSignature.String(), err)
+		zap.S().Error(err)
 		a.storage.Pop()
 
 		// return prev block, if possible
 		if a.prevAddedBlock != nil {
 			err := a.applier.Apply(a.prevAddedBlock)
-			if err != nil { // can't apply previous added block, maybe broken ngState
+			if err != nil {
 				zap.S().Error("can't apply previous added block, maybe broken ngState ", err)
 			}
 		}
