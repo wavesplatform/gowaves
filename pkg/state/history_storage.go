@@ -311,7 +311,7 @@ func (hs *historyStorage) freshLatestEntry(key []byte, filter bool) (historyEntr
 
 func (hs *historyStorage) combineHistories(key []byte, newHist *historyRecord, filter bool) (*historyRecord, error) {
 	prevHist, err := hs.getHistory(key, filter, true)
-	if err == keyvalue.ErrNotFound {
+	if err == keyvalue.ErrNotFound || err == errEmptyHist {
 		// New history.
 		return newHist, nil
 	} else if err != nil {

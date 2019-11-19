@@ -1,6 +1,8 @@
 package types
 
 import (
+	"context"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
@@ -61,4 +63,28 @@ type SmartState interface {
 	NewestHeaderByHeight(height proto.Height) (*proto.BlockHeader, error)
 
 	IsNotFound(err error) bool
+}
+
+type ID interface {
+	ID() string
+}
+
+type Subscribe interface {
+	Subscribe(p ID, responseMessage proto.Message) (chan proto.Message, func())
+	Receive(p ID, responseMessage proto.Message) bool
+}
+
+type StateSync interface {
+	Sync()
+	SetEnabled(enabled bool)
+	Close()
+	Run(ctx context.Context)
+}
+
+type MessageSender interface {
+	SendMessage(proto.Message)
+}
+
+type InvRequester interface {
+	Request(MessageSender, crypto.Signature)
 }

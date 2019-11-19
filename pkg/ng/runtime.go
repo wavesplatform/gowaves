@@ -78,11 +78,7 @@ func (a *RuntimeImpl) HandleInvMessage(p peer.Peer, mess *proto.MicroBlockInvMes
 
 	a.waitingOnMicroblock = &inv.TotalBlockSig
 
-	p.SendMessage(&proto.MicroBlockRequestMessage{
-		Body: &proto.MicroBlockRequest{
-			TotalBlockSig: inv.TotalBlockSig,
-		},
-	})
+	a.services.InvRequester.Request(p, inv.TotalBlockSig)
 }
 
 func (a *RuntimeImpl) HandleMicroBlockRequestMessage(p peer.Peer, message *proto.MicroBlockRequestMessage) {
@@ -128,6 +124,8 @@ func (a *RuntimeImpl) HandleMicroBlockMessage(_ peer.Peer, message *proto.MicroB
 		return
 	}
 
+	zap.S().Debugf("received micro %s", microblock.Signature)
+
 	if a.waitingOnMicroblock == nil {
 		// we don't need microblocks
 		return
@@ -143,7 +141,7 @@ func (a *RuntimeImpl) HandleMicroBlockMessage(_ peer.Peer, message *proto.MicroB
 }
 
 func (a *RuntimeImpl) HandleBlockMessage(_ peer.Peer, block *proto.Block) {
-	zap.S().Debugf("NG State: New block %s", block.BlockSignature.String())
+	zap.S().Debugf("NG State: HandleBlockMessage: New block %s", block.BlockSignature.String())
 	a.ngState.AddBlock(block)
 	go a.services.Scheduler.Reschedule()
 }

@@ -15,4 +15,6 @@ type Services struct {
 	UtxPool            types.UtxPool
 	Scheme             proto.Scheme
 	BlockAddedNotifier types.Handler
+	Subscribe          types.Subscribe
+	InvRequester       types.InvRequester
 }

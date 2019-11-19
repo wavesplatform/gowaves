@@ -28,8 +28,8 @@ type Config struct {
 type Node struct {
 	peers            peer_manager.PeerManager
 	state            state.State
-	subscribe        *Subscribe
-	sync             *StateSync
+	subscribe        types.Subscribe
+	sync             types.StateSync
 	declAddr         proto.TCPAddr
 	scheduler        types.Scheduler
 	minerInterrupter types.MinerInterrupter
@@ -37,13 +37,12 @@ type Node struct {
 	ng               *ng.RuntimeImpl
 }
 
-func NewNode(services services.Services, declAddr proto.TCPAddr, ng *ng.RuntimeImpl, interrupter types.MinerInterrupter) *Node {
-	s := NewSubscribeService()
+func NewNode(services services.Services, declAddr proto.TCPAddr, ng *ng.RuntimeImpl, interrupter types.MinerInterrupter, sync types.StateSync) *Node {
 	return &Node{
 		state:            services.State,
 		peers:            services.Peers,
-		subscribe:        s,
-		sync:             NewStateSync(services, s, interrupter),
+		subscribe:        services.Subscribe,
+		sync:             sync,
 		declAddr:         declAddr,
 		scheduler:        services.Scheduler,
 		minerInterrupter: interrupter,

@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/types"
 )
 
 func TestExpectedBlocks(t *testing.T) {
@@ -62,7 +63,11 @@ type subscriberImpl struct {
 	ch chan proto.Message
 }
 
-func (a subscriberImpl) Subscribe(p id, responseMessage proto.Message) (chan proto.Message, func()) {
+func (a subscriberImpl) Receive(p types.ID, responseMessage proto.Message) bool {
+	panic("implement me: Receive")
+}
+
+func (a subscriberImpl) Subscribe(p types.ID, responseMessage proto.Message) (chan proto.Message, func()) {
 	return a.ch, func() {}
 }
 

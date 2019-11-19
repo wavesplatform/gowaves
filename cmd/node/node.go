@@ -27,7 +27,7 @@ import (
 	"go.uber.org/zap"
 )
 
-var version = proto.Version{Major: 1, Minor: 1, Patch: 2}
+var version = proto.Version{Major: 1, Minor: 1, Patch: 5}
 
 var (
 	logLevel       = flag.String("log-level", "INFO", "Logging level. Supported levels: DEBUG, INFO, WARN, ERROR, FATAL. Default logging level INFO.")
@@ -124,10 +124,13 @@ func main() {
 		UtxPool:            utx,
 		Scheme:             scheme,
 		BlockAddedNotifier: stateChanged,
+		Subscribe:          node.NewSubscribeService(),
+		InvRequester:       ng.NewInvRequester(),
 	}
 
 	mine := miner.NoOpMiner()
 
+	stateSync := node.NewStateSync(services, mine)
 	ngState := ng.NewState(services)
 	ngRuntime := ng.NewRuntime(services, ngState)
 
@@ -138,7 +141,7 @@ func main() {
 		ngState.BlockApplied()
 	}))
 
-	n := node.NewNode(services, declAddr, ngRuntime, mine)
+	n := node.NewNode(services, declAddr, ngRuntime, mine, stateSync)
 	go node.RunNode(ctx, n, parent)
 
 	if len(conf.Addresses) > 0 {
@@ -149,7 +152,7 @@ func main() {
 	}
 
 	// TODO hardcore
-	app, err := api.NewApp("integration-test-rest-api", state, peerManager, scheduler, utx)
+	app, err := api.NewApp("integration-test-rest-api", state, peerManager, scheduler, utx, stateSync)
 	if err != nil {
 		zap.S().Error(err)
 		cancel()
