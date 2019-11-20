@@ -8,6 +8,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - uses: actions/checkout@master
       - name: Set up Go 1.13
         uses: actions/setup-go@v1
         with:
@@ -35,3 +36,5 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           file: ./coverage.txt
+          flags: unittests
+          yml: ./codecov.yml
