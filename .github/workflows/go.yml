@@ -1,4 +1,4 @@
-name: Go
+name: build
 on: [push]
 
 jobs:
@@ -22,8 +22,7 @@ jobs:
         uses: actions/checkout@v1
 
       - name: Get dependencies
-        run: |
-          go mod vendor
+        run: go mod vendor
 
       - name: Build
         run: export PATH="$HOME/bin:$PATH"; make
