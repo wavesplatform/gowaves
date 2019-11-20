@@ -9,6 +9,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/types"
 	"go.uber.org/zap"
 )
 
@@ -130,11 +131,11 @@ type blockDownload struct {
 	threads   chan int
 	sigs      *sigs
 	p         peer.Peer
-	subscribe *Subscribe
+	subscribe types.Subscribe
 	out       chan blockBytes
 }
 
-func newBlockDownloader(workersCount int, p peer.Peer, subscribe *Subscribe, out chan blockBytes) *blockDownload {
+func newBlockDownloader(workersCount int, p peer.Peer, subscribe types.Subscribe, out chan blockBytes) *blockDownload {
 	return &blockDownload{
 		threads:   make(chan int, workersCount),
 		sigs:      newSigs(),
@@ -147,7 +148,6 @@ func newBlockDownloader(workersCount int, p peer.Peer, subscribe *Subscribe, out
 func (a *blockDownload) download(sig crypto.Signature) bool {
 	r := a.sigs.add(sig)
 	if r {
-		zap.S().Debugf("[%s] BlockLoader: Requesting block %s", a.p.ID(), sig.String())
 		a.threads <- 1
 		a.p.SendMessage(&proto.GetBlockMessage{BlockID: sig})
 	}
@@ -168,7 +168,6 @@ func (a *blockDownload) run(ctx context.Context) {
 			if err != nil {
 				continue
 			}
-			zap.S().Debugf("[%s] BlockDownloader: Received block %s", a.p.ID(), sig.String())
 			// we are not waiting for this sig
 			if !a.sigs.contains(sig) {
 				continue
@@ -193,15 +192,11 @@ func (a *blockDownload) run(ctx context.Context) {
 }
 
 type sendMessage interface {
-	id
+	types.ID
 	SendMessage(proto.Message)
 }
 
-type subscriber interface {
-	Subscribe(p id, responseMessage proto.Message) (chan proto.Message, func())
-}
-
-func PreloadSignatures(ctx context.Context, out chan crypto.Signature, p sendMessage, lastSignatures *Signatures, subscribe subscriber) error {
+func PreloadSignatures(ctx context.Context, out chan crypto.Signature, p sendMessage, lastSignatures *Signatures, subscribe types.Subscribe) error {
 	messCh, unsubscribe := subscribe.Subscribe(p, &proto.SignaturesMessage{})
 	defer unsubscribe()
 	for {
@@ -218,7 +213,6 @@ func PreloadSignatures(ctx context.Context, out chan crypto.Signature, p sendMes
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-time.After(15 * time.Second):
-			// TODO handle timeout
 			zap.S().Debugf("[%s] Optimistic Loader: timeout while waiting for new signature", p.ID())
 			return TimeoutErr
 		case received := <-messCh:

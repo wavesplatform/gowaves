@@ -84,6 +84,22 @@ func TestBlockSequence(t *testing.T) {
 	require.Equal(t, 0, len(row2.MicroBlocks))
 }
 
+func TestBlocks_PreviousRow(t *testing.T) {
+	b := newBlocks()
+	rs1, err := b.AddBlock(newBlock(sig1, emptySig))
+	require.NoError(t, err)
+
+	rs2, err := rs1.AddMicro(newMicro(sig2, sig1))
+	require.NoError(t, err)
+
+	rs3, err := rs2.AddBlock(newBlock(sig3, sig2))
+	require.NoError(t, err)
+
+	row, err := rs3.PreviousRow()
+	require.NoError(t, err)
+	require.Equal(t, 1, len(row.MicroBlocks))
+}
+
 func TestStorage(t *testing.T) {
 	s := newStorage()
 

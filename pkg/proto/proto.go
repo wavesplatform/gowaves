@@ -341,7 +341,7 @@ func (a *HandshakeTCPAddr) ReadFrom(r io.Reader) (int64, error) {
 	}
 	s := binary.BigEndian.Uint32(size[:])
 	if s > 8 {
-		return 0, errors.Errorf("tcp addr is too large")
+		return 0, errors.Errorf("tcp addr is too large: expected size to be 8 or lower, found %d", s)
 	}
 
 	if s == 0 {

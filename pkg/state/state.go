@@ -1714,7 +1714,7 @@ func (s *stateManager) addBlocks(blocks []*proto.Block, initialisation bool) (*p
 	if blocksToFinish != nil {
 		return s.handleBreak(blocksToFinish, initialisation, breakerInfo)
 	}
-	zap.S().Infof("State: blocks to height %d added", height+uint64(blocksNumber))
+	zap.S().Infof("State: blocks to height %d added, block sig: %s", height+uint64(blocksNumber), lastBlock.BlockSignature)
 	return lastBlock, nil
 }
 

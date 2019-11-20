@@ -44,3 +44,11 @@ func TestFIFOCache(t *testing.T) {
 	require.Equal(t, 1, a.Cap())
 
 }
+
+func TestFIFOCache_Add2(t *testing.T) {
+	a := fifo_cache.New(2)
+	a.Add2([]byte("5"), 5)
+	require.Equal(t, 1, a.Len())
+	a.Add2([]byte("5"), 6)
+	require.Equal(t, 1, a.Len())
+}

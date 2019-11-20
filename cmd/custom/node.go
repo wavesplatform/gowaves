@@ -117,12 +117,15 @@ func main() {
 	blockApplier := node.NewBlockApplier(state, stateChanged, scheduler)
 
 	services := services.Services{
-		State:        state,
-		Peers:        peerManager,
-		Scheduler:    scheduler,
-		BlockApplier: blockApplier,
-		UtxPool:      utx,
-		Scheme:       custom.FunctionalitySettings.AddressSchemeCharacter,
+		State:              state,
+		Peers:              peerManager,
+		Scheduler:          scheduler,
+		BlockApplier:       blockApplier,
+		UtxPool:            utx,
+		Scheme:             custom.FunctionalitySettings.AddressSchemeCharacter,
+		BlockAddedNotifier: stateChanged,
+		Subscribe:          node.NewSubscribeService(),
+		InvRequester:       ng.NewInvRequester(),
 	}
 
 	utxClean := utxpool.NewCleaner(services)
@@ -131,7 +134,7 @@ func main() {
 	ngState := ng.NewState(services)
 	ngRuntime := ng.NewRuntime(services, ngState)
 
-	Mainer := miner.NewMicroblockMiner(services, ngRuntime, proto.CustomNetScheme)
+	Miner := miner.NewMicroblockMiner(services, ngRuntime, proto.CustomNetScheme)
 
 	stateChanged.AddHandler(state_changed.NewScoreSender(peerManager, state))
 	stateChanged.AddHandler(state_changed.NewFuncHandler(func() {
@@ -142,10 +145,12 @@ func main() {
 	}))
 	stateChanged.AddHandler(utxClean)
 
-	go miner.Run(ctx, Mainer, scheduler)
+	stateSync := node.NewStateSync(services, Miner)
+
+	go miner.Run(ctx, Miner, scheduler)
 	go scheduler.Reschedule()
 
-	n := node.NewNode(services, declAddr, ngRuntime, Mainer)
+	n := node.NewNode(services, declAddr, ngRuntime, Miner, stateSync)
 
 	go node.RunNode(ctx, n, parent)
 
@@ -157,7 +162,7 @@ func main() {
 	}
 
 	// TODO hardcore
-	app, err := api.NewApp("integration-test-rest-api", state, peerManager, scheduler, utx)
+	app, err := api.NewApp("integration-test-rest-api", state, peerManager, scheduler, utx, stateSync)
 	if err != nil {
 		zap.S().Error(err)
 		cancel()
