@@ -86,6 +86,6 @@ func TestHandleError(t *testing.T) {
 	}()
 	err := errors.New("error")
 	remote.ErrCh <- err
-	<-time.After(5 * time.Millisecond)
+	<-time.After(time.Millisecond)
 	assert.Equal(t, err, (<-parent.InfoCh).Value)
 }
