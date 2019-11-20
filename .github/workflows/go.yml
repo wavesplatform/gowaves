@@ -29,3 +29,9 @@ jobs:
 
       - name: Test with race detector
         run: go test -race -coverprofile=coverage.txt -covermode=atomic ./...
+
+      - name: Upload coverage to Codecov
+      - uses: codecov/codecov-actions@v1
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          file: ./coverage.txt
