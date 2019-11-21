@@ -127,6 +127,19 @@ func (sc *scriptsComplexity) newestScriptComplexityByAsset(asset crypto.Digest, 
 	return &record, nil
 }
 
+func (sc *scriptsComplexity) scriptComplexityByAsset(asset crypto.Digest, filter bool) (*assetScriptComplexityRecord, error) {
+	key := assetScriptComplexityKey{asset}
+	recordBytes, err := sc.hs.latestEntryData(key.bytes(), filter)
+	if err != nil {
+		return nil, err
+	}
+	var record assetScriptComplexityRecord
+	if err := record.unmarshalBinary(recordBytes); err != nil {
+		return nil, errors.Errorf("failed to unmarshal asset script complexity record: %v\n", err)
+	}
+	return &record, nil
+}
+
 func (sc *scriptsComplexity) saveComplexityForAddr(addr proto.Address, record *accountScriptComplexityRecord, blockID crypto.Signature) error {
 	recordBytes, err := record.marshalBinary()
 	if err != nil {

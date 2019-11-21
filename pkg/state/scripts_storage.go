@@ -73,6 +73,18 @@ func (ss *scriptsStorage) setScript(scriptType blockchainEntity, key []byte, rec
 	return nil
 }
 
+func (ss *scriptsStorage) scriptBytesByKey(key []byte, filter bool) (proto.Script, error) {
+	recordBytes, err := ss.hs.latestEntryData(key, filter)
+	if err != nil {
+		return proto.Script{}, err
+	}
+	var record scriptRecord
+	if err := record.unmarshalBinary(recordBytes); err != nil {
+		return proto.Script{}, err
+	}
+	return record.script, nil
+}
+
 func (ss *scriptsStorage) scriptAstFromRecordBytes(recordBytes []byte) (ast.Script, error) {
 	var record scriptRecord
 	if err := record.unmarshalBinary(recordBytes); err != nil {
@@ -148,6 +160,11 @@ func (ss *scriptsStorage) scriptByAsset(assetID crypto.Digest, filter bool) (ast
 	return ss.scriptAstByKey(key.bytes(), filter)
 }
 
+func (ss *scriptsStorage) scriptBytesByAsset(assetID crypto.Digest, filter bool) (proto.Script, error) {
+	key := assetScriptKey{assetID}
+	return ss.scriptBytesByKey(key.bytes(), filter)
+}
+
 func (ss *scriptsStorage) setAccountScript(addr proto.Address, script proto.Script, blockID crypto.Signature) error {
 	key := accountScriptKey{addr}
 	record := scriptRecord{script}
@@ -216,6 +233,11 @@ func (ss *scriptsStorage) newestScriptByAddr(addr proto.Address, filter bool) (a
 func (ss *scriptsStorage) scriptByAddr(addr proto.Address, filter bool) (ast.Script, error) {
 	key := accountScriptKey{addr}
 	return ss.scriptAstByKey(key.bytes(), filter)
+}
+
+func (ss *scriptsStorage) scriptBytesByAddr(addr proto.Address, filter bool) (proto.Script, error) {
+	key := accountScriptKey{addr}
+	return ss.scriptBytesByKey(key.bytes(), filter)
 }
 
 func (ss *scriptsStorage) clear() error {

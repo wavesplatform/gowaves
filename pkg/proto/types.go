@@ -2122,7 +2122,27 @@ const scriptPrefix = "base64:"
 
 var scriptPrefixBytes = []byte(scriptPrefix)
 
+type ScriptInfo struct {
+	Bytes      []byte
+	Base64     string
+	Complexity uint64
+}
+
+func (s ScriptInfo) ToProtobuf() *g.ScriptData {
+	return &g.ScriptData{
+		ScriptBytes: s.Bytes,
+		ScriptText:  s.Base64,
+		Complexity:  int64(s.Complexity),
+	}
+}
+
 type Script []byte
+
+func (s Script) ToProtobuf() *g.Script {
+	return &g.Script{
+		Bytes: s,
+	}
+}
 
 // String gives a string representation of Script bytes, script bytes encoded as BASE64 with prefix
 func (s Script) String() string {

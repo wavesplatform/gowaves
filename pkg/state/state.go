@@ -3,6 +3,7 @@ package state
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"math/big"
 	"os"
 	"path/filepath"
@@ -2161,6 +2162,85 @@ func (s *stateManager) AssetInfo(assetID crypto.Digest) (*proto.AssetInfo, error
 		Reissuable:      info.reissuable,
 		Scripted:        scripted,
 		Sponsored:       sponsored,
+	}, nil
+}
+
+func (s *stateManager) FullAssetInfo(assetID crypto.Digest) (*proto.FullAssetInfo, error) {
+	ai, err := s.AssetInfo(assetID)
+	if err != nil {
+		return nil, wrapErr(RetrievalError, err)
+	}
+	info, err := s.stor.assets.assetInfo(assetID, true)
+	if err != nil {
+		return nil, wrapErr(RetrievalError, err)
+	}
+	tx, err := s.TransactionByID(assetID.Bytes())
+	if err != nil {
+		return nil, wrapErr(RetrievalError, err)
+	}
+	res := &proto.FullAssetInfo{
+		AssetInfo:        *ai,
+		Name:             info.name,
+		Description:      info.description,
+		IssueTransaction: tx,
+	}
+	isSponsored, err := s.stor.sponsoredAssets.isSponsored(assetID, true)
+	if err != nil {
+		return nil, wrapErr(RetrievalError, err)
+	}
+	if isSponsored {
+		assetCost, err := s.stor.sponsoredAssets.assetCost(assetID, true)
+		if err != nil {
+			return nil, wrapErr(RetrievalError, err)
+		}
+		sponsorBalance, err := s.AccountBalance(proto.NewRecipientFromAddress(ai.Issuer), nil)
+		if err != nil {
+			return nil, wrapErr(RetrievalError, err)
+		}
+		res.SponsorshipCost = assetCost
+		res.SponsorBalance = sponsorBalance
+	}
+	isScripted, err := s.stor.scriptsStorage.isSmartAsset(assetID, true)
+	if err != nil {
+		return nil, wrapErr(RetrievalError, err)
+	}
+	if isScripted {
+		scriptInfo, err := s.ScriptInfoByAsset(assetID)
+		if err != nil {
+			return nil, wrapErr(RetrievalError, err)
+		}
+		res.ScriptInfo = *scriptInfo
+	}
+	return res, nil
+}
+
+func (s *stateManager) ScriptInfoByAccount(account proto.Recipient) (*proto.ScriptInfo, error) {
+	scriptBytes, err := s.stor.scriptsStorage.scriptBytesByAddr(*account.Address, true)
+	if err != nil {
+		return nil, wrapErr(RetrievalError, err)
+	}
+	text := base64.StdEncoding.EncodeToString(scriptBytes)
+	// TODO: set complexity after we figure out what is it in case of DApp.
+	return &proto.ScriptInfo{
+		Bytes:  scriptBytes,
+		Base64: text,
+	}, nil
+}
+
+func (s *stateManager) ScriptInfoByAsset(assetID crypto.Digest) (*proto.ScriptInfo, error) {
+	scriptBytes, err := s.stor.scriptsStorage.scriptBytesByAsset(assetID, true)
+	if err != nil {
+		return nil, wrapErr(RetrievalError, err)
+	}
+	text := base64.StdEncoding.EncodeToString(scriptBytes)
+	complexity, err := s.stor.scriptsComplexity.scriptComplexityByAsset(assetID, true)
+	if err != nil {
+		return nil, wrapErr(RetrievalError, err)
+	}
+	return &proto.ScriptInfo{
+		Bytes:      scriptBytes,
+		Base64:     text,
+		Complexity: complexity.complexity,
 	}, nil
 }
 

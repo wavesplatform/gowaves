@@ -105,6 +105,11 @@ type StateStable interface {
 	// Asset fee sponsorship.
 	AssetIsSponsored(assetID crypto.Digest) (bool, error)
 	AssetInfo(assetID crypto.Digest) (*proto.AssetInfo, error)
+	FullAssetInfo(assetID crypto.Digest) (*proto.FullAssetInfo, error)
+
+	// Script information.
+	ScriptInfoByAccount(account proto.Recipient) (*proto.ScriptInfo, error)
+	ScriptInfoByAsset(assetID crypto.Digest) (*proto.ScriptInfo, error)
 }
 
 // StateModifier contains all the methods needed to modify node's state.

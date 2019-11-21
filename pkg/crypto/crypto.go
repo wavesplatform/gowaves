@@ -137,6 +137,14 @@ func NewSecretKeyFromBase58(s string) (SecretKey, error) {
 	return array32FromBase58(s, "SecretKey")
 }
 
+func MustSecretKeyFromBase58(s string) SecretKey {
+	rs, err := NewSecretKeyFromBase58(s)
+	if err != nil {
+		panic(err)
+	}
+	return rs
+}
+
 func NewSecretKeyFromBytes(b []byte) (SecretKey, error) {
 	var sk SecretKey
 	if l := len(b); l != SecretKeySize {

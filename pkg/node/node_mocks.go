@@ -254,6 +254,18 @@ func (a *MockStateManager) AssetInfo(assetID crypto.Digest) (*proto.AssetInfo, e
 	panic("implement me")
 }
 
+func (a *MockStateManager) FullAssetInfo(assetID crypto.Digest) (*proto.FullAssetInfo, error) {
+	panic("implement me")
+}
+
+func (a *MockStateManager) ScriptInfoByAccount(account proto.Recipient) (*proto.ScriptInfo, error) {
+	panic("implement me")
+}
+
+func (a *MockStateManager) ScriptInfoByAsset(assetID crypto.Digest) (*proto.ScriptInfo, error) {
+	panic("implement me")
+}
+
 func (a *MockStateManager) IsNotFound(err error) bool {
 	panic("implement me")
 }

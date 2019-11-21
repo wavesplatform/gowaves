@@ -2555,7 +2555,7 @@ func (tx *SetScriptV1) UnmarshalBinary(data []byte) error {
 
 func (tx *SetScriptV1) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
 	txData := &g.Transaction_SetScript{SetScript: &g.SetScriptTransactionData{
-		Script: &g.Script{Bytes: []byte(tx.Script)},
+		Script: tx.Script.ToProtobuf(),
 	}}
 	fee := &g.Amount{AssetId: nil, Amount: int64(tx.Fee)}
 	res := TransactionToProtobufCommon(scheme, tx)
@@ -3032,7 +3032,7 @@ func (tx *SetAssetScriptV1) UnmarshalBinary(data []byte) error {
 func (tx *SetAssetScriptV1) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
 	txData := &g.Transaction_SetAssetScript{SetAssetScript: &g.SetAssetScriptTransactionData{
 		AssetId: tx.AssetID.Bytes(),
-		Script:  &g.Script{Bytes: []byte(tx.Script)},
+		Script:  tx.Script.ToProtobuf(),
 	}}
 	fee := &g.Amount{AssetId: nil, Amount: int64(tx.Fee)}
 	res := TransactionToProtobufCommon(scheme, tx)
