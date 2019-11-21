@@ -66,6 +66,7 @@ func (a *NodeApi) routes() chi.Router {
 	r.Get("/blocks/score/at/{id:\\d+}", a.BlockScoreAt)
 	r.Get("/blocks/signature/{signature}", a.BlockSignatureAt)
 	r.Get("/blocks/generators", a.BlocksGenerators)
+	//r.Get("/blocks/rollback/{height:\\d+}", a.BlockRollbackToHeight)
 	r.Route("/peers", func(r chi.Router) {
 		r.Get("/known", a.PeersAll)
 		r.Get("/connected", a.PeersConnected)
@@ -75,6 +76,9 @@ func (a *NodeApi) routes() chi.Router {
 	})
 	r.Get("/miner/info", a.Minerinfo)
 	r.Post("/transactions/broadcast", a.TransactionsBroadcast)
+	// enable or disable history sync
+	//r.Get("/debug/sync/{enabled:\\d+}", a.DebugSyncEnabled)
+
 	return r
 }
 
@@ -144,6 +148,16 @@ func (a *NodeApi) BlockAt(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (a *NodeApi) DebugSyncEnabled(w http.ResponseWriter, r *http.Request) {
+	s := chi.URLParam(r, "enabled")
+	id, err := strconv.ParseUint(s, 10, 64)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	a.app.DebugSyncEnabled(id == 1)
+}
+
 func (a *NodeApi) BlockSignatureAt(w http.ResponseWriter, r *http.Request) {
 	s := chi.URLParam(r, "signature")
 	sig, err := crypto.NewSignatureFromBase58(s)
@@ -174,7 +188,9 @@ type BlockHeightResponse struct {
 }
 
 func (a *NodeApi) BlockHeight(w http.ResponseWriter, r *http.Request) {
+	lock := a.state.Mutex().RLock()
 	height, err := a.state.Height()
+	lock.Unlock()
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to complete request: %s", err.Error()), http.StatusInternalServerError)
 		return
@@ -284,6 +300,21 @@ func (a *NodeApi) BlocksGenerators(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	sendJson(w, rs)
+}
+
+func (a *NodeApi) BlockRollbackToHeight(w http.ResponseWriter, r *http.Request) {
+	s := chi.URLParam(r, "height")
+	id, err := strconv.ParseUint(s, 10, 64)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	err = a.app.RollbackToHeight(proto.Height(id))
+	if err != nil {
+		handleError(w, err)
+		return
+	}
+	sendJson(w, nil)
 }
 
 func (a *NodeApi) Minerinfo(w http.ResponseWriter, r *http.Request) {

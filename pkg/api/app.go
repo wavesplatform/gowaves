@@ -23,9 +23,10 @@ type App struct {
 	utx          types.UtxPool
 	state        state.State
 	peers        peer_manager.PeerManager
+	sync         types.StateSync
 }
 
-func NewApp(apiKey string, state state.State, peers peer_manager.PeerManager, scheduler SchedulerEmits, utx *utxpool.UtxImpl) (*App, error) {
+func NewApp(apiKey string, state state.State, peers peer_manager.PeerManager, scheduler SchedulerEmits, utx *utxpool.UtxImpl, sync types.StateSync) (*App, error) {
 	digest, err := crypto.SecureHash([]byte(apiKey))
 	if err != nil {
 		return nil, err
@@ -37,6 +38,7 @@ func NewApp(apiKey string, state state.State, peers peer_manager.PeerManager, sc
 		scheduler:    scheduler,
 		utx:          utx,
 		peers:        peers,
+		sync:         sync,
 	}, nil
 }
 

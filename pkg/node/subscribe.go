@@ -5,8 +5,8 @@ import (
 	"reflect"
 	"sync"
 
-	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/types"
 	"go.uber.org/zap"
 )
 
@@ -22,7 +22,7 @@ func NewSubscribeService() *Subscribe {
 }
 
 //Receive tries to apply block to any listener, if no one accepted return `false`, otherwise `true`
-func (a *Subscribe) Receive(p peer.Peer, responseMessage proto.Message) bool {
+func (a *Subscribe) Receive(p types.ID, responseMessage proto.Message) bool {
 	a.mu.Lock()
 	name := name(p.ID(), responseMessage)
 	if ch, ok := a.running[name]; ok {
@@ -39,12 +39,8 @@ func (a *Subscribe) Receive(p peer.Peer, responseMessage proto.Message) bool {
 	return false
 }
 
-type id interface {
-	ID() string
-}
-
 // non thread safe
-func (a *Subscribe) add(p id, responseMessage proto.Message) (chan proto.Message, func()) {
+func (a *Subscribe) add(p types.ID, responseMessage proto.Message) (chan proto.Message, func()) {
 
 	name := name(p.ID(), responseMessage)
 
@@ -70,7 +66,7 @@ func (a *Subscribe) Exists(id string, responseMessage proto.Message) bool {
 	return ok
 }
 
-func (a *Subscribe) Subscribe(p id, responseMessage proto.Message) (chan proto.Message, func()) {
+func (a *Subscribe) Subscribe(p types.ID, responseMessage proto.Message) (chan proto.Message, func()) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	return a.add(p, responseMessage)

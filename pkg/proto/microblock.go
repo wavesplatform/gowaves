@@ -120,7 +120,7 @@ func (a *MicroBlock) WriteWithoutSignature(w io.Writer) (int64, error) {
 	return s.N(), nil
 }
 
-// CheckPointMessage represents a CheckPoint message
+// MicroBlockMessage represents a MicroBlock message
 type MicroBlockMessage struct {
 	Body io.WriterTo
 }

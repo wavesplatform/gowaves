@@ -18,7 +18,7 @@ func TestApp_BlocksFirst(t *testing.T) {
 
 	s, err := node.NewMockStateManager(g)
 	require.NoError(t, err)
-	app, err := NewApp("api-key", s, nil, nil, nil)
+	app, err := NewApp("api-key", s, nil, nil, nil, nil)
 	require.NoError(t, err)
 	first, err := app.BlocksFirst()
 	require.NoError(t, err)
@@ -33,7 +33,7 @@ func TestApp_BlocksLast(t *testing.T) {
 
 	s, err := node.NewMockStateManager(g)
 	require.NoError(t, err)
-	app, err := NewApp("api-key", s, nil, nil, nil)
+	app, err := NewApp("api-key", s, nil, nil, nil, nil)
 	require.NoError(t, err)
 	first, err := app.BlocksLast()
 	require.NoError(t, err)

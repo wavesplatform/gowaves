@@ -37,7 +37,6 @@ func (a *State) AddBlock(block *proto.Block) {
 	if !added { // already tried
 		return
 	}
-
 	// same block
 	if a.prevAddedBlock != nil && a.prevAddedBlock.BlockSignature == block.BlockSignature {
 		return
@@ -52,24 +51,56 @@ func (a *State) AddBlock(block *proto.Block) {
 	mu := a.state.Mutex()
 	locked := mu.Lock()
 	err = a.state.RollbackTo(block.Parent)
-	if err != nil {
-		zap.S().Infof("NG State: can't rollback to sig %s, initiator sig %s: %v", block.Parent, block.BlockSignature, err)
-		a.storage.Pop()
-		locked.Unlock()
-		return
-	}
 	locked.Unlock()
+
+	if err != nil {
+		if state.IsNotFound(err) {
+			zap.S().Debugf("NG State: not found block to rollback")
+			if a.storage.ContainsSig(block.Parent) {
+				zap.S().Debugf("NG State: sig contains %s", block.Parent)
+				prevBlock, err := a.storage.PreviousBlock()
+				if err != nil {
+					zap.S().Debug(err)
+					return
+				}
+				locked := mu.Lock()
+				height, err := a.state.Height()
+				if err != nil {
+					locked.Unlock()
+					zap.S().Debug(err)
+					return
+				}
+				err = a.state.RollbackToHeight(height - 1)
+				if err != nil {
+					locked.Unlock()
+					zap.S().Debug(err)
+					return
+				}
+				_, err = a.state.AddDeserializedBlock(prevBlock)
+				if err != nil {
+					locked.Unlock()
+					zap.S().Debug(err)
+					return
+				}
+				locked.Unlock()
+			}
+		} else {
+			zap.S().Infof("NG State: can't rollback to sig %s, initiator sig %s: %v", block.Parent, block.BlockSignature, err)
+			a.storage.Pop()
+			return
+		}
+	}
 
 	err = a.applier.Apply(block)
 	if err != nil {
-		zap.S().Errorf("NG State: failed to apply block %s: %v", block.BlockSignature.String(), err)
+		zap.S().Error(err)
 		a.storage.Pop()
 
 		// return prev block, if possible
 		if a.prevAddedBlock != nil {
 			err := a.applier.Apply(a.prevAddedBlock)
-			if err != nil { // can't apply previous added block, maybe broken ngState
-				zap.S().Error(err)
+			if err != nil {
+				zap.S().Error("can't apply previous added block, maybe broken ngState ", err)
 			}
 		}
 		return

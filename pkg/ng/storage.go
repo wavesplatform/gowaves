@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/pkg/errors"
+	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
@@ -63,6 +64,24 @@ func (a Blocks) AddMicro(micro *proto.MicroBlock) (Blocks, error) {
 	return nil, errors.New("parent not found")
 }
 
+func (a Blocks) ContainsSig(sig crypto.Signature) bool {
+	for i := len(a) - 1; i >= 0; i-- {
+		switch t := a[i].(type) {
+		case *proto.Block:
+			if t.BlockSignature == sig {
+				return true
+			}
+		case *proto.MicroBlock:
+			if t.TotalResBlockSigField == sig {
+				return true
+			}
+		default:
+			continue
+		}
+	}
+	return false
+}
+
 func (a Blocks) Len() int {
 	return len(a)
 }
@@ -80,6 +99,22 @@ func (a Blocks) Row() (row, error) {
 		switch t := a[i].(type) {
 		case *proto.Block:
 			return row{KeyBlock: t, MicroBlocks: append([]*proto.MicroBlock(nil), inf2micro(a[i+1:])...)}, nil
+		default:
+			continue
+		}
+	}
+	return row{}, errors.New("no buildable row")
+}
+
+func (a Blocks) PreviousRow() (row, error) {
+	lastBlock := 0
+	for i := len(a) - 1; i >= 0; i-- {
+		switch t := a[i].(type) {
+		case *proto.Block:
+			if lastBlock != 0 {
+				return row{KeyBlock: t, MicroBlocks: append([]*proto.MicroBlock(nil), inf2micro(a[i+1:lastBlock])...)}, nil
+			}
+			lastBlock = i
 		default:
 			continue
 		}
@@ -134,6 +169,18 @@ func (a *storage) Block() (*proto.Block, error) {
 		return nil, err
 	}
 	return a.fromRow(row)
+}
+
+func (a *storage) PreviousBlock() (*proto.Block, error) {
+	row, err := a.curState.PreviousRow()
+	if err != nil {
+		return nil, err
+	}
+	return a.fromRow(row)
+}
+
+func (a *storage) ContainsSig(sig crypto.Signature) bool {
+	return a.curState.ContainsSig(sig)
 }
 
 func (a *storage) fromRow(seq row) (*proto.Block, error) {
