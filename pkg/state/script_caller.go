@@ -164,7 +164,8 @@ func (a *scriptCaller) invokeFunction(tx *proto.InvokeScriptV1, lastBlockInfo *p
 	if err != nil {
 		return nil, errors.Wrap(err, "newestScriptComplexityByAsset()")
 	}
-	a.totalComplexity += complexityRecord.verifierComplexity
+	// TODO: check this!
+	a.totalComplexity += complexityRecord.byFuncs[tx.FunctionCall.Name]
 	return sr, nil
 }
 
