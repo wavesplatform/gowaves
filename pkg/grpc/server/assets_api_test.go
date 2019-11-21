@@ -2,14 +2,11 @@ package server
 
 import (
 	"context"
-	"fmt"
 	"io/ioutil"
 	"os"
 	"testing"
-	"time"
 
 	protobuf "github.com/golang/protobuf/proto"
-	"github.com/phayes/freeport"
 	"github.com/stretchr/testify/assert"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated"
@@ -64,9 +61,10 @@ func stateWithCustomGenesis(t *testing.T, genesisGetter settings.GenesisGetter) 
 }
 
 func TestGetInfo(t *testing.T) {
-	grpcTestAddr := fmt.Sprintf("127.0.0.1:%d", freeport.GetPort())
 	genesisGetter := settings.FromCurrentDir("testdata/genesis", "asset_issue_genesis.json")
 	st, stateCloser := stateWithCustomGenesis(t, genesisGetter)
+	err := server.resetState(st)
+	assert.NoError(t, err)
 
 	conn := connect(t, grpcTestAddr)
 	ctx, cancel := context.WithCancel(context.Background())
@@ -77,15 +75,6 @@ func TestGetInfo(t *testing.T) {
 	}()
 
 	cl := g.NewAssetsApiClient(conn)
-	server, err := NewServer(st)
-	assert.NoError(t, err)
-	go func() {
-		if err := server.Run(ctx, grpcTestAddr); err != nil {
-			t.Error("server.Run failed")
-		}
-	}()
-
-	time.Sleep(sleepTime)
 
 	assetId := crypto.MustDigestFromBase58("DHgwrRvVyqJsepd32YbBqUeDH4GJ1N984X8QoekjgH8J")
 	correctInfo, err := st.FullAssetInfo(assetId)

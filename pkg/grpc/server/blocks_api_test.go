@@ -3,16 +3,13 @@ package server
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
 	"testing"
-	"time"
 
 	protobuf "github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes/empty"
-	"github.com/phayes/freeport"
 	"github.com/stretchr/testify/assert"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated"
@@ -38,10 +35,11 @@ func blockFromState(t *testing.T, height proto.Height, st state.State) *g.BlockW
 }
 
 func TestGetBlock(t *testing.T) {
-	grpcTestAddr := fmt.Sprintf("127.0.0.1:%d", freeport.GetPort())
 	dataDir, err := ioutil.TempDir(os.TempDir(), "dataDir")
 	assert.NoError(t, err)
 	st, err := state.NewState(dataDir, state.DefaultTestingStateParams(), settings.MainNetSettings)
+	assert.NoError(t, err)
+	err = server.resetState(st)
 	assert.NoError(t, err)
 
 	conn := connect(t, grpcTestAddr)
@@ -56,15 +54,7 @@ func TestGetBlock(t *testing.T) {
 	}()
 
 	cl := g.NewBlocksApiClient(conn)
-	server, err := NewServer(st)
-	assert.NoError(t, err)
-	go func() {
-		if err := server.Run(ctx, grpcTestAddr); err != nil {
-			t.Error("server.Run failed")
-		}
-	}()
 
-	time.Sleep(sleepTime)
 	// Prepare state.
 	blockHeight := proto.Height(99)
 	blocks := state.ReadMainnetBlocksToHeight(t, blockHeight)
@@ -112,10 +102,11 @@ func TestGetBlock(t *testing.T) {
 }
 
 func TestGetBlockRange(t *testing.T) {
-	grpcTestAddr := fmt.Sprintf("127.0.0.1:%d", freeport.GetPort())
 	dataDir, err := ioutil.TempDir(os.TempDir(), "dataDir")
 	assert.NoError(t, err)
 	st, err := state.NewState(dataDir, state.DefaultTestingStateParams(), settings.MainNetSettings)
+	assert.NoError(t, err)
+	err = server.resetState(st)
 	assert.NoError(t, err)
 
 	conn := connect(t, grpcTestAddr)
@@ -130,15 +121,7 @@ func TestGetBlockRange(t *testing.T) {
 	}()
 
 	cl := g.NewBlocksApiClient(conn)
-	server, err := NewServer(st)
-	assert.NoError(t, err)
-	go func() {
-		if err := server.Run(ctx, grpcTestAddr); err != nil {
-			t.Error("server.Run failed")
-		}
-	}()
 
-	time.Sleep(sleepTime)
 	// Add some blocks.
 	blockHeight := proto.Height(99)
 	blocks := state.ReadMainnetBlocksToHeight(t, blockHeight)
@@ -197,10 +180,11 @@ func TestGetBlockRange(t *testing.T) {
 }
 
 func TestGetCurrentHeight(t *testing.T) {
-	grpcTestAddr := fmt.Sprintf("127.0.0.1:%d", freeport.GetPort())
 	dataDir, err := ioutil.TempDir(os.TempDir(), "dataDir")
 	assert.NoError(t, err)
 	st, err := state.NewState(dataDir, state.DefaultTestingStateParams(), settings.MainNetSettings)
+	assert.NoError(t, err)
+	err = server.resetState(st)
 	assert.NoError(t, err)
 
 	conn := connect(t, grpcTestAddr)
@@ -215,15 +199,7 @@ func TestGetCurrentHeight(t *testing.T) {
 	}()
 
 	cl := g.NewBlocksApiClient(conn)
-	server, err := NewServer(st)
-	assert.NoError(t, err)
-	go func() {
-		if err := server.Run(ctx, grpcTestAddr); err != nil {
-			t.Error("server.Run failed")
-		}
-	}()
 
-	time.Sleep(sleepTime)
 	res, err := cl.GetCurrentHeight(ctx, &empty.Empty{})
 	assert.NoError(t, err)
 	assert.Equal(t, uint32(1), res.Value)

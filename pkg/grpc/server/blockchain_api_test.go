@@ -2,37 +2,24 @@ package server
 
 import (
 	"context"
-	"fmt"
 	"io/ioutil"
 	"os"
 	"testing"
-	"time"
 
 	"github.com/golang/protobuf/ptypes/empty"
-	"github.com/phayes/freeport"
 	"github.com/stretchr/testify/assert"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/state"
-	"google.golang.org/grpc"
 )
-
-const (
-	sleepTime = 2 * time.Second
-)
-
-func connect(t *testing.T, addr string) *grpc.ClientConn {
-	conn, err := grpc.Dial(addr, grpc.WithInsecure())
-	assert.NoError(t, err, "grpc.Dial() failed")
-	return conn
-}
 
 func TestGetBaseTarget(t *testing.T) {
-	grpcTestAddr := fmt.Sprintf("127.0.0.1:%d", freeport.GetPort())
 	dataDir, err := ioutil.TempDir(os.TempDir(), "dataDir")
 	assert.NoError(t, err)
 	st, err := state.NewState(dataDir, state.DefaultTestingStateParams(), settings.MainNetSettings)
+	assert.NoError(t, err)
+	err = server.resetState(st)
 	assert.NoError(t, err)
 
 	conn := connect(t, grpcTestAddr)
@@ -47,15 +34,7 @@ func TestGetBaseTarget(t *testing.T) {
 	}()
 
 	cl := g.NewBlockchainApiClient(conn)
-	server, err := NewServer(st)
-	assert.NoError(t, err)
-	go func() {
-		if err := server.Run(ctx, grpcTestAddr); err != nil {
-			t.Error("server.Run failed")
-		}
-	}()
 
-	time.Sleep(sleepTime)
 	res, err := cl.GetBaseTarget(ctx, &empty.Empty{})
 	assert.NoError(t, err)
 	// MainNet Genesis base target.
@@ -73,10 +52,11 @@ func TestGetBaseTarget(t *testing.T) {
 }
 
 func TestGetCumulativeScore(t *testing.T) {
-	grpcTestAddr := fmt.Sprintf("127.0.0.1:%d", freeport.GetPort())
 	dataDir, err := ioutil.TempDir(os.TempDir(), "dataDir")
 	assert.NoError(t, err)
 	st, err := state.NewState(dataDir, state.DefaultTestingStateParams(), settings.MainNetSettings)
+	assert.NoError(t, err)
+	err = server.resetState(st)
 	assert.NoError(t, err)
 
 	conn := connect(t, grpcTestAddr)
@@ -91,15 +71,7 @@ func TestGetCumulativeScore(t *testing.T) {
 	}()
 
 	cl := g.NewBlockchainApiClient(conn)
-	server, err := NewServer(st)
-	assert.NoError(t, err)
-	go func() {
-		if err := server.Run(ctx, grpcTestAddr); err != nil {
-			t.Error("server.Run failed")
-		}
-	}()
 
-	time.Sleep(sleepTime)
 	res, err := cl.GetCumulativeScore(ctx, &empty.Empty{})
 	assert.NoError(t, err)
 	genesisTarget := uint64(153722867)

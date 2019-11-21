@@ -18,11 +18,21 @@ type Server struct {
 }
 
 func NewServer(state state.State) (*Server, error) {
-	settings, err := state.BlockchainSettings()
-	if err != nil {
+	s := &Server{}
+	if err := s.resetState(state); err != nil {
 		return nil, err
 	}
-	return &Server{state: state, scheme: settings.AddressSchemeCharacter}, nil
+	return s, nil
+}
+
+func (s *Server) resetState(state state.State) error {
+	settings, err := state.BlockchainSettings()
+	if err != nil {
+		return err
+	}
+	s.state = state
+	s.scheme = settings.AddressSchemeCharacter
+	return nil
 }
 
 func (s *Server) Run(ctx context.Context, address string) error {
