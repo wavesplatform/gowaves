@@ -1674,7 +1674,7 @@ func (tx *CreateAliasV1) UnmarshalJSON(data []byte) error {
 	tx.ID = tmp.ID
 	tx.Signature = tmp.Signature
 	tx.SenderPK = tmp.SenderPK
-	tx.Alias = Alias{aliasVersion, TestNetScheme, tmp.Alias}
+	tx.Alias = Alias{aliasVersion, MainNetScheme, tmp.Alias}
 	tx.Fee = tmp.Fee
 	tx.Timestamp = tmp.Timestamp
 	return nil

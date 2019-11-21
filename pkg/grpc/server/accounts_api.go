@@ -5,6 +5,7 @@ import (
 
 	"github.com/golang/protobuf/ptypes/wrappers"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated"
+	"github.com/wavesplatform/gowaves/pkg/proto"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -26,5 +27,13 @@ func (s *Server) GetDataEntries(req *g.DataRequest, srv g.AccountsApi_GetDataEnt
 }
 
 func (s *Server) ResolveAlias(ctx context.Context, req *wrappers.StringValue) (*wrappers.BytesValue, error) {
-	return nil, status.Errorf(codes.Unimplemented, "Not implemented")
+	alias, err := proto.NewAliasFromString(req.Value)
+	if err != nil {
+		return nil, err
+	}
+	addr, err := s.state.AddrByAlias(*alias)
+	if err != nil {
+		return nil, err
+	}
+	return &wrappers.BytesValue{Value: addr.Bytes()}, nil
 }
