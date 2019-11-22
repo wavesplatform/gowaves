@@ -399,7 +399,7 @@ func (a *txAppender) checkScriptsLimits(scriptsRuns uint64) error {
 	}
 	if ride4DAppsActivated {
 		if a.sc.getTotalComplexity() > maxScriptsComplexityInBlock {
-			return errors.New("complexity limit per block is exceeded")
+			zap.S().Warn("complexity limit per block is exceeded")
 		}
 		return nil
 	} else if smartAccountsActivated {
