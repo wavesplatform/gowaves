@@ -183,6 +183,10 @@ func (a *MockStateManager) Peers() ([]proto.TCPAddr, error) {
 	return a.Peers_, nil
 }
 
+func (a *MockStateManager) RetrieveEntries(account proto.Recipient) ([]proto.DataEntry, error) {
+	panic("implement me")
+}
+
 func (a *MockStateManager) RetrieveEntry(account proto.Recipient, key string) (proto.DataEntry, error) {
 	panic("implement me")
 }

@@ -6,6 +6,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"go.uber.org/zap"
 )
 
 type dataEntryRecord struct {
@@ -145,6 +146,48 @@ func (s *accountsDataStorage) entryBytes(addr proto.Address, entryKey string, fi
 		return nil, err
 	}
 	return record.value, nil
+}
+
+func (s *accountsDataStorage) retrieveEntries(addr proto.Address, filter bool) ([]proto.DataEntry, error) {
+	addrNum, err := s.addrToNum(addr)
+	if err != nil {
+		return nil, err
+	}
+	key := accountsDataStorKey{addrNum: addrNum}
+	iter, err := s.db.NewKeyIterator(key.accountPrefix())
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		iter.Release()
+		if err != nil {
+			zap.S().Fatalf("Iterator release error: %v", err)
+		}
+	}()
+
+	var entries []proto.DataEntry
+	for iter.Next() {
+		entryKeyBytes := keyvalue.SafeKey(iter)
+		recordBytes, err := s.hs.latestEntryData(entryKeyBytes, filter)
+		if err != nil {
+			return nil, err
+		}
+		var record dataEntryRecord
+		if err := record.unmarshalBinary(recordBytes); err != nil {
+			return nil, err
+		}
+		var entryKey accountsDataStorKey
+		if err := entryKey.unmarshal(entryKeyBytes); err != nil {
+			return nil, err
+		}
+		entry, err := proto.NewDataEntryFromValueBytes(record.value)
+		if err != nil {
+			return nil, err
+		}
+		entry.SetKey(entryKey.entryKey)
+		entries = append(entries, entry)
+	}
+	return entries, nil
 }
 
 func (s *accountsDataStorage) retrieveNewestEntry(addr proto.Address, key string, filter bool) (proto.DataEntry, error) {

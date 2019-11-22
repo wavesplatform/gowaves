@@ -11,6 +11,8 @@ import (
 
 const (
 	// Key sizes.
+	minAccountsDataStorKeySize = 1 + 8 + 2 + 1
+
 	wavesBalanceKeySize     = 1 + proto.AddressSize
 	assetBalanceKeySize     = 1 + proto.AddressSize + crypto.DigestSize
 	leaseKeySize            = 1 + crypto.DigestSize
@@ -94,6 +96,11 @@ const (
 	rewardVotesKey
 )
 
+var (
+	errInvalidDataSize = errors.New("invalid data size")
+	errInvalidPrefix   = errors.New("invalid prefix for given key")
+)
+
 type wavesBalanceKey struct {
 	address proto.Address
 }
@@ -107,10 +114,10 @@ func (k *wavesBalanceKey) bytes() []byte {
 
 func (k *wavesBalanceKey) unmarshal(data []byte) error {
 	if len(data) != wavesBalanceKeySize {
-		return errors.New("invalid data size")
+		return errInvalidDataSize
 	}
 	if data[0] != wavesBalanceKeyPrefix {
-		return errors.New("invalid prefix for given key")
+		return errInvalidPrefix
 	}
 	var err error
 	if k.address, err = proto.NewAddressFromBytes(data[1 : 1+proto.AddressSize]); err != nil {
@@ -134,10 +141,10 @@ func (k *assetBalanceKey) bytes() []byte {
 
 func (k *assetBalanceKey) unmarshal(data []byte) error {
 	if len(data) != assetBalanceKeySize {
-		return errors.New("invalid data size")
+		return errInvalidDataSize
 	}
 	if data[0] != assetBalanceKeyPrefix {
-		return errors.New("invalid prefix for given key")
+		return errInvalidPrefix
 	}
 	var err error
 	if k.address, err = proto.NewAddressFromBytes(data[1 : 1+proto.AddressSize]); err != nil {
@@ -253,10 +260,10 @@ type leaseKey struct {
 
 func (k *leaseKey) unmarshal(data []byte) error {
 	if len(data) != leaseKeySize {
-		return errors.New("invalid data size")
+		return errInvalidDataSize
 	}
 	if data[0] != leaseKeyPrefix {
-		return errors.New("invalid prefix for given key")
+		return errInvalidPrefix
 	}
 	var err error
 	k.leaseID, err = crypto.NewDigestFromBytes(data[1:])
@@ -286,10 +293,10 @@ func (k *aliasKey) bytes() []byte {
 
 func (k *aliasKey) unmarshal(data []byte) error {
 	if len(data) != aliasKeySize {
-		return errors.New("invalid data size")
+		return errInvalidDataSize
 	}
 	if data[0] != aliasKeyPrefix {
-		return errors.New("invalid prefix for given key")
+		return errInvalidPrefix
 	}
 	var err error
 	k.alias, err = proto.StringWithUInt16Len(data[1:])
@@ -342,10 +349,10 @@ func (k *approvedFeaturesKey) bytes() ([]byte, error) {
 
 func (k *approvedFeaturesKey) unmarshal(data []byte) error {
 	if len(data) != approvedFeaturesKeySize {
-		return errors.New("invalid data size")
+		return errInvalidDataSize
 	}
 	if data[0] != approvedFeaturesKeyPrefix {
-		return errors.New("invalid prefix for given key")
+		return errInvalidPrefix
 	}
 	buf := bytes.NewBuffer(data[1:])
 	if err := binary.Read(buf, binary.BigEndian, &k.featureID); err != nil {
@@ -371,10 +378,10 @@ func (k *votesFeaturesKey) bytes() ([]byte, error) {
 
 func (k *votesFeaturesKey) unmarshal(data []byte) error {
 	if len(data) != votesFeaturesKeySize {
-		return errors.New("invalid data size")
+		return errInvalidDataSize
 	}
 	if data[0] != votesFeaturesKeyPrefix {
-		return errors.New("invalid prefix for given key")
+		return errInvalidPrefix
 	}
 	buf := bytes.NewBuffer(data[1:])
 	if err := binary.Read(buf, binary.BigEndian, &k.featureID); err != nil {
@@ -421,12 +428,35 @@ type accountsDataStorKey struct {
 	entryKey string
 }
 
+func (k *accountsDataStorKey) accountPrefix() []byte {
+	buf := make([]byte, 1+8)
+	buf[0] = accountsDataStorKeyPrefix
+	binary.LittleEndian.PutUint64(buf[1:9], k.addrNum)
+	return buf
+}
+
 func (k *accountsDataStorKey) bytes() []byte {
 	buf := make([]byte, 1+8+2+len(k.entryKey))
 	buf[0] = accountsDataStorKeyPrefix
 	binary.LittleEndian.PutUint64(buf[1:9], k.addrNum)
 	proto.PutStringWithUInt16Len(buf[9:], k.entryKey)
 	return buf
+}
+
+func (k *accountsDataStorKey) unmarshal(data []byte) error {
+	if len(data) < minAccountsDataStorKeySize {
+		return errInvalidDataSize
+	}
+	if data[0] != accountsDataStorKeyPrefix {
+		return errInvalidPrefix
+	}
+	k.addrNum = binary.LittleEndian.Uint64(data[1:9])
+	var err error
+	k.entryKey, err = proto.StringWithUInt16Len(data[9:])
+	if err != nil {
+		return errors.Wrap(err, "StringWithUInt16Len() failed")
+	}
+	return nil
 }
 
 type sponsorshipKey struct {

@@ -1937,6 +1937,18 @@ func (s *stateManager) RetrieveNewestEntry(account proto.Recipient, key string) 
 	return entry, nil
 }
 
+func (s *stateManager) RetrieveEntries(account proto.Recipient) ([]proto.DataEntry, error) {
+	addr, err := s.recipientToAddress(account)
+	if err != nil {
+		return nil, wrapErr(RetrievalError, err)
+	}
+	entries, err := s.stor.accountsDataStor.retrieveEntries(*addr, true)
+	if err != nil {
+		return nil, wrapErr(RetrievalError, err)
+	}
+	return entries, nil
+}
+
 func (s *stateManager) RetrieveEntry(account proto.Recipient, key string) (proto.DataEntry, error) {
 	addr, err := s.recipientToAddress(account)
 	if err != nil {
