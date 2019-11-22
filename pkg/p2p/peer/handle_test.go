@@ -52,7 +52,6 @@ func TestHHandleStopContext(t *testing.T) {
 
 func TestHandleReceive(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 	c := &mockConnection{}
 	remote := NewRemote()
 	parent := NewParent()
@@ -68,11 +67,12 @@ func TestHandleReceive(t *testing.T) {
 	}()
 	remote.FromCh <- byte_helpers.TransferV1.MessageBytes
 	assert.IsType(t, &proto.TransactionMessage{}, (<-parent.MessageCh).Message)
+	cancel()
+	<-time.After(time.Millisecond)
 }
 
 func TestHandleError(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 	remote := NewRemote()
 	parent := NewParent()
 	go func() {
@@ -86,6 +86,7 @@ func TestHandleError(t *testing.T) {
 	}()
 	err := errors.New("error")
 	remote.ErrCh <- err
-	<-time.After(time.Millisecond)
 	assert.Equal(t, err, (<-parent.InfoCh).Value)
+	cancel()
+	<-time.After(time.Millisecond)
 }
