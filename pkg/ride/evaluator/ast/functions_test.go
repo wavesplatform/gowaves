@@ -314,8 +314,13 @@ func TestNativeTake(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, NewBytes([]byte("ab")), rs)
 
-	_, err = NativeTakeBytes(newEmptyScopeV1(), NewExprs(NewBytes([]byte("abc")), NewLong(4)))
-	require.Error(t, err)
+	rs, err = NativeTakeBytes(newEmptyScopeV1(), NewExprs(NewBytes([]byte("abc")), NewLong(4)))
+	require.NoError(t, err)
+	assert.Equal(t, NewBytes([]byte("abc")), rs)
+
+	rs, err = NativeTakeBytes(newEmptyScopeV1(), NewExprs(NewBytes([]byte("abc")), NewLong(-4)))
+	require.NoError(t, err)
+	assert.Equal(t, NewBytes([]byte("")), rs)
 }
 
 func TestNativeDropBytes(t *testing.T) {
@@ -340,13 +345,22 @@ func TestNativeConcatStrings(t *testing.T) {
 }
 
 func TestNativeTakeStrings(t *testing.T) {
-	rs, err := NativeTakeStrings(newEmptyScopeV1(), NewExprs(NewString("abcdef"), NewLong(3)))
-	require.NoError(t, err)
-	assert.Equal(t, NewString("abc"), rs)
-
-	rs2, err := NativeTakeStrings(newEmptyScopeV1(), NewExprs(NewString("привет"), NewLong(3)))
-	require.NoError(t, err)
-	assert.Equal(t, NewString("при"), rs2)
+	for _, test := range []struct {
+		in  string
+		len int64
+		out string
+	}{
+		{"abcdef", 4, "abcd"},
+		{"abcdef", -4, ""},
+		{"привет", 4, "прив"},
+		{"t", 1, "t"},
+		{"t", 0, ""},
+		{"", 1, ""},
+	} {
+		rs, err := NativeTakeStrings(newEmptyScopeV1(), NewExprs(NewString(test.in), NewLong(test.len)))
+		require.NoError(t, err)
+		assert.Equal(t, NewString(test.out), rs)
+	}
 }
 
 func TestNativeDropStrings(t *testing.T) {
@@ -671,15 +685,17 @@ func TestUserExtract(t *testing.T) {
 }
 
 func TestUserDropRightBytes(t *testing.T) {
-	rs1, err := UserDropRightBytes(newEmptyScopeV1(), Params(NewBytes([]byte("hello")), NewLong(2)))
+	rs, err := UserDropRightBytes(newEmptyScopeV1(), Params(NewBytes([]byte("hello")), NewLong(2)))
 	require.NoError(t, err)
-	assert.Equal(t, NewBytes([]byte("hel")), rs1)
+	assert.Equal(t, NewBytes([]byte("hel")), rs)
 
-	_, err = UserDropRightBytes(newEmptyScopeV1(), Params(NewBytes([]byte("hello")), NewLong(10)))
-	require.Error(t, err)
-
-	_, err = UserDropRightBytes(newEmptyScopeV1(), Params(NewBytes([]byte("hello")), NewLong(5)))
+	rs, err = UserDropRightBytes(newEmptyScopeV1(), Params(NewBytes([]byte("hello")), NewLong(10)))
 	require.NoError(t, err)
+	assert.Equal(t, NewBytes([]byte("")), rs)
+
+	rs, err = UserDropRightBytes(newEmptyScopeV1(), Params(NewBytes([]byte("hello")), NewLong(-5)))
+	require.NoError(t, err)
+	assert.Equal(t, NewBytes([]byte("hello")), rs)
 }
 
 func TestUserTakeRight(t *testing.T) {
@@ -708,8 +724,13 @@ func TestUserDropRightString(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, NewString("hel"), rs1)
 
-	_, err = UserDropRightString(newEmptyScopeV1(), Params(NewString("hello"), NewLong(20)))
-	require.Error(t, err)
+	rs1, err = UserDropRightString(newEmptyScopeV1(), Params(NewString("hello"), NewLong(20)))
+	require.NoError(t, err)
+	assert.Equal(t, NewString(""), rs1)
+
+	rs1, err = UserDropRightString(newEmptyScopeV1(), Params(NewString("hello"), NewLong(-3)))
+	require.NoError(t, err)
+	assert.Equal(t, NewString("hello"), rs1)
 }
 
 func TestUserUnaryMinus(t *testing.T) {

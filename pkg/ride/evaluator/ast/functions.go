@@ -563,10 +563,10 @@ func NativeTakeBytes(s Scope, e Exprs) (Expr, error) {
 	}
 	l := int(length.Value)
 	if l > len(bts.Value) {
-		return nil, errors.Errorf("%s index %d out of range", funcName, length.Value)
+		l = len(bts.Value)
 	}
 	if l < 0 {
-		return nil, errors.Errorf("%s index %d out of range", funcName, length.Value)
+		l = 0
 	}
 	out := make([]byte, l)
 	copy(out, bts.Value[:l])
@@ -683,10 +683,10 @@ func NativeTakeStrings(s Scope, e Exprs) (Expr, error) {
 	runeLen := len(runeStr)
 	l := int(length.Value)
 	if l > runeLen {
-		return nil, errors.Errorf("%s index %d out of range", funcName, l)
+		l = runeLen
 	}
 	if l < 0 {
-		return nil, errors.Errorf("%s index %d out of range", funcName, l)
+		l = 0
 	}
 	out := make([]rune, l)
 	copy(out, runeStr[:l])
