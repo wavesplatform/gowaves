@@ -683,10 +683,10 @@ func NativeTakeStrings(s Scope, e Exprs) (Expr, error) {
 	runeLen := len(runeStr)
 	l := int(length.Value)
 	if l > runeLen {
-		return nil, errors.Errorf("%s index %d out of range", funcName, l)
+		l = runeLen
 	}
 	if l < 0 {
-		return nil, errors.Errorf("%s index %d out of range", funcName, l)
+		l = 0
 	}
 	out := make([]rune, l)
 	copy(out, runeStr[:l])

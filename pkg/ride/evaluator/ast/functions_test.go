@@ -340,13 +340,21 @@ func TestNativeConcatStrings(t *testing.T) {
 }
 
 func TestNativeTakeStrings(t *testing.T) {
-	rs, err := NativeTakeStrings(newEmptyScopeV1(), NewExprs(NewString("abcdef"), NewLong(3)))
-	require.NoError(t, err)
-	assert.Equal(t, NewString("abc"), rs)
-
-	rs2, err := NativeTakeStrings(newEmptyScopeV1(), NewExprs(NewString("привет"), NewLong(3)))
-	require.NoError(t, err)
-	assert.Equal(t, NewString("при"), rs2)
+	for _, test := range []struct {
+		in  string
+		len int64
+		out string
+	}{
+		{"abcdef", 4, "abcd"},
+		{"привет", 4, "прив"},
+		{"t", 1, "t"},
+		{"t", 0, ""},
+		{"", 1, ""},
+	} {
+		rs, err := NativeTakeStrings(newEmptyScopeV1(), NewExprs(NewString(test.in), NewLong(test.len)))
+		require.NoError(t, err)
+		assert.Equal(t, NewString(test.out), rs)
+	}
 }
 
 func TestNativeDropStrings(t *testing.T) {
@@ -708,8 +716,13 @@ func TestUserDropRightString(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, NewString("hel"), rs1)
 
-	_, err = UserDropRightString(newEmptyScopeV1(), Params(NewString("hello"), NewLong(20)))
-	require.Error(t, err)
+	rs1, err = UserDropRightString(newEmptyScopeV1(), Params(NewString("hello"), NewLong(20)))
+	require.NoError(t, err)
+	assert.Equal(t, NewString(""), rs1)
+
+	rs1, err = UserDropRightString(newEmptyScopeV1(), Params(NewString("hello"), NewLong(-3)))
+	require.NoError(t, err)
+	assert.Equal(t, NewString("hello"), rs1)
 }
 
 func TestUserUnaryMinus(t *testing.T) {
