@@ -1891,6 +1891,14 @@ func (s *stateManager) AddrByAlias(alias proto.Alias) (proto.Address, error) {
 	return *addr, nil
 }
 
+func (s *stateManager) VotesNum(featureID int16) (uint64, error) {
+	votesNum, err := s.stor.features.featureVotes(featureID)
+	if err != nil {
+		return 0, wrapErr(RetrievalError, err)
+	}
+	return votesNum, nil
+}
+
 func (s *stateManager) IsActivated(featureID int16) (bool, error) {
 	activated, err := s.stor.features.isActivated(featureID)
 	if err != nil {
@@ -1921,6 +1929,14 @@ func (s *stateManager) ApprovalHeight(featureID int16) (uint64, error) {
 		return 0, wrapErr(RetrievalError, err)
 	}
 	return height, nil
+}
+
+func (s *stateManager) AllFeatures() ([]int16, error) {
+	features, err := s.stor.features.allFeatures()
+	if err != nil {
+		return nil, wrapErr(RetrievalError, err)
+	}
+	return features, nil
 }
 
 // Accounts data storage.

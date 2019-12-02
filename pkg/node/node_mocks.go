@@ -331,6 +331,10 @@ func (a *MockStateManager) BlockBytesByHeight(height proto.Height) ([]byte, erro
 	panic("implement me")
 }
 
+func (a *MockStateManager) VotesNum(featureID int16) (uint64, error) {
+	panic("implement me")
+}
+
 func (a *MockStateManager) IsActivated(featureID int16) (bool, error) {
 	panic("implement me")
 }
@@ -344,6 +348,10 @@ func (a *MockStateManager) IsApproved(featureID int16) (bool, error) {
 }
 
 func (a *MockStateManager) ApprovalHeight(featureID int16) (uint64, error) {
+	panic("implement me")
+}
+
+func (a *MockStateManager) AllFeatures() ([]int16, error) {
 	panic("implement me")
 }
 

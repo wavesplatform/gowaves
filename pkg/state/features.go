@@ -384,3 +384,28 @@ func (f *features) finishVoting(curHeight uint64, blockID crypto.Signature) erro
 	}
 	return nil
 }
+
+func (f *features) allFeatures() ([]int16, error) {
+	iter, err := f.db.NewKeyIterator([]byte{votesFeaturesKeyPrefix})
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		iter.Release()
+		if err := iter.Error(); err != nil {
+			zap.S().Fatalf("Iterator error: %v", err)
+		}
+	}()
+
+	var list []int16
+	for iter.Next() {
+		// Iterate the voting list.
+		key := keyvalue.SafeKey(iter)
+		var k votesFeaturesKey
+		if err = k.unmarshal(key); err != nil {
+			return nil, err
+		}
+		list = append(list, k.featureID)
+	}
+	return list, nil
+}
