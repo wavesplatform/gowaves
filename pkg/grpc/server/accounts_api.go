@@ -41,7 +41,16 @@ func (s *Server) GetBalances(req *g.BalancesRequest, srv g.AccountsApi_GetBalanc
 }
 
 func (s *Server) GetScript(ctx context.Context, req *g.AccountRequest) (*g.ScriptData, error) {
-	return nil, status.Errorf(codes.Unimplemented, "Not implemented")
+	addr, err := proto.NewAddressFromBytes(req.Address)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, err.Error())
+	}
+	rcp := proto.NewRecipientFromAddress(addr)
+	scriptInfo, err := s.state.ScriptInfoByAccount(rcp)
+	if err != nil {
+		return nil, status.Errorf(codes.NotFound, err.Error())
+	}
+	return scriptInfo.ToProtobuf(), nil
 }
 
 func (s *Server) GetActiveLeases(req *g.AccountRequest, srv g.AccountsApi_GetActiveLeasesServer) error {

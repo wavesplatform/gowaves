@@ -2279,15 +2279,24 @@ func (s *stateManager) FullAssetInfo(assetID crypto.Digest) (*proto.FullAssetInf
 }
 
 func (s *stateManager) ScriptInfoByAccount(account proto.Recipient) (*proto.ScriptInfo, error) {
-	scriptBytes, err := s.stor.scriptsStorage.scriptBytesByAddr(*account.Address, true)
+	addr, err := s.recipientToAddress(account)
+	if err != nil {
+		return nil, wrapErr(RetrievalError, err)
+	}
+	scriptBytes, err := s.stor.scriptsStorage.scriptBytesByAddr(*addr, true)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
 	text := base64.StdEncoding.EncodeToString(scriptBytes)
-	// TODO: set complexity after we figure out what is it in case of DApp.
+	complexity, err := s.stor.scriptsComplexity.scriptComplexityByAddress(*addr, true)
+	if err != nil {
+		return nil, wrapErr(RetrievalError, err)
+	}
+	// TODO: switch complexity to DApp's complexity if verifier is incorrect for DApp.
 	return &proto.ScriptInfo{
-		Bytes:  scriptBytes,
-		Base64: text,
+		Bytes:      scriptBytes,
+		Base64:     text,
+		Complexity: complexity.verifierComplexity,
 	}, nil
 }
 
