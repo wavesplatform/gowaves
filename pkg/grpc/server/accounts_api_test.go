@@ -3,6 +3,9 @@ package server
 import (
 	"bytes"
 	"context"
+	"io"
+	"io/ioutil"
+	"os"
 	"testing"
 
 	"github.com/golang/protobuf/ptypes/wrappers"
@@ -10,7 +13,51 @@ import (
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
+	"github.com/wavesplatform/gowaves/pkg/state"
 )
+
+func TestGetBalances(t *testing.T) {
+	dataDir, err := ioutil.TempDir(os.TempDir(), "dataDir")
+	assert.NoError(t, err)
+	st, err := state.NewState(dataDir, state.DefaultTestingStateParams(), settings.MainNetSettings)
+	assert.NoError(t, err)
+	err = server.resetState(st)
+	assert.NoError(t, err)
+
+	conn := connect(t, grpcTestAddr)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer func() {
+		cancel()
+		conn.Close()
+		err = st.Close()
+		assert.NoError(t, err)
+		err = os.RemoveAll(dataDir)
+		assert.NoError(t, err)
+	}()
+
+	cl := g.NewAccountsApiClient(conn)
+	addr, err := proto.NewAddressFromString("3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ")
+	assert.NoError(t, err)
+	req := &g.BalancesRequest{
+		Address: addr.Bytes(),
+		Assets:  [][]byte{{}},
+	}
+	stream, err := cl.GetBalances(ctx, req)
+	assert.NoError(t, err)
+	res, err := stream.Recv()
+	assert.NoError(t, err)
+	correctBalance := &g.BalanceResponse_Waves{Waves: &g.BalanceResponse_WavesBalances{
+		Regular:    9999999500000000,
+		Generating: 9999999500000000,
+		Available:  9999999500000000,
+		Effective:  9999999500000000,
+		LeaseIn:    0,
+		LeaseOut:   0,
+	}}
+	assert.Equal(t, correctBalance, res.Balance)
+	_, err = stream.Recv()
+	assert.Equal(t, io.EOF, err)
+}
 
 func TestResolveAlias(t *testing.T) {
 	genesisGetter := settings.FromCurrentDir("testdata/genesis", "alias_genesis.json")

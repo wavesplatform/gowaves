@@ -18,7 +18,7 @@ func (s *Server) GetBalances(req *g.BalancesRequest, srv g.AccountsApi_GetBalanc
 	rcp := proto.NewRecipientFromAddress(addr)
 	for _, asset := range req.Assets {
 		var res g.BalanceResponse
-		if asset == nil {
+		if len(asset) == 0 {
 			// Waves.
 			balanceInfo, err := s.state.FullWavesBalance(rcp)
 			if err != nil {
