@@ -2925,3 +2925,23 @@ func (sps ScriptPayments) binarySize() int {
 	}
 	return s
 }
+
+type FullWavesBalance struct {
+	Regular    uint64
+	Generating uint64
+	Available  uint64
+	Effective  uint64
+	LeaseIn    uint64
+	LeaseOut   uint64
+}
+
+func (b *FullWavesBalance) ToProtobuf() *g.BalanceResponse_WavesBalances {
+	return &g.BalanceResponse_WavesBalances{
+		Regular:    int64(b.Regular),
+		Generating: int64(b.Generating),
+		Available:  int64(b.Available),
+		Effective:  int64(b.Effective),
+		LeaseIn:    int64(b.LeaseIn),
+		LeaseOut:   int64(b.LeaseOut),
+	}
+}

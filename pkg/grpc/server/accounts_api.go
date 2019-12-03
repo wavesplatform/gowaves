@@ -11,7 +11,33 @@ import (
 )
 
 func (s *Server) GetBalances(req *g.BalancesRequest, srv g.AccountsApi_GetBalancesServer) error {
-	return status.Errorf(codes.Unimplemented, "Not implemented")
+	addr, err := proto.NewAddressFromBytes(req.Address)
+	if err != nil {
+		return status.Errorf(codes.InvalidArgument, err.Error())
+	}
+	rcp := proto.NewRecipientFromAddress(addr)
+	for _, asset := range req.Assets {
+		var res g.BalanceResponse
+		if asset == nil {
+			// Waves.
+			balanceInfo, err := s.state.FullWavesBalance(rcp)
+			if err != nil {
+				return status.Errorf(codes.NotFound, err.Error())
+			}
+			res.Balance = &g.BalanceResponse_Waves{Waves: balanceInfo.ToProtobuf()}
+		} else {
+			// Asset.
+			balance, err := s.state.AccountBalance(rcp, asset)
+			if err != nil {
+				return status.Errorf(codes.NotFound, err.Error())
+			}
+			res.Balance = &g.BalanceResponse_Asset{Asset: &g.Amount{AssetId: asset, Amount: int64(balance)}}
+		}
+		if err := srv.Send(&res); err != nil {
+			return status.Errorf(codes.Internal, err.Error())
+		}
+	}
+	return nil
 }
 
 func (s *Server) GetScript(ctx context.Context, req *g.AccountRequest) (*g.ScriptData, error) {
@@ -34,7 +60,9 @@ func (s *Server) GetDataEntries(req *g.DataRequest, srv g.AccountsApi_GetDataEnt
 			return status.Errorf(codes.NotFound, err.Error())
 		}
 		res := &g.DataEntryResponse{Address: req.Address, Entry: entry.ToProtobuf()}
-		return srv.Send(res)
+		if err := srv.Send(res); err != nil {
+			return status.Errorf(codes.Internal, err.Error())
+		}
 	}
 	entries, err := s.state.RetrieveEntries(rcp)
 	if err != nil {

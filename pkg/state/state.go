@@ -1080,6 +1080,42 @@ func (s *stateManager) newestWavesBalance(addr proto.Address) (uint64, error) {
 	return newProfile.balance, nil
 }
 
+func (s *stateManager) GeneratingBalance(account proto.Recipient) (uint64, error) {
+	height, err := s.Height()
+	if err != nil {
+		return 0, wrapErr(RetrievalError, err)
+	}
+	start, end := s.cv.RangeForGeneratingBalanceByHeight(height)
+	return s.EffectiveBalance(account, start, end)
+}
+
+func (s *stateManager) FullWavesBalance(account proto.Recipient) (*proto.FullWavesBalance, error) {
+	addr, err := s.recipientToAddress(account)
+	if err != nil {
+		return nil, wrapErr(RetrievalError, err)
+	}
+	profile, err := s.stor.balances.wavesBalance(*addr, true)
+	if err != nil {
+		return nil, wrapErr(RetrievalError, err)
+	}
+	effective, err := profile.effectiveBalance()
+	if err != nil {
+		return nil, wrapErr(Other, err)
+	}
+	generating, err := s.GeneratingBalance(account)
+	if err != nil {
+		return nil, wrapErr(RetrievalError, err)
+	}
+	return &proto.FullWavesBalance{
+		Regular:    profile.balance,
+		Generating: generating,
+		Available:  profile.spendableBalance(),
+		Effective:  effective,
+		LeaseIn:    uint64(profile.leaseIn),
+		LeaseOut:   uint64(profile.leaseOut),
+	}, nil
+}
+
 func (s *stateManager) NewestAccountBalance(account proto.Recipient, asset []byte) (uint64, error) {
 	addr, err := s.newestRecipientToAddress(account)
 	if err != nil {

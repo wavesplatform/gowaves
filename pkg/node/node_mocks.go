@@ -298,6 +298,10 @@ func (a *MockStateManager) NewestAccountBalance(account proto.Recipient, asset [
 	panic("implement me")
 }
 
+func (a *MockStateManager) FullWavesBalance(account proto.Recipient) (*proto.FullWavesBalance, error) {
+	panic("implement me")
+}
+
 func (a *MockStateManager) AccountBalance(account proto.Recipient, asset []byte) (uint64, error) {
 	panic("implement me")
 }

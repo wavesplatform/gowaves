@@ -65,6 +65,8 @@ type StateStable interface {
 	// Height <---> blockID converters.
 	BlockIDToHeight(blockID crypto.Signature) (proto.Height, error)
 	HeightToBlockID(height proto.Height) (crypto.Signature, error)
+	// FullWavesBalance returns complete Waves balance record.
+	FullWavesBalance(account proto.Recipient) (*proto.FullWavesBalance, error)
 	// AccountBalance retrieves balance of account in specific currency, asset is asset's ID.
 	// nil asset = Waves.
 	AccountBalance(account proto.Recipient, asset []byte) (uint64, error)
