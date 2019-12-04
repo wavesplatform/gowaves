@@ -2749,6 +2749,17 @@ func (sr *ScriptResult) Valid() error {
 	return nil
 }
 
+func (sr *ScriptResult) ToProtobuf() (*g.InvokeScriptResult, error) {
+	transfers, err := sr.Transfers.ToProtobuf()
+	if err != nil {
+		return nil, err
+	}
+	return &g.InvokeScriptResult{
+		Data:      sr.Writes.ToProtobuf(),
+		Transfers: transfers,
+	}, nil
+}
+
 type TransferSet []ScriptResultTransfer
 
 func (ts *TransferSet) Valid() error {
@@ -2761,6 +2772,18 @@ func (ts *TransferSet) Valid() error {
 		}
 	}
 	return nil
+}
+
+func (ts *TransferSet) ToProtobuf() ([]*g.InvokeScriptResult_Payment, error) {
+	res := make([]*g.InvokeScriptResult_Payment, len(*ts))
+	var err error
+	for i, tr := range *ts {
+		res[i], err = tr.ToProtobuf()
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
 }
 
 type WriteSet []DataEntry
@@ -2780,6 +2803,14 @@ func (ws *WriteSet) Valid() error {
 		return errors.Errorf("total write set size %d is greater than maximum %d\n", totalSize, maxWriteSetSizeInBytes)
 	}
 	return nil
+}
+
+func (ws *WriteSet) ToProtobuf() []*g.DataTransactionData_DataEntry {
+	res := make([]*g.DataTransactionData_DataEntry, len(*ws))
+	for i, entry := range *ws {
+		res[i] = entry.ToProtobuf()
+	}
+	return res
 }
 
 type FullScriptTransfer struct {
@@ -2802,6 +2833,16 @@ type ScriptResultTransfer struct {
 	Recipient Recipient
 	Amount    int64
 	Asset     OptionalAsset
+}
+
+func (tr *ScriptResultTransfer) ToProtobuf() (*g.InvokeScriptResult_Payment, error) {
+	if tr.Recipient.Address == nil {
+		return nil, errors.New("script transfer has alias recipient, protobuf needs address")
+	}
+	return &g.InvokeScriptResult_Payment{
+		Amount:  &g.Amount{AssetId: tr.Asset.ToID(), Amount: tr.Amount},
+		Address: tr.Recipient.Address.Bytes(),
+	}, nil
 }
 
 type ScriptPayment struct {
