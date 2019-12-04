@@ -17,7 +17,27 @@ func (s *Server) GetStateChanges(req *g.TransactionsRequest, srv g.TransactionsA
 }
 
 func (s *Server) GetStatuses(req *g.TransactionsByIdRequest, srv g.TransactionsApi_GetStatusesServer) error {
-	return status.Errorf(codes.Unimplemented, "Not implemented")
+	for _, id := range req.TransactionIds {
+		res := &g.TransactionStatus{Id: id}
+		if _, err := s.state.TransactionByID(id); err == nil {
+			// Transaction is in state, it is confirmed.
+			height, err := s.state.TransactionHeightByID(id)
+			if err != nil {
+				return status.Errorf(codes.Internal, err.Error())
+			}
+			res.Status = g.TransactionStatus_CONFIRMED
+			res.Height = int64(height)
+		} else if s.utx.TransactionExists(id) {
+			// Transaction is in UTX.
+			res.Status = g.TransactionStatus_UNCONFIRMED
+		} else {
+			res.Status = g.TransactionStatus_NOT_EXISTS
+		}
+		if err := srv.Send(res); err != nil {
+			return status.Errorf(codes.Internal, err.Error())
+		}
+	}
+	return nil
 }
 
 func (s *Server) GetUnconfirmed(req *g.TransactionsRequest, srv g.TransactionsApi_GetUnconfirmedServer) error {

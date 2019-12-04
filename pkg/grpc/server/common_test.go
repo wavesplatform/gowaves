@@ -20,6 +20,7 @@ import (
 
 const (
 	sleepTime = 2 * time.Second
+	utxSize   = 1000
 )
 
 var (

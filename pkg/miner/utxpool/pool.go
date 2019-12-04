@@ -71,7 +71,8 @@ func (a *UtxImpl) AddWithBytes(t proto.Transaction, b []byte) (added bool) {
 	}
 	heap.Push(&a.transactions, tb)
 	t.GenerateID()
-	a.transactionIds[makeDigest(t.GetID())] = struct{}{}
+	id := makeDigest(t.GetID())
+	a.transactionIds[id] = struct{}{}
 	a.curSize += uint(len(b))
 	added = true
 	return
@@ -92,6 +93,17 @@ func (a *UtxImpl) Exists(t proto.Transaction) bool {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	return a.exists(t)
+}
+
+func (a *UtxImpl) TransactionExists(id []byte) bool {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	digest, err := crypto.NewDigestFromBytes(id)
+	if err != nil {
+		return false
+	}
+	_, ok := a.transactionIds[digest]
+	return ok
 }
 
 func (a *UtxImpl) Pop() *types.TransactionWithBytes {

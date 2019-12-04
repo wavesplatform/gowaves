@@ -8,13 +8,14 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated"
+	"github.com/wavesplatform/gowaves/pkg/miner/utxpool"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 )
 
 func TestGetInfo(t *testing.T) {
 	genesisGetter := settings.FromCurrentDir("testdata/genesis", "asset_issue_genesis.json")
 	st, stateCloser := stateWithCustomGenesis(t, genesisGetter)
-	err := server.resetState(st)
+	err := server.initServer(st, utxpool.New(utxSize))
 	assert.NoError(t, err)
 
 	conn := connect(t, grpcTestAddr)

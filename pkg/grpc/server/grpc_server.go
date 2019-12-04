@@ -6,6 +6,7 @@ import (
 
 	"github.com/pkg/errors"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated"
+	"github.com/wavesplatform/gowaves/pkg/miner/utxpool"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"go.uber.org/zap"
@@ -15,23 +16,25 @@ import (
 type Server struct {
 	state  state.State
 	scheme proto.Scheme
+	utx    *utxpool.UtxImpl
 }
 
-func NewServer(state state.State) (*Server, error) {
+func NewServer(state state.State, utx *utxpool.UtxImpl) (*Server, error) {
 	s := &Server{}
-	if err := s.resetState(state); err != nil {
+	if err := s.initServer(state, utx); err != nil {
 		return nil, err
 	}
 	return s, nil
 }
 
-func (s *Server) resetState(state state.State) error {
+func (s *Server) initServer(state state.State, utx *utxpool.UtxImpl) error {
 	settings, err := state.BlockchainSettings()
 	if err != nil {
 		return err
 	}
 	s.state = state
 	s.scheme = settings.AddressSchemeCharacter
+	s.utx = utx
 	return nil
 }
 

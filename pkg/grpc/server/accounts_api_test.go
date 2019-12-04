@@ -11,6 +11,7 @@ import (
 	"github.com/golang/protobuf/ptypes/wrappers"
 	"github.com/stretchr/testify/assert"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated"
+	"github.com/wavesplatform/gowaves/pkg/miner/utxpool"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/state"
@@ -21,7 +22,7 @@ func TestGetBalances(t *testing.T) {
 	assert.NoError(t, err)
 	st, err := state.NewState(dataDir, state.DefaultTestingStateParams(), settings.MainNetSettings)
 	assert.NoError(t, err)
-	err = server.resetState(st)
+	err = server.initServer(st, utxpool.New(utxSize))
 	assert.NoError(t, err)
 
 	conn := connect(t, grpcTestAddr)
@@ -62,7 +63,7 @@ func TestGetBalances(t *testing.T) {
 func TestResolveAlias(t *testing.T) {
 	genesisGetter := settings.FromCurrentDir("testdata/genesis", "alias_genesis.json")
 	st, stateCloser := stateWithCustomGenesis(t, genesisGetter)
-	err := server.resetState(st)
+	err := server.initServer(st, utxpool.New(utxSize))
 	assert.NoError(t, err)
 
 	conn := connect(t, grpcTestAddr)
