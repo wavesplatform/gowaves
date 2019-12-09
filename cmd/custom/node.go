@@ -106,7 +106,7 @@ func main() {
 
 	var keyPairs []proto.KeyPair
 	if *seed != "" {
-		keyPairs = append(keyPairs, proto.NewKeyPair([]byte(*seed)))
+		keyPairs = append(keyPairs, proto.MustKeyPair([]byte(*seed)))
 	}
 
 	scheduler := scheduler2.NewScheduler(state, keyPairs, custom)

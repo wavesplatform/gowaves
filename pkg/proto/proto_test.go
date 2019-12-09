@@ -199,7 +199,7 @@ var tests = []protocolMarshallingTest{
 	{
 		&BlockMessage{[]byte{0x66, 0x42}},
 		//P. Len |    Magic | ContentID | Payload Length | PayloadCsum | Payload
-		"0000000f  12345678       17         00000002      0e5751c0   6642",
+		"0000000f  12345678       17         00000002      c2426c62   6642",
 	},
 	{
 		&ScoreMessage{[]byte{0x66, 0x42}},

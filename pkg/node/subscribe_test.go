@@ -1,10 +1,12 @@
 package node
 
 import (
+	"testing"
+
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/p2p/mock"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"testing"
 )
 
 func TestSubscribe(t *testing.T) {
@@ -16,7 +18,8 @@ func TestSubscribe(t *testing.T) {
 		t.Error("no subscribes should exists right now")
 	}
 
-	ch, cancel := service.Subscribe(p, m)
+	ch, cancel, err := service.Subscribe(p, m)
+	require.NoError(t, err)
 	if !service.Exists(p.ID(), m) {
 		t.Error("we subscribed on event, should exists")
 	}
