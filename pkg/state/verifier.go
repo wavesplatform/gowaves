@@ -173,7 +173,7 @@ func handleTask(task *verifyTask) error {
 		}
 		// Check block signature.
 		if !crypto.Verify(task.block.GenPublicKey, task.block.BlockSignature, task.blockBytes) {
-			return errors.New("invalid block signature")
+			return errors.New("State: handleTask: invalid block signature")
 		}
 	case verifyTx:
 		if err := checkTx(task.tx, task.checkTxSig, task.checkSellOrder, task.checkBuyOrder); err != nil {

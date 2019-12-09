@@ -6,6 +6,7 @@ import (
 	"math/big"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/types"
 )
 
 const (
@@ -26,7 +27,6 @@ const (
 )
 
 type Hit = big.Int
-type BaseTarget = uint64
 
 var (
 	maxSignature = bytes.Repeat([]byte{0xff}, hitSize)
@@ -67,8 +67,8 @@ func GenHit(generatorSig []byte) (*Hit, error) {
 	return &hit, nil
 }
 
-type posCalculator interface {
-	heightForHit(height uint64) uint64
+type PosCalculator interface {
+	HeightForHit(height uint64) uint64
 	CalculateBaseTarget(
 		targetBlockDelaySeconds uint64,
 		prevHeight uint64,
@@ -83,7 +83,7 @@ type posCalculator interface {
 type NxtPosCalculator struct {
 }
 
-func (calc *NxtPosCalculator) heightForHit(height uint64) uint64 {
+func (calc *NxtPosCalculator) HeightForHit(height uint64) uint64 {
 	if nxtPosHeightDiffForHit >= height {
 		return height
 	}
@@ -97,7 +97,7 @@ func (calc *NxtPosCalculator) CalculateBaseTarget(
 	parentTimestamp uint64,
 	greatGrandParentTimestamp uint64,
 	currentTimestamp uint64,
-) (BaseTarget, error) {
+) (types.BaseTarget, error) {
 	if prevHeight%2 == 0 {
 		meanBlockDelay := (currentTimestamp - parentTimestamp) / 1000
 		if greatGrandParentTimestamp > 0 {
@@ -120,7 +120,7 @@ func (calc *NxtPosCalculator) CalculateBaseTarget(
 	}
 }
 
-func (calc *NxtPosCalculator) CalculateDelay(hit *Hit, parentTarget BaseTarget, balance uint64) (uint64, error) {
+func (calc *NxtPosCalculator) CalculateDelay(hit *Hit, parentTarget types.BaseTarget, balance uint64) (uint64, error) {
 	var targetFloat big.Float
 	targetFloat.SetUint64(parentTarget)
 	var balanceFloat big.Float
@@ -138,7 +138,7 @@ func (calc *NxtPosCalculator) CalculateDelay(hit *Hit, parentTarget BaseTarget, 
 type FairPosCalculator struct {
 }
 
-func (calc *FairPosCalculator) heightForHit(height uint64) uint64 {
+func (calc *FairPosCalculator) HeightForHit(height uint64) uint64 {
 	if fairPosHeightDiffForHit >= height {
 		return height
 	}
@@ -152,7 +152,7 @@ func (calc *FairPosCalculator) CalculateBaseTarget(
 	confirmedTimestamp uint64,
 	greatGrandParentTimestamp uint64,
 	applyingBlockTimestamp uint64,
-) (BaseTarget, error) {
+) (types.BaseTarget, error) {
 	maxDelay := normalize(90, targetBlockDelaySeconds)
 	minDelay := normalize(30, targetBlockDelaySeconds)
 	if greatGrandParentTimestamp == 0 {
@@ -168,7 +168,7 @@ func (calc *FairPosCalculator) CalculateBaseTarget(
 	}
 }
 
-func (calc *FairPosCalculator) CalculateDelay(hit *Hit, confirmedTarget BaseTarget, balance uint64) (uint64, error) {
+func (calc *FairPosCalculator) CalculateDelay(hit *Hit, confirmedTarget types.BaseTarget, balance uint64) (uint64, error) {
 	var maxHit big.Int
 	maxHit.SetBytes(maxSignature)
 	var maxHitFloat big.Float

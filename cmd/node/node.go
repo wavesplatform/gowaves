@@ -38,6 +38,7 @@ var (
 	declAddr       = flag.String("declared-address", "", "Address to listen on")
 	apiAddr        = flag.String("api-address", "", "Address for REST API")
 	grpcAddr       = flag.String("grpc-address", "127.0.0.1:7475", "Address for gRPC API")
+	seed           = flag.String("seed", "", "Seed for miner")
 )
 
 func main() {
@@ -104,7 +105,12 @@ func main() {
 	peerManager := peer_manager.NewPeerManager(peerSpawnerImpl, state)
 	go peerManager.Run(ctx)
 
-	scheduler := scheduler.NewScheduler(state, nil, nil)
+	var keyPairs []proto.KeyPair
+	if *seed != "" {
+		keyPairs = append(keyPairs, proto.MustKeyPair([]byte(*seed)))
+	}
+
+	scheduler := scheduler.NewScheduler(state, keyPairs, cfg)
 	stateChanged := state_changed.NewStateChanged()
 	blockApplier := node.NewBlockApplier(state, stateChanged, scheduler)
 
@@ -126,11 +132,13 @@ func main() {
 		InvRequester:       ng.NewInvRequester(),
 	}
 
-	mine := miner.NoOpMiner()
-
-	stateSync := node.NewStateSync(services, mine)
 	ngState := ng.NewState(services)
 	ngRuntime := ng.NewRuntime(services, ngState)
+
+	mine := miner.NewMicroblockMiner(services, ngRuntime, cfg.AddressSchemeCharacter)
+	go miner.Run(ctx, mine, scheduler)
+
+	stateSync := node.NewStateSync(services, mine)
 
 	stateChanged.AddHandler(state_changed.NewFuncHandler(func() {
 		scheduler.Reschedule()
@@ -141,6 +149,8 @@ func main() {
 
 	n := node.NewNode(services, declAddr, ngRuntime, mine, stateSync)
 	go node.RunNode(ctx, n, parent)
+
+	go scheduler.Reschedule()
 
 	if len(conf.Addresses) > 0 {
 		adrs := strings.Split(conf.Addresses, ",")

@@ -70,7 +70,7 @@ type ID interface {
 }
 
 type Subscribe interface {
-	Subscribe(p ID, responseMessage proto.Message) (chan proto.Message, func())
+	Subscribe(p ID, responseMessage proto.Message) (chan proto.Message, func(), error)
 	Receive(p ID, responseMessage proto.Message) bool
 }
 
@@ -87,4 +87,10 @@ type MessageSender interface {
 
 type InvRequester interface {
 	Request(MessageSender, crypto.Signature)
+}
+
+type BaseTarget = uint64
+
+type Miner interface {
+	Mine(ctx context.Context, t proto.Timestamp, k proto.KeyPair, parent crypto.Signature, baseTarget BaseTarget, GenSignature crypto.Digest)
 }

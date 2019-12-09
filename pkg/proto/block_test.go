@@ -226,3 +226,94 @@ func TestBlock_WriteTo(t *testing.T) {
 	// writeTo doesn't write signature
 	require.Equal(t, marshaledBytes[:len(marshaledBytes)-crypto.SignatureSize], buf.Bytes())
 }
+
+func TestBlock_Clone(t *testing.T) {
+	var js = `{
+  "reference": "37R8rEa1FKwebXyrdg2o8RL1wqeLwRgy78JQSJFWCzgurU8tEMomZGqLyCKQJRXsnDgE78N8V2Nk94yesr33dejA",
+  "blocksize": 822,
+  "signature": "ScjRq6fo6Dnegg1cShBZq5zD2ydvxJW5H6pfBFvcTLqDAFTMweu5VD8Y74DHkL1vWgYaS2zhQJQXTMrXgqHGHvt",
+  "totalFee": 4,
+  "nxt-consensus": {
+    "base-target": 692299067,
+    "generation-signature": "6LTMWYS5gr95gMTeeE7onQwfT6yHvNhZNwR2K8zkQtWe"
+  },
+  "fee": 4,
+  "generator": "3PAGPDPqnGkyhcihyjMHe9v36Y4hkAh9yDy",
+  "transactionCount": 4,
+  "transactions": [
+    {
+      "senderPublicKey": "8xmjhwv1BRuqtdomKWzgZ2J74SwN3nNSYYUp1PhCaDrj",
+      "amount": 500000000,
+      "sender": "3PHrvC7W13eZDCkE5u1DV4CbEoeHvPbt387",
+      "feeAssetId": null,
+      "signature": "ScPLwz1T5VRYfvUc4AxoHzab6HrqH73FjF2DceRrZ5SGWFAkTbDKPuef4WPyXtKftYAGkKVJmGJwNyA67mNPdfM",
+      "proofs": [
+        "ScPLwz1T5VRYfvUc4AxoHzab6HrqH73FjF2DceRrZ5SGWFAkTbDKPuef4WPyXtKftYAGkKVJmGJwNyA67mNPdfM"
+      ],
+      "fee": 1,
+      "recipient": "3PQuyEy3LWjRCKq9JcDHvXfNapQnWHdXPZ3",
+      "id": "ScPLwz1T5VRYfvUc4AxoHzab6HrqH73FjF2DceRrZ5SGWFAkTbDKPuef4WPyXtKftYAGkKVJmGJwNyA67mNPdfM",
+      "type": 2,
+      "timestamp": 1466335015875
+    },
+    {
+      "senderPublicKey": "35CKZtLH9vrN9jFiPoZhKvMP8sdk2dm6ZukWUh3MJbgP",
+      "amount": 110000000,
+      "sender": "3PNUydgTUKBrJKyJbteuVJU5CrLeMMM8pbS",
+      "feeAssetId": null,
+      "signature": "3QyARB92kv1cRxfRyGrJKV7bTz6Dze6uyjQwagdzm8jvhfumbbyZb8oxM98EtCgUYr1kNYptYV3HvaDkseoev1Zn",
+      "proofs": [
+        "3QyARB92kv1cRxfRyGrJKV7bTz6Dze6uyjQwagdzm8jvhfumbbyZb8oxM98EtCgUYr1kNYptYV3HvaDkseoev1Zn"
+      ],
+      "fee": 1,
+      "recipient": "3PDw3VxMiTKKykDaTyXeZ6xuprSUKs9pyk9",
+      "id": "3QyARB92kv1cRxfRyGrJKV7bTz6Dze6uyjQwagdzm8jvhfumbbyZb8oxM98EtCgUYr1kNYptYV3HvaDkseoev1Zn",
+      "type": 2,
+      "timestamp": 1466335007548
+    },
+    {
+      "senderPublicKey": "8ebcrtnt2a2Lyw6LK21XAHyy1thQKubunwT255RGVz5E",
+      "amount": 400000000,
+      "sender": "3PBj1yoVAKhcvGqvZHCBtmUrW4G6iuXgdr5",
+      "feeAssetId": null,
+      "signature": "5R8sj4P2tr5mNBaNDt1eK4utWxCviQ6z9XCR4PbdpFekrdkVUYZkLCGCECJz1rxvAACaQr4Bw6VYNmghG4xhg98R",
+      "proofs": [
+        "5R8sj4P2tr5mNBaNDt1eK4utWxCviQ6z9XCR4PbdpFekrdkVUYZkLCGCECJz1rxvAACaQr4Bw6VYNmghG4xhg98R"
+      ],
+      "fee": 1,
+      "recipient": "3PD18NJNjUYHLRSeewWKZF8z4rnosTtun2K",
+      "id": "5R8sj4P2tr5mNBaNDt1eK4utWxCviQ6z9XCR4PbdpFekrdkVUYZkLCGCECJz1rxvAACaQr4Bw6VYNmghG4xhg98R",
+      "type": 2,
+      "timestamp": 1466334987703
+    },
+    {
+      "senderPublicKey": "46t5F1bUxG4mAQUiDyMKDBpWhHChLQSyhnVJ8R5jaLqH",
+      "amount": 499999999,
+      "sender": "3P31zvGdh6ai6JK6zZ18TjYzJsa1B83YPoj",
+      "feeAssetId": null,
+      "signature": "4sBHrSMdamRsxz6LAt3puk2mwBDwfEqBLmhEwTjb2nCGuFMrmJnGJQoqjV4KMnj821d6bZBSMrFHsNhyCuJmuRfE",
+      "proofs": [
+        "4sBHrSMdamRsxz6LAt3puk2mwBDwfEqBLmhEwTjb2nCGuFMrmJnGJQoqjV4KMnj821d6bZBSMrFHsNhyCuJmuRfE"
+      ],
+      "fee": 1,
+      "recipient": "3P6DFn9briPL2mufCKoBTDDGCsus94gSQ56",
+      "id": "4sBHrSMdamRsxz6LAt3puk2mwBDwfEqBLmhEwTjb2nCGuFMrmJnGJQoqjV4KMnj821d6bZBSMrFHsNhyCuJmuRfE",
+      "type": 2,
+      "timestamp": 1466335012046
+    }
+  ],
+  "version": 2,
+  "timestamp": 1466335031786,
+  "height": 10000
+}`
+
+	b1 := &Block{}
+	err := json.Unmarshal([]byte(js), b1)
+	require.NoError(t, err)
+
+	b2 := b1.Clone()
+	require.Equal(t, b1, b2)
+
+	b1.Height = 100500
+	require.NotEqual(t, b1, b2)
+}

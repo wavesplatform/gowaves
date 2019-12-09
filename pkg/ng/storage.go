@@ -8,7 +8,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
-type row struct {
+type Row struct {
 	KeyBlock    *proto.Block
 	MicroBlocks []*proto.MicroBlock
 }
@@ -94,32 +94,32 @@ func NewBlocksFromBlock(block *proto.Block) Blocks {
 	return []interface{}{block}
 }
 
-func (a Blocks) Row() (row, error) {
+func (a Blocks) Row() (Row, error) {
 	for i := len(a) - 1; i >= 0; i-- {
 		switch t := a[i].(type) {
 		case *proto.Block:
-			return row{KeyBlock: t, MicroBlocks: append([]*proto.MicroBlock(nil), inf2micro(a[i+1:])...)}, nil
+			return Row{KeyBlock: t, MicroBlocks: append([]*proto.MicroBlock(nil), inf2micro(a[i+1:])...)}, nil
 		default:
 			continue
 		}
 	}
-	return row{}, errors.New("no buildable row")
+	return Row{}, errors.New("no buildable row")
 }
 
-func (a Blocks) PreviousRow() (row, error) {
+func (a Blocks) PreviousRow() (Row, error) {
 	lastBlock := 0
 	for i := len(a) - 1; i >= 0; i-- {
 		switch t := a[i].(type) {
 		case *proto.Block:
 			if lastBlock != 0 {
-				return row{KeyBlock: t, MicroBlocks: append([]*proto.MicroBlock(nil), inf2micro(a[i+1:lastBlock])...)}, nil
+				return Row{KeyBlock: t, MicroBlocks: append([]*proto.MicroBlock(nil), inf2micro(a[i+1:lastBlock])...)}, nil
 			}
 			lastBlock = i
 		default:
 			continue
 		}
 	}
-	return row{}, errors.New("no buildable row")
+	return Row{}, errors.New("no buildable row")
 }
 
 func inf2micro(in []interface{}) []*proto.MicroBlock {
@@ -138,9 +138,7 @@ type storage struct {
 }
 
 func newStorage() *storage {
-	return &storage{
-		//validator: validator,
-	}
+	return &storage{}
 }
 
 func (a *storage) PushBlock(block *proto.Block) error {
@@ -158,6 +156,18 @@ func (a *storage) PushMicro(m *proto.MicroBlock) error {
 	if err != nil {
 		return err
 	}
+	/* wait for better times
+	row, err := a.curState.Row()
+	if err != nil {
+		return err
+	}
+	err = a.validator.validateMicro(row)
+	if err != nil {
+		zap.S().Error(err)
+		return err
+	}
+	*/
+
 	a.prevState = a.curState
 	a.curState = state
 	return nil
@@ -183,7 +193,7 @@ func (a *storage) ContainsSig(sig crypto.Signature) bool {
 	return a.curState.ContainsSig(sig)
 }
 
-func (a *storage) fromRow(seq row) (*proto.Block, error) {
+func (a *storage) fromRow(seq Row) (*proto.Block, error) {
 	var err error
 
 	keyBlock := seq.KeyBlock
@@ -203,7 +213,9 @@ func (a *storage) fromRow(seq row) (*proto.Block, error) {
 		keyBlock.Parent,
 		keyBlock.GenPublicKey,
 		keyBlock.NxtConsensus,
-		keyBlock.Version)
+		keyBlock.Version,
+		keyBlock.Features,
+		keyBlock.RewardVote)
 	if err != nil {
 		return nil, err
 	}

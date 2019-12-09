@@ -15,6 +15,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/services"
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"github.com/wavesplatform/gowaves/pkg/types"
+	"github.com/wavesplatform/gowaves/pkg/util"
 	"go.uber.org/zap"
 )
 
@@ -128,7 +129,7 @@ func (a *StateSync) sync(ctx context.Context, p Peer) error {
 	err = <-errCh
 	switch err {
 	case TimeoutErr:
-		a.peerManager.Suspend(p)
+		a.peerManager.Suspend(p, err.Error())
 		cancel()
 		go func() {
 			<-time.After(2 * time.Second)
@@ -138,9 +139,9 @@ func (a *StateSync) sync(ctx context.Context, p Peer) error {
 	case NothingToRequestErr:
 		cancel()
 	default:
-		a.peerManager.Suspend(p)
 		cancel()
 		if err != nil {
+			a.peerManager.Suspend(p, "switch default, unknown error")
 			zap.S().Errorf("[%s] StateSync: Error: %v", p.ID(), err)
 		}
 	}
@@ -187,11 +188,12 @@ func downloadBlocks(ctx context.Context, signaturesCh chan crypto.Signature, p P
 			select {
 			case <-ctx.Done():
 				return
-			case <-time.After(30 * time.Second):
+			case <-time.After(120 * time.Second):
 				zap.S().Infof("[%s] StateSync: DownloadBlocks: timeout waiting for SignaturesMessage", p.ID())
 				errCh <- TimeoutErr
 				return
 			case sig := <-signaturesCh:
+				//zap.S().Infof("[%s] StateSync: DownloadBlocks: sig: %s", p.ID(), sig.String())
 				if downloader.download(sig) {
 					atomic.AddUint64(&requested, 1)
 				}

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"io"
 
+	"github.com/jinzhu/copier"
 	"github.com/pkg/errors"
 	"github.com/valyala/bytebufferpool"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
@@ -176,6 +177,12 @@ type Block struct {
 	Transactions *TransactionsRepresentation `json:"transactions,omitempty"`
 }
 
+func (b *Block) Clone() *Block {
+	out := &Block{}
+	_ = copier.Copy(out, b)
+	return out
+}
+
 const bytesV = 1
 const transactionsV = 2
 
@@ -268,11 +275,11 @@ func (a *TransactionsRepresentation) Count() int {
 func (a TransactionsRepresentation) Join(other *TransactionsRepresentation) (*TransactionsRepresentation, error) {
 	b1, err := a.Bytes()
 	if err != nil {
-		return nil, nil
+		return nil, err
 	}
 	b2, err := other.Bytes()
 	if err != nil {
-		return nil, nil
+		return nil, err
 	}
 	return NewReprFromBytes(append(b1, b2...), a.Count()+other.Count()), nil
 }
@@ -463,7 +470,7 @@ func (b *Block) UnmarshalBinary(data []byte) (err error) {
 	return nil
 }
 
-func CreateBlock(transactions *TransactionsRepresentation, timestamp Timestamp, parentSig crypto.Signature, publicKey crypto.PublicKey, NxtConsensus NxtConsensus, version BlockVersion) (*Block, error) {
+func CreateBlock(transactions *TransactionsRepresentation, timestamp Timestamp, parentSig crypto.Signature, publicKey crypto.PublicKey, NxtConsensus NxtConsensus, version BlockVersion, Features []int16, RewardVote int64) (*Block, error) {
 	txb, err := transactions.Bytes()
 	if err != nil {
 		return nil, err
@@ -474,10 +481,10 @@ func CreateBlock(transactions *TransactionsRepresentation, timestamp Timestamp, 
 			Version:                version,
 			Timestamp:              timestamp,
 			Parent:                 parentSig,
-			FeaturesCount:          0,   // TODO implement features counting here
-			Features:               nil, // TODO implement features here
-			RewardVote:             -1,  // TODO implement setting desired reward
-			ConsensusBlockLength:   40,  // digest size (32) + uint64 (8)
+			FeaturesCount:          len(Features),
+			Features:               Features,
+			RewardVote:             RewardVote,
+			ConsensusBlockLength:   40, // digest size (32) + uint64 (8)
 			TransactionBlockLength: uint32(len(txb) + 4),
 			TransactionCount:       transactions.Count(),
 			GenPublicKey:           publicKey,
