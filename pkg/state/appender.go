@@ -36,8 +36,12 @@ type txAppender struct {
 
 	// totalScriptsRuns counts script runs for UTX validation.
 	// It is increased every time ValidateNextTx() is called with transaction
-	// that involed calling scripts.
+	// that involved calling scripts.
 	totalScriptsRuns uint64
+
+	// buildApiData flag indicates that additional data for gRPC API is built when
+	// appending transactions.
+	buildApiData bool
 }
 
 func newTxAppender(
@@ -45,6 +49,7 @@ func newTxAppender(
 	rw *blockReadWriter,
 	stor *blockchainEntitiesStorage,
 	settings *settings.BlockchainSettings,
+	stateDB *stateDB,
 ) (*txAppender, error) {
 	sc, err := newScriptCaller(state, stor, settings)
 	if err != nil {
@@ -74,7 +79,11 @@ func newTxAppender(
 	if err != nil {
 		return nil, err
 	}
-	ia := newInvokeApplier(state, sc, txHandler, stor, settings, blockDiffer, diffStorInvoke, diffApplier)
+	buildApiData, err := stateDB.stateStoresApiData()
+	if err != nil {
+		return nil, err
+	}
+	ia := newInvokeApplier(state, sc, txHandler, stor, settings, blockDiffer, diffStorInvoke, diffApplier, buildApiData)
 	return &txAppender{
 		state:          state,
 		sc:             sc,
@@ -88,6 +97,7 @@ func newTxAppender(
 		diffStor:       diffStor,
 		diffStorInvoke: diffStorInvoke,
 		diffApplier:    diffApplier,
+		buildApiData:   buildApiData,
 	}, nil
 }
 

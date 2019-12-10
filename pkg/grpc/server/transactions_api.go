@@ -9,10 +9,24 @@ import (
 )
 
 func (s *Server) GetTransactions(req *g.TransactionsRequest, srv g.TransactionsApi_GetTransactionsServer) error {
+	extendedApi, err := s.state.ProvidesExtendedApi()
+	if err != nil {
+		return status.Errorf(codes.Internal, err.Error())
+	}
+	if !extendedApi {
+		return status.Errorf(codes.FailedPrecondition, "Node's state does not have information required for extended API")
+	}
 	return status.Errorf(codes.Unimplemented, "Not implemented")
 }
 
 func (s *Server) GetStateChanges(req *g.TransactionsRequest, srv g.TransactionsApi_GetStateChangesServer) error {
+	extendedApi, err := s.state.ProvidesExtendedApi()
+	if err != nil {
+		return status.Errorf(codes.Internal, err.Error())
+	}
+	if !extendedApi {
+		return status.Errorf(codes.FailedPrecondition, "Node's state does not have information required for extended API")
+	}
 	return status.Errorf(codes.Unimplemented, "Not implemented")
 }
 

@@ -3,7 +3,6 @@ package state
 import (
 	"encoding/binary"
 
-	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/settings"
@@ -15,8 +14,8 @@ const (
 )
 
 var (
-	rewardVotesKeyBytes = []byte{rewardVotesKey}
-	blockRewardKeyBytes = []byte{blockRewardKey}
+	rewardVotesKeyBytes = []byte{rewardVotesKeyPrefix}
+	blockRewardKeyBytes = []byte{blockRewardKeyPrefix}
 )
 
 type blockRewardRecord struct {
@@ -31,7 +30,7 @@ func (r *blockRewardRecord) marshalBinary() ([]byte, error) {
 
 func (r *blockRewardRecord) unmarshalBinary(data []byte) error {
 	if len(data) != blockRewardRecordSize {
-		return errors.New("invalid data size")
+		return errInvalidDataSize
 	}
 	r.reward = binary.BigEndian.Uint64(data)
 	return nil
@@ -51,7 +50,7 @@ func (r *rewardVotesRecord) marshalBinary() ([]byte, error) {
 
 func (r *rewardVotesRecord) unmarshalBinary(data []byte) error {
 	if len(data) != rewardVotesRecordSize {
-		return errors.New("invalid data size")
+		return errInvalidDataSize
 	}
 	r.increase = binary.BigEndian.Uint32(data[:4])
 	r.decrease = binary.BigEndian.Uint32(data[4:])

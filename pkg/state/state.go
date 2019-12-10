@@ -66,7 +66,7 @@ func newBlockchainEntitiesStorage(hs *historyStorage, sets *settings.BlockchainS
 	if err != nil {
 		return nil, err
 	}
-	leases, err := newLeases(hs.db, hs)
+	leases, err := newLeases(hs.db, hs, hs.stateDB)
 	if err != nil {
 		return nil, err
 	}
@@ -144,6 +144,24 @@ func (s *blockchainEntitiesStorage) flush(initialisation bool) error {
 	return nil
 }
 
+func checkCompatibility(stateDB *stateDB, extendedApi bool) error {
+	version, err := stateDB.stateVersion()
+	if err != nil {
+		return errors.Errorf("stateVersion: %v", err)
+	}
+	if version != StateVersion {
+		return errors.Errorf("incompatible storage version %d; current state supports only %d", version, StateVersion)
+	}
+	hasDataForExtendedApi, err := stateDB.stateStoresApiData()
+	if err != nil {
+		return errors.Errorf("stateStoresApiData(): %v", err)
+	}
+	if extendedApi && !hasDataForExtendedApi {
+		return errors.New("state does not have data for extended API")
+	}
+	return nil
+}
+
 type stateManager struct {
 	mu *sync.RWMutex
 
@@ -203,9 +221,12 @@ func newStateManager(dataDir string, params StateParams, settings *settings.Bloc
 	if err != nil {
 		return nil, wrapErr(Other, errors.Errorf("failed to create block storage: %v", err))
 	}
-	stateDB, err := newStateDB(db, dbBatch, rw)
+	stateDB, err := newStateDB(db, dbBatch, rw, params.StoreExtendedApiData)
 	if err != nil {
 		return nil, wrapErr(Other, errors.Errorf("failed to create stateDB: %v", err))
+	}
+	if err := checkCompatibility(stateDB, params.StoreExtendedApiData); err != nil {
+		return nil, wrapErr(IncompatibilityError, err)
 	}
 	if err := stateDB.syncRw(); err != nil {
 		return nil, wrapErr(Other, errors.Errorf("failed to sync block storage and DB: %v", err))
@@ -229,7 +250,7 @@ func newStateManager(dataDir string, params StateParams, settings *settings.Bloc
 	}
 	// Set fields which depend on state.
 	// Consensus validator is needed to check block headers.
-	appender, err := newTxAppender(state, rw, stor, settings)
+	appender, err := newTxAppender(state, rw, stor, settings, stateDB)
 	if err != nil {
 		return nil, wrapErr(Other, err)
 	}
@@ -1765,6 +1786,14 @@ func (s *stateManager) ScriptInfoByAsset(assetID crypto.Digest) (*proto.ScriptIn
 		Base64:     text,
 		Complexity: complexity.complexity,
 	}, nil
+}
+
+func (s *stateManager) ProvidesExtendedApi() (bool, error) {
+	provides, err := s.stateDB.stateStoresApiData()
+	if err != nil {
+		return false, wrapErr(RetrievalError, err)
+	}
+	return provides, nil
 }
 
 func (s *stateManager) IsNotFound(err error) bool {

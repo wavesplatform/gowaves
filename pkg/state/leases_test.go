@@ -20,7 +20,7 @@ func createLeases() (*leasesTestObjects, []string, error) {
 	if err != nil {
 		return nil, path, err
 	}
-	leases, err := newLeases(stor.db, stor.hs)
+	leases, err := newLeases(stor.db, stor.hs, stor.hs.stateDB)
 	if err != nil {
 		return nil, path, err
 	}

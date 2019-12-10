@@ -270,6 +270,10 @@ func (a *MockStateManager) ScriptInfoByAsset(assetID crypto.Digest) (*proto.Scri
 	panic("implement me")
 }
 
+func (a *MockStateManager) ProvidesExtendedApi() (bool, error) {
+	panic("implement me")
+}
+
 func (a *MockStateManager) IsNotFound(err error) bool {
 	panic("implement me")
 }

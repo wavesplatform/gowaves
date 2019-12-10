@@ -54,6 +54,13 @@ func (s *Server) GetScript(ctx context.Context, req *g.AccountRequest) (*g.Scrip
 }
 
 func (s *Server) GetActiveLeases(req *g.AccountRequest, srv g.AccountsApi_GetActiveLeasesServer) error {
+	extendedApi, err := s.state.ProvidesExtendedApi()
+	if err != nil {
+		return status.Errorf(codes.Internal, err.Error())
+	}
+	if !extendedApi {
+		return status.Errorf(codes.FailedPrecondition, "Node's state does not have information required for extended API")
+	}
 	return status.Errorf(codes.Unimplemented, "Not implemented")
 }
 

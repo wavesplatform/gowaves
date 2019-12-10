@@ -31,13 +31,15 @@ import (
 var version = proto.Version{Major: 1, Minor: 1, Patch: 5}
 
 var (
-	logLevel       = flag.String("log-level", "INFO", "Logging level. Supported levels: DEBUG, INFO, WARN, ERROR, FATAL. Default logging level INFO.")
-	statePath      = flag.String("state-path", "", "Path to node's state directory")
-	blockchainType = flag.String("blockchain-type", "mainnet", "Blockchain type: mainnet/testnet/stagenet")
-	peerAddresses  = flag.String("peers", "35.156.19.4:6868,52.50.69.247:6868,52.52.46.76:6868,52.57.147.71:6868,52.214.55.18:6868,54.176.190.226:6868", "Addresses of peers to connect to")
-	declAddr       = flag.String("declared-address", "", "Address to listen on")
-	apiAddr        = flag.String("api-address", "", "Address for REST API")
-	grpcAddr       = flag.String("grpc-address", "127.0.0.1:7475", "Address for gRPC API")
+	logLevel          = flag.String("log-level", "INFO", "Logging level. Supported levels: DEBUG, INFO, WARN, ERROR, FATAL. Default logging level INFO.")
+	statePath         = flag.String("state-path", "", "Path to node's state directory")
+	blockchainType    = flag.String("blockchain-type", "mainnet", "Blockchain type: mainnet/testnet/stagenet")
+	peerAddresses     = flag.String("peers", "35.156.19.4:6868,52.50.69.247:6868,52.52.46.76:6868,52.57.147.71:6868,52.214.55.18:6868,54.176.190.226:6868", "Addresses of peers to connect to")
+	declAddr          = flag.String("declared-address", "", "Address to listen on")
+	apiAddr           = flag.String("api-address", "", "Address for REST API")
+	grpcAddr          = flag.String("grpc-address", "127.0.0.1:7475", "Address for gRPC API")
+	enableGrpcApi     = flag.Bool("enable-grpc-api", false, "Enables/disables gRPC API. Note that state must be reimported in case it wasn't imported with api flag set")
+	enableExtendedApi = flag.Bool("extended-api", false, "Enables/disables extended API. Note that state must be reimported in case it wasn't imported with api flag set")
 )
 
 func main() {
@@ -83,7 +85,9 @@ func main() {
 			return
 		}
 	}
-	state, err := state.NewState(path, state.DefaultStateParams(), cfg)
+	params := state.DefaultStateParams()
+	params.StoreExtendedApiData = *enableExtendedApi
+	state, err := state.NewState(path, params, cfg)
 	if err != nil {
 		zap.S().Error(err)
 		cancel()
@@ -165,16 +169,18 @@ func main() {
 		}
 	}()
 
-	grpcServer, err := server.NewServer(state, utx)
-	if err != nil {
-		zap.S().Errorf("Failed to create gRPC server: %v", err)
-	}
-	go func() {
-		err := grpcServer.Run(ctx, conf.GrpcAddr)
+	if *enableGrpcApi {
+		grpcServer, err := server.NewServer(state, utx)
 		if err != nil {
-			zap.S().Errorf("grpcServer.Run(): %v", err)
+			zap.S().Errorf("Failed to create gRPC server: %v", err)
 		}
-	}()
+		go func() {
+			err := grpcServer.Run(ctx, conf.GrpcAddr)
+			if err != nil {
+				zap.S().Errorf("grpcServer.Run(): %v", err)
+			}
+		}()
+	}
 
 	var gracefulStop = make(chan os.Signal, 1)
 	signal.Notify(gracefulStop, syscall.SIGTERM)

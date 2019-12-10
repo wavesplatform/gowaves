@@ -63,7 +63,10 @@ func stateWithCustomGenesis(t *testing.T, genesisGetter settings.GenesisGetter) 
 	sets := settings.DefaultSettingsForCustomBlockchain(testGenesisGetter)
 	// Activate data transactions.
 	sets.PreactivatedFeatures = []int16{5}
-	st, err := state.NewState(dataDir, state.DefaultTestingStateParams(), sets)
+	params := state.DefaultTestingStateParams()
+	// State should store addl data for gRPC API.
+	params.StoreExtendedApiData = true
+	st, err := state.NewState(dataDir, params, sets)
 	assert.NoError(t, err)
 	return st, func() {
 		err = st.Close()

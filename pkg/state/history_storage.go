@@ -47,8 +47,7 @@ var recordSizes = map[blockchainEntity]int{
 	assetScriptComplexity: assetScriptComplexityRecordSize + 4,
 	rewardVotes:           rewardVotesRecordSize + 4,
 	blockReward:           blockRewardRecordSize + 4,
-	// TODO: uncomment when changing state structure next time.
-	//ordersVolume:        orderVolumeRecordSize + 4,
+	ordersVolume:          orderVolumeRecordSize + 4,
 }
 
 type historyEntry struct {
@@ -71,7 +70,7 @@ func (he *historyEntry) marshalBinary() ([]byte, error) {
 
 func (he *historyEntry) unmarshalBinary(data []byte) error {
 	if len(data) < 4 {
-		return errors.New("invalid data size")
+		return errInvalidDataSize
 	}
 	he.data = make([]byte, len(data)-4)
 	copy(he.data, data[:len(data)-4])
@@ -99,7 +98,7 @@ func newHistoryRecord(entityType blockchainEntity) (*historyRecord, error) {
 func newHistoryRecordFromBytes(data []byte) (*historyRecord, error) {
 	dataSize := uint32(len(data))
 	if dataSize < 1 {
-		return nil, errors.New("invalid data size")
+		return nil, errInvalidDataSize
 	}
 	fixedSize, err := proto.Bool(data)
 	if err != nil {
@@ -109,11 +108,11 @@ func newHistoryRecordFromBytes(data []byte) (*historyRecord, error) {
 	var entries []historyEntry
 	if fixedSize {
 		if dataSize < 5 {
-			return nil, errors.New("invalid data size")
+			return nil, errInvalidDataSize
 		}
 		recordSize = binary.BigEndian.Uint32(data[1:5])
 		if dataSize < 5+recordSize {
-			return nil, errors.New("invalid data size")
+			return nil, errInvalidDataSize
 		}
 		for i := uint32(5); i <= dataSize-recordSize; i += recordSize {
 			var entry historyEntry
@@ -127,7 +126,7 @@ func newHistoryRecordFromBytes(data []byte) (*historyRecord, error) {
 			recordSize := binary.BigEndian.Uint32(data[i : i+4])
 			i += 4
 			if dataSize < i+recordSize {
-				return nil, errors.New("invalid data size")
+				return nil, errInvalidDataSize
 			}
 			var entry historyEntry
 			if err := entry.unmarshalBinary(data[i : i+recordSize]); err != nil {

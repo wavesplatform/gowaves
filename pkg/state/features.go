@@ -3,7 +3,6 @@ package state
 import (
 	"encoding/binary"
 
-	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/settings"
@@ -28,7 +27,7 @@ func (r *activatedFeaturesRecord) marshalBinary() ([]byte, error) {
 
 func (r *activatedFeaturesRecord) unmarshalBinary(data []byte) error {
 	if len(data) != activatedFeaturesRecordSize {
-		return errors.New("invalid data size")
+		return errInvalidDataSize
 	}
 	r.activationHeight = binary.BigEndian.Uint64(data[:8])
 	return nil
@@ -46,7 +45,7 @@ func (r *approvedFeaturesRecord) marshalBinary() ([]byte, error) {
 
 func (r *approvedFeaturesRecord) unmarshalBinary(data []byte) error {
 	if len(data) != approvedFeaturesRecordSize {
-		return errors.New("invalid data size")
+		return errInvalidDataSize
 	}
 	r.approvalHeight = binary.BigEndian.Uint64(data[:8])
 	return nil
@@ -64,7 +63,7 @@ func (r *votesFeaturesRecord) marshalBinary() ([]byte, error) {
 
 func (r *votesFeaturesRecord) unmarshalBinary(data []byte) error {
 	if len(data) != votesFeaturesRecordSize {
-		return errors.New("invalid data size")
+		return errInvalidDataSize
 	}
 	r.votesNum = binary.BigEndian.Uint64(data[:8])
 	return nil

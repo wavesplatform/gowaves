@@ -88,7 +88,7 @@ func estimatorByScript(script *ast.Script, version int) *estimation.Estimator {
 		variables = ast.VariablesV3()
 		cat = estimation.NewCatalogueV3()
 	}
-	return estimation.NewEstimator(version, cat, variables) //TODO: pass version 2 after BlockReward (feature 14) activation
+	return estimation.NewEstimator(version, cat, variables)
 }
 
 type scriptInfo struct {

@@ -115,6 +115,9 @@ type StateStable interface {
 	// Script information.
 	ScriptInfoByAccount(account proto.Recipient) (*proto.ScriptInfo, error)
 	ScriptInfoByAsset(assetID crypto.Digest) (*proto.ScriptInfo, error)
+
+	// True if state stores additional information in order to provide extended API.
+	ProvidesExtendedApi() (bool, error)
 }
 
 // StateModifier contains all the methods needed to modify node's state.
@@ -216,12 +219,14 @@ type ValidationParams struct {
 type StateParams struct {
 	StorageParams
 	ValidationParams
+	// When StoreExtendedApiData is true, state must be able to provide additional data required for gRPC API.
+	StoreExtendedApiData bool
 }
 
 func DefaultStateParams() StateParams {
-	return StateParams{DefaultStorageParams(), ValidationParams{runtime.NumCPU() * 2}}
+	return StateParams{DefaultStorageParams(), ValidationParams{runtime.NumCPU() * 2}, false}
 }
 
 func DefaultTestingStateParams() StateParams {
-	return StateParams{DefaultTestingStorageParams(), ValidationParams{runtime.NumCPU() * 2}}
+	return StateParams{DefaultTestingStorageParams(), ValidationParams{runtime.NumCPU() * 2}, false}
 }

@@ -327,7 +327,7 @@ func (rw *blockReadWriter) blockIDByHeight(height uint64) (crypto.Signature, err
 
 func (rw *blockReadWriter) heightFromBlockInfo(blockInfo []byte) (uint64, error) {
 	if len(blockInfo) < 8 {
-		return 0, errors.New("invalid data size")
+		return 0, errInvalidDataSize
 	}
 	height := binary.LittleEndian.Uint64(blockInfo[len(blockInfo)-8:])
 	return height, nil

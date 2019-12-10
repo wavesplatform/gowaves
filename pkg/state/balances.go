@@ -5,7 +5,6 @@ import (
 	"encoding/binary"
 	"math"
 
-	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -50,7 +49,7 @@ func (r *wavesBalanceRecord) marshalBinary() ([]byte, error) {
 
 func (r *wavesBalanceRecord) unmarshalBinary(data []byte) error {
 	if len(data) != wavesBalanceRecordSize {
-		return errors.New("invalid data size")
+		return errInvalidDataSize
 	}
 	r.balance = binary.BigEndian.Uint64(data[:8])
 	var err error
@@ -77,7 +76,7 @@ func (r *assetBalanceRecord) marshalBinary() ([]byte, error) {
 
 func (r *assetBalanceRecord) unmarshalBinary(data []byte) error {
 	if len(data) != assetBalanceRecordSize {
-		return errors.New("invalid data size")
+		return errInvalidDataSize
 	}
 	r.balance = binary.BigEndian.Uint64(data[:8])
 	return nil

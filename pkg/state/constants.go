@@ -22,4 +22,8 @@ const (
 	DefaultOffsetLen = 8
 	// DefaultHeaderOffsetLen is the amount of bytes needed to store offset of headers in headers file.
 	DefaultHeaderOffsetLen = 8
+
+	// StateVersion is current version of state internal storage formats.
+	// It increases when backward compatibility with previous storage version is lost.
+	StateVersion = 1
 )

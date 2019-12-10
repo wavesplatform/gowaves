@@ -36,6 +36,8 @@ type invokeApplier struct {
 	blockDiffer    *blockDiffer
 	invokeDiffStor *diffStorageWrapped
 	diffApplier    *diffApplier
+
+	buildApiData bool
 }
 
 func newInvokeApplier(
@@ -47,6 +49,7 @@ func newInvokeApplier(
 	blockDiffer *blockDiffer,
 	diffStor *diffStorageWrapped,
 	diffApplier *diffApplier,
+	buildApiData bool,
 ) *invokeApplier {
 	return &invokeApplier{
 		state:          state,
@@ -57,6 +60,7 @@ func newInvokeApplier(
 		blockDiffer:    blockDiffer,
 		invokeDiffStor: diffStor,
 		diffApplier:    diffApplier,
+		buildApiData:   buildApiData,
 	}
 }
 

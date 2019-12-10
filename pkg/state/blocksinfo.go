@@ -3,7 +3,6 @@ package state
 import (
 	"encoding/binary"
 
-	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 )
@@ -34,15 +33,15 @@ func (m assetFeeMap) marshalBinary() []byte {
 func (m assetFeeMap) unmarshalBinary(data []byte) (uint32, error) {
 	size := uint32(len(data))
 	if size < 4 {
-		return 0, errors.New("invalid data size")
+		return 0, errInvalidDataSize
 	}
 	expected := binary.BigEndian.Uint32(data[:4])
 	if size < expected {
-		return 0, errors.New("invalid data size")
+		return 0, errInvalidDataSize
 	}
 	for count := uint32(4); count < expected; {
 		if size < count+crypto.DigestSize {
-			return 0, errors.New("invalid data size")
+			return 0, errInvalidDataSize
 		}
 		asset, err := crypto.NewDigestFromBytes(data[count : count+crypto.DigestSize])
 		if err != nil {
@@ -50,7 +49,7 @@ func (m assetFeeMap) unmarshalBinary(data []byte) (uint32, error) {
 		}
 		count += crypto.DigestSize
 		if size < count+8 {
-			return 0, errors.New("invalid data size")
+			return 0, errInvalidDataSize
 		}
 		fee := binary.BigEndian.Uint64(data[count : count+8])
 		m[asset] = fee
@@ -101,7 +100,7 @@ func (distr *feeDistribution) marshalBinary() []byte {
 
 func (distr *feeDistribution) unmarshalBinary(data []byte) error {
 	if len(data) < 16 {
-		return errors.New("invalid data size")
+		return errInvalidDataSize
 	}
 	distr.totalWavesFees = binary.BigEndian.Uint64(data[:8])
 	distr.currentWavesBlockFees = binary.BigEndian.Uint64(data[8:16])

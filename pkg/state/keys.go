@@ -1,5 +1,7 @@
 package state
 
+// keys.go - database keys.
+
 import (
 	"bytes"
 	"encoding/binary"
@@ -13,9 +15,10 @@ const (
 	// Key sizes.
 	minAccountsDataStorKeySize = 1 + 8 + 2 + 1
 
-	wavesBalanceKeySize     = 1 + proto.AddressSize
-	assetBalanceKeySize     = 1 + proto.AddressSize + crypto.DigestSize
-	leaseKeySize            = 1 + crypto.DigestSize
+	wavesBalanceKeySize = 1 + proto.AddressSize
+	assetBalanceKeySize = 1 + proto.AddressSize + crypto.DigestSize
+	leaseKeySize        = 1 + crypto.DigestSize
+	//leaseSenderKeySize    = 1 + proto.AddressSize
 	aliasKeySize            = 1 + 2 + proto.AliasMaxLength
 	disabledAliasKeySize    = 1 + 2 + proto.AliasMaxLength
 	approvedFeaturesKeySize = 1 + 2
@@ -57,6 +60,7 @@ const (
 
 	// Leases.
 	leaseKeyPrefix
+	//leaseSenderKeyPrefix
 	// Known peers.
 	knownPeersPrefix
 
@@ -91,9 +95,16 @@ const (
 	accountScriptComplexityKeyPrefix
 	assetScriptComplexityKeyPrefix
 
-	// Block Reward
-	blockRewardKey
-	rewardVotesKey
+	// Block Reward.
+	blockRewardKeyPrefix
+	rewardVotesKeyPrefix
+
+	// Batched storage (see batched_storage.go).
+	batchedInfoKeyPrefix
+	batchedStorKeyPrefix
+
+	// Information about state: version, API support flag, ...
+	stateInfoKeyPrefix
 )
 
 var (
@@ -279,6 +290,19 @@ func (k *leaseKey) bytes() []byte {
 	copy(buf[1:], k.leaseID[:])
 	return buf
 }
+
+/*
+type leaseSenderKey struct {
+	address proto.Address
+}
+
+func (k *leaseSenderKey) bytes() []byte {
+	buf := make([]byte, leaseSenderKeySize)
+	buf[0] = leaseSenderKeyPrefix
+	copy(buf[1:], k.address[:])
+	return buf
+}
+*/
 
 type aliasKey struct {
 	alias string
@@ -512,4 +536,49 @@ func (k *assetScriptComplexityKey) bytes() []byte {
 	buf[0] = assetScriptComplexityKeyPrefix
 	copy(buf[1:], k.asset[:])
 	return buf
+}
+
+type batchedInfoKey struct {
+	internalKey []byte
+}
+
+func (k *batchedInfoKey) bytes() []byte {
+	buf := make([]byte, 1+len(k.internalKey))
+	buf[0] = batchedInfoKeyPrefix
+	copy(buf[1:], k.internalKey[:])
+	return buf
+}
+
+type batchedStorKey struct {
+	internalKey []byte
+	batchNum    uint32
+}
+
+func (k *batchedStorKey) prefix() []byte {
+	buf := make([]byte, 1+len(k.internalKey))
+	buf[0] = batchedStorKeyPrefix
+	copy(buf[1:], k.internalKey[:])
+	return buf
+}
+
+func (k *batchedStorKey) bytes() []byte {
+	buf := make([]byte, 1+len(k.internalKey)+4)
+	buf[0] = batchedStorKeyPrefix
+	copy(buf[1:], k.internalKey[:])
+	pos := 1 + len(k.internalKey)
+	binary.LittleEndian.PutUint32(buf[pos:], k.batchNum)
+	return buf
+}
+
+func (k *batchedStorKey) unmarshal(data []byte) error {
+	if len(data) < 5 {
+		return errInvalidDataSize
+	}
+	if data[0] != batchedStorKeyPrefix {
+		return errInvalidPrefix
+	}
+	k.internalKey = make([]byte, len(data)-5)
+	copy(k.internalKey, data[1:len(data)-4])
+	k.batchNum = binary.LittleEndian.Uint32(data[len(data)-4:])
+	return nil
 }

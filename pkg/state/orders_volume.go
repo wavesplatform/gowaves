@@ -25,7 +25,7 @@ func (o *orderVolumeRecord) marshalBinary() ([]byte, error) {
 
 func (o *orderVolumeRecord) unmarshalBinary(data []byte) error {
 	if len(data) != orderVolumeRecordSize {
-		return errors.New("invalid data size")
+		return errInvalidDataSize
 	}
 	o.feeFilled = binary.BigEndian.Uint64(data[:8])
 	o.amountFilled = binary.BigEndian.Uint64(data[8:16])

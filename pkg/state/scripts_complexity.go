@@ -26,7 +26,7 @@ func (r *assetScriptComplexityRecord) marshalBinary() ([]byte, error) {
 
 func (r *assetScriptComplexityRecord) unmarshalBinary(data []byte) error {
 	if len(data) != assetScriptComplexityRecordSize {
-		return errors.New("invalid data size")
+		return errInvalidDataSize
 	}
 	r.complexity = binary.BigEndian.Uint64(data[:8])
 	r.estimator = data[8]
@@ -73,7 +73,7 @@ func (r *accountScriptComplexityRecord) marshalBinary() ([]byte, error) {
 func (r *accountScriptComplexityRecord) unmarshalBinary(data []byte) (err error) {
 	defer func() {
 		if recover() != nil {
-			err = errors.New("invalid data size")
+			err = errInvalidDataSize
 		}
 	}()
 

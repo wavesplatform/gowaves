@@ -36,7 +36,7 @@ func (l *leasingRecord) marshalBinary() ([]byte, error) {
 
 func (l *leasingRecord) unmarshalBinary(data []byte) error {
 	if len(data) != leasingRecordSize {
-		return errors.New("invalid data size")
+		return errInvalidDataSize
 	}
 	var err error
 	l.isActive, err = proto.Bool(data[0:1])
@@ -50,12 +50,13 @@ func (l *leasingRecord) unmarshalBinary(data []byte) error {
 }
 
 type leases struct {
-	db keyvalue.IterableKeyVal
-	hs *historyStorage
+	db      keyvalue.IterableKeyVal
+	hs      *historyStorage
+	stateDB *stateDB
 }
 
-func newLeases(db keyvalue.IterableKeyVal, hs *historyStorage) (*leases, error) {
-	return &leases{db, hs}, nil
+func newLeases(db keyvalue.IterableKeyVal, hs *historyStorage, stateDB *stateDB) (*leases, error) {
+	return &leases{db, hs, stateDB}, nil
 }
 
 func (l *leases) cancelLeases(bySenders map[proto.Address]struct{}, blockID crypto.Signature) error {

@@ -20,7 +20,10 @@ import (
 func TestGetBalances(t *testing.T) {
 	dataDir, err := ioutil.TempDir(os.TempDir(), "dataDir")
 	assert.NoError(t, err)
-	st, err := state.NewState(dataDir, state.DefaultTestingStateParams(), settings.MainNetSettings)
+	params := state.DefaultTestingStateParams()
+	// State should store addl data for gRPC API.
+	params.StoreExtendedApiData = true
+	st, err := state.NewState(dataDir, params, settings.MainNetSettings)
 	assert.NoError(t, err)
 	err = server.initServer(st, utxpool.New(utxSize))
 	assert.NoError(t, err)
