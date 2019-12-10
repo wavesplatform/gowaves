@@ -1024,7 +1024,7 @@ func (s *stateManager) HeightToBlockID(height uint64) (crypto.Signature, error) 
 		return crypto.Signature{}, wrapErr(RetrievalError, err)
 	}
 	if height < 1 || height > maxHeight {
-		return crypto.Signature{}, wrapErr(InvalidInputError, errors.New("height out of valid range"))
+		return crypto.Signature{}, wrapErr(InvalidInputError, errors.New("HeightToBlockID: height out of valid range"))
 	}
 	blockID, err := s.rw.blockIDByHeight(height)
 	if err != nil {
@@ -1142,7 +1142,6 @@ func (s *stateManager) addFeaturesVotes(block *proto.Block) error {
 			return err
 		}
 		if approved {
-			zap.S().Warnf("Block has vote for featureID %v, but it is already approved", featureID)
 			continue
 		}
 		if err := s.stor.features.addVote(featureID, block.BlockSignature); err != nil {
@@ -1810,7 +1809,7 @@ func (s *stateManager) ScoreAtHeight(height uint64) (*big.Int, error) {
 		return nil, wrapErr(RetrievalError, err)
 	}
 	if height < 1 || height > maxHeight {
-		return nil, wrapErr(InvalidInputError, errors.New("height out of valid range"))
+		return nil, wrapErr(InvalidInputError, errors.New("ScoreAtHeight: height out of valid range"))
 	}
 	score, err := s.stor.scores.score(height)
 	if err != nil {

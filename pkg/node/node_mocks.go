@@ -356,7 +356,7 @@ func (a *mockPeerManager) IsSuspended(peer.Peer) bool {
 	panic("implement me")
 }
 
-func (a *mockPeerManager) Suspend(peer.Peer) {
+func (a *mockPeerManager) Suspend(peer.Peer, string) {
 	panic("implement me")
 }
 

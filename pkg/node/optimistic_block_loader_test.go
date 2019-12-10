@@ -67,8 +67,8 @@ func (a subscriberImpl) Receive(p types.ID, responseMessage proto.Message) bool 
 	panic("implement me: Receive")
 }
 
-func (a subscriberImpl) Subscribe(p types.ID, responseMessage proto.Message) (chan proto.Message, func()) {
-	return a.ch, func() {}
+func (a subscriberImpl) Subscribe(p types.ID, responseMessage proto.Message) (chan proto.Message, func(), error) {
+	return a.ch, func() {}, nil
 }
 
 func TestPreloadSignatures(t *testing.T) {

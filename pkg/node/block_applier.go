@@ -38,7 +38,7 @@ func (a *innerBlockApplier) apply(block *proto.Block) (*proto.Block, proto.Heigh
 	// try to find parent. If not - we can't add block, skip it
 	parentHeight, err := a.state.BlockIDToHeight(block.Parent)
 	if err != nil {
-		return nil, 0, errors.Wrapf(err, "failed get parent height, block sig %s, for block %s", block.Parent, block.BlockSignature)
+		return nil, 0, errors.Wrapf(err, "BlockApplier: failed get parent height, block sig %s, for block %s", block.Parent, block.BlockSignature)
 	}
 
 	// if new block has highest score apply it
@@ -52,7 +52,7 @@ func (a *innerBlockApplier) apply(block *proto.Block) (*proto.Block, proto.Heigh
 	}
 	sumScore := score.Add(score, parentScore)
 	if curScore.Cmp(sumScore) > 0 { // current height is higher
-		return nil, 0, errors.New("low score")
+		return nil, 0, errors.New("BlockApplier: low score: current score is higher than block")
 	}
 
 	// so, new block has highest score, try apply it.

@@ -65,7 +65,7 @@ func (cv *ConsensusValidator) fairPosActivated() (bool, error) {
 	return cv.state.IsActivated(int16(settings.FairPoS))
 }
 
-func (cv *ConsensusValidator) posAlgo() (posCalculator, error) {
+func (cv *ConsensusValidator) posAlgo() (PosCalculator, error) {
 	fair, err := cv.fairPosActivated()
 	if err != nil {
 		return &NxtPosCalculator{}, err
@@ -235,7 +235,7 @@ func (cv *ConsensusValidator) validBlockDelay(height uint64, pk crypto.PublicKey
 	if err != nil {
 		return 0, err
 	}
-	header, err := cv.headerByHeight(pos.heightForHit(height))
+	header, err := cv.headerByHeight(pos.HeightForHit(height))
 	if err != nil {
 		return 0, err
 	}
