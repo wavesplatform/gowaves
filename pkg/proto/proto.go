@@ -1276,7 +1276,7 @@ func (m *BlockMessage) MarshalBinary() ([]byte, error) {
 	h.Magic = headerMagic
 	h.ContentID = ContentIDBlock
 	h.PayloadLength = uint32(len(m.BlockBytes))
-	dig, err := crypto.FastHash([]byte{})
+	dig, err := crypto.FastHash(m.BlockBytes)
 	if err != nil {
 		return nil, err
 	}
@@ -1296,7 +1296,7 @@ func MakeHeader(contentID uint8, payload []byte) (Header, error) {
 	h.Magic = headerMagic
 	h.ContentID = contentID
 	h.PayloadLength = uint32(len(payload))
-	dig, err := crypto.FastHash([]byte{})
+	dig, err := crypto.FastHash(payload)
 	if err != nil {
 		return Header{}, err
 	}

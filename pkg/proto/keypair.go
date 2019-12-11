@@ -5,37 +5,33 @@ import (
 )
 
 type KeyPair struct {
-	seed []byte
+	seed   []byte
+	Public crypto.PublicKey
+	Secret crypto.SecretKey
 }
 
-func NewKeyPair(seed []byte) KeyPair {
+func NewKeyPair(seed []byte) (KeyPair, error) {
+	sec, pub, err := crypto.GenerateKeyPair(seed)
+	if err != nil {
+		return KeyPair{}, err
+	}
 	return KeyPair{
-		seed: seed,
-	}
+		Public: pub,
+		Secret: sec,
+		seed:   seed,
+	}, nil
 }
 
-func (a KeyPair) Public() (crypto.PublicKey, error) {
-	_, pub, err := crypto.GenerateKeyPair(a.seed)
+func MustKeyPair(seed []byte) KeyPair {
+	out, err := NewKeyPair(seed)
 	if err != nil {
-		return pub, nil
+		panic(err)
 	}
-	return pub, nil
-}
-
-func (a KeyPair) Private() (crypto.SecretKey, error) {
-	sec, _, err := crypto.GenerateKeyPair(a.seed)
-	if err != nil {
-		return sec, err
-	}
-	return sec, nil
+	return out
 }
 
 func (a KeyPair) Addr(scheme byte) (Address, error) {
-	pub, err := a.Public()
-	if err != nil {
-		return Address{}, err
-	}
-	addr, err := NewAddressFromPublicKey(scheme, pub)
+	addr, err := NewAddressFromPublicKey(scheme, a.Public)
 	if err != nil {
 		return Address{}, err
 	}

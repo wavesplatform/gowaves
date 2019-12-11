@@ -1,16 +1,15 @@
 package proto
 
 import (
-	"github.com/stretchr/testify/require"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestKeyPair(t *testing.T) {
-	k := NewKeyPair([]byte("test"))
-	pub, err := k.Public()
-	require.NoError(t, err)
+	k := MustKeyPair([]byte("test"))
+	pub := k.Public
 	require.NotEmpty(t, pub)
-	priv, err := k.Public()
-	require.NoError(t, err)
+	priv := k.Secret
 	require.NotEmpty(t, priv)
 }

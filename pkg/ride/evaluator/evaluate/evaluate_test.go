@@ -302,6 +302,7 @@ func TestFunctions(t *testing.T) {
 
 		{300, `SUM_STRING`, `"ab"+"cd" == "abcd"`, `AQkAAAAAAAACCQABLAAAAAICAAAAAmFiAgAAAAJjZAIAAAAEYWJjZMBJvls=`, defaultScope(2), true, false},
 		{303, `TAKE_STRING`, `take("abcd", 2) == "ab"`, `AQkAAAAAAAACCQABLwAAAAICAAAABGFiY2QAAAAAAAAAAAICAAAAAmFiiXc+oQ==`, defaultScope(2), true, false},
+		{303, `TAKE_STRING`, `take("", 1) == ""`, `AwkAAAAAAAACCQABLwAAAAICAAAAAAAAAAAAAAAAAQIAAAAAmz5yjQ==`, defaultScope(3), true, false},
 		{304, `DROP_STRING`, `drop("abcd", 2) == "cd"`, `AQkAAAAAAAACCQABMAAAAAICAAAABGFiY2QAAAAAAAAAAAICAAAAAmNkZQdjWQ==`, defaultScope(2), true, false},
 		{305, `SIZE_STRING`, `size("abcd") == 4`, `AQkAAAAAAAACCQABMQAAAAECAAAABGFiY2QAAAAAAAAAAAScZzsq`, defaultScope(2), true, false},
 
@@ -1614,6 +1615,83 @@ func TestTestingDApp(t *testing.T) {
 	}
 	expectedResult := &proto.ScriptResult{
 		Transfers: proto.TransferSet{},
+		Writes:    expectedDataWrites,
+	}
+	assert.Equal(t, expectedResult, sr)
+}
+
+func TestDropElementDApp(t *testing.T) {
+	code := "AAIDAAAAAAAAAAgIARIECgIICAAAAAEBAAAAFmRyb3BFbGVtZW50SW5Kc29uQXJyYXkAAAACAAAABWFycmF5AAAAB2VsZW1lbnQEAAAADHNwbGl0ZWRBcnJheQkABLUAAAACBQAAAAVhcnJheQUAAAAHZWxlbWVudAMJAAAAAAAAAgkAAS8AAAACCQABkQAAAAIFAAAADHNwbGl0ZWRBcnJheQAAAAAAAAAAAQAAAAAAAAAAAQIAAAABLAkAASwAAAACCQABkQAAAAIFAAAADHNwbGl0ZWRBcnJheQAAAAAAAAAAAAkAATAAAAACCQABkQAAAAIFAAAADHNwbGl0ZWRBcnJheQAAAAAAAAAAAQAAAAAAAAAAAQkAASwAAAACCQEAAAAJZHJvcFJpZ2h0AAAAAgkAAZEAAAACBQAAAAxzcGxpdGVkQXJyYXkAAAAAAAAAAAAAAAAAAAAAAAEJAAGRAAAAAgUAAAAMc3BsaXRlZEFycmF5AAAAAAAAAAABAAAAAQAAAAJ0eAEAAAASZHJvcEVsZW1lbnRJbkFycmF5AAAAAgAAAAVhcnJheQAAAAdlbGVtZW50BAAAAAluZXh0SWRPcHQJAAQaAAAAAgUAAAAEdGhpcwIAAAAGTkVYVElEBAAAAAZuZXh0SWQDCQEAAAAJaXNEZWZpbmVkAAAAAQUAAAAJbmV4dElkT3B0CQEAAAAHZXh0cmFjdAAAAAEFAAAACW5leHRJZE9wdAAAAAAAAAAAAQQAAAASYXJyYXlXaXRob3RFbGVtZW50CQEAAAAWZHJvcEVsZW1lbnRJbkpzb25BcnJheQAAAAIFAAAABWFycmF5BQAAAAdlbGVtZW50CQEAAAAIV3JpdGVTZXQAAAABCQAETAAAAAIJAQAAAAlEYXRhRW50cnkAAAACCQABpAAAAAEFAAAABm5leHRJZAkAASwAAAACCQABLAAAAAIJAAEsAAAAAgkAASwAAAACBQAAAAVhcnJheQIAAAADIC0gBQAAAAdlbGVtZW50AgAAAAMgPSAFAAAAEmFycmF5V2l0aG90RWxlbWVudAUAAAADbmlsAAAAANx44LU="
+	r, err := reader.NewReaderFromBase64(code)
+	require.NoError(t, err)
+	script, err := BuildScript(r)
+	require.NoError(t, err)
+
+	txID, err := crypto.NewDigestFromBase58("HsezR6axe1twb8DNV8oo5Kqus5ZTDLLPbCqVvvHzaELS")
+	require.NoError(t, err)
+	proof, err := crypto.NewSignatureFromBase58("3nRXeLFr9exB4fFCb6wtQKYaJ4jfcY6FziZSjMrx3baYHuQqFmpz23iNwxdNHUojgpdSRbdg33t3PGvYfWSWMLmJ")
+	require.NoError(t, err)
+	proofs := proto.NewProofs()
+	proofs.Proofs = []proto.B58Bytes{proof[:]}
+	sender, err := crypto.NewPublicKeyFromBase58("HGT44HrsSSD5cjANV6wtWNB9VKS3y7hhoNXEDWB56Lu9")
+	require.NoError(t, err)
+	address, err := proto.NewAddressFromString("3MpG8hTQfgrXcavZYWYaBcT31FUonRAXfYS")
+	require.NoError(t, err)
+	recipient := proto.NewRecipientFromAddress(address)
+	arguments := proto.Arguments{}
+	arguments.Append(&proto.StringArgument{Value: "aaa,bbb,ccc"})
+	arguments.Append(&proto.StringArgument{Value: "ccc"})
+	call := proto.FunctionCall{
+		Default:   false,
+		Name:      "dropElementInArray",
+		Arguments: arguments,
+	}
+	tx := &proto.InvokeScriptV1{
+		Type:            proto.InvokeScriptTransaction,
+		Version:         1,
+		ID:              &txID,
+		Proofs:          proofs,
+		ChainID:         proto.TestNetScheme,
+		SenderPK:        sender,
+		ScriptRecipient: recipient,
+		FunctionCall:    call,
+		Payments:        proto.ScriptPayments{},
+		FeeAsset:        proto.OptionalAsset{},
+		Fee:             500000,
+		Timestamp:       1573578115548,
+	}
+	state := mockstate.State{
+		TransactionsByID:       nil,
+		TransactionsHeightByID: nil,
+		WavesBalance:           5000000000, // ~50 WAVES
+		DataEntries:            nil,
+		AssetIsSponsored:       false,
+		BlockHeaderByHeight:    nil,
+		NewestHeightVal:        666972,
+		Assets:                 nil,
+	}
+	this := NewAddressFromProtoAddress(address)
+	gs, err := crypto.NewDigestFromBase58("AWH9QVEnmN6VjRyEfs93UtAiCkwrNJ2phKYe25KFNCz")
+	require.NoError(t, err)
+	gen, err := proto.NewAddressFromString("3MxTeL8dKLUGh9B1A2aaZxQ8BLL22bDdm6G")
+	require.NoError(t, err)
+	blockInfo := proto.BlockInfo{
+		Timestamp:           1567938316714,
+		Height:              762110,
+		BaseTarget:          1550,
+		GenerationSignature: gs,
+		Generator:           gen,
+		GeneratorPublicKey:  sender,
+	}
+	lastBlock := NewObjectFromBlockInfo(blockInfo)
+	sr, err := script.CallFunction(proto.TestNetScheme, state, tx, this, lastBlock)
+	require.NoError(t, err)
+
+	expectedDataWrites := proto.WriteSet{
+		&proto.StringDataEntry{Key: "1", Value: "aaa,bbb,ccc - ccc = aaa,bbb"},
+	}
+	expectedResult := &proto.ScriptResult{
+		Transfers: nil,
 		Writes:    expectedDataWrites,
 	}
 	assert.Equal(t, expectedResult, sr)

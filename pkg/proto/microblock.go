@@ -11,7 +11,8 @@ import (
 )
 
 type MicroBlock struct {
-	VersionField          byte
+	VersionField byte
+	// reference for previous keyblock or microblock
 	PrevResBlockSigField  crypto.Signature
 	TotalResBlockSigField crypto.Signature
 	TransactionCount      uint32
@@ -19,6 +20,20 @@ type MicroBlock struct {
 	SenderPK              crypto.PublicKey
 	Signature             crypto.Signature
 }
+
+// func is not using right now
+/*
+func CreateMicroBlock(PrevResBlockSigField crypto.Signature, TotalResBlockSigField crypto.Signature, tr *TransactionsRepresentation, SenderPK crypto.PublicKey) *MicroBlock {
+	return &MicroBlock{
+		VersionField:          3,
+		PrevResBlockSigField:  PrevResBlockSigField,
+		TotalResBlockSigField: TotalResBlockSigField,
+		Transactions:          tr,
+		TransactionCount:      uint32(tr.Count()),
+		SenderPK:              SenderPK,
+	}
+}
+*/
 
 type MicroblockTotalSig = crypto.Signature
 

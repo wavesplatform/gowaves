@@ -154,8 +154,28 @@ func (a *blockDownload) download(sig crypto.Signature) bool {
 	return r
 }
 
+func (a *blockDownload) subscr(ctx context.Context, times int) (chan proto.Message, func(), error) {
+	subscribeCh, unsubscribe, err := a.subscribe.Subscribe(a.p, &proto.BlockMessage{})
+	if err != nil {
+		if times == 0 {
+			return subscribeCh, unsubscribe, err
+		}
+		select {
+		case <-ctx.Done():
+			return nil, nil, ctx.Err()
+		case <-time.After(10 * time.Millisecond):
+			return a.subscr(ctx, times-1)
+		}
+	}
+	return subscribeCh, unsubscribe, nil
+}
+
 func (a *blockDownload) run(ctx context.Context) {
-	subscribeCh, unsubscribe := a.subscribe.Subscribe(a.p, &proto.BlockMessage{})
+	subscribeCh, unsubscribe, err := a.subscr(ctx, 10)
+	if err != nil {
+		zap.S().Error(err)
+		return
+	}
 	defer unsubscribe()
 
 	for {
@@ -197,7 +217,10 @@ type sendMessage interface {
 }
 
 func PreloadSignatures(ctx context.Context, out chan crypto.Signature, p sendMessage, lastSignatures *Signatures, subscribe types.Subscribe) error {
-	messCh, unsubscribe := subscribe.Subscribe(p, &proto.SignaturesMessage{})
+	messCh, unsubscribe, err := subscribe.Subscribe(p, &proto.SignaturesMessage{})
+	if err != nil {
+		return err
+	}
 	defer unsubscribe()
 	for {
 		es := lastSignatures.Signatures()
@@ -212,7 +235,7 @@ func PreloadSignatures(ctx context.Context, out chan crypto.Signature, p sendMes
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		case <-time.After(15 * time.Second):
+		case <-time.After(120 * time.Second):
 			zap.S().Debugf("[%s] Optimistic Loader: timeout while waiting for new signature", p.ID())
 			return TimeoutErr
 		case received := <-messCh:

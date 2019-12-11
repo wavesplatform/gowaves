@@ -36,7 +36,7 @@ type PeerManager interface {
 	Connected(peer.Peer) (peer.Peer, bool)
 	EachConnected(func(peer.Peer, *proto.Score))
 	IsSuspended(peer.Peer) bool
-	Suspend(peer.Peer)
+	Suspend(peer.Peer, string)
 	Suspended() []string
 	AddConnected(peer.Peer)
 	PeerWithHighestScore() (peer.Peer, *big.Int, bool)
@@ -194,12 +194,12 @@ func (a *PeerManagerImpl) IsSuspended(p peer.Peer) bool {
 	return a.suspended.Blocked(p.RemoteAddr().ToIpPort(), time.Now())
 }
 
-func (a *PeerManagerImpl) Suspend(p peer.Peer) {
+func (a *PeerManagerImpl) Suspend(p peer.Peer, reason string) {
 	a.Disconnect(p)
 	a.mu.Lock()
 	a.suspended.Block(p.RemoteAddr().ToIpPort(), 5*time.Minute)
 	a.mu.Unlock()
-	zap.S().Debugf("[%s] Suspend peer ", p.ID())
+	zap.S().Debugf("[%s] Suspend peer, reason: %s ", p.ID(), reason)
 }
 
 func (a *PeerManagerImpl) Suspended() []string {

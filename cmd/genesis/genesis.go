@@ -37,7 +37,7 @@ func main() {
 			zap.S().Fatal("format should be test1:100000000")
 		}
 
-		kp := proto.NewKeyPair([]byte(splitted[0]))
+		kp := proto.MustKeyPair([]byte(splitted[0]))
 		inf = append(inf, kp)
 		num, _ := strconv.ParseUint(splitted[1], 10, 64)
 		inf = append(inf, int(num))

@@ -9,6 +9,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/state"
+	"github.com/wavesplatform/gowaves/pkg/types"
 	"github.com/wavesplatform/gowaves/pkg/util/cancellable"
 	"go.uber.org/zap"
 )
@@ -17,7 +18,7 @@ type Emit struct {
 	Timestamp            uint64
 	KeyPair              proto.KeyPair
 	GenSignature         crypto.Digest
-	BaseTarget           consensus.BaseTarget
+	BaseTarget           types.BaseTarget
 	ParentBlockSignature crypto.Signature
 }
 
@@ -50,14 +51,30 @@ func (a internalImpl) schedule(state state.State, keyPairs []proto.KeyPair, sche
 		greatGrandParentTimestamp = greatGrandParent.Timestamp
 	}
 
+	locked := state.Mutex().RLock()
+	fairPosActivated, err := state.IsActivated(int16(settings.FairPoS))
+	locked.Unlock()
+	if err != nil {
+		zap.S().Error(err)
+		return nil
+	}
+
+	var pos consensus.PosCalculator = &consensus.NxtPosCalculator{}
+	if fairPosActivated {
+		pos = &consensus.FairPosCalculator{}
+	}
+
+	header, err := state.HeaderByHeight(pos.HeightForHit(confirmedBlockHeight))
+	if err != nil {
+		zap.S().Error(err)
+		return nil
+	}
+
+	zap.S().Infof("Scheduler: confirmedBlock sig %s, gensig: %s, confirmedHeight: %d", confirmedBlock.BlockSignature, confirmedBlock.GenSignature, confirmedBlockHeight)
+
 	var out []Emit
 	for _, keyPair := range keyPairs {
-		pub, err := keyPair.Public()
-		if err != nil {
-			zap.S().Error(err)
-			continue
-		}
-		genSig, err := consensus.GeneratorSignature(confirmedBlock.BlockHeader.GenSignature, pub)
+		genSig, err := consensus.GeneratorSignature(header.GenSignature, keyPair.Public)
 		if err != nil {
 			zap.S().Error(err)
 			continue
@@ -69,13 +86,10 @@ func (a internalImpl) schedule(state state.State, keyPairs []proto.KeyPair, sche
 			continue
 		}
 
-		// TODO
-		c := &consensus.NxtPosCalculator{}
-		//c := &consensus.FairPosCalculator{}
-
-		locked := state.Mutex().RLock()
+		locked = state.Mutex().RLock()
 		addr, err := keyPair.Addr(schema)
 		if err != nil {
+			locked.Unlock()
 			zap.S().Error(err)
 			continue
 		}
@@ -86,13 +100,19 @@ func (a internalImpl) schedule(state state.State, keyPairs []proto.KeyPair, sche
 			continue
 		}
 
-		delay, err := c.CalculateDelay(hit, confirmedBlock.BlockHeader.BaseTarget, effectiveBalance)
+		delay, err := pos.CalculateDelay(hit, confirmedBlock.BlockHeader.BaseTarget, effectiveBalance)
 		if err != nil {
 			zap.S().Error(err)
 			continue
 		}
 
-		baseTarget, err := c.CalculateBaseTarget(AverageBlockDelaySeconds, confirmedBlockHeight, confirmedBlock.BlockHeader.BaseTarget, confirmedBlock.Timestamp, greatGrandParentTimestamp, delay+confirmedBlock.Timestamp)
+		baseTarget, err := pos.CalculateBaseTarget(AverageBlockDelaySeconds, confirmedBlockHeight, confirmedBlock.BlockHeader.BaseTarget, confirmedBlock.Timestamp, greatGrandParentTimestamp, delay+confirmedBlock.Timestamp)
+		if err != nil {
+			zap.S().Error(err)
+			continue
+		}
+
+		_gensig, err := consensus.GeneratorSignature(confirmedBlock.GenSignature, keyPair.Public)
 		if err != nil {
 			zap.S().Error(err)
 			continue
@@ -101,7 +121,7 @@ func (a internalImpl) schedule(state state.State, keyPairs []proto.KeyPair, sche
 		out = append(out, Emit{
 			Timestamp:            confirmedBlock.Timestamp + delay,
 			KeyPair:              keyPair,
-			GenSignature:         genSig,
+			GenSignature:         _gensig,
 			BaseTarget:           baseTarget,
 			ParentBlockSignature: confirmedBlock.BlockSignature,
 		})

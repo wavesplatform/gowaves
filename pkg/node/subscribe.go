@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"sync"
 
+	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/types"
 	"go.uber.org/zap"
@@ -40,7 +41,7 @@ func (a *Subscribe) Receive(p types.ID, responseMessage proto.Message) bool {
 }
 
 // non thread safe
-func (a *Subscribe) add(p types.ID, responseMessage proto.Message) (chan proto.Message, func()) {
+func (a *Subscribe) add(p types.ID, responseMessage proto.Message) (chan proto.Message, func(), error) {
 
 	name := name(p.ID(), responseMessage)
 
@@ -52,10 +53,10 @@ func (a *Subscribe) add(p types.ID, responseMessage proto.Message) (chan proto.M
 
 	ch := make(chan proto.Message, 150)
 	if _, ok := a.running[name]; ok {
-		panic("multiple subscribe on " + name)
+		return nil, nil, errors.Errorf("multiple subscribe on %s", name)
 	}
 	a.running[name] = ch
-	return ch, unsubscribe
+	return ch, unsubscribe, nil
 }
 
 func (a *Subscribe) Exists(id string, responseMessage proto.Message) bool {
@@ -66,7 +67,7 @@ func (a *Subscribe) Exists(id string, responseMessage proto.Message) bool {
 	return ok
 }
 
-func (a *Subscribe) Subscribe(p types.ID, responseMessage proto.Message) (chan proto.Message, func()) {
+func (a *Subscribe) Subscribe(p types.ID, responseMessage proto.Message) (chan proto.Message, func(), error) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	return a.add(p, responseMessage)

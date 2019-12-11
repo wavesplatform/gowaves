@@ -5,13 +5,14 @@ import (
 	"encoding/binary"
 	"time"
 
-	"github.com/wavesplatform/gowaves/pkg/consensus"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/miner/scheduler"
 	"github.com/wavesplatform/gowaves/pkg/ng"
 	"github.com/wavesplatform/gowaves/pkg/node/peer_manager"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/services"
+	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"github.com/wavesplatform/gowaves/pkg/types"
 	"go.uber.org/atomic"
@@ -51,7 +52,7 @@ func NewMicroblockMiner(services services.Services, ngRuntime ng.Runtime, scheme
 	}
 }
 
-func (a *MicroblockMiner) Mine(ctx context.Context, t proto.Timestamp, k proto.KeyPair, parent crypto.Signature, baseTarget consensus.BaseTarget, GenSignature crypto.Digest) {
+func (a *MicroblockMiner) Mine(ctx context.Context, t proto.Timestamp, k proto.KeyPair, parent crypto.Signature, baseTarget types.BaseTarget, GenSignature crypto.Digest) {
 	a.interrupt.Store(false)
 	defer a.scheduler.Reschedule()
 
@@ -60,27 +61,21 @@ func (a *MicroblockMiner) Mine(ctx context.Context, t proto.Timestamp, k proto.K
 		GenSignature: GenSignature,
 	}
 
-	pub, err := k.Public()
-	if err != nil {
-		zap.S().Error(err)
-		return
-	}
+	pub := k.Public
+	locked := a.state.Mutex().RLock()
 	v, err := blockVersion(a.state)
+	locked.Unlock()
 	if err != nil {
 		zap.S().Error(err)
 		return
 	}
-	b, err := proto.CreateBlock(proto.NewReprFromTransactions(nil), t, parent, pub, nxt, v)
+	b, err := proto.CreateBlock(proto.NewReprFromTransactions(nil), t, parent, pub, nxt, v, nil, 600000000)
 	if err != nil {
 		zap.S().Error(err)
 		return
 	}
 
-	priv, err := k.Private()
-	if err != nil {
-		zap.S().Error(err)
-		return
-	}
+	priv := k.Secret
 	err = b.Sign(priv)
 	if err != nil {
 		zap.S().Error(err)
@@ -89,7 +84,7 @@ func (a *MicroblockMiner) Mine(ctx context.Context, t proto.Timestamp, k proto.K
 
 	err = a.services.BlockApplier.Apply(b)
 	if err != nil {
-		zap.S().Error(err)
+		zap.S().Errorf("Miner: applying created block: %q, timestamp %d", err, t)
 		return
 	}
 
@@ -98,6 +93,22 @@ func (a *MicroblockMiner) Mine(ctx context.Context, t proto.Timestamp, k proto.K
 		zap.S().Error(err)
 		return
 	}
+
+	locked = a.state.Mutex().RLock()
+	curScore, err := a.state.CurrentScore()
+	locked.Unlock()
+	if err != nil {
+		zap.S().Error(err)
+		return
+	}
+
+	zap.S().Debugf("Miner: generated new block sig: %s", b.BlockSignature)
+
+	a.peer.EachConnected(func(peer peer.Peer, score *proto.Score) {
+		peer.SendMessage(&proto.ScoreMessage{
+			Score: curScore.Bytes(),
+		})
+	})
 	a.peer.EachConnected(func(peer peer.Peer, score *proto.Score) {
 		peer.SendMessage(&proto.BlockMessage{
 			BlockBytes: blockBytes,
@@ -234,18 +245,17 @@ func (a *MicroblockMiner) mineMicro(ctx context.Context, rest restLimits, blockA
 		blockApplyOn.Parent,
 		blockApplyOn.GenPublicKey,
 		blockApplyOn.NxtConsensus,
-		blockApplyOn.Version)
+		blockApplyOn.Version,
+		blockApplyOn.Features,
+		blockApplyOn.RewardVote,
+	)
 	if err != nil {
 		zap.S().Error(err)
 		return
 	}
 
-	priv, err := keyPair.Private()
-	if err != nil {
-		zap.S().Error(err)
-		return
-	}
-	err = newBlock.Sign(priv)
+	priv := keyPair.Secret
+	err = newBlock.Sign(keyPair.Secret)
 	if err != nil {
 		zap.S().Error(err)
 		return
@@ -261,14 +271,9 @@ func (a *MicroblockMiner) mineMicro(ctx context.Context, rest restLimits, blockA
 		return
 	}
 
-	pub, err := keyPair.Public()
-	if err != nil {
-		zap.S().Error(err)
-		return
-	}
 	micro := proto.MicroBlock{
 		VersionField:          3,
-		SenderPK:              pub,
+		SenderPK:              keyPair.Public,
 		Transactions:          proto.NewReprFromBytes(bytesBuf, cnt),
 		TransactionCount:      uint32(cnt),
 		PrevResBlockSigField:  lastsig,
@@ -311,4 +316,26 @@ func trWithLen(bts []byte) []byte {
 	binary.BigEndian.PutUint32(out[:4], uint32(len(bts)))
 	copy(out[4:], bts)
 	return out
+}
+
+func blockVersion(state state.State) (proto.BlockVersion, error) {
+	blockRewardActivated, err := state.IsActivated(int16(settings.BlockReward))
+	if err != nil {
+		return 0, err
+	}
+	if blockRewardActivated {
+		return proto.RewardBlockVersion, nil
+	}
+	return proto.NgBlockVersion, nil
+}
+
+func Run(ctx context.Context, a types.Miner, s *scheduler.SchedulerImpl) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case v := <-s.Mine():
+			a.Mine(ctx, v.Timestamp, v.KeyPair, v.ParentBlockSignature, v.BaseTarget, v.GenSignature)
+		}
+	}
 }
