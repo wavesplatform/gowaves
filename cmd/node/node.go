@@ -38,7 +38,7 @@ var (
 	declAddr          = flag.String("declared-address", "", "Address to listen on")
 	apiAddr           = flag.String("api-address", "", "Address for REST API")
 	grpcAddr          = flag.String("grpc-address", "127.0.0.1:7475", "Address for gRPC API")
-	enableGrpcApi     = flag.Bool("enable-grpc-api", false, "Enables/disables gRPC API. Note that state must be reimported in case it wasn't imported with api flag set")
+	enableGrpcApi     = flag.Bool("enable-grpc-api", true, "Enables/disables gRPC API")
 	enableExtendedApi = flag.Bool("extended-api", false, "Enables/disables extended API. Note that state must be reimported in case it wasn't imported with api flag set")
 	seed              = flag.String("seed", "", "Seed for miner")
 )
