@@ -79,7 +79,8 @@ func validateTxs(st *stateManager, timestamp uint64, txs []proto.Transaction) er
 }
 
 func TestValidationWithoutBlocks(t *testing.T) {
-	blocksPath := blocksPath(t)
+	blocksPath, err := blocksPath()
+	assert.NoError(t, err)
 	dataDir, err := ioutil.TempDir(os.TempDir(), "dataDir")
 	assert.NoError(t, err, "failed to create dir for test data")
 	manager, err := newStateManager(dataDir, DefaultTestingStateParams(), settings.MainNetSettings)
@@ -94,8 +95,8 @@ func TestValidationWithoutBlocks(t *testing.T) {
 
 	// Test txs from real block without this block.
 	height := proto.Height(75)
-	blocks, err := readRealBlocks(t, blocksPath, int(height+1))
-	assert.NoError(t, err, "readRealBlocks() failed")
+	blocks, err := readBlocksFromTestPath(int(height + 1))
+	assert.NoError(t, err, "readBlocksFromTestPath() failed")
 	last := blocks[len(blocks)-1]
 	txs, err := last.Transactions.Transactions()
 	assert.NoError(t, err, "BytesToTransactions() failed")
@@ -137,7 +138,8 @@ func TestStateRollback(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to get local dir: %v\n", err)
 	}
-	blocksPath := blocksPath(t)
+	blocksPath, err := blocksPath()
+	assert.NoError(t, err)
 	dataDir, err := ioutil.TempDir(os.TempDir(), "dataDir")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir for data: %v\n", err)
@@ -198,7 +200,8 @@ func TestStateIntegrated(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to get local dir: %v\n", err)
 	}
-	blocksPath := blocksPath(t)
+	blocksPath, err := blocksPath()
+	assert.NoError(t, err)
 	balancesPath := filepath.Join(dir, "testdata", "accounts-1001")
 	dataDir, err := ioutil.TempDir(os.TempDir(), "dataDir")
 	if err != nil {
@@ -313,7 +316,8 @@ func TestStateManager_SavePeers(t *testing.T) {
 }
 
 func TestPreactivatedFeatures(t *testing.T) {
-	blocksPath := blocksPath(t)
+	blocksPath, err := blocksPath()
+	assert.NoError(t, err)
 	dataDir, err := ioutil.TempDir(os.TempDir(), "dataDir")
 	assert.NoError(t, err, "failed to create dir for test data")
 	// Set preactivated feature.
@@ -351,7 +355,8 @@ func TestPreactivatedFeatures(t *testing.T) {
 }
 
 func TestDisallowDuplicateTxIds(t *testing.T) {
-	blocksPath := blocksPath(t)
+	blocksPath, err := blocksPath()
+	assert.NoError(t, err)
 	dataDir, err := ioutil.TempDir(os.TempDir(), "dataDir")
 	assert.NoError(t, err, "failed to create dir for test data")
 	manager, err := newStateManager(dataDir, DefaultTestingStateParams(), settings.MainNetSettings)
@@ -379,7 +384,8 @@ func TestDisallowDuplicateTxIds(t *testing.T) {
 }
 
 func TestTransactionByID(t *testing.T) {
-	blocksPath := blocksPath(t)
+	blocksPath, err := blocksPath()
+	assert.NoError(t, err)
 	dataDir, err := ioutil.TempDir(os.TempDir(), "dataDir")
 	assert.NoError(t, err, "failed to create dir for test data")
 	manager, err := newStateManager(dataDir, DefaultTestingStateParams(), settings.MainNetSettings)

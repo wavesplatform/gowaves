@@ -25,6 +25,10 @@ func (a transaction) ToProtobufSigned(scheme proto.Scheme) (*g.SignedTransaction
 	panic("implement me")
 }
 
+func (a transaction) Addresses(scheme proto.Scheme) ([]proto.Recipient, error) {
+	panic("implement me")
+}
+
 func (a transaction) GetID() ([]byte, error) {
 	return a.id, nil
 }
