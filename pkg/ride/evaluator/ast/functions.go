@@ -592,11 +592,11 @@ func NativeDropBytes(s Scope, e Exprs) (Expr, error) {
 		return nil, errors.Errorf("%s expected second argument to be *LongExpr, found %T", funcName, rs[1])
 	}
 	l := int(length.Value)
-	if l >= len(bts.Value) {
-		return nil, errors.Errorf("%s index %d out of range", funcName, length.Value)
+	if l > len(bts.Value) {
+		l = len(bts.Value)
 	}
 	if l < 0 {
-		return nil, errors.Errorf("%s index %d out of range", funcName, length.Value)
+		l = 0
 	}
 	out := make([]byte, len(bts.Value)-l)
 	copy(out, bts.Value[l:])
@@ -605,7 +605,7 @@ func NativeDropBytes(s Scope, e Exprs) (Expr, error) {
 
 // Limited bytes concatenation
 func NativeConcatBytes(s Scope, e Exprs) (Expr, error) {
-	const funcName = "NativeDropBytes"
+	const funcName = "NativeConcatBytes"
 	if l := len(e); l != 2 {
 		return nil, errors.Errorf("%s: invalid params, expected 2, passed %d", funcName, l)
 	}
@@ -715,10 +715,10 @@ func NativeDropStrings(s Scope, e Exprs) (Expr, error) {
 	runeLen := len(runeStr)
 	l := int(length.Value)
 	if l > runeLen {
-		return nil, errors.Errorf("%s index %d out of range", funcName, l)
+		l = runeLen
 	}
 	if l < 0 {
-		return nil, errors.Errorf("%s index %d out of range", funcName, l)
+		l = 0
 	}
 	out := make([]rune, runeLen-l)
 	copy(out, runeStr[l:])

@@ -334,7 +334,7 @@ func applyBlocks(services services.Services, blocks [][]byte, p Peer) error {
 	}
 	err = services.State.AddNewBlocks(blocks)
 	if err != nil {
-		zap.S().Debugf("[%s] BlockDownloader: error on adding new blocks: %q, sig: %s, parent sig %s, rollback: %q", p.ID(), err, sig, parent, rollback)
+		zap.S().Debugf("[%s] BlockDownloader: error on adding new blocks: %q, sig: %s, parent sig %s, rollback: %v", p.ID(), err, sig, parent, rollback)
 		return err
 	}
 	return nil
