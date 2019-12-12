@@ -222,6 +222,15 @@ func (tx *IssueV1) ToProtobufSigned(scheme Scheme) (*g.SignedTransaction, error)
 	}, nil
 }
 
+func (tx *IssueV1) Addresses(scheme Scheme) ([]Recipient, error) {
+	senderAddr, err := NewAddressFromPublicKey(scheme, tx.SenderPK)
+	if err != nil {
+		return nil, err
+	}
+	srp := NewRecipientFromAddress(senderAddr)
+	return []Recipient{srp}, nil
+}
+
 //TransferV1 transaction to transfer any token from one account to another. Version 1.
 type TransferV1 struct {
 	Type      TransactionType   `json:"type"`
@@ -432,6 +441,15 @@ func (tx *TransferV1) ToProtobufSigned(scheme Scheme) (*g.SignedTransaction, err
 	}, nil
 }
 
+func (tx *TransferV1) Addresses(scheme Scheme) ([]Recipient, error) {
+	senderAddr, err := NewAddressFromPublicKey(scheme, tx.SenderPK)
+	if err != nil {
+		return nil, err
+	}
+	srp := NewRecipientFromAddress(senderAddr)
+	return []Recipient{srp, tx.Recipient}, nil
+}
+
 //ReissueV1 is a transaction that allows to issue new amount of existing token, if it was issued as reissuable.
 type ReissueV1 struct {
 	Type      TransactionType   `json:"type"`
@@ -605,6 +623,15 @@ func (tx *ReissueV1) ToProtobufSigned(scheme Scheme) (*g.SignedTransaction, erro
 	}, nil
 }
 
+func (tx *ReissueV1) Addresses(scheme Scheme) ([]Recipient, error) {
+	senderAddr, err := NewAddressFromPublicKey(scheme, tx.SenderPK)
+	if err != nil {
+		return nil, err
+	}
+	srp := NewRecipientFromAddress(senderAddr)
+	return []Recipient{srp}, nil
+}
+
 //BurnV1 transaction allows to decrease the total supply of the existing asset. Asset must be reissuable.
 type BurnV1 struct {
 	Type      TransactionType   `json:"type"`
@@ -766,6 +793,15 @@ func (tx *BurnV1) ToProtobufSigned(scheme Scheme) (*g.SignedTransaction, error) 
 		Transaction: unsigned,
 		Proofs:      proofs.Bytes(),
 	}, nil
+}
+
+func (tx *BurnV1) Addresses(scheme Scheme) ([]Recipient, error) {
+	senderAddr, err := NewAddressFromPublicKey(scheme, tx.SenderPK)
+	if err != nil {
+		return nil, err
+	}
+	srp := NewRecipientFromAddress(senderAddr)
+	return []Recipient{srp}, nil
 }
 
 //ExchangeV1 is a transaction to store settlement on blockchain.
@@ -1178,6 +1214,41 @@ func (tx *ExchangeV1) ToProtobufSigned(scheme Scheme) (*g.SignedTransaction, err
 	}, nil
 }
 
+func (tx *ExchangeV1) Addresses(scheme Scheme) ([]Recipient, error) {
+	senderAddr, err := NewAddressFromPublicKey(scheme, tx.SenderPK)
+	if err != nil {
+		return nil, err
+	}
+	srp := NewRecipientFromAddress(senderAddr)
+	buyAddrs, err := tx.BuyOrder.AffectedAddresses(scheme)
+	if err != nil {
+		return nil, err
+	}
+	sellAddrs, err := tx.SellOrder.AffectedAddresses(scheme)
+	if err != nil {
+		return nil, err
+	}
+	unique := make(map[Address]bool)
+	for _, addr := range buyAddrs {
+		if _, ok := unique[addr]; ok {
+			continue
+		}
+		unique[addr] = true
+	}
+	for _, addr := range sellAddrs {
+		if _, ok := unique[addr]; ok {
+			continue
+		}
+		unique[addr] = true
+	}
+	var res []Recipient
+	for addr := range unique {
+		res = append(res, NewRecipientFromAddress(addr))
+	}
+	res = append(res, srp)
+	return res, nil
+}
+
 //LeaseV1 is a transaction that allows to lease Waves to other account.
 type LeaseV1 struct {
 	Type      TransactionType   `json:"type"`
@@ -1349,6 +1420,15 @@ func (tx *LeaseV1) ToProtobufSigned(scheme Scheme) (*g.SignedTransaction, error)
 	}, nil
 }
 
+func (tx *LeaseV1) Addresses(scheme Scheme) ([]Recipient, error) {
+	senderAddr, err := NewAddressFromPublicKey(scheme, tx.SenderPK)
+	if err != nil {
+		return nil, err
+	}
+	srp := NewRecipientFromAddress(senderAddr)
+	return []Recipient{srp, tx.Recipient}, nil
+}
+
 //LeaseCancelV1 transaction can be used to cancel previously created leasing.
 type LeaseCancelV1 struct {
 	Type      TransactionType   `json:"type"`
@@ -1514,6 +1594,15 @@ func (tx *LeaseCancelV1) ToProtobufSigned(scheme Scheme) (*g.SignedTransaction, 
 		Transaction: unsigned,
 		Proofs:      proofs.Bytes(),
 	}, nil
+}
+
+func (tx *LeaseCancelV1) Addresses(scheme Scheme) ([]Recipient, error) {
+	senderAddr, err := NewAddressFromPublicKey(scheme, tx.SenderPK)
+	if err != nil {
+		return nil, err
+	}
+	srp := NewRecipientFromAddress(senderAddr)
+	return []Recipient{srp}, nil
 }
 
 type CreateAliasV1 struct {
@@ -1699,6 +1788,15 @@ func (tx *CreateAliasV1) ToProtobufSigned(scheme Scheme) (*g.SignedTransaction, 
 		Transaction: unsigned,
 		Proofs:      proofs.Bytes(),
 	}, nil
+}
+
+func (tx *CreateAliasV1) Addresses(scheme Scheme) ([]Recipient, error) {
+	senderAddr, err := NewAddressFromPublicKey(scheme, tx.SenderPK)
+	if err != nil {
+		return nil, err
+	}
+	srp := NewRecipientFromAddress(senderAddr)
+	return []Recipient{srp}, nil
 }
 
 type MassTransferEntry struct {
@@ -2025,6 +2123,19 @@ func (tx *MassTransferV1) ToProtobufSigned(scheme Scheme) (*g.SignedTransaction,
 	}, nil
 }
 
+func (tx *MassTransferV1) Addresses(scheme Scheme) ([]Recipient, error) {
+	senderAddr, err := NewAddressFromPublicKey(scheme, tx.SenderPK)
+	if err != nil {
+		return nil, err
+	}
+	res := make([]Recipient, len(tx.Transfers)+1)
+	res[0] = NewRecipientFromAddress(senderAddr)
+	for i, tr := range tx.Transfers {
+		res[i+1] = tr.Recipient
+	}
+	return res, nil
+}
+
 //DataV1 is first version of the transaction that puts data to the key-value storage of an account.
 type DataV1 struct {
 	Type      TransactionType  `json:"type"`
@@ -2339,6 +2450,15 @@ func (tx *DataV1) ToProtobufSigned(scheme Scheme) (*g.SignedTransaction, error) 
 	}, nil
 }
 
+func (tx *DataV1) Addresses(scheme Scheme) ([]Recipient, error) {
+	senderAddr, err := NewAddressFromPublicKey(scheme, tx.SenderPK)
+	if err != nil {
+		return nil, err
+	}
+	srp := NewRecipientFromAddress(senderAddr)
+	return []Recipient{srp}, nil
+}
+
 //SetScriptV1 is a transaction to set smart script on an account.
 type SetScriptV1 struct {
 	Type      TransactionType  `json:"type"`
@@ -2575,6 +2695,15 @@ func (tx *SetScriptV1) ToProtobufSigned(scheme Scheme) (*g.SignedTransaction, er
 	}, nil
 }
 
+func (tx *SetScriptV1) Addresses(scheme Scheme) ([]Recipient, error) {
+	senderAddr, err := NewAddressFromPublicKey(scheme, tx.SenderPK)
+	if err != nil {
+		return nil, err
+	}
+	srp := NewRecipientFromAddress(senderAddr)
+	return []Recipient{srp}, nil
+}
+
 //SponsorshipV1 is a transaction to setup fee sponsorship for an asset.
 type SponsorshipV1 struct {
 	Type        TransactionType  `json:"type"`
@@ -2802,6 +2931,15 @@ func (tx *SponsorshipV1) ToProtobufSigned(scheme Scheme) (*g.SignedTransaction, 
 		Transaction: unsigned,
 		Proofs:      tx.Proofs.Bytes(),
 	}, nil
+}
+
+func (tx *SponsorshipV1) Addresses(scheme Scheme) ([]Recipient, error) {
+	senderAddr, err := NewAddressFromPublicKey(scheme, tx.SenderPK)
+	if err != nil {
+		return nil, err
+	}
+	srp := NewRecipientFromAddress(senderAddr)
+	return []Recipient{srp}, nil
 }
 
 //SetAssetScriptV1 is a transaction to set smart script on an asset.
@@ -3050,6 +3188,15 @@ func (tx *SetAssetScriptV1) ToProtobufSigned(scheme Scheme) (*g.SignedTransactio
 		Transaction: unsigned,
 		Proofs:      tx.Proofs.Bytes(),
 	}, nil
+}
+
+func (tx *SetAssetScriptV1) Addresses(scheme Scheme) ([]Recipient, error) {
+	senderAddr, err := NewAddressFromPublicKey(scheme, tx.SenderPK)
+	if err != nil {
+		return nil, err
+	}
+	srp := NewRecipientFromAddress(senderAddr)
+	return []Recipient{srp}, nil
 }
 
 type InvokeScriptV1 struct {
@@ -3427,4 +3574,13 @@ func (tx *InvokeScriptV1) ToProtobufSigned(scheme Scheme) (*g.SignedTransaction,
 		Transaction: unsigned,
 		Proofs:      tx.Proofs.Bytes(),
 	}, nil
+}
+
+func (tx *InvokeScriptV1) Addresses(scheme Scheme) ([]Recipient, error) {
+	senderAddr, err := NewAddressFromPublicKey(scheme, tx.SenderPK)
+	if err != nil {
+		return nil, err
+	}
+	srp := NewRecipientFromAddress(senderAddr)
+	return []Recipient{srp, tx.ScriptRecipient}, nil
 }
