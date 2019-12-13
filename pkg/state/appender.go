@@ -393,12 +393,12 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 			}
 		} else {
 			// Create balance diff of this tx.
-			txDiff, err := a.blockDiffer.createTransactionDiff(tx, params.block, curHeight, params.initialisation)
+			txChanges, err := a.blockDiffer.createTransactionDiff(tx, params.block, curHeight, params.initialisation)
 			if err != nil {
 				return err
 			}
 			// Save balance diff of this tx.
-			if err := a.diffStor.saveTxDiff(txDiff); err != nil {
+			if err := a.diffStor.saveTxDiff(txChanges.diff); err != nil {
 				return err
 			}
 		}
@@ -539,14 +539,14 @@ func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, pare
 		return a.handleInvoke(tx, height, block, txScriptsRuns)
 	}
 	// Create, validate and save balance diff.
-	diff, err := a.txHandler.createDiffTx(tx, &differInfo{
+	txDiff, err := a.txHandler.createDiffTx(tx, &differInfo{
 		initialisation: false,
 		blockInfo:      &proto.BlockInfo{Timestamp: currentTimestamp},
 	})
 	if err != nil {
 		return err
 	}
-	changes, err := a.diffStor.changesByTxDiff(diff)
+	changes, err := a.diffStor.changesByTxDiff(txDiff.diff)
 	if err != nil {
 		return err
 	}

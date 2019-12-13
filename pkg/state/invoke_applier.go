@@ -139,7 +139,7 @@ func (ia *invokeApplier) saveDiff(diff txDiff, info *invokeAddlInfo) error {
 	return nil
 }
 
-func (ia *invokeApplier) createTxDiff(tx *proto.InvokeScriptV1, info *invokeAddlInfo) (txDiff, error) {
+func (ia *invokeApplier) createTxDiff(tx *proto.InvokeScriptV1, info *invokeAddlInfo) (txBalanceChanges, error) {
 	if info.validatingUtx {
 		return ia.txHandler.createDiffTx(tx, &differInfo{
 			initialisation: false,
@@ -186,10 +186,11 @@ func (ia *invokeApplier) applyInvokeScriptV1(tx *proto.InvokeScriptV1, info *inv
 	}
 	// Perform fee and payment changes first.
 	// Basic differ for InvokeScript creates only fee and payment diff.
-	feeAndPaymentDiff, err := ia.createTxDiff(tx, info)
+	feeAndPaymentChanges, err := ia.createTxDiff(tx, info)
 	if err != nil {
 		return err
 	}
+	feeAndPaymentDiff := feeAndPaymentChanges.diff
 	commonDiff := feeAndPaymentDiff
 	if err := ia.saveIntermediateDiff(feeAndPaymentDiff); err != nil {
 		return err
