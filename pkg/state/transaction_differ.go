@@ -666,7 +666,7 @@ func (td *transactionDiffer) createDiffExchange(transaction proto.Transaction, i
 	if err := diff.appendBalanceDiff(receiverAmountKey, newBalanceDiff(amountDiff, 0, 0, false)); err != nil {
 		return txBalanceChanges{}, err
 	}
-	// Fees
+	// Fees.
 	matcherAddr, err := proto.NewAddressFromPublicKey(td.settings.AddressSchemeCharacter, buyOrder.GetMatcherPK())
 	if err != nil {
 		return txBalanceChanges{}, err
