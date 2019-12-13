@@ -298,15 +298,6 @@ func (tx *IssueV2) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
-func (tx *IssueV2) Addresses(scheme Scheme) ([]Recipient, error) {
-	senderAddr, err := NewAddressFromPublicKey(scheme, tx.SenderPK)
-	if err != nil {
-		return nil, err
-	}
-	srp := NewRecipientFromAddress(senderAddr)
-	return []Recipient{srp}, nil
-}
-
 //TransferV2 transaction to transfer any token from one account to another. Version 2.
 type TransferV2 struct {
 	Type    TransactionType `json:"type"`
@@ -545,15 +536,6 @@ func (tx *TransferV2) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
-func (tx *TransferV2) Addresses(scheme Scheme) ([]Recipient, error) {
-	senderAddr, err := NewAddressFromPublicKey(scheme, tx.SenderPK)
-	if err != nil {
-		return nil, err
-	}
-	srp := NewRecipientFromAddress(senderAddr)
-	return []Recipient{srp, tx.Recipient}, nil
-}
-
 //ReissueV2 same as ReissueV1 but version 2 with Proofs.
 type ReissueV2 struct {
 	Type    TransactionType `json:"type"`
@@ -750,15 +732,6 @@ func (tx *ReissueV2) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
-func (tx *ReissueV2) Addresses(scheme Scheme) ([]Recipient, error) {
-	senderAddr, err := NewAddressFromPublicKey(scheme, tx.SenderPK)
-	if err != nil {
-		return nil, err
-	}
-	srp := NewRecipientFromAddress(senderAddr)
-	return []Recipient{srp}, nil
-}
-
 //BurnV2 same as BurnV1 but version 2 with Proofs.
 type BurnV2 struct {
 	Type    TransactionType `json:"type"`
@@ -952,15 +925,6 @@ func (tx *BurnV2) UnmarshalBinary(data []byte) error {
 	}
 	tx.ID = &id
 	return nil
-}
-
-func (tx *BurnV2) Addresses(scheme Scheme) ([]Recipient, error) {
-	senderAddr, err := NewAddressFromPublicKey(scheme, tx.SenderPK)
-	if err != nil {
-		return nil, err
-	}
-	srp := NewRecipientFromAddress(senderAddr)
-	return []Recipient{srp}, nil
 }
 
 //ExchangeV2 is a transaction to store settlement on blockchain.
@@ -1712,15 +1676,6 @@ func (tx *LeaseV2) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
-func (tx *LeaseV2) Addresses(scheme Scheme) ([]Recipient, error) {
-	senderAddr, err := NewAddressFromPublicKey(scheme, tx.SenderPK)
-	if err != nil {
-		return nil, err
-	}
-	srp := NewRecipientFromAddress(senderAddr)
-	return []Recipient{srp, tx.Recipient}, nil
-}
-
 //LeaseCancelV2 same as LeaseCancelV1 but with proofs.
 type LeaseCancelV2 struct {
 	Type    TransactionType `json:"type"`
@@ -1914,15 +1869,6 @@ func (tx *LeaseCancelV2) UnmarshalBinary(data []byte) error {
 	}
 	tx.ID = &id
 	return nil
-}
-
-func (tx *LeaseCancelV2) Addresses(scheme Scheme) ([]Recipient, error) {
-	senderAddr, err := NewAddressFromPublicKey(scheme, tx.SenderPK)
-	if err != nil {
-		return nil, err
-	}
-	srp := NewRecipientFromAddress(senderAddr)
-	return []Recipient{srp}, nil
 }
 
 type CreateAliasV2 struct {
@@ -2125,13 +2071,4 @@ func (tx *CreateAliasV2) UnmarshalJSON(data []byte) error {
 	tx.Fee = tmp.Fee
 	tx.Timestamp = tmp.Timestamp
 	return nil
-}
-
-func (tx *CreateAliasV2) Addresses(scheme Scheme) ([]Recipient, error) {
-	senderAddr, err := NewAddressFromPublicKey(scheme, tx.SenderPK)
-	if err != nil {
-		return nil, err
-	}
-	srp := NewRecipientFromAddress(senderAddr)
-	return []Recipient{srp}, nil
 }

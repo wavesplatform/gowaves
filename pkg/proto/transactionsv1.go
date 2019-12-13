@@ -222,7 +222,7 @@ func (tx *IssueV1) ToProtobufSigned(scheme Scheme) (*g.SignedTransaction, error)
 	}, nil
 }
 
-func (tx *IssueV1) Addresses(scheme Scheme) ([]Recipient, error) {
+func (tx *Issue) Addresses(scheme Scheme) ([]Recipient, error) {
 	senderAddr, err := NewAddressFromPublicKey(scheme, tx.SenderPK)
 	if err != nil {
 		return nil, err
@@ -441,7 +441,7 @@ func (tx *TransferV1) ToProtobufSigned(scheme Scheme) (*g.SignedTransaction, err
 	}, nil
 }
 
-func (tx *TransferV1) Addresses(scheme Scheme) ([]Recipient, error) {
+func (tx *Transfer) Addresses(scheme Scheme) ([]Recipient, error) {
 	senderAddr, err := NewAddressFromPublicKey(scheme, tx.SenderPK)
 	if err != nil {
 		return nil, err
@@ -623,7 +623,7 @@ func (tx *ReissueV1) ToProtobufSigned(scheme Scheme) (*g.SignedTransaction, erro
 	}, nil
 }
 
-func (tx *ReissueV1) Addresses(scheme Scheme) ([]Recipient, error) {
+func (tx *Reissue) Addresses(scheme Scheme) ([]Recipient, error) {
 	senderAddr, err := NewAddressFromPublicKey(scheme, tx.SenderPK)
 	if err != nil {
 		return nil, err
@@ -795,7 +795,7 @@ func (tx *BurnV1) ToProtobufSigned(scheme Scheme) (*g.SignedTransaction, error) 
 	}, nil
 }
 
-func (tx *BurnV1) Addresses(scheme Scheme) ([]Recipient, error) {
+func (tx *Burn) Addresses(scheme Scheme) ([]Recipient, error) {
 	senderAddr, err := NewAddressFromPublicKey(scheme, tx.SenderPK)
 	if err != nil {
 		return nil, err
@@ -1420,7 +1420,7 @@ func (tx *LeaseV1) ToProtobufSigned(scheme Scheme) (*g.SignedTransaction, error)
 	}, nil
 }
 
-func (tx *LeaseV1) Addresses(scheme Scheme) ([]Recipient, error) {
+func (tx *Lease) Addresses(scheme Scheme) ([]Recipient, error) {
 	senderAddr, err := NewAddressFromPublicKey(scheme, tx.SenderPK)
 	if err != nil {
 		return nil, err
@@ -1596,7 +1596,7 @@ func (tx *LeaseCancelV1) ToProtobufSigned(scheme Scheme) (*g.SignedTransaction, 
 	}, nil
 }
 
-func (tx *LeaseCancelV1) Addresses(scheme Scheme) ([]Recipient, error) {
+func (tx *LeaseCancel) Addresses(scheme Scheme) ([]Recipient, error) {
 	senderAddr, err := NewAddressFromPublicKey(scheme, tx.SenderPK)
 	if err != nil {
 		return nil, err
@@ -1790,7 +1790,7 @@ func (tx *CreateAliasV1) ToProtobufSigned(scheme Scheme) (*g.SignedTransaction, 
 	}, nil
 }
 
-func (tx *CreateAliasV1) Addresses(scheme Scheme) ([]Recipient, error) {
+func (tx *CreateAlias) Addresses(scheme Scheme) ([]Recipient, error) {
 	senderAddr, err := NewAddressFromPublicKey(scheme, tx.SenderPK)
 	if err != nil {
 		return nil, err
