@@ -97,10 +97,6 @@ type Transaction interface {
 	GenerateID()
 	ToProtobuf(scheme Scheme) (*g.Transaction, error)
 	ToProtobufSigned(scheme Scheme) (*g.SignedTransaction, error)
-	// Addresses() returns list of addresses that are strictly affected by this transaction.
-	// For some transaction types it might not be all of them (e.g. InvokeScript, LeaseCancel).
-	// Only addresses that can be deduced from transaction itself are returned.
-	Addresses(scheme Scheme) ([]Recipient, error)
 }
 
 // TransactionToProtobufCommon() converts to protobuf structure with fields
@@ -424,10 +420,6 @@ func (tx *Genesis) ToProtobufSigned(scheme Scheme) (*g.SignedTransaction, error)
 	}, nil
 }
 
-func (tx *Genesis) Addresses(scheme Scheme) ([]Recipient, error) {
-	return []Recipient{NewRecipientFromAddress(tx.Recipient)}, nil
-}
-
 //Payment transaction is deprecated and can be used only for validation of blockchain.
 type Payment struct {
 	Type      TransactionType   `json:"type"`
@@ -665,16 +657,6 @@ func (tx *Payment) ToProtobufSigned(scheme Scheme) (*g.SignedTransaction, error)
 		Transaction: unsigned,
 		Proofs:      proofs.Bytes(),
 	}, nil
-}
-
-func (tx *Payment) Addresses(scheme Scheme) ([]Recipient, error) {
-	senderAddr, err := NewAddressFromPublicKey(scheme, tx.SenderPK)
-	if err != nil {
-		return nil, err
-	}
-	srp := NewRecipientFromAddress(senderAddr)
-	rrp := NewRecipientFromAddress(tx.Recipient)
-	return []Recipient{srp, rrp}, nil
 }
 
 type Issue struct {

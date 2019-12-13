@@ -1447,49 +1447,6 @@ func (tx *ExchangeV2) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func (tx *ExchangeV2) Addresses(scheme Scheme) ([]Recipient, error) {
-	senderAddr, err := NewAddressFromPublicKey(scheme, tx.SenderPK)
-	if err != nil {
-		return nil, err
-	}
-	srp := NewRecipientFromAddress(senderAddr)
-	bob, err := OrderToOrderBody(tx.BuyOrder)
-	if err != nil {
-		return nil, err
-	}
-	buyAddrs, err := bob.AffectedAddresses(scheme)
-	if err != nil {
-		return nil, err
-	}
-	sob, err := OrderToOrderBody(tx.SellOrder)
-	if err != nil {
-		return nil, err
-	}
-	sellAddrs, err := sob.AffectedAddresses(scheme)
-	if err != nil {
-		return nil, err
-	}
-	unique := make(map[Address]bool)
-	for _, addr := range buyAddrs {
-		if _, ok := unique[addr]; ok {
-			continue
-		}
-		unique[addr] = true
-	}
-	for _, addr := range sellAddrs {
-		if _, ok := unique[addr]; ok {
-			continue
-		}
-		unique[addr] = true
-	}
-	var res []Recipient
-	for addr := range unique {
-		res = append(res, NewRecipientFromAddress(addr))
-	}
-	res = append(res, srp)
-	return res, nil
-}
-
 //LeaseV2 is a second version of the LeaseV1 transaction.
 type LeaseV2 struct {
 	Type    TransactionType `json:"type"`

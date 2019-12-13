@@ -449,18 +449,6 @@ func (o OrderBody) ToProtobuf(scheme Scheme) *g.Order {
 	}
 }
 
-func (o OrderBody) AffectedAddresses(scheme Scheme) ([]Address, error) {
-	senderAddr, err := NewAddressFromPublicKey(scheme, o.SenderPK)
-	if err != nil {
-		return nil, err
-	}
-	matcherAddr, err := NewAddressFromPublicKey(scheme, o.MatcherPK)
-	if err != nil {
-		return nil, err
-	}
-	return []Address{senderAddr, matcherAddr}, nil
-}
-
 func (o OrderBody) Valid() (bool, error) {
 	if o.AssetPair.AmountAsset == o.AssetPair.PriceAsset {
 		return false, errors.New("invalid asset pair")
