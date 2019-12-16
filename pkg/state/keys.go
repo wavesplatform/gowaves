@@ -550,35 +550,39 @@ func (k *batchedInfoKey) bytes() []byte {
 }
 
 type batchedStorKey struct {
+	prefix      byte
 	internalKey []byte
 	batchNum    uint32
 }
 
-func (k *batchedStorKey) prefix() []byte {
-	buf := make([]byte, 1+len(k.internalKey))
+func (k *batchedStorKey) prefixUntilBatch() []byte {
+	buf := make([]byte, 2+len(k.internalKey))
 	buf[0] = batchedStorKeyPrefix
-	copy(buf[1:], k.internalKey[:])
+	buf[1] = k.prefix
+	copy(buf[2:], k.internalKey[:])
 	return buf
 }
 
 func (k *batchedStorKey) bytes() []byte {
-	buf := make([]byte, 1+len(k.internalKey)+4)
+	buf := make([]byte, 2+len(k.internalKey)+4)
 	buf[0] = batchedStorKeyPrefix
-	copy(buf[1:], k.internalKey[:])
-	pos := 1 + len(k.internalKey)
+	buf[1] = k.prefix
+	copy(buf[2:], k.internalKey[:])
+	pos := 2 + len(k.internalKey)
 	binary.LittleEndian.PutUint32(buf[pos:], k.batchNum)
 	return buf
 }
 
 func (k *batchedStorKey) unmarshal(data []byte) error {
-	if len(data) < 5 {
+	if len(data) < 6 {
 		return errInvalidDataSize
 	}
 	if data[0] != batchedStorKeyPrefix {
 		return errInvalidPrefix
 	}
-	k.internalKey = make([]byte, len(data)-5)
-	copy(k.internalKey, data[1:len(data)-4])
+	k.prefix = data[1]
+	k.internalKey = make([]byte, len(data)-6)
+	copy(k.internalKey, data[2:len(data)-4])
 	k.batchNum = binary.LittleEndian.Uint32(data[len(data)-4:])
 	return nil
 }

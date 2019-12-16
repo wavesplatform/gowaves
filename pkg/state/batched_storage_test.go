@@ -12,6 +12,7 @@ import (
 const (
 	maxBatchSize   = 12000
 	testRecordSize = 8
+	prefix         = byte(1)
 
 	size = 10000
 )
@@ -33,7 +34,8 @@ func createBatchedStorage() (*batchedStorageTestObjects, []string, error) {
 	if err != nil {
 		return nil, path, err
 	}
-	batchedStor := newBatchedStorage(stor.db, stor.dbBatch, stor.hs.stateDB)
+	params := &batchedStorParams{maxBatchSize: maxBatchSize, recordSize: testRecordSize, prefix: prefix}
+	batchedStor := newBatchedStorage(stor.db, stor.dbBatch, stor.hs.stateDB, params)
 	return &batchedStorageTestObjects{
 		stor:          stor,
 		batchedStor:   batchedStor,
@@ -122,32 +124,6 @@ func genTestRecords(t *testing.T, ids []crypto.Signature) []testRecord {
 	return res
 }
 
-func TestCreateNewKey(t *testing.T) {
-	to, path, err := createBatchedStorage()
-	assert.NoError(t, err, "createBatchedStorage() failed")
-
-	defer func() {
-		to.stor.close(t)
-
-		err = util.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
-	}()
-
-	err = to.batchedStor.createNewKey(key0, 10, 2)
-	assert.NoError(t, err)
-
-	to.flush(t)
-
-	inf, err := to.batchedStor.infoByKey(key0)
-	assert.NoError(t, err)
-	assert.Equal(t, uint32(10), inf.maxBatchSize)
-	assert.Equal(t, uint32(2+blockNumLen), inf.recordSize)
-
-	// Should not allow batch size less than single record size.
-	err = to.batchedStor.createNewKey(key1, 10, 11)
-	assert.Error(t, err)
-}
-
 func TestIterators(t *testing.T) {
 	to, path, err := createBatchedStorage()
 	assert.NoError(t, err, "createBatchedStorage() failed")
@@ -158,12 +134,6 @@ func TestIterators(t *testing.T) {
 		err = util.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
-
-	err = to.batchedStor.createNewKey(key0, maxBatchSize, testRecordSize)
-	assert.NoError(t, err)
-	err = to.batchedStor.createNewKey(key1, maxBatchSize, testRecordSize)
-	assert.NoError(t, err)
-	to.flush(t)
 
 	ids := genRandBlockIds(t, size)
 	key0Records := genTestRecords(t, ids)

@@ -42,35 +42,14 @@ func (r *record) recordBytes() []byte {
 	return r.data
 }
 
-type keyInfo struct {
-	recordSize   uint32
-	maxBatchSize uint32
-}
-
-func (inf *keyInfo) marshalBinary() []byte {
-	res := make([]byte, 8)
-	binary.LittleEndian.PutUint32(res[:4], inf.recordSize)
-	binary.LittleEndian.PutUint32(res[4:], inf.maxBatchSize)
-	return res
-}
-
-func (inf *keyInfo) unmarshalBinary(data []byte) error {
-	if len(data) != 8 {
-		return errInvalidDataSize
-	}
-	inf.recordSize = binary.LittleEndian.Uint32(data[:4])
-	inf.maxBatchSize = binary.LittleEndian.Uint32(data[4:])
-	return nil
-}
-
 type recordIterator struct {
 	iter       *batchIterator
 	batch      []byte
-	recordSize uint32
+	recordSize int
 	err        error
 }
 
-func newRecordIterator(iter *batchIterator, recordSize uint32) *recordIterator {
+func newRecordIterator(iter *batchIterator, recordSize int) *recordIterator {
 	return &recordIterator{iter: iter, recordSize: recordSize}
 }
 
@@ -128,13 +107,12 @@ func (i *recordIterator) release() {
 }
 
 type batchIterator struct {
-	stor       *batchedStorage
-	iter       keyvalue.Iterator
-	recordSize uint32
+	stor *batchedStorage
+	iter keyvalue.Iterator
 }
 
-func newBatchIterator(stor *batchedStorage, iter keyvalue.Iterator, recordSize uint32) *batchIterator {
-	return &batchIterator{stor, iter, recordSize}
+func newBatchIterator(stor *batchedStorage, iter keyvalue.Iterator) *batchIterator {
+	return &batchIterator{stor, iter}
 }
 
 func (i *batchIterator) next() bool {
@@ -144,7 +122,7 @@ func (i *batchIterator) next() bool {
 func (i *batchIterator) currentBatch() ([]byte, error) {
 	key := keyvalue.SafeKey(i.iter)
 	val := keyvalue.SafeValue(i.iter)
-	return i.stor.manageNormalization(key, val, i.recordSize)
+	return i.stor.manageNormalization(key, val)
 }
 
 func (i *batchIterator) error() error {
@@ -161,7 +139,7 @@ type batch struct {
 	num  uint32
 }
 
-func newBatchWithData(data []byte, maxSize, batchNum uint32) (*batch, error) {
+func newBatchWithData(data []byte, maxSize int, batchNum uint32) (*batch, error) {
 	if len(data) > int(maxSize) {
 		return nil, errInvalidDataSize
 	}
@@ -171,7 +149,7 @@ func newBatchWithData(data []byte, maxSize, batchNum uint32) (*batch, error) {
 	return b, nil
 }
 
-func newBatch(maxSize, batchNum uint32) *batch {
+func newBatch(maxSize int, batchNum uint32) *batch {
 	return &batch{pos: 0, data: make([]byte, maxSize), num: batchNum}
 }
 
@@ -189,12 +167,12 @@ func (b *batch) bytes() []byte {
 }
 
 type batchesGroup struct {
-	maxBatchSize uint32
-	recordSize   uint32
+	maxBatchSize int
+	recordSize   int
 	batches      []*batch
 }
 
-func newBatchesGroup(maxBatchSize, recordSize uint32) (*batchesGroup, error) {
+func newBatchesGroup(maxBatchSize, recordSize int) (*batchesGroup, error) {
 	if recordSize > maxBatchSize {
 		return nil, errors.New("recordSize is greater than maxBatchSize")
 	}
@@ -238,61 +216,42 @@ func (bg *batchesGroup) appendNewRecord(record []byte) error {
 	return nil
 }
 
+type batchedStorParams struct {
+	maxBatchSize, recordSize int
+	prefix                   byte
+}
+
 type batchedStorage struct {
 	db      keyvalue.IterableKeyVal
 	dbBatch keyvalue.Batch
 	stateDB *stateDB
 
+	params    *batchedStorParams
 	localStor map[string]*batchesGroup
 }
 
-func newBatchedStorage(db keyvalue.IterableKeyVal, dbBatch keyvalue.Batch, stateDB *stateDB) *batchedStorage {
+func newBatchedStorage(
+	db keyvalue.IterableKeyVal,
+	dbBatch keyvalue.Batch,
+	stateDB *stateDB,
+	params *batchedStorParams,
+) *batchedStorage {
+	params.recordSize += blockNumLen
 	return &batchedStorage{
 		db:        db,
 		dbBatch:   dbBatch,
 		stateDB:   stateDB,
+		params:    params,
 		localStor: make(map[string]*batchesGroup),
 	}
 }
 
-// createNewKey() stores key's basic parameters.
-// Must be called during initialisation, keys can't be used until created.
-func (s *batchedStorage) createNewKey(key []byte, maxBatchSize, recordSize int) error {
-	// Append block num size to record size.
-	recordSize += blockNumLen
-	if maxBatchSize < recordSize {
-		return errors.Errorf("bad recordSize %d > maxBatchSize %d", recordSize, maxBatchSize)
-	}
-	inf := &keyInfo{maxBatchSize: uint32(maxBatchSize), recordSize: uint32(recordSize)}
-	infBytes := inf.marshalBinary()
-	k := batchedInfoKey{key}
-	s.dbBatch.Put(k.bytes(), infBytes)
-	return nil
-}
-
-func (s *batchedStorage) infoByKey(key []byte) (*keyInfo, error) {
-	k := batchedInfoKey{key}
-	infBytes, err := s.db.Get(k.bytes())
-	if err != nil {
-		return nil, err
-	}
-	var inf keyInfo
-	if err := inf.unmarshalBinary(infBytes); err != nil {
-		return nil, err
-	}
-	return &inf, nil
-}
-
 func (s *batchedStorage) newBatchGroupForKey(key []byte) (*batchesGroup, error) {
-	inf, err := s.infoByKey(key)
+	bg, err := newBatchesGroup(s.params.maxBatchSize, s.params.recordSize)
 	if err != nil {
 		return nil, err
 	}
-	bg, err := newBatchesGroup(inf.maxBatchSize, inf.recordSize)
-	if err != nil {
-		return nil, err
-	}
-	last, err := s.readLastBatch(key, inf.maxBatchSize, inf.recordSize)
+	last, err := s.readLastBatch(key)
 	if err == errNotFound {
 		return bg, nil
 	} else if err != nil {
@@ -322,9 +281,9 @@ func (s *batchedStorage) addRecord(key []byte, data []byte, blockNum uint32) err
 	return nil
 }
 
-func (s *batchedStorage) readLastBatch(key []byte, maxBatchSize, recordSize uint32) (*batch, error) {
-	k := batchedStorKey{internalKey: key}
-	iter, err := s.db.NewKeyIterator(k.prefix())
+func (s *batchedStorage) readLastBatch(key []byte) (*batch, error) {
+	k := batchedStorKey{prefix: s.params.prefix, internalKey: key}
+	iter, err := s.db.NewKeyIterator(k.prefixUntilBatch())
 	if err != nil {
 		return nil, err
 	}
@@ -338,30 +297,26 @@ func (s *batchedStorage) readLastBatch(key []byte, maxBatchSize, recordSize uint
 	if err := batchKey.unmarshal(keyBytes); err != nil {
 		return nil, err
 	}
-	normalized, err := s.manageNormalization(key, valBytes, recordSize)
+	normalized, err := s.manageNormalization(key, valBytes)
 	if err != nil {
 		return nil, err
 	}
-	return newBatchWithData(normalized, maxBatchSize, batchKey.batchNum)
+	return newBatchWithData(normalized, s.params.maxBatchSize, batchKey.batchNum)
 }
 
 // newBackwardRecordIterator() returns backward iterator for iterating single records.
 func (s *batchedStorage) newBackwardRecordIterator(key []byte) (*recordIterator, error) {
-	k := batchedStorKey{internalKey: key}
-	rawIter, err := s.db.NewKeyIterator(k.prefix())
+	k := batchedStorKey{prefix: s.params.prefix, internalKey: key}
+	rawIter, err := s.db.NewKeyIterator(k.prefixUntilBatch())
 	if err != nil {
 		return nil, err
 	}
-	inf, err := s.infoByKey(key)
-	if err != nil {
-		return nil, err
-	}
-	batchIter := newBatchIterator(s, rawIter, inf.recordSize)
-	return newRecordIterator(batchIter, inf.recordSize), nil
+	batchIter := newBatchIterator(s, rawIter)
+	return newRecordIterator(batchIter, s.params.recordSize), nil
 }
 
-func (s *batchedStorage) normalize(batch []byte, recordSize uint32) ([]byte, error) {
-	size := int(recordSize)
+func (s *batchedStorage) normalize(batch []byte) ([]byte, error) {
+	size := s.params.recordSize
 	if (len(batch) % size) != 0 {
 		return nil, errInvalidDataSize
 	}
@@ -390,8 +345,8 @@ func (s *batchedStorage) writeBatchDirectly(key, batch []byte) error {
 	return s.db.Put(key, batch)
 }
 
-func (s *batchedStorage) manageNormalization(key, batch []byte, recordSize uint32) ([]byte, error) {
-	newBatch, err := s.normalize(batch, recordSize)
+func (s *batchedStorage) manageNormalization(key, batch []byte) ([]byte, error) {
+	newBatch, err := s.normalize(batch)
 	if err != nil {
 		return nil, err
 	}
@@ -405,7 +360,7 @@ func (s *batchedStorage) manageNormalization(key, batch []byte, recordSize uint3
 }
 
 func (s *batchedStorage) writeBatchGroup(key []byte, bg *batchesGroup) {
-	k := batchedStorKey{internalKey: key}
+	k := batchedStorKey{prefix: s.params.prefix, internalKey: key}
 	for _, batch := range bg.batches {
 		k.batchNum = batch.num
 		s.dbBatch.Put(k.bytes(), batch.bytes())
