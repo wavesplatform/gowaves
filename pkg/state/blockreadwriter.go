@@ -28,7 +28,13 @@ func newRecentDataStorage() *recentDataStorage {
 	return &recentDataStorage{id2Pos: make(map[string]bytesInfo)}
 }
 
-func (r *recentDataStorage) appendBytes(id, data []byte, height, offset uint64) error {
+func (r *recentDataStorage) appendBytes(id, data []byte) error {
+	r.id2Pos[string(id)] = bytesInfo{pos: len(r.stor)}
+	r.stor = append(r.stor, data)
+	return nil
+}
+
+func (r *recentDataStorage) appendBytesWithInfo(id, data []byte, height, offset uint64) error {
 	r.id2Pos[string(id)] = bytesInfo{pos: len(r.stor), height: height, offset: offset}
 	r.stor = append(r.stor, data)
 	return nil
@@ -276,7 +282,7 @@ func (rw *blockReadWriter) writeTransaction(txID []byte, tx []byte) error {
 	copy(txBytesTotal[:4], txSizeBytes)
 	copy(txBytesTotal[4:], tx)
 	// Save tx to local storage.
-	if err := rw.rtx.appendBytes(txID, txBytesTotal, rw.height+1, rw.blockchainLen); err != nil {
+	if err := rw.rtx.appendBytesWithInfo(txID, txBytesTotal, rw.height+1, rw.blockchainLen); err != nil {
 		return err
 	}
 	// Write tx start pos to DB batch.
@@ -298,7 +304,7 @@ func (rw *blockReadWriter) writeTransaction(txID []byte, tx []byte) error {
 func (rw *blockReadWriter) writeBlockHeader(blockID crypto.Signature, header []byte) error {
 	rw.mtx.Lock()
 	defer rw.mtx.Unlock()
-	if err := rw.rheaders.appendBytes(blockID[:], header, rw.height+1, rw.headersLen); err != nil {
+	if err := rw.rheaders.appendBytes(blockID[:], header); err != nil {
 		return err
 	}
 	rw.headersLen += uint64(len(header))
