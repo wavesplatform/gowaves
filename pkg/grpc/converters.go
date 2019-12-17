@@ -348,8 +348,16 @@ func (c *SafeConverter) functionCall(data []byte) proto.FunctionCall {
 	if c.err != nil {
 		return proto.FunctionCall{}
 	}
+	var d []byte
+	if data[0] == 1 && data[3] == 9 {
+		d = make([]byte, len(data)-2)
+		d[0] = data[0]
+		copy(d[1:], data[3:])
+	} else {
+		d = data
+	}
 	fc := proto.FunctionCall{}
-	err := fc.UnmarshalBinary(data)
+	err := fc.UnmarshalBinary(d)
 	if err != nil {
 		c.err = err
 		return proto.FunctionCall{}
