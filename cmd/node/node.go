@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"flag"
+	"math/rand"
 	"os"
 	"os/signal"
 	"strings"
@@ -68,7 +69,7 @@ func main() {
 		return
 	}
 
-	cfg, err := settings.NetworkSettingsByType(*blockchainType)
+	cfg, err := settings.BlockchainSettingsByTypeName(*blockchainType)
 	if err != nil {
 		zap.S().Error(err)
 		cancel()
@@ -100,7 +101,7 @@ func main() {
 
 	parent := peer.NewParent()
 
-	peerSpawnerImpl := peer_manager.NewPeerSpawner(pool, parent, conf.WavesNetwork, declAddr, "gowaves", 100500, version)
+	peerSpawnerImpl := peer_manager.NewPeerSpawner(pool, parent, conf.WavesNetwork, declAddr, "gowaves", uint64(rand.Int()), version)
 
 	peerManager := peer_manager.NewPeerManager(peerSpawnerImpl, state)
 	go peerManager.Run(ctx)

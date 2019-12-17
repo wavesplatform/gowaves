@@ -25,9 +25,7 @@ func createBlockDiffer(t *testing.T) (*blockDifferTestObjects, []string) {
 	sets := settings.MainNetSettings
 	stor, path, err := createStorageObjects()
 	assert.NoError(t, err, "createStorageObjects() failed")
-	genesis, err := sets.GenesisGetter.Get()
-	assert.NoError(t, err, "GenesisGetter.Get() failed")
-	handler, err := newTransactionHandler(genesis.BlockSignature, stor.entities, sets)
+	handler, err := newTransactionHandler(sets.Genesis.BlockSignature, stor.entities, sets)
 	assert.NoError(t, err, "newTransactionHandler() failed")
 	blockDiffer, err := newBlockDiffer(handler, stor.entities, sets)
 	assert.NoError(t, err, "newBlockDiffer() failed")

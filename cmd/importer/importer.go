@@ -7,9 +7,9 @@ import (
 	"runtime"
 	"runtime/debug"
 	"runtime/pprof"
+	"strings"
 	"time"
 
-	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/importer"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/state"
@@ -23,8 +23,8 @@ const (
 
 var (
 	logLevel                  = flag.String("log-level", "INFO", "Logging level. Supported levels: DEBUG, INFO, WARN, ERROR, FATAL. Default logging level INFO.")
-	genesisCfgPath            = flag.String("genesis-cfg-path", "", "Path to genesis JSON config for custom blockchains.")
-	blockchainType            = flag.String("blockchain-type", "mainnet", "Blockchain type: mainnet/testnet/custom.")
+	cfgPath                   = flag.String("cfg-path", "", "Path to blockchain settings JSON file for custom blockchains. Not set by default.")
+	blockchainType            = flag.String("blockchain-type", "mainnet", "Blockchain type. Allowed values: mainnet/testnet/stagenet/custom. Default is 'mainnet'.")
 	blockchainPath            = flag.String("blockchain-path", "", "Path to binary blockchain file.")
 	balancesPath              = flag.String("balances-path", "", "Path to JSON with correct balances after applying blocks.")
 	dataDirPath               = flag.String("data-path", "", "Path to directory with previously created state.")
@@ -35,24 +35,6 @@ var (
 	cpuProfilePath = flag.String("cpuprofile", "", "Write cpu profile to this file.")
 	memProfilePath = flag.String("memprofile", "", "Write memory profile to this file.")
 )
-
-func blockchainSettings() (*settings.BlockchainSettings, error) {
-	switch *blockchainType {
-	case "mainnet":
-		return settings.MainNetSettings, nil
-	case "testnet":
-		return settings.TestNetSettings, nil
-	case "custom":
-		if *genesisCfgPath == "" {
-			return nil, errors.New("for custom blockchains you have to specify path to your genesis JSON config")
-		}
-		// TODO fix type
-		//return &settings.BlockchainSettings{Type: settings.Custom, GenesisCfgPath: *genesisCfgPath}, nil
-		return &settings.BlockchainSettings{GenesisGetter: settings.FromPath(*genesisCfgPath)}, nil
-	default:
-		return nil, errors.New("invalid blockchain type")
-	}
-}
 
 func main() {
 	err := setMaxOpenFiles(1024)
@@ -73,7 +55,7 @@ func main() {
 		if err != nil {
 			zap.S().Fatal("Could not create CPU profile: ", err)
 		}
-		defer f.Close()
+		defer func() { _ = f.Close() }()
 		if err := pprof.StartCPUProfile(f); err != nil {
 			zap.S().Fatal("Could not start CPU profile: ", err)
 		}
@@ -83,15 +65,28 @@ func main() {
 	// https://godoc.org/github.com/coocood/freecache#NewCache
 	debug.SetGCPercent(20)
 
-	ss, err := blockchainSettings()
-	if err != nil {
-		zap.S().Fatalf("blockchainSettings: %v", err)
+	var ss *settings.BlockchainSettings
+	if strings.ToLower(*blockchainType) == "custom" && *cfgPath != "" {
+		f, err := os.Open(*cfgPath)
+		if err != nil {
+			zap.S().Fatalf("Failed to open custom blockchain settings: %v", err)
+		}
+		defer func() { _ = f.Close() }()
+		ss, err = settings.ReadBlockchainSettings(f)
+		if err != nil {
+			zap.S().Fatalf("Failed to read custom blockchain settings: %v", err)
+		}
+	} else {
+		ss, err = settings.BlockchainSettingsByTypeName(*blockchainType)
+		if err != nil {
+			zap.S().Fatalf("Failed to load blockchain settings: %v", err)
+		}
 	}
 	dataDir := *dataDirPath
 	if dataDir == "" {
 		tempDir, err := ioutil.TempDir(os.TempDir(), "dataDir")
 		if err != nil {
-			zap.S().Fatalf("Faied to create temp dir for data: %v", err)
+			zap.S().Fatalf("Failed to create temp dir for data: %v", err)
 		}
 		dataDir = tempDir
 	}
@@ -130,7 +125,7 @@ func main() {
 	zap.S().Infof("Import took %s", elapsed)
 	if len(*balancesPath) != 0 {
 		if err := importer.CheckBalances(st, *balancesPath); err != nil {
-			zap.S().Fatalf("CheckBalances(): %v", err)
+			zap.S().Fatalf("Balances check failed: %v", err)
 		}
 	}
 
@@ -140,7 +135,7 @@ func main() {
 		if err != nil {
 			zap.S().Fatal("Could not create memory profile: ", err)
 		}
-		defer f.Close()
+		defer func() { _ = f.Close() }()
 		runtime.GC() // get up-to-date statistics
 		if err := pprof.WriteHeapProfile(f); err != nil {
 			zap.S().Fatal("Could not write memory profile: ", err)

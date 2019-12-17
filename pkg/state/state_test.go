@@ -40,8 +40,8 @@ func TestGenesisConfig(t *testing.T) {
 		t.Fatalf("TempDir(): %v.\n", err)
 	}
 	ss := &settings.BlockchainSettings{
-		Type:          settings.Custom,
-		GenesisGetter: settings.TestnetGenesis,
+		Type:    settings.Custom,
+		Genesis: settings.TestNetSettings.Genesis,
 	}
 	stateParams := DefaultStateParams()
 	stateParams.DbParams.Store = &keyvalue.NoOpStore{}

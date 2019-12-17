@@ -33,12 +33,12 @@ var version = proto.Version{Major: 1, Minor: 1, Patch: 2}
 
 var (
 	logLevel      = flag.String("log-level", "INFO", "Logging level. Supported levels: DEBUG, INFO, WARN, ERROR, FATAL. Default logging level INFO.")
-	statePath     = flag.String("state-path", "", "Path to node's state directory")
-	peerAddresses = flag.String("peers", "", "Addresses of peers to connect to")
+	statePath     = flag.String("state-path", "", "Path to node's state directory. No default value.")
+	peerAddresses = flag.String("peers", "", "Addresses of peers to connect to. No default value.")
 	declAddr      = flag.String("declared-address", "", "Address to listen on")
 	apiAddr       = flag.String("api-address", "", "Address for REST API")
 	grpcAddr      = flag.String("grpc-address", "127.0.0.1:7475", "Address for gRPC API")
-	genesisPath   = flag.String("genesis-path", "", "Path to genesis json file")
+	cfgPath       = flag.String("cfg-path", "", "Path to configuration JSON file. No default value.")
 	seed          = flag.String("seed", "", "Seed for miner")
 )
 
@@ -48,7 +48,7 @@ func init() {
 
 func main() {
 	flag.Parse()
-	if *genesisPath == "" {
+	if *cfgPath == "" {
 		zap.S().Error("Please provide path to genesis JSON file")
 		return
 	}
@@ -74,8 +74,15 @@ func main() {
 		return
 	}
 
-	custom := settings.DefaultSettingsForCustomBlockchain(settings.FromPath(*genesisPath))
-
+	f, err := os.Open(*cfgPath)
+	if err != nil {
+		zap.S().Fatalf("Failed to open configuration file: %v", err)
+	}
+	defer func() { _ = f.Close() }()
+	custom, err := settings.ReadBlockchainSettings(f)
+	if err != nil {
+		zap.S().Fatalf("Failed to read configuration file: %v", err)
+	}
 	path := *statePath
 	if path == "" {
 		path, err = util.GetStatePath()
