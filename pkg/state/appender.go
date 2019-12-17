@@ -2,6 +2,7 @@ package state
 
 import (
 	"github.com/pkg/errors"
+	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/types"
@@ -15,6 +16,7 @@ type txAppender struct {
 
 	rw *blockReadWriter
 
+	atx      *addressTransactions
 	stor     *blockchainEntitiesStorage
 	settings *settings.BlockchainSettings
 
@@ -39,7 +41,7 @@ type txAppender struct {
 	// that involved calling scripts.
 	totalScriptsRuns uint64
 
-	// buildApiData flag indicates that additional data for gRPC API is built when
+	// buildApiData flag indicates that additional data for API is built when
 	// appending transactions.
 	buildApiData bool
 }
@@ -50,6 +52,7 @@ func newTxAppender(
 	stor *blockchainEntitiesStorage,
 	settings *settings.BlockchainSettings,
 	stateDB *stateDB,
+	atx *addressTransactions,
 ) (*txAppender, error) {
 	sc, err := newScriptCaller(state, stor, settings)
 	if err != nil {
@@ -89,6 +92,7 @@ func newTxAppender(
 		sc:             sc,
 		ia:             ia,
 		rw:             rw,
+		atx:            atx,
 		stor:           stor,
 		settings:       settings,
 		txHandler:      txHandler,
@@ -299,7 +303,21 @@ func (a *txAppender) needToCheckOrdersSigs(transaction proto.Transaction, initia
 	return !soScripted, !boScripted, nil
 }
 
+func (a *txAppender) saveTransactionIdByAddresses(
+	addrs []proto.Address,
+	txID []byte,
+	blockID crypto.Signature,
+) error {
+	for _, addr := range addrs {
+		if err := a.atx.saveTxIdByAddress(addr, txID, blockID); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (a *txAppender) appendBlock(params *appendBlockParams) error {
+	blockID := params.block.BlockSignature
 	hasParent := params.parent != nil
 	// Create miner balance diff.
 	// This adds 60% of prev block fees as very first balance diff of the current block
@@ -349,7 +367,7 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 		checkerInfo := &checkerInfo{
 			initialisation:   params.initialisation,
 			currentTimestamp: params.block.Timestamp,
-			blockID:          params.block.BlockSignature,
+			blockID:          blockID,
 			blockVersion:     params.block.Version,
 			height:           params.height,
 		}
@@ -375,6 +393,7 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 			return err
 		}
 		scriptsRuns += txScriptsRuns
+		var txChanges txBalanceChanges
 		if tx.GetTypeVersion().Type == proto.InvokeScriptTransaction {
 			// Invoke is handled in a special way.
 			invokeTx, ok := tx.(*proto.InvokeScriptV1)
@@ -388,12 +407,13 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 				height:             curHeight,
 				validatingUtx:      false,
 			}
-			if err := a.ia.applyInvokeScriptV1(invokeTx, invokeInfo); err != nil {
+			txChanges, err = a.ia.applyInvokeScriptV1(invokeTx, invokeInfo)
+			if err != nil {
 				return errors.Errorf("failed to apply InvokeScript transaction %s to state: %v", invokeTx.ID.String(), err)
 			}
 		} else {
 			// Create balance diff of this tx.
-			txChanges, err := a.blockDiffer.createTransactionDiff(tx, params.block, curHeight, params.initialisation)
+			txChanges, err = a.blockDiffer.createTransactionDiff(tx, params.block, curHeight, params.initialisation)
 			if err != nil {
 				return err
 			}
@@ -409,7 +429,7 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 		// Perform state changes.
 		performerInfo := &performerInfo{
 			initialisation: params.initialisation,
-			blockID:        params.block.BlockSignature,
+			blockID:        blockID,
 		}
 		if err := a.txHandler.performTx(tx, performerInfo); err != nil {
 			return err
@@ -423,9 +443,15 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 		if err := a.rw.writeTransaction(txID, bts); err != nil {
 			return err
 		}
+		// Store additional data for API: transaction by address.
+		if a.buildApiData {
+			if err := a.saveTransactionIdByAddresses(txChanges.addresses(), txID, blockID); err != nil {
+				return err
+			}
+		}
 	}
 	if err := a.checkScriptsLimits(scriptsRuns); err != nil {
-		return errors.Errorf("%s: %v", params.block.BlockSignature.String(), err)
+		return errors.Errorf("%s: %v", blockID.String(), err)
 	}
 	// Reset block complexity counter.
 	a.sc.resetComplexity()
@@ -471,7 +497,8 @@ func (a *txAppender) handleInvoke(tx proto.Transaction, height uint64, block *pr
 		height:             height,
 		validatingUtx:      true,
 	}
-	if err := a.ia.applyInvokeScriptV1(invokeTx, invokeInfo); err != nil {
+	_, err := a.ia.applyInvokeScriptV1(invokeTx, invokeInfo)
+	if err != nil {
 		return errors.Wrap(err, "InvokeScript validation failed")
 	}
 	return nil

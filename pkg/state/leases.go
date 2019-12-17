@@ -50,13 +50,12 @@ func (l *leasingRecord) unmarshalBinary(data []byte) error {
 }
 
 type leases struct {
-	db      keyvalue.IterableKeyVal
-	hs      *historyStorage
-	stateDB *stateDB
+	db keyvalue.IterableKeyVal
+	hs *historyStorage
 }
 
-func newLeases(db keyvalue.IterableKeyVal, hs *historyStorage, stateDB *stateDB) (*leases, error) {
-	return &leases{db, hs, stateDB}, nil
+func newLeases(db keyvalue.IterableKeyVal, hs *historyStorage) (*leases, error) {
+	return &leases{db, hs}, nil
 }
 
 func (l *leases) cancelLeases(bySenders map[proto.Address]struct{}, blockID crypto.Signature) error {

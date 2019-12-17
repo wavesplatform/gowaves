@@ -14,8 +14,8 @@ import (
 )
 
 const (
-	firstBatchNum = math.MaxUint32 // Hack instead of backward iteration.
-	blockNumLen   = 4              // 4 bytes for block number.
+	firstBatchNum = 0
+	blockNumLen   = 4 // 4 bytes for block number.
 )
 
 type record struct {
@@ -73,7 +73,7 @@ func (i *recordIterator) loadNextBatch() bool {
 }
 
 func (i *recordIterator) next() bool {
-	size := int(i.recordSize)
+	size := i.recordSize
 	if len(i.batch) > size {
 		i.batch = i.batch[:len(i.batch)-size]
 		return true
@@ -95,7 +95,7 @@ func (i *recordIterator) currentRecord() ([]byte, error) {
 	return r.recordBytes(), nil
 }
 
-func (i *recordIterator) getError() error {
+func (i *recordIterator) error() error {
 	if err := i.iter.error(); err != nil {
 		return err
 	}
@@ -103,20 +103,26 @@ func (i *recordIterator) getError() error {
 }
 
 func (i *recordIterator) release() {
+	i.batch = nil
 	i.iter.release()
 }
 
 type batchIterator struct {
 	stor *batchedStorage
 	iter keyvalue.Iterator
+	used bool
 }
 
 func newBatchIterator(stor *batchedStorage, iter keyvalue.Iterator) *batchIterator {
-	return &batchIterator{stor, iter}
+	return &batchIterator{stor, iter, false}
 }
 
 func (i *batchIterator) next() bool {
-	return i.iter.Next()
+	if i.used {
+		return i.iter.Prev()
+	}
+	i.used = true
+	return i.iter.Last()
 }
 
 func (i *batchIterator) currentBatch() ([]byte, error) {
@@ -205,11 +211,11 @@ func (bg *batchesGroup) appendNewRecord(record []byte) error {
 		lastBatch.addRecord(record)
 		return nil
 	}
-	if lastBatch.num == 0 {
-		// Sanity check to prevent underflow.
+	if lastBatch.num == math.MaxUint32 {
+		// Sanity check to prevent overflow.
 		return errors.New("too many batches, can't add new!")
 	}
-	nextBatchNum := lastBatch.num - 1
+	nextBatchNum := lastBatch.num + 1
 	newBatch := newBatch(bg.maxBatchSize, nextBatchNum)
 	newBatch.addRecord(record)
 	bg.batches = append(bg.batches, newBatch)
@@ -287,7 +293,7 @@ func (s *batchedStorage) readLastBatch(key []byte) (*batch, error) {
 	if err != nil {
 		return nil, err
 	}
-	if !iter.First() {
+	if !iter.Last() {
 		// Nothing to iterate.
 		return nil, errNotFound
 	}
@@ -367,10 +373,13 @@ func (s *batchedStorage) writeBatchGroup(key []byte, bg *batchesGroup) {
 	}
 }
 
+func (s *batchedStorage) reset() {
+	s.localStor = make(map[string]*batchesGroup)
+}
+
 func (s *batchedStorage) flush() error {
 	for key, bg := range s.localStor {
 		s.writeBatchGroup([]byte(key), bg)
 	}
-	s.localStor = make(map[string]*batchesGroup)
 	return nil
 }

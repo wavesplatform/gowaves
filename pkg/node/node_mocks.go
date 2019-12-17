@@ -234,6 +234,10 @@ func (a *MockStateManager) TransactionHeightByID(id []byte) (proto.Height, error
 	panic("implement me")
 }
 
+func (a *MockStateManager) NewAddrTransactionsIterator(addr proto.Address) (state.TransactionIterator, error) {
+	panic("implement me")
+}
+
 func (a *MockStateManager) NewestTransactionByID(id []byte) (proto.Transaction, error) {
 	panic("implement me")
 }

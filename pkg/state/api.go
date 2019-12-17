@@ -11,6 +11,19 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/util/lock"
 )
 
+// TransactionIterator can be used to iterate through transactions of given address.
+// One instance is only valid for iterating once.
+// Transaction() returns current transaction.
+// Next() moves iterator to next position, it must be called first time at the beginning.
+// Release() must be called after using iterator.
+// Error() should return nil if iterating was successful.
+type TransactionIterator interface {
+	Transaction() (proto.Transaction, error)
+	Next() bool
+	Release()
+	Error() error
+}
+
 // StateNewest returns information that takes into account any intermediate changes
 // occurring during applying block. This state corresponds to the latest validated transaction,
 // and for now is only needed for Ride and Consensus modules, which are both called during the validation.
@@ -106,6 +119,10 @@ type StateStable interface {
 	// Transactions.
 	TransactionByID(id []byte) (proto.Transaction, error)
 	TransactionHeightByID(id []byte) (uint64, error)
+	// NewAddrTransactionsIterator() returns iterator to iterate all transactions that affected
+	// given address.
+	// Iterator will move in range from most recent to oldest transactions.
+	NewAddrTransactionsIterator(addr proto.Address) (TransactionIterator, error)
 
 	// Asset fee sponsorship.
 	AssetIsSponsored(assetID crypto.Digest) (bool, error)

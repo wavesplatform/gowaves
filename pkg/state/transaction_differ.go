@@ -220,6 +220,16 @@ func (ch txBalanceChanges) appendAddr(addr proto.Address) {
 	ch.addrs[addr] = empty
 }
 
+func (ch txBalanceChanges) addresses() []proto.Address {
+	res := make([]proto.Address, len(ch.addrs))
+	index := 0
+	for addr := range ch.addrs {
+		res[index] = addr
+		index++
+	}
+	return res
+}
+
 type txDiff map[string]balanceDiff
 
 func newTxDiff() txDiff {

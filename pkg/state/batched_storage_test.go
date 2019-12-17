@@ -66,7 +66,7 @@ func (to *batchedStorageTestObjects) testIterator(t *testing.T, key []byte, data
 		assert.Equal(t, valid.record, record)
 	}
 	iter.release()
-	err = iter.getError()
+	err = iter.error()
 	assert.NoError(t, err)
 	_, found := testIter.next()
 	assert.Equal(t, false, found)
@@ -81,6 +81,7 @@ func (to *batchedStorageTestObjects) rollbackBlock(t *testing.T, blockID crypto.
 func (to *batchedStorageTestObjects) flush(t *testing.T) {
 	err := to.batchedStor.flush()
 	assert.NoError(t, err)
+	to.batchedStor.reset()
 	to.stor.flush(t)
 }
 

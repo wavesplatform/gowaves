@@ -26,6 +26,7 @@ type Iterator interface {
 	Key() []byte
 	Value() []byte
 	Next() bool
+	Prev() bool
 
 	First() bool
 	Last() bool

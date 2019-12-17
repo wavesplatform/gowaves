@@ -66,7 +66,7 @@ func newBlockchainEntitiesStorage(hs *historyStorage, sets *settings.BlockchainS
 	if err != nil {
 		return nil, err
 	}
-	leases, err := newLeases(hs.db, hs, hs.stateDB)
+	leases, err := newLeases(hs.db, hs)
 	if err != nil {
 		return nil, err
 	}
@@ -178,6 +178,7 @@ type stateManager struct {
 	cv *consensus.ConsensusValidator
 	// Appender implements validation/diff management functionality.
 	appender *txAppender
+	atx      *addressTransactions
 
 	// Miscellaneous/utility fields.
 	// Specifies how many goroutines will be run for verification of transactions and blocks signatures.
@@ -239,18 +240,20 @@ func newStateManager(dataDir string, params StateParams, settings *settings.Bloc
 	if err != nil {
 		return nil, wrapErr(Other, errors.Errorf("failed to create blockchain entities storage: %v", err))
 	}
+	atx := newAddressTransactions(db, dbBatch, stateDB, rw)
 	state := &stateManager{
 		stateDB:                   stateDB,
 		stor:                      stor,
 		rw:                        rw,
 		settings:                  settings,
+		atx:                       atx,
 		peers:                     newPeerStorage(db),
 		verificationGoroutinesNum: params.VerificationGoroutinesNum,
 		mu:                        &sync.RWMutex{},
 	}
 	// Set fields which depend on state.
 	// Consensus validator is needed to check block headers.
-	appender, err := newTxAppender(state, rw, stor, settings, stateDB)
+	appender, err := newTxAppender(state, rw, stor, settings, stateDB, atx)
 	if err != nil {
 		return nil, wrapErr(Other, err)
 	}
@@ -734,6 +737,7 @@ func (s *stateManager) addNewBlock(block, parent *proto.Block, initialisation bo
 }
 
 func (s *stateManager) reset() error {
+	s.atx.reset()
 	s.rw.reset()
 	s.stor.reset()
 	s.stateDB.reset()
@@ -746,6 +750,9 @@ func (s *stateManager) flush(initialisation bool) error {
 		return err
 	}
 	if err := s.stor.flush(initialisation); err != nil {
+		return err
+	}
+	if err := s.atx.flush(); err != nil {
 		return err
 	}
 	if err := s.stateDB.flush(); err != nil {
@@ -1617,6 +1624,14 @@ func (s *stateManager) TransactionHeightByID(id []byte) (uint64, error) {
 		return 0, wrapErr(RetrievalError, err)
 	}
 	return txHeight, nil
+}
+
+func (s *stateManager) NewAddrTransactionsIterator(addr proto.Address) (TransactionIterator, error) {
+	iter, err := s.atx.newTransactionsByAddrIterator(addr)
+	if err != nil {
+		return nil, wrapErr(Other, err)
+	}
+	return iter, nil
 }
 
 func (s *stateManager) NewestAssetIsSponsored(assetID crypto.Digest) (bool, error) {
