@@ -133,6 +133,9 @@ type StateStable interface {
 	ScriptInfoByAccount(account proto.Recipient) (*proto.ScriptInfo, error)
 	ScriptInfoByAsset(assetID crypto.Digest) (*proto.ScriptInfo, error)
 
+	// Leases.
+	IsActiveLeasing(leaseID crypto.Digest) (bool, error)
+
 	// True if state stores additional information in order to provide extended API.
 	ProvidesExtendedApi() (bool, error)
 }

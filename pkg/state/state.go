@@ -1802,6 +1802,14 @@ func (s *stateManager) ScriptInfoByAsset(assetID crypto.Digest) (*proto.ScriptIn
 	}, nil
 }
 
+func (s *stateManager) IsActiveLeasing(leaseID crypto.Digest) (bool, error) {
+	isActive, err := s.stor.leases.isActive(leaseID, true)
+	if err != nil {
+		return false, wrapErr(RetrievalError, err)
+	}
+	return isActive, nil
+}
+
 func (s *stateManager) ProvidesExtendedApi() (bool, error) {
 	provides, err := s.stateDB.stateStoresApiData()
 	if err != nil {

@@ -167,6 +167,14 @@ func (l *leases) leasingInfo(id crypto.Digest, filter bool) (*leasing, error) {
 	return &record.leasing, nil
 }
 
+func (l *leases) isActive(id crypto.Digest, filter bool) (bool, error) {
+	info, err := l.leasingInfo(id, filter)
+	if err != nil {
+		return false, err
+	}
+	return info.isActive, nil
+}
+
 func (l *leases) addLeasing(id crypto.Digest, leasing *leasing, blockID crypto.Signature) error {
 	key := leaseKey{leaseID: id}
 	r := &leasingRecord{*leasing}
