@@ -1,4 +1,3 @@
-// Transactions
 syntax = "proto3";
 package waves;
 
@@ -40,6 +39,7 @@ message Transaction {
         SponsorFeeTransactionData sponsor_fee = 114;
         SetAssetScriptTransactionData set_asset_script = 115;
         InvokeScriptTransactionData invoke_script = 116;
+        UpdateAssetInfoTransactionData update_asset_info = 117;
     };
 };
 
@@ -53,10 +53,19 @@ message PaymentTransactionData {
     int64 amount = 2;
 };
 
+message Attachment {
+    oneof attachment {
+        int64 int_value = 1;
+        bool bool_value = 2;
+        bytes binary_value = 3;
+        string string_value = 4;
+    };
+}
+
 message TransferTransactionData {
     Recipient recipient = 1;
     Amount amount = 2;
-    bytes attachment = 3;
+    Attachment attachment = 3;
 };
 
 message CreateAliasTransactionData {
@@ -85,7 +94,7 @@ message MassTransferTransactionData {
 
     bytes asset_id = 1;
     repeated Transfer transfers = 2;
-    bytes attachment = 3;
+    Attachment attachment = 3;
 };
 
 message LeaseTransactionData {
@@ -102,14 +111,13 @@ message BurnTransactionData {
 };
 
 message IssueTransactionData {
-    bytes name = 1;
-    bytes description = 2;
+    string name = 1;
+    string description = 2;
     int64 amount = 3;
     int32 decimals = 4;
     bool reissuable = 5;
     Script script = 6;
 };
-
 
 message ReissueTransactionData {
     Amount asset_amount = 1;
@@ -143,12 +151,8 @@ message InvokeScriptTransactionData {
     repeated Amount payments = 3;
 }
 
-message InvokeScriptResult {
-    message Payment {
-        bytes address = 1;
-        Amount amount = 2;
-    }
-
-    repeated DataTransactionData.DataEntry data = 1;
-    repeated Payment transfers = 2;
+message UpdateAssetInfoTransactionData {
+    bytes asset_id = 1;
+    string name = 2;
+    string description = 3;
 }

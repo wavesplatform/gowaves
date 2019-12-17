@@ -165,8 +165,8 @@ func (c *SafeConverter) recipient(scheme byte, recipient *Recipient) proto.Recip
 		return proto.Recipient{}
 	}
 	switch r := recipient.Recipient.(type) {
-	case *Recipient_Address:
-		return proto.NewRecipientFromAddress(c.address(scheme, r.Address))
+	case *Recipient_PublicKeyHash:
+		return proto.NewRecipientFromAddress(c.address(scheme, r.PublicKeyHash))
 	case *Recipient_Alias:
 		return proto.NewRecipientFromAlias(c.alias(scheme, r.Alias))
 	default:
@@ -348,8 +348,16 @@ func (c *SafeConverter) functionCall(data []byte) proto.FunctionCall {
 	if c.err != nil {
 		return proto.FunctionCall{}
 	}
+	var d []byte
+	if data[0] == 1 && data[3] == 9 {
+		d = make([]byte, len(data)-2)
+		d[0] = data[0]
+		copy(d[1:], data[3:])
+	} else {
+		d = data
+	}
 	fc := proto.FunctionCall{}
-	err := fc.UnmarshalBinary(data)
+	err := fc.UnmarshalBinary(d)
 	if err != nil {
 		c.err = err
 		return proto.FunctionCall{}
@@ -405,8 +413,8 @@ func (c *SafeConverter) Transaction(tx *Transaction) (proto.Transaction, error) 
 	case *Transaction_Issue:
 		pi := proto.Issue{
 			SenderPK:    c.publicKey(tx.SenderPublicKey),
-			Name:        c.string(d.Issue.Name),
-			Description: c.string(d.Issue.Description),
+			Name:        d.Issue.Name,
+			Description: d.Issue.Description,
 			Quantity:    c.uint64(d.Issue.Amount),
 			Decimals:    c.byte(d.Issue.Decimals),
 			Reissuable:  d.Issue.Reissuable,
@@ -441,7 +449,7 @@ func (c *SafeConverter) Transaction(tx *Transaction) (proto.Transaction, error) 
 			Amount:      amount,
 			Fee:         fee,
 			Recipient:   c.recipient(scheme, d.Transfer.Recipient),
-			Attachment:  proto.Attachment(c.string(d.Transfer.Attachment)),
+			Attachment:  proto.Attachment(c.string(d.Transfer.Attachment.GetBinaryValue())),
 		}
 		switch tx.Version {
 		case 2:
@@ -633,7 +641,7 @@ func (c *SafeConverter) Transaction(tx *Transaction) (proto.Transaction, error) 
 			Transfers:  c.transfers(scheme, d.MassTransfer.Transfers),
 			Timestamp:  ts,
 			Fee:        c.amount(tx.Fee),
-			Attachment: proto.Attachment(c.string(d.MassTransfer.Attachment)),
+			Attachment: proto.Attachment(c.string(d.MassTransfer.Attachment.GetBinaryValue())),
 		}
 
 	case *Transaction_DataTransaction:
