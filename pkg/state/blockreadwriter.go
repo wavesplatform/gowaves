@@ -321,12 +321,16 @@ func (rw *blockReadWriter) newestBlockIDByHeight(height uint64) (crypto.Signatur
 	if id, ok := rw.height2IDCache[height]; ok {
 		return id, nil
 	}
-	return rw.blockIDByHeight(height)
+	return rw.blockIDByHeightImpl(height)
 }
 
 func (rw *blockReadWriter) blockIDByHeight(height uint64) (crypto.Signature, error) {
 	rw.mtx.RLock()
 	defer rw.mtx.RUnlock()
+	return rw.blockIDByHeightImpl(height)
+}
+
+func (rw *blockReadWriter) blockIDByHeightImpl(height uint64) (crypto.Signature, error) {
 	// For blockReadWriter, heights start from 0.
 	height -= 1
 	idBytes := make([]byte, crypto.SignatureSize)
@@ -424,11 +428,7 @@ func (rw *blockReadWriter) newestTransactionOffsetByID(txID []byte) (uint64, err
 	return rw.transactionOffsetByID(txID)
 }
 
-func (rw *blockReadWriter) readTransactionSize(txID []byte) (uint32, error) {
-	offset, err := rw.transactionOffsetByID(txID)
-	if err != nil {
-		return 0, err
-	}
+func (rw *blockReadWriter) readTransactionSize(offset uint64) (uint32, error) {
 	sizeBytes := make([]byte, 4)
 	n, err := rw.blockchain.ReadAt(sizeBytes, int64(offset))
 	if err != nil {
@@ -444,7 +444,7 @@ func (rw *blockReadWriter) readNewestTransaction(txID []byte) ([]byte, error) {
 	defer rw.mtx.RUnlock()
 	tx, err := rw.rtx.bytesById(txID)
 	if err != nil {
-		return rw.readTransaction(txID)
+		return rw.readTransactionImpl(txID)
 	}
 	if len(tx) < 4 {
 		return nil, errors.New("invalid tx size")
@@ -455,18 +455,32 @@ func (rw *blockReadWriter) readNewestTransaction(txID []byte) ([]byte, error) {
 func (rw *blockReadWriter) readTransaction(txID []byte) ([]byte, error) {
 	rw.mtx.RLock()
 	defer rw.mtx.RUnlock()
-	txSize, err := rw.readTransactionSize(txID)
-	if err != nil {
-		return nil, err
-	}
+	return rw.readTransactionImpl(txID)
+}
+
+func (rw *blockReadWriter) readTransactionImpl(txID []byte) ([]byte, error) {
 	offset, err := rw.transactionOffsetByID(txID)
 	if err != nil {
 		return nil, err
 	}
-	// First 4 bytes are tx size, actual tx starts at `txStart + 4`.
-	txRealStart := offset + 4
+	return rw.readTransactionByOffsetImpl(offset)
+}
+
+func (rw *blockReadWriter) readTransactionByOffset(offset uint64) ([]byte, error) {
+	rw.mtx.RLock()
+	defer rw.mtx.RUnlock()
+	return rw.readTransactionByOffsetImpl(offset)
+}
+
+func (rw *blockReadWriter) readTransactionByOffsetImpl(offset uint64) ([]byte, error) {
+	txSize, err := rw.readTransactionSize(offset)
+	if err != nil {
+		return nil, err
+	}
+	// First 4 bytes are tx size, actual tx starts at `offset + 4`.
+	txRealOffset := offset + 4
 	txBytes := make([]byte, txSize)
-	n, err := rw.blockchain.ReadAt(txBytes, int64(txRealStart))
+	n, err := rw.blockchain.ReadAt(txBytes, int64(txRealOffset))
 	if err != nil {
 		return nil, err
 	} else if n != len(txBytes) {
@@ -483,7 +497,7 @@ func (rw *blockReadWriter) readNewestBlockHeader(blockID crypto.Signature) ([]by
 	defer rw.mtx.RUnlock()
 	header, err := rw.rheaders.bytesById(blockID[:])
 	if err != nil {
-		return rw.readBlockHeader(blockID)
+		return rw.readBlockHeaderImpl(blockID)
 	}
 	return header, nil
 }
@@ -491,6 +505,10 @@ func (rw *blockReadWriter) readNewestBlockHeader(blockID crypto.Signature) ([]by
 func (rw *blockReadWriter) readBlockHeader(blockID crypto.Signature) ([]byte, error) {
 	rw.mtx.RLock()
 	defer rw.mtx.RUnlock()
+	return rw.readBlockHeaderImpl(blockID)
+}
+
+func (rw *blockReadWriter) readBlockHeaderImpl(blockID crypto.Signature) ([]byte, error) {
 	key := blockOffsetKey{blockID: blockID}
 	blockInfo, err := rw.db.Get(key.bytes())
 	if err != nil {
