@@ -58,10 +58,7 @@ func newTxAppender(
 	if err != nil {
 		return nil, err
 	}
-	genesis, err := settings.GenesisGetter.Get()
-	if err != nil {
-		return nil, err
-	}
+	genesis := settings.Genesis
 	txHandler, err := newTransactionHandler(genesis.BlockSignature, stor, settings)
 	if err != nil {
 		return nil, err

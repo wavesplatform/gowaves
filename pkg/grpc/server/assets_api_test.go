@@ -9,13 +9,13 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated"
 	"github.com/wavesplatform/gowaves/pkg/miner/utxpool"
-	"github.com/wavesplatform/gowaves/pkg/settings"
 )
 
 func TestGetInfo(t *testing.T) {
-	genesisGetter := settings.FromCurrentDir("testdata/genesis", "asset_issue_genesis.json")
-	st, stateCloser := stateWithCustomGenesis(t, genesisGetter)
-	err := server.initServer(st, utxpool.New(utxSize))
+	genesisPath, err := globalPathFromLocal("testdata/genesis/asset_issue_genesis.json")
+	assert.NoError(t, err)
+	st, stateCloser := stateWithCustomGenesis(t, genesisPath)
+	err = server.initServer(st, utxpool.New(utxSize))
 	assert.NoError(t, err)
 
 	conn := connect(t, grpcTestAddr)

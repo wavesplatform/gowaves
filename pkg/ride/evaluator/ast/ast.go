@@ -1742,6 +1742,17 @@ func (a *WriteSetExpr) toProto() ([]proto.DataEntry, error) {
 	return res, nil
 }
 
+func (a *WriteSetExpr) Get(name string) (Expr, error) {
+	if name == "data" {
+		r := make(Exprs, len(a.body))
+		for i, item := range a.body {
+			r[i] = item
+		}
+		return r, nil
+	}
+	return NewUnit(), nil
+}
+
 func NewWriteSet(e ...*DataEntryExpr) *WriteSetExpr {
 	return &WriteSetExpr{
 		body: e,

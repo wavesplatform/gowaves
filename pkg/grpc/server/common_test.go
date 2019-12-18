@@ -2,14 +2,18 @@ package server
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
+	"path/filepath"
+	"runtime"
 	"testing"
 	"time"
 
 	"github.com/phayes/freeport"
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -31,36 +35,42 @@ var (
 	minerPkStr = "7SPo26fzFRvFxAd6GiqSP2qBB98qt5hytGxKgq6faiZZ"
 )
 
-// wrappedGenesisGetter retrieves block from underlying getter and signs it using `minerSkStr`.
-// It also sets block's GenPublicKey to corresponding public key (`minerPkStr`).
-type wrappedGenesisGetter struct {
-	block *proto.Block
+func globalPathFromLocal(path string) (string, error) {
+	_, filename, _, ok := runtime.Caller(0)
+	if !ok {
+		return "", errors.Errorf("unable to find current package file")
+	}
+	dir := filepath.Dir(filename)
+	return filepath.Join(dir, path), nil
 }
 
-func newWrappedGenesisGetter(getter settings.GenesisGetter) (*wrappedGenesisGetter, error) {
-	block, err := getter.Get()
-	if err != nil {
-		return nil, err
-	}
+func signBlock(t *testing.T, block *proto.Block) {
 	pk := crypto.MustPublicKeyFromBase58(minerPkStr)
 	block.GenPublicKey = pk
 	sk := crypto.MustSecretKeyFromBase58(minerSkStr)
-	if err := block.Sign(sk); err != nil {
-		return nil, err
-	}
-	return &wrappedGenesisGetter{block: block}, nil
-}
-
-func (g *wrappedGenesisGetter) Get() (*proto.Block, error) {
-	return g.block, nil
-}
-
-func stateWithCustomGenesis(t *testing.T, genesisGetter settings.GenesisGetter) (state.State, func()) {
-	testGenesisGetter, err := newWrappedGenesisGetter(genesisGetter)
+	err := block.Sign(sk)
 	assert.NoError(t, err)
+}
+
+func customSettingsWithGenesis(t *testing.T, genesisPath string) *settings.BlockchainSettings {
+	genesisFile, err := os.Open(genesisPath)
+	assert.NoError(t, err)
+	jsonParser := json.NewDecoder(genesisFile)
+	genesis := &proto.Block{}
+	err = jsonParser.Decode(genesis)
+	assert.NoError(t, err)
+	err = genesisFile.Close()
+	assert.NoError(t, err)
+	signBlock(t, genesis)
+	sets := settings.DefaultCustomSettings
+	sets.Genesis = *genesis
+	return sets
+}
+
+func stateWithCustomGenesis(t *testing.T, genesisPath string) (state.State, func()) {
 	dataDir, err := ioutil.TempDir(os.TempDir(), "dataDir")
 	assert.NoError(t, err)
-	sets := settings.DefaultSettingsForCustomBlockchain(testGenesisGetter)
+	sets := customSettingsWithGenesis(t, genesisPath)
 	// Activate data transactions.
 	sets.PreactivatedFeatures = []int16{5}
 	params := state.DefaultTestingStateParams()

@@ -264,7 +264,7 @@ func newStateManager(dataDir string, params StateParams, settings *settings.Bloc
 	}
 	state.cv = cv
 	// Handle genesis block.
-	if err := state.handleGenesisBlock(settings.GenesisGetter); err != nil {
+	if err := state.handleGenesisBlock(settings.Genesis); err != nil {
 		return nil, wrapErr(Other, err)
 	}
 	return state, nil
@@ -278,8 +278,8 @@ func (s *stateManager) Peers() ([]proto.TCPAddr, error) {
 	return s.peers.peers()
 }
 
-func (s *stateManager) setGenesisBlock(genesisBlock *proto.Block) error {
-	s.genesis = *genesisBlock
+func (s *stateManager) setGenesisBlock(genesisBlock proto.Block) error {
+	s.genesis = genesisBlock
 	return nil
 }
 
@@ -336,13 +336,8 @@ func (s *stateManager) applyPreactivatedFeatures(features []int16, blockID crypt
 	return nil
 }
 
-func (s *stateManager) handleGenesisBlock(g settings.GenesisGetter) error {
+func (s *stateManager) handleGenesisBlock(block proto.Block) error {
 	height, err := s.Height()
-	if err != nil {
-		return err
-	}
-
-	block, err := g.Get()
 	if err != nil {
 		return err
 	}

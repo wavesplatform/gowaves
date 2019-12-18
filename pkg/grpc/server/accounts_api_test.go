@@ -64,9 +64,10 @@ func TestGetBalances(t *testing.T) {
 }
 
 func TestResolveAlias(t *testing.T) {
-	genesisGetter := settings.FromCurrentDir("testdata/genesis", "alias_genesis.json")
-	st, stateCloser := stateWithCustomGenesis(t, genesisGetter)
-	err := server.initServer(st, utxpool.New(utxSize))
+	genesisPath, err := globalPathFromLocal("testdata/genesis/alias_genesis.json")
+	assert.NoError(t, err)
+	st, stateCloser := stateWithCustomGenesis(t, genesisPath)
+	err = server.initServer(st, utxpool.New(utxSize))
 	assert.NoError(t, err)
 
 	conn := connect(t, grpcTestAddr)

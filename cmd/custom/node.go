@@ -38,7 +38,7 @@ var (
 	declAddr          = flag.String("declared-address", "", "Address to listen on")
 	apiAddr           = flag.String("api-address", "", "Address for REST API")
 	grpcAddr          = flag.String("grpc-address", "127.0.0.1:7475", "Address for gRPC API")
-	genesisPath       = flag.String("genesis-path", "", "Path to genesis json file")
+	cfgPath           = flag.String("cfg-path", "", "Path to configuration JSON file. No default value.")
 	seed              = flag.String("seed", "", "Seed for miner")
 	enableGrpcApi     = flag.Bool("enable-grpc-api", true, "Enables/disables gRPC API")
 	enableExtendedApi = flag.Bool("extended-api", false, "Enables/disables extended API. Note that state must be reimported in case it wasn't imported with api flag set")
@@ -50,8 +50,8 @@ func init() {
 
 func main() {
 	flag.Parse()
-	if *genesisPath == "" {
-		zap.S().Error("Please provide path to genesis JSON file")
+	if *cfgPath == "" {
+		zap.S().Error("Please provide path to blockchain config JSON file")
 		return
 	}
 	ctx, cancel := context.WithCancel(context.Background())
@@ -76,8 +76,15 @@ func main() {
 		return
 	}
 
-	custom := settings.DefaultSettingsForCustomBlockchain(settings.FromPath(*genesisPath))
-
+	f, err := os.Open(*cfgPath)
+	if err != nil {
+		zap.S().Fatalf("Failed to open configuration file: %v", err)
+	}
+	defer func() { _ = f.Close() }()
+	custom, err := settings.ReadBlockchainSettings(f)
+	if err != nil {
+		zap.S().Fatalf("Failed to read configuration file: %v", err)
+	}
 	path := *statePath
 	if path == "" {
 		path, err = util.GetStatePath()
