@@ -2227,7 +2227,7 @@ func extractValueType(data []byte) (DataValueType, error) {
 	}
 	kl := binary.BigEndian.Uint16(data)
 	if l := len(data); l <= int(kl)+2 {
-		return 0, errors.Errorf("not enough data to extract ValueType, expected not less than %d, received %d", kl+2, l)
+		return 0, errors.Errorf("not enough data to extract ValueType, expected more than %d, received %d", kl+2, l)
 	}
 	return DataValueType(data[kl+2]), nil
 }
