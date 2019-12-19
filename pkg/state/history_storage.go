@@ -31,6 +31,7 @@ const (
 	assetScriptComplexity
 	rewardVotes
 	blockReward
+	invokeResult
 )
 
 // + 4 bytes for blockNum at the end of each record.

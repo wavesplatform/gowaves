@@ -278,6 +278,10 @@ func (a *MockStateManager) IsActiveLeasing(leaseID crypto.Digest) (bool, error) 
 	panic("implement me")
 }
 
+func (a *MockStateManager) InvokeResultByID(invokeID crypto.Digest) (*proto.ScriptResult, error) {
+	panic("implement me")
+}
+
 func (a *MockStateManager) ProvidesExtendedApi() (bool, error) {
 	panic("implement me")
 }

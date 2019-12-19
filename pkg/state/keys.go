@@ -22,6 +22,7 @@ const (
 	disabledAliasKeySize    = 1 + 2 + proto.AliasMaxLength
 	approvedFeaturesKeySize = 1 + 2
 	votesFeaturesKeySize    = 1 + 2
+	invokeResultKeySize     = 1 + crypto.DigestSize
 
 	// Balances.
 	wavesBalanceKeyPrefix byte = iota
@@ -100,6 +101,9 @@ const (
 
 	// Batched storage (see batched_storage.go).
 	batchedStorKeyPrefix
+
+	// Invoke results.
+	invokeResultKeyPrefix
 
 	// Information about state: version, API support flag, ...
 	stateInfoKeyPrefix
@@ -559,4 +563,15 @@ func (k *batchedStorKey) unmarshal(data []byte) error {
 	copy(k.internalKey, data[2:len(data)-4])
 	k.batchNum = binary.LittleEndian.Uint32(data[len(data)-4:])
 	return nil
+}
+
+type invokeResultKey struct {
+	invokeID crypto.Digest
+}
+
+func (k *invokeResultKey) bytes() []byte {
+	res := make([]byte, invokeResultKeySize)
+	res[0] = invokeResultKeyPrefix
+	copy(res[1:], k.invokeID[:])
+	return res
 }

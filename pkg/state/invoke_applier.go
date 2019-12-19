@@ -72,16 +72,15 @@ type payment struct {
 }
 
 func (ia *invokeApplier) newPaymentFromScriptTransfer(scriptAddr proto.Address, tr proto.ScriptResultTransfer, info *invokeAddlInfo) (*payment, error) {
-	receiver, err := recipientToAddress(tr.Recipient, ia.stor.aliases, !info.initialisation)
-	if err != nil {
-		return nil, errors.Wrap(err, "recipientToAddress() failed")
+	if tr.Recipient.Address == nil {
+		return nil, errors.New("transfer has unresolved aliases")
 	}
 	if tr.Amount < 0 {
 		return nil, errors.New("transfer amount is < 0")
 	}
 	return &payment{
 		sender:   scriptAddr,
-		receiver: *receiver,
+		receiver: *tr.Recipient.Address,
 		amount:   uint64(tr.Amount),
 		asset:    tr.Asset,
 	}, nil
@@ -149,6 +148,17 @@ func (ia *invokeApplier) createTxDiff(tx *proto.InvokeScriptV1, info *invokeAddl
 	return ia.blockDiffer.createTransactionDiff(tx, info.block, info.height, info.initialisation)
 }
 
+func (ia *invokeApplier) resolveAliases(transfers proto.TransferSet, initialisation bool) error {
+	var err error
+	for i, tr := range transfers {
+		transfers[i].Recipient.Address, err = recipientToAddress(tr.Recipient, ia.stor.aliases, !initialisation)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // For InvokeScript transactions there is no performer function.
 // Instead, here (in applyInvokeScriptV1) we perform both balance and state changes
 // along with fee validation which is normally done in checker function.
@@ -184,6 +194,16 @@ func (ia *invokeApplier) applyInvokeScriptV1(tx *proto.InvokeScriptV1, info *inv
 	if err := scriptRes.Valid(); err != nil {
 		return txBalanceChanges{}, errors.Wrap(err, "invalid script result")
 	}
+	// Resolve all aliases in TransferSet.
+	if err := ia.resolveAliases(scriptRes.Transfers, info.initialisation); err != nil {
+		return txBalanceChanges{}, errors.New("ScriptResult; failed to resolve aliases")
+	}
+	if ia.buildApiData {
+		// Save invoke reasult for extended API.
+		if err := ia.stor.invokeResults.saveResult(*tx.ID, scriptRes, info.block.BlockSignature); err != nil {
+			return txBalanceChanges{}, errors.Wrap(err, "failed to save script result")
+		}
+	}
 	// Perform fee and payment changes first.
 	// Basic differ for InvokeScript creates only fee and payment diff.
 	feeAndPaymentChanges, err := ia.createTxDiff(tx, info)
@@ -208,10 +228,7 @@ func (ia *invokeApplier) applyInvokeScriptV1(tx *proto.InvokeScriptV1, info *inv
 	// Perform transfers.
 	scriptRuns := info.previousScriptRuns
 	for _, transfer := range scriptRes.Transfers {
-		addr, err := recipientToAddress(transfer.Recipient, ia.stor.aliases, !info.initialisation)
-		if err != nil {
-			return txBalanceChanges{}, err
-		}
+		addr := transfer.Recipient.Address
 		totalChanges.appendAddr(*addr)
 		assetExists := ia.stor.assets.newestAssetExists(transfer.Asset, !info.initialisation)
 		if !assetExists {

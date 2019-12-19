@@ -136,6 +136,9 @@ type StateStable interface {
 	// Leases.
 	IsActiveLeasing(leaseID crypto.Digest) (bool, error)
 
+	// Invoke results.
+	InvokeResultByID(invokeID crypto.Digest) (*proto.ScriptResult, error)
+
 	// True if state stores additional information in order to provide extended API.
 	ProvidesExtendedApi() (bool, error)
 }

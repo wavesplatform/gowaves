@@ -55,6 +55,7 @@ type blockchainEntitiesStorage struct {
 	sponsoredAssets   *sponsoredAssets
 	scriptsStorage    *scriptsStorage
 	scriptsComplexity *scriptsComplexity
+	invokeResults     *invokeResults
 }
 
 func newBlockchainEntitiesStorage(hs *historyStorage, sets *settings.BlockchainSettings, rw *blockReadWriter) (*blockchainEntitiesStorage, error) {
@@ -110,6 +111,10 @@ func newBlockchainEntitiesStorage(hs *historyStorage, sets *settings.BlockchainS
 	if err != nil {
 		return nil, err
 	}
+	invokeResults, err := newInvokeResults(hs, aliases)
+	if err != nil {
+		return nil, err
+	}
 	return &blockchainEntitiesStorage{
 		hs,
 		aliases,
@@ -125,6 +130,7 @@ func newBlockchainEntitiesStorage(hs *historyStorage, sets *settings.BlockchainS
 		sponsoredAssets,
 		scriptsStorage,
 		scriptsComplexity,
+		invokeResults,
 	}, nil
 }
 
@@ -1803,6 +1809,14 @@ func (s *stateManager) IsActiveLeasing(leaseID crypto.Digest) (bool, error) {
 		return false, wrapErr(RetrievalError, err)
 	}
 	return isActive, nil
+}
+
+func (s *stateManager) InvokeResultByID(invokeID crypto.Digest) (*proto.ScriptResult, error) {
+	res, err := s.stor.invokeResults.invokeResult(invokeID, true)
+	if err != nil {
+		return nil, wrapErr(RetrievalError, err)
+	}
+	return res, nil
 }
 
 func (s *stateManager) ProvidesExtendedApi() (bool, error) {
