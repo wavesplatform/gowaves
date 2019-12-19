@@ -1545,13 +1545,35 @@ var bytesToDataEntry = map[DataValueType]reflect.Type{
 	DataBinary:  reflect.TypeOf(BinaryDataEntry{}),
 }
 
+func NewDataEntryFromBytes(data []byte) (DataEntry, error) {
+	if len(data) < 1 {
+		return nil, errors.New("invalid data size")
+	}
+	valueType, err := extractValueType(data)
+	if err != nil {
+		return nil, errors.New("failed to extract type of data entry")
+	}
+	entryType, ok := bytesToDataEntry[valueType]
+	if !ok {
+		return nil, errors.New("bad value type byte")
+	}
+	entry, ok := reflect.New(entryType).Interface().(DataEntry)
+	if !ok {
+		panic("This entry type does not implement DataEntry interface")
+	}
+	if err := entry.UnmarshalBinary(data); err != nil {
+		return nil, errors.Wrap(err, "failed to unmarshal entry")
+	}
+	return entry, nil
+}
+
 func NewDataEntryFromValueBytes(valueBytes []byte) (DataEntry, error) {
 	if len(valueBytes) < 1 {
 		return nil, errors.New("invalid data size")
 	}
 	entryType, ok := bytesToDataEntry[DataValueType(valueBytes[0])]
 	if !ok {
-		return nil, errors.New("invliad data entry type")
+		return nil, errors.New("invalid data entry type")
 	}
 	entry, ok := reflect.New(entryType).Interface().(DataEntry)
 	if !ok {
@@ -2739,6 +2761,64 @@ type ScriptResult struct {
 	Writes    WriteSet
 }
 
+func (sr *ScriptResult) MarshalWithAddresses() ([]byte, error) {
+	transfersBytes, err := sr.Transfers.MarshalWithAddresses()
+	if err != nil {
+		return nil, err
+	}
+	writesBytes, err := sr.Writes.MarshalBinary()
+	if err != nil {
+		return nil, err
+	}
+	res := make([]byte, len(transfersBytes)+len(writesBytes)+8)
+	pos := 0
+	transfersSize := uint32(len(transfersBytes))
+	binary.BigEndian.PutUint32(res[pos:], transfersSize)
+	pos += 4
+	copy(res[pos:], transfersBytes)
+	pos += len(transfersBytes)
+	writesSize := uint32(len(writesBytes))
+	binary.BigEndian.PutUint32(res[pos:], writesSize)
+	pos += 4
+	copy(res[pos:], writesBytes)
+	return res, nil
+}
+
+func (sr *ScriptResult) UnmarshalWithAddresses(data []byte) error {
+	pos := 4
+	if len(data) < pos {
+		return errors.New("invalid data size")
+	}
+	transfersSize := binary.BigEndian.Uint32(data[:pos])
+	pos += int(transfersSize)
+	if len(data) < pos {
+		return errors.New("invalid data size")
+	}
+	var ts TransferSet
+	if err := ts.UnmarshalWithAddresses(data[4:pos]); err != nil {
+		return err
+	}
+	if len(data) < pos {
+		return errors.New("invalid data size")
+	}
+	writesSize := binary.BigEndian.Uint32(data[pos:])
+	pos += 4
+	if len(data) < pos {
+		return errors.New("invalid data size")
+	}
+	var ws WriteSet
+	if err := ws.UnmarshalBinary(data[pos:]); err != nil {
+		return err
+	}
+	pos += int(writesSize)
+	if pos != len(data) {
+		return errors.New("invalid data size")
+	}
+	sr.Transfers = ts
+	sr.Writes = ws
+	return nil
+}
+
 func (sr *ScriptResult) Valid() error {
 	if err := sr.Transfers.Valid(); err != nil {
 		return err
@@ -2761,6 +2841,44 @@ func (sr *ScriptResult) ToProtobuf() (*g.InvokeScriptResult, error) {
 }
 
 type TransferSet []ScriptResultTransfer
+
+func (ts *TransferSet) binarySize() int {
+	totalSize := 0
+	for _, tr := range *ts {
+		totalSize += tr.binarySize()
+	}
+	return totalSize
+}
+
+func (ts *TransferSet) MarshalWithAddresses() ([]byte, error) {
+	res := make([]byte, ts.binarySize())
+	pos := 0
+	for _, tr := range *ts {
+		trBytes, err := tr.MarshalWithAddress()
+		if err != nil {
+			return nil, err
+		}
+		if pos+len(trBytes) > len(res) {
+			return nil, errors.New("invalid data size")
+		}
+		copy(res[pos:], trBytes)
+		pos += len(trBytes)
+	}
+	return res, nil
+}
+
+func (ts *TransferSet) UnmarshalWithAddresses(data []byte) error {
+	pos := 0
+	for pos < len(data) {
+		var tr ScriptResultTransfer
+		if err := tr.UnmarshalWithAddress(data[pos:]); err != nil {
+			return err
+		}
+		pos += tr.binarySize()
+		*ts = append(*ts, tr)
+	}
+	return nil
+}
 
 func (ts *TransferSet) Valid() error {
 	if len(*ts) > maxInvokeTransfers {
@@ -2787,6 +2905,44 @@ func (ts *TransferSet) ToProtobuf() ([]*g.InvokeScriptResult_Payment, error) {
 }
 
 type WriteSet []DataEntry
+
+func (ws *WriteSet) binarySize() int {
+	totalSize := 0
+	for _, entry := range *ws {
+		totalSize += entry.binarySize()
+	}
+	return totalSize
+}
+
+func (ws *WriteSet) MarshalBinary() ([]byte, error) {
+	res := make([]byte, ws.binarySize())
+	pos := 0
+	for _, entry := range *ws {
+		entryBytes, err := entry.MarshalBinary()
+		if err != nil {
+			return nil, err
+		}
+		if pos+len(entryBytes) > len(res) {
+			return nil, errors.New("invalid data size")
+		}
+		copy(res[pos:], entryBytes)
+		pos += len(entryBytes)
+	}
+	return res, nil
+}
+
+func (ws *WriteSet) UnmarshalBinary(data []byte) error {
+	pos := 0
+	for pos < len(data) {
+		entry, err := NewDataEntryFromBytes(data[pos:])
+		if err != nil {
+			return err
+		}
+		pos += entry.binarySize()
+		*ws = append(*ws, entry)
+	}
+	return nil
+}
 
 func (ws *WriteSet) Valid() error {
 	if len(*ws) > maxInvokeWrites {
@@ -2833,6 +2989,50 @@ type ScriptResultTransfer struct {
 	Recipient Recipient
 	Amount    int64
 	Asset     OptionalAsset
+}
+
+func (tr *ScriptResultTransfer) binarySize() int {
+	return AddressSize + 8 + tr.Asset.binarySize()
+}
+
+func (tr *ScriptResultTransfer) MarshalWithAddress() ([]byte, error) {
+	if tr.Recipient.Address == nil {
+		return nil, errors.New("can't marshal Recipient with no address set")
+	}
+	recipientBytes := tr.Recipient.Address.Bytes()
+	if len(recipientBytes) != AddressSize {
+		return nil, errors.New("invalid address size")
+	}
+	amountBytes := make([]byte, 8)
+	binary.PutVarint(amountBytes, tr.Amount)
+	assetBytes, err := tr.Asset.MarshalBinary()
+	if err != nil {
+		return nil, err
+	}
+	res := make([]byte, tr.binarySize())
+	copy(res, amountBytes)
+	copy(res[len(amountBytes):], assetBytes)
+	copy(res[len(amountBytes)+len(assetBytes):], recipientBytes)
+	return res, nil
+}
+
+func (tr *ScriptResultTransfer) UnmarshalWithAddress(data []byte) error {
+	if len(data) < 8 {
+		return errors.New("invalid data size")
+	}
+	tr.Amount, _ = binary.Varint(data[:8])
+	var asset OptionalAsset
+	if err := asset.UnmarshalBinary(data[8:]); err != nil {
+		return err
+	}
+	tr.Asset = asset
+	pos := 8 + asset.binarySize()
+	addr, err := NewAddressFromBytes(data[pos:])
+	if err != nil {
+		return err
+	}
+	tr.Recipient = NewRecipientFromAddress(addr)
+	return nil
 }
 
 func (tr *ScriptResultTransfer) ToProtobuf() (*g.InvokeScriptResult_Payment, error) {

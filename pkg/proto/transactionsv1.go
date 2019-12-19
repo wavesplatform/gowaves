@@ -2182,7 +2182,7 @@ func (tx *DataV1) bodyUnmarshalBinary(data []byte) error {
 	data = data[2:]
 	for i := 0; i < n; i++ {
 		var e DataEntry
-		t, err := tx.extractValueType(data)
+		t, err := extractValueType(data)
 		if err != nil {
 			return errors.Errorf("failed to extract type of data entry")
 		}
@@ -2221,12 +2221,12 @@ func (tx *DataV1) bodyUnmarshalBinary(data []byte) error {
 	return nil
 }
 
-func (tx *DataV1) extractValueType(data []byte) (DataValueType, error) {
+func extractValueType(data []byte) (DataValueType, error) {
 	if l := len(data); l < 3 {
 		return 0, errors.Errorf("not enough data to extract ValueType, expected not less than %d, received %d", 3, l)
 	}
 	kl := binary.BigEndian.Uint16(data)
-	if l := len(data); l < int(kl)+2 {
+	if l := len(data); l <= int(kl)+2 {
 		return 0, errors.Errorf("not enough data to extract ValueType, expected not less than %d, received %d", kl+2, l)
 	}
 	return DataValueType(data[kl+2]), nil
