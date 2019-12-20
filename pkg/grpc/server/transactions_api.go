@@ -5,6 +5,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/grpc/client"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"google.golang.org/grpc/codes"
@@ -142,5 +143,17 @@ func (s *Server) Sign(ctx context.Context, req *g.SignRequest) (*g.SignedTransac
 }
 
 func (s *Server) Broadcast(ctx context.Context, tx *g.SignedTransaction) (*g.SignedTransaction, error) {
-	return nil, status.Errorf(codes.Unimplemented, "Not implemented")
+	var c client.SafeConverter
+	t, err := c.SignedTransaction(tx)
+	if err != nil {
+		return nil, status.Errorf(codes.FailedPrecondition, err.Error())
+	}
+	tBytes, err := t.MarshalBinary()
+	if err != nil {
+		return nil, status.Errorf(codes.FailedPrecondition, err.Error())
+	}
+	if added := s.utx.AddWithBytes(t, tBytes); !added {
+		return nil, status.Errorf(codes.Unavailable, "failed to add transaction to UTX")
+	}
+	return tx, nil
 }
