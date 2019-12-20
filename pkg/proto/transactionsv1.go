@@ -1748,6 +1748,15 @@ type MassTransferV1 struct {
 	Attachment Attachment          `json:"attachment,omitempty"`
 }
 
+func (tx MassTransferV1) HasRecipient(rcp Recipient) bool {
+	for _, tr := range tx.Transfers {
+		if tr.Recipient == rcp {
+			return true
+		}
+	}
+	return false
+}
+
 func (tx MassTransferV1) GetTypeVersion() TransactionTypeVersion {
 	return TransactionTypeVersion{tx.Type, tx.Version}
 }

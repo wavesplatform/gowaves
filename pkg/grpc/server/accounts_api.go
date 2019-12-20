@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/golang/protobuf/ptypes/wrappers"
+	"github.com/pkg/errors"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"google.golang.org/grpc/codes"
@@ -53,6 +54,22 @@ func (s *Server) GetScript(ctx context.Context, req *g.AccountRequest) (*g.Scrip
 	return scriptInfo.ToProtobuf(), nil
 }
 
+type getActiveLeasesHandler struct {
+	srv g.AccountsApi_GetActiveLeasesServer
+	s   *Server
+}
+
+func (h *getActiveLeasesHandler) handle(tx proto.Transaction) error {
+	res, err := h.s.transactionToTransactionResponse(tx)
+	if err != nil {
+		return errors.Wrap(err, "failed to form transaction response")
+	}
+	if err := h.srv.Send(res); err != nil {
+		return errors.Wrap(err, "failed to send")
+	}
+	return nil
+}
+
 func (s *Server) GetActiveLeases(req *g.AccountRequest, srv g.AccountsApi_GetActiveLeasesServer) error {
 	extendedApi, err := s.state.ProvidesExtendedApi()
 	if err != nil {
@@ -61,7 +78,25 @@ func (s *Server) GetActiveLeases(req *g.AccountRequest, srv g.AccountsApi_GetAct
 	if !extendedApi {
 		return status.Errorf(codes.FailedPrecondition, "Node's state does not have information required for extended API")
 	}
-	return status.Errorf(codes.Unimplemented, "Not implemented")
+	reqTr := &g.TransactionsRequest{Sender: req.Address}
+	ftr, err := newTxFilter(s.scheme, reqTr)
+	if err != nil {
+		return status.Errorf(codes.FailedPrecondition, err.Error())
+	}
+	filter := newTxFilterLeases(ftr, s.state)
+	iter, err := s.newStateIterator(ftr.getSenderRecipient())
+	if err != nil {
+		return status.Errorf(codes.Internal, err.Error())
+	}
+	if iter == nil {
+		// Nothing to iterate.
+		return nil
+	}
+	handler := &getActiveLeasesHandler{srv, s}
+	if err := s.iterateAndHandleTransactions(iter, filter.filter, handler.handle); err != nil {
+		return status.Errorf(codes.Internal, err.Error())
+	}
+	return nil
 }
 
 func (s *Server) GetDataEntries(req *g.DataRequest, srv g.AccountsApi_GetDataEntriesServer) error {

@@ -3,10 +3,29 @@ package server
 import (
 	"context"
 
+	"github.com/pkg/errors"
+	"github.com/wavesplatform/gowaves/pkg/crypto"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated"
+	"github.com/wavesplatform/gowaves/pkg/proto"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
+
+type getTransactionsHandler struct {
+	srv g.TransactionsApi_GetTransactionsServer
+	s   *Server
+}
+
+func (h *getTransactionsHandler) handle(tx proto.Transaction) error {
+	res, err := h.s.transactionToTransactionResponse(tx)
+	if err != nil {
+		return errors.Wrap(err, "failed to form transaction response")
+	}
+	if err := h.srv.Send(res); err != nil {
+		return errors.Wrap(err, "failed to send")
+	}
+	return nil
+}
 
 func (s *Server) GetTransactions(req *g.TransactionsRequest, srv g.TransactionsApi_GetTransactionsServer) error {
 	extendedApi, err := s.state.ProvidesExtendedApi()
@@ -16,7 +35,50 @@ func (s *Server) GetTransactions(req *g.TransactionsRequest, srv g.TransactionsA
 	if !extendedApi {
 		return status.Errorf(codes.FailedPrecondition, "Node's state does not have information required for extended API")
 	}
-	return status.Errorf(codes.Unimplemented, "Not implemented")
+	filter, err := newTxFilter(s.scheme, req)
+	if err != nil {
+		return status.Errorf(codes.FailedPrecondition, err.Error())
+	}
+	iter, err := s.newStateIterator(filter.getSenderRecipient())
+	if err != nil {
+		return status.Errorf(codes.Internal, err.Error())
+	}
+	if iter == nil {
+		// Nothing to iterate.
+		return nil
+	}
+	handler := &getTransactionsHandler{srv, s}
+	if err := s.iterateAndHandleTransactions(iter, filter.filter, handler.handle); err != nil {
+		return status.Errorf(codes.Internal, err.Error())
+	}
+	return nil
+}
+
+type getStateChangesHandler struct {
+	srv g.TransactionsApi_GetStateChangesServer
+	s   *Server
+}
+
+func (h *getStateChangesHandler) handle(tx proto.Transaction) error {
+	var id crypto.Digest
+	switch t := tx.(type) {
+	case *proto.InvokeScriptV1:
+		id = *t.ID
+	default:
+		return errors.New("bad transaction type")
+	}
+	res, err := h.s.state.InvokeResultByID(id)
+	if err != nil {
+		return errors.Wrap(err, "InvokeResultByID() failed")
+	}
+	resProto, err := res.ToProtobuf()
+	if err != nil {
+		return errors.Wrap(err, "failed to convert ScriptResult to protobuf")
+	}
+	if err := h.srv.Send(resProto); err != nil {
+		return errors.Wrap(err, "failed to send")
+	}
+	return nil
 }
 
 func (s *Server) GetStateChanges(req *g.TransactionsRequest, srv g.TransactionsApi_GetStateChangesServer) error {
@@ -27,7 +89,24 @@ func (s *Server) GetStateChanges(req *g.TransactionsRequest, srv g.TransactionsA
 	if !extendedApi {
 		return status.Errorf(codes.FailedPrecondition, "Node's state does not have information required for extended API")
 	}
-	return status.Errorf(codes.Unimplemented, "Not implemented")
+	ftr, err := newTxFilter(s.scheme, req)
+	if err != nil {
+		return status.Errorf(codes.FailedPrecondition, err.Error())
+	}
+	filter := newTxFilterInvoke(ftr, s.state)
+	iter, err := s.newStateIterator(ftr.getSenderRecipient())
+	if err != nil {
+		return status.Errorf(codes.Internal, err.Error())
+	}
+	if iter == nil {
+		// Nothing to iterate.
+		return nil
+	}
+	handler := &getStateChangesHandler{srv, s}
+	if err := s.iterateAndHandleTransactions(iter, filter.filter, handler.handle); err != nil {
+		return status.Errorf(codes.Internal, err.Error())
+	}
+	return nil
 }
 
 func (s *Server) GetStatuses(req *g.TransactionsByIdRequest, srv g.TransactionsApi_GetStatusesServer) error {
