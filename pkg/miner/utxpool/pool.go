@@ -50,6 +50,15 @@ func New(sizeLimit uint) *UtxImpl {
 	}
 }
 
+func (a *UtxImpl) AllTransactions() []*types.TransactionWithBytes {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	res := make([]*types.TransactionWithBytes, len(a.transactions))
+	copy(res, a.transactions)
+	return res
+}
+
 func (a *UtxImpl) AddWithBytes(t proto.Transaction, b []byte) (added bool) {
 	a.mu.Lock()
 	defer a.mu.Unlock()

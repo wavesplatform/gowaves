@@ -37,6 +37,7 @@ type UtxPool interface {
 	AddWithBytes(t proto.Transaction, b []byte) (added bool)
 	Exists(t proto.Transaction) bool
 	Pop() *TransactionWithBytes
+	AllTransactions() []*TransactionWithBytes
 }
 
 type TransactionWithBytes struct {

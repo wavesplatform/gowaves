@@ -134,8 +134,38 @@ func (s *Server) GetStatuses(req *g.TransactionsByIdRequest, srv g.TransactionsA
 	return nil
 }
 
+type getUnconfirmedHandler struct {
+	srv g.TransactionsApi_GetUnconfirmedServer
+	s   *Server
+}
+
+func (h *getUnconfirmedHandler) handle(tx proto.Transaction) error {
+	res, err := h.s.transactionToTransactionResponse(tx)
+	if err != nil {
+		return errors.Wrap(err, "failed to form transaction response")
+	}
+	if err := h.srv.Send(res); err != nil {
+		return errors.Wrap(err, "failed to send")
+	}
+	return nil
+}
+
 func (s *Server) GetUnconfirmed(req *g.TransactionsRequest, srv g.TransactionsApi_GetUnconfirmedServer) error {
-	return status.Errorf(codes.Unimplemented, "Not implemented")
+	filter, err := newTxFilter(s.scheme, req)
+	if err != nil {
+		return status.Errorf(codes.FailedPrecondition, err.Error())
+	}
+	handler := &getUnconfirmedHandler{srv, s}
+	txs := s.utx.AllTransactions()
+	for _, tx := range txs {
+		if !filter.filter(tx.T) {
+			continue
+		}
+		if err := handler.handle(tx.T); err != nil {
+			return status.Errorf(codes.Internal, err.Error())
+		}
+	}
+	return nil
 }
 
 func (s *Server) Sign(ctx context.Context, req *g.SignRequest) (*g.SignedTransaction, error) {
