@@ -95,6 +95,7 @@ type Transaction interface {
 	GetFee() uint64
 	GetTimestamp() uint64
 	GenerateID()
+	Sign(sk crypto.SecretKey) error
 	ToProtobuf(scheme Scheme) (*g.Transaction, error)
 	ToProtobufSigned(scheme Scheme) (*g.SignedTransaction, error)
 }
@@ -270,6 +271,10 @@ func (tx *Genesis) GenerateID() {
 	if err != nil {
 		panic(err.Error())
 	}
+}
+
+func (tx Genesis) Sign(sk crypto.SecretKey) error {
+	return tx.GenerateSigID()
 }
 
 func (tx Genesis) GetSenderPK() crypto.PublicKey {
