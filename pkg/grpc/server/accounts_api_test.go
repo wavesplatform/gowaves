@@ -11,6 +11,7 @@ import (
 	"github.com/golang/protobuf/ptypes/wrappers"
 	"github.com/stretchr/testify/assert"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated"
+	"github.com/wavesplatform/gowaves/pkg/miner/scheduler"
 	"github.com/wavesplatform/gowaves/pkg/miner/utxpool"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
@@ -25,7 +26,8 @@ func TestGetBalances(t *testing.T) {
 	params.StoreExtendedApiData = true
 	st, err := state.NewState(dataDir, params, settings.MainNetSettings)
 	assert.NoError(t, err)
-	err = server.initServer(st, utxpool.New(utxSize))
+	sch := scheduler.NewScheduler(st, keyPairs, settings.MainNetSettings)
+	err = server.initServer(st, utxpool.New(utxSize), sch)
 	assert.NoError(t, err)
 
 	conn := connect(t, grpcTestAddr)
@@ -67,7 +69,10 @@ func TestResolveAlias(t *testing.T) {
 	genesisPath, err := globalPathFromLocal("testdata/genesis/alias_genesis.json")
 	assert.NoError(t, err)
 	st, stateCloser := stateWithCustomGenesis(t, genesisPath)
-	err = server.initServer(st, utxpool.New(utxSize))
+	sets, err := st.BlockchainSettings()
+	assert.NoError(t, err)
+	sch := scheduler.NewScheduler(st, keyPairs, sets)
+	err = server.initServer(st, utxpool.New(utxSize), sch)
 	assert.NoError(t, err)
 
 	conn := connect(t, grpcTestAddr)

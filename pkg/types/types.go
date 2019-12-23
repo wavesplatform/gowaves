@@ -9,6 +9,12 @@ import (
 
 type Scheduler interface {
 	Reschedule()
+	// TODO: this function should be moved to wallet module, as well as keyPairs.
+	// Private keys should only be accessible from wallet module.
+	// All the other modules that need them, e.g. miner, api should call wallet's methods
+	// to sign what is needed.
+	// For now let's keep keys *only* in Scheduler.
+	SignTransactionWith(pk crypto.PublicKey, tx proto.Transaction) error
 }
 
 // Miner mutates state, applying block also. We can't do it together.

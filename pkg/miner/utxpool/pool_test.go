@@ -25,6 +25,10 @@ func (a transaction) ToProtobufSigned(scheme proto.Scheme) (*g.SignedTransaction
 	panic("implement me")
 }
 
+func (a transaction) Sign(sk crypto.SecretKey) error {
+	panic("implement me")
+}
+
 func (a transaction) Addresses(scheme proto.Scheme) ([]proto.Recipient, error) {
 	panic("implement me")
 }

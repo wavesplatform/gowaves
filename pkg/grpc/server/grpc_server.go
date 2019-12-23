@@ -9,6 +9,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/miner/utxpool"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/state"
+	"github.com/wavesplatform/gowaves/pkg/types"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 )
@@ -17,17 +18,18 @@ type Server struct {
 	state  state.State
 	scheme proto.Scheme
 	utx    *utxpool.UtxImpl
+	sch    types.Scheduler
 }
 
-func NewServer(state state.State, utx *utxpool.UtxImpl) (*Server, error) {
+func NewServer(state state.State, utx *utxpool.UtxImpl, sch types.Scheduler) (*Server, error) {
 	s := &Server{}
-	if err := s.initServer(state, utx); err != nil {
+	if err := s.initServer(state, utx, sch); err != nil {
 		return nil, err
 	}
 	return s, nil
 }
 
-func (s *Server) initServer(state state.State, utx *utxpool.UtxImpl) error {
+func (s *Server) initServer(state state.State, utx *utxpool.UtxImpl, sch types.Scheduler) error {
 	settings, err := state.BlockchainSettings()
 	if err != nil {
 		return err
@@ -35,6 +37,7 @@ func (s *Server) initServer(state state.State, utx *utxpool.UtxImpl) error {
 	s.state = state
 	s.scheme = settings.AddressSchemeCharacter
 	s.utx = utx
+	s.sch = sch
 	return nil
 }
 

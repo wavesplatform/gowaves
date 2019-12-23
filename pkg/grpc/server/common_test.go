@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/mr-tron/base58/base58"
 	"github.com/phayes/freeport"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
@@ -29,10 +30,12 @@ const (
 
 var (
 	server       *Server
+	keyPairs     []proto.KeyPair
 	grpcTestAddr string
 
 	minerSkStr = "6SyE7t2u5HiKP1XJtRubbR9HSUhGGEkVAzHtobHnbGxL"
 	minerPkStr = "7SPo26fzFRvFxAd6GiqSP2qBB98qt5hytGxKgq6faiZZ"
+	seed       = "4TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk4bc"
 )
 
 func globalPathFromLocal(path string) (string, error) {
@@ -101,6 +104,16 @@ func TestMain(m *testing.M) {
 			log.Fatalf("server.Run(): %v\n", err)
 		}
 	}()
+
+	seedBytes, err := base58.Decode(seed)
+	if err != nil {
+		log.Fatalf("Failed to decode test seed: %v\n", err)
+	}
+	keyPair, err := proto.NewKeyPair(seedBytes)
+	if err != nil {
+		log.Fatalf("Failed to generate key pair: %v\n", err)
+	}
+	keyPairs = []proto.KeyPair{keyPair}
 
 	time.Sleep(sleepTime)
 	code := m.Run()

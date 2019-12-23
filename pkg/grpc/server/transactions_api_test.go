@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated"
+	"github.com/wavesplatform/gowaves/pkg/miner/scheduler"
 	"github.com/wavesplatform/gowaves/pkg/miner/utxpool"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
@@ -24,8 +25,9 @@ func TestGetStatuses(t *testing.T) {
 	params.StoreExtendedApiData = true
 	st, err := state.NewState(dataDir, params, settings.MainNetSettings)
 	assert.NoError(t, err)
+	sch := scheduler.NewScheduler(st, keyPairs, settings.MainNetSettings)
 	utx := utxpool.New(utxSize)
-	err = server.initServer(st, utx)
+	err = server.initServer(st, utx, sch)
 	assert.NoError(t, err)
 
 	conn := connect(t, grpcTestAddr)

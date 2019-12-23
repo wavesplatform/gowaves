@@ -190,7 +190,7 @@ func main() {
 	}()
 
 	if *enableGrpcApi {
-		grpcServer, err := server.NewServer(state, utx)
+		grpcServer, err := server.NewServer(state, utx, scheduler)
 		if err != nil {
 			zap.S().Errorf("Failed to create gRPC server: %v", err)
 		}

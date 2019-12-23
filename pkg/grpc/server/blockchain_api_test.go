@@ -9,6 +9,7 @@ import (
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/stretchr/testify/assert"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated"
+	"github.com/wavesplatform/gowaves/pkg/miner/scheduler"
 	"github.com/wavesplatform/gowaves/pkg/miner/utxpool"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
@@ -23,7 +24,8 @@ func TestGetBaseTarget(t *testing.T) {
 	params.StoreExtendedApiData = true
 	st, err := state.NewState(dataDir, params, settings.MainNetSettings)
 	assert.NoError(t, err)
-	err = server.initServer(st, utxpool.New(utxSize))
+	sch := scheduler.NewScheduler(st, keyPairs, settings.MainNetSettings)
+	err = server.initServer(st, utxpool.New(utxSize), sch)
 	assert.NoError(t, err)
 
 	conn := connect(t, grpcTestAddr)
@@ -64,7 +66,8 @@ func TestGetCumulativeScore(t *testing.T) {
 	params.StoreExtendedApiData = true
 	st, err := state.NewState(dataDir, params, settings.MainNetSettings)
 	assert.NoError(t, err)
-	err = server.initServer(st, utxpool.New(utxSize))
+	sch := scheduler.NewScheduler(st, keyPairs, settings.MainNetSettings)
+	err = server.initServer(st, utxpool.New(utxSize), sch)
 	assert.NoError(t, err)
 
 	conn := connect(t, grpcTestAddr)

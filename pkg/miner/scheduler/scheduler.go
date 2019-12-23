@@ -1,9 +1,11 @@
 package scheduler
 
 import (
+	"bytes"
 	"sync"
 	"time"
 
+	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/consensus"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -214,6 +216,20 @@ func (a *SchedulerImpl) reschedule(state state.State, confirmedBlock *proto.Bloc
 
 		}
 	}
+}
+
+// TODO: this function should be moved to wallet module, as well as keyPairs.
+// Private keys should only be accessible from wallet module.
+// All the other modules that need them, e.g. miner, api should call wallet's methods
+// to sign what is needed.
+// For now let's keep keys *only* in Scheduler.
+func (a *SchedulerImpl) SignTransactionWith(pk crypto.PublicKey, tx proto.Transaction) error {
+	for _, kp := range a.keyPairs {
+		if bytes.Equal(kp.Public.Bytes(), pk.Bytes()) {
+			return tx.Sign(kp.Secret)
+		}
+	}
+	return errors.New("public key not found")
 }
 
 func (a *SchedulerImpl) Emits() []Emit {
