@@ -20,16 +20,12 @@ type txFilter struct {
 func newTxFilter(scheme byte, req *g.TransactionsRequest) (*txFilter, error) {
 	res := &txFilter{}
 	res.scheme = scheme
+	var c client.SafeConverter
 	if req.Sender != nil {
-		sender, err := proto.NewAddressFromBytes(req.Sender)
-		if err != nil {
-			return nil, err
-		}
-		res.sender = sender
+		res.sender = c.Address(scheme, req.Sender)
 		res.hasSender = true
 	}
 	if req.Recipient != nil {
-		var c client.SafeConverter
 		res.recipient = c.Recipient(scheme, req.Recipient)
 		res.hasRecipient = true
 	}
@@ -40,6 +36,9 @@ func newTxFilter(scheme byte, req *g.TransactionsRequest) (*txFilter, error) {
 		}
 		res.ids = ids
 		res.hasIds = true
+	}
+	if err := c.Error(); err != nil {
+		return nil, err
 	}
 	return res, nil
 }
@@ -61,13 +60,13 @@ func (f *txFilter) filterRecipient(tx proto.Transaction) bool {
 	}
 	switch t := tx.(type) {
 	case *proto.TransferV1:
-		return t.Recipient == f.recipient
+		return t.Recipient.Eq(f.recipient)
 	case *proto.TransferV2:
-		return t.Recipient == f.recipient
+		return t.Recipient.Eq(f.recipient)
 	case *proto.LeaseV1:
-		return t.Recipient == f.recipient
+		return t.Recipient.Eq(f.recipient)
 	case *proto.LeaseV2:
-		return t.Recipient == f.recipient
+		return t.Recipient.Eq(f.recipient)
 	case *proto.MassTransferV1:
 		return t.HasRecipient(f.recipient)
 	default:

@@ -44,8 +44,10 @@ func TestGetBalances(t *testing.T) {
 	cl := g.NewAccountsApiClient(conn)
 	addr, err := proto.NewAddressFromString("3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ")
 	assert.NoError(t, err)
+	addrBody, err := addr.Body()
+	assert.NoError(t, err)
 	req := &g.BalancesRequest{
-		Address: addr.Bytes(),
+		Address: addrBody,
 		Assets:  [][]byte{{}},
 	}
 	stream, err := cl.GetBalances(ctx, req)
@@ -85,12 +87,13 @@ func TestResolveAlias(t *testing.T) {
 
 	cl := g.NewAccountsApiClient(conn)
 
-	aliasStr := "alias:W:nodes"
-	alias, err := proto.NewAliasFromString(aliasStr)
-	assert.NoError(t, err)
+	aliasStr := "nodes"
+	alias := proto.NewAlias('W', aliasStr)
 	correctAddr, err := st.AddrByAlias(*alias)
 	assert.NoError(t, err)
 	addr, err := cl.ResolveAlias(ctx, &wrappers.StringValue{Value: aliasStr})
 	assert.NoError(t, err)
-	assert.True(t, bytes.Equal(correctAddr.Bytes(), addr.Value))
+	correctBody, err := correctAddr.Body()
+	assert.NoError(t, err)
+	assert.True(t, bytes.Equal(correctBody, addr.Value))
 }

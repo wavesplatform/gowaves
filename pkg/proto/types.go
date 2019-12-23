@@ -3039,9 +3039,13 @@ func (tr *ScriptResultTransfer) ToProtobuf() (*g.InvokeScriptResult_Payment, err
 	if tr.Recipient.Address == nil {
 		return nil, errors.New("script transfer has alias recipient, protobuf needs address")
 	}
+	addrBody, err := tr.Recipient.Address.Body()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get address body")
+	}
 	return &g.InvokeScriptResult_Payment{
 		Amount:  &g.Amount{AssetId: tr.Asset.ToID(), Amount: tr.Amount},
-		Address: tr.Recipient.Address.Bytes(),
+		Address: addrBody,
 	}, nil
 }
 

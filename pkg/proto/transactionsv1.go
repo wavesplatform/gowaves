@@ -413,7 +413,10 @@ func (tx *TransferV1) UnmarshalBinary(data []byte) error {
 
 func (tx *TransferV1) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
 	res := TransactionToProtobufCommon(scheme, tx)
-	txData := tx.Transfer.ToProtobuf()
+	txData, err := tx.Transfer.ToProtobuf()
+	if err != nil {
+		return nil, err
+	}
 	fee := &g.Amount{AssetId: tx.FeeAsset.ToID(), Amount: int64(tx.Fee)}
 	res.Fee = fee
 	res.Data = txData
@@ -1330,7 +1333,10 @@ func (tx *LeaseV1) UnmarshalBinary(data []byte) error {
 
 func (tx *LeaseV1) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
 	res := TransactionToProtobufCommon(scheme, tx)
-	txData := tx.Lease.ToProtobuf()
+	txData, err := tx.Lease.ToProtobuf()
+	if err != nil {
+		return nil, err
+	}
 	fee := &g.Amount{AssetId: nil, Amount: int64(tx.Fee)}
 	res.Fee = fee
 	res.Data = txData
@@ -1706,8 +1712,12 @@ type MassTransferEntry struct {
 	Amount    uint64    `json:"amount"`
 }
 
-func (e *MassTransferEntry) ToProtobuf() *g.MassTransferTransactionData_Transfer {
-	return &g.MassTransferTransactionData_Transfer{Address: e.Recipient.ToProtobuf(), Amount: int64(e.Amount)}
+func (e *MassTransferEntry) ToProtobuf() (*g.MassTransferTransactionData_Transfer, error) {
+	rcpProto, err := e.Recipient.ToProtobuf()
+	if err != nil {
+		return nil, err
+	}
+	return &g.MassTransferTransactionData_Transfer{Address: rcpProto, Amount: int64(e.Amount)}, nil
 }
 
 func (e *MassTransferEntry) MarshalBinary() ([]byte, error) {
@@ -2007,9 +2017,13 @@ func (tx *MassTransferV1) UnmarshalBinary(data []byte) error {
 }
 
 func (tx *MassTransferV1) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
+	var err error
 	transfers := make([]*g.MassTransferTransactionData_Transfer, len(tx.Transfers))
 	for i, tr := range tx.Transfers {
-		transfers[i] = tr.ToProtobuf()
+		transfers[i], err = tr.ToProtobuf()
+		if err != nil {
+			return nil, err
+		}
 	}
 	txData := &g.Transaction_MassTransfer{MassTransfer: &g.MassTransferTransactionData{
 		AssetId:    tx.Asset.ToID(),
@@ -3415,8 +3429,12 @@ func (tx *InvokeScriptV1) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
 	for i, pmt := range tx.Payments {
 		payments[i] = &g.Amount{AssetId: pmt.Asset.ToID(), Amount: int64(pmt.Amount)}
 	}
+	rcpProto, err := tx.ScriptRecipient.ToProtobuf()
+	if err != nil {
+		return nil, err
+	}
 	txData := &g.Transaction_InvokeScript{InvokeScript: &g.InvokeScriptTransactionData{
-		DApp:         tx.ScriptRecipient.ToProtobuf(),
+		DApp:         rcpProto,
 		FunctionCall: fcBytes,
 		Payments:     payments,
 	}}

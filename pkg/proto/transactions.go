@@ -404,8 +404,12 @@ func (tx *Genesis) UnmarshalBinary(data []byte) error {
 }
 
 func (tx *Genesis) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
+	addrBody, err := tx.Recipient.Body()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get address body")
+	}
 	txData := &g.Transaction_Genesis{Genesis: &g.GenesisTransactionData{
-		RecipientAddress: tx.Recipient.Bytes(),
+		RecipientAddress: addrBody,
 		Amount:           int64(tx.Amount),
 	}}
 	res := TransactionToProtobufCommon(scheme, tx)
@@ -641,8 +645,12 @@ func (tx *Payment) UnmarshalBinary(data []byte) error {
 }
 
 func (tx *Payment) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
+	addrBody, err := tx.Recipient.Body()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get address body")
+	}
 	txData := &g.Transaction_Payment{Payment: &g.PaymentTransactionData{
-		RecipientAddress: tx.Recipient.Bytes(),
+		RecipientAddress: addrBody,
 		Amount:           int64(tx.Amount),
 	}}
 	fee := &g.Amount{AssetId: nil, Amount: int64(tx.Fee)}
@@ -945,12 +953,16 @@ func (tr *Transfer) unmarshalBinary(data []byte) error {
 	return nil
 }
 
-func (tr *Transfer) ToProtobuf() *g.Transaction_Transfer {
+func (tr *Transfer) ToProtobuf() (*g.Transaction_Transfer, error) {
+	rcpProto, err := tr.Recipient.ToProtobuf()
+	if err != nil {
+		return nil, err
+	}
 	return &g.Transaction_Transfer{Transfer: &g.TransferTransactionData{
-		Recipient:  tr.Recipient.ToProtobuf(),
+		Recipient:  rcpProto,
 		Amount:     &g.Amount{AssetId: tr.AmountAsset.ToID(), Amount: int64(tr.Amount)},
 		Attachment: []byte(tr.Attachment),
-	}}
+	}}, nil
 }
 
 type Reissue struct {
@@ -1129,11 +1141,15 @@ type Lease struct {
 	Timestamp uint64           `json:"timestamp,omitempty"`
 }
 
-func (l Lease) ToProtobuf() *g.Transaction_Lease {
+func (l Lease) ToProtobuf() (*g.Transaction_Lease, error) {
+	rcpProto, err := l.Recipient.ToProtobuf()
+	if err != nil {
+		return nil, err
+	}
 	return &g.Transaction_Lease{Lease: &g.LeaseTransactionData{
-		Recipient: l.Recipient.ToProtobuf(),
+		Recipient: rcpProto,
 		Amount:    int64(l.Amount),
-	}}
+	}}, nil
 }
 
 func (l Lease) GetSenderPK() crypto.PublicKey {

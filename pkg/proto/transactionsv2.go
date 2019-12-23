@@ -309,7 +309,10 @@ type TransferV2 struct {
 
 func (tx *TransferV2) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
 	res := TransactionToProtobufCommon(scheme, tx)
-	txData := tx.Transfer.ToProtobuf()
+	txData, err := tx.Transfer.ToProtobuf()
+	if err != nil {
+		return nil, err
+	}
 	fee := &g.Amount{AssetId: tx.FeeAsset.ToID(), Amount: int64(tx.Fee)}
 	res.Fee = fee
 	res.Data = txData
@@ -1458,7 +1461,10 @@ type LeaseV2 struct {
 
 func (tx *LeaseV2) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
 	res := TransactionToProtobufCommon(scheme, tx)
-	txData := tx.Lease.ToProtobuf()
+	txData, err := tx.Lease.ToProtobuf()
+	if err != nil {
+		return nil, err
+	}
 	fee := &g.Amount{AssetId: nil, Amount: int64(tx.Fee)}
 	res.Fee = fee
 	res.Data = txData

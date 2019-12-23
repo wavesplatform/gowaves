@@ -5,6 +5,7 @@ import (
 
 	"github.com/golang/protobuf/ptypes/wrappers"
 	"github.com/pkg/errors"
+	"github.com/wavesplatform/gowaves/pkg/grpc/client"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"google.golang.org/grpc/codes"
@@ -12,8 +13,9 @@ import (
 )
 
 func (s *Server) GetBalances(req *g.BalancesRequest, srv g.AccountsApi_GetBalancesServer) error {
-	addr, err := proto.NewAddressFromBytes(req.Address)
-	if err != nil {
+	var c client.SafeConverter
+	addr := c.Address(s.scheme, req.Address)
+	if err := c.Error(); err != nil {
 		return status.Errorf(codes.InvalidArgument, err.Error())
 	}
 	rcp := proto.NewRecipientFromAddress(addr)
@@ -42,8 +44,9 @@ func (s *Server) GetBalances(req *g.BalancesRequest, srv g.AccountsApi_GetBalanc
 }
 
 func (s *Server) GetScript(ctx context.Context, req *g.AccountRequest) (*g.ScriptData, error) {
-	addr, err := proto.NewAddressFromBytes(req.Address)
-	if err != nil {
+	var c client.SafeConverter
+	addr := c.Address(s.scheme, req.Address)
+	if err := c.Error(); err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, err.Error())
 	}
 	rcp := proto.NewRecipientFromAddress(addr)
@@ -100,8 +103,9 @@ func (s *Server) GetActiveLeases(req *g.AccountRequest, srv g.AccountsApi_GetAct
 }
 
 func (s *Server) GetDataEntries(req *g.DataRequest, srv g.AccountsApi_GetDataEntriesServer) error {
-	addr, err := proto.NewAddressFromBytes(req.Address)
-	if err != nil {
+	var c client.SafeConverter
+	addr := c.Address(s.scheme, req.Address)
+	if err := c.Error(); err != nil {
 		return status.Errorf(codes.InvalidArgument, err.Error())
 	}
 	rcp := proto.NewRecipientFromAddress(addr)
@@ -129,13 +133,14 @@ func (s *Server) GetDataEntries(req *g.DataRequest, srv g.AccountsApi_GetDataEnt
 }
 
 func (s *Server) ResolveAlias(ctx context.Context, req *wrappers.StringValue) (*wrappers.BytesValue, error) {
-	alias, err := proto.NewAliasFromString(req.Value)
-	if err != nil {
-		return nil, status.Errorf(codes.InvalidArgument, err.Error())
-	}
+	alias := proto.NewAlias(s.scheme, req.Value)
 	addr, err := s.state.AddrByAlias(*alias)
 	if err != nil {
 		return nil, status.Errorf(codes.NotFound, err.Error())
 	}
-	return &wrappers.BytesValue{Value: addr.Bytes()}, nil
+	addrBody, err := addr.Body()
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, err.Error())
+	}
+	return &wrappers.BytesValue{Value: addrBody}, nil
 }

@@ -11,6 +11,10 @@ type SafeConverter struct {
 	err error
 }
 
+func (c *SafeConverter) Error() error {
+	return c.err
+}
+
 func (c *SafeConverter) Address(scheme byte, addr []byte) proto.Address {
 	if c.err != nil {
 		return proto.Address{}
