@@ -1628,6 +1628,13 @@ func (s *stateManager) TransactionHeightByID(id []byte) (uint64, error) {
 }
 
 func (s *stateManager) NewAddrTransactionsIterator(addr proto.Address) (TransactionIterator, error) {
+	providesData, err := s.ProvidesExtendedApi()
+	if err != nil {
+		return nil, wrapErr(Other, err)
+	}
+	if !providesData {
+		return nil, wrapErr(IncompatibilityError, errors.New("state does not have data for transactions by address API"))
+	}
 	iter, err := s.atx.newTransactionsByAddrIterator(addr)
 	if err != nil {
 		return nil, wrapErr(Other, err)
@@ -1812,6 +1819,13 @@ func (s *stateManager) IsActiveLeasing(leaseID crypto.Digest) (bool, error) {
 }
 
 func (s *stateManager) InvokeResultByID(invokeID crypto.Digest) (*proto.ScriptResult, error) {
+	providesData, err := s.ProvidesExtendedApi()
+	if err != nil {
+		return nil, wrapErr(Other, err)
+	}
+	if !providesData {
+		return nil, wrapErr(IncompatibilityError, errors.New("state does not have data for invoke results"))
+	}
 	res, err := s.stor.invokeResults.invokeResult(invokeID, true)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
