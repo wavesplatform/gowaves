@@ -2,16 +2,14 @@ package server
 
 import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"github.com/wavesplatform/gowaves/pkg/state"
 )
 
 type txFilterInvoke struct {
-	f  *txFilter
-	st state.State
+	f *txFilter
 }
 
-func newTxFilterInvoke(filter *txFilter, st state.State) *txFilterInvoke {
-	return &txFilterInvoke{filter, st}
+func newTxFilterInvoke(filter *txFilter) *txFilterInvoke {
+	return &txFilterInvoke{filter}
 }
 
 func (fl *txFilterInvoke) filter(tx proto.Transaction) bool {

@@ -18,7 +18,7 @@ type getTransactionsHandler struct {
 }
 
 func (h *getTransactionsHandler) handle(tx proto.Transaction) error {
-	res, err := h.s.transactionToTransactionResponse(tx)
+	res, err := h.s.transactionToTransactionResponse(tx, true)
 	if err != nil {
 		return errors.Wrap(err, "failed to form transaction response")
 	}
@@ -94,7 +94,7 @@ func (s *Server) GetStateChanges(req *g.TransactionsRequest, srv g.TransactionsA
 	if err != nil {
 		return status.Errorf(codes.FailedPrecondition, err.Error())
 	}
-	filter := newTxFilterInvoke(ftr, s.state)
+	filter := newTxFilterInvoke(ftr)
 	iter, err := s.newStateIterator(ftr.getSenderRecipient())
 	if err != nil {
 		return status.Errorf(codes.Internal, err.Error())
@@ -140,7 +140,7 @@ type getUnconfirmedHandler struct {
 }
 
 func (h *getUnconfirmedHandler) handle(tx proto.Transaction) error {
-	res, err := h.s.transactionToTransactionResponse(tx)
+	res, err := h.s.transactionToTransactionResponse(tx, false)
 	if err != nil {
 		return errors.Wrap(err, "failed to form transaction response")
 	}

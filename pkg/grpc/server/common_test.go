@@ -67,6 +67,9 @@ func customSettingsWithGenesis(t *testing.T, genesisPath string) *settings.Block
 	signBlock(t, genesis)
 	sets := settings.DefaultCustomSettings
 	sets.Genesis = *genesis
+	// For compatibility with MainNet addresses we use the same AddressSchemeCharacter.
+	// This is needed because transactions from MainNet blockchain are used in tests' genesis blocks.
+	sets.AddressSchemeCharacter = settings.MainNetSettings.AddressSchemeCharacter
 	return sets
 }
 

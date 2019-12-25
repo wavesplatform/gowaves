@@ -7,20 +7,25 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/state"
 )
 
-func (s *Server) transactionToTransactionResponse(tx proto.Transaction) (*g.TransactionResponse, error) {
+func (s *Server) transactionToTransactionResponse(tx proto.Transaction, setHeight bool) (*g.TransactionResponse, error) {
 	id, err := tx.GetID()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get tx ID")
-	}
-	height, err := s.state.TransactionHeightByID(id)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to get tx height by ID")
 	}
 	txProto, err := tx.ToProtobufSigned(s.scheme)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to convert transaction to Protobuf")
 	}
-	return &g.TransactionResponse{Id: id, Height: int64(height), Transaction: txProto}, nil
+	res := &g.TransactionResponse{Id: id, Transaction: txProto}
+	if !setHeight {
+		return res, nil
+	}
+	height, err := s.state.TransactionHeightByID(id)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get tx height by ID")
+	}
+	res.Height = int64(height)
+	return res, nil
 }
 
 func (s *Server) newStateIterator(sender, recipient *proto.Address) (state.TransactionIterator, error) {

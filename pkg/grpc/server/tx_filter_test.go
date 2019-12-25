@@ -17,7 +17,7 @@ const (
 	scheme = byte('W')
 )
 
-func TestTxNewFilter(t *testing.T) {
+func TestTxFilter(t *testing.T) {
 	var tx proto.Transaction
 	pk, err := crypto.NewPublicKeyFromBase58(pkStr)
 	assert.NoError(t, err)

@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "timestamp": 1503981123340,
+  "timestamp": 1492794484296,
   "reference": "3KQZFTX6G6X2JLpU9d3B3Gtu33XY1LeyCVR5qjn7fvyB7YN9wqqCkqivVL7VK8tz2dqDpwDZDQTQPLXPZNv248ak",
   "nxt-consensus": {
     "base-target": 153722867,
@@ -14,24 +14,25 @@
       "type": 1,
       "id": "2DVtfgXjpMeFf2PQCqvwxAiaGbiDsxDjSdNQkc5JQ74eWxjWFYgwvqzC4dn7iB1AhuM32WxEiVi1SGijsBtYQwn8",
       "fee": 0,
-      "timestamp": 1503981123341,
+      "timestamp": 1492794484296,
       "signature": "2DVtfgXjpMeFf2PQCqvwxAiaGbiDsxDjSdNQkc5JQ74eWxjWFYgwvqzC4dn7iB1AhuM32WxEiVi1SGijsBtYQwn8",
-      "recipient": "3PB4JPZPzwJv2akvSw23gjF7347NpX5gVXF",
+      "recipient": "3PA8bSJHXDJwq5p5UstaLmY5Rp5DG1cqNwR",
       "amount": 9999999500000000
     },
     {
-      "senderPublicKey": "DFW7xVVoQJBjtJy5PR7WaNpFM2Rfj9j57rW6n3WTY8b8",
-      "feeAssetId": null,
-      "signature": "5TwiGvT9v4gMCpJoWLMBUj2DCGUf8vw9cQ3hSW7XbjuPkogz73PvkBz4wXNNtCCgEvMqxfN7z9JcUpwVSX8c1qy3",
-      "proofs": [
-              "5TwiGvT9v4gMCpJoWLMBUj2DCGUf8vw9cQ3hSW7XbjuPkogz73PvkBz4wXNNtCCgEvMqxfN7z9JcUpwVSX8c1qy3"
-      ],
+      "senderPublicKey": "7rAoh3kPtsPQCTMVe9Bb39GKNX17bR5G57Ef66uwXfeT",
+      "amount": 50000000000,
+       "signature": "2fiYnoJd7j9emmG6BAzAmEcst9UkmwfSyKLbSnPinBQaQAKj5RVPNFTfJsNrHfaF2DzKouW36Ph1Re2funWCkDh1",
       "fee": 100000,
-      "alias": "nodes",
-      "id": "BdNJdUPQHbJe1UX8Q2vk5FGoN5WtQjxTRmdCwJzdJuL9",
-      "type": 10,
+      "type": 8,
       "version": 1,
-      "timestamp": 1503981123341
+      "feeAssetId": null,
+      "proofs": [
+              "2fiYnoJd7j9emmG6BAzAmEcst9UkmwfSyKLbSnPinBQaQAKj5RVPNFTfJsNrHfaF2DzKouW36Ph1Re2funWCkDh1"
+      ],
+      "recipient": "3P2HNUd5VUPLMQkJmctTPEeeHumiPN2GkTb",
+      "id": "ADXuoPsKMJ59HyLMGzLBbNQD8p2eJ93dciuBPJp3Qhx",
+      "timestamp": 1492794484296
     }
   ]
 }

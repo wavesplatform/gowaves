@@ -1,6 +1,7 @@
 package server
 
 import (
+	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/state"
 )
@@ -14,26 +15,23 @@ func newTxFilterLeases(filter *txFilter, st state.State) *txFilterLeases {
 	return &txFilterLeases{filter, st}
 }
 
-func (fl *txFilterLeases) filter(tx proto.Transaction) bool {
-	if tx.GetTypeVersion().Type != proto.LeaseTransaction {
-		return false
-	}
+func (fl *txFilterLeases) filterLease(tx proto.Transaction, id crypto.Digest) bool {
 	if !fl.f.filter(tx) {
 		return false
 	}
+	isActive, err := fl.st.IsActiveLeasing(id)
+	if err != nil {
+		return false
+	}
+	return isActive
+}
+
+func (fl *txFilterLeases) filter(tx proto.Transaction) bool {
 	switch t := tx.(type) {
 	case *proto.LeaseV1:
-		isActive, err := fl.st.IsActiveLeasing(*t.ID)
-		if err != nil {
-			return false
-		}
-		return isActive
+		return fl.filterLease(t, *t.ID)
 	case *proto.LeaseV2:
-		isActive, err := fl.st.IsActiveLeasing(*t.ID)
-		if err != nil {
-			return false
-		}
-		return isActive
+		return fl.filterLease(t, *t.ID)
 	default:
 		return false
 	}

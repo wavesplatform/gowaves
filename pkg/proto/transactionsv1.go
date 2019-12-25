@@ -348,7 +348,7 @@ func (tx *TransferV1) Sign(secretKey crypto.SecretKey) error {
 	}
 	s, err := crypto.Sign(secretKey, b)
 	if err != nil {
-		return errors.Wrap(err, "failed to sign LeaseCancelV1 transaction")
+		return errors.Wrap(err, "failed to sign TransferV1 transaction")
 	}
 	tx.Signature = &s
 	d, err := crypto.FastHash(b)
