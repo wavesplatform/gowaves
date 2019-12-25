@@ -8,10 +8,10 @@ import (
 
 type txFilterLeases struct {
 	f  *txFilter
-	st state.State
+	st state.StateInfo
 }
 
-func newTxFilterLeases(filter *txFilter, st state.State) *txFilterLeases {
+func newTxFilterLeases(filter *txFilter, st state.StateInfo) *txFilterLeases {
 	return &txFilterLeases{filter, st}
 }
 

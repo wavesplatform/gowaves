@@ -2,6 +2,7 @@ package state
 
 import (
 	"encoding/binary"
+	"sync"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
@@ -59,6 +60,7 @@ type addressTransactions struct {
 func newAddressTransactions(
 	db keyvalue.IterableKeyVal,
 	dbBatch keyvalue.Batch,
+	writeLock *sync.Mutex,
 	stateDB *stateDB,
 	rw *blockReadWriter,
 ) *addressTransactions {
@@ -67,7 +69,7 @@ func newAddressTransactions(
 		recordSize:   rw.offsetLen,
 		prefix:       transactionIdsPrefix,
 	}
-	stor := newBatchedStorage(db, dbBatch, stateDB, params)
+	stor := newBatchedStorage(db, dbBatch, writeLock, stateDB, params)
 	return &addressTransactions{stateDB, rw, stor}
 }
 

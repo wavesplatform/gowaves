@@ -95,7 +95,7 @@ func (a internalImpl) schedule(state state.State, keyPairs []proto.KeyPair, sche
 			zap.S().Error(err)
 			continue
 		}
-		effectiveBalance, err := state.EffectiveBalance(proto.NewRecipientFromAddress(addr), confirmedBlockHeight-1000, confirmedBlockHeight)
+		effectiveBalance, err := state.EffectiveBalanceStable(proto.NewRecipientFromAddress(addr), confirmedBlockHeight-1000, confirmedBlockHeight)
 		locked.Unlock()
 		if err != nil {
 			zap.S().Error(err)

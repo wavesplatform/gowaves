@@ -8,6 +8,7 @@ package state
 import (
 	"encoding/binary"
 	"math"
+	"sync"
 
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
@@ -128,7 +129,12 @@ func (i *batchIterator) next() bool {
 func (i *batchIterator) currentBatch() ([]byte, error) {
 	key := keyvalue.SafeKey(i.iter)
 	val := keyvalue.SafeValue(i.iter)
-	return i.stor.manageNormalization(key, val)
+	// manageNormalization() MUST be called with `update` set to false.
+	// Because values (and even keys) from iterator might not correspond with
+	// current state of database.
+	// It happens if iterator is retrieved before database gets updated, and is used after
+	// it is updated.
+	return i.stor.manageNormalization(key, val, false)
 }
 
 func (i *batchIterator) error() error {
@@ -228,9 +234,10 @@ type batchedStorParams struct {
 }
 
 type batchedStorage struct {
-	db      keyvalue.IterableKeyVal
-	dbBatch keyvalue.Batch
-	stateDB *stateDB
+	db        keyvalue.IterableKeyVal
+	dbBatch   keyvalue.Batch
+	writeLock *sync.Mutex
+	stateDB   *stateDB
 
 	params    *batchedStorParams
 	localStor map[string]*batchesGroup
@@ -239,6 +246,7 @@ type batchedStorage struct {
 func newBatchedStorage(
 	db keyvalue.IterableKeyVal,
 	dbBatch keyvalue.Batch,
+	writeLock *sync.Mutex,
 	stateDB *stateDB,
 	params *batchedStorParams,
 ) *batchedStorage {
@@ -246,6 +254,7 @@ func newBatchedStorage(
 	return &batchedStorage{
 		db:        db,
 		dbBatch:   dbBatch,
+		writeLock: writeLock,
 		stateDB:   stateDB,
 		params:    params,
 		localStor: make(map[string]*batchesGroup),
@@ -288,6 +297,12 @@ func (s *batchedStorage) addRecord(key []byte, data []byte, blockNum uint32) err
 }
 
 func (s *batchedStorage) readLastBatch(key []byte) (*batch, error) {
+	// Lock the write lock.
+	// Normalized history will be written to database, so we need to make sure
+	// we read it and write under the same lock.
+	s.writeLock.Lock()
+	defer s.writeLock.Unlock()
+
 	k := batchedStorKey{prefix: s.params.prefix, internalKey: key}
 	iter, err := s.db.NewKeyIterator(k.prefixUntilBatch())
 	if err != nil {
@@ -303,7 +318,7 @@ func (s *batchedStorage) readLastBatch(key []byte) (*batch, error) {
 	if err := batchKey.unmarshal(keyBytes); err != nil {
 		return nil, err
 	}
-	normalized, err := s.manageNormalization(key, valBytes)
+	normalized, err := s.manageNormalization(key, valBytes, true)
 	if err != nil {
 		return nil, err
 	}
@@ -351,13 +366,13 @@ func (s *batchedStorage) writeBatchDirectly(key, batch []byte) error {
 	return s.db.Put(key, batch)
 }
 
-func (s *batchedStorage) manageNormalization(key, batch []byte) ([]byte, error) {
+func (s *batchedStorage) manageNormalization(key, batch []byte, update bool) ([]byte, error) {
 	newBatch, err := s.normalize(batch)
 	if err != nil {
 		return nil, err
 	}
 	changed := len(newBatch) != len(batch)
-	if changed {
+	if changed && update {
 		if err := s.writeBatchDirectly(key, newBatch); err != nil {
 			return nil, err
 		}

@@ -24,45 +24,10 @@ type TransactionIterator interface {
 	Error() error
 }
 
-// StateNewest returns information that takes into account any intermediate changes
-// occurring during applying block. This state corresponds to the latest validated transaction,
-// and for now is only needed for Ride and Consensus modules, which are both called during the validation.
-type StateNewest interface {
-	AddingBlockHeight() (proto.Height, error)
-	NewestHeight() (proto.Height, error)
-
-	// Effective balance by account in given height range.
-	// WARNING: this function takes into account newest blocks (which are currently being added)
-	// and works correctly for height ranges exceeding current Height() if there are such blocks.
-	// It does not work for heights older than rollbackMax blocks before the current block.
-	EffectiveBalance(account proto.Recipient, startHeight, endHeight proto.Height) (uint64, error)
-
-	NewestAccountBalance(account proto.Recipient, asset []byte) (uint64, error)
-
-	// Aliases.
-	NewestAddrByAlias(alias proto.Alias) (proto.Address, error)
-
-	// Accounts data storage.
-	RetrieveNewestEntry(account proto.Recipient, key string) (proto.DataEntry, error)
-	RetrieveNewestIntegerEntry(account proto.Recipient, key string) (*proto.IntegerDataEntry, error)
-	RetrieveNewestBooleanEntry(account proto.Recipient, key string) (*proto.BooleanDataEntry, error)
-	RetrieveNewestStringEntry(account proto.Recipient, key string) (*proto.StringDataEntry, error)
-	RetrieveNewestBinaryEntry(account proto.Recipient, key string) (*proto.BinaryDataEntry, error)
-
-	// Transactions.
-	NewestTransactionByID(id []byte) (proto.Transaction, error)
-	NewestTransactionHeightByID(id []byte) (uint64, error)
-
-	// Asset fee sponsorship.
-	NewestAssetIsSponsored(assetID crypto.Digest) (bool, error)
-	NewestAssetInfo(assetID crypto.Digest) (*proto.AssetInfo, error)
-
-	NewestHeaderByHeight(height proto.Height) (*proto.BlockHeader, error)
-}
-
-// StateStable returns information that corresponds to latest fully applied block.
+// StateInfo returns information that corresponds to latest fully applied block.
 // This should be used for APIs and other modules where stable, fully verified state is needed.
-type StateStable interface {
+// Methods of this interface are thread-safe.
+type StateInfo interface {
 	// Block getters.
 	Block(blockID crypto.Signature) (*proto.Block, error)
 	BlockByHeight(height proto.Height) (*proto.Block, error)
@@ -80,6 +45,7 @@ type StateStable interface {
 	HeightToBlockID(height proto.Height) (crypto.Signature, error)
 	// FullWavesBalance returns complete Waves balance record.
 	FullWavesBalance(account proto.Recipient) (*proto.FullWavesBalance, error)
+	EffectiveBalanceStable(account proto.Recipient, startHeight, endHeight proto.Height) (uint64, error)
 	// AccountBalance retrieves balance of account in specific currency, asset is asset's ID.
 	// nil asset = Waves.
 	AccountBalance(account proto.Recipient, asset []byte) (uint64, error)
@@ -144,6 +110,7 @@ type StateStable interface {
 }
 
 // StateModifier contains all the methods needed to modify node's state.
+// Methods of this interface are not thread-safe.
 type StateModifier interface {
 	// Global mutex of state.
 	Mutex() *lock.RwMutex
@@ -184,13 +151,9 @@ type StateModifier interface {
 	Close() error
 }
 
-// State represents overall Node's state.
 type State interface {
+	StateInfo
 	StateModifier
-	StateStable
-	StateNewest
-
-	IsNotFound(err error) bool
 }
 
 // NewState() creates State.

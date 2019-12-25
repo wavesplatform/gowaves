@@ -2,6 +2,7 @@ package state
 
 import (
 	"encoding/binary"
+	"sync"
 
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
@@ -209,15 +210,21 @@ func (hr *historyRecord) latestEntry() (historyEntry, error) {
 // historyStorage manages the way per-block records are stored in.
 // Unlike blockchain entities parts, it does not know *what* it stores, but it does know *how*.
 type historyStorage struct {
-	db      keyvalue.IterableKeyVal
-	dbBatch keyvalue.Batch
-	stateDB *stateDB
+	db        keyvalue.IterableKeyVal
+	dbBatch   keyvalue.Batch
+	writeLock *sync.Mutex
+	stateDB   *stateDB
 
 	stor *localHistoryStorage
 	fmt  *historyFormatter
 }
 
-func newHistoryStorage(db keyvalue.IterableKeyVal, dbBatch keyvalue.Batch, stateDB *stateDB) (*historyStorage, error) {
+func newHistoryStorage(
+	db keyvalue.IterableKeyVal,
+	dbBatch keyvalue.Batch,
+	writeLock *sync.Mutex,
+	stateDB *stateDB,
+) (*historyStorage, error) {
 	stor, err := newLocalHistoryStorage()
 	if err != nil {
 		return nil, err
@@ -227,11 +234,12 @@ func newHistoryStorage(db keyvalue.IterableKeyVal, dbBatch keyvalue.Batch, state
 		return nil, err
 	}
 	return &historyStorage{
-		db:      db,
-		dbBatch: dbBatch,
-		stateDB: stateDB,
-		stor:    stor,
-		fmt:     fmt,
+		db:        db,
+		dbBatch:   dbBatch,
+		writeLock: writeLock,
+		stateDB:   stateDB,
+		stor:      stor,
+		fmt:       fmt,
 	}, nil
 }
 
@@ -258,15 +266,31 @@ func (hs *historyStorage) addNewEntry(entityType blockchainEntity, key, value []
 	return nil
 }
 
-func (hs *historyStorage) cleanDbRecord(key []byte) error {
-	// If the history is empty after normalizing, it means that all the entries were removed due to rollback.
-	// In this case, it should be removed from the DB as well.
-	return hs.db.Delete(key)
+// manageDbUpdate() saves updated history records directly (without batch) to database.
+func (hs *historyStorage) manageDbUpdate(key []byte, history *historyRecord) error {
+	if len(history.entries) == 0 {
+		// If the history is empty, it means that all the entries were removed due to rollback.
+		// In this case, it should be removed from the DB.
+		return hs.db.Delete(key)
+	}
+	historyBytes, err := history.marshalBinary()
+	if err != nil {
+		return err
+	}
+	return hs.db.Put(key, historyBytes)
 }
 
 // getHistory() retrieves history record from DB. It also normalizes it,
 // saving the result back to DB, if update argument is true.
 func (hs *historyStorage) getHistory(key []byte, filter, update bool) (*historyRecord, error) {
+	// Lock the write lock.
+	// It is necessary because if we read value *before* the main write batch is written,
+	// and manageDbUpdate() happens *after* it is written,
+	// we might rewrite some keys that were in the batch.
+	// So we do both read and write under same lock.
+	hs.writeLock.Lock()
+	defer hs.writeLock.Unlock()
+
 	historyBytes, err := hs.db.Get(key)
 	if err != nil {
 		return nil, err
@@ -279,19 +303,13 @@ func (hs *historyStorage) getHistory(key []byte, filter, update bool) (*historyR
 	if err != nil {
 		return nil, err
 	}
+	if changed && update {
+		if err := hs.manageDbUpdate(key, history); err != nil {
+			return nil, err
+		}
+	}
 	if len(history.entries) == 0 {
-		if err := hs.cleanDbRecord(key); err != nil {
-			return nil, err
-		}
 		return nil, errEmptyHist
-	} else if changed && update {
-		newHistoryBytes, err := history.marshalBinary()
-		if err != nil {
-			return nil, err
-		}
-		if err := hs.db.Put(key, newHistoryBytes); err != nil {
-			return nil, err
-		}
 	}
 	return history, nil
 }
@@ -367,6 +385,26 @@ func (hs *historyStorage) blockOfTheLatestEntry(key []byte, filter bool) (crypto
 	return hs.stateDB.blockNumToId(entry.blockNum)
 }
 
+func (hs *historyStorage) entryDataBeforeHeight(key []byte, height uint64, filter bool) ([]byte, error) {
+	limitBlockNum, err := hs.stateDB.blockNumByHeight(height)
+	if err != nil {
+		return nil, err
+	}
+	history, err := hs.getHistory(key, filter, false)
+	if err != nil {
+		return nil, err
+	}
+	var res historyEntry
+	for _, entry := range history.entries {
+		if entry.blockNum < limitBlockNum {
+			res = entry
+		} else {
+			break
+		}
+	}
+	return res.data, nil
+}
+
 // freshEntryBeforeHeight() returns bytes of the latest fresh (from local storage or DB) entry before given height.
 func (hs *historyStorage) freshEntryDataBeforeHeight(key []byte, height uint64, filter bool) ([]byte, error) {
 	limitBlockNum, err := hs.stateDB.newestBlockNumByHeight(height)
@@ -388,23 +426,7 @@ func (hs *historyStorage) freshEntryDataBeforeHeight(key []byte, height uint64, 
 	return res.data, nil
 }
 
-// entriesDataInHeightRange() returns bytes of entries that fit into specified height interval.
-func (hs *historyStorage) entriesDataInHeightRange(key []byte, startHeight, endHeight uint64, filter bool) ([][]byte, error) {
-	history, err := hs.fullHistory(key, filter)
-	if err != nil {
-		return nil, err
-	}
-	if (len(history.entries)) == 0 {
-		return nil, nil
-	}
-	startBlockNum, err := hs.stateDB.newestBlockNumByHeight(startHeight)
-	if err != nil {
-		return nil, err
-	}
-	endBlockNum, err := hs.stateDB.newestBlockNumByHeight(endHeight)
-	if err != nil {
-		return nil, err
-	}
+func (hs *historyStorage) entriesDataInHeightRangeCommon(history *historyRecord, startBlockNum, endBlockNum uint32) [][]byte {
 	var entriesData [][]byte
 	for i := len(history.entries) - 1; i >= 0; i-- {
 		entry := history.entries[i]
@@ -416,7 +438,46 @@ func (hs *historyStorage) entriesDataInHeightRange(key []byte, startHeight, endH
 		}
 		entriesData = append(entriesData, entry.data)
 	}
-	return entriesData, nil
+	return entriesData
+}
+
+func (hs *historyStorage) entriesDataInHeightRangeStable(key []byte, startHeight, endHeight uint64, filter bool) ([][]byte, error) {
+	history, err := hs.getHistory(key, filter, false)
+	if err != nil {
+		return nil, err
+	}
+	if len(history.entries) == 0 {
+		return nil, nil
+	}
+	startBlockNum, err := hs.stateDB.blockNumByHeight(startHeight)
+	if err != nil {
+		return nil, err
+	}
+	endBlockNum, err := hs.stateDB.blockNumByHeight(endHeight)
+	if err != nil {
+		return nil, err
+	}
+	return hs.entriesDataInHeightRangeCommon(history, startBlockNum, endBlockNum), nil
+}
+
+// entriesDataInHeightRange() returns bytes of entries that fit into specified height interval.
+func (hs *historyStorage) entriesDataInHeightRange(key []byte, startHeight, endHeight uint64, filter bool) ([][]byte, error) {
+	history, err := hs.fullHistory(key, filter)
+	if err != nil {
+		return nil, err
+	}
+	if len(history.entries) == 0 {
+		return nil, nil
+	}
+	startBlockNum, err := hs.stateDB.newestBlockNumByHeight(startHeight)
+	if err != nil {
+		return nil, err
+	}
+	endBlockNum, err := hs.stateDB.newestBlockNumByHeight(endHeight)
+	if err != nil {
+		return nil, err
+	}
+	return hs.entriesDataInHeightRangeCommon(history, startBlockNum, endBlockNum), nil
 }
 
 func (hs *historyStorage) reset() {

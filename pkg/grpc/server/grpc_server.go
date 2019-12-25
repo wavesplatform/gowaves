@@ -15,13 +15,13 @@ import (
 )
 
 type Server struct {
-	state  state.State
+	state  state.StateInfo
 	scheme proto.Scheme
 	utx    *utxpool.UtxImpl
 	sch    types.Scheduler
 }
 
-func NewServer(state state.State, utx *utxpool.UtxImpl, sch types.Scheduler) (*Server, error) {
+func NewServer(state state.StateInfo, utx *utxpool.UtxImpl, sch types.Scheduler) (*Server, error) {
 	s := &Server{}
 	if err := s.initServer(state, utx, sch); err != nil {
 		return nil, err
@@ -29,7 +29,7 @@ func NewServer(state state.State, utx *utxpool.UtxImpl, sch types.Scheduler) (*S
 	return s, nil
 }
 
-func (s *Server) initServer(state state.State, utx *utxpool.UtxImpl, sch types.Scheduler) error {
+func (s *Server) initServer(state state.StateInfo, utx *utxpool.UtxImpl, sch types.Scheduler) error {
 	settings, err := state.BlockchainSettings()
 	if err != nil {
 		return err

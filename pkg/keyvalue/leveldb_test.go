@@ -28,10 +28,10 @@ func TestKeyVal(t *testing.T) {
 	assert.NoError(t, err, "NewKeyVal() failed")
 
 	defer func() {
-		err = os.RemoveAll(dbDir)
-		assert.NoError(t, err, "os.RemoveAll() failed")
 		err = kv.Close()
 		assert.NoError(t, err, "Close() failed")
+		err = os.RemoveAll(dbDir)
+		assert.NoError(t, err, "os.RemoveAll() failed")
 	}()
 
 	// Test direct DB operations.

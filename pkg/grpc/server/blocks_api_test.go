@@ -20,7 +20,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/state"
 )
 
-func headerFromState(t *testing.T, height proto.Height, st state.State) *g.BlockWithHeight {
+func headerFromState(t *testing.T, height proto.Height, st state.StateInfo) *g.BlockWithHeight {
 	header, err := st.HeaderByHeight(height)
 	assert.NoError(t, err)
 	headerProto, err := header.HeaderToProtobuf(proto.MainNetScheme, height)
@@ -28,7 +28,7 @@ func headerFromState(t *testing.T, height proto.Height, st state.State) *g.Block
 	return headerProto
 }
 
-func blockFromState(t *testing.T, height proto.Height, st state.State) *g.BlockWithHeight {
+func blockFromState(t *testing.T, height proto.Height, st state.StateInfo) *g.BlockWithHeight {
 	block, err := st.BlockByHeight(height)
 	assert.NoError(t, err)
 	blockProto, err := block.ToProtobuf(proto.MainNetScheme, height)

@@ -68,14 +68,6 @@ func (a *MockStateManager) Header(block crypto.Signature) (*proto.BlockHeader, e
 	panic("implement me")
 }
 
-func (a *MockStateManager) NewestHeaderByHeight(height uint64) (*proto.BlockHeader, error) {
-	rs, err := a.BlockByHeight(height)
-	if err != nil {
-		return nil, err
-	}
-	return &rs.BlockHeader, nil
-}
-
 func (a *MockStateManager) HeaderByHeight(height uint64) (*proto.BlockHeader, error) {
 	rs, err := a.BlockByHeight(height)
 	if err != nil {
@@ -86,10 +78,6 @@ func (a *MockStateManager) HeaderByHeight(height uint64) (*proto.BlockHeader, er
 
 func (a *MockStateManager) AddingBlockHeight() (proto.Height, error) {
 	panic("implement me")
-}
-
-func (a *MockStateManager) NewestHeight() (proto.Height, error) {
-	return proto.Height(len(a.state)), nil
 }
 
 func (a *MockStateManager) Height() (proto.Height, error) {
@@ -163,7 +151,7 @@ func (a *MockStateManager) CurrentScore() (*big.Int, error) {
 	return a.ScoreAtHeight(proto.Height(len(a.state)))
 }
 
-func (a *MockStateManager) EffectiveBalance(account proto.Recipient, startHeight, endHeight uint64) (uint64, error) {
+func (a *MockStateManager) EffectiveBalanceStable(account proto.Recipient, startHeight, endHeight uint64) (uint64, error) {
 	panic("implement me")
 }
 
@@ -206,30 +194,6 @@ func (a *MockStateManager) RetrieveBinaryEntry(account proto.Recipient, key stri
 	panic("implement me")
 }
 
-func (a *MockStateManager) RetrieveNewestEntry(account proto.Recipient, key string) (proto.DataEntry, error) {
-	panic("implement me")
-}
-
-func (a *MockStateManager) RetrieveNewestIntegerEntry(account proto.Recipient, key string) (*proto.IntegerDataEntry, error) {
-	panic("implement me")
-}
-
-func (a *MockStateManager) RetrieveNewestBooleanEntry(account proto.Recipient, key string) (*proto.BooleanDataEntry, error) {
-	panic("implement me")
-}
-
-func (a *MockStateManager) RetrieveNewestStringEntry(account proto.Recipient, key string) (*proto.StringDataEntry, error) {
-	panic("implement me")
-}
-
-func (a *MockStateManager) RetrieveNewestBinaryEntry(account proto.Recipient, key string) (*proto.BinaryDataEntry, error) {
-	panic("implement me")
-}
-
-func (a *MockStateManager) NewestTransactionHeightByID(id []byte) (proto.Height, error) {
-	panic("implement me")
-}
-
 func (a *MockStateManager) TransactionHeightByID(id []byte) (proto.Height, error) {
 	panic("implement me")
 }
@@ -238,23 +202,11 @@ func (a *MockStateManager) NewAddrTransactionsIterator(addr proto.Address) (stat
 	panic("implement me")
 }
 
-func (a *MockStateManager) NewestTransactionByID(id []byte) (proto.Transaction, error) {
-	panic("implement me")
-}
-
 func (a *MockStateManager) TransactionByID(id []byte) (proto.Transaction, error) {
 	panic("implement me")
 }
 
-func (a *MockStateManager) NewestAssetIsSponsored(assetID crypto.Digest) (bool, error) {
-	panic("implement me")
-}
-
 func (a *MockStateManager) AssetIsSponsored(assetID crypto.Digest) (bool, error) {
-	panic("implement me")
-}
-
-func (a *MockStateManager) NewestAssetInfo(assetID crypto.Digest) (*proto.AssetInfo, error) {
 	panic("implement me")
 }
 
@@ -302,15 +254,7 @@ func (a *MockStateManager) BlockchainSettings() (*settings.BlockchainSettings, e
 	panic("implement me")
 }
 
-func (a *MockStateManager) NewestAddrByAlias(alias proto.Alias) (proto.Address, error) {
-	panic("implement me")
-}
-
 func (a *MockStateManager) AddrByAlias(alias proto.Alias) (proto.Address, error) {
-	panic("implement me")
-}
-
-func (a *MockStateManager) NewestAccountBalance(account proto.Recipient, asset []byte) (uint64, error) {
 	panic("implement me")
 }
 

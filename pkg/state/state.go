@@ -169,7 +169,7 @@ func checkCompatibility(stateDB *stateDB, extendedApi bool) error {
 }
 
 type stateManager struct {
-	mu *sync.RWMutex
+	mu *sync.RWMutex // `mu` is used outside of state and returned in Mutex() function.
 
 	genesis proto.Block
 	stateDB *stateDB
@@ -238,7 +238,8 @@ func newStateManager(dataDir string, params StateParams, settings *settings.Bloc
 	if err := stateDB.syncRw(); err != nil {
 		return nil, wrapErr(Other, errors.Errorf("failed to sync block storage and DB: %v", err))
 	}
-	hs, err := newHistoryStorage(db, dbBatch, stateDB)
+	lock := stateDB.retrieveWriteLock()
+	hs, err := newHistoryStorage(db, dbBatch, lock, stateDB)
 	if err != nil {
 		return nil, wrapErr(Other, errors.Errorf("failed to create history storage: %v", err))
 	}
@@ -246,8 +247,9 @@ func newStateManager(dataDir string, params StateParams, settings *settings.Bloc
 	if err != nil {
 		return nil, wrapErr(Other, errors.Errorf("failed to create blockchain entities storage: %v", err))
 	}
-	atx := newAddressTransactions(db, dbBatch, stateDB, rw)
+	atx := newAddressTransactions(db, dbBatch, lock, stateDB, rw)
 	state := &stateManager{
+		mu:                        &sync.RWMutex{},
 		stateDB:                   stateDB,
 		stor:                      stor,
 		rw:                        rw,
@@ -255,7 +257,6 @@ func newStateManager(dataDir string, params StateParams, settings *settings.Bloc
 		atx:                       atx,
 		peers:                     newPeerStorage(db),
 		verificationGoroutinesNum: params.VerificationGoroutinesNum,
-		mu:                        &sync.RWMutex{},
 	}
 	// Set fields which depend on state.
 	// Consensus validator is needed to check block headers.
@@ -561,7 +562,7 @@ func (s *stateManager) GeneratingBalance(account proto.Recipient) (uint64, error
 		return 0, wrapErr(RetrievalError, err)
 	}
 	start, end := s.cv.RangeForGeneratingBalanceByHeight(height)
-	return s.EffectiveBalance(account, start, end)
+	return s.EffectiveBalanceStable(account, start, end)
 }
 
 func (s *stateManager) FullWavesBalance(account proto.Recipient) (*proto.FullWavesBalance, error) {
@@ -1354,6 +1355,18 @@ func (s *stateManager) recipientToAddress(recipient proto.Recipient) (*proto.Add
 		return s.stor.aliases.addrByAlias(recipient.Alias.Alias, true)
 	}
 	return recipient.Address, nil
+}
+
+func (s *stateManager) EffectiveBalanceStable(account proto.Recipient, startHeight, endHeight uint64) (uint64, error) {
+	addr, err := s.recipientToAddress(account)
+	if err != nil {
+		return 0, wrapErr(RetrievalError, err)
+	}
+	effectiveBalance, err := s.stor.balances.minEffectiveBalanceInRangeStable(*addr, startHeight, endHeight)
+	if err != nil {
+		return 0, wrapErr(RetrievalError, err)
+	}
+	return effectiveBalance, nil
 }
 
 func (s *stateManager) EffectiveBalance(account proto.Recipient, startHeight, endHeight uint64) (uint64, error) {

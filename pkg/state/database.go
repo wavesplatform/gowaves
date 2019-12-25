@@ -2,6 +2,7 @@ package state
 
 import (
 	"encoding/binary"
+	"sync"
 
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
@@ -68,9 +69,10 @@ func saveStateInfo(db keyvalue.KeyValue, storeApiData bool) error {
 // stateDB is responsible for all the actions which operate on the whole DB.
 // For instance, list of valid blocks and height are DB-wide entities.
 type stateDB struct {
-	db      keyvalue.KeyValue
-	dbBatch keyvalue.Batch
-	rw      *blockReadWriter
+	db          keyvalue.KeyValue
+	dbBatch     keyvalue.Batch
+	dbWriteLock *sync.Mutex // `dbWriteLock` is lock for writing to database.
+	rw          *blockReadWriter
 
 	newestBlockIdToNum map[crypto.Signature]uint32
 	newestBlockNumToId map[uint32]crypto.Signature
@@ -100,16 +102,23 @@ func newStateDB(db keyvalue.KeyValue, dbBatch keyvalue.Batch, rw *blockReadWrite
 			return nil, err
 		}
 	}
+	dbWriteLock := &sync.Mutex{}
 	if err := saveStateInfo(db, storeApiData); err != nil {
 		return nil, err
 	}
 	return &stateDB{
 		db:                 db,
 		dbBatch:            dbBatch,
+		dbWriteLock:        dbWriteLock,
 		rw:                 rw,
 		newestBlockIdToNum: make(map[crypto.Signature]uint32),
 		newestBlockNumToId: make(map[uint32]crypto.Signature),
 	}, nil
+}
+
+// Returns database write lock.
+func (s *stateDB) retrieveWriteLock() *sync.Mutex {
+	return s.dbWriteLock
 }
 
 // Sync blockReadWriter's storage (files) with the database.
@@ -382,10 +391,12 @@ func (s *stateDB) flush() error {
 	if err := s.setRollbackMinHeight(newRollbackMinHeight); err != nil {
 		return err
 	}
+	s.dbWriteLock.Lock()
 	// Write the whole batch to DB.
 	if err := s.db.Flush(s.dbBatch); err != nil {
 		return err
 	}
+	s.dbWriteLock.Unlock()
 	return nil
 }
 
