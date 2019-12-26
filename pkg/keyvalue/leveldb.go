@@ -93,6 +93,7 @@ type KeyVal struct {
 	db     *leveldb.DB
 	filter *bloomFilter
 	cache  *freecache.Cache
+	mu     *sync.RWMutex
 }
 
 func initBloomFilter(kv *KeyVal, params BloomFilterParams) error {
@@ -148,7 +149,7 @@ func NewKeyVal(path string, params KeyValParams) (*KeyVal, error) {
 		return nil, err
 	}
 	cache := freecache.NewCache(params.CacheParams.Size)
-	kv := &KeyVal{db: db, cache: cache}
+	kv := &KeyVal{db: db, cache: cache, mu: &sync.RWMutex{}}
 	if err := initBloomFilter(kv, params.BloomFilterParams); err != nil {
 		return nil, err
 	}
@@ -167,6 +168,8 @@ func (k *KeyVal) addToCache(key, val []byte) {
 }
 
 func (k *KeyVal) Get(key []byte) ([]byte, error) {
+	k.mu.RLock()
+	defer k.mu.RUnlock()
 	if val, err := k.cache.Get(key); err == nil {
 		return val, nil
 	}
@@ -188,6 +191,8 @@ func (k *KeyVal) Get(key []byte) ([]byte, error) {
 }
 
 func (k *KeyVal) Has(key []byte) (bool, error) {
+	k.mu.RLock()
+	defer k.mu.RUnlock()
 	if k.filter != nil {
 		notInTheSet, err := k.filter.notInTheSet(key)
 		if err != nil {
@@ -204,11 +209,15 @@ func (k *KeyVal) Has(key []byte) (bool, error) {
 }
 
 func (k *KeyVal) Delete(key []byte) error {
+	k.mu.Lock()
+	defer k.mu.Unlock()
 	k.cache.Del(key)
 	return k.db.Delete(key, nil)
 }
 
 func (k *KeyVal) Put(key, val []byte) error {
+	k.mu.Lock()
+	defer k.mu.Unlock()
 	if err := k.db.Put(key, val, nil); err != nil {
 		return err
 	}
@@ -220,6 +229,8 @@ func (k *KeyVal) Put(key, val []byte) error {
 }
 
 func (k *KeyVal) Flush(b1 Batch) error {
+	k.mu.Lock()
+	defer k.mu.Unlock()
 	b, ok := b1.(*batch)
 	if !ok {
 		return errors.New("can't convert batch interface to leveldb's batch")
@@ -236,6 +247,8 @@ func (k *KeyVal) Flush(b1 Batch) error {
 }
 
 func (k *KeyVal) NewKeyIterator(prefix []byte) (Iterator, error) {
+	k.mu.RLock()
+	defer k.mu.RUnlock()
 	if prefix != nil {
 		return k.db.NewIterator(util.BytesPrefix(prefix), nil), nil
 	} else {
@@ -244,6 +257,8 @@ func (k *KeyVal) NewKeyIterator(prefix []byte) (Iterator, error) {
 }
 
 func (k *KeyVal) Close() error {
+	k.mu.Lock()
+	defer k.mu.Unlock()
 	zap.S().Infof("Cache hit rate: %v", k.cache.HitRate())
 	err := storeBloomFilter(k.filter)
 	if err != nil {
