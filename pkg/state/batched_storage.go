@@ -241,16 +241,23 @@ type batchedStorage struct {
 
 	params    *batchedStorParams
 	localStor map[string]*batchesGroup
+	memSize   int // Total size (in bytes) of what was added.
+	memLimit  int // When memSize >= memLimit, we should flush().
 }
 
 func newBatchedStorage(
 	db keyvalue.IterableKeyVal,
-	dbBatch keyvalue.Batch,
 	writeLock *sync.Mutex,
 	stateDB *stateDB,
 	params *batchedStorParams,
-) *batchedStorage {
+	memLimit int,
+) (*batchedStorage, error) {
+	// Actual record size is greater by blockNumLen.
 	params.recordSize += blockNumLen
+	dbBatch, err := db.NewBatch()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to create db batch")
+	}
 	return &batchedStorage{
 		db:        db,
 		dbBatch:   dbBatch,
@@ -258,7 +265,9 @@ func newBatchedStorage(
 		stateDB:   stateDB,
 		params:    params,
 		localStor: make(map[string]*batchesGroup),
-	}
+		memSize:   0,
+		memLimit:  memLimit,
+	}, nil
 }
 
 func (s *batchedStorage) newBatchGroupForKey(key []byte) (*batchesGroup, error) {
@@ -293,6 +302,13 @@ func (s *batchedStorage) addRecord(key []byte, data []byte, blockNum uint32) err
 		return err
 	}
 	s.localStor[keyStr] = newGroup
+	s.memSize += len(key) + len(data) + blockNumLen
+	if s.memSize >= s.memLimit {
+		if err := s.flush(); err != nil {
+			return err
+		}
+		s.reset()
+	}
 	return nil
 }
 
@@ -390,11 +406,17 @@ func (s *batchedStorage) writeBatchGroup(key []byte, bg *batchesGroup) {
 
 func (s *batchedStorage) reset() {
 	s.localStor = make(map[string]*batchesGroup)
+	s.dbBatch.Reset()
 }
 
 func (s *batchedStorage) flush() error {
 	for key, bg := range s.localStor {
 		s.writeBatchGroup([]byte(key), bg)
 	}
+	s.writeLock.Lock()
+	if err := s.db.Flush(s.dbBatch); err != nil {
+		return err
+	}
+	s.writeLock.Unlock()
 	return nil
 }

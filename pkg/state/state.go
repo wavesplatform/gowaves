@@ -247,7 +247,10 @@ func newStateManager(dataDir string, params StateParams, settings *settings.Bloc
 	if err != nil {
 		return nil, wrapErr(Other, errors.Errorf("failed to create blockchain entities storage: %v", err))
 	}
-	atx := newAddressTransactions(db, dbBatch, lock, stateDB, rw)
+	atx, err := newAddressTransactions(db, lock, stateDB, rw, AddressTransactionsMemLimit)
+	if err != nil {
+		return nil, wrapErr(Other, errors.Errorf("failed to create address transactions storage: %v", err))
+	}
 	state := &stateManager{
 		mu:                        &sync.RWMutex{},
 		stateDB:                   stateDB,

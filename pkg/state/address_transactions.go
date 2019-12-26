@@ -59,18 +59,21 @@ type addressTransactions struct {
 
 func newAddressTransactions(
 	db keyvalue.IterableKeyVal,
-	dbBatch keyvalue.Batch,
 	writeLock *sync.Mutex,
 	stateDB *stateDB,
 	rw *blockReadWriter,
-) *addressTransactions {
+	memLimit int,
+) (*addressTransactions, error) {
 	params := &batchedStorParams{
 		maxBatchSize: maxTransactionIdsBatchSize,
 		recordSize:   rw.offsetLen,
 		prefix:       transactionIdsPrefix,
 	}
-	stor := newBatchedStorage(db, dbBatch, writeLock, stateDB, params)
-	return &addressTransactions{stateDB, rw, stor}
+	stor, err := newBatchedStorage(db, writeLock, stateDB, params, memLimit)
+	if err != nil {
+		return nil, err
+	}
+	return &addressTransactions{stateDB, rw, stor}, nil
 }
 
 func (at *addressTransactions) saveTxIdByAddress(addr proto.Address, txID []byte, blockID crypto.Signature) error {

@@ -14,7 +14,8 @@ const (
 	testRecordSize = 8
 	prefix         = byte(1)
 
-	size = 10000
+	size         = 10000
+	testMemLimit = 1 * KiB
 )
 
 var (
@@ -36,7 +37,10 @@ func createBatchedStorage() (*batchedStorageTestObjects, []string, error) {
 	}
 	params := &batchedStorParams{maxBatchSize: maxBatchSize, recordSize: testRecordSize, prefix: prefix}
 	lock := stor.hs.stateDB.retrieveWriteLock()
-	batchedStor := newBatchedStorage(stor.db, stor.dbBatch, lock, stor.hs.stateDB, params)
+	batchedStor, err := newBatchedStorage(stor.db, lock, stor.hs.stateDB, params, testMemLimit)
+	if err != nil {
+		return nil, path, err
+	}
 	return &batchedStorageTestObjects{
 		stor:          stor,
 		batchedStor:   batchedStor,

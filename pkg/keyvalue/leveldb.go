@@ -18,9 +18,8 @@ type pair struct {
 }
 
 type batch struct {
-	mu     *sync.Mutex
-	filter *bloomFilter
-	pairs  []pair
+	mu    *sync.Mutex
+	pairs []pair
 }
 
 func (b *batch) Delete(key []byte) {
@@ -41,11 +40,11 @@ func (b *batch) Put(key, val []byte) {
 	b.mu.Unlock()
 }
 
-func (b *batch) addToFilter() error {
+func (b *batch) addToFilter(filter *bloomFilter) error {
 	b.mu.Lock()
 	for _, pair := range b.pairs {
 		if !pair.deletion {
-			if err := b.filter.add(pair.key); err != nil {
+			if err := filter.add(pair.key); err != nil {
 				return err
 			}
 		}
@@ -157,7 +156,7 @@ func NewKeyVal(path string, params KeyValParams) (*KeyVal, error) {
 }
 
 func (k *KeyVal) NewBatch() (Batch, error) {
-	return &batch{filter: k.filter, mu: &sync.Mutex{}}, nil
+	return &batch{mu: &sync.Mutex{}}, nil
 }
 
 func (k *KeyVal) addToCache(key, val []byte) {
@@ -239,7 +238,7 @@ func (k *KeyVal) Flush(b1 Batch) error {
 		return err
 	}
 	b.addToCache(k.cache)
-	if err := b.addToFilter(); err != nil {
+	if err := b.addToFilter(k.filter); err != nil {
 		return err
 	}
 	b.Reset()

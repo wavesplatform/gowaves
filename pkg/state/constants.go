@@ -26,4 +26,7 @@ const (
 	// StateVersion is current version of state internal storage formats.
 	// It increases when backward compatibility with previous storage version is lost.
 	StateVersion = 1
+
+	// 100 MiB.
+	AddressTransactionsMemLimit = 100 * 1024 * 1024
 )
