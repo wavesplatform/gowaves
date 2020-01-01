@@ -148,6 +148,9 @@ type StateModifier interface {
 	// Create or replace Peers.
 	SavePeers([]proto.TCPAddr) error
 
+	// State will provide extended API data after returning.
+	StartProvidingExtendedApi() error
+
 	Close() error
 }
 
@@ -205,14 +208,22 @@ type ValidationParams struct {
 type StateParams struct {
 	StorageParams
 	ValidationParams
-	// When StoreExtendedApiData is true, state must be able to provide additional data required for gRPC API.
+	// When StoreExtendedApiData is true, state builds additional data required for API.
 	StoreExtendedApiData bool
+	// ProvideExtendedApi specifies whether state must provide data for extended API.
+	ProvideExtendedApi bool
 }
 
 func DefaultStateParams() StateParams {
-	return StateParams{DefaultStorageParams(), ValidationParams{runtime.NumCPU() * 2}, false}
+	return StateParams{
+		StorageParams:    DefaultStorageParams(),
+		ValidationParams: ValidationParams{runtime.NumCPU() * 2},
+	}
 }
 
 func DefaultTestingStateParams() StateParams {
-	return StateParams{DefaultTestingStorageParams(), ValidationParams{runtime.NumCPU() * 2}, false}
+	return StateParams{
+		StorageParams:    DefaultTestingStorageParams(),
+		ValidationParams: ValidationParams{runtime.NumCPU() * 2},
+	}
 }

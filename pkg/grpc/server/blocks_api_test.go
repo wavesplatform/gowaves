@@ -39,9 +39,7 @@ func blockFromState(t *testing.T, height proto.Height, st state.StateInfo) *g.Bl
 func TestGetBlock(t *testing.T) {
 	dataDir, err := ioutil.TempDir(os.TempDir(), "dataDir")
 	assert.NoError(t, err)
-	params := state.DefaultTestingStateParams()
-	// State should store addl data for gRPC API.
-	params.StoreExtendedApiData = true
+	params := defaultStateParams()
 	st, err := state.NewState(dataDir, params, settings.MainNetSettings)
 	assert.NoError(t, err)
 	sch := scheduler.NewScheduler(st, keyPairs, settings.MainNetSettings)
@@ -111,9 +109,7 @@ func TestGetBlock(t *testing.T) {
 func TestGetBlockRange(t *testing.T) {
 	dataDir, err := ioutil.TempDir(os.TempDir(), "dataDir")
 	assert.NoError(t, err)
-	params := state.DefaultTestingStateParams()
-	// State should store addl data for gRPC API.
-	params.StoreExtendedApiData = true
+	params := defaultStateParams()
 	st, err := state.NewState(dataDir, params, settings.MainNetSettings)
 	assert.NoError(t, err)
 	sch := scheduler.NewScheduler(st, keyPairs, settings.MainNetSettings)
@@ -194,9 +190,7 @@ func TestGetBlockRange(t *testing.T) {
 func TestGetCurrentHeight(t *testing.T) {
 	dataDir, err := ioutil.TempDir(os.TempDir(), "dataDir")
 	assert.NoError(t, err)
-	params := state.DefaultTestingStateParams()
-	// State should store addl data for gRPC API.
-	params.StoreExtendedApiData = true
+	params := defaultStateParams()
 	st, err := state.NewState(dataDir, params, settings.MainNetSettings)
 	assert.NoError(t, err)
 	sch := scheduler.NewScheduler(st, keyPairs, settings.MainNetSettings)

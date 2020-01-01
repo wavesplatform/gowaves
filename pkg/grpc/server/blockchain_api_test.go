@@ -19,8 +19,7 @@ import (
 func TestGetBaseTarget(t *testing.T) {
 	dataDir, err := ioutil.TempDir(os.TempDir(), "dataDir")
 	assert.NoError(t, err)
-	params := state.DefaultTestingStateParams()
-	// State should store addl data for gRPC API.
+	params := defaultStateParams()
 	params.StoreExtendedApiData = true
 	st, err := state.NewState(dataDir, params, settings.MainNetSettings)
 	assert.NoError(t, err)
@@ -61,9 +60,7 @@ func TestGetBaseTarget(t *testing.T) {
 func TestGetCumulativeScore(t *testing.T) {
 	dataDir, err := ioutil.TempDir(os.TempDir(), "dataDir")
 	assert.NoError(t, err)
-	params := state.DefaultTestingStateParams()
-	// State should store addl data for gRPC API.
-	params.StoreExtendedApiData = true
+	params := defaultStateParams()
 	st, err := state.NewState(dataDir, params, settings.MainNetSettings)
 	assert.NoError(t, err)
 	sch := scheduler.NewScheduler(st, keyPairs, settings.MainNetSettings)

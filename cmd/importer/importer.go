@@ -95,6 +95,8 @@ func main() {
 	params.VerificationGoroutinesNum = *verificationGoroutinesNum
 	params.DbParams.WriteBuffer = *writeBufferSize * MiB
 	params.StoreExtendedApiData = *buildDataForExtendedApi
+	// We do not need to provide any APIs during import.
+	params.ProvideExtendedApi = false
 	st, err := state.NewState(dataDir, params, ss)
 	if err != nil {
 		zap.S().Fatalf("Failed to create state: %v", err)

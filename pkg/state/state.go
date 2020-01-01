@@ -162,8 +162,8 @@ func checkCompatibility(stateDB *stateDB, extendedApi bool) error {
 	if err != nil {
 		return errors.Errorf("stateStoresApiData(): %v", err)
 	}
-	if extendedApi && !hasDataForExtendedApi {
-		return errors.New("state does not have data for extended API")
+	if extendedApi != hasDataForExtendedApi {
+		return errors.Errorf("extended API incompatibility: state stores: %v; want: %v", hasDataForExtendedApi, extendedApi)
 	}
 	return nil
 }
@@ -238,8 +238,7 @@ func newStateManager(dataDir string, params StateParams, settings *settings.Bloc
 	if err := stateDB.syncRw(); err != nil {
 		return nil, wrapErr(Other, errors.Errorf("failed to sync block storage and DB: %v", err))
 	}
-	lock := stateDB.retrieveWriteLock()
-	hs, err := newHistoryStorage(db, dbBatch, lock, stateDB)
+	hs, err := newHistoryStorage(db, dbBatch, stateDB)
 	if err != nil {
 		return nil, wrapErr(Other, errors.Errorf("failed to create history storage: %v", err))
 	}
@@ -247,7 +246,18 @@ func newStateManager(dataDir string, params StateParams, settings *settings.Bloc
 	if err != nil {
 		return nil, wrapErr(Other, errors.Errorf("failed to create blockchain entities storage: %v", err))
 	}
-	atx, err := newAddressTransactions(db, lock, stateDB, rw, AddressTransactionsMemLimit)
+	atxParams := &addressTransactionsParams{
+		dir:                 blockStorageDir,
+		batchedStorMemLimit: AddressTransactionsMemLimit,
+		maxFileSize:         MaxAddressTransactionsFileSize,
+		providesData:        params.ProvideExtendedApi,
+	}
+	atx, err := newAddressTransactions(
+		db,
+		stateDB,
+		rw,
+		atxParams,
+	)
 	if err != nil {
 		return nil, wrapErr(Other, errors.Errorf("failed to create address transactions storage: %v", err))
 	}
@@ -742,11 +752,13 @@ func (s *stateManager) addNewBlock(block, parent *proto.Block, initialisation bo
 }
 
 func (s *stateManager) reset() error {
-	s.atx.reset()
 	s.rw.reset()
 	s.stor.reset()
 	s.stateDB.reset()
 	s.appender.reset()
+	if err := s.atx.reset(); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -787,7 +799,7 @@ func (s *stateManager) AddBlock(block []byte) (*proto.Block, error) {
 	rs, err := s.addBlocks([]*proto.Block{b}, false)
 	if err != nil {
 		if err := s.undoBlockAddition(); err != nil {
-			zap.S().Fatal("Failed to add blocks and can not rollback to previous state after failure")
+			zap.S().Fatalf("Failed to add blocks and can not rollback to previous state after failure: %v", err)
 		}
 		return nil, err
 	}
@@ -1835,11 +1847,11 @@ func (s *stateManager) IsActiveLeasing(leaseID crypto.Digest) (bool, error) {
 }
 
 func (s *stateManager) InvokeResultByID(invokeID crypto.Digest) (*proto.ScriptResult, error) {
-	providesData, err := s.ProvidesExtendedApi()
+	hasData, err := s.storesExtendedApiData()
 	if err != nil {
 		return nil, wrapErr(Other, err)
 	}
-	if !providesData {
+	if !hasData {
 		return nil, wrapErr(IncompatibilityError, errors.New("state does not have data for invoke results"))
 	}
 	res, err := s.stor.invokeResults.invokeResult(invokeID, true)
@@ -1849,19 +1861,42 @@ func (s *stateManager) InvokeResultByID(invokeID crypto.Digest) (*proto.ScriptRe
 	return res, nil
 }
 
-func (s *stateManager) ProvidesExtendedApi() (bool, error) {
-	provides, err := s.stateDB.stateStoresApiData()
+func (s *stateManager) storesExtendedApiData() (bool, error) {
+	stores, err := s.stateDB.stateStoresApiData()
 	if err != nil {
 		return false, wrapErr(RetrievalError, err)
 	}
-	return provides, nil
+	return stores, nil
+}
+
+func (s *stateManager) ProvidesExtendedApi() (bool, error) {
+	hasData, err := s.storesExtendedApiData()
+	if err != nil {
+		return false, wrapErr(RetrievalError, err)
+	}
+	if !hasData {
+		// State does not have extended API data.
+		return false, nil
+	}
+	// State has data for extended API, but we need to make sure it is served.
+	return s.atx.providesData(), nil
 }
 
 func (s *stateManager) IsNotFound(err error) bool {
 	return IsNotFound(err)
 }
 
+func (s *stateManager) StartProvidingExtendedApi() error {
+	if err := s.atx.startProvidingData(); err != nil {
+		return wrapErr(ModificationError, err)
+	}
+	return nil
+}
+
 func (s *stateManager) Close() error {
+	if err := s.atx.close(); err != nil {
+		return wrapErr(ClosureError, err)
+	}
 	if err := s.rw.close(); err != nil {
 		return wrapErr(ClosureError, err)
 	}

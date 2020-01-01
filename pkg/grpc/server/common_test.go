@@ -79,9 +79,7 @@ func stateWithCustomGenesis(t *testing.T, genesisPath string) (state.State, func
 	sets := customSettingsWithGenesis(t, genesisPath)
 	// Activate data transactions.
 	sets.PreactivatedFeatures = []int16{5}
-	params := state.DefaultTestingStateParams()
-	// State should store addl data for gRPC API.
-	params.StoreExtendedApiData = true
+	params := defaultStateParams()
 	st, err := state.NewState(dataDir, params, sets)
 	assert.NoError(t, err)
 	return st, func() {
@@ -122,4 +120,12 @@ func TestMain(m *testing.M) {
 	code := m.Run()
 	cancel()
 	os.Exit(code)
+}
+
+func defaultStateParams() state.StateParams {
+	params := state.DefaultTestingStateParams()
+	// State should store addrl data for gRPC API.
+	params.StoreExtendedApiData = true
+	params.ProvideExtendedApi = true
+	return params
 }

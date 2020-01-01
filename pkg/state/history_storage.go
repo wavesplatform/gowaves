@@ -222,7 +222,6 @@ type historyStorage struct {
 func newHistoryStorage(
 	db keyvalue.IterableKeyVal,
 	dbBatch keyvalue.Batch,
-	writeLock *sync.Mutex,
 	stateDB *stateDB,
 ) (*historyStorage, error) {
 	stor, err := newLocalHistoryStorage()
@@ -236,7 +235,7 @@ func newHistoryStorage(
 	return &historyStorage{
 		db:        db,
 		dbBatch:   dbBatch,
-		writeLock: writeLock,
+		writeLock: stateDB.retrieveWriteLock(),
 		stateDB:   stateDB,
 		stor:      stor,
 		fmt:       fmt,

@@ -76,6 +76,7 @@ func (r *recentDataStorage) writeDataToBuffer(buf *bufio.Writer) error {
 	r.reset()
 	return nil
 }
+
 func (r *recentDataStorage) reset() {
 	r.id2Pos = make(map[string]bytesInfo)
 	r.stor = nil

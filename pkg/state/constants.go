@@ -29,4 +29,8 @@ const (
 
 	// 100 MiB.
 	AddressTransactionsMemLimit = 100 * 1024 * 1024
+
+	// Maximum size of transactions by addresses file.
+	// Then it is sorted and saved to DB.
+	MaxAddressTransactionsFileSize = 5 * 1024 * 1024 * 1024 // 5 GiB.
 )

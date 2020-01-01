@@ -1,12 +1,30 @@
 package state
 
 import (
+	"bufio"
 	"encoding/binary"
-	"sync"
+	"io"
+	"io/ioutil"
+	"os"
+	"path"
 
+	"github.com/pkg/errors"
+	"github.com/starius/emsort"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"go.uber.org/zap"
+)
+
+const (
+	// Address size + length of block num + transaction offset length.
+	addrTxRecordSize = proto.AddressSize + blockNumLen + 8
+
+	maxEmsortMem = 200 * 1024 * 1024 // 200 MiB.
+)
+
+var (
+	fileSizeKeyBytes = []byte{txsByAddrsFileSizeKeyPrefix}
 )
 
 type txIter struct {
@@ -51,47 +69,127 @@ func (i *txIter) Release() {
 	i.iter.release()
 }
 
+func manageFile(file *os.File, db keyvalue.IterableKeyVal) error {
+	var properFileSize uint64
+	fileSizeBytes, err := db.Get(fileSizeKeyBytes)
+	if err == keyvalue.ErrNotFound {
+		properFileSize = 0
+	} else if err == nil {
+		properFileSize = binary.BigEndian.Uint64(fileSizeBytes)
+	} else {
+		return err
+	}
+
+	fileStats, err := os.Stat(file.Name())
+	if err != nil {
+		return err
+	}
+	size := uint64(fileStats.Size())
+
+	if size < properFileSize {
+		return errors.New("data loss: file size is less than it should be")
+	} else if size == properFileSize {
+		return nil
+	}
+	if err := file.Truncate(int64(properFileSize)); err != nil {
+		return err
+	}
+	if _, err := file.Seek(int64(properFileSize), 0); err != nil {
+		return err
+	}
+	return nil
+}
+
+type addressTransactionsParams struct {
+	dir                 string // Directory for address_transactions file.
+	batchedStorMemLimit int    // Maximum size of batchedStor db batch.
+	maxFileSize         int64  // Maximum size of address_transactions file.
+	providesData        bool   // True if transaction iterators can be used.
+}
+
 type addressTransactions struct {
 	stateDB *stateDB
 	rw      *blockReadWriter
 	stor    *batchedStorage
+
+	filePath            string
+	addrTransactions    *os.File
+	addrTransactionsBuf *bufio.Writer
+
+	params *addressTransactionsParams
 }
 
 func newAddressTransactions(
 	db keyvalue.IterableKeyVal,
-	writeLock *sync.Mutex,
 	stateDB *stateDB,
 	rw *blockReadWriter,
-	memLimit int,
+	params *addressTransactionsParams,
 ) (*addressTransactions, error) {
-	params := &batchedStorParams{
+	bsParams := &batchedStorParams{
 		maxBatchSize: maxTransactionIdsBatchSize,
 		recordSize:   rw.offsetLen,
 		prefix:       transactionIdsPrefix,
 	}
-	stor, err := newBatchedStorage(db, writeLock, stateDB, params, memLimit)
+	filePath := path.Join(params.dir, "address_transactions")
+	addrTransactionsFile, _, err := openOrCreate(filePath)
 	if err != nil {
 		return nil, err
 	}
-	return &addressTransactions{stateDB, rw, stor}, nil
+	if err := manageFile(addrTransactionsFile, db); err != nil {
+		return nil, err
+	}
+	stor, err := newBatchedStorage(db, stateDB, bsParams, params.batchedStorMemLimit)
+	if err != nil {
+		return nil, err
+	}
+	atx := &addressTransactions{
+		stateDB:             stateDB,
+		rw:                  rw,
+		stor:                stor,
+		filePath:            filePath,
+		addrTransactions:    addrTransactionsFile,
+		addrTransactionsBuf: bufio.NewWriter(addrTransactionsFile),
+		params:              params,
+	}
+	if params.providesData {
+		if err := atx.persist(true); err != nil {
+			return nil, errors.Wrap(err, "failed to persist")
+		}
+	}
+	return atx, nil
 }
 
 func (at *addressTransactions) saveTxIdByAddress(addr proto.Address, txID []byte, blockID crypto.Signature) error {
+	if at.rw.offsetLen != 8 {
+		return errors.New("unsupported offset length")
+	}
+	newRecord := make([]byte, addrTxRecordSize)
 	blockNum, err := at.stateDB.blockIdToNum(blockID)
 	if err != nil {
 		return err
 	}
-	key := addr.Bytes()
+	copy(newRecord[:proto.AddressSize], addr.Bytes())
+	pos := proto.AddressSize
 	offset, err := at.rw.newestTransactionOffsetByID(txID)
 	if err != nil {
 		return err
 	}
-	offsetBytes := make([]byte, 8)
-	binary.BigEndian.PutUint64(offsetBytes, offset)
-	return at.stor.addRecord(key, offsetBytes, blockNum)
+	binary.BigEndian.PutUint32(newRecord[pos:], blockNum)
+	pos += blockNumLen
+	binary.BigEndian.PutUint64(newRecord[pos:], offset)
+	if at.params.providesData {
+		return at.stor.addRecordBytes(newRecord[:proto.AddressSize], newRecord[proto.AddressSize:])
+	}
+	if _, err := at.addrTransactionsBuf.Write(newRecord); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (at *addressTransactions) newTransactionsByAddrIterator(addr proto.Address) (*txIter, error) {
+	if !at.params.providesData {
+		return nil, errors.New("state does not provide transactions by addresses now")
+	}
 	key := addr.Bytes()
 	iter, err := at.stor.newBackwardRecordIterator(key)
 	if err != nil {
@@ -100,13 +198,169 @@ func (at *addressTransactions) newTransactionsByAddrIterator(addr proto.Address)
 	return newTxIter(at.rw, iter), nil
 }
 
-func (at *addressTransactions) reset() {
+func (at *addressTransactions) startProvidingData() error {
+	if at.params.providesData {
+		// Already provides.
+		return nil
+	}
+	if err := at.persist(true); err != nil {
+		return err
+	}
+	at.params.providesData = true
+	return nil
+}
+
+func (at *addressTransactions) firstOffsetIsGreater(offsetBytes0, offsetBytes1 []byte) bool {
+	offset0 := binary.BigEndian.Uint64(offsetBytes0)
+	offset1 := binary.BigEndian.Uint64(offsetBytes1)
+	return offset0 > offset1
+}
+
+func (at *addressTransactions) persist(ignoreSize bool) error {
+	fileStats, err := os.Stat(at.filePath)
+	if err != nil {
+		return err
+	}
+	size := fileStats.Size()
+	if size < at.params.maxFileSize && !ignoreSize {
+		// Nothing to do, file is not big enough yet.
+		zap.S().Infof("TransactionsByAddresses file size: %d; max is %d", size, at.params.maxFileSize)
+		return nil
+	}
+
+	zap.S().Info("Starting to sort TransactionsByAddresses file, will take awhile...")
+	// Create file for emsort and set emsort over it.
+	tempFile, err := ioutil.TempFile(os.TempDir(), "emsort")
+	if err != nil {
+		return errors.Wrap(err, "failed to create temp file for emsort")
+	}
+	defer os.Remove(tempFile.Name())
+	sort, err := emsort.NewFixedSize(addrTxRecordSize, maxEmsortMem, tempFile)
+	if err != nil {
+		return errors.Wrap(err, "emsort.NewFixedSize() failed")
+	}
+
+	// Read records from file and append to emsort.
+	for readPos := int64(0); readPos < size; readPos += addrTxRecordSize {
+		record := make([]byte, addrTxRecordSize)
+		if n, err := at.addrTransactions.ReadAt(record, readPos); err != nil {
+			return err
+		} else if n != addrTxRecordSize {
+			return errors.New("failed to read full record")
+		}
+		blockNum := binary.BigEndian.Uint32(record[proto.AddressSize : proto.AddressSize+4])
+		isValid, err := at.stateDB.isValidBlock(blockNum)
+		if err != nil {
+			return errors.Wrap(err, "isValidBlock() failed")
+		}
+		if !isValid {
+			// Invalid record, we should skip it.
+			continue
+		}
+		if err := sort.Push(record); err != nil {
+			return errors.Wrap(err, "emsort.Push() failed")
+		}
+	}
+	// Tell emsort that we have finished appending records.
+	if err := sort.StopWriting(); err != nil {
+		return errors.Wrap(err, "emsort.StopWriting() failed")
+	}
+	zap.S().Info("Finished to sort TransactionsByAddresses file")
+	zap.S().Info("Writing sorted records to database, will take awhile...")
+	// Read records from emsort in sorted order and save to batchedStorage.
+	for {
+		record, err := sort.Pop()
+		if err == io.EOF {
+			// All records were read.
+			break
+		} else if err != nil {
+			return errors.Wrap(err, "emsort.Pop() failed")
+		}
+		key := record[:proto.AddressSize]
+		newRecordBytes := record[proto.AddressSize:]
+		newOffsetBytes := newRecordBytes[blockNumLen:]
+		lastOffsetBytes, err := at.stor.newestRecordByKey(key)
+		if err != errNotFound {
+			if err != nil {
+				return errors.Wrap(err, "newestRecordByKey() failed")
+			}
+			if !at.firstOffsetIsGreater(newOffsetBytes, lastOffsetBytes) {
+				// Make sure the offset we add is greater than any other offsets
+				// by comparing it to the last (= maximum) offset.
+				// This makes adding from file to batchedStorage idempotent.
+				continue
+			}
+		}
+		if err := at.stor.addRecordBytes(key, newRecordBytes); err != nil {
+			return errors.Wrap(err, "batchedStorage: failed to add record")
+		}
+	}
+	// Write 0 size to database batch.
+	// This way 0 size will be written to database together with new records.
+	// If program crashes after batch is flushed but before we truncate the file,
+	// next time 0 size will be read and file will be truncated upon next start.
+	if err := at.saveFileSizeToBatch(at.stor.dbBatch, 0); err != nil {
+		return errors.Wrap(err, "failed to write file size to db batch")
+	}
+	// Flush batchedStorage.
+	if err := at.stor.flush(); err != nil {
+		return errors.Wrap(err, "batchedStorage(): failed to flush")
+	}
+	// Clear batchedStorage.
 	at.stor.reset()
+	// Clear address transactions file.
+	if err := at.addrTransactions.Truncate(0); err != nil {
+		return err
+	}
+	if _, err := at.addrTransactions.Seek(0, 0); err != nil {
+		return err
+	}
+	at.addrTransactionsBuf.Reset(at.addrTransactions)
+	zap.S().Info("Successfully finished moving records from file to database")
+	return nil
+}
+
+func (at *addressTransactions) saveFileSizeToBatch(batch keyvalue.Batch, size uint64) error {
+	fileSizeBytes := make([]byte, 8)
+	binary.BigEndian.PutUint64(fileSizeBytes, size)
+	batch.Put(fileSizeKeyBytes, fileSizeBytes)
+	return nil
+}
+
+func (at *addressTransactions) reset() error {
+	if at.params.providesData {
+		at.stor.reset()
+		return nil
+	}
+	at.addrTransactionsBuf.Reset(at.addrTransactions)
+	return at.persist(false)
 }
 
 func (at *addressTransactions) flush() error {
-	if err := at.stor.flush(); err != nil {
+	if at.params.providesData {
+		return at.stor.flush()
+	}
+	if err := at.addrTransactionsBuf.Flush(); err != nil {
+		return err
+	}
+	if err := at.addrTransactions.Sync(); err != nil {
+		return err
+	}
+	fileStats, err := os.Stat(at.filePath)
+	if err != nil {
+		return err
+	}
+	size := uint64(fileStats.Size())
+	if err := at.saveFileSizeToBatch(at.stateDB.dbBatch, size); err != nil {
 		return err
 	}
 	return nil
+}
+
+func (at *addressTransactions) providesData() bool {
+	return at.params.providesData
+}
+
+func (at *addressTransactions) close() error {
+	return at.addrTransactions.Close()
 }

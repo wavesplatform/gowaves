@@ -107,6 +107,9 @@ const (
 
 	// Information about state: version, API support flag, ...
 	stateInfoKeyPrefix
+
+	// Size of TransactionsByAddresses file.
+	txsByAddrsFileSizeKeyPrefix
 )
 
 var (

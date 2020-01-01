@@ -319,6 +319,10 @@ func (a *MockStateManager) AllFeatures() ([]int16, error) {
 	panic("implement me")
 }
 
+func (a *MockStateManager) StartProvidingExtendedApi() error {
+	panic("implement me")
+}
+
 func newMockStateWithGenesis() *MockStateManager {
 	sig, _ := crypto.NewSignatureFromBase58("5uqnLK3Z9eiot6FyYBfwUnbyid3abicQbAZjz38GQ1Q8XigQMxTK4C1zNkqS1SVw7FqSidbZKxWAKLVoEsp4nNqa")
 	block := &proto.Block{

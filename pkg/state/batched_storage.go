@@ -20,22 +20,22 @@ const (
 )
 
 type record struct {
-	data     []byte
 	blockNum uint32
+	data     []byte
 }
 
 func newRecordFromBytes(data []byte) (*record, error) {
 	if len(data) < blockNumLen {
 		return nil, errInvalidDataSize
 	}
-	blockNum := binary.BigEndian.Uint32(data[len(data)-blockNumLen:])
-	return &record{blockNum: blockNum, data: data[:len(data)-blockNumLen]}, nil
+	blockNum := binary.BigEndian.Uint32(data[:blockNumLen])
+	return &record{blockNum: blockNum, data: data[blockNumLen:]}, nil
 }
 
 func (r *record) marshalBinary() []byte {
 	buf := make([]byte, blockNumLen+len(r.data))
-	copy(buf[:len(r.data)], r.data)
-	binary.BigEndian.PutUint32(buf[len(buf)-blockNumLen:], r.blockNum)
+	binary.BigEndian.PutUint32(buf, r.blockNum)
+	copy(buf[blockNumLen:], r.data)
 	return buf
 }
 
@@ -130,7 +130,7 @@ func (i *batchIterator) currentBatch() ([]byte, error) {
 	key := keyvalue.SafeKey(i.iter)
 	val := keyvalue.SafeValue(i.iter)
 	// manageNormalization() MUST be called with `update` set to false.
-	// Because values (and even keys) from iterator might not correspond with
+	// Because values (and even keys) from iterator might not correspond to
 	// current state of database.
 	// It happens if iterator is retrieved before database gets updated, and is used after
 	// it is updated.
@@ -228,6 +228,22 @@ func (bg *batchesGroup) appendNewRecord(record []byte) error {
 	return nil
 }
 
+func (bg *batchesGroup) lastRecord() (*record, error) {
+	if len(bg.batches) == 0 {
+		return nil, errors.New("no batches")
+	}
+	lastBatch := bg.batches[len(bg.batches)-1]
+	if len(lastBatch.data) < bg.recordSize {
+		return nil, errors.New("batch is too small")
+	}
+	recordBytes := lastBatch.data[len(lastBatch.data)-bg.recordSize:]
+	record, err := newRecordFromBytes(recordBytes)
+	if err != nil {
+		return nil, err
+	}
+	return record, nil
+}
+
 type batchedStorParams struct {
 	maxBatchSize, recordSize int
 	prefix                   byte
@@ -247,7 +263,6 @@ type batchedStorage struct {
 
 func newBatchedStorage(
 	db keyvalue.IterableKeyVal,
-	writeLock *sync.Mutex,
 	stateDB *stateDB,
 	params *batchedStorParams,
 	memLimit int,
@@ -261,13 +276,36 @@ func newBatchedStorage(
 	return &batchedStorage{
 		db:        db,
 		dbBatch:   dbBatch,
-		writeLock: writeLock,
+		writeLock: stateDB.retrieveWriteLock(),
 		stateDB:   stateDB,
 		params:    params,
 		localStor: make(map[string]*batchesGroup),
 		memSize:   0,
 		memLimit:  memLimit,
 	}, nil
+}
+
+func (s *batchedStorage) recordByKey(key []byte) ([]byte, error) {
+	iter, err := s.newBackwardRecordIterator(key)
+	if err != nil {
+		return nil, errNotFound
+	}
+	if !iter.next() {
+		return nil, errNotFound
+	}
+	return iter.currentRecord()
+}
+
+func (s *batchedStorage) newestRecordByKey(key []byte) ([]byte, error) {
+	bg, ok := s.localStor[string(key)]
+	if !ok {
+		return s.recordByKey(key)
+	}
+	record, err := bg.lastRecord()
+	if err != nil {
+		return nil, err
+	}
+	return record.recordBytes(), nil
 }
 
 func (s *batchedStorage) newBatchGroupForKey(key []byte) (*batchesGroup, error) {
@@ -285,24 +323,21 @@ func (s *batchedStorage) newBatchGroupForKey(key []byte) (*batchesGroup, error) 
 	return bg, nil
 }
 
-// Appends one more record (at the end) for specified key.
-func (s *batchedStorage) addRecord(key []byte, data []byte, blockNum uint32) error {
+func (s *batchedStorage) addRecordBytes(key, record []byte) error {
 	keyStr := string(key)
-	r := &record{data: data, blockNum: blockNum}
-	recordBytes := r.marshalBinary()
 	bg, ok := s.localStor[keyStr]
 	if ok {
-		return bg.appendNewRecord(recordBytes)
+		return bg.appendNewRecord(record)
 	}
 	newGroup, err := s.newBatchGroupForKey(key)
 	if err != nil {
 		return err
 	}
-	if err := newGroup.appendNewRecord(recordBytes); err != nil {
+	if err := newGroup.appendNewRecord(record); err != nil {
 		return err
 	}
 	s.localStor[keyStr] = newGroup
-	s.memSize += len(key) + len(data) + blockNumLen
+	s.memSize += len(key) + len(record)
 	if s.memSize >= s.memLimit {
 		if err := s.flush(); err != nil {
 			return err
@@ -310,6 +345,13 @@ func (s *batchedStorage) addRecord(key []byte, data []byte, blockNum uint32) err
 		s.reset()
 	}
 	return nil
+}
+
+// Appends one more record (at the end) for specified key.
+func (s *batchedStorage) addRecord(key []byte, data []byte, blockNum uint32) error {
+	r := &record{data: data, blockNum: blockNum}
+	recordBytes := r.marshalBinary()
+	return s.addRecordBytes(key, recordBytes)
 }
 
 func (s *batchedStorage) readLastBatch(key []byte) (*batch, error) {

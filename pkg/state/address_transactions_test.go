@@ -11,11 +11,9 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/settings"
 )
 
-func TestTransactionsByAddrIterator(t *testing.T) {
+func testIterImpl(t *testing.T, params StateParams) {
 	dataDir, err := ioutil.TempDir(os.TempDir(), "dataDir")
 	assert.NoError(t, err)
-	params := DefaultTestingStateParams()
-	params.StoreExtendedApiData = true
 	st, err := NewState(dataDir, params, settings.MainNetSettings)
 	assert.NoError(t, err)
 
@@ -30,6 +28,8 @@ func TestTransactionsByAddrIterator(t *testing.T) {
 	blocks, err := ReadMainnetBlocksToHeight(blockHeight)
 	assert.NoError(t, err)
 	err = st.AddOldDeserializedBlocks(blocks)
+	assert.NoError(t, err)
+	err = st.StartProvidingExtendedApi()
 	assert.NoError(t, err)
 
 	addr, err := proto.NewAddressFromString("3P2CVwf4MxPBkYZKTgaNMfcTt5SwbNXQWz6")
@@ -92,4 +92,18 @@ func TestTransactionsByAddrIterator(t *testing.T) {
 	assert.Equal(t, 2, i)
 	iter.Release()
 	assert.NoError(t, iter.Error())
+}
+
+func TestTransactionsByAddrIterator(t *testing.T) {
+	params := DefaultTestingStateParams()
+	params.StoreExtendedApiData = true
+	params.ProvideExtendedApi = true
+	testIterImpl(t, params)
+}
+
+func TestTransactionsByAddrIteratorOptimized(t *testing.T) {
+	params := DefaultTestingStateParams()
+	params.StoreExtendedApiData = true
+	params.ProvideExtendedApi = false
+	testIterImpl(t, params)
 }

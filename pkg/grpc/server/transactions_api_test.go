@@ -109,9 +109,7 @@ func TestGetTransactions(t *testing.T) {
 func TestGetStatuses(t *testing.T) {
 	dataDir, err := ioutil.TempDir(os.TempDir(), "dataDir")
 	assert.NoError(t, err)
-	params := state.DefaultTestingStateParams()
-	// State should store addl data for gRPC API.
-	params.StoreExtendedApiData = true
+	params := defaultStateParams()
 	st, err := state.NewState(dataDir, params, settings.MainNetSettings)
 	assert.NoError(t, err)
 	sch := scheduler.NewScheduler(st, keyPairs, settings.MainNetSettings)
@@ -174,9 +172,7 @@ func TestGetStatuses(t *testing.T) {
 func TestGetUnconfirmed(t *testing.T) {
 	dataDir, err := ioutil.TempDir(os.TempDir(), "dataDir")
 	assert.NoError(t, err)
-	params := state.DefaultTestingStateParams()
-	// State should store addl data for gRPC API.
-	params.StoreExtendedApiData = true
+	params := defaultStateParams()
 	st, err := state.NewState(dataDir, params, settings.MainNetSettings)
 	assert.NoError(t, err)
 	sch := scheduler.NewScheduler(st, keyPairs, settings.MainNetSettings)
@@ -275,9 +271,7 @@ func TestGetUnconfirmed(t *testing.T) {
 func TestSign(t *testing.T) {
 	dataDir, err := ioutil.TempDir(os.TempDir(), "dataDir")
 	assert.NoError(t, err)
-	params := state.DefaultTestingStateParams()
-	// State should store addl data for gRPC API.
-	params.StoreExtendedApiData = true
+	params := defaultStateParams()
 	st, err := state.NewState(dataDir, params, settings.MainNetSettings)
 	assert.NoError(t, err)
 	sch := scheduler.NewScheduler(st, keyPairs, settings.MainNetSettings)
@@ -323,9 +317,7 @@ func TestSign(t *testing.T) {
 func TestBroadcast(t *testing.T) {
 	dataDir, err := ioutil.TempDir(os.TempDir(), "dataDir")
 	assert.NoError(t, err)
-	params := state.DefaultTestingStateParams()
-	// State should store addl data for gRPC API.
-	params.StoreExtendedApiData = true
+	params := defaultStateParams()
 	st, err := state.NewState(dataDir, params, settings.MainNetSettings)
 	assert.NoError(t, err)
 	sch := scheduler.NewScheduler(st, keyPairs, settings.MainNetSettings)

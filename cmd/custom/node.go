@@ -32,16 +32,17 @@ import (
 var version = proto.Version{Major: 1, Minor: 1, Patch: 2}
 
 var (
-	logLevel          = flag.String("log-level", "INFO", "Logging level. Supported levels: DEBUG, INFO, WARN, ERROR, FATAL. Default logging level INFO.")
-	statePath         = flag.String("state-path", "", "Path to node's state directory")
-	peerAddresses     = flag.String("peers", "", "Addresses of peers to connect to")
-	declAddr          = flag.String("declared-address", "", "Address to listen on")
-	apiAddr           = flag.String("api-address", "", "Address for REST API")
-	grpcAddr          = flag.String("grpc-address", "127.0.0.1:7475", "Address for gRPC API")
-	cfgPath           = flag.String("cfg-path", "", "Path to configuration JSON file. No default value.")
-	seed              = flag.String("seed", "", "Seed for miner")
-	enableGrpcApi     = flag.Bool("enable-grpc-api", true, "Enables/disables gRPC API")
-	enableExtendedApi = flag.Bool("extended-api", false, "Enables/disables extended API. Note that state must be reimported in case it wasn't imported with api flag set")
+	logLevel         = flag.String("log-level", "INFO", "Logging level. Supported levels: DEBUG, INFO, WARN, ERROR, FATAL. Default logging level INFO.")
+	statePath        = flag.String("state-path", "", "Path to node's state directory")
+	peerAddresses    = flag.String("peers", "", "Addresses of peers to connect to")
+	declAddr         = flag.String("declared-address", "", "Address to listen on")
+	apiAddr          = flag.String("api-address", "", "Address for REST API")
+	grpcAddr         = flag.String("grpc-address", "127.0.0.1:7475", "Address for gRPC API")
+	cfgPath          = flag.String("cfg-path", "", "Path to configuration JSON file. No default value.")
+	seed             = flag.String("seed", "", "Seed for miner")
+	enableGrpcApi    = flag.Bool("enable-grpc-api", true, "Enables/disables gRPC API")
+	buildExtendedApi = flag.Bool("build-extended-api", false, "Builds extended API. Note that state must be reimported in case it wasn't imported with similar flag set")
+	serveExtendedApi = flag.Bool("serve-extended-api", false, "Serves extended API requests since the very beginning. The default behavior is to import until first block close to current time, and start serving at this point")
 )
 
 func init() {
@@ -95,9 +96,17 @@ func main() {
 		}
 	}
 	params := state.DefaultStateParams()
-	params.StoreExtendedApiData = *enableExtendedApi
+	params.StoreExtendedApiData = *buildExtendedApi
+	params.ProvideExtendedApi = *serveExtendedApi
 	state, err := state.NewState(path, params, custom)
 	if err != nil {
+		zap.S().Error(err)
+		cancel()
+		return
+	}
+
+	// Check if we need to start serving extended API right now.
+	if err := node.MaybeEnableExtendedApi(state); err != nil {
 		zap.S().Error(err)
 		cancel()
 		return

@@ -22,9 +22,7 @@ import (
 func TestGetBalances(t *testing.T) {
 	dataDir, err := ioutil.TempDir(os.TempDir(), "dataDir")
 	assert.NoError(t, err)
-	params := state.DefaultTestingStateParams()
-	// State should store addl data for gRPC API.
-	params.StoreExtendedApiData = true
+	params := defaultStateParams()
 	st, err := state.NewState(dataDir, params, settings.MainNetSettings)
 	assert.NoError(t, err)
 	sch := scheduler.NewScheduler(st, keyPairs, settings.MainNetSettings)

@@ -228,7 +228,7 @@ func createStorageObjects() (*testStorageObjects, []string, error) {
 	if err != nil {
 		return nil, res, err
 	}
-	hs, err := newHistoryStorage(db, dbBatch, stateDB.retrieveWriteLock(), stateDB)
+	hs, err := newHistoryStorage(db, dbBatch, stateDB)
 	if err != nil {
 		return nil, res, err
 	}
