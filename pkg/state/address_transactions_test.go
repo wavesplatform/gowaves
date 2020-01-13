@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
+	"github.com/wavesplatform/gowaves/pkg/util"
 )
 
 func testIterImpl(t *testing.T, params StateParams) {
@@ -109,4 +110,64 @@ func TestTransactionsByAddrIteratorOptimized(t *testing.T) {
 	params.StoreExtendedApiData = true
 	params.ProvideExtendedApi = false
 	testIterImpl(t, params)
+}
+
+func TestAddrTransactionsIdempotent(t *testing.T) {
+	stor, path, err := createStorageObjects()
+	assert.NoError(t, err)
+	atxDir, err := ioutil.TempDir(os.TempDir(), "atx")
+	assert.NoError(t, err)
+	path = append(path, atxDir)
+
+	defer func() {
+		stor.close(t)
+
+		err = util.CleanTemporaryDirs(path)
+		assert.NoError(t, err, "failed to clean test data dirs")
+	}()
+
+	params := &addressTransactionsParams{
+		dir:                 atxDir,
+		batchedStorMemLimit: AddressTransactionsMemLimit,
+		maxFileSize:         MaxAddressTransactionsFileSize,
+		providesData:        false,
+	}
+	atx, err := newAddressTransactions(stor.db, stor.stateDB, stor.rw, params)
+	assert.NoError(t, err)
+	addr, err := proto.NewAddressFromString(testAddr)
+	assert.NoError(t, err)
+	tx := createPayment(t)
+	txBytes, err := tx.MarshalBinary()
+	assert.NoError(t, err)
+	txID, err := tx.GetID()
+	assert.NoError(t, err)
+	// Save the same transaction ID twice.
+	// Then make sure it was added to batchedStor only once.
+	err = stor.rw.writeTransaction(txID, txBytes)
+	assert.NoError(t, err)
+	stor.addBlock(t, blockID0)
+	err = atx.saveTxIdByAddress(addr, txID, blockID0)
+	assert.NoError(t, err)
+	err = atx.saveTxIdByAddress(addr, txID, blockID0)
+	assert.NoError(t, err)
+	stor.flush(t)
+	err = atx.flush()
+	assert.NoError(t, err)
+	err = atx.reset()
+	assert.NoError(t, err)
+	err = atx.startProvidingData()
+	assert.NoError(t, err)
+
+	iter, err := atx.newTransactionsByAddrIterator(addr)
+	assert.NoError(t, err)
+	i := 0
+	for iter.Next() {
+		transaction, err := iter.Transaction()
+		assert.NoError(t, err)
+		assert.Equal(t, tx, transaction)
+		i++
+	}
+	assert.Equal(t, 1, i)
+	iter.Release()
+	assert.NoError(t, iter.Error())
 }
