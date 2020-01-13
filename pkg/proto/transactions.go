@@ -448,13 +448,7 @@ func (tx Payment) GetTypeVersion() TransactionTypeVersion {
 
 func (tx *Payment) GenerateID() {
 	if tx.ID == nil {
-		buf := tx.bodyMarshalBinaryBuffer()
-		err := tx.bodyMarshalBinary(buf)
-		if err != nil {
-			panic(err.Error())
-		}
-		id := tx.generateBodyHash(buf)
-		tx.ID = &id
+		tx.ID = tx.Signature
 	}
 }
 
@@ -536,16 +530,6 @@ func (tx *Payment) bodyUnmarshalBinary(data []byte) error {
 	return nil
 }
 
-func (tx *Payment) generateBodyHash(body []byte) crypto.Signature {
-	d := make([]byte, len(body)+3)
-	copy(d[3:], body)
-	h := crypto.MustFastHash(d)
-	var s crypto.Signature
-	copy(s[0:], h[:])
-	copy(s[crypto.DigestSize:], h[:])
-	return s
-}
-
 //Sign calculates transaction signature and set it as an ID.
 func (tx *Payment) Sign(secretKey crypto.SecretKey) error {
 	b := tx.bodyMarshalBinaryBuffer()
@@ -559,8 +543,7 @@ func (tx *Payment) Sign(secretKey crypto.SecretKey) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to sign Payment transaction")
 	}
-	id := tx.generateBodyHash(b)
-	tx.ID = &id
+	tx.ID = &s
 	tx.Signature = &s
 	return nil
 }
