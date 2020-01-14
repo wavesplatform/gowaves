@@ -11,7 +11,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
-	"math/big"
 	"strconv"
 	"strings"
 	"unicode/utf8"
@@ -198,28 +197,23 @@ func NativeFractionLong(s Scope, e Exprs) (Expr, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
-	originalValue, ok := rs[0].(*LongExpr)
+	value, ok := rs[0].(*LongExpr)
 	if !ok {
 		return nil, errors.Errorf("%s first argument expected to be *LongExpr, got %T", funcName, rs[0])
 	}
-	multiplier, ok := rs[1].(*LongExpr)
+	numerator, ok := rs[1].(*LongExpr)
 	if !ok {
 		return nil, errors.Errorf("%s second argument expected to be *LongExpr, got %T", funcName, rs[1])
 	}
-	divider, ok := rs[2].(*LongExpr)
+	denominator, ok := rs[2].(*LongExpr)
 	if !ok {
 		return nil, errors.Errorf("%s third argument expected to be *LongExpr, got %T", funcName, rs[2])
 	}
-	if divider.Value == 0 {
-		return nil, errors.Errorf("%s division by zero", funcName)
+	res, err := fraction(value.Value, numerator.Value, denominator.Value)
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
 	}
-	a := big.NewInt(0)
-	a.Mul(big.NewInt(originalValue.Value), big.NewInt(multiplier.Value))
-	a.Div(a, big.NewInt(divider.Value))
-	if !a.IsInt64() {
-		return nil, errors.Errorf("%s long overflow %s", funcName, a.String())
-	}
-	return NewLong(a.Int64()), nil
+	return NewLong(res), nil
 }
 
 //NativePowLong calculates power.
