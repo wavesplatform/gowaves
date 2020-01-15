@@ -40,6 +40,7 @@ var (
 	apiAddr        = flag.String("api-address", "", "Address for REST API")
 	grpcAddr       = flag.String("grpc-address", "127.0.0.1:7475", "Address for gRPC API")
 	seed           = flag.String("seed", "", "Seed for miner")
+	bindAddress    = flag.String("bind-address", "", "Bind address for incoming connections. If empty, will be same as declared address")
 )
 
 func main() {
@@ -93,6 +94,7 @@ func main() {
 	}
 
 	declAddr := proto.NewTCPAddrFromString(conf.DeclaredAddr)
+	bindAddr := proto.NewTCPAddrFromString(*bindAddress)
 
 	mb := 1024 * 1014
 	pool := bytespool.NewBytesPool(64, mb+(mb/2))
@@ -148,7 +150,7 @@ func main() {
 		ngState.BlockApplied()
 	}))
 
-	n := node.NewNode(services, declAddr, ngRuntime, mine, stateSync)
+	n := node.NewNode(services, declAddr, bindAddr, ngRuntime, mine, stateSync)
 	go node.RunNode(ctx, n, parent)
 
 	go scheduler.Reschedule()

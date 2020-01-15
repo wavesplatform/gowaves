@@ -31,19 +31,24 @@ type Node struct {
 	subscribe        types.Subscribe
 	sync             types.StateSync
 	declAddr         proto.TCPAddr
+	bindAddr         proto.TCPAddr
 	scheduler        types.Scheduler
 	minerInterrupter types.MinerInterrupter
 	utx              types.UtxPool
 	ng               *ng.RuntimeImpl
 }
 
-func NewNode(services services.Services, declAddr proto.TCPAddr, ng *ng.RuntimeImpl, interrupter types.MinerInterrupter, sync types.StateSync) *Node {
+func NewNode(services services.Services, declAddr proto.TCPAddr, bindAddr proto.TCPAddr, ng *ng.RuntimeImpl, interrupter types.MinerInterrupter, sync types.StateSync) *Node {
+	if bindAddr.Empty() {
+		bindAddr = declAddr
+	}
 	return &Node{
 		state:            services.State,
 		peers:            services.Peers,
 		subscribe:        services.Subscribe,
 		sync:             sync,
 		declAddr:         declAddr,
+		bindAddr:         bindAddr,
 		scheduler:        services.Scheduler,
 		minerInterrupter: interrupter,
 		utx:              services.UtxPool,
@@ -255,11 +260,17 @@ func (a *Node) SpawnOutgoingConnection(ctx context.Context, addr proto.TCPAddr) 
 }
 
 func (a *Node) Serve(ctx context.Context) error {
+	// if empty declared address, listen on port doesn't make sense
 	if a.declAddr.Empty() {
 		return nil
 	}
 
-	l, err := net.Listen("tcp", a.declAddr.String())
+	if a.bindAddr.Empty() {
+		return nil
+	}
+
+	zap.S().Info("start listening on ", a.bindAddr.String())
+	l, err := net.Listen("tcp", a.bindAddr.String())
 	if err != nil {
 		return err
 	}
