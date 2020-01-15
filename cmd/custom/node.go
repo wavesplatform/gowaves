@@ -157,7 +157,7 @@ func main() {
 	go miner.Run(ctx, Miner, scheduler)
 	go scheduler.Reschedule()
 
-	n := node.NewNode(services, declAddr, ngRuntime, Miner, stateSync)
+	n := node.NewNode(services, declAddr, declAddr, ngRuntime, Miner, stateSync)
 
 	go node.RunNode(ctx, n, parent)
 
