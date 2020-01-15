@@ -32,5 +32,5 @@ const (
 
 	// Maximum size of transactions by addresses file.
 	// Then it is sorted and saved to DB.
-	MaxAddressTransactionsFileSize = 5 * 1024 * 1024 * 1024 // 5 GiB.
+	MaxAddressTransactionsFileSize = 2 * 1024 * 1024 * 1024 // 2 GiB.
 )

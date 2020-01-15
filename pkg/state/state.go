@@ -330,7 +330,7 @@ func (s *stateManager) addGenesisBlock() error {
 	if err := s.flush(true); err != nil {
 		return wrapErr(ModificationError, err)
 	}
-	if err := s.reset(); err != nil {
+	if err := s.reset(true); err != nil {
 		return wrapErr(ModificationError, err)
 	}
 	return nil
@@ -350,7 +350,7 @@ func (s *stateManager) applyPreactivatedFeatures(features []int16, blockID crypt
 	if err := s.flush(true); err != nil {
 		return err
 	}
-	if err := s.reset(); err != nil {
+	if err := s.reset(true); err != nil {
 		return err
 	}
 	return nil
@@ -751,12 +751,12 @@ func (s *stateManager) addNewBlock(block, parent *proto.Block, initialisation bo
 	return nil
 }
 
-func (s *stateManager) reset() error {
+func (s *stateManager) reset(initialisation bool) error {
 	s.rw.reset()
 	s.stor.reset()
 	s.stateDB.reset()
 	s.appender.reset()
-	if err := s.atx.reset(); err != nil {
+	if err := s.atx.reset(!initialisation); err != nil {
 		return err
 	}
 	return nil
@@ -779,7 +779,7 @@ func (s *stateManager) flush(initialisation bool) error {
 }
 
 func (s *stateManager) undoBlockAddition() error {
-	if err := s.reset(); err != nil {
+	if err := s.reset(false); err != nil {
 		return err
 	}
 	if err := s.stateDB.syncRw(); err != nil {
@@ -812,7 +812,7 @@ func (s *stateManager) addBlock(block *proto.Block) (*proto.Block, error) {
 	rs, err := s.addBlocks([]*proto.Block{block}, false)
 	if err != nil {
 		if err := s.undoBlockAddition(); err != nil {
-			zap.S().Fatal("Failed to add blocks and can not rollback to previous state after failure")
+			zap.S().Fatalf("Failed to add blocks and can not rollback to previous state after failure: %v", err)
 		}
 		return nil, err
 	}
@@ -837,7 +837,7 @@ func (s *stateManager) AddNewBlocks(blockBytes [][]byte) error {
 	s.appender.reset()
 	if _, err := s.addBlocks(blocks, false); err != nil {
 		if err := s.undoBlockAddition(); err != nil {
-			zap.S().Fatal("Failed to add blocks and can not rollback to previous state after failure")
+			zap.S().Fatalf("Failed to add blocks and can not rollback to previous state after failure: %v", err)
 		}
 		return err
 	}
@@ -878,7 +878,7 @@ func (s *stateManager) AddOldBlocks(blockBytes [][]byte) error {
 	s.appender.reset()
 	if _, err := s.addBlocks(blocks, true); err != nil {
 		if err := s.undoBlockAddition(); err != nil {
-			zap.S().Fatal("Failed to add blocks and can not rollback to previous state after failure")
+			zap.S().Fatalf("Failed to add blocks and can not rollback to previous state after failure: %v", err)
 		}
 		return err
 	}
@@ -1015,7 +1015,7 @@ func (s *stateManager) needToBreakAddingBlocks(curHeight uint64, task *breakerTa
 	return false, nil
 }
 
-func (s *stateManager) finishVoting(blockID crypto.Signature) error {
+func (s *stateManager) finishVoting(blockID crypto.Signature, initialisation bool) error {
 	height, err := s.Height()
 	if err != nil {
 		return err
@@ -1024,16 +1024,16 @@ func (s *stateManager) finishVoting(blockID crypto.Signature) error {
 		return err
 	}
 	s.lastVotingHeight = height
-	if err := s.flush(true); err != nil {
+	if err := s.flush(initialisation); err != nil {
 		return err
 	}
-	if err := s.reset(); err != nil {
+	if err := s.reset(initialisation); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (s *stateManager) updateBlockReward(blockID crypto.Signature) error {
+func (s *stateManager) updateBlockReward(blockID crypto.Signature, initialisation bool) error {
 	h, err := s.Height()
 	if err != nil {
 		return err
@@ -1042,7 +1042,10 @@ func (s *stateManager) updateBlockReward(blockID crypto.Signature) error {
 		return err
 	}
 	s.lastBlockRewardTermEndHeight = h
-	if err := s.reset(); err != nil {
+	if err := s.flush(initialisation); err != nil {
+		return err
+	}
+	if err := s.reset(initialisation); err != nil {
 		return err
 	}
 	return nil
@@ -1094,7 +1097,7 @@ func (s *stateManager) cancelLeases(blockID crypto.Signature) error {
 	if err := s.flush(true); err != nil {
 		return err
 	}
-	if err := s.reset(); err != nil {
+	if err := s.reset(true); err != nil {
 		return err
 	}
 	return nil
@@ -1105,12 +1108,12 @@ func (s *stateManager) handleBreak(blocksToFinish []*proto.Block, initialisation
 		return nil, wrapErr(Other, errors.New("handleBreak received empty task"))
 	}
 	if task.finishVotingPeriod {
-		if err := s.finishVoting(task.blockID); err != nil {
+		if err := s.finishVoting(task.blockID, initialisation); err != nil {
 			return nil, wrapErr(ModificationError, err)
 		}
 	}
 	if task.finishBlockRewardTerm {
-		if err := s.updateBlockReward(task.blockID); err != nil {
+		if err := s.updateBlockReward(task.blockID, initialisation); err != nil {
 			return nil, wrapErr(ModificationError, err)
 		}
 	}
@@ -1238,7 +1241,7 @@ func (s *stateManager) addBlocks(blocks []*proto.Block, initialisation bool) (*p
 		return nil, wrapErr(ModificationError, err)
 	}
 	// Reset in-memory storages.
-	if err := s.reset(); err != nil {
+	if err := s.reset(initialisation); err != nil {
 		return nil, wrapErr(ModificationError, err)
 	}
 	// Check if we need to perform some event and call addBlocks() again.
@@ -1328,7 +1331,7 @@ func (s *stateManager) rollbackToImpl(removalEdge crypto.Signature) error {
 func (s *stateManager) RollbackTo(removalEdge crypto.Signature) error {
 	if err := s.rollbackToImpl(removalEdge); err != nil {
 		if err1 := s.stateDB.syncRw(); err1 != nil {
-			zap.S().Fatal("Failed to rollback and can not sync state components after failure")
+			zap.S().Fatalf("Failed to rollback and can not sync state components after failure: %v", err1)
 		}
 		return err
 	}

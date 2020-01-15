@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"runtime/debug"
 
 	"github.com/pkg/errors"
 	"github.com/starius/emsort"
@@ -152,14 +153,14 @@ func newAddressTransactions(
 		params:              params,
 	}
 	if params.providesData {
-		if err := atx.persist(true); err != nil {
+		if err := atx.persist(true, true); err != nil {
 			return nil, errors.Wrap(err, "failed to persist")
 		}
 	}
 	return atx, nil
 }
 
-func (at *addressTransactions) saveTxIdByAddress(addr proto.Address, txID []byte, blockID crypto.Signature) error {
+func (at *addressTransactions) saveTxIdByAddress(addr proto.Address, txID []byte, blockID crypto.Signature, filter bool) error {
 	if at.rw.offsetLen != 8 {
 		return errors.New("unsupported offset length")
 	}
@@ -178,7 +179,7 @@ func (at *addressTransactions) saveTxIdByAddress(addr proto.Address, txID []byte
 	pos += blockNumLen
 	binary.BigEndian.PutUint64(newRecord[pos:], offset)
 	if at.params.providesData {
-		return at.stor.addRecordBytes(newRecord[:proto.AddressSize], newRecord[proto.AddressSize:])
+		return at.stor.addRecordBytes(newRecord[:proto.AddressSize], newRecord[proto.AddressSize:], filter)
 	}
 	if _, err := at.addrTransactionsBuf.Write(newRecord); err != nil {
 		return err
@@ -203,20 +204,49 @@ func (at *addressTransactions) startProvidingData() error {
 		// Already provides.
 		return nil
 	}
-	if err := at.persist(true); err != nil {
+	if err := at.persist(true, true); err != nil {
 		return err
 	}
 	at.params.providesData = true
 	return nil
 }
 
-func (at *addressTransactions) firstOffsetIsGreater(offsetBytes0, offsetBytes1 []byte) bool {
-	offset0 := binary.BigEndian.Uint64(offsetBytes0)
-	offset1 := binary.BigEndian.Uint64(offsetBytes1)
-	return offset0 > offset1
+func (at *addressTransactions) offsetFromBytes(offsetBytes []byte) uint64 {
+	return binary.BigEndian.Uint64(offsetBytes)
 }
 
-func (at *addressTransactions) persist(ignoreSize bool) error {
+func (at *addressTransactions) handleRecord(record []byte, filter bool) error {
+	key := record[:proto.AddressSize]
+	newRecordBytes := record[proto.AddressSize:]
+	lastOffsetBytes, err := at.stor.newestRecordByKey(key, filter)
+	if err == errNotFound {
+		// The first record for this key.
+		if err := at.stor.addRecordBytes(key, newRecordBytes, filter); err != nil {
+			return errors.Wrap(err, "batchedStorage: failed to add record")
+		}
+		return nil
+	} else if err != nil {
+		return errors.Wrap(err, "newestRecordByKey() failed")
+	}
+	// Make sure the offset we add is greater than any other offsets
+	// by comparing it to the last (= maximum) offset.
+	// This makes adding from file to batchedStorage idempotent.
+	newOffsetBytes := newRecordBytes[blockNumLen:]
+	offset := at.offsetFromBytes(newOffsetBytes)
+	lastOffset := at.offsetFromBytes(lastOffsetBytes)
+	if lastOffset > at.rw.blockchainLen {
+		return errors.Errorf("invalid offset in storage: %d, max is: %d", lastOffset, at.rw.blockchainLen)
+	}
+	if offset <= lastOffset {
+		return nil
+	}
+	if err := at.stor.addRecordBytes(key, newRecordBytes, filter); err != nil {
+		return errors.Wrap(err, "batchedStorage: failed to add record")
+	}
+	return nil
+}
+
+func (at *addressTransactions) persist(ignoreSize, filter bool) error {
 	fileStats, err := os.Stat(at.filePath)
 	if err != nil {
 		return err
@@ -248,10 +278,15 @@ func (at *addressTransactions) persist(ignoreSize bool) error {
 		} else if n != addrTxRecordSize {
 			return errors.New("failed to read full record")
 		}
-		blockNum := binary.BigEndian.Uint32(record[proto.AddressSize : proto.AddressSize+4])
-		isValid, err := at.stateDB.isValidBlock(blockNum)
-		if err != nil {
-			return errors.Wrap(err, "isValidBlock() failed")
+		// Filtering optimization: if all blocks are valid,
+		// we shouldn't check isValid() on records.
+		isValid := true
+		if filter {
+			blockNum := binary.BigEndian.Uint32(record[proto.AddressSize : proto.AddressSize+4])
+			isValid, err = at.stateDB.isValidBlock(blockNum)
+			if err != nil {
+				return errors.Wrap(err, "isValidBlock() failed")
+			}
 		}
 		if !isValid {
 			// Invalid record, we should skip it.
@@ -276,23 +311,8 @@ func (at *addressTransactions) persist(ignoreSize bool) error {
 		} else if err != nil {
 			return errors.Wrap(err, "emsort.Pop() failed")
 		}
-		key := record[:proto.AddressSize]
-		newRecordBytes := record[proto.AddressSize:]
-		newOffsetBytes := newRecordBytes[blockNumLen:]
-		lastOffsetBytes, err := at.stor.newestRecordByKey(key)
-		if err != errNotFound {
-			if err != nil {
-				return errors.Wrap(err, "newestRecordByKey() failed")
-			}
-			if !at.firstOffsetIsGreater(newOffsetBytes, lastOffsetBytes) {
-				// Make sure the offset we add is greater than any other offsets
-				// by comparing it to the last (= maximum) offset.
-				// This makes adding from file to batchedStorage idempotent.
-				continue
-			}
-		}
-		if err := at.stor.addRecordBytes(key, newRecordBytes); err != nil {
-			return errors.Wrap(err, "batchedStorage: failed to add record")
+		if err := at.handleRecord(record, filter); err != nil {
+			return errors.Wrap(err, "failed to add record")
 		}
 	}
 	// Write 0 size to database batch.
@@ -317,6 +337,7 @@ func (at *addressTransactions) persist(ignoreSize bool) error {
 	}
 	at.addrTransactionsBuf.Reset(at.addrTransactions)
 	zap.S().Info("Successfully finished moving records from file to database")
+	debug.FreeOSMemory()
 	return nil
 }
 
@@ -327,13 +348,13 @@ func (at *addressTransactions) saveFileSizeToBatch(batch keyvalue.Batch, size ui
 	return nil
 }
 
-func (at *addressTransactions) reset() error {
+func (at *addressTransactions) reset(filter bool) error {
 	if at.params.providesData {
 		at.stor.reset()
 		return nil
 	}
 	at.addrTransactionsBuf.Reset(at.addrTransactions)
-	return at.persist(false)
+	return at.persist(false, filter)
 }
 
 func (at *addressTransactions) flush() error {

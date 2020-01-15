@@ -101,6 +101,8 @@ const (
 
 	// Batched storage (see batched_storage.go).
 	batchedStorKeyPrefix
+	// The last batch num by internal key (batched_storage.go).
+	lastBatchKeyPrefix
 
 	// Invoke results.
 	invokeResultKeyPrefix
@@ -554,18 +556,17 @@ func (k *batchedStorKey) bytes() []byte {
 	return buf
 }
 
-func (k *batchedStorKey) unmarshal(data []byte) error {
-	if len(data) < 6 {
-		return errInvalidDataSize
-	}
-	if data[0] != batchedStorKeyPrefix {
-		return errInvalidPrefix
-	}
-	k.prefix = data[1]
-	k.internalKey = make([]byte, len(data)-6)
-	copy(k.internalKey, data[2:len(data)-4])
-	k.batchNum = binary.LittleEndian.Uint32(data[len(data)-4:])
-	return nil
+type lastBatchKey struct {
+	prefix      byte
+	internalKey []byte
+}
+
+func (k *lastBatchKey) bytes() []byte {
+	buf := make([]byte, 2+len(k.internalKey)+4)
+	buf[0] = lastBatchKeyPrefix
+	buf[1] = k.prefix
+	copy(buf[2:], k.internalKey[:])
+	return buf
 }
 
 type invokeResultKey struct {

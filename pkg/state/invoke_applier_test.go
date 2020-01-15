@@ -163,7 +163,7 @@ func TestApplyInvokeScriptV1PaymentsAndData(t *testing.T) {
 	assert.NoError(t, err, "applyAllDiffs() failed")
 	err = to.state.flush(false)
 	assert.NoError(t, err, "state.flush() failed")
-	err = to.state.reset()
+	err = to.state.reset(false)
 	assert.NoError(t, err, "state.reset() failed")
 
 	// Check after flushing.
@@ -251,7 +251,7 @@ func TestApplyInvokeScriptV1Transfers(t *testing.T) {
 	assert.NoError(t, err, "applyAllDiffs() failed")
 	err = to.state.flush(false)
 	assert.NoError(t, err, "state.flush() failed")
-	err = to.state.reset()
+	err = to.state.reset(false)
 	assert.NoError(t, err, "state.reset() failed")
 
 	// Check after flushing.

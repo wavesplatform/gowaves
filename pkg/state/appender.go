@@ -304,9 +304,10 @@ func (a *txAppender) saveTransactionIdByAddresses(
 	addrs []proto.Address,
 	txID []byte,
 	blockID crypto.Signature,
+	filter bool,
 ) error {
 	for _, addr := range addrs {
-		if err := a.atx.saveTxIdByAddress(addr, txID, blockID); err != nil {
+		if err := a.atx.saveTxIdByAddress(addr, txID, blockID, filter); err != nil {
 			return err
 		}
 	}
@@ -442,7 +443,7 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 		}
 		// Store additional data for API: transaction by address.
 		if a.buildApiData {
-			if err := a.saveTransactionIdByAddresses(txChanges.addresses(), txID, blockID); err != nil {
+			if err := a.saveTransactionIdByAddresses(txChanges.addresses(), txID, blockID, !params.initialisation); err != nil {
 				return err
 			}
 		}

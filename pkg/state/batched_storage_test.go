@@ -30,12 +30,12 @@ type batchedStorageTestObjects struct {
 	rollbackedIds map[crypto.Signature]bool
 }
 
-func createBatchedStorage() (*batchedStorageTestObjects, []string, error) {
+func createBatchedStorage(recordSize int) (*batchedStorageTestObjects, []string, error) {
 	stor, path, err := createStorageObjects()
 	if err != nil {
 		return nil, path, err
 	}
-	params := &batchedStorParams{maxBatchSize: maxBatchSize, recordSize: testRecordSize, prefix: prefix}
+	params := &batchedStorParams{maxBatchSize: maxBatchSize, recordSize: recordSize, prefix: prefix}
 	batchedStor, err := newBatchedStorage(stor.db, stor.hs.stateDB, params, testMemLimit)
 	if err != nil {
 		return nil, path, err
@@ -53,7 +53,7 @@ func (to *batchedStorageTestObjects) addTestRecords(t *testing.T, key []byte, da
 		delete(to.rollbackedIds, rc.blockID)
 		blockNum, err := to.stor.stateDB.blockIdToNum(rc.blockID)
 		assert.NoError(t, err)
-		err = to.batchedStor.addRecord(key, rc.record, blockNum)
+		err = to.batchedStor.addRecord(key, rc.record, blockNum, true)
 		assert.NoError(t, err)
 	}
 }
@@ -129,8 +129,75 @@ func genTestRecords(t *testing.T, ids []crypto.Signature) []testRecord {
 	return res
 }
 
+func TestRecordByKey(t *testing.T) {
+	to, path, err := createBatchedStorage(3)
+	assert.NoError(t, err, "createBatchedStorage() failed")
+
+	defer func() {
+		to.stor.close(t)
+
+		err = util.CleanTemporaryDirs(path)
+		assert.NoError(t, err, "failed to clean test data dirs")
+	}()
+
+	to.stor.addBlock(t, blockID0)
+	blockNum0, err := to.stor.stateDB.blockIdToNum(blockID0)
+	assert.NoError(t, err)
+	key0 := []byte{1, 2, 3}
+	record0 := []byte{4, 5, 6}
+	err = to.batchedStor.addRecord(key0, record0, blockNum0, true)
+	assert.NoError(t, err)
+	res, err := to.batchedStor.newestRecordByKey(key0, true)
+	assert.NoError(t, err)
+	assert.Equal(t, record0, res)
+
+	key1 := []byte{7, 8, 9}
+	record1 := []byte{10, 11, 12}
+	err = to.batchedStor.addRecord(key1, record1, blockNum0, true)
+	assert.NoError(t, err)
+	res, err = to.batchedStor.newestRecordByKey(key1, true)
+	assert.NoError(t, err)
+	assert.Equal(t, record1, res)
+
+	to.flush(t)
+
+	res, err = to.batchedStor.newestRecordByKey(key0, true)
+	assert.NoError(t, err)
+	assert.Equal(t, record0, res)
+	res, err = to.batchedStor.newestRecordByKey(key1, true)
+	assert.NoError(t, err)
+	assert.Equal(t, record1, res)
+
+	res, err = to.batchedStor.recordByKey(key0, true)
+	assert.NoError(t, err)
+	assert.Equal(t, record0, res)
+	res, err = to.batchedStor.recordByKey(key1, true)
+	assert.NoError(t, err)
+	assert.Equal(t, record1, res)
+
+	to.stor.addBlock(t, blockID1)
+	blockNum1, err := to.stor.stateDB.blockIdToNum(blockID1)
+	assert.NoError(t, err)
+	key2 := []byte{13, 14, 15}
+	record2 := []byte{16, 17, 18}
+	err = to.batchedStor.addRecord(key2, record2, blockNum1, true)
+	assert.NoError(t, err)
+	res, err = to.batchedStor.newestRecordByKey(key2, true)
+	assert.NoError(t, err)
+	assert.Equal(t, record2, res)
+
+	to.flush(t)
+
+	res, err = to.batchedStor.newestRecordByKey(key2, true)
+	assert.NoError(t, err)
+	assert.Equal(t, record2, res)
+	res, err = to.batchedStor.recordByKey(key2, true)
+	assert.NoError(t, err)
+	assert.Equal(t, record2, res)
+}
+
 func TestIterators(t *testing.T) {
-	to, path, err := createBatchedStorage()
+	to, path, err := createBatchedStorage(testRecordSize)
 	assert.NoError(t, err, "createBatchedStorage() failed")
 
 	defer func() {
