@@ -16,6 +16,7 @@ import (
 
 const (
 	KiB = 1024
+	MiB = 1024 * KiB
 
 	maxVerifierScriptSize = 8 * KiB
 	maxContractScriptSize = 32 * KiB

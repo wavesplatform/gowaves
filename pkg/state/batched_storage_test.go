@@ -15,7 +15,7 @@ const (
 	prefix         = byte(1)
 
 	size         = 10000
-	testMemLimit = 1 * KiB
+	testMemLimit = 10 * MiB
 )
 
 var (

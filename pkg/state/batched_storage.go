@@ -327,17 +327,21 @@ func (s *batchedStorage) addRecordBytes(key, record []byte) error {
 	keyStr := string(key)
 	bg, ok := s.localStor[keyStr]
 	if ok {
-		return bg.appendNewRecord(record)
+		if err := bg.appendNewRecord(record); err != nil {
+			return err
+		}
+		s.memSize += len(record)
+	} else {
+		newGroup, err := s.newBatchGroupForKey(key)
+		if err != nil {
+			return err
+		}
+		if err := newGroup.appendNewRecord(record); err != nil {
+			return err
+		}
+		s.localStor[keyStr] = newGroup
+		s.memSize += len(key) + len(record)
 	}
-	newGroup, err := s.newBatchGroupForKey(key)
-	if err != nil {
-		return err
-	}
-	if err := newGroup.appendNewRecord(record); err != nil {
-		return err
-	}
-	s.localStor[keyStr] = newGroup
-	s.memSize += len(key) + len(record)
 	if s.memSize >= s.memLimit {
 		if err := s.flush(); err != nil {
 			return err

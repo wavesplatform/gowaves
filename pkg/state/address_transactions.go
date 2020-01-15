@@ -224,7 +224,7 @@ func (at *addressTransactions) persist(ignoreSize bool) error {
 	size := fileStats.Size()
 	if size < at.params.maxFileSize && !ignoreSize {
 		// Nothing to do, file is not big enough yet.
-		zap.S().Infof("TransactionsByAddresses file size: %d; max is %d", size, at.params.maxFileSize)
+		zap.S().Debugf("TransactionsByAddresses file size: %d; max is %d", size, at.params.maxFileSize)
 		return nil
 	}
 
