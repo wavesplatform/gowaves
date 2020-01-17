@@ -31,6 +31,7 @@ type SchedulerImpl struct {
 	internal internal
 	emits    []Emit
 	state    state.State
+	tm       types.Time
 }
 
 type internal interface {
@@ -129,11 +130,11 @@ func (a internalImpl) schedule(state state.State, keyPairs []proto.KeyPair, sche
 	return out
 }
 
-func NewScheduler(state state.State, pairs []proto.KeyPair, settings *settings.BlockchainSettings) *SchedulerImpl {
-	return newScheduler(internalImpl{}, state, pairs, settings)
+func NewScheduler(state state.State, pairs []proto.KeyPair, settings *settings.BlockchainSettings, tm types.Time) *SchedulerImpl {
+	return newScheduler(internalImpl{}, state, pairs, settings, tm)
 }
 
-func newScheduler(internal internal, state state.State, pairs []proto.KeyPair, settings *settings.BlockchainSettings) *SchedulerImpl {
+func newScheduler(internal internal, state state.State, pairs []proto.KeyPair, settings *settings.BlockchainSettings, tm types.Time) *SchedulerImpl {
 	return &SchedulerImpl{
 		keyPairs: pairs,
 		mine:     make(chan Emit, 1),
@@ -191,7 +192,12 @@ func (a *SchedulerImpl) reschedule(state state.State, confirmedBlock *proto.Bloc
 	emits := a.internal.schedule(state, a.keyPairs, a.settings.AddressSchemeCharacter, a.settings.AverageBlockDelaySeconds, confirmedBlock, confirmedBlockHeight)
 	a.emits = emits
 
-	now := proto.NewTimestampFromTime(time.Now())
+	tm, err := a.tm.Now()
+	if err != nil {
+		zap.S().Debug("failed to get ntp time")
+		return
+	}
+	now := proto.NewTimestampFromTime(tm)
 	for _, emit := range emits {
 		if emit.Timestamp > now { // timestamp in future
 			timeout := emit.Timestamp - now
