@@ -13,6 +13,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/api"
 	"github.com/wavesplatform/gowaves/pkg/grpc/server"
 	"github.com/wavesplatform/gowaves/pkg/libs/bytespool"
+	"github.com/wavesplatform/gowaves/pkg/libs/ntptime"
 	"github.com/wavesplatform/gowaves/pkg/miner"
 	"github.com/wavesplatform/gowaves/pkg/miner/scheduler"
 	"github.com/wavesplatform/gowaves/pkg/miner/utxpool"
@@ -43,6 +44,7 @@ var (
 	buildExtendedApi = flag.Bool("build-extended-api", false, "Builds extended API. Note that state must be reimported in case it wasn't imported with similar flag set")
 	serveExtendedApi = flag.Bool("serve-extended-api", false, "Serves extended API requests since the very beginning. The default behavior is to import until first block close to current time, and start serving at this point")
 	seed             = flag.String("seed", "", "Seed for miner")
+	bindAddress      = flag.String("bind-address", "", "Bind address for incoming connections. If empty, will be same as declared address")
 )
 
 func main() {
@@ -105,7 +107,11 @@ func main() {
 		return
 	}
 
+	ntptm := ntptime.New("0.ru.pool.ntp.org")
+	go ntptm.Run(ctx, 2*time.Minute)
+
 	declAddr := proto.NewTCPAddrFromString(conf.DeclaredAddr)
+	bindAddr := proto.NewTCPAddrFromString(*bindAddress)
 
 	mb := 1024 * 1014
 	pool := bytespool.NewBytesPool(64, mb+(mb/2))
@@ -124,7 +130,7 @@ func main() {
 		keyPairs = append(keyPairs, proto.MustKeyPair([]byte(*seed)))
 	}
 
-	scheduler := scheduler.NewScheduler(state, keyPairs, cfg)
+	scheduler := scheduler.NewScheduler(state, keyPairs, cfg, ntptm)
 	stateChanged := state_changed.NewStateChanged()
 	blockApplier := node.NewBlockApplier(state, stateChanged, scheduler)
 
@@ -161,7 +167,7 @@ func main() {
 		ngState.BlockApplied()
 	}))
 
-	n := node.NewNode(services, declAddr, ngRuntime, mine, stateSync)
+	n := node.NewNode(services, declAddr, bindAddr, ngRuntime, mine, stateSync)
 	go node.RunNode(ctx, n, parent)
 
 	go scheduler.Reschedule()

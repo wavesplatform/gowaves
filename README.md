@@ -15,7 +15,7 @@ You can either synchronize a node over network or import a downloaded blockchain
 
 ### How to import blockchain from file
 
-Blockchain files are available at [MainNet](http://blockchain.wavesnodes.com) and [TestNet](http://blockchain.testnet.wavesnodes.com) download pages.
+Blockchain files are available at [MainNet](http://blockchain.wavesnodes.com) and [TestNet](http://blockchain-testnet.wavesnodes.com) download pages.
 
 Import could be done as follows:
 

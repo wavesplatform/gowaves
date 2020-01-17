@@ -13,7 +13,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated"
-	"github.com/wavesplatform/gowaves/pkg/miner/scheduler"
 	"github.com/wavesplatform/gowaves/pkg/miner/utxpool"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
@@ -42,12 +41,12 @@ func TestGetBlock(t *testing.T) {
 	params := defaultStateParams()
 	st, err := state.NewState(dataDir, params, settings.MainNetSettings)
 	assert.NoError(t, err)
-	sch := scheduler.NewScheduler(st, keyPairs, settings.MainNetSettings)
+	ctx, cancel := context.WithCancel(context.Background())
+	sch := createScheduler(ctx, st, settings.MainNetSettings)
 	err = server.initServer(st, utxpool.New(utxSize), sch)
 	assert.NoError(t, err)
 
 	conn := connect(t, grpcTestAddr)
-	ctx, cancel := context.WithCancel(context.Background())
 	defer func() {
 		cancel()
 		conn.Close()
@@ -112,12 +111,12 @@ func TestGetBlockRange(t *testing.T) {
 	params := defaultStateParams()
 	st, err := state.NewState(dataDir, params, settings.MainNetSettings)
 	assert.NoError(t, err)
-	sch := scheduler.NewScheduler(st, keyPairs, settings.MainNetSettings)
+	ctx, cancel := context.WithCancel(context.Background())
+	sch := createScheduler(ctx, st, settings.MainNetSettings)
 	err = server.initServer(st, utxpool.New(utxSize), sch)
 	assert.NoError(t, err)
 
 	conn := connect(t, grpcTestAddr)
-	ctx, cancel := context.WithCancel(context.Background())
 	defer func() {
 		cancel()
 		conn.Close()
@@ -193,12 +192,12 @@ func TestGetCurrentHeight(t *testing.T) {
 	params := defaultStateParams()
 	st, err := state.NewState(dataDir, params, settings.MainNetSettings)
 	assert.NoError(t, err)
-	sch := scheduler.NewScheduler(st, keyPairs, settings.MainNetSettings)
+	ctx, cancel := context.WithCancel(context.Background())
+	sch := createScheduler(ctx, st, settings.MainNetSettings)
 	err = server.initServer(st, utxpool.New(utxSize), sch)
 	assert.NoError(t, err)
 
 	conn := connect(t, grpcTestAddr)
-	ctx, cancel := context.WithCancel(context.Background())
 	defer func() {
 		cancel()
 		conn.Close()

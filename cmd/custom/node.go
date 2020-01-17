@@ -13,6 +13,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/api"
 	"github.com/wavesplatform/gowaves/pkg/grpc/server"
 	"github.com/wavesplatform/gowaves/pkg/libs/bytespool"
+	"github.com/wavesplatform/gowaves/pkg/libs/ntptime"
 	"github.com/wavesplatform/gowaves/pkg/miner"
 	scheduler2 "github.com/wavesplatform/gowaves/pkg/miner/scheduler"
 	"github.com/wavesplatform/gowaves/pkg/miner/utxpool"
@@ -112,6 +113,9 @@ func main() {
 		return
 	}
 
+	ntptm := ntptime.New("0.ru.pool.ntp.org")
+	go ntptm.Run(ctx, 2*time.Minute)
+
 	declAddr := proto.NewTCPAddrFromString(conf.DeclaredAddr)
 
 	mb := 1024 * 1014
@@ -129,7 +133,7 @@ func main() {
 		keyPairs = append(keyPairs, proto.MustKeyPair([]byte(*seed)))
 	}
 
-	scheduler := scheduler2.NewScheduler(state, keyPairs, custom)
+	scheduler := scheduler2.NewScheduler(state, keyPairs, custom, ntptm)
 
 	utx := utxpool.New(10000)
 
@@ -170,7 +174,7 @@ func main() {
 	go miner.Run(ctx, Miner, scheduler)
 	go scheduler.Reschedule()
 
-	n := node.NewNode(services, declAddr, ngRuntime, Miner, stateSync)
+	n := node.NewNode(services, declAddr, declAddr, ngRuntime, Miner, stateSync)
 
 	go node.RunNode(ctx, n, parent)
 

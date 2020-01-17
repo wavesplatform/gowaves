@@ -17,6 +17,8 @@ import (
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/libs/ntptime"
+	"github.com/wavesplatform/gowaves/pkg/miner/scheduler"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/state"
@@ -88,6 +90,12 @@ func stateWithCustomGenesis(t *testing.T, genesisPath string) (state.State, func
 		err = os.RemoveAll(dataDir)
 		assert.NoError(t, err)
 	}
+}
+
+func createScheduler(ctx context.Context, st state.State, settings *settings.BlockchainSettings) *scheduler.SchedulerImpl {
+	ntptm := ntptime.New("0.ru.pool.ntp.org")
+	go ntptm.Run(ctx, 2*time.Minute)
+	return scheduler.NewScheduler(st, keyPairs, settings, ntptm)
 }
 
 func connect(t *testing.T, addr string) *grpc.ClientConn {

@@ -6,15 +6,25 @@ import (
 	"github.com/pkg/errors"
 )
 
-var ten = decimal.New(10, 0)
+var (
+	zero = decimal.New(0, 0)
+	one  = decimal.New(1, 0)
+	ten  = decimal.New(10, 0)
+)
 
-// rescale changes the scale of given decimal value. While rescaling the value is rounded according to context of v.
-func rescale(v *decimal.Big, scale int64) *decimal.Big {
-	s := decimal.New(scale, 0)
-	m := new(decimal.Big)
+func convertToResult(v *decimal.Big, scale int, mode decimal.RoundingMode) (int64, error) {
+	context := decimal.Context128
+	context.RoundingMode = mode
+	r := decimal.WithContext(context).Set(v)
+	s := decimal.WithContext(decimal.Context128).SetMantScale(int64(scale), 0)
+	m := decimal.WithContext(decimal.Context128)
 	math.Pow(m, ten, s)
-	v.Mul(v, m)
-	return v
+	r.Mul(r, m)
+	res, ok := r.RoundToInt().Int64()
+	if !ok {
+		return 0, errors.New("result out of int64 range")
+	}
+	return res, nil
 }
 
 func pow(base, exponent int64, baseScale, exponentScale, resultScale int, mode decimal.RoundingMode) (int64, error) {
@@ -23,32 +33,53 @@ func pow(base, exponent int64, baseScale, exponentScale, resultScale int, mode d
 		resultScale < 0 || resultScale > 8 {
 		return 0, errors.New("pow: invalid scale")
 	}
-	b := decimal.New(base, baseScale)
-	e := decimal.New(exponent, exponentScale)
-	r := decimal.New(0, resultScale)
-	r.Context.RoundingMode = mode
-	math.Pow(r, b, e)
+	b := decimal.WithContext(decimal.Context128).SetMantScale(base, baseScale)
+	e := decimal.WithContext(decimal.Context128).SetMantScale(exponent, exponentScale)
+	if b.IsInt() && e.Cmp(zero) == 0 {
+		res, err := convertToResult(one, resultScale, mode)
+		if err != nil {
+			return 0, errors.Wrap(err, "pow")
+		}
+		return res, nil
+	}
+	r := decimal.WithContext(decimal.Context128)
+	r = math.Pow(r, b, e)
 	if r.Context.Err() != nil {
 		return 0, errors.Errorf("pow: %s", r.Context.Conditions.Error())
 	}
-	rescale(r, int64(resultScale))
-	i, ok := r.RoundToInt().Int64()
-	if !ok {
-		return 0, errors.New("pow: result out of int64 range")
+	res, err := convertToResult(r, resultScale, mode)
+	if err != nil {
+		return 0, errors.Wrap(err, "pow")
 	}
-	return i, nil
+	return res, nil
+}
+
+func fraction(value, numerator, denominator int64) (int64, error) {
+	v := decimal.WithContext(decimal.Context128).SetMantScale(value, 0)
+	n := decimal.WithContext(decimal.Context128).SetMantScale(numerator, 0)
+	d := decimal.WithContext(decimal.Context128).SetMantScale(denominator, 0)
+
+	v.Mul(v, n)
+	v.Quo(v, d)
+	if err := v.Context.Err(); err != nil {
+		return 0, errors.Wrap(err, "fraction")
+	}
+	res, err := convertToResult(v, 0, decimal.ToZero)
+	if err != nil {
+		return 0, errors.Wrap(err, "fraction")
+	}
+	return res, nil
 }
 
 func log(base, exponent int64, baseScale, exponentScale, resultScale int, mode decimal.RoundingMode) (int64, error) {
 	if baseScale < 0 || baseScale > 8 ||
 		exponentScale < 0 || exponentScale > 8 ||
 		resultScale < 0 || resultScale > 8 {
-		return 0, errors.New("pow: invalid scale")
+		return 0, errors.New("log: invalid scale")
 	}
-	b := decimal.New(base, baseScale)
-	e := decimal.New(exponent, exponentScale)
-	r := decimal.New(0, resultScale)
-	r.Context.RoundingMode = mode
+	b := decimal.WithContext(decimal.Context128).SetMantScale(base, baseScale)
+	e := decimal.WithContext(decimal.Context128).SetMantScale(exponent, exponentScale)
+	r := decimal.WithContext(decimal.Context128).SetMantScale(0, resultScale)
 	bl := decimal.WithContext(decimal.Context128)
 	math.Log(bl, b)
 	if bl.Context.Err() != nil {
@@ -63,12 +94,11 @@ func log(base, exponent int64, baseScale, exponentScale, resultScale int, mode d
 	if r.Context.Err() != nil {
 		return 0, errors.New(r.Context.Conditions.Error())
 	}
-	rescale(r, int64(resultScale))
-	i, ok := r.RoundToInt().Int64()
-	if !ok {
-		return 0, errors.New("pow: result out of int64 range")
+	res, err := convertToResult(r, resultScale, mode)
+	if err != nil {
+		return 0, errors.Wrap(err, "log")
 	}
-	return i, nil
+	return res, nil
 }
 
 func modDivision(x int64, y int64) int64 {

@@ -6,6 +6,7 @@ require (
 	github.com/OneOfOne/xxhash v1.2.5 // indirect
 	github.com/agl/ed25519 v0.0.0-20170116200512-5312a6153412
 	github.com/alecthomas/kong v0.2.0
+	github.com/beevik/ntp v0.2.0
 	github.com/cespare/xxhash v1.1.0
 	github.com/coocood/freecache v1.1.0
 	github.com/dgryski/go-metro v0.0.0-20180109044635-280f6062b5bc // indirect
