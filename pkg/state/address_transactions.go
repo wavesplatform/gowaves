@@ -259,6 +259,7 @@ func (at *addressTransactions) persist(ignoreSize, filter bool) error {
 	}
 
 	zap.S().Info("Starting to sort TransactionsByAddresses file, will take awhile...")
+	debug.FreeOSMemory()
 	// Create file for emsort and set emsort over it.
 	tempFile, err := ioutil.TempFile(os.TempDir(), "emsort")
 	if err != nil {
