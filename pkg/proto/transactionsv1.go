@@ -9,6 +9,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/valyala/bytebufferpool"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	g "github.com/wavesplatform/gowaves/pkg/grpc/generated"
 	"github.com/wavesplatform/gowaves/pkg/libs/serializer"
 )
 
@@ -200,6 +201,27 @@ func (tx *IssueV1) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
+func (tx *IssueV1) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
+	res := TransactionToProtobufCommon(scheme, tx)
+	txData := tx.Issue.ToProtobuf()
+	fee := &g.Amount{AssetId: nil, Amount: int64(tx.Fee)}
+	res.Fee = fee
+	res.Data = txData
+	return res, nil
+}
+
+func (tx *IssueV1) ToProtobufSigned(scheme Scheme) (*g.SignedTransaction, error) {
+	unsigned, err := tx.ToProtobuf(scheme)
+	if err != nil {
+		return nil, err
+	}
+	proofs := NewProofsFromSignature(tx.Signature)
+	return &g.SignedTransaction{
+		Transaction: unsigned,
+		Proofs:      proofs.Bytes(),
+	}, nil
+}
+
 //TransferV1 transaction to transfer any token from one account to another. Version 1.
 type TransferV1 struct {
 	Type      TransactionType   `json:"type"`
@@ -326,7 +348,7 @@ func (tx *TransferV1) Sign(secretKey crypto.SecretKey) error {
 	}
 	s, err := crypto.Sign(secretKey, b)
 	if err != nil {
-		return errors.Wrap(err, "failed to sign LeaseCancelV1 transaction")
+		return errors.Wrap(err, "failed to sign TransferV1 transaction")
 	}
 	tx.Signature = &s
 	d, err := crypto.FastHash(b)
@@ -387,6 +409,30 @@ func (tx *TransferV1) UnmarshalBinary(data []byte) error {
 	}
 	tx.ID = &d
 	return nil
+}
+
+func (tx *TransferV1) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
+	res := TransactionToProtobufCommon(scheme, tx)
+	txData, err := tx.Transfer.ToProtobuf()
+	if err != nil {
+		return nil, err
+	}
+	fee := &g.Amount{AssetId: tx.FeeAsset.ToID(), Amount: int64(tx.Fee)}
+	res.Fee = fee
+	res.Data = txData
+	return res, nil
+}
+
+func (tx *TransferV1) ToProtobufSigned(scheme Scheme) (*g.SignedTransaction, error) {
+	unsigned, err := tx.ToProtobuf(scheme)
+	if err != nil {
+		return nil, err
+	}
+	proofs := NewProofsFromSignature(tx.Signature)
+	return &g.SignedTransaction{
+		Transaction: unsigned,
+		Proofs:      proofs.Bytes(),
+	}, nil
 }
 
 //ReissueV1 is a transaction that allows to issue new amount of existing token, if it was issued as reissuable.
@@ -541,6 +587,27 @@ func (tx *ReissueV1) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
+func (tx *ReissueV1) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
+	res := TransactionToProtobufCommon(scheme, tx)
+	txData := tx.Reissue.ToProtobuf()
+	fee := &g.Amount{AssetId: nil, Amount: int64(tx.Fee)}
+	res.Fee = fee
+	res.Data = txData
+	return res, nil
+}
+
+func (tx *ReissueV1) ToProtobufSigned(scheme Scheme) (*g.SignedTransaction, error) {
+	unsigned, err := tx.ToProtobuf(scheme)
+	if err != nil {
+		return nil, err
+	}
+	proofs := NewProofsFromSignature(tx.Signature)
+	return &g.SignedTransaction{
+		Transaction: unsigned,
+		Proofs:      proofs.Bytes(),
+	}, nil
+}
+
 //BurnV1 transaction allows to decrease the total supply of the existing asset. Asset must be reissuable.
 type BurnV1 struct {
 	Type      TransactionType   `json:"type"`
@@ -681,6 +748,27 @@ func (tx *BurnV1) UnmarshalBinary(data []byte) error {
 	}
 	tx.ID = &d
 	return nil
+}
+
+func (tx *BurnV1) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
+	res := TransactionToProtobufCommon(scheme, tx)
+	txData := tx.Burn.ToProtobuf()
+	fee := &g.Amount{AssetId: nil, Amount: int64(tx.Fee)}
+	res.Fee = fee
+	res.Data = txData
+	return res, nil
+}
+
+func (tx *BurnV1) ToProtobufSigned(scheme Scheme) (*g.SignedTransaction, error) {
+	unsigned, err := tx.ToProtobuf(scheme)
+	if err != nil {
+		return nil, err
+	}
+	proofs := NewProofsFromSignature(tx.Signature)
+	return &g.SignedTransaction{
+		Transaction: unsigned,
+		Proofs:      proofs.Bytes(),
+	}, nil
 }
 
 //ExchangeV1 is a transaction to store settlement on blockchain.
@@ -1063,6 +1151,36 @@ func (tx *ExchangeV1) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
+func (tx *ExchangeV1) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
+	orders := make([]*g.Order, 2)
+	orders[0] = tx.BuyOrder.ToProtobuf(scheme)
+	orders[1] = tx.SellOrder.ToProtobuf(scheme)
+	txData := &g.Transaction_Exchange{Exchange: &g.ExchangeTransactionData{
+		Amount:         int64(tx.Amount),
+		Price:          int64(tx.Price),
+		BuyMatcherFee:  int64(tx.BuyMatcherFee),
+		SellMatcherFee: int64(tx.SellMatcherFee),
+		Orders:         orders,
+	}}
+	fee := &g.Amount{AssetId: nil, Amount: int64(tx.Fee)}
+	res := TransactionToProtobufCommon(scheme, tx)
+	res.Fee = fee
+	res.Data = txData
+	return res, nil
+}
+
+func (tx *ExchangeV1) ToProtobufSigned(scheme Scheme) (*g.SignedTransaction, error) {
+	unsigned, err := tx.ToProtobuf(scheme)
+	if err != nil {
+		return nil, err
+	}
+	proofs := NewProofsFromSignature(tx.Signature)
+	return &g.SignedTransaction{
+		Transaction: unsigned,
+		Proofs:      proofs.Bytes(),
+	}, nil
+}
+
 //LeaseV1 is a transaction that allows to lease Waves to other account.
 type LeaseV1 struct {
 	Type      TransactionType   `json:"type"`
@@ -1213,6 +1331,30 @@ func (tx *LeaseV1) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
+func (tx *LeaseV1) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
+	res := TransactionToProtobufCommon(scheme, tx)
+	txData, err := tx.Lease.ToProtobuf()
+	if err != nil {
+		return nil, err
+	}
+	fee := &g.Amount{AssetId: nil, Amount: int64(tx.Fee)}
+	res.Fee = fee
+	res.Data = txData
+	return res, nil
+}
+
+func (tx *LeaseV1) ToProtobufSigned(scheme Scheme) (*g.SignedTransaction, error) {
+	unsigned, err := tx.ToProtobuf(scheme)
+	if err != nil {
+		return nil, err
+	}
+	proofs := NewProofsFromSignature(tx.Signature)
+	return &g.SignedTransaction{
+		Transaction: unsigned,
+		Proofs:      proofs.Bytes(),
+	}, nil
+}
+
 //LeaseCancelV1 transaction can be used to cancel previously created leasing.
 type LeaseCancelV1 struct {
 	Type      TransactionType   `json:"type"`
@@ -1357,6 +1499,27 @@ func (tx *LeaseCancelV1) UnmarshalBinary(data []byte) error {
 	}
 	tx.ID = &d
 	return nil
+}
+
+func (tx *LeaseCancelV1) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
+	res := TransactionToProtobufCommon(scheme, tx)
+	txData := tx.LeaseCancel.ToProtobuf()
+	fee := &g.Amount{AssetId: nil, Amount: int64(tx.Fee)}
+	res.Fee = fee
+	res.Data = txData
+	return res, nil
+}
+
+func (tx *LeaseCancelV1) ToProtobufSigned(scheme Scheme) (*g.SignedTransaction, error) {
+	unsigned, err := tx.ToProtobuf(scheme)
+	if err != nil {
+		return nil, err
+	}
+	proofs := NewProofsFromSignature(tx.Signature)
+	return &g.SignedTransaction{
+		Transaction: unsigned,
+		Proofs:      proofs.Bytes(),
+	}, nil
 }
 
 type CreateAliasV1 struct {
@@ -1517,15 +1680,44 @@ func (tx *CreateAliasV1) UnmarshalJSON(data []byte) error {
 	tx.ID = tmp.ID
 	tx.Signature = tmp.Signature
 	tx.SenderPK = tmp.SenderPK
-	tx.Alias = Alias{aliasVersion, TestNetScheme, tmp.Alias}
+	tx.Alias = Alias{aliasVersion, MainNetScheme, tmp.Alias}
 	tx.Fee = tmp.Fee
 	tx.Timestamp = tmp.Timestamp
 	return nil
 }
 
+func (tx *CreateAliasV1) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
+	res := TransactionToProtobufCommon(scheme, tx)
+	txData := tx.CreateAlias.ToProtobuf()
+	fee := &g.Amount{AssetId: nil, Amount: int64(tx.Fee)}
+	res.Fee = fee
+	res.Data = txData
+	return res, nil
+}
+
+func (tx *CreateAliasV1) ToProtobufSigned(scheme Scheme) (*g.SignedTransaction, error) {
+	unsigned, err := tx.ToProtobuf(scheme)
+	if err != nil {
+		return nil, err
+	}
+	proofs := NewProofsFromSignature(tx.Signature)
+	return &g.SignedTransaction{
+		Transaction: unsigned,
+		Proofs:      proofs.Bytes(),
+	}, nil
+}
+
 type MassTransferEntry struct {
 	Recipient Recipient `json:"recipient"`
 	Amount    uint64    `json:"amount"`
+}
+
+func (e *MassTransferEntry) ToProtobuf() (*g.MassTransferTransactionData_Transfer, error) {
+	rcpProto, err := e.Recipient.ToProtobuf()
+	if err != nil {
+		return nil, err
+	}
+	return &g.MassTransferTransactionData_Transfer{Address: rcpProto, Amount: int64(e.Amount)}, nil
 }
 
 func (e *MassTransferEntry) MarshalBinary() ([]byte, error) {
@@ -1564,6 +1756,15 @@ type MassTransferV1 struct {
 	Timestamp  uint64              `json:"timestamp,omitempty"`
 	Fee        uint64              `json:"fee"`
 	Attachment Attachment          `json:"attachment,omitempty"`
+}
+
+func (tx MassTransferV1) HasRecipient(rcp Recipient) bool {
+	for _, tr := range tx.Transfers {
+		if tr.Recipient == rcp {
+			return true
+		}
+	}
+	return false
 }
 
 func (tx MassTransferV1) GetTypeVersion() TransactionTypeVersion {
@@ -1815,6 +2016,38 @@ func (tx *MassTransferV1) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
+func (tx *MassTransferV1) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
+	var err error
+	transfers := make([]*g.MassTransferTransactionData_Transfer, len(tx.Transfers))
+	for i, tr := range tx.Transfers {
+		transfers[i], err = tr.ToProtobuf()
+		if err != nil {
+			return nil, err
+		}
+	}
+	txData := &g.Transaction_MassTransfer{MassTransfer: &g.MassTransferTransactionData{
+		AssetId:    tx.Asset.ToID(),
+		Transfers:  transfers,
+		Attachment: []byte(tx.Attachment),
+	}}
+	fee := &g.Amount{AssetId: nil, Amount: int64(tx.Fee)}
+	res := TransactionToProtobufCommon(scheme, tx)
+	res.Fee = fee
+	res.Data = txData
+	return res, nil
+}
+
+func (tx *MassTransferV1) ToProtobufSigned(scheme Scheme) (*g.SignedTransaction, error) {
+	unsigned, err := tx.ToProtobuf(scheme)
+	if err != nil {
+		return nil, err
+	}
+	return &g.SignedTransaction{
+		Transaction: unsigned,
+		Proofs:      tx.Proofs.Bytes(),
+	}, nil
+}
+
 //DataV1 is first version of the transaction that puts data to the key-value storage of an account.
 type DataV1 struct {
 	Type      TransactionType  `json:"type"`
@@ -1972,7 +2205,7 @@ func (tx *DataV1) bodyUnmarshalBinary(data []byte) error {
 	data = data[2:]
 	for i := 0; i < n; i++ {
 		var e DataEntry
-		t, err := tx.extractValueType(data)
+		t, err := extractValueType(data)
 		if err != nil {
 			return errors.Errorf("failed to extract type of data entry")
 		}
@@ -2011,13 +2244,13 @@ func (tx *DataV1) bodyUnmarshalBinary(data []byte) error {
 	return nil
 }
 
-func (tx *DataV1) extractValueType(data []byte) (DataValueType, error) {
+func extractValueType(data []byte) (DataValueType, error) {
 	if l := len(data); l < 3 {
 		return 0, errors.Errorf("not enough data to extract ValueType, expected not less than %d, received %d", 3, l)
 	}
 	kl := binary.BigEndian.Uint16(data)
-	if l := len(data); l < int(kl)+2 {
-		return 0, errors.Errorf("not enough data to extract ValueType, expected not less than %d, received %d", kl+2, l)
+	if l := len(data); l <= int(kl)+2 {
+		return 0, errors.Errorf("not enough data to extract ValueType, expected more than %d, received %d", kl+2, l)
 	}
 	return DataValueType(data[kl+2]), nil
 }
@@ -2101,6 +2334,32 @@ func (tx *DataV1) UnmarshalBinary(data []byte) error {
 	}
 	tx.ID = &id
 	return nil
+}
+
+func (tx *DataV1) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
+	entries := make([]*g.DataTransactionData_DataEntry, len(tx.Entries))
+	for i, entry := range tx.Entries {
+		entries[i] = entry.ToProtobuf()
+	}
+	txData := &g.Transaction_DataTransaction{DataTransaction: &g.DataTransactionData{
+		Data: entries,
+	}}
+	fee := &g.Amount{AssetId: nil, Amount: int64(tx.Fee)}
+	res := TransactionToProtobufCommon(scheme, tx)
+	res.Fee = fee
+	res.Data = txData
+	return res, nil
+}
+
+func (tx *DataV1) ToProtobufSigned(scheme Scheme) (*g.SignedTransaction, error) {
+	unsigned, err := tx.ToProtobuf(scheme)
+	if err != nil {
+		return nil, err
+	}
+	return &g.SignedTransaction{
+		Transaction: unsigned,
+		Proofs:      tx.Proofs.Bytes(),
+	}, nil
 }
 
 //SetScriptV1 is a transaction to set smart script on an account.
@@ -2317,6 +2576,28 @@ func (tx *SetScriptV1) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
+func (tx *SetScriptV1) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
+	txData := &g.Transaction_SetScript{SetScript: &g.SetScriptTransactionData{
+		Script: tx.Script.ToProtobuf(),
+	}}
+	fee := &g.Amount{AssetId: nil, Amount: int64(tx.Fee)}
+	res := TransactionToProtobufCommon(scheme, tx)
+	res.Fee = fee
+	res.Data = txData
+	return res, nil
+}
+
+func (tx *SetScriptV1) ToProtobufSigned(scheme Scheme) (*g.SignedTransaction, error) {
+	unsigned, err := tx.ToProtobuf(scheme)
+	if err != nil {
+		return nil, err
+	}
+	return &g.SignedTransaction{
+		Transaction: unsigned,
+		Proofs:      tx.Proofs.Bytes(),
+	}, nil
+}
+
 //SponsorshipV1 is a transaction to setup fee sponsorship for an asset.
 type SponsorshipV1 struct {
 	Type        TransactionType  `json:"type"`
@@ -2522,6 +2803,28 @@ func (tx *SponsorshipV1) UnmarshalBinary(data []byte) error {
 	}
 	tx.ID = &id
 	return nil
+}
+
+func (tx *SponsorshipV1) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
+	txData := &g.Transaction_SponsorFee{SponsorFee: &g.SponsorFeeTransactionData{
+		MinFee: &g.Amount{AssetId: tx.AssetID.Bytes(), Amount: int64(tx.MinAssetFee)},
+	}}
+	fee := &g.Amount{AssetId: nil, Amount: int64(tx.Fee)}
+	res := TransactionToProtobufCommon(scheme, tx)
+	res.Fee = fee
+	res.Data = txData
+	return res, nil
+}
+
+func (tx *SponsorshipV1) ToProtobufSigned(scheme Scheme) (*g.SignedTransaction, error) {
+	unsigned, err := tx.ToProtobuf(scheme)
+	if err != nil {
+		return nil, err
+	}
+	return &g.SignedTransaction{
+		Transaction: unsigned,
+		Proofs:      tx.Proofs.Bytes(),
+	}, nil
 }
 
 //SetAssetScriptV1 is a transaction to set smart script on an asset.
@@ -2747,6 +3050,29 @@ func (tx *SetAssetScriptV1) UnmarshalBinary(data []byte) error {
 	}
 	tx.ID = &id
 	return nil
+}
+
+func (tx *SetAssetScriptV1) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
+	txData := &g.Transaction_SetAssetScript{SetAssetScript: &g.SetAssetScriptTransactionData{
+		AssetId: tx.AssetID.Bytes(),
+		Script:  tx.Script.ToProtobuf(),
+	}}
+	fee := &g.Amount{AssetId: nil, Amount: int64(tx.Fee)}
+	res := TransactionToProtobufCommon(scheme, tx)
+	res.Fee = fee
+	res.Data = txData
+	return res, nil
+}
+
+func (tx *SetAssetScriptV1) ToProtobufSigned(scheme Scheme) (*g.SignedTransaction, error) {
+	unsigned, err := tx.ToProtobuf(scheme)
+	if err != nil {
+		return nil, err
+	}
+	return &g.SignedTransaction{
+		Transaction: unsigned,
+		Proofs:      tx.Proofs.Bytes(),
+	}, nil
 }
 
 type InvokeScriptV1 struct {
@@ -3092,4 +3418,40 @@ func (tx *InvokeScriptV1) UnmarshalBinary(data []byte) error {
 
 func (tx *InvokeScriptV1) binarySize() int {
 	return 1 + tx.Proofs.binarySize() + invokeScriptV1FixedBodyLen + tx.FunctionCall.binarySize() + tx.Payments.binarySize() + tx.FeeAsset.binarySize()
+}
+
+func (tx *InvokeScriptV1) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
+	fcBytes, err := tx.FunctionCall.MarshalBinary()
+	if err != nil {
+		return nil, err
+	}
+	payments := make([]*g.Amount, len(tx.Payments))
+	for i, pmt := range tx.Payments {
+		payments[i] = &g.Amount{AssetId: pmt.Asset.ToID(), Amount: int64(pmt.Amount)}
+	}
+	rcpProto, err := tx.ScriptRecipient.ToProtobuf()
+	if err != nil {
+		return nil, err
+	}
+	txData := &g.Transaction_InvokeScript{InvokeScript: &g.InvokeScriptTransactionData{
+		DApp:         rcpProto,
+		FunctionCall: fcBytes,
+		Payments:     payments,
+	}}
+	fee := &g.Amount{AssetId: tx.FeeAsset.ToID(), Amount: int64(tx.Fee)}
+	res := TransactionToProtobufCommon(scheme, tx)
+	res.Fee = fee
+	res.Data = txData
+	return res, nil
+}
+
+func (tx *InvokeScriptV1) ToProtobufSigned(scheme Scheme) (*g.SignedTransaction, error) {
+	unsigned, err := tx.ToProtobuf(scheme)
+	if err != nil {
+		return nil, err
+	}
+	return &g.SignedTransaction{
+		Transaction: unsigned,
+		Proofs:      tx.Proofs.Bytes(),
+	}, nil
 }

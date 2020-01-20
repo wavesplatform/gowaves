@@ -3,13 +3,15 @@ package proto
 import (
 	"bytes"
 	"encoding/binary"
-	"github.com/mr-tron/base58/base58"
-	"github.com/pkg/errors"
-	"github.com/wavesplatform/gowaves/pkg/crypto"
-	"github.com/wavesplatform/gowaves/pkg/libs/serializer"
 	"io"
 	"strconv"
 	"strings"
+
+	"github.com/mr-tron/base58/base58"
+	"github.com/pkg/errors"
+	"github.com/wavesplatform/gowaves/pkg/crypto"
+	g "github.com/wavesplatform/gowaves/pkg/grpc/generated"
+	"github.com/wavesplatform/gowaves/pkg/libs/serializer"
 )
 
 const (
@@ -35,6 +37,13 @@ const (
 
 // Address is the transformed Public Key with additional bytes of the version, a blockchain scheme and a checksum.
 type Address [AddressSize]byte
+
+func (a Address) Body() ([]byte, error) {
+	if len(a) != AddressSize {
+		return nil, errors.New("invalid address length")
+	}
+	return a[headerSize : headerSize+bodySize], nil
+}
 
 // String produces the BASE58 string representation of the Address.
 func (a Address) String() string {
@@ -370,6 +379,34 @@ func NewRecipientFromString(s string) (Recipient, error) {
 		return Recipient{}, err
 	}
 	return NewRecipientFromAddress(a), nil
+}
+
+func (r Recipient) Eq(r2 Recipient) bool {
+	res := (r.len == r2.len)
+	if r.Address != nil && r2.Address != nil {
+		res = res && (*r.Address == *r2.Address)
+	} else {
+		res = res && (r.Address == nil)
+		res = res && (r2.Address == nil)
+	}
+	if r.Alias != nil && r2.Alias != nil {
+		res = res && (*r.Alias == *r2.Alias)
+	} else {
+		res = res && (r.Alias == nil)
+		res = res && (r2.Alias == nil)
+	}
+	return res
+}
+
+func (r Recipient) ToProtobuf() (*g.Recipient, error) {
+	addrBody, err := r.Address.Body()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get address body")
+	}
+	if r.Address != nil {
+		return &g.Recipient{Recipient: &g.Recipient_Address{Address: addrBody}}, nil
+	}
+	return &g.Recipient{Recipient: &g.Recipient_Alias{Alias: r.Alias.Alias}}, nil
 }
 
 // Valid checks that either an Address or an Alias is set then checks the validity of the set field.

@@ -36,7 +36,7 @@ func (l *leasingRecord) marshalBinary() ([]byte, error) {
 
 func (l *leasingRecord) unmarshalBinary(data []byte) error {
 	if len(data) != leasingRecordSize {
-		return errors.New("invalid data size")
+		return errInvalidDataSize
 	}
 	var err error
 	l.isActive, err = proto.Bool(data[0:1])
@@ -165,6 +165,14 @@ func (l *leases) leasingInfo(id crypto.Digest, filter bool) (*leasing, error) {
 		return nil, errors.Errorf("failed to unmarshal record: %v", err)
 	}
 	return &record.leasing, nil
+}
+
+func (l *leases) isActive(id crypto.Digest, filter bool) (bool, error) {
+	info, err := l.leasingInfo(id, filter)
+	if err != nil {
+		return false, err
+	}
+	return info.isActive, nil
 }
 
 func (l *leases) addLeasing(id crypto.Digest, leasing *leasing, blockID crypto.Signature) error {

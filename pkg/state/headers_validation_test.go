@@ -78,7 +78,7 @@ func stateParams() StateParams {
 }
 
 func TestHeadersValidation(t *testing.T) {
-	blocks, err := readRealBlocks(t, blocksPath(t), blocksNumber)
+	blocks, err := readBlocksFromTestPath(blocksNumber)
 	if err != nil {
 		t.Fatalf("Can not read blocks from blockchain file: %v\n", err)
 	}

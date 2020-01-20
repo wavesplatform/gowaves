@@ -5,18 +5,40 @@ import (
 	"net"
 
 	"github.com/pkg/errors"
-	g "github.com/wavesplatform/gowaves/pkg/grpc"
+	g "github.com/wavesplatform/gowaves/pkg/grpc/generated"
+	"github.com/wavesplatform/gowaves/pkg/miner/utxpool"
+	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/state"
+	"github.com/wavesplatform/gowaves/pkg/types"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 )
 
 type Server struct {
-	state state.State
+	state  state.StateInfo
+	scheme proto.Scheme
+	utx    *utxpool.UtxImpl
+	sch    types.Scheduler
 }
 
-func NewServer(state state.State) *Server {
-	return &Server{state: state}
+func NewServer(state state.StateInfo, utx *utxpool.UtxImpl, sch types.Scheduler) (*Server, error) {
+	s := &Server{}
+	if err := s.initServer(state, utx, sch); err != nil {
+		return nil, err
+	}
+	return s, nil
+}
+
+func (s *Server) initServer(state state.StateInfo, utx *utxpool.UtxImpl, sch types.Scheduler) error {
+	settings, err := state.BlockchainSettings()
+	if err != nil {
+		return err
+	}
+	s.state = state
+	s.scheme = settings.AddressSchemeCharacter
+	s.utx = utx
+	s.sch = sch
+	return nil
 }
 
 func (s *Server) Run(ctx context.Context, address string) error {

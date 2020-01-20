@@ -28,13 +28,14 @@ func TestKeyVal(t *testing.T) {
 	assert.NoError(t, err, "NewKeyVal() failed")
 
 	defer func() {
-		err = os.RemoveAll(dbDir)
-		assert.NoError(t, err, "os.RemoveAll() failed")
 		err = kv.Close()
 		assert.NoError(t, err, "Close() failed")
+		err = os.RemoveAll(dbDir)
+		assert.NoError(t, err, "os.RemoveAll() failed")
 	}()
 
 	// Test direct DB operations.
+	keyPrefix := []byte("sampleKey")
 	key0 := []byte("sampleKey0")
 	val0 := []byte("sampleValue0")
 	err = kv.Put(key0, val0)
@@ -65,8 +66,13 @@ func TestKeyVal(t *testing.T) {
 	assert.Equal(t, val1, receivedVal, "saved and retrieved values for same key differ")
 	has, err = kv.Has(key0)
 	assert.NoError(t, err, "Has() failed")
-	assert.Equal(t, has, false, "Has() returned false for value that was deleted from batch")
-	// Test iterator.
+	assert.Equal(t, has, false, "Has() returned true for value that was deleted from batch")
+
+	// Add another key-value pair directly.
+	err = kv.Put(key0, val0)
+	assert.NoError(t, err)
+
+	// Test iterator's Next().
 	iter, err := kv.NewKeyIterator([]byte{})
 	assert.NoError(t, err, "NewKeyIterator() failed")
 	for iter.Next() {
@@ -76,6 +82,21 @@ func TestKeyVal(t *testing.T) {
 		assert.NoError(t, err, "Get() failed")
 		assert.Equal(t, val, receivedVal, "Invalid value in iterator")
 	}
+	iter.Release()
+	err = iter.Error()
+	assert.NoError(t, err, "iterator error")
+
+	// Test iterator's First() / Last().
+	iter, err = kv.NewKeyIterator(keyPrefix)
+	assert.NoError(t, err, "NewKeyIterator() failed")
+	moved := iter.Last()
+	assert.Equal(t, true, moved)
+	assert.Equal(t, key1, iter.Key())
+	assert.Equal(t, val1, iter.Value())
+	moved = iter.First()
+	assert.Equal(t, true, moved)
+	assert.Equal(t, key0, iter.Key())
+	assert.Equal(t, val0, iter.Value())
 	iter.Release()
 	err = iter.Error()
 	assert.NoError(t, err, "iterator error")

@@ -8,12 +8,29 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	g "github.com/wavesplatform/gowaves/pkg/grpc/generated"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
 type transaction struct {
 	fee uint64
 	id  []byte
+}
+
+func (a transaction) ToProtobuf(scheme proto.Scheme) (*g.Transaction, error) {
+	panic("implement me")
+}
+
+func (a transaction) ToProtobufSigned(scheme proto.Scheme) (*g.SignedTransaction, error) {
+	panic("implement me")
+}
+
+func (a transaction) Sign(sk crypto.SecretKey) error {
+	panic("implement me")
+}
+
+func (a transaction) Addresses(scheme proto.Scheme) ([]proto.Recipient, error) {
+	panic("implement me")
 }
 
 func (a transaction) GetID() ([]byte, error) {

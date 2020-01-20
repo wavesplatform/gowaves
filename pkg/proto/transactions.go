@@ -6,6 +6,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	g "github.com/wavesplatform/gowaves/pkg/grpc/generated"
 	"github.com/wavesplatform/gowaves/pkg/libs/serializer"
 )
 
@@ -94,6 +95,21 @@ type Transaction interface {
 	GetFee() uint64
 	GetTimestamp() uint64
 	GenerateID()
+	Sign(sk crypto.SecretKey) error
+	ToProtobuf(scheme Scheme) (*g.Transaction, error)
+	ToProtobufSigned(scheme Scheme) (*g.SignedTransaction, error)
+}
+
+// TransactionToProtobufCommon() converts to protobuf structure with fields
+// that are common for all of the transaction types.
+func TransactionToProtobufCommon(scheme Scheme, tx Transaction) *g.Transaction {
+	pk := tx.GetSenderPK()
+	return &g.Transaction{
+		ChainId:         int32(scheme),
+		SenderPublicKey: pk.Bytes(),
+		Timestamp:       int64(tx.GetTimestamp()),
+		Version:         int32(tx.GetTypeVersion().Version),
+	}
 }
 
 func BytesToTransaction(tx []byte) (Transaction, error) {
@@ -257,6 +273,10 @@ func (tx *Genesis) GenerateID() {
 	}
 }
 
+func (tx Genesis) Sign(sk crypto.SecretKey) error {
+	return tx.GenerateSigID()
+}
+
 func (tx Genesis) GetSenderPK() crypto.PublicKey {
 	return crypto.PublicKey{}
 }
@@ -383,6 +403,32 @@ func (tx *Genesis) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
+func (tx *Genesis) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
+	addrBody, err := tx.Recipient.Body()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get address body")
+	}
+	txData := &g.Transaction_Genesis{Genesis: &g.GenesisTransactionData{
+		RecipientAddress: addrBody,
+		Amount:           int64(tx.Amount),
+	}}
+	res := TransactionToProtobufCommon(scheme, tx)
+	res.Data = txData
+	return res, nil
+}
+
+func (tx *Genesis) ToProtobufSigned(scheme Scheme) (*g.SignedTransaction, error) {
+	unsigned, err := tx.ToProtobuf(scheme)
+	if err != nil {
+		return nil, err
+	}
+	proofs := NewProofsFromSignature(tx.Signature)
+	return &g.SignedTransaction{
+		Transaction: unsigned,
+		Proofs:      proofs.Bytes(),
+	}, nil
+}
+
 //Payment transaction is deprecated and can be used only for validation of blockchain.
 type Payment struct {
 	Type      TransactionType   `json:"type"`
@@ -402,13 +448,7 @@ func (tx Payment) GetTypeVersion() TransactionTypeVersion {
 
 func (tx *Payment) GenerateID() {
 	if tx.ID == nil {
-		buf := tx.bodyMarshalBinaryBuffer()
-		err := tx.bodyMarshalBinary(buf)
-		if err != nil {
-			panic(err.Error())
-		}
-		id := tx.generateBodyHash(buf)
-		tx.ID = &id
+		tx.ID = tx.Signature
 	}
 }
 
@@ -490,16 +530,6 @@ func (tx *Payment) bodyUnmarshalBinary(data []byte) error {
 	return nil
 }
 
-func (tx *Payment) generateBodyHash(body []byte) crypto.Signature {
-	d := make([]byte, len(body)+3)
-	copy(d[3:], body)
-	h := crypto.MustFastHash(d)
-	var s crypto.Signature
-	copy(s[0:], h[:])
-	copy(s[crypto.DigestSize:], h[:])
-	return s
-}
-
 //Sign calculates transaction signature and set it as an ID.
 func (tx *Payment) Sign(secretKey crypto.SecretKey) error {
 	b := tx.bodyMarshalBinaryBuffer()
@@ -513,8 +543,7 @@ func (tx *Payment) Sign(secretKey crypto.SecretKey) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to sign Payment transaction")
 	}
-	id := tx.generateBodyHash(b)
-	tx.ID = &id
+	tx.ID = &s
 	tx.Signature = &s
 	return nil
 }
@@ -596,6 +625,34 @@ func (tx *Payment) UnmarshalBinary(data []byte) error {
 	tx.Signature = &s
 	tx.ID = &s
 	return nil
+}
+
+func (tx *Payment) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
+	addrBody, err := tx.Recipient.Body()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get address body")
+	}
+	txData := &g.Transaction_Payment{Payment: &g.PaymentTransactionData{
+		RecipientAddress: addrBody,
+		Amount:           int64(tx.Amount),
+	}}
+	fee := &g.Amount{AssetId: nil, Amount: int64(tx.Fee)}
+	res := TransactionToProtobufCommon(scheme, tx)
+	res.Fee = fee
+	res.Data = txData
+	return res, nil
+}
+
+func (tx *Payment) ToProtobufSigned(scheme Scheme) (*g.SignedTransaction, error) {
+	unsigned, err := tx.ToProtobuf(scheme)
+	if err != nil {
+		return nil, err
+	}
+	proofs := NewProofsFromSignature(tx.Signature)
+	return &g.SignedTransaction{
+		Transaction: unsigned,
+		Proofs:      proofs.Bytes(),
+	}, nil
 }
 
 type Issue struct {
@@ -699,6 +756,16 @@ func (i *Issue) unmarshalBinary(data []byte) error {
 	data = data[8:]
 	i.Timestamp = binary.BigEndian.Uint64(data)
 	return nil
+}
+
+func (i *Issue) ToProtobuf() *g.Transaction_Issue {
+	return &g.Transaction_Issue{Issue: &g.IssueTransactionData{
+		Name:        []byte(i.Name),
+		Description: []byte(i.Description),
+		Amount:      int64(i.Quantity),
+		Decimals:    int32(i.Decimals),
+		Reissuable:  i.Reissuable,
+	}}
 }
 
 type Transfer struct {
@@ -869,6 +936,18 @@ func (tr *Transfer) unmarshalBinary(data []byte) error {
 	return nil
 }
 
+func (tr *Transfer) ToProtobuf() (*g.Transaction_Transfer, error) {
+	rcpProto, err := tr.Recipient.ToProtobuf()
+	if err != nil {
+		return nil, err
+	}
+	return &g.Transaction_Transfer{Transfer: &g.TransferTransactionData{
+		Recipient:  rcpProto,
+		Amount:     &g.Amount{AssetId: tr.AmountAsset.ToID(), Amount: int64(tr.Amount)},
+		Attachment: []byte(tr.Attachment),
+	}}, nil
+}
+
 type Reissue struct {
 	SenderPK   crypto.PublicKey `json:"senderPublicKey"`
 	AssetID    crypto.Digest    `json:"assetId"`
@@ -876,6 +955,13 @@ type Reissue struct {
 	Reissuable bool             `json:"reissuable"`
 	Timestamp  uint64           `json:"timestamp,omitempty"`
 	Fee        uint64           `json:"fee"`
+}
+
+func (r Reissue) ToProtobuf() *g.Transaction_Reissue {
+	return &g.Transaction_Reissue{Reissue: &g.ReissueTransactionData{
+		AssetAmount: &g.Amount{AssetId: r.AssetID.Bytes(), Amount: int64(r.Quantity)},
+		Reissuable:  r.Reissuable,
+	}}
 }
 
 func (r Reissue) GetSenderPK() crypto.PublicKey {
@@ -951,6 +1037,12 @@ type Burn struct {
 	Amount    uint64           `json:"amount"`
 	Timestamp uint64           `json:"timestamp,omitempty"`
 	Fee       uint64           `json:"fee"`
+}
+
+func (b Burn) ToProtobuf() *g.Transaction_Burn {
+	return &g.Transaction_Burn{Burn: &g.BurnTransactionData{
+		AssetAmount: &g.Amount{AssetId: b.AssetID.Bytes(), Amount: int64(b.Amount)},
+	}}
 }
 
 func (b Burn) GetSenderPK() crypto.PublicKey {
@@ -1030,6 +1122,17 @@ type Lease struct {
 	Amount    uint64           `json:"amount"`
 	Fee       uint64           `json:"fee"`
 	Timestamp uint64           `json:"timestamp,omitempty"`
+}
+
+func (l Lease) ToProtobuf() (*g.Transaction_Lease, error) {
+	rcpProto, err := l.Recipient.ToProtobuf()
+	if err != nil {
+		return nil, err
+	}
+	return &g.Transaction_Lease{Lease: &g.LeaseTransactionData{
+		Recipient: rcpProto,
+		Amount:    int64(l.Amount),
+	}}, nil
 }
 
 func (l Lease) GetSenderPK() crypto.PublicKey {
@@ -1113,6 +1216,12 @@ type LeaseCancel struct {
 	Timestamp uint64           `json:"timestamp,omitempty"`
 }
 
+func (lc LeaseCancel) ToProtobuf() *g.Transaction_LeaseCancel {
+	return &g.Transaction_LeaseCancel{LeaseCancel: &g.LeaseCancelTransactionData{
+		LeaseId: lc.LeaseID.Bytes(),
+	}}
+}
+
 func (lc LeaseCancel) GetSenderPK() crypto.PublicKey {
 	return lc.SenderPK
 }
@@ -1167,6 +1276,12 @@ type CreateAlias struct {
 	Alias     Alias            `json:"alias"`
 	Fee       uint64           `json:"fee"`
 	Timestamp uint64           `json:"timestamp,omitempty"`
+}
+
+func (ca CreateAlias) ToProtobuf() *g.Transaction_CreateAlias {
+	return &g.Transaction_CreateAlias{CreateAlias: &g.CreateAliasTransactionData{
+		Alias: ca.Alias.Alias,
+	}}
 }
 
 func (ca CreateAlias) GetSenderPK() crypto.PublicKey {

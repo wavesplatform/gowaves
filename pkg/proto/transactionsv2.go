@@ -7,6 +7,7 @@ import (
 	"github.com/jinzhu/copier"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	g "github.com/wavesplatform/gowaves/pkg/grpc/generated"
 	"github.com/wavesplatform/gowaves/pkg/libs/serializer"
 )
 
@@ -39,6 +40,26 @@ type IssueV2 struct {
 	Proofs  *ProofsV1       `json:"proofs,omitempty"`
 	Script  Script          `json:"script"`
 	Issue
+}
+
+func (tx *IssueV2) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
+	res := TransactionToProtobufCommon(scheme, tx)
+	txData := tx.Issue.ToProtobuf()
+	fee := &g.Amount{AssetId: nil, Amount: int64(tx.Fee)}
+	res.Fee = fee
+	res.Data = txData
+	return res, nil
+}
+
+func (tx *IssueV2) ToProtobufSigned(scheme Scheme) (*g.SignedTransaction, error) {
+	unsigned, err := tx.ToProtobuf(scheme)
+	if err != nil {
+		return nil, err
+	}
+	return &g.SignedTransaction{
+		Transaction: unsigned,
+		Proofs:      tx.Proofs.Bytes(),
+	}, nil
 }
 
 func (tx IssueV2) GetTypeVersion() TransactionTypeVersion {
@@ -286,6 +307,29 @@ type TransferV2 struct {
 	Transfer
 }
 
+func (tx *TransferV2) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
+	res := TransactionToProtobufCommon(scheme, tx)
+	txData, err := tx.Transfer.ToProtobuf()
+	if err != nil {
+		return nil, err
+	}
+	fee := &g.Amount{AssetId: tx.FeeAsset.ToID(), Amount: int64(tx.Fee)}
+	res.Fee = fee
+	res.Data = txData
+	return res, nil
+}
+
+func (tx *TransferV2) ToProtobufSigned(scheme Scheme) (*g.SignedTransaction, error) {
+	unsigned, err := tx.ToProtobuf(scheme)
+	if err != nil {
+		return nil, err
+	}
+	return &g.SignedTransaction{
+		Transaction: unsigned,
+		Proofs:      tx.Proofs.Bytes(),
+	}, nil
+}
+
 func (tx TransferV2) GetTypeVersion() TransactionTypeVersion {
 	return TransactionTypeVersion{tx.Type, tx.Version}
 }
@@ -505,6 +549,26 @@ type ReissueV2 struct {
 	Reissue
 }
 
+func (tx *ReissueV2) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
+	res := TransactionToProtobufCommon(scheme, tx)
+	txData := tx.Reissue.ToProtobuf()
+	fee := &g.Amount{AssetId: nil, Amount: int64(tx.Fee)}
+	res.Fee = fee
+	res.Data = txData
+	return res, nil
+}
+
+func (tx *ReissueV2) ToProtobufSigned(scheme Scheme) (*g.SignedTransaction, error) {
+	unsigned, err := tx.ToProtobuf(scheme)
+	if err != nil {
+		return nil, err
+	}
+	return &g.SignedTransaction{
+		Transaction: unsigned,
+		Proofs:      tx.Proofs.Bytes(),
+	}, nil
+}
+
 func (tx ReissueV2) GetTypeVersion() TransactionTypeVersion {
 	return TransactionTypeVersion{tx.Type, tx.Version}
 }
@@ -679,6 +743,26 @@ type BurnV2 struct {
 	ID      *crypto.Digest  `json:"id,omitempty"`
 	Proofs  *ProofsV1       `json:"proofs,omitempty"`
 	Burn
+}
+
+func (tx *BurnV2) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
+	res := TransactionToProtobufCommon(scheme, tx)
+	txData := tx.Burn.ToProtobuf()
+	fee := &g.Amount{AssetId: nil, Amount: int64(tx.Fee)}
+	res.Fee = fee
+	res.Data = txData
+	return res, nil
+}
+
+func (tx *BurnV2) ToProtobufSigned(scheme Scheme) (*g.SignedTransaction, error) {
+	unsigned, err := tx.ToProtobuf(scheme)
+	if err != nil {
+		return nil, err
+	}
+	return &g.SignedTransaction{
+		Transaction: unsigned,
+		Proofs:      tx.Proofs.Bytes(),
+	}, nil
 }
 
 func (tx BurnV2) GetTypeVersion() TransactionTypeVersion {
@@ -861,6 +945,35 @@ type ExchangeV2 struct {
 	SellMatcherFee uint64           `json:"sellMatcherFee"`
 	Fee            uint64           `json:"fee"`
 	Timestamp      uint64           `json:"timestamp,omitempty"`
+}
+
+func (tx *ExchangeV2) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
+	orders := make([]*g.Order, 2)
+	orders[0] = tx.BuyOrder.ToProtobuf(scheme)
+	orders[1] = tx.SellOrder.ToProtobuf(scheme)
+	txData := &g.Transaction_Exchange{Exchange: &g.ExchangeTransactionData{
+		Amount:         int64(tx.Amount),
+		Price:          int64(tx.Price),
+		BuyMatcherFee:  int64(tx.BuyMatcherFee),
+		SellMatcherFee: int64(tx.SellMatcherFee),
+		Orders:         orders,
+	}}
+	fee := &g.Amount{AssetId: nil, Amount: int64(tx.Fee)}
+	res := TransactionToProtobufCommon(scheme, tx)
+	res.Fee = fee
+	res.Data = txData
+	return res, nil
+}
+
+func (tx *ExchangeV2) ToProtobufSigned(scheme Scheme) (*g.SignedTransaction, error) {
+	unsigned, err := tx.ToProtobuf(scheme)
+	if err != nil {
+		return nil, err
+	}
+	return &g.SignedTransaction{
+		Transaction: unsigned,
+		Proofs:      tx.Proofs.Bytes(),
+	}, nil
 }
 
 func (tx ExchangeV2) GetTypeVersion() TransactionTypeVersion {
@@ -1346,6 +1459,29 @@ type LeaseV2 struct {
 	Lease
 }
 
+func (tx *LeaseV2) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
+	res := TransactionToProtobufCommon(scheme, tx)
+	txData, err := tx.Lease.ToProtobuf()
+	if err != nil {
+		return nil, err
+	}
+	fee := &g.Amount{AssetId: nil, Amount: int64(tx.Fee)}
+	res.Fee = fee
+	res.Data = txData
+	return res, nil
+}
+
+func (tx *LeaseV2) ToProtobufSigned(scheme Scheme) (*g.SignedTransaction, error) {
+	unsigned, err := tx.ToProtobuf(scheme)
+	if err != nil {
+		return nil, err
+	}
+	return &g.SignedTransaction{
+		Transaction: unsigned,
+		Proofs:      tx.Proofs.Bytes(),
+	}, nil
+}
+
 func (tx LeaseV2) GetTypeVersion() TransactionTypeVersion {
 	return TransactionTypeVersion{tx.Type, tx.Version}
 }
@@ -1511,6 +1647,26 @@ type LeaseCancelV2 struct {
 	ID      *crypto.Digest  `json:"id,omitempty"`
 	Proofs  *ProofsV1       `json:"proofs,omitempty"`
 	LeaseCancel
+}
+
+func (tx *LeaseCancelV2) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
+	res := TransactionToProtobufCommon(scheme, tx)
+	txData := tx.LeaseCancel.ToProtobuf()
+	fee := &g.Amount{AssetId: nil, Amount: int64(tx.Fee)}
+	res.Fee = fee
+	res.Data = txData
+	return res, nil
+}
+
+func (tx *LeaseCancelV2) ToProtobufSigned(scheme Scheme) (*g.SignedTransaction, error) {
+	unsigned, err := tx.ToProtobuf(scheme)
+	if err != nil {
+		return nil, err
+	}
+	return &g.SignedTransaction{
+		Transaction: unsigned,
+		Proofs:      tx.Proofs.Bytes(),
+	}, nil
 }
 
 func (tx LeaseCancelV2) GetTypeVersion() TransactionTypeVersion {
@@ -1684,6 +1840,26 @@ type CreateAliasV2 struct {
 	ID      *crypto.Digest  `json:"id,omitempty"`
 	Proofs  *ProofsV1       `json:"proofs,omitempty"`
 	CreateAlias
+}
+
+func (tx *CreateAliasV2) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
+	res := TransactionToProtobufCommon(scheme, tx)
+	txData := tx.CreateAlias.ToProtobuf()
+	fee := &g.Amount{AssetId: nil, Amount: int64(tx.Fee)}
+	res.Fee = fee
+	res.Data = txData
+	return res, nil
+}
+
+func (tx *CreateAliasV2) ToProtobufSigned(scheme Scheme) (*g.SignedTransaction, error) {
+	unsigned, err := tx.ToProtobuf(scheme)
+	if err != nil {
+		return nil, err
+	}
+	return &g.SignedTransaction{
+		Transaction: unsigned,
+		Proofs:      tx.Proofs.Bytes(),
+	}, nil
 }
 
 func (tx CreateAliasV2) GetTypeVersion() TransactionTypeVersion {

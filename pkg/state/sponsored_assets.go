@@ -26,7 +26,7 @@ func (s *sponsorshipRecord) marshalBinary() ([]byte, error) {
 
 func (s *sponsorshipRecord) unmarshalBinary(data []byte) error {
 	if len(data) != sponsorshipRecordSize {
-		return errors.New("invalid data size")
+		return errInvalidDataSize
 	}
 	s.assetCost = binary.BigEndian.Uint64(data[:8])
 	return nil

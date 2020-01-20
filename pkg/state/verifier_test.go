@@ -55,8 +55,8 @@ func verifyBlocks(blocks []proto.Block, chans *verifierChans) error {
 func TestVerifier(t *testing.T) {
 	// Read real blocks.
 	height := uint64(75)
-	blocks, err := readRealBlocks(t, blocksPath(t), int(height+1))
-	assert.NoError(t, err, "readRealBlocks() failed")
+	blocks, err := readBlocksFromTestPath(int(height + 1))
+	assert.NoError(t, err, "readBlocksFromTestPath() failed")
 	last := blocks[len(blocks)-1]
 	// Get real block's transactions.
 	txs, err := proto.BytesToTransactions(last.TransactionCount, last.Transactions.BytesUnchecked())

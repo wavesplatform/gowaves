@@ -16,6 +16,7 @@ import (
 type bytesInfo struct {
 	pos    int
 	height uint64
+	offset uint64
 }
 
 type recentDataStorage struct {
@@ -27,8 +28,14 @@ func newRecentDataStorage() *recentDataStorage {
 	return &recentDataStorage{id2Pos: make(map[string]bytesInfo)}
 }
 
-func (r *recentDataStorage) appendBytes(id, data []byte, height uint64) error {
-	r.id2Pos[string(id)] = bytesInfo{len(r.stor), height}
+func (r *recentDataStorage) appendBytes(id, data []byte) error {
+	r.id2Pos[string(id)] = bytesInfo{pos: len(r.stor)}
+	r.stor = append(r.stor, data)
+	return nil
+}
+
+func (r *recentDataStorage) appendBytesWithInfo(id, data []byte, height, offset uint64) error {
+	r.id2Pos[string(id)] = bytesInfo{pos: len(r.stor), height: height, offset: offset}
 	r.stor = append(r.stor, data)
 	return nil
 }
@@ -52,7 +59,15 @@ func (r *recentDataStorage) heightById(id []byte) (uint64, error) {
 	return info.height, nil
 }
 
-func (r *recentDataStorage) writeToBuffer(buf *bufio.Writer) error {
+func (r *recentDataStorage) offsetById(id []byte) (uint64, error) {
+	info, ok := r.id2Pos[string(id)]
+	if !ok {
+		return 0, errNotFound
+	}
+	return info.offset, nil
+}
+
+func (r *recentDataStorage) writeDataToBuffer(buf *bufio.Writer) error {
 	for _, data := range r.stor {
 		if _, err := buf.Write(data); err != nil {
 			return err
@@ -157,11 +172,13 @@ func newBlockReadWriter(
 	if err != nil {
 		return nil, err
 	}
-	if offsetLen > 8 {
-		return nil, errors.New("offsetLen is too large")
+	if offsetLen != 8 {
+		// TODO: support different offset lengths.
+		return nil, errors.New("only offsetLen 8 is currently supported")
 	}
-	if headerOffsetLen > 8 {
-		return nil, errors.New("headerOffsetLen is too large")
+	if headerOffsetLen != 8 {
+		// TODO: support different offset lengths.
+		return nil, errors.New("only headerOffsetLen 8 is currently supported")
 	}
 	height, err := initHeight(db)
 	if err != nil {
@@ -266,7 +283,7 @@ func (rw *blockReadWriter) writeTransaction(txID []byte, tx []byte) error {
 	copy(txBytesTotal[:4], txSizeBytes)
 	copy(txBytesTotal[4:], tx)
 	// Save tx to local storage.
-	if err := rw.rtx.appendBytes(txID, txBytesTotal, rw.height+1); err != nil {
+	if err := rw.rtx.appendBytesWithInfo(txID, txBytesTotal, rw.height+1, rw.blockchainLen); err != nil {
 		return err
 	}
 	// Write tx start pos to DB batch.
@@ -288,7 +305,7 @@ func (rw *blockReadWriter) writeTransaction(txID []byte, tx []byte) error {
 func (rw *blockReadWriter) writeBlockHeader(blockID crypto.Signature, header []byte) error {
 	rw.mtx.Lock()
 	defer rw.mtx.Unlock()
-	if err := rw.rheaders.appendBytes(blockID[:], header, rw.height+1); err != nil {
+	if err := rw.rheaders.appendBytes(blockID[:], header); err != nil {
 		return err
 	}
 	rw.headersLen += uint64(len(header))
@@ -305,12 +322,16 @@ func (rw *blockReadWriter) newestBlockIDByHeight(height uint64) (crypto.Signatur
 	if id, ok := rw.height2IDCache[height]; ok {
 		return id, nil
 	}
-	return rw.blockIDByHeight(height)
+	return rw.blockIDByHeightImpl(height)
 }
 
 func (rw *blockReadWriter) blockIDByHeight(height uint64) (crypto.Signature, error) {
 	rw.mtx.RLock()
 	defer rw.mtx.RUnlock()
+	return rw.blockIDByHeightImpl(height)
+}
+
+func (rw *blockReadWriter) blockIDByHeightImpl(height uint64) (crypto.Signature, error) {
 	// For blockReadWriter, heights start from 0.
 	height -= 1
 	idBytes := make([]byte, crypto.SignatureSize)
@@ -327,7 +348,7 @@ func (rw *blockReadWriter) blockIDByHeight(height uint64) (crypto.Signature, err
 
 func (rw *blockReadWriter) heightFromBlockInfo(blockInfo []byte) (uint64, error) {
 	if len(blockInfo) < 8 {
-		return 0, errors.New("invalid data size")
+		return 0, errInvalidDataSize
 	}
 	height := binary.LittleEndian.Uint64(blockInfo[len(blockInfo)-8:])
 	return height, nil
@@ -381,8 +402,6 @@ func (rw *blockReadWriter) newestTransactionHeightByID(txID []byte) (uint64, err
 }
 
 func (rw *blockReadWriter) transactionHeightByID(txID []byte) (uint64, error) {
-	rw.mtx.RLock()
-	defer rw.mtx.RUnlock()
 	key := txHeightKey{txID: txID}
 	heightBytes, err := rw.db.Get(key.bytes())
 	if err != nil {
@@ -391,15 +410,28 @@ func (rw *blockReadWriter) transactionHeightByID(txID []byte) (uint64, error) {
 	return binary.LittleEndian.Uint64(heightBytes), nil
 }
 
-func (rw *blockReadWriter) readTransactionSize(txID []byte) (uint32, error) {
+func (rw *blockReadWriter) transactionOffsetByID(txID []byte) (uint64, error) {
 	key := txOffsetKey{txID: txID}
-	txStarts, err := rw.db.Get(key.bytes())
+	offsetBytes, err := rw.db.Get(key.bytes())
 	if err != nil {
 		return 0, err
 	}
-	txStart := binary.LittleEndian.Uint64(txStarts[:rw.offsetLen])
+	return binary.LittleEndian.Uint64(offsetBytes), nil
+}
+
+func (rw *blockReadWriter) newestTransactionOffsetByID(txID []byte) (uint64, error) {
+	rw.mtx.RLock()
+	defer rw.mtx.RUnlock()
+	offset, err := rw.rtx.offsetById(txID)
+	if err == nil {
+		return offset, nil
+	}
+	return rw.transactionOffsetByID(txID)
+}
+
+func (rw *blockReadWriter) readTransactionSize(offset uint64) (uint32, error) {
 	sizeBytes := make([]byte, 4)
-	n, err := rw.blockchain.ReadAt(sizeBytes, int64(txStart))
+	n, err := rw.blockchain.ReadAt(sizeBytes, int64(offset))
 	if err != nil {
 		return 0, err
 	} else if n != 4 {
@@ -413,7 +445,7 @@ func (rw *blockReadWriter) readNewestTransaction(txID []byte) ([]byte, error) {
 	defer rw.mtx.RUnlock()
 	tx, err := rw.rtx.bytesById(txID)
 	if err != nil {
-		return rw.readTransaction(txID)
+		return rw.readTransactionImpl(txID)
 	}
 	if len(tx) < 4 {
 		return nil, errors.New("invalid tx size")
@@ -424,20 +456,32 @@ func (rw *blockReadWriter) readNewestTransaction(txID []byte) ([]byte, error) {
 func (rw *blockReadWriter) readTransaction(txID []byte) ([]byte, error) {
 	rw.mtx.RLock()
 	defer rw.mtx.RUnlock()
-	txSize, err := rw.readTransactionSize(txID)
+	return rw.readTransactionImpl(txID)
+}
+
+func (rw *blockReadWriter) readTransactionImpl(txID []byte) ([]byte, error) {
+	offset, err := rw.transactionOffsetByID(txID)
 	if err != nil {
 		return nil, err
 	}
-	key := txOffsetKey{txID: txID}
-	txStarts, err := rw.db.Get(key.bytes())
+	return rw.readTransactionByOffsetImpl(offset)
+}
+
+func (rw *blockReadWriter) readTransactionByOffset(offset uint64) ([]byte, error) {
+	rw.mtx.RLock()
+	defer rw.mtx.RUnlock()
+	return rw.readTransactionByOffsetImpl(offset)
+}
+
+func (rw *blockReadWriter) readTransactionByOffsetImpl(offset uint64) ([]byte, error) {
+	txSize, err := rw.readTransactionSize(offset)
 	if err != nil {
 		return nil, err
 	}
-	txStart := binary.LittleEndian.Uint64(txStarts[:rw.offsetLen])
-	// First 4 bytes are tx size, actual tx starts at `txStart + 4`.
-	txRealStart := txStart + 4
+	// First 4 bytes are tx size, actual tx starts at `offset + 4`.
+	txRealOffset := offset + 4
 	txBytes := make([]byte, txSize)
-	n, err := rw.blockchain.ReadAt(txBytes, int64(txRealStart))
+	n, err := rw.blockchain.ReadAt(txBytes, int64(txRealOffset))
 	if err != nil {
 		return nil, err
 	} else if n != len(txBytes) {
@@ -454,7 +498,7 @@ func (rw *blockReadWriter) readNewestBlockHeader(blockID crypto.Signature) ([]by
 	defer rw.mtx.RUnlock()
 	header, err := rw.rheaders.bytesById(blockID[:])
 	if err != nil {
-		return rw.readBlockHeader(blockID)
+		return rw.readBlockHeaderImpl(blockID)
 	}
 	return header, nil
 }
@@ -462,6 +506,10 @@ func (rw *blockReadWriter) readNewestBlockHeader(blockID crypto.Signature) ([]by
 func (rw *blockReadWriter) readBlockHeader(blockID crypto.Signature) ([]byte, error) {
 	rw.mtx.RLock()
 	defer rw.mtx.RUnlock()
+	return rw.readBlockHeaderImpl(blockID)
+}
+
+func (rw *blockReadWriter) readBlockHeaderImpl(blockID crypto.Signature) ([]byte, error) {
 	key := blockOffsetKey{blockID: blockID}
 	blockInfo, err := rw.db.Get(key.bytes())
 	if err != nil {
@@ -680,13 +728,13 @@ func (rw *blockReadWriter) reset() {
 }
 
 func (rw *blockReadWriter) flush() error {
-	if err := rw.rtx.writeToBuffer(rw.blockchainBuf); err != nil {
+	if err := rw.rtx.writeDataToBuffer(rw.blockchainBuf); err != nil {
 		return err
 	}
 	if err := rw.blockchainBuf.Flush(); err != nil {
 		return err
 	}
-	if err := rw.rheaders.writeToBuffer(rw.headersBuf); err != nil {
+	if err := rw.rheaders.writeDataToBuffer(rw.headersBuf); err != nil {
 		return err
 	}
 	if err := rw.headersBuf.Flush(); err != nil {

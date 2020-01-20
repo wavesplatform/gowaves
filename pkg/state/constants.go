@@ -22,4 +22,15 @@ const (
 	DefaultOffsetLen = 8
 	// DefaultHeaderOffsetLen is the amount of bytes needed to store offset of headers in headers file.
 	DefaultHeaderOffsetLen = 8
+
+	// StateVersion is current version of state internal storage formats.
+	// It increases when backward compatibility with previous storage version is lost.
+	StateVersion = 1
+
+	// 100 MiB.
+	AddressTransactionsMemLimit = 100 * 1024 * 1024
+
+	// Maximum size of transactions by addresses file.
+	// Then it is sorted and saved to DB.
+	MaxAddressTransactionsFileSize = 2 * 1024 * 1024 * 1024 // 2 GiB.
 )

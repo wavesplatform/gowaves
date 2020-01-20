@@ -16,6 +16,7 @@ import (
 
 const (
 	KiB = 1024
+	MiB = 1024 * KiB
 
 	maxVerifierScriptSize = 8 * KiB
 	maxContractScriptSize = 32 * KiB
@@ -88,7 +89,7 @@ func estimatorByScript(script *ast.Script, version int) *estimation.Estimator {
 		variables = ast.VariablesV3()
 		cat = estimation.NewCatalogueV3()
 	}
-	return estimation.NewEstimator(version, cat, variables) //TODO: pass version 2 after BlockReward (feature 14) activation
+	return estimation.NewEstimator(version, cat, variables)
 }
 
 type scriptInfo struct {
@@ -159,11 +160,15 @@ func (tc *transactionChecker) checkFromFuture(timestamp uint64) bool {
 }
 
 func (tc *transactionChecker) checkTimestamps(txTimestamp, blockTimestamp, prevBlockTimestamp uint64) error {
-	if txTimestamp < prevBlockTimestamp-tc.settings.MaxTxTimeBackOffset {
-		return errors.New("early transaction creation time")
-	}
 	if tc.checkFromFuture(blockTimestamp) && txTimestamp > blockTimestamp+tc.settings.MaxTxTimeForwardOffset {
 		return errors.New("late transaction creation time")
+	}
+	if prevBlockTimestamp == 0 {
+		// If we check tx from genesis block, there is no parent, so transaction can not be early.
+		return nil
+	}
+	if txTimestamp < prevBlockTimestamp-tc.settings.MaxTxTimeBackOffset {
+		return errors.New("early transaction creation time")
 	}
 	return nil
 }

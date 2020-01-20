@@ -1,0 +1,43 @@
+{
+  "version": 2,
+  "timestamp": 1483455771962,
+  "reference": "3KQZFTX6G6X2JLpU9d3B3Gtu33XY1LeyCVR5qjn7fvyB7YN9wqqCkqivVL7VK8tz2dqDpwDZDQTQPLXPZNv248ak",
+  "nxt-consensus": {
+    "base-target": 153722867,
+    "generation-signature": "11111111111111111111111111111111"
+  },
+  "fee": 100000000,
+  "transactionBlockLength": 216,
+  "transactionCount": 2,
+  "transactions": [
+    {
+      "type": 1,
+      "id": "2DVtfgXjpMeFf2PQCqvwxAiaGbiDsxDjSdNQkc5JQ74eWxjWFYgwvqzC4dn7iB1AhuM32WxEiVi1SGijsBtYQwn8",
+      "fee": 0,
+      "timestamp": 1483455738550,
+      "signature": "2DVtfgXjpMeFf2PQCqvwxAiaGbiDsxDjSdNQkc5JQ74eWxjWFYgwvqzC4dn7iB1AhuM32WxEiVi1SGijsBtYQwn8",
+      "recipient": "3PPKF2pH4KMYgsDixjrhnWrPycVHr1Ye37V",
+      "amount": 9999999500000000
+    },
+    {
+      "senderPublicKey": "HSUuDF8KzST1zA45FM4qcLMtcXK8WmkDVWaUXJuJs9Ax",
+      "quantity": 1000000000,
+      "signature": "2cFTck2nuhTsEWZYxBcoLjCEbHzd7rYyHy5zbyKEBTiHe93SFkHF5nmTNWbE36RWjezruCRaj6tWGQHAYXkiipxW",
+      "fee": 100000000,
+      "description": "Waves community token.",
+      "type": 3,
+      "version": 1,
+      "reissuable": false,
+      "sender": "3PPKF2pH4KMYgsDixjrhnWrPycVHr1Ye37V",
+      "feeAssetId": null,
+      "proofs": [
+        "2cFTck2nuhTsEWZYxBcoLjCEbHzd7rYyHy5zbyKEBTiHe93SFkHF5nmTNWbE36RWjezruCRaj6tWGQHAYXkiipxW"
+      ],
+      "assetId": "DHgwrRvVyqJsepd32YbBqUeDH4GJ1N984X8QoekjgH8J",
+      "decimals": 2,
+      "name": "WavesCommunity",
+      "id": "DHgwrRvVyqJsepd32YbBqUeDH4GJ1N984X8QoekjgH8J",
+      "timestamp": 1483455738559
+    }
+  ]
+}

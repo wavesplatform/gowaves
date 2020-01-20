@@ -10,7 +10,9 @@ import (
 )
 
 const (
-	featureID = 1
+	featureID  = 1
+	featureID1 = 2
+	featureID2 = 3
 )
 
 type featuresTestObjects struct {
@@ -182,4 +184,28 @@ func TestFinishVoting(t *testing.T) {
 			assert.Error(t, err, "activationHeight() did not fail with not activated feature")
 		}
 	}
+}
+
+func TestAllFeatures(t *testing.T) {
+	to, path, err := createFeatures(settings.MainNetSettings)
+	assert.NoError(t, err, "createFeatures() failed")
+
+	defer func() {
+		to.stor.close(t)
+
+		err = util.CleanTemporaryDirs(path)
+		assert.NoError(t, err, "failed to clean test data dirs")
+	}()
+
+	to.stor.addBlock(t, blockID0)
+	err = to.features.addVote(featureID1, blockID0)
+	assert.NoError(t, err, "addVote() failed")
+	err = to.features.addVote(featureID2, blockID0)
+	assert.NoError(t, err, "addVote() failed")
+	to.stor.flush(t)
+	features, err := to.features.allFeatures()
+	assert.NoError(t, err, "allFeatures() failed")
+	assert.Equal(t, 2, len(features))
+	assert.Equal(t, int16(featureID1), features[0])
+	assert.Equal(t, int16(featureID2), features[1])
 }

@@ -101,7 +101,7 @@ func (r *assetHistoryRecord) marshalBinary() ([]byte, error) {
 
 func (r *assetHistoryRecord) unmarshalBinary(data []byte) error {
 	if len(data) != assetRecordSize {
-		return errors.New("invalid data size")
+		return errInvalidDataSize
 	}
 	r.quantity.SetBytes(data[:maxQuantityLen])
 	var err error

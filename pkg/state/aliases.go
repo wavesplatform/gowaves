@@ -32,7 +32,7 @@ func (r *aliasRecord) marshalBinary() ([]byte, error) {
 
 func (r *aliasRecord) unmarshalBinary(data []byte) error {
 	if len(data) != aliasRecordSize {
-		return errors.New("invalid data size")
+		return errInvalidDataSize
 	}
 	var err error
 	r.info.stolen, err = proto.Bool(data[:1])

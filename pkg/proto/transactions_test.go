@@ -112,6 +112,32 @@ func TestGenesisToJSON(t *testing.T) {
 	}
 }
 
+func TestPaymentMarshalUnmarshal(t *testing.T) {
+	s, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
+	sk, pk, err := crypto.GenerateKeyPair(s)
+	require.NoError(t, err)
+	tests := []struct {
+		address string
+		amount  uint64
+		fee     uint64
+	}{
+		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ", 1, 10},
+	}
+	for _, tc := range tests {
+		addr, err := addressFromString(tc.address)
+		require.NoError(t, err)
+		tx := NewUnsignedPayment(pk, addr, tc.amount, tc.fee, 1)
+		err = tx.Sign(sk)
+		require.NoError(t, err)
+		txBytes, err := tx.MarshalBinary()
+		assert.NoError(t, err)
+		var tx1 Payment
+		err = tx1.UnmarshalBinary(txBytes)
+		require.NoError(t, err)
+		assert.Equal(t, *tx, tx1)
+	}
+}
+
 func TestPaymentFromMainNet(t *testing.T) {
 	tests := []struct {
 		sig       string

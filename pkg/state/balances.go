@@ -5,7 +5,6 @@ import (
 	"encoding/binary"
 	"math"
 
-	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -32,11 +31,9 @@ func (bp *balanceProfile) effectiveBalance() (uint64, error) {
 	return uint64(val - bp.leaseOut), nil
 }
 
-/* TODO: unused code, need to write tests if it is needed or otherwise remove it.
 func (bp *balanceProfile) spendableBalance() uint64 {
 	return uint64(int64(bp.balance) - bp.leaseOut)
 }
-*/
 
 type wavesBalanceRecord struct {
 	balanceProfile
@@ -52,7 +49,7 @@ func (r *wavesBalanceRecord) marshalBinary() ([]byte, error) {
 
 func (r *wavesBalanceRecord) unmarshalBinary(data []byte) error {
 	if len(data) != wavesBalanceRecordSize {
-		return errors.New("invalid data size")
+		return errInvalidDataSize
 	}
 	r.balance = binary.BigEndian.Uint64(data[:8])
 	var err error
@@ -79,7 +76,7 @@ func (r *assetBalanceRecord) marshalBinary() ([]byte, error) {
 
 func (r *assetBalanceRecord) unmarshalBinary(data []byte) error {
 	if len(data) != assetBalanceRecordSize {
-		return errors.New("invalid data size")
+		return errInvalidDataSize
 	}
 	r.balance = binary.BigEndian.Uint64(data[:8])
 	return nil
@@ -229,12 +226,7 @@ func (s *balances) wavesAddressesNumber() (uint64, error) {
 	return addressesNumber, nil
 }
 
-func (s *balances) effectiveBalanceBeforeHeight(addr proto.Address, height uint64) (uint64, error) {
-	key := wavesBalanceKey{address: addr}
-	recordBytes, err := s.hs.freshEntryDataBeforeHeight(key.bytes(), height, true)
-	if err != nil {
-		return 0, err
-	}
+func (s *balances) effectiveBalanceBeforeHeightCommon(recordBytes []byte) (uint64, error) {
 	if recordBytes == nil {
 		return 0, nil
 	}
@@ -245,14 +237,25 @@ func (s *balances) effectiveBalanceBeforeHeight(addr proto.Address, height uint6
 	return record.effectiveBalance()
 }
 
-// minEffectiveBalanceInRange() is used to get min miner's effective balance, so it includes blocks which
-// have not been flushed to DB yet (and are currently stored in memory).
-func (s *balances) minEffectiveBalanceInRange(addr proto.Address, startHeight, endHeight uint64) (uint64, error) {
+func (s *balances) effectiveBalanceBeforeHeightStable(addr proto.Address, height uint64) (uint64, error) {
 	key := wavesBalanceKey{address: addr}
-	records, err := s.hs.entriesDataInHeightRange(key.bytes(), startHeight, endHeight, true)
+	recordBytes, err := s.hs.entryDataBeforeHeight(key.bytes(), height, true)
 	if err != nil {
 		return 0, err
 	}
+	return s.effectiveBalanceBeforeHeightCommon(recordBytes)
+}
+
+func (s *balances) effectiveBalanceBeforeHeight(addr proto.Address, height uint64) (uint64, error) {
+	key := wavesBalanceKey{address: addr}
+	recordBytes, err := s.hs.freshEntryDataBeforeHeight(key.bytes(), height, true)
+	if err != nil {
+		return 0, err
+	}
+	return s.effectiveBalanceBeforeHeightCommon(recordBytes)
+}
+
+func (s *balances) minEffectiveBalanceInRangeCommon(records [][]byte) (uint64, error) {
 	minBalance := uint64(math.MaxUint64)
 	for _, recordBytes := range records {
 		var record wavesBalanceRecord
@@ -266,6 +269,38 @@ func (s *balances) minEffectiveBalanceInRange(addr proto.Address, startHeight, e
 		if effectiveBal < minBalance {
 			minBalance = effectiveBal
 		}
+	}
+	return minBalance, nil
+}
+
+func (s *balances) minEffectiveBalanceInRangeStable(addr proto.Address, startHeight, endHeight uint64) (uint64, error) {
+	key := wavesBalanceKey{address: addr}
+	records, err := s.hs.entriesDataInHeightRangeStable(key.bytes(), startHeight, endHeight, true)
+	if err != nil {
+		return 0, err
+	}
+	minBalance, err := s.minEffectiveBalanceInRangeCommon(records)
+	if err != nil {
+		return 0, err
+	}
+	if minBalance == math.MaxUint64 {
+		// No balances found at height range, use the latest before startHeight.
+		return s.effectiveBalanceBeforeHeightStable(addr, startHeight)
+	}
+	return minBalance, nil
+}
+
+// minEffectiveBalanceInRange() is used to get min miner's effective balance, so it includes blocks which
+// have not been flushed to DB yet (and are currently stored in memory).
+func (s *balances) minEffectiveBalanceInRange(addr proto.Address, startHeight, endHeight uint64) (uint64, error) {
+	key := wavesBalanceKey{address: addr}
+	records, err := s.hs.entriesDataInHeightRange(key.bytes(), startHeight, endHeight, true)
+	if err != nil {
+		return 0, err
+	}
+	minBalance, err := s.minEffectiveBalanceInRangeCommon(records)
+	if err != nil {
+		return 0, err
 	}
 	if minBalance == math.MaxUint64 {
 		// No balances found at height range, use the latest before startHeight.

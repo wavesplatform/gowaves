@@ -29,6 +29,7 @@ type readCommandType byte
 const (
 	readHeader readCommandType = iota
 	readTxHeight
+	readTxOffset
 	readTx
 	readBlock
 	getIDByHeight
@@ -39,6 +40,7 @@ type readTask struct {
 	txID          []byte
 	blockID       crypto.Signature
 	height        uint64
+	offset        uint64
 	correctResult []byte
 }
 
@@ -134,6 +136,7 @@ func testSingleBlock(t *testing.T, rw *blockReadWriter, block *proto.Block) {
 
 func writeBlocks(ctx context.Context, rw *blockReadWriter, blocks []proto.Block, readTasks chan<- *readTask, flush bool) error {
 	height := 1
+	offset := 0
 	for _, block := range blocks {
 		var tasksBuf []*readTask
 		blockID := block.BlockSignature
@@ -175,6 +178,9 @@ func writeBlocks(ctx context.Context, rw *blockReadWriter, blocks []proto.Block,
 			tasksBuf = append(tasksBuf, task)
 			task = &readTask{taskType: readTxHeight, txID: txID, height: uint64(height)}
 			tasksBuf = append(tasksBuf, task)
+			task = &readTask{taskType: readTxOffset, txID: txID, offset: uint64(offset)}
+			tasksBuf = append(tasksBuf, task)
+			offset += n + 4
 			transaction = transaction[4+n:]
 		}
 		if err := rw.finishBlock(blockID); err != nil {
@@ -226,6 +232,14 @@ func testNewestReader(rw *blockReadWriter, readTasks <-chan *readTask) error {
 			if height != task.height {
 				return errors.New("Transaction heights are not equal")
 			}
+		case readTxOffset:
+			offset, err := rw.newestTransactionOffsetByID(task.txID)
+			if err != nil {
+				return err
+			}
+			if offset != task.offset {
+				return errors.New("Transaction offsets are not equal")
+			}
 		case readTx:
 			tx, err := rw.readNewestTransaction(task.txID)
 			if err != nil {
@@ -274,6 +288,14 @@ func testReader(rw *blockReadWriter, readTasks <-chan *readTask) error {
 			if height != task.height {
 				return errors.New("Transaction heights are not equal")
 			}
+		case readTxOffset:
+			offset, err := rw.transactionOffsetByID(task.txID)
+			if err != nil {
+				return err
+			}
+			if offset != task.offset {
+				return errors.New("Transaction offsets are not equal")
+			}
 		case readTx:
 			tx, err := rw.readTransaction(task.txID)
 			if err != nil {
@@ -313,7 +335,7 @@ func TestSimpleReadWrite(t *testing.T) {
 		}
 	}()
 
-	blocks, err := readRealBlocks(t, blocksPath(t), blocksNumber)
+	blocks, err := readBlocksFromTestPath(blocksNumber)
 	if err != nil {
 		t.Fatalf("Can not read blocks from blockchain file: %v", err)
 	}
@@ -340,7 +362,7 @@ func TestSimultaneousReadWrite(t *testing.T) {
 		}
 	}()
 
-	blocks, err := readRealBlocks(t, blocksPath(t), blocksNumber)
+	blocks, err := readBlocksFromTestPath(blocksNumber)
 	if err != nil {
 		t.Fatalf("Can not read blocks from blockchain file: %v", err)
 	}
@@ -399,7 +421,7 @@ func TestReadNewest(t *testing.T) {
 		}
 	}()
 
-	blocks, err := readRealBlocks(t, blocksPath(t), blocksNumber)
+	blocks, err := readBlocksFromTestPath(blocksNumber)
 	if err != nil {
 		t.Fatalf("Can not read blocks from blockchain file: %v", err)
 	}
@@ -458,7 +480,7 @@ func TestSimultaneousReadDelete(t *testing.T) {
 		}
 	}()
 
-	blocks, err := readRealBlocks(t, blocksPath(t), blocksNumber)
+	blocks, err := readBlocksFromTestPath(blocksNumber)
 	if err != nil {
 		t.Fatalf("Can not read blocks from blockchain file: %v", err)
 	}

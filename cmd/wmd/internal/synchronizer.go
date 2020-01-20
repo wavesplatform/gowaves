@@ -11,7 +11,8 @@ import (
 	"github.com/wavesplatform/gowaves/cmd/wmd/internal/data"
 	"github.com/wavesplatform/gowaves/cmd/wmd/internal/state"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
-	client "github.com/wavesplatform/gowaves/pkg/grpc"
+	"github.com/wavesplatform/gowaves/pkg/grpc/client"
+	g "github.com/wavesplatform/gowaves/pkg/grpc/generated"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
@@ -164,7 +165,7 @@ func (s *Synchronizer) nodeHeight() (int, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	c := client.NewBlocksApiClient(s.conn)
+	c := g.NewBlocksApiClient(s.conn)
 	h, err := c.GetCurrentHeight(ctx, &empty.Empty{}, grpc.EmptyCallOption{})
 	if err != nil {
 		return 0, err
@@ -172,10 +173,10 @@ func (s *Synchronizer) nodeHeight() (int, error) {
 	return int(h.Value), nil
 }
 
-func (s *Synchronizer) block(height int, full bool) (*client.BlockWithHeight, error) {
+func (s *Synchronizer) block(height int, full bool) (*g.BlockWithHeight, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	return client.NewBlocksApiClient(s.conn).GetBlock(ctx, &client.BlockRequest{IncludeTransactions: full, Request: &client.BlockRequest_Height{Height: int32(height)}}, grpc.EmptyCallOption{})
+	return g.NewBlocksApiClient(s.conn).GetBlock(ctx, &g.BlockRequest{IncludeTransactions: full, Request: &g.BlockRequest_Height{Height: int32(height)}}, grpc.EmptyCallOption{})
 }
 
 func (s *Synchronizer) nodeBlockSignature(height int) (crypto.Signature, error) {

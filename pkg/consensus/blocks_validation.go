@@ -138,7 +138,7 @@ func (cv *ConsensusValidator) validateEffectiveBalance(header *proto.BlockHeader
 	return nil
 }
 
-func (cv *ConsensusValidator) generatingBalance(height uint64, addr proto.Address) (uint64, error) {
+func (cv *ConsensusValidator) RangeForGeneratingBalanceByHeight(height uint64) (uint64, uint64) {
 	depth := uint64(firstDepth)
 	if height >= cv.settings.GenerationBalanceDepthFrom50To1000AfterHeight {
 		depth = secondDepth
@@ -147,7 +147,12 @@ func (cv *ConsensusValidator) generatingBalance(height uint64, addr proto.Addres
 	if height < depth {
 		bottomLimit = 1
 	}
-	balance, err := cv.state.EffectiveBalance(proto.NewRecipientFromAddress(addr), bottomLimit, height)
+	return bottomLimit, height
+}
+
+func (cv *ConsensusValidator) generatingBalance(height uint64, addr proto.Address) (uint64, error) {
+	start, end := cv.RangeForGeneratingBalanceByHeight(height)
+	balance, err := cv.state.EffectiveBalance(proto.NewRecipientFromAddress(addr), start, end)
 	if err != nil {
 		return 0, err
 	}

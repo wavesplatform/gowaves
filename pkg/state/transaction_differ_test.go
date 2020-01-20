@@ -65,10 +65,14 @@ func TestCreateDiffGenesis(t *testing.T) {
 	}()
 
 	tx := createGenesis(t)
-	diff, err := to.td.createDiffGenesis(tx, defaultDifferInfo(t))
+	ch, err := to.td.createDiffGenesis(tx, defaultDifferInfo(t))
 	assert.NoError(t, err, "createDiffGenesis() failed")
 	correctDiff := txDiff{testGlobal.recipientInfo.wavesKey: newBalanceDiff(int64(tx.Amount), 0, 0, false)}
-	assert.Equal(t, correctDiff, diff)
+	assert.Equal(t, correctDiff, ch.diff)
+	correctAddrs := map[proto.Address]struct{}{
+		testGlobal.recipientInfo.addr: empty,
+	}
+	assert.Equal(t, correctAddrs, ch.addrs)
 }
 
 func createPayment(t *testing.T) *proto.Payment {
@@ -89,7 +93,7 @@ func TestCreateDiffPayment(t *testing.T) {
 	}()
 
 	tx := createPayment(t)
-	diff, err := to.td.createDiffPayment(tx, defaultDifferInfo(t))
+	ch, err := to.td.createDiffPayment(tx, defaultDifferInfo(t))
 	assert.NoError(t, err, "createDiffPayment() failed")
 
 	correctDiff := txDiff{
@@ -97,7 +101,12 @@ func TestCreateDiffPayment(t *testing.T) {
 		testGlobal.recipientInfo.wavesKey: newBalanceDiff(int64(tx.Amount), 0, 0, true),
 		testGlobal.minerInfo.wavesKey:     newBalanceDiff(int64(tx.Fee), 0, 0, false),
 	}
-	assert.Equal(t, correctDiff, diff)
+	assert.Equal(t, correctDiff, ch.diff)
+	correctAddrs := map[proto.Address]struct{}{
+		testGlobal.senderInfo.addr:    empty,
+		testGlobal.recipientInfo.addr: empty,
+	}
+	assert.Equal(t, correctAddrs, ch.addrs)
 }
 
 func createTransferV1(t *testing.T) *proto.TransferV1 {
@@ -121,7 +130,7 @@ func TestCreateDiffTransferV1(t *testing.T) {
 	assetId := tx.FeeAsset.ID
 	to.stor.createAsset(t, assetId)
 
-	diff, err := to.td.createDiffTransferV1(tx, defaultDifferInfo(t))
+	ch, err := to.td.createDiffTransferV1(tx, defaultDifferInfo(t))
 	assert.NoError(t, err, "createDiffTransferV1() failed")
 
 	correctDiff := txDiff{
@@ -129,14 +138,19 @@ func TestCreateDiffTransferV1(t *testing.T) {
 		testGlobal.recipientInfo.assetKeys[0]: newBalanceDiff(int64(tx.Amount), 0, 0, true),
 		testGlobal.minerInfo.assetKeys[0]:     newBalanceDiff(int64(tx.Fee), 0, 0, false),
 	}
-	assert.Equal(t, correctDiff, diff)
+	assert.Equal(t, correctDiff, ch.diff)
+	correctAddrs := map[proto.Address]struct{}{
+		testGlobal.senderInfo.addr:    empty,
+		testGlobal.recipientInfo.addr: empty,
+	}
+	assert.Equal(t, correctAddrs, ch.addrs)
 
 	to.stor.activateSponsorship(t)
 	_, err = to.td.createDiffTransferV1(tx, defaultDifferInfo(t))
 	assert.Error(t, err, "createDiffTransferV1() did not fail with unsponsored asset")
 	err = to.stor.entities.sponsoredAssets.sponsorAsset(assetId, 10, blockID0)
 	assert.NoError(t, err, "sponsorAsset() failed")
-	diff, err = to.td.createDiffTransferV1(tx, defaultDifferInfo(t))
+	ch, err = to.td.createDiffTransferV1(tx, defaultDifferInfo(t))
 	assert.NoError(t, err, "createDiffTransferV1() failed with valid sponsored asset")
 
 	feeInWaves, err := to.stor.entities.sponsoredAssets.sponsoredAssetToWaves(assetId, tx.Fee)
@@ -148,7 +162,13 @@ func TestCreateDiffTransferV1(t *testing.T) {
 		testGlobal.issuerInfo.wavesKey:        newBalanceDiff(-int64(feeInWaves), 0, 0, true),
 		testGlobal.minerInfo.wavesKey:         newBalanceDiff(int64(feeInWaves), 0, 0, false),
 	}
-	assert.Equal(t, correctDiff, diff)
+	assert.Equal(t, correctDiff, ch.diff)
+	correctAddrs = map[proto.Address]struct{}{
+		testGlobal.senderInfo.addr:    empty,
+		testGlobal.recipientInfo.addr: empty,
+		testGlobal.issuerInfo.addr:    empty,
+	}
+	assert.Equal(t, correctAddrs, ch.addrs)
 }
 
 func createTransferV2(t *testing.T) *proto.TransferV2 {
@@ -172,7 +192,7 @@ func TestCreateDiffTransferV2(t *testing.T) {
 	assetId := tx.FeeAsset.ID
 	to.stor.createAsset(t, assetId)
 
-	diff, err := to.td.createDiffTransferV2(tx, defaultDifferInfo(t))
+	ch, err := to.td.createDiffTransferV2(tx, defaultDifferInfo(t))
 	assert.NoError(t, err, "createDiffTransferV2() failed")
 
 	correctDiff := txDiff{
@@ -180,14 +200,19 @@ func TestCreateDiffTransferV2(t *testing.T) {
 		testGlobal.recipientInfo.assetKeys[0]: newBalanceDiff(int64(tx.Amount), 0, 0, true),
 		testGlobal.minerInfo.assetKeys[0]:     newBalanceDiff(int64(tx.Fee), 0, 0, false),
 	}
-	assert.Equal(t, correctDiff, diff)
+	assert.Equal(t, correctDiff, ch.diff)
+	correctAddrs := map[proto.Address]struct{}{
+		testGlobal.senderInfo.addr:    empty,
+		testGlobal.recipientInfo.addr: empty,
+	}
+	assert.Equal(t, correctAddrs, ch.addrs)
 
 	to.stor.activateSponsorship(t)
 	_, err = to.td.createDiffTransferV2(tx, defaultDifferInfo(t))
 	assert.Error(t, err, "createDiffTransferV2() did not fail with unsponsored asset")
 	err = to.stor.entities.sponsoredAssets.sponsorAsset(assetId, 10, blockID0)
 	assert.NoError(t, err, "sponsorAsset() failed")
-	diff, err = to.td.createDiffTransferV2(tx, defaultDifferInfo(t))
+	ch, err = to.td.createDiffTransferV2(tx, defaultDifferInfo(t))
 	assert.NoError(t, err, "createDiffTransferV2() failed with valid sponsored asset")
 
 	feeInWaves, err := to.stor.entities.sponsoredAssets.sponsoredAssetToWaves(assetId, tx.Fee)
@@ -199,7 +224,13 @@ func TestCreateDiffTransferV2(t *testing.T) {
 		testGlobal.issuerInfo.wavesKey:        newBalanceDiff(-int64(feeInWaves), 0, 0, true),
 		testGlobal.minerInfo.wavesKey:         newBalanceDiff(int64(feeInWaves), 0, 0, false),
 	}
-	assert.Equal(t, correctDiff, diff)
+	assert.Equal(t, correctDiff, ch.diff)
+	correctAddrs = map[proto.Address]struct{}{
+		testGlobal.senderInfo.addr:    empty,
+		testGlobal.recipientInfo.addr: empty,
+		testGlobal.issuerInfo.addr:    empty,
+	}
+	assert.Equal(t, correctAddrs, ch.addrs)
 }
 
 func createIssueV1(t *testing.T, feeUnits int) *proto.IssueV1 {
@@ -227,7 +258,7 @@ func TestCreateDiffIssueV1(t *testing.T) {
 	}()
 
 	tx := createIssueV1(t, 1000)
-	diff, err := to.td.createDiffIssueV1(tx, defaultDifferInfo(t))
+	ch, err := to.td.createDiffIssueV1(tx, defaultDifferInfo(t))
 	assert.NoError(t, err, "createDiffIssueV1() failed")
 
 	correctDiff := txDiff{
@@ -235,7 +266,11 @@ func TestCreateDiffIssueV1(t *testing.T) {
 		testGlobal.senderInfo.wavesKey:                       newBalanceDiff(-int64(tx.Fee), 0, 0, false),
 		testGlobal.minerInfo.wavesKey:                        newBalanceDiff(int64(tx.Fee), 0, 0, false),
 	}
-	assert.Equal(t, correctDiff, diff)
+	assert.Equal(t, correctDiff, ch.diff)
+	correctAddrs := map[proto.Address]struct{}{
+		testGlobal.senderInfo.addr: empty,
+	}
+	assert.Equal(t, correctAddrs, ch.addrs)
 }
 
 func createIssueV2(t *testing.T, feeUnits int) *proto.IssueV2 {
@@ -263,7 +298,7 @@ func TestCreateDiffIssueV2(t *testing.T) {
 	}()
 
 	tx := createIssueV2(t, 1000)
-	diff, err := to.td.createDiffIssueV2(tx, defaultDifferInfo(t))
+	ch, err := to.td.createDiffIssueV2(tx, defaultDifferInfo(t))
 	assert.NoError(t, err, "createDiffIssueV2() failed")
 
 	correctDiff := txDiff{
@@ -271,7 +306,11 @@ func TestCreateDiffIssueV2(t *testing.T) {
 		testGlobal.senderInfo.wavesKey:                       newBalanceDiff(-int64(tx.Fee), 0, 0, false),
 		testGlobal.minerInfo.wavesKey:                        newBalanceDiff(int64(tx.Fee), 0, 0, false),
 	}
-	assert.Equal(t, correctDiff, diff)
+	assert.Equal(t, correctDiff, ch.diff)
+	correctAddrs := map[proto.Address]struct{}{
+		testGlobal.senderInfo.addr: empty,
+	}
+	assert.Equal(t, correctAddrs, ch.addrs)
 }
 
 func createReissueV1(t *testing.T) *proto.ReissueV1 {
@@ -292,7 +331,7 @@ func TestCreateDiffReissueV1(t *testing.T) {
 	}()
 
 	tx := createReissueV1(t)
-	diff, err := to.td.createDiffReissueV1(tx, defaultDifferInfo(t))
+	ch, err := to.td.createDiffReissueV1(tx, defaultDifferInfo(t))
 	assert.NoError(t, err, "createDiffReissueV1() failed")
 
 	correctDiff := txDiff{
@@ -300,7 +339,11 @@ func TestCreateDiffReissueV1(t *testing.T) {
 		testGlobal.senderInfo.wavesKey:     newBalanceDiff(-int64(tx.Fee), 0, 0, false),
 		testGlobal.minerInfo.wavesKey:      newBalanceDiff(int64(tx.Fee), 0, 0, false),
 	}
-	assert.Equal(t, correctDiff, diff)
+	assert.Equal(t, correctDiff, ch.diff)
+	correctAddrs := map[proto.Address]struct{}{
+		testGlobal.senderInfo.addr: empty,
+	}
+	assert.Equal(t, correctAddrs, ch.addrs)
 }
 
 func createReissueV2(t *testing.T) *proto.ReissueV2 {
@@ -321,7 +364,7 @@ func TestCreateDiffReissueV2(t *testing.T) {
 	}()
 
 	tx := createReissueV2(t)
-	diff, err := to.td.createDiffReissueV2(tx, defaultDifferInfo(t))
+	ch, err := to.td.createDiffReissueV2(tx, defaultDifferInfo(t))
 	assert.NoError(t, err, "createDiffReissueV2() failed")
 
 	correctDiff := txDiff{
@@ -329,7 +372,11 @@ func TestCreateDiffReissueV2(t *testing.T) {
 		testGlobal.senderInfo.wavesKey:     newBalanceDiff(-int64(tx.Fee), 0, 0, false),
 		testGlobal.minerInfo.wavesKey:      newBalanceDiff(int64(tx.Fee), 0, 0, false),
 	}
-	assert.Equal(t, correctDiff, diff)
+	assert.Equal(t, correctDiff, ch.diff)
+	correctAddrs := map[proto.Address]struct{}{
+		testGlobal.senderInfo.addr: empty,
+	}
+	assert.Equal(t, correctAddrs, ch.addrs)
 }
 
 func createBurnV1(t *testing.T) *proto.BurnV1 {
@@ -350,7 +397,7 @@ func TestCreateDiffBurnV1(t *testing.T) {
 	}()
 
 	tx := createBurnV1(t)
-	diff, err := to.td.createDiffBurnV1(tx, defaultDifferInfo(t))
+	ch, err := to.td.createDiffBurnV1(tx, defaultDifferInfo(t))
 	assert.NoError(t, err, "createDiffBurnV1() failed")
 
 	correctDiff := txDiff{
@@ -358,7 +405,11 @@ func TestCreateDiffBurnV1(t *testing.T) {
 		testGlobal.senderInfo.wavesKey:     newBalanceDiff(-int64(tx.Fee), 0, 0, false),
 		testGlobal.minerInfo.wavesKey:      newBalanceDiff(int64(tx.Fee), 0, 0, false),
 	}
-	assert.Equal(t, correctDiff, diff)
+	assert.Equal(t, correctDiff, ch.diff)
+	correctAddrs := map[proto.Address]struct{}{
+		testGlobal.senderInfo.addr: empty,
+	}
+	assert.Equal(t, correctAddrs, ch.addrs)
 }
 
 func createBurnV2(t *testing.T) *proto.BurnV2 {
@@ -379,7 +430,7 @@ func TestCreateDiffBurnV2(t *testing.T) {
 	}()
 
 	tx := createBurnV2(t)
-	diff, err := to.td.createDiffBurnV2(tx, defaultDifferInfo(t))
+	ch, err := to.td.createDiffBurnV2(tx, defaultDifferInfo(t))
 	assert.NoError(t, err, "createDiffBurnV2() failed")
 
 	correctDiff := txDiff{
@@ -387,7 +438,11 @@ func TestCreateDiffBurnV2(t *testing.T) {
 		testGlobal.senderInfo.wavesKey:     newBalanceDiff(-int64(tx.Fee), 0, 0, false),
 		testGlobal.minerInfo.wavesKey:      newBalanceDiff(int64(tx.Fee), 0, 0, false),
 	}
-	assert.Equal(t, correctDiff, diff)
+	assert.Equal(t, correctDiff, ch.diff)
+	correctAddrs := map[proto.Address]struct{}{
+		testGlobal.senderInfo.addr: empty,
+	}
+	assert.Equal(t, correctAddrs, ch.addrs)
 }
 
 func createExchangeV1(t *testing.T) *proto.ExchangeV1 {
@@ -414,7 +469,7 @@ func TestCreateDiffExchangeV1(t *testing.T) {
 	}()
 
 	tx := createExchangeV1(t)
-	diff, err := to.td.createDiffExchange(tx, defaultDifferInfo(t))
+	ch, err := to.td.createDiffExchange(tx, defaultDifferInfo(t))
 	assert.NoError(t, err, "createDiffExchange() failed")
 
 	price := tx.Price * tx.Amount / priceConstant
@@ -428,7 +483,13 @@ func TestCreateDiffExchangeV1(t *testing.T) {
 		testGlobal.minerInfo.wavesKey:         newBalanceDiff(int64(tx.Fee), 0, 0, false),
 		testGlobal.matcherInfo.wavesKey:       newBalanceDiff(int64(tx.SellMatcherFee+tx.BuyMatcherFee-tx.Fee), 0, 0, false),
 	}
-	assert.Equal(t, correctDiff, diff)
+	assert.Equal(t, correctDiff, ch.diff)
+	correctAddrs := map[proto.Address]struct{}{
+		testGlobal.recipientInfo.addr: empty,
+		testGlobal.senderInfo.addr:    empty,
+		testGlobal.matcherInfo.addr:   empty,
+	}
+	assert.Equal(t, correctAddrs, ch.addrs)
 }
 
 func createExchangeV2(t *testing.T) *proto.ExchangeV2 {
@@ -455,7 +516,7 @@ func TestCreateDiffExchangeV2(t *testing.T) {
 	}()
 
 	tx := createExchangeV2(t)
-	diff, err := to.td.createDiffExchange(tx, defaultDifferInfo(t))
+	ch, err := to.td.createDiffExchange(tx, defaultDifferInfo(t))
 	assert.NoError(t, err, "createDiffExchange() failed")
 
 	price := tx.Price * tx.Amount / priceConstant
@@ -469,7 +530,13 @@ func TestCreateDiffExchangeV2(t *testing.T) {
 		testGlobal.minerInfo.wavesKey:         newBalanceDiff(int64(tx.Fee), 0, 0, false),
 		testGlobal.matcherInfo.wavesKey:       newBalanceDiff(int64(tx.SellMatcherFee+tx.BuyMatcherFee-tx.Fee), 0, 0, false),
 	}
-	assert.Equal(t, correctDiff, diff)
+	assert.Equal(t, correctDiff, ch.diff)
+	correctAddrs := map[proto.Address]struct{}{
+		testGlobal.recipientInfo.addr: empty,
+		testGlobal.senderInfo.addr:    empty,
+		testGlobal.matcherInfo.addr:   empty,
+	}
+	assert.Equal(t, correctAddrs, ch.addrs)
 }
 
 func createExchangeV2WithOrdersV3(t *testing.T) *proto.ExchangeV2 {
@@ -495,7 +562,7 @@ func TestCreateDiffExchangeV2WithOrdersV3(t *testing.T) {
 	}()
 
 	tx := createExchangeV2WithOrdersV3(t)
-	diff, err := to.td.createDiffExchange(tx, defaultDifferInfo(t))
+	ch, err := to.td.createDiffExchange(tx, defaultDifferInfo(t))
 	assert.NoError(t, err, "createDiffExchange() failed")
 
 	price := tx.Price * tx.Amount / priceConstant
@@ -510,7 +577,13 @@ func TestCreateDiffExchangeV2WithOrdersV3(t *testing.T) {
 		testGlobal.matcherInfo.wavesKey:       newBalanceDiff(-int64(tx.Fee), 0, 0, false),
 		testGlobal.matcherInfo.assetKeys[2]:   newBalanceDiff(int64(tx.SellMatcherFee+tx.BuyMatcherFee), 0, 0, false),
 	}
-	assert.Equal(t, correctDiff, diff)
+	assert.Equal(t, correctDiff, ch.diff)
+	correctAddrs := map[proto.Address]struct{}{
+		testGlobal.recipientInfo.addr: empty,
+		testGlobal.senderInfo.addr:    empty,
+		testGlobal.matcherInfo.addr:   empty,
+	}
+	assert.Equal(t, correctAddrs, ch.addrs)
 }
 
 func createLeaseV1(t *testing.T) *proto.LeaseV1 {
@@ -531,7 +604,7 @@ func TestCreateDiffLeaseV1(t *testing.T) {
 	}()
 
 	tx := createLeaseV1(t)
-	diff, err := to.td.createDiffLeaseV1(tx, defaultDifferInfo(t))
+	ch, err := to.td.createDiffLeaseV1(tx, defaultDifferInfo(t))
 	assert.NoError(t, err, "createDiffLeaseV1() failed")
 
 	correctDiff := txDiff{
@@ -539,7 +612,12 @@ func TestCreateDiffLeaseV1(t *testing.T) {
 		testGlobal.recipientInfo.wavesKey: newBalanceDiff(0, int64(tx.Amount), 0, false),
 		testGlobal.minerInfo.wavesKey:     newBalanceDiff(int64(tx.Fee), 0, 0, false),
 	}
-	assert.Equal(t, correctDiff, diff)
+	assert.Equal(t, correctDiff, ch.diff)
+	correctAddrs := map[proto.Address]struct{}{
+		testGlobal.recipientInfo.addr: empty,
+		testGlobal.senderInfo.addr:    empty,
+	}
+	assert.Equal(t, correctAddrs, ch.addrs)
 }
 
 func createLeaseV2(t *testing.T) *proto.LeaseV2 {
@@ -560,7 +638,7 @@ func TestCreateDiffLeaseV2(t *testing.T) {
 	}()
 
 	tx := createLeaseV2(t)
-	diff, err := to.td.createDiffLeaseV2(tx, defaultDifferInfo(t))
+	ch, err := to.td.createDiffLeaseV2(tx, defaultDifferInfo(t))
 	assert.NoError(t, err, "createDiffLeaseV2() failed")
 
 	correctDiff := txDiff{
@@ -568,7 +646,12 @@ func TestCreateDiffLeaseV2(t *testing.T) {
 		testGlobal.recipientInfo.wavesKey: newBalanceDiff(0, int64(tx.Amount), 0, false),
 		testGlobal.minerInfo.wavesKey:     newBalanceDiff(int64(tx.Fee), 0, 0, false),
 	}
-	assert.Equal(t, correctDiff, diff)
+	assert.Equal(t, correctDiff, ch.diff)
+	correctAddrs := map[proto.Address]struct{}{
+		testGlobal.recipientInfo.addr: empty,
+		testGlobal.senderInfo.addr:    empty,
+	}
+	assert.Equal(t, correctAddrs, ch.addrs)
 }
 
 func createLeaseCancelV1(t *testing.T, leaseID crypto.Digest) *proto.LeaseCancelV1 {
@@ -595,7 +678,7 @@ func TestCreateDiffLeaseCancelV1(t *testing.T) {
 	assert.NoError(t, err, "performLeaseV1 failed")
 
 	tx := createLeaseCancelV1(t, *leaseTx.ID)
-	diff, err := to.td.createDiffLeaseCancelV1(tx, defaultDifferInfo(t))
+	ch, err := to.td.createDiffLeaseCancelV1(tx, defaultDifferInfo(t))
 	assert.NoError(t, err, "createDiffLeaseCancelV1() failed")
 
 	correctDiff := txDiff{
@@ -603,7 +686,12 @@ func TestCreateDiffLeaseCancelV1(t *testing.T) {
 		testGlobal.recipientInfo.wavesKey: newBalanceDiff(0, -int64(leaseTx.Amount), 0, false),
 		testGlobal.minerInfo.wavesKey:     newBalanceDiff(int64(tx.Fee), 0, 0, false),
 	}
-	assert.Equal(t, correctDiff, diff)
+	assert.Equal(t, correctDiff, ch.diff)
+	correctAddrs := map[proto.Address]struct{}{
+		testGlobal.recipientInfo.addr: empty,
+		testGlobal.senderInfo.addr:    empty,
+	}
+	assert.Equal(t, correctAddrs, ch.addrs)
 }
 
 func createLeaseCancelV2(t *testing.T, leaseID crypto.Digest) *proto.LeaseCancelV2 {
@@ -630,7 +718,7 @@ func TestCreateDiffLeaseCancelV2(t *testing.T) {
 	assert.NoError(t, err, "performLeaseV2 failed")
 
 	tx := createLeaseCancelV2(t, *leaseTx.ID)
-	diff, err := to.td.createDiffLeaseCancelV2(tx, defaultDifferInfo(t))
+	ch, err := to.td.createDiffLeaseCancelV2(tx, defaultDifferInfo(t))
 	assert.NoError(t, err, "createDiffLeaseCancelV2() failed")
 
 	correctDiff := txDiff{
@@ -638,7 +726,12 @@ func TestCreateDiffLeaseCancelV2(t *testing.T) {
 		testGlobal.recipientInfo.wavesKey: newBalanceDiff(0, -int64(leaseTx.Amount), 0, false),
 		testGlobal.minerInfo.wavesKey:     newBalanceDiff(int64(tx.Fee), 0, 0, false),
 	}
-	assert.Equal(t, correctDiff, diff)
+	assert.Equal(t, correctDiff, ch.diff)
+	correctAddrs := map[proto.Address]struct{}{
+		testGlobal.recipientInfo.addr: empty,
+		testGlobal.senderInfo.addr:    empty,
+	}
+	assert.Equal(t, correctAddrs, ch.addrs)
 }
 
 func createCreateAliasV1(t *testing.T) *proto.CreateAliasV1 {
@@ -663,14 +756,18 @@ func TestCreateDiffCreateAliasV1(t *testing.T) {
 	}()
 
 	tx := createCreateAliasV1(t)
-	diff, err := to.td.createDiffCreateAliasV1(tx, defaultDifferInfo(t))
+	ch, err := to.td.createDiffCreateAliasV1(tx, defaultDifferInfo(t))
 	assert.NoError(t, err, "createDiffCreateAliasV1 failed")
 
 	correctDiff := txDiff{
 		testGlobal.senderInfo.wavesKey: newBalanceDiff(-int64(tx.Fee), 0, 0, false),
 		testGlobal.minerInfo.wavesKey:  newBalanceDiff(int64(tx.Fee), 0, 0, false),
 	}
-	assert.Equal(t, correctDiff, diff)
+	assert.Equal(t, correctDiff, ch.diff)
+	correctAddrs := map[proto.Address]struct{}{
+		testGlobal.senderInfo.addr: empty,
+	}
+	assert.Equal(t, correctAddrs, ch.addrs)
 }
 
 func createCreateAliasV2(t *testing.T) *proto.CreateAliasV2 {
@@ -695,14 +792,18 @@ func TestCreateDiffCreateAliasV2(t *testing.T) {
 	}()
 
 	tx := createCreateAliasV2(t)
-	diff, err := to.td.createDiffCreateAliasV2(tx, defaultDifferInfo(t))
+	ch, err := to.td.createDiffCreateAliasV2(tx, defaultDifferInfo(t))
 	assert.NoError(t, err, "createDiffCreateAliasV2 failed")
 
 	correctDiff := txDiff{
 		testGlobal.senderInfo.wavesKey: newBalanceDiff(-int64(tx.Fee), 0, 0, false),
 		testGlobal.minerInfo.wavesKey:  newBalanceDiff(int64(tx.Fee), 0, 0, false),
 	}
-	assert.Equal(t, correctDiff, diff)
+	assert.Equal(t, correctDiff, ch.diff)
+	correctAddrs := map[proto.Address]struct{}{
+		testGlobal.senderInfo.addr: empty,
+	}
+	assert.Equal(t, correctAddrs, ch.addrs)
 }
 
 func generateMassTransferEntries(t *testing.T, entriesNum int) []proto.MassTransferEntry {
@@ -736,12 +837,15 @@ func TestCreateDiffMassTransferV1(t *testing.T) {
 	entriesNum := 66
 	entries := generateMassTransferEntries(t, entriesNum)
 	tx := createMassTransferV1(t, entries)
-	diff, err := to.td.createDiffMassTransferV1(tx, defaultDifferInfo(t))
+	ch, err := to.td.createDiffMassTransferV1(tx, defaultDifferInfo(t))
 	assert.NoError(t, err, "createDiffMassTransferV1 failed")
 
 	correctDiff := txDiff{
 		testGlobal.senderInfo.wavesKey: newBalanceDiff(-int64(tx.Fee), 0, 0, true),
 		testGlobal.minerInfo.wavesKey:  newBalanceDiff(int64(tx.Fee), 0, 0, false),
+	}
+	correctAddrs := map[proto.Address]struct{}{
+		testGlobal.senderInfo.addr: empty,
 	}
 	for _, entry := range entries {
 		recipientAddr, err := recipientToAddress(entry.Recipient, to.stor.entities.aliases, true)
@@ -750,8 +854,10 @@ func TestCreateDiffMassTransferV1(t *testing.T) {
 		assert.NoError(t, err, "appendBalanceDiff() failed")
 		err = correctDiff.appendBalanceDiff(byteKey(testGlobal.senderInfo.addr, tx.Asset.ToID()), newBalanceDiff(-int64(entry.Amount), 0, 0, true))
 		assert.NoError(t, err, "appendBalanceDiff() failed")
+		correctAddrs[*recipientAddr] = empty
 	}
-	assert.Equal(t, correctDiff, diff)
+	assert.Equal(t, correctDiff, ch.diff)
+	assert.Equal(t, correctAddrs, ch.addrs)
 }
 
 func createDataV1(t *testing.T, entriesNum int) *proto.DataV1 {
@@ -776,14 +882,18 @@ func TestCreateDiffDataV1(t *testing.T) {
 	}()
 
 	tx := createDataV1(t, 1)
-	diff, err := to.td.createDiffDataV1(tx, defaultDifferInfo(t))
+	ch, err := to.td.createDiffDataV1(tx, defaultDifferInfo(t))
 	assert.NoError(t, err, "createDiffDataV1 failed")
 
 	correctDiff := txDiff{
 		testGlobal.senderInfo.wavesKey: newBalanceDiff(-int64(tx.Fee), 0, 0, false),
 		testGlobal.minerInfo.wavesKey:  newBalanceDiff(int64(tx.Fee), 0, 0, false),
 	}
-	assert.Equal(t, correctDiff, diff)
+	assert.Equal(t, correctDiff, ch.diff)
+	correctAddrs := map[proto.Address]struct{}{
+		testGlobal.senderInfo.addr: empty,
+	}
+	assert.Equal(t, correctAddrs, ch.addrs)
 }
 
 func createSponsorshipV1(t *testing.T) *proto.SponsorshipV1 {
@@ -806,14 +916,18 @@ func TestCreateDiffSponsorshipV1(t *testing.T) {
 	}()
 
 	tx := createSponsorshipV1(t)
-	diff, err := to.td.createDiffSponsorshipV1(tx, defaultDifferInfo(t))
+	ch, err := to.td.createDiffSponsorshipV1(tx, defaultDifferInfo(t))
 	assert.NoError(t, err, "createDiffSponsorshipV1 failed")
 
 	correctDiff := txDiff{
 		testGlobal.senderInfo.wavesKey: newBalanceDiff(-int64(tx.Fee), 0, 0, false),
 		testGlobal.minerInfo.wavesKey:  newBalanceDiff(int64(tx.Fee), 0, 0, false),
 	}
-	assert.Equal(t, correctDiff, diff)
+	assert.Equal(t, correctDiff, ch.diff)
+	correctAddrs := map[proto.Address]struct{}{
+		testGlobal.senderInfo.addr: empty,
+	}
+	assert.Equal(t, correctAddrs, ch.addrs)
 }
 
 func createSetScriptV1(t *testing.T) *proto.SetScriptV1 {
@@ -836,14 +950,18 @@ func TestCreateDiffSetScriptV1(t *testing.T) {
 	}()
 
 	tx := createSetScriptV1(t)
-	diff, err := to.td.createDiffSetScriptV1(tx, defaultDifferInfo(t))
+	ch, err := to.td.createDiffSetScriptV1(tx, defaultDifferInfo(t))
 	assert.NoError(t, err, "createDiffSetScriptV1 failed")
 
 	correctDiff := txDiff{
 		testGlobal.senderInfo.wavesKey: newBalanceDiff(-int64(tx.Fee), 0, 0, false),
 		testGlobal.minerInfo.wavesKey:  newBalanceDiff(int64(tx.Fee), 0, 0, false),
 	}
-	assert.Equal(t, correctDiff, diff)
+	assert.Equal(t, correctDiff, ch.diff)
+	correctAddrs := map[proto.Address]struct{}{
+		testGlobal.senderInfo.addr: empty,
+	}
+	assert.Equal(t, correctAddrs, ch.addrs)
 }
 
 func createSetAssetScriptV1(t *testing.T) *proto.SetAssetScriptV1 {
@@ -866,14 +984,18 @@ func TestCreateDiffSetAssetScriptV1(t *testing.T) {
 	}()
 
 	tx := createSetAssetScriptV1(t)
-	diff, err := to.td.createDiffSetAssetScriptV1(tx, defaultDifferInfo(t))
+	ch, err := to.td.createDiffSetAssetScriptV1(tx, defaultDifferInfo(t))
 	assert.NoError(t, err, "createDiffSetAssetScriptV1 failed")
 
 	correctDiff := txDiff{
 		testGlobal.senderInfo.wavesKey: newBalanceDiff(-int64(tx.Fee), 0, 0, false),
 		testGlobal.minerInfo.wavesKey:  newBalanceDiff(int64(tx.Fee), 0, 0, false),
 	}
-	assert.Equal(t, correctDiff, diff)
+	assert.Equal(t, correctDiff, ch.diff)
+	correctAddrs := map[proto.Address]struct{}{
+		testGlobal.senderInfo.addr: empty,
+	}
+	assert.Equal(t, correctAddrs, ch.addrs)
 }
 
 func createInvokeScriptV1(t *testing.T, pmts proto.ScriptPayments, fc proto.FunctionCall, fee uint64) *proto.InvokeScriptV1 {
@@ -924,7 +1046,7 @@ func TestCreateDiffInvokeScriptV1(t *testing.T) {
 	assert.Error(t, err, "createDiffInvokeScriptV1() did not fail with unsponsored asset")
 	err = to.stor.entities.sponsoredAssets.sponsorAsset(assetId, 10, blockID0)
 	assert.NoError(t, err, "sponsorAsset() failed")
-	diff, err := to.td.createDiffInvokeScriptV1(tx, defaultDifferInfo(t))
+	ch, err := to.td.createDiffInvokeScriptV1(tx, defaultDifferInfo(t))
 	assert.NoError(t, err, "createDiffInvokeScriptV1() failed with valid sponsored asset")
 
 	feeInWaves, err := to.stor.entities.sponsoredAssets.sponsoredAssetToWaves(assetId, tx.Fee)
@@ -943,5 +1065,11 @@ func TestCreateDiffInvokeScriptV1(t *testing.T) {
 		testGlobal.issuerInfo.wavesKey:        newBalanceDiff(-int64(feeInWaves), 0, 0, true),
 		testGlobal.minerInfo.wavesKey:         newBalanceDiff(int64(feeInWaves), 0, 0, false),
 	}
-	assert.Equal(t, correctDiff, diff)
+	assert.Equal(t, correctDiff, ch.diff)
+	correctAddrs := map[proto.Address]struct{}{
+		testGlobal.senderInfo.addr:    empty,
+		testGlobal.recipientInfo.addr: empty,
+		testGlobal.issuerInfo.addr:    empty,
+	}
+	assert.Equal(t, correctAddrs, ch.addrs)
 }

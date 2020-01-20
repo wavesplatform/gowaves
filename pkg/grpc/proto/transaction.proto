@@ -4,7 +4,7 @@ package waves;
 
 option java_package = "com.wavesplatform.protobuf.transaction";
 option csharp_namespace = "Waves";
-option go_package = "grpc";
+option go_package = "generated";
 
 import "amount.proto";
 import "script.proto";

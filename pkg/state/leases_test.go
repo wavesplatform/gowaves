@@ -82,9 +82,13 @@ func TestCancelLeases(t *testing.T) {
 		assert.NoError(t, err, "failed to create digest from bytes")
 		leasing, err := to.leases.leasingInfo(leaseID, true)
 		assert.NoError(t, err, "failed to get leasing")
+		active, err := to.leases.isActive(leaseID, true)
+		assert.NoError(t, err)
 		if l.sender == badSenderStr {
+			assert.Equal(t, false, active)
 			assert.Equal(t, leasing.isActive, false, "did not cancel leasing by sender")
 		} else {
+			assert.Equal(t, true, active)
 			assert.Equal(t, leasing.isActive, true, "cancelled leasing with different sender")
 		}
 	}
@@ -98,6 +102,9 @@ func TestCancelLeases(t *testing.T) {
 		leasing, err := to.leases.leasingInfo(leaseID, true)
 		assert.NoError(t, err, "failed to get leasing")
 		assert.Equal(t, leasing.isActive, false, "did not cancel all the leasings")
+		active, err := to.leases.isActive(leaseID, true)
+		assert.NoError(t, err)
+		assert.Equal(t, false, active)
 	}
 }
 
