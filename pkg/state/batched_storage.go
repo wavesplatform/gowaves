@@ -290,7 +290,7 @@ func newBatchedStorage(
 	}, nil
 }
 
-func (s *batchedStorage) recordByKey(key []byte, filter bool) ([]byte, error) {
+func (s *batchedStorage) lastRecordByKey(key []byte, filter bool) ([]byte, error) {
 	last, err := s.readLastBatch(key, filter)
 	if err != nil {
 		return nil, err
@@ -302,10 +302,10 @@ func (s *batchedStorage) recordByKey(key []byte, filter bool) ([]byte, error) {
 	return record.recordBytes(), nil
 }
 
-func (s *batchedStorage) newestRecordByKey(key []byte, filter bool) ([]byte, error) {
+func (s *batchedStorage) newestLastRecordByKey(key []byte, filter bool) ([]byte, error) {
 	bg, ok := s.localStor[string(key)]
 	if !ok {
-		return s.recordByKey(key, filter)
+		return s.lastRecordByKey(key, filter)
 	}
 	record, err := bg.lastRecord()
 	if err != nil {
@@ -375,20 +375,33 @@ func (s *batchedStorage) readLastBatch(key []byte, filter bool) (*batch, error) 
 	if err != nil {
 		return nil, errNotFound
 	}
-	batchKey := batchedStorKey{prefix: s.params.prefix, internalKey: key, batchNum: lastBatchNum}
-	batchKeyBytes := batchKey.bytes()
-	lastBatch, err := s.db.Get(batchKeyBytes)
-	if err != nil {
-		return nil, err
+	for lastBatchNum >= firstBatchNum {
+		batchKey := batchedStorKey{prefix: s.params.prefix, internalKey: key, batchNum: lastBatchNum}
+		batchKeyBytes := batchKey.bytes()
+		lastBatch, err := s.db.Get(batchKeyBytes)
+		if err != nil {
+			return nil, err
+		}
+		if !filter {
+			return newBatchWithData(lastBatch, s.params.maxBatchSize, s.params.recordSize, lastBatchNum)
+		}
+		normalized, err := s.manageNormalization(batchKeyBytes, lastBatch, true)
+		if err != nil {
+			return nil, err
+		}
+		if len(normalized) == 0 {
+			if lastBatchNum == 0 {
+				return nil, errEmptyHist
+			}
+			lastBatchNum -= 1
+			if err := s.saveLastBatchNumDirectly(key, lastBatchNum); err != nil {
+				return nil, err
+			}
+			continue
+		}
+		return newBatchWithData(normalized, s.params.maxBatchSize, s.params.recordSize, lastBatchNum)
 	}
-	if !filter {
-		return newBatchWithData(lastBatch, s.params.maxBatchSize, s.params.recordSize, lastBatchNum)
-	}
-	normalized, err := s.manageNormalization(batchKeyBytes, lastBatch, true)
-	if err != nil {
-		return nil, err
-	}
-	return newBatchWithData(normalized, s.params.maxBatchSize, s.params.recordSize, lastBatchNum)
+	return nil, errEmptyHist
 }
 
 // newBackwardRecordIterator() returns backward iterator for iterating single records.
@@ -444,6 +457,13 @@ func (s *batchedStorage) manageNormalization(key, batch []byte, update bool) ([]
 		}
 	}
 	return newBatch, nil
+}
+
+func (s *batchedStorage) saveLastBatchNumDirectly(key []byte, num uint32) error {
+	k := lastBatchKey{prefix: s.params.prefix, internalKey: key}
+	numBytes := make([]byte, 4)
+	binary.BigEndian.PutUint32(numBytes, num)
+	return s.db.Put(k.bytes(), numBytes)
 }
 
 func (s *batchedStorage) saveLastBatchNum(key []byte, num uint32) {

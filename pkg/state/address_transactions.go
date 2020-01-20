@@ -218,7 +218,7 @@ func (at *addressTransactions) offsetFromBytes(offsetBytes []byte) uint64 {
 func (at *addressTransactions) handleRecord(record []byte, filter bool) error {
 	key := record[:proto.AddressSize]
 	newRecordBytes := record[proto.AddressSize:]
-	lastOffsetBytes, err := at.stor.newestRecordByKey(key, filter)
+	lastOffsetBytes, err := at.stor.newestLastRecordByKey(key, filter)
 	if err == errNotFound {
 		// The first record for this key.
 		if err := at.stor.addRecordBytes(key, newRecordBytes, filter); err != nil {
@@ -226,7 +226,7 @@ func (at *addressTransactions) handleRecord(record []byte, filter bool) error {
 		}
 		return nil
 	} else if err != nil {
-		return errors.Wrap(err, "newestRecordByKey() failed")
+		return errors.Wrap(err, "newestLastRecordByKey() failed")
 	}
 	// Make sure the offset we add is greater than any other offsets
 	// by comparing it to the last (= maximum) offset.
