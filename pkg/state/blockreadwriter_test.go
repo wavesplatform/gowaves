@@ -488,8 +488,16 @@ func TestSimultaneousReadDelete(t *testing.T) {
 	for _, block := range blocks {
 		writeBlock(t, rw, &block)
 	}
-	idToTest := blocks[blocksNumber-1].BlockSignature
-	prevId := blocks[blocksNumber-2].BlockSignature
+	idToTest := blocks[blocksNumber-2].BlockSignature
+	prevId := blocks[blocksNumber-3].BlockSignature
+	txs, err := blocks[blocksNumber-2].Transactions.Transactions()
+	if err != nil {
+		t.Fatalf("Transactions() failed: %v", err)
+	}
+	txID, err := txs[0].GetID()
+	if err != nil {
+		t.Fatalf("GetID(): %v", err)
+	}
 
 	var wg sync.WaitGroup
 	var removeErr error
@@ -521,5 +529,9 @@ func TestSimultaneousReadDelete(t *testing.T) {
 	wg.Wait()
 	if removeErr != nil {
 		t.Fatalf("Failed to remove blocks: %v", err)
+	}
+	_, err = rw.readTransaction(txID)
+	if err != keyvalue.ErrNotFound {
+		t.Fatalf("transaction from removed block wasn't deleted %v", err)
 	}
 }

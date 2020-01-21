@@ -132,7 +132,7 @@ func newAddressTransactions(
 		prefix:       transactionIdsPrefix,
 	}
 	filePath := path.Join(params.dir, "address_transactions")
-	addrTransactionsFile, _, err := openOrCreate(filePath)
+	addrTransactionsFile, _, err := openOrCreateForAppending(filePath)
 	if err != nil {
 		return nil, err
 	}

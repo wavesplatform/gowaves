@@ -120,7 +120,7 @@ type blockReadWriter struct {
 	mtx sync.RWMutex
 }
 
-func openOrCreate(path string) (*os.File, uint64, error) {
+func openOrCreateForAppending(path string) (*os.File, uint64, error) {
 	file, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0755)
 	if err != nil {
 		return nil, 0, err
@@ -129,7 +129,11 @@ func openOrCreate(path string) (*os.File, uint64, error) {
 	if err != nil {
 		return nil, 0, err
 	}
-	return file, uint64(stat.Size()), nil
+	size := stat.Size()
+	if _, err := file.Seek(size, 0); err != nil {
+		return nil, 0, err
+	}
+	return file, uint64(size), nil
 }
 
 func initHeight(db keyvalue.KeyValue) (uint64, error) {
@@ -160,15 +164,15 @@ func newBlockReadWriter(
 	db keyvalue.KeyValue,
 	dbBatch keyvalue.Batch,
 ) (*blockReadWriter, error) {
-	blockchain, blockchainSize, err := openOrCreate(path.Join(dir, "blockchain"))
+	blockchain, blockchainSize, err := openOrCreateForAppending(path.Join(dir, "blockchain"))
 	if err != nil {
 		return nil, err
 	}
-	headers, headersSize, err := openOrCreate(path.Join(dir, "headers"))
+	headers, headersSize, err := openOrCreateForAppending(path.Join(dir, "headers"))
 	if err != nil {
 		return nil, err
 	}
-	blockHeight2ID, _, err := openOrCreate(path.Join(dir, "block_height_to_id"))
+	blockHeight2ID, _, err := openOrCreateForAppending(path.Join(dir, "block_height_to_id"))
 	if err != nil {
 		return nil, err
 	}
