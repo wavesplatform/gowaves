@@ -3,7 +3,6 @@ package server
 import (
 	"bytes"
 
-	"github.com/wavesplatform/gowaves/pkg/grpc/client"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
@@ -20,7 +19,7 @@ type txFilter struct {
 func newTxFilter(scheme byte, req *g.TransactionsRequest) (*txFilter, error) {
 	res := &txFilter{}
 	res.scheme = scheme
-	var c client.SafeConverter
+	var c proto.ProtobufConverter
 	if req.Sender != nil {
 		res.sender = c.Address(scheme, req.Sender)
 		res.hasSender = true

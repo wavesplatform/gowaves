@@ -1,33 +1,32 @@
-package client
+package proto
 
 import (
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated"
-	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
-type SafeConverter struct {
+type ProtobufConverter struct {
 	err error
 }
 
-func (c *SafeConverter) Error() error {
+func (c *ProtobufConverter) Error() error {
 	return c.err
 }
 
-func (c *SafeConverter) Address(scheme byte, addr []byte) proto.Address {
+func (c *ProtobufConverter) Address(scheme byte, addr []byte) Address {
 	if c.err != nil {
-		return proto.Address{}
+		return Address{}
 	}
-	a, err := proto.RebuildAddress(scheme, addr)
+	a, err := RebuildAddress(scheme, addr)
 	if err != nil {
 		c.err = err
-		return proto.Address{}
+		return Address{}
 	}
 	return a
 }
 
-func (c *SafeConverter) Uint64(value int64) uint64 {
+func (c *ProtobufConverter) Uint64(value int64) uint64 {
 	if c.err != nil {
 		return 0
 	}
@@ -38,7 +37,7 @@ func (c *SafeConverter) Uint64(value int64) uint64 {
 	return uint64(value)
 }
 
-func (c *SafeConverter) Byte(value int32) byte {
+func (c *ProtobufConverter) Byte(value int32) byte {
 	if c.err != nil {
 		return 0
 	}
@@ -48,7 +47,7 @@ func (c *SafeConverter) Byte(value int32) byte {
 	return byte(value)
 }
 
-func (c *SafeConverter) Digest(digest []byte) crypto.Digest {
+func (c *ProtobufConverter) Digest(digest []byte) crypto.Digest {
 	if c.err != nil {
 		return crypto.Digest{}
 	}
@@ -60,24 +59,24 @@ func (c *SafeConverter) Digest(digest []byte) crypto.Digest {
 	return r
 }
 
-func (c *SafeConverter) OptionalAsset(asset []byte) proto.OptionalAsset {
+func (c *ProtobufConverter) OptionalAsset(asset []byte) OptionalAsset {
 	if c.err != nil {
-		return proto.OptionalAsset{}
+		return OptionalAsset{}
 	}
 	if len(asset) == 0 {
-		return proto.OptionalAsset{}
+		return OptionalAsset{}
 	}
-	return proto.OptionalAsset{Present: true, ID: c.Digest(asset)}
+	return OptionalAsset{Present: true, ID: c.Digest(asset)}
 }
 
-func (c *SafeConverter) ConvertAmount(amount *g.Amount) (proto.OptionalAsset, uint64) {
+func (c *ProtobufConverter) ConvertAmount(amount *g.Amount) (OptionalAsset, uint64) {
 	if c.err != nil {
-		return proto.OptionalAsset{}, 0
+		return OptionalAsset{}, 0
 	}
 	return c.ExtractOptionalAsset(amount), c.Amount(amount)
 }
 
-func (c *SafeConverter) ConvertAssetAmount(aa *g.Amount) (crypto.Digest, uint64) {
+func (c *ProtobufConverter) ConvertAssetAmount(aa *g.Amount) (crypto.Digest, uint64) {
 	if c.err != nil {
 		return crypto.Digest{}, 0
 	}
@@ -93,18 +92,18 @@ func (c *SafeConverter) ConvertAssetAmount(aa *g.Amount) (crypto.Digest, uint64)
 	return id, c.Uint64(aa.Amount)
 }
 
-func (c *SafeConverter) ExtractOptionalAsset(amount *g.Amount) proto.OptionalAsset {
+func (c *ProtobufConverter) ExtractOptionalAsset(amount *g.Amount) OptionalAsset {
 	if c.err != nil {
-		return proto.OptionalAsset{}
+		return OptionalAsset{}
 	}
 	if amount == nil {
 		c.err = errors.New("empty asset amount")
-		return proto.OptionalAsset{}
+		return OptionalAsset{}
 	}
 	return c.OptionalAsset(amount.AssetId)
 }
 
-func (c *SafeConverter) Amount(amount *g.Amount) uint64 {
+func (c *ProtobufConverter) Amount(amount *g.Amount) uint64 {
 	if c.err != nil {
 		return 0
 	}
@@ -119,7 +118,7 @@ func (c *SafeConverter) Amount(amount *g.Amount) uint64 {
 	return uint64(amount.Amount)
 }
 
-func (c *SafeConverter) PublicKey(pk []byte) crypto.PublicKey {
+func (c *ProtobufConverter) PublicKey(pk []byte) crypto.PublicKey {
 	if c.err != nil {
 		return crypto.PublicKey{}
 	}
@@ -131,81 +130,81 @@ func (c *SafeConverter) PublicKey(pk []byte) crypto.PublicKey {
 	return r
 }
 
-func (c *SafeConverter) String(bytes []byte) string {
+func (c *ProtobufConverter) String(bytes []byte) string {
 	if c.err != nil {
 		return ""
 	}
 	return string(bytes)
 }
 
-func (c *SafeConverter) Script(script *g.Script) proto.Script {
+func (c *ProtobufConverter) Script(script *g.Script) Script {
 	if c.err != nil {
 		return nil
 	}
 	if script == nil {
 		return nil
 	}
-	return proto.Script(script.Bytes)
+	return Script(script.Bytes)
 }
 
-func (c *SafeConverter) Alias(scheme byte, alias string) proto.Alias {
+func (c *ProtobufConverter) Alias(scheme byte, alias string) Alias {
 	if c.err != nil {
-		return proto.Alias{}
+		return Alias{}
 	}
-	a := proto.NewAlias(scheme, alias)
+	a := NewAlias(scheme, alias)
 	_, err := a.Valid()
 	if err != nil {
 		c.err = err
-		return proto.Alias{}
+		return Alias{}
 	}
 	return *a
 }
 
-func (c *SafeConverter) Recipient(scheme byte, recipient *g.Recipient) proto.Recipient {
+func (c *ProtobufConverter) Recipient(scheme byte, recipient *g.Recipient) Recipient {
 	if c.err != nil {
-		return proto.Recipient{}
+		return Recipient{}
 	}
 	if recipient == nil {
 		c.err = errors.New("empty recipient")
-		return proto.Recipient{}
+		return Recipient{}
 	}
 	switch r := recipient.Recipient.(type) {
 	case *g.Recipient_Address:
-		return proto.NewRecipientFromAddress(c.Address(scheme, r.Address))
+		return NewRecipientFromAddress(c.Address(scheme, r.Address))
 	case *g.Recipient_Alias:
-		return proto.NewRecipientFromAlias(c.Alias(scheme, r.Alias))
+		return NewRecipientFromAlias(c.Alias(scheme, r.Alias))
 	default:
 		c.err = errors.New("invalid recipient")
-		return proto.Recipient{}
+		return Recipient{}
 	}
 }
 
-func (c *SafeConverter) AssetPair(pair *g.AssetPair) proto.AssetPair {
+func (c *ProtobufConverter) AssetPair(pair *g.AssetPair) AssetPair {
 	if c.err != nil {
-		return proto.AssetPair{}
+		return AssetPair{}
 	}
-	return proto.AssetPair{
+	return AssetPair{
 		AmountAsset: c.OptionalAsset(pair.AmountAssetId),
 		PriceAsset:  c.OptionalAsset(pair.PriceAssetId),
 	}
 }
 
-func (c *SafeConverter) OrderType(side g.Order_Side) proto.OrderType {
-	return proto.OrderType(c.Byte(int32(side)))
+func (c *ProtobufConverter) OrderType(side g.Order_Side) OrderType {
+	return OrderType(c.Byte(int32(side)))
 }
 
-func (c *SafeConverter) Proofs(proofs [][]byte) *proto.ProofsV1 {
+func (c *ProtobufConverter) Proofs(proofs [][]byte) *ProofsV1 {
 	if c.err != nil {
 		return nil
 	}
-	r := proto.NewProofs()
+	r := NewProofs()
 	for _, proof := range proofs {
-		r.Proofs = append(r.Proofs, proto.B58Bytes(proof))
+		r.Proofs = append(r.Proofs, B58Bytes(proof))
 	}
 	return r
 }
 
-func (c *SafeConverter) Proof(proofs [][]byte) *crypto.Signature {
+func (c *ProtobufConverter) Proof(proofs [][]byte) *crypto.Signature {
 	if c.err != nil {
 		return nil
 	}
@@ -221,7 +220,7 @@ func (c *SafeConverter) Proof(proofs [][]byte) *crypto.Signature {
 	return &sig
 }
 
-func (c *SafeConverter) Signature(data []byte) crypto.Signature {
+func (c *ProtobufConverter) Signature(data []byte) crypto.Signature {
 	if c.err != nil {
 		return crypto.Signature{}
 	}
@@ -233,14 +232,14 @@ func (c *SafeConverter) Signature(data []byte) crypto.Signature {
 	return sig
 }
 
-func (c *SafeConverter) ExtractOrder(orders []*g.Order, side g.Order_Side) proto.Order {
+func (c *ProtobufConverter) ExtractOrder(orders []*g.Order, side g.Order_Side) Order {
 	if c.err != nil {
 		return nil
 	}
 	for _, o := range orders {
 		if o.OrderSide == side {
-			var order proto.Order
-			body := proto.OrderBody{
+			var order Order
+			body := OrderBody{
 				SenderPK:   c.PublicKey(o.SenderPublicKey),
 				MatcherPK:  c.PublicKey(o.MatcherPublicKey),
 				AssetPair:  c.AssetPair(o.AssetPair),
@@ -253,20 +252,20 @@ func (c *SafeConverter) ExtractOrder(orders []*g.Order, side g.Order_Side) proto
 			}
 			switch o.Version {
 			case 3:
-				order = &proto.OrderV3{
+				order = &OrderV3{
 					Version:         c.Byte(o.Version),
 					Proofs:          c.Proofs(o.Proofs),
 					OrderBody:       body,
 					MatcherFeeAsset: c.ExtractOptionalAsset(o.MatcherFee),
 				}
 			case 2:
-				order = &proto.OrderV2{
+				order = &OrderV2{
 					Version:   c.Byte(o.Version),
 					Proofs:    c.Proofs(o.Proofs),
 					OrderBody: body,
 				}
 			default:
-				order = &proto.OrderV1{
+				order = &OrderV1{
 					Signature: c.Proof(o.Proofs),
 					OrderBody: body,
 				}
@@ -278,25 +277,25 @@ func (c *SafeConverter) ExtractOrder(orders []*g.Order, side g.Order_Side) proto
 	return nil
 }
 
-func (c *SafeConverter) BuyOrder(orders []*g.Order) proto.Order {
+func (c *ProtobufConverter) BuyOrder(orders []*g.Order) Order {
 	return c.ExtractOrder(orders, g.Order_BUY)
 }
 
-func (c *SafeConverter) SellOrder(orders []*g.Order) proto.Order {
+func (c *ProtobufConverter) SellOrder(orders []*g.Order) Order {
 	return c.ExtractOrder(orders, g.Order_SELL)
 }
 
-func (c *SafeConverter) Transfers(scheme byte, transfers []*g.MassTransferTransactionData_Transfer) []proto.MassTransferEntry {
+func (c *ProtobufConverter) Transfers(scheme byte, transfers []*g.MassTransferTransactionData_Transfer) []MassTransferEntry {
 	if c.err != nil {
 		return nil
 	}
-	r := make([]proto.MassTransferEntry, len(transfers))
+	r := make([]MassTransferEntry, len(transfers))
 	for i, tr := range transfers {
 		if tr == nil {
 			c.err = errors.New("empty transfer")
 			return nil
 		}
-		e := proto.MassTransferEntry{
+		e := MassTransferEntry{
 			Recipient: c.Recipient(scheme, tr.Address),
 			Amount:    c.Uint64(tr.Amount),
 		}
@@ -308,7 +307,7 @@ func (c *SafeConverter) Transfers(scheme byte, transfers []*g.MassTransferTransa
 	return r
 }
 
-func (c *SafeConverter) entry(entry *g.DataTransactionData_DataEntry) proto.DataEntry {
+func (c *ProtobufConverter) entry(entry *g.DataTransactionData_DataEntry) DataEntry {
 	if c.err != nil {
 		return nil
 	}
@@ -316,21 +315,21 @@ func (c *SafeConverter) entry(entry *g.DataTransactionData_DataEntry) proto.Data
 		c.err = errors.New("empty data entry")
 		return nil
 	}
-	var e proto.DataEntry
+	var e DataEntry
 	switch t := entry.Value.(type) {
 	case *g.DataTransactionData_DataEntry_IntValue:
-		e = &proto.IntegerDataEntry{Key: entry.Key, Value: t.IntValue}
+		e = &IntegerDataEntry{Key: entry.Key, Value: t.IntValue}
 	case *g.DataTransactionData_DataEntry_BoolValue:
-		e = &proto.BooleanDataEntry{Key: entry.Key, Value: t.BoolValue}
+		e = &BooleanDataEntry{Key: entry.Key, Value: t.BoolValue}
 	case *g.DataTransactionData_DataEntry_BinaryValue:
-		e = &proto.BinaryDataEntry{Key: entry.Key, Value: t.BinaryValue}
+		e = &BinaryDataEntry{Key: entry.Key, Value: t.BinaryValue}
 	case *g.DataTransactionData_DataEntry_StringValue:
-		e = &proto.StringDataEntry{Key: entry.Key, Value: t.StringValue}
+		e = &StringDataEntry{Key: entry.Key, Value: t.StringValue}
 	}
 	return e
 }
 
-func (c *SafeConverter) Entry(entry *g.DataTransactionData_DataEntry) (proto.DataEntry, error) {
+func (c *ProtobufConverter) Entry(entry *g.DataTransactionData_DataEntry) (DataEntry, error) {
 	e := c.entry(entry)
 	if c.err != nil {
 		return nil, c.err
@@ -338,58 +337,58 @@ func (c *SafeConverter) Entry(entry *g.DataTransactionData_DataEntry) (proto.Dat
 	return e, nil
 }
 
-func (c *SafeConverter) Entries(entries []*g.DataTransactionData_DataEntry) proto.DataEntries {
+func (c *ProtobufConverter) Entries(entries []*g.DataTransactionData_DataEntry) DataEntries {
 	if c.err != nil {
 		return nil
 	}
-	r := make([]proto.DataEntry, len(entries))
+	r := make([]DataEntry, len(entries))
 	for i, e := range entries {
 		r[i] = c.entry(e)
 	}
 	return r
 }
 
-func (c *SafeConverter) FunctionCall(data []byte) proto.FunctionCall {
+func (c *ProtobufConverter) FunctionCall(data []byte) FunctionCall {
 	if c.err != nil {
-		return proto.FunctionCall{}
+		return FunctionCall{}
 	}
-	fc := proto.FunctionCall{}
+	fc := FunctionCall{}
 	err := fc.UnmarshalBinary(data)
 	if err != nil {
 		c.err = err
-		return proto.FunctionCall{}
+		return FunctionCall{}
 	}
 	return fc
 }
 
-func (c *SafeConverter) Payments(payments []*g.Amount) proto.ScriptPayments {
+func (c *ProtobufConverter) Payments(payments []*g.Amount) ScriptPayments {
 	if payments == nil {
-		return proto.ScriptPayments(nil)
+		return ScriptPayments(nil)
 	}
-	result := make([]proto.ScriptPayment, len(payments))
+	result := make([]ScriptPayment, len(payments))
 	for i, p := range payments {
 		asset, amount := c.ConvertAmount(p)
-		result[i] = proto.ScriptPayment{Asset: asset, Amount: amount}
+		result[i] = ScriptPayment{Asset: asset, Amount: amount}
 	}
 	return result
 }
 
-func (c *SafeConverter) Reset() {
+func (c *ProtobufConverter) Reset() {
 	c.err = nil
 }
 
-func (c *SafeConverter) Transaction(tx *g.Transaction) (proto.Transaction, error) {
+func (c *ProtobufConverter) Transaction(tx *g.Transaction) (Transaction, error) {
 	ts := c.Uint64(tx.Timestamp)
 	scheme := c.Byte(tx.ChainId)
 	v := c.Byte(tx.Version)
 	if c.err != nil {
 		return nil, c.err
 	}
-	var rtx proto.Transaction
+	var rtx Transaction
 	switch d := tx.Data.(type) {
 	case *g.Transaction_Genesis:
-		rtx = &proto.Genesis{
-			Type:      proto.GenesisTransaction,
+		rtx = &Genesis{
+			Type:      GenesisTransaction,
 			Version:   v,
 			Timestamp: ts,
 			Recipient: c.Address(scheme, d.Genesis.RecipientAddress),
@@ -397,8 +396,8 @@ func (c *SafeConverter) Transaction(tx *g.Transaction) (proto.Transaction, error
 		}
 
 	case *g.Transaction_Payment:
-		rtx = &proto.Payment{
-			Type:      proto.PaymentTransaction,
+		rtx = &Payment{
+			Type:      PaymentTransaction,
 			Version:   v,
 			SenderPK:  c.PublicKey(tx.SenderPublicKey),
 			Recipient: c.Address(scheme, d.Payment.RecipientAddress),
@@ -408,7 +407,7 @@ func (c *SafeConverter) Transaction(tx *g.Transaction) (proto.Transaction, error
 		}
 
 	case *g.Transaction_Issue:
-		pi := proto.Issue{
+		pi := Issue{
 			SenderPK:    c.PublicKey(tx.SenderPublicKey),
 			Name:        c.String(d.Issue.Name),
 			Description: c.String(d.Issue.Description),
@@ -420,16 +419,16 @@ func (c *SafeConverter) Transaction(tx *g.Transaction) (proto.Transaction, error
 		}
 		switch tx.Version {
 		case 2:
-			rtx = &proto.IssueV2{
-				Type:    proto.IssueTransaction,
+			rtx = &IssueV2{
+				Type:    IssueTransaction,
 				Version: v,
 				ChainID: scheme,
 				Script:  c.Script(d.Issue.Script),
 				Issue:   pi,
 			}
 		default:
-			rtx = &proto.IssueV1{
-				Type:    proto.IssueTransaction,
+			rtx = &IssueV1{
+				Type:    IssueTransaction,
 				Version: v,
 				Issue:   pi,
 			}
@@ -438,7 +437,7 @@ func (c *SafeConverter) Transaction(tx *g.Transaction) (proto.Transaction, error
 	case *g.Transaction_Transfer:
 		aa, amount := c.ConvertAmount(d.Transfer.Amount)
 		fa, fee := c.ConvertAmount(tx.Fee)
-		pt := proto.Transfer{
+		pt := Transfer{
 			SenderPK:    c.PublicKey(tx.SenderPublicKey),
 			AmountAsset: aa,
 			FeeAsset:    fa,
@@ -446,18 +445,18 @@ func (c *SafeConverter) Transaction(tx *g.Transaction) (proto.Transaction, error
 			Amount:      amount,
 			Fee:         fee,
 			Recipient:   c.Recipient(scheme, d.Transfer.Recipient),
-			Attachment:  proto.Attachment(c.String(d.Transfer.Attachment)),
+			Attachment:  Attachment(c.String(d.Transfer.Attachment)),
 		}
 		switch tx.Version {
 		case 2:
-			rtx = &proto.TransferV2{
-				Type:     proto.TransferTransaction,
+			rtx = &TransferV2{
+				Type:     TransferTransaction,
 				Version:  v,
 				Transfer: pt,
 			}
 		default:
-			rtx = &proto.TransferV1{
-				Type:     proto.TransferTransaction,
+			rtx = &TransferV1{
+				Type:     TransferTransaction,
 				Version:  v,
 				Transfer: pt,
 			}
@@ -465,7 +464,7 @@ func (c *SafeConverter) Transaction(tx *g.Transaction) (proto.Transaction, error
 
 	case *g.Transaction_Reissue:
 		id, quantity := c.ConvertAssetAmount(d.Reissue.AssetAmount)
-		pr := proto.Reissue{
+		pr := Reissue{
 			SenderPK:   c.PublicKey(tx.SenderPublicKey),
 			AssetID:    id,
 			Quantity:   quantity,
@@ -475,15 +474,15 @@ func (c *SafeConverter) Transaction(tx *g.Transaction) (proto.Transaction, error
 		}
 		switch tx.Version {
 		case 2:
-			rtx = &proto.ReissueV2{
-				Type:    proto.ReissueTransaction,
+			rtx = &ReissueV2{
+				Type:    ReissueTransaction,
 				Version: v,
 				ChainID: scheme,
 				Reissue: pr,
 			}
 		default:
-			rtx = &proto.ReissueV1{
-				Type:    proto.ReissueTransaction,
+			rtx = &ReissueV1{
+				Type:    ReissueTransaction,
 				Version: v,
 				Reissue: pr,
 			}
@@ -491,7 +490,7 @@ func (c *SafeConverter) Transaction(tx *g.Transaction) (proto.Transaction, error
 
 	case *g.Transaction_Burn:
 		id, amount := c.ConvertAssetAmount(d.Burn.AssetAmount)
-		pb := proto.Burn{
+		pb := Burn{
 			SenderPK:  c.PublicKey(tx.SenderPublicKey),
 			AssetID:   id,
 			Amount:    amount,
@@ -500,15 +499,15 @@ func (c *SafeConverter) Transaction(tx *g.Transaction) (proto.Transaction, error
 		}
 		switch tx.Version {
 		case 2:
-			rtx = &proto.BurnV2{
-				Type:    proto.BurnTransaction,
+			rtx = &BurnV2{
+				Type:    BurnTransaction,
 				Version: v,
 				ChainID: scheme,
 				Burn:    pb,
 			}
 		default:
-			rtx = &proto.BurnV1{
-				Type:    proto.BurnTransaction,
+			rtx = &BurnV1{
+				Type:    BurnTransaction,
 				Version: v,
 				Burn:    pb,
 			}
@@ -520,8 +519,8 @@ func (c *SafeConverter) Transaction(tx *g.Transaction) (proto.Transaction, error
 		so := c.SellOrder(d.Exchange.Orders)
 		switch tx.Version {
 		case 2:
-			rtx = &proto.ExchangeV2{
-				Type:           proto.ExchangeTransaction,
+			rtx = &ExchangeV2{
+				Type:           ExchangeTransaction,
 				Version:        v,
 				SenderPK:       c.PublicKey(tx.SenderPublicKey),
 				BuyOrder:       bo,
@@ -537,17 +536,17 @@ func (c *SafeConverter) Transaction(tx *g.Transaction) (proto.Transaction, error
 			if bo.GetVersion() != 1 || so.GetVersion() != 1 {
 				return nil, errors.New("unsupported order version")
 			}
-			bo1, ok := bo.(*proto.OrderV1)
+			bo1, ok := bo.(*OrderV1)
 			if !ok {
 				return nil, errors.New("invalid pointer to OrderV1")
 			}
-			so1, ok := so.(*proto.OrderV1)
+			so1, ok := so.(*OrderV1)
 			if !ok {
 				return nil, errors.New("invalid pointer to OrderV1")
 			}
 
-			rtx = &proto.ExchangeV1{
-				Type:           proto.ExchangeTransaction,
+			rtx = &ExchangeV1{
+				Type:           ExchangeTransaction,
 				Version:        v,
 				SenderPK:       c.PublicKey(tx.SenderPublicKey),
 				BuyOrder:       bo1,
@@ -562,7 +561,7 @@ func (c *SafeConverter) Transaction(tx *g.Transaction) (proto.Transaction, error
 		}
 
 	case *g.Transaction_Lease:
-		pl := proto.Lease{
+		pl := Lease{
 			SenderPK:  c.PublicKey(tx.SenderPublicKey),
 			Recipient: c.Recipient(scheme, d.Lease.Recipient),
 			Amount:    c.Uint64(d.Lease.Amount),
@@ -571,21 +570,21 @@ func (c *SafeConverter) Transaction(tx *g.Transaction) (proto.Transaction, error
 		}
 		switch tx.Version {
 		case 2:
-			rtx = &proto.LeaseV2{
-				Type:    proto.LeaseTransaction,
+			rtx = &LeaseV2{
+				Type:    LeaseTransaction,
 				Version: v,
 				Lease:   pl,
 			}
 		default:
-			rtx = &proto.LeaseV1{
-				Type:    proto.LeaseTransaction,
+			rtx = &LeaseV1{
+				Type:    LeaseTransaction,
 				Version: v,
 				Lease:   pl,
 			}
 		}
 
 	case *g.Transaction_LeaseCancel:
-		plc := proto.LeaseCancel{
+		plc := LeaseCancel{
 			SenderPK:  c.PublicKey(tx.SenderPublicKey),
 			LeaseID:   c.Digest(d.LeaseCancel.LeaseId),
 			Fee:       c.Amount(tx.Fee),
@@ -593,22 +592,22 @@ func (c *SafeConverter) Transaction(tx *g.Transaction) (proto.Transaction, error
 		}
 		switch tx.Version {
 		case 2:
-			rtx = &proto.LeaseCancelV2{
-				Type:        proto.LeaseCancelTransaction,
+			rtx = &LeaseCancelV2{
+				Type:        LeaseCancelTransaction,
 				Version:     v,
 				ChainID:     scheme,
 				LeaseCancel: plc,
 			}
 		default:
-			rtx = &proto.LeaseCancelV1{
-				Type:        proto.LeaseCancelTransaction,
+			rtx = &LeaseCancelV1{
+				Type:        LeaseCancelTransaction,
 				Version:     v,
 				LeaseCancel: plc,
 			}
 		}
 
 	case *g.Transaction_CreateAlias:
-		pca := proto.CreateAlias{
+		pca := CreateAlias{
 			SenderPK:  c.PublicKey(tx.SenderPublicKey),
 			Alias:     c.Alias(scheme, d.CreateAlias.Alias),
 			Fee:       c.Amount(tx.Fee),
@@ -616,34 +615,34 @@ func (c *SafeConverter) Transaction(tx *g.Transaction) (proto.Transaction, error
 		}
 		switch tx.Version {
 		case 2:
-			rtx = &proto.CreateAliasV2{
-				Type:        proto.CreateAliasTransaction,
+			rtx = &CreateAliasV2{
+				Type:        CreateAliasTransaction,
 				Version:     v,
 				CreateAlias: pca,
 			}
 		default:
-			rtx = &proto.CreateAliasV1{
-				Type:        proto.CreateAliasTransaction,
+			rtx = &CreateAliasV1{
+				Type:        CreateAliasTransaction,
 				Version:     v,
 				CreateAlias: pca,
 			}
 		}
 
 	case *g.Transaction_MassTransfer:
-		rtx = &proto.MassTransferV1{
-			Type:       proto.MassTransferTransaction,
+		rtx = &MassTransferV1{
+			Type:       MassTransferTransaction,
 			Version:    v,
 			SenderPK:   c.PublicKey(tx.SenderPublicKey),
 			Asset:      c.OptionalAsset(d.MassTransfer.AssetId),
 			Transfers:  c.Transfers(scheme, d.MassTransfer.Transfers),
 			Timestamp:  ts,
 			Fee:        c.Amount(tx.Fee),
-			Attachment: proto.Attachment(c.String(d.MassTransfer.Attachment)),
+			Attachment: Attachment(c.String(d.MassTransfer.Attachment)),
 		}
 
 	case *g.Transaction_DataTransaction:
-		rtx = &proto.DataV1{
-			Type:      proto.DataTransaction,
+		rtx = &DataV1{
+			Type:      DataTransaction,
 			Version:   v,
 			SenderPK:  c.PublicKey(tx.SenderPublicKey),
 			Entries:   c.Entries(d.DataTransaction.Data),
@@ -652,8 +651,8 @@ func (c *SafeConverter) Transaction(tx *g.Transaction) (proto.Transaction, error
 		}
 
 	case *g.Transaction_SetScript:
-		rtx = &proto.SetScriptV1{
-			Type:      proto.SetScriptTransaction,
+		rtx = &SetScriptV1{
+			Type:      SetScriptTransaction,
 			Version:   v,
 			ChainID:   scheme,
 			SenderPK:  c.PublicKey(tx.SenderPublicKey),
@@ -664,8 +663,8 @@ func (c *SafeConverter) Transaction(tx *g.Transaction) (proto.Transaction, error
 
 	case *g.Transaction_SponsorFee:
 		asset, amount := c.ConvertAssetAmount(d.SponsorFee.MinFee)
-		rtx = &proto.SponsorshipV1{
-			Type:        proto.SponsorshipTransaction,
+		rtx = &SponsorshipV1{
+			Type:        SponsorshipTransaction,
 			Version:     v,
 			SenderPK:    c.PublicKey(tx.SenderPublicKey),
 			AssetID:     asset,
@@ -675,8 +674,8 @@ func (c *SafeConverter) Transaction(tx *g.Transaction) (proto.Transaction, error
 		}
 
 	case *g.Transaction_SetAssetScript:
-		rtx = &proto.SetAssetScriptV1{
-			Type:      proto.SetAssetScriptTransaction,
+		rtx = &SetAssetScriptV1{
+			Type:      SetAssetScriptTransaction,
 			Version:   v,
 			ChainID:   scheme,
 			SenderPK:  c.PublicKey(tx.SenderPublicKey),
@@ -688,8 +687,8 @@ func (c *SafeConverter) Transaction(tx *g.Transaction) (proto.Transaction, error
 
 	case *g.Transaction_InvokeScript:
 		feeAsset, feeAmount := c.ConvertAmount(tx.Fee)
-		rtx = &proto.InvokeScriptV1{
-			Type:            proto.InvokeScriptTransaction,
+		rtx = &InvokeScriptV1{
+			Type:            InvokeScriptTransaction,
 			Version:         v,
 			ChainID:         scheme,
 			SenderPK:        c.PublicKey(tx.SenderPublicKey),
@@ -707,7 +706,7 @@ func (c *SafeConverter) Transaction(tx *g.Transaction) (proto.Transaction, error
 	return rtx, nil
 }
 
-func (c *SafeConverter) ExtractFirstSignature(proofs *proto.ProofsV1) *crypto.Signature {
+func (c *ProtobufConverter) ExtractFirstSignature(proofs *ProofsV1) *crypto.Signature {
 	if c.err != nil {
 		return nil
 	}
@@ -723,7 +722,7 @@ func (c *SafeConverter) ExtractFirstSignature(proofs *proto.ProofsV1) *crypto.Si
 	return &s
 }
 
-func (c *SafeConverter) SignedTransaction(stx *g.SignedTransaction) (proto.Transaction, error) {
+func (c *ProtobufConverter) SignedTransaction(stx *g.SignedTransaction) (Transaction, error) {
 	tx, err := c.Transaction(stx.Transaction)
 	if err != nil {
 		return nil, err
@@ -733,80 +732,80 @@ func (c *SafeConverter) SignedTransaction(stx *g.SignedTransaction) (proto.Trans
 		return nil, c.err
 	}
 	switch t := tx.(type) {
-	case *proto.Genesis:
+	case *Genesis:
 		sig := c.ExtractFirstSignature(proofs)
 		t.Signature = sig
 		t.ID = sig
 		return t, c.err
-	case *proto.Payment:
+	case *Payment:
 		sig := c.ExtractFirstSignature(proofs)
 		t.Signature = sig
 		t.ID = sig
 		return t, c.err
-	case *proto.IssueV1:
+	case *IssueV1:
 		t.Signature = c.ExtractFirstSignature(proofs)
 		return t, c.err
-	case *proto.IssueV2:
+	case *IssueV2:
 		t.Proofs = proofs
 		return t, nil
-	case *proto.TransferV1:
+	case *TransferV1:
 		t.Signature = c.ExtractFirstSignature(proofs)
 		return t, c.err
-	case *proto.TransferV2:
+	case *TransferV2:
 		t.Proofs = proofs
 		return t, nil
-	case *proto.ReissueV1:
+	case *ReissueV1:
 		t.Signature = c.ExtractFirstSignature(proofs)
 		return t, c.err
-	case *proto.ReissueV2:
+	case *ReissueV2:
 		t.Proofs = proofs
 		return t, nil
-	case *proto.BurnV1:
+	case *BurnV1:
 		t.Signature = c.ExtractFirstSignature(proofs)
 		return t, c.err
-	case *proto.BurnV2:
+	case *BurnV2:
 		t.Proofs = proofs
 		return t, nil
-	case *proto.ExchangeV1:
+	case *ExchangeV1:
 		t.Signature = c.ExtractFirstSignature(proofs)
 		return t, c.err
-	case *proto.ExchangeV2:
+	case *ExchangeV2:
 		t.Proofs = proofs
 		return t, nil
-	case *proto.LeaseV1:
+	case *LeaseV1:
 		t.Signature = c.ExtractFirstSignature(proofs)
 		return t, c.err
-	case *proto.LeaseV2:
+	case *LeaseV2:
 		t.Proofs = proofs
 		return t, nil
-	case *proto.LeaseCancelV1:
+	case *LeaseCancelV1:
 		t.Signature = c.ExtractFirstSignature(proofs)
 		return t, c.err
-	case *proto.LeaseCancelV2:
+	case *LeaseCancelV2:
 		t.Proofs = proofs
 		return t, nil
-	case *proto.CreateAliasV1:
+	case *CreateAliasV1:
 		t.Signature = c.ExtractFirstSignature(proofs)
 		return t, c.err
-	case *proto.CreateAliasV2:
+	case *CreateAliasV2:
 		t.Proofs = proofs
 		return t, nil
-	case *proto.MassTransferV1:
+	case *MassTransferV1:
 		t.Proofs = proofs
 		return t, nil
-	case *proto.DataV1:
+	case *DataV1:
 		t.Proofs = proofs
 		return t, nil
-	case *proto.SetScriptV1:
+	case *SetScriptV1:
 		t.Proofs = proofs
 		return t, nil
-	case *proto.SponsorshipV1:
+	case *SponsorshipV1:
 		t.Proofs = proofs
 		return t, nil
-	case *proto.SetAssetScriptV1:
+	case *SetAssetScriptV1:
 		t.Proofs = proofs
 		return t, nil
-	case *proto.InvokeScriptV1:
+	case *InvokeScriptV1:
 		t.Proofs = proofs
 		return t, nil
 	default:
@@ -814,11 +813,11 @@ func (c *SafeConverter) SignedTransaction(stx *g.SignedTransaction) (proto.Trans
 	}
 }
 
-func (c *SafeConverter) BlockTransactions(block *g.BlockWithHeight) ([]proto.Transaction, error) {
+func (c *ProtobufConverter) BlockTransactions(block *g.BlockWithHeight) ([]Transaction, error) {
 	if c.err != nil {
 		return nil, c.err
 	}
-	txs := make([]proto.Transaction, len(block.Block.Transactions))
+	txs := make([]Transaction, len(block.Block.Transactions))
 	for i, stx := range block.Block.Transactions {
 		tx, err := c.SignedTransaction(stx)
 		if err != nil {
@@ -829,7 +828,7 @@ func (c *SafeConverter) BlockTransactions(block *g.BlockWithHeight) ([]proto.Tra
 	return txs, nil
 }
 
-func (c *SafeConverter) Features(features []uint32) []int16 {
+func (c *ProtobufConverter) Features(features []uint32) []int16 {
 	r := make([]int16, len(features))
 	for i, f := range features {
 		r[i] = int16(f)
@@ -837,26 +836,26 @@ func (c *SafeConverter) Features(features []uint32) []int16 {
 	return r
 }
 
-func (c *SafeConverter) Consensus(header *g.Block_Header) proto.NxtConsensus {
+func (c *ProtobufConverter) Consensus(header *g.Block_Header) NxtConsensus {
 	if c.err != nil {
-		return proto.NxtConsensus{}
+		return NxtConsensus{}
 	}
-	return proto.NxtConsensus{
+	return NxtConsensus{
 		GenSignature: c.Digest(header.GenerationSignature),
 		BaseTarget:   c.Uint64(header.BaseTarget),
 	}
 }
 
-func (c *SafeConverter) BlockHeader(block *g.BlockWithHeight) (proto.BlockHeader, error) {
+func (c *ProtobufConverter) BlockHeader(block *g.BlockWithHeight) (BlockHeader, error) {
 	if c.err != nil {
-		return proto.BlockHeader{}, c.err
+		return BlockHeader{}, c.err
 	}
 	features := c.Features(block.Block.Header.FeatureVotes)
 	if c.err != nil {
-		return proto.BlockHeader{}, c.err
+		return BlockHeader{}, c.err
 	}
-	return proto.BlockHeader{
-		Version:          proto.BlockVersion(c.Byte(block.Block.Header.Version)),
+	return BlockHeader{
+		Version:          BlockVersion(c.Byte(block.Block.Header.Version)),
 		Timestamp:        c.Uint64(block.Block.Header.Timestamp),
 		Parent:           c.Signature(block.Block.Header.Reference),
 		FeaturesCount:    len(features),

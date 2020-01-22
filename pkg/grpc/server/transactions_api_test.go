@@ -9,7 +9,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
-	"github.com/wavesplatform/gowaves/pkg/grpc/client"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated"
 	"github.com/wavesplatform/gowaves/pkg/miner/utxpool"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -303,7 +302,7 @@ func TestSign(t *testing.T) {
 	req := &g.SignRequest{Transaction: txProto, SignerPublicKey: pk.Bytes()}
 	res, err := cl.Sign(ctx, req)
 	assert.NoError(t, err)
-	var c client.SafeConverter
+	var c proto.ProtobufConverter
 	resTx, err := c.SignedTransaction(res)
 	assert.NoError(t, err)
 	transfer, ok := resTx.(*proto.TransferV1)
