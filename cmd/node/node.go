@@ -47,7 +47,7 @@ var (
 	serveExtendedApi = flag.Bool("serve-extended-api", false, "Serves extended API requests since the very beginning. The default behavior is to import until first block close to current time, and start serving at this point")
 	seed             = flag.String("seed", "", "Seed for miner")
 	bindAddress      = flag.String("bind-address", "", "Bind address for incoming connections. If empty, will be same as declared address")
-	connectPeers   = flag.String("connect-peers", "true", "Spawn outgoing connections")
+	connectPeers     = flag.String("connect-peers", "true", "Spawn outgoing connections")
 )
 
 func main() {
