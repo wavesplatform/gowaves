@@ -37,7 +37,7 @@ func (a *ntpTimeImpl) Run(ctx context.Context, duration time.Duration) {
 			return
 		case <-time.After(duration):
 			a.mu.Lock()
-			tm, err := ntp.Query("0.ru.pool.ntp.org")
+			tm, err := ntp.Query(a.addr)
 			if err != nil {
 				a.err = err
 			} else {
