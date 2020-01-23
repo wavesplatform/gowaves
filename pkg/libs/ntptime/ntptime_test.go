@@ -5,11 +5,22 @@ import (
 	"testing"
 	"time"
 
+	"github.com/beevik/ntp"
 	"github.com/stretchr/testify/require"
 )
 
+func TestNew(t *testing.T) {
+	require.NotEmpty(t, New("pool.ntp.org"))
+}
+
 func TestNtpTimeImpl_Run(t *testing.T) {
-	tm := New("0.ru.pool.ntp.org")
+	st := stub{
+		resp: &ntp.Response{
+			ClockOffset: 1 * time.Second,
+		},
+		err: nil,
+	}
+	tm := new("pool.ntp.org", st)
 	rs, err := tm.Now()
 	require.NoError(t, err)
 	require.NotEmpty(t, rs)
