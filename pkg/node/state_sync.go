@@ -154,6 +154,7 @@ func (a *StateSync) sync(ctx context.Context, p Peer) error {
 	}
 
 	wg.Wait()
+	cancel()
 	zap.S().Debugf("StateSync: done waiting")
 
 	return err
@@ -196,8 +197,8 @@ func (a *StateSync) downloadBlocks(ctx context.Context, signaturesCh chan nullab
 
 	const blockCnt = 50
 
+	wg.Add(1)
 	go func() {
-		wg.Add(1)
 		defer wg.Done()
 		for {
 			select {
@@ -218,10 +219,9 @@ func (a *StateSync) downloadBlocks(ctx context.Context, signaturesCh chan nullab
 
 	blocksBulk := make(chan [][]byte, 1)
 
+	wg.Add(1)
 	go func() {
-		wg.Add(1)
 		defer wg.Done()
-
 		blocks := make([][]byte, 0, blockCnt)
 		for {
 			score, err := a.services.Peers.Score(p)
@@ -265,8 +265,8 @@ func (a *StateSync) downloadBlocks(ctx context.Context, signaturesCh chan nullab
 	}()
 
 	// block applier
+	wg.Add(1)
 	go func() {
-		wg.Add(1)
 		defer wg.Done()
 		for {
 			select {
