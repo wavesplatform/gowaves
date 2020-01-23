@@ -38,6 +38,8 @@ const (
 	assetStr1 = "3gRJoK6f7XUV7fx5jUzHoPwdb9ZdTFjtTPy2HgDinr1N"
 	assetStr3 = "6nqXFE9J94dX17MPZRB7Hkk4aYDBpybq98n25jMexYVF"
 
+	invokeId = "B2u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ"
+
 	defaultGenSig = "B2u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ"
 
 	genesisSignature = "FSH8eAAzZNqnG8xgTZtz5xuLqXySsXgAjmFEC25hXMbEufiGjqWPnGCZFt6gLiVLJny16ipxRNAkkzjjhqTjBE2"
@@ -222,7 +224,7 @@ func createStorageObjects() (*testStorageObjects, []string, error) {
 	if err != nil {
 		return nil, res, err
 	}
-	stateDB, err := newStateDB(db, dbBatch, rw)
+	stateDB, err := newStateDB(db, dbBatch, rw, false)
 	if err != nil {
 		return nil, res, err
 	}
@@ -305,13 +307,21 @@ func (s *testStorageObjects) close(t *testing.T) {
 
 func genRandBlockIds(t *testing.T, number int) []crypto.Signature {
 	ids := make([]crypto.Signature, number)
+	idsDict := make(map[crypto.Signature]bool)
 	for i := 0; i < number; i++ {
-		id := make([]byte, crypto.SignatureSize)
-		_, err := rand.Read(id)
-		assert.NoError(t, err, "rand.Read() failed")
-		blockID, err := crypto.NewSignatureFromBytes(id)
-		assert.NoError(t, err, "NewSignatureFromBytes() failed")
-		ids[i] = blockID
+		for {
+			id := make([]byte, crypto.SignatureSize)
+			_, err := rand.Read(id)
+			assert.NoError(t, err, "rand.Read() failed")
+			blockID, err := crypto.NewSignatureFromBytes(id)
+			assert.NoError(t, err, "NewSignatureFromBytes() failed")
+			if _, ok := idsDict[blockID]; ok {
+				continue
+			}
+			ids[i] = blockID
+			idsDict[blockID] = true
+			break
+		}
 	}
 	return ids
 }

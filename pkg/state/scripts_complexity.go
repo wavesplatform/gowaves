@@ -26,7 +26,7 @@ func (r *assetScriptComplexityRecord) marshalBinary() ([]byte, error) {
 
 func (r *assetScriptComplexityRecord) unmarshalBinary(data []byte) error {
 	if len(data) != assetScriptComplexityRecordSize {
-		return errors.New("invalid data size")
+		return errInvalidDataSize
 	}
 	r.complexity = binary.BigEndian.Uint64(data[:8])
 	r.estimator = data[8]
@@ -73,7 +73,7 @@ func (r *accountScriptComplexityRecord) marshalBinary() ([]byte, error) {
 func (r *accountScriptComplexityRecord) unmarshalBinary(data []byte) (err error) {
 	defer func() {
 		if recover() != nil {
-			err = errors.New("invalid data size")
+			err = errInvalidDataSize
 		}
 	}()
 
@@ -123,6 +123,32 @@ func (sc *scriptsComplexity) newestScriptComplexityByAsset(asset crypto.Digest, 
 	var record assetScriptComplexityRecord
 	if err := record.unmarshalBinary(recordBytes); err != nil {
 		return nil, errors.Errorf("failed to unmarshal asset script complexity record: %v\n", err)
+	}
+	return &record, nil
+}
+
+func (sc *scriptsComplexity) scriptComplexityByAsset(asset crypto.Digest, filter bool) (*assetScriptComplexityRecord, error) {
+	key := assetScriptComplexityKey{asset}
+	recordBytes, err := sc.hs.latestEntryData(key.bytes(), filter)
+	if err != nil {
+		return nil, err
+	}
+	var record assetScriptComplexityRecord
+	if err := record.unmarshalBinary(recordBytes); err != nil {
+		return nil, errors.Errorf("failed to unmarshal asset script complexity record: %v\n", err)
+	}
+	return &record, nil
+}
+
+func (sc *scriptsComplexity) scriptComplexityByAddress(addr proto.Address, filter bool) (*accountScriptComplexityRecord, error) {
+	key := accountScriptComplexityKey{addr}
+	recordBytes, err := sc.hs.latestEntryData(key.bytes(), filter)
+	if err != nil {
+		return nil, err
+	}
+	var record accountScriptComplexityRecord
+	if err := record.unmarshalBinary(recordBytes); err != nil {
+		return nil, errors.Errorf("failed to unmarshal account script complexity record: %v\n", err)
 	}
 	return &record, nil
 }

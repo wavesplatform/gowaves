@@ -2,37 +2,32 @@ package server
 
 import (
 	"context"
-	"fmt"
 	"io/ioutil"
 	"os"
 	"testing"
-	"time"
 
 	"github.com/golang/protobuf/ptypes/empty"
-	"github.com/phayes/freeport"
 	"github.com/stretchr/testify/assert"
-	g "github.com/wavesplatform/gowaves/pkg/grpc"
+	g "github.com/wavesplatform/gowaves/pkg/grpc/generated"
+	"github.com/wavesplatform/gowaves/pkg/miner/utxpool"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/state"
-	"google.golang.org/grpc"
 )
 
-func connect(t *testing.T, addr string) *grpc.ClientConn {
-	conn, err := grpc.Dial(addr, grpc.WithInsecure())
-	assert.NoError(t, err, "grpc.Dial() failed")
-	return conn
-}
-
 func TestGetBaseTarget(t *testing.T) {
-	grpcTestAddr := fmt.Sprintf("127.0.0.1:%d", freeport.GetPort())
 	dataDir, err := ioutil.TempDir(os.TempDir(), "dataDir")
 	assert.NoError(t, err)
-	st, err := state.NewState(dataDir, state.DefaultTestingStateParams(), settings.MainNetSettings)
+	params := defaultStateParams()
+	params.StoreExtendedApiData = true
+	st, err := state.NewState(dataDir, params, settings.MainNetSettings)
+	assert.NoError(t, err)
+	ctx, cancel := context.WithCancel(context.Background())
+	sch := createScheduler(ctx, st, settings.MainNetSettings)
+	err = server.initServer(st, utxpool.New(utxSize), sch)
 	assert.NoError(t, err)
 
 	conn := connect(t, grpcTestAddr)
-	ctx, cancel := context.WithCancel(context.Background())
 	defer func() {
 		cancel()
 		conn.Close()
@@ -43,14 +38,7 @@ func TestGetBaseTarget(t *testing.T) {
 	}()
 
 	cl := g.NewBlockchainApiClient(conn)
-	server := NewServer(st)
-	go func() {
-		if err := server.Run(ctx, grpcTestAddr); err != nil {
-			t.Error("server.Run failed")
-		}
-	}()
 
-	time.Sleep(5 * time.Second)
 	res, err := cl.GetBaseTarget(ctx, &empty.Empty{})
 	assert.NoError(t, err)
 	// MainNet Genesis base target.
@@ -58,7 +46,8 @@ func TestGetBaseTarget(t *testing.T) {
 
 	// This target is base target of block at height 3 on MainNet.
 	newTarget := 171657201
-	blocks := state.ReadMainnetBlocksToHeight(t, proto.Height(3))
+	blocks, err := state.ReadMainnetBlocksToHeight(proto.Height(3))
+	assert.NoError(t, err)
 	err = st.AddOldDeserializedBlocks(blocks)
 	assert.NoError(t, err)
 	// Check new base target.
@@ -68,14 +57,17 @@ func TestGetBaseTarget(t *testing.T) {
 }
 
 func TestGetCumulativeScore(t *testing.T) {
-	grpcTestAddr := fmt.Sprintf("127.0.0.1:%d", freeport.GetPort())
 	dataDir, err := ioutil.TempDir(os.TempDir(), "dataDir")
 	assert.NoError(t, err)
-	st, err := state.NewState(dataDir, state.DefaultTestingStateParams(), settings.MainNetSettings)
+	params := defaultStateParams()
+	st, err := state.NewState(dataDir, params, settings.MainNetSettings)
+	assert.NoError(t, err)
+	ctx, cancel := context.WithCancel(context.Background())
+	sch := createScheduler(ctx, st, settings.MainNetSettings)
+	err = server.initServer(st, utxpool.New(utxSize), sch)
 	assert.NoError(t, err)
 
 	conn := connect(t, grpcTestAddr)
-	ctx, cancel := context.WithCancel(context.Background())
 	defer func() {
 		cancel()
 		conn.Close()
@@ -86,14 +78,7 @@ func TestGetCumulativeScore(t *testing.T) {
 	}()
 
 	cl := g.NewBlockchainApiClient(conn)
-	server := NewServer(st)
-	go func() {
-		if err := server.Run(ctx, grpcTestAddr); err != nil {
-			t.Error("server.Run failed")
-		}
-	}()
 
-	time.Sleep(5 * time.Second)
 	res, err := cl.GetCumulativeScore(ctx, &empty.Empty{})
 	assert.NoError(t, err)
 	genesisTarget := uint64(153722867)

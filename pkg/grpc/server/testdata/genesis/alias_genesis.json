@@ -1,0 +1,37 @@
+{
+  "version": 2,
+  "timestamp": 1503981123340,
+  "reference": "3KQZFTX6G6X2JLpU9d3B3Gtu33XY1LeyCVR5qjn7fvyB7YN9wqqCkqivVL7VK8tz2dqDpwDZDQTQPLXPZNv248ak",
+  "nxt-consensus": {
+    "base-target": 153722867,
+    "generation-signature": "11111111111111111111111111111111"
+  },
+  "fee": 100000000,
+  "transactionBlockLength": 216,
+  "transactionCount": 2,
+  "transactions": [
+    {
+      "type": 1,
+      "id": "2DVtfgXjpMeFf2PQCqvwxAiaGbiDsxDjSdNQkc5JQ74eWxjWFYgwvqzC4dn7iB1AhuM32WxEiVi1SGijsBtYQwn8",
+      "fee": 0,
+      "timestamp": 1503981123341,
+      "signature": "2DVtfgXjpMeFf2PQCqvwxAiaGbiDsxDjSdNQkc5JQ74eWxjWFYgwvqzC4dn7iB1AhuM32WxEiVi1SGijsBtYQwn8",
+      "recipient": "3PB4JPZPzwJv2akvSw23gjF7347NpX5gVXF",
+      "amount": 9999999500000000
+    },
+    {
+      "senderPublicKey": "DFW7xVVoQJBjtJy5PR7WaNpFM2Rfj9j57rW6n3WTY8b8",
+      "feeAssetId": null,
+      "signature": "5TwiGvT9v4gMCpJoWLMBUj2DCGUf8vw9cQ3hSW7XbjuPkogz73PvkBz4wXNNtCCgEvMqxfN7z9JcUpwVSX8c1qy3",
+      "proofs": [
+              "5TwiGvT9v4gMCpJoWLMBUj2DCGUf8vw9cQ3hSW7XbjuPkogz73PvkBz4wXNNtCCgEvMqxfN7z9JcUpwVSX8c1qy3"
+      ],
+      "fee": 100000,
+      "alias": "nodes",
+      "id": "BdNJdUPQHbJe1UX8Q2vk5FGoN5WtQjxTRmdCwJzdJuL9",
+      "type": 10,
+      "version": 1,
+      "timestamp": 1503981123341
+    }
+  ]
+}

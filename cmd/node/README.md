@@ -4,13 +4,18 @@
 
 ```
 usage: node [flags]
-  -log-level        Logging level. Supported levels: DEBUG, INFO, WARN, ERROR, FATAL. Default logging level INFO.
-  -state-path       Path to node's state directory
-  -blockchain-type  Blockchain type: mainnet/testnet/stagenet
-  -peers            Addresses of peers to connect to
-  -declared-address Address to listen on
-  -api-address      Address for REST API
-  -grpc-address     Address for gRPC API
+  -log-level          Logging level. Supported levels: DEBUG, INFO, WARN, ERROR, FATAL. Default logging level INFO.
+  -state-path         Path to node's state directory
+  -blockchain-type    Blockchain type: mainnet/testnet/stagenet
+  -peers              Addresses of peers to connect to
+  -declared-address   Address to listen on
+  -api-address        Address for REST API
+  -grpc-address       Address for gRPC API
+  -enable-grpc-api    Enables or disables gRPC API
+  -build-extended-api Builds extended API. Note that state must be reimported in case it wasn't imported with similar flag set
+  -serve-extended-api Serves extended API requests since the very beginning. The default behavior is to import until first block close to current time, and start serving at this point
+  -seed               Seed for miner
+  -binds-address      Bind address for incoming connections. If empty, will be same as declared address
 ```
 Parameter `-state-path` has no default value, so you have to provide the path to node state directory.
 

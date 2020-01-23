@@ -139,8 +139,13 @@ func TestApplyInvokeScriptV1PaymentsAndData(t *testing.T) {
 	fc := proto.FunctionCall{Name: "deposit"}
 	tx := createInvokeScriptV1(t, pmts, fc, fee)
 	tx.FeeAsset = proto.OptionalAsset{Present: false}
-	err = ia.applyInvokeScriptV1(tx, info)
+	ch, err := ia.applyInvokeScriptV1(tx, info)
 	assert.NoError(t, err, "failed to apply valid InvokeScriptV1 tx")
+	correctAddrs := map[proto.Address]struct{}{
+		testGlobal.senderInfo.addr:    empty,
+		testGlobal.recipientInfo.addr: empty,
+	}
+	assert.Equal(t, correctAddrs, ch.addrs)
 
 	// Check newest result state here.
 	senderBalance, err = to.state.NewestAccountBalance(proto.NewRecipientFromAddress(testGlobal.senderInfo.addr), nil)
@@ -158,7 +163,7 @@ func TestApplyInvokeScriptV1PaymentsAndData(t *testing.T) {
 	assert.NoError(t, err, "applyAllDiffs() failed")
 	err = to.state.flush(false)
 	assert.NoError(t, err, "state.flush() failed")
-	err = to.state.reset()
+	err = to.state.reset(false)
 	assert.NoError(t, err, "state.reset() failed")
 
 	// Check after flushing.
@@ -215,14 +220,24 @@ func TestApplyInvokeScriptV1Transfers(t *testing.T) {
 	fc := proto.FunctionCall{Name: "deposit"}
 	tx := createInvokeScriptV1(t, pmts, fc, fee)
 	tx.FeeAsset = proto.OptionalAsset{Present: false}
-	err = ia.applyInvokeScriptV1(tx, info)
+	ch, err := ia.applyInvokeScriptV1(tx, info)
 	assert.NoError(t, err, "failed to apply valid InvokeScriptV1 tx")
+	correctAddrs := map[proto.Address]struct{}{
+		testGlobal.senderInfo.addr:    empty,
+		testGlobal.recipientInfo.addr: empty,
+	}
+	assert.Equal(t, correctAddrs, ch.addrs)
 
 	fc = proto.FunctionCall{Name: "withdraw", Arguments: proto.Arguments{&proto.IntegerArgument{Value: int64(withdrawAmount)}}}
 	tx = createInvokeScriptV1(t, []proto.ScriptPayment{}, fc, fee)
 	tx.FeeAsset = proto.OptionalAsset{Present: false}
-	err = ia.applyInvokeScriptV1(tx, info)
+	ch, err = ia.applyInvokeScriptV1(tx, info)
 	assert.NoError(t, err, "failed to apply valid InvokeScriptV1 tx")
+	correctAddrs = map[proto.Address]struct{}{
+		testGlobal.senderInfo.addr:    empty,
+		testGlobal.recipientInfo.addr: empty,
+	}
+	assert.Equal(t, correctAddrs, ch.addrs)
 
 	// Check newest result state here.
 	senderBalance, err = to.state.NewestAccountBalance(proto.NewRecipientFromAddress(testGlobal.senderInfo.addr), nil)
@@ -236,7 +251,7 @@ func TestApplyInvokeScriptV1Transfers(t *testing.T) {
 	assert.NoError(t, err, "applyAllDiffs() failed")
 	err = to.state.flush(false)
 	assert.NoError(t, err, "state.flush() failed")
-	err = to.state.reset()
+	err = to.state.reset(false)
 	assert.NoError(t, err, "state.reset() failed")
 
 	// Check after flushing.

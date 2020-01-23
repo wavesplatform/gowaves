@@ -56,6 +56,31 @@ func TestAppendEntry(t *testing.T) {
 	assert.Equal(t, entry1, newEntry)
 }
 
+func TestRetrieveEntries(t *testing.T) {
+	to, path, err := createAccountsDataStorage()
+	assert.NoError(t, err, "createAccountsDataStorage() failed")
+
+	defer func() {
+		to.stor.close(t)
+
+		err = util.CleanTemporaryDirs(path)
+		assert.NoError(t, err, "failed to clean test data dirs")
+	}()
+
+	to.stor.addBlock(t, blockID0)
+	addr0 := testGlobal.senderInfo.addr
+	entry0 := &proto.IntegerDataEntry{Key: "Whatever", Value: int64(100500)}
+	err = to.accountsDataStor.appendEntry(addr0, entry0, blockID0)
+	entry1 := &proto.IntegerDataEntry{Key: "AnotherKey", Value: int64(42)}
+	err = to.accountsDataStor.appendEntry(addr0, entry1, blockID0)
+	assert.NoError(t, err)
+	to.stor.flush(t)
+	properEntries := []proto.DataEntry{entry0, entry1}
+	entries, err := to.accountsDataStor.retrieveEntries(addr0, true)
+	assert.NoError(t, err)
+	assert.Equal(t, properEntries, entries)
+}
+
 func TestRollbackEntry(t *testing.T) {
 	to, path, err := createAccountsDataStorage()
 	assert.NoError(t, err, "createAccountsDataStorage() failed")

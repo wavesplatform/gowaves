@@ -11,45 +11,23 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/util/lock"
 )
 
-// StateNewest returns information that takes into account any intermediate changes
-// occurring during applying block. This state corresponds to the latest validated transaction,
-// and for now is only needed for Ride and Consensus modules, which are both called during the validation.
-type StateNewest interface {
-	AddingBlockHeight() (proto.Height, error)
-	NewestHeight() (proto.Height, error)
-
-	// Effective balance by account in given height range.
-	// WARNING: this function takes into account newest blocks (which are currently being added)
-	// and works correctly for height ranges exceeding current Height() if there are such blocks.
-	// It does not work for heights older than rollbackMax blocks before the current block.
-	EffectiveBalance(account proto.Recipient, startHeight, endHeight proto.Height) (uint64, error)
-
-	NewestAccountBalance(account proto.Recipient, asset []byte) (uint64, error)
-
-	// Aliases.
-	NewestAddrByAlias(alias proto.Alias) (proto.Address, error)
-
-	// Accounts data storage.
-	RetrieveNewestEntry(account proto.Recipient, key string) (proto.DataEntry, error)
-	RetrieveNewestIntegerEntry(account proto.Recipient, key string) (*proto.IntegerDataEntry, error)
-	RetrieveNewestBooleanEntry(account proto.Recipient, key string) (*proto.BooleanDataEntry, error)
-	RetrieveNewestStringEntry(account proto.Recipient, key string) (*proto.StringDataEntry, error)
-	RetrieveNewestBinaryEntry(account proto.Recipient, key string) (*proto.BinaryDataEntry, error)
-
-	// Transactions.
-	NewestTransactionByID(id []byte) (proto.Transaction, error)
-	NewestTransactionHeightByID(id []byte) (uint64, error)
-
-	// Asset fee sponsorship.
-	NewestAssetIsSponsored(assetID crypto.Digest) (bool, error)
-	NewestAssetInfo(assetID crypto.Digest) (*proto.AssetInfo, error)
-
-	NewestHeaderByHeight(height proto.Height) (*proto.BlockHeader, error)
+// TransactionIterator can be used to iterate through transactions of given address.
+// One instance is only valid for iterating once.
+// Transaction() returns current transaction.
+// Next() moves iterator to next position, it must be called first time at the beginning.
+// Release() must be called after using iterator.
+// Error() should return nil if iterating was successful.
+type TransactionIterator interface {
+	Transaction() (proto.Transaction, error)
+	Next() bool
+	Release()
+	Error() error
 }
 
-// StateStable returns information that corresponds to latest fully applied block.
+// StateInfo returns information that corresponds to latest fully applied block.
 // This should be used for APIs and other modules where stable, fully verified state is needed.
-type StateStable interface {
+// Methods of this interface are thread-safe.
+type StateInfo interface {
 	// Block getters.
 	Block(blockID crypto.Signature) (*proto.Block, error)
 	BlockByHeight(height proto.Height) (*proto.Block, error)
@@ -65,6 +43,9 @@ type StateStable interface {
 	// Height <---> blockID converters.
 	BlockIDToHeight(blockID crypto.Signature) (proto.Height, error)
 	HeightToBlockID(height proto.Height) (crypto.Signature, error)
+	// FullWavesBalance returns complete Waves balance record.
+	FullWavesBalance(account proto.Recipient) (*proto.FullWavesBalance, error)
+	EffectiveBalanceStable(account proto.Recipient, startHeight, endHeight proto.Height) (uint64, error)
 	// AccountBalance retrieves balance of account in specific currency, asset is asset's ID.
 	// nil asset = Waves.
 	AccountBalance(account proto.Recipient, asset []byte) (uint64, error)
@@ -83,15 +64,18 @@ type StateStable interface {
 	Peers() ([]proto.TCPAddr, error)
 
 	// Features.
+	VotesNum(featureID int16) (uint64, error)
 	IsActivated(featureID int16) (bool, error)
 	ActivationHeight(featureID int16) (proto.Height, error)
 	IsApproved(featureID int16) (bool, error)
 	ApprovalHeight(featureID int16) (proto.Height, error)
+	AllFeatures() ([]int16, error)
 
 	// Aliases.
 	AddrByAlias(alias proto.Alias) (proto.Address, error)
 
 	// Accounts data storage.
+	RetrieveEntries(account proto.Recipient) ([]proto.DataEntry, error)
 	RetrieveEntry(account proto.Recipient, key string) (proto.DataEntry, error)
 	RetrieveIntegerEntry(account proto.Recipient, key string) (*proto.IntegerDataEntry, error)
 	RetrieveBooleanEntry(account proto.Recipient, key string) (*proto.BooleanDataEntry, error)
@@ -101,13 +85,32 @@ type StateStable interface {
 	// Transactions.
 	TransactionByID(id []byte) (proto.Transaction, error)
 	TransactionHeightByID(id []byte) (uint64, error)
+	// NewAddrTransactionsIterator() returns iterator to iterate all transactions that affected
+	// given address.
+	// Iterator will move in range from most recent to oldest transactions.
+	NewAddrTransactionsIterator(addr proto.Address) (TransactionIterator, error)
 
 	// Asset fee sponsorship.
 	AssetIsSponsored(assetID crypto.Digest) (bool, error)
 	AssetInfo(assetID crypto.Digest) (*proto.AssetInfo, error)
+	FullAssetInfo(assetID crypto.Digest) (*proto.FullAssetInfo, error)
+
+	// Script information.
+	ScriptInfoByAccount(account proto.Recipient) (*proto.ScriptInfo, error)
+	ScriptInfoByAsset(assetID crypto.Digest) (*proto.ScriptInfo, error)
+
+	// Leases.
+	IsActiveLeasing(leaseID crypto.Digest) (bool, error)
+
+	// Invoke results.
+	InvokeResultByID(invokeID crypto.Digest) (*proto.ScriptResult, error)
+
+	// True if state stores additional information in order to provide extended API.
+	ProvidesExtendedApi() (bool, error)
 }
 
 // StateModifier contains all the methods needed to modify node's state.
+// Methods of this interface are not thread-safe.
 type StateModifier interface {
 	// Global mutex of state.
 	Mutex() *lock.RwMutex
@@ -145,16 +148,15 @@ type StateModifier interface {
 	// Create or replace Peers.
 	SavePeers([]proto.TCPAddr) error
 
+	// State will provide extended API data after returning.
+	StartProvidingExtendedApi() error
+
 	Close() error
 }
 
-// State represents overall Node's state.
 type State interface {
+	StateInfo
 	StateModifier
-	StateStable
-	StateNewest
-
-	IsNotFound(err error) bool
 }
 
 // NewState() creates State.
@@ -206,12 +208,22 @@ type ValidationParams struct {
 type StateParams struct {
 	StorageParams
 	ValidationParams
+	// When StoreExtendedApiData is true, state builds additional data required for API.
+	StoreExtendedApiData bool
+	// ProvideExtendedApi specifies whether state must provide data for extended API.
+	ProvideExtendedApi bool
 }
 
 func DefaultStateParams() StateParams {
-	return StateParams{DefaultStorageParams(), ValidationParams{runtime.NumCPU() * 2}}
+	return StateParams{
+		StorageParams:    DefaultStorageParams(),
+		ValidationParams: ValidationParams{runtime.NumCPU() * 2},
+	}
 }
 
 func DefaultTestingStateParams() StateParams {
-	return StateParams{DefaultTestingStorageParams(), ValidationParams{runtime.NumCPU() * 2}}
+	return StateParams{
+		StorageParams:    DefaultTestingStorageParams(),
+		ValidationParams: ValidationParams{runtime.NumCPU() * 2},
+	}
 }

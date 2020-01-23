@@ -12,11 +12,11 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
-	client "github.com/wavesplatform/gowaves/pkg/grpc"
+	"github.com/wavesplatform/gowaves/pkg/grpc/client"
+	g "github.com/wavesplatform/gowaves/pkg/grpc/generated"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
-
 	"google.golang.org/grpc/connectivity"
 )
 
@@ -124,13 +124,13 @@ func (s *Symbols) UpdateFromOracle(conn *grpc.ClientConn) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
 
-	c := client.NewAccountsApiClient(conn)
-	req := &client.DataRequest{Address: s.oracle.Bytes()}
+	c := g.NewAccountsApiClient(conn)
+	req := &g.DataRequest{Address: s.oracle.Bytes()}
 	dc, err := c.GetDataEntries(ctx, req)
 	if err != nil {
 		return err
 	}
-	var msg client.DataEntryResponse
+	var msg g.DataEntryResponse
 	converter := client.SafeConverter{}
 	count := 0
 	for err = dc.RecvMsg(&msg); err == nil; err = dc.RecvMsg(&msg) {

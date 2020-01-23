@@ -2,21 +2,77 @@ package state
 
 import (
 	"encoding/binary"
+	"sync"
 
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
+	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
 )
 
-var void = []byte{}
+const (
+	stateInfoSize = 3
+)
+
+var (
+	void = []byte{}
+
+	stateInfoKeyBytes         = []byte{stateInfoKeyPrefix}
+	rollbackMinHeightKeyBytes = []byte{rollbackMinHeightKeyPrefix}
+	lastBlockNumKeyBytes      = []byte{lastBlockNumKeyPrefix}
+	dbHeightKeyBytes          = []byte{dbHeightKeyPrefix}
+	rwHeightKeyBytes          = []byte{rwHeightKeyPrefix}
+)
+
+type stateInfo struct {
+	version            uint16
+	hasExtendedApiData bool
+}
+
+func (inf *stateInfo) marshalBinary() []byte {
+	buf := make([]byte, 2+1)
+	binary.BigEndian.PutUint16(buf[:2], inf.version)
+	proto.PutBool(buf[2:], inf.hasExtendedApiData)
+	return buf
+}
+
+func (inf *stateInfo) unmarshalBinary(data []byte) error {
+	if len(data) != stateInfoSize {
+		return errInvalidDataSize
+	}
+	inf.version = binary.BigEndian.Uint16(data[:2])
+	var err error
+	inf.hasExtendedApiData, err = proto.Bool(data[2:])
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func saveStateInfo(db keyvalue.KeyValue, storeApiData bool) error {
+	has, err := db.Has(stateInfoKeyBytes)
+	if err != nil {
+		return err
+	}
+	if has {
+		return nil
+	}
+	info := &stateInfo{version: StateVersion, hasExtendedApiData: storeApiData}
+	infoBytes := info.marshalBinary()
+	if err := db.Put(stateInfoKeyBytes, infoBytes); err != nil {
+		return err
+	}
+	return nil
+}
 
 // stateDB is responsible for all the actions which operate on the whole DB.
 // For instance, list of valid blocks and height are DB-wide entities.
 type stateDB struct {
-	db      keyvalue.KeyValue
-	dbBatch keyvalue.Batch
-	rw      *blockReadWriter
+	db          keyvalue.KeyValue
+	dbBatch     keyvalue.Batch
+	dbWriteLock *sync.Mutex // `dbWriteLock` is lock for writing to database.
+	rw          *blockReadWriter
 
 	newestBlockIdToNum map[crypto.Signature]uint32
 	newestBlockNumToId map[uint32]crypto.Signature
@@ -24,45 +80,55 @@ type stateDB struct {
 	blocksNum int
 }
 
-func newStateDB(db keyvalue.KeyValue, dbBatch keyvalue.Batch, rw *blockReadWriter) (*stateDB, error) {
+func newStateDB(db keyvalue.KeyValue, dbBatch keyvalue.Batch, rw *blockReadWriter, storeApiData bool) (*stateDB, error) {
 	heightBuf := make([]byte, 8)
-	has, err := db.Has([]byte{dbHeightKeyPrefix})
+	has, err := db.Has(dbHeightKeyBytes)
 	if err != nil {
 		return nil, err
 	}
 	if !has {
 		binary.LittleEndian.PutUint64(heightBuf, 0)
-		if err := db.Put([]byte{dbHeightKeyPrefix}, heightBuf); err != nil {
+		if err := db.Put(dbHeightKeyBytes, heightBuf); err != nil {
 			return nil, err
 		}
 	}
-	has, err = db.Has([]byte{rollbackMinHeightKeyPrefix})
+	has, err = db.Has(rollbackMinHeightKeyBytes)
 	if err != nil {
 		return nil, err
 	}
 	if !has {
 		binary.LittleEndian.PutUint64(heightBuf, 1)
-		if err := db.Put([]byte{rollbackMinHeightKeyPrefix}, heightBuf); err != nil {
+		if err := db.Put(rollbackMinHeightKeyBytes, heightBuf); err != nil {
 			return nil, err
 		}
+	}
+	dbWriteLock := &sync.Mutex{}
+	if err := saveStateInfo(db, storeApiData); err != nil {
+		return nil, err
 	}
 	return &stateDB{
 		db:                 db,
 		dbBatch:            dbBatch,
+		dbWriteLock:        dbWriteLock,
 		rw:                 rw,
 		newestBlockIdToNum: make(map[crypto.Signature]uint32),
 		newestBlockNumToId: make(map[uint32]crypto.Signature),
 	}, nil
 }
 
+// Returns database write lock.
+func (s *stateDB) retrieveWriteLock() *sync.Mutex {
+	return s.dbWriteLock
+}
+
 // Sync blockReadWriter's storage (files) with the database.
 func (s *stateDB) syncRw() error {
-	dbHeightBytes, err := s.db.Get([]byte{dbHeightKeyPrefix})
+	dbHeightBytes, err := s.db.Get(dbHeightKeyBytes)
 	if err != nil {
 		return err
 	}
 	dbHeight := binary.LittleEndian.Uint64(dbHeightBytes)
-	rwHeightBytes, err := s.db.Get([]byte{rwHeightKeyPrefix})
+	rwHeightBytes, err := s.db.Get(rwHeightKeyBytes)
 	if err != nil {
 		return err
 	}
@@ -208,12 +274,12 @@ func (s *stateDB) rollbackBlock(blockID crypto.Signature) error {
 func (s *stateDB) setLastBlockNum(lastBlockNum uint32) error {
 	lastBlockNumBytes := make([]byte, 4)
 	binary.LittleEndian.PutUint32(lastBlockNumBytes, lastBlockNum)
-	s.dbBatch.Put([]byte{lastBlockNumKeyPrefix}, lastBlockNumBytes)
+	s.dbBatch.Put(lastBlockNumKeyBytes, lastBlockNumBytes)
 	return nil
 }
 
 func (s *stateDB) getLastBlockNum() (uint32, error) {
-	lastBlockNumBytes, err := s.db.Get([]byte{lastBlockNumKeyPrefix})
+	lastBlockNumBytes, err := s.db.Get(lastBlockNumKeyBytes)
 	if err == keyvalue.ErrNotFound {
 		return 0, nil
 	}
@@ -226,12 +292,12 @@ func (s *stateDB) getLastBlockNum() (uint32, error) {
 func (s *stateDB) setRollbackMinHeight(height uint64) error {
 	heightBytes := make([]byte, 8)
 	binary.LittleEndian.PutUint64(heightBytes, height)
-	s.dbBatch.Put([]byte{rollbackMinHeightKeyPrefix}, heightBytes)
+	s.dbBatch.Put(rollbackMinHeightKeyBytes, heightBytes)
 	return nil
 }
 
 func (s *stateDB) getRollbackMinHeight() (uint64, error) {
-	heightBytes, err := s.db.Get([]byte{rollbackMinHeightKeyPrefix})
+	heightBytes, err := s.db.Get(rollbackMinHeightKeyBytes)
 	if err != nil {
 		return 0, err
 	}
@@ -242,21 +308,46 @@ func (s *stateDB) setHeight(height uint64, directly bool) error {
 	dbHeightBytes := make([]byte, 8)
 	binary.LittleEndian.PutUint64(dbHeightBytes, height)
 	if directly {
-		if err := s.db.Put([]byte{dbHeightKeyPrefix}, dbHeightBytes); err != nil {
+		if err := s.db.Put(dbHeightKeyBytes, dbHeightBytes); err != nil {
 			return err
 		}
 	} else {
-		s.dbBatch.Put([]byte{dbHeightKeyPrefix}, dbHeightBytes)
+		s.dbBatch.Put(dbHeightKeyBytes, dbHeightBytes)
 	}
 	return nil
 }
 
 func (s *stateDB) getHeight() (uint64, error) {
-	dbHeightBytes, err := s.db.Get([]byte{dbHeightKeyPrefix})
+	dbHeightBytes, err := s.db.Get(dbHeightKeyBytes)
 	if err != nil {
 		return 0, err
 	}
 	return binary.LittleEndian.Uint64(dbHeightBytes), nil
+}
+
+func (s *stateDB) stateVersion() (int, error) {
+	stateInfoBytes, err := s.db.Get(stateInfoKeyBytes)
+	if err != nil {
+		return 0, err
+	}
+	var info stateInfo
+	if err := info.unmarshalBinary(stateInfoBytes); err != nil {
+		return 0, err
+	}
+	return int(info.version), nil
+}
+
+// stateStoresApiData indicates if additional data for gRPC API must be stored.
+func (s *stateDB) stateStoresApiData() (bool, error) {
+	stateInfoBytes, err := s.db.Get(stateInfoKeyBytes)
+	if err != nil {
+		return false, err
+	}
+	var info stateInfo
+	if err := info.unmarshalBinary(stateInfoBytes); err != nil {
+		return false, err
+	}
+	return info.hasExtendedApiData, nil
 }
 
 func (s *stateDB) calculateNewRollbackMinHeight(newHeight uint64) (uint64, error) {
@@ -300,10 +391,12 @@ func (s *stateDB) flush() error {
 	if err := s.setRollbackMinHeight(newRollbackMinHeight); err != nil {
 		return err
 	}
+	s.dbWriteLock.Lock()
 	// Write the whole batch to DB.
 	if err := s.db.Flush(s.dbBatch); err != nil {
 		return err
 	}
+	s.dbWriteLock.Unlock()
 	return nil
 }
 

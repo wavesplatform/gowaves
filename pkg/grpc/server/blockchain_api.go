@@ -4,13 +4,108 @@ import (
 	"context"
 
 	"github.com/golang/protobuf/ptypes/empty"
-	g "github.com/wavesplatform/gowaves/pkg/grpc"
+	g "github.com/wavesplatform/gowaves/pkg/grpc/generated"
+	"github.com/wavesplatform/gowaves/pkg/settings"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
+// allFeatures combines blockchain features from state with features
+// which are defined in `settings`.
+func (s *Server) allFeatures() ([]int16, error) {
+	total := make(map[int16]bool)
+	blockchainFeatures, err := s.state.AllFeatures()
+	if err != nil {
+		return nil, err
+	}
+	for _, id := range blockchainFeatures {
+		total[id] = true
+	}
+	for id := range settings.FeaturesInfo {
+		total[int16(id)] = true
+	}
+	res := make([]int16, len(total))
+	i := 0
+	for id := range total {
+		res[i] = id
+		i++
+	}
+	return res, nil
+}
+
+func (s *Server) nodeStatusFromBool(implemented bool) g.FeatureActivationStatus_NodeFeatureStatus {
+	if implemented {
+		return g.FeatureActivationStatus_IMPLEMENTED
+	}
+	return g.FeatureActivationStatus_NOT_IMPLEMENTED
+}
+
+// featureActivationStatus retrieves all the info for given feature ID.
+func (s *Server) featureActivationStatus(id int16) (*g.FeatureActivationStatus, error) {
+	res := &g.FeatureActivationStatus{Id: int32(id)}
+	res.NodeStatus = g.FeatureActivationStatus_NOT_IMPLEMENTED
+	info, ok := settings.FeaturesInfo[settings.Feature(id)]
+	if ok {
+		res.NodeStatus = s.nodeStatusFromBool(info.Implemented)
+		res.Description = info.Description
+	}
+	activated, err := s.state.IsActivated(id)
+	if err != nil {
+		return nil, err
+	}
+	approved, err := s.state.IsApproved(id)
+	if err != nil {
+		return nil, err
+	}
+	if activated {
+		height, err := s.state.ActivationHeight(id)
+		if err != nil {
+			return nil, err
+		}
+		res.ActivationHeight = int32(height)
+		res.BlockchainStatus = g.FeatureActivationStatus_ACTIVATED
+	} else if approved {
+		res.BlockchainStatus = g.FeatureActivationStatus_APPROVED
+	} else {
+		supportingBlocks, err := s.state.VotesNum(id)
+		if err != nil {
+			return nil, err
+		}
+		res.SupportingBlocks = int32(supportingBlocks)
+		res.BlockchainStatus = g.FeatureActivationStatus_UNDEFINED
+	}
+	return res, nil
+}
+
 func (s *Server) GetActivationStatus(ctx context.Context, req *g.ActivationStatusRequest) (*g.ActivationStatusResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "Not implemented")
+	height, err := s.state.Height()
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, err.Error())
+	}
+	if req.Height > int32(height) {
+		return nil, status.Errorf(codes.FailedPrecondition, "requested height exceeds current height")
+	}
+	res := &g.ActivationStatusResponse{Height: int32(height)}
+	sets, err := s.state.BlockchainSettings()
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, err.Error())
+	}
+	res.VotingInterval = int32(sets.ActivationWindowSize(uint64(req.Height)))
+	res.VotingThreshold = int32(sets.VotesForFeatureElection(uint64(req.Height)))
+	prevCheck := height - (height % uint64(res.VotingInterval))
+	res.NextCheck = int32(prevCheck) + res.VotingInterval
+	features, err := s.allFeatures()
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, err.Error())
+	}
+	res.Features = make([]*g.FeatureActivationStatus, len(features))
+	for i, id := range features {
+		res.Features[i], err = s.featureActivationStatus(id)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, err.Error())
+		}
+	}
+	return res, nil
 }
 
 func (s *Server) GetBaseTarget(ctx context.Context, req *empty.Empty) (*g.BaseTargetResponse, error) {
@@ -20,7 +115,7 @@ func (s *Server) GetBaseTarget(ctx context.Context, req *empty.Empty) (*g.BaseTa
 	}
 	block, err := s.state.BlockByHeight(height)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, err.Error())
+		return nil, status.Errorf(codes.NotFound, err.Error())
 	}
 	return &g.BaseTargetResponse{BaseTarget: int64(block.BaseTarget)}, nil
 }

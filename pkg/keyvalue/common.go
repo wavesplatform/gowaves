@@ -26,19 +26,26 @@ type Iterator interface {
 	Key() []byte
 	Value() []byte
 	Next() bool
+	Prev() bool
+
+	First() bool
+	Last() bool
+
 	Error() error
 	Release()
 }
 
 func SafeKey(iter Iterator) []byte {
-	key := make([]byte, len(iter.Key()))
-	copy(key[:], iter.Key())
+	iterK := iter.Key()
+	key := make([]byte, len(iterK))
+	copy(key, iterK)
 	return key
 }
 
 func SafeValue(iter Iterator) []byte {
-	value := make([]byte, len(iter.Value()))
-	copy(value[:], iter.Value())
+	iterV := iter.Value()
+	value := make([]byte, len(iterV))
+	copy(value, iterV)
 	return value
 }
 

@@ -1,12 +1,42 @@
 package node
 
 import (
+	"time"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"go.uber.org/zap"
 )
+
+const (
+	maxShiftFromNow = 600000 // 10 minutes.
+)
+
+func MaybeEnableExtendedApi(state state.State) error {
+	height, err := state.Height()
+	if err != nil {
+		return err
+	}
+	lastBlock, err := state.BlockByHeight(height)
+	if err != nil {
+		return err
+	}
+	now := proto.NewTimestampFromTime(time.Now())
+	provideExtended := false
+	if lastBlock.Timestamp > now {
+		provideExtended = true
+	} else if now-lastBlock.Timestamp < maxShiftFromNow {
+		provideExtended = true
+	}
+	if provideExtended {
+		if err := state.StartProvidingExtendedApi(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
 
 func sendSignatures(block *proto.Block, stateManager state.State, p peer.Peer) {
 	height, err := stateManager.BlockIDToHeight(block.BlockSignature)

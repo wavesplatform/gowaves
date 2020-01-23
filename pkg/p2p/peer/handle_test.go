@@ -3,6 +3,7 @@ package peer
 import (
 	"context"
 	"net"
+	"sync"
 	"testing"
 	"time"
 
@@ -52,10 +53,11 @@ func TestHHandleStopContext(t *testing.T) {
 
 func TestHandleReceive(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 	c := &mockConnection{}
 	remote := NewRemote()
 	parent := NewParent()
+	var wg sync.WaitGroup
+	wg.Add(1)
 	go func() {
 		err := Handle(HandlerParams{
 			Ctx:        ctx,
@@ -65,16 +67,20 @@ func TestHandleReceive(t *testing.T) {
 			Pool:       bytespool.NewBytesPool(1, 15*1024),
 		})
 		t.Logf("Error: %v\n", err)
+		wg.Done()
 	}()
 	remote.FromCh <- byte_helpers.TransferV1.MessageBytes
 	assert.IsType(t, &proto.TransactionMessage{}, (<-parent.MessageCh).Message)
+	cancel()
+	wg.Wait()
 }
 
 func TestHandleError(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 	remote := NewRemote()
 	parent := NewParent()
+	var wg sync.WaitGroup
+	wg.Add(1)
 	go func() {
 		err := Handle(HandlerParams{
 			Ctx:        ctx,
@@ -83,9 +89,11 @@ func TestHandleError(t *testing.T) {
 			Parent:     parent,
 		})
 		t.Logf("Error: %v\n", err)
+		wg.Done()
 	}()
 	err := errors.New("error")
 	remote.ErrCh <- err
-	<-time.After(time.Millisecond)
 	assert.Equal(t, err, (<-parent.InfoCh).Value)
+	cancel()
+	wg.Wait()
 }

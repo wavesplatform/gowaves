@@ -31,6 +31,7 @@ var (
 	nBlocks                   = flag.Int("blocks-number", 1000, "Number of blocks to import.")
 	verificationGoroutinesNum = flag.Int("verification-goroutines-num", runtime.NumCPU()*2, " Number of goroutines that will be run for verification of transactions/blocks signatures.")
 	writeBufferSize           = flag.Int("write-buffer", 16, "Write buffer size in MiB.")
+	buildDataForExtendedApi   = flag.Bool("build-extended-api", false, "Build and store additional data required for extended API in state. WARNING: this slows down the import, use only if you do really need extended API.")
 	// Debug.
 	cpuProfilePath = flag.String("cpuprofile", "", "Write cpu profile to this file.")
 	memProfilePath = flag.String("memprofile", "", "Write memory profile to this file.")
@@ -93,6 +94,9 @@ func main() {
 	params := state.DefaultStateParams()
 	params.VerificationGoroutinesNum = *verificationGoroutinesNum
 	params.DbParams.WriteBuffer = *writeBufferSize * MiB
+	params.StoreExtendedApiData = *buildDataForExtendedApi
+	// We do not need to provide any APIs during import.
+	params.ProvideExtendedApi = false
 	st, err := state.NewState(dataDir, params, ss)
 	if err != nil {
 		zap.S().Fatalf("Failed to create state: %v", err)

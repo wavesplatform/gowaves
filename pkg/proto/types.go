@@ -16,6 +16,7 @@ import (
 	"github.com/mr-tron/base58/base58"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	g "github.com/wavesplatform/gowaves/pkg/grpc/generated"
 	"github.com/wavesplatform/gowaves/pkg/libs/serializer"
 	"github.com/wavesplatform/gowaves/pkg/ride/evaluator/reader"
 )
@@ -308,6 +309,13 @@ func (a *Attachment) UnmarshalJSON(value []byte) error {
 //OrderType an alias for byte that encodes the type of OrderV1 (BUY|SELL).
 type OrderType byte
 
+func (t OrderType) ToProtobuf() g.Order_Side {
+	if t == Buy {
+		return g.Order_BUY
+	}
+	return g.Order_SELL
+}
+
 // iota: reset
 const (
 	Buy OrderType = iota
@@ -362,6 +370,10 @@ type AssetPair struct {
 	PriceAsset  OptionalAsset `json:"priceAsset"`
 }
 
+func (p AssetPair) ToProtobuf() *g.AssetPair {
+	return &g.AssetPair{AmountAssetId: p.AmountAsset.ToID(), PriceAssetId: p.PriceAsset.ToID()}
+}
+
 type OrderVersion struct {
 	Version byte `json:"version"`
 }
@@ -383,6 +395,7 @@ type Order interface {
 	BodyMarshalBinary() ([]byte, error)
 	GetProofs() (*ProofsV1, error)
 	Verify(crypto.PublicKey) (bool, error)
+	ToProtobuf(scheme Scheme) *g.Order
 }
 
 func OrderToOrderBody(o Order) (OrderBody, error) {
@@ -420,6 +433,20 @@ type OrderBody struct {
 	Timestamp  uint64           `json:"timestamp"`
 	Expiration uint64           `json:"expiration"`
 	MatcherFee uint64           `json:"matcherFee"`
+}
+
+func (o OrderBody) ToProtobuf(scheme Scheme) *g.Order {
+	return &g.Order{
+		ChainId:          int32(scheme),
+		SenderPublicKey:  o.SenderPK.Bytes(),
+		MatcherPublicKey: o.MatcherPK.Bytes(),
+		AssetPair:        o.AssetPair.ToProtobuf(),
+		OrderSide:        o.OrderType.ToProtobuf(),
+		Amount:           int64(o.Amount),
+		Price:            int64(o.Price),
+		Timestamp:        int64(o.Timestamp),
+		Expiration:       int64(o.Expiration),
+	}
 }
 
 func (o OrderBody) Valid() (bool, error) {
@@ -645,6 +672,15 @@ type OrderV1 struct {
 	OrderBody
 }
 
+func (o OrderV1) ToProtobuf(scheme Scheme) *g.Order {
+	res := o.OrderBody.ToProtobuf(scheme)
+	res.MatcherFee = &g.Amount{AssetId: nil, Amount: int64(o.MatcherFee)}
+	res.Version = 1
+	proofs := NewProofsFromSignature(o.Signature)
+	res.Proofs = proofs.Bytes()
+	return res
+}
+
 func (o OrderV1) GetID() ([]byte, error) {
 	if o.ID != nil {
 		return o.ID.Bytes(), nil
@@ -656,7 +692,7 @@ func (o OrderV1) GetProofs() (*ProofsV1, error) {
 	if o.Signature == nil {
 		return nil, errors.New("not signed")
 	}
-	proofs := &ProofsV1{proofsVersion, []B58Bytes{o.Signature.Bytes()}}
+	proofs := NewProofsFromSignature(o.Signature)
 	return proofs, nil
 }
 
@@ -819,6 +855,14 @@ type OrderV2 struct {
 	ID      *crypto.Digest `json:"id,omitempty"`
 	Proofs  *ProofsV1      `json:"proofs,omitempty"`
 	OrderBody
+}
+
+func (o OrderV2) ToProtobuf(scheme Scheme) *g.Order {
+	res := o.OrderBody.ToProtobuf(scheme)
+	res.MatcherFee = &g.Amount{AssetId: nil, Amount: int64(o.MatcherFee)}
+	res.Version = 2
+	res.Proofs = o.Proofs.Bytes()
+	return res
 }
 
 func (o OrderV2) GetID() ([]byte, error) {
@@ -1013,6 +1057,14 @@ type OrderV3 struct {
 	Proofs          *ProofsV1      `json:"proofs,omitempty"`
 	MatcherFeeAsset OptionalAsset  `json:"matcherFeeAssetId"`
 	OrderBody
+}
+
+func (o OrderV3) ToProtobuf(scheme Scheme) *g.Order {
+	res := o.OrderBody.ToProtobuf(scheme)
+	res.MatcherFee = &g.Amount{AssetId: o.MatcherFeeAsset.ToID(), Amount: int64(o.MatcherFee)}
+	res.Version = 3
+	res.Proofs = o.Proofs.Bytes()
+	return res
 }
 
 func (o *OrderV3) GetID() ([]byte, error) {
@@ -1245,6 +1297,19 @@ func NewProofs() *ProofsV1 {
 	return &ProofsV1{Version: proofsVersion, Proofs: make([]B58Bytes, 0)}
 }
 
+func NewProofsFromSignature(sig *crypto.Signature) *ProofsV1 {
+	return &ProofsV1{proofsVersion, []B58Bytes{sig.Bytes()}}
+}
+
+func (p ProofsV1) Bytes() [][]byte {
+	res := make([][]byte, len(p.Proofs))
+	for i, proof := range p.Proofs {
+		res[i] = make([]byte, len(proof))
+		copy(res[i], proof)
+	}
+	return res
+}
+
 //String gives a string representation of the proofs collection.
 func (p ProofsV1) String() string {
 	var sb strings.Builder
@@ -1469,6 +1534,8 @@ type DataEntry interface {
 	UnmarshalBinary([]byte) error
 	Valid() (bool, error)
 	binarySize() int
+
+	ToProtobuf() *g.DataTransactionData_DataEntry
 }
 
 var bytesToDataEntry = map[DataValueType]reflect.Type{
@@ -1478,13 +1545,35 @@ var bytesToDataEntry = map[DataValueType]reflect.Type{
 	DataBinary:  reflect.TypeOf(BinaryDataEntry{}),
 }
 
+func NewDataEntryFromBytes(data []byte) (DataEntry, error) {
+	if len(data) < 1 {
+		return nil, errors.New("invalid data size")
+	}
+	valueType, err := extractValueType(data)
+	if err != nil {
+		return nil, errors.New("failed to extract type of data entry")
+	}
+	entryType, ok := bytesToDataEntry[valueType]
+	if !ok {
+		return nil, errors.New("bad value type byte")
+	}
+	entry, ok := reflect.New(entryType).Interface().(DataEntry)
+	if !ok {
+		panic("This entry type does not implement DataEntry interface")
+	}
+	if err := entry.UnmarshalBinary(data); err != nil {
+		return nil, errors.Wrap(err, "failed to unmarshal entry")
+	}
+	return entry, nil
+}
+
 func NewDataEntryFromValueBytes(valueBytes []byte) (DataEntry, error) {
 	if len(valueBytes) < 1 {
 		return nil, errors.New("invalid data size")
 	}
 	entryType, ok := bytesToDataEntry[DataValueType(valueBytes[0])]
 	if !ok {
-		return nil, errors.New("invliad data entry type")
+		return nil, errors.New("invalid data entry type")
 	}
 	entry, ok := reflect.New(entryType).Interface().(DataEntry)
 	if !ok {
@@ -1500,6 +1589,13 @@ func NewDataEntryFromValueBytes(valueBytes []byte) (DataEntry, error) {
 type IntegerDataEntry struct {
 	Key   string
 	Value int64
+}
+
+func (e IntegerDataEntry) ToProtobuf() *g.DataTransactionData_DataEntry {
+	return &g.DataTransactionData_DataEntry{
+		Key:   e.Key,
+		Value: &g.DataTransactionData_DataEntry_IntValue{IntValue: e.Value},
+	}
 }
 
 func (e IntegerDataEntry) Valid() (bool, error) {
@@ -1614,6 +1710,13 @@ func (e *IntegerDataEntry) UnmarshalJSON(value []byte) error {
 type BooleanDataEntry struct {
 	Key   string
 	Value bool
+}
+
+func (e BooleanDataEntry) ToProtobuf() *g.DataTransactionData_DataEntry {
+	return &g.DataTransactionData_DataEntry{
+		Key:   e.Key,
+		Value: &g.DataTransactionData_DataEntry_BoolValue{BoolValue: e.Value},
+	}
 }
 
 func (e BooleanDataEntry) Valid() (bool, error) {
@@ -1732,6 +1835,13 @@ func (e *BooleanDataEntry) UnmarshalJSON(value []byte) error {
 type BinaryDataEntry struct {
 	Key   string
 	Value []byte
+}
+
+func (e BinaryDataEntry) ToProtobuf() *g.DataTransactionData_DataEntry {
+	return &g.DataTransactionData_DataEntry{
+		Key:   e.Key,
+		Value: &g.DataTransactionData_DataEntry_BinaryValue{BinaryValue: e.Value},
+	}
 }
 
 func (e BinaryDataEntry) Valid() (bool, error) {
@@ -1853,6 +1963,13 @@ func (e *BinaryDataEntry) UnmarshalJSON(value []byte) error {
 type StringDataEntry struct {
 	Key   string
 	Value string
+}
+
+func (e StringDataEntry) ToProtobuf() *g.DataTransactionData_DataEntry {
+	return &g.DataTransactionData_DataEntry{
+		Key:   e.Key,
+		Value: &g.DataTransactionData_DataEntry_StringValue{StringValue: e.Value},
+	}
 }
 
 func (e StringDataEntry) Valid() (bool, error) {
@@ -2027,7 +2144,27 @@ const scriptPrefix = "base64:"
 
 var scriptPrefixBytes = []byte(scriptPrefix)
 
+type ScriptInfo struct {
+	Bytes      []byte
+	Base64     string
+	Complexity uint64
+}
+
+func (s ScriptInfo) ToProtobuf() *g.ScriptData {
+	return &g.ScriptData{
+		ScriptBytes: s.Bytes,
+		ScriptText:  s.Base64,
+		Complexity:  int64(s.Complexity),
+	}
+}
+
 type Script []byte
+
+func (s Script) ToProtobuf() *g.Script {
+	return &g.Script{
+		Bytes: s,
+	}
+}
 
 // String gives a string representation of Script bytes, script bytes encoded as BASE64 with prefix
 func (s Script) String() string {
@@ -2624,6 +2761,64 @@ type ScriptResult struct {
 	Writes    WriteSet
 }
 
+func (sr *ScriptResult) MarshalWithAddresses() ([]byte, error) {
+	transfersBytes, err := sr.Transfers.MarshalWithAddresses()
+	if err != nil {
+		return nil, err
+	}
+	writesBytes, err := sr.Writes.MarshalBinary()
+	if err != nil {
+		return nil, err
+	}
+	res := make([]byte, len(transfersBytes)+len(writesBytes)+8)
+	pos := 0
+	transfersSize := uint32(len(transfersBytes))
+	binary.BigEndian.PutUint32(res[pos:], transfersSize)
+	pos += 4
+	copy(res[pos:], transfersBytes)
+	pos += len(transfersBytes)
+	writesSize := uint32(len(writesBytes))
+	binary.BigEndian.PutUint32(res[pos:], writesSize)
+	pos += 4
+	copy(res[pos:], writesBytes)
+	return res, nil
+}
+
+func (sr *ScriptResult) UnmarshalWithAddresses(data []byte) error {
+	pos := 4
+	if len(data) < pos {
+		return errors.New("invalid data size")
+	}
+	transfersSize := binary.BigEndian.Uint32(data[:pos])
+	pos += int(transfersSize)
+	if len(data) < pos {
+		return errors.New("invalid data size")
+	}
+	var ts TransferSet
+	if err := ts.UnmarshalWithAddresses(data[4:pos]); err != nil {
+		return err
+	}
+	if len(data) < pos {
+		return errors.New("invalid data size")
+	}
+	writesSize := binary.BigEndian.Uint32(data[pos:])
+	pos += 4
+	if len(data) < pos {
+		return errors.New("invalid data size")
+	}
+	var ws WriteSet
+	if err := ws.UnmarshalBinary(data[pos:]); err != nil {
+		return err
+	}
+	pos += int(writesSize)
+	if pos != len(data) {
+		return errors.New("invalid data size")
+	}
+	sr.Transfers = ts
+	sr.Writes = ws
+	return nil
+}
+
 func (sr *ScriptResult) Valid() error {
 	if err := sr.Transfers.Valid(); err != nil {
 		return err
@@ -2634,7 +2829,56 @@ func (sr *ScriptResult) Valid() error {
 	return nil
 }
 
+func (sr *ScriptResult) ToProtobuf() (*g.InvokeScriptResult, error) {
+	transfers, err := sr.Transfers.ToProtobuf()
+	if err != nil {
+		return nil, err
+	}
+	return &g.InvokeScriptResult{
+		Data:      sr.Writes.ToProtobuf(),
+		Transfers: transfers,
+	}, nil
+}
+
 type TransferSet []ScriptResultTransfer
+
+func (ts *TransferSet) binarySize() int {
+	totalSize := 0
+	for _, tr := range *ts {
+		totalSize += tr.binarySize()
+	}
+	return totalSize
+}
+
+func (ts *TransferSet) MarshalWithAddresses() ([]byte, error) {
+	res := make([]byte, ts.binarySize())
+	pos := 0
+	for _, tr := range *ts {
+		trBytes, err := tr.MarshalWithAddress()
+		if err != nil {
+			return nil, err
+		}
+		if pos+len(trBytes) > len(res) {
+			return nil, errors.New("invalid data size")
+		}
+		copy(res[pos:], trBytes)
+		pos += len(trBytes)
+	}
+	return res, nil
+}
+
+func (ts *TransferSet) UnmarshalWithAddresses(data []byte) error {
+	pos := 0
+	for pos < len(data) {
+		var tr ScriptResultTransfer
+		if err := tr.UnmarshalWithAddress(data[pos:]); err != nil {
+			return err
+		}
+		pos += tr.binarySize()
+		*ts = append(*ts, tr)
+	}
+	return nil
+}
 
 func (ts *TransferSet) Valid() error {
 	if len(*ts) > maxInvokeTransfers {
@@ -2648,7 +2892,57 @@ func (ts *TransferSet) Valid() error {
 	return nil
 }
 
+func (ts *TransferSet) ToProtobuf() ([]*g.InvokeScriptResult_Payment, error) {
+	res := make([]*g.InvokeScriptResult_Payment, len(*ts))
+	var err error
+	for i, tr := range *ts {
+		res[i], err = tr.ToProtobuf()
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
 type WriteSet []DataEntry
+
+func (ws *WriteSet) binarySize() int {
+	totalSize := 0
+	for _, entry := range *ws {
+		totalSize += entry.binarySize()
+	}
+	return totalSize
+}
+
+func (ws *WriteSet) MarshalBinary() ([]byte, error) {
+	res := make([]byte, ws.binarySize())
+	pos := 0
+	for _, entry := range *ws {
+		entryBytes, err := entry.MarshalBinary()
+		if err != nil {
+			return nil, err
+		}
+		if pos+len(entryBytes) > len(res) {
+			return nil, errors.New("invalid data size")
+		}
+		copy(res[pos:], entryBytes)
+		pos += len(entryBytes)
+	}
+	return res, nil
+}
+
+func (ws *WriteSet) UnmarshalBinary(data []byte) error {
+	pos := 0
+	for pos < len(data) {
+		entry, err := NewDataEntryFromBytes(data[pos:])
+		if err != nil {
+			return err
+		}
+		pos += entry.binarySize()
+		*ws = append(*ws, entry)
+	}
+	return nil
+}
 
 func (ws *WriteSet) Valid() error {
 	if len(*ws) > maxInvokeWrites {
@@ -2665,6 +2959,14 @@ func (ws *WriteSet) Valid() error {
 		return errors.Errorf("total write set size %d is greater than maximum %d\n", totalSize, maxWriteSetSizeInBytes)
 	}
 	return nil
+}
+
+func (ws *WriteSet) ToProtobuf() []*g.DataTransactionData_DataEntry {
+	res := make([]*g.DataTransactionData_DataEntry, len(*ws))
+	for i, entry := range *ws {
+		res[i] = entry.ToProtobuf()
+	}
+	return res
 }
 
 type FullScriptTransfer struct {
@@ -2687,6 +2989,64 @@ type ScriptResultTransfer struct {
 	Recipient Recipient
 	Amount    int64
 	Asset     OptionalAsset
+}
+
+func (tr *ScriptResultTransfer) binarySize() int {
+	return AddressSize + 8 + tr.Asset.binarySize()
+}
+
+func (tr *ScriptResultTransfer) MarshalWithAddress() ([]byte, error) {
+	if tr.Recipient.Address == nil {
+		return nil, errors.New("can't marshal Recipient with no address set")
+	}
+	recipientBytes := tr.Recipient.Address.Bytes()
+	if len(recipientBytes) != AddressSize {
+		return nil, errors.New("invalid address size")
+	}
+	amountBytes := make([]byte, 8)
+	binary.PutVarint(amountBytes, tr.Amount)
+	assetBytes, err := tr.Asset.MarshalBinary()
+	if err != nil {
+		return nil, err
+	}
+	res := make([]byte, tr.binarySize())
+	copy(res, amountBytes)
+	copy(res[len(amountBytes):], assetBytes)
+	copy(res[len(amountBytes)+len(assetBytes):], recipientBytes)
+	return res, nil
+}
+
+func (tr *ScriptResultTransfer) UnmarshalWithAddress(data []byte) error {
+	if len(data) < 8 {
+		return errors.New("invalid data size")
+	}
+	tr.Amount, _ = binary.Varint(data[:8])
+	var asset OptionalAsset
+	if err := asset.UnmarshalBinary(data[8:]); err != nil {
+		return err
+	}
+	tr.Asset = asset
+	pos := 8 + asset.binarySize()
+	addr, err := NewAddressFromBytes(data[pos:])
+	if err != nil {
+		return err
+	}
+	tr.Recipient = NewRecipientFromAddress(addr)
+	return nil
+}
+
+func (tr *ScriptResultTransfer) ToProtobuf() (*g.InvokeScriptResult_Payment, error) {
+	if tr.Recipient.Address == nil {
+		return nil, errors.New("script transfer has alias recipient, protobuf needs address")
+	}
+	addrBody, err := tr.Recipient.Address.Body()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get address body")
+	}
+	return &g.InvokeScriptResult_Payment{
+		Amount:  &g.Amount{AssetId: tr.Asset.ToID(), Amount: tr.Amount},
+		Address: addrBody,
+	}, nil
 }
 
 type ScriptPayment struct {
@@ -2809,4 +3169,24 @@ func (sps ScriptPayments) binarySize() int {
 		s += p.binarySize()
 	}
 	return s
+}
+
+type FullWavesBalance struct {
+	Regular    uint64
+	Generating uint64
+	Available  uint64
+	Effective  uint64
+	LeaseIn    uint64
+	LeaseOut   uint64
+}
+
+func (b *FullWavesBalance) ToProtobuf() *g.BalanceResponse_WavesBalances {
+	return &g.BalanceResponse_WavesBalances{
+		Regular:    int64(b.Regular),
+		Generating: int64(b.Generating),
+		Available:  int64(b.Available),
+		Effective:  int64(b.Effective),
+		LeaseIn:    int64(b.LeaseIn),
+		LeaseOut:   int64(b.LeaseOut),
+	}
 }

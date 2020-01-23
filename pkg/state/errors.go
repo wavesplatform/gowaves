@@ -19,6 +19,7 @@ const (
 	// Errors occurring while updating/modifying state data.
 	ModificationError
 	InvalidInputError
+	IncompatibilityError
 	// DB or block storage Close() error.
 	ClosureError
 	// Minor technical errors which shouldn't ever happen.
