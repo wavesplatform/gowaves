@@ -102,7 +102,7 @@ func (a *MicroblockMiner) Mine(ctx context.Context, t proto.Timestamp, k proto.K
 		return
 	}
 
-	zap.S().Debugf("Miner: generated new block sig: %s", b.BlockSignature)
+	zap.S().Debugf("Miner: generated new block sig: %s, time: %d", b.BlockSignature, t)
 
 	a.peer.EachConnected(func(peer peer.Peer, score *proto.Score) {
 		peer.SendMessage(&proto.ScoreMessage{

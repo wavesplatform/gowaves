@@ -1,6 +1,8 @@
 package mock
 
 import (
+	"sync"
+
 	"github.com/wavesplatform/gowaves/pkg/p2p/conn"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -12,6 +14,7 @@ type Peer struct {
 	IncomeCh              chan peer.ProtoMessage
 	HandshakeField        proto.Handshake
 	RemoteAddress         proto.TCPAddr
+	mu                    sync.Mutex
 }
 
 func NewPeer() *Peer {
@@ -39,7 +42,9 @@ func (Peer) Connection() conn.Connection {
 }
 
 func (a *Peer) SendMessage(m proto.Message) {
+	a.mu.Lock()
 	a.SendMessageCalledWith = append(a.SendMessageCalledWith, m)
+	a.mu.Unlock()
 }
 
 func (a Peer) ID() string {

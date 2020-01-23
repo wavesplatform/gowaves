@@ -14,6 +14,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/grpc/server"
 	"github.com/wavesplatform/gowaves/pkg/libs/bytespool"
 	"github.com/wavesplatform/gowaves/pkg/libs/ntptime"
+	"github.com/wavesplatform/gowaves/pkg/libs/runner"
 	"github.com/wavesplatform/gowaves/pkg/miner"
 	"github.com/wavesplatform/gowaves/pkg/miner/scheduler"
 	"github.com/wavesplatform/gowaves/pkg/miner/utxpool"
@@ -23,6 +24,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/node/state_changed"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/scoresender"
 	"github.com/wavesplatform/gowaves/pkg/services"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/state"
@@ -42,6 +44,7 @@ var (
 	grpcAddr       = flag.String("grpc-address", "127.0.0.1:7475", "Address for gRPC API")
 	seed           = flag.String("seed", "", "Seed for miner")
 	bindAddress    = flag.String("bind-address", "", "Bind address for incoming connections. If empty, will be same as declared address")
+	connectPeers   = flag.String("connect-peers", "true", "Spawn outgoing connections")
 )
 
 func main() {
@@ -52,6 +55,8 @@ func main() {
 	flag.Parse()
 
 	util.SetupLogger(*logLevel)
+
+	zap.S().Info("connectPeers ", *connectPeers)
 
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -94,7 +99,9 @@ func main() {
 		return
 	}
 
-	ntptm := ntptime.New("0.ru.pool.ntp.org")
+	async := runner.NewAsync()
+
+	ntptm := ntptime.New("pool.ntp.org")
 	go ntptm.Run(ctx, 2*time.Minute)
 
 	declAddr := proto.NewTCPAddrFromString(conf.DeclaredAddr)
@@ -141,11 +148,16 @@ func main() {
 
 	ngState := ng.NewState(services)
 	ngRuntime := ng.NewRuntime(services, ngState)
+	scoreSender := scoresender.New(peerManager, state, 5*time.Second, async)
+	async.Go(func() {
+		scoreSender.Run(ctx)
+	})
 
 	mine := miner.NewMicroblockMiner(services, ngRuntime, cfg.AddressSchemeCharacter)
+	peerManager.SetConnectPeers(!(*connectPeers == "false"))
 	go miner.Run(ctx, mine, scheduler)
 
-	stateSync := node.NewStateSync(services, mine)
+	stateSync := node.NewStateSync(services, mine, scoreSender)
 
 	stateChanged.AddHandler(state_changed.NewFuncHandler(func() {
 		scheduler.Reschedule()

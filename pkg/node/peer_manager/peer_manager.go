@@ -105,12 +105,24 @@ func (a suspended) Len() int {
 }
 
 type PeerManagerImpl struct {
-	spawner   PeerSpawner
-	active    map[peer.Peer]peerInfo
-	mu        sync.RWMutex
-	state     PeerStorage
-	spawned   map[proto.IpPort]struct{}
-	suspended suspended
+	spawner      PeerSpawner
+	active       map[peer.Peer]peerInfo
+	mu           sync.RWMutex
+	state        PeerStorage
+	spawned      map[proto.IpPort]struct{}
+	suspended    suspended
+	connectPeers bool // spawn outgoing
+}
+
+func NewPeerManager(spawner PeerSpawner, storage PeerStorage) *PeerManagerImpl {
+	return &PeerManagerImpl{
+		spawner:      spawner,
+		active:       make(map[peer.Peer]peerInfo),
+		state:        storage,
+		spawned:      make(map[proto.IpPort]struct{}),
+		suspended:    suspended{},
+		connectPeers: true,
+	}
 }
 
 func (a *PeerManagerImpl) Score(p peer.Peer) (*proto.Score, error) {
@@ -123,14 +135,11 @@ func (a *PeerManagerImpl) Score(p peer.Peer) (*proto.Score, error) {
 	return info.score, nil
 }
 
-func NewPeerManager(spawner PeerSpawner, storage PeerStorage) *PeerManagerImpl {
-	return &PeerManagerImpl{
-		spawner:   spawner,
-		active:    make(map[peer.Peer]peerInfo),
-		state:     storage,
-		spawned:   make(map[proto.IpPort]struct{}),
-		suspended: suspended{},
-	}
+func (a *PeerManagerImpl) SetConnectPeers(connect bool) {
+	a.mu.Lock()
+	a.connectPeers = connect
+	zap.S().Debug("set connect peers to ", a.connectPeers)
+	a.mu.Unlock()
 }
 
 func (a *PeerManagerImpl) Connected(p peer.Peer) (peer.Peer, bool) {
@@ -261,6 +270,10 @@ func (a *PeerManagerImpl) Close() {
 func (a *PeerManagerImpl) SpawnOutgoingConnections(ctx context.Context) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
+
+	if !a.connectPeers {
+		return
+	}
 
 	known, err := a.KnownPeers()
 	if err != nil {
