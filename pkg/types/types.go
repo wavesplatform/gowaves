@@ -106,3 +106,8 @@ type Miner interface {
 type Time interface {
 	Now() (time.Time, error)
 }
+
+type ScoreSender interface {
+	Priority()
+	NonPriority()
+}

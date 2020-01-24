@@ -2,11 +2,13 @@ package node
 
 import (
 	"context"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/libs/nullable"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/types"
 )
@@ -75,7 +77,8 @@ func TestPreloadSignatures(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	sig1 := crypto.MustSignatureFromBase58("3EQ3k2n8KtSVVSsNfYbGp2LLwTc45SYWEACcME9KjLKCZSSeuVbVtdxroVysAJRdpoP3tDpy9MNTJMj6TjZ4b4aV")
 	sig2 := crypto.MustSignatureFromBase58("ygSR7JmuxSN86VWLeaCx3mu8VtgRkUdh29s5ANtTAW7Lu5mans3WcNWGGWGu1mMxu9cS1HMRNMnr3bV9nWPEPKE")
-	incoming := make(chan crypto.Signature, 10)
+
+	incoming := make(chan nullable.Signature, 10)
 
 	last := NewSignatures(sig1)
 	ch := make(chan proto.Message, 10)
@@ -84,11 +87,15 @@ func TestPreloadSignatures(t *testing.T) {
 	ch <- &proto.SignaturesMessage{
 		Signatures: []crypto.Signature{sig2},
 	}
+
+	var wg sync.WaitGroup
+
 	go func() {
 		<-time.After(500 * time.Millisecond)
 		cancel()
 	}()
-	_ = PreloadSignatures(ctx, incoming, &peerImpl{}, last, subscribe)
-
-	require.Equal(t, sig2, <-incoming)
+	_ = PreloadSignatures(ctx, incoming, &peerImpl{}, last, subscribe, &wg)
+	require.Equal(t, nullable.NewSignature(sig2), <-incoming)
+	require.Equal(t, nullable.NewNullSignature(), <-incoming)
+	wg.Wait()
 }

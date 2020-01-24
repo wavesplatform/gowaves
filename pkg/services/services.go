@@ -17,4 +17,5 @@ type Services struct {
 	BlockAddedNotifier types.Handler
 	Subscribe          types.Subscribe
 	InvRequester       types.InvRequester
+	ScoreSender        types.Handler
 }

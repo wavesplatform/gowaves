@@ -19,6 +19,13 @@ func (a *RwMutex) RLock() *RLocked {
 	return newRLocked(a.mu)
 }
 
+func (a *RwMutex) MapR(f func() error) error {
+	a.mu.RLock()
+	err := f()
+	a.mu.RUnlock()
+	return err
+}
+
 func (a *RwMutex) Lock() *Locked {
 	a.mu.Lock()
 	return newLocked(a.mu)

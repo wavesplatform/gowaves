@@ -3,12 +3,12 @@ package node
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/pkg/errors"
-	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/libs/nullable"
 	"github.com/wavesplatform/gowaves/pkg/node/peer_manager"
 	. "github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -30,13 +30,14 @@ type StateSync struct {
 	interrupter  types.MinerInterrupter
 	syncCh       chan struct{}
 	services     services.Services
+	scoreSender  types.ScoreSender
 
 	// need to enable or disable sync
 	mu      sync.Mutex
 	enabled bool
 }
 
-func NewStateSync(services services.Services, interrupter types.MinerInterrupter) *StateSync {
+func NewStateSync(services services.Services, interrupter types.MinerInterrupter, scoreSender types.ScoreSender) *StateSync {
 	return &StateSync{
 		peerManager:  services.Peers,
 		stateManager: services.State,
@@ -48,6 +49,7 @@ func NewStateSync(services services.Services, interrupter types.MinerInterrupter
 		syncCh:       make(chan struct{}, 20),
 		services:     services,
 		enabled:      true,
+		scoreSender:  scoreSender,
 	}
 }
 
@@ -102,7 +104,13 @@ func (a *StateSync) run(ctx context.Context) {
 			return
 		}
 		zap.S().Infof("[%s] StateSync: Starting synchronization with %s", p.ID(), p.ID())
-		_ = a.sync(ctx, p)
+		err = a.sync(ctx, p)
+		zap.S().Info("[%s] StateSync: Ended with code %q", err)
+		if err != nil {
+			<-time.After(10 * time.Second)
+			continue
+		}
+		return
 	}
 }
 
@@ -116,13 +124,15 @@ func (a *StateSync) sync(ctx context.Context, p Peer) error {
 	}
 
 	errCh := make(chan error, 2)
-	incoming := make(chan crypto.Signature, 256)
+	incoming := make(chan nullable.Signature, 256)
+
+	var wg sync.WaitGroup
 
 	go func() {
-		errCh <- PreloadSignatures(ctx, incoming, p, sigs, a.subscribe)
+		errCh <- PreloadSignatures(ctx, incoming, p, sigs, a.subscribe, &wg)
 	}()
 	go func() {
-		errCh <- downloadBlocks(ctx, incoming, p, a.subscribe, a.services, a.interrupter)
+		errCh <- a.downloadBlocks(ctx, incoming, p, &wg)
 	}()
 
 	err = <-errCh
@@ -134,17 +144,20 @@ func (a *StateSync) sync(ctx context.Context, p Peer) error {
 			<-time.After(2 * time.Second)
 			a.Sync()
 		}()
-		return nil
-	case NothingToRequestErr:
-		cancel()
 	default:
-		cancel()
 		if err != nil {
-			a.peerManager.Suspend(p, "switch default, unknown error")
+			cancel()
+
+			a.peerManager.Suspend(p, fmt.Sprintf("switch default, %s", err.Error()))
 			zap.S().Errorf("[%s] StateSync: Error: %v", p.ID(), err)
 		}
 	}
-	return nil
+
+	wg.Wait()
+	cancel()
+	zap.S().Debugf("StateSync: done waiting")
+
+	return err
 }
 
 func (a *StateSync) getPeerWithHighestScore() (Peer, error) {
@@ -171,18 +184,22 @@ func (a *StateSync) Close() {
 	close(a.interrupt)
 }
 
-func downloadBlocks(ctx context.Context, signaturesCh chan crypto.Signature, p Peer, subscribe types.Subscribe, services services.Services, interrupt types.MinerInterrupter) error {
-	defer services.Scheduler.Reschedule()
+func (a *StateSync) downloadBlocks(ctx context.Context, signaturesCh chan nullable.Signature, p Peer, wg *sync.WaitGroup) error {
+	defer a.services.Scheduler.Reschedule()
+	wg.Add(1)
+	defer wg.Done()
 
 	errCh := make(chan error, 3)
-
 	receivedBlocksCh := make(chan blockBytes, 128)
 
-	downloader := newBlockDownloader(128, p, subscribe, receivedBlocksCh)
-	go downloader.run(ctx)
-	requested := uint64(0)
+	downloader := newBlockDownloader(128, p, a.subscribe, receivedBlocksCh)
+	go downloader.run(ctx, wg)
 
+	const blockCnt = 50
+
+	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		for {
 			select {
 			case <-ctx.Done():
@@ -192,9 +209,9 @@ func downloadBlocks(ctx context.Context, signaturesCh chan crypto.Signature, p P
 				errCh <- TimeoutErr
 				return
 			case sig := <-signaturesCh:
-				//zap.S().Infof("[%s] StateSync: DownloadBlocks: sig: %s", p.ID(), sig.String())
-				if downloader.download(sig) {
-					atomic.AddUint64(&requested, 1)
+				downloader.download(sig)
+				if sig.Null() {
+					return
 				}
 			}
 		}
@@ -202,16 +219,17 @@ func downloadBlocks(ctx context.Context, signaturesCh chan crypto.Signature, p P
 
 	blocksBulk := make(chan [][]byte, 1)
 
+	wg.Add(1)
 	go func() {
-		const blockCnt = uint64(50)
+		defer wg.Done()
 		blocks := make([][]byte, 0, blockCnt)
 		for {
-			score, err := services.Peers.Score(p)
+			score, err := a.services.Peers.Score(p)
 			if err != nil {
 				errCh <- err
 				return
 			}
-			curScore, err := services.State.CurrentScore()
+			curScore, err := a.services.State.CurrentScore()
 			if err != nil {
 				errCh <- err
 				return
@@ -226,27 +244,30 @@ func downloadBlocks(ctx context.Context, signaturesCh chan crypto.Signature, p P
 				return
 
 			case bts := <-receivedBlocksCh:
-				blocks = append(blocks, bts)
-				size := blockCnt
-				req := atomic.LoadUint64(&requested)
-				if req < size {
-					size = req
+				// it means that we at the end. halt
+				if bts == nil {
+					zap.S().Infof("[%s] StateSync: CreateBulk: exit with null bytes")
+					out := make([][]byte, len(blocks))
+					copy(out, blocks)
+					blocksBulk <- out
+					return
 				}
-				if l := len(blocks); uint64(l) == size {
+
+				blocks = append(blocks, bts)
+				if l := len(blocks); uint64(l) == blockCnt {
 					out := make([][]byte, l)
 					copy(out, blocks)
 					blocksBulk <- out
 					blocks = blocks[:0]
-					atomic.AddUint64(&requested, -size)
 				}
 			}
 		}
 	}()
 
-	scoreUpdated := make(chan struct{}, 1)
-
 	// block applier
+	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		for {
 			select {
 			case <-ctx.Done():
@@ -254,45 +275,23 @@ func downloadBlocks(ctx context.Context, signaturesCh chan crypto.Signature, p P
 			case blocks := <-blocksBulk:
 				zap.S().Debugf("[%s] BlockDownloader: Applying: received %d blocks", p.ID(), len(blocks))
 				if len(blocks) == 0 {
-					continue
+					errCh <- nil
+					return
 				}
-				interrupt.Interrupt()
-				err := applyBlocks(services, blocks, p)
+				a.interrupter.Interrupt()
+				err := applyBlocks(a.services, blocks, p)
 				if err != nil {
 					errCh <- err
 					return
 				}
-				go services.BlockAddedNotifier.Handle()
-				select {
-				case scoreUpdated <- struct{}{}:
-				default:
-				}
-			}
-		}
-	}()
+				go a.services.BlockAddedNotifier.Handle()
+				a.scoreSender.NonPriority()
 
-	// send score to nodes
-	go func() {
-		tick := time.NewTicker(10 * time.Second)
-		update := false
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-scoreUpdated:
-				update = true
-			case <-tick.C:
-				if update {
-					curScore, err := services.State.CurrentScore()
-					if err != nil {
-						zap.S().Info(err)
-						continue
-					}
-					services.Peers.EachConnected(func(peer Peer, score *proto.Score) {
-						peer.SendMessage(&proto.ScoreMessage{Score: curScore.Bytes()})
-					})
+				// received less than expected, it means successful exit
+				if len(blocks) < blockCnt {
+					errCh <- nil
+					return
 				}
-				update = false
 			}
 		}
 	}()
