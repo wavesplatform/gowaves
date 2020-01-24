@@ -61,7 +61,6 @@ func TestBlocksAPIClient(t *testing.T) {
 	cnv := proto.ProtobufConverter{}
 	h := 1
 	for b, err = getBlock(h); err == nil; b, err = getBlock(h) {
-		cnv.Reset()
 		txs, err := cnv.BlockTransactions(b)
 		require.NoError(t, err)
 		sb := strings.Builder{}

@@ -65,15 +65,16 @@ func (tx IssueV1) GetTypeVersion() TransactionTypeVersion {
 	return TransactionTypeVersion{tx.Type, tx.Version}
 }
 
-func (tx *IssueV1) GenerateID() {
+func (tx *IssueV1) GenerateID() error {
 	if tx.ID == nil {
 		body, err := tx.BodyMarshalBinary()
 		if err != nil {
-			panic(err.Error())
+			return err
 		}
 		id := crypto.MustFastHash(body)
 		tx.ID = &id
 	}
+	return nil
 }
 
 func (tx IssueV1) GetID() ([]byte, error) {
@@ -201,6 +202,40 @@ func (tx *IssueV1) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
+func (tx *IssueV1) MarshalToProtobuf(scheme Scheme) ([]byte, error) {
+	return MarshalTxDeterministic(tx, scheme)
+}
+
+func (tx *IssueV1) UnmarshalFromProtobuf(data []byte) error {
+	t, err := TxFromProtobuf(data)
+	if err != nil {
+		return err
+	}
+	issueTx, ok := t.(*IssueV1)
+	if !ok {
+		return errors.New("failed to convert result to IssueV1")
+	}
+	*tx = *issueTx
+	return nil
+}
+
+func (tx *IssueV1) MarshalSignedToProtobuf(scheme Scheme) ([]byte, error) {
+	return MarshalSignedTxDeterministic(tx, scheme)
+}
+
+func (tx *IssueV1) UnmarshalSignedFromProtobuf(data []byte) error {
+	t, err := SignedTxFromProtobuf(data)
+	if err != nil {
+		return err
+	}
+	issueTx, ok := t.(*IssueV1)
+	if !ok {
+		return errors.New("failed to convert result to IssueV1")
+	}
+	*tx = *issueTx
+	return nil
+}
+
 func (tx *IssueV1) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
 	res := TransactionToProtobufCommon(scheme, tx)
 	txData := tx.Issue.ToProtobuf()
@@ -214,6 +249,9 @@ func (tx *IssueV1) ToProtobufSigned(scheme Scheme) (*g.SignedTransaction, error)
 	unsigned, err := tx.ToProtobuf(scheme)
 	if err != nil {
 		return nil, err
+	}
+	if tx.Signature == nil {
+		return nil, errors.New("no signature provided")
 	}
 	proofs := NewProofsFromSignature(tx.Signature)
 	return &g.SignedTransaction{
@@ -235,15 +273,16 @@ func (tx TransferV1) GetTypeVersion() TransactionTypeVersion {
 	return TransactionTypeVersion{tx.Type, tx.Version}
 }
 
-func (tx *TransferV1) GenerateID() {
+func (tx *TransferV1) GenerateID() error {
 	if tx.ID == nil {
 		body, err := tx.BodyMarshalBinary()
 		if err != nil {
-			panic(err.Error())
+			return err
 		}
 		id := crypto.MustFastHash(body)
 		tx.ID = &id
 	}
+	return nil
 }
 
 func (tx TransferV1) GetID() ([]byte, error) {
@@ -411,6 +450,40 @@ func (tx *TransferV1) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
+func (tx *TransferV1) MarshalToProtobuf(scheme Scheme) ([]byte, error) {
+	return MarshalTxDeterministic(tx, scheme)
+}
+
+func (tx *TransferV1) UnmarshalFromProtobuf(data []byte) error {
+	t, err := TxFromProtobuf(data)
+	if err != nil {
+		return err
+	}
+	transferTx, ok := t.(*TransferV1)
+	if !ok {
+		return errors.New("failed to convert result to TransferV1")
+	}
+	*tx = *transferTx
+	return nil
+}
+
+func (tx *TransferV1) MarshalSignedToProtobuf(scheme Scheme) ([]byte, error) {
+	return MarshalSignedTxDeterministic(tx, scheme)
+}
+
+func (tx *TransferV1) UnmarshalSignedFromProtobuf(data []byte) error {
+	t, err := SignedTxFromProtobuf(data)
+	if err != nil {
+		return err
+	}
+	transferTx, ok := t.(*TransferV1)
+	if !ok {
+		return errors.New("failed to convert result to TransferV1")
+	}
+	*tx = *transferTx
+	return nil
+}
+
 func (tx *TransferV1) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
 	res := TransactionToProtobufCommon(scheme, tx)
 	txData, err := tx.Transfer.ToProtobuf()
@@ -427,6 +500,9 @@ func (tx *TransferV1) ToProtobufSigned(scheme Scheme) (*g.SignedTransaction, err
 	unsigned, err := tx.ToProtobuf(scheme)
 	if err != nil {
 		return nil, err
+	}
+	if tx.Signature == nil {
+		return nil, errors.New("no signature provided")
 	}
 	proofs := NewProofsFromSignature(tx.Signature)
 	return &g.SignedTransaction{
@@ -448,16 +524,16 @@ func (tx ReissueV1) GetTypeVersion() TransactionTypeVersion {
 	return TransactionTypeVersion{tx.Type, tx.Version}
 }
 
-func (tx *ReissueV1) GenerateID() {
+func (tx *ReissueV1) GenerateID() error {
 	if tx.ID == nil {
 		body, err := tx.BodyMarshalBinary()
 		if err != nil {
-			panic(err.Error())
+			return err
 		}
 		id := crypto.MustFastHash(body)
 		tx.ID = &id
 	}
-
+	return nil
 }
 
 func (tx ReissueV1) GetID() ([]byte, error) {
@@ -587,6 +663,40 @@ func (tx *ReissueV1) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
+func (tx *ReissueV1) MarshalToProtobuf(scheme Scheme) ([]byte, error) {
+	return MarshalTxDeterministic(tx, scheme)
+}
+
+func (tx *ReissueV1) UnmarshalFromProtobuf(data []byte) error {
+	t, err := TxFromProtobuf(data)
+	if err != nil {
+		return err
+	}
+	reissueTx, ok := t.(*ReissueV1)
+	if !ok {
+		return errors.New("failed to convert result to ReissueV1")
+	}
+	*tx = *reissueTx
+	return nil
+}
+
+func (tx *ReissueV1) MarshalSignedToProtobuf(scheme Scheme) ([]byte, error) {
+	return MarshalSignedTxDeterministic(tx, scheme)
+}
+
+func (tx *ReissueV1) UnmarshalSignedFromProtobuf(data []byte) error {
+	t, err := SignedTxFromProtobuf(data)
+	if err != nil {
+		return err
+	}
+	reissueTx, ok := t.(*ReissueV1)
+	if !ok {
+		return errors.New("failed to convert result to ReissueV1")
+	}
+	*tx = *reissueTx
+	return nil
+}
+
 func (tx *ReissueV1) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
 	res := TransactionToProtobufCommon(scheme, tx)
 	txData := tx.Reissue.ToProtobuf()
@@ -600,6 +710,9 @@ func (tx *ReissueV1) ToProtobufSigned(scheme Scheme) (*g.SignedTransaction, erro
 	unsigned, err := tx.ToProtobuf(scheme)
 	if err != nil {
 		return nil, err
+	}
+	if tx.Signature == nil {
+		return nil, errors.New("no signature provided")
 	}
 	proofs := NewProofsFromSignature(tx.Signature)
 	return &g.SignedTransaction{
@@ -621,16 +734,16 @@ func (tx BurnV1) GetTypeVersion() TransactionTypeVersion {
 	return TransactionTypeVersion{tx.Type, tx.Version}
 }
 
-func (tx *BurnV1) GenerateID() {
+func (tx *BurnV1) GenerateID() error {
 	if tx.ID == nil {
 		body, err := tx.BodyMarshalBinary()
 		if err != nil {
-			panic(err.Error())
+			return err
 		}
 		id := crypto.MustFastHash(body)
 		tx.ID = &id
 	}
-
+	return nil
 }
 
 func (tx BurnV1) GetID() ([]byte, error) {
@@ -750,6 +863,40 @@ func (tx *BurnV1) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
+func (tx *BurnV1) MarshalToProtobuf(scheme Scheme) ([]byte, error) {
+	return MarshalTxDeterministic(tx, scheme)
+}
+
+func (tx *BurnV1) UnmarshalFromProtobuf(data []byte) error {
+	t, err := TxFromProtobuf(data)
+	if err != nil {
+		return err
+	}
+	burnTx, ok := t.(*BurnV1)
+	if !ok {
+		return errors.New("failed to convert result to BurnV1")
+	}
+	*tx = *burnTx
+	return nil
+}
+
+func (tx *BurnV1) MarshalSignedToProtobuf(scheme Scheme) ([]byte, error) {
+	return MarshalSignedTxDeterministic(tx, scheme)
+}
+
+func (tx *BurnV1) UnmarshalSignedFromProtobuf(data []byte) error {
+	t, err := SignedTxFromProtobuf(data)
+	if err != nil {
+		return err
+	}
+	burnTx, ok := t.(*BurnV1)
+	if !ok {
+		return errors.New("failed to convert result to BurnV1")
+	}
+	*tx = *burnTx
+	return nil
+}
+
 func (tx *BurnV1) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
 	res := TransactionToProtobufCommon(scheme, tx)
 	txData := tx.Burn.ToProtobuf()
@@ -763,6 +910,9 @@ func (tx *BurnV1) ToProtobufSigned(scheme Scheme) (*g.SignedTransaction, error) 
 	unsigned, err := tx.ToProtobuf(scheme)
 	if err != nil {
 		return nil, err
+	}
+	if tx.Signature == nil {
+		return nil, errors.New("no signature provided")
 	}
 	proofs := NewProofsFromSignature(tx.Signature)
 	return &g.SignedTransaction{
@@ -792,16 +942,16 @@ func (tx ExchangeV1) GetTypeVersion() TransactionTypeVersion {
 	return TransactionTypeVersion{tx.Type, tx.Version}
 }
 
-func (tx *ExchangeV1) GenerateID() {
+func (tx *ExchangeV1) GenerateID() error {
 	if tx.ID == nil {
 		body, err := tx.BodyMarshalBinary()
 		if err != nil {
-			panic(err.Error())
+			return err
 		}
 		id := crypto.MustFastHash(body)
 		tx.ID = &id
 	}
-
+	return nil
 }
 
 func (tx ExchangeV1) GetID() ([]byte, error) {
@@ -1151,6 +1301,40 @@ func (tx *ExchangeV1) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
+func (tx *ExchangeV1) MarshalToProtobuf(scheme Scheme) ([]byte, error) {
+	return MarshalTxDeterministic(tx, scheme)
+}
+
+func (tx *ExchangeV1) UnmarshalFromProtobuf(data []byte) error {
+	t, err := TxFromProtobuf(data)
+	if err != nil {
+		return err
+	}
+	exchangeTx, ok := t.(*ExchangeV1)
+	if !ok {
+		return errors.New("failed to convert result to ExchangeV1")
+	}
+	*tx = *exchangeTx
+	return nil
+}
+
+func (tx *ExchangeV1) MarshalSignedToProtobuf(scheme Scheme) ([]byte, error) {
+	return MarshalSignedTxDeterministic(tx, scheme)
+}
+
+func (tx *ExchangeV1) UnmarshalSignedFromProtobuf(data []byte) error {
+	t, err := SignedTxFromProtobuf(data)
+	if err != nil {
+		return err
+	}
+	exchangeTx, ok := t.(*ExchangeV1)
+	if !ok {
+		return errors.New("failed to convert result to ExchangeV1")
+	}
+	*tx = *exchangeTx
+	return nil
+}
+
 func (tx *ExchangeV1) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
 	orders := make([]*g.Order, 2)
 	orders[0] = tx.BuyOrder.ToProtobuf(scheme)
@@ -1174,6 +1358,9 @@ func (tx *ExchangeV1) ToProtobufSigned(scheme Scheme) (*g.SignedTransaction, err
 	if err != nil {
 		return nil, err
 	}
+	if tx.Signature == nil {
+		return nil, errors.New("no signature provided")
+	}
 	proofs := NewProofsFromSignature(tx.Signature)
 	return &g.SignedTransaction{
 		Transaction: unsigned,
@@ -1194,16 +1381,16 @@ func (tx LeaseV1) GetTypeVersion() TransactionTypeVersion {
 	return TransactionTypeVersion{tx.Type, tx.Version}
 }
 
-func (tx *LeaseV1) GenerateID() {
+func (tx *LeaseV1) GenerateID() error {
 	if tx.ID == nil {
 		body, err := tx.BodyMarshalBinary()
 		if err != nil {
-			panic(err.Error())
+			return err
 		}
 		id := crypto.MustFastHash(body)
 		tx.ID = &id
 	}
-
+	return nil
 }
 
 func (tx LeaseV1) GetID() ([]byte, error) {
@@ -1331,6 +1518,40 @@ func (tx *LeaseV1) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
+func (tx *LeaseV1) MarshalToProtobuf(scheme Scheme) ([]byte, error) {
+	return MarshalTxDeterministic(tx, scheme)
+}
+
+func (tx *LeaseV1) UnmarshalFromProtobuf(data []byte) error {
+	t, err := TxFromProtobuf(data)
+	if err != nil {
+		return err
+	}
+	leaseTx, ok := t.(*LeaseV1)
+	if !ok {
+		return errors.New("failed to convert result to LeaseV1")
+	}
+	*tx = *leaseTx
+	return nil
+}
+
+func (tx *LeaseV1) MarshalSignedToProtobuf(scheme Scheme) ([]byte, error) {
+	return MarshalSignedTxDeterministic(tx, scheme)
+}
+
+func (tx *LeaseV1) UnmarshalSignedFromProtobuf(data []byte) error {
+	t, err := SignedTxFromProtobuf(data)
+	if err != nil {
+		return err
+	}
+	leaseTx, ok := t.(*LeaseV1)
+	if !ok {
+		return errors.New("failed to convert result to LeaseV1")
+	}
+	*tx = *leaseTx
+	return nil
+}
+
 func (tx *LeaseV1) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
 	res := TransactionToProtobufCommon(scheme, tx)
 	txData, err := tx.Lease.ToProtobuf()
@@ -1347,6 +1568,9 @@ func (tx *LeaseV1) ToProtobufSigned(scheme Scheme) (*g.SignedTransaction, error)
 	unsigned, err := tx.ToProtobuf(scheme)
 	if err != nil {
 		return nil, err
+	}
+	if tx.Signature == nil {
+		return nil, errors.New("no signature provided")
 	}
 	proofs := NewProofsFromSignature(tx.Signature)
 	return &g.SignedTransaction{
@@ -1368,16 +1592,16 @@ func (tx LeaseCancelV1) GetTypeVersion() TransactionTypeVersion {
 	return TransactionTypeVersion{tx.Type, tx.Version}
 }
 
-func (tx *LeaseCancelV1) GenerateID() {
+func (tx *LeaseCancelV1) GenerateID() error {
 	if tx.ID == nil {
 		body, err := tx.BodyMarshalBinary()
 		if err != nil {
-			panic(err.Error())
+			return err
 		}
 		id := crypto.MustFastHash(body)
 		tx.ID = &id
 	}
-
+	return nil
 }
 
 func (tx LeaseCancelV1) GetID() ([]byte, error) {
@@ -1501,6 +1725,40 @@ func (tx *LeaseCancelV1) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
+func (tx *LeaseCancelV1) MarshalToProtobuf(scheme Scheme) ([]byte, error) {
+	return MarshalTxDeterministic(tx, scheme)
+}
+
+func (tx *LeaseCancelV1) UnmarshalFromProtobuf(data []byte) error {
+	t, err := TxFromProtobuf(data)
+	if err != nil {
+		return err
+	}
+	leaseCancelTx, ok := t.(*LeaseCancelV1)
+	if !ok {
+		return errors.New("failed to convert result to LeaseCancelV1")
+	}
+	*tx = *leaseCancelTx
+	return nil
+}
+
+func (tx *LeaseCancelV1) MarshalSignedToProtobuf(scheme Scheme) ([]byte, error) {
+	return MarshalSignedTxDeterministic(tx, scheme)
+}
+
+func (tx *LeaseCancelV1) UnmarshalSignedFromProtobuf(data []byte) error {
+	t, err := SignedTxFromProtobuf(data)
+	if err != nil {
+		return err
+	}
+	leaseCancelTx, ok := t.(*LeaseCancelV1)
+	if !ok {
+		return errors.New("failed to convert result to LeaseCancelV1")
+	}
+	*tx = *leaseCancelTx
+	return nil
+}
+
 func (tx *LeaseCancelV1) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
 	res := TransactionToProtobufCommon(scheme, tx)
 	txData := tx.LeaseCancel.ToProtobuf()
@@ -1514,6 +1772,9 @@ func (tx *LeaseCancelV1) ToProtobufSigned(scheme Scheme) (*g.SignedTransaction, 
 	unsigned, err := tx.ToProtobuf(scheme)
 	if err != nil {
 		return nil, err
+	}
+	if tx.Signature == nil {
+		return nil, errors.New("no signature provided")
 	}
 	proofs := NewProofsFromSignature(tx.Signature)
 	return &g.SignedTransaction{
@@ -1534,15 +1795,15 @@ func (tx CreateAliasV1) GetTypeVersion() TransactionTypeVersion {
 	return TransactionTypeVersion{tx.Type, tx.Version}
 }
 
-func (tx *CreateAliasV1) GenerateID() {
+func (tx *CreateAliasV1) GenerateID() error {
 	if tx.ID == nil {
 		id, err := tx.CreateAlias.id()
 		if err != nil {
-			panic(err.Error())
+			return err
 		}
 		tx.ID = id
 	}
-
+	return nil
 }
 
 func (tx CreateAliasV1) GetID() ([]byte, error) {
@@ -1686,6 +1947,40 @@ func (tx *CreateAliasV1) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+func (tx *CreateAliasV1) MarshalToProtobuf(scheme Scheme) ([]byte, error) {
+	return MarshalTxDeterministic(tx, scheme)
+}
+
+func (tx *CreateAliasV1) UnmarshalFromProtobuf(data []byte) error {
+	t, err := TxFromProtobuf(data)
+	if err != nil {
+		return err
+	}
+	createAliasTx, ok := t.(*CreateAliasV1)
+	if !ok {
+		return errors.New("failed to convert result to CreateAliasV1")
+	}
+	*tx = *createAliasTx
+	return nil
+}
+
+func (tx *CreateAliasV1) MarshalSignedToProtobuf(scheme Scheme) ([]byte, error) {
+	return MarshalSignedTxDeterministic(tx, scheme)
+}
+
+func (tx *CreateAliasV1) UnmarshalSignedFromProtobuf(data []byte) error {
+	t, err := SignedTxFromProtobuf(data)
+	if err != nil {
+		return err
+	}
+	createAliasTx, ok := t.(*CreateAliasV1)
+	if !ok {
+		return errors.New("failed to convert result to CreateAliasV1")
+	}
+	*tx = *createAliasTx
+	return nil
+}
+
 func (tx *CreateAliasV1) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
 	res := TransactionToProtobufCommon(scheme, tx)
 	txData := tx.CreateAlias.ToProtobuf()
@@ -1699,6 +1994,9 @@ func (tx *CreateAliasV1) ToProtobufSigned(scheme Scheme) (*g.SignedTransaction, 
 	unsigned, err := tx.ToProtobuf(scheme)
 	if err != nil {
 		return nil, err
+	}
+	if tx.Signature == nil {
+		return nil, errors.New("no signature provided")
 	}
 	proofs := NewProofsFromSignature(tx.Signature)
 	return &g.SignedTransaction{
@@ -1777,16 +2075,16 @@ func (tx *MassTransferV1) Clone() *MassTransferV1 {
 	return out
 }
 
-func (tx *MassTransferV1) GenerateID() {
+func (tx *MassTransferV1) GenerateID() error {
 	if tx.ID == nil {
 		body, err := tx.BodyMarshalBinary()
 		if err != nil {
-			panic(err.Error())
+			return err
 		}
 		id := crypto.MustFastHash(body)
 		tx.ID = &id
 	}
-
+	return nil
 }
 
 func (tx MassTransferV1) GetSenderPK() crypto.PublicKey {
@@ -2016,6 +2314,40 @@ func (tx *MassTransferV1) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
+func (tx *MassTransferV1) MarshalToProtobuf(scheme Scheme) ([]byte, error) {
+	return MarshalTxDeterministic(tx, scheme)
+}
+
+func (tx *MassTransferV1) UnmarshalFromProtobuf(data []byte) error {
+	t, err := TxFromProtobuf(data)
+	if err != nil {
+		return err
+	}
+	massTransferTx, ok := t.(*MassTransferV1)
+	if !ok {
+		return errors.New("failed to convert result to MassTransferV1")
+	}
+	*tx = *massTransferTx
+	return nil
+}
+
+func (tx *MassTransferV1) MarshalSignedToProtobuf(scheme Scheme) ([]byte, error) {
+	return MarshalSignedTxDeterministic(tx, scheme)
+}
+
+func (tx *MassTransferV1) UnmarshalSignedFromProtobuf(data []byte) error {
+	t, err := SignedTxFromProtobuf(data)
+	if err != nil {
+		return err
+	}
+	massTransferTx, ok := t.(*MassTransferV1)
+	if !ok {
+		return errors.New("failed to convert result to MassTransferV1")
+	}
+	*tx = *massTransferTx
+	return nil
+}
+
 func (tx *MassTransferV1) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
 	var err error
 	transfers := make([]*g.MassTransferTransactionData_Transfer, len(tx.Transfers))
@@ -2042,6 +2374,9 @@ func (tx *MassTransferV1) ToProtobufSigned(scheme Scheme) (*g.SignedTransaction,
 	if err != nil {
 		return nil, err
 	}
+	if tx.Proofs == nil {
+		return nil, errors.New("no proofs provided")
+	}
 	return &g.SignedTransaction{
 		Transaction: unsigned,
 		Proofs:      tx.Proofs.Bytes(),
@@ -2064,16 +2399,16 @@ func (tx DataV1) GetTypeVersion() TransactionTypeVersion {
 	return TransactionTypeVersion{tx.Type, tx.Version}
 }
 
-func (tx *DataV1) GenerateID() {
+func (tx *DataV1) GenerateID() error {
 	if tx.ID == nil {
 		body, err := tx.BodyMarshalBinary()
 		if err != nil {
-			panic(err.Error())
+			return err
 		}
 		id := crypto.MustFastHash(body)
 		tx.ID = &id
 	}
-
+	return nil
 }
 
 func (tx DataV1) GetSenderPK() crypto.PublicKey {
@@ -2336,6 +2671,40 @@ func (tx *DataV1) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
+func (tx *DataV1) MarshalToProtobuf(scheme Scheme) ([]byte, error) {
+	return MarshalTxDeterministic(tx, scheme)
+}
+
+func (tx *DataV1) UnmarshalFromProtobuf(data []byte) error {
+	t, err := TxFromProtobuf(data)
+	if err != nil {
+		return err
+	}
+	dataTx, ok := t.(*DataV1)
+	if !ok {
+		return errors.New("failed to convert result to DataV1")
+	}
+	*tx = *dataTx
+	return nil
+}
+
+func (tx *DataV1) MarshalSignedToProtobuf(scheme Scheme) ([]byte, error) {
+	return MarshalSignedTxDeterministic(tx, scheme)
+}
+
+func (tx *DataV1) UnmarshalSignedFromProtobuf(data []byte) error {
+	t, err := SignedTxFromProtobuf(data)
+	if err != nil {
+		return err
+	}
+	dataTx, ok := t.(*DataV1)
+	if !ok {
+		return errors.New("failed to convert result to DataV1")
+	}
+	*tx = *dataTx
+	return nil
+}
+
 func (tx *DataV1) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
 	entries := make([]*g.DataTransactionData_DataEntry, len(tx.Entries))
 	for i, entry := range tx.Entries {
@@ -2355,6 +2724,9 @@ func (tx *DataV1) ToProtobufSigned(scheme Scheme) (*g.SignedTransaction, error) 
 	unsigned, err := tx.ToProtobuf(scheme)
 	if err != nil {
 		return nil, err
+	}
+	if tx.Proofs == nil {
+		return nil, errors.New("no proofs provided")
 	}
 	return &g.SignedTransaction{
 		Transaction: unsigned,
@@ -2379,16 +2751,16 @@ func (tx SetScriptV1) GetTypeVersion() TransactionTypeVersion {
 	return TransactionTypeVersion{tx.Type, tx.Version}
 }
 
-func (tx *SetScriptV1) GenerateID() {
+func (tx *SetScriptV1) GenerateID() error {
 	if tx.ID == nil {
 		body, err := tx.BodyMarshalBinary()
 		if err != nil {
-			panic(err.Error())
+			return err
 		}
 		id := crypto.MustFastHash(body)
 		tx.ID = &id
 	}
-
+	return nil
 }
 
 func (tx SetScriptV1) GetSenderPK() crypto.PublicKey {
@@ -2576,6 +2948,40 @@ func (tx *SetScriptV1) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
+func (tx *SetScriptV1) MarshalToProtobuf(scheme Scheme) ([]byte, error) {
+	return MarshalTxDeterministic(tx, scheme)
+}
+
+func (tx *SetScriptV1) UnmarshalFromProtobuf(data []byte) error {
+	t, err := TxFromProtobuf(data)
+	if err != nil {
+		return err
+	}
+	setScriptTx, ok := t.(*SetScriptV1)
+	if !ok {
+		return errors.New("failed to convert result to SetScriptV1")
+	}
+	*tx = *setScriptTx
+	return nil
+}
+
+func (tx *SetScriptV1) MarshalSignedToProtobuf(scheme Scheme) ([]byte, error) {
+	return MarshalSignedTxDeterministic(tx, scheme)
+}
+
+func (tx *SetScriptV1) UnmarshalSignedFromProtobuf(data []byte) error {
+	t, err := SignedTxFromProtobuf(data)
+	if err != nil {
+		return err
+	}
+	setScriptTx, ok := t.(*SetScriptV1)
+	if !ok {
+		return errors.New("failed to convert result to SetScriptV1")
+	}
+	*tx = *setScriptTx
+	return nil
+}
+
 func (tx *SetScriptV1) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
 	txData := &g.Transaction_SetScript{SetScript: &g.SetScriptTransactionData{
 		Script: tx.Script.ToProtobuf(),
@@ -2591,6 +2997,9 @@ func (tx *SetScriptV1) ToProtobufSigned(scheme Scheme) (*g.SignedTransaction, er
 	unsigned, err := tx.ToProtobuf(scheme)
 	if err != nil {
 		return nil, err
+	}
+	if tx.Proofs == nil {
+		return nil, errors.New("no proofs provided")
 	}
 	return &g.SignedTransaction{
 		Transaction: unsigned,
@@ -2615,16 +3024,16 @@ func (tx SponsorshipV1) GetTypeVersion() TransactionTypeVersion {
 	return TransactionTypeVersion{tx.Type, tx.Version}
 }
 
-func (tx *SponsorshipV1) GenerateID() {
+func (tx *SponsorshipV1) GenerateID() error {
 	if tx.ID == nil {
 		body, err := tx.BodyMarshalBinary()
 		if err != nil {
-			panic(err.Error())
+			return err
 		}
 		id := crypto.MustFastHash(body)
 		tx.ID = &id
 	}
-
+	return nil
 }
 
 func (tx SponsorshipV1) GetSenderPK() crypto.PublicKey {
@@ -2805,6 +3214,40 @@ func (tx *SponsorshipV1) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
+func (tx *SponsorshipV1) MarshalToProtobuf(scheme Scheme) ([]byte, error) {
+	return MarshalTxDeterministic(tx, scheme)
+}
+
+func (tx *SponsorshipV1) UnmarshalFromProtobuf(data []byte) error {
+	t, err := TxFromProtobuf(data)
+	if err != nil {
+		return err
+	}
+	sponsorshipTx, ok := t.(*SponsorshipV1)
+	if !ok {
+		return errors.New("failed to convert result to SponsorshipV1")
+	}
+	*tx = *sponsorshipTx
+	return nil
+}
+
+func (tx *SponsorshipV1) MarshalSignedToProtobuf(scheme Scheme) ([]byte, error) {
+	return MarshalSignedTxDeterministic(tx, scheme)
+}
+
+func (tx *SponsorshipV1) UnmarshalSignedFromProtobuf(data []byte) error {
+	t, err := SignedTxFromProtobuf(data)
+	if err != nil {
+		return err
+	}
+	sponsorshipTx, ok := t.(*SponsorshipV1)
+	if !ok {
+		return errors.New("failed to convert result to SponsorshipV1")
+	}
+	*tx = *sponsorshipTx
+	return nil
+}
+
 func (tx *SponsorshipV1) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
 	txData := &g.Transaction_SponsorFee{SponsorFee: &g.SponsorFeeTransactionData{
 		MinFee: &g.Amount{AssetId: tx.AssetID.Bytes(), Amount: int64(tx.MinAssetFee)},
@@ -2820,6 +3263,9 @@ func (tx *SponsorshipV1) ToProtobufSigned(scheme Scheme) (*g.SignedTransaction, 
 	unsigned, err := tx.ToProtobuf(scheme)
 	if err != nil {
 		return nil, err
+	}
+	if tx.Proofs == nil {
+		return nil, errors.New("no proofs provided")
 	}
 	return &g.SignedTransaction{
 		Transaction: unsigned,
@@ -2845,15 +3291,16 @@ func (tx SetAssetScriptV1) GetTypeVersion() TransactionTypeVersion {
 	return TransactionTypeVersion{tx.Type, tx.Version}
 }
 
-func (tx *SetAssetScriptV1) GenerateID() {
+func (tx *SetAssetScriptV1) GenerateID() error {
 	if tx.ID == nil {
 		body, err := tx.BodyMarshalBinary()
 		if err != nil {
-			panic(err.Error())
+			return err
 		}
 		id := crypto.MustFastHash(body)
 		tx.ID = &id
 	}
+	return nil
 }
 
 func (tx SetAssetScriptV1) GetSenderPK() crypto.PublicKey {
@@ -3052,6 +3499,40 @@ func (tx *SetAssetScriptV1) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
+func (tx *SetAssetScriptV1) MarshalToProtobuf(scheme Scheme) ([]byte, error) {
+	return MarshalTxDeterministic(tx, scheme)
+}
+
+func (tx *SetAssetScriptV1) UnmarshalFromProtobuf(data []byte) error {
+	t, err := TxFromProtobuf(data)
+	if err != nil {
+		return err
+	}
+	setAssetScriptTx, ok := t.(*SetAssetScriptV1)
+	if !ok {
+		return errors.New("failed to convert result to SetAssetScripV1")
+	}
+	*tx = *setAssetScriptTx
+	return nil
+}
+
+func (tx *SetAssetScriptV1) MarshalSignedToProtobuf(scheme Scheme) ([]byte, error) {
+	return MarshalSignedTxDeterministic(tx, scheme)
+}
+
+func (tx *SetAssetScriptV1) UnmarshalSignedFromProtobuf(data []byte) error {
+	t, err := SignedTxFromProtobuf(data)
+	if err != nil {
+		return err
+	}
+	setAssetScriptTx, ok := t.(*SetAssetScriptV1)
+	if !ok {
+		return errors.New("failed to convert result to SetAssetScriptV1")
+	}
+	*tx = *setAssetScriptTx
+	return nil
+}
+
 func (tx *SetAssetScriptV1) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
 	txData := &g.Transaction_SetAssetScript{SetAssetScript: &g.SetAssetScriptTransactionData{
 		AssetId: tx.AssetID.Bytes(),
@@ -3068,6 +3549,9 @@ func (tx *SetAssetScriptV1) ToProtobufSigned(scheme Scheme) (*g.SignedTransactio
 	unsigned, err := tx.ToProtobuf(scheme)
 	if err != nil {
 		return nil, err
+	}
+	if tx.Proofs == nil {
+		return nil, errors.New("no proofs provided")
 	}
 	return &g.SignedTransaction{
 		Transaction: unsigned,
@@ -3090,15 +3574,16 @@ type InvokeScriptV1 struct {
 	Timestamp       uint64           `json:"timestamp,omitempty"`
 }
 
-func (tx *InvokeScriptV1) GenerateID() {
+func (tx *InvokeScriptV1) GenerateID() error {
 	if tx.ID == nil {
 		body, err := tx.BodyMarshalBinary()
 		if err != nil {
-			panic(err.Error())
+			return err
 		}
 		id := crypto.MustFastHash(body)
 		tx.ID = &id
 	}
+	return nil
 }
 
 func (tx InvokeScriptV1) GetTypeVersion() TransactionTypeVersion {
@@ -3416,6 +3901,40 @@ func (tx *InvokeScriptV1) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
+func (tx *InvokeScriptV1) MarshalToProtobuf(scheme Scheme) ([]byte, error) {
+	return MarshalTxDeterministic(tx, scheme)
+}
+
+func (tx *InvokeScriptV1) UnmarshalFromProtobuf(data []byte) error {
+	t, err := TxFromProtobuf(data)
+	if err != nil {
+		return err
+	}
+	invokeScriptTx, ok := t.(*InvokeScriptV1)
+	if !ok {
+		return errors.New("failed to convert result to InvokeScripV1")
+	}
+	*tx = *invokeScriptTx
+	return nil
+}
+
+func (tx *InvokeScriptV1) MarshalSignedToProtobuf(scheme Scheme) ([]byte, error) {
+	return MarshalSignedTxDeterministic(tx, scheme)
+}
+
+func (tx *InvokeScriptV1) UnmarshalSignedFromProtobuf(data []byte) error {
+	t, err := SignedTxFromProtobuf(data)
+	if err != nil {
+		return err
+	}
+	invokeScriptTx, ok := t.(*InvokeScriptV1)
+	if !ok {
+		return errors.New("failed to convert result to InvokeScriptV1")
+	}
+	*tx = *invokeScriptTx
+	return nil
+}
+
 func (tx *InvokeScriptV1) binarySize() int {
 	return 1 + tx.Proofs.binarySize() + invokeScriptV1FixedBodyLen + tx.FunctionCall.binarySize() + tx.Payments.binarySize() + tx.FeeAsset.binarySize()
 }
@@ -3449,6 +3968,9 @@ func (tx *InvokeScriptV1) ToProtobufSigned(scheme Scheme) (*g.SignedTransaction,
 	unsigned, err := tx.ToProtobuf(scheme)
 	if err != nil {
 		return nil, err
+	}
+	if tx.Proofs == nil {
+		return nil, errors.New("no proofs provided")
 	}
 	return &g.SignedTransaction{
 		Transaction: unsigned,

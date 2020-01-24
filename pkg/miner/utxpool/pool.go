@@ -79,7 +79,9 @@ func (a *UtxImpl) AddWithBytes(t proto.Transaction, b []byte) (added bool) {
 		return
 	}
 	heap.Push(&a.transactions, tb)
-	t.GenerateID()
+	if err := t.GenerateID(); err != nil {
+		return
+	}
 	id := makeDigest(t.GetID())
 	a.transactionIds[id] = struct{}{}
 	a.curSize += uint(len(b))

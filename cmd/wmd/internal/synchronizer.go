@@ -201,7 +201,6 @@ func (s *Synchronizer) nodeBlock(height int) (proto.BlockHeader, []proto.Transac
 	if err != nil {
 		return proto.BlockHeader{}, nil, err
 	}
-	cnv.Reset()
 	txs, err := cnv.BlockTransactions(res)
 	if err != nil {
 		return proto.BlockHeader{}, nil, err

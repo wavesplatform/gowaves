@@ -1,32 +1,76 @@
 package proto
 
 import (
+	protobuf "github.com/golang/protobuf/proto"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated"
 )
 
+func MarshalDeterministic(pb protobuf.Message) ([]byte, error) {
+	buf := &protobuf.Buffer{}
+	buf.SetDeterministic(true)
+	if err := buf.Marshal(pb); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
+
+func MarshalTxDeterministic(tx Transaction, scheme Scheme) ([]byte, error) {
+	pbTx, err := tx.ToProtobuf(scheme)
+	if err != nil {
+		return nil, err
+	}
+	return MarshalDeterministic(pbTx)
+}
+
+func MarshalSignedTxDeterministic(tx Transaction, scheme Scheme) ([]byte, error) {
+	pbTx, err := tx.ToProtobufSigned(scheme)
+	if err != nil {
+		return nil, err
+	}
+	return MarshalDeterministic(pbTx)
+}
+
+func TxFromProtobuf(data []byte) (Transaction, error) {
+	var pbTx g.Transaction
+	if err := protobuf.Unmarshal(data, &pbTx); err != nil {
+		return nil, err
+	}
+	var c ProtobufConverter
+	res, err := c.Transaction(&pbTx)
+	if err != nil {
+		return nil, err
+	}
+	return res, nil
+}
+
+func SignedTxFromProtobuf(data []byte) (Transaction, error) {
+	var pbTx g.SignedTransaction
+	if err := protobuf.Unmarshal(data, &pbTx); err != nil {
+		return nil, err
+	}
+	var c ProtobufConverter
+	res, err := c.SignedTransaction(&pbTx)
+	if err != nil {
+		return nil, err
+	}
+	return res, nil
+}
+
 type ProtobufConverter struct {
 	err error
 }
 
-func (c *ProtobufConverter) Error() error {
-	return c.err
-}
-
-func (c *ProtobufConverter) Address(scheme byte, addr []byte) Address {
-	if c.err != nil {
-		return Address{}
-	}
+func (c *ProtobufConverter) Address(scheme byte, addr []byte) (Address, error) {
 	a, err := RebuildAddress(scheme, addr)
 	if err != nil {
-		c.err = err
-		return Address{}
+		return Address{}, err
 	}
-	return a
+	return a, nil
 }
 
-func (c *ProtobufConverter) Uint64(value int64) uint64 {
+func (c *ProtobufConverter) uint64(value int64) uint64 {
 	if c.err != nil {
 		return 0
 	}
@@ -37,7 +81,7 @@ func (c *ProtobufConverter) Uint64(value int64) uint64 {
 	return uint64(value)
 }
 
-func (c *ProtobufConverter) Byte(value int32) byte {
+func (c *ProtobufConverter) byte(value int32) byte {
 	if c.err != nil {
 		return 0
 	}
@@ -47,7 +91,7 @@ func (c *ProtobufConverter) Byte(value int32) byte {
 	return byte(value)
 }
 
-func (c *ProtobufConverter) Digest(digest []byte) crypto.Digest {
+func (c *ProtobufConverter) digest(digest []byte) crypto.Digest {
 	if c.err != nil {
 		return crypto.Digest{}
 	}
@@ -59,24 +103,24 @@ func (c *ProtobufConverter) Digest(digest []byte) crypto.Digest {
 	return r
 }
 
-func (c *ProtobufConverter) OptionalAsset(asset []byte) OptionalAsset {
+func (c *ProtobufConverter) optionalAsset(asset []byte) OptionalAsset {
 	if c.err != nil {
 		return OptionalAsset{}
 	}
 	if len(asset) == 0 {
 		return OptionalAsset{}
 	}
-	return OptionalAsset{Present: true, ID: c.Digest(asset)}
+	return OptionalAsset{Present: true, ID: c.digest(asset)}
 }
 
-func (c *ProtobufConverter) ConvertAmount(amount *g.Amount) (OptionalAsset, uint64) {
+func (c *ProtobufConverter) convertAmount(amount *g.Amount) (OptionalAsset, uint64) {
 	if c.err != nil {
 		return OptionalAsset{}, 0
 	}
-	return c.ExtractOptionalAsset(amount), c.Amount(amount)
+	return c.extractOptionalAsset(amount), c.amount(amount)
 }
 
-func (c *ProtobufConverter) ConvertAssetAmount(aa *g.Amount) (crypto.Digest, uint64) {
+func (c *ProtobufConverter) convertAssetAmount(aa *g.Amount) (crypto.Digest, uint64) {
 	if c.err != nil {
 		return crypto.Digest{}, 0
 	}
@@ -86,13 +130,13 @@ func (c *ProtobufConverter) ConvertAssetAmount(aa *g.Amount) (crypto.Digest, uin
 	}
 	id, err := crypto.NewDigestFromBytes(aa.AssetId)
 	if err != nil {
-		c.err = nil
+		c.err = err
 		return crypto.Digest{}, 0
 	}
-	return id, c.Uint64(aa.Amount)
+	return id, c.uint64(aa.Amount)
 }
 
-func (c *ProtobufConverter) ExtractOptionalAsset(amount *g.Amount) OptionalAsset {
+func (c *ProtobufConverter) extractOptionalAsset(amount *g.Amount) OptionalAsset {
 	if c.err != nil {
 		return OptionalAsset{}
 	}
@@ -100,10 +144,10 @@ func (c *ProtobufConverter) ExtractOptionalAsset(amount *g.Amount) OptionalAsset
 		c.err = errors.New("empty asset amount")
 		return OptionalAsset{}
 	}
-	return c.OptionalAsset(amount.AssetId)
+	return c.optionalAsset(amount.AssetId)
 }
 
-func (c *ProtobufConverter) Amount(amount *g.Amount) uint64 {
+func (c *ProtobufConverter) amount(amount *g.Amount) uint64 {
 	if c.err != nil {
 		return 0
 	}
@@ -118,7 +162,7 @@ func (c *ProtobufConverter) Amount(amount *g.Amount) uint64 {
 	return uint64(amount.Amount)
 }
 
-func (c *ProtobufConverter) PublicKey(pk []byte) crypto.PublicKey {
+func (c *ProtobufConverter) publicKey(pk []byte) crypto.PublicKey {
 	if c.err != nil {
 		return crypto.PublicKey{}
 	}
@@ -130,24 +174,23 @@ func (c *ProtobufConverter) PublicKey(pk []byte) crypto.PublicKey {
 	return r
 }
 
-func (c *ProtobufConverter) String(bytes []byte) string {
+func (c *ProtobufConverter) string(bytes []byte) string {
 	if c.err != nil {
 		return ""
 	}
 	return string(bytes)
 }
 
-func (c *ProtobufConverter) Script(script *g.Script) Script {
+func (c *ProtobufConverter) script(script *g.Script) Script {
 	if c.err != nil {
 		return nil
 	}
-	if script == nil {
-		return nil
-	}
-	return Script(script.Bytes)
+	resBytes := make([]byte, len(script.Bytes))
+	copy(resBytes, script.Bytes)
+	return Script(resBytes)
 }
 
-func (c *ProtobufConverter) Alias(scheme byte, alias string) Alias {
+func (c *ProtobufConverter) alias(scheme byte, alias string) Alias {
 	if c.err != nil {
 		return Alias{}
 	}
@@ -160,40 +203,39 @@ func (c *ProtobufConverter) Alias(scheme byte, alias string) Alias {
 	return *a
 }
 
-func (c *ProtobufConverter) Recipient(scheme byte, recipient *g.Recipient) Recipient {
-	if c.err != nil {
-		return Recipient{}
-	}
+func (c *ProtobufConverter) Recipient(scheme byte, recipient *g.Recipient) (Recipient, error) {
 	if recipient == nil {
-		c.err = errors.New("empty recipient")
-		return Recipient{}
+		return Recipient{}, errors.New("empty recipient")
 	}
 	switch r := recipient.Recipient.(type) {
 	case *g.Recipient_Address:
-		return NewRecipientFromAddress(c.Address(scheme, r.Address))
+		addr, err := c.Address(scheme, r.Address)
+		if err != nil {
+			return Recipient{}, err
+		}
+		return NewRecipientFromAddress(addr), nil
 	case *g.Recipient_Alias:
-		return NewRecipientFromAlias(c.Alias(scheme, r.Alias))
+		return NewRecipientFromAlias(c.alias(scheme, r.Alias)), nil
 	default:
-		c.err = errors.New("invalid recipient")
-		return Recipient{}
+		return Recipient{}, errors.New("invalid recipient")
 	}
 }
 
-func (c *ProtobufConverter) AssetPair(pair *g.AssetPair) AssetPair {
+func (c *ProtobufConverter) assetPair(pair *g.AssetPair) AssetPair {
 	if c.err != nil {
 		return AssetPair{}
 	}
 	return AssetPair{
-		AmountAsset: c.OptionalAsset(pair.AmountAssetId),
-		PriceAsset:  c.OptionalAsset(pair.PriceAssetId),
+		AmountAsset: c.optionalAsset(pair.AmountAssetId),
+		PriceAsset:  c.optionalAsset(pair.PriceAssetId),
 	}
 }
 
-func (c *ProtobufConverter) OrderType(side g.Order_Side) OrderType {
-	return OrderType(c.Byte(int32(side)))
+func (c *ProtobufConverter) orderType(side g.Order_Side) OrderType {
+	return OrderType(c.byte(int32(side)))
 }
 
-func (c *ProtobufConverter) Proofs(proofs [][]byte) *ProofsV1 {
+func (c *ProtobufConverter) proofs(proofs [][]byte) *ProofsV1 {
 	if c.err != nil {
 		return nil
 	}
@@ -204,7 +246,7 @@ func (c *ProtobufConverter) Proofs(proofs [][]byte) *ProofsV1 {
 	return r
 }
 
-func (c *ProtobufConverter) Proof(proofs [][]byte) *crypto.Signature {
+func (c *ProtobufConverter) proof(proofs [][]byte) *crypto.Signature {
 	if c.err != nil {
 		return nil
 	}
@@ -220,7 +262,7 @@ func (c *ProtobufConverter) Proof(proofs [][]byte) *crypto.Signature {
 	return &sig
 }
 
-func (c *ProtobufConverter) Signature(data []byte) crypto.Signature {
+func (c *ProtobufConverter) signature(data []byte) crypto.Signature {
 	if c.err != nil {
 		return crypto.Signature{}
 	}
@@ -232,7 +274,7 @@ func (c *ProtobufConverter) Signature(data []byte) crypto.Signature {
 	return sig
 }
 
-func (c *ProtobufConverter) ExtractOrder(orders []*g.Order, side g.Order_Side) Order {
+func (c *ProtobufConverter) extractOrder(orders []*g.Order, side g.Order_Side) Order {
 	if c.err != nil {
 		return nil
 	}
@@ -240,35 +282,38 @@ func (c *ProtobufConverter) ExtractOrder(orders []*g.Order, side g.Order_Side) O
 		if o.OrderSide == side {
 			var order Order
 			body := OrderBody{
-				SenderPK:   c.PublicKey(o.SenderPublicKey),
-				MatcherPK:  c.PublicKey(o.MatcherPublicKey),
-				AssetPair:  c.AssetPair(o.AssetPair),
-				OrderType:  c.OrderType(o.OrderSide),
-				Price:      c.Uint64(o.Price),
-				Amount:     c.Uint64(o.Amount),
-				Timestamp:  c.Uint64(o.Timestamp),
-				Expiration: c.Uint64(o.Expiration),
-				MatcherFee: c.Amount(o.MatcherFee),
+				SenderPK:   c.publicKey(o.SenderPublicKey),
+				MatcherPK:  c.publicKey(o.MatcherPublicKey),
+				AssetPair:  c.assetPair(o.AssetPair),
+				OrderType:  c.orderType(o.OrderSide),
+				Price:      c.uint64(o.Price),
+				Amount:     c.uint64(o.Amount),
+				Timestamp:  c.uint64(o.Timestamp),
+				Expiration: c.uint64(o.Expiration),
+				MatcherFee: c.amount(o.MatcherFee),
 			}
 			switch o.Version {
 			case 3:
 				order = &OrderV3{
-					Version:         c.Byte(o.Version),
-					Proofs:          c.Proofs(o.Proofs),
+					Version:         c.byte(o.Version),
+					Proofs:          c.proofs(o.Proofs),
 					OrderBody:       body,
-					MatcherFeeAsset: c.ExtractOptionalAsset(o.MatcherFee),
+					MatcherFeeAsset: c.extractOptionalAsset(o.MatcherFee),
 				}
 			case 2:
 				order = &OrderV2{
-					Version:   c.Byte(o.Version),
-					Proofs:    c.Proofs(o.Proofs),
+					Version:   c.byte(o.Version),
+					Proofs:    c.proofs(o.Proofs),
 					OrderBody: body,
 				}
 			default:
 				order = &OrderV1{
-					Signature: c.Proof(o.Proofs),
+					Signature: c.proof(o.Proofs),
 					OrderBody: body,
 				}
+			}
+			if err := order.GenerateID(); err != nil {
+				c.err = err
 			}
 			return order
 		}
@@ -277,15 +322,15 @@ func (c *ProtobufConverter) ExtractOrder(orders []*g.Order, side g.Order_Side) O
 	return nil
 }
 
-func (c *ProtobufConverter) BuyOrder(orders []*g.Order) Order {
-	return c.ExtractOrder(orders, g.Order_BUY)
+func (c *ProtobufConverter) buyOrder(orders []*g.Order) Order {
+	return c.extractOrder(orders, g.Order_BUY)
 }
 
-func (c *ProtobufConverter) SellOrder(orders []*g.Order) Order {
-	return c.ExtractOrder(orders, g.Order_SELL)
+func (c *ProtobufConverter) sellOrder(orders []*g.Order) Order {
+	return c.extractOrder(orders, g.Order_SELL)
 }
 
-func (c *ProtobufConverter) Transfers(scheme byte, transfers []*g.MassTransferTransactionData_Transfer) []MassTransferEntry {
+func (c *ProtobufConverter) transfers(scheme byte, transfers []*g.MassTransferTransactionData_Transfer) []MassTransferEntry {
 	if c.err != nil {
 		return nil
 	}
@@ -295,9 +340,14 @@ func (c *ProtobufConverter) Transfers(scheme byte, transfers []*g.MassTransferTr
 			c.err = errors.New("empty transfer")
 			return nil
 		}
+		rcp, err := c.Recipient(scheme, tr.Address)
+		if err != nil {
+			c.err = err
+			return nil
+		}
 		e := MassTransferEntry{
-			Recipient: c.Recipient(scheme, tr.Address),
-			Amount:    c.Uint64(tr.Amount),
+			Recipient: rcp,
+			Amount:    c.uint64(tr.Amount),
 		}
 		if c.err != nil {
 			return nil
@@ -332,12 +382,14 @@ func (c *ProtobufConverter) entry(entry *g.DataTransactionData_DataEntry) DataEn
 func (c *ProtobufConverter) Entry(entry *g.DataTransactionData_DataEntry) (DataEntry, error) {
 	e := c.entry(entry)
 	if c.err != nil {
-		return nil, c.err
+		err := c.err
+		c.reset()
+		return nil, err
 	}
 	return e, nil
 }
 
-func (c *ProtobufConverter) Entries(entries []*g.DataTransactionData_DataEntry) DataEntries {
+func (c *ProtobufConverter) entries(entries []*g.DataTransactionData_DataEntry) DataEntries {
 	if c.err != nil {
 		return nil
 	}
@@ -348,7 +400,7 @@ func (c *ProtobufConverter) Entries(entries []*g.DataTransactionData_DataEntry) 
 	return r
 }
 
-func (c *ProtobufConverter) FunctionCall(data []byte) FunctionCall {
+func (c *ProtobufConverter) functionCall(data []byte) FunctionCall {
 	if c.err != nil {
 		return FunctionCall{}
 	}
@@ -361,61 +413,68 @@ func (c *ProtobufConverter) FunctionCall(data []byte) FunctionCall {
 	return fc
 }
 
-func (c *ProtobufConverter) Payments(payments []*g.Amount) ScriptPayments {
+func (c *ProtobufConverter) payments(payments []*g.Amount) ScriptPayments {
 	if payments == nil {
 		return ScriptPayments(nil)
 	}
 	result := make([]ScriptPayment, len(payments))
 	for i, p := range payments {
-		asset, amount := c.ConvertAmount(p)
+		asset, amount := c.convertAmount(p)
 		result[i] = ScriptPayment{Asset: asset, Amount: amount}
 	}
 	return result
 }
 
-func (c *ProtobufConverter) Reset() {
+func (c *ProtobufConverter) reset() {
 	c.err = nil
 }
 
 func (c *ProtobufConverter) Transaction(tx *g.Transaction) (Transaction, error) {
-	ts := c.Uint64(tx.Timestamp)
-	scheme := c.Byte(tx.ChainId)
-	v := c.Byte(tx.Version)
-	if c.err != nil {
-		return nil, c.err
-	}
+	ts := c.uint64(tx.Timestamp)
+	scheme := c.byte(tx.ChainId)
+	v := c.byte(tx.Version)
 	var rtx Transaction
 	switch d := tx.Data.(type) {
 	case *g.Transaction_Genesis:
+		rcpAddr, err := c.Address(scheme, d.Genesis.RecipientAddress)
+		if err != nil {
+			c.reset()
+			return nil, err
+		}
 		rtx = &Genesis{
 			Type:      GenesisTransaction,
 			Version:   v,
 			Timestamp: ts,
-			Recipient: c.Address(scheme, d.Genesis.RecipientAddress),
+			Recipient: rcpAddr,
 			Amount:    uint64(d.Genesis.Amount),
 		}
 
 	case *g.Transaction_Payment:
+		rcpAddr, err := c.Address(scheme, d.Payment.RecipientAddress)
+		if err != nil {
+			c.reset()
+			return nil, err
+		}
 		rtx = &Payment{
 			Type:      PaymentTransaction,
 			Version:   v,
-			SenderPK:  c.PublicKey(tx.SenderPublicKey),
-			Recipient: c.Address(scheme, d.Payment.RecipientAddress),
-			Amount:    c.Uint64(d.Payment.Amount),
-			Fee:       c.Amount(tx.Fee),
+			SenderPK:  c.publicKey(tx.SenderPublicKey),
+			Recipient: rcpAddr,
+			Amount:    c.uint64(d.Payment.Amount),
+			Fee:       c.amount(tx.Fee),
 			Timestamp: ts,
 		}
 
 	case *g.Transaction_Issue:
 		pi := Issue{
-			SenderPK:    c.PublicKey(tx.SenderPublicKey),
-			Name:        c.String(d.Issue.Name),
-			Description: c.String(d.Issue.Description),
-			Quantity:    c.Uint64(d.Issue.Amount),
-			Decimals:    c.Byte(d.Issue.Decimals),
+			SenderPK:    c.publicKey(tx.SenderPublicKey),
+			Name:        c.string(d.Issue.Name),
+			Description: c.string(d.Issue.Description),
+			Quantity:    c.uint64(d.Issue.Amount),
+			Decimals:    c.byte(d.Issue.Decimals),
 			Reissuable:  d.Issue.Reissuable,
 			Timestamp:   ts,
-			Fee:         c.Amount(tx.Fee),
+			Fee:         c.amount(tx.Fee),
 		}
 		switch tx.Version {
 		case 2:
@@ -423,7 +482,7 @@ func (c *ProtobufConverter) Transaction(tx *g.Transaction) (Transaction, error) 
 				Type:    IssueTransaction,
 				Version: v,
 				ChainID: scheme,
-				Script:  c.Script(d.Issue.Script),
+				Script:  c.script(d.Issue.Script),
 				Issue:   pi,
 			}
 		default:
@@ -435,17 +494,22 @@ func (c *ProtobufConverter) Transaction(tx *g.Transaction) (Transaction, error) 
 		}
 
 	case *g.Transaction_Transfer:
-		aa, amount := c.ConvertAmount(d.Transfer.Amount)
-		fa, fee := c.ConvertAmount(tx.Fee)
+		aa, amount := c.convertAmount(d.Transfer.Amount)
+		fa, fee := c.convertAmount(tx.Fee)
+		rcp, err := c.Recipient(scheme, d.Transfer.Recipient)
+		if err != nil {
+			c.reset()
+			return nil, err
+		}
 		pt := Transfer{
-			SenderPK:    c.PublicKey(tx.SenderPublicKey),
+			SenderPK:    c.publicKey(tx.SenderPublicKey),
 			AmountAsset: aa,
 			FeeAsset:    fa,
 			Timestamp:   ts,
 			Amount:      amount,
 			Fee:         fee,
-			Recipient:   c.Recipient(scheme, d.Transfer.Recipient),
-			Attachment:  Attachment(c.String(d.Transfer.Attachment)),
+			Recipient:   rcp,
+			Attachment:  Attachment(c.string(d.Transfer.Attachment)),
 		}
 		switch tx.Version {
 		case 2:
@@ -463,14 +527,14 @@ func (c *ProtobufConverter) Transaction(tx *g.Transaction) (Transaction, error) 
 		}
 
 	case *g.Transaction_Reissue:
-		id, quantity := c.ConvertAssetAmount(d.Reissue.AssetAmount)
+		id, quantity := c.convertAssetAmount(d.Reissue.AssetAmount)
 		pr := Reissue{
-			SenderPK:   c.PublicKey(tx.SenderPublicKey),
+			SenderPK:   c.publicKey(tx.SenderPublicKey),
 			AssetID:    id,
 			Quantity:   quantity,
 			Reissuable: d.Reissue.Reissuable,
 			Timestamp:  ts,
-			Fee:        c.Amount(tx.Fee),
+			Fee:        c.amount(tx.Fee),
 		}
 		switch tx.Version {
 		case 2:
@@ -489,13 +553,13 @@ func (c *ProtobufConverter) Transaction(tx *g.Transaction) (Transaction, error) 
 		}
 
 	case *g.Transaction_Burn:
-		id, amount := c.ConvertAssetAmount(d.Burn.AssetAmount)
+		id, amount := c.convertAssetAmount(d.Burn.AssetAmount)
 		pb := Burn{
-			SenderPK:  c.PublicKey(tx.SenderPublicKey),
+			SenderPK:  c.publicKey(tx.SenderPublicKey),
 			AssetID:   id,
 			Amount:    amount,
 			Timestamp: ts,
-			Fee:       c.Amount(tx.Fee),
+			Fee:       c.amount(tx.Fee),
 		}
 		switch tx.Version {
 		case 2:
@@ -514,58 +578,66 @@ func (c *ProtobufConverter) Transaction(tx *g.Transaction) (Transaction, error) 
 		}
 
 	case *g.Transaction_Exchange:
-		fee := c.Amount(tx.Fee)
-		bo := c.BuyOrder(d.Exchange.Orders)
-		so := c.SellOrder(d.Exchange.Orders)
+		fee := c.amount(tx.Fee)
+		bo := c.buyOrder(d.Exchange.Orders)
+		so := c.sellOrder(d.Exchange.Orders)
 		switch tx.Version {
 		case 2:
 			rtx = &ExchangeV2{
 				Type:           ExchangeTransaction,
 				Version:        v,
-				SenderPK:       c.PublicKey(tx.SenderPublicKey),
+				SenderPK:       c.publicKey(tx.SenderPublicKey),
 				BuyOrder:       bo,
 				SellOrder:      so,
-				Price:          c.Uint64(d.Exchange.Price),
-				Amount:         c.Uint64(d.Exchange.Amount),
-				BuyMatcherFee:  c.Uint64(d.Exchange.BuyMatcherFee),
-				SellMatcherFee: c.Uint64(d.Exchange.SellMatcherFee),
+				Price:          c.uint64(d.Exchange.Price),
+				Amount:         c.uint64(d.Exchange.Amount),
+				BuyMatcherFee:  c.uint64(d.Exchange.BuyMatcherFee),
+				SellMatcherFee: c.uint64(d.Exchange.SellMatcherFee),
 				Fee:            fee,
 				Timestamp:      ts,
 			}
 		default:
 			if bo.GetVersion() != 1 || so.GetVersion() != 1 {
+				c.reset()
 				return nil, errors.New("unsupported order version")
 			}
 			bo1, ok := bo.(*OrderV1)
 			if !ok {
+				c.reset()
 				return nil, errors.New("invalid pointer to OrderV1")
 			}
 			so1, ok := so.(*OrderV1)
 			if !ok {
+				c.reset()
 				return nil, errors.New("invalid pointer to OrderV1")
 			}
 
 			rtx = &ExchangeV1{
 				Type:           ExchangeTransaction,
 				Version:        v,
-				SenderPK:       c.PublicKey(tx.SenderPublicKey),
+				SenderPK:       c.publicKey(tx.SenderPublicKey),
 				BuyOrder:       bo1,
 				SellOrder:      so1,
-				Price:          c.Uint64(d.Exchange.Price),
-				Amount:         c.Uint64(d.Exchange.Amount),
-				BuyMatcherFee:  c.Uint64(d.Exchange.BuyMatcherFee),
-				SellMatcherFee: c.Uint64(d.Exchange.SellMatcherFee),
+				Price:          c.uint64(d.Exchange.Price),
+				Amount:         c.uint64(d.Exchange.Amount),
+				BuyMatcherFee:  c.uint64(d.Exchange.BuyMatcherFee),
+				SellMatcherFee: c.uint64(d.Exchange.SellMatcherFee),
 				Fee:            fee,
 				Timestamp:      ts,
 			}
 		}
 
 	case *g.Transaction_Lease:
+		rcp, err := c.Recipient(scheme, d.Lease.Recipient)
+		if err != nil {
+			c.reset()
+			return nil, err
+		}
 		pl := Lease{
-			SenderPK:  c.PublicKey(tx.SenderPublicKey),
-			Recipient: c.Recipient(scheme, d.Lease.Recipient),
-			Amount:    c.Uint64(d.Lease.Amount),
-			Fee:       c.Amount(tx.Fee),
+			SenderPK:  c.publicKey(tx.SenderPublicKey),
+			Recipient: rcp,
+			Amount:    c.uint64(d.Lease.Amount),
+			Fee:       c.amount(tx.Fee),
 			Timestamp: ts,
 		}
 		switch tx.Version {
@@ -585,9 +657,9 @@ func (c *ProtobufConverter) Transaction(tx *g.Transaction) (Transaction, error) 
 
 	case *g.Transaction_LeaseCancel:
 		plc := LeaseCancel{
-			SenderPK:  c.PublicKey(tx.SenderPublicKey),
-			LeaseID:   c.Digest(d.LeaseCancel.LeaseId),
-			Fee:       c.Amount(tx.Fee),
+			SenderPK:  c.publicKey(tx.SenderPublicKey),
+			LeaseID:   c.digest(d.LeaseCancel.LeaseId),
+			Fee:       c.amount(tx.Fee),
 			Timestamp: ts,
 		}
 		switch tx.Version {
@@ -608,9 +680,9 @@ func (c *ProtobufConverter) Transaction(tx *g.Transaction) (Transaction, error) 
 
 	case *g.Transaction_CreateAlias:
 		pca := CreateAlias{
-			SenderPK:  c.PublicKey(tx.SenderPublicKey),
-			Alias:     c.Alias(scheme, d.CreateAlias.Alias),
-			Fee:       c.Amount(tx.Fee),
+			SenderPK:  c.publicKey(tx.SenderPublicKey),
+			Alias:     c.alias(scheme, d.CreateAlias.Alias),
+			Fee:       c.amount(tx.Fee),
 			Timestamp: ts,
 		}
 		switch tx.Version {
@@ -632,21 +704,21 @@ func (c *ProtobufConverter) Transaction(tx *g.Transaction) (Transaction, error) 
 		rtx = &MassTransferV1{
 			Type:       MassTransferTransaction,
 			Version:    v,
-			SenderPK:   c.PublicKey(tx.SenderPublicKey),
-			Asset:      c.OptionalAsset(d.MassTransfer.AssetId),
-			Transfers:  c.Transfers(scheme, d.MassTransfer.Transfers),
+			SenderPK:   c.publicKey(tx.SenderPublicKey),
+			Asset:      c.optionalAsset(d.MassTransfer.AssetId),
+			Transfers:  c.transfers(scheme, d.MassTransfer.Transfers),
 			Timestamp:  ts,
-			Fee:        c.Amount(tx.Fee),
-			Attachment: Attachment(c.String(d.MassTransfer.Attachment)),
+			Fee:        c.amount(tx.Fee),
+			Attachment: Attachment(c.string(d.MassTransfer.Attachment)),
 		}
 
 	case *g.Transaction_DataTransaction:
 		rtx = &DataV1{
 			Type:      DataTransaction,
 			Version:   v,
-			SenderPK:  c.PublicKey(tx.SenderPublicKey),
-			Entries:   c.Entries(d.DataTransaction.Data),
-			Fee:       c.Amount(tx.Fee),
+			SenderPK:  c.publicKey(tx.SenderPublicKey),
+			Entries:   c.entries(d.DataTransaction.Data),
+			Fee:       c.amount(tx.Fee),
 			Timestamp: ts,
 		}
 
@@ -655,21 +727,21 @@ func (c *ProtobufConverter) Transaction(tx *g.Transaction) (Transaction, error) 
 			Type:      SetScriptTransaction,
 			Version:   v,
 			ChainID:   scheme,
-			SenderPK:  c.PublicKey(tx.SenderPublicKey),
-			Script:    c.Script(d.SetScript.Script),
-			Fee:       c.Amount(tx.Fee),
+			SenderPK:  c.publicKey(tx.SenderPublicKey),
+			Script:    c.script(d.SetScript.Script),
+			Fee:       c.amount(tx.Fee),
 			Timestamp: ts,
 		}
 
 	case *g.Transaction_SponsorFee:
-		asset, amount := c.ConvertAssetAmount(d.SponsorFee.MinFee)
+		asset, amount := c.convertAssetAmount(d.SponsorFee.MinFee)
 		rtx = &SponsorshipV1{
 			Type:        SponsorshipTransaction,
 			Version:     v,
-			SenderPK:    c.PublicKey(tx.SenderPublicKey),
+			SenderPK:    c.publicKey(tx.SenderPublicKey),
 			AssetID:     asset,
 			MinAssetFee: amount,
-			Fee:         c.Amount(tx.Fee),
+			Fee:         c.amount(tx.Fee),
 			Timestamp:   ts,
 		}
 
@@ -678,35 +750,48 @@ func (c *ProtobufConverter) Transaction(tx *g.Transaction) (Transaction, error) 
 			Type:      SetAssetScriptTransaction,
 			Version:   v,
 			ChainID:   scheme,
-			SenderPK:  c.PublicKey(tx.SenderPublicKey),
-			AssetID:   c.Digest(d.SetAssetScript.AssetId),
-			Script:    c.Script(d.SetAssetScript.Script),
-			Fee:       c.Amount(tx.Fee),
+			SenderPK:  c.publicKey(tx.SenderPublicKey),
+			AssetID:   c.digest(d.SetAssetScript.AssetId),
+			Script:    c.script(d.SetAssetScript.Script),
+			Fee:       c.amount(tx.Fee),
 			Timestamp: ts,
 		}
 
 	case *g.Transaction_InvokeScript:
-		feeAsset, feeAmount := c.ConvertAmount(tx.Fee)
+		rcp, err := c.Recipient(scheme, d.InvokeScript.DApp)
+		if err != nil {
+			c.reset()
+			return nil, err
+		}
+		feeAsset, feeAmount := c.convertAmount(tx.Fee)
 		rtx = &InvokeScriptV1{
 			Type:            InvokeScriptTransaction,
 			Version:         v,
 			ChainID:         scheme,
-			SenderPK:        c.PublicKey(tx.SenderPublicKey),
-			ScriptRecipient: c.Recipient(scheme, d.InvokeScript.DApp),
-			FunctionCall:    c.FunctionCall(d.InvokeScript.FunctionCall),
-			Payments:        c.Payments(d.InvokeScript.Payments),
+			SenderPK:        c.publicKey(tx.SenderPublicKey),
+			ScriptRecipient: rcp,
+			FunctionCall:    c.functionCall(d.InvokeScript.FunctionCall),
+			Payments:        c.payments(d.InvokeScript.Payments),
 			FeeAsset:        feeAsset,
 			Fee:             feeAmount,
 			Timestamp:       ts,
 		}
 	default:
+		c.reset()
 		return nil, errors.New("unsupported transaction")
 	}
-	rtx.GenerateID()
+	if c.err != nil {
+		err := c.err
+		c.reset()
+		return nil, err
+	}
+	if err := rtx.GenerateID(); err != nil {
+		return nil, errors.Wrap(err, "failed to generate ID")
+	}
 	return rtx, nil
 }
 
-func (c *ProtobufConverter) ExtractFirstSignature(proofs *ProofsV1) *crypto.Signature {
+func (c *ProtobufConverter) extractFirstSignature(proofs *ProofsV1) *crypto.Signature {
 	if c.err != nil {
 		return nil
 	}
@@ -727,66 +812,88 @@ func (c *ProtobufConverter) SignedTransaction(stx *g.SignedTransaction) (Transac
 	if err != nil {
 		return nil, err
 	}
-	proofs := c.Proofs(stx.Proofs)
+	proofs := c.proofs(stx.Proofs)
 	if c.err != nil {
-		return nil, c.err
+		err := c.err
+		c.reset()
+		return nil, err
 	}
 	switch t := tx.(type) {
 	case *Genesis:
-		sig := c.ExtractFirstSignature(proofs)
+		sig := c.extractFirstSignature(proofs)
 		t.Signature = sig
 		t.ID = sig
-		return t, c.err
+		err := c.err
+		c.reset()
+		return t, err
 	case *Payment:
-		sig := c.ExtractFirstSignature(proofs)
+		sig := c.extractFirstSignature(proofs)
 		t.Signature = sig
 		t.ID = sig
-		return t, c.err
+		err := c.err
+		c.reset()
+		return t, err
 	case *IssueV1:
-		t.Signature = c.ExtractFirstSignature(proofs)
-		return t, c.err
+		t.Signature = c.extractFirstSignature(proofs)
+		err := c.err
+		c.reset()
+		return t, err
 	case *IssueV2:
 		t.Proofs = proofs
 		return t, nil
 	case *TransferV1:
-		t.Signature = c.ExtractFirstSignature(proofs)
-		return t, c.err
+		t.Signature = c.extractFirstSignature(proofs)
+		err := c.err
+		c.reset()
+		return t, err
 	case *TransferV2:
 		t.Proofs = proofs
 		return t, nil
 	case *ReissueV1:
-		t.Signature = c.ExtractFirstSignature(proofs)
-		return t, c.err
+		t.Signature = c.extractFirstSignature(proofs)
+		err := c.err
+		c.reset()
+		return t, err
 	case *ReissueV2:
 		t.Proofs = proofs
 		return t, nil
 	case *BurnV1:
-		t.Signature = c.ExtractFirstSignature(proofs)
-		return t, c.err
+		t.Signature = c.extractFirstSignature(proofs)
+		err := c.err
+		c.reset()
+		return t, err
 	case *BurnV2:
 		t.Proofs = proofs
 		return t, nil
 	case *ExchangeV1:
-		t.Signature = c.ExtractFirstSignature(proofs)
-		return t, c.err
+		t.Signature = c.extractFirstSignature(proofs)
+		err := c.err
+		c.reset()
+		return t, err
 	case *ExchangeV2:
 		t.Proofs = proofs
 		return t, nil
 	case *LeaseV1:
-		t.Signature = c.ExtractFirstSignature(proofs)
-		return t, c.err
+		t.Signature = c.extractFirstSignature(proofs)
+		err := c.err
+		c.reset()
+		return t, err
 	case *LeaseV2:
 		t.Proofs = proofs
 		return t, nil
 	case *LeaseCancelV1:
-		t.Signature = c.ExtractFirstSignature(proofs)
-		return t, c.err
+		t.Signature = c.extractFirstSignature(proofs)
+		err := c.err
+		c.reset()
+		return t, err
 	case *LeaseCancelV2:
 		t.Proofs = proofs
 		return t, nil
 	case *CreateAliasV1:
-		t.Signature = c.ExtractFirstSignature(proofs)
-		return t, c.err
+		t.Signature = c.extractFirstSignature(proofs)
+		err := c.err
+		c.reset()
+		return t, err
 	case *CreateAliasV2:
 		t.Proofs = proofs
 		return t, nil
@@ -814,9 +921,6 @@ func (c *ProtobufConverter) SignedTransaction(stx *g.SignedTransaction) (Transac
 }
 
 func (c *ProtobufConverter) BlockTransactions(block *g.BlockWithHeight) ([]Transaction, error) {
-	if c.err != nil {
-		return nil, c.err
-	}
 	txs := make([]Transaction, len(block.Block.Transactions))
 	for i, stx := range block.Block.Transactions {
 		tx, err := c.SignedTransaction(stx)
@@ -828,7 +932,7 @@ func (c *ProtobufConverter) BlockTransactions(block *g.BlockWithHeight) ([]Trans
 	return txs, nil
 }
 
-func (c *ProtobufConverter) Features(features []uint32) []int16 {
+func (c *ProtobufConverter) features(features []uint32) []int16 {
 	r := make([]int16, len(features))
 	for i, f := range features {
 		r[i] = int16(f)
@@ -836,34 +940,34 @@ func (c *ProtobufConverter) Features(features []uint32) []int16 {
 	return r
 }
 
-func (c *ProtobufConverter) Consensus(header *g.Block_Header) NxtConsensus {
+func (c *ProtobufConverter) consensus(header *g.Block_Header) NxtConsensus {
 	if c.err != nil {
 		return NxtConsensus{}
 	}
 	return NxtConsensus{
-		GenSignature: c.Digest(header.GenerationSignature),
-		BaseTarget:   c.Uint64(header.BaseTarget),
+		GenSignature: c.digest(header.GenerationSignature),
+		BaseTarget:   c.uint64(header.BaseTarget),
 	}
 }
 
 func (c *ProtobufConverter) BlockHeader(block *g.BlockWithHeight) (BlockHeader, error) {
-	if c.err != nil {
-		return BlockHeader{}, c.err
-	}
-	features := c.Features(block.Block.Header.FeatureVotes)
-	if c.err != nil {
-		return BlockHeader{}, c.err
-	}
-	return BlockHeader{
-		Version:          BlockVersion(c.Byte(block.Block.Header.Version)),
-		Timestamp:        c.Uint64(block.Block.Header.Timestamp),
-		Parent:           c.Signature(block.Block.Header.Reference),
+	features := c.features(block.Block.Header.FeatureVotes)
+	header := BlockHeader{
+		Version:          BlockVersion(c.byte(block.Block.Header.Version)),
+		Timestamp:        c.uint64(block.Block.Header.Timestamp),
+		Parent:           c.signature(block.Block.Header.Reference),
 		FeaturesCount:    len(features),
 		Features:         features,
 		RewardVote:       block.Block.Header.RewardVote,
-		NxtConsensus:     c.Consensus(block.Block.Header),
+		NxtConsensus:     c.consensus(block.Block.Header),
 		TransactionCount: len(block.Block.Transactions),
-		GenPublicKey:     c.PublicKey(block.Block.Header.Generator),
-		BlockSignature:   c.Signature(block.Block.Signature),
-	}, nil
+		GenPublicKey:     c.publicKey(block.Block.Header.Generator),
+		BlockSignature:   c.signature(block.Block.Signature),
+	}
+	if c.err != nil {
+		err := c.err
+		c.reset()
+		return BlockHeader{}, err
+	}
+	return header, nil
 }

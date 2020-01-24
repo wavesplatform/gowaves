@@ -392,6 +392,7 @@ type Order interface {
 	GetMatcherFee() uint64
 	GetMatcherFeeAsset() OptionalAsset
 	GetSenderPK() crypto.PublicKey
+	GenerateID() error
 	BodyMarshalBinary() ([]byte, error)
 	GetProofs() (*ProofsV1, error)
 	Verify(crypto.PublicKey) (bool, error)
@@ -766,6 +767,19 @@ func (o *OrderV1) bodyUnmarshalBinary(data []byte) error {
 	return o.OrderBody.unmarshalBinary(data)
 }
 
+func (o *OrderV1) GenerateID() error {
+	b, err := o.BodyMarshalBinary()
+	if err != nil {
+		return err
+	}
+	d, err := crypto.FastHash(b)
+	if err != nil {
+		return errors.Wrap(err, "failed to sign OrderV1")
+	}
+	o.ID = &d
+	return nil
+}
+
 //Sign adds a signature to the order.
 func (o *OrderV1) Sign(secretKey crypto.SecretKey) error {
 	b, err := o.BodyMarshalBinary()
@@ -932,6 +946,19 @@ func (o *OrderV2) GetPrice() uint64 {
 
 func (o *OrderV2) GetExpiration() uint64 {
 	return o.Expiration
+}
+
+func (o *OrderV2) GenerateID() error {
+	b, err := o.BodyMarshalBinary()
+	if err != nil {
+		return err
+	}
+	d, err := crypto.FastHash(b)
+	if err != nil {
+		return errors.Wrap(err, "failed to sign OrderV1")
+	}
+	o.ID = &d
+	return nil
 }
 
 func (o OrderV2) BodyMarshalBinary() ([]byte, error) {
@@ -1134,6 +1161,19 @@ func (o *OrderV3) GetPrice() uint64 {
 
 func (o *OrderV3) GetExpiration() uint64 {
 	return o.Expiration
+}
+
+func (o *OrderV3) GenerateID() error {
+	b, err := o.BodyMarshalBinary()
+	if err != nil {
+		return err
+	}
+	d, err := crypto.FastHash(b)
+	if err != nil {
+		return errors.Wrap(err, "failed to sign OrderV1")
+	}
+	o.ID = &d
+	return nil
 }
 
 func (o *OrderV3) BodyMarshalBinary() ([]byte, error) {

@@ -294,7 +294,8 @@ func TestSign(t *testing.T) {
 	assert.NoError(t, err)
 	waves := proto.OptionalAsset{Present: false}
 	tx := proto.NewUnsignedTransferV1(pk, waves, waves, 100, 1, 100, proto.NewRecipientFromAddress(addr), "attachment")
-	tx.GenerateID()
+	err = tx.GenerateID()
+	assert.NoError(t, err)
 	txProto, err := tx.ToProtobuf(server.scheme)
 	assert.NoError(t, err)
 

@@ -86,16 +86,37 @@ var (
 
 // Transaction is a set of common transaction functions.
 type Transaction interface {
+	// Getters which are common for all transactions.
 	GetTypeVersion() TransactionTypeVersion
 	GetID() ([]byte, error)
 	GetSenderPK() crypto.PublicKey
-	Valid() (bool, error)
-	MarshalBinary() ([]byte, error)
-	UnmarshalBinary([]byte) error
 	GetFee() uint64
 	GetTimestamp() uint64
-	GenerateID()
+
+	// Check that all transaction fields are valid.
+	// This includes ranges checks, and sanity checks specific for each transaction type:
+	// for example, negative amounts for transfers.
+	Valid() (bool, error)
+
+	// Set transaction ID.
+	// For most transacions ID is hash of transaction body.
+	// For Payment transactions ID is Signature.
+	GenerateID() error
+	// Sign transaction with given secret key.
+	// It also sets transaction ID.
 	Sign(sk crypto.SecretKey) error
+
+	// Serialization.
+	MarshalBinary() ([]byte, error)
+	UnmarshalBinary([]byte) error
+
+	// Protobuf-related functions.
+	// Conversion to/from Protobuf wire byte format.
+	MarshalToProtobuf(scheme Scheme) ([]byte, error)
+	UnmarshalFromProtobuf([]byte) error
+	MarshalSignedToProtobuf(scheme Scheme) ([]byte, error)
+	UnmarshalSignedFromProtobuf([]byte) error
+	// Conversion to Protobuf types.
 	ToProtobuf(scheme Scheme) (*g.Transaction, error)
 	ToProtobufSigned(scheme Scheme) (*g.SignedTransaction, error)
 }
@@ -266,11 +287,8 @@ func (tx Genesis) GetTypeVersion() TransactionTypeVersion {
 	return TransactionTypeVersion{tx.Type, 1}
 }
 
-func (tx *Genesis) GenerateID() {
-	err := tx.generateID()
-	if err != nil {
-		panic(err.Error())
-	}
+func (tx *Genesis) GenerateID() error {
+	return tx.generateID()
 }
 
 func (tx Genesis) Sign(sk crypto.SecretKey) error {
@@ -403,6 +421,40 @@ func (tx *Genesis) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
+func (tx *Genesis) MarshalToProtobuf(scheme Scheme) ([]byte, error) {
+	return MarshalTxDeterministic(tx, scheme)
+}
+
+func (tx *Genesis) UnmarshalFromProtobuf(data []byte) error {
+	t, err := TxFromProtobuf(data)
+	if err != nil {
+		return err
+	}
+	genesisTx, ok := t.(*Genesis)
+	if !ok {
+		return errors.New("failed to convert result to Genesis")
+	}
+	*tx = *genesisTx
+	return nil
+}
+
+func (tx *Genesis) MarshalSignedToProtobuf(scheme Scheme) ([]byte, error) {
+	return MarshalSignedTxDeterministic(tx, scheme)
+}
+
+func (tx *Genesis) UnmarshalSignedFromProtobuf(data []byte) error {
+	t, err := SignedTxFromProtobuf(data)
+	if err != nil {
+		return err
+	}
+	genesisTx, ok := t.(*Genesis)
+	if !ok {
+		return errors.New("failed to convert result to Genesis")
+	}
+	*tx = *genesisTx
+	return nil
+}
+
 func (tx *Genesis) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
 	addrBody, err := tx.Recipient.Body()
 	if err != nil {
@@ -446,10 +498,11 @@ func (tx Payment) GetTypeVersion() TransactionTypeVersion {
 	return TransactionTypeVersion{tx.Type, tx.Version}
 }
 
-func (tx *Payment) GenerateID() {
+func (tx *Payment) GenerateID() error {
 	if tx.ID == nil {
 		tx.ID = tx.Signature
 	}
+	return nil
 }
 
 func (tx Payment) GetSenderPK() crypto.PublicKey {
@@ -624,6 +677,40 @@ func (tx *Payment) UnmarshalBinary(data []byte) error {
 	copy(s[:], data[:crypto.SignatureSize])
 	tx.Signature = &s
 	tx.ID = &s
+	return nil
+}
+
+func (tx *Payment) MarshalToProtobuf(scheme Scheme) ([]byte, error) {
+	return MarshalTxDeterministic(tx, scheme)
+}
+
+func (tx *Payment) UnmarshalFromProtobuf(data []byte) error {
+	t, err := TxFromProtobuf(data)
+	if err != nil {
+		return err
+	}
+	paymentTx, ok := t.(*Payment)
+	if !ok {
+		return errors.New("failed to convert result to Payment")
+	}
+	*tx = *paymentTx
+	return nil
+}
+
+func (tx *Payment) MarshalSignedToProtobuf(scheme Scheme) ([]byte, error) {
+	return MarshalSignedTxDeterministic(tx, scheme)
+}
+
+func (tx *Payment) UnmarshalSignedFromProtobuf(data []byte) error {
+	t, err := SignedTxFromProtobuf(data)
+	if err != nil {
+		return err
+	}
+	paymentTx, ok := t.(*Payment)
+	if !ok {
+		return errors.New("failed to convert result to Payment")
+	}
+	*tx = *paymentTx
 	return nil
 }
 
