@@ -3004,7 +3004,7 @@ func (tr *ScriptResultTransfer) MarshalWithAddress() ([]byte, error) {
 		return nil, errors.New("invalid address size")
 	}
 	amountBytes := make([]byte, 8)
-	binary.PutVarint(amountBytes, tr.Amount)
+	binary.BigEndian.PutUint64(amountBytes, uint64(tr.Amount))
 	assetBytes, err := tr.Asset.MarshalBinary()
 	if err != nil {
 		return nil, err
@@ -3020,7 +3020,7 @@ func (tr *ScriptResultTransfer) UnmarshalWithAddress(data []byte) error {
 	if len(data) < 8 {
 		return errors.New("invalid data size")
 	}
-	tr.Amount, _ = binary.Varint(data[:8])
+	tr.Amount = int64(binary.BigEndian.Uint64(data[:8]))
 	var asset OptionalAsset
 	if err := asset.UnmarshalBinary(data[8:]); err != nil {
 		return err
