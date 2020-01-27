@@ -8,19 +8,36 @@ import (
 	"github.com/beevik/ntp"
 )
 
+type inner interface {
+	Query(addr string) (*ntp.Response, error)
+}
+
+type ntpInner struct {
+}
+
+func (a ntpInner) Query(addr string) (*ntp.Response, error) {
+	return ntp.Query(addr)
+}
+
 type ntpTimeImpl struct {
 	mu     sync.RWMutex
 	err    error
 	offset time.Duration
 	addr   string
+	inner  inner
 }
 
 func New(addr string) *ntpTimeImpl {
+	return new(addr, ntpInner{})
+}
+
+func new(addr string, inner inner) *ntpTimeImpl {
 	a := &ntpTimeImpl{
-		mu:   sync.RWMutex{},
-		addr: addr,
+		mu:    sync.RWMutex{},
+		addr:  addr,
+		inner: inner,
 	}
-	tm, err := ntp.Query(addr)
+	tm, err := inner.Query(addr)
 	if err != nil {
 		a.err = err
 	} else {
@@ -37,7 +54,7 @@ func (a *ntpTimeImpl) Run(ctx context.Context, duration time.Duration) {
 			return
 		case <-time.After(duration):
 			a.mu.Lock()
-			tm, err := ntp.Query("0.ru.pool.ntp.org")
+			tm, err := a.inner.Query(a.addr)
 			if err != nil {
 				a.err = err
 			} else {

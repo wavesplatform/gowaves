@@ -1,6 +1,8 @@
 package mock
 
 import (
+	"sync"
+
 	"github.com/wavesplatform/gowaves/pkg/p2p/conn"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -12,40 +14,43 @@ type Peer struct {
 	IncomeCh              chan peer.ProtoMessage
 	HandshakeField        proto.Handshake
 	RemoteAddress         proto.TCPAddr
+	mu                    sync.Mutex
 }
 
 func NewPeer() *Peer {
 	return &Peer{}
 }
 
-func (a Peer) RemoteAddr() proto.TCPAddr {
+func (a *Peer) RemoteAddr() proto.TCPAddr {
 	return a.RemoteAddress
 }
 
-func (Peer) Direction() peer.Direction {
+func (*Peer) Direction() peer.Direction {
 	panic("implement me")
 }
 
-func (Peer) Reconnect() error {
+func (*Peer) Reconnect() error {
 	panic("implement me")
 }
 
-func (Peer) Close() error {
+func (*Peer) Close() error {
 	panic("implement me")
 }
 
-func (Peer) Connection() conn.Connection {
+func (*Peer) Connection() conn.Connection {
 	panic("implement me")
 }
 
 func (a *Peer) SendMessage(m proto.Message) {
+	a.mu.Lock()
 	a.SendMessageCalledWith = append(a.SendMessageCalledWith, m)
+	a.mu.Unlock()
 }
 
-func (a Peer) ID() string {
+func (a *Peer) ID() string {
 	return a.Addr
 }
 
-func (a Peer) Handshake() proto.Handshake {
+func (a *Peer) Handshake() proto.Handshake {
 	return a.HandshakeField
 }

@@ -14,6 +14,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/grpc/server"
 	"github.com/wavesplatform/gowaves/pkg/libs/bytespool"
 	"github.com/wavesplatform/gowaves/pkg/libs/ntptime"
+	"github.com/wavesplatform/gowaves/pkg/libs/runner"
 	"github.com/wavesplatform/gowaves/pkg/miner"
 	scheduler2 "github.com/wavesplatform/gowaves/pkg/miner/scheduler"
 	"github.com/wavesplatform/gowaves/pkg/miner/utxpool"
@@ -23,6 +24,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/node/state_changed"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/scoresender"
 	"github.com/wavesplatform/gowaves/pkg/services"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/state"
@@ -113,7 +115,7 @@ func main() {
 		return
 	}
 
-	ntptm := ntptime.New("0.ru.pool.ntp.org")
+	ntptm := ntptime.New("pool.ntp.org")
 	go ntptm.Run(ctx, 2*time.Minute)
 
 	declAddr := proto.NewTCPAddrFromString(conf.DeclaredAddr)
@@ -160,7 +162,9 @@ func main() {
 
 	Miner := miner.NewMicroblockMiner(services, ngRuntime, proto.CustomNetScheme)
 
-	stateChanged.AddHandler(state_changed.NewScoreSender(peerManager, state))
+	async := runner.NewAsync()
+	scoreSender := scoresender.New(peerManager, state, 4*time.Second, async)
+
 	stateChanged.AddHandler(state_changed.NewFuncHandler(func() {
 		scheduler.Reschedule()
 	}))
@@ -169,7 +173,10 @@ func main() {
 	}))
 	stateChanged.AddHandler(utxClean)
 
-	stateSync := node.NewStateSync(services, Miner)
+	async.Go(func() {
+		scoreSender.Run(ctx)
+	})
+	stateSync := node.NewStateSync(services, Miner, scoreSender)
 
 	go miner.Run(ctx, Miner, scheduler)
 	go scheduler.Reschedule()

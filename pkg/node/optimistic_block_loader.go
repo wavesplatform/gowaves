@@ -7,6 +7,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/libs/nullable"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/types"
@@ -72,7 +73,7 @@ func (a *expectedBlocks) hasNext() bool {
 }
 
 type sigs struct {
-	sigSequence    []crypto.Signature
+	sigSequence    []nullable.Signature
 	uniqSignatures map[crypto.Signature]blockBytes
 	mu             sync.Mutex
 }
@@ -98,32 +99,36 @@ func (a *sigs) setBytes(sig crypto.Signature, b blockBytes) {
 	a.mu.Unlock()
 }
 
-func (a *sigs) pop() (crypto.Signature, blockBytes, bool) {
+func (a *sigs) pop() (nullable.Signature, blockBytes, bool) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	if len(a.sigSequence) == 0 {
-		return crypto.Signature{}, nil, false
+		return nullable.Signature{}, nil, false
 	}
 	firstSig := a.sigSequence[0]
-	bts := a.uniqSignatures[firstSig]
+	if firstSig.Null() {
+		a.sigSequence = a.sigSequence[1:]
+		return firstSig, nil, true
+	}
+	bts := a.uniqSignatures[firstSig.Sig()]
 	if bts != nil {
-		delete(a.uniqSignatures, firstSig)
+		delete(a.uniqSignatures, firstSig.Sig())
 		a.sigSequence = a.sigSequence[1:]
 		return firstSig, bts, true
 	}
-	return crypto.Signature{}, nil, false
+	return nullable.Signature{}, nil, false
 }
 
 // true - added, false - not added
-func (a *sigs) add(sig crypto.Signature) bool {
+func (a *sigs) add(sig nullable.Signature) bool {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	// already contains
-	if _, ok := a.uniqSignatures[sig]; ok {
+	if _, ok := a.uniqSignatures[sig.Sig()]; ok {
 		return false
 	}
 	a.sigSequence = append(a.sigSequence, sig)
-	a.uniqSignatures[sig] = nil
+	a.uniqSignatures[sig.Sig()] = nil
 	return true
 }
 
@@ -145,11 +150,11 @@ func newBlockDownloader(workersCount int, p peer.Peer, subscribe types.Subscribe
 	}
 }
 
-func (a *blockDownload) download(sig crypto.Signature) bool {
+func (a *blockDownload) download(sig nullable.Signature) bool {
 	r := a.sigs.add(sig)
-	if r {
+	if r && !sig.Null() {
 		a.threads <- 1
-		a.p.SendMessage(&proto.GetBlockMessage{BlockID: sig})
+		a.p.SendMessage(&proto.GetBlockMessage{BlockID: sig.Sig()})
 	}
 	return r
 }
@@ -170,7 +175,9 @@ func (a *blockDownload) subscr(ctx context.Context, times int) (chan proto.Messa
 	return subscribeCh, unsubscribe, nil
 }
 
-func (a *blockDownload) run(ctx context.Context) {
+func (a *blockDownload) run(ctx context.Context, wg *sync.WaitGroup) {
+	wg.Add(1)
+	defer wg.Done()
 	subscribeCh, unsubscribe, err := a.subscr(ctx, 10)
 	if err != nil {
 		zap.S().Error(err)
@@ -203,6 +210,9 @@ func (a *blockDownload) run(ctx context.Context) {
 					case <-ctx.Done():
 						return
 					}
+					if bts == nil {
+						return
+					}
 					continue
 				}
 				break
@@ -216,7 +226,9 @@ type sendMessage interface {
 	SendMessage(proto.Message)
 }
 
-func PreloadSignatures(ctx context.Context, out chan crypto.Signature, p sendMessage, lastSignatures *Signatures, subscribe types.Subscribe) error {
+func PreloadSignatures(ctx context.Context, out chan nullable.Signature, p sendMessage, lastSignatures *Signatures, subscribe types.Subscribe, wg *sync.WaitGroup) error {
+	wg.Add(1)
+	defer wg.Done()
 	messCh, unsubscribe, err := subscribe.Subscribe(p, &proto.SignaturesMessage{})
 	if err != nil {
 		return err
@@ -225,7 +237,7 @@ func PreloadSignatures(ctx context.Context, out chan crypto.Signature, p sendMes
 	for {
 		es := lastSignatures.Signatures()
 		if len(es) == 0 {
-			return NothingToRequestErr
+			return nil
 		}
 		send := &proto.GetSignaturesMessage{
 			Blocks: es,
@@ -247,11 +259,22 @@ func PreloadSignatures(ctx context.Context, out chan crypto.Signature, p sendMes
 				}
 				newSigs = append(newSigs, sig)
 				select {
-				case out <- sig:
+				case out <- nullable.NewSignature(sig):
 				case <-ctx.Done():
 					return ctx.Err()
 				}
 			}
+
+			// we are near end. Send
+			if len(mess.Signatures) < 100 {
+				select {
+				case out <- nullable.NewNullSignature():
+				case <-ctx.Done():
+					return ctx.Err()
+				}
+				return nil
+			}
+
 			lastSignatures = NewSignatures(newSigs...).Revert()
 			zap.S().Debugf("[%s] Optimistic loader: %d new signatures received", p.ID(), len(lastSignatures.Signatures()))
 		}

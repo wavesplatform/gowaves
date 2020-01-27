@@ -144,6 +144,7 @@ func newScheduler(internal internal, state state.State, pairs []proto.KeyPair, s
 		internal: internal,
 		state:    state,
 		mu:       sync.Mutex{},
+		tm:       tm,
 	}
 }
 
@@ -217,7 +218,7 @@ func (a *SchedulerImpl) reschedule(state state.State, confirmedBlock *proto.Bloc
 			select {
 			case a.mine <- emit:
 			default:
-				zap.S().Debug("cannot emit a.mine, chan is full")
+				zap.S().Debug("Scheduler: cannot emit a.mine, chan is full")
 			}
 
 		}

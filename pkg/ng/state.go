@@ -93,7 +93,6 @@ func (a *State) AddBlock(block *proto.Block) {
 
 	err = a.applier.Apply(block)
 	if err != nil {
-		zap.S().Error("NG: ", err)
 		a.storage.Pop()
 
 		// return prev block, if possible
