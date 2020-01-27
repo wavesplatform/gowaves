@@ -1,7 +1,6 @@
 package state
 
 import (
-	"bytes"
 	"encoding/binary"
 	"math"
 
@@ -42,8 +41,8 @@ type wavesBalanceRecord struct {
 func (r *wavesBalanceRecord) marshalBinary() ([]byte, error) {
 	res := make([]byte, wavesBalanceRecordSize)
 	binary.BigEndian.PutUint64(res[:8], r.balance)
-	binary.PutVarint(res[8:16], r.leaseIn)
-	binary.PutVarint(res[16:24], r.leaseOut)
+	binary.BigEndian.PutUint64(res[8:16], uint64(r.leaseIn))
+	binary.BigEndian.PutUint64(res[16:24], uint64(r.leaseOut))
 	return res, nil
 }
 
@@ -52,15 +51,8 @@ func (r *wavesBalanceRecord) unmarshalBinary(data []byte) error {
 		return errInvalidDataSize
 	}
 	r.balance = binary.BigEndian.Uint64(data[:8])
-	var err error
-	r.leaseIn, err = binary.ReadVarint(bytes.NewReader(data[8:16]))
-	if err != nil {
-		return err
-	}
-	r.leaseOut, err = binary.ReadVarint(bytes.NewReader(data[16:24]))
-	if err != nil {
-		return err
-	}
+	r.leaseIn = int64(binary.BigEndian.Uint64(data[8:16]))
+	r.leaseOut = int64(binary.BigEndian.Uint64(data[16:24]))
 	return nil
 }
 
