@@ -1339,6 +1339,7 @@ func TestScriptResultBinaryRoundTrip(t *testing.T) {
 				&BinaryDataEntry{Key: "k5", Value: []byte{0x24, 0x7f, 0x71, 0x10, 0x1d}},
 			},
 			Transfers: []ScriptResultTransfer{
+				{Amount: math.MaxInt64, Asset: *waves, Recipient: rcp},
 				{Amount: 100500, Asset: *waves, Recipient: rcp},
 				{Amount: -10, Asset: *asset0, Recipient: rcp},
 				{Amount: 0, Asset: *asset1, Recipient: rcp},
