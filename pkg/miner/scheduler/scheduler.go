@@ -56,6 +56,12 @@ func (a internalImpl) schedule(state state.State, keyPairs []proto.KeyPair, sche
 
 	locked := state.Mutex().RLock()
 	fairPosActivated, err := state.IsActivated(int16(settings.FairPoS))
+	if err != nil {
+		locked.Unlock()
+		zap.S().Error(err)
+		return nil
+	}
+	vrfActivated, err := state.IsActivated(int16(settings.BlockV5))
 	locked.Unlock()
 	if err != nil {
 		zap.S().Error(err)
@@ -66,24 +72,22 @@ func (a internalImpl) schedule(state state.State, keyPairs []proto.KeyPair, sche
 	if fairPosActivated {
 		pos = &consensus.FairPosCalculator{}
 	}
-
-	header, err := state.HeaderByHeight(pos.HeightForHit(confirmedBlockHeight))
-	if err != nil {
-		zap.S().Error(err)
-		return nil
+	var gsp consensus.GenerationSignatureProvider = &consensus.NXTGenerationSignatureProvider{}
+	if vrfActivated {
+		gsp = &consensus.VRFGenerationSignatureProvider{}
 	}
 
 	zap.S().Infof("Scheduler: confirmedBlock sig %s, gensig: %s, confirmedHeight: %d", confirmedBlock.BlockSignature, confirmedBlock.GenSignature, confirmedBlockHeight)
 
 	var out []Emit
 	for _, keyPair := range keyPairs {
-		genSig, err := consensus.GeneratorSignature(header.GenSignature, keyPair.Public)
+		genSig, err := gsp.Create(keyPair.Secret, keyPair.Public, confirmedBlock.GenSignature)
 		if err != nil {
 			zap.S().Error(err)
 			continue
 		}
 
-		hit, err := consensus.GenHit(genSig[:])
+		hit, err := consensus.GenHit(genSig)
 		if err != nil {
 			zap.S().Error(err)
 			continue
@@ -115,16 +119,10 @@ func (a internalImpl) schedule(state state.State, keyPairs []proto.KeyPair, sche
 			continue
 		}
 
-		_gensig, err := consensus.GeneratorSignature(confirmedBlock.GenSignature, keyPair.Public)
-		if err != nil {
-			zap.S().Error(err)
-			continue
-		}
-
 		out = append(out, Emit{
 			Timestamp:            confirmedBlock.Timestamp + delay,
 			KeyPair:              keyPair,
-			GenSignature:         _gensig,
+			GenSignature:         genSig,
 			BaseTarget:           baseTarget,
 			ParentBlockSignature: confirmedBlock.BlockSignature,
 		})

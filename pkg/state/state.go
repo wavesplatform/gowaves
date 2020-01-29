@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/base64"
+	"math"
 	"math/big"
 	"os"
 	"path/filepath"
@@ -1454,6 +1455,9 @@ func (s *stateManager) IsActivated(featureID int16) (bool, error) {
 
 func (s *stateManager) ActivationHeight(featureID int16) (uint64, error) {
 	height, err := s.stor.features.activationHeight(featureID)
+	if err == keyvalue.ErrNotFound || err == errEmptyHist {
+		return math.MaxUint64, nil
+	}
 	if err != nil {
 		return 0, wrapErr(RetrievalError, err)
 	}

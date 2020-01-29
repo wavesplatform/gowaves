@@ -5,6 +5,7 @@ import (
 	"math"
 	"math/big"
 
+	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/types"
 )
@@ -47,18 +48,77 @@ func normalizeBaseTarget(baseTarget, targetBlockDelaySeconds uint64) uint64 {
 	return baseTarget
 }
 
-// signature prev block
-// pk miner
-func GeneratorSignature(signature crypto.Digest, pk crypto.PublicKey) (crypto.Digest, error) {
-	s := make([]byte, crypto.DigestSize*2)
-	copy(s[:crypto.DigestSize], signature[:])
-	copy(s[crypto.DigestSize:], pk[:])
-	return crypto.FastHash(s)
+type GenerationSignatureProvider interface {
+	// Create calculates new generation signature from message using secret or public key of block's generator.
+	Create(sk crypto.SecretKey, pk crypto.PublicKey, msg crypto.Digest) (crypto.Digest, error)
+
+	// Verify checks that generation signature is valid for given message and generator's public key.
+	// It returns verification result and error if any.
+	Verify(pk crypto.PublicKey, msg, sig crypto.Digest) (bool, error)
 }
 
-func GenHit(generatorSig []byte) (*Hit, error) {
+// NXTGenerationSignatureProvider implements the original NXT way to create generation signature using generator's
+// public key and generation signature from the previous block.
+type NXTGenerationSignatureProvider struct {
+}
+
+// Only generator's public key is used then building NXT generation signature.
+func (p *NXTGenerationSignatureProvider) Create(sk crypto.SecretKey, pk crypto.PublicKey, msg crypto.Digest) (crypto.Digest, error) {
+	s := make([]byte, crypto.DigestSize*2)
+	copy(s[:crypto.DigestSize], msg[:])
+	copy(s[crypto.DigestSize:], pk[:])
+	d, err := crypto.FastHash(s)
+	if err != nil {
+		return crypto.Digest{}, errors.Wrap(err, "NXT generation signature provider")
+	}
+	return d, nil
+}
+
+func (p *NXTGenerationSignatureProvider) Verify(pk crypto.PublicKey, msg, sig crypto.Digest) (bool, error) {
+	calculated, err := p.Create(crypto.SecretKey{}, pk, msg)
+	if err != nil {
+		return false, errors.Wrap(err, "NXT generation signature provider")
+	}
+	if sig != calculated {
+		return false, nil
+	}
+	return true, nil
+}
+
+// VRFGenerationSignatureProvider implements generation of VRF pseudo-random value calculated from generation signature
+// of previous block and generator's secret key.
+type VRFGenerationSignatureProvider struct {
+}
+
+func (p *VRFGenerationSignatureProvider) Create(sk crypto.SecretKey, pk crypto.PublicKey, msg crypto.Digest) (crypto.Digest, error) {
+	proof, err := crypto.SignVRF(sk, msg[:])
+	if err != nil {
+		return crypto.Digest{}, errors.Wrapf(err, "VRF generation signature provider")
+	}
+	//TODO: replace the following code with reduction of proof to VRF value then implemented
+	_, s, err := crypto.VerifyVRF(pk, msg[:], proof)
+	if err != nil {
+		return crypto.Digest{}, errors.Wrap(err, "VRF generation signature provider")
+	}
+	d, err := crypto.NewDigestFromBytes(s)
+	if err != nil {
+		return crypto.Digest{}, errors.Wrap(err, "VRF generation signature provider")
+	}
+	return d, nil
+}
+
+// Verify checks that provided signature is valid against given generator's public key and message.
+func (p *VRFGenerationSignatureProvider) Verify(pk crypto.PublicKey, msg, sig crypto.Digest) (bool, error) {
+	ok, _, err := crypto.VerifyVRF(pk, msg[:], sig[:])
+	if err != nil {
+		return false, errors.Wrap(err, "VRF generation signature provider")
+	}
+	return ok, nil
+}
+
+func GenHit(sig crypto.Digest) (*Hit, error) {
 	s := make([]byte, hitSize)
-	copy(s, generatorSig[:hitSize])
+	copy(s, sig[:hitSize])
 	for i, j := 0, len(s)-1; i < j; i, j = i+1, j-1 {
 		s[i], s[j] = s[j], s[i]
 	}
