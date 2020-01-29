@@ -338,8 +338,7 @@ func applyBlocks(services services.Services, blocks [][]byte, p Peer) error {
 	}
 	err = MaybeEnableExtendedApi(services.State)
 	if err != nil {
-		zap.S().Debugf("[%s] BlockDownloader: MaybeEnableExtendedApi(): %v", p.ID(), err)
-		return err
+		panic(fmt.Sprintf("[%s] BlockDownloader: MaybeEnableExtendedApi(): %v. Failed to persist address transactions for API after successfully applying valid blocks.", p.ID(), err))
 	}
 	return nil
 }
