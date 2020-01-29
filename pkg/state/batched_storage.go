@@ -127,14 +127,8 @@ func (i *batchIterator) next() bool {
 }
 
 func (i *batchIterator) currentBatch() ([]byte, error) {
-	key := keyvalue.SafeKey(i.iter)
 	val := keyvalue.SafeValue(i.iter)
-	// manageNormalization() MUST be called with `update` set to false.
-	// Because values (and even keys) from iterator might not correspond to
-	// current state of database.
-	// It happens if iterator is retrieved before database gets updated, and is used after
-	// it is updated.
-	return i.stor.manageNormalization(key, val, false)
+	return i.stor.normalize(val)
 }
 
 func (i *batchIterator) error() error {
@@ -264,6 +258,7 @@ type batchedStorage struct {
 	localStor map[string]*batchesGroup
 	memSize   int // Total size (in bytes) of what was added.
 	memLimit  int // When memSize >= memLimit, we should flush().
+	maxKeys   int
 }
 
 func newBatchedStorage(
@@ -271,6 +266,7 @@ func newBatchedStorage(
 	stateDB *stateDB,
 	params *batchedStorParams,
 	memLimit int,
+	maxKeys int,
 ) (*batchedStorage, error) {
 	// Actual record size is greater by blockNumLen.
 	params.recordSize += blockNumLen
@@ -287,6 +283,7 @@ func newBatchedStorage(
 		localStor: make(map[string]*batchesGroup),
 		memSize:   0,
 		memLimit:  memLimit,
+		maxKeys:   maxKeys,
 	}, nil
 }
 
@@ -348,7 +345,7 @@ func (s *batchedStorage) addRecordBytes(key, record []byte, filter bool) error {
 		s.localStor[keyStr] = newGroup
 		s.memSize += len(key) + len(record)
 	}
-	if s.memSize >= s.memLimit {
+	if s.memSize >= s.memLimit || len(s.localStor) >= s.maxKeys {
 		if err := s.flush(); err != nil {
 			return err
 		}
@@ -364,44 +361,95 @@ func (s *batchedStorage) addRecord(key []byte, data []byte, blockNum uint32, fil
 	return s.addRecordBytes(key, recordBytes, filter)
 }
 
-func (s *batchedStorage) readLastBatch(key []byte, filter bool) (*batch, error) {
+func (s *batchedStorage) batchByNum(key []byte, num uint32) (*batch, error) {
+	batchKey := batchedStorKey{prefix: s.params.prefix, internalKey: key, batchNum: num}
+	batch, err := s.db.Get(batchKey.bytes())
+	if err != nil {
+		return nil, err
+	}
+	return newBatchWithData(batch, s.params.maxBatchSize, s.params.recordSize, num)
+}
+
+func (s *batchedStorage) moveLastBatchPointer(key []byte, lastNum uint32) error {
+	if lastNum == firstBatchNum {
+		if err := s.removeLastBatchNum(key); err != nil {
+			return errors.Wrap(err, "failed to remove last batch num")
+		}
+	} else {
+		if err := s.saveLastBatchNumDirectly(key, lastNum-1); err != nil {
+			return errors.Wrap(err, "failed to save batch num to db")
+		}
+	}
+	return nil
+}
+
+func (s *batchedStorage) handleEmptyBatch(key []byte, batchNum uint32) error {
+	if err := s.moveLastBatchPointer(key, batchNum); err != nil {
+		return errors.Wrap(err, "failed to update last batch num")
+	}
+	if err := s.removeBatchByNum(key, batchNum); err != nil {
+		return errors.Wrap(err, "failed to remove batch by num")
+	}
+	return nil
+}
+
+func (s *batchedStorage) normalizeBatches(key []byte) error {
 	// Lock the write lock.
-	// Normalized history will be written to database, so we need to make sure
-	// we read it and write under the same lock.
+	// Normalized batches will be written back to database, so we need to make sure
+	// we read and write them under the same lock.
 	s.writeLock.Lock()
 	defer s.writeLock.Unlock()
 
 	lastBatchNum, err := s.readLastBatchNum(key)
 	if err != nil {
-		return nil, errNotFound
+		// Nothing to normalize for this key.
+		return nil
 	}
-	for lastBatchNum >= firstBatchNum {
-		batchKey := batchedStorKey{prefix: s.params.prefix, internalKey: key, batchNum: lastBatchNum}
-		batchKeyBytes := batchKey.bytes()
-		lastBatch, err := s.db.Get(batchKeyBytes)
+	batchNum := lastBatchNum
+	for {
+		// Iterate until we find first non-empty (after filtering) batch.
+		batchKey := batchedStorKey{prefix: s.params.prefix, internalKey: key, batchNum: batchNum}
+		batch, err := s.db.Get(batchKey.bytes())
 		if err != nil {
-			return nil, err
+			return errors.Wrap(err, "failed to get batch by key")
 		}
-		if !filter {
-			return newBatchWithData(lastBatch, s.params.maxBatchSize, s.params.recordSize, lastBatchNum)
-		}
-		normalized, err := s.manageNormalization(batchKeyBytes, lastBatch, true)
+		newBatch, err := s.normalize(batch)
 		if err != nil {
-			return nil, err
+			return errors.Wrap(err, "failed to normalize batch")
 		}
-		if len(normalized) == 0 {
-			if lastBatchNum == 0 {
-				return nil, errEmptyHist
+		batchChanged := len(newBatch) != len(batch)
+		if batchChanged {
+			// Write normalized version of batch to database.
+			if err := s.writeBatchDirectly(key, newBatch); err != nil {
+				return errors.Wrap(err, "failed to write batch")
 			}
-			lastBatchNum -= 1
-			if err := s.saveLastBatchNumDirectly(key, lastBatchNum); err != nil {
-				return nil, err
+		}
+		if len(newBatch) == 0 {
+			// Batch is empty.
+			if err := s.handleEmptyBatch(key, batchNum); err != nil {
+				return errors.Wrap(err, "failed to handle empty batch")
 			}
+			if batchNum == firstBatchNum {
+				return nil
+			}
+			batchNum--
 			continue
 		}
-		return newBatchWithData(normalized, s.params.maxBatchSize, s.params.recordSize, lastBatchNum)
+		return nil
 	}
-	return nil, errEmptyHist
+}
+
+func (s *batchedStorage) readLastBatch(key []byte, filter bool) (*batch, error) {
+	if filter {
+		if err := s.normalizeBatches(key); err != nil {
+			return nil, errors.Wrap(err, "failed to normalize")
+		}
+	}
+	lastBatchNum, err := s.readLastBatchNum(key)
+	if err != nil {
+		return nil, errNotFound
+	}
+	return s.batchByNum(key, lastBatchNum)
 }
 
 // newBackwardRecordIterator() returns backward iterator for iterating single records.
@@ -438,25 +486,24 @@ func (s *batchedStorage) normalize(batch []byte) ([]byte, error) {
 	return batch, nil
 }
 
-func (s *batchedStorage) writeBatchDirectly(key, batch []byte) error {
-	if len(batch) == 0 {
-		return s.db.Delete(key)
+func (s *batchedStorage) removeBatchByNum(key []byte, num uint32) error {
+	batchKey := batchedStorKey{prefix: s.params.prefix, internalKey: key, batchNum: num}
+	if err := s.db.Delete(batchKey.bytes()); err != nil {
+		return errors.Wrap(err, "failed to delete batch")
 	}
-	return s.db.Put(key, batch)
+	return nil
 }
 
-func (s *batchedStorage) manageNormalization(key, batch []byte, update bool) ([]byte, error) {
-	newBatch, err := s.normalize(batch)
-	if err != nil {
-		return nil, err
+func (s *batchedStorage) removeLastBatchNum(key []byte) error {
+	numKey := lastBatchKey{prefix: s.params.prefix, internalKey: key}
+	if err := s.db.Delete(numKey.bytes()); err != nil {
+		return errors.Wrap(err, "failed to delete last batch num")
 	}
-	changed := len(newBatch) != len(batch)
-	if changed && update {
-		if err := s.writeBatchDirectly(key, newBatch); err != nil {
-			return nil, err
-		}
-	}
-	return newBatch, nil
+	return nil
+}
+
+func (s *batchedStorage) writeBatchDirectly(key, batch []byte) error {
+	return s.db.Put(key, batch)
 }
 
 func (s *batchedStorage) saveLastBatchNumDirectly(key []byte, num uint32) error {
@@ -495,6 +542,7 @@ func (s *batchedStorage) writeBatchGroup(key []byte, bg *batchesGroup) {
 
 func (s *batchedStorage) reset() {
 	s.localStor = make(map[string]*batchesGroup)
+	s.memSize = 0
 	s.dbBatch.Reset()
 }
 

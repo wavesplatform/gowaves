@@ -104,6 +104,7 @@ func manageFile(file *os.File, db keyvalue.IterableKeyVal) error {
 type addressTransactionsParams struct {
 	dir                 string // Directory for address_transactions file.
 	batchedStorMemLimit int    // Maximum size of batchedStor db batch.
+	batchedStorMaxKeys  int    // Maximum number of keys per flush().
 	maxFileSize         int64  // Maximum size of address_transactions file.
 	providesData        bool   // True if transaction iterators can be used.
 }
@@ -139,7 +140,7 @@ func newAddressTransactions(
 	if err := manageFile(addrTransactionsFile, db); err != nil {
 		return nil, err
 	}
-	stor, err := newBatchedStorage(db, stateDB, bsParams, params.batchedStorMemLimit)
+	stor, err := newBatchedStorage(db, stateDB, bsParams, params.batchedStorMemLimit, params.batchedStorMaxKeys)
 	if err != nil {
 		return nil, err
 	}

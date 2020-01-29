@@ -249,6 +249,7 @@ func newStateManager(dataDir string, params StateParams, settings *settings.Bloc
 	atxParams := &addressTransactionsParams{
 		dir:                 blockStorageDir,
 		batchedStorMemLimit: AddressTransactionsMemLimit,
+		batchedStorMaxKeys:  AddressTransactionsMaxKeys,
 		maxFileSize:         MaxAddressTransactionsFileSize,
 		providesData:        params.ProvideExtendedApi,
 	}
