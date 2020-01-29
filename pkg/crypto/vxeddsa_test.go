@@ -93,6 +93,28 @@ func TestVRFSignVerify(t *testing.T) {
 	assert.ElementsMatch(t, vrf, calcVrf)
 }
 
+func TestComputeVRF(t *testing.T) {
+	msg, err := hex.DecodeString("CE0827E6381654D3FFBE22F546E00199B5761C1E541108E56D5A66213A1569E969A02B1D27D91553B69984010F25331A13EA62BA53B6F5B86DA11F8C22ABBF11D6839E11626D0FEF191BD2D5251D371F57C53240F7CD2B435BE6213C7C8F36D47F3DE23A")
+	require.NoError(t, err)
+	skb, err := hex.DecodeString("C80827E6381654D3FFBE22F546E00199B5761C1E541108E56D5A66213A156969")
+	require.NoError(t, err)
+	var sk SecretKey
+	copy(sk[:], skb[:SecretKeySize])
+	pk := GeneratePublicKey(sk)
+	random, err := hex.DecodeString("B33734A591BAB70644D731530B67E8734C157DD72B796B7FA3D7FF6885D4C122")
+	require.NoError(t, err)
+	vrf, err := hex.DecodeString("5669EC30C0F39E2696BB048B574236DEFA325D307116D6A89612958793192FF5")
+	require.NoError(t, err)
+	sigOut, err := generateVRFSignature(random, skb, msg)
+	require.NoError(t, err)
+	ok, calcVrf, err := verifyVRFSignature(pk[:], msg, sigOut)
+	require.NoError(t, err)
+	assert.True(t, ok)
+	assert.ElementsMatch(t, vrf, calcVrf)
+	compVRF := ComputeVRF(sk, msg)
+	assert.ElementsMatch(t, vrf, compVRF)
+}
+
 func TestVRFVerificationFailureByMessage(t *testing.T) {
 	msg, err := hex.DecodeString("5468697320697320756E697175652E")
 	require.NoError(t, err)
@@ -170,6 +192,7 @@ func TestVRFMultipleRoundTrips(t *testing.T) {
 		sig2, err := SignVRF(sk, msg)
 		require.NoError(t, err)
 		assert.NotEmpty(t, sig2)
+		vrf0 := ComputeVRF(sk, msg)
 		ok, vrf1, err := VerifyVRF(pk, msg, sig1)
 		require.NoError(t, err)
 		assert.True(t, ok)
@@ -179,6 +202,7 @@ func TestVRFMultipleRoundTrips(t *testing.T) {
 		assert.True(t, ok)
 		assert.NotEmpty(t, vrf2)
 		assert.ElementsMatch(t, vrf1, vrf2)
+		assert.ElementsMatch(t, vrf0, vrf1)
 	}
 }
 
@@ -232,6 +256,30 @@ func BenchmarkVerifyVRF(b *testing.B) {
 				if !ok {
 					b.Fatal("VerifyVRF() returned False")
 				}
+			}
+		})
+	}
+}
+
+func BenchmarkComputeVRF(b *testing.B) {
+	for size := 64; size <= 2048; size *= 2 {
+		b.Run(fmt.Sprintf("%dB", size), func(b *testing.B) {
+			msg := make([]byte, size)
+			if _, err := rand.Read(msg); err != nil {
+				b.Fatalf("rand.Read(): %v\n", err)
+			}
+			seed := make([]byte, 32)
+			if _, err := rand.Read(seed); err != nil {
+				b.Fatalf("rand.Read(): %v\n", err)
+			}
+			sk, _, err := GenerateKeyPair(seed)
+			if err != nil {
+				b.Fatalf("GenerateKeyPair() failed: %v\n", err)
+			}
+			b.ResetTimer()
+			for n := 0; n < b.N; n++ {
+				vrf := ComputeVRF(sk, msg)
+				_ = vrf
 			}
 		})
 	}

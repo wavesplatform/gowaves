@@ -81,13 +81,17 @@ func (a internalImpl) schedule(state state.State, keyPairs []proto.KeyPair, sche
 
 	var out []Emit
 	for _, keyPair := range keyPairs {
-		genSig, err := gsp.Create(keyPair.Secret, keyPair.Public, confirmedBlock.GenSignature)
+		var key [crypto.KeySize]byte = keyPair.Public
+		if vrfActivated {
+			key = keyPair.Secret
+		}
+		//TODO: remove conversion to slice after changing of GenSignature's type
+		genSig, source, err := gsp.GenerationSignatureAndHitSource(key, confirmedBlock.GenSignature[:])
 		if err != nil {
 			zap.S().Error(err)
 			continue
 		}
-
-		hit, err := consensus.GenHit(genSig)
+		hit, err := consensus.GenHit(source)
 		if err != nil {
 			zap.S().Error(err)
 			continue
@@ -119,10 +123,16 @@ func (a internalImpl) schedule(state state.State, keyPairs []proto.KeyPair, sche
 			continue
 		}
 
+		//TODO: remove following code after changing of GenSignature type
+		gs, err := crypto.NewDigestFromBytes(genSig)
+		if err != nil {
+			zap.S().Error(err)
+			continue
+		}
 		out = append(out, Emit{
 			Timestamp:            confirmedBlock.Timestamp + delay,
 			KeyPair:              keyPair,
-			GenSignature:         genSig,
+			GenSignature:         gs,
 			BaseTarget:           baseTarget,
 			ParentBlockSignature: confirmedBlock.BlockSignature,
 		})

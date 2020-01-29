@@ -346,3 +346,47 @@ func addLabel(set []byte, label string) []byte {
 	copy(r[sl+1:], label)
 	return r
 }
+
+// ComputeVRF generates the VRF value for the byte slice msg using given private key sk.
+func ComputeVRF(sk SecretKey, msg []byte) []byte {
+	var a, aNeg, A [32]byte
+	copy(a[:], sk[:SecretKeySize])
+
+	var x [32]byte
+	copy(x[:], sk[:])
+	var edPubKey internal.ExtendedGroupElement
+	internal.GeScalarMultBase(&edPubKey, &x)
+	edPubKey.ToBytes(&A)
+
+	signBit := (A[31] & 0x80) >> 7
+	internal.ScNeg(&aNeg, &a)
+	internal.ScCMove(&a, &aNeg, int32(signBit))
+	A[31] &= 0x7F
+
+	h := sha512.New()
+	_, vb := calculateBvAndV(h, defaultLabel1, a, A, msg)
+	return computeVrfFromV(h, vb)
+}
+
+func computeVrfFromV(h hash.Hash, vb *[32]byte) []byte {
+	var v, cv internal.ExtendedGroupElement
+	v.FromBytes(vb)
+
+	internal.GeDouble(&cv, &v)
+	internal.GeDouble(&cv, &cv)
+	internal.GeDouble(&cv, &cv)
+
+	var cvb [32]byte
+	cv.ToBytes(&cvb)
+
+	h64 := new([64]byte)
+	h.Reset()
+	_, _ = h.Write(bBytes)
+	_, _ = h.Write(defaultLabel4)
+	_, _ = h.Write(cvb[:])
+	h.Sum(h64[:0])
+
+	vrf := make([]byte, DigestSize)
+	copy(vrf, h64[:DigestSize])
+	return vrf
+}
