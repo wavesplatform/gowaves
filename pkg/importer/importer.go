@@ -18,7 +18,7 @@ const (
 	initTotalBatchSize = 5 * MiB
 	sizeAdjustment     = 1 * MiB
 
-	maxTotalBatchSize  = 32 * MiB
+	maxTotalBatchSize  = 20 * MiB
 	maxBlocksBatchSize = 50000
 	maxBlockSize       = 2 * MiB
 )
