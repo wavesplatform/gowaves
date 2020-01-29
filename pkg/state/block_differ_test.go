@@ -37,8 +37,7 @@ func genBlocks(t *testing.T, to *blockDifferTestObjects) (*proto.Block, *proto.B
 	// Create and sign parent block.
 	txsRepr := proto.NewReprFromTransactions([]proto.Transaction{createTransferV1(t)})
 	randSig := genRandBlockIds(t, 1)[0]
-	genSig, err := crypto.NewDigestFromBase58(defaultGenSig)
-	require.NoError(t, err, "NewDigestFromString() failed")
+	genSig := crypto.MustBytesFromBase58(defaultGenSig)
 	parent, err := proto.CreateBlock(txsRepr, 1565694219644, randSig, testGlobal.matcherInfo.pk, proto.NxtConsensus{BaseTarget: 65, GenSignature: genSig}, proto.NgBlockVersion, nil, -1)
 	require.NoError(t, err, "CreateBlock() failed")
 	err = parent.Sign(testGlobal.matcherInfo.sk)
@@ -46,10 +45,8 @@ func genBlocks(t *testing.T, to *blockDifferTestObjects) (*proto.Block, *proto.B
 
 	// Create and sign child block.
 	txsRepr = proto.NewReprFromTransactions([]proto.Transaction{createIssueV1(t, 1000)})
-	gs, _, err := to.gsp.GenerationSignatureAndHitSource(testGlobal.minerInfo.pk, parent.GenSignature[:])
+	genSig, _, err = to.gsp.GenerationSignatureAndHitSource(testGlobal.minerInfo.pk, parent.GenSignature[:])
 	require.NoError(t, err, "GeneratorSignature() failed")
-	genSig, err = crypto.NewDigestFromBytes(gs)
-	require.NoError(t, err)
 	child, err := proto.CreateBlock(txsRepr, 1565694219944, parent.BlockSignature, testGlobal.minerInfo.pk, proto.NxtConsensus{BaseTarget: 66, GenSignature: genSig}, proto.NgBlockVersion, nil, -1)
 	require.NoError(t, err, "CreateBlock() failed")
 	err = child.Sign(testGlobal.minerInfo.sk)
@@ -172,13 +169,11 @@ func genTransferWithWavesFee(t *testing.T) *proto.TransferV2 {
 	return tx
 }
 
-func genBlockWithSingleTransaction(t *testing.T, prevID crypto.Signature, prevGenSig crypto.Digest, to *blockDifferTestObjects) *proto.Block {
+func genBlockWithSingleTransaction(t *testing.T, prevID crypto.Signature, prevGenSig []byte, to *blockDifferTestObjects) *proto.Block {
 	txs := proto.NewReprFromTransactions([]proto.Transaction{genTransferWithWavesFee(t)})
-	genSig, _, err := to.gsp.GenerationSignatureAndHitSource(testGlobal.minerInfo.pk, prevGenSig[:])
+	genSig, _, err := to.gsp.GenerationSignatureAndHitSource(testGlobal.minerInfo.pk, prevGenSig)
 	require.NoError(t, err)
-	gs, err := crypto.NewDigestFromBytes(genSig)
-	require.NoError(t, err)
-	block, err := proto.CreateBlock(txs, 1565694219944, prevID, testGlobal.minerInfo.pk, proto.NxtConsensus{BaseTarget: 66, GenSignature: gs}, proto.RewardBlockVersion, nil, -1)
+	block, err := proto.CreateBlock(txs, 1565694219944, prevID, testGlobal.minerInfo.pk, proto.NxtConsensus{BaseTarget: 66, GenSignature: genSig}, proto.RewardBlockVersion, nil, -1)
 	require.NoError(t, err)
 	block.BlockHeader.Version = proto.RewardBlockVersion
 	block.BlockHeader.RewardVote = 700000000
@@ -200,8 +195,7 @@ func TestCreateBlockDiffWithReward(t *testing.T) {
 	to.stor.activateFeature(t, int16(settings.BlockReward))
 
 	sig := genRandBlockIds(t, 1)[0]
-	gs, err := crypto.NewDigestFromBase58(defaultGenSig)
-	require.NoError(t, err)
+	gs := crypto.MustBytesFromBase58(defaultGenSig)
 
 	// First block
 	block1 := genBlockWithSingleTransaction(t, sig, gs, to)

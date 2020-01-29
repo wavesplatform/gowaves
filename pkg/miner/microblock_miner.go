@@ -52,7 +52,7 @@ func NewMicroblockMiner(services services.Services, ngRuntime ng.Runtime, scheme
 	}
 }
 
-func (a *MicroblockMiner) Mine(ctx context.Context, t proto.Timestamp, k proto.KeyPair, parent crypto.Signature, baseTarget types.BaseTarget, GenSignature crypto.Digest) {
+func (a *MicroblockMiner) Mine(ctx context.Context, t proto.Timestamp, k proto.KeyPair, parent crypto.Signature, baseTarget types.BaseTarget, GenSignature []byte) {
 	a.interrupt.Store(false)
 	defer a.scheduler.Reschedule()
 

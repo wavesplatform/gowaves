@@ -93,6 +93,14 @@ func MustDigestFromBase58(s string) Digest {
 	return rs
 }
 
+func MustBytesFromBase58(s string) []byte {
+	b, err := base58.Decode(s)
+	if err != nil {
+		panic(err)
+	}
+	return b
+}
+
 type SecretKey [SecretKeySize]byte
 
 func (k SecretKey) MarshalBinary() ([]byte, error) {

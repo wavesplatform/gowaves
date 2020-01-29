@@ -37,8 +37,7 @@ func createDifferTestObjects(t *testing.T) (*differTestObjects, []string) {
 }
 
 func defaultDifferInfo(t *testing.T) *differInfo {
-	genSig, err := crypto.NewDigestFromBase58("2eYyRDZwRCuXJhJTfwKYsqVFpBTg8v69RBppZzStWtaR")
-	assert.NoError(t, err)
+	genSig := crypto.MustBytesFromBase58("2eYyRDZwRCuXJhJTfwKYsqVFpBTg8v69RBppZzStWtaR")
 	blockInfo := &proto.BlockInfo{
 		Timestamp:           defaultTimestamp,
 		Height:              400000,

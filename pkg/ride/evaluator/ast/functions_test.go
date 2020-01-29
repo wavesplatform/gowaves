@@ -1252,7 +1252,7 @@ func TestNativeBlockInfoByHeight(t *testing.T) {
 	parent := crypto.MustSignatureFromBase58("4sukfbjbbkBnFevQrGN7VvpBSwvufsuqvq5fmfiMdp1pBDMF5TanbFejRHhsiUQSWPkvWRdagwWD3oxnX3eEqzvM")
 	addr := proto.MustAddressFromPublicKey(proto.MainNetScheme, publicKey)
 	signa := crypto.MustSignatureFromBase58("5X76YVeG8T6iTxFmD5WNSaR13hxtsgJPQ2oELeZUsrQfZWSXtnUbq1kRqqMjfBngPvaEKVVV2FSujdTXm3hTW172")
-	gensig := crypto.MustDigestFromBase58("6a1hWT8QNGw8wnacXQ8vT2YEFLuxRxVpEuaaSf6AbSvU")
+	gensig := crypto.MustBytesFromBase58("6a1hWT8QNGw8wnacXQ8vT2YEFLuxRxVpEuaaSf6AbSvU")
 
 	h := proto.BlockHeader{
 		Version:       3,
@@ -1280,7 +1280,7 @@ func TestNativeBlockInfoByHeight(t *testing.T) {
 	require.Equal(t, NewLong(1567506205718), ok(b.Get("timestamp")))
 	require.Equal(t, NewLong(10), ok(b.Get("height")))
 	require.Equal(t, NewLong(1310), ok(b.Get("baseTarget")))
-	require.Equal(t, NewBytes(gensig.Bytes()), ok(b.Get("generationSignature")))
+	require.Equal(t, NewBytes(gensig), ok(b.Get("generationSignature")))
 	require.Equal(t, NewAddressFromProtoAddress(addr), ok(b.Get("generator")))
 	require.Equal(t, NewBytes(publicKey.Bytes()), ok(b.Get("generatorPublicKey")))
 }
@@ -1308,7 +1308,7 @@ func TestNativeParseBlockHeader(t *testing.T) {
 	_, publicKey, _ := crypto.GenerateKeyPair([]byte("test"))
 	parent := crypto.MustSignatureFromBase58("4sukfbjbbkBnFevQrGN7VvpBSwvufsuqvq5fmfiMdp1pBDMF5TanbFejRHhsiUQSWPkvWRdagwWD3oxnX3eEqzvM")
 	signa := crypto.MustSignatureFromBase58("5X76YVeG8T6iTxFmD5WNSaR13hxtsgJPQ2oELeZUsrQfZWSXtnUbq1kRqqMjfBngPvaEKVVV2FSujdTXm3hTW172")
-	gensig := crypto.MustDigestFromBase58("6a1hWT8QNGw8wnacXQ8vT2YEFLuxRxVpEuaaSf6AbSvU")
+	gensig := crypto.MustBytesFromBase58("6a1hWT8QNGw8wnacXQ8vT2YEFLuxRxVpEuaaSf6AbSvU")
 
 	h := proto.BlockHeader{
 		Version:       3,

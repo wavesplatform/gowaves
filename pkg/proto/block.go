@@ -24,8 +24,8 @@ const (
 )
 
 type NxtConsensus struct {
-	BaseTarget   uint64        `json:"base-target"`
-	GenSignature crypto.Digest `json:"generation-signature"`
+	BaseTarget   uint64   `json:"base-target"`
+	GenSignature B58Bytes `json:"generation-signature"`
 }
 
 // Block info (except transactions)
@@ -145,6 +145,7 @@ func (b *BlockHeader) UnmarshalHeaderFromBinary(data []byte) (err error) {
 	copy(b.Parent[:], data[9:73])
 	b.ConsensusBlockLength = binary.BigEndian.Uint32(data[73:77])
 	b.BaseTarget = binary.BigEndian.Uint64(data[77:85])
+	b.GenSignature = make([]byte, crypto.DigestSize)
 	copy(b.GenSignature[:], data[85:117])
 	b.TransactionBlockLength = binary.BigEndian.Uint32(data[117:121])
 	b.RewardVote = -1
@@ -486,6 +487,7 @@ func (b *Block) UnmarshalBinary(data []byte) (err error) {
 	copy(b.Parent[:], data[9:73])
 	b.ConsensusBlockLength = binary.BigEndian.Uint32(data[73:77])
 	b.BaseTarget = binary.BigEndian.Uint64(data[77:85])
+	b.GenSignature = make([]byte, crypto.DigestSize)
 	copy(b.GenSignature[:], data[85:117])
 
 	b.TransactionBlockLength = binary.BigEndian.Uint32(data[117:121])

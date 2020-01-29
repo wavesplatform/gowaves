@@ -19,7 +19,7 @@ import (
 type Emit struct {
 	Timestamp            uint64
 	KeyPair              proto.KeyPair
-	GenSignature         crypto.Digest
+	GenSignature         []byte
 	BaseTarget           types.BaseTarget
 	ParentBlockSignature crypto.Signature
 }
@@ -85,8 +85,7 @@ func (a internalImpl) schedule(state state.State, keyPairs []proto.KeyPair, sche
 		if vrfActivated {
 			key = keyPair.Secret
 		}
-		//TODO: remove conversion to slice after changing of GenSignature's type
-		genSig, source, err := gsp.GenerationSignatureAndHitSource(key, confirmedBlock.GenSignature[:])
+		genSig, source, err := gsp.GenerationSignatureAndHitSource(key, confirmedBlock.GenSignature)
 		if err != nil {
 			zap.S().Error(err)
 			continue
@@ -123,16 +122,10 @@ func (a internalImpl) schedule(state state.State, keyPairs []proto.KeyPair, sche
 			continue
 		}
 
-		//TODO: remove following code after changing of GenSignature type
-		gs, err := crypto.NewDigestFromBytes(genSig)
-		if err != nil {
-			zap.S().Error(err)
-			continue
-		}
 		out = append(out, Emit{
 			Timestamp:            confirmedBlock.Timestamp + delay,
 			KeyPair:              keyPair,
-			GenSignature:         gs,
+			GenSignature:         genSig,
 			BaseTarget:           baseTarget,
 			ParentBlockSignature: confirmedBlock.BlockSignature,
 		})

@@ -9,7 +9,7 @@ type BlockInfo struct {
 	Timestamp           uint64
 	Height              uint64
 	BaseTarget          uint64
-	GenerationSignature crypto.Digest
+	GenerationSignature B58Bytes
 	Generator           Address
 	GeneratorPublicKey  crypto.PublicKey
 }

@@ -842,7 +842,7 @@ func (c *SafeConverter) Consensus(header *g.Block_Header) proto.NxtConsensus {
 		return proto.NxtConsensus{}
 	}
 	return proto.NxtConsensus{
-		GenSignature: c.Digest(header.GenerationSignature),
+		GenSignature: header.GenerationSignature,
 		BaseTarget:   c.Uint64(header.BaseTarget),
 	}
 }

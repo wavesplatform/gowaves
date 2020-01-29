@@ -53,10 +53,7 @@ func spoilDelay(block *proto.Block, prevTimestamp uint64) {
 }
 
 func spoilGenSignature(block *proto.Block) error {
-	invalidSig, err := crypto.NewDigestFromBytes(bytes.Repeat([]byte{0xff}, crypto.DigestSize))
-	if err != nil {
-		return err
-	}
+	invalidSig := bytes.Repeat([]byte{0xff}, crypto.DigestSize)
 	block.GenSignature = invalidSig
 	return nil
 }

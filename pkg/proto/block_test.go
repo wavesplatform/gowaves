@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/mr-tron/base58/base58"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
@@ -180,9 +181,12 @@ func TestTransactions_WriteTo(t *testing.T) {
 }
 
 func TestBlock_WriteTo(t *testing.T) {
-	sig, _ := crypto.NewSignatureFromBase58("2kcBqiM5y3DAtg8UrDp5X5dqhKUQ2cNSndZ98c7QMDWgXaz7g1gPGKyND16vSGYvoVN2UqxNk9dSonJUqWmjE5Ee")
-	parent, _ := crypto.NewSignatureFromBase58("3ov5nyERRYrNd8Uun7nuUWYwztXL8jjt3Cbr5HMfsGhoXAKkctAYVVmUFChz95fPHKyrWopuaygdirQ4kMa3fkwJ")
-	gensig, _ := crypto.NewDigestFromBase58("5fkwJc2yZVT2WLDxXs8qFJHdzb2FXji5MC3PDdAFC145")
+	sig, err := crypto.NewSignatureFromBase58("2kcBqiM5y3DAtg8UrDp5X5dqhKUQ2cNSndZ98c7QMDWgXaz7g1gPGKyND16vSGYvoVN2UqxNk9dSonJUqWmjE5Ee")
+	require.NoError(t, err)
+	parent, err := crypto.NewSignatureFromBase58("3ov5nyERRYrNd8Uun7nuUWYwztXL8jjt3Cbr5HMfsGhoXAKkctAYVVmUFChz95fPHKyrWopuaygdirQ4kMa3fkwJ")
+	require.NoError(t, err)
+	gensig, err := base58.Decode("5fkwJc2yZVT2WLDxXs8qFJHdzb2FXji5MC3PDdAFC145")
+	require.NoError(t, err)
 
 	// transaction
 	secret, public, err := crypto.GenerateKeyPair([]byte("test"))
