@@ -100,7 +100,7 @@ type InvRequester interface {
 type BaseTarget = uint64
 
 type Miner interface {
-	Mine(ctx context.Context, t proto.Timestamp, k proto.KeyPair, parent crypto.Signature, baseTarget BaseTarget, GenSignature crypto.Digest)
+	Mine(ctx context.Context, t proto.Timestamp, k proto.KeyPair, parent crypto.Signature, baseTarget BaseTarget, GenSignature []byte)
 }
 
 type Time interface {

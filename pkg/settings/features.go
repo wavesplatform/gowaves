@@ -17,6 +17,9 @@ const (
 	OrderV3
 	ReduceNFTFee
 	BlockReward
+	BlockV5
+	MultiPaymentInvokeScript
+	LeaseExpiration
 )
 
 type FeatureInfo struct {
@@ -39,4 +42,7 @@ var FeaturesInfo = map[Feature]FeatureInfo{
 	OrderV3:                         {true, "Order Version 3"},
 	ReduceNFTFee:                    {true, "Reduce NFT fee"},
 	BlockReward:                     {true, "Block Reward and Community Driven Monetary Policy"},
+	BlockV5:                         {false, "VRF and Protobuf"},
+	MultiPaymentInvokeScript:        {false, "Ride V4 and multiple attached payments for Invoke Script Transaction"},
+	LeaseExpiration:                 {false, "Lease Expiration"},
 }

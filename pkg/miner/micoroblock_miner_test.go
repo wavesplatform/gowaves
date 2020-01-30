@@ -19,7 +19,7 @@ func TestMineMicroblock(t *testing.T) {
 
 	nxt := proto.NxtConsensus{
 		BaseTarget:   153722867,
-		GenSignature: crypto.MustDigestFromBase58("11111111111111111111111111111111"),
+		GenSignature: crypto.MustBytesFromBase58("11111111111111111111111111111111"),
 	}
 
 	keyBlock, err := proto.CreateBlock(
