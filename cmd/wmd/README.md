@@ -1,8 +1,8 @@
-# wmd - WavesMarkerData 
+# wmd - Waves Market Data 
 
 *Almost complete replacement for [WavesDataFeed](https://github.com/PyWaves/WavesDataFeed).*
 
-WavesMarketData (wmd) is a service that offers the HTTP API similar to WavesDataFeed's API, but lacks the WebSocket API.
+Waves Market Data (wmd) is a service that offers the HTTP API similar to WavesDataFeed's API, but lacks the WebSocket API.
 The state of `wmd` could be build using initial import of a [standard Waves blockchain file](http://blockchain.wavesnodes.com) 
 or synchronizing with the mother-node's API (could take a long time).
 
