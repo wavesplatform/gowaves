@@ -29,9 +29,9 @@ const (
 
 	// Memory limit for address transactions. flush() is called when this
 	// limit is exceeded.
-	AddressTransactionsMemLimit = 70 * 1024 * 1024
+	AddressTransactionsMemLimit = 50 * 1024 * 1024
 	// Number of keys per flush() call.
-	AddressTransactionsMaxKeys = 5000
+	AddressTransactionsMaxKeys = 4000
 
 	// Maximum size of transactions by addresses file.
 	// Then it is sorted and saved to DB.

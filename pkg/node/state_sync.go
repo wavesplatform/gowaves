@@ -337,7 +337,7 @@ func applyBlocks(services services.Services, blocks [][]byte, p Peer) error {
 	for i, block := range blocks {
 		blocksNumer := i + 1
 		size += len(block)
-		if (size < importer.MaxTotalBatchSize) && (blocksNumer != len(blocks)) {
+		if (size < importer.MaxTotalBatchSizeForNetworkSync) && (blocksNumer != len(blocks)) {
 			continue
 		}
 		blocksToApply := blocks[groupIndex:blocksNumer]

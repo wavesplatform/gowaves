@@ -18,9 +18,10 @@ const (
 	initTotalBatchSize = 5 * MiB
 	sizeAdjustment     = 1 * MiB
 
-	MaxTotalBatchSize  = 20 * MiB
-	MaxBlocksBatchSize = 50000
-	MaxBlockSize       = 2 * MiB
+	MaxTotalBatchSize               = 20 * MiB
+	MaxTotalBatchSizeForNetworkSync = 6 * MiB
+	MaxBlocksBatchSize              = 50000
+	MaxBlockSize                    = 2 * MiB
 )
 
 type State interface {
