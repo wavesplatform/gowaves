@@ -303,6 +303,7 @@ func (at *addressTransactions) persist(ignoreSize, filter bool) error {
 		return errors.Wrap(err, "emsort.StopWriting() failed")
 	}
 	zap.S().Info("Finished to sort TransactionsByAddresses file")
+	debug.FreeOSMemory()
 	zap.S().Info("Writing sorted records to database, will take awhile...")
 	// Read records from emsort in sorted order and save to batchedStorage.
 	for {
