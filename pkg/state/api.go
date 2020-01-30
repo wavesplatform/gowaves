@@ -66,6 +66,7 @@ type StateInfo interface {
 	// Features.
 	VotesNum(featureID int16) (uint64, error)
 	IsActivated(featureID int16) (bool, error)
+	IsActiveAtHeight(featureID int16, height proto.Height) (bool, error)
 	ActivationHeight(featureID int16) (proto.Height, error)
 	IsApproved(featureID int16) (bool, error)
 	ApprovalHeight(featureID int16) (proto.Height, error)

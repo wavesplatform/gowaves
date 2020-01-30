@@ -39,6 +39,7 @@ type stateInfoProvider interface {
 	HeaderByHeight(height uint64) (*proto.BlockHeader, error)
 	EffectiveBalance(addr proto.Recipient, startHeight, endHeight uint64) (uint64, error)
 	IsActivated(featureID int16) (bool, error)
+	IsActiveAtHeight(featureID int16, height proto.Height) (bool, error)
 	ActivationHeight(featureID int16) (proto.Height, error)
 }
 
@@ -66,14 +67,6 @@ func (cv *ConsensusValidator) fairPosActivated() (bool, error) {
 	return cv.state.IsActivated(int16(settings.FairPoS))
 }
 
-func (cv *ConsensusValidator) vrfActiveAt(height uint64) (bool, error) {
-	h, err := cv.state.ActivationHeight(int16(settings.BlockV5))
-	if err != nil {
-		return false, err
-	}
-	return h == height, nil
-}
-
 func (cv *ConsensusValidator) posAlgo() (PosCalculator, error) {
 	fair, err := cv.fairPosActivated()
 	if err != nil {
@@ -86,7 +79,7 @@ func (cv *ConsensusValidator) posAlgo() (PosCalculator, error) {
 }
 
 func (cv *ConsensusValidator) generationSignatureProvider(height uint64) (GenerationSignatureProvider, error) {
-	vrf, err := cv.vrfActiveAt(height)
+	vrf, err := cv.state.IsActiveAtHeight(int16(settings.BlockV5), height)
 	if err != nil {
 		return nil, err
 	}
@@ -242,7 +235,7 @@ func (cv *ConsensusValidator) validateBaseTarget(height uint64, header, parent, 
 
 func (cv *ConsensusValidator) validateGeneratorSignature(height uint64, header *proto.BlockHeader) error {
 	var hitSourceBlockHeader *proto.BlockHeader
-	vrf, err := cv.vrfActiveAt(height + 1)
+	vrf, err := cv.state.IsActiveAtHeight(int16(settings.BlockV5), height+1)
 	if err != nil {
 		return errors.Wrapf(err, "failed to validate generation signature")
 	}
