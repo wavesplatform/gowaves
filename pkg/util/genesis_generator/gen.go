@@ -14,7 +14,7 @@ func Genesis(timestamp proto.Timestamp, transactions proto.Transactions) (*proto
 		crypto.PublicKey{},
 		proto.NxtConsensus{
 			BaseTarget:   153722867,
-			GenSignature: crypto.MustDigestFromBase58("11111111111111111111111111111111"),
+			GenSignature: crypto.MustBytesFromBase58("11111111111111111111111111111111"),
 		},
 		proto.GenesisBlockVersion,
 		nil,

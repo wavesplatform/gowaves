@@ -1133,8 +1133,7 @@ func TestWhaleDApp(t *testing.T) {
 		Assets:                 nil,
 	}
 	this := NewAddressFromProtoAddress(address)
-	gs, err := crypto.NewDigestFromBase58("8XgXc3Sh5KyscRs7YwuNy8YrrAS3bX4EeYpqczZf5Sxn")
-	require.NoError(t, err)
+	gs := crypto.MustBytesFromBase58("8XgXc3Sh5KyscRs7YwuNy8YrrAS3bX4EeYpqczZf5Sxn")
 	gen, err := proto.NewAddressFromString("3P5hx8Lw6nCYgFkQcwHkFZQnwbfF7DfhyyP")
 	require.NoError(t, err)
 	blockInfo := proto.BlockInfo{
@@ -1213,8 +1212,7 @@ func TestExchangeDApp(t *testing.T) {
 		Assets:                 nil,
 	}
 	this := NewAddressFromProtoAddress(address)
-	gs, err := crypto.NewDigestFromBase58("AWH9QVEnmN6VjRyEfs93UtAiCkwrNJ2phKYe25KFNCz")
-	require.NoError(t, err)
+	gs := crypto.MustBytesFromBase58("AWH9QVEnmN6VjRyEfs93UtAiCkwrNJ2phKYe25KFNCz")
 	gen, err := proto.NewAddressFromString("3PMR8zZMswxrVdidk2mZAvRAXtJPSRJjt76")
 	require.NoError(t, err)
 	blockInfo := proto.BlockInfo{
@@ -1326,8 +1324,7 @@ func TestBankDApp(t *testing.T) {
 		Assets:                 nil,
 	}
 	this := NewAddressFromProtoAddress(dapp)
-	gs, err := crypto.NewDigestFromBase58("AWH9QVEnmN6VjRyEfs93UtAiCkwrNJ2phKYe25KFNCz")
-	require.NoError(t, err)
+	gs := crypto.MustBytesFromBase58("AWH9QVEnmN6VjRyEfs93UtAiCkwrNJ2phKYe25KFNCz")
 	gen, err := proto.NewAddressFromString("3PMR8zZMswxrVdidk2mZAvRAXtJPSRJjt76")
 	require.NoError(t, err)
 	blockInfo := proto.BlockInfo{
@@ -1411,8 +1408,7 @@ func TestLigaDApp1(t *testing.T) {
 	}
 
 	this := NewAddressFromProtoAddress(dapp)
-	gs, err := crypto.NewDigestFromBase58("A9CAzLPzCzweUH4hBmaWHxNeqHDMipiEee8HphivNs4h")
-	require.NoError(t, err)
+	gs := crypto.MustBytesFromBase58("A9CAzLPzCzweUH4hBmaWHxNeqHDMipiEee8HphivNs4h")
 	gen, err := proto.NewAddressFromString("3NB1Yz7fH1bJ2gVDjyJnuyKNTdMFARkKEpV")
 	require.NoError(t, err)
 	blockInfo := proto.BlockInfo{
@@ -1509,8 +1505,7 @@ func TestLigaDApp1(t *testing.T) {
 		Timestamp:       1564398515618,
 	}
 
-	gs, err = crypto.NewDigestFromBase58("CDhrqb9p6x5V5dav1Kj1ffQjtrhUk6QVjiB6KPhbkeDs")
-	require.NoError(t, err)
+	gs = crypto.MustBytesFromBase58("CDhrqb9p6x5V5dav1Kj1ffQjtrhUk6QVjiB6KPhbkeDs")
 	gen, err = proto.NewAddressFromString("3MxyKNmnQkVuDCG9AzMpixKCdUWXfMUsxdg")
 	require.NoError(t, err)
 	blockInfo = proto.BlockInfo{
@@ -1594,8 +1589,7 @@ func TestTestingDApp(t *testing.T) {
 		Assets:                 nil,
 	}
 	this := NewAddressFromProtoAddress(address)
-	gs, err := crypto.NewDigestFromBase58("AWH9QVEnmN6VjRyEfs93UtAiCkwrNJ2phKYe25KFNCz")
-	require.NoError(t, err)
+	gs := crypto.MustBytesFromBase58("AWH9QVEnmN6VjRyEfs93UtAiCkwrNJ2phKYe25KFNCz")
 	gen, err := proto.NewAddressFromString("3MxTeL8dKLUGh9B1A2aaZxQ8BLL22bDdm6G")
 	require.NoError(t, err)
 	blockInfo := proto.BlockInfo{
@@ -1671,8 +1665,7 @@ func TestDropElementDApp(t *testing.T) {
 		Assets:                 nil,
 	}
 	this := NewAddressFromProtoAddress(address)
-	gs, err := crypto.NewDigestFromBase58("AWH9QVEnmN6VjRyEfs93UtAiCkwrNJ2phKYe25KFNCz")
-	require.NoError(t, err)
+	gs := crypto.MustBytesFromBase58("AWH9QVEnmN6VjRyEfs93UtAiCkwrNJ2phKYe25KFNCz")
 	gen, err := proto.NewAddressFromString("3MxTeL8dKLUGh9B1A2aaZxQ8BLL22bDdm6G")
 	require.NoError(t, err)
 	blockInfo := proto.BlockInfo{
@@ -1753,8 +1746,7 @@ func TestMathDApp(t *testing.T) {
 		Assets:                 nil,
 	}
 	this := NewAddressFromProtoAddress(address)
-	gs, err := crypto.NewDigestFromBase58("AWH9QVEnmN6VjRyEfs93UtAiCkwrNJ2phKYe25KFNCz")
-	require.NoError(t, err)
+	gs := crypto.MustBytesFromBase58("AWH9QVEnmN6VjRyEfs93UtAiCkwrNJ2phKYe25KFNCz")
 	gen, err := proto.NewAddressFromString("3MxTeL8dKLUGh9B1A2aaZxQ8BLL22bDdm6G")
 	require.NoError(t, err)
 	blockInfo := proto.BlockInfo{

@@ -303,6 +303,10 @@ func (a *MockStateManager) IsActivated(featureID int16) (bool, error) {
 	panic("implement me")
 }
 
+func (a *MockStateManager) IsActiveAtHeight(featureID int16, height proto.Height) (bool, error) {
+	panic("not implemented")
+}
+
 func (a *MockStateManager) ActivationHeight(featureID int16) (uint64, error) {
 	panic("implement me")
 }

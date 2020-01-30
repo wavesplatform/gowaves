@@ -19,38 +19,38 @@ const (
 type blockDifferTestObjects struct {
 	stor        *testStorageObjects
 	blockDiffer *blockDiffer
+	gsp         consensus.GenerationSignatureProvider
 }
 
 func createBlockDiffer(t *testing.T) (*blockDifferTestObjects, []string) {
 	sets := settings.MainNetSettings
 	stor, path, err := createStorageObjects()
-	assert.NoError(t, err, "createStorageObjects() failed")
+	require.NoError(t, err, "createStorageObjects() failed")
 	handler, err := newTransactionHandler(sets.Genesis.BlockSignature, stor.entities, sets)
-	assert.NoError(t, err, "newTransactionHandler() failed")
+	require.NoError(t, err, "newTransactionHandler() failed")
 	blockDiffer, err := newBlockDiffer(handler, stor.entities, sets)
-	assert.NoError(t, err, "newBlockDiffer() failed")
-	return &blockDifferTestObjects{stor, blockDiffer}, path
+	require.NoError(t, err, "newBlockDiffer() failed")
+	return &blockDifferTestObjects{stor, blockDiffer, &consensus.NXTGenerationSignatureProvider{}}, path
 }
 
 func genBlocks(t *testing.T, to *blockDifferTestObjects) (*proto.Block, *proto.Block) {
 	// Create and sign parent block.
 	txsRepr := proto.NewReprFromTransactions([]proto.Transaction{createTransferV1(t)})
 	randSig := genRandBlockIds(t, 1)[0]
-	genSig, err := crypto.NewDigestFromBase58(defaultGenSig)
-	assert.NoError(t, err, "NewDigestFromString() failed")
+	genSig := crypto.MustBytesFromBase58(defaultGenSig)
 	parent, err := proto.CreateBlock(txsRepr, 1565694219644, randSig, testGlobal.matcherInfo.pk, proto.NxtConsensus{BaseTarget: 65, GenSignature: genSig}, proto.NgBlockVersion, nil, -1)
-	assert.NoError(t, err, "CreateBlock() failed")
+	require.NoError(t, err, "CreateBlock() failed")
 	err = parent.Sign(testGlobal.matcherInfo.sk)
-	assert.NoError(t, err, "Block.Sign() failed")
+	require.NoError(t, err, "Block.Sign() failed")
 
 	// Create and sign child block.
 	txsRepr = proto.NewReprFromTransactions([]proto.Transaction{createIssueV1(t, 1000)})
-	genSig, err = consensus.GeneratorSignature(parent.GenSignature, testGlobal.minerInfo.pk)
-	assert.NoError(t, err, "GeneratorSignature() failed")
+	genSig, _, err = to.gsp.GenerationSignatureAndHitSource(testGlobal.minerInfo.pk, parent.GenSignature[:])
+	require.NoError(t, err, "GeneratorSignature() failed")
 	child, err := proto.CreateBlock(txsRepr, 1565694219944, parent.BlockSignature, testGlobal.minerInfo.pk, proto.NxtConsensus{BaseTarget: 66, GenSignature: genSig}, proto.NgBlockVersion, nil, -1)
-	assert.NoError(t, err, "CreateBlock() failed")
+	require.NoError(t, err, "CreateBlock() failed")
 	err = child.Sign(testGlobal.minerInfo.sk)
-	assert.NoError(t, err, "Block.Sign() failed")
+	require.NoError(t, err, "Block.Sign() failed")
 	return parent, child
 }
 
@@ -61,12 +61,12 @@ func TestCreateBlockDiffWithoutNg(t *testing.T) {
 		to.stor.close(t)
 
 		err := util.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
+		require.NoError(t, err, "failed to clean test data dirs")
 	}()
 
 	block, _ := genBlocks(t, to)
 	minerDiff, err := to.blockDiffer.createMinerDiff(&block.BlockHeader, true, defaultHeight)
-	assert.NoError(t, err, "createMinerDiff() failed")
+	require.NoError(t, err, "createMinerDiff() failed")
 	// Empty miner diff before NG activation.
 	assert.Equal(t, txDiff{}, minerDiff)
 }
@@ -78,7 +78,7 @@ func TestCreateBlockDiffNg(t *testing.T) {
 		to.stor.close(t)
 
 		err := util.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
+		require.NoError(t, err, "failed to clean test data dirs")
 	}()
 
 	parent, child := genBlocks(t, to)
@@ -87,20 +87,20 @@ func TestCreateBlockDiffNg(t *testing.T) {
 
 	// Create diff from parent block.
 	txs, err := parent.Transactions.Transactions()
-	assert.NoError(t, err, "Transactions() failed")
+	require.NoError(t, err, "Transactions() failed")
 	for _, tx := range txs {
 		err = to.blockDiffer.countMinerFee(tx)
-		assert.NoError(t, err, "countMinerFee() failed")
+		require.NoError(t, err, "countMinerFee() failed")
 	}
 	err = to.blockDiffer.saveCurFeeDistr(&parent.BlockHeader)
-	assert.NoError(t, err, "saveCurFeeDistr() failed")
+	require.NoError(t, err, "saveCurFeeDistr() failed")
 	parentFeeTotal := int64(txs[0].GetFee())
 	parentFeePrevBlock := parentFeeTotal / 5 * 2
 	parentFeeNextBlock := parentFeeTotal - parentFeePrevBlock
 
 	// Create diff from child block.
 	minerDiff, err := to.blockDiffer.createMinerDiff(&child.BlockHeader, true, defaultHeight)
-	assert.NoError(t, err, "createMinerDiff() failed")
+	require.NoError(t, err, "createMinerDiff() failed")
 	// Verify child block miner's diff.
 	correctMinerAssetBalanceDiff := newBalanceDiff(parentFeeNextBlock, 0, 0, false)
 	correctMinerAssetBalanceDiff.blockID = child.BlockSignature
@@ -117,7 +117,7 @@ func TestCreateBlockDiffSponsorship(t *testing.T) {
 		to.stor.close(t)
 
 		err := util.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
+		require.NoError(t, err, "failed to clean test data dirs")
 	}()
 
 	parent, child := genBlocks(t, to)
@@ -132,26 +132,26 @@ func TestCreateBlockDiffSponsorship(t *testing.T) {
 	assetCost := uint64(100500)
 	to.stor.addBlock(t, blockID0)
 	err := to.stor.entities.sponsoredAssets.sponsorAsset(testGlobal.asset0.asset.ID, assetCost, blockID0)
-	assert.NoError(t, err, "sponsorAsset() failed")
+	require.NoError(t, err, "sponsorAsset() failed")
 
 	// Create diff from parent block.
 	txs, err := parent.Transactions.Transactions()
-	assert.NoError(t, err, "Transactions() failed")
+	require.NoError(t, err, "Transactions() failed")
 	for _, tx := range txs {
 		err = to.blockDiffer.countMinerFee(tx)
-		assert.NoError(t, err, "countMinerFee() failed")
+		require.NoError(t, err, "countMinerFee() failed")
 	}
 	err = to.blockDiffer.saveCurFeeDistr(&parent.BlockHeader)
-	assert.NoError(t, err, "saveCurFeeDistr() failed")
+	require.NoError(t, err, "saveCurFeeDistr() failed")
 	_, err = to.blockDiffer.createMinerDiff(&parent.BlockHeader, false, defaultHeight)
-	assert.NoError(t, err, "createMinerDiff() failed")
+	require.NoError(t, err, "createMinerDiff() failed")
 	parentFeeTotal := int64(txs[0].GetFee() * FeeUnit / assetCost)
 	parentFeePrevBlock := parentFeeTotal / 5 * 2
 	parentFeeNextBlock := parentFeeTotal - parentFeePrevBlock
 
 	// Create diff from child block.
 	minerDiff, err := to.blockDiffer.createMinerDiff(&child.BlockHeader, true, defaultHeight)
-	assert.NoError(t, err, "createMinerDiff() failed")
+	require.NoError(t, err, "createMinerDiff() failed")
 	// Verify child block miner's diff.
 	correctMinerWavesBalanceDiff := newBalanceDiff(parentFeeNextBlock, 0, 0, false)
 	correctMinerWavesBalanceDiff.blockID = child.BlockSignature
@@ -169,9 +169,9 @@ func genTransferWithWavesFee(t *testing.T) *proto.TransferV2 {
 	return tx
 }
 
-func genBlockWithSingleTransaction(t *testing.T, prevID crypto.Signature, prevGenSig crypto.Digest) *proto.Block {
+func genBlockWithSingleTransaction(t *testing.T, prevID crypto.Signature, prevGenSig []byte, to *blockDifferTestObjects) *proto.Block {
 	txs := proto.NewReprFromTransactions([]proto.Transaction{genTransferWithWavesFee(t)})
-	genSig, err := consensus.GeneratorSignature(prevGenSig, testGlobal.minerInfo.pk)
+	genSig, _, err := to.gsp.GenerationSignatureAndHitSource(testGlobal.minerInfo.pk, prevGenSig)
 	require.NoError(t, err)
 	block, err := proto.CreateBlock(txs, 1565694219944, prevID, testGlobal.minerInfo.pk, proto.NxtConsensus{BaseTarget: 66, GenSignature: genSig}, proto.RewardBlockVersion, nil, -1)
 	require.NoError(t, err)
@@ -187,7 +187,7 @@ func TestCreateBlockDiffWithReward(t *testing.T) {
 	defer func() {
 		to.stor.close(t)
 		err := util.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
+		require.NoError(t, err, "failed to clean test data dirs")
 	}()
 
 	// Activate NG and BlockReward
@@ -195,11 +195,10 @@ func TestCreateBlockDiffWithReward(t *testing.T) {
 	to.stor.activateFeature(t, int16(settings.BlockReward))
 
 	sig := genRandBlockIds(t, 1)[0]
-	gs, err := crypto.NewDigestFromBase58(defaultGenSig)
-	require.NoError(t, err)
+	gs := crypto.MustBytesFromBase58(defaultGenSig)
 
 	// First block
-	block1 := genBlockWithSingleTransaction(t, sig, gs)
+	block1 := genBlockWithSingleTransaction(t, sig, gs, to)
 	txs, err := block1.Transactions.Transactions()
 	require.NoError(t, err)
 	for _, tx := range txs {
@@ -210,7 +209,7 @@ func TestCreateBlockDiffWithReward(t *testing.T) {
 	require.NoError(t, err)
 
 	// Second block
-	block2 := genBlockWithSingleTransaction(t, block1.BlockSignature, block1.GenSignature)
+	block2 := genBlockWithSingleTransaction(t, block1.BlockSignature, block1.GenSignature, to)
 	minerDiff, err := to.blockDiffer.createMinerDiff(&block2.BlockHeader, true, defaultHeight)
 	require.NoError(t, err)
 
