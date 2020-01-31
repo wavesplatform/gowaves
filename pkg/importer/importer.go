@@ -18,9 +18,10 @@ const (
 	initTotalBatchSize = 5 * MiB
 	sizeAdjustment     = 1 * MiB
 
-	maxTotalBatchSize  = 32 * MiB
-	maxBlocksBatchSize = 50000
-	maxBlockSize       = 2 * MiB
+	MaxTotalBatchSize               = 20 * MiB
+	MaxTotalBatchSizeForNetworkSync = 6 * MiB
+	MaxBlocksBatchSize              = 50000
+	MaxBlockSize                    = 2 * MiB
 )
 
 type State interface {
@@ -33,8 +34,8 @@ type State interface {
 func calculateNextMaxSizeAndDirection(maxSize int, speed, prevSpeed float64, increasingSize bool) (int, bool) {
 	if speed > prevSpeed && increasingSize {
 		maxSize += sizeAdjustment
-		if maxSize > maxTotalBatchSize {
-			maxSize = maxTotalBatchSize
+		if maxSize > MaxTotalBatchSize {
+			maxSize = MaxTotalBatchSize
 		}
 	} else if speed > prevSpeed && !increasingSize {
 		maxSize -= sizeAdjustment
@@ -50,8 +51,8 @@ func calculateNextMaxSizeAndDirection(maxSize int, speed, prevSpeed float64, inc
 	} else if speed < prevSpeed && !increasingSize {
 		increasingSize = true
 		maxSize += sizeAdjustment
-		if maxSize > maxTotalBatchSize {
-			maxSize = maxTotalBatchSize
+		if maxSize > MaxTotalBatchSize {
+			maxSize = MaxTotalBatchSize
 		}
 	}
 	return maxSize, increasingSize
@@ -74,7 +75,7 @@ func ApplyFromFile(st State, blockchainPath string, nBlocks, startHeight uint64,
 	}()
 
 	sb := make([]byte, 4)
-	var blocks [maxBlocksBatchSize][]byte
+	var blocks [MaxBlocksBatchSize][]byte
 	blocksIndex := 0
 	readPos := int64(0)
 	totalSize := 0
@@ -86,7 +87,7 @@ func ApplyFromFile(st State, blockchainPath string, nBlocks, startHeight uint64,
 			return err
 		}
 		size := binary.BigEndian.Uint32(sb)
-		if size > maxBlockSize || size == 0 {
+		if size > MaxBlockSize || size == 0 {
 			return errors.New("corrupted blockchain file: invalid block size")
 		}
 		totalSize += int(size)
@@ -102,7 +103,7 @@ func ApplyFromFile(st State, blockchainPath string, nBlocks, startHeight uint64,
 		readPos += int64(size)
 		blocks[blocksIndex] = block
 		blocksIndex++
-		if (totalSize < maxSize) && (blocksIndex != maxBlocksBatchSize) && (height != nBlocks) {
+		if (totalSize < maxSize) && (blocksIndex != MaxBlocksBatchSize) && (height != nBlocks) {
 			continue
 		}
 		start := time.Now()

@@ -249,6 +249,7 @@ func newStateManager(dataDir string, params StateParams, settings *settings.Bloc
 	atxParams := &addressTransactionsParams{
 		dir:                 blockStorageDir,
 		batchedStorMemLimit: AddressTransactionsMemLimit,
+		batchedStorMaxKeys:  AddressTransactionsMaxKeys,
 		maxFileSize:         MaxAddressTransactionsFileSize,
 		providesData:        params.ProvideExtendedApi,
 	}
@@ -690,7 +691,7 @@ func (s *stateManager) addRewardVote(block *proto.Block, height uint64) error {
 }
 
 func (s *stateManager) addNewBlock(block, parent *proto.Block, initialisation bool, chans *verifierChans, height uint64) error {
-	// Check the block version
+	// Check the block version.
 	blockRewardActivated, err := s.IsActivated(int16(settings.BlockReward))
 	if err != nil {
 		return err
@@ -741,7 +742,7 @@ func (s *stateManager) addNewBlock(block, parent *proto.Block, initialisation bo
 	if err := s.addFeaturesVotes(block); err != nil {
 		return err
 	}
-	// Count reward vote
+	// Count reward vote.
 	if blockRewardActivated {
 		err := s.addRewardVote(block, height)
 		if err != nil {

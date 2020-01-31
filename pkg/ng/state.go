@@ -111,11 +111,13 @@ func (a *State) AddMicroblock(micro *proto.MicroBlock) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	if a.prevAddedBlock == nil {
+		zap.S().Debug("prevAddedBlock is not set")
 		return
 	}
 
 	err := a.storage.PushMicro(micro)
 	if err != nil {
+		zap.S().Debugf("Failed to push micro: %v", err)
 		return
 	}
 
@@ -148,14 +150,18 @@ func (a *State) AddMicroblock(micro *proto.MicroBlock) {
 	}
 
 	lock := a.state.Mutex()
+	zap.S().Debug("Before the rollback lock()")
 	locked := lock.Lock()
+	zap.S().Debug("After the rollback lock()")
 	err = a.state.RollbackTo(curBlock.Parent)
 	if err != nil {
 		zap.S().Errorf("NG State: failed to rollback to sig %s: %v", curBlock.Parent, err)
 		locked.Unlock()
 		return
 	}
+	zap.S().Debug("Successfully rollbacked")
 	locked.Unlock()
+	zap.S().Debug("After the rollback unlock")
 
 	err = a.applier.Apply(block)
 	if err != nil {

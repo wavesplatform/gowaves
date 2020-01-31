@@ -128,11 +128,13 @@ func (a *RuntimeImpl) HandleMicroBlockMessage(_ peer.Peer, message *proto.MicroB
 
 	if a.waitingOnMicroblock == nil {
 		// we don't need microblocks
+		zap.S().Debug("dropping micro because we aren't waiting for microblocks")
 		return
 	}
 
 	if *a.waitingOnMicroblock != microblock.TotalResBlockSigField {
 		// received microblock that we don't expect
+		zap.S().Debugf("received micro that we don't expect: need: %s, got: %s", a.waitingOnMicroblock.String(), microblock.TotalResBlockSigField.String())
 		return
 	}
 

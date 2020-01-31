@@ -27,8 +27,11 @@ const (
 	// It increases when backward compatibility with previous storage version is lost.
 	StateVersion = 2
 
-	// 100 MiB.
-	AddressTransactionsMemLimit = 100 * 1024 * 1024
+	// Memory limit for address transactions. flush() is called when this
+	// limit is exceeded.
+	AddressTransactionsMemLimit = 50 * 1024 * 1024
+	// Number of keys per flush() call.
+	AddressTransactionsMaxKeys = 4000
 
 	// Maximum size of transactions by addresses file.
 	// Then it is sorted and saved to DB.
