@@ -231,7 +231,7 @@ func TestCheckReissueV1(t *testing.T) {
 
 	assetInfo := to.stor.createAsset(t, testGlobal.asset0.asset.ID)
 
-	tx := createReissueV1(t)
+	tx := createReissueV1(t, 1000)
 	tx.SenderPK = assetInfo.issuer
 	info := defaultCheckerInfo(t)
 	info.currentTimestamp = settings.MainNetSettings.ReissueBugWindowTimeEnd + 1
@@ -279,7 +279,7 @@ func TestCheckReissueV2(t *testing.T) {
 
 	assetInfo := to.stor.createAsset(t, testGlobal.asset0.asset.ID)
 
-	tx := createReissueV2(t)
+	tx := createReissueV2(t, 1000)
 	tx.SenderPK = assetInfo.issuer
 	info := defaultCheckerInfo(t)
 	info.currentTimestamp = settings.MainNetSettings.ReissueBugWindowTimeEnd + 1

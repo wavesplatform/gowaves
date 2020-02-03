@@ -312,8 +312,8 @@ func TestCreateDiffIssueV2(t *testing.T) {
 	assert.Equal(t, correctAddrs, ch.addrs)
 }
 
-func createReissueV1(t *testing.T) *proto.ReissueV1 {
-	tx := proto.NewUnsignedReissueV1(testGlobal.senderInfo.pk, testGlobal.asset0.asset.ID, defaultQuantity, false, defaultTimestamp, defaultFee)
+func createReissueV1(t *testing.T, feeUnits int) *proto.ReissueV1 {
+	tx := proto.NewUnsignedReissueV1(testGlobal.senderInfo.pk, testGlobal.asset0.asset.ID, defaultQuantity, false, defaultTimestamp, uint64(feeUnits*FeeUnit))
 	err := tx.Sign(testGlobal.senderInfo.sk)
 	assert.NoError(t, err, "tx.Sign() failed")
 	return tx
@@ -329,7 +329,7 @@ func TestCreateDiffReissueV1(t *testing.T) {
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
-	tx := createReissueV1(t)
+	tx := createReissueV1(t, 1000)
 	ch, err := to.td.createDiffReissueV1(tx, defaultDifferInfo(t))
 	assert.NoError(t, err, "createDiffReissueV1() failed")
 
@@ -345,8 +345,8 @@ func TestCreateDiffReissueV1(t *testing.T) {
 	assert.Equal(t, correctAddrs, ch.addrs)
 }
 
-func createReissueV2(t *testing.T) *proto.ReissueV2 {
-	tx := proto.NewUnsignedReissueV2('W', testGlobal.senderInfo.pk, testGlobal.asset0.asset.ID, defaultQuantity, false, defaultTimestamp, defaultFee)
+func createReissueV2(t *testing.T, feeUnits int) *proto.ReissueV2 {
+	tx := proto.NewUnsignedReissueV2('W', testGlobal.senderInfo.pk, testGlobal.asset0.asset.ID, defaultQuantity, false, defaultTimestamp, uint64(feeUnits*FeeUnit))
 	err := tx.Sign(testGlobal.senderInfo.sk)
 	assert.NoError(t, err, "tx.Sign() failed")
 	return tx
@@ -362,7 +362,7 @@ func TestCreateDiffReissueV2(t *testing.T) {
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
-	tx := createReissueV2(t)
+	tx := createReissueV2(t, 1000)
 	ch, err := to.td.createDiffReissueV2(tx, defaultDifferInfo(t))
 	assert.NoError(t, err, "createDiffReissueV2() failed")
 

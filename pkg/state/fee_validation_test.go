@@ -9,6 +9,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/util"
+	"go.uber.org/zap"
 )
 
 func TestAssetScriptExtraFee(t *testing.T) {
@@ -206,4 +207,42 @@ func TestNFTMinFee(t *testing.T) {
 
 	require.NoError(t, checkMinFeeWaves(nftA1, params))
 	require.NoError(t, checkMinFeeWaves(nftA2, params))
+}
+
+func TestReissueFeeReduction(t *testing.T) {
+	logger, err := zap.NewDevelopment()
+	require.NoError(t, err)
+	zap.ReplaceGlobals(logger)
+	storage, path, err := createStorageObjects()
+	require.NoError(t, err)
+
+	defer func() {
+		storage.close(t)
+		err = util.CleanTemporaryDirs(path)
+		assert.NoError(t, err, "failed to clean test data dirs")
+	}()
+
+	params := &feeValidationParams{
+		stor:           storage.entities,
+		settings:       settings.MainNetSettings,
+		initialisation: false,
+		txAssets:       &txAssets{feeAsset: proto.OptionalAsset{Present: false}},
+	}
+
+	reissueA1 := createReissueV1(t, 1)
+	reissueA2 := createReissueV2(t, 1)
+	reissueB1 := createReissueV1(t, 1000)
+	reissueB2 := createReissueV2(t, 1000)
+
+	require.Error(t, checkMinFeeWaves(reissueA1, params))
+	require.Error(t, checkMinFeeWaves(reissueA2, params))
+	require.NoError(t, checkMinFeeWaves(reissueB1, params))
+	require.NoError(t, checkMinFeeWaves(reissueB2, params))
+
+	storage.activateFeature(t, int16(settings.MultiPaymentInvokeScript))
+
+	require.NoError(t, checkMinFeeWaves(reissueA1, params))
+	require.NoError(t, checkMinFeeWaves(reissueA2, params))
+	require.NoError(t, checkMinFeeWaves(reissueB1, params))
+	require.NoError(t, checkMinFeeWaves(reissueB2, params))
 }

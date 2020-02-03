@@ -106,7 +106,7 @@ func TestPerformReissueV1(t *testing.T) {
 	}()
 
 	assetInfo := to.stor.createAsset(t, testGlobal.asset0.asset.ID)
-	tx := createReissueV1(t)
+	tx := createReissueV1(t, 1000)
 	err := to.tp.performReissueV1(tx, defaultPerformerInfo(t))
 	assert.NoError(t, err, "performReissueV1() failed")
 	to.stor.flush(t)
@@ -130,7 +130,7 @@ func TestPerformReissueV2(t *testing.T) {
 	}()
 
 	assetInfo := to.stor.createAsset(t, testGlobal.asset0.asset.ID)
-	tx := createReissueV2(t)
+	tx := createReissueV2(t, 1000)
 	err := to.tp.performReissueV2(tx, defaultPerformerInfo(t))
 	assert.NoError(t, err, "performReissueV2() failed")
 	to.stor.flush(t)
