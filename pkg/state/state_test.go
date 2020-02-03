@@ -428,3 +428,55 @@ func TestStateManager_Mutex(t *testing.T) {
 	mu := manager.Mutex()
 	mu.Lock().Unlock()
 }
+
+func TestStateManager_TopBlock(t *testing.T) {
+	blocksPath, err := blocksPath()
+	assert.NoError(t, err)
+	dataDir, err := ioutil.TempDir(os.TempDir(), "dataDir")
+	assert.NoError(t, err, "failed to create dir for test data")
+	manager, err := newStateManager(dataDir, DefaultTestingStateParams(), settings.MainNetSettings)
+	assert.NoError(t, err, "newStateManager() failed")
+
+	defer func() {
+		err := manager.Close()
+		assert.NoError(t, err, "manager.Close() failed")
+		err = os.RemoveAll(dataDir)
+		assert.NoError(t, err, "failed to remove test data dirs")
+	}()
+
+	genesis, err := manager.BlockByHeight(1)
+	assert.NoError(t, err)
+	topBlock, err := manager.TopBlock()
+	assert.NoError(t, err)
+	assert.Equal(t, genesis, topBlock)
+
+	height := proto.Height(100)
+	err = importer.ApplyFromFile(manager, blocksPath, height-1, 1, false)
+	assert.NoError(t, err, "ApplyFromFile() failed")
+
+	topBlock, err = manager.TopBlock()
+	assert.NoError(t, err)
+	correct, err := manager.BlockByHeight(height)
+	assert.NoError(t, err)
+	assert.Equal(t, correct, topBlock)
+
+	height = proto.Height(30)
+	err = manager.RollbackToHeight(height)
+	assert.NoError(t, err)
+
+	topBlock, err = manager.TopBlock()
+	assert.NoError(t, err)
+	correct, err = manager.BlockByHeight(height)
+	assert.NoError(t, err)
+	assert.Equal(t, correct, topBlock)
+
+	// Test after closure.
+	err = manager.Close()
+	assert.NoError(t, err, "manager.Close() failed")
+
+	manager, err = newStateManager(dataDir, DefaultTestingStateParams(), settings.MainNetSettings)
+	assert.NoError(t, err, "newStateManager() failed")
+	topBlock, err = manager.TopBlock()
+	assert.NoError(t, err)
+	assert.Equal(t, correct, topBlock)
+}
