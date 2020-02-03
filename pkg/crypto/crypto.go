@@ -9,10 +9,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/agl/ed25519"
-	"github.com/agl/ed25519/edwards25519"
 	"github.com/mr-tron/base58/base58"
 	"github.com/pkg/errors"
+	"github.com/wavesplatform/gowaves/pkg/crypto/internal"
 	"golang.org/x/crypto/blake2b"
 	"golang.org/x/crypto/sha3"
 )
@@ -92,6 +91,14 @@ func MustDigestFromBase58(s string) Digest {
 		panic(err.Error())
 	}
 	return rs
+}
+
+func MustBytesFromBase58(s string) []byte {
+	b, err := base58.Decode(s)
+	if err != nil {
+		panic(err)
+	}
+	return b
 }
 
 type SecretKey [SecretKeySize]byte
@@ -342,18 +349,18 @@ func GenerateSecretKey(seed []byte) SecretKey {
 func GeneratePublicKey(sk SecretKey) PublicKey {
 	var pk PublicKey
 	s := [SecretKeySize]byte(sk)
-	var ed edwards25519.ExtendedGroupElement
-	edwards25519.GeScalarMultBase(&ed, &s)
-	var edYPlusOne = new(edwards25519.FieldElement)
-	edwards25519.FeAdd(edYPlusOne, &ed.Y, &ed.Z)
-	var oneMinusEdY = new(edwards25519.FieldElement)
-	edwards25519.FeSub(oneMinusEdY, &ed.Z, &ed.Y)
-	var invOneMinusEdY = new(edwards25519.FieldElement)
-	edwards25519.FeInvert(invOneMinusEdY, oneMinusEdY)
-	var montX = new(edwards25519.FieldElement)
-	edwards25519.FeMul(montX, edYPlusOne, invOneMinusEdY)
+	var ed internal.ExtendedGroupElement
+	internal.GeScalarMultBase(&ed, &s)
+	var edYPlusOne = new(internal.FieldElement)
+	internal.FeAdd(edYPlusOne, &ed.Y, &ed.Z)
+	var oneMinusEdY = new(internal.FieldElement)
+	internal.FeSub(oneMinusEdY, &ed.Z, &ed.Y)
+	var invOneMinusEdY = new(internal.FieldElement)
+	internal.FeInvert(invOneMinusEdY, oneMinusEdY)
+	var montX = new(internal.FieldElement)
+	internal.FeMul(montX, edYPlusOne, invOneMinusEdY)
 	p := new([PublicKeySize]byte)
-	edwards25519.FeToBytes(p, montX)
+	internal.FeToBytes(p, montX)
 	copy(pk[:], p[:])
 	return pk
 }
@@ -373,9 +380,9 @@ func GenerateKeyPair(seed []byte) (SecretKey, PublicKey, error) {
 
 func Sign(secretKey SecretKey, data []byte) (Signature, error) {
 	var sig Signature
-	var edPubKeyPoint edwards25519.ExtendedGroupElement
+	var edPubKeyPoint internal.ExtendedGroupElement
 	sk := [SecretKeySize]byte(secretKey)
-	edwards25519.GeScalarMultBase(&edPubKeyPoint, &sk)
+	internal.GeScalarMultBase(&edPubKeyPoint, &sk)
 
 	var edPubKey = new([PublicKeySize]byte)
 	edPubKeyPoint.ToBytes(edPubKey)
@@ -417,9 +424,9 @@ func sign(curvePrivateKey, edPublicKey *[DigestSize]byte, data []byte) ([Signatu
 	h.Sum(messageDigest[:0])
 
 	var messageDigestReduced [32]byte
-	edwards25519.ScReduce(&messageDigestReduced, &messageDigest)
-	var R edwards25519.ExtendedGroupElement
-	edwards25519.GeScalarMultBase(&R, &messageDigestReduced)
+	internal.ScReduce(&messageDigestReduced, &messageDigest)
+	var R internal.ExtendedGroupElement
+	internal.GeScalarMultBase(&R, &messageDigestReduced)
 
 	var encodedR [32]byte
 	R.ToBytes(&encodedR)
@@ -436,10 +443,10 @@ func sign(curvePrivateKey, edPublicKey *[DigestSize]byte, data []byte) ([Signatu
 	}
 	h.Sum(hramDigest[:0])
 	var hramDigestReduced [32]byte
-	edwards25519.ScReduce(&hramDigestReduced, &hramDigest)
+	internal.ScReduce(&hramDigestReduced, &hramDigest)
 
 	var s [32]byte
-	edwards25519.ScMulAdd(&s, &hramDigestReduced, curvePrivateKey, &messageDigestReduced)
+	internal.ScMulAdd(&s, &hramDigestReduced, curvePrivateKey, &messageDigestReduced)
 
 	copy(signature[:], encodedR[:])
 	copy(signature[32:], s[:])
@@ -448,22 +455,22 @@ func sign(curvePrivateKey, edPublicKey *[DigestSize]byte, data []byte) ([Signatu
 
 func Verify(publicKey PublicKey, signature Signature, data []byte) bool {
 	pk := [DigestSize]byte(publicKey)
-	var montX = new(edwards25519.FieldElement)
-	edwards25519.FeFromBytes(montX, &pk)
+	var montX = new(internal.FieldElement)
+	internal.FeFromBytes(montX, &pk)
 
-	var one = new(edwards25519.FieldElement)
-	edwards25519.FeOne(one)
-	var montXMinusOne = new(edwards25519.FieldElement)
-	edwards25519.FeSub(montXMinusOne, montX, one)
-	var montXPlusOne = new(edwards25519.FieldElement)
-	edwards25519.FeAdd(montXPlusOne, montX, one)
-	var invMontXPlusOne = new(edwards25519.FieldElement)
-	edwards25519.FeInvert(invMontXPlusOne, montXPlusOne)
-	var edY = new(edwards25519.FieldElement)
-	edwards25519.FeMul(edY, montXMinusOne, invMontXPlusOne)
+	var one = new(internal.FieldElement)
+	internal.FeOne(one)
+	var montXMinusOne = new(internal.FieldElement)
+	internal.FeSub(montXMinusOne, montX, one)
+	var montXPlusOne = new(internal.FieldElement)
+	internal.FeAdd(montXPlusOne, montX, one)
+	var invMontXPlusOne = new(internal.FieldElement)
+	internal.FeInvert(invMontXPlusOne, montXPlusOne)
+	var edY = new(internal.FieldElement)
+	internal.FeMul(edY, montXMinusOne, invMontXPlusOne)
 
 	var edPubKey = new([PublicKeySize]byte)
-	edwards25519.FeToBytes(edPubKey, edY)
+	internal.FeToBytes(edPubKey, edY)
 
 	edPubKey[31] &= 0x7F
 	edPubKey[31] |= signature[63] & 0x80
@@ -472,7 +479,46 @@ func Verify(publicKey PublicKey, signature Signature, data []byte) bool {
 	copy(s[:], signature[:])
 	s[63] &= 0x7f
 
-	return ed25519.Verify(edPubKey, data, s)
+	return verify(edPubKey, data, s)
+}
+
+func verify(publicKey *[PublicKeySize]byte, message []byte, sig *[SignatureSize]byte) bool {
+	if sig[63]&224 != 0 {
+		return false
+	}
+
+	var A internal.ExtendedGroupElement
+	if !A.FromBytes(publicKey) {
+		return false
+	}
+	internal.FeNeg(&A.X, &A.X)
+	internal.FeNeg(&A.T, &A.T)
+
+	h := sha512.New()
+	_, _ = h.Write(sig[:32])
+	_, _ = h.Write(publicKey[:])
+	_, _ = h.Write(message)
+	var digest [64]byte
+	h.Sum(digest[:0])
+
+	var hReduced [32]byte
+	internal.ScReduce(&hReduced, &digest)
+
+	var R internal.ProjectiveGroupElement
+	var s [32]byte
+	copy(s[:], sig[32:])
+
+	// https://tools.ietf.org/html/rfc8032#section-5.1.7 requires that s be in
+	// the range [0, order) in order to prevent signature malleability.
+	if !internal.ScMinimal(&s) {
+		return false
+	}
+
+	internal.GeDoubleScalarMultVartime(&R, &hReduced, &A, &s)
+
+	var checkR [32]byte
+	R.ToBytes(&checkR)
+	return bytes.Equal(sig[:32], checkR[:])
 }
 
 func toBase58JSON(b []byte) []byte {

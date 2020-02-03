@@ -5,6 +5,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"runtime/debug"
 
 	"github.com/cespare/xxhash"
 	"github.com/pkg/errors"
@@ -16,7 +17,7 @@ type BloomFilterParams struct {
 	N int
 	// FalsePositiveProbability is acceptable false positive rate {0..1}.
 	FalsePositiveProbability float64
-	// Bloom store
+	// Bloom store.
 	Store store
 }
 
@@ -64,10 +65,12 @@ func newBloomFilterFromStore(params BloomFilterParams) (*bloomFilter, error) {
 	if err != nil {
 		return nil, err
 	}
+	debug.FreeOSMemory()
 	return bf, nil
 }
 
 func storeBloomFilter(a *bloomFilter) error {
+	debug.FreeOSMemory()
 	return a.params.Store.save(a.filter)
 }
 

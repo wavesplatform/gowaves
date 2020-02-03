@@ -6,6 +6,7 @@ import (
 	"net"
 	"sync"
 
+	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/p2p/mock"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
@@ -48,6 +49,13 @@ func NewMockStateManager(blocks ...*proto.Block) (*MockStateManager, error) {
 		}
 	}
 	return m, nil
+}
+
+func (a *MockStateManager) TopBlock() (*proto.Block, error) {
+	if len(a.state) < 1 {
+		return nil, errors.New("not found")
+	}
+	return a.state[len(a.state)-1], nil
 }
 
 func (a *MockStateManager) Block(blockID crypto.Signature) (*proto.Block, error) {
@@ -301,6 +309,10 @@ func (a *MockStateManager) VotesNum(featureID int16) (uint64, error) {
 
 func (a *MockStateManager) IsActivated(featureID int16) (bool, error) {
 	panic("implement me")
+}
+
+func (a *MockStateManager) IsActiveAtHeight(featureID int16, height proto.Height) (bool, error) {
+	panic("not implemented")
 }
 
 func (a *MockStateManager) ActivationHeight(featureID int16) (uint64, error) {

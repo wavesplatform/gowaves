@@ -945,7 +945,7 @@ func (c *ProtobufConverter) consensus(header *g.Block_Header) NxtConsensus {
 		return NxtConsensus{}
 	}
 	return NxtConsensus{
-		GenSignature: c.digest(header.GenerationSignature),
+		GenSignature: header.GenerationSignature,
 		BaseTarget:   c.uint64(header.BaseTarget),
 	}
 }

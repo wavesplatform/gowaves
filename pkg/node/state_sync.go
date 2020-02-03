@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	"github.com/wavesplatform/gowaves/pkg/importer"
 	"github.com/wavesplatform/gowaves/pkg/libs/nullable"
 	"github.com/wavesplatform/gowaves/pkg/node/peer_manager"
 	. "github.com/wavesplatform/gowaves/pkg/p2p/peer"
@@ -331,15 +332,24 @@ func applyBlocks(services services.Services, blocks [][]byte, p Peer) error {
 		}
 		rollback = true
 	}
-	err = services.State.AddNewBlocks(blocks)
-	if err != nil {
-		zap.S().Debugf("[%s] BlockDownloader: error on adding new blocks: %q, sig: %s, parent sig %s, rollback: %v", p.ID(), err, sig, parent, rollback)
-		return err
-	}
-	err = MaybeEnableExtendedApi(services.State)
-	if err != nil {
-		zap.S().Debugf("[%s] BlockDownloader: MaybeEnableExtendedApi(): %v", p.ID(), err)
-		return err
+	size := 0
+	groupIndex := 0
+	for i, block := range blocks {
+		blocksNumer := i + 1
+		size += len(block)
+		if (size < importer.MaxTotalBatchSizeForNetworkSync) && (blocksNumer != len(blocks)) {
+			continue
+		}
+		blocksToApply := blocks[groupIndex:blocksNumer]
+		groupIndex = blocksNumer
+		if err := services.State.AddNewBlocks(blocksToApply); err != nil {
+			zap.S().Debugf("[%s] BlockDownloader: error on adding new blocks: %q, sig: %s, parent sig %s, rollback: %v", p.ID(), err, sig, parent, rollback)
+			return err
+		}
+		if err := MaybeEnableExtendedApi(services.State); err != nil {
+			panic(fmt.Sprintf("[%s] BlockDownloader: MaybeEnableExtendedApi(): %v. Failed to persist address transactions for API after successfully applying valid blocks.", p.ID(), err))
+		}
+		size = 0
 	}
 	return nil
 }

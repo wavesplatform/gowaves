@@ -171,6 +171,9 @@ func checkCompatibility(stateDB *stateDB, extendedApi bool) error {
 type stateManager struct {
 	mu *sync.RWMutex // `mu` is used outside of state and returned in Mutex() function.
 
+	lastBlockLock *sync.RWMutex
+	lastBlock     *proto.Block
+
 	genesis proto.Block
 	stateDB *stateDB
 
@@ -249,6 +252,7 @@ func newStateManager(dataDir string, params StateParams, settings *settings.Bloc
 	atxParams := &addressTransactionsParams{
 		dir:                 blockStorageDir,
 		batchedStorMemLimit: AddressTransactionsMemLimit,
+		batchedStorMaxKeys:  AddressTransactionsMaxKeys,
 		maxFileSize:         MaxAddressTransactionsFileSize,
 		providesData:        params.ProvideExtendedApi,
 	}
@@ -263,6 +267,7 @@ func newStateManager(dataDir string, params StateParams, settings *settings.Bloc
 	}
 	state := &stateManager{
 		mu:                        &sync.RWMutex{},
+		lastBlockLock:             &sync.RWMutex{},
 		stateDB:                   stateDB,
 		stor:                      stor,
 		rw:                        rw,
@@ -286,6 +291,9 @@ func newStateManager(dataDir string, params StateParams, settings *settings.Bloc
 	// Handle genesis block.
 	if err := state.handleGenesisBlock(settings.Genesis); err != nil {
 		return nil, wrapErr(Other, err)
+	}
+	if err := state.loadLastBlock(); err != nil {
+		return nil, wrapErr(RetrievalError, err)
 	}
 	return state, nil
 }
@@ -381,6 +389,26 @@ func (s *stateManager) handleGenesisBlock(block proto.Block) error {
 		}
 	}
 	return nil
+}
+
+func (s *stateManager) loadLastBlock() error {
+	height, err := s.Height()
+	if err != nil {
+		return errors.Errorf("failed to retrieve height: %v", err)
+	}
+	lastBlock, err := s.BlockByHeight(height)
+	if err != nil {
+		return errors.Errorf("failed to get block by height: %v", err)
+	}
+	s.lastBlock = lastBlock
+	return nil
+}
+
+func (s *stateManager) TopBlock() (*proto.Block, error) {
+	s.lastBlockLock.RLock()
+	defer s.lastBlockLock.RUnlock()
+	cp := *s.lastBlock
+	return &cp, nil
 }
 
 func (s *stateManager) Header(blockID crypto.Signature) (*proto.BlockHeader, error) {
@@ -690,7 +718,7 @@ func (s *stateManager) addRewardVote(block *proto.Block, height uint64) error {
 }
 
 func (s *stateManager) addNewBlock(block, parent *proto.Block, initialisation bool, chans *verifierChans, height uint64) error {
-	// Check the block version
+	// Check the block version.
 	blockRewardActivated, err := s.IsActivated(int16(settings.BlockReward))
 	if err != nil {
 		return err
@@ -741,7 +769,7 @@ func (s *stateManager) addNewBlock(block, parent *proto.Block, initialisation bo
 	if err := s.addFeaturesVotes(block); err != nil {
 		return err
 	}
-	// Count reward vote
+	// Count reward vote.
 	if blockRewardActivated {
 		err := s.addRewardVote(block, height)
 		if err != nil {
@@ -1236,6 +1264,7 @@ func (s *stateManager) addBlocks(blocks []*proto.Block, initialisation bool) (*p
 	if verifyError != nil {
 		return nil, wrapErr(ValidationError, verifyError)
 	}
+	s.lastBlockLock.Lock()
 	// After everything is validated, save all the changes to DB.
 	if err := s.flush(initialisation); err != nil {
 		return nil, wrapErr(ModificationError, err)
@@ -1244,6 +1273,10 @@ func (s *stateManager) addBlocks(blocks []*proto.Block, initialisation bool) (*p
 	if err := s.reset(initialisation); err != nil {
 		return nil, wrapErr(ModificationError, err)
 	}
+	if err := s.loadLastBlock(); err != nil {
+		return nil, wrapErr(RetrievalError, err)
+	}
+	s.lastBlockLock.Unlock()
 	// Check if we need to perform some event and call addBlocks() again.
 	if blocksToFinish != nil {
 		return s.handleBreak(blocksToFinish, initialisation, breakerInfo)
@@ -1286,6 +1319,9 @@ func (s *stateManager) RollbackToHeight(height uint64) error {
 }
 
 func (s *stateManager) rollbackToImpl(removalEdge crypto.Signature) error {
+	s.lastBlockLock.Lock()
+	defer s.lastBlockLock.Unlock()
+
 	if err := s.checkRollbackInput(removalEdge); err != nil {
 		return wrapErr(InvalidInputError, err)
 	}
@@ -1324,6 +1360,9 @@ func (s *stateManager) rollbackToImpl(removalEdge crypto.Signature) error {
 	// Clear scripts cache.
 	if err := s.stor.scriptsStorage.clear(); err != nil {
 		return wrapErr(RollbackError, err)
+	}
+	if err := s.loadLastBlock(); err != nil {
+		return wrapErr(RetrievalError, err)
 	}
 	return nil
 }
@@ -1400,7 +1439,8 @@ func (s *stateManager) EffectiveBalance(account proto.Recipient, startHeight, en
 }
 
 func (s *stateManager) BlockchainSettings() (*settings.BlockchainSettings, error) {
-	return s.settings, nil
+	cp := *s.settings
+	return &cp, nil
 }
 
 func (s *stateManager) SavePeers(peers []proto.TCPAddr) error {
@@ -1450,6 +1490,17 @@ func (s *stateManager) IsActivated(featureID int16) (bool, error) {
 		return false, wrapErr(RetrievalError, err)
 	}
 	return activated, nil
+}
+
+func (s *stateManager) IsActiveAtHeight(featureID int16, height proto.Height) (bool, error) {
+	h, err := s.stor.features.activationHeight(featureID)
+	if err == keyvalue.ErrNotFound || err == errEmptyHist {
+		return false, nil
+	}
+	if err != nil {
+		return false, wrapErr(RetrievalError, err)
+	}
+	return h >= height, nil
 }
 
 func (s *stateManager) ActivationHeight(featureID int16) (uint64, error) {

@@ -29,6 +29,7 @@ type TransactionIterator interface {
 // Methods of this interface are thread-safe.
 type StateInfo interface {
 	// Block getters.
+	TopBlock() (*proto.Block, error)
 	Block(blockID crypto.Signature) (*proto.Block, error)
 	BlockByHeight(height proto.Height) (*proto.Block, error)
 	BlockBytes(blockID crypto.Signature) ([]byte, error)
@@ -66,6 +67,7 @@ type StateInfo interface {
 	// Features.
 	VotesNum(featureID int16) (uint64, error)
 	IsActivated(featureID int16) (bool, error)
+	IsActiveAtHeight(featureID int16, height proto.Height) (bool, error)
 	ActivationHeight(featureID int16) (proto.Height, error)
 	IsApproved(featureID int16) (bool, error)
 	ApprovalHeight(featureID int16) (proto.Height, error)
