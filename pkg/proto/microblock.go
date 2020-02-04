@@ -461,3 +461,70 @@ func (a *MicroBlockInvMessage) UnmarshalBinary(data []byte) error {
 	a.Body = body
 	return nil
 }
+
+// PBMicroBlockMessage represents a Protobuf MicroBlock message
+type PBMicroBlockMessage struct {
+	Body io.WriterTo
+}
+
+func (*PBMicroBlockMessage) ReadFrom(r io.Reader) (int64, error) {
+	panic("implement me")
+}
+
+func (a *PBMicroBlockMessage) WriteTo(w io.Writer) (int64, error) {
+	buf := bytebufferpool.Get()
+	defer bytebufferpool.Put(buf)
+
+	n, err := a.Body.WriteTo(buf)
+	if err != nil {
+		return n, err
+	}
+
+	h, err := MakeHeader(ContentIDPBMicroBlock, buf.Bytes())
+	if err != nil {
+		return 0, err
+	}
+
+	n1, err := h.WriteTo(w)
+	if err != nil {
+		return n1, err
+	}
+
+	n2, err := buf.WriteTo(w)
+	if err != nil {
+		return n1 + n2, err
+	}
+	return n1 + n2, nil
+}
+
+func (a *PBMicroBlockMessage) UnmarshalBinary(data []byte) error {
+	var h Header
+	if err := h.UnmarshalBinary(data); err != nil {
+		return err
+	}
+	if h.ContentID != ContentIDPBMicroBlock {
+		return errors.Errorf("wrong ContentID in Header: %x", h.ContentID)
+	}
+	data = data[17:]
+
+	if uint32(len(data)) < h.PayloadLength {
+		return errors.New("invalid data size")
+	}
+	b := make([]byte, len(data[:h.PayloadLength]))
+	copy(b, data)
+	a.Body = Bytes(b)
+	return nil
+}
+
+func (a *PBMicroBlockMessage) MarshalBinary() ([]byte, error) {
+	buf := bytebufferpool.Get()
+	defer bytebufferpool.Put(buf)
+
+	_, err := a.WriteTo(buf)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]byte, buf.Len())
+	copy(out, buf.B)
+	return out, nil
+}
