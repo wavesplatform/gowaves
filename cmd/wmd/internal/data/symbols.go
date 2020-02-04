@@ -133,18 +133,21 @@ func (s *Symbols) UpdateFromOracle(conn *grpc.ClientConn) error {
 	var msg g.DataEntryResponse
 	converter := client.SafeConverter{}
 	count := 0
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	for err = dc.RecvMsg(&msg); err == nil; err = dc.RecvMsg(&msg) {
 		entry, err := converter.Entry(msg.Entry)
 		if err != nil {
 			return err
 		}
-		id, err := crypto.NewDigestFromBase58(entry.GetKey())
-		if err != nil {
-			continue
-		}
 		switch te := entry.(type) {
 		case *proto.StringDataEntry:
-			s.put(te.Value, id)
+			ticker := te.Key
+			id, err := crypto.NewDigestFromBase58(te.Value)
+			if err != nil {
+				continue
+			}
+			s.put(ticker, id)
 			count++
 		default:
 			continue
@@ -158,8 +161,6 @@ func (s *Symbols) UpdateFromOracle(conn *grpc.ClientConn) error {
 }
 
 func (s *Symbols) put(ticker string, id crypto.Digest) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
 	s.tickers[ticker] = id
 	s.tokens[id] = ticker
 }
