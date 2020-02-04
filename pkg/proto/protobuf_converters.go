@@ -404,8 +404,19 @@ func (c *ProtobufConverter) functionCall(data []byte) FunctionCall {
 	if c.err != nil {
 		return FunctionCall{}
 	}
+	// FIXME: The following block fixes the bug introduced in Scala implementation of gRPC
+	// It should be removed after the release of fix.
+	var d []byte
+	if data[0] == 1 && data[3] == 9 {
+		d = make([]byte, len(data)-2)
+		d[0] = data[0]
+		copy(d[1:], data[3:])
+	} else {
+		d = data
+	}
+	// FIXME: remove the block above after updating to fixed version.
 	fc := FunctionCall{}
-	err := fc.UnmarshalBinary(data)
+	err := fc.UnmarshalBinary(d)
 	if err != nil {
 		c.err = err
 		return FunctionCall{}
