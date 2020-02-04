@@ -19,6 +19,7 @@ type Callable func(Scope, Exprs) (Expr, error)
 type Script struct {
 	Version    int
 	HasBlockV2 bool
+	HasArrays  bool
 	Verifier   Expr
 	DApp       DApp
 	dApp       bool
@@ -62,7 +63,7 @@ func (a *Script) CallFunction(scheme proto.Scheme, state types.SmartState, tx *p
 	if !ok {
 		return nil, errors.Errorf("Callable function named '%s' not found", name)
 	}
-	invoke, err := BuildInvocation(scheme, tx)
+	invoke, err := a.buildInvocation(scheme, tx)
 	if err != nil {
 		return nil, err
 	}
@@ -152,6 +153,37 @@ func (a *Script) Verify(scheme byte, state types.SmartState, object map[string]E
 		scope.SetHeight(height)
 		return evalAsBool(a.Verifier, scope)
 	}
+}
+
+func (a *Script) buildInvocation(scheme proto.Scheme, tx *proto.InvokeScriptV1) (*InvocationExpr, error) {
+	fields := object{}
+	addr, err := proto.NewAddressFromPublicKey(scheme, tx.SenderPK)
+	if err != nil {
+		return nil, err
+	}
+	fields["caller"] = NewAddressFromProtoAddress(addr)
+	fields["callerPublicKey"] = NewBytes(tx.SenderPK.Bytes())
+
+	switch a.Version {
+	case 4:
+		payments := NewExprs(nil)
+		for _, p := range tx.Payments {
+			payments = append(NewExprs(NewAttachedPaymentExpr(makeOptionalAsset(p.Asset), NewLong(int64(p.Amount)))), payments...)
+		}
+		fields["payments"] = payments
+	default:
+		fields["payment"] = NewUnit()
+		if len(tx.Payments) > 0 {
+			fields["payment"] = NewAttachedPaymentExpr(makeOptionalAsset(tx.Payments[0].Asset), NewLong(int64(tx.Payments[0].Amount)))
+		}
+	}
+	fields["transactionId"] = NewBytes(tx.ID.Bytes())
+	fields["fee"] = NewLong(int64(tx.Fee))
+	fields["feeAssetId"] = makeOptionalAsset(tx.FeeAsset)
+
+	return &InvocationExpr{
+		fields: fields,
+	}, nil
 }
 
 func evalAsBool(e Expr, s Scope) (bool, error) {
@@ -437,6 +469,44 @@ func (a *BooleanExpr) Eq(other Expr) bool {
 
 func (a *BooleanExpr) InstanceOf() string {
 	return "Boolean"
+}
+
+type ArrayExpr struct {
+	Items []Expr
+}
+
+func NewArray(items []Expr) *ArrayExpr {
+	return &ArrayExpr{Items: items}
+}
+
+func (a *ArrayExpr) Evaluate(scope Scope) (Expr, error) {
+	return a, nil
+}
+
+func (a *ArrayExpr) Write(w io.Writer) {
+	for _, i := range a.Items {
+		i.Write(w)
+	}
+}
+
+func (a *ArrayExpr) Eq(other Expr) bool {
+	b, ok := other.(*ArrayExpr)
+	if !ok {
+		return false
+	}
+	if len(a.Items) != len(b.Items) {
+		return false
+	}
+	for i := 0; i < len(a.Items); i++ {
+		if !a.Items[i].Eq(b.Items[i]) {
+			return false
+		}
+	}
+	return true
+}
+
+func (a *ArrayExpr) InstanceOf() string {
+	return "Array"
 }
 
 type FuncCallExpr struct {
@@ -1817,30 +1887,6 @@ func (a *InvocationExpr) Eq(other Expr) bool {
 
 func (a *InvocationExpr) InstanceOf() string {
 	return "Invocation"
-}
-
-func BuildInvocation(scheme proto.Scheme, tx *proto.InvokeScriptV1) (*InvocationExpr, error) {
-	fields := object{}
-	addr, err := proto.NewAddressFromPublicKey(scheme, tx.SenderPK)
-	if err != nil {
-		return nil, err
-	}
-	fields["caller"] = NewAddressFromProtoAddress(addr)
-	fields["callerPublicKey"] = NewBytes(tx.SenderPK.Bytes())
-	fields["payment"] = NewUnit()
-	if len(tx.Payments) > 0 {
-		fields["payment"] = NewAttachedPaymentExpr(
-			makeOptionalAsset(tx.Payments[0].Asset),
-			NewLong(int64(tx.Payments[0].Amount)),
-		)
-	}
-	fields["transactionId"] = NewBytes(tx.ID.Bytes())
-	fields["fee"] = NewLong(int64(tx.Fee))
-	fields["feeAssetId"] = makeOptionalAsset(tx.FeeAsset)
-
-	return &InvocationExpr{
-		fields: fields,
-	}, nil
 }
 
 type ScriptTransferExpr struct {

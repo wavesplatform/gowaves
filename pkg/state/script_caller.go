@@ -153,6 +153,11 @@ func (a *scriptCaller) invokeFunction(tx *proto.InvokeScriptV1, lastBlockInfo *p
 	if err != nil {
 		return nil, err
 	}
+	// Check that the script's library supports multiple payments.
+	// We don't have to check feature activation because we done it before.
+	if len(tx.Payments) == 2 && script.Version < 4 {
+		return nil, errors.Errorf("multiple payments is not allowed for RIDE library version %d", script.Version)
+	}
 	this := ast.NewAddressFromProtoAddress(*scriptAddr)
 	lastBlock := ast.NewObjectFromBlockInfo(*lastBlockInfo)
 	sr, err := script.CallFunction(a.settings.AddressSchemeCharacter, a.state, tx, this, lastBlock)

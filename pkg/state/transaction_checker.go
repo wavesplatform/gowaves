@@ -50,11 +50,21 @@ func (tc *transactionChecker) scriptActivation(script *ast.Script) error {
 	if err != nil {
 		return err
 	}
+	multiPaymentsActivated, err := tc.stor.features.isActivated(int16(settings.MultiPaymentInvokeScript))
+	if err != nil {
+		return err
+	}
 	if script.Version == 3 && !rideForDAppsActivated {
 		return errors.New("Ride4DApps feature must be activated for scripts version 3")
 	}
+	if script.Version == 3 && script.HasArrays && !multiPaymentsActivated {
+		return errors.New("MultiPaymentInvokeScript feature must be activated for scripts that have array parameters")
+	}
 	if script.HasBlockV2 && !rideForDAppsActivated {
 		return errors.New("Ride4DApps feature must be activated for scripts that have block version 2")
+	}
+	if script.Version == 4 && !multiPaymentsActivated {
+		return errors.New("MultiPaymentInvokeScript feature must be activated for scripts version 4")
 	}
 	return nil
 }
@@ -1028,15 +1038,26 @@ func (tc *transactionChecker) checkInvokeScriptV1(transaction proto.Transaction,
 	if err := tc.checkTimestamps(tx.Timestamp, info.currentTimestamp, info.parentTimestamp); err != nil {
 		return nil, errors.Wrap(err, "invalid timestamp")
 	}
-	activated, err := tc.stor.features.isActivated(int16(settings.Ride4DApps))
+	ride4DAppsActivated, err := tc.stor.features.isActivated(int16(settings.Ride4DApps))
 	if err != nil {
 		return nil, err
 	}
-	if !activated {
+	if !ride4DAppsActivated {
 		return nil, errors.New("can not use InvokeScript before Ride4DApps activation")
 	}
 	if err := tc.checkFeeAsset(&tx.FeeAsset, info.initialisation); err != nil {
 		return nil, err
+	}
+	multiPaymentActivated, err := tc.stor.features.isActivated(int16(settings.MultiPaymentInvokeScript))
+	if err != nil {
+		return nil, err
+	}
+	l := len(tx.Payments)
+	switch {
+	case l > 1 && !multiPaymentActivated:
+		return nil, errors.New("no more than one payment is allowed")
+	case l > 2 && multiPaymentActivated:
+		return nil, errors.New("no more than two payments is allowed")
 	}
 	var paymentAssets []proto.OptionalAsset
 	for _, payment := range tx.Payments {

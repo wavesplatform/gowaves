@@ -210,6 +210,7 @@ func TestNFTMinFee(t *testing.T) {
 }
 
 func TestReissueFeeReduction(t *testing.T) {
+	//TODO: move logging initialization o package init level
 	logger, err := zap.NewDevelopment()
 	require.NoError(t, err)
 	zap.ReplaceGlobals(logger)

@@ -172,7 +172,7 @@ func (ia *invokeApplier) resolveAliases(transfers proto.TransferSet, initialisat
 // That is why invoke transaction is applied to state in a different way - here, unlike other
 // transaction types.
 func (ia *invokeApplier) applyInvokeScriptV1(tx *proto.InvokeScriptV1, info *invokeAddlInfo) (txBalanceChanges, error) {
-	// At first, clear invoke diff storage from any previus diffs.
+	// At first, clear invoke diff storage from any previous diffs.
 	ia.invokeDiffStor.invokeDiffsStor.reset()
 	if !info.validatingUtx && !info.hasBlock() {
 		return txBalanceChanges{}, errors.New("no block is provided and not validating UTX")
@@ -199,7 +199,7 @@ func (ia *invokeApplier) applyInvokeScriptV1(tx *proto.InvokeScriptV1, info *inv
 		return txBalanceChanges{}, errors.New("ScriptResult; failed to resolve aliases")
 	}
 	if ia.buildApiData {
-		// Save invoke reasult for extended API.
+		// Save invoke result for extended API.
 		if err := ia.stor.invokeResults.saveResult(*tx.ID, scriptRes, info.block.BlockSignature); err != nil {
 			return txBalanceChanges{}, errors.Wrap(err, "failed to save script result")
 		}
