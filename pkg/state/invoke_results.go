@@ -7,7 +7,7 @@ import (
 )
 
 type invokeResultRecord struct {
-	res *proto.ScriptResult
+	res *proto.ScriptResultV3
 }
 
 func (r *invokeResultRecord) marshalBinary() ([]byte, error) {
@@ -19,7 +19,7 @@ func (r *invokeResultRecord) marshalBinary() ([]byte, error) {
 }
 
 func (r *invokeResultRecord) unmarshalBinary(data []byte) error {
-	var res proto.ScriptResult
+	var res proto.ScriptResultV3
 	if err := res.UnmarshalWithAddresses(data); err != nil {
 		return err
 	}
@@ -36,7 +36,7 @@ func newInvokeResults(hs *historyStorage, aliases *aliases) (*invokeResults, err
 	return &invokeResults{hs, aliases}, nil
 }
 
-func (ir *invokeResults) invokeResult(invokeID crypto.Digest, filter bool) (*proto.ScriptResult, error) {
+func (ir *invokeResults) invokeResult(invokeID crypto.Digest, filter bool) (*proto.ScriptResultV3, error) {
 	key := invokeResultKey{invokeID}
 	recordBytes, err := ir.hs.latestEntryData(key.bytes(), filter)
 	if err != nil {
@@ -49,7 +49,7 @@ func (ir *invokeResults) invokeResult(invokeID crypto.Digest, filter bool) (*pro
 	return record.res, nil
 }
 
-func (ir *invokeResults) saveResult(invokeID crypto.Digest, res *proto.ScriptResult, blockID crypto.Signature) error {
+func (ir *invokeResults) saveResult(invokeID crypto.Digest, res *proto.ScriptResultV3, blockID crypto.Signature) error {
 	key := invokeResultKey{invokeID}
 	record := &invokeResultRecord{res}
 	recordBytes, err := record.marshalBinary()

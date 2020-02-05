@@ -51,7 +51,7 @@ func protoArgToArgExpr(arg proto.Argument) (Expr, error) {
 	}
 }
 
-func (a *Script) CallFunction(scheme proto.Scheme, state types.SmartState, tx *proto.InvokeScriptV1, this, lastBlock Expr) (*proto.ScriptResult, error) {
+func (a *Script) CallFunction(scheme proto.Scheme, state types.SmartState, tx *proto.InvokeScriptV1, this, lastBlock Expr) (*proto.ScriptResultV3, error) {
 	if !a.IsDapp() {
 		return nil, errors.New("can't call Script.CallFunction on non DApp")
 	}
@@ -1986,8 +1986,8 @@ func (a *ScriptResultExpr) InstanceOf() string {
 	return "ScriptResult"
 }
 
-func (a *ScriptResultExpr) ConvertToProto() (*proto.ScriptResult, error) {
-	res := &proto.ScriptResult{}
+func (a *ScriptResultExpr) ConvertToProto() (*proto.ScriptResultV3, error) {
+	res := &proto.ScriptResultV3{}
 	if a.TransferSet != nil {
 		transfers, err := a.TransferSet.toProto()
 		if err != nil {

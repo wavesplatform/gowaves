@@ -46,7 +46,7 @@ func TestSaveResult(t *testing.T) {
 
 	invokeID := crypto.MustDigestFromBase58(invokeId)
 	to.stor.addBlock(t, blockID0)
-	savedRes := &proto.ScriptResult{
+	savedRes := &proto.ScriptResultV3{
 		Writes: []proto.DataEntry{
 			&proto.IntegerDataEntry{Key: "some key", Value: 12345},
 			&proto.BooleanDataEntry{Key: "negative value", Value: false},

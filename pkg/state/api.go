@@ -105,7 +105,7 @@ type StateInfo interface {
 	IsActiveLeasing(leaseID crypto.Digest) (bool, error)
 
 	// Invoke results.
-	InvokeResultByID(invokeID crypto.Digest) (*proto.ScriptResult, error)
+	InvokeResultByID(invokeID crypto.Digest) (*proto.ScriptResultV3, error)
 
 	// True if state stores additional information in order to provide extended API.
 	ProvidesExtendedApi() (bool, error)

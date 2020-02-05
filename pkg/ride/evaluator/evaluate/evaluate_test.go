@@ -656,7 +656,7 @@ func verify() = {
 	rs, err := script.CallFunction(proto.MainNetScheme, mockstate.State{}, tx, nil, nil)
 	require.NoError(t, err)
 	require.Equal(t,
-		&proto.ScriptResult{
+		&proto.ScriptResultV3{
 			Writes: []proto.DataEntry{
 				&proto.StringDataEntry{Key: "abc_q", Value: "abc"},
 				&proto.StringDataEntry{Key: "abc_a", Value: "abc"},
@@ -716,7 +716,7 @@ func verify() = {
 	rs, err := script.CallFunction(proto.MainNetScheme, mockstate.State{}, tx, nil, nil)
 	require.NoError(t, err)
 	require.Equal(t,
-		&proto.ScriptResult{
+		&proto.ScriptResultV3{
 			Writes: []proto.DataEntry{
 				&proto.StringDataEntry{Key: "a", Value: "b"},
 				&proto.BinaryDataEntry{Key: "sender", Value: addr.Bytes()},
@@ -840,7 +840,7 @@ func tellme(question: String) = {
 	}
 	require.NoError(t, err)
 	require.Equal(t,
-		&proto.ScriptResult{
+		&proto.ScriptResultV3{
 			Transfers: []proto.ScriptResultTransfer{scriptTransfer},
 		},
 		rs,
@@ -885,7 +885,7 @@ func tellme(question: String) = {
 		Asset:     proto.OptionalAsset{Present: false},
 	}
 	require.Equal(t,
-		&proto.ScriptResult{
+		&proto.ScriptResultV3{
 			Writes:    []proto.DataEntry{&proto.IntegerDataEntry{Key: "key", Value: 100}},
 			Transfers: []proto.ScriptResultTransfer{scriptTransfer},
 		},
@@ -1152,7 +1152,7 @@ func TestWhaleDApp(t *testing.T) {
 		&proto.StringDataEntry{Key: "wl_bio_3P9yVruoCbs4cveU8HpTdFUvzwY59ADaQm3", Value: `{"name":"James May","message":"Hello!","isWhale":false,"address":"3P9yVruoCbs4cveU8HpTdFUvzwY59ADaQm3"}`},
 		&proto.StringDataEntry{Key: "wl_sts_3P9yVruoCbs4cveU8HpTdFUvzwY59ADaQm3", Value: "invited"},
 	}
-	expectedResult := &proto.ScriptResult{
+	expectedResult := &proto.ScriptResultV3{
 		Transfers: nil,
 		Writes:    expectedDataWrites,
 	}
@@ -1244,7 +1244,7 @@ func TestExchangeDApp(t *testing.T) {
 			Asset:     *proto.NewOptionalAssetFromDigest(asset),
 		},
 	}
-	expectedResult := &proto.ScriptResult{
+	expectedResult := &proto.ScriptResultV3{
 		Transfers: expectedTransfers,
 		Writes:    expectedDataWrites,
 	}
@@ -1427,7 +1427,7 @@ func TestLigaDApp1(t *testing.T) {
 		&proto.IntegerDataEntry{Key: "STAGE", Value: 2},
 		&proto.IntegerDataEntry{Key: "BALANCE_SNAPSHOT", Value: 98750005},
 	}
-	expectedResult := &proto.ScriptResult{
+	expectedResult := &proto.ScriptResultV3{
 		Transfers: nil,
 		Writes:    expectedDataWrites,
 	}
@@ -1526,7 +1526,7 @@ func TestLigaDApp1(t *testing.T) {
 		&proto.BinaryDataEntry{Key: "WINNER", Value: av},
 		&proto.IntegerDataEntry{Key: "4njdbzZQNBSPgU2WWPfcKEnUbFvSKTHQBRdGk2mJJ9ye_SOLD", Value: 5},
 	}
-	expectedResult = &proto.ScriptResult{
+	expectedResult = &proto.ScriptResultV3{
 		Transfers: nil,
 		Writes:    expectedDataWrites,
 	}
@@ -1607,7 +1607,7 @@ func TestTestingDApp(t *testing.T) {
 	expectedDataWrites := proto.WriteSet{
 		&proto.StringDataEntry{Key: "mainLog", Value: "1FCQFaXp6A3s2po6M3iP3ECkjzjMojE5hNA1s8NyvxzgY - 3N4XM8G5WXzdkLXYDL6X229Entc5Hqgz7DM - 1FCQFaXp6A3s2po6M3iP3ECkjzjMojE5hNA1s8NyvxzgY -> 3NBQxw1ZzTfWbrLjWj2euMwizncrGG4nXJX"},
 	}
-	expectedResult := &proto.ScriptResult{
+	expectedResult := &proto.ScriptResultV3{
 		Transfers: proto.TransferSet{},
 		Writes:    expectedDataWrites,
 	}
@@ -1683,7 +1683,7 @@ func TestDropElementDApp(t *testing.T) {
 	expectedDataWrites := proto.WriteSet{
 		&proto.StringDataEntry{Key: "1", Value: "aaa,bbb,ccc - ccc = aaa,bbb"},
 	}
-	expectedResult := &proto.ScriptResult{
+	expectedResult := &proto.ScriptResultV3{
 		Transfers: nil,
 		Writes:    expectedDataWrites,
 	}
@@ -1771,7 +1771,7 @@ func TestMathDApp(t *testing.T) {
 		&proto.IntegerDataEntry{Key: "pDown", Value: 47483935},
 		&proto.IntegerDataEntry{Key: "firstProjectedPrice", Value: 0},
 	}
-	expectedResult := &proto.ScriptResult{
+	expectedResult := &proto.ScriptResultV3{
 		Transfers: nil,
 		Writes:    expectedDataWrites,
 	}

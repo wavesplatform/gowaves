@@ -1379,7 +1379,7 @@ func TestScriptResultBinaryRoundTrip(t *testing.T) {
 	addr0, err := NewAddressFromString("3PQ8bp1aoqHQo3icNqFv6VM36V1jzPeaG1v")
 	assert.NoError(t, err)
 	rcp := NewRecipientFromAddress(addr0)
-	tests := []ScriptResult{
+	tests := []ScriptResultV3{
 		{
 			Writes: []DataEntry{
 				&IntegerDataEntry{"some key", 12345},
@@ -1413,7 +1413,7 @@ func TestScriptResultBinaryRoundTrip(t *testing.T) {
 	}
 	for _, tc := range tests {
 		if b, err := tc.MarshalWithAddresses(); assert.NoError(t, err) {
-			sr := ScriptResult{}
+			sr := ScriptResultV3{}
 			if err := sr.UnmarshalWithAddresses(b); assert.NoError(t, err) {
 				assert.Equal(t, tc, sr)
 			}

@@ -2841,12 +2841,12 @@ func (c FunctionCall) binarySize() int {
 	return 1 + 1 + 1 + 4 + len(c.Name) + c.Arguments.binarySize()
 }
 
-type ScriptResult struct {
+type ScriptResultV3 struct {
 	Transfers TransferSet
 	Writes    WriteSet
 }
 
-func (sr *ScriptResult) MarshalWithAddresses() ([]byte, error) {
+func (sr *ScriptResultV3) MarshalWithAddresses() ([]byte, error) {
 	transfersBytes, err := sr.Transfers.MarshalWithAddresses()
 	if err != nil {
 		return nil, err
@@ -2869,7 +2869,7 @@ func (sr *ScriptResult) MarshalWithAddresses() ([]byte, error) {
 	return res, nil
 }
 
-func (sr *ScriptResult) UnmarshalWithAddresses(data []byte) error {
+func (sr *ScriptResultV3) UnmarshalWithAddresses(data []byte) error {
 	pos := 4
 	if len(data) < pos {
 		return errors.New("invalid data size")
@@ -2904,7 +2904,7 @@ func (sr *ScriptResult) UnmarshalWithAddresses(data []byte) error {
 	return nil
 }
 
-func (sr *ScriptResult) Valid() error {
+func (sr *ScriptResultV3) Valid() error {
 	if err := sr.Transfers.Valid(); err != nil {
 		return err
 	}
@@ -2914,7 +2914,7 @@ func (sr *ScriptResult) Valid() error {
 	return nil
 }
 
-func (sr *ScriptResult) ToProtobuf() (*g.InvokeScriptResult, error) {
+func (sr *ScriptResultV3) ToProtobuf() (*g.InvokeScriptResult, error) {
 	transfers, err := sr.Transfers.ToProtobuf()
 	if err != nil {
 		return nil, err

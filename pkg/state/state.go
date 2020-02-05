@@ -1900,7 +1900,7 @@ func (s *stateManager) IsActiveLeasing(leaseID crypto.Digest) (bool, error) {
 	return isActive, nil
 }
 
-func (s *stateManager) InvokeResultByID(invokeID crypto.Digest) (*proto.ScriptResult, error) {
+func (s *stateManager) InvokeResultByID(invokeID crypto.Digest) (*proto.ScriptResultV3, error) {
 	hasData, err := s.storesExtendedApiData()
 	if err != nil {
 		return nil, wrapErr(Other, err)
