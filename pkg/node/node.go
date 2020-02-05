@@ -88,10 +88,41 @@ func (a *Node) HandleProtoMessage(mess peer.ProtoMessage) {
 		a.handleMicroBlockRequestMessage(mess.ID, t)
 	case *proto.MicroBlockMessage:
 		a.handleMicroBlockMessage(mess.ID, t)
+	case *proto.PBBlockMessage:
+		a.handlePBBlockMessage(mess.ID, t)
+	case *proto.PBMicroBlockMessage:
+		a.handlePBMicroBlockMessage(mess.ID, t)
+	case *proto.PBTransactionMessage:
+		a.handlePBTransactionMessage(mess.ID, t)
 
 	default:
 		zap.S().Errorf("unknown proto Message %+v", mess.Message)
 	}
+}
+
+func (a *Node) handlePBBlockMessage(p peer.Peer, mess *proto.PBBlockMessage) {
+	if !a.subscribe.Receive(p, mess) {
+		b := &proto.Block{}
+		err := b.UnmarshalFromProtobuf(mess.PBBlockBytes)
+		if err != nil {
+			zap.S().Debug(err)
+			return
+		}
+		a.ng.HandleBlockMessage(p, b)
+	}
+}
+
+func (a *Node) handlePBMicroBlockMessage(p peer.Peer, mess *proto.PBMicroBlockMessage) {
+	a.ng.HandlePBMicroBlockMessage(p, mess)
+}
+
+func (a *Node) handlePBTransactionMessage(_ peer.Peer, mess *proto.PBTransactionMessage) {
+	t, err := proto.SignedTxFromProtobuf(mess.Transaction)
+	if err != nil {
+		zap.S().Debug(err)
+		return
+	}
+	a.utx.AddWithBytes(t, util.Dup(mess.Transaction))
 }
 
 func (a *Node) handleTransactionMessage(_ peer.Peer, mess *proto.TransactionMessage) {

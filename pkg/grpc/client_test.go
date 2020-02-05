@@ -61,7 +61,7 @@ func TestBlocksAPIClient(t *testing.T) {
 	cnv := proto.ProtobufConverter{}
 	h := 1
 	for b, err = getBlock(h); err == nil; b, err = getBlock(h) {
-		txs, err := cnv.BlockTransactions(b)
+		txs, err := cnv.BlockTransactions(b.Block)
 		require.NoError(t, err)
 		sb := strings.Builder{}
 		sb.WriteRune('[')
@@ -74,7 +74,7 @@ func TestBlocksAPIClient(t *testing.T) {
 			sb.WriteString(string(js))
 			sb.WriteRune(',')
 		}
-		header, err := cnv.BlockHeader(b)
+		header, err := cnv.BlockHeader(b.Block)
 		require.NoError(t, err)
 		bjs, err := json.Marshal(header)
 		require.NoError(t, err)

@@ -184,7 +184,7 @@ func (s *Synchronizer) nodeBlockSignature(height int) (crypto.Signature, error) 
 	if err != nil {
 		return crypto.Signature{}, err
 	}
-	header, err := cnv.BlockHeader(res)
+	header, err := cnv.BlockHeader(res.Block)
 	if err != nil {
 		return crypto.Signature{}, err
 	}
@@ -197,11 +197,11 @@ func (s *Synchronizer) nodeBlock(height int) (proto.BlockHeader, []proto.Transac
 	if err != nil {
 		return proto.BlockHeader{}, nil, err
 	}
-	header, err := cnv.BlockHeader(res)
+	header, err := cnv.BlockHeader(res.Block)
 	if err != nil {
 		return proto.BlockHeader{}, nil, err
 	}
-	txs, err := cnv.BlockTransactions(res)
+	txs, err := cnv.BlockTransactions(res.Block)
 	if err != nil {
 		return proto.BlockHeader{}, nil, err
 	}

@@ -931,16 +931,57 @@ func (c *ProtobufConverter) SignedTransaction(stx *g.SignedTransaction) (Transac
 	}
 }
 
-func (c *ProtobufConverter) BlockTransactions(block *g.BlockWithHeight) ([]Transaction, error) {
-	txs := make([]Transaction, len(block.Block.Transactions))
-	for i, stx := range block.Block.Transactions {
+func (c *ProtobufConverter) MicroBlock(mb *g.SignedMicroBlock) (MicroBlock, error) {
+	txs, err := c.signedTransactions(mb.MicroBlock.Transactions)
+	if err != nil {
+		return MicroBlock{}, err
+	}
+	res := MicroBlock{
+		VersionField:          c.byte(mb.MicroBlock.Version),
+		PrevResBlockSigField:  c.signature(mb.MicroBlock.Reference),
+		TotalResBlockSigField: c.signature(mb.MicroBlock.UpdatedBlockSignature),
+		TransactionCount:      uint32(len(mb.MicroBlock.Transactions)),
+		Transactions:          NewReprFromTransactions(txs),
+		SenderPK:              c.publicKey(mb.MicroBlock.SenderPublicKey),
+		Signature:             c.signature(mb.Signature),
+	}
+	if c.err != nil {
+		err := c.err
+		c.reset()
+		return MicroBlock{}, err
+	}
+	return res, nil
+}
+
+func (c *ProtobufConverter) Block(block *g.Block) (Block, error) {
+	txs, err := c.BlockTransactions(block)
+	if err != nil {
+		return Block{}, err
+	}
+	header, err := c.BlockHeader(block)
+	if err != nil {
+		return Block{}, err
+	}
+	return Block{
+		BlockHeader:  header,
+		Transactions: NewReprFromTransactions(txs),
+	}, nil
+}
+
+func (c *ProtobufConverter) BlockTransactions(block *g.Block) ([]Transaction, error) {
+	return c.signedTransactions(block.Transactions)
+}
+
+func (c *ProtobufConverter) signedTransactions(txs []*g.SignedTransaction) ([]Transaction, error) {
+	res := make([]Transaction, len(txs))
+	for i, stx := range txs {
 		tx, err := c.SignedTransaction(stx)
 		if err != nil {
 			return nil, err
 		}
-		txs[i] = tx
+		res[i] = tx
 	}
-	return txs, nil
+	return res, nil
 }
 
 func (c *ProtobufConverter) features(features []uint32) []int16 {
@@ -961,19 +1002,19 @@ func (c *ProtobufConverter) consensus(header *g.Block_Header) NxtConsensus {
 	}
 }
 
-func (c *ProtobufConverter) BlockHeader(block *g.BlockWithHeight) (BlockHeader, error) {
-	features := c.features(block.Block.Header.FeatureVotes)
+func (c *ProtobufConverter) BlockHeader(block *g.Block) (BlockHeader, error) {
+	features := c.features(block.Header.FeatureVotes)
 	header := BlockHeader{
-		Version:          BlockVersion(c.byte(block.Block.Header.Version)),
-		Timestamp:        c.uint64(block.Block.Header.Timestamp),
-		Parent:           c.signature(block.Block.Header.Reference),
+		Version:          BlockVersion(c.byte(block.Header.Version)),
+		Timestamp:        c.uint64(block.Header.Timestamp),
+		Parent:           c.signature(block.Header.Reference),
 		FeaturesCount:    len(features),
 		Features:         features,
-		RewardVote:       block.Block.Header.RewardVote,
-		NxtConsensus:     c.consensus(block.Block.Header),
-		TransactionCount: len(block.Block.Transactions),
-		GenPublicKey:     c.publicKey(block.Block.Header.Generator),
-		BlockSignature:   c.signature(block.Block.Signature),
+		RewardVote:       block.Header.RewardVote,
+		NxtConsensus:     c.consensus(block.Header),
+		TransactionCount: len(block.Transactions),
+		GenPublicKey:     c.publicKey(block.Header.Generator),
+		BlockSignature:   c.signature(block.Signature),
 	}
 	if c.err != nil {
 		err := c.err

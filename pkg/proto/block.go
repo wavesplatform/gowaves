@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"io"
 
+	protobuf "github.com/golang/protobuf/proto"
 	"github.com/jinzhu/copier"
 	"github.com/pkg/errors"
 	"github.com/valyala/bytebufferpool"
@@ -408,6 +409,20 @@ func (b *Block) WriteTo(w io.Writer) (int64, error) {
 	}
 
 	return n + int64(n2), nil
+}
+
+func (b *Block) UnmarshalFromProtobuf(data []byte) error {
+	var pbBlock g.Block
+	if err := protobuf.Unmarshal(data, &pbBlock); err != nil {
+		return err
+	}
+	var c ProtobufConverter
+	res, err := c.Block(&pbBlock)
+	if err != nil {
+		return err
+	}
+	*b = res
+	return nil
 }
 
 func (b *Block) ToProtobuf(currentScheme Scheme, height uint64) (*g.BlockWithHeight, error) {

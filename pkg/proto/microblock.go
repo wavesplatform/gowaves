@@ -3,9 +3,11 @@ package proto
 import (
 	"io"
 
+	protobuf "github.com/golang/protobuf/proto"
 	"github.com/pkg/errors"
 	"github.com/valyala/bytebufferpool"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	g "github.com/wavesplatform/gowaves/pkg/grpc/generated"
 	"github.com/wavesplatform/gowaves/pkg/libs/deserializer"
 	"github.com/wavesplatform/gowaves/pkg/libs/serializer"
 )
@@ -21,7 +23,7 @@ type MicroBlock struct {
 	Signature             crypto.Signature
 }
 
-// func is not using right now
+// func is not used right now
 /*
 func CreateMicroBlock(PrevResBlockSigField crypto.Signature, TotalResBlockSigField crypto.Signature, tr *TransactionsRepresentation, SenderPK crypto.PublicKey) *MicroBlock {
 	return &MicroBlock{
@@ -36,6 +38,20 @@ func CreateMicroBlock(PrevResBlockSigField crypto.Signature, TotalResBlockSigFie
 */
 
 type MicroblockTotalSig = crypto.Signature
+
+func (a *MicroBlock) UnmarshalFromProtobuf(b []byte) error {
+	var pbMicroBlock g.SignedMicroBlock
+	if err := protobuf.Unmarshal(b, &pbMicroBlock); err != nil {
+		return err
+	}
+	var c ProtobufConverter
+	res, err := c.MicroBlock(&pbMicroBlock)
+	if err != nil {
+		return err
+	}
+	*a = res
+	return nil
+}
 
 func (a *MicroBlock) UnmarshalBinary(b []byte) error {
 	var err error
