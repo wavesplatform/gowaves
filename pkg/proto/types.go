@@ -1476,6 +1476,8 @@ func (vt DataValueType) String() string {
 		return "binary"
 	case DataString:
 		return "string"
+	case DataDelete:
+		return "delete"
 	default:
 		return ""
 	}
@@ -1487,6 +1489,7 @@ const (
 	DataBoolean
 	DataBinary
 	DataString
+	DataDelete = DataValueType(0xff)
 )
 
 //DataEntry is a common interface of all types of data entries.
@@ -2056,6 +2059,120 @@ func (e *StringDataEntry) UnmarshalJSON(value []byte) error {
 	return nil
 }
 
+//DeleteDataEntry structure stores the key that should be removed from state storage.
+type DeleteDataEntry struct {
+	Key string
+}
+
+func (e DeleteDataEntry) ToProtobuf() *g.DataTransactionData_DataEntry {
+	return &g.DataTransactionData_DataEntry{
+		Key: e.Key,
+		//FIXME: Use correct type after update of Protobuf schemas
+		Value: &g.DataTransactionData_DataEntry_StringValue{StringValue: ""},
+	}
+}
+
+func (e DeleteDataEntry) Valid() (bool, error) {
+	if len(e.Key) == 0 {
+		return false, errors.New("empty entry key")
+	}
+	if len(utf16.Encode([]rune(e.Key))) > maxKeySize {
+		return false, errors.New("key is too large")
+	}
+	return true, nil
+}
+
+//GetKey returns the key of key-value pair.
+func (e DeleteDataEntry) GetKey() string {
+	return e.Key
+}
+
+//SetKey sets the key of data entry.
+func (e *DeleteDataEntry) SetKey(key string) {
+	e.Key = key
+}
+
+//GetValueType returns the type of value in key-value entry.
+func (e DeleteDataEntry) GetValueType() DataValueType {
+	return DataDelete
+}
+
+func (e DeleteDataEntry) binarySize() int {
+	return 2 + len(e.Key) + 1
+}
+
+//MarshalValue converts the data entry value to its byte representation.
+func (e DeleteDataEntry) MarshalValue() ([]byte, error) {
+	return []byte{byte(DataDelete)}, nil
+}
+
+//UnmarshalValue checks DeleteDataEntry value type is set.
+func (e *DeleteDataEntry) UnmarshalValue(data []byte) error {
+	const minLen = 1
+	if l := len(data); l < minLen {
+		return errors.Errorf("invalid data length for DeleteDataEntry value, expected not less than %d, received %d", minLen, l)
+	}
+	if t := data[0]; t != byte(DataDelete) {
+		return errors.Errorf("unexpected value type %d for DeleteDataEntry value, expected %d", t, DataDelete)
+	}
+	return nil
+}
+
+//MarshalBinary converts the data entry to its byte representation.
+func (e DeleteDataEntry) MarshalBinary() ([]byte, error) {
+	buf := make([]byte, e.binarySize())
+	pos := 0
+	PutStringWithUInt16Len(buf[pos:], e.Key)
+	pos += 2 + len(e.Key)
+	valueBytes, err := e.MarshalValue()
+	if err != nil {
+		return nil, err
+	}
+	copy(buf[pos:], valueBytes)
+	return buf, nil
+}
+
+//UnmarshalBinary reads StringDataEntry structure from bytes.
+func (e *DeleteDataEntry) UnmarshalBinary(data []byte) error {
+	const minLen = 2 + 1
+	if l := len(data); l < minLen {
+		return errors.Errorf("invalid data length for DeleteDataEntry, expected not less than %d, received %d", minLen, l)
+	}
+	k, err := StringWithUInt16Len(data)
+	if err != nil {
+		return errors.Wrap(err, "failed to unmarshal DeleteDataEntry from bytes")
+	}
+	e.Key = k
+	kl := 2 + len(k)
+	if err := e.UnmarshalValue(data[kl:]); err != nil {
+		return err
+	}
+	return nil
+}
+
+//MarshalJSON writes the entry to its JSON representation.
+func (e DeleteDataEntry) MarshalJSON() ([]byte, error) {
+	return json.Marshal(&struct {
+		K string  `json:"key"`
+		T string  `json:"type"`
+		V *string `json:"value"`
+	}{e.Key, e.GetValueType().String(), nil})
+}
+
+//UnmarshalJSON reads the entry from JSON.
+func (e *DeleteDataEntry) UnmarshalJSON(value []byte) error {
+	tmp := struct {
+		K string `json:"key"`
+		T string `json:"type"`
+		V string `json:"value"`
+	}{}
+	if err := json.Unmarshal(value, &tmp); err != nil {
+		return errors.Wrap(err, "failed to deserialize string data entry from JSON")
+	}
+	e.Key = tmp.K
+	return nil
+}
+
 //DataEntryType is the assistive structure used to get the type of DataEntry while unmarshal form JSON.
 type DataEntryType struct {
 	Type string `json:"type"`
@@ -2072,6 +2189,8 @@ func guessDataEntryType(dataEntryType DataEntryType) (DataEntry, error) {
 		r = &BinaryDataEntry{}
 	case "string":
 		r = &StringDataEntry{}
+	case "delete":
+		r = &DeleteDataEntry{}
 	}
 	if r == nil {
 		return nil, errors.Errorf("unknown value type '%s' of DataEntry", dataEntryType.Type)

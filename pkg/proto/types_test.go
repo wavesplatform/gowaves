@@ -812,6 +812,48 @@ func TestStringDataEntryJSONRoundTrip(t *testing.T) {
 	}
 }
 
+func TestDeleteDataEntryBinaryRoundTrip(t *testing.T) {
+	for _, test := range []string{
+		"some key",
+		"empty value",
+		"",
+		strings.Repeat("key-", 10),
+	} {
+		v := DeleteDataEntry{test}
+		if b, err := v.MarshalBinary(); assert.NoError(t, err) {
+			assert.Equal(t, byte(0xff), b[len(b)-1])
+			var av DeleteDataEntry
+			if err := av.UnmarshalBinary(b); assert.NoError(t, err) {
+				assert.Equal(t, test, av.Key)
+				assert.Equal(t, test, av.GetKey())
+				assert.Equal(t, DataDelete, av.GetValueType())
+			}
+		}
+	}
+}
+
+func TestDeleteDataEntryJSONRoundTrip(t *testing.T) {
+	for _, test := range []string{
+		"some key",
+		"empty value",
+		"",
+		strings.Repeat("key-", 10),
+	} {
+		v := DeleteDataEntry{test}
+		if b, err := v.MarshalJSON(); assert.NoError(t, err) {
+			js := string(b)
+			ejs := fmt.Sprintf("{\"key\":\"%s\",\"type\":\"delete\",\"value\":null}", test)
+			assert.Equal(t, ejs, js)
+			var av DeleteDataEntry
+			if err := av.UnmarshalJSON(b); assert.NoError(t, err) {
+				assert.Equal(t, test, av.Key)
+				assert.Equal(t, test, av.GetKey())
+				assert.Equal(t, DataDelete, av.GetValueType())
+			}
+		}
+	}
+}
+
 func TestDataEntriesUnmarshalJSON(t *testing.T) {
 	tests := []struct {
 		json     string
