@@ -992,6 +992,21 @@ func TestStringArgumentBinarySize(t *testing.T) {
 
 }
 
+func TestArrayArgumentBinarySize(t *testing.T) {
+	for _, test := range []struct {
+		args []Argument
+		size int
+	}{
+		{nil, 1 + 4},
+		{[]Argument{&IntegerArgument{12345}, &StringArgument{"12345"}, &BooleanArgument{true}, &BooleanArgument{false}}, 1 + 4 + 9 + 1 + 4 + 5 + 1 + 1},
+		{[]Argument{&IntegerArgument{12345}, &StringArgument{"12345"}, &BooleanArgument{true}, &BooleanArgument{false}, &BinaryArgument{[]byte{0, 1, 2, 3, 4, 5}}}, 1 + 4 + 9 + 1 + 4 + 5 + 1 + 1 + 1 + 4 + 6},
+		{[]Argument{&IntegerArgument{12345}, &StringArgument{"12345"}, &BooleanArgument{true}, &BooleanArgument{false}, &BinaryArgument{[]byte{0, 1, 2, 3, 4, 5}}, &ArrayArgument{Items: []Argument{&IntegerArgument{12345}, &StringArgument{"12345"}, &BooleanArgument{true}, &BooleanArgument{false}, &BinaryArgument{[]byte{0, 1, 2, 3, 4, 5}}}}}, 1 + 4 + 9 + 1 + 4 + 5 + 1 + 1 + 1 + 4 + 6 + 1 + 4 + 9 + 1 + 4 + 5 + 1 + 1 + 1 + 4 + 6},
+	} {
+		v := ArrayArgument{Items: test.args}
+		assert.Equal(t, test.size, v.binarySize())
+	}
+}
+
 func TestIntegerArgumentBinaryRoundTrip(t *testing.T) {
 	tests := []int64{12345, -9876543210, 1234567890, 0}
 	for _, tc := range tests {
@@ -1115,6 +1130,44 @@ func TestStringArgumentJSONRoundTrip(t *testing.T) {
 			if err := av.UnmarshalJSON(b); assert.NoError(t, err) {
 				assert.Equal(t, tc, av.Value)
 				assert.Equal(t, ArgumentString, av.GetValueType())
+			}
+		}
+	}
+}
+
+func TestArrayArgumentBinaryRoundTrip(t *testing.T) {
+	for _, test := range []Arguments{
+		nil,
+		{&IntegerArgument{12345}, &StringArgument{"12345"}, &BooleanArgument{true}, &BooleanArgument{false}},
+		{&IntegerArgument{0}, &StringArgument{""}, &BooleanArgument{true}, &BooleanArgument{false}, &BinaryArgument{[]byte{}}},
+		{&IntegerArgument{math.MaxInt32}, &StringArgument{strings.Repeat("12345", 100)}, &BooleanArgument{true}, &BooleanArgument{false}, &BinaryArgument{[]byte{0, 1, 2, 3, 4, 5}}, &ArrayArgument{Items: []Argument{&IntegerArgument{12345}, &StringArgument{"12345"}, &BooleanArgument{true}, &BooleanArgument{false}, &BinaryArgument{[]byte{0, 1, 2, 3, 4, 5}}}}},
+	} {
+		v := ArrayArgument{Items: test}
+		if b, err := v.MarshalBinary(); assert.NoError(t, err) {
+			var aa ArrayArgument
+			if err := aa.UnmarshalBinary(b); assert.NoError(t, err) {
+				assert.NotNil(t, aa)
+				assert.Equal(t, test, aa.Items)
+				assert.Equal(t, ArgumentArray, aa.GetValueType())
+			}
+		}
+	}
+}
+
+func TestArrayArgumentJSONRoundTrip(t *testing.T) {
+	for _, test := range []Arguments{
+		nil,
+		{&IntegerArgument{12345}, &StringArgument{"12345"}, &BooleanArgument{true}, &BooleanArgument{false}},
+		{&IntegerArgument{0}, &StringArgument{""}, &BooleanArgument{true}, &BooleanArgument{false}, &BinaryArgument{[]byte{}}},
+		{&IntegerArgument{math.MaxInt32}, &StringArgument{strings.Repeat("12345", 100)}, &BooleanArgument{true}, &BooleanArgument{false}, &BinaryArgument{[]byte{0, 1, 2, 3, 4, 5}}, &ArrayArgument{Items: []Argument{&IntegerArgument{12345}, &StringArgument{"12345"}, &BooleanArgument{true}, &BooleanArgument{false}, &BinaryArgument{[]byte{0, 1, 2, 3, 4, 5}}}}},
+	} {
+		v := ArrayArgument{Items: test}
+		if b, err := v.MarshalJSON(); assert.NoError(t, err) {
+			var aa ArrayArgument
+			if err := aa.UnmarshalJSON(b); assert.NoError(t, err) {
+				assert.NotNil(t, aa)
+				assert.Equal(t, test, aa.Items)
+				assert.Equal(t, ArgumentArray, aa.GetValueType())
 			}
 		}
 	}

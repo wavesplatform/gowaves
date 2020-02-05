@@ -71,7 +71,7 @@ func (a *Script) CallFunction(scheme proto.Scheme, state types.SmartState, tx *p
 	if err != nil {
 		return nil, err
 	}
-	scope := NewScope(3, scheme, state)
+	scope := NewScope(3, scheme, state) //TODO: pass library version from script
 	scope.SetThis(this)
 	scope.SetLastBlockInfo(lastBlock)
 	scope.SetHeight(height)

@@ -36,6 +36,7 @@ const (
 	booleanArgumentLen   = 1
 	binaryArgumentMinLen = 1 + 4
 	stringArgumentMinLen = 1 + 4
+	arrayArgumentMinLen  = 1 + 4
 	PriceConstant        = 100000000
 	MaxOrderAmount       = 100 * PriceConstant * PriceConstant
 	MaxOrderTTL          = uint64((30 * 24 * time.Hour) / time.Millisecond)
@@ -1488,38 +1489,6 @@ const (
 	DataString
 )
 
-// ValueType is an alias for byte that encodes the value type.
-type ArgumentValueType byte
-
-// String translates ValueType value to human readable name.
-func (vt ArgumentValueType) String() string {
-	switch vt {
-	case ArgumentInteger:
-		return "integer"
-	case ArgumentBoolean:
-		return "boolean"
-	case ArgumentBinary:
-		return "binary"
-	case ArgumentString:
-		return "string"
-	default:
-		return ""
-	}
-}
-
-const (
-	ArgumentInteger ArgumentValueType = iota
-	ArgumentBinary
-	ArgumentString
-	ArgumentBoolean
-)
-
-//Special values to represent Boolean value
-const (
-	BooleanTrue  = 6
-	BooleanFalse = 7
-)
-
 //DataEntry is a common interface of all types of data entries.
 //The interface is used to store different types of data entries in one slice.
 type DataEntry interface {
@@ -2206,6 +2175,37 @@ func (s *Script) UnmarshalJSON(value []byte) error {
 	return nil
 }
 
+// ValueType is an alias for byte that encodes the value type.
+type ArgumentValueType byte
+
+// String translates ValueType value to human readable name.
+func (vt ArgumentValueType) String() string {
+	switch vt {
+	case ArgumentInteger:
+		return "integer"
+	case ArgumentBoolean:
+		return "boolean"
+	case ArgumentBinary:
+		return "binary"
+	case ArgumentString:
+		return "string"
+	case ArgumentArray:
+		return "array"
+	default:
+		return ""
+	}
+}
+
+const (
+	ArgumentInteger    = ArgumentValueType(reader.E_LONG)
+	ArgumentBinary     = ArgumentValueType(reader.E_BYTES)
+	ArgumentString     = ArgumentValueType(reader.E_STRING)
+	ArgumentBoolean    = ArgumentValueType(99) // Nonexistent RIDE type is used
+	ArgumentValueTrue  = ArgumentValueType(reader.E_TRUE)
+	ArgumentValueFalse = ArgumentValueType(reader.E_FALSE)
+	ArgumentArray      = ArgumentValueType(reader.E_ARR)
+)
+
 type Argument interface {
 	GetValueType() ArgumentValueType
 	MarshalBinary() ([]byte, error)
@@ -2229,6 +2229,8 @@ func guessArgumentType(argumentType ArgumentType) (Argument, error) {
 		r = &BinaryArgument{}
 	case "string":
 		r = &StringArgument{}
+	case "array":
+		r = &ArrayArgument{}
 	}
 	if r == nil {
 		return nil, errors.Errorf("unknown value type '%s' of Argument", argumentType.Type)
@@ -2314,7 +2316,7 @@ func (a *Arguments) UnmarshalBinary(data []byte) error {
 			var ia IntegerArgument
 			err = ia.UnmarshalBinary(data)
 			arg = &ia
-		case BooleanTrue, BooleanFalse:
+		case ArgumentValueTrue, ArgumentValueFalse:
 			var ba BooleanArgument
 			err = ba.UnmarshalBinary(data)
 			arg = &ba
@@ -2326,6 +2328,10 @@ func (a *Arguments) UnmarshalBinary(data []byte) error {
 			var sa StringArgument
 			err = sa.UnmarshalBinary(data)
 			arg = &sa
+		case ArgumentArray:
+			var aa ArrayArgument
+			err = aa.UnmarshalBinary(data)
+			arg = &aa
 		default:
 			return errors.Errorf("unsupported argument type %d", data[0])
 		}
@@ -2437,9 +2443,9 @@ func (a BooleanArgument) binarySize() int {
 func (a BooleanArgument) MarshalBinary() ([]byte, error) {
 	buf := make([]byte, a.binarySize())
 	if a.Value {
-		buf[0] = BooleanTrue
+		buf[0] = byte(ArgumentValueTrue)
 	} else {
-		buf[0] = BooleanFalse
+		buf[0] = byte(ArgumentValueFalse)
 	}
 	return buf, nil
 }
@@ -2448,9 +2454,9 @@ func (a BooleanArgument) MarshalBinary() ([]byte, error) {
 func (a BooleanArgument) Serialize(s *serializer.Serializer) error {
 	buf := byte(0)
 	if a.Value {
-		buf = BooleanTrue
+		buf = byte(ArgumentValueTrue)
 	} else {
-		buf = BooleanFalse
+		buf = byte(ArgumentValueFalse)
 	}
 	return s.Byte(buf)
 }
@@ -2461,9 +2467,9 @@ func (a *BooleanArgument) UnmarshalBinary(data []byte) error {
 		return errors.Errorf("invalid data length for BooleanArgument, expected not less than %d, received %d", booleanArgumentLen, l)
 	}
 	switch data[0] {
-	case BooleanTrue:
+	case byte(ArgumentValueTrue):
 		a.Value = true
-	case BooleanFalse:
+	case byte(ArgumentValueFalse):
 		a.Value = false
 	default:
 		return errors.Errorf("unexpected value (%d) for BooleanArgument", data[0])
@@ -2637,6 +2643,85 @@ func (a *StringArgument) UnmarshalJSON(value []byte) error {
 		return errors.Wrap(err, "failed to deserialize string data entry from JSON")
 	}
 	a.Value = tmp.V
+	return nil
+}
+
+type ArrayArgument struct {
+	Items Arguments
+}
+
+func NewArrayArgument(items Arguments) *ArrayArgument {
+	return &ArrayArgument{Items: items}
+}
+
+//GetValueType returns the type of value of the argument.
+func (a ArrayArgument) GetValueType() ArgumentValueType {
+	return ArgumentArray
+}
+
+func (a ArrayArgument) binarySize() int {
+	return 1 + a.Items.binarySize()
+}
+
+//MarshalBinary converts the argument to its byte representation.
+func (a ArrayArgument) MarshalBinary() ([]byte, error) {
+	buf := make([]byte, a.binarySize())
+	pos := 0
+	buf[pos] = byte(ArgumentArray)
+	pos++
+	b, err := a.Items.MarshalBinary()
+	if err != nil {
+		return nil, err
+	}
+	copy(buf[pos:], b)
+	return buf, nil
+}
+
+//Serialize argument to its byte representation.
+func (a ArrayArgument) Serialize(s *serializer.Serializer) error {
+	err := s.Byte(byte(ArgumentArray))
+	if err != nil {
+		return err
+	}
+	return a.Items.Serialize(s)
+}
+
+//UnmarshalBinary reads an StringArgument structure from bytes.
+func (a *ArrayArgument) UnmarshalBinary(data []byte) error {
+	if l := len(data); l < arrayArgumentMinLen {
+		return errors.Errorf("invalid data length for ArrayArgument, expected not less than %d, received %d", arrayArgumentMinLen, l)
+	}
+	if t := data[0]; t != byte(ArgumentArray) {
+		return errors.Errorf("unexpected value type %d for ArrayArgument, expected %d", t, ArgumentArray)
+	}
+	data = data[1:]
+	args := new(Arguments)
+	err := args.UnmarshalBinary(data)
+	if err != nil {
+		return err
+	}
+	a.Items = *args
+	return nil
+}
+
+//MarshalJSON writes the entry to its JSON representation.
+func (a ArrayArgument) MarshalJSON() ([]byte, error) {
+	return json.Marshal(&struct {
+		T string     `json:"type"`
+		V []Argument `json:"value"`
+	}{a.GetValueType().String(), a.Items})
+}
+
+//UnmarshalJSON reads the entry from JSON.
+func (a *ArrayArgument) UnmarshalJSON(value []byte) error {
+	tmp := struct {
+		T string    `json:"type"`
+		V Arguments `json:"value"`
+	}{}
+	if err := json.Unmarshal(value, &tmp); err != nil {
+		return errors.Wrap(err, "failed to deserialize string data entry from JSON")
+	}
+	a.Items = tmp.V
 	return nil
 }
 
