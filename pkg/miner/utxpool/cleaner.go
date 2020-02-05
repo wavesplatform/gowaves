@@ -2,7 +2,6 @@ package utxpool
 
 import (
 	"context"
-	"time"
 
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/services"
@@ -22,7 +21,7 @@ type Cleaner struct {
 func NewCleaner(services services.Services) *Cleaner {
 	return &Cleaner{
 		state: services.State,
-		inner: newInner(&stateWrapperImpl{services.State}, services.UtxPool),
+		inner: newInner(services.State, services.UtxPool, services.Time),
 		ch:    make(chan struct{}, 1),
 	}
 }
@@ -51,27 +50,27 @@ func (a *Cleaner) work() {
 }
 
 func (a *Cleaner) Run(ctx context.Context) {
-	go func() {
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-a.ch:
-				a.work()
-			}
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-a.ch:
+			a.work()
 		}
-	}()
+	}
 }
 
 type inner struct {
 	state stateWrapper
 	utx   types.UtxPool
+	tm    types.Time
 }
 
-func newInner(state stateWrapper, utx types.UtxPool) *inner {
+func newInner(state stateWrapper, utx types.UtxPool, tm types.Time) *inner {
 	return &inner{
 		state: state,
 		utx:   utx,
+		tm:    tm,
 	}
 }
 
@@ -88,12 +87,12 @@ func (a inner) Handle() {
 
 func (a inner) handle() ([]*types.TransactionWithBytes, error) {
 	var transactions []*types.TransactionWithBytes
-	currentTimestamp := proto.NewTimestampFromTime(time.Now())
+	currentTimestamp := proto.NewTimestampFromTime(a.tm.Now())
 	mu := a.state.Mutex()
 	locked := mu.Lock()
 	defer locked.Unlock()
 
-	lastKnownBlock, err := a.state.lastHeader()
+	lastKnownBlock, err := a.state.TopBlock()
 	if err != nil {
 		return nil, err
 	}
@@ -103,7 +102,6 @@ func (a inner) handle() ([]*types.TransactionWithBytes, error) {
 		if t == nil {
 			break
 		}
-
 		if err := a.state.ValidateNextTx(t.T, currentTimestamp, lastKnownBlock.Timestamp, lastKnownBlock.Version); err == nil {
 			transactions = append(transactions, t)
 		}
@@ -113,7 +111,7 @@ func (a inner) handle() ([]*types.TransactionWithBytes, error) {
 }
 
 type stateWrapper interface {
-	lastHeader() (*proto.BlockHeader, error)
+	TopBlock() (*proto.Block, error)
 	ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64, version proto.BlockVersion) error
 	ResetValidationList()
 	Mutex() *lock.RwMutex
@@ -121,14 +119,6 @@ type stateWrapper interface {
 
 type stateWrapperImpl struct {
 	state state.State
-}
-
-func (a stateWrapperImpl) lastHeader() (*proto.BlockHeader, error) {
-	height, err := a.state.Height()
-	if err != nil {
-		return nil, err
-	}
-	return a.state.HeaderByHeight(height)
 }
 
 func (a stateWrapperImpl) ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64, version proto.BlockVersion) error {
@@ -141,4 +131,7 @@ func (a stateWrapperImpl) ResetValidationList() {
 
 func (a stateWrapperImpl) Mutex() *lock.RwMutex {
 	return a.state.Mutex()
+}
+func (a stateWrapperImpl) TopBlock() (*proto.Block, error) {
+	return a.state.TopBlock()
 }

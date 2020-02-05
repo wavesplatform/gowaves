@@ -66,6 +66,7 @@ func (a *NodeApi) routes() chi.Router {
 	r.Get("/blocks/score/at/{id:\\d+}", a.BlockScoreAt)
 	r.Get("/blocks/signature/{signature}", a.BlockSignatureAt)
 	r.Get("/blocks/generators", a.BlocksGenerators)
+	r.Get("/pool/transactions", a.poolTransactions)
 	//r.Get("/blocks/rollback/{height:\\d+}", a.BlockRollbackToHeight)
 	r.Route("/peers", func(r chi.Router) {
 		r.Get("/known", a.PeersAll)
@@ -76,6 +77,8 @@ func (a *NodeApi) routes() chi.Router {
 	})
 	r.Get("/miner/info", a.Minerinfo)
 	r.Post("/transactions/broadcast", a.TransactionsBroadcast)
+
+	r.Get("/node/processes", a.nodeProcesses)
 	// enable or disable history sync
 	//r.Get("/debug/sync/{enabled:\\d+}", a.DebugSyncEnabled)
 
@@ -302,6 +305,11 @@ func (a *NodeApi) BlocksGenerators(w http.ResponseWriter, r *http.Request) {
 	sendJson(w, rs)
 }
 
+func (a *NodeApi) poolTransactions(w http.ResponseWriter, r *http.Request) {
+	rs := a.app.PoolTransactions()
+	sendJson(w, rs)
+}
+
 func (a *NodeApi) BlockRollbackToHeight(w http.ResponseWriter, r *http.Request) {
 	s := chi.URLParam(r, "height")
 	id, err := strconv.ParseUint(s, 10, 64)
@@ -323,6 +331,11 @@ func (a *NodeApi) Minerinfo(w http.ResponseWriter, r *http.Request) {
 		handleError(w, err)
 		return
 	}
+	sendJson(w, rs)
+}
+
+func (a *NodeApi) nodeProcesses(w http.ResponseWriter, r *http.Request) {
+	rs := a.app.NodeProcesses()
 	sendJson(w, rs)
 }
 

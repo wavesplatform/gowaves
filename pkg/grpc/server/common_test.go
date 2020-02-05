@@ -93,9 +93,7 @@ func stateWithCustomGenesis(t *testing.T, genesisPath string) (state.State, func
 }
 
 func createScheduler(ctx context.Context, st state.State, settings *settings.BlockchainSettings) *scheduler.SchedulerImpl {
-	ntptm := ntptime.New("0.ru.pool.ntp.org")
-	go ntptm.Run(ctx, 2*time.Minute)
-	return scheduler.NewScheduler(st, keyPairs, settings, ntptm)
+	return scheduler.NewScheduler(st, keyPairs, settings, ntptime.Stub{})
 }
 
 func connect(t *testing.T, addr string) *grpc.ClientConn {

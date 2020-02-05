@@ -75,8 +75,9 @@ func id(b []byte, fee uint64) *transaction {
 }
 
 func TestTransactionPool(t *testing.T) {
-	a := New(10000)
+	a := New(10000, NoOpValidator{})
 
+	require.EqualValues(t, 0, a.CurSize())
 	// add unique by id transactions, then check them sorted
 	a.AddWithBytes(id([]byte{}, 4), []byte{1})
 	a.AddWithBytes(id([]byte{1}, 1), []byte{1})
@@ -88,12 +89,14 @@ func TestTransactionPool(t *testing.T) {
 	require.EqualValues(t, 4, a.Pop().T.GetFee())
 	require.EqualValues(t, 1, a.Pop().T.GetFee())
 	require.Nil(t, a.Pop())
+
+	require.EqualValues(t, 0, a.CurSize())
 }
 
 func BenchmarkTransactionPool(b *testing.B) {
 	b.ReportAllocs()
 	rand.Seed(time.Now().Unix())
-	a := New(10000)
+	a := New(10000, NoOpValidator{})
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -117,7 +120,7 @@ func BenchmarkTransactionPool(b *testing.B) {
 }
 
 func TestTransactionPool_Exists(t *testing.T) {
-	a := New(10000)
+	a := New(10000, NoOpValidator{})
 
 	require.False(t, a.Exists(id([]byte{1, 2, 3}, 0)))
 
@@ -130,16 +133,16 @@ func TestTransactionPool_Exists(t *testing.T) {
 
 // check transaction not added when limit
 func TestUtxPool_Limit(t *testing.T) {
-	a := New(10)
+	a := New(10, NoOpValidator{})
 	require.Equal(t, 0, a.Len())
 
 	// added
 	added := a.AddWithBytes(id([]byte{1, 2, 3}, 10), bytes.Repeat([]byte{1, 2}, 5))
 	require.Equal(t, 1, a.Len())
-	require.True(t, added)
+	require.NoError(t, added)
 
 	// not added
 	added = a.AddWithBytes(id([]byte{1, 2, 3, 4}, 10), bytes.Repeat([]byte{1, 2}, 5))
 	require.Equal(t, 1, a.Len())
-	require.False(t, added)
+	require.Error(t, added)
 }

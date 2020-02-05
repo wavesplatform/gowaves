@@ -40,7 +40,7 @@ type BlockHeader struct {
 	NxtConsensus           `json:"nxt-consensus"`
 	TransactionBlockLength uint32           `json:"transactionBlockLength,omitempty"`
 	TransactionCount       int              `json:"transactionCount"`
-	GenPublicKey           crypto.PublicKey `json:"-"`
+	GenPublicKey           crypto.PublicKey `json:"genPublicKey"`
 	BlockSignature         crypto.Signature `json:"signature"`
 
 	Height uint64 `json:"height"`

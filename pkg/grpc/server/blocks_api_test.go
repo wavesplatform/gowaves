@@ -13,7 +13,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated"
-	"github.com/wavesplatform/gowaves/pkg/miner/utxpool"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/state"
@@ -43,7 +42,7 @@ func TestGetBlock(t *testing.T) {
 	assert.NoError(t, err)
 	ctx, cancel := context.WithCancel(context.Background())
 	sch := createScheduler(ctx, st, settings.MainNetSettings)
-	err = server.initServer(st, utxpool.New(utxSize), sch)
+	err = server.initServer(st, nil, sch)
 	assert.NoError(t, err)
 
 	conn := connect(t, grpcTestAddr)
@@ -113,7 +112,7 @@ func TestGetBlockRange(t *testing.T) {
 	assert.NoError(t, err)
 	ctx, cancel := context.WithCancel(context.Background())
 	sch := createScheduler(ctx, st, settings.MainNetSettings)
-	err = server.initServer(st, utxpool.New(utxSize), sch)
+	err = server.initServer(st, nil, sch)
 	assert.NoError(t, err)
 
 	conn := connect(t, grpcTestAddr)
@@ -194,7 +193,7 @@ func TestGetCurrentHeight(t *testing.T) {
 	assert.NoError(t, err)
 	ctx, cancel := context.WithCancel(context.Background())
 	sch := createScheduler(ctx, st, settings.MainNetSettings)
-	err = server.initServer(st, utxpool.New(utxSize), sch)
+	err = server.initServer(st, nil, sch)
 	assert.NoError(t, err)
 
 	conn := connect(t, grpcTestAddr)

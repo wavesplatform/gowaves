@@ -11,6 +11,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/grpc/client"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated"
+	"github.com/wavesplatform/gowaves/pkg/libs/ntptime"
 	"github.com/wavesplatform/gowaves/pkg/miner/utxpool"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
@@ -25,7 +26,7 @@ func TestGetTransactions(t *testing.T) {
 	assert.NoError(t, err)
 	ctx, cancel := context.WithCancel(context.Background())
 	sch := createScheduler(ctx, st, sets)
-	err = server.initServer(st, utxpool.New(utxSize), sch)
+	err = server.initServer(st, utxpool.New(utxSize, utxpool.NewValidator(st, ntptime.Stub{})), sch)
 	assert.NoError(t, err)
 
 	conn := connect(t, grpcTestAddr)
@@ -113,7 +114,7 @@ func TestGetStatuses(t *testing.T) {
 	assert.NoError(t, err)
 	ctx, cancel := context.WithCancel(context.Background())
 	sch := createScheduler(ctx, st, settings.MainNetSettings)
-	utx := utxpool.New(utxSize)
+	utx := utxpool.New(utxSize, utxpool.NoOpValidator{})
 	err = server.initServer(st, utx, sch)
 	assert.NoError(t, err)
 
@@ -138,8 +139,8 @@ func TestGetStatuses(t *testing.T) {
 	txBytes, err := tx.MarshalBinary()
 	assert.NoError(t, err)
 	// Add tx to UTX.
-	added := utx.AddWithBytes(tx, txBytes)
-	assert.Equal(t, true, added)
+	err = utx.AddWithBytes(tx, txBytes)
+	assert.NoError(t, err)
 
 	cl := g.NewTransactionsApiClient(conn)
 	// id0 is from Mainnet genesis block.
@@ -176,7 +177,7 @@ func TestGetUnconfirmed(t *testing.T) {
 	assert.NoError(t, err)
 	ctx, cancel := context.WithCancel(context.Background())
 	sch := createScheduler(ctx, st, settings.MainNetSettings)
-	utx := utxpool.New(utxSize)
+	utx := utxpool.New(utxSize, utxpool.NoOpValidator{})
 	err = server.initServer(st, utx, sch)
 	assert.NoError(t, err)
 
@@ -207,8 +208,8 @@ func TestGetUnconfirmed(t *testing.T) {
 	txBytes, err := tx.MarshalBinary()
 	assert.NoError(t, err)
 	// Add tx to UTX.
-	added := utx.AddWithBytes(tx, txBytes)
-	assert.Equal(t, true, added)
+	err = utx.AddWithBytes(tx, txBytes)
+	assert.NoError(t, err)
 
 	cl := g.NewTransactionsApiClient(conn)
 
@@ -275,8 +276,8 @@ func TestSign(t *testing.T) {
 	assert.NoError(t, err)
 	ctx, cancel := context.WithCancel(context.Background())
 	sch := createScheduler(ctx, st, settings.MainNetSettings)
-	utx := utxpool.New(utxSize)
-	err = server.initServer(st, utx, sch)
+
+	err = server.initServer(st, nil, sch)
 	assert.NoError(t, err)
 
 	conn := connect(t, grpcTestAddr)
@@ -321,7 +322,7 @@ func TestBroadcast(t *testing.T) {
 	assert.NoError(t, err)
 	ctx, cancel := context.WithCancel(context.Background())
 	sch := createScheduler(ctx, st, settings.MainNetSettings)
-	utx := utxpool.New(utxSize)
+	utx := utxpool.New(utxSize, utxpool.NoOpValidator{})
 	err = server.initServer(st, utx, sch)
 	assert.NoError(t, err)
 

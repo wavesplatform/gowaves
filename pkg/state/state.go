@@ -14,6 +14,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/consensus"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
+	"github.com/wavesplatform/gowaves/pkg/libs/ntptime"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/util/lock"
@@ -283,7 +284,11 @@ func newStateManager(dataDir string, params StateParams, settings *settings.Bloc
 		return nil, wrapErr(Other, err)
 	}
 	state.appender = appender
-	cv, err := consensus.NewConsensusValidator(state)
+	ntptm, err := ntptime.TryNew("pool.ntp.org", 10)
+	if err != nil {
+		return nil, wrapErr(Other, err)
+	}
+	cv, err := consensus.NewConsensusValidator(state, ntptm)
 	if err != nil {
 		return nil, wrapErr(Other, err)
 	}

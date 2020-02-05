@@ -198,7 +198,8 @@ func (s *Server) Broadcast(ctx context.Context, tx *g.SignedTransaction) (*g.Sig
 	if err != nil {
 		return nil, status.Errorf(codes.FailedPrecondition, err.Error())
 	}
-	if added := s.utx.AddWithBytes(t, tBytes); !added {
+	err = s.utx.AddWithBytes(t, tBytes)
+	if err != nil {
 		return nil, status.Errorf(codes.Unavailable, "failed to add transaction to UTX")
 	}
 	return tx, nil

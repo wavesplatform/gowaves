@@ -152,7 +152,7 @@ func (a *Node) AskPeers() {
 
 func (a *Node) handlePeerError(p peer.Peer, err error) {
 	zap.S().Debug(err)
-	a.peers.Disconnect(p)
+	a.peers.Suspend(p, err.Error())
 }
 
 func (a *Node) Close() {
