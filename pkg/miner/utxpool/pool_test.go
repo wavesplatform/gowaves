@@ -79,10 +79,10 @@ func TestTransactionPool(t *testing.T) {
 
 	require.EqualValues(t, 0, a.CurSize())
 	// add unique by id transactions, then check them sorted
-	a.AddWithBytes(id([]byte{}, 4), []byte{1})
-	a.AddWithBytes(id([]byte{1}, 1), []byte{1})
-	a.AddWithBytes(id([]byte{1, 2}, 10), []byte{1})
-	a.AddWithBytes(id([]byte{1, 2, 3}, 8), []byte{1})
+	_ = a.AddWithBytes(id([]byte{}, 4), []byte{1})
+	_ = a.AddWithBytes(id([]byte{1}, 1), []byte{1})
+	_ = a.AddWithBytes(id([]byte{1, 2}, 10), []byte{1})
+	_ = a.AddWithBytes(id([]byte{1, 2, 3}, 8), []byte{1})
 
 	require.EqualValues(t, 10, a.Pop().T.GetFee())
 	require.EqualValues(t, 8, a.Pop().T.GetFee())

@@ -46,6 +46,9 @@ func (a *HistoryBlockApplierImpl) ApplyBlocksBytes(blocks [][]byte) error {
 		return err
 	}
 	sig, err := proto.BlockGetSignature(blocks[0])
+	if err != nil {
+		return err
+	}
 	rollback := false
 	if !bytes.Equal(id[:], parent[:]) {
 		err := a.services.State.RollbackTo(parent)

@@ -81,7 +81,7 @@ func (a inner) Handle() {
 		return
 	}
 	for _, t := range transactions {
-		a.utx.AddWithBytes(t.T, t.B)
+		_ = a.utx.AddWithBytes(t.T, t.B)
 	}
 }
 
