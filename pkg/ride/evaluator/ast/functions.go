@@ -494,32 +494,6 @@ func NativeTransferTransactionByID(s Scope, e Exprs) (Expr, error) {
 	}
 }
 
-func NativeParseBlockHeader(s Scope, e Exprs) (Expr, error) {
-	const funcName = "NativeParseBlockHeader"
-	if l := len(e); l != 1 {
-		return nil, errors.Errorf("%s: invalid params, expected 1, passed %d", funcName, l)
-	}
-	rs, err := e[0].Evaluate(s)
-	if err != nil {
-		return nil, errors.Wrap(err, funcName)
-	}
-	bts, ok := rs.(*BytesExpr)
-	if !ok {
-		return nil, errors.Errorf("%s expected first argument to be *BytesExpr, found %T", funcName, rs)
-	}
-
-	h := proto.BlockHeader{}
-	err = h.UnmarshalHeaderFromBinary(bts.Value)
-	if err != nil {
-		return nil, errors.Wrapf(err, funcName)
-	}
-	obj, err := newMapFromBlockHeader(s.Scheme(), &h)
-	if err != nil {
-		return nil, errors.Wrapf(err, funcName)
-	}
-	return NewBlockHeader(obj), nil
-}
-
 // Size of bytes vector
 func NativeSizeBytes(s Scope, e Exprs) (Expr, error) {
 	const funcName = "NativeSizeBytes"
@@ -1221,12 +1195,12 @@ func NativeBlockInfoByHeight(s Scope, e Exprs) (Expr, error) {
 		return nil, errors.Wrap(err, funcName)
 	}
 
-	obj, err := newMapFromBlockHeader(s.Scheme(), h)
+	bi, err := NewBlockInfo(s.Scheme(), h, proto.Height(height.Value))
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
 
-	return NewBlockInfo(obj, proto.Height(height.Value)), nil
+	return bi, nil
 }
 
 // Fail script without message (default will be used)

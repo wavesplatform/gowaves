@@ -273,7 +273,6 @@ func functionsV3() map[string]Expr {
 	s["1005"] = FunctionFromPredefined(NativeBlockInfoByHeight, 1)
 	s["1006"] = FunctionFromPredefined(NativeTransferTransactionByID, 1)
 	s["1061"] = FunctionFromPredefined(NativeAddressToString, 1)
-	s["1070"] = FunctionFromPredefined(NativeParseBlockHeader, 1) // RIDE v4
 	s["1100"] = FunctionFromPredefined(NativeCreateList, 2)
 	s["1200"] = FunctionFromPredefined(NativeBytesToUTF8String, 1)
 	s["1201"] = FunctionFromPredefined(NativeBytesToLong, 1)
@@ -331,6 +330,32 @@ func functionsV3() map[string]Expr {
 	s["ScriptResult"] = FunctionFromPredefined(ScriptResult, 2)
 	return s
 }
+
+//func functionsV4() map[string]Expr {
+//	s := functionsV3()
+//	// Removed constructors
+//	delete(s, "ScriptResult")
+//	delete(s, "WriteSet")
+//	delete(s, "TransferSet")
+//	delete(s, "DataEntry")
+//
+//	// New constructors
+//	s["IntegerEntry"] = FunctionFromPredefined(DataEntry, 2)
+//	s["BooleanEntry"] = FunctionFromPredefined(DataEntry, 2)
+//	s["BinaryEntry"] = FunctionFromPredefined(DataEntry, 2)
+//	s["StringEntry"] = FunctionFromPredefined(DataEntry, 2)
+//	//s["DeleteEntry"] // Entry to delete data records from state
+//
+//	// New functions
+//	//s["contains"]
+//	//s["valueOrElse"]
+//	//s["1101"] //append to list
+//	//s["1102"] //concat lists
+//	//s["405"] // list median (works only for lists of size less or equal to 100)
+//	//s["1100"] // cons (list constructor) with size limited to 1000 elements
+//
+//	return s
+//}
 
 func VariablesV1() map[string]Expr {
 	return map[string]Expr{"tx": NewUnit(), "unit": NewUnit()}

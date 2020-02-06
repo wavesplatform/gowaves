@@ -1677,44 +1677,6 @@ func (a *AttachedPaymentExpr) Get(key string) (Expr, error) {
 	return a.fields.Get(key)
 }
 
-type BlockHeaderExpr struct {
-	fields object
-}
-
-func (a *BlockHeaderExpr) Write(w io.Writer) {
-	_, _ = fmt.Fprintf(w, "BlockHeaderExpr")
-}
-
-func (a *BlockHeaderExpr) Evaluate(Scope) (Expr, error) {
-	return a, nil
-}
-
-func (a *BlockHeaderExpr) Eq(other Expr) bool {
-	return false
-}
-
-func (a *BlockHeaderExpr) InstanceOf() string {
-	return "BlockHeader"
-}
-
-func (a *BlockHeaderExpr) Get(name string) (Expr, error) {
-	return a.fields.Get(name)
-}
-
-func NewBlockHeader(fields object) *BlockHeaderExpr {
-	return &BlockHeaderExpr{
-		fields: fields,
-	}
-}
-
-func makeFeatures(features []int16) Exprs {
-	out := Exprs{}
-	for _, f := range features {
-		out = append(out, NewLong(int64(f)))
-	}
-	return out
-}
-
 type AssetInfoExpr struct {
 	fields object
 }
@@ -1767,17 +1729,21 @@ func (a *BlockInfoExpr) InstanceOf() string {
 	return "BlockInfo"
 }
 
-func NewBlockInfo(obj object, height proto.Height) *BlockInfoExpr {
+func NewBlockInfo(scheme proto.Scheme, header *proto.BlockHeader, height proto.Height) (*BlockInfoExpr, error) {
 	fields := newObject()
-	fields["timestamp"] = obj["timestamp"]
+	fields["timestamp"] = NewLong(int64(header.Timestamp))
 	fields["height"] = NewLong(int64(height))
-	fields["baseTarget"] = obj["baseTarget"]
-	fields["generationSignature"] = obj["generationSignature"]
-	fields["generator"] = obj["generator"]
-	fields["generatorPublicKey"] = obj["generatorPublicKey"]
+	fields["baseTarget"] = NewLong(int64(header.BaseTarget))
+	fields["generationSignature"] = NewBytes(util.Dup(header.GenSignature.Bytes()))
+	addr, err := proto.NewAddressFromPublicKey(scheme, header.GenPublicKey)
+	if err != nil {
+		return nil, err
+	}
+	fields["generator"] = NewAddressFromProtoAddress(addr)
+	fields["generatorPublicKey"] = NewBytes(util.Dup(header.GenPublicKey.Bytes()))
 	return &BlockInfoExpr{
 		fields: fields,
-	}
+	}, nil
 }
 
 type WriteSetExpr struct {
