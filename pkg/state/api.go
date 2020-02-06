@@ -6,8 +6,10 @@ import (
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
+	"github.com/wavesplatform/gowaves/pkg/libs/ntptime"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
+	"github.com/wavesplatform/gowaves/pkg/types"
 	"github.com/wavesplatform/gowaves/pkg/util/lock"
 )
 
@@ -205,6 +207,7 @@ func DefaultTestingStorageParams() StorageParams {
 // VerificationGoroutinesNum specifies how many goroutines will be run for verification of transactions and blocks signatures.
 type ValidationParams struct {
 	VerificationGoroutinesNum int
+	Time                      types.Time
 }
 
 type StateParams struct {
@@ -218,14 +221,20 @@ type StateParams struct {
 
 func DefaultStateParams() StateParams {
 	return StateParams{
-		StorageParams:    DefaultStorageParams(),
-		ValidationParams: ValidationParams{runtime.NumCPU() * 2},
+		StorageParams: DefaultStorageParams(),
+		ValidationParams: ValidationParams{
+			VerificationGoroutinesNum: runtime.NumCPU() * 2,
+			Time:                      ntptime.Stub{},
+		},
 	}
 }
 
 func DefaultTestingStateParams() StateParams {
 	return StateParams{
-		StorageParams:    DefaultTestingStorageParams(),
-		ValidationParams: ValidationParams{runtime.NumCPU() * 2},
+		StorageParams: DefaultTestingStorageParams(),
+		ValidationParams: ValidationParams{
+			VerificationGoroutinesNum: runtime.NumCPU() * 2,
+			Time:                      ntptime.Stub{},
+		},
 	}
 }

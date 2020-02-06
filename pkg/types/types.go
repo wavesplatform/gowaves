@@ -41,10 +41,11 @@ type Handler interface {
 
 // UtxPool storage interface
 type UtxPool interface {
-	AddWithBytes(t proto.Transaction, b []byte) (added bool)
+	AddWithBytes(t proto.Transaction, b []byte) error
 	Exists(t proto.Transaction) bool
 	Pop() *TransactionWithBytes
 	AllTransactions() []*TransactionWithBytes
+	Count() int
 }
 
 type TransactionWithBytes struct {
@@ -104,7 +105,7 @@ type Miner interface {
 }
 
 type Time interface {
-	Now() (time.Time, error)
+	Now() time.Time
 }
 
 type ScoreSender interface {

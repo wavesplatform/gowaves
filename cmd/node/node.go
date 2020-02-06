@@ -95,9 +95,19 @@ func main() {
 			return
 		}
 	}
+
+	ntptm, err := ntptime.TryNew("pool.ntp.org", 10)
+	if err != nil {
+		zap.S().Error(err)
+		cancel()
+		return
+	}
+	go ntptm.Run(ctx, 2*time.Minute)
+
 	params := state.DefaultStateParams()
 	params.StoreExtendedApiData = *buildExtendedApi
 	params.ProvideExtendedApi = *serveExtendedApi
+	params.Time = ntptm
 	state, err := state.NewState(path, params, cfg)
 	if err != nil {
 		zap.S().Error(err)
@@ -106,16 +116,14 @@ func main() {
 	}
 
 	// Check if we need to start serving extended API right now.
-	if err := node.MaybeEnableExtendedApi(state); err != nil {
+	if err := node.MaybeEnableExtendedApi(state, ntptm); err != nil {
 		zap.S().Error(err)
 		cancel()
 		return
 	}
 
 	async := runner.NewAsync()
-
-	ntptm := ntptime.New("pool.ntp.org")
-	go ntptm.Run(ctx, 2*time.Minute)
+	logRunner := runner.NewLogRunner(async)
 
 	declAddr := proto.NewTCPAddrFromString(conf.DeclaredAddr)
 	bindAddr := proto.NewTCPAddrFromString(*bindAddress)
@@ -123,7 +131,7 @@ func main() {
 	mb := 1024 * 1014
 	pool := bytespool.NewBytesPool(64, mb+(mb/2))
 
-	utx := utxpool.New(10000)
+	utx := utxpool.New(10000, utxpool.NewValidator(state, ntptm))
 
 	parent := peer.NewParent()
 
@@ -157,12 +165,16 @@ func main() {
 		BlockAddedNotifier: stateChanged,
 		Subscribe:          node.NewSubscribeService(),
 		InvRequester:       ng.NewInvRequester(),
+		LoggableRunner:     logRunner,
+		Time:               ntptm,
 	}
+
+	utxClean := utxpool.NewCleaner(services)
 
 	ngState := ng.NewState(services)
 	ngRuntime := ng.NewRuntime(services, ngState)
 	scoreSender := scoresender.New(peerManager, state, 5*time.Second, async)
-	async.Go(func() {
+	logRunner.Named("ScoreSender.Run", func() {
 		scoreSender.Run(ctx)
 	})
 
@@ -178,6 +190,7 @@ func main() {
 	stateChanged.AddHandler(state_changed.NewFuncHandler(func() {
 		ngState.BlockApplied()
 	}))
+	stateChanged.AddHandler(utxClean)
 
 	n := node.NewNode(services, declAddr, bindAddr, ngRuntime, mine, stateSync)
 	go node.RunNode(ctx, n, parent)
@@ -192,7 +205,7 @@ func main() {
 	}
 
 	// TODO hardcore
-	app, err := api.NewApp("integration-test-rest-api", state, peerManager, scheduler, utx, stateSync)
+	app, err := api.NewApp("integration-test-rest-api", scheduler, stateSync, services)
 	if err != nil {
 		zap.S().Error(err)
 		cancel()

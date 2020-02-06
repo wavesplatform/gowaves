@@ -98,9 +98,19 @@ func main() {
 			return
 		}
 	}
+
+	ntptm, err := ntptime.TryNew("pool.ntp.org", 10)
+	if err != nil {
+		zap.S().Error(err)
+		cancel()
+		return
+	}
+	go ntptm.Run(ctx, 2*time.Minute)
+
 	params := state.DefaultStateParams()
 	params.StoreExtendedApiData = *buildExtendedApi
 	params.ProvideExtendedApi = *serveExtendedApi
+	params.Time = ntptm
 	state, err := state.NewState(path, params, custom)
 	if err != nil {
 		zap.S().Error(err)
@@ -109,14 +119,11 @@ func main() {
 	}
 
 	// Check if we need to start serving extended API right now.
-	if err := node.MaybeEnableExtendedApi(state); err != nil {
+	if err := node.MaybeEnableExtendedApi(state, ntptm); err != nil {
 		zap.S().Error(err)
 		cancel()
 		return
 	}
-
-	ntptm := ntptime.New("pool.ntp.org")
-	go ntptm.Run(ctx, 2*time.Minute)
 
 	declAddr := proto.NewTCPAddrFromString(conf.DeclaredAddr)
 
@@ -137,7 +144,7 @@ func main() {
 
 	scheduler := scheduler2.NewScheduler(state, keyPairs, custom, ntptm)
 
-	utx := utxpool.New(10000)
+	utx := utxpool.New(10000, utxpool.NewValidator(state, ntptm))
 
 	stateChanged := state_changed.NewStateChanged()
 	blockApplier := node.NewBlockApplier(state, stateChanged, scheduler)
@@ -155,7 +162,6 @@ func main() {
 	}
 
 	utxClean := utxpool.NewCleaner(services)
-	go utxClean.Run(ctx)
 
 	ngState := ng.NewState(services)
 	ngRuntime := ng.NewRuntime(services, ngState)
@@ -193,7 +199,7 @@ func main() {
 	}
 
 	// TODO hardcore
-	app, err := api.NewApp("integration-test-rest-api", state, peerManager, scheduler, utx, stateSync)
+	app, err := api.NewApp("integration-test-rest-api", scheduler, stateSync, services)
 	if err != nil {
 		zap.S().Error(err)
 		cancel()

@@ -14,7 +14,7 @@ import (
 	"go.uber.org/zap"
 )
 
-type blockBytes []byte
+type blockBytes = []byte
 
 type expectedBlocks struct {
 	curPosition     int

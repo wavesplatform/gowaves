@@ -1,12 +1,11 @@
 package consensus
 
 import (
-	"time"
-
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
+	"github.com/wavesplatform/gowaves/pkg/types"
 )
 
 const (
@@ -49,14 +48,20 @@ type ConsensusValidator struct {
 	startHeight uint64
 	// Headers to validate.
 	headers []proto.BlockHeader
+	ntpTime types.Time
 }
 
-func NewConsensusValidator(state stateInfoProvider) (*ConsensusValidator, error) {
-	blockchainSettings, err := state.BlockchainSettings()
+func NewConsensusValidator(state stateInfoProvider, tm types.Time) (*ConsensusValidator, error) {
+	settings, err := state.BlockchainSettings()
 	if err != nil {
 		return nil, errors.Errorf("failed to get blockchain settings: %v\n", err)
 	}
-	return &ConsensusValidator{state: state, settings: blockchainSettings}, nil
+	return &ConsensusValidator{
+		state:    state,
+		settings: settings,
+		ntpTime:  tm,
+	}, nil
+
 }
 
 func (cv *ConsensusValidator) smallerMinimalGeneratingBalanceActivated() (bool, error) {
@@ -307,8 +312,7 @@ func (cv *ConsensusValidator) validateBlockDelay(height uint64, header *proto.Bl
 }
 
 func (cv *ConsensusValidator) validateBlockTimestamp(header *proto.BlockHeader) error {
-	// Milliseconds.
-	currentTimestamp := proto.NewTimestampFromTime(time.Now())
+	currentTimestamp := proto.NewTimestampFromTime(cv.ntpTime.Now())
 	if int64(header.Timestamp)-int64(currentTimestamp) > maxTimeDrift {
 		return errors.Errorf(
 			"block from future error: block's timestamp is too far in the future, current timestamp %d, received %d, maxTimeDrift %d, delta %d",

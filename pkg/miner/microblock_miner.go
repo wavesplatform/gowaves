@@ -211,7 +211,7 @@ func (a *MicroblockMiner) mineMicro(ctx context.Context, rest restLimits, blockA
 
 	// return unapplied transactions
 	for _, unapplied := range unAppliedTransactions {
-		a.utx.AddWithBytes(unapplied.T, unapplied.B)
+		_ = a.utx.AddWithBytes(unapplied.T, unapplied.B)
 	}
 
 	// no transactions applied, skip

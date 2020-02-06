@@ -1,18 +1,16 @@
 package node
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"sync"
 	"time"
 
 	"github.com/pkg/errors"
-	"github.com/wavesplatform/gowaves/pkg/importer"
 	"github.com/wavesplatform/gowaves/pkg/libs/nullable"
 	"github.com/wavesplatform/gowaves/pkg/node/peer_manager"
 	. "github.com/wavesplatform/gowaves/pkg/p2p/peer"
-	"github.com/wavesplatform/gowaves/pkg/proto"
+
 	"github.com/wavesplatform/gowaves/pkg/services"
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"github.com/wavesplatform/gowaves/pkg/types"
@@ -22,16 +20,16 @@ import (
 type interrupt = chan struct{}
 
 type StateSync struct {
-	peerManager  peer_manager.PeerManager
-	stateManager state.State
-	subscribe    types.Subscribe
-	interrupt    interrupt
-	scheduler    types.Scheduler
-	blockApplier types.BlockApplier
-	interrupter  types.MinerInterrupter
-	syncCh       chan struct{}
-	services     services.Services
-	scoreSender  types.ScoreSender
+	peerManager         peer_manager.PeerManager
+	stateManager        state.State
+	subscribe           types.Subscribe
+	interrupt           interrupt
+	scheduler           types.Scheduler
+	interrupter         types.MinerInterrupter
+	syncCh              chan struct{}
+	services            services.Services
+	scoreSender         types.ScoreSender
+	historyBlockApplier HistoryBlockApplier
 
 	// need to enable or disable sync
 	mu      sync.Mutex
@@ -40,22 +38,21 @@ type StateSync struct {
 
 func NewStateSync(services services.Services, interrupter types.MinerInterrupter, scoreSender types.ScoreSender) *StateSync {
 	return &StateSync{
-		peerManager:  services.Peers,
-		stateManager: services.State,
-		subscribe:    services.Subscribe,
-		interrupt:    make(chan struct{}, 1),
-		scheduler:    services.Scheduler,
-		blockApplier: services.BlockApplier,
-		interrupter:  interrupter,
-		syncCh:       make(chan struct{}, 20),
-		services:     services,
-		enabled:      true,
-		scoreSender:  scoreSender,
+		peerManager:         services.Peers,
+		stateManager:        services.State,
+		subscribe:           services.Subscribe,
+		interrupt:           make(chan struct{}, 1),
+		scheduler:           services.Scheduler,
+		interrupter:         interrupter,
+		syncCh:              make(chan struct{}, 20),
+		services:            services,
+		enabled:             true,
+		scoreSender:         scoreSender,
+		historyBlockApplier: NewHistoryBlockApplier(services, interrupter, scoreSender),
 	}
 }
 
 var TimeoutErr = errors.New("timeout")
-var NothingToRequestErr = errors.New("nothing ot request")
 
 func (a *StateSync) Sync() {
 	a.mu.Lock()
@@ -106,7 +103,7 @@ func (a *StateSync) run(ctx context.Context) {
 		}
 		zap.S().Infof("[%s] StateSync: Starting synchronization with %s", p.ID(), p.ID())
 		err = a.sync(ctx, p)
-		zap.S().Info("[%s] StateSync: Ended with code %q", err)
+		zap.S().Infof("[%s] StateSync: Ended with code %q", p.ID(), err)
 		if err != nil {
 			<-time.After(10 * time.Second)
 			continue
@@ -129,12 +126,12 @@ func (a *StateSync) sync(ctx context.Context, p Peer) error {
 
 	var wg sync.WaitGroup
 
-	go func() {
+	a.services.LoggableRunner.Named("StateSync.PreloadSignatures", func() {
 		errCh <- PreloadSignatures(ctx, incoming, p, sigs, a.subscribe, &wg)
-	}()
-	go func() {
+	})
+	a.services.LoggableRunner.Named("StateSync.downloadBlocks", func() {
 		errCh <- a.downloadBlocks(ctx, incoming, p, &wg)
-	}()
+	})
 
 	err = <-errCh
 	switch err {
@@ -186,6 +183,7 @@ func (a *StateSync) Close() {
 }
 
 func (a *StateSync) downloadBlocks(ctx context.Context, signaturesCh chan nullable.Signature, p Peer, wg *sync.WaitGroup) error {
+	runner := a.services.LoggableRunner
 	defer a.services.Scheduler.Reschedule()
 	wg.Add(1)
 	defer wg.Done()
@@ -194,108 +192,53 @@ func (a *StateSync) downloadBlocks(ctx context.Context, signaturesCh chan nullab
 	receivedBlocksCh := make(chan blockBytes, 128)
 
 	downloader := newBlockDownloader(128, p, a.subscribe, receivedBlocksCh)
-	go downloader.run(ctx, wg)
+	runner.Named("StateSync.downloadBlocks.downloader.run", func() {
+		downloader.run(ctx, wg)
+	})
 
 	const blockCnt = 50
 
 	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-time.After(120 * time.Second):
-				zap.S().Infof("[%s] StateSync: DownloadBlocks: timeout waiting for SignaturesMessage", p.ID())
-				errCh <- TimeoutErr
-				return
-			case sig := <-signaturesCh:
-				downloader.download(sig)
-				if sig.Null() {
+	runner.Named("StateSync.downloadBlocks.receiveSignatures",
+		func() {
+			defer wg.Done()
+			for {
+				select {
+				case <-ctx.Done():
 					return
+				case <-time.After(30 * time.Second):
+					zap.S().Infof("[%s] StateSync: DownloadBlocks: timeout waiting for SignaturesMessage", p.ID())
+					errCh <- TimeoutErr
+					return
+				case sig := <-signaturesCh:
+					downloader.download(sig)
+					if sig.Null() {
+						return
+					}
 				}
 			}
-		}
-	}()
+		})
 
 	blocksBulk := make(chan [][]byte, 1)
 
 	wg.Add(1)
-	go func() {
+	runner.Named("StateSync.downloadBlocks.CreateBulk", func() {
 		defer wg.Done()
-		blocks := make([][]byte, 0, blockCnt)
-		for {
-			score, err := a.services.Peers.Score(p)
-			if err != nil {
-				errCh <- err
-				return
-			}
-			curScore, err := a.services.State.CurrentScore()
-			if err != nil {
-				errCh <- err
-				return
-			}
-			if score.Cmp(curScore) == 0 {
-				errCh <- nil
-				return
-			}
-
-			select {
-			case <-ctx.Done():
-				return
-
-			case bts := <-receivedBlocksCh:
-				// it means that we at the end. halt
-				if bts == nil {
-					zap.S().Infof("[%s] StateSync: CreateBulk: exit with null bytes")
-					out := make([][]byte, len(blocks))
-					copy(out, blocks)
-					blocksBulk <- out
-					return
-				}
-
-				blocks = append(blocks, bts)
-				if l := len(blocks); uint64(l) == blockCnt {
-					out := make([][]byte, l)
-					copy(out, blocks)
-					blocksBulk <- out
-					blocks = blocks[:0]
-				}
-			}
+		select {
+		case errCh <- createBulkWorker(ctx, blockCnt, receivedBlocksCh, blocksBulk):
+		default:
 		}
-	}()
+	})
 
 	// block applier
 	wg.Add(1)
-	go func() {
+	runner.Named("StateSync.downloadBlocks.ApplyBlocks", func() {
 		defer wg.Done()
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case blocks := <-blocksBulk:
-				zap.S().Debugf("[%s] BlockDownloader: Applying: received %d blocks", p.ID(), len(blocks))
-				if len(blocks) == 0 {
-					errCh <- nil
-					return
-				}
-				a.interrupter.Interrupt()
-				err := applyBlocks(a.services, blocks, p)
-				if err != nil {
-					errCh <- err
-					return
-				}
-				go a.services.BlockAddedNotifier.Handle()
-				a.scoreSender.NonPriority()
-
-				// received less than expected, it means successful exit
-				if len(blocks) < blockCnt {
-					errCh <- nil
-					return
-				}
-			}
+		select {
+		case errCh <- applyWorker(ctx, blockCnt, blocksBulk, a.historyBlockApplier):
+		default:
 		}
-	}()
+	})
 
 	select {
 	case mess := <-errCh:
@@ -305,51 +248,50 @@ func (a *StateSync) downloadBlocks(ctx context.Context, signaturesCh chan nullab
 	}
 }
 
-func applyBlocks(services services.Services, blocks [][]byte, p Peer) error {
-	locked := services.State.Mutex().Lock()
-	defer locked.Unlock()
-	h, err := services.State.Height()
-	if err != nil {
-		return err
-	}
-	id, err := services.State.HeightToBlockID(h)
-	if err != nil {
-		return err
-	}
-	parent, err := proto.BlockGetParent(blocks[0])
-	if err != nil {
-		return err
-	}
-	sig, err := proto.BlockGetSignature(blocks[0])
-	if err != nil {
-		return err
-	}
-	rollback := false
-	if !bytes.Equal(id[:], parent[:]) {
-		err := services.State.RollbackTo(parent)
-		if err != nil {
-			return err
+func applyWorker(ctx context.Context, blockCnt int, blocksBulk chan [][]byte, applier HistoryBlockApplier) error {
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		case blocks := <-blocksBulk:
+			zap.S().Debugf("[*] BlockDownloader: Applying: received %d blocks", len(blocks))
+			if len(blocks) == 0 {
+				return nil
+			}
+			err := applier.ApplyBlocksBytes(blocks)
+			if err != nil {
+				return err
+			}
+			// received less than expected, it means successful exit
+			if len(blocks) < blockCnt {
+				return nil
+			}
 		}
-		rollback = true
 	}
-	size := 0
-	groupIndex := 0
-	for i, block := range blocks {
-		blocksNumer := i + 1
-		size += len(block)
-		if (size < importer.MaxTotalBatchSizeForNetworkSync) && (blocksNumer != len(blocks)) {
-			continue
+}
+
+func createBulkWorker(ctx context.Context, blockCnt int, receivedBlocksCh chan blockBytes, blocksBulk chan []blockBytes) error {
+	blocks := make([][]byte, 0, blockCnt)
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		case bts := <-receivedBlocksCh:
+			// it means that we at the end. halt
+			if bts == nil {
+				zap.S().Infof("[%s] StateSync: CreateBulk: exit with null bytes")
+				out := make([][]byte, len(blocks))
+				copy(out, blocks)
+				blocksBulk <- out
+				return nil
+			}
+			blocks = append(blocks, bts)
+			if l := len(blocks); l == blockCnt {
+				out := make([][]byte, l)
+				copy(out, blocks)
+				blocksBulk <- out
+				blocks = blocks[:0]
+			}
 		}
-		blocksToApply := blocks[groupIndex:blocksNumer]
-		groupIndex = blocksNumer
-		if err := services.State.AddNewBlocks(blocksToApply); err != nil {
-			zap.S().Debugf("[%s] BlockDownloader: error on adding new blocks: %q, sig: %s, parent sig %s, rollback: %v", p.ID(), err, sig, parent, rollback)
-			return err
-		}
-		if err := MaybeEnableExtendedApi(services.State); err != nil {
-			panic(fmt.Sprintf("[%s] BlockDownloader: MaybeEnableExtendedApi(): %v. Failed to persist address transactions for API after successfully applying valid blocks.", p.ID(), err))
-		}
-		size = 0
 	}
-	return nil
 }

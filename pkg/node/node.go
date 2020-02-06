@@ -100,7 +100,7 @@ func (a *Node) handleTransactionMessage(_ peer.Peer, mess *proto.TransactionMess
 		zap.S().Debug(err)
 		return
 	}
-	a.utx.AddWithBytes(t, util.Dup(mess.Transaction))
+	_ = a.utx.AddWithBytes(t, util.Dup(mess.Transaction))
 }
 
 func (a *Node) handlePeersMessage(_ peer.Peer, peers *proto.PeersMessage) {
@@ -152,7 +152,7 @@ func (a *Node) AskPeers() {
 
 func (a *Node) handlePeerError(p peer.Peer, err error) {
 	zap.S().Debug(err)
-	a.peers.Disconnect(p)
+	a.peers.Suspend(p, err.Error())
 }
 
 func (a *Node) Close() {

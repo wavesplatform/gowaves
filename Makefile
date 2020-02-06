@@ -128,3 +128,6 @@ dist-importer: release-importer
 	@cd ./build/bin/darwin-amd64/; tar pzcvf ../../dist/importer_$(VERSION)_macOS-64bit.tar.gz ./importer*
 
 dist: clean dist-chaincmp dist-wmd dist-importer dist-node
+
+mock:
+	mockgen -source pkg/miner/utxpool/cleaner.go -destination pkg/miner/utxpool/mock.go -package utxpool stateWrapper

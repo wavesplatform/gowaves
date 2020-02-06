@@ -121,7 +121,7 @@ func (s *Server) GetStatuses(req *g.TransactionsByIdRequest, srv g.TransactionsA
 			}
 			res.Status = g.TransactionStatus_CONFIRMED
 			res.Height = int64(height)
-		} else if s.utx.TransactionExists(id) {
+		} else if s.utx.ExistsByID(id) {
 			// Transaction is in UTX.
 			res.Status = g.TransactionStatus_UNCONFIRMED
 		} else {
@@ -198,7 +198,8 @@ func (s *Server) Broadcast(ctx context.Context, tx *g.SignedTransaction) (*g.Sig
 	if err != nil {
 		return nil, status.Errorf(codes.FailedPrecondition, err.Error())
 	}
-	if added := s.utx.AddWithBytes(t, tBytes); !added {
+	err = s.utx.AddWithBytes(t, tBytes)
+	if err != nil {
 		return nil, status.Errorf(codes.Unavailable, "failed to add transaction to UTX")
 	}
 	return tx, nil

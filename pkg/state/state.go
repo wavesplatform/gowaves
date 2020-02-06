@@ -283,7 +283,7 @@ func newStateManager(dataDir string, params StateParams, settings *settings.Bloc
 		return nil, wrapErr(Other, err)
 	}
 	state.appender = appender
-	cv, err := consensus.NewConsensusValidator(state)
+	cv, err := consensus.NewConsensusValidator(state, params.Time)
 	if err != nil {
 		return nil, wrapErr(Other, err)
 	}

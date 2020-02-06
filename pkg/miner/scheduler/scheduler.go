@@ -123,7 +123,7 @@ func (a internalImpl) schedule(state state.State, keyPairs []proto.KeyPair, sche
 		}
 
 		out = append(out, Emit{
-			Timestamp:            confirmedBlock.Timestamp + delay,
+			Timestamp:            confirmedBlock.Timestamp + delay + 10,
 			KeyPair:              keyPair,
 			GenSignature:         genSig,
 			BaseTarget:           baseTarget,
@@ -195,13 +195,7 @@ func (a *SchedulerImpl) reschedule(state state.State, confirmedBlock *proto.Bloc
 
 	emits := a.internal.schedule(state, a.keyPairs, a.settings.AddressSchemeCharacter, a.settings.AverageBlockDelaySeconds, confirmedBlock, confirmedBlockHeight)
 	a.emits = emits
-
-	tm, err := a.tm.Now()
-	if err != nil {
-		zap.S().Debug("failed to get ntp time")
-		return
-	}
-	now := proto.NewTimestampFromTime(tm)
+	now := proto.NewTimestampFromTime(a.tm.Now())
 	for _, emit := range emits {
 		if emit.Timestamp > now { // timestamp in future
 			timeout := emit.Timestamp - now

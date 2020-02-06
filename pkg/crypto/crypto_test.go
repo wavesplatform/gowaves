@@ -337,6 +337,9 @@ func TestNewSignatureFromBytes(t *testing.T) {
 
 	assert.Equal(t, sig, s2.String())
 	assert.Equal(t, sig, s1.String())
+
+	_, err = NewSignatureFromBytes(nil)
+	require.Error(t, err)
 }
 
 func TestSignature_Marshal(t *testing.T) {
