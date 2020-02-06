@@ -124,7 +124,7 @@ func (a *UtxImpl) Exists(t proto.Transaction) bool {
 	return a.exists(t)
 }
 
-func (a *UtxImpl) TransactionExists(id []byte) bool {
+func (a *UtxImpl) ExistsByID(id []byte) bool {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	digest, err := crypto.NewDigestFromBytes(id)

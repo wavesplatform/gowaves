@@ -121,7 +121,7 @@ func (s *Server) GetStatuses(req *g.TransactionsByIdRequest, srv g.TransactionsA
 			}
 			res.Status = g.TransactionStatus_CONFIRMED
 			res.Height = int64(height)
-		} else if s.utx.TransactionExists(id) {
+		} else if s.utx.ExistsByID(id) {
 			// Transaction is in UTX.
 			res.Status = g.TransactionStatus_UNCONFIRMED
 		} else {

@@ -34,6 +34,21 @@ func (m *MockstateWrapper) EXPECT() *MockstateWrapperMockRecorder {
 	return m.recorder
 }
 
+// Height mocks base method
+func (m *MockstateWrapper) Height() (proto.Height, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Height")
+	ret0, _ := ret[0].(proto.Height)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Height indicates an expected call of Height
+func (mr *MockstateWrapperMockRecorder) Height() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Height", reflect.TypeOf((*MockstateWrapper)(nil).Height))
+}
+
 // TopBlock mocks base method
 func (m *MockstateWrapper) TopBlock() (*proto.Block, error) {
 	m.ctrl.T.Helper()

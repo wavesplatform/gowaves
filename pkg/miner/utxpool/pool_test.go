@@ -10,6 +10,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/util/byte_helpers"
 )
 
 type transaction struct {
@@ -103,7 +104,7 @@ func BenchmarkTransactionPool(b *testing.B) {
 		b.StopTimer()
 		n := rand.Intn(1000000)
 		b.StartTimer()
-		a.AddWithBytes(tr(uint64(n)), []byte{1})
+		_ = a.AddWithBytes(tr(uint64(n)), []byte{1})
 	}
 
 	if a.Len() != b.N {
@@ -124,7 +125,7 @@ func TestTransactionPool_Exists(t *testing.T) {
 
 	require.False(t, a.Exists(id([]byte{1, 2, 3}, 0)))
 
-	a.AddWithBytes(id([]byte{1, 2, 3}, 10), []byte{1})
+	_ = a.AddWithBytes(id([]byte{1, 2, 3}, 10), []byte{1})
 	require.True(t, a.Exists(id([]byte{1, 2, 3}, 0)))
 
 	a.Pop()
@@ -145,4 +146,17 @@ func TestUtxPool_Limit(t *testing.T) {
 	added = a.AddWithBytes(id([]byte{1, 2, 3, 4}, 10), bytes.Repeat([]byte{1, 2}, 5))
 	require.Equal(t, 1, a.Len())
 	require.Error(t, added)
+}
+
+func TestUtxImpl_AllTransactions(t *testing.T) {
+	a := New(10, NoOpValidator{})
+	_ = a.AddWithBytes(id([]byte{1, 2, 3}, 10), bytes.Repeat([]byte{1, 2}, 5))
+	require.Len(t, a.AllTransactions(), 1)
+}
+
+func TestUtxImpl_TransactionExists(t *testing.T) {
+	a := New(10000, NoOpValidator{})
+	require.NoError(t, a.AddWithBytes(byte_helpers.BurnV1.Transaction, byte_helpers.BurnV1.TransactionBytes))
+	require.True(t, a.ExistsByID(byte_helpers.BurnV1.Transaction.ID.Bytes()))
+	require.False(t, a.ExistsByID(byte_helpers.TransferV1.Transaction.ID.Bytes()))
 }

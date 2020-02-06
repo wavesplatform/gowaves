@@ -110,6 +110,7 @@ func main() {
 	params := state.DefaultStateParams()
 	params.StoreExtendedApiData = *buildExtendedApi
 	params.ProvideExtendedApi = *serveExtendedApi
+	params.Time = ntptm
 	state, err := state.NewState(path, params, custom)
 	if err != nil {
 		zap.S().Error(err)
@@ -161,7 +162,6 @@ func main() {
 	}
 
 	utxClean := utxpool.NewCleaner(services)
-	go utxClean.Run(ctx)
 
 	ngState := ng.NewState(services)
 	ngRuntime := ng.NewRuntime(services, ngState)
