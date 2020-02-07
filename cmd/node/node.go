@@ -193,7 +193,7 @@ func main() {
 	stateChanged.AddHandler(utxClean)
 
 	n := node.NewNode(services, declAddr, bindAddr, ngRuntime, mine, stateSync)
-	go node.RunNode(ctx, n, parent)
+	go n.Run(ctx, parent)
 
 	go scheduler.Reschedule()
 

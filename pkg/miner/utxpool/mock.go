@@ -50,12 +50,11 @@ func (mr *MockstateWrapperMockRecorder) Height() *gomock.Call {
 }
 
 // TopBlock mocks base method
-func (m *MockstateWrapper) TopBlock() (*proto.Block, error) {
+func (m *MockstateWrapper) TopBlock() *proto.Block {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "TopBlock")
 	ret0, _ := ret[0].(*proto.Block)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
+	return ret0
 }
 
 // TopBlock indicates an expected call of TopBlock

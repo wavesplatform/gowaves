@@ -45,10 +45,7 @@ func (a bulkValidator) validate() ([]*types.TransactionWithBytes, error) {
 	locked := mu.Lock()
 	defer locked.Unlock()
 
-	lastKnownBlock, err := a.state.TopBlock()
-	if err != nil {
-		return nil, err
-	}
+	lastKnownBlock := a.state.TopBlock()
 
 	for {
 		t := a.utx.Pop()
