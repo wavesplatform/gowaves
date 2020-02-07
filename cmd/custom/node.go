@@ -189,7 +189,7 @@ func main() {
 
 	n := node.NewNode(services, declAddr, declAddr, ngRuntime, Miner, stateSync)
 
-	go node.RunNode(ctx, n, parent)
+	go n.Run(ctx, parent)
 
 	if len(conf.Addresses) > 0 {
 		adrs := strings.Split(conf.Addresses, ",")

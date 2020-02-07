@@ -6,7 +6,6 @@ import (
 	"net"
 	"sync"
 
-	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/p2p/mock"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
@@ -51,11 +50,11 @@ func NewMockStateManager(blocks ...*proto.Block) (*MockStateManager, error) {
 	return m, nil
 }
 
-func (a *MockStateManager) TopBlock() (*proto.Block, error) {
-	if len(a.state) < 1 {
-		return nil, errors.New("not found")
+func (a *MockStateManager) TopBlock() *proto.Block {
+	if len(a.state) == 0 {
+		panic("no top block")
 	}
-	return a.state[len(a.state)-1], nil
+	return a.state[len(a.state)-1]
 }
 
 func (a *MockStateManager) Block(blockID crypto.Signature) (*proto.Block, error) {

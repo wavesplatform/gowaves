@@ -23,7 +23,7 @@ func TestBulkValidator_Validate(t *testing.T) {
 
 	m := NewMockstateWrapper(ctrl)
 	m.EXPECT().Mutex().Return(mu)
-	m.EXPECT().TopBlock().Return(emptyBlock, nil)
+	m.EXPECT().TopBlock().Return(emptyBlock)
 	m.EXPECT(). // first transaction returns err
 			ValidateNextTx(byte_helpers.TransferV1.Transaction, gomock.Any(), gomock.Any(), gomock.Any()).
 			Return(errors.New("some err"))

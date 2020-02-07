@@ -1,9 +1,13 @@
 package utxpool
 
 import (
+	"errors"
+
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/types"
 )
+
+const DELTA = 86400 * 1000 / 6 // 4 hours
 
 type Validator interface {
 	Validate(t proto.Transaction) error
@@ -22,16 +26,17 @@ func NewValidator(state stateWrapper, tm types.Time) *ValidatorImpl {
 }
 
 func (a *ValidatorImpl) Validate(t proto.Transaction) error {
+	currentTimestamp := proto.NewTimestampFromTime(a.tm.Now())
+	lastKnownBlock := a.state.TopBlock()
+	if currentTimestamp-lastKnownBlock.Timestamp > DELTA {
+		return errors.New("state in sync, transaction not accepted")
+	}
+
 	mu := a.state.Mutex()
 	locked := mu.Lock()
-	defer locked.Unlock()
-	currentTimestamp := proto.NewTimestampFromTime(a.tm.Now())
-	lastKnownBlock, err := a.state.TopBlock()
-	if err != nil {
-		return err
-	}
-	err = a.state.ValidateNextTx(t, currentTimestamp, lastKnownBlock.Timestamp, lastKnownBlock.Version)
+	err := a.state.ValidateNextTx(t, currentTimestamp, lastKnownBlock.Timestamp, lastKnownBlock.Version)
 	a.state.ResetValidationList()
+	locked.Unlock()
 	return err
 }
 

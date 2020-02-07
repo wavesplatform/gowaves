@@ -23,6 +23,7 @@ func TestValidatorImpl_Validate(t *testing.T) {
 	defer ctrl.Finish()
 
 	emptyBlock := &proto.Block{}
+	emptyBlock.Timestamp = proto.NewTimestampFromTime(time.Now())
 	mu := lock.NewRwMutex(&sync.RWMutex{})
 	now := time.Now()
 
@@ -30,9 +31,9 @@ func TestValidatorImpl_Validate(t *testing.T) {
 	v := NewValidator(m, tm(now))
 
 	m.EXPECT().Mutex().Return(mu)
-	m.EXPECT().TopBlock().Return(emptyBlock, nil)
+	m.EXPECT().TopBlock().Return(emptyBlock)
 	m.EXPECT().
-		ValidateNextTx(byte_helpers.BurnV1.Transaction, proto.NewTimestampFromTime(now), uint64(0), proto.BlockVersion(0)).
+		ValidateNextTx(byte_helpers.BurnV1.Transaction, gomock.Any(), gomock.Any(), gomock.Any()).
 		Return(nil)
 	m.EXPECT().ResetValidationList()
 

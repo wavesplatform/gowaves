@@ -446,29 +446,23 @@ func TestStateManager_TopBlock(t *testing.T) {
 
 	genesis, err := manager.BlockByHeight(1)
 	assert.NoError(t, err)
-	topBlock, err := manager.TopBlock()
-	assert.NoError(t, err)
-	assert.Equal(t, genesis, topBlock)
+	assert.Equal(t, genesis, manager.TopBlock())
 
 	height := proto.Height(100)
 	err = importer.ApplyFromFile(manager, blocksPath, height-1, 1, false)
 	assert.NoError(t, err, "ApplyFromFile() failed")
 
-	topBlock, err = manager.TopBlock()
-	assert.NoError(t, err)
 	correct, err := manager.BlockByHeight(height)
 	assert.NoError(t, err)
-	assert.Equal(t, correct, topBlock)
+	assert.Equal(t, correct, manager.TopBlock())
 
 	height = proto.Height(30)
 	err = manager.RollbackToHeight(height)
 	assert.NoError(t, err)
 
-	topBlock, err = manager.TopBlock()
-	assert.NoError(t, err)
 	correct, err = manager.BlockByHeight(height)
 	assert.NoError(t, err)
-	assert.Equal(t, correct, topBlock)
+	assert.Equal(t, correct, manager.TopBlock())
 
 	// Test after closure.
 	err = manager.Close()
@@ -476,7 +470,5 @@ func TestStateManager_TopBlock(t *testing.T) {
 
 	manager, err = newStateManager(dataDir, DefaultTestingStateParams(), settings.MainNetSettings)
 	assert.NoError(t, err, "newStateManager() failed")
-	topBlock, err = manager.TopBlock()
-	assert.NoError(t, err)
-	assert.Equal(t, correct, topBlock)
+	assert.Equal(t, correct, manager.TopBlock())
 }
