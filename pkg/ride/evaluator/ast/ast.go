@@ -51,7 +51,7 @@ func protoArgToArgExpr(arg proto.Argument) (Expr, error) {
 	}
 }
 
-func (a *Script) CallFunction(scheme proto.Scheme, state types.SmartState, tx *proto.InvokeScriptV1, this, lastBlock Expr) (*proto.ScriptResultV3, error) {
+func (a *Script) CallFunction(scheme proto.Scheme, state types.SmartState, tx *proto.InvokeScriptV1, this, lastBlock Expr) ([]proto.ScriptAction, error) {
 	if !a.IsDapp() {
 		return nil, errors.New("can't call Script.CallFunction on non DApp")
 	}
@@ -71,7 +71,7 @@ func (a *Script) CallFunction(scheme proto.Scheme, state types.SmartState, tx *p
 	if err != nil {
 		return nil, err
 	}
-	scope := NewScope(3, scheme, state) //TODO: pass library version from script
+	scope := NewScope(a.Version, scheme, state)
 	scope.SetThis(this)
 	scope.SetLastBlockInfo(lastBlock)
 	scope.SetHeight(height)
@@ -104,18 +104,37 @@ func (a *Script) CallFunction(scheme proto.Scheme, state types.SmartState, tx *p
 		return nil, errors.Wrap(err, "Script.CallFunction")
 	}
 
-	var resExpr *ScriptResultExpr
 	switch t := rs.(type) {
 	case *WriteSetExpr:
-		resExpr = &ScriptResultExpr{WriteSet: t}
+		return t.ToActions()
 	case *TransferSetExpr:
-		resExpr = &ScriptResultExpr{TransferSet: t}
+		return t.ToActions()
 	case *ScriptResultExpr:
-		resExpr = t
+		return t.ToActions()
+	case Exprs:
+		res := make([]proto.ScriptAction, 0, len(t))
+		var a proto.ScriptAction
+		var err error
+		for _, e := range t {
+			switch te := e.(type) {
+			case *DataEntryExpr:
+				a, err = te.ToAction()
+			case *DataEntryDeleteExpr:
+			case *ScriptTransferExpr:
+				a, err = te.ToAction()
+			case *ScriptIssueExpr:
+			case *ScriptReissueExpr:
+			case *ScriptBurnExpr:
+			}
+			if err != nil {
+				return nil, errors.Wrap(err, "Script.CallFunction: fail to convert result")
+			}
+			res = append(res, a)
+		}
+		return res, nil
 	default:
 		return nil, errors.Errorf("Script.CallFunction: unexpected result type '%T'", t)
 	}
-	return resExpr.ConvertToProto()
 }
 
 func (a *Script) Verify(scheme byte, state types.SmartState, object map[string]Expr, this, lastBlock Expr) (bool, error) {

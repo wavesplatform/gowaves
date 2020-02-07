@@ -76,8 +76,11 @@ func NewScope(version int, scheme byte, state types.SmartState) *ScopeImpl {
 	case 2:
 		e = expressionsV2()
 		return out.withExprs(e)
-	default:
+	case 3:
 		e = expressionsV3()
+		return out.withExprs(e)
+	default:
+		e = expressionsV4()
 		return out.withExprs(e)
 	}
 }
@@ -331,31 +334,32 @@ func functionsV3() map[string]Expr {
 	return s
 }
 
-//func functionsV4() map[string]Expr {
-//	s := functionsV3()
-//	// Removed constructors
-//	delete(s, "ScriptResult")
-//	delete(s, "WriteSet")
-//	delete(s, "TransferSet")
-//	delete(s, "DataEntry")
-//
-//	// New constructors
-//	s["IntegerEntry"] = FunctionFromPredefined(DataEntry, 2)
-//	s["BooleanEntry"] = FunctionFromPredefined(DataEntry, 2)
-//	s["BinaryEntry"] = FunctionFromPredefined(DataEntry, 2)
-//	s["StringEntry"] = FunctionFromPredefined(DataEntry, 2)
-//	//s["DeleteEntry"] // Entry to delete data records from state
-//
-//	// New functions
-//	//s["contains"]
-//	//s["valueOrElse"]
-//	//s["1101"] //append to list
-//	//s["1102"] //concat lists
-//	//s["405"] // list median (works only for lists of size less or equal to 100)
-//	//s["1100"] // cons (list constructor) with size limited to 1000 elements
-//
-//	return s
-//}
+func functionsV4() map[string]Expr {
+	s := functionsV3()
+	// Remove obsolete constructors
+	delete(s, "ScriptResult")
+	delete(s, "WriteSet")
+	delete(s, "TransferSet")
+	delete(s, "DataEntry")
+
+	// New constructors
+	s["IntegerEntry"] = FunctionFromPredefined(DataEntry, 2)
+	s["BooleanEntry"] = FunctionFromPredefined(DataEntry, 2)
+	s["BinaryEntry"] = FunctionFromPredefined(DataEntry, 2)
+	s["StringEntry"] = FunctionFromPredefined(DataEntry, 2)
+	//s["DeleteEntry"] // Entry to delete data records from state
+
+	// New functions
+	//s["contains"] // (complexity 20)
+	//s["valueOrElse"] // (complexity 13)
+	//s["1101"] //append to list (complexity 3)
+	//s["1102"] //concat lists (complexity 10)
+	//s["405"] // list median (works only for lists of size less or equal to 100) (complexity 10)
+	//s["1100"] // cons (list constructor) with size limited to 1000 elements (complexity 2)
+	//s["800"] // Groth16 verify (complexity 1900)
+
+	return s
+}
 
 func VariablesV1() map[string]Expr {
 	return map[string]Expr{"tx": NewUnit(), "unit": NewUnit()}
@@ -397,6 +401,10 @@ func VariablesV3() map[string]Expr {
 	return v
 }
 
+func VariablesV4() map[string]Expr {
+	return VariablesV3()
+}
+
 func merge(x map[string]Expr, y map[string]Expr) map[string]Expr {
 	out := make(map[string]Expr)
 	for k, v := range x {
@@ -418,4 +426,8 @@ func expressionsV2() map[string]Expr {
 
 func expressionsV3() map[string]Expr {
 	return merge(VariablesV3(), functionsV3())
+}
+
+func expressionsV4() map[string]Expr {
+	return merge(VariablesV4(), functionsV4())
 }

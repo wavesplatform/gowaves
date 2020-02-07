@@ -144,7 +144,7 @@ func (a *scriptCaller) callAssetScript(tx proto.Transaction, assetID crypto.Dige
 	return nil
 }
 
-func (a *scriptCaller) invokeFunction(tx *proto.InvokeScriptV1, lastBlockInfo *proto.BlockInfo, initialisation bool) (*proto.ScriptResultV3, error) {
+func (a *scriptCaller) invokeFunction(tx *proto.InvokeScriptV1, lastBlockInfo *proto.BlockInfo, initialisation bool) ([]proto.ScriptAction, error) {
 	scriptAddr, err := recipientToAddress(tx.ScriptRecipient, a.stor.aliases, !initialisation)
 	if err != nil {
 		return nil, err
