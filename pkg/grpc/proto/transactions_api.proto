@@ -6,6 +6,7 @@ option go_package = "generated";
 
 import "recipient.proto";
 import "transaction.proto";
+import "invoke_script_result.proto";
 
 service TransactionsApi {
     rpc GetTransactions (TransactionsRequest) returns (stream TransactionResponse);

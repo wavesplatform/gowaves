@@ -1,9 +1,6 @@
 package proto
 
 import (
-	"encoding/binary"
-	"unicode/utf16"
-
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated"
@@ -11,46 +8,91 @@ import (
 
 // ScriptAction common interface of script invocation actions.
 type ScriptAction interface {
+	//TODO: add some functions
 }
 
 // DataEntryScriptAction is an action to manipulate account data state.
 type DataEntryScriptAction struct {
-	entry DataEntry
+	Entry DataEntry
+}
+
+func (a *DataEntryScriptAction) ToProtobuf() *g.DataTransactionData_DataEntry {
+	return a.Entry.ToProtobuf()
 }
 
 // TransferScriptAction is an action to emit transfer of asset.
 type TransferScriptAction struct {
-	Recipient Address
+	Recipient Recipient
 	Amount    int64
 	Asset     OptionalAsset
 }
 
+func (a *TransferScriptAction) ToProtobuf() *g.InvokeScriptResult_Payment {
+	amount := &g.Amount{
+		AssetId: a.Asset.ToID(),
+		Amount:  a.Amount,
+	}
+	return &g.InvokeScriptResult_Payment{
+		Address: a.Recipient.Address.Bytes(),
+		Amount:  amount,
+	}
+}
+
 // IssueScriptAction is an action to issue a new asset as a result of script invocation.
 type IssueScriptAction struct {
-	ID          crypto.Digest
-	Name        string
-	Description string
-	Quantity    uint64
-	Decimals    byte
-	Reissuable  bool
-	Timestamp   uint64
+	ID          crypto.Digest // calculated field
+	Name        string        // name
+	Description string        // description
+	Quantity    int64         // quantity
+	Decimals    int32         // decimals
+	Reissuable  bool          // isReissuable
+	Script      []byte        // compiledScript //TODO: reversed for future use
+	Timestamp   int64         // nonce
+}
+
+func (a *IssueScriptAction) ToProtobuf() *g.InvokeScriptResult_Issue {
+	return &g.InvokeScriptResult_Issue{
+		AssetId:     a.ID.Bytes(),
+		Name:        a.Name,
+		Description: a.Description,
+		Amount:      a.Quantity,
+		Decimals:    a.Decimals,
+		Reissuable:  a.Reissuable,
+		Script:      nil, //TODO: in V4 is not used
+		Nonce:       a.Timestamp,
+	}
 }
 
 // ReissueScriptAction is an action to emit Reissue transaction as a result of script invocation.
 type ReissueScriptAction struct {
-	AssetID    crypto.Digest
-	Reissuable bool
-	Quantity   uint64
+	AssetID    crypto.Digest // assetId
+	Quantity   int64         // quantity
+	Reissuable bool          // isReissuable
+}
+
+func (a *ReissueScriptAction) ToProtobuf() *g.InvokeScriptResult_Reissue {
+	return &g.InvokeScriptResult_Reissue{
+		AssetId:      a.AssetID.Bytes(),
+		Amount:       a.Quantity,
+		IsReissuable: a.Reissuable,
+	}
 }
 
 // BurnScriptAction is an action to burn some assets in response to script invocation.
 type BurnScriptAction struct {
-	AssetID    crypto.Digest
-	Reissuable bool
-	Quantity   uint64
+	AssetID  crypto.Digest // assetId
+	Quantity int64         // quantity
+}
+
+func (a *BurnScriptAction) ToProtobuf() *g.InvokeScriptResult_Burn {
+	return &g.InvokeScriptResult_Burn{
+		AssetId: a.AssetID.Bytes(),
+		Amount:  a.Quantity,
+	}
 }
 
 type ScriptResult struct {
+	Version     int
 	DataEntries []DataEntryScriptAction
 	Transfers   []TransferScriptAction
 	Issues      []IssueScriptAction
@@ -60,277 +102,63 @@ type ScriptResult struct {
 
 // NewScriptResult creates correct representation of invocation actions for storage and API.
 func NewScriptResult(version int, actions []ScriptAction) (*ScriptResult, error) {
-	return nil, nil
-}
-
-func (sr *ScriptResultV3) MarshalWithAddresses() ([]byte, error) {
-	transfersBytes, err := sr.Transfers.MarshalWithAddresses()
-	if err != nil {
-		return nil, err
+	entries := make([]DataEntryScriptAction, 0)
+	transfers := make([]TransferScriptAction, 0)
+	issues := make([]IssueScriptAction, 0)
+	reissues := make([]ReissueScriptAction, 0)
+	burns := make([]BurnScriptAction, 0)
+	for _, a := range actions {
+		switch ta := a.(type) {
+		case DataEntryScriptAction:
+			entries = append(entries, ta)
+		case TransferScriptAction:
+			transfers = append(transfers, ta)
+		case IssueScriptAction:
+			issues = append(issues, ta)
+		case ReissueScriptAction:
+			reissues = append(reissues, ta)
+		case BurnScriptAction:
+			burns = append(burns, ta)
+		default:
+			return nil, errors.Errorf("unsupported action type '%T'", a)
+		}
 	}
-	writesBytes, err := sr.Writes.MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
-	res := make([]byte, len(transfersBytes)+len(writesBytes)+8)
-	pos := 0
-	transfersSize := uint32(len(transfersBytes))
-	binary.BigEndian.PutUint32(res[pos:], transfersSize)
-	pos += 4
-	copy(res[pos:], transfersBytes)
-	pos += len(transfersBytes)
-	writesSize := uint32(len(writesBytes))
-	binary.BigEndian.PutUint32(res[pos:], writesSize)
-	pos += 4
-	copy(res[pos:], writesBytes)
-	return res, nil
-}
-
-func (sr *ScriptResultV3) UnmarshalWithAddresses(data []byte) error {
-	pos := 4
-	if len(data) < pos {
-		return errors.New("invalid data size")
-	}
-	transfersSize := binary.BigEndian.Uint32(data[:pos])
-	pos += int(transfersSize)
-	if len(data) < pos {
-		return errors.New("invalid data size")
-	}
-	var ts TransferSet
-	if err := ts.UnmarshalWithAddresses(data[4:pos]); err != nil {
-		return err
-	}
-	if len(data) < pos {
-		return errors.New("invalid data size")
-	}
-	writesSize := binary.BigEndian.Uint32(data[pos:])
-	pos += 4
-	if len(data) < pos {
-		return errors.New("invalid data size")
-	}
-	var ws WriteSet
-	if err := ws.UnmarshalBinary(data[pos:]); err != nil {
-		return err
-	}
-	pos += int(writesSize)
-	if pos != len(data) {
-		return errors.New("invalid data size")
-	}
-	sr.Transfers = ts
-	sr.Writes = ws
-	return nil
-}
-
-func (sr *ScriptResultV3) Valid() error {
-	if err := sr.Transfers.Valid(); err != nil {
-		return err
-	}
-	if err := sr.Writes.Valid(); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (sr *ScriptResultV3) ToProtobuf() (*g.InvokeScriptResult, error) {
-	transfers, err := sr.Transfers.ToProtobuf()
-	if err != nil {
-		return nil, err
-	}
-	return &g.InvokeScriptResult{
-		Data:      sr.Writes.ToProtobuf(),
-		Transfers: transfers,
+	return &ScriptResult{
+		Version:     version,
+		DataEntries: entries,
+		Transfers:   transfers,
+		Issues:      issues,
+		Reissues:    reissues,
+		Burns:       burns,
 	}, nil
 }
 
-type TransferSet []ScriptResultTransfer
-
-func (ts *TransferSet) binarySize() int {
-	totalSize := 0
-	for _, tr := range *ts {
-		totalSize += tr.binarySize()
+func (sr *ScriptResult) ToProtobuf() (*g.InvokeScriptResult, error) {
+	data := make([]*g.DataTransactionData_DataEntry, len(sr.DataEntries))
+	for i, e := range sr.DataEntries {
+		data[i] = e.ToProtobuf()
 	}
-	return totalSize
-}
-
-func (ts *TransferSet) MarshalWithAddresses() ([]byte, error) {
-	res := make([]byte, ts.binarySize())
-	pos := 0
-	for _, tr := range *ts {
-		trBytes, err := tr.MarshalWithAddress()
-		if err != nil {
-			return nil, err
-		}
-		if pos+len(trBytes) > len(res) {
-			return nil, errors.New("invalid data size")
-		}
-		copy(res[pos:], trBytes)
-		pos += len(trBytes)
+	transfers := make([]*g.InvokeScriptResult_Payment, len(sr.Transfers))
+	for i, t := range sr.Transfers {
+		transfers[i] = t.ToProtobuf()
 	}
-	return res, nil
-}
-
-func (ts *TransferSet) UnmarshalWithAddresses(data []byte) error {
-	pos := 0
-	for pos < len(data) {
-		var tr ScriptResultTransfer
-		if err := tr.UnmarshalWithAddress(data[pos:]); err != nil {
-			return err
-		}
-		pos += tr.binarySize()
-		*ts = append(*ts, tr)
+	issues := make([]*g.InvokeScriptResult_Issue, len(sr.Issues))
+	for i, x := range sr.Issues {
+		issues[i] = x.ToProtobuf()
 	}
-	return nil
-}
-
-func (ts *TransferSet) Valid() error {
-	if len(*ts) > maxInvokeTransfers {
-		return errors.Errorf("transfer set of size %d is greater than allowed maximum of %d\n", len(*ts), maxInvokeTransfers)
+	reissues := make([]*g.InvokeScriptResult_Reissue, len(sr.Reissues))
+	for i, r := range sr.Reissues {
+		reissues[i] = r.ToProtobuf()
 	}
-	for _, tr := range *ts {
-		if tr.Amount < 0 {
-			return errors.New("transfer amount is < 0")
-		}
+	burns := make([]*g.InvokeScriptResult_Burn, len(sr.Burns))
+	for i, b := range sr.Burns {
+		burns[i] = b.ToProtobuf()
 	}
-	return nil
-}
-
-func (ts *TransferSet) ToProtobuf() ([]*g.InvokeScriptResult_Payment, error) {
-	res := make([]*g.InvokeScriptResult_Payment, len(*ts))
-	var err error
-	for i, tr := range *ts {
-		res[i], err = tr.ToProtobuf()
-		if err != nil {
-			return nil, err
-		}
-	}
-	return res, nil
-}
-
-type WriteSet []DataEntry
-
-func (ws *WriteSet) binarySize() int {
-	totalSize := 0
-	for _, entry := range *ws {
-		totalSize += entry.binarySize()
-	}
-	return totalSize
-}
-
-func (ws *WriteSet) MarshalBinary() ([]byte, error) {
-	res := make([]byte, ws.binarySize())
-	pos := 0
-	for _, entry := range *ws {
-		entryBytes, err := entry.MarshalBinary()
-		if err != nil {
-			return nil, err
-		}
-		if pos+len(entryBytes) > len(res) {
-			return nil, errors.New("invalid data size")
-		}
-		copy(res[pos:], entryBytes)
-		pos += len(entryBytes)
-	}
-	return res, nil
-}
-
-func (ws *WriteSet) UnmarshalBinary(data []byte) error {
-	pos := 0
-	for pos < len(data) {
-		entry, err := NewDataEntryFromBytes(data[pos:])
-		if err != nil {
-			return err
-		}
-		pos += entry.binarySize()
-		*ws = append(*ws, entry)
-	}
-	return nil
-}
-
-func (ws *WriteSet) Valid() error {
-	if len(*ws) > maxInvokeWrites {
-		return errors.Errorf("write set of size %d is greater than allowed maximum of %d\n", len(*ws), maxInvokeWrites)
-	}
-	totalSize := 0
-	for _, entry := range *ws {
-		if len(utf16.Encode([]rune(entry.GetKey()))) > maxInvokeWriteKeySizeInBytes {
-			return errors.New("key is too large")
-		}
-		totalSize += entry.binarySize()
-	}
-	if totalSize > maxWriteSetSizeInBytes {
-		return errors.Errorf("total write set size %d is greater than maximum %d\n", totalSize, maxWriteSetSizeInBytes)
-	}
-	return nil
-}
-
-func (ws *WriteSet) ToProtobuf() []*g.DataTransactionData_DataEntry {
-	res := make([]*g.DataTransactionData_DataEntry, len(*ws))
-	for i, entry := range *ws {
-		res[i] = entry.ToProtobuf()
-	}
-	return res
-}
-
-type ScriptResultTransfer struct {
-	Recipient Recipient
-	Amount    int64
-	Asset     OptionalAsset
-}
-
-func (tr *ScriptResultTransfer) binarySize() int {
-	return AddressSize + 8 + tr.Asset.binarySize()
-}
-
-func (tr *ScriptResultTransfer) MarshalWithAddress() ([]byte, error) {
-	if tr.Recipient.Address == nil {
-		return nil, errors.New("can't marshal Recipient with no address set")
-	}
-	recipientBytes := tr.Recipient.Address.Bytes()
-	if len(recipientBytes) != AddressSize {
-		return nil, errors.New("invalid address size")
-	}
-	amountBytes := make([]byte, 8)
-	binary.BigEndian.PutUint64(amountBytes, uint64(tr.Amount))
-	assetBytes, err := tr.Asset.MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
-	res := make([]byte, tr.binarySize())
-	copy(res, amountBytes)
-	copy(res[len(amountBytes):], assetBytes)
-	copy(res[len(amountBytes)+len(assetBytes):], recipientBytes)
-	return res, nil
-}
-
-func (tr *ScriptResultTransfer) UnmarshalWithAddress(data []byte) error {
-	if len(data) < 8 {
-		return errors.New("invalid data size")
-	}
-	tr.Amount = int64(binary.BigEndian.Uint64(data[:8]))
-	var asset OptionalAsset
-	if err := asset.UnmarshalBinary(data[8:]); err != nil {
-		return err
-	}
-	tr.Asset = asset
-	pos := 8 + asset.binarySize()
-	addr, err := NewAddressFromBytes(data[pos:])
-	if err != nil {
-		return err
-	}
-	tr.Recipient = NewRecipientFromAddress(addr)
-	return nil
-}
-
-func (tr *ScriptResultTransfer) ToProtobuf() (*g.InvokeScriptResult_Payment, error) {
-	if tr.Recipient.Address == nil {
-		return nil, errors.New("script transfer has alias recipient, protobuf needs address")
-	}
-	addrBody, err := tr.Recipient.Address.Body()
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to get address body")
-	}
-	return &g.InvokeScriptResult_Payment{
-		Amount:  &g.Amount{AssetId: tr.Asset.ToID(), Amount: tr.Amount},
-		Address: addrBody,
+	return &g.InvokeScriptResult{
+		Data:      data,
+		Transfers: transfers,
+		Issues:    issues,
+		Reissues:  reissues,
+		Burns:     burns,
 	}, nil
 }

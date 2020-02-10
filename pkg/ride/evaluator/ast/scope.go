@@ -347,7 +347,10 @@ func functionsV4() map[string]Expr {
 	s["BooleanEntry"] = FunctionFromPredefined(DataEntry, 2)
 	s["BinaryEntry"] = FunctionFromPredefined(DataEntry, 2)
 	s["StringEntry"] = FunctionFromPredefined(DataEntry, 2)
-	//s["DeleteEntry"] // Entry to delete data records from state
+	s["DeleteEntry"] = FunctionFromPredefined(DeleteEntry, 1)
+	s["Issue"] = FunctionFromPredefined(Issue, 6)
+	s["Reissue"] = FunctionFromPredefined(Reissue, 3)
+	s["Burn"] = FunctionFromPredefined(Burn, 3)
 
 	// New functions
 	//s["contains"] // (complexity 20)

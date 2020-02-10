@@ -7,12 +7,17 @@ import (
 
 	"github.com/mr-tron/base58/base58"
 	"github.com/pkg/errors"
+	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/types"
 	"github.com/wavesplatform/gowaves/pkg/util"
 )
 
 const InstanceFieldName = "$instance"
+
+type Actionable interface {
+	ToAction() (proto.ScriptAction, error)
+}
 
 type Callable func(Scope, Exprs) (Expr, error)
 
@@ -113,23 +118,12 @@ func (a *Script) CallFunction(scheme proto.Scheme, state types.SmartState, tx *p
 		return t.ToActions()
 	case Exprs:
 		res := make([]proto.ScriptAction, 0, len(t))
-		var a proto.ScriptAction
-		var err error
 		for _, e := range t {
-			switch te := e.(type) {
-			case *DataEntryExpr:
-				a, err = te.ToAction()
-			case *DataEntryDeleteExpr:
-			case *ScriptTransferExpr:
-				a, err = te.ToAction()
-			case *ScriptIssueExpr:
-			case *ScriptReissueExpr:
-			case *ScriptBurnExpr:
+			ae, ok := e.(Actionable)
+			if !ok {
+				return nil, errors.Errorf("Script.CallFunction: fail to convert result to action")
 			}
-			if err != nil {
-				return nil, errors.Wrap(err, "Script.CallFunction: fail to convert result")
-			}
-			res = append(res, a)
+			res = append(res, ae.ToAction())
 		}
 		return res, nil
 	default:
@@ -936,11 +930,15 @@ func (a *ObjectExpr) InstanceOf() string {
 }
 
 type DataEntryExpr struct {
-	fields object
+	key   string
+	value Expr
 }
 
 func NewDataEntry(key string, value Expr) *DataEntryExpr {
-	return &DataEntryExpr{fields: object{"key": NewString(key), "value": value}}
+	return &DataEntryExpr{
+		key:   key,
+		value: value,
+	}
 }
 
 func (a *DataEntryExpr) Write(w io.Writer) {
@@ -960,37 +958,73 @@ func (a *DataEntryExpr) InstanceOf() string {
 }
 
 func (a *DataEntryExpr) Get(name string) (Expr, error) {
-	out, ok := a.fields[name]
-	if !ok {
-		return nil, errors.Errorf("ObjectExpr no such field %s", name)
+	switch name {
+	case "key":
+		return NewString(a.key), nil
+	case "value":
+		return a.value, nil
+	default:
+		return nil, errors.Errorf("unknown field '%s' of DataEntryExpr", name)
 	}
-	return out, nil
 }
 
-func (a *DataEntryExpr) toProto() (proto.DataEntry, error) {
-	keyExpr, err := a.Get("key")
-	if err != nil {
-		return nil, err
-	}
-	keyStrExpr, ok := keyExpr.(*StringExpr)
-	if !ok {
-		return nil, errors.New("invalid key type")
-	}
-	valExpr, err := a.Get("value")
-	if err != nil {
-		return nil, err
-	}
-	switch v := valExpr.(type) {
+func (a *DataEntryExpr) ToAction() (proto.ScriptAction, error) {
+	switch v := a.value.(type) {
 	case *LongExpr:
-		return &proto.IntegerDataEntry{Key: keyStrExpr.Value, Value: v.Value}, nil
+		return &proto.DataEntryScriptAction{Entry: &proto.IntegerDataEntry{Key: a.key, Value: v.Value}}, nil
 	case *BooleanExpr:
-		return &proto.BooleanDataEntry{Key: keyStrExpr.Value, Value: v.Value}, nil
+		return &proto.DataEntryScriptAction{Entry: &proto.BooleanDataEntry{Key: a.key, Value: v.Value}}, nil
 	case *BytesExpr:
-		return &proto.BinaryDataEntry{Key: keyStrExpr.Value, Value: v.Value}, nil
+		return &proto.DataEntryScriptAction{Entry: &proto.BinaryDataEntry{Key: a.key, Value: v.Value}}, nil
 	case *StringExpr:
-		return &proto.StringDataEntry{Key: keyStrExpr.Value, Value: v.Value}, nil
+		return &proto.DataEntryScriptAction{Entry: &proto.StringDataEntry{Key: a.key, Value: v.Value}}, nil
+	default:
+		return nil, errors.New("unsupported DataEntryExpr type")
 	}
-	return nil, errors.New("unknown value type")
+}
+
+type DataEntryDeleteExpr struct {
+	key string
+}
+
+func NewDataEntryDeleteExpr(key string) *DataEntryDeleteExpr {
+	return &DataEntryDeleteExpr{key: key}
+}
+
+func (a *DataEntryDeleteExpr) Write(w io.Writer) {
+	_, _ = fmt.Fprintf(w, "DataEntryDeleteExpr('%s')", a.key)
+}
+
+func (a *DataEntryDeleteExpr) Evaluate(Scope) (Expr, error) {
+	return a, nil
+}
+
+func (a *DataEntryDeleteExpr) Eq(other Expr) bool {
+	if other.InstanceOf() != "DataEntryDelete" {
+		return false
+	}
+	b, ok := other.(*DataEntryDeleteExpr)
+	if !ok {
+		return false
+	}
+	return a.key == b.key
+}
+
+func (a *DataEntryDeleteExpr) InstanceOf() string {
+	return "DataEntryDelete"
+}
+
+func (a *DataEntryDeleteExpr) ToAction() (proto.ScriptAction, error) {
+	return &proto.DataEntryScriptAction{Entry: &proto.DeleteDataEntry{Key: a.key}}, nil
+}
+
+func (a *DataEntryDeleteExpr) Get(name string) (Expr, error) {
+	switch name {
+	case "key":
+		return NewString(a.key), nil
+	default:
+		return nil, errors.Errorf("unknown fields '%s' on DataEntryDeleteExpr", name)
+	}
 }
 
 type StringExpr struct {
@@ -1766,7 +1800,13 @@ func NewBlockInfo(scheme proto.Scheme, header *proto.BlockHeader, height proto.H
 }
 
 type WriteSetExpr struct {
-	body []*DataEntryExpr
+	items []*DataEntryExpr
+}
+
+func NewWriteSet(e ...*DataEntryExpr) *WriteSetExpr {
+	return &WriteSetExpr{
+		items: e,
+	}
 }
 
 func (a *WriteSetExpr) Write(w io.Writer) {
@@ -1785,22 +1825,10 @@ func (a *WriteSetExpr) InstanceOf() string {
 	return "WriteSet"
 }
 
-func (a *WriteSetExpr) toProto() ([]proto.DataEntry, error) {
-	res := make([]proto.DataEntry, len(a.body))
-	for i, entryExpr := range a.body {
-		entry, err := entryExpr.toProto()
-		if err != nil {
-			return nil, err
-		}
-		res[i] = entry
-	}
-	return res, nil
-}
-
 func (a *WriteSetExpr) Get(name string) (Expr, error) {
 	if name == "data" {
-		r := make(Exprs, len(a.body))
-		for i, item := range a.body {
+		r := make(Exprs, len(a.items))
+		for i, item := range a.items {
 			r[i] = item
 		}
 		return r, nil
@@ -1808,14 +1836,24 @@ func (a *WriteSetExpr) Get(name string) (Expr, error) {
 	return NewUnit(), nil
 }
 
-func NewWriteSet(e ...*DataEntryExpr) *WriteSetExpr {
-	return &WriteSetExpr{
-		body: e,
+func (a *WriteSetExpr) ToActions() ([]proto.ScriptAction, error) {
+	res := make([]proto.ScriptAction, len(a.items))
+	for i, entryExpr := range a.items {
+		action, err := entryExpr.ToAction()
+		if err != nil {
+			return nil, err
+		}
+		res[i] = action
 	}
+	return res, nil
 }
 
 type TransferSetExpr struct {
-	body []*ScriptTransferExpr
+	items []*ScriptTransferExpr
+}
+
+func NewTransferSet(e ...*ScriptTransferExpr) *TransferSetExpr {
+	return &TransferSetExpr{items: e}
 }
 
 func (a *TransferSetExpr) Write(w io.Writer) {
@@ -1834,20 +1872,16 @@ func (a *TransferSetExpr) InstanceOf() string {
 	return "TransferSet"
 }
 
-func (a *TransferSetExpr) toProto() ([]proto.ScriptResultTransfer, error) {
-	res := make([]proto.ScriptResultTransfer, len(a.body))
-	for i, transferExpr := range a.body {
-		transfer, err := transferExpr.toProto()
+func (a *TransferSetExpr) ToActions() ([]proto.ScriptAction, error) {
+	res := make([]proto.ScriptAction, len(a.items))
+	for i, transferExpr := range a.items {
+		action, err := transferExpr.ToAction()
 		if err != nil {
 			return nil, err
 		}
-		res[i] = *transfer
+		res[i] = action
 	}
 	return res, nil
-}
-
-func NewTransferSet(e ...*ScriptTransferExpr) *TransferSetExpr {
-	return &TransferSetExpr{body: e}
 }
 
 type InvocationExpr struct {
@@ -1875,7 +1909,26 @@ func (a *InvocationExpr) InstanceOf() string {
 }
 
 type ScriptTransferExpr struct {
-	fields object
+	recipient Recipient
+	amount    *LongExpr
+	asset     Expr
+}
+
+func NewScriptTransfer(recipient Recipient, amount *LongExpr, asset Expr) (*ScriptTransferExpr, error) {
+	switch asset.(type) {
+	case *Unit, *BytesExpr:
+	default:
+		return nil, errors.Errorf("expected 'Unit' or 'BytesExpr' as asset, found %T", asset)
+	}
+	fields := object{}
+	fields["recipient"] = recipient
+	fields["amount"] = amount
+	fields["asset"] = asset
+	return &ScriptTransferExpr{
+		recipient: recipient,
+		amount:    amount,
+		asset:     asset,
+	}, nil
 }
 
 func (a *ScriptTransferExpr) Write(w io.Writer) {
@@ -1894,30 +1947,10 @@ func (a *ScriptTransferExpr) InstanceOf() string {
 	return "ScriptTransfer"
 }
 
-func (a *ScriptTransferExpr) toProto() (*proto.ScriptResultTransfer, error) {
-	recipientExpr, ok := a.fields["recipient"]
-	if !ok {
-		return nil, errors.New("recipient is not found")
-	}
-	recipientExprDed, ok := recipientExpr.(Recipient)
-	if !ok {
-		return nil, errors.New("invalid recipient type")
-	}
-	amountExpr, ok := a.fields["amount"]
-	if !ok {
-		return nil, errors.New("amount is not found")
-	}
-	amountExprDed, ok := amountExpr.(*LongExpr)
-	if !ok {
-		return nil, errors.New("invalid amount type")
-	}
-	assetExpr, ok := a.fields["asset"]
-	if !ok {
-		return nil, errors.New("asset is not found")
-	}
+func (a *ScriptTransferExpr) ToAction() (proto.ScriptAction, error) {
 	var oa *proto.OptionalAsset
 	var err error
-	switch asset := assetExpr.(type) {
+	switch asset := a.asset.(type) {
 	case *Unit:
 		oa = &proto.OptionalAsset{Present: false}
 	case *BytesExpr:
@@ -1928,31 +1961,23 @@ func (a *ScriptTransferExpr) toProto() (*proto.ScriptResultTransfer, error) {
 	default:
 		return nil, errors.New("invalid type for asset expr")
 	}
-	return &proto.ScriptResultTransfer{
-		Recipient: recipientExprDed.Recipient(),
-		Amount:    amountExprDed.Value,
+	return &proto.TransferScriptAction{
+		Recipient: a.recipient.Recipient(),
+		Amount:    a.amount.Value,
 		Asset:     *oa,
-	}, nil
-}
-
-func NewScriptTransfer(recipient Recipient, amount *LongExpr, asset Expr) (*ScriptTransferExpr, error) {
-	switch asset.(type) {
-	case *Unit, *BytesExpr:
-	default:
-		return nil, errors.Errorf("expected 'Unit' or '*BytesExpr' as asset, found %T", asset)
-	}
-	fields := object{}
-	fields["recipient"] = recipient
-	fields["amount"] = amount
-	fields["asset"] = asset
-	return &ScriptTransferExpr{
-		fields: fields,
 	}, nil
 }
 
 type ScriptResultExpr struct {
 	WriteSet    *WriteSetExpr
 	TransferSet *TransferSetExpr
+}
+
+func NewScriptResult(writeSet *WriteSetExpr, transferSet *TransferSetExpr) *ScriptResultExpr {
+	return &ScriptResultExpr{
+		WriteSet:    writeSet,
+		TransferSet: transferSet,
+	}
 }
 
 func (a *ScriptResultExpr) Write(w io.Writer) {
@@ -1971,28 +1996,135 @@ func (a *ScriptResultExpr) InstanceOf() string {
 	return "ScriptResult"
 }
 
-func (a *ScriptResultExpr) ConvertToProto() (*proto.ScriptResultV3, error) {
-	res := &proto.ScriptResultV3{}
-	if a.TransferSet != nil {
-		transfers, err := a.TransferSet.toProto()
-		if err != nil {
-			return nil, err
-		}
-		res.Transfers = transfers
-	}
+func (a *ScriptResultExpr) ToActions() ([]proto.ScriptAction, error) {
+	actions := make([]proto.ScriptAction, 0)
 	if a.WriteSet != nil {
-		writes, err := a.WriteSet.toProto()
+		wa, err := a.WriteSet.ToActions()
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrap(err, "failed to convert ScriptResult to ScriptActions")
 		}
-		res.Writes = writes
+		actions = append(actions, wa...)
 	}
-	return res, nil
+	if a.TransferSet != nil {
+		ta, err := a.TransferSet.ToActions()
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to convert ScriptResult to ScriptActions")
+		}
+		actions = append(actions, ta...)
+	}
+	return actions, nil
 }
 
-func NewScriptResult(writeSet *WriteSetExpr, transferSet *TransferSetExpr) *ScriptResultExpr {
-	return &ScriptResultExpr{
-		WriteSet:    writeSet,
-		TransferSet: transferSet,
+type IssueExpr struct {
+	Name        string
+	Description string
+	Quantity    int64
+	Decimals    int64
+	Reissuable  bool
+	Timestamp   int64
+}
+
+func NewIssueExpr(name, description string, quantity, decimals int64, reissuable bool, timestamp int64) *IssueExpr {
+	return &IssueExpr{
+		Name:        name,
+		Description: description,
+		Quantity:    quantity,
+		Decimals:    decimals,
+		Reissuable:  reissuable,
+		Timestamp:   timestamp,
 	}
+}
+
+func (a *IssueExpr) Write(w io.Writer) {
+	_, _ = fmt.Fprintf(w, "IssueExpr")
+}
+
+func (a *IssueExpr) Evaluate(Scope) (Expr, error) {
+	return a, nil
+}
+
+func (a *IssueExpr) Eq(other Expr) bool {
+	b, ok := other.(*IssueExpr)
+	if !ok {
+		return false
+	}
+	return a.Name == b.Name && a.Description == b.Description && a.Quantity == b.Quantity && a.Decimals == b.Decimals && a.Reissuable == b.Reissuable && a.Timestamp == b.Timestamp
+}
+
+func (a *IssueExpr) InstanceOf() string {
+	return "Issue"
+}
+
+type ReissueExpr struct {
+	AssetID    crypto.Digest
+	Quantity   int64
+	Reissuable bool
+}
+
+func NewReissueExpr(assetID []byte, quantity int64, reissuable bool) (*ReissueExpr, error) {
+	id, err := crypto.NewDigestFromBytes(assetID)
+	if err != nil {
+		return nil, err
+	}
+	return &ReissueExpr{
+		AssetID:    id,
+		Quantity:   quantity,
+		Reissuable: reissuable,
+	}, nil
+}
+
+func (a *ReissueExpr) Write(w io.Writer) {
+	_, _ = fmt.Fprintf(w, "ReissueExpr")
+}
+
+func (a *ReissueExpr) Evaluate(Scope) (Expr, error) {
+	return a, nil
+}
+
+func (a *ReissueExpr) Eq(other Expr) bool {
+	b, ok := other.(*ReissueExpr)
+	if !ok {
+		return false
+	}
+	return a.AssetID == b.AssetID && a.Quantity == b.Quantity && a.Reissuable == b.Reissuable
+}
+
+func (a *ReissueExpr) InstanceOf() string {
+	return "Reissue"
+}
+
+type BurnExpr struct {
+	AssetID  crypto.Digest
+	Quantity int64
+}
+
+func NewBurnExpr(assetID []byte, quantity int64) (*BurnExpr, error) {
+	id, err := crypto.NewDigestFromBytes(assetID)
+	if err != nil {
+		return nil, err
+	}
+	return &BurnExpr{
+		AssetID:  id,
+		Quantity: quantity,
+	}, nil
+}
+
+func (a *BurnExpr) Write(w io.Writer) {
+	_, _ = fmt.Fprintf(w, "BurnExpr")
+}
+
+func (a *BurnExpr) Evaluate(Scope) (Expr, error) {
+	return a, nil
+}
+
+func (a *BurnExpr) Eq(other Expr) bool {
+	b, ok := other.(*BurnExpr)
+	if !ok {
+		return false
+	}
+	return a.AssetID == b.AssetID && a.Quantity == b.Quantity
+}
+
+func (a *BurnExpr) InstanceOf() string {
+	return "Burn"
 }

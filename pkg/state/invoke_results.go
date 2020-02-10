@@ -1,25 +1,26 @@
 package state
 
 import (
+	pb "github.com/golang/protobuf/proto"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
 type invokeResultRecord struct {
-	res *proto.ScriptResultV3
+	res *proto.ScriptResult
 }
 
 func (r *invokeResultRecord) marshalBinary() ([]byte, error) {
-	resBytes, err := r.res.MarshalWithAddresses()
+	msg, err := r.res.ToProtobuf()
 	if err != nil {
 		return nil, err
 	}
-	return resBytes, nil
+	return pb.Marshal(msg)
 }
 
 func (r *invokeResultRecord) unmarshalBinary(data []byte) error {
-	var res proto.ScriptResultV3
+	var res proto.ScriptResult
 	if err := res.UnmarshalWithAddresses(data); err != nil {
 		return err
 	}
@@ -36,7 +37,7 @@ func newInvokeResults(hs *historyStorage, aliases *aliases) (*invokeResults, err
 	return &invokeResults{hs, aliases}, nil
 }
 
-func (ir *invokeResults) invokeResult(invokeID crypto.Digest, filter bool) (*proto.ScriptResultV3, error) {
+func (ir *invokeResults) invokeResult(invokeID crypto.Digest, filter bool) (*proto.ScriptResult, error) {
 	key := invokeResultKey{invokeID}
 	recordBytes, err := ir.hs.latestEntryData(key.bytes(), filter)
 	if err != nil {
@@ -49,7 +50,7 @@ func (ir *invokeResults) invokeResult(invokeID crypto.Digest, filter bool) (*pro
 	return record.res, nil
 }
 
-func (ir *invokeResults) saveResult(invokeID crypto.Digest, res *proto.ScriptResultV3, blockID crypto.Signature) error {
+func (ir *invokeResults) saveResult(invokeID crypto.Digest, res *proto.ScriptResult, blockID crypto.Signature) error {
 	key := invokeResultKey{invokeID}
 	record := &invokeResultRecord{res}
 	recordBytes, err := record.marshalBinary()

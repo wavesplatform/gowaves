@@ -1513,6 +1513,22 @@ func DataEntry(s Scope, e Exprs) (Expr, error) {
 	}
 }
 
+func DeleteEntry(s Scope, e Exprs) (Expr, error) {
+	const funcName = "DeleteEntry"
+	if l := len(e); l != 1 {
+		return nil, errors.Errorf("%s: invalid params, expected 1, passed %d", funcName, l)
+	}
+	rs, err := e.EvaluateAll(s)
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	key, ok := rs[0].(*StringExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: first argument expected to be *StringExpr, found %T", funcName, rs[0])
+	}
+	return NewDataEntryDeleteExpr(key.Value), nil
+}
+
 func DataTransaction(s Scope, e Exprs) (Expr, error) {
 	const funcName = "DataTransaction"
 	if l := len(e); l != 9 {
@@ -2023,6 +2039,102 @@ func ScriptResult(s Scope, e Exprs) (Expr, error) {
 		return nil, errors.Errorf("%s: expected secnd argument to be 'Exprs', got '%T'", funcName, rs[1])
 	}
 	return NewScriptResult(writeSet, transferSet), nil
+}
+
+// Issue is a constructor of IssueExpr type
+func Issue(s Scope, e Exprs) (Expr, error) {
+	const funcName = "Issue"
+	if l := len(e); l != 7 {
+		return nil, errors.Errorf("%s: invalid number of parameters, expected 7, received &d", funcName, l)
+	}
+	rs, err := e.EvaluateAll(s)
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	name, ok := rs[0].(*StringExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: expected first argument to be '*StringExpr', got '%T'", funcName, rs[0])
+	}
+	description, ok := rs[1].(*StringExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: expected second argument to be '*StringExpr', got '%T'", funcName, rs[1])
+	}
+	quantity, ok := rs[2].(*LongExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: expected third argument to be '*LongExpr', got '%T'", funcName, rs[2])
+	}
+	decimals, ok := rs[3].(*LongExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: expected forth argument to be '*LongExpr', got '%T'", funcName, rs[3])
+	}
+	reissuable, ok := rs[4].(*BooleanExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: expected 5th argument to be '*BooleanExpr', got '%T'", funcName, rs[4])
+	}
+	//TODO: in V4 parameter #5 "script" is always Unit, reserved for future use, here we just check the type
+	_, ok = rs[5].(*Unit)
+	if !ok {
+		return nil, errors.Errorf("%s: expected 6th argument to be 'Unit', got '%T'", funcName, rs[5])
+	}
+	nonce, ok := rs[6].(*LongExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: expected 7th argument to be '*LongExpr', got '%T'", funcName, rs[6])
+	}
+
+	return NewIssueExpr(name.Value, description.Value, quantity.Value, decimals.Value, reissuable.Value, nonce.Value), nil
+}
+
+// Reissue is a constructor of ReissueExpr type
+func Reissue(s Scope, e Exprs) (Expr, error) {
+	const funcName = "Reissue"
+	if l := len(e); l != 3 {
+		return nil, errors.Errorf("%s: invalid number of parameters, expected 3, received &d", funcName, l)
+	}
+	rs, err := e.EvaluateAll(s)
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	assetID, ok := rs[0].(*BytesExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: expected first argument to be '*BytesExpr', got '%T'", funcName, rs[0])
+	}
+	reissuable, ok := rs[1].(*BooleanExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: expected second argument to be '*BooleanExpr', got '%T'", funcName, rs[1])
+	}
+	quantity, ok := rs[2].(*LongExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: expected third argument to be '*LongExpr', got '%T'", funcName, rs[2])
+	}
+	r, err := NewReissueExpr(assetID.Value, quantity.Value, reissuable.Value)
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	return r, nil
+}
+
+func Burn(s Scope, e Exprs) (Expr, error) {
+	const funcName = "Burn"
+	if l := len(e); l != 2 {
+		return nil, errors.Errorf("%s: invalid number of parameters, expected 2, received &d", funcName, l)
+	}
+	rs, err := e.EvaluateAll(s)
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	assetID, ok := rs[0].(*BytesExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: expected first argument to be '*BytesExpr', got '%T'", funcName, rs[0])
+	}
+	quantity, ok := rs[1].(*LongExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: expected second argument to be '*LongExpr', got '%T'", funcName, rs[1])
+	}
+	r, err := NewBurnExpr(assetID.Value, quantity.Value)
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	return r, nil
 }
 
 func wrapWithExtract(c Callable, name string) Callable {
