@@ -3,18 +3,21 @@ package proto
 import (
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/grpc/client"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated"
 )
 
 // ScriptAction common interface of script invocation actions.
 type ScriptAction interface {
-	//TODO: add some functions
+	scriptAction()
 }
 
 // DataEntryScriptAction is an action to manipulate account data state.
 type DataEntryScriptAction struct {
 	Entry DataEntry
 }
+
+func (a *DataEntryScriptAction) scriptAction() {}
 
 func (a *DataEntryScriptAction) ToProtobuf() *g.DataTransactionData_DataEntry {
 	return a.Entry.ToProtobuf()
@@ -26,6 +29,8 @@ type TransferScriptAction struct {
 	Amount    int64
 	Asset     OptionalAsset
 }
+
+func (a TransferScriptAction) scriptAction() {}
 
 func (a *TransferScriptAction) ToProtobuf() *g.InvokeScriptResult_Payment {
 	amount := &g.Amount{
@@ -50,6 +55,8 @@ type IssueScriptAction struct {
 	Timestamp   int64         // nonce
 }
 
+func (a IssueScriptAction) scriptAction() {}
+
 func (a *IssueScriptAction) ToProtobuf() *g.InvokeScriptResult_Issue {
 	return &g.InvokeScriptResult_Issue{
 		AssetId:     a.ID.Bytes(),
@@ -70,6 +77,8 @@ type ReissueScriptAction struct {
 	Reissuable bool          // isReissuable
 }
 
+func (a ReissueScriptAction) scriptAction() {}
+
 func (a *ReissueScriptAction) ToProtobuf() *g.InvokeScriptResult_Reissue {
 	return &g.InvokeScriptResult_Reissue{
 		AssetId:      a.AssetID.Bytes(),
@@ -84,6 +93,8 @@ type BurnScriptAction struct {
 	Quantity int64         // quantity
 }
 
+func (a BurnScriptAction) scriptAction() {}
+
 func (a *BurnScriptAction) ToProtobuf() *g.InvokeScriptResult_Burn {
 	return &g.InvokeScriptResult_Burn{
 		AssetId: a.AssetID.Bytes(),
@@ -92,7 +103,6 @@ func (a *BurnScriptAction) ToProtobuf() *g.InvokeScriptResult_Burn {
 }
 
 type ScriptResult struct {
-	Version     int
 	DataEntries []DataEntryScriptAction
 	Transfers   []TransferScriptAction
 	Issues      []IssueScriptAction
@@ -101,7 +111,7 @@ type ScriptResult struct {
 }
 
 // NewScriptResult creates correct representation of invocation actions for storage and API.
-func NewScriptResult(version int, actions []ScriptAction) (*ScriptResult, error) {
+func NewScriptResult(actions []ScriptAction) (*ScriptResult, error) {
 	entries := make([]DataEntryScriptAction, 0)
 	transfers := make([]TransferScriptAction, 0)
 	issues := make([]IssueScriptAction, 0)
@@ -124,7 +134,6 @@ func NewScriptResult(version int, actions []ScriptAction) (*ScriptResult, error)
 		}
 	}
 	return &ScriptResult{
-		Version:     version,
 		DataEntries: entries,
 		Transfers:   transfers,
 		Issues:      issues,
@@ -161,4 +170,38 @@ func (sr *ScriptResult) ToProtobuf() (*g.InvokeScriptResult, error) {
 		Reissues:  reissues,
 		Burns:     burns,
 	}, nil
+}
+
+func (sr *ScriptResult) FromProtobuf(scheme byte, msg *g.InvokeScriptResult) error {
+	if msg == nil {
+		return errors.New("empty protobuf message")
+	}
+	c := client.SafeConverter{}
+	data := make([]DataEntryScriptAction, len(msg.Data))
+	for i, e := range msg.Data {
+		de, err := c.Entry(e)
+		if err != nil {
+			return err
+		}
+		data[i] = DataEntryScriptAction{Entry: de}
+	}
+	sr.DataEntries = data
+	var err error
+	sr.Transfers, err = c.TransferScriptActions(scheme, msg.Transfers)
+	if err != nil {
+		return err
+	}
+	sr.Issues, err = c.IssueScriptActions(msg.Issues)
+	if err != nil {
+		return err
+	}
+	sr.Reissues, err = c.ReissueScriptActions(msg.Reissues)
+	if err != nil {
+		return err
+	}
+	sr.Burns, err = c.BurnScriptActions(msg.Burns)
+	if err != nil {
+		return err
+	}
+	return nil
 }

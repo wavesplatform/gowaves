@@ -374,6 +374,84 @@ func (c *SafeConverter) Payments(payments []*g.Amount) proto.ScriptPayments {
 	return result
 }
 
+func (c *SafeConverter) TransferScriptActions(scheme byte, payments []*g.InvokeScriptResult_Payment) ([]proto.TransferScriptAction, error) {
+	if c.err != nil {
+		return nil, c.err
+	}
+	res := make([]proto.TransferScriptAction, len(payments))
+	for i, p := range payments {
+		asset, amount := c.ConvertAmount(p.Amount)
+		addr := c.Address(scheme, p.Address)
+		if c.err != nil {
+			return nil, c.err
+		}
+		res[i] = proto.TransferScriptAction{
+			Recipient: proto.NewRecipientFromAddress(addr),
+			Amount:    int64(amount),
+			Asset:     asset,
+		}
+	}
+	return res, nil
+}
+
+func (c *SafeConverter) IssueScriptActions(issues []*g.InvokeScriptResult_Issue) ([]proto.IssueScriptAction, error) {
+	if c.err != nil {
+		return nil, c.err
+	}
+	res := make([]proto.IssueScriptAction, len(issues))
+	for i, x := range issues {
+		res[i] = proto.IssueScriptAction{
+			ID:          c.Digest(x.AssetId),
+			Name:        x.Name,
+			Description: x.Description,
+			Quantity:    x.Amount,
+			Decimals:    x.Decimals,
+			Reissuable:  x.Reissuable,
+			Script:      c.Script(x.Script),
+			Timestamp:   x.Nonce,
+		}
+		if c.err != nil {
+			return nil, c.err
+		}
+	}
+	return res, nil
+}
+
+func (c *SafeConverter) ReissueScriptActions(reissues []*g.InvokeScriptResult_Reissue) ([]proto.ReissueScriptAction, error) {
+	if c.err != nil {
+		return nil, c.err
+	}
+	res := make([]proto.ReissueScriptAction, len(reissues))
+	for i, x := range reissues {
+		res[i] = proto.ReissueScriptAction{
+			AssetID:    c.Digest(x.AssetId),
+			Quantity:   x.Amount,
+			Reissuable: x.IsReissuable,
+		}
+		if c.err != nil {
+			return nil, c.err
+		}
+	}
+	return res, nil
+}
+
+func (c *SafeConverter) BurnScriptActions(burns []*g.InvokeScriptResult_Burn) ([]proto.BurnScriptAction, error) {
+	if c.err != nil {
+		return nil, c.err
+	}
+	res := make([]proto.BurnScriptAction, len(burns))
+	for i, x := range burns {
+		res[i] = proto.BurnScriptAction{
+			AssetID:  c.Digest(x.AssetId),
+			Quantity: x.Amount,
+		}
+		if c.err != nil {
+			return nil, c.err
+		}
+	}
+	return res, nil
+}
+
 func (c *SafeConverter) Reset() {
 	c.err = nil
 }

@@ -2961,18 +2961,22 @@ func (c FunctionCall) binarySize() int {
 }
 
 type FullScriptTransfer struct {
-	ScriptResultTransfer
+	Amount    uint64
+	Asset     OptionalAsset
+	Recipient Recipient
 	Sender    Address
 	Timestamp uint64
 	ID        *crypto.Digest
 }
 
-func NewFullScriptTransfer(scheme byte, tr *ScriptResultTransfer, tx *InvokeScriptV1) (*FullScriptTransfer, error) {
+func NewFullScriptTransfer(action TransferScriptAction, tx *InvokeScriptV1) (*FullScriptTransfer, error) {
 	return &FullScriptTransfer{
-		ScriptResultTransfer: *tr,
-		Sender:               *tx.ScriptRecipient.Address,
-		Timestamp:            tx.Timestamp,
-		ID:                   tx.ID,
+		Amount:    uint64(action.Amount),
+		Asset:     action.Asset,
+		Recipient: action.Recipient,
+		Sender:    *tx.ScriptRecipient.Address,
+		Timestamp: tx.Timestamp,
+		ID:        tx.ID,
 	}, nil
 }
 

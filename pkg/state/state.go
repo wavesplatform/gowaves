@@ -1900,7 +1900,7 @@ func (s *stateManager) IsActiveLeasing(leaseID crypto.Digest) (bool, error) {
 	return isActive, nil
 }
 
-func (s *stateManager) InvokeResultByID(invokeID crypto.Digest) (*proto.ScriptResultV3, error) {
+func (s *stateManager) InvokeResultByID(invokeID crypto.Digest) (*proto.ScriptResult, error) {
 	hasData, err := s.storesExtendedApiData()
 	if err != nil {
 		return nil, wrapErr(Other, err)
@@ -1908,7 +1908,7 @@ func (s *stateManager) InvokeResultByID(invokeID crypto.Digest) (*proto.ScriptRe
 	if !hasData {
 		return nil, wrapErr(IncompatibilityError, errors.New("state does not have data for invoke results"))
 	}
-	res, err := s.stor.invokeResults.invokeResult(invokeID, true)
+	res, err := s.stor.invokeResults.invokeResult(s.settings.AddressSchemeCharacter, invokeID, true)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
