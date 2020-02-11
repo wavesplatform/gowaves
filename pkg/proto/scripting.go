@@ -3,7 +3,6 @@ package proto
 import (
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
-	"github.com/wavesplatform/gowaves/pkg/grpc/client"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated"
 )
 
@@ -17,7 +16,7 @@ type DataEntryScriptAction struct {
 	Entry DataEntry
 }
 
-func (a *DataEntryScriptAction) scriptAction() {}
+func (a DataEntryScriptAction) scriptAction() {}
 
 func (a *DataEntryScriptAction) ToProtobuf() *g.DataTransactionData_DataEntry {
 	return a.Entry.ToProtobuf()
@@ -38,7 +37,7 @@ func (a *TransferScriptAction) ToProtobuf() *g.InvokeScriptResult_Payment {
 		Amount:  a.Amount,
 	}
 	return &g.InvokeScriptResult_Payment{
-		Address: a.Recipient.Address.Bytes(),
+		Address: a.Recipient.Address.Body(),
 		Amount:  amount,
 	}
 }
@@ -148,20 +147,20 @@ func (sr *ScriptResult) ToProtobuf() (*g.InvokeScriptResult, error) {
 		data[i] = e.ToProtobuf()
 	}
 	transfers := make([]*g.InvokeScriptResult_Payment, len(sr.Transfers))
-	for i, t := range sr.Transfers {
-		transfers[i] = t.ToProtobuf()
+	for i := range sr.Transfers {
+		transfers[i] = sr.Transfers[i].ToProtobuf()
 	}
 	issues := make([]*g.InvokeScriptResult_Issue, len(sr.Issues))
-	for i, x := range sr.Issues {
-		issues[i] = x.ToProtobuf()
+	for i := range sr.Issues {
+		issues[i] = sr.Issues[i].ToProtobuf()
 	}
 	reissues := make([]*g.InvokeScriptResult_Reissue, len(sr.Reissues))
-	for i, r := range sr.Reissues {
-		reissues[i] = r.ToProtobuf()
+	for i := range sr.Reissues {
+		reissues[i] = sr.Reissues[i].ToProtobuf()
 	}
 	burns := make([]*g.InvokeScriptResult_Burn, len(sr.Burns))
-	for i, b := range sr.Burns {
-		burns[i] = b.ToProtobuf()
+	for i := range sr.Burns {
+		burns[i] = sr.Burns[i].ToProtobuf()
 	}
 	return &g.InvokeScriptResult{
 		Data:      data,
@@ -176,7 +175,7 @@ func (sr *ScriptResult) FromProtobuf(scheme byte, msg *g.InvokeScriptResult) err
 	if msg == nil {
 		return errors.New("empty protobuf message")
 	}
-	c := client.SafeConverter{}
+	c := ProtobufConverter{}
 	data := make([]DataEntryScriptAction, len(msg.Data))
 	for i, e := range msg.Data {
 		de, err := c.Entry(e)

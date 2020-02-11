@@ -252,6 +252,10 @@ func (a *OptionalAsset) ToID() []byte {
 	return nil
 }
 
+func (a OptionalAsset) Eq(b OptionalAsset) bool {
+	return a.Present == b.Present && a.ID == b.ID
+}
+
 //Attachment represents the additional data stored in Transfer and MassTransfer transactions.
 type Attachment string
 

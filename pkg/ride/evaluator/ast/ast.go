@@ -123,7 +123,11 @@ func (a *Script) CallFunction(scheme proto.Scheme, state types.SmartState, tx *p
 			if !ok {
 				return nil, errors.Errorf("Script.CallFunction: fail to convert result to action")
 			}
-			res = append(res, ae.ToAction())
+			action, err := ae.ToAction()
+			if err != nil {
+				return nil, errors.Wrap(err, "Script.CallFunction: fail to convert result to action")
+			}
+			res = append(res, action)
 		}
 		return res, nil
 	default:

@@ -185,9 +185,12 @@ func (c *ProtobufConverter) script(script *g.Script) Script {
 	if c.err != nil {
 		return nil
 	}
+	if script == nil {
+		return nil
+	}
 	resBytes := make([]byte, len(script.Bytes))
 	copy(resBytes, script.Bytes)
-	return Script(resBytes)
+	return resBytes
 }
 
 func (c *ProtobufConverter) alias(scheme byte, alias string) Alias {

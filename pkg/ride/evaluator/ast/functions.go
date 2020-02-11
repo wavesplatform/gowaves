@@ -2045,7 +2045,7 @@ func ScriptResult(s Scope, e Exprs) (Expr, error) {
 func Issue(s Scope, e Exprs) (Expr, error) {
 	const funcName = "Issue"
 	if l := len(e); l != 7 {
-		return nil, errors.Errorf("%s: invalid number of parameters, expected 7, received &d", funcName, l)
+		return nil, errors.Errorf("%s: invalid number of parameters, expected 7, received %d", funcName, l)
 	}
 	rs, err := e.EvaluateAll(s)
 	if err != nil {
@@ -2088,7 +2088,7 @@ func Issue(s Scope, e Exprs) (Expr, error) {
 func Reissue(s Scope, e Exprs) (Expr, error) {
 	const funcName = "Reissue"
 	if l := len(e); l != 3 {
-		return nil, errors.Errorf("%s: invalid number of parameters, expected 3, received &d", funcName, l)
+		return nil, errors.Errorf("%s: invalid number of parameters, expected 3, received %d", funcName, l)
 	}
 	rs, err := e.EvaluateAll(s)
 	if err != nil {
@@ -2116,7 +2116,7 @@ func Reissue(s Scope, e Exprs) (Expr, error) {
 func Burn(s Scope, e Exprs) (Expr, error) {
 	const funcName = "Burn"
 	if l := len(e); l != 2 {
-		return nil, errors.Errorf("%s: invalid number of parameters, expected 2, received &d", funcName, l)
+		return nil, errors.Errorf("%s: invalid number of parameters, expected 2, received %d", funcName, l)
 	}
 	rs, err := e.EvaluateAll(s)
 	if err != nil {

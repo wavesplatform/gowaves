@@ -38,11 +38,8 @@ const (
 // Address is the transformed Public Key with additional bytes of the version, a blockchain scheme and a checksum.
 type Address [AddressSize]byte
 
-func (a Address) Body() ([]byte, error) {
-	if len(a) != AddressSize {
-		return nil, errors.New("invalid address length")
-	}
-	return a[headerSize : headerSize+bodySize], nil
+func (a Address) Body() []byte {
+	return a[headerSize : headerSize+bodySize]
 }
 
 // String produces the BASE58 string representation of the Address.
@@ -382,7 +379,7 @@ func NewRecipientFromString(s string) (Recipient, error) {
 }
 
 func (r Recipient) Eq(r2 Recipient) bool {
-	res := (r.len == r2.len)
+	res := r.len == r2.len
 	if r.Address != nil && r2.Address != nil {
 		res = res && (*r.Address == *r2.Address)
 	} else {
@@ -399,12 +396,8 @@ func (r Recipient) Eq(r2 Recipient) bool {
 }
 
 func (r Recipient) ToProtobuf() (*g.Recipient, error) {
-	addrBody, err := r.Address.Body()
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to get address body")
-	}
 	if r.Address != nil {
-		return &g.Recipient{Recipient: &g.Recipient_Address{Address: addrBody}}, nil
+		return &g.Recipient{Recipient: &g.Recipient_Address{Address: r.Address.Body()}}, nil
 	}
 	return &g.Recipient{Recipient: &g.Recipient_Alias{Alias: r.Alias.Alias}}, nil
 }
