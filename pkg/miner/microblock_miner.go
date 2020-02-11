@@ -15,6 +15,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"github.com/wavesplatform/gowaves/pkg/types"
+	"github.com/wavesplatform/gowaves/pkg/util"
 	"go.uber.org/atomic"
 	"go.uber.org/zap"
 )
@@ -36,9 +37,12 @@ type MicroblockMiner struct {
 	ngRuntime   ng.Runtime
 	scheme      proto.Scheme
 	services    services.Services
+	features    util.Features
+	// reward vote 600000000
+	reward int64
 }
 
-func NewMicroblockMiner(services services.Services, ngRuntime ng.Runtime, scheme proto.Scheme) *MicroblockMiner {
+func NewMicroblockMiner(services services.Services, ngRuntime ng.Runtime, scheme proto.Scheme, features util.Features, reward int64) *MicroblockMiner {
 	return &MicroblockMiner{
 		scheduler:   services.Scheduler,
 		utx:         services.UtxPool,
@@ -49,6 +53,7 @@ func NewMicroblockMiner(services services.Services, ngRuntime ng.Runtime, scheme
 		ngRuntime:   ngRuntime,
 		scheme:      scheme,
 		services:    services,
+		features:    features,
 	}
 }
 
@@ -69,7 +74,9 @@ func (a *MicroblockMiner) Mine(ctx context.Context, t proto.Timestamp, k proto.K
 		zap.S().Error(err)
 		return
 	}
-	b, err := proto.CreateBlock(proto.NewReprFromTransactions(nil), t, parent, pub, nxt, v, nil, 600000000)
+	// reward vote 600000000
+	features := a.features.Features()
+	b, err := proto.CreateBlock(proto.NewReprFromTransactions(nil), t, parent, pub, nxt, v, features, a.reward)
 	if err != nil {
 		zap.S().Error(err)
 		return

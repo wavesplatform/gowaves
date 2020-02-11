@@ -260,6 +260,8 @@ func PreloadSignatures(ctx context.Context, out chan nullable.Signature, p sendM
 				newSigs = append(newSigs, sig)
 				select {
 				case out <- nullable.NewSignature(sig):
+				case <-time.After(2 * time.Minute):
+					return nil
 				case <-ctx.Done():
 					return ctx.Err()
 				}
@@ -269,6 +271,8 @@ func PreloadSignatures(ctx context.Context, out chan nullable.Signature, p sendM
 			if len(mess.Signatures) < 100 {
 				select {
 				case out <- nullable.NewNullSignature():
+				case <-time.After(2 * time.Minute):
+					return nil
 				case <-ctx.Done():
 					return ctx.Err()
 				}
