@@ -61,6 +61,10 @@ type IssueV1 struct {
 	Issue
 }
 
+func (tx IssueV1) BinarySize() int {
+	return 2 + crypto.SignatureSize + tx.Issue.BinarySize()
+}
+
 func (tx IssueV1) GetTypeVersion() TransactionTypeVersion {
 	return TransactionTypeVersion{tx.Type, tx.Version}
 }
@@ -267,6 +271,10 @@ type TransferV1 struct {
 	ID        *crypto.Digest    `json:"id,omitempty"`
 	Signature *crypto.Signature `json:"signature,omitempty"`
 	Transfer
+}
+
+func (tx TransferV1) BinarySize() int {
+	return 2 + crypto.SignatureSize + tx.Transfer.BinarySize()
 }
 
 func (tx TransferV1) GetTypeVersion() TransactionTypeVersion {
@@ -520,6 +528,10 @@ type ReissueV1 struct {
 	Reissue
 }
 
+func (tx ReissueV1) BinarySize() int {
+	return 2 + crypto.SignatureSize + tx.Reissue.BinarySize()
+}
+
 func (tx ReissueV1) GetTypeVersion() TransactionTypeVersion {
 	return TransactionTypeVersion{tx.Type, tx.Version}
 }
@@ -730,6 +742,10 @@ type BurnV1 struct {
 	Burn
 }
 
+func (tx BurnV1) BinarySize() int {
+	return 1 + crypto.SignatureSize + tx.Burn.BinarySize()
+}
+
 func (tx BurnV1) GetTypeVersion() TransactionTypeVersion {
 	return TransactionTypeVersion{tx.Type, tx.Version}
 }
@@ -936,6 +952,10 @@ type ExchangeV1 struct {
 	SellMatcherFee uint64            `json:"sellMatcherFee"`
 	Fee            uint64            `json:"fee"`
 	Timestamp      uint64            `json:"timestamp,omitempty"`
+}
+
+func (tx ExchangeV1) BinarySize() int {
+	return 1 + crypto.SignatureSize + 48 + 4 + tx.BuyOrder.BinarySize() + 4 + tx.SellOrder.BinarySize()
 }
 
 func (tx ExchangeV1) GetTypeVersion() TransactionTypeVersion {
@@ -1377,6 +1397,10 @@ type LeaseV1 struct {
 	Lease
 }
 
+func (tx LeaseV1) BinarySize() int {
+	return 1 + crypto.SignatureSize + tx.Lease.BinarySize()
+}
+
 func (tx LeaseV1) GetTypeVersion() TransactionTypeVersion {
 	return TransactionTypeVersion{tx.Type, tx.Version}
 }
@@ -1588,6 +1612,10 @@ type LeaseCancelV1 struct {
 	LeaseCancel
 }
 
+func (tx LeaseCancelV1) BinarySize() int {
+	return 1 + crypto.SignatureSize + tx.LeaseCancel.BinarySize()
+}
+
 func (tx LeaseCancelV1) GetTypeVersion() TransactionTypeVersion {
 	return TransactionTypeVersion{tx.Type, tx.Version}
 }
@@ -1789,6 +1817,10 @@ type CreateAliasV1 struct {
 	ID        *crypto.Digest    `json:"id,omitempty"`
 	Signature *crypto.Signature `json:"signature,omitempty"`
 	CreateAlias
+}
+
+func (tx CreateAliasV1) BinarySize() int {
+	return 1 + crypto.SignatureSize + tx.CreateAlias.BinarySize()
 }
 
 func (tx CreateAliasV1) GetTypeVersion() TransactionTypeVersion {
@@ -2010,6 +2042,10 @@ type MassTransferEntry struct {
 	Amount    uint64    `json:"amount"`
 }
 
+func (e *MassTransferEntry) BinarySize() int {
+	return e.Recipient.BinarySize() + 8
+}
+
 func (e *MassTransferEntry) ToProtobuf() (*g.MassTransferTransactionData_Transfer, error) {
 	rcpProto, err := e.Recipient.ToProtobuf()
 	if err != nil {
@@ -2054,6 +2090,15 @@ type MassTransferV1 struct {
 	Timestamp  uint64              `json:"timestamp,omitempty"`
 	Fee        uint64              `json:"fee"`
 	Attachment Attachment          `json:"attachment,omitempty"`
+}
+
+func (tx MassTransferV1) BinarySize() int {
+	size := 2 + tx.Proofs.BinarySize() + crypto.PublicKeySize + tx.Asset.BinarySize() + 16 + 2 + len(tx.Attachment)
+	size += 2
+	for _, tr := range tx.Transfers {
+		size += tr.BinarySize()
+	}
+	return size
 }
 
 func (tx MassTransferV1) HasRecipient(rcp Recipient) bool {
@@ -2395,6 +2440,15 @@ type DataV1 struct {
 	Timestamp uint64           `json:"timestamp,omitempty"`
 }
 
+func (tx DataV1) BinarySize() int {
+	size := 3 + tx.Proofs.BinarySize() + crypto.PublicKeySize + 16
+	size += 2
+	for _, entry := range tx.Entries {
+		size += entry.BinarySize()
+	}
+	return size
+}
+
 func (tx DataV1) GetTypeVersion() TransactionTypeVersion {
 	return TransactionTypeVersion{tx.Type, tx.Version}
 }
@@ -2446,7 +2500,7 @@ func (tx DataV1) Valid() (bool, error) {
 		return false, errors.Errorf("number of DataV1 entries is bigger than %d", maxEntries)
 	}
 	keys := make(map[string]struct{})
-	size := dataV1FixedBodyLen + tx.Proofs.binarySize()
+	size := dataV1FixedBodyLen + tx.Proofs.BinarySize()
 	for _, e := range tx.Entries {
 		ok, err := e.Valid()
 		if !ok {
@@ -2457,7 +2511,7 @@ func (tx DataV1) Valid() (bool, error) {
 			return false, errors.New("duplicate keys")
 		}
 		keys[e.GetKey()] = struct{}{}
-		size += e.binarySize()
+		size += e.BinarySize()
 	}
 	if size > maxDataV1Bytes {
 		return false, errors.Errorf("total size of DataV1 transaction is bigger than %d bytes", maxDataV1Bytes)
@@ -2489,7 +2543,7 @@ func (tx *DataV1) AppendEntry(entry DataEntry) error {
 func (tx *DataV1) entriesLen() int {
 	r := 0
 	for _, e := range tx.Entries {
-		r += e.binarySize()
+		r += e.BinarySize()
 	}
 	return r
 }
@@ -2513,7 +2567,7 @@ func (tx *DataV1) BodyMarshalBinary() ([]byte, error) {
 			return nil, errors.Wrap(err, "failed to marshal DataV1 transaction body to bytes")
 		}
 		copy(buf[p:], eb)
-		p += e.binarySize()
+		p += e.BinarySize()
 	}
 	binary.BigEndian.PutUint64(buf[p:], tx.Timestamp)
 	p += 8
@@ -2567,7 +2621,7 @@ func (tx *DataV1) bodyUnmarshalBinary(data []byte) error {
 		if err != nil {
 			return errors.Wrap(err, "failed to unmarshal DataV1 transaction body from bytes")
 		}
-		data = data[e.binarySize():]
+		data = data[e.BinarySize():]
 		err = tx.AppendEntry(e)
 		if err != nil {
 			return errors.Wrap(err, "failed to unmarshal DataV1 transaction body from bytes")
@@ -2745,6 +2799,14 @@ type SetScriptV1 struct {
 	Script    Script           `json:"script"`
 	Fee       uint64           `json:"fee"`
 	Timestamp uint64           `json:"timestamp,omitempty"`
+}
+
+func (tx SetScriptV1) BinarySize() int {
+	scriptSize := 1
+	if len(tx.Script) > 0 {
+		scriptSize += 2 + len(tx.Script)
+	}
+	return 3 + tx.Proofs.BinarySize() + 1 + crypto.PublicKeySize + 16 + scriptSize
 }
 
 func (tx SetScriptV1) GetTypeVersion() TransactionTypeVersion {
@@ -3020,6 +3082,10 @@ type SponsorshipV1 struct {
 	Timestamp   uint64           `json:"timestamp,omitempty"`
 }
 
+func (tx SponsorshipV1) BinarySize() int {
+	return 5 + tx.Proofs.BinarySize() + crypto.PublicKeySize + crypto.DigestSize + 24
+}
+
 func (tx SponsorshipV1) GetTypeVersion() TransactionTypeVersion {
 	return TransactionTypeVersion{tx.Type, tx.Version}
 }
@@ -3285,6 +3351,14 @@ type SetAssetScriptV1 struct {
 	Script    Script           `json:"script"`
 	Fee       uint64           `json:"fee"`
 	Timestamp uint64           `json:"timestamp,omitempty"`
+}
+
+func (tx SetAssetScriptV1) BinarySize() int {
+	scriptSize := 1
+	if len(tx.Script) > 0 {
+		scriptSize += 2 + len(tx.Script)
+	}
+	return 4 + crypto.DigestSize + tx.Proofs.BinarySize() + crypto.PublicKeySize + 16 + scriptSize
 }
 
 func (tx SetAssetScriptV1) GetTypeVersion() TransactionTypeVersion {
@@ -3574,6 +3648,10 @@ type InvokeScriptV1 struct {
 	Timestamp       uint64           `json:"timestamp,omitempty"`
 }
 
+func (tx *InvokeScriptV1) BinarySize() int {
+	return 4 + tx.Proofs.BinarySize() + crypto.PublicKeySize + tx.FunctionCall.BinarySize() + tx.ScriptRecipient.BinarySize() + tx.Payments.BinarySize() + tx.FeeAsset.BinarySize() + 16
+}
+
 func (tx *InvokeScriptV1) GenerateID() error {
 	if tx.ID == nil {
 		body, err := tx.BodyMarshalBinary()
@@ -3662,7 +3740,7 @@ func (tx InvokeScriptV1) Valid() (bool, error) {
 		assets[p.Asset] = struct{}{}
 	}
 	//TODO: check blockchain scheme and script type
-	if tx.binarySize() > maxInvokeScriptV1Bytes {
+	if tx.BinarySize() > maxInvokeScriptV1Bytes {
 		return false, errors.New("invoke script transaction is too big")
 	}
 	return true, nil
@@ -3670,7 +3748,7 @@ func (tx InvokeScriptV1) Valid() (bool, error) {
 
 func (tx *InvokeScriptV1) BodyMarshalBinary() ([]byte, error) {
 	p := 0
-	buf := make([]byte, invokeScriptV1FixedBodyLen+tx.ScriptRecipient.len+tx.FunctionCall.binarySize()+tx.Payments.binarySize()+tx.FeeAsset.binarySize())
+	buf := make([]byte, invokeScriptV1FixedBodyLen+tx.ScriptRecipient.len+tx.FunctionCall.BinarySize()+tx.Payments.BinarySize()+tx.FeeAsset.BinarySize())
 	buf[p] = byte(tx.Type)
 	p++
 	buf[p] = tx.Version
@@ -3690,7 +3768,7 @@ func (tx *InvokeScriptV1) BodyMarshalBinary() ([]byte, error) {
 		return nil, err
 	}
 	copy(buf[p:], fcb)
-	if len(fcb) != tx.FunctionCall.binarySize() {
+	if len(fcb) != tx.FunctionCall.BinarySize() {
 		panic("INVALID FUNCTION CALL")
 	}
 	p += len(fcb)
@@ -3699,7 +3777,7 @@ func (tx *InvokeScriptV1) BodyMarshalBinary() ([]byte, error) {
 		return nil, err
 	}
 	copy(buf[p:], psb)
-	if len(psb) != tx.Payments.binarySize() {
+	if len(psb) != tx.Payments.BinarySize() {
 		panic("INVALID PAYMENTS")
 	}
 	p += len(psb)
@@ -3784,14 +3862,14 @@ func (tx *InvokeScriptV1) bodyUnmarshalBinary(data []byte) error {
 		return err
 	}
 	tx.FunctionCall = functionCall
-	data = data[functionCall.binarySize():]
+	data = data[functionCall.BinarySize():]
 	payments := ScriptPayments{}
 	err = payments.UnmarshalBinary(data)
 	if err != nil {
 		return err
 	}
 	tx.Payments = payments
-	data = data[payments.binarySize():]
+	data = data[payments.BinarySize():]
 	tx.Fee = binary.BigEndian.Uint64(data)
 	data = data[8:]
 	var asset OptionalAsset
@@ -3800,7 +3878,7 @@ func (tx *InvokeScriptV1) bodyUnmarshalBinary(data []byte) error {
 		return err
 	}
 	tx.FeeAsset = asset
-	data = data[asset.binarySize():]
+	data = data[asset.BinarySize():]
 	tx.Timestamp = binary.BigEndian.Uint64(data)
 	return nil
 }
@@ -3884,7 +3962,7 @@ func (tx *InvokeScriptV1) UnmarshalBinary(data []byte) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to unmarshal InvokeScriptV1 transaction from bytes")
 	}
-	bl := invokeScriptV1FixedBodyLen + tx.ScriptRecipient.len + tx.FunctionCall.binarySize() + tx.Payments.binarySize() + tx.FeeAsset.binarySize()
+	bl := invokeScriptV1FixedBodyLen + tx.ScriptRecipient.len + tx.FunctionCall.BinarySize() + tx.Payments.BinarySize() + tx.FeeAsset.BinarySize()
 	bb := data[:bl]
 	data = data[bl:]
 	var p ProofsV1
@@ -3933,10 +4011,6 @@ func (tx *InvokeScriptV1) UnmarshalSignedFromProtobuf(data []byte) error {
 	}
 	*tx = *invokeScriptTx
 	return nil
-}
-
-func (tx *InvokeScriptV1) binarySize() int {
-	return 1 + tx.Proofs.binarySize() + invokeScriptV1FixedBodyLen + tx.FunctionCall.binarySize() + tx.Payments.binarySize() + tx.FeeAsset.binarySize()
 }
 
 func (tx *InvokeScriptV1) ToProtobuf(scheme Scheme) (*g.Transaction, error) {

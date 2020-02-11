@@ -200,10 +200,7 @@ func (a *storage) fromRow(seq Row) (*proto.Block, error) {
 	t := keyBlock.Transactions
 	BlockSignature := keyBlock.BlockSignature
 	for _, row := range seq.MicroBlocks {
-		t, err = t.Join(row.Transactions)
-		if err != nil {
-			return nil, err
-		}
+		t = t.Join(row.Transactions)
 		BlockSignature = row.TotalResBlockSigField
 	}
 

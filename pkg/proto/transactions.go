@@ -106,9 +106,13 @@ type Transaction interface {
 	// It also sets transaction ID.
 	Sign(sk crypto.SecretKey) error
 
+	// Functions for custom binary format.
 	// Serialization.
 	MarshalBinary() ([]byte, error)
+	// Parsing.
 	UnmarshalBinary([]byte) error
+	// Size in bytes in binary format.
+	BinarySize() int
 
 	// Protobuf-related functions.
 	// Conversion to/from Protobuf wire byte format.
@@ -281,6 +285,10 @@ type Genesis struct {
 	Timestamp uint64            `json:"timestamp"`
 	Recipient Address           `json:"recipient"`
 	Amount    uint64            `json:"amount"`
+}
+
+func (tx Genesis) BinarySize() int {
+	return 1 + 8 + AddressSize + 8
 }
 
 func (tx Genesis) GetTypeVersion() TransactionTypeVersion {
@@ -492,6 +500,10 @@ type Payment struct {
 	Amount    uint64            `json:"amount"`
 	Fee       uint64            `json:"fee"`
 	Timestamp uint64            `json:"timestamp"`
+}
+
+func (tx Payment) BinarySize() int {
+	return 1 + crypto.SignatureSize + crypto.PublicKeySize + AddressSize + 24
 }
 
 func (tx Payment) GetTypeVersion() TransactionTypeVersion {
@@ -753,6 +765,10 @@ type Issue struct {
 	Fee         uint64           `json:"fee"`
 }
 
+func (i Issue) BinarySize() int {
+	return crypto.PublicKeySize + len(i.Name) + 2 + len(i.Description) + 2 + 8 + 1 + 1 + 16
+}
+
 func (i Issue) GetSenderPK() crypto.PublicKey {
 	return i.SenderPK
 }
@@ -864,6 +880,12 @@ type Transfer struct {
 	Fee         uint64           `json:"fee"`
 	Recipient   Recipient        `json:"recipient"`
 	Attachment  Attachment       `json:"attachment,omitempty"`
+}
+
+func (tr Transfer) BinarySize() int {
+	aaSize := tr.AmountAsset.BinarySize()
+	faSize := tr.FeeAsset.BinarySize()
+	return crypto.PublicKeySize + aaSize + faSize + 24 + tr.Recipient.BinarySize() + len(tr.Attachment) + 2
 }
 
 func (tr Transfer) GetSenderPK() crypto.PublicKey {
@@ -1044,6 +1066,10 @@ type Reissue struct {
 	Fee        uint64           `json:"fee"`
 }
 
+func (r Reissue) BinarySize() int {
+	return crypto.PublicKeySize + crypto.DigestSize + 24 + 1
+}
+
 func (r Reissue) ToProtobuf() *g.Transaction_Reissue {
 	return &g.Transaction_Reissue{Reissue: &g.ReissueTransactionData{
 		AssetAmount: &g.Amount{AssetId: r.AssetID.Bytes(), Amount: int64(r.Quantity)},
@@ -1124,6 +1150,10 @@ type Burn struct {
 	Amount    uint64           `json:"amount"`
 	Timestamp uint64           `json:"timestamp,omitempty"`
 	Fee       uint64           `json:"fee"`
+}
+
+func (b Burn) BinarySize() int {
+	return crypto.PublicKeySize + crypto.DigestSize + 24
 }
 
 func (b Burn) ToProtobuf() *g.Transaction_Burn {
@@ -1209,6 +1239,10 @@ type Lease struct {
 	Amount    uint64           `json:"amount"`
 	Fee       uint64           `json:"fee"`
 	Timestamp uint64           `json:"timestamp,omitempty"`
+}
+
+func (l Lease) BinarySize() int {
+	return crypto.PublicKeySize + l.Recipient.BinarySize() + 24
 }
 
 func (l Lease) ToProtobuf() (*g.Transaction_Lease, error) {
@@ -1303,6 +1337,10 @@ type LeaseCancel struct {
 	Timestamp uint64           `json:"timestamp,omitempty"`
 }
 
+func (lc LeaseCancel) BinarySize() int {
+	return crypto.PublicKeySize + crypto.DigestSize + 16
+}
+
 func (lc LeaseCancel) ToProtobuf() *g.Transaction_LeaseCancel {
 	return &g.Transaction_LeaseCancel{LeaseCancel: &g.LeaseCancelTransactionData{
 		LeaseId: lc.LeaseID.Bytes(),
@@ -1363,6 +1401,10 @@ type CreateAlias struct {
 	Alias     Alias            `json:"alias"`
 	Fee       uint64           `json:"fee"`
 	Timestamp uint64           `json:"timestamp,omitempty"`
+}
+
+func (ca CreateAlias) BinarySize() int {
+	return crypto.PublicKeySize + 16 + 2 + ca.Alias.BinarySize()
 }
 
 func (ca CreateAlias) ToProtobuf() *g.Transaction_CreateAlias {

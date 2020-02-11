@@ -98,8 +98,7 @@ func TestValidationWithoutBlocks(t *testing.T) {
 	blocks, err := readBlocksFromTestPath(int(height + 1))
 	assert.NoError(t, err, "readBlocksFromTestPath() failed")
 	last := blocks[len(blocks)-1]
-	txs, err := last.Transactions.Transactions()
-	assert.NoError(t, err, "BytesToTransactions() failed")
+	txs := last.Transactions
 	err = importer.ApplyFromFile(manager, blocksPath, height, 1, false)
 	assert.NoError(t, err, "ApplyFromFile() failed")
 	err = validateTxs(manager, last.Timestamp, txs)

@@ -59,8 +59,7 @@ func TestVerifier(t *testing.T) {
 	assert.NoError(t, err, "readBlocksFromTestPath() failed")
 	last := blocks[len(blocks)-1]
 	// Get real block's transactions.
-	txs, err := proto.BytesToTransactions(last.TransactionCount, last.Transactions.BytesUnchecked())
-	assert.NoError(t, err, "BytesToTransactions() failed")
+	txs := last.Transactions
 
 	// Test valid blocks.
 	chans := newVerifierChans()

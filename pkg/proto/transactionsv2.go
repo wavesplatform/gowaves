@@ -42,6 +42,14 @@ type IssueV2 struct {
 	Issue
 }
 
+func (tx IssueV2) BinarySize() int {
+	scriptSize := 1
+	if len(tx.Script) > 0 {
+		scriptSize += 2 + len(tx.Script)
+	}
+	return 4 + tx.Proofs.BinarySize() + scriptSize + tx.Issue.BinarySize()
+}
+
 func (tx *IssueV2) MarshalToProtobuf(scheme Scheme) ([]byte, error) {
 	return MarshalTxDeterministic(tx, scheme)
 }
@@ -345,6 +353,10 @@ type TransferV2 struct {
 	Transfer
 }
 
+func (tx TransferV2) BinarySize() int {
+	return 3 + tx.Proofs.BinarySize() + tx.Transfer.BinarySize()
+}
+
 func (tx *TransferV2) MarshalToProtobuf(scheme Scheme) ([]byte, error) {
 	return MarshalTxDeterministic(tx, scheme)
 }
@@ -624,6 +636,10 @@ type ReissueV2 struct {
 	Reissue
 }
 
+func (tx ReissueV2) BinarySize() int {
+	return 4 + tx.Proofs.BinarySize() + tx.Reissue.BinarySize()
+}
+
 func (tx *ReissueV2) MarshalToProtobuf(scheme Scheme) ([]byte, error) {
 	return MarshalTxDeterministic(tx, scheme)
 }
@@ -855,6 +871,10 @@ type BurnV2 struct {
 	ID      *crypto.Digest  `json:"id,omitempty"`
 	Proofs  *ProofsV1       `json:"proofs,omitempty"`
 	Burn
+}
+
+func (tx BurnV2) BinarySize() int {
+	return 4 + tx.Proofs.BinarySize() + tx.Burn.BinarySize()
 }
 
 func (tx *BurnV2) MarshalToProtobuf(scheme Scheme) ([]byte, error) {
@@ -1094,6 +1114,18 @@ type ExchangeV2 struct {
 	SellMatcherFee uint64           `json:"sellMatcherFee"`
 	Fee            uint64           `json:"fee"`
 	Timestamp      uint64           `json:"timestamp,omitempty"`
+}
+
+func (tx ExchangeV2) BinarySize() int {
+	boSize := 4 + tx.BuyOrder.BinarySize()
+	soSize := 4 + tx.SellOrder.BinarySize()
+	if tx.BuyOrder.GetVersion() == 1 {
+		boSize += 1
+	}
+	if tx.SellOrder.GetVersion() == 1 {
+		soSize += 1
+	}
+	return 3 + tx.Proofs.BinarySize() + 48 + boSize + soSize
 }
 
 func (tx *ExchangeV2) MarshalToProtobuf(scheme Scheme) ([]byte, error) {
@@ -1645,6 +1677,10 @@ type LeaseV2 struct {
 	Lease
 }
 
+func (tx LeaseV2) BinarySize() int {
+	return 4 + tx.Proofs.BinarySize() + tx.Lease.BinarySize()
+}
+
 func (tx *LeaseV2) MarshalToProtobuf(scheme Scheme) ([]byte, error) {
 	return MarshalTxDeterministic(tx, scheme)
 }
@@ -1870,6 +1906,10 @@ type LeaseCancelV2 struct {
 	ID      *crypto.Digest  `json:"id,omitempty"`
 	Proofs  *ProofsV1       `json:"proofs,omitempty"`
 	LeaseCancel
+}
+
+func (tx LeaseCancelV2) BinarySize() int {
+	return 4 + tx.Proofs.BinarySize() + tx.LeaseCancel.BinarySize()
 }
 
 func (tx *LeaseCancelV2) MarshalToProtobuf(scheme Scheme) ([]byte, error) {
@@ -2100,6 +2140,10 @@ type CreateAliasV2 struct {
 	ID      *crypto.Digest  `json:"id,omitempty"`
 	Proofs  *ProofsV1       `json:"proofs,omitempty"`
 	CreateAlias
+}
+
+func (tx CreateAliasV2) BinarySize() int {
+	return 3 + tx.Proofs.BinarySize() + tx.CreateAlias.BinarySize()
 }
 
 func (tx *CreateAliasV2) MarshalToProtobuf(scheme Scheme) ([]byte, error) {

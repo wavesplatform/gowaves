@@ -66,7 +66,7 @@ type AssetChange struct {
 	Burned        uint64
 }
 
-func FromIssueV1(scheme byte, tx proto.IssueV1) (IssueChange, AccountChange, error) {
+func FromIssueV1(scheme byte, tx *proto.IssueV1) (IssueChange, AccountChange, error) {
 	issue := IssueChange{AssetID: *tx.ID, Name: tx.Name, Issuer: tx.SenderPK, Decimals: tx.Decimals, Reissuable: tx.Reissuable, Quantity: tx.Quantity}
 	change := AccountChange{Asset: *tx.ID, In: tx.Quantity}
 	err := change.Account.SetFromPublicKey(scheme, tx.SenderPK)
@@ -76,7 +76,7 @@ func FromIssueV1(scheme byte, tx proto.IssueV1) (IssueChange, AccountChange, err
 	return issue, change, nil
 }
 
-func FromIssueV2(scheme byte, tx proto.IssueV2) (IssueChange, AccountChange, error) {
+func FromIssueV2(scheme byte, tx *proto.IssueV2) (IssueChange, AccountChange, error) {
 	issue := IssueChange{AssetID: *tx.ID, Name: tx.Name, Issuer: tx.SenderPK, Decimals: tx.Decimals, Reissuable: tx.Reissuable, Quantity: tx.Quantity}
 	change := AccountChange{Asset: *tx.ID, In: tx.Quantity}
 	err := change.Account.SetFromPublicKey(scheme, tx.SenderPK)
@@ -86,7 +86,7 @@ func FromIssueV2(scheme byte, tx proto.IssueV2) (IssueChange, AccountChange, err
 	return issue, change, nil
 }
 
-func FromReissueV1(scheme byte, tx proto.ReissueV1) (AssetChange, AccountChange, error) {
+func FromReissueV1(scheme byte, tx *proto.ReissueV1) (AssetChange, AccountChange, error) {
 	change := AccountChange{Asset: tx.AssetID, In: tx.Quantity}
 	err := change.Account.SetFromPublicKey(scheme, tx.SenderPK)
 	if err != nil {
@@ -95,7 +95,7 @@ func FromReissueV1(scheme byte, tx proto.ReissueV1) (AssetChange, AccountChange,
 	return AssetChange{AssetID: tx.AssetID, Issued: tx.Quantity, SetReissuable: true, Reissuable: tx.Reissuable}, change, nil
 }
 
-func FromReissueV2(scheme byte, tx proto.ReissueV2) (AssetChange, AccountChange, error) {
+func FromReissueV2(scheme byte, tx *proto.ReissueV2) (AssetChange, AccountChange, error) {
 	change := AccountChange{Asset: tx.AssetID, In: tx.Quantity}
 	err := change.Account.SetFromPublicKey(scheme, tx.SenderPK)
 	if err != nil {
@@ -104,7 +104,7 @@ func FromReissueV2(scheme byte, tx proto.ReissueV2) (AssetChange, AccountChange,
 	return AssetChange{AssetID: tx.AssetID, Issued: tx.Quantity, SetReissuable: true, Reissuable: tx.Reissuable}, change, nil
 }
 
-func FromBurnV1(scheme byte, tx proto.BurnV1) (AssetChange, AccountChange, error) {
+func FromBurnV1(scheme byte, tx *proto.BurnV1) (AssetChange, AccountChange, error) {
 	change := AccountChange{Asset: tx.AssetID, Out: tx.Amount}
 	err := change.Account.SetFromPublicKey(scheme, tx.SenderPK)
 	if err != nil {
@@ -113,7 +113,7 @@ func FromBurnV1(scheme byte, tx proto.BurnV1) (AssetChange, AccountChange, error
 	return AssetChange{AssetID: tx.AssetID, Burned: tx.Amount}, change, nil
 }
 
-func FromBurnV2(scheme byte, tx proto.BurnV2) (AssetChange, AccountChange, error) {
+func FromBurnV2(scheme byte, tx *proto.BurnV2) (AssetChange, AccountChange, error) {
 	change := AccountChange{Asset: tx.AssetID, Out: tx.Amount}
 	err := change.Account.SetFromPublicKey(scheme, tx.SenderPK)
 	if err != nil {
@@ -122,7 +122,7 @@ func FromBurnV2(scheme byte, tx proto.BurnV2) (AssetChange, AccountChange, error
 	return AssetChange{AssetID: tx.AssetID, Burned: tx.Amount}, change, nil
 }
 
-func FromTransferV1(scheme byte, tx proto.TransferV1, miner crypto.PublicKey) ([]AccountChange, error) {
+func FromTransferV1(scheme byte, tx *proto.TransferV1, miner crypto.PublicKey) ([]AccountChange, error) {
 	r := make([]AccountChange, 0, 4)
 	if tx.AmountAsset.Present {
 		ch1 := AccountChange{Asset: tx.AmountAsset.ID, Out: tx.Amount}
@@ -155,7 +155,7 @@ func FromTransferV1(scheme byte, tx proto.TransferV1, miner crypto.PublicKey) ([
 	return r, nil
 }
 
-func FromTransferV2(scheme byte, tx proto.TransferV2, miner crypto.PublicKey) ([]AccountChange, error) {
+func FromTransferV2(scheme byte, tx *proto.TransferV2, miner crypto.PublicKey) ([]AccountChange, error) {
 	r := make([]AccountChange, 0, 4)
 	if tx.AmountAsset.Present {
 		ch1 := AccountChange{Asset: tx.AmountAsset.ID, Out: tx.Amount}
@@ -188,7 +188,7 @@ func FromTransferV2(scheme byte, tx proto.TransferV2, miner crypto.PublicKey) ([
 	return r, nil
 }
 
-func FromExchangeV1(scheme byte, tx proto.ExchangeV1) ([]AccountChange, error) {
+func FromExchangeV1(scheme byte, tx *proto.ExchangeV1) ([]AccountChange, error) {
 	wrapError := func(err error) error { return errors.Wrapf(err, "failed to convert ExchangeV1 to Change") }
 	r := make([]AccountChange, 0, 4)
 	ap := tx.SellOrder.AssetPair
@@ -224,7 +224,7 @@ func FromExchangeV1(scheme byte, tx proto.ExchangeV1) ([]AccountChange, error) {
 	return r, nil
 }
 
-func FromExchangeV2(scheme byte, tx proto.ExchangeV2) ([]AccountChange, error) {
+func FromExchangeV2(scheme byte, tx *proto.ExchangeV2) ([]AccountChange, error) {
 	wrapError := func(err error) error { return errors.Wrapf(err, "failed to convert ExchangeV2 to Change") }
 	r := make([]AccountChange, 0, 4)
 	ap, buyer, _, err := extractOrderParameters(tx.BuyOrder)
@@ -267,7 +267,7 @@ func FromExchangeV2(scheme byte, tx proto.ExchangeV2) ([]AccountChange, error) {
 	return r, nil
 }
 
-func FromMassTransferV1(scheme byte, tx proto.MassTransferV1) ([]AccountChange, error) {
+func FromMassTransferV1(scheme byte, tx *proto.MassTransferV1) ([]AccountChange, error) {
 	changes := make([]AccountChange, 0, len(tx.Transfers)+1)
 	if tx.Asset.Present {
 		var spent uint64
@@ -291,11 +291,11 @@ func FromMassTransferV1(scheme byte, tx proto.MassTransferV1) ([]AccountChange, 
 	return nil, nil
 }
 
-func FromSponsorshipV1(tx proto.SponsorshipV1) AssetChange {
+func FromSponsorshipV1(tx *proto.SponsorshipV1) AssetChange {
 	return AssetChange{AssetID: tx.AssetID, SetSponsored: true, Sponsored: tx.MinAssetFee > 0}
 }
 
-func FromCreateAliasV1(scheme byte, tx proto.CreateAliasV1) (AliasBind, error) {
+func FromCreateAliasV1(scheme byte, tx *proto.CreateAliasV1) (AliasBind, error) {
 	a := &tx.Alias
 	if tx.Alias.Scheme != scheme {
 		a = proto.NewAlias(scheme, tx.Alias.Alias)
@@ -308,7 +308,7 @@ func FromCreateAliasV1(scheme byte, tx proto.CreateAliasV1) (AliasBind, error) {
 	return AliasBind{Alias: *a, Address: ad}, nil
 }
 
-func FromCreateAliasV2(scheme byte, tx proto.CreateAliasV2) (AliasBind, error) {
+func FromCreateAliasV2(scheme byte, tx *proto.CreateAliasV2) (AliasBind, error) {
 	a := &tx.Alias
 	if tx.Alias.Scheme != scheme {
 		a = proto.NewAlias(scheme, tx.Alias.Alias)

@@ -8,7 +8,7 @@ import (
 
 func Genesis(timestamp proto.Timestamp, transactions proto.Transactions) (*proto.Block, error) {
 	block, err := proto.CreateBlock(
-		proto.NewReprFromTransactions(transactions),
+		transactions,
 		timestamp,
 		crypto.MustSignatureFromBase58("67rpwLCuS5DGA8KGZXKsVQ7dnPb9goRLoKfgGbLfQg9WoLUgNY77E2jT11fem3coV9nAkguBACzrU1iyZM4B8roQ"),
 		crypto.PublicKey{},

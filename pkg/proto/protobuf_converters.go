@@ -7,7 +7,7 @@ import (
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated"
 )
 
-func MarshalDeterministic(pb protobuf.Message) ([]byte, error) {
+func MarshalToProtobufDeterministic(pb protobuf.Message) ([]byte, error) {
 	buf := &protobuf.Buffer{}
 	buf.SetDeterministic(true)
 	if err := buf.Marshal(pb); err != nil {
@@ -21,7 +21,7 @@ func MarshalTxDeterministic(tx Transaction, scheme Scheme) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return MarshalDeterministic(pbTx)
+	return MarshalToProtobufDeterministic(pbTx)
 }
 
 func MarshalSignedTxDeterministic(tx Transaction, scheme Scheme) ([]byte, error) {
@@ -29,7 +29,7 @@ func MarshalSignedTxDeterministic(tx Transaction, scheme Scheme) ([]byte, error)
 	if err != nil {
 		return nil, err
 	}
-	return MarshalDeterministic(pbTx)
+	return MarshalToProtobufDeterministic(pbTx)
 }
 
 func TxFromProtobuf(data []byte) (Transaction, error) {
@@ -941,7 +941,7 @@ func (c *ProtobufConverter) MicroBlock(mb *g.SignedMicroBlock) (MicroBlock, erro
 		PrevResBlockSigField:  c.signature(mb.MicroBlock.Reference),
 		TotalResBlockSigField: c.signature(mb.MicroBlock.UpdatedBlockSignature),
 		TransactionCount:      uint32(len(mb.MicroBlock.Transactions)),
-		Transactions:          NewReprFromTransactions(txs),
+		Transactions:          txs,
 		SenderPK:              c.publicKey(mb.MicroBlock.SenderPublicKey),
 		Signature:             c.signature(mb.Signature),
 	}
@@ -964,7 +964,7 @@ func (c *ProtobufConverter) Block(block *g.Block) (Block, error) {
 	}
 	return Block{
 		BlockHeader:  header,
-		Transactions: NewReprFromTransactions(txs),
+		Transactions: txs,
 	}, nil
 }
 

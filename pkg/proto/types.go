@@ -184,7 +184,7 @@ func (a *OptionalAsset) UnmarshalJSON(value []byte) error {
 	return nil
 }
 
-func (a OptionalAsset) binarySize() int {
+func (a OptionalAsset) BinarySize() int {
 	s := 1
 	if a.Present {
 		s += crypto.DigestSize
@@ -194,7 +194,7 @@ func (a OptionalAsset) binarySize() int {
 
 //MarshalBinary marshals the optional asset to its binary representation.
 func (a OptionalAsset) MarshalBinary() ([]byte, error) {
-	buf := make([]byte, a.binarySize())
+	buf := make([]byte, a.BinarySize())
 	PutBool(buf, a.Present)
 	if a.Present {
 		copy(buf[1:], a.ID[:])
@@ -370,6 +370,10 @@ type AssetPair struct {
 	PriceAsset  OptionalAsset `json:"priceAsset"`
 }
 
+func (p AssetPair) BinarySize() int {
+	return p.AmountAsset.BinarySize() + p.PriceAsset.BinarySize()
+}
+
 func (p AssetPair) ToProtobuf() *g.AssetPair {
 	return &g.AssetPair{AmountAssetId: p.AmountAsset.ToID(), PriceAssetId: p.PriceAsset.ToID()}
 }
@@ -397,6 +401,7 @@ type Order interface {
 	GetProofs() (*ProofsV1, error)
 	Verify(crypto.PublicKey) (bool, error)
 	ToProtobuf(scheme Scheme) *g.Order
+	BinarySize() int
 }
 
 func OrderToOrderBody(o Order) (OrderBody, error) {
@@ -434,6 +439,10 @@ type OrderBody struct {
 	Timestamp  uint64           `json:"timestamp"`
 	Expiration uint64           `json:"expiration"`
 	MatcherFee uint64           `json:"matcherFee"`
+}
+
+func (o OrderBody) BinarySize() int {
+	return crypto.PublicKeySize*2 + 40 + o.AssetPair.BinarySize() + 1
 }
 
 func (o OrderBody) ToProtobuf(scheme Scheme) *g.Order {
@@ -673,6 +682,10 @@ type OrderV1 struct {
 	OrderBody
 }
 
+func (o OrderV1) BinarySize() int {
+	return crypto.SignatureSize + o.OrderBody.BinarySize()
+}
+
 func (o OrderV1) ToProtobuf(scheme Scheme) *g.Order {
 	res := o.OrderBody.ToProtobuf(scheme)
 	res.MatcherFee = &g.Amount{AssetId: nil, Amount: int64(o.MatcherFee)}
@@ -869,6 +882,10 @@ type OrderV2 struct {
 	ID      *crypto.Digest `json:"id,omitempty"`
 	Proofs  *ProofsV1      `json:"proofs,omitempty"`
 	OrderBody
+}
+
+func (o OrderV2) BinarySize() int {
+	return 1 + o.Proofs.BinarySize() + o.OrderBody.BinarySize()
 }
 
 func (o OrderV2) ToProtobuf(scheme Scheme) *g.Order {
@@ -1084,6 +1101,10 @@ type OrderV3 struct {
 	Proofs          *ProofsV1      `json:"proofs,omitempty"`
 	MatcherFeeAsset OptionalAsset  `json:"matcherFeeAssetId"`
 	OrderBody
+}
+
+func (o OrderV3) BinarySize() int {
+	return 1 + o.Proofs.BinarySize() + o.MatcherFeeAsset.BinarySize() + o.OrderBody.BinarySize()
 }
 
 func (o OrderV3) ToProtobuf(scheme Scheme) *g.Order {
@@ -1383,7 +1404,7 @@ func (p *ProofsV1) UnmarshalJSON(value []byte) error {
 
 //MarshalBinary writes the proofs to its binary form.
 func (p *ProofsV1) MarshalBinary() ([]byte, error) {
-	buf := make([]byte, p.binarySize())
+	buf := make([]byte, p.BinarySize())
 	pos := 0
 	buf[pos] = proofsVersion
 	pos++
@@ -1491,7 +1512,7 @@ func (p *ProofsV1) Verify(pos int, key crypto.PublicKey, data []byte) (bool, err
 	return crypto.Verify(key, sig, data), nil
 }
 
-func (p *ProofsV1) binarySize() int {
+func (p *ProofsV1) BinarySize() int {
 	pl := 0
 	if p != nil {
 		for _, e := range p.Proofs {
@@ -1573,7 +1594,7 @@ type DataEntry interface {
 	MarshalBinary() ([]byte, error)
 	UnmarshalBinary([]byte) error
 	Valid() (bool, error)
-	binarySize() int
+	BinarySize() int
 
 	ToProtobuf() *g.DataTransactionData_DataEntry
 }
@@ -1663,7 +1684,7 @@ func (e IntegerDataEntry) GetValueType() DataValueType {
 	return DataInteger
 }
 
-func (e IntegerDataEntry) binarySize() int {
+func (e IntegerDataEntry) BinarySize() int {
 	return 2 + len(e.Key) + 1 + 8
 }
 
@@ -1692,7 +1713,7 @@ func (e *IntegerDataEntry) UnmarshalValue(data []byte) error {
 
 //MarshalBinary marshals the integer data entry in its bytes representation.
 func (e IntegerDataEntry) MarshalBinary() ([]byte, error) {
-	buf := make([]byte, e.binarySize())
+	buf := make([]byte, e.BinarySize())
 	pos := 0
 	PutStringWithUInt16Len(buf[pos:], e.Key)
 	pos += 2 + len(e.Key)
@@ -1784,7 +1805,7 @@ func (e BooleanDataEntry) GetValueType() DataValueType {
 	return DataBoolean
 }
 
-func (e BooleanDataEntry) binarySize() int {
+func (e BooleanDataEntry) BinarySize() int {
 	return 2 + len(e.Key) + 1 + 1
 }
 
@@ -1817,7 +1838,7 @@ func (e *BooleanDataEntry) UnmarshalValue(data []byte) error {
 
 //MarshalBinary writes a byte representation of the boolean data entry.
 func (e BooleanDataEntry) MarshalBinary() ([]byte, error) {
-	buf := make([]byte, e.binarySize())
+	buf := make([]byte, e.BinarySize())
 	pos := 0
 	PutStringWithUInt16Len(buf[pos:], e.Key)
 	pos += 2 + len(e.Key)
@@ -1912,7 +1933,7 @@ func (e BinaryDataEntry) GetValueType() DataValueType {
 	return DataBinary
 }
 
-func (e BinaryDataEntry) binarySize() int {
+func (e BinaryDataEntry) BinarySize() int {
 	return 2 + len(e.Key) + 1 + 2 + len(e.Value)
 }
 
@@ -1945,7 +1966,7 @@ func (e *BinaryDataEntry) UnmarshalValue(data []byte) error {
 
 //MarshalBinary writes an entry to its byte representation.
 func (e BinaryDataEntry) MarshalBinary() ([]byte, error) {
-	buf := make([]byte, e.binarySize())
+	buf := make([]byte, e.BinarySize())
 	pos := 0
 	PutStringWithUInt16Len(buf[pos:], e.Key)
 	pos += 2 + len(e.Key)
@@ -2040,7 +2061,7 @@ func (e StringDataEntry) GetValueType() DataValueType {
 	return DataString
 }
 
-func (e StringDataEntry) binarySize() int {
+func (e StringDataEntry) BinarySize() int {
 	return 2 + len(e.Key) + 1 + 2 + len(e.Value)
 }
 
@@ -2073,7 +2094,7 @@ func (e *StringDataEntry) UnmarshalValue(data []byte) error {
 
 //MarshalBinary converts the data entry to its byte representation.
 func (e StringDataEntry) MarshalBinary() ([]byte, error) {
-	buf := make([]byte, e.binarySize())
+	buf := make([]byte, e.BinarySize())
 	pos := 0
 	PutStringWithUInt16Len(buf[pos:], e.Key)
 	pos += 2 + len(e.Key)
@@ -2249,7 +2270,7 @@ func (s *Script) UnmarshalJSON(value []byte) error {
 type Argument interface {
 	GetValueType() ArgumentValueType
 	MarshalBinary() ([]byte, error)
-	binarySize() int
+	BinarySize() int
 	Serialize(*serializer.Serializer) error
 }
 
@@ -2311,7 +2332,7 @@ func (a *Arguments) UnmarshalJSON(data []byte) error {
 }
 
 func (a Arguments) MarshalBinary() ([]byte, error) {
-	buf := make([]byte, a.binarySize())
+	buf := make([]byte, a.BinarySize())
 	p := 0
 	binary.BigEndian.PutUint32(buf, uint32(len(a)))
 	p += 4
@@ -2373,15 +2394,15 @@ func (a *Arguments) UnmarshalBinary(data []byte) error {
 			return errors.Wrap(err, "failed unmarshal Arguments from bytes")
 		}
 		a.Append(arg)
-		data = data[arg.binarySize():]
+		data = data[arg.BinarySize():]
 	}
 	return nil
 }
 
-func (a Arguments) binarySize() int {
+func (a Arguments) BinarySize() int {
 	r := 4
 	for _, arg := range a {
-		r += arg.binarySize()
+		r += arg.BinarySize()
 	}
 	return r
 }
@@ -2399,13 +2420,13 @@ func (a IntegerArgument) GetValueType() ArgumentValueType {
 	return ArgumentInteger
 }
 
-func (a IntegerArgument) binarySize() int {
+func (a IntegerArgument) BinarySize() int {
 	return integerArgumentLen
 }
 
 //MarshalBinary marshals the integer argument in its bytes representation.
 func (a IntegerArgument) MarshalBinary() ([]byte, error) {
-	buf := make([]byte, a.binarySize())
+	buf := make([]byte, a.BinarySize())
 	pos := 0
 	buf[pos] = byte(ArgumentInteger)
 	pos++
@@ -2469,13 +2490,13 @@ func (a BooleanArgument) GetValueType() ArgumentValueType {
 	return ArgumentBoolean
 }
 
-func (a BooleanArgument) binarySize() int {
+func (a BooleanArgument) BinarySize() int {
 	return booleanArgumentLen
 }
 
 //MarshalBinary writes a byte representation of the boolean data entry.
 func (a BooleanArgument) MarshalBinary() ([]byte, error) {
-	buf := make([]byte, a.binarySize())
+	buf := make([]byte, a.BinarySize())
 	if a.Value {
 		buf[0] = BooleanTrue
 	} else {
@@ -2546,13 +2567,13 @@ func (a BinaryArgument) GetValueType() ArgumentValueType {
 	return ArgumentBinary
 }
 
-func (a BinaryArgument) binarySize() int {
+func (a BinaryArgument) BinarySize() int {
 	return binaryArgumentMinLen + len(a.Value)
 }
 
 //MarshalBinary writes an argument to its byte representation.
 func (a BinaryArgument) MarshalBinary() ([]byte, error) {
-	buf := make([]byte, a.binarySize())
+	buf := make([]byte, a.BinarySize())
 	pos := 0
 	buf[pos] = byte(ArgumentBinary)
 	pos++
@@ -2620,13 +2641,13 @@ func (a StringArgument) GetValueType() ArgumentValueType {
 	return ArgumentString
 }
 
-func (a StringArgument) binarySize() int {
+func (a StringArgument) BinarySize() int {
 	return stringArgumentMinLen + len(a.Value)
 }
 
 //MarshalBinary converts the argument to its byte representation.
 func (a StringArgument) MarshalBinary() ([]byte, error) {
-	buf := make([]byte, a.binarySize())
+	buf := make([]byte, a.BinarySize())
 	pos := 0
 	buf[pos] = byte(ArgumentString)
 	pos++
@@ -2710,7 +2731,7 @@ func (c FunctionCall) MarshalBinary() ([]byte, error) {
 	if c.Default {
 		return []byte{0}, nil
 	}
-	buf := make([]byte, c.binarySize())
+	buf := make([]byte, c.BinarySize())
 	buf[0] = 1
 	buf[1] = reader.E_FUNCALL
 	buf[2] = reader.FH_USER
@@ -2789,11 +2810,11 @@ func (c *FunctionCall) UnmarshalJSON(value []byte) error {
 	return nil
 }
 
-func (c FunctionCall) binarySize() int {
+func (c FunctionCall) BinarySize() int {
 	if c.Default {
 		return 1
 	}
-	return 1 + 1 + 1 + 4 + len(c.Name) + c.Arguments.binarySize()
+	return 1 + 1 + 1 + 4 + len(c.Name) + c.Arguments.BinarySize()
 }
 
 type ScriptResult struct {
@@ -2882,16 +2903,16 @@ func (sr *ScriptResult) ToProtobuf() (*g.InvokeScriptResult, error) {
 
 type TransferSet []ScriptResultTransfer
 
-func (ts *TransferSet) binarySize() int {
+func (ts *TransferSet) BinarySize() int {
 	totalSize := 0
 	for _, tr := range *ts {
-		totalSize += tr.binarySize()
+		totalSize += tr.BinarySize()
 	}
 	return totalSize
 }
 
 func (ts *TransferSet) MarshalWithAddresses() ([]byte, error) {
-	res := make([]byte, ts.binarySize())
+	res := make([]byte, ts.BinarySize())
 	pos := 0
 	for _, tr := range *ts {
 		trBytes, err := tr.MarshalWithAddress()
@@ -2914,7 +2935,7 @@ func (ts *TransferSet) UnmarshalWithAddresses(data []byte) error {
 		if err := tr.UnmarshalWithAddress(data[pos:]); err != nil {
 			return err
 		}
-		pos += tr.binarySize()
+		pos += tr.BinarySize()
 		*ts = append(*ts, tr)
 	}
 	return nil
@@ -2946,16 +2967,16 @@ func (ts *TransferSet) ToProtobuf() ([]*g.InvokeScriptResult_Payment, error) {
 
 type WriteSet []DataEntry
 
-func (ws *WriteSet) binarySize() int {
+func (ws *WriteSet) BinarySize() int {
 	totalSize := 0
 	for _, entry := range *ws {
-		totalSize += entry.binarySize()
+		totalSize += entry.BinarySize()
 	}
 	return totalSize
 }
 
 func (ws *WriteSet) MarshalBinary() ([]byte, error) {
-	res := make([]byte, ws.binarySize())
+	res := make([]byte, ws.BinarySize())
 	pos := 0
 	for _, entry := range *ws {
 		entryBytes, err := entry.MarshalBinary()
@@ -2978,7 +2999,7 @@ func (ws *WriteSet) UnmarshalBinary(data []byte) error {
 		if err != nil {
 			return err
 		}
-		pos += entry.binarySize()
+		pos += entry.BinarySize()
 		*ws = append(*ws, entry)
 	}
 	return nil
@@ -2993,7 +3014,7 @@ func (ws *WriteSet) Valid() error {
 		if len(utf16.Encode([]rune(entry.GetKey()))) > maxInvokeWriteKeySizeInBytes {
 			return errors.New("key is too large")
 		}
-		totalSize += entry.binarySize()
+		totalSize += entry.BinarySize()
 	}
 	if totalSize > maxWriteSetSizeInBytes {
 		return errors.Errorf("total write set size %d is greater than maximum %d\n", totalSize, maxWriteSetSizeInBytes)
@@ -3031,8 +3052,8 @@ type ScriptResultTransfer struct {
 	Asset     OptionalAsset
 }
 
-func (tr *ScriptResultTransfer) binarySize() int {
-	return AddressSize + 8 + tr.Asset.binarySize()
+func (tr *ScriptResultTransfer) BinarySize() int {
+	return AddressSize + 8 + tr.Asset.BinarySize()
 }
 
 func (tr *ScriptResultTransfer) MarshalWithAddress() ([]byte, error) {
@@ -3049,7 +3070,7 @@ func (tr *ScriptResultTransfer) MarshalWithAddress() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	res := make([]byte, tr.binarySize())
+	res := make([]byte, tr.BinarySize())
 	copy(res, amountBytes)
 	copy(res[len(amountBytes):], assetBytes)
 	copy(res[len(amountBytes)+len(assetBytes):], recipientBytes)
@@ -3066,7 +3087,7 @@ func (tr *ScriptResultTransfer) UnmarshalWithAddress(data []byte) error {
 		return err
 	}
 	tr.Asset = asset
-	pos := 8 + asset.binarySize()
+	pos := 8 + asset.BinarySize()
 	addr, err := NewAddressFromBytes(data[pos:])
 	if err != nil {
 		return err
@@ -3095,7 +3116,7 @@ type ScriptPayment struct {
 }
 
 func (p ScriptPayment) MarshalBinary() ([]byte, error) {
-	size := p.binarySize()
+	size := p.BinarySize()
 	buf := make([]byte, size)
 	pos := 0
 	binary.BigEndian.PutUint16(buf[pos:], uint16(size-2))
@@ -3111,7 +3132,7 @@ func (p ScriptPayment) MarshalBinary() ([]byte, error) {
 }
 
 func (p ScriptPayment) Serialize(s *serializer.Serializer) error {
-	size := p.binarySize()
+	size := p.BinarySize()
 	err := s.Uint16(uint16(size - 2))
 	if err != nil {
 		return err
@@ -3145,8 +3166,8 @@ func (p *ScriptPayment) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
-func (p *ScriptPayment) binarySize() int {
-	return 2 + 8 + p.Asset.binarySize()
+func (p *ScriptPayment) BinarySize() int {
+	return 2 + 8 + p.Asset.BinarySize()
 }
 
 type ScriptPayments []ScriptPayment
@@ -3156,7 +3177,7 @@ func (sps *ScriptPayments) Append(sp ScriptPayment) {
 }
 
 func (sps ScriptPayments) MarshalBinary() ([]byte, error) {
-	buf := make([]byte, sps.binarySize())
+	buf := make([]byte, sps.BinarySize())
 	p := 0
 	binary.BigEndian.PutUint16(buf[p:], uint16(len(sps)))
 	p += 2
@@ -3198,15 +3219,15 @@ func (sps *ScriptPayments) UnmarshalBinary(data []byte) error {
 			return errors.Wrap(err, "failed to unmarshal ScriptPayments from bytes")
 		}
 		sps.Append(sp)
-		data = data[sp.binarySize():]
+		data = data[sp.BinarySize():]
 	}
 	return nil
 }
 
-func (sps ScriptPayments) binarySize() int {
+func (sps ScriptPayments) BinarySize() int {
 	s := 2
 	for _, p := range sps {
-		s += p.binarySize()
+		s += p.BinarySize()
 	}
 	return s
 }

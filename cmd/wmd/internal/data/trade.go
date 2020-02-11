@@ -25,7 +25,7 @@ type Trade struct {
 	Timestamp     uint64
 }
 
-func NewTradeFromExchangeV1(scheme byte, tx proto.ExchangeV1) (Trade, error) {
+func NewTradeFromExchangeV1(scheme byte, tx *proto.ExchangeV1) (Trade, error) {
 	wrapError := func(err error) error { return errors.Wrap(err, "failed to convert ExchangeV1 to Trade") }
 	orderType := 1
 	if tx.BuyOrder.Timestamp > tx.SellOrder.Timestamp {
@@ -57,7 +57,7 @@ func NewTradeFromExchangeV1(scheme byte, tx proto.ExchangeV1) (Trade, error) {
 	}, nil
 }
 
-func NewTradeFromExchangeV2(scheme byte, tx proto.ExchangeV2) (Trade, error) {
+func NewTradeFromExchangeV2(scheme byte, tx *proto.ExchangeV2) (Trade, error) {
 	wrapError := func(err error) error { return errors.Wrap(err, "failed to convert ExchangeV2 to Trade") }
 	var buyTS, sellTS uint64
 	var buyer, seller, matcher proto.Address

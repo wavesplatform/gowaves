@@ -3,7 +3,6 @@ package state
 import (
 	"bytes"
 	"context"
-	"encoding/binary"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -83,22 +82,18 @@ func writeBlock(t *testing.T, rw *blockReadWriter, block *proto.Block) {
 	if err := rw.writeBlockHeader(blockID, headerBytes); err != nil {
 		t.Fatalf("writeBlockHeader(): %v", err)
 	}
-	transaction := block.Transactions.BytesUnchecked()
-	for i := 0; i < block.TransactionCount; i++ {
-		n := int(binary.BigEndian.Uint32(transaction[0:4]))
-		txBytes := transaction[4 : n+4]
-		tx, err := proto.BytesToTransaction(txBytes)
+	for _, tx := range block.Transactions {
+		txBytes, err := tx.MarshalBinary()
 		if err != nil {
-			t.Fatalf("Can not unmarshal tx: %v", err)
+			t.Fatalf("tx.MarshalBinary(): %v", err)
 		}
 		txID, err := tx.GetID()
 		if err != nil {
 			t.Fatalf("tx.GetID(): %v\n", err)
 		}
-		if err := rw.writeTransaction(txID, transaction[4:n+4]); err != nil {
+		if err := rw.writeTransaction(txID, txBytes); err != nil {
 			t.Fatalf("writeTransaction(): %v", err)
 		}
-		transaction = transaction[4+n:]
 	}
 	if err := rw.finishBlock(blockID); err != nil {
 		t.Fatalf("finishBlock(): %v", err)
@@ -129,7 +124,11 @@ func testSingleBlock(t *testing.T, rw *blockReadWriter, block *proto.Block) {
 	if err != nil {
 		t.Fatalf("readTransactionsBlock(): %v", err)
 	}
-	if !bytes.Equal(block.Transactions.BytesUnchecked(), resTransactions) {
+	correctTxsBytes, err := block.Transactions.MarshalBinary()
+	if err != nil {
+		t.Fatalf("failed to marshal transactions: %v", err)
+	}
+	if !bytes.Equal(correctTxsBytes, resTransactions) {
 		t.Error("Transaction bytes are not equal.")
 	}
 }
@@ -157,31 +156,26 @@ func writeBlocks(ctx context.Context, rw *blockReadWriter, blocks []proto.Block,
 		}
 		task = &readTask{taskType: readHeader, blockID: blockID, correctResult: headerBytes}
 		tasksBuf = append(tasksBuf, task)
-		transaction := block.Transactions.BytesUnchecked()
-		for i := 0; i < block.TransactionCount; i++ {
-			n := int(binary.BigEndian.Uint32(transaction[0:4]))
-			txBytes := transaction[4 : n+4]
-			tx, err := proto.BytesToTransaction(txBytes)
+		for _, tx := range block.Transactions {
+			txBytes, err := tx.MarshalBinary()
 			if err != nil {
-				close(readTasks)
 				return err
 			}
 			txID, err := tx.GetID()
 			if err != nil {
 				return err
 			}
-			if err := rw.writeTransaction(txID, transaction[4:n+4]); err != nil {
+			if err := rw.writeTransaction(txID, txBytes); err != nil {
 				close(readTasks)
 				return err
 			}
-			task = &readTask{taskType: readTx, txID: txID, correctResult: transaction[4 : n+4]}
+			task = &readTask{taskType: readTx, txID: txID, correctResult: txBytes}
 			tasksBuf = append(tasksBuf, task)
 			task = &readTask{taskType: readTxHeight, txID: txID, height: uint64(height)}
 			tasksBuf = append(tasksBuf, task)
 			task = &readTask{taskType: readTxOffset, txID: txID, offset: uint64(offset)}
 			tasksBuf = append(tasksBuf, task)
-			offset += n + 4
-			transaction = transaction[4+n:]
+			offset += len(txBytes) + 4
 		}
 		if err := rw.finishBlock(blockID); err != nil {
 			close(readTasks)
@@ -197,7 +191,12 @@ func writeBlocks(ctx context.Context, rw *blockReadWriter, blocks []proto.Block,
 				return err
 			}
 		}
-		task = &readTask{taskType: readBlock, blockID: blockID, correctResult: block.Transactions.BytesUnchecked()}
+		correctTxsBytes, err := block.Transactions.MarshalBinary()
+		if err != nil {
+			close(readTasks)
+			return err
+		}
+		task = &readTask{taskType: readBlock, blockID: blockID, correctResult: correctTxsBytes}
 		tasksBuf = append(tasksBuf, task)
 		for _, task := range tasksBuf {
 			select {
@@ -490,10 +489,7 @@ func TestSimultaneousReadDelete(t *testing.T) {
 	}
 	idToTest := blocks[blocksNumber-2].BlockSignature
 	prevId := blocks[blocksNumber-3].BlockSignature
-	txs, err := blocks[blocksNumber-2].Transactions.Transactions()
-	if err != nil {
-		t.Fatalf("Transactions() failed: %v", err)
-	}
+	txs := blocks[blocksNumber-2].Transactions
 	txID, err := txs[0].GetID()
 	if err != nil {
 		t.Fatalf("GetID(): %v", err)

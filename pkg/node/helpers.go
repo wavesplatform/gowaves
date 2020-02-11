@@ -15,11 +15,7 @@ const (
 )
 
 func MaybeEnableExtendedApi(state state.State) error {
-	height, err := state.Height()
-	if err != nil {
-		return err
-	}
-	lastBlock, err := state.BlockByHeight(height)
+	lastBlock, err := state.TopBlock()
 	if err != nil {
 		return err
 	}

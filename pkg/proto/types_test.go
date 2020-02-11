@@ -123,6 +123,39 @@ func TestOrderV1Validations(t *testing.T) {
 	}
 }
 
+func TestOrderV1BinarySize(t *testing.T) {
+	tests := []struct {
+		seed        string
+		matcher     string
+		amountAsset string
+		priceAsset  string
+		orderType   OrderType
+		amount      uint64
+		price       uint64
+		fee         uint64
+	}{
+		{"3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc", "7kPFrHDiGw1rCm7LPszuECwWYL3dMf6iMifLRDJQZMzy", "8LQW8f7P5d5PZM7GtZEBgaqRPGSzS3DfPuiXrURJ4AJS", "2bkjzFqTMM3cQpbgGYKE8r7J73SrXFH8YfxFBRBterLt", Sell, 1000, 100, 10},
+		{"3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc", "7kPFrHDiGw1rCm7LPszuECwWYL3dMf6iMifLRDJQZMzy", "WAVES", "2bkjzFqTMM3cQpbgGYKE8r7J73SrXFH8YfxFBRBterLt", Buy, 1, 1, 1},
+		{"3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc", "7kPFrHDiGw1rCm7LPszuECwWYL3dMf6iMifLRDJQZMzy", "8LQW8f7P5d5PZM7GtZEBgaqRPGSzS3DfPuiXrURJ4AJS", "WAVES", Sell, 2, 2, 2},
+	}
+	for _, tc := range tests {
+		seed, _ := base58.Decode(tc.seed)
+		sk, pk, err := crypto.GenerateKeyPair(seed)
+		assert.NoError(t, err)
+		mpk, _ := crypto.NewPublicKeyFromBase58(tc.matcher)
+		aa, _ := NewOptionalAssetFromString(tc.amountAsset)
+		pa, _ := NewOptionalAssetFromString(tc.priceAsset)
+		ts := uint64(time.Now().UnixNano() / 1000000)
+		exp := ts + 100*1000
+		o := NewUnsignedOrderV1(pk, mpk, *aa, *pa, tc.orderType, tc.price, tc.amount, ts, exp, tc.fee)
+		err = o.Sign(sk)
+		assert.NoError(t, err)
+		oBytes, err := o.MarshalBinary()
+		assert.NoError(t, err)
+		assert.Equal(t, len(oBytes), o.BinarySize())
+	}
+}
+
 func TestOrderV1SigningRoundTrip(t *testing.T) {
 	tests := []struct {
 		seed        string
@@ -342,6 +375,39 @@ func TestOrderV2Validations(t *testing.T) {
 	}
 }
 
+func TestOrderV2BinarySize(t *testing.T) {
+	tests := []struct {
+		seed        string
+		matcher     string
+		amountAsset string
+		priceAsset  string
+		orderType   OrderType
+		amount      uint64
+		price       uint64
+		fee         uint64
+	}{
+		{"3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc", "7kPFrHDiGw1rCm7LPszuECwWYL3dMf6iMifLRDJQZMzy", "8LQW8f7P5d5PZM7GtZEBgaqRPGSzS3DfPuiXrURJ4AJS", "2bkjzFqTMM3cQpbgGYKE8r7J73SrXFH8YfxFBRBterLt", Sell, 1000, 100, 10},
+		{"3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc", "7kPFrHDiGw1rCm7LPszuECwWYL3dMf6iMifLRDJQZMzy", "WAVES", "2bkjzFqTMM3cQpbgGYKE8r7J73SrXFH8YfxFBRBterLt", Buy, 1, 1, 1},
+		{"3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc", "7kPFrHDiGw1rCm7LPszuECwWYL3dMf6iMifLRDJQZMzy", "8LQW8f7P5d5PZM7GtZEBgaqRPGSzS3DfPuiXrURJ4AJS", "WAVES", Sell, 2, 2, 2},
+	}
+	for _, tc := range tests {
+		seed, _ := base58.Decode(tc.seed)
+		sk, pk, err := crypto.GenerateKeyPair(seed)
+		assert.NoError(t, err)
+		mpk, _ := crypto.NewPublicKeyFromBase58(tc.matcher)
+		aa, _ := NewOptionalAssetFromString(tc.amountAsset)
+		pa, _ := NewOptionalAssetFromString(tc.priceAsset)
+		ts := uint64(time.Now().UnixNano() / 1000000)
+		exp := ts + 100*1000
+		o := NewUnsignedOrderV2(pk, mpk, *aa, *pa, tc.orderType, tc.price, tc.amount, ts, exp, tc.fee)
+		err = o.Sign(sk)
+		assert.NoError(t, err)
+		oBytes, err := o.MarshalBinary()
+		assert.NoError(t, err)
+		assert.Equal(t, len(oBytes), o.BinarySize())
+	}
+}
+
 func TestOrderV2SigningRoundTrip(t *testing.T) {
 	tests := []struct {
 		seed        string
@@ -486,6 +552,47 @@ func TestOrderV3Validations(t *testing.T) {
 		v, err := o.Valid()
 		assert.False(t, v)
 		assert.EqualError(t, err, tc.err)
+	}
+}
+
+func TestOrderV3BinarySize(t *testing.T) {
+	tests := []struct {
+		seed        string
+		matcher     string
+		amountAsset string
+		priceAsset  string
+		orderType   OrderType
+		amount      uint64
+		price       uint64
+		fee         uint64
+		feeAsset    string
+	}{
+		{"3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc", "7kPFrHDiGw1rCm7LPszuECwWYL3dMf6iMifLRDJQZMzy", "8LQW8f7P5d5PZM7GtZEBgaqRPGSzS3DfPuiXrURJ4AJS", "2bkjzFqTMM3cQpbgGYKE8r7J73SrXFH8YfxFBRBterLt", Sell, 1000, 100, 10, "Ft8X1v1LTa1ABafufpaCWyVj8KkaxUWE6xBhW6sNFJck"},
+		{"3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc", "7kPFrHDiGw1rCm7LPszuECwWYL3dMf6iMifLRDJQZMzy", "WAVES", "2bkjzFqTMM3cQpbgGYKE8r7J73SrXFH8YfxFBRBterLt", Buy, 1, 1, 1, "WAVES"},
+		{"3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc", "7kPFrHDiGw1rCm7LPszuECwWYL3dMf6iMifLRDJQZMzy", "8LQW8f7P5d5PZM7GtZEBgaqRPGSzS3DfPuiXrURJ4AJS", "WAVES", Sell, 2, 2, 2, "Ft8X1v1LTa1ABafufpaCWyVj8KkaxUWE6xBhW6sNFJck"},
+	}
+	for _, tc := range tests {
+		seed, err := base58.Decode(tc.seed)
+		require.NoError(t, err)
+		sk, pk, err := crypto.GenerateKeyPair(seed)
+		assert.NoError(t, err)
+		mpk, err := crypto.NewPublicKeyFromBase58(tc.matcher)
+		require.NoError(t, err)
+		aa, err := NewOptionalAssetFromString(tc.amountAsset)
+		require.NoError(t, err)
+		pa, err := NewOptionalAssetFromString(tc.priceAsset)
+		require.NoError(t, err)
+		fa, err := NewOptionalAssetFromString(tc.feeAsset)
+		require.NoError(t, err)
+
+		ts := uint64(time.Now().UnixNano() / 1000000)
+		exp := ts + 100*1000
+		o := NewUnsignedOrderV3(pk, mpk, *aa, *pa, tc.orderType, tc.price, tc.amount, ts, exp, tc.fee, *fa)
+		err = o.Sign(sk)
+		assert.NoError(t, err)
+		oBytes, err := o.MarshalBinary()
+		assert.NoError(t, err)
+		assert.Equal(t, len(oBytes), o.BinarySize())
 	}
 }
 
@@ -962,7 +1069,7 @@ func TestIntegerArgumentBinarySize(t *testing.T) {
 	tests := []int64{12345, -9876543210, 1234567890, 0}
 	for _, tc := range tests {
 		v := IntegerArgument{tc}
-		assert.Equal(t, 9, v.binarySize())
+		assert.Equal(t, 9, v.BinarySize())
 	}
 }
 
@@ -970,7 +1077,7 @@ func TestBooleanArgumentBinarySize(t *testing.T) {
 	tests := []bool{true, false}
 	for _, tc := range tests {
 		v := BooleanArgument{tc}
-		assert.Equal(t, 1, v.binarySize())
+		assert.Equal(t, 1, v.BinarySize())
 	}
 }
 
@@ -979,7 +1086,7 @@ func TestBinaryArgumentBinarySize(t *testing.T) {
 	for _, tc := range tests {
 		bv, _ := base58.Decode(tc)
 		v := BinaryArgument{bv}
-		assert.Equal(t, 1+4+len(bv), v.binarySize())
+		assert.Equal(t, 1+4+len(bv), v.BinarySize())
 	}
 }
 
@@ -987,7 +1094,7 @@ func TestStringArgumentBinarySize(t *testing.T) {
 	tests := []string{"some value string", "", strings.Repeat("value-", 100)}
 	for _, tc := range tests {
 		v := StringArgument{tc}
-		assert.Equal(t, 1+4+len(tc), v.binarySize())
+		assert.Equal(t, 1+4+len(tc), v.BinarySize())
 	}
 
 }

@@ -476,7 +476,10 @@ func (s *stateManager) Block(blockID crypto.Signature) (*proto.Block, error) {
 		return nil, wrapErr(RetrievalError, err)
 	}
 	block := proto.Block{BlockHeader: *header}
-	block.Transactions = proto.NewReprFromBytes(transactions, block.TransactionCount)
+	block.Transactions, err = proto.NewTransactionsFromBytes(transactions, block.TransactionCount)
+	if err != nil {
+		return nil, wrapErr(DeserializationError, err)
+	}
 	return &block, nil
 }
 
@@ -738,10 +741,7 @@ func (s *stateManager) addNewBlock(block, parent *proto.Block, initialisation bo
 	if err := s.rw.writeBlockHeader(block.BlockSignature, headerBytes); err != nil {
 		return err
 	}
-	transactions, err := block.Transactions.Transactions()
-	if err != nil {
-		return err
-	}
+	transactions := block.Transactions
 	if block.TransactionCount != transactions.Count() {
 		return errors.Errorf("block.TransactionCount != transactions.Count(), %d != %d", block.TransactionCount, transactions.Count())
 	}

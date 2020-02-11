@@ -260,7 +260,7 @@ func (s *Synchronizer) extractTransactions(txs []proto.Transaction, miner crypto
 		switch t := tx.(type) {
 		case *proto.IssueV1:
 			zap.S().Debugf("#%d: IssueV1: %v", i, t)
-			ic, ac, err := data.FromIssueV1(s.scheme, *t)
+			ic, ac, err := data.FromIssueV1(s.scheme, t)
 			if err != nil {
 				return nil, nil, nil, nil, nil, wrapErr(err, "IssueV1")
 			}
@@ -269,7 +269,7 @@ func (s *Synchronizer) extractTransactions(txs []proto.Transaction, miner crypto
 
 		case *proto.IssueV2:
 			zap.S().Debugf("%d: IssueV2: %v", i, t)
-			ic, ac, err := data.FromIssueV2(s.scheme, *t)
+			ic, ac, err := data.FromIssueV2(s.scheme, t)
 			if err != nil {
 				return nil, nil, nil, nil, nil, wrapErr(err, "IssueV2")
 			}
@@ -278,9 +278,8 @@ func (s *Synchronizer) extractTransactions(txs []proto.Transaction, miner crypto
 
 		case *proto.TransferV1:
 			zap.S().Debugf("%d: TransferV1: %v", i, t)
-			tt := *t
-			if tt.AmountAsset.Present || tt.FeeAsset.Present {
-				u, err := data.FromTransferV1(s.scheme, tt, miner)
+			if t.AmountAsset.Present || t.FeeAsset.Present {
+				u, err := data.FromTransferV1(s.scheme, t, miner)
 				if err != nil {
 					return nil, nil, nil, nil, nil, wrapErr(err, "TransferV1")
 				}
@@ -289,9 +288,8 @@ func (s *Synchronizer) extractTransactions(txs []proto.Transaction, miner crypto
 
 		case *proto.TransferV2:
 			zap.S().Debugf("%d: TransferV2: %v", i, t)
-			tt := *t
-			if tt.AmountAsset.Present || tt.FeeAsset.Present {
-				u, err := data.FromTransferV2(s.scheme, tt, miner)
+			if t.AmountAsset.Present || t.FeeAsset.Present {
+				u, err := data.FromTransferV2(s.scheme, t, miner)
 				if err != nil {
 					return nil, nil, nil, nil, nil, wrapErr(err, "TransferV2")
 				}
@@ -300,7 +298,7 @@ func (s *Synchronizer) extractTransactions(txs []proto.Transaction, miner crypto
 
 		case *proto.ReissueV1:
 			zap.S().Debugf("%d: ReissueV1: %v", i, t)
-			as, ac, err := data.FromReissueV1(s.scheme, *t)
+			as, ac, err := data.FromReissueV1(s.scheme, t)
 			if err != nil {
 				return nil, nil, nil, nil, nil, wrapErr(err, "ReissueV1")
 			}
@@ -309,7 +307,7 @@ func (s *Synchronizer) extractTransactions(txs []proto.Transaction, miner crypto
 
 		case *proto.ReissueV2:
 			zap.S().Debugf("%d: ReissueV2: %v", i, t)
-			as, ac, err := data.FromReissueV2(s.scheme, *t)
+			as, ac, err := data.FromReissueV2(s.scheme, t)
 			if err != nil {
 				return nil, nil, nil, nil, nil, wrapErr(err, "ReissueV2")
 			}
@@ -318,7 +316,7 @@ func (s *Synchronizer) extractTransactions(txs []proto.Transaction, miner crypto
 
 		case *proto.BurnV1:
 			zap.S().Debugf("%d: BurnV1: %v", i, t)
-			as, ac, err := data.FromBurnV1(s.scheme, *t)
+			as, ac, err := data.FromBurnV1(s.scheme, t)
 			if err != nil {
 				return nil, nil, nil, nil, nil, wrapErr(err, "BurnV1")
 			}
@@ -327,7 +325,7 @@ func (s *Synchronizer) extractTransactions(txs []proto.Transaction, miner crypto
 
 		case *proto.BurnV2:
 			zap.S().Debugf("%d: BurnV2: %v", i, t)
-			as, ac, err := data.FromBurnV2(s.scheme, *t)
+			as, ac, err := data.FromBurnV2(s.scheme, t)
 			if err != nil {
 				return nil, nil, nil, nil, nil, wrapErr(err, "BurnV2")
 			}
@@ -336,15 +334,14 @@ func (s *Synchronizer) extractTransactions(txs []proto.Transaction, miner crypto
 
 		case *proto.ExchangeV1:
 			zap.S().Debugf("%d: ExchangeV1: %v", i, t)
-			tt := *t
-			if bytes.Equal(s.matcher[:], tt.SenderPK[:]) {
-				t, err := data.NewTradeFromExchangeV1(s.scheme, tt)
+			if bytes.Equal(s.matcher[:], t.SenderPK[:]) {
+				t, err := data.NewTradeFromExchangeV1(s.scheme, t)
 				if err != nil {
 					return nil, nil, nil, nil, nil, wrapErr(err, "ExchangeV1")
 				}
 				trades = append(trades, t)
 			}
-			ac, err := data.FromExchangeV1(s.scheme, tt)
+			ac, err := data.FromExchangeV1(s.scheme, t)
 			if err != nil {
 				return nil, nil, nil, nil, nil, wrapErr(err, "ExchangeV1")
 			}
@@ -352,15 +349,14 @@ func (s *Synchronizer) extractTransactions(txs []proto.Transaction, miner crypto
 
 		case *proto.ExchangeV2:
 			zap.S().Debugf("%d: ExchangeV2: %v", i, t)
-			tt := *t
-			if bytes.Equal(s.matcher[:], tt.SenderPK[:]) {
-				t, err := data.NewTradeFromExchangeV2(s.scheme, tt)
+			if bytes.Equal(s.matcher[:], t.SenderPK[:]) {
+				t, err := data.NewTradeFromExchangeV2(s.scheme, t)
 				if err != nil {
 					return nil, nil, nil, nil, nil, wrapErr(err, "ExchangeV2")
 				}
 				trades = append(trades, t)
 			}
-			ac, err := data.FromExchangeV2(s.scheme, tt)
+			ac, err := data.FromExchangeV2(s.scheme, t)
 			if err != nil {
 				return nil, nil, nil, nil, nil, wrapErr(err, "ExchangeV2")
 			}
@@ -368,11 +364,11 @@ func (s *Synchronizer) extractTransactions(txs []proto.Transaction, miner crypto
 
 		case *proto.SponsorshipV1:
 			zap.S().Debugf("%d: SponsorshipV1: %v", i, t)
-			assetChanges = append(assetChanges, data.FromSponsorshipV1(*t))
+			assetChanges = append(assetChanges, data.FromSponsorshipV1(t))
 
 		case *proto.CreateAliasV1:
 			zap.S().Debugf("%d: CreateAliasV1: %v", i, t)
-			b, err := data.FromCreateAliasV1(s.scheme, *t)
+			b, err := data.FromCreateAliasV1(s.scheme, t)
 			if err != nil {
 				return nil, nil, nil, nil, nil, wrapErr(err, "CreateAliasV1")
 			}
@@ -380,7 +376,7 @@ func (s *Synchronizer) extractTransactions(txs []proto.Transaction, miner crypto
 
 		case *proto.CreateAliasV2:
 			zap.S().Debugf("%d: CreateAliasV2: %v", i, t)
-			b, err := data.FromCreateAliasV2(s.scheme, *t)
+			b, err := data.FromCreateAliasV2(s.scheme, t)
 			if err != nil {
 				return nil, nil, nil, nil, nil, wrapErr(err, "CreateAliasV2")
 			}
@@ -388,9 +384,8 @@ func (s *Synchronizer) extractTransactions(txs []proto.Transaction, miner crypto
 
 		case *proto.MassTransferV1:
 			zap.S().Debugf("%d: MassTransferV1: %v", i, t)
-			tt := *t
-			if tt.Asset.Present {
-				ac, err := data.FromMassTransferV1(s.scheme, tt)
+			if t.Asset.Present {
+				ac, err := data.FromMassTransferV1(s.scheme, t)
 				if err != nil {
 					return nil, nil, nil, nil, nil, wrapErr(err, "MassTransferV1")
 				}

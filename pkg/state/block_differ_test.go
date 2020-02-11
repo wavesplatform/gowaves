@@ -35,19 +35,19 @@ func createBlockDiffer(t *testing.T) (*blockDifferTestObjects, []string) {
 
 func genBlocks(t *testing.T, to *blockDifferTestObjects) (*proto.Block, *proto.Block) {
 	// Create and sign parent block.
-	txsRepr := proto.NewReprFromTransactions([]proto.Transaction{createTransferV1(t)})
+	txs := proto.Transactions{createTransferV1(t)}
 	randSig := genRandBlockIds(t, 1)[0]
 	genSig := crypto.MustBytesFromBase58(defaultGenSig)
-	parent, err := proto.CreateBlock(txsRepr, 1565694219644, randSig, testGlobal.matcherInfo.pk, proto.NxtConsensus{BaseTarget: 65, GenSignature: genSig}, proto.NgBlockVersion, nil, -1)
+	parent, err := proto.CreateBlock(txs, 1565694219644, randSig, testGlobal.matcherInfo.pk, proto.NxtConsensus{BaseTarget: 65, GenSignature: genSig}, proto.NgBlockVersion, nil, -1)
 	require.NoError(t, err, "CreateBlock() failed")
 	err = parent.Sign(testGlobal.matcherInfo.sk)
 	require.NoError(t, err, "Block.Sign() failed")
 
 	// Create and sign child block.
-	txsRepr = proto.NewReprFromTransactions([]proto.Transaction{createIssueV1(t, 1000)})
+	txs = []proto.Transaction{createIssueV1(t, 1000)}
 	genSig, _, err = to.gsp.GenerationSignatureAndHitSource(testGlobal.minerInfo.pk, parent.GenSignature[:])
 	require.NoError(t, err, "GeneratorSignature() failed")
-	child, err := proto.CreateBlock(txsRepr, 1565694219944, parent.BlockSignature, testGlobal.minerInfo.pk, proto.NxtConsensus{BaseTarget: 66, GenSignature: genSig}, proto.NgBlockVersion, nil, -1)
+	child, err := proto.CreateBlock(txs, 1565694219944, parent.BlockSignature, testGlobal.minerInfo.pk, proto.NxtConsensus{BaseTarget: 66, GenSignature: genSig}, proto.NgBlockVersion, nil, -1)
 	require.NoError(t, err, "CreateBlock() failed")
 	err = child.Sign(testGlobal.minerInfo.sk)
 	require.NoError(t, err, "Block.Sign() failed")
@@ -86,13 +86,12 @@ func TestCreateBlockDiffNg(t *testing.T) {
 	to.stor.activateFeature(t, int16(settings.NG))
 
 	// Create diff from parent block.
-	txs, err := parent.Transactions.Transactions()
-	require.NoError(t, err, "Transactions() failed")
+	txs := parent.Transactions
 	for _, tx := range txs {
-		err = to.blockDiffer.countMinerFee(tx)
+		err := to.blockDiffer.countMinerFee(tx)
 		require.NoError(t, err, "countMinerFee() failed")
 	}
-	err = to.blockDiffer.saveCurFeeDistr(&parent.BlockHeader)
+	err := to.blockDiffer.saveCurFeeDistr(&parent.BlockHeader)
 	require.NoError(t, err, "saveCurFeeDistr() failed")
 	parentFeeTotal := int64(txs[0].GetFee())
 	parentFeePrevBlock := parentFeeTotal / 5 * 2
@@ -135,8 +134,7 @@ func TestCreateBlockDiffSponsorship(t *testing.T) {
 	require.NoError(t, err, "sponsorAsset() failed")
 
 	// Create diff from parent block.
-	txs, err := parent.Transactions.Transactions()
-	require.NoError(t, err, "Transactions() failed")
+	txs := parent.Transactions
 	for _, tx := range txs {
 		err = to.blockDiffer.countMinerFee(tx)
 		require.NoError(t, err, "countMinerFee() failed")
@@ -170,7 +168,7 @@ func genTransferWithWavesFee(t *testing.T) *proto.TransferV2 {
 }
 
 func genBlockWithSingleTransaction(t *testing.T, prevID crypto.Signature, prevGenSig []byte, to *blockDifferTestObjects) *proto.Block {
-	txs := proto.NewReprFromTransactions([]proto.Transaction{genTransferWithWavesFee(t)})
+	txs := proto.Transactions{genTransferWithWavesFee(t)}
 	genSig, _, err := to.gsp.GenerationSignatureAndHitSource(testGlobal.minerInfo.pk, prevGenSig)
 	require.NoError(t, err)
 	block, err := proto.CreateBlock(txs, 1565694219944, prevID, testGlobal.minerInfo.pk, proto.NxtConsensus{BaseTarget: 66, GenSignature: genSig}, proto.RewardBlockVersion, nil, -1)
@@ -199,13 +197,12 @@ func TestCreateBlockDiffWithReward(t *testing.T) {
 
 	// First block
 	block1 := genBlockWithSingleTransaction(t, sig, gs, to)
-	txs, err := block1.Transactions.Transactions()
-	require.NoError(t, err)
+	txs := block1.Transactions
 	for _, tx := range txs {
-		err = to.blockDiffer.countMinerFee(tx)
+		err := to.blockDiffer.countMinerFee(tx)
 		require.NoError(t, err)
 	}
-	err = to.blockDiffer.saveCurFeeDistr(&block1.BlockHeader)
+	err := to.blockDiffer.saveCurFeeDistr(&block1.BlockHeader)
 	require.NoError(t, err)
 
 	// Second block

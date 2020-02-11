@@ -224,6 +224,10 @@ func NewAliasFromBytes(b []byte) (*Alias, error) {
 	return &a, nil
 }
 
+func (a Alias) BinarySize() int {
+	return aliasFixedSize + len(a.Alias)
+}
+
 // String converts the Alias to its 3-part string representation.
 func (a Alias) String() string {
 	sb := new(strings.Builder)
@@ -450,6 +454,10 @@ func (r *Recipient) UnmarshalJSON(value []byte) error {
 	r.Address = &a
 	r.len = AddressSize
 	return nil
+}
+
+func (r *Recipient) BinarySize() int {
+	return r.len
 }
 
 // MarshalBinary makes bytes of the Recipient.

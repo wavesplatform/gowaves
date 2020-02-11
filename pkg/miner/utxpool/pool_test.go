@@ -17,6 +17,10 @@ type transaction struct {
 	id  []byte
 }
 
+func (a transaction) BinarySize() int {
+	panic("not implemented")
+}
+
 func (a transaction) MarshalToProtobuf(scheme proto.Scheme) ([]byte, error) {
 	panic("implement me")
 }

@@ -23,7 +23,7 @@ func TestMineMicroblock(t *testing.T) {
 	}
 
 	keyBlock, err := proto.CreateBlock(
-		proto.NewReprFromTransactions(nil),
+		proto.Transactions(nil),
 		now,
 		noSig,
 		keyPair.Public,
@@ -38,7 +38,7 @@ func TestMineMicroblock(t *testing.T) {
 
 	transferV1 := byte_helpers.TransferV1.Transaction.Clone()
 
-	micro, err := createMicroBlock(keyBlock, proto.NewReprFromTransactions([]proto.Transaction{transferV1}), keyPair, proto.MainNetScheme)
+	micro, err := createMicroBlock(keyBlock, []proto.Transaction{transferV1}, keyPair, proto.MainNetScheme)
 	require.NoError(t, err)
 
 	t.Logf("%+v", keyBlock)
@@ -46,19 +46,9 @@ func TestMineMicroblock(t *testing.T) {
 
 }
 
-func createMicroBlock(keyBlock *proto.Block, tr *proto.TransactionsRepresentation, keyPair proto.KeyPair, chainID proto.Scheme) (*proto.MicroBlock, error) {
+func createMicroBlock(keyBlock *proto.Block, tr proto.Transactions, keyPair proto.KeyPair, chainID proto.Scheme) (*proto.MicroBlock, error) {
 	blockApplyOn := keyBlock
-	bts_, err := blockApplyOn.Transactions.Bytes()
-	if err != nil {
-		return nil, err
-	}
-	bts := make([]byte, len(bts_))
-	copy(bts, bts_)
-
-	transactions, err := blockApplyOn.Transactions.Join(tr)
-	if err != nil {
-		return nil, err
-	}
+	transactions := blockApplyOn.Transactions.Join(tr)
 
 	newBlock, err := proto.CreateBlock(
 		transactions,

@@ -129,7 +129,8 @@ func TestAppendHeaderBytesToTransactions(t *testing.T) {
 	transactions := block.Transactions
 	blockBytes, err := block.MarshalBinary()
 	assert.NoError(t, err, "block.MarshalBinary() failed")
-	transactionsBts, _ := transactions.Bytes()
+	transactionsBts, err := transactions.MarshalBinary()
+	assert.NoError(t, err)
 	blockBytes1, err := AppendHeaderBytesToTransactions(headerBytes, transactionsBts)
 	assert.NoError(t, err, "AppendHeaderBytesToTransactions() failed")
 	assert.Equal(t, blockBytes, blockBytes1)
@@ -196,9 +197,7 @@ func TestBlock_WriteTo(t *testing.T) {
 	createAlias := NewUnsignedCreateAliasV1(public, *alias, 10000, NewTimestampFromTime(time.Now()))
 	require.NoError(t, createAlias.Sign(secret))
 
-	buf := new(bytes.Buffer)
 	transactions := Transactions{createAlias}
-	_, _ = transactions.WriteTo(buf)
 
 	block := Block{
 		BlockHeader: BlockHeader{
@@ -209,7 +208,7 @@ func TestBlock_WriteTo(t *testing.T) {
 			Features:               nil, // ??
 			RewardVote:             -1,
 			ConsensusBlockLength:   40, //  ??
-			TransactionBlockLength: uint32(len(buf.Bytes())),
+			TransactionBlockLength: uint32(transactions.BinarySize() + 4),
 			TransactionCount:       len(transactions),
 			GenPublicKey:           public,
 			BlockSignature:         sig, //
@@ -219,10 +218,10 @@ func TestBlock_WriteTo(t *testing.T) {
 				GenSignature: gensig, //
 			},
 		},
-		Transactions: NewReprFromTransactions(transactions),
+		Transactions: transactions,
 	}
 
-	buf = new(bytes.Buffer)
+	buf := new(bytes.Buffer)
 	_, err = block.WriteToWithoutSignature(buf)
 	require.NoError(t, err)
 	marshaledBytes, _ := block.MarshalBinary()
