@@ -104,6 +104,47 @@ func (a *RuntimeImpl) HandleMicroBlockRequestMessage(p peer.Peer, message *proto
 	})
 }
 
+func (a *RuntimeImpl) handleMicroBlock(microblock *proto.MicroBlock) {
+	zap.S().Debugf("received micro %s", microblock.Signature)
+
+	if a.waitingOnMicroblock == nil {
+		// we don't need microblocks
+		zap.S().Debug("dropping micro because we aren't waiting for microblocks")
+		return
+	}
+
+	if *a.waitingOnMicroblock != microblock.TotalResBlockSigField {
+		// received microblock that we don't expect
+		zap.S().Debugf("received micro that we don't expect: need: %s, got: %s", a.waitingOnMicroblock.String(), microblock.TotalResBlockSigField.String())
+		return
+	}
+
+	a.ngState.AddMicroblock(microblock)
+	go a.services.Scheduler.Reschedule()
+}
+
+func (a *RuntimeImpl) HandlePBMicroBlockMessage(_ peer.Peer, message *proto.PBMicroBlockMessage) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	microblock := &proto.MicroBlock{}
+
+	switch t := message.Body.(type) {
+	case proto.Bytes:
+		err := microblock.UnmarshalFromProtobuf(t)
+		if err != nil {
+			zap.S().Error(err)
+			return
+		}
+	case *proto.MicroBlock:
+		microblock = t
+	default:
+		zap.S().Errorf("unknown *proto.MicroBlockMessage body type %T", t)
+		return
+	}
+	a.handleMicroBlock(microblock)
+}
+
 func (a *RuntimeImpl) HandleMicroBlockMessage(_ peer.Peer, message *proto.MicroBlockMessage) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
@@ -124,22 +165,7 @@ func (a *RuntimeImpl) HandleMicroBlockMessage(_ peer.Peer, message *proto.MicroB
 		return
 	}
 
-	zap.S().Debugf("received micro %s", microblock.Signature)
-
-	if a.waitingOnMicroblock == nil {
-		// we don't need microblocks
-		zap.S().Debug("dropping micro because we aren't waiting for microblocks")
-		return
-	}
-
-	if *a.waitingOnMicroblock != microblock.TotalResBlockSigField {
-		// received microblock that we don't expect
-		zap.S().Debugf("received micro that we don't expect: need: %s, got: %s", a.waitingOnMicroblock.String(), microblock.TotalResBlockSigField.String())
-		return
-	}
-
-	a.ngState.AddMicroblock(microblock)
-	go a.services.Scheduler.Reschedule()
+	a.handleMicroBlock(microblock)
 }
 
 func (a *RuntimeImpl) HandleBlockMessage(_ peer.Peer, block *proto.Block) {

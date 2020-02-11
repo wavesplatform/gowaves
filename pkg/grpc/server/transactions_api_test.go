@@ -9,7 +9,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
-	"github.com/wavesplatform/gowaves/pkg/grpc/client"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated"
 	"github.com/wavesplatform/gowaves/pkg/miner/utxpool"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -295,7 +294,8 @@ func TestSign(t *testing.T) {
 	assert.NoError(t, err)
 	waves := proto.OptionalAsset{Present: false}
 	tx := proto.NewUnsignedTransferV1(pk, waves, waves, 100, 1, 100, proto.NewRecipientFromAddress(addr), "attachment")
-	tx.GenerateID()
+	err = tx.GenerateID()
+	assert.NoError(t, err)
 	txProto, err := tx.ToProtobuf(server.scheme)
 	assert.NoError(t, err)
 
@@ -303,7 +303,7 @@ func TestSign(t *testing.T) {
 	req := &g.SignRequest{Transaction: txProto, SignerPublicKey: pk.Bytes()}
 	res, err := cl.Sign(ctx, req)
 	assert.NoError(t, err)
-	var c client.SafeConverter
+	var c proto.ProtobufConverter
 	resTx, err := c.SignedTransaction(res)
 	assert.NoError(t, err)
 	transfer, ok := resTx.(*proto.TransferV1)

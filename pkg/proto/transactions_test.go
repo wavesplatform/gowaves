@@ -77,6 +77,46 @@ func TestGenesisFromMainNet(t *testing.T) {
 	}
 }
 
+func TestGenesisProtobufRoundTrip(t *testing.T) {
+	tests := []struct {
+		sig       string
+		timestamp uint64
+		recipient string
+		amount    uint64
+	}{
+		{"2DVtfgXjpMeFf2PQCqvwxAiaGbiDsxDjSdNQkc5JQ74eWxjWFYgwvqzC4dn7iB1AhuM32WxEiVi1SGijsBtYQwn8", 1465742577614, "3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ", 9999999500000000},
+		{"2TsxPS216SsZJAiep7HrjZ3stHERVkeZWjMPFcvMotrdGpFa6UCCmoFiBGNizx83Ks8DnP3qdwtJ8WFcN9J4exa3", 1465742577614, "3P8JdJGYc7vaLu4UXUZc1iRLdzrkGtdCyJM", 100000000},
+		{"3gF8LFjhnZdgEVjP7P6o1rvwapqdgxn7GCykCo8boEQRwxCufhrgqXwdYKEg29jyPWthLF5cFyYcKbAeFvhtRNTc", 1465742577614, "3PAGPDPqnGkyhcihyjMHe9v36Y4hkAh9yDy", 100000000},
+		{"5hjSPLDyqic7otvtTJgVv73H3o6GxgTBqFMTY2PqAFzw2GHAnoQddC4EgWWFrAiYrtPadMBUkoepnwFHV1yR6u6g", 1465742577614, "3P9o3ZYwtHkaU1KxsKkFjJqJKS3dLHLC9oF", 100000000},
+		{"ivP1MzTd28yuhJPkJsiurn2rH2hovXqxr7ybHZWoRGUYKazkfaL9MYoTUym4sFgwW7WB5V252QfeFTsM6Uiz3DM", 1465742577614, "3PJaDyprvekvPXPuAtxrapacuDJopgJRaU3", 100000000},
+		{"29gnRjk8urzqc9kvqaxAfr6niQTuTZnq7LXDAbd77nydHkvrTA4oepoMLsiPkJ8wj2SeFB5KXASSPmbScvBbfLiV", 1465742577614, "3PBWXDFUc86N2EQxKJmW8eFco65xTyMZx6J", 100000000},
+	}
+	for _, tc := range tests {
+		if rcp, err := NewAddressFromString(tc.recipient); assert.NoError(t, err) {
+			tx := NewUnsignedGenesis(rcp, tc.amount, tc.timestamp)
+			v, err := tx.Valid()
+			assert.True(t, v)
+			assert.Nil(t, err)
+			err = tx.GenerateID()
+			assert.Nil(t, err)
+			b, err := tx.MarshalToProtobuf(MainNetScheme)
+			assert.Nil(t, err)
+			var at Genesis
+			err = at.UnmarshalFromProtobuf(b)
+			assert.Nil(t, err)
+			assert.Equal(t, *tx, at)
+			if err := tx.GenerateSigID(); assert.NoError(t, err) {
+				b, err := tx.MarshalSignedToProtobuf(MainNetScheme)
+				assert.NoError(t, err)
+				var at2 Genesis
+				err = at2.UnmarshalSignedFromProtobuf(b)
+				assert.NoError(t, err)
+				assert.Equal(t, *tx, at2)
+			}
+		}
+	}
+}
+
 func TestGenesisValidations(t *testing.T) {
 	tests := []struct {
 		address string
@@ -135,6 +175,40 @@ func TestPaymentMarshalUnmarshal(t *testing.T) {
 		err = tx1.UnmarshalBinary(txBytes)
 		require.NoError(t, err)
 		assert.Equal(t, *tx, tx1)
+	}
+}
+
+func TestPaymentProtobufRoundTrip(t *testing.T) {
+	s, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
+	sk, pk, err := crypto.GenerateKeyPair(s)
+	require.NoError(t, err)
+	tests := []struct {
+		address string
+		amount  uint64
+		fee     uint64
+	}{
+		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ", 1, 10},
+	}
+	for _, tc := range tests {
+		addr, err := addressFromString(tc.address)
+		require.NoError(t, err)
+		tx := NewUnsignedPayment(pk, addr, tc.amount, tc.fee, 1)
+		err = tx.GenerateID()
+		require.NoError(t, err)
+		txBytes, err := tx.MarshalToProtobuf(MainNetScheme)
+		assert.NoError(t, err)
+		var tx1 Payment
+		err = tx1.UnmarshalFromProtobuf(txBytes)
+		require.NoError(t, err)
+		assert.Equal(t, *tx, tx1)
+		err = tx.Sign(sk)
+		require.NoError(t, err)
+		txBytes, err = tx.MarshalSignedToProtobuf(MainNetScheme)
+		assert.NoError(t, err)
+		var tx2 Payment
+		err = tx2.UnmarshalSignedFromProtobuf(txBytes)
+		require.NoError(t, err)
+		assert.Equal(t, *tx, tx2)
 	}
 }
 
@@ -398,6 +472,45 @@ func TestIssueV1BinaryRoundTrip(t *testing.T) {
 	}
 }
 
+func TestIssueV1ProtobufRoundTrip(t *testing.T) {
+	seed, err := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
+	assert.NoError(t, err)
+	sk, pk, err := crypto.GenerateKeyPair(seed)
+	assert.NoError(t, err)
+	tests := []struct {
+		name       string
+		desc       string
+		quantity   uint64
+		decimals   byte
+		reissuable bool
+		ts         uint64
+		fee        uint64
+	}{
+		{"TOKEN", "", 1000000000, 2, false, uint64(time.Now().UnixNano() / 1000000), 100000},
+		{"TOKN", "Some long description of TOKN", 1000000000, 8, true, uint64(time.Now().UnixNano() / 1000000), 100000000},
+		{"abcd", "Some long description of TOKN", 123456789012345, 8, true, uint64(time.Now().UnixNano() / 1000000), 100000000},
+	}
+	for _, tc := range tests {
+		tx := NewUnsignedIssueV1(pk, tc.name, tc.desc, tc.quantity, tc.decimals, tc.reissuable, tc.ts, tc.fee)
+		err = tx.GenerateID()
+		assert.NoError(t, err)
+		b, err := tx.MarshalToProtobuf(MainNetScheme)
+		assert.NoError(t, err)
+		var at IssueV1
+		if err := at.UnmarshalFromProtobuf(b); assert.NoError(t, err) {
+			assert.Equal(t, *tx, at)
+		}
+		if err := tx.Sign(sk); assert.NoError(t, err) {
+			if b, err := tx.MarshalSignedToProtobuf(MainNetScheme); assert.NoError(t, err) {
+				var at IssueV1
+				if err = at.UnmarshalSignedFromProtobuf(b); assert.NoError(t, err) {
+					assert.Equal(t, *tx, at)
+				}
+			}
+		}
+	}
+}
+
 func TestIssueV2Validations(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -520,6 +633,48 @@ func TestIssueV2BinaryRoundTrip(t *testing.T) {
 	}
 }
 
+func TestIssueV2ProtobufRoundTrip(t *testing.T) {
+	seed, err := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
+	assert.NoError(t, err)
+	sk, pk, err := crypto.GenerateKeyPair(seed)
+	assert.NoError(t, err)
+	tests := []struct {
+		chain      byte
+		name       string
+		desc       string
+		quantity   uint64
+		decimals   byte
+		reissuable bool
+		script     string
+		fee        uint64
+	}{
+		{'T', "TOKEN", "This is a valid description for the token", 12345, 4, true, "AQQAAAAEaW5hbAIAAAAESW5hbAQAAAAFZWxlbmECAAAAB0xlbnVza2EEAAAABGxvdmUCAAAAC0luYWxMZW51c2thCQAAAAAAAAIJAAEsAAAAAgUAAAAEaW5hbAUAAAAFZWxlbmEFAAAABGxvdmV4ZFt5", 100000},
+		{'W', "TOKEN", "This is a valid description for the token", 100000, 8, false, "", 100000},
+		{'X', "TOKEN", "This is a valid description for the token", 9876543210, 2, true, "AQQAAAAEaW5hbAIAAAAESW5hbAQAAAAFZWxlbmECAAAAB0xlbnVza2EEAAAABGxvdmUCAAAAC0luYWxMZW51c2thCQAAAAAAAAIJAAEsAAAAAgUAAAAEaW5hbAUAAAAFZWxlbmEFAAAABGxvdmV4ZFt5", 123456},
+	}
+	for _, tc := range tests {
+		ts := uint64(time.Now().UnixNano() / 1000000)
+		s, _ := base64.StdEncoding.DecodeString(tc.script)
+		tx := NewUnsignedIssueV2(tc.chain, pk, tc.name, tc.desc, tc.quantity, tc.decimals, tc.reissuable, s, ts, tc.fee)
+		err = tx.GenerateID()
+		assert.NoError(t, err)
+		b, err := tx.MarshalToProtobuf(tc.chain)
+		assert.NoError(t, err)
+		var atx IssueV2
+		if err := atx.UnmarshalFromProtobuf(b); assert.NoError(t, err) {
+			assert.Equal(t, *tx, atx)
+		}
+		if err := tx.Sign(sk); assert.NoError(t, err) {
+			if b, err := tx.MarshalSignedToProtobuf(tc.chain); assert.NoError(t, err) {
+				var atx IssueV2
+				if err = atx.UnmarshalSignedFromProtobuf(b); assert.NoError(t, err) {
+					assert.Equal(t, *tx, atx)
+				}
+			}
+		}
+	}
+}
+
 func TestIssueV2ToJSON(t *testing.T) {
 	tests := []struct {
 		chain      byte
@@ -585,6 +740,59 @@ func TestTransferV1Validations(t *testing.T) {
 		v, err := tx.Valid()
 		assert.False(t, v)
 		assert.EqualError(t, err, tc.err, "No expected error '%s'", tc.err)
+	}
+}
+
+func TestTransferV1ProtobufRoundTrip(t *testing.T) {
+	tests := []struct {
+		scheme              byte
+		amountAsset         string
+		expectedAmountAsset string
+		feeAsset            string
+		expectedFeeAsset    string
+		amount              uint64
+		fee                 uint64
+		attachment          string
+	}{
+		{'T', "WAVES", "WAVES", "WAVES", "WAVES", 1234, 56789, "test attachment"},
+		{'W', "", "WAVES", "", "WAVES", 1234567890, 9876543210, ""},
+		{'T', "WAVES", "WAVES", "B1u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ", "B1u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ", 121212121, 343434, "B1u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ"},
+		{'C', "B1u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ", "B1u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ", "B1u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ", "B1u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ", 12345, 67890, ""},
+		{'D', "B1u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ", "B1u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ", "WAVES", "WAVES", 567890, 1234, "xxx"},
+		{'W', "B1u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ", "B1u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ", "", "WAVES", 10, 20, ""},
+	}
+	seed, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
+	sk, pk, err := crypto.GenerateKeyPair(seed)
+	assert.NoError(t, err)
+	for _, tc := range tests {
+		ts := uint64(time.Now().UnixNano() / 1000000)
+		addr, err := NewAddressFromPublicKey(tc.scheme, pk)
+		require.NoError(t, err)
+		rcp := NewRecipientFromAddress(addr)
+		aa, err := NewOptionalAssetFromString(tc.amountAsset)
+		require.NoError(t, err)
+		fa, err := NewOptionalAssetFromString(tc.feeAsset)
+		require.NoError(t, err)
+		tx := NewUnsignedTransferV1(pk, *aa, *fa, ts, tc.amount, tc.fee, rcp, tc.attachment)
+		err = tx.GenerateID()
+		require.NoError(t, err)
+		if bb, err := tx.MarshalToProtobuf(tc.scheme); assert.NoError(t, err) {
+			var atx TransferV1
+			if err := atx.UnmarshalFromProtobuf(bb); assert.NoError(t, err) {
+				assert.Equal(t, *tx, atx)
+			}
+		}
+		if err := tx.Sign(sk); assert.NoError(t, err) {
+			if r, err := tx.Verify(pk); assert.NoError(t, err) {
+				assert.True(t, r)
+			}
+		}
+		if b, err := tx.MarshalSignedToProtobuf(tc.scheme); assert.NoError(t, err) {
+			var atx TransferV1
+			if err := atx.UnmarshalSignedFromProtobuf(b); assert.NoError(t, err) {
+				assert.Equal(t, *tx, atx)
+			}
+		}
 	}
 }
 
@@ -881,6 +1089,59 @@ func TestTransferV2JSONRoundTrip(t *testing.T) {
 	}
 }
 
+func TestTransferV2ProtobufRoundTrip(t *testing.T) {
+	tests := []struct {
+		scheme              byte
+		amountAsset         string
+		expectedAmountAsset string
+		feeAsset            string
+		expectedFeeAsset    string
+		amount              uint64
+		fee                 uint64
+		attachment          string
+	}{
+		{'T', "WAVES", "WAVES", "WAVES", "WAVES", 1234, 56789, "test attachment"},
+		{'W', "", "WAVES", "", "WAVES", 1234567890, 9876543210, ""},
+		{'T', "WAVES", "WAVES", "B1u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ", "B1u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ", 121212121, 343434, "B1u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ"},
+		{'C', "B1u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ", "B1u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ", "B1u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ", "B1u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ", 12345, 67890, ""},
+		{'D', "B1u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ", "B1u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ", "WAVES", "WAVES", 567890, 1234, "xxx"},
+		{'W', "B1u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ", "B1u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ", "", "WAVES", 10, 20, ""},
+	}
+	seed, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
+	sk, pk, err := crypto.GenerateKeyPair(seed)
+	require.NoError(t, err)
+	for _, tc := range tests {
+		ts := uint64(time.Now().UnixNano() / 1000000)
+		addr, err := NewAddressFromPublicKey(tc.scheme, pk)
+		require.NoError(t, err)
+		rcp := NewRecipientFromAddress(addr)
+		aa, err := NewOptionalAssetFromString(tc.amountAsset)
+		require.NoError(t, err)
+		fa, err := NewOptionalAssetFromString(tc.feeAsset)
+		require.NoError(t, err)
+		tx := NewUnsignedTransferV2(pk, *aa, *fa, ts, tc.amount, tc.fee, rcp, tc.attachment)
+		err = tx.GenerateID()
+		require.NoError(t, err)
+		if bb, err := tx.MarshalToProtobuf(tc.scheme); assert.NoError(t, err) {
+			var atx TransferV2
+			if err := atx.UnmarshalFromProtobuf(bb); assert.NoError(t, err) {
+				assert.Equal(t, *tx, atx)
+			}
+		}
+		if err := tx.Sign(sk); assert.NoError(t, err) {
+			if r, err := tx.Verify(pk); assert.NoError(t, err) {
+				assert.True(t, r)
+			}
+		}
+		if b, err := tx.MarshalSignedToProtobuf(tc.scheme); assert.NoError(t, err) {
+			var atx TransferV2
+			if err := atx.UnmarshalSignedFromProtobuf(b); assert.NoError(t, err) {
+				assert.Equal(t, *tx, atx)
+			}
+		}
+	}
+}
+
 func TestTransferV2BinaryRoundTrip(t *testing.T) {
 	tests := []struct {
 		scheme              byte
@@ -1113,6 +1374,45 @@ func TestReissueV1FromMainNet(t *testing.T) {
 	}
 }
 
+func TestReissueV1ProtobufRoundTrip(t *testing.T) {
+	tests := []struct {
+		asset      string
+		quantity   uint64
+		reissuable bool
+		fee        uint64
+	}{
+		{"8LQW8f7P5d5PZM7GtZEBgaqRPGSzS3DfPuiXrURJ4AJS", 1234567890, false, 1234567890},
+		{"6zf9mSeHUKRzWR6rCBWPmFPTkhg22qvwUZjTBCfxBkGJ", 9876543210, true, 9876543210},
+	}
+	seed, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
+	sk, pk, err := crypto.GenerateKeyPair(seed)
+	require.NoError(t, err)
+	for _, tc := range tests {
+		aid, _ := crypto.NewDigestFromBase58(tc.asset)
+		ts := uint64(time.Now().UnixNano() / 1000000)
+		tx := NewUnsignedReissueV1(pk, aid, tc.quantity, tc.reissuable, ts, tc.fee)
+		err = tx.GenerateID()
+		require.NoError(t, err)
+		if bb, err := tx.MarshalToProtobuf(MainNetScheme); assert.NoError(t, err) {
+			var atx ReissueV1
+			if err := atx.UnmarshalFromProtobuf(bb); assert.NoError(t, err) {
+				assert.Equal(t, *tx, atx)
+			}
+		}
+		if err := tx.Sign(sk); assert.NoError(t, err) {
+			if r, err := tx.Verify(pk); assert.NoError(t, err) {
+				assert.True(t, r)
+			}
+		}
+		if b, err := tx.MarshalSignedToProtobuf(MainNetScheme); assert.NoError(t, err) {
+			var atx ReissueV1
+			if err := atx.UnmarshalSignedFromProtobuf(b); assert.NoError(t, err) {
+				assert.Equal(t, *tx, atx)
+			}
+		}
+	}
+}
+
 func TestReissueV1BinaryRoundTrip(t *testing.T) {
 	tests := []struct {
 		asset      string
@@ -1254,6 +1554,46 @@ func TestReissueV2FromMainNetAndTestNet(t *testing.T) {
 	}
 }
 
+func TestReissueV2ProtobufRoundTrip(t *testing.T) {
+	tests := []struct {
+		chain      byte
+		asset      string
+		quantity   uint64
+		reissuable bool
+		fee        uint64
+	}{
+		{'T', "8LQW8f7P5d5PZM7GtZEBgaqRPGSzS3DfPuiXrURJ4AJS", 1234567890, false, 1234567890},
+		{'W', "6zf9mSeHUKRzWR6rCBWPmFPTkhg22qvwUZjTBCfxBkGJ", 9876543210, true, 9876543210},
+	}
+	seed, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
+	sk, pk, err := crypto.GenerateKeyPair(seed)
+	require.NoError(t, err)
+	for _, tc := range tests {
+		aid, _ := crypto.NewDigestFromBase58(tc.asset)
+		ts := uint64(time.Now().UnixNano() / 1000000)
+		tx := NewUnsignedReissueV2(tc.chain, pk, aid, tc.quantity, tc.reissuable, ts, tc.fee)
+		err = tx.GenerateID()
+		require.NoError(t, err)
+		if bb, err := tx.MarshalToProtobuf(tc.chain); assert.NoError(t, err) {
+			var atx ReissueV2
+			if err := atx.UnmarshalFromProtobuf(bb); assert.NoError(t, err) {
+				assert.Equal(t, *tx, atx)
+			}
+		}
+		if err := tx.Sign(sk); assert.NoError(t, err) {
+			if r, err := tx.Verify(pk); assert.NoError(t, err) {
+				assert.True(t, r)
+			}
+		}
+		if b, err := tx.MarshalSignedToProtobuf(tc.chain); assert.NoError(t, err) {
+			var atx ReissueV2
+			if err := atx.UnmarshalSignedFromProtobuf(b); assert.NoError(t, err) {
+				assert.Equal(t, *tx, atx)
+			}
+		}
+	}
+}
+
 func TestReissueV2BinaryRoundTrip(t *testing.T) {
 	tests := []struct {
 		chain      byte
@@ -1390,6 +1730,44 @@ func TestBurnV1FromMainNet(t *testing.T) {
 	}
 }
 
+func TestBurnV1ProtobufRoundTrip(t *testing.T) {
+	tests := []struct {
+		asset  string
+		amount uint64
+		fee    uint64
+	}{
+		{"8LQW8f7P5d5PZM7GtZEBgaqRPGSzS3DfPuiXrURJ4AJS", 1234567890, 1234567890},
+		{"6zf9mSeHUKRzWR6rCBWPmFPTkhg22qvwUZjTBCfxBkGJ", 9876543210, 9876543210},
+	}
+	seed, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
+	sk, pk, err := crypto.GenerateKeyPair(seed)
+	require.NoError(t, err)
+	for _, tc := range tests {
+		aid, _ := crypto.NewDigestFromBase58(tc.asset)
+		ts := uint64(time.Now().UnixNano() / 1000000)
+		tx := NewUnsignedBurnV1(pk, aid, tc.amount, ts, tc.fee)
+		err = tx.GenerateID()
+		require.NoError(t, err)
+		if bb, err := tx.MarshalToProtobuf(MainNetScheme); assert.NoError(t, err) {
+			var atx BurnV1
+			if err := atx.UnmarshalFromProtobuf(bb); assert.NoError(t, err) {
+				assert.Equal(t, *tx, atx)
+			}
+		}
+		if err := tx.Sign(sk); assert.NoError(t, err) {
+			if r, err := tx.Verify(pk); assert.NoError(t, err) {
+				assert.True(t, r)
+			}
+		}
+		if b, err := tx.MarshalSignedToProtobuf(MainNetScheme); assert.NoError(t, err) {
+			var atx BurnV1
+			if err := atx.UnmarshalSignedFromProtobuf(b); assert.NoError(t, err) {
+				assert.Equal(t, *tx, atx)
+			}
+		}
+	}
+}
+
 func TestBurnV1BinaryRoundTrip(t *testing.T) {
 	tests := []struct {
 		asset  string
@@ -1503,6 +1881,44 @@ func TestBurnV2FromMainNet(t *testing.T) {
 				assert.Equal(t, id, h)
 			}
 			assert.True(t, crypto.Verify(spk, sig, b))
+		}
+	}
+}
+
+func TestBurnV2ProtobufRoundTrip(t *testing.T) {
+	tests := []struct {
+		asset  string
+		amount uint64
+		fee    uint64
+	}{
+		{"8LQW8f7P5d5PZM7GtZEBgaqRPGSzS3DfPuiXrURJ4AJS", 1234567890, 1234567890},
+		{"6zf9mSeHUKRzWR6rCBWPmFPTkhg22qvwUZjTBCfxBkGJ", 9876543210, 9876543210},
+	}
+	seed, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
+	sk, pk, err := crypto.GenerateKeyPair(seed)
+	require.NoError(t, err)
+	for _, tc := range tests {
+		aid, _ := crypto.NewDigestFromBase58(tc.asset)
+		ts := uint64(time.Now().UnixNano() / 1000000)
+		tx := NewUnsignedBurnV2('T', pk, aid, tc.amount, ts, tc.fee)
+		err = tx.GenerateID()
+		require.NoError(t, err)
+		if bb, err := tx.MarshalToProtobuf(TestNetScheme); assert.NoError(t, err) {
+			var atx BurnV2
+			if err := atx.UnmarshalFromProtobuf(bb); assert.NoError(t, err) {
+				assert.Equal(t, *tx, atx)
+			}
+		}
+		if err := tx.Sign(sk); assert.NoError(t, err) {
+			if r, err := tx.Verify(pk); assert.NoError(t, err) {
+				assert.True(t, r)
+			}
+		}
+		if b, err := tx.MarshalSignedToProtobuf(TestNetScheme); assert.NoError(t, err) {
+			var atx BurnV2
+			if err := atx.UnmarshalSignedFromProtobuf(b); assert.NoError(t, err) {
+				assert.Equal(t, *tx, atx)
+			}
 		}
 	}
 }
@@ -1714,6 +2130,60 @@ func TestExchangeV1FromMainNet(t *testing.T) {
 				assert.Equal(t, id, h)
 			}
 			assert.True(t, crypto.Verify(mpk, sig, b))
+		}
+	}
+}
+
+func TestExchangeV1ProtobufRoundTrip(t *testing.T) {
+	seedA, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
+	sk, pk, err := crypto.GenerateKeyPair(seedA)
+	require.NoError(t, err)
+	seedB, _ := base58.Decode("8cLFt3NHL13H5JCBBgbJDkjjcPseZ1YNtqMWnZS1B2n9")
+	msk, mpk, err := crypto.GenerateKeyPair(seedB)
+	require.NoError(t, err)
+	aa, _ := NewOptionalAssetFromString("3gRJoK6f7XUV7fx5jUzHoPwdb9ZdTFjtTPy2HgDinr1N")
+	pa, _ := NewOptionalAssetFromString("FftTzae2t8r6zZJ2VzEq2pS2Le4Vx9gYGXuDsEFBTYE2")
+	ts := uint64(time.Now().UnixNano() / 1000000)
+	exp := ts + 100*1000
+	bo := NewUnsignedOrderV1(pk, mpk, *aa, *pa, Buy, 12345, 67890, ts, exp, 3)
+	err = bo.Sign(sk)
+	require.NoError(t, err)
+	so := NewUnsignedOrderV1(pk, mpk, *aa, *pa, Sell, 98765, 54321, ts, exp, 3)
+	err = so.Sign(sk)
+	require.NoError(t, err)
+	tests := []struct {
+		buy     OrderV1
+		sell    OrderV1
+		price   uint64
+		amount  uint64
+		buyFee  uint64
+		sellFee uint64
+		fee     uint64
+	}{
+		{*bo, *so, 123, 456, 789, 987, 654},
+		{*bo, *so, 987654321, 544321, 9876, 8765, 13245},
+	}
+	for _, tc := range tests {
+		ts := uint64(time.Now().UnixNano() / 1000000)
+		tx := NewUnsignedExchangeV1(&tc.buy, &tc.sell, tc.price, tc.amount, tc.buyFee, tc.sellFee, tc.fee, ts)
+		err = tx.GenerateID()
+		require.NoError(t, err)
+		if bb, err := tx.MarshalToProtobuf(MainNetScheme); assert.NoError(t, err) {
+			var atx ExchangeV1
+			if err := atx.UnmarshalFromProtobuf(bb); assert.NoError(t, err) {
+				assert.Equal(t, *tx, atx)
+			}
+		}
+		if err := tx.Sign(msk); assert.NoError(t, err) {
+			if r, err := tx.Verify(mpk); assert.NoError(t, err) {
+				assert.True(t, r)
+			}
+		}
+		if b, err := tx.MarshalSignedToProtobuf(MainNetScheme); assert.NoError(t, err) {
+			var atx ExchangeV1
+			if err := atx.UnmarshalSignedFromProtobuf(b); assert.NoError(t, err) {
+				assert.Equal(t, *tx, atx)
+			}
 		}
 	}
 }
@@ -1959,6 +2429,68 @@ func TestExchangeV2FromTestNet(t *testing.T) {
 				assert.Equal(t, id, h)
 			}
 			assert.True(t, crypto.Verify(mpk, sig, b))
+		}
+	}
+}
+
+func TestExchangeV2ProtobufRoundTrip(t *testing.T) {
+	seedA, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
+	sk, pk, err := crypto.GenerateKeyPair(seedA)
+	require.NoError(t, err)
+	seedB, _ := base58.Decode("8cLFt3NHL13H5JCBBgbJDkjjcPseZ1YNtqMWnZS1B2n9")
+	msk, mpk, err := crypto.GenerateKeyPair(seedB)
+	require.NoError(t, err)
+	aa, _ := NewOptionalAssetFromString("3gRJoK6f7XUV7fx5jUzHoPwdb9ZdTFjtTPy2HgDinr1N")
+	pa, _ := NewOptionalAssetFromString("FftTzae2t8r6zZJ2VzEq2pS2Le4Vx9gYGXuDsEFBTYE2")
+	ts := uint64(time.Now().UnixNano() / 1000000)
+	exp := ts + 100*1000
+	bo1 := NewUnsignedOrderV1(pk, mpk, *aa, *pa, Buy, 12345, 67890, ts, exp, 3)
+	err = bo1.Sign(sk)
+	require.NoError(t, err)
+	so1 := NewUnsignedOrderV1(pk, mpk, *aa, *pa, Sell, 98765, 54321, ts, exp, 3)
+	err = so1.Sign(sk)
+	require.NoError(t, err)
+	bo2 := NewUnsignedOrderV2(pk, mpk, *aa, *pa, Buy, 12345, 67890, ts, exp, 3)
+	err = bo2.Sign(sk)
+	require.NoError(t, err)
+	so2 := NewUnsignedOrderV2(pk, mpk, *aa, *pa, Sell, 98765, 54321, ts, exp, 3)
+	err = so2.Sign(sk)
+	require.NoError(t, err)
+	tests := []struct {
+		buy     Order
+		sell    Order
+		price   uint64
+		amount  uint64
+		buyFee  uint64
+		sellFee uint64
+		fee     uint64
+	}{
+		{bo1, so1, 123, 456, 789, 987, 654},
+		{bo2, so2, 987654321, 544321, 9876, 8765, 13245},
+		{bo1, so2, 123, 456, 789, 987, 654},
+		{bo2, so1, 987654321, 544321, 9876, 8765, 13245},
+	}
+	for _, tc := range tests {
+		ts := uint64(time.Now().UnixNano() / 1000000)
+		tx := NewUnsignedExchangeV2(tc.buy, tc.sell, tc.price, tc.amount, tc.buyFee, tc.sellFee, tc.fee, ts)
+		err = tx.GenerateID()
+		require.NoError(t, err)
+		if bb, err := tx.MarshalToProtobuf(MainNetScheme); assert.NoError(t, err) {
+			var atx ExchangeV2
+			if err := atx.UnmarshalFromProtobuf(bb); assert.NoError(t, err) {
+				assert.Equal(t, *tx, atx)
+			}
+		}
+		if err := tx.Sign(msk); assert.NoError(t, err) {
+			if r, err := tx.Verify(mpk); assert.NoError(t, err) {
+				assert.True(t, r)
+			}
+		}
+		if b, err := tx.MarshalSignedToProtobuf(MainNetScheme); assert.NoError(t, err) {
+			var atx ExchangeV2
+			if err := atx.UnmarshalSignedFromProtobuf(b); assert.NoError(t, err) {
+				assert.Equal(t, *tx, atx)
+			}
 		}
 	}
 }
@@ -2387,6 +2919,45 @@ func TestLeaseV1FromMainNet(t *testing.T) {
 	}
 }
 
+func TestLeaseV1ProtobufRoundTrip(t *testing.T) {
+	tests := []struct {
+		recipient string
+		amount    uint64
+		fee       uint64
+	}{
+		{"3P23fi1qfVw6RVDn4CH2a5nNouEtWNQ4THs", 1234567890, 1234567890},
+		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ", 9876543210, 9876543210},
+	}
+	seed, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
+	sk, pk, err := crypto.GenerateKeyPair(seed)
+	require.NoError(t, err)
+	for _, tc := range tests {
+		addr, err := NewAddressFromString(tc.recipient)
+		require.NoError(t, err)
+		rcp := NewRecipientFromAddress(addr)
+		ts := uint64(time.Now().UnixNano() / 1000000)
+		tx := NewUnsignedLeaseV1(pk, rcp, tc.amount, tc.fee, ts)
+		err = tx.GenerateID()
+		require.NoError(t, err)
+		if bb, err := tx.MarshalToProtobuf(MainNetScheme); assert.NoError(t, err) {
+			var atx LeaseV1
+			if err := atx.UnmarshalFromProtobuf(bb); assert.NoError(t, err) {
+				assert.Equal(t, *tx, atx)
+			}
+		}
+		if err := tx.Sign(sk); assert.NoError(t, err) {
+			if r, err := tx.Verify(pk); assert.NoError(t, err) {
+				assert.True(t, r)
+			}
+		}
+		if b, err := tx.MarshalSignedToProtobuf(MainNetScheme); assert.NoError(t, err) {
+			var atx LeaseV1
+			if err := atx.UnmarshalSignedFromProtobuf(b); assert.NoError(t, err) {
+				assert.Equal(t, *tx, atx)
+			}
+		}
+	}
+}
 func TestLeaseV1BinaryRoundTrip(t *testing.T) {
 	tests := []struct {
 		recipient string
@@ -2529,6 +3100,46 @@ func TestLeaseV2FromMainNet(t *testing.T) {
 	}
 }
 
+func TestLeaseV2ProtobufRoundTrip(t *testing.T) {
+	tests := []struct {
+		recipient string
+		amount    uint64
+		fee       uint64
+	}{
+		{"3P23fi1qfVw6RVDn4CH2a5nNouEtWNQ4THs", 1234567890, 1234567890},
+		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ", 9876543210, 9876543210},
+	}
+	seed, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
+	sk, pk, err := crypto.GenerateKeyPair(seed)
+	require.NoError(t, err)
+	for _, tc := range tests {
+		addr, err := NewAddressFromString(tc.recipient)
+		require.NoError(t, err)
+		rcp := NewRecipientFromAddress(addr)
+		ts := uint64(time.Now().UnixNano() / 1000000)
+		tx := NewUnsignedLeaseV2(pk, rcp, tc.amount, tc.fee, ts)
+		err = tx.GenerateID()
+		require.NoError(t, err)
+		if bb, err := tx.MarshalToProtobuf(MainNetScheme); assert.NoError(t, err) {
+			var atx LeaseV2
+			if err := atx.UnmarshalFromProtobuf(bb); assert.NoError(t, err) {
+				assert.Equal(t, *tx, atx)
+			}
+		}
+		if err := tx.Sign(sk); assert.NoError(t, err) {
+			if r, err := tx.Verify(pk); assert.NoError(t, err) {
+				assert.True(t, r)
+			}
+		}
+		if b, err := tx.MarshalSignedToProtobuf(MainNetScheme); assert.NoError(t, err) {
+			var atx LeaseV2
+			if err := atx.UnmarshalSignedFromProtobuf(b); assert.NoError(t, err) {
+				assert.Equal(t, *tx, atx)
+			}
+		}
+	}
+}
+
 func TestLeaseV2BinaryRoundTrip(t *testing.T) {
 	tests := []struct {
 		recipient string
@@ -2656,6 +3267,42 @@ func TestLeaseCancelV1FromMainNet(t *testing.T) {
 	}
 }
 
+func TestLeaseCancelV1ProtobufRoundTrip(t *testing.T) {
+	tests := []struct {
+		lease string
+		fee   uint64
+	}{
+		{"6jkoA3xzdFuowHsV3An1tc7sexsJ9kenSHeKJVCU5qNM", 1234567890},
+		{"Bc83cgvtmBbhpWHgqWPvoPMFVJCsUicocAaDReyyuqSX", 9876543210},
+	}
+	seed, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
+	sk, pk, err := crypto.GenerateKeyPair(seed)
+	require.NoError(t, err)
+	for _, tc := range tests {
+		l, _ := crypto.NewDigestFromBase58(tc.lease)
+		ts := uint64(time.Now().UnixNano() / 1000000)
+		tx := NewUnsignedLeaseCancelV1(pk, l, tc.fee, ts)
+		err = tx.GenerateID()
+		require.NoError(t, err)
+		if bb, err := tx.MarshalToProtobuf(MainNetScheme); assert.NoError(t, err) {
+			var atx LeaseCancelV1
+			if err := atx.UnmarshalFromProtobuf(bb); assert.NoError(t, err) {
+				assert.Equal(t, *tx, atx)
+			}
+		}
+		if err := tx.Sign(sk); assert.NoError(t, err) {
+			if r, err := tx.Verify(pk); assert.NoError(t, err) {
+				assert.True(t, r)
+			}
+		}
+		if b, err := tx.MarshalSignedToProtobuf(MainNetScheme); assert.NoError(t, err) {
+			var atx LeaseCancelV1
+			if err := atx.UnmarshalSignedFromProtobuf(b); assert.NoError(t, err) {
+				assert.Equal(t, *tx, atx)
+			}
+		}
+	}
+}
 func TestLeaseCancelV1BinaryRoundTrip(t *testing.T) {
 	tests := []struct {
 		lease string
@@ -2776,6 +3423,43 @@ func TestLeaseCancelV2FromMainNet(t *testing.T) {
 	}
 }
 
+func TestLeaseCancelV2ProtobufRoundTrip(t *testing.T) {
+	tests := []struct {
+		lease string
+		fee   uint64
+	}{
+		{"6jkoA3xzdFuowHsV3An1tc7sexsJ9kenSHeKJVCU5qNM", 1234567890},
+		{"Bc83cgvtmBbhpWHgqWPvoPMFVJCsUicocAaDReyyuqSX", 9876543210},
+	}
+	seed, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
+	sk, pk, err := crypto.GenerateKeyPair(seed)
+	require.NoError(t, err)
+	for _, tc := range tests {
+		l, _ := crypto.NewDigestFromBase58(tc.lease)
+		ts := uint64(time.Now().UnixNano() / 1000000)
+		tx := NewUnsignedLeaseCancelV2('T', pk, l, tc.fee, ts)
+		err = tx.GenerateID()
+		require.NoError(t, err)
+		if bb, err := tx.MarshalToProtobuf(TestNetScheme); assert.NoError(t, err) {
+			var atx LeaseCancelV2
+			if err := atx.UnmarshalFromProtobuf(bb); assert.NoError(t, err) {
+				assert.Equal(t, *tx, atx)
+			}
+		}
+		if err := tx.Sign(sk); assert.NoError(t, err) {
+			if r, err := tx.Verify(pk); assert.NoError(t, err) {
+				assert.True(t, r)
+			}
+		}
+		if b, err := tx.MarshalSignedToProtobuf(TestNetScheme); assert.NoError(t, err) {
+			var atx LeaseCancelV2
+			if err := atx.UnmarshalSignedFromProtobuf(b); assert.NoError(t, err) {
+				assert.Equal(t, *tx, atx)
+			}
+		}
+	}
+}
+
 func TestLeaseCancelV2BinaryRoundTrip(t *testing.T) {
 	tests := []struct {
 		lease string
@@ -2892,6 +3576,44 @@ func TestCreateAliasV1FromMainNet(t *testing.T) {
 				assert.Equal(t, id, *h)
 			}
 			assert.True(t, crypto.Verify(spk, sig, b))
+		}
+	}
+}
+
+func TestCreateAliasV1ProtobufRoundTrip(t *testing.T) {
+	tests := []struct {
+		scheme byte
+		alias  string
+		fee    uint64
+	}{
+		{'W', "somealias", 1234567890},
+		{'T', "testnetalias", 9876543210},
+	}
+	seed, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
+	sk, pk, err := crypto.GenerateKeyPair(seed)
+	require.NoError(t, err)
+	for _, tc := range tests {
+		ts := uint64(time.Now().UnixNano() / 1000000)
+		a := NewAlias(tc.scheme, tc.alias)
+		tx := NewUnsignedCreateAliasV1(pk, *a, tc.fee, ts)
+		err = tx.GenerateID()
+		require.NoError(t, err)
+		if bb, err := tx.MarshalToProtobuf(tc.scheme); assert.NoError(t, err) {
+			var atx CreateAliasV1
+			if err := atx.UnmarshalFromProtobuf(bb); assert.NoError(t, err) {
+				assert.Equal(t, *tx, atx)
+			}
+		}
+		if err := tx.Sign(sk); assert.NoError(t, err) {
+			if r, err := tx.Verify(pk); assert.NoError(t, err) {
+				assert.True(t, r)
+			}
+		}
+		if b, err := tx.MarshalSignedToProtobuf(tc.scheme); assert.NoError(t, err) {
+			var atx CreateAliasV1
+			if err := atx.UnmarshalSignedFromProtobuf(b); assert.NoError(t, err) {
+				assert.Equal(t, *tx, atx)
+			}
 		}
 	}
 }
@@ -3017,6 +3739,44 @@ func TestCreateAliasV2FromMainNet(t *testing.T) {
 				assert.Equal(t, id, *h)
 			}
 			assert.True(t, crypto.Verify(spk, sig, b))
+		}
+	}
+}
+
+func TestCreateAliasV2ProtobufRoundTrip(t *testing.T) {
+	tests := []struct {
+		scheme byte
+		alias  string
+		fee    uint64
+	}{
+		{'W', "somealias", 1234567890},
+		{'T', "testnetalias", 9876543210},
+	}
+	seed, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
+	sk, pk, err := crypto.GenerateKeyPair(seed)
+	require.NoError(t, err)
+	for _, tc := range tests {
+		ts := uint64(time.Now().UnixNano() / 1000000)
+		a := NewAlias(tc.scheme, tc.alias)
+		tx := NewUnsignedCreateAliasV2(pk, *a, tc.fee, ts)
+		err = tx.GenerateID()
+		require.NoError(t, err)
+		if bb, err := tx.MarshalToProtobuf(tc.scheme); assert.NoError(t, err) {
+			var atx CreateAliasV2
+			if err := atx.UnmarshalFromProtobuf(bb); assert.NoError(t, err) {
+				assert.Equal(t, *tx, atx)
+			}
+		}
+		if err := tx.Sign(sk); assert.NoError(t, err) {
+			if r, err := tx.Verify(pk); assert.NoError(t, err) {
+				assert.True(t, r)
+			}
+		}
+		if b, err := tx.MarshalSignedToProtobuf(tc.scheme); assert.NoError(t, err) {
+			var atx CreateAliasV2
+			if err := atx.UnmarshalSignedFromProtobuf(b); assert.NoError(t, err) {
+				assert.Equal(t, *tx, atx)
+			}
 		}
 	}
 }
@@ -3162,6 +3922,47 @@ func TestMassTransferV1FromMainNet(t *testing.T) {
 				assert.Equal(t, id, h)
 			}
 			assert.True(t, crypto.Verify(spk, sig, b))
+		}
+	}
+}
+
+func TestMassTransferV1ProtobufRoundTrip(t *testing.T) {
+	addr, _ := NewAddressFromString("3PB1Y84BGdEXE4HKaExyJ5cHP36nEw8ovaE")
+	tests := []struct {
+		asset      string
+		transfers  []MassTransferEntry
+		fee        uint64
+		attachment string
+	}{
+		{"HmNSH2g1SWYHzuX1G4VCjL63TFs7PXDjsTAHzrAhSRCK", []MassTransferEntry{{NewRecipientFromAddress(addr), 9876543210}}, 1234567890, "this is the attachment"},
+		{"HmNSH2g1SWYHzuX1G4VCjL63TFs7PXDjsTAHzrAhSRCK", []MassTransferEntry{{NewRecipientFromAddress(addr), 12345}, {NewRecipientFromAddress(addr), 67890}}, 987654321, ""},
+		{"WAVES", []MassTransferEntry{{NewRecipientFromAddress(addr), 12345}, {NewRecipientFromAddress(addr), 67890}}, 987654321, ""},
+	}
+	seed, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
+	sk, pk, err := crypto.GenerateKeyPair(seed)
+	require.NoError(t, err)
+	for _, tc := range tests {
+		ts := uint64(time.Now().UnixNano() / 1000000)
+		a, _ := NewOptionalAssetFromString(tc.asset)
+		tx := NewUnsignedMassTransferV1(pk, *a, tc.transfers, tc.fee, ts, tc.attachment)
+		err := tx.GenerateID()
+		require.NoError(t, err)
+		if bb, err := tx.MarshalToProtobuf(MainNetScheme); assert.NoError(t, err) {
+			var atx MassTransferV1
+			if err := atx.UnmarshalFromProtobuf(bb); assert.NoError(t, err) {
+				assert.Equal(t, *tx, atx)
+			}
+		}
+		if err := tx.Sign(sk); assert.NoError(t, err) {
+			if r, err := tx.Verify(pk); assert.NoError(t, err) {
+				assert.True(t, r)
+			}
+		}
+		if b, err := tx.MarshalSignedToProtobuf(MainNetScheme); assert.NoError(t, err) {
+			var atx MassTransferV1
+			if err := atx.UnmarshalSignedFromProtobuf(b); assert.NoError(t, err) {
+				assert.Equal(t, *tx, atx)
+			}
 		}
 	}
 }
@@ -3340,6 +4141,62 @@ func TestDataV1FromMainNet(t *testing.T) {
 				assert.Equal(t, id, h)
 			}
 			assert.True(t, crypto.Verify(spk, sig, b))
+		}
+	}
+}
+
+func TestDataV1ProtobufRoundTrip(t *testing.T) {
+	tests := []struct {
+		keys   []string
+		types  []byte
+		values []string
+		fee    uint64
+	}{
+		{[]string{"int-val", "bool-val", "bin-val", "string-val"}, []byte{0, 1, 2, 3}, []string{"1234567890", "true", "4JMP6WwpP78EVYZzG9CKQKDUTPUdvMCYGKVNn4G3VdHmW5mZKNXbvHvuvA8Nj6p39k8htY9VkM6uSf5ombFzETJq", "some string"}, 1234567890},
+		{[]string{"int-val", "bool-val", "bin-val", "string-val"}, []byte{0, 1, 2, 3}, []string{"987654321", "false", "B7WAhQEM95LvpnKSxNVCCv1WrAzjtAVcKX9NqeCPLK46", ""}, 1234567890},
+	}
+	seed, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
+	sk, pk, err := crypto.GenerateKeyPair(seed)
+	require.NoError(t, err)
+	for _, tc := range tests {
+		ts := uint64(time.Now().UnixNano() / 1000000)
+		tx := NewUnsignedData(pk, tc.fee, ts)
+		for i, k := range tc.keys {
+			var e DataEntry
+			switch DataValueType(tc.types[i]) {
+			case DataInteger:
+				v, _ := strconv.Atoi(tc.values[i])
+				e = &IntegerDataEntry{k, int64(v)}
+			case DataBoolean:
+				v, _ := strconv.ParseBool(tc.values[i])
+				e = &BooleanDataEntry{k, v}
+			case DataBinary:
+				v, _ := base58.Decode(tc.values[i])
+				e = &BinaryDataEntry{k, v}
+			case DataString:
+				e = &StringDataEntry{k, tc.values[i]}
+			}
+			err := tx.AppendEntry(e)
+			assert.NoError(t, err)
+		}
+		err = tx.GenerateID()
+		require.NoError(t, err)
+		if bb, err := tx.MarshalToProtobuf(MainNetScheme); assert.NoError(t, err) {
+			var atx DataV1
+			if err := atx.UnmarshalFromProtobuf(bb); assert.NoError(t, err) {
+				assert.Equal(t, *tx, atx)
+			}
+		}
+		if err := tx.Sign(sk); assert.NoError(t, err) {
+			if r, err := tx.Verify(pk); assert.NoError(t, err) {
+				assert.True(t, r)
+			}
+		}
+		if b, err := tx.MarshalSignedToProtobuf(MainNetScheme); assert.NoError(t, err) {
+			var atx DataV1
+			if err := atx.UnmarshalSignedFromProtobuf(b); assert.NoError(t, err) {
+				assert.Equal(t, *tx, atx)
+			}
 		}
 	}
 }
@@ -3581,6 +4438,44 @@ func TestSetScriptV1FromMainNet(t *testing.T) {
 	}
 }
 
+func TestSetScriptV1ProtobufRoundTrip(t *testing.T) {
+	tests := []struct {
+		chainID byte
+		script  string
+		fee     uint64
+	}{
+		{'W', "AQQAAAAEaW5hbAIAAAAESW5hbAQAAAAFZWxlbmECAAAAB0xlbnVza2EEAAAABGxvdmUCAAAAC0luYWxMZW51c2thCQAAAAAAAAIJAAEsAAAAAgUAAAAEaW5hbAUAAAAFZWxlbmEFAAAABGxvdmV4ZFt5", 1234567890},
+		{'T', "", 9876543210},
+	}
+	seed, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
+	sk, pk, err := crypto.GenerateKeyPair(seed)
+	require.NoError(t, err)
+	for _, tc := range tests {
+		ts := uint64(time.Now().UnixNano() / 1000000)
+		s, _ := base64.StdEncoding.DecodeString(tc.script)
+		tx := NewUnsignedSetScriptV1(tc.chainID, pk, s, tc.fee, ts)
+		err = tx.GenerateID()
+		require.NoError(t, err)
+		if bb, err := tx.MarshalToProtobuf(tc.chainID); assert.NoError(t, err) {
+			var atx SetScriptV1
+			if err := atx.UnmarshalFromProtobuf(bb); assert.NoError(t, err) {
+				assert.Equal(t, *tx, atx)
+			}
+		}
+		if err := tx.Sign(sk); assert.NoError(t, err) {
+			if r, err := tx.Verify(pk); assert.NoError(t, err) {
+				assert.True(t, r)
+			}
+		}
+		if b, err := tx.MarshalSignedToProtobuf(tc.chainID); assert.NoError(t, err) {
+			var atx SetScriptV1
+			if err := atx.UnmarshalSignedFromProtobuf(b); assert.NoError(t, err) {
+				assert.Equal(t, *tx, atx)
+			}
+		}
+	}
+}
+
 func TestSetScriptV1BinaryRoundTrip(t *testing.T) {
 	tests := []struct {
 		chainID byte
@@ -3705,6 +4600,44 @@ func TestSponsorshipV1FromMainNet(t *testing.T) {
 				assert.Equal(t, id, h)
 			}
 			assert.True(t, crypto.Verify(spk, sig, b))
+		}
+	}
+}
+
+func TestSponsorshipV1ProtobufRoundTrip(t *testing.T) {
+	tests := []struct {
+		asset    string
+		assetFee uint64
+		fee      uint64
+	}{
+		{"9yCRXrptsYKnsfFv6E226MXXjjxSzm3kXKL2oquw3HrX", 100, 1234567890},
+		{"J8shEVBrQ4BLqsuYw5j6vQGCFJGMLBxr5nu2XvUWFEAR", 0, 9876543210},
+	}
+	seed, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
+	sk, pk, err := crypto.GenerateKeyPair(seed)
+	require.NoError(t, err)
+	for _, tc := range tests {
+		ts := uint64(time.Now().UnixNano() / 1000000)
+		a, _ := crypto.NewDigestFromBase58(tc.asset)
+		tx := NewUnsignedSponsorshipV1(pk, a, tc.assetFee, tc.fee, ts)
+		err = tx.GenerateID()
+		require.NoError(t, err)
+		if bb, err := tx.MarshalToProtobuf(MainNetScheme); assert.NoError(t, err) {
+			var atx SponsorshipV1
+			if err := atx.UnmarshalFromProtobuf(bb); assert.NoError(t, err) {
+				assert.Equal(t, *tx, atx)
+			}
+		}
+		if err := tx.Sign(sk); assert.NoError(t, err) {
+			if r, err := tx.Verify(pk); assert.NoError(t, err) {
+				assert.True(t, r)
+			}
+		}
+		if b, err := tx.MarshalSignedToProtobuf(MainNetScheme); assert.NoError(t, err) {
+			var atx SponsorshipV1
+			if err := atx.UnmarshalSignedFromProtobuf(b); assert.NoError(t, err) {
+				assert.Equal(t, *tx, atx)
+			}
 		}
 	}
 }
@@ -3835,6 +4768,46 @@ func TestSetAssetScriptV1FromMainNet(t *testing.T) {
 				assert.Equal(t, id, h)
 			}
 			assert.True(t, crypto.Verify(spk, sig, b))
+		}
+	}
+}
+
+func TestSetAssetScriptV1ProtobufRoundTrip(t *testing.T) {
+	tests := []struct {
+		chainID byte
+		asset   string
+		script  string
+		fee     uint64
+	}{
+		{'W', "J8shEVBrQ4BLqsuYw5j6vQGCFJGMLBxr5nu2XvUWFEAR", "AQQAAAAEaW5hbAIAAAAESW5hbAQAAAAFZWxlbmECAAAAB0xlbnVza2EEAAAABGxvdmUCAAAAC0luYWxMZW51c2thCQAAAAAAAAIJAAEsAAAAAgUAAAAEaW5hbAUAAAAFZWxlbmEFAAAABGxvdmV4ZFt5", 1234567890},
+		{'T', "9yCRXrptsYKnsfFv6E226MXXjjxSzm3kXKL2oquw3HrX", "", 9876543210},
+	}
+	seed, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
+	sk, pk, err := crypto.GenerateKeyPair(seed)
+	require.NoError(t, err)
+	for _, tc := range tests {
+		ts := uint64(time.Now().UnixNano() / 1000000)
+		a, _ := crypto.NewDigestFromBase58(tc.asset)
+		s, _ := base64.StdEncoding.DecodeString(tc.script)
+		tx := NewUnsignedSetAssetScriptV1(tc.chainID, pk, a, s, tc.fee, ts)
+		err = tx.GenerateID()
+		require.NoError(t, err)
+		if bb, err := tx.MarshalToProtobuf(tc.chainID); assert.NoError(t, err) {
+			var atx SetAssetScriptV1
+			if err := atx.UnmarshalFromProtobuf(bb); assert.NoError(t, err) {
+				assert.Equal(t, *tx, atx)
+			}
+		}
+		if err := tx.Sign(sk); assert.NoError(t, err) {
+			if r, err := tx.Verify(pk); assert.NoError(t, err) {
+				assert.True(t, r)
+			}
+		}
+		if b, err := tx.MarshalSignedToProtobuf(tc.chainID); assert.NoError(t, err) {
+			var atx SetAssetScriptV1
+			if err := atx.UnmarshalSignedFromProtobuf(b); assert.NoError(t, err) {
+				assert.Equal(t, *tx, atx)
+			}
 		}
 	}
 }
@@ -4017,6 +4990,56 @@ func TestInvokeScriptV1FromTestNet(t *testing.T) {
 	}
 }
 
+func TestInvokeScriptV1ProtobufRoundTrip(t *testing.T) {
+	tests := []struct {
+		chainID  byte
+		address  string
+		fc       string
+		payments string
+		feeAsset string
+		fee      uint64
+	}{
+		{'W', "3PLANf4MgtNN5v6k4NNnyx2m4zKJiw1tF9v", "{\"function\":\"foo\",\"args\":[{\"type\":\"integer\",\"value\":12345}]}", "[{\"amount\":12345,\"assetId\":\"BXBUNddxTGTQc3G4qHYn5E67SBwMj18zLncUr871iuRD\"}]", "J8shEVBrQ4BLqsuYw5j6vQGCFJGMLBxr5nu2XvUWFEAR", 1234567890},
+		{'T', "3MrDis17gyNSusZDg8Eo1PuFnm5SQMda3gu", "{\"function\":\"bar\",\"args\":[{\"type\":\"boolean\",\"value\":true}]}", "[{\"amount\":67890,\"assetId\":null}]", "9yCRXrptsYKnsfFv6E226MXXjjxSzm3kXKL2oquw3HrX", 9876543210},
+		{'T', "3MrDis17gyNSusZDg8Eo1PuFnm5SQMda3gu", "{\"function\":\"foobar1\",\"args\":[]}", "[{\"amount\":12345,\"assetId\":\"BXBUNddxTGTQc3G4qHYn5E67SBwMj18zLncUr871iuRD\"}]", "WAVES", 9876543210},
+	}
+	seed, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
+	sk, pk, err := crypto.GenerateKeyPair(seed)
+	require.NoError(t, err)
+	for _, tc := range tests {
+		ts := uint64(time.Now().UnixNano() / 1000000)
+		a, err := NewOptionalAssetFromString(tc.feeAsset)
+		require.NoError(t, err)
+		ad, err := NewAddressFromString(tc.address)
+		require.NoError(t, err)
+		fc := FunctionCall{}
+		err = json.Unmarshal([]byte(tc.fc), &fc)
+		require.NoError(t, err)
+		sps := ScriptPayments{}
+		err = json.Unmarshal([]byte(tc.payments), &sps)
+		require.NoError(t, err)
+		tx := NewUnsignedInvokeScriptV1(tc.chainID, pk, NewRecipientFromAddress(ad), fc, sps, *a, tc.fee, ts)
+		err = tx.GenerateID()
+		require.NoError(t, err)
+		if bb, err := tx.MarshalToProtobuf(tc.chainID); assert.NoError(t, err) {
+			var atx InvokeScriptV1
+			if err := atx.UnmarshalFromProtobuf(bb); assert.NoError(t, err) {
+				assert.Equal(t, *tx, atx)
+			}
+		}
+		if err := tx.Sign(sk); assert.NoError(t, err) {
+			if r, err := tx.Verify(pk); assert.NoError(t, err) {
+				assert.True(t, r)
+			}
+		}
+		if b, err := tx.MarshalSignedToProtobuf(tc.chainID); assert.NoError(t, err) {
+			var atx InvokeScriptV1
+			if err := atx.UnmarshalSignedFromProtobuf(b); assert.NoError(t, err) {
+				assert.Equal(t, *tx, atx)
+			}
+		}
+	}
+}
 func TestInvokeScriptV1BinaryRoundTrip(t *testing.T) {
 	tests := []struct {
 		chainID  byte

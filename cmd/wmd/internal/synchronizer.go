@@ -11,7 +11,6 @@ import (
 	"github.com/wavesplatform/gowaves/cmd/wmd/internal/data"
 	"github.com/wavesplatform/gowaves/cmd/wmd/internal/state"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
-	"github.com/wavesplatform/gowaves/pkg/grpc/client"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
@@ -180,12 +179,12 @@ func (s *Synchronizer) block(height int, full bool) (*g.BlockWithHeight, error) 
 }
 
 func (s *Synchronizer) nodeBlockSignature(height int) (crypto.Signature, error) {
-	cnv := client.SafeConverter{}
+	cnv := proto.ProtobufConverter{}
 	res, err := s.block(height, false)
 	if err != nil {
 		return crypto.Signature{}, err
 	}
-	header, err := cnv.BlockHeader(res)
+	header, err := cnv.BlockHeader(res.Block)
 	if err != nil {
 		return crypto.Signature{}, err
 	}
@@ -193,17 +192,16 @@ func (s *Synchronizer) nodeBlockSignature(height int) (crypto.Signature, error) 
 }
 
 func (s *Synchronizer) nodeBlock(height int) (proto.BlockHeader, []proto.Transaction, error) {
-	cnv := client.SafeConverter{}
+	cnv := proto.ProtobufConverter{}
 	res, err := s.block(height, true)
 	if err != nil {
 		return proto.BlockHeader{}, nil, err
 	}
-	header, err := cnv.BlockHeader(res)
+	header, err := cnv.BlockHeader(res.Block)
 	if err != nil {
 		return proto.BlockHeader{}, nil, err
 	}
-	cnv.Reset()
-	txs, err := cnv.BlockTransactions(res)
+	txs, err := cnv.BlockTransactions(res.Block)
 	if err != nil {
 		return proto.BlockHeader{}, nil, err
 	}

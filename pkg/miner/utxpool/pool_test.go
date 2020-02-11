@@ -17,6 +17,22 @@ type transaction struct {
 	id  []byte
 }
 
+func (a transaction) MarshalToProtobuf(scheme proto.Scheme) ([]byte, error) {
+	panic("implement me")
+}
+
+func (a transaction) UnmarshalFromProtobuf(data []byte) error {
+	panic("implement me")
+}
+
+func (a transaction) MarshalSignedToProtobuf(scheme proto.Scheme) ([]byte, error) {
+	panic("implement me")
+}
+
+func (a transaction) UnmarshalSignedFromProtobuf(data []byte) error {
+	panic("implement me")
+}
+
 func (a transaction) ToProtobuf(scheme proto.Scheme) (*g.Transaction, error) {
 	panic("implement me")
 }
@@ -53,7 +69,10 @@ func (transaction) GetTimestamp() uint64 {
 	return 0
 }
 
-func (transaction) GenerateID() {}
+func (transaction) GenerateID() error {
+	return nil
+}
+
 func (transaction) GetTypeVersion() proto.TransactionTypeVersion {
 	panic("implement me")
 }

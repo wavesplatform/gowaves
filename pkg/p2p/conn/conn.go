@@ -96,7 +96,10 @@ func recvFromRemote(stopped *atomic.Bool, pool bytespool.Pool, conn io.Reader, f
 		}
 		b := pool.Get()
 		// put header before payload
-		header.Copy(b)
+		if _, err := header.Copy(b); err != nil {
+			handleErr(err, errCh)
+			continue
+		}
 		// then read all message to remaining buffer
 		hl := header.HeaderLength()
 		pl := header.PayloadLength
