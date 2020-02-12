@@ -144,34 +144,21 @@ func (a *scriptCaller) callAssetScript(tx proto.Transaction, assetID crypto.Dige
 	return nil
 }
 
-func (a *scriptCaller) invokeFunction(tx *proto.InvokeScriptV1, lastBlockInfo *proto.BlockInfo, initialisation bool) ([]proto.ScriptAction, error) {
-	scriptAddr, err := recipientToAddress(tx.ScriptRecipient, a.stor.aliases, !initialisation)
-	if err != nil {
-		return nil, err
-	}
-	script, err := a.stor.scriptsStorage.newestScriptByAddr(*scriptAddr, !initialisation)
-	if err != nil {
-		return nil, err
-	}
-	// Check that the script's library supports multiple payments.
-	// We don't have to check feature activation because we done it before.
-	if len(tx.Payments) == 2 && script.Version < 4 {
-		return nil, errors.Errorf("multiple payments is not allowed for RIDE library version %d", script.Version)
-	}
-	this := ast.NewAddressFromProtoAddress(*scriptAddr)
+func (a *scriptCaller) invokeFunction(script ast.Script, tx *proto.InvokeScriptV1, lastBlockInfo *proto.BlockInfo, scriptAddress proto.Address, initialisation bool) ([]proto.ScriptAction, error) {
+	this := ast.NewAddressFromProtoAddress(scriptAddress)
 	lastBlock := ast.NewObjectFromBlockInfo(*lastBlockInfo)
-	sr, err := script.CallFunction(a.settings.AddressSchemeCharacter, a.state, tx, this, lastBlock)
+	actions, err := script.CallFunction(a.settings.AddressSchemeCharacter, a.state, tx, this, lastBlock)
 	if err != nil {
-		return nil, errors.Errorf("transaction ID %s: %v\n", tx.ID.String(), err)
+		return nil, errors.Wrapf(err, "transaction ID %s", tx.ID.String())
 	}
 	// Increase complexity.
-	complexityRecord, err := a.stor.scriptsComplexity.newestScriptComplexityByAddr(*scriptAddr, !initialisation)
+	complexityRecord, err := a.stor.scriptsComplexity.newestScriptComplexityByAddr(scriptAddress, !initialisation)
 	if err != nil {
 		return nil, errors.Wrap(err, "newestScriptComplexityByAsset()")
 	}
 	// TODO: check this!
 	a.totalComplexity += complexityRecord.byFuncs[tx.FunctionCall.Name]
-	return sr, nil
+	return actions, nil
 }
 
 func (a *scriptCaller) getTotalComplexity() uint64 {

@@ -120,3 +120,43 @@ func TestScriptResultBinaryRoundTrip(t *testing.T) {
 		}
 	}
 }
+
+func TestActionsValidation(t *testing.T) {
+	addr0, err := NewAddressFromString("3PQ8bp1aoqHQo3icNqFv6VM36V1jzPeaG1v")
+	require.NoError(t, err)
+	rcp0 := NewRecipientFromAddress(addr0)
+	for i, test := range []struct {
+		actions      []ScriptAction
+		restrictions ActionsValidationRestrictions
+		valid        bool
+	}{
+		{actions: []ScriptAction{
+			DataEntryScriptAction{Entry: &IntegerDataEntry{"some key2", -12345}},
+			DataEntryScriptAction{Entry: &BooleanDataEntry{"negative value2", true}},
+			DataEntryScriptAction{Entry: &StringDataEntry{"some key143", "some value2 string"}},
+			DataEntryScriptAction{Entry: &BinaryDataEntry{Key: "k5", Value: []byte{0x24, 0x7f, 0x71, 0x10, 0x1d}}},
+			DataEntryScriptAction{Entry: &DeleteDataEntry{Key: "xxx"}},
+			TransferScriptAction{Recipient: rcp0, Amount: 100, Asset: OptionalAsset{}},
+		}, restrictions: ActionsValidationRestrictions{}, valid: true},
+		{actions: []ScriptAction{
+			DataEntryScriptAction{Entry: &IntegerDataEntry{"some key2", -12345}},
+			TransferScriptAction{Recipient: rcp0, Amount: -100, Asset: OptionalAsset{}},
+			DataEntryScriptAction{Entry: &BooleanDataEntry{"negative value2", true}},
+		}, restrictions: ActionsValidationRestrictions{}, valid: false},
+		{actions: []ScriptAction{
+			DataEntryScriptAction{Entry: &IntegerDataEntry{"some key2", -12345}},
+			DataEntryScriptAction{Entry: &BooleanDataEntry{"negative value2", true}},
+			DataEntryScriptAction{Entry: &StringDataEntry{"some key143", "some value2 string"}},
+			DataEntryScriptAction{Entry: &BinaryDataEntry{Key: "k5", Value: []byte{0x24, 0x7f, 0x71, 0x10, 0x1d}}},
+			DataEntryScriptAction{Entry: &DeleteDataEntry{Key: "xxx"}},
+			TransferScriptAction{Recipient: rcp0, Amount: 100, Asset: OptionalAsset{}},
+		}, restrictions: ActionsValidationRestrictions{DisableSelfTransfers: true, ScriptAddress: addr0}, valid: false},
+	} {
+		err := ValidateActions(test.actions, test.restrictions)
+		if test.valid {
+			require.NoError(t, err, fmt.Sprintf("#%d", i))
+		} else {
+			require.Error(t, err, fmt.Sprintf("#%d", i))
+		}
+	}
+}

@@ -207,7 +207,12 @@ func (sr *ScriptResult) FromProtobuf(scheme byte, msg *g.InvokeScriptResult) err
 	return nil
 }
 
-func ValidateActions(actions []ScriptAction) error {
+type ActionsValidationRestrictions struct {
+	DisableSelfTransfers bool
+	ScriptAddress        Address
+}
+
+func ValidateActions(actions []ScriptAction, restrictions ActionsValidationRestrictions) error {
 	dataEntriesCount := 0
 	dataEntriesSize := 0
 	otherActionsCount := 0
@@ -233,6 +238,11 @@ func ValidateActions(actions []ScriptAction) error {
 			}
 			if ta.Amount < 0 {
 				return errors.New("negative transfer amount")
+			}
+			if restrictions.DisableSelfTransfers {
+				if ta.Recipient.Address.Eq(restrictions.ScriptAddress) {
+					return errors.New("transfers to DApp itself are forbidden since activation of RIDE V4")
+				}
 			}
 
 		case IssueScriptAction:

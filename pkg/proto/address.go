@@ -176,6 +176,10 @@ func (a Address) Bytes() []byte {
 	return a[:]
 }
 
+func (a *Address) Eq(b Address) bool {
+	return bytes.Equal(a.Bytes(), b.Bytes())
+}
+
 func addressChecksum(b []byte) ([]byte, error) {
 	h, err := crypto.SecureHash(b)
 	if err != nil {

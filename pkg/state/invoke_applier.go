@@ -150,7 +150,7 @@ func (ia *invokeApplier) createTxDiff(tx *proto.InvokeScriptV1, info *invokeAddl
 
 func (ia *invokeApplier) resolveAliases(actions []proto.ScriptAction, initialisation bool) error {
 	for i, a := range actions {
-		tr, ok := a.(*proto.TransferScriptAction)
+		tr, ok := a.(proto.TransferScriptAction)
 		if !ok {
 			continue
 		}
@@ -191,17 +191,43 @@ func (ia *invokeApplier) applyInvokeScriptV1(tx *proto.InvokeScriptV1, info *inv
 	if err != nil {
 		return txBalanceChanges{}, errors.Wrap(err, "recipientToAddress() failed")
 	}
-	scriptActions, err := ia.sc.invokeFunction(tx, blockInfo, info.initialisation)
+	multiPaymentActivated, err := ia.stor.features.isActivated(int16(settings.MultiPaymentInvokeScript))
+	if err != nil {
+		return txBalanceChanges{}, errors.Wrap(err, "failed to apply script invocation")
+	}
+	script, err := ia.stor.scriptsStorage.newestScriptByAddr(*scriptAddr, !info.initialisation)
+	if err != nil {
+		return txBalanceChanges{}, errors.Wrapf(err, "failed to instantiate script on address '%s'", scriptAddr.String())
+	}
+	// Check that the script's library supports multiple payments.
+	// We don't have to check feature activation because we done it before.
+	if len(tx.Payments) == 2 && script.Version < 4 {
+		return txBalanceChanges{}, errors.Errorf("multiple payments is not allowed for RIDE library version %d", script.Version)
+	}
+	// Refuse payments to DApp itself since activation of MultiPaymentInvokeScript (RIDE V4) and for DApps with StdLib V4
+	disableSelfTransfers := multiPaymentActivated && script.Version >= 4
+	if disableSelfTransfers && len(tx.Payments) > 0 {
+		sender, err := proto.NewAddressFromPublicKey(ia.settings.AddressSchemeCharacter, tx.SenderPK)
+		if err != nil {
+			return txBalanceChanges{}, errors.Wrapf(err, "failed to apply script invocation")
+		}
+		if sender == *scriptAddr {
+			return txBalanceChanges{}, errors.New("paying to DApp itself is forbidden since RIDE V4")
+		}
+	}
+	scriptActions, err := ia.sc.invokeFunction(script, tx, blockInfo, *scriptAddr, info.initialisation)
 	if err != nil {
 		return txBalanceChanges{}, errors.Wrap(err, "invokeFunction() failed")
 	}
-	// Check script result.
-	if err := proto.ValidateActions(scriptActions); err != nil {
-		return txBalanceChanges{}, errors.Wrap(err, "invalid script result")
-	}
-	// Resolve all aliases in TransferSet.
+	// Resolve all aliases in .
+	// It have to be done before validation because we validate addresses, not aliases.
 	if err := ia.resolveAliases(scriptActions, info.initialisation); err != nil {
 		return txBalanceChanges{}, errors.New("ScriptResult; failed to resolve aliases")
+	}
+	// Check script result
+	restrictions := proto.ActionsValidationRestrictions{DisableSelfTransfers: disableSelfTransfers, ScriptAddress: *scriptAddr}
+	if err := proto.ValidateActions(scriptActions, restrictions); err != nil {
+		return txBalanceChanges{}, errors.Wrap(err, "invalid script result")
 	}
 	if ia.buildApiData {
 		// Save invoke result for extended API.
