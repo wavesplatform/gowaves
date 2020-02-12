@@ -24,18 +24,14 @@ func TestTxFilter(t *testing.T) {
 	addr, err := proto.NewAddressFromPublicKey(scheme, pk)
 	assert.NoError(t, err)
 	rcp := proto.NewRecipientFromAddress(addr)
-	addrBody, err := addr.Body()
-	assert.NoError(t, err)
 	pk2, err := crypto.NewPublicKeyFromBase58(pkStr2)
 	assert.NoError(t, err)
 	addr2, err := proto.NewAddressFromPublicKey(scheme, pk2)
 	assert.NoError(t, err)
 	rcp2 := proto.NewRecipientFromAddress(addr2)
-	addr2Body, err := addr2.Body()
-	assert.NoError(t, err)
 
 	// Test sender only.
-	req := &g.TransactionsRequest{Sender: addrBody}
+	req := &g.TransactionsRequest{Sender: addr.Body()}
 	filter, err := newTxFilter(scheme, req)
 	assert.NoError(t, err)
 	tx = &proto.Payment{SenderPK: pk}
@@ -49,8 +45,8 @@ func TestTxFilter(t *testing.T) {
 
 	// Test sender and recipient.
 	req = &g.TransactionsRequest{
-		Sender:    addrBody,
-		Recipient: &g.Recipient{Recipient: &g.Recipient_Address{Address: addr2Body}},
+		Sender:    addr.Body(),
+		Recipient: &g.Recipient{Recipient: &g.Recipient_Address{Address: addr2.Body()}},
 	}
 	filter, err = newTxFilter(scheme, req)
 	assert.NoError(t, err)
@@ -67,8 +63,8 @@ func TestTxFilter(t *testing.T) {
 	id2, err := crypto.NewDigestFromBase58(idStr2)
 	assert.NoError(t, err)
 	req = &g.TransactionsRequest{
-		Sender:         addrBody,
-		Recipient:      &g.Recipient{Recipient: &g.Recipient_Address{Address: addrBody}},
+		Sender:         addr.Body(),
+		Recipient:      &g.Recipient{Recipient: &g.Recipient_Address{Address: addr.Body()}},
 		TransactionIds: [][]byte{id.Bytes()},
 	}
 	filter, err = newTxFilter(scheme, req)

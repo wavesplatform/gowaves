@@ -1,6 +1,8 @@
 package proto
 
 import (
+	"unicode/utf16"
+
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated"
@@ -201,6 +203,77 @@ func (sr *ScriptResult) FromProtobuf(scheme byte, msg *g.InvokeScriptResult) err
 	sr.Burns, err = c.BurnScriptActions(msg.Burns)
 	if err != nil {
 		return err
+	}
+	return nil
+}
+
+func ValidateActions(actions []ScriptAction) error {
+	dataEntriesCount := 0
+	dataEntriesSize := 0
+	otherActionsCount := 0
+	for _, a := range actions {
+		switch ta := a.(type) {
+		case DataEntryScriptAction:
+			dataEntriesCount++
+			if dataEntriesCount > maxDataEntryScriptActions {
+				return errors.Errorf("number of data entries produced by script is more than allowed %d", maxDataEntryScriptActions)
+			}
+			if len(utf16.Encode([]rune(ta.Entry.GetKey()))) > maxKeySize {
+				return errors.New("key is too large")
+			}
+			dataEntriesSize += ta.Entry.binarySize()
+			if dataEntriesSize > maxDataEntryScriptActionsSizeInBytes {
+				return errors.Errorf("total size of data entries produced by script is more than %d bytes", maxDataEntryScriptActionsSizeInBytes)
+			}
+
+		case TransferScriptAction:
+			otherActionsCount++
+			if otherActionsCount > maxScriptActions {
+				return errors.Errorf("number of actions produced by script is more than allowed %d", maxScriptActions)
+			}
+			if ta.Amount < 0 {
+				return errors.New("negative transfer amount")
+			}
+
+		case IssueScriptAction:
+			otherActionsCount++
+			if otherActionsCount > maxScriptActions {
+				return errors.Errorf("number of actions produced by script is more than allowed %d", maxScriptActions)
+			}
+			if ta.Quantity <= 0 {
+				return errors.New("negative or zero quantity")
+			}
+			if ta.Decimals < 0 || ta.Decimals > maxDecimals {
+				return errors.New("invalid decimals")
+			}
+			if l := len(ta.Name); l < minAssetNameLen || l > maxAssetNameLen {
+				return errors.New("invalid asset's name")
+			}
+			if l := len(ta.Description); l > maxDescriptionLen {
+				return errors.New("invalid asset's description")
+			}
+
+		case ReissueScriptAction:
+			otherActionsCount++
+			if otherActionsCount > maxScriptActions {
+				return errors.Errorf("number of actions produced by script is more than allowed %d", maxScriptActions)
+			}
+			if ta.Quantity <= 0 {
+				return errors.New("negative or zero quantity")
+			}
+
+		case BurnScriptAction:
+			otherActionsCount++
+			if otherActionsCount > maxScriptActions {
+				return errors.Errorf("number of actions produced by script is more than allowed %d", maxScriptActions)
+			}
+			if ta.Quantity <= 0 {
+				return errors.New("negative or zero quantity")
+			}
+
+		default:
+			return errors.Errorf("unsupported script action type '%T'", a)
+		}
 	}
 	return nil
 }

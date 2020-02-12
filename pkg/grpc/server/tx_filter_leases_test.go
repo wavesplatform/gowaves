@@ -19,8 +19,6 @@ func TestTxFilterLeases(t *testing.T) {
 	assert.NoError(t, err)
 	addr, err := proto.NewAddressFromString("3Fv3jiLvLS4c4N1ZvSLac3HBGUzaHDMvjN1")
 	assert.NoError(t, err)
-	addrBody, err := addr.Body()
-	assert.NoError(t, err)
 	pk, err := crypto.NewPublicKeyFromBase58("7rAoh3kPtsPQCTMVe9Bb39GKNX17bR5G57Ef66uwXfeT")
 	assert.NoError(t, err)
 	pk2, err := crypto.NewPublicKeyFromBase58("7rAoh3kPtsPQCTMVe8Bb39GKNX17bR5G57Ef66uwXfeT")
@@ -31,7 +29,7 @@ func TestTxFilterLeases(t *testing.T) {
 	}()
 
 	var tx proto.Transaction
-	req := &g.TransactionsRequest{Sender: addrBody}
+	req := &g.TransactionsRequest{Sender: addr.Body()}
 	filter, err := newTxFilter(scheme, req)
 	assert.NoError(t, err)
 	filterLeases := newTxFilterLeases(filter, st)

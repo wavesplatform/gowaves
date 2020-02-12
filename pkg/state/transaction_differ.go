@@ -41,8 +41,8 @@ See balanceDiff.addInsideTx() for more info.
 When dealing with diffs at block level, minBalance takes the lowest minBalance among all transactions
 for given key (address). But it also takes into account previous changes for this address, so overspend
 will be checked like:
-`balance_from_db` + `all_diffs_before` - `minBalance_for_thix_tx` > 0;
-not just `balance_from_db` - `minBalance_for_thix_tx` > 0.
+`balance_from_db` + `all_diffs_before` - `minBalance_for_this_tx` > 0;
+not just `balance_from_db` - `minBalance_for_this_tx` > 0.
 So we increase transactions' minBalances by `all_diffs_before` when adding them to block.
 See balanceDiff.addInsideBlock() for more info.
 */
@@ -91,7 +91,7 @@ func (diff *balanceDiff) applyTo(profile *balanceProfile) (*balanceProfile, erro
 	if minBalance < 0 {
 		return nil, errors.Errorf("negative intermediate balance: balance is %d; diff is: %d\n", profile.balance, diff.minBalance)
 	}
-	// Chech main balance diff.
+	// Check main balance diff.
 	newBalance, err := util.AddInt64(diff.balance, int64(profile.balance))
 	if err != nil {
 		return nil, errors.Errorf("failed to add balance and balance diff: %v\n", err)
@@ -129,7 +129,7 @@ func (diff *balanceDiff) applyToAssetBalance(balance uint64) (uint64, error) {
 	if minBalance < 0 {
 		return 0, errors.New("negative intermediate asset balance")
 	}
-	// Chech main balance diff.
+	// Check main balance diff.
 	newBalance, err := util.AddInt64(diff.balance, int64(balance))
 	if err != nil {
 		return 0, errors.Errorf("failed to add balance and balance diff: %v\n", err)
@@ -208,12 +208,12 @@ type txBalanceChanges struct {
 	diff  txDiff                     // Balance diffs.
 }
 
-func newTxBalanceChanges(addrs []proto.Address, diff txDiff) txBalanceChanges {
-	addrsMap := make(map[proto.Address]struct{})
-	for _, addr := range addrs {
-		addrsMap[addr] = empty
+func newTxBalanceChanges(addresses []proto.Address, diff txDiff) txBalanceChanges {
+	m := make(map[proto.Address]struct{})
+	for _, addr := range addresses {
+		m[addr] = empty
 	}
-	return txBalanceChanges{addrs: addrsMap, diff: diff}
+	return txBalanceChanges{addrs: m, diff: diff}
 }
 
 func (ch txBalanceChanges) appendAddr(addr proto.Address) {
@@ -244,16 +244,6 @@ func (diff txDiff) balancesChanges() []balanceChanges {
 	}
 	return changes
 }
-
-/* TODO: unused code, need to write tests if it is needed or otherwise remove it.
-func (diff txDiff) keys() []string {
-	keys := make([]string, 0, len(diff))
-	for k := range diff {
-		keys = append(keys, k)
-	}
-	return keys
-}
-*/
 
 func (diff txDiff) appendBalanceDiffStr(key string, balanceDiff balanceDiff) error {
 	if prevDiff, ok := diff[key]; ok {
@@ -307,6 +297,7 @@ func (td *transactionDiffer) minerPayout(diff txDiff, fee uint64, info *differIn
 }
 
 func (td *transactionDiffer) createDiffGenesis(transaction proto.Transaction, info *differInfo) (txBalanceChanges, error) {
+	_ = info
 	tx, ok := transaction.(*proto.Genesis)
 	if !ok {
 		return txBalanceChanges{}, errors.New("failed to convert interface to Genesis transaction")
@@ -317,8 +308,8 @@ func (td *transactionDiffer) createDiffGenesis(transaction proto.Transaction, in
 	if err := diff.appendBalanceDiff(key.bytes(), newBalanceDiff(receiverBalanceDiff, 0, 0, false)); err != nil {
 		return txBalanceChanges{}, err
 	}
-	addrs := []proto.Address{tx.Recipient}
-	changes := newTxBalanceChanges(addrs, diff)
+	addresses := []proto.Address{tx.Recipient}
+	changes := newTxBalanceChanges(addresses, diff)
 	return changes, nil
 }
 
@@ -353,20 +344,20 @@ func (td *transactionDiffer) createDiffPayment(transaction proto.Transaction, in
 			return txBalanceChanges{}, errors.Wrap(err, "failed to append miner payout")
 		}
 	}
-	addrs := []proto.Address{senderAddr, tx.Recipient}
-	changes := newTxBalanceChanges(addrs, diff)
+	addresses := []proto.Address{senderAddr, tx.Recipient}
+	changes := newTxBalanceChanges(addresses, diff)
 	return changes, nil
 }
 
-func recipientToAddress(rcp proto.Recipient, aliases *aliases, filter bool) (*proto.Address, error) {
-	if rcp.Address != nil {
-		return rcp.Address, nil
+func recipientToAddress(recipient proto.Recipient, aliases *aliases, filter bool) (*proto.Address, error) {
+	if recipient.Address != nil {
+		return recipient.Address, nil
 	}
-	recipientAddr, err := aliases.newestAddrByAlias(rcp.Alias.Alias, filter)
+	addr, err := aliases.newestAddrByAlias(recipient.Alias.Alias, filter)
 	if err != nil {
-		return &proto.Address{}, errors.Errorf("invalid alias: %v\n", err)
+		return nil, errors.Wrap(err, "invalid alias")
 	}
-	return recipientAddr, nil
+	return addr, nil
 }
 
 func (td *transactionDiffer) handleSponsorship(ch *txBalanceChanges, fee uint64, feeAsset proto.OptionalAsset, info *differInfo) error {
@@ -719,6 +710,7 @@ func (td *transactionDiffer) createDiffExchange(transaction proto.Transaction, i
 }
 
 func (td *transactionDiffer) createDiffLease(tx *proto.Lease, id *crypto.Digest, info *differInfo) (txBalanceChanges, error) {
+	_ = id
 	diff := newTxDiff()
 	// Append sender diff.
 	senderAddr, err := proto.NewAddressFromPublicKey(td.settings.AddressSchemeCharacter, tx.SenderPK)

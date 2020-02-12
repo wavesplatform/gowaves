@@ -43,10 +43,9 @@ const (
 	maxKeySize           = 100
 	maxValueSize         = 32767
 
-	maxInvokeTransfers           = 10
-	maxInvokeWrites              = 100
-	maxInvokeWriteKeySizeInBytes = 100
-	maxWriteSetSizeInBytes       = 5 * 1024
+	maxScriptActions                     = 10
+	maxDataEntryScriptActions            = 100
+	maxDataEntryScriptActionsSizeInBytes = 5 * 1024
 )
 
 type Timestamp = uint64
@@ -2110,9 +2109,8 @@ type DeleteDataEntry struct {
 
 func (e DeleteDataEntry) ToProtobuf() *g.DataTransactionData_DataEntry {
 	return &g.DataTransactionData_DataEntry{
-		Key: e.Key,
-		//FIXME: Use correct type after update of Protobuf schemas
-		Value: &g.DataTransactionData_DataEntry_StringValue{StringValue: ""},
+		Key:   e.Key,
+		Value: nil,
 	}
 }
 

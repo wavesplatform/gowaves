@@ -975,13 +975,13 @@ func (a *DataEntryExpr) Get(name string) (Expr, error) {
 func (a *DataEntryExpr) ToAction() (proto.ScriptAction, error) {
 	switch v := a.value.(type) {
 	case *LongExpr:
-		return &proto.DataEntryScriptAction{Entry: &proto.IntegerDataEntry{Key: a.key, Value: v.Value}}, nil
+		return proto.DataEntryScriptAction{Entry: &proto.IntegerDataEntry{Key: a.key, Value: v.Value}}, nil
 	case *BooleanExpr:
-		return &proto.DataEntryScriptAction{Entry: &proto.BooleanDataEntry{Key: a.key, Value: v.Value}}, nil
+		return proto.DataEntryScriptAction{Entry: &proto.BooleanDataEntry{Key: a.key, Value: v.Value}}, nil
 	case *BytesExpr:
-		return &proto.DataEntryScriptAction{Entry: &proto.BinaryDataEntry{Key: a.key, Value: v.Value}}, nil
+		return proto.DataEntryScriptAction{Entry: &proto.BinaryDataEntry{Key: a.key, Value: v.Value}}, nil
 	case *StringExpr:
-		return &proto.DataEntryScriptAction{Entry: &proto.StringDataEntry{Key: a.key, Value: v.Value}}, nil
+		return proto.DataEntryScriptAction{Entry: &proto.StringDataEntry{Key: a.key, Value: v.Value}}, nil
 	default:
 		return nil, errors.New("unsupported DataEntryExpr type")
 	}
@@ -1965,7 +1965,7 @@ func (a *ScriptTransferExpr) ToAction() (proto.ScriptAction, error) {
 	default:
 		return nil, errors.New("invalid type for asset expr")
 	}
-	return &proto.TransferScriptAction{
+	return proto.TransferScriptAction{
 		Recipient: a.recipient.Recipient(),
 		Amount:    a.amount.Value,
 		Asset:     *oa,

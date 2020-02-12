@@ -15,8 +15,6 @@ func TestTxFilterInvoke(t *testing.T) {
 	assert.NoError(t, err)
 	addr, err := proto.NewAddressFromPublicKey(scheme, pk)
 	assert.NoError(t, err)
-	addrBody, err := addr.Body()
-	assert.NoError(t, err)
 	pk2, err := crypto.NewPublicKeyFromBase58(pkStr2)
 	assert.NoError(t, err)
 	id, err := crypto.NewDigestFromBase58(idStr)
@@ -25,7 +23,7 @@ func TestTxFilterInvoke(t *testing.T) {
 	assert.NoError(t, err)
 
 	req := &g.TransactionsRequest{
-		Sender:         addrBody,
+		Sender:         addr.Body(),
 		TransactionIds: [][]byte{id.Bytes()},
 	}
 	filter, err := newTxFilter(scheme, req)

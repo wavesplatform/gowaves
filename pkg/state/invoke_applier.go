@@ -71,18 +71,18 @@ type payment struct {
 	asset    proto.OptionalAsset
 }
 
-func (ia *invokeApplier) newPaymentFromScriptTransfer(scriptAddr proto.Address, tr proto.ScriptResultTransfer, info *invokeAddlInfo) (*payment, error) {
-	if tr.Recipient.Address == nil {
+func (ia *invokeApplier) newPaymentFromTransferScriptAction(scriptAddr proto.Address, action proto.TransferScriptAction) (*payment, error) {
+	if action.Recipient.Address == nil {
 		return nil, errors.New("transfer has unresolved aliases")
 	}
-	if tr.Amount < 0 {
-		return nil, errors.New("transfer amount is < 0")
+	if action.Amount < 0 {
+		return nil, errors.New("negative transfer amount")
 	}
 	return &payment{
 		sender:   scriptAddr,
-		receiver: *tr.Recipient.Address,
-		amount:   uint64(tr.Amount),
-		asset:    tr.Asset,
+		receiver: *action.Recipient.Address,
+		amount:   uint64(action.Amount),
+		asset:    action.Asset,
 	}, nil
 }
 
@@ -105,8 +105,8 @@ func (ia *invokeApplier) newTxDiffFromPayment(pmt *payment, updateMinIntermediat
 	return diff, nil
 }
 
-func (ia *invokeApplier) newTxDiffFromScriptTransfer(scriptAddr proto.Address, tr proto.ScriptResultTransfer, info *invokeAddlInfo) (txDiff, error) {
-	pmt, err := ia.newPaymentFromScriptTransfer(scriptAddr, tr, info)
+func (ia *invokeApplier) newTxDiffFromScriptTransfer(scriptAddr proto.Address, action proto.TransferScriptAction, info *invokeAddlInfo) (txDiff, error) {
+	pmt, err := ia.newPaymentFromTransferScriptAction(scriptAddr, action)
 	if err != nil {
 		return txDiff{}, err
 	}
@@ -148,13 +148,18 @@ func (ia *invokeApplier) createTxDiff(tx *proto.InvokeScriptV1, info *invokeAddl
 	return ia.blockDiffer.createTransactionDiff(tx, info.block, info.height, info.initialisation)
 }
 
-func (ia *invokeApplier) resolveAliases(transfers proto.TransferSet, initialisation bool) error {
-	var err error
-	for i, tr := range transfers {
-		transfers[i].Recipient.Address, err = recipientToAddress(tr.Recipient, ia.stor.aliases, !initialisation)
+func (ia *invokeApplier) resolveAliases(actions []proto.ScriptAction, initialisation bool) error {
+	for i, a := range actions {
+		tr, ok := a.(*proto.TransferScriptAction)
+		if !ok {
+			continue
+		}
+		addr, err := recipientToAddress(tr.Recipient, ia.stor.aliases, !initialisation)
 		if err != nil {
 			return err
 		}
+		tr.Recipient = proto.NewRecipientFromAddress(*addr)
+		actions[i] = tr
 	}
 	return nil
 }
@@ -186,21 +191,25 @@ func (ia *invokeApplier) applyInvokeScriptV1(tx *proto.InvokeScriptV1, info *inv
 	if err != nil {
 		return txBalanceChanges{}, errors.Wrap(err, "recipientToAddress() failed")
 	}
-	scriptRes, err := ia.sc.invokeFunction(tx, blockInfo, info.initialisation)
+	scriptActions, err := ia.sc.invokeFunction(tx, blockInfo, info.initialisation)
 	if err != nil {
 		return txBalanceChanges{}, errors.Wrap(err, "invokeFunction() failed")
 	}
 	// Check script result.
-	if err := scriptRes.Valid(); err != nil {
+	if err := proto.ValidateActions(scriptActions); err != nil {
 		return txBalanceChanges{}, errors.Wrap(err, "invalid script result")
 	}
 	// Resolve all aliases in TransferSet.
-	if err := ia.resolveAliases(scriptRes.Transfers, info.initialisation); err != nil {
+	if err := ia.resolveAliases(scriptActions, info.initialisation); err != nil {
 		return txBalanceChanges{}, errors.New("ScriptResult; failed to resolve aliases")
 	}
 	if ia.buildApiData {
 		// Save invoke result for extended API.
-		if err := ia.stor.invokeResults.saveResult(*tx.ID, scriptRes, info.block.BlockSignature); err != nil {
+		res, err := proto.NewScriptResult(scriptActions)
+		if err != nil {
+			return txBalanceChanges{}, errors.Wrap(err, "failed to save script result")
+		}
+		if err := ia.stor.invokeResults.saveResult(*tx.ID, res, info.block.BlockSignature); err != nil {
 			return txBalanceChanges{}, errors.Wrap(err, "failed to save script result")
 		}
 	}
@@ -215,55 +224,74 @@ func (ia *invokeApplier) applyInvokeScriptV1(tx *proto.InvokeScriptV1, info *inv
 	if err := ia.saveIntermediateDiff(commonDiff); err != nil {
 		return txBalanceChanges{}, err
 	}
-	// Perform data storage writes.
-	if !info.validatingUtx {
-		// TODO: when UTX transactions are validated, there is no block,
-		// and we can not perform state changes.
-		for _, entry := range scriptRes.Writes {
-			if err := ia.stor.accountsDataStor.appendEntry(*scriptAddr, entry, info.block.BlockSignature); err != nil {
-				return txBalanceChanges{}, err
-			}
-		}
-	}
-	// Perform transfers.
+
 	scriptRuns := info.previousScriptRuns
-	for _, transfer := range scriptRes.Transfers {
-		addr := transfer.Recipient.Address
-		totalChanges.appendAddr(*addr)
-		assetExists := ia.stor.assets.newestAssetExists(transfer.Asset, !info.initialisation)
-		if !assetExists {
-			return txBalanceChanges{}, errors.New("invalid asset in transfer")
-		}
-		isSmartAsset, err := ia.stor.scriptsStorage.newestIsSmartAsset(transfer.Asset.ID, !info.initialisation)
-		if err != nil {
-			return txBalanceChanges{}, err
-		}
-		if isSmartAsset {
-			fullTr, err := proto.NewFullScriptTransfer(ia.settings.AddressSchemeCharacter, &transfer, tx)
+	for _, action := range scriptActions {
+		switch a := action.(type) {
+		case proto.DataEntryScriptAction:
+			// Perform data storage writes.
+			if !info.validatingUtx {
+				// TODO: when UTX transactions are validated, there is no block,
+				// and we can not perform state changes.
+				if err := ia.stor.accountsDataStor.appendEntry(*scriptAddr, a.Entry, info.block.BlockSignature); err != nil {
+					return txBalanceChanges{}, err
+				}
+			}
+
+		case proto.TransferScriptAction:
+			// Perform transfers.
+			addr := a.Recipient.Address
+			totalChanges.appendAddr(*addr)
+			assetExists := ia.stor.assets.newestAssetExists(a.Asset, !info.initialisation)
+			if !assetExists {
+				return txBalanceChanges{}, errors.New("invalid asset in transfer")
+			}
+			isSmartAsset, err := ia.stor.scriptsStorage.newestIsSmartAsset(a.Asset.ID, !info.initialisation)
 			if err != nil {
-				return txBalanceChanges{}, errors.Wrap(err, "failed to convert transfer to full script transfer")
-			}
-			// Call asset script if transferring smart asset.
-			if err := ia.sc.callAssetScriptWithScriptTransfer(fullTr, transfer.Asset.ID, blockInfo, info.initialisation); err != nil {
-				return txBalanceChanges{}, errors.Wrap(err, "asset script failed on transfer set")
-			}
-			scriptRuns++
-		}
-		// Perform transfer.
-		txDiff, err := ia.newTxDiffFromScriptTransfer(*scriptAddr, transfer, info)
-		if err != nil {
-			return txBalanceChanges{}, err
-		}
-		// diff must be saved to storage, because further asset scripts must take
-		// recent balance changes into account.
-		if err := ia.saveIntermediateDiff(txDiff); err != nil {
-			return txBalanceChanges{}, err
-		}
-		// Append intermediate diff to common diff.
-		for key, balanceDiff := range txDiff {
-			if err := commonDiff.appendBalanceDiffStr(key, balanceDiff); err != nil {
 				return txBalanceChanges{}, err
 			}
+			if isSmartAsset {
+				fullTr, err := proto.NewFullScriptTransfer(a, tx)
+				if err != nil {
+					return txBalanceChanges{}, errors.Wrap(err, "failed to convert transfer to full script transfer")
+				}
+				// Call asset script if transferring smart asset.
+				if err := ia.sc.callAssetScriptWithScriptTransfer(fullTr, a.Asset.ID, blockInfo, info.initialisation); err != nil {
+					return txBalanceChanges{}, errors.Wrap(err, "asset script failed on transfer set")
+				}
+				scriptRuns++
+			}
+			// Perform transfer.
+			txDiff, err := ia.newTxDiffFromScriptTransfer(*scriptAddr, a, info)
+			if err != nil {
+				return txBalanceChanges{}, err
+			}
+			// diff must be saved to storage, because further asset scripts must take
+			// recent balance changes into account.
+			if err := ia.saveIntermediateDiff(txDiff); err != nil {
+				return txBalanceChanges{}, err
+			}
+			// Append intermediate diff to common diff.
+			for key, balanceDiff := range txDiff {
+				if err := commonDiff.appendBalanceDiffStr(key, balanceDiff); err != nil {
+					return txBalanceChanges{}, err
+				}
+			}
+
+		case proto.IssueScriptAction:
+			//TODO: implement
+			return txBalanceChanges{}, errors.Errorf("unimplemented script action '%T'", a)
+
+		case proto.ReissueScriptAction:
+			//TODO: implement
+			return txBalanceChanges{}, errors.Errorf("unimplemented script action '%T'", a)
+
+		case proto.BurnScriptAction:
+			//TODO: implement
+			return txBalanceChanges{}, errors.Errorf("unimplemented script action '%T'", a)
+
+		default:
+			return txBalanceChanges{}, errors.Errorf("unsupported script action '%T'", a)
 		}
 	}
 	// Remove diffs from invoke stor.

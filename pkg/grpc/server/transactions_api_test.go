@@ -41,18 +41,14 @@ func TestGetTransactions(t *testing.T) {
 	leaseTx, ok := tx.(*proto.LeaseV1)
 	assert.Equal(t, true, ok)
 	recipient := *leaseTx.Recipient.Address
-	recipientBody, err := recipient.Body()
-	assert.NoError(t, err)
 	sender, err := proto.NewAddressFromPublicKey(server.scheme, leaseTx.SenderPK)
-	assert.NoError(t, err)
-	senderBody, err := sender.Body()
 	assert.NoError(t, err)
 
 	cl := g.NewTransactionsApiClient(conn)
 
 	// By sender.
 	req := &g.TransactionsRequest{
-		Sender: senderBody,
+		Sender: sender.Body(),
 	}
 	stream, err := cl.GetTransactions(ctx, req)
 	assert.NoError(t, err)
@@ -66,7 +62,7 @@ func TestGetTransactions(t *testing.T) {
 
 	// By recipient.
 	req = &g.TransactionsRequest{
-		Recipient: &g.Recipient{Recipient: &g.Recipient_Address{Address: recipientBody}},
+		Recipient: &g.Recipient{Recipient: &g.Recipient_Address{Address: recipient.Body()}},
 	}
 	stream, err = cl.GetTransactions(ctx, req)
 	assert.NoError(t, err)
@@ -78,7 +74,7 @@ func TestGetTransactions(t *testing.T) {
 
 	// By recipient and ID.
 	req = &g.TransactionsRequest{
-		Recipient:      &g.Recipient{Recipient: &g.Recipient_Address{Address: recipientBody}},
+		Recipient:      &g.Recipient{Recipient: &g.Recipient_Address{Address: recipient.Body()}},
 		TransactionIds: [][]byte{id.Bytes()},
 	}
 	stream, err = cl.GetTransactions(ctx, req)
@@ -91,8 +87,8 @@ func TestGetTransactions(t *testing.T) {
 
 	// By sender, recipient and ID.
 	req = &g.TransactionsRequest{
-		Sender:         senderBody,
-		Recipient:      &g.Recipient{Recipient: &g.Recipient_Address{Address: recipientBody}},
+		Sender:         sender.Body(),
+		Recipient:      &g.Recipient{Recipient: &g.Recipient_Address{Address: recipient.Body()}},
 		TransactionIds: [][]byte{id.Bytes()},
 	}
 	stream, err = cl.GetTransactions(ctx, req)
@@ -191,13 +187,9 @@ func TestGetUnconfirmed(t *testing.T) {
 
 	addr, err := proto.NewAddressFromString("3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ")
 	assert.NoError(t, err)
-	addrBody, err := addr.Body()
-	assert.NoError(t, err)
 	sk, pk, err := crypto.GenerateKeyPair([]byte("whatever"))
 	assert.NoError(t, err)
 	senderAddr, err := proto.NewAddressFromPublicKey(server.scheme, pk)
-	assert.NoError(t, err)
-	senderAddrBody, err := senderAddr.Body()
 	assert.NoError(t, err)
 	waves := proto.OptionalAsset{Present: false}
 	tx := proto.NewUnsignedTransferV1(pk, waves, waves, 100, 1, 100, proto.NewRecipientFromAddress(addr), "attachment")
@@ -213,7 +205,7 @@ func TestGetUnconfirmed(t *testing.T) {
 
 	// By sender.
 	req := &g.TransactionsRequest{
-		Sender: senderAddrBody,
+		Sender: senderAddr.Body(),
 	}
 	stream, err := cl.GetUnconfirmed(ctx, req)
 	assert.NoError(t, err)
@@ -227,7 +219,7 @@ func TestGetUnconfirmed(t *testing.T) {
 
 	// By recipient.
 	req = &g.TransactionsRequest{
-		Recipient: &g.Recipient{Recipient: &g.Recipient_Address{Address: addrBody}},
+		Recipient: &g.Recipient{Recipient: &g.Recipient_Address{Address: addr.Body()}},
 	}
 	stream, err = cl.GetUnconfirmed(ctx, req)
 	assert.NoError(t, err)
@@ -253,8 +245,8 @@ func TestGetUnconfirmed(t *testing.T) {
 
 	// By sender, recipient and ID.
 	req = &g.TransactionsRequest{
-		Sender:         senderAddrBody,
-		Recipient:      &g.Recipient{Recipient: &g.Recipient_Address{Address: addrBody}},
+		Sender:         senderAddr.Body(),
+		Recipient:      &g.Recipient{Recipient: &g.Recipient_Address{Address: addr.Body()}},
 		TransactionIds: [][]byte{id},
 	}
 	stream, err = cl.GetUnconfirmed(ctx, req)

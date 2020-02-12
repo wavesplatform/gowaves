@@ -378,6 +378,8 @@ func (c *ProtobufConverter) entry(entry *g.DataTransactionData_DataEntry) DataEn
 		e = &BinaryDataEntry{Key: entry.Key, Value: t.BinaryValue}
 	case *g.DataTransactionData_DataEntry_StringValue:
 		e = &StringDataEntry{Key: entry.Key, Value: t.StringValue}
+	default: // No value means DeleteDataEntry
+		e = &DeleteDataEntry{Key: entry.Key}
 	}
 	return e
 }
