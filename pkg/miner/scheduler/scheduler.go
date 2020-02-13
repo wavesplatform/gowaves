@@ -72,12 +72,18 @@ func (a internalImpl) schedule(state state.State, keyPairs []proto.KeyPair, sche
 	if fairPosActivated {
 		pos = &consensus.FairPosCalculator{}
 	}
+
 	var gsp consensus.GenerationSignatureProvider = &consensus.NXTGenerationSignatureProvider{}
 	if vrfActivated {
 		gsp = &consensus.VRFGenerationSignatureProvider{}
 	}
+	hitSourceHeader, err := state.HeaderByHeight(pos.HeightForHit(confirmedBlockHeight))
+	if err != nil {
+		zap.S().Error(err)
+		return nil
+	}
 
-	zap.S().Infof("Scheduler: confirmedBlock sig %s, gensig: %s, confirmedHeight: %d", confirmedBlock.BlockSignature, confirmedBlock.GenSignature, confirmedBlockHeight)
+	zap.S().Infof("Scheduler: confirmedBlock: sig %s, gensig: %s, confirmedHeight: %d", confirmedBlock.BlockSignature, confirmedBlock.GenSignature, confirmedBlockHeight)
 
 	var out []Emit
 	for _, keyPair := range keyPairs {
@@ -85,7 +91,12 @@ func (a internalImpl) schedule(state state.State, keyPairs []proto.KeyPair, sche
 		if vrfActivated {
 			key = keyPair.Secret
 		}
-		genSig, source, err := gsp.GenerationSignatureAndHitSource(key, confirmedBlock.GenSignature)
+		genSig, err := gsp.GenerationSignature(key, confirmedBlock.GenSignature)
+		if err != nil {
+			zap.S().Error(err)
+			continue
+		}
+		source, err := gsp.HitSource(key, hitSourceHeader.GenSignature)
 		if err != nil {
 			zap.S().Error(err)
 			continue

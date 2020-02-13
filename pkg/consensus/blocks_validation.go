@@ -239,22 +239,22 @@ func (cv *ConsensusValidator) validateBaseTarget(height uint64, header, parent, 
 }
 
 func (cv *ConsensusValidator) validateGeneratorSignature(height uint64, header *proto.BlockHeader) error {
-	var hitSourceBlockHeader *proto.BlockHeader
+	var generationSignatureBlockHeader *proto.BlockHeader
 	vrf, err := cv.state.IsActiveAtHeight(int16(settings.BlockV5), height+1)
 	if err != nil {
 		return errors.Wrapf(err, "failed to validate generation signature")
 	}
+	pos, err := cv.posAlgo()
+	if err != nil {
+		return errors.Wrapf(err, "failed to validate generation signature")
+	}
 	if vrf {
-		pos, err := cv.posAlgo()
+		generationSignatureBlockHeader, err = cv.headerByHeight(pos.HeightForHit(height))
 		if err != nil {
-			return errors.Wrapf(err, "failed to validate generation signature")
-		}
-		hitSourceBlockHeader, err = cv.headerByHeight(pos.HeightForHit(height))
-		if err != nil {
-			return errors.Wrap(err, "failed to validate generation signature")
+			return errors.Wrapf(err, "failed to get block header")
 		}
 	} else {
-		hitSourceBlockHeader, err = cv.headerByHeight(height)
+		generationSignatureBlockHeader, err = cv.headerByHeight(height)
 		if err != nil {
 			return errors.Wrapf(err, "failed to get last block header")
 		}
@@ -263,7 +263,7 @@ func (cv *ConsensusValidator) validateGeneratorSignature(height uint64, header *
 	if err != nil {
 		return errors.Wrap(err, "failed to get generation signature provider")
 	}
-	ok, err := gsp.VerifyGenerationSignature(header.GenPublicKey, hitSourceBlockHeader.GenSignature, header.GenSignature)
+	ok, err := gsp.VerifyGenerationSignature(header.GenPublicKey, generationSignatureBlockHeader.GenSignature, header.GenSignature)
 	if err != nil {
 		return errors.Wrapf(err, "failed to verify generator signature")
 	}
@@ -273,8 +273,20 @@ func (cv *ConsensusValidator) validateGeneratorSignature(height uint64, header *
 	return nil
 }
 
-func (cv *ConsensusValidator) validBlockDelay(source []byte, parentTarget, effectiveBalance uint64) (uint64, error) {
+func (cv *ConsensusValidator) validBlockDelay(height uint64, key crypto.PublicKey, parentTarget, effectiveBalance uint64) (uint64, error) {
 	pos, err := cv.posAlgo()
+	if err != nil {
+		return 0, err
+	}
+	hitSourceBlockHeader, err := cv.headerByHeight(pos.HeightForHit(height))
+	if err != nil {
+		return 0, err
+	}
+	gsp, err := cv.generationSignatureProvider(height + 1)
+	if err != nil {
+		return 0, err
+	}
+	source, err := gsp.HitSource(key, hitSourceBlockHeader.GenSignature)
 	if err != nil {
 		return 0, err
 	}
@@ -300,7 +312,7 @@ func (cv *ConsensusValidator) validateBlockDelay(height uint64, header *proto.Bl
 	if err := cv.validateEffectiveBalance(header, effectiveBalance, height); err != nil {
 		return errors.Errorf("invalid generating balance at height %d: %v\n", height, err)
 	}
-	delay, err := cv.validBlockDelay(header.GenSignature, parent.BaseTarget, effectiveBalance)
+	delay, err := cv.validBlockDelay(height, header.GenPublicKey, parent.BaseTarget, effectiveBalance)
 	if err != nil {
 		return errors.Errorf("failed to calculate valid block delay: %v\n", err)
 	}
