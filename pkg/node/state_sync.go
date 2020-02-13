@@ -10,6 +10,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/libs/nullable"
 	"github.com/wavesplatform/gowaves/pkg/node/peer_manager"
 	. "github.com/wavesplatform/gowaves/pkg/p2p/peer"
+	"github.com/wavesplatform/gowaves/pkg/proto"
 
 	"github.com/wavesplatform/gowaves/pkg/services"
 	"github.com/wavesplatform/gowaves/pkg/state"
@@ -25,30 +26,28 @@ type StateSync struct {
 	subscribe           types.Subscribe
 	interrupt           interrupt
 	scheduler           types.Scheduler
-	interrupter         types.MinerInterrupter
 	syncCh              chan struct{}
 	services            services.Services
 	scoreSender         types.ScoreSender
-	historyBlockApplier HistoryBlockApplier
+	historyBlockApplier types.BlocksApplier
 
 	// need to enable or disable sync
 	mu      sync.Mutex
 	enabled bool
 }
 
-func NewStateSync(services services.Services, interrupter types.MinerInterrupter, scoreSender types.ScoreSender) *StateSync {
+func NewStateSync(services services.Services, scoreSender types.ScoreSender, applier types.BlocksApplier) *StateSync {
 	return &StateSync{
 		peerManager:         services.Peers,
 		stateManager:        services.State,
 		subscribe:           services.Subscribe,
 		interrupt:           make(chan struct{}, 1),
 		scheduler:           services.Scheduler,
-		interrupter:         interrupter,
 		syncCh:              make(chan struct{}, 20),
 		services:            services,
 		enabled:             true,
 		scoreSender:         scoreSender,
-		historyBlockApplier: NewHistoryBlockApplier(services, interrupter, scoreSender),
+		historyBlockApplier: NewHistoryBlockApplier(applier, services, scoreSender),
 	}
 }
 
@@ -219,7 +218,7 @@ func (a *StateSync) downloadBlocks(ctx context.Context, signaturesCh chan nullab
 			}
 		})
 
-	blocksBulk := make(chan [][]byte, 1)
+	blocksBulk := make(chan []*proto.Block, 1)
 
 	wg.Add(1)
 	runner.Named("StateSync.downloadBlocks.CreateBulk", func() {
@@ -248,7 +247,7 @@ func (a *StateSync) downloadBlocks(ctx context.Context, signaturesCh chan nullab
 	}
 }
 
-func applyWorker(ctx context.Context, blockCnt int, blocksBulk chan [][]byte, applier HistoryBlockApplier) error {
+func applyWorker(ctx context.Context, blockCnt int, blocksBulk chan []*proto.Block, applier HistoryBlockApplier) error {
 	for {
 		select {
 		case <-ctx.Done():
@@ -258,7 +257,7 @@ func applyWorker(ctx context.Context, blockCnt int, blocksBulk chan [][]byte, ap
 			if len(blocks) == 0 {
 				return nil
 			}
-			err := applier.ApplyBlocksBytes(blocks)
+			err := applier.Apply(blocks)
 			if err != nil {
 				return err
 			}
@@ -270,8 +269,9 @@ func applyWorker(ctx context.Context, blockCnt int, blocksBulk chan [][]byte, ap
 	}
 }
 
-func createBulkWorker(ctx context.Context, blockCnt int, receivedBlocksCh chan blockBytes, blocksBulk chan []blockBytes) error {
-	blocks := make([][]byte, 0, blockCnt)
+func createBulkWorker(ctx context.Context, blockCnt int, receivedBlocksCh chan blockBytes, blocksBulk chan []*proto.Block) error {
+	defer close(blocksBulk)
+	blocks := make([]*proto.Block, 0, blockCnt)
 	for {
 		select {
 		case <-ctx.Done():
@@ -280,14 +280,19 @@ func createBulkWorker(ctx context.Context, blockCnt int, receivedBlocksCh chan b
 			// it means that we at the end. halt
 			if bts == nil {
 				zap.S().Infof("[%s] StateSync: CreateBulk: exit with null bytes")
-				out := make([][]byte, len(blocks))
+				out := make([]*proto.Block, len(blocks))
 				copy(out, blocks)
 				blocksBulk <- out
 				return nil
 			}
-			blocks = append(blocks, bts)
+			block := &proto.Block{}
+			err := block.UnmarshalBinary(bts)
+			if err != nil {
+				return err
+			}
+			blocks = append(blocks, block)
 			if l := len(blocks); l == blockCnt {
-				out := make([][]byte, l)
+				out := make([]*proto.Block, l)
 				copy(out, blocks)
 				blocksBulk <- out
 				blocks = blocks[:0]

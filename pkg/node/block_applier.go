@@ -7,11 +7,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/types"
 )
 
-type BlockWithBytes struct {
-	Block *proto.Block
-	Bytes []byte
-}
-
 type innerBlockApplier struct {
 	state state.State
 }
@@ -89,7 +84,7 @@ func (a *innerBlockApplier) apply(block *proto.Block) (*proto.Block, proto.Heigh
 	newBlock, err := a.state.AddDeserializedBlock(block)
 	if err != nil {
 		// return back saved blocks
-		err2 := a.state.AddNewDeserializedBlocks(blocks)
+		_, err2 := a.state.AddNewDeserializedBlocks(blocks)
 		if err2 != nil {
 			return nil, 0, errors.Wrap(err2, "failed add new deserialized blocks")
 		}

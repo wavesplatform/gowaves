@@ -27,35 +27,33 @@ type Config struct {
 }
 
 type Node struct {
-	peers            peer_manager.PeerManager
-	state            state.State
-	subscribe        types.Subscribe
-	sync             types.StateSync
-	declAddr         proto.TCPAddr
-	bindAddr         proto.TCPAddr
-	scheduler        types.Scheduler
-	minerInterrupter types.MinerInterrupter
-	utx              types.UtxPool
-	ng               *ng.RuntimeImpl
-	services         services.Services
+	peers     peer_manager.PeerManager
+	state     state.State
+	subscribe types.Subscribe
+	sync      types.StateSync
+	declAddr  proto.TCPAddr
+	bindAddr  proto.TCPAddr
+	scheduler types.Scheduler
+	utx       types.UtxPool
+	ng        *ng.RuntimeImpl
+	services  services.Services
 }
 
-func NewNode(services services.Services, declAddr proto.TCPAddr, bindAddr proto.TCPAddr, ng *ng.RuntimeImpl, interrupter types.MinerInterrupter, sync types.StateSync) *Node {
+func NewNode(services services.Services, declAddr proto.TCPAddr, bindAddr proto.TCPAddr, ng *ng.RuntimeImpl, sync types.StateSync) *Node {
 	if bindAddr.Empty() {
 		bindAddr = declAddr
 	}
 	return &Node{
-		state:            services.State,
-		peers:            services.Peers,
-		subscribe:        services.Subscribe,
-		sync:             sync,
-		declAddr:         declAddr,
-		bindAddr:         bindAddr,
-		scheduler:        services.Scheduler,
-		minerInterrupter: interrupter,
-		utx:              services.UtxPool,
-		ng:               ng,
-		services:         services,
+		state:     services.State,
+		peers:     services.Peers,
+		subscribe: services.Subscribe,
+		sync:      sync,
+		declAddr:  declAddr,
+		bindAddr:  bindAddr,
+		scheduler: services.Scheduler,
+		utx:       services.UtxPool,
+		ng:        ng,
+		services:  services,
 	}
 }
 

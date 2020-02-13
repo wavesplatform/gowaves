@@ -13,7 +13,7 @@ import (
 type State struct {
 	storage        *storage
 	prevAddedBlock *proto.Block
-	applier        types.BlockApplier
+	applier        types.BlocksApplier
 	state          state.State
 	mu             sync.Mutex
 	knownBlocks    knownBlocks
@@ -23,7 +23,7 @@ func NewState(services services.Services) *State {
 	return &State{
 		mu:          sync.Mutex{},
 		storage:     newStorage(),
-		applier:     services.BlockApplier,
+		applier:     services.BlocksApplier,
 		state:       services.State,
 		knownBlocks: knownBlocks{},
 	}
@@ -91,13 +91,13 @@ func (a *State) AddBlock(block *proto.Block) {
 		}
 	}
 
-	err = a.applier.Apply(block)
+	err = a.applier.Apply([]*proto.Block{block})
 	if err != nil {
 		a.storage.Pop()
 
 		// return prev block, if possible
 		if a.prevAddedBlock != nil {
-			err := a.applier.Apply(a.prevAddedBlock)
+			err := a.applier.Apply([]*proto.Block{a.prevAddedBlock})
 			if err != nil {
 				zap.S().Error("NG: can't apply previous added block, maybe broken ngState ", err)
 			}
@@ -163,7 +163,7 @@ func (a *State) AddMicroblock(micro *proto.MicroBlock) {
 	locked.Unlock()
 	zap.S().Debug("After the rollback unlock")
 
-	err = a.applier.Apply(block)
+	err = a.applier.Apply([]*proto.Block{block})
 	if err != nil {
 		zap.S().Error(err)
 		// remove prev added micro

@@ -12,7 +12,7 @@ type Services struct {
 	State              state.State
 	Peers              peer_manager.PeerManager
 	Scheduler          types.Scheduler
-	BlockApplier       types.BlockApplier
+	BlocksApplier      types.BlocksApplier
 	UtxPool            types.UtxPool
 	Scheme             proto.Scheme
 	BlockAddedNotifier types.Handler
