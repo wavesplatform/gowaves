@@ -882,12 +882,17 @@ func (s *stateManager) blocksToBinary(blocks []*proto.Block) ([][]byte, error) {
 	return blocksBytes, nil
 }
 
-func (s *stateManager) AddNewDeserializedBlocks(blocks []*proto.Block) error {
-	blocksBytes, err := s.blocksToBinary(blocks)
+func (s *stateManager) AddNewDeserializedBlocks(blocks []*proto.Block) (*proto.Block, error) {
+	// Make sure appender doesn't store any diffs from previous validations (e.g. UTX).
+	s.appender.reset()
+	lastBlock, err := s.addBlocks(blocks, false)
 	if err != nil {
-		return wrapErr(SerializationError, err)
+		if err := s.undoBlockAddition(); err != nil {
+			zap.S().Fatalf("Failed to add blocks and can not rollback to previous state after failure: %v", err)
+		}
+		return nil, err
 	}
-	return s.AddNewBlocks(blocksBytes)
+	return lastBlock, nil
 }
 
 func (s *stateManager) AddOldBlocks(blockBytes [][]byte) error {

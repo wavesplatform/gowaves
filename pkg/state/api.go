@@ -127,7 +127,7 @@ type StateModifier interface {
 	// Use it when blocks are logically new.
 	AddNewBlocks(blocks [][]byte) error
 	// AddNewDeserializedBlocks marshals blocks to binary and calls AddNewBlocks().
-	AddNewDeserializedBlocks(blocks []*proto.Block) error
+	AddNewDeserializedBlocks(blocks []*proto.Block) (*proto.Block, error)
 	// AddOldBlocks adds batch of old blocks to state.
 	// Use it when importing historical blockchain.
 	// It is faster than AddNewBlocks but it is only safe when importing from scratch when no rollbacks are possible at all.

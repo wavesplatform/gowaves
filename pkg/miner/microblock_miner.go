@@ -82,7 +82,7 @@ func (a *MicroblockMiner) Mine(ctx context.Context, t proto.Timestamp, k proto.K
 		return
 	}
 
-	err = a.services.BlockApplier.Apply(b)
+	err = a.services.BlocksApplier.Apply([]*proto.Block{b})
 	if err != nil {
 		zap.S().Errorf("Miner: applying created block: %q, timestamp %d", err, t)
 		return
@@ -265,7 +265,7 @@ func (a *MicroblockMiner) mineMicro(ctx context.Context, rest restLimits, blockA
 	_ = a.state.RollbackTo(blockApplyOn.Parent)
 	locked.Unlock()
 
-	err = a.services.BlockApplier.Apply(newBlock)
+	err = a.services.BlocksApplier.Apply([]*proto.Block{newBlock})
 	if err != nil {
 		zap.S().Error(err)
 		return

@@ -321,3 +321,15 @@ func TestBlock_Clone(t *testing.T) {
 	b1.Height = 100500
 	require.NotEqual(t, b1, b2)
 }
+
+// TODO, empty block should not marshal, or unmarshal successfully
+func TestEmptyBlockMarshall(t *testing.T) {
+	t.Skip()
+	b1 := Block{}
+	bts, err := b1.MarshalBinary()
+	require.NoError(t, err)
+
+	b2 := Block{}
+	err = b2.UnmarshalBinary(bts)
+	require.NoError(t, err)
+}
