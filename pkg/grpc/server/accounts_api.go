@@ -113,6 +113,9 @@ func (s *Server) GetDataEntries(req *g.DataRequest, srv g.AccountsApi_GetDataEnt
 		if err != nil {
 			return status.Errorf(codes.NotFound, err.Error())
 		}
+		if entry.GetValueType() == proto.DataDelete { // Send "Not Found" if entry was removed
+			return status.Errorf(codes.NotFound, "entry removed")
+		}
 		res := &g.DataEntryResponse{Address: req.Address, Entry: entry.ToProtobuf()}
 		if err := srv.Send(res); err != nil {
 			return status.Errorf(codes.Internal, err.Error())
@@ -123,6 +126,9 @@ func (s *Server) GetDataEntries(req *g.DataRequest, srv g.AccountsApi_GetDataEnt
 		return status.Errorf(codes.NotFound, err.Error())
 	}
 	for _, entry := range entries {
+		if entry.GetValueType() == proto.DataDelete {
+			continue // Do not send removed entries
+		}
 		res := &g.DataEntryResponse{Address: req.Address, Entry: entry.ToProtobuf()}
 		if err := srv.Send(res); err != nil {
 			return status.Errorf(codes.Internal, err.Error())
