@@ -4,6 +4,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/libs/ntptime"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 
 	"testing"
@@ -34,7 +35,7 @@ func TestApply_NewBlock(t *testing.T) {
 
 	mockState, err := NewMockStateManager(genesis)
 	require.NoError(t, err)
-	ba := innerBlocksApplier{mockState}
+	ba := innerBlocksApplier{mockState, ntptime.Stub{}}
 	_, height, err := ba.apply([]*proto.Block{block})
 	require.NoError(t, err)
 	require.EqualValues(t, 2, height)

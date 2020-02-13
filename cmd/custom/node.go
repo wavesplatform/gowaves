@@ -147,7 +147,7 @@ func main() {
 	utx := utxpool.New(10000, utxpool.NewValidator(state, ntptm))
 
 	stateChanged := state_changed.NewStateChanged()
-	blockApplier := node.NewBlocksApplier(state)
+	blockApplier := node.NewBlocksApplier(state, ntptm)
 
 	services := services.Services{
 		State:              state,

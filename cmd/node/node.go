@@ -147,7 +147,7 @@ func main() {
 
 	scheduler := scheduler.NewScheduler(state, keyPairs, cfg, ntptm)
 	stateChanged := state_changed.NewStateChanged()
-	blockApplier := node.NewBlocksApplier(state)
+	blockApplier := node.NewBlocksApplier(state, ntptm)
 
 	scheme, err := proto.NetworkSchemeByType(*blockchainType)
 	if err != nil {
@@ -182,7 +182,7 @@ func main() {
 	peerManager.SetConnectPeers(!(*connectPeers == "false"))
 	go miner.Run(ctx, mine, scheduler)
 
-	stateSync := node.NewStateSync(services, scoreSender, node.NewBlocksApplier(state))
+	stateSync := node.NewStateSync(services, scoreSender, node.NewBlocksApplier(state, ntptm))
 
 	stateChanged.AddHandler(state_changed.NewFuncHandler(func() {
 		scheduler.Reschedule()

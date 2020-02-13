@@ -1,15 +1,18 @@
 package node
 
 import (
+	"fmt"
 	"math/big"
 
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/state"
+	"github.com/wavesplatform/gowaves/pkg/types"
 )
 
 type innerBlocksApplier struct {
 	state state.State
+	tm    types.Time
 }
 
 func (a *innerBlocksApplier) apply(blocks []*proto.Block) (*proto.Block, proto.Height, error) {
@@ -95,6 +98,9 @@ func (a *innerBlocksApplier) apply(blocks []*proto.Block) (*proto.Block, proto.H
 		}
 		return nil, 0, errors.Wrapf(err, "failed add deserialized blocks, first block sig %q", firstBlock.BlockSignature)
 	}
+	if err := MaybeEnableExtendedApi(a.state, a.tm); err != nil {
+		panic(fmt.Sprintf("[*] BlockDownloader: MaybeEnableExtendedApi(): %v. Failed to persist address transactions for API after successfully applying valid blocks.", err))
+	}
 
 	return newBlock, parentHeight + proto.Height(len(blocks)), nil
 }
@@ -104,11 +110,12 @@ type BlocksApplier struct {
 	inner innerBlocksApplier
 }
 
-func NewBlocksApplier(state state.State) *BlocksApplier {
+func NewBlocksApplier(state state.State, tm types.Time) *BlocksApplier {
 	return &BlocksApplier{
 		state: state,
 		inner: innerBlocksApplier{
 			state: state,
+			tm:    tm,
 		},
 	}
 }
