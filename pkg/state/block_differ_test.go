@@ -45,7 +45,7 @@ func genBlocks(t *testing.T, to *blockDifferTestObjects) (*proto.Block, *proto.B
 
 	// Create and sign child block.
 	txsRepr = proto.NewReprFromTransactions([]proto.Transaction{createIssueV1(t, 1000)})
-	genSig, _, err = to.gsp.GenerationSignatureAndHitSource(testGlobal.minerInfo.pk, parent.GenSignature[:])
+	genSig, err = to.gsp.GenerationSignature(testGlobal.minerInfo.pk, parent.GenSignature[:])
 	require.NoError(t, err, "GeneratorSignature() failed")
 	child, err := proto.CreateBlock(txsRepr, 1565694219944, parent.BlockSignature, testGlobal.minerInfo.pk, proto.NxtConsensus{BaseTarget: 66, GenSignature: genSig}, proto.NgBlockVersion, nil, -1)
 	require.NoError(t, err, "CreateBlock() failed")
@@ -171,7 +171,7 @@ func genTransferWithWavesFee(t *testing.T) *proto.TransferV2 {
 
 func genBlockWithSingleTransaction(t *testing.T, prevID crypto.Signature, prevGenSig []byte, to *blockDifferTestObjects) *proto.Block {
 	txs := proto.NewReprFromTransactions([]proto.Transaction{genTransferWithWavesFee(t)})
-	genSig, _, err := to.gsp.GenerationSignatureAndHitSource(testGlobal.minerInfo.pk, prevGenSig)
+	genSig, err := to.gsp.GenerationSignature(testGlobal.minerInfo.pk, prevGenSig)
 	require.NoError(t, err)
 	block, err := proto.CreateBlock(txs, 1565694219944, prevID, testGlobal.minerInfo.pk, proto.NxtConsensus{BaseTarget: 66, GenSignature: genSig}, proto.RewardBlockVersion, nil, -1)
 	require.NoError(t, err)
