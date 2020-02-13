@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/node"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/services"
 )
 
 func TestApp_PeersAll(t *testing.T) {
@@ -13,7 +14,7 @@ func TestApp_PeersAll(t *testing.T) {
 		Peers_: []proto.TCPAddr{proto.NewTCPAddrFromString("127.0.0.1:6868")},
 	}
 
-	app, err := NewApp("key", s, nil, nil, nil, nil)
+	app, err := NewApp("key", nil, nil, services.Services{State: s})
 	require.NoError(t, err)
 
 	rs2, err := app.PeersAll()

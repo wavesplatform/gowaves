@@ -40,7 +40,7 @@ func EstablishConnection(ctx context.Context, params EstablishParams, v proto.Ve
 
 	connection, handshake, err := p.connect(ctx, c, v)
 	if err != nil {
-		zap.S().Info(err, params.Address)
+		zap.S().Debug(err, params.Address)
 		return errors.Wrapf(err, "%q", params.Address)
 	}
 	p.connection = connection

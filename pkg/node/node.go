@@ -2,6 +2,7 @@ package node
 
 import (
 	"context"
+	"fmt"
 	"math/big"
 	"net"
 	"time"
@@ -36,6 +37,7 @@ type Node struct {
 	minerInterrupter types.MinerInterrupter
 	utx              types.UtxPool
 	ng               *ng.RuntimeImpl
+	services         services.Services
 }
 
 func NewNode(services services.Services, declAddr proto.TCPAddr, bindAddr proto.TCPAddr, ng *ng.RuntimeImpl, interrupter types.MinerInterrupter, sync types.StateSync) *Node {
@@ -53,6 +55,7 @@ func NewNode(services services.Services, declAddr proto.TCPAddr, bindAddr proto.
 		minerInterrupter: interrupter,
 		utx:              services.UtxPool,
 		ng:               ng,
+		services:         services,
 	}
 }
 
@@ -96,7 +99,7 @@ func (a *Node) HandleProtoMessage(mess peer.ProtoMessage) {
 		a.handlePBTransactionMessage(mess.ID, t)
 
 	default:
-		zap.S().Errorf("unknown proto Message %+v", mess.Message)
+		zap.S().Errorf("unknown proto Message %T", mess.Message)
 	}
 }
 
@@ -122,7 +125,7 @@ func (a *Node) handlePBTransactionMessage(_ peer.Peer, mess *proto.PBTransaction
 		zap.S().Debug(err)
 		return
 	}
-	a.utx.AddWithBytes(t, util.Dup(mess.Transaction))
+	_ = a.utx.AddWithBytes(t, util.Dup(mess.Transaction))
 }
 
 func (a *Node) handleTransactionMessage(_ peer.Peer, mess *proto.TransactionMessage) {
@@ -131,7 +134,7 @@ func (a *Node) handleTransactionMessage(_ peer.Peer, mess *proto.TransactionMess
 		zap.S().Debug(err)
 		return
 	}
-	a.utx.AddWithBytes(t, util.Dup(mess.Transaction))
+	_ = a.utx.AddWithBytes(t, util.Dup(mess.Transaction))
 }
 
 func (a *Node) handlePeersMessage(_ peer.Peer, peers *proto.PeersMessage) {
@@ -183,7 +186,7 @@ func (a *Node) AskPeers() {
 
 func (a *Node) handlePeerError(p peer.Peer, err error) {
 	zap.S().Debug(err)
-	a.peers.Disconnect(p)
+	a.peers.Suspend(p, err.Error())
 }
 
 func (a *Node) Close() {
@@ -330,7 +333,7 @@ func (a *Node) handleSignaturesMessage(p peer.Peer, message *proto.SignaturesMes
 	a.subscribe.Receive(p, message)
 }
 
-func RunNode(ctx context.Context, n *Node, p peer.Parent) {
+func (n *Node) Run(ctx context.Context, p peer.Parent) {
 	go n.sync.Run(ctx)
 
 	go func() {
@@ -386,7 +389,9 @@ func RunNode(ctx context.Context, n *Node, p peer.Parent) {
 		case <-ctx.Done():
 			return
 		case m := <-p.MessageCh:
-			n.HandleProtoMessage(m)
+			n.services.LoggableRunner.Named(fmt.Sprintf("Node.Run.Handler.%T", m.Message), func() {
+				n.HandleProtoMessage(m)
+			})
 		}
 	}
 }

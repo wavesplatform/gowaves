@@ -33,7 +33,6 @@ func (a *Subscribe) Receive(p types.ID, responseMessage proto.Message) bool {
 		default:
 			zap.S().Info("Subscribe.Receive ch is full")
 		}
-
 		return true
 	}
 	a.mu.Unlock()

@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
+	"github.com/wavesplatform/gowaves/pkg/libs/ntptime"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 )
@@ -70,8 +71,12 @@ func stateParams() StateParams {
 	s := DefaultStorageParams()
 	s.DbParams.Store = keyvalue.NoOpStore{}
 	return StateParams{
-		StorageParams:    s,
-		ValidationParams: ValidationParams{runtime.NumCPU() * 2}}
+		StorageParams: s,
+		ValidationParams: ValidationParams{
+			VerificationGoroutinesNum: runtime.NumCPU() * 2,
+			Time:                      ntptime.Stub{},
+		},
+	}
 }
 
 func TestHeadersValidation(t *testing.T) {

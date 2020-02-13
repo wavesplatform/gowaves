@@ -49,8 +49,11 @@ func normalizeBaseTarget(baseTarget, targetBlockDelaySeconds uint64) uint64 {
 }
 
 type GenerationSignatureProvider interface {
-	// GenerationSignatureAndHitSource calculates generation signature and hit source bytes from given message using secret or public key of block's generator.
-	GenerationSignatureAndHitSource(key [crypto.KeySize]byte, msg []byte) ([]byte, []byte, error)
+	// GenerationSignature calculates generation signature from given message using secret or public key of block's generator.
+	GenerationSignature(key [crypto.KeySize]byte, msg []byte) ([]byte, error)
+
+	// HitSource calculates hit source bytes for given message and key.
+	HitSource(key [crypto.KeySize]byte, msg []byte) ([]byte, error)
 
 	// VerifyGenerationSignature checks that generation signature is valid for given message and generator's public key.
 	// It returns verification result and error if any.
@@ -63,22 +66,30 @@ type NXTGenerationSignatureProvider struct {
 }
 
 // Only generator's public key is used then building NXT generation signature.
-func (p *NXTGenerationSignatureProvider) GenerationSignatureAndHitSource(key [crypto.KeySize]byte, msg []byte) ([]byte, []byte, error) {
+func (p *NXTGenerationSignatureProvider) GenerationSignature(key [crypto.KeySize]byte, msg []byte) ([]byte, error) {
+	return p.signature(key, msg)
+}
+
+func (p *NXTGenerationSignatureProvider) HitSource(key [crypto.KeySize]byte, msg []byte) ([]byte, error) {
+	return p.signature(key, msg)
+}
+
+func (p *NXTGenerationSignatureProvider) signature(key [crypto.KeySize]byte, msg []byte) ([]byte, error) {
 	if len(msg) < crypto.DigestSize {
-		return nil, nil, errors.New("invalid message length")
+		return nil, errors.New("invalid message length")
 	}
 	s := make([]byte, crypto.DigestSize*2)
 	copy(s[:crypto.DigestSize], msg[:crypto.DigestSize])
 	copy(s[crypto.DigestSize:], key[:])
 	d, err := crypto.FastHash(s)
 	if err != nil {
-		return nil, nil, errors.Wrap(err, "NXT generation signature provider")
+		return nil, errors.Wrap(err, "NXT generation signature provider")
 	}
-	return d[:], d[:], nil
+	return d[:], nil
 }
 
 func (p *NXTGenerationSignatureProvider) VerifyGenerationSignature(pk crypto.PublicKey, msg, sig []byte) (bool, error) {
-	calculated, _, err := p.GenerationSignatureAndHitSource(pk, msg)
+	calculated, err := p.GenerationSignature(pk, msg)
 	if err != nil {
 		return false, errors.Wrap(err, "NXT generation signature provider")
 	}
@@ -93,13 +104,17 @@ func (p *NXTGenerationSignatureProvider) VerifyGenerationSignature(pk crypto.Pub
 type VRFGenerationSignatureProvider struct {
 }
 
-func (p *VRFGenerationSignatureProvider) GenerationSignatureAndHitSource(key [crypto.KeySize]byte, msg []byte) ([]byte, []byte, error) {
+func (p *VRFGenerationSignatureProvider) GenerationSignature(key [crypto.KeySize]byte, msg []byte) ([]byte, error) {
 	proof, err := crypto.SignVRF(key, msg)
 	if err != nil {
-		return nil, nil, errors.Wrapf(err, "VRF generation signature provider")
+		return nil, errors.Wrapf(err, "VRF generation signature provider")
 	}
+	return proof, nil
+}
+
+func (p *VRFGenerationSignatureProvider) HitSource(key [crypto.KeySize]byte, msg []byte) ([]byte, error) {
 	vrf := crypto.ComputeVRF(key, msg)
-	return proof, vrf[:], nil
+	return vrf[:], nil
 }
 
 // Verify checks that provided signature is valid against given generator's public key and message.
