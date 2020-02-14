@@ -22,7 +22,14 @@ func MaybeEnableExtendedApi(state state.State, time types.Time) error {
 	if err != nil {
 		return err
 	}
-	now := proto.NewTimestampFromTime(time.Now())
+	return maybeEnableExtendedApi(state, lastBlock, proto.NewTimestampFromTime(time.Now()))
+}
+
+type startProvidingExtendedApi interface {
+	StartProvidingExtendedApi() error
+}
+
+func maybeEnableExtendedApi(state startProvidingExtendedApi, lastBlock *proto.Block, now proto.Timestamp) error {
 	provideExtended := false
 	if lastBlock.Timestamp > now {
 		provideExtended = true

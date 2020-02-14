@@ -25,15 +25,16 @@ type Emit struct {
 }
 
 type SchedulerImpl struct {
-	keyPairs []proto.KeyPair
-	mine     chan Emit
-	cancel   []func()
-	settings *settings.BlockchainSettings
-	mu       sync.Mutex
-	internal internal
-	emits    []Emit
-	state    state.State
-	tm       types.Time
+	keyPairs  []proto.KeyPair
+	mine      chan Emit
+	cancel    []func()
+	settings  *settings.BlockchainSettings
+	mu        sync.Mutex
+	internal  internal
+	emits     []Emit
+	state     state.State
+	tm        types.Time
+	consensus types.MinerConsensus
 }
 
 type internal interface {
@@ -144,19 +145,20 @@ func (a internalImpl) schedule(state state.State, keyPairs []proto.KeyPair, sche
 	return out
 }
 
-func NewScheduler(state state.State, pairs []proto.KeyPair, settings *settings.BlockchainSettings, tm types.Time) *SchedulerImpl {
-	return newScheduler(internalImpl{}, state, pairs, settings, tm)
+func NewScheduler(state state.State, pairs []proto.KeyPair, settings *settings.BlockchainSettings, tm types.Time, consensus types.MinerConsensus) *SchedulerImpl {
+	return newScheduler(internalImpl{}, state, pairs, settings, tm, consensus)
 }
 
-func newScheduler(internal internal, state state.State, pairs []proto.KeyPair, settings *settings.BlockchainSettings, tm types.Time) *SchedulerImpl {
+func newScheduler(internal internal, state state.State, pairs []proto.KeyPair, settings *settings.BlockchainSettings, tm types.Time, consensus types.MinerConsensus) *SchedulerImpl {
 	return &SchedulerImpl{
-		keyPairs: pairs,
-		mine:     make(chan Emit, 1),
-		settings: settings,
-		internal: internal,
-		state:    state,
-		mu:       sync.Mutex{},
-		tm:       tm,
+		keyPairs:  pairs,
+		mine:      make(chan Emit, 1),
+		settings:  settings,
+		internal:  internal,
+		state:     state,
+		mu:        sync.Mutex{},
+		tm:        tm,
+		consensus: consensus,
 	}
 }
 
@@ -168,6 +170,11 @@ func (a *SchedulerImpl) Reschedule() {
 	if len(a.keyPairs) == 0 {
 		return
 	}
+
+	if !a.consensus.IsMiningAllowed() {
+		return
+	}
+
 	state := a.state
 
 	mu := state.Mutex()

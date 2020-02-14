@@ -63,28 +63,21 @@ func main() {
 
 	zap.S().Info("connectPeers ", *connectPeers)
 
-	ctx, cancel := context.WithCancel(context.Background())
-
 	conf := &settings.NodeSettings{}
 	if err := settings.ApplySettings(conf, FromArgs(), settings.FromJavaEnviron); err != nil {
 		zap.S().Error(err)
-		cancel()
 		return
 	}
-
-	zap.S().Info("conf", conf)
 
 	err = conf.Validate()
 	if err != nil {
 		zap.S().Error(err)
-		cancel()
 		return
 	}
 
 	cfg, err := settings.BlockchainSettingsByTypeName(*blockchainType)
 	if err != nil {
 		zap.S().Error(err)
-		cancel()
 		return
 	}
 
@@ -93,21 +86,12 @@ func main() {
 		path, err = util.GetStatePath()
 		if err != nil {
 			zap.S().Error(err)
-			cancel()
 			return
 		}
 	}
 
-	features, err := util.ParseVoteFeatures(*minerVoteFeatures)
+	reward, err := miner.ParseReward(*reward)
 	if err != nil {
-		cancel()
-		zap.S().Error(err)
-		return
-	}
-
-	reward, err := util.ParseReward(*reward)
-	if err != nil {
-		cancel()
 		zap.S().Error(err)
 		return
 	}
@@ -115,9 +99,11 @@ func main() {
 	ntptm, err := ntptime.TryNew("pool.ntp.org", 10)
 	if err != nil {
 		zap.S().Error(err)
-		cancel()
 		return
 	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+
 	go ntptm.Run(ctx, 2*time.Minute)
 
 	params := state.DefaultStateParams()
@@ -128,6 +114,20 @@ func main() {
 	if err != nil {
 		zap.S().Error(err)
 		cancel()
+		return
+	}
+
+	features, err := miner.ParseVoteFeatures(*minerVoteFeatures)
+	if err != nil {
+		cancel()
+		zap.S().Error(err)
+		return
+	}
+
+	features, err = miner.ValidateFeaturesWithLock(state, features)
+	if err != nil {
+		cancel()
+		zap.S().Error(err)
 		return
 	}
 
@@ -161,7 +161,7 @@ func main() {
 		keyPairs = append(keyPairs, proto.MustKeyPair([]byte(*seed)))
 	}
 
-	scheduler := scheduler.NewScheduler(state, keyPairs, cfg, ntptm)
+	scheduler := scheduler.NewScheduler(state, keyPairs, cfg, ntptm, scheduler.NewMinerConsensus(peerManager, 1))
 	stateChanged := state_changed.NewStateChanged()
 	blockApplier := node.NewBlocksApplier(state, ntptm)
 

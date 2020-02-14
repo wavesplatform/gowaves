@@ -16,7 +16,7 @@ func (a mockInternal) schedule(state state.State, keyPairs []proto.KeyPair, sche
 }
 
 func TestSchedulerImpl_Emits(t *testing.T) {
-	sch := newScheduler(mockInternal{}, nil, nil, nil, nil)
+	sch := newScheduler(mockInternal{}, nil, nil, nil, nil, nil)
 	sch.Reschedule()
 	rs := sch.Emits()
 

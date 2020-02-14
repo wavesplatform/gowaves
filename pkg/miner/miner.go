@@ -15,8 +15,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"github.com/wavesplatform/gowaves/pkg/types"
-	"github.com/wavesplatform/gowaves/pkg/util"
-	"go.uber.org/atomic"
 	"go.uber.org/zap"
 )
 
@@ -32,33 +30,31 @@ type MicroblockMiner struct {
 	state       state.State
 	peer        peer_manager.PeerManager
 	scheduler   types.Scheduler
-	interrupt   *atomic.Bool
 	constraints Constraints
 	ngRuntime   ng.Runtime
 	scheme      proto.Scheme
 	services    services.Services
-	features    util.Features
+	features    Features
 	// reward vote 600000000
 	reward int64
 }
 
-func NewMicroblockMiner(services services.Services, ngRuntime ng.Runtime, scheme proto.Scheme, features util.Features, reward int64) *MicroblockMiner {
+func NewMicroblockMiner(services services.Services, ngRuntime ng.Runtime, scheme proto.Scheme, features Features, reward int64) *MicroblockMiner {
 	return &MicroblockMiner{
 		scheduler:   services.Scheduler,
 		utx:         services.UtxPool,
 		state:       services.State,
 		peer:        services.Peers,
-		interrupt:   atomic.NewBool(false),
 		constraints: DefaultConstraints(),
 		ngRuntime:   ngRuntime,
 		scheme:      scheme,
 		services:    services,
 		features:    features,
+		reward:      reward,
 	}
 }
 
 func (a *MicroblockMiner) Mine(ctx context.Context, t proto.Timestamp, k proto.KeyPair, parent crypto.Signature, baseTarget types.BaseTarget, GenSignature []byte) {
-	a.interrupt.Store(false)
 	defer a.scheduler.Reschedule()
 
 	nxt := proto.NxtConsensus{
@@ -66,28 +62,22 @@ func (a *MicroblockMiner) Mine(ctx context.Context, t proto.Timestamp, k proto.K
 		GenSignature: GenSignature,
 	}
 
-	pub := k.Public
-	locked := a.state.Mutex().RLock()
-	v, err := blockVersion(a.state)
-	locked.Unlock()
-	if err != nil {
-		zap.S().Error(err)
-		return
-	}
-	// reward vote 600000000
-	features := a.features.Features()
-	b, err := proto.CreateBlock(proto.NewReprFromTransactions(nil), t, parent, pub, nxt, v, features, a.reward)
-	if err != nil {
-		zap.S().Error(err)
-		return
-	}
-
-	priv := k.Secret
-	err = b.Sign(priv)
-	if err != nil {
-		zap.S().Error(err)
-		return
-	}
+	b, err := func() (*proto.Block, error) {
+		defer a.state.Mutex().RLock().Unlock()
+		v, err := blockVersion(a.state)
+		if err != nil {
+			return nil, err
+		}
+		validatedFeatured, err := ValidateFeaturesWithoutLock(a.state, a.features)
+		if err != nil {
+			return nil, err
+		}
+		b, err := MineBlock(v, nxt, k, validatedFeatured, t, parent, a.reward)
+		if err != nil {
+			return nil, err
+		}
+		return b, nil
+	}()
 
 	err = a.services.BlocksApplier.Apply([]*proto.Block{b})
 	if err != nil {
@@ -101,7 +91,7 @@ func (a *MicroblockMiner) Mine(ctx context.Context, t proto.Timestamp, k proto.K
 		return
 	}
 
-	locked = a.state.Mutex().RLock()
+	locked := a.state.Mutex().RLock()
 	curScore, err := a.state.CurrentScore()
 	locked.Unlock()
 	if err != nil {
@@ -129,10 +119,6 @@ func (a *MicroblockMiner) Mine(ctx context.Context, t proto.Timestamp, k proto.K
 		MaxTxsSizeInBytes:           a.constraints.MaxTxsSizeInBytes - 4,
 	}
 	go a.mineMicro(ctx, rest, b, ng.NewBlocksFromBlock(b), k, a.scheme)
-}
-
-func (a *MicroblockMiner) Interrupt() {
-	a.interrupt.Store(true)
 }
 
 func (a *MicroblockMiner) mineMicro(ctx context.Context, rest restLimits, blockApplyOn *proto.Block, blocks ng.Blocks, keyPair proto.KeyPair, scheme proto.Scheme) {
