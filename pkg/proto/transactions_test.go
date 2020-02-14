@@ -4640,7 +4640,6 @@ func TestDataWithProofsValidations(t *testing.T) {
 	seOk := &StringDataEntry{Key: "string-entry", Value: "some string value, should be ok"}
 	seFail := &StringDataEntry{Key: "fail-string-entry", Value: strings.Repeat("too-big-value", 2521)}
 	deOk := &BinaryDataEntry{Key: "binary-entry", Value: []byte{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09}}
-	deBig := &BinaryDataEntry{Key: "binary-entry", Value: bytes.Repeat([]byte{0x00}, 1536)}
 	tests := []struct {
 		entries DataEntries
 		fee     uint64
@@ -4653,7 +4652,6 @@ func TestDataWithProofsValidations(t *testing.T) {
 		{[]DataEntry{ieFail}, 12345, "at least one of the DataWithProofs entry is not valid: empty entry key"},
 		{[]DataEntry{beFail, ieFail}, 12345, "at least one of the DataWithProofs entry is not valid: key is too large"},
 		{[]DataEntry{seFail}, 12345, "at least one of the DataWithProofs entry is not valid: value is too large"},
-		{repeat(deBig, 100), 12345, "total size of DataWithProofs transaction is bigger than 153600 bytes"},
 	}
 	for _, tc := range tests {
 		spk, err := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
@@ -4662,6 +4660,51 @@ func TestDataWithProofsValidations(t *testing.T) {
 		tx.Entries = tc.entries
 		v, err := tx.Valid()
 		assert.False(t, v)
+		assert.EqualError(t, err, tc.err, fmt.Sprintf("expected: %s", tc.err))
+	}
+}
+
+func TestDataWithProofsSizeLimit(t *testing.T) {
+	repeat := func(e *BinaryDataEntry, n int) DataEntries {
+		r := DataEntries{}
+		for i := 0; i < n; i++ {
+			ue := &BinaryDataEntry{}
+			ue.Key = fmt.Sprintf("%s-%d", e.Key, i)
+			ue.Value = e.Value
+			r = append(r, ue)
+		}
+		return r
+	}
+	seed, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
+	sk, _, err := crypto.GenerateKeyPair(seed)
+	require.NoError(t, err)
+	deBig := &BinaryDataEntry{Key: "binary-entry", Value: bytes.Repeat([]byte{0x00}, 1536)}
+	tests := []struct {
+		entries DataEntries
+		fee     uint64
+		err     string
+	}{
+		{repeat(deBig, 100), 12345, "total size of DataWithProofs transaction is bigger than 153600 bytes"},
+	}
+	for _, tc := range tests {
+		spk, err := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
+		require.NoError(t, err)
+		tx := NewUnsignedData(spk, tc.fee, 0)
+		tx.Entries = tc.entries
+		err = tx.Sign(sk)
+		require.NoError(t, err)
+
+		// Test custom format.
+		txBytes, err := tx.MarshalBinary()
+		assert.NoError(t, err)
+		var tx2 DataWithProofs
+		err = tx2.UnmarshalBinary(txBytes)
+		assert.EqualError(t, err, tc.err, fmt.Sprintf("expected: %s", tc.err))
+
+		// Test Protobuf.
+		txBytes, err = tx.MarshalSignedToProtobuf(MainNetScheme)
+		assert.NoError(t, err)
+		err = tx2.UnmarshalSignedFromProtobuf(txBytes)
 		assert.EqualError(t, err, tc.err, fmt.Sprintf("expected: %s", tc.err))
 	}
 }

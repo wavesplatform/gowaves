@@ -2899,7 +2899,6 @@ func (tx DataWithProofs) Valid() (bool, error) {
 		return false, errors.Errorf("number of DataWithProofs entries is bigger than %d", maxEntries)
 	}
 	keys := make(map[string]struct{})
-	size := dataWithProofsFixedBodyLen + tx.Proofs.BinarySize()
 	for _, e := range tx.Entries {
 		ok, err := e.Valid()
 		if !ok {
@@ -2910,10 +2909,6 @@ func (tx DataWithProofs) Valid() (bool, error) {
 			return false, errors.New("duplicate keys")
 		}
 		keys[e.GetKey()] = struct{}{}
-		size += e.BinarySize()
-	}
-	if size > maxDataWithProofsBytes {
-		return false, errors.Errorf("total size of DataWithProofs transaction is bigger than %d bytes", maxDataWithProofsBytes)
 	}
 	if tx.Fee == 0 {
 		return false, errors.New("fee should be positive")
@@ -3097,6 +3092,9 @@ func (tx *DataWithProofs) MarshalBinary() ([]byte, error) {
 
 //UnmarshalBinary reads the transaction from the bytes.
 func (tx *DataWithProofs) UnmarshalBinary(data []byte) error {
+	if len(data) > maxDataWithProofsBytes {
+		return errors.Errorf("total size of DataWithProofs transaction is bigger than %d bytes", maxDataWithProofsBytes)
+	}
 	if l := len(data); l < dataWithProofsMinLen {
 		return errors.Errorf("not enough data for DataWithProofs transaction, expected not less then %d, received %d", dataWithProofsMinLen, l)
 	}
@@ -3129,6 +3127,9 @@ func (tx *DataWithProofs) MarshalToProtobuf(scheme Scheme) ([]byte, error) {
 }
 
 func (tx *DataWithProofs) UnmarshalFromProtobuf(data []byte) error {
+	if len(data) > maxDataWithProofsBytes {
+		return errors.Errorf("total size of DataWithProofs transaction is bigger than %d bytes", maxDataWithProofsBytes)
+	}
 	t, err := TxFromProtobuf(data)
 	if err != nil {
 		return err
@@ -3146,6 +3147,9 @@ func (tx *DataWithProofs) MarshalSignedToProtobuf(scheme Scheme) ([]byte, error)
 }
 
 func (tx *DataWithProofs) UnmarshalSignedFromProtobuf(data []byte) error {
+	if len(data) > maxDataWithProofsBytes {
+		return errors.Errorf("total size of DataWithProofs transaction is bigger than %d bytes", maxDataWithProofsBytes)
+	}
 	t, err := SignedTxFromProtobuf(data)
 	if err != nil {
 		return err
@@ -4155,9 +4159,6 @@ func (tx InvokeScriptWithProofs) Valid() (bool, error) {
 		assets[p.Asset] = struct{}{}
 	}
 	//TODO: check blockchain scheme and script type
-	if tx.BinarySize() > maxInvokeScriptWithProofsBytes {
-		return false, errors.New("invoke script transaction is too big")
-	}
 	return true, nil
 }
 
@@ -4366,6 +4367,9 @@ func (tx *InvokeScriptWithProofs) Serialize(s *serializer.Serializer) error {
 
 //UnmarshalBinary reads InvokeScriptWithProofs transaction from its binary representation.
 func (tx *InvokeScriptWithProofs) UnmarshalBinary(data []byte) error {
+	if len(data) > maxInvokeScriptWithProofsBytes {
+		return errors.New("invoke script transaction is too big")
+	}
 	if l := len(data); l < invokeScriptWithProofsMinLen {
 		return errors.Errorf("not enough data for InvokeScriptWithProofs transaction, expected not less then %d, received %d", invokeScriptWithProofsMinLen, l)
 	}
@@ -4399,6 +4403,9 @@ func (tx *InvokeScriptWithProofs) MarshalToProtobuf(scheme Scheme) ([]byte, erro
 }
 
 func (tx *InvokeScriptWithProofs) UnmarshalFromProtobuf(data []byte) error {
+	if len(data) > maxInvokeScriptWithProofsBytes {
+		return errors.New("invoke script transaction is too big")
+	}
 	t, err := TxFromProtobuf(data)
 	if err != nil {
 		return err
@@ -4416,6 +4423,9 @@ func (tx *InvokeScriptWithProofs) MarshalSignedToProtobuf(scheme Scheme) ([]byte
 }
 
 func (tx *InvokeScriptWithProofs) UnmarshalSignedFromProtobuf(data []byte) error {
+	if len(data) > maxInvokeScriptWithProofsBytes {
+		return errors.New("invoke script transaction is too big")
+	}
 	t, err := SignedTxFromProtobuf(data)
 	if err != nil {
 		return err
