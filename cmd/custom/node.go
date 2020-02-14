@@ -147,13 +147,13 @@ func main() {
 	utx := utxpool.New(10000, utxpool.NewValidator(state, ntptm))
 
 	stateChanged := state_changed.NewStateChanged()
-	blockApplier := node.NewBlockApplier(state, stateChanged, scheduler)
+	blockApplier := node.NewBlocksApplier(state, ntptm)
 
 	services := services.Services{
 		State:              state,
 		Peers:              peerManager,
 		Scheduler:          scheduler,
-		BlockApplier:       blockApplier,
+		BlocksApplier:      blockApplier,
 		UtxPool:            utx,
 		Scheme:             custom.FunctionalitySettings.AddressSchemeCharacter,
 		BlockAddedNotifier: stateChanged,
@@ -182,12 +182,12 @@ func main() {
 	async.Go(func() {
 		scoreSender.Run(ctx)
 	})
-	stateSync := node.NewStateSync(services, Miner, scoreSender)
+	stateSync := node.NewStateSync(services, scoreSender, blockApplier)
 
 	go miner.Run(ctx, Miner, scheduler)
 	go scheduler.Reschedule()
 
-	n := node.NewNode(services, declAddr, declAddr, ngRuntime, Miner, stateSync)
+	n := node.NewNode(services, declAddr, declAddr, ngRuntime, stateSync)
 
 	go n.Run(ctx, parent)
 

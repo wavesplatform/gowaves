@@ -18,15 +18,8 @@ type Scheduler interface {
 	SignTransactionWith(pk crypto.PublicKey, tx proto.Transaction) error
 }
 
-// Miner mutates state, applying block also. We can't do it together.
-// We should interrupt miner, cause block applying has higher priority.
-type MinerInterrupter interface {
-	Interrupt()
-}
-
-type BlockApplier interface {
-	Apply(block *proto.Block) error
-	ApplyBytes([]byte) error
+type BlocksApplier interface {
+	Apply(block []*proto.Block) error
 }
 
 // notify state that it must run synchronization

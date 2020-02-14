@@ -10,12 +10,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestNew(t *testing.T) {
-	rs, err := New("pool.ntp.org")
-	require.NotEmpty(t, rs)
-	require.NoError(t, err)
-}
-
 func TestNtpTimeImpl_Run(t *testing.T) {
 	st := stub{
 		resp: &ntp.Response{

@@ -281,13 +281,15 @@ func (a *MockStateManager) AddDeserializedBlock(block *proto.Block) (*proto.Bloc
 	a.blockIDToHeight[block.BlockSignature] = proto.Height(len(a.state))
 	return block, nil
 }
-func (a *MockStateManager) AddNewDeserializedBlocks(blocks []*proto.Block) error {
+func (a *MockStateManager) AddNewDeserializedBlocks(blocks []*proto.Block) (*proto.Block, error) {
+	var out *proto.Block
+	var err error
 	for _, b := range blocks {
-		if _, err := a.AddDeserializedBlock(b); err != nil {
-			return err
+		if out, err = a.AddDeserializedBlock(b); err != nil {
+			return nil, err
 		}
 	}
-	return nil
+	return out, nil
 }
 
 func (a *MockStateManager) AddOldDeserializedBlocks([]*proto.Block) error {
