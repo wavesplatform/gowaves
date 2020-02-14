@@ -36,9 +36,9 @@ func TestMineMicroblock(t *testing.T) {
 	err = keyBlock.Sign(keyPair.Secret)
 	require.NoError(t, err)
 
-	transferV1 := byte_helpers.TransferV1.Transaction.Clone()
+	transferWithSig := byte_helpers.TransferWithSig.Transaction.Clone()
 
-	micro, err := createMicroBlock(keyBlock, []proto.Transaction{transferV1}, keyPair, proto.MainNetScheme)
+	micro, err := createMicroBlock(keyBlock, []proto.Transaction{transferWithSig}, keyPair, proto.MainNetScheme)
 	require.NoError(t, err)
 
 	t.Logf("%+v", keyBlock)

@@ -487,17 +487,16 @@ func (c *ProtobufConverter) Transaction(tx *g.Transaction) (Transaction, error) 
 			Timestamp:   ts,
 			Fee:         c.amount(tx.Fee),
 		}
-		switch tx.Version {
-		case 2:
-			rtx = &IssueV2{
+		if tx.Version >= 2 {
+			rtx = &IssueWithProofs{
 				Type:    IssueTransaction,
 				Version: v,
 				ChainID: scheme,
 				Script:  c.script(d.Issue.Script),
 				Issue:   pi,
 			}
-		default:
-			rtx = &IssueV1{
+		} else {
+			rtx = &IssueWithSig{
 				Type:    IssueTransaction,
 				Version: v,
 				Issue:   pi,
@@ -522,15 +521,14 @@ func (c *ProtobufConverter) Transaction(tx *g.Transaction) (Transaction, error) 
 			Recipient:   rcp,
 			Attachment:  Attachment(c.string(d.Transfer.Attachment)),
 		}
-		switch tx.Version {
-		case 2:
-			rtx = &TransferV2{
+		if tx.Version >= 2 {
+			rtx = &TransferWithProofs{
 				Type:     TransferTransaction,
 				Version:  v,
 				Transfer: pt,
 			}
-		default:
-			rtx = &TransferV1{
+		} else {
+			rtx = &TransferWithSig{
 				Type:     TransferTransaction,
 				Version:  v,
 				Transfer: pt,
@@ -547,16 +545,15 @@ func (c *ProtobufConverter) Transaction(tx *g.Transaction) (Transaction, error) 
 			Timestamp:  ts,
 			Fee:        c.amount(tx.Fee),
 		}
-		switch tx.Version {
-		case 2:
-			rtx = &ReissueV2{
+		if tx.Version >= 2 {
+			rtx = &ReissueWithProofs{
 				Type:    ReissueTransaction,
 				Version: v,
 				ChainID: scheme,
 				Reissue: pr,
 			}
-		default:
-			rtx = &ReissueV1{
+		} else {
+			rtx = &ReissueWithSig{
 				Type:    ReissueTransaction,
 				Version: v,
 				Reissue: pr,
@@ -572,16 +569,15 @@ func (c *ProtobufConverter) Transaction(tx *g.Transaction) (Transaction, error) 
 			Timestamp: ts,
 			Fee:       c.amount(tx.Fee),
 		}
-		switch tx.Version {
-		case 2:
-			rtx = &BurnV2{
+		if tx.Version >= 2 {
+			rtx = &BurnWithProofs{
 				Type:    BurnTransaction,
 				Version: v,
 				ChainID: scheme,
 				Burn:    pb,
 			}
-		default:
-			rtx = &BurnV1{
+		} else {
+			rtx = &BurnWithSig{
 				Type:    BurnTransaction,
 				Version: v,
 				Burn:    pb,
@@ -592,9 +588,8 @@ func (c *ProtobufConverter) Transaction(tx *g.Transaction) (Transaction, error) 
 		fee := c.amount(tx.Fee)
 		bo := c.buyOrder(d.Exchange.Orders)
 		so := c.sellOrder(d.Exchange.Orders)
-		switch tx.Version {
-		case 2:
-			rtx = &ExchangeV2{
+		if tx.Version >= 2 {
+			rtx = &ExchangeWithProofs{
 				Type:           ExchangeTransaction,
 				Version:        v,
 				SenderPK:       c.publicKey(tx.SenderPublicKey),
@@ -607,7 +602,7 @@ func (c *ProtobufConverter) Transaction(tx *g.Transaction) (Transaction, error) 
 				Fee:            fee,
 				Timestamp:      ts,
 			}
-		default:
+		} else {
 			if bo.GetVersion() != 1 || so.GetVersion() != 1 {
 				c.reset()
 				return nil, errors.New("unsupported order version")
@@ -623,7 +618,7 @@ func (c *ProtobufConverter) Transaction(tx *g.Transaction) (Transaction, error) 
 				return nil, errors.New("invalid pointer to OrderV1")
 			}
 
-			rtx = &ExchangeV1{
+			rtx = &ExchangeWithSig{
 				Type:           ExchangeTransaction,
 				Version:        v,
 				SenderPK:       c.publicKey(tx.SenderPublicKey),
@@ -651,15 +646,14 @@ func (c *ProtobufConverter) Transaction(tx *g.Transaction) (Transaction, error) 
 			Fee:       c.amount(tx.Fee),
 			Timestamp: ts,
 		}
-		switch tx.Version {
-		case 2:
-			rtx = &LeaseV2{
+		if tx.Version >= 2 {
+			rtx = &LeaseWithProofs{
 				Type:    LeaseTransaction,
 				Version: v,
 				Lease:   pl,
 			}
-		default:
-			rtx = &LeaseV1{
+		} else {
+			rtx = &LeaseWithSig{
 				Type:    LeaseTransaction,
 				Version: v,
 				Lease:   pl,
@@ -673,16 +667,15 @@ func (c *ProtobufConverter) Transaction(tx *g.Transaction) (Transaction, error) 
 			Fee:       c.amount(tx.Fee),
 			Timestamp: ts,
 		}
-		switch tx.Version {
-		case 2:
-			rtx = &LeaseCancelV2{
+		if tx.Version >= 2 {
+			rtx = &LeaseCancelWithProofs{
 				Type:        LeaseCancelTransaction,
 				Version:     v,
 				ChainID:     scheme,
 				LeaseCancel: plc,
 			}
-		default:
-			rtx = &LeaseCancelV1{
+		} else {
+			rtx = &LeaseCancelWithSig{
 				Type:        LeaseCancelTransaction,
 				Version:     v,
 				LeaseCancel: plc,
@@ -696,15 +689,14 @@ func (c *ProtobufConverter) Transaction(tx *g.Transaction) (Transaction, error) 
 			Fee:       c.amount(tx.Fee),
 			Timestamp: ts,
 		}
-		switch tx.Version {
-		case 2:
-			rtx = &CreateAliasV2{
+		if tx.Version >= 2 {
+			rtx = &CreateAliasWithProofs{
 				Type:        CreateAliasTransaction,
 				Version:     v,
 				CreateAlias: pca,
 			}
-		default:
-			rtx = &CreateAliasV1{
+		} else {
+			rtx = &CreateAliasWithSig{
 				Type:        CreateAliasTransaction,
 				Version:     v,
 				CreateAlias: pca,
@@ -712,7 +704,7 @@ func (c *ProtobufConverter) Transaction(tx *g.Transaction) (Transaction, error) 
 		}
 
 	case *g.Transaction_MassTransfer:
-		rtx = &MassTransferV1{
+		rtx = &MassTransferWithProofs{
 			Type:       MassTransferTransaction,
 			Version:    v,
 			SenderPK:   c.publicKey(tx.SenderPublicKey),
@@ -724,7 +716,7 @@ func (c *ProtobufConverter) Transaction(tx *g.Transaction) (Transaction, error) 
 		}
 
 	case *g.Transaction_DataTransaction:
-		rtx = &DataV1{
+		rtx = &DataWithProofs{
 			Type:      DataTransaction,
 			Version:   v,
 			SenderPK:  c.publicKey(tx.SenderPublicKey),
@@ -734,7 +726,7 @@ func (c *ProtobufConverter) Transaction(tx *g.Transaction) (Transaction, error) 
 		}
 
 	case *g.Transaction_SetScript:
-		rtx = &SetScriptV1{
+		rtx = &SetScriptWithProofs{
 			Type:      SetScriptTransaction,
 			Version:   v,
 			ChainID:   scheme,
@@ -746,7 +738,7 @@ func (c *ProtobufConverter) Transaction(tx *g.Transaction) (Transaction, error) 
 
 	case *g.Transaction_SponsorFee:
 		asset, amount := c.convertAssetAmount(d.SponsorFee.MinFee)
-		rtx = &SponsorshipV1{
+		rtx = &SponsorshipWithProofs{
 			Type:        SponsorshipTransaction,
 			Version:     v,
 			SenderPK:    c.publicKey(tx.SenderPublicKey),
@@ -757,7 +749,7 @@ func (c *ProtobufConverter) Transaction(tx *g.Transaction) (Transaction, error) 
 		}
 
 	case *g.Transaction_SetAssetScript:
-		rtx = &SetAssetScriptV1{
+		rtx = &SetAssetScriptWithProofs{
 			Type:      SetAssetScriptTransaction,
 			Version:   v,
 			ChainID:   scheme,
@@ -775,7 +767,7 @@ func (c *ProtobufConverter) Transaction(tx *g.Transaction) (Transaction, error) 
 			return nil, err
 		}
 		feeAsset, feeAmount := c.convertAmount(tx.Fee)
-		rtx = &InvokeScriptV1{
+		rtx = &InvokeScriptWithProofs{
 			Type:            InvokeScriptTransaction,
 			Version:         v,
 			ChainID:         scheme,
@@ -844,86 +836,86 @@ func (c *ProtobufConverter) SignedTransaction(stx *g.SignedTransaction) (Transac
 		err := c.err
 		c.reset()
 		return t, err
-	case *IssueV1:
+	case *IssueWithSig:
 		t.Signature = c.extractFirstSignature(proofs)
 		err := c.err
 		c.reset()
 		return t, err
-	case *IssueV2:
+	case *IssueWithProofs:
 		t.Proofs = proofs
 		return t, nil
-	case *TransferV1:
+	case *TransferWithSig:
 		t.Signature = c.extractFirstSignature(proofs)
 		err := c.err
 		c.reset()
 		return t, err
-	case *TransferV2:
+	case *TransferWithProofs:
 		t.Proofs = proofs
 		return t, nil
-	case *ReissueV1:
+	case *ReissueWithSig:
 		t.Signature = c.extractFirstSignature(proofs)
 		err := c.err
 		c.reset()
 		return t, err
-	case *ReissueV2:
+	case *ReissueWithProofs:
 		t.Proofs = proofs
 		return t, nil
-	case *BurnV1:
+	case *BurnWithSig:
 		t.Signature = c.extractFirstSignature(proofs)
 		err := c.err
 		c.reset()
 		return t, err
-	case *BurnV2:
+	case *BurnWithProofs:
 		t.Proofs = proofs
 		return t, nil
-	case *ExchangeV1:
+	case *ExchangeWithSig:
 		t.Signature = c.extractFirstSignature(proofs)
 		err := c.err
 		c.reset()
 		return t, err
-	case *ExchangeV2:
+	case *ExchangeWithProofs:
 		t.Proofs = proofs
 		return t, nil
-	case *LeaseV1:
+	case *LeaseWithSig:
 		t.Signature = c.extractFirstSignature(proofs)
 		err := c.err
 		c.reset()
 		return t, err
-	case *LeaseV2:
+	case *LeaseWithProofs:
 		t.Proofs = proofs
 		return t, nil
-	case *LeaseCancelV1:
+	case *LeaseCancelWithSig:
 		t.Signature = c.extractFirstSignature(proofs)
 		err := c.err
 		c.reset()
 		return t, err
-	case *LeaseCancelV2:
+	case *LeaseCancelWithProofs:
 		t.Proofs = proofs
 		return t, nil
-	case *CreateAliasV1:
+	case *CreateAliasWithSig:
 		t.Signature = c.extractFirstSignature(proofs)
 		err := c.err
 		c.reset()
 		return t, err
-	case *CreateAliasV2:
+	case *CreateAliasWithProofs:
 		t.Proofs = proofs
 		return t, nil
-	case *MassTransferV1:
+	case *MassTransferWithProofs:
 		t.Proofs = proofs
 		return t, nil
-	case *DataV1:
+	case *DataWithProofs:
 		t.Proofs = proofs
 		return t, nil
-	case *SetScriptV1:
+	case *SetScriptWithProofs:
 		t.Proofs = proofs
 		return t, nil
-	case *SponsorshipV1:
+	case *SponsorshipWithProofs:
 		t.Proofs = proofs
 		return t, nil
-	case *SetAssetScriptV1:
+	case *SetAssetScriptWithProofs:
 		t.Proofs = proofs
 		return t, nil
-	case *InvokeScriptV1:
+	case *InvokeScriptWithProofs:
 		t.Proofs = proofs
 		return t, nil
 	default:

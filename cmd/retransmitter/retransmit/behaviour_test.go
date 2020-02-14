@@ -51,7 +51,7 @@ func TestClientRecvTransaction(t *testing.T) {
 	protomess := peer.ProtoMessage{
 		ID: peer1,
 		Message: &proto.TransactionMessage{
-			Transaction: byte_helpers.TransferV1.TransactionBytes,
+			Transaction: byte_helpers.TransferWithSig.TransactionBytes,
 		},
 	}
 

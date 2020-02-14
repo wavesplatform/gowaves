@@ -132,7 +132,7 @@ func TestTransferOverspend(t *testing.T) {
 
 	to.stor.addBlock(t, blockID0)
 	// Create overspend transfer to self.
-	tx := createTransferV1(t)
+	tx := createTransferWithSig(t)
 	info := defaultDifferInfo(t)
 	info.blockInfo.Timestamp = settings.MainNetSettings.CheckTempNegativeAfterTime - 1
 	tx.Timestamp = info.blockInfo.Timestamp
@@ -143,15 +143,15 @@ func TestTransferOverspend(t *testing.T) {
 	to.stor.flush(t)
 
 	// Sending to self more than possess before settings.MainNetSettings.CheckTempNegativeAfterTime is fine.
-	txChanges, err := to.td.createDiffTransferV1(tx, info)
-	assert.NoError(t, err, "createDiffTransferV1() failed")
+	txChanges, err := to.td.createDiffTransferWithSig(tx, info)
+	assert.NoError(t, err, "createDiffTransferWithSig() failed")
 	err = to.applier.validateBalancesChanges(txChanges.diff.balancesChanges(), true)
 	assert.NoError(t, err, "validateBalancesChanges() failed with overspend when it is allowed")
 	// Sending to self more than possess after settings.MainNetSettings.CheckTempNegativeAfterTime must lead to error.
 	info.blockInfo.Timestamp = settings.MainNetSettings.CheckTempNegativeAfterTime
 	tx.Timestamp = info.blockInfo.Timestamp
-	txChanges, err = to.td.createDiffTransferV1(tx, info)
-	assert.NoError(t, err, "createDiffTransferV1() failed")
+	txChanges, err = to.td.createDiffTransferWithSig(tx, info)
+	assert.NoError(t, err, "createDiffTransferWithSig() failed")
 	err = to.applier.validateBalancesChanges(txChanges.diff.balancesChanges(), true)
 	assert.Error(t, err, "validateBalancesChanges() did not fail with overspend when it is not allowed")
 	assert.EqualError(t, err, "validation failed: negative asset balance: negative intermediate asset balance\n")

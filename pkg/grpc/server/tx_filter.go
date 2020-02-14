@@ -62,15 +62,15 @@ func (f *txFilter) filterRecipient(tx proto.Transaction) bool {
 		return true
 	}
 	switch t := tx.(type) {
-	case *proto.TransferV1:
+	case *proto.TransferWithSig:
 		return t.Recipient.Eq(f.recipient)
-	case *proto.TransferV2:
+	case *proto.TransferWithProofs:
 		return t.Recipient.Eq(f.recipient)
-	case *proto.LeaseV1:
+	case *proto.LeaseWithSig:
 		return t.Recipient.Eq(f.recipient)
-	case *proto.LeaseV2:
+	case *proto.LeaseWithProofs:
 		return t.Recipient.Eq(f.recipient)
-	case *proto.MassTransferV1:
+	case *proto.MassTransferWithProofs:
 		return t.HasRecipient(f.recipient)
 	default:
 		if f.recipient.Address == nil {

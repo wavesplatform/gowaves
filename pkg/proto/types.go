@@ -3037,7 +3037,7 @@ type FullScriptTransfer struct {
 	ID        *crypto.Digest
 }
 
-func NewFullScriptTransfer(scheme byte, tr *ScriptResultTransfer, tx *InvokeScriptV1) (*FullScriptTransfer, error) {
+func NewFullScriptTransfer(scheme byte, tr *ScriptResultTransfer, tx *InvokeScriptWithProofs) (*FullScriptTransfer, error) {
 	return &FullScriptTransfer{
 		ScriptResultTransfer: *tr,
 		Sender:               *tx.ScriptRecipient.Address,

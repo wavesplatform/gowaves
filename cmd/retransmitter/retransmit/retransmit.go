@@ -141,77 +141,77 @@ func getTransaction(message proto.Message) (proto.Transaction, error) {
 		case 0:
 			switch txb[1] {
 			case byte(proto.IssueTransaction):
-				var tx proto.IssueV2
+				var tx proto.IssueWithProofs
 				err := tx.UnmarshalBinary(txb)
 				if err != nil {
 					return nil, err
 				}
 				return &tx, nil
 			case byte(proto.TransferTransaction):
-				var tx proto.TransferV2
+				var tx proto.TransferWithProofs
 				err := tx.UnmarshalBinary(txb)
 				if err != nil {
 					return nil, err
 				}
 				return &tx, nil
 			case byte(proto.ReissueTransaction):
-				var tx proto.ReissueV2
+				var tx proto.ReissueWithProofs
 				err := tx.UnmarshalBinary(txb)
 				if err != nil {
 					return nil, err
 				}
 				return &tx, nil
 			case byte(proto.BurnTransaction):
-				var tx proto.BurnV2
+				var tx proto.BurnWithProofs
 				err := tx.UnmarshalBinary(txb)
 				if err != nil {
 					return nil, err
 				}
 				return &tx, nil
 			case byte(proto.ExchangeTransaction):
-				var tx proto.ExchangeV2
+				var tx proto.ExchangeWithProofs
 				err := tx.UnmarshalBinary(txb)
 				if err != nil {
 					return nil, err
 				}
 				return &tx, nil
 			case byte(proto.LeaseTransaction):
-				var tx proto.LeaseV2
+				var tx proto.LeaseWithProofs
 				err := tx.UnmarshalBinary(txb)
 				if err != nil {
 					return nil, err
 				}
 				return &tx, nil
 			case byte(proto.LeaseCancelTransaction):
-				var tx proto.LeaseCancelV2
+				var tx proto.LeaseCancelWithProofs
 				err := tx.UnmarshalBinary(txb)
 				if err != nil {
 					return nil, err
 				}
 				return &tx, nil
 			case byte(proto.CreateAliasTransaction):
-				var tx proto.CreateAliasV2
+				var tx proto.CreateAliasWithProofs
 				err := tx.UnmarshalBinary(txb)
 				if err != nil {
 					return nil, err
 				}
 				return &tx, nil
 			case byte(proto.DataTransaction):
-				var tx proto.DataV1
+				var tx proto.DataWithProofs
 				err := tx.UnmarshalBinary(txb)
 				if err != nil {
 					return nil, err
 				}
 				return &tx, nil
 			case byte(proto.SetScriptTransaction):
-				var tx proto.SetScriptV1
+				var tx proto.SetScriptWithProofs
 				err := tx.UnmarshalBinary(txb)
 				if err != nil {
 					return nil, err
 				}
 				return &tx, nil
 			case byte(proto.SponsorshipTransaction):
-				var tx proto.SponsorshipV1
+				var tx proto.SponsorshipWithProofs
 				err := tx.UnmarshalBinary(txb)
 				if err != nil {
 					return nil, err
@@ -222,7 +222,7 @@ func getTransaction(message proto.Message) (proto.Transaction, error) {
 			}
 
 		case byte(proto.IssueTransaction):
-			var tx proto.IssueV1
+			var tx proto.IssueWithSig
 			err := tx.UnmarshalBinary(txb)
 			if err != nil {
 				return nil, err
@@ -238,7 +238,7 @@ func getTransaction(message proto.Message) (proto.Transaction, error) {
 			return &tx, nil
 
 		case byte(proto.TransferTransaction):
-			var tx proto.TransferV1
+			var tx proto.TransferWithSig
 			err := tx.UnmarshalBinary(txb)
 			if err != nil {
 				return nil, err
@@ -253,7 +253,7 @@ func getTransaction(message proto.Message) (proto.Transaction, error) {
 			}
 			return &tx, nil
 		case byte(proto.ReissueTransaction):
-			var tx proto.ReissueV1
+			var tx proto.ReissueWithSig
 			err := tx.UnmarshalBinary(txb)
 			if err != nil {
 				return nil, err
@@ -268,7 +268,7 @@ func getTransaction(message proto.Message) (proto.Transaction, error) {
 			}
 			return &tx, nil
 		case byte(proto.BurnTransaction):
-			var tx proto.BurnV1
+			var tx proto.BurnWithSig
 			err := tx.UnmarshalBinary(txb)
 			if err != nil {
 				return nil, err
@@ -283,7 +283,7 @@ func getTransaction(message proto.Message) (proto.Transaction, error) {
 			}
 			return &tx, nil
 		case byte(proto.ExchangeTransaction):
-			var tx proto.ExchangeV1
+			var tx proto.ExchangeWithSig
 			err := tx.UnmarshalBinary(txb)
 			if err != nil {
 				return nil, err
@@ -298,7 +298,7 @@ func getTransaction(message proto.Message) (proto.Transaction, error) {
 			}
 			return &tx, nil
 		case byte(proto.LeaseTransaction):
-			var tx proto.LeaseV1
+			var tx proto.LeaseWithSig
 			err := tx.UnmarshalBinary(txb)
 			if err != nil {
 				return nil, err
@@ -313,7 +313,7 @@ func getTransaction(message proto.Message) (proto.Transaction, error) {
 			}
 			return &tx, nil
 		case byte(proto.LeaseCancelTransaction):
-			var tx proto.LeaseCancelV1
+			var tx proto.LeaseCancelWithSig
 			err := tx.UnmarshalBinary(txb)
 			if err != nil {
 				return nil, err
@@ -328,7 +328,7 @@ func getTransaction(message proto.Message) (proto.Transaction, error) {
 			}
 			return &tx, nil
 		case byte(proto.CreateAliasTransaction):
-			var tx proto.CreateAliasV1
+			var tx proto.CreateAliasWithSig
 			err := tx.UnmarshalBinary(txb)
 			if err != nil {
 				return nil, err
@@ -343,7 +343,7 @@ func getTransaction(message proto.Message) (proto.Transaction, error) {
 			}
 			return &tx, nil
 		case byte(proto.MassTransferTransaction):
-			var tx proto.MassTransferV1
+			var tx proto.MassTransferWithProofs
 			err := tx.UnmarshalBinary(txb)
 			if err != nil {
 				return nil, err

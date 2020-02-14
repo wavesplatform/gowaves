@@ -6,22 +6,22 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestTransferV1(t *testing.T) {
-	require.NotEmpty(t, TransferV1.TransactionBytes)
-	require.NotEmpty(t, TransferV1.Transaction)
-	require.NotEmpty(t, TransferV1.MessageBytes)
+func TestTransferWithSig(t *testing.T) {
+	require.NotEmpty(t, TransferWithSig.TransactionBytes)
+	require.NotEmpty(t, TransferWithSig.Transaction)
+	require.NotEmpty(t, TransferWithSig.MessageBytes)
 }
 
-func TestTransferV2(t *testing.T) {
-	require.NotEmpty(t, TransferV2.TransactionBytes)
-	require.NotEmpty(t, TransferV2.Transaction)
-	require.NotEmpty(t, TransferV2.MessageBytes)
+func TestTransferWithProofs(t *testing.T) {
+	require.NotEmpty(t, TransferWithProofs.TransactionBytes)
+	require.NotEmpty(t, TransferWithProofs.Transaction)
+	require.NotEmpty(t, TransferWithProofs.MessageBytes)
 }
 
-func TestIssueV1(t *testing.T) {
-	require.NotEmpty(t, IssueV1.TransactionBytes)
-	require.NotEmpty(t, IssueV1.Transaction)
-	require.NotEmpty(t, IssueV1.MessageBytes)
+func TestIssueWithSig(t *testing.T) {
+	require.NotEmpty(t, IssueWithSig.TransactionBytes)
+	require.NotEmpty(t, IssueWithSig.Transaction)
+	require.NotEmpty(t, IssueWithSig.MessageBytes)
 }
 
 func TestGenesis(t *testing.T) {
@@ -36,110 +36,110 @@ func TestPayment(t *testing.T) {
 	require.NotEmpty(t, Payment.MessageBytes)
 }
 
-func TestReissueV1(t *testing.T) {
-	require.NotEmpty(t, ReissueV1.TransactionBytes)
-	require.NotEmpty(t, ReissueV1.Transaction)
-	require.NotEmpty(t, ReissueV1.MessageBytes)
+func TestReissueWithSig(t *testing.T) {
+	require.NotEmpty(t, ReissueWithSig.TransactionBytes)
+	require.NotEmpty(t, ReissueWithSig.Transaction)
+	require.NotEmpty(t, ReissueWithSig.MessageBytes)
 }
 
-func TestReissueV2(t *testing.T) {
-	require.NotEmpty(t, ReissueV2.TransactionBytes)
-	require.NotEmpty(t, ReissueV2.Transaction)
-	require.NotEmpty(t, ReissueV2.MessageBytes)
+func TestReissueWithProofs(t *testing.T) {
+	require.NotEmpty(t, ReissueWithProofs.TransactionBytes)
+	require.NotEmpty(t, ReissueWithProofs.Transaction)
+	require.NotEmpty(t, ReissueWithProofs.MessageBytes)
 }
 
-func TestBurnV1(t *testing.T) {
-	require.NotEmpty(t, BurnV1.TransactionBytes)
-	require.NotEmpty(t, BurnV1.Transaction)
-	require.NotEmpty(t, BurnV1.MessageBytes)
+func TestBurnWithSig(t *testing.T) {
+	require.NotEmpty(t, BurnWithSig.TransactionBytes)
+	require.NotEmpty(t, BurnWithSig.Transaction)
+	require.NotEmpty(t, BurnWithSig.MessageBytes)
 }
 
-func TestBurnV2(t *testing.T) {
-	require.NotEmpty(t, BurnV2.TransactionBytes)
-	require.NotEmpty(t, BurnV2.Transaction)
-	require.NotEmpty(t, BurnV2.MessageBytes)
+func TestBurnWithProofs(t *testing.T) {
+	require.NotEmpty(t, BurnWithProofs.TransactionBytes)
+	require.NotEmpty(t, BurnWithProofs.Transaction)
+	require.NotEmpty(t, BurnWithProofs.MessageBytes)
 }
 
-func TestMassTransferV1(t *testing.T) {
-	require.NotEmpty(t, MassTransferV1.TransactionBytes)
-	require.NotEmpty(t, MassTransferV1.Transaction)
-	require.NotEmpty(t, MassTransferV1.MessageBytes)
+func TestMassTransferWithProofs(t *testing.T) {
+	require.NotEmpty(t, MassTransferWithProofs.TransactionBytes)
+	require.NotEmpty(t, MassTransferWithProofs.Transaction)
+	require.NotEmpty(t, MassTransferWithProofs.MessageBytes)
 }
 
-func TestExchangeV1(t *testing.T) {
-	require.NotEmpty(t, ExchangeV1.TransactionBytes)
-	require.NotEmpty(t, ExchangeV1.Transaction)
-	require.NotEmpty(t, ExchangeV1.MessageBytes)
+func TestExchangeWithSig(t *testing.T) {
+	require.NotEmpty(t, ExchangeWithSig.TransactionBytes)
+	require.NotEmpty(t, ExchangeWithSig.Transaction)
+	require.NotEmpty(t, ExchangeWithSig.MessageBytes)
 }
 
-func TestExchangeV2(t *testing.T) {
-	require.NotEmpty(t, ExchangeV2.TransactionBytes)
-	require.NotEmpty(t, ExchangeV2.Transaction)
-	require.NotEmpty(t, ExchangeV2.MessageBytes)
+func TestExchangeWithProofs(t *testing.T) {
+	require.NotEmpty(t, ExchangeWithProofs.TransactionBytes)
+	require.NotEmpty(t, ExchangeWithProofs.Transaction)
+	require.NotEmpty(t, ExchangeWithProofs.MessageBytes)
 }
 
-func TestSetAssetScriptV1(t *testing.T) {
-	require.NotEmpty(t, SetAssetScriptV1.TransactionBytes)
-	require.NotEmpty(t, SetAssetScriptV1.Transaction)
-	require.NotEmpty(t, SetAssetScriptV1.MessageBytes)
+func TestSetAssetScriptWithProofs(t *testing.T) {
+	require.NotEmpty(t, SetAssetScriptWithProofs.TransactionBytes)
+	require.NotEmpty(t, SetAssetScriptWithProofs.Transaction)
+	require.NotEmpty(t, SetAssetScriptWithProofs.MessageBytes)
 }
 
-func TestInvokeScriptV1(t *testing.T) {
-	require.NotEmpty(t, InvokeScriptV1.TransactionBytes)
-	require.NotEmpty(t, InvokeScriptV1.Transaction)
-	require.NotEmpty(t, InvokeScriptV1.MessageBytes)
+func TestInvokeScriptWithProofs(t *testing.T) {
+	require.NotEmpty(t, InvokeScriptWithProofs.TransactionBytes)
+	require.NotEmpty(t, InvokeScriptWithProofs.Transaction)
+	require.NotEmpty(t, InvokeScriptWithProofs.MessageBytes)
 }
 
-func TestIssueV2(t *testing.T) {
-	require.NotEmpty(t, IssueV2.TransactionBytes)
-	require.NotEmpty(t, IssueV2.Transaction)
-	require.NotEmpty(t, IssueV2.MessageBytes)
+func TestIssueWithProofs(t *testing.T) {
+	require.NotEmpty(t, IssueWithProofs.TransactionBytes)
+	require.NotEmpty(t, IssueWithProofs.Transaction)
+	require.NotEmpty(t, IssueWithProofs.MessageBytes)
 }
 
-func TestLeaseV1(t *testing.T) {
-	require.NotEmpty(t, LeaseV1.TransactionBytes)
-	require.NotEmpty(t, LeaseV1.Transaction)
-	require.NotEmpty(t, LeaseV1.MessageBytes)
+func TestLeaseWithSig(t *testing.T) {
+	require.NotEmpty(t, LeaseWithSig.TransactionBytes)
+	require.NotEmpty(t, LeaseWithSig.Transaction)
+	require.NotEmpty(t, LeaseWithSig.MessageBytes)
 }
 
-func TestLeaseV2(t *testing.T) {
-	require.NotEmpty(t, LeaseV2.TransactionBytes)
-	require.NotEmpty(t, LeaseV2.Transaction)
-	require.NotEmpty(t, LeaseV2.MessageBytes)
+func TestLeaseWithProofs(t *testing.T) {
+	require.NotEmpty(t, LeaseWithProofs.TransactionBytes)
+	require.NotEmpty(t, LeaseWithProofs.Transaction)
+	require.NotEmpty(t, LeaseWithProofs.MessageBytes)
 }
 
-func TestLeaseCancelV1(t *testing.T) {
-	require.NotEmpty(t, LeaseCancelV1.TransactionBytes)
-	require.NotEmpty(t, LeaseCancelV1.Transaction)
-	require.NotEmpty(t, LeaseCancelV1.MessageBytes)
+func TestLeaseCancelWithSig(t *testing.T) {
+	require.NotEmpty(t, LeaseCancelWithSig.TransactionBytes)
+	require.NotEmpty(t, LeaseCancelWithSig.Transaction)
+	require.NotEmpty(t, LeaseCancelWithSig.MessageBytes)
 }
 
-func TestLeaseCancelV2(t *testing.T) {
-	require.NotEmpty(t, LeaseCancelV2.TransactionBytes)
-	require.NotEmpty(t, LeaseCancelV2.Transaction)
-	require.NotEmpty(t, LeaseCancelV2.MessageBytes)
+func TestLeaseCancelWithProofs(t *testing.T) {
+	require.NotEmpty(t, LeaseCancelWithProofs.TransactionBytes)
+	require.NotEmpty(t, LeaseCancelWithProofs.Transaction)
+	require.NotEmpty(t, LeaseCancelWithProofs.MessageBytes)
 }
 
-func TestDataV1(t *testing.T) {
-	require.NotEmpty(t, DataV1.TransactionBytes)
-	require.NotEmpty(t, DataV1.Transaction)
-	require.NotEmpty(t, DataV1.MessageBytes)
+func TestDataWithProofs(t *testing.T) {
+	require.NotEmpty(t, DataWithProofs.TransactionBytes)
+	require.NotEmpty(t, DataWithProofs.Transaction)
+	require.NotEmpty(t, DataWithProofs.MessageBytes)
 }
 
-func TestSponsorshipV1(t *testing.T) {
-	require.NotEmpty(t, SponsorshipV1.TransactionBytes)
-	require.NotEmpty(t, SponsorshipV1.Transaction)
-	require.NotEmpty(t, SponsorshipV1.MessageBytes)
+func TestSponsorshipWithProofs(t *testing.T) {
+	require.NotEmpty(t, SponsorshipWithProofs.TransactionBytes)
+	require.NotEmpty(t, SponsorshipWithProofs.Transaction)
+	require.NotEmpty(t, SponsorshipWithProofs.MessageBytes)
 }
 
-func TestCreateAliasV1(t *testing.T) {
-	require.NotEmpty(t, CreateAliasV1.TransactionBytes)
-	require.NotEmpty(t, CreateAliasV1.Transaction)
-	require.NotEmpty(t, CreateAliasV1.MessageBytes)
+func TestCreateAliasWithSig(t *testing.T) {
+	require.NotEmpty(t, CreateAliasWithSig.TransactionBytes)
+	require.NotEmpty(t, CreateAliasWithSig.Transaction)
+	require.NotEmpty(t, CreateAliasWithSig.MessageBytes)
 }
 
-func TestCreateAliasV2(t *testing.T) {
-	require.NotEmpty(t, CreateAliasV2.TransactionBytes)
-	require.NotEmpty(t, CreateAliasV2.Transaction)
-	require.NotEmpty(t, CreateAliasV2.MessageBytes)
+func TestCreateAliasWithProofs(t *testing.T) {
+	require.NotEmpty(t, CreateAliasWithProofs.TransactionBytes)
+	require.NotEmpty(t, CreateAliasWithProofs.Transaction)
+	require.NotEmpty(t, CreateAliasWithProofs.MessageBytes)
 }

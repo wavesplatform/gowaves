@@ -572,7 +572,7 @@ func (a *Transactions) UnmarshalJSON(data []byte) error {
 	var tt []*TransactionTypeVersion
 	err := json.Unmarshal(data, &tt)
 	if err != nil {
-		return errors.Wrap(err, "TransactionTypeVersion unmarshal")
+		return errors.Wrap(err, "TransactionType unmarshal")
 	}
 	transactions := make([]Transaction, len(tt))
 	for i, row := range tt {

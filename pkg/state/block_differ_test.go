@@ -35,7 +35,7 @@ func createBlockDiffer(t *testing.T) (*blockDifferTestObjects, []string) {
 
 func genBlocks(t *testing.T, to *blockDifferTestObjects) (*proto.Block, *proto.Block) {
 	// Create and sign parent block.
-	txs := proto.Transactions{createTransferV1(t)}
+	txs := proto.Transactions{createTransferWithSig(t)}
 	randSig := genRandBlockIds(t, 1)[0]
 	genSig := crypto.MustBytesFromBase58(defaultGenSig)
 	parent, err := proto.CreateBlock(txs, 1565694219644, randSig, testGlobal.matcherInfo.pk, proto.NxtConsensus{BaseTarget: 65, GenSignature: genSig}, proto.NgBlockVersion, nil, -1)
@@ -44,7 +44,7 @@ func genBlocks(t *testing.T, to *blockDifferTestObjects) (*proto.Block, *proto.B
 	require.NoError(t, err, "Block.Sign() failed")
 
 	// Create and sign child block.
-	txs = []proto.Transaction{createIssueV1(t, 1000)}
+	txs = []proto.Transaction{createIssueWithSig(t, 1000)}
 	genSig, err = to.gsp.GenerationSignature(testGlobal.minerInfo.pk, parent.GenSignature[:])
 	require.NoError(t, err, "GeneratorSignature() failed")
 	child, err := proto.CreateBlock(txs, 1565694219944, parent.BlockSignature, testGlobal.minerInfo.pk, proto.NxtConsensus{BaseTarget: 66, GenSignature: genSig}, proto.NgBlockVersion, nil, -1)
@@ -159,9 +159,9 @@ func TestCreateBlockDiffSponsorship(t *testing.T) {
 	assert.Equal(t, correctMinerDiff, minerDiff)
 }
 
-func genTransferWithWavesFee(t *testing.T) *proto.TransferV2 {
+func genTransferWithWavesFee(t *testing.T) *proto.TransferWithProofs {
 	waves := proto.OptionalAsset{Present: false}
-	tx := proto.NewUnsignedTransferV2(testGlobal.senderInfo.pk, waves, waves, defaultTimestamp, defaultAmount, defaultFee, proto.NewRecipientFromAddress(testGlobal.recipientInfo.addr), "attachment")
+	tx := proto.NewUnsignedTransferWithProofs(testGlobal.senderInfo.pk, waves, waves, defaultTimestamp, defaultAmount, defaultFee, proto.NewRecipientFromAddress(testGlobal.recipientInfo.addr), "attachment")
 	err := tx.Sign(testGlobal.senderInfo.sk)
 	require.NoError(t, err)
 	return tx

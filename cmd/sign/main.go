@@ -87,7 +87,7 @@ func transferTransaction() {
 	publicKey := crypto.GeneratePublicKey(secretKey)
 
 	timestamp := client.NewTimestampFromTime(time.Now())
-	transfer := proto.NewUnsignedTransferV1(
+	transfer := proto.NewUnsignedTransferWithSig(
 		publicKey,
 		proto.OptionalAsset{},
 		proto.OptionalAsset{},

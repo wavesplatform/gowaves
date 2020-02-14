@@ -78,7 +78,11 @@ func (transaction) GenerateID() error {
 	return nil
 }
 
-func (transaction) GetTypeVersion() proto.TransactionTypeVersion {
+func (transaction) GetTypeInfo() proto.TransactionTypeInfo {
+	panic("implement me")
+}
+
+func (transaction) GetVersion() byte {
 	panic("implement me")
 }
 
@@ -179,7 +183,7 @@ func TestUtxImpl_AllTransactions(t *testing.T) {
 
 func TestUtxImpl_TransactionExists(t *testing.T) {
 	a := New(10000, NoOpValidator{})
-	require.NoError(t, a.AddWithBytes(byte_helpers.BurnV1.Transaction, byte_helpers.BurnV1.TransactionBytes))
-	require.True(t, a.ExistsByID(byte_helpers.BurnV1.Transaction.ID.Bytes()))
-	require.False(t, a.ExistsByID(byte_helpers.TransferV1.Transaction.ID.Bytes()))
+	require.NoError(t, a.AddWithBytes(byte_helpers.BurnWithSig.Transaction, byte_helpers.BurnWithSig.TransactionBytes))
+	require.True(t, a.ExistsByID(byte_helpers.BurnWithSig.Transaction.ID.Bytes()))
+	require.False(t, a.ExistsByID(byte_helpers.TransferWithSig.Transaction.ID.Bytes()))
 }

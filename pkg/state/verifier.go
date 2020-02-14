@@ -50,39 +50,39 @@ func checkTx(tx proto.Transaction, checkTxSig, checkSellOrder, checkBuyOrder boo
 		if ok, _ := t.Verify(t.SenderPK); !ok {
 			return errors.New("payment tx signature verification failed")
 		}
-	case *proto.TransferV1:
+	case *proto.TransferWithSig:
 		if ok, _ := t.Verify(t.SenderPK); !ok {
 			return errors.New("transfer tx signature verification failed")
 		}
-	case *proto.TransferV2:
+	case *proto.TransferWithProofs:
 		if ok, _ := t.Verify(t.SenderPK); !ok {
 			return errors.New("transfer tx signature verification failed")
 		}
-	case *proto.IssueV1:
+	case *proto.IssueWithSig:
 		if ok, _ := t.Verify(t.SenderPK); !ok {
 			return errors.New("issue tx signature verification failed")
 		}
-	case *proto.IssueV2:
+	case *proto.IssueWithProofs:
 		if ok, _ := t.Verify(t.SenderPK); !ok {
 			return errors.New("issue tx signature verification failed")
 		}
-	case *proto.ReissueV1:
+	case *proto.ReissueWithSig:
 		if ok, _ := t.Verify(t.SenderPK); !ok {
 			return errors.New("reissue tx signature verification failed")
 		}
-	case *proto.ReissueV2:
+	case *proto.ReissueWithProofs:
 		if ok, _ := t.Verify(t.SenderPK); !ok {
 			return errors.New("reissue tx signature verification failed")
 		}
-	case *proto.BurnV1:
+	case *proto.BurnWithSig:
 		if ok, _ := t.Verify(t.SenderPK); !ok {
 			return errors.New("burn tx signature verification failed")
 		}
-	case *proto.BurnV2:
+	case *proto.BurnWithProofs:
 		if ok, _ := t.Verify(t.SenderPK); !ok {
 			return errors.New("burn tx signature verification failed")
 		}
-	case *proto.ExchangeV1:
+	case *proto.ExchangeWithSig:
 		if ok, _ := t.Verify(t.SenderPK); !ok {
 			return errors.New("exchange tx signature verification failed")
 		}
@@ -96,7 +96,7 @@ func checkTx(tx proto.Transaction, checkTxSig, checkSellOrder, checkBuyOrder boo
 				return errors.New("buy order signature verification failed")
 			}
 		}
-	case *proto.ExchangeV2:
+	case *proto.ExchangeWithProofs:
 		if ok, _ := t.Verify(t.SenderPK); !ok {
 			return errors.New("exchange tx signature verification failed")
 		}
@@ -110,51 +110,51 @@ func checkTx(tx proto.Transaction, checkTxSig, checkSellOrder, checkBuyOrder boo
 				return errors.New("buy order signature verification failed")
 			}
 		}
-	case *proto.LeaseV1:
+	case *proto.LeaseWithSig:
 		if ok, _ := t.Verify(t.SenderPK); !ok {
 			return errors.New("lease tx signature verification failed")
 		}
-	case *proto.LeaseV2:
+	case *proto.LeaseWithProofs:
 		if ok, _ := t.Verify(t.SenderPK); !ok {
 			return errors.New("lease tx signature verification failed")
 		}
-	case *proto.LeaseCancelV1:
+	case *proto.LeaseCancelWithSig:
 		if ok, _ := t.Verify(t.SenderPK); !ok {
 			return errors.New("leasecancel tx signature verification failed")
 		}
-	case *proto.LeaseCancelV2:
+	case *proto.LeaseCancelWithProofs:
 		if ok, _ := t.Verify(t.SenderPK); !ok {
 			return errors.New("leasecancel tx signature verification failed")
 		}
-	case *proto.CreateAliasV1:
+	case *proto.CreateAliasWithSig:
 		if ok, _ := t.Verify(t.SenderPK); !ok {
 			return errors.New("createalias tx signature verification failed")
 		}
-	case *proto.CreateAliasV2:
+	case *proto.CreateAliasWithProofs:
 		if ok, _ := t.Verify(t.SenderPK); !ok {
 			return errors.New("createalias tx signature verification failed")
 		}
-	case *proto.SponsorshipV1:
+	case *proto.SponsorshipWithProofs:
 		if ok, _ := t.Verify(t.SenderPK); !ok {
 			return errors.New("sponsorship tx signature verification failed")
 		}
-	case *proto.MassTransferV1:
+	case *proto.MassTransferWithProofs:
 		if ok, _ := t.Verify(t.SenderPK); !ok {
 			return errors.New("masstransfer tx signature verification failed")
 		}
-	case *proto.DataV1:
+	case *proto.DataWithProofs:
 		if ok, _ := t.Verify(t.SenderPK); !ok {
 			return errors.New("data tx signature verification failed")
 		}
-	case *proto.SetScriptV1:
+	case *proto.SetScriptWithProofs:
 		if ok, _ := t.Verify(t.SenderPK); !ok {
 			return errors.New("setscript tx signature verification failed")
 		}
-	case *proto.SetAssetScriptV1:
+	case *proto.SetAssetScriptWithProofs:
 		if ok, _ := t.Verify(t.SenderPK); !ok {
 			return errors.New("setassetscript tx signature verification failed")
 		}
-	case *proto.InvokeScriptV1:
+	case *proto.InvokeScriptWithProofs:
 		if ok, _ := t.Verify(t.SenderPK); !ok {
 			return errors.New("invokescript tx signature verification failed")
 		}

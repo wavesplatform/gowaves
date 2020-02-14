@@ -200,7 +200,7 @@ func (im *Importer) extractTransactions(transactions []proto.Transaction, miner 
 	binds := make([]data.AliasBind, 0)
 	for _, tx := range transactions {
 		switch t := tx.(type) {
-		case *proto.IssueV2:
+		case *proto.IssueWithProofs:
 			if ok, err := t.Verify(t.GetSenderPK()); !ok {
 				if err != nil {
 					return nil, nil, nil, nil, nil, wrapErr(err, "failed to verify tx signature")
@@ -208,13 +208,13 @@ func (im *Importer) extractTransactions(transactions []proto.Transaction, miner 
 				id, _ := tx.GetID()
 				return nil, nil, nil, nil, nil, errors.Errorf("Transaction %s has invalid signature", base58.Encode(id))
 			}
-			ic, ac, err := data.FromIssueV2(im.scheme, t)
+			ic, ac, err := data.FromIssueWithProofs(im.scheme, t)
 			if err != nil {
-				return nil, nil, nil, nil, nil, wrapErr(err, "IssueV2")
+				return nil, nil, nil, nil, nil, wrapErr(err, "IssueWithProofs")
 			}
 			issueChanges = append(issueChanges, ic)
 			accountChanges = append(accountChanges, ac)
-		case *proto.TransferV2:
+		case *proto.TransferWithProofs:
 			if ok, err := t.Verify(t.GetSenderPK()); !ok {
 				if err != nil {
 					return nil, nil, nil, nil, nil, wrapErr(err, "failed to verify tx signature")
@@ -223,13 +223,13 @@ func (im *Importer) extractTransactions(transactions []proto.Transaction, miner 
 				return nil, nil, nil, nil, nil, errors.Errorf("Transaction %s has invalid signature", base58.Encode(id))
 			}
 			if t.AmountAsset.Present || t.FeeAsset.Present {
-				u, err := data.FromTransferV2(im.scheme, t, miner)
+				u, err := data.FromTransferWithProofs(im.scheme, t, miner)
 				if err != nil {
-					return nil, nil, nil, nil, nil, wrapErr(err, "TransferV2")
+					return nil, nil, nil, nil, nil, wrapErr(err, "TransferWithProofs")
 				}
 				accountChanges = append(accountChanges, u...)
 			}
-		case *proto.ReissueV2:
+		case *proto.ReissueWithProofs:
 			if ok, err := t.Verify(t.GetSenderPK()); !ok {
 				if err != nil {
 					return nil, nil, nil, nil, nil, wrapErr(err, "failed to verify tx signature")
@@ -237,13 +237,13 @@ func (im *Importer) extractTransactions(transactions []proto.Transaction, miner 
 				id, _ := tx.GetID()
 				return nil, nil, nil, nil, nil, errors.Errorf("Transaction %s has invalid signature", base58.Encode(id))
 			}
-			as, ac, err := data.FromReissueV2(im.scheme, t)
+			as, ac, err := data.FromReissueWithProofs(im.scheme, t)
 			if err != nil {
-				return nil, nil, nil, nil, nil, wrapErr(err, "ReissueV2")
+				return nil, nil, nil, nil, nil, wrapErr(err, "ReissueWithProofs")
 			}
 			assetChanges = append(assetChanges, as)
 			accountChanges = append(accountChanges, ac)
-		case *proto.BurnV2:
+		case *proto.BurnWithProofs:
 			if ok, err := t.Verify(t.GetSenderPK()); !ok {
 				if err != nil {
 					return nil, nil, nil, nil, nil, wrapErr(err, "failed to verify tx signature")
@@ -251,13 +251,13 @@ func (im *Importer) extractTransactions(transactions []proto.Transaction, miner 
 				id, _ := tx.GetID()
 				return nil, nil, nil, nil, nil, errors.Errorf("Transaction %s has invalid signature", base58.Encode(id))
 			}
-			as, ac, err := data.FromBurnV2(im.scheme, t)
+			as, ac, err := data.FromBurnWithProofs(im.scheme, t)
 			if err != nil {
-				return nil, nil, nil, nil, nil, wrapErr(err, "BurnV2")
+				return nil, nil, nil, nil, nil, wrapErr(err, "BurnWithProofs")
 			}
 			assetChanges = append(assetChanges, as)
 			accountChanges = append(accountChanges, ac)
-		case *proto.ExchangeV2:
+		case *proto.ExchangeWithProofs:
 			if ok, err := t.Verify(t.GetSenderPK()); !ok {
 				if err != nil {
 					return nil, nil, nil, nil, nil, wrapErr(err, "failed to verify tx signature")
@@ -266,18 +266,18 @@ func (im *Importer) extractTransactions(transactions []proto.Transaction, miner 
 				return nil, nil, nil, nil, nil, errors.Errorf("Transaction %s has invalid signature", base58.Encode(id))
 			}
 			if bytes.Equal(im.matcher[:], t.SenderPK[:]) {
-				tr, err := data.NewTradeFromExchangeV2(im.scheme, t)
+				tr, err := data.NewTradeFromExchangeWithProofs(im.scheme, t)
 				if err != nil {
-					return nil, nil, nil, nil, nil, wrapErr(err, "ExchangeV2")
+					return nil, nil, nil, nil, nil, wrapErr(err, "ExchangeWithProofs")
 				}
 				trades = append(trades, tr)
 			}
-			ac, err := data.FromExchangeV2(im.scheme, t)
+			ac, err := data.FromExchangeWithProofs(im.scheme, t)
 			if err != nil {
-				return nil, nil, nil, nil, nil, wrapErr(err, "ExchangeV2")
+				return nil, nil, nil, nil, nil, wrapErr(err, "ExchangeWithProofs")
 			}
 			accountChanges = append(accountChanges, ac...)
-		case *proto.SponsorshipV1:
+		case *proto.SponsorshipWithProofs:
 			if ok, err := t.Verify(t.GetSenderPK()); !ok {
 				if err != nil {
 					return nil, nil, nil, nil, nil, wrapErr(err, "failed to verify tx signature")
@@ -285,8 +285,8 @@ func (im *Importer) extractTransactions(transactions []proto.Transaction, miner 
 				id, _ := tx.GetID()
 				return nil, nil, nil, nil, nil, errors.Errorf("Transaction %s has invalid signature", base58.Encode(id))
 			}
-			assetChanges = append(assetChanges, data.FromSponsorshipV1(t))
-		case *proto.CreateAliasV2:
+			assetChanges = append(assetChanges, data.FromSponsorshipWithProofs(t))
+		case *proto.CreateAliasWithProofs:
 			if ok, err := t.Verify(t.GetSenderPK()); !ok {
 				if err != nil {
 					return nil, nil, nil, nil, nil, wrapErr(err, "failed to verify tx signature")
@@ -294,12 +294,12 @@ func (im *Importer) extractTransactions(transactions []proto.Transaction, miner 
 				id, _ := tx.GetID()
 				return nil, nil, nil, nil, nil, errors.Errorf("Transaction %s has invalid signature", base58.Encode(id))
 			}
-			b, err := data.FromCreateAliasV2(im.scheme, t)
+			b, err := data.FromCreateAliasWithProofs(im.scheme, t)
 			if err != nil {
-				return nil, nil, nil, nil, nil, wrapErr(err, "CreateAliasV2")
+				return nil, nil, nil, nil, nil, wrapErr(err, "CreateAliasWithProofs")
 			}
 			binds = append(binds, b)
-		case *proto.IssueV1:
+		case *proto.IssueWithSig:
 			if ok, err := t.Verify(t.GetSenderPK()); !ok {
 				if err != nil {
 					return nil, nil, nil, nil, nil, wrapErr(err, "failed to verify tx signature")
@@ -307,13 +307,13 @@ func (im *Importer) extractTransactions(transactions []proto.Transaction, miner 
 				id, _ := tx.GetID()
 				return nil, nil, nil, nil, nil, errors.Errorf("Transaction %s has invalid signature", base58.Encode(id))
 			}
-			ic, ac, err := data.FromIssueV1(im.scheme, t)
+			ic, ac, err := data.FromIssueWithSig(im.scheme, t)
 			if err != nil {
-				return nil, nil, nil, nil, nil, wrapErr(err, "IssueV1")
+				return nil, nil, nil, nil, nil, wrapErr(err, "IssueWithSig")
 			}
 			issueChanges = append(issueChanges, ic)
 			accountChanges = append(accountChanges, ac)
-		case *proto.TransferV1:
+		case *proto.TransferWithSig:
 			if ok, err := t.Verify(t.GetSenderPK()); !ok {
 				if err != nil {
 					return nil, nil, nil, nil, nil, wrapErr(err, "failed to verify tx signature")
@@ -322,13 +322,13 @@ func (im *Importer) extractTransactions(transactions []proto.Transaction, miner 
 				return nil, nil, nil, nil, nil, errors.Errorf("Transaction %s has invalid signature", base58.Encode(id))
 			}
 			if t.AmountAsset.Present || t.FeeAsset.Present {
-				ac, err := data.FromTransferV1(im.scheme, t, miner)
+				ac, err := data.FromTransferWithSig(im.scheme, t, miner)
 				if err != nil {
-					return nil, nil, nil, nil, nil, wrapErr(err, "TransferV1")
+					return nil, nil, nil, nil, nil, wrapErr(err, "TransferWithSig")
 				}
 				accountChanges = append(accountChanges, ac...)
 			}
-		case *proto.ReissueV1:
+		case *proto.ReissueWithSig:
 			if ok, err := t.Verify(t.GetSenderPK()); !ok {
 				if err != nil {
 					return nil, nil, nil, nil, nil, wrapErr(err, "failed to verify tx signature")
@@ -336,13 +336,13 @@ func (im *Importer) extractTransactions(transactions []proto.Transaction, miner 
 				id, _ := tx.GetID()
 				return nil, nil, nil, nil, nil, errors.Errorf("Transaction %s has invalid signature", base58.Encode(id))
 			}
-			as, ac, err := data.FromReissueV1(im.scheme, t)
+			as, ac, err := data.FromReissueWithSig(im.scheme, t)
 			if err != nil {
-				return nil, nil, nil, nil, nil, wrapErr(err, "ReissueV1")
+				return nil, nil, nil, nil, nil, wrapErr(err, "ReissueWithSig")
 			}
 			assetChanges = append(assetChanges, as)
 			accountChanges = append(accountChanges, ac)
-		case *proto.BurnV1:
+		case *proto.BurnWithSig:
 			if ok, err := t.Verify(t.GetSenderPK()); !ok {
 				if err != nil {
 					return nil, nil, nil, nil, nil, wrapErr(err, "failed to verify tx signature")
@@ -350,13 +350,13 @@ func (im *Importer) extractTransactions(transactions []proto.Transaction, miner 
 				id, _ := tx.GetID()
 				return nil, nil, nil, nil, nil, errors.Errorf("Transaction %s has invalid signature", base58.Encode(id))
 			}
-			as, ac, err := data.FromBurnV1(im.scheme, t)
+			as, ac, err := data.FromBurnWithSig(im.scheme, t)
 			if err != nil {
-				return nil, nil, nil, nil, nil, wrapErr(err, "BurnV1")
+				return nil, nil, nil, nil, nil, wrapErr(err, "BurnWithSig")
 			}
 			assetChanges = append(assetChanges, as)
 			accountChanges = append(accountChanges, ac)
-		case *proto.ExchangeV1:
+		case *proto.ExchangeWithSig:
 			if ok, err := t.Verify(t.GetSenderPK()); !ok {
 				if err != nil {
 					return nil, nil, nil, nil, nil, wrapErr(err, "failed to verify tx signature")
@@ -365,18 +365,18 @@ func (im *Importer) extractTransactions(transactions []proto.Transaction, miner 
 				return nil, nil, nil, nil, nil, errors.Errorf("Transaction %s has invalid signature", base58.Encode(id))
 			}
 			if bytes.Equal(im.matcher[:], t.SenderPK[:]) {
-				tr, err := data.NewTradeFromExchangeV1(im.scheme, t)
+				tr, err := data.NewTradeFromExchangeWithSig(im.scheme, t)
 				if err != nil {
-					return nil, nil, nil, nil, nil, wrapErr(err, "ExchangeV1")
+					return nil, nil, nil, nil, nil, wrapErr(err, "ExchangeWithSig")
 				}
 				trades = append(trades, tr)
 			}
-			ac, err := data.FromExchangeV1(im.scheme, t)
+			ac, err := data.FromExchangeWithSig(im.scheme, t)
 			if err != nil {
-				return nil, nil, nil, nil, nil, wrapErr(err, "ExchangeV1")
+				return nil, nil, nil, nil, nil, wrapErr(err, "ExchangeWithSig")
 			}
 			accountChanges = append(accountChanges, ac...)
-		case *proto.MassTransferV1:
+		case *proto.MassTransferWithProofs:
 			if ok, err := t.Verify(t.GetSenderPK()); !ok {
 				if err != nil {
 					return nil, nil, nil, nil, nil, wrapErr(err, "failed to verify tx signature")
@@ -385,13 +385,13 @@ func (im *Importer) extractTransactions(transactions []proto.Transaction, miner 
 				return nil, nil, nil, nil, nil, errors.Errorf("Transaction %s has invalid signature", base58.Encode(id))
 			}
 			if t.Asset.Present {
-				ac, err := data.FromMassTransferV1(im.scheme, t)
+				ac, err := data.FromMassTransferWithProofs(im.scheme, t)
 				if err != nil {
-					return nil, nil, nil, nil, nil, wrapErr(err, "MassTransferV1")
+					return nil, nil, nil, nil, nil, wrapErr(err, "MassTransferWithProofs")
 				}
 				accountChanges = append(accountChanges, ac...)
 			}
-		case *proto.CreateAliasV1:
+		case *proto.CreateAliasWithSig:
 			if ok, err := t.Verify(t.GetSenderPK()); !ok {
 				if err != nil {
 					return nil, nil, nil, nil, nil, wrapErr(err, "failed to verify tx signature")
@@ -399,9 +399,9 @@ func (im *Importer) extractTransactions(transactions []proto.Transaction, miner 
 				id, _ := tx.GetID()
 				return nil, nil, nil, nil, nil, errors.Errorf("Transaction %s has invalid signature", base58.Encode(id))
 			}
-			b, err := data.FromCreateAliasV1(im.scheme, t)
+			b, err := data.FromCreateAliasWithSig(im.scheme, t)
 			if err != nil {
-				return nil, nil, nil, nil, nil, wrapErr(err, "CreateAliasV1")
+				return nil, nil, nil, nil, nil, wrapErr(err, "CreateAliasWithSig")
 			}
 			binds = append(binds, b)
 		}

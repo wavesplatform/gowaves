@@ -62,7 +62,7 @@ type getStateChangesHandler struct {
 func (h *getStateChangesHandler) handle(tx proto.Transaction) error {
 	var id crypto.Digest
 	switch t := tx.(type) {
-	case *proto.InvokeScriptV1:
+	case *proto.InvokeScriptWithProofs:
 		id = *t.ID
 	default:
 		return errors.New("bad transaction type")

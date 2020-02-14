@@ -39,7 +39,7 @@ func TestGetTransactions(t *testing.T) {
 	assert.NoError(t, err)
 	tx, err := st.TransactionByID(id.Bytes())
 	assert.NoError(t, err)
-	leaseTx, ok := tx.(*proto.LeaseV1)
+	leaseTx, ok := tx.(*proto.LeaseWithSig)
 	assert.Equal(t, true, ok)
 	recipient := *leaseTx.Recipient.Address
 	recipientBody, err := recipient.Body()
@@ -132,7 +132,7 @@ func TestGetStatuses(t *testing.T) {
 	sk, pk, err := crypto.GenerateKeyPair([]byte("whatever"))
 	assert.NoError(t, err)
 	waves := proto.OptionalAsset{Present: false}
-	tx := proto.NewUnsignedTransferV1(pk, waves, waves, 100, 1, 100, proto.NewRecipientFromAddress(addr), "attachment")
+	tx := proto.NewUnsignedTransferWithSig(pk, waves, waves, 100, 1, 100, proto.NewRecipientFromAddress(addr), "attachment")
 	err = tx.Sign(sk)
 	assert.NoError(t, err)
 	txBytes, err := tx.MarshalBinary()
@@ -201,7 +201,7 @@ func TestGetUnconfirmed(t *testing.T) {
 	senderAddrBody, err := senderAddr.Body()
 	assert.NoError(t, err)
 	waves := proto.OptionalAsset{Present: false}
-	tx := proto.NewUnsignedTransferV1(pk, waves, waves, 100, 1, 100, proto.NewRecipientFromAddress(addr), "attachment")
+	tx := proto.NewUnsignedTransferWithSig(pk, waves, waves, 100, 1, 100, proto.NewRecipientFromAddress(addr), "attachment")
 	err = tx.Sign(sk)
 	assert.NoError(t, err)
 	txBytes, err := tx.MarshalBinary()
@@ -294,7 +294,7 @@ func TestSign(t *testing.T) {
 	addr, err := proto.NewAddressFromString("3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ")
 	assert.NoError(t, err)
 	waves := proto.OptionalAsset{Present: false}
-	tx := proto.NewUnsignedTransferV1(pk, waves, waves, 100, 1, 100, proto.NewRecipientFromAddress(addr), "attachment")
+	tx := proto.NewUnsignedTransferWithSig(pk, waves, waves, 100, 1, 100, proto.NewRecipientFromAddress(addr), "attachment")
 	err = tx.GenerateID()
 	assert.NoError(t, err)
 	txProto, err := tx.ToProtobuf(server.scheme)
@@ -307,7 +307,7 @@ func TestSign(t *testing.T) {
 	var c proto.ProtobufConverter
 	resTx, err := c.SignedTransaction(res)
 	assert.NoError(t, err)
-	transfer, ok := resTx.(*proto.TransferV1)
+	transfer, ok := resTx.(*proto.TransferWithSig)
 	assert.Equal(t, true, ok)
 	ok, err = transfer.Verify(pk)
 	assert.NoError(t, err)
@@ -341,7 +341,7 @@ func TestBroadcast(t *testing.T) {
 	sk, pk, err := crypto.GenerateKeyPair([]byte("whatever"))
 	assert.NoError(t, err)
 	waves := proto.OptionalAsset{Present: false}
-	tx := proto.NewUnsignedTransferV1(pk, waves, waves, 100, 1, 100, proto.NewRecipientFromAddress(addr), "attachment")
+	tx := proto.NewUnsignedTransferWithSig(pk, waves, waves, 100, 1, 100, proto.NewRecipientFromAddress(addr), "attachment")
 	err = tx.Sign(sk)
 	assert.NoError(t, err)
 	txProto, err := tx.ToProtobufSigned(server.scheme)

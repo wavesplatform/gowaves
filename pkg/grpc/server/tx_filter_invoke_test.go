@@ -31,12 +31,12 @@ func TestTxFilterInvoke(t *testing.T) {
 	filter, err := newTxFilter(scheme, req)
 	assert.NoError(t, err)
 	filterInvoke := newTxFilterInvoke(filter)
-	tx = &proto.InvokeScriptV1{SenderPK: pk, ID: &id}
+	tx = &proto.InvokeScriptWithProofs{SenderPK: pk, ID: &id}
 	assert.Equal(t, true, filterInvoke.filter(tx))
-	tx = &proto.TransferV1{Transfer: proto.Transfer{SenderPK: pk}, ID: &id}
+	tx = &proto.TransferWithSig{Transfer: proto.Transfer{SenderPK: pk}, ID: &id}
 	assert.Equal(t, false, filterInvoke.filter(tx))
-	tx = &proto.InvokeScriptV1{SenderPK: pk2, ID: &id}
+	tx = &proto.InvokeScriptWithProofs{SenderPK: pk2, ID: &id}
 	assert.Equal(t, false, filterInvoke.filter(tx))
-	tx = &proto.InvokeScriptV1{SenderPK: pk, ID: &id2}
+	tx = &proto.InvokeScriptWithProofs{SenderPK: pk, ID: &id2}
 	assert.Equal(t, false, filterInvoke.filter(tx))
 }

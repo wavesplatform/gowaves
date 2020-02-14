@@ -39,7 +39,7 @@ type feeValidationParams struct {
 }
 
 func minFeeInUnits(features *features, tx proto.Transaction) (uint64, error) {
-	txType := tx.GetTypeVersion().Type
+	txType := tx.GetTypeInfo().Type
 	baseFee, ok := feeConstants[txType]
 	if !ok {
 		return 0, errors.Errorf("bad tx type %v\n", txType)
@@ -49,9 +49,9 @@ func minFeeInUnits(features *features, tx proto.Transaction) (uint64, error) {
 	case proto.IssueTransaction:
 		nft := false
 		switch itx := tx.(type) {
-		case *proto.IssueV1:
+		case *proto.IssueWithSig:
 			nft = itx.Quantity == 1 && itx.Decimals == 0 && !itx.Reissuable
-		case *proto.IssueV2:
+		case *proto.IssueWithProofs:
 			nft = itx.Quantity == 1 && itx.Decimals == 0 && !itx.Reissuable
 		default:
 			return 0, errors.New("failed to convert interface to Issue transaction")
@@ -67,13 +67,13 @@ func minFeeInUnits(features *features, tx proto.Transaction) (uint64, error) {
 		}
 		return fee, nil
 	case proto.MassTransferTransaction:
-		mtx, ok := tx.(*proto.MassTransferV1)
+		mtx, ok := tx.(*proto.MassTransferWithProofs)
 		if !ok {
 			return 0, errors.New("failed to convert interface to MassTransfer transaction")
 		}
 		fee += uint64((len(mtx.Transfers) + 1) / 2)
 	case proto.DataTransaction:
-		dtx, ok := tx.(*proto.DataV1)
+		dtx, ok := tx.(*proto.DataWithProofs)
 		if !ok {
 			return 0, errors.New("failed to convert interface to DataTransaction")
 		}

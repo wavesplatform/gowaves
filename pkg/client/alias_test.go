@@ -99,7 +99,7 @@ func TestAlias_Create(t *testing.T) {
 	require.Nil(t, err)
 
 	assert.NotNil(t, resp)
-	assert.Equal(t, &CreateAliasV1{
+	assert.Equal(t, &CreateAliasWithSig{
 		Type:      10,
 		ID:        &digest,
 		SenderPK:  pk,
@@ -159,7 +159,7 @@ func TestAlias_Broadcast(t *testing.T) {
 	digest, err := crypto.NewDigestFromBase58("5sXfATyK7xzfrG4AdFXnG3DMy6j3uEY3szZ21w5cGuNt")
 	require.Nil(t, err)
 
-	assert.Equal(t, &CreateAliasV1{
+	assert.Equal(t, &CreateAliasWithSig{
 		Type:      10,
 		ID:        &digest,
 		SenderPK:  pubKey,

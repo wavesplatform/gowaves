@@ -115,11 +115,11 @@ func (a *txAppender) checkDuplicateTxIdsImpl(id []byte, recentIds map[string]str
 }
 
 func (a *txAppender) checkDuplicateTxIds(tx proto.Transaction, recentIds map[string]struct{}, timestamp uint64) error {
-	if tx.GetTypeVersion().Type == proto.PaymentTransaction {
+	if tx.GetTypeInfo().Type == proto.PaymentTransaction {
 		// Payment transactions are deprecated.
 		return nil
 	}
-	if tx.GetTypeVersion().Type == proto.CreateAliasTransaction {
+	if tx.GetTypeInfo().Type == proto.CreateAliasTransaction {
 		if (timestamp >= a.settings.StolenAliasesWindowTimeStart) && (timestamp <= a.settings.StolenAliasesWindowTimeEnd) {
 			// At this period alias transactions might have duplicate IDs due to bugs in historical blockchain.
 			return nil
@@ -242,7 +242,7 @@ func (a *txAppender) checkTxAgainstState(tx proto.Transaction, accountScripted b
 		return 0, err
 	}
 	for _, smartAsset := range txSmartAssets {
-		if tx.GetTypeVersion().Type == proto.SetAssetScriptTransaction {
+		if tx.GetTypeInfo().Type == proto.SetAssetScriptTransaction {
 			// Exception: don't count before Ride4DApps activation.
 			break
 		}
@@ -252,7 +252,7 @@ func (a *txAppender) checkTxAgainstState(tx proto.Transaction, accountScripted b
 		}
 		scriptsRuns++
 	}
-	if tx.GetTypeVersion().Type == proto.ExchangeTransaction {
+	if tx.GetTypeInfo().Type == proto.ExchangeTransaction {
 		exchangeScripsRuns, err := a.handleExchange(tx, blockInfo, checkerInfo.initialisation)
 		if err != nil {
 			return 0, errors.Errorf("failed to handle exchange tx: %v", err)
@@ -392,11 +392,11 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 		}
 		scriptsRuns += txScriptsRuns
 		var txChanges txBalanceChanges
-		if tx.GetTypeVersion().Type == proto.InvokeScriptTransaction {
+		if tx.GetTypeInfo().Type == proto.InvokeScriptTransaction {
 			// Invoke is handled in a special way.
-			invokeTx, ok := tx.(*proto.InvokeScriptV1)
+			invokeTx, ok := tx.(*proto.InvokeScriptWithProofs)
 			if !ok {
-				return errors.New("failed to convert InvokeScriptTransaction to type InvokeScriptV1")
+				return errors.New("failed to convert InvokeScriptTransaction to type InvokeScriptWithProofs")
 			}
 			invokeInfo := &invokeAddlInfo{
 				previousScriptRuns: txScriptsRuns,
@@ -405,7 +405,7 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 				height:             curHeight,
 				validatingUtx:      false,
 			}
-			txChanges, err = a.ia.applyInvokeScriptV1(invokeTx, invokeInfo)
+			txChanges, err = a.ia.applyInvokeScriptWithProofs(invokeTx, invokeInfo)
 			if err != nil {
 				return errors.Errorf("failed to apply InvokeScript transaction %s to state: %v", invokeTx.ID.String(), err)
 			}
@@ -484,9 +484,9 @@ func (a *txAppender) checkUtxTxSig(tx proto.Transaction, scripted bool) error {
 }
 
 func (a *txAppender) handleInvoke(tx proto.Transaction, height uint64, block *proto.BlockHeader, prevScriptRuns uint64) error {
-	invokeTx, ok := tx.(*proto.InvokeScriptV1)
+	invokeTx, ok := tx.(*proto.InvokeScriptWithProofs)
 	if !ok {
-		return errors.New("failed to convert transaction to type InvokeScriptV1")
+		return errors.New("failed to convert transaction to type InvokeScriptWithProofs")
 	}
 	invokeInfo := &invokeAddlInfo{
 		previousScriptRuns: prevScriptRuns,
@@ -495,7 +495,7 @@ func (a *txAppender) handleInvoke(tx proto.Transaction, height uint64, block *pr
 		height:             height,
 		validatingUtx:      true,
 	}
-	_, err := a.ia.applyInvokeScriptV1(invokeTx, invokeInfo)
+	_, err := a.ia.applyInvokeScriptWithProofs(invokeTx, invokeInfo)
 	if err != nil {
 		return errors.Wrap(err, "InvokeScript validation failed")
 	}
@@ -559,7 +559,7 @@ func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, pare
 		return err
 	}
 	a.totalScriptsRuns += txScriptsRuns
-	if tx.GetTypeVersion().Type == proto.InvokeScriptTransaction {
+	if tx.GetTypeInfo().Type == proto.InvokeScriptTransaction {
 		// Invoke is handled in a special way.
 		return a.handleInvoke(tx, height, block, txScriptsRuns)
 	}

@@ -54,40 +54,59 @@ const (
 
 var (
 	bytesToTransactionsV2 = map[TransactionType]reflect.Type{
-		IssueTransaction:          reflect.TypeOf(IssueV2{}),
-		TransferTransaction:       reflect.TypeOf(TransferV2{}),
-		ReissueTransaction:        reflect.TypeOf(ReissueV2{}),
-		BurnTransaction:           reflect.TypeOf(BurnV2{}),
-		ExchangeTransaction:       reflect.TypeOf(ExchangeV2{}),
-		LeaseTransaction:          reflect.TypeOf(LeaseV2{}),
-		LeaseCancelTransaction:    reflect.TypeOf(LeaseCancelV2{}),
-		CreateAliasTransaction:    reflect.TypeOf(CreateAliasV2{}),
-		DataTransaction:           reflect.TypeOf(DataV1{}),
-		SetScriptTransaction:      reflect.TypeOf(SetScriptV1{}),
-		SponsorshipTransaction:    reflect.TypeOf(SponsorshipV1{}),
-		SetAssetScriptTransaction: reflect.TypeOf(SetAssetScriptV1{}),
-		InvokeScriptTransaction:   reflect.TypeOf(InvokeScriptV1{}),
+		IssueTransaction:          reflect.TypeOf(IssueWithProofs{}),
+		TransferTransaction:       reflect.TypeOf(TransferWithProofs{}),
+		ReissueTransaction:        reflect.TypeOf(ReissueWithProofs{}),
+		BurnTransaction:           reflect.TypeOf(BurnWithProofs{}),
+		ExchangeTransaction:       reflect.TypeOf(ExchangeWithProofs{}),
+		LeaseTransaction:          reflect.TypeOf(LeaseWithProofs{}),
+		LeaseCancelTransaction:    reflect.TypeOf(LeaseCancelWithProofs{}),
+		CreateAliasTransaction:    reflect.TypeOf(CreateAliasWithProofs{}),
+		DataTransaction:           reflect.TypeOf(DataWithProofs{}),
+		SetScriptTransaction:      reflect.TypeOf(SetScriptWithProofs{}),
+		SponsorshipTransaction:    reflect.TypeOf(SponsorshipWithProofs{}),
+		SetAssetScriptTransaction: reflect.TypeOf(SetAssetScriptWithProofs{}),
+		InvokeScriptTransaction:   reflect.TypeOf(InvokeScriptWithProofs{}),
 	}
 
 	bytesToTransactionsV1 = map[TransactionType]reflect.Type{
 		GenesisTransaction:      reflect.TypeOf(Genesis{}),
 		PaymentTransaction:      reflect.TypeOf(Payment{}),
-		IssueTransaction:        reflect.TypeOf(IssueV1{}),
-		TransferTransaction:     reflect.TypeOf(TransferV1{}),
-		ReissueTransaction:      reflect.TypeOf(ReissueV1{}),
-		BurnTransaction:         reflect.TypeOf(BurnV1{}),
-		ExchangeTransaction:     reflect.TypeOf(ExchangeV1{}),
-		LeaseTransaction:        reflect.TypeOf(LeaseV1{}),
-		LeaseCancelTransaction:  reflect.TypeOf(LeaseCancelV1{}),
-		CreateAliasTransaction:  reflect.TypeOf(CreateAliasV1{}),
-		MassTransferTransaction: reflect.TypeOf(MassTransferV1{}),
+		IssueTransaction:        reflect.TypeOf(IssueWithSig{}),
+		TransferTransaction:     reflect.TypeOf(TransferWithSig{}),
+		ReissueTransaction:      reflect.TypeOf(ReissueWithSig{}),
+		BurnTransaction:         reflect.TypeOf(BurnWithSig{}),
+		ExchangeTransaction:     reflect.TypeOf(ExchangeWithSig{}),
+		LeaseTransaction:        reflect.TypeOf(LeaseWithSig{}),
+		LeaseCancelTransaction:  reflect.TypeOf(LeaseCancelWithSig{}),
+		CreateAliasTransaction:  reflect.TypeOf(CreateAliasWithSig{}),
+		MassTransferTransaction: reflect.TypeOf(MassTransferWithProofs{}),
 	}
 )
+
+type TransactionProofVersion byte
+
+const (
+	Signature TransactionProofVersion = iota + 1
+	Proof
+)
+
+type TransactionTypeInfo struct {
+	Type         TransactionType
+	ProofVersion TransactionProofVersion
+}
 
 // Transaction is a set of common transaction functions.
 type Transaction interface {
 	// Getters which are common for all transactions.
-	GetTypeVersion() TransactionTypeVersion
+
+	// GetTypeInfo() returns information which describes which Golang structure
+	// do we deal with (tx type + proof/signature flag).
+	// <TODO>:
+	// This is temporary workaround until we have the same struct for both
+	// Signature and Proofs transactions.
+	GetTypeInfo() TransactionTypeInfo
+	GetVersion() byte
 	GetID() ([]byte, error)
 	GetSenderPK() crypto.PublicKey
 	GetFee() uint64
@@ -133,7 +152,7 @@ func TransactionToProtobufCommon(scheme Scheme, tx Transaction) *g.Transaction {
 		ChainId:         int32(scheme),
 		SenderPublicKey: pk.Bytes(),
 		Timestamp:       int64(tx.GetTimestamp()),
-		Version:         int32(tx.GetTypeVersion().Version),
+		Version:         int32(tx.GetVersion()),
 	}
 }
 
@@ -202,73 +221,65 @@ func GuessTransactionType(t *TransactionTypeVersion) (Transaction, error) {
 	case PaymentTransaction: // 2
 		out = &Payment{}
 	case IssueTransaction: // 3
-		switch t.Version {
-		case 2:
-			out = &IssueV2{}
-		default:
-			out = &IssueV1{}
+		if t.Version >= 2 {
+			out = &IssueWithProofs{}
+		} else {
+			out = &IssueWithSig{}
 		}
 	case TransferTransaction: // 4
-		switch t.Version {
-		case 2:
-			out = &TransferV2{}
-		default:
-			out = &TransferV1{}
+		if t.Version >= 2 {
+			out = &TransferWithProofs{}
+		} else {
+			out = &TransferWithSig{}
 		}
 	case ReissueTransaction: // 5
-		switch t.Version {
-		case 2:
-			out = &ReissueV2{}
-		default:
-			out = &ReissueV1{}
+		if t.Version >= 2 {
+			out = &ReissueWithProofs{}
+		} else {
+			out = &ReissueWithSig{}
 		}
 	case BurnTransaction: // 6
-		switch t.Version {
-		case 2:
-			out = &BurnV2{}
-		default:
-			out = &BurnV1{}
+		if t.Version >= 2 {
+			out = &BurnWithProofs{}
+		} else {
+			out = &BurnWithSig{}
 		}
 	case ExchangeTransaction: // 7
-		switch t.Version {
-		case 2:
-			out = &ExchangeV2{}
-		default:
-			out = &ExchangeV1{}
+		if t.Version >= 2 {
+			out = &ExchangeWithProofs{}
+		} else {
+			out = &ExchangeWithSig{}
 		}
 	case LeaseTransaction: // 8
-		switch t.Version {
-		case 2:
-			out = &LeaseV2{}
-		default:
-			out = &LeaseV1{}
+		if t.Version >= 2 {
+			out = &LeaseWithProofs{}
+		} else {
+			out = &LeaseWithSig{}
 		}
 	case LeaseCancelTransaction: // 9
-		switch t.Version {
-		case 2:
-			out = &LeaseCancelV2{}
-		default:
-			out = &LeaseCancelV1{}
+		if t.Version >= 2 {
+			out = &LeaseCancelWithProofs{}
+		} else {
+			out = &LeaseCancelWithSig{}
 		}
 	case CreateAliasTransaction: // 10
-		switch t.Version {
-		case 2:
-			out = &CreateAliasV2{}
-		default:
-			out = &CreateAliasV1{}
+		if t.Version >= 2 {
+			out = &CreateAliasWithProofs{}
+		} else {
+			out = &CreateAliasWithSig{}
 		}
 	case MassTransferTransaction: // 11
-		out = &MassTransferV1{}
+		out = &MassTransferWithProofs{}
 	case DataTransaction: // 12
-		out = &DataV1{}
+		out = &DataWithProofs{}
 	case SetScriptTransaction: // 13
-		out = &SetScriptV1{}
+		out = &SetScriptWithProofs{}
 	case SponsorshipTransaction: // 14
-		out = &SponsorshipV1{}
+		out = &SponsorshipWithProofs{}
 	case SetAssetScriptTransaction: // 15
-		out = &SetAssetScriptV1{}
+		out = &SetAssetScriptWithProofs{}
 	case InvokeScriptTransaction: // 16
-		out = &InvokeScriptV1{}
+		out = &InvokeScriptWithProofs{}
 	}
 	if out == nil {
 		return nil, errors.Errorf("unknown transaction type %d version %d", t.Type, t.Version)
@@ -291,8 +302,12 @@ func (tx Genesis) BinarySize() int {
 	return 1 + 8 + AddressSize + 8
 }
 
-func (tx Genesis) GetTypeVersion() TransactionTypeVersion {
-	return TransactionTypeVersion{tx.Type, 1}
+func (tx Genesis) GetTypeInfo() TransactionTypeInfo {
+	return TransactionTypeInfo{tx.Type, Signature}
+}
+
+func (tx Genesis) GetVersion() byte {
+	return tx.Version
 }
 
 func (tx *Genesis) GenerateID() error {
@@ -506,8 +521,12 @@ func (tx Payment) BinarySize() int {
 	return 1 + crypto.SignatureSize + crypto.PublicKeySize + AddressSize + 24
 }
 
-func (tx Payment) GetTypeVersion() TransactionTypeVersion {
-	return TransactionTypeVersion{tx.Type, tx.Version}
+func (tx Payment) GetTypeInfo() TransactionTypeInfo {
+	return TransactionTypeInfo{tx.Type, Signature}
+}
+
+func (tx Payment) GetVersion() byte {
+	return tx.Version
 }
 
 func (tx *Payment) GenerateID() error {

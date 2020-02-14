@@ -93,7 +93,7 @@ func TestTransactions_Info(t *testing.T) {
 		t.Fatal(err)
 	}
 	assert.NotNil(t, resp)
-	assert.Equal(t, &id, body.(*proto.ExchangeV1).ID)
+	assert.Equal(t, &id, body.(*proto.ExchangeWithSig).ID)
 	assert.Equal(t, "https://testnodes.wavesnodes.com/transactions/info/95DEg9uS9Ez2RoAQWsBgW8hDmHEJzWB1nMpPZdSp1JbB", resp.Request.URL.String())
 }
 
@@ -143,7 +143,7 @@ func TestTransactionInfoDataTransaction(t *testing.T) {
 		t.Fatal(err)
 	}
 	assert.NotNil(t, resp)
-	assert.Equal(t, &id, body.(*proto.DataV1).ID)
+	assert.Equal(t, &id, body.(*proto.DataWithProofs).ID)
 	assert.Equal(t, "https://testnodes.wavesnodes.com/transactions/info/74r5tx5BuhnYP3YQ5jo3RwDcH89gaDEdEc9bjUKPiSa8", resp.Request.URL.String())
 
 }
@@ -209,7 +209,7 @@ func TestTransactions_UnconfirmedInfo(t *testing.T) {
 		t.Fatal(err)
 	}
 	assert.NotNil(t, resp)
-	assert.Equal(t, &id, body.(*proto.ExchangeV1).ID)
+	assert.Equal(t, &id, body.(*proto.ExchangeWithSig).ID)
 	assert.Equal(t, "https://testnodes.wavesnodes.com/transactions/unconfirmed/info/DCLe9jiCYmMBeU2qMwz2SU3bnWRJ9YdCgf3gEpzeGM52", resp.Request.URL.String())
 }
 
@@ -282,7 +282,7 @@ func TestTransactions_TransactionsByAddress(t *testing.T) {
 	assert.NotNil(t, resp)
 	assert.Equal(t, 1, len(body))
 	assert.Equal(t, "https://testnodes.wavesnodes.com/transactions/address/3PJaDyprvekvPXPuAtxrapacuDJopgJRaU3/limit/1", resp.Request.URL.String())
-	assert.Equal(t, uint64(300000), body[0].(*proto.ExchangeV1).Fee)
+	assert.Equal(t, uint64(300000), body[0].(*proto.ExchangeWithSig).Fee)
 }
 
 var transactionUnconfirmedJson = `
@@ -346,5 +346,5 @@ func TestTransactions_Unconfirmed(t *testing.T) {
 	assert.NotNil(t, resp)
 	assert.Equal(t, 1, len(body))
 	assert.Equal(t, "https://testnodes.wavesnodes.com/transactions/unconfirmed", resp.Request.URL.String())
-	assert.Equal(t, uint64(300000), body[0].(*proto.ExchangeV1).Fee)
+	assert.Equal(t, uint64(300000), body[0].(*proto.ExchangeWithSig).Fee)
 }
