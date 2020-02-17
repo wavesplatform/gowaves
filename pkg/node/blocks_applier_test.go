@@ -75,19 +75,6 @@ func TestApply_ValidBlockWithRollback(t *testing.T) {
 	require.Equal(t, crypto.MustSignatureFromBase58("sV8beveiVKCiUn9BGZRgZj7V5tRRWPMRj1V9WWzKWnigtfQyZ2eErVXHi7vyGXj5hPuaxF9sGxowZr5XuD4UAwW"), newBlock.BlockSignature)
 }
 
-var errorMessage = "error message"
-
-type checkErrMock struct {
-	*MockStateManager
-}
-
-func (a *checkErrMock) AddDeserializedBlock(block *proto.Block) (*proto.Block, error) {
-	if block.BlockSignature == crypto.MustSignatureFromBase58("sV8beveiVKCiUn9BGZRgZj7V5tRRWPMRj1V9WWzKWnigtfQyZ2eErVXHi7vyGXj5hPuaxF9sGxowZr5XuD4UAwW") {
-		return nil, errors.New(errorMessage)
-	}
-	return a.MockStateManager.AddDeserializedBlock(block)
-}
-
 // in this test we check that block rollback previous deleted block, when try to add new block.
 // Emulate new blocks have error, so we can't accept them, and rollbacked blocks apply again
 func TestApply_InvalidBlockWithRollback(t *testing.T) {

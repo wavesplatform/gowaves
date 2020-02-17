@@ -78,6 +78,10 @@ func (a *MicroblockMiner) Mine(ctx context.Context, t proto.Timestamp, k proto.K
 		}
 		return b, nil
 	}()
+	if err != nil {
+		zap.S().Error(err)
+		return
+	}
 
 	err = a.services.BlocksApplier.Apply([]*proto.Block{b})
 	if err != nil {
