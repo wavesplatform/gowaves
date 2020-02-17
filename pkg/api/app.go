@@ -73,10 +73,8 @@ func (a *App) checkAuth(key string) error {
 	if err != nil {
 		return &AuthError{err}
 	}
-
 	if d != a.hashedApiKey {
 		return &AuthError{errors.New("invalid api key")}
 	}
-
 	return nil
 }

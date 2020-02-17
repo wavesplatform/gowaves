@@ -34,6 +34,7 @@ func (a byScore) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 
 type PeerManager interface {
 	Connected(peer.Peer) (peer.Peer, bool)
+	ConnectedCount() int
 	EachConnected(func(peer.Peer, *proto.Score))
 	IsSuspended(peer.Peer) bool
 	Suspend(peer.Peer, string)
@@ -147,6 +148,12 @@ func (a *PeerManagerImpl) Connected(p peer.Peer) (peer.Peer, bool) {
 	defer a.mu.RUnlock()
 	p1, ok := a.active[p]
 	return p1.peer, ok
+}
+
+func (a *PeerManagerImpl) ConnectedCount() int {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	return len(a.active)
 }
 
 func (a *PeerManagerImpl) Run(ctx context.Context) {

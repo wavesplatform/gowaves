@@ -38,12 +38,8 @@ func TestMineMicroblock(t *testing.T) {
 
 	transferV1 := byte_helpers.TransferV1.Transaction.Clone()
 
-	micro, err := createMicroBlock(keyBlock, proto.NewReprFromTransactions([]proto.Transaction{transferV1}), keyPair, proto.MainNetScheme)
+	_, err = createMicroBlock(keyBlock, proto.NewReprFromTransactions([]proto.Transaction{transferV1}), keyPair, proto.MainNetScheme)
 	require.NoError(t, err)
-
-	t.Logf("%+v", keyBlock)
-	t.Logf("%+v", micro)
-
 }
 
 func createMicroBlock(keyBlock *proto.Block, tr *proto.TransactionsRepresentation, keyPair proto.KeyPair, chainID proto.Scheme) (*proto.MicroBlock, error) {

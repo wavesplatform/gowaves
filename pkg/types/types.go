@@ -105,3 +105,7 @@ type ScoreSender interface {
 	Priority()
 	NonPriority()
 }
+
+type MinerConsensus interface {
+	IsMiningAllowed() bool
+}

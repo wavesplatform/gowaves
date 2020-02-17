@@ -35,19 +35,21 @@ import (
 var version = proto.Version{Major: 1, Minor: 1, Patch: 5}
 
 var (
-	logLevel         = flag.String("log-level", "INFO", "Logging level. Supported levels: DEBUG, INFO, WARN, ERROR, FATAL. Default logging level INFO.")
-	statePath        = flag.String("state-path", "", "Path to node's state directory")
-	blockchainType   = flag.String("blockchain-type", "mainnet", "Blockchain type: mainnet/testnet/stagenet")
-	peerAddresses    = flag.String("peers", "35.156.19.4:6868,52.50.69.247:6868,52.52.46.76:6868,52.57.147.71:6868,52.214.55.18:6868,54.176.190.226:6868", "Addresses of peers to connect to")
-	declAddr         = flag.String("declared-address", "", "Address to listen on")
-	apiAddr          = flag.String("api-address", "", "Address for REST API")
-	grpcAddr         = flag.String("grpc-address", "127.0.0.1:7475", "Address for gRPC API")
-	enableGrpcApi    = flag.Bool("enable-grpc-api", true, "Enables/disables gRPC API")
-	buildExtendedApi = flag.Bool("build-extended-api", false, "Builds extended API. Note that state must be reimported in case it wasn't imported with similar flag set")
-	serveExtendedApi = flag.Bool("serve-extended-api", false, "Serves extended API requests since the very beginning. The default behavior is to import until first block close to current time, and start serving at this point")
-	seed             = flag.String("seed", "", "Seed for miner")
-	bindAddress      = flag.String("bind-address", "", "Bind address for incoming connections. If empty, will be same as declared address")
-	connectPeers     = flag.String("connect-peers", "true", "Spawn outgoing connections")
+	logLevel          = flag.String("log-level", "INFO", "Logging level. Supported levels: DEBUG, INFO, WARN, ERROR, FATAL. Default logging level INFO.")
+	statePath         = flag.String("state-path", "", "Path to node's state directory")
+	blockchainType    = flag.String("blockchain-type", "mainnet", "Blockchain type: mainnet/testnet/stagenet")
+	peerAddresses     = flag.String("peers", "35.156.19.4:6868,52.50.69.247:6868,52.52.46.76:6868,52.57.147.71:6868,52.214.55.18:6868,54.176.190.226:6868", "Addresses of peers to connect to")
+	declAddr          = flag.String("declared-address", "", "Address to listen on")
+	apiAddr           = flag.String("api-address", "", "Address for REST API")
+	grpcAddr          = flag.String("grpc-address", "127.0.0.1:7475", "Address for gRPC API")
+	enableGrpcApi     = flag.Bool("enable-grpc-api", true, "Enables/disables gRPC API")
+	buildExtendedApi  = flag.Bool("build-extended-api", false, "Builds extended API. Note that state must be reimported in case it wasn't imported with similar flag set")
+	serveExtendedApi  = flag.Bool("serve-extended-api", false, "Serves extended API requests since the very beginning. The default behavior is to import until first block close to current time, and start serving at this point")
+	seed              = flag.String("seed", "", "Seed for miner")
+	bindAddress       = flag.String("bind-address", "", "Bind address for incoming connections. If empty, will be same as declared address")
+	connectPeers      = flag.String("connect-peers", "true", "Spawn outgoing connections")
+	minerVoteFeatures = flag.String("vote", "", "Miner vote features")
+	reward            = flag.String("reward", "", "Miner reward: for example 600000000")
 )
 
 func main() {
@@ -61,28 +63,21 @@ func main() {
 
 	zap.S().Info("connectPeers ", *connectPeers)
 
-	ctx, cancel := context.WithCancel(context.Background())
-
 	conf := &settings.NodeSettings{}
 	if err := settings.ApplySettings(conf, FromArgs(), settings.FromJavaEnviron); err != nil {
 		zap.S().Error(err)
-		cancel()
 		return
 	}
-
-	zap.S().Info("conf", conf)
 
 	err = conf.Validate()
 	if err != nil {
 		zap.S().Error(err)
-		cancel()
 		return
 	}
 
 	cfg, err := settings.BlockchainSettingsByTypeName(*blockchainType)
 	if err != nil {
 		zap.S().Error(err)
-		cancel()
 		return
 	}
 
@@ -91,17 +86,24 @@ func main() {
 		path, err = util.GetStatePath()
 		if err != nil {
 			zap.S().Error(err)
-			cancel()
 			return
 		}
+	}
+
+	reward, err := miner.ParseReward(*reward)
+	if err != nil {
+		zap.S().Error(err)
+		return
 	}
 
 	ntptm, err := ntptime.TryNew("pool.ntp.org", 10)
 	if err != nil {
 		zap.S().Error(err)
-		cancel()
 		return
 	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+
 	go ntptm.Run(ctx, 2*time.Minute)
 
 	params := state.DefaultStateParams()
@@ -112,6 +114,20 @@ func main() {
 	if err != nil {
 		zap.S().Error(err)
 		cancel()
+		return
+	}
+
+	features, err := miner.ParseVoteFeatures(*minerVoteFeatures)
+	if err != nil {
+		cancel()
+		zap.S().Error(err)
+		return
+	}
+
+	features, err = miner.ValidateFeaturesWithLock(state, features)
+	if err != nil {
+		cancel()
+		zap.S().Error(err)
 		return
 	}
 
@@ -145,7 +161,7 @@ func main() {
 		keyPairs = append(keyPairs, proto.MustKeyPair([]byte(*seed)))
 	}
 
-	scheduler := scheduler.NewScheduler(state, keyPairs, cfg, ntptm)
+	scheduler := scheduler.NewScheduler(state, keyPairs, cfg, ntptm, scheduler.NewMinerConsensus(peerManager, 1))
 	stateChanged := state_changed.NewStateChanged()
 	blockApplier := node.NewBlocksApplier(state, ntptm)
 
@@ -178,7 +194,7 @@ func main() {
 		scoreSender.Run(ctx)
 	})
 
-	mine := miner.NewMicroblockMiner(services, ngRuntime, cfg.AddressSchemeCharacter)
+	mine := miner.NewMicroblockMiner(services, ngRuntime, cfg.AddressSchemeCharacter, features, reward)
 	peerManager.SetConnectPeers(!(*connectPeers == "false"))
 	go miner.Run(ctx, mine, scheduler)
 

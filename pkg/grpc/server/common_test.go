@@ -93,7 +93,7 @@ func stateWithCustomGenesis(t *testing.T, genesisPath string) (state.State, func
 }
 
 func createScheduler(ctx context.Context, st state.State, settings *settings.BlockchainSettings) *scheduler.SchedulerImpl {
-	return scheduler.NewScheduler(st, keyPairs, settings, ntptime.Stub{})
+	return scheduler.NewScheduler(st, keyPairs, settings, ntptime.Stub{}, scheduler.StubConsensus{})
 }
 
 func connect(t *testing.T, addr string) *grpc.ClientConn {
