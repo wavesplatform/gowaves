@@ -282,7 +282,7 @@ func newTransactionDiffer(stor *blockchainEntitiesStorage, settings *settings.Bl
 }
 
 func (td *transactionDiffer) calculateTxFee(txFee uint64) (uint64, error) {
-	ngActivated, err := td.stor.features.isActivated(int16(settings.NG))
+	ngActivated, err := td.stor.features.isActivatedForNBlocks(int16(settings.NG), 1)
 	if err != nil {
 		return 0, err
 	}

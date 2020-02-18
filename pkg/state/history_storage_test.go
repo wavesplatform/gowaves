@@ -50,4 +50,22 @@ func TestAddNewEntry(t *testing.T) {
 	blockID, err := to.hs.blockOfTheLatestEntry(key, true)
 	assert.NoError(t, err, "blockOfTheLatestEntry() failed")
 	assert.Equal(t, blockID0, blockID)
+
+	// Check entryDataAtHeight().
+
+	data, err = to.hs.entryDataAtHeight(key, 1, true)
+	assert.NoError(t, err)
+	assert.Equal(t, val, data)
+	to.addBlock(t, blockID1)
+	val2 := bytes.Repeat([]byte{0x2a}, valSize)
+	to.flush(t)
+	err = to.hs.addNewEntry(accountScript, key, val2, blockID1)
+	assert.NoError(t, err, "addNewEntry() failed")
+	to.flush(t)
+	data, err = to.hs.entryDataAtHeight(key, 1, true)
+	assert.NoError(t, err)
+	assert.Equal(t, val, data)
+	data, err = to.hs.entryDataAtHeight(key, 2, true)
+	assert.NoError(t, err)
+	assert.Equal(t, val2, data)
 }

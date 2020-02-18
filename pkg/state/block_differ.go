@@ -37,19 +37,12 @@ func newBlockDiffer(handler *transactionHandler, stor *blockchainEntitiesStorage
 }
 
 func (d *blockDiffer) prevBlockFeeDistr(prevBlock crypto.Signature) (*feeDistribution, error) {
-	ngActivated, err := d.stor.features.isActivated(int16(settings.NG))
+	ngActivated, err := d.stor.features.isActivatedForNBlocks(int16(settings.NG), 2)
 	if err != nil {
 		return nil, err
 	}
 	if !ngActivated {
 		// If NG is not activated, miner does not get any fees from the previous block.
-		return &feeDistribution{}, nil
-	}
-	ngActivationBlock, err := d.stor.features.activationBlock(int16(settings.NG))
-	if err != nil {
-		return nil, err
-	}
-	if bytes.Equal(prevBlock[:], ngActivationBlock[:]) {
 		// If the last block in current state is the NG activation block,
 		// miner does not get any fees from this (last) block, because it was all taken by the last non-NG miner.
 		return &feeDistribution{}, nil
@@ -169,15 +162,12 @@ func (d *blockDiffer) createMinerDiff(block *proto.BlockHeader, hasParent bool, 
 	return minerDiff, nil
 }
 
-func (d *blockDiffer) addBlockReward(diff txDiff, addr proto.Address, block *proto.BlockHeader, height uint64) error {
-	// We use isOneBlockBeforeActivation() here as workaround, because in existing blockchain
-	// reward was charged at 000 block, but block v4 appeared one block after.
-	oneBeforeActivation := d.stor.features.isOneBlockBeforeActivation(int16(settings.BlockReward), height)
+func (d *blockDiffer) addBlockReward(diff txDiff, addr proto.Address, block *proto.BlockHeader, blockchainHeight uint64) error {
 	activated, err := d.stor.features.isActivated(int16(settings.BlockReward))
 	if err != nil {
 		return err
 	}
-	if !activated && !oneBeforeActivation {
+	if !activated {
 		// Monetary policy is not working yet.
 		return nil
 	}

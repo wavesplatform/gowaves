@@ -84,6 +84,8 @@ func TestCreateBlockDiffNg(t *testing.T) {
 	parent, child := genBlocks(t, to)
 	// Activate NG first of all.
 	to.stor.activateFeature(t, int16(settings.NG))
+	to.stor.addBlock(t, parent.BlockSignature)
+	to.stor.addBlock(t, child.BlockSignature)
 
 	// Create diff from parent block.
 	txs := parent.Transactions
@@ -197,6 +199,7 @@ func TestCreateBlockDiffWithReward(t *testing.T) {
 
 	// First block
 	block1 := genBlockWithSingleTransaction(t, sig, gs, to)
+	to.stor.addBlock(t, block1.BlockSignature)
 	txs := block1.Transactions
 	for _, tx := range txs {
 		err := to.blockDiffer.countMinerFee(tx)
@@ -207,6 +210,7 @@ func TestCreateBlockDiffWithReward(t *testing.T) {
 
 	// Second block
 	block2 := genBlockWithSingleTransaction(t, block1.BlockSignature, block1.GenSignature, to)
+	to.stor.addBlock(t, block2.BlockSignature)
 	minerDiff, err := to.blockDiffer.createMinerDiff(&block2.BlockHeader, true, defaultHeight)
 	require.NoError(t, err)
 

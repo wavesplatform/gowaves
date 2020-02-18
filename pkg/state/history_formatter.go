@@ -1,10 +1,14 @@
 package state
 
+import (
+	"github.com/pkg/errors"
+)
+
 // historyFormatter formats histories. It can `cut` and `filter` histories.
 // `Cut` removes outdated blocks (blocks that are more than `rollbackMaxBlocks` in the past)
 // from the beginning of the history.
 // `Filter` removes invalid blocks from the end of the history. Blocks become invalid when they are rolled back.
-// It simply looks at the list of valid blocks, and marks block as invalid if its unique number is not in this list.
+// It simply looks at the list of valid blocks, and considers block as invalid if its unique number is not in this list.
 type historyFormatter struct {
 	db *stateDB
 }
@@ -14,6 +18,14 @@ func newHistoryFormatter(db *stateDB) (*historyFormatter, error) {
 }
 
 func (hfmt *historyFormatter) filter(history *historyRecord) (bool, error) {
+	property, ok := properties[history.entityType]
+	if !ok {
+		return false, errors.Errorf("bad entity type: %v", history.entityType)
+	}
+	if !property.needToFilter {
+		// This type of entities needs no filtering.
+		return false, nil
+	}
 	changed := false
 	for i := len(history.entries) - 1; i >= 0; i-- {
 		entry := history.entries[i]
@@ -45,6 +57,14 @@ func (hfmt *historyFormatter) calculateMinAcceptableBlockNum() (uint32, error) {
 }
 
 func (hfmt *historyFormatter) cut(history *historyRecord) (bool, error) {
+	property, ok := properties[history.entityType]
+	if !ok {
+		return false, errors.Errorf("bad entity type: %v", history.entityType)
+	}
+	if !property.needToCut {
+		// This type of entities needs no cuts.
+		return false, nil
+	}
 	changed := false
 	firstNeeded := 0
 	minAcceptableBlockNum, err := hfmt.calculateMinAcceptableBlockNum()

@@ -37,7 +37,6 @@ type stateInfoProvider interface {
 	BlockchainSettings() (*settings.BlockchainSettings, error)
 	HeaderByHeight(height uint64) (*proto.BlockHeader, error)
 	EffectiveBalance(addr proto.Recipient, startHeight, endHeight uint64) (uint64, error)
-	IsActivated(featureID int16) (bool, error)
 	IsActiveAtHeight(featureID int16, height proto.Height) (bool, error)
 	ActivationHeight(featureID int16) (proto.Height, error)
 }
@@ -64,16 +63,16 @@ func NewConsensusValidator(state stateInfoProvider, tm types.Time) (*ConsensusVa
 
 }
 
-func (cv *ConsensusValidator) smallerMinimalGeneratingBalanceActivated() (bool, error) {
-	return cv.state.IsActivated(int16(settings.SmallerMinimalGeneratingBalance))
+func (cv *ConsensusValidator) smallerMinimalGeneratingBalanceActivated(height uint64) (bool, error) {
+	return cv.state.IsActiveAtHeight(int16(settings.SmallerMinimalGeneratingBalance), height)
 }
 
-func (cv *ConsensusValidator) fairPosActivated() (bool, error) {
-	return cv.state.IsActivated(int16(settings.FairPoS))
+func (cv *ConsensusValidator) fairPosActivated(height uint64) (bool, error) {
+	return cv.state.IsActiveAtHeight(int16(settings.FairPoS), height)
 }
 
-func (cv *ConsensusValidator) posAlgo() (PosCalculator, error) {
-	fair, err := cv.fairPosActivated()
+func (cv *ConsensusValidator) posAlgo(height uint64) (PosCalculator, error) {
+	fair, err := cv.fairPosActivated(height)
 	if err != nil {
 		return &NxtPosCalculator{}, err
 	}
@@ -140,7 +139,7 @@ func (cv *ConsensusValidator) validateEffectiveBalance(header *proto.BlockHeader
 	if header.Timestamp < cv.settings.MinimalGeneratingBalanceCheckAfterTime {
 		return nil
 	}
-	smallerGeneratingBalance, err := cv.smallerMinimalGeneratingBalanceActivated()
+	smallerGeneratingBalance, err := cv.smallerMinimalGeneratingBalanceActivated(height)
 	if err != nil {
 		return err
 	}
@@ -196,7 +195,7 @@ func (cv *ConsensusValidator) validateBlockVersion(height uint64, header *proto.
 }
 
 func (cv *ConsensusValidator) checkTargetLimit(height, target uint64) error {
-	fair, err := cv.fairPosActivated()
+	fair, err := cv.fairPosActivated(height)
 	if err != nil {
 		return err
 	}
@@ -213,7 +212,7 @@ func (cv *ConsensusValidator) validateBaseTarget(height uint64, header, parent, 
 	if err := cv.checkTargetLimit(height, header.BaseTarget); err != nil {
 		return err
 	}
-	pos, err := cv.posAlgo()
+	pos, err := cv.posAlgo(height)
 	if err != nil {
 		return err
 	}
@@ -244,7 +243,7 @@ func (cv *ConsensusValidator) validateGeneratorSignature(height uint64, header *
 	if err != nil {
 		return errors.Wrapf(err, "failed to validate generation signature")
 	}
-	pos, err := cv.posAlgo()
+	pos, err := cv.posAlgo(height)
 	if err != nil {
 		return errors.Wrapf(err, "failed to validate generation signature")
 	}
@@ -274,7 +273,7 @@ func (cv *ConsensusValidator) validateGeneratorSignature(height uint64, header *
 }
 
 func (cv *ConsensusValidator) validBlockDelay(height uint64, key crypto.PublicKey, parentTarget, effectiveBalance uint64) (uint64, error) {
-	pos, err := cv.posAlgo()
+	pos, err := cv.posAlgo(height)
 	if err != nil {
 		return 0, err
 	}

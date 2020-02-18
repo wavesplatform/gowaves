@@ -301,7 +301,15 @@ func (a *MicroblockMiner) mineMicro(ctx context.Context, rest restLimits, blockA
 }
 
 func blockVersion(state state.State) (proto.BlockVersion, error) {
-	blockRewardActivated, err := state.IsActivated(int16(settings.BlockReward))
+	height, err := state.Height()
+	if err != nil {
+		return proto.GenesisBlockVersion, err
+	}
+	if height == 1 {
+		return proto.GenesisBlockVersion, nil
+	}
+	prevHeight := height - 1
+	blockRewardActivated, err := state.IsActiveAtHeight(int16(settings.BlockReward), prevHeight)
 	if err != nil {
 		return 0, err
 	}
