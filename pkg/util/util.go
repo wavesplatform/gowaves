@@ -141,6 +141,8 @@ func ParseDuration(str string) (uint64, error) {
 				total += cur * 60
 			}
 			cur = 0
+		default:
+			return 0, errors.Errorf("invalid char '%c'", v)
 		}
 	}
 	if !expectNum {

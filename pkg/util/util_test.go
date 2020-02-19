@@ -63,7 +63,10 @@ func TestParseDuration(t *testing.T) {
 		_, err := ParseDuration("1h1")
 		require.Error(t, err)
 	})
-
+	t.Run("invalid format 5", func(t *testing.T) {
+		_, err := ParseDuration("j")
+		require.Error(t, err)
+	})
 	t.Run("empty", func(t *testing.T) {
 		_, err := ParseDuration("")
 		require.Error(t, err)
