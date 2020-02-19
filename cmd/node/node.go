@@ -50,6 +50,7 @@ var (
 	connectPeers      = flag.String("connect-peers", "true", "Spawn outgoing connections")
 	minerVoteFeatures = flag.String("vote", "", "Miner vote features")
 	reward            = flag.String("reward", "", "Miner reward: for example 600000000")
+	minerDelayParam   = flag.String("miner-delay", "4h", "Interval after last block then generation is allowed. example 1d4h30m")
 )
 
 func main() {
@@ -97,6 +98,12 @@ func main() {
 	}
 
 	ntptm, err := ntptime.TryNew("pool.ntp.org", 10)
+	if err != nil {
+		zap.S().Error(err)
+		return
+	}
+
+	minerDelaySecond, err := util.ParseDuration(*minerDelayParam)
 	if err != nil {
 		zap.S().Error(err)
 		return
@@ -161,7 +168,14 @@ func main() {
 		keyPairs = append(keyPairs, proto.MustKeyPair([]byte(*seed)))
 	}
 
-	scheduler := scheduler.NewScheduler(state, keyPairs, cfg, ntptm, scheduler.NewMinerConsensus(peerManager, 1))
+	scheduler := scheduler.NewScheduler(
+		state,
+		keyPairs,
+		cfg,
+		ntptm,
+		scheduler.NewMinerConsensus(peerManager, 1),
+		proto.NewTimestampFromUSeconds(minerDelaySecond),
+	)
 	stateChanged := state_changed.NewStateChanged()
 	blockApplier := node.NewBlocksApplier(state, ntptm)
 

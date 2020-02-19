@@ -25,16 +25,17 @@ type Emit struct {
 }
 
 type SchedulerImpl struct {
-	keyPairs  []proto.KeyPair
-	mine      chan Emit
-	cancel    []func()
-	settings  *settings.BlockchainSettings
-	mu        sync.Mutex
-	internal  internal
-	emits     []Emit
-	state     state.State
-	tm        types.Time
-	consensus types.MinerConsensus
+	keyPairs   []proto.KeyPair
+	mine       chan Emit
+	cancel     []func()
+	settings   *settings.BlockchainSettings
+	mu         sync.Mutex
+	internal   internal
+	emits      []Emit
+	state      state.State
+	tm         types.Time
+	consensus  types.MinerConsensus
+	minerDelay proto.Timestamp
 }
 
 type internal interface {
@@ -55,15 +56,18 @@ func (a internalImpl) schedule(state state.State, keyPairs []proto.KeyPair, sche
 		greatGrandParentTimestamp = greatGrandParent.Timestamp
 	}
 
-	locked := state.Mutex().RLock()
-	fairPosActivated, err := state.IsActivated(int16(settings.FairPoS))
-	if err != nil {
-		locked.Unlock()
-		zap.S().Error(err)
-		return nil
-	}
-	vrfActivated, err := state.IsActivated(int16(settings.BlockV5))
-	locked.Unlock()
+	fairPosActivated, vrfActivated, err := func() (bool, bool, error) {
+		defer state.Mutex().RLock().Unlock()
+		fairPosActivated, err := state.IsActivated(int16(settings.FairPoS))
+		if err != nil {
+			return false, false, errors.Wrap(err, "failed get fairPosActivated")
+		}
+		vrfActivated, err := state.IsActivated(int16(settings.BlockV5))
+		if err != nil {
+			return false, false, errors.Wrap(err, "failed get vrfActivated")
+		}
+		return fairPosActivated, vrfActivated, nil
+	}()
 	if err != nil {
 		zap.S().Error(err)
 		return nil
@@ -108,13 +112,12 @@ func (a internalImpl) schedule(state state.State, keyPairs []proto.KeyPair, sche
 			continue
 		}
 
-		locked = state.Mutex().RLock()
 		addr, err := keyPair.Addr(schema)
 		if err != nil {
-			locked.Unlock()
 			zap.S().Error(err)
 			continue
 		}
+		locked := state.Mutex().RLock()
 		effectiveBalance, err := state.EffectiveBalanceStable(proto.NewRecipientFromAddress(addr), confirmedBlockHeight-1000, confirmedBlockHeight)
 		locked.Unlock()
 		if err != nil {
@@ -145,20 +148,21 @@ func (a internalImpl) schedule(state state.State, keyPairs []proto.KeyPair, sche
 	return out
 }
 
-func NewScheduler(state state.State, pairs []proto.KeyPair, settings *settings.BlockchainSettings, tm types.Time, consensus types.MinerConsensus) *SchedulerImpl {
-	return newScheduler(internalImpl{}, state, pairs, settings, tm, consensus)
+func NewScheduler(state state.State, pairs []proto.KeyPair, settings *settings.BlockchainSettings, tm types.Time, consensus types.MinerConsensus, minerDelay proto.Timestamp) *SchedulerImpl {
+	return newScheduler(internalImpl{}, state, pairs, settings, tm, consensus, minerDelay)
 }
 
-func newScheduler(internal internal, state state.State, pairs []proto.KeyPair, settings *settings.BlockchainSettings, tm types.Time, consensus types.MinerConsensus) *SchedulerImpl {
+func newScheduler(internal internal, state state.State, pairs []proto.KeyPair, settings *settings.BlockchainSettings, tm types.Time, consensus types.MinerConsensus, minerDelay proto.Timestamp) *SchedulerImpl {
 	return &SchedulerImpl{
-		keyPairs:  pairs,
-		mine:      make(chan Emit, 1),
-		settings:  settings,
-		internal:  internal,
-		state:     state,
-		mu:        sync.Mutex{},
-		tm:        tm,
-		consensus: consensus,
+		keyPairs:   pairs,
+		mine:       make(chan Emit, 1),
+		settings:   settings,
+		internal:   internal,
+		state:      state,
+		mu:         sync.Mutex{},
+		tm:         tm,
+		consensus:  consensus,
+		minerDelay: minerDelay,
 	}
 }
 
@@ -175,19 +179,23 @@ func (a *SchedulerImpl) Reschedule() {
 		return
 	}
 
-	state := a.state
+	currentTimestamp := proto.NewTimestampFromTime(a.tm.Now())
+	lastKnownBlock := a.state.TopBlock()
+	if currentTimestamp-lastKnownBlock.Timestamp > a.minerDelay {
+		return
+	}
 
-	mu := state.Mutex()
+	mu := a.state.Mutex()
 	locked := mu.RLock()
 
-	h, err := state.Height()
+	h, err := a.state.Height()
 	if err != nil {
 		zap.S().Error(err)
 		locked.Unlock()
 		return
 	}
 
-	block, err := state.BlockByHeight(h)
+	block, err := a.state.BlockByHeight(h)
 	if err != nil {
 		zap.S().Error(err)
 		locked.Unlock()
@@ -195,7 +203,7 @@ func (a *SchedulerImpl) Reschedule() {
 	}
 	locked.Unlock()
 
-	a.reschedule(state, block, h)
+	a.reschedule(a.state, block, h)
 }
 
 func (a *SchedulerImpl) reschedule(state state.State, confirmedBlock *proto.Block, confirmedBlockHeight uint64) {

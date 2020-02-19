@@ -48,6 +48,7 @@ var (
 	serveExtendedApi  = flag.Bool("serve-extended-api", false, "Serves extended API requests since the very beginning. The default behavior is to import until first block close to current time, and start serving at this point")
 	minerVoteFeatures = flag.String("vote", "", "Miner vote features")
 	reward            = flag.String("reward", "", "Miner reward: for example 600000000")
+	minerDelayParam   = flag.String("miner-delay", "4h", "Interval after last block then generation is allowed. example 1d4h30m")
 )
 
 func init() {
@@ -76,6 +77,7 @@ func main() {
 	reward, err := miner.ParseReward(*reward)
 	if err != nil {
 		zap.S().Error(err)
+		cancel()
 		return
 	}
 
@@ -147,6 +149,12 @@ func main() {
 		return
 	}
 
+	minerDelaySecond, err := util.ParseDuration(*minerDelayParam)
+	if err != nil {
+		zap.S().Error(err)
+		return
+	}
+
 	declAddr := proto.NewTCPAddrFromString(conf.DeclaredAddr)
 
 	mb := 1024 * 1014
@@ -164,7 +172,14 @@ func main() {
 		keyPairs = append(keyPairs, proto.MustKeyPair([]byte(*seed)))
 	}
 
-	scheduler := scheduler2.NewScheduler(state, keyPairs, custom, ntptm, scheduler2.NewMinerConsensus(peerManager, 1))
+	scheduler := scheduler2.NewScheduler(
+		state,
+		keyPairs,
+		custom,
+		ntptm,
+		scheduler2.NewMinerConsensus(peerManager, 1),
+		proto.NewTimestampFromUSeconds(minerDelaySecond),
+	)
 
 	utx := utxpool.New(10000, utxpool.NewValidator(state, ntptm))
 
