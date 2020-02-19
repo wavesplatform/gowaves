@@ -719,14 +719,6 @@ func (s *stateManager) addRewardVote(block *proto.Block, height uint64) error {
 }
 
 func (s *stateManager) addNewBlock(block, parent *proto.Block, initialisation bool, chans *verifierChans, height uint64) error {
-	// Check the block version.
-	blockRewardActivated, err := s.IsActiveAtHeight(int16(settings.BlockReward), height)
-	if err != nil {
-		return err
-	}
-	if blockRewardActivated && block.Version != proto.RewardBlockVersion {
-		return errors.Errorf("invalid block version %d after activation of BlockReward feature", block.Version)
-	}
 	// Indicate new block for storage.
 	if err := s.rw.startBlock(block.BlockSignature); err != nil {
 		return err
@@ -765,6 +757,10 @@ func (s *stateManager) addNewBlock(block, parent *proto.Block, initialisation bo
 	}
 	// Count features votes.
 	if err := s.addFeaturesVotes(block); err != nil {
+		return err
+	}
+	blockRewardActivated, err := s.IsActiveAtHeight(int16(settings.BlockReward), height)
+	if err != nil {
 		return err
 	}
 	// Count reward vote.

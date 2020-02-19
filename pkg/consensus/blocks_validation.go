@@ -128,7 +128,7 @@ func (cv *ConsensusValidator) ValidateHeaders(headers []proto.BlockHeader, start
 		if err := cv.validateBaseTarget(height, &header, parent, greatGrandParent); err != nil {
 			return errors.Wrap(err, "base target validation failed")
 		}
-		if err := cv.validateBlockVersion(height, &header); err != nil {
+		if err := cv.validateBlockVersion(&header, height); err != nil {
 			return errors.Wrap(err, "block version validation failed")
 		}
 	}
@@ -184,12 +184,38 @@ func (cv *ConsensusValidator) minerGeneratingBalance(height uint64, header *prot
 	return cv.generatingBalance(height, minerAddr)
 }
 
-func (cv *ConsensusValidator) validateBlockVersion(height uint64, header *proto.BlockHeader) error {
-	if header.Version == proto.GenesisBlockVersion || header.Version == proto.PlainBlockVersion {
-		return nil
+func (cv *ConsensusValidator) validBlockVersionAtHeight(blockchainHeight uint64) (proto.BlockVersion, error) {
+	blockRewardActivated, err := cv.state.IsActiveAtHeight(int16(settings.BlockReward), blockchainHeight)
+	if err != nil {
+		return proto.GenesisBlockVersion, errors.Wrap(err, "IsActiveAtHeight failed")
 	}
-	if height < cv.settings.BlockVersion3AfterHeight {
-		return errors.Errorf("block version 3 can only appear after %d height", cv.settings.BlockVersion3AfterHeight)
+	blockHeight := blockchainHeight + 1
+	blockV5Activated, err := cv.state.IsActiveAtHeight(int16(settings.BlockV5), blockHeight)
+	if err != nil {
+		return proto.GenesisBlockVersion, errors.Wrap(err, "IsActiveAtHeight failed")
+	}
+	if blockV5Activated {
+		return proto.ProtoBlockVersion, nil
+	} else if blockRewardActivated {
+		return proto.RewardBlockVersion, nil
+	} else if blockchainHeight > cv.settings.BlockVersion3AfterHeight {
+		return proto.NgBlockVersion, nil
+	} else if blockchainHeight > 0 {
+		return proto.PlainBlockVersion, nil
+	}
+	return proto.GenesisBlockVersion, nil
+}
+
+func (cv *ConsensusValidator) validateBlockVersion(block *proto.BlockHeader, blockchainHeight uint64) error {
+	validVersion, err := cv.validBlockVersionAtHeight(blockchainHeight)
+	if err != nil {
+		return err
+	}
+	if block.Version > proto.PlainBlockVersion && blockchainHeight <= cv.settings.BlockVersion3AfterHeight {
+		return errors.Errorf("block version 3 or higher can only appear at height greater than %v", cv.settings.BlockVersion3AfterHeight)
+	}
+	if block.Version < validVersion {
+		return errors.Errorf("block version %v is less than valid version %v for height %v", block.Version, validVersion, blockchainHeight)
 	}
 	return nil
 }

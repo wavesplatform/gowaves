@@ -22,6 +22,7 @@ const (
 	PlainBlockVersion
 	NgBlockVersion
 	RewardBlockVersion
+	ProtoBlockVersion
 )
 
 type NxtConsensus struct {
