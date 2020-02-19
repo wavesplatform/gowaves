@@ -8,6 +8,7 @@ import (
 
 	"github.com/mr-tron/base58/base58"
 	"github.com/stretchr/testify/assert"
+	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride/evaluator/ast"
 	"github.com/wavesplatform/gowaves/pkg/ride/evaluator/reader"
@@ -37,7 +38,7 @@ func (to *invokeApplierTestObjects) setInitialWavesBalance(t *testing.T, addr pr
 	assert.NoError(t, err, "saveTxDiff() failed")
 }
 
-func (to *invokeApplierTestObjects) setScript(t *testing.T, addr proto.Address, script proto.Script) {
+func (to *invokeApplierTestObjects) setScript(t *testing.T, addr proto.Address, pk crypto.PublicKey, script proto.Script) {
 	scriptAst, err := ast.BuildScript(reader.NewBytesReader(script))
 	assert.NoError(t, err)
 	estimator := estimatorByScript(scriptAst, 1)
@@ -50,7 +51,7 @@ func (to *invokeApplierTestObjects) setScript(t *testing.T, addr proto.Address, 
 	}
 	err = to.state.stor.scriptsComplexity.saveComplexityForAddr(addr, r, blockID0)
 	assert.NoError(t, err, "failed to save complexity for address")
-	err = to.state.stor.scriptsStorage.setAccountScript(addr, script, blockID0)
+	err = to.state.stor.scriptsStorage.setAccountScript(addr, script, pk, blockID0)
 	assert.NoError(t, err, "failed to set account script")
 }
 
@@ -123,7 +124,7 @@ func TestApplyInvokeScriptV1PaymentsAndData(t *testing.T) {
 	assert.NoError(t, err, "ReadFile() failed")
 	scriptBytes, err := reader.ScriptBytesFromBase64(scriptBase64)
 	assert.NoError(t, err, "ScriptBytesFromBase64() failed")
-	to.setScript(t, testGlobal.recipientInfo.addr, proto.Script(scriptBytes))
+	to.setScript(t, testGlobal.recipientInfo.addr, testGlobal.recipientInfo.pk, proto.Script(scriptBytes))
 
 	amount := uint64(34)
 	fee := FeeUnit * feeConstants[proto.InvokeScriptTransaction]
@@ -203,7 +204,7 @@ func TestApplyInvokeScriptV1Transfers(t *testing.T) {
 	assert.NoError(t, err, "ReadFile() failed")
 	scriptBytes, err := reader.ScriptBytesFromBase64(scriptBase64)
 	assert.NoError(t, err, "ScriptBytesFromBase64() failed")
-	to.setScript(t, testGlobal.recipientInfo.addr, proto.Script(scriptBytes))
+	to.setScript(t, testGlobal.recipientInfo.addr, testGlobal.recipientInfo.pk, scriptBytes)
 
 	amount := uint64(34)
 	withdrawAmount := amount / 2

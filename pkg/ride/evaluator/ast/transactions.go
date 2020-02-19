@@ -83,6 +83,49 @@ func NewVariablesFromTransaction(scheme byte, t proto.Transaction) (map[string]E
 	}
 }
 
+func NewVariablesFromScriptAction(scheme proto.Scheme, action proto.ScriptAction, invokerPK crypto.PublicKey, txID crypto.Digest, txTimestamp uint64) (map[string]Expr, error) {
+	out := make(map[string]Expr)
+	switch a := action.(type) {
+	case proto.ReissueScriptAction:
+		out["quantity"] = NewLong(a.Quantity)
+		out["assetId"] = NewBytes(a.AssetID.Bytes())
+		out["reissuable"] = NewBoolean(a.Reissuable)
+		out["id"] = NewBytes(txID.Bytes())
+		out["fee"] = NewLong(0)
+		out["timestamp"] = NewLong(int64(txTimestamp))
+		out["version"] = NewLong(0)
+		addr, err := proto.NewAddressFromPublicKey(scheme, invokerPK)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to convert action to object")
+		}
+		out["sender"] = NewAddressFromProtoAddress(addr)
+		out["senderPublicKey"] = NewBytes(util.Dup(invokerPK.Bytes()))
+		out["bodyBytes"] = NewUnit()
+		out["proofs"] = NewUnit()
+		out[InstanceFieldName] = NewString("ReissueTransaction")
+	case proto.BurnScriptAction:
+		out["quantity"] = NewLong(a.Quantity)
+		out["assetId"] = NewBytes(a.AssetID.Bytes())
+		out["id"] = NewBytes(txID.Bytes())
+		out["fee"] = NewLong(0)
+		out["timestamp"] = NewLong(int64(txTimestamp))
+		out["version"] = NewLong(0)
+		addr, err := proto.NewAddressFromPublicKey(scheme, invokerPK)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to convert action to object")
+		}
+		out["sender"] = NewAddressFromProtoAddress(addr)
+		out["senderPublicKey"] = NewBytes(util.Dup(invokerPK.Bytes()))
+		out["bodyBytes"] = NewUnit()
+		out["proofs"] = NewUnit()
+		out[InstanceFieldName] = NewString("BurnTransaction")
+		return out, nil
+	default:
+		return nil, errors.New("unsupported script action")
+	}
+	return out, nil
+}
+
 func NewVariablesFromOrder(scheme proto.Scheme, tx proto.Order) (map[string]Expr, error) {
 	funcName := "newVariablesFromOrder"
 	out := make(map[string]Expr)
@@ -297,7 +340,7 @@ func newVariablesFromReissueV1(scheme proto.Scheme, tx *proto.ReissueV1) (map[st
 	out := make(map[string]Expr)
 
 	out["quantity"] = NewLong(int64(tx.Quantity))
-	out["assetId"] = NewBytes(util.Dup(tx.AssetID.Bytes()))
+	out["assetId"] = NewBytes(tx.AssetID.Bytes())
 	out["reissuable"] = NewBoolean(tx.Reissuable)
 	id, err := tx.GetID()
 	if err != nil {
@@ -328,7 +371,7 @@ func newVariablesFromReissueV2(scheme proto.Scheme, tx *proto.ReissueV2) (map[st
 	funcName := "newVariablesFromReissueV1"
 	out := make(map[string]Expr)
 	out["quantity"] = NewLong(int64(tx.Quantity))
-	out["assetId"] = NewBytes(util.Dup(tx.AssetID.Bytes()))
+	out["assetId"] = NewBytes(tx.AssetID.Bytes())
 	out["reissuable"] = NewBoolean(tx.Reissuable)
 	id, err := tx.GetID()
 	if err != nil {
@@ -361,7 +404,7 @@ func newVariablesFromBurnV1(scheme proto.Scheme, tx *proto.BurnV1) (map[string]E
 	out := make(map[string]Expr)
 
 	out["quantity"] = NewLong(int64(tx.Amount))
-	out["assetId"] = NewBytes(util.Dup(tx.AssetID.Bytes()))
+	out["assetId"] = NewBytes(tx.AssetID.Bytes())
 	id, err := tx.GetID()
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
@@ -392,7 +435,7 @@ func newVariablesFromBurnV2(scheme proto.Scheme, tx *proto.BurnV2) (map[string]E
 	out := make(map[string]Expr)
 
 	out["quantity"] = NewLong(int64(tx.Amount))
-	out["assetId"] = NewBytes(util.Dup(tx.AssetID.Bytes()))
+	out["assetId"] = NewBytes(tx.AssetID.Bytes())
 	id, err := tx.GetID()
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
@@ -571,7 +614,7 @@ func newVariablesFromSetAssetScriptV1(scheme proto.Scheme, tx *proto.SetAssetScr
 	out := make(map[string]Expr)
 
 	out["script"] = NewBytes(util.Dup(tx.Script))
-	out["assetId"] = NewBytes(util.Dup(tx.AssetID.Bytes()))
+	out["assetId"] = NewBytes(tx.AssetID.Bytes())
 	id, err := tx.GetID()
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
@@ -888,7 +931,7 @@ func newVariablesFromSponsorshipV1(scheme proto.Scheme, tx *proto.SponsorshipV1)
 
 	out := make(map[string]Expr)
 
-	out["assetId"] = NewBytes(util.Dup(tx.AssetID.Bytes()))
+	out["assetId"] = NewBytes(tx.AssetID.Bytes())
 	out["minSponsoredAssetFee"] = NewUnit()
 	if tx.MinAssetFee > 0 {
 		out["minSponsoredAssetFee"] = NewLong(int64(tx.MinAssetFee))

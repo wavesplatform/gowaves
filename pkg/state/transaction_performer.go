@@ -73,7 +73,7 @@ func (tp *transactionPerformer) performIssueV2(transaction proto.Transaction, in
 		return err
 	}
 	if len(tx.Script) != 0 {
-		if err := tp.stor.scriptsStorage.setAssetScript(assetID, tx.Script, info.blockID); err != nil {
+		if err := tp.stor.scriptsStorage.setAssetScript(assetID, tx.Script, tx.SenderPK, info.blockID); err != nil {
 			return err
 		}
 	}
@@ -297,7 +297,7 @@ func (tp *transactionPerformer) performSetScriptV1(transaction proto.Transaction
 	if err != nil {
 		return err
 	}
-	if err := tp.stor.scriptsStorage.setAccountScript(senderAddr, tx.Script, info.blockID); err != nil {
+	if err := tp.stor.scriptsStorage.setAccountScript(senderAddr, tx.Script, tx.SenderPK, info.blockID); err != nil {
 		return errors.Wrap(err, "failed to set account script")
 	}
 	return nil
@@ -308,7 +308,7 @@ func (tp *transactionPerformer) performSetAssetScriptV1(transaction proto.Transa
 	if !ok {
 		return errors.New("failed to convert interface to SetAssetScriptV1 transaction")
 	}
-	if err := tp.stor.scriptsStorage.setAssetScript(tx.AssetID, tx.Script, info.blockID); err != nil {
+	if err := tp.stor.scriptsStorage.setAssetScript(tx.AssetID, tx.Script, tx.SenderPK, info.blockID); err != nil {
 		return errors.Wrap(err, "failed to set asset script")
 	}
 	return nil

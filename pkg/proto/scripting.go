@@ -1,6 +1,7 @@
 package proto
 
 import (
+	"encoding/binary"
 	"unicode/utf16"
 
 	"github.com/pkg/errors"
@@ -53,7 +54,7 @@ type IssueScriptAction struct {
 	Decimals    int32         // decimals
 	Reissuable  bool          // isReissuable
 	Script      []byte        // compiledScript //TODO: reversed for future use
-	Timestamp   int64         // nonce
+	Nonce       int64         // nonce
 }
 
 func (a IssueScriptAction) scriptAction() {}
@@ -67,8 +68,34 @@ func (a *IssueScriptAction) ToProtobuf() *g.InvokeScriptResult_Issue {
 		Decimals:    a.Decimals,
 		Reissuable:  a.Reissuable,
 		Script:      nil, //TODO: in V4 is not used
-		Nonce:       a.Timestamp,
+		Nonce:       a.Nonce,
 	}
+}
+
+// GenerateIssueScriptActionID implements ID generation used in RIDE to create new ID of Issue.
+func GenerateIssueScriptActionID(name, description string, decimals, quantity int64, reissuable bool, nonce int64, txID crypto.Digest) crypto.Digest {
+	nl := len(name)
+	dl := len(description)
+	buf := make([]byte, 4+nl+4+dl+4+8+2+8+crypto.DigestSize)
+	pos := 0
+	PutStringWithUInt32Len(buf[pos:], name)
+	pos += 4 + nl
+	PutStringWithUInt32Len(buf[pos:], description)
+	pos += 4 + dl
+	binary.BigEndian.PutUint32(buf[pos:], uint32(decimals))
+	pos += 4
+	binary.BigEndian.PutUint64(buf[pos:], uint64(quantity))
+	pos += 8
+	if reissuable {
+		binary.BigEndian.PutUint16(buf[pos:], 1)
+	} else {
+		binary.BigEndian.PutUint16(buf[pos:], 0)
+	}
+	pos += 2
+	binary.BigEndian.PutUint64(buf[pos:], uint64(nonce))
+	pos += 8
+	copy(buf[pos:], txID[:])
+	return crypto.MustFastHash(buf)
 }
 
 // ReissueScriptAction is an action to emit Reissue transaction as a result of script invocation.

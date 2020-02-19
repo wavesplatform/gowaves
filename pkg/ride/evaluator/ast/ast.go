@@ -16,7 +16,7 @@ import (
 const InstanceFieldName = "$instance"
 
 type Actionable interface {
-	ToAction() (proto.ScriptAction, error)
+	ToAction(parent *crypto.Digest) (proto.ScriptAction, error)
 }
 
 type Callable func(Scope, Exprs) (Expr, error)
@@ -123,7 +123,7 @@ func (a *Script) CallFunction(scheme proto.Scheme, state types.SmartState, tx *p
 			if !ok {
 				return nil, errors.Errorf("Script.CallFunction: fail to convert result to action")
 			}
-			action, err := ae.ToAction()
+			action, err := ae.ToAction(tx.ID)
 			if err != nil {
 				return nil, errors.Wrap(err, "Script.CallFunction: fail to convert result to action")
 			}
@@ -972,7 +972,7 @@ func (a *DataEntryExpr) Get(name string) (Expr, error) {
 	}
 }
 
-func (a *DataEntryExpr) ToAction() (proto.ScriptAction, error) {
+func (a *DataEntryExpr) ToAction(*crypto.Digest) (proto.ScriptAction, error) {
 	switch v := a.value.(type) {
 	case *LongExpr:
 		return proto.DataEntryScriptAction{Entry: &proto.IntegerDataEntry{Key: a.key, Value: v.Value}}, nil
@@ -1018,7 +1018,7 @@ func (a *DataEntryDeleteExpr) InstanceOf() string {
 	return "DataEntryDelete"
 }
 
-func (a *DataEntryDeleteExpr) ToAction() (proto.ScriptAction, error) {
+func (a *DataEntryDeleteExpr) ToAction(*crypto.Digest) (proto.ScriptAction, error) {
 	return &proto.DataEntryScriptAction{Entry: &proto.DeleteDataEntry{Key: a.key}}, nil
 }
 
@@ -1843,7 +1843,7 @@ func (a *WriteSetExpr) Get(name string) (Expr, error) {
 func (a *WriteSetExpr) ToActions() ([]proto.ScriptAction, error) {
 	res := make([]proto.ScriptAction, len(a.items))
 	for i, entryExpr := range a.items {
-		action, err := entryExpr.ToAction()
+		action, err := entryExpr.ToAction(nil)
 		if err != nil {
 			return nil, err
 		}
@@ -1879,7 +1879,7 @@ func (a *TransferSetExpr) InstanceOf() string {
 func (a *TransferSetExpr) ToActions() ([]proto.ScriptAction, error) {
 	res := make([]proto.ScriptAction, len(a.items))
 	for i, transferExpr := range a.items {
-		action, err := transferExpr.ToAction()
+		action, err := transferExpr.ToAction(nil)
 		if err != nil {
 			return nil, err
 		}
@@ -1951,7 +1951,7 @@ func (a *ScriptTransferExpr) InstanceOf() string {
 	return "ScriptTransfer"
 }
 
-func (a *ScriptTransferExpr) ToAction() (proto.ScriptAction, error) {
+func (a *ScriptTransferExpr) ToAction(*crypto.Digest) (proto.ScriptAction, error) {
 	var oa *proto.OptionalAsset
 	var err error
 	switch asset := a.asset.(type) {
@@ -2025,17 +2025,17 @@ type IssueExpr struct {
 	Quantity    int64
 	Decimals    int64
 	Reissuable  bool
-	Timestamp   int64
+	Nonce       int64
 }
 
-func NewIssueExpr(name, description string, quantity, decimals int64, reissuable bool, timestamp int64) *IssueExpr {
+func NewIssueExpr(name, description string, quantity, decimals int64, reissuable bool, nonce int64) *IssueExpr {
 	return &IssueExpr{
 		Name:        name,
 		Description: description,
 		Quantity:    quantity,
 		Decimals:    decimals,
 		Reissuable:  reissuable,
-		Timestamp:   timestamp,
+		Nonce:       nonce,
 	}
 }
 
@@ -2052,11 +2052,28 @@ func (a *IssueExpr) Eq(other Expr) bool {
 	if !ok {
 		return false
 	}
-	return a.Name == b.Name && a.Description == b.Description && a.Quantity == b.Quantity && a.Decimals == b.Decimals && a.Reissuable == b.Reissuable && a.Timestamp == b.Timestamp
+	return a.Name == b.Name && a.Description == b.Description && a.Quantity == b.Quantity && a.Decimals == b.Decimals && a.Reissuable == b.Reissuable && a.Nonce == b.Nonce
 }
 
 func (a *IssueExpr) InstanceOf() string {
 	return "Issue"
+}
+
+func (a *IssueExpr) ToAction(parent *crypto.Digest) (proto.ScriptAction, error) {
+	if parent == nil {
+		return nil, errors.New("empty parent for IssueExpr")
+	}
+	id := proto.GenerateIssueScriptActionID(a.Name, a.Description, a.Decimals, a.Quantity, a.Reissuable, a.Nonce, *parent)
+	return proto.IssueScriptAction{
+		ID:          id,
+		Name:        a.Name,
+		Description: a.Description,
+		Quantity:    a.Quantity,
+		Decimals:    int32(a.Decimals),
+		Reissuable:  a.Reissuable,
+		Script:      nil,
+		Nonce:       a.Nonce,
+	}, nil
 }
 
 type ReissueExpr struct {
@@ -2097,6 +2114,14 @@ func (a *ReissueExpr) InstanceOf() string {
 	return "Reissue"
 }
 
+func (a *ReissueExpr) ToAction(*crypto.Digest) (proto.ScriptAction, error) {
+	return proto.ReissueScriptAction{
+		AssetID:    a.AssetID,
+		Quantity:   a.Quantity,
+		Reissuable: a.Reissuable,
+	}, nil
+}
+
 type BurnExpr struct {
 	AssetID  crypto.Digest
 	Quantity int64
@@ -2131,4 +2156,11 @@ func (a *BurnExpr) Eq(other Expr) bool {
 
 func (a *BurnExpr) InstanceOf() string {
 	return "Burn"
+}
+
+func (a *BurnExpr) ToAction(*crypto.Digest) (proto.ScriptAction, error) {
+	return proto.BurnScriptAction{
+		AssetID:  a.AssetID,
+		Quantity: a.Quantity,
+	}, nil
 }

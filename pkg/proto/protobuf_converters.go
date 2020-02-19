@@ -475,7 +475,7 @@ func (c *ProtobufConverter) IssueScriptActions(issues []*g.InvokeScriptResult_Is
 			Decimals:    x.Decimals,
 			Reissuable:  x.Reissuable,
 			Script:      c.script(x.Script),
-			Timestamp:   x.Nonce,
+			Nonce:       x.Nonce,
 		}
 		if c.err != nil {
 			return nil, c.err

@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/util"
@@ -607,7 +608,7 @@ func TestPerformSetAssetScriptV1(t *testing.T) {
 	assert.Equal(t, testGlobal.scriptAst, scriptAst)
 
 	// Test discarding script.
-	err = to.stor.entities.scriptsStorage.setAssetScript(assetID, proto.Script{}, blockID0)
+	err = to.stor.entities.scriptsStorage.setAssetScript(assetID, proto.Script{}, crypto.PublicKey{}, blockID0)
 	assert.NoError(t, err, "setAssetScript() failed")
 
 	// Test newest before flushing.

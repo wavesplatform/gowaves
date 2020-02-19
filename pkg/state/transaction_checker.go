@@ -408,7 +408,7 @@ func (tc *transactionChecker) checkReissue(tx *proto.Reissue, info *checkerInfo)
 		return nil
 	}
 	if !assetInfo.reissuable {
-		return errors.Errorf("attempt to reissue asset which is not reissuable")
+		return errors.New("attempt to reissue asset which is not reissuable")
 	}
 	// Check Int64 overflow.
 	if (math.MaxInt64-int64(tx.Quantity) < assetInfo.quantity.Int64()) && (info.currentTimestamp >= tc.settings.ReissueBugWindowTimeEnd) {

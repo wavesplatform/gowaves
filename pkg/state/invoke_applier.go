@@ -1,8 +1,12 @@
 package state
 
 import (
+	"math"
+	"math/big"
+
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/ride/evaluator/ast"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/types"
 )
@@ -115,6 +119,26 @@ func (ia *invokeApplier) newTxDiffFromScriptTransfer(scriptAddr proto.Address, a
 	return ia.newTxDiffFromPayment(pmt, false, info)
 }
 
+func (ia *invokeApplier) newTxDiffFromScriptIssue(scriptAddr proto.Address, action proto.IssueScriptAction) (txDiff, error) {
+	diff := newTxDiff()
+	senderAssetKey := assetBalanceKey{address: scriptAddr, asset: action.ID[:]}
+	senderAssetBalanceDiff := int64(action.Quantity)
+	if err := diff.appendBalanceDiff(senderAssetKey.bytes(), newBalanceDiff(senderAssetBalanceDiff, 0, 0, false)); err != nil {
+		return nil, err
+	}
+	return diff, nil
+}
+
+func (ia *invokeApplier) newTxDiffFromScriptReissue(scriptAddr proto.Address, action proto.ReissueScriptAction) (txDiff, error) {
+	diff := newTxDiff()
+	senderAssetKey := assetBalanceKey{address: scriptAddr, asset: action.AssetID[:]}
+	senderAssetBalanceDiff := action.Quantity
+	if err := diff.appendBalanceDiff(senderAssetKey.bytes(), newBalanceDiff(senderAssetBalanceDiff, 0, 0, false)); err != nil {
+		return nil, err
+	}
+	return diff, nil
+}
+
 func (ia *invokeApplier) saveIntermediateDiff(diff txDiff) error {
 	return ia.invokeDiffStor.saveTxDiff(diff)
 }
@@ -198,6 +222,10 @@ func (ia *invokeApplier) applyInvokeScriptV1(tx *proto.InvokeScriptV1, info *inv
 	script, err := ia.stor.scriptsStorage.newestScriptByAddr(*scriptAddr, !info.initialisation)
 	if err != nil {
 		return txBalanceChanges{}, errors.Wrapf(err, "failed to instantiate script on address '%s'", scriptAddr.String())
+	}
+	scriptPK, err := ia.stor.scriptsStorage.newestScriptPKByAddr(*scriptAddr, !info.initialisation)
+	if err != nil {
+		return txBalanceChanges{}, errors.Wrapf(err, "failed to get script's public key on address '%s'", scriptAddr.String())
 	}
 	// Check that the script's library supports multiple payments.
 	// We don't have to check feature activation because we done it before.
@@ -305,15 +333,94 @@ func (ia *invokeApplier) applyInvokeScriptV1(tx *proto.InvokeScriptV1, info *inv
 			}
 
 		case proto.IssueScriptAction:
-			//TODO: implement
-			return txBalanceChanges{}, errors.Errorf("unimplemented script action '%T'", a)
+			// Create asset's info
+			assetInfo := &assetInfo{
+				assetConstInfo: assetConstInfo{
+					issuer:      scriptPK,
+					name:        a.Name,
+					description: a.Description,
+					decimals:    int8(a.Decimals),
+				},
+				assetChangeableInfo: assetChangeableInfo{
+					quantity:   *big.NewInt(int64(a.Quantity)),
+					reissuable: a.Reissuable,
+				},
+			}
+			if err := ia.stor.assets.issueAsset(a.ID, assetInfo, info.block.BlockSignature); err != nil {
+				return txBalanceChanges{}, err
+			}
+
+			txDiff, err := ia.newTxDiffFromScriptIssue(*scriptAddr, a)
+			if err != nil {
+				return txBalanceChanges{}, err
+			}
+			// diff must be saved to storage, because further asset scripts must take
+			// recent balance changes into account.
+			if err := ia.saveIntermediateDiff(txDiff); err != nil {
+				return txBalanceChanges{}, err
+			}
+			// Append intermediate diff to common diff.
+			for key, balanceDiff := range txDiff {
+				if err := commonDiff.appendBalanceDiffStr(key, balanceDiff); err != nil {
+					return txBalanceChanges{}, err
+				}
+			}
 
 		case proto.ReissueScriptAction:
-			//TODO: implement
-			return txBalanceChanges{}, errors.Errorf("unimplemented script action '%T'", a)
-
+			// Check validity of reissue
+			assetInfo, err := ia.stor.assets.newestAssetInfo(a.AssetID, !info.initialisation)
+			if err != nil {
+				return txBalanceChanges{}, err
+			}
+			if assetInfo.issuer != scriptPK {
+				return txBalanceChanges{}, errors.New("asset was issued by other address")
+			}
+			if !assetInfo.reissuable {
+				return txBalanceChanges{}, errors.New("attempt to reissue asset which is not reissuable")
+			}
+			if math.MaxInt64-a.Quantity < assetInfo.quantity.Int64() && info.block.Timestamp >= ia.settings.ReissueBugWindowTimeEnd {
+				return txBalanceChanges{}, errors.New("asset total value overflow")
+			}
+			isSmartAsset, err := ia.stor.scriptsStorage.newestIsSmartAsset(a.AssetID, !info.initialisation)
+			if err != nil {
+				return txBalanceChanges{}, err
+			}
+			if isSmartAsset {
+				obj, err := ast.NewVariablesFromScriptAction(ia.settings.AddressSchemeCharacter, a, scriptPK, *tx.ID, tx.Timestamp)
+				if err != nil {
+					return txBalanceChanges{}, errors.Wrap(err, "asset script failed on reissue")
+				}
+				if err := ia.sc.callAssetScriptCommon(obj, a.AssetID, blockInfo, info.initialisation); err != nil {
+					return txBalanceChanges{}, errors.Wrap(err, "asset script failed on reissue")
+				}
+				scriptRuns++
+			}
+			// Update asset's info
+			change := &assetReissueChange{
+				reissuable: a.Reissuable,
+				diff:       a.Quantity,
+			}
+			if err := ia.stor.assets.reissueAsset(a.AssetID, change, info.block.BlockSignature, !info.initialisation); err != nil {
+				return txBalanceChanges{}, err
+			}
+			txDiff, err := ia.newTxDiffFromScriptReissue(*scriptAddr, a)
+			if err != nil {
+				return txBalanceChanges{}, err
+			}
+			// diff must be saved to storage, because further asset scripts must take
+			// recent balance changes into account.
+			if err := ia.saveIntermediateDiff(txDiff); err != nil {
+				return txBalanceChanges{}, err
+			}
+			// Append intermediate diff to common diff.
+			for key, balanceDiff := range txDiff {
+				if err := commonDiff.appendBalanceDiffStr(key, balanceDiff); err != nil {
+					return txBalanceChanges{}, err
+				}
+			}
 		case proto.BurnScriptAction:
 			//TODO: implement
+			//TODO: check for smart assets
 			return txBalanceChanges{}, errors.Errorf("unimplemented script action '%T'", a)
 
 		default:
