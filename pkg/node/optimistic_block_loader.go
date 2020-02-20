@@ -7,6 +7,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/libs/channel"
 	"github.com/wavesplatform/gowaves/pkg/libs/nullable"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -137,16 +138,18 @@ type blockDownload struct {
 	sigs      *sigs
 	p         peer.Peer
 	subscribe types.Subscribe
-	out       chan blockBytes
+	out       channel.Channel
+	closeCh   chan struct{}
 }
 
-func newBlockDownloader(workersCount int, p peer.Peer, subscribe types.Subscribe, out chan blockBytes) *blockDownload {
+func newBlockDownloader(workersCount int, p peer.Peer, subscribe types.Subscribe, channel channel.Channel) *blockDownload {
 	return &blockDownload{
 		threads:   make(chan int, workersCount),
 		sigs:      newSigs(),
 		p:         p,
 		subscribe: subscribe,
-		out:       out,
+		out:       channel,
+		closeCh:   make(chan struct{}),
 	}
 }
 
@@ -157,6 +160,10 @@ func (a *blockDownload) download(sig nullable.Signature) bool {
 		a.p.SendMessage(&proto.GetBlockMessage{BlockID: sig.Sig()})
 	}
 	return r
+}
+
+func (a *blockDownload) close() {
+	close(a.closeCh)
 }
 
 func (a *blockDownload) subscr(ctx context.Context, times int) (chan proto.Message, func(), error) {
@@ -176,11 +183,14 @@ func (a *blockDownload) subscr(ctx context.Context, times int) (chan proto.Messa
 }
 
 func (a *blockDownload) run(ctx context.Context, wg *sync.WaitGroup) {
+	defer zap.S().Debug("Exit blockDownload")
+	defer a.out.Close()
 	wg.Add(1)
 	defer wg.Done()
 	subscribeCh, unsubscribe, err := a.subscr(ctx, 10)
 	if err != nil {
 		zap.S().Error(err)
+		zap.S().Debug("Exit blockDownload, subscribe problem")
 		return
 	}
 	defer unsubscribe()
@@ -188,6 +198,9 @@ func (a *blockDownload) run(ctx context.Context, wg *sync.WaitGroup) {
 	for {
 		select {
 		case <-ctx.Done():
+			return
+		case <-time.After(30 * time.Second):
+			a.out.Close()
 			return
 		case mess := <-subscribeCh:
 			bb := mess.(*proto.BlockMessage).BlockBytes
@@ -200,14 +213,17 @@ func (a *blockDownload) run(ctx context.Context, wg *sync.WaitGroup) {
 				continue
 			}
 			a.sigs.setBytes(sig, bb)
-			<-a.threads
+			select {
+			case <-a.threads:
+			case <-ctx.Done():
+				return
+			}
 
 			for {
 				_, bts, ok := a.sigs.pop()
 				if ok {
-					select {
-					case a.out <- bts:
-					case <-ctx.Done():
+					if !a.out.Send(bts) {
+						zap.S().Debug("Exit blockDownload, !a.out.Send(bts)")
 						return
 					}
 					if bts == nil {
