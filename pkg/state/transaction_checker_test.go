@@ -998,7 +998,8 @@ func TestCheckInvokeScriptV1(t *testing.T) {
 	pmts := []proto.ScriptPayment{
 		{Amount: 1, Asset: *testGlobal.asset0.asset},
 	}
-	tx := createInvokeScriptV1(t, pmts, proto.FunctionCall{}, 1)
+	feeAsset := proto.OptionalAsset{Present: false}
+	tx := createInvokeScriptV1(t, pmts, proto.FunctionCall{}, feeAsset, 1)
 	info := defaultCheckerInfo(t)
 	to.stor.addBlock(t, blockID0)
 	assetId := tx.Payments[0].Asset.ID

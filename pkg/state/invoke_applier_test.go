@@ -1,6 +1,7 @@
 package state
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -8,6 +9,7 @@ import (
 
 	"github.com/mr-tron/base58/base58"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride/evaluator/ast"
@@ -124,7 +126,7 @@ func TestApplyInvokeScriptV1PaymentsAndData(t *testing.T) {
 	assert.NoError(t, err, "ReadFile() failed")
 	scriptBytes, err := reader.ScriptBytesFromBase64(scriptBase64)
 	assert.NoError(t, err, "ScriptBytesFromBase64() failed")
-	to.setScript(t, testGlobal.recipientInfo.addr, testGlobal.recipientInfo.pk, proto.Script(scriptBytes))
+	to.setScript(t, testGlobal.recipientInfo.addr, testGlobal.recipientInfo.pk, scriptBytes)
 
 	amount := uint64(34)
 	fee := FeeUnit * feeConstants[proto.InvokeScriptTransaction]
@@ -138,8 +140,8 @@ func TestApplyInvokeScriptV1PaymentsAndData(t *testing.T) {
 		{Amount: amount},
 	}
 	fc := proto.FunctionCall{Name: "deposit"}
-	tx := createInvokeScriptV1(t, pmts, fc, fee)
-	tx.FeeAsset = proto.OptionalAsset{Present: false}
+	feeAsset := proto.OptionalAsset{Present: false}
+	tx := createInvokeScriptV1(t, pmts, fc, feeAsset, fee)
 	ch, err := ia.applyInvokeScriptV1(tx, info)
 	assert.NoError(t, err, "failed to apply valid InvokeScriptV1 tx")
 	correctAddrs := map[proto.Address]struct{}{
@@ -219,8 +221,8 @@ func TestApplyInvokeScriptV1Transfers(t *testing.T) {
 		{Amount: amount},
 	}
 	fc := proto.FunctionCall{Name: "deposit"}
-	tx := createInvokeScriptV1(t, pmts, fc, fee)
-	tx.FeeAsset = proto.OptionalAsset{Present: false}
+	feeAsset := proto.OptionalAsset{Present: false}
+	tx := createInvokeScriptV1(t, pmts, fc, feeAsset, fee)
 	ch, err := ia.applyInvokeScriptV1(tx, info)
 	assert.NoError(t, err, "failed to apply valid InvokeScriptV1 tx")
 	correctAddrs := map[proto.Address]struct{}{
@@ -230,8 +232,7 @@ func TestApplyInvokeScriptV1Transfers(t *testing.T) {
 	assert.Equal(t, correctAddrs, ch.addrs)
 
 	fc = proto.FunctionCall{Name: "withdraw", Arguments: proto.Arguments{&proto.IntegerArgument{Value: int64(withdrawAmount)}}}
-	tx = createInvokeScriptV1(t, []proto.ScriptPayment{}, fc, fee)
-	tx.FeeAsset = proto.OptionalAsset{Present: false}
+	tx = createInvokeScriptV1(t, []proto.ScriptPayment{}, fc, feeAsset, fee)
 	ch, err = ia.applyInvokeScriptV1(tx, info)
 	assert.NoError(t, err, "failed to apply valid InvokeScriptV1 tx")
 	correctAddrs = map[proto.Address]struct{}{
@@ -262,4 +263,411 @@ func TestApplyInvokeScriptV1Transfers(t *testing.T) {
 	recipientBalance, err = to.state.AccountBalance(tx.ScriptRecipient, nil)
 	assert.NoError(t, err)
 	assert.Equal(t, amount-withdrawAmount, recipientBalance)
+}
+
+func TestApplyInvokeScriptV1WithIssues(t *testing.T) {
+	to, path := createInvokeApplierTestObjects(t)
+
+	defer func() {
+		err := to.state.Close()
+		require.NoError(t, err, "state.Close() failed")
+		err = os.RemoveAll(path)
+		require.NoError(t, err, "failed to remove test data dir")
+	}()
+
+	// Invoke applier object.
+	ia := to.state.appender.ia
+	info := &invokeAddlInfo{
+		block:  &proto.BlockHeader{BlockSignature: blockID0, Timestamp: to.state.settings.CheckTempNegativeAfterTime},
+		height: 1,
+	}
+	err := to.state.stateDB.addBlock(info.block.BlockSignature)
+	require.NoError(t, err)
+	dir, err := getLocalDir()
+	require.NoError(t, err, "getLocalDir() failed")
+	dAppPath := filepath.Join(dir, "testdata", "scripts", "ride4_asset.base64")
+	scriptBase64, err := ioutil.ReadFile(dAppPath)
+	require.NoError(t, err, "ReadFile() failed")
+	scriptBytes, err := reader.ScriptBytesFromBase64(scriptBase64)
+	require.NoError(t, err, "ScriptBytesFromBase64() failed")
+	to.setScript(t, testGlobal.recipientInfo.addr, testGlobal.recipientInfo.pk, scriptBytes)
+
+	amount := uint64(34)
+	fee := FeeUnit * feeConstants[proto.InvokeScriptTransaction]
+	startBalance := amount + fee*2
+	to.setInitialWavesBalance(t, testGlobal.senderInfo.addr, startBalance)
+	senderBalance, err := to.state.NewestAccountBalance(proto.NewRecipientFromAddress(testGlobal.senderInfo.addr), nil)
+	require.NoError(t, err)
+	assert.Equal(t, startBalance, senderBalance)
+
+	name := "Somerset"
+	description := fmt.Sprintf("Asset '%s' was generated automatically", name)
+	fc := proto.FunctionCall{Name: "issue", Arguments: []proto.Argument{&proto.StringArgument{Value: name}}}
+	feeAsset := proto.OptionalAsset{Present: false}
+	tx := createInvokeScriptV1(t, []proto.ScriptPayment{}, fc, feeAsset, fee)
+	txID := *tx.ID
+	newAsset := proto.GenerateIssueScriptActionID(name, description, 2, 100000, true, 0, txID)
+	ch, err := ia.applyInvokeScriptV1(tx, info)
+	require.NoError(t, err, "failed to apply valid InvokeScriptV1 tx")
+	correctAddrs := map[proto.Address]struct{}{
+		testGlobal.senderInfo.addr:    empty,
+		testGlobal.recipientInfo.addr: empty,
+	}
+	assert.Equal(t, correctAddrs, ch.addrs)
+
+	// Check newest result state here.
+	recipientBalance, err := to.state.NewestAccountBalance(tx.ScriptRecipient, newAsset[:])
+	require.NoError(t, err)
+	assert.Equal(t, 100000, int(recipientBalance))
+
+	err = to.state.appender.applyAllDiffs(false)
+	require.NoError(t, err, "applyAllDiffs() failed")
+	err = to.state.flush(false)
+	require.NoError(t, err, "state.flush() failed")
+	err = to.state.reset(false)
+	require.NoError(t, err, "state.reset() failed")
+
+	// Check after flushing.
+	newAssetBalance, err := to.state.AccountBalance(tx.ScriptRecipient, newAsset[:])
+	require.NoError(t, err)
+	assert.Equal(t, 100000, int(newAssetBalance))
+}
+
+func TestApplyInvokeScriptV1WithIssuesThenReissue(t *testing.T) {
+	to, path := createInvokeApplierTestObjects(t)
+
+	defer func() {
+		err := to.state.Close()
+		require.NoError(t, err, "state.Close() failed")
+		err = os.RemoveAll(path)
+		require.NoError(t, err, "failed to remove test data dir")
+	}()
+
+	// Invoke applier object.
+	ia := to.state.appender.ia
+	info := &invokeAddlInfo{
+		block:  &proto.BlockHeader{BlockSignature: blockID0, Timestamp: to.state.settings.CheckTempNegativeAfterTime},
+		height: 1,
+	}
+	err := to.state.stateDB.addBlock(info.block.BlockSignature)
+	require.NoError(t, err)
+	dir, err := getLocalDir()
+	require.NoError(t, err, "getLocalDir() failed")
+	dAppPath := filepath.Join(dir, "testdata", "scripts", "ride4_asset.base64")
+	scriptBase64, err := ioutil.ReadFile(dAppPath)
+	require.NoError(t, err, "ReadFile() failed")
+	scriptBytes, err := reader.ScriptBytesFromBase64(scriptBase64)
+	require.NoError(t, err, "ScriptBytesFromBase64() failed")
+	to.setScript(t, testGlobal.recipientInfo.addr, testGlobal.recipientInfo.pk, scriptBytes)
+
+	fee := FeeUnit * feeConstants[proto.InvokeScriptTransaction]
+	startBalance := fee * 2
+	to.setInitialWavesBalance(t, testGlobal.senderInfo.addr, startBalance)
+	senderBalance, err := to.state.NewestAccountBalance(proto.NewRecipientFromAddress(testGlobal.senderInfo.addr), nil)
+	require.NoError(t, err)
+	assert.Equal(t, startBalance, senderBalance)
+
+	name := "Somerset"
+	description := fmt.Sprintf("Asset '%s' was generated automatically", name)
+	fc := proto.FunctionCall{Name: "issue", Arguments: []proto.Argument{&proto.StringArgument{Value: name}}}
+	feeAsset := proto.OptionalAsset{Present: false}
+	tx := createInvokeScriptV1(t, []proto.ScriptPayment{}, fc, feeAsset, fee)
+	txID := *tx.ID
+	newAsset := proto.GenerateIssueScriptActionID(name, description, 2, 100000, true, 0, txID)
+	ch, err := ia.applyInvokeScriptV1(tx, info)
+	require.NoError(t, err, "failed to apply valid InvokeScriptV1 tx")
+	correctAddrs := map[proto.Address]struct{}{
+		testGlobal.senderInfo.addr:    empty,
+		testGlobal.recipientInfo.addr: empty,
+	}
+	assert.Equal(t, correctAddrs, ch.addrs)
+
+	// Check newest result state here.
+	recipientBalance, err := to.state.NewestAccountBalance(tx.ScriptRecipient, newAsset[:])
+	require.NoError(t, err)
+	assert.Equal(t, 100000, int(recipientBalance))
+
+	err = to.state.appender.applyAllDiffs(false)
+	require.NoError(t, err, "applyAllDiffs() failed")
+	err = to.state.flush(false)
+	require.NoError(t, err, "state.flush() failed")
+	err = to.state.reset(false)
+	require.NoError(t, err, "state.reset() failed")
+
+	fc = proto.FunctionCall{Name: "reissue", Arguments: []proto.Argument{&proto.BinaryArgument{Value: newAsset.Bytes()}}}
+	tx = createInvokeScriptV1(t, []proto.ScriptPayment{}, fc, feeAsset, fee)
+	ch, err = ia.applyInvokeScriptV1(tx, info)
+	require.NoError(t, err, "failed to apply valid InvokeScriptV1 tx")
+
+	// Check newest result state here.
+	recipientBalance, err = to.state.NewestAccountBalance(tx.ScriptRecipient, newAsset[:])
+	require.NoError(t, err)
+	assert.Equal(t, 110000, int(recipientBalance))
+
+	err = to.state.appender.applyAllDiffs(false)
+	require.NoError(t, err, "applyAllDiffs() failed")
+	err = to.state.flush(false)
+	require.NoError(t, err, "state.flush() failed")
+	err = to.state.reset(false)
+	require.NoError(t, err, "state.reset() failed")
+
+	// Check after flushing.
+	newAssetBalance, err := to.state.AccountBalance(tx.ScriptRecipient, newAsset[:])
+	require.NoError(t, err)
+	assert.Equal(t, 110000, int(newAssetBalance))
+}
+
+func TestApplyInvokeScriptV1WithIssuesThenReissueThenBurn(t *testing.T) {
+	to, path := createInvokeApplierTestObjects(t)
+
+	defer func() {
+		err := to.state.Close()
+		require.NoError(t, err, "state.Close() failed")
+		err = os.RemoveAll(path)
+		require.NoError(t, err, "failed to remove test data dir")
+	}()
+
+	// Invoke applier object.
+	ia := to.state.appender.ia
+	info := &invokeAddlInfo{
+		block:  &proto.BlockHeader{BlockSignature: blockID0, Timestamp: to.state.settings.CheckTempNegativeAfterTime},
+		height: 1,
+	}
+	err := to.state.stateDB.addBlock(info.block.BlockSignature)
+	require.NoError(t, err)
+	dir, err := getLocalDir()
+	require.NoError(t, err, "getLocalDir() failed")
+	dAppPath := filepath.Join(dir, "testdata", "scripts", "ride4_asset.base64")
+	scriptBase64, err := ioutil.ReadFile(dAppPath)
+	require.NoError(t, err, "ReadFile() failed")
+	scriptBytes, err := reader.ScriptBytesFromBase64(scriptBase64)
+	require.NoError(t, err, "ScriptBytesFromBase64() failed")
+	to.setScript(t, testGlobal.recipientInfo.addr, testGlobal.recipientInfo.pk, scriptBytes)
+
+	fee := FeeUnit * feeConstants[proto.InvokeScriptTransaction]
+	startBalance := fee * 3
+	to.setInitialWavesBalance(t, testGlobal.senderInfo.addr, startBalance)
+	senderBalance, err := to.state.NewestAccountBalance(proto.NewRecipientFromAddress(testGlobal.senderInfo.addr), nil)
+	require.NoError(t, err)
+	assert.Equal(t, startBalance, senderBalance)
+
+	name := "Somerset"
+	description := fmt.Sprintf("Asset '%s' was generated automatically", name)
+	fc := proto.FunctionCall{Name: "issue", Arguments: []proto.Argument{&proto.StringArgument{Value: name}}}
+	feeAsset := proto.OptionalAsset{Present: false}
+	tx := createInvokeScriptV1(t, []proto.ScriptPayment{}, fc, feeAsset, fee)
+	txID := *tx.ID
+	newAsset := proto.GenerateIssueScriptActionID(name, description, 2, 100000, true, 0, txID)
+	ch, err := ia.applyInvokeScriptV1(tx, info)
+	require.NoError(t, err, "failed to apply valid InvokeScriptV1 tx")
+	correctAddrs := map[proto.Address]struct{}{
+		testGlobal.senderInfo.addr:    empty,
+		testGlobal.recipientInfo.addr: empty,
+	}
+	assert.Equal(t, correctAddrs, ch.addrs)
+
+	// Check newest result state here.
+	recipientBalance, err := to.state.NewestAccountBalance(tx.ScriptRecipient, newAsset[:])
+	require.NoError(t, err)
+	assert.Equal(t, 100000, int(recipientBalance))
+
+	err = to.state.appender.applyAllDiffs(false)
+	require.NoError(t, err, "applyAllDiffs() failed")
+	err = to.state.flush(false)
+	require.NoError(t, err, "state.flush() failed")
+	err = to.state.reset(false)
+	require.NoError(t, err, "state.reset() failed")
+
+	fc = proto.FunctionCall{Name: "reissue", Arguments: []proto.Argument{&proto.BinaryArgument{Value: newAsset.Bytes()}}}
+	tx = createInvokeScriptV1(t, []proto.ScriptPayment{}, fc, feeAsset, fee)
+	ch, err = ia.applyInvokeScriptV1(tx, info)
+	require.NoError(t, err, "failed to apply valid InvokeScriptV1 tx")
+
+	// Check newest result state here.
+	recipientBalance, err = to.state.NewestAccountBalance(tx.ScriptRecipient, newAsset[:])
+	require.NoError(t, err)
+	assert.Equal(t, 110000, int(recipientBalance))
+
+	err = to.state.appender.applyAllDiffs(false)
+	require.NoError(t, err, "applyAllDiffs() failed")
+	err = to.state.flush(false)
+	require.NoError(t, err, "state.flush() failed")
+	err = to.state.reset(false)
+	require.NoError(t, err, "state.reset() failed")
+
+	fc = proto.FunctionCall{Name: "burn", Arguments: []proto.Argument{&proto.BinaryArgument{Value: newAsset.Bytes()}}}
+	tx = createInvokeScriptV1(t, []proto.ScriptPayment{}, fc, feeAsset, fee)
+	ch, err = ia.applyInvokeScriptV1(tx, info)
+	require.NoError(t, err, "failed to apply valid InvokeScriptV1 tx")
+
+	// Check newest result state here.
+	recipientBalance, err = to.state.NewestAccountBalance(tx.ScriptRecipient, newAsset[:])
+	require.NoError(t, err)
+	assert.Equal(t, 105000, int(recipientBalance))
+
+	err = to.state.appender.applyAllDiffs(false)
+	require.NoError(t, err, "applyAllDiffs() failed")
+	err = to.state.flush(false)
+	require.NoError(t, err, "state.flush() failed")
+	err = to.state.reset(false)
+	require.NoError(t, err, "state.reset() failed")
+
+	// Check after flushing.
+	newAssetBalance, err := to.state.AccountBalance(tx.ScriptRecipient, newAsset[:])
+	require.NoError(t, err)
+	assert.Equal(t, 105000, int(newAssetBalance))
+}
+
+func TestApplyInvokeScriptV1WithIssuesThenReissueThenFailOnReissue(t *testing.T) {
+	to, path := createInvokeApplierTestObjects(t)
+
+	defer func() {
+		err := to.state.Close()
+		require.NoError(t, err, "state.Close() failed")
+		err = os.RemoveAll(path)
+		require.NoError(t, err, "failed to remove test data dir")
+	}()
+
+	// Invoke applier object.
+	ia := to.state.appender.ia
+	info := &invokeAddlInfo{
+		block:  &proto.BlockHeader{BlockSignature: blockID0, Timestamp: to.state.settings.CheckTempNegativeAfterTime},
+		height: 1,
+	}
+	err := to.state.stateDB.addBlock(info.block.BlockSignature)
+	require.NoError(t, err)
+	dir, err := getLocalDir()
+	require.NoError(t, err, "getLocalDir() failed")
+	dAppPath := filepath.Join(dir, "testdata", "scripts", "ride4_asset.base64")
+	scriptBase64, err := ioutil.ReadFile(dAppPath)
+	require.NoError(t, err, "ReadFile() failed")
+	scriptBytes, err := reader.ScriptBytesFromBase64(scriptBase64)
+	require.NoError(t, err, "ScriptBytesFromBase64() failed")
+	to.setScript(t, testGlobal.recipientInfo.addr, testGlobal.recipientInfo.pk, scriptBytes)
+
+	fee := FeeUnit * feeConstants[proto.InvokeScriptTransaction]
+	startBalance := fee * 3
+	to.setInitialWavesBalance(t, testGlobal.senderInfo.addr, startBalance)
+	senderBalance, err := to.state.NewestAccountBalance(proto.NewRecipientFromAddress(testGlobal.senderInfo.addr), nil)
+	require.NoError(t, err)
+	assert.Equal(t, startBalance, senderBalance)
+
+	name := "Somerset"
+	description := fmt.Sprintf("Asset '%s' was generated automatically", name)
+	fc := proto.FunctionCall{Name: "issue", Arguments: []proto.Argument{&proto.StringArgument{Value: name}}}
+	feeAsset := proto.OptionalAsset{Present: false}
+	tx := createInvokeScriptV1(t, []proto.ScriptPayment{}, fc, feeAsset, fee)
+	txID := *tx.ID
+	newAsset := proto.GenerateIssueScriptActionID(name, description, 2, 100000, true, 0, txID)
+	ch, err := ia.applyInvokeScriptV1(tx, info)
+	require.NoError(t, err, "failed to apply valid InvokeScriptV1 tx")
+	correctAddrs := map[proto.Address]struct{}{
+		testGlobal.senderInfo.addr:    empty,
+		testGlobal.recipientInfo.addr: empty,
+	}
+	assert.Equal(t, correctAddrs, ch.addrs)
+
+	// Check newest result state here.
+	recipientBalance, err := to.state.NewestAccountBalance(tx.ScriptRecipient, newAsset[:])
+	require.NoError(t, err)
+	assert.Equal(t, 100000, int(recipientBalance))
+
+	err = to.state.appender.applyAllDiffs(false)
+	require.NoError(t, err, "applyAllDiffs() failed")
+	err = to.state.flush(false)
+	require.NoError(t, err, "state.flush() failed")
+	err = to.state.reset(false)
+	require.NoError(t, err, "state.reset() failed")
+
+	fc = proto.FunctionCall{Name: "reissue", Arguments: []proto.Argument{&proto.BinaryArgument{Value: newAsset.Bytes()}}}
+	tx = createInvokeScriptV1(t, []proto.ScriptPayment{}, fc, feeAsset, fee)
+	ch, err = ia.applyInvokeScriptV1(tx, info)
+	require.NoError(t, err, "failed to apply valid InvokeScriptV1 tx")
+
+	// Check newest result state here.
+	err = to.state.appender.applyAllDiffs(false)
+	require.NoError(t, err, "applyAllDiffs() failed")
+	err = to.state.flush(false)
+	require.NoError(t, err, "state.flush() failed")
+	err = to.state.reset(false)
+	require.NoError(t, err, "state.reset() failed")
+
+	// Second reissue should fail as asset made non-reissuable with the first one
+	fc = proto.FunctionCall{Name: "reissue", Arguments: []proto.Argument{&proto.BinaryArgument{Value: newAsset.Bytes()}}}
+	tx = createInvokeScriptV1(t, []proto.ScriptPayment{}, fc, feeAsset, fee)
+	ch, err = ia.applyInvokeScriptV1(tx, info)
+	assert.Error(t, err)
+}
+
+func TestApplyInvokeScriptV1WithIssuesThenFailOnBurnTooMuch(t *testing.T) {
+	to, path := createInvokeApplierTestObjects(t)
+
+	defer func() {
+		err := to.state.Close()
+		require.NoError(t, err, "state.Close() failed")
+		err = os.RemoveAll(path)
+		require.NoError(t, err, "failed to remove test data dir")
+	}()
+
+	// Invoke applier object.
+	ia := to.state.appender.ia
+	info := &invokeAddlInfo{
+		block:  &proto.BlockHeader{BlockSignature: blockID0, Timestamp: to.state.settings.CheckTempNegativeAfterTime},
+		height: 1,
+	}
+	err := to.state.stateDB.addBlock(info.block.BlockSignature)
+	require.NoError(t, err)
+	dir, err := getLocalDir()
+	require.NoError(t, err, "getLocalDir() failed")
+	dAppPath := filepath.Join(dir, "testdata", "scripts", "ride4_asset.base64")
+	scriptBase64, err := ioutil.ReadFile(dAppPath)
+	require.NoError(t, err, "ReadFile() failed")
+	scriptBytes, err := reader.ScriptBytesFromBase64(scriptBase64)
+	require.NoError(t, err, "ScriptBytesFromBase64() failed")
+	to.setScript(t, testGlobal.recipientInfo.addr, testGlobal.recipientInfo.pk, scriptBytes)
+
+	fee := FeeUnit * feeConstants[proto.InvokeScriptTransaction]
+	startBalance := fee * 100
+	to.setInitialWavesBalance(t, testGlobal.senderInfo.addr, startBalance)
+	senderBalance, err := to.state.NewestAccountBalance(proto.NewRecipientFromAddress(testGlobal.senderInfo.addr), nil)
+	require.NoError(t, err)
+	assert.Equal(t, startBalance, senderBalance)
+
+	name := "Somerset"
+	description := fmt.Sprintf("Asset '%s' was generated automatically", name)
+	fc := proto.FunctionCall{Name: "issue", Arguments: []proto.Argument{&proto.StringArgument{Value: name}}}
+	feeAsset := proto.OptionalAsset{Present: false}
+	tx := createInvokeScriptV1(t, []proto.ScriptPayment{}, fc, feeAsset, fee)
+	txID := *tx.ID
+	newAsset := proto.GenerateIssueScriptActionID(name, description, 2, 100000, true, 0, txID)
+	_, err = ia.applyInvokeScriptV1(tx, info)
+	require.NoError(t, err, "failed to apply valid InvokeScriptV1 tx")
+	err = to.state.appender.applyAllDiffs(false)
+	require.NoError(t, err, "applyAllDiffs() failed")
+	err = to.state.flush(false)
+	require.NoError(t, err, "state.flush() failed")
+	err = to.state.reset(false)
+	require.NoError(t, err, "state.reset() failed")
+
+	fc = proto.FunctionCall{Name: "burn", Arguments: []proto.Argument{&proto.BinaryArgument{Value: newAsset.Bytes()}}}
+	tx = createInvokeScriptV1(t, []proto.ScriptPayment{}, fc, feeAsset, fee)
+	for i := 0; i < 20; i++ {
+		_, err = ia.applyInvokeScriptV1(tx, info)
+		require.NoError(t, err, "failed to apply valid InvokeScriptV1 tx")
+	}
+	require.NoError(t, err, "failed to apply valid InvokeScriptV1 tx")
+	err = to.state.appender.applyAllDiffs(false)
+	require.NoError(t, err, "applyAllDiffs() failed")
+	err = to.state.flush(false)
+	require.NoError(t, err, "state.flush() failed")
+	err = to.state.reset(false)
+	require.NoError(t, err, "state.reset() failed")
+	recipientBalance, err := to.state.NewestAccountBalance(tx.ScriptRecipient, newAsset[:])
+	require.NoError(t, err)
+	assert.Equal(t, 0, int(recipientBalance))
+
+	fc = proto.FunctionCall{Name: "burn", Arguments: []proto.Argument{&proto.BinaryArgument{Value: newAsset.Bytes()}}}
+	tx = createInvokeScriptV1(t, []proto.ScriptPayment{}, fc, feeAsset, fee)
+	_, err = ia.applyInvokeScriptV1(tx, info)
+	assert.Error(t, err)
 }

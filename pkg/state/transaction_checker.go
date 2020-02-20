@@ -98,6 +98,9 @@ func estimatorByScript(script *ast.Script, version int) *estimation.Estimator {
 	case 3:
 		variables = ast.VariablesV3()
 		cat = estimation.NewCatalogueV3()
+	case 4:
+		variables = ast.VariablesV4()
+		cat = estimation.NewCatalogueV4()
 	}
 	return estimation.NewEstimator(version, cat, variables)
 }

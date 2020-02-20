@@ -25,7 +25,7 @@ func BuildScript(r *BytesReader) (*Script, error) {
 			return nil, err
 		}
 		return &Script{
-			Version:    3,
+			Version:    int(dapp.LibVersion),
 			HasBlockV2: f.blockV2,
 			HasArrays:  f.arrays,
 			Verifier:   nil,
@@ -34,7 +34,7 @@ func BuildScript(r *BytesReader) (*Script, error) {
 		}, nil
 	}
 
-	if version < 1 || version > 3 {
+	if version < 1 || version > 4 {
 		return nil, errors.Errorf("parser: unsupported script version %d", version)
 	}
 	exp, err := f.walk(r)

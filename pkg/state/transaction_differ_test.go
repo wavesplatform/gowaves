@@ -997,14 +997,14 @@ func TestCreateDiffSetAssetScriptV1(t *testing.T) {
 	assert.Equal(t, correctAddrs, ch.addrs)
 }
 
-func createInvokeScriptV1(t *testing.T, pmts proto.ScriptPayments, fc proto.FunctionCall, fee uint64) *proto.InvokeScriptV1 {
+func createInvokeScriptV1(t *testing.T, pmts proto.ScriptPayments, fc proto.FunctionCall, feeAsset proto.OptionalAsset, fee uint64) *proto.InvokeScriptV1 {
 	tx := proto.NewUnsignedInvokeScriptV1(
 		'W',
 		testGlobal.senderInfo.pk,
 		proto.NewRecipientFromAddress(testGlobal.recipientInfo.addr),
 		fc,
 		pmts,
-		*testGlobal.asset0.asset,
+		feeAsset,
 		fee,
 		defaultTimestamp,
 	)
@@ -1035,7 +1035,7 @@ func TestCreateDiffInvokeScriptV1(t *testing.T) {
 	}
 	totalAssetAmount := paymentAmount0 + paymentAmount2
 	totalWavesAmount := paymentAmount1
-	tx := createInvokeScriptV1(t, pmts, proto.FunctionCall{}, feeConst*FeeUnit)
+	tx := createInvokeScriptV1(t, pmts, proto.FunctionCall{}, *testGlobal.asset0.asset, feeConst*FeeUnit)
 
 	assetId := tx.FeeAsset.ID
 	to.stor.createAsset(t, assetId)

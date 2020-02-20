@@ -677,3 +677,16 @@ func NewCatalogueV3() *Catalogue {
 	c.user["ScriptResult"] = 2
 	return c
 }
+
+func NewCatalogueV4() *Catalogue {
+	c := NewCatalogueV3()
+	c.user["IntegerEntry"] = 2
+	c.user["BooleanEntry"] = 2
+	c.user["BinaryEntry"] = 2
+	c.user["StringEntry"] = 2
+	c.user["DeleteEntry"] = 1
+	c.user["Issue"] = 7
+	c.user["Reissue"] = 3
+	c.user["Burn"] = 2
+	return c
+}
