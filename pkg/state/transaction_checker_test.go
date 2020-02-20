@@ -177,6 +177,31 @@ func TestCheckTransferWithProofs(t *testing.T) {
 	assert.Error(t, err, "checkTransferWithProofs did not fail with invalid timestamp")
 }
 
+func TestCheckIsValidUtf8(t *testing.T) {
+	to, path := createCheckerTestObjects(t)
+
+	defer func() {
+		to.stor.close(t)
+
+		err := util.CleanTemporaryDirs(path)
+		assert.NoError(t, err, "failed to clean test data dirs")
+	}()
+
+	err := to.tc.isValidUtf8("just a normal string")
+	assert.NoError(t, err)
+
+	err = to.tc.isValidUtf8("более странная ひも")
+	assert.NoError(t, err)
+
+	invalid := string([]byte{0xff, 0xfe, 0xfd})
+	err = to.tc.isValidUtf8(invalid)
+	assert.Error(t, err)
+
+	valid := string([]byte{0xc3, 0x87})
+	err = to.tc.isValidUtf8(valid)
+	assert.NoError(t, err)
+}
+
 func TestCheckIssueWithSig(t *testing.T) {
 	to, path := createCheckerTestObjects(t)
 

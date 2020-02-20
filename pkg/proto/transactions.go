@@ -82,6 +82,25 @@ var (
 		CreateAliasTransaction:  reflect.TypeOf(CreateAliasWithSig{}),
 		MassTransferTransaction: reflect.TypeOf(MassTransferWithProofs{}),
 	}
+
+	ProtobufTransactionsVersions = map[TransactionType]byte{
+		GenesisTransaction:        2,
+		PaymentTransaction:        2,
+		TransferTransaction:       3,
+		IssueTransaction:          3,
+		ReissueTransaction:        3,
+		BurnTransaction:           3,
+		ExchangeTransaction:       3,
+		LeaseTransaction:          3,
+		LeaseCancelTransaction:    3,
+		CreateAliasTransaction:    3,
+		MassTransferTransaction:   2,
+		DataTransaction:           2,
+		SetScriptTransaction:      2,
+		SponsorshipTransaction:    2,
+		SetAssetScriptTransaction: 2,
+		InvokeScriptTransaction:   2,
+	}
 )
 
 type TransactionProofVersion byte

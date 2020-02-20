@@ -227,7 +227,28 @@ func (a *txAppender) currentBlockInfo() (*proto.BlockInfo, error) {
 	return proto.BlockInfoFromHeader(a.settings.AddressSchemeCharacter, curHeader, height)
 }
 
+func (a *txAppender) checkProtobufVersion(tx proto.Transaction) error {
+	protobufVersion, ok := proto.ProtobufTransactionsVersions[tx.GetTypeInfo().Type]
+	if !ok {
+		return errors.Errorf("bad transaction type %v", tx.GetTypeInfo().Type)
+	}
+	if tx.GetVersion() < protobufVersion {
+		return nil
+	}
+	blockV5Activated, err := a.stor.features.isActivated(int16(settings.BlockV5))
+	if err != nil {
+		return errors.Errorf("isActivated(): %v", err)
+	}
+	if !blockV5Activated {
+		return errors.Errorf("bad transaction version %v before blockV5 activation", tx.GetVersion())
+	}
+	return nil
+}
+
 func (a *txAppender) checkTxAgainstState(tx proto.Transaction, accountScripted bool, checkerInfo *checkerInfo, blockInfo *proto.BlockInfo) (uint64, error) {
+	if err := a.checkProtobufVersion(tx); err != nil {
+		return 0, err
+	}
 	scriptsRuns := uint64(0)
 	if accountScripted {
 		// Check script.

@@ -3,6 +3,7 @@ package state
 import (
 	"bytes"
 	"math"
+	"unicode/utf8"
 
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
@@ -316,9 +317,30 @@ func (tc *transactionChecker) checkTransferWithProofs(transaction proto.Transact
 	return smartAssets, nil
 }
 
+func (tc *transactionChecker) isValidUtf8(str string) error {
+	if !utf8.ValidString(str) {
+		return errors.Errorf("str %s is not valid UTF-8", str)
+	}
+	return nil
+}
+
 func (tc *transactionChecker) checkIssue(tx *proto.Issue, info *checkerInfo) error {
 	if err := tc.checkTimestamps(tx.Timestamp, info.currentTimestamp, info.parentTimestamp); err != nil {
 		return errors.Wrap(err, "invalid timestamp")
+	}
+	blockV5Activated, err := tc.stor.features.isActivated(int16(settings.BlockV5))
+	if err != nil {
+		return err
+	}
+	if !blockV5Activated {
+		// We do not check isValidUtf8() before BlockV5 activation.
+		return nil
+	}
+	if err := tc.isValidUtf8(tx.Name); err != nil {
+		return errors.Wrap(err, "invalid UTF-8 in name")
+	}
+	if err := tc.isValidUtf8(tx.Description); err != nil {
+		return errors.Wrap(err, "invalid UTF-8 in description")
 	}
 	return nil
 }
@@ -346,6 +368,7 @@ func (tc *transactionChecker) estimatorVersion(info *checkerInfo) int {
 		return 1
 	}
 }
+
 func (tc *transactionChecker) checkIssueWithProofs(transaction proto.Transaction, info *checkerInfo) ([]crypto.Digest, error) {
 	tx, ok := transaction.(*proto.IssueWithProofs)
 	if !ok {
