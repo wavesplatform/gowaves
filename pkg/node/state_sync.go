@@ -226,7 +226,7 @@ func (a *StateSync) downloadBlocks(ctx context.Context, signaturesCh chan nullab
 	runner.Named("StateSync.downloadBlocks.CreateBulk2", func() {
 		defer wg.Done()
 		select {
-		case errCh <- createBulkWorker2(ctx, blockCnt, receivedBlocksCh, blocksBulk):
+		case errCh <- createBulkWorker2(blockCnt, receivedBlocksCh, blocksBulk):
 		default:
 		}
 	})
@@ -303,23 +303,17 @@ func createBulkWorker(ctx context.Context, blockCnt int, receivedBlocksCh chan b
 	}
 }
 
-func createBulkWorker2(ctx context.Context, blockCnt int, receivedBlocksCh channel.Channel, blocksBulk chan []*proto.Block) error {
+func createBulkWorker2(blockCnt int, receivedBlocksCh channel.Channel, blocksBulk chan []*proto.Block) error {
 	defer close(blocksBulk)
 	defer receivedBlocksCh.Close()
 	blocks := make([]*proto.Block, 0, blockCnt)
 	for {
-
 		rs, ok := receivedBlocksCh.Receive()
 		if !ok {
 			zap.S().Infof("[%s] StateSync: CreateBulk: exit with closed channel")
 			return nil
 		}
 		bts := rs.(blockBytes)
-		//if bts == nil {
-		//	zap.S().Infof("[%s] StateSync: CreateBulk: exit with null bytes")
-		//	return nil
-		//}
-
 		if bts == nil {
 			zap.S().Infof("[%s] StateSync: CreateBulk: exit with null bytes")
 			out := make([]*proto.Block, len(blocks))
