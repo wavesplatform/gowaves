@@ -147,6 +147,10 @@ func NewTimestampFromUnixNano(nano int64) uint64 {
 	return uint64(nano / 1000000)
 }
 
+func NewTimestampFromUSeconds(seconds uint64) uint64 {
+	return seconds * 1000
+}
+
 func NetworkSchemeByType(networkType string) (byte, error) {
 	switch networkType {
 	case "mainnet":
