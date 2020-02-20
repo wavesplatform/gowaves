@@ -161,8 +161,8 @@ func (a *assets) reissueAsset(assetID crypto.Digest, ch *assetReissueChange, blo
 	if err != nil {
 		return errors.Errorf("failed to get asset info: %v\n", err)
 	}
-	newValue := info.quantity.Int64() + ch.diff
-	info.quantity.SetInt64(newValue)
+	quantityDiff := big.NewInt(ch.diff)
+	info.quantity.Add(&info.quantity, quantityDiff)
 	record := &assetHistoryRecord{assetChangeableInfo: assetChangeableInfo{info.quantity, ch.reissuable}}
 	return a.addNewRecord(assetID, record, blockID)
 }
