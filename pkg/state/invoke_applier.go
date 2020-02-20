@@ -5,6 +5,7 @@ import (
 	"math/big"
 
 	"github.com/pkg/errors"
+	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride/evaluator/ast"
 	"github.com/wavesplatform/gowaves/pkg/settings"
@@ -133,6 +134,16 @@ func (ia *invokeApplier) newTxDiffFromScriptReissue(scriptAddr proto.Address, ac
 	diff := newTxDiff()
 	senderAssetKey := assetBalanceKey{address: scriptAddr, asset: action.AssetID[:]}
 	senderAssetBalanceDiff := action.Quantity
+	if err := diff.appendBalanceDiff(senderAssetKey.bytes(), newBalanceDiff(senderAssetBalanceDiff, 0, 0, false)); err != nil {
+		return nil, err
+	}
+	return diff, nil
+}
+
+func (ia *invokeApplier) newTxDiffFromScriptBurn(scriptAddr proto.Address, action proto.BurnScriptAction) (txDiff, error) {
+	diff := newTxDiff()
+	senderAssetKey := assetBalanceKey{address: scriptAddr, asset: action.AssetID[:]}
+	senderAssetBalanceDiff := -action.Quantity
 	if err := diff.appendBalanceDiff(senderAssetKey.bytes(), newBalanceDiff(senderAssetBalanceDiff, 0, 0, false)); err != nil {
 		return nil, err
 	}
@@ -346,8 +357,10 @@ func (ia *invokeApplier) applyInvokeScriptV1(tx *proto.InvokeScriptV1, info *inv
 					reissuable: a.Reissuable,
 				},
 			}
-			if err := ia.stor.assets.issueAsset(a.ID, assetInfo, info.block.BlockSignature); err != nil {
-				return txBalanceChanges{}, err
+			if !info.validatingUtx {
+				if err := ia.stor.assets.issueAsset(a.ID, assetInfo, info.block.BlockSignature); err != nil {
+					return txBalanceChanges{}, err
+				}
 			}
 
 			txDiff, err := ia.newTxDiffFromScriptIssue(*scriptAddr, a)
@@ -381,27 +394,22 @@ func (ia *invokeApplier) applyInvokeScriptV1(tx *proto.InvokeScriptV1, info *inv
 			if math.MaxInt64-a.Quantity < assetInfo.quantity.Int64() && info.block.Timestamp >= ia.settings.ReissueBugWindowTimeEnd {
 				return txBalanceChanges{}, errors.New("asset total value overflow")
 			}
-			isSmartAsset, err := ia.stor.scriptsStorage.newestIsSmartAsset(a.AssetID, !info.initialisation)
+			ok, err := ia.validateActionSmartAsset(a.AssetID, a, scriptPK, blockInfo, *tx.ID, tx.Timestamp, info.initialisation)
 			if err != nil {
 				return txBalanceChanges{}, err
 			}
-			if isSmartAsset {
-				obj, err := ast.NewVariablesFromScriptAction(ia.settings.AddressSchemeCharacter, a, scriptPK, *tx.ID, tx.Timestamp)
-				if err != nil {
-					return txBalanceChanges{}, errors.Wrap(err, "asset script failed on reissue")
-				}
-				if err := ia.sc.callAssetScriptCommon(obj, a.AssetID, blockInfo, info.initialisation); err != nil {
-					return txBalanceChanges{}, errors.Wrap(err, "asset script failed on reissue")
-				}
+			if ok {
 				scriptRuns++
 			}
 			// Update asset's info
-			change := &assetReissueChange{
-				reissuable: a.Reissuable,
-				diff:       a.Quantity,
-			}
-			if err := ia.stor.assets.reissueAsset(a.AssetID, change, info.block.BlockSignature, !info.initialisation); err != nil {
-				return txBalanceChanges{}, err
+			if !info.validatingUtx {
+				change := &assetReissueChange{
+					reissuable: a.Reissuable,
+					diff:       a.Quantity,
+				}
+				if err := ia.stor.assets.reissueAsset(a.AssetID, change, info.block.BlockSignature, !info.initialisation); err != nil {
+					return txBalanceChanges{}, err
+				}
 			}
 			txDiff, err := ia.newTxDiffFromScriptReissue(*scriptAddr, a)
 			if err != nil {
@@ -419,10 +427,50 @@ func (ia *invokeApplier) applyInvokeScriptV1(tx *proto.InvokeScriptV1, info *inv
 				}
 			}
 		case proto.BurnScriptAction:
-			//TODO: implement
-			//TODO: check for smart assets
-			return txBalanceChanges{}, errors.Errorf("unimplemented script action '%T'", a)
-
+			// Check burn
+			assetInfo, err := ia.stor.assets.newestAssetInfo(a.AssetID, !info.initialisation)
+			if err != nil {
+				return txBalanceChanges{}, err
+			}
+			burnAnyTokensEnabled, err := ia.stor.features.isActivated(int16(settings.BurnAnyTokens))
+			if err != nil {
+				return txBalanceChanges{}, err
+			}
+			if !burnAnyTokensEnabled && assetInfo.issuer != scriptPK {
+				return txBalanceChanges{}, errors.New("asset was issued by other address")
+			}
+			ok, err := ia.validateActionSmartAsset(a.AssetID, a, scriptPK, blockInfo, *tx.ID, tx.Timestamp, info.initialisation)
+			if err != nil {
+				return txBalanceChanges{}, err
+			}
+			if ok {
+				scriptRuns++
+			}
+			// Update asset's info
+			// Modify asset.
+			if !info.validatingUtx {
+				change := &assetBurnChange{
+					diff: int64(a.Quantity),
+				}
+				if err := ia.stor.assets.burnAsset(a.AssetID, change, info.block.BlockSignature, !info.initialisation); err != nil {
+					return txBalanceChanges{}, errors.Wrap(err, "failed to burn asset")
+				}
+			}
+			txDiff, err := ia.newTxDiffFromScriptBurn(*scriptAddr, a)
+			if err != nil {
+				return txBalanceChanges{}, err
+			}
+			// diff must be saved to storage, because further asset scripts must take
+			// recent balance changes into account.
+			if err := ia.saveIntermediateDiff(txDiff); err != nil {
+				return txBalanceChanges{}, err
+			}
+			// Append intermediate diff to common diff.
+			for key, balanceDiff := range txDiff {
+				if err := commonDiff.appendBalanceDiffStr(key, balanceDiff); err != nil {
+					return txBalanceChanges{}, err
+				}
+			}
 		default:
 			return txBalanceChanges{}, errors.Errorf("unsupported script action '%T'", a)
 		}
@@ -454,4 +502,23 @@ func (ia *invokeApplier) applyInvokeScriptV1(tx *proto.InvokeScriptV1, info *inv
 		return txBalanceChanges{}, errors.Errorf("tx fee %d is less than minimum value of %d\n", wavesFee, minWavesFee)
 	}
 	return totalChanges, nil
+}
+
+func (ia *invokeApplier) validateActionSmartAsset(asset crypto.Digest, action proto.ScriptAction, callerPK crypto.PublicKey,
+	blockInfo *proto.BlockInfo, txID crypto.Digest, txTimestamp uint64, initialisation bool) (bool, error) {
+	isSmartAsset, err := ia.stor.scriptsStorage.newestIsSmartAsset(asset, !initialisation)
+	if err != nil {
+		return false, err
+	}
+	if isSmartAsset {
+		obj, err := ast.NewVariablesFromScriptAction(ia.settings.AddressSchemeCharacter, action, callerPK, txID, txTimestamp)
+		if err != nil {
+			return false, err
+		}
+		if err := ia.sc.callAssetScriptCommon(obj, asset, blockInfo, initialisation); err != nil {
+			return false, err
+		}
+		return true, nil
+	}
+	return false, nil
 }
