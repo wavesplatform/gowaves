@@ -866,18 +866,6 @@ func (s *stateManager) AddNewBlocks(blockBytes [][]byte) error {
 	return nil
 }
 
-func (s *stateManager) blocksToBinary(blocks []*proto.Block) ([][]byte, error) {
-	var blocksBytes [][]byte
-	for _, block := range blocks {
-		blockBytes, err := block.MarshalBinary()
-		if err != nil {
-			return nil, err
-		}
-		blocksBytes = append(blocksBytes, blockBytes)
-	}
-	return blocksBytes, nil
-}
-
 func (s *stateManager) AddNewDeserializedBlocks(blocks []*proto.Block) (*proto.Block, error) {
 	// Make sure appender doesn't store any diffs from previous validations (e.g. UTX).
 	s.appender.reset()
@@ -913,11 +901,15 @@ func (s *stateManager) AddOldBlocks(blockBytes [][]byte) error {
 }
 
 func (s *stateManager) AddOldDeserializedBlocks(blocks []*proto.Block) error {
-	blocksBytes, err := s.blocksToBinary(blocks)
-	if err != nil {
-		return wrapErr(SerializationError, err)
+	// Make sure appender doesn't store any diffs from previous validations (e.g. UTX).
+	s.appender.reset()
+	if _, err := s.addBlocks(blocks, true); err != nil {
+		if err := s.undoBlockAddition(); err != nil {
+			zap.S().Fatalf("Failed to add blocks and can not rollback to previous state after failure: %v", err)
+		}
+		return err
 	}
-	return s.AddOldBlocks(blocksBytes)
+	return nil
 }
 
 func (s *stateManager) needToResetVotes(blockHeight uint64) bool {
