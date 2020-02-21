@@ -16,7 +16,7 @@ const (
 	Ride4DApps
 	OrderV3
 	ReduceNFTFee
-	BlockReward
+	BlockReward // 14
 	BlockV5
 	MultiPaymentInvokeScript
 	LeaseExpiration

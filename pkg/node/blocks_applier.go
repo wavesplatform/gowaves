@@ -12,7 +12,6 @@ import (
 
 type innerBlocksApplier struct {
 	state state.State
-	tm    types.Time
 }
 
 func (a *innerBlocksApplier) apply(blocks []*proto.Block) (*proto.Block, proto.Height, error) {
@@ -88,34 +87,31 @@ func (a *innerBlocksApplier) apply(blocks []*proto.Block) (*proto.Block, proto.H
 	if err != nil {
 		return nil, 0, errors.Wrapf(err, "failed to rollback to height %d", parentHeight)
 	}
-
+	// applying new blocks
 	newBlock, err := a.state.AddNewDeserializedBlocks(blocks)
 	if err != nil {
 		// return back saved blocks
 		_, err2 := a.state.AddNewDeserializedBlocks(rollbackBlocks)
 		if err2 != nil {
-			return nil, 0, errors.Wrap(err2, "failed add new deserialized blocks")
+			return nil, 0, errors.Wrap(err2, "failed rollback deserialized blocks")
 		}
 		return nil, 0, errors.Wrapf(err, "failed add deserialized blocks, first block sig %q", firstBlock.BlockSignature)
 	}
-	if err := MaybeEnableExtendedApi(a.state, a.tm); err != nil {
-		panic(fmt.Sprintf("[*] BlockDownloader: MaybeEnableExtendedApi(): %v. Failed to persist address transactions for API after successfully applying valid blocks.", err))
-	}
-
 	return newBlock, parentHeight + proto.Height(len(blocks)), nil
 }
 
 type BlocksApplier struct {
 	state state.State
 	inner innerBlocksApplier
+	tm    types.Time
 }
 
 func NewBlocksApplier(state state.State, tm types.Time) *BlocksApplier {
 	return &BlocksApplier{
 		state: state,
+		tm:    tm,
 		inner: innerBlocksApplier{
 			state: state,
-			tm:    tm,
 		},
 	}
 }
@@ -123,15 +119,16 @@ func NewBlocksApplier(state state.State, tm types.Time) *BlocksApplier {
 // 1) notify peers about score
 // 2) reshedule
 func (a *BlocksApplier) Apply(blocks []*proto.Block) error {
-	m := a.state.Mutex()
-	locked := m.Lock()
+	locked := a.state.Mutex().Lock()
+	defer locked.Unlock()
 
-	_, _, err := a.inner.apply(blocks)
+	lastBlock, _, err := a.inner.apply(blocks)
 	if err != nil {
-		locked.Unlock()
 		return err
 	}
-	locked.Unlock()
+	if err := maybeEnableExtendedApi(a.state, lastBlock, proto.NewTimestampFromTime(a.tm.Now())); err != nil {
+		panic(fmt.Sprintf("[*] BlockDownloader: MaybeEnableExtendedApi(): %v. Failed to persist address transactions for API after successfully applying valid blocks.", err))
+	}
 	return nil
 }
 

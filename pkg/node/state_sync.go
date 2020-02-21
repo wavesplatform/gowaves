@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	"github.com/wavesplatform/gowaves/pkg/libs/channel"
 	"github.com/wavesplatform/gowaves/pkg/libs/nullable"
 	"github.com/wavesplatform/gowaves/pkg/node/peer_manager"
 	. "github.com/wavesplatform/gowaves/pkg/p2p/peer"
@@ -188,7 +189,7 @@ func (a *StateSync) downloadBlocks(ctx context.Context, signaturesCh chan nullab
 	defer wg.Done()
 
 	errCh := make(chan error, 3)
-	receivedBlocksCh := make(chan blockBytes, 128)
+	receivedBlocksCh := channel.NewChannel(128)
 
 	downloader := newBlockDownloader(128, p, a.subscribe, receivedBlocksCh)
 	runner.Named("StateSync.downloadBlocks.downloader.run", func() {
@@ -201,6 +202,7 @@ func (a *StateSync) downloadBlocks(ctx context.Context, signaturesCh chan nullab
 	runner.Named("StateSync.downloadBlocks.receiveSignatures",
 		func() {
 			defer wg.Done()
+			defer downloader.close()
 			for {
 				select {
 				case <-ctx.Done():
@@ -221,10 +223,10 @@ func (a *StateSync) downloadBlocks(ctx context.Context, signaturesCh chan nullab
 	blocksBulk := make(chan []*proto.Block, 1)
 
 	wg.Add(1)
-	runner.Named("StateSync.downloadBlocks.CreateBulk", func() {
+	runner.Named("StateSync.downloadBlocks.CreateBulk2", func() {
 		defer wg.Done()
 		select {
-		case errCh <- createBulkWorker(ctx, blockCnt, receivedBlocksCh, blocksBulk):
+		case errCh <- createBulkWorker2(blockCnt, receivedBlocksCh, blocksBulk):
 		default:
 		}
 	})
@@ -297,6 +299,39 @@ func createBulkWorker(ctx context.Context, blockCnt int, receivedBlocksCh chan b
 				blocksBulk <- out
 				blocks = blocks[:0]
 			}
+		}
+	}
+}
+
+func createBulkWorker2(blockCnt int, receivedBlocksCh channel.Channel, blocksBulk chan []*proto.Block) error {
+	defer close(blocksBulk)
+	defer receivedBlocksCh.Close()
+	blocks := make([]*proto.Block, 0, blockCnt)
+	for {
+		rs, ok := receivedBlocksCh.Receive()
+		if !ok {
+			zap.S().Infof("[%s] StateSync: CreateBulk: exit with closed channel")
+			return nil
+		}
+		bts := rs.(blockBytes)
+		if bts == nil {
+			zap.S().Infof("[%s] StateSync: CreateBulk: exit with null bytes")
+			out := make([]*proto.Block, len(blocks))
+			copy(out, blocks)
+			blocksBulk <- out
+			return nil
+		}
+		block := &proto.Block{}
+		err := block.UnmarshalBinary(bts)
+		if err != nil {
+			return err
+		}
+		blocks = append(blocks, block)
+		if l := len(blocks); l == blockCnt {
+			out := make([]*proto.Block, l)
+			copy(out, blocks)
+			blocksBulk <- out
+			blocks = blocks[:0]
 		}
 	}
 }
