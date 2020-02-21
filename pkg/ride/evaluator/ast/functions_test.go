@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"math"
+	"math/rand"
 	"testing"
 	"time"
 
@@ -1347,5 +1348,202 @@ func TestDataTransaction(t *testing.T) {
 		}
 		require.NoError(t, err)
 		assert.Equal(t, test.result, r)
+	}
+}
+
+func TestContains(t *testing.T) {
+	for _, test := range []struct {
+		expressions Exprs
+		result      Expr
+	}{
+		{NewExprs(NewString("ride"), NewString("ide")), NewBoolean(true)},
+		{NewExprs(NewString("string"), NewString("substring")), NewBoolean(false)},
+		{NewExprs(NewString(""), NewString("")), NewBoolean(true)},
+		{NewExprs(NewString("ride"), NewString("")), NewBoolean(true)},
+		{NewExprs(NewString(""), NewString("ride")), NewBoolean(false)},
+	} {
+		r, err := Contains(newEmptyScopeV4(), test.expressions)
+		require.NoError(t, err)
+		assert.Equal(t, test.result, r)
+	}
+}
+
+func TestValueOrElse(t *testing.T) {
+	for _, test := range []struct {
+		expressions Exprs
+		result      Expr
+	}{
+		{NewExprs(NewString("ride"), NewString("ide")), NewString("ride")},
+		{NewExprs(NewString("string"), NewLong(12345)), NewString("string")},
+		{NewExprs(NewBoolean(true), NewString("xxx")), NewBoolean(true)},
+		{NewExprs(NewLong(12345), NewBoolean(true)), NewLong(12345)},
+		{NewExprs(NewUnit(), NewString("ide")), NewString("ide")},
+		{NewExprs(NewUnit(), NewLong(12345)), NewLong(12345)},
+		{NewExprs(NewUnit(), NewString("xxx")), NewString("xxx")},
+		{NewExprs(NewUnit(), NewBoolean(true)), NewBoolean(true)},
+	} {
+		r, err := ValueOrElse(newEmptyScopeV4(), test.expressions)
+		require.NoError(t, err)
+		assert.Equal(t, test.result, r)
+	}
+}
+
+func TestCalculateAssetID(t *testing.T) {
+	for _, test := range []struct {
+		txID        string
+		name        string
+		description string
+		decimals    int64
+		quantity    int64
+		reissuable  bool
+		nonce       int64
+	}{
+		{"2K2XASvPkwdePyWaKDKpKT1X7u2uzu6FJASJ34nuTdEi", "asset", "test asset", 2, 100000, false, 0},
+		{"F2fxqoTg3PvEwBshxhwKY9BrbqHvi1RZfyFJ4VmRmokZ", "somerset", "this asset is summer set", 8, 100000000000000, true, 1234567890},
+		{"AafWgQtRaLm915tNf1fhFdmRr7g6Y9YxyeaJRYuhioRX", "some", "this asset is awesome", 0, 1000000000, true, 987654321},
+	} {
+		txID, err := crypto.NewDigestFromBase58(test.txID)
+		require.NoError(t, err)
+		s := newEmptyScopeV4()
+		s.AddValue("txId", NewBytes(txID.Bytes()))
+		r, err := CalculateAssetID(s, NewExprs(NewIssueExpr(test.name, test.description, test.quantity, test.decimals, test.reissuable, test.nonce)))
+		require.NoError(t, err)
+		id := proto.GenerateIssueScriptActionID(test.name, test.description, test.decimals, test.quantity, test.reissuable, test.nonce, txID)
+		assert.Equal(t, NewBytes(id.Bytes()), r)
+	}
+}
+
+func TestLimitedCreateList(t *testing.T) {
+	for _, test := range []struct {
+		expression  Expr
+		repetitions int
+		error       bool
+	}{
+		{NewString("ride"), 100, false},
+		{NewString("ride"), 1001, true},
+		{NewBoolean(true), 100, false},
+		{NewBoolean(true), 1001, true},
+		{NewLong(12345), 100, false},
+		{NewLong(12345), 1001, true},
+	} {
+		r := NewExprs()
+		var ok bool
+		s := newEmptyScopeV4()
+		for i := 0; i < test.repetitions-1; i++ {
+			res, err := LimitedCreateList(s, NewExprs(test.expression, r))
+			require.NoError(t, err)
+			r, ok = res.(Exprs)
+			require.True(t, ok)
+		}
+		res, err := LimitedCreateList(s, NewExprs(test.expression, r))
+		if test.error {
+			assert.Error(t, err)
+		} else {
+			assert.NoError(t, err)
+			l, ok := res.(Exprs)
+			require.True(t, ok)
+			assert.Equal(t, test.repetitions, len(l))
+		}
+	}
+}
+
+func TestAppendToList(t *testing.T) {
+	for _, test := range []struct {
+		expression  Expr
+		repetitions int
+		error       bool
+	}{
+		{NewString("ride"), 100, false},
+		{NewString("ride"), 1001, true},
+		{NewBoolean(true), 100, false},
+		{NewBoolean(true), 1001, true},
+		{NewLong(12345), 100, false},
+		{NewLong(12345), 1001, true},
+	} {
+		r := NewExprs()
+		var ok bool
+		s := newEmptyScopeV4()
+		for i := 0; i < test.repetitions-1; i++ {
+			res, err := AppendToList(s, NewExprs(r, test.expression))
+			require.NoError(t, err)
+			r, ok = res.(Exprs)
+			require.True(t, ok)
+		}
+		res, err := AppendToList(s, NewExprs(r, test.expression))
+		if test.error {
+			assert.Error(t, err)
+		} else {
+			assert.NoError(t, err)
+			l, ok := res.(Exprs)
+			require.True(t, ok)
+			assert.Equal(t, test.repetitions, len(l))
+		}
+	}
+}
+
+func TestConcat(t *testing.T) {
+	list500 := NewExprs()
+	for i := 0; i < 500; i++ {
+		list500 = append(list500, NewBoolean(true))
+	}
+	list600 := NewExprs()
+	for i := 0; i < 600; i++ {
+		list600 = append(list600, NewBoolean(true))
+	}
+	for _, test := range []struct {
+		expressions Exprs
+		error       bool
+		size        int
+	}{
+		{NewExprs(NewExprs(NewString("RIDE"), NewString("RIDE")), NewExprs(NewString("RIDE"), NewString("RIDE"))), false, 4},
+		{NewExprs(NewExprs(NewString("RIDE"), NewLong(12345)), NewExprs(NewBoolean(true))), false, 3},
+		{NewExprs(NewExprs(), NewExprs(NewString("RIDE"), NewString("RIDE"))), false, 2},
+		{NewExprs(NewExprs(NewString("RIDE"), NewString("RIDE")), NewExprs()), false, 2},
+		{NewExprs(list500, list500), false, 1000},
+		{NewExprs(list600, list500), true, 0},
+		{NewExprs(list500, list600), true, 0},
+		{NewExprs(list600, list600), true, 0},
+	} {
+		res, err := Concat(newEmptyScopeV4(), test.expressions)
+		if test.error {
+			assert.Error(t, err)
+		} else {
+			assert.NoError(t, err)
+			list, ok := res.(Exprs)
+			require.True(t, ok)
+			assert.Equal(t, test.size, len(list))
+		}
+	}
+}
+
+func TestMedian(t *testing.T) {
+	list1000 := make([]int, 1000)
+	for i := 0; i < len(list1000); i++ {
+		list1000[i] = rand.Int()
+	}
+	for _, test := range []struct {
+		items  []int
+		error  bool
+		median Expr
+	}{
+		{[]int{1, 2, 3, 4, 5}, false, NewLong(3)},
+		{[]int{1, 2, 3, 4}, false, NewLong(2)},
+		{[]int{1, 2}, false, NewLong(1)},
+		{[]int{0, 0, 0, 0, 0, 0, 0, 0, 1}, false, NewLong(0)},
+		{append(list1000, 1), true, NewUnit()},
+		{[]int{1}, true, NewUnit()},
+		{[]int{}, true, NewUnit()},
+	} {
+		e := NewExprs()
+		for _, x := range test.items {
+			e = append(e, NewLong(int64(x)))
+		}
+		res, err := Median(newEmptyScopeV4(), NewExprs(e))
+		if test.error {
+			assert.Error(t, err)
+		} else {
+			assert.NoError(t, err)
+			assert.Equal(t, test.median, res)
+		}
 	}
 }

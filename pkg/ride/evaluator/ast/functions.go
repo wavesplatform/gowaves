@@ -11,6 +11,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+	"sort"
 	"strconv"
 	"strings"
 	"unicode/utf8"
@@ -26,6 +27,7 @@ const (
 	MaxStringResult     = 32767
 	MaxBytesToVerify    = 32 * 1024
 	DefaultThrowMessage = "Explicit script termination"
+	MaxListSize         = 1000
 )
 
 type Throw struct {
@@ -122,6 +124,118 @@ func NativeCreateList(s Scope, e Exprs) (Expr, error) {
 		return NewExprs(head), nil
 	}
 	return append(NewExprs(head), tail...), nil
+}
+
+func LimitedCreateList(s Scope, e Exprs) (Expr, error) {
+	const funcName = "LimitedCreateList"
+	if l := len(e); l != 2 {
+		return nil, errors.Errorf("%s: invalid parameters, expected 2, received %d", funcName, l)
+	}
+	head, err := e[0].Evaluate(s)
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	t, err := e[1].Evaluate(s)
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	tail, ok := t.(Exprs)
+	if !ok {
+		return nil, errors.Errorf("%s: invalid second parameter, expected Exprs, received %T", funcName, e[1])
+	}
+	if len(tail) == MaxListSize {
+		return nil, errors.Errorf("%s: list size can not exceed %d elements", funcName, MaxListSize)
+	}
+	if len(tail) == 0 {
+		return NewExprs(head), nil
+	}
+	return append(NewExprs(head), tail...), nil
+}
+
+func AppendToList(s Scope, e Exprs) (Expr, error) {
+	const funcName = "AppendToList"
+	if l := len(e); l != 2 {
+		return nil, errors.Errorf("%s: invalid parameters, expected 2, received %d", funcName, l)
+	}
+	l, err := e[0].Evaluate(s)
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	list, ok := l.(Exprs)
+	if !ok {
+		return nil, errors.Errorf("%s: invalid first parameter, expected Exprs, received %T", funcName, e[0])
+	}
+	if len(list) == MaxListSize {
+		return nil, errors.Errorf("%s: list size can not exceed %d elements", funcName, MaxListSize)
+	}
+	element, err := e[1].Evaluate(s)
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	if len(list) == 0 {
+		return NewExprs(element), nil
+	}
+	return append(list, element), nil
+}
+
+func Concat(s Scope, e Exprs) (Expr, error) {
+	const funcName = "Concat"
+	if l := len(e); l != 2 {
+		return nil, errors.Errorf("%s: invalid parameters, expected 2, received %d", funcName, l)
+	}
+	rs, err := e.EvaluateAll(s)
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	list1, ok := rs[0].(Exprs)
+	if !ok {
+		return nil, errors.Errorf("%s: invalid first parameter, expected Exprs, received %T", funcName, rs[0])
+	}
+	list2, ok := rs[1].(Exprs)
+	if !ok {
+		return nil, errors.Errorf("%s: invalid second parameter, expected Exprs, received %T", funcName, rs[1])
+	}
+	if len(list1)+len(list2) > MaxListSize {
+		return nil, errors.Errorf("%s: list size can not exceed %d elements", funcName, MaxListSize)
+	}
+	if len(list1) == 0 {
+		list1 = NewExprs()
+	}
+	return append(list1, list2...), nil
+}
+
+func Median(s Scope, e Exprs) (Expr, error) {
+	const funcName = "Median"
+	if l := len(e); l != 1 {
+		return nil, errors.Errorf("%s: invalid parameters, expected 1, received %d", funcName, l)
+	}
+	l, err := e[0].Evaluate(s)
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	list, ok := l.(Exprs)
+	if !ok {
+		return nil, errors.Errorf("%s: invalid first parameter, expected Exprs, received %T", funcName, e[0])
+	}
+	size := len(list)
+	if size > MaxListSize || size < 2 {
+		return nil, errors.Errorf("%s: invalid list size %d", funcName, size)
+	}
+	items := make([]int, size)
+	for i, el := range list {
+		item, ok := el.(*LongExpr)
+		if !ok {
+			return nil, errors.Errorf("%s: list must contain only LongExpr elements", funcName)
+		}
+		items[i] = int(item.Value)
+	}
+	sort.Ints(items)
+	half := size / 2
+	if size%2 == 1 {
+		return NewLong(int64(items[half])), nil
+	} else {
+		return NewLong(floorDiv(int64(items[half-1])+int64(items[half]), 2)), nil
+	}
 }
 
 // Internal function to check value type
@@ -2177,6 +2291,70 @@ func Burn(s Scope, e Exprs) (Expr, error) {
 		return nil, errors.Wrap(err, funcName)
 	}
 	return r, nil
+}
+
+func Contains(s Scope, e Exprs) (Expr, error) {
+	const funcName = "Contains"
+	if l := len(e); l != 2 {
+		return nil, errors.Errorf("%s: invalid number of parameters, expected 2, received %d", funcName, l)
+	}
+	rs, err := e.EvaluateAll(s)
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	str, ok := rs[0].(*StringExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: expected first argument of type '*StringExpr', got '%T'", funcName, rs[0])
+	}
+	substr, ok := rs[1].(*StringExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: expected second argument of type '*StringExpr', got '%T'", funcName, rs[1])
+	}
+	return NewBoolean(strings.Contains(str.Value, substr.Value)), nil
+}
+
+func ValueOrElse(s Scope, e Exprs) (Expr, error) {
+	const funcName = "ValueOrElse"
+	if l := len(e); l != 2 {
+		return nil, errors.Errorf("%s: invalid number of parameters, expected 2, received %d", funcName, l)
+	}
+	rs, err := e.EvaluateAll(s)
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	if _, ok := rs[0].(*Unit); ok {
+		return rs[1], nil
+	}
+	return rs[0], nil
+}
+
+func CalculateAssetID(s Scope, e Exprs) (Expr, error) {
+	const funcName = "CalculateAssetID"
+	if l := len(e); l != 1 {
+		return nil, errors.Errorf("%s: invalid number of parameters, expected 1, received %d", funcName, l)
+	}
+	rs, err := e.EvaluateAll(s)
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	issue, ok := rs[0].(*IssueExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: expected argument of type '*IssueExpr', got '%T'", funcName, rs[0])
+	}
+	txID, ok := s.Value("txId")
+	if !ok {
+		return nil, errors.Errorf("%s: no txId in scope", funcName)
+	}
+	idb, ok := txID.(*BytesExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: invalid type of txId: '%T'", funcName, txID)
+	}
+	d, err := crypto.NewDigestFromBytes(idb.Value)
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	id := proto.GenerateIssueScriptActionID(issue.Name, issue.Description, issue.Decimals, issue.Quantity, issue.Reissuable, issue.Nonce, d)
+	return NewBytes(id.Bytes()), nil
 }
 
 func wrapWithExtract(c Callable, name string) Callable {

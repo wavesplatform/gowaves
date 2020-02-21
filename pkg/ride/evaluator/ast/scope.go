@@ -134,6 +134,7 @@ func (a *ScopeImpl) Scheme() byte {
 
 func (a *ScopeImpl) SetTransaction(transaction map[string]Expr) {
 	a.expressions["tx"] = NewObject(transaction)
+	a.expressions["txId"] = transaction["id"]
 }
 
 func (a *ScopeImpl) SetHeight(height uint64) {
@@ -353,12 +354,13 @@ func functionsV4() map[string]Expr {
 	s["Burn"] = FunctionFromPredefined(Burn, 2)
 
 	// New functions
-	//s["contains"] // (complexity 20)
-	//s["valueOrElse"] // (complexity 13)
-	//s["1101"] //append to list (complexity 3)
-	//s["1102"] //concat lists (complexity 10)
-	//s["405"] // list median (works only for lists of size less or equal to 100) (complexity 10)
-	//s["1100"] // cons (list constructor) with size limited to 1000 elements (complexity 2)
+	s["contains"] = FunctionFromPredefined(Contains, 2)
+	s["valueOrElse"] = FunctionFromPredefined(ValueOrElse, 2)
+	s["calculateAssetId"] = FunctionFromPredefined(CalculateAssetID, 1)
+	s["1101"] = FunctionFromPredefined(AppendToList, 2)
+	s["1102"] = FunctionFromPredefined(Concat, 2)
+	s["405"] = FunctionFromPredefined(Median, 1)
+	s["1100"] = FunctionFromPredefined(LimitedCreateList, 2)
 	//s["800"] // Groth16 verify (complexity 1900)
 
 	return s

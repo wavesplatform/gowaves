@@ -688,5 +688,14 @@ func NewCatalogueV4() *Catalogue {
 	c.user["Issue"] = 7
 	c.user["Reissue"] = 3
 	c.user["Burn"] = 2
+	c.user["contains"] = 20
+	c.user["valueOrElse"] = 13
+	c.user["calculateAssetId"] = 10
+	c.user["1101"] = 3
+	c.user["1102"] = 10
+	c.user["405"] = 10
+	c.user["1100"] = 2
+	c.user["800"] = 1900
+
 	return c
 }

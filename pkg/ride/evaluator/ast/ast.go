@@ -2076,6 +2076,27 @@ func (a *IssueExpr) ToAction(parent *crypto.Digest) (proto.ScriptAction, error) 
 	}, nil
 }
 
+func (a *IssueExpr) Get(name string) (Expr, error) {
+	switch name {
+	case "name":
+		return NewString(a.Name), nil
+	case "description":
+		return NewString(a.Description), nil
+	case "quantity":
+		return NewLong(a.Quantity), nil
+	case "decimals":
+		return NewLong(a.Decimals), nil
+	case "isReissuable":
+		return NewBoolean(a.Reissuable), nil
+	case "compiledScript":
+		return NewUnit(), nil // Always Unit in RIDEv4
+	case "nonce":
+		return NewLong(a.Nonce), nil
+	default:
+		return nil, errors.Errorf("unknown field '%s' of IssueExpr", name)
+	}
+}
+
 type ReissueExpr struct {
 	AssetID    crypto.Digest
 	Quantity   int64
@@ -2122,6 +2143,19 @@ func (a *ReissueExpr) ToAction(*crypto.Digest) (proto.ScriptAction, error) {
 	}, nil
 }
 
+func (a *ReissueExpr) Get(name string) (Expr, error) {
+	switch name {
+	case "assetId":
+		return NewBytes(a.AssetID.Bytes()), nil
+	case "quantity":
+		return NewLong(a.Quantity), nil
+	case "isReissuable":
+		return NewBoolean(a.Reissuable), nil
+	default:
+		return nil, errors.Errorf("unknown field '%s' of ReissueExpr", name)
+	}
+}
+
 type BurnExpr struct {
 	AssetID  crypto.Digest
 	Quantity int64
@@ -2163,4 +2197,15 @@ func (a *BurnExpr) ToAction(*crypto.Digest) (proto.ScriptAction, error) {
 		AssetID:  a.AssetID,
 		Quantity: a.Quantity,
 	}, nil
+}
+
+func (a *BurnExpr) Get(name string) (Expr, error) {
+	switch name {
+	case "assetId":
+		return NewBytes(a.AssetID.Bytes()), nil
+	case "quantity":
+		return NewLong(a.Quantity), nil
+	default:
+		return nil, errors.Errorf("unknown field '%s' of BurnExpr", name)
+	}
 }
