@@ -87,12 +87,6 @@ func (a *MicroblockMiner) Mine(ctx context.Context, t proto.Timestamp, k proto.K
 		return
 	}
 
-	blockBytes, err := b.MarshalBinary()
-	if err != nil {
-		zap.S().Error(err)
-		return
-	}
-
 	locked = a.state.Mutex().RLock()
 	curScore, err := a.state.CurrentScore()
 	locked.Unlock()
@@ -108,10 +102,13 @@ func (a *MicroblockMiner) Mine(ctx context.Context, t proto.Timestamp, k proto.K
 			Score: curScore.Bytes(),
 		})
 	})
+	msg, err := proto.MessageByBlock(b, a.scheme)
+	if err != nil {
+		zap.S().Error(err)
+		return
+	}
 	a.peer.EachConnected(func(peer peer.Peer, score *proto.Score) {
-		peer.SendMessage(&proto.BlockMessage{
-			BlockBytes: blockBytes,
-		})
+		peer.SendMessage(msg)
 	})
 
 	rest := restLimits{

@@ -502,7 +502,7 @@ func (a *MicroBlockInvMessage) UnmarshalBinary(data []byte) error {
 
 // PBMicroBlockMessage represents a Protobuf MicroBlock message
 type PBMicroBlockMessage struct {
-	Body io.WriterTo
+	MicroBlockBytes Bytes
 }
 
 func (*PBMicroBlockMessage) ReadFrom(r io.Reader) (int64, error) {
@@ -513,7 +513,7 @@ func (a *PBMicroBlockMessage) WriteTo(w io.Writer) (int64, error) {
 	buf := bytebufferpool.Get()
 	defer bytebufferpool.Put(buf)
 
-	n, err := a.Body.WriteTo(buf)
+	n, err := a.MicroBlockBytes.WriteTo(buf)
 	if err != nil {
 		return n, err
 	}
@@ -548,9 +548,8 @@ func (a *PBMicroBlockMessage) UnmarshalBinary(data []byte) error {
 	if uint32(len(data)) < h.PayloadLength {
 		return errors.New("invalid data size")
 	}
-	b := make([]byte, len(data[:h.PayloadLength]))
-	copy(b, data)
-	a.Body = Bytes(b)
+	a.MicroBlockBytes = make([]byte, len(data[:h.PayloadLength]))
+	copy(a.MicroBlockBytes, data)
 	return nil
 }
 

@@ -226,15 +226,12 @@ func (a *Node) handleBlockBySignatureMessage(p peer.Peer, sig crypto.Signature) 
 		zap.S().Error(err)
 		return
 	}
-	bts, err := block.MarshalBinary()
+	bm, err := proto.MessageByBlock(block, a.services.Scheme)
 	if err != nil {
 		zap.S().Error(err)
 		return
 	}
-	bm := proto.BlockMessage{
-		BlockBytes: bts,
-	}
-	p.SendMessage(&bm)
+	p.SendMessage(bm)
 }
 
 func (a *Node) handleScoreMessage(p peer.Peer, score []byte) {

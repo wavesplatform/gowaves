@@ -226,6 +226,14 @@ type Block struct {
 	Transactions Transactions `json:"transactions,omitempty"`
 }
 
+func (b *Block) Marshal(scheme Scheme) ([]byte, error) {
+	if b.Version >= ProtoBlockVersion {
+		return b.MarshalToProtobuf(scheme)
+	} else {
+		return b.MarshalBinary()
+	}
+}
+
 func (b *Block) Clone() *Block {
 	out := &Block{}
 	_ = copier.Copy(out, b)
