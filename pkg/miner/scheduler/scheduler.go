@@ -256,7 +256,7 @@ func (a *SchedulerImpl) reschedule(state state.State, confirmedBlock *proto.Bloc
 func (a *SchedulerImpl) SignTransactionWith(pk crypto.PublicKey, tx proto.Transaction) error {
 	for _, kp := range a.keyPairs {
 		if bytes.Equal(kp.Public.Bytes(), pk.Bytes()) {
-			return tx.Sign(kp.Secret)
+			return tx.Sign(a.settings.AddressSchemeCharacter, kp.Secret)
 		}
 	}
 	return errors.New("public key not found")

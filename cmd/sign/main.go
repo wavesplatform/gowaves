@@ -38,6 +38,7 @@ func transferTransaction() {
 		Amount       uint64
 		Fee          uint64
 		CustomSecret string
+		Scheme       byte
 	}
 
 	opts := Opts{}
@@ -48,6 +49,7 @@ func transferTransaction() {
 	f.Uint64Var(&opts.Fee, "fee", 100000, "Fee, optional")
 	f.StringVarP(&opts.Recipient, "recipient", "r", "", "Address of recipient")
 	f.StringVarP(&opts.CustomSecret, "secret", "s", "", "Use this secret key instead of wallet, optional")
+	opts.Scheme = byte(*f.Uint8P("scheme", "", 'W', "Network byte scheme"))
 
 	if err := f.Parse(os.Args[1:]); err != nil {
 		fmt.Printf("Parse error: %q", err)
@@ -98,7 +100,7 @@ func transferTransaction() {
 		"",
 	)
 
-	err = transfer.Sign(secretKey)
+	err = transfer.Sign(opts.Scheme, secretKey)
 	if err != nil {
 		fmt.Printf("Err: %q", err)
 		os.Exit(2)

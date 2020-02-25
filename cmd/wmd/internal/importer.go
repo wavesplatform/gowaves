@@ -201,7 +201,7 @@ func (im *Importer) extractTransactions(transactions []proto.Transaction, miner 
 	for _, tx := range transactions {
 		switch t := tx.(type) {
 		case *proto.IssueWithProofs:
-			if ok, err := t.Verify(t.GetSenderPK()); !ok {
+			if ok, err := t.Verify(im.scheme, t.GetSenderPK()); !ok {
 				if err != nil {
 					return nil, nil, nil, nil, nil, wrapErr(err, "failed to verify tx signature")
 				}
@@ -215,7 +215,7 @@ func (im *Importer) extractTransactions(transactions []proto.Transaction, miner 
 			issueChanges = append(issueChanges, ic)
 			accountChanges = append(accountChanges, ac)
 		case *proto.TransferWithProofs:
-			if ok, err := t.Verify(t.GetSenderPK()); !ok {
+			if ok, err := t.Verify(im.scheme, t.GetSenderPK()); !ok {
 				if err != nil {
 					return nil, nil, nil, nil, nil, wrapErr(err, "failed to verify tx signature")
 				}
@@ -230,7 +230,7 @@ func (im *Importer) extractTransactions(transactions []proto.Transaction, miner 
 				accountChanges = append(accountChanges, u...)
 			}
 		case *proto.ReissueWithProofs:
-			if ok, err := t.Verify(t.GetSenderPK()); !ok {
+			if ok, err := t.Verify(im.scheme, t.GetSenderPK()); !ok {
 				if err != nil {
 					return nil, nil, nil, nil, nil, wrapErr(err, "failed to verify tx signature")
 				}
@@ -244,7 +244,7 @@ func (im *Importer) extractTransactions(transactions []proto.Transaction, miner 
 			assetChanges = append(assetChanges, as)
 			accountChanges = append(accountChanges, ac)
 		case *proto.BurnWithProofs:
-			if ok, err := t.Verify(t.GetSenderPK()); !ok {
+			if ok, err := t.Verify(im.scheme, t.GetSenderPK()); !ok {
 				if err != nil {
 					return nil, nil, nil, nil, nil, wrapErr(err, "failed to verify tx signature")
 				}
@@ -258,7 +258,7 @@ func (im *Importer) extractTransactions(transactions []proto.Transaction, miner 
 			assetChanges = append(assetChanges, as)
 			accountChanges = append(accountChanges, ac)
 		case *proto.ExchangeWithProofs:
-			if ok, err := t.Verify(t.GetSenderPK()); !ok {
+			if ok, err := t.Verify(im.scheme, t.GetSenderPK()); !ok {
 				if err != nil {
 					return nil, nil, nil, nil, nil, wrapErr(err, "failed to verify tx signature")
 				}
@@ -278,7 +278,7 @@ func (im *Importer) extractTransactions(transactions []proto.Transaction, miner 
 			}
 			accountChanges = append(accountChanges, ac...)
 		case *proto.SponsorshipWithProofs:
-			if ok, err := t.Verify(t.GetSenderPK()); !ok {
+			if ok, err := t.Verify(im.scheme, t.GetSenderPK()); !ok {
 				if err != nil {
 					return nil, nil, nil, nil, nil, wrapErr(err, "failed to verify tx signature")
 				}
@@ -287,7 +287,7 @@ func (im *Importer) extractTransactions(transactions []proto.Transaction, miner 
 			}
 			assetChanges = append(assetChanges, data.FromSponsorshipWithProofs(t))
 		case *proto.CreateAliasWithProofs:
-			if ok, err := t.Verify(t.GetSenderPK()); !ok {
+			if ok, err := t.Verify(im.scheme, t.GetSenderPK()); !ok {
 				if err != nil {
 					return nil, nil, nil, nil, nil, wrapErr(err, "failed to verify tx signature")
 				}
@@ -300,7 +300,7 @@ func (im *Importer) extractTransactions(transactions []proto.Transaction, miner 
 			}
 			binds = append(binds, b)
 		case *proto.IssueWithSig:
-			if ok, err := t.Verify(t.GetSenderPK()); !ok {
+			if ok, err := t.Verify(im.scheme, t.GetSenderPK()); !ok {
 				if err != nil {
 					return nil, nil, nil, nil, nil, wrapErr(err, "failed to verify tx signature")
 				}
@@ -314,7 +314,7 @@ func (im *Importer) extractTransactions(transactions []proto.Transaction, miner 
 			issueChanges = append(issueChanges, ic)
 			accountChanges = append(accountChanges, ac)
 		case *proto.TransferWithSig:
-			if ok, err := t.Verify(t.GetSenderPK()); !ok {
+			if ok, err := t.Verify(im.scheme, t.GetSenderPK()); !ok {
 				if err != nil {
 					return nil, nil, nil, nil, nil, wrapErr(err, "failed to verify tx signature")
 				}
@@ -329,7 +329,7 @@ func (im *Importer) extractTransactions(transactions []proto.Transaction, miner 
 				accountChanges = append(accountChanges, ac...)
 			}
 		case *proto.ReissueWithSig:
-			if ok, err := t.Verify(t.GetSenderPK()); !ok {
+			if ok, err := t.Verify(im.scheme, t.GetSenderPK()); !ok {
 				if err != nil {
 					return nil, nil, nil, nil, nil, wrapErr(err, "failed to verify tx signature")
 				}
@@ -343,7 +343,7 @@ func (im *Importer) extractTransactions(transactions []proto.Transaction, miner 
 			assetChanges = append(assetChanges, as)
 			accountChanges = append(accountChanges, ac)
 		case *proto.BurnWithSig:
-			if ok, err := t.Verify(t.GetSenderPK()); !ok {
+			if ok, err := t.Verify(im.scheme, t.GetSenderPK()); !ok {
 				if err != nil {
 					return nil, nil, nil, nil, nil, wrapErr(err, "failed to verify tx signature")
 				}
@@ -357,7 +357,7 @@ func (im *Importer) extractTransactions(transactions []proto.Transaction, miner 
 			assetChanges = append(assetChanges, as)
 			accountChanges = append(accountChanges, ac)
 		case *proto.ExchangeWithSig:
-			if ok, err := t.Verify(t.GetSenderPK()); !ok {
+			if ok, err := t.Verify(im.scheme, t.GetSenderPK()); !ok {
 				if err != nil {
 					return nil, nil, nil, nil, nil, wrapErr(err, "failed to verify tx signature")
 				}
@@ -377,7 +377,7 @@ func (im *Importer) extractTransactions(transactions []proto.Transaction, miner 
 			}
 			accountChanges = append(accountChanges, ac...)
 		case *proto.MassTransferWithProofs:
-			if ok, err := t.Verify(t.GetSenderPK()); !ok {
+			if ok, err := t.Verify(im.scheme, t.GetSenderPK()); !ok {
 				if err != nil {
 					return nil, nil, nil, nil, nil, wrapErr(err, "failed to verify tx signature")
 				}
@@ -392,7 +392,7 @@ func (im *Importer) extractTransactions(transactions []proto.Transaction, miner 
 				accountChanges = append(accountChanges, ac...)
 			}
 		case *proto.CreateAliasWithSig:
-			if ok, err := t.Verify(t.GetSenderPK()); !ok {
+			if ok, err := t.Verify(im.scheme, t.GetSenderPK()); !ok {
 				if err != nil {
 					return nil, nil, nil, nil, nil, wrapErr(err, "failed to verify tx signature")
 				}

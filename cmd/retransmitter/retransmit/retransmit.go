@@ -133,7 +133,7 @@ func (a *Retransmitter) periodicallySpawnPeers(ctx context.Context, ticker *time
 	}
 }
 
-func getTransaction(message proto.Message) (proto.Transaction, error) {
+func getTransaction(message proto.Message, scheme proto.Scheme) (proto.Transaction, error) {
 	switch t := message.(type) {
 	case *proto.TransactionMessage:
 		txb := t.Transaction
@@ -227,7 +227,7 @@ func getTransaction(message proto.Message) (proto.Transaction, error) {
 			if err != nil {
 				return nil, err
 			}
-			valid, err := tx.Verify(tx.SenderPK)
+			valid, err := tx.Verify(scheme, tx.SenderPK)
 			if err != nil {
 				return nil, err
 			}
@@ -243,7 +243,7 @@ func getTransaction(message proto.Message) (proto.Transaction, error) {
 			if err != nil {
 				return nil, err
 			}
-			valid, err := tx.Verify(tx.SenderPK)
+			valid, err := tx.Verify(scheme, tx.SenderPK)
 			if err != nil {
 				return nil, err
 			}
@@ -258,7 +258,7 @@ func getTransaction(message proto.Message) (proto.Transaction, error) {
 			if err != nil {
 				return nil, err
 			}
-			valid, err := tx.Verify(tx.SenderPK)
+			valid, err := tx.Verify(scheme, tx.SenderPK)
 			if err != nil {
 				return nil, err
 			}
@@ -273,7 +273,7 @@ func getTransaction(message proto.Message) (proto.Transaction, error) {
 			if err != nil {
 				return nil, err
 			}
-			valid, err := tx.Verify(tx.SenderPK)
+			valid, err := tx.Verify(scheme, tx.SenderPK)
 			if err != nil {
 				return nil, err
 			}
@@ -288,7 +288,7 @@ func getTransaction(message proto.Message) (proto.Transaction, error) {
 			if err != nil {
 				return nil, err
 			}
-			valid, err := tx.Verify(tx.SenderPK)
+			valid, err := tx.Verify(scheme, tx.SenderPK)
 			if err != nil {
 				return nil, err
 			}
@@ -303,7 +303,7 @@ func getTransaction(message proto.Message) (proto.Transaction, error) {
 			if err != nil {
 				return nil, err
 			}
-			valid, err := tx.Verify(tx.SenderPK)
+			valid, err := tx.Verify(scheme, tx.SenderPK)
 			if err != nil {
 				return nil, err
 			}
@@ -318,7 +318,7 @@ func getTransaction(message proto.Message) (proto.Transaction, error) {
 			if err != nil {
 				return nil, err
 			}
-			valid, err := tx.Verify(tx.SenderPK)
+			valid, err := tx.Verify(scheme, tx.SenderPK)
 			if err != nil {
 				return nil, err
 			}
@@ -333,7 +333,7 @@ func getTransaction(message proto.Message) (proto.Transaction, error) {
 			if err != nil {
 				return nil, err
 			}
-			valid, err := tx.Verify(tx.SenderPK)
+			valid, err := tx.Verify(scheme, tx.SenderPK)
 			if err != nil {
 				return nil, err
 			}
@@ -348,7 +348,7 @@ func getTransaction(message proto.Message) (proto.Transaction, error) {
 			if err != nil {
 				return nil, err
 			}
-			valid, err := tx.Verify(tx.SenderPK)
+			valid, err := tx.Verify(scheme, tx.SenderPK)
 			if err != nil {
 				return nil, err
 			}

@@ -293,6 +293,13 @@ func (c *ProtobufConverter) extractOrder(orders []*g.Order, side g.Order_Side) O
 				MatcherFee: c.amount(o.MatcherFee),
 			}
 			switch o.Version {
+			case 4:
+				order = &OrderV4{
+					Version:         c.byte(o.Version),
+					Proofs:          c.proofs(o.Proofs),
+					OrderBody:       body,
+					MatcherFeeAsset: c.extractOptionalAsset(o.MatcherFee),
+				}
 			case 3:
 				order = &OrderV3{
 					Version:         c.byte(o.Version),
@@ -312,7 +319,7 @@ func (c *ProtobufConverter) extractOrder(orders []*g.Order, side g.Order_Side) O
 					OrderBody: body,
 				}
 			}
-			if err := order.GenerateID(); err != nil {
+			if err := order.GenerateID(byte(o.ChainId)); err != nil {
 				c.err = err
 			}
 			return order
@@ -788,7 +795,7 @@ func (c *ProtobufConverter) Transaction(tx *g.Transaction) (Transaction, error) 
 		c.reset()
 		return nil, err
 	}
-	if err := rtx.GenerateID(); err != nil {
+	if err := rtx.GenerateID(scheme); err != nil {
 		return nil, errors.Wrap(err, "failed to generate ID")
 	}
 	return rtx, nil

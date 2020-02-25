@@ -167,7 +167,7 @@ func TestTransactions_WriteTo(t *testing.T) {
 	alias, err := NewAliasFromString("alias:T:aaaa")
 	require.NoError(t, err)
 	createAlias := NewUnsignedCreateAliasWithSig(public, *alias, 10000, NewTimestampFromTime(time.Now()))
-	require.NoError(t, createAlias.Sign(secret))
+	require.NoError(t, createAlias.Sign(TestNetScheme, secret))
 	bts, _ := createAlias.MarshalBinary()
 
 	buf := new(bytes.Buffer)
@@ -195,7 +195,7 @@ func TestBlock_WriteTo(t *testing.T) {
 	alias, err := NewAliasFromString("alias:T:aaaa")
 	require.NoError(t, err)
 	createAlias := NewUnsignedCreateAliasWithSig(public, *alias, 10000, NewTimestampFromTime(time.Now()))
-	require.NoError(t, createAlias.Sign(secret))
+	require.NoError(t, createAlias.Sign(TestNetScheme, secret))
 
 	transactions := Transactions{createAlias}
 

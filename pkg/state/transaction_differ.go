@@ -622,6 +622,8 @@ func (td *transactionDiffer) createDiffBurnWithProofs(transaction proto.Transact
 
 func (td *transactionDiffer) orderFeeKey(address proto.Address, order proto.Order) []byte {
 	switch o := order.(type) {
+	case *proto.OrderV4:
+		return byteKey(address, o.MatcherFeeAsset.ToID())
 	case *proto.OrderV3:
 		return byteKey(address, o.MatcherFeeAsset.ToID())
 	default:

@@ -148,7 +148,7 @@ func TestOrderV1BinarySize(t *testing.T) {
 		ts := uint64(time.Now().UnixNano() / 1000000)
 		exp := ts + 100*1000
 		o := NewUnsignedOrderV1(pk, mpk, *aa, *pa, tc.orderType, tc.price, tc.amount, ts, exp, tc.fee)
-		err = o.Sign(sk)
+		err = o.Sign(MainNetScheme, sk)
 		assert.NoError(t, err)
 		oBytes, err := o.MarshalBinary()
 		assert.NoError(t, err)
@@ -181,8 +181,8 @@ func TestOrderV1SigningRoundTrip(t *testing.T) {
 		ts := uint64(time.Now().UnixNano() / 1000000)
 		exp := ts + 100*1000
 		o := NewUnsignedOrderV1(pk, mpk, *aa, *pa, tc.orderType, tc.price, tc.amount, ts, exp, tc.fee)
-		if err := o.Sign(sk); assert.NoError(t, err) {
-			if r, err := o.Verify(pk); assert.NoError(t, err) {
+		if err := o.Sign(MainNetScheme, sk); assert.NoError(t, err) {
+			if r, err := o.Verify(MainNetScheme, pk); assert.NoError(t, err) {
 				assert.True(t, r)
 			}
 			if b, err := o.MarshalBinary(); assert.NoError(t, err) {
@@ -249,7 +249,7 @@ func BenchmarkOrderV1SigningRoundTrip(t *testing.B) {
 	ts := uint64(time.Now().UnixNano() / 1000000)
 	exp := ts + 100*1000
 	o := NewUnsignedOrderV1(pk, mpk, *aa, *pa, tc.orderType, tc.price, tc.amount, ts, exp, tc.fee)
-	err := o.Sign(sk)
+	err := o.Sign(MainNetScheme, sk)
 	require.NoError(t, err)
 
 	t.Run("serialize", func(b *testing.B) {
@@ -317,7 +317,7 @@ func TestOrderV1ToJSON(t *testing.T) {
 			ej := fmt.Sprintf("{\"senderPublicKey\":\"%s\",\"matcherPublicKey\":\"%s\",\"assetPair\":{\"amountAsset\":%s,\"priceAsset\":%s},\"orderType\":\"%s\",\"price\":%d,\"amount\":%d,\"timestamp\":%d,\"expiration\":%d,\"matcherFee\":%d}",
 				base58.Encode(pk[:]), tc.matcher, aas, pas, tc.orderType.String(), tc.price, tc.amount, ts, exp, tc.fee)
 			assert.Equal(t, ej, string(j))
-			if err := o.Sign(sk); assert.NoError(t, err) {
+			if err := o.Sign(MainNetScheme, sk); assert.NoError(t, err) {
 				if j, err := json.Marshal(o); assert.NoError(t, err) {
 					ej := fmt.Sprintf("{\"id\":\"%s\",\"signature\":\"%s\",\"senderPublicKey\":\"%s\",\"matcherPublicKey\":\"%s\",\"assetPair\":{\"amountAsset\":%s,\"priceAsset\":%s},\"orderType\":\"%s\",\"price\":%d,\"amount\":%d,\"timestamp\":%d,\"expiration\":%d,\"matcherFee\":%d}",
 						base58.Encode(o.ID[:]), base58.Encode(o.Signature[:]), base58.Encode(pk[:]), tc.matcher, aas, pas, tc.orderType.String(), tc.price, tc.amount, ts, exp, tc.fee)
@@ -400,7 +400,7 @@ func TestOrderV2BinarySize(t *testing.T) {
 		ts := uint64(time.Now().UnixNano() / 1000000)
 		exp := ts + 100*1000
 		o := NewUnsignedOrderV2(pk, mpk, *aa, *pa, tc.orderType, tc.price, tc.amount, ts, exp, tc.fee)
-		err = o.Sign(sk)
+		err = o.Sign(MainNetScheme, sk)
 		assert.NoError(t, err)
 		oBytes, err := o.MarshalBinary()
 		assert.NoError(t, err)
@@ -433,8 +433,8 @@ func TestOrderV2SigningRoundTrip(t *testing.T) {
 		ts := uint64(time.Now().UnixNano() / 1000000)
 		exp := ts + 100*1000
 		o := NewUnsignedOrderV2(pk, mpk, *aa, *pa, tc.orderType, tc.price, tc.amount, ts, exp, tc.fee)
-		if err := o.Sign(sk); assert.NoError(t, err) {
-			if r, err := o.Verify(pk); assert.NoError(t, err) {
+		if err := o.Sign(MainNetScheme, sk); assert.NoError(t, err) {
+			if r, err := o.Verify(MainNetScheme, pk); assert.NoError(t, err) {
 				assert.True(t, r)
 			}
 			if b, err := o.MarshalBinary(); assert.NoError(t, err) {
@@ -494,7 +494,7 @@ func TestOrderV2ToJSON(t *testing.T) {
 			ej := fmt.Sprintf("{\"version\":2,\"senderPublicKey\":\"%s\",\"matcherPublicKey\":\"%s\",\"assetPair\":{\"amountAsset\":%s,\"priceAsset\":%s},\"orderType\":\"%s\",\"price\":%d,\"amount\":%d,\"timestamp\":%d,\"expiration\":%d,\"matcherFee\":%d}",
 				base58.Encode(pk[:]), tc.matcher, aas, pas, tc.orderType.String(), tc.price, tc.amount, ts, exp, tc.fee)
 			assert.Equal(t, ej, string(j))
-			if err := o.Sign(sk); assert.NoError(t, err) {
+			if err := o.Sign(MainNetScheme, sk); assert.NoError(t, err) {
 				if j, err := json.Marshal(o); assert.NoError(t, err) {
 					ej := fmt.Sprintf("{\"version\":2,\"id\":\"%s\",\"proofs\":[\"%s\"],\"senderPublicKey\":\"%s\",\"matcherPublicKey\":\"%s\",\"assetPair\":{\"amountAsset\":%s,\"priceAsset\":%s},\"orderType\":\"%s\",\"price\":%d,\"amount\":%d,\"timestamp\":%d,\"expiration\":%d,\"matcherFee\":%d}",
 						base58.Encode(o.ID[:]), base58.Encode(o.Proofs.Proofs[0]), base58.Encode(pk[:]), tc.matcher, aas, pas, tc.orderType.String(), tc.price, tc.amount, ts, exp, tc.fee)
@@ -588,7 +588,7 @@ func TestOrderV3BinarySize(t *testing.T) {
 		ts := uint64(time.Now().UnixNano() / 1000000)
 		exp := ts + 100*1000
 		o := NewUnsignedOrderV3(pk, mpk, *aa, *pa, tc.orderType, tc.price, tc.amount, ts, exp, tc.fee, *fa)
-		err = o.Sign(sk)
+		err = o.Sign(MainNetScheme, sk)
 		assert.NoError(t, err)
 		oBytes, err := o.MarshalBinary()
 		assert.NoError(t, err)
@@ -629,8 +629,8 @@ func TestOrderV3SigningRoundTrip(t *testing.T) {
 		ts := uint64(time.Now().UnixNano() / 1000000)
 		exp := ts + 100*1000
 		o := NewUnsignedOrderV3(pk, mpk, *aa, *pa, tc.orderType, tc.price, tc.amount, ts, exp, tc.fee, *fa)
-		if err := o.Sign(sk); assert.NoError(t, err) {
-			if r, err := o.Verify(pk); assert.NoError(t, err) {
+		if err := o.Sign(MainNetScheme, sk); assert.NoError(t, err) {
+			if r, err := o.Verify(MainNetScheme, pk); assert.NoError(t, err) {
 				assert.True(t, r)
 			}
 			if b, err := o.MarshalBinary(); assert.NoError(t, err) {
@@ -701,7 +701,7 @@ func TestOrderV3ToJSON(t *testing.T) {
 			ej := fmt.Sprintf("{\"version\":3,\"matcherFeeAssetId\":%s,\"senderPublicKey\":\"%s\",\"matcherPublicKey\":\"%s\",\"assetPair\":{\"amountAsset\":%s,\"priceAsset\":%s},\"orderType\":\"%s\",\"price\":%d,\"amount\":%d,\"timestamp\":%d,\"expiration\":%d,\"matcherFee\":%d}",
 				fas, base58.Encode(pk[:]), tc.matcher, aas, pas, tc.orderType.String(), tc.price, tc.amount, ts, exp, tc.fee)
 			assert.Equal(t, ej, string(j))
-			if err := o.Sign(sk); assert.NoError(t, err) {
+			if err := o.Sign(MainNetScheme, sk); assert.NoError(t, err) {
 				if j, err := json.Marshal(o); assert.NoError(t, err) {
 					ej := fmt.Sprintf("{\"version\":3,\"id\":\"%s\",\"proofs\":[\"%s\"],\"matcherFeeAssetId\":%s,\"senderPublicKey\":\"%s\",\"matcherPublicKey\":\"%s\",\"assetPair\":{\"amountAsset\":%s,\"priceAsset\":%s},\"orderType\":\"%s\",\"price\":%d,\"amount\":%d,\"timestamp\":%d,\"expiration\":%d,\"matcherFee\":%d}",
 						base58.Encode(o.ID[:]), base58.Encode(o.Proofs.Proofs[0]), fas, base58.Encode(pk[:]), tc.matcher, aas, pas, tc.orderType.String(), tc.price, tc.amount, ts, exp, tc.fee)

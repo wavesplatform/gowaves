@@ -154,7 +154,7 @@ func main() {
 	mb := 1024 * 1014
 	pool := bytespool.NewBytesPool(64, mb+(mb/2))
 
-	utx := utxpool.New(10000, utxpool.NewValidator(state, ntptm))
+	utx := utxpool.New(10000, utxpool.NewValidator(state, ntptm), cfg)
 
 	parent := peer.NewParent()
 

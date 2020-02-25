@@ -110,7 +110,7 @@ func NewVariablesFromOrder(scheme proto.Scheme, tx proto.Order) (map[string]Expr
 	out["sender"] = NewAddressFromProtoAddress(addr)
 	pk := tx.GetSenderPK()
 	out["senderPublicKey"] = NewBytes(util.Dup(pk.Bytes()))
-	bts, err := tx.BodyMarshalBinary()
+	bts, err := proto.MarshalOrderBody(scheme, tx)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}

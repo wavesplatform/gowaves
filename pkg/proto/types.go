@@ -31,6 +31,7 @@ const (
 	orderV1MinLen        = crypto.SignatureSize + orderLen
 	orderV2MinLen        = orderV2FixedBodyLen + proofsMinLen
 	orderV3MinLen        = orderV3FixedBodyLen + proofsMinLen
+	OrderProtobufVersion = 4
 	jsonNull             = "null"
 	integerArgumentLen   = 1 + 8
 	booleanArgumentLen   = 1
@@ -396,12 +397,42 @@ type Order interface {
 	GetMatcherFee() uint64
 	GetMatcherFeeAsset() OptionalAsset
 	GetSenderPK() crypto.PublicKey
-	GenerateID() error
-	BodyMarshalBinary() ([]byte, error)
+	GenerateID(scheme Scheme) error
 	GetProofs() (*ProofsV1, error)
-	Verify(crypto.PublicKey) (bool, error)
-	ToProtobuf(scheme Scheme) *g.Order
+	Verify(Scheme, crypto.PublicKey) (bool, error)
+	ToProtobuf(Scheme) *g.Order
 	BinarySize() int
+}
+
+func MarshalOrderBody(scheme Scheme, o Order) ([]byte, error) {
+	switch o.GetVersion() {
+	case 1:
+		o, ok := o.(*OrderV1)
+		if !ok {
+			return nil, errors.New("failed to cast an order version 1 to *OrderV1")
+		}
+		return o.BodyMarshalBinary()
+	case 2:
+		o, ok := o.(*OrderV2)
+		if !ok {
+			return nil, errors.New("failed to cast an order version 2 to *OrderV2")
+		}
+		return o.BodyMarshalBinary()
+	case 3:
+		o, ok := o.(*OrderV3)
+		if !ok {
+			return nil, errors.New("failed to cast an order version 3 to *OrderV3")
+		}
+		return o.BodyMarshalBinary()
+	case 4:
+		ov4, ok := o.(*OrderV4)
+		if !ok {
+			return nil, errors.New("failed to cast an order version 4 to *OrderV4")
+		}
+		return ov4.BodyMarshalBinary(scheme)
+	default:
+		return nil, errors.New("invalid order version")
+	}
 }
 
 func OrderToOrderBody(o Order) (OrderBody, error) {
@@ -422,6 +453,12 @@ func OrderToOrderBody(o Order) (OrderBody, error) {
 		o, ok := o.(*OrderV3)
 		if !ok {
 			return OrderBody{}, errors.New("failed to cast an order version 3 to *OrderV3")
+		}
+		return o.OrderBody, nil
+	case 4:
+		o, ok := o.(*OrderV4)
+		if !ok {
+			return OrderBody{}, errors.New("failed to cast an order version 4 to *OrderV4")
 		}
 		return o.OrderBody, nil
 	default:
@@ -780,7 +817,7 @@ func (o *OrderV1) bodyUnmarshalBinary(data []byte) error {
 	return o.OrderBody.unmarshalBinary(data)
 }
 
-func (o *OrderV1) GenerateID() error {
+func (o *OrderV1) GenerateID(scheme Scheme) error {
 	b, err := o.BodyMarshalBinary()
 	if err != nil {
 		return err
@@ -794,7 +831,7 @@ func (o *OrderV1) GenerateID() error {
 }
 
 //Sign adds a signature to the order.
-func (o *OrderV1) Sign(secretKey crypto.SecretKey) error {
+func (o *OrderV1) Sign(scheme Scheme, secretKey crypto.SecretKey) error {
 	b, err := o.BodyMarshalBinary()
 	if err != nil {
 		return errors.Wrap(err, "failed to sign OrderV1")
@@ -813,7 +850,7 @@ func (o *OrderV1) Sign(secretKey crypto.SecretKey) error {
 }
 
 //Verify checks that the order's signature is valid.
-func (o *OrderV1) Verify(publicKey crypto.PublicKey) (bool, error) {
+func (o *OrderV1) Verify(scheme Scheme, publicKey crypto.PublicKey) (bool, error) {
 	if o.Signature == nil {
 		return false, errors.New("empty signature")
 	}
@@ -965,14 +1002,14 @@ func (o *OrderV2) GetExpiration() uint64 {
 	return o.Expiration
 }
 
-func (o *OrderV2) GenerateID() error {
+func (o *OrderV2) GenerateID(scheme Scheme) error {
 	b, err := o.BodyMarshalBinary()
 	if err != nil {
 		return err
 	}
 	d, err := crypto.FastHash(b)
 	if err != nil {
-		return errors.Wrap(err, "failed to sign OrderV1")
+		return errors.Wrap(err, "failed to sign OrderV2")
 	}
 	o.ID = &d
 	return nil
@@ -1015,7 +1052,7 @@ func (o *OrderV2) bodyUnmarshalBinary(data []byte) error {
 }
 
 //Sign adds a signature to the order.
-func (o *OrderV2) Sign(secretKey crypto.SecretKey) error {
+func (o *OrderV2) Sign(scheme Scheme, secretKey crypto.SecretKey) error {
 	b, err := o.BodyMarshalBinary()
 	if err != nil {
 		return errors.Wrap(err, "failed to sign OrderV2")
@@ -1036,7 +1073,7 @@ func (o *OrderV2) Sign(secretKey crypto.SecretKey) error {
 }
 
 //Verify checks that the order's signature is valid.
-func (o *OrderV2) Verify(publicKey crypto.PublicKey) (bool, error) {
+func (o *OrderV2) Verify(scheme Scheme, publicKey crypto.PublicKey) (bool, error) {
 	b, err := o.BodyMarshalBinary()
 	if err != nil {
 		return false, errors.Wrap(err, "failed to verify signature of OrderV2")
@@ -1184,14 +1221,14 @@ func (o *OrderV3) GetExpiration() uint64 {
 	return o.Expiration
 }
 
-func (o *OrderV3) GenerateID() error {
+func (o *OrderV3) GenerateID(scheme Scheme) error {
 	b, err := o.BodyMarshalBinary()
 	if err != nil {
 		return err
 	}
 	d, err := crypto.FastHash(b)
 	if err != nil {
-		return errors.Wrap(err, "failed to sign OrderV1")
+		return errors.Wrap(err, "failed to sign OrderV3")
 	}
 	o.ID = &d
 	return nil
@@ -1259,7 +1296,7 @@ func (o *OrderV3) bodyUnmarshalBinary(data []byte) error {
 }
 
 //Sign adds a signature to the order.
-func (o *OrderV3) Sign(secretKey crypto.SecretKey) error {
+func (o *OrderV3) Sign(scheme Scheme, secretKey crypto.SecretKey) error {
 	b, err := o.BodyMarshalBinary()
 	if err != nil {
 		return errors.Wrap(err, "failed to sign OrderV3")
@@ -1280,7 +1317,7 @@ func (o *OrderV3) Sign(secretKey crypto.SecretKey) error {
 }
 
 //Verify checks that the order's signature is valid.
-func (o *OrderV3) Verify(publicKey crypto.PublicKey) (bool, error) {
+func (o *OrderV3) Verify(scheme Scheme, publicKey crypto.PublicKey) (bool, error) {
 	b, err := o.BodyMarshalBinary()
 	if err != nil {
 		return false, errors.Wrap(err, "failed to verify signature of OrderV3")
@@ -1339,6 +1376,141 @@ func (o *OrderV3) UnmarshalBinary(data []byte) error {
 	}
 	o.ID = &id
 	return nil
+}
+
+// OrderV4 is for Protobuf.
+type OrderV4 struct {
+	Version         byte           `json:"version"`
+	ID              *crypto.Digest `json:"id,omitempty"`
+	Proofs          *ProofsV1      `json:"proofs,omitempty"`
+	MatcherFeeAsset OptionalAsset  `json:"matcherFeeAssetId"`
+	OrderBody
+}
+
+func (o OrderV4) ToProtobuf(scheme Scheme) *g.Order {
+	res := o.OrderBody.ToProtobuf(scheme)
+	res.MatcherFee = &g.Amount{AssetId: o.MatcherFeeAsset.ToID(), Amount: int64(o.MatcherFee)}
+	res.Version = 4
+	res.Proofs = o.Proofs.Bytes()
+	return res
+}
+
+func (o *OrderV4) GetID() ([]byte, error) {
+	if o.ID != nil {
+		return o.ID.Bytes(), nil
+	}
+	return nil, errors.New("no id set")
+}
+
+func (o OrderV4) GetAmount() uint64 {
+	return o.Amount
+}
+
+func (o OrderV4) GetTimestamp() uint64 {
+	return o.Timestamp
+}
+
+func (o OrderV4) GetMatcherFee() uint64 {
+	return o.MatcherFee
+}
+
+func (o OrderV4) GetMatcherFeeAsset() OptionalAsset {
+	return o.MatcherFeeAsset
+}
+
+func (o OrderV4) GetProofs() (*ProofsV1, error) {
+	return o.Proofs, nil
+}
+
+//NewUnsignedOrderV4 creates the new unsigned order.
+func NewUnsignedOrderV4(senderPK, matcherPK crypto.PublicKey, amountAsset, priceAsset OptionalAsset, orderType OrderType, price, amount, timestamp, expiration, matcherFee uint64, matcherFeeAsset OptionalAsset) *OrderV4 {
+	ob := OrderBody{
+		SenderPK:  senderPK,
+		MatcherPK: matcherPK,
+		AssetPair: AssetPair{
+			AmountAsset: amountAsset,
+			PriceAsset:  priceAsset},
+		OrderType:  orderType,
+		Price:      price,
+		Amount:     amount,
+		Timestamp:  timestamp,
+		Expiration: expiration,
+		MatcherFee: matcherFee,
+	}
+	return &OrderV4{Version: 4, MatcherFeeAsset: matcherFeeAsset, OrderBody: ob}
+}
+
+func (o *OrderV4) GetVersion() byte {
+	return o.Version
+}
+
+func (o *OrderV4) GetOrderType() OrderType {
+	return o.OrderType
+}
+
+func (o *OrderV4) GetMatcherPK() crypto.PublicKey {
+	return o.MatcherPK
+}
+
+func (o *OrderV4) GetAssetPair() AssetPair {
+	return o.AssetPair
+}
+
+func (o *OrderV4) GetPrice() uint64 {
+	return o.Price
+}
+
+func (o *OrderV4) GetExpiration() uint64 {
+	return o.Expiration
+}
+
+func (o *OrderV4) GenerateID(scheme Scheme) error {
+	b, err := o.BodyMarshalBinary(scheme)
+	if err != nil {
+		return err
+	}
+	d, err := crypto.FastHash(b)
+	if err != nil {
+		return errors.Wrap(err, "failed to sign OrderV4")
+	}
+	o.ID = &d
+	return nil
+}
+
+func (o *OrderV4) BodyMarshalBinary(scheme Scheme) ([]byte, error) {
+	pbOrder := o.ToProtobuf(scheme)
+	pbOrder.Proofs = nil
+	return MarshalToProtobufDeterministic(pbOrder)
+}
+
+//Sign adds a signature to the order.
+func (o *OrderV4) Sign(scheme Scheme, secretKey crypto.SecretKey) error {
+	b, err := o.BodyMarshalBinary(scheme)
+	if err != nil {
+		return errors.Wrap(err, "failed to sign OrderV4")
+	}
+	if o.Proofs == nil {
+		o.Proofs = &ProofsV1{proofsVersion, make([]B58Bytes, 0)}
+	}
+	err = o.Proofs.Sign(0, secretKey, b)
+	if err != nil {
+		return errors.Wrap(err, "failed to sign OrderV4")
+	}
+	d, err := crypto.FastHash(b)
+	o.ID = &d
+	if err != nil {
+		return errors.Wrap(err, "failed to sign OrderV4")
+	}
+	return nil
+}
+
+//Verify checks that the order's signature is valid.
+func (o *OrderV4) Verify(scheme Scheme, publicKey crypto.PublicKey) (bool, error) {
+	b, err := o.BodyMarshalBinary(scheme)
+	if err != nil {
+		return false, errors.Wrap(err, "failed to verify signature of OrderV4")
+	}
+	return o.Proofs.Verify(0, publicKey, b)
 }
 
 const (

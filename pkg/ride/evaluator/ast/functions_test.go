@@ -254,7 +254,7 @@ func TestNativeTransactionByID(t *testing.T) {
 		"",
 	)
 	require.NoError(t, err)
-	require.NoError(t, transferWithSig.Sign(secret))
+	require.NoError(t, transferWithSig.Sign(proto.MainNetScheme, secret))
 
 	scope := newScopeWithState(&mockstate.State{
 		TransactionsByID: map[string]proto.Transaction{sign.String(): transferWithSig},

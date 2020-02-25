@@ -9,6 +9,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/types"
 )
 
@@ -45,13 +46,15 @@ type UtxImpl struct {
 	sizeLimit      uint64 // max transaction size in bytes
 	curSize        uint64
 	validator      Validator
+	settings       *settings.BlockchainSettings
 }
 
-func New(sizeLimit uint64, validator Validator) *UtxImpl {
+func New(sizeLimit uint64, validator Validator, sets *settings.BlockchainSettings) *UtxImpl {
 	return &UtxImpl{
 		transactionIds: make(map[crypto.Digest]struct{}),
 		sizeLimit:      sizeLimit,
 		validator:      validator,
+		settings:       sets,
 	}
 }
 
@@ -94,7 +97,7 @@ func (a *UtxImpl) addWithBytes(t proto.Transaction, b []byte) error {
 		B: b,
 	}
 	heap.Push(&a.transactions, tb)
-	if err := t.GenerateID(); err != nil {
+	if err := t.GenerateID(a.settings.AddressSchemeCharacter); err != nil {
 		return err
 	}
 	id := makeDigest(t.GetID())

@@ -324,7 +324,7 @@ func (s *stateManager) addGenesisBlock() error {
 		return err
 	}
 	chans := newVerifierChans()
-	go launchVerifier(ctx, chans, s.verificationGoroutinesNum)
+	go launchVerifier(ctx, chans, s.verificationGoroutinesNum, s.settings.AddressSchemeCharacter)
 	if err := s.addNewBlock(&s.genesis, nil, true, chans, 0); err != nil {
 		return err
 	}
@@ -1193,7 +1193,7 @@ func (s *stateManager) addBlocks(blocks []*proto.Block, initialisation bool) (*p
 
 	// Launch verifier that checks signatures of blocks and transactions.
 	chans := newVerifierChans()
-	go launchVerifier(ctx, chans, s.verificationGoroutinesNum)
+	go launchVerifier(ctx, chans, s.verificationGoroutinesNum, s.settings.AddressSchemeCharacter)
 
 	var lastBlock *proto.Block
 	for i, block := range blocks {

@@ -228,11 +228,7 @@ func (a *txAppender) currentBlockInfo() (*proto.BlockInfo, error) {
 }
 
 func (a *txAppender) checkProtobufVersion(tx proto.Transaction) error {
-	protobufVersion, ok := proto.ProtobufTransactionsVersions[tx.GetTypeInfo().Type]
-	if !ok {
-		return errors.Errorf("bad transaction type %v", tx.GetTypeInfo().Type)
-	}
-	if tx.GetVersion() < protobufVersion {
+	if !proto.IsProtobufTx(tx) {
 		return nil
 	}
 	blockV5Activated, err := a.stor.features.isActivated(int16(settings.BlockV5))
@@ -498,7 +494,7 @@ func (a *txAppender) checkUtxTxSig(tx proto.Transaction, scripted bool) error {
 	if err != nil {
 		return err
 	}
-	if err := checkTx(tx, !scripted, checkSellOrder, checkBuyOrder); err != nil {
+	if err := checkTx(tx, !scripted, checkSellOrder, checkBuyOrder, a.settings.AddressSchemeCharacter); err != nil {
 		return err
 	}
 	return nil

@@ -614,6 +614,12 @@ func (tc *transactionChecker) checkExchange(transaction proto.Transaction, info 
 	if bo3, ok := tx.GetBuyOrderFull().(*proto.OrderV3); ok {
 		m[bo3.MatcherFeeAsset] = struct{}{}
 	}
+	if so4, ok := tx.GetSellOrderFull().(*proto.OrderV4); ok {
+		m[so4.MatcherFeeAsset] = struct{}{}
+	}
+	if bo4, ok := tx.GetBuyOrderFull().(*proto.OrderV4); ok {
+		m[bo4.MatcherFeeAsset] = struct{}{}
+	}
 	for a := range m {
 		if err := tc.checkAsset(&a, info.initialisation); err != nil {
 			return nil, err

@@ -367,6 +367,14 @@ func extractOrderParameters(o proto.Order) (proto.AssetPair, crypto.PublicKey, u
 		ap = orderV3.AssetPair
 		spk = orderV3.SenderPK
 		ts = orderV3.Timestamp
+	case 4:
+		orderV4, ok := o.(*proto.OrderV4)
+		if !ok {
+			return proto.AssetPair{}, crypto.PublicKey{}, 0, errors.New("failed to extract order parameters")
+		}
+		ap = orderV4.AssetPair
+		spk = orderV4.SenderPK
+		ts = orderV4.Timestamp
 	default:
 		return proto.AssetPair{}, crypto.PublicKey{}, 0, errors.New("unsupported order type")
 	}

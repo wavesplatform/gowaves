@@ -25,7 +25,7 @@ func TestGetTransactions(t *testing.T) {
 	assert.NoError(t, err)
 	ctx, cancel := context.WithCancel(context.Background())
 	sch := createScheduler(ctx, st, sets)
-	err = server.initServer(st, utxpool.New(utxSize, utxpool.NewValidator(st, ntptime.Stub{})), sch)
+	err = server.initServer(st, utxpool.New(utxSize, utxpool.NewValidator(st, ntptime.Stub{}), sets), sch)
 	assert.NoError(t, err)
 
 	conn := connect(t, grpcTestAddr)
@@ -113,7 +113,7 @@ func TestGetStatuses(t *testing.T) {
 	assert.NoError(t, err)
 	ctx, cancel := context.WithCancel(context.Background())
 	sch := createScheduler(ctx, st, settings.MainNetSettings)
-	utx := utxpool.New(utxSize, utxpool.NoOpValidator{})
+	utx := utxpool.New(utxSize, utxpool.NoOpValidator{}, settings.MainNetSettings)
 	err = server.initServer(st, utx, sch)
 	assert.NoError(t, err)
 
@@ -133,7 +133,7 @@ func TestGetStatuses(t *testing.T) {
 	assert.NoError(t, err)
 	waves := proto.OptionalAsset{Present: false}
 	tx := proto.NewUnsignedTransferWithSig(pk, waves, waves, 100, 1, 100, proto.NewRecipientFromAddress(addr), "attachment")
-	err = tx.Sign(sk)
+	err = tx.Sign(server.scheme, sk)
 	assert.NoError(t, err)
 	txBytes, err := tx.MarshalBinary()
 	assert.NoError(t, err)
@@ -176,7 +176,7 @@ func TestGetUnconfirmed(t *testing.T) {
 	assert.NoError(t, err)
 	ctx, cancel := context.WithCancel(context.Background())
 	sch := createScheduler(ctx, st, settings.MainNetSettings)
-	utx := utxpool.New(utxSize, utxpool.NoOpValidator{})
+	utx := utxpool.New(utxSize, utxpool.NoOpValidator{}, settings.MainNetSettings)
 	err = server.initServer(st, utx, sch)
 	assert.NoError(t, err)
 
@@ -202,7 +202,7 @@ func TestGetUnconfirmed(t *testing.T) {
 	assert.NoError(t, err)
 	waves := proto.OptionalAsset{Present: false}
 	tx := proto.NewUnsignedTransferWithSig(pk, waves, waves, 100, 1, 100, proto.NewRecipientFromAddress(addr), "attachment")
-	err = tx.Sign(sk)
+	err = tx.Sign(server.scheme, sk)
 	assert.NoError(t, err)
 	txBytes, err := tx.MarshalBinary()
 	assert.NoError(t, err)
@@ -295,7 +295,7 @@ func TestSign(t *testing.T) {
 	assert.NoError(t, err)
 	waves := proto.OptionalAsset{Present: false}
 	tx := proto.NewUnsignedTransferWithSig(pk, waves, waves, 100, 1, 100, proto.NewRecipientFromAddress(addr), "attachment")
-	err = tx.GenerateID()
+	err = tx.GenerateID(server.scheme)
 	assert.NoError(t, err)
 	txProto, err := tx.ToProtobuf(server.scheme)
 	assert.NoError(t, err)
@@ -309,7 +309,7 @@ func TestSign(t *testing.T) {
 	assert.NoError(t, err)
 	transfer, ok := resTx.(*proto.TransferWithSig)
 	assert.Equal(t, true, ok)
-	ok, err = transfer.Verify(pk)
+	ok, err = transfer.Verify(server.scheme, pk)
 	assert.NoError(t, err)
 	assert.Equal(t, true, ok)
 }
@@ -322,7 +322,7 @@ func TestBroadcast(t *testing.T) {
 	assert.NoError(t, err)
 	ctx, cancel := context.WithCancel(context.Background())
 	sch := createScheduler(ctx, st, settings.MainNetSettings)
-	utx := utxpool.New(utxSize, utxpool.NoOpValidator{})
+	utx := utxpool.New(utxSize, utxpool.NoOpValidator{}, settings.MainNetSettings)
 	err = server.initServer(st, utx, sch)
 	assert.NoError(t, err)
 
@@ -342,7 +342,7 @@ func TestBroadcast(t *testing.T) {
 	assert.NoError(t, err)
 	waves := proto.OptionalAsset{Present: false}
 	tx := proto.NewUnsignedTransferWithSig(pk, waves, waves, 100, 1, 100, proto.NewRecipientFromAddress(addr), "attachment")
-	err = tx.Sign(sk)
+	err = tx.Sign(server.scheme, sk)
 	assert.NoError(t, err)
 	txProto, err := tx.ToProtobufSigned(server.scheme)
 	assert.NoError(t, err)

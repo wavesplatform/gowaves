@@ -49,7 +49,7 @@ func (a TransferWithSigBuilder) Build() (*proto.TransferWithSig, error) {
 		proto.NewRecipientFromAddress(addr),
 		"")
 
-	err = t.Sign(priv)
+	err = t.Sign(proto.MainNetScheme, priv)
 	if err != nil {
 		return nil, err
 	}

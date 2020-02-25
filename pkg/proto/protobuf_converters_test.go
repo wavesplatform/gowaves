@@ -15,7 +15,7 @@ func TestTransferConvert(t *testing.T) {
 	// Test unsigned.
 	waves := OptionalAsset{Present: false}
 	tx := NewUnsignedTransferWithSig(pk, waves, waves, 100, 1, 100, NewRecipientFromAddress(addr), "attachment")
-	err = tx.GenerateID()
+	err = tx.GenerateID(MainNetScheme)
 	assert.NoError(t, err)
 	txProto, err := tx.ToProtobuf(MainNetScheme)
 	assert.NoError(t, err)
@@ -25,7 +25,7 @@ func TestTransferConvert(t *testing.T) {
 	assert.Equal(t, tx, resTx)
 
 	// Test signed.
-	err = tx.Sign(sk)
+	err = tx.Sign(MainNetScheme, sk)
 	assert.NoError(t, err)
 	txProtoSigned, err := tx.ToProtobufSigned(MainNetScheme)
 	assert.NoError(t, err)

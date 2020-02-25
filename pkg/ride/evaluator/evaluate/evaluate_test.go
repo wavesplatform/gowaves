@@ -96,7 +96,7 @@ func scopeV1withDataTransaction() Scope {
 	tx.Entries = append(tx.Entries, &proto.BinaryDataEntry{Key: "binary", Value: []byte{0xCA, 0xFE, 0xBE, 0xBE, 0xDE, 0xAD, 0xBE, 0xEF}})
 	tx.Entries = append(tx.Entries, &proto.StringDataEntry{Key: "string", Value: "Hello, World!"})
 	tx.Entries = append(tx.Entries, &proto.IntegerDataEntry{Key: "someKey", Value: 12345})
-	err = tx.Sign(sk)
+	err = tx.Sign(proto.MainNetScheme, sk)
 	if err != nil {
 		panic(err)
 	}
@@ -501,7 +501,7 @@ func TestDataFunctions(t *testing.T) {
 		Value: "world",
 	}))
 
-	require.NoError(t, data.Sign(secret))
+	require.NoError(t, data.Sign(proto.MainNetScheme, secret))
 
 	vars, err := NewVariablesFromTransaction(proto.MainNetScheme, data)
 	require.NoError(t, err)

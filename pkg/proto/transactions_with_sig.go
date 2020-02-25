@@ -54,9 +54,9 @@ func (tx IssueWithSig) GetVersion() byte {
 	return tx.Version
 }
 
-func (tx *IssueWithSig) GenerateID() error {
+func (tx *IssueWithSig) GenerateID(scheme Scheme) error {
 	if tx.ID == nil {
-		body, err := tx.BodyMarshalBinary()
+		body, err := MarshalTxBody(scheme, tx)
 		if err != nil {
 			return err
 		}
@@ -124,8 +124,8 @@ func (tx *IssueWithSig) bodyUnmarshalBinary(data []byte) error {
 }
 
 //Sign uses secretKey to sing the transaction.
-func (tx *IssueWithSig) Sign(secretKey crypto.SecretKey) error {
-	b, err := tx.BodyMarshalBinary()
+func (tx *IssueWithSig) Sign(scheme Scheme, secretKey crypto.SecretKey) error {
+	b, err := MarshalTxBody(scheme, tx)
 	if err != nil {
 		return errors.Wrap(err, "failed to sign IssueWithSig transaction")
 	}
@@ -140,11 +140,11 @@ func (tx *IssueWithSig) Sign(secretKey crypto.SecretKey) error {
 }
 
 //Verify checks that the signature of transaction is a valid signature for given public key.
-func (tx *IssueWithSig) Verify(publicKey crypto.PublicKey) (bool, error) {
+func (tx *IssueWithSig) Verify(scheme Scheme, publicKey crypto.PublicKey) (bool, error) {
 	if tx.Signature == nil {
 		return false, errors.New("empty signature")
 	}
-	b, err := tx.BodyMarshalBinary()
+	b, err := MarshalTxBody(scheme, tx)
 	if err != nil {
 		return false, errors.Wrap(err, "failed to verify signature of IssueWithSig transaction")
 	}
@@ -270,9 +270,9 @@ func (tx TransferWithSig) GetVersion() byte {
 	return tx.Version
 }
 
-func (tx *TransferWithSig) GenerateID() error {
+func (tx *TransferWithSig) GenerateID(scheme Scheme) error {
 	if tx.ID == nil {
-		body, err := tx.BodyMarshalBinary()
+		body, err := MarshalTxBody(scheme, tx)
 		if err != nil {
 			return err
 		}
@@ -377,8 +377,8 @@ func (tx *TransferWithSig) bodyUnmarshalBinary(data []byte) error {
 }
 
 //Sign calculates a signature and a digest as an ID of the transaction.
-func (tx *TransferWithSig) Sign(secretKey crypto.SecretKey) error {
-	b, err := tx.BodyMarshalBinary()
+func (tx *TransferWithSig) Sign(scheme Scheme, secretKey crypto.SecretKey) error {
+	b, err := MarshalTxBody(scheme, tx)
 	if err != nil {
 		return errors.Wrap(err, "failed to sign TransferWithSig transaction")
 	}
@@ -396,11 +396,11 @@ func (tx *TransferWithSig) Sign(secretKey crypto.SecretKey) error {
 }
 
 //Verify use given public key to verify that the signature is valid.
-func (tx *TransferWithSig) Verify(publicKey crypto.PublicKey) (bool, error) {
+func (tx *TransferWithSig) Verify(scheme Scheme, publicKey crypto.PublicKey) (bool, error) {
 	if tx.Signature == nil {
 		return false, errors.New("empty signature")
 	}
-	b, err := tx.BodyMarshalBinary()
+	b, err := MarshalTxBody(scheme, tx)
 	if err != nil {
 		return false, errors.Wrap(err, "failed to verify signature of TransferWithSig transaction")
 	}
@@ -529,9 +529,9 @@ func (tx ReissueWithSig) GetVersion() byte {
 	return tx.Version
 }
 
-func (tx *ReissueWithSig) GenerateID() error {
+func (tx *ReissueWithSig) GenerateID(scheme Scheme) error {
 	if tx.ID == nil {
-		body, err := tx.BodyMarshalBinary()
+		body, err := MarshalTxBody(scheme, tx)
 		if err != nil {
 			return err
 		}
@@ -598,8 +598,8 @@ func (tx *ReissueWithSig) bodyUnmarshalBinary(data []byte) error {
 
 //Sign use given private key to calculate signature of the transaction.
 //This function also calculates digest of transaction data and assigns it to ID field.
-func (tx *ReissueWithSig) Sign(secretKey crypto.SecretKey) error {
-	b, err := tx.BodyMarshalBinary()
+func (tx *ReissueWithSig) Sign(scheme Scheme, secretKey crypto.SecretKey) error {
+	b, err := MarshalTxBody(scheme, tx)
 	if err != nil {
 		return errors.Wrap(err, "failed to sign ReissueWithSig transaction")
 	}
@@ -617,11 +617,11 @@ func (tx *ReissueWithSig) Sign(secretKey crypto.SecretKey) error {
 }
 
 //Verify checks that the signature of the transaction is valid for given public key.
-func (tx *ReissueWithSig) Verify(publicKey crypto.PublicKey) (bool, error) {
+func (tx *ReissueWithSig) Verify(scheme Scheme, publicKey crypto.PublicKey) (bool, error) {
 	if tx.Signature == nil {
 		return false, errors.New("empty signature")
 	}
-	b, err := tx.BodyMarshalBinary()
+	b, err := MarshalTxBody(scheme, tx)
 	if err != nil {
 		return false, errors.Wrap(err, "failed to verify signature of ReissueWithSig transaction")
 	}
@@ -747,9 +747,9 @@ func (tx BurnWithSig) GetVersion() byte {
 	return tx.Version
 }
 
-func (tx *BurnWithSig) GenerateID() error {
+func (tx *BurnWithSig) GenerateID(scheme Scheme) error {
 	if tx.ID == nil {
-		body, err := tx.BodyMarshalBinary()
+		body, err := MarshalTxBody(scheme, tx)
 		if err != nil {
 			return err
 		}
@@ -814,8 +814,8 @@ func (tx *BurnWithSig) bodyUnmarshalBinary(data []byte) error {
 }
 
 //Sign calculates and sets signature and ID of the transaction.
-func (tx *BurnWithSig) Sign(secretKey crypto.SecretKey) error {
-	b, err := tx.BodyMarshalBinary()
+func (tx *BurnWithSig) Sign(scheme Scheme, secretKey crypto.SecretKey) error {
+	b, err := MarshalTxBody(scheme, tx)
 	if err != nil {
 		return errors.Wrap(err, "failed to sign BurnWithSig transaction")
 	}
@@ -833,11 +833,11 @@ func (tx *BurnWithSig) Sign(secretKey crypto.SecretKey) error {
 }
 
 //Verify checks that the signature of the transaction is valid for the given public key.
-func (tx *BurnWithSig) Verify(publicKey crypto.PublicKey) (bool, error) {
+func (tx *BurnWithSig) Verify(scheme Scheme, publicKey crypto.PublicKey) (bool, error) {
 	if tx.Signature == nil {
 		return false, errors.New("empty signature")
 	}
-	b, err := tx.BodyMarshalBinary()
+	b, err := MarshalTxBody(scheme, tx)
 	if err != nil {
 		return false, errors.Wrap(err, "failed to verify signature of BurnWithSig transaction")
 	}
@@ -963,9 +963,9 @@ func (tx ExchangeWithSig) GetVersion() byte {
 	return tx.Version
 }
 
-func (tx *ExchangeWithSig) GenerateID() error {
+func (tx *ExchangeWithSig) GenerateID(scheme Scheme) error {
 	if tx.ID == nil {
-		body, err := tx.BodyMarshalBinary()
+		body, err := MarshalTxBody(scheme, tx)
 		if err != nil {
 			return err
 		}
@@ -1254,8 +1254,8 @@ func (tx *ExchangeWithSig) bodyUnmarshalBinary(data []byte) (int, error) {
 }
 
 //Sing calculates ID and Signature of the transaction.
-func (tx *ExchangeWithSig) Sign(secretKey crypto.SecretKey) error {
-	b, err := tx.BodyMarshalBinary()
+func (tx *ExchangeWithSig) Sign(scheme Scheme, secretKey crypto.SecretKey) error {
+	b, err := MarshalTxBody(scheme, tx)
 	if err != nil {
 		return errors.Wrap(err, "failed to sign ExchangeWithSig transaction")
 	}
@@ -1273,11 +1273,11 @@ func (tx *ExchangeWithSig) Sign(secretKey crypto.SecretKey) error {
 }
 
 //Verify checks that signature of the transaction is valid.
-func (tx *ExchangeWithSig) Verify(publicKey crypto.PublicKey) (bool, error) {
+func (tx *ExchangeWithSig) Verify(scheme Scheme, publicKey crypto.PublicKey) (bool, error) {
 	if tx.Signature == nil {
 		return false, errors.New("empty signature")
 	}
-	b, err := tx.BodyMarshalBinary()
+	b, err := MarshalTxBody(scheme, tx)
 	if err != nil {
 		return false, errors.Wrap(err, "failed to verify signature of ExchangeWithSig transaction")
 	}
@@ -1410,9 +1410,9 @@ func (tx LeaseWithSig) GetVersion() byte {
 	return tx.Version
 }
 
-func (tx *LeaseWithSig) GenerateID() error {
+func (tx *LeaseWithSig) GenerateID(scheme Scheme) error {
 	if tx.ID == nil {
-		body, err := tx.BodyMarshalBinary()
+		body, err := MarshalTxBody(scheme, tx)
 		if err != nil {
 			return err
 		}
@@ -1478,8 +1478,8 @@ func (tx *LeaseWithSig) bodyUnmarshalBinary(data []byte) error {
 }
 
 //Sign calculates ID and Signature of the transaction.
-func (tx *LeaseWithSig) Sign(secretKey crypto.SecretKey) error {
-	b, err := tx.BodyMarshalBinary()
+func (tx *LeaseWithSig) Sign(scheme Scheme, secretKey crypto.SecretKey) error {
+	b, err := MarshalTxBody(scheme, tx)
 	if err != nil {
 		return errors.Wrap(err, "failed to sign LeaseWithSig transaction")
 	}
@@ -1497,11 +1497,11 @@ func (tx *LeaseWithSig) Sign(secretKey crypto.SecretKey) error {
 }
 
 //Verify checks that the signature of the transaction is valid for the given public key.
-func (tx *LeaseWithSig) Verify(publicKey crypto.PublicKey) (bool, error) {
+func (tx *LeaseWithSig) Verify(scheme Scheme, publicKey crypto.PublicKey) (bool, error) {
 	if tx.Signature == nil {
 		return false, errors.New("empty signature")
 	}
-	b, err := tx.BodyMarshalBinary()
+	b, err := MarshalTxBody(scheme, tx)
 	if err != nil {
 		return false, errors.Wrap(err, "failed to verify signature of LeaseWithSig transaction")
 	}
@@ -1629,9 +1629,9 @@ func (tx LeaseCancelWithSig) GetVersion() byte {
 	return tx.Version
 }
 
-func (tx *LeaseCancelWithSig) GenerateID() error {
+func (tx *LeaseCancelWithSig) GenerateID(scheme Scheme) error {
 	if tx.ID == nil {
-		body, err := tx.BodyMarshalBinary()
+		body, err := MarshalTxBody(scheme, tx)
 		if err != nil {
 			return err
 		}
@@ -1695,8 +1695,8 @@ func (tx *LeaseCancelWithSig) bodyUnmarshalBinary(data []byte) error {
 	return nil
 }
 
-func (tx *LeaseCancelWithSig) Sign(secretKey crypto.SecretKey) error {
-	b, err := tx.BodyMarshalBinary()
+func (tx *LeaseCancelWithSig) Sign(scheme Scheme, secretKey crypto.SecretKey) error {
+	b, err := MarshalTxBody(scheme, tx)
 	if err != nil {
 		return errors.Wrap(err, "failed to sign LeaseCancelWithSig transaction")
 	}
@@ -1714,11 +1714,11 @@ func (tx *LeaseCancelWithSig) Sign(secretKey crypto.SecretKey) error {
 }
 
 //Verify checks that signature of the transaction is valid for the given public key.
-func (tx *LeaseCancelWithSig) Verify(publicKey crypto.PublicKey) (bool, error) {
+func (tx *LeaseCancelWithSig) Verify(scheme Scheme, publicKey crypto.PublicKey) (bool, error) {
 	if tx.Signature == nil {
 		return false, errors.New("empty signature")
 	}
-	b, err := tx.BodyMarshalBinary()
+	b, err := MarshalTxBody(scheme, tx)
 	if err != nil {
 		return false, errors.Wrap(err, "failed to verify signature of LeaseCancelWithSig transaction")
 	}
@@ -1840,14 +1840,24 @@ func (tx CreateAliasWithSig) GetVersion() byte {
 	return tx.Version
 }
 
-func (tx *CreateAliasWithSig) GenerateID() error {
-	if tx.ID == nil {
-		id, err := tx.CreateAlias.id()
+func (tx *CreateAliasWithSig) GenerateID(scheme Scheme) error {
+	if tx.ID != nil {
+		return nil
+	}
+	if IsProtobufTx(tx) {
+		body, err := MarshalTxBody(scheme, tx)
 		if err != nil {
 			return err
 		}
-		tx.ID = id
+		id := crypto.MustFastHash(body)
+		tx.ID = &id
+		return nil
 	}
+	id, err := tx.CreateAlias.id()
+	if err != nil {
+		return err
+	}
+	tx.ID = id
 	return nil
 }
 
@@ -1903,8 +1913,8 @@ func (tx *CreateAliasWithSig) bodyUnmarshalBinary(data []byte) error {
 	return nil
 }
 
-func (tx *CreateAliasWithSig) Sign(secretKey crypto.SecretKey) error {
-	b, err := tx.BodyMarshalBinary()
+func (tx *CreateAliasWithSig) Sign(scheme Scheme, secretKey crypto.SecretKey) error {
+	b, err := MarshalTxBody(scheme, tx)
 	if err != nil {
 		return errors.Wrap(err, "failed to sign CreateAliasWithSig transaction")
 	}
@@ -1920,11 +1930,11 @@ func (tx *CreateAliasWithSig) Sign(secretKey crypto.SecretKey) error {
 	return nil
 }
 
-func (tx *CreateAliasWithSig) Verify(publicKey crypto.PublicKey) (bool, error) {
+func (tx *CreateAliasWithSig) Verify(scheme Scheme, publicKey crypto.PublicKey) (bool, error) {
 	if tx.Signature == nil {
 		return false, errors.New("empty signature")
 	}
-	b, err := tx.BodyMarshalBinary()
+	b, err := MarshalTxBody(scheme, tx)
 	if err != nil {
 		return false, errors.Wrap(err, "failed to verify signature of CreateAliasWithSig transaction")
 	}

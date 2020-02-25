@@ -139,16 +139,23 @@ type Transaction interface {
 	// Set transaction ID.
 	// For most transacions ID is hash of transaction body.
 	// For Payment transactions ID is Signature.
-	GenerateID() error
+	GenerateID(scheme Scheme) error
 	// Sign transaction with given secret key.
 	// It also sets transaction ID.
-	Sign(sk crypto.SecretKey) error
+	Sign(scheme Scheme, sk crypto.SecretKey) error
 
 	// Functions for custom binary format.
 	// Serialization.
+	// MarshalBinary() is analogous to MarshalSignedToProtobuf() for Protobuf.
 	MarshalBinary() ([]byte, error)
 	// Parsing.
+	// <TODO>: right now UnmarshalBinary() always uses binary format to
+	// calculate ID (hash). It should accept scheme and use Protobuf OR
+	// binary format depending on transaction version.
 	UnmarshalBinary([]byte) error
+	// Bytes without signature.
+	// BodyMarshalBinary() is analogous to MarshalToProtobuf() for Protobuf.
+	BodyMarshalBinary() ([]byte, error)
 	// Size in bytes in binary format.
 	BinarySize() int
 
@@ -161,6 +168,31 @@ type Transaction interface {
 	// Conversion to Protobuf types.
 	ToProtobuf(scheme Scheme) (*g.Transaction, error)
 	ToProtobufSigned(scheme Scheme) (*g.SignedTransaction, error)
+}
+
+func IsProtobufTx(tx Transaction) bool {
+	protobufVersion, ok := ProtobufTransactionsVersions[tx.GetTypeInfo().Type]
+	if !ok {
+		return false
+	}
+	if tx.GetVersion() < protobufVersion {
+		return false
+	}
+	return true
+}
+
+func MarshalTx(scheme Scheme, tx Transaction) ([]byte, error) {
+	if IsProtobufTx(tx) {
+		return tx.MarshalSignedToProtobuf(scheme)
+	}
+	return tx.MarshalBinary()
+}
+
+func MarshalTxBody(scheme Scheme, tx Transaction) ([]byte, error) {
+	if IsProtobufTx(tx) {
+		return tx.MarshalToProtobuf(scheme)
+	}
+	return tx.BodyMarshalBinary()
 }
 
 // TransactionToProtobufCommon() converts to protobuf structure with fields
@@ -329,20 +361,24 @@ func (tx Genesis) GetVersion() byte {
 	return tx.Version
 }
 
-func (tx *Genesis) GenerateID() error {
-	return tx.generateID()
+func (tx *Genesis) GenerateID(scheme Scheme) error {
+	return tx.generateID(scheme)
 }
 
-func (tx Genesis) Sign(sk crypto.SecretKey) error {
-	return tx.GenerateSigID()
+func (tx *Genesis) Sign(scheme Scheme, sk crypto.SecretKey) error {
+	if err := tx.generateID(scheme); err != nil {
+		return err
+	}
+	tx.Signature = tx.ID
+	return nil
 }
 
 func (tx Genesis) GetSenderPK() crypto.PublicKey {
 	return crypto.PublicKey{}
 }
 
-func (tx *Genesis) generateID() error {
-	body, err := tx.bodyMarshalBinary()
+func (tx *Genesis) generateID(scheme Scheme) error {
+	body, err := MarshalTxBody(scheme, tx)
 	if err != nil {
 		return err
 	}
@@ -353,10 +389,7 @@ func (tx *Genesis) generateID() error {
 
 func (tx Genesis) GetID() ([]byte, error) {
 	if tx.ID == nil {
-		err := tx.generateID()
-		if err != nil {
-			return nil, err
-		}
+		return nil, errors.New("tx ID is not set\n")
 	}
 	return tx.ID.Bytes(), nil
 }
@@ -389,7 +422,7 @@ func (tx Genesis) Valid() (bool, error) {
 	return true, nil
 }
 
-func (tx *Genesis) bodyMarshalBinary() ([]byte, error) {
+func (tx *Genesis) BodyMarshalBinary() ([]byte, error) {
 	buf := make([]byte, genesisBodyLen)
 	buf[0] = byte(tx.Type)
 	binary.BigEndian.PutUint64(buf[1:], tx.Timestamp)
@@ -423,9 +456,8 @@ func (tx *Genesis) generateBodyHash(body []byte) crypto.Signature {
 	return s
 }
 
-//GenerateSigID calculates hash of the transaction and use it as an ID. Also doubled hash is used as a signature.
 func (tx *Genesis) GenerateSigID() error {
-	b, err := tx.bodyMarshalBinary()
+	b, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return errors.Wrap(err, "failed to generate signature of Genesis transaction")
 	}
@@ -437,7 +469,7 @@ func (tx *Genesis) GenerateSigID() error {
 
 //MarshalBinary writes transaction bytes to slice of bytes.
 func (tx *Genesis) MarshalBinary() ([]byte, error) {
-	b, err := tx.bodyMarshalBinary()
+	b, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal Genesis transaction to bytes")
 	}
@@ -548,7 +580,7 @@ func (tx Payment) GetVersion() byte {
 	return tx.Version
 }
 
-func (tx *Payment) GenerateID() error {
+func (tx *Payment) GenerateID(scheme Scheme) error {
 	if tx.ID == nil {
 		tx.ID = tx.Signature
 	}
@@ -634,7 +666,20 @@ func (tx *Payment) bodyUnmarshalBinary(data []byte) error {
 }
 
 //Sign calculates transaction signature and set it as an ID.
-func (tx *Payment) Sign(secretKey crypto.SecretKey) error {
+func (tx *Payment) Sign(scheme Scheme, secretKey crypto.SecretKey) error {
+	if IsProtobufTx(tx) {
+		b, err := MarshalTxBody(scheme, tx)
+		if err != nil {
+			return err
+		}
+		s, err := crypto.Sign(secretKey, b)
+		if err != nil {
+			return err
+		}
+		tx.ID = &s
+		tx.Signature = &s
+		return nil
+	}
 	b := tx.bodyMarshalBinaryBuffer()
 	err := tx.bodyMarshalBinary(b)
 	if err != nil {
@@ -663,9 +708,16 @@ func (tx *Payment) BodyMarshalBinary() ([]byte, error) {
 }
 
 //Verify checks that the Signature is valid for given public key.
-func (tx *Payment) Verify(publicKey crypto.PublicKey) (bool, error) {
+func (tx *Payment) Verify(scheme Scheme, publicKey crypto.PublicKey) (bool, error) {
 	if tx.Signature == nil {
 		return false, errors.New("empty signature")
+	}
+	if IsProtobufTx(tx) {
+		b, err := tx.MarshalToProtobuf(scheme)
+		if err != nil {
+			return false, err
+		}
+		return crypto.Verify(publicKey, *tx.Signature, b), nil
 	}
 	b := tx.bodyMarshalBinaryBuffer()
 	err := tx.bodyMarshalBinary(b)

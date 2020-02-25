@@ -178,7 +178,7 @@ func main() {
 		proto.NewTimestampFromUSeconds(minerDelaySecond),
 	)
 
-	utx := utxpool.New(10000, utxpool.NewValidator(state, ntptm))
+	utx := utxpool.New(10000, utxpool.NewValidator(state, ntptm), custom)
 
 	stateChanged := state_changed.NewStateChanged()
 	blockApplier := node.NewBlocksApplier(state, ntptm)

@@ -997,7 +997,7 @@ func (a *OrderTestSuite) SetupTest() {
 		proto.Timestamp(1544715621),
 		10000)
 
-	a.NoError(sellOrder.Sign(sk))
+	a.NoError(sellOrder.Sign(proto.MainNetScheme, sk))
 
 	a.tx = sellOrder
 	a.f = NewVariablesFromOrder

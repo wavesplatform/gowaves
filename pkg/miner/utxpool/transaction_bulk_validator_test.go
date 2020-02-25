@@ -9,6 +9,7 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/util/byte_helpers"
 	"github.com/wavesplatform/gowaves/pkg/util/lock"
 )
@@ -32,7 +33,7 @@ func TestBulkValidator_Validate(t *testing.T) {
 			Return(nil)
 	m.EXPECT().ResetValidationList()
 
-	utx := New(10000, NoOpValidator{})
+	utx := New(10000, NoOpValidator{}, settings.MainNetSettings)
 	require.NoError(t, utx.AddWithBytes(byte_helpers.TransferWithSig.Transaction, byte_helpers.TransferWithSig.TransactionBytes))
 	require.NoError(t, utx.AddWithBytes(byte_helpers.BurnWithSig.Transaction, byte_helpers.BurnWithSig.TransactionBytes))
 	require.Equal(t, 2, utx.Len())
