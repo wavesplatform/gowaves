@@ -64,19 +64,19 @@ func main() {
 
 	zap.S().Info("connectPeers ", *connectPeers)
 
-	conf := &settings.NodeSettings{}
-	if err := settings.ApplySettings(conf, FromArgs(), settings.FromJavaEnviron); err != nil {
-		zap.S().Error(err)
-		return
-	}
-
-	err = conf.Validate()
+	cfg, err := settings.BlockchainSettingsByTypeName(*blockchainType)
 	if err != nil {
 		zap.S().Error(err)
 		return
 	}
 
-	cfg, err := settings.BlockchainSettingsByTypeName(*blockchainType)
+	conf := &settings.NodeSettings{}
+	if err := settings.ApplySettings(conf, FromArgs(cfg.AddressSchemeCharacter), settings.FromJavaEnviron); err != nil {
+		zap.S().Error(err)
+		return
+	}
+
+	err = conf.Validate()
 	if err != nil {
 		zap.S().Error(err)
 		return
@@ -179,19 +179,13 @@ func main() {
 	stateChanged := state_changed.NewStateChanged()
 	blockApplier := node.NewBlocksApplier(state, ntptm)
 
-	scheme, err := proto.NetworkSchemeByType(*blockchainType)
-	if err != nil {
-		zap.S().Error(err)
-		cancel()
-		return
-	}
 	services := services.Services{
 		State:              state,
 		Peers:              peerManager,
 		Scheduler:          scheduler,
 		BlocksApplier:      blockApplier,
 		UtxPool:            utx,
-		Scheme:             scheme,
+		Scheme:             cfg.AddressSchemeCharacter,
 		BlockAddedNotifier: stateChanged,
 		Subscribe:          node.NewSubscribeService(),
 		InvRequester:       ng.NewInvRequester(),
@@ -276,16 +270,12 @@ func main() {
 	<-time.After(2 * time.Second)
 }
 
-func FromArgs() func(s *settings.NodeSettings) error {
+func FromArgs(scheme proto.Scheme) func(s *settings.NodeSettings) error {
 	return func(s *settings.NodeSettings) error {
 		s.DeclaredAddr = *declAddr
 		s.HttpAddr = *apiAddr
 		s.GrpcAddr = *grpcAddr
-		networkStr, err := proto.NetworkStrByType(*blockchainType)
-		if err != nil {
-			return err
-		}
-		s.WavesNetwork = networkStr
+		s.WavesNetwork = proto.NetworkStrFromScheme(scheme)
 		s.Addresses = *peerAddresses
 		return nil
 	}

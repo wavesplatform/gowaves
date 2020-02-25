@@ -65,8 +65,18 @@ func main() {
 	zap.S().Info(os.Environ())
 	zap.S().Info(os.LookupEnv("WAVES_OPTS"))
 
+	f, err := os.Open(*cfgPath)
+	if err != nil {
+		zap.S().Fatalf("Failed to open configuration file: %v", err)
+	}
+	defer func() { _ = f.Close() }()
+	custom, err := settings.ReadBlockchainSettings(f)
+	if err != nil {
+		zap.S().Fatalf("Failed to read configuration file: %v", err)
+	}
+
 	conf := &settings.NodeSettings{}
-	if err := settings.ApplySettings(conf, FromArgs(), settings.FromJavaEnviron); err != nil {
+	if err := settings.ApplySettings(conf, FromArgs(custom.AddressSchemeCharacter), settings.FromJavaEnviron); err != nil {
 		zap.S().Error(err)
 		return
 	}
@@ -85,15 +95,6 @@ func main() {
 		return
 	}
 
-	f, err := os.Open(*cfgPath)
-	if err != nil {
-		zap.S().Fatalf("Failed to open configuration file: %v", err)
-	}
-	defer func() { _ = f.Close() }()
-	custom, err := settings.ReadBlockchainSettings(f)
-	if err != nil {
-		zap.S().Fatalf("Failed to read configuration file: %v", err)
-	}
 	path := *statePath
 	if path == "" {
 		path, err = util.GetStatePath()
@@ -188,7 +189,7 @@ func main() {
 		Scheduler:          scheduler,
 		BlocksApplier:      blockApplier,
 		UtxPool:            utx,
-		Scheme:             custom.FunctionalitySettings.AddressSchemeCharacter,
+		Scheme:             custom.AddressSchemeCharacter,
 		BlockAddedNotifier: stateChanged,
 		Subscribe:          node.NewSubscribeService(),
 		InvRequester:       ng.NewInvRequester(),
@@ -275,16 +276,12 @@ func main() {
 	<-time.After(2 * time.Second)
 }
 
-func FromArgs() func(s *settings.NodeSettings) error {
+func FromArgs(scheme proto.Scheme) func(s *settings.NodeSettings) error {
 	return func(s *settings.NodeSettings) error {
 		s.DeclaredAddr = *declAddr
 		s.HttpAddr = *apiAddr
 		s.GrpcAddr = *grpcAddr
-		networkStr, err := proto.NetworkStrByType("custom")
-		if err != nil {
-			return err
-		}
-		s.WavesNetwork = networkStr
+		s.WavesNetwork = proto.NetworkStrFromScheme(scheme)
 		s.Addresses = *peerAddresses
 		return nil
 	}
