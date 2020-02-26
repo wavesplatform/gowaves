@@ -69,12 +69,31 @@ func featuresFromBinary(data []byte) ([]int16, error) {
 	return res, nil
 }
 
-func (b *BlockHeader) HeaderToProtobuf(scheme Scheme) (*g.Block, error) {
-	ref, err := b.Parent.MarshalBinary()
+func (b *BlockHeader) MarshalHeader(scheme Scheme) ([]byte, error) {
+	if b.Version >= ProtoBlockVersion {
+		return b.MarshalHeaderToProtobuf(scheme)
+	}
+	return b.MarshalHeaderToBinary()
+}
+
+func (b *BlockHeader) MarshalHeaderToProtobufWithoutSignature(scheme Scheme) ([]byte, error) {
+	header, err := b.HeaderToProtobufHeader(scheme)
 	if err != nil {
 		return nil, err
 	}
-	sig, err := b.BlockSignature.MarshalBinary()
+	return MarshalToProtobufDeterministic(header)
+}
+
+func (b *BlockHeader) MarshalHeaderToProtobuf(scheme Scheme) ([]byte, error) {
+	header, err := b.HeaderToProtobuf(scheme)
+	if err != nil {
+		return nil, err
+	}
+	return MarshalToProtobufDeterministic(header)
+}
+
+func (b *BlockHeader) HeaderToProtobufHeader(scheme Scheme) (*g.Block_Header, error) {
+	ref, err := b.Parent.MarshalBinary()
 	if err != nil {
 		return nil, err
 	}
@@ -83,18 +102,30 @@ func (b *BlockHeader) HeaderToProtobuf(scheme Scheme) (*g.Block, error) {
 	for i := range b.Features {
 		features[i] = uint32(b.Features[i])
 	}
+	return &g.Block_Header{
+		ChainId:             int32(scheme),
+		Reference:           ref,
+		BaseTarget:          int64(b.BaseTarget),
+		GenerationSignature: b.GenSignature.Bytes(),
+		FeatureVotes:        features,
+		Timestamp:           int64(b.Timestamp),
+		Version:             int32(b.Version),
+		Generator:           pkBytes,
+		RewardVote:          b.RewardVote,
+	}, nil
+}
+
+func (b *BlockHeader) HeaderToProtobuf(scheme Scheme) (*g.Block, error) {
+	sig, err := b.BlockSignature.MarshalBinary()
+	if err != nil {
+		return nil, err
+	}
+	header, err := b.HeaderToProtobufHeader(scheme)
+	if err != nil {
+		return nil, err
+	}
 	return &g.Block{
-		Header: &g.Block_Header{
-			ChainId:             int32(scheme),
-			Reference:           ref,
-			BaseTarget:          int64(b.BaseTarget),
-			GenerationSignature: b.GenSignature.Bytes(),
-			FeatureVotes:        features,
-			Timestamp:           int64(b.Timestamp),
-			Version:             int32(b.Version),
-			Generator:           pkBytes,
-			RewardVote:          b.RewardVote,
-		},
+		Header:    header,
 		Signature: sig,
 	}, nil
 }
@@ -240,32 +271,47 @@ func (b *Block) Clone() *Block {
 	return out
 }
 
-func (b *Block) Sign(secret crypto.SecretKey) error {
-	buf := bytebufferpool.Get()
-	defer bytebufferpool.Put(buf)
-	_, err := b.WriteToWithoutSignature(buf)
-	if err != nil {
-		return err
+func (b *Block) Sign(scheme Scheme, secret crypto.SecretKey) error {
+	var bb []byte
+	if b.Version >= ProtoBlockVersion {
+		b, err := b.MarshalHeaderToProtobufWithoutSignature(scheme)
+		if err != nil {
+			return err
+		}
+		bb = b
+	} else {
+		buf := bytebufferpool.Get()
+		defer bytebufferpool.Put(buf)
+		if _, err := b.WriteToWithoutSignature(buf); err != nil {
+			return err
+		}
+		bb = buf.Bytes()
 	}
-	sign, err := crypto.Sign(secret, buf.Bytes())
+	sign, err := crypto.Sign(secret, bb)
 	if err != nil {
 		return err
 	}
 	b.BlockSignature = sign
-	if _, err := buf.Write(sign[:]); err != nil {
-		return err
-	}
 	return nil
 }
 
-func (b *Block) VerifySignature() (bool, error) {
-	buf := bytebufferpool.Get()
-	defer bytebufferpool.Put(buf)
-	_, err := b.WriteToWithoutSignature(buf)
-	if err != nil {
-		return false, err
+func (b *Block) VerifySignature(scheme Scheme) (bool, error) {
+	var bb []byte
+	if b.Version >= ProtoBlockVersion {
+		b, err := b.MarshalHeaderToProtobufWithoutSignature(scheme)
+		if err != nil {
+			return false, err
+		}
+		bb = b
+	} else {
+		buf := bytebufferpool.Get()
+		defer bytebufferpool.Put(buf)
+		if _, err := b.WriteToWithoutSignature(buf); err != nil {
+			return false, err
+		}
+		bb = buf.Bytes()
 	}
-	return crypto.Verify(b.GenPublicKey, b.BlockSignature, buf.Bytes()), nil
+	return crypto.Verify(b.GenPublicKey, b.BlockSignature, bb), nil
 }
 
 // MarshalBinary encodes Block to binary form
@@ -557,6 +603,25 @@ func (a Transactions) ToProtobuf(scheme Scheme) ([]*g.SignedTransaction, error) 
 		protoTransactions[i] = protoTx
 	}
 	return protoTransactions, nil
+}
+
+func (a *Transactions) UnmarshalFromProtobuf(data []byte) error {
+	var transactions []Transaction
+	for len(data) > 0 {
+		txSize := int(binary.BigEndian.Uint32(data[0:4]))
+		if txSize+4 > len(data) {
+			return errors.New("invalid data size")
+		}
+		txBytes := data[4 : txSize+4]
+		tx, err := SignedTxFromProtobuf(txBytes)
+		if err != nil {
+			return err
+		}
+		transactions = append(transactions, tx)
+		data = data[txSize+4:]
+	}
+	*a = transactions
+	return nil
 }
 
 func (a Transactions) Join(other Transactions) Transactions {

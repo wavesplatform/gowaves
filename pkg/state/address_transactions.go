@@ -44,11 +44,7 @@ func (i *txIter) Transaction() (proto.Transaction, error) {
 		return nil, err
 	}
 	offset := binary.BigEndian.Uint64(offsetBytes)
-	txBytes, err := i.rw.readTransactionByOffset(offset)
-	if err != nil {
-		return nil, err
-	}
-	tx, err := proto.BytesToTransaction(txBytes)
+	tx, err := i.rw.readTransactionByOffset(offset)
 	if err != nil {
 		return nil, err
 	}

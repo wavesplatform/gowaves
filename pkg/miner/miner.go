@@ -71,7 +71,7 @@ func (a *MicroblockMiner) Mine(ctx context.Context, t proto.Timestamp, k proto.K
 		if err != nil {
 			return nil, err
 		}
-		b, err := MineBlock(v, nxt, k, validatedFeatured, t, parent, a.reward)
+		b, err := MineBlock(v, nxt, k, validatedFeatured, t, parent, a.reward, a.scheme)
 		if err != nil {
 			return nil, err
 		}
@@ -238,7 +238,7 @@ func (a *MicroblockMiner) mineMicro(ctx context.Context, rest restLimits, blockA
 	}
 
 	priv := keyPair.Secret
-	err = newBlock.Sign(keyPair.Secret)
+	err = newBlock.Sign(a.scheme, keyPair.Secret)
 	if err != nil {
 		zap.S().Error(err)
 		return

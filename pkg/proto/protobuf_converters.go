@@ -931,7 +931,7 @@ func (c *ProtobufConverter) SignedTransaction(stx *g.SignedTransaction) (Transac
 }
 
 func (c *ProtobufConverter) MicroBlock(mb *g.SignedMicroBlock) (MicroBlock, error) {
-	txs, err := c.signedTransactions(mb.MicroBlock.Transactions)
+	txs, err := c.SignedTransactions(mb.MicroBlock.Transactions)
 	if err != nil {
 		return MicroBlock{}, err
 	}
@@ -968,10 +968,10 @@ func (c *ProtobufConverter) Block(block *g.Block) (Block, error) {
 }
 
 func (c *ProtobufConverter) BlockTransactions(block *g.Block) ([]Transaction, error) {
-	return c.signedTransactions(block.Transactions)
+	return c.SignedTransactions(block.Transactions)
 }
 
-func (c *ProtobufConverter) signedTransactions(txs []*g.SignedTransaction) ([]Transaction, error) {
+func (c *ProtobufConverter) SignedTransactions(txs []*g.SignedTransaction) ([]Transaction, error) {
 	res := make([]Transaction, len(txs))
 	for i, stx := range txs {
 		tx, err := c.SignedTransaction(stx)

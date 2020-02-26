@@ -40,7 +40,7 @@ func genBlocks(t *testing.T, to *blockDifferTestObjects) (*proto.Block, *proto.B
 	genSig := crypto.MustBytesFromBase58(defaultGenSig)
 	parent, err := proto.CreateBlock(txs, 1565694219644, randSig, testGlobal.matcherInfo.pk, proto.NxtConsensus{BaseTarget: 65, GenSignature: genSig}, proto.NgBlockVersion, nil, -1)
 	require.NoError(t, err, "CreateBlock() failed")
-	err = parent.Sign(testGlobal.matcherInfo.sk)
+	err = parent.Sign(proto.MainNetScheme, testGlobal.matcherInfo.sk)
 	require.NoError(t, err, "Block.Sign() failed")
 
 	// Create and sign child block.
@@ -49,7 +49,7 @@ func genBlocks(t *testing.T, to *blockDifferTestObjects) (*proto.Block, *proto.B
 	require.NoError(t, err, "GeneratorSignature() failed")
 	child, err := proto.CreateBlock(txs, 1565694219944, parent.BlockSignature, testGlobal.minerInfo.pk, proto.NxtConsensus{BaseTarget: 66, GenSignature: genSig}, proto.NgBlockVersion, nil, -1)
 	require.NoError(t, err, "CreateBlock() failed")
-	err = child.Sign(testGlobal.minerInfo.sk)
+	err = child.Sign(proto.MainNetScheme, testGlobal.minerInfo.sk)
 	require.NoError(t, err, "Block.Sign() failed")
 	return parent, child
 }
@@ -177,7 +177,7 @@ func genBlockWithSingleTransaction(t *testing.T, prevID crypto.Signature, prevGe
 	require.NoError(t, err)
 	block.BlockHeader.Version = proto.RewardBlockVersion
 	block.BlockHeader.RewardVote = 700000000
-	err = block.Sign(testGlobal.minerInfo.sk)
+	err = block.Sign(proto.MainNetScheme, testGlobal.minerInfo.sk)
 	require.NoError(t, err)
 	return block
 }

@@ -31,15 +31,10 @@ func verifyTransactions(transactions []proto.Transaction, chans *verifierChans) 
 func verifyBlocks(blocks []proto.Block, chans *verifierChans) error {
 	for i := 1; i < len(blocks); i++ {
 		block := blocks[i]
-		blockBytes, err := block.MarshalBinary()
-		if err != nil {
-			return err
-		}
 		task := &verifyTask{
-			taskType:   verifyBlock,
-			parentSig:  blocks[i-1].BlockSignature,
-			block:      &block,
-			blockBytes: blockBytes[:len(blockBytes)-crypto.SignatureSize],
+			taskType:  verifyBlock,
+			parentSig: blocks[i-1].BlockSignature,
+			block:     &block,
 		}
 		select {
 		case verifyError := <-chans.errChan:

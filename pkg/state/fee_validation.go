@@ -38,7 +38,7 @@ type feeValidationParams struct {
 	txAssets       *txAssets
 }
 
-func minFeeInUnits(features *features, tx proto.Transaction) (uint64, error) {
+func minFeeInUnits(params *feeValidationParams, tx proto.Transaction) (uint64, error) {
 	txType := tx.GetTypeInfo().Type
 	baseFee, ok := feeConstants[txType]
 	if !ok {
@@ -57,7 +57,7 @@ func minFeeInUnits(features *features, tx proto.Transaction) (uint64, error) {
 			return 0, errors.New("failed to convert interface to Issue transaction")
 		}
 		if nft {
-			nftActive, err := features.isActivated(int16(settings.ReduceNFTFee))
+			nftActive, err := params.stor.features.isActivated(int16(settings.ReduceNFTFee))
 			if err != nil {
 				return 0, err
 			}
@@ -77,18 +77,19 @@ func minFeeInUnits(features *features, tx proto.Transaction) (uint64, error) {
 		if !ok {
 			return 0, errors.New("failed to convert interface to DataTransaction")
 		}
-		smartAccountsActive, err := features.isActivated(int16(settings.SmartAccounts))
+		smartAccountsActive, err := params.stor.features.isActivated(int16(settings.SmartAccounts))
 		if err != nil {
 			return 0, err
 		}
+		scheme := params.settings.AddressSchemeCharacter
 		var dtxBytes []byte
 		if smartAccountsActive {
-			dtxBytes, err = dtx.BodyMarshalBinary()
+			dtxBytes, err = proto.MarshalTxBody(scheme, dtx)
 			if err != nil {
 				return 0, err
 			}
 		} else {
-			dtxBytes, err = dtx.MarshalBinary()
+			dtxBytes, err = proto.MarshalTx(scheme, dtx)
 			if err != nil {
 				return 0, err
 			}
@@ -134,7 +135,7 @@ func scriptsCost(tx proto.Transaction, params *feeValidationParams) (uint64, err
 }
 
 func minFeeInWaves(tx proto.Transaction, params *feeValidationParams) (uint64, error) {
-	feeInUnits, err := minFeeInUnits(params.stor.features, tx)
+	feeInUnits, err := minFeeInUnits(params, tx)
 	if err != nil {
 		return 0, err
 	}

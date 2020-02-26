@@ -1387,6 +1387,11 @@ type OrderV4 struct {
 	OrderBody
 }
 
+func (o OrderV4) BinarySize() int {
+	// No binary format for OrderV4, return 0.
+	return 0
+}
+
 func (o OrderV4) ToProtobuf(scheme Scheme) *g.Order {
 	res := o.OrderBody.ToProtobuf(scheme)
 	res.MatcherFee = &g.Amount{AssetId: o.MatcherFeeAsset.ToID(), Amount: int64(o.MatcherFee)}

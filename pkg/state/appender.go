@@ -449,13 +449,8 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 		if err := a.txHandler.performTx(tx, performerInfo); err != nil {
 			return err
 		}
-		// Save transaction bytes to storage.
-		// TODO: not all transactions implement WriteTo.
-		bts, err := tx.MarshalBinary()
-		if err != nil {
-			return err
-		}
-		if err := a.rw.writeTransaction(txID, bts); err != nil {
+		// Save transaction to storage.
+		if err := a.rw.writeTransaction(tx); err != nil {
 			return err
 		}
 		// Store additional data for API: transaction by address.

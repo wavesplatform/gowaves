@@ -112,6 +112,9 @@ const (
 
 	// Size of TransactionsByAddresses file.
 	txsByAddrsFileSizeKeyPrefix
+
+	// Stores protobuf-related info for blockReadWriter.
+	rwProtobufInfoKeyPrefix
 )
 
 var (

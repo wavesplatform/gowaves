@@ -34,13 +34,9 @@ type StateInfo interface {
 	TopBlock() *proto.Block
 	Block(blockID crypto.Signature) (*proto.Block, error)
 	BlockByHeight(height proto.Height) (*proto.Block, error)
-	BlockBytes(blockID crypto.Signature) ([]byte, error)
-	BlockBytesByHeight(height proto.Height) ([]byte, error)
 	// Header getters.
 	Header(blockID crypto.Signature) (*proto.BlockHeader, error)
 	HeaderByHeight(height proto.Height) (*proto.BlockHeader, error)
-	HeaderBytes(blockID crypto.Signature) ([]byte, error)
-	HeaderBytesByHeight(height proto.Height) ([]byte, error)
 	// Height returns current blockchain height.
 	Height() (proto.Height, error)
 	// Height <---> blockID converters.

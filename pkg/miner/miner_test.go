@@ -33,7 +33,7 @@ func TestMineMicroblock(t *testing.T) {
 		-1,
 	)
 	require.NoError(t, err)
-	err = keyBlock.Sign(keyPair.Secret)
+	err = keyBlock.Sign(proto.MainNetScheme, keyPair.Secret)
 	require.NoError(t, err)
 
 	transferWithSig := byte_helpers.TransferWithSig.Transaction.Clone()
@@ -61,7 +61,7 @@ func createMicroBlock(keyBlock *proto.Block, tr proto.Transactions, keyPair prot
 	}
 
 	priv := keyPair.Secret
-	err = newBlock.Sign(keyPair.Secret)
+	err = newBlock.Sign(proto.MainNetScheme, keyPair.Secret)
 	if err != nil {
 		return nil, err
 	}

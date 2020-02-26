@@ -208,6 +208,22 @@ func (f *features) isActivatedForNBlocks(featureID int16, n int) (bool, error) {
 	return curBlockHeight-uint64(n) >= activationHeight, nil
 }
 
+func (f *features) newestIsActivated(featureID int16) (bool, error) {
+	key := activatedFeaturesKey{featureID: featureID}
+	keyBytes, err := key.bytes()
+	if err != nil {
+		return false, err
+	}
+	_, err = f.hs.freshLatestEntryData(keyBytes, true)
+	if err == keyvalue.ErrNotFound || err == errEmptyHist {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
 func (f *features) isActivated(featureID int16) (bool, error) {
 	key := activatedFeaturesKey{featureID: featureID}
 	keyBytes, err := key.bytes()

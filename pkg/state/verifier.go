@@ -30,7 +30,6 @@ type verifyTask struct {
 	taskType       verifyTaskType
 	parentSig      crypto.Signature
 	block          *proto.Block
-	blockBytes     []byte
 	tx             proto.Transaction
 	checkTxSig     bool
 	checkSellOrder bool
@@ -169,10 +168,14 @@ func handleTask(task *verifyTask, scheme proto.Scheme) error {
 	case verifyBlock:
 		// Check parent.
 		if !bytes.Equal(task.parentSig[:], task.block.Parent[:]) {
-			return errors.Errorf("incorrect parent: want: %s, have: %s\n", task.parentSig.String(), task.block.Parent.String())
+			return errors.Errorf("incorrect parent: want: %s, have: %s", task.parentSig.String(), task.block.Parent.String())
 		}
 		// Check block signature.
-		if !crypto.Verify(task.block.GenPublicKey, task.block.BlockSignature, task.blockBytes) {
+		validSig, err := task.block.VerifySignature(scheme)
+		if err != nil {
+			return errors.Errorf("Sttate: handleTask: failed to verify block signature: %v", err)
+		}
+		if !validSig {
 			return errors.New("State: handleTask: invalid block signature")
 		}
 	case verifyTx:

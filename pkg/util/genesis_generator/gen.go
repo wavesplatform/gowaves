@@ -6,7 +6,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
-func Genesis(timestamp proto.Timestamp, transactions proto.Transactions) (*proto.Block, error) {
+func Genesis(timestamp proto.Timestamp, transactions proto.Transactions, scheme proto.Scheme) (*proto.Block, error) {
 	block, err := proto.CreateBlock(
 		transactions,
 		timestamp,
@@ -26,7 +26,7 @@ func Genesis(timestamp proto.Timestamp, transactions proto.Transactions) (*proto
 	}
 
 	kp := proto.MustKeyPair([]byte{})
-	err = block.Sign(kp.Secret)
+	err = block.Sign(scheme, kp.Secret)
 	if err != nil {
 		return nil, err
 	}
@@ -53,5 +53,5 @@ func Generate(timestamp proto.Timestamp, schema byte, v ...interface{}) (*proto.
 		transactions = append(transactions, t)
 	}
 
-	return Genesis(timestamp, transactions)
+	return Genesis(timestamp, transactions, schema)
 }

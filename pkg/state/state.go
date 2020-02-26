@@ -12,7 +12,6 @@ import (
 	"unsafe"
 
 	"github.com/pkg/errors"
-	"github.com/valyala/bytebufferpool"
 	"github.com/wavesplatform/gowaves/pkg/consensus"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
@@ -229,7 +228,14 @@ func newStateManager(dataDir string, params StateParams, settings *settings.Bloc
 		return nil, wrapErr(Other, errors.Errorf("failed to create db batch: %v", err))
 	}
 	// rw is storage for blocks.
-	rw, err := newBlockReadWriter(blockStorageDir, params.OffsetLen, params.HeaderOffsetLen, db, dbBatch)
+	rw, err := newBlockReadWriter(
+		blockStorageDir,
+		params.OffsetLen,
+		params.HeaderOffsetLen,
+		db,
+		dbBatch,
+		settings.AddressSchemeCharacter,
+	)
 	if err != nil {
 		return nil, wrapErr(Other, errors.Errorf("failed to create block storage: %v", err))
 	}
@@ -392,6 +398,18 @@ func (s *stateManager) handleGenesisBlock(block proto.Block) error {
 	return nil
 }
 
+func (s *stateManager) checkProtobufActivation() error {
+	activated, err := s.stor.features.newestIsActivated(int16(settings.BlockV5))
+	if err != nil {
+		return errors.Errorf("newestIsActivated() failed: %v", err)
+	}
+	if !activated {
+		return nil
+	}
+	s.rw.setProtobufActivated()
+	return nil
+}
+
 func (s *stateManager) loadLastBlock() error {
 	height, err := s.Height()
 	if err != nil {
@@ -410,26 +428,11 @@ func (s *stateManager) TopBlock() *proto.Block {
 }
 
 func (s *stateManager) Header(blockID crypto.Signature) (*proto.BlockHeader, error) {
-	headerBytes, err := s.rw.readBlockHeader(blockID)
-	if err != nil {
-		if err == keyvalue.ErrNotFound {
-			return nil, wrapErr(NotFoundError, err)
-		}
-		return nil, wrapErr(RetrievalError, err)
-	}
-	var header proto.BlockHeader
-	if err := header.UnmarshalHeaderFromBinary(headerBytes); err != nil {
-		return nil, wrapErr(DeserializationError, err)
-	}
-	return &header, nil
-}
-
-func (s *stateManager) HeaderBytes(blockID crypto.Signature) ([]byte, error) {
-	headerBytes, err := s.rw.readBlockHeader(blockID)
+	header, err := s.rw.readBlockHeader(blockID)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
-	return headerBytes, nil
+	return header, nil
 }
 
 func (s *stateManager) NewestHeaderByHeight(height uint64) (*proto.BlockHeader, error) {
@@ -437,15 +440,11 @@ func (s *stateManager) NewestHeaderByHeight(height uint64) (*proto.BlockHeader, 
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
-	headerBytes, err := s.rw.readNewestBlockHeader(blockID)
+	header, err := s.rw.readNewestBlockHeader(blockID)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
-	var header proto.BlockHeader
-	if err := header.UnmarshalHeaderFromBinary(headerBytes); err != nil {
-		return nil, wrapErr(DeserializationError, err)
-	}
-	return &header, nil
+	return header, nil
 }
 
 func (s *stateManager) HeaderByHeight(height uint64) (*proto.BlockHeader, error) {
@@ -456,45 +455,12 @@ func (s *stateManager) HeaderByHeight(height uint64) (*proto.BlockHeader, error)
 	return s.Header(blockID)
 }
 
-func (s *stateManager) HeaderBytesByHeight(height uint64) ([]byte, error) {
-	blockID, err := s.HeightToBlockID(height)
-	if err != nil {
-		return nil, wrapErr(RetrievalError, err)
-	}
-	return s.HeaderBytes(blockID)
-}
-
 func (s *stateManager) Block(blockID crypto.Signature) (*proto.Block, error) {
-	header, err := s.Header(blockID)
+	block, err := s.rw.readBlock(blockID)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
-	transactions, err := s.rw.readTransactionsBlock(blockID)
-	if err != nil {
-		return nil, wrapErr(RetrievalError, err)
-	}
-	block := proto.Block{BlockHeader: *header}
-	block.Transactions, err = proto.NewTransactionsFromBytes(transactions, block.TransactionCount)
-	if err != nil {
-		return nil, wrapErr(DeserializationError, err)
-	}
-	return &block, nil
-}
-
-func (s *stateManager) BlockBytes(blockID crypto.Signature) ([]byte, error) {
-	headerBytes, err := s.rw.readBlockHeader(blockID)
-	if err != nil {
-		return nil, wrapErr(RetrievalError, err)
-	}
-	transactions, err := s.rw.readTransactionsBlock(blockID)
-	if err != nil {
-		return nil, wrapErr(RetrievalError, err)
-	}
-	blockBytes, err := proto.AppendHeaderBytesToTransactions(headerBytes, transactions)
-	if err != nil {
-		return nil, wrapErr(Other, err)
-	}
-	return blockBytes, nil
+	return block, nil
 }
 
 func (s *stateManager) BlockByHeight(height uint64) (*proto.Block, error) {
@@ -503,14 +469,6 @@ func (s *stateManager) BlockByHeight(height uint64) (*proto.Block, error) {
 		return nil, wrapErr(RetrievalError, err)
 	}
 	return s.Block(blockID)
-}
-
-func (s *stateManager) BlockBytesByHeight(height uint64) ([]byte, error) {
-	blockID, err := s.HeightToBlockID(height)
-	if err != nil {
-		return nil, wrapErr(RetrievalError, err)
-	}
-	return s.BlockBytes(blockID)
 }
 
 func (s *stateManager) AddingBlockHeight() (uint64, error) {
@@ -723,12 +681,8 @@ func (s *stateManager) addNewBlock(block, parent *proto.Block, initialisation bo
 	if err := s.rw.startBlock(block.BlockSignature); err != nil {
 		return err
 	}
-	headerBytes, err := block.MarshalHeaderToBinary()
-	if err != nil {
-		return err
-	}
 	// Save block header to block storage.
-	if err := s.rw.writeBlockHeader(block.BlockSignature, headerBytes); err != nil {
+	if err := s.rw.writeBlockHeader(&block.BlockHeader); err != nil {
 		return err
 	}
 	transactions := block.Transactions
@@ -1049,6 +1003,12 @@ func (s *stateManager) finishVoting(blockID crypto.Signature, initialisation boo
 		return err
 	}
 	s.lastVotingHeight = nextBlockHeight
+	// Check if protobuf is now activated.
+	// blockReadWriter will mark current offset as
+	// start of protobuf-encoded objects.
+	if err := s.checkProtobufActivation(); err != nil {
+		return err
+	}
 	if err := s.flush(initialisation); err != nil {
 		return err
 	}
@@ -1208,16 +1168,11 @@ func (s *stateManager) addBlocks(blocks []*proto.Block, initialisation bool) (*p
 			break
 		}
 		breakerInfo.blockID = block.BlockSignature
-		blockBytes, err := blockToBytes(block)
-		if err != nil {
-			return nil, err
-		}
 		// Send block for signature verification, which works in separate goroutine.
 		task := &verifyTask{
-			taskType:   verifyBlock,
-			parentSig:  parent.BlockSignature,
-			block:      block,
-			blockBytes: blockBytes[:len(blockBytes)-crypto.SignatureSize],
+			taskType:  verifyBlock,
+			parentSig: parent.BlockSignature,
+			block:     block,
 		}
 		select {
 		case verifyError := <-chans.errChan:
@@ -1676,25 +1631,17 @@ func (s *stateManager) RetrieveBinaryEntry(account proto.Recipient, key string) 
 }
 
 func (s *stateManager) NewestTransactionByID(id []byte) (proto.Transaction, error) {
-	txBytes, err := s.rw.readNewestTransaction(id)
+	tx, err := s.rw.readNewestTransaction(id)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
-	}
-	tx, err := proto.BytesToTransaction(txBytes)
-	if err != nil {
-		return nil, wrapErr(DeserializationError, err)
 	}
 	return tx, nil
 }
 
 func (s *stateManager) TransactionByID(id []byte) (proto.Transaction, error) {
-	txBytes, err := s.rw.readTransaction(id)
+	tx, err := s.rw.readTransaction(id)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
-	}
-	tx, err := proto.BytesToTransaction(txBytes)
-	if err != nil {
-		return nil, wrapErr(DeserializationError, err)
 	}
 	return tx, nil
 }
@@ -1964,17 +1911,4 @@ func (s *stateManager) Close() error {
 		return wrapErr(ClosureError, err)
 	}
 	return nil
-}
-
-func blockToBytes(block *proto.Block) ([]byte, error) {
-	buf := bytebufferpool.Get()
-	_, err := block.WriteTo(buf)
-	if err != nil {
-		bytebufferpool.Put(buf)
-		return nil, err
-	}
-	blockBytes := make([]byte, len(buf.B))
-	copy(blockBytes, buf.B)
-	bytebufferpool.Put(buf)
-	return blockBytes, nil
 }

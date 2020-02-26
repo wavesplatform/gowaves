@@ -7,7 +7,7 @@ import (
 type ErrorType byte
 
 const (
-	// Unmarshal error of block or transaction.
+	// Unmarshal error (for example, of block or transaction).
 	DeserializationError ErrorType = iota + 1
 	NotFoundError
 	SerializationError

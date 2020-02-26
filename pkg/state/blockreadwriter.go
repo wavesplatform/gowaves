@@ -82,9 +82,32 @@ func (r *recentDataStorage) reset() {
 	r.stor = nil
 }
 
+type protobufInfo struct {
+	protobufTxStart      uint64
+	protobufHeadersStart uint64
+}
+
+func (info *protobufInfo) marshalBinary() []byte {
+	res := make([]byte, 16)
+	binary.BigEndian.PutUint64(res[:8], info.protobufTxStart)
+	binary.BigEndian.PutUint64(res[8:], info.protobufHeadersStart)
+	return res
+}
+
+func (info *protobufInfo) unmarshalBinary(data []byte) error {
+	if len(data) != 16 {
+		return errInvalidDataSize
+	}
+	info.protobufTxStart = binary.BigEndian.Uint64(data[:8])
+	info.protobufHeadersStart = binary.BigEndian.Uint64(data[8:])
+	return nil
+}
+
 type blockReadWriter struct {
 	db      keyvalue.KeyValue
 	dbBatch keyvalue.Batch
+
+	scheme proto.Scheme
 
 	// Series of transactions.
 	blockchain *os.File
@@ -116,6 +139,10 @@ type blockReadWriter struct {
 	height                     uint64
 
 	addingBlock bool
+
+	// Protobuf-related stuff.
+	protobufActivated                     bool
+	protobufTxStart, protobufHeadersStart uint64
 
 	mtx sync.RWMutex
 }
@@ -163,6 +190,7 @@ func newBlockReadWriter(
 	headerOffsetLen int,
 	db keyvalue.KeyValue,
 	dbBatch keyvalue.Batch,
+	scheme proto.Scheme,
 ) (*blockReadWriter, error) {
 	blockchain, blockchainSize, err := openOrCreateForAppending(path.Join(dir, "blockchain"))
 	if err != nil {
@@ -188,9 +216,10 @@ func newBlockReadWriter(
 	if err != nil {
 		return nil, err
 	}
-	return &blockReadWriter{
+	rw := &blockReadWriter{
 		db:                db,
 		dbBatch:           dbBatch,
+		scheme:            scheme,
 		blockchain:        blockchain,
 		headers:           headers,
 		blockHeight2ID:    blockHeight2ID,
@@ -211,7 +240,11 @@ func newBlockReadWriter(
 		offsetLen:         offsetLen,
 		headerOffsetLen:   headerOffsetLen,
 		height:            height,
-	}, nil
+	}
+	if err := rw.loadProtobufInfo(); err != nil {
+		return nil, err
+	}
+	return rw, nil
 }
 
 func (rw *blockReadWriter) setHeight(height uint64, directly bool) error {
@@ -276,16 +309,27 @@ func (rw *blockReadWriter) finishBlock(blockID crypto.Signature) error {
 	return nil
 }
 
-func (rw *blockReadWriter) writeTransaction(txID []byte, tx []byte) error {
+func (rw *blockReadWriter) writeTransaction(tx proto.Transaction) error {
 	rw.mtx.Lock()
 	defer rw.mtx.Unlock()
+	txID, err := tx.GetID()
+	if err != nil {
+		return err
+	}
+	if rw.protobufActivated && !proto.IsProtobufTx(tx) {
+		return errors.New("Protobuf blocks are activated but trying to write non-Protobuf transaction")
+	}
+	txBytes, err := proto.MarshalTx(rw.scheme, tx)
+	if err != nil {
+		return err
+	}
 	// Append tx size at the beginning.
-	txSize := uint32(len(tx))
+	txSize := uint32(len(txBytes))
 	txSizeBytes := make([]byte, 4)
 	binary.BigEndian.PutUint32(txSizeBytes, txSize)
 	txBytesTotal := make([]byte, 4+txSize)
 	copy(txBytesTotal[:4], txSizeBytes)
-	copy(txBytesTotal[4:], tx)
+	copy(txBytesTotal[4:], txBytes)
 	// Save tx to local storage.
 	if err := rw.rtx.appendBytesWithInfo(txID, txBytesTotal, rw.height+1, rw.blockchainLen); err != nil {
 		return err
@@ -306,13 +350,21 @@ func (rw *blockReadWriter) writeTransaction(txID []byte, tx []byte) error {
 	return nil
 }
 
-func (rw *blockReadWriter) writeBlockHeader(blockID crypto.Signature, header []byte) error {
+func (rw *blockReadWriter) writeBlockHeader(header *proto.BlockHeader) error {
 	rw.mtx.Lock()
 	defer rw.mtx.Unlock()
-	if err := rw.rheaders.appendBytes(blockID[:], header); err != nil {
+	blockID := header.BlockSignature
+	if rw.protobufActivated && header.Version < proto.ProtoBlockVersion {
+		return errors.Errorf("Protobuf blocks are activated but trying to write block version %v", header.Version)
+	}
+	headerBytes, err := header.MarshalHeader(rw.scheme)
+	if err != nil {
 		return err
 	}
-	rw.headersLen += uint64(len(header))
+	if err := rw.rheaders.appendBytes(blockID[:], headerBytes); err != nil {
+		return err
+	}
+	rw.headersLen += uint64(len(headerBytes))
 	if rw.headersLen > rw.offsetEnd {
 		return errors.Errorf("offsetLen is not enough for this offset: %d > %d", rw.headersLen, rw.offsetEnd)
 	}
@@ -444,26 +496,26 @@ func (rw *blockReadWriter) readTransactionSize(offset uint64) (uint32, error) {
 	return binary.BigEndian.Uint32(sizeBytes), nil
 }
 
-func (rw *blockReadWriter) readNewestTransaction(txID []byte) ([]byte, error) {
+func (rw *blockReadWriter) readNewestTransaction(txID []byte) (proto.Transaction, error) {
 	rw.mtx.RLock()
 	defer rw.mtx.RUnlock()
-	tx, err := rw.rtx.bytesById(txID)
+	txBytes, err := rw.rtx.bytesById(txID)
 	if err != nil {
 		return rw.readTransactionImpl(txID)
 	}
-	if len(tx) < 4 {
+	if len(txBytes) < 4 {
 		return nil, errors.New("invalid tx size")
 	}
-	return tx[4:], nil
+	return rw.txFromBytes(txBytes[4:], rw.protobufActivated)
 }
 
-func (rw *blockReadWriter) readTransaction(txID []byte) ([]byte, error) {
+func (rw *blockReadWriter) readTransaction(txID []byte) (proto.Transaction, error) {
 	rw.mtx.RLock()
 	defer rw.mtx.RUnlock()
 	return rw.readTransactionImpl(txID)
 }
 
-func (rw *blockReadWriter) readTransactionImpl(txID []byte) ([]byte, error) {
+func (rw *blockReadWriter) readTransactionImpl(txID []byte) (proto.Transaction, error) {
 	offset, err := rw.transactionOffsetByID(txID)
 	if err != nil {
 		return nil, err
@@ -471,49 +523,40 @@ func (rw *blockReadWriter) readTransactionImpl(txID []byte) ([]byte, error) {
 	return rw.readTransactionByOffsetImpl(offset)
 }
 
-func (rw *blockReadWriter) readTransactionByOffset(offset uint64) ([]byte, error) {
+func (rw *blockReadWriter) readTransactionByOffset(offset uint64) (proto.Transaction, error) {
 	rw.mtx.RLock()
 	defer rw.mtx.RUnlock()
 	return rw.readTransactionByOffsetImpl(offset)
 }
 
-func (rw *blockReadWriter) readTransactionByOffsetImpl(offset uint64) ([]byte, error) {
+func (rw *blockReadWriter) readTransactionByOffsetImpl(offset uint64) (proto.Transaction, error) {
 	txSize, err := rw.readTransactionSize(offset)
 	if err != nil {
 		return nil, err
 	}
 	// First 4 bytes are tx size, actual tx starts at `offset + 4`.
-	txRealOffset := offset + 4
-	txBytes := make([]byte, txSize)
-	n, err := rw.blockchain.ReadAt(txBytes, int64(txRealOffset))
-	if err != nil {
-		return nil, err
-	} else if n != len(txBytes) {
-		return nil, errors.New("ReadAt did not read the whole tx")
-	}
-	if len(txBytes) < 4 {
-		return nil, errors.New("Tx size is less than 4")
-	}
-	return txBytes, nil
+	txStart := offset + 4
+	txEnd := txStart + uint64(txSize)
+	return rw.txByBounds(txStart, txEnd)
 }
 
-func (rw *blockReadWriter) readNewestBlockHeader(blockID crypto.Signature) ([]byte, error) {
+func (rw *blockReadWriter) readNewestBlockHeader(blockID crypto.Signature) (*proto.BlockHeader, error) {
 	rw.mtx.RLock()
 	defer rw.mtx.RUnlock()
-	header, err := rw.rheaders.bytesById(blockID[:])
+	headerBytes, err := rw.rheaders.bytesById(blockID[:])
 	if err != nil {
 		return rw.readBlockHeaderImpl(blockID)
 	}
-	return header, nil
+	return rw.headerFromBytes(headerBytes, rw.protobufActivated)
 }
 
-func (rw *blockReadWriter) readBlockHeader(blockID crypto.Signature) ([]byte, error) {
+func (rw *blockReadWriter) readBlockHeader(blockID crypto.Signature) (*proto.BlockHeader, error) {
 	rw.mtx.RLock()
 	defer rw.mtx.RUnlock()
 	return rw.readBlockHeaderImpl(blockID)
 }
 
-func (rw *blockReadWriter) readBlockHeaderImpl(blockID crypto.Signature) ([]byte, error) {
+func (rw *blockReadWriter) readBlockHeaderImpl(blockID crypto.Signature) (*proto.BlockHeader, error) {
 	key := blockOffsetKey{blockID: blockID}
 	blockInfo, err := rw.db.Get(key.bytes())
 	if err != nil {
@@ -522,19 +565,16 @@ func (rw *blockReadWriter) readBlockHeaderImpl(blockID crypto.Signature) ([]byte
 	headerBounds := blockInfo[rw.offsetLen*2 : len(blockInfo)-8]
 	headerStart := binary.LittleEndian.Uint64(headerBounds[:rw.headerOffsetLen])
 	headerEnd := binary.LittleEndian.Uint64(headerBounds[rw.headerOffsetLen:])
-	headerBytes := make([]byte, headerEnd-headerStart)
-	n, err := rw.headers.ReadAt(headerBytes, int64(headerStart))
-	if err != nil {
-		return nil, err
-	} else if n != len(headerBytes) {
-		return nil, errors.New("ReadAt did not read the whole header")
-	}
-	return headerBytes, nil
+	return rw.headerByBounds(headerStart, headerEnd)
 }
 
-func (rw *blockReadWriter) readTransactionsBlock(blockID crypto.Signature) ([]byte, error) {
+func (rw *blockReadWriter) readBlock(blockID crypto.Signature) (*proto.Block, error) {
 	rw.mtx.RLock()
 	defer rw.mtx.RUnlock()
+	header, err := rw.readBlockHeaderImpl(blockID)
+	if err != nil {
+		return nil, err
+	}
 	key := blockOffsetKey{blockID: blockID}
 	blockInfo, err := rw.db.Get(key.bytes())
 	if err != nil {
@@ -550,7 +590,21 @@ func (rw *blockReadWriter) readTransactionsBlock(blockID crypto.Signature) ([]by
 	} else if n != len(blockBytes) {
 		return nil, errors.New("ReadAt did not read the whole block")
 	}
-	return blockBytes, nil
+	var res proto.Transactions
+	if rw.isProtobufTxOffset(blockStart) {
+		if err := res.UnmarshalFromProtobuf(blockBytes); err != nil {
+			return nil, err
+		}
+	} else {
+		res, err = proto.NewTransactionsFromBytes(blockBytes, header.TransactionCount)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return &proto.Block{
+		BlockHeader:  *header,
+		Transactions: res,
+	}, nil
 }
 
 func (rw *blockReadWriter) cleanIDs(oldHeight, newBlockchainLen uint64) error {
@@ -757,6 +811,118 @@ func (rw *blockReadWriter) flush() error {
 		return err
 	}
 	return nil
+}
+
+func (rw *blockReadWriter) loadProtobufInfo() error {
+	key := []byte{rwProtobufInfoKeyPrefix}
+	has, err := rw.db.Has(key)
+	if err != nil {
+		return err
+	}
+	if !has {
+		// Nothing found, means protobuf is not yet activated.
+		rw.protobufActivated = false
+		return nil
+	}
+	infoBytes, err := rw.db.Get(key)
+	if err != nil {
+		return err
+	}
+	var info protobufInfo
+	if err := info.unmarshalBinary(infoBytes); err != nil {
+		return err
+	}
+	rw.protobufActivated = true
+	rw.protobufTxStart = info.protobufTxStart
+	rw.protobufHeadersStart = info.protobufHeadersStart
+	return nil
+}
+
+func (rw *blockReadWriter) storeProtobufInfo(info *protobufInfo) {
+	infoBytes := info.marshalBinary()
+	key := []byte{rwProtobufInfoKeyPrefix}
+	rw.dbBatch.Put(key, infoBytes)
+}
+
+func (rw *blockReadWriter) setProtobufActivated() {
+	if rw.protobufActivated {
+		// Already activated.
+		return
+	}
+	rw.protobufActivated = true
+	rw.protobufHeadersStart = rw.headersLen
+	rw.protobufTxStart = rw.blockchainLen
+	info := &protobufInfo{
+		protobufHeadersStart: rw.protobufHeadersStart,
+		protobufTxStart:      rw.protobufTxStart,
+	}
+	rw.storeProtobufInfo(info)
+}
+
+func (rw *blockReadWriter) isProtobufTxOffset(offset uint64) bool {
+	if !rw.protobufActivated {
+		return false
+	}
+	return offset >= rw.protobufTxStart
+}
+
+func (rw *blockReadWriter) isProtobufHeaderOffset(offset uint64) bool {
+	if !rw.protobufActivated {
+		return false
+	}
+	return offset >= rw.protobufHeadersStart
+}
+
+func (rw *blockReadWriter) headerFromBytes(headerBytes []byte, protobuf bool) (*proto.BlockHeader, error) {
+	if protobuf {
+		var b proto.Block
+		if err := b.UnmarshalFromProtobuf(headerBytes); err != nil {
+			return nil, err
+		}
+		return &b.BlockHeader, nil
+	}
+	var header proto.BlockHeader
+	if err := header.UnmarshalHeaderFromBinary(headerBytes); err != nil {
+		return nil, err
+	}
+	return &header, nil
+}
+
+func (rw *blockReadWriter) headerByBounds(start, end uint64) (*proto.BlockHeader, error) {
+	if end <= start {
+		return nil, errors.New("invalid bounds")
+	}
+	headerBytes := make([]byte, end-start)
+	n, err := rw.headers.ReadAt(headerBytes, int64(start))
+	if err != nil {
+		return nil, err
+	} else if n != len(headerBytes) {
+		return nil, errors.New("did not read the whole header")
+	}
+	protobuf := rw.isProtobufHeaderOffset(start)
+	return rw.headerFromBytes(headerBytes, protobuf)
+}
+
+func (rw *blockReadWriter) txFromBytes(txBytes []byte, protobuf bool) (proto.Transaction, error) {
+	if protobuf {
+		return proto.SignedTxFromProtobuf(txBytes)
+	}
+	return proto.BytesToTransaction(txBytes)
+}
+
+func (rw *blockReadWriter) txByBounds(start, end uint64) (proto.Transaction, error) {
+	if end <= start {
+		return nil, errors.New("invalid bounds")
+	}
+	txBytes := make([]byte, end-start)
+	n, err := rw.blockchain.ReadAt(txBytes, int64(start))
+	if err != nil {
+		return nil, err
+	} else if n != len(txBytes) {
+		return nil, errors.New("did not read the whole tx")
+	}
+	protobuf := rw.isProtobufTxOffset(start)
+	return rw.txFromBytes(txBytes, protobuf)
 }
 
 func (rw *blockReadWriter) close() error {
