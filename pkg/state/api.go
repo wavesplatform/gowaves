@@ -35,6 +35,7 @@ type StateInfo interface {
 	Block(blockID crypto.Signature) (*proto.Block, error)
 	BlockByHeight(height proto.Height) (*proto.Block, error)
 	// Header getters.
+	// TODO: header getters always return 0 TransactionCount for Protobuf blocks.
 	Header(blockID crypto.Signature) (*proto.BlockHeader, error)
 	HeaderByHeight(height proto.Height) (*proto.BlockHeader, error)
 	// Height returns current blockchain height.

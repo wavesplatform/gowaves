@@ -59,6 +59,22 @@ func makeBlock(t *testing.T) *Block {
 	return &block
 }
 
+func blockFromProtobufToProtobuf(t *testing.T, hexStr string) {
+	decoded, err := hex.DecodeString(hexStr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var block Block
+	err = block.UnmarshalBinary(decoded)
+	assert.NoError(t, err, "UnmarshalBinary() failed")
+	protobuf, err := block.MarshalToProtobuf(MainNetScheme)
+	assert.NoError(t, err, "MarshalToProtobuf() failed")
+	var res Block
+	err = res.UnmarshalFromProtobuf(protobuf)
+	assert.NoError(t, err)
+	assert.Equal(t, block, res)
+}
+
 func blockFromBinaryToBinary(t *testing.T, hexStr, jsonStr string) {
 	decoded, err := hex.DecodeString(hexStr)
 	if err != nil {
@@ -76,7 +92,7 @@ func blockFromBinaryToBinary(t *testing.T, hexStr, jsonStr string) {
 	assert.Equal(t, decoded, bin, "bin for block differs")
 }
 
-func blockFromJSONToJSON(t *testing.T, jsonStr string, iteration int) {
+func blockFromJSONToJSON(t *testing.T, jsonStr string) {
 	var b Block
 	err := json.Unmarshal([]byte(jsonStr), &b)
 	assert.NoError(t, err, "json.Unmarshal() for block failed")
@@ -84,6 +100,26 @@ func blockFromJSONToJSON(t *testing.T, jsonStr string, iteration int) {
 	assert.NoError(t, err, "json.Marshal() for block failed")
 	str := string(bytes)
 	assert.JSONEqf(t, jsonStr, str, "block marshaled to wrong json:\nhave: %s\nwant: %s", str, jsonStr)
+}
+
+func headerFromProtobufToProtobuf(t *testing.T, hexStr string) {
+	decoded, err := hex.DecodeString(hexStr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var header BlockHeader
+	err = header.UnmarshalHeaderFromBinary(decoded)
+	assert.NoError(t, err, "UnmarshalHeaderFromBinary() failed")
+	if header.TransactionCount != 0 {
+		// Protobuf headers do not store transaction count.
+		return
+	}
+	protobuf, err := header.MarshalHeaderToProtobuf(MainNetScheme)
+	assert.NoError(t, err, "MarshalHeaderToProtobuf() failed")
+	var res Block
+	err = res.UnmarshalFromProtobuf(protobuf)
+	assert.NoError(t, err)
+	assert.Equal(t, header, res.BlockHeader)
 }
 
 func headerFromBinaryToBinary(t *testing.T, hexStr, jsonStr string) {
@@ -116,6 +152,7 @@ func headerFromJSONToJSON(t *testing.T, jsonStr string) {
 func TestHeaderSerialization(t *testing.T) {
 	for i, v := range headerTests {
 		t.Run(fmt.Sprintf("%v", i), func(t *testing.T) {
+			headerFromProtobufToProtobuf(t, v.hexEncoded)
 			headerFromBinaryToBinary(t, v.hexEncoded, v.jsonEncoded)
 			headerFromJSONToJSON(t, v.jsonEncoded)
 		})
@@ -139,8 +176,9 @@ func TestAppendHeaderBytesToTransactions(t *testing.T) {
 func TestBlockSerialization(t *testing.T) {
 	for i, v := range blockTests {
 		t.Run(fmt.Sprintf("%v", i), func(t *testing.T) {
+			blockFromProtobufToProtobuf(t, v.hexEncoded)
 			blockFromBinaryToBinary(t, v.hexEncoded, v.jsonEncoded)
-			blockFromJSONToJSON(t, v.jsonEncoded, i)
+			blockFromJSONToJSON(t, v.jsonEncoded)
 		})
 	}
 }

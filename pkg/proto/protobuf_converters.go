@@ -961,6 +961,11 @@ func (c *ProtobufConverter) Block(block *g.Block) (Block, error) {
 	if err != nil {
 		return Block{}, err
 	}
+	if header.Version < NgBlockVersion {
+		header.TransactionBlockLength = uint32(Transactions(txs).BinarySize() + 1)
+	} else if header.Version <= RewardBlockVersion {
+		header.TransactionBlockLength = uint32(Transactions(txs).BinarySize() + 4)
+	}
 	return Block{
 		BlockHeader:  header,
 		Transactions: txs,
@@ -1003,17 +1008,23 @@ func (c *ProtobufConverter) consensus(header *g.Block_Header) NxtConsensus {
 
 func (c *ProtobufConverter) BlockHeader(block *g.Block) (BlockHeader, error) {
 	features := c.features(block.Header.FeatureVotes)
+	consensus := c.consensus(block.Header)
 	header := BlockHeader{
-		Version:          BlockVersion(c.byte(block.Header.Version)),
-		Timestamp:        c.uint64(block.Header.Timestamp),
-		Parent:           c.signature(block.Header.Reference),
-		FeaturesCount:    len(features),
-		Features:         features,
-		RewardVote:       block.Header.RewardVote,
-		NxtConsensus:     c.consensus(block.Header),
-		TransactionCount: len(block.Transactions),
-		GenPublicKey:     c.publicKey(block.Header.Generator),
-		BlockSignature:   c.signature(block.Signature),
+		Version:              BlockVersion(c.byte(block.Header.Version)),
+		Timestamp:            c.uint64(block.Header.Timestamp),
+		Parent:               c.signature(block.Header.Reference),
+		FeaturesCount:        len(features),
+		Features:             features,
+		RewardVote:           block.Header.RewardVote,
+		ConsensusBlockLength: uint32(consensus.BinarySize()),
+		NxtConsensus:         consensus,
+		TransactionCount:     len(block.Transactions),
+		GenPublicKey:         c.publicKey(block.Header.Generator),
+		BlockSignature:       c.signature(block.Signature),
+	}
+	if header.Version < NgBlockVersion {
+		// For compatibility with custom format unmarshal.
+		header.Features = nil
 	}
 	if c.err != nil {
 		err := c.err
