@@ -6,8 +6,8 @@ import (
 
 	"github.com/pkg/errors"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated"
-	"github.com/wavesplatform/gowaves/pkg/miner/utxpool"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/services"
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"github.com/wavesplatform/gowaves/pkg/types"
 	"go.uber.org/zap"
@@ -17,19 +17,19 @@ import (
 type Server struct {
 	state  state.StateInfo
 	scheme proto.Scheme
-	utx    *utxpool.UtxImpl
-	sch    types.Scheduler
+	utx    types.UtxPool
+	wallet types.EmbeddedWallet
 }
 
-func NewServer(state state.StateInfo, utx *utxpool.UtxImpl, sch types.Scheduler) (*Server, error) {
+func NewServer(services services.Services) (*Server, error) {
 	s := &Server{}
-	if err := s.initServer(state, utx, sch); err != nil {
+	if err := s.initServer(services.State, services.UtxPool, services.Wallet); err != nil {
 		return nil, err
 	}
 	return s, nil
 }
 
-func (s *Server) initServer(state state.StateInfo, utx *utxpool.UtxImpl, sch types.Scheduler) error {
+func (s *Server) initServer(state state.StateInfo, utx types.UtxPool, sch types.EmbeddedWallet) error {
 	settings, err := state.BlockchainSettings()
 	if err != nil {
 		return err
@@ -37,7 +37,7 @@ func (s *Server) initServer(state state.StateInfo, utx *utxpool.UtxImpl, sch typ
 	s.state = state
 	s.scheme = settings.AddressSchemeCharacter
 	s.utx = utx
-	s.sch = sch
+	s.wallet = sch
 	return nil
 }
 

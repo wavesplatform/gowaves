@@ -47,7 +47,6 @@ var (
 	enableGrpcApi     = flag.Bool("enable-grpc-api", true, "Enables/disables gRPC API")
 	buildExtendedApi  = flag.Bool("build-extended-api", false, "Builds extended API. Note that state must be reimported in case it wasn't imported with similar flag set")
 	serveExtendedApi  = flag.Bool("serve-extended-api", false, "Serves extended API requests since the very beginning. The default behavior is to import until first block close to current time, and start serving at this point")
-	seed              = flag.String("seed", "", "Seed for miner")
 	bindAddress       = flag.String("bind-address", "", "Bind address for incoming connections. If empty, will be same as declared address")
 	connectPeers      = flag.String("connect-peers", "true", "Spawn outgoing connections")
 	minerVoteFeatures = flag.String("vote", "", "Miner vote features")
@@ -176,14 +175,9 @@ func main() {
 	peerManager := peer_manager.NewPeerManager(peerSpawnerImpl, state)
 	go peerManager.Run(ctx)
 
-	var keyPairs []proto.KeyPair
-	if *seed != "" {
-		keyPairs = append(keyPairs, proto.MustKeyPair([]byte(*seed)))
-	}
-
 	scheduler := scheduler.NewScheduler(
 		state,
-		keyPairs,
+		wal,
 		cfg,
 		ntptm,
 		scheduler.NewMinerConsensus(peerManager, 1),
@@ -264,7 +258,7 @@ func main() {
 	}()
 
 	if *enableGrpcApi {
-		grpcServer, err := server.NewServer(state, utx, scheduler)
+		grpcServer, err := server.NewServer(services)
 		if err != nil {
 			zap.S().Errorf("Failed to create gRPC server: %v", err)
 		}

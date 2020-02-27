@@ -29,6 +29,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"github.com/wavesplatform/gowaves/pkg/util"
+	"github.com/wavesplatform/gowaves/pkg/wallet"
 	"go.uber.org/zap"
 )
 
@@ -49,6 +50,8 @@ var (
 	minerVoteFeatures = flag.String("vote", "", "Miner vote features")
 	reward            = flag.String("reward", "", "Miner reward: for example 600000000")
 	minerDelayParam   = flag.String("miner-delay", "4h", "Interval after last block then generation is allowed. example 1d4h30m")
+	walletPath        = flag.String("wallet-path", "", "Path to wallet, or ~/.waves by default")
+	walletPassword    = flag.String("wallet-password", "", "Pass password for wallet. Extremely insecure")
 )
 
 func init() {
@@ -99,6 +102,16 @@ func main() {
 	if err != nil {
 		zap.S().Fatalf("Failed to read configuration file: %v", err)
 	}
+
+	wal := wallet.NewEmbeddedWallet(wallet.NewLoader(*walletPath), wallet.NewWallet(), custom.AddressSchemeCharacter)
+	if *walletPassword != "" {
+		err := wal.Load([]byte(*walletPassword))
+		if err != nil {
+			zap.S().Error(err)
+			return
+		}
+	}
+
 	path := *statePath
 	if path == "" {
 		path, err = util.GetStatePath()
@@ -167,14 +180,9 @@ func main() {
 	peerManager := peer_manager.NewPeerManager(peerSpawnerImpl, state)
 	go peerManager.Run(ctx)
 
-	var keyPairs []proto.KeyPair
-	if *seed != "" {
-		keyPairs = append(keyPairs, proto.MustKeyPair([]byte(*seed)))
-	}
-
 	scheduler := scheduler2.NewScheduler(
 		state,
-		keyPairs,
+		wal,
 		custom,
 		ntptm,
 		scheduler2.NewMinerConsensus(peerManager, 1),
@@ -253,7 +261,7 @@ func main() {
 	}()
 
 	if *enableGrpcApi {
-		grpcServer, err := server.NewServer(state, utx, scheduler)
+		grpcServer, err := server.NewServer(services)
 		if err != nil {
 			zap.S().Errorf("Failed to create gRPC server: %v", err)
 		}
