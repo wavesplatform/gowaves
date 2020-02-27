@@ -109,3 +109,9 @@ type ScoreSender interface {
 type MinerConsensus interface {
 	IsMiningAllowed() bool
 }
+
+type EmbeddedWallet interface {
+	SignTransactionWith(pk crypto.PublicKey, tx proto.Transaction) error
+	Load(password []byte) error
+	Seeds() [][]byte
+}

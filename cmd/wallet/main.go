@@ -9,7 +9,6 @@ import (
 
 	"github.com/howeyc/gopass"
 	flag "github.com/spf13/pflag"
-	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/wallet"
 )
 
@@ -19,7 +18,7 @@ Usage:
   wallet command [flags]
 
 Available Commands:
-  create       Create wallet
+  add          Add seed to wallet
   show         Print wallet data
 
 `
@@ -40,8 +39,8 @@ func main() {
 	command := flag.Arg(0)
 
 	switch command {
-	case "create":
-		createWallet(opts)
+	case "add":
+		addToWallet(opts)
 	case "show":
 		show(opts)
 	default:
@@ -80,21 +79,9 @@ func show(opts Opts) {
 		return
 	}
 
-	priv, pub, err := wlt.GenPair()
-	if err != nil {
-		fmt.Printf("Err: %s\n", err.Error())
-		return
+	for _, s := range wlt.Seeds() {
+		fmt.Printf("seed: %s\n", string(s))
 	}
-
-	addr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, pub)
-	if err != nil {
-		fmt.Printf("Err: %s\n", err.Error())
-		return
-	}
-
-	fmt.Printf("private: %s\n", priv.String())
-	fmt.Printf("public: %s\n", pub.String())
-	fmt.Printf("addr: %s\n", addr.String())
 }
 
 func showUsageAndExit() {
@@ -103,14 +90,8 @@ func showUsageAndExit() {
 	os.Exit(0)
 }
 
-func createWallet(opts Opts) {
+func addToWallet(opts Opts) {
 	walletPath := getWalletPath(opts.PathToWallet)
-	if exists(walletPath) {
-		if !opts.Force {
-			fmt.Println("Err: Wallet exists, use --force to overwrite")
-			return
-		}
-	}
 
 	fmt.Print("Enter password: ")
 	pass, err := gopass.GetPasswd()
@@ -124,6 +105,22 @@ func createWallet(opts Opts) {
 		return
 	}
 
+	var wlt wallet.Wallet
+	if exists(walletPath) {
+		b, err := ioutil.ReadFile(walletPath)
+		if err != nil {
+			fmt.Printf("Err: %s\n", err.Error())
+			return
+		}
+		wlt, err = wallet.Decode(b, pass)
+		if err != nil {
+			fmt.Printf("Err: %s\n", err.Error())
+			return
+		}
+	} else {
+		wlt = wallet.NewWallet()
+	}
+
 	fmt.Print("Enter seed: ")
 	seed, err := gopass.GetPasswd()
 	if err != nil {
@@ -131,7 +128,7 @@ func createWallet(opts Opts) {
 		return
 	}
 
-	wlt, err := wallet.NewWalletFromSeed(seed)
+	err = wlt.AddSeed(seed)
 	if err != nil {
 		fmt.Printf("Err: %s\n", err.Error())
 		return

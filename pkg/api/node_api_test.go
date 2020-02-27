@@ -31,3 +31,27 @@ func TestRollbackToHeight(t *testing.T) {
 	assert.Equal(t, "apikey", r.apiKey)
 	assert.EqualValues(t, 100500, r.height)
 }
+
+type walletLoadKeysTest struct {
+	apiKey   string
+	password []byte
+}
+
+func (a *walletLoadKeysTest) LoadKeys(apiKey string, password []byte) error {
+	a.apiKey = apiKey
+	a.password = password
+	return nil
+}
+
+func TestWalletLoadKeys(t *testing.T) {
+	r := &walletLoadKeysTest{}
+	f := WalletLoadKeys(r)
+
+	req := httptest.NewRequest("POST", "/wallet/load", strings.NewReader(`{"password": "password"}`))
+	req.Header.Add(API_KEY, "apikey")
+	resp := httptest.NewRecorder()
+	f(resp, req)
+
+	assert.Equal(t, "apikey", r.apiKey)
+	assert.EqualValues(t, "password", r.password)
+}

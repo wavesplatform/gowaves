@@ -37,6 +37,7 @@ func NewChannel(size uint32) *ChannelImpl {
 }
 func (a *ChannelImpl) Send(val interface{}) bool {
 	a.cond.L.Lock()
+	defer a.cond.L.Unlock()
 	for {
 		if 1 == atomic.LoadUint32(&a.closed) {
 			return false
@@ -52,7 +53,6 @@ func (a *ChannelImpl) Send(val interface{}) bool {
 		break
 	}
 	a.cond.Signal()
-	a.cond.L.Unlock()
 	return true
 }
 func (a *ChannelImpl) Receive() (interface{}, bool) {

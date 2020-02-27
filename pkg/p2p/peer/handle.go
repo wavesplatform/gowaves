@@ -3,6 +3,7 @@ package peer
 import (
 	"context"
 
+	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/libs/bytespool"
 	"github.com/wavesplatform/gowaves/pkg/p2p/conn"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -48,7 +49,7 @@ func Handle(params HandlerParams) error {
 		select {
 		case <-params.Ctx.Done():
 			_ = params.Connection.Close()
-			return params.Ctx.Err()
+			return errors.Wrap(params.Ctx.Err(), "Handle")
 
 		case bts := <-params.Remote.FromCh:
 			err := bytesToMessage(bts, params.ID, params.Parent.MessageCh, params.Pool, params.Peer)

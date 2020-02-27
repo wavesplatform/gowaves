@@ -29,6 +29,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"github.com/wavesplatform/gowaves/pkg/util"
+	"github.com/wavesplatform/gowaves/pkg/wallet"
 	"go.uber.org/zap"
 )
 
@@ -51,6 +52,7 @@ var (
 	minerVoteFeatures = flag.String("vote", "", "Miner vote features")
 	reward            = flag.String("reward", "", "Miner reward: for example 600000000")
 	minerDelayParam   = flag.String("miner-delay", "4h", "Interval after last block then generation is allowed. example 1d4h30m")
+	walletPath        = flag.String("wallet-path", "", "Path to wallet, or ~/.waves by default")
 )
 
 func main() {
@@ -81,6 +83,8 @@ func main() {
 		zap.S().Error(err)
 		return
 	}
+
+	wal := wallet.NewEmbeddedWallet(wallet.NewLoader(*walletPath), wallet.NewWallet(), cfg.AddressSchemeCharacter)
 
 	path := *statePath
 	if path == "" {
@@ -197,6 +201,7 @@ func main() {
 		InvRequester:       ng.NewInvRequester(),
 		LoggableRunner:     logRunner,
 		Time:               ntptm,
+		Wallet:             wal,
 	}
 
 	utxClean := utxpool.NewCleaner(services)
