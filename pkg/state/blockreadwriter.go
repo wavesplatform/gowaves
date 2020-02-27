@@ -316,12 +316,17 @@ func (rw *blockReadWriter) writeTransaction(tx proto.Transaction) error {
 	if err != nil {
 		return err
 	}
-	if rw.protobufActivated && !proto.IsProtobufTx(tx) {
-		return errors.New("Protobuf blocks are activated but trying to write non-Protobuf transaction")
-	}
-	txBytes, err := proto.MarshalTx(rw.scheme, tx)
-	if err != nil {
-		return err
+	var txBytes []byte
+	if rw.protobufActivated {
+		txBytes, err = tx.MarshalSignedToProtobuf(rw.scheme)
+		if err != nil {
+			return err
+		}
+	} else {
+		txBytes, err = tx.MarshalBinary()
+		if err != nil {
+			return err
+		}
 	}
 	// Append tx size at the beginning.
 	txSize := uint32(len(txBytes))
@@ -354,12 +359,18 @@ func (rw *blockReadWriter) writeBlockHeader(header *proto.BlockHeader) error {
 	rw.mtx.Lock()
 	defer rw.mtx.Unlock()
 	blockID := header.BlockSignature
-	if rw.protobufActivated && header.Version < proto.ProtoBlockVersion {
-		return errors.Errorf("Protobuf blocks are activated but trying to write block version %v", header.Version)
-	}
-	headerBytes, err := header.MarshalHeader(rw.scheme)
-	if err != nil {
-		return err
+	var err error
+	var headerBytes []byte
+	if rw.protobufActivated {
+		headerBytes, err = header.MarshalHeaderToProtobuf(rw.scheme)
+		if err != nil {
+			return err
+		}
+	} else {
+		headerBytes, err = header.MarshalHeaderToBinary()
+		if err != nil {
+			return err
+		}
 	}
 	if err := rw.rheaders.appendBytes(blockID[:], headerBytes); err != nil {
 		return err
@@ -601,6 +612,7 @@ func (rw *blockReadWriter) readBlock(blockID crypto.Signature) (*proto.Block, er
 			return nil, err
 		}
 	}
+	header.TransactionCount = len(res)
 	return &proto.Block{
 		BlockHeader:  *header,
 		Transactions: res,
@@ -701,10 +713,18 @@ func (rw *blockReadWriter) removeEverything(cleanIDs bool) error {
 	if _, err := rw.blockHeight2ID.Seek(0, 0); err != nil {
 		return err
 	}
+	// Remove protobuf info (protobuf encoding never starts from 0).
+	if err := rw.db.Delete([]byte{rwProtobufInfoKeyPrefix}); err != nil {
+		return err
+	}
 	// Decrease counters.
 	rw.height = 0
 	rw.blockchainLen = 0
 	rw.headersLen = 0
+	// Protobuf.
+	rw.protobufActivated = false
+	rw.protobufTxStart = 0
+	rw.protobufHeadersStart = 0
 	// Reset buffers.
 	rw.blockchainBuf.Reset(rw.blockchain)
 	rw.headersBuf.Reset(rw.headers)
@@ -763,6 +783,15 @@ func (rw *blockReadWriter) rollback(removalEdge crypto.Signature, cleanIDs bool)
 	}
 	if _, err := rw.blockHeight2ID.Seek(newOffset, 0); err != nil {
 		return err
+	}
+	if blockEnd < rw.protobufTxStart {
+		// Protobuf.
+		if err := rw.db.Delete([]byte{rwProtobufInfoKeyPrefix}); err != nil {
+			return err
+		}
+		rw.protobufActivated = false
+		rw.protobufTxStart = 0
+		rw.protobufHeadersStart = 0
 	}
 	// Decrease counters.
 	rw.height = newHeight
@@ -831,6 +860,14 @@ func (rw *blockReadWriter) loadProtobufInfo() error {
 	var info protobufInfo
 	if err := info.unmarshalBinary(infoBytes); err != nil {
 		return err
+	}
+	if info.protobufTxStart > rw.blockchainLen || info.protobufHeadersStart > rw.headersLen {
+		// Might happen if rollback does not complete correctly.
+		if err := rw.db.Delete([]byte{rwProtobufInfoKeyPrefix}); err != nil {
+			return err
+		}
+		rw.protobufActivated = false
+		return nil
 	}
 	rw.protobufActivated = true
 	rw.protobufTxStart = info.protobufTxStart

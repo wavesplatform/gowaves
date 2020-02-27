@@ -172,7 +172,7 @@ func checkCompatibility(stateDB *stateDB, extendedApi bool) error {
 type stateManager struct {
 	mu *sync.RWMutex // `mu` is used outside of state and returned in Mutex() function.
 
-	//last added block
+	// Last added block.
 	lastBlock unsafe.Pointer
 
 	genesis proto.Block
