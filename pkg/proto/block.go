@@ -606,7 +606,7 @@ func (a Transactions) ToProtobuf(scheme Scheme) ([]*g.SignedTransaction, error) 
 }
 
 func (a *Transactions) UnmarshalFromProtobuf(data []byte) error {
-	var transactions []Transaction
+	transactions := Transactions{}
 	for len(data) > 0 {
 		txSize := int(binary.BigEndian.Uint32(data[0:4]))
 		if txSize+4 > len(data) {

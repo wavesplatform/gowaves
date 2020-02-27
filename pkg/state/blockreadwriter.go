@@ -362,10 +362,15 @@ func (rw *blockReadWriter) writeBlockHeader(header *proto.BlockHeader) error {
 	var err error
 	var headerBytes []byte
 	if rw.protobufActivated {
-		headerBytes, err = header.MarshalHeaderToProtobuf(rw.scheme)
+		protoBytes, err := header.MarshalHeaderToProtobuf(rw.scheme)
 		if err != nil {
 			return err
 		}
+		// Put addl info that is missing in Protobuf.
+		headerBytes = make([]byte, 8+len(protoBytes))
+		binary.BigEndian.PutUint32(headerBytes[:4], uint32(header.TransactionCount))
+		binary.BigEndian.PutUint32(headerBytes[4:8], uint32(header.TransactionBlockLength))
+		copy(headerBytes[8:], protoBytes)
 	} else {
 		headerBytes, err = header.MarshalHeaderToBinary()
 		if err != nil {
@@ -612,7 +617,6 @@ func (rw *blockReadWriter) readBlock(blockID crypto.Signature) (*proto.Block, er
 			return nil, err
 		}
 	}
-	header.TransactionCount = len(res)
 	return &proto.Block{
 		BlockHeader:  *header,
 		Transactions: res,
@@ -912,10 +916,17 @@ func (rw *blockReadWriter) isProtobufHeaderOffset(offset uint64) bool {
 
 func (rw *blockReadWriter) headerFromBytes(headerBytes []byte, protobuf bool) (*proto.BlockHeader, error) {
 	if protobuf {
+		if len(headerBytes) < 8 {
+			return nil, errInvalidDataSize
+		}
+		txCount := binary.BigEndian.Uint32(headerBytes[:4])
+		txLen := binary.BigEndian.Uint32(headerBytes[4:8])
 		var b proto.Block
-		if err := b.UnmarshalFromProtobuf(headerBytes); err != nil {
+		if err := b.UnmarshalFromProtobuf(headerBytes[8:]); err != nil {
 			return nil, err
 		}
+		b.TransactionCount = int(txCount)
+		b.TransactionBlockLength = txLen
 		return &b.BlockHeader, nil
 	}
 	var header proto.BlockHeader

@@ -112,7 +112,7 @@ func testSingleBlock(t *testing.T, rw *blockReadWriter, block *proto.Block) {
 	assert.Equal(t, resBlock, block)
 }
 
-func writeBlocks(ctx context.Context, rw *blockReadWriter, blocks []proto.Block, readTasks chan<- *readTask, flush bool) error {
+func writeBlocks(ctx context.Context, rw *blockReadWriter, blocks []proto.Block, readTasks chan<- *readTask, flush, protobuf bool) error {
 	height := 1
 	offset := 0
 	for _, block := range blocks {
@@ -136,9 +136,17 @@ func writeBlocks(ctx context.Context, rw *blockReadWriter, blocks []proto.Block,
 			if err != nil {
 				return err
 			}
-			txBytes, err := tx.MarshalBinary()
-			if err != nil {
-				return err
+			var txBytes []byte
+			if protobuf {
+				txBytes, err = tx.MarshalSignedToProtobuf(proto.MainNetScheme)
+				if err != nil {
+					return err
+				}
+			} else {
+				txBytes, err = tx.MarshalBinary()
+				if err != nil {
+					return err
+				}
 			}
 			if err := rw.writeTransaction(tx); err != nil {
 				close(readTasks)
@@ -343,7 +351,7 @@ func TestSimultaneousReadWrite(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		err1 := writeBlocks(ctx, rw, blocks, readTasks, true)
+		err1 := writeBlocks(ctx, rw, blocks, readTasks, true, false)
 		if err1 != nil {
 			mtx.Lock()
 			errCounter++
@@ -402,7 +410,7 @@ func TestReadNewest(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		err1 := writeBlocks(ctx, rw, blocks, readTasks, false)
+		err1 := writeBlocks(ctx, rw, blocks, readTasks, false, false)
 		if err1 != nil {
 			mtx.Lock()
 			errCounter++
@@ -499,5 +507,65 @@ func TestSimultaneousReadDelete(t *testing.T) {
 	_, err = rw.readTransaction(txID)
 	if err != keyvalue.ErrNotFound {
 		t.Fatalf("transaction from removed block wasn't deleted %v", err)
+	}
+}
+
+func TestProtobufReadWrite(t *testing.T) {
+	rw, path, err := createBlockReadWriter(8, 8)
+	if err != nil {
+		t.Fatalf("createBlockReadWriter: %v", err)
+	}
+
+	defer func() {
+		if err := rw.close(); err != nil {
+			t.Fatalf("Failed to close blockReadWriter: %v", err)
+		}
+		if err := rw.db.Close(); err != nil {
+			t.Fatalf("Failed to close DB: %v", err)
+		}
+		if err := util.CleanTemporaryDirs(path); err != nil {
+			t.Fatalf("Failed to clean test data dirs: %v", err)
+		}
+	}()
+
+	rw.setProtobufActivated()
+	blocks, err := readBlocksFromTestPath(blocksNumber)
+	if err != nil {
+		t.Fatalf("Can not read blocks from blockchain file: %v", err)
+	}
+	var mtx sync.Mutex
+	var wg sync.WaitGroup
+	ctx, cancel := context.WithCancel(context.Background())
+	errCounter := 0
+	readTasks := make(chan *readTask, tasksChanBufferSize)
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		err1 := writeBlocks(ctx, rw, blocks, readTasks, true, true)
+		if err1 != nil {
+			mtx.Lock()
+			errCounter++
+			mtx.Unlock()
+			fmt.Printf("Writer error: %v\n", err1)
+			cancel()
+		}
+	}()
+	for i := 0; i < readersNumber; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			err1 := testReader(rw, readTasks)
+			if err1 != nil {
+				mtx.Lock()
+				errCounter++
+				mtx.Unlock()
+				fmt.Printf("Reader error: %v\n", err1)
+				cancel()
+			}
+		}()
+	}
+	wg.Wait()
+	if errCounter != 0 {
+		t.Fatalf("Reader/writer error.")
 	}
 }
