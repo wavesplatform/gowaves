@@ -50,7 +50,7 @@ func (a testLoader) Load() ([]byte, error) {
 
 func TestEmbeddedWalletImpl_Load(t *testing.T) {
 	wal := NewWallet()
-	wal.AddSeed([]byte("seed"))
+	_ = wal.AddSeed([]byte("seed"))
 	bts, err := wal.Encode([]byte("pass"))
 	require.NoError(t, err)
 
