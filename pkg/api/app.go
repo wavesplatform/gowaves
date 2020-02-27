@@ -18,13 +18,14 @@ type SchedulerEmits interface {
 }
 
 type App struct {
-	hashedApiKey crypto.Digest
-	scheduler    SchedulerEmits
-	utx          types.UtxPool
-	state        state.State
-	peers        peer_manager.PeerManager
-	sync         types.StateSync
-	services     services.Services
+	hashedApiKey  crypto.Digest
+	apiKeyEnabled bool
+	scheduler     SchedulerEmits
+	utx           types.UtxPool
+	state         state.State
+	peers         peer_manager.PeerManager
+	sync          types.StateSync
+	services      services.Services
 }
 
 func NewApp(apiKey string, scheduler SchedulerEmits, sync types.StateSync, services services.Services) (*App, error) {
@@ -34,13 +35,14 @@ func NewApp(apiKey string, scheduler SchedulerEmits, sync types.StateSync, servi
 	}
 
 	return &App{
-		hashedApiKey: digest,
-		state:        services.State,
-		scheduler:    scheduler,
-		utx:          services.UtxPool,
-		peers:        services.Peers,
-		sync:         sync,
-		services:     services,
+		hashedApiKey:  digest,
+		apiKeyEnabled: len(apiKey) > 0,
+		state:         services.State,
+		scheduler:     scheduler,
+		utx:           services.UtxPool,
+		peers:         services.Peers,
+		sync:          sync,
+		services:      services,
 	}, nil
 }
 
@@ -69,6 +71,9 @@ func (a *App) TransactionsBroadcast(b []byte) error {
 }
 
 func (a *App) checkAuth(key string) error {
+	if !a.apiKeyEnabled {
+		return &AuthError{errors.New("api key disabled")}
+	}
 	d, err := crypto.SecureHash([]byte(key))
 	if err != nil {
 		return &AuthError{err}
