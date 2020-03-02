@@ -1,7 +1,6 @@
 package scheduler
 
 import (
-	"bytes"
 	"sync"
 	"time"
 
@@ -13,6 +12,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"github.com/wavesplatform/gowaves/pkg/types"
 	"github.com/wavesplatform/gowaves/pkg/util/cancellable"
+	"github.com/wavesplatform/gowaves/pkg/wallet"
 	"go.uber.org/zap"
 )
 
@@ -25,7 +25,7 @@ type Emit struct {
 }
 
 type SchedulerImpl struct {
-	keyPairs   []proto.KeyPair
+	seeder     seeder
 	mine       chan Emit
 	cancel     []func()
 	settings   *settings.BlockchainSettings
@@ -148,13 +148,20 @@ func (a internalImpl) schedule(state state.State, keyPairs []proto.KeyPair, sche
 	return out
 }
 
-func NewScheduler(state state.State, pairs []proto.KeyPair, settings *settings.BlockchainSettings, tm types.Time, consensus types.MinerConsensus, minerDelay proto.Timestamp) *SchedulerImpl {
-	return newScheduler(internalImpl{}, state, pairs, settings, tm, consensus, minerDelay)
+type seeder interface {
+	Seeds() [][]byte
 }
 
-func newScheduler(internal internal, state state.State, pairs []proto.KeyPair, settings *settings.BlockchainSettings, tm types.Time, consensus types.MinerConsensus, minerDelay proto.Timestamp) *SchedulerImpl {
+func NewScheduler(state state.State, seeder seeder, settings *settings.BlockchainSettings, tm types.Time, consensus types.MinerConsensus, minerDelay proto.Timestamp) *SchedulerImpl {
+	return newScheduler(internalImpl{}, state, seeder, settings, tm, consensus, minerDelay)
+}
+
+func newScheduler(internal internal, state state.State, seeder seeder, settings *settings.BlockchainSettings, tm types.Time, consensus types.MinerConsensus, minerDelay proto.Timestamp) *SchedulerImpl {
+	if seeder == nil {
+		seeder = wallet.NewWallet()
+	}
 	return &SchedulerImpl{
-		keyPairs:   pairs,
+		seeder:     seeder,
 		mine:       make(chan Emit, 1),
 		settings:   settings,
 		internal:   internal,
@@ -171,7 +178,7 @@ func (a *SchedulerImpl) Mine() chan Emit {
 }
 
 func (a *SchedulerImpl) Reschedule() {
-	if len(a.keyPairs) == 0 {
+	if len(a.seeder.Seeds()) == 0 {
 		return
 	}
 
@@ -207,7 +214,7 @@ func (a *SchedulerImpl) Reschedule() {
 }
 
 func (a *SchedulerImpl) reschedule(state state.State, confirmedBlock *proto.Block, confirmedBlockHeight uint64) {
-	if len(a.keyPairs) == 0 {
+	if len(a.seeder.Seeds()) == 0 {
 		return
 	}
 	a.mu.Lock()
@@ -219,7 +226,13 @@ func (a *SchedulerImpl) reschedule(state state.State, confirmedBlock *proto.Bloc
 	}
 	a.cancel = nil
 
-	emits := a.internal.schedule(state, a.keyPairs, a.settings.AddressSchemeCharacter, a.settings.AverageBlockDelaySeconds, confirmedBlock, confirmedBlockHeight)
+	keyPairs, err := makeKeyPairs(a.seeder.Seeds())
+	if err != nil {
+		zap.S().Error(err)
+		return
+	}
+
+	emits := a.internal.schedule(state, keyPairs, a.settings.AddressSchemeCharacter, a.settings.AverageBlockDelaySeconds, confirmedBlock, confirmedBlockHeight)
 	a.emits = emits
 	now := proto.NewTimestampFromTime(a.tm.Now())
 	for _, emit := range emits {
@@ -246,22 +259,20 @@ func (a *SchedulerImpl) reschedule(state state.State, confirmedBlock *proto.Bloc
 	}
 }
 
-// TODO: this function should be moved to wallet module, as well as keyPairs.
-// Private keys should only be accessible from wallet module.
-// All the other modules that need them, e.g. miner, api should call wallet's methods
-// to sign what is needed.
-// For now let's keep keys *only* in Scheduler.
-func (a *SchedulerImpl) SignTransactionWith(pk crypto.PublicKey, tx proto.Transaction) error {
-	for _, kp := range a.keyPairs {
-		if bytes.Equal(kp.Public.Bytes(), pk.Bytes()) {
-			return tx.Sign(kp.Secret)
-		}
-	}
-	return errors.New("public key not found")
-}
-
 func (a *SchedulerImpl) Emits() []Emit {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	return a.emits
+}
+
+func makeKeyPairs(seeds [][]byte) ([]proto.KeyPair, error) {
+	var out []proto.KeyPair
+	for _, bts := range seeds {
+		kp, err := proto.NewKeyPair(bts)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, kp)
+	}
+	return out, nil
 }

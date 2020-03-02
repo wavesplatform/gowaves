@@ -29,6 +29,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"github.com/wavesplatform/gowaves/pkg/util"
+	"github.com/wavesplatform/gowaves/pkg/wallet"
 	"go.uber.org/zap"
 )
 
@@ -41,16 +42,18 @@ var (
 	peerAddresses     = flag.String("peers", "35.156.19.4:6868,52.50.69.247:6868,52.52.46.76:6868,52.57.147.71:6868,52.214.55.18:6868,54.176.190.226:6868", "Addresses of peers to connect to")
 	declAddr          = flag.String("declared-address", "", "Address to listen on")
 	apiAddr           = flag.String("api-address", "", "Address for REST API")
+	apiKey            = flag.String("api-key", "", "Api key")
 	grpcAddr          = flag.String("grpc-address", "127.0.0.1:7475", "Address for gRPC API")
 	enableGrpcApi     = flag.Bool("enable-grpc-api", true, "Enables/disables gRPC API")
 	buildExtendedApi  = flag.Bool("build-extended-api", false, "Builds extended API. Note that state must be reimported in case it wasn't imported with similar flag set")
 	serveExtendedApi  = flag.Bool("serve-extended-api", false, "Serves extended API requests since the very beginning. The default behavior is to import until first block close to current time, and start serving at this point")
-	seed              = flag.String("seed", "", "Seed for miner")
 	bindAddress       = flag.String("bind-address", "", "Bind address for incoming connections. If empty, will be same as declared address")
 	connectPeers      = flag.String("connect-peers", "true", "Spawn outgoing connections")
 	minerVoteFeatures = flag.String("vote", "", "Miner vote features")
 	reward            = flag.String("reward", "", "Miner reward: for example 600000000")
 	minerDelayParam   = flag.String("miner-delay", "4h", "Interval after last block then generation is allowed. example 1d4h30m")
+	walletPath        = flag.String("wallet-path", "", "Path to wallet, or ~/.waves by default")
+	walletPassword    = flag.String("wallet-password", "", "Pass password for wallet. Extremely insecure")
 )
 
 func main() {
@@ -80,6 +83,15 @@ func main() {
 	if err != nil {
 		zap.S().Error(err)
 		return
+	}
+
+	wal := wallet.NewEmbeddedWallet(wallet.NewLoader(*walletPath), wallet.NewWallet(), cfg.AddressSchemeCharacter)
+	if *walletPassword != "" {
+		err := wal.Load([]byte(*walletPassword))
+		if err != nil {
+			zap.S().Error(err)
+			return
+		}
 	}
 
 	path := *statePath
@@ -163,14 +175,9 @@ func main() {
 	peerManager := peer_manager.NewPeerManager(peerSpawnerImpl, state)
 	go peerManager.Run(ctx)
 
-	var keyPairs []proto.KeyPair
-	if *seed != "" {
-		keyPairs = append(keyPairs, proto.MustKeyPair([]byte(*seed)))
-	}
-
 	scheduler := scheduler.NewScheduler(
 		state,
-		keyPairs,
+		wal,
 		cfg,
 		ntptm,
 		scheduler.NewMinerConsensus(peerManager, 1),
@@ -197,6 +204,7 @@ func main() {
 		InvRequester:       ng.NewInvRequester(),
 		LoggableRunner:     logRunner,
 		Time:               ntptm,
+		Wallet:             wal,
 	}
 
 	utxClean := utxpool.NewCleaner(services)
@@ -234,8 +242,7 @@ func main() {
 		}
 	}
 
-	// TODO hardcore
-	app, err := api.NewApp("integration-test-rest-api", scheduler, stateSync, services)
+	app, err := api.NewApp(*apiKey, scheduler, stateSync, services)
 	if err != nil {
 		zap.S().Error(err)
 		cancel()
@@ -251,7 +258,7 @@ func main() {
 	}()
 
 	if *enableGrpcApi {
-		grpcServer, err := server.NewServer(state, utx, scheduler)
+		grpcServer, err := server.NewServer(services)
 		if err != nil {
 			zap.S().Errorf("Failed to create gRPC server: %v", err)
 		}

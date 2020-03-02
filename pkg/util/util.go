@@ -58,7 +58,7 @@ func TimeTrack(start time.Time, name string) {
 
 // call function like this
 // defer TrackLongFunc()()
-func TrackLongFunc() func() {
+func TrackLongFunc(duration time.Duration, value ...string) func() {
 	s := debug.Stack()
 	ch := make(chan struct{})
 	go func() {
@@ -66,9 +66,8 @@ func TrackLongFunc() func() {
 			select {
 			case <-ch:
 				return
-			case <-time.After(1 * time.Second):
-
-				zap.S().Error("took long time", string(s))
+			case <-time.After(duration):
+				zap.S().Error("took long time", value, string(s))
 			}
 		}
 	}()

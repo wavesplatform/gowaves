@@ -24,8 +24,7 @@ func TestGetBalances(t *testing.T) {
 	st, err := state.NewState(dataDir, params, settings.MainNetSettings)
 	assert.NoError(t, err)
 	ctx, cancel := context.WithCancel(context.Background())
-	sch := createScheduler(ctx, st, settings.MainNetSettings)
-	err = server.initServer(st, nil, sch)
+	err = server.initServer(st, nil, nil)
 	assert.NoError(t, err)
 
 	conn := connect(t, grpcTestAddr)
@@ -71,7 +70,7 @@ func TestGetActiveLeases(t *testing.T) {
 	sets, err := st.BlockchainSettings()
 	assert.NoError(t, err)
 	ctx, cancel := context.WithCancel(context.Background())
-	sch := createScheduler(ctx, st, sets)
+	sch := createWallet(ctx, st, sets)
 	err = server.initServer(st, nil, sch)
 	assert.NoError(t, err)
 
@@ -112,7 +111,7 @@ func TestResolveAlias(t *testing.T) {
 	sets, err := st.BlockchainSettings()
 	assert.NoError(t, err)
 	ctx, cancel := context.WithCancel(context.Background())
-	sch := createScheduler(ctx, st, sets)
+	sch := createWallet(ctx, st, sets)
 	err = server.initServer(st, nil, sch)
 	assert.NoError(t, err)
 

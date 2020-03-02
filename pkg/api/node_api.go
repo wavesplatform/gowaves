@@ -59,34 +59,6 @@ func NewNodeApi(app *App, state state.State, node *node.Node) *NodeApi {
 	}
 }
 
-func (a *NodeApi) routes() chi.Router {
-	r := chi.NewRouter()
-	r.Get("/blocks/last", a.BlocksLast)
-	r.Get("/blocks/height", a.BlockHeight)
-	r.Get("/blocks/first", a.BlocksFirst)
-	r.Get("/blocks/at/{height:\\d+}", a.BlockAt)
-	r.Get("/blocks/score/at/{id:\\d+}", a.BlockScoreAt)
-	r.Get("/blocks/signature/{signature}", a.BlockSignatureAt)
-	r.Get("/blocks/generators", a.BlocksGenerators)
-	r.Post("/blocks/rollback", RollbackToHeight(a.app))
-	r.Get("/pool/transactions", a.poolTransactions)
-	r.Route("/peers", func(r chi.Router) {
-		r.Get("/known", a.PeersAll)
-		r.Get("/connected", a.PeersConnected)
-		r.Post("/connect", a.PeersConnect)
-		r.Get("/suspended", a.PeersSuspended)
-		r.Get("/spawned", a.PeersSpawned)
-	})
-	r.Get("/miner/info", a.Minerinfo)
-	r.Post("/transactions/broadcast", a.TransactionsBroadcast)
-
-	r.Get("/node/processes", a.nodeProcesses)
-	// enable or disable history sync
-	//r.Get("/debug/sync/{enabled:\\d+}", a.DebugSyncEnabled)
-
-	return r
-}
-
 func (a *NodeApi) TransactionsBroadcast(w http.ResponseWriter, r *http.Request) {
 	b, err := ioutil.ReadAll(r.Body)
 	defer r.Body.Close()
@@ -102,7 +74,7 @@ func (a *NodeApi) TransactionsBroadcast(w http.ResponseWriter, r *http.Request) 
 	}
 }
 
-func (a *NodeApi) BlocksLast(w http.ResponseWriter, r *http.Request) {
+func (a *NodeApi) BlocksLast(w http.ResponseWriter, _ *http.Request) {
 	block, err := a.app.BlocksLast()
 	if err != nil {
 		handleError(w, err)
@@ -330,6 +302,31 @@ func RollbackToHeight(app rollbackToHeight) http.HandlerFunc {
 		}
 		apiKey := r.Header.Get("X-API-Key")
 		err = app.RollbackToHeight(apiKey, js.Height)
+		if err != nil {
+			handleError(w, err)
+			return
+		}
+		sendJson(w, nil)
+	}
+}
+
+type walletLoadKeysRequest struct {
+	Password string `json:"password"`
+}
+type walletLoadKeys interface {
+	LoadKeys(apiKey string, password []byte) error
+}
+
+func WalletLoadKeys(app walletLoadKeys) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		js := &walletLoadKeysRequest{}
+		err := json.NewDecoder(r.Body).Decode(js)
+		if err != nil {
+			handleError(w, err)
+			return
+		}
+		apiKey := r.Header.Get("X-API-Key")
+		err = app.LoadKeys(apiKey, []byte(js.Password))
 		if err != nil {
 			handleError(w, err)
 			return

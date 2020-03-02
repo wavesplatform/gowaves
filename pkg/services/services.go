@@ -21,4 +21,5 @@ type Services struct {
 	ScoreSender        types.Handler
 	LoggableRunner     runner.LogRunner
 	Time               types.Time
+	Wallet             types.EmbeddedWallet
 }

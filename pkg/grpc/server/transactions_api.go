@@ -178,7 +178,7 @@ func (s *Server) Sign(ctx context.Context, req *g.SignRequest) (*g.SignedTransac
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, err.Error())
 	}
-	if err := s.sch.SignTransactionWith(pk, tx); err != nil {
+	if err := s.wallet.SignTransactionWith(pk, tx); err != nil {
 		return nil, status.Errorf(codes.FailedPrecondition, err.Error())
 	}
 	txProto, err := tx.ToProtobufSigned(s.scheme)

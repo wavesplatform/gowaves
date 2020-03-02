@@ -17,11 +17,11 @@ import (
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
-	"github.com/wavesplatform/gowaves/pkg/libs/ntptime"
-	"github.com/wavesplatform/gowaves/pkg/miner/scheduler"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/state"
+	"github.com/wavesplatform/gowaves/pkg/types"
+	"github.com/wavesplatform/gowaves/pkg/wallet"
 	"google.golang.org/grpc"
 )
 
@@ -92,8 +92,11 @@ func stateWithCustomGenesis(t *testing.T, genesisPath string) (state.State, func
 	}
 }
 
-func createScheduler(ctx context.Context, st state.State, settings *settings.BlockchainSettings) *scheduler.SchedulerImpl {
-	return scheduler.NewScheduler(st, keyPairs, settings, ntptime.Stub{}, scheduler.StubConsensus{}, 86400*1000)
+func createWallet(ctx context.Context, st state.State, settings *settings.BlockchainSettings) types.EmbeddedWallet {
+	w := wallet.NewWallet()
+	decoded, _ := base58.Decode(seed)
+	_ = w.AddSeed(decoded)
+	return wallet.NewEmbeddedWallet(nil, w, proto.MainNetScheme)
 }
 
 func connect(t *testing.T, addr string) *grpc.ClientConn {

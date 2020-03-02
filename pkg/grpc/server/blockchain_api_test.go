@@ -22,7 +22,7 @@ func TestGetBaseTarget(t *testing.T) {
 	st, err := state.NewState(dataDir, params, settings.MainNetSettings)
 	assert.NoError(t, err)
 	ctx, cancel := context.WithCancel(context.Background())
-	sch := createScheduler(ctx, st, settings.MainNetSettings)
+	sch := createWallet(ctx, st, settings.MainNetSettings)
 	err = server.initServer(st, nil, sch)
 	assert.NoError(t, err)
 
@@ -62,7 +62,7 @@ func TestGetCumulativeScore(t *testing.T) {
 	st, err := state.NewState(dataDir, params, settings.MainNetSettings)
 	assert.NoError(t, err)
 	ctx, cancel := context.WithCancel(context.Background())
-	sch := createScheduler(ctx, st, settings.MainNetSettings)
+	sch := createWallet(ctx, st, settings.MainNetSettings)
 	err = server.initServer(st, nil, sch)
 	assert.NoError(t, err)
 
