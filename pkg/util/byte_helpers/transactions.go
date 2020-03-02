@@ -249,6 +249,7 @@ func initTransferWithProofs() {
 		panic(err)
 	}
 	t := proto.NewUnsignedTransferWithProofs(
+		2,
 		pk,
 		proto.OptionalAsset{},
 		proto.OptionalAsset{},
@@ -307,6 +308,7 @@ func initIssueWithProofs() {
 	sk, pk, _ := crypto.GenerateKeyPair([]byte("test"))
 
 	t := proto.NewUnsignedIssueWithProofs(
+		2,
 		proto.MainNetScheme,
 		pk,
 		"name",
@@ -409,7 +411,7 @@ func initReissueWithProofs() {
 		panic(err)
 	}
 
-	t := proto.NewUnsignedReissueWithProofs(proto.MainNetScheme, pk, d, 100000, true, TIMESTAMP, 10000)
+	t := proto.NewUnsignedReissueWithProofs(2, proto.MainNetScheme, pk, d, 100000, true, TIMESTAMP, 10000)
 	_ = t.Sign(proto.MainNetScheme, sk)
 	b, err := t.MarshalBinary()
 	if err != nil {
@@ -458,7 +460,7 @@ func initBurnWithProofs() {
 		panic(err)
 	}
 
-	t := proto.NewUnsignedBurnWithProofs(proto.MainNetScheme, pk, d, 100000, TIMESTAMP, 10000)
+	t := proto.NewUnsignedBurnWithProofs(2, proto.MainNetScheme, pk, d, 100000, TIMESTAMP, 10000)
 	_ = t.Sign(proto.MainNetScheme, sk)
 	b, err := t.MarshalBinary()
 	if err != nil {
@@ -491,7 +493,7 @@ func initMassTransferWithProofs() {
 		Recipient: proto.NewRecipientFromAddress(addr),
 		Amount:    100000,
 	}
-	t := proto.NewUnsignedMassTransferWithProofs(pk, *proto.NewOptionalAssetFromDigest(d), []proto.MassTransferEntry{entry}, 10000, TIMESTAMP, &proto.LegacyAttachment{Value: []byte("attachment")})
+	t := proto.NewUnsignedMassTransferWithProofs(1, pk, *proto.NewOptionalAssetFromDigest(d), []proto.MassTransferEntry{entry}, 10000, TIMESTAMP, &proto.LegacyAttachment{Value: []byte("attachment")})
 	_ = t.Sign(proto.MainNetScheme, sk)
 	b, err := t.MarshalBinary()
 	if err != nil {
@@ -607,6 +609,7 @@ func initExchangeWithProofs() {
 	_ = sellOrder.Sign(proto.MainNetScheme, sk)
 
 	t := proto.NewUnsignedExchangeWithProofs(
+		2,
 		buyOrder,
 		sellOrder,
 		100000,
@@ -640,7 +643,7 @@ func initSetAssetScriptWithProofs() {
 		panic(err)
 	}
 
-	t := proto.NewUnsignedSetAssetScriptWithProofs(proto.MainNetScheme, pk, d, []byte("hello"), 10000, TIMESTAMP)
+	t := proto.NewUnsignedSetAssetScriptWithProofs(1, proto.MainNetScheme, pk, d, []byte("hello"), 10000, TIMESTAMP)
 	_ = t.Sign(proto.MainNetScheme, sk)
 	b, err := t.MarshalBinary()
 	if err != nil {
@@ -663,6 +666,7 @@ func initInvokeScriptWithProofs() {
 	asset := proto.NewOptionalAssetFromDigest(Digest)
 
 	t := proto.NewUnsignedInvokeScriptWithProofs(
+		1,
 		proto.MainNetScheme,
 		pk,
 		proto.NewRecipientFromAddress(address),
@@ -722,6 +726,7 @@ func initLeaseWithSig() {
 func initLeaseWithProofs() {
 	addr, _ := proto.NewAddressFromPublicKey(proto.MainNetScheme, pk)
 	t := proto.NewUnsignedLeaseWithProofs(
+		2,
 		pk,
 		proto.NewRecipientFromAddress(addr),
 		100000, 10000, TIMESTAMP)
@@ -766,6 +771,7 @@ func initLeaseCancelWithSig() {
 
 func initLeaseCancelWithProofs() {
 	t := proto.NewUnsignedLeaseCancelWithProofs(
+		2,
 		proto.MainNetScheme,
 		pk,
 		Digest,
@@ -788,7 +794,8 @@ func initLeaseCancelWithProofs() {
 }
 
 func initDataWithProofs() {
-	t := proto.NewUnsignedData(
+	t := proto.NewUnsigneData(
+		1,
 		pk,
 		10000,
 		TIMESTAMP)
@@ -845,6 +852,7 @@ func initDataWithProofs() {
 
 func initSponsorshipWithProofs() {
 	t := proto.NewUnsignedSponsorshipWithProofs(
+		1,
 		pk,
 		Digest,
 		1000,
@@ -898,6 +906,7 @@ func initCreateAliasWithSig() {
 func initCreateAliasWithProofs() {
 	alias := proto.NewAlias(proto.MainNetScheme, "testalias")
 	t := proto.NewUnsignedCreateAliasWithProofs(
+		2,
 		pk,
 		*alias,
 		10000,

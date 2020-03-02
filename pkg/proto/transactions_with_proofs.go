@@ -161,7 +161,7 @@ func (tx *IssueWithProofs) Clone() *IssueWithProofs {
 }
 
 //NewUnsignedIssueWithProofs creates a new IssueWithProofs transaction with empty Proofs.
-func NewUnsignedIssueWithProofs(chainID byte, senderPK crypto.PublicKey, name, description string, quantity uint64, decimals byte, reissuable bool, script []byte, timestamp, fee uint64) *IssueWithProofs {
+func NewUnsignedIssueWithProofs(v, chainID byte, senderPK crypto.PublicKey, name, description string, quantity uint64, decimals byte, reissuable bool, script []byte, timestamp, fee uint64) *IssueWithProofs {
 	i := Issue{
 		SenderPK:    senderPK,
 		Name:        name,
@@ -172,7 +172,7 @@ func NewUnsignedIssueWithProofs(chainID byte, senderPK crypto.PublicKey, name, d
 		Timestamp:   timestamp,
 		Fee:         fee,
 	}
-	return &IssueWithProofs{Type: IssueTransaction, Version: 2, ChainID: chainID, Script: script, Issue: i}
+	return &IssueWithProofs{Type: IssueTransaction, Version: v, ChainID: chainID, Script: script, Issue: i}
 }
 
 func (tx IssueWithProofs) Valid() (bool, error) {
@@ -474,7 +474,7 @@ func (tx *TransferWithProofs) Clone() *TransferWithProofs {
 }
 
 //NewUnsignedTransferWithProofs creates new TransferWithProofs transaction without proofs and ID.
-func NewUnsignedTransferWithProofs(senderPK crypto.PublicKey, amountAsset, feeAsset OptionalAsset, timestamp, amount, fee uint64, recipient Recipient, attachment Attachment) *TransferWithProofs {
+func NewUnsignedTransferWithProofs(v byte, senderPK crypto.PublicKey, amountAsset, feeAsset OptionalAsset, timestamp, amount, fee uint64, recipient Recipient, attachment Attachment) *TransferWithProofs {
 	t := Transfer{
 		SenderPK:    senderPK,
 		Recipient:   recipient,
@@ -485,7 +485,7 @@ func NewUnsignedTransferWithProofs(senderPK crypto.PublicKey, amountAsset, feeAs
 		Timestamp:   timestamp,
 		Attachment:  attachment,
 	}
-	return &TransferWithProofs{Type: TransferTransaction, Version: 2, Transfer: t}
+	return &TransferWithProofs{Type: TransferTransaction, Version: v, Transfer: t}
 }
 
 func (tx TransferWithProofs) Valid() (bool, error) {
@@ -783,7 +783,7 @@ func (tx *ReissueWithProofs) Clone() *ReissueWithProofs {
 }
 
 //NewUnsignedReissueWithProofs creates new ReissueWithProofs transaction without signature and ID.
-func NewUnsignedReissueWithProofs(chainID byte, senderPK crypto.PublicKey, assetID crypto.Digest, quantity uint64, reissuable bool, timestamp, fee uint64) *ReissueWithProofs {
+func NewUnsignedReissueWithProofs(v, chainID byte, senderPK crypto.PublicKey, assetID crypto.Digest, quantity uint64, reissuable bool, timestamp, fee uint64) *ReissueWithProofs {
 	r := Reissue{
 		SenderPK:   senderPK,
 		AssetID:    assetID,
@@ -792,7 +792,7 @@ func NewUnsignedReissueWithProofs(chainID byte, senderPK crypto.PublicKey, asset
 		Fee:        fee,
 		Timestamp:  timestamp,
 	}
-	return &ReissueWithProofs{Type: ReissueTransaction, Version: 2, ChainID: chainID, Reissue: r}
+	return &ReissueWithProofs{Type: ReissueTransaction, Version: v, ChainID: chainID, Reissue: r}
 }
 
 func (tx ReissueWithProofs) Valid() (bool, error) {
@@ -1024,7 +1024,7 @@ func (tx *BurnWithProofs) Clone() *BurnWithProofs {
 }
 
 //NewUnsignedBurnWithProofs creates new BurnWithProofs transaction without proofs and ID.
-func NewUnsignedBurnWithProofs(chainID byte, senderPK crypto.PublicKey, assetID crypto.Digest, amount, timestamp, fee uint64) *BurnWithProofs {
+func NewUnsignedBurnWithProofs(v, chainID byte, senderPK crypto.PublicKey, assetID crypto.Digest, amount, timestamp, fee uint64) *BurnWithProofs {
 	b := Burn{
 		SenderPK:  senderPK,
 		AssetID:   assetID,
@@ -1032,7 +1032,7 @@ func NewUnsignedBurnWithProofs(chainID byte, senderPK crypto.PublicKey, assetID 
 		Fee:       fee,
 		Timestamp: timestamp,
 	}
-	return &BurnWithProofs{Type: BurnTransaction, Version: 2, ChainID: chainID, Burn: b}
+	return &BurnWithProofs{Type: BurnTransaction, Version: v, ChainID: chainID, Burn: b}
 }
 
 func (tx BurnWithProofs) Valid() (bool, error) {
@@ -1330,10 +1330,10 @@ func (tx ExchangeWithProofs) GetTimestamp() uint64 {
 	return tx.Timestamp
 }
 
-func NewUnsignedExchangeWithProofs(buy, sell Order, price, amount, buyMatcherFee, sellMatcherFee, fee, timestamp uint64) *ExchangeWithProofs {
+func NewUnsignedExchangeWithProofs(v byte, buy, sell Order, price, amount, buyMatcherFee, sellMatcherFee, fee, timestamp uint64) *ExchangeWithProofs {
 	return &ExchangeWithProofs{
 		Type:           ExchangeTransaction,
-		Version:        2,
+		Version:        v,
 		SenderPK:       buy.GetMatcherPK(),
 		BuyOrder:       buy,
 		SellOrder:      sell,
@@ -1841,7 +1841,7 @@ func (tx *LeaseWithProofs) Clone() *LeaseWithProofs {
 }
 
 //NewUnsignedLeaseWithProofs creates new LeaseWithSig transaction without signature and ID set.
-func NewUnsignedLeaseWithProofs(senderPK crypto.PublicKey, recipient Recipient, amount, fee, timestamp uint64) *LeaseWithProofs {
+func NewUnsignedLeaseWithProofs(v byte, senderPK crypto.PublicKey, recipient Recipient, amount, fee, timestamp uint64) *LeaseWithProofs {
 	l := Lease{
 		SenderPK:  senderPK,
 		Recipient: recipient,
@@ -1849,7 +1849,7 @@ func NewUnsignedLeaseWithProofs(senderPK crypto.PublicKey, recipient Recipient, 
 		Fee:       fee,
 		Timestamp: timestamp,
 	}
-	return &LeaseWithProofs{Type: LeaseTransaction, Version: 2, Lease: l}
+	return &LeaseWithProofs{Type: LeaseTransaction, Version: v, Lease: l}
 }
 
 func (tx *LeaseWithProofs) BodyMarshalBinary() ([]byte, error) {
@@ -2073,14 +2073,14 @@ func (tx *LeaseCancelWithProofs) Clone() *LeaseCancelWithProofs {
 }
 
 //NewUnsignedLeaseCancelWithProofs creates new LeaseCancelWithProofs transaction structure without a signature and an ID.
-func NewUnsignedLeaseCancelWithProofs(chainID byte, senderPK crypto.PublicKey, leaseID crypto.Digest, fee, timestamp uint64) *LeaseCancelWithProofs {
+func NewUnsignedLeaseCancelWithProofs(v, chainID byte, senderPK crypto.PublicKey, leaseID crypto.Digest, fee, timestamp uint64) *LeaseCancelWithProofs {
 	lc := LeaseCancel{
 		SenderPK:  senderPK,
 		LeaseID:   leaseID,
 		Fee:       fee,
 		Timestamp: timestamp,
 	}
-	return &LeaseCancelWithProofs{Type: LeaseCancelTransaction, Version: 2, ChainID: chainID, LeaseCancel: lc}
+	return &LeaseCancelWithProofs{Type: LeaseCancelTransaction, Version: v, ChainID: chainID, LeaseCancel: lc}
 }
 
 func (tx LeaseCancelWithProofs) Valid() (bool, error) {
@@ -2309,14 +2309,14 @@ func (tx *CreateAliasWithProofs) Clone() *CreateAliasWithProofs {
 	return out
 }
 
-func NewUnsignedCreateAliasWithProofs(senderPK crypto.PublicKey, alias Alias, fee, timestamp uint64) *CreateAliasWithProofs {
+func NewUnsignedCreateAliasWithProofs(v byte, senderPK crypto.PublicKey, alias Alias, fee, timestamp uint64) *CreateAliasWithProofs {
 	ca := CreateAlias{
 		SenderPK:  senderPK,
 		Alias:     alias,
 		Fee:       fee,
 		Timestamp: timestamp,
 	}
-	return &CreateAliasWithProofs{Type: CreateAliasTransaction, Version: 2, CreateAlias: ca}
+	return &CreateAliasWithProofs{Type: CreateAliasTransaction, Version: v, CreateAlias: ca}
 }
 
 func (tx *CreateAliasWithProofs) BodyMarshalBinary() ([]byte, error) {
@@ -2574,8 +2574,8 @@ func (tx MassTransferWithProofs) GetTimestamp() uint64 {
 }
 
 //NewUnsignedMassTransferWithProofs creates new MassTransferWithProofs transaction structure without signature and ID.
-func NewUnsignedMassTransferWithProofs(senderPK crypto.PublicKey, asset OptionalAsset, transfers []MassTransferEntry, fee, timestamp uint64, attachment Attachment) *MassTransferWithProofs {
-	return &MassTransferWithProofs{Type: MassTransferTransaction, Version: 1, SenderPK: senderPK, Asset: asset, Transfers: transfers, Fee: fee, Timestamp: timestamp, Attachment: attachment}
+func NewUnsignedMassTransferWithProofs(v byte, senderPK crypto.PublicKey, asset OptionalAsset, transfers []MassTransferEntry, fee, timestamp uint64, attachment Attachment) *MassTransferWithProofs {
+	return &MassTransferWithProofs{Type: MassTransferTransaction, Version: v, SenderPK: senderPK, Asset: asset, Transfers: transfers, Fee: fee, Timestamp: timestamp, Attachment: attachment}
 }
 
 func (tx MassTransferWithProofs) Valid() (bool, error) {
@@ -2959,9 +2959,8 @@ func (tx *DataWithProofs) Clone() *DataWithProofs {
 	return out
 }
 
-//NewUnsignedData creates new Data transaction without proofs.
-func NewUnsignedData(senderPK crypto.PublicKey, fee, timestamp uint64) *DataWithProofs {
-	return &DataWithProofs{Type: DataTransaction, Version: 1, SenderPK: senderPK, Fee: fee, Timestamp: timestamp}
+func NewUnsigneData(v byte, senderPK crypto.PublicKey, fee, timestamp uint64) *DataWithProofs {
+	return &DataWithProofs{Type: DataTransaction, Version: v, SenderPK: senderPK, Fee: fee, Timestamp: timestamp}
 }
 
 func (tx DataWithProofs) Valid() (bool, error) {
@@ -3322,8 +3321,8 @@ func (tx SetScriptWithProofs) GetTimestamp() uint64 {
 }
 
 //NewUnsignedSetScriptWithProofs creates new unsigned SetScriptWithProofs transaction.
-func NewUnsignedSetScriptWithProofs(chain byte, senderPK crypto.PublicKey, script []byte, fee, timestamp uint64) *SetScriptWithProofs {
-	return &SetScriptWithProofs{Type: SetScriptTransaction, Version: 1, ChainID: chain, SenderPK: senderPK, Script: script, Fee: fee, Timestamp: timestamp}
+func NewUnsignedSetScriptWithProofs(v byte, chain byte, senderPK crypto.PublicKey, script []byte, fee, timestamp uint64) *SetScriptWithProofs {
+	return &SetScriptWithProofs{Type: SetScriptTransaction, Version: v, ChainID: chain, SenderPK: senderPK, Script: script, Fee: fee, Timestamp: timestamp}
 }
 
 func (tx SetScriptWithProofs) Valid() (bool, error) {
@@ -3613,8 +3612,8 @@ func (tx *SponsorshipWithProofs) Clone() *SponsorshipWithProofs {
 }
 
 //NewUnsignedSponsorshipWithProofs creates new unsigned SponsorshipWithProofs transaction
-func NewUnsignedSponsorshipWithProofs(senderPK crypto.PublicKey, assetID crypto.Digest, minAssetFee, fee, timestamp uint64) *SponsorshipWithProofs {
-	return &SponsorshipWithProofs{Type: SponsorshipTransaction, Version: 1, SenderPK: senderPK, AssetID: assetID, MinAssetFee: minAssetFee, Fee: fee, Timestamp: timestamp}
+func NewUnsignedSponsorshipWithProofs(v byte, senderPK crypto.PublicKey, assetID crypto.Digest, minAssetFee, fee, timestamp uint64) *SponsorshipWithProofs {
+	return &SponsorshipWithProofs{Type: SponsorshipTransaction, Version: v, SenderPK: senderPK, AssetID: assetID, MinAssetFee: minAssetFee, Fee: fee, Timestamp: timestamp}
 }
 
 func (tx SponsorshipWithProofs) Valid() (bool, error) {
@@ -3892,8 +3891,8 @@ func (tx *SetAssetScriptWithProofs) Clone() *SetAssetScriptWithProofs {
 }
 
 //NewUnsignedSetAssetScriptWithProofs creates new unsigned SetAssetScriptWithProofs transaction.
-func NewUnsignedSetAssetScriptWithProofs(chain byte, senderPK crypto.PublicKey, assetID crypto.Digest, script []byte, fee, timestamp uint64) *SetAssetScriptWithProofs {
-	return &SetAssetScriptWithProofs{Type: SetAssetScriptTransaction, Version: 1, ChainID: chain, SenderPK: senderPK, AssetID: assetID, Script: script, Fee: fee, Timestamp: timestamp}
+func NewUnsignedSetAssetScriptWithProofs(v, chain byte, senderPK crypto.PublicKey, assetID crypto.Digest, script []byte, fee, timestamp uint64) *SetAssetScriptWithProofs {
+	return &SetAssetScriptWithProofs{Type: SetAssetScriptTransaction, Version: v, ChainID: chain, SenderPK: senderPK, AssetID: assetID, Script: script, Fee: fee, Timestamp: timestamp}
 }
 
 func (tx SetAssetScriptWithProofs) Valid() (bool, error) {
@@ -4191,10 +4190,10 @@ func (tx *InvokeScriptWithProofs) Clone() *InvokeScriptWithProofs {
 }
 
 //NewUnsignedSetAssetScriptWithProofs creates new unsigned SetAssetScriptWithProofs transaction.
-func NewUnsignedInvokeScriptWithProofs(chain byte, senderPK crypto.PublicKey, scriptRecipient Recipient, call FunctionCall, payments ScriptPayments, feeAsset OptionalAsset, fee, timestamp uint64) *InvokeScriptWithProofs {
+func NewUnsignedInvokeScriptWithProofs(v, chain byte, senderPK crypto.PublicKey, scriptRecipient Recipient, call FunctionCall, payments ScriptPayments, feeAsset OptionalAsset, fee, timestamp uint64) *InvokeScriptWithProofs {
 	return &InvokeScriptWithProofs{
 		Type:            InvokeScriptTransaction,
-		Version:         1,
+		Version:         v,
 		ChainID:         chain,
 		SenderPK:        senderPK,
 		ScriptRecipient: scriptRecipient,
