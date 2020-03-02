@@ -408,7 +408,7 @@ func (r Recipient) ToProtobuf() (*g.Recipient, error) {
 		return nil, errors.Wrap(err, "failed to get address body")
 	}
 	if r.Address != nil {
-		return &g.Recipient{Recipient: &g.Recipient_Address{Address: addrBody}}, nil
+		return &g.Recipient{Recipient: &g.Recipient_PublicKeyHash{PublicKeyHash: addrBody}}, nil
 	}
 	return &g.Recipient{Recipient: &g.Recipient_Alias{Alias: r.Alias.Alias}}, nil
 }

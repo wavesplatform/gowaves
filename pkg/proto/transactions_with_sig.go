@@ -296,7 +296,7 @@ func (tx *TransferWithSig) Clone() *TransferWithSig {
 }
 
 //NewUnsignedTransferWithSig creates new TransferWithSig transaction without signature and ID.
-func NewUnsignedTransferWithSig(senderPK crypto.PublicKey, amountAsset, feeAsset OptionalAsset, timestamp, amount, fee uint64, recipient Recipient, attachment string) *TransferWithSig {
+func NewUnsignedTransferWithSig(senderPK crypto.PublicKey, amountAsset, feeAsset OptionalAsset, timestamp, amount, fee uint64, recipient Recipient, attachment Attachment) *TransferWithSig {
 	t := Transfer{
 		SenderPK:    senderPK,
 		Recipient:   recipient,
@@ -305,7 +305,7 @@ func NewUnsignedTransferWithSig(senderPK crypto.PublicKey, amountAsset, feeAsset
 		FeeAsset:    feeAsset,
 		Fee:         fee,
 		Timestamp:   timestamp,
-		Attachment:  Attachment(attachment),
+		Attachment:  attachment,
 	}
 	return &TransferWithSig{Type: TransferTransaction, Version: 1, Transfer: t}
 }
@@ -506,6 +506,31 @@ func (tx *TransferWithSig) ToProtobufSigned(scheme Scheme) (*g.SignedTransaction
 		Transaction: unsigned,
 		Proofs:      proofs.Bytes(),
 	}, nil
+}
+
+func (tx *TransferWithSig) UnmarshalJSON(data []byte) error {
+	tmp := struct {
+		Type      TransactionType   `json:"type"`
+		Version   byte              `json:"version,omitempty"`
+		ID        *crypto.Digest    `json:"id,omitempty"`
+		Signature *crypto.Signature `json:"signature,omitempty"`
+		Transfer
+	}{}
+	var err error
+	tmp.Attachment, err = TxAttachmentFromJson(data, TransferTransaction)
+	if err != nil {
+		return err
+	}
+
+	if err := json.Unmarshal(data, &tmp); err != nil {
+		return err
+	}
+	tx.Type = tmp.Type
+	tx.Version = tmp.Version
+	tx.ID = tmp.ID
+	tx.Signature = tmp.Signature
+	tx.Transfer = tmp.Transfer
+	return nil
 }
 
 //ReissueWithSig is a transaction that allows to issue new amount of existing token, if it was issued as reissuable.

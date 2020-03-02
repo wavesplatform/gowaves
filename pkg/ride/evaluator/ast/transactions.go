@@ -236,7 +236,11 @@ func newVariablesFromTransferWithSig(scheme byte, tx *proto.TransferWithSig) (ma
 	out["amount"] = NewLong(int64(tx.Amount))
 	out["assetId"] = makeOptionalAsset(tx.AmountAsset)
 	out["recipient"] = NewRecipientFromProtoRecipient(tx.Recipient)
-	out["attachment"] = NewBytes(tx.Attachment.Bytes())
+	attachmentBytes, err := tx.Attachment.Bytes()
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	out["attachment"] = NewBytes(attachmentBytes)
 	out["id"] = NewBytes(util.Dup(tx.ID.Bytes()))
 	out["fee"] = NewLong(int64(tx.Fee))
 	out["timestamp"] = NewLong(int64(tx.Timestamp))
@@ -268,7 +272,11 @@ func newVariablesFromTransferWithProofs(scheme byte, tx *proto.TransferWithProof
 	out["amount"] = NewLong(int64(tx.Amount))
 	out["assetId"] = makeOptionalAsset(tx.AmountAsset)
 	out["recipient"] = NewRecipientFromProtoRecipient(tx.Recipient)
-	out["attachment"] = NewBytes(tx.Attachment.Bytes())
+	attachmentBytes, err := tx.Attachment.Bytes()
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	out["attachment"] = NewBytes(attachmentBytes)
 	out["id"] = NewBytes(util.Dup(tx.ID.Bytes()))
 	out["fee"] = NewLong(int64(tx.Fee))
 	out["timestamp"] = NewLong(int64(tx.Timestamp))
@@ -436,7 +444,11 @@ func newVariablesFromMassTransferWithProofs(scheme proto.Scheme, tx *proto.MassT
 	}
 	out["transfers"] = transfers
 	out["transferCount"] = NewLong(int64(len(tx.Transfers)))
-	out["attachment"] = NewBytes(tx.Attachment.Bytes())
+	attachmentBytes, err := tx.Attachment.Bytes()
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	out["attachment"] = NewBytes(attachmentBytes)
 	id, err := tx.GetID()
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)

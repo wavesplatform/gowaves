@@ -1820,8 +1820,13 @@ func (s *stateManager) ScriptInfoByAccount(account proto.Recipient) (*proto.Scri
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
+	version, err := proto.VersionFromScriptBytes(scriptBytes)
+	if err != nil {
+		return nil, wrapErr(Other, err)
+	}
 	// TODO: switch complexity to DApp's complexity if verifier is incorrect for DApp.
 	return &proto.ScriptInfo{
+		Version:    version,
 		Bytes:      scriptBytes,
 		Base64:     text,
 		Complexity: complexity.verifierComplexity,
@@ -1838,7 +1843,12 @@ func (s *stateManager) ScriptInfoByAsset(assetID crypto.Digest) (*proto.ScriptIn
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
+	version, err := proto.VersionFromScriptBytes(scriptBytes)
+	if err != nil {
+		return nil, wrapErr(Other, err)
+	}
 	return &proto.ScriptInfo{
+		Version:    version,
 		Bytes:      scriptBytes,
 		Base64:     text,
 		Complexity: complexity.complexity,

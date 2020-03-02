@@ -47,7 +47,8 @@ func (a TransferWithSigBuilder) Build() (*proto.TransferWithSig, error) {
 		10000,
 		10000,
 		proto.NewRecipientFromAddress(addr),
-		"")
+		&proto.LegacyAttachment{},
+	)
 
 	err = t.Sign(proto.MainNetScheme, priv)
 	if err != nil {

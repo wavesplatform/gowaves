@@ -208,7 +208,7 @@ type AssetsMassTransfersReq struct {
 	Sender     proto.Address           `json:"sender"`
 	Transfers  []AssetsMassTransferReq `json:"transfers"`
 	Fee        uint64                  `json:"fee"`
-	Attachment proto.Attachment        `json:"attachment"`
+	Attachment proto.StringAttachment  `json:"attachment"`
 	Timestamp  uint64                  `json:"timestamp"`
 }
 

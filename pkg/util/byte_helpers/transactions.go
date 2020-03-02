@@ -256,7 +256,7 @@ func initTransferWithProofs() {
 		100000,
 		10000,
 		proto.NewRecipientFromAddress(addr),
-		"abc",
+		&proto.LegacyAttachment{Value: []byte("abc")},
 	)
 
 	_ = t.Sign(proto.MainNetScheme, sk)
@@ -491,7 +491,7 @@ func initMassTransferWithProofs() {
 		Recipient: proto.NewRecipientFromAddress(addr),
 		Amount:    100000,
 	}
-	t := proto.NewUnsignedMassTransferWithProofs(pk, *proto.NewOptionalAssetFromDigest(d), []proto.MassTransferEntry{entry}, 10000, TIMESTAMP, "attachment")
+	t := proto.NewUnsignedMassTransferWithProofs(pk, *proto.NewOptionalAssetFromDigest(d), []proto.MassTransferEntry{entry}, 10000, TIMESTAMP, &proto.LegacyAttachment{Value: []byte("attachment")})
 	_ = t.Sign(proto.MainNetScheme, sk)
 	b, err := t.MarshalBinary()
 	if err != nil {

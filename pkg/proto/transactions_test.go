@@ -837,7 +837,8 @@ func TestTransferWithSigValidations(t *testing.T) {
 		require.NoError(t, err)
 		a, err := NewOptionalAssetFromString("WAVES")
 		require.NoError(t, err)
-		tx := NewUnsignedTransferWithSig(spk, *a, *a, 0, tc.amount, tc.fee, rcp, tc.att)
+		att := LegacyAttachment{Value: []byte(tc.att)}
+		tx := NewUnsignedTransferWithSig(spk, *a, *a, 0, tc.amount, tc.fee, rcp, &att)
 		v, err := tx.Valid()
 		assert.False(t, v)
 		assert.EqualError(t, err, tc.err, "No expected error '%s'", tc.err)
@@ -874,7 +875,8 @@ func TestTransferWithSigProtobufRoundTrip(t *testing.T) {
 		require.NoError(t, err)
 		fa, err := NewOptionalAssetFromString(tc.feeAsset)
 		require.NoError(t, err)
-		tx := NewUnsignedTransferWithSig(pk, *aa, *fa, ts, tc.amount, tc.fee, rcp, tc.attachment)
+		att := LegacyAttachment{Value: []byte(tc.attachment)}
+		tx := NewUnsignedTransferWithSig(pk, *aa, *fa, ts, tc.amount, tc.fee, rcp, &att)
 		err = tx.GenerateID(tc.scheme)
 		require.NoError(t, err)
 		if bb, err := tx.MarshalToProtobuf(tc.scheme); assert.NoError(t, err) {
@@ -927,7 +929,8 @@ func TestTransferWithSigBinarySize(t *testing.T) {
 		require.NoError(t, err)
 		fa, err := NewOptionalAssetFromString(tc.feeAsset)
 		require.NoError(t, err)
-		tx := NewUnsignedTransferWithSig(pk, *aa, *fa, ts, tc.amount, tc.fee, rcp, tc.attachment)
+		att := LegacyAttachment{Value: []byte(tc.attachment)}
+		tx := NewUnsignedTransferWithSig(pk, *aa, *fa, ts, tc.amount, tc.fee, rcp, &att)
 		err = tx.Sign(tc.scheme, sk)
 		assert.NoError(t, err)
 		txBytes, err := tx.MarshalBinary()
@@ -966,7 +969,8 @@ func TestTransferWithSigBinaryRoundTrip(t *testing.T) {
 		require.NoError(t, err)
 		fa, err := NewOptionalAssetFromString(tc.feeAsset)
 		require.NoError(t, err)
-		tx := NewUnsignedTransferWithSig(pk, *aa, *fa, ts, tc.amount, tc.fee, rcp, tc.attachment)
+		att := LegacyAttachment{Value: []byte(tc.attachment)}
+		tx := NewUnsignedTransferWithSig(pk, *aa, *fa, ts, tc.amount, tc.fee, rcp, &att)
 		if bb, err := tx.BodyMarshalBinary(); assert.NoError(t, err) {
 			var atx TransferWithSig
 			if err := atx.bodyUnmarshalBinary(bb); assert.NoError(t, err) {
@@ -980,7 +984,7 @@ func TestTransferWithSigBinaryRoundTrip(t *testing.T) {
 				assert.Equal(t, tx.Amount, atx.Amount)
 				assert.Equal(t, tx.Fee, atx.Fee)
 				assert.Equal(t, tx.Timestamp, atx.Timestamp)
-				assert.Equal(t, tx.Attachment.String(), atx.Attachment.String())
+				assert.Equal(t, tx.Attachment, atx.Attachment)
 			}
 		}
 		if err := tx.Sign(tc.scheme, sk); assert.NoError(t, err) {
@@ -999,7 +1003,8 @@ func TestTransferWithSigBinaryRoundTrip(t *testing.T) {
 				assert.Equal(t, tc.amount, atx.Amount)
 				assert.Equal(t, tc.fee, atx.Fee)
 				assert.Equal(t, ts, atx.Timestamp)
-				assert.Equal(t, tc.attachment, atx.Attachment.String())
+				att := LegacyAttachment{Value: []byte(tc.attachment)}
+				assert.Equal(t, &att, atx.Attachment)
 			}
 		}
 		buf := &bytes.Buffer{}
@@ -1015,7 +1020,8 @@ func TestTransferWithSigBinaryRoundTrip(t *testing.T) {
 			assert.Equal(t, tc.amount, atx.Amount)
 			assert.Equal(t, tc.fee, atx.Fee)
 			assert.Equal(t, ts, atx.Timestamp)
-			assert.Equal(t, tc.attachment, atx.Attachment.String())
+			att := LegacyAttachment{Value: []byte(tc.attachment)}
+			assert.Equal(t, &att, atx.Attachment)
 		}
 	}
 }
@@ -1051,7 +1057,8 @@ func TestTransferWithSigFromMainNet(t *testing.T) {
 		require.NoError(t, err)
 		fa, err := NewOptionalAssetFromString(tc.feeAsset)
 		require.NoError(t, err)
-		tx := NewUnsignedTransferWithSig(pk, *aa, *fa, tc.timestamp, tc.amount, tc.fee, rcp, tc.attachment)
+		att := LegacyAttachment{Value: []byte(tc.attachment)}
+		tx := NewUnsignedTransferWithSig(pk, *aa, *fa, tc.timestamp, tc.amount, tc.fee, rcp, &att)
 		tx.Signature = &sig
 		tx.ID = &id
 		b, err := tx.BodyMarshalBinary()
@@ -1073,7 +1080,7 @@ func TestTransferWithSigToJSON(t *testing.T) {
 		attachment          string
 		expectedAttachment  string
 	}{
-		{"", "null", "", "null", "", ""},
+		{"", "null", "", "null", "", ",\"attachment\":\"\""},
 		{"", "null", "", "null", "blah-blah-blah", ",\"attachment\":\"dBfDSWhwLmZQy4zr2S3\""},
 		{"", "null", "B1u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ", "\"B1u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ\"", "blah-blah-blah", ",\"attachment\":\"dBfDSWhwLmZQy4zr2S3\""},
 		{"B1u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ", "\"B1u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ\"", "B1u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ", "\"B1u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ\"", "blah-blah-blah", ",\"attachment\":\"dBfDSWhwLmZQy4zr2S3\""},
@@ -1089,7 +1096,8 @@ func TestTransferWithSigToJSON(t *testing.T) {
 	for _, tc := range tests {
 		aa, _ := NewOptionalAssetFromString(tc.amountAsset)
 		fa, _ := NewOptionalAssetFromString(tc.feeAsset)
-		tx := NewUnsignedTransferWithSig(pk, *aa, *fa, ts, 100000000, 100000, rcp, tc.attachment)
+		att := LegacyAttachment{Value: []byte(tc.attachment)}
+		tx := NewUnsignedTransferWithSig(pk, *aa, *fa, ts, 100000000, 100000, rcp, &att)
 		if j, err := json.Marshal(tx); assert.NoError(t, err) {
 			ej := fmt.Sprintf("{\"type\":4,\"version\":1,\"senderPublicKey\":\"%s\",\"assetId\":%s,\"feeAssetId\":%s,\"timestamp\":%d,\"amount\":100000000,\"fee\":100000,\"recipient\":\"3PDgLyMzNLkHF2cV1y7NhpmyS2HQjd57SWu\"%s}", base58.Encode(pk[:]), tc.expectedAmountAsset, tc.expectedFeeAsset, ts, tc.expectedAttachment)
 			assert.Equal(t, ej, string(j))
@@ -1126,7 +1134,8 @@ func TestTransferWithProofsValidations(t *testing.T) {
 		require.NoError(t, err)
 		a, err := NewOptionalAssetFromString("WAVES")
 		require.NoError(t, err)
-		tx := NewUnsignedTransferWithProofs(spk, *a, *a, 0, tc.amount, tc.fee, rcp, tc.att)
+		att := LegacyAttachment{Value: []byte(tc.att)}
+		tx := NewUnsignedTransferWithProofs(spk, *a, *a, 0, tc.amount, tc.fee, rcp, &att)
 		v, err := tx.Valid()
 		assert.False(t, v)
 		assert.EqualError(t, err, tc.err, "No expected error '%s'", tc.err)
@@ -1164,7 +1173,8 @@ func TestTransferWithProofsFromMainNet(t *testing.T) {
 		require.NoError(t, err)
 		fa, err := NewOptionalAssetFromString(tc.feeAsset)
 		require.NoError(t, err)
-		tx := NewUnsignedTransferWithProofs(spk, *aa, *fa, tc.timestamp, tc.amount, tc.fee, rcp, tc.attachment)
+		att := LegacyAttachment{Value: []byte(tc.attachment)}
+		tx := NewUnsignedTransferWithProofs(spk, *aa, *fa, tc.timestamp, tc.amount, tc.fee, rcp, &att)
 		if b, err := tx.BodyMarshalBinary(); assert.NoError(t, err) {
 			if h, err := crypto.FastHash(b); assert.NoError(t, err) {
 				assert.Equal(t, id, h)
@@ -1204,7 +1214,8 @@ func TestTransferWithProofsJSONRoundTrip(t *testing.T) {
 		require.NoError(t, err)
 		fa, err := NewOptionalAssetFromString(tc.feeAsset)
 		require.NoError(t, err)
-		tx := NewUnsignedTransferWithProofs(pk, *aa, *fa, ts, tc.amount, tc.fee, rcp, tc.attachment)
+		att := LegacyAttachment{Value: []byte(tc.attachment)}
+		tx := NewUnsignedTransferWithProofs(pk, *aa, *fa, ts, tc.amount, tc.fee, rcp, &att)
 		if err := tx.Sign(tc.scheme, sk); assert.NoError(t, err) {
 			if js, err := json.Marshal(tx); assert.NoError(t, err) {
 				tx2 := &TransferWithProofs{}
@@ -1220,7 +1231,7 @@ func TestTransferWithProofsJSONRoundTrip(t *testing.T) {
 					assert.Equal(t, tx.Amount, tx2.Amount)
 					assert.Equal(t, tx.Fee, tx2.Fee)
 					assert.Equal(t, tx.Timestamp, tx2.Timestamp)
-					assert.Equal(t, tx.Attachment.String(), tx2.Attachment.String())
+					assert.Equal(t, tx.Attachment, tx2.Attachment)
 					_, err := tx2.MarshalBinary()
 					require.NoError(t, err)
 				}
@@ -1259,7 +1270,8 @@ func TestTransferWithProofsProtobufRoundTrip(t *testing.T) {
 		require.NoError(t, err)
 		fa, err := NewOptionalAssetFromString(tc.feeAsset)
 		require.NoError(t, err)
-		tx := NewUnsignedTransferWithProofs(pk, *aa, *fa, ts, tc.amount, tc.fee, rcp, tc.attachment)
+		att := LegacyAttachment{Value: []byte(tc.attachment)}
+		tx := NewUnsignedTransferWithProofs(pk, *aa, *fa, ts, tc.amount, tc.fee, rcp, &att)
 		err = tx.GenerateID(tc.scheme)
 		require.NoError(t, err)
 		if bb, err := tx.MarshalToProtobuf(tc.scheme); assert.NoError(t, err) {
@@ -1312,7 +1324,8 @@ func TestTransferWithProofsBinarySize(t *testing.T) {
 		require.NoError(t, err)
 		fa, err := NewOptionalAssetFromString(tc.feeAsset)
 		require.NoError(t, err)
-		tx := NewUnsignedTransferWithProofs(pk, *aa, *fa, ts, tc.amount, tc.fee, rcp, tc.attachment)
+		att := LegacyAttachment{Value: []byte(tc.attachment)}
+		tx := NewUnsignedTransferWithProofs(pk, *aa, *fa, ts, tc.amount, tc.fee, rcp, &att)
 		err = tx.Sign(tc.scheme, sk)
 		assert.NoError(t, err)
 		txBytes, err := tx.MarshalBinary()
@@ -1351,7 +1364,8 @@ func TestTransferWithProofsBinaryRoundTrip(t *testing.T) {
 		require.NoError(t, err)
 		fa, err := NewOptionalAssetFromString(tc.feeAsset)
 		require.NoError(t, err)
-		tx := NewUnsignedTransferWithProofs(pk, *aa, *fa, ts, tc.amount, tc.fee, rcp, tc.attachment)
+		att := LegacyAttachment{Value: []byte(tc.attachment)}
+		tx := NewUnsignedTransferWithProofs(pk, *aa, *fa, ts, tc.amount, tc.fee, rcp, &att)
 		if bb, err := tx.BodyMarshalBinary(); assert.NoError(t, err) {
 			var atx TransferWithProofs
 			if err := atx.BodyUnmarshalBinary(bb); assert.NoError(t, err) {
@@ -1366,7 +1380,7 @@ func TestTransferWithProofsBinaryRoundTrip(t *testing.T) {
 				assert.Equal(t, tx.Amount, atx.Amount)
 				assert.Equal(t, tx.Fee, atx.Fee)
 				assert.Equal(t, tx.Timestamp, atx.Timestamp)
-				assert.Equal(t, tx.Attachment.String(), atx.Attachment.String())
+				assert.Equal(t, tx.Attachment, atx.Attachment)
 			}
 		}
 		if err := tx.Sign(tc.scheme, sk); assert.NoError(t, err) {
@@ -1385,7 +1399,8 @@ func TestTransferWithProofsBinaryRoundTrip(t *testing.T) {
 				assert.Equal(t, tc.amount, atx.Amount)
 				assert.Equal(t, tc.fee, atx.Fee)
 				assert.Equal(t, ts, atx.Timestamp)
-				assert.Equal(t, tc.attachment, atx.Attachment.String())
+				att := LegacyAttachment{Value: []byte(tc.attachment)}
+				assert.Equal(t, &att, atx.Attachment)
 			}
 		}
 	}
@@ -1421,7 +1436,8 @@ func BenchmarkTransferWithProofsBinary(t *testing.B) {
 		require.NoError(t, err)
 		fa, err := NewOptionalAssetFromString(tc.feeAsset)
 		require.NoError(t, err)
-		tx := NewUnsignedTransferWithProofs(pk, *aa, *fa, ts, tc.amount, tc.fee, rcp, tc.attachment)
+		att := LegacyAttachment{Value: []byte(tc.attachment)}
+		tx := NewUnsignedTransferWithProofs(pk, *aa, *fa, ts, tc.amount, tc.fee, rcp, &att)
 		if err := tx.Sign(tc.scheme, sk); assert.NoError(t, err) {
 			if r, err := tx.Verify(tc.scheme, pk); assert.NoError(t, err) {
 				assert.True(t, r)
@@ -1435,6 +1451,49 @@ func BenchmarkTransferWithProofsBinary(t *testing.B) {
 	}
 }
 
+func TestTransferWithProofsToJSON_TypedAttachment(t *testing.T) {
+	tests := []struct {
+		amountAsset         string
+		expectedAmountAsset string
+		feeAsset            string
+		expectedFeeAsset    string
+		expectedAttachment  string
+		attachment          Attachment
+	}{
+		{"B1u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ", "\"B1u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ\"", "B1u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ", "\"B1u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ\"", ",\"attachment\":{\"type\":\"integer\",\"value\":1372374}", &IntAttachment{Value: 1372374}},
+		{"B1u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ", "\"B1u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ\"", "B1u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ", "\"B1u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ\"", ",\"attachment\":{\"type\":\"boolean\",\"value\":true}", &BoolAttachment{Value: true}},
+		{"B1u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ", "\"B1u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ\"", "B1u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ", "\"B1u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ\"", ",\"attachment\":{\"type\":\"string\",\"value\":\"string\"}", &StringAttachment{Value: "string"}},
+		{"B1u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ", "\"B1u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ\"", "B1u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ", "\"B1u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ\"", ",\"attachment\":{\"type\":\"binary\",\"value\":\"base64:AQ==\"}", &BinaryAttachment{Value: []byte{1}}},
+	}
+	seed, err := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
+	require.NoError(t, err)
+	sk, pk, err := crypto.GenerateKeyPair(seed)
+	require.NoError(t, err)
+	addr, err := NewAddressFromString("3PDgLyMzNLkHF2cV1y7NhpmyS2HQjd57SWu")
+	require.NoError(t, err)
+	rcp := NewRecipientFromAddress(addr)
+	ts := uint64(time.Now().UnixNano() / 1000000)
+	for _, tc := range tests {
+		aa, err := NewOptionalAssetFromString(tc.amountAsset)
+		require.NoError(t, err)
+		fa, err := NewOptionalAssetFromString(tc.feeAsset)
+		require.NoError(t, err)
+		tx := NewUnsignedTransferWithProofs(pk, *aa, *fa, ts, 100000000, 100000, rcp, tc.attachment)
+		tx.Version = 3
+		if j, err := json.Marshal(tx); assert.NoError(t, err) {
+			ej := fmt.Sprintf("{\"type\":4,\"version\":3,\"senderPublicKey\":\"%s\",\"assetId\":%s,\"feeAssetId\":%s,\"timestamp\":%d,\"amount\":100000000,\"fee\":100000,\"recipient\":\"3PDgLyMzNLkHF2cV1y7NhpmyS2HQjd57SWu\"%s}", base58.Encode(pk[:]), tc.expectedAmountAsset, tc.expectedFeeAsset, ts, tc.expectedAttachment)
+			assert.Equal(t, ej, string(j))
+		}
+		if err := tx.Sign(MainNetScheme, sk); assert.NoError(t, err) {
+			if j, err := json.Marshal(tx); assert.NoError(t, err) {
+				ej := fmt.Sprintf("{\"type\":4,\"version\":3,\"id\":\"%s\",\"proofs\":[\"%s\"],\"senderPublicKey\":\"%s\",\"assetId\":%s,\"feeAssetId\":%s,\"timestamp\":%d,\"amount\":100000000,\"fee\":100000,\"recipient\":\"3PDgLyMzNLkHF2cV1y7NhpmyS2HQjd57SWu\"%s}",
+					base58.Encode(tx.ID[:]), base58.Encode(tx.Proofs.Proofs[0]), base58.Encode(pk[:]), tc.expectedAmountAsset, tc.expectedFeeAsset, ts, tc.expectedAttachment)
+				assert.Equal(t, ej, string(j))
+			}
+		}
+	}
+}
+
 func TestTransferWithProofsToJSON(t *testing.T) {
 	tests := []struct {
 		amountAsset         string
@@ -1444,7 +1503,7 @@ func TestTransferWithProofsToJSON(t *testing.T) {
 		attachment          string
 		expectedAttachment  string
 	}{
-		{"", "null", "", "null", "", ""},
+		{"", "null", "", "null", "", ",\"attachment\":\"\""},
 		{"", "null", "", "null", "blah-blah-blah", ",\"attachment\":\"dBfDSWhwLmZQy4zr2S3\""},
 		{"", "null", "B1u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ", "\"B1u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ\"", "blah-blah-blah", ",\"attachment\":\"dBfDSWhwLmZQy4zr2S3\""},
 		{"B1u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ", "\"B1u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ\"", "B1u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ", "\"B1u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ\"", "blah-blah-blah", ",\"attachment\":\"dBfDSWhwLmZQy4zr2S3\""},
@@ -1462,7 +1521,8 @@ func TestTransferWithProofsToJSON(t *testing.T) {
 		require.NoError(t, err)
 		fa, err := NewOptionalAssetFromString(tc.feeAsset)
 		require.NoError(t, err)
-		tx := NewUnsignedTransferWithProofs(pk, *aa, *fa, ts, 100000000, 100000, rcp, tc.attachment)
+		att := LegacyAttachment{Value: []byte(tc.attachment)}
+		tx := NewUnsignedTransferWithProofs(pk, *aa, *fa, ts, 100000000, 100000, rcp, &att)
 		if j, err := json.Marshal(tx); assert.NoError(t, err) {
 			ej := fmt.Sprintf("{\"type\":4,\"version\":2,\"senderPublicKey\":\"%s\",\"assetId\":%s,\"feeAssetId\":%s,\"timestamp\":%d,\"amount\":100000000,\"fee\":100000,\"recipient\":\"3PDgLyMzNLkHF2cV1y7NhpmyS2HQjd57SWu\"%s}", base58.Encode(pk[:]), tc.expectedAmountAsset, tc.expectedFeeAsset, ts, tc.expectedAttachment)
 			assert.Equal(t, ej, string(j))
@@ -1496,6 +1556,38 @@ func TestTransferWithProofsFromJSON(t *testing.T) {
 	assert.Equal(t, 1, len(tx.Proofs.Proofs))
 	assert.ElementsMatch(t, spk[:], tx.SenderPK[:])
 	assert.ElementsMatch(t, addr[:], tx.Recipient.Address[:])
+}
+
+func TestTransferWithProofsFromJSON_TypedAttachment(t *testing.T) {
+	tests := []struct {
+		js         string
+		attachment Attachment
+	}{
+		{`{"senderPublicKey":"9uVCXj92oiUdtMWkwSLyKXRnHju81m3aGRzU2ZhJ91nF","recipient":"3FcSgww3tKZ7feQVmcnPFmRxsjqBodYz63x","amount":1,"assetId":null,"fee":100000,"feeAssetId":null,"attachment":{"type":"integer","value":190534},"timestamp":1549972745180,"proofs":["45yF4TTn9CtyJbH7BPVZYK92DFhuHCCDCn9fuEuFrcDhG7Fa4SbsmHi2ouQKw8u1AxkqsrPbeEPqiNHZfFw35Z3M"],"version":3,"type":4}`, &IntAttachment{Value: 190534}},
+		{`{"senderPublicKey":"9uVCXj92oiUdtMWkwSLyKXRnHju81m3aGRzU2ZhJ91nF","recipient":"3FcSgww3tKZ7feQVmcnPFmRxsjqBodYz63x","amount":1,"assetId":null,"fee":100000,"feeAssetId":null,"attachment":{"type":"boolean","value":false},"timestamp":1549972745180,"proofs":["45yF4TTn9CtyJbH7BPVZYK92DFhuHCCDCn9fuEuFrcDhG7Fa4SbsmHi2ouQKw8u1AxkqsrPbeEPqiNHZfFw35Z3M"],"version":3,"type":4}`, &BoolAttachment{Value: false}},
+		{`{"senderPublicKey":"9uVCXj92oiUdtMWkwSLyKXRnHju81m3aGRzU2ZhJ91nF","recipient":"3FcSgww3tKZ7feQVmcnPFmRxsjqBodYz63x","amount":1,"assetId":null,"fee":100000,"feeAssetId":null,"attachment":{"type":"string","value":"real string"},"timestamp":1549972745180,"proofs":["45yF4TTn9CtyJbH7BPVZYK92DFhuHCCDCn9fuEuFrcDhG7Fa4SbsmHi2ouQKw8u1AxkqsrPbeEPqiNHZfFw35Z3M"],"version":3,"type":4}`, &StringAttachment{Value: "real string"}},
+		{`{"senderPublicKey":"9uVCXj92oiUdtMWkwSLyKXRnHju81m3aGRzU2ZhJ91nF","recipient":"3FcSgww3tKZ7feQVmcnPFmRxsjqBodYz63x","amount":1,"assetId":null,"fee":100000,"feeAssetId":null,"attachment":{"type":"binary","value":"base64:AQ=="},"timestamp":1549972745180,"proofs":["45yF4TTn9CtyJbH7BPVZYK92DFhuHCCDCn9fuEuFrcDhG7Fa4SbsmHi2ouQKw8u1AxkqsrPbeEPqiNHZfFw35Z3M"],"version":3,"type":4}`, &BinaryAttachment{Value: []byte{1}}},
+	}
+	for _, tc := range tests {
+		spk, err := crypto.NewPublicKeyFromBase58("9uVCXj92oiUdtMWkwSLyKXRnHju81m3aGRzU2ZhJ91nF")
+		require.NoError(t, err)
+		addr, err := NewAddressFromString("3FcSgww3tKZ7feQVmcnPFmRxsjqBodYz63x")
+		require.NoError(t, err)
+		var tx TransferWithProofs
+		err = json.Unmarshal([]byte(tc.js), &tx)
+		require.NoError(t, err)
+		assert.Equal(t, TransferTransaction, tx.Type)
+		assert.Equal(t, 3, int(tx.Version))
+		assert.Equal(t, uint64(1549972745180), tx.Timestamp)
+		assert.Equal(t, 100000, int(tx.Fee))
+		assert.Equal(t, 1, int(tx.Amount))
+		assert.False(t, tx.AmountAsset.Present)
+		assert.False(t, tx.FeeAsset.Present)
+		assert.Equal(t, 1, len(tx.Proofs.Proofs))
+		assert.ElementsMatch(t, spk[:], tx.SenderPK[:])
+		assert.ElementsMatch(t, addr[:], tx.Recipient.Address[:])
+		assert.Equal(t, tc.attachment, tx.Attachment)
+	}
 }
 
 func TestReissueWithSigValidations(t *testing.T) {
@@ -4409,7 +4501,8 @@ func TestMassTransferWithProofsValidations(t *testing.T) {
 	for _, tc := range tests {
 		spk, _ := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
 		a, _ := NewOptionalAssetFromString(tc.asset)
-		tx := NewUnsignedMassTransferWithProofs(spk, *a, tc.transfers, tc.fee, 0, tc.attachment)
+		att := LegacyAttachment{Value: []byte(tc.attachment)}
+		tx := NewUnsignedMassTransferWithProofs(spk, *a, tc.transfers, tc.fee, 0, &att)
 		v, err := tx.Valid()
 		assert.False(t, v)
 		assert.EqualError(t, err, tc.err)
@@ -4441,7 +4534,8 @@ func TestMassTransferWithProofsFromMainNet(t *testing.T) {
 			amount := tc.amounts[i]
 			transfers[i] = MassTransferEntry{NewRecipientFromAddress(addr), amount}
 		}
-		tx := NewUnsignedMassTransferWithProofs(spk, *a, transfers, tc.fee, tc.timestamp, tc.attachment)
+		att := LegacyAttachment{Value: []byte(tc.attachment)}
+		tx := NewUnsignedMassTransferWithProofs(spk, *a, transfers, tc.fee, tc.timestamp, &att)
 		if b, err := tx.BodyMarshalBinary(); assert.NoError(t, err) {
 			if h, err := crypto.FastHash(b); assert.NoError(t, err) {
 				assert.Equal(t, id, h)
@@ -4469,7 +4563,8 @@ func TestMassTransferWithProofsProtobufRoundTrip(t *testing.T) {
 	for _, tc := range tests {
 		ts := uint64(time.Now().UnixNano() / 1000000)
 		a, _ := NewOptionalAssetFromString(tc.asset)
-		tx := NewUnsignedMassTransferWithProofs(pk, *a, tc.transfers, tc.fee, ts, tc.attachment)
+		att := LegacyAttachment{Value: []byte(tc.attachment)}
+		tx := NewUnsignedMassTransferWithProofs(pk, *a, tc.transfers, tc.fee, ts, &att)
 		err := tx.GenerateID(MainNetScheme)
 		require.NoError(t, err)
 		if bb, err := tx.MarshalToProtobuf(MainNetScheme); assert.NoError(t, err) {
@@ -4510,7 +4605,8 @@ func TestMassTransferWithProofsBinarySize(t *testing.T) {
 	for _, tc := range tests {
 		ts := uint64(time.Now().UnixNano() / 1000000)
 		a, _ := NewOptionalAssetFromString(tc.asset)
-		tx := NewUnsignedMassTransferWithProofs(pk, *a, tc.transfers, tc.fee, ts, tc.attachment)
+		att := LegacyAttachment{Value: []byte(tc.attachment)}
+		tx := NewUnsignedMassTransferWithProofs(pk, *a, tc.transfers, tc.fee, ts, &att)
 		err = tx.Sign(MainNetScheme, sk)
 		assert.NoError(t, err)
 		txBytes, err := tx.MarshalBinary()
@@ -4537,7 +4633,8 @@ func TestMassTransferWithProofsBinaryRoundTrip(t *testing.T) {
 	for _, tc := range tests {
 		ts := uint64(time.Now().UnixNano() / 1000000)
 		a, _ := NewOptionalAssetFromString(tc.asset)
-		tx := NewUnsignedMassTransferWithProofs(pk, *a, tc.transfers, tc.fee, ts, tc.attachment)
+		att := LegacyAttachment{Value: []byte(tc.attachment)}
+		tx := NewUnsignedMassTransferWithProofs(pk, *a, tc.transfers, tc.fee, ts, &att)
 		if bb, err := tx.BodyMarshalBinary(); assert.NoError(t, err) {
 			var atx MassTransferWithProofs
 			if err := atx.bodyUnmarshalBinary(bb); assert.NoError(t, err) {
@@ -4566,7 +4663,8 @@ func TestMassTransferWithProofsBinaryRoundTrip(t *testing.T) {
 				assert.ElementsMatch(t, tc.transfers, atx.Transfers)
 				assert.Equal(t, tc.fee, atx.Fee)
 				assert.Equal(t, ts, atx.Timestamp)
-				assert.Equal(t, tc.attachment, atx.Attachment.String())
+				att := LegacyAttachment{Value: []byte(tc.attachment)}
+				assert.Equal(t, &att, atx.Attachment)
 			}
 		}
 	}
@@ -4583,8 +4681,8 @@ func TestMassTransferWithProofsToJSON(t *testing.T) {
 		expectedAttachment string
 	}{
 		{"HmNSH2g1SWYHzuX1G4VCjL63TFs7PXDjsTAHzrAhSRCK", "\"HmNSH2g1SWYHzuX1G4VCjL63TFs7PXDjsTAHzrAhSRCK\"", []MassTransferEntry{{NewRecipientFromAddress(addr), 9876543210}}, 1234567890, "blah-blah-blah", ",\"attachment\":\"dBfDSWhwLmZQy4zr2S3\""},
-		{"HmNSH2g1SWYHzuX1G4VCjL63TFs7PXDjsTAHzrAhSRCK", "\"HmNSH2g1SWYHzuX1G4VCjL63TFs7PXDjsTAHzrAhSRCK\"", []MassTransferEntry{{NewRecipientFromAddress(addr), 12345}, {NewRecipientFromAddress(addr), 67890}}, 987654321, "", ""},
-		{"", "null", []MassTransferEntry{{NewRecipientFromAddress(addr), 12345}, {NewRecipientFromAddress(addr), 67890}}, 987654321, "", ""},
+		{"HmNSH2g1SWYHzuX1G4VCjL63TFs7PXDjsTAHzrAhSRCK", "\"HmNSH2g1SWYHzuX1G4VCjL63TFs7PXDjsTAHzrAhSRCK\"", []MassTransferEntry{{NewRecipientFromAddress(addr), 12345}, {NewRecipientFromAddress(addr), 67890}}, 987654321, "", ",\"attachment\":\"\""},
+		{"", "null", []MassTransferEntry{{NewRecipientFromAddress(addr), 12345}, {NewRecipientFromAddress(addr), 67890}}, 987654321, "", ",\"attachment\":\"\""},
 	}
 	seed, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
 	sk, pk, err := crypto.GenerateKeyPair(seed)
@@ -4592,7 +4690,8 @@ func TestMassTransferWithProofsToJSON(t *testing.T) {
 	for _, tc := range tests {
 		ts := uint64(time.Now().UnixNano() / 1000000)
 		a, _ := NewOptionalAssetFromString(tc.asset)
-		tx := NewUnsignedMassTransferWithProofs(pk, *a, tc.transfers, tc.fee, ts, tc.attachment)
+		att := LegacyAttachment{Value: []byte(tc.attachment)}
+		tx := NewUnsignedMassTransferWithProofs(pk, *a, tc.transfers, tc.fee, ts, &att)
 		if j, err := json.Marshal(tx); assert.NoError(t, err) {
 			var sb strings.Builder
 			for i, t := range tc.transfers {

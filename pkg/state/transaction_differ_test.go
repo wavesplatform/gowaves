@@ -109,7 +109,7 @@ func TestCreateDiffPayment(t *testing.T) {
 }
 
 func createTransferWithSig(t *testing.T) *proto.TransferWithSig {
-	tx := proto.NewUnsignedTransferWithSig(testGlobal.senderInfo.pk, *(testGlobal.asset0.asset), *(testGlobal.asset0.asset), defaultTimestamp, defaultAmount, defaultFee, proto.NewRecipientFromAddress(testGlobal.recipientInfo.addr), "attachment")
+	tx := proto.NewUnsignedTransferWithSig(testGlobal.senderInfo.pk, *(testGlobal.asset0.asset), *(testGlobal.asset0.asset), defaultTimestamp, defaultAmount, defaultFee, proto.NewRecipientFromAddress(testGlobal.recipientInfo.addr), &proto.LegacyAttachment{Value: []byte("attachment")})
 	err := tx.Sign(proto.MainNetScheme, testGlobal.senderInfo.sk)
 	assert.NoError(t, err, "Sign() failed")
 	return tx
@@ -171,7 +171,7 @@ func TestCreateDiffTransferWithSig(t *testing.T) {
 }
 
 func createTransferWithProofs(t *testing.T) *proto.TransferWithProofs {
-	tx := proto.NewUnsignedTransferWithProofs(testGlobal.senderInfo.pk, *(testGlobal.asset0.asset), *(testGlobal.asset0.asset), defaultTimestamp, defaultAmount, defaultFee, proto.NewRecipientFromAddress(testGlobal.recipientInfo.addr), "attachment")
+	tx := proto.NewUnsignedTransferWithProofs(testGlobal.senderInfo.pk, *(testGlobal.asset0.asset), *(testGlobal.asset0.asset), defaultTimestamp, defaultAmount, defaultFee, proto.NewRecipientFromAddress(testGlobal.recipientInfo.addr), &proto.LegacyAttachment{Value: []byte("attachment")})
 	err := tx.Sign(proto.MainNetScheme, testGlobal.senderInfo.sk)
 	assert.NoError(t, err, "Sign() failed")
 	return tx
@@ -817,7 +817,7 @@ func generateMassTransferEntries(t *testing.T, entriesNum int) []proto.MassTrans
 }
 
 func createMassTransferWithProofs(t *testing.T, transfers []proto.MassTransferEntry) *proto.MassTransferWithProofs {
-	tx := proto.NewUnsignedMassTransferWithProofs(testGlobal.senderInfo.pk, *testGlobal.asset0.asset, transfers, defaultFee, defaultTimestamp, "attachment")
+	tx := proto.NewUnsignedMassTransferWithProofs(testGlobal.senderInfo.pk, *testGlobal.asset0.asset, transfers, defaultFee, defaultTimestamp, &proto.LegacyAttachment{Value: []byte("attachment")})
 	err := tx.Sign(proto.MainNetScheme, testGlobal.senderInfo.sk)
 	assert.NoError(t, err, "tx.Sign() failed")
 	return tx

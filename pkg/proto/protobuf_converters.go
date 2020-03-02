@@ -7,6 +7,15 @@ import (
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated"
 )
 
+func Int64ToProtobuf(val int64) ([]byte, error) {
+	buf := &protobuf.Buffer{}
+	buf.SetDeterministic(true)
+	if err := buf.EncodeVarint(uint64(val)); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
+
 func MarshalToProtobufDeterministic(pb protobuf.Message) ([]byte, error) {
 	buf := &protobuf.Buffer{}
 	buf.SetDeterministic(true)
@@ -174,13 +183,6 @@ func (c *ProtobufConverter) publicKey(pk []byte) crypto.PublicKey {
 	return r
 }
 
-func (c *ProtobufConverter) string(bytes []byte) string {
-	if c.err != nil {
-		return ""
-	}
-	return string(bytes)
-}
-
 func (c *ProtobufConverter) script(script *g.Script) Script {
 	if c.err != nil {
 		return nil
@@ -208,8 +210,8 @@ func (c *ProtobufConverter) Recipient(scheme byte, recipient *g.Recipient) (Reci
 		return Recipient{}, errors.New("empty recipient")
 	}
 	switch r := recipient.Recipient.(type) {
-	case *g.Recipient_Address:
-		addr, err := c.Address(scheme, r.Address)
+	case *g.Recipient_PublicKeyHash:
+		addr, err := c.Address(scheme, r.PublicKeyHash)
 		if err != nil {
 			return Recipient{}, err
 		}
@@ -364,6 +366,36 @@ func (c *ProtobufConverter) transfers(scheme byte, transfers []*g.MassTransferTr
 	return r
 }
 
+func (c *ProtobufConverter) attachment(att *g.Attachment, untyped bool) Attachment {
+	if c.err != nil {
+		return nil
+	}
+	if att == nil {
+		c.err = errors.New("empty attachment")
+		return nil
+	}
+	if untyped {
+		binaryAttachment, ok := att.Attachment.(*g.Attachment_BinaryValue)
+		if !ok {
+			c.err = errors.New("trying to convert non-binary attachment as untyped")
+			return nil
+		}
+		return &LegacyAttachment{Value: binaryAttachment.BinaryValue}
+	}
+	switch t := att.Attachment.(type) {
+	case *g.Attachment_IntValue:
+		return &IntAttachment{t.IntValue}
+	case *g.Attachment_BoolValue:
+		return &BoolAttachment{t.BoolValue}
+	case *g.Attachment_BinaryValue:
+		return &BinaryAttachment{t.BinaryValue}
+	case *g.Attachment_StringValue:
+		return &StringAttachment{t.StringValue}
+	}
+	c.err = errors.New("unsupported attachment type")
+	return nil
+}
+
 func (c *ProtobufConverter) entry(entry *g.DataTransactionData_DataEntry) DataEntry {
 	if c.err != nil {
 		return nil
@@ -486,8 +518,8 @@ func (c *ProtobufConverter) Transaction(tx *g.Transaction) (Transaction, error) 
 	case *g.Transaction_Issue:
 		pi := Issue{
 			SenderPK:    c.publicKey(tx.SenderPublicKey),
-			Name:        c.string(d.Issue.Name),
-			Description: c.string(d.Issue.Description),
+			Name:        d.Issue.Name,
+			Description: d.Issue.Description,
 			Quantity:    c.uint64(d.Issue.Amount),
 			Decimals:    c.byte(d.Issue.Decimals),
 			Reissuable:  d.Issue.Reissuable,
@@ -518,6 +550,12 @@ func (c *ProtobufConverter) Transaction(tx *g.Transaction) (Transaction, error) 
 			c.reset()
 			return nil, err
 		}
+		protobufVersion, ok := ProtobufTransactionsVersions[TransferTransaction]
+		if !ok {
+			c.reset()
+			return nil, errors.New("can not find protobuf version of TransferTransaction")
+		}
+		untyped := v < protobufVersion
 		pt := Transfer{
 			SenderPK:    c.publicKey(tx.SenderPublicKey),
 			AmountAsset: aa,
@@ -526,7 +564,7 @@ func (c *ProtobufConverter) Transaction(tx *g.Transaction) (Transaction, error) 
 			Amount:      amount,
 			Fee:         fee,
 			Recipient:   rcp,
-			Attachment:  Attachment(c.string(d.Transfer.Attachment)),
+			Attachment:  c.attachment(d.Transfer.Attachment, untyped),
 		}
 		if tx.Version >= 2 {
 			rtx = &TransferWithProofs{
@@ -711,6 +749,12 @@ func (c *ProtobufConverter) Transaction(tx *g.Transaction) (Transaction, error) 
 		}
 
 	case *g.Transaction_MassTransfer:
+		protobufVersion, ok := ProtobufTransactionsVersions[MassTransferTransaction]
+		if !ok {
+			c.reset()
+			return nil, errors.New("can not find protobuf version of MassTransferTransaction")
+		}
+		untyped := v < protobufVersion
 		rtx = &MassTransferWithProofs{
 			Type:       MassTransferTransaction,
 			Version:    v,
@@ -719,7 +763,7 @@ func (c *ProtobufConverter) Transaction(tx *g.Transaction) (Transaction, error) 
 			Transfers:  c.transfers(scheme, d.MassTransfer.Transfers),
 			Timestamp:  ts,
 			Fee:        c.amount(tx.Fee),
-			Attachment: Attachment(c.string(d.MassTransfer.Attachment)),
+			Attachment: c.attachment(d.MassTransfer.Attachment, untyped),
 		}
 
 	case *g.Transaction_DataTransaction:
@@ -1021,6 +1065,7 @@ func (c *ProtobufConverter) BlockHeader(block *g.Block) (BlockHeader, error) {
 		TransactionCount:     len(block.Transactions),
 		GenPublicKey:         c.publicKey(block.Header.Generator),
 		BlockSignature:       c.signature(block.Signature),
+		TransactionsRoot:     block.Header.TransactionsRoot,
 	}
 	if header.Version < NgBlockVersion {
 		// For compatibility with custom format unmarshal.

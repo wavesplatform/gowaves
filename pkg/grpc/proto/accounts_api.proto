@@ -6,6 +6,7 @@ option go_package = "generated";
 
 import "transactions_api.proto";
 import "amount.proto";
+import "script.proto";
 import "transaction.proto";
 import "google/protobuf/wrappers.proto";
 
@@ -53,7 +54,7 @@ message DataEntryResponse {
 }
 
 message ScriptData {
-    bytes script_bytes = 1;
+    Script script_bytes = 1;
     string script_text = 2;
     int64 complexity = 3;
 }

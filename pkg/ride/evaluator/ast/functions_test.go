@@ -251,7 +251,7 @@ func TestNativeTransactionByID(t *testing.T) {
 		1,
 		10000,
 		proto.NewRecipientFromAddress(sender),
-		"",
+		&proto.LegacyAttachment{},
 	)
 	require.NoError(t, err)
 	require.NoError(t, transferWithSig.Sign(proto.MainNetScheme, secret))

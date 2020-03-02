@@ -67,7 +67,7 @@ func TestGetTransactions(t *testing.T) {
 
 	// By recipient.
 	req = &g.TransactionsRequest{
-		Recipient: &g.Recipient{Recipient: &g.Recipient_Address{Address: recipientBody}},
+		Recipient: &g.Recipient{Recipient: &g.Recipient_PublicKeyHash{PublicKeyHash: recipientBody}},
 	}
 	stream, err = cl.GetTransactions(ctx, req)
 	assert.NoError(t, err)
@@ -79,7 +79,7 @@ func TestGetTransactions(t *testing.T) {
 
 	// By recipient and ID.
 	req = &g.TransactionsRequest{
-		Recipient:      &g.Recipient{Recipient: &g.Recipient_Address{Address: recipientBody}},
+		Recipient:      &g.Recipient{Recipient: &g.Recipient_PublicKeyHash{PublicKeyHash: recipientBody}},
 		TransactionIds: [][]byte{id.Bytes()},
 	}
 	stream, err = cl.GetTransactions(ctx, req)
@@ -93,7 +93,7 @@ func TestGetTransactions(t *testing.T) {
 	// By sender, recipient and ID.
 	req = &g.TransactionsRequest{
 		Sender:         senderBody,
-		Recipient:      &g.Recipient{Recipient: &g.Recipient_Address{Address: recipientBody}},
+		Recipient:      &g.Recipient{Recipient: &g.Recipient_PublicKeyHash{PublicKeyHash: recipientBody}},
 		TransactionIds: [][]byte{id.Bytes()},
 	}
 	stream, err = cl.GetTransactions(ctx, req)
@@ -132,7 +132,7 @@ func TestGetStatuses(t *testing.T) {
 	sk, pk, err := crypto.GenerateKeyPair([]byte("whatever"))
 	assert.NoError(t, err)
 	waves := proto.OptionalAsset{Present: false}
-	tx := proto.NewUnsignedTransferWithSig(pk, waves, waves, 100, 1, 100, proto.NewRecipientFromAddress(addr), "attachment")
+	tx := proto.NewUnsignedTransferWithSig(pk, waves, waves, 100, 1, 100, proto.NewRecipientFromAddress(addr), &proto.LegacyAttachment{Value: []byte("attachment")})
 	err = tx.Sign(server.scheme, sk)
 	assert.NoError(t, err)
 	txBytes, err := tx.MarshalBinary()
@@ -201,7 +201,7 @@ func TestGetUnconfirmed(t *testing.T) {
 	senderAddrBody, err := senderAddr.Body()
 	assert.NoError(t, err)
 	waves := proto.OptionalAsset{Present: false}
-	tx := proto.NewUnsignedTransferWithSig(pk, waves, waves, 100, 1, 100, proto.NewRecipientFromAddress(addr), "attachment")
+	tx := proto.NewUnsignedTransferWithSig(pk, waves, waves, 100, 1, 100, proto.NewRecipientFromAddress(addr), &proto.LegacyAttachment{Value: []byte("attachment")})
 	err = tx.Sign(server.scheme, sk)
 	assert.NoError(t, err)
 	txBytes, err := tx.MarshalBinary()
@@ -228,7 +228,7 @@ func TestGetUnconfirmed(t *testing.T) {
 
 	// By recipient.
 	req = &g.TransactionsRequest{
-		Recipient: &g.Recipient{Recipient: &g.Recipient_Address{Address: addrBody}},
+		Recipient: &g.Recipient{Recipient: &g.Recipient_PublicKeyHash{PublicKeyHash: addrBody}},
 	}
 	stream, err = cl.GetUnconfirmed(ctx, req)
 	assert.NoError(t, err)
@@ -255,7 +255,7 @@ func TestGetUnconfirmed(t *testing.T) {
 	// By sender, recipient and ID.
 	req = &g.TransactionsRequest{
 		Sender:         senderAddrBody,
-		Recipient:      &g.Recipient{Recipient: &g.Recipient_Address{Address: addrBody}},
+		Recipient:      &g.Recipient{Recipient: &g.Recipient_PublicKeyHash{PublicKeyHash: addrBody}},
 		TransactionIds: [][]byte{id},
 	}
 	stream, err = cl.GetUnconfirmed(ctx, req)
@@ -294,7 +294,7 @@ func TestSign(t *testing.T) {
 	addr, err := proto.NewAddressFromString("3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ")
 	assert.NoError(t, err)
 	waves := proto.OptionalAsset{Present: false}
-	tx := proto.NewUnsignedTransferWithSig(pk, waves, waves, 100, 1, 100, proto.NewRecipientFromAddress(addr), "attachment")
+	tx := proto.NewUnsignedTransferWithSig(pk, waves, waves, 100, 1, 100, proto.NewRecipientFromAddress(addr), &proto.LegacyAttachment{Value: []byte("attachment")})
 	err = tx.GenerateID(server.scheme)
 	assert.NoError(t, err)
 	txProto, err := tx.ToProtobuf(server.scheme)
@@ -341,7 +341,7 @@ func TestBroadcast(t *testing.T) {
 	sk, pk, err := crypto.GenerateKeyPair([]byte("whatever"))
 	assert.NoError(t, err)
 	waves := proto.OptionalAsset{Present: false}
-	tx := proto.NewUnsignedTransferWithSig(pk, waves, waves, 100, 1, 100, proto.NewRecipientFromAddress(addr), "attachment")
+	tx := proto.NewUnsignedTransferWithSig(pk, waves, waves, 100, 1, 100, proto.NewRecipientFromAddress(addr), &proto.LegacyAttachment{Value: []byte("attachment")})
 	err = tx.Sign(server.scheme, sk)
 	assert.NoError(t, err)
 	txProto, err := tx.ToProtobufSigned(server.scheme)

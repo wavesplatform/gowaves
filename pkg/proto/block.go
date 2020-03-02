@@ -48,6 +48,7 @@ type BlockHeader struct {
 	TransactionCount       int              `json:"transactionCount"`
 	GenPublicKey           crypto.PublicKey `json:"genPublicKey"`
 	BlockSignature         crypto.Signature `json:"signature"`
+	TransactionsRoot       B58Bytes         `json:"transactionsRoot,omitempty"`
 
 	Height uint64 `json:"height"`
 }

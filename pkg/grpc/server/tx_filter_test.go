@@ -50,7 +50,7 @@ func TestTxFilter(t *testing.T) {
 	// Test sender and recipient.
 	req = &g.TransactionsRequest{
 		Sender:    addrBody,
-		Recipient: &g.Recipient{Recipient: &g.Recipient_Address{Address: addr2Body}},
+		Recipient: &g.Recipient{Recipient: &g.Recipient_PublicKeyHash{PublicKeyHash: addr2Body}},
 	}
 	filter, err = newTxFilter(scheme, req)
 	assert.NoError(t, err)
@@ -68,7 +68,7 @@ func TestTxFilter(t *testing.T) {
 	assert.NoError(t, err)
 	req = &g.TransactionsRequest{
 		Sender:         addrBody,
-		Recipient:      &g.Recipient{Recipient: &g.Recipient_Address{Address: addrBody}},
+		Recipient:      &g.Recipient{Recipient: &g.Recipient_PublicKeyHash{PublicKeyHash: addrBody}},
 		TransactionIds: [][]byte{id.Bytes()},
 	}
 	filter, err = newTxFilter(scheme, req)

@@ -97,7 +97,7 @@ func transferTransaction() {
 		opts.Amount,
 		opts.Fee,
 		proto.NewRecipientFromAddress(address),
-		"",
+		&proto.LegacyAttachment{},
 	)
 
 	err = transfer.Sign(opts.Scheme, secretKey)

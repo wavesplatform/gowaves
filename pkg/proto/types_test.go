@@ -951,14 +951,14 @@ func TestDataEntriesUnmarshalJSON(t *testing.T) {
 	}
 }
 
-func TestNewAttachmentFromBase58(t *testing.T) {
-	att, err := NewAttachmentFromBase58("t")
+func TestNewLegacyAttachmentFromBase58(t *testing.T) {
+	att, err := NewLegacyAttachmentFromBase58("t")
 	require.NoError(t, err)
-	assert.Equal(t, att, Attachment("3"))
+	assert.Equal(t, *att, LegacyAttachment{Value: []byte("3")})
 }
 
 func TestAttachment_UnmarshalJSON(t *testing.T) {
-	a := Attachment("")
+	a := LegacyAttachment{Value: []byte{}}
 	err := a.UnmarshalJSON([]byte("null"))
 	require.NoError(t, err)
 	assert.Equal(t, "", a.String())

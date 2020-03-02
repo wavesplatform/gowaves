@@ -252,30 +252,189 @@ func (a *OptionalAsset) ToID() []byte {
 	return nil
 }
 
-//Attachment represents the additional data stored in Transfer and MassTransfer transactions.
-type Attachment string
+// Attachment represents the additional data stored in Transfer and MassTransfer transactions.
+type Attachment interface {
+	ToProtobuf() *g.Attachment
+	Size() int
+	Bytes() ([]byte, error)
 
-// NewAttachmentFromBase58 creates an Attachment structure from its base58 string representation.
-func NewAttachmentFromBase58(s string) (Attachment, error) {
+	json.Marshaler
+	json.Unmarshaler
+}
+
+type IntAttachment struct {
+	Value int64
+}
+
+func (a IntAttachment) ToProtobuf() *g.Attachment {
+	return &g.Attachment{Attachment: &g.Attachment_IntValue{IntValue: a.Value}}
+}
+
+func (a IntAttachment) Size() int {
+	return 8
+}
+
+func (a IntAttachment) Bytes() ([]byte, error) {
+	return Int64ToProtobuf(a.Value)
+}
+
+func (a IntAttachment) MarshalJSON() ([]byte, error) {
+	return json.Marshal(&struct {
+		T string `json:"type"`
+		V int    `json:"value"`
+	}{"integer", int(a.Value)})
+}
+
+func (a *IntAttachment) UnmarshalJSON(data []byte) error {
+	tmp := struct {
+		T string `json:"type"`
+		V int    `json:"value"`
+	}{}
+	if err := json.Unmarshal(data, &tmp); err != nil {
+		return errors.Wrap(err, "failed to parse int attachment from JSON")
+	}
+	*a = IntAttachment{int64(tmp.V)}
+	return nil
+}
+
+type BoolAttachment struct {
+	Value bool
+}
+
+func (a BoolAttachment) ToProtobuf() *g.Attachment {
+	return &g.Attachment{Attachment: &g.Attachment_BoolValue{BoolValue: a.Value}}
+}
+
+func (a BoolAttachment) Size() int {
+	return 1
+}
+func (a BoolAttachment) Bytes() ([]byte, error) {
+	buf := make([]byte, 1)
+	PutBool(buf, bool(a.Value))
+	return buf, nil
+}
+
+func (a BoolAttachment) MarshalJSON() ([]byte, error) {
+	return json.Marshal(&struct {
+		T string `json:"type"`
+		V bool   `json:"value"`
+	}{"boolean", a.Value})
+}
+
+func (a *BoolAttachment) UnmarshalJSON(data []byte) error {
+	tmp := struct {
+		T string `json:"type"`
+		V bool   `json:"value"`
+	}{}
+	if err := json.Unmarshal(data, &tmp); err != nil {
+		return errors.Wrap(err, "failed to parse bool attachment from JSON")
+	}
+	*a = BoolAttachment{tmp.V}
+	return nil
+}
+
+type StringAttachment struct {
+	Value string
+}
+
+func (a StringAttachment) ToProtobuf() *g.Attachment {
+	return &g.Attachment{Attachment: &g.Attachment_StringValue{StringValue: a.Value}}
+}
+
+func (a StringAttachment) Size() int {
+	return len(a.Value)
+}
+
+func (a StringAttachment) Bytes() ([]byte, error) {
+	return []byte(a.Value), nil
+}
+
+func (a StringAttachment) MarshalJSON() ([]byte, error) {
+	return json.Marshal(&struct {
+		T string `json:"type"`
+		V string `json:"value"`
+	}{"string", a.Value})
+}
+
+func (a *StringAttachment) UnmarshalJSON(data []byte) error {
+	tmp := struct {
+		T string `json:"type"`
+		V string `json:"value"`
+	}{}
+	if err := json.Unmarshal(data, &tmp); err != nil {
+		return errors.Wrap(err, "failed to parse string attachment from JSON")
+	}
+	*a = StringAttachment{tmp.V}
+	return nil
+}
+
+type BinaryAttachment struct {
+	Value []byte
+}
+
+func (a BinaryAttachment) ToProtobuf() *g.Attachment {
+	return &g.Attachment{Attachment: &g.Attachment_BinaryValue{BinaryValue: a.Value}}
+}
+
+func (a BinaryAttachment) Size() int {
+	return len(a.Value)
+}
+
+func (a BinaryAttachment) Bytes() ([]byte, error) {
+	return []byte(a.Value), nil
+}
+
+func (a BinaryAttachment) MarshalJSON() ([]byte, error) {
+	return json.Marshal(&struct {
+		T string `json:"type"`
+		V Script `json:"value"`
+	}{"binary", Script(a.Value)})
+}
+
+func (a *BinaryAttachment) UnmarshalJSON(data []byte) error {
+	tmp := struct {
+		T string `json:"type"`
+		V Script `json:"value"`
+	}{}
+	if err := json.Unmarshal(data, &tmp); err != nil {
+		return errors.Wrap(err, "failed to parse binary attachment from JSON")
+	}
+	*a = BinaryAttachment{tmp.V}
+	return nil
+}
+
+// LegacyAttachment represents untyped old attachments.
+type LegacyAttachment BinaryAttachment
+
+// NewLegacyAttachmentFromBase58 creates an LegacyAttachment structure from its
+// base58 string representation.
+func NewLegacyAttachmentFromBase58(s string) (*LegacyAttachment, error) {
 	v, err := base58.Decode(s)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	return Attachment(v), nil
+	return &LegacyAttachment{Value: v}, nil
 }
 
-// String returns Attachment's string representation
-func (a Attachment) String() string {
-	return string(a)
+func (a LegacyAttachment) ToProtobuf() *g.Attachment {
+	return BinaryAttachment(a).ToProtobuf()
 }
 
-func (a Attachment) Bytes() []byte {
-	return []byte(a)
+func (a LegacyAttachment) Size() int {
+	return BinaryAttachment(a).Size()
 }
 
-// MarshalJSON writes Attachment as a JSON string Value
-func (a Attachment) MarshalJSON() ([]byte, error) {
-	b := []byte(a)
+func (a LegacyAttachment) Bytes() ([]byte, error) {
+	return BinaryAttachment(a).Bytes()
+}
+
+func (a LegacyAttachment) String() string {
+	return string(a.Value)
+}
+
+// MarshalJSON writes LegacyAttachment as a JSON string Value
+func (a LegacyAttachment) MarshalJSON() ([]byte, error) {
+	b := []byte(a.Value)
 	sb := strings.Builder{}
 	sb.WriteRune('"')
 	sb.WriteString(base58.Encode(b))
@@ -283,8 +442,8 @@ func (a Attachment) MarshalJSON() ([]byte, error) {
 	return []byte(sb.String()), nil
 }
 
-// UnmarshalJSON reads Attachment from a JSON string Value
-func (a *Attachment) UnmarshalJSON(value []byte) error {
+// UnmarshalJSON reads LegacyAttachment from a JSON string Value
+func (a *LegacyAttachment) UnmarshalJSON(value []byte) error {
 	s := string(value)
 	if s == jsonNull {
 		return nil
@@ -295,7 +454,7 @@ func (a *Attachment) UnmarshalJSON(value []byte) error {
 	}
 
 	if s == "" {
-		*a = Attachment("")
+		*a = LegacyAttachment{Value: []byte{}}
 		return nil
 	}
 
@@ -303,7 +462,7 @@ func (a *Attachment) UnmarshalJSON(value []byte) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to decode Attachment from JSON Value")
 	}
-	*a = Attachment(string(v))
+	*a = LegacyAttachment{Value: v}
 	return nil
 }
 
@@ -2351,7 +2510,7 @@ func guessDataEntryType(dataEntryType DataEntryType) (DataEntry, error) {
 // DataEntries the slice of various entries of DataTransaction
 type DataEntries []DataEntry
 
-// UnmarshalJSOL special method to unmarshal DataEntries from JSON with detection of real type of each entry.
+// UnmarshalJSON special method to unmarshal DataEntries from JSON with detection of real type of each entry.
 func (e *DataEntries) UnmarshalJSON(data []byte) error {
 	wrapError := func(err error) error { return errors.Wrap(err, "failed to unmarshal DataEntries from JSON") }
 
@@ -2383,6 +2542,7 @@ const scriptPrefix = "base64:"
 var scriptPrefixBytes = []byte(scriptPrefix)
 
 type ScriptInfo struct {
+	Version    int32
 	Bytes      []byte
 	Base64     string
 	Complexity uint64
@@ -2390,18 +2550,38 @@ type ScriptInfo struct {
 
 func (s ScriptInfo) ToProtobuf() *g.ScriptData {
 	return &g.ScriptData{
-		ScriptBytes: s.Bytes,
+		ScriptBytes: &g.Script{Bytes: s.Bytes, Version: s.Version},
 		ScriptText:  s.Base64,
 		Complexity:  int64(s.Complexity),
 	}
 }
 
+func VersionFromScriptBytes(scriptBytes []byte) (int32, error) {
+	if len(scriptBytes) == 0 {
+		// No script has 0 version.
+		return 0, nil
+	}
+	version := int32(scriptBytes[0])
+	if version == 0 {
+		if len(scriptBytes) < 3 {
+			return 0, errors.New("invalid data size")
+		}
+		version = int32(scriptBytes[2])
+	}
+	return version, nil
+}
+
 type Script []byte
 
-func (s Script) ToProtobuf() *g.Script {
-	return &g.Script{
-		Bytes: s,
+func (s Script) ToProtobuf() (*g.Script, error) {
+	v, err := VersionFromScriptBytes(s)
+	if err != nil {
+		return nil, err
 	}
+	return &g.Script{
+		Version: v,
+		Bytes:   s,
+	}, nil
 }
 
 // String gives a string representation of Script bytes, script bytes encoded as BASE64 with prefix

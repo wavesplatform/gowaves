@@ -324,7 +324,7 @@ func (f *features) isApproved(featureID int16) (bool, error) {
 func (f *features) isApprovedAtHeight(featureID int16, height uint64) bool {
 	approvalHeight, err := f.approvalHeight(featureID)
 	if err == nil && height >= approvalHeight {
-		return height >= approvalHeight
+		return true
 	}
 	return false
 }

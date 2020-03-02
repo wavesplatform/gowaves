@@ -474,7 +474,7 @@ func (tx *TransferWithProofs) Clone() *TransferWithProofs {
 }
 
 //NewUnsignedTransferWithProofs creates new TransferWithProofs transaction without proofs and ID.
-func NewUnsignedTransferWithProofs(senderPK crypto.PublicKey, amountAsset, feeAsset OptionalAsset, timestamp, amount, fee uint64, recipient Recipient, attachment string) *TransferWithProofs {
+func NewUnsignedTransferWithProofs(senderPK crypto.PublicKey, amountAsset, feeAsset OptionalAsset, timestamp, amount, fee uint64, recipient Recipient, attachment Attachment) *TransferWithProofs {
 	t := Transfer{
 		SenderPK:    senderPK,
 		Recipient:   recipient,
@@ -483,7 +483,7 @@ func NewUnsignedTransferWithProofs(senderPK crypto.PublicKey, amountAsset, feeAs
 		FeeAsset:    feeAsset,
 		Fee:         fee,
 		Timestamp:   timestamp,
-		Attachment:  Attachment(attachment),
+		Attachment:  attachment,
 	}
 	return &TransferWithProofs{Type: TransferTransaction, Version: 2, Transfer: t}
 }
@@ -634,7 +634,7 @@ func (tx *TransferWithProofs) UnmarshalBinary(data []byte) error {
 	if tx.FeeAsset.Present {
 		fal += crypto.DigestSize
 	}
-	atl := len(tx.Attachment)
+	atl := tx.Attachment.Size()
 	rl := tx.Recipient.len
 	bl := transferWithProofsFixedBodyLen + aal + fal + atl + rl
 	bb := data[:bl]
@@ -650,6 +650,31 @@ func (tx *TransferWithProofs) UnmarshalBinary(data []byte) error {
 		return errors.Wrap(err, "failed to unmarshal TransferWithProofs transaction from bytes")
 	}
 	tx.ID = &id
+	return nil
+}
+
+func (tx *TransferWithProofs) UnmarshalJSON(data []byte) error {
+	tmp := struct {
+		Type    TransactionType `json:"type"`
+		Version byte            `json:"version,omitempty"`
+		ID      *crypto.Digest  `json:"id,omitempty"`
+		Proofs  *ProofsV1       `json:"proofs,omitempty"`
+		Transfer
+	}{}
+	var err error
+	tmp.Attachment, err = TxAttachmentFromJson(data, TransferTransaction)
+	if err != nil {
+		return err
+	}
+
+	if err := json.Unmarshal(data, &tmp); err != nil {
+		return err
+	}
+	tx.Type = tmp.Type
+	tx.Version = tmp.Version
+	tx.ID = tmp.ID
+	tx.Proofs = tmp.Proofs
+	tx.Transfer = tmp.Transfer
 	return nil
 }
 
@@ -2486,7 +2511,7 @@ type MassTransferWithProofs struct {
 }
 
 func (tx MassTransferWithProofs) BinarySize() int {
-	size := 2 + tx.Proofs.BinarySize() + crypto.PublicKeySize + tx.Asset.BinarySize() + 16 + 2 + len(tx.Attachment)
+	size := 2 + tx.Proofs.BinarySize() + crypto.PublicKeySize + tx.Asset.BinarySize() + 16 + 2 + tx.Attachment.Size()
 	size += 2
 	for _, tr := range tx.Transfers {
 		size += tr.BinarySize()
@@ -2549,8 +2574,8 @@ func (tx MassTransferWithProofs) GetTimestamp() uint64 {
 }
 
 //NewUnsignedMassTransferWithProofs creates new MassTransferWithProofs transaction structure without signature and ID.
-func NewUnsignedMassTransferWithProofs(senderPK crypto.PublicKey, asset OptionalAsset, transfers []MassTransferEntry, fee, timestamp uint64, attachment string) *MassTransferWithProofs {
-	return &MassTransferWithProofs{Type: MassTransferTransaction, Version: 1, SenderPK: senderPK, Asset: asset, Transfers: transfers, Fee: fee, Timestamp: timestamp, Attachment: Attachment(attachment)}
+func NewUnsignedMassTransferWithProofs(senderPK crypto.PublicKey, asset OptionalAsset, transfers []MassTransferEntry, fee, timestamp uint64, attachment Attachment) *MassTransferWithProofs {
+	return &MassTransferWithProofs{Type: MassTransferTransaction, Version: 1, SenderPK: senderPK, Asset: asset, Transfers: transfers, Fee: fee, Timestamp: timestamp, Attachment: attachment}
 }
 
 func (tx MassTransferWithProofs) Valid() (bool, error) {
@@ -2573,7 +2598,7 @@ func (tx MassTransferWithProofs) Valid() (bool, error) {
 			return false, errors.New("sum of amounts of transfers and transaction fee is bigger than JVM long")
 		}
 	}
-	if len(tx.Attachment) > maxAttachmentLengthBytes {
+	if tx.Attachment.Size() > maxAttachmentLengthBytes {
 		return false, errors.New("attachment too long")
 	}
 	return true, nil
@@ -2589,7 +2614,7 @@ func (tx *MassTransferWithProofs) bodyAndAssetLen() (int, int) {
 	for _, e := range tx.Transfers {
 		rls += e.Recipient.len
 	}
-	al := len(tx.Attachment)
+	al := tx.Attachment.Size()
 	return massTransferWithProofsFixedLen + l + n*massTransferEntryLen + rls + al, l
 }
 
@@ -2624,7 +2649,15 @@ func (tx *MassTransferWithProofs) BodyMarshalBinary() ([]byte, error) {
 	p += 8
 	binary.BigEndian.PutUint64(buf[p:], tx.Fee)
 	p += 8
-	PutStringWithUInt16Len(buf[p:], tx.Attachment.String())
+	att, ok := tx.Attachment.(*LegacyAttachment)
+	if !ok {
+		return nil, errors.New("binary format is only defined for untyped attachments")
+	}
+	attBytes, err := att.Bytes()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to convert attachment to bytes")
+	}
+	PutBytesWithUInt16Len(buf[p:], attBytes)
 	return buf, nil
 }
 
@@ -2668,11 +2701,11 @@ func (tx *MassTransferWithProofs) bodyUnmarshalBinary(data []byte) error {
 	data = data[8:]
 	tx.Fee = binary.BigEndian.Uint64(data)
 	data = data[8:]
-	at, err := StringWithUInt16Len(data)
+	at, err := BytesWithUInt16Len(data)
 	if err != nil {
 		return errors.Wrap(err, "failed to unmarshal MassTransferWithProofs transaction body from bytes")
 	}
-	tx.Attachment = Attachment(at)
+	tx.Attachment = &LegacyAttachment{Value: at}
 	return nil
 }
 
@@ -2802,7 +2835,7 @@ func (tx *MassTransferWithProofs) ToProtobuf(scheme Scheme) (*g.Transaction, err
 	txData := &g.Transaction_MassTransfer{MassTransfer: &g.MassTransferTransactionData{
 		AssetId:    tx.Asset.ToID(),
 		Transfers:  transfers,
-		Attachment: []byte(tx.Attachment),
+		Attachment: tx.Attachment.ToProtobuf(),
 	}}
 	fee := &g.Amount{AssetId: nil, Amount: int64(tx.Fee)}
 	res := TransactionToProtobufCommon(scheme, tx)
@@ -2823,6 +2856,41 @@ func (tx *MassTransferWithProofs) ToProtobufSigned(scheme Scheme) (*g.SignedTran
 		Transaction: unsigned,
 		Proofs:      tx.Proofs.Bytes(),
 	}, nil
+}
+
+func (tx *MassTransferWithProofs) UnmarshalJSON(data []byte) error {
+	tmp := struct {
+		Type       TransactionType     `json:"type"`
+		Version    byte                `json:"version,omitempty"`
+		ID         *crypto.Digest      `json:"id,omitempty"`
+		Proofs     *ProofsV1           `json:"proofs,omitempty"`
+		SenderPK   crypto.PublicKey    `json:"senderPublicKey"`
+		Asset      OptionalAsset       `json:"assetId"`
+		Transfers  []MassTransferEntry `json:"transfers"`
+		Timestamp  uint64              `json:"timestamp,omitempty"`
+		Fee        uint64              `json:"fee"`
+		Attachment Attachment          `json:"attachment,omitempty"`
+	}{}
+	var err error
+	tmp.Attachment, err = TxAttachmentFromJson(data, TransferTransaction)
+	if err != nil {
+		return err
+	}
+
+	if err := json.Unmarshal(data, &tmp); err != nil {
+		return err
+	}
+	tx.Type = tmp.Type
+	tx.Version = tmp.Version
+	tx.ID = tmp.ID
+	tx.Proofs = tmp.Proofs
+	tx.SenderPK = tmp.SenderPK
+	tx.Asset = tmp.Asset
+	tx.Transfers = tmp.Transfers
+	tx.Timestamp = tmp.Timestamp
+	tx.Fee = tmp.Fee
+	tx.Attachment = tmp.Attachment
+	return nil
 }
 
 //DataWithProofs is first version of the transaction that puts data to the key-value storage of an account.
@@ -3454,8 +3522,12 @@ func (tx *SetScriptWithProofs) UnmarshalSignedFromProtobuf(data []byte) error {
 }
 
 func (tx *SetScriptWithProofs) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
+	pbScript, err := tx.Script.ToProtobuf()
+	if err != nil {
+		return nil, err
+	}
 	txData := &g.Transaction_SetScript{SetScript: &g.SetScriptTransactionData{
-		Script: tx.Script.ToProtobuf(),
+		Script: pbScript,
 	}}
 	fee := &g.Amount{AssetId: nil, Amount: int64(tx.Fee)}
 	res := TransactionToProtobufCommon(scheme, tx)
@@ -4025,9 +4097,13 @@ func (tx *SetAssetScriptWithProofs) UnmarshalSignedFromProtobuf(data []byte) err
 }
 
 func (tx *SetAssetScriptWithProofs) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
+	pbScript, err := tx.Script.ToProtobuf()
+	if err != nil {
+		return nil, err
+	}
 	txData := &g.Transaction_SetAssetScript{SetAssetScript: &g.SetAssetScriptTransactionData{
 		AssetId: tx.AssetID.Bytes(),
-		Script:  tx.Script.ToProtobuf(),
+		Script:  pbScript,
 	}}
 	fee := &g.Amount{AssetId: nil, Amount: int64(tx.Fee)}
 	res := TransactionToProtobufCommon(scheme, tx)

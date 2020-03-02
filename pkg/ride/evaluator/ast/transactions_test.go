@@ -62,7 +62,9 @@ func (a *TransferWithSigTestSuite) Test_recipient() {
 func (a *TransferWithSigTestSuite) Test_attachment() {
 	rs, err := a.f(proto.MainNetScheme, a.tx)
 	a.NoError(err)
-	a.Equal(NewBytes(a.tx.Attachment.Bytes()), rs["attachment"])
+	attachmentBytes, err := a.tx.Attachment.Bytes()
+	a.NoError(err)
+	a.Equal(NewBytes(attachmentBytes), rs["attachment"])
 }
 
 func (a *TransferWithSigTestSuite) Test_id() {
@@ -168,7 +170,9 @@ func (a *TransferWithProofsTestSuite) Test_recipient() {
 func (a *TransferWithProofsTestSuite) Test_attachment() {
 	rs, err := a.f(proto.MainNetScheme, a.tx)
 	a.NoError(err)
-	a.Equal(NewBytes(a.tx.Attachment.Bytes()), rs["attachment"])
+	attachmentBytes, err := a.tx.Attachment.Bytes()
+	a.NoError(err)
+	a.Equal(NewBytes(attachmentBytes), rs["attachment"])
 }
 
 func (a *TransferWithProofsTestSuite) Test_id() {
@@ -721,7 +725,9 @@ func (a *MassTransferWithProofsTestSuite) Test_transferCount() {
 func (a *MassTransferWithProofsTestSuite) Test_attachment() {
 	rs, err := a.f(proto.MainNetScheme, a.tx)
 	a.NoError(err)
-	a.Equal(NewBytes(a.tx.Attachment.Bytes()), rs["attachment"])
+	attachmentBytes, err := a.tx.Attachment.Bytes()
+	a.NoError(err)
+	a.Equal(NewBytes(attachmentBytes), rs["attachment"])
 }
 
 func (a *MassTransferWithProofsTestSuite) Test_id() {

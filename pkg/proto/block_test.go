@@ -174,7 +174,7 @@ func TestAppendHeaderBytesToTransactions(t *testing.T) {
 }
 
 func TestBlockSerialization(t *testing.T) {
-	for i, v := range blockTests {
+	for i, v := range blockTests[:1] {
 		t.Run(fmt.Sprintf("%v", i), func(t *testing.T) {
 			blockFromProtobufToProtobuf(t, v.hexEncoded)
 			blockFromBinaryToBinary(t, v.hexEncoded, v.jsonEncoded)

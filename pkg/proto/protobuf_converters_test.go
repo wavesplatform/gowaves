@@ -14,7 +14,8 @@ func TestTransferConvert(t *testing.T) {
 	assert.NoError(t, err)
 	// Test unsigned.
 	waves := OptionalAsset{Present: false}
-	tx := NewUnsignedTransferWithSig(pk, waves, waves, 100, 1, 100, NewRecipientFromAddress(addr), "attachment")
+	att := LegacyAttachment{Value: []byte("attachment")}
+	tx := NewUnsignedTransferWithSig(pk, waves, waves, 100, 1, 100, NewRecipientFromAddress(addr), &att)
 	err = tx.GenerateID(MainNetScheme)
 	assert.NoError(t, err)
 	txProto, err := tx.ToProtobuf(MainNetScheme)
