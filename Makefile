@@ -121,6 +121,15 @@ build-importer-windows:
 
 release-importer: ver build-importer-linux build-importer-darwin build-importer-windows
 
+build-wallet-linux:
+	@GOOS=linux GOARCH=amd64 go build -o build/bin/linux-amd64/wallet ./cmd/wallet
+build-wallet-darwin:
+	@GOOS=darwin GOARCH=amd64 go build -o build/bin/darwin-amd64/wallet ./cmd/wallet
+build-wallet-windows:
+	@GOOS=windows GOARCH=amd64 go build -o build/bin/windows-amd64/wallet.exe ./cmd/wallet
+
+release-wallet: ver build-wallet-linux build-wallet-darwin build-wallet-windows
+
 dist-importer: release-importer
 	@mkdir -p build/dist
 	@cd ./build/; zip -j ./dist/importer_$(VERSION)_Windows-64bit.zip ./bin/windows-amd64/importer*

@@ -41,7 +41,7 @@ func TestGetBlock(t *testing.T) {
 	st, err := state.NewState(dataDir, params, settings.MainNetSettings)
 	assert.NoError(t, err)
 	ctx, cancel := context.WithCancel(context.Background())
-	sch := createScheduler(ctx, st, settings.MainNetSettings)
+	sch := createWallet(ctx, st, settings.MainNetSettings)
 	err = server.initServer(st, nil, sch)
 	assert.NoError(t, err)
 
@@ -111,7 +111,7 @@ func TestGetBlockRange(t *testing.T) {
 	st, err := state.NewState(dataDir, params, settings.MainNetSettings)
 	assert.NoError(t, err)
 	ctx, cancel := context.WithCancel(context.Background())
-	sch := createScheduler(ctx, st, settings.MainNetSettings)
+	sch := createWallet(ctx, st, settings.MainNetSettings)
 	err = server.initServer(st, nil, sch)
 	assert.NoError(t, err)
 
@@ -192,7 +192,7 @@ func TestGetCurrentHeight(t *testing.T) {
 	st, err := state.NewState(dataDir, params, settings.MainNetSettings)
 	assert.NoError(t, err)
 	ctx, cancel := context.WithCancel(context.Background())
-	sch := createScheduler(ctx, st, settings.MainNetSettings)
+	sch := createWallet(ctx, st, settings.MainNetSettings)
 	err = server.initServer(st, nil, sch)
 	assert.NoError(t, err)
 

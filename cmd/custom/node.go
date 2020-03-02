@@ -29,6 +29,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"github.com/wavesplatform/gowaves/pkg/util"
+	"github.com/wavesplatform/gowaves/pkg/wallet"
 	"go.uber.org/zap"
 )
 
@@ -42,13 +43,14 @@ var (
 	apiAddr           = flag.String("api-address", "", "Address for REST API")
 	grpcAddr          = flag.String("grpc-address", "127.0.0.1:7475", "Address for gRPC API")
 	cfgPath           = flag.String("cfg-path", "", "Path to configuration JSON file. No default value.")
-	seed              = flag.String("seed", "", "Seed for miner")
 	enableGrpcApi     = flag.Bool("enable-grpc-api", true, "Enables/disables gRPC API")
 	buildExtendedApi  = flag.Bool("build-extended-api", false, "Builds extended API. Note that state must be reimported in case it wasn't imported with similar flag set")
 	serveExtendedApi  = flag.Bool("serve-extended-api", false, "Serves extended API requests since the very beginning. The default behavior is to import until first block close to current time, and start serving at this point")
 	minerVoteFeatures = flag.String("vote", "", "Miner vote features")
 	reward            = flag.String("reward", "", "Miner reward: for example 600000000")
 	minerDelayParam   = flag.String("miner-delay", "4h", "Interval after last block then generation is allowed. example 1d4h30m")
+	walletPath        = flag.String("wallet-path", "", "Path to wallet, or ~/.waves by default")
+	walletPassword    = flag.String("wallet-password", "", "Pass password for wallet. Extremely insecure")
 )
 
 func init() {
@@ -93,6 +95,15 @@ func main() {
 	if err != nil {
 		zap.S().Error(err)
 		return
+	}
+
+	wal := wallet.NewEmbeddedWallet(wallet.NewLoader(*walletPath), wallet.NewWallet(), custom.AddressSchemeCharacter)
+	if *walletPassword != "" {
+		err := wal.Load([]byte(*walletPassword))
+		if err != nil {
+			zap.S().Error(err)
+			return
+		}
 	}
 
 	path := *statePath
@@ -164,14 +175,9 @@ func main() {
 	peerManager := peer_manager.NewPeerManager(peerSpawnerImpl, state)
 	go peerManager.Run(ctx)
 
-	var keyPairs []proto.KeyPair
-	if *seed != "" {
-		keyPairs = append(keyPairs, proto.MustKeyPair([]byte(*seed)))
-	}
-
 	scheduler := scheduler2.NewScheduler(
 		state,
-		keyPairs,
+		wal,
 		custom,
 		ntptm,
 		scheduler2.NewMinerConsensus(peerManager, 1),
@@ -250,7 +256,7 @@ func main() {
 	}()
 
 	if *enableGrpcApi {
-		grpcServer, err := server.NewServer(state, utx, scheduler)
+		grpcServer, err := server.NewServer(services)
 		if err != nil {
 			zap.S().Errorf("Failed to create gRPC server: %v", err)
 		}

@@ -17,7 +17,7 @@ func TestGetInfo(t *testing.T) {
 	sets, err := st.BlockchainSettings()
 	assert.NoError(t, err)
 	ctx, cancel := context.WithCancel(context.Background())
-	sch := createScheduler(ctx, st, sets)
+	sch := createWallet(ctx, st, sets)
 	err = server.initServer(st, nil, sch)
 	assert.NoError(t, err)
 

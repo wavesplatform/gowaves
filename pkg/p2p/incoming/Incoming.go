@@ -2,13 +2,15 @@ package incoming
 
 import (
 	"context"
+	"net"
+	"time"
+
+	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/libs/bytespool"
 	"github.com/wavesplatform/gowaves/pkg/p2p/conn"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
-	"net"
-	"time"
 )
 
 type IncomingPeerParams struct {
@@ -37,7 +39,7 @@ func RunIncomingPeer(ctx context.Context, params IncomingPeerParams) error {
 	select {
 	case <-ctx.Done():
 		c.Close()
-		return ctx.Err()
+		return errors.Wrap(ctx.Err(), "RunIncomingPeer")
 	default:
 	}
 
@@ -60,7 +62,7 @@ func RunIncomingPeer(ctx context.Context, params IncomingPeerParams) error {
 	select {
 	case <-ctx.Done():
 		c.Close()
-		return ctx.Err()
+		return errors.Wrap(ctx.Err(), "RunIncomingPeer")
 	default:
 	}
 

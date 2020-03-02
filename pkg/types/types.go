@@ -10,12 +10,6 @@ import (
 
 type Scheduler interface {
 	Reschedule()
-	// TODO: this function should be moved to wallet module, as well as keyPairs.
-	// Private keys should only be accessible from wallet module.
-	// All the other modules that need them, e.g. miner, api should call wallet's methods
-	// to sign what is needed.
-	// For now let's keep keys *only* in Scheduler.
-	SignTransactionWith(pk crypto.PublicKey, tx proto.Transaction) error
 }
 
 type BlocksApplier interface {
@@ -39,6 +33,7 @@ type UtxPool interface {
 	Pop() *TransactionWithBytes
 	AllTransactions() []*TransactionWithBytes
 	Count() int
+	ExistsByID(id []byte) bool
 }
 
 type TransactionWithBytes struct {
@@ -108,4 +103,10 @@ type ScoreSender interface {
 
 type MinerConsensus interface {
 	IsMiningAllowed() bool
+}
+
+type EmbeddedWallet interface {
+	SignTransactionWith(pk crypto.PublicKey, tx proto.Transaction) error
+	Load(password []byte) error
+	Seeds() [][]byte
 }

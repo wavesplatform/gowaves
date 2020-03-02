@@ -49,12 +49,12 @@ type UtxImpl struct {
 	settings       *settings.BlockchainSettings
 }
 
-func New(sizeLimit uint64, validator Validator, sets *settings.BlockchainSettings) *UtxImpl {
+func New(sizeLimit uint64, validator Validator, settings *settings.BlockchainSettings) *UtxImpl {
 	return &UtxImpl{
 		transactionIds: make(map[crypto.Digest]struct{}),
 		sizeLimit:      sizeLimit,
 		validator:      validator,
-		settings:       sets,
+		settings:       settings,
 	}
 }
 
@@ -81,6 +81,9 @@ func (a *UtxImpl) addWithBytes(t proto.Transaction, b []byte) error {
 	if a.curSize+uint64(len(b)) > a.sizeLimit {
 		return errors.Errorf("size overflow, curSize: %d, limit: %d", a.curSize, a.sizeLimit)
 	}
+	if err := t.GenerateID(a.settings.AddressSchemeCharacter); err != nil {
+		return errors.Errorf("failed to generate ID: %v", err)
+	}
 	tID, err := t.GetID()
 	if err != nil {
 		return err
@@ -97,9 +100,6 @@ func (a *UtxImpl) addWithBytes(t proto.Transaction, b []byte) error {
 		B: b,
 	}
 	heap.Push(&a.transactions, tb)
-	if err := t.GenerateID(a.settings.AddressSchemeCharacter); err != nil {
-		return err
-	}
 	id := makeDigest(t.GetID())
 	a.transactionIds[id] = struct{}{}
 	a.curSize += uint64(len(b))
