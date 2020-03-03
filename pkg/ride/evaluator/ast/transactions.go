@@ -31,7 +31,7 @@ func NewVariablesFromScriptTransfer(tx *proto.FullScriptTransfer) (map[string]Ex
 func NewVariablesFromTransaction(scheme byte, t proto.Transaction) (map[string]Expr, error) {
 	switch tx := t.(type) {
 	case *proto.Genesis:
-		return newVariableFromGenesis(tx)
+		return newVariableFromGenesis(scheme, tx)
 	case *proto.Payment:
 		return newVariablesFromPayment(scheme, tx)
 	case *proto.TransferWithSig:
@@ -185,13 +185,13 @@ func makeOptionalAsset(o proto.OptionalAsset) Expr {
 	return NewUnit()
 }
 
-func newVariableFromGenesis(tx *proto.Genesis) (map[string]Expr, error) {
+func newVariableFromGenesis(scheme proto.Scheme, tx *proto.Genesis) (map[string]Expr, error) {
 	funcName := "newVariableFromGenesis"
 
 	out := make(map[string]Expr)
 	out["amount"] = NewLong(int64(tx.Amount))
 	out["recipient"] = NewRecipientFromProtoRecipient(proto.NewRecipientFromAddress(tx.Recipient))
-	id, err := tx.GetID()
+	id, err := tx.GetID(scheme)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
@@ -307,7 +307,7 @@ func newVariablesFromReissueWithSig(scheme proto.Scheme, tx *proto.ReissueWithSi
 	out["quantity"] = NewLong(int64(tx.Quantity))
 	out["assetId"] = NewBytes(util.Dup(tx.AssetID.Bytes()))
 	out["reissuable"] = NewBoolean(tx.Reissuable)
-	id, err := tx.GetID()
+	id, err := tx.GetID(scheme)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
@@ -338,7 +338,7 @@ func newVariablesFromReissueWithProofs(scheme proto.Scheme, tx *proto.ReissueWit
 	out["quantity"] = NewLong(int64(tx.Quantity))
 	out["assetId"] = NewBytes(util.Dup(tx.AssetID.Bytes()))
 	out["reissuable"] = NewBoolean(tx.Reissuable)
-	id, err := tx.GetID()
+	id, err := tx.GetID(scheme)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
@@ -370,7 +370,7 @@ func newVariablesFromBurnWithSig(scheme proto.Scheme, tx *proto.BurnWithSig) (ma
 
 	out["quantity"] = NewLong(int64(tx.Amount))
 	out["assetId"] = NewBytes(util.Dup(tx.AssetID.Bytes()))
-	id, err := tx.GetID()
+	id, err := tx.GetID(scheme)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
@@ -401,7 +401,7 @@ func newVariablesFromBurnWithProofs(scheme proto.Scheme, tx *proto.BurnWithProof
 
 	out["quantity"] = NewLong(int64(tx.Amount))
 	out["assetId"] = NewBytes(util.Dup(tx.AssetID.Bytes()))
-	id, err := tx.GetID()
+	id, err := tx.GetID(scheme)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
@@ -449,7 +449,7 @@ func newVariablesFromMassTransferWithProofs(scheme proto.Scheme, tx *proto.MassT
 		return nil, errors.Wrap(err, funcName)
 	}
 	out["attachment"] = NewBytes(attachmentBytes)
-	id, err := tx.GetID()
+	id, err := tx.GetID(scheme)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
@@ -495,7 +495,7 @@ func newVariablesFromExchangeWithSig(scheme proto.Scheme, tx *proto.ExchangeWith
 	out["buyMatcherFee"] = NewLong(int64(tx.BuyMatcherFee))
 	out["sellMatcherFee"] = NewLong(int64(tx.SellMatcherFee))
 
-	id, err := tx.GetID()
+	id, err := tx.GetID(scheme)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
@@ -542,7 +542,7 @@ func newVariablesFromExchangeWithProofs(scheme proto.Scheme, tx *proto.ExchangeW
 	out["buyMatcherFee"] = NewLong(int64(tx.BuyMatcherFee))
 	out["sellMatcherFee"] = NewLong(int64(tx.SellMatcherFee))
 
-	id, err := tx.GetID()
+	id, err := tx.GetID(scheme)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
@@ -584,7 +584,7 @@ func newVariablesFromSetAssetScriptWithProofs(scheme proto.Scheme, tx *proto.Set
 
 	out["script"] = NewBytes(util.Dup(tx.Script))
 	out["assetId"] = NewBytes(util.Dup(tx.AssetID.Bytes()))
-	id, err := tx.GetID()
+	id, err := tx.GetID(scheme)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
@@ -640,7 +640,7 @@ func newVariablesFromInvokeScriptWithProofs(scheme proto.Scheme, tx *proto.Invok
 		}
 	}
 	out["args"] = args
-	id, err := tx.GetID()
+	id, err := tx.GetID(scheme)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
@@ -675,7 +675,7 @@ func newVariablesFromIssueWithSig(scheme proto.Scheme, tx *proto.IssueWithSig) (
 	out["reissuable"] = NewBoolean(tx.Reissuable)
 	out["decimals"] = NewLong(int64(tx.Decimals))
 	out["script"] = NewUnit()
-	id, err := tx.GetID()
+	id, err := tx.GetID(scheme)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
@@ -714,7 +714,7 @@ func newVariablesFromIssueWithProofs(scheme proto.Scheme, tx *proto.IssueWithPro
 	if tx.NonEmptyScript() {
 		out["script"] = NewBytes(util.Dup(tx.Script))
 	}
-	id, err := tx.GetID()
+	id, err := tx.GetID(scheme)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
@@ -746,7 +746,7 @@ func newVariablesFromLeaseWithSig(scheme proto.Scheme, tx *proto.LeaseWithSig) (
 
 	out["amount"] = NewLong(int64(tx.Amount))
 	out["recipient"] = NewRecipientFromProtoRecipient(tx.Recipient)
-	id, err := tx.GetID()
+	id, err := tx.GetID(scheme)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
@@ -778,7 +778,7 @@ func newVariablesFromLeaseWithProofs(scheme proto.Scheme, tx *proto.LeaseWithPro
 
 	out["amount"] = NewLong(int64(tx.Amount))
 	out["recipient"] = NewRecipientFromProtoRecipient(tx.Recipient)
-	id, err := tx.GetID()
+	id, err := tx.GetID(scheme)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
@@ -808,7 +808,7 @@ func newVariablesFromLeaseCancelWithSig(scheme proto.Scheme, tx *proto.LeaseCanc
 
 	out := make(map[string]Expr)
 	out["leaseId"] = NewBytes(util.Dup(tx.LeaseID.Bytes()))
-	id, err := tx.GetID()
+	id, err := tx.GetID(scheme)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
@@ -838,7 +838,7 @@ func newVariablesFromLeaseCancelWithProofs(scheme proto.Scheme, tx *proto.LeaseC
 
 	out := make(map[string]Expr)
 	out["leaseId"] = NewBytes(util.Dup(tx.LeaseID.Bytes()))
-	id, err := tx.GetID()
+	id, err := tx.GetID(scheme)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
@@ -870,7 +870,7 @@ func newVariablesFromDataWithProofs(scheme proto.Scheme, tx *proto.DataWithProof
 
 	out["data"] = NewDataEntryList(tx.Entries)
 
-	id, err := tx.GetID()
+	id, err := tx.GetID(scheme)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
@@ -906,7 +906,7 @@ func newVariablesFromSponsorshipWithProofs(scheme proto.Scheme, tx *proto.Sponso
 		out["minSponsoredAssetFee"] = NewLong(int64(tx.MinAssetFee))
 	}
 
-	id, err := tx.GetID()
+	id, err := tx.GetID(scheme)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
@@ -938,7 +938,7 @@ func newVariablesFromCreateAliasWithSig(scheme proto.Scheme, tx *proto.CreateAli
 
 	out["alias"] = NewString(tx.Alias.String())
 
-	id, err := tx.GetID()
+	id, err := tx.GetID(scheme)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
@@ -970,7 +970,7 @@ func newVariablesFromCreateAliasWithProofs(scheme proto.Scheme, tx *proto.Create
 
 	out["alias"] = NewString(tx.Alias.String())
 
-	id, err := tx.GetID()
+	id, err := tx.GetID(scheme)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
@@ -1006,7 +1006,7 @@ func newVariablesFromSetScriptWithProofs(scheme proto.Scheme, tx *proto.SetScrip
 		out["script"] = NewBytes(tx.Script)
 	}
 
-	id, err := tx.GetID()
+	id, err := tx.GetID(scheme)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}

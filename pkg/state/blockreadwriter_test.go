@@ -132,7 +132,7 @@ func writeBlocks(ctx context.Context, rw *blockReadWriter, blocks []proto.Block,
 		tasksBuf = append(tasksBuf, task)
 		for i := range block.Transactions {
 			tx := block.Transactions[i]
-			txID, err := tx.GetID()
+			txID, err := tx.GetID(proto.MainNetScheme)
 			if err != nil {
 				return err
 			}
@@ -468,7 +468,7 @@ func TestSimultaneousReadDelete(t *testing.T) {
 	idToTest := blocks[blocksNumber-2].BlockSignature
 	prevId := blocks[blocksNumber-3].BlockSignature
 	txs := blocks[blocksNumber-2].Transactions
-	txID, err := txs[0].GetID()
+	txID, err := txs[0].GetID(proto.MainNetScheme)
 	if err != nil {
 		t.Fatalf("GetID(): %v", err)
 	}

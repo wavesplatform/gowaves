@@ -257,7 +257,7 @@ func (a *GenesisTestSuite) Test_recipient() {
 func (a *GenesisTestSuite) Test_id() {
 	rs, err := a.f(proto.MainNetScheme, a.tx)
 	a.NoError(err)
-	id, err := a.tx.GetID()
+	id, err := a.tx.GetID(proto.MainNetScheme)
 	a.NoError(err)
 	a.Equal(NewBytes(id), rs["id"])
 }
@@ -307,7 +307,7 @@ func (a *PaymentTestSuite) Test_recipient() {
 func (a *PaymentTestSuite) Test_id() {
 	rs, err := a.f(proto.MainNetScheme, a.tx)
 	a.NoError(err)
-	id, err := a.tx.GetID()
+	id, err := a.tx.GetID(proto.MainNetScheme)
 	a.NoError(err)
 	a.Equal(NewBytes(id), rs["id"])
 }
@@ -388,7 +388,7 @@ func (a *ReissueWithSigTestSuite) Test_reissuable() {
 
 func (a *ReissueWithSigTestSuite) Test_id() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	id, _ := a.tx.GetID()
+	id, _ := a.tx.GetID(proto.MainNetScheme)
 	a.Equal(NewBytes(id), rs["id"])
 }
 
@@ -469,7 +469,7 @@ func (a *ReissueWithProofsTestSuite) Test_reissuable() {
 
 func (a *ReissueWithProofsTestSuite) Test_id() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	id, _ := a.tx.GetID()
+	id, _ := a.tx.GetID(proto.MainNetScheme)
 	a.Equal(NewBytes(id), rs["id"])
 }
 
@@ -1125,7 +1125,7 @@ func (a *SetAssetScriptWithProofsTestSuite) Test_assetId() {
 func (a *SetAssetScriptWithProofsTestSuite) Test_id() {
 	rs, err := a.f(proto.MainNetScheme, a.tx)
 	a.NoError(err)
-	id, err := a.tx.GetID()
+	id, err := a.tx.GetID(proto.MainNetScheme)
 	a.NoError(err)
 	a.Equal(NewBytes(id), rs["id"])
 }
@@ -1326,7 +1326,7 @@ func (a *IssueWithSigTestSuite) Test_script() {
 
 func (a *IssueWithSigTestSuite) Test_id() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	id, _ := a.tx.GetID()
+	id, _ := a.tx.GetID(proto.MainNetScheme)
 	a.Equal(NewBytes(id), rs["id"])
 }
 
@@ -1421,7 +1421,7 @@ func (a *IssueWithProofsTestSuite) Test_script() {
 
 func (a *IssueWithProofsTestSuite) Test_id() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	id, _ := a.tx.GetID()
+	id, _ := a.tx.GetID(proto.MainNetScheme)
 	a.Equal(NewBytes(id), rs["id"])
 }
 
@@ -1498,7 +1498,7 @@ func (a *LeaseWithSigTestSuite) Test_recipient() {
 
 func (a *LeaseWithSigTestSuite) Test_id() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	id, _ := a.tx.GetID()
+	id, _ := a.tx.GetID(proto.MainNetScheme)
 	a.Equal(NewBytes(id), rs["id"])
 }
 
@@ -1574,7 +1574,7 @@ func (a *LeaseWithProofsTestSuite) Test_recipient() {
 
 func (a *LeaseWithProofsTestSuite) Test_id() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	id, _ := a.tx.GetID()
+	id, _ := a.tx.GetID(proto.MainNetScheme)
 	a.Equal(NewBytes(id), rs["id"])
 }
 
@@ -1646,7 +1646,7 @@ func (a *LeaseCancelWithSigTestSuite) Test_leaseId() {
 
 func (a *LeaseCancelWithSigTestSuite) Test_id() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	id, _ := a.tx.GetID()
+	id, _ := a.tx.GetID(proto.MainNetScheme)
 	a.Equal(NewBytes(id), rs["id"])
 }
 
@@ -1717,7 +1717,7 @@ func (a *LeaseCancelWithProofsTestSuite) Test_leaseId() {
 
 func (a *LeaseCancelWithProofsTestSuite) Test_id() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	id, _ := a.tx.GetID()
+	id, _ := a.tx.GetID(proto.MainNetScheme)
 	a.Equal(NewBytes(id), rs["id"])
 }
 
@@ -1795,7 +1795,7 @@ func (a *DataWithProofsTestSuite) Test_data() {
 
 func (a *DataWithProofsTestSuite) Test_id() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	id, _ := a.tx.GetID()
+	id, _ := a.tx.GetID(proto.MainNetScheme)
 	a.Equal(NewBytes(id), rs["id"])
 }
 
@@ -1878,7 +1878,7 @@ func (a *SponsorshipWithProofsTestSuite) Test_minSponsoredAssetFee_absence() {
 
 func (a *SponsorshipWithProofsTestSuite) Test_id() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	id, _ := a.tx.GetID()
+	id, _ := a.tx.GetID(proto.MainNetScheme)
 	a.Equal(NewBytes(id), rs["id"])
 }
 
@@ -1950,7 +1950,7 @@ func (a *CreateAliasWithSigTestSuite) Test_alias() {
 
 func (a *CreateAliasWithSigTestSuite) Test_id() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	id, _ := a.tx.GetID()
+	id, _ := a.tx.GetID(proto.MainNetScheme)
 	a.Equal(NewBytes(id), rs["id"])
 }
 
@@ -2021,7 +2021,7 @@ func (a *CreateAliasWithProofsTestSuite) Test_alias() {
 
 func (a *CreateAliasWithProofsTestSuite) Test_id() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	id, _ := a.tx.GetID()
+	id, _ := a.tx.GetID(proto.MainNetScheme)
 	a.Equal(NewBytes(id), rs["id"])
 }
 

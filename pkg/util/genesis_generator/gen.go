@@ -46,7 +46,7 @@ func Generate(timestamp proto.Timestamp, schema byte, v ...interface{}) (*proto.
 			return nil, err
 		}
 		t := proto.NewUnsignedGenesis(addr, uint64(v[i+1].(int)), timestamp)
-		err = t.GenerateSigID()
+		err = t.GenerateSigID(schema)
 		if err != nil {
 			panic(err.Error())
 		}

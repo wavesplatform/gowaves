@@ -142,77 +142,77 @@ func getTransaction(message proto.Message, scheme proto.Scheme) (proto.Transacti
 			switch txb[1] {
 			case byte(proto.IssueTransaction):
 				var tx proto.IssueWithProofs
-				err := tx.UnmarshalBinary(txb)
+				err := tx.UnmarshalBinary(txb, scheme)
 				if err != nil {
 					return nil, err
 				}
 				return &tx, nil
 			case byte(proto.TransferTransaction):
 				var tx proto.TransferWithProofs
-				err := tx.UnmarshalBinary(txb)
+				err := tx.UnmarshalBinary(txb, scheme)
 				if err != nil {
 					return nil, err
 				}
 				return &tx, nil
 			case byte(proto.ReissueTransaction):
 				var tx proto.ReissueWithProofs
-				err := tx.UnmarshalBinary(txb)
+				err := tx.UnmarshalBinary(txb, scheme)
 				if err != nil {
 					return nil, err
 				}
 				return &tx, nil
 			case byte(proto.BurnTransaction):
 				var tx proto.BurnWithProofs
-				err := tx.UnmarshalBinary(txb)
+				err := tx.UnmarshalBinary(txb, scheme)
 				if err != nil {
 					return nil, err
 				}
 				return &tx, nil
 			case byte(proto.ExchangeTransaction):
 				var tx proto.ExchangeWithProofs
-				err := tx.UnmarshalBinary(txb)
+				err := tx.UnmarshalBinary(txb, scheme)
 				if err != nil {
 					return nil, err
 				}
 				return &tx, nil
 			case byte(proto.LeaseTransaction):
 				var tx proto.LeaseWithProofs
-				err := tx.UnmarshalBinary(txb)
+				err := tx.UnmarshalBinary(txb, scheme)
 				if err != nil {
 					return nil, err
 				}
 				return &tx, nil
 			case byte(proto.LeaseCancelTransaction):
 				var tx proto.LeaseCancelWithProofs
-				err := tx.UnmarshalBinary(txb)
+				err := tx.UnmarshalBinary(txb, scheme)
 				if err != nil {
 					return nil, err
 				}
 				return &tx, nil
 			case byte(proto.CreateAliasTransaction):
 				var tx proto.CreateAliasWithProofs
-				err := tx.UnmarshalBinary(txb)
+				err := tx.UnmarshalBinary(txb, scheme)
 				if err != nil {
 					return nil, err
 				}
 				return &tx, nil
 			case byte(proto.DataTransaction):
 				var tx proto.DataWithProofs
-				err := tx.UnmarshalBinary(txb)
+				err := tx.UnmarshalBinary(txb, scheme)
 				if err != nil {
 					return nil, err
 				}
 				return &tx, nil
 			case byte(proto.SetScriptTransaction):
 				var tx proto.SetScriptWithProofs
-				err := tx.UnmarshalBinary(txb)
+				err := tx.UnmarshalBinary(txb, scheme)
 				if err != nil {
 					return nil, err
 				}
 				return &tx, nil
 			case byte(proto.SponsorshipTransaction):
 				var tx proto.SponsorshipWithProofs
-				err := tx.UnmarshalBinary(txb)
+				err := tx.UnmarshalBinary(txb, scheme)
 				if err != nil {
 					return nil, err
 				}
@@ -223,7 +223,7 @@ func getTransaction(message proto.Message, scheme proto.Scheme) (proto.Transacti
 
 		case byte(proto.IssueTransaction):
 			var tx proto.IssueWithSig
-			err := tx.UnmarshalBinary(txb)
+			err := tx.UnmarshalBinary(txb, scheme)
 			if err != nil {
 				return nil, err
 			}
@@ -239,7 +239,7 @@ func getTransaction(message proto.Message, scheme proto.Scheme) (proto.Transacti
 
 		case byte(proto.TransferTransaction):
 			var tx proto.TransferWithSig
-			err := tx.UnmarshalBinary(txb)
+			err := tx.UnmarshalBinary(txb, scheme)
 			if err != nil {
 				return nil, err
 			}
@@ -254,7 +254,7 @@ func getTransaction(message proto.Message, scheme proto.Scheme) (proto.Transacti
 			return &tx, nil
 		case byte(proto.ReissueTransaction):
 			var tx proto.ReissueWithSig
-			err := tx.UnmarshalBinary(txb)
+			err := tx.UnmarshalBinary(txb, scheme)
 			if err != nil {
 				return nil, err
 			}
@@ -269,7 +269,7 @@ func getTransaction(message proto.Message, scheme proto.Scheme) (proto.Transacti
 			return &tx, nil
 		case byte(proto.BurnTransaction):
 			var tx proto.BurnWithSig
-			err := tx.UnmarshalBinary(txb)
+			err := tx.UnmarshalBinary(txb, scheme)
 			if err != nil {
 				return nil, err
 			}
@@ -284,7 +284,7 @@ func getTransaction(message proto.Message, scheme proto.Scheme) (proto.Transacti
 			return &tx, nil
 		case byte(proto.ExchangeTransaction):
 			var tx proto.ExchangeWithSig
-			err := tx.UnmarshalBinary(txb)
+			err := tx.UnmarshalBinary(txb, scheme)
 			if err != nil {
 				return nil, err
 			}
@@ -299,7 +299,7 @@ func getTransaction(message proto.Message, scheme proto.Scheme) (proto.Transacti
 			return &tx, nil
 		case byte(proto.LeaseTransaction):
 			var tx proto.LeaseWithSig
-			err := tx.UnmarshalBinary(txb)
+			err := tx.UnmarshalBinary(txb, scheme)
 			if err != nil {
 				return nil, err
 			}
@@ -314,7 +314,7 @@ func getTransaction(message proto.Message, scheme proto.Scheme) (proto.Transacti
 			return &tx, nil
 		case byte(proto.LeaseCancelTransaction):
 			var tx proto.LeaseCancelWithSig
-			err := tx.UnmarshalBinary(txb)
+			err := tx.UnmarshalBinary(txb, scheme)
 			if err != nil {
 				return nil, err
 			}
@@ -329,7 +329,7 @@ func getTransaction(message proto.Message, scheme proto.Scheme) (proto.Transacti
 			return &tx, nil
 		case byte(proto.CreateAliasTransaction):
 			var tx proto.CreateAliasWithSig
-			err := tx.UnmarshalBinary(txb)
+			err := tx.UnmarshalBinary(txb, scheme)
 			if err != nil {
 				return nil, err
 			}
@@ -344,7 +344,7 @@ func getTransaction(message proto.Message, scheme proto.Scheme) (proto.Transacti
 			return &tx, nil
 		case byte(proto.MassTransferTransaction):
 			var tx proto.MassTransferWithProofs
-			err := tx.UnmarshalBinary(txb)
+			err := tx.UnmarshalBinary(txb, scheme)
 			if err != nil {
 				return nil, err
 			}

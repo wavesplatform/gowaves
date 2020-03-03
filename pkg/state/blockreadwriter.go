@@ -312,7 +312,7 @@ func (rw *blockReadWriter) finishBlock(blockID crypto.Signature) error {
 func (rw *blockReadWriter) writeTransaction(tx proto.Transaction) error {
 	rw.mtx.Lock()
 	defer rw.mtx.Unlock()
-	txID, err := tx.GetID()
+	txID, err := tx.GetID(rw.scheme)
 	if err != nil {
 		return err
 	}
@@ -612,7 +612,7 @@ func (rw *blockReadWriter) readBlock(blockID crypto.Signature) (*proto.Block, er
 			return nil, err
 		}
 	} else {
-		res, err = proto.NewTransactionsFromBytes(blockBytes, header.TransactionCount)
+		res, err = proto.NewTransactionsFromBytes(blockBytes, header.TransactionCount, rw.scheme)
 		if err != nil {
 			return nil, err
 		}
@@ -663,11 +663,11 @@ func (rw *blockReadWriter) cleanIDs(oldHeight, newBlockchainLen uint64) error {
 			return err
 		}
 		readPos += uint64(txSize)
-		tx, err := proto.BytesToTransaction(txBytes)
+		tx, err := proto.BytesToTransaction(txBytes, rw.scheme)
 		if err != nil {
 			return err
 		}
-		txID, err := tx.GetID()
+		txID, err := tx.GetID(rw.scheme)
 		if err != nil {
 			return err
 		}
@@ -955,7 +955,7 @@ func (rw *blockReadWriter) txFromBytes(txBytes []byte, protobuf bool) (proto.Tra
 	if protobuf {
 		return proto.SignedTxFromProtobuf(txBytes)
 	}
-	return proto.BytesToTransaction(txBytes)
+	return proto.BytesToTransaction(txBytes, rw.scheme)
 }
 
 func (rw *blockReadWriter) txByBounds(start, end uint64) (proto.Transaction, error) {

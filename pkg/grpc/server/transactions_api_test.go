@@ -145,7 +145,7 @@ func TestGetStatuses(t *testing.T) {
 	// id0 is from Mainnet genesis block.
 	id0 := crypto.MustSignatureFromBase58("2DVtfgXjpMeFf2PQCqvwxAiaGbiDsxDjSdNQkc5JQ74eWxjWFYgwvqzC4dn7iB1AhuM32WxEiVi1SGijsBtYQwn8")
 	// id1 should be in UTX.
-	id1, err := tx.GetID()
+	id1, err := tx.GetID(settings.MainNetSettings.AddressSchemeCharacter)
 	assert.NoError(t, err)
 	// id2 is unknown.
 	id2 := []byte{2}
@@ -239,7 +239,7 @@ func TestGetUnconfirmed(t *testing.T) {
 	assert.Equal(t, io.EOF, err)
 
 	// By ID.
-	id, err := tx.GetID()
+	id, err := tx.GetID(settings.MainNetSettings.AddressSchemeCharacter)
 	assert.NoError(t, err)
 	req = &g.TransactionsRequest{
 		TransactionIds: [][]byte{id},

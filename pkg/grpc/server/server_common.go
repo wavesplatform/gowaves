@@ -8,7 +8,7 @@ import (
 )
 
 func (s *Server) transactionToTransactionResponse(tx proto.Transaction, setHeight bool) (*g.TransactionResponse, error) {
-	id, err := tx.GetID()
+	id, err := tx.GetID(s.scheme)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get tx ID")
 	}

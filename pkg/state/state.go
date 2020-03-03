@@ -766,7 +766,7 @@ func (s *stateManager) undoBlockAddition() error {
 
 func (s *stateManager) AddBlock(block []byte) (*proto.Block, error) {
 	b := &proto.Block{}
-	err := b.UnmarshalBinary(block)
+	err := b.UnmarshalBinary(block, s.settings.AddressSchemeCharacter)
 	if err != nil {
 		return nil, err
 	}
@@ -803,7 +803,7 @@ func (s *stateManager) AddNewBlocks(blockBytes [][]byte) error {
 	var blocks []*proto.Block
 	for _, bts := range blockBytes {
 		block := &proto.Block{}
-		err := block.UnmarshalBinary(bts)
+		err := block.UnmarshalBinary(bts, s.settings.AddressSchemeCharacter)
 		if err != nil {
 			return err
 		}
@@ -837,7 +837,7 @@ func (s *stateManager) AddOldBlocks(blockBytes [][]byte) error {
 	var blocks []*proto.Block
 	for _, bts := range blockBytes {
 		block := &proto.Block{}
-		err := block.UnmarshalBinary(bts)
+		err := block.UnmarshalBinary(bts, s.settings.AddressSchemeCharacter)
 		if err != nil {
 			return err
 		}

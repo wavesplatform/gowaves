@@ -84,7 +84,7 @@ func (a *UtxImpl) addWithBytes(t proto.Transaction, b []byte) error {
 	if err := t.GenerateID(a.settings.AddressSchemeCharacter); err != nil {
 		return errors.Errorf("failed to generate ID: %v", err)
 	}
-	tID, err := t.GetID()
+	tID, err := t.GetID(a.settings.AddressSchemeCharacter)
 	if err != nil {
 		return err
 	}
@@ -100,7 +100,7 @@ func (a *UtxImpl) addWithBytes(t proto.Transaction, b []byte) error {
 		B: b,
 	}
 	heap.Push(&a.transactions, tb)
-	id := makeDigest(t.GetID())
+	id := makeDigest(t.GetID(a.settings.AddressSchemeCharacter))
 	a.transactionIds[id] = struct{}{}
 	a.curSize += uint64(len(b))
 	return nil
@@ -119,7 +119,7 @@ func makeDigest(b []byte, e error) crypto.Digest {
 }
 
 func (a *UtxImpl) exists(t proto.Transaction) bool {
-	_, ok := a.transactionIds[makeDigest(t.GetID())]
+	_, ok := a.transactionIds[makeDigest(t.GetID(a.settings.AddressSchemeCharacter))]
 	return ok
 }
 
@@ -145,7 +145,7 @@ func (a *UtxImpl) Pop() *types.TransactionWithBytes {
 	defer a.mu.Unlock()
 	if a.transactions.Len() > 0 {
 		tb := heap.Pop(&a.transactions).(*types.TransactionWithBytes)
-		delete(a.transactionIds, makeDigest(tb.T.GetID()))
+		delete(a.transactionIds, makeDigest(tb.T.GetID(a.settings.AddressSchemeCharacter)))
 		if uint64(len(tb.B)) > a.curSize {
 			panic(fmt.Sprintf("UtxImpl Pop: size of transaction %d > than current size %d", len(tb.B), a.curSize))
 		}

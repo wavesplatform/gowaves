@@ -76,7 +76,7 @@ func (a *MicroBlock) ToProtobuf(scheme Scheme) (*g.SignedMicroBlock, error) {
 	}, nil
 }
 
-func (a *MicroBlock) UnmarshalBinary(b []byte) error {
+func (a *MicroBlock) UnmarshalBinary(b []byte, scheme Scheme) error {
 	var err error
 	d := deserializer.NewDeserializer(b)
 
@@ -109,7 +109,7 @@ func (a *MicroBlock) UnmarshalBinary(b []byte) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to unmarshal microblock transaction bytes")
 	}
-	a.Transactions, err = NewTransactionsFromBytes(bts, int(a.TransactionCount))
+	a.Transactions, err = NewTransactionsFromBytes(bts, int(a.TransactionCount), scheme)
 	if err != nil {
 		return errors.Wrap(err, "failed to unmarshal transactions")
 	}

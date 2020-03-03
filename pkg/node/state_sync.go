@@ -226,7 +226,7 @@ func (a *StateSync) downloadBlocks(ctx context.Context, signaturesCh chan nullab
 	runner.Named("StateSync.downloadBlocks.CreateBulk2", func() {
 		defer wg.Done()
 		select {
-		case errCh <- createBulkWorker2(blockCnt, receivedBlocksCh, blocksBulk):
+		case errCh <- createBulkWorker2(blockCnt, receivedBlocksCh, blocksBulk, a.services.Scheme):
 		default:
 		}
 	})
@@ -271,7 +271,7 @@ func applyWorker(ctx context.Context, blockCnt int, blocksBulk chan []*proto.Blo
 	}
 }
 
-func createBulkWorker(ctx context.Context, blockCnt int, receivedBlocksCh chan blockBytes, blocksBulk chan []*proto.Block) error {
+func createBulkWorker(ctx context.Context, blockCnt int, receivedBlocksCh chan blockBytes, blocksBulk chan []*proto.Block, scheme proto.Scheme) error {
 	defer close(blocksBulk)
 	blocks := make([]*proto.Block, 0, blockCnt)
 	for {
@@ -288,7 +288,7 @@ func createBulkWorker(ctx context.Context, blockCnt int, receivedBlocksCh chan b
 				return nil
 			}
 			block := &proto.Block{}
-			err := block.UnmarshalBinary(bts)
+			err := block.UnmarshalBinary(bts, scheme)
 			if err != nil {
 				return err
 			}
@@ -303,7 +303,7 @@ func createBulkWorker(ctx context.Context, blockCnt int, receivedBlocksCh chan b
 	}
 }
 
-func createBulkWorker2(blockCnt int, receivedBlocksCh channel.Channel, blocksBulk chan []*proto.Block) error {
+func createBulkWorker2(blockCnt int, receivedBlocksCh channel.Channel, blocksBulk chan []*proto.Block, scheme proto.Scheme) error {
 	defer close(blocksBulk)
 	defer receivedBlocksCh.Close()
 	blocks := make([]*proto.Block, 0, blockCnt)
@@ -322,7 +322,7 @@ func createBulkWorker2(blockCnt int, receivedBlocksCh channel.Channel, blocksBul
 			return nil
 		}
 		block := &proto.Block{}
-		err := block.UnmarshalBinary(bts)
+		err := block.UnmarshalBinary(bts, scheme)
 		if err != nil {
 			return err
 		}

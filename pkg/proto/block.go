@@ -113,6 +113,7 @@ func (b *BlockHeader) HeaderToProtobufHeader(scheme Scheme) (*g.Block_Header, er
 		Version:             int32(b.Version),
 		Generator:           pkBytes,
 		RewardVote:          b.RewardVote,
+		TransactionsRoot:    b.TransactionsRoot,
 	}, nil
 }
 
@@ -432,7 +433,7 @@ func (b *Block) WriteToWithoutSignature(w io.Writer) (int64, error) {
 }
 
 // UnmarshalBinary decodes Block from binary form
-func (b *Block) UnmarshalBinary(data []byte) (err error) {
+func (b *Block) UnmarshalBinary(data []byte, scheme Scheme) (err error) {
 	// TODO make benchmarks to figure out why multiple length checks slow down that much
 	//  and (probably) get rid of recover().
 	defer func() {
@@ -458,7 +459,7 @@ func (b *Block) UnmarshalBinary(data []byte) (err error) {
 		b.TransactionCount = int(binary.BigEndian.Uint32(data[121:125]))
 		txEnd := 121 + b.TransactionBlockLength
 		transBytes := data[125:txEnd]
-		b.Transactions, err = NewTransactionsFromBytes(transBytes, b.TransactionCount)
+		b.Transactions, err = NewTransactionsFromBytes(transBytes, b.TransactionCount, scheme)
 		if err != nil {
 			return errors.Wrap(err, "failed to unmarshal transactions from bytes")
 		}
@@ -480,7 +481,7 @@ func (b *Block) UnmarshalBinary(data []byte) (err error) {
 		}
 		b.TransactionCount = int(data[121])
 		transBytes := data[122 : 122+b.TransactionBlockLength-1]
-		b.Transactions, err = NewTransactionsFromBytes(transBytes, b.TransactionCount)
+		b.Transactions, err = NewTransactionsFromBytes(transBytes, b.TransactionCount, scheme)
 		if err != nil {
 			return errors.Wrap(err, "failed to unmarshal transactions from bytes")
 		}
@@ -549,8 +550,8 @@ func BlockGetParent(data []byte) (crypto.Signature, error) {
 
 type Transactions []Transaction
 
-func NewTransactionsFromBytes(data []byte, count int) (Transactions, error) {
-	return BytesToTransactions(count, data)
+func NewTransactionsFromBytes(data []byte, count int, scheme Scheme) (Transactions, error) {
+	return BytesToTransactions(count, data, scheme)
 }
 
 func (a Transactions) BinarySize() int {

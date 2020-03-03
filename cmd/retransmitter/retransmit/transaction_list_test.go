@@ -13,7 +13,7 @@ func TestTransactionList(t *testing.T) {
 	d3, _ := crypto.FastHash([]byte("3"))
 	d4, _ := crypto.FastHash([]byte("4"))
 
-	lst := NewTransactionList(2)
+	lst := NewTransactionList(2, proto.MainNetScheme)
 	assert.Equal(t, 0, lst.Len())
 
 	t1 := proto.TransferWithProofs{ID: &d1}

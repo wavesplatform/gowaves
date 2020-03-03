@@ -51,7 +51,7 @@ func (a transaction) Sign(scheme proto.Scheme, sk crypto.SecretKey) error {
 	panic("implement me")
 }
 
-func (a transaction) GetID() ([]byte, error) {
+func (a transaction) GetID(scheme proto.Scheme) ([]byte, error) {
 	return a.id, nil
 }
 
@@ -67,7 +67,7 @@ func (transaction) MarshalBinary() ([]byte, error) {
 	panic("implement me")
 }
 
-func (transaction) UnmarshalBinary([]byte) error {
+func (transaction) UnmarshalBinary([]byte, proto.Scheme) error {
 	panic("implement me")
 }
 

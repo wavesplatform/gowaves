@@ -515,7 +515,7 @@ func (td *transactionDiffer) createDiffIssueWithSig(transaction proto.Transactio
 	if !ok {
 		return txBalanceChanges{}, errors.New("failed to convert interface to IssueWithSig transaction")
 	}
-	txID, err := tx.GetID()
+	txID, err := tx.GetID(td.settings.AddressSchemeCharacter)
 	if err != nil {
 		return txBalanceChanges{}, errors.Errorf("failed to get transaction ID: %v\n", err)
 	}
@@ -527,7 +527,7 @@ func (td *transactionDiffer) createDiffIssueWithProofs(transaction proto.Transac
 	if !ok {
 		return txBalanceChanges{}, errors.New("failed to convert interface to IssueWithProofs transaction")
 	}
-	txID, err := tx.GetID()
+	txID, err := tx.GetID(td.settings.AddressSchemeCharacter)
 	if err != nil {
 		return txBalanceChanges{}, errors.Errorf("failed to get transaction ID: %v\n", err)
 	}

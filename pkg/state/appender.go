@@ -125,7 +125,7 @@ func (a *txAppender) checkDuplicateTxIds(tx proto.Transaction, recentIds map[str
 			return nil
 		}
 	}
-	txID, err := tx.GetID()
+	txID, err := tx.GetID(a.settings.AddressSchemeCharacter)
 	if err != nil {
 		return err
 	}
@@ -393,7 +393,7 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 			return err
 		}
 		// Add transaction ID.
-		txID, err := tx.GetID()
+		txID, err := tx.GetID(a.settings.AddressSchemeCharacter)
 		if err != nil {
 			return err
 		}
@@ -527,7 +527,7 @@ func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, pare
 		return err
 	}
 	// Add transaction ID.
-	txID, err := tx.GetID()
+	txID, err := tx.GetID(a.settings.AddressSchemeCharacter)
 	if err != nil {
 		return err
 	}

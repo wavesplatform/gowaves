@@ -147,7 +147,7 @@ func (a *RuntimeImpl) HandleMicroBlockMessage(_ peer.Peer, message *proto.MicroB
 
 	switch t := message.Body.(type) {
 	case proto.Bytes:
-		err := microblock.UnmarshalBinary(t)
+		err := microblock.UnmarshalBinary(t, a.services.Scheme)
 		if err != nil {
 			zap.S().Error(err)
 			return

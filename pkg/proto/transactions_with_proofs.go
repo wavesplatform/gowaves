@@ -147,9 +147,11 @@ func (tx *IssueWithProofs) GenerateID(scheme Scheme) error {
 	return nil
 }
 
-func (tx IssueWithProofs) GetID() ([]byte, error) {
+func (tx IssueWithProofs) GetID(scheme Scheme) ([]byte, error) {
 	if tx.ID == nil {
-		return nil, errors.New("tx ID is not set\n")
+		if err := tx.GenerateID(scheme); err != nil {
+			return nil, err
+		}
 	}
 	return tx.ID.Bytes(), nil
 }
@@ -334,7 +336,7 @@ func (tx *IssueWithProofs) MarshalBinary() ([]byte, error) {
 }
 
 //UnmarshalBinary reads transaction from its binary representation.
-func (tx *IssueWithProofs) UnmarshalBinary(data []byte) error {
+func (tx *IssueWithProofs) UnmarshalBinary(data []byte, scheme Scheme) error {
 	if l := len(data); l < issueWithProofsMinLen {
 		return errors.Errorf("not enough data for IssueWithProofs transaction, expected not less then %d, received %d", issueWithProofsMinLen, l)
 	}
@@ -351,7 +353,6 @@ func (tx *IssueWithProofs) UnmarshalBinary(data []byte) error {
 		sl += 2
 	}
 	bl := issueWithProofsFixedBodyLen + len(tx.Name) + len(tx.Description) + sl
-	bb := data[:bl]
 	data = data[bl:]
 	var p ProofsV1
 	err = p.UnmarshalBinary(data)
@@ -359,11 +360,9 @@ func (tx *IssueWithProofs) UnmarshalBinary(data []byte) error {
 		return errors.Wrap(err, "failed to unmarshal IssueWithProofs transaction from bytes")
 	}
 	tx.Proofs = &p
-	id, err := crypto.FastHash(bb)
-	if err != nil {
-		return errors.Wrap(err, "failed to unmarshal IssueWithProofs transaction from bytes")
+	if err := tx.GenerateID(scheme); err != nil {
+		return err
 	}
-	tx.ID = &id
 	return nil
 }
 
@@ -460,9 +459,11 @@ func (tx *TransferWithProofs) GenerateID(scheme Scheme) error {
 	return nil
 }
 
-func (tx TransferWithProofs) GetID() ([]byte, error) {
+func (tx TransferWithProofs) GetID(scheme Scheme) ([]byte, error) {
 	if tx.ID == nil {
-		return nil, errors.New("tx ID is not set\n")
+		if err := tx.GenerateID(scheme); err != nil {
+			return nil, err
+		}
 	}
 	return tx.ID.Bytes(), nil
 }
@@ -535,7 +536,7 @@ func (tx *TransferWithProofs) BodyUnmarshalBinary(data []byte) error {
 		return errors.Errorf("unexpected version %d for TransferWithProofs transaction", v)
 	}
 	var t Transfer
-	err := t.unmarshalBinary(data[2:])
+	err := t.UnmarshalBinary(data[2:])
 	if err != nil {
 		return errors.Wrap(err, "failed to unmarshal TransferWithProofs body from bytes")
 	}
@@ -614,7 +615,7 @@ func (tx *TransferWithProofs) Serialize(s *serializer.Serializer) error {
 }
 
 //UnmarshalBinary reads TransferWithProofs from its bytes representation.
-func (tx *TransferWithProofs) UnmarshalBinary(data []byte) error {
+func (tx *TransferWithProofs) UnmarshalBinary(data []byte, scheme Scheme) error {
 	if l := len(data); l < transferWithProofsMinLen {
 		return errors.Errorf("not enough data for TransferWithProofs transaction, expected not less then %d, received %d", transferWithProofsMinLen, l)
 	}
@@ -637,7 +638,6 @@ func (tx *TransferWithProofs) UnmarshalBinary(data []byte) error {
 	atl := tx.Attachment.Size()
 	rl := tx.Recipient.len
 	bl := transferWithProofsFixedBodyLen + aal + fal + atl + rl
-	bb := data[:bl]
 	data = data[bl:]
 	var p ProofsV1
 	err = p.UnmarshalBinary(data)
@@ -645,11 +645,9 @@ func (tx *TransferWithProofs) UnmarshalBinary(data []byte) error {
 		return errors.Wrap(err, "failed to unmarshal TransferWithProofs transaction from bytes")
 	}
 	tx.Proofs = &p
-	id, err := crypto.FastHash(bb)
-	if err != nil {
-		return errors.Wrap(err, "failed to unmarshal TransferWithProofs transaction from bytes")
+	if err := tx.GenerateID(scheme); err != nil {
+		return err
 	}
-	tx.ID = &id
 	return nil
 }
 
@@ -769,9 +767,11 @@ func (tx *ReissueWithProofs) GenerateID(scheme Scheme) error {
 	return nil
 }
 
-func (tx ReissueWithProofs) GetID() ([]byte, error) {
+func (tx ReissueWithProofs) GetID(scheme Scheme) ([]byte, error) {
 	if tx.ID == nil {
-		return nil, errors.New("tx ID is not set\n")
+		if err := tx.GenerateID(scheme); err != nil {
+			return nil, err
+		}
 	}
 	return tx.ID.Bytes(), nil
 }
@@ -831,7 +831,7 @@ func (tx *ReissueWithProofs) bodyUnmarshalBinary(data []byte) error {
 	}
 	tx.ChainID = data[2]
 	var r Reissue
-	err := r.unmarshalBinary(data[3:])
+	err := r.UnmarshalBinary(data[3:])
 	if err != nil {
 		return errors.Wrap(err, "failed to unmarshal ReissueWithProofs body from bytes")
 	}
@@ -891,7 +891,7 @@ func (tx *ReissueWithProofs) MarshalBinary() ([]byte, error) {
 }
 
 //UnmarshalBinary reads ReissueWithProofs from its bytes representation.
-func (tx *ReissueWithProofs) UnmarshalBinary(data []byte) error {
+func (tx *ReissueWithProofs) UnmarshalBinary(data []byte, scheme Scheme) error {
 	if l := len(data); l < reissueWithProofsMinLen {
 		return errors.Errorf("not enough data for ReissueWithProofs transaction, expected not less then %d, received %d", reissueWithProofsMinLen, l)
 	}
@@ -903,7 +903,6 @@ func (tx *ReissueWithProofs) UnmarshalBinary(data []byte) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to unmarshal ReissueWithProofs transaction from bytes")
 	}
-	bb := data[:reissueWithProofsBodyLen]
 	data = data[reissueWithProofsBodyLen:]
 	var p ProofsV1
 	err = p.UnmarshalBinary(data)
@@ -911,11 +910,9 @@ func (tx *ReissueWithProofs) UnmarshalBinary(data []byte) error {
 		return errors.Wrap(err, "failed to unmarshal ReissueWithProofs transaction from bytes")
 	}
 	tx.Proofs = &p
-	id, err := crypto.FastHash(bb)
-	if err != nil {
-		return errors.Wrap(err, "failed to unmarshal ReissueWithProofs transaction from bytes")
+	if err := tx.GenerateID(scheme); err != nil {
+		return err
 	}
-	tx.ID = &id
 	return nil
 }
 
@@ -1010,9 +1007,11 @@ func (tx *BurnWithProofs) GenerateID(scheme Scheme) error {
 	return nil
 }
 
-func (tx BurnWithProofs) GetID() ([]byte, error) {
+func (tx BurnWithProofs) GetID(scheme Scheme) ([]byte, error) {
 	if tx.ID == nil {
-		return nil, errors.New("tx ID is not set\n")
+		if err := tx.GenerateID(scheme); err != nil {
+			return nil, err
+		}
 	}
 	return tx.ID.Bytes(), nil
 }
@@ -1071,7 +1070,7 @@ func (tx *BurnWithProofs) bodyUnmarshalBinary(data []byte) error {
 	}
 	tx.ChainID = data[2]
 	var b Burn
-	err := b.unmarshalBinary(data[3:])
+	err := b.UnmarshalBinary(data[3:])
 	if err != nil {
 		return errors.Wrap(err, "failed to unmarshal BurnWithProofs body from bytes")
 	}
@@ -1131,7 +1130,7 @@ func (tx *BurnWithProofs) MarshalBinary() ([]byte, error) {
 }
 
 //UnmarshalBinary reads BurnWithProofs from its bytes representation.
-func (tx *BurnWithProofs) UnmarshalBinary(data []byte) error {
+func (tx *BurnWithProofs) UnmarshalBinary(data []byte, scheme Scheme) error {
 	if l := len(data); l < burnWithProofsLen {
 		return errors.Errorf("not enough data for BurnWithProofs transaction, expected not less then %d, received %d", burnWithProofsBodyLen, l)
 	}
@@ -1143,7 +1142,6 @@ func (tx *BurnWithProofs) UnmarshalBinary(data []byte) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to unmarshal BurnWithProofs transaction from bytes")
 	}
-	bb := data[:burnWithProofsBodyLen]
 	data = data[burnWithProofsBodyLen:]
 	var p ProofsV1
 	err = p.UnmarshalBinary(data)
@@ -1151,11 +1149,9 @@ func (tx *BurnWithProofs) UnmarshalBinary(data []byte) error {
 		return errors.Wrap(err, "failed to unmarshal BurnWithProofs transaction from bytes")
 	}
 	tx.Proofs = &p
-	id, err := crypto.FastHash(bb)
-	if err != nil {
-		return errors.Wrap(err, "failed to unmarshal BurnWithProofs transaction from bytes")
+	if err := tx.GenerateID(scheme); err != nil {
+		return err
 	}
-	tx.ID = &id
 	return nil
 }
 
@@ -1274,9 +1270,11 @@ func (tx *ExchangeWithProofs) GenerateID(scheme Scheme) error {
 	return nil
 }
 
-func (tx ExchangeWithProofs) GetID() ([]byte, error) {
+func (tx ExchangeWithProofs) GetID(scheme Scheme) ([]byte, error) {
 	if tx.ID == nil {
-		return nil, errors.New("tx ID is not set\n")
+		if err := tx.GenerateID(scheme); err != nil {
+			return nil, err
+		}
 	}
 	return tx.ID.Bytes(), nil
 }
@@ -1649,7 +1647,7 @@ func (tx *ExchangeWithProofs) MarshalBinary() ([]byte, error) {
 }
 
 //UnmarshalBinary loads the transaction from its binary representation.
-func (tx *ExchangeWithProofs) UnmarshalBinary(data []byte) error {
+func (tx *ExchangeWithProofs) UnmarshalBinary(data []byte, scheme Scheme) error {
 	if l := len(data); l < exchangeWithProofsMinLen {
 		return errors.Errorf("not enough data for ExchangeWithProofs transaction, expected not less then %d, received %d", exchangeWithProofsMinLen, l)
 	}
@@ -1657,7 +1655,6 @@ func (tx *ExchangeWithProofs) UnmarshalBinary(data []byte) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to unmarshal ExchangeWithProofs transaction from bytes")
 	}
-	bb := data[:bl]
 	data = data[bl:]
 	var p ProofsV1
 	err = p.UnmarshalBinary(data)
@@ -1665,11 +1662,9 @@ func (tx *ExchangeWithProofs) UnmarshalBinary(data []byte) error {
 		return errors.Wrap(err, "failed to unmarshal ExchangeWithProofs transaction from bytes")
 	}
 	tx.Proofs = &p
-	id, err := crypto.FastHash(bb)
-	if err != nil {
-		return errors.Wrap(err, "failed to unmarshal ExchangeWithProofs transaction from bytes")
+	if err := tx.GenerateID(scheme); err != nil {
+		return err
 	}
-	tx.ID = &id
 	return nil
 }
 
@@ -1827,9 +1822,11 @@ func (tx *LeaseWithProofs) GenerateID(scheme Scheme) error {
 	return nil
 }
 
-func (tx LeaseWithProofs) GetID() ([]byte, error) {
+func (tx LeaseWithProofs) GetID(scheme Scheme) ([]byte, error) {
 	if tx.ID == nil {
-		return nil, errors.New("tx ID is not set\n")
+		if err := tx.GenerateID(scheme); err != nil {
+			return nil, err
+		}
 	}
 	return tx.ID.Bytes(), nil
 }
@@ -1879,7 +1876,7 @@ func (tx *LeaseWithProofs) bodyUnmarshalBinary(data []byte) error {
 		return errors.Errorf("unexpected version %d for LeaseWithProofs transaction, expected 2", tx.Version)
 	}
 	var l Lease
-	err := l.unmarshalBinary(data[3:])
+	err := l.UnmarshalBinary(data[3:])
 	if err != nil {
 		return errors.Wrap(err, "failed to unmarshal LeaseWithProofs transaction from bytes")
 	}
@@ -1939,7 +1936,7 @@ func (tx *LeaseWithProofs) MarshalBinary() ([]byte, error) {
 }
 
 //UnmarshalBinary reads the transaction from bytes slice.
-func (tx *LeaseWithProofs) UnmarshalBinary(data []byte) error {
+func (tx *LeaseWithProofs) UnmarshalBinary(data []byte, scheme Scheme) error {
 	if l := len(data); l < leaseWithProofsMinLen {
 		return errors.Errorf("not enough data for LeaseWithProofs transaction, expected not less then %d, received %d", leaseWithProofsMinLen, l)
 	}
@@ -1952,7 +1949,6 @@ func (tx *LeaseWithProofs) UnmarshalBinary(data []byte) error {
 		return errors.Wrap(err, "failed to unmarshal LeaseWithProofs transaction from bytes")
 	}
 	bl := leaseWithProofsBodyLen + tx.Recipient.len
-	bb := data[:bl]
 	data = data[bl:]
 	var p ProofsV1
 	err = p.UnmarshalBinary(data)
@@ -1960,11 +1956,9 @@ func (tx *LeaseWithProofs) UnmarshalBinary(data []byte) error {
 		return errors.Wrap(err, "failed to unmarshal LeaseWithProofs transaction from bytes")
 	}
 	tx.Proofs = &p
-	id, err := crypto.FastHash(bb)
-	if err != nil {
-		return errors.Wrap(err, "failed to unmarshal LeaseWithProofs transaction from bytes")
+	if err := tx.GenerateID(scheme); err != nil {
+		return err
 	}
-	tx.ID = &id
 	return nil
 }
 
@@ -2059,9 +2053,11 @@ func (tx *LeaseCancelWithProofs) GenerateID(scheme Scheme) error {
 	return nil
 }
 
-func (tx LeaseCancelWithProofs) GetID() ([]byte, error) {
+func (tx LeaseCancelWithProofs) GetID(scheme Scheme) ([]byte, error) {
 	if tx.ID == nil {
-		return nil, errors.New("tx ID is not set\n")
+		if err := tx.GenerateID(scheme); err != nil {
+			return nil, err
+		}
 	}
 	return tx.ID.Bytes(), nil
 }
@@ -2120,7 +2116,7 @@ func (tx *LeaseCancelWithProofs) bodyUnmarshalBinary(data []byte) error {
 	}
 	tx.ChainID = data[2]
 	var lc LeaseCancel
-	err := lc.unmarshalBinary(data[3:])
+	err := lc.UnmarshalBinary(data[3:])
 	if err != nil {
 		return errors.Wrap(err, "failed to unmarshal LeaseCancelWithProofs from bytes")
 	}
@@ -2180,7 +2176,7 @@ func (tx *LeaseCancelWithProofs) MarshalBinary() ([]byte, error) {
 }
 
 //UnmarshalBinary reads the transaction from bytes slice.
-func (tx *LeaseCancelWithProofs) UnmarshalBinary(data []byte) error {
+func (tx *LeaseCancelWithProofs) UnmarshalBinary(data []byte, scheme Scheme) error {
 	if l := len(data); l < leaseCancelWithProofsMinLen {
 		return errors.Errorf("not enough data for LeaseCancelWithProofs transaction, expected not less then %d, received %d", leaseCancelWithProofsMinLen, l)
 	}
@@ -2192,7 +2188,6 @@ func (tx *LeaseCancelWithProofs) UnmarshalBinary(data []byte) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to unmarshal LeaseCancelWithProofs transaction from bytes")
 	}
-	bb := data[:leaseCancelWithProofsBodyLen]
 	data = data[leaseCancelWithProofsBodyLen:]
 	var p ProofsV1
 	err = p.UnmarshalBinary(data)
@@ -2200,11 +2195,9 @@ func (tx *LeaseCancelWithProofs) UnmarshalBinary(data []byte) error {
 		return errors.Wrap(err, "failed to unmarshal LeaseCancelWithProofs transaction from bytes")
 	}
 	tx.Proofs = &p
-	id, err := crypto.FastHash(bb)
-	if err != nil {
-		return errors.Wrap(err, "failed to unmarshal LeaseCancelWithProofs transaction from bytes")
+	if err := tx.GenerateID(scheme); err != nil {
+		return err
 	}
-	tx.ID = &id
 	return nil
 }
 
@@ -2286,19 +2279,31 @@ func (tx CreateAliasWithProofs) GetVersion() byte {
 }
 
 func (tx *CreateAliasWithProofs) GenerateID(scheme Scheme) error {
-	if tx.ID == nil {
-		id, err := tx.CreateAlias.id()
+	if tx.ID != nil {
+		return nil
+	}
+	if IsProtobufTx(tx) {
+		body, err := MarshalTxBody(scheme, tx)
 		if err != nil {
 			return err
 		}
-		tx.ID = id
+		id := crypto.MustFastHash(body)
+		tx.ID = &id
+		return nil
 	}
+	id, err := tx.CreateAlias.id()
+	if err != nil {
+		return err
+	}
+	tx.ID = id
 	return nil
 }
 
-func (tx CreateAliasWithProofs) GetID() ([]byte, error) {
+func (tx CreateAliasWithProofs) GetID(scheme Scheme) ([]byte, error) {
 	if tx.ID == nil {
-		return nil, errors.New("tx ID is not set\n")
+		if err := tx.GenerateID(scheme); err != nil {
+			return nil, err
+		}
 	}
 	return tx.ID.Bytes(), nil
 }
@@ -2344,7 +2349,7 @@ func (tx *CreateAliasWithProofs) bodyUnmarshalBinary(data []byte) error {
 		return errors.Errorf("unexpected version %d for CreateAliasWithProofs transaction", tx.Version)
 	}
 	var ca CreateAlias
-	err := ca.unmarshalBinary(data[2:])
+	err := ca.UnmarshalBinary(data[2:])
 	if err != nil {
 		return errors.Wrap(err, "failed to unmarshal CreateAliasWithProofs transaction from bytes")
 	}
@@ -2365,9 +2370,8 @@ func (tx *CreateAliasWithProofs) Sign(scheme Scheme, secretKey crypto.SecretKey)
 	if err != nil {
 		return errors.Wrap(err, "failed to sign CreateAliasWithProofs transaction")
 	}
-	tx.ID, err = tx.CreateAlias.id()
-	if err != nil {
-		return errors.Wrap(err, "failed to sign CreateAliasWithProofs transaction")
+	if err := tx.GenerateID(scheme); err != nil {
+		return err
 	}
 	return nil
 }
@@ -2403,7 +2407,7 @@ func (tx *CreateAliasWithProofs) MarshalBinary() ([]byte, error) {
 }
 
 //UnmarshalBinary reads the transaction from bytes slice.
-func (tx *CreateAliasWithProofs) UnmarshalBinary(data []byte) error {
+func (tx *CreateAliasWithProofs) UnmarshalBinary(data []byte, scheme Scheme) error {
 	if l := len(data); l < createAliasWithProofsMinLen {
 		return errors.Errorf("not enough data for CreateAliasWithProofs transaction, expected not less then %d, received %d", createAliasWithProofsMinLen, l)
 	}
@@ -2422,9 +2426,8 @@ func (tx *CreateAliasWithProofs) UnmarshalBinary(data []byte) error {
 		return errors.Wrap(err, "failed to unmarshal CreateAliasWithProofs transaction from bytes")
 	}
 	tx.Proofs = &p
-	tx.ID, err = tx.CreateAlias.id()
-	if err != nil {
-		return errors.Wrap(err, "failed to unmarshal CreateAliasWithProofs transaction from bytes")
+	if err := tx.GenerateID(scheme); err != nil {
+		return err
 	}
 	return nil
 }
@@ -2558,9 +2561,11 @@ func (tx MassTransferWithProofs) GetSenderPK() crypto.PublicKey {
 	return tx.SenderPK
 }
 
-func (tx MassTransferWithProofs) GetID() ([]byte, error) {
+func (tx MassTransferWithProofs) GetID(scheme Scheme) ([]byte, error) {
 	if tx.ID == nil {
-		return nil, errors.New("tx ID is not set\n")
+		if err := tx.GenerateID(scheme); err != nil {
+			return nil, err
+		}
 	}
 	return tx.ID.Bytes(), nil
 }
@@ -2761,7 +2766,7 @@ func (tx *MassTransferWithProofs) MarshalBinary() ([]byte, error) {
 }
 
 //UnmarshalBinary loads transaction from its binary representation.
-func (tx *MassTransferWithProofs) UnmarshalBinary(data []byte) error {
+func (tx *MassTransferWithProofs) UnmarshalBinary(data []byte, scheme Scheme) error {
 	if l := len(data); l < massTransferWithProofsMinLen {
 		return errors.Errorf("not enough data for MassTransferWithProofs transaction, expected not less then %d, received %d", massTransferWithProofsMinLen, l)
 	}
@@ -2773,7 +2778,6 @@ func (tx *MassTransferWithProofs) UnmarshalBinary(data []byte) error {
 		return errors.Wrap(err, "failed to unmarshal MassTransferWithProofs transaction from bytes")
 	}
 	bl, _ := tx.bodyAndAssetLen()
-	bb := data[:bl]
 	data = data[bl:]
 	var p ProofsV1
 	err = p.UnmarshalBinary(data)
@@ -2781,11 +2785,9 @@ func (tx *MassTransferWithProofs) UnmarshalBinary(data []byte) error {
 		return errors.Wrap(err, "failed to unmarshal MassTransferWithProofs transaction from bytes")
 	}
 	tx.Proofs = &p
-	id, err := crypto.FastHash(bb)
-	if err != nil {
-		return errors.Wrap(err, "failed to unmarshal MassTransferWithProofs transaction from bytes")
+	if err := tx.GenerateID(scheme); err != nil {
+		return err
 	}
-	tx.ID = &id
 	return nil
 }
 
@@ -2938,9 +2940,11 @@ func (tx DataWithProofs) GetSenderPK() crypto.PublicKey {
 	return tx.SenderPK
 }
 
-func (tx DataWithProofs) GetID() ([]byte, error) {
+func (tx DataWithProofs) GetID(scheme Scheme) ([]byte, error) {
 	if tx.ID == nil {
-		return nil, errors.New("tx ID is not set\n")
+		if err := tx.GenerateID(scheme); err != nil {
+			return nil, err
+		}
 	}
 	return tx.ID.Bytes(), nil
 }
@@ -3160,7 +3164,7 @@ func (tx *DataWithProofs) MarshalBinary() ([]byte, error) {
 }
 
 //UnmarshalBinary reads the transaction from the bytes.
-func (tx *DataWithProofs) UnmarshalBinary(data []byte) error {
+func (tx *DataWithProofs) UnmarshalBinary(data []byte, scheme Scheme) error {
 	if len(data) > maxDataWithProofsBytes {
 		return errors.Errorf("total size of DataWithProofs transaction is bigger than %d bytes", maxDataWithProofsBytes)
 	}
@@ -3175,7 +3179,6 @@ func (tx *DataWithProofs) UnmarshalBinary(data []byte) error {
 		return errors.Wrap(err, "failed to unmarshal DataWithProofs transaction from bytes")
 	}
 	bl := dataWithProofsFixedBodyLen + tx.entriesLen()
-	bb := data[1 : 1+bl]
 	data = data[1+bl:]
 	var p ProofsV1
 	err = p.UnmarshalBinary(data)
@@ -3183,11 +3186,9 @@ func (tx *DataWithProofs) UnmarshalBinary(data []byte) error {
 		return errors.Wrap(err, "failed to unmarshal DataWithProofs transaction from bytes")
 	}
 	tx.Proofs = &p
-	id, err := crypto.FastHash(bb)
-	if err != nil {
-		return errors.Wrap(err, "failed to unmarshal DataWithProofs transaction from bytes")
+	if err := tx.GenerateID(scheme); err != nil {
+		return err
 	}
-	tx.ID = &id
 	return nil
 }
 
@@ -3305,9 +3306,11 @@ func (tx SetScriptWithProofs) GetSenderPK() crypto.PublicKey {
 	return tx.SenderPK
 }
 
-func (tx SetScriptWithProofs) GetID() ([]byte, error) {
+func (tx SetScriptWithProofs) GetID(scheme Scheme) ([]byte, error) {
 	if tx.ID == nil {
-		return nil, errors.New("tx ID is not set\n")
+		if err := tx.GenerateID(scheme); err != nil {
+			return nil, err
+		}
 	}
 	return tx.ID.Bytes(), nil
 }
@@ -3453,7 +3456,7 @@ func (tx *SetScriptWithProofs) MarshalBinary() ([]byte, error) {
 }
 
 //UnmarshalBinary reads SetScriptWithProofs transaction from its binary representation.
-func (tx *SetScriptWithProofs) UnmarshalBinary(data []byte) error {
+func (tx *SetScriptWithProofs) UnmarshalBinary(data []byte, scheme Scheme) error {
 	if l := len(data); l < setScriptWithProofsMinLen {
 		return errors.Errorf("not enough data for SetScriptWithProofs transaction, expected not less then %d, received %d", setScriptWithProofsMinLen, l)
 	}
@@ -3470,7 +3473,6 @@ func (tx *SetScriptWithProofs) UnmarshalBinary(data []byte) error {
 		sl = len(tx.Script) + 2
 	}
 	bl := setScriptWithProofsFixedBodyLen + sl
-	bb := data[:bl]
 	data = data[bl:]
 	var p ProofsV1
 	err = p.UnmarshalBinary(data)
@@ -3478,11 +3480,9 @@ func (tx *SetScriptWithProofs) UnmarshalBinary(data []byte) error {
 		return errors.Wrap(err, "failed to unmarshal SetScriptWithProofs transaction from bytes")
 	}
 	tx.Proofs = &p
-	id, err := crypto.FastHash(bb)
-	if err != nil {
-		return errors.Wrap(err, "failed to unmarshal SetScriptWithProofs transaction from bytes")
+	if err := tx.GenerateID(scheme); err != nil {
+		return err
 	}
-	tx.ID = &id
 	return nil
 }
 
@@ -3590,9 +3590,11 @@ func (tx SponsorshipWithProofs) GetSenderPK() crypto.PublicKey {
 	return tx.SenderPK
 }
 
-func (tx SponsorshipWithProofs) GetID() ([]byte, error) {
+func (tx SponsorshipWithProofs) GetID(scheme Scheme) ([]byte, error) {
 	if tx.ID == nil {
-		return nil, errors.New("tx ID is not set\n")
+		if err := tx.GenerateID(scheme); err != nil {
+			return nil, err
+		}
 	}
 	return tx.ID.Bytes(), nil
 }
@@ -3727,7 +3729,7 @@ func (tx *SponsorshipWithProofs) MarshalBinary() ([]byte, error) {
 }
 
 //UnmarshalBinary reads SponsorshipWithProofs from its bytes representation.
-func (tx *SponsorshipWithProofs) UnmarshalBinary(data []byte) error {
+func (tx *SponsorshipWithProofs) UnmarshalBinary(data []byte, scheme Scheme) error {
 	if l := len(data); l < sponsorshipWithProofsMinLen {
 		return errors.Errorf("not enough data for SponsorshipWithProofs transaction, expected not less then %d, received %d", sponsorshipWithProofsMinLen, l)
 	}
@@ -3748,7 +3750,6 @@ func (tx *SponsorshipWithProofs) UnmarshalBinary(data []byte) error {
 		return errors.Wrap(err, "failed to unmarshal SponsorshipWithProofs transaction from bytes")
 	}
 	bl := sponsorshipWithProofsBodyLen
-	bb := data[:bl]
 	data = data[bl:]
 	var p ProofsV1
 	err = p.UnmarshalBinary(data)
@@ -3756,11 +3757,9 @@ func (tx *SponsorshipWithProofs) UnmarshalBinary(data []byte) error {
 		return errors.Wrap(err, "failed to unmarshal SponsorshipWithProofs transaction from bytes")
 	}
 	tx.Proofs = &p
-	id, err := crypto.FastHash(bb)
-	if err != nil {
-		return errors.Wrap(err, "failed to unmarshal SponsorshipWithProofs transaction from bytes")
+	if err := tx.GenerateID(scheme); err != nil {
+		return err
 	}
-	tx.ID = &id
 	return nil
 }
 
@@ -3869,9 +3868,11 @@ func (tx SetAssetScriptWithProofs) GetSenderPK() crypto.PublicKey {
 	return tx.SenderPK
 }
 
-func (tx SetAssetScriptWithProofs) GetID() ([]byte, error) {
+func (tx SetAssetScriptWithProofs) GetID(scheme Scheme) ([]byte, error) {
 	if tx.ID == nil {
-		return nil, errors.New("tx ID is not set\n")
+		if err := tx.GenerateID(scheme); err != nil {
+			return nil, err
+		}
 	}
 	return tx.ID.Bytes(), nil
 }
@@ -3991,10 +3992,10 @@ func (tx *SetAssetScriptWithProofs) Sign(scheme Scheme, secretKey crypto.SecretK
 		return errors.Wrap(err, "failed to sign SetAssetScriptWithProofs transaction")
 	}
 	d, err := crypto.FastHash(b)
-	tx.ID = &d
 	if err != nil {
 		return errors.Wrap(err, "failed to sign SetAssetScriptWithProofs transaction")
 	}
+	tx.ID = &d
 	return nil
 }
 
@@ -4028,7 +4029,7 @@ func (tx *SetAssetScriptWithProofs) MarshalBinary() ([]byte, error) {
 }
 
 //UnmarshalBinary reads SetAssetScriptWithProofs transaction from its binary representation.
-func (tx *SetAssetScriptWithProofs) UnmarshalBinary(data []byte) error {
+func (tx *SetAssetScriptWithProofs) UnmarshalBinary(data []byte, scheme Scheme) error {
 	if l := len(data); l < setAssetScriptWithProofsMinLen {
 		return errors.Errorf("not enough data for SetAssetScriptWithProofs transaction, expected not less then %d, received %d", setAssetScriptWithProofsMinLen, l)
 	}
@@ -4045,7 +4046,6 @@ func (tx *SetAssetScriptWithProofs) UnmarshalBinary(data []byte) error {
 		sl = len(tx.Script) + 2
 	}
 	bl := setAssetScriptWithProofsFixedBodyLen + sl
-	bb := data[:bl]
 	data = data[bl:]
 	var p ProofsV1
 	err = p.UnmarshalBinary(data)
@@ -4053,11 +4053,9 @@ func (tx *SetAssetScriptWithProofs) UnmarshalBinary(data []byte) error {
 		return errors.Wrap(err, "failed to unmarshal SetAssetScriptWithProofs transaction from bytes")
 	}
 	tx.Proofs = &p
-	id, err := crypto.FastHash(bb)
-	if err != nil {
-		return errors.Wrap(err, "failed to unmarshal SetAssetScriptWithProofs transaction from bytes")
+	if err := tx.GenerateID(scheme); err != nil {
+		return err
 	}
-	tx.ID = &id
 	return nil
 }
 
@@ -4168,9 +4166,11 @@ func (tx InvokeScriptWithProofs) GetSenderPK() crypto.PublicKey {
 	return tx.SenderPK
 }
 
-func (tx InvokeScriptWithProofs) GetID() ([]byte, error) {
+func (tx InvokeScriptWithProofs) GetID(scheme Scheme) ([]byte, error) {
 	if tx.ID == nil {
-		return nil, errors.New("tx ID is not set\n")
+		if err := tx.GenerateID(scheme); err != nil {
+			return nil, err
+		}
 	}
 	return tx.ID.Bytes(), nil
 }
@@ -4390,10 +4390,10 @@ func (tx *InvokeScriptWithProofs) Sign(scheme Scheme, secretKey crypto.SecretKey
 		return errors.Wrap(err, "failed to sign InvokeScriptWithProofs transaction")
 	}
 	d, err := crypto.FastHash(b)
-	tx.ID = &d
 	if err != nil {
 		return errors.Wrap(err, "failed to sign InvokeScriptWithProofs transaction")
 	}
+	tx.ID = &d
 	return nil
 }
 
@@ -4443,7 +4443,7 @@ func (tx *InvokeScriptWithProofs) Serialize(s *serializer.Serializer) error {
 }
 
 //UnmarshalBinary reads InvokeScriptWithProofs transaction from its binary representation.
-func (tx *InvokeScriptWithProofs) UnmarshalBinary(data []byte) error {
+func (tx *InvokeScriptWithProofs) UnmarshalBinary(data []byte, scheme Scheme) error {
 	if len(data) > maxInvokeScriptWithProofsBytes {
 		return errors.New("invoke script transaction is too big")
 	}
@@ -4459,7 +4459,6 @@ func (tx *InvokeScriptWithProofs) UnmarshalBinary(data []byte) error {
 		return errors.Wrap(err, "failed to unmarshal InvokeScriptWithProofs transaction from bytes")
 	}
 	bl := invokeScriptWithProofsFixedBodyLen + tx.ScriptRecipient.len + tx.FunctionCall.BinarySize() + tx.Payments.BinarySize() + tx.FeeAsset.BinarySize()
-	bb := data[:bl]
 	data = data[bl:]
 	var p ProofsV1
 	err = p.UnmarshalBinary(data)
@@ -4467,11 +4466,9 @@ func (tx *InvokeScriptWithProofs) UnmarshalBinary(data []byte) error {
 		return errors.Wrap(err, "failed to unmarshal InvokeScriptWithProofs transaction from bytes")
 	}
 	tx.Proofs = &p
-	id, err := crypto.FastHash(bb)
-	if err != nil {
-		return errors.Wrap(err, "failed to unmarshal InvokeScriptWithProofs transaction from bytes")
+	if err := tx.GenerateID(scheme); err != nil {
+		return err
 	}
-	tx.ID = &id
 	return nil
 }
 

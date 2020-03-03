@@ -86,7 +86,7 @@ func (a *scriptCaller) callAccountScriptWithTx(tx proto.Transaction, lastBlockIn
 	this := ast.NewAddressFromProtoAddress(senderAddr)
 	lastBlock := ast.NewObjectFromBlockInfo(*lastBlockInfo)
 	if err := a.callVerifyScript(script, obj, this, lastBlock); err != nil {
-		id, _ := tx.GetID()
+		id, _ := tx.GetID(a.settings.AddressSchemeCharacter)
 		return errors.Errorf("account script; transaction ID %s: %v\n", base58.Encode(id), err)
 	}
 	// Increase complexity.
@@ -138,7 +138,7 @@ func (a *scriptCaller) callAssetScript(tx proto.Transaction, assetID crypto.Dige
 		return errors.Wrap(err, "failed to convert transaction")
 	}
 	if err := a.callAssetScriptCommon(obj, assetID, lastBlockInfo, initialisation); err != nil {
-		id, _ := tx.GetID()
+		id, _ := tx.GetID(a.settings.AddressSchemeCharacter)
 		return errors.Errorf("asset script; transaction ID %s: %v\n", base58.Encode(id), err)
 	}
 	return nil

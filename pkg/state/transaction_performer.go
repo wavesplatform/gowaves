@@ -48,7 +48,7 @@ func (tp *transactionPerformer) performIssueWithSig(transaction proto.Transactio
 	if !ok {
 		return errors.New("failed to convert interface to IssueWithSig transaction")
 	}
-	txID, err := tx.GetID()
+	txID, err := tx.GetID(tp.settings.AddressSchemeCharacter)
 	if err != nil {
 		return errors.Errorf("failed to get transaction ID: %v\n", err)
 	}
@@ -64,7 +64,7 @@ func (tp *transactionPerformer) performIssueWithProofs(transaction proto.Transac
 	if !ok {
 		return errors.New("failed to convert interface to IssueWithProofs transaction")
 	}
-	txID, err := tx.GetID()
+	txID, err := tx.GetID(tp.settings.AddressSchemeCharacter)
 	if err != nil {
 		return errors.Errorf("failed to get transaction ID: %v\n", err)
 	}

@@ -54,7 +54,7 @@ func makeBlock(t *testing.T) *Block {
 	decoded, err := hex.DecodeString(blockTests[0].hexEncoded)
 	assert.NoError(t, err, "hex.DecodeString failed")
 	var block Block
-	err = block.UnmarshalBinary(decoded)
+	err = block.UnmarshalBinary(decoded, MainNetScheme)
 	assert.NoError(t, err, "block.UnmarshalBinary failed")
 	return &block
 }
@@ -65,7 +65,7 @@ func blockFromProtobufToProtobuf(t *testing.T, hexStr string) {
 		t.Fatal(err)
 	}
 	var block Block
-	err = block.UnmarshalBinary(decoded)
+	err = block.UnmarshalBinary(decoded, MainNetScheme)
 	assert.NoError(t, err, "UnmarshalBinary() failed")
 	protobuf, err := block.MarshalToProtobuf(MainNetScheme)
 	assert.NoError(t, err, "MarshalToProtobuf() failed")
@@ -81,7 +81,7 @@ func blockFromBinaryToBinary(t *testing.T, hexStr, jsonStr string) {
 		t.Fatal(err)
 	}
 	var b Block
-	err = b.UnmarshalBinary(decoded)
+	err = b.UnmarshalBinary(decoded, MainNetScheme)
 	assert.NoError(t, err, "UnmarshalBinary() for block failed")
 	bytes, err := BlockEncodeJson(&b)
 	assert.NoError(t, err, "json.Marshal() for block failed")
@@ -367,6 +367,6 @@ func TestEmptyBlockMarshall(t *testing.T) {
 	require.NoError(t, err)
 
 	b2 := Block{}
-	err = b2.UnmarshalBinary(bts)
+	err = b2.UnmarshalBinary(bts, MainNetScheme)
 	require.NoError(t, err)
 }

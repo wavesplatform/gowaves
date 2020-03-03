@@ -374,7 +374,7 @@ func TestDisallowDuplicateTxIds(t *testing.T) {
 	assert.NoError(t, err, "ApplyFromFile() failed")
 	// Now validate tx with ID which is already in the state.
 	tx := existingGenesisTx(t)
-	txID, err := tx.GetID()
+	txID, err := tx.GetID(settings.MainNetSettings.AddressSchemeCharacter)
 	assert.NoError(t, err, "tx.GetID() failed")
 	expectedErrStr := fmt.Sprintf("transaction with ID %v already in state", txID)
 	err = manager.ValidateNextTx(tx, 1460678400000, 1460678400000, 3)
@@ -404,7 +404,7 @@ func TestTransactionByID(t *testing.T) {
 
 	// Retrieve existing MainNet genesis tx by its ID.
 	correctTx := existingGenesisTx(t)
-	id, err := correctTx.GetID()
+	id, err := correctTx.GetID(settings.MainNetSettings.AddressSchemeCharacter)
 	assert.NoError(t, err, "GetID() failed")
 	tx, err := manager.TransactionByID(id)
 	assert.NoError(t, err, "TransactionByID() failed")

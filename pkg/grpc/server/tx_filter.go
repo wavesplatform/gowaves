@@ -88,7 +88,7 @@ func (f *txFilter) filterId(tx proto.Transaction) bool {
 	if !f.hasIds {
 		return true
 	}
-	id, err := tx.GetID()
+	id, err := tx.GetID(f.scheme)
 	if err != nil {
 		return false
 	}

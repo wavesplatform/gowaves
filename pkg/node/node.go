@@ -127,7 +127,7 @@ func (a *Node) handlePBTransactionMessage(_ peer.Peer, mess *proto.PBTransaction
 }
 
 func (a *Node) handleTransactionMessage(_ peer.Peer, mess *proto.TransactionMessage) {
-	t, err := proto.BytesToTransaction(mess.Transaction)
+	t, err := proto.BytesToTransaction(mess.Transaction, a.services.Scheme)
 	if err != nil {
 		zap.S().Debug(err)
 		return
@@ -249,7 +249,7 @@ func (a *Node) handleScoreMessage(p peer.Peer, score []byte) {
 func (a *Node) handleBlockMessage(p peer.Peer, mess *proto.BlockMessage) {
 	if !a.subscribe.Receive(p, mess) {
 		b := &proto.Block{}
-		err := b.UnmarshalBinary(mess.BlockBytes)
+		err := b.UnmarshalBinary(mess.BlockBytes, a.services.Scheme)
 		if err != nil {
 			zap.S().Debug(err)
 			return

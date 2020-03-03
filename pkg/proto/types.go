@@ -830,7 +830,7 @@ func (o *OrderBody) Serialize(s *serializer.Serializer) error {
 	return s.Uint64(o.MatcherFee)
 }
 
-func (o *OrderBody) unmarshalBinary(data []byte) error {
+func (o *OrderBody) UnmarshalBinary(data []byte) error {
 	if l := len(data); l < orderLen {
 		return errors.Errorf("not enough data for OrderBody, expected not less then %d, received %d", orderLen, l)
 	}
@@ -973,7 +973,7 @@ func (o OrderV1) BodySerialize(s *serializer.Serializer) error {
 }
 
 func (o *OrderV1) bodyUnmarshalBinary(data []byte) error {
-	return o.OrderBody.unmarshalBinary(data)
+	return o.OrderBody.UnmarshalBinary(data)
 }
 
 func (o *OrderV1) GenerateID(scheme Scheme) error {
@@ -1202,7 +1202,7 @@ func (o *OrderV2) bodyUnmarshalBinary(data []byte) error {
 		return errors.Errorf("unexpected version %d for OrderV2, expected 2", o.Version)
 	}
 	var oo OrderBody
-	err := oo.unmarshalBinary(data[1:])
+	err := oo.UnmarshalBinary(data[1:])
 	if err != nil {
 		return errors.Wrap(err, "failed to unmarshal OrderV2 from bytes")
 	}
@@ -1435,7 +1435,7 @@ func (o *OrderV3) bodyUnmarshalBinary(data []byte) error {
 		return errors.Errorf("unexpected version %d for OrderV3, expected 3", o.Version)
 	}
 	var oo OrderBody
-	err := oo.unmarshalBinary(data[pos:])
+	err := oo.UnmarshalBinary(data[pos:])
 	if err != nil {
 		return errors.Wrap(err, "failed to unmarshal OrderV3 from bytes")
 	}

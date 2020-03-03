@@ -127,7 +127,7 @@ type Transaction interface {
 	// Signature and Proofs transactions.
 	GetTypeInfo() TransactionTypeInfo
 	GetVersion() byte
-	GetID() ([]byte, error)
+	GetID(scheme Scheme) ([]byte, error)
 	GetSenderPK() crypto.PublicKey
 	GetFee() uint64
 	GetTimestamp() uint64
@@ -150,10 +150,7 @@ type Transaction interface {
 	// MarshalBinary() is analogous to MarshalSignedToProtobuf() for Protobuf.
 	MarshalBinary() ([]byte, error)
 	// Parsing.
-	// <TODO>: right now UnmarshalBinary() always uses binary format to
-	// calculate ID (hash). It should accept scheme and use Protobuf OR
-	// binary format depending on transaction version.
-	UnmarshalBinary([]byte) error
+	UnmarshalBinary([]byte, Scheme) error
 	// Bytes without signature.
 	// BodyMarshalBinary() is analogous to MarshalToProtobuf() for Protobuf.
 	BodyMarshalBinary() ([]byte, error)
@@ -208,7 +205,7 @@ func TransactionToProtobufCommon(scheme Scheme, tx Transaction) *g.Transaction {
 	}
 }
 
-func BytesToTransaction(tx []byte) (Transaction, error) {
+func BytesToTransaction(tx []byte, scheme Scheme) (Transaction, error) {
 	if len(tx) < 2 {
 		return nil, errors.New("invalid size of transaction's bytes slice")
 	}
@@ -221,7 +218,7 @@ func BytesToTransaction(tx []byte) (Transaction, error) {
 		if !ok {
 			panic("This transaction type does not implement marshal/unmarshal functions")
 		}
-		if err := transaction.UnmarshalBinary(tx); err != nil {
+		if err := transaction.UnmarshalBinary(tx, scheme); err != nil {
 			return nil, errors.Wrap(err, "failed to unmarshal transaction")
 		}
 		return transaction, nil
@@ -234,14 +231,14 @@ func BytesToTransaction(tx []byte) (Transaction, error) {
 		if !ok {
 			panic("This transaction type does not implement marshal/unmarshal functions")
 		}
-		if err := transaction.UnmarshalBinary(tx); err != nil {
+		if err := transaction.UnmarshalBinary(tx, scheme); err != nil {
 			return nil, errors.Wrap(err, "failed to unmarshal transaction")
 		}
 		return transaction, nil
 	}
 }
 
-func BytesToTransactions(count int, txs []byte) ([]Transaction, error) {
+func BytesToTransactions(count int, txs []byte, scheme Scheme) ([]Transaction, error) {
 	res := make([]Transaction, count)
 	for i := 0; i < count; i++ {
 		n := int(binary.BigEndian.Uint32(txs[0:4]))
@@ -249,7 +246,7 @@ func BytesToTransactions(count int, txs []byte) ([]Transaction, error) {
 			return nil, errors.New("invalid tx size: exceeds bytes slice bounds")
 		}
 		txBytes := txs[4 : n+4]
-		tx, err := BytesToTransaction(txBytes)
+		tx, err := BytesToTransaction(txBytes, scheme)
 		if err != nil {
 			return nil, err
 		}
@@ -434,9 +431,11 @@ func (tx *Genesis) generateID(scheme Scheme) error {
 	return nil
 }
 
-func (tx Genesis) GetID() ([]byte, error) {
+func (tx Genesis) GetID(scheme Scheme) ([]byte, error) {
 	if tx.ID == nil {
-		return nil, errors.New("tx ID is not set\n")
+		if err := tx.GenerateID(scheme); err != nil {
+			return nil, err
+		}
 	}
 	return tx.ID.Bytes(), nil
 }
@@ -450,7 +449,6 @@ func (tx Genesis) GetTimestamp() uint64 {
 }
 
 //NewUnsignedGenesis returns a new unsigned Genesis transaction. Actually Genesis transaction could not be signed.
-//That is why it doesn't implement Sing method. Instead it has GenerateSigID method, which calculates ID and uses it also as a signature.
 func NewUnsignedGenesis(recipient Address, amount, timestamp uint64) *Genesis {
 	return &Genesis{Type: GenesisTransaction, Version: 1, Timestamp: timestamp, Recipient: recipient, Amount: amount}
 }
@@ -503,13 +501,22 @@ func (tx *Genesis) generateBodyHash(body []byte) crypto.Signature {
 	return s
 }
 
-func (tx *Genesis) GenerateSigID() error {
+func (tx *Genesis) GenerateSigID(scheme Scheme) error {
+	if err := tx.GenerateSig(); err != nil {
+		return err
+	}
+	if err := tx.GenerateID(scheme); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (tx *Genesis) GenerateSig() error {
 	b, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return errors.Wrap(err, "failed to generate signature of Genesis transaction")
 	}
 	s := tx.generateBodyHash(b)
-	tx.ID = &s
 	tx.Signature = &s
 	return nil
 }
@@ -524,7 +531,7 @@ func (tx *Genesis) MarshalBinary() ([]byte, error) {
 }
 
 //UnmarshalBinary reads transaction values from the slice of bytes.
-func (tx *Genesis) UnmarshalBinary(data []byte) error {
+func (tx *Genesis) UnmarshalBinary(data []byte, scheme Scheme) error {
 	if l := len(data); l != genesisBodyLen {
 		return errors.Errorf("incorrect data length for Genesis transaction, expected %d, received %d", genesisBodyLen, l)
 	}
@@ -535,7 +542,7 @@ func (tx *Genesis) UnmarshalBinary(data []byte) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to unmarshal Genesis transaction from bytes")
 	}
-	err = tx.GenerateSigID()
+	err = tx.GenerateSigID(scheme)
 	if err != nil {
 		return errors.Wrap(err, "failed to unmarshal Genesis transaction from bytes")
 	}
@@ -638,9 +645,11 @@ func (tx Payment) GetSenderPK() crypto.PublicKey {
 	return tx.SenderPK
 }
 
-func (tx Payment) GetID() ([]byte, error) {
+func (tx Payment) GetID(scheme Scheme) ([]byte, error) {
 	if tx.ID == nil {
-		return nil, errors.New("tx ID is not set\n")
+		if err := tx.GenerateID(scheme); err != nil {
+			return nil, err
+		}
 	}
 	return tx.ID.Bytes(), nil
 }
@@ -809,7 +818,7 @@ func (tx *Payment) MarshalBinary2(buf []byte) ([]byte, error) {
 }
 
 //UnmarshalBinary reads Payment transaction from its binary representation.
-func (tx *Payment) UnmarshalBinary(data []byte) error {
+func (tx *Payment) UnmarshalBinary(data []byte, scheme Scheme) error {
 	size := paymentBodyLen + crypto.SignatureSize
 	if l := len(data); l != size {
 		return errors.Errorf("not enough data for Payment transaction, expected %d, received %d", size, l)
@@ -825,7 +834,10 @@ func (tx *Payment) UnmarshalBinary(data []byte) error {
 	var s crypto.Signature
 	copy(s[:], data[:crypto.SignatureSize])
 	tx.Signature = &s
-	tx.ID = &s
+	err = tx.GenerateID(scheme)
+	if err != nil {
+		return errors.Wrap(err, "failed to unmarshal Payment transaction from bytes")
+	}
 	return nil
 }
 
@@ -966,7 +978,7 @@ func (i Issue) marshalBinary() ([]byte, error) {
 	return buf, nil
 }
 
-func (i *Issue) unmarshalBinary(data []byte) error {
+func (i *Issue) UnmarshalBinary(data []byte) error {
 	if l := len(data); l < issueLen {
 		return errors.Errorf("%d is not enough bytes for Issue, expected not less then %d", l, issueLen)
 	}
@@ -1157,7 +1169,7 @@ func (tr *Transfer) Serialize(s *serializer.Serializer) error {
 	return nil
 }
 
-func (tr *Transfer) unmarshalBinary(data []byte) error {
+func (tr *Transfer) UnmarshalBinary(data []byte) error {
 	if l := len(data); l < transferLen {
 		return errors.Errorf("%d bytes is not enough for Transfer body, expected not less then %d bytes", l, transferLen)
 	}
@@ -1275,7 +1287,7 @@ func (r *Reissue) marshalBinary() ([]byte, error) {
 	return buf, nil
 }
 
-func (r *Reissue) unmarshalBinary(data []byte) error {
+func (r *Reissue) UnmarshalBinary(data []byte) error {
 	if l := len(data); l < reissueLen {
 		return errors.Errorf("%d bytes is not enough for Reissue body, expected not less then %d bytes", l, reissueLen)
 	}
@@ -1355,7 +1367,7 @@ func (b *Burn) marshalBinary() ([]byte, error) {
 	return buf, nil
 }
 
-func (b *Burn) unmarshalBinary(data []byte) error {
+func (b *Burn) UnmarshalBinary(data []byte) error {
 	if l := len(data); l < burnLen {
 		return errors.Errorf("%d bytes is not enough for burn, expected not less then %d", l, burnLen)
 	}
@@ -1372,7 +1384,7 @@ func (b *Burn) unmarshalBinary(data []byte) error {
 }
 
 type Exchange interface {
-	GetID() ([]byte, error)
+	GetID(scheme Scheme) ([]byte, error)
 	GetSenderPK() crypto.PublicKey
 	GetBuyOrder() (OrderBody, error)
 	GetSellOrder() (OrderBody, error)
@@ -1464,7 +1476,7 @@ func (l *Lease) marshalBinary() ([]byte, error) {
 	return buf, nil
 }
 
-func (l *Lease) unmarshalBinary(data []byte) error {
+func (l *Lease) UnmarshalBinary(data []byte) error {
 	if l := len(data); l < leaseLen {
 		return errors.Errorf("not enough data for lease, expected not less then %d, received %d", leaseLen, l)
 	}
@@ -1535,7 +1547,7 @@ func (lc *LeaseCancel) marshalBinary() ([]byte, error) {
 	return buf, nil
 }
 
-func (lc *LeaseCancel) unmarshalBinary(data []byte) error {
+func (lc *LeaseCancel) UnmarshalBinary(data []byte) error {
 	if l := len(data); l < leaseCancelLen {
 		return errors.Errorf("not enough data for leaseCancel, expected not less then %d, received %d", leaseCancelLen, l)
 	}
@@ -1612,7 +1624,7 @@ func (ca *CreateAlias) marshalBinary() ([]byte, error) {
 	return buf, nil
 }
 
-func (ca *CreateAlias) unmarshalBinary(data []byte) error {
+func (ca *CreateAlias) UnmarshalBinary(data []byte) error {
 	if l := len(data); l < createAliasLen {
 		return errors.Errorf("not enough data for CreateAlias, expected not less then %d, received %d", createAliasLen, l)
 	}

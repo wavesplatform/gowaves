@@ -23,7 +23,7 @@ type BehaviourImpl struct {
 
 func NewBehaviour(knownPeers *utils.KnownPeers, peerSpawner PeerSpawner, scheme proto.Scheme) *BehaviourImpl {
 	return &BehaviourImpl{
-		tl:                NewTransactionList(6000),
+		tl:                NewTransactionList(6000, scheme),
 		knownPeers:        knownPeers,
 		counter:           utils.NewCounter(),
 		activeConnections: utils.NewAddr2Peers(),

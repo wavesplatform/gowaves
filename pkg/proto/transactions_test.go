@@ -93,7 +93,7 @@ func TestGenesisFromMainNet(t *testing.T) {
 			v, err := tx.Valid()
 			assert.True(t, v)
 			assert.Nil(t, err)
-			if err := tx.GenerateSigID(); assert.NoError(t, err) {
+			if err := tx.GenerateSigID(MainNetScheme); assert.NoError(t, err) {
 				assert.Equal(t, id, tx.ID[:])
 				assert.Equal(t, tc.amount, tx.Amount)
 				assert.Equal(t, tc.recipient, tx.Recipient.String())
@@ -101,7 +101,9 @@ func TestGenesisFromMainNet(t *testing.T) {
 				b, err := tx.MarshalBinary()
 				assert.NoError(t, err)
 				var at Genesis
-				err = at.UnmarshalBinary(b)
+				err = at.UnmarshalBinary(b, MainNetScheme)
+				assert.NoError(t, err)
+				err = at.GenerateID(MainNetScheme)
 				assert.NoError(t, err)
 				assert.Equal(t, *tx, at)
 			}
@@ -136,12 +138,16 @@ func TestGenesisProtobufRoundTrip(t *testing.T) {
 			var at Genesis
 			err = at.UnmarshalFromProtobuf(b)
 			assert.Nil(t, err)
+			err = at.GenerateID(MainNetScheme)
+			assert.NoError(t, err)
 			assert.Equal(t, *tx, at)
-			if err := tx.GenerateSigID(); assert.NoError(t, err) {
+			if err := tx.GenerateSigID(MainNetScheme); assert.NoError(t, err) {
 				b, err := tx.MarshalSignedToProtobuf(MainNetScheme)
 				assert.NoError(t, err)
 				var at2 Genesis
 				err = at2.UnmarshalSignedFromProtobuf(b)
+				assert.NoError(t, err)
+				err = at2.GenerateID(MainNetScheme)
 				assert.NoError(t, err)
 				assert.Equal(t, *tx, at2)
 			}
@@ -175,7 +181,7 @@ func TestGenesisToJSON(t *testing.T) {
 	if rcp, err := NewAddressFromString(addr); assert.NoError(t, err) {
 		ts := uint64(time.Now().Unix() * 1000)
 		tx := NewUnsignedGenesis(rcp, 1000, ts)
-		err := tx.GenerateSigID()
+		err := tx.GenerateSigID(MainNetScheme)
 		require.NoError(t, err)
 		if j, err := json.Marshal(tx); assert.NoError(t, err) {
 			ej := fmt.Sprintf("{\"type\":1,\"version\":1,\"id\":\"%s\",\"signature\":\"%s\",\"timestamp\":%d,\"recipient\":\"%s\",\"amount\":1000}", base58.Encode(tx.ID[:]), base58.Encode(tx.Signature[:]), ts, tx.Recipient.String())
@@ -227,8 +233,10 @@ func TestPaymentMarshalUnmarshal(t *testing.T) {
 		txBytes, err := tx.MarshalBinary()
 		assert.NoError(t, err)
 		var tx1 Payment
-		err = tx1.UnmarshalBinary(txBytes)
+		err = tx1.UnmarshalBinary(txBytes, MainNetScheme)
 		require.NoError(t, err)
+		err = tx1.GenerateID(MainNetScheme)
+		assert.NoError(t, err)
 		assert.Equal(t, *tx, tx1)
 	}
 }
@@ -255,6 +263,8 @@ func TestPaymentProtobufRoundTrip(t *testing.T) {
 		var tx1 Payment
 		err = tx1.UnmarshalFromProtobuf(txBytes)
 		require.NoError(t, err)
+		err = tx1.GenerateID(MainNetScheme)
+		assert.NoError(t, err)
 		assert.Equal(t, *tx, tx1)
 		err = tx.Sign(MainNetScheme, sk)
 		require.NoError(t, err)
@@ -263,6 +273,8 @@ func TestPaymentProtobufRoundTrip(t *testing.T) {
 		var tx2 Payment
 		err = tx2.UnmarshalSignedFromProtobuf(txBytes)
 		require.NoError(t, err)
+		err = tx2.GenerateID(MainNetScheme)
+		assert.NoError(t, err)
 		assert.Equal(t, *tx, tx2)
 	}
 }
@@ -303,7 +315,9 @@ func TestPaymentFromMainNet(t *testing.T) {
 			require.NoError(t, err)
 			assert.True(t, vr)
 			b, _ = tx.MarshalBinary()
-			err = at.UnmarshalBinary(b)
+			err = at.UnmarshalBinary(b, MainNetScheme)
+			assert.NoError(t, err)
+			err = at.GenerateID(MainNetScheme)
 			assert.NoError(t, err)
 			assert.Equal(t, *tx, at)
 
@@ -527,7 +541,11 @@ func TestIssueWithSigBinaryRoundTrip(t *testing.T) {
 		if err := tx.Sign(MainNetScheme, sk); assert.NoError(t, err) {
 			if b, err := tx.MarshalBinary(); assert.NoError(t, err) {
 				var at IssueWithSig
-				if err = at.UnmarshalBinary(b); assert.NoError(t, err) {
+				if err = at.UnmarshalBinary(b, MainNetScheme); assert.NoError(t, err) {
+					err = at.GenerateID(MainNetScheme)
+					assert.NoError(t, err)
+					err = at.GenerateID(MainNetScheme)
+					assert.NoError(t, err)
 					assert.Equal(t, *tx, at)
 					assert.Equal(t, pk, at.SenderPK)
 					assert.Equal(t, tc.name, at.Name)
@@ -575,6 +593,8 @@ func TestIssueWithSigProtobufRoundTrip(t *testing.T) {
 			if b, err := tx.MarshalSignedToProtobuf(MainNetScheme); assert.NoError(t, err) {
 				var at IssueWithSig
 				if err = at.UnmarshalSignedFromProtobuf(b); assert.NoError(t, err) {
+					err = at.GenerateID(MainNetScheme)
+					assert.NoError(t, err)
 					assert.Equal(t, *tx, at)
 				}
 			}
@@ -717,8 +737,7 @@ func TestIssueWithProofsBinaryRoundTrip(t *testing.T) {
 		}
 		if b, err := tx.MarshalBinary(); assert.NoError(t, err) {
 			var atx IssueWithProofs
-			if err := atx.UnmarshalBinary(b); assert.NoError(t, err) {
-				assert.Equal(t, tx.ID, atx.ID)
+			if err := atx.UnmarshalBinary(b, tc.chain); assert.NoError(t, err) {
 				assert.ElementsMatch(t, tx.Proofs.Proofs, atx.Proofs.Proofs)
 				assert.Equal(t, tc.chain, atx.ChainID)
 				assert.Equal(t, tc.name, atx.Name)
@@ -769,6 +788,8 @@ func TestIssueWithProofsProtobufRoundTrip(t *testing.T) {
 			if b, err := tx.MarshalSignedToProtobuf(tc.chain); assert.NoError(t, err) {
 				var atx IssueWithProofs
 				if err = atx.UnmarshalSignedFromProtobuf(b); assert.NoError(t, err) {
+					err = atx.GenerateID(tc.chain)
+					assert.NoError(t, err)
 					assert.Equal(t, *tx, atx)
 				}
 			}
@@ -893,6 +914,8 @@ func TestTransferWithSigProtobufRoundTrip(t *testing.T) {
 		if b, err := tx.MarshalSignedToProtobuf(tc.scheme); assert.NoError(t, err) {
 			var atx TransferWithSig
 			if err := atx.UnmarshalSignedFromProtobuf(b); assert.NoError(t, err) {
+				err = atx.GenerateID(tc.scheme)
+				assert.NoError(t, err)
 				assert.Equal(t, *tx, atx)
 			}
 		}
@@ -994,8 +1017,7 @@ func TestTransferWithSigBinaryRoundTrip(t *testing.T) {
 		}
 		if b, err := tx.MarshalBinary(); assert.NoError(t, err) {
 			var atx TransferWithSig
-			if err := atx.UnmarshalBinary(b); assert.NoError(t, err) {
-				assert.Equal(t, tx.ID, atx.ID)
+			if err := atx.UnmarshalBinary(b, tc.scheme); assert.NoError(t, err) {
 				assert.ElementsMatch(t, *tx.Signature, *atx.Signature)
 				assert.ElementsMatch(t, pk, atx.SenderPK)
 				assert.Equal(t, tc.expectedAmountAsset, atx.AmountAsset.String())
@@ -1011,8 +1033,7 @@ func TestTransferWithSigBinaryRoundTrip(t *testing.T) {
 		_, err = tx.WriteTo(buf)
 		require.NoError(t, err)
 		var atx TransferWithSig
-		if err := atx.UnmarshalBinary(buf.Bytes()); assert.NoError(t, err) {
-			assert.Equal(t, tx.ID, atx.ID)
+		if err := atx.UnmarshalBinary(buf.Bytes(), tc.scheme); assert.NoError(t, err) {
 			assert.ElementsMatch(t, *tx.Signature, *atx.Signature)
 			assert.ElementsMatch(t, pk, atx.SenderPK)
 			assert.Equal(t, tc.expectedAmountAsset, atx.AmountAsset.String())
@@ -1288,6 +1309,8 @@ func TestTransferWithProofsProtobufRoundTrip(t *testing.T) {
 		if b, err := tx.MarshalSignedToProtobuf(tc.scheme); assert.NoError(t, err) {
 			var atx TransferWithProofs
 			if err := atx.UnmarshalSignedFromProtobuf(b); assert.NoError(t, err) {
+				err = atx.GenerateID(tc.scheme)
+				assert.NoError(t, err)
 				assert.Equal(t, *tx, atx)
 			}
 		}
@@ -1390,8 +1413,7 @@ func TestTransferWithProofsBinaryRoundTrip(t *testing.T) {
 		}
 		if b, err := tx.MarshalBinary(); assert.NoError(t, err) {
 			var atx TransferWithProofs
-			if err := atx.UnmarshalBinary(b); assert.NoError(t, err) {
-				assert.Equal(t, tx.ID, atx.ID)
+			if err := atx.UnmarshalBinary(b, tc.scheme); assert.NoError(t, err) {
 				assert.ElementsMatch(t, tx.Proofs.Proofs, atx.Proofs.Proofs)
 				assert.Equal(t, pk, atx.SenderPK)
 				assert.Equal(t, tc.expectedAmountAsset, atx.AmountAsset.String())
@@ -1677,6 +1699,8 @@ func TestReissueWithSigProtobufRoundTrip(t *testing.T) {
 		if b, err := tx.MarshalSignedToProtobuf(MainNetScheme); assert.NoError(t, err) {
 			var atx ReissueWithSig
 			if err := atx.UnmarshalSignedFromProtobuf(b); assert.NoError(t, err) {
+				err = atx.GenerateID(MainNetScheme)
+				assert.NoError(t, err)
 				assert.Equal(t, *tx, atx)
 			}
 		}
@@ -1745,8 +1769,7 @@ func TestReissueWithSigBinaryRoundTrip(t *testing.T) {
 		}
 		if b, err := tx.MarshalBinary(); assert.NoError(t, err) {
 			var atx ReissueWithSig
-			if err := atx.UnmarshalBinary(b); assert.NoError(t, err) {
-				assert.ElementsMatch(t, *tx.ID, *atx.ID)
+			if err := atx.UnmarshalBinary(b, MainNetScheme); assert.NoError(t, err) {
 				assert.ElementsMatch(t, *tx.Signature, *atx.Signature)
 				assert.ElementsMatch(t, pk, atx.SenderPK)
 				assert.ElementsMatch(t, aid, atx.AssetID)
@@ -1883,6 +1906,8 @@ func TestReissueWithProofsProtobufRoundTrip(t *testing.T) {
 		if b, err := tx.MarshalSignedToProtobuf(tc.chain); assert.NoError(t, err) {
 			var atx ReissueWithProofs
 			if err := atx.UnmarshalSignedFromProtobuf(b); assert.NoError(t, err) {
+				err = atx.GenerateID(tc.chain)
+				assert.NoError(t, err)
 				assert.Equal(t, *tx, atx)
 			}
 		}
@@ -1954,8 +1979,7 @@ func TestReissueWithProofsBinaryRoundTrip(t *testing.T) {
 		}
 		if b, err := tx.MarshalBinary(); assert.NoError(t, err) {
 			var atx ReissueWithProofs
-			if err := atx.UnmarshalBinary(b); assert.NoError(t, err) {
-				assert.Equal(t, tx.ID, atx.ID)
+			if err := atx.UnmarshalBinary(b, tc.chain); assert.NoError(t, err) {
 				assert.ElementsMatch(t, tx.Proofs.Proofs[0], atx.Proofs.Proofs[0])
 				assert.ElementsMatch(t, pk, atx.SenderPK)
 				assert.ElementsMatch(t, aid, atx.AssetID)
@@ -2083,6 +2107,8 @@ func TestBurnWithSigProtobufRoundTrip(t *testing.T) {
 		if b, err := tx.MarshalSignedToProtobuf(MainNetScheme); assert.NoError(t, err) {
 			var atx BurnWithSig
 			if err := atx.UnmarshalSignedFromProtobuf(b); assert.NoError(t, err) {
+				err = atx.GenerateID(MainNetScheme)
+				assert.NoError(t, err)
 				assert.Equal(t, *tx, atx)
 			}
 		}
@@ -2136,8 +2162,7 @@ func TestBurnWithSigBinaryRoundTrip(t *testing.T) {
 		}
 		if b, err := tx.MarshalBinary(); assert.NoError(t, err) {
 			var atx BurnWithSig
-			if err := atx.UnmarshalBinary(b); assert.NoError(t, err) {
-				assert.Equal(t, tx.ID, atx.ID)
+			if err := atx.UnmarshalBinary(b, MainNetScheme); assert.NoError(t, err) {
 				assert.Equal(t, tx.Signature, atx.Signature)
 				assert.Equal(t, pk, atx.SenderPK)
 				assert.Equal(t, aid, atx.AssetID)
@@ -2262,6 +2287,8 @@ func TestBurnWithProofsProtobufRoundTrip(t *testing.T) {
 		if b, err := tx.MarshalSignedToProtobuf(TestNetScheme); assert.NoError(t, err) {
 			var atx BurnWithProofs
 			if err := atx.UnmarshalSignedFromProtobuf(b); assert.NoError(t, err) {
+				err = atx.GenerateID(TestNetScheme)
+				assert.NoError(t, err)
 				assert.Equal(t, *tx, atx)
 			}
 		}
@@ -2328,8 +2355,7 @@ func TestBurnWithProofsBinaryRoundTrip(t *testing.T) {
 		}
 		if b, err := tx.MarshalBinary(); assert.NoError(t, err) {
 			var atx BurnWithProofs
-			if err := atx.UnmarshalBinary(b); assert.NoError(t, err) {
-				assert.Equal(t, tx.ID, atx.ID)
+			if err := atx.UnmarshalBinary(b, TestNetScheme); assert.NoError(t, err) {
 				assert.ElementsMatch(t, tx.Proofs.Proofs[0], atx.Proofs.Proofs[0])
 				assert.ElementsMatch(t, pk, atx.SenderPK)
 				assert.ElementsMatch(t, aid, atx.AssetID)
@@ -2551,6 +2577,8 @@ func TestExchangeWithSigProtobufRoundTrip(t *testing.T) {
 		if b, err := tx.MarshalSignedToProtobuf(MainNetScheme); assert.NoError(t, err) {
 			var atx ExchangeWithSig
 			if err := atx.UnmarshalSignedFromProtobuf(b); assert.NoError(t, err) {
+				err = atx.GenerateID(MainNetScheme)
+				assert.NoError(t, err)
 				assert.Equal(t, *tx, atx)
 			}
 		}
@@ -2652,10 +2680,9 @@ func TestExchangeWithSigBinaryRoundTrip(t *testing.T) {
 		}
 		if b, err := tx.MarshalBinary(); assert.NoError(t, err) {
 			var atx ExchangeWithSig
-			if err := atx.UnmarshalBinary(b); assert.NoError(t, err) {
+			if err := atx.UnmarshalBinary(b, MainNetScheme); assert.NoError(t, err) {
 				assert.Equal(t, tx.Type, atx.Type)
 				assert.Equal(t, tx.Version, atx.Version)
-				assert.Equal(t, tx.ID, atx.ID)
 				assert.Equal(t, tx.Signature, atx.Signature)
 				assert.Equal(t, mpk, atx.SenderPK)
 				assert.Equal(t, bo.ID, atx.BuyOrder.ID)
@@ -2898,6 +2925,8 @@ func TestExchangeWithProofsProtobufRoundTrip(t *testing.T) {
 		if b, err := tx.MarshalSignedToProtobuf(MainNetScheme); assert.NoError(t, err) {
 			var atx ExchangeWithProofs
 			if err := atx.UnmarshalSignedFromProtobuf(b); assert.NoError(t, err) {
+				err = atx.GenerateID(MainNetScheme)
+				assert.NoError(t, err)
 				assert.Equal(t, *tx, atx)
 			}
 		}
@@ -3015,10 +3044,9 @@ func TestExchangeWithProofsBinaryRoundTrip(t *testing.T) {
 		}
 		if b, err := tx.MarshalBinary(); assert.NoError(t, err) {
 			var atx ExchangeWithProofs
-			if err := atx.UnmarshalBinary(b); assert.NoError(t, err) {
+			if err := atx.UnmarshalBinary(b, MainNetScheme); assert.NoError(t, err) {
 				assert.Equal(t, tx.Type, atx.Type)
 				assert.Equal(t, tx.Version, atx.Version)
-				assert.ElementsMatch(t, *tx.ID, *atx.ID)
 				assert.ElementsMatch(t, tx.Proofs.Proofs[0], atx.Proofs.Proofs[0])
 				assert.Equal(t, mpk, atx.SenderPK)
 				assert.EqualValues(t, tc.buy, atx.BuyOrder)
@@ -3410,6 +3438,8 @@ func TestLeaseWithSigProtobufRoundTrip(t *testing.T) {
 		if b, err := tx.MarshalSignedToProtobuf(MainNetScheme); assert.NoError(t, err) {
 			var atx LeaseWithSig
 			if err := atx.UnmarshalSignedFromProtobuf(b); assert.NoError(t, err) {
+				err = atx.GenerateID(MainNetScheme)
+				assert.NoError(t, err)
 				assert.Equal(t, *tx, atx)
 			}
 		}
@@ -3479,8 +3509,7 @@ func TestLeaseWithSigBinaryRoundTrip(t *testing.T) {
 		}
 		if b, err := tx.MarshalBinary(); assert.NoError(t, err) {
 			var atx LeaseWithSig
-			if err := atx.UnmarshalBinary(b); assert.NoError(t, err) {
-				assert.ElementsMatch(t, *tx.ID, *atx.ID)
+			if err := atx.UnmarshalBinary(b, MainNetScheme); assert.NoError(t, err) {
 				assert.ElementsMatch(t, *tx.Signature, *atx.Signature)
 				assert.ElementsMatch(t, pk, atx.SenderPK)
 				assert.ElementsMatch(t, addr, *atx.Recipient.Address)
@@ -3618,6 +3647,8 @@ func TestLeaseWithProofsProtobufRoundTrip(t *testing.T) {
 		if b, err := tx.MarshalSignedToProtobuf(MainNetScheme); assert.NoError(t, err) {
 			var atx LeaseWithProofs
 			if err := atx.UnmarshalSignedFromProtobuf(b); assert.NoError(t, err) {
+				err = atx.GenerateID(MainNetScheme)
+				assert.NoError(t, err)
 				assert.Equal(t, *tx, atx)
 			}
 		}
@@ -3687,8 +3718,7 @@ func TestLeaseWithProofsBinaryRoundTrip(t *testing.T) {
 		}
 		if b, err := tx.MarshalBinary(); assert.NoError(t, err) {
 			var atx LeaseWithProofs
-			if err := atx.UnmarshalBinary(b); assert.NoError(t, err) {
-				assert.ElementsMatch(t, *tx.ID, *atx.ID)
+			if err := atx.UnmarshalBinary(b, MainNetScheme); assert.NoError(t, err) {
 				assert.ElementsMatch(t, tx.Proofs.Proofs[0], atx.Proofs.Proofs[0])
 				assert.ElementsMatch(t, pk, atx.SenderPK)
 				assert.ElementsMatch(t, addr, *atx.Recipient.Address)
@@ -3808,6 +3838,8 @@ func TestLeaseCancelWithSigProtobufRoundTrip(t *testing.T) {
 		if b, err := tx.MarshalSignedToProtobuf(MainNetScheme); assert.NoError(t, err) {
 			var atx LeaseCancelWithSig
 			if err := atx.UnmarshalSignedFromProtobuf(b); assert.NoError(t, err) {
+				err = atx.GenerateID(MainNetScheme)
+				assert.NoError(t, err)
 				assert.Equal(t, *tx, atx)
 			}
 		}
@@ -3870,8 +3902,7 @@ func TestLeaseCancelWithSigBinaryRoundTrip(t *testing.T) {
 		}
 		if b, err := tx.MarshalBinary(); assert.NoError(t, err) {
 			var atx LeaseCancelWithSig
-			if err := atx.UnmarshalBinary(b); assert.NoError(t, err) {
-				assert.ElementsMatch(t, *tx.ID, *atx.ID)
+			if err := atx.UnmarshalBinary(b, MainNetScheme); assert.NoError(t, err) {
 				assert.ElementsMatch(t, *tx.Signature, *atx.Signature)
 				assert.ElementsMatch(t, pk, atx.SenderPK)
 				assert.ElementsMatch(t, l, atx.LeaseID)
@@ -3988,6 +4019,8 @@ func TestLeaseCancelWithProofsProtobufRoundTrip(t *testing.T) {
 		if b, err := tx.MarshalSignedToProtobuf(TestNetScheme); assert.NoError(t, err) {
 			var atx LeaseCancelWithProofs
 			if err := atx.UnmarshalSignedFromProtobuf(b); assert.NoError(t, err) {
+				err = atx.GenerateID(TestNetScheme)
+				assert.NoError(t, err)
 				assert.Equal(t, *tx, atx)
 			}
 		}
@@ -4050,8 +4083,7 @@ func TestLeaseCancelWithProofsBinaryRoundTrip(t *testing.T) {
 		}
 		if b, err := tx.MarshalBinary(); assert.NoError(t, err) {
 			var atx LeaseCancelWithProofs
-			if err := atx.UnmarshalBinary(b); assert.NoError(t, err) {
-				assert.ElementsMatch(t, *tx.ID, *atx.ID)
+			if err := atx.UnmarshalBinary(b, TestNetScheme); assert.NoError(t, err) {
 				assert.ElementsMatch(t, tx.Proofs.Proofs[0], atx.Proofs.Proofs[0])
 				assert.ElementsMatch(t, pk, atx.SenderPK)
 				assert.ElementsMatch(t, l, atx.LeaseID)
@@ -4169,6 +4201,8 @@ func TestCreateAliasWithSigProtobufRoundTrip(t *testing.T) {
 		if b, err := tx.MarshalSignedToProtobuf(tc.scheme); assert.NoError(t, err) {
 			var atx CreateAliasWithSig
 			if err := atx.UnmarshalSignedFromProtobuf(b); assert.NoError(t, err) {
+				err = atx.GenerateID(tc.scheme)
+				assert.NoError(t, err)
 				assert.Equal(t, *tx, atx)
 			}
 		}
@@ -4233,8 +4267,7 @@ func TestCreateAliasWithSigBinaryRoundTrip(t *testing.T) {
 		}
 		if b, err := tx.MarshalBinary(); assert.NoError(t, err) {
 			var atx CreateAliasWithSig
-			if err := atx.UnmarshalBinary(b); assert.NoError(t, err) {
-				assert.ElementsMatch(t, *tx.ID, *atx.ID)
+			if err := atx.UnmarshalBinary(b, tc.scheme); assert.NoError(t, err) {
 				assert.ElementsMatch(t, *tx.Signature, *atx.Signature)
 				assert.ElementsMatch(t, pk, atx.SenderPK)
 				assert.Equal(t, tc.scheme, atx.Alias.Scheme)
@@ -4356,6 +4389,8 @@ func TestCreateAliasWithProofsProtobufRoundTrip(t *testing.T) {
 		if b, err := tx.MarshalSignedToProtobuf(tc.scheme); assert.NoError(t, err) {
 			var atx CreateAliasWithProofs
 			if err := atx.UnmarshalSignedFromProtobuf(b); assert.NoError(t, err) {
+				err = atx.GenerateID(tc.scheme)
+				assert.NoError(t, err)
 				assert.Equal(t, *tx, atx)
 			}
 		}
@@ -4431,8 +4466,7 @@ func TestCreateAliasWithProofsBinaryRoundTrip(t *testing.T) {
 		}
 		if b, err := tx.MarshalBinary(); assert.NoError(t, err) {
 			var atx CreateAliasWithProofs
-			if err := atx.UnmarshalBinary(b); assert.NoError(t, err) {
-				assert.ElementsMatch(t, *tx.ID, *atx.ID)
+			if err := atx.UnmarshalBinary(b, tc.scheme); assert.NoError(t, err) {
 				assert.ElementsMatch(t, tx.Proofs.Proofs[0], atx.Proofs.Proofs[0])
 				assert.ElementsMatch(t, pk, atx.SenderPK)
 				assert.Equal(t, tc.scheme, atx.Alias.Scheme)
@@ -4580,6 +4614,8 @@ func TestMassTransferWithProofsProtobufRoundTrip(t *testing.T) {
 		if b, err := tx.MarshalSignedToProtobuf(MainNetScheme); assert.NoError(t, err) {
 			var atx MassTransferWithProofs
 			if err := atx.UnmarshalSignedFromProtobuf(b); assert.NoError(t, err) {
+				err = atx.GenerateID(MainNetScheme)
+				assert.NoError(t, err)
 				assert.Equal(t, *tx, atx)
 			}
 		}
@@ -4654,8 +4690,7 @@ func TestMassTransferWithProofsBinaryRoundTrip(t *testing.T) {
 		}
 		if b, err := tx.MarshalBinary(); assert.NoError(t, err) {
 			var atx MassTransferWithProofs
-			if err := atx.UnmarshalBinary(b); assert.NoError(t, err) {
-				assert.Equal(t, tx.ID, atx.ID)
+			if err := atx.UnmarshalBinary(b, MainNetScheme); assert.NoError(t, err) {
 				assert.Equal(t, len(tx.Proofs.Proofs), len(atx.Proofs.Proofs))
 				assert.ElementsMatch(t, tx.Proofs.Proofs, atx.Proofs.Proofs)
 				assert.Equal(t, pk, atx.SenderPK)
@@ -4796,7 +4831,7 @@ func TestDataWithProofsSizeLimit(t *testing.T) {
 		txBytes, err := tx.MarshalBinary()
 		assert.NoError(t, err)
 		var tx2 DataWithProofs
-		err = tx2.UnmarshalBinary(txBytes)
+		err = tx2.UnmarshalBinary(txBytes, MainNetScheme)
 		assert.EqualError(t, err, tc.err, fmt.Sprintf("expected: %s", tc.err))
 
 		// Test Protobuf.
@@ -4888,6 +4923,8 @@ func TestDataWithProofsProtobufRoundTrip(t *testing.T) {
 		if b, err := tx.MarshalSignedToProtobuf(MainNetScheme); assert.NoError(t, err) {
 			var atx DataWithProofs
 			if err := atx.UnmarshalSignedFromProtobuf(b); assert.NoError(t, err) {
+				err = atx.GenerateID(MainNetScheme)
+				assert.NoError(t, err)
 				assert.Equal(t, *tx, atx)
 			}
 		}
@@ -4988,8 +5025,7 @@ func TestDataWithProofsBinaryRoundTrip(t *testing.T) {
 		}
 		if b, err := tx.MarshalBinary(); assert.NoError(t, err) {
 			var atx DataWithProofs
-			if err := atx.UnmarshalBinary(b); assert.NoError(t, err) {
-				assert.Equal(t, tx.ID, atx.ID)
+			if err := atx.UnmarshalBinary(b, MainNetScheme); assert.NoError(t, err) {
 				assert.Equal(t, len(tx.Proofs.Proofs), len(atx.Proofs.Proofs))
 				assert.ElementsMatch(t, tx.Proofs.Proofs, atx.Proofs.Proofs)
 				assert.Equal(t, pk, atx.SenderPK)
@@ -5205,6 +5241,8 @@ func TestSetScriptWithProofsProtobufRoundTrip(t *testing.T) {
 		if b, err := tx.MarshalSignedToProtobuf(tc.chainID); assert.NoError(t, err) {
 			var atx SetScriptWithProofs
 			if err := atx.UnmarshalSignedFromProtobuf(b); assert.NoError(t, err) {
+				err = atx.GenerateID(tc.chainID)
+				assert.NoError(t, err)
 				assert.Equal(t, *tx, atx)
 			}
 		}
@@ -5270,8 +5308,7 @@ func TestSetScriptWithProofsBinaryRoundTrip(t *testing.T) {
 		}
 		if b, err := tx.MarshalBinary(); assert.NoError(t, err) {
 			var atx SetScriptWithProofs
-			if err := atx.UnmarshalBinary(b); assert.NoError(t, err) {
-				assert.Equal(t, tx.ID, atx.ID)
+			if err := atx.UnmarshalBinary(b, tc.chainID); assert.NoError(t, err) {
 				assert.ElementsMatch(t, tx.Proofs.Proofs, atx.Proofs.Proofs)
 				assert.Equal(t, pk, atx.SenderPK)
 				assert.Equal(t, tc.chainID, atx.ChainID)
@@ -5395,6 +5432,8 @@ func TestSponsorshipWithProofsProtobufRoundTrip(t *testing.T) {
 		if b, err := tx.MarshalSignedToProtobuf(MainNetScheme); assert.NoError(t, err) {
 			var atx SponsorshipWithProofs
 			if err := atx.UnmarshalSignedFromProtobuf(b); assert.NoError(t, err) {
+				err = atx.GenerateID(MainNetScheme)
+				assert.NoError(t, err)
 				assert.Equal(t, *tx, atx)
 			}
 		}
@@ -5460,8 +5499,7 @@ func TestSponsorshipWithProofsBinaryRoundTrip(t *testing.T) {
 		}
 		if b, err := tx.MarshalBinary(); assert.NoError(t, err) {
 			var atx SponsorshipWithProofs
-			if err := atx.UnmarshalBinary(b); assert.NoError(t, err) {
-				assert.Equal(t, tx.ID, atx.ID)
+			if err := atx.UnmarshalBinary(b, MainNetScheme); assert.NoError(t, err) {
 				assert.ElementsMatch(t, tx.Proofs.Proofs, atx.Proofs.Proofs)
 				assert.Equal(t, pk, atx.SenderPK)
 				assert.Equal(t, tc.asset, atx.AssetID.String())
@@ -5589,6 +5627,8 @@ func TestSetAssetScriptWithProofsProtobufRoundTrip(t *testing.T) {
 		if b, err := tx.MarshalSignedToProtobuf(tc.chainID); assert.NoError(t, err) {
 			var atx SetAssetScriptWithProofs
 			if err := atx.UnmarshalSignedFromProtobuf(b); assert.NoError(t, err) {
+				err = atx.GenerateID(tc.chainID)
+				assert.NoError(t, err)
 				assert.Equal(t, *tx, atx)
 			}
 		}
@@ -5659,8 +5699,7 @@ func TestSetAssetScriptWithProofsBinaryRoundTrip(t *testing.T) {
 		}
 		if b, err := tx.MarshalBinary(); assert.NoError(t, err) {
 			var atx SetAssetScriptWithProofs
-			if err := atx.UnmarshalBinary(b); assert.NoError(t, err) {
-				assert.Equal(t, tx.ID, atx.ID)
+			if err := atx.UnmarshalBinary(b, tc.chainID); assert.NoError(t, err) {
 				assert.ElementsMatch(t, tx.Proofs.Proofs, atx.Proofs.Proofs)
 				assert.Equal(t, pk, atx.SenderPK)
 				assert.Equal(t, tc.chainID, atx.ChainID)
@@ -5844,6 +5883,8 @@ func TestInvokeScriptWithProofsProtobufRoundTrip(t *testing.T) {
 		if b, err := tx.MarshalSignedToProtobuf(tc.chainID); assert.NoError(t, err) {
 			var atx InvokeScriptWithProofs
 			if err := atx.UnmarshalSignedFromProtobuf(b); assert.NoError(t, err) {
+				err = atx.GenerateID(tc.chainID)
+				assert.NoError(t, err)
 				assert.Equal(t, *tx, atx)
 			}
 		}
@@ -5938,8 +5979,7 @@ func TestInvokeScriptWithProofsBinaryRoundTrip(t *testing.T) {
 		}
 		if b, err := tx.MarshalBinary(); assert.NoError(t, err) {
 			var atx InvokeScriptWithProofs
-			if err := atx.UnmarshalBinary(b); assert.NoError(t, err) {
-				assert.Equal(t, tx.ID, atx.ID)
+			if err := atx.UnmarshalBinary(b, tc.chainID); assert.NoError(t, err) {
 				assert.ElementsMatch(t, tx.Proofs.Proofs, atx.Proofs.Proofs)
 				assert.Equal(t, pk, atx.SenderPK)
 				assert.Equal(t, tc.chainID, atx.ChainID)
@@ -6006,7 +6046,7 @@ func BenchmarkBytesToTransaction_WithReflection(b *testing.B) {
 	bts := []byte{0, 4, 2, 132, 79, 148, 251, 4, 38, 180, 107, 148, 225, 225, 107, 146, 125, 26, 243, 25, 35, 202, 83, 226, 142, 64, 8, 106, 72, 250, 228, 237, 132, 90, 16, 0, 0, 0, 0, 1, 104, 225, 147, 43, 220, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 134, 160, 1, 68, 152, 220, 142, 172, 155, 208, 202, 105, 149, 210, 120, 159, 30, 146, 64, 212, 101, 147, 228, 250, 36, 56, 81, 55, 0, 3, 102, 111, 111, 1, 0, 1, 0, 64, 154, 86, 48, 50, 47, 58, 64, 254, 146, 85, 72, 252, 23, 49, 64, 40, 34, 104, 117, 225, 126, 65, 235, 225, 38, 13, 114, 120, 7, 30, 240, 209, 37, 144, 166, 15, 14, 241, 232, 101, 103, 82, 232, 163, 165, 82, 96, 52, 132, 191, 194, 160, 155, 237, 106, 43, 82, 203, 125, 122, 219, 35, 186, 8}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, err := BytesToTransaction(bts)
+		_, err := BytesToTransaction(bts, MainNetScheme)
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -6018,60 +6058,60 @@ func BenchmarkBytesToTransaction_WithoutReflection(b *testing.B) {
 	bts := []byte{0, 4, 2, 132, 79, 148, 251, 4, 38, 180, 107, 148, 225, 225, 107, 146, 125, 26, 243, 25, 35, 202, 83, 226, 142, 64, 8, 106, 72, 250, 228, 237, 132, 90, 16, 0, 0, 0, 0, 1, 104, 225, 147, 43, 220, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 134, 160, 1, 68, 152, 220, 142, 172, 155, 208, 202, 105, 149, 210, 120, 159, 30, 146, 64, 212, 101, 147, 228, 250, 36, 56, 81, 55, 0, 3, 102, 111, 111, 1, 0, 1, 0, 64, 154, 86, 48, 50, 47, 58, 64, 254, 146, 85, 72, 252, 23, 49, 64, 40, 34, 104, 117, 225, 126, 65, 235, 225, 38, 13, 114, 120, 7, 30, 240, 209, 37, 144, 166, 15, 14, 241, 232, 101, 103, 82, 232, 163, 165, 82, 96, 52, 132, 191, 194, 160, 155, 237, 106, 43, 82, 203, 125, 122, 219, 35, 186, 8}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, err := getTransaction(bts)
+		_, err := getTransaction(bts, MainNetScheme)
 		if err != nil {
 			b.Fatal(err)
 		}
 	}
 }
 
-func getTransaction(txb []byte) (Transaction, error) {
+func getTransaction(txb []byte, scheme Scheme) (Transaction, error) {
 	switch txb[0] {
 	case 0:
 		switch txb[1] {
 		case byte(IssueTransaction):
 			var tx IssueWithProofs
-			err := tx.UnmarshalBinary(txb)
+			err := tx.UnmarshalBinary(txb, scheme)
 			return &tx, err
 		case byte(TransferTransaction):
 			var tx TransferWithProofs
-			err := tx.UnmarshalBinary(txb)
+			err := tx.UnmarshalBinary(txb, scheme)
 			return &tx, err
 		case byte(ReissueTransaction):
 			var tx ReissueWithProofs
-			err := tx.UnmarshalBinary(txb)
+			err := tx.UnmarshalBinary(txb, scheme)
 			return &tx, err
 		case byte(BurnTransaction):
 			var tx BurnWithProofs
-			err := tx.UnmarshalBinary(txb)
+			err := tx.UnmarshalBinary(txb, scheme)
 			return &tx, err
 		case byte(ExchangeTransaction):
 			var tx ExchangeWithProofs
-			err := tx.UnmarshalBinary(txb)
+			err := tx.UnmarshalBinary(txb, scheme)
 			return &tx, err
 		case byte(LeaseTransaction):
 			var tx LeaseWithProofs
-			err := tx.UnmarshalBinary(txb)
+			err := tx.UnmarshalBinary(txb, scheme)
 			return &tx, err
 		case byte(LeaseCancelTransaction):
 			var tx LeaseCancelWithProofs
-			err := tx.UnmarshalBinary(txb)
+			err := tx.UnmarshalBinary(txb, scheme)
 			return &tx, err
 		case byte(CreateAliasTransaction):
 			var tx CreateAliasWithProofs
-			err := tx.UnmarshalBinary(txb)
+			err := tx.UnmarshalBinary(txb, scheme)
 			return &tx, err
 		case byte(DataTransaction):
 			var tx DataWithProofs
-			err := tx.UnmarshalBinary(txb)
+			err := tx.UnmarshalBinary(txb, scheme)
 			return &tx, err
 		case byte(SetScriptTransaction):
 			var tx SetScriptWithProofs
-			err := tx.UnmarshalBinary(txb)
+			err := tx.UnmarshalBinary(txb, scheme)
 			return &tx, err
 		case byte(SponsorshipTransaction):
 			var tx SponsorshipWithProofs
-			err := tx.UnmarshalBinary(txb)
+			err := tx.UnmarshalBinary(txb, scheme)
 			return &tx, err
 		default:
 			return nil, errors.New("unknown transaction")
@@ -6079,40 +6119,40 @@ func getTransaction(txb []byte) (Transaction, error) {
 
 	case byte(IssueTransaction):
 		var tx IssueWithSig
-		err := tx.UnmarshalBinary(txb)
+		err := tx.UnmarshalBinary(txb, scheme)
 		return &tx, err
 
 	case byte(TransferTransaction):
 		var tx TransferWithSig
-		err := tx.UnmarshalBinary(txb)
+		err := tx.UnmarshalBinary(txb, scheme)
 		return &tx, err
 	case byte(ReissueTransaction):
 		var tx ReissueWithSig
-		err := tx.UnmarshalBinary(txb)
+		err := tx.UnmarshalBinary(txb, scheme)
 		return &tx, err
 	case byte(BurnTransaction):
 		var tx BurnWithSig
-		err := tx.UnmarshalBinary(txb)
+		err := tx.UnmarshalBinary(txb, scheme)
 		return &tx, err
 	case byte(ExchangeTransaction):
 		var tx ExchangeWithSig
-		err := tx.UnmarshalBinary(txb)
+		err := tx.UnmarshalBinary(txb, scheme)
 		return &tx, err
 	case byte(LeaseTransaction):
 		var tx LeaseWithSig
-		err := tx.UnmarshalBinary(txb)
+		err := tx.UnmarshalBinary(txb, scheme)
 		return &tx, err
 	case byte(LeaseCancelTransaction):
 		var tx LeaseCancelWithSig
-		err := tx.UnmarshalBinary(txb)
+		err := tx.UnmarshalBinary(txb, scheme)
 		return &tx, err
 	case byte(CreateAliasTransaction):
 		var tx CreateAliasWithSig
-		err := tx.UnmarshalBinary(txb)
+		err := tx.UnmarshalBinary(txb, scheme)
 		return &tx, err
 	case byte(MassTransferTransaction):
 		var tx MassTransferWithProofs
-		err := tx.UnmarshalBinary(txb)
+		err := tx.UnmarshalBinary(txb, scheme)
 		return &tx, err
 	}
 	return nil, errors.New("unknown transaction")
