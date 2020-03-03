@@ -23,7 +23,7 @@ func TestMineMicroblock(t *testing.T) {
 	}
 
 	keyBlock, err := proto.CreateBlock(
-		proto.NewReprFromTransactions(nil),
+		proto.Transactions(nil),
 		now,
 		noSig,
 		keyPair.Public,
@@ -33,28 +33,18 @@ func TestMineMicroblock(t *testing.T) {
 		-1,
 	)
 	require.NoError(t, err)
-	err = keyBlock.Sign(keyPair.Secret)
+	err = keyBlock.Sign(proto.MainNetScheme, keyPair.Secret)
 	require.NoError(t, err)
 
-	transferV1 := byte_helpers.TransferV1.Transaction.Clone()
+	transferWithSig := byte_helpers.TransferWithSig.Transaction.Clone()
 
-	_, err = createMicroBlock(keyBlock, proto.NewReprFromTransactions([]proto.Transaction{transferV1}), keyPair, proto.MainNetScheme)
+	_, err = createMicroBlock(keyBlock, []proto.Transaction{transferWithSig}, keyPair, proto.MainNetScheme)
 	require.NoError(t, err)
 }
 
-func createMicroBlock(keyBlock *proto.Block, tr *proto.TransactionsRepresentation, keyPair proto.KeyPair, chainID proto.Scheme) (*proto.MicroBlock, error) {
+func createMicroBlock(keyBlock *proto.Block, tr proto.Transactions, keyPair proto.KeyPair, chainID proto.Scheme) (*proto.MicroBlock, error) {
 	blockApplyOn := keyBlock
-	bts_, err := blockApplyOn.Transactions.Bytes()
-	if err != nil {
-		return nil, err
-	}
-	bts := make([]byte, len(bts_))
-	copy(bts, bts_)
-
-	transactions, err := blockApplyOn.Transactions.Join(tr)
-	if err != nil {
-		return nil, err
-	}
+	transactions := blockApplyOn.Transactions.Join(tr)
 
 	newBlock, err := proto.CreateBlock(
 		transactions,
@@ -71,7 +61,7 @@ func createMicroBlock(keyBlock *proto.Block, tr *proto.TransactionsRepresentatio
 	}
 
 	priv := keyPair.Secret
-	err = newBlock.Sign(keyPair.Secret)
+	err = newBlock.Sign(proto.MainNetScheme, keyPair.Secret)
 	if err != nil {
 		return nil, err
 	}

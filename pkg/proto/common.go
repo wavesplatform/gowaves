@@ -151,26 +151,7 @@ func NewTimestampFromUSeconds(seconds uint64) uint64 {
 	return seconds * 1000
 }
 
-func NetworkSchemeByType(networkType string) (byte, error) {
-	switch networkType {
-	case "mainnet":
-		return MainNetScheme, nil
-	case "testnet":
-		return TestNetScheme, nil
-	case "stagenet":
-		return StageNetScheme, nil
-	case "custom":
-		return CustomNetScheme, nil
-	default:
-		return 0, errors.New("invalid network type string")
-	}
-}
-
-func NetworkStrByType(networkType string) (string, error) {
+func NetworkStrFromScheme(scheme Scheme) string {
 	prefix := "waves"
-	scheme, err := NetworkSchemeByType(networkType)
-	if err != nil {
-		return "", nil
-	}
-	return prefix + string(scheme), nil
+	return prefix + string(scheme)
 }

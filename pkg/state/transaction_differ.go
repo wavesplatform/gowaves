@@ -282,7 +282,7 @@ func newTransactionDiffer(stor *blockchainEntitiesStorage, settings *settings.Bl
 }
 
 func (td *transactionDiffer) calculateTxFee(txFee uint64) (uint64, error) {
-	ngActivated, err := td.stor.features.isActivated(int16(settings.NG))
+	ngActivated, err := td.stor.features.isActivatedForNBlocks(int16(settings.NG), 1)
 	if err != nil {
 		return 0, err
 	}
@@ -463,18 +463,18 @@ func (td *transactionDiffer) createDiffTransfer(tx *proto.Transfer, info *differ
 	return changes, nil
 }
 
-func (td *transactionDiffer) createDiffTransferV1(transaction proto.Transaction, info *differInfo) (txBalanceChanges, error) {
-	tx, ok := transaction.(*proto.TransferV1)
+func (td *transactionDiffer) createDiffTransferWithSig(transaction proto.Transaction, info *differInfo) (txBalanceChanges, error) {
+	tx, ok := transaction.(*proto.TransferWithSig)
 	if !ok {
-		return txBalanceChanges{}, errors.New("failed to convert interface to TransferV1 transaction")
+		return txBalanceChanges{}, errors.New("failed to convert interface to TransferWithSig transaction")
 	}
 	return td.createDiffTransfer(&tx.Transfer, info)
 }
 
-func (td *transactionDiffer) createDiffTransferV2(transaction proto.Transaction, info *differInfo) (txBalanceChanges, error) {
-	tx, ok := transaction.(*proto.TransferV2)
+func (td *transactionDiffer) createDiffTransferWithProofs(transaction proto.Transaction, info *differInfo) (txBalanceChanges, error) {
+	tx, ok := transaction.(*proto.TransferWithProofs)
 	if !ok {
-		return txBalanceChanges{}, errors.New("failed to convert interface to TransferV2 transaction")
+		return txBalanceChanges{}, errors.New("failed to convert interface to TransferWithProofs transaction")
 	}
 	return td.createDiffTransfer(&tx.Transfer, info)
 }
@@ -510,24 +510,24 @@ func (td *transactionDiffer) createDiffIssue(tx *proto.Issue, id []byte, info *d
 	return changes, nil
 }
 
-func (td *transactionDiffer) createDiffIssueV1(transaction proto.Transaction, info *differInfo) (txBalanceChanges, error) {
-	tx, ok := transaction.(*proto.IssueV1)
+func (td *transactionDiffer) createDiffIssueWithSig(transaction proto.Transaction, info *differInfo) (txBalanceChanges, error) {
+	tx, ok := transaction.(*proto.IssueWithSig)
 	if !ok {
-		return txBalanceChanges{}, errors.New("failed to convert interface to IssueV1 transaction")
+		return txBalanceChanges{}, errors.New("failed to convert interface to IssueWithSig transaction")
 	}
-	txID, err := tx.GetID()
+	txID, err := tx.GetID(td.settings.AddressSchemeCharacter)
 	if err != nil {
 		return txBalanceChanges{}, errors.Errorf("failed to get transaction ID: %v\n", err)
 	}
 	return td.createDiffIssue(&tx.Issue, txID, info)
 }
 
-func (td *transactionDiffer) createDiffIssueV2(transaction proto.Transaction, info *differInfo) (txBalanceChanges, error) {
-	tx, ok := transaction.(*proto.IssueV2)
+func (td *transactionDiffer) createDiffIssueWithProofs(transaction proto.Transaction, info *differInfo) (txBalanceChanges, error) {
+	tx, ok := transaction.(*proto.IssueWithProofs)
 	if !ok {
-		return txBalanceChanges{}, errors.New("failed to convert interface to IssueV2 transaction")
+		return txBalanceChanges{}, errors.New("failed to convert interface to IssueWithProofs transaction")
 	}
-	txID, err := tx.GetID()
+	txID, err := tx.GetID(td.settings.AddressSchemeCharacter)
 	if err != nil {
 		return txBalanceChanges{}, errors.Errorf("failed to get transaction ID: %v\n", err)
 	}
@@ -561,18 +561,18 @@ func (td *transactionDiffer) createDiffReissue(tx *proto.Reissue, info *differIn
 	return changes, nil
 }
 
-func (td *transactionDiffer) createDiffReissueV1(transaction proto.Transaction, info *differInfo) (txBalanceChanges, error) {
-	tx, ok := transaction.(*proto.ReissueV1)
+func (td *transactionDiffer) createDiffReissueWithSig(transaction proto.Transaction, info *differInfo) (txBalanceChanges, error) {
+	tx, ok := transaction.(*proto.ReissueWithSig)
 	if !ok {
-		return txBalanceChanges{}, errors.New("failed to convert interface to ReissueV1 transaction")
+		return txBalanceChanges{}, errors.New("failed to convert interface to ReissueWithSig transaction")
 	}
 	return td.createDiffReissue(&tx.Reissue, info)
 }
 
-func (td *transactionDiffer) createDiffReissueV2(transaction proto.Transaction, info *differInfo) (txBalanceChanges, error) {
-	tx, ok := transaction.(*proto.ReissueV2)
+func (td *transactionDiffer) createDiffReissueWithProofs(transaction proto.Transaction, info *differInfo) (txBalanceChanges, error) {
+	tx, ok := transaction.(*proto.ReissueWithProofs)
 	if !ok {
-		return txBalanceChanges{}, errors.New("failed to convert interface to ReissueV2 transaction")
+		return txBalanceChanges{}, errors.New("failed to convert interface to ReissueWithProofs transaction")
 	}
 	return td.createDiffReissue(&tx.Reissue, info)
 }
@@ -604,24 +604,26 @@ func (td *transactionDiffer) createDiffBurn(tx *proto.Burn, info *differInfo) (t
 	return changes, nil
 }
 
-func (td *transactionDiffer) createDiffBurnV1(transaction proto.Transaction, info *differInfo) (txBalanceChanges, error) {
-	tx, ok := transaction.(*proto.BurnV1)
+func (td *transactionDiffer) createDiffBurnWithSig(transaction proto.Transaction, info *differInfo) (txBalanceChanges, error) {
+	tx, ok := transaction.(*proto.BurnWithSig)
 	if !ok {
-		return txBalanceChanges{}, errors.New("failed to convert interface to BurnV1 transaction")
+		return txBalanceChanges{}, errors.New("failed to convert interface to BurnWithSig transaction")
 	}
 	return td.createDiffBurn(&tx.Burn, info)
 }
 
-func (td *transactionDiffer) createDiffBurnV2(transaction proto.Transaction, info *differInfo) (txBalanceChanges, error) {
-	tx, ok := transaction.(*proto.BurnV2)
+func (td *transactionDiffer) createDiffBurnWithProofs(transaction proto.Transaction, info *differInfo) (txBalanceChanges, error) {
+	tx, ok := transaction.(*proto.BurnWithProofs)
 	if !ok {
-		return txBalanceChanges{}, errors.New("failed to convert interface to BurnV2 transaction")
+		return txBalanceChanges{}, errors.New("failed to convert interface to BurnWithProofs transaction")
 	}
 	return td.createDiffBurn(&tx.Burn, info)
 }
 
 func (td *transactionDiffer) orderFeeKey(address proto.Address, order proto.Order) []byte {
 	switch o := order.(type) {
+	case *proto.OrderV4:
+		return byteKey(address, o.MatcherFeeAsset.ToID())
 	case *proto.OrderV3:
 		return byteKey(address, o.MatcherFeeAsset.ToID())
 	default:
@@ -754,18 +756,18 @@ func (td *transactionDiffer) createDiffLease(tx *proto.Lease, id *crypto.Digest,
 	return changes, nil
 }
 
-func (td *transactionDiffer) createDiffLeaseV1(transaction proto.Transaction, info *differInfo) (txBalanceChanges, error) {
-	tx, ok := transaction.(*proto.LeaseV1)
+func (td *transactionDiffer) createDiffLeaseWithSig(transaction proto.Transaction, info *differInfo) (txBalanceChanges, error) {
+	tx, ok := transaction.(*proto.LeaseWithSig)
 	if !ok {
-		return txBalanceChanges{}, errors.New("failed to convert interface to LeaseV1 transaction")
+		return txBalanceChanges{}, errors.New("failed to convert interface to LeaseWithSig transaction")
 	}
 	return td.createDiffLease(&tx.Lease, tx.ID, info)
 }
 
-func (td *transactionDiffer) createDiffLeaseV2(transaction proto.Transaction, info *differInfo) (txBalanceChanges, error) {
-	tx, ok := transaction.(*proto.LeaseV2)
+func (td *transactionDiffer) createDiffLeaseWithProofs(transaction proto.Transaction, info *differInfo) (txBalanceChanges, error) {
+	tx, ok := transaction.(*proto.LeaseWithProofs)
 	if !ok {
-		return txBalanceChanges{}, errors.New("failed to convert interface to LeaseV2 transaction")
+		return txBalanceChanges{}, errors.New("failed to convert interface to LeaseWithProofs transaction")
 	}
 	return td.createDiffLease(&tx.Lease, tx.ID, info)
 }
@@ -806,18 +808,18 @@ func (td *transactionDiffer) createDiffLeaseCancel(tx *proto.LeaseCancel, info *
 	return changes, nil
 }
 
-func (td *transactionDiffer) createDiffLeaseCancelV1(transaction proto.Transaction, info *differInfo) (txBalanceChanges, error) {
-	tx, ok := transaction.(*proto.LeaseCancelV1)
+func (td *transactionDiffer) createDiffLeaseCancelWithSig(transaction proto.Transaction, info *differInfo) (txBalanceChanges, error) {
+	tx, ok := transaction.(*proto.LeaseCancelWithSig)
 	if !ok {
-		return txBalanceChanges{}, errors.New("failed to convert interface to LeaseCancelV1 transaction")
+		return txBalanceChanges{}, errors.New("failed to convert interface to LeaseCancelWithSig transaction")
 	}
 	return td.createDiffLeaseCancel(&tx.LeaseCancel, info)
 }
 
-func (td *transactionDiffer) createDiffLeaseCancelV2(transaction proto.Transaction, info *differInfo) (txBalanceChanges, error) {
-	tx, ok := transaction.(*proto.LeaseCancelV2)
+func (td *transactionDiffer) createDiffLeaseCancelWithProofs(transaction proto.Transaction, info *differInfo) (txBalanceChanges, error) {
+	tx, ok := transaction.(*proto.LeaseCancelWithProofs)
 	if !ok {
-		return txBalanceChanges{}, errors.New("failed to convert interface to LeaseCancelV2 transaction")
+		return txBalanceChanges{}, errors.New("failed to convert interface to LeaseCancelWithProofs transaction")
 	}
 	return td.createDiffLeaseCancel(&tx.LeaseCancel, info)
 }
@@ -844,26 +846,26 @@ func (td *transactionDiffer) createDiffCreateAlias(tx *proto.CreateAlias, info *
 	return changes, nil
 }
 
-func (td *transactionDiffer) createDiffCreateAliasV1(transaction proto.Transaction, info *differInfo) (txBalanceChanges, error) {
-	tx, ok := transaction.(*proto.CreateAliasV1)
+func (td *transactionDiffer) createDiffCreateAliasWithSig(transaction proto.Transaction, info *differInfo) (txBalanceChanges, error) {
+	tx, ok := transaction.(*proto.CreateAliasWithSig)
 	if !ok {
-		return txBalanceChanges{}, errors.New("failed to convert interface to CreateAliasV1 transaction")
+		return txBalanceChanges{}, errors.New("failed to convert interface to CreateAliasWithSig transaction")
 	}
 	return td.createDiffCreateAlias(&tx.CreateAlias, info)
 }
 
-func (td *transactionDiffer) createDiffCreateAliasV2(transaction proto.Transaction, info *differInfo) (txBalanceChanges, error) {
-	tx, ok := transaction.(*proto.CreateAliasV2)
+func (td *transactionDiffer) createDiffCreateAliasWithProofs(transaction proto.Transaction, info *differInfo) (txBalanceChanges, error) {
+	tx, ok := transaction.(*proto.CreateAliasWithProofs)
 	if !ok {
-		return txBalanceChanges{}, errors.New("failed to convert interface to CreateAliasV2 transaction")
+		return txBalanceChanges{}, errors.New("failed to convert interface to CreateAliasWithProofs transaction")
 	}
 	return td.createDiffCreateAlias(&tx.CreateAlias, info)
 }
 
-func (td *transactionDiffer) createDiffMassTransferV1(transaction proto.Transaction, info *differInfo) (txBalanceChanges, error) {
-	tx, ok := transaction.(*proto.MassTransferV1)
+func (td *transactionDiffer) createDiffMassTransferWithProofs(transaction proto.Transaction, info *differInfo) (txBalanceChanges, error) {
+	tx, ok := transaction.(*proto.MassTransferWithProofs)
 	if !ok {
-		return txBalanceChanges{}, errors.New("failed to convert interface to MassTransferV1 transaction")
+		return txBalanceChanges{}, errors.New("failed to convert interface to MassTransferWithProofs transaction")
 	}
 	diff := newTxDiff()
 	addrs := make([]proto.Address, len(tx.Transfers)+1)
@@ -911,10 +913,10 @@ func (td *transactionDiffer) createDiffMassTransferV1(transaction proto.Transact
 	return changes, nil
 }
 
-func (td *transactionDiffer) createDiffDataV1(transaction proto.Transaction, info *differInfo) (txBalanceChanges, error) {
-	tx, ok := transaction.(*proto.DataV1)
+func (td *transactionDiffer) createDiffDataWithProofs(transaction proto.Transaction, info *differInfo) (txBalanceChanges, error) {
+	tx, ok := transaction.(*proto.DataWithProofs)
 	if !ok {
-		return txBalanceChanges{}, errors.New("failed to convert interface to DataV1 transaction")
+		return txBalanceChanges{}, errors.New("failed to convert interface to DataWithProofs transaction")
 	}
 	diff := newTxDiff()
 	senderAddr, err := proto.NewAddressFromPublicKey(td.settings.AddressSchemeCharacter, tx.SenderPK)
@@ -937,10 +939,10 @@ func (td *transactionDiffer) createDiffDataV1(transaction proto.Transaction, inf
 	return changes, nil
 }
 
-func (td *transactionDiffer) createDiffSponsorshipV1(transaction proto.Transaction, info *differInfo) (txBalanceChanges, error) {
-	tx, ok := transaction.(*proto.SponsorshipV1)
+func (td *transactionDiffer) createDiffSponsorshipWithProofs(transaction proto.Transaction, info *differInfo) (txBalanceChanges, error) {
+	tx, ok := transaction.(*proto.SponsorshipWithProofs)
 	if !ok {
-		return txBalanceChanges{}, errors.New("failed to convert interface to SponsorshipV1 transaction")
+		return txBalanceChanges{}, errors.New("failed to convert interface to SponsorshipWithProofs transaction")
 	}
 	diff := newTxDiff()
 	senderAddr, err := proto.NewAddressFromPublicKey(td.settings.AddressSchemeCharacter, tx.SenderPK)
@@ -963,10 +965,10 @@ func (td *transactionDiffer) createDiffSponsorshipV1(transaction proto.Transacti
 	return changes, nil
 }
 
-func (td *transactionDiffer) createDiffSetScriptV1(transaction proto.Transaction, info *differInfo) (txBalanceChanges, error) {
-	tx, ok := transaction.(*proto.SetScriptV1)
+func (td *transactionDiffer) createDiffSetScriptWithProofs(transaction proto.Transaction, info *differInfo) (txBalanceChanges, error) {
+	tx, ok := transaction.(*proto.SetScriptWithProofs)
 	if !ok {
-		return txBalanceChanges{}, errors.New("failed to convert interface to SetScriptV1 transaction")
+		return txBalanceChanges{}, errors.New("failed to convert interface to SetScriptWithProofs transaction")
 	}
 	diff := newTxDiff()
 	senderAddr, err := proto.NewAddressFromPublicKey(td.settings.AddressSchemeCharacter, tx.SenderPK)
@@ -989,10 +991,10 @@ func (td *transactionDiffer) createDiffSetScriptV1(transaction proto.Transaction
 	return changes, nil
 }
 
-func (td *transactionDiffer) createDiffSetAssetScriptV1(transaction proto.Transaction, info *differInfo) (txBalanceChanges, error) {
-	tx, ok := transaction.(*proto.SetAssetScriptV1)
+func (td *transactionDiffer) createDiffSetAssetScriptWithProofs(transaction proto.Transaction, info *differInfo) (txBalanceChanges, error) {
+	tx, ok := transaction.(*proto.SetAssetScriptWithProofs)
 	if !ok {
-		return txBalanceChanges{}, errors.New("failed to convert interface to SetAssetScriptV1 transaction")
+		return txBalanceChanges{}, errors.New("failed to convert interface to SetAssetScriptWithProofs transaction")
 	}
 	diff := newTxDiff()
 	senderAddr, err := proto.NewAddressFromPublicKey(td.settings.AddressSchemeCharacter, tx.SenderPK)
@@ -1015,10 +1017,10 @@ func (td *transactionDiffer) createDiffSetAssetScriptV1(transaction proto.Transa
 	return changes, nil
 }
 
-func (td *transactionDiffer) createDiffInvokeScriptV1(transaction proto.Transaction, info *differInfo) (txBalanceChanges, error) {
-	tx, ok := transaction.(*proto.InvokeScriptV1)
+func (td *transactionDiffer) createDiffInvokeScriptWithProofs(transaction proto.Transaction, info *differInfo) (txBalanceChanges, error) {
+	tx, ok := transaction.(*proto.InvokeScriptWithProofs)
 	if !ok {
-		return txBalanceChanges{}, errors.New("failed to convert interface to InvokeScriptV1 transaction")
+		return txBalanceChanges{}, errors.New("failed to convert interface to InvokeScriptWithProofs transaction")
 	}
 	updateMinIntermediateBalance := false
 	noPayments := len(tx.Payments) == 0

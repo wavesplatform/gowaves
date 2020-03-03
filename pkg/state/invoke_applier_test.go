@@ -98,7 +98,7 @@ func verify() = {
 }
 */
 
-func TestApplyInvokeScriptV1PaymentsAndData(t *testing.T) {
+func TestApplyInvokeScriptWithProofsPaymentsAndData(t *testing.T) {
 	to, path := createInvokeApplierTestObjects(t)
 
 	defer func() {
@@ -137,10 +137,10 @@ func TestApplyInvokeScriptV1PaymentsAndData(t *testing.T) {
 		{Amount: amount},
 	}
 	fc := proto.FunctionCall{Name: "deposit"}
-	tx := createInvokeScriptV1(t, pmts, fc, fee)
+	tx := createInvokeScriptWithProofs(t, pmts, fc, fee)
 	tx.FeeAsset = proto.OptionalAsset{Present: false}
-	ch, err := ia.applyInvokeScriptV1(tx, info)
-	assert.NoError(t, err, "failed to apply valid InvokeScriptV1 tx")
+	ch, err := ia.applyInvokeScriptWithProofs(tx, info)
+	assert.NoError(t, err, "failed to apply valid InvokeScriptWithProofs tx")
 	correctAddrs := map[proto.Address]struct{}{
 		testGlobal.senderInfo.addr:    empty,
 		testGlobal.recipientInfo.addr: empty,
@@ -178,7 +178,7 @@ func TestApplyInvokeScriptV1PaymentsAndData(t *testing.T) {
 	assert.Equal(t, &proto.IntegerDataEntry{Key: key, Value: int64(amount)}, entry)
 }
 
-func TestApplyInvokeScriptV1Transfers(t *testing.T) {
+func TestApplyInvokeScriptWithProofsTransfers(t *testing.T) {
 	to, path := createInvokeApplierTestObjects(t)
 
 	defer func() {
@@ -218,10 +218,10 @@ func TestApplyInvokeScriptV1Transfers(t *testing.T) {
 		{Amount: amount},
 	}
 	fc := proto.FunctionCall{Name: "deposit"}
-	tx := createInvokeScriptV1(t, pmts, fc, fee)
+	tx := createInvokeScriptWithProofs(t, pmts, fc, fee)
 	tx.FeeAsset = proto.OptionalAsset{Present: false}
-	ch, err := ia.applyInvokeScriptV1(tx, info)
-	assert.NoError(t, err, "failed to apply valid InvokeScriptV1 tx")
+	ch, err := ia.applyInvokeScriptWithProofs(tx, info)
+	assert.NoError(t, err, "failed to apply valid InvokeScriptWithProofs tx")
 	correctAddrs := map[proto.Address]struct{}{
 		testGlobal.senderInfo.addr:    empty,
 		testGlobal.recipientInfo.addr: empty,
@@ -229,10 +229,10 @@ func TestApplyInvokeScriptV1Transfers(t *testing.T) {
 	assert.Equal(t, correctAddrs, ch.addrs)
 
 	fc = proto.FunctionCall{Name: "withdraw", Arguments: proto.Arguments{&proto.IntegerArgument{Value: int64(withdrawAmount)}}}
-	tx = createInvokeScriptV1(t, []proto.ScriptPayment{}, fc, fee)
+	tx = createInvokeScriptWithProofs(t, []proto.ScriptPayment{}, fc, fee)
 	tx.FeeAsset = proto.OptionalAsset{Present: false}
-	ch, err = ia.applyInvokeScriptV1(tx, info)
-	assert.NoError(t, err, "failed to apply valid InvokeScriptV1 tx")
+	ch, err = ia.applyInvokeScriptWithProofs(tx, info)
+	assert.NoError(t, err, "failed to apply valid InvokeScriptWithProofs tx")
 	correctAddrs = map[proto.Address]struct{}{
 		testGlobal.senderInfo.addr:    empty,
 		testGlobal.recipientInfo.addr: empty,

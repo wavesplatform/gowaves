@@ -14,14 +14,7 @@ const (
 )
 
 func MaybeEnableExtendedApi(state state.State, time types.Time) error {
-	height, err := state.Height()
-	if err != nil {
-		return err
-	}
-	lastBlock, err := state.BlockByHeight(height)
-	if err != nil {
-		return err
-	}
+	lastBlock := state.TopBlock()
 	return maybeEnableExtendedApi(state, lastBlock, proto.NewTimestampFromTime(time.Now()))
 }
 

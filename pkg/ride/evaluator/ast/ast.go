@@ -50,7 +50,7 @@ func protoArgToArgExpr(arg proto.Argument) (Expr, error) {
 	}
 }
 
-func (a *Script) CallFunction(scheme proto.Scheme, state types.SmartState, tx *proto.InvokeScriptV1, this, lastBlock Expr) (*proto.ScriptResult, error) {
+func (a *Script) CallFunction(scheme proto.Scheme, state types.SmartState, tx *proto.InvokeScriptWithProofs, this, lastBlock Expr) (*proto.ScriptResult, error) {
 	if !a.IsDapp() {
 		return nil, errors.New("can't call Script.CallFunction on non DApp")
 	}
@@ -1819,7 +1819,7 @@ func (a *InvocationExpr) InstanceOf() string {
 	return "Invocation"
 }
 
-func BuildInvocation(scheme proto.Scheme, tx *proto.InvokeScriptV1) (*InvocationExpr, error) {
+func BuildInvocation(scheme proto.Scheme, tx *proto.InvokeScriptWithProofs) (*InvocationExpr, error) {
 	fields := object{}
 	addr, err := proto.NewAddressFromPublicKey(scheme, tx.SenderPK)
 	if err != nil {

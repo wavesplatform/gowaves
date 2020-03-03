@@ -60,7 +60,15 @@ func (a *Serializer) StringWithUInt32Len(s string) error {
 	return nil
 }
 
-//PutBytesWithUInt32Len prepends given buf with 4 bytes of it's length.
+func (a *Serializer) BytesWithUInt16Len(data []byte) error {
+	sl := uint16(len(data))
+	err := a.Uint16(sl)
+	if err != nil {
+		return err
+	}
+	return a.Bytes(data)
+}
+
 func (a *Serializer) BytesWithUInt32Len(data []byte) error {
 	sl := uint32(len(data))
 	err := a.Uint32(sl)

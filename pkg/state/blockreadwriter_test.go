@@ -1,9 +1,7 @@
 package state
 
 import (
-	"bytes"
 	"context"
-	"encoding/binary"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -12,6 +10,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	"github.com/stretchr/testify/assert"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -41,7 +40,10 @@ type readTask struct {
 	blockID       crypto.Signature
 	height        uint64
 	offset        uint64
-	correctResult []byte
+	correctTx     proto.Transaction
+	correctHeader proto.BlockHeader
+	correctBlock  proto.Block
+	correctID     crypto.Signature
 }
 
 func createBlockReadWriter(offsetLen, headerOffsetLen int) (*blockReadWriter, []string, error) {
@@ -64,7 +66,7 @@ func createBlockReadWriter(offsetLen, headerOffsetLen int) (*blockReadWriter, []
 		return nil, res, err
 	}
 	res[1] = rwDir
-	rw, err := newBlockReadWriter(rwDir, offsetLen, headerOffsetLen, db, dbBatch)
+	rw, err := newBlockReadWriter(rwDir, offsetLen, headerOffsetLen, db, dbBatch, proto.MainNetScheme)
 	if err != nil {
 		return nil, res, err
 	}
@@ -76,29 +78,13 @@ func writeBlock(t *testing.T, rw *blockReadWriter, block *proto.Block) {
 	if err := rw.startBlock(blockID); err != nil {
 		t.Fatalf("startBlock(): %v", err)
 	}
-	headerBytes, err := block.MarshalHeaderToBinary()
-	if err != nil {
-		t.Fatalf("MarshalHeaderToBinary(): %v", err)
-	}
-	if err := rw.writeBlockHeader(blockID, headerBytes); err != nil {
+	if err := rw.writeBlockHeader(&block.BlockHeader); err != nil {
 		t.Fatalf("writeBlockHeader(): %v", err)
 	}
-	transaction := block.Transactions.BytesUnchecked()
-	for i := 0; i < block.TransactionCount; i++ {
-		n := int(binary.BigEndian.Uint32(transaction[0:4]))
-		txBytes := transaction[4 : n+4]
-		tx, err := proto.BytesToTransaction(txBytes)
-		if err != nil {
-			t.Fatalf("Can not unmarshal tx: %v", err)
-		}
-		txID, err := tx.GetID()
-		if err != nil {
-			t.Fatalf("tx.GetID(): %v\n", err)
-		}
-		if err := rw.writeTransaction(txID, transaction[4:n+4]); err != nil {
+	for _, tx := range block.Transactions {
+		if err := rw.writeTransaction(tx); err != nil {
 			t.Fatalf("writeTransaction(): %v", err)
 		}
-		transaction = transaction[4+n:]
 	}
 	if err := rw.finishBlock(blockID); err != nil {
 		t.Fatalf("finishBlock(): %v", err)
@@ -114,27 +100,19 @@ func writeBlock(t *testing.T, rw *blockReadWriter, block *proto.Block) {
 func testSingleBlock(t *testing.T, rw *blockReadWriter, block *proto.Block) {
 	writeBlock(t, rw, block)
 	blockID := block.BlockSignature
-	resHeaderBytes, err := rw.readBlockHeader(blockID)
+	resHeader, err := rw.readBlockHeader(blockID)
 	if err != nil {
 		t.Fatalf("readBlockHeader(): %v", err)
 	}
-	headerBytes, err := block.MarshalHeaderToBinary()
+	assert.Equal(t, block.BlockHeader, *resHeader)
+	resBlock, err := rw.readBlock(blockID)
 	if err != nil {
-		t.Fatalf("MarshalHeaderToBinary(): %v", err)
+		t.Fatalf("readBlock(): %v", err)
 	}
-	if !bytes.Equal(headerBytes, resHeaderBytes) {
-		t.Error("Header bytes are not equal.")
-	}
-	resTransactions, err := rw.readTransactionsBlock(blockID)
-	if err != nil {
-		t.Fatalf("readTransactionsBlock(): %v", err)
-	}
-	if !bytes.Equal(block.Transactions.BytesUnchecked(), resTransactions) {
-		t.Error("Transaction bytes are not equal.")
-	}
+	assert.Equal(t, resBlock, block)
 }
 
-func writeBlocks(ctx context.Context, rw *blockReadWriter, blocks []proto.Block, readTasks chan<- *readTask, flush bool) error {
+func writeBlocks(ctx context.Context, rw *blockReadWriter, blocks []proto.Block, readTasks chan<- *readTask, flush, protobuf bool) error {
 	height := 1
 	offset := 0
 	for _, block := range blocks {
@@ -144,44 +122,43 @@ func writeBlocks(ctx context.Context, rw *blockReadWriter, blocks []proto.Block,
 			close(readTasks)
 			return err
 		}
-		task := &readTask{taskType: getIDByHeight, height: uint64(height), correctResult: blockID[:]}
+		task := &readTask{taskType: getIDByHeight, height: uint64(height), correctID: blockID}
 		tasksBuf = append(tasksBuf, task)
-		headerBytes, err := block.MarshalHeaderToBinary()
-		if err != nil {
+		if err := rw.writeBlockHeader(&block.BlockHeader); err != nil {
 			close(readTasks)
 			return err
 		}
-		if err := rw.writeBlockHeader(blockID, headerBytes); err != nil {
-			close(readTasks)
-			return err
-		}
-		task = &readTask{taskType: readHeader, blockID: blockID, correctResult: headerBytes}
+		task = &readTask{taskType: readHeader, blockID: blockID, correctHeader: block.BlockHeader}
 		tasksBuf = append(tasksBuf, task)
-		transaction := block.Transactions.BytesUnchecked()
-		for i := 0; i < block.TransactionCount; i++ {
-			n := int(binary.BigEndian.Uint32(transaction[0:4]))
-			txBytes := transaction[4 : n+4]
-			tx, err := proto.BytesToTransaction(txBytes)
-			if err != nil {
-				close(readTasks)
-				return err
-			}
-			txID, err := tx.GetID()
+		for i := range block.Transactions {
+			tx := block.Transactions[i]
+			txID, err := tx.GetID(proto.MainNetScheme)
 			if err != nil {
 				return err
 			}
-			if err := rw.writeTransaction(txID, transaction[4:n+4]); err != nil {
+			var txBytes []byte
+			if protobuf {
+				txBytes, err = tx.MarshalSignedToProtobuf(proto.MainNetScheme)
+				if err != nil {
+					return err
+				}
+			} else {
+				txBytes, err = tx.MarshalBinary()
+				if err != nil {
+					return err
+				}
+			}
+			if err := rw.writeTransaction(tx); err != nil {
 				close(readTasks)
 				return err
 			}
-			task = &readTask{taskType: readTx, txID: txID, correctResult: transaction[4 : n+4]}
+			task = &readTask{taskType: readTx, txID: txID, correctTx: tx}
 			tasksBuf = append(tasksBuf, task)
 			task = &readTask{taskType: readTxHeight, txID: txID, height: uint64(height)}
 			tasksBuf = append(tasksBuf, task)
 			task = &readTask{taskType: readTxOffset, txID: txID, offset: uint64(offset)}
 			tasksBuf = append(tasksBuf, task)
-			offset += n + 4
-			transaction = transaction[4+n:]
+			offset += len(txBytes) + 4
 		}
 		if err := rw.finishBlock(blockID); err != nil {
 			close(readTasks)
@@ -197,7 +174,7 @@ func writeBlocks(ctx context.Context, rw *blockReadWriter, blocks []proto.Block,
 				return err
 			}
 		}
-		task = &readTask{taskType: readBlock, blockID: blockID, correctResult: block.Transactions.BytesUnchecked()}
+		task = &readTask{taskType: readBlock, blockID: blockID, correctBlock: block}
 		tasksBuf = append(tasksBuf, task)
 		for _, task := range tasksBuf {
 			select {
@@ -217,44 +194,44 @@ func testNewestReader(rw *blockReadWriter, readTasks <-chan *readTask) error {
 	for task := range readTasks {
 		switch task.taskType {
 		case readHeader:
-			headerBytes, err := rw.readNewestBlockHeader(task.blockID)
+			header, err := rw.readNewestBlockHeader(task.blockID)
 			if err != nil {
 				return err
 			}
-			if !bytes.Equal(task.correctResult, headerBytes) {
-				return errors.New("Header bytes are not equal.")
+			if !assert.ObjectsAreEqual(task.correctHeader, *header) {
+				return errors.New("headers are not equal")
 			}
 		case readTxHeight:
 			height, err := rw.newestTransactionHeightByID(task.txID)
 			if err != nil {
 				return err
 			}
-			if height != task.height {
-				return errors.New("Transaction heights are not equal")
+			if !assert.ObjectsAreEqual(task.height, height) {
+				return errors.New("heights are not equal")
 			}
 		case readTxOffset:
 			offset, err := rw.newestTransactionOffsetByID(task.txID)
 			if err != nil {
 				return err
 			}
-			if offset != task.offset {
-				return errors.New("Transaction offsets are not equal")
+			if !assert.ObjectsAreEqual(task.offset, offset) {
+				return errors.New("transaction offsets are not equal")
 			}
 		case readTx:
 			tx, err := rw.readNewestTransaction(task.txID)
 			if err != nil {
 				return err
 			}
-			if !bytes.Equal(task.correctResult, tx) {
-				return errors.New("Transaction bytes are not equal.")
+			if !assert.ObjectsAreEqual(task.correctTx, tx) {
+				return errors.New("transactions are not equal")
 			}
 		case getIDByHeight:
 			id, err := rw.newestBlockIDByHeight(task.height)
 			if err != nil {
 				return err
 			}
-			if !bytes.Equal(task.correctResult, id[:]) {
-				return errors.Errorf("Got wrong ID %s by height %d", string(id[:]), task.height)
+			if !assert.ObjectsAreEqual(task.correctID, id) {
+				return errors.New("block IDs are not equal")
 			}
 		}
 	}
@@ -265,52 +242,52 @@ func testReader(rw *blockReadWriter, readTasks <-chan *readTask) error {
 	for task := range readTasks {
 		switch task.taskType {
 		case readHeader:
-			headerBytes, err := rw.readBlockHeader(task.blockID)
+			header, err := rw.readBlockHeader(task.blockID)
 			if err != nil {
 				return err
 			}
-			if !bytes.Equal(task.correctResult, headerBytes) {
-				return errors.New("Header bytes are not equal.")
+			if !assert.ObjectsAreEqual(task.correctHeader, *header) {
+				return errors.New("headers are not equal")
 			}
 		case readBlock:
-			resTransactions, err := rw.readTransactionsBlock(task.blockID)
+			block, err := rw.readBlock(task.blockID)
 			if err != nil {
 				return err
 			}
-			if !bytes.Equal(task.correctResult, resTransactions) {
-				return errors.New("Transactions bytes are not equal.")
+			if !assert.ObjectsAreEqual(task.correctBlock, *block) {
+				return errors.New("blocks are not equal")
 			}
 		case readTxHeight:
 			height, err := rw.transactionHeightByID(task.txID)
 			if err != nil {
 				return err
 			}
-			if height != task.height {
-				return errors.New("Transaction heights are not equal")
+			if !assert.ObjectsAreEqual(task.height, height) {
+				return errors.New("heights are not equal")
 			}
 		case readTxOffset:
 			offset, err := rw.transactionOffsetByID(task.txID)
 			if err != nil {
 				return err
 			}
-			if offset != task.offset {
-				return errors.New("Transaction offsets are not equal")
+			if !assert.ObjectsAreEqual(task.offset, offset) {
+				return errors.New("transaction offsets are not equal")
 			}
 		case readTx:
 			tx, err := rw.readTransaction(task.txID)
 			if err != nil {
 				return err
 			}
-			if !bytes.Equal(task.correctResult, tx) {
-				return errors.New("Transaction bytes are not equal.")
+			if !assert.ObjectsAreEqual(task.correctTx, tx) {
+				return errors.New("transactions are not equal")
 			}
 		case getIDByHeight:
 			id, err := rw.blockIDByHeight(task.height)
 			if err != nil {
 				return err
 			}
-			if !bytes.Equal(task.correctResult, id[:]) {
-				return errors.Errorf("Got wrong ID %s by height %d", string(id[:]), task.height)
+			if !assert.ObjectsAreEqual(task.correctID, id) {
+				return errors.New("block IDs are not equal")
 			}
 		}
 	}
@@ -374,7 +351,7 @@ func TestSimultaneousReadWrite(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		err1 := writeBlocks(ctx, rw, blocks, readTasks, true)
+		err1 := writeBlocks(ctx, rw, blocks, readTasks, true, false)
 		if err1 != nil {
 			mtx.Lock()
 			errCounter++
@@ -433,7 +410,7 @@ func TestReadNewest(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		err1 := writeBlocks(ctx, rw, blocks, readTasks, false)
+		err1 := writeBlocks(ctx, rw, blocks, readTasks, false, false)
 		if err1 != nil {
 			mtx.Lock()
 			errCounter++
@@ -490,11 +467,8 @@ func TestSimultaneousReadDelete(t *testing.T) {
 	}
 	idToTest := blocks[blocksNumber-2].BlockSignature
 	prevId := blocks[blocksNumber-3].BlockSignature
-	txs, err := blocks[blocksNumber-2].Transactions.Transactions()
-	if err != nil {
-		t.Fatalf("Transactions() failed: %v", err)
-	}
-	txID, err := txs[0].GetID()
+	txs := blocks[blocksNumber-2].Transactions
+	txID, err := txs[0].GetID(proto.MainNetScheme)
 	if err != nil {
 		t.Fatalf("GetID(): %v", err)
 	}
@@ -517,13 +491,13 @@ func TestSimultaneousReadDelete(t *testing.T) {
 			}
 			t.Fatalf("readBlockHeader(): %v", err)
 		}
-		_, err = rw.readTransactionsBlock(idToTest)
+		_, err = rw.readBlock(idToTest)
 		if err != nil {
 			if err == keyvalue.ErrNotFound {
 				// Successfully removed.
 				break
 			}
-			t.Fatalf("readTransactionsBlock(): %v", err)
+			t.Fatalf("readBlock(): %v", err)
 		}
 	}
 	wg.Wait()
@@ -533,5 +507,65 @@ func TestSimultaneousReadDelete(t *testing.T) {
 	_, err = rw.readTransaction(txID)
 	if err != keyvalue.ErrNotFound {
 		t.Fatalf("transaction from removed block wasn't deleted %v", err)
+	}
+}
+
+func TestProtobufReadWrite(t *testing.T) {
+	rw, path, err := createBlockReadWriter(8, 8)
+	if err != nil {
+		t.Fatalf("createBlockReadWriter: %v", err)
+	}
+
+	defer func() {
+		if err := rw.close(); err != nil {
+			t.Fatalf("Failed to close blockReadWriter: %v", err)
+		}
+		if err := rw.db.Close(); err != nil {
+			t.Fatalf("Failed to close DB: %v", err)
+		}
+		if err := util.CleanTemporaryDirs(path); err != nil {
+			t.Fatalf("Failed to clean test data dirs: %v", err)
+		}
+	}()
+
+	rw.setProtobufActivated()
+	blocks, err := readBlocksFromTestPath(blocksNumber)
+	if err != nil {
+		t.Fatalf("Can not read blocks from blockchain file: %v", err)
+	}
+	var mtx sync.Mutex
+	var wg sync.WaitGroup
+	ctx, cancel := context.WithCancel(context.Background())
+	errCounter := 0
+	readTasks := make(chan *readTask, tasksChanBufferSize)
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		err1 := writeBlocks(ctx, rw, blocks, readTasks, true, true)
+		if err1 != nil {
+			mtx.Lock()
+			errCounter++
+			mtx.Unlock()
+			fmt.Printf("Writer error: %v\n", err1)
+			cancel()
+		}
+	}()
+	for i := 0; i < readersNumber; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			err1 := testReader(rw, readTasks)
+			if err1 != nil {
+				mtx.Lock()
+				errCounter++
+				mtx.Unlock()
+				fmt.Printf("Reader error: %v\n", err1)
+				cancel()
+			}
+		}()
+	}
+	wg.Wait()
+	if errCounter != 0 {
+		t.Fatalf("Reader/writer error.")
 	}
 }

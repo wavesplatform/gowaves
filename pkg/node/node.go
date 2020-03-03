@@ -89,14 +89,45 @@ func (a *Node) HandleProtoMessage(mess peer.ProtoMessage) {
 		a.handleMicroBlockRequestMessage(mess.ID, t)
 	case *proto.MicroBlockMessage:
 		a.handleMicroBlockMessage(mess.ID, t)
+	case *proto.PBBlockMessage:
+		a.handlePBBlockMessage(mess.ID, t)
+	case *proto.PBMicroBlockMessage:
+		a.handlePBMicroBlockMessage(mess.ID, t)
+	case *proto.PBTransactionMessage:
+		a.handlePBTransactionMessage(mess.ID, t)
 
 	default:
 		zap.S().Errorf("unknown proto Message %T", mess.Message)
 	}
 }
 
+func (a *Node) handlePBBlockMessage(p peer.Peer, mess *proto.PBBlockMessage) {
+	if !a.subscribe.Receive(p, mess) {
+		b := &proto.Block{}
+		err := b.UnmarshalFromProtobuf(mess.PBBlockBytes)
+		if err != nil {
+			zap.S().Debug(err)
+			return
+		}
+		a.ng.HandleBlockMessage(p, b)
+	}
+}
+
+func (a *Node) handlePBMicroBlockMessage(p peer.Peer, mess *proto.PBMicroBlockMessage) {
+	a.ng.HandlePBMicroBlockMessage(p, mess)
+}
+
+func (a *Node) handlePBTransactionMessage(_ peer.Peer, mess *proto.PBTransactionMessage) {
+	t, err := proto.SignedTxFromProtobuf(mess.Transaction)
+	if err != nil {
+		zap.S().Debug(err)
+		return
+	}
+	_ = a.utx.AddWithBytes(t, util.Dup(mess.Transaction))
+}
+
 func (a *Node) handleTransactionMessage(_ peer.Peer, mess *proto.TransactionMessage) {
-	t, err := proto.BytesToTransaction(mess.Transaction)
+	t, err := proto.BytesToTransaction(mess.Transaction, a.services.Scheme)
 	if err != nil {
 		zap.S().Debug(err)
 		return
@@ -195,15 +226,12 @@ func (a *Node) handleBlockBySignatureMessage(p peer.Peer, sig crypto.Signature) 
 		zap.S().Error(err)
 		return
 	}
-	bts, err := block.MarshalBinary()
+	bm, err := proto.MessageByBlock(block, a.services.Scheme)
 	if err != nil {
 		zap.S().Error(err)
 		return
 	}
-	bm := proto.BlockMessage{
-		BlockBytes: bts,
-	}
-	p.SendMessage(&bm)
+	p.SendMessage(bm)
 }
 
 func (a *Node) handleScoreMessage(p peer.Peer, score []byte) {
@@ -221,7 +249,7 @@ func (a *Node) handleScoreMessage(p peer.Peer, score []byte) {
 func (a *Node) handleBlockMessage(p peer.Peer, mess *proto.BlockMessage) {
 	if !a.subscribe.Receive(p, mess) {
 		b := &proto.Block{}
-		err := b.UnmarshalBinary(mess.BlockBytes)
+		err := b.UnmarshalBinary(mess.BlockBytes, a.services.Scheme)
 		if err != nil {
 			zap.S().Debug(err)
 			return

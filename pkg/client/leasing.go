@@ -20,7 +20,7 @@ func NewLeasing(options Options) *Leasing {
 }
 
 // Get lease transactions
-func (a *Leasing) Active(ctx context.Context, address proto.Address) ([]*proto.LeaseV1, *Response, error) {
+func (a *Leasing) Active(ctx context.Context, address proto.Address) ([]*proto.LeaseWithSig, *Response, error) {
 	url, err := joinUrl(a.options.BaseUrl, fmt.Sprintf("/leasing/active/%s", address.String()))
 	if err != nil {
 		return nil, nil, err
@@ -31,7 +31,7 @@ func (a *Leasing) Active(ctx context.Context, address proto.Address) ([]*proto.L
 		return nil, nil, err
 	}
 
-	var out []*proto.LeaseV1
+	var out []*proto.LeaseWithSig
 	response, err := doHttp(ctx, a.options, req, &out)
 	if err != nil {
 		return nil, response, err

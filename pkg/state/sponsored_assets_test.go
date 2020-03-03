@@ -19,7 +19,7 @@ func createSponsoredAssets() (*sponsoredAssetsTestObjects, []string, error) {
 	if err != nil {
 		return nil, path, err
 	}
-	features, err := newFeatures(stor.db, stor.hs, settings.MainNetSettings, settings.FeaturesInfo)
+	features, err := newFeatures(stor.rw, stor.db, stor.hs, settings.MainNetSettings, settings.FeaturesInfo)
 	if err != nil {
 		return nil, path, err
 	}

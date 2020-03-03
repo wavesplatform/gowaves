@@ -10,19 +10,21 @@ const idSize = 16
 
 // transactions cache
 type TransactionList struct {
-	index int
-	size  int
-	lst   [][idSize]byte
-	id2t  map[[idSize]byte]struct{}
-	mu    sync.RWMutex
+	index  int
+	size   int
+	lst    [][idSize]byte
+	id2t   map[[idSize]byte]struct{}
+	mu     sync.RWMutex
+	scheme proto.Scheme
 }
 
-func NewTransactionList(size int) *TransactionList {
+func NewTransactionList(size int, scheme proto.Scheme) *TransactionList {
 	return &TransactionList{
-		size:  size,
-		lst:   make([][idSize]byte, size),
-		index: 0,
-		id2t:  make(map[[idSize]byte]struct{}),
+		size:   size,
+		lst:    make([][idSize]byte, size),
+		index:  0,
+		id2t:   make(map[[idSize]byte]struct{}),
+		scheme: scheme,
 	}
 }
 
@@ -34,7 +36,7 @@ func (a *TransactionList) Add(transaction proto.Transaction) {
 	}
 	b := [idSize]byte{}
 	// TODO: check GetID() error.
-	txID, _ := transaction.GetID()
+	txID, _ := transaction.GetID(a.scheme)
 	copy(b[:], txID)
 	a.id2t[b] = struct{}{}
 	a.replaceOldTransaction(transaction)
@@ -46,7 +48,7 @@ func (a *TransactionList) replaceOldTransaction(transaction proto.Transaction) {
 	curTransaction := a.lst[curIdx]
 	delete(a.id2t, curTransaction)
 	// TODO: check GetID() error.
-	txID, _ := transaction.GetID()
+	txID, _ := transaction.GetID(a.scheme)
 	copy(a.lst[curIdx][:], txID)
 	a.index += 1
 }
@@ -61,7 +63,7 @@ func (a *TransactionList) Exists(transaction proto.Transaction) bool {
 func (a *TransactionList) exists(transaction proto.Transaction) bool {
 	b := [idSize]byte{}
 	// TODO: check GetID() error.
-	txID, _ := transaction.GetID()
+	txID, _ := transaction.GetID(a.scheme)
 	copy(b[:], txID)
 	_, ok := a.id2t[b]
 	return ok

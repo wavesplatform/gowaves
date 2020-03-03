@@ -19,7 +19,7 @@ type txHandleFuncs struct {
 	countFee   txCountFeeFunc
 }
 
-type handles map[proto.TransactionTypeVersion]txHandleFuncs
+type handles map[proto.TransactionTypeInfo]txHandleFuncs
 
 type transactionHandler struct {
 	tc *transactionChecker
@@ -30,79 +30,80 @@ type transactionHandler struct {
 	funcs handles
 }
 
+// TODO: see TODO on GetTypeInfo() in proto/transactions.go.
 func buildHandles(tc *transactionChecker, tp *transactionPerformer, td *transactionDiffer, tf *transactionFeeCounter) handles {
 	return handles{
-		proto.TransactionTypeVersion{Type: proto.GenesisTransaction, Version: 1}: txHandleFuncs{
+		proto.TransactionTypeInfo{Type: proto.GenesisTransaction, ProofVersion: proto.Signature}: txHandleFuncs{
 			tc.checkGenesis, nil, td.createDiffGenesis, nil,
 		},
-		proto.TransactionTypeVersion{Type: proto.PaymentTransaction, Version: 1}: txHandleFuncs{
+		proto.TransactionTypeInfo{Type: proto.PaymentTransaction, ProofVersion: proto.Signature}: txHandleFuncs{
 			tc.checkPayment, nil, td.createDiffPayment, tf.minerFeePayment,
 		},
-		proto.TransactionTypeVersion{Type: proto.TransferTransaction, Version: 1}: txHandleFuncs{
-			tc.checkTransferV1, nil, td.createDiffTransferV1, tf.minerFeeTransferV1,
+		proto.TransactionTypeInfo{Type: proto.TransferTransaction, ProofVersion: proto.Signature}: txHandleFuncs{
+			tc.checkTransferWithSig, nil, td.createDiffTransferWithSig, tf.minerFeeTransferWithSig,
 		},
-		proto.TransactionTypeVersion{Type: proto.TransferTransaction, Version: 2}: txHandleFuncs{
-			tc.checkTransferV2, nil, td.createDiffTransferV2, tf.minerFeeTransferV2,
+		proto.TransactionTypeInfo{Type: proto.TransferTransaction, ProofVersion: proto.Proof}: txHandleFuncs{
+			tc.checkTransferWithProofs, nil, td.createDiffTransferWithProofs, tf.minerFeeTransferWithProofs,
 		},
-		proto.TransactionTypeVersion{Type: proto.IssueTransaction, Version: 1}: txHandleFuncs{
-			tc.checkIssueV1, tp.performIssueV1, td.createDiffIssueV1, tf.minerFeeIssueV1,
+		proto.TransactionTypeInfo{Type: proto.IssueTransaction, ProofVersion: proto.Signature}: txHandleFuncs{
+			tc.checkIssueWithSig, tp.performIssueWithSig, td.createDiffIssueWithSig, tf.minerFeeIssueWithSig,
 		},
-		proto.TransactionTypeVersion{Type: proto.IssueTransaction, Version: 2}: txHandleFuncs{
-			tc.checkIssueV2, tp.performIssueV2, td.createDiffIssueV2, tf.minerFeeIssueV2,
+		proto.TransactionTypeInfo{Type: proto.IssueTransaction, ProofVersion: proto.Proof}: txHandleFuncs{
+			tc.checkIssueWithProofs, tp.performIssueWithProofs, td.createDiffIssueWithProofs, tf.minerFeeIssueWithProofs,
 		},
-		proto.TransactionTypeVersion{Type: proto.ReissueTransaction, Version: 1}: txHandleFuncs{
-			tc.checkReissueV1, tp.performReissueV1, td.createDiffReissueV1, tf.minerFeeReissueV1,
+		proto.TransactionTypeInfo{Type: proto.ReissueTransaction, ProofVersion: proto.Signature}: txHandleFuncs{
+			tc.checkReissueWithSig, tp.performReissueWithSig, td.createDiffReissueWithSig, tf.minerFeeReissueWithSig,
 		},
-		proto.TransactionTypeVersion{Type: proto.ReissueTransaction, Version: 2}: txHandleFuncs{
-			tc.checkReissueV2, tp.performReissueV2, td.createDiffReissueV2, tf.minerFeeReissueV2,
+		proto.TransactionTypeInfo{Type: proto.ReissueTransaction, ProofVersion: proto.Proof}: txHandleFuncs{
+			tc.checkReissueWithProofs, tp.performReissueWithProofs, td.createDiffReissueWithProofs, tf.minerFeeReissueWithProofs,
 		},
-		proto.TransactionTypeVersion{Type: proto.BurnTransaction, Version: 1}: txHandleFuncs{
-			tc.checkBurnV1, tp.performBurnV1, td.createDiffBurnV1, tf.minerFeeBurnV1,
+		proto.TransactionTypeInfo{Type: proto.BurnTransaction, ProofVersion: proto.Signature}: txHandleFuncs{
+			tc.checkBurnWithSig, tp.performBurnWithSig, td.createDiffBurnWithSig, tf.minerFeeBurnWithSig,
 		},
-		proto.TransactionTypeVersion{Type: proto.BurnTransaction, Version: 2}: txHandleFuncs{
-			tc.checkBurnV2, tp.performBurnV2, td.createDiffBurnV2, tf.minerFeeBurnV2,
+		proto.TransactionTypeInfo{Type: proto.BurnTransaction, ProofVersion: proto.Proof}: txHandleFuncs{
+			tc.checkBurnWithProofs, tp.performBurnWithProofs, td.createDiffBurnWithProofs, tf.minerFeeBurnWithProofs,
 		},
-		proto.TransactionTypeVersion{Type: proto.ExchangeTransaction, Version: 1}: txHandleFuncs{
-			tc.checkExchangeV1, tp.performExchange, td.createDiffExchange, tf.minerFeeExchange,
+		proto.TransactionTypeInfo{Type: proto.ExchangeTransaction, ProofVersion: proto.Signature}: txHandleFuncs{
+			tc.checkExchangeWithSig, tp.performExchange, td.createDiffExchange, tf.minerFeeExchange,
 		},
-		proto.TransactionTypeVersion{Type: proto.ExchangeTransaction, Version: 2}: txHandleFuncs{
-			tc.checkExchangeV2, tp.performExchange, td.createDiffExchange, tf.minerFeeExchange,
+		proto.TransactionTypeInfo{Type: proto.ExchangeTransaction, ProofVersion: proto.Proof}: txHandleFuncs{
+			tc.checkExchangeWithProofs, tp.performExchange, td.createDiffExchange, tf.minerFeeExchange,
 		},
-		proto.TransactionTypeVersion{Type: proto.LeaseTransaction, Version: 1}: txHandleFuncs{
-			tc.checkLeaseV1, tp.performLeaseV1, td.createDiffLeaseV1, tf.minerFeeLeaseV1,
+		proto.TransactionTypeInfo{Type: proto.LeaseTransaction, ProofVersion: proto.Signature}: txHandleFuncs{
+			tc.checkLeaseWithSig, tp.performLeaseWithSig, td.createDiffLeaseWithSig, tf.minerFeeLeaseWithSig,
 		},
-		proto.TransactionTypeVersion{Type: proto.LeaseTransaction, Version: 2}: txHandleFuncs{
-			tc.checkLeaseV2, tp.performLeaseV2, td.createDiffLeaseV2, tf.minerFeeLeaseV2,
+		proto.TransactionTypeInfo{Type: proto.LeaseTransaction, ProofVersion: proto.Proof}: txHandleFuncs{
+			tc.checkLeaseWithProofs, tp.performLeaseWithProofs, td.createDiffLeaseWithProofs, tf.minerFeeLeaseWithProofs,
 		},
-		proto.TransactionTypeVersion{Type: proto.LeaseCancelTransaction, Version: 1}: txHandleFuncs{
-			tc.checkLeaseCancelV1, tp.performLeaseCancelV1, td.createDiffLeaseCancelV1, tf.minerFeeLeaseCancelV1,
+		proto.TransactionTypeInfo{Type: proto.LeaseCancelTransaction, ProofVersion: proto.Signature}: txHandleFuncs{
+			tc.checkLeaseCancelWithSig, tp.performLeaseCancelWithSig, td.createDiffLeaseCancelWithSig, tf.minerFeeLeaseCancelWithSig,
 		},
-		proto.TransactionTypeVersion{Type: proto.LeaseCancelTransaction, Version: 2}: txHandleFuncs{
-			tc.checkLeaseCancelV2, tp.performLeaseCancelV2, td.createDiffLeaseCancelV2, tf.minerFeeLeaseCancelV2,
+		proto.TransactionTypeInfo{Type: proto.LeaseCancelTransaction, ProofVersion: proto.Proof}: txHandleFuncs{
+			tc.checkLeaseCancelWithProofs, tp.performLeaseCancelWithProofs, td.createDiffLeaseCancelWithProofs, tf.minerFeeLeaseCancelWithProofs,
 		},
-		proto.TransactionTypeVersion{Type: proto.CreateAliasTransaction, Version: 1}: txHandleFuncs{
-			tc.checkCreateAliasV1, tp.performCreateAliasV1, td.createDiffCreateAliasV1, tf.minerFeeCreateAliasV1,
+		proto.TransactionTypeInfo{Type: proto.CreateAliasTransaction, ProofVersion: proto.Signature}: txHandleFuncs{
+			tc.checkCreateAliasWithSig, tp.performCreateAliasWithSig, td.createDiffCreateAliasWithSig, tf.minerFeeCreateAliasWithSig,
 		},
-		proto.TransactionTypeVersion{Type: proto.CreateAliasTransaction, Version: 2}: txHandleFuncs{
-			tc.checkCreateAliasV2, tp.performCreateAliasV2, td.createDiffCreateAliasV2, tf.minerFeeCreateAliasV2,
+		proto.TransactionTypeInfo{Type: proto.CreateAliasTransaction, ProofVersion: proto.Proof}: txHandleFuncs{
+			tc.checkCreateAliasWithProofs, tp.performCreateAliasWithProofs, td.createDiffCreateAliasWithProofs, tf.minerFeeCreateAliasWithProofs,
 		},
-		proto.TransactionTypeVersion{Type: proto.MassTransferTransaction, Version: 1}: txHandleFuncs{
-			tc.checkMassTransferV1, nil, td.createDiffMassTransferV1, tf.minerFeeMassTransferV1,
+		proto.TransactionTypeInfo{Type: proto.MassTransferTransaction, ProofVersion: proto.Proof}: txHandleFuncs{
+			tc.checkMassTransferWithProofs, nil, td.createDiffMassTransferWithProofs, tf.minerFeeMassTransferWithProofs,
 		},
-		proto.TransactionTypeVersion{Type: proto.DataTransaction, Version: 1}: txHandleFuncs{
-			tc.checkDataV1, tp.performDataV1, td.createDiffDataV1, tf.minerFeeDataV1,
+		proto.TransactionTypeInfo{Type: proto.DataTransaction, ProofVersion: proto.Proof}: txHandleFuncs{
+			tc.checkDataWithProofs, tp.performDataWithProofs, td.createDiffDataWithProofs, tf.minerFeeDataWithProofs,
 		},
-		proto.TransactionTypeVersion{Type: proto.SponsorshipTransaction, Version: 1}: txHandleFuncs{
-			tc.checkSponsorshipV1, tp.performSponsorshipV1, td.createDiffSponsorshipV1, tf.minerFeeSponsorshipV1,
+		proto.TransactionTypeInfo{Type: proto.SponsorshipTransaction, ProofVersion: proto.Proof}: txHandleFuncs{
+			tc.checkSponsorshipWithProofs, tp.performSponsorshipWithProofs, td.createDiffSponsorshipWithProofs, tf.minerFeeSponsorshipWithProofs,
 		},
-		proto.TransactionTypeVersion{Type: proto.SetScriptTransaction, Version: 1}: txHandleFuncs{
-			tc.checkSetScriptV1, tp.performSetScriptV1, td.createDiffSetScriptV1, tf.minerFeeSetScriptV1,
+		proto.TransactionTypeInfo{Type: proto.SetScriptTransaction, ProofVersion: proto.Proof}: txHandleFuncs{
+			tc.checkSetScriptWithProofs, tp.performSetScriptWithProofs, td.createDiffSetScriptWithProofs, tf.minerFeeSetScriptWithProofs,
 		},
-		proto.TransactionTypeVersion{Type: proto.SetAssetScriptTransaction, Version: 1}: txHandleFuncs{
-			tc.checkSetAssetScriptV1, tp.performSetAssetScriptV1, td.createDiffSetAssetScriptV1, tf.minerFeeSetAssetScriptV1,
+		proto.TransactionTypeInfo{Type: proto.SetAssetScriptTransaction, ProofVersion: proto.Proof}: txHandleFuncs{
+			tc.checkSetAssetScriptWithProofs, tp.performSetAssetScriptWithProofs, td.createDiffSetAssetScriptWithProofs, tf.minerFeeSetAssetScriptWithProofs,
 		},
-		proto.TransactionTypeVersion{Type: proto.InvokeScriptTransaction, Version: 1}: txHandleFuncs{
-			tc.checkInvokeScriptV1, nil, td.createDiffInvokeScriptV1, tf.minerFeeInvokeScriptV1,
+		proto.TransactionTypeInfo{Type: proto.InvokeScriptTransaction, ProofVersion: proto.Proof}: txHandleFuncs{
+			tc.checkInvokeScriptWithProofs, nil, td.createDiffInvokeScriptWithProofs, tf.minerFeeInvokeScriptWithProofs,
 		},
 	}
 }
@@ -132,10 +133,10 @@ func newTransactionHandler(
 }
 
 func (h *transactionHandler) checkTx(tx proto.Transaction, info *checkerInfo) ([]crypto.Digest, error) {
-	tv := tx.GetTypeVersion()
+	tv := tx.GetTypeInfo()
 	funcs, ok := h.funcs[tv]
 	if !ok {
-		return nil, errors.Errorf("No function handler implemented for tx type %d and version %v\n", tv.Type, tv.Version)
+		return nil, errors.Errorf("No function handler implemented for tx struct type %T\n", tx)
 	}
 	if funcs.check == nil {
 		// No check func for this combination of transaction type and version.
@@ -145,10 +146,10 @@ func (h *transactionHandler) checkTx(tx proto.Transaction, info *checkerInfo) ([
 }
 
 func (h *transactionHandler) performTx(tx proto.Transaction, info *performerInfo) error {
-	tv := tx.GetTypeVersion()
+	tv := tx.GetTypeInfo()
 	funcs, ok := h.funcs[tv]
 	if !ok {
-		return errors.Errorf("No function handler implemented for tx type %d and version %v\n", tv.Type, tv.Version)
+		return errors.Errorf("No function handler implemented for tx struct type %T\n", tx)
 	}
 	if funcs.perform == nil {
 		// No perform func for this combination of transaction type and version.
@@ -158,10 +159,10 @@ func (h *transactionHandler) performTx(tx proto.Transaction, info *performerInfo
 }
 
 func (h *transactionHandler) createDiffTx(tx proto.Transaction, info *differInfo) (txBalanceChanges, error) {
-	tv := tx.GetTypeVersion()
+	tv := tx.GetTypeInfo()
 	funcs, ok := h.funcs[tv]
 	if !ok {
-		return txBalanceChanges{}, errors.Errorf("No function handler implemented for tx type %d and version %v\n", tv.Type, tv.Version)
+		return txBalanceChanges{}, errors.Errorf("No function handler implemented for tx struct type %T\n", tx)
 	}
 	if funcs.createDiff == nil {
 		// No createDiff func for this combination of transaction type and version.
@@ -171,10 +172,10 @@ func (h *transactionHandler) createDiffTx(tx proto.Transaction, info *differInfo
 }
 
 func (h *transactionHandler) minerFeeTx(tx proto.Transaction, distr *feeDistribution) error {
-	tv := tx.GetTypeVersion()
+	tv := tx.GetTypeInfo()
 	funcs, ok := h.funcs[tv]
 	if !ok {
-		return errors.Errorf("No function handler implemented for tx type %d and version %v\n", tv.Type, tv.Version)
+		return errors.Errorf("No function handler implemented for tx struct type %T\n", tx)
 	}
 	if funcs.countFee == nil {
 		// No countFee func for this combination of transaction type and version.

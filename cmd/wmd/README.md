@@ -1,4 +1,4 @@
-# wmd - Waves Market Data 
+# wmd - Waves Market Data
 
 *Almost complete replacement for [WavesDataFeed](https://github.com/PyWaves/WavesDataFeed).*
 

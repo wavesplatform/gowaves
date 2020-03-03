@@ -28,13 +28,13 @@ type AssetsBalances struct {
 }
 
 type AssetsBalance struct {
-	AssetId              crypto.Digest `json:"assetId"`
-	Balance              uint64        `json:"balance"`
-	Reissuable           bool          `json:"reissuable"`
-	MinSponsoredAssetFee uint64        `json:"minSponsoredAssetFee"`
-	SponsorBalance       uint64        `json:"sponsorBalance"`
-	Quantity             uint64        `json:"quantity"`
-	IssueTransaction     proto.IssueV1 `json:"issueTransaction"`
+	AssetId              crypto.Digest      `json:"assetId"`
+	Balance              uint64             `json:"balance"`
+	Reissuable           bool               `json:"reissuable"`
+	MinSponsoredAssetFee uint64             `json:"minSponsoredAssetFee"`
+	SponsorBalance       uint64             `json:"sponsorBalance"`
+	Quantity             uint64             `json:"quantity"`
+	IssueTransaction     proto.IssueWithSig `json:"issueTransaction"`
 }
 
 // Provides detailed information about given asset
@@ -208,7 +208,7 @@ type AssetsMassTransfersReq struct {
 	Sender     proto.Address           `json:"sender"`
 	Transfers  []AssetsMassTransferReq `json:"transfers"`
 	Fee        uint64                  `json:"fee"`
-	Attachment proto.Attachment        `json:"attachment"`
+	Attachment proto.StringAttachment  `json:"attachment"`
 	Timestamp  uint64                  `json:"timestamp"`
 }
 
@@ -218,7 +218,7 @@ type AssetsMassTransferReq struct {
 }
 
 // Mass transfer of assets
-func (a *Assets) MassTransfer(ctx context.Context, transfersReq AssetsMassTransfersReq) (*proto.MassTransferV1, *Response, error) {
+func (a *Assets) MassTransfer(ctx context.Context, transfersReq AssetsMassTransfersReq) (*proto.MassTransferWithProofs, *Response, error) {
 	if a.options.ApiKey == "" {
 		return nil, nil, NoApiKeyError
 	}
@@ -249,7 +249,7 @@ func (a *Assets) MassTransfer(ctx context.Context, transfersReq AssetsMassTransf
 
 	req.Header.Set("X-API-Key", a.options.ApiKey)
 
-	out := new(proto.MassTransferV1)
+	out := new(proto.MassTransferWithProofs)
 	response, err := doHttp(ctx, a.options, req, out)
 	if err != nil {
 		return nil, response, err
@@ -267,7 +267,7 @@ type AssetsSponsorReq struct {
 }
 
 // Sponsor provided asset
-func (a *Assets) Sponsor(ctx context.Context, sponsorReq AssetsSponsorReq) (*proto.SponsorshipV1, *Response, error) {
+func (a *Assets) Sponsor(ctx context.Context, sponsorReq AssetsSponsorReq) (*proto.SponsorshipWithProofs, *Response, error) {
 	if a.options.ApiKey == "" {
 		return nil, nil, NoApiKeyError
 	}
@@ -291,7 +291,7 @@ func (a *Assets) Sponsor(ctx context.Context, sponsorReq AssetsSponsorReq) (*pro
 
 	req.Header.Set("X-API-Key", a.options.ApiKey)
 
-	out := new(proto.SponsorshipV1)
+	out := new(proto.SponsorshipWithProofs)
 	response, err := doHttp(ctx, a.options, req, out)
 	if err != nil {
 		return nil, response, err
@@ -309,7 +309,7 @@ type AssetsBurnReq struct {
 }
 
 // Burn some of your assets
-func (a *Assets) Burn(ctx context.Context, burnReq AssetsBurnReq) (*proto.BurnV1, *Response, error) {
+func (a *Assets) Burn(ctx context.Context, burnReq AssetsBurnReq) (*proto.BurnWithSig, *Response, error) {
 	if a.options.ApiKey == "" {
 		return nil, nil, NoApiKeyError
 	}
@@ -333,7 +333,7 @@ func (a *Assets) Burn(ctx context.Context, burnReq AssetsBurnReq) (*proto.BurnV1
 
 	req.Header.Set("X-API-Key", a.options.ApiKey)
 
-	out := new(proto.BurnV1)
+	out := new(proto.BurnWithSig)
 	response, err := doHttp(ctx, a.options, req, out)
 	if err != nil {
 		return nil, response, err

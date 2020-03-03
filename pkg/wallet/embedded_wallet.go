@@ -26,7 +26,7 @@ func (a *EmbeddedWalletImpl) SignTransactionWith(pk crypto.PublicKey, tx proto.T
 			return err
 		}
 		if public == pk {
-			return tx.Sign(secret)
+			return tx.Sign(a.scheme, secret)
 		}
 	}
 	return PublicKeyNotFound

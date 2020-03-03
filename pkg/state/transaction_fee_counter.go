@@ -43,7 +43,7 @@ func (tf *transactionFeeCounter) minerFee(distr *feeDistribution, fee uint64, as
 		// Asset is now Waves.
 		asset.Present = false
 	}
-	ngActivated, err := tf.stor.features.isActivated(int16(settings.NG))
+	ngActivated, err := tf.stor.features.isActivatedForNBlocks(int16(settings.NG), 1)
 	if err != nil {
 		return err
 	}
@@ -67,66 +67,66 @@ func (tf *transactionFeeCounter) minerFeePayment(transaction proto.Transaction, 
 	return tf.minerFee(distr, tx.Fee, proto.OptionalAsset{Present: false})
 }
 
-func (tf *transactionFeeCounter) minerFeeTransferV1(transaction proto.Transaction, distr *feeDistribution) error {
-	tx, ok := transaction.(*proto.TransferV1)
+func (tf *transactionFeeCounter) minerFeeTransferWithSig(transaction proto.Transaction, distr *feeDistribution) error {
+	tx, ok := transaction.(*proto.TransferWithSig)
 	if !ok {
-		return errors.New("failed to convert interface to TransferV1 tx")
+		return errors.New("failed to convert interface to TransferWithSig tx")
 	}
 	return tf.minerFee(distr, tx.Fee, tx.FeeAsset)
 }
 
-func (tf *transactionFeeCounter) minerFeeTransferV2(transaction proto.Transaction, distr *feeDistribution) error {
-	tx, ok := transaction.(*proto.TransferV2)
+func (tf *transactionFeeCounter) minerFeeTransferWithProofs(transaction proto.Transaction, distr *feeDistribution) error {
+	tx, ok := transaction.(*proto.TransferWithProofs)
 	if !ok {
-		return errors.New("failed to convert interface to TransferV2 tx")
+		return errors.New("failed to convert interface to TransferWithProofs tx")
 	}
 	return tf.minerFee(distr, tx.Fee, tx.FeeAsset)
 }
 
-func (tf *transactionFeeCounter) minerFeeIssueV1(transaction proto.Transaction, distr *feeDistribution) error {
-	tx, ok := transaction.(*proto.IssueV1)
+func (tf *transactionFeeCounter) minerFeeIssueWithSig(transaction proto.Transaction, distr *feeDistribution) error {
+	tx, ok := transaction.(*proto.IssueWithSig)
 	if !ok {
-		return errors.New("failed to convert interface to IssueV1 tx")
+		return errors.New("failed to convert interface to IssueWithSig tx")
 	}
 	return tf.minerFee(distr, tx.Fee, proto.OptionalAsset{Present: false})
 }
 
-func (tf *transactionFeeCounter) minerFeeIssueV2(transaction proto.Transaction, distr *feeDistribution) error {
-	tx, ok := transaction.(*proto.IssueV2)
+func (tf *transactionFeeCounter) minerFeeIssueWithProofs(transaction proto.Transaction, distr *feeDistribution) error {
+	tx, ok := transaction.(*proto.IssueWithProofs)
 	if !ok {
-		return errors.New("failed to convert interface to IssueV2 tx")
+		return errors.New("failed to convert interface to IssueWithProofs tx")
 	}
 	return tf.minerFee(distr, tx.Fee, proto.OptionalAsset{Present: false})
 }
 
-func (tf *transactionFeeCounter) minerFeeReissueV1(transaction proto.Transaction, distr *feeDistribution) error {
-	tx, ok := transaction.(*proto.ReissueV1)
+func (tf *transactionFeeCounter) minerFeeReissueWithSig(transaction proto.Transaction, distr *feeDistribution) error {
+	tx, ok := transaction.(*proto.ReissueWithSig)
 	if !ok {
-		return errors.New("failed to convert interface to ReissueV1 tx")
+		return errors.New("failed to convert interface to ReissueWithSig tx")
 	}
 	return tf.minerFee(distr, tx.Fee, proto.OptionalAsset{Present: false})
 }
 
-func (tf *transactionFeeCounter) minerFeeReissueV2(transaction proto.Transaction, distr *feeDistribution) error {
-	tx, ok := transaction.(*proto.ReissueV2)
+func (tf *transactionFeeCounter) minerFeeReissueWithProofs(transaction proto.Transaction, distr *feeDistribution) error {
+	tx, ok := transaction.(*proto.ReissueWithProofs)
 	if !ok {
-		return errors.New("failed to convert interface to ReissueV2 tx")
+		return errors.New("failed to convert interface to ReissueWithProofs tx")
 	}
 	return tf.minerFee(distr, tx.Fee, proto.OptionalAsset{Present: false})
 }
 
-func (tf *transactionFeeCounter) minerFeeBurnV1(transaction proto.Transaction, distr *feeDistribution) error {
-	tx, ok := transaction.(*proto.BurnV1)
+func (tf *transactionFeeCounter) minerFeeBurnWithSig(transaction proto.Transaction, distr *feeDistribution) error {
+	tx, ok := transaction.(*proto.BurnWithSig)
 	if !ok {
-		return errors.New("failed to convert interface to BurnV1 tx")
+		return errors.New("failed to convert interface to BurnWithSig tx")
 	}
 	return tf.minerFee(distr, tx.Fee, proto.OptionalAsset{Present: false})
 }
 
-func (tf *transactionFeeCounter) minerFeeBurnV2(transaction proto.Transaction, distr *feeDistribution) error {
-	tx, ok := transaction.(*proto.BurnV2)
+func (tf *transactionFeeCounter) minerFeeBurnWithProofs(transaction proto.Transaction, distr *feeDistribution) error {
+	tx, ok := transaction.(*proto.BurnWithProofs)
 	if !ok {
-		return errors.New("failed to convert interface to BurnV2 tx")
+		return errors.New("failed to convert interface to BurnWithProofs tx")
 	}
 	return tf.minerFee(distr, tx.Fee, proto.OptionalAsset{Present: false})
 }
@@ -139,98 +139,98 @@ func (tf *transactionFeeCounter) minerFeeExchange(transaction proto.Transaction,
 	return tf.minerFee(distr, tx.GetFee(), proto.OptionalAsset{Present: false})
 }
 
-func (tf *transactionFeeCounter) minerFeeLeaseV1(transaction proto.Transaction, distr *feeDistribution) error {
-	tx, ok := transaction.(*proto.LeaseV1)
+func (tf *transactionFeeCounter) minerFeeLeaseWithSig(transaction proto.Transaction, distr *feeDistribution) error {
+	tx, ok := transaction.(*proto.LeaseWithSig)
 	if !ok {
-		return errors.New("failed to convert interface to LeaseV1 tx")
+		return errors.New("failed to convert interface to LeaseWithSig tx")
 	}
 	return tf.minerFee(distr, tx.Fee, proto.OptionalAsset{Present: false})
 }
 
-func (tf *transactionFeeCounter) minerFeeLeaseV2(transaction proto.Transaction, distr *feeDistribution) error {
-	tx, ok := transaction.(*proto.LeaseV2)
+func (tf *transactionFeeCounter) minerFeeLeaseWithProofs(transaction proto.Transaction, distr *feeDistribution) error {
+	tx, ok := transaction.(*proto.LeaseWithProofs)
 	if !ok {
-		return errors.New("failed to convert interface to LeaseV2 tx")
+		return errors.New("failed to convert interface to LeaseWithProofs tx")
 	}
 	return tf.minerFee(distr, tx.Fee, proto.OptionalAsset{Present: false})
 }
 
-func (tf *transactionFeeCounter) minerFeeLeaseCancelV1(transaction proto.Transaction, distr *feeDistribution) error {
-	tx, ok := transaction.(*proto.LeaseCancelV1)
+func (tf *transactionFeeCounter) minerFeeLeaseCancelWithSig(transaction proto.Transaction, distr *feeDistribution) error {
+	tx, ok := transaction.(*proto.LeaseCancelWithSig)
 	if !ok {
-		return errors.New("failed to convert interface to LeaseCancelV1 tx")
+		return errors.New("failed to convert interface to LeaseCancelWithSig tx")
 	}
 	return tf.minerFee(distr, tx.Fee, proto.OptionalAsset{Present: false})
 }
 
-func (tf *transactionFeeCounter) minerFeeLeaseCancelV2(transaction proto.Transaction, distr *feeDistribution) error {
-	tx, ok := transaction.(*proto.LeaseCancelV2)
+func (tf *transactionFeeCounter) minerFeeLeaseCancelWithProofs(transaction proto.Transaction, distr *feeDistribution) error {
+	tx, ok := transaction.(*proto.LeaseCancelWithProofs)
 	if !ok {
-		return errors.New("failed to convert interface to LeaseCancelV2 tx")
+		return errors.New("failed to convert interface to LeaseCancelWithProofs tx")
 	}
 	return tf.minerFee(distr, tx.Fee, proto.OptionalAsset{Present: false})
 }
 
-func (tf *transactionFeeCounter) minerFeeCreateAliasV1(transaction proto.Transaction, distr *feeDistribution) error {
-	tx, ok := transaction.(*proto.CreateAliasV1)
+func (tf *transactionFeeCounter) minerFeeCreateAliasWithSig(transaction proto.Transaction, distr *feeDistribution) error {
+	tx, ok := transaction.(*proto.CreateAliasWithSig)
 	if !ok {
-		return errors.New("failed to convert interface to CreateAliasV1 tx")
+		return errors.New("failed to convert interface to CreateAliasWithSig tx")
 	}
 	return tf.minerFee(distr, tx.Fee, proto.OptionalAsset{Present: false})
 }
 
-func (tf *transactionFeeCounter) minerFeeCreateAliasV2(transaction proto.Transaction, distr *feeDistribution) error {
-	tx, ok := transaction.(*proto.CreateAliasV2)
+func (tf *transactionFeeCounter) minerFeeCreateAliasWithProofs(transaction proto.Transaction, distr *feeDistribution) error {
+	tx, ok := transaction.(*proto.CreateAliasWithProofs)
 	if !ok {
-		return errors.New("failed to convert interface to CreateAliasV2 tx")
+		return errors.New("failed to convert interface to CreateAliasWithProofs tx")
 	}
 	return tf.minerFee(distr, tx.Fee, proto.OptionalAsset{Present: false})
 }
 
-func (tf *transactionFeeCounter) minerFeeMassTransferV1(transaction proto.Transaction, distr *feeDistribution) error {
-	tx, ok := transaction.(*proto.MassTransferV1)
+func (tf *transactionFeeCounter) minerFeeMassTransferWithProofs(transaction proto.Transaction, distr *feeDistribution) error {
+	tx, ok := transaction.(*proto.MassTransferWithProofs)
 	if !ok {
-		return errors.New("failed to convert interface to MassTrnasferV1 tx")
+		return errors.New("failed to convert interface to MassTransferWithProofs tx")
 	}
 	return tf.minerFee(distr, tx.Fee, proto.OptionalAsset{Present: false})
 }
 
-func (tf *transactionFeeCounter) minerFeeDataV1(transaction proto.Transaction, distr *feeDistribution) error {
-	tx, ok := transaction.(*proto.DataV1)
+func (tf *transactionFeeCounter) minerFeeDataWithProofs(transaction proto.Transaction, distr *feeDistribution) error {
+	tx, ok := transaction.(*proto.DataWithProofs)
 	if !ok {
-		return errors.New("failed to convert interface to DataV1 tx")
+		return errors.New("failed to convert interface to DataWithProofs tx")
 	}
 	return tf.minerFee(distr, tx.Fee, proto.OptionalAsset{Present: false})
 }
 
-func (tf *transactionFeeCounter) minerFeeSponsorshipV1(transaction proto.Transaction, distr *feeDistribution) error {
-	tx, ok := transaction.(*proto.SponsorshipV1)
+func (tf *transactionFeeCounter) minerFeeSponsorshipWithProofs(transaction proto.Transaction, distr *feeDistribution) error {
+	tx, ok := transaction.(*proto.SponsorshipWithProofs)
 	if !ok {
-		return errors.New("failed to convert interface to SponsorshipV1 tx")
+		return errors.New("failed to convert interface to SponsorshipWithProofs tx")
 	}
 	return tf.minerFee(distr, tx.Fee, proto.OptionalAsset{Present: false})
 }
 
-func (tf *transactionFeeCounter) minerFeeSetScriptV1(transaction proto.Transaction, distr *feeDistribution) error {
-	tx, ok := transaction.(*proto.SetScriptV1)
+func (tf *transactionFeeCounter) minerFeeSetScriptWithProofs(transaction proto.Transaction, distr *feeDistribution) error {
+	tx, ok := transaction.(*proto.SetScriptWithProofs)
 	if !ok {
-		return errors.New("failed to convert interface to SetScriptV1 tx")
+		return errors.New("failed to convert interface to SetScriptWithProofs tx")
 	}
 	return tf.minerFee(distr, tx.Fee, proto.OptionalAsset{Present: false})
 }
 
-func (tf *transactionFeeCounter) minerFeeSetAssetScriptV1(transaction proto.Transaction, distr *feeDistribution) error {
-	tx, ok := transaction.(*proto.SetAssetScriptV1)
+func (tf *transactionFeeCounter) minerFeeSetAssetScriptWithProofs(transaction proto.Transaction, distr *feeDistribution) error {
+	tx, ok := transaction.(*proto.SetAssetScriptWithProofs)
 	if !ok {
-		return errors.New("failed to convert interface to SetAssetScriptV1 tx")
+		return errors.New("failed to convert interface to SetAssetScriptWithProofs tx")
 	}
 	return tf.minerFee(distr, tx.Fee, proto.OptionalAsset{Present: false})
 }
 
-func (tf *transactionFeeCounter) minerFeeInvokeScriptV1(transaction proto.Transaction, distr *feeDistribution) error {
-	tx, ok := transaction.(*proto.InvokeScriptV1)
+func (tf *transactionFeeCounter) minerFeeInvokeScriptWithProofs(transaction proto.Transaction, distr *feeDistribution) error {
+	tx, ok := transaction.(*proto.InvokeScriptWithProofs)
 	if !ok {
-		return errors.New("failed to convert interface to InvokeScriptV1 tx")
+		return errors.New("failed to convert interface to InvokeScriptWithProofs tx")
 	}
 	return tf.minerFee(distr, tx.Fee, tx.FeeAsset)
 }

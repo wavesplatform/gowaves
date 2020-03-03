@@ -66,74 +66,74 @@ type AssetChange struct {
 	Burned        uint64
 }
 
-func FromIssueV1(scheme byte, tx proto.IssueV1) (IssueChange, AccountChange, error) {
+func FromIssueWithSig(scheme byte, tx *proto.IssueWithSig) (IssueChange, AccountChange, error) {
 	issue := IssueChange{AssetID: *tx.ID, Name: tx.Name, Issuer: tx.SenderPK, Decimals: tx.Decimals, Reissuable: tx.Reissuable, Quantity: tx.Quantity}
 	change := AccountChange{Asset: *tx.ID, In: tx.Quantity}
 	err := change.Account.SetFromPublicKey(scheme, tx.SenderPK)
 	if err != nil {
-		return IssueChange{}, AccountChange{}, errors.Wrap(err, "failed to convert IssueV1 to Change")
+		return IssueChange{}, AccountChange{}, errors.Wrap(err, "failed to convert IssueWithSig to Change")
 	}
 	return issue, change, nil
 }
 
-func FromIssueV2(scheme byte, tx proto.IssueV2) (IssueChange, AccountChange, error) {
+func FromIssueWithProofs(scheme byte, tx *proto.IssueWithProofs) (IssueChange, AccountChange, error) {
 	issue := IssueChange{AssetID: *tx.ID, Name: tx.Name, Issuer: tx.SenderPK, Decimals: tx.Decimals, Reissuable: tx.Reissuable, Quantity: tx.Quantity}
 	change := AccountChange{Asset: *tx.ID, In: tx.Quantity}
 	err := change.Account.SetFromPublicKey(scheme, tx.SenderPK)
 	if err != nil {
-		return IssueChange{}, AccountChange{}, errors.Wrap(err, "failed to convert IssueV2 to Change")
+		return IssueChange{}, AccountChange{}, errors.Wrap(err, "failed to convert IssueWithProofs to Change")
 	}
 	return issue, change, nil
 }
 
-func FromReissueV1(scheme byte, tx proto.ReissueV1) (AssetChange, AccountChange, error) {
+func FromReissueWithSig(scheme byte, tx *proto.ReissueWithSig) (AssetChange, AccountChange, error) {
 	change := AccountChange{Asset: tx.AssetID, In: tx.Quantity}
 	err := change.Account.SetFromPublicKey(scheme, tx.SenderPK)
 	if err != nil {
-		return AssetChange{}, AccountChange{}, errors.Wrap(err, "failed to convert ReissueV1 to Change")
+		return AssetChange{}, AccountChange{}, errors.Wrap(err, "failed to convert ReissueWithSig to Change")
 	}
 	return AssetChange{AssetID: tx.AssetID, Issued: tx.Quantity, SetReissuable: true, Reissuable: tx.Reissuable}, change, nil
 }
 
-func FromReissueV2(scheme byte, tx proto.ReissueV2) (AssetChange, AccountChange, error) {
+func FromReissueWithProofs(scheme byte, tx *proto.ReissueWithProofs) (AssetChange, AccountChange, error) {
 	change := AccountChange{Asset: tx.AssetID, In: tx.Quantity}
 	err := change.Account.SetFromPublicKey(scheme, tx.SenderPK)
 	if err != nil {
-		return AssetChange{}, AccountChange{}, errors.Wrap(err, "failed to convert ReissueV2 to Change")
+		return AssetChange{}, AccountChange{}, errors.Wrap(err, "failed to convert ReissueWithProofs to Change")
 	}
 	return AssetChange{AssetID: tx.AssetID, Issued: tx.Quantity, SetReissuable: true, Reissuable: tx.Reissuable}, change, nil
 }
 
-func FromBurnV1(scheme byte, tx proto.BurnV1) (AssetChange, AccountChange, error) {
+func FromBurnWithSig(scheme byte, tx *proto.BurnWithSig) (AssetChange, AccountChange, error) {
 	change := AccountChange{Asset: tx.AssetID, Out: tx.Amount}
 	err := change.Account.SetFromPublicKey(scheme, tx.SenderPK)
 	if err != nil {
-		return AssetChange{}, AccountChange{}, errors.Wrap(err, "failed to convert BurnV1 to Change")
+		return AssetChange{}, AccountChange{}, errors.Wrap(err, "failed to convert BurnWithSig to Change")
 	}
 	return AssetChange{AssetID: tx.AssetID, Burned: tx.Amount}, change, nil
 }
 
-func FromBurnV2(scheme byte, tx proto.BurnV2) (AssetChange, AccountChange, error) {
+func FromBurnWithProofs(scheme byte, tx *proto.BurnWithProofs) (AssetChange, AccountChange, error) {
 	change := AccountChange{Asset: tx.AssetID, Out: tx.Amount}
 	err := change.Account.SetFromPublicKey(scheme, tx.SenderPK)
 	if err != nil {
-		return AssetChange{}, AccountChange{}, errors.Wrap(err, "failed to convert BurnV2 to Change")
+		return AssetChange{}, AccountChange{}, errors.Wrap(err, "failed to convert BurnWithProofs to Change")
 	}
 	return AssetChange{AssetID: tx.AssetID, Burned: tx.Amount}, change, nil
 }
 
-func FromTransferV1(scheme byte, tx proto.TransferV1, miner crypto.PublicKey) ([]AccountChange, error) {
+func FromTransferWithSig(scheme byte, tx *proto.TransferWithSig, miner crypto.PublicKey) ([]AccountChange, error) {
 	r := make([]AccountChange, 0, 4)
 	if tx.AmountAsset.Present {
 		ch1 := AccountChange{Asset: tx.AmountAsset.ID, Out: tx.Amount}
 		err := ch1.Account.SetFromPublicKey(scheme, tx.SenderPK)
 		if err != nil {
-			return nil, errors.Wrap(err, "failed to convert TransferV1 to Change")
+			return nil, errors.Wrap(err, "failed to convert TransferWithSig to Change")
 		}
 		ch2 := AccountChange{Asset: tx.AmountAsset.ID, In: tx.Amount}
 		err = ch2.Account.SetFromRecipient(tx.Recipient)
 		if err != nil {
-			return nil, errors.Wrap(err, "failed to convert TransferV1 to Change")
+			return nil, errors.Wrap(err, "failed to convert TransferWithSig to Change")
 		}
 		r = append(r, ch1)
 		r = append(r, ch2)
@@ -142,12 +142,12 @@ func FromTransferV1(scheme byte, tx proto.TransferV1, miner crypto.PublicKey) ([
 		ch1 := AccountChange{Asset: tx.FeeAsset.ID, Out: tx.Fee}
 		err := ch1.Account.SetFromPublicKey(scheme, tx.SenderPK)
 		if err != nil {
-			return nil, errors.Wrap(err, "failed to convert TransferV1 to Change")
+			return nil, errors.Wrap(err, "failed to convert TransferWithSig to Change")
 		}
 		ch2 := AccountChange{Asset: tx.FeeAsset.ID, In: tx.Fee, MinersReward: true}
 		err = ch2.Account.SetFromPublicKey(scheme, miner)
 		if err != nil {
-			return nil, errors.Wrap(err, "failed to convert TransferV1 to Change")
+			return nil, errors.Wrap(err, "failed to convert TransferWithSig to Change")
 		}
 		r = append(r, ch1)
 		r = append(r, ch2)
@@ -155,18 +155,18 @@ func FromTransferV1(scheme byte, tx proto.TransferV1, miner crypto.PublicKey) ([
 	return r, nil
 }
 
-func FromTransferV2(scheme byte, tx proto.TransferV2, miner crypto.PublicKey) ([]AccountChange, error) {
+func FromTransferWithProofs(scheme byte, tx *proto.TransferWithProofs, miner crypto.PublicKey) ([]AccountChange, error) {
 	r := make([]AccountChange, 0, 4)
 	if tx.AmountAsset.Present {
 		ch1 := AccountChange{Asset: tx.AmountAsset.ID, Out: tx.Amount}
 		err := ch1.Account.SetFromPublicKey(scheme, tx.SenderPK)
 		if err != nil {
-			return nil, errors.Wrap(err, "failed to convert TransferV2 to Change")
+			return nil, errors.Wrap(err, "failed to convert TransferWithProofs to Change")
 		}
 		ch2 := AccountChange{Asset: tx.AmountAsset.ID, In: tx.Amount}
 		err = ch2.Account.SetFromRecipient(tx.Recipient)
 		if err != nil {
-			return nil, errors.Wrap(err, "failed to convert TransferV2 to Change")
+			return nil, errors.Wrap(err, "failed to convert TransferWithProofs to Change")
 		}
 		r = append(r, ch1)
 		r = append(r, ch2)
@@ -175,12 +175,12 @@ func FromTransferV2(scheme byte, tx proto.TransferV2, miner crypto.PublicKey) ([
 		ch1 := AccountChange{Asset: tx.FeeAsset.ID, Out: tx.Fee}
 		err := ch1.Account.SetFromPublicKey(scheme, tx.SenderPK)
 		if err != nil {
-			return nil, errors.Wrap(err, "failed to convert TransferV1 to Change")
+			return nil, errors.Wrap(err, "failed to convert TransferWithSig to Change")
 		}
 		ch2 := AccountChange{Asset: tx.FeeAsset.ID, In: tx.Fee, MinersReward: true}
 		err = ch2.Account.SetFromPublicKey(scheme, miner)
 		if err != nil {
-			return nil, errors.Wrap(err, "failed to convert TransferV1 to Change")
+			return nil, errors.Wrap(err, "failed to convert TransferWithSig to Change")
 		}
 		r = append(r, ch1)
 		r = append(r, ch2)
@@ -188,8 +188,8 @@ func FromTransferV2(scheme byte, tx proto.TransferV2, miner crypto.PublicKey) ([
 	return r, nil
 }
 
-func FromExchangeV1(scheme byte, tx proto.ExchangeV1) ([]AccountChange, error) {
-	wrapError := func(err error) error { return errors.Wrapf(err, "failed to convert ExchangeV1 to Change") }
+func FromExchangeWithSig(scheme byte, tx *proto.ExchangeWithSig) ([]AccountChange, error) {
+	wrapError := func(err error) error { return errors.Wrapf(err, "failed to convert ExchangeWithSig to Change") }
 	r := make([]AccountChange, 0, 4)
 	ap := tx.SellOrder.AssetPair
 	if ap.AmountAsset.Present {
@@ -224,8 +224,8 @@ func FromExchangeV1(scheme byte, tx proto.ExchangeV1) ([]AccountChange, error) {
 	return r, nil
 }
 
-func FromExchangeV2(scheme byte, tx proto.ExchangeV2) ([]AccountChange, error) {
-	wrapError := func(err error) error { return errors.Wrapf(err, "failed to convert ExchangeV2 to Change") }
+func FromExchangeWithProofs(scheme byte, tx *proto.ExchangeWithProofs) ([]AccountChange, error) {
+	wrapError := func(err error) error { return errors.Wrapf(err, "failed to convert ExchangeWithProofs to Change") }
 	r := make([]AccountChange, 0, 4)
 	ap, buyer, _, err := extractOrderParameters(tx.BuyOrder)
 	if err != nil {
@@ -267,7 +267,7 @@ func FromExchangeV2(scheme byte, tx proto.ExchangeV2) ([]AccountChange, error) {
 	return r, nil
 }
 
-func FromMassTransferV1(scheme byte, tx proto.MassTransferV1) ([]AccountChange, error) {
+func FromMassTransferWithProofs(scheme byte, tx *proto.MassTransferWithProofs) ([]AccountChange, error) {
 	changes := make([]AccountChange, 0, len(tx.Transfers)+1)
 	if tx.Asset.Present {
 		var spent uint64
@@ -276,14 +276,14 @@ func FromMassTransferV1(scheme byte, tx proto.MassTransferV1) ([]AccountChange, 
 			ch := AccountChange{Asset: tx.Asset.ID, In: tr.Amount}
 			err := ch.Account.SetFromRecipient(tr.Recipient)
 			if err != nil {
-				return nil, errors.Wrap(err, "failed to convert MassTransferV1 to Change")
+				return nil, errors.Wrap(err, "failed to convert MassTransferWithProofs to Change")
 			}
 			changes = append(changes, ch)
 		}
 		ch := AccountChange{Asset: tx.Asset.ID, Out: spent}
 		err := ch.Account.SetFromPublicKey(scheme, tx.SenderPK)
 		if err != nil {
-			return nil, errors.Wrap(err, "failed to convert MassTransferV1 to StateUpdates")
+			return nil, errors.Wrap(err, "failed to convert MassTransferWithProofs to StateUpdates")
 		}
 		changes = append(changes, ch)
 		return changes, nil
@@ -291,30 +291,30 @@ func FromMassTransferV1(scheme byte, tx proto.MassTransferV1) ([]AccountChange, 
 	return nil, nil
 }
 
-func FromSponsorshipV1(tx proto.SponsorshipV1) AssetChange {
+func FromSponsorshipWithProofs(tx *proto.SponsorshipWithProofs) AssetChange {
 	return AssetChange{AssetID: tx.AssetID, SetSponsored: true, Sponsored: tx.MinAssetFee > 0}
 }
 
-func FromCreateAliasV1(scheme byte, tx proto.CreateAliasV1) (AliasBind, error) {
+func FromCreateAliasWithSig(scheme byte, tx *proto.CreateAliasWithSig) (AliasBind, error) {
 	a := &tx.Alias
 	if tx.Alias.Scheme != scheme {
 		a = proto.NewAlias(scheme, tx.Alias.Alias)
 		ok, err := a.Valid()
 		if !ok {
-			return AliasBind{}, errors.Wrap(err, "failed to create AliasBind from CreateAliasV1")
+			return AliasBind{}, errors.Wrap(err, "failed to create AliasBind from CreateAliasWithSig")
 		}
 	}
 	ad, _ := proto.NewAddressFromPublicKey(scheme, tx.SenderPK)
 	return AliasBind{Alias: *a, Address: ad}, nil
 }
 
-func FromCreateAliasV2(scheme byte, tx proto.CreateAliasV2) (AliasBind, error) {
+func FromCreateAliasWithProofs(scheme byte, tx *proto.CreateAliasWithProofs) (AliasBind, error) {
 	a := &tx.Alias
 	if tx.Alias.Scheme != scheme {
 		a = proto.NewAlias(scheme, tx.Alias.Alias)
 		ok, err := a.Valid()
 		if !ok {
-			return AliasBind{}, errors.Wrap(err, "failed to create AliasBind from CreateAliasV2")
+			return AliasBind{}, errors.Wrap(err, "failed to create AliasBind from CreateAliasWithProofs")
 		}
 	}
 	ad, _ := proto.NewAddressFromPublicKey(scheme, tx.SenderPK)
@@ -367,6 +367,14 @@ func extractOrderParameters(o proto.Order) (proto.AssetPair, crypto.PublicKey, u
 		ap = orderV3.AssetPair
 		spk = orderV3.SenderPK
 		ts = orderV3.Timestamp
+	case 4:
+		orderV4, ok := o.(*proto.OrderV4)
+		if !ok {
+			return proto.AssetPair{}, crypto.PublicKey{}, 0, errors.New("failed to extract order parameters")
+		}
+		ap = orderV4.AssetPair
+		spk = orderV4.SenderPK
+		ts = orderV4.Timestamp
 	default:
 		return proto.AssetPair{}, crypto.PublicKey{}, 0, errors.New("unsupported order type")
 	}

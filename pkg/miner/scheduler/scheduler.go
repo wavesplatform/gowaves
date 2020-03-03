@@ -58,7 +58,7 @@ func (a internalImpl) schedule(state state.State, keyPairs []proto.KeyPair, sche
 
 	fairPosActivated, vrfActivated, err := func() (bool, bool, error) {
 		defer state.Mutex().RLock().Unlock()
-		fairPosActivated, err := state.IsActivated(int16(settings.FairPoS))
+		fairPosActivated, err := state.IsActiveAtHeight(int16(settings.FairPoS), confirmedBlockHeight)
 		if err != nil {
 			return false, false, errors.Wrap(err, "failed get fairPosActivated")
 		}
@@ -93,10 +93,12 @@ func (a internalImpl) schedule(state state.State, keyPairs []proto.KeyPair, sche
 	var out []Emit
 	for _, keyPair := range keyPairs {
 		var key [crypto.KeySize]byte = keyPair.Public
+		genSigBlock := confirmedBlock.BlockHeader
 		if vrfActivated {
 			key = keyPair.Secret
+			genSigBlock = *hitSourceHeader
 		}
-		genSig, err := gsp.GenerationSignature(key, confirmedBlock.GenSignature)
+		genSig, err := gsp.GenerationSignature(key, genSigBlock.GenSignature)
 		if err != nil {
 			zap.S().Error(err)
 			continue

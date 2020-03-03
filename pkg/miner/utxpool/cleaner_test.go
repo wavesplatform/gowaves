@@ -12,6 +12,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/node"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/services"
+	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/util/lock"
 )
 
@@ -25,7 +26,7 @@ func TestCleaner_work(t *testing.T) {
 	}}
 	m, err := node.NewMockStateManager(block)
 	require.NoError(t, err)
-	c := NewCleaner(services.Services{State: m, UtxPool: New(1000, NoOpValidator{}), Time: ntptime.Stub{}})
+	c := NewCleaner(services.Services{State: m, UtxPool: New(1000, NoOpValidator{}, settings.MainNetSettings), Time: ntptime.Stub{}})
 	c.work()
 }
 

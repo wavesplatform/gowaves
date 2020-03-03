@@ -29,7 +29,7 @@ func TestAssetScriptExtraFee(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Burn.
-	tx := createBurnV1(t)
+	tx := createBurnWithSig(t)
 
 	to.stor.createSmartAsset(t, tx.AssetID)
 
@@ -67,7 +67,7 @@ func TestAccountScriptExtraFee(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Burn.
-	tx := createBurnV1(t)
+	tx := createBurnWithSig(t)
 	tx.Fee = 1 * FeeUnit
 	params := &feeValidationParams{
 		stor:           to.stor.entities,
@@ -94,7 +94,7 @@ func TestCheckMinFeeWaves(t *testing.T) {
 	}()
 
 	// Burn.
-	tx := createBurnV1(t)
+	tx := createBurnWithSig(t)
 	params := &feeValidationParams{
 		stor:           to.stor.entities,
 		settings:       settings.MainNetSettings,
@@ -111,7 +111,7 @@ func TestCheckMinFeeWaves(t *testing.T) {
 	// MassTransfer special case.
 	entriesNum := 66
 	entries := generateMassTransferEntries(t, entriesNum)
-	tx1 := createMassTransferV1(t, entries)
+	tx1 := createMassTransferWithProofs(t, entries)
 	tx1.Fee = FeeUnit * 34
 	err = checkMinFeeWaves(tx1, params)
 	assert.NoError(t, err, "checkMinFeeWaves() failed with valid MassTransfer fee")
@@ -121,7 +121,7 @@ func TestCheckMinFeeWaves(t *testing.T) {
 	assert.Error(t, err, "checkMinFeeWaves did not fail with invalid MassTransfer fee")
 
 	// Data transaction special case.
-	tx2 := createDataV1(t, 100)
+	tx2 := createDataWithProofs(t, 100)
 	tx2.Fee = FeeUnit * 2
 	err = checkMinFeeWaves(tx2, params)
 	assert.NoError(t, err, "checkMinFeeWaves() failed with valid Data transaction fee")
@@ -142,7 +142,7 @@ func TestCheckMinFeeAsset(t *testing.T) {
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
-	tx := createTransferV1(t)
+	tx := createTransferWithSig(t)
 	params := &feeValidationParams{
 		stor:           to.stor.entities,
 		settings:       settings.MainNetSettings,
@@ -182,12 +182,12 @@ func TestNFTMinFee(t *testing.T) {
 		txAssets:       &txAssets{feeAsset: proto.OptionalAsset{Present: false}},
 	}
 
-	issueA1 := createIssueV1(t, 500)
-	issueA2 := createIssueV2(t, 500)
-	issueB1 := createIssueV1(t, 1000)
-	issueB2 := createIssueV2(t, 1000)
-	nftA1 := createNFTIssueV1(t)
-	nftA2 := createNFTIssueV2(t)
+	issueA1 := createIssueWithSig(t, 500)
+	issueA2 := createIssueWithProofs(t, 500)
+	issueB1 := createIssueWithSig(t, 1000)
+	issueB2 := createIssueWithProofs(t, 1000)
+	nftA1 := createNFTIssueWithSig(t)
+	nftA2 := createNFTIssueWithProofs(t)
 
 	require.Error(t, checkMinFeeWaves(issueA1, params))
 	require.Error(t, checkMinFeeWaves(issueA2, params))

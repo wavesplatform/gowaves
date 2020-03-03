@@ -9,7 +9,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
-	"github.com/wavesplatform/gowaves/pkg/grpc/client"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated"
 	"github.com/wavesplatform/gowaves/pkg/libs/ntptime"
 	"github.com/wavesplatform/gowaves/pkg/miner/utxpool"
@@ -26,7 +25,7 @@ func TestGetTransactions(t *testing.T) {
 	assert.NoError(t, err)
 	ctx, cancel := context.WithCancel(context.Background())
 	sch := createWallet(ctx, st, sets)
-	err = server.initServer(st, utxpool.New(utxSize, utxpool.NewValidator(st, ntptime.Stub{})), sch)
+	err = server.initServer(st, utxpool.New(utxSize, utxpool.NewValidator(st, ntptime.Stub{}), sets), sch)
 	assert.NoError(t, err)
 
 	conn := connect(t, grpcTestAddr)
@@ -40,7 +39,7 @@ func TestGetTransactions(t *testing.T) {
 	assert.NoError(t, err)
 	tx, err := st.TransactionByID(id.Bytes())
 	assert.NoError(t, err)
-	leaseTx, ok := tx.(*proto.LeaseV1)
+	leaseTx, ok := tx.(*proto.LeaseWithSig)
 	assert.Equal(t, true, ok)
 	recipient := *leaseTx.Recipient.Address
 	recipientBody, err := recipient.Body()
@@ -68,7 +67,7 @@ func TestGetTransactions(t *testing.T) {
 
 	// By recipient.
 	req = &g.TransactionsRequest{
-		Recipient: &g.Recipient{Recipient: &g.Recipient_Address{Address: recipientBody}},
+		Recipient: &g.Recipient{Recipient: &g.Recipient_PublicKeyHash{PublicKeyHash: recipientBody}},
 	}
 	stream, err = cl.GetTransactions(ctx, req)
 	assert.NoError(t, err)
@@ -80,7 +79,7 @@ func TestGetTransactions(t *testing.T) {
 
 	// By recipient and ID.
 	req = &g.TransactionsRequest{
-		Recipient:      &g.Recipient{Recipient: &g.Recipient_Address{Address: recipientBody}},
+		Recipient:      &g.Recipient{Recipient: &g.Recipient_PublicKeyHash{PublicKeyHash: recipientBody}},
 		TransactionIds: [][]byte{id.Bytes()},
 	}
 	stream, err = cl.GetTransactions(ctx, req)
@@ -94,7 +93,7 @@ func TestGetTransactions(t *testing.T) {
 	// By sender, recipient and ID.
 	req = &g.TransactionsRequest{
 		Sender:         senderBody,
-		Recipient:      &g.Recipient{Recipient: &g.Recipient_Address{Address: recipientBody}},
+		Recipient:      &g.Recipient{Recipient: &g.Recipient_PublicKeyHash{PublicKeyHash: recipientBody}},
 		TransactionIds: [][]byte{id.Bytes()},
 	}
 	stream, err = cl.GetTransactions(ctx, req)
@@ -114,7 +113,7 @@ func TestGetStatuses(t *testing.T) {
 	assert.NoError(t, err)
 	ctx, cancel := context.WithCancel(context.Background())
 	sch := createWallet(ctx, st, settings.MainNetSettings)
-	utx := utxpool.New(utxSize, utxpool.NoOpValidator{})
+	utx := utxpool.New(utxSize, utxpool.NoOpValidator{}, settings.MainNetSettings)
 	err = server.initServer(st, utx, sch)
 	assert.NoError(t, err)
 
@@ -133,8 +132,8 @@ func TestGetStatuses(t *testing.T) {
 	sk, pk, err := crypto.GenerateKeyPair([]byte("whatever"))
 	assert.NoError(t, err)
 	waves := proto.OptionalAsset{Present: false}
-	tx := proto.NewUnsignedTransferV1(pk, waves, waves, 100, 1, 100, proto.NewRecipientFromAddress(addr), "attachment")
-	err = tx.Sign(sk)
+	tx := proto.NewUnsignedTransferWithSig(pk, waves, waves, 100, 1, 100, proto.NewRecipientFromAddress(addr), &proto.LegacyAttachment{Value: []byte("attachment")})
+	err = tx.Sign(server.scheme, sk)
 	assert.NoError(t, err)
 	txBytes, err := tx.MarshalBinary()
 	assert.NoError(t, err)
@@ -146,7 +145,7 @@ func TestGetStatuses(t *testing.T) {
 	// id0 is from Mainnet genesis block.
 	id0 := crypto.MustSignatureFromBase58("2DVtfgXjpMeFf2PQCqvwxAiaGbiDsxDjSdNQkc5JQ74eWxjWFYgwvqzC4dn7iB1AhuM32WxEiVi1SGijsBtYQwn8")
 	// id1 should be in UTX.
-	id1, err := tx.GetID()
+	id1, err := tx.GetID(settings.MainNetSettings.AddressSchemeCharacter)
 	assert.NoError(t, err)
 	// id2 is unknown.
 	id2 := []byte{2}
@@ -177,7 +176,7 @@ func TestGetUnconfirmed(t *testing.T) {
 	assert.NoError(t, err)
 	ctx, cancel := context.WithCancel(context.Background())
 	sch := createWallet(ctx, st, settings.MainNetSettings)
-	utx := utxpool.New(utxSize, utxpool.NoOpValidator{})
+	utx := utxpool.New(utxSize, utxpool.NoOpValidator{}, settings.MainNetSettings)
 	err = server.initServer(st, utx, sch)
 	assert.NoError(t, err)
 
@@ -202,8 +201,8 @@ func TestGetUnconfirmed(t *testing.T) {
 	senderAddrBody, err := senderAddr.Body()
 	assert.NoError(t, err)
 	waves := proto.OptionalAsset{Present: false}
-	tx := proto.NewUnsignedTransferV1(pk, waves, waves, 100, 1, 100, proto.NewRecipientFromAddress(addr), "attachment")
-	err = tx.Sign(sk)
+	tx := proto.NewUnsignedTransferWithSig(pk, waves, waves, 100, 1, 100, proto.NewRecipientFromAddress(addr), &proto.LegacyAttachment{Value: []byte("attachment")})
+	err = tx.Sign(server.scheme, sk)
 	assert.NoError(t, err)
 	txBytes, err := tx.MarshalBinary()
 	assert.NoError(t, err)
@@ -229,7 +228,7 @@ func TestGetUnconfirmed(t *testing.T) {
 
 	// By recipient.
 	req = &g.TransactionsRequest{
-		Recipient: &g.Recipient{Recipient: &g.Recipient_Address{Address: addrBody}},
+		Recipient: &g.Recipient{Recipient: &g.Recipient_PublicKeyHash{PublicKeyHash: addrBody}},
 	}
 	stream, err = cl.GetUnconfirmed(ctx, req)
 	assert.NoError(t, err)
@@ -240,7 +239,7 @@ func TestGetUnconfirmed(t *testing.T) {
 	assert.Equal(t, io.EOF, err)
 
 	// By ID.
-	id, err := tx.GetID()
+	id, err := tx.GetID(settings.MainNetSettings.AddressSchemeCharacter)
 	assert.NoError(t, err)
 	req = &g.TransactionsRequest{
 		TransactionIds: [][]byte{id},
@@ -256,7 +255,7 @@ func TestGetUnconfirmed(t *testing.T) {
 	// By sender, recipient and ID.
 	req = &g.TransactionsRequest{
 		Sender:         senderAddrBody,
-		Recipient:      &g.Recipient{Recipient: &g.Recipient_Address{Address: addrBody}},
+		Recipient:      &g.Recipient{Recipient: &g.Recipient_PublicKeyHash{PublicKeyHash: addrBody}},
 		TransactionIds: [][]byte{id},
 	}
 	stream, err = cl.GetUnconfirmed(ctx, req)
@@ -295,8 +294,9 @@ func TestSign(t *testing.T) {
 	addr, err := proto.NewAddressFromString("3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ")
 	assert.NoError(t, err)
 	waves := proto.OptionalAsset{Present: false}
-	tx := proto.NewUnsignedTransferV1(pk, waves, waves, 100, 1, 100, proto.NewRecipientFromAddress(addr), "attachment")
-	tx.GenerateID()
+	tx := proto.NewUnsignedTransferWithSig(pk, waves, waves, 100, 1, 100, proto.NewRecipientFromAddress(addr), &proto.LegacyAttachment{Value: []byte("attachment")})
+	err = tx.GenerateID(server.scheme)
+	assert.NoError(t, err)
 	txProto, err := tx.ToProtobuf(server.scheme)
 	assert.NoError(t, err)
 
@@ -304,12 +304,12 @@ func TestSign(t *testing.T) {
 	req := &g.SignRequest{Transaction: txProto, SignerPublicKey: pk.Bytes()}
 	res, err := cl.Sign(ctx, req)
 	assert.NoError(t, err)
-	var c client.SafeConverter
+	var c proto.ProtobufConverter
 	resTx, err := c.SignedTransaction(res)
 	assert.NoError(t, err)
-	transfer, ok := resTx.(*proto.TransferV1)
+	transfer, ok := resTx.(*proto.TransferWithSig)
 	assert.Equal(t, true, ok)
-	ok, err = transfer.Verify(pk)
+	ok, err = transfer.Verify(server.scheme, pk)
 	assert.NoError(t, err)
 	assert.Equal(t, true, ok)
 }
@@ -322,7 +322,7 @@ func TestBroadcast(t *testing.T) {
 	assert.NoError(t, err)
 	ctx, cancel := context.WithCancel(context.Background())
 	sch := createWallet(ctx, st, settings.MainNetSettings)
-	utx := utxpool.New(utxSize, utxpool.NoOpValidator{})
+	utx := utxpool.New(utxSize, utxpool.NoOpValidator{}, settings.MainNetSettings)
 	err = server.initServer(st, utx, sch)
 	assert.NoError(t, err)
 
@@ -341,8 +341,8 @@ func TestBroadcast(t *testing.T) {
 	sk, pk, err := crypto.GenerateKeyPair([]byte("whatever"))
 	assert.NoError(t, err)
 	waves := proto.OptionalAsset{Present: false}
-	tx := proto.NewUnsignedTransferV1(pk, waves, waves, 100, 1, 100, proto.NewRecipientFromAddress(addr), "attachment")
-	err = tx.Sign(sk)
+	tx := proto.NewUnsignedTransferWithSig(pk, waves, waves, 100, 1, 100, proto.NewRecipientFromAddress(addr), &proto.LegacyAttachment{Value: []byte("attachment")})
+	err = tx.Sign(server.scheme, sk)
 	assert.NoError(t, err)
 	txProto, err := tx.ToProtobufSigned(server.scheme)
 	assert.NoError(t, err)

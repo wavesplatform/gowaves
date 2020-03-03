@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func TestTransferV1Builder(t *testing.T) {
-	tr := NewTransferV1Builder().MustBuild()
+func TestTransferWithSigBuilder(t *testing.T) {
+	tr := NewTransferWithSigBuilder().MustBuild()
 	assert.Equal(t, "9ar4tAzhzw3gt6NPAG4hjb1Y3BeV85DAqfaeQPHmuiNG", tr.ID.String())
 }

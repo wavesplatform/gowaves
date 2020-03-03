@@ -21,7 +21,7 @@ func TestEmbeddedWalletImpl_SignTransactionWith(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("sign successful", func(t *testing.T) {
-		tx := byte_helpers.TransferV1.Transaction.Clone()
+		tx := byte_helpers.TransferWithSig.Transaction.Clone()
 		tx.SenderPK = pub
 
 		w := NewEmbeddedWallet(nil, seederTest("test"), proto.MainNetScheme)
@@ -30,7 +30,7 @@ func TestEmbeddedWalletImpl_SignTransactionWith(t *testing.T) {
 	})
 
 	t.Run("sign failure", func(t *testing.T) {
-		tx := byte_helpers.TransferV1.Transaction.Clone()
+		tx := byte_helpers.TransferWithSig.Transaction.Clone()
 		tx.SenderPK = pub
 
 		w := NewEmbeddedWallet(nil, seederTest("test"), proto.MainNetScheme)

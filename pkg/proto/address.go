@@ -224,6 +224,10 @@ func NewAliasFromBytes(b []byte) (*Alias, error) {
 	return &a, nil
 }
 
+func (a Alias) BinarySize() int {
+	return aliasFixedSize + len(a.Alias)
+}
+
 // String converts the Alias to its 3-part string representation.
 func (a Alias) String() string {
 	sb := new(strings.Builder)
@@ -404,7 +408,7 @@ func (r Recipient) ToProtobuf() (*g.Recipient, error) {
 		return nil, errors.Wrap(err, "failed to get address body")
 	}
 	if r.Address != nil {
-		return &g.Recipient{Recipient: &g.Recipient_Address{Address: addrBody}}, nil
+		return &g.Recipient{Recipient: &g.Recipient_PublicKeyHash{PublicKeyHash: addrBody}}, nil
 	}
 	return &g.Recipient{Recipient: &g.Recipient_Alias{Alias: r.Alias.Alias}}, nil
 }
@@ -450,6 +454,10 @@ func (r *Recipient) UnmarshalJSON(value []byte) error {
 	r.Address = &a
 	r.len = AddressSize
 	return nil
+}
+
+func (r *Recipient) BinarySize() int {
+	return r.len
 }
 
 // MarshalBinary makes bytes of the Recipient.

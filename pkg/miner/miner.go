@@ -2,7 +2,6 @@ package miner
 
 import (
 	"context"
-	"encoding/binary"
 	"time"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
@@ -72,7 +71,7 @@ func (a *MicroblockMiner) Mine(ctx context.Context, t proto.Timestamp, k proto.K
 		if err != nil {
 			return nil, err
 		}
-		b, err := MineBlock(v, nxt, k, validatedFeatured, t, parent, a.reward)
+		b, err := MineBlock(v, nxt, k, validatedFeatured, t, parent, a.reward, a.scheme)
 		if err != nil {
 			return nil, err
 		}
@@ -86,12 +85,6 @@ func (a *MicroblockMiner) Mine(ctx context.Context, t proto.Timestamp, k proto.K
 	err = a.services.BlocksApplier.Apply([]*proto.Block{b})
 	if err != nil {
 		zap.S().Errorf("Miner: applying created block: %q, timestamp %d", err, t)
-		return
-	}
-
-	blockBytes, err := b.MarshalBinary()
-	if err != nil {
-		zap.S().Error(err)
 		return
 	}
 
@@ -110,10 +103,13 @@ func (a *MicroblockMiner) Mine(ctx context.Context, t proto.Timestamp, k proto.K
 			Score: curScore.Bytes(),
 		})
 	})
+	msg, err := proto.MessageByBlock(b, a.scheme)
+	if err != nil {
+		zap.S().Error(err)
+		return
+	}
 	a.peer.EachConnected(func(peer peer.Peer, score *proto.Score) {
-		peer.SendMessage(&proto.BlockMessage{
-			BlockBytes: blockBytes,
-		})
+		peer.SendMessage(msg)
 	})
 
 	rest := restLimits{
@@ -163,17 +159,10 @@ func (a *MicroblockMiner) mineMicro(ctx context.Context, rest restLimits, blockA
 		parentTimestamp = parent.Timestamp
 	}
 
-	bts_, err := blockApplyOn.Transactions.Bytes()
-	if err != nil {
-		zap.S().Error(err)
-		return
-	}
-	bts := make([]byte, len(bts_))
-	copy(bts, bts_)
-
 	//
-	bytesBuf := make([]byte, 0)
+	transactions := make([]proto.Transaction, 0)
 	cnt := 0
+	binSize := 0
 
 	var unAppliedTransactions []*types.TransactionWithBytes
 
@@ -188,7 +177,7 @@ func (a *MicroblockMiner) mineMicro(ctx context.Context, rest restLimits, blockA
 		}
 		binTr := t.B
 		transactionLenBytes := 4
-		if len(bytesBuf)+len(binTr)+transactionLenBytes > rest.MaxTxsSizeInBytes {
+		if binSize+len(binTr)+transactionLenBytes > rest.MaxTxsSizeInBytes {
 			unAppliedTransactions = append(unAppliedTransactions, t)
 			continue
 		}
@@ -200,7 +189,8 @@ func (a *MicroblockMiner) mineMicro(ctx context.Context, rest restLimits, blockA
 		}
 
 		cnt += 1
-		bytesBuf = append(bytesBuf, trWithLen(binTr)...)
+		binSize += len(binTr) + transactionLenBytes
+		transactions = append(transactions, t.T)
 	}
 
 	a.state.ResetValidationList()
@@ -230,14 +220,10 @@ func (a *MicroblockMiner) mineMicro(ctx context.Context, rest restLimits, blockA
 		lastsig = row.KeyBlock.BlockSignature
 	}
 
-	transactions, err := blockApplyOn.Transactions.Join(proto.NewReprFromBytes(bytesBuf, cnt))
-	if err != nil {
-		zap.S().Error(err)
-		return
-	}
+	newTransactions := blockApplyOn.Transactions.Join(transactions)
 
 	newBlock, err := proto.CreateBlock(
-		transactions,
+		newTransactions,
 		blockApplyOn.Timestamp,
 		blockApplyOn.Parent,
 		blockApplyOn.GenPublicKey,
@@ -252,7 +238,7 @@ func (a *MicroblockMiner) mineMicro(ctx context.Context, rest restLimits, blockA
 	}
 
 	priv := keyPair.Secret
-	err = newBlock.Sign(keyPair.Secret)
+	err = newBlock.Sign(a.scheme, keyPair.Secret)
 	if err != nil {
 		zap.S().Error(err)
 		return
@@ -271,7 +257,7 @@ func (a *MicroblockMiner) mineMicro(ctx context.Context, rest restLimits, blockA
 	micro := proto.MicroBlock{
 		VersionField:          3,
 		SenderPK:              keyPair.Public,
-		Transactions:          proto.NewReprFromBytes(bytesBuf, cnt),
+		Transactions:          transactions,
 		TransactionCount:      uint32(cnt),
 		PrevResBlockSigField:  lastsig,
 		TotalResBlockSigField: newBlock.BlockSignature,
@@ -296,7 +282,7 @@ func (a *MicroblockMiner) mineMicro(ctx context.Context, rest restLimits, blockA
 		MaxScriptRunsInBlock:        rest.MaxScriptRunsInBlock,
 		MaxScriptsComplexityInBlock: rest.MaxScriptsComplexityInBlock,
 		ClassicAmountOfTxsInBlock:   rest.ClassicAmountOfTxsInBlock,
-		MaxTxsSizeInBytes:           rest.MaxTxsSizeInBytes - len(bytesBuf),
+		MaxTxsSizeInBytes:           rest.MaxTxsSizeInBytes - binSize,
 	}
 
 	newBlocks, err := blocks.AddMicro(&micro)
@@ -308,15 +294,19 @@ func (a *MicroblockMiner) mineMicro(ctx context.Context, rest restLimits, blockA
 	go a.mineMicro(ctx, newRest, newBlock, newBlocks, keyPair, scheme)
 }
 
-func trWithLen(bts []byte) []byte {
-	out := make([]byte, len(bts)+4)
-	binary.BigEndian.PutUint32(out[:4], uint32(len(bts)))
-	copy(out[4:], bts)
-	return out
-}
-
 func blockVersion(state state.State) (proto.BlockVersion, error) {
-	blockRewardActivated, err := state.IsActivated(int16(settings.BlockReward))
+	blockV5Activated, err := state.IsActivated(int16(settings.BlockV5))
+	if err != nil {
+		return 0, err
+	}
+	if blockV5Activated {
+		return proto.ProtoBlockVersion, nil
+	}
+	height, err := state.Height()
+	if err != nil {
+		return 0, err
+	}
+	blockRewardActivated, err := state.IsActiveAtHeight(int16(settings.BlockReward), height)
 	if err != nil {
 		return 0, err
 	}

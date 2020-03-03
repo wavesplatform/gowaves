@@ -9,13 +9,13 @@ import (
 func TestLocalStor(t *testing.T) {
 	stor, err := newLocalHistoryStorage()
 	assert.NoError(t, err, "newLocalHistoryStorage() failed")
-	history0 := &historyRecord{fixedSize: true, recordSize: 100500}
+	history0 := &historyRecord{entityType: wavesBalance}
 	err = stor.set([]byte("key0"), history0)
 	assert.NoError(t, err, "stor.set() failed")
 	val, err := stor.get([]byte("key0"))
 	assert.NoError(t, err, "stor.get() failed")
 	assert.Equal(t, history0, val)
-	history1 := &historyRecord{fixedSize: true, recordSize: 200600}
+	history1 := &historyRecord{entityType: dataEntry}
 	err = stor.set([]byte("key0"), history1)
 	assert.NoError(t, err, "stor.set() failed")
 	val, err = stor.get([]byte("key0"))

@@ -27,7 +27,7 @@ func createFeatures(sets *settings.BlockchainSettings) (*featuresTestObjects, []
 	}
 	definedFeaturesInfo := make(map[settings.Feature]settings.FeatureInfo)
 	definedFeaturesInfo[settings.Feature(featureID)] = settings.FeatureInfo{Implemented: true, Description: "test feature"}
-	features, err := newFeatures(stor.db, stor.hs, sets, definedFeaturesInfo)
+	features, err := newFeatures(stor.rw, stor.db, stor.hs, sets, definedFeaturesInfo)
 	if err != nil {
 		return nil, path, err
 	}
@@ -142,18 +142,23 @@ func TestFinishVoting(t *testing.T) {
 	}
 	heightCounter := uint64(0)
 	for _, tc := range tests {
+		// Reset votes as we have started next period.
+		nextBlockId := ids[heightCounter]
+		to.stor.addBlock(t, nextBlockId)
+		err = to.features.resetVotes(nextBlockId)
+		assert.NoError(t, err, "resetVotes() failed")
 		// Add required amount of votes first.
 		for i := uint64(0); i < tc.votesNum; i++ {
-			heightCounter++
-			to.stor.addBlock(t, ids[i])
-			err = to.features.addVote(featureID, ids[i])
+			to.stor.addBlock(t, ids[heightCounter])
+			err = to.features.addVote(featureID, ids[heightCounter])
 			assert.NoError(t, err, "addVote() failed")
+			heightCounter++
 		}
 		var lastBlockId crypto.Signature
 		// Add remaining blocks until curHeight.
-		for i := heightCounter; i < tc.curHeight; i++ {
-			to.stor.addBlock(t, ids[i])
-			lastBlockId = ids[i]
+		for ; heightCounter < tc.curHeight; heightCounter++ {
+			to.stor.addBlock(t, ids[heightCounter])
+			lastBlockId = ids[heightCounter]
 		}
 		// Flush votes.
 		to.stor.flush(t)
@@ -172,17 +177,23 @@ func TestFinishVoting(t *testing.T) {
 		approvalHeight, err := to.features.approvalHeight(featureID)
 		if tc.isApproved {
 			assert.NoError(t, err, "approvalHeight() failed")
-			assert.Equal(t, height*2, approvalHeight)
+			assert.Equal(t, tc.approvalHeight, approvalHeight)
 		} else {
 			assert.Error(t, err, "approvalHeight() did not fail with unapproved feature")
 		}
 		activationHeight, err := to.features.activationHeight(featureID)
 		if tc.isActivated {
 			assert.NoError(t, err, "activationHeight() failed")
-			assert.Equal(t, height*3, activationHeight)
+			assert.Equal(t, tc.activationHeight, activationHeight)
 		} else {
 			assert.Error(t, err, "activationHeight() did not fail with not activated feature")
 		}
+	}
+	// Check votes at height.
+	for _, tc := range tests {
+		votesNum, err := to.features.featureVotesAtHeight(featureID, tc.curHeight)
+		assert.NoError(t, err)
+		assert.Equal(t, tc.votesNum, votesNum)
 	}
 }
 

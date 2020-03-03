@@ -11,7 +11,6 @@ import (
 	"github.com/wavesplatform/gowaves/cmd/wmd/internal/data"
 	"github.com/wavesplatform/gowaves/cmd/wmd/internal/state"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
-	"github.com/wavesplatform/gowaves/pkg/grpc/client"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
@@ -180,12 +179,12 @@ func (s *Synchronizer) block(height int, full bool) (*g.BlockWithHeight, error) 
 }
 
 func (s *Synchronizer) nodeBlockSignature(height int) (crypto.Signature, error) {
-	cnv := client.SafeConverter{}
+	cnv := proto.ProtobufConverter{}
 	res, err := s.block(height, false)
 	if err != nil {
 		return crypto.Signature{}, err
 	}
-	header, err := cnv.BlockHeader(res)
+	header, err := cnv.BlockHeader(res.Block)
 	if err != nil {
 		return crypto.Signature{}, err
 	}
@@ -193,17 +192,16 @@ func (s *Synchronizer) nodeBlockSignature(height int) (crypto.Signature, error) 
 }
 
 func (s *Synchronizer) nodeBlock(height int) (proto.BlockHeader, []proto.Transaction, error) {
-	cnv := client.SafeConverter{}
+	cnv := proto.ProtobufConverter{}
 	res, err := s.block(height, true)
 	if err != nil {
 		return proto.BlockHeader{}, nil, err
 	}
-	header, err := cnv.BlockHeader(res)
+	header, err := cnv.BlockHeader(res.Block)
 	if err != nil {
 		return proto.BlockHeader{}, nil, err
 	}
-	cnv.Reset()
-	txs, err := cnv.BlockTransactions(res)
+	txs, err := cnv.BlockTransactions(res.Block)
 	if err != nil {
 		return proto.BlockHeader{}, nil, err
 	}
@@ -260,155 +258,150 @@ func (s *Synchronizer) extractTransactions(txs []proto.Transaction, miner crypto
 
 	for i, tx := range txs {
 		switch t := tx.(type) {
-		case *proto.IssueV1:
-			zap.S().Debugf("#%d: IssueV1: %v", i, t)
-			ic, ac, err := data.FromIssueV1(s.scheme, *t)
+		case *proto.IssueWithSig:
+			zap.S().Debugf("#%d: IssueWithSig: %v", i, t)
+			ic, ac, err := data.FromIssueWithSig(s.scheme, t)
 			if err != nil {
-				return nil, nil, nil, nil, nil, wrapErr(err, "IssueV1")
+				return nil, nil, nil, nil, nil, wrapErr(err, "IssueWithSig")
 			}
 			issueChanges = append(issueChanges, ic)
 			accountChanges = append(accountChanges, ac)
 
-		case *proto.IssueV2:
-			zap.S().Debugf("%d: IssueV2: %v", i, t)
-			ic, ac, err := data.FromIssueV2(s.scheme, *t)
+		case *proto.IssueWithProofs:
+			zap.S().Debugf("%d: IssueWithProofs: %v", i, t)
+			ic, ac, err := data.FromIssueWithProofs(s.scheme, t)
 			if err != nil {
-				return nil, nil, nil, nil, nil, wrapErr(err, "IssueV2")
+				return nil, nil, nil, nil, nil, wrapErr(err, "IssueWithProofs")
 			}
 			issueChanges = append(issueChanges, ic)
 			accountChanges = append(accountChanges, ac)
 
-		case *proto.TransferV1:
-			zap.S().Debugf("%d: TransferV1: %v", i, t)
-			tt := *t
-			if tt.AmountAsset.Present || tt.FeeAsset.Present {
-				u, err := data.FromTransferV1(s.scheme, tt, miner)
+		case *proto.TransferWithSig:
+			zap.S().Debugf("%d: TransferWithSig: %v", i, t)
+			if t.AmountAsset.Present || t.FeeAsset.Present {
+				u, err := data.FromTransferWithSig(s.scheme, t, miner)
 				if err != nil {
-					return nil, nil, nil, nil, nil, wrapErr(err, "TransferV1")
+					return nil, nil, nil, nil, nil, wrapErr(err, "TransferWithSig")
 				}
 				accountChanges = append(accountChanges, u...)
 			}
 
-		case *proto.TransferV2:
-			zap.S().Debugf("%d: TransferV2: %v", i, t)
-			tt := *t
-			if tt.AmountAsset.Present || tt.FeeAsset.Present {
-				u, err := data.FromTransferV2(s.scheme, tt, miner)
+		case *proto.TransferWithProofs:
+			zap.S().Debugf("%d: TransferWithProofs: %v", i, t)
+			if t.AmountAsset.Present || t.FeeAsset.Present {
+				u, err := data.FromTransferWithProofs(s.scheme, t, miner)
 				if err != nil {
-					return nil, nil, nil, nil, nil, wrapErr(err, "TransferV2")
+					return nil, nil, nil, nil, nil, wrapErr(err, "TransferWithProofs")
 				}
 				accountChanges = append(accountChanges, u...)
 			}
 
-		case *proto.ReissueV1:
-			zap.S().Debugf("%d: ReissueV1: %v", i, t)
-			as, ac, err := data.FromReissueV1(s.scheme, *t)
+		case *proto.ReissueWithSig:
+			zap.S().Debugf("%d: ReissueWithSig: %v", i, t)
+			as, ac, err := data.FromReissueWithSig(s.scheme, t)
 			if err != nil {
-				return nil, nil, nil, nil, nil, wrapErr(err, "ReissueV1")
+				return nil, nil, nil, nil, nil, wrapErr(err, "ReissueWithSig")
 			}
 			assetChanges = append(assetChanges, as)
 			accountChanges = append(accountChanges, ac)
 
-		case *proto.ReissueV2:
-			zap.S().Debugf("%d: ReissueV2: %v", i, t)
-			as, ac, err := data.FromReissueV2(s.scheme, *t)
+		case *proto.ReissueWithProofs:
+			zap.S().Debugf("%d: ReissueWithProofs: %v", i, t)
+			as, ac, err := data.FromReissueWithProofs(s.scheme, t)
 			if err != nil {
-				return nil, nil, nil, nil, nil, wrapErr(err, "ReissueV2")
+				return nil, nil, nil, nil, nil, wrapErr(err, "ReissueWithProofs")
 			}
 			assetChanges = append(assetChanges, as)
 			accountChanges = append(accountChanges, ac)
 
-		case *proto.BurnV1:
-			zap.S().Debugf("%d: BurnV1: %v", i, t)
-			as, ac, err := data.FromBurnV1(s.scheme, *t)
+		case *proto.BurnWithSig:
+			zap.S().Debugf("%d: BurnWithSig: %v", i, t)
+			as, ac, err := data.FromBurnWithSig(s.scheme, t)
 			if err != nil {
-				return nil, nil, nil, nil, nil, wrapErr(err, "BurnV1")
+				return nil, nil, nil, nil, nil, wrapErr(err, "BurnWithSig")
 			}
 			assetChanges = append(assetChanges, as)
 			accountChanges = append(accountChanges, ac)
 
-		case *proto.BurnV2:
-			zap.S().Debugf("%d: BurnV2: %v", i, t)
-			as, ac, err := data.FromBurnV2(s.scheme, *t)
+		case *proto.BurnWithProofs:
+			zap.S().Debugf("%d: BurnWithProofs: %v", i, t)
+			as, ac, err := data.FromBurnWithProofs(s.scheme, t)
 			if err != nil {
-				return nil, nil, nil, nil, nil, wrapErr(err, "BurnV2")
+				return nil, nil, nil, nil, nil, wrapErr(err, "BurnWithProofs")
 			}
 			assetChanges = append(assetChanges, as)
 			accountChanges = append(accountChanges, ac)
 
-		case *proto.ExchangeV1:
-			zap.S().Debugf("%d: ExchangeV1: %v", i, t)
-			tt := *t
-			if bytes.Equal(s.matcher[:], tt.SenderPK[:]) {
-				t, err := data.NewTradeFromExchangeV1(s.scheme, tt)
+		case *proto.ExchangeWithSig:
+			zap.S().Debugf("%d: ExchangeWithSig: %v", i, t)
+			if bytes.Equal(s.matcher[:], t.SenderPK[:]) {
+				t, err := data.NewTradeFromExchangeWithSig(s.scheme, t)
 				if err != nil {
-					return nil, nil, nil, nil, nil, wrapErr(err, "ExchangeV1")
+					return nil, nil, nil, nil, nil, wrapErr(err, "ExchangeWithSig")
 				}
 				trades = append(trades, t)
 			}
-			ac, err := data.FromExchangeV1(s.scheme, tt)
+			ac, err := data.FromExchangeWithSig(s.scheme, t)
 			if err != nil {
-				return nil, nil, nil, nil, nil, wrapErr(err, "ExchangeV1")
+				return nil, nil, nil, nil, nil, wrapErr(err, "ExchangeWithSig")
 			}
 			accountChanges = append(accountChanges, ac...)
 
-		case *proto.ExchangeV2:
-			zap.S().Debugf("%d: ExchangeV2: %v", i, t)
-			tt := *t
-			if bytes.Equal(s.matcher[:], tt.SenderPK[:]) {
-				t, err := data.NewTradeFromExchangeV2(s.scheme, tt)
+		case *proto.ExchangeWithProofs:
+			zap.S().Debugf("%d: ExchangeWithProofs: %v", i, t)
+			if bytes.Equal(s.matcher[:], t.SenderPK[:]) {
+				t, err := data.NewTradeFromExchangeWithProofs(s.scheme, t)
 				if err != nil {
-					return nil, nil, nil, nil, nil, wrapErr(err, "ExchangeV2")
+					return nil, nil, nil, nil, nil, wrapErr(err, "ExchangeWithProofs")
 				}
 				trades = append(trades, t)
 			}
-			ac, err := data.FromExchangeV2(s.scheme, tt)
+			ac, err := data.FromExchangeWithProofs(s.scheme, t)
 			if err != nil {
-				return nil, nil, nil, nil, nil, wrapErr(err, "ExchangeV2")
+				return nil, nil, nil, nil, nil, wrapErr(err, "ExchangeWithProofs")
 			}
 			accountChanges = append(accountChanges, ac...)
 
-		case *proto.SponsorshipV1:
-			zap.S().Debugf("%d: SponsorshipV1: %v", i, t)
-			assetChanges = append(assetChanges, data.FromSponsorshipV1(*t))
+		case *proto.SponsorshipWithProofs:
+			zap.S().Debugf("%d: SponsorshipWithProofs: %v", i, t)
+			assetChanges = append(assetChanges, data.FromSponsorshipWithProofs(t))
 
-		case *proto.CreateAliasV1:
-			zap.S().Debugf("%d: CreateAliasV1: %v", i, t)
-			b, err := data.FromCreateAliasV1(s.scheme, *t)
+		case *proto.CreateAliasWithSig:
+			zap.S().Debugf("%d: CreateAliasWithSig: %v", i, t)
+			b, err := data.FromCreateAliasWithSig(s.scheme, t)
 			if err != nil {
-				return nil, nil, nil, nil, nil, wrapErr(err, "CreateAliasV1")
+				return nil, nil, nil, nil, nil, wrapErr(err, "CreateAliasWithSig")
 			}
 			binds = append(binds, b)
 
-		case *proto.CreateAliasV2:
-			zap.S().Debugf("%d: CreateAliasV2: %v", i, t)
-			b, err := data.FromCreateAliasV2(s.scheme, *t)
+		case *proto.CreateAliasWithProofs:
+			zap.S().Debugf("%d: CreateAliasWithProofs: %v", i, t)
+			b, err := data.FromCreateAliasWithProofs(s.scheme, t)
 			if err != nil {
-				return nil, nil, nil, nil, nil, wrapErr(err, "CreateAliasV2")
+				return nil, nil, nil, nil, nil, wrapErr(err, "CreateAliasWithProofs")
 			}
 			binds = append(binds, b)
 
-		case *proto.MassTransferV1:
-			zap.S().Debugf("%d: MassTransferV1: %v", i, t)
-			tt := *t
-			if tt.Asset.Present {
-				ac, err := data.FromMassTransferV1(s.scheme, tt)
+		case *proto.MassTransferWithProofs:
+			zap.S().Debugf("%d: MassTransferWithProofs: %v", i, t)
+			if t.Asset.Present {
+				ac, err := data.FromMassTransferWithProofs(s.scheme, t)
 				if err != nil {
-					return nil, nil, nil, nil, nil, wrapErr(err, "MassTransferV1")
+					return nil, nil, nil, nil, nil, wrapErr(err, "MassTransferWithProofs")
 				}
 				accountChanges = append(accountChanges, ac...)
 			}
 
 		case *proto.Genesis:
 		case *proto.Payment:
-		case *proto.LeaseV1:
-		case *proto.LeaseV2:
-		case *proto.LeaseCancelV1:
-		case *proto.LeaseCancelV2:
-		case *proto.DataV1:
-		case *proto.SetScriptV1:
-		case *proto.SetAssetScriptV1:
-		case *proto.InvokeScriptV1:
+		case *proto.LeaseWithSig:
+		case *proto.LeaseWithProofs:
+		case *proto.LeaseCancelWithSig:
+		case *proto.LeaseCancelWithProofs:
+		case *proto.DataWithProofs:
+		case *proto.SetScriptWithProofs:
+		case *proto.SetAssetScriptWithProofs:
+		case *proto.InvokeScriptWithProofs:
 		default:
 			zap.S().Warnf("%d: Unknown transaction type", i)
 		}

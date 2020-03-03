@@ -5,7 +5,6 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
-	"github.com/wavesplatform/gowaves/pkg/grpc/client"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"google.golang.org/grpc/codes"
@@ -63,7 +62,7 @@ type getStateChangesHandler struct {
 func (h *getStateChangesHandler) handle(tx proto.Transaction) error {
 	var id crypto.Digest
 	switch t := tx.(type) {
-	case *proto.InvokeScriptV1:
+	case *proto.InvokeScriptWithProofs:
 		id = *t.ID
 	default:
 		return errors.New("bad transaction type")
@@ -169,7 +168,7 @@ func (s *Server) GetUnconfirmed(req *g.TransactionsRequest, srv g.TransactionsAp
 }
 
 func (s *Server) Sign(ctx context.Context, req *g.SignRequest) (*g.SignedTransaction, error) {
-	var c client.SafeConverter
+	var c proto.ProtobufConverter
 	tx, err := c.Transaction(req.Transaction)
 	if err != nil {
 		return nil, status.Errorf(codes.FailedPrecondition, err.Error())
@@ -189,7 +188,7 @@ func (s *Server) Sign(ctx context.Context, req *g.SignRequest) (*g.SignedTransac
 }
 
 func (s *Server) Broadcast(ctx context.Context, tx *g.SignedTransaction) (*g.SignedTransaction, error) {
-	var c client.SafeConverter
+	var c proto.ProtobufConverter
 	t, err := c.SignedTransaction(tx)
 	if err != nil {
 		return nil, status.Errorf(codes.FailedPrecondition, err.Error())

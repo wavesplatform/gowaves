@@ -477,14 +477,14 @@ func NativeTransferTransactionByID(s Scope, e Exprs) (Expr, error) {
 	}
 
 	switch t := tx.(type) {
-	case *proto.TransferV2:
-		rs, err := newVariablesFromTransferV2(s.Scheme(), t)
+	case *proto.TransferWithProofs:
+		rs, err := newVariablesFromTransferWithProofs(s.Scheme(), t)
 		if err != nil {
 			return nil, errors.Wrap(err, funcName)
 		}
 		return NewObject(rs), nil
-	case *proto.TransferV1:
-		rs, err := newVariablesFromTransferV1(s.Scheme(), t)
+	case *proto.TransferWithSig:
+		rs, err := newVariablesFromTransferWithSig(s.Scheme(), t)
 		if err != nil {
 			return nil, errors.Wrap(err, funcName)
 		}

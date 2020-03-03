@@ -9,6 +9,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/types"
 )
 
@@ -45,13 +46,15 @@ type UtxImpl struct {
 	sizeLimit      uint64 // max transaction size in bytes
 	curSize        uint64
 	validator      Validator
+	settings       *settings.BlockchainSettings
 }
 
-func New(sizeLimit uint64, validator Validator) *UtxImpl {
+func New(sizeLimit uint64, validator Validator, settings *settings.BlockchainSettings) *UtxImpl {
 	return &UtxImpl{
 		transactionIds: make(map[crypto.Digest]struct{}),
 		sizeLimit:      sizeLimit,
 		validator:      validator,
+		settings:       settings,
 	}
 }
 
@@ -78,8 +81,10 @@ func (a *UtxImpl) addWithBytes(t proto.Transaction, b []byte) error {
 	if a.curSize+uint64(len(b)) > a.sizeLimit {
 		return errors.Errorf("size overflow, curSize: %d, limit: %d", a.curSize, a.sizeLimit)
 	}
-	t.GenerateID()
-	tID, err := t.GetID()
+	if err := t.GenerateID(a.settings.AddressSchemeCharacter); err != nil {
+		return errors.Errorf("failed to generate ID: %v", err)
+	}
+	tID, err := t.GetID(a.settings.AddressSchemeCharacter)
 	if err != nil {
 		return err
 	}
@@ -95,7 +100,7 @@ func (a *UtxImpl) addWithBytes(t proto.Transaction, b []byte) error {
 		B: b,
 	}
 	heap.Push(&a.transactions, tb)
-	id := makeDigest(t.GetID())
+	id := makeDigest(t.GetID(a.settings.AddressSchemeCharacter))
 	a.transactionIds[id] = struct{}{}
 	a.curSize += uint64(len(b))
 	return nil
@@ -114,7 +119,7 @@ func makeDigest(b []byte, e error) crypto.Digest {
 }
 
 func (a *UtxImpl) exists(t proto.Transaction) bool {
-	_, ok := a.transactionIds[makeDigest(t.GetID())]
+	_, ok := a.transactionIds[makeDigest(t.GetID(a.settings.AddressSchemeCharacter))]
 	return ok
 }
 
@@ -140,7 +145,7 @@ func (a *UtxImpl) Pop() *types.TransactionWithBytes {
 	defer a.mu.Unlock()
 	if a.transactions.Len() > 0 {
 		tb := heap.Pop(&a.transactions).(*types.TransactionWithBytes)
-		delete(a.transactionIds, makeDigest(tb.T.GetID()))
+		delete(a.transactionIds, makeDigest(tb.T.GetID(a.settings.AddressSchemeCharacter)))
 		if uint64(len(tb.B)) > a.curSize {
 			panic(fmt.Sprintf("UtxImpl Pop: size of transaction %d > than current size %d", len(tb.B), a.curSize))
 		}

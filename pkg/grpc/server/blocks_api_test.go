@@ -21,7 +21,7 @@ import (
 func headerFromState(t *testing.T, height proto.Height, st state.StateInfo) *g.BlockWithHeight {
 	header, err := st.HeaderByHeight(height)
 	assert.NoError(t, err)
-	headerProto, err := header.HeaderToProtobuf(proto.MainNetScheme, height)
+	headerProto, err := header.HeaderToProtobufWithHeight(proto.MainNetScheme, height)
 	assert.NoError(t, err)
 	return headerProto
 }
@@ -29,7 +29,7 @@ func headerFromState(t *testing.T, height proto.Height, st state.StateInfo) *g.B
 func blockFromState(t *testing.T, height proto.Height, st state.StateInfo) *g.BlockWithHeight {
 	block, err := st.BlockByHeight(height)
 	assert.NoError(t, err)
-	blockProto, err := block.ToProtobuf(proto.MainNetScheme, height)
+	blockProto, err := block.ToProtobufWithHeight(proto.MainNetScheme, height)
 	assert.NoError(t, err)
 	return blockProto
 }
