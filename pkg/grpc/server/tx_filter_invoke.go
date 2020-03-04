@@ -14,7 +14,7 @@ func newTxFilterInvoke(filter *txFilter) *txFilterInvoke {
 
 func (fl *txFilterInvoke) filter(tx proto.Transaction) bool {
 	switch t := tx.(type) {
-	case *proto.InvokeScriptV1:
+	case *proto.InvokeScriptWithProofs:
 		return fl.f.filter(t)
 	default:
 		return false

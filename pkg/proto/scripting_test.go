@@ -108,7 +108,7 @@ func TestScriptResultBinaryRoundTrip(t *testing.T) {
 		},
 	} {
 		if msg, err := test.ToProtobuf(); assert.NoError(t, err) {
-			if b, err := MarshalDeterministic(msg); assert.NoError(t, err) {
+			if b, err := MarshalToProtobufDeterministic(msg); assert.NoError(t, err) {
 				in := &g.InvokeScriptResult{}
 				if err := pb.Unmarshal(b, in); assert.NoError(t, err) {
 					sr := ScriptResult{}

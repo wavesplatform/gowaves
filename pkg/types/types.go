@@ -10,23 +10,10 @@ import (
 
 type Scheduler interface {
 	Reschedule()
-	// TODO: this function should be moved to wallet module, as well as keyPairs.
-	// Private keys should only be accessible from wallet module.
-	// All the other modules that need them, e.g. miner, api should call wallet's methods
-	// to sign what is needed.
-	// For now let's keep keys *only* in Scheduler.
-	SignTransactionWith(pk crypto.PublicKey, tx proto.Transaction) error
 }
 
-// Miner mutates state, applying block also. We can't do it together.
-// We should interrupt miner, cause block applying has higher priority.
-type MinerInterrupter interface {
-	Interrupt()
-}
-
-type BlockApplier interface {
-	Apply(block *proto.Block) error
-	ApplyBytes([]byte) error
+type BlocksApplier interface {
+	Apply(block []*proto.Block) error
 }
 
 // notify state that it must run synchronization
@@ -41,10 +28,12 @@ type Handler interface {
 
 // UtxPool storage interface
 type UtxPool interface {
-	AddWithBytes(t proto.Transaction, b []byte) (added bool)
+	AddWithBytes(t proto.Transaction, b []byte) error
 	Exists(t proto.Transaction) bool
 	Pop() *TransactionWithBytes
 	AllTransactions() []*TransactionWithBytes
+	Count() int
+	ExistsByID(id []byte) bool
 }
 
 type TransactionWithBytes struct {
@@ -104,10 +93,20 @@ type Miner interface {
 }
 
 type Time interface {
-	Now() (time.Time, error)
+	Now() time.Time
 }
 
 type ScoreSender interface {
 	Priority()
 	NonPriority()
+}
+
+type MinerConsensus interface {
+	IsMiningAllowed() bool
+}
+
+type EmbeddedWallet interface {
+	SignTransactionWith(pk crypto.PublicKey, tx proto.Transaction) error
+	Load(password []byte) error
+	Seeds() [][]byte
 }

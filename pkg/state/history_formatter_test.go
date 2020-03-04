@@ -29,6 +29,52 @@ func createHistory() (*historyTestObjects, []string, error) {
 	return &historyTestObjects{stor, fmt}, path, nil
 }
 
+func TestNormalizeFeatureVote(t *testing.T) {
+	// featureVote entity does not need cuts.
+	to, path, err := createHistory()
+	assert.NoError(t, err, "createHistory() failed")
+
+	defer func() {
+		to.stor.close(t)
+
+		err = util.CleanTemporaryDirs(path)
+		assert.NoError(t, err, "failed to clean test data dirs")
+	}()
+
+	// Create history record and add blocks.
+	ids := genRandBlockIds(t, totalBlocks)
+	history := newHistoryRecord(featureVote)
+	for _, id := range ids {
+		to.stor.addBlock(t, id)
+		blockNum, err := to.stor.stateDB.blockIdToNum(id)
+		assert.NoError(t, err, "blockIdToNum() failed")
+		entry := historyEntry{nil, blockNum}
+		err = history.appendEntry(entry)
+		assert.NoError(t, err, "appendEntry() failed")
+	}
+	to.stor.flush(t)
+
+	historyBackup := make([]historyEntry, len(history.entries))
+	copy(historyBackup, history.entries)
+
+	// Normalize and check that nothing has changed.
+	changed, err := to.fmt.normalize(history, true)
+	assert.NoError(t, err, "normalize() failed")
+	assert.Equal(t, false, changed)
+	assert.Equal(t, historyBackup, history.entries)
+
+	// Now rollback the last block to check filtering.
+	id := ids[len(ids)-1]
+	err = to.stor.stateDB.rollbackBlock(id)
+	assert.NoError(t, err, "rollbackBlock() failed")
+
+	// Normalize and check the result.
+	changed, err = to.fmt.normalize(history, true)
+	assert.NoError(t, err, "normalize() failed")
+	assert.Equal(t, true, changed)
+	assert.Equal(t, historyBackup[:len(historyBackup)-1], history.entries)
+}
+
 func TestNormalize(t *testing.T) {
 	to, path, err := createHistory()
 	assert.NoError(t, err, "createHistory() failed")
@@ -42,8 +88,7 @@ func TestNormalize(t *testing.T) {
 
 	// Create history record and add blocks.
 	ids := genRandBlockIds(t, totalBlocks)
-	history, err := newHistoryRecord(alias)
-	assert.NoError(t, err, "newHistoryRecord() failed")
+	history := newHistoryRecord(alias)
 	for _, id := range ids {
 		to.stor.addBlock(t, id)
 		blockNum, err := to.stor.stateDB.blockIdToNum(id)

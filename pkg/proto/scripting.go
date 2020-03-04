@@ -34,15 +34,19 @@ type TransferScriptAction struct {
 
 func (a TransferScriptAction) scriptAction() {}
 
-func (a *TransferScriptAction) ToProtobuf() *g.InvokeScriptResult_Payment {
+func (a *TransferScriptAction) ToProtobuf() (*g.InvokeScriptResult_Payment, error) {
 	amount := &g.Amount{
 		AssetId: a.Asset.ToID(),
 		Amount:  a.Amount,
 	}
-	return &g.InvokeScriptResult_Payment{
-		Address: a.Recipient.Address.Body(),
-		Amount:  amount,
+	addrBody, err := a.Recipient.Address.Body()
+	if err != nil {
+		return nil, err
 	}
+	return &g.InvokeScriptResult_Payment{
+		Address: addrBody,
+		Amount:  amount,
+	}, nil
 }
 
 // IssueScriptAction is an action to issue a new asset as a result of script invocation.
@@ -176,8 +180,12 @@ func (sr *ScriptResult) ToProtobuf() (*g.InvokeScriptResult, error) {
 		data[i] = e.ToProtobuf()
 	}
 	transfers := make([]*g.InvokeScriptResult_Payment, len(sr.Transfers))
+	var err error
 	for i := range sr.Transfers {
-		transfers[i] = sr.Transfers[i].ToProtobuf()
+		transfers[i], err = sr.Transfers[i].ToProtobuf()
+		if err != nil {
+			return nil, err
+		}
 	}
 	issues := make([]*g.InvokeScriptResult_Issue, len(sr.Issues))
 	for i := range sr.Issues {
@@ -253,7 +261,7 @@ func ValidateActions(actions []ScriptAction, restrictions ActionsValidationRestr
 			if len(utf16.Encode([]rune(ta.Entry.GetKey()))) > maxKeySize {
 				return errors.New("key is too large")
 			}
-			dataEntriesSize += ta.Entry.binarySize()
+			dataEntriesSize += ta.Entry.BinarySize()
 			if dataEntriesSize > maxDataEntryScriptActionsSizeInBytes {
 				return errors.Errorf("total size of data entries produced by script is more than %d bytes", maxDataEntryScriptActionsSizeInBytes)
 			}

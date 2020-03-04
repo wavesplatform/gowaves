@@ -24,37 +24,41 @@ func TestTxFilter(t *testing.T) {
 	addr, err := proto.NewAddressFromPublicKey(scheme, pk)
 	assert.NoError(t, err)
 	rcp := proto.NewRecipientFromAddress(addr)
+	addrBody, err := addr.Body()
+	assert.NoError(t, err)
 	pk2, err := crypto.NewPublicKeyFromBase58(pkStr2)
 	assert.NoError(t, err)
 	addr2, err := proto.NewAddressFromPublicKey(scheme, pk2)
 	assert.NoError(t, err)
 	rcp2 := proto.NewRecipientFromAddress(addr2)
+	addr2Body, err := addr2.Body()
+	assert.NoError(t, err)
 
 	// Test sender only.
-	req := &g.TransactionsRequest{Sender: addr.Body()}
+	req := &g.TransactionsRequest{Sender: addrBody}
 	filter, err := newTxFilter(scheme, req)
 	assert.NoError(t, err)
 	tx = &proto.Payment{SenderPK: pk}
 	assert.Equal(t, true, filter.filter(tx))
-	tx = &proto.IssueV1{Issue: proto.Issue{SenderPK: pk}}
+	tx = &proto.IssueWithSig{Issue: proto.Issue{SenderPK: pk}}
 	assert.Equal(t, true, filter.filter(tx))
 	tx = &proto.Genesis{}
 	assert.Equal(t, false, filter.filter(tx))
-	tx = &proto.TransferV1{Transfer: proto.Transfer{SenderPK: pk2}}
+	tx = &proto.TransferWithSig{Transfer: proto.Transfer{SenderPK: pk2}}
 	assert.Equal(t, false, filter.filter(tx))
 
 	// Test sender and recipient.
 	req = &g.TransactionsRequest{
-		Sender:    addr.Body(),
-		Recipient: &g.Recipient{Recipient: &g.Recipient_Address{Address: addr2.Body()}},
+		Sender:    addrBody,
+		Recipient: &g.Recipient{Recipient: &g.Recipient_PublicKeyHash{PublicKeyHash: addr2Body}},
 	}
 	filter, err = newTxFilter(scheme, req)
 	assert.NoError(t, err)
-	tx = &proto.TransferV1{Transfer: proto.Transfer{SenderPK: pk, Recipient: rcp2}}
+	tx = &proto.TransferWithSig{Transfer: proto.Transfer{SenderPK: pk, Recipient: rcp2}}
 	assert.Equal(t, true, filter.filter(tx))
-	tx = &proto.TransferV1{Transfer: proto.Transfer{SenderPK: pk, Recipient: rcp}}
+	tx = &proto.TransferWithSig{Transfer: proto.Transfer{SenderPK: pk, Recipient: rcp}}
 	assert.Equal(t, false, filter.filter(tx))
-	tx = &proto.TransferV1{Transfer: proto.Transfer{SenderPK: pk2, Recipient: rcp2}}
+	tx = &proto.TransferWithSig{Transfer: proto.Transfer{SenderPK: pk2, Recipient: rcp2}}
 	assert.Equal(t, false, filter.filter(tx))
 
 	// Test sender, recipient and IDs.
@@ -63,18 +67,18 @@ func TestTxFilter(t *testing.T) {
 	id2, err := crypto.NewDigestFromBase58(idStr2)
 	assert.NoError(t, err)
 	req = &g.TransactionsRequest{
-		Sender:         addr.Body(),
-		Recipient:      &g.Recipient{Recipient: &g.Recipient_Address{Address: addr.Body()}},
+		Sender:         addrBody,
+		Recipient:      &g.Recipient{Recipient: &g.Recipient_PublicKeyHash{PublicKeyHash: addrBody}},
 		TransactionIds: [][]byte{id.Bytes()},
 	}
 	filter, err = newTxFilter(scheme, req)
 	assert.NoError(t, err)
-	tx = &proto.TransferV1{Transfer: proto.Transfer{SenderPK: pk, Recipient: rcp}, ID: &id}
+	tx = &proto.TransferWithSig{Transfer: proto.Transfer{SenderPK: pk, Recipient: rcp}, ID: &id}
 	assert.Equal(t, true, filter.filter(tx))
-	tx = &proto.TransferV1{Transfer: proto.Transfer{SenderPK: pk2, Recipient: rcp}, ID: &id}
+	tx = &proto.TransferWithSig{Transfer: proto.Transfer{SenderPK: pk2, Recipient: rcp}, ID: &id}
 	assert.Equal(t, false, filter.filter(tx))
-	tx = &proto.TransferV1{Transfer: proto.Transfer{SenderPK: pk, Recipient: rcp2}, ID: &id}
+	tx = &proto.TransferWithSig{Transfer: proto.Transfer{SenderPK: pk, Recipient: rcp2}, ID: &id}
 	assert.Equal(t, false, filter.filter(tx))
-	tx = &proto.TransferV1{Transfer: proto.Transfer{SenderPK: pk, Recipient: rcp}, ID: &id2}
+	tx = &proto.TransferWithSig{Transfer: proto.Transfer{SenderPK: pk, Recipient: rcp}, ID: &id2}
 	assert.Equal(t, false, filter.filter(tx))
 }

@@ -40,7 +40,7 @@ func EstablishConnection(ctx context.Context, params EstablishParams, v proto.Ve
 
 	connection, handshake, err := p.connect(ctx, c, v)
 	if err != nil {
-		zap.S().Info(err, params.Address)
+		zap.S().Debug(err, params.Address)
 		return errors.Wrapf(err, "%q", params.Address)
 	}
 	p.connection = connection
@@ -93,7 +93,7 @@ func (a *connector) connect(ctx context.Context, c net.Conn, v proto.Version) (c
 	select {
 	case <-ctx.Done():
 		c.Close()
-		return nil, nil, ctx.Err()
+		return nil, nil, errors.Wrap(ctx.Err(), "connector.connect")
 	default:
 	}
 
@@ -102,7 +102,7 @@ func (a *connector) connect(ctx context.Context, c net.Conn, v proto.Version) (c
 		zap.S().Debugf("failed to read handshake: %s %s", err, a.params.Address)
 		select {
 		case <-ctx.Done():
-			return nil, nil, ctx.Err()
+			return nil, nil, errors.Wrap(ctx.Err(), "connector.connect")
 		case <-time.After(5 * time.Minute):
 			return nil, nil, err
 		}

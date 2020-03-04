@@ -6,30 +6,30 @@ import (
 	"time"
 )
 
-type TransferV1Builder struct {
+type TransferWithSigBuilder struct {
 	seed      string
 	timestamp time.Time
 }
 
-func NewTransferV1Builder() TransferV1Builder {
-	return TransferV1Builder{
+func NewTransferWithSigBuilder() TransferWithSigBuilder {
+	return TransferWithSigBuilder{
 		seed:      "test",
 		timestamp: time.Unix(1544715621, 0),
 	}
 
 }
 
-func (a TransferV1Builder) Seed(s string) TransferV1Builder {
+func (a TransferWithSigBuilder) Seed(s string) TransferWithSigBuilder {
 	a.seed = s
 	return a
 }
 
-func (a TransferV1Builder) Timestamp(t time.Time) TransferV1Builder {
+func (a TransferWithSigBuilder) Timestamp(t time.Time) TransferWithSigBuilder {
 	a.timestamp = t
 	return a
 }
 
-func (a TransferV1Builder) Build() (*proto.TransferV1, error) {
+func (a TransferWithSigBuilder) Build() (*proto.TransferWithSig, error) {
 	priv, pub, err := crypto.GenerateKeyPair([]byte(a.seed))
 	if err != nil {
 		return nil, err
@@ -39,7 +39,7 @@ func (a TransferV1Builder) Build() (*proto.TransferV1, error) {
 		return nil, err
 	}
 
-	t := proto.NewUnsignedTransferV1(
+	t := proto.NewUnsignedTransferWithSig(
 		pub,
 		proto.OptionalAsset{},
 		proto.OptionalAsset{},
@@ -47,16 +47,17 @@ func (a TransferV1Builder) Build() (*proto.TransferV1, error) {
 		10000,
 		10000,
 		proto.NewRecipientFromAddress(addr),
-		"")
+		&proto.LegacyAttachment{},
+	)
 
-	err = t.Sign(priv)
+	err = t.Sign(proto.MainNetScheme, priv)
 	if err != nil {
 		return nil, err
 	}
 	return t, nil
 }
 
-func (a TransferV1Builder) MustBuild() *proto.TransferV1 {
+func (a TransferWithSigBuilder) MustBuild() *proto.TransferWithSig {
 	out, err := a.Build()
 	if err != nil {
 		panic(err)

@@ -20,7 +20,7 @@ func newBlock(sig crypto.Signature, parent crypto.Signature) *proto.Block {
 			BlockSignature: sig,
 			Parent:         parent,
 		},
-		Transactions: proto.NewReprFromTransactions(nil),
+		Transactions: proto.Transactions(nil),
 	}
 }
 

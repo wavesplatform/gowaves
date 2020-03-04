@@ -31,15 +31,10 @@ func verifyTransactions(transactions []proto.Transaction, chans *verifierChans) 
 func verifyBlocks(blocks []proto.Block, chans *verifierChans) error {
 	for i := 1; i < len(blocks); i++ {
 		block := blocks[i]
-		blockBytes, err := block.MarshalBinary()
-		if err != nil {
-			return err
-		}
 		task := &verifyTask{
-			taskType:   verifyBlock,
-			parentSig:  blocks[i-1].BlockSignature,
-			block:      &block,
-			blockBytes: blockBytes[:len(blockBytes)-crypto.SignatureSize],
+			taskType:  verifyBlock,
+			parentSig: blocks[i-1].BlockSignature,
+			block:     &block,
 		}
 		select {
 		case verifyError := <-chans.errChan:
@@ -59,44 +54,43 @@ func TestVerifier(t *testing.T) {
 	assert.NoError(t, err, "readBlocksFromTestPath() failed")
 	last := blocks[len(blocks)-1]
 	// Get real block's transactions.
-	txs, err := proto.BytesToTransactions(last.TransactionCount, last.Transactions.BytesUnchecked())
-	assert.NoError(t, err, "BytesToTransactions() failed")
+	txs := last.Transactions
 
 	// Test valid blocks.
 	chans := newVerifierChans()
-	go launchVerifier(context.Background(), chans, runtime.NumCPU())
+	go launchVerifier(context.Background(), chans, runtime.NumCPU(), proto.MainNetScheme)
 	err = verifyBlocks(blocks, chans)
 	assert.NoError(t, err, "verifyBlocks() failed with valid blocks")
 	chans = newVerifierChans()
-	go launchVerifier(context.Background(), chans, runtime.NumCPU())
+	go launchVerifier(context.Background(), chans, runtime.NumCPU(), proto.MainNetScheme)
 	// Test valid transactions.
 	err = verifyTransactions(txs, chans)
 	assert.NoError(t, err, "verifyTransactions() failed with valid transactions")
 	chans = newVerifierChans()
-	go launchVerifier(context.Background(), chans, runtime.NumCPU())
+	go launchVerifier(context.Background(), chans, runtime.NumCPU(), proto.MainNetScheme)
 	// Spoil block parent.
 	backup := blocks[len(blocks)/2]
 	blocks[len(blocks)/2].Parent = crypto.Signature{}
 	err = verifyBlocks(blocks, chans)
 	assert.Error(t, err, "verifyBlocks() did not fail with wrong parent")
 	chans = newVerifierChans()
-	go launchVerifier(context.Background(), chans, runtime.NumCPU())
+	go launchVerifier(context.Background(), chans, runtime.NumCPU(), proto.MainNetScheme)
 	blocks[len(blocks)/2] = backup
 	err = verifyBlocks(blocks, chans)
 	assert.NoError(t, err, "verifyBlocks() failed with valid blocks")
 	chans = newVerifierChans()
-	go launchVerifier(context.Background(), chans, runtime.NumCPU())
+	go launchVerifier(context.Background(), chans, runtime.NumCPU(), proto.MainNetScheme)
 	// Spoil block signature.
 	blocks[len(blocks)/2].BlockSignature = crypto.Signature{}
 	err = verifyBlocks(blocks, chans)
 	assert.Error(t, err, "verifyBlocks() did not fail with wrong signature")
 	chans = newVerifierChans()
-	go launchVerifier(context.Background(), chans, runtime.NumCPU())
+	go launchVerifier(context.Background(), chans, runtime.NumCPU(), proto.MainNetScheme)
 	blocks[len(blocks)/2] = backup
 	err = verifyBlocks(blocks, chans)
 	assert.NoError(t, err, "verifyBlocks() failed with valid blocks")
 	chans = newVerifierChans()
-	go launchVerifier(context.Background(), chans, runtime.NumCPU())
+	go launchVerifier(context.Background(), chans, runtime.NumCPU(), proto.MainNetScheme)
 	// Test unsigned tx failure.
 	spk, err := crypto.NewPublicKeyFromBase58(testPK)
 	assert.NoError(t, err, "NewPublicKeyFromBase58() failed")
@@ -107,7 +101,7 @@ func TestVerifier(t *testing.T) {
 	err = verifyTransactions(txs, chans)
 	assert.Error(t, err, "verifyTransactions() did not fail with unsigned tx")
 	chans = newVerifierChans()
-	go launchVerifier(context.Background(), chans, runtime.NumCPU())
+	go launchVerifier(context.Background(), chans, runtime.NumCPU(), proto.MainNetScheme)
 	// Test invalid tx failure.
 	invalidTx := proto.NewUnsignedGenesis(recipient, 0, 0)
 	txs = []proto.Transaction{invalidTx}

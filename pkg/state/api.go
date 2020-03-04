@@ -6,8 +6,10 @@ import (
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
+	"github.com/wavesplatform/gowaves/pkg/libs/ntptime"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
+	"github.com/wavesplatform/gowaves/pkg/types"
 	"github.com/wavesplatform/gowaves/pkg/util/lock"
 )
 
@@ -29,16 +31,12 @@ type TransactionIterator interface {
 // Methods of this interface are thread-safe.
 type StateInfo interface {
 	// Block getters.
-	TopBlock() (*proto.Block, error)
+	TopBlock() *proto.Block
 	Block(blockID crypto.Signature) (*proto.Block, error)
 	BlockByHeight(height proto.Height) (*proto.Block, error)
-	BlockBytes(blockID crypto.Signature) ([]byte, error)
-	BlockBytesByHeight(height proto.Height) ([]byte, error)
 	// Header getters.
 	Header(blockID crypto.Signature) (*proto.BlockHeader, error)
 	HeaderByHeight(height proto.Height) (*proto.BlockHeader, error)
-	HeaderBytes(blockID crypto.Signature) ([]byte, error)
-	HeaderBytesByHeight(height proto.Height) ([]byte, error)
 	// Height returns current blockchain height.
 	Height() (proto.Height, error)
 	// Height <---> blockID converters.
@@ -66,10 +64,12 @@ type StateInfo interface {
 
 	// Features.
 	VotesNum(featureID int16) (uint64, error)
+	VotesNumAtHeight(featureID int16, height proto.Height) (uint64, error)
 	IsActivated(featureID int16) (bool, error)
 	IsActiveAtHeight(featureID int16, height proto.Height) (bool, error)
 	ActivationHeight(featureID int16) (proto.Height, error)
 	IsApproved(featureID int16) (bool, error)
+	IsApprovedAtHeight(featureID int16, height proto.Height) (bool, error)
 	ApprovalHeight(featureID int16) (proto.Height, error)
 	AllFeatures() ([]int16, error)
 
@@ -125,7 +125,7 @@ type StateModifier interface {
 	// Use it when blocks are logically new.
 	AddNewBlocks(blocks [][]byte) error
 	// AddNewDeserializedBlocks marshals blocks to binary and calls AddNewBlocks().
-	AddNewDeserializedBlocks(blocks []*proto.Block) error
+	AddNewDeserializedBlocks(blocks []*proto.Block) (*proto.Block, error)
 	// AddOldBlocks adds batch of old blocks to state.
 	// Use it when importing historical blockchain.
 	// It is faster than AddNewBlocks but it is only safe when importing from scratch when no rollbacks are possible at all.
@@ -205,6 +205,7 @@ func DefaultTestingStorageParams() StorageParams {
 // VerificationGoroutinesNum specifies how many goroutines will be run for verification of transactions and blocks signatures.
 type ValidationParams struct {
 	VerificationGoroutinesNum int
+	Time                      types.Time
 }
 
 type StateParams struct {
@@ -218,14 +219,20 @@ type StateParams struct {
 
 func DefaultStateParams() StateParams {
 	return StateParams{
-		StorageParams:    DefaultStorageParams(),
-		ValidationParams: ValidationParams{runtime.NumCPU() * 2},
+		StorageParams: DefaultStorageParams(),
+		ValidationParams: ValidationParams{
+			VerificationGoroutinesNum: runtime.NumCPU() * 2,
+			Time:                      ntptime.Stub{},
+		},
 	}
 }
 
 func DefaultTestingStateParams() StateParams {
 	return StateParams{
-		StorageParams:    DefaultTestingStorageParams(),
-		ValidationParams: ValidationParams{runtime.NumCPU() * 2},
+		StorageParams: DefaultTestingStorageParams(),
+		ValidationParams: ValidationParams{
+			VerificationGoroutinesNum: runtime.NumCPU() * 2,
+			Time:                      ntptime.Stub{},
+		},
 	}
 }

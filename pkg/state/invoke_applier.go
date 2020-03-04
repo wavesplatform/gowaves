@@ -173,7 +173,7 @@ func (ia *invokeApplier) saveDiff(diff txDiff, info *invokeAddlInfo) error {
 	return nil
 }
 
-func (ia *invokeApplier) createTxDiff(tx *proto.InvokeScriptV1, info *invokeAddlInfo) (txBalanceChanges, error) {
+func (ia *invokeApplier) createTxDiff(tx *proto.InvokeScriptWithProofs, info *invokeAddlInfo) (txBalanceChanges, error) {
 	if info.validatingUtx {
 		return ia.txHandler.createDiffTx(tx, &differInfo{
 			initialisation: false,
@@ -200,7 +200,7 @@ func (ia *invokeApplier) resolveAliases(actions []proto.ScriptAction, initialisa
 }
 
 // For InvokeScript transactions there is no performer function.
-// Instead, here (in applyInvokeScriptV1) we perform both balance and state changes
+// Instead, here (in applyInvokeScriptWithProofs) we perform both balance and state changes
 // along with fee validation which is normally done in checker function.
 // This is due to InvokeScript specifics: WriteSet (state) changes have to be applied before
 // TransferSet (balances) changes, and performer is always called *after* differ,
@@ -211,7 +211,7 @@ func (ia *invokeApplier) resolveAliases(actions []proto.ScriptAction, initialisa
 // affects minimum allowed fee.
 // That is why invoke transaction is applied to state in a different way - here, unlike other
 // transaction types.
-func (ia *invokeApplier) applyInvokeScriptV1(tx *proto.InvokeScriptV1, info *invokeAddlInfo) (txBalanceChanges, error) {
+func (ia *invokeApplier) applyInvokeScriptWithProofs(tx *proto.InvokeScriptWithProofs, info *invokeAddlInfo) (txBalanceChanges, error) {
 	// At first, clear invoke diff storage from any previous diffs.
 	ia.invokeDiffStor.invokeDiffsStor.reset()
 	if !info.validatingUtx && !info.hasBlock() {

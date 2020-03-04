@@ -143,5 +143,9 @@ func (s *Server) ResolveAlias(ctx context.Context, req *wrappers.StringValue) (*
 	if err != nil {
 		return nil, status.Errorf(codes.NotFound, err.Error())
 	}
-	return &wrappers.BytesValue{Value: addr.Body()}, nil
+	addrBody, err := addr.Body()
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, err.Error())
+	}
+	return &wrappers.BytesValue{Value: addrBody}, nil
 }

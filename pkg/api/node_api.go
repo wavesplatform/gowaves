@@ -18,6 +18,8 @@ import (
 	"go.uber.org/zap"
 )
 
+const API_KEY = "X-API-Key"
+
 // Logger is a middleware that logs the start and end of each request, along
 // with some useful data about what was requested, what the response status was,
 // and how long it took to return.
@@ -57,31 +59,6 @@ func NewNodeApi(app *App, state state.State, node *node.Node) *NodeApi {
 	}
 }
 
-func (a *NodeApi) routes() chi.Router {
-	r := chi.NewRouter()
-	r.Get("/blocks/last", a.BlocksLast)
-	r.Get("/blocks/height", a.BlockHeight)
-	r.Get("/blocks/first", a.BlocksFirst)
-	r.Get("/blocks/at/{height:\\d+}", a.BlockAt)
-	r.Get("/blocks/score/at/{id:\\d+}", a.BlockScoreAt)
-	r.Get("/blocks/signature/{signature}", a.BlockSignatureAt)
-	r.Get("/blocks/generators", a.BlocksGenerators)
-	//r.Get("/blocks/rollback/{height:\\d+}", a.BlockRollbackToHeight)
-	r.Route("/peers", func(r chi.Router) {
-		r.Get("/known", a.PeersAll)
-		r.Get("/connected", a.PeersConnected)
-		r.Post("/connect", a.PeersConnect)
-		r.Get("/suspended", a.PeersSuspended)
-		r.Get("/spawned", a.PeersSpawned)
-	})
-	r.Get("/miner/info", a.Minerinfo)
-	r.Post("/transactions/broadcast", a.TransactionsBroadcast)
-	// enable or disable history sync
-	//r.Get("/debug/sync/{enabled:\\d+}", a.DebugSyncEnabled)
-
-	return r
-}
-
 func (a *NodeApi) TransactionsBroadcast(w http.ResponseWriter, r *http.Request) {
 	b, err := ioutil.ReadAll(r.Body)
 	defer r.Body.Close()
@@ -97,7 +74,7 @@ func (a *NodeApi) TransactionsBroadcast(w http.ResponseWriter, r *http.Request) 
 	}
 }
 
-func (a *NodeApi) BlocksLast(w http.ResponseWriter, r *http.Request) {
+func (a *NodeApi) BlocksLast(w http.ResponseWriter, _ *http.Request) {
 	block, err := a.app.BlocksLast()
 	if err != nil {
 		handleError(w, err)
@@ -115,13 +92,13 @@ func (a *NodeApi) BlocksLast(w http.ResponseWriter, r *http.Request) {
 func (a *NodeApi) BlocksFirst(w http.ResponseWriter, r *http.Request) {
 	block, err := a.state.BlockByHeight(1)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to complete request: %s", err.Error()), http.StatusInternalServerError)
+		handleError(w, err)
 		return
 	}
 	block.Height = 1
 	bts, err := proto.BlockEncodeJson(block)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to marshal status to JSON: %s", err.Error()), http.StatusInternalServerError)
+		handleError(w, err)
 		return
 	}
 	_, _ = w.Write(bts)
@@ -137,13 +114,13 @@ func (a *NodeApi) BlockAt(w http.ResponseWriter, r *http.Request) {
 
 	block, err := a.state.BlockByHeight(id)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to complete request: %s", err.Error()), http.StatusInternalServerError)
+		handleError(w, err)
 		return
 	}
 	block.Height = id
 	err = json.NewEncoder(w).Encode(block)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to marshal status to JSON: %s", err.Error()), http.StatusInternalServerError)
+		handleError(w, err)
 		return
 	}
 }
@@ -167,18 +144,18 @@ func (a *NodeApi) BlockSignatureAt(w http.ResponseWriter, r *http.Request) {
 	}
 	block, err := a.state.Block(sig)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to complete request: %s", err.Error()), http.StatusInternalServerError)
+		handleError(w, err)
 		return
 	}
 	height, err := a.state.BlockIDToHeight(sig)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to complete request: %s", err.Error()), http.StatusInternalServerError)
+		handleError(w, err)
 		return
 	}
 	block.Height = height
 	err = json.NewEncoder(w).Encode(block)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to marshal status to JSON: %s", err.Error()), http.StatusInternalServerError)
+		handleError(w, err)
 		return
 	}
 }
@@ -192,12 +169,12 @@ func (a *NodeApi) BlockHeight(w http.ResponseWriter, r *http.Request) {
 	height, err := a.state.Height()
 	lock.Unlock()
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to complete request: %s", err.Error()), http.StatusInternalServerError)
+		handleError(w, err)
 		return
 	}
 	err = json.NewEncoder(w).Encode(&BlockHeightResponse{Height: height})
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to marshal status to JSON: %s", err.Error()), http.StatusInternalServerError)
+		handleError(w, err)
 		return
 	}
 }
@@ -260,14 +237,14 @@ func (a *NodeApi) PeersConnect(w http.ResponseWriter, r *http.Request) {
 	req := new(PeersConnectRequest)
 	err := json.NewDecoder(r.Body).Decode(req)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to marshal status to JSON: %s", err.Error()), http.StatusBadRequest)
+		handleError(w, err)
 		return
 	}
 
 	zap.S().Info("PeersConnect ", r.Header.Get("X-API-Key"), req)
 
 	apiKey := r.Header.Get("X-API-Key")
-	rs, err := a.app.PeersConnect(context.Background(), apiKey, fmt.Sprintf("%s:%d", req.Host, req.Port))
+	rs, err := a.app.PeersConnect(r.Context(), apiKey, fmt.Sprintf("%s:%d", req.Host, req.Port))
 	if err != nil {
 		handleError(w, err)
 		return
@@ -302,19 +279,60 @@ func (a *NodeApi) BlocksGenerators(w http.ResponseWriter, r *http.Request) {
 	sendJson(w, rs)
 }
 
-func (a *NodeApi) BlockRollbackToHeight(w http.ResponseWriter, r *http.Request) {
-	s := chi.URLParam(r, "height")
-	id, err := strconv.ParseUint(s, 10, 64)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
+func (a *NodeApi) poolTransactions(w http.ResponseWriter, r *http.Request) {
+	rs := a.app.PoolTransactions()
+	sendJson(w, rs)
+}
+
+type rollbackRequest struct {
+	Height uint64 `json:"height"`
+}
+
+type rollbackToHeight interface {
+	RollbackToHeight(string, proto.Height) error
+}
+
+func RollbackToHeight(app rollbackToHeight) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		js := &rollbackRequest{}
+		err := json.NewDecoder(r.Body).Decode(js)
+		if err != nil {
+			handleError(w, err)
+			return
+		}
+		apiKey := r.Header.Get("X-API-Key")
+		err = app.RollbackToHeight(apiKey, js.Height)
+		if err != nil {
+			handleError(w, err)
+			return
+		}
+		sendJson(w, nil)
 	}
-	err = a.app.RollbackToHeight(proto.Height(id))
-	if err != nil {
-		handleError(w, err)
-		return
+}
+
+type walletLoadKeysRequest struct {
+	Password string `json:"password"`
+}
+type walletLoadKeys interface {
+	LoadKeys(apiKey string, password []byte) error
+}
+
+func WalletLoadKeys(app walletLoadKeys) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		js := &walletLoadKeysRequest{}
+		err := json.NewDecoder(r.Body).Decode(js)
+		if err != nil {
+			handleError(w, err)
+			return
+		}
+		apiKey := r.Header.Get("X-API-Key")
+		err = app.LoadKeys(apiKey, []byte(js.Password))
+		if err != nil {
+			handleError(w, err)
+			return
+		}
+		sendJson(w, nil)
 	}
-	sendJson(w, nil)
 }
 
 func (a *NodeApi) Minerinfo(w http.ResponseWriter, r *http.Request) {
@@ -323,6 +341,11 @@ func (a *NodeApi) Minerinfo(w http.ResponseWriter, r *http.Request) {
 		handleError(w, err)
 		return
 	}
+	sendJson(w, rs)
+}
+
+func (a *NodeApi) nodeProcesses(w http.ResponseWriter, r *http.Request) {
+	rs := a.app.NodeProcesses()
 	sendJson(w, rs)
 }
 

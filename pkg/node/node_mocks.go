@@ -6,7 +6,6 @@ import (
 	"net"
 	"sync"
 
-	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/p2p/mock"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
@@ -51,11 +50,11 @@ func NewMockStateManager(blocks ...*proto.Block) (*MockStateManager, error) {
 	return m, nil
 }
 
-func (a *MockStateManager) TopBlock() (*proto.Block, error) {
-	if len(a.state) < 1 {
-		return nil, errors.New("not found")
+func (a *MockStateManager) TopBlock() *proto.Block {
+	if len(a.state) == 0 {
+		panic("no top block")
 	}
-	return a.state[len(a.state)-1], nil
+	return a.state[len(a.state)-1]
 }
 
 func (a *MockStateManager) Block(blockID crypto.Signature) (*proto.Block, error) {
@@ -282,13 +281,15 @@ func (a *MockStateManager) AddDeserializedBlock(block *proto.Block) (*proto.Bloc
 	a.blockIDToHeight[block.BlockSignature] = proto.Height(len(a.state))
 	return block, nil
 }
-func (a *MockStateManager) AddNewDeserializedBlocks(blocks []*proto.Block) error {
+func (a *MockStateManager) AddNewDeserializedBlocks(blocks []*proto.Block) (*proto.Block, error) {
+	var out *proto.Block
+	var err error
 	for _, b := range blocks {
-		if _, err := a.AddDeserializedBlock(b); err != nil {
-			return err
+		if out, err = a.AddDeserializedBlock(b); err != nil {
+			return nil, err
 		}
 	}
-	return nil
+	return out, nil
 }
 
 func (a *MockStateManager) AddOldDeserializedBlocks([]*proto.Block) error {
@@ -300,6 +301,10 @@ func (a *MockStateManager) BlockBytes(blockID crypto.Signature) ([]byte, error) 
 }
 
 func (a *MockStateManager) BlockBytesByHeight(height proto.Height) ([]byte, error) {
+	panic("implement me")
+}
+
+func (a *MockStateManager) VotesNumAtHeight(featureID int16, height proto.Height) (uint64, error) {
 	panic("implement me")
 }
 
@@ -320,6 +325,10 @@ func (a *MockStateManager) ActivationHeight(featureID int16) (uint64, error) {
 }
 
 func (a *MockStateManager) IsApproved(featureID int16) (bool, error) {
+	panic("implement me")
+}
+
+func (a *MockStateManager) IsApprovedAtHeight(featureID int16, height uint64) (bool, error) {
 	panic("implement me")
 }
 

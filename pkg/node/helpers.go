@@ -1,12 +1,11 @@
 package node
 
 import (
-	"time"
-
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/state"
+	"github.com/wavesplatform/gowaves/pkg/types"
 	"go.uber.org/zap"
 )
 
@@ -14,16 +13,16 @@ const (
 	maxShiftFromNow = 600000 // 10 minutes.
 )
 
-func MaybeEnableExtendedApi(state state.State) error {
-	height, err := state.Height()
-	if err != nil {
-		return err
-	}
-	lastBlock, err := state.BlockByHeight(height)
-	if err != nil {
-		return err
-	}
-	now := proto.NewTimestampFromTime(time.Now())
+func MaybeEnableExtendedApi(state state.State, time types.Time) error {
+	lastBlock := state.TopBlock()
+	return maybeEnableExtendedApi(state, lastBlock, proto.NewTimestampFromTime(time.Now()))
+}
+
+type startProvidingExtendedApi interface {
+	StartProvidingExtendedApi() error
+}
+
+func maybeEnableExtendedApi(state startProvidingExtendedApi, lastBlock *proto.Block, now proto.Timestamp) error {
 	provideExtended := false
 	if lastBlock.Timestamp > now {
 		provideExtended = true

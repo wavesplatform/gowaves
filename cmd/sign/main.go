@@ -3,19 +3,15 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/user"
 	"path"
 	"time"
 
-	"github.com/howeyc/gopass"
-	"github.com/pkg/errors"
 	flag "github.com/spf13/pflag"
 	"github.com/wavesplatform/gowaves/pkg/client"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"github.com/wavesplatform/gowaves/pkg/wallet"
 )
 
 func main() {
@@ -38,6 +34,7 @@ func transferTransaction() {
 		Amount       uint64
 		Fee          uint64
 		CustomSecret string
+		Scheme       byte
 	}
 
 	opts := Opts{}
@@ -48,6 +45,7 @@ func transferTransaction() {
 	f.Uint64Var(&opts.Fee, "fee", 100000, "Fee, optional")
 	f.StringVarP(&opts.Recipient, "recipient", "r", "", "Address of recipient")
 	f.StringVarP(&opts.CustomSecret, "secret", "s", "", "Use this secret key instead of wallet, optional")
+	opts.Scheme = byte(*f.Uint8P("scheme", "", 'W', "Network byte scheme"))
 
 	if err := f.Parse(os.Args[1:]); err != nil {
 		fmt.Printf("Parse error: %q", err)
@@ -87,7 +85,7 @@ func transferTransaction() {
 	publicKey := crypto.GeneratePublicKey(secretKey)
 
 	timestamp := client.NewTimestampFromTime(time.Now())
-	transfer := proto.NewUnsignedTransferV1(
+	transfer := proto.NewUnsignedTransferWithSig(
 		publicKey,
 		proto.OptionalAsset{},
 		proto.OptionalAsset{},
@@ -95,10 +93,10 @@ func transferTransaction() {
 		opts.Amount,
 		opts.Fee,
 		proto.NewRecipientFromAddress(address),
-		"",
+		&proto.LegacyAttachment{},
 	)
 
-	err = transfer.Sign(secretKey)
+	err = transfer.Sign(opts.Scheme, secretKey)
 	if err != nil {
 		fmt.Printf("Err: %q", err)
 		os.Exit(2)
@@ -114,32 +112,33 @@ func transferTransaction() {
 }
 
 func getSecretKey(s string, pathToWallet string) (crypto.SecretKey, error) {
-	if s != "" {
-		return crypto.NewSecretKeyFromBase58(s)
-	}
-
-	body, err := ioutil.ReadFile(pathToWallet)
-	if err != nil {
-		fmt.Printf("Err: %s\n", err)
-		return crypto.SecretKey{}, err
-	}
-
-	fmt.Print("Enter password: ")
-	pass, err := gopass.GetPasswd()
-	if err != nil {
-		return crypto.SecretKey{}, errors.New("Interrupt")
-	}
-	wlt, err := wallet.Decode(body, pass)
-	if err != nil {
-		return crypto.SecretKey{}, err
-	}
-
-	secretKey, _, err := wlt.GenPair()
-	if err != nil {
-		return crypto.SecretKey{}, err
-	}
-
-	return secretKey, nil
+	panic("not implemented")
+	//if s != "" {
+	//	return crypto.NewSecretKeyFromBase58(s)
+	//}
+	//
+	//body, err := ioutil.ReadFile(pathToWallet)
+	//if err != nil {
+	//	fmt.Printf("Err: %s\n", err)
+	//	return crypto.SecretKey{}, err
+	//}
+	//
+	//fmt.Print("Enter password: ")
+	//pass, err := gopass.GetPasswd()
+	//if err != nil {
+	//	return crypto.SecretKey{}, errors.New("Interrupt")
+	//}
+	//wlt, err := wallet.Decode(body, pass)
+	//if err != nil {
+	//	return crypto.SecretKey{}, err
+	//}
+	//
+	//secretKey, _, err := wlt.GenPair()
+	//if err != nil {
+	//	return crypto.SecretKey{}, err
+	//}
+	//
+	//return secretKey, nil
 }
 
 func showUsageAndExit() {

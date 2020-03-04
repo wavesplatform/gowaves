@@ -74,12 +74,14 @@ func main() {
 	var wavesNetwork string
 	var cpuprofile string
 	var memprofile string
+	var scheme byte
 	flag.StringVarP(&bind, "bind", "b", "", "Local address listen on")
 	flag.StringVarP(&decl, "decl", "d", "", "Declared Address")
 	flag.StringVarP(&addresses, "addresses", "a", "", "Addresses connect to")
 	flag.StringVarP(&wavesNetwork, "wavesnetwork", "n", "", "Required, waves network, should be wavesW or wavesT or wavesD")
 	flag.StringVarP(&cpuprofile, "cpuprofile", "", "", "write cpu profile to file")
 	flag.StringVarP(&memprofile, "memprofile", "", "", "write memory profile to this file")
+	scheme = byte(*flag.Uint8P("scheme", "", 'W', "network byte scheme"))
 	flag.Parse()
 
 	if cpuprofile != "" {
@@ -122,7 +124,7 @@ func main() {
 
 	spawner := retransmit.NewPeerSpawner(pool, skipUselessMessages, parent, wavesNetwork, declAddr)
 
-	behaviour := retransmit.NewBehaviour(knownPeers, spawner)
+	behaviour := retransmit.NewBehaviour(knownPeers, spawner, scheme)
 
 	r := retransmit.NewRetransmitter(behaviour, parent)
 

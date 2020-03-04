@@ -7,7 +7,16 @@ import (
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated"
 )
 
-func MarshalDeterministic(pb protobuf.Message) ([]byte, error) {
+func Int64ToProtobuf(val int64) ([]byte, error) {
+	buf := &protobuf.Buffer{}
+	buf.SetDeterministic(true)
+	if err := buf.EncodeVarint(uint64(val)); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
+
+func MarshalToProtobufDeterministic(pb protobuf.Message) ([]byte, error) {
 	buf := &protobuf.Buffer{}
 	buf.SetDeterministic(true)
 	if err := buf.Marshal(pb); err != nil {
@@ -21,7 +30,7 @@ func MarshalTxDeterministic(tx Transaction, scheme Scheme) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return MarshalDeterministic(pbTx)
+	return MarshalToProtobufDeterministic(pbTx)
 }
 
 func MarshalSignedTxDeterministic(tx Transaction, scheme Scheme) ([]byte, error) {
@@ -29,7 +38,7 @@ func MarshalSignedTxDeterministic(tx Transaction, scheme Scheme) ([]byte, error)
 	if err != nil {
 		return nil, err
 	}
-	return MarshalDeterministic(pbTx)
+	return MarshalToProtobufDeterministic(pbTx)
 }
 
 func TxFromProtobuf(data []byte) (Transaction, error) {
@@ -174,13 +183,6 @@ func (c *ProtobufConverter) publicKey(pk []byte) crypto.PublicKey {
 	return r
 }
 
-func (c *ProtobufConverter) string(bytes []byte) string {
-	if c.err != nil {
-		return ""
-	}
-	return string(bytes)
-}
-
 func (c *ProtobufConverter) script(script *g.Script) Script {
 	if c.err != nil {
 		return nil
@@ -211,8 +213,8 @@ func (c *ProtobufConverter) Recipient(scheme byte, recipient *g.Recipient) (Reci
 		return Recipient{}, errors.New("empty recipient")
 	}
 	switch r := recipient.Recipient.(type) {
-	case *g.Recipient_Address:
-		addr, err := c.Address(scheme, r.Address)
+	case *g.Recipient_PublicKeyHash:
+		addr, err := c.Address(scheme, r.PublicKeyHash)
 		if err != nil {
 			return Recipient{}, err
 		}
@@ -296,6 +298,13 @@ func (c *ProtobufConverter) extractOrder(orders []*g.Order, side g.Order_Side) O
 				MatcherFee: c.amount(o.MatcherFee),
 			}
 			switch o.Version {
+			case 4:
+				order = &OrderV4{
+					Version:         c.byte(o.Version),
+					Proofs:          c.proofs(o.Proofs),
+					OrderBody:       body,
+					MatcherFeeAsset: c.extractOptionalAsset(o.MatcherFee),
+				}
 			case 3:
 				order = &OrderV3{
 					Version:         c.byte(o.Version),
@@ -315,7 +324,7 @@ func (c *ProtobufConverter) extractOrder(orders []*g.Order, side g.Order_Side) O
 					OrderBody: body,
 				}
 			}
-			if err := order.GenerateID(); err != nil {
+			if err := order.GenerateID(byte(o.ChainId)); err != nil {
 				c.err = err
 			}
 			return order
@@ -358,6 +367,36 @@ func (c *ProtobufConverter) transfers(scheme byte, transfers []*g.MassTransferTr
 		r[i] = e
 	}
 	return r
+}
+
+func (c *ProtobufConverter) attachment(att *g.Attachment, untyped bool) Attachment {
+	if c.err != nil {
+		return nil
+	}
+	if att == nil {
+		c.err = errors.New("empty attachment")
+		return nil
+	}
+	if untyped {
+		binaryAttachment, ok := att.Attachment.(*g.Attachment_BinaryValue)
+		if !ok {
+			c.err = errors.New("trying to convert non-binary attachment as untyped")
+			return nil
+		}
+		return &LegacyAttachment{Value: binaryAttachment.BinaryValue}
+	}
+	switch t := att.Attachment.(type) {
+	case *g.Attachment_IntValue:
+		return &IntAttachment{t.IntValue}
+	case *g.Attachment_BoolValue:
+		return &BoolAttachment{t.BoolValue}
+	case *g.Attachment_BinaryValue:
+		return &BinaryAttachment{t.BinaryValue}
+	case *g.Attachment_StringValue:
+		return &StringAttachment{t.StringValue}
+	}
+	c.err = errors.New("unsupported attachment type")
+	return nil
 }
 
 func (c *ProtobufConverter) entry(entry *g.DataTransactionData_DataEntry) DataEntry {
@@ -562,25 +601,24 @@ func (c *ProtobufConverter) Transaction(tx *g.Transaction) (Transaction, error) 
 	case *g.Transaction_Issue:
 		pi := Issue{
 			SenderPK:    c.publicKey(tx.SenderPublicKey),
-			Name:        c.string(d.Issue.Name),
-			Description: c.string(d.Issue.Description),
+			Name:        d.Issue.Name,
+			Description: d.Issue.Description,
 			Quantity:    c.uint64(d.Issue.Amount),
 			Decimals:    c.byte(d.Issue.Decimals),
 			Reissuable:  d.Issue.Reissuable,
 			Timestamp:   ts,
 			Fee:         c.amount(tx.Fee),
 		}
-		switch tx.Version {
-		case 2:
-			rtx = &IssueV2{
+		if tx.Version >= 2 {
+			rtx = &IssueWithProofs{
 				Type:    IssueTransaction,
 				Version: v,
 				ChainID: scheme,
 				Script:  c.script(d.Issue.Script),
 				Issue:   pi,
 			}
-		default:
-			rtx = &IssueV1{
+		} else {
+			rtx = &IssueWithSig{
 				Type:    IssueTransaction,
 				Version: v,
 				Issue:   pi,
@@ -595,6 +633,12 @@ func (c *ProtobufConverter) Transaction(tx *g.Transaction) (Transaction, error) 
 			c.reset()
 			return nil, err
 		}
+		protobufVersion, ok := ProtobufTransactionsVersions[TransferTransaction]
+		if !ok {
+			c.reset()
+			return nil, errors.New("can not find protobuf version of TransferTransaction")
+		}
+		untyped := v < protobufVersion
 		pt := Transfer{
 			SenderPK:    c.publicKey(tx.SenderPublicKey),
 			AmountAsset: aa,
@@ -603,17 +647,16 @@ func (c *ProtobufConverter) Transaction(tx *g.Transaction) (Transaction, error) 
 			Amount:      amount,
 			Fee:         fee,
 			Recipient:   rcp,
-			Attachment:  Attachment(c.string(d.Transfer.Attachment)),
+			Attachment:  c.attachment(d.Transfer.Attachment, untyped),
 		}
-		switch tx.Version {
-		case 2:
-			rtx = &TransferV2{
+		if tx.Version >= 2 {
+			rtx = &TransferWithProofs{
 				Type:     TransferTransaction,
 				Version:  v,
 				Transfer: pt,
 			}
-		default:
-			rtx = &TransferV1{
+		} else {
+			rtx = &TransferWithSig{
 				Type:     TransferTransaction,
 				Version:  v,
 				Transfer: pt,
@@ -630,16 +673,15 @@ func (c *ProtobufConverter) Transaction(tx *g.Transaction) (Transaction, error) 
 			Timestamp:  ts,
 			Fee:        c.amount(tx.Fee),
 		}
-		switch tx.Version {
-		case 2:
-			rtx = &ReissueV2{
+		if tx.Version >= 2 {
+			rtx = &ReissueWithProofs{
 				Type:    ReissueTransaction,
 				Version: v,
 				ChainID: scheme,
 				Reissue: pr,
 			}
-		default:
-			rtx = &ReissueV1{
+		} else {
+			rtx = &ReissueWithSig{
 				Type:    ReissueTransaction,
 				Version: v,
 				Reissue: pr,
@@ -655,16 +697,15 @@ func (c *ProtobufConverter) Transaction(tx *g.Transaction) (Transaction, error) 
 			Timestamp: ts,
 			Fee:       c.amount(tx.Fee),
 		}
-		switch tx.Version {
-		case 2:
-			rtx = &BurnV2{
+		if tx.Version >= 2 {
+			rtx = &BurnWithProofs{
 				Type:    BurnTransaction,
 				Version: v,
 				ChainID: scheme,
 				Burn:    pb,
 			}
-		default:
-			rtx = &BurnV1{
+		} else {
+			rtx = &BurnWithSig{
 				Type:    BurnTransaction,
 				Version: v,
 				Burn:    pb,
@@ -675,9 +716,8 @@ func (c *ProtobufConverter) Transaction(tx *g.Transaction) (Transaction, error) 
 		fee := c.amount(tx.Fee)
 		bo := c.buyOrder(d.Exchange.Orders)
 		so := c.sellOrder(d.Exchange.Orders)
-		switch tx.Version {
-		case 2:
-			rtx = &ExchangeV2{
+		if tx.Version >= 2 {
+			rtx = &ExchangeWithProofs{
 				Type:           ExchangeTransaction,
 				Version:        v,
 				SenderPK:       c.publicKey(tx.SenderPublicKey),
@@ -690,7 +730,7 @@ func (c *ProtobufConverter) Transaction(tx *g.Transaction) (Transaction, error) 
 				Fee:            fee,
 				Timestamp:      ts,
 			}
-		default:
+		} else {
 			if bo.GetVersion() != 1 || so.GetVersion() != 1 {
 				c.reset()
 				return nil, errors.New("unsupported order version")
@@ -706,7 +746,7 @@ func (c *ProtobufConverter) Transaction(tx *g.Transaction) (Transaction, error) 
 				return nil, errors.New("invalid pointer to OrderV1")
 			}
 
-			rtx = &ExchangeV1{
+			rtx = &ExchangeWithSig{
 				Type:           ExchangeTransaction,
 				Version:        v,
 				SenderPK:       c.publicKey(tx.SenderPublicKey),
@@ -734,15 +774,14 @@ func (c *ProtobufConverter) Transaction(tx *g.Transaction) (Transaction, error) 
 			Fee:       c.amount(tx.Fee),
 			Timestamp: ts,
 		}
-		switch tx.Version {
-		case 2:
-			rtx = &LeaseV2{
+		if tx.Version >= 2 {
+			rtx = &LeaseWithProofs{
 				Type:    LeaseTransaction,
 				Version: v,
 				Lease:   pl,
 			}
-		default:
-			rtx = &LeaseV1{
+		} else {
+			rtx = &LeaseWithSig{
 				Type:    LeaseTransaction,
 				Version: v,
 				Lease:   pl,
@@ -756,16 +795,15 @@ func (c *ProtobufConverter) Transaction(tx *g.Transaction) (Transaction, error) 
 			Fee:       c.amount(tx.Fee),
 			Timestamp: ts,
 		}
-		switch tx.Version {
-		case 2:
-			rtx = &LeaseCancelV2{
+		if tx.Version >= 2 {
+			rtx = &LeaseCancelWithProofs{
 				Type:        LeaseCancelTransaction,
 				Version:     v,
 				ChainID:     scheme,
 				LeaseCancel: plc,
 			}
-		default:
-			rtx = &LeaseCancelV1{
+		} else {
+			rtx = &LeaseCancelWithSig{
 				Type:        LeaseCancelTransaction,
 				Version:     v,
 				LeaseCancel: plc,
@@ -779,15 +817,14 @@ func (c *ProtobufConverter) Transaction(tx *g.Transaction) (Transaction, error) 
 			Fee:       c.amount(tx.Fee),
 			Timestamp: ts,
 		}
-		switch tx.Version {
-		case 2:
-			rtx = &CreateAliasV2{
+		if tx.Version >= 2 {
+			rtx = &CreateAliasWithProofs{
 				Type:        CreateAliasTransaction,
 				Version:     v,
 				CreateAlias: pca,
 			}
-		default:
-			rtx = &CreateAliasV1{
+		} else {
+			rtx = &CreateAliasWithSig{
 				Type:        CreateAliasTransaction,
 				Version:     v,
 				CreateAlias: pca,
@@ -795,7 +832,13 @@ func (c *ProtobufConverter) Transaction(tx *g.Transaction) (Transaction, error) 
 		}
 
 	case *g.Transaction_MassTransfer:
-		rtx = &MassTransferV1{
+		protobufVersion, ok := ProtobufTransactionsVersions[MassTransferTransaction]
+		if !ok {
+			c.reset()
+			return nil, errors.New("can not find protobuf version of MassTransferTransaction")
+		}
+		untyped := v < protobufVersion
+		rtx = &MassTransferWithProofs{
 			Type:       MassTransferTransaction,
 			Version:    v,
 			SenderPK:   c.publicKey(tx.SenderPublicKey),
@@ -803,11 +846,11 @@ func (c *ProtobufConverter) Transaction(tx *g.Transaction) (Transaction, error) 
 			Transfers:  c.transfers(scheme, d.MassTransfer.Transfers),
 			Timestamp:  ts,
 			Fee:        c.amount(tx.Fee),
-			Attachment: Attachment(c.string(d.MassTransfer.Attachment)),
+			Attachment: c.attachment(d.MassTransfer.Attachment, untyped),
 		}
 
 	case *g.Transaction_DataTransaction:
-		rtx = &DataV1{
+		rtx = &DataWithProofs{
 			Type:      DataTransaction,
 			Version:   v,
 			SenderPK:  c.publicKey(tx.SenderPublicKey),
@@ -817,7 +860,7 @@ func (c *ProtobufConverter) Transaction(tx *g.Transaction) (Transaction, error) 
 		}
 
 	case *g.Transaction_SetScript:
-		rtx = &SetScriptV1{
+		rtx = &SetScriptWithProofs{
 			Type:      SetScriptTransaction,
 			Version:   v,
 			ChainID:   scheme,
@@ -829,7 +872,7 @@ func (c *ProtobufConverter) Transaction(tx *g.Transaction) (Transaction, error) 
 
 	case *g.Transaction_SponsorFee:
 		asset, amount := c.convertAssetAmount(d.SponsorFee.MinFee)
-		rtx = &SponsorshipV1{
+		rtx = &SponsorshipWithProofs{
 			Type:        SponsorshipTransaction,
 			Version:     v,
 			SenderPK:    c.publicKey(tx.SenderPublicKey),
@@ -840,7 +883,7 @@ func (c *ProtobufConverter) Transaction(tx *g.Transaction) (Transaction, error) 
 		}
 
 	case *g.Transaction_SetAssetScript:
-		rtx = &SetAssetScriptV1{
+		rtx = &SetAssetScriptWithProofs{
 			Type:      SetAssetScriptTransaction,
 			Version:   v,
 			ChainID:   scheme,
@@ -858,7 +901,7 @@ func (c *ProtobufConverter) Transaction(tx *g.Transaction) (Transaction, error) 
 			return nil, err
 		}
 		feeAsset, feeAmount := c.convertAmount(tx.Fee)
-		rtx = &InvokeScriptV1{
+		rtx = &InvokeScriptWithProofs{
 			Type:            InvokeScriptTransaction,
 			Version:         v,
 			ChainID:         scheme,
@@ -879,7 +922,7 @@ func (c *ProtobufConverter) Transaction(tx *g.Transaction) (Transaction, error) 
 		c.reset()
 		return nil, err
 	}
-	if err := rtx.GenerateID(); err != nil {
+	if err := rtx.GenerateID(scheme); err != nil {
 		return nil, errors.Wrap(err, "failed to generate ID")
 	}
 	return rtx, nil
@@ -927,86 +970,86 @@ func (c *ProtobufConverter) SignedTransaction(stx *g.SignedTransaction) (Transac
 		err := c.err
 		c.reset()
 		return t, err
-	case *IssueV1:
+	case *IssueWithSig:
 		t.Signature = c.extractFirstSignature(proofs)
 		err := c.err
 		c.reset()
 		return t, err
-	case *IssueV2:
+	case *IssueWithProofs:
 		t.Proofs = proofs
 		return t, nil
-	case *TransferV1:
+	case *TransferWithSig:
 		t.Signature = c.extractFirstSignature(proofs)
 		err := c.err
 		c.reset()
 		return t, err
-	case *TransferV2:
+	case *TransferWithProofs:
 		t.Proofs = proofs
 		return t, nil
-	case *ReissueV1:
+	case *ReissueWithSig:
 		t.Signature = c.extractFirstSignature(proofs)
 		err := c.err
 		c.reset()
 		return t, err
-	case *ReissueV2:
+	case *ReissueWithProofs:
 		t.Proofs = proofs
 		return t, nil
-	case *BurnV1:
+	case *BurnWithSig:
 		t.Signature = c.extractFirstSignature(proofs)
 		err := c.err
 		c.reset()
 		return t, err
-	case *BurnV2:
+	case *BurnWithProofs:
 		t.Proofs = proofs
 		return t, nil
-	case *ExchangeV1:
+	case *ExchangeWithSig:
 		t.Signature = c.extractFirstSignature(proofs)
 		err := c.err
 		c.reset()
 		return t, err
-	case *ExchangeV2:
+	case *ExchangeWithProofs:
 		t.Proofs = proofs
 		return t, nil
-	case *LeaseV1:
+	case *LeaseWithSig:
 		t.Signature = c.extractFirstSignature(proofs)
 		err := c.err
 		c.reset()
 		return t, err
-	case *LeaseV2:
+	case *LeaseWithProofs:
 		t.Proofs = proofs
 		return t, nil
-	case *LeaseCancelV1:
+	case *LeaseCancelWithSig:
 		t.Signature = c.extractFirstSignature(proofs)
 		err := c.err
 		c.reset()
 		return t, err
-	case *LeaseCancelV2:
+	case *LeaseCancelWithProofs:
 		t.Proofs = proofs
 		return t, nil
-	case *CreateAliasV1:
+	case *CreateAliasWithSig:
 		t.Signature = c.extractFirstSignature(proofs)
 		err := c.err
 		c.reset()
 		return t, err
-	case *CreateAliasV2:
+	case *CreateAliasWithProofs:
 		t.Proofs = proofs
 		return t, nil
-	case *MassTransferV1:
+	case *MassTransferWithProofs:
 		t.Proofs = proofs
 		return t, nil
-	case *DataV1:
+	case *DataWithProofs:
 		t.Proofs = proofs
 		return t, nil
-	case *SetScriptV1:
+	case *SetScriptWithProofs:
 		t.Proofs = proofs
 		return t, nil
-	case *SponsorshipV1:
+	case *SponsorshipWithProofs:
 		t.Proofs = proofs
 		return t, nil
-	case *SetAssetScriptV1:
+	case *SetAssetScriptWithProofs:
 		t.Proofs = proofs
 		return t, nil
-	case *InvokeScriptV1:
+	case *InvokeScriptWithProofs:
 		t.Proofs = proofs
 		return t, nil
 	default:
@@ -1015,7 +1058,7 @@ func (c *ProtobufConverter) SignedTransaction(stx *g.SignedTransaction) (Transac
 }
 
 func (c *ProtobufConverter) MicroBlock(mb *g.SignedMicroBlock) (MicroBlock, error) {
-	txs, err := c.signedTransactions(mb.MicroBlock.Transactions)
+	txs, err := c.SignedTransactions(mb.MicroBlock.Transactions)
 	if err != nil {
 		return MicroBlock{}, err
 	}
@@ -1024,7 +1067,7 @@ func (c *ProtobufConverter) MicroBlock(mb *g.SignedMicroBlock) (MicroBlock, erro
 		PrevResBlockSigField:  c.signature(mb.MicroBlock.Reference),
 		TotalResBlockSigField: c.signature(mb.MicroBlock.UpdatedBlockSignature),
 		TransactionCount:      uint32(len(mb.MicroBlock.Transactions)),
-		Transactions:          NewReprFromTransactions(txs),
+		Transactions:          txs,
 		SenderPK:              c.publicKey(mb.MicroBlock.SenderPublicKey),
 		Signature:             c.signature(mb.Signature),
 	}
@@ -1045,17 +1088,22 @@ func (c *ProtobufConverter) Block(block *g.Block) (Block, error) {
 	if err != nil {
 		return Block{}, err
 	}
+	if header.Version < NgBlockVersion {
+		header.TransactionBlockLength = uint32(Transactions(txs).BinarySize() + 1)
+	} else if header.Version <= RewardBlockVersion {
+		header.TransactionBlockLength = uint32(Transactions(txs).BinarySize() + 4)
+	}
 	return Block{
 		BlockHeader:  header,
-		Transactions: NewReprFromTransactions(txs),
+		Transactions: txs,
 	}, nil
 }
 
 func (c *ProtobufConverter) BlockTransactions(block *g.Block) ([]Transaction, error) {
-	return c.signedTransactions(block.Transactions)
+	return c.SignedTransactions(block.Transactions)
 }
 
-func (c *ProtobufConverter) signedTransactions(txs []*g.SignedTransaction) ([]Transaction, error) {
+func (c *ProtobufConverter) SignedTransactions(txs []*g.SignedTransaction) ([]Transaction, error) {
 	res := make([]Transaction, len(txs))
 	for i, stx := range txs {
 		tx, err := c.SignedTransaction(stx)
@@ -1087,17 +1135,24 @@ func (c *ProtobufConverter) consensus(header *g.Block_Header) NxtConsensus {
 
 func (c *ProtobufConverter) BlockHeader(block *g.Block) (BlockHeader, error) {
 	features := c.features(block.Header.FeatureVotes)
+	consensus := c.consensus(block.Header)
 	header := BlockHeader{
-		Version:          BlockVersion(c.byte(block.Header.Version)),
-		Timestamp:        c.uint64(block.Header.Timestamp),
-		Parent:           c.signature(block.Header.Reference),
-		FeaturesCount:    len(features),
-		Features:         features,
-		RewardVote:       block.Header.RewardVote,
-		NxtConsensus:     c.consensus(block.Header),
-		TransactionCount: len(block.Transactions),
-		GenPublicKey:     c.publicKey(block.Header.Generator),
-		BlockSignature:   c.signature(block.Signature),
+		Version:              BlockVersion(c.byte(block.Header.Version)),
+		Timestamp:            c.uint64(block.Header.Timestamp),
+		Parent:               c.signature(block.Header.Reference),
+		FeaturesCount:        len(features),
+		Features:             features,
+		RewardVote:           block.Header.RewardVote,
+		ConsensusBlockLength: uint32(consensus.BinarySize()),
+		NxtConsensus:         consensus,
+		TransactionCount:     len(block.Transactions),
+		GenPublicKey:         c.publicKey(block.Header.Generator),
+		BlockSignature:       c.signature(block.Signature),
+		TransactionsRoot:     block.Header.TransactionsRoot,
+	}
+	if header.Version < NgBlockVersion {
+		// For compatibility with custom format unmarshal.
+		header.Features = nil
 	}
 	if c.err != nil {
 		err := c.err

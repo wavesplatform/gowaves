@@ -28,9 +28,9 @@ func (fl *txFilterLeases) filterLease(tx proto.Transaction, id crypto.Digest) bo
 
 func (fl *txFilterLeases) filter(tx proto.Transaction) bool {
 	switch t := tx.(type) {
-	case *proto.LeaseV1:
+	case *proto.LeaseWithSig:
 		return fl.filterLease(t, *t.ID)
-	case *proto.LeaseV2:
+	case *proto.LeaseWithProofs:
 		return fl.filterLease(t, *t.ID)
 	default:
 		return false

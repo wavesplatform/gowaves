@@ -6,9 +6,9 @@ import (
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/miner/scheduler"
-	"github.com/wavesplatform/gowaves/pkg/miner/utxpool"
 	"github.com/wavesplatform/gowaves/pkg/node/peer_manager"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/services"
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"github.com/wavesplatform/gowaves/pkg/types"
 )
@@ -18,27 +18,31 @@ type SchedulerEmits interface {
 }
 
 type App struct {
-	hashedApiKey crypto.Digest
-	scheduler    SchedulerEmits
-	utx          types.UtxPool
-	state        state.State
-	peers        peer_manager.PeerManager
-	sync         types.StateSync
+	hashedApiKey  crypto.Digest
+	apiKeyEnabled bool
+	scheduler     SchedulerEmits
+	utx           types.UtxPool
+	state         state.State
+	peers         peer_manager.PeerManager
+	sync          types.StateSync
+	services      services.Services
 }
 
-func NewApp(apiKey string, state state.State, peers peer_manager.PeerManager, scheduler SchedulerEmits, utx *utxpool.UtxImpl, sync types.StateSync) (*App, error) {
+func NewApp(apiKey string, scheduler SchedulerEmits, sync types.StateSync, services services.Services) (*App, error) {
 	digest, err := crypto.SecureHash([]byte(apiKey))
 	if err != nil {
 		return nil, err
 	}
 
 	return &App{
-		hashedApiKey: digest,
-		state:        state,
-		scheduler:    scheduler,
-		utx:          utx,
-		peers:        peers,
-		sync:         sync,
+		hashedApiKey:  digest,
+		apiKeyEnabled: len(apiKey) > 0,
+		state:         services.State,
+		scheduler:     scheduler,
+		utx:           services.UtxPool,
+		peers:         services.Peers,
+		sync:          sync,
+		services:      services,
 	}, nil
 }
 
@@ -63,19 +67,19 @@ func (a *App) TransactionsBroadcast(b []byte) error {
 	if err != nil {
 		return &BadRequestError{err}
 	}
-	a.utx.AddWithBytes(realType, bts)
-	return nil
+	return a.utx.AddWithBytes(realType, bts)
 }
 
 func (a *App) checkAuth(key string) error {
+	if !a.apiKeyEnabled {
+		return &AuthError{errors.New("api key disabled")}
+	}
 	d, err := crypto.SecureHash([]byte(key))
 	if err != nil {
 		return &AuthError{err}
 	}
-
 	if d != a.hashedApiKey {
 		return &AuthError{errors.New("invalid api key")}
 	}
-
 	return nil
 }

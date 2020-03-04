@@ -17,11 +17,11 @@ import (
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
-	"github.com/wavesplatform/gowaves/pkg/libs/ntptime"
-	"github.com/wavesplatform/gowaves/pkg/miner/scheduler"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/state"
+	"github.com/wavesplatform/gowaves/pkg/types"
+	"github.com/wavesplatform/gowaves/pkg/wallet"
 	"google.golang.org/grpc"
 )
 
@@ -49,11 +49,11 @@ func globalPathFromLocal(path string) (string, error) {
 	return filepath.Join(dir, path), nil
 }
 
-func signBlock(t *testing.T, block *proto.Block) {
+func signBlock(t *testing.T, block *proto.Block, scheme proto.Scheme) {
 	pk := crypto.MustPublicKeyFromBase58(minerPkStr)
 	block.GenPublicKey = pk
 	sk := crypto.MustSecretKeyFromBase58(minerSkStr)
-	err := block.Sign(sk)
+	err := block.Sign(scheme, sk)
 	assert.NoError(t, err)
 }
 
@@ -66,8 +66,8 @@ func customSettingsWithGenesis(t *testing.T, genesisPath string) *settings.Block
 	assert.NoError(t, err)
 	err = genesisFile.Close()
 	assert.NoError(t, err)
-	signBlock(t, genesis)
 	sets := settings.DefaultCustomSettings
+	signBlock(t, genesis, sets.AddressSchemeCharacter)
 	sets.Genesis = *genesis
 	// For compatibility with MainNet addresses we use the same AddressSchemeCharacter.
 	// This is needed because transactions from MainNet blockchain are used in tests' genesis blocks.
@@ -92,10 +92,11 @@ func stateWithCustomGenesis(t *testing.T, genesisPath string) (state.State, func
 	}
 }
 
-func createScheduler(ctx context.Context, st state.State, settings *settings.BlockchainSettings) *scheduler.SchedulerImpl {
-	ntptm := ntptime.New("0.ru.pool.ntp.org")
-	go ntptm.Run(ctx, 2*time.Minute)
-	return scheduler.NewScheduler(st, keyPairs, settings, ntptm)
+func createWallet(ctx context.Context, st state.State, settings *settings.BlockchainSettings) types.EmbeddedWallet {
+	w := wallet.NewWallet()
+	decoded, _ := base58.Decode(seed)
+	_ = w.AddSeed(decoded)
+	return wallet.NewEmbeddedWallet(nil, w, proto.MainNetScheme)
 }
 
 func connect(t *testing.T, addr string) *grpc.ClientConn {

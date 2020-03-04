@@ -137,13 +137,11 @@ func TestAddrTransactionsIdempotent(t *testing.T) {
 	addr, err := proto.NewAddressFromString(testAddr)
 	assert.NoError(t, err)
 	tx := createPayment(t)
-	txBytes, err := tx.MarshalBinary()
-	assert.NoError(t, err)
-	txID, err := tx.GetID()
+	txID, err := tx.GetID(proto.MainNetScheme)
 	assert.NoError(t, err)
 	// Save the same transaction ID twice.
 	// Then make sure it was added to batchedStor only once.
-	err = stor.rw.writeTransaction(txID, txBytes)
+	err = stor.rw.writeTransaction(tx)
 	assert.NoError(t, err)
 	stor.addBlock(t, blockID0)
 	err = atx.saveTxIdByAddress(addr, txID, blockID0, true)

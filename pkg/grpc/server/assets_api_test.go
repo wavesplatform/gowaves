@@ -8,7 +8,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated"
-	"github.com/wavesplatform/gowaves/pkg/miner/utxpool"
 )
 
 func TestGetInfo(t *testing.T) {
@@ -18,8 +17,8 @@ func TestGetInfo(t *testing.T) {
 	sets, err := st.BlockchainSettings()
 	assert.NoError(t, err)
 	ctx, cancel := context.WithCancel(context.Background())
-	sch := createScheduler(ctx, st, sets)
-	err = server.initServer(st, utxpool.New(utxSize), sch)
+	sch := createWallet(ctx, st, sets)
+	err = server.initServer(st, nil, sch)
 	assert.NoError(t, err)
 
 	conn := connect(t, grpcTestAddr)

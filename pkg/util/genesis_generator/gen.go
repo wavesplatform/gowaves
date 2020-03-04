@@ -6,9 +6,9 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
-func Genesis(timestamp proto.Timestamp, transactions proto.Transactions) (*proto.Block, error) {
+func Genesis(timestamp proto.Timestamp, transactions proto.Transactions, scheme proto.Scheme) (*proto.Block, error) {
 	block, err := proto.CreateBlock(
-		proto.NewReprFromTransactions(transactions),
+		transactions,
 		timestamp,
 		crypto.MustSignatureFromBase58("67rpwLCuS5DGA8KGZXKsVQ7dnPb9goRLoKfgGbLfQg9WoLUgNY77E2jT11fem3coV9nAkguBACzrU1iyZM4B8roQ"),
 		crypto.PublicKey{},
@@ -26,7 +26,7 @@ func Genesis(timestamp proto.Timestamp, transactions proto.Transactions) (*proto
 	}
 
 	kp := proto.MustKeyPair([]byte{})
-	err = block.Sign(kp.Secret)
+	err = block.Sign(scheme, kp.Secret)
 	if err != nil {
 		return nil, err
 	}
@@ -46,12 +46,12 @@ func Generate(timestamp proto.Timestamp, schema byte, v ...interface{}) (*proto.
 			return nil, err
 		}
 		t := proto.NewUnsignedGenesis(addr, uint64(v[i+1].(int)), timestamp)
-		err = t.GenerateSigID()
+		err = t.GenerateSigID(schema)
 		if err != nil {
 			panic(err.Error())
 		}
 		transactions = append(transactions, t)
 	}
 
-	return Genesis(timestamp, transactions)
+	return Genesis(timestamp, transactions, schema)
 }

@@ -13,7 +13,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated"
-	"github.com/wavesplatform/gowaves/pkg/miner/utxpool"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/state"
@@ -22,7 +21,7 @@ import (
 func headerFromState(t *testing.T, height proto.Height, st state.StateInfo) *g.BlockWithHeight {
 	header, err := st.HeaderByHeight(height)
 	assert.NoError(t, err)
-	headerProto, err := header.HeaderToProtobuf(proto.MainNetScheme, height)
+	headerProto, err := header.HeaderToProtobufWithHeight(proto.MainNetScheme, height)
 	assert.NoError(t, err)
 	return headerProto
 }
@@ -30,7 +29,7 @@ func headerFromState(t *testing.T, height proto.Height, st state.StateInfo) *g.B
 func blockFromState(t *testing.T, height proto.Height, st state.StateInfo) *g.BlockWithHeight {
 	block, err := st.BlockByHeight(height)
 	assert.NoError(t, err)
-	blockProto, err := block.ToProtobuf(proto.MainNetScheme, height)
+	blockProto, err := block.ToProtobufWithHeight(proto.MainNetScheme, height)
 	assert.NoError(t, err)
 	return blockProto
 }
@@ -42,8 +41,8 @@ func TestGetBlock(t *testing.T) {
 	st, err := state.NewState(dataDir, params, settings.MainNetSettings)
 	assert.NoError(t, err)
 	ctx, cancel := context.WithCancel(context.Background())
-	sch := createScheduler(ctx, st, settings.MainNetSettings)
-	err = server.initServer(st, utxpool.New(utxSize), sch)
+	sch := createWallet(ctx, st, settings.MainNetSettings)
+	err = server.initServer(st, nil, sch)
 	assert.NoError(t, err)
 
 	conn := connect(t, grpcTestAddr)
@@ -112,8 +111,8 @@ func TestGetBlockRange(t *testing.T) {
 	st, err := state.NewState(dataDir, params, settings.MainNetSettings)
 	assert.NoError(t, err)
 	ctx, cancel := context.WithCancel(context.Background())
-	sch := createScheduler(ctx, st, settings.MainNetSettings)
-	err = server.initServer(st, utxpool.New(utxSize), sch)
+	sch := createWallet(ctx, st, settings.MainNetSettings)
+	err = server.initServer(st, nil, sch)
 	assert.NoError(t, err)
 
 	conn := connect(t, grpcTestAddr)
@@ -193,8 +192,8 @@ func TestGetCurrentHeight(t *testing.T) {
 	st, err := state.NewState(dataDir, params, settings.MainNetSettings)
 	assert.NoError(t, err)
 	ctx, cancel := context.WithCancel(context.Background())
-	sch := createScheduler(ctx, st, settings.MainNetSettings)
-	err = server.initServer(st, utxpool.New(utxSize), sch)
+	sch := createWallet(ctx, st, settings.MainNetSettings)
+	err = server.initServer(st, nil, sch)
 	assert.NoError(t, err)
 
 	conn := connect(t, grpcTestAddr)

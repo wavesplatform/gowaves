@@ -220,7 +220,7 @@ func createStorageObjects() (*testStorageObjects, []string, error) {
 	if err != nil {
 		return nil, res, err
 	}
-	rw, err := newBlockReadWriter(rwDir, 8, 8, db, dbBatch)
+	rw, err := newBlockReadWriter(rwDir, 8, 8, db, dbBatch, proto.MainNetScheme)
 	if err != nil {
 		return nil, res, err
 	}

@@ -1,7 +1,6 @@
 package scheduler
 
 import (
-	"bytes"
 	"sync"
 	"time"
 
@@ -13,6 +12,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"github.com/wavesplatform/gowaves/pkg/types"
 	"github.com/wavesplatform/gowaves/pkg/util/cancellable"
+	"github.com/wavesplatform/gowaves/pkg/wallet"
 	"go.uber.org/zap"
 )
 
@@ -25,15 +25,17 @@ type Emit struct {
 }
 
 type SchedulerImpl struct {
-	keyPairs []proto.KeyPair
-	mine     chan Emit
-	cancel   []func()
-	settings *settings.BlockchainSettings
-	mu       sync.Mutex
-	internal internal
-	emits    []Emit
-	state    state.State
-	tm       types.Time
+	seeder     seeder
+	mine       chan Emit
+	cancel     []func()
+	settings   *settings.BlockchainSettings
+	mu         sync.Mutex
+	internal   internal
+	emits      []Emit
+	state      state.State
+	tm         types.Time
+	consensus  types.MinerConsensus
+	minerDelay proto.Timestamp
 }
 
 type internal interface {
@@ -54,15 +56,18 @@ func (a internalImpl) schedule(state state.State, keyPairs []proto.KeyPair, sche
 		greatGrandParentTimestamp = greatGrandParent.Timestamp
 	}
 
-	locked := state.Mutex().RLock()
-	fairPosActivated, err := state.IsActivated(int16(settings.FairPoS))
-	if err != nil {
-		locked.Unlock()
-		zap.S().Error(err)
-		return nil
-	}
-	vrfActivated, err := state.IsActivated(int16(settings.BlockV5))
-	locked.Unlock()
+	fairPosActivated, vrfActivated, err := func() (bool, bool, error) {
+		defer state.Mutex().RLock().Unlock()
+		fairPosActivated, err := state.IsActiveAtHeight(int16(settings.FairPoS), confirmedBlockHeight)
+		if err != nil {
+			return false, false, errors.Wrap(err, "failed get fairPosActivated")
+		}
+		vrfActivated, err := state.IsActivated(int16(settings.BlockV5))
+		if err != nil {
+			return false, false, errors.Wrap(err, "failed get vrfActivated")
+		}
+		return fairPosActivated, vrfActivated, nil
+	}()
 	if err != nil {
 		zap.S().Error(err)
 		return nil
@@ -72,20 +77,33 @@ func (a internalImpl) schedule(state state.State, keyPairs []proto.KeyPair, sche
 	if fairPosActivated {
 		pos = &consensus.FairPosCalculator{}
 	}
+
 	var gsp consensus.GenerationSignatureProvider = &consensus.NXTGenerationSignatureProvider{}
 	if vrfActivated {
 		gsp = &consensus.VRFGenerationSignatureProvider{}
 	}
+	hitSourceHeader, err := state.HeaderByHeight(pos.HeightForHit(confirmedBlockHeight))
+	if err != nil {
+		zap.S().Error(err)
+		return nil
+	}
 
-	zap.S().Infof("Scheduler: confirmedBlock sig %s, gensig: %s, confirmedHeight: %d", confirmedBlock.BlockSignature, confirmedBlock.GenSignature, confirmedBlockHeight)
+	zap.S().Infof("Scheduler: confirmedBlock: sig %s, gensig: %s, confirmedHeight: %d", confirmedBlock.BlockSignature, confirmedBlock.GenSignature, confirmedBlockHeight)
 
 	var out []Emit
 	for _, keyPair := range keyPairs {
 		var key [crypto.KeySize]byte = keyPair.Public
+		genSigBlock := confirmedBlock.BlockHeader
 		if vrfActivated {
 			key = keyPair.Secret
+			genSigBlock = *hitSourceHeader
 		}
-		genSig, source, err := gsp.GenerationSignatureAndHitSource(key, confirmedBlock.GenSignature)
+		genSig, err := gsp.GenerationSignature(key, genSigBlock.GenSignature)
+		if err != nil {
+			zap.S().Error(err)
+			continue
+		}
+		source, err := gsp.HitSource(key, hitSourceHeader.GenSignature)
 		if err != nil {
 			zap.S().Error(err)
 			continue
@@ -96,13 +114,12 @@ func (a internalImpl) schedule(state state.State, keyPairs []proto.KeyPair, sche
 			continue
 		}
 
-		locked = state.Mutex().RLock()
 		addr, err := keyPair.Addr(schema)
 		if err != nil {
-			locked.Unlock()
 			zap.S().Error(err)
 			continue
 		}
+		locked := state.Mutex().RLock()
 		effectiveBalance, err := state.EffectiveBalanceStable(proto.NewRecipientFromAddress(addr), confirmedBlockHeight-1000, confirmedBlockHeight)
 		locked.Unlock()
 		if err != nil {
@@ -123,7 +140,7 @@ func (a internalImpl) schedule(state state.State, keyPairs []proto.KeyPair, sche
 		}
 
 		out = append(out, Emit{
-			Timestamp:            confirmedBlock.Timestamp + delay,
+			Timestamp:            confirmedBlock.Timestamp + delay + 10,
 			KeyPair:              keyPair,
 			GenSignature:         genSig,
 			BaseTarget:           baseTarget,
@@ -133,19 +150,28 @@ func (a internalImpl) schedule(state state.State, keyPairs []proto.KeyPair, sche
 	return out
 }
 
-func NewScheduler(state state.State, pairs []proto.KeyPair, settings *settings.BlockchainSettings, tm types.Time) *SchedulerImpl {
-	return newScheduler(internalImpl{}, state, pairs, settings, tm)
+type seeder interface {
+	Seeds() [][]byte
 }
 
-func newScheduler(internal internal, state state.State, pairs []proto.KeyPair, settings *settings.BlockchainSettings, tm types.Time) *SchedulerImpl {
+func NewScheduler(state state.State, seeder seeder, settings *settings.BlockchainSettings, tm types.Time, consensus types.MinerConsensus, minerDelay proto.Timestamp) *SchedulerImpl {
+	return newScheduler(internalImpl{}, state, seeder, settings, tm, consensus, minerDelay)
+}
+
+func newScheduler(internal internal, state state.State, seeder seeder, settings *settings.BlockchainSettings, tm types.Time, consensus types.MinerConsensus, minerDelay proto.Timestamp) *SchedulerImpl {
+	if seeder == nil {
+		seeder = wallet.NewWallet()
+	}
 	return &SchedulerImpl{
-		keyPairs: pairs,
-		mine:     make(chan Emit, 1),
-		settings: settings,
-		internal: internal,
-		state:    state,
-		mu:       sync.Mutex{},
-		tm:       tm,
+		seeder:     seeder,
+		mine:       make(chan Emit, 1),
+		settings:   settings,
+		internal:   internal,
+		state:      state,
+		mu:         sync.Mutex{},
+		tm:         tm,
+		consensus:  consensus,
+		minerDelay: minerDelay,
 	}
 }
 
@@ -154,22 +180,31 @@ func (a *SchedulerImpl) Mine() chan Emit {
 }
 
 func (a *SchedulerImpl) Reschedule() {
-	if len(a.keyPairs) == 0 {
+	if len(a.seeder.Seeds()) == 0 {
 		return
 	}
-	state := a.state
 
-	mu := state.Mutex()
+	if !a.consensus.IsMiningAllowed() {
+		return
+	}
+
+	currentTimestamp := proto.NewTimestampFromTime(a.tm.Now())
+	lastKnownBlock := a.state.TopBlock()
+	if currentTimestamp-lastKnownBlock.Timestamp > a.minerDelay {
+		return
+	}
+
+	mu := a.state.Mutex()
 	locked := mu.RLock()
 
-	h, err := state.Height()
+	h, err := a.state.Height()
 	if err != nil {
 		zap.S().Error(err)
 		locked.Unlock()
 		return
 	}
 
-	block, err := state.BlockByHeight(h)
+	block, err := a.state.BlockByHeight(h)
 	if err != nil {
 		zap.S().Error(err)
 		locked.Unlock()
@@ -177,11 +212,11 @@ func (a *SchedulerImpl) Reschedule() {
 	}
 	locked.Unlock()
 
-	a.reschedule(state, block, h)
+	a.reschedule(a.state, block, h)
 }
 
 func (a *SchedulerImpl) reschedule(state state.State, confirmedBlock *proto.Block, confirmedBlockHeight uint64) {
-	if len(a.keyPairs) == 0 {
+	if len(a.seeder.Seeds()) == 0 {
 		return
 	}
 	a.mu.Lock()
@@ -193,15 +228,15 @@ func (a *SchedulerImpl) reschedule(state state.State, confirmedBlock *proto.Bloc
 	}
 	a.cancel = nil
 
-	emits := a.internal.schedule(state, a.keyPairs, a.settings.AddressSchemeCharacter, a.settings.AverageBlockDelaySeconds, confirmedBlock, confirmedBlockHeight)
-	a.emits = emits
-
-	tm, err := a.tm.Now()
+	keyPairs, err := makeKeyPairs(a.seeder.Seeds())
 	if err != nil {
-		zap.S().Debug("failed to get ntp time")
+		zap.S().Error(err)
 		return
 	}
-	now := proto.NewTimestampFromTime(tm)
+
+	emits := a.internal.schedule(state, keyPairs, a.settings.AddressSchemeCharacter, a.settings.AverageBlockDelaySeconds, confirmedBlock, confirmedBlockHeight)
+	a.emits = emits
+	now := proto.NewTimestampFromTime(a.tm.Now())
 	for _, emit := range emits {
 		if emit.Timestamp > now { // timestamp in future
 			timeout := emit.Timestamp - now
@@ -226,22 +261,20 @@ func (a *SchedulerImpl) reschedule(state state.State, confirmedBlock *proto.Bloc
 	}
 }
 
-// TODO: this function should be moved to wallet module, as well as keyPairs.
-// Private keys should only be accessible from wallet module.
-// All the other modules that need them, e.g. miner, api should call wallet's methods
-// to sign what is needed.
-// For now let's keep keys *only* in Scheduler.
-func (a *SchedulerImpl) SignTransactionWith(pk crypto.PublicKey, tx proto.Transaction) error {
-	for _, kp := range a.keyPairs {
-		if bytes.Equal(kp.Public.Bytes(), pk.Bytes()) {
-			return tx.Sign(kp.Secret)
-		}
-	}
-	return errors.New("public key not found")
-}
-
 func (a *SchedulerImpl) Emits() []Emit {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	return a.emits
+}
+
+func makeKeyPairs(seeds [][]byte) ([]proto.KeyPair, error) {
+	var out []proto.KeyPair
+	for _, bts := range seeds {
+		kp, err := proto.NewKeyPair(bts)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, kp)
+	}
+	return out, nil
 }

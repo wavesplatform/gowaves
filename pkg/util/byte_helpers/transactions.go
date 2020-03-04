@@ -28,211 +28,211 @@ type PaymentStruct struct {
 
 var Payment PaymentStruct
 
-type ReissueV1Struct struct {
+type ReissueWithSigStruct struct {
 	TransactionBytes []byte
-	Transaction      *proto.ReissueV1
+	Transaction      *proto.ReissueWithSig
 	MessageBytes     []byte
 }
 
-var ReissueV1 ReissueV1Struct
+var ReissueWithSig ReissueWithSigStruct
 
-type ReissueV2Struct struct {
+type ReissueWithProofsStruct struct {
 	TransactionBytes []byte
-	Transaction      *proto.ReissueV2
+	Transaction      *proto.ReissueWithProofs
 	MessageBytes     []byte
 }
 
-var ReissueV2 ReissueV2Struct
+var ReissueWithProofs ReissueWithProofsStruct
 
-type TransferV1Struct struct {
+type TransferWithSigStruct struct {
 	TransactionBytes []byte
-	Transaction      *proto.TransferV1
+	Transaction      *proto.TransferWithSig
 	MessageBytes     []byte
 }
 
-var TransferV1 TransferV1Struct
+var TransferWithSig TransferWithSigStruct
 
-type BurnV1Struct struct {
+type BurnWithSigStruct struct {
 	TransactionBytes []byte
-	Transaction      *proto.BurnV1
+	Transaction      *proto.BurnWithSig
 	MessageBytes     []byte
 }
 
-var BurnV1 BurnV1Struct
+var BurnWithSig BurnWithSigStruct
 
-type BurnV2Struct struct {
+type BurnWithProofsStruct struct {
 	TransactionBytes []byte
-	Transaction      *proto.BurnV2
+	Transaction      *proto.BurnWithProofs
 	MessageBytes     []byte
 }
 
-var BurnV2 BurnV2Struct
+var BurnWithProofs BurnWithProofsStruct
 
-type TransferV2Struct struct {
+type TransferWithProofsStruct struct {
 	TransactionBytes []byte
-	Transaction      *proto.TransferV2
+	Transaction      *proto.TransferWithProofs
 	MessageBytes     []byte
 }
 
-var TransferV2 TransferV2Struct
+var TransferWithProofs TransferWithProofsStruct
 
-type IssueV1Struct struct {
+type IssueWithSigStruct struct {
 	TransactionBytes []byte
-	Transaction      *proto.IssueV1
+	Transaction      *proto.IssueWithSig
 	MessageBytes     []byte
 }
 
-var IssueV1 IssueV1Struct
+var IssueWithSig IssueWithSigStruct
 
-type IssueV2Struct struct {
+type IssueWithProofsStruct struct {
 	TransactionBytes []byte
-	Transaction      *proto.IssueV2
+	Transaction      *proto.IssueWithProofs
 	MessageBytes     []byte
 }
 
-var IssueV2 IssueV2Struct
+var IssueWithProofs IssueWithProofsStruct
 
-type MassTransferV1Struct struct {
+type MassTransferWithProofsStruct struct {
 	TransactionBytes []byte
-	Transaction      *proto.MassTransferV1
+	Transaction      *proto.MassTransferWithProofs
 	MessageBytes     []byte
 }
 
-var MassTransferV1 MassTransferV1Struct
+var MassTransferWithProofs MassTransferWithProofsStruct
 
-type ExchangeV1Struct struct {
+type ExchangeWithSigStruct struct {
 	TransactionBytes []byte
-	Transaction      *proto.ExchangeV1
+	Transaction      *proto.ExchangeWithSig
 	MessageBytes     []byte
 }
 
-var ExchangeV1 ExchangeV1Struct
+var ExchangeWithSig ExchangeWithSigStruct
 
-type ExchangeV2Struct struct {
+type ExchangeWithProofsStruct struct {
 	TransactionBytes []byte
-	Transaction      *proto.ExchangeV2
+	Transaction      *proto.ExchangeWithProofs
 	MessageBytes     []byte
 }
 
-var ExchangeV2 ExchangeV2Struct
+var ExchangeWithProofs ExchangeWithProofsStruct
 
-type SetAssetScriptV1Struct struct {
+type SetAssetScriptWithProofsStruct struct {
 	TransactionBytes []byte
-	Transaction      *proto.SetAssetScriptV1
+	Transaction      *proto.SetAssetScriptWithProofs
 	MessageBytes     []byte
 }
 
-var SetAssetScriptV1 SetAssetScriptV1Struct
+var SetAssetScriptWithProofs SetAssetScriptWithProofsStruct
 
-type InvokeScriptV1Struct struct {
+type InvokeScriptWithProofsStruct struct {
 	TransactionBytes []byte
-	Transaction      *proto.InvokeScriptV1
+	Transaction      *proto.InvokeScriptWithProofs
 	MessageBytes     []byte
 }
 
-var InvokeScriptV1 InvokeScriptV1Struct
+var InvokeScriptWithProofs InvokeScriptWithProofsStruct
 
-type LeaseV1Struct struct {
+type LeaseWithSigStruct struct {
 	TransactionBytes []byte
-	Transaction      *proto.LeaseV1
+	Transaction      *proto.LeaseWithSig
 	MessageBytes     []byte
 }
 
-var LeaseV1 LeaseV1Struct
+var LeaseWithSig LeaseWithSigStruct
 
-type LeaseV2Struct struct {
+type LeaseWithProofsStruct struct {
 	TransactionBytes []byte
-	Transaction      *proto.LeaseV2
+	Transaction      *proto.LeaseWithProofs
 	MessageBytes     []byte
 }
 
-var LeaseV2 LeaseV2Struct
+var LeaseWithProofs LeaseWithProofsStruct
 
-type LeaseCancelV1Struct struct {
+type LeaseCancelWithSigStruct struct {
 	TransactionBytes []byte
-	Transaction      *proto.LeaseCancelV1
+	Transaction      *proto.LeaseCancelWithSig
 	MessageBytes     []byte
 }
 
-var LeaseCancelV1 LeaseCancelV1Struct
+var LeaseCancelWithSig LeaseCancelWithSigStruct
 
-type LeaseCancelV2Struct struct {
+type LeaseCancelWithProofsStruct struct {
 	TransactionBytes []byte
-	Transaction      *proto.LeaseCancelV2
+	Transaction      *proto.LeaseCancelWithProofs
 	MessageBytes     []byte
 }
 
-var LeaseCancelV2 LeaseCancelV2Struct
+var LeaseCancelWithProofs LeaseCancelWithProofsStruct
 
-type DataV1Struct struct {
+type DataWithProofsStruct struct {
 	TransactionBytes []byte
-	Transaction      *proto.DataV1
+	Transaction      *proto.DataWithProofs
 	MessageBytes     []byte
 }
 
-var DataV1 DataV1Struct
+var DataWithProofs DataWithProofsStruct
 
-type SponsorshipV1Struct struct {
+type SponsorshipWithProofsStruct struct {
 	TransactionBytes []byte
-	Transaction      *proto.SponsorshipV1
+	Transaction      *proto.SponsorshipWithProofs
 	MessageBytes     []byte
 }
 
-var SponsorshipV1 SponsorshipV1Struct
+var SponsorshipWithProofs SponsorshipWithProofsStruct
 
-type CreateAliasV1Struct struct {
+type CreateAliasWithSigStruct struct {
 	TransactionBytes []byte
-	Transaction      *proto.CreateAliasV1
+	Transaction      *proto.CreateAliasWithSig
 	MessageBytes     []byte
 }
 
-var CreateAliasV1 CreateAliasV1Struct
+var CreateAliasWithSig CreateAliasWithSigStruct
 
-type CreateAliasV2Struct struct {
+type CreateAliasWithProofsStruct struct {
 	TransactionBytes []byte
-	Transaction      *proto.CreateAliasV2
+	Transaction      *proto.CreateAliasWithProofs
 	MessageBytes     []byte
 }
 
-var CreateAliasV2 CreateAliasV2Struct
+var CreateAliasWithProofs CreateAliasWithProofsStruct
 
 var sk, pk, _ = crypto.GenerateKeyPair([]byte("test"))
 
 func init() {
 	initGenesis()
 	initPayment()
-	initTransferV1()
-	initTransferV2()
-	initIssueV1()
-	initIssueV2()
-	initReissueV1()
-	initReissueV2()
-	initBurnV1()
-	initBurnV2()
-	initMassTransferV1()
-	initExchangeV1()
-	initExchangeV2()
-	initSetAssetScriptV1()
-	initInvokeScriptV1()
-	initLeaseV1()
-	initLeaseV2()
-	initLeaseCancelV1()
-	initLeaseCancelV2()
-	initDataV1()
-	initSponsorshipV1()
-	initCreateAliasV1()
-	initCreateAliasV2()
+	initTransferWithSig()
+	initTransferWithProofs()
+	initIssueWithSig()
+	initIssueWithProofs()
+	initReissueWithSig()
+	initReissueWithProofs()
+	initBurnWithSig()
+	initBurnWithProofs()
+	initMassTransferWithProofs()
+	initExchangeWithSig()
+	initExchangeWithProofs()
+	initSetAssetScriptWithProofs()
+	initInvokeScriptWithProofs()
+	initLeaseWithSig()
+	initLeaseWithProofs()
+	initLeaseCancelWithSig()
+	initLeaseCancelWithProofs()
+	initDataWithProofs()
+	initSponsorshipWithProofs()
+	initCreateAliasWithSig()
+	initCreateAliasWithProofs()
 }
 
-func initTransferV1() {
-	t := util.NewTransferV1Builder().MustBuild()
+func initTransferWithSig() {
+	t := util.NewTransferWithSigBuilder().MustBuild()
 	b, _ := t.MarshalBinary()
 	tm := proto.TransactionMessage{
 		Transaction: b,
 	}
 	tmb, _ := tm.MarshalBinary()
 
-	TransferV1 = TransferV1Struct{
+	TransferWithSig = TransferWithSigStruct{
 		TransactionBytes: b,
 		Transaction:      t,
 		MessageBytes:     tmb,
@@ -242,13 +242,14 @@ func initTransferV1() {
 var _, publicKey, _ = crypto.GenerateKeyPair([]byte("test"))
 var address, _ = proto.NewAddressFromPublicKey(proto.MainNetScheme, publicKey)
 
-func initTransferV2() {
+func initTransferWithProofs() {
 	sk, pk, _ := crypto.GenerateKeyPair([]byte("test"))
 	addr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, pk)
 	if err != nil {
 		panic(err)
 	}
-	t := proto.NewUnsignedTransferV2(
+	t := proto.NewUnsignedTransferWithProofs(
+		2,
 		pk,
 		proto.OptionalAsset{},
 		proto.OptionalAsset{},
@@ -256,17 +257,17 @@ func initTransferV2() {
 		100000,
 		10000,
 		proto.NewRecipientFromAddress(addr),
-		"abc",
+		&proto.LegacyAttachment{Value: []byte("abc")},
 	)
 
-	_ = t.Sign(sk)
+	_ = t.Sign(proto.MainNetScheme, sk)
 	b, _ := t.MarshalBinary()
 	tm := proto.TransactionMessage{
 		Transaction: b,
 	}
 	tmb, _ := tm.MarshalBinary()
 
-	TransferV2 = TransferV2Struct{
+	TransferWithProofs = TransferWithProofsStruct{
 		TransactionBytes: b,
 		Transaction:      t,
 		MessageBytes:     tmb,
@@ -274,11 +275,11 @@ func initTransferV2() {
 
 }
 
-func initIssueV1() {
+func initIssueWithSig() {
 
 	sk, pk, _ := crypto.GenerateKeyPair([]byte("test"))
 
-	t := proto.NewUnsignedIssueV1(
+	t := proto.NewUnsignedIssueWithSig(
 		pk,
 		"name",
 		"description",
@@ -288,25 +289,26 @@ func initIssueV1() {
 		proto.NewTimestampFromTime(time.Now()),
 		10000)
 
-	_ = t.Sign(sk)
+	_ = t.Sign(proto.MainNetScheme, sk)
 	b, _ := t.MarshalBinary()
 	tm := proto.TransactionMessage{
 		Transaction: b,
 	}
 	tmb, _ := tm.MarshalBinary()
 
-	IssueV1 = IssueV1Struct{
+	IssueWithSig = IssueWithSigStruct{
 		TransactionBytes: b,
 		Transaction:      t,
 		MessageBytes:     tmb,
 	}
 }
 
-func initIssueV2() {
+func initIssueWithProofs() {
 
 	sk, pk, _ := crypto.GenerateKeyPair([]byte("test"))
 
-	t := proto.NewUnsignedIssueV2(
+	t := proto.NewUnsignedIssueWithProofs(
+		2,
 		proto.MainNetScheme,
 		pk,
 		"name",
@@ -318,14 +320,14 @@ func initIssueV2() {
 		proto.NewTimestampFromTime(time.Now()),
 		10000)
 
-	_ = t.Sign(sk)
+	_ = t.Sign(proto.MainNetScheme, sk)
 	b, _ := t.MarshalBinary()
 	tm := proto.TransactionMessage{
 		Transaction: b,
 	}
 	tmb, _ := tm.MarshalBinary()
 
-	IssueV2 = IssueV2Struct{
+	IssueWithProofs = IssueWithProofsStruct{
 		TransactionBytes: b,
 		Transaction:      t,
 		MessageBytes:     tmb,
@@ -333,12 +335,13 @@ func initIssueV2() {
 }
 
 func initGenesis() {
-	_, pk, _ := crypto.GenerateKeyPair([]byte("test"))
+	sk, pk, _ := crypto.GenerateKeyPair([]byte("test"))
 	addr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, pk)
 	if err != nil {
 		panic(err)
 	}
 	t := proto.NewUnsignedGenesis(addr, 100000, TIMESTAMP)
+	_ = t.Sign(proto.MainNetScheme, sk)
 	b, _ := t.MarshalBinary()
 	tm := proto.TransactionMessage{
 		Transaction: b,
@@ -360,7 +363,7 @@ func initPayment() {
 	}
 	t := proto.NewUnsignedPayment(pk, addr, 100000, 10000, TIMESTAMP)
 
-	_ = t.Sign(sk)
+	_ = t.Sign(proto.MainNetScheme, sk)
 	b, err := t.MarshalBinary()
 	if err != nil {
 		panic(err)
@@ -377,15 +380,15 @@ func initPayment() {
 	}
 }
 
-func initReissueV1() {
+func initReissueWithSig() {
 
 	d, err := crypto.NewDigestFromBase58("9shLH9vfJxRgbhJ1c3dw2gj5fUGRr8asfUpQjj4rZQKQ")
 	if err != nil {
 		panic(err)
 	}
 
-	t := proto.NewUnsignedReissueV1(pk, d, 100000, true, TIMESTAMP, 10000)
-	_ = t.Sign(sk)
+	t := proto.NewUnsignedReissueWithSig(pk, d, 100000, true, TIMESTAMP, 10000)
+	_ = t.Sign(proto.MainNetScheme, sk)
 	b, err := t.MarshalBinary()
 	if err != nil {
 		panic(err)
@@ -395,21 +398,21 @@ func initReissueV1() {
 	}
 	tmb, _ := tm.MarshalBinary()
 
-	ReissueV1 = ReissueV1Struct{
+	ReissueWithSig = ReissueWithSigStruct{
 		TransactionBytes: b,
 		Transaction:      t,
 		MessageBytes:     tmb,
 	}
 }
 
-func initReissueV2() {
+func initReissueWithProofs() {
 	d, err := crypto.NewDigestFromBase58("9shLH9vfJxRgbhJ1c3dw2gj5fUGRr8asfUpQjj4rZQKQ")
 	if err != nil {
 		panic(err)
 	}
 
-	t := proto.NewUnsignedReissueV2(proto.MainNetScheme, pk, d, 100000, true, TIMESTAMP, 10000)
-	_ = t.Sign(sk)
+	t := proto.NewUnsignedReissueWithProofs(2, proto.MainNetScheme, pk, d, 100000, true, TIMESTAMP, 10000)
+	_ = t.Sign(proto.MainNetScheme, sk)
 	b, err := t.MarshalBinary()
 	if err != nil {
 		panic(err)
@@ -419,22 +422,22 @@ func initReissueV2() {
 	}
 	tmb, _ := tm.MarshalBinary()
 
-	ReissueV2 = ReissueV2Struct{
+	ReissueWithProofs = ReissueWithProofsStruct{
 		TransactionBytes: b,
 		Transaction:      t,
 		MessageBytes:     tmb,
 	}
 }
 
-func initBurnV1() {
+func initBurnWithSig() {
 
 	d, err := crypto.NewDigestFromBase58("9shLH9vfJxRgbhJ1c3dw2gj5fUGRr8asfUpQjj4rZQKQ")
 	if err != nil {
 		panic(err)
 	}
 
-	t := proto.NewUnsignedBurnV1(pk, d, 100000, TIMESTAMP, 10000)
-	_ = t.Sign(sk)
+	t := proto.NewUnsignedBurnWithSig(pk, d, 100000, TIMESTAMP, 10000)
+	_ = t.Sign(proto.MainNetScheme, sk)
 	b, err := t.MarshalBinary()
 	if err != nil {
 		panic(err)
@@ -444,21 +447,21 @@ func initBurnV1() {
 	}
 	tmb, _ := tm.MarshalBinary()
 
-	BurnV1 = BurnV1Struct{
+	BurnWithSig = BurnWithSigStruct{
 		TransactionBytes: b,
 		Transaction:      t,
 		MessageBytes:     tmb,
 	}
 }
 
-func initBurnV2() {
+func initBurnWithProofs() {
 	d, err := crypto.NewDigestFromBase58("9shLH9vfJxRgbhJ1c3dw2gj5fUGRr8asfUpQjj4rZQKQ")
 	if err != nil {
 		panic(err)
 	}
 
-	t := proto.NewUnsignedBurnV2(proto.MainNetScheme, pk, d, 100000, TIMESTAMP, 10000)
-	_ = t.Sign(sk)
+	t := proto.NewUnsignedBurnWithProofs(2, proto.MainNetScheme, pk, d, 100000, TIMESTAMP, 10000)
+	_ = t.Sign(proto.MainNetScheme, sk)
 	b, err := t.MarshalBinary()
 	if err != nil {
 		panic(err)
@@ -468,14 +471,14 @@ func initBurnV2() {
 	}
 	tmb, _ := tm.MarshalBinary()
 
-	BurnV2 = BurnV2Struct{
+	BurnWithProofs = BurnWithProofsStruct{
 		TransactionBytes: b,
 		Transaction:      t,
 		MessageBytes:     tmb,
 	}
 }
 
-func initMassTransferV1() {
+func initMassTransferWithProofs() {
 	d, err := crypto.NewDigestFromBase58("9shLH9vfJxRgbhJ1c3dw2gj5fUGRr8asfUpQjj4rZQKQ")
 	if err != nil {
 		panic(err)
@@ -490,8 +493,8 @@ func initMassTransferV1() {
 		Recipient: proto.NewRecipientFromAddress(addr),
 		Amount:    100000,
 	}
-	t := proto.NewUnsignedMassTransferV1(pk, *proto.NewOptionalAssetFromDigest(d), []proto.MassTransferEntry{entry}, 10000, TIMESTAMP, "attachment")
-	_ = t.Sign(sk)
+	t := proto.NewUnsignedMassTransferWithProofs(1, pk, *proto.NewOptionalAssetFromDigest(d), []proto.MassTransferEntry{entry}, 10000, TIMESTAMP, &proto.LegacyAttachment{Value: []byte("attachment")})
+	_ = t.Sign(proto.MainNetScheme, sk)
 	b, err := t.MarshalBinary()
 	if err != nil {
 		panic(err)
@@ -501,14 +504,14 @@ func initMassTransferV1() {
 	}
 	tmb, _ := tm.MarshalBinary()
 
-	MassTransferV1 = MassTransferV1Struct{
+	MassTransferWithProofs = MassTransferWithProofsStruct{
 		TransactionBytes: b,
 		Transaction:      t,
 		MessageBytes:     tmb,
 	}
 }
 
-func initExchangeV1() {
+func initExchangeWithSig() {
 	d, err := crypto.NewDigestFromBase58("9shLH9vfJxRgbhJ1c3dw2gj5fUGRr8asfUpQjj4rZQKQ")
 	if err != nil {
 		panic(err)
@@ -527,7 +530,7 @@ func initExchangeV1() {
 		TIMESTAMP,
 		10000)
 
-	_ = buyOrder.Sign(sk)
+	_ = buyOrder.Sign(proto.MainNetScheme, sk)
 
 	sellOrder := proto.NewUnsignedOrderV1(
 		pk,
@@ -541,9 +544,9 @@ func initExchangeV1() {
 		TIMESTAMP,
 		10000)
 
-	_ = sellOrder.Sign(sk)
+	_ = sellOrder.Sign(proto.MainNetScheme, sk)
 
-	t := proto.NewUnsignedExchangeV1(
+	t := proto.NewUnsignedExchangeWithSig(
 		buyOrder,
 		sellOrder,
 		100000,
@@ -553,7 +556,7 @@ func initExchangeV1() {
 		10000,
 		TIMESTAMP,
 	)
-	_ = t.Sign(sk)
+	_ = t.Sign(proto.MainNetScheme, sk)
 	b, err := t.MarshalBinary()
 	if err != nil {
 		panic(err)
@@ -563,14 +566,14 @@ func initExchangeV1() {
 	}
 	tmb, _ := tm.MarshalBinary()
 
-	ExchangeV1 = ExchangeV1Struct{
+	ExchangeWithSig = ExchangeWithSigStruct{
 		TransactionBytes: b,
 		Transaction:      t,
 		MessageBytes:     tmb,
 	}
 }
 
-func initExchangeV2() {
+func initExchangeWithProofs() {
 	d, err := crypto.NewDigestFromBase58("9shLH9vfJxRgbhJ1c3dw2gj5fUGRr8asfUpQjj4rZQKQ")
 	if err != nil {
 		panic(err)
@@ -589,7 +592,7 @@ func initExchangeV2() {
 		TIMESTAMP,
 		10000)
 
-	_ = buyOrder.Sign(sk)
+	_ = buyOrder.Sign(proto.MainNetScheme, sk)
 
 	sellOrder := proto.NewUnsignedOrderV1(
 		pk,
@@ -603,9 +606,10 @@ func initExchangeV2() {
 		TIMESTAMP,
 		10000)
 
-	_ = sellOrder.Sign(sk)
+	_ = sellOrder.Sign(proto.MainNetScheme, sk)
 
-	t := proto.NewUnsignedExchangeV2(
+	t := proto.NewUnsignedExchangeWithProofs(
+		2,
 		buyOrder,
 		sellOrder,
 		100000,
@@ -615,7 +619,7 @@ func initExchangeV2() {
 		10000,
 		TIMESTAMP,
 	)
-	_ = t.Sign(sk)
+	_ = t.Sign(proto.MainNetScheme, sk)
 	b, err := t.MarshalBinary()
 	if err != nil {
 		panic(err)
@@ -625,22 +629,22 @@ func initExchangeV2() {
 	}
 	tmb, _ := tm.MarshalBinary()
 
-	ExchangeV2 = ExchangeV2Struct{
+	ExchangeWithProofs = ExchangeWithProofsStruct{
 		TransactionBytes: b,
 		Transaction:      t,
 		MessageBytes:     tmb,
 	}
 }
 
-//SetAssetScriptV1
-func initSetAssetScriptV1() {
+//SetAssetScriptWithProofs
+func initSetAssetScriptWithProofs() {
 	d, err := crypto.NewDigestFromBase58("9shLH9vfJxRgbhJ1c3dw2gj5fUGRr8asfUpQjj4rZQKQ")
 	if err != nil {
 		panic(err)
 	}
 
-	t := proto.NewUnsignedSetAssetScriptV1(proto.MainNetScheme, pk, d, []byte("hello"), 10000, TIMESTAMP)
-	_ = t.Sign(sk)
+	t := proto.NewUnsignedSetAssetScriptWithProofs(1, proto.MainNetScheme, pk, d, []byte("hello"), 10000, TIMESTAMP)
+	_ = t.Sign(proto.MainNetScheme, sk)
 	b, err := t.MarshalBinary()
 	if err != nil {
 		panic(err)
@@ -650,18 +654,19 @@ func initSetAssetScriptV1() {
 	}
 	tmb, _ := tm.MarshalBinary()
 
-	SetAssetScriptV1 = SetAssetScriptV1Struct{
+	SetAssetScriptWithProofs = SetAssetScriptWithProofsStruct{
 		TransactionBytes: b,
 		Transaction:      t,
 		MessageBytes:     tmb,
 	}
 }
 
-//InvokeScriptV1
-func initInvokeScriptV1() {
+//InvokeScriptWithProofs
+func initInvokeScriptWithProofs() {
 	asset := proto.NewOptionalAssetFromDigest(Digest)
 
-	t := proto.NewUnsignedInvokeScriptV1(
+	t := proto.NewUnsignedInvokeScriptWithProofs(
+		1,
 		proto.MainNetScheme,
 		pk,
 		proto.NewRecipientFromAddress(address),
@@ -677,7 +682,7 @@ func initInvokeScriptV1() {
 		*asset,
 		10000,
 		TIMESTAMP)
-	_ = t.Sign(sk)
+	_ = t.Sign(proto.MainNetScheme, sk)
 	b, err := t.MarshalBinary()
 	if err != nil {
 		panic(err)
@@ -687,21 +692,21 @@ func initInvokeScriptV1() {
 	}
 	tmb, _ := tm.MarshalBinary()
 
-	InvokeScriptV1 = InvokeScriptV1Struct{
+	InvokeScriptWithProofs = InvokeScriptWithProofsStruct{
 		TransactionBytes: b,
 		Transaction:      t,
 		MessageBytes:     tmb,
 	}
 }
 
-func initLeaseV1() {
+func initLeaseWithSig() {
 	addr, _ := proto.NewAddressFromPublicKey(proto.MainNetScheme, pk)
 
-	t := proto.NewUnsignedLeaseV1(
+	t := proto.NewUnsignedLeaseWithSig(
 		pk,
 		proto.NewRecipientFromAddress(addr),
 		100000, 10000, TIMESTAMP)
-	_ = t.Sign(sk)
+	_ = t.Sign(proto.MainNetScheme, sk)
 	b, err := t.MarshalBinary()
 	if err != nil {
 		panic(err)
@@ -711,20 +716,21 @@ func initLeaseV1() {
 	}
 	tmb, _ := tm.MarshalBinary()
 
-	LeaseV1 = LeaseV1Struct{
+	LeaseWithSig = LeaseWithSigStruct{
 		TransactionBytes: b,
 		Transaction:      t,
 		MessageBytes:     tmb,
 	}
 }
 
-func initLeaseV2() {
+func initLeaseWithProofs() {
 	addr, _ := proto.NewAddressFromPublicKey(proto.MainNetScheme, pk)
-	t := proto.NewUnsignedLeaseV2(
+	t := proto.NewUnsignedLeaseWithProofs(
+		2,
 		pk,
 		proto.NewRecipientFromAddress(addr),
 		100000, 10000, TIMESTAMP)
-	_ = t.Sign(sk)
+	_ = t.Sign(proto.MainNetScheme, sk)
 	b, err := t.MarshalBinary()
 	if err != nil {
 		panic(err)
@@ -734,19 +740,19 @@ func initLeaseV2() {
 	}
 	tmb, _ := tm.MarshalBinary()
 
-	LeaseV2 = LeaseV2Struct{
+	LeaseWithProofs = LeaseWithProofsStruct{
 		TransactionBytes: b,
 		Transaction:      t,
 		MessageBytes:     tmb,
 	}
 }
 
-func initLeaseCancelV1() {
-	t := proto.NewUnsignedLeaseCancelV1(
+func initLeaseCancelWithSig() {
+	t := proto.NewUnsignedLeaseCancelWithSig(
 		pk,
 		Digest,
 		10000, TIMESTAMP)
-	_ = t.Sign(sk)
+	_ = t.Sign(proto.MainNetScheme, sk)
 	b, err := t.MarshalBinary()
 	if err != nil {
 		panic(err)
@@ -756,20 +762,21 @@ func initLeaseCancelV1() {
 	}
 	tmb, _ := tm.MarshalBinary()
 
-	LeaseCancelV1 = LeaseCancelV1Struct{
+	LeaseCancelWithSig = LeaseCancelWithSigStruct{
 		TransactionBytes: b,
 		Transaction:      t,
 		MessageBytes:     tmb,
 	}
 }
 
-func initLeaseCancelV2() {
-	t := proto.NewUnsignedLeaseCancelV2(
+func initLeaseCancelWithProofs() {
+	t := proto.NewUnsignedLeaseCancelWithProofs(
+		2,
 		proto.MainNetScheme,
 		pk,
 		Digest,
 		10000, TIMESTAMP)
-	_ = t.Sign(sk)
+	_ = t.Sign(proto.MainNetScheme, sk)
 	b, err := t.MarshalBinary()
 	if err != nil {
 		panic(err)
@@ -779,15 +786,16 @@ func initLeaseCancelV2() {
 	}
 	tmb, _ := tm.MarshalBinary()
 
-	LeaseCancelV2 = LeaseCancelV2Struct{
+	LeaseCancelWithProofs = LeaseCancelWithProofsStruct{
 		TransactionBytes: b,
 		Transaction:      t,
 		MessageBytes:     tmb,
 	}
 }
 
-func initDataV1() {
-	t := proto.NewUnsignedData(
+func initDataWithProofs() {
+	t := proto.NewUnsigneData(
+		1,
 		pk,
 		10000,
 		TIMESTAMP)
@@ -824,7 +832,7 @@ func initDataV1() {
 		panic(err)
 	}
 
-	_ = t.Sign(sk)
+	_ = t.Sign(proto.MainNetScheme, sk)
 
 	b, err := t.MarshalBinary()
 	if err != nil {
@@ -835,22 +843,23 @@ func initDataV1() {
 	}
 	tmb, _ := tm.MarshalBinary()
 
-	DataV1 = DataV1Struct{
+	DataWithProofs = DataWithProofsStruct{
 		TransactionBytes: b,
 		Transaction:      t,
 		MessageBytes:     tmb,
 	}
 }
 
-func initSponsorshipV1() {
-	t := proto.NewUnsignedSponsorshipV1(
+func initSponsorshipWithProofs() {
+	t := proto.NewUnsignedSponsorshipWithProofs(
+		1,
 		pk,
 		Digest,
 		1000,
 		10000,
 		TIMESTAMP)
 
-	_ = t.Sign(sk)
+	_ = t.Sign(proto.MainNetScheme, sk)
 
 	b, err := t.MarshalBinary()
 	if err != nil {
@@ -861,22 +870,22 @@ func initSponsorshipV1() {
 	}
 	tmb, _ := tm.MarshalBinary()
 
-	SponsorshipV1 = SponsorshipV1Struct{
+	SponsorshipWithProofs = SponsorshipWithProofsStruct{
 		TransactionBytes: b,
 		Transaction:      t,
 		MessageBytes:     tmb,
 	}
 }
 
-func initCreateAliasV1() {
+func initCreateAliasWithSig() {
 	alias := proto.NewAlias(proto.MainNetScheme, "testalias")
-	t := proto.NewUnsignedCreateAliasV1(
+	t := proto.NewUnsignedCreateAliasWithSig(
 		pk,
 		*alias,
 		10000,
 		TIMESTAMP)
 
-	_ = t.Sign(sk)
+	_ = t.Sign(proto.MainNetScheme, sk)
 
 	b, err := t.MarshalBinary()
 	if err != nil {
@@ -887,22 +896,23 @@ func initCreateAliasV1() {
 	}
 	tmb, _ := tm.MarshalBinary()
 
-	CreateAliasV1 = CreateAliasV1Struct{
+	CreateAliasWithSig = CreateAliasWithSigStruct{
 		TransactionBytes: b,
 		Transaction:      t,
 		MessageBytes:     tmb,
 	}
 }
 
-func initCreateAliasV2() {
+func initCreateAliasWithProofs() {
 	alias := proto.NewAlias(proto.MainNetScheme, "testalias")
-	t := proto.NewUnsignedCreateAliasV2(
+	t := proto.NewUnsignedCreateAliasWithProofs(
+		2,
 		pk,
 		*alias,
 		10000,
 		TIMESTAMP)
 
-	_ = t.Sign(sk)
+	_ = t.Sign(proto.MainNetScheme, sk)
 
 	b, err := t.MarshalBinary()
 	if err != nil {
@@ -913,7 +923,7 @@ func initCreateAliasV2() {
 	}
 	tmb, _ := tm.MarshalBinary()
 
-	CreateAliasV2 = CreateAliasV2Struct{
+	CreateAliasWithProofs = CreateAliasWithProofsStruct{
 		TransactionBytes: b,
 		Transaction:      t,
 		MessageBytes:     tmb,

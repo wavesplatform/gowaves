@@ -9,6 +9,7 @@ import (
 )
 
 func TestGroth16Verify(t *testing.T) {
+	t.SkipNow()
 	for _, test := range []struct {
 		vk     string
 		proof  string

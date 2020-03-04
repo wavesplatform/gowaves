@@ -77,7 +77,7 @@ func run() error {
 
 	zap.S().Infof("Waves Fork Detector %s", version)
 
-	storage, err := internal.NewStorage(cfg.dbPath, cfg.genesis)
+	storage, err := internal.NewStorage(cfg.dbPath, cfg.genesis, cfg.scheme)
 	if err != nil {
 		zap.S().Errorf("Failed to open Storage: %v", err)
 		return err

@@ -18,23 +18,25 @@ type BehaviourImpl struct {
 	activeConnections *utils.Addr2Peers
 	spawnedPeers      *utils.SpawnedPeers
 	peerSpawner       PeerSpawner
+	scheme            proto.Scheme
 }
 
-func NewBehaviour(knownPeers *utils.KnownPeers, peerSpawner PeerSpawner) *BehaviourImpl {
+func NewBehaviour(knownPeers *utils.KnownPeers, peerSpawner PeerSpawner, scheme proto.Scheme) *BehaviourImpl {
 	return &BehaviourImpl{
-		tl:                NewTransactionList(6000),
+		tl:                NewTransactionList(6000, scheme),
 		knownPeers:        knownPeers,
 		counter:           utils.NewCounter(),
 		activeConnections: utils.NewAddr2Peers(),
 		spawnedPeers:      utils.NewSpawnedPeers(),
 		peerSpawner:       peerSpawner,
+		scheme:            scheme,
 	}
 }
 
 func (a *BehaviourImpl) ProtoMessage(incomeMessage peer.ProtoMessage) {
 	switch t := incomeMessage.Message.(type) {
 	case *proto.TransactionMessage:
-		transaction, err := getTransaction(t)
+		transaction, err := getTransaction(t, a.scheme)
 		if err != nil {
 			zap.S().Error(err, incomeMessage.ID, t)
 			return

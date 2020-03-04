@@ -1296,6 +1296,30 @@ func (m *GetBlockMessage) WriteTo(w io.Writer) (int64, error) {
 	return n, err
 }
 
+func MessageByMicroBlock(mb *MicroBlock, scheme Scheme) (Message, error) {
+	if BlockVersion(mb.VersionField) >= ProtoBlockVersion {
+		bts, err := mb.MarshalToProtobuf(scheme)
+		if err != nil {
+			return nil, err
+		}
+		return &PBMicroBlockMessage{bts}, nil
+	} else {
+		return &MicroBlockMessage{mb}, nil
+	}
+}
+
+func MessageByBlock(block *Block, scheme Scheme) (Message, error) {
+	bts, err := block.Marshal(scheme)
+	if err != nil {
+		return nil, err
+	}
+	if block.Version >= ProtoBlockVersion {
+		return &PBBlockMessage{bts}, nil
+	} else {
+		return &BlockMessage{bts}, nil
+	}
+}
+
 // BlockMessage represents Block message
 type BlockMessage struct {
 	BlockBytes []byte

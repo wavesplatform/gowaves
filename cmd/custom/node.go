@@ -29,23 +29,28 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"github.com/wavesplatform/gowaves/pkg/util"
+	"github.com/wavesplatform/gowaves/pkg/wallet"
 	"go.uber.org/zap"
 )
 
 var version = proto.Version{Major: 1, Minor: 1, Patch: 2}
 
 var (
-	logLevel         = flag.String("log-level", "INFO", "Logging level. Supported levels: DEBUG, INFO, WARN, ERROR, FATAL. Default logging level INFO.")
-	statePath        = flag.String("state-path", "", "Path to node's state directory")
-	peerAddresses    = flag.String("peers", "", "Addresses of peers to connect to")
-	declAddr         = flag.String("declared-address", "", "Address to listen on")
-	apiAddr          = flag.String("api-address", "", "Address for REST API")
-	grpcAddr         = flag.String("grpc-address", "127.0.0.1:7475", "Address for gRPC API")
-	cfgPath          = flag.String("cfg-path", "", "Path to configuration JSON file. No default value.")
-	seed             = flag.String("seed", "", "Seed for miner")
-	enableGrpcApi    = flag.Bool("enable-grpc-api", true, "Enables/disables gRPC API")
-	buildExtendedApi = flag.Bool("build-extended-api", false, "Builds extended API. Note that state must be reimported in case it wasn't imported with similar flag set")
-	serveExtendedApi = flag.Bool("serve-extended-api", false, "Serves extended API requests since the very beginning. The default behavior is to import until first block close to current time, and start serving at this point")
+	logLevel          = flag.String("log-level", "INFO", "Logging level. Supported levels: DEBUG, INFO, WARN, ERROR, FATAL. Default logging level INFO.")
+	statePath         = flag.String("state-path", "", "Path to node's state directory")
+	peerAddresses     = flag.String("peers", "", "Addresses of peers to connect to")
+	declAddr          = flag.String("declared-address", "", "Address to listen on")
+	apiAddr           = flag.String("api-address", "", "Address for REST API")
+	grpcAddr          = flag.String("grpc-address", "127.0.0.1:7475", "Address for gRPC API")
+	cfgPath           = flag.String("cfg-path", "", "Path to configuration JSON file. No default value.")
+	enableGrpcApi     = flag.Bool("enable-grpc-api", true, "Enables/disables gRPC API")
+	buildExtendedApi  = flag.Bool("build-extended-api", false, "Builds extended API. Note that state must be reimported in case it wasn't imported with similar flag set")
+	serveExtendedApi  = flag.Bool("serve-extended-api", false, "Serves extended API requests since the very beginning. The default behavior is to import until first block close to current time, and start serving at this point")
+	minerVoteFeatures = flag.String("vote", "", "Miner vote features")
+	reward            = flag.String("reward", "", "Miner reward: for example 600000000")
+	minerDelayParam   = flag.String("miner-delay", "4h", "Interval after last block then generation is allowed. example 1d4h30m")
+	walletPath        = flag.String("wallet-path", "", "Path to wallet, or ~/.waves by default")
+	walletPassword    = flag.String("wallet-password", "", "Pass password for wallet. Extremely insecure")
 )
 
 func init() {
@@ -58,27 +63,9 @@ func main() {
 		zap.S().Error("Please provide path to blockchain config JSON file")
 		return
 	}
-	ctx, cancel := context.WithCancel(context.Background())
-
 	zap.S().Info(os.Args)
 	zap.S().Info(os.Environ())
 	zap.S().Info(os.LookupEnv("WAVES_OPTS"))
-
-	conf := &settings.NodeSettings{}
-	if err := settings.ApplySettings(conf, FromArgs(), settings.FromJavaEnviron); err != nil {
-		zap.S().Error(err)
-		cancel()
-		return
-	}
-
-	zap.S().Info("conf", conf)
-
-	err := conf.Validate()
-	if err != nil {
-		zap.S().Error(err)
-		cancel()
-		return
-	}
 
 	f, err := os.Open(*cfgPath)
 	if err != nil {
@@ -89,18 +76,65 @@ func main() {
 	if err != nil {
 		zap.S().Fatalf("Failed to read configuration file: %v", err)
 	}
+
+	conf := &settings.NodeSettings{}
+	if err := settings.ApplySettings(conf, FromArgs(custom.AddressSchemeCharacter), settings.FromJavaEnviron); err != nil {
+		zap.S().Error(err)
+		return
+	}
+
+	reward, err := miner.ParseReward(*reward)
+	if err != nil {
+		zap.S().Error(err)
+		return
+	}
+
+	zap.S().Info("conf", conf)
+
+	err = conf.Validate()
+	if err != nil {
+		zap.S().Error(err)
+		return
+	}
+
+	wal := wallet.NewEmbeddedWallet(wallet.NewLoader(*walletPath), wallet.NewWallet(), custom.AddressSchemeCharacter)
+	if *walletPassword != "" {
+		err := wal.Load([]byte(*walletPassword))
+		if err != nil {
+			zap.S().Error(err)
+			return
+		}
+	}
+
 	path := *statePath
 	if path == "" {
 		path, err = util.GetStatePath()
 		if err != nil {
 			zap.S().Error(err)
-			cancel()
 			return
 		}
 	}
+
+	ntptm, err := ntptime.TryNew("pool.ntp.org", 10)
+	if err != nil {
+		zap.S().Error(err)
+		return
+	}
+
+	minerDelaySecond, err := util.ParseDuration(*minerDelayParam)
+	if err != nil {
+		zap.S().Error(err)
+		return
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+
+	go ntptm.Run(ctx, 2*time.Minute)
+
 	params := state.DefaultStateParams()
 	params.StoreExtendedApiData = *buildExtendedApi
 	params.ProvideExtendedApi = *serveExtendedApi
+	params.Time = ntptm
 	state, err := state.NewState(path, params, custom)
 	if err != nil {
 		zap.S().Error(err)
@@ -109,14 +143,25 @@ func main() {
 	}
 
 	// Check if we need to start serving extended API right now.
-	if err := node.MaybeEnableExtendedApi(state); err != nil {
+	if err := node.MaybeEnableExtendedApi(state, ntptm); err != nil {
 		zap.S().Error(err)
 		cancel()
 		return
 	}
 
-	ntptm := ntptime.New("pool.ntp.org")
-	go ntptm.Run(ctx, 2*time.Minute)
+	features, err := miner.ParseVoteFeatures(*minerVoteFeatures)
+	if err != nil {
+		cancel()
+		zap.S().Error(err)
+		return
+	}
+
+	features, err = miner.ValidateFeaturesWithLock(state, features)
+	if err != nil {
+		cancel()
+		zap.S().Error(err)
+		return
+	}
 
 	declAddr := proto.NewTCPAddrFromString(conf.DeclaredAddr)
 
@@ -130,37 +175,38 @@ func main() {
 	peerManager := peer_manager.NewPeerManager(peerSpawnerImpl, state)
 	go peerManager.Run(ctx)
 
-	var keyPairs []proto.KeyPair
-	if *seed != "" {
-		keyPairs = append(keyPairs, proto.MustKeyPair([]byte(*seed)))
-	}
+	scheduler := scheduler2.NewScheduler(
+		state,
+		wal,
+		custom,
+		ntptm,
+		scheduler2.NewMinerConsensus(peerManager, 1),
+		proto.NewTimestampFromUSeconds(minerDelaySecond),
+	)
 
-	scheduler := scheduler2.NewScheduler(state, keyPairs, custom, ntptm)
-
-	utx := utxpool.New(10000)
+	utx := utxpool.New(10000, utxpool.NewValidator(state, ntptm), custom)
 
 	stateChanged := state_changed.NewStateChanged()
-	blockApplier := node.NewBlockApplier(state, stateChanged, scheduler)
+	blockApplier := node.NewBlocksApplier(state, ntptm)
 
 	services := services.Services{
 		State:              state,
 		Peers:              peerManager,
 		Scheduler:          scheduler,
-		BlockApplier:       blockApplier,
+		BlocksApplier:      blockApplier,
 		UtxPool:            utx,
-		Scheme:             custom.FunctionalitySettings.AddressSchemeCharacter,
+		Scheme:             custom.AddressSchemeCharacter,
 		BlockAddedNotifier: stateChanged,
 		Subscribe:          node.NewSubscribeService(),
 		InvRequester:       ng.NewInvRequester(),
 	}
 
 	utxClean := utxpool.NewCleaner(services)
-	go utxClean.Run(ctx)
 
 	ngState := ng.NewState(services)
 	ngRuntime := ng.NewRuntime(services, ngState)
 
-	Miner := miner.NewMicroblockMiner(services, ngRuntime, proto.CustomNetScheme)
+	Miner := miner.NewMicroblockMiner(services, ngRuntime, proto.CustomNetScheme, features, reward)
 
 	async := runner.NewAsync()
 	scoreSender := scoresender.New(peerManager, state, 4*time.Second, async)
@@ -176,14 +222,14 @@ func main() {
 	async.Go(func() {
 		scoreSender.Run(ctx)
 	})
-	stateSync := node.NewStateSync(services, Miner, scoreSender)
+	stateSync := node.NewStateSync(services, scoreSender, blockApplier)
 
 	go miner.Run(ctx, Miner, scheduler)
 	go scheduler.Reschedule()
 
-	n := node.NewNode(services, declAddr, declAddr, ngRuntime, Miner, stateSync)
+	n := node.NewNode(services, declAddr, declAddr, ngRuntime, stateSync)
 
-	go node.RunNode(ctx, n, parent)
+	go n.Run(ctx, parent)
 
 	if len(conf.Addresses) > 0 {
 		adrs := strings.Split(conf.Addresses, ",")
@@ -193,7 +239,7 @@ func main() {
 	}
 
 	// TODO hardcore
-	app, err := api.NewApp("integration-test-rest-api", state, peerManager, scheduler, utx, stateSync)
+	app, err := api.NewApp("integration-test-rest-api", scheduler, stateSync, services)
 	if err != nil {
 		zap.S().Error(err)
 		cancel()
@@ -210,7 +256,7 @@ func main() {
 	}()
 
 	if *enableGrpcApi {
-		grpcServer, err := server.NewServer(state, utx, scheduler)
+		grpcServer, err := server.NewServer(services)
 		if err != nil {
 			zap.S().Errorf("Failed to create gRPC server: %v", err)
 		}
@@ -236,16 +282,12 @@ func main() {
 	<-time.After(2 * time.Second)
 }
 
-func FromArgs() func(s *settings.NodeSettings) error {
+func FromArgs(scheme proto.Scheme) func(s *settings.NodeSettings) error {
 	return func(s *settings.NodeSettings) error {
 		s.DeclaredAddr = *declAddr
 		s.HttpAddr = *apiAddr
 		s.GrpcAddr = *grpcAddr
-		networkStr, err := proto.NetworkStrByType("custom")
-		if err != nil {
-			return err
-		}
-		s.WavesNetwork = networkStr
+		s.WavesNetwork = proto.NetworkStrFromScheme(scheme)
 		s.Addresses = *peerAddresses
 		return nil
 	}

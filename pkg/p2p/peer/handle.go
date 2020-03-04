@@ -3,21 +3,21 @@ package peer
 import (
 	"context"
 
+	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/libs/bytespool"
 	"github.com/wavesplatform/gowaves/pkg/p2p/conn"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
 )
 
-func bytesToMessage(b []byte, id string, resendTo chan ProtoMessage, pool bytespool.Pool, p Peer) {
+func bytesToMessage(b []byte, id string, resendTo chan ProtoMessage, pool bytespool.Pool, p Peer) error {
 	defer func() {
 		pool.Put(b)
 	}()
 
 	m, err := proto.UnmarshalMessage(b)
 	if err != nil {
-		zap.L().Error("can't unmarshal network message", zap.Error(err))
-		return
+		return err
 	}
 
 	mess := ProtoMessage{
@@ -28,8 +28,9 @@ func bytesToMessage(b []byte, id string, resendTo chan ProtoMessage, pool bytesp
 	select {
 	case resendTo <- mess:
 	default:
-		zap.S().Infof("failed to resend to Parent, channel is full: %s, %T", id, m)
+		zap.S().Debugf("failed to resend to Parent, channel is full: %s, %T", id, m)
 	}
+	return nil
 }
 
 type HandlerParams struct {
@@ -48,10 +49,20 @@ func Handle(params HandlerParams) error {
 		select {
 		case <-params.Ctx.Done():
 			_ = params.Connection.Close()
-			return params.Ctx.Err()
+			return errors.Wrap(params.Ctx.Err(), "Handle")
 
 		case bts := <-params.Remote.FromCh:
-			bytesToMessage(bts, params.ID, params.Parent.MessageCh, params.Pool, params.Peer)
+			err := bytesToMessage(bts, params.ID, params.Parent.MessageCh, params.Pool, params.Peer)
+			if err != nil {
+				out := InfoMessage{
+					Peer:  params.Peer,
+					Value: err,
+				}
+				select {
+				case params.Parent.InfoCh <- out:
+				default:
+				}
+			}
 
 		case err := <-params.Remote.ErrCh:
 			out := InfoMessage{

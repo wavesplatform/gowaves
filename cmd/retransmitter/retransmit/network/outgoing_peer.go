@@ -85,7 +85,7 @@ func (a *OutgoingPeer) connect(ctx context.Context, wavesNetwork string, remote 
 			zap.S().Infof("failed to connect, %s ID %s", err, a.params.Address)
 			select {
 			case <-ctx.Done():
-				return nil, nil, ctx.Err()
+				return nil, nil, errors.Wrap(ctx.Err(), "OutgoingPeer.connect")
 			case <-time.After(5 * time.Minute):
 				continue
 			}
@@ -109,7 +109,7 @@ func (a *OutgoingPeer) connect(ctx context.Context, wavesNetwork string, remote 
 		select {
 		case <-ctx.Done():
 			c.Close()
-			return nil, nil, ctx.Err()
+			return nil, nil, errors.Wrap(ctx.Err(), "OutgoingPeer.connect")
 		default:
 		}
 
@@ -119,7 +119,7 @@ func (a *OutgoingPeer) connect(ctx context.Context, wavesNetwork string, remote 
 			index += 1
 			select {
 			case <-ctx.Done():
-				return nil, nil, ctx.Err()
+				return nil, nil, errors.Wrap(ctx.Err(), "OutgoingPeer.connect")
 			case <-time.After(5 * time.Minute):
 				continue
 			}

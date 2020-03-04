@@ -121,6 +121,15 @@ build-importer-windows:
 
 release-importer: ver build-importer-linux build-importer-darwin build-importer-windows
 
+build-wallet-linux:
+	@GOOS=linux GOARCH=amd64 go build -o build/bin/linux-amd64/wallet ./cmd/wallet
+build-wallet-darwin:
+	@GOOS=darwin GOARCH=amd64 go build -o build/bin/darwin-amd64/wallet ./cmd/wallet
+build-wallet-windows:
+	@GOOS=windows GOARCH=amd64 go build -o build/bin/windows-amd64/wallet.exe ./cmd/wallet
+
+release-wallet: ver build-wallet-linux build-wallet-darwin build-wallet-windows
+
 dist-importer: release-importer
 	@mkdir -p build/dist
 	@cd ./build/; zip -j ./dist/importer_$(VERSION)_Windows-64bit.zip ./bin/windows-amd64/importer*
@@ -128,3 +137,9 @@ dist-importer: release-importer
 	@cd ./build/bin/darwin-amd64/; tar pzcvf ../../dist/importer_$(VERSION)_macOS-64bit.tar.gz ./importer*
 
 dist: clean dist-chaincmp dist-wmd dist-importer dist-node
+
+mock:
+	mockgen -source pkg/miner/utxpool/cleaner.go -destination pkg/miner/utxpool/mock.go -package utxpool stateWrapper
+	mockgen -source pkg/node/peer_manager/peer_manager.go -destination pkg/mock/peer_manager.go -package mock PeerManagerMock
+	mockgen -source pkg/p2p/peer/peer.go -destination pkg/mock/peer.go -package mock Peer
+	mockgen -source pkg/state/api.go -destination pkg/mock/state.go -package mock State

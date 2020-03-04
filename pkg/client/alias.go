@@ -70,7 +70,7 @@ type AliasCreateReq struct {
 	Timestamp uint64        `json:"timestamp,omitempty"`
 }
 
-type CreateAliasV1 struct {
+type CreateAliasWithSig struct {
 	Type      proto.TransactionType `json:"type"`
 	Version   byte                  `json:"version,omitempty"`
 	ID        *crypto.Digest        `json:"id,omitempty"`
@@ -81,7 +81,7 @@ type CreateAliasV1 struct {
 	Timestamp uint64                `json:"timestamp,omitempty"`
 }
 
-func (a *Alias) Create(ctx context.Context, createReq AliasCreateReq) (*CreateAliasV1, *Response, error) {
+func (a *Alias) Create(ctx context.Context, createReq AliasCreateReq) (*CreateAliasWithSig, *Response, error) {
 	if a.options.ApiKey == "" {
 		return nil, nil, NoApiKeyError
 	}
@@ -105,7 +105,7 @@ func (a *Alias) Create(ctx context.Context, createReq AliasCreateReq) (*CreateAl
 
 	req.Header.Set("X-API-Key", a.options.ApiKey)
 
-	out := new(CreateAliasV1)
+	out := new(CreateAliasWithSig)
 	response, err := doHttp(ctx, a.options, req, out)
 	if err != nil {
 		return nil, response, err
@@ -122,7 +122,7 @@ type AliasBroadcastReq struct {
 	Alias           string           `json:"alias"`
 }
 
-func (a *Alias) Broadcast(ctx context.Context, broadcastReq AliasBroadcastReq) (*CreateAliasV1, *Response, error) {
+func (a *Alias) Broadcast(ctx context.Context, broadcastReq AliasBroadcastReq) (*CreateAliasWithSig, *Response, error) {
 	bts, err := json.Marshal(broadcastReq)
 	if err != nil {
 		return nil, nil, err
@@ -140,7 +140,7 @@ func (a *Alias) Broadcast(ctx context.Context, broadcastReq AliasBroadcastReq) (
 		return nil, nil, err
 	}
 
-	out := new(CreateAliasV1)
+	out := new(CreateAliasWithSig)
 	response, err := doHttp(ctx, a.options, req, out)
 	if err != nil {
 		return nil, response, err

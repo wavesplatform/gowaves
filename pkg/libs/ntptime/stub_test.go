@@ -23,3 +23,7 @@ func TestStub_Query(t *testing.T) {
 	}, rs)
 	require.NoError(t, err)
 }
+
+func TestStub_Now(t *testing.T) {
+	require.NotEmpty(t, Stub{}.Now())
+}

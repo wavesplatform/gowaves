@@ -62,7 +62,7 @@ type getStateChangesHandler struct {
 func (h *getStateChangesHandler) handle(tx proto.Transaction) error {
 	var id crypto.Digest
 	switch t := tx.(type) {
-	case *proto.InvokeScriptV1:
+	case *proto.InvokeScriptWithProofs:
 		id = *t.ID
 	default:
 		return errors.New("bad transaction type")
@@ -120,7 +120,7 @@ func (s *Server) GetStatuses(req *g.TransactionsByIdRequest, srv g.TransactionsA
 			}
 			res.Status = g.TransactionStatus_CONFIRMED
 			res.Height = int64(height)
-		} else if s.utx.TransactionExists(id) {
+		} else if s.utx.ExistsByID(id) {
 			// Transaction is in UTX.
 			res.Status = g.TransactionStatus_UNCONFIRMED
 		} else {
@@ -177,7 +177,7 @@ func (s *Server) Sign(ctx context.Context, req *g.SignRequest) (*g.SignedTransac
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, err.Error())
 	}
-	if err := s.sch.SignTransactionWith(pk, tx); err != nil {
+	if err := s.wallet.SignTransactionWith(pk, tx); err != nil {
 		return nil, status.Errorf(codes.FailedPrecondition, err.Error())
 	}
 	txProto, err := tx.ToProtobufSigned(s.scheme)
@@ -197,7 +197,8 @@ func (s *Server) Broadcast(ctx context.Context, tx *g.SignedTransaction) (*g.Sig
 	if err != nil {
 		return nil, status.Errorf(codes.FailedPrecondition, err.Error())
 	}
-	if added := s.utx.AddWithBytes(t, tBytes); !added {
+	err = s.utx.AddWithBytes(t, tBytes)
+	if err != nil {
 		return nil, status.Errorf(codes.Unavailable, "failed to add transaction to UTX")
 	}
 	return tx, nil
