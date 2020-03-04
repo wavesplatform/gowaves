@@ -683,23 +683,6 @@ func (o OrderBody) Valid() (bool, error) {
 	if o.MatcherFee > MaxOrderAmount {
 		return false, errors.New("matcher's fee is larger than maximum allowed")
 	}
-	s, err := o.SpendAmount(o.Amount, o.Price)
-	if err != nil {
-		return false, err
-	}
-	if s == 0 {
-		return false, errors.New("spend amount should be positive")
-	}
-	if !o.SpendAsset().Present && !validJVMLong(s+o.MatcherFee) {
-		return false, errors.New("sum of spend asset amount and matcher fee overflows JVM long")
-	}
-	r, err := o.ReceiveAmount(o.Amount, o.Price)
-	if err != nil {
-		return false, err
-	}
-	if r == 0 {
-		return false, errors.New("receive amount should be positive")
-	}
 	if o.Timestamp == 0 {
 		return false, errors.New("timestamp should be positive")
 	}
@@ -713,34 +696,25 @@ func (o OrderBody) GetSenderPK() crypto.PublicKey {
 	return o.SenderPK
 }
 
-func (o *OrderBody) SpendAmount(matchAmount, matchPrice uint64) (uint64, error) {
-	if o.OrderType == Sell {
-		return matchAmount, nil
-	}
-	return otherAmount(matchAmount, matchPrice, "spend")
-}
-
-func (o *OrderBody) ReceiveAmount(matchAmount, matchPrice uint64) (uint64, error) {
-	if o.OrderType == Buy {
-		return matchAmount, nil
-	}
-	return otherAmount(matchAmount, matchPrice, "receive")
-}
-
-var (
-	bigPriceConstant = big.NewInt(PriceConstant)
-)
-
-func otherAmount(amount, price uint64, name string) (uint64, error) {
-	a := big.NewInt(0).SetUint64(amount)
-	p := big.NewInt(0).SetUint64(price)
-	r := big.NewInt(0).Mul(a, p)
-	r = big.NewInt(0).Div(r, bigPriceConstant)
-	if !r.IsUint64() {
-		return 0, errors.Errorf("%s amount is too large", name)
-	}
-	return r.Uint64(), nil
-}
+//var (
+//	bigPriceConstant = big.NewInt(PriceConstant)
+//)
+//
+// Amount and price calculation for Order versions from 1 to 3
+//func otherAmountV1(amount, price uint64, name string) (uint64, error) {
+//	a := big.NewInt(0).SetUint64(amount)
+//	p := big.NewInt(0).SetUint64(price)
+//	r := big.NewInt(0).Mul(a, p)
+//	r = big.NewInt(0).Div(r, bigPriceConstant)
+//	if !r.IsUint64() {
+//		return 0, errors.Errorf("%s amount is too large", name)
+//	}
+//	return r.Uint64(), nil
+//}
+//
+//func otherAmountV2(amount, price uint64, name string) (uint64, error) {
+//	return 0, errors.New("not implemented")
+//}
 
 func (o *OrderBody) SpendAsset() OptionalAsset {
 	if o.OrderType == Buy {
@@ -921,6 +895,45 @@ func (o OrderV1) GetMatcherFee() uint64 {
 func (o OrderV1) GetMatcherFeeAsset() OptionalAsset {
 	return OptionalAsset{}
 }
+
+//func (o OrderV1) Valid() (bool, error) {
+//	ok, err := o.OrderBody.Valid()
+//	if !ok {
+//		return ok, err
+//	}
+//	s, err := o.SpendAmount(o.Amount, o.Price)
+//	if err != nil {
+//		return false, err
+//	}
+//	if s == 0 {
+//		return false, errors.New("spend amount should be positive")
+//	}
+//	if !o.SpendAsset().Present && !validJVMLong(s+o.MatcherFee) {
+//		return false, errors.New("sum of spend asset amount and matcher fee overflows JVM long")
+//	}
+//	r, err := o.ReceiveAmount(o.Amount, o.Price)
+//	if err != nil {
+//		return false, err
+//	}
+//	if r == 0 {
+//		return false, errors.New("receive amount should be positive")
+//	}
+//	return true, nil
+//}
+
+//func (o *OrderV1) SpendAmount(matchAmount, matchPrice uint64) (uint64, error) {
+//	if o.OrderType == Sell {
+//		return matchAmount, nil
+//	}
+//	return otherAmountV1(matchAmount, matchPrice, "spend")
+//}
+//
+//func (o *OrderV1) ReceiveAmount(matchAmount, matchPrice uint64) (uint64, error) {
+//	if o.OrderType == Buy {
+//		return matchAmount, nil
+//	}
+//	return otherAmountV1(matchAmount, matchPrice, "receive")
+//}
 
 //NewUnsignedOrderV1 creates the new unsigned order.
 func NewUnsignedOrderV1(senderPK, matcherPK crypto.PublicKey, amountAsset, priceAsset OptionalAsset, orderType OrderType, price, amount, timestamp, expiration, matcherFee uint64) *OrderV1 {
