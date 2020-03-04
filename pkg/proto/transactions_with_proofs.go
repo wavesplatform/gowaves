@@ -2963,16 +2963,19 @@ func (tx *DataWithProofs) Clone() *DataWithProofs {
 	return out
 }
 
-func NewUnsigneData(v byte, senderPK crypto.PublicKey, fee, timestamp uint64) *DataWithProofs {
+func NewUnsignedData(v byte, senderPK crypto.PublicKey, fee, timestamp uint64) *DataWithProofs {
 	return &DataWithProofs{Type: DataTransaction, Version: v, SenderPK: senderPK, Fee: fee, Timestamp: timestamp}
 }
 
-func (tx DataWithProofs) Valid() (bool, error) {
+func (tx *DataWithProofs) Valid() (bool, error) {
 	if len(tx.Entries) > maxEntries {
 		return false, errors.Errorf("number of DataWithProofs entries is bigger than %d", maxEntries)
 	}
 	keys := make(map[string]struct{})
 	for _, e := range tx.Entries {
+		if !IsProtobufTx(tx) && e.GetValueType() == DataDelete {
+			return false, errors.New("delete supported only for protobuf transaction")
+		}
 		ok, err := e.Valid()
 		if !ok {
 			return false, errors.Wrap(err, "at least one of the DataWithProofs entry is not valid")
