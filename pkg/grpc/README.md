@@ -1,4 +1,4 @@
-# Waves Node gRPC client
+# Waves Node gRPC
 
 ## Installation
 
@@ -13,12 +13,12 @@ go get -u github.com/golang/protobuf/protoc-gen-go
 ## Package structure
 
 * `grpc/proto/` - a copy of proto files from [protobuf-schemas](https://github.com/wavesplatform/protobuf-schemas) project. Files are copied from folders `proto/waves/` and `proto/waves/node/grpc`. And `import` directives updated afterwards to reflect the flat structure.
-* `grpc/generated` - generated from proto files.
-* `grpc/client` - utilities for converting proto structures into internal client structures.
+* `grpc/generated` - code generated from proto files.
+* `grpc/server` - gRPC server implementation (API).
 
 ## Rebuilding
 
-Before rebuilding of gRPC client it's required to add to all `*.proto` files the following line:
+Before rebuilding it's required to add to all `*.proto` files the following line:
 
 ```proto
 option go_package = "generated";

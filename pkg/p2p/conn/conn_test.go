@@ -57,7 +57,7 @@ func TestRecvFromRemote_Transaction(t *testing.T) {
 	logger, _ := zap.NewDevelopment()
 	zap.ReplaceGlobals(logger)
 
-	messBytes := byte_helpers.TransferV1.MessageBytes
+	messBytes := byte_helpers.TransferWithSig.MessageBytes
 	pool := bytespool.NewNoOpBytesPool(len(messBytes))
 	fromRemoteCh := make(chan []byte, 2)
 

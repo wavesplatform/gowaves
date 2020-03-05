@@ -58,7 +58,7 @@ func readRealBlocks(blocksPath string, nBlocks int) ([]proto.Block, error) {
 			return nil, err
 		}
 		var block proto.Block
-		if err := block.UnmarshalBinary(bb); err != nil {
+		if err := block.UnmarshalBinary(bb, proto.MainNetScheme); err != nil {
 			return nil, err
 		}
 		if !crypto.Verify(block.GenPublicKey, block.BlockSignature, bb[:len(bb)-crypto.SignatureSize]) {

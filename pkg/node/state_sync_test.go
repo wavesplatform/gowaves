@@ -59,7 +59,7 @@ func TestCreateBulkHandler(t *testing.T) {
 	blocksBulk := make(chan []*proto.Block, 10)
 
 	block, err := proto.CreateBlock(
-		proto.NewReprFromTransactions(nil),
+		proto.Transactions(nil),
 		100,
 		crypto.Signature{},
 		crypto.PublicKey{},
@@ -75,10 +75,10 @@ func TestCreateBulkHandler(t *testing.T) {
 	receivedBlocksCh <- bts
 	//receivedBlocksCh <- nil
 
-	require.NoError(t, createBulkWorker(ctx, 2, receivedBlocksCh, blocksBulk))
+	require.NoError(t, createBulkWorker(ctx, 2, receivedBlocksCh, blocksBulk, proto.MainNetScheme))
 	require.Equal(t, [][]byte{{1}, {1}}, <-blocksBulk)
 	require.True(t, 0 == len(<-blocksBulk))
 
 	cancel()
-	require.Nil(t, createBulkWorker(ctx, 2, receivedBlocksCh, blocksBulk))
+	require.Nil(t, createBulkWorker(ctx, 2, receivedBlocksCh, blocksBulk, proto.MainNetScheme))
 }

@@ -1,4 +1,3 @@
-// Transactions
 syntax = "proto3";
 package waves;
 option java_package = "com.wavesplatform.protobuf.transaction";
@@ -7,7 +6,8 @@ option go_package = "generated";
 
 message Recipient {
     oneof recipient {
-        bytes address = 1;
+        // First 20 bytes of the result of the Keccak256(Blake2b256(publicKey)) hashing function.
+        bytes public_key_hash = 1;
         string alias = 2;
     };
 };

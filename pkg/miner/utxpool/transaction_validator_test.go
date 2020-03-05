@@ -33,10 +33,10 @@ func TestValidatorImpl_Validate(t *testing.T) {
 	m.EXPECT().Mutex().Return(mu)
 	m.EXPECT().TopBlock().Return(emptyBlock)
 	m.EXPECT().
-		ValidateNextTx(byte_helpers.BurnV1.Transaction, gomock.Any(), gomock.Any(), gomock.Any()).
+		ValidateNextTx(byte_helpers.BurnWithSig.Transaction, gomock.Any(), gomock.Any(), gomock.Any()).
 		Return(nil)
 	m.EXPECT().ResetValidationList()
 
-	err := v.Validate(byte_helpers.BurnV1.Transaction)
+	err := v.Validate(byte_helpers.BurnWithSig.Transaction)
 	require.NoError(t, err)
 }

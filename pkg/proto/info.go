@@ -41,8 +41,8 @@ type FullAssetInfo struct {
 
 func (i *FullAssetInfo) ToProtobuf(scheme Scheme) (*g.AssetInfoResponse, error) {
 	res := i.AssetInfo.ToProtobuf()
-	res.Name = []byte(i.Name)
-	res.Description = []byte(i.Description)
+	res.Name = i.Name
+	res.Description = i.Description
 	res.Script = i.ScriptInfo.ToProtobuf()
 	res.Sponsorship = int64(i.SponsorshipCost)
 	protoTransaction, err := i.IssueTransaction.ToProtobufSigned(scheme)

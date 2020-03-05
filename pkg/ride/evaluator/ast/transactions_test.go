@@ -13,198 +13,202 @@ import (
 var _digest = crypto.MustDigestFromBase58("WmryL34P6UwwUphNbhjBRwiCWxX15Nf5D8T7AmQY7yx")
 var optionalAsset = *proto.NewOptionalAssetFromDigest(crypto.MustDigestFromBase58("WmryL34P6UwwUphNbhjBRwiCWxX15Nf5D8T7AmQY7yx"))
 
-type TransferV1TestSuite struct {
+type TransferWithSigTestSuite struct {
 	suite.Suite
-	tx *proto.TransferV1
+	tx *proto.TransferWithSig
 	f  func(scheme proto.Scheme, tx proto.Transaction) (map[string]Expr, error)
 }
 
-func (a *TransferV1TestSuite) SetupTest() {
-	a.tx = byte_helpers.TransferV1.Transaction.Clone()
+func (a *TransferWithSigTestSuite) SetupTest() {
+	a.tx = byte_helpers.TransferWithSig.Transaction.Clone()
 	a.f = NewVariablesFromTransaction
 }
 
-func (a *TransferV1TestSuite) Test_feeAssetId_Presence() {
+func (a *TransferWithSigTestSuite) Test_feeAssetId_Presence() {
 	a.tx.Transfer.FeeAsset = optionalAsset
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewBytes(_digest.Bytes()), rs["feeAssetId"])
 }
 
-func (a *TransferV1TestSuite) Test_feeAssetId_Absence() {
+func (a *TransferWithSigTestSuite) Test_feeAssetId_Absence() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewUnit(), rs["feeAssetId"])
 }
 
-func (a *TransferV1TestSuite) Test_amount() {
+func (a *TransferWithSigTestSuite) Test_amount() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewLong(10000), rs["amount"])
 }
 
-func (a *TransferV1TestSuite) Test_assetId_presence() {
+func (a *TransferWithSigTestSuite) Test_assetId_presence() {
 	a.tx.Transfer.AmountAsset = optionalAsset
 	rs, err := a.f(proto.MainNetScheme, a.tx)
 	a.NoError(err)
 	a.Equal(NewBytes(_digest.Bytes()), rs["assetId"])
 }
 
-func (a *TransferV1TestSuite) Test_assetId_absence() {
+func (a *TransferWithSigTestSuite) Test_assetId_absence() {
 	rs, err := a.f(proto.MainNetScheme, a.tx)
 	a.NoError(err)
 	a.Equal(NewUnit(), rs["assetId"])
 }
 
-func (a *TransferV1TestSuite) Test_recipient() {
+func (a *TransferWithSigTestSuite) Test_recipient() {
 	rs, err := a.f(proto.MainNetScheme, a.tx)
 	a.NoError(err)
 	a.Equal(NewRecipientFromProtoRecipient(a.tx.Recipient), rs["recipient"])
 }
 
-func (a *TransferV1TestSuite) Test_attachment() {
+func (a *TransferWithSigTestSuite) Test_attachment() {
 	rs, err := a.f(proto.MainNetScheme, a.tx)
 	a.NoError(err)
-	a.Equal(NewBytes(a.tx.Attachment.Bytes()), rs["attachment"])
+	attachmentBytes, err := a.tx.Attachment.Bytes()
+	a.NoError(err)
+	a.Equal(NewBytes(attachmentBytes), rs["attachment"])
 }
 
-func (a *TransferV1TestSuite) Test_id() {
+func (a *TransferWithSigTestSuite) Test_id() {
 	rs, err := a.f(proto.MainNetScheme, a.tx)
 	a.NoError(err)
 	a.Equal(NewBytes(a.tx.ID.Bytes()), rs["id"])
 }
 
-func (a *TransferV1TestSuite) Test_fee() {
+func (a *TransferWithSigTestSuite) Test_fee() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewLong(int64(a.tx.Fee)), rs["fee"])
 }
 
-func (a *TransferV1TestSuite) Test_timestamp() {
+func (a *TransferWithSigTestSuite) Test_timestamp() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewLong(int64(a.tx.Timestamp)), rs["timestamp"])
 }
 
-func (a *TransferV1TestSuite) Test_version() {
+func (a *TransferWithSigTestSuite) Test_version() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewLong(int64(a.tx.Version)), rs["version"])
 }
 
-func (a *TransferV1TestSuite) Test_sender() {
+func (a *TransferWithSigTestSuite) Test_sender() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	addr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, a.tx.SenderPK)
 	a.NoError(err)
 	a.Equal(NewAddressFromProtoAddress(addr), rs["sender"])
 }
 
-func (a *TransferV1TestSuite) Test_senderPublicKey() {
+func (a *TransferWithSigTestSuite) Test_senderPublicKey() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewBytes(a.tx.SenderPK.Bytes()), rs["senderPublicKey"])
 }
 
-func (a *TransferV1TestSuite) Test_bodyBytes() {
+func (a *TransferWithSigTestSuite) Test_bodyBytes() {
 	_, pub, _ := crypto.GenerateKeyPair([]byte("test"))
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.IsType(&BytesExpr{}, rs["bodyBytes"])
 	a.True(crypto.Verify(pub, *a.tx.Signature, rs["bodyBytes"].(*BytesExpr).Value))
 }
 
-func (a *TransferV1TestSuite) Test_proofs() {
+func (a *TransferWithSigTestSuite) Test_proofs() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(Exprs{NewBytes(a.tx.Signature.Bytes()), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil)}, rs["proofs"])
 }
 
-func (a *TransferV1TestSuite) Test_InstanceFieldName() {
+func (a *TransferWithSigTestSuite) Test_InstanceFieldName() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewString("TransferTransaction"), rs[InstanceFieldName])
 }
 
-func TestNewVariablesFromTransferV1(t *testing.T) {
-	suite.Run(t, new(TransferV1TestSuite))
+func TestNewVariablesFromTransferWithSig(t *testing.T) {
+	suite.Run(t, new(TransferWithSigTestSuite))
 }
 
-type TransferV2TestSuite struct {
+type TransferWithProofsTestSuite struct {
 	suite.Suite
-	tx *proto.TransferV2
-	f  func(scheme proto.Scheme, tx *proto.TransferV2) (map[string]Expr, error)
+	tx *proto.TransferWithProofs
+	f  func(scheme proto.Scheme, tx *proto.TransferWithProofs) (map[string]Expr, error)
 }
 
-func (a *TransferV2TestSuite) SetupTest() {
-	a.tx = byte_helpers.TransferV2.Transaction.Clone()
-	a.f = newVariablesFromTransferV2
+func (a *TransferWithProofsTestSuite) SetupTest() {
+	a.tx = byte_helpers.TransferWithProofs.Transaction.Clone()
+	a.f = newVariablesFromTransferWithProofs
 }
 
-func (a *TransferV2TestSuite) Test_feeAssetId_Presence() {
+func (a *TransferWithProofsTestSuite) Test_feeAssetId_Presence() {
 	a.tx.Transfer.FeeAsset = optionalAsset
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewBytes(_digest.Bytes()), rs["feeAssetId"])
 }
 
-func (a *TransferV2TestSuite) Test_feeAssetId_Absence() {
+func (a *TransferWithProofsTestSuite) Test_feeAssetId_Absence() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewUnit(), rs["feeAssetId"])
 }
 
-func (a *TransferV2TestSuite) Test_amount() {
+func (a *TransferWithProofsTestSuite) Test_amount() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewLong(100000), rs["amount"])
 }
 
-func (a *TransferV2TestSuite) Test_assetId_presence() {
+func (a *TransferWithProofsTestSuite) Test_assetId_presence() {
 	a.tx.Transfer.AmountAsset = optionalAsset
 	rs, err := a.f(proto.MainNetScheme, a.tx)
 	a.NoError(err)
 	a.Equal(NewBytes(_digest.Bytes()), rs["assetId"])
 }
 
-func (a *TransferV2TestSuite) Test_assetId_absence() {
+func (a *TransferWithProofsTestSuite) Test_assetId_absence() {
 	rs, err := a.f(proto.MainNetScheme, a.tx)
 	a.NoError(err)
 	a.Equal(NewUnit(), rs["assetId"])
 }
 
-func (a *TransferV2TestSuite) Test_recipient() {
+func (a *TransferWithProofsTestSuite) Test_recipient() {
 	rs, err := a.f(proto.MainNetScheme, a.tx)
 	a.NoError(err)
 	a.Equal(NewRecipientFromProtoRecipient(a.tx.Recipient), rs["recipient"])
 }
 
-func (a *TransferV2TestSuite) Test_attachment() {
+func (a *TransferWithProofsTestSuite) Test_attachment() {
 	rs, err := a.f(proto.MainNetScheme, a.tx)
 	a.NoError(err)
-	a.Equal(NewBytes(a.tx.Attachment.Bytes()), rs["attachment"])
+	attachmentBytes, err := a.tx.Attachment.Bytes()
+	a.NoError(err)
+	a.Equal(NewBytes(attachmentBytes), rs["attachment"])
 }
 
-func (a *TransferV2TestSuite) Test_id() {
+func (a *TransferWithProofsTestSuite) Test_id() {
 	rs, err := a.f(proto.MainNetScheme, a.tx)
 	a.NoError(err)
 	a.Equal(NewBytes(a.tx.ID.Bytes()), rs["id"])
 }
 
-func (a *TransferV2TestSuite) Test_fee() {
+func (a *TransferWithProofsTestSuite) Test_fee() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewLong(int64(a.tx.Fee)), rs["fee"])
 }
 
-func (a *TransferV2TestSuite) Test_timestamp() {
+func (a *TransferWithProofsTestSuite) Test_timestamp() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewLong(int64(a.tx.Timestamp)), rs["timestamp"])
 }
 
-func (a *TransferV2TestSuite) Test_version() {
+func (a *TransferWithProofsTestSuite) Test_version() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewLong(int64(a.tx.Version)), rs["version"])
 }
 
-func (a *TransferV2TestSuite) Test_sender() {
+func (a *TransferWithProofsTestSuite) Test_sender() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	addr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, a.tx.SenderPK)
 	a.NoError(err)
 	a.Equal(NewAddressFromProtoAddress(addr), rs["sender"])
 }
 
-func (a *TransferV2TestSuite) Test_senderPublicKey() {
+func (a *TransferWithProofsTestSuite) Test_senderPublicKey() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewBytes(a.tx.SenderPK.Bytes()), rs["senderPublicKey"])
 }
 
-func (a *TransferV2TestSuite) Test_bodyBytes() {
+func (a *TransferWithProofsTestSuite) Test_bodyBytes() {
 	_, pub, _ := crypto.GenerateKeyPair([]byte("test"))
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.IsType(&BytesExpr{}, rs["bodyBytes"])
@@ -212,18 +216,18 @@ func (a *TransferV2TestSuite) Test_bodyBytes() {
 	a.True(crypto.Verify(pub, sig, rs["bodyBytes"].(*BytesExpr).Value))
 }
 
-func (a *TransferV2TestSuite) Test_proofs() {
+func (a *TransferWithProofsTestSuite) Test_proofs() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(Exprs{NewBytes(a.tx.Proofs.Proofs[0].Bytes()), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil)}, rs["proofs"])
 }
 
-func (a *TransferV2TestSuite) Test_InstanceFieldName() {
+func (a *TransferWithProofsTestSuite) Test_InstanceFieldName() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewString("TransferTransaction"), rs[InstanceFieldName])
 }
 
-func TestNewVariablesFromTransferV2(t *testing.T) {
-	suite.Run(t, new(TransferV2TestSuite))
+func TestNewVariablesFromTransferWithProofs(t *testing.T) {
+	suite.Run(t, new(TransferWithProofsTestSuite))
 }
 
 type GenesisTestSuite struct {
@@ -253,7 +257,7 @@ func (a *GenesisTestSuite) Test_recipient() {
 func (a *GenesisTestSuite) Test_id() {
 	rs, err := a.f(proto.MainNetScheme, a.tx)
 	a.NoError(err)
-	id, err := a.tx.GetID()
+	id, err := a.tx.GetID(proto.MainNetScheme)
 	a.NoError(err)
 	a.Equal(NewBytes(id), rs["id"])
 }
@@ -303,7 +307,7 @@ func (a *PaymentTestSuite) Test_recipient() {
 func (a *PaymentTestSuite) Test_id() {
 	rs, err := a.f(proto.MainNetScheme, a.tx)
 	a.NoError(err)
-	id, err := a.tx.GetID()
+	id, err := a.tx.GetID(proto.MainNetScheme)
 	a.NoError(err)
 	a.Equal(NewBytes(id), rs["id"])
 }
@@ -356,147 +360,147 @@ func TestNewVariablesFromPayment(t *testing.T) {
 	suite.Run(t, new(PaymentTestSuite))
 }
 
-type ReissueV1TestSuite struct {
+type ReissueWithSigTestSuite struct {
 	suite.Suite
-	tx *proto.ReissueV1
+	tx *proto.ReissueWithSig
 	f  func(scheme proto.Scheme, tx proto.Transaction) (map[string]Expr, error)
 }
 
-func (a *ReissueV1TestSuite) SetupTest() {
-	a.tx = byte_helpers.ReissueV1.Transaction.Clone()
+func (a *ReissueWithSigTestSuite) SetupTest() {
+	a.tx = byte_helpers.ReissueWithSig.Transaction.Clone()
 	a.f = NewVariablesFromTransaction
 }
 
-func (a *ReissueV1TestSuite) Test_quantity() {
+func (a *ReissueWithSigTestSuite) Test_quantity() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewLong(100000), rs["quantity"])
 }
 
-func (a *ReissueV1TestSuite) Test_assetId() {
+func (a *ReissueWithSigTestSuite) Test_assetId() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewBytes(a.tx.AssetID.Bytes()), rs["assetId"])
 }
 
-func (a *ReissueV1TestSuite) Test_reissuable() {
+func (a *ReissueWithSigTestSuite) Test_reissuable() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewBoolean(a.tx.Reissuable), rs["reissuable"])
 }
 
-func (a *ReissueV1TestSuite) Test_id() {
+func (a *ReissueWithSigTestSuite) Test_id() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	id, _ := a.tx.GetID()
+	id, _ := a.tx.GetID(proto.MainNetScheme)
 	a.Equal(NewBytes(id), rs["id"])
 }
 
-func (a *ReissueV1TestSuite) Test_fee() {
+func (a *ReissueWithSigTestSuite) Test_fee() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewLong(int64(a.tx.Fee)), rs["fee"])
 }
 
-func (a *ReissueV1TestSuite) Test_timestamp() {
+func (a *ReissueWithSigTestSuite) Test_timestamp() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewLong(int64(a.tx.Timestamp)), rs["timestamp"])
 }
 
-func (a *ReissueV1TestSuite) Test_version() {
+func (a *ReissueWithSigTestSuite) Test_version() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewLong(int64(a.tx.Version)), rs["version"])
 }
 
-func (a *ReissueV1TestSuite) Test_sender() {
+func (a *ReissueWithSigTestSuite) Test_sender() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	addr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, a.tx.SenderPK)
 	a.NoError(err)
 	a.Equal(NewAddressFromProtoAddress(addr), rs["sender"])
 }
 
-func (a *ReissueV1TestSuite) Test_senderPublicKey() {
+func (a *ReissueWithSigTestSuite) Test_senderPublicKey() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewBytes(a.tx.SenderPK.Bytes()), rs["senderPublicKey"])
 }
 
-func (a *ReissueV1TestSuite) Test_bodyBytes() {
+func (a *ReissueWithSigTestSuite) Test_bodyBytes() {
 	_, pub, _ := crypto.GenerateKeyPair([]byte("test"))
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.IsType(&BytesExpr{}, rs["bodyBytes"])
 	a.True(crypto.Verify(pub, *a.tx.Signature, rs["bodyBytes"].(*BytesExpr).Value))
 }
 
-func (a *ReissueV1TestSuite) Test_proofs() {
+func (a *ReissueWithSigTestSuite) Test_proofs() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(Exprs{NewBytes(a.tx.Signature.Bytes()), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil)}, rs["proofs"])
 }
 
-func (a *ReissueV1TestSuite) Test_InstanceFieldName() {
+func (a *ReissueWithSigTestSuite) Test_InstanceFieldName() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewString("ReissueTransaction"), rs[InstanceFieldName])
 }
 
 //ReissueTransaction
-func TestNewVariablesFromReissueV1(t *testing.T) {
-	suite.Run(t, new(ReissueV1TestSuite))
+func TestNewVariablesFromReissueWithSig(t *testing.T) {
+	suite.Run(t, new(ReissueWithSigTestSuite))
 }
 
-type ReissueV2TestSuite struct {
+type ReissueWithProofsTestSuite struct {
 	suite.Suite
-	tx *proto.ReissueV2
+	tx *proto.ReissueWithProofs
 	f  func(scheme proto.Scheme, tx proto.Transaction) (map[string]Expr, error)
 }
 
-func (a *ReissueV2TestSuite) SetupTest() {
-	a.tx = byte_helpers.ReissueV2.Transaction.Clone()
+func (a *ReissueWithProofsTestSuite) SetupTest() {
+	a.tx = byte_helpers.ReissueWithProofs.Transaction.Clone()
 	a.f = NewVariablesFromTransaction
 }
 
-func (a *ReissueV2TestSuite) Test_quantity() {
+func (a *ReissueWithProofsTestSuite) Test_quantity() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewLong(100000), rs["quantity"])
 }
 
-func (a *ReissueV2TestSuite) Test_assetId() {
+func (a *ReissueWithProofsTestSuite) Test_assetId() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewBytes(a.tx.AssetID.Bytes()), rs["assetId"])
 }
 
-func (a *ReissueV2TestSuite) Test_reissuable() {
+func (a *ReissueWithProofsTestSuite) Test_reissuable() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewBoolean(a.tx.Reissuable), rs["reissuable"])
 }
 
-func (a *ReissueV2TestSuite) Test_id() {
+func (a *ReissueWithProofsTestSuite) Test_id() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	id, _ := a.tx.GetID()
+	id, _ := a.tx.GetID(proto.MainNetScheme)
 	a.Equal(NewBytes(id), rs["id"])
 }
 
-func (a *ReissueV2TestSuite) Test_fee() {
+func (a *ReissueWithProofsTestSuite) Test_fee() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewLong(int64(a.tx.Fee)), rs["fee"])
 }
 
-func (a *ReissueV2TestSuite) Test_timestamp() {
+func (a *ReissueWithProofsTestSuite) Test_timestamp() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewLong(int64(a.tx.Timestamp)), rs["timestamp"])
 }
 
-func (a *ReissueV2TestSuite) Test_version() {
+func (a *ReissueWithProofsTestSuite) Test_version() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewLong(int64(a.tx.Version)), rs["version"])
 }
 
-func (a *ReissueV2TestSuite) Test_sender() {
+func (a *ReissueWithProofsTestSuite) Test_sender() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	addr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, a.tx.SenderPK)
 	a.NoError(err)
 	a.Equal(NewAddressFromProtoAddress(addr), rs["sender"])
 }
 
-func (a *ReissueV2TestSuite) Test_senderPublicKey() {
+func (a *ReissueWithProofsTestSuite) Test_senderPublicKey() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewBytes(a.tx.SenderPK.Bytes()), rs["senderPublicKey"])
 }
 
-func (a *ReissueV2TestSuite) Test_bodyBytes() {
+func (a *ReissueWithProofsTestSuite) Test_bodyBytes() {
 	_, pub, _ := crypto.GenerateKeyPair([]byte("test"))
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.IsType(&BytesExpr{}, rs["bodyBytes"])
@@ -504,152 +508,152 @@ func (a *ReissueV2TestSuite) Test_bodyBytes() {
 	a.True(crypto.Verify(pub, sig, rs["bodyBytes"].(*BytesExpr).Value))
 }
 
-func (a *ReissueV2TestSuite) Test_proofs() {
+func (a *ReissueWithProofsTestSuite) Test_proofs() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(Exprs{NewBytes(a.tx.Proofs.Proofs[0].Bytes()), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil)}, rs["proofs"])
 }
 
-func (a *ReissueV2TestSuite) Test_InstanceFieldName() {
+func (a *ReissueWithProofsTestSuite) Test_InstanceFieldName() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewString("ReissueTransaction"), rs[InstanceFieldName])
 }
 
 //ReissueTransaction
-func TestNewVariablesFromReissueV2(t *testing.T) {
-	suite.Run(t, new(ReissueV2TestSuite))
+func TestNewVariablesFromReissueWithProofs(t *testing.T) {
+	suite.Run(t, new(ReissueWithProofsTestSuite))
 }
 
-type BurnV1TestSuite struct {
+type BurnWithSigTestSuite struct {
 	suite.Suite
-	tx *proto.BurnV1
+	tx *proto.BurnWithSig
 	f  func(scheme proto.Scheme, tx proto.Transaction) (map[string]Expr, error)
 }
 
-func (a *BurnV1TestSuite) SetupTest() {
-	a.tx = byte_helpers.BurnV1.Transaction.Clone()
+func (a *BurnWithSigTestSuite) SetupTest() {
+	a.tx = byte_helpers.BurnWithSig.Transaction.Clone()
 	a.f = NewVariablesFromTransaction
 }
 
-func (a *BurnV1TestSuite) Test_quantity() {
+func (a *BurnWithSigTestSuite) Test_quantity() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewLong(100000), rs["quantity"])
 }
 
-func (a *BurnV1TestSuite) Test_assetId() {
+func (a *BurnWithSigTestSuite) Test_assetId() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewBytes(a.tx.AssetID.Bytes()), rs["assetId"])
 }
 
-func (a *BurnV1TestSuite) Test_id() {
+func (a *BurnWithSigTestSuite) Test_id() {
 	rs, err := a.f(proto.MainNetScheme, a.tx)
 	a.NoError(err)
 	a.Equal(NewBytes(a.tx.ID.Bytes()), rs["id"])
 }
 
-func (a *BurnV1TestSuite) Test_fee() {
+func (a *BurnWithSigTestSuite) Test_fee() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewLong(int64(a.tx.Fee)), rs["fee"])
 }
 
-func (a *BurnV1TestSuite) Test_timestamp() {
+func (a *BurnWithSigTestSuite) Test_timestamp() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewLong(int64(a.tx.Timestamp)), rs["timestamp"])
 }
 
-func (a *BurnV1TestSuite) Test_version() {
+func (a *BurnWithSigTestSuite) Test_version() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewLong(1), rs["version"])
 }
 
-func (a *BurnV1TestSuite) Test_sender() {
+func (a *BurnWithSigTestSuite) Test_sender() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	addr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, a.tx.SenderPK)
 	a.NoError(err)
 	a.Equal(NewAddressFromProtoAddress(addr), rs["sender"])
 }
 
-func (a *BurnV1TestSuite) Test_senderPublicKey() {
+func (a *BurnWithSigTestSuite) Test_senderPublicKey() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewBytes(a.tx.SenderPK.Bytes()), rs["senderPublicKey"])
 }
 
-func (a *BurnV1TestSuite) Test_bodyBytes() {
+func (a *BurnWithSigTestSuite) Test_bodyBytes() {
 	_, pub, _ := crypto.GenerateKeyPair([]byte("test"))
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.IsType(&BytesExpr{}, rs["bodyBytes"])
 	a.True(crypto.Verify(pub, *a.tx.Signature, rs["bodyBytes"].(*BytesExpr).Value))
 }
 
-func (a *BurnV1TestSuite) Test_proofs() {
+func (a *BurnWithSigTestSuite) Test_proofs() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(Exprs{NewBytes(a.tx.Signature.Bytes()), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil)}, rs["proofs"])
 }
 
-func (a *BurnV1TestSuite) Test_InstanceFieldName() {
+func (a *BurnWithSigTestSuite) Test_InstanceFieldName() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewString("BurnTransaction"), rs[InstanceFieldName])
 }
 
-//BurnV1
-func TestNewVariablesFromBurnV1(t *testing.T) {
-	suite.Run(t, new(BurnV1TestSuite))
+//BurnWithSig
+func TestNewVariablesFromBurnWithSig(t *testing.T) {
+	suite.Run(t, new(BurnWithSigTestSuite))
 }
 
-type BurnV2TestSuite struct {
+type BurnWithProofsTestSuite struct {
 	suite.Suite
-	tx *proto.BurnV2
+	tx *proto.BurnWithProofs
 	f  func(scheme proto.Scheme, tx proto.Transaction) (map[string]Expr, error)
 }
 
-func (a *BurnV2TestSuite) SetupTest() {
-	a.tx = byte_helpers.BurnV2.Transaction.Clone()
+func (a *BurnWithProofsTestSuite) SetupTest() {
+	a.tx = byte_helpers.BurnWithProofs.Transaction.Clone()
 	a.f = NewVariablesFromTransaction
 }
 
-func (a *BurnV2TestSuite) Test_quantity() {
+func (a *BurnWithProofsTestSuite) Test_quantity() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewLong(100000), rs["quantity"])
 }
 
-func (a *BurnV2TestSuite) Test_assetId() {
+func (a *BurnWithProofsTestSuite) Test_assetId() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewBytes(a.tx.AssetID.Bytes()), rs["assetId"])
 }
 
-func (a *BurnV2TestSuite) Test_id() {
+func (a *BurnWithProofsTestSuite) Test_id() {
 	rs, err := a.f(proto.MainNetScheme, a.tx)
 	a.NoError(err)
 	a.Equal(NewBytes(a.tx.ID.Bytes()), rs["id"])
 }
 
-func (a *BurnV2TestSuite) Test_fee() {
+func (a *BurnWithProofsTestSuite) Test_fee() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewLong(int64(a.tx.Fee)), rs["fee"])
 }
 
-func (a *BurnV2TestSuite) Test_timestamp() {
+func (a *BurnWithProofsTestSuite) Test_timestamp() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewLong(int64(a.tx.Timestamp)), rs["timestamp"])
 }
 
-func (a *BurnV2TestSuite) Test_version() {
+func (a *BurnWithProofsTestSuite) Test_version() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewLong(2), rs["version"])
 }
 
-func (a *BurnV2TestSuite) Test_sender() {
+func (a *BurnWithProofsTestSuite) Test_sender() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	addr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, a.tx.SenderPK)
 	a.NoError(err)
 	a.Equal(NewAddressFromProtoAddress(addr), rs["sender"])
 }
 
-func (a *BurnV2TestSuite) Test_senderPublicKey() {
+func (a *BurnWithProofsTestSuite) Test_senderPublicKey() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewBytes(a.tx.SenderPK.Bytes()), rs["senderPublicKey"])
 }
 
-func (a *BurnV2TestSuite) Test_bodyBytes() {
+func (a *BurnWithProofsTestSuite) Test_bodyBytes() {
 	_, pub, _ := crypto.GenerateKeyPair([]byte("test"))
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.IsType(&BytesExpr{}, rs["bodyBytes"])
@@ -657,40 +661,40 @@ func (a *BurnV2TestSuite) Test_bodyBytes() {
 	a.True(crypto.Verify(pub, sig, rs["bodyBytes"].(*BytesExpr).Value))
 }
 
-func (a *BurnV2TestSuite) Test_proofs() {
+func (a *BurnWithProofsTestSuite) Test_proofs() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(Exprs{NewBytes(a.tx.Proofs.Proofs[0].Bytes()), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil)}, rs["proofs"])
 }
 
-func (a *BurnV2TestSuite) Test_InstanceFieldName() {
+func (a *BurnWithProofsTestSuite) Test_InstanceFieldName() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewString("BurnTransaction"), rs[InstanceFieldName])
 }
 
-//BurnV2
-func TestNewVariablesFromBurnV2(t *testing.T) {
-	suite.Run(t, new(BurnV2TestSuite))
+//BurnWithProofs
+func TestNewVariablesFromBurnWithProofs(t *testing.T) {
+	suite.Run(t, new(BurnWithProofsTestSuite))
 }
 
-type MassTransferV1TestSuite struct {
+type MassTransferWithProofsTestSuite struct {
 	suite.Suite
-	tx *proto.MassTransferV1
+	tx *proto.MassTransferWithProofs
 	f  func(scheme proto.Scheme, tx proto.Transaction) (map[string]Expr, error)
 }
 
-func (a *MassTransferV1TestSuite) SetupTest() {
-	a.tx = byte_helpers.MassTransferV1.Transaction.Clone()
+func (a *MassTransferWithProofsTestSuite) SetupTest() {
+	a.tx = byte_helpers.MassTransferWithProofs.Transaction.Clone()
 	a.f = NewVariablesFromTransaction
 }
 
-func (a *MassTransferV1TestSuite) Test_assetId_presence() {
+func (a *MassTransferWithProofsTestSuite) Test_assetId_presence() {
 	a.tx.Asset = optionalAsset
 	rs, err := a.f(proto.MainNetScheme, a.tx)
 	a.NoError(err)
 	a.Equal(NewBytes(_digest.Bytes()), rs["assetId"])
 }
 
-func (a *MassTransferV1TestSuite) Test_assetId_absence() {
+func (a *MassTransferWithProofsTestSuite) Test_assetId_absence() {
 	a.tx.Asset = proto.OptionalAsset{}
 	rs, err := a.f(proto.MainNetScheme, a.tx)
 
@@ -698,12 +702,12 @@ func (a *MassTransferV1TestSuite) Test_assetId_absence() {
 	a.Equal(NewUnit(), rs["assetId"])
 }
 
-func (a *MassTransferV1TestSuite) Test_totalAmount() {
+func (a *MassTransferWithProofsTestSuite) Test_totalAmount() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewLong(100000), rs["totalAmount"])
 }
 
-func (a *MassTransferV1TestSuite) Test_transfers() {
+func (a *MassTransferWithProofsTestSuite) Test_transfers() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 
 	m := make(map[string]Expr)
@@ -713,51 +717,53 @@ func (a *MassTransferV1TestSuite) Test_transfers() {
 	a.Equal(Exprs{obj}, rs["transfers"])
 }
 
-func (a *MassTransferV1TestSuite) Test_transferCount() {
+func (a *MassTransferWithProofsTestSuite) Test_transferCount() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewLong(1), rs["transferCount"])
 }
 
-func (a *MassTransferV1TestSuite) Test_attachment() {
+func (a *MassTransferWithProofsTestSuite) Test_attachment() {
 	rs, err := a.f(proto.MainNetScheme, a.tx)
 	a.NoError(err)
-	a.Equal(NewBytes(a.tx.Attachment.Bytes()), rs["attachment"])
+	attachmentBytes, err := a.tx.Attachment.Bytes()
+	a.NoError(err)
+	a.Equal(NewBytes(attachmentBytes), rs["attachment"])
 }
 
-func (a *MassTransferV1TestSuite) Test_id() {
+func (a *MassTransferWithProofsTestSuite) Test_id() {
 	rs, err := a.f(proto.MainNetScheme, a.tx)
 	a.NoError(err)
 	a.Equal(NewBytes(a.tx.ID.Bytes()), rs["id"])
 }
 
-func (a *MassTransferV1TestSuite) Test_fee() {
+func (a *MassTransferWithProofsTestSuite) Test_fee() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewLong(int64(a.tx.Fee)), rs["fee"])
 }
 
-func (a *MassTransferV1TestSuite) Test_timestamp() {
+func (a *MassTransferWithProofsTestSuite) Test_timestamp() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewLong(int64(a.tx.Timestamp)), rs["timestamp"])
 }
 
-func (a *MassTransferV1TestSuite) Test_version() {
+func (a *MassTransferWithProofsTestSuite) Test_version() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewLong(1), rs["version"])
 }
 
-func (a *MassTransferV1TestSuite) Test_sender() {
+func (a *MassTransferWithProofsTestSuite) Test_sender() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	addr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, a.tx.SenderPK)
 	a.NoError(err)
 	a.Equal(NewAddressFromProtoAddress(addr), rs["sender"])
 }
 
-func (a *MassTransferV1TestSuite) Test_senderPublicKey() {
+func (a *MassTransferWithProofsTestSuite) Test_senderPublicKey() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewBytes(a.tx.SenderPK.Bytes()), rs["senderPublicKey"])
 }
 
-func (a *MassTransferV1TestSuite) Test_bodyBytes() {
+func (a *MassTransferWithProofsTestSuite) Test_bodyBytes() {
 	_, pub, _ := crypto.GenerateKeyPair([]byte("test"))
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.IsType(&BytesExpr{}, rs["bodyBytes"])
@@ -765,191 +771,191 @@ func (a *MassTransferV1TestSuite) Test_bodyBytes() {
 	a.True(crypto.Verify(pub, sig, rs["bodyBytes"].(*BytesExpr).Value))
 }
 
-func (a *MassTransferV1TestSuite) Test_proofs() {
+func (a *MassTransferWithProofsTestSuite) Test_proofs() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(Exprs{NewBytes(a.tx.Proofs.Proofs[0].Bytes()), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil)}, rs["proofs"])
 }
 
-func (a *MassTransferV1TestSuite) Test_InstanceFieldName() {
+func (a *MassTransferWithProofsTestSuite) Test_InstanceFieldName() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewString("MassTransferTransaction"), rs[InstanceFieldName])
 }
 
 //MassTransferTransaction
-func TestNewVariablesFromMassTransferV1(t *testing.T) {
-	suite.Run(t, new(MassTransferV1TestSuite))
+func TestNewVariablesFromMassTransferWithProofs(t *testing.T) {
+	suite.Run(t, new(MassTransferWithProofsTestSuite))
 }
 
-type ExchangeV1TestSuite struct {
+type ExchangeWithSigTestSuite struct {
 	suite.Suite
-	tx *proto.ExchangeV1
+	tx *proto.ExchangeWithSig
 	f  func(scheme proto.Scheme, tx proto.Transaction) (map[string]Expr, error)
 }
 
-func (a *ExchangeV1TestSuite) SetupTest() {
-	a.tx = byte_helpers.ExchangeV1.Transaction.Clone()
+func (a *ExchangeWithSigTestSuite) SetupTest() {
+	a.tx = byte_helpers.ExchangeWithSig.Transaction.Clone()
 	a.f = NewVariablesFromTransaction
 }
 
-func (a *ExchangeV1TestSuite) Test_buyOrder() {
+func (a *ExchangeWithSigTestSuite) Test_buyOrder() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal("Order", rs["buyOrder"].InstanceOf())
 }
 
-func (a *ExchangeV1TestSuite) Test_sellOrder() {
+func (a *ExchangeWithSigTestSuite) Test_sellOrder() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal("Order", rs["sellOrder"].InstanceOf())
 }
 
-func (a *ExchangeV1TestSuite) Test_price() {
+func (a *ExchangeWithSigTestSuite) Test_price() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewLong(100000), rs["price"])
 }
 
-func (a *ExchangeV1TestSuite) Test_amount() {
+func (a *ExchangeWithSigTestSuite) Test_amount() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewLong(100000), rs["amount"])
 }
 
-func (a *ExchangeV1TestSuite) Test_buyMatcherFee() {
+func (a *ExchangeWithSigTestSuite) Test_buyMatcherFee() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewLong(10000), rs["buyMatcherFee"])
 }
 
-func (a *ExchangeV1TestSuite) Test_sellMatcherFee() {
+func (a *ExchangeWithSigTestSuite) Test_sellMatcherFee() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewLong(10000), rs["sellMatcherFee"])
 }
 
-func (a *ExchangeV1TestSuite) Test_id() {
+func (a *ExchangeWithSigTestSuite) Test_id() {
 	rs, err := a.f(proto.MainNetScheme, a.tx)
 	a.NoError(err)
 	a.Equal(NewBytes(a.tx.ID.Bytes()), rs["id"])
 }
 
-func (a *ExchangeV1TestSuite) Test_fee() {
+func (a *ExchangeWithSigTestSuite) Test_fee() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewLong(int64(a.tx.Fee)), rs["fee"])
 }
 
-func (a *ExchangeV1TestSuite) Test_timestamp() {
+func (a *ExchangeWithSigTestSuite) Test_timestamp() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewLong(int64(a.tx.Timestamp)), rs["timestamp"])
 }
 
-func (a *ExchangeV1TestSuite) Test_version() {
+func (a *ExchangeWithSigTestSuite) Test_version() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewLong(1), rs["version"])
 }
 
-func (a *ExchangeV1TestSuite) Test_sender() {
+func (a *ExchangeWithSigTestSuite) Test_sender() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	addr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, a.tx.SenderPK)
 	a.NoError(err)
 	a.Equal(NewAddressFromProtoAddress(addr), rs["sender"])
 }
-func (a *ExchangeV1TestSuite) Test_senderPublicKey() {
+func (a *ExchangeWithSigTestSuite) Test_senderPublicKey() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewBytes(a.tx.SenderPK.Bytes()), rs["senderPublicKey"])
 }
 
-func (a *ExchangeV1TestSuite) Test_bodyBytes() {
+func (a *ExchangeWithSigTestSuite) Test_bodyBytes() {
 	_, pub, _ := crypto.GenerateKeyPair([]byte("test"))
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.IsType(&BytesExpr{}, rs["bodyBytes"])
 	a.True(crypto.Verify(pub, *a.tx.Signature, rs["bodyBytes"].(*BytesExpr).Value))
 }
 
-func (a *ExchangeV1TestSuite) Test_proofs() {
+func (a *ExchangeWithSigTestSuite) Test_proofs() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(Exprs{NewBytes(a.tx.Signature.Bytes()), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil)}, rs["proofs"])
 }
 
-func (a *ExchangeV1TestSuite) Test_InstanceFieldName() {
+func (a *ExchangeWithSigTestSuite) Test_InstanceFieldName() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewString("ExchangeTransaction"), rs[InstanceFieldName])
 }
 
-//ExchangeV1
-func TestNewVariablesFromExchangeV1(t *testing.T) {
-	suite.Run(t, new(ExchangeV1TestSuite))
+//ExchangeWithSig
+func TestNewVariablesFromExchangeWithSig(t *testing.T) {
+	suite.Run(t, new(ExchangeWithSigTestSuite))
 }
 
-type ExchangeV2TestSuite struct {
+type ExchangeWithProofsTestSuite struct {
 	suite.Suite
-	tx *proto.ExchangeV2
+	tx *proto.ExchangeWithProofs
 	f  func(scheme proto.Scheme, tx proto.Transaction) (map[string]Expr, error)
 }
 
-func (a *ExchangeV2TestSuite) SetupTest() {
-	a.tx = byte_helpers.ExchangeV2.Transaction.Clone()
+func (a *ExchangeWithProofsTestSuite) SetupTest() {
+	a.tx = byte_helpers.ExchangeWithProofs.Transaction.Clone()
 	a.f = NewVariablesFromTransaction
 }
 
-func (a *ExchangeV2TestSuite) Test_price() {
+func (a *ExchangeWithProofsTestSuite) Test_price() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewLong(100000), rs["price"])
 }
 
-func (a *ExchangeV2TestSuite) Test_buyOrder() {
+func (a *ExchangeWithProofsTestSuite) Test_buyOrder() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal("Order", rs["buyOrder"].InstanceOf())
 }
 
-func (a *ExchangeV2TestSuite) Test_sellOrder() {
+func (a *ExchangeWithProofsTestSuite) Test_sellOrder() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal("Order", rs["sellOrder"].InstanceOf())
 }
 
-func (a *ExchangeV2TestSuite) Test_amount() {
+func (a *ExchangeWithProofsTestSuite) Test_amount() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewLong(100000), rs["amount"])
 }
 
-func (a *ExchangeV2TestSuite) Test_buyMatcherFee() {
+func (a *ExchangeWithProofsTestSuite) Test_buyMatcherFee() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewLong(10000), rs["buyMatcherFee"])
 }
 
-func (a *ExchangeV2TestSuite) Test_sellMatcherFee() {
+func (a *ExchangeWithProofsTestSuite) Test_sellMatcherFee() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewLong(10000), rs["sellMatcherFee"])
 }
 
-func (a *ExchangeV2TestSuite) Test_id() {
+func (a *ExchangeWithProofsTestSuite) Test_id() {
 	rs, err := a.f(proto.MainNetScheme, a.tx)
 	a.NoError(err)
 	a.Equal(NewBytes(a.tx.ID.Bytes()), rs["id"])
 }
 
-func (a *ExchangeV2TestSuite) Test_fee() {
+func (a *ExchangeWithProofsTestSuite) Test_fee() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewLong(int64(a.tx.Fee)), rs["fee"])
 }
 
-func (a *ExchangeV2TestSuite) Test_timestamp() {
+func (a *ExchangeWithProofsTestSuite) Test_timestamp() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewLong(int64(a.tx.Timestamp)), rs["timestamp"])
 }
 
-func (a *ExchangeV2TestSuite) Test_version() {
+func (a *ExchangeWithProofsTestSuite) Test_version() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewLong(2), rs["version"])
 }
 
-func (a *ExchangeV2TestSuite) Test_sender() {
+func (a *ExchangeWithProofsTestSuite) Test_sender() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	addr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, a.tx.SenderPK)
 	a.NoError(err)
 	a.Equal(NewAddressFromProtoAddress(addr), rs["sender"])
 }
 
-func (a *ExchangeV2TestSuite) Test_senderPublicKey() {
+func (a *ExchangeWithProofsTestSuite) Test_senderPublicKey() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewBytes(a.tx.SenderPK.Bytes()), rs["senderPublicKey"])
 }
 
-func (a *ExchangeV2TestSuite) Test_bodyBytes() {
+func (a *ExchangeWithProofsTestSuite) Test_bodyBytes() {
 	_, pub, _ := crypto.GenerateKeyPair([]byte("test"))
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.IsType(&BytesExpr{}, rs["bodyBytes"])
@@ -957,19 +963,19 @@ func (a *ExchangeV2TestSuite) Test_bodyBytes() {
 	a.True(crypto.Verify(pub, sig, rs["bodyBytes"].(*BytesExpr).Value))
 }
 
-func (a *ExchangeV2TestSuite) Test_proofs() {
+func (a *ExchangeWithProofsTestSuite) Test_proofs() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(Exprs{NewBytes(a.tx.Proofs.Proofs[0].Bytes()), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil)}, rs["proofs"])
 }
 
-func (a *ExchangeV2TestSuite) Test_InstanceFieldName() {
+func (a *ExchangeWithProofsTestSuite) Test_InstanceFieldName() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewString("ExchangeTransaction"), rs[InstanceFieldName])
 }
 
-//ExchangeV2
-func TestNewVariablesFromExchangeV2(t *testing.T) {
-	suite.Run(t, new(ExchangeV2TestSuite))
+//ExchangeWithProofs
+func TestNewVariablesFromExchangeWithProofs(t *testing.T) {
+	suite.Run(t, new(ExchangeWithProofsTestSuite))
 }
 
 type OrderTestSuite struct {
@@ -997,7 +1003,7 @@ func (a *OrderTestSuite) SetupTest() {
 		proto.Timestamp(1544715621),
 		10000)
 
-	a.NoError(sellOrder.Sign(sk))
+	a.NoError(sellOrder.Sign(proto.MainNetScheme, sk))
 
 	a.tx = sellOrder
 	a.f = NewVariablesFromOrder
@@ -1095,63 +1101,63 @@ func TestNewVariablesFromOrderV1(t *testing.T) {
 	suite.Run(t, new(OrderTestSuite))
 }
 
-type SetAssetScriptV1TestSuite struct {
+type SetAssetScriptWithProofsTestSuite struct {
 	suite.Suite
-	tx *proto.SetAssetScriptV1
+	tx *proto.SetAssetScriptWithProofs
 	f  func(scheme proto.Scheme, tx proto.Transaction) (map[string]Expr, error)
 }
 
-func (a *SetAssetScriptV1TestSuite) SetupTest() {
-	a.tx = byte_helpers.SetAssetScriptV1.Transaction.Clone()
+func (a *SetAssetScriptWithProofsTestSuite) SetupTest() {
+	a.tx = byte_helpers.SetAssetScriptWithProofs.Transaction.Clone()
 	a.f = NewVariablesFromTransaction
 }
 
-func (a *SetAssetScriptV1TestSuite) Test_script() {
+func (a *SetAssetScriptWithProofsTestSuite) Test_script() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewBytes([]byte("hello")), rs["script"])
 }
 
-func (a *SetAssetScriptV1TestSuite) Test_assetId() {
+func (a *SetAssetScriptWithProofsTestSuite) Test_assetId() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewBytes(a.tx.AssetID.Bytes()), rs["assetId"])
 }
 
-func (a *SetAssetScriptV1TestSuite) Test_id() {
+func (a *SetAssetScriptWithProofsTestSuite) Test_id() {
 	rs, err := a.f(proto.MainNetScheme, a.tx)
 	a.NoError(err)
-	id, err := a.tx.GetID()
+	id, err := a.tx.GetID(proto.MainNetScheme)
 	a.NoError(err)
 	a.Equal(NewBytes(id), rs["id"])
 }
 
-func (a *SetAssetScriptV1TestSuite) Test_fee() {
+func (a *SetAssetScriptWithProofsTestSuite) Test_fee() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewLong(int64(a.tx.Fee)), rs["fee"])
 }
 
-func (a *SetAssetScriptV1TestSuite) Test_timestamp() {
+func (a *SetAssetScriptWithProofsTestSuite) Test_timestamp() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewLong(int64(a.tx.Timestamp)), rs["timestamp"])
 }
 
-func (a *SetAssetScriptV1TestSuite) Test_version() {
+func (a *SetAssetScriptWithProofsTestSuite) Test_version() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewLong(1), rs["version"])
 }
 
-func (a *SetAssetScriptV1TestSuite) Test_sender() {
+func (a *SetAssetScriptWithProofsTestSuite) Test_sender() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	addr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, a.tx.SenderPK)
 	a.NoError(err)
 	a.Equal(NewAddressFromProtoAddress(addr), rs["sender"])
 }
 
-func (a *SetAssetScriptV1TestSuite) Test_senderPublicKey() {
+func (a *SetAssetScriptWithProofsTestSuite) Test_senderPublicKey() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewBytes(a.tx.SenderPK.Bytes()), rs["senderPublicKey"])
 }
 
-func (a *SetAssetScriptV1TestSuite) Test_bodyBytes() {
+func (a *SetAssetScriptWithProofsTestSuite) Test_bodyBytes() {
 	_, pub, _ := crypto.GenerateKeyPair([]byte("test"))
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.IsType(&BytesExpr{}, rs["bodyBytes"])
@@ -1159,38 +1165,38 @@ func (a *SetAssetScriptV1TestSuite) Test_bodyBytes() {
 	a.True(crypto.Verify(pub, sig, rs["bodyBytes"].(*BytesExpr).Value))
 }
 
-func (a *SetAssetScriptV1TestSuite) Test_proofs() {
+func (a *SetAssetScriptWithProofsTestSuite) Test_proofs() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(Exprs{NewBytes(a.tx.Proofs.Proofs[0].Bytes()), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil)}, rs["proofs"])
 }
 
-func (a *SetAssetScriptV1TestSuite) Test_InstanceFieldName() {
+func (a *SetAssetScriptWithProofsTestSuite) Test_InstanceFieldName() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal("SetAssetScriptTransaction", NewObject(rs).InstanceOf())
 }
 
-//SetAssetScriptV1
-func TestNewVariablesFromSetAssetScriptV1(t *testing.T) {
-	suite.Run(t, new(SetAssetScriptV1TestSuite))
+//SetAssetScriptWithProofs
+func TestNewVariablesFromSetAssetScriptWithProofs(t *testing.T) {
+	suite.Run(t, new(SetAssetScriptWithProofsTestSuite))
 }
 
-type InvokeScriptV1TestSuite struct {
+type InvokeScriptWithProofsTestSuite struct {
 	suite.Suite
-	tx *proto.InvokeScriptV1
+	tx *proto.InvokeScriptWithProofs
 	f  func(scheme proto.Scheme, tx proto.Transaction) (map[string]Expr, error)
 }
 
-func (a *InvokeScriptV1TestSuite) SetupTest() {
-	a.tx = byte_helpers.InvokeScriptV1.Transaction.Clone()
+func (a *InvokeScriptWithProofsTestSuite) SetupTest() {
+	a.tx = byte_helpers.InvokeScriptWithProofs.Transaction.Clone()
 	a.f = NewVariablesFromTransaction
 }
 
-func (a *InvokeScriptV1TestSuite) Test_dappAddress() {
+func (a *InvokeScriptWithProofsTestSuite) Test_dappAddress() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewRecipientFromProtoRecipient(a.tx.ScriptRecipient), rs["dApp"])
 }
 
-func (a *InvokeScriptV1TestSuite) Test_payment_presence() {
+func (a *InvokeScriptWithProofsTestSuite) Test_payment_presence() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	payment := rs["payment"].(Getable)
 	asset, _ := payment.Get("assetId")
@@ -1200,61 +1206,61 @@ func (a *InvokeScriptV1TestSuite) Test_payment_presence() {
 	a.Equal(NewLong(100000), amount)
 }
 
-func (a *InvokeScriptV1TestSuite) Test_payment_absence() {
+func (a *InvokeScriptWithProofsTestSuite) Test_payment_absence() {
 	a.tx.Payments = nil
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewUnit(), rs["payment"])
 }
 
-func (a *InvokeScriptV1TestSuite) Test_feeAssetId() {
+func (a *InvokeScriptWithProofsTestSuite) Test_feeAssetId() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewBytes(byte_helpers.Digest.Bytes()), rs["feeAssetId"])
 }
 
-func (a *InvokeScriptV1TestSuite) Test_function() {
+func (a *InvokeScriptWithProofsTestSuite) Test_function() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewString("funcname"), rs["function"])
 }
 
-func (a *InvokeScriptV1TestSuite) Test_args() {
+func (a *InvokeScriptWithProofsTestSuite) Test_args() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(Params(NewString("StringArgument")), rs["args"])
 }
 
-func (a *InvokeScriptV1TestSuite) Test_id() {
+func (a *InvokeScriptWithProofsTestSuite) Test_id() {
 	rs, err := a.f(proto.MainNetScheme, a.tx)
 	a.NoError(err)
 	a.Equal(NewBytes(a.tx.ID.Bytes()), rs["id"])
 }
 
-func (a *InvokeScriptV1TestSuite) Test_fee() {
+func (a *InvokeScriptWithProofsTestSuite) Test_fee() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewLong(int64(a.tx.Fee)), rs["fee"])
 }
 
-func (a *InvokeScriptV1TestSuite) Test_timestamp() {
+func (a *InvokeScriptWithProofsTestSuite) Test_timestamp() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewLong(int64(a.tx.Timestamp)), rs["timestamp"])
 }
 
-func (a *InvokeScriptV1TestSuite) Test_version() {
+func (a *InvokeScriptWithProofsTestSuite) Test_version() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewLong(1), rs["version"])
 }
 
-func (a *InvokeScriptV1TestSuite) Test_sender() {
+func (a *InvokeScriptWithProofsTestSuite) Test_sender() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	addr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, a.tx.SenderPK)
 	a.NoError(err)
 	a.Equal(NewAddressFromProtoAddress(addr), rs["sender"])
 }
 
-func (a *InvokeScriptV1TestSuite) Test_senderPublicKey() {
+func (a *InvokeScriptWithProofsTestSuite) Test_senderPublicKey() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewBytes(a.tx.SenderPK.Bytes()), rs["senderPublicKey"])
 }
 
-func (a *InvokeScriptV1TestSuite) Test_bodyBytes() {
+func (a *InvokeScriptWithProofsTestSuite) Test_bodyBytes() {
 	_, pub, _ := crypto.GenerateKeyPair([]byte("test"))
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.IsType(&BytesExpr{}, rs["bodyBytes"])
@@ -1262,191 +1268,191 @@ func (a *InvokeScriptV1TestSuite) Test_bodyBytes() {
 	a.True(crypto.Verify(pub, sig, rs["bodyBytes"].(*BytesExpr).Value))
 }
 
-func (a *InvokeScriptV1TestSuite) Test_proofs() {
+func (a *InvokeScriptWithProofsTestSuite) Test_proofs() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(Exprs{NewBytes(a.tx.Proofs.Proofs[0].Bytes()), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil)}, rs["proofs"])
 }
 
-func (a *InvokeScriptV1TestSuite) Test_InstanceFieldName() {
+func (a *InvokeScriptWithProofsTestSuite) Test_InstanceFieldName() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal("InvokeScriptTransaction", NewObject(rs).InstanceOf())
 }
 
 //InvokeScriptTransaction
-func TestNewVariablesFromInvokeScriptV1(t *testing.T) {
-	suite.Run(t, new(InvokeScriptV1TestSuite))
+func TestNewVariablesFromInvokeScriptWithProofs(t *testing.T) {
+	suite.Run(t, new(InvokeScriptWithProofsTestSuite))
 }
 
-type IssueV1TestSuite struct {
+type IssueWithSigTestSuite struct {
 	suite.Suite
-	tx *proto.IssueV1
+	tx *proto.IssueWithSig
 	f  func(scheme proto.Scheme, tx proto.Transaction) (map[string]Expr, error)
 }
 
-func (a *IssueV1TestSuite) SetupTest() {
-	a.tx = byte_helpers.IssueV1.Transaction.Clone()
+func (a *IssueWithSigTestSuite) SetupTest() {
+	a.tx = byte_helpers.IssueWithSig.Transaction.Clone()
 	a.f = NewVariablesFromTransaction
 }
 
-func (a *IssueV1TestSuite) Test_quantity() {
+func (a *IssueWithSigTestSuite) Test_quantity() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewLong(1000), rs["quantity"])
 }
 
-func (a *IssueV1TestSuite) Test_name() {
+func (a *IssueWithSigTestSuite) Test_name() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewString("name"), rs["name"])
 }
 
-func (a *IssueV1TestSuite) Test_description() {
+func (a *IssueWithSigTestSuite) Test_description() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewString("description"), rs["description"])
 }
 
-func (a *IssueV1TestSuite) Test_reissuable() {
+func (a *IssueWithSigTestSuite) Test_reissuable() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewBoolean(a.tx.Reissuable), rs["reissuable"])
 }
 
-func (a *IssueV1TestSuite) Test_decimals() {
+func (a *IssueWithSigTestSuite) Test_decimals() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewLong(4), rs["decimals"])
 }
 
-func (a *IssueV1TestSuite) Test_script() {
+func (a *IssueWithSigTestSuite) Test_script() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewUnit(), rs["script"])
 }
 
-func (a *IssueV1TestSuite) Test_id() {
+func (a *IssueWithSigTestSuite) Test_id() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	id, _ := a.tx.GetID()
+	id, _ := a.tx.GetID(proto.MainNetScheme)
 	a.Equal(NewBytes(id), rs["id"])
 }
 
-func (a *IssueV1TestSuite) Test_fee() {
+func (a *IssueWithSigTestSuite) Test_fee() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewLong(int64(a.tx.Fee)), rs["fee"])
 }
 
-func (a *IssueV1TestSuite) Test_timestamp() {
+func (a *IssueWithSigTestSuite) Test_timestamp() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewLong(int64(a.tx.Timestamp)), rs["timestamp"])
 }
 
-func (a *IssueV1TestSuite) Test_version() {
+func (a *IssueWithSigTestSuite) Test_version() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewLong(int64(a.tx.Version)), rs["version"])
 }
 
-func (a *IssueV1TestSuite) Test_sender() {
+func (a *IssueWithSigTestSuite) Test_sender() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	addr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, a.tx.SenderPK)
 	a.NoError(err)
 	a.Equal(NewAddressFromProtoAddress(addr), rs["sender"])
 }
 
-func (a *IssueV1TestSuite) Test_senderPublicKey() {
+func (a *IssueWithSigTestSuite) Test_senderPublicKey() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewBytes(a.tx.SenderPK.Bytes()), rs["senderPublicKey"])
 }
 
-func (a *IssueV1TestSuite) Test_bodyBytes() {
+func (a *IssueWithSigTestSuite) Test_bodyBytes() {
 	_, pub, _ := crypto.GenerateKeyPair([]byte("test"))
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.IsType(&BytesExpr{}, rs["bodyBytes"])
 	a.True(crypto.Verify(pub, *a.tx.Signature, rs["bodyBytes"].(*BytesExpr).Value))
 }
 
-func (a *IssueV1TestSuite) Test_proofs() {
+func (a *IssueWithSigTestSuite) Test_proofs() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(Exprs{NewBytes(a.tx.Signature.Bytes()), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil)}, rs["proofs"])
 }
 
-func (a *IssueV1TestSuite) Test_InstanceFieldName() {
+func (a *IssueWithSigTestSuite) Test_InstanceFieldName() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal("IssueTransaction", NewObject(rs).InstanceOf())
 }
 
-func TestNewVariablesFromIssueV1(t *testing.T) {
-	suite.Run(t, new(IssueV1TestSuite))
+func TestNewVariablesFromIssueWithSig(t *testing.T) {
+	suite.Run(t, new(IssueWithSigTestSuite))
 }
 
-type IssueV2TestSuite struct {
+type IssueWithProofsTestSuite struct {
 	suite.Suite
-	tx *proto.IssueV2
+	tx *proto.IssueWithProofs
 	f  func(scheme proto.Scheme, tx proto.Transaction) (map[string]Expr, error)
 }
 
-func (a *IssueV2TestSuite) SetupTest() {
-	a.tx = byte_helpers.IssueV2.Transaction.Clone()
+func (a *IssueWithProofsTestSuite) SetupTest() {
+	a.tx = byte_helpers.IssueWithProofs.Transaction.Clone()
 	a.f = NewVariablesFromTransaction
 }
 
-func (a *IssueV2TestSuite) Test_quantity() {
+func (a *IssueWithProofsTestSuite) Test_quantity() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewLong(1000), rs["quantity"])
 }
 
-func (a *IssueV2TestSuite) Test_name() {
+func (a *IssueWithProofsTestSuite) Test_name() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewString("name"), rs["name"])
 }
 
-func (a *IssueV2TestSuite) Test_description() {
+func (a *IssueWithProofsTestSuite) Test_description() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewString("description"), rs["description"])
 }
 
-func (a *IssueV2TestSuite) Test_reissuable() {
+func (a *IssueWithProofsTestSuite) Test_reissuable() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewBoolean(a.tx.Reissuable), rs["reissuable"])
 }
 
-func (a *IssueV2TestSuite) Test_decimals() {
+func (a *IssueWithProofsTestSuite) Test_decimals() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewLong(4), rs["decimals"])
 }
 
-func (a *IssueV2TestSuite) Test_script() {
+func (a *IssueWithProofsTestSuite) Test_script() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewBytes([]byte("script")), rs["script"])
 }
 
-func (a *IssueV2TestSuite) Test_id() {
+func (a *IssueWithProofsTestSuite) Test_id() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	id, _ := a.tx.GetID()
+	id, _ := a.tx.GetID(proto.MainNetScheme)
 	a.Equal(NewBytes(id), rs["id"])
 }
 
-func (a *IssueV2TestSuite) Test_fee() {
+func (a *IssueWithProofsTestSuite) Test_fee() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewLong(int64(a.tx.Fee)), rs["fee"])
 }
 
-func (a *IssueV2TestSuite) Test_timestamp() {
+func (a *IssueWithProofsTestSuite) Test_timestamp() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewLong(int64(a.tx.Timestamp)), rs["timestamp"])
 }
 
-func (a *IssueV2TestSuite) Test_version() {
+func (a *IssueWithProofsTestSuite) Test_version() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewLong(int64(a.tx.Version)), rs["version"])
 }
 
-func (a *IssueV2TestSuite) Test_sender() {
+func (a *IssueWithProofsTestSuite) Test_sender() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	addr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, a.tx.SenderPK)
 	a.NoError(err)
 	a.Equal(NewAddressFromProtoAddress(addr), rs["sender"])
 }
 
-func (a *IssueV2TestSuite) Test_senderPublicKey() {
+func (a *IssueWithProofsTestSuite) Test_senderPublicKey() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewBytes(a.tx.SenderPK.Bytes()), rs["senderPublicKey"])
 }
 
-func (a *IssueV2TestSuite) Test_bodyBytes() {
+func (a *IssueWithProofsTestSuite) Test_bodyBytes() {
 	_, pub, _ := crypto.GenerateKeyPair([]byte("test"))
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.IsType(&BytesExpr{}, rs["bodyBytes"])
@@ -1454,152 +1460,152 @@ func (a *IssueV2TestSuite) Test_bodyBytes() {
 	a.True(crypto.Verify(pub, sig, rs["bodyBytes"].(*BytesExpr).Value))
 }
 
-func (a *IssueV2TestSuite) Test_proofs() {
+func (a *IssueWithProofsTestSuite) Test_proofs() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(Exprs{NewBytes(a.tx.Proofs.Proofs[0].Bytes()), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil)}, rs["proofs"])
 }
 
-func (a *IssueV2TestSuite) Test_InstanceFieldName() {
+func (a *IssueWithProofsTestSuite) Test_InstanceFieldName() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal("IssueTransaction", NewObject(rs).InstanceOf())
 }
 
-func TestNewVariablesFromIssueV2(t *testing.T) {
-	suite.Run(t, new(IssueV2TestSuite))
+func TestNewVariablesFromIssueWithProofs(t *testing.T) {
+	suite.Run(t, new(IssueWithProofsTestSuite))
 }
 
 //
-type LeaseV1TestSuite struct {
+type LeaseWithSigTestSuite struct {
 	suite.Suite
-	tx *proto.LeaseV1
+	tx *proto.LeaseWithSig
 	f  func(scheme proto.Scheme, tx proto.Transaction) (map[string]Expr, error)
 }
 
-func (a *LeaseV1TestSuite) SetupTest() {
-	a.tx = byte_helpers.LeaseV1.Transaction.Clone()
+func (a *LeaseWithSigTestSuite) SetupTest() {
+	a.tx = byte_helpers.LeaseWithSig.Transaction.Clone()
 	a.f = NewVariablesFromTransaction
 }
 
-func (a *LeaseV1TestSuite) Test_amount() {
+func (a *LeaseWithSigTestSuite) Test_amount() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewLong(100000), rs["amount"])
 }
 
-func (a *LeaseV1TestSuite) Test_recipient() {
+func (a *LeaseWithSigTestSuite) Test_recipient() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewRecipientFromProtoRecipient(a.tx.Recipient), rs["recipient"])
 }
 
-func (a *LeaseV1TestSuite) Test_id() {
+func (a *LeaseWithSigTestSuite) Test_id() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	id, _ := a.tx.GetID()
+	id, _ := a.tx.GetID(proto.MainNetScheme)
 	a.Equal(NewBytes(id), rs["id"])
 }
 
-func (a *LeaseV1TestSuite) Test_fee() {
+func (a *LeaseWithSigTestSuite) Test_fee() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewLong(int64(a.tx.Fee)), rs["fee"])
 }
 
-func (a *LeaseV1TestSuite) Test_timestamp() {
+func (a *LeaseWithSigTestSuite) Test_timestamp() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewLong(int64(a.tx.Timestamp)), rs["timestamp"])
 }
 
-func (a *LeaseV1TestSuite) Test_version() {
+func (a *LeaseWithSigTestSuite) Test_version() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewLong(int64(a.tx.Version)), rs["version"])
 }
 
-func (a *LeaseV1TestSuite) Test_sender() {
+func (a *LeaseWithSigTestSuite) Test_sender() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	addr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, a.tx.SenderPK)
 	a.NoError(err)
 	a.Equal(NewAddressFromProtoAddress(addr), rs["sender"])
 }
 
-func (a *LeaseV1TestSuite) Test_senderPublicKey() {
+func (a *LeaseWithSigTestSuite) Test_senderPublicKey() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewBytes(a.tx.SenderPK.Bytes()), rs["senderPublicKey"])
 }
 
-func (a *LeaseV1TestSuite) Test_bodyBytes() {
+func (a *LeaseWithSigTestSuite) Test_bodyBytes() {
 	_, pub, _ := crypto.GenerateKeyPair([]byte("test"))
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.IsType(&BytesExpr{}, rs["bodyBytes"])
 	a.True(crypto.Verify(pub, *a.tx.Signature, rs["bodyBytes"].(*BytesExpr).Value))
 }
 
-func (a *LeaseV1TestSuite) Test_proofs() {
+func (a *LeaseWithSigTestSuite) Test_proofs() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(Exprs{NewBytes(a.tx.Signature.Bytes()), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil)}, rs["proofs"])
 }
 
-func (a *LeaseV1TestSuite) Test_InstanceFieldName() {
+func (a *LeaseWithSigTestSuite) Test_InstanceFieldName() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal("LeaseTransaction", NewObject(rs).InstanceOf())
 }
 
-func TestNewVariablesFromLeaseV1(t *testing.T) {
-	suite.Run(t, new(LeaseV1TestSuite))
+func TestNewVariablesFromLeaseWithSig(t *testing.T) {
+	suite.Run(t, new(LeaseWithSigTestSuite))
 }
 
 //
-type LeaseV2TestSuite struct {
+type LeaseWithProofsTestSuite struct {
 	suite.Suite
-	tx *proto.LeaseV2
+	tx *proto.LeaseWithProofs
 	f  func(scheme proto.Scheme, tx proto.Transaction) (map[string]Expr, error)
 }
 
-func (a *LeaseV2TestSuite) SetupTest() {
-	a.tx = byte_helpers.LeaseV2.Transaction.Clone()
+func (a *LeaseWithProofsTestSuite) SetupTest() {
+	a.tx = byte_helpers.LeaseWithProofs.Transaction.Clone()
 	a.f = NewVariablesFromTransaction
 }
 
-func (a *LeaseV2TestSuite) Test_amount() {
+func (a *LeaseWithProofsTestSuite) Test_amount() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewLong(100000), rs["amount"])
 }
 
-func (a *LeaseV2TestSuite) Test_recipient() {
+func (a *LeaseWithProofsTestSuite) Test_recipient() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewRecipientFromProtoRecipient(a.tx.Recipient), rs["recipient"])
 }
 
-func (a *LeaseV2TestSuite) Test_id() {
+func (a *LeaseWithProofsTestSuite) Test_id() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	id, _ := a.tx.GetID()
+	id, _ := a.tx.GetID(proto.MainNetScheme)
 	a.Equal(NewBytes(id), rs["id"])
 }
 
-func (a *LeaseV2TestSuite) Test_fee() {
+func (a *LeaseWithProofsTestSuite) Test_fee() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewLong(int64(a.tx.Fee)), rs["fee"])
 }
 
-func (a *LeaseV2TestSuite) Test_timestamp() {
+func (a *LeaseWithProofsTestSuite) Test_timestamp() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewLong(int64(a.tx.Timestamp)), rs["timestamp"])
 }
 
-func (a *LeaseV2TestSuite) Test_version() {
+func (a *LeaseWithProofsTestSuite) Test_version() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewLong(int64(a.tx.Version)), rs["version"])
 }
 
-func (a *LeaseV2TestSuite) Test_sender() {
+func (a *LeaseWithProofsTestSuite) Test_sender() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	addr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, a.tx.SenderPK)
 	a.NoError(err)
 	a.Equal(NewAddressFromProtoAddress(addr), rs["sender"])
 }
 
-func (a *LeaseV2TestSuite) Test_senderPublicKey() {
+func (a *LeaseWithProofsTestSuite) Test_senderPublicKey() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewBytes(a.tx.SenderPK.Bytes()), rs["senderPublicKey"])
 }
 
-func (a *LeaseV2TestSuite) Test_bodyBytes() {
+func (a *LeaseWithProofsTestSuite) Test_bodyBytes() {
 	_, pub, _ := crypto.GenerateKeyPair([]byte("test"))
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.IsType(&BytesExpr{}, rs["bodyBytes"])
@@ -1607,142 +1613,142 @@ func (a *LeaseV2TestSuite) Test_bodyBytes() {
 	a.True(crypto.Verify(pub, sig, rs["bodyBytes"].(*BytesExpr).Value))
 }
 
-func (a *LeaseV2TestSuite) Test_proofs() {
+func (a *LeaseWithProofsTestSuite) Test_proofs() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(Exprs{NewBytes(a.tx.Proofs.Proofs[0].Bytes()), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil)}, rs["proofs"])
 }
 
-func (a *LeaseV2TestSuite) Test_InstanceFieldName() {
+func (a *LeaseWithProofsTestSuite) Test_InstanceFieldName() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal("LeaseTransaction", NewObject(rs).InstanceOf())
 }
 
-func TestNewVariablesFromLeaseV2(t *testing.T) {
-	suite.Run(t, new(LeaseV2TestSuite))
+func TestNewVariablesFromLeaseWithProofs(t *testing.T) {
+	suite.Run(t, new(LeaseWithProofsTestSuite))
 }
 
 //
-type LeaseCancelV1TestSuite struct {
+type LeaseCancelWithSigTestSuite struct {
 	suite.Suite
-	tx *proto.LeaseCancelV1
+	tx *proto.LeaseCancelWithSig
 	f  func(scheme proto.Scheme, tx proto.Transaction) (map[string]Expr, error)
 }
 
-func (a *LeaseCancelV1TestSuite) SetupTest() {
-	a.tx = byte_helpers.LeaseCancelV1.Transaction.Clone()
+func (a *LeaseCancelWithSigTestSuite) SetupTest() {
+	a.tx = byte_helpers.LeaseCancelWithSig.Transaction.Clone()
 	a.f = NewVariablesFromTransaction
 }
 
-func (a *LeaseCancelV1TestSuite) Test_leaseId() {
+func (a *LeaseCancelWithSigTestSuite) Test_leaseId() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewBytes(_digest.Bytes()), rs["leaseId"])
 }
 
-func (a *LeaseCancelV1TestSuite) Test_id() {
+func (a *LeaseCancelWithSigTestSuite) Test_id() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	id, _ := a.tx.GetID()
+	id, _ := a.tx.GetID(proto.MainNetScheme)
 	a.Equal(NewBytes(id), rs["id"])
 }
 
-func (a *LeaseCancelV1TestSuite) Test_fee() {
+func (a *LeaseCancelWithSigTestSuite) Test_fee() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewLong(int64(a.tx.Fee)), rs["fee"])
 }
 
-func (a *LeaseCancelV1TestSuite) Test_timestamp() {
+func (a *LeaseCancelWithSigTestSuite) Test_timestamp() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewLong(int64(a.tx.Timestamp)), rs["timestamp"])
 }
 
-func (a *LeaseCancelV1TestSuite) Test_version() {
+func (a *LeaseCancelWithSigTestSuite) Test_version() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewLong(int64(a.tx.Version)), rs["version"])
 }
 
-func (a *LeaseCancelV1TestSuite) Test_sender() {
+func (a *LeaseCancelWithSigTestSuite) Test_sender() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	addr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, a.tx.SenderPK)
 	a.NoError(err)
 	a.Equal(NewAddressFromProtoAddress(addr), rs["sender"])
 }
 
-func (a *LeaseCancelV1TestSuite) Test_senderPublicKey() {
+func (a *LeaseCancelWithSigTestSuite) Test_senderPublicKey() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewBytes(a.tx.SenderPK.Bytes()), rs["senderPublicKey"])
 }
 
-func (a *LeaseCancelV1TestSuite) Test_bodyBytes() {
+func (a *LeaseCancelWithSigTestSuite) Test_bodyBytes() {
 	_, pub, _ := crypto.GenerateKeyPair([]byte("test"))
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.IsType(&BytesExpr{}, rs["bodyBytes"])
 	a.True(crypto.Verify(pub, *a.tx.Signature, rs["bodyBytes"].(*BytesExpr).Value))
 }
 
-func (a *LeaseCancelV1TestSuite) Test_proofs() {
+func (a *LeaseCancelWithSigTestSuite) Test_proofs() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(Exprs{NewBytes(a.tx.Signature.Bytes()), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil)}, rs["proofs"])
 }
 
-func (a *LeaseCancelV1TestSuite) Test_InstanceFieldName() {
+func (a *LeaseCancelWithSigTestSuite) Test_InstanceFieldName() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal("LeaseCancelTransaction", NewObject(rs).InstanceOf())
 }
 
-func TestNewVariablesFromLeaseCancelV1(t *testing.T) {
-	suite.Run(t, new(LeaseCancelV1TestSuite))
+func TestNewVariablesFromLeaseCancelWithSig(t *testing.T) {
+	suite.Run(t, new(LeaseCancelWithSigTestSuite))
 }
 
 //
-type LeaseCancelV2TestSuite struct {
+type LeaseCancelWithProofsTestSuite struct {
 	suite.Suite
-	tx *proto.LeaseCancelV2
+	tx *proto.LeaseCancelWithProofs
 	f  func(scheme proto.Scheme, tx proto.Transaction) (map[string]Expr, error)
 }
 
-func (a *LeaseCancelV2TestSuite) SetupTest() {
-	a.tx = byte_helpers.LeaseCancelV2.Transaction.Clone()
+func (a *LeaseCancelWithProofsTestSuite) SetupTest() {
+	a.tx = byte_helpers.LeaseCancelWithProofs.Transaction.Clone()
 	a.f = NewVariablesFromTransaction
 }
 
-func (a *LeaseCancelV2TestSuite) Test_leaseId() {
+func (a *LeaseCancelWithProofsTestSuite) Test_leaseId() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewBytes(a.tx.LeaseID.Bytes()), rs["leaseId"])
 }
 
-func (a *LeaseCancelV2TestSuite) Test_id() {
+func (a *LeaseCancelWithProofsTestSuite) Test_id() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	id, _ := a.tx.GetID()
+	id, _ := a.tx.GetID(proto.MainNetScheme)
 	a.Equal(NewBytes(id), rs["id"])
 }
 
-func (a *LeaseCancelV2TestSuite) Test_fee() {
+func (a *LeaseCancelWithProofsTestSuite) Test_fee() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewLong(int64(a.tx.Fee)), rs["fee"])
 }
 
-func (a *LeaseCancelV2TestSuite) Test_timestamp() {
+func (a *LeaseCancelWithProofsTestSuite) Test_timestamp() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewLong(int64(a.tx.Timestamp)), rs["timestamp"])
 }
 
-func (a *LeaseCancelV2TestSuite) Test_version() {
+func (a *LeaseCancelWithProofsTestSuite) Test_version() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewLong(int64(a.tx.Version)), rs["version"])
 }
 
-func (a *LeaseCancelV2TestSuite) Test_sender() {
+func (a *LeaseCancelWithProofsTestSuite) Test_sender() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	addr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, a.tx.SenderPK)
 	a.NoError(err)
 	a.Equal(NewAddressFromProtoAddress(addr), rs["sender"])
 }
 
-func (a *LeaseCancelV2TestSuite) Test_senderPublicKey() {
+func (a *LeaseCancelWithProofsTestSuite) Test_senderPublicKey() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewBytes(a.tx.SenderPK.Bytes()), rs["senderPublicKey"])
 }
 
-func (a *LeaseCancelV2TestSuite) Test_bodyBytes() {
+func (a *LeaseCancelWithProofsTestSuite) Test_bodyBytes() {
 	_, pub, _ := crypto.GenerateKeyPair([]byte("test"))
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.IsType(&BytesExpr{}, rs["bodyBytes"])
@@ -1750,33 +1756,33 @@ func (a *LeaseCancelV2TestSuite) Test_bodyBytes() {
 	a.True(crypto.Verify(pub, sig, rs["bodyBytes"].(*BytesExpr).Value))
 }
 
-func (a *LeaseCancelV2TestSuite) Test_proofs() {
+func (a *LeaseCancelWithProofsTestSuite) Test_proofs() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(Exprs{NewBytes(a.tx.Proofs.Proofs[0].Bytes()), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil)}, rs["proofs"])
 }
 
-func (a *LeaseCancelV2TestSuite) Test_InstanceFieldName() {
+func (a *LeaseCancelWithProofsTestSuite) Test_InstanceFieldName() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal("LeaseCancelTransaction", NewObject(rs).InstanceOf())
 }
 
-func TestNewVariablesFromLeaseCancelV2(t *testing.T) {
-	suite.Run(t, new(LeaseCancelV2TestSuite))
+func TestNewVariablesFromLeaseCancelWithProofs(t *testing.T) {
+	suite.Run(t, new(LeaseCancelWithProofsTestSuite))
 }
 
 //
-type DataV1TestSuite struct {
+type DataWithProofsTestSuite struct {
 	suite.Suite
-	tx *proto.DataV1
+	tx *proto.DataWithProofs
 	f  func(scheme proto.Scheme, tx proto.Transaction) (map[string]Expr, error)
 }
 
-func (a *DataV1TestSuite) SetupTest() {
-	a.tx = byte_helpers.DataV1.Transaction.Clone()
+func (a *DataWithProofsTestSuite) SetupTest() {
+	a.tx = byte_helpers.DataWithProofs.Transaction.Clone()
 	a.f = NewVariablesFromTransaction
 }
 
-func (a *DataV1TestSuite) Test_data() {
+func (a *DataWithProofsTestSuite) Test_data() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	list, ok := rs["data"].(Exprs)
 	a.Assert().True(ok)
@@ -1787,40 +1793,40 @@ func (a *DataV1TestSuite) Test_data() {
 	a.Equal(NewBytes([]byte("hello")), v)
 }
 
-func (a *DataV1TestSuite) Test_id() {
+func (a *DataWithProofsTestSuite) Test_id() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	id, _ := a.tx.GetID()
+	id, _ := a.tx.GetID(proto.MainNetScheme)
 	a.Equal(NewBytes(id), rs["id"])
 }
 
-func (a *DataV1TestSuite) Test_fee() {
+func (a *DataWithProofsTestSuite) Test_fee() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewLong(int64(a.tx.Fee)), rs["fee"])
 }
 
-func (a *DataV1TestSuite) Test_timestamp() {
+func (a *DataWithProofsTestSuite) Test_timestamp() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewLong(int64(a.tx.Timestamp)), rs["timestamp"])
 }
 
-func (a *DataV1TestSuite) Test_version() {
+func (a *DataWithProofsTestSuite) Test_version() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewLong(int64(a.tx.Version)), rs["version"])
 }
 
-func (a *DataV1TestSuite) Test_sender() {
+func (a *DataWithProofsTestSuite) Test_sender() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	addr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, a.tx.SenderPK)
 	a.NoError(err)
 	a.Equal(NewAddressFromProtoAddress(addr), rs["sender"])
 }
 
-func (a *DataV1TestSuite) Test_senderPublicKey() {
+func (a *DataWithProofsTestSuite) Test_senderPublicKey() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewBytes(a.tx.SenderPK.Bytes()), rs["senderPublicKey"])
 }
 
-func (a *DataV1TestSuite) Test_bodyBytes() {
+func (a *DataWithProofsTestSuite) Test_bodyBytes() {
 	_, pub, _ := crypto.GenerateKeyPair([]byte("test"))
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.IsType(&BytesExpr{}, rs["bodyBytes"])
@@ -1828,82 +1834,82 @@ func (a *DataV1TestSuite) Test_bodyBytes() {
 	a.True(crypto.Verify(pub, sig, rs["bodyBytes"].(*BytesExpr).Value))
 }
 
-func (a *DataV1TestSuite) Test_proofs() {
+func (a *DataWithProofsTestSuite) Test_proofs() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(Exprs{NewBytes(a.tx.Proofs.Proofs[0].Bytes()), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil)}, rs["proofs"])
 }
 
-func (a *DataV1TestSuite) Test_InstanceFieldName() {
+func (a *DataWithProofsTestSuite) Test_InstanceFieldName() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal("DataTransaction", NewObject(rs).InstanceOf())
 }
 
-func TestNewVariablesFromDataV1TestSuite(t *testing.T) {
-	suite.Run(t, new(DataV1TestSuite))
+func TestNewVariablesFromDataWithProofsTestSuite(t *testing.T) {
+	suite.Run(t, new(DataWithProofsTestSuite))
 }
 
 //
-type SponsorshipV1TestSuite struct {
+type SponsorshipWithProofsTestSuite struct {
 	suite.Suite
-	tx *proto.SponsorshipV1
+	tx *proto.SponsorshipWithProofs
 	f  func(scheme proto.Scheme, tx proto.Transaction) (map[string]Expr, error)
 }
 
-func (a *SponsorshipV1TestSuite) SetupTest() {
-	a.tx = byte_helpers.SponsorshipV1.Transaction.Clone()
+func (a *SponsorshipWithProofsTestSuite) SetupTest() {
+	a.tx = byte_helpers.SponsorshipWithProofs.Transaction.Clone()
 	a.f = NewVariablesFromTransaction
 }
 
-func (a *SponsorshipV1TestSuite) Test_assetId() {
+func (a *SponsorshipWithProofsTestSuite) Test_assetId() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewBytes(_digest.Bytes()), rs["assetId"])
 }
 
-func (a *SponsorshipV1TestSuite) Test_minSponsoredAssetFee_presence() {
+func (a *SponsorshipWithProofsTestSuite) Test_minSponsoredAssetFee_presence() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewLong(1000), rs["minSponsoredAssetFee"])
 }
 
-func (a *SponsorshipV1TestSuite) Test_minSponsoredAssetFee_absence() {
+func (a *SponsorshipWithProofsTestSuite) Test_minSponsoredAssetFee_absence() {
 	a.tx.MinAssetFee = 0
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewUnit(), rs["minSponsoredAssetFee"])
 }
 
-func (a *SponsorshipV1TestSuite) Test_id() {
+func (a *SponsorshipWithProofsTestSuite) Test_id() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	id, _ := a.tx.GetID()
+	id, _ := a.tx.GetID(proto.MainNetScheme)
 	a.Equal(NewBytes(id), rs["id"])
 }
 
-func (a *SponsorshipV1TestSuite) Test_fee() {
+func (a *SponsorshipWithProofsTestSuite) Test_fee() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewLong(int64(a.tx.Fee)), rs["fee"])
 }
 
-func (a *SponsorshipV1TestSuite) Test_timestamp() {
+func (a *SponsorshipWithProofsTestSuite) Test_timestamp() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewLong(int64(a.tx.Timestamp)), rs["timestamp"])
 }
 
-func (a *SponsorshipV1TestSuite) Test_version() {
+func (a *SponsorshipWithProofsTestSuite) Test_version() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewLong(int64(a.tx.Version)), rs["version"])
 }
 
-func (a *SponsorshipV1TestSuite) Test_sender() {
+func (a *SponsorshipWithProofsTestSuite) Test_sender() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	addr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, a.tx.SenderPK)
 	a.NoError(err)
 	a.Equal(NewAddressFromProtoAddress(addr), rs["sender"])
 }
 
-func (a *SponsorshipV1TestSuite) Test_senderPublicKey() {
+func (a *SponsorshipWithProofsTestSuite) Test_senderPublicKey() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewBytes(a.tx.SenderPK.Bytes()), rs["senderPublicKey"])
 }
 
-func (a *SponsorshipV1TestSuite) Test_bodyBytes() {
+func (a *SponsorshipWithProofsTestSuite) Test_bodyBytes() {
 	_, pub, _ := crypto.GenerateKeyPair([]byte("test"))
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.IsType(&BytesExpr{}, rs["bodyBytes"])
@@ -1911,142 +1917,142 @@ func (a *SponsorshipV1TestSuite) Test_bodyBytes() {
 	a.True(crypto.Verify(pub, sig, rs["bodyBytes"].(*BytesExpr).Value))
 }
 
-func (a *SponsorshipV1TestSuite) Test_proofs() {
+func (a *SponsorshipWithProofsTestSuite) Test_proofs() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(Exprs{NewBytes(a.tx.Proofs.Proofs[0].Bytes()), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil)}, rs["proofs"])
 }
 
-func (a *SponsorshipV1TestSuite) Test_InstanceFieldName() {
+func (a *SponsorshipWithProofsTestSuite) Test_InstanceFieldName() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal("SponsorFeeTransaction", NewObject(rs).InstanceOf())
 }
 
-func TestNewVariablesFromSponsorshipV1(t *testing.T) {
-	suite.Run(t, new(SponsorshipV1TestSuite))
+func TestNewVariablesFromSponsorshipWithProofs(t *testing.T) {
+	suite.Run(t, new(SponsorshipWithProofsTestSuite))
 }
 
 //
-type CreateAliasV1TestSuite struct {
+type CreateAliasWithSigTestSuite struct {
 	suite.Suite
-	tx *proto.CreateAliasV1
+	tx *proto.CreateAliasWithSig
 	f  func(scheme proto.Scheme, tx proto.Transaction) (map[string]Expr, error)
 }
 
-func (a *CreateAliasV1TestSuite) SetupTest() {
-	a.tx = byte_helpers.CreateAliasV1.Transaction.Clone()
+func (a *CreateAliasWithSigTestSuite) SetupTest() {
+	a.tx = byte_helpers.CreateAliasWithSig.Transaction.Clone()
 	a.f = NewVariablesFromTransaction
 }
 
-func (a *CreateAliasV1TestSuite) Test_alias() {
+func (a *CreateAliasWithSigTestSuite) Test_alias() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewString(a.tx.Alias.String()), rs["alias"])
 }
 
-func (a *CreateAliasV1TestSuite) Test_id() {
+func (a *CreateAliasWithSigTestSuite) Test_id() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	id, _ := a.tx.GetID()
+	id, _ := a.tx.GetID(proto.MainNetScheme)
 	a.Equal(NewBytes(id), rs["id"])
 }
 
-func (a *CreateAliasV1TestSuite) Test_fee() {
+func (a *CreateAliasWithSigTestSuite) Test_fee() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewLong(int64(a.tx.Fee)), rs["fee"])
 }
 
-func (a *CreateAliasV1TestSuite) Test_timestamp() {
+func (a *CreateAliasWithSigTestSuite) Test_timestamp() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewLong(int64(a.tx.Timestamp)), rs["timestamp"])
 }
 
-func (a *CreateAliasV1TestSuite) Test_version() {
+func (a *CreateAliasWithSigTestSuite) Test_version() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewLong(int64(a.tx.Version)), rs["version"])
 }
 
-func (a *CreateAliasV1TestSuite) Test_sender() {
+func (a *CreateAliasWithSigTestSuite) Test_sender() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	addr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, a.tx.SenderPK)
 	a.NoError(err)
 	a.Equal(NewAddressFromProtoAddress(addr), rs["sender"])
 }
 
-func (a *CreateAliasV1TestSuite) Test_senderPublicKey() {
+func (a *CreateAliasWithSigTestSuite) Test_senderPublicKey() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewBytes(a.tx.SenderPK.Bytes()), rs["senderPublicKey"])
 }
 
-func (a *CreateAliasV1TestSuite) Test_bodyBytes() {
+func (a *CreateAliasWithSigTestSuite) Test_bodyBytes() {
 	_, pub, _ := crypto.GenerateKeyPair([]byte("test"))
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.IsType(&BytesExpr{}, rs["bodyBytes"])
 	a.True(crypto.Verify(pub, *a.tx.Signature, rs["bodyBytes"].(*BytesExpr).Value))
 }
 
-func (a *CreateAliasV1TestSuite) Test_proofs() {
+func (a *CreateAliasWithSigTestSuite) Test_proofs() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(Exprs{NewBytes(a.tx.Signature.Bytes()), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil)}, rs["proofs"])
 }
 
-func (a *CreateAliasV1TestSuite) Test_InstanceFieldName() {
+func (a *CreateAliasWithSigTestSuite) Test_InstanceFieldName() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal("CreateAliasTransaction", NewObject(rs).InstanceOf())
 }
 
-func TestNewVariablesFromCreateAliasV1TestSuite(t *testing.T) {
-	suite.Run(t, new(CreateAliasV1TestSuite))
+func TestNewVariablesFromCreateAliasWithSigTestSuite(t *testing.T) {
+	suite.Run(t, new(CreateAliasWithSigTestSuite))
 }
 
 //
-type CreateAliasV2TestSuite struct {
+type CreateAliasWithProofsTestSuite struct {
 	suite.Suite
-	tx *proto.CreateAliasV2
+	tx *proto.CreateAliasWithProofs
 	f  func(scheme proto.Scheme, tx proto.Transaction) (map[string]Expr, error)
 }
 
-func (a *CreateAliasV2TestSuite) SetupTest() {
-	a.tx = byte_helpers.CreateAliasV2.Transaction.Clone()
+func (a *CreateAliasWithProofsTestSuite) SetupTest() {
+	a.tx = byte_helpers.CreateAliasWithProofs.Transaction.Clone()
 	a.f = NewVariablesFromTransaction
 }
 
-func (a *CreateAliasV2TestSuite) Test_alias() {
+func (a *CreateAliasWithProofsTestSuite) Test_alias() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewString(a.tx.Alias.String()), rs["alias"])
 }
 
-func (a *CreateAliasV2TestSuite) Test_id() {
+func (a *CreateAliasWithProofsTestSuite) Test_id() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	id, _ := a.tx.GetID()
+	id, _ := a.tx.GetID(proto.MainNetScheme)
 	a.Equal(NewBytes(id), rs["id"])
 }
 
-func (a *CreateAliasV2TestSuite) Test_fee() {
+func (a *CreateAliasWithProofsTestSuite) Test_fee() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewLong(int64(a.tx.Fee)), rs["fee"])
 }
 
-func (a *CreateAliasV2TestSuite) Test_timestamp() {
+func (a *CreateAliasWithProofsTestSuite) Test_timestamp() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewLong(int64(a.tx.Timestamp)), rs["timestamp"])
 }
 
-func (a *CreateAliasV2TestSuite) Test_version() {
+func (a *CreateAliasWithProofsTestSuite) Test_version() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewLong(int64(a.tx.Version)), rs["version"])
 }
 
-func (a *CreateAliasV2TestSuite) Test_sender() {
+func (a *CreateAliasWithProofsTestSuite) Test_sender() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	addr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, a.tx.SenderPK)
 	a.NoError(err)
 	a.Equal(NewAddressFromProtoAddress(addr), rs["sender"])
 }
 
-func (a *CreateAliasV2TestSuite) Test_senderPublicKey() {
+func (a *CreateAliasWithProofsTestSuite) Test_senderPublicKey() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(NewBytes(a.tx.SenderPK.Bytes()), rs["senderPublicKey"])
 }
 
-func (a *CreateAliasV2TestSuite) Test_bodyBytes() {
+func (a *CreateAliasWithProofsTestSuite) Test_bodyBytes() {
 	_, pub, _ := crypto.GenerateKeyPair([]byte("test"))
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.IsType(&BytesExpr{}, rs["bodyBytes"])
@@ -2054,16 +2060,16 @@ func (a *CreateAliasV2TestSuite) Test_bodyBytes() {
 	a.True(crypto.Verify(pub, sig, rs["bodyBytes"].(*BytesExpr).Value))
 }
 
-func (a *CreateAliasV2TestSuite) Test_proofs() {
+func (a *CreateAliasWithProofsTestSuite) Test_proofs() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal(Exprs{NewBytes(a.tx.Proofs.Proofs[0].Bytes()), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil), NewBytes(nil)}, rs["proofs"])
 }
 
-func (a *CreateAliasV2TestSuite) Test_InstanceFieldName() {
+func (a *CreateAliasWithProofsTestSuite) Test_InstanceFieldName() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	a.Equal("CreateAliasTransaction", NewObject(rs).InstanceOf())
 }
 
-func TestNewVariablesFromCreateAliasV2TestSuite(t *testing.T) {
-	suite.Run(t, new(CreateAliasV2TestSuite))
+func TestNewVariablesFromCreateAliasWithProofsTestSuite(t *testing.T) {
+	suite.Run(t, new(CreateAliasWithProofsTestSuite))
 }

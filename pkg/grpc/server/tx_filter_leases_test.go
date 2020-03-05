@@ -35,12 +35,12 @@ func TestTxFilterLeases(t *testing.T) {
 	filter, err := newTxFilter(scheme, req)
 	assert.NoError(t, err)
 	filterLeases := newTxFilterLeases(filter, st)
-	tx = &proto.LeaseV1{Lease: proto.Lease{SenderPK: pk}, ID: &txId}
+	tx = &proto.LeaseWithSig{Lease: proto.Lease{SenderPK: pk}, ID: &txId}
 	assert.Equal(t, true, filterLeases.filter(tx))
-	tx = &proto.TransferV1{Transfer: proto.Transfer{SenderPK: pk}, ID: &txId}
+	tx = &proto.TransferWithSig{Transfer: proto.Transfer{SenderPK: pk}, ID: &txId}
 	assert.Equal(t, false, filterLeases.filter(tx))
-	tx = &proto.LeaseV1{Lease: proto.Lease{SenderPK: pk2}, ID: &txId}
+	tx = &proto.LeaseWithSig{Lease: proto.Lease{SenderPK: pk2}, ID: &txId}
 	assert.Equal(t, false, filterLeases.filter(tx))
-	tx = &proto.LeaseV1{Lease: proto.Lease{SenderPK: pk}, ID: &txId2}
+	tx = &proto.LeaseWithSig{Lease: proto.Lease{SenderPK: pk}, ID: &txId2}
 	assert.Equal(t, false, filterLeases.filter(tx))
 }

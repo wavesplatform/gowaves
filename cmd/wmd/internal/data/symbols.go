@@ -12,7 +12,6 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
-	"github.com/wavesplatform/gowaves/pkg/grpc/client"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
@@ -131,7 +130,7 @@ func (s *Symbols) UpdateFromOracle(conn *grpc.ClientConn) error {
 		return err
 	}
 	var msg g.DataEntryResponse
-	converter := client.SafeConverter{}
+	converter := proto.ProtobufConverter{}
 	count := 0
 	s.mu.Lock()
 	defer s.mu.Unlock()

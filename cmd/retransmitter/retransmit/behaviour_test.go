@@ -18,7 +18,7 @@ import (
 func TestClientRecvTransaction(t *testing.T) {
 	knownPeers, _ := utils.NewKnownPeers(utils.NoOnStorage{})
 
-	behaviour := retransmit.NewBehaviour(knownPeers, nil)
+	behaviour := retransmit.NewBehaviour(knownPeers, nil, proto.MainNetScheme)
 
 	peer1 := &mock.Peer{
 		Addr:          "peer1",
@@ -51,7 +51,7 @@ func TestClientRecvTransaction(t *testing.T) {
 	protomess := peer.ProtoMessage{
 		ID: peer1,
 		Message: &proto.TransactionMessage{
-			Transaction: byte_helpers.TransferV1.TransactionBytes,
+			Transaction: byte_helpers.TransferWithSig.TransactionBytes,
 		},
 	}
 

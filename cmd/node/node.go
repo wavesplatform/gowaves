@@ -69,8 +69,14 @@ func main() {
 
 	zap.S().Info("connectPeers ", *connectPeers)
 
+	cfg, err := settings.BlockchainSettingsByTypeName(*blockchainType)
+	if err != nil {
+		zap.S().Error(err)
+		return
+	}
+
 	conf := &settings.NodeSettings{}
-	if err := settings.ApplySettings(conf, FromArgs(), settings.FromJavaEnviron); err != nil {
+	if err := settings.ApplySettings(conf, FromArgs(cfg.AddressSchemeCharacter), settings.FromJavaEnviron); err != nil {
 		zap.S().Error(err)
 		return
 	}
@@ -81,10 +87,13 @@ func main() {
 		return
 	}
 
-	cfg, err := settings.BlockchainSettingsByTypeName(*blockchainType)
-	if err != nil {
-		zap.S().Error(err)
-		return
+	wal := wallet.NewEmbeddedWallet(wallet.NewLoader(*walletPath), wallet.NewWallet(), cfg.AddressSchemeCharacter)
+	if *walletPassword != "" {
+		err := wal.Load([]byte(*walletPassword))
+		if err != nil {
+			zap.S().Error(err)
+			return
+		}
 	}
 
 	wal := wallet.NewEmbeddedWallet(wallet.NewLoader(*walletPath), wallet.NewWallet(), cfg.AddressSchemeCharacter)
@@ -174,7 +183,7 @@ func main() {
 	mb := 1024 * 1014
 	pool := bytespool.NewBytesPool(64, mb+(mb/2))
 
-	utx := utxpool.New(10000, utxpool.NewValidator(state, ntptm))
+	utx := utxpool.New(10000, utxpool.NewValidator(state, ntptm), cfg)
 
 	parent := peer.NewParent()
 
@@ -194,19 +203,13 @@ func main() {
 	stateChanged := state_changed.NewStateChanged()
 	blockApplier := node.NewBlocksApplier(state, ntptm)
 
-	scheme, err := proto.NetworkSchemeByType(*blockchainType)
-	if err != nil {
-		zap.S().Error(err)
-		cancel()
-		return
-	}
 	services := services.Services{
 		State:              state,
 		Peers:              peerManager,
 		Scheduler:          scheduler,
 		BlocksApplier:      blockApplier,
 		UtxPool:            utx,
-		Scheme:             scheme,
+		Scheme:             cfg.AddressSchemeCharacter,
 		BlockAddedNotifier: stateChanged,
 		Subscribe:          node.NewSubscribeService(),
 		InvRequester:       ng.NewInvRequester(),
@@ -291,16 +294,12 @@ func main() {
 	<-time.After(2 * time.Second)
 }
 
-func FromArgs() func(s *settings.NodeSettings) error {
+func FromArgs(scheme proto.Scheme) func(s *settings.NodeSettings) error {
 	return func(s *settings.NodeSettings) error {
 		s.DeclaredAddr = *declAddr
 		s.HttpAddr = *apiAddr
 		s.GrpcAddr = *grpcAddr
-		networkStr, err := proto.NetworkStrByType(*blockchainType)
-		if err != nil {
-			return err
-		}
-		s.WavesNetwork = networkStr
+		s.WavesNetwork = proto.NetworkStrFromScheme(scheme)
 		s.Addresses = *peerAddresses
 		return nil
 	}

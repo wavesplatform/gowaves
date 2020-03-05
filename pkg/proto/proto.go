@@ -39,6 +39,9 @@ const (
 	ContentIDCheckpoint        = 0x64
 	ContentIDMicroblockRequest = 27
 	ContentIDMicroblock        = 28
+	ContentIDPBBlock           = 29
+	ContentIDPBMicroBlock      = 30
+	ContentIDPBTransaction     = 31
 
 	HeaderContentIDPosition = 8
 )
@@ -60,13 +63,18 @@ type Header struct {
 
 func (h *Header) MarshalBinary() ([]byte, error) {
 	data := make([]byte, h.HeaderLength())
-	h.Copy(data)
+	if _, err := h.Copy(data); err != nil {
+		return nil, err
+	}
 	return data, nil
 }
 
 func (h *Header) WriteTo(w io.Writer) (int64, error) {
 	buf := make([]byte, 17)
-	n := h.Copy(buf)
+	n, err := h.Copy(buf)
+	if err != nil {
+		return 0, err
+	}
 	rs, err := w.Write(buf[:n])
 	if err != nil {
 		return 0, err
@@ -113,22 +121,31 @@ func (h *Header) UnmarshalBinary(data []byte) error {
 	h.ContentID = data[8]
 	h.PayloadLength = binary.BigEndian.Uint32(data[9:13])
 	if h.PayloadLength > 0 {
+		if uint32(len(data)) < HeaderSizeWithPayload {
+			return errors.New("invalid data size")
+		}
 		copy(h.PayloadCsum[:], data[13:17])
 	}
 
 	return nil
 }
 
-func (h *Header) Copy(data []byte) int {
+func (h *Header) Copy(data []byte) (int, error) {
+	if len(data) < 13 {
+		return 0, errors.New("invalid data size")
+	}
 	binary.BigEndian.PutUint32(data[0:4], h.Length)
 	binary.BigEndian.PutUint32(data[4:8], headerMagic)
 	data[8] = h.ContentID
 	binary.BigEndian.PutUint32(data[9:13], h.PayloadLength)
 	if h.PayloadLength > 0 {
+		if len(data) < 17 {
+			return 0, errors.New("invalid data size")
+		}
 		copy(data[13:17], h.PayloadCsum[:])
-		return HeaderSizeWithPayload
+		return HeaderSizeWithPayload, nil
 	}
-	return HeaderSizeWithoutPayload
+	return HeaderSizeWithoutPayload, nil
 }
 
 // Version represents the version of the protocol
@@ -919,6 +936,9 @@ func (m *PeersMessage) UnmarshalBinary(data []byte) error {
 	if err := header.UnmarshalBinary(data); err != nil {
 		return err
 	}
+	if uint32(len(data)) < MaxHeaderLength {
+		return errors.New("invalid data size")
+	}
 	data = data[MaxHeaderLength:]
 	if len(data) < 4 {
 		return errors.New("peers message has insufficient length")
@@ -927,6 +947,9 @@ func (m *PeersMessage) UnmarshalBinary(data []byte) error {
 	data = data[4:]
 	for i := uint32(0); i < peersCount; i += 8 {
 		var peer PeerInfo
+		if uint32(len(data)) < i+8 {
+			return errors.New("invalid data size")
+		}
 		if err := peer.UnmarshalBinary(data[i : i+8]); err != nil {
 			return err
 		}
@@ -1053,6 +1076,9 @@ func (m *GetSignaturesMessage) MarshalBinary() ([]byte, error) {
 
 // UnmarshalBinary decodes GetSignaturesMessage from binary form
 func (m *GetSignaturesMessage) UnmarshalBinary(data []byte) error {
+	if len(data) < 17 {
+		return errors.New("invalid data size")
+	}
 	var h Header
 	if err := h.UnmarshalBinary(data); err != nil {
 		return err
@@ -1139,6 +1165,9 @@ func (m *SignaturesMessage) MarshalBinary() ([]byte, error) {
 
 // UnmarshalBinary decodes SignaturesMessage from binary form
 func (m *SignaturesMessage) UnmarshalBinary(data []byte) error {
+	if len(data) < 17 {
+		return errors.New("invalid data size")
+	}
 	var h Header
 
 	if err := h.UnmarshalBinary(data); err != nil {
@@ -1222,6 +1251,9 @@ func (m *GetBlockMessage) MarshalBinary() ([]byte, error) {
 
 // UnmarshalBinary decodes GetBlockMessage from binary form
 func (m *GetBlockMessage) UnmarshalBinary(data []byte) error {
+	if len(data) < 17 {
+		return errors.New("invalid data size")
+	}
 	var h Header
 	if err := h.UnmarshalBinary(data); err != nil {
 		return err
@@ -1262,6 +1294,30 @@ func (m *GetBlockMessage) WriteTo(w io.Writer) (int64, error) {
 	nn, err := w.Write(buf)
 	n := int64(nn)
 	return n, err
+}
+
+func MessageByMicroBlock(mb *MicroBlock, scheme Scheme) (Message, error) {
+	if BlockVersion(mb.VersionField) >= ProtoBlockVersion {
+		bts, err := mb.MarshalToProtobuf(scheme)
+		if err != nil {
+			return nil, err
+		}
+		return &PBMicroBlockMessage{bts}, nil
+	} else {
+		return &MicroBlockMessage{mb}, nil
+	}
+}
+
+func MessageByBlock(block *Block, scheme Scheme) (Message, error) {
+	bts, err := block.Marshal(scheme)
+	if err != nil {
+		return nil, err
+	}
+	if block.Version >= ProtoBlockVersion {
+		return &PBBlockMessage{bts}, nil
+	} else {
+		return &BlockMessage{bts}, nil
+	}
 }
 
 // BlockMessage represents Block message
@@ -1317,6 +1373,9 @@ func (m *BlockMessage) UnmarshalBinary(data []byte) error {
 		return fmt.Errorf("wrong ContentID in Header: %x", h.ContentID)
 	}
 
+	if uint32(len(data)) < 17+h.PayloadLength {
+		return errors.New("invalid data size")
+	}
 	m.BlockBytes = make([]byte, h.PayloadLength)
 	copy(m.BlockBytes, data[17:17+h.PayloadLength])
 
@@ -1383,6 +1442,9 @@ func (m *ScoreMessage) UnmarshalBinary(data []byte) error {
 		return fmt.Errorf("wrong ContentID in Header: %x", h.ContentID)
 	}
 
+	if uint32(len(data)) < 17+h.PayloadLength {
+		return errors.New("invalid data size")
+	}
 	m.Score = make([]byte, h.PayloadLength)
 	copy(m.Score, data[17:17+h.PayloadLength])
 	return nil
@@ -1444,6 +1506,9 @@ func (m *TransactionMessage) UnmarshalBinary(data []byte) error {
 		return fmt.Errorf("wrong ContentID in Header: %x", h.ContentID)
 	}
 	// TODO check max length
+	if uint32(len(data)) < MaxHeaderLength+h.PayloadLength {
+		return errors.New("invalid data size")
+	}
 	m.Transaction = make([]byte, h.PayloadLength)
 	copy(m.Transaction, data[MaxHeaderLength:MaxHeaderLength+h.PayloadLength])
 	dig, err := crypto.FastHash(m.Transaction)
@@ -1523,6 +1588,9 @@ func (m *CheckPointMessage) MarshalBinary() ([]byte, error) {
 
 // UnmarshalBinary decodes CheckPointMessage from binary form
 func (m *CheckPointMessage) UnmarshalBinary(data []byte) error {
+	if len(data) < 17 {
+		return errors.New("invalid data size")
+	}
 	var h Header
 	if err := h.UnmarshalBinary(data); err != nil {
 		return err
@@ -1574,6 +1642,147 @@ func (m *CheckPointMessage) WriteTo(w io.Writer) (int64, error) {
 	return n, err
 }
 
+// PBBlockMessage represents Protobuf Block message
+type PBBlockMessage struct {
+	PBBlockBytes []byte
+}
+
+// MarshalBinary encodes PBBlockMessage to binary form
+func (m *PBBlockMessage) MarshalBinary() ([]byte, error) {
+	var h Header
+	h.Length = MaxHeaderLength + uint32(len(m.PBBlockBytes)) - 4
+	h.Magic = headerMagic
+	h.ContentID = ContentIDPBBlock
+	h.PayloadLength = uint32(len(m.PBBlockBytes))
+	dig, err := crypto.FastHash(m.PBBlockBytes)
+	if err != nil {
+		return nil, err
+	}
+	copy(h.PayloadCsum[:], dig[:4])
+
+	hdr, err := h.MarshalBinary()
+	if err != nil {
+		return nil, err
+	}
+	hdr = append(hdr, m.PBBlockBytes...)
+	return hdr, nil
+}
+
+// UnmarshalBinary decodes PBBlockMessage from binary from
+func (m *PBBlockMessage) UnmarshalBinary(data []byte) error {
+	var h Header
+	if err := h.UnmarshalBinary(data); err != nil {
+		return err
+	}
+	if h.Magic != headerMagic {
+		return fmt.Errorf("wrong magic in Header: %x", h.Magic)
+	}
+	if h.ContentID != ContentIDPBBlock {
+		return fmt.Errorf("wrong ContentID in Header: %x", h.ContentID)
+	}
+
+	m.PBBlockBytes = make([]byte, h.PayloadLength)
+	if uint32(len(data)) < 17+h.PayloadLength {
+		return errors.New("invalid data size")
+	}
+	copy(m.PBBlockBytes, data[17:17+h.PayloadLength])
+
+	return nil
+}
+
+// ReadFrom reads PBBlockMessage from io.Reader
+func (m *PBBlockMessage) ReadFrom(r io.Reader) (int64, error) {
+	packet, nn, err := readPacket(r)
+	if err != nil {
+		return nn, err
+	}
+
+	return nn, m.UnmarshalBinary(packet)
+}
+
+// WriteTo writes PBBlockMessage to io.Writer
+func (m *PBBlockMessage) WriteTo(w io.Writer) (int64, error) {
+	buf, err := m.MarshalBinary()
+	if err != nil {
+		return 0, err
+	}
+	nn, err := w.Write(buf)
+	n := int64(nn)
+	return n, err
+}
+
+// PBTransactionMessage represents Protobuf TransactionsSend message
+type PBTransactionMessage struct {
+	Transaction []byte
+}
+
+// MarshalBinary encodes PBTransactionMessage to binary form
+func (m *PBTransactionMessage) MarshalBinary() ([]byte, error) {
+	var h Header
+	h.Length = MaxHeaderLength + uint32(len(m.Transaction)) - 4
+	h.Magic = headerMagic
+	h.ContentID = ContentIDPBTransaction
+	h.PayloadLength = uint32(len(m.Transaction))
+	dig, err := crypto.FastHash(m.Transaction)
+	if err != nil {
+		return nil, err
+	}
+	copy(h.PayloadCsum[:], dig[:4])
+
+	hdr, err := h.MarshalBinary()
+	if err != nil {
+		return nil, err
+	}
+	hdr = append(hdr, m.Transaction...)
+	return hdr, nil
+}
+
+// UnmarshalBinary decodes PBTransactionMessage from binary form
+func (m *PBTransactionMessage) UnmarshalBinary(data []byte) error {
+	var h Header
+	if err := h.UnmarshalBinary(data); err != nil {
+		return err
+	}
+	if h.ContentID != ContentIDPBTransaction {
+		return fmt.Errorf("wrong ContentID in Header: %x", h.ContentID)
+	}
+	// TODO check max length
+	m.Transaction = make([]byte, h.PayloadLength)
+	if uint32(len(data)) < MaxHeaderLength+h.PayloadLength {
+		return errors.New("invalid data size")
+	}
+	copy(m.Transaction, data[MaxHeaderLength:MaxHeaderLength+h.PayloadLength])
+	dig, err := crypto.FastHash(m.Transaction)
+	if err != nil {
+		return err
+	}
+
+	if !bytes.Equal(dig[:4], h.PayloadCsum[:]) {
+		return fmt.Errorf("invalid checksum: expected %x, found %x", dig[:4], h.PayloadCsum[:])
+	}
+	return nil
+}
+
+// ReadFrom reads PBTransactionMessage from io.Reader
+func (m *PBTransactionMessage) ReadFrom(r io.Reader) (int64, error) {
+	packet, nn, err := readPacket(r)
+	if err != nil {
+		return nn, err
+	}
+	return nn, m.UnmarshalBinary(packet)
+}
+
+// WriteTo writes PBTransactionMessage to io.Writer
+func (m *PBTransactionMessage) WriteTo(w io.Writer) (int64, error) {
+	buf, err := m.MarshalBinary()
+	if err != nil {
+		return 0, err
+	}
+	nn, err := w.Write(buf)
+	n := int64(nn)
+	return n, err
+}
+
 // UnmarshalMessage tries unmarshal bytes to proper type
 func UnmarshalMessage(b []byte) (Message, error) {
 	if len(b) < HeaderSizeWithoutPayload {
@@ -1606,6 +1815,12 @@ func UnmarshalMessage(b []byte) (Message, error) {
 		m = &MicroBlockRequestMessage{}
 	case ContentIDInvMicroblock:
 		m = &MicroBlockInvMessage{}
+	case ContentIDPBBlock:
+		m = &PBBlockMessage{}
+	case ContentIDPBMicroBlock:
+		m = &PBMicroBlockMessage{}
+	case ContentIDPBTransaction:
+		m = &PBTransactionMessage{}
 	default:
 		return nil, errors.Errorf(
 			"received unknown content id byte %d 0x%x", b[HeaderContentIDPosition], b[HeaderContentIDPosition])

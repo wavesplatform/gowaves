@@ -2,6 +2,7 @@ package proto
 
 import (
 	"encoding/binary"
+	"encoding/json"
 	"reflect"
 
 	"github.com/pkg/errors"
@@ -54,50 +55,142 @@ const (
 
 var (
 	bytesToTransactionsV2 = map[TransactionType]reflect.Type{
-		IssueTransaction:          reflect.TypeOf(IssueV2{}),
-		TransferTransaction:       reflect.TypeOf(TransferV2{}),
-		ReissueTransaction:        reflect.TypeOf(ReissueV2{}),
-		BurnTransaction:           reflect.TypeOf(BurnV2{}),
-		ExchangeTransaction:       reflect.TypeOf(ExchangeV2{}),
-		LeaseTransaction:          reflect.TypeOf(LeaseV2{}),
-		LeaseCancelTransaction:    reflect.TypeOf(LeaseCancelV2{}),
-		CreateAliasTransaction:    reflect.TypeOf(CreateAliasV2{}),
-		DataTransaction:           reflect.TypeOf(DataV1{}),
-		SetScriptTransaction:      reflect.TypeOf(SetScriptV1{}),
-		SponsorshipTransaction:    reflect.TypeOf(SponsorshipV1{}),
-		SetAssetScriptTransaction: reflect.TypeOf(SetAssetScriptV1{}),
-		InvokeScriptTransaction:   reflect.TypeOf(InvokeScriptV1{}),
+		IssueTransaction:          reflect.TypeOf(IssueWithProofs{}),
+		TransferTransaction:       reflect.TypeOf(TransferWithProofs{}),
+		ReissueTransaction:        reflect.TypeOf(ReissueWithProofs{}),
+		BurnTransaction:           reflect.TypeOf(BurnWithProofs{}),
+		ExchangeTransaction:       reflect.TypeOf(ExchangeWithProofs{}),
+		LeaseTransaction:          reflect.TypeOf(LeaseWithProofs{}),
+		LeaseCancelTransaction:    reflect.TypeOf(LeaseCancelWithProofs{}),
+		CreateAliasTransaction:    reflect.TypeOf(CreateAliasWithProofs{}),
+		DataTransaction:           reflect.TypeOf(DataWithProofs{}),
+		SetScriptTransaction:      reflect.TypeOf(SetScriptWithProofs{}),
+		SponsorshipTransaction:    reflect.TypeOf(SponsorshipWithProofs{}),
+		SetAssetScriptTransaction: reflect.TypeOf(SetAssetScriptWithProofs{}),
+		InvokeScriptTransaction:   reflect.TypeOf(InvokeScriptWithProofs{}),
 	}
 
 	bytesToTransactionsV1 = map[TransactionType]reflect.Type{
 		GenesisTransaction:      reflect.TypeOf(Genesis{}),
 		PaymentTransaction:      reflect.TypeOf(Payment{}),
-		IssueTransaction:        reflect.TypeOf(IssueV1{}),
-		TransferTransaction:     reflect.TypeOf(TransferV1{}),
-		ReissueTransaction:      reflect.TypeOf(ReissueV1{}),
-		BurnTransaction:         reflect.TypeOf(BurnV1{}),
-		ExchangeTransaction:     reflect.TypeOf(ExchangeV1{}),
-		LeaseTransaction:        reflect.TypeOf(LeaseV1{}),
-		LeaseCancelTransaction:  reflect.TypeOf(LeaseCancelV1{}),
-		CreateAliasTransaction:  reflect.TypeOf(CreateAliasV1{}),
-		MassTransferTransaction: reflect.TypeOf(MassTransferV1{}),
+		IssueTransaction:        reflect.TypeOf(IssueWithSig{}),
+		TransferTransaction:     reflect.TypeOf(TransferWithSig{}),
+		ReissueTransaction:      reflect.TypeOf(ReissueWithSig{}),
+		BurnTransaction:         reflect.TypeOf(BurnWithSig{}),
+		ExchangeTransaction:     reflect.TypeOf(ExchangeWithSig{}),
+		LeaseTransaction:        reflect.TypeOf(LeaseWithSig{}),
+		LeaseCancelTransaction:  reflect.TypeOf(LeaseCancelWithSig{}),
+		CreateAliasTransaction:  reflect.TypeOf(CreateAliasWithSig{}),
+		MassTransferTransaction: reflect.TypeOf(MassTransferWithProofs{}),
+	}
+
+	ProtobufTransactionsVersions = map[TransactionType]byte{
+		GenesisTransaction:        2,
+		PaymentTransaction:        2,
+		TransferTransaction:       3,
+		IssueTransaction:          3,
+		ReissueTransaction:        3,
+		BurnTransaction:           3,
+		ExchangeTransaction:       3,
+		LeaseTransaction:          3,
+		LeaseCancelTransaction:    3,
+		CreateAliasTransaction:    3,
+		MassTransferTransaction:   2,
+		DataTransaction:           2,
+		SetScriptTransaction:      2,
+		SponsorshipTransaction:    2,
+		SetAssetScriptTransaction: 2,
+		InvokeScriptTransaction:   2,
 	}
 )
 
+type TransactionProofVersion byte
+
+const (
+	Signature TransactionProofVersion = iota + 1
+	Proof
+)
+
+type TransactionTypeInfo struct {
+	Type         TransactionType
+	ProofVersion TransactionProofVersion
+}
+
 // Transaction is a set of common transaction functions.
 type Transaction interface {
-	GetTypeVersion() TransactionTypeVersion
-	GetID() ([]byte, error)
+	// Getters which are common for all transactions.
+
+	// GetTypeInfo() returns information which describes which Golang structure
+	// do we deal with (tx type + proof/signature flag).
+	// <TODO>:
+	// This is temporary workaround until we have the same struct for both
+	// Signature and Proofs transactions.
+	GetTypeInfo() TransactionTypeInfo
+	GetVersion() byte
+	GetID(scheme Scheme) ([]byte, error)
 	GetSenderPK() crypto.PublicKey
-	Valid() (bool, error)
-	MarshalBinary() ([]byte, error)
-	UnmarshalBinary([]byte) error
 	GetFee() uint64
 	GetTimestamp() uint64
-	GenerateID()
-	Sign(sk crypto.SecretKey) error
+
+	// Check that all transaction fields are valid.
+	// This includes ranges checks, and sanity checks specific for each transaction type:
+	// for example, negative amounts for transfers.
+	Valid() (bool, error)
+
+	// Set transaction ID.
+	// For most transacions ID is hash of transaction body.
+	// For Payment transactions ID is Signature.
+	GenerateID(scheme Scheme) error
+	// Sign transaction with given secret key.
+	// It also sets transaction ID.
+	Sign(scheme Scheme, sk crypto.SecretKey) error
+
+	// Functions for custom binary format.
+	// Serialization.
+	// MarshalBinary() is analogous to MarshalSignedToProtobuf() for Protobuf.
+	MarshalBinary() ([]byte, error)
+	// Parsing.
+	UnmarshalBinary([]byte, Scheme) error
+	// Bytes without signature.
+	// BodyMarshalBinary() is analogous to MarshalToProtobuf() for Protobuf.
+	BodyMarshalBinary() ([]byte, error)
+	// Size in bytes in binary format.
+	BinarySize() int
+
+	// Protobuf-related functions.
+	// Conversion to/from Protobuf wire byte format.
+	MarshalToProtobuf(scheme Scheme) ([]byte, error)
+	UnmarshalFromProtobuf([]byte) error
+	MarshalSignedToProtobuf(scheme Scheme) ([]byte, error)
+	UnmarshalSignedFromProtobuf([]byte) error
+	// Conversion to Protobuf types.
 	ToProtobuf(scheme Scheme) (*g.Transaction, error)
 	ToProtobufSigned(scheme Scheme) (*g.SignedTransaction, error)
+}
+
+func IsProtobufTx(tx Transaction) bool {
+	protobufVersion, ok := ProtobufTransactionsVersions[tx.GetTypeInfo().Type]
+	if !ok {
+		return false
+	}
+	if tx.GetVersion() < protobufVersion {
+		return false
+	}
+	return true
+}
+
+func MarshalTx(scheme Scheme, tx Transaction) ([]byte, error) {
+	if IsProtobufTx(tx) {
+		return tx.MarshalSignedToProtobuf(scheme)
+	}
+	return tx.MarshalBinary()
+}
+
+func MarshalTxBody(scheme Scheme, tx Transaction) ([]byte, error) {
+	if IsProtobufTx(tx) {
+		return tx.MarshalToProtobuf(scheme)
+	}
+	return tx.BodyMarshalBinary()
 }
 
 // TransactionToProtobufCommon() converts to protobuf structure with fields
@@ -108,11 +201,11 @@ func TransactionToProtobufCommon(scheme Scheme, tx Transaction) *g.Transaction {
 		ChainId:         int32(scheme),
 		SenderPublicKey: pk.Bytes(),
 		Timestamp:       int64(tx.GetTimestamp()),
-		Version:         int32(tx.GetTypeVersion().Version),
+		Version:         int32(tx.GetVersion()),
 	}
 }
 
-func BytesToTransaction(tx []byte) (Transaction, error) {
+func BytesToTransaction(tx []byte, scheme Scheme) (Transaction, error) {
 	if len(tx) < 2 {
 		return nil, errors.New("invalid size of transaction's bytes slice")
 	}
@@ -125,7 +218,7 @@ func BytesToTransaction(tx []byte) (Transaction, error) {
 		if !ok {
 			panic("This transaction type does not implement marshal/unmarshal functions")
 		}
-		if err := transaction.UnmarshalBinary(tx); err != nil {
+		if err := transaction.UnmarshalBinary(tx, scheme); err != nil {
 			return nil, errors.Wrap(err, "failed to unmarshal transaction")
 		}
 		return transaction, nil
@@ -138,14 +231,14 @@ func BytesToTransaction(tx []byte) (Transaction, error) {
 		if !ok {
 			panic("This transaction type does not implement marshal/unmarshal functions")
 		}
-		if err := transaction.UnmarshalBinary(tx); err != nil {
+		if err := transaction.UnmarshalBinary(tx, scheme); err != nil {
 			return nil, errors.Wrap(err, "failed to unmarshal transaction")
 		}
 		return transaction, nil
 	}
 }
 
-func BytesToTransactions(count int, txs []byte) ([]Transaction, error) {
+func BytesToTransactions(count int, txs []byte, scheme Scheme) ([]Transaction, error) {
 	res := make([]Transaction, count)
 	for i := 0; i < count; i++ {
 		n := int(binary.BigEndian.Uint32(txs[0:4]))
@@ -153,7 +246,7 @@ func BytesToTransactions(count int, txs []byte) ([]Transaction, error) {
 			return nil, errors.New("invalid tx size: exceeds bytes slice bounds")
 		}
 		txBytes := txs[4 : n+4]
-		tx, err := BytesToTransaction(txBytes)
+		tx, err := BytesToTransaction(txBytes, scheme)
 		if err != nil {
 			return nil, err
 		}
@@ -177,78 +270,116 @@ func GuessTransactionType(t *TransactionTypeVersion) (Transaction, error) {
 	case PaymentTransaction: // 2
 		out = &Payment{}
 	case IssueTransaction: // 3
-		switch t.Version {
-		case 2:
-			out = &IssueV2{}
-		default:
-			out = &IssueV1{}
+		if t.Version >= 2 {
+			out = &IssueWithProofs{}
+		} else {
+			out = &IssueWithSig{}
 		}
 	case TransferTransaction: // 4
-		switch t.Version {
-		case 2:
-			out = &TransferV2{}
-		default:
-			out = &TransferV1{}
+		if t.Version >= 2 {
+			out = &TransferWithProofs{}
+		} else {
+			out = &TransferWithSig{}
 		}
 	case ReissueTransaction: // 5
-		switch t.Version {
-		case 2:
-			out = &ReissueV2{}
-		default:
-			out = &ReissueV1{}
+		if t.Version >= 2 {
+			out = &ReissueWithProofs{}
+		} else {
+			out = &ReissueWithSig{}
 		}
 	case BurnTransaction: // 6
-		switch t.Version {
-		case 2:
-			out = &BurnV2{}
-		default:
-			out = &BurnV1{}
+		if t.Version >= 2 {
+			out = &BurnWithProofs{}
+		} else {
+			out = &BurnWithSig{}
 		}
 	case ExchangeTransaction: // 7
-		switch t.Version {
-		case 2:
-			out = &ExchangeV2{}
-		default:
-			out = &ExchangeV1{}
+		if t.Version >= 2 {
+			out = &ExchangeWithProofs{}
+		} else {
+			out = &ExchangeWithSig{}
 		}
 	case LeaseTransaction: // 8
-		switch t.Version {
-		case 2:
-			out = &LeaseV2{}
-		default:
-			out = &LeaseV1{}
+		if t.Version >= 2 {
+			out = &LeaseWithProofs{}
+		} else {
+			out = &LeaseWithSig{}
 		}
 	case LeaseCancelTransaction: // 9
-		switch t.Version {
-		case 2:
-			out = &LeaseCancelV2{}
-		default:
-			out = &LeaseCancelV1{}
+		if t.Version >= 2 {
+			out = &LeaseCancelWithProofs{}
+		} else {
+			out = &LeaseCancelWithSig{}
 		}
 	case CreateAliasTransaction: // 10
-		switch t.Version {
-		case 2:
-			out = &CreateAliasV2{}
-		default:
-			out = &CreateAliasV1{}
+		if t.Version >= 2 {
+			out = &CreateAliasWithProofs{}
+		} else {
+			out = &CreateAliasWithSig{}
 		}
 	case MassTransferTransaction: // 11
-		out = &MassTransferV1{}
+		out = &MassTransferWithProofs{}
 	case DataTransaction: // 12
-		out = &DataV1{}
+		out = &DataWithProofs{}
 	case SetScriptTransaction: // 13
-		out = &SetScriptV1{}
+		out = &SetScriptWithProofs{}
 	case SponsorshipTransaction: // 14
-		out = &SponsorshipV1{}
+		out = &SponsorshipWithProofs{}
 	case SetAssetScriptTransaction: // 15
-		out = &SetAssetScriptV1{}
+		out = &SetAssetScriptWithProofs{}
 	case InvokeScriptTransaction: // 16
-		out = &InvokeScriptV1{}
+		out = &InvokeScriptWithProofs{}
 	}
 	if out == nil {
 		return nil, errors.Errorf("unknown transaction type %d version %d", t.Type, t.Version)
 	}
 	return out, nil
+}
+
+func TxVersionFromJson(data []byte) (byte, error) {
+	txVersion := struct {
+		Version byte `json:"version"`
+	}{}
+	if err := json.Unmarshal(data, &txVersion); err != nil {
+		return 0, err
+	}
+	return txVersion.Version, nil
+}
+
+type attachmentType struct {
+	Type string `json:"type"`
+}
+
+func TxAttachmentFromJson(data []byte, txType TransactionType) (Attachment, error) {
+	version, err := TxVersionFromJson(data)
+	if err != nil {
+		return nil, err
+	}
+	protobufVersion, ok := ProtobufTransactionsVersions[txType]
+	if !ok {
+		return nil, errors.Errorf("Type %v is absent in ProtobufTransactionsVersions", txType)
+	}
+	if version < protobufVersion {
+		return &LegacyAttachment{}, nil
+	}
+	tx := struct {
+		Attachment attachmentType `json:"attachment"`
+	}{}
+	if err := json.Unmarshal(data, &tx); err != nil {
+		return nil, err
+	}
+	switch tx.Attachment.Type {
+	case "integer":
+		return &IntAttachment{}, nil
+	case "boolean":
+		return &BoolAttachment{}, nil
+	case "binary":
+		return &BinaryAttachment{}, nil
+	case "string":
+		return &StringAttachment{}, nil
+	default:
+		return nil, errors.New("unknown attachment type")
+	}
 }
 
 //Genesis is a transaction used to initial balances distribution. This transactions allowed only in the first block.
@@ -262,27 +393,36 @@ type Genesis struct {
 	Amount    uint64            `json:"amount"`
 }
 
-func (tx Genesis) GetTypeVersion() TransactionTypeVersion {
-	return TransactionTypeVersion{tx.Type, 1}
+func (tx Genesis) BinarySize() int {
+	return 1 + 8 + AddressSize + 8
 }
 
-func (tx *Genesis) GenerateID() {
-	err := tx.generateID()
-	if err != nil {
-		panic(err.Error())
+func (tx Genesis) GetTypeInfo() TransactionTypeInfo {
+	return TransactionTypeInfo{tx.Type, Signature}
+}
+
+func (tx Genesis) GetVersion() byte {
+	return tx.Version
+}
+
+func (tx *Genesis) GenerateID(scheme Scheme) error {
+	return tx.generateID(scheme)
+}
+
+func (tx *Genesis) Sign(scheme Scheme, sk crypto.SecretKey) error {
+	if err := tx.generateID(scheme); err != nil {
+		return err
 	}
-}
-
-func (tx Genesis) Sign(sk crypto.SecretKey) error {
-	return tx.GenerateSigID()
+	tx.Signature = tx.ID
+	return nil
 }
 
 func (tx Genesis) GetSenderPK() crypto.PublicKey {
 	return crypto.PublicKey{}
 }
 
-func (tx *Genesis) generateID() error {
-	body, err := tx.bodyMarshalBinary()
+func (tx *Genesis) generateID(scheme Scheme) error {
+	body, err := MarshalTxBody(scheme, tx)
 	if err != nil {
 		return err
 	}
@@ -291,10 +431,9 @@ func (tx *Genesis) generateID() error {
 	return nil
 }
 
-func (tx Genesis) GetID() ([]byte, error) {
+func (tx Genesis) GetID(scheme Scheme) ([]byte, error) {
 	if tx.ID == nil {
-		err := tx.generateID()
-		if err != nil {
+		if err := tx.GenerateID(scheme); err != nil {
 			return nil, err
 		}
 	}
@@ -310,7 +449,6 @@ func (tx Genesis) GetTimestamp() uint64 {
 }
 
 //NewUnsignedGenesis returns a new unsigned Genesis transaction. Actually Genesis transaction could not be signed.
-//That is why it doesn't implement Sing method. Instead it has GenerateSigID method, which calculates ID and uses it also as a signature.
 func NewUnsignedGenesis(recipient Address, amount, timestamp uint64) *Genesis {
 	return &Genesis{Type: GenesisTransaction, Version: 1, Timestamp: timestamp, Recipient: recipient, Amount: amount}
 }
@@ -329,7 +467,7 @@ func (tx Genesis) Valid() (bool, error) {
 	return true, nil
 }
 
-func (tx *Genesis) bodyMarshalBinary() ([]byte, error) {
+func (tx *Genesis) BodyMarshalBinary() ([]byte, error) {
 	buf := make([]byte, genesisBodyLen)
 	buf[0] = byte(tx.Type)
 	binary.BigEndian.PutUint64(buf[1:], tx.Timestamp)
@@ -363,21 +501,29 @@ func (tx *Genesis) generateBodyHash(body []byte) crypto.Signature {
 	return s
 }
 
-//GenerateSigID calculates hash of the transaction and use it as an ID. Also doubled hash is used as a signature.
-func (tx *Genesis) GenerateSigID() error {
-	b, err := tx.bodyMarshalBinary()
+func (tx *Genesis) GenerateSigID(scheme Scheme) error {
+	if err := tx.GenerateSig(); err != nil {
+		return err
+	}
+	if err := tx.GenerateID(scheme); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (tx *Genesis) GenerateSig() error {
+	b, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return errors.Wrap(err, "failed to generate signature of Genesis transaction")
 	}
 	s := tx.generateBodyHash(b)
-	tx.ID = &s
 	tx.Signature = &s
 	return nil
 }
 
 //MarshalBinary writes transaction bytes to slice of bytes.
 func (tx *Genesis) MarshalBinary() ([]byte, error) {
-	b, err := tx.bodyMarshalBinary()
+	b, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal Genesis transaction to bytes")
 	}
@@ -385,7 +531,7 @@ func (tx *Genesis) MarshalBinary() ([]byte, error) {
 }
 
 //UnmarshalBinary reads transaction values from the slice of bytes.
-func (tx *Genesis) UnmarshalBinary(data []byte) error {
+func (tx *Genesis) UnmarshalBinary(data []byte, scheme Scheme) error {
 	if l := len(data); l != genesisBodyLen {
 		return errors.Errorf("incorrect data length for Genesis transaction, expected %d, received %d", genesisBodyLen, l)
 	}
@@ -396,10 +542,44 @@ func (tx *Genesis) UnmarshalBinary(data []byte) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to unmarshal Genesis transaction from bytes")
 	}
-	err = tx.GenerateSigID()
+	err = tx.GenerateSigID(scheme)
 	if err != nil {
 		return errors.Wrap(err, "failed to unmarshal Genesis transaction from bytes")
 	}
+	return nil
+}
+
+func (tx *Genesis) MarshalToProtobuf(scheme Scheme) ([]byte, error) {
+	return MarshalTxDeterministic(tx, scheme)
+}
+
+func (tx *Genesis) UnmarshalFromProtobuf(data []byte) error {
+	t, err := TxFromProtobuf(data)
+	if err != nil {
+		return err
+	}
+	genesisTx, ok := t.(*Genesis)
+	if !ok {
+		return errors.New("failed to convert result to Genesis")
+	}
+	*tx = *genesisTx
+	return nil
+}
+
+func (tx *Genesis) MarshalSignedToProtobuf(scheme Scheme) ([]byte, error) {
+	return MarshalSignedTxDeterministic(tx, scheme)
+}
+
+func (tx *Genesis) UnmarshalSignedFromProtobuf(data []byte) error {
+	t, err := SignedTxFromProtobuf(data)
+	if err != nil {
+		return err
+	}
+	genesisTx, ok := t.(*Genesis)
+	if !ok {
+		return errors.New("failed to convert result to Genesis")
+	}
+	*tx = *genesisTx
 	return nil
 }
 
@@ -442,23 +622,34 @@ type Payment struct {
 	Timestamp uint64            `json:"timestamp"`
 }
 
-func (tx Payment) GetTypeVersion() TransactionTypeVersion {
-	return TransactionTypeVersion{tx.Type, tx.Version}
+func (tx Payment) BinarySize() int {
+	return 1 + crypto.SignatureSize + crypto.PublicKeySize + AddressSize + 24
 }
 
-func (tx *Payment) GenerateID() {
+func (tx Payment) GetTypeInfo() TransactionTypeInfo {
+	return TransactionTypeInfo{tx.Type, Signature}
+}
+
+func (tx Payment) GetVersion() byte {
+	return tx.Version
+}
+
+func (tx *Payment) GenerateID(scheme Scheme) error {
 	if tx.ID == nil {
 		tx.ID = tx.Signature
 	}
+	return nil
 }
 
 func (tx Payment) GetSenderPK() crypto.PublicKey {
 	return tx.SenderPK
 }
 
-func (tx Payment) GetID() ([]byte, error) {
+func (tx Payment) GetID(scheme Scheme) ([]byte, error) {
 	if tx.ID == nil {
-		return nil, errors.New("tx ID is not set\n")
+		if err := tx.GenerateID(scheme); err != nil {
+			return nil, err
+		}
 	}
 	return tx.ID.Bytes(), nil
 }
@@ -531,7 +722,20 @@ func (tx *Payment) bodyUnmarshalBinary(data []byte) error {
 }
 
 //Sign calculates transaction signature and set it as an ID.
-func (tx *Payment) Sign(secretKey crypto.SecretKey) error {
+func (tx *Payment) Sign(scheme Scheme, secretKey crypto.SecretKey) error {
+	if IsProtobufTx(tx) {
+		b, err := MarshalTxBody(scheme, tx)
+		if err != nil {
+			return err
+		}
+		s, err := crypto.Sign(secretKey, b)
+		if err != nil {
+			return err
+		}
+		tx.ID = &s
+		tx.Signature = &s
+		return nil
+	}
 	b := tx.bodyMarshalBinaryBuffer()
 	err := tx.bodyMarshalBinary(b)
 	if err != nil {
@@ -560,9 +764,16 @@ func (tx *Payment) BodyMarshalBinary() ([]byte, error) {
 }
 
 //Verify checks that the Signature is valid for given public key.
-func (tx *Payment) Verify(publicKey crypto.PublicKey) (bool, error) {
+func (tx *Payment) Verify(scheme Scheme, publicKey crypto.PublicKey) (bool, error) {
 	if tx.Signature == nil {
 		return false, errors.New("empty signature")
+	}
+	if IsProtobufTx(tx) {
+		b, err := tx.MarshalToProtobuf(scheme)
+		if err != nil {
+			return false, err
+		}
+		return crypto.Verify(publicKey, *tx.Signature, b), nil
 	}
 	b := tx.bodyMarshalBinaryBuffer()
 	err := tx.bodyMarshalBinary(b)
@@ -607,7 +818,7 @@ func (tx *Payment) MarshalBinary2(buf []byte) ([]byte, error) {
 }
 
 //UnmarshalBinary reads Payment transaction from its binary representation.
-func (tx *Payment) UnmarshalBinary(data []byte) error {
+func (tx *Payment) UnmarshalBinary(data []byte, scheme Scheme) error {
 	size := paymentBodyLen + crypto.SignatureSize
 	if l := len(data); l != size {
 		return errors.Errorf("not enough data for Payment transaction, expected %d, received %d", size, l)
@@ -623,7 +834,44 @@ func (tx *Payment) UnmarshalBinary(data []byte) error {
 	var s crypto.Signature
 	copy(s[:], data[:crypto.SignatureSize])
 	tx.Signature = &s
-	tx.ID = &s
+	err = tx.GenerateID(scheme)
+	if err != nil {
+		return errors.Wrap(err, "failed to unmarshal Payment transaction from bytes")
+	}
+	return nil
+}
+
+func (tx *Payment) MarshalToProtobuf(scheme Scheme) ([]byte, error) {
+	return MarshalTxDeterministic(tx, scheme)
+}
+
+func (tx *Payment) UnmarshalFromProtobuf(data []byte) error {
+	t, err := TxFromProtobuf(data)
+	if err != nil {
+		return err
+	}
+	paymentTx, ok := t.(*Payment)
+	if !ok {
+		return errors.New("failed to convert result to Payment")
+	}
+	*tx = *paymentTx
+	return nil
+}
+
+func (tx *Payment) MarshalSignedToProtobuf(scheme Scheme) ([]byte, error) {
+	return MarshalSignedTxDeterministic(tx, scheme)
+}
+
+func (tx *Payment) UnmarshalSignedFromProtobuf(data []byte) error {
+	t, err := SignedTxFromProtobuf(data)
+	if err != nil {
+		return err
+	}
+	paymentTx, ok := t.(*Payment)
+	if !ok {
+		return errors.New("failed to convert result to Payment")
+	}
+	*tx = *paymentTx
 	return nil
 }
 
@@ -664,6 +912,10 @@ type Issue struct {
 	Reissuable  bool             `json:"reissuable"`
 	Timestamp   uint64           `json:"timestamp,omitempty"`
 	Fee         uint64           `json:"fee"`
+}
+
+func (i Issue) BinarySize() int {
+	return crypto.PublicKeySize + len(i.Name) + 2 + len(i.Description) + 2 + 8 + 1 + 1 + 16
 }
 
 func (i Issue) GetSenderPK() crypto.PublicKey {
@@ -726,7 +978,7 @@ func (i Issue) marshalBinary() ([]byte, error) {
 	return buf, nil
 }
 
-func (i *Issue) unmarshalBinary(data []byte) error {
+func (i *Issue) UnmarshalBinary(data []byte) error {
 	if l := len(data); l < issueLen {
 		return errors.Errorf("%d is not enough bytes for Issue, expected not less then %d", l, issueLen)
 	}
@@ -760,8 +1012,8 @@ func (i *Issue) unmarshalBinary(data []byte) error {
 
 func (i *Issue) ToProtobuf() *g.Transaction_Issue {
 	return &g.Transaction_Issue{Issue: &g.IssueTransactionData{
-		Name:        []byte(i.Name),
-		Description: []byte(i.Description),
+		Name:        i.Name,
+		Description: i.Description,
 		Amount:      int64(i.Quantity),
 		Decimals:    int32(i.Decimals),
 		Reissuable:  i.Reissuable,
@@ -777,6 +1029,12 @@ type Transfer struct {
 	Fee         uint64           `json:"fee"`
 	Recipient   Recipient        `json:"recipient"`
 	Attachment  Attachment       `json:"attachment,omitempty"`
+}
+
+func (tr Transfer) BinarySize() int {
+	aaSize := tr.AmountAsset.BinarySize()
+	faSize := tr.FeeAsset.BinarySize()
+	return crypto.PublicKeySize + aaSize + faSize + 24 + tr.Recipient.BinarySize() + tr.Attachment.Size() + 2
 }
 
 func (tr Transfer) GetSenderPK() crypto.PublicKey {
@@ -807,7 +1065,7 @@ func (tr Transfer) Valid() (bool, error) {
 	if x := tr.Amount + tr.Fee; !validJVMLong(x) {
 		return false, errors.New("sum of amount and fee overflows JVM long")
 	}
-	if len(tr.Attachment) > maxAttachmentLengthBytes {
+	if tr.Attachment.Size() > maxAttachmentLengthBytes {
 		return false, errors.New("attachment is too long")
 	}
 	if ok, err := tr.Recipient.Valid(); !ok {
@@ -831,7 +1089,11 @@ func (tr *Transfer) marshalBinary() ([]byte, error) {
 		return nil, errors.Wrap(err, "failed to marshal Transfer body")
 	}
 	rl := len(rb)
-	atl := len(tr.Attachment)
+	att, ok := tr.Attachment.(*LegacyAttachment)
+	if !ok {
+		return nil, errors.New("binary format is only defined for untyped attachments")
+	}
+	atl := att.Size()
 	buf := make([]byte, transferLen+aal+fal+atl+rl)
 	copy(buf[p:], tr.SenderPK[:])
 	p += crypto.PublicKeySize
@@ -855,7 +1117,11 @@ func (tr *Transfer) marshalBinary() ([]byte, error) {
 	p += 8
 	copy(buf[p:], rb)
 	p += rl
-	PutStringWithUInt16Len(buf[p:], tr.Attachment.String())
+	attBytes, err := att.Bytes()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to marshal Transfer body")
+	}
+	PutBytesWithUInt16Len(buf[p:], attBytes)
 	return buf, nil
 }
 
@@ -888,14 +1154,22 @@ func (tr *Transfer) Serialize(s *serializer.Serializer) error {
 	if err != nil {
 		return err
 	}
-	err = s.StringWithUInt16Len(tr.Attachment.String())
+	att, ok := tr.Attachment.(*LegacyAttachment)
+	if !ok {
+		return errors.New("binary format is only defined for untyped attachments")
+	}
+	attBytes, err := att.Bytes()
+	if err != nil {
+		return err
+	}
+	err = s.BytesWithUInt16Len(attBytes)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (tr *Transfer) unmarshalBinary(data []byte) error {
+func (tr *Transfer) UnmarshalBinary(data []byte) error {
 	if l := len(data); l < transferLen {
 		return errors.Errorf("%d bytes is not enough for Transfer body, expected not less then %d bytes", l, transferLen)
 	}
@@ -928,11 +1202,11 @@ func (tr *Transfer) unmarshalBinary(data []byte) error {
 		return errors.Wrap(err, "failed to unmarshal Transfer body from bytes")
 	}
 	data = data[tr.Recipient.len:]
-	a, err := StringWithUInt16Len(data)
+	a, err := BytesWithUInt16Len(data)
 	if err != nil {
 		return errors.Wrap(err, "failed to unmarshal Transfer body from bytes")
 	}
-	tr.Attachment = Attachment(a)
+	tr.Attachment = &LegacyAttachment{Value: a}
 	return nil
 }
 
@@ -944,7 +1218,7 @@ func (tr *Transfer) ToProtobuf() (*g.Transaction_Transfer, error) {
 	return &g.Transaction_Transfer{Transfer: &g.TransferTransactionData{
 		Recipient:  rcpProto,
 		Amount:     &g.Amount{AssetId: tr.AmountAsset.ToID(), Amount: int64(tr.Amount)},
-		Attachment: []byte(tr.Attachment),
+		Attachment: tr.Attachment.ToProtobuf(),
 	}}, nil
 }
 
@@ -955,6 +1229,10 @@ type Reissue struct {
 	Reissuable bool             `json:"reissuable"`
 	Timestamp  uint64           `json:"timestamp,omitempty"`
 	Fee        uint64           `json:"fee"`
+}
+
+func (r Reissue) BinarySize() int {
+	return crypto.PublicKeySize + crypto.DigestSize + 24 + 1
 }
 
 func (r Reissue) ToProtobuf() *g.Transaction_Reissue {
@@ -1009,7 +1287,7 @@ func (r *Reissue) marshalBinary() ([]byte, error) {
 	return buf, nil
 }
 
-func (r *Reissue) unmarshalBinary(data []byte) error {
+func (r *Reissue) UnmarshalBinary(data []byte) error {
 	if l := len(data); l < reissueLen {
 		return errors.Errorf("%d bytes is not enough for Reissue body, expected not less then %d bytes", l, reissueLen)
 	}
@@ -1037,6 +1315,10 @@ type Burn struct {
 	Amount    uint64           `json:"amount"`
 	Timestamp uint64           `json:"timestamp,omitempty"`
 	Fee       uint64           `json:"fee"`
+}
+
+func (b Burn) BinarySize() int {
+	return crypto.PublicKeySize + crypto.DigestSize + 24
 }
 
 func (b Burn) ToProtobuf() *g.Transaction_Burn {
@@ -1085,7 +1367,7 @@ func (b *Burn) marshalBinary() ([]byte, error) {
 	return buf, nil
 }
 
-func (b *Burn) unmarshalBinary(data []byte) error {
+func (b *Burn) UnmarshalBinary(data []byte) error {
 	if l := len(data); l < burnLen {
 		return errors.Errorf("%d bytes is not enough for burn, expected not less then %d", l, burnLen)
 	}
@@ -1102,7 +1384,7 @@ func (b *Burn) unmarshalBinary(data []byte) error {
 }
 
 type Exchange interface {
-	GetID() ([]byte, error)
+	GetID(scheme Scheme) ([]byte, error)
 	GetSenderPK() crypto.PublicKey
 	GetBuyOrder() (OrderBody, error)
 	GetSellOrder() (OrderBody, error)
@@ -1122,6 +1404,10 @@ type Lease struct {
 	Amount    uint64           `json:"amount"`
 	Fee       uint64           `json:"fee"`
 	Timestamp uint64           `json:"timestamp,omitempty"`
+}
+
+func (l Lease) BinarySize() int {
+	return crypto.PublicKeySize + l.Recipient.BinarySize() + 24
 }
 
 func (l Lease) ToProtobuf() (*g.Transaction_Lease, error) {
@@ -1190,7 +1476,7 @@ func (l *Lease) marshalBinary() ([]byte, error) {
 	return buf, nil
 }
 
-func (l *Lease) unmarshalBinary(data []byte) error {
+func (l *Lease) UnmarshalBinary(data []byte) error {
 	if l := len(data); l < leaseLen {
 		return errors.Errorf("not enough data for lease, expected not less then %d, received %d", leaseLen, l)
 	}
@@ -1214,6 +1500,10 @@ type LeaseCancel struct {
 	LeaseID   crypto.Digest    `json:"leaseId"`
 	Fee       uint64           `json:"fee"`
 	Timestamp uint64           `json:"timestamp,omitempty"`
+}
+
+func (lc LeaseCancel) BinarySize() int {
+	return crypto.PublicKeySize + crypto.DigestSize + 16
 }
 
 func (lc LeaseCancel) ToProtobuf() *g.Transaction_LeaseCancel {
@@ -1257,7 +1547,7 @@ func (lc *LeaseCancel) marshalBinary() ([]byte, error) {
 	return buf, nil
 }
 
-func (lc *LeaseCancel) unmarshalBinary(data []byte) error {
+func (lc *LeaseCancel) UnmarshalBinary(data []byte) error {
 	if l := len(data); l < leaseCancelLen {
 		return errors.Errorf("not enough data for leaseCancel, expected not less then %d, received %d", leaseCancelLen, l)
 	}
@@ -1276,6 +1566,10 @@ type CreateAlias struct {
 	Alias     Alias            `json:"alias"`
 	Fee       uint64           `json:"fee"`
 	Timestamp uint64           `json:"timestamp,omitempty"`
+}
+
+func (ca CreateAlias) BinarySize() int {
+	return crypto.PublicKeySize + 16 + 2 + ca.Alias.BinarySize()
 }
 
 func (ca CreateAlias) ToProtobuf() *g.Transaction_CreateAlias {
@@ -1330,7 +1624,7 @@ func (ca *CreateAlias) marshalBinary() ([]byte, error) {
 	return buf, nil
 }
 
-func (ca *CreateAlias) unmarshalBinary(data []byte) error {
+func (ca *CreateAlias) UnmarshalBinary(data []byte) error {
 	if l := len(data); l < createAliasLen {
 		return errors.Errorf("not enough data for CreateAlias, expected not less then %d, received %d", createAliasLen, l)
 	}

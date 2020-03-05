@@ -430,6 +430,21 @@ func (mr *MockStateInfoMockRecorder) VotesNum(featureID interface{}) *gomock.Cal
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "VotesNum", reflect.TypeOf((*MockStateInfo)(nil).VotesNum), featureID)
 }
 
+// VotesNumAtHeight mocks base method
+func (m *MockStateInfo) VotesNumAtHeight(featureID int16, height proto.Height) (uint64, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "VotesNumAtHeight", featureID, height)
+	ret0, _ := ret[0].(uint64)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// VotesNumAtHeight indicates an expected call of VotesNumAtHeight
+func (mr *MockStateInfoMockRecorder) VotesNumAtHeight(featureID, height interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "VotesNumAtHeight", reflect.TypeOf((*MockStateInfo)(nil).VotesNumAtHeight), featureID, height)
+}
+
 // IsActivated mocks base method
 func (m *MockStateInfo) IsActivated(featureID int16) (bool, error) {
 	m.ctrl.T.Helper()
@@ -488,6 +503,21 @@ func (m *MockStateInfo) IsApproved(featureID int16) (bool, error) {
 func (mr *MockStateInfoMockRecorder) IsApproved(featureID interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsApproved", reflect.TypeOf((*MockStateInfo)(nil).IsApproved), featureID)
+}
+
+// IsApprovedAtHeight mocks base method
+func (m *MockStateInfo) IsApprovedAtHeight(featureID int16, height proto.Height) (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "IsApprovedAtHeight", featureID, height)
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// IsApprovedAtHeight indicates an expected call of IsApprovedAtHeight
+func (mr *MockStateInfoMockRecorder) IsApprovedAtHeight(featureID, height interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsApprovedAtHeight", reflect.TypeOf((*MockStateInfo)(nil).IsApprovedAtHeight), featureID, height)
 }
 
 // ApprovalHeight mocks base method
@@ -1347,6 +1377,21 @@ func (mr *MockStateMockRecorder) VotesNum(featureID interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "VotesNum", reflect.TypeOf((*MockState)(nil).VotesNum), featureID)
 }
 
+// VotesNumAtHeight mocks base method
+func (m *MockState) VotesNumAtHeight(featureID int16, height proto.Height) (uint64, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "VotesNumAtHeight", featureID, height)
+	ret0, _ := ret[0].(uint64)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// VotesNumAtHeight indicates an expected call of VotesNumAtHeight
+func (mr *MockStateMockRecorder) VotesNumAtHeight(featureID, height interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "VotesNumAtHeight", reflect.TypeOf((*MockState)(nil).VotesNumAtHeight), featureID, height)
+}
+
 // IsActivated mocks base method
 func (m *MockState) IsActivated(featureID int16) (bool, error) {
 	m.ctrl.T.Helper()
@@ -1405,6 +1450,21 @@ func (m *MockState) IsApproved(featureID int16) (bool, error) {
 func (mr *MockStateMockRecorder) IsApproved(featureID interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsApproved", reflect.TypeOf((*MockState)(nil).IsApproved), featureID)
+}
+
+// IsApprovedAtHeight mocks base method
+func (m *MockState) IsApprovedAtHeight(featureID int16, height proto.Height) (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "IsApprovedAtHeight", featureID, height)
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// IsApprovedAtHeight indicates an expected call of IsApprovedAtHeight
+func (mr *MockStateMockRecorder) IsApprovedAtHeight(featureID, height interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsApprovedAtHeight", reflect.TypeOf((*MockState)(nil).IsApprovedAtHeight), featureID, height)
 }
 
 // ApprovalHeight mocks base method

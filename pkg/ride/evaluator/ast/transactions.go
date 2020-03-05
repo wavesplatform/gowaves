@@ -31,53 +31,53 @@ func NewVariablesFromScriptTransfer(tx *proto.FullScriptTransfer) (map[string]Ex
 func NewVariablesFromTransaction(scheme byte, t proto.Transaction) (map[string]Expr, error) {
 	switch tx := t.(type) {
 	case *proto.Genesis:
-		return newVariableFromGenesis(tx)
+		return newVariableFromGenesis(scheme, tx)
 	case *proto.Payment:
 		return newVariablesFromPayment(scheme, tx)
-	case *proto.TransferV1:
-		return newVariablesFromTransferV1(scheme, tx)
-	case *proto.TransferV2:
-		return newVariablesFromTransferV2(scheme, tx)
-	case *proto.ReissueV1:
-		return newVariablesFromReissueV1(scheme, tx)
-	case *proto.ReissueV2:
-		return newVariablesFromReissueV2(scheme, tx)
-	case *proto.BurnV1:
-		return newVariablesFromBurnV1(scheme, tx)
-	case *proto.BurnV2:
-		return newVariablesFromBurnV2(scheme, tx)
-	case *proto.MassTransferV1:
-		return newVariablesFromMassTransferV1(scheme, tx)
-	case *proto.ExchangeV1:
-		return newVariablesFromExchangeV1(scheme, tx)
-	case *proto.ExchangeV2:
-		return newVariablesFromExchangeV2(scheme, tx)
-	case *proto.SetAssetScriptV1:
-		return newVariablesFromSetAssetScriptV1(scheme, tx)
-	case *proto.InvokeScriptV1:
-		return newVariablesFromInvokeScriptV1(scheme, tx)
-	case *proto.IssueV1:
-		return newVariablesFromIssueV1(scheme, tx)
-	case *proto.IssueV2:
-		return newVariablesFromIssueV2(scheme, tx)
-	case *proto.LeaseV1:
-		return newVariablesFromLeaseV1(scheme, tx)
-	case *proto.LeaseV2:
-		return newVariablesFromLeaseV2(scheme, tx)
-	case *proto.LeaseCancelV1:
-		return newVariablesFromLeaseCancelV1(scheme, tx)
-	case *proto.LeaseCancelV2:
-		return newVariablesFromLeaseCancelV2(scheme, tx)
-	case *proto.DataV1:
-		return newVariablesFromDataV1(scheme, tx)
-	case *proto.SponsorshipV1:
-		return newVariablesFromSponsorshipV1(scheme, tx)
-	case *proto.CreateAliasV1:
-		return newVariablesFromCreateAliasV1(scheme, tx)
-	case *proto.CreateAliasV2:
-		return newVariablesFromCreateAliasV2(scheme, tx)
-	case *proto.SetScriptV1:
-		return newVariablesFromSetScriptV1(scheme, tx)
+	case *proto.TransferWithSig:
+		return newVariablesFromTransferWithSig(scheme, tx)
+	case *proto.TransferWithProofs:
+		return newVariablesFromTransferWithProofs(scheme, tx)
+	case *proto.ReissueWithSig:
+		return newVariablesFromReissueWithSig(scheme, tx)
+	case *proto.ReissueWithProofs:
+		return newVariablesFromReissueWithProofs(scheme, tx)
+	case *proto.BurnWithSig:
+		return newVariablesFromBurnWithSig(scheme, tx)
+	case *proto.BurnWithProofs:
+		return newVariablesFromBurnWithProofs(scheme, tx)
+	case *proto.MassTransferWithProofs:
+		return newVariablesFromMassTransferWithProofs(scheme, tx)
+	case *proto.ExchangeWithSig:
+		return newVariablesFromExchangeWithSig(scheme, tx)
+	case *proto.ExchangeWithProofs:
+		return newVariablesFromExchangeWithProofs(scheme, tx)
+	case *proto.SetAssetScriptWithProofs:
+		return newVariablesFromSetAssetScriptWithProofs(scheme, tx)
+	case *proto.InvokeScriptWithProofs:
+		return newVariablesFromInvokeScriptWithProofs(scheme, tx)
+	case *proto.IssueWithSig:
+		return newVariablesFromIssueWithSig(scheme, tx)
+	case *proto.IssueWithProofs:
+		return newVariablesFromIssueWithProofs(scheme, tx)
+	case *proto.LeaseWithSig:
+		return newVariablesFromLeaseWithSig(scheme, tx)
+	case *proto.LeaseWithProofs:
+		return newVariablesFromLeaseWithProofs(scheme, tx)
+	case *proto.LeaseCancelWithSig:
+		return newVariablesFromLeaseCancelWithSig(scheme, tx)
+	case *proto.LeaseCancelWithProofs:
+		return newVariablesFromLeaseCancelWithProofs(scheme, tx)
+	case *proto.DataWithProofs:
+		return newVariablesFromDataWithProofs(scheme, tx)
+	case *proto.SponsorshipWithProofs:
+		return newVariablesFromSponsorshipWithProofs(scheme, tx)
+	case *proto.CreateAliasWithSig:
+		return newVariablesFromCreateAliasWithSig(scheme, tx)
+	case *proto.CreateAliasWithProofs:
+		return newVariablesFromCreateAliasWithProofs(scheme, tx)
+	case *proto.SetScriptWithProofs:
+		return newVariablesFromSetScriptWithProofs(scheme, tx)
 	default:
 		return nil, errors.Errorf("NewVariablesFromTransaction not implemented for %T", tx)
 	}
@@ -110,7 +110,7 @@ func NewVariablesFromOrder(scheme proto.Scheme, tx proto.Order) (map[string]Expr
 	out["sender"] = NewAddressFromProtoAddress(addr)
 	pk := tx.GetSenderPK()
 	out["senderPublicKey"] = NewBytes(util.Dup(pk.Bytes()))
-	bts, err := tx.BodyMarshalBinary()
+	bts, err := proto.MarshalOrderBody(scheme, tx)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
@@ -185,13 +185,13 @@ func makeOptionalAsset(o proto.OptionalAsset) Expr {
 	return NewUnit()
 }
 
-func newVariableFromGenesis(tx *proto.Genesis) (map[string]Expr, error) {
+func newVariableFromGenesis(scheme proto.Scheme, tx *proto.Genesis) (map[string]Expr, error) {
 	funcName := "newVariableFromGenesis"
 
 	out := make(map[string]Expr)
 	out["amount"] = NewLong(int64(tx.Amount))
 	out["recipient"] = NewRecipientFromProtoRecipient(proto.NewRecipientFromAddress(tx.Recipient))
-	id, err := tx.GetID()
+	id, err := tx.GetID(scheme)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
@@ -228,15 +228,19 @@ func newVariablesFromPayment(scheme proto.Scheme, tx *proto.Payment) (map[string
 	return out, nil
 }
 
-func newVariablesFromTransferV1(scheme byte, tx *proto.TransferV1) (map[string]Expr, error) {
-	funcName := "newVariablesFromTransferV1"
+func newVariablesFromTransferWithSig(scheme byte, tx *proto.TransferWithSig) (map[string]Expr, error) {
+	funcName := "newVariablesFromTransferWithSig"
 
 	out := make(map[string]Expr)
 	out["feeAssetId"] = makeOptionalAsset(tx.FeeAsset)
 	out["amount"] = NewLong(int64(tx.Amount))
 	out["assetId"] = makeOptionalAsset(tx.AmountAsset)
 	out["recipient"] = NewRecipientFromProtoRecipient(tx.Recipient)
-	out["attachment"] = NewBytes(tx.Attachment.Bytes())
+	attachmentBytes, err := tx.Attachment.Bytes()
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	out["attachment"] = NewBytes(attachmentBytes)
 	out["id"] = NewBytes(util.Dup(tx.ID.Bytes()))
 	out["fee"] = NewLong(int64(tx.Fee))
 	out["timestamp"] = NewLong(int64(tx.Timestamp))
@@ -259,8 +263,8 @@ func newVariablesFromTransferV1(scheme byte, tx *proto.TransferV1) (map[string]E
 	return out, nil
 }
 
-func newVariablesFromTransferV2(scheme byte, tx *proto.TransferV2) (map[string]Expr, error) {
-	funcName := "newVariablesFromTransferV2"
+func newVariablesFromTransferWithProofs(scheme byte, tx *proto.TransferWithProofs) (map[string]Expr, error) {
+	funcName := "newVariablesFromTransferWithProofs"
 
 	out := make(map[string]Expr)
 
@@ -268,7 +272,11 @@ func newVariablesFromTransferV2(scheme byte, tx *proto.TransferV2) (map[string]E
 	out["amount"] = NewLong(int64(tx.Amount))
 	out["assetId"] = makeOptionalAsset(tx.AmountAsset)
 	out["recipient"] = NewRecipientFromProtoRecipient(tx.Recipient)
-	out["attachment"] = NewBytes(tx.Attachment.Bytes())
+	attachmentBytes, err := tx.Attachment.Bytes()
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	out["attachment"] = NewBytes(attachmentBytes)
 	out["id"] = NewBytes(util.Dup(tx.ID.Bytes()))
 	out["fee"] = NewLong(int64(tx.Fee))
 	out["timestamp"] = NewLong(int64(tx.Timestamp))
@@ -291,15 +299,15 @@ func newVariablesFromTransferV2(scheme byte, tx *proto.TransferV2) (map[string]E
 	return out, nil
 }
 
-func newVariablesFromReissueV1(scheme proto.Scheme, tx *proto.ReissueV1) (map[string]Expr, error) {
-	funcName := "newVariablesFromReissueV1"
+func newVariablesFromReissueWithSig(scheme proto.Scheme, tx *proto.ReissueWithSig) (map[string]Expr, error) {
+	funcName := "newVariablesFromReissueWithSig"
 
 	out := make(map[string]Expr)
 
 	out["quantity"] = NewLong(int64(tx.Quantity))
 	out["assetId"] = NewBytes(util.Dup(tx.AssetID.Bytes()))
 	out["reissuable"] = NewBoolean(tx.Reissuable)
-	id, err := tx.GetID()
+	id, err := tx.GetID(scheme)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
@@ -324,13 +332,13 @@ func newVariablesFromReissueV1(scheme proto.Scheme, tx *proto.ReissueV1) (map[st
 	return out, nil
 }
 
-func newVariablesFromReissueV2(scheme proto.Scheme, tx *proto.ReissueV2) (map[string]Expr, error) {
-	funcName := "newVariablesFromReissueV1"
+func newVariablesFromReissueWithProofs(scheme proto.Scheme, tx *proto.ReissueWithProofs) (map[string]Expr, error) {
+	funcName := "newVariablesFromReissueWithSig"
 	out := make(map[string]Expr)
 	out["quantity"] = NewLong(int64(tx.Quantity))
 	out["assetId"] = NewBytes(util.Dup(tx.AssetID.Bytes()))
 	out["reissuable"] = NewBoolean(tx.Reissuable)
-	id, err := tx.GetID()
+	id, err := tx.GetID(scheme)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
@@ -355,14 +363,14 @@ func newVariablesFromReissueV2(scheme proto.Scheme, tx *proto.ReissueV2) (map[st
 	return out, nil
 }
 
-func newVariablesFromBurnV1(scheme proto.Scheme, tx *proto.BurnV1) (map[string]Expr, error) {
-	funcName := "newVariablesFromBurnV1"
+func newVariablesFromBurnWithSig(scheme proto.Scheme, tx *proto.BurnWithSig) (map[string]Expr, error) {
+	funcName := "newVariablesFromBurnWithSig"
 
 	out := make(map[string]Expr)
 
 	out["quantity"] = NewLong(int64(tx.Amount))
 	out["assetId"] = NewBytes(util.Dup(tx.AssetID.Bytes()))
-	id, err := tx.GetID()
+	id, err := tx.GetID(scheme)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
@@ -386,14 +394,14 @@ func newVariablesFromBurnV1(scheme proto.Scheme, tx *proto.BurnV1) (map[string]E
 	return out, nil
 }
 
-func newVariablesFromBurnV2(scheme proto.Scheme, tx *proto.BurnV2) (map[string]Expr, error) {
-	funcName := "newVariablesFromBurnV2"
+func newVariablesFromBurnWithProofs(scheme proto.Scheme, tx *proto.BurnWithProofs) (map[string]Expr, error) {
+	funcName := "newVariablesFromBurnWithProofs"
 
 	out := make(map[string]Expr)
 
 	out["quantity"] = NewLong(int64(tx.Amount))
 	out["assetId"] = NewBytes(util.Dup(tx.AssetID.Bytes()))
-	id, err := tx.GetID()
+	id, err := tx.GetID(scheme)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
@@ -417,8 +425,8 @@ func newVariablesFromBurnV2(scheme proto.Scheme, tx *proto.BurnV2) (map[string]E
 	return out, nil
 }
 
-func newVariablesFromMassTransferV1(scheme proto.Scheme, tx *proto.MassTransferV1) (map[string]Expr, error) {
-	funcName := "newVariablesFromMassTransferV1"
+func newVariablesFromMassTransferWithProofs(scheme proto.Scheme, tx *proto.MassTransferWithProofs) (map[string]Expr, error) {
+	funcName := "newVariablesFromMassTransferWithProofs"
 	out := make(map[string]Expr)
 	out["assetId"] = makeOptionalAsset(tx.Asset)
 	var total uint64
@@ -436,8 +444,12 @@ func newVariablesFromMassTransferV1(scheme proto.Scheme, tx *proto.MassTransferV
 	}
 	out["transfers"] = transfers
 	out["transferCount"] = NewLong(int64(len(tx.Transfers)))
-	out["attachment"] = NewBytes(tx.Attachment.Bytes())
-	id, err := tx.GetID()
+	attachmentBytes, err := tx.Attachment.Bytes()
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	out["attachment"] = NewBytes(attachmentBytes)
+	id, err := tx.GetID(scheme)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
@@ -464,8 +476,8 @@ func newVariablesFromMassTransferV1(scheme proto.Scheme, tx *proto.MassTransferV
 	return out, nil
 }
 
-func newVariablesFromExchangeV1(scheme proto.Scheme, tx *proto.ExchangeV1) (map[string]Expr, error) {
-	funcName := "newVariablesFromExchangeV1"
+func newVariablesFromExchangeWithSig(scheme proto.Scheme, tx *proto.ExchangeWithSig) (map[string]Expr, error) {
+	funcName := "newVariablesFromExchangeWithSig"
 	out := make(map[string]Expr)
 	buy, err := NewVariablesFromOrder(scheme, tx.BuyOrder)
 	if err != nil {
@@ -483,7 +495,7 @@ func newVariablesFromExchangeV1(scheme proto.Scheme, tx *proto.ExchangeV1) (map[
 	out["buyMatcherFee"] = NewLong(int64(tx.BuyMatcherFee))
 	out["sellMatcherFee"] = NewLong(int64(tx.SellMatcherFee))
 
-	id, err := tx.GetID()
+	id, err := tx.GetID(scheme)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
@@ -508,8 +520,8 @@ func newVariablesFromExchangeV1(scheme proto.Scheme, tx *proto.ExchangeV1) (map[
 	return out, nil
 }
 
-func newVariablesFromExchangeV2(scheme proto.Scheme, tx *proto.ExchangeV2) (map[string]Expr, error) {
-	funcName := "newVariablesFromExchangeV2"
+func newVariablesFromExchangeWithProofs(scheme proto.Scheme, tx *proto.ExchangeWithProofs) (map[string]Expr, error) {
+	funcName := "newVariablesFromExchangeWithProofs"
 	out := make(map[string]Expr)
 
 	buy, err := NewVariablesFromOrder(scheme, tx.BuyOrder)
@@ -530,7 +542,7 @@ func newVariablesFromExchangeV2(scheme proto.Scheme, tx *proto.ExchangeV2) (map[
 	out["buyMatcherFee"] = NewLong(int64(tx.BuyMatcherFee))
 	out["sellMatcherFee"] = NewLong(int64(tx.SellMatcherFee))
 
-	id, err := tx.GetID()
+	id, err := tx.GetID(scheme)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
@@ -565,14 +577,14 @@ func makeOrderType(orderType proto.OrderType) Expr {
 	panic("invalid orderType")
 }
 
-func newVariablesFromSetAssetScriptV1(scheme proto.Scheme, tx *proto.SetAssetScriptV1) (map[string]Expr, error) {
-	funcName := "newVariablesFromSetAssetScriptV1"
+func newVariablesFromSetAssetScriptWithProofs(scheme proto.Scheme, tx *proto.SetAssetScriptWithProofs) (map[string]Expr, error) {
+	funcName := "newVariablesFromSetAssetScriptWithProofs"
 
 	out := make(map[string]Expr)
 
 	out["script"] = NewBytes(util.Dup(tx.Script))
 	out["assetId"] = NewBytes(util.Dup(tx.AssetID.Bytes()))
-	id, err := tx.GetID()
+	id, err := tx.GetID(scheme)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
@@ -596,8 +608,8 @@ func newVariablesFromSetAssetScriptV1(scheme proto.Scheme, tx *proto.SetAssetScr
 	return out, nil
 }
 
-func newVariablesFromInvokeScriptV1(scheme proto.Scheme, tx *proto.InvokeScriptV1) (map[string]Expr, error) {
-	funcName := "newVariablesFromInvokeScriptV1"
+func newVariablesFromInvokeScriptWithProofs(scheme proto.Scheme, tx *proto.InvokeScriptWithProofs) (map[string]Expr, error) {
+	funcName := "newVariablesFromInvokeScriptWithProofs"
 
 	out := make(map[string]Expr)
 
@@ -628,7 +640,7 @@ func newVariablesFromInvokeScriptV1(scheme proto.Scheme, tx *proto.InvokeScriptV
 		}
 	}
 	out["args"] = args
-	id, err := tx.GetID()
+	id, err := tx.GetID(scheme)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
@@ -652,8 +664,8 @@ func newVariablesFromInvokeScriptV1(scheme proto.Scheme, tx *proto.InvokeScriptV
 	return out, nil
 }
 
-func newVariablesFromIssueV1(scheme proto.Scheme, tx *proto.IssueV1) (map[string]Expr, error) {
-	funcName := "newVariablesFromReissueV1"
+func newVariablesFromIssueWithSig(scheme proto.Scheme, tx *proto.IssueWithSig) (map[string]Expr, error) {
+	funcName := "newVariablesFromReissueWithSig"
 
 	out := make(map[string]Expr)
 
@@ -663,7 +675,7 @@ func newVariablesFromIssueV1(scheme proto.Scheme, tx *proto.IssueV1) (map[string
 	out["reissuable"] = NewBoolean(tx.Reissuable)
 	out["decimals"] = NewLong(int64(tx.Decimals))
 	out["script"] = NewUnit()
-	id, err := tx.GetID()
+	id, err := tx.GetID(scheme)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
@@ -688,8 +700,8 @@ func newVariablesFromIssueV1(scheme proto.Scheme, tx *proto.IssueV1) (map[string
 	return out, nil
 }
 
-func newVariablesFromIssueV2(scheme proto.Scheme, tx *proto.IssueV2) (map[string]Expr, error) {
-	funcName := "newVariablesFromReissueV1"
+func newVariablesFromIssueWithProofs(scheme proto.Scheme, tx *proto.IssueWithProofs) (map[string]Expr, error) {
+	funcName := "newVariablesFromReissueWithSig"
 
 	out := make(map[string]Expr)
 
@@ -702,7 +714,7 @@ func newVariablesFromIssueV2(scheme proto.Scheme, tx *proto.IssueV2) (map[string
 	if tx.NonEmptyScript() {
 		out["script"] = NewBytes(util.Dup(tx.Script))
 	}
-	id, err := tx.GetID()
+	id, err := tx.GetID(scheme)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
@@ -727,14 +739,14 @@ func newVariablesFromIssueV2(scheme proto.Scheme, tx *proto.IssueV2) (map[string
 	return out, nil
 }
 
-func newVariablesFromLeaseV1(scheme proto.Scheme, tx *proto.LeaseV1) (map[string]Expr, error) {
-	funcName := "newVariablesFromLeaseV1"
+func newVariablesFromLeaseWithSig(scheme proto.Scheme, tx *proto.LeaseWithSig) (map[string]Expr, error) {
+	funcName := "newVariablesFromLeaseWithSig"
 
 	out := make(map[string]Expr)
 
 	out["amount"] = NewLong(int64(tx.Amount))
 	out["recipient"] = NewRecipientFromProtoRecipient(tx.Recipient)
-	id, err := tx.GetID()
+	id, err := tx.GetID(scheme)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
@@ -759,14 +771,14 @@ func newVariablesFromLeaseV1(scheme proto.Scheme, tx *proto.LeaseV1) (map[string
 	return out, nil
 }
 
-func newVariablesFromLeaseV2(scheme proto.Scheme, tx *proto.LeaseV2) (map[string]Expr, error) {
-	funcName := "newVariablesFromLeaseV2"
+func newVariablesFromLeaseWithProofs(scheme proto.Scheme, tx *proto.LeaseWithProofs) (map[string]Expr, error) {
+	funcName := "newVariablesFromLeaseWithProofs"
 
 	out := make(map[string]Expr)
 
 	out["amount"] = NewLong(int64(tx.Amount))
 	out["recipient"] = NewRecipientFromProtoRecipient(tx.Recipient)
-	id, err := tx.GetID()
+	id, err := tx.GetID(scheme)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
@@ -791,12 +803,12 @@ func newVariablesFromLeaseV2(scheme proto.Scheme, tx *proto.LeaseV2) (map[string
 	return out, nil
 }
 
-func newVariablesFromLeaseCancelV1(scheme proto.Scheme, tx *proto.LeaseCancelV1) (map[string]Expr, error) {
-	funcName := "newVariablesFromLeaseCancelV1"
+func newVariablesFromLeaseCancelWithSig(scheme proto.Scheme, tx *proto.LeaseCancelWithSig) (map[string]Expr, error) {
+	funcName := "newVariablesFromLeaseCancelWithSig"
 
 	out := make(map[string]Expr)
 	out["leaseId"] = NewBytes(util.Dup(tx.LeaseID.Bytes()))
-	id, err := tx.GetID()
+	id, err := tx.GetID(scheme)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
@@ -821,12 +833,12 @@ func newVariablesFromLeaseCancelV1(scheme proto.Scheme, tx *proto.LeaseCancelV1)
 	return out, nil
 }
 
-func newVariablesFromLeaseCancelV2(scheme proto.Scheme, tx *proto.LeaseCancelV2) (map[string]Expr, error) {
-	funcName := "newVariablesFromLeaseCancelV2"
+func newVariablesFromLeaseCancelWithProofs(scheme proto.Scheme, tx *proto.LeaseCancelWithProofs) (map[string]Expr, error) {
+	funcName := "newVariablesFromLeaseCancelWithProofs"
 
 	out := make(map[string]Expr)
 	out["leaseId"] = NewBytes(util.Dup(tx.LeaseID.Bytes()))
-	id, err := tx.GetID()
+	id, err := tx.GetID(scheme)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
@@ -851,14 +863,14 @@ func newVariablesFromLeaseCancelV2(scheme proto.Scheme, tx *proto.LeaseCancelV2)
 	return out, nil
 }
 
-func newVariablesFromDataV1(scheme proto.Scheme, tx *proto.DataV1) (map[string]Expr, error) {
-	funcName := "newVariablesFromDataV1"
+func newVariablesFromDataWithProofs(scheme proto.Scheme, tx *proto.DataWithProofs) (map[string]Expr, error) {
+	funcName := "newVariablesFromDataWithProofs"
 
 	out := make(map[string]Expr)
 
 	out["data"] = NewDataEntryList(tx.Entries)
 
-	id, err := tx.GetID()
+	id, err := tx.GetID(scheme)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
@@ -883,8 +895,8 @@ func newVariablesFromDataV1(scheme proto.Scheme, tx *proto.DataV1) (map[string]E
 	return out, nil
 }
 
-func newVariablesFromSponsorshipV1(scheme proto.Scheme, tx *proto.SponsorshipV1) (map[string]Expr, error) {
-	funcName := "newVariablesFromSponsorshipV1"
+func newVariablesFromSponsorshipWithProofs(scheme proto.Scheme, tx *proto.SponsorshipWithProofs) (map[string]Expr, error) {
+	funcName := "newVariablesFromSponsorshipWithProofs"
 
 	out := make(map[string]Expr)
 
@@ -894,7 +906,7 @@ func newVariablesFromSponsorshipV1(scheme proto.Scheme, tx *proto.SponsorshipV1)
 		out["minSponsoredAssetFee"] = NewLong(int64(tx.MinAssetFee))
 	}
 
-	id, err := tx.GetID()
+	id, err := tx.GetID(scheme)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
@@ -919,14 +931,14 @@ func newVariablesFromSponsorshipV1(scheme proto.Scheme, tx *proto.SponsorshipV1)
 	return out, nil
 }
 
-func newVariablesFromCreateAliasV1(scheme proto.Scheme, tx *proto.CreateAliasV1) (map[string]Expr, error) {
-	funcName := "newVariablesFromCreateAliasV1"
+func newVariablesFromCreateAliasWithSig(scheme proto.Scheme, tx *proto.CreateAliasWithSig) (map[string]Expr, error) {
+	funcName := "newVariablesFromCreateAliasWithSig"
 
 	out := make(map[string]Expr)
 
 	out["alias"] = NewString(tx.Alias.String())
 
-	id, err := tx.GetID()
+	id, err := tx.GetID(scheme)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
@@ -951,14 +963,14 @@ func newVariablesFromCreateAliasV1(scheme proto.Scheme, tx *proto.CreateAliasV1)
 	return out, nil
 }
 
-func newVariablesFromCreateAliasV2(scheme proto.Scheme, tx *proto.CreateAliasV2) (map[string]Expr, error) {
-	funcName := "newVariablesFromCreateAliasV1"
+func newVariablesFromCreateAliasWithProofs(scheme proto.Scheme, tx *proto.CreateAliasWithProofs) (map[string]Expr, error) {
+	funcName := "newVariablesFromCreateAliasWithSig"
 
 	out := make(map[string]Expr)
 
 	out["alias"] = NewString(tx.Alias.String())
 
-	id, err := tx.GetID()
+	id, err := tx.GetID(scheme)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
@@ -983,8 +995,8 @@ func newVariablesFromCreateAliasV2(scheme proto.Scheme, tx *proto.CreateAliasV2)
 	return out, nil
 }
 
-func newVariablesFromSetScriptV1(scheme proto.Scheme, tx *proto.SetScriptV1) (map[string]Expr, error) {
-	funcName := "newVariablesFromSetScriptV1"
+func newVariablesFromSetScriptWithProofs(scheme proto.Scheme, tx *proto.SetScriptWithProofs) (map[string]Expr, error) {
+	funcName := "newVariablesFromSetScriptWithProofs"
 
 	out := make(map[string]Expr)
 
@@ -994,7 +1006,7 @@ func newVariablesFromSetScriptV1(scheme proto.Scheme, tx *proto.SetScriptV1) (ma
 		out["script"] = NewBytes(tx.Script)
 	}
 
-	id, err := tx.GetID()
+	id, err := tx.GetID(scheme)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}

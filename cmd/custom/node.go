@@ -65,34 +65,9 @@ func main() {
 		zap.S().Error("Please provide path to blockchain config JSON file")
 		return
 	}
-	ctx, cancel := context.WithCancel(context.Background())
-
 	zap.S().Info(os.Args)
 	zap.S().Info(os.Environ())
 	zap.S().Info(os.LookupEnv("WAVES_OPTS"))
-
-	conf := &settings.NodeSettings{}
-	if err := settings.ApplySettings(conf, FromArgs(), settings.FromJavaEnviron); err != nil {
-		zap.S().Error(err)
-		cancel()
-		return
-	}
-
-	reward, err := miner.ParseReward(*reward)
-	if err != nil {
-		zap.S().Error(err)
-		cancel()
-		return
-	}
-
-	zap.S().Info("conf", conf)
-
-	err = conf.Validate()
-	if err != nil {
-		zap.S().Error(err)
-		cancel()
-		return
-	}
 
 	f, err := os.Open(*cfgPath)
 	if err != nil {
@@ -102,6 +77,35 @@ func main() {
 	custom, err := settings.ReadBlockchainSettings(f)
 	if err != nil {
 		zap.S().Fatalf("Failed to read configuration file: %v", err)
+	}
+
+	conf := &settings.NodeSettings{}
+	if err := settings.ApplySettings(conf, FromArgs(custom.AddressSchemeCharacter), settings.FromJavaEnviron); err != nil {
+		zap.S().Error(err)
+		return
+	}
+
+	reward, err := miner.ParseReward(*reward)
+	if err != nil {
+		zap.S().Error(err)
+		return
+	}
+
+	zap.S().Info("conf", conf)
+
+	err = conf.Validate()
+	if err != nil {
+		zap.S().Error(err)
+		return
+	}
+
+	wal := wallet.NewEmbeddedWallet(wallet.NewLoader(*walletPath), wallet.NewWallet(), custom.AddressSchemeCharacter)
+	if *walletPassword != "" {
+		err := wal.Load([]byte(*walletPassword))
+		if err != nil {
+			zap.S().Error(err)
+			return
+		}
 	}
 
 	wal := wallet.NewEmbeddedWallet(wallet.NewLoader(*walletPath), wallet.NewWallet(), custom.AddressSchemeCharacter)
@@ -124,7 +128,6 @@ func main() {
 		path, err = util.GetStatePath()
 		if err != nil {
 			zap.S().Error(err)
-			cancel()
 			return
 		}
 	}
@@ -132,9 +135,17 @@ func main() {
 	ntptm, err := ntptime.TryNew("pool.ntp.org", 10)
 	if err != nil {
 		zap.S().Error(err)
-		cancel()
 		return
 	}
+
+	minerDelaySecond, err := util.ParseDuration(*minerDelayParam)
+	if err != nil {
+		zap.S().Error(err)
+		return
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+
 	go ntptm.Run(ctx, 2*time.Minute)
 
 	params := state.DefaultStateParams()
@@ -164,7 +175,6 @@ func main() {
 
 	features, err = miner.ValidateFeaturesWithLock(state, features)
 	if err != nil {
-		cancel()
 		zap.S().Error(err)
 		return
 	}
@@ -196,7 +206,7 @@ func main() {
 		proto.NewTimestampFromUSeconds(minerDelaySecond),
 	)
 
-	utx := utxpool.New(10000, utxpool.NewValidator(state, ntptm))
+	utx := utxpool.New(10000, utxpool.NewValidator(state, ntptm), custom)
 
 	stateChanged := state_changed.NewStateChanged()
 	blockApplier := node.NewBlocksApplier(state, ntptm)
@@ -207,7 +217,7 @@ func main() {
 		Scheduler:          scheduler,
 		BlocksApplier:      blockApplier,
 		UtxPool:            utx,
-		Scheme:             custom.FunctionalitySettings.AddressSchemeCharacter,
+		Scheme:             custom.AddressSchemeCharacter,
 		BlockAddedNotifier: stateChanged,
 		Subscribe:          node.NewSubscribeService(),
 		InvRequester:       ng.NewInvRequester(),
@@ -294,16 +304,12 @@ func main() {
 	<-time.After(2 * time.Second)
 }
 
-func FromArgs() func(s *settings.NodeSettings) error {
+func FromArgs(scheme proto.Scheme) func(s *settings.NodeSettings) error {
 	return func(s *settings.NodeSettings) error {
 		s.DeclaredAddr = *declAddr
 		s.HttpAddr = *apiAddr
 		s.GrpcAddr = *grpcAddr
-		networkStr, err := proto.NetworkStrByType("custom")
-		if err != nil {
-			return err
-		}
-		s.WavesNetwork = networkStr
+		s.WavesNetwork = proto.NetworkStrFromScheme(scheme)
 		s.Addresses = *peerAddresses
 		return nil
 	}

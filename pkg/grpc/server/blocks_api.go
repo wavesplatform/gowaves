@@ -18,7 +18,7 @@ func (s *Server) headerByHeight(height proto.Height) (*g.BlockWithHeight, error)
 	if err != nil {
 		return nil, status.Errorf(codes.NotFound, err.Error())
 	}
-	res, err := header.HeaderToProtobuf(s.scheme, height)
+	res, err := header.HeaderToProtobufWithHeight(s.scheme, height)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, err.Error())
 	}
@@ -30,7 +30,7 @@ func (s *Server) blockByHeight(height proto.Height) (*g.BlockWithHeight, error) 
 	if err != nil {
 		return nil, status.Errorf(codes.NotFound, err.Error())
 	}
-	res, err := block.ToProtobuf(s.scheme, height)
+	res, err := block.ToProtobufWithHeight(s.scheme, height)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, err.Error())
 	}

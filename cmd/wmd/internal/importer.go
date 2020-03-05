@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/binary"
+	"github.com/mr-tron/base58/base58"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/cmd/wmd/internal/data"
 	"github.com/wavesplatform/gowaves/cmd/wmd/internal/state"
@@ -141,7 +142,7 @@ func (im *Importer) readBlocks(f io.Reader) <-chan task {
 					zap.S().Debug("EOF received while reading block")
 					return
 				}
-				err = t.block.UnmarshalBinary(bb)
+				err = t.block.UnmarshalBinary(bb, im.scheme)
 				if err != nil {
 					zap.S().Errorf("Failed to unmarshal block: %s", err.Error())
 					return
@@ -169,7 +170,7 @@ func (im *Importer) worker(tasks <-chan task) <-chan result {
 
 	processTask := func(t task) result {
 		r := result{height: t.height, id: t.block.BlockSignature}
-		r.trades, r.issues, r.assets, r.accounts, r.aliases, r.error = im.extractTransactions(t.block.Transactions.BytesUnchecked(), t.block.TransactionCount, t.block.GenPublicKey)
+		r.trades, r.issues, r.assets, r.accounts, r.aliases, r.error = im.extractTransactions(t.block.Transactions, t.block.GenPublicKey)
 		return r
 	}
 
@@ -187,7 +188,7 @@ func (im *Importer) worker(tasks <-chan task) <-chan result {
 	return results
 }
 
-func (im *Importer) extractTransactions(d []byte, transactionsCount int, miner crypto.PublicKey) ([]data.Trade, []data.IssueChange, []data.AssetChange, []data.AccountChange, []data.AliasBind, error) {
+func (im *Importer) extractTransactions(transactions []proto.Transaction, miner crypto.PublicKey) ([]data.Trade, []data.IssueChange, []data.AssetChange, []data.AccountChange, []data.AliasBind, error) {
 	wrapErr := func(err error, transaction string) error {
 		return errors.Wrapf(err, "failed to extract %s transaction", transaction)
 	}
@@ -197,215 +198,213 @@ func (im *Importer) extractTransactions(d []byte, transactionsCount int, miner c
 	assetChanges := make([]data.AssetChange, 0)
 	issueChanges := make([]data.IssueChange, 0)
 	binds := make([]data.AliasBind, 0)
-	for i := 0; i < transactionsCount; i++ {
-		s := int(binary.BigEndian.Uint32(d[0:4]))
-		txb := d[4 : s+4]
-		switch txb[0] {
-		case 0:
-			switch txb[1] {
-			case byte(proto.IssueTransaction):
-				var tx proto.IssueV2
-				err := tx.UnmarshalBinary(txb)
+	for _, tx := range transactions {
+		switch t := tx.(type) {
+		case *proto.IssueWithProofs:
+			if ok, err := t.Verify(im.scheme, t.GetSenderPK()); !ok {
 				if err != nil {
-					return nil, nil, nil, nil, nil, wrapErr(err, "IssueV2")
+					return nil, nil, nil, nil, nil, wrapErr(err, "failed to verify tx signature")
 				}
-				ic, ac, err := data.FromIssueV2(im.scheme, tx)
-				if err != nil {
-					return nil, nil, nil, nil, nil, wrapErr(err, "IssueV2")
-				}
-				issueChanges = append(issueChanges, ic)
-				accountChanges = append(accountChanges, ac)
-			case byte(proto.TransferTransaction):
-				var tx proto.TransferV2
-				err := tx.UnmarshalBinary(txb)
-				if err != nil {
-					return nil, nil, nil, nil, nil, wrapErr(err, "TransferV2")
-				}
-				if tx.AmountAsset.Present || tx.FeeAsset.Present {
-					u, err := data.FromTransferV2(im.scheme, tx, miner)
-					if err != nil {
-						return nil, nil, nil, nil, nil, wrapErr(err, "TransferV2")
-					}
-					accountChanges = append(accountChanges, u...)
-				}
-			case byte(proto.ReissueTransaction):
-				var tx proto.ReissueV2
-				err := tx.UnmarshalBinary(txb)
-				if err != nil {
-					return nil, nil, nil, nil, nil, wrapErr(err, "ReissueV2")
-				}
-				as, ac, err := data.FromReissueV2(im.scheme, tx)
-				if err != nil {
-					return nil, nil, nil, nil, nil, wrapErr(err, "ReissueV2")
-				}
-				assetChanges = append(assetChanges, as)
-				accountChanges = append(accountChanges, ac)
-			case byte(proto.BurnTransaction):
-				var tx proto.BurnV2
-				err := tx.UnmarshalBinary(txb)
-				if err != nil {
-					return nil, nil, nil, nil, nil, wrapErr(err, "BurnV2")
-				}
-				as, ac, err := data.FromBurnV2(im.scheme, tx)
-				if err != nil {
-					return nil, nil, nil, nil, nil, wrapErr(err, "BurnV2")
-				}
-				assetChanges = append(assetChanges, as)
-				accountChanges = append(accountChanges, ac)
-			case byte(proto.ExchangeTransaction):
-				var tx proto.ExchangeV2
-				err := tx.UnmarshalBinary(txb)
-				if err != nil {
-					return nil, nil, nil, nil, nil, wrapErr(err, "ExchangeV2")
-				}
-				if bytes.Equal(im.matcher[:], tx.SenderPK[:]) {
-					t, err := data.NewTradeFromExchangeV2(im.scheme, tx)
-					if err != nil {
-						return nil, nil, nil, nil, nil, wrapErr(err, "ExchangeV2")
-					}
-					trades = append(trades, t)
-				}
-				ac, err := data.FromExchangeV2(im.scheme, tx)
-				if err != nil {
-					return nil, nil, nil, nil, nil, wrapErr(err, "ExchangeV2")
-				}
-				accountChanges = append(accountChanges, ac...)
-			case byte(proto.SponsorshipTransaction):
-				var tx proto.SponsorshipV1
-				err := tx.UnmarshalBinary(txb)
-				if err != nil {
-					return nil, nil, nil, nil, nil, wrapErr(err, "SponsorshipV1")
-				}
-				assetChanges = append(assetChanges, data.FromSponsorshipV1(tx))
-			case byte(proto.CreateAliasTransaction):
-				var tx proto.CreateAliasV2
-				err := tx.UnmarshalBinary(txb)
-				if err != nil {
-					return nil, nil, nil, nil, nil, wrapErr(err, "CreateAliasV2")
-				}
-				b, err := data.FromCreateAliasV2(im.scheme, tx)
-				if err != nil {
-					return nil, nil, nil, nil, nil, wrapErr(err, "CreateAliasV2")
-				}
-				binds = append(binds, b)
+				id, _ := tx.GetID(im.scheme)
+				return nil, nil, nil, nil, nil, errors.Errorf("Transaction %s has invalid signature", base58.Encode(id))
 			}
-		case byte(proto.IssueTransaction):
-			var tx proto.IssueV1
-			err := tx.UnmarshalBinary(txb)
+			ic, ac, err := data.FromIssueWithProofs(im.scheme, t)
 			if err != nil {
-				return nil, nil, nil, nil, nil, wrapErr(err, "IssueV1")
-			}
-			if ok, err := tx.Verify(tx.SenderPK); !ok {
-				if err != nil {
-					return nil, nil, nil, nil, nil, wrapErr(err, "IssueV1")
-				}
-				return nil, nil, nil, nil, nil, wrapErr(errors.Errorf("Transaction %s has invalid signature", tx.ID.String()), "IssueV1")
-			}
-			ic, ac, err := data.FromIssueV1(im.scheme, tx)
-			if err != nil {
-				return nil, nil, nil, nil, nil, wrapErr(err, "IssueV1")
+				return nil, nil, nil, nil, nil, wrapErr(err, "IssueWithProofs")
 			}
 			issueChanges = append(issueChanges, ic)
 			accountChanges = append(accountChanges, ac)
-		case byte(proto.TransferTransaction):
-			var tx proto.TransferV1
-			err := tx.UnmarshalBinary(txb)
-			if err != nil {
-				return nil, nil, nil, nil, nil, wrapErr(err, "TransferV1")
-			}
-			if tx.AmountAsset.Present || tx.FeeAsset.Present {
-				ac, err := data.FromTransferV1(im.scheme, tx, miner)
+		case *proto.TransferWithProofs:
+			if ok, err := t.Verify(im.scheme, t.GetSenderPK()); !ok {
 				if err != nil {
-					return nil, nil, nil, nil, nil, wrapErr(err, "TransferV1")
+					return nil, nil, nil, nil, nil, wrapErr(err, "failed to verify tx signature")
 				}
-				accountChanges = append(accountChanges, ac...)
+				id, _ := tx.GetID(im.scheme)
+				return nil, nil, nil, nil, nil, errors.Errorf("Transaction %s has invalid signature", base58.Encode(id))
 			}
-		case byte(proto.ReissueTransaction):
-			var tx proto.ReissueV1
-			err := tx.UnmarshalBinary(txb)
-			if err != nil {
-				return nil, nil, nil, nil, nil, wrapErr(err, "ReissueV1")
-			}
-			if ok, err := tx.Verify(tx.SenderPK); !ok {
+			if t.AmountAsset.Present || t.FeeAsset.Present {
+				u, err := data.FromTransferWithProofs(im.scheme, t, miner)
 				if err != nil {
-					return nil, nil, nil, nil, nil, wrapErr(err, "ReissueV1")
+					return nil, nil, nil, nil, nil, wrapErr(err, "TransferWithProofs")
 				}
-				return nil, nil, nil, nil, nil, wrapErr(errors.Errorf("Transaction %s has invalid signature", tx.ID.String()), "ReissueV1")
+				accountChanges = append(accountChanges, u...)
 			}
-			as, ac, err := data.FromReissueV1(im.scheme, tx)
+		case *proto.ReissueWithProofs:
+			if ok, err := t.Verify(im.scheme, t.GetSenderPK()); !ok {
+				if err != nil {
+					return nil, nil, nil, nil, nil, wrapErr(err, "failed to verify tx signature")
+				}
+				id, _ := tx.GetID(im.scheme)
+				return nil, nil, nil, nil, nil, errors.Errorf("Transaction %s has invalid signature", base58.Encode(id))
+			}
+			as, ac, err := data.FromReissueWithProofs(im.scheme, t)
 			if err != nil {
-				return nil, nil, nil, nil, nil, wrapErr(err, "ReissueV1")
+				return nil, nil, nil, nil, nil, wrapErr(err, "ReissueWithProofs")
 			}
 			assetChanges = append(assetChanges, as)
 			accountChanges = append(accountChanges, ac)
-		case byte(proto.BurnTransaction):
-			var tx proto.BurnV1
-			err := tx.UnmarshalBinary(txb)
-			if err != nil {
-				return nil, nil, nil, nil, nil, wrapErr(err, "BurnV1")
-			}
-			if ok, err := tx.Verify(tx.SenderPK); !ok {
+		case *proto.BurnWithProofs:
+			if ok, err := t.Verify(im.scheme, t.GetSenderPK()); !ok {
 				if err != nil {
-					return nil, nil, nil, nil, nil, wrapErr(err, "BurnV1")
+					return nil, nil, nil, nil, nil, wrapErr(err, "failed to verify tx signature")
 				}
-				return nil, nil, nil, nil, nil, wrapErr(errors.Errorf("Transaction %s has invalid signature", tx.ID.String()), "BurnV1")
+				id, _ := tx.GetID(im.scheme)
+				return nil, nil, nil, nil, nil, errors.Errorf("Transaction %s has invalid signature", base58.Encode(id))
 			}
-			as, ac, err := data.FromBurnV1(im.scheme, tx)
+			as, ac, err := data.FromBurnWithProofs(im.scheme, t)
 			if err != nil {
-				return nil, nil, nil, nil, nil, wrapErr(err, "BurnV1")
+				return nil, nil, nil, nil, nil, wrapErr(err, "BurnWithProofs")
 			}
 			assetChanges = append(assetChanges, as)
 			accountChanges = append(accountChanges, ac)
-		case byte(proto.ExchangeTransaction):
-			var tx proto.ExchangeV1
-			err := tx.UnmarshalBinary(txb)
-			if err != nil {
-				return nil, nil, nil, nil, nil, wrapErr(err, "ExchangeV1")
-			}
-			if ok, err := tx.Verify(tx.SenderPK); !ok {
+		case *proto.ExchangeWithProofs:
+			if ok, err := t.Verify(im.scheme, t.GetSenderPK()); !ok {
 				if err != nil {
-					return nil, nil, nil, nil, nil, wrapErr(err, "ExchangeV1")
+					return nil, nil, nil, nil, nil, wrapErr(err, "failed to verify tx signature")
 				}
-				return nil, nil, nil, nil, nil, wrapErr(errors.Errorf("Transaction %s has invalid signature", tx.ID.String()), "ExchangeV1")
+				id, _ := tx.GetID(im.scheme)
+				return nil, nil, nil, nil, nil, errors.Errorf("Transaction %s has invalid signature", base58.Encode(id))
 			}
-			if bytes.Equal(im.matcher[:], tx.SenderPK[:]) {
-				t, err := data.NewTradeFromExchangeV1(im.scheme, tx)
+			if bytes.Equal(im.matcher[:], t.SenderPK[:]) {
+				tr, err := data.NewTradeFromExchangeWithProofs(im.scheme, t)
 				if err != nil {
-					return nil, nil, nil, nil, nil, wrapErr(err, "ExchangeV1")
+					return nil, nil, nil, nil, nil, wrapErr(err, "ExchangeWithProofs")
 				}
-				trades = append(trades, t)
+				trades = append(trades, tr)
 			}
-			ac, err := data.FromExchangeV1(im.scheme, tx)
+			ac, err := data.FromExchangeWithProofs(im.scheme, t)
 			if err != nil {
-				return nil, nil, nil, nil, nil, wrapErr(err, "ExchangeV1")
+				return nil, nil, nil, nil, nil, wrapErr(err, "ExchangeWithProofs")
 			}
 			accountChanges = append(accountChanges, ac...)
-		case byte(proto.MassTransferTransaction):
-			var tx proto.MassTransferV1
-			err := tx.UnmarshalBinary(txb)
-			if err != nil {
-				return nil, nil, nil, nil, nil, wrapErr(err, "MassTransferV1")
-			}
-			if tx.Asset.Present {
-				ac, err := data.FromMassTransferV1(im.scheme, tx)
+		case *proto.SponsorshipWithProofs:
+			if ok, err := t.Verify(im.scheme, t.GetSenderPK()); !ok {
 				if err != nil {
-					return nil, nil, nil, nil, nil, wrapErr(err, "MassTransferV1")
+					return nil, nil, nil, nil, nil, wrapErr(err, "failed to verify tx signature")
+				}
+				id, _ := tx.GetID(im.scheme)
+				return nil, nil, nil, nil, nil, errors.Errorf("Transaction %s has invalid signature", base58.Encode(id))
+			}
+			assetChanges = append(assetChanges, data.FromSponsorshipWithProofs(t))
+		case *proto.CreateAliasWithProofs:
+			if ok, err := t.Verify(im.scheme, t.GetSenderPK()); !ok {
+				if err != nil {
+					return nil, nil, nil, nil, nil, wrapErr(err, "failed to verify tx signature")
+				}
+				id, _ := tx.GetID(im.scheme)
+				return nil, nil, nil, nil, nil, errors.Errorf("Transaction %s has invalid signature", base58.Encode(id))
+			}
+			b, err := data.FromCreateAliasWithProofs(im.scheme, t)
+			if err != nil {
+				return nil, nil, nil, nil, nil, wrapErr(err, "CreateAliasWithProofs")
+			}
+			binds = append(binds, b)
+		case *proto.IssueWithSig:
+			if ok, err := t.Verify(im.scheme, t.GetSenderPK()); !ok {
+				if err != nil {
+					return nil, nil, nil, nil, nil, wrapErr(err, "failed to verify tx signature")
+				}
+				id, _ := tx.GetID(im.scheme)
+				return nil, nil, nil, nil, nil, errors.Errorf("Transaction %s has invalid signature", base58.Encode(id))
+			}
+			ic, ac, err := data.FromIssueWithSig(im.scheme, t)
+			if err != nil {
+				return nil, nil, nil, nil, nil, wrapErr(err, "IssueWithSig")
+			}
+			issueChanges = append(issueChanges, ic)
+			accountChanges = append(accountChanges, ac)
+		case *proto.TransferWithSig:
+			if ok, err := t.Verify(im.scheme, t.GetSenderPK()); !ok {
+				if err != nil {
+					return nil, nil, nil, nil, nil, wrapErr(err, "failed to verify tx signature")
+				}
+				id, _ := tx.GetID(im.scheme)
+				return nil, nil, nil, nil, nil, errors.Errorf("Transaction %s has invalid signature", base58.Encode(id))
+			}
+			if t.AmountAsset.Present || t.FeeAsset.Present {
+				ac, err := data.FromTransferWithSig(im.scheme, t, miner)
+				if err != nil {
+					return nil, nil, nil, nil, nil, wrapErr(err, "TransferWithSig")
 				}
 				accountChanges = append(accountChanges, ac...)
 			}
-		case byte(proto.CreateAliasTransaction):
-			var tx proto.CreateAliasV1
-			err := tx.UnmarshalBinary(txb)
-			if err != nil {
-				return nil, nil, nil, nil, nil, wrapErr(err, "CreateAliasV1")
+		case *proto.ReissueWithSig:
+			if ok, err := t.Verify(im.scheme, t.GetSenderPK()); !ok {
+				if err != nil {
+					return nil, nil, nil, nil, nil, wrapErr(err, "failed to verify tx signature")
+				}
+				id, _ := tx.GetID(im.scheme)
+				return nil, nil, nil, nil, nil, errors.Errorf("Transaction %s has invalid signature", base58.Encode(id))
 			}
-			b, err := data.FromCreateAliasV1(im.scheme, tx)
+			as, ac, err := data.FromReissueWithSig(im.scheme, t)
 			if err != nil {
-				return nil, nil, nil, nil, nil, wrapErr(err, "CreateAliasV1")
+				return nil, nil, nil, nil, nil, wrapErr(err, "ReissueWithSig")
+			}
+			assetChanges = append(assetChanges, as)
+			accountChanges = append(accountChanges, ac)
+		case *proto.BurnWithSig:
+			if ok, err := t.Verify(im.scheme, t.GetSenderPK()); !ok {
+				if err != nil {
+					return nil, nil, nil, nil, nil, wrapErr(err, "failed to verify tx signature")
+				}
+				id, _ := tx.GetID(im.scheme)
+				return nil, nil, nil, nil, nil, errors.Errorf("Transaction %s has invalid signature", base58.Encode(id))
+			}
+			as, ac, err := data.FromBurnWithSig(im.scheme, t)
+			if err != nil {
+				return nil, nil, nil, nil, nil, wrapErr(err, "BurnWithSig")
+			}
+			assetChanges = append(assetChanges, as)
+			accountChanges = append(accountChanges, ac)
+		case *proto.ExchangeWithSig:
+			if ok, err := t.Verify(im.scheme, t.GetSenderPK()); !ok {
+				if err != nil {
+					return nil, nil, nil, nil, nil, wrapErr(err, "failed to verify tx signature")
+				}
+				id, _ := tx.GetID(im.scheme)
+				return nil, nil, nil, nil, nil, errors.Errorf("Transaction %s has invalid signature", base58.Encode(id))
+			}
+			if bytes.Equal(im.matcher[:], t.SenderPK[:]) {
+				tr, err := data.NewTradeFromExchangeWithSig(im.scheme, t)
+				if err != nil {
+					return nil, nil, nil, nil, nil, wrapErr(err, "ExchangeWithSig")
+				}
+				trades = append(trades, tr)
+			}
+			ac, err := data.FromExchangeWithSig(im.scheme, t)
+			if err != nil {
+				return nil, nil, nil, nil, nil, wrapErr(err, "ExchangeWithSig")
+			}
+			accountChanges = append(accountChanges, ac...)
+		case *proto.MassTransferWithProofs:
+			if ok, err := t.Verify(im.scheme, t.GetSenderPK()); !ok {
+				if err != nil {
+					return nil, nil, nil, nil, nil, wrapErr(err, "failed to verify tx signature")
+				}
+				id, _ := tx.GetID(im.scheme)
+				return nil, nil, nil, nil, nil, errors.Errorf("Transaction %s has invalid signature", base58.Encode(id))
+			}
+			if t.Asset.Present {
+				ac, err := data.FromMassTransferWithProofs(im.scheme, t)
+				if err != nil {
+					return nil, nil, nil, nil, nil, wrapErr(err, "MassTransferWithProofs")
+				}
+				accountChanges = append(accountChanges, ac...)
+			}
+		case *proto.CreateAliasWithSig:
+			if ok, err := t.Verify(im.scheme, t.GetSenderPK()); !ok {
+				if err != nil {
+					return nil, nil, nil, nil, nil, wrapErr(err, "failed to verify tx signature")
+				}
+				id, _ := tx.GetID(im.scheme)
+				return nil, nil, nil, nil, nil, errors.Errorf("Transaction %s has invalid signature", base58.Encode(id))
+			}
+			b, err := data.FromCreateAliasWithSig(im.scheme, t)
+			if err != nil {
+				return nil, nil, nil, nil, nil, wrapErr(err, "CreateAliasWithSig")
 			}
 			binds = append(binds, b)
 		}
-		d = d[4+s:]
 	}
 	return trades, issueChanges, assetChanges, accountChanges, binds, nil
 }

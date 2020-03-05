@@ -3,9 +3,11 @@ package proto
 import (
 	"io"
 
+	protobuf "github.com/golang/protobuf/proto"
 	"github.com/pkg/errors"
 	"github.com/valyala/bytebufferpool"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	g "github.com/wavesplatform/gowaves/pkg/grpc/generated"
 	"github.com/wavesplatform/gowaves/pkg/libs/deserializer"
 	"github.com/wavesplatform/gowaves/pkg/libs/serializer"
 )
@@ -16,28 +18,65 @@ type MicroBlock struct {
 	PrevResBlockSigField  crypto.Signature
 	TotalResBlockSigField crypto.Signature
 	TransactionCount      uint32
-	Transactions          *TransactionsRepresentation
+	Transactions          Transactions
 	SenderPK              crypto.PublicKey
 	Signature             crypto.Signature
 }
 
-// func is not using right now
-/*
-func CreateMicroBlock(PrevResBlockSigField crypto.Signature, TotalResBlockSigField crypto.Signature, tr *TransactionsRepresentation, SenderPK crypto.PublicKey) *MicroBlock {
-	return &MicroBlock{
-		VersionField:          3,
-		PrevResBlockSigField:  PrevResBlockSigField,
-		TotalResBlockSigField: TotalResBlockSigField,
-		Transactions:          tr,
-		TransactionCount:      uint32(tr.Count()),
-		SenderPK:              SenderPK,
-	}
-}
-*/
-
 type MicroblockTotalSig = crypto.Signature
 
-func (a *MicroBlock) UnmarshalBinary(b []byte) error {
+func (a *MicroBlock) UnmarshalFromProtobuf(b []byte) error {
+	var pbMicroBlock g.SignedMicroBlock
+	if err := protobuf.Unmarshal(b, &pbMicroBlock); err != nil {
+		return err
+	}
+	var c ProtobufConverter
+	res, err := c.MicroBlock(&pbMicroBlock)
+	if err != nil {
+		return err
+	}
+	*a = res
+	return nil
+}
+
+func (a *MicroBlock) MarshalToProtobuf(scheme Scheme) ([]byte, error) {
+	pbMicro, err := a.ToProtobuf(scheme)
+	if err != nil {
+		return nil, err
+	}
+	return MarshalToProtobufDeterministic(pbMicro)
+}
+
+func (a *MicroBlock) ToProtobuf(scheme Scheme) (*g.SignedMicroBlock, error) {
+	sig, err := a.Signature.MarshalBinary()
+	if err != nil {
+		return nil, err
+	}
+	ref, err := a.PrevResBlockSigField.MarshalBinary()
+	if err != nil {
+		return nil, err
+	}
+	total, err := a.TotalResBlockSigField.MarshalBinary()
+	if err != nil {
+		return nil, err
+	}
+	txs, err := a.Transactions.ToProtobuf(scheme)
+	if err != nil {
+		return nil, err
+	}
+	return &g.SignedMicroBlock{
+		MicroBlock: &g.MicroBlock{
+			Version:               int32(a.VersionField),
+			Reference:             ref,
+			UpdatedBlockSignature: total,
+			SenderPublicKey:       a.SenderPK.Bytes(),
+			Transactions:          txs,
+		},
+		Signature: sig,
+	}, nil
+}
+
+func (a *MicroBlock) UnmarshalBinary(b []byte, scheme Scheme) error {
 	var err error
 	d := deserializer.NewDeserializer(b)
 
@@ -70,7 +109,10 @@ func (a *MicroBlock) UnmarshalBinary(b []byte) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to unmarshal microblock transaction bytes")
 	}
-	a.Transactions = NewReprFromBytes(bts, int(a.TransactionCount))
+	a.Transactions, err = NewTransactionsFromBytes(bts, int(a.TransactionCount), scheme)
+	if err != nil {
+		return errors.Wrap(err, "failed to unmarshal transactions")
+	}
 
 	a.SenderPK, err = d.PublicKey()
 	if err != nil {
@@ -122,15 +164,11 @@ func (a *MicroBlock) WriteWithoutSignature(w io.Writer) (int64, error) {
 	s.Byte(a.VersionField)
 	s.Bytes(a.PrevResBlockSigField[:])
 	s.Bytes(a.TotalResBlockSigField[:])
-
-	bts, err := a.Transactions.Bytes()
-	if err != nil {
+	s.Uint32(uint32(a.Transactions.BinarySize() + 4))
+	s.Uint32(a.TransactionCount)
+	if _, err := a.Transactions.WriteTo(s); err != nil {
 		return 0, err
 	}
-	s.Uint32(uint32(len(bts)) + 4)
-
-	s.Uint32(a.TransactionCount)
-	s.Bytes(bts)
 	s.Bytes(a.SenderPK[:])
 	return s.N(), nil
 }
@@ -460,4 +498,70 @@ func (a *MicroBlockInvMessage) UnmarshalBinary(data []byte) error {
 	copy(body, data[:h.PayloadLength])
 	a.Body = body
 	return nil
+}
+
+// PBMicroBlockMessage represents a Protobuf MicroBlock message
+type PBMicroBlockMessage struct {
+	MicroBlockBytes Bytes
+}
+
+func (*PBMicroBlockMessage) ReadFrom(r io.Reader) (int64, error) {
+	panic("implement me")
+}
+
+func (a *PBMicroBlockMessage) WriteTo(w io.Writer) (int64, error) {
+	buf := bytebufferpool.Get()
+	defer bytebufferpool.Put(buf)
+
+	n, err := a.MicroBlockBytes.WriteTo(buf)
+	if err != nil {
+		return n, err
+	}
+
+	h, err := MakeHeader(ContentIDPBMicroBlock, buf.Bytes())
+	if err != nil {
+		return 0, err
+	}
+
+	n1, err := h.WriteTo(w)
+	if err != nil {
+		return n1, err
+	}
+
+	n2, err := buf.WriteTo(w)
+	if err != nil {
+		return n1 + n2, err
+	}
+	return n1 + n2, nil
+}
+
+func (a *PBMicroBlockMessage) UnmarshalBinary(data []byte) error {
+	var h Header
+	if err := h.UnmarshalBinary(data); err != nil {
+		return err
+	}
+	if h.ContentID != ContentIDPBMicroBlock {
+		return errors.Errorf("wrong ContentID in Header: %x", h.ContentID)
+	}
+	data = data[17:]
+
+	if uint32(len(data)) < h.PayloadLength {
+		return errors.New("invalid data size")
+	}
+	a.MicroBlockBytes = make([]byte, len(data[:h.PayloadLength]))
+	copy(a.MicroBlockBytes, data)
+	return nil
+}
+
+func (a *PBMicroBlockMessage) MarshalBinary() ([]byte, error) {
+	buf := bytebufferpool.Get()
+	defer bytebufferpool.Put(buf)
+
+	_, err := a.WriteTo(buf)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]byte, buf.Len())
+	copy(out, buf.B)
+	return out, nil
 }

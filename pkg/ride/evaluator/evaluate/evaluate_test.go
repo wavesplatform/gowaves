@@ -18,9 +18,9 @@ import (
 
 const seed = "test test"
 
-func newTransferTransaction() *proto.TransferV2 {
+func newTransferTransaction() *proto.TransferWithProofs {
 	js := `{"type":4,"version":2,"id":"CqjGMbrd5bFmLAv2mUSdphEJSgVWkWa6ZtcMkKmgH2ax","proofs":["5W7hjPpgmmhxevCt4A7y9F8oNJ4V9w2g8jhQgx2qGmBTNsP1p1MpQeKF3cvZULwJ7vQthZfSx2BhL6TWkHSVLzvq"],"senderPublicKey":"14ovLL9a6xbBfftyxGNLKMdbnzGgnaFQjmgUJGdho6nY","assetId":null,"feeAssetId":null,"timestamp":1544715621,"amount":15,"fee":10000,"recipient":"3P2USE3iYK5w7jNahAUHTytNbVRccGZwQH3"}`
-	tv2 := &proto.TransferV2{}
+	tv2 := &proto.TransferWithProofs{}
 	err := json.Unmarshal([]byte(js), tv2)
 	if err != nil {
 		panic(err)
@@ -28,9 +28,9 @@ func newTransferTransaction() *proto.TransferV2 {
 	return tv2
 }
 
-func newExchangeTransaction() *proto.ExchangeV2 {
+func newExchangeTransaction() *proto.ExchangeWithProofs {
 	js := `{"senderPublicKey": "7kPFrHDiGw1rCm7LPszuECwWYL3dMf6iMifLRDJQZMzy","amount": 100000000,"fee": 1100000,"type": 7,"version": 2,"sellMatcherFee": 1100000,"sender": "3PJaDyprvekvPXPuAtxrapacuDJopgJRaU3","feeAssetId": null,"proofs": ["DGxkASjpPaKxu8bAv3PJpF9hJ9KAiLsB7bLBTEZXYcWmmc65pHiq5ymJNAazRM2aoLCeTLXXNda5hR9LZNayB69"],"price": 790000,  "id": "5aHKTDvWdVWmo9MPDPoYX83x6hyLJ5ji4eopmoUxELR2",  "order2": {    "version": 2,    "id": "CzBrJkpaWz2AHnT3U8baY3eTfRdymuC7dEqiGpas68tD",    "sender": "3PEjQH31dP2ipvrkouUs12ynKShpBcRQFAT",    "senderPublicKey": "BVtDAjf1MmUdPW2yRHEBiSP5yy7EnxzKgQWpajQM8FCx",    "matcherPublicKey": "7kPFrHDiGw1rCm7LPszuECwWYL3dMf6iMifLRDJQZMzy",    "assetPair": {      "amountAsset": "D796K7uVAeSPJcv29BN1KCuzrc6h7bAN1MSKPnrPPMfF",      "priceAsset": "CAWKh6suz3jKw6PhzEh5FDCWLvLFJ6BZEpmxv6oZQSzr"    },    "orderType": "sell",    "amount": 100000000,    "price": 790000,    "timestamp": 1557995955609,    "expiration": 1560501555609,    "matcherFee": 1100000,    "signature": "3Aw94WkF4PUeard435jtJTZLESRFMBuxYRYVVf3GrG48aAxLhbvcXdwsrtALLQ3LYbdNdhR1NUUzdMinU8pLiwWc",    "proofs": [      "3Aw94WkF4PUeard435jtJTZLESRFMBuxYRYVVf3GrG48aAxLhbvcXdwsrtALLQ3LYbdNdhR1NUUzdMinU8pLiwWc"    ]  },  "order1": {    "version": 2,    "id": "APLf7qDhU5puSa5h1KChNBobF8VKoy37PcP7BnhoSPvi",    "sender": "3PEyLyxu4yGJAEmuVRy3G4FvEBUYV6ykQWF",    "senderPublicKey": "28sBbJ7pHNG4VFrvNN43sNsdWYyrTFVAwd98W892mxBQ",    "matcherPublicKey": "7kPFrHDiGw1rCm7LPszuECwWYL3dMf6iMifLRDJQZMzy",    "assetPair": {      "amountAsset": "D796K7uVAeSPJcv29BN1KCuzrc6h7bAN1MSKPnrPPMfF",      "priceAsset": "CAWKh6suz3jKw6PhzEh5FDCWLvLFJ6BZEpmxv6oZQSzr"    },    "orderType": "buy",    "amount": 100000000,    "price": 790000,    "timestamp": 1557995158094,    "expiration": 1560500758093,    "matcherFee": 1100000,    "signature": "5zUuSSJyv5NU11RPa91fpQaCXR3xvR1ctjQrfxnNREFhMmbXfACzhfFgV18rdvrvm4X3p3iYK3fxS1TXwgSV5m83",    "proofs": [      "5zUuSSJyv5NU11RPa91fpQaCXR3xvR1ctjQrfxnNREFhMmbXfACzhfFgV18rdvrvm4X3p3iYK3fxS1TXwgSV5m83"    ]  },  "buyMatcherFee": 1100000,  "timestamp": 1557995955923,  "height": 1528811}`
-	tx := new(proto.ExchangeV2)
+	tx := new(proto.ExchangeWithProofs)
 	err := json.Unmarshal([]byte(js), tx)
 	if err != nil {
 		panic(err)
@@ -90,13 +90,13 @@ func scopeV1withDataTransaction() Scope {
 	if err != nil {
 		panic(err)
 	}
-	tx := proto.NewUnsignedData(pk, 100000, 1568640015000)
+	tx := proto.NewUnsigneData(1, pk, 100000, 1568640015000)
 	tx.Entries = append(tx.Entries, &proto.IntegerDataEntry{Key: "integer", Value: 100500})
 	tx.Entries = append(tx.Entries, &proto.BooleanDataEntry{Key: "boolean", Value: true})
 	tx.Entries = append(tx.Entries, &proto.BinaryDataEntry{Key: "binary", Value: []byte{0xCA, 0xFE, 0xBE, 0xBE, 0xDE, 0xAD, 0xBE, 0xEF}})
 	tx.Entries = append(tx.Entries, &proto.StringDataEntry{Key: "string", Value: "Hello, World!"})
 	tx.Entries = append(tx.Entries, &proto.IntegerDataEntry{Key: "someKey", Value: 12345})
-	err = tx.Sign(sk)
+	err = tx.Sign(proto.MainNetScheme, sk)
 	if err != nil {
 		panic(err)
 	}
@@ -398,7 +398,7 @@ f(1) == 999
 	script, err := BuildScript(r)
 	require.NoError(t, err)
 
-	tx := byte_helpers.TransferV2.Transaction.Clone()
+	tx := byte_helpers.TransferWithProofs.Transaction.Clone()
 	obj, err := NewVariablesFromTransaction(proto.MainNetScheme, tx)
 	require.NoError(t, err)
 	rs, err := script.Verify(proto.MainNetScheme, mockstate.State{}, obj, nil, nil)
@@ -424,7 +424,7 @@ g() == 5
 	script, err := BuildScript(r)
 	require.NoError(t, err)
 
-	tx := byte_helpers.TransferV2.Transaction.Clone()
+	tx := byte_helpers.TransferWithProofs.Transaction.Clone()
 	obj, err := NewVariablesFromTransaction(proto.MainNetScheme, tx)
 	require.NoError(t, err)
 	rs, err := script.Verify(proto.MainNetScheme, mockstate.State{}, obj, nil, nil)
@@ -482,7 +482,7 @@ func TestSimpleFuncEvaluate(t *testing.T) {
 func TestDataFunctions(t *testing.T) {
 	secret, public, err := crypto.GenerateKeyPair([]byte(seed))
 	require.NoError(t, err)
-	data := proto.NewUnsignedData(public, 10000, 1544715621)
+	data := proto.NewUnsigneData(1, public, 10000, 1544715621)
 
 	require.NoError(t, data.AppendEntry(&proto.IntegerDataEntry{
 		Key:   "integer",
@@ -501,7 +501,7 @@ func TestDataFunctions(t *testing.T) {
 		Value: "world",
 	}))
 
-	require.NoError(t, data.Sign(secret))
+	require.NoError(t, data.Sign(proto.MainNetScheme, secret))
 
 	vars, err := NewVariablesFromTransaction(proto.MainNetScheme, data)
 	require.NoError(t, err)
@@ -608,7 +608,7 @@ fn("abc") == "ccc"
 	require.True(t, rs, rs)
 }
 
-func invokeTxWithFunctionCall(tx *proto.InvokeScriptV1, fc *proto.FunctionCall) {
+func invokeTxWithFunctionCall(tx *proto.InvokeScriptWithProofs, fc *proto.FunctionCall) {
 	tx.FunctionCall = *fc
 }
 
@@ -646,7 +646,7 @@ func verify() = {
 	script, err := BuildScript(r)
 	require.NoError(t, err)
 
-	tx := byte_helpers.InvokeScriptV1.Transaction.Clone()
+	tx := byte_helpers.InvokeScriptWithProofs.Transaction.Clone()
 	invokeTxWithFunctionCall(tx, &proto.FunctionCall{
 		Default:   false,
 		Name:      "tellme",
@@ -704,7 +704,7 @@ func verify() = {
 	script, err := BuildScript(r)
 	require.NoError(t, err)
 
-	tx := byte_helpers.InvokeScriptV1.Transaction.Clone()
+	tx := byte_helpers.InvokeScriptWithProofs.Transaction.Clone()
 	invokeTxWithFunctionCall(tx, &proto.FunctionCall{
 		Default:   true,
 		Name:      "",
@@ -764,7 +764,7 @@ func verify() = {
 	script, err := BuildScript(r)
 	require.NoError(t, err)
 
-	tx := byte_helpers.TransferV2.Transaction.Clone()
+	tx := byte_helpers.TransferWithProofs.Transaction.Clone()
 	obj, err := NewVariablesFromTransaction(proto.MainNetScheme, tx)
 	require.NoError(t, err)
 	rs, err := script.Verify(proto.MainNetScheme, mockstate.State{}, obj, nil, nil)
@@ -796,7 +796,7 @@ func verify() = {
 	script, err := BuildScript(r)
 	require.NoError(t, err)
 
-	tx := byte_helpers.TransferV2.Transaction.Clone()
+	tx := byte_helpers.TransferWithProofs.Transaction.Clone()
 	obj, err := NewVariablesFromTransaction(proto.MainNetScheme, tx)
 	require.NoError(t, err)
 	rs, err := script.Verify(proto.MainNetScheme, mockstate.State{}, obj, nil, nil)
@@ -822,7 +822,7 @@ func tellme(question: String) = {
 	script, err := BuildScript(r)
 	require.NoError(t, err)
 
-	tx := byte_helpers.InvokeScriptV1.Transaction.Clone()
+	tx := byte_helpers.InvokeScriptWithProofs.Transaction.Clone()
 	invokeTxWithFunctionCall(tx, &proto.FunctionCall{
 		Default:   false,
 		Name:      "tellme",
@@ -868,7 +868,7 @@ func tellme(question: String) = {
 	script, err := BuildScript(r)
 	require.NoError(t, err)
 
-	tx := byte_helpers.InvokeScriptV1.Transaction.Clone()
+	tx := byte_helpers.InvokeScriptWithProofs.Transaction.Clone()
 	invokeTxWithFunctionCall(tx, &proto.FunctionCall{
 		Default:   false,
 		Name:      "tellme",
@@ -923,7 +923,7 @@ func TestMatchOverwrite(t *testing.T) {
 
 	pk := crypto.PublicKey{}
 	sig := crypto.Signature{}
-	tx := proto.NewUnsignedData(pk, 1400000, 1539113093702)
+	tx := proto.NewUnsigneData(1, pk, 1400000, 1539113093702)
 	tx.Entries = append(tx.Entries, &proto.IntegerDataEntry{Key: "x", Value: 2})
 	tx.ID = &crypto.Digest{}
 	tx.Proofs = proto.NewProofs()
@@ -963,7 +963,7 @@ func TestFailSript1(t *testing.T) {
 	id, err := crypto.NewDigestFromBase58("Eg5yoFwXcBrq3ik4JvbbhSg429b6HT2qdXTURAUMBTh9")
 	require.NoError(t, err)
 
-	tx := proto.NewUnsignedData(pk, 1400000, 1539113093702)
+	tx := proto.NewUnsigneData(1, pk, 1400000, 1539113093702)
 	tx.Entries = append(tx.Entries, &proto.IntegerDataEntry{Key: "command", Value: 1})
 	tx.Entries = append(tx.Entries, &proto.IntegerDataEntry{Key: "gameState", Value: 1})
 	tx.Entries = append(tx.Entries, &proto.StringDataEntry{Key: "player1", Value: ""})
@@ -1055,7 +1055,7 @@ func TestFailSript2(t *testing.T) {
 	r, err := reader.NewReaderFromBase64(script)
 	require.NoError(t, err)
 
-	tx := new(proto.ExchangeV2)
+	tx := new(proto.ExchangeWithProofs)
 	err = json.Unmarshal([]byte(transaction), tx)
 	require.NoError(t, err)
 
@@ -1107,7 +1107,7 @@ func TestWhaleDApp(t *testing.T) {
 		Name:      "inviteuser",
 		Arguments: arguments,
 	}
-	tx := &proto.InvokeScriptV1{
+	tx := &proto.InvokeScriptWithProofs{
 		Type:            proto.InvokeScriptTransaction,
 		Version:         1,
 		ID:              &txID,
@@ -1184,7 +1184,7 @@ func TestExchangeDApp(t *testing.T) {
 		Name:      "cancel",
 		Arguments: arguments,
 	}
-	tx := &proto.InvokeScriptV1{
+	tx := &proto.InvokeScriptWithProofs{
 		Type:            proto.InvokeScriptTransaction,
 		Version:         1,
 		ID:              &txID,
@@ -1276,7 +1276,7 @@ func TestBankDApp(t *testing.T) {
 	}
 	paymentAsset, err := crypto.NewDigestFromBase58("8LQW8f7P5d5PZM7GtZEBgaqRPGSzS3DfPuiXrURJ4AJS")
 	require.NoError(t, err)
-	tx := &proto.InvokeScriptV1{
+	tx := &proto.InvokeScriptWithProofs{
 		Type:            proto.InvokeScriptTransaction,
 		Version:         1,
 		ID:              &txID,
@@ -1392,7 +1392,7 @@ func TestLigaDApp1(t *testing.T) {
 		Name:      "stage2",
 		Arguments: proto.Arguments{},
 	}
-	tx1 := &proto.InvokeScriptV1{
+	tx1 := &proto.InvokeScriptWithProofs{
 		Type:            proto.InvokeScriptTransaction,
 		Version:         1,
 		ID:              &tx1ID,
@@ -1490,7 +1490,7 @@ func TestLigaDApp1(t *testing.T) {
 		Name:      "stage31",
 		Arguments: args2,
 	}
-	tx2 := &proto.InvokeScriptV1{
+	tx2 := &proto.InvokeScriptWithProofs{
 		Type:            proto.InvokeScriptTransaction,
 		Version:         1,
 		ID:              &tx2ID,
@@ -1561,7 +1561,7 @@ func TestTestingDApp(t *testing.T) {
 		Name:      "main",
 		Arguments: arguments,
 	}
-	tx := &proto.InvokeScriptV1{
+	tx := &proto.InvokeScriptWithProofs{
 		Type:            proto.InvokeScriptTransaction,
 		Version:         1,
 		ID:              &txID,
@@ -1640,7 +1640,7 @@ func TestDropElementDApp(t *testing.T) {
 		Name:      "dropElementInArray",
 		Arguments: arguments,
 	}
-	tx := &proto.InvokeScriptV1{
+	tx := &proto.InvokeScriptWithProofs{
 		Type:            proto.InvokeScriptTransaction,
 		Version:         1,
 		ID:              &txID,
@@ -1720,7 +1720,7 @@ func TestMathDApp(t *testing.T) {
 		Name:      "coxRossRubinsteinCall",
 		Arguments: arguments,
 	}
-	tx := &proto.InvokeScriptV1{
+	tx := &proto.InvokeScriptWithProofs{
 		Type:            proto.InvokeScriptTransaction,
 		Version:         1,
 		ID:              &txID,

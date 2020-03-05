@@ -16,7 +16,8 @@ var Cli struct {
 		File string `kong:"short='f',help='From file.',required"`
 	} `kong:"cmd,help='Convert from json to binary'"`
 	Bytes struct {
-		File string `kong:"short='f',help='From file.',required"`
+		SchemeByte string `kong:"short='s',help='Network scheme.',required"`
+		File       string `kong:"short='f',help='From file.',required"`
 	} `kong:"cmd,help='Convert from binary to json'"`
 }
 
@@ -31,7 +32,7 @@ func main() {
 	case "json":
 		serveJson()
 	case "bytes":
-		serveBinary()
+		serveBinary(Cli.Bytes.SchemeByte[0])
 	default:
 		zap.S().Error(ctx.Command())
 		return
@@ -73,14 +74,14 @@ func serveJson() {
 	_, _ = os.Stdout.Write(bts)
 }
 
-func serveBinary() {
+func serveBinary(scheme proto.Scheme) {
 	b, err := inputBytes(Cli.Bytes.File)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
 
-	trans, err := proto.BytesToTransaction(b)
+	trans, err := proto.BytesToTransaction(b, scheme)
 	if err != nil {
 		zap.S().Error(err)
 		return

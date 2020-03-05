@@ -32,7 +32,7 @@ func TestTransactionsAPIClient(t *testing.T) {
 	require.NoError(t, err)
 	var msg g.TransactionResponse
 	for err = uc.RecvMsg(&msg); err == nil; err = uc.RecvMsg(&msg) {
-		c := SafeConverter{}
+		c := proto.ProtobufConverter{}
 		tx, err := c.SignedTransaction(msg.Transaction)
 		require.NoError(t, err)
 		js, err := json.Marshal(tx)
@@ -58,11 +58,10 @@ func TestBlocksAPIClient(t *testing.T) {
 
 	var err error
 	var b *g.BlockWithHeight
-	cnv := SafeConverter{}
+	cnv := proto.ProtobufConverter{}
 	h := 1
 	for b, err = getBlock(h); err == nil; b, err = getBlock(h) {
-		cnv.Reset()
-		txs, err := cnv.BlockTransactions(b)
+		txs, err := cnv.BlockTransactions(b.Block)
 		require.NoError(t, err)
 		sb := strings.Builder{}
 		sb.WriteRune('[')
@@ -75,7 +74,7 @@ func TestBlocksAPIClient(t *testing.T) {
 			sb.WriteString(string(js))
 			sb.WriteRune(',')
 		}
-		header, err := cnv.BlockHeader(b)
+		header, err := cnv.BlockHeader(b.Block)
 		require.NoError(t, err)
 		bjs, err := json.Marshal(header)
 		require.NoError(t, err)
@@ -102,9 +101,9 @@ func TestAccountData(t *testing.T) {
 	require.NoError(t, err)
 	var msg g.DataEntryResponse
 	for err = dc.RecvMsg(&msg); err == nil; err = dc.RecvMsg(&msg) {
-		con := SafeConverter{}
-		e := con.entry(msg.Entry)
-		require.NoError(t, con.err)
+		con := proto.ProtobufConverter{}
+		e, err := con.Entry(msg.Entry)
+		require.NoError(t, err)
 		fmt.Println(e.GetKey(), ":", e)
 	}
 	assert.Equal(t, io.EOF, err)

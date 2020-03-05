@@ -99,31 +99,15 @@ func (a *RuntimeImpl) HandleMicroBlockRequestMessage(p peer.Peer, message *proto
 	if !ok {
 		return
 	}
-	p.SendMessage(&proto.MicroBlockMessage{
-		Body: microBlock,
-	})
-}
-
-func (a *RuntimeImpl) HandleMicroBlockMessage(_ peer.Peer, message *proto.MicroBlockMessage) {
-	a.mu.Lock()
-	defer a.mu.Unlock()
-
-	microblock := &proto.MicroBlock{}
-
-	switch t := message.Body.(type) {
-	case proto.Bytes:
-		err := microblock.UnmarshalBinary(t)
-		if err != nil {
-			zap.S().Error(err)
-			return
-		}
-	case *proto.MicroBlock:
-		microblock = t
-	default:
-		zap.S().Errorf("unknown *proto.MicroBlockMessage body type %T", t)
+	msg, err := proto.MessageByMicroBlock(microBlock, a.services.Scheme)
+	if err != nil {
+		zap.S().Error(err)
 		return
 	}
+	p.SendMessage(msg)
+}
 
+func (a *RuntimeImpl) handleMicroBlock(microblock *proto.MicroBlock) {
 	zap.S().Debugf("received micro %s", microblock.Signature)
 
 	if a.waitingOnMicroblock == nil {
@@ -140,6 +124,42 @@ func (a *RuntimeImpl) HandleMicroBlockMessage(_ peer.Peer, message *proto.MicroB
 
 	a.ngState.AddMicroblock(microblock)
 	go a.services.Scheduler.Reschedule()
+}
+
+func (a *RuntimeImpl) HandlePBMicroBlockMessage(_ peer.Peer, message *proto.PBMicroBlockMessage) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	microblock := &proto.MicroBlock{}
+	err := microblock.UnmarshalFromProtobuf(message.MicroBlockBytes)
+	if err != nil {
+		zap.S().Error(err)
+		return
+	}
+	a.handleMicroBlock(microblock)
+}
+
+func (a *RuntimeImpl) HandleMicroBlockMessage(_ peer.Peer, message *proto.MicroBlockMessage) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	microblock := &proto.MicroBlock{}
+
+	switch t := message.Body.(type) {
+	case proto.Bytes:
+		err := microblock.UnmarshalBinary(t, a.services.Scheme)
+		if err != nil {
+			zap.S().Error(err)
+			return
+		}
+	case *proto.MicroBlock:
+		microblock = t
+	default:
+		zap.S().Errorf("unknown *proto.MicroBlockMessage body type %T", t)
+		return
+	}
+
+	a.handleMicroBlock(microblock)
 }
 
 func (a *RuntimeImpl) HandleBlockMessage(_ peer.Peer, block *proto.Block) {

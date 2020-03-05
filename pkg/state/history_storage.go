@@ -7,7 +7,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
-	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
 var errEmptyHist = errors.New("empty history for this record")
@@ -35,21 +34,119 @@ const (
 	invokeResult
 )
 
+type blockchainEntityProperties struct {
+	needToFilter bool
+	needToCut    bool
+
+	fixedSize  bool
+	recordSize int
+}
+
 // + 4 bytes for blockNum at the end of each record.
-var recordSizes = map[blockchainEntity]int{
-	alias:                 aliasRecordSize + 4,
-	asset:                 assetRecordSize + 4,
-	lease:                 leasingRecordSize + 4,
-	wavesBalance:          wavesBalanceRecordSize + 4,
-	assetBalance:          assetBalanceRecordSize + 4,
-	featureVote:           votesFeaturesRecordSize + 4,
-	approvedFeature:       approvedFeaturesRecordSize + 4,
-	activatedFeature:      activatedFeaturesRecordSize + 4,
-	sponsorship:           sponsorshipRecordSize + 4,
-	assetScriptComplexity: assetScriptComplexityRecordSize + 4,
-	rewardVotes:           rewardVotesRecordSize + 4,
-	blockReward:           blockRewardRecordSize + 4,
-	ordersVolume:          orderVolumeRecordSize + 4,
+var properties = map[blockchainEntity]blockchainEntityProperties{
+	alias: {
+		needToFilter: true,
+		needToCut:    true,
+		fixedSize:    true,
+		recordSize:   aliasRecordSize + 4,
+	},
+	asset: {
+		needToFilter: true,
+		needToCut:    true,
+		fixedSize:    true,
+		recordSize:   assetRecordSize + 4,
+	},
+	lease: {
+		needToFilter: true,
+		needToCut:    true,
+		fixedSize:    true,
+		recordSize:   leasingRecordSize + 4,
+	},
+	wavesBalance: {
+		needToFilter: true,
+		needToCut:    true,
+		fixedSize:    true,
+		recordSize:   wavesBalanceRecordSize + 4,
+	},
+	assetBalance: {
+		needToFilter: true,
+		needToCut:    true,
+		fixedSize:    true,
+		recordSize:   assetBalanceRecordSize + 4,
+	},
+	featureVote: {
+		needToFilter: true,
+		needToCut:    false, // Do not cut for votesAtHeight().
+		fixedSize:    true,
+		recordSize:   votesFeaturesRecordSize + 4,
+	},
+	approvedFeature: {
+		needToFilter: true,
+		needToCut:    true,
+		fixedSize:    true,
+		recordSize:   approvedFeaturesRecordSize + 4,
+	},
+	activatedFeature: {
+		needToFilter: true,
+		needToCut:    true,
+		fixedSize:    true,
+		recordSize:   activatedFeaturesRecordSize + 4,
+	},
+	ordersVolume: {
+		needToFilter: true,
+		needToCut:    true,
+		fixedSize:    true,
+		recordSize:   orderVolumeRecordSize + 4,
+	},
+	sponsorship: {
+		needToFilter: true,
+		needToCut:    true,
+		fixedSize:    true,
+		recordSize:   sponsorshipRecordSize + 4,
+	},
+	dataEntry: {
+		needToFilter: true,
+		needToCut:    true,
+		fixedSize:    false,
+	},
+	accountScript: {
+		needToFilter: true,
+		needToCut:    true,
+		fixedSize:    false,
+	},
+	assetScript: {
+		needToFilter: true,
+		needToCut:    true,
+		fixedSize:    false,
+	},
+	accountScriptComplexity: {
+		needToFilter: true,
+		needToCut:    true,
+		fixedSize:    false,
+	},
+	assetScriptComplexity: {
+		needToFilter: true,
+		needToCut:    true,
+		fixedSize:    true,
+		recordSize:   assetScriptComplexityRecordSize + 4,
+	},
+	rewardVotes: {
+		needToFilter: true,
+		needToCut:    true,
+		fixedSize:    true,
+		recordSize:   rewardVotesRecordSize + 4,
+	},
+	blockReward: {
+		needToFilter: true,
+		needToCut:    true,
+		fixedSize:    true,
+		recordSize:   blockRewardRecordSize + 4,
+	},
+	invokeResult: {
+		needToFilter: true,
+		needToCut:    true,
+		fixedSize:    false,
+	},
 }
 
 type historyEntry struct {
@@ -81,42 +178,31 @@ func (he *historyEntry) unmarshalBinary(data []byte) error {
 }
 
 type historyRecord struct {
-	fixedSize bool
-	// recordSize is specified if fixedSize is true.
-	// Otherwise entries sizes are 4 first bytes of each record.
-	recordSize uint32
+	entityType blockchainEntity
 	entries    []historyEntry
 }
 
-func newHistoryRecord(entityType blockchainEntity) (*historyRecord, error) {
-	fixedSize := true
-	size, ok := recordSizes[entityType]
-	if !ok {
-		fixedSize = false
-	}
-	return &historyRecord{fixedSize: fixedSize, recordSize: uint32(size)}, nil
+func newHistoryRecord(entityType blockchainEntity) *historyRecord {
+	return &historyRecord{entityType: entityType}
 }
 
 func newHistoryRecordFromBytes(data []byte) (*historyRecord, error) {
-	dataSize := uint32(len(data))
-	if dataSize < 1 {
+	if len(data) < 1 {
 		return nil, errInvalidDataSize
 	}
-	fixedSize, err := proto.Bool(data)
-	if err != nil {
-		return nil, err
+	entityType := blockchainEntity(data[0])
+	property, ok := properties[entityType]
+	if !ok {
+		return nil, errors.Errorf("bad entity type %v", entityType)
 	}
-	recordSize := uint32(0)
 	var entries []historyEntry
-	if fixedSize {
-		if dataSize < 5 {
+	if property.fixedSize {
+		dataSize := len(data)
+		recordSize := property.recordSize
+		if dataSize < 1+recordSize {
 			return nil, errInvalidDataSize
 		}
-		recordSize = binary.BigEndian.Uint32(data[1:5])
-		if dataSize < 5+recordSize {
-			return nil, errInvalidDataSize
-		}
-		for i := uint32(5); i <= dataSize-recordSize; i += recordSize {
+		for i := 1; i <= dataSize-recordSize; i += recordSize {
 			var entry historyEntry
 			if err := entry.unmarshalBinary(data[i : i+recordSize]); err != nil {
 				return nil, err
@@ -124,6 +210,7 @@ func newHistoryRecordFromBytes(data []byte) (*historyRecord, error) {
 			entries = append(entries, entry)
 		}
 	} else {
+		dataSize := uint32(len(data))
 		for i := uint32(1); i <= dataSize-4; {
 			recordSize := binary.BigEndian.Uint32(data[i : i+4])
 			i += 4
@@ -138,34 +225,46 @@ func newHistoryRecordFromBytes(data []byte) (*historyRecord, error) {
 			i += recordSize
 		}
 	}
-	return &historyRecord{fixedSize, recordSize, entries}, nil
+	return &historyRecord{entityType, entries}, nil
 }
 
-func (hr *historyRecord) countTotalSize() int {
+func (hr *historyRecord) fixedSize() (bool, error) {
+	property, ok := properties[hr.entityType]
+	if !ok {
+		return false, errors.Errorf("bad entity type %v", hr.entityType)
+	}
+	return property.fixedSize, nil
+}
+
+func (hr *historyRecord) countTotalSize() (int, error) {
 	totalSize := 1
-	if hr.fixedSize {
-		totalSize += 4
+	fixedSize, err := hr.fixedSize()
+	if err != nil {
+		return 0, err
 	}
 	for _, r := range hr.entries {
 		totalSize += r.size()
-		if !hr.fixedSize {
+		if !fixedSize {
 			totalSize += 4
 		}
 	}
-	return totalSize
+	return totalSize, nil
 }
 
 func (hr *historyRecord) marshalBinary() ([]byte, error) {
-	data := make([]byte, hr.countTotalSize())
-	proto.PutBool(data, hr.fixedSize)
-	curPos := 1
-	if hr.fixedSize {
-		// Add size of all entries.
-		binary.BigEndian.PutUint32(data[curPos:curPos+4], hr.recordSize)
-		curPos += 4
+	totalSize, err := hr.countTotalSize()
+	if err != nil {
+		return nil, err
 	}
+	data := make([]byte, totalSize)
+	data[0] = byte(hr.entityType)
+	curPos := 1
 	for _, entry := range hr.entries {
-		if !hr.fixedSize {
+		fixedSize, err := hr.fixedSize()
+		if err != nil {
+			return nil, err
+		}
+		if !fixedSize {
 			// Add size of this record.
 			size := entry.size()
 			binary.BigEndian.PutUint32(data[curPos:curPos+4], uint32(size))
@@ -250,9 +349,7 @@ func (hs *historyStorage) addNewEntry(entityType blockchainEntity, key, value []
 	entry := historyEntry{value, blockNum}
 	history, err := hs.stor.get(key)
 	if err == errNotFound {
-		if history, err = newHistoryRecord(entityType); err != nil {
-			return err
-		}
+		history = newHistoryRecord(entityType)
 	} else if err != nil {
 		return err
 	}
@@ -336,11 +433,8 @@ func (hs *historyStorage) combineHistories(key []byte, newHist *historyRecord, f
 	} else if err != nil {
 		return nil, err
 	}
-	if prevHist.fixedSize != newHist.fixedSize {
-		return nil, errors.New("trying to combine incompatible histories")
-	}
-	if prevHist.recordSize != newHist.recordSize {
-		return nil, errors.New("trying to combine incompatible histories")
+	if prevHist.entityType != newHist.entityType {
+		return nil, errors.Errorf("trying to combine histories of different types %v and %v", prevHist.entityType, newHist.entityType)
 	}
 	prevHist.entries = append(prevHist.entries, newHist.entries...)
 	return prevHist, nil
@@ -384,8 +478,15 @@ func (hs *historyStorage) blockOfTheLatestEntry(key []byte, filter bool) (crypto
 	return hs.stateDB.blockNumToId(entry.blockNum)
 }
 
-func (hs *historyStorage) entryDataBeforeHeight(key []byte, height uint64, filter bool) ([]byte, error) {
-	limitBlockNum, err := hs.stateDB.blockNumByHeight(height)
+type entryNumsCmp func(uint32, uint32) bool
+
+func (hs *historyStorage) entryDataWithHeightFilter(
+	key []byte,
+	limitHeight uint64,
+	filter bool,
+	cmp entryNumsCmp,
+) ([]byte, error) {
+	limitBlockNum, err := hs.stateDB.blockNumByHeight(limitHeight)
 	if err != nil {
 		return nil, err
 	}
@@ -395,13 +496,27 @@ func (hs *historyStorage) entryDataBeforeHeight(key []byte, height uint64, filte
 	}
 	var res historyEntry
 	for _, entry := range history.entries {
-		if entry.blockNum < limitBlockNum {
+		if cmp(entry.blockNum, limitBlockNum) {
 			res = entry
 		} else {
 			break
 		}
 	}
 	return res.data, nil
+}
+
+func (hs *historyStorage) entryDataBeforeHeight(key []byte, height uint64, filter bool) ([]byte, error) {
+	cmp := func(entryNum, limitNum uint32) bool {
+		return entryNum < limitNum
+	}
+	return hs.entryDataWithHeightFilter(key, height, filter, cmp)
+}
+
+func (hs *historyStorage) entryDataAtHeight(key []byte, height uint64, filter bool) ([]byte, error) {
+	cmp := func(entryNum, limitNum uint32) bool {
+		return entryNum <= limitNum
+	}
+	return hs.entryDataWithHeightFilter(key, height, filter, cmp)
 }
 
 // freshEntryBeforeHeight() returns bytes of the latest fresh (from local storage or DB) entry before given height.

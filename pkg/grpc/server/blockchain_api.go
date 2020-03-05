@@ -41,7 +41,7 @@ func (s *Server) nodeStatusFromBool(implemented bool) g.FeatureActivationStatus_
 }
 
 // featureActivationStatus retrieves all the info for given feature ID.
-func (s *Server) featureActivationStatus(id int16) (*g.FeatureActivationStatus, error) {
+func (s *Server) featureActivationStatus(id int16, height uint64) (*g.FeatureActivationStatus, error) {
 	res := &g.FeatureActivationStatus{Id: int32(id)}
 	res.NodeStatus = g.FeatureActivationStatus_NOT_IMPLEMENTED
 	info, ok := settings.FeaturesInfo[settings.Feature(id)]
@@ -49,11 +49,11 @@ func (s *Server) featureActivationStatus(id int16) (*g.FeatureActivationStatus, 
 		res.NodeStatus = s.nodeStatusFromBool(info.Implemented)
 		res.Description = info.Description
 	}
-	activated, err := s.state.IsActivated(id)
+	activated, err := s.state.IsActiveAtHeight(id, height)
 	if err != nil {
 		return nil, err
 	}
-	approved, err := s.state.IsApproved(id)
+	approved, err := s.state.IsApprovedAtHeight(id, height)
 	if err != nil {
 		return nil, err
 	}
@@ -67,13 +67,13 @@ func (s *Server) featureActivationStatus(id int16) (*g.FeatureActivationStatus, 
 	} else if approved {
 		res.BlockchainStatus = g.FeatureActivationStatus_APPROVED
 	} else {
-		supportingBlocks, err := s.state.VotesNum(id)
-		if err != nil {
-			return nil, err
-		}
-		res.SupportingBlocks = int32(supportingBlocks)
 		res.BlockchainStatus = g.FeatureActivationStatus_UNDEFINED
 	}
+	supportingBlocks, err := s.state.VotesNumAtHeight(id, height)
+	if err != nil {
+		return nil, err
+	}
+	res.SupportingBlocks = int32(supportingBlocks)
 	return res, nil
 }
 
@@ -85,14 +85,15 @@ func (s *Server) GetActivationStatus(ctx context.Context, req *g.ActivationStatu
 	if req.Height > int32(height) {
 		return nil, status.Errorf(codes.FailedPrecondition, "requested height exceeds current height")
 	}
-	res := &g.ActivationStatusResponse{Height: int32(height)}
+	reqHeight := uint64(req.Height)
+	res := &g.ActivationStatusResponse{Height: req.Height}
 	sets, err := s.state.BlockchainSettings()
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, err.Error())
 	}
-	res.VotingInterval = int32(sets.ActivationWindowSize(uint64(req.Height)))
-	res.VotingThreshold = int32(sets.VotesForFeatureElection(uint64(req.Height)))
-	prevCheck := height - (height % uint64(res.VotingInterval))
+	res.VotingInterval = int32(sets.ActivationWindowSize(reqHeight))
+	res.VotingThreshold = int32(sets.VotesForFeatureElection(reqHeight))
+	prevCheck := reqHeight - (reqHeight % uint64(res.VotingInterval))
 	res.NextCheck = int32(prevCheck) + res.VotingInterval
 	features, err := s.allFeatures()
 	if err != nil {
@@ -100,7 +101,7 @@ func (s *Server) GetActivationStatus(ctx context.Context, req *g.ActivationStatu
 	}
 	res.Features = make([]*g.FeatureActivationStatus, len(features))
 	for i, id := range features {
-		res.Features[i], err = s.featureActivationStatus(id)
+		res.Features[i], err = s.featureActivationStatus(id, reqHeight)
 		if err != nil {
 			return nil, status.Errorf(codes.Internal, err.Error())
 		}

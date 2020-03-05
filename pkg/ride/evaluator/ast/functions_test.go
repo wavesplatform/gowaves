@@ -243,7 +243,7 @@ func TestNativeTransactionByID(t *testing.T) {
 	require.NoError(t, err)
 	sender, _ := proto.NewAddressFromPublicKey(proto.MainNetScheme, public)
 
-	transferV1 := proto.NewUnsignedTransferV1(
+	transferWithSig := proto.NewUnsignedTransferWithSig(
 		public,
 		proto.OptionalAsset{},
 		proto.OptionalAsset{},
@@ -251,13 +251,13 @@ func TestNativeTransactionByID(t *testing.T) {
 		1,
 		10000,
 		proto.NewRecipientFromAddress(sender),
-		"",
+		&proto.LegacyAttachment{},
 	)
 	require.NoError(t, err)
-	require.NoError(t, transferV1.Sign(secret))
+	require.NoError(t, transferWithSig.Sign(proto.MainNetScheme, secret))
 
 	scope := newScopeWithState(&mockstate.State{
-		TransactionsByID: map[string]proto.Transaction{sign.String(): transferV1},
+		TransactionsByID: map[string]proto.Transaction{sign.String(): transferWithSig},
 	})
 
 	tx, err := NativeTransactionByID(scope, NewExprs(NewBytes(sign.Bytes())))
@@ -276,28 +276,28 @@ func TestNativeTransferTransactionByID(t *testing.T) {
 	t.Run("transfer v1", func(t *testing.T) {
 		scope := newScopeWithState(&mockstate.State{
 			TransactionsByID: map[string]proto.Transaction{
-				byte_helpers.TransferV1.Transaction.ID.String(): byte_helpers.TransferV1.Transaction.Clone(),
+				byte_helpers.TransferWithSig.Transaction.ID.String(): byte_helpers.TransferWithSig.Transaction.Clone(),
 			},
 		})
 
-		rs, err := NativeTransferTransactionByID(scope, Params(NewBytes(byte_helpers.TransferV1.Transaction.ID.Bytes())))
+		rs, err := NativeTransferTransactionByID(scope, Params(NewBytes(byte_helpers.TransferWithSig.Transaction.ID.Bytes())))
 		require.NoError(t, err)
 		require.Equal(t, "TransferTransaction", rs.InstanceOf())
 	})
 	t.Run("transfer v2", func(t *testing.T) {
 		scope := newScopeWithState(&mockstate.State{
 			TransactionsByID: map[string]proto.Transaction{
-				byte_helpers.TransferV2.Transaction.ID.String(): byte_helpers.TransferV2.Transaction.Clone(),
+				byte_helpers.TransferWithProofs.Transaction.ID.String(): byte_helpers.TransferWithProofs.Transaction.Clone(),
 			},
 		})
 
-		rs, err := NativeTransferTransactionByID(scope, Params(NewBytes(byte_helpers.TransferV2.Transaction.ID.Bytes())))
+		rs, err := NativeTransferTransactionByID(scope, Params(NewBytes(byte_helpers.TransferWithProofs.Transaction.ID.Bytes())))
 		require.NoError(t, err)
 		require.Equal(t, "TransferTransaction", rs.InstanceOf())
 	})
 	t.Run("not found", func(t *testing.T) {
 		scope := newScopeWithState(&mockstate.State{})
-		rs, err := NativeTransferTransactionByID(scope, Params(NewBytes(byte_helpers.TransferV2.Transaction.ID.Bytes())))
+		rs, err := NativeTransferTransactionByID(scope, Params(NewBytes(byte_helpers.TransferWithProofs.Transaction.ID.Bytes())))
 		require.NoError(t, err)
 		require.Equal(t, NewUnit(), rs)
 	})

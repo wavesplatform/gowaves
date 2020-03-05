@@ -49,11 +49,11 @@ func globalPathFromLocal(path string) (string, error) {
 	return filepath.Join(dir, path), nil
 }
 
-func signBlock(t *testing.T, block *proto.Block) {
+func signBlock(t *testing.T, block *proto.Block, scheme proto.Scheme) {
 	pk := crypto.MustPublicKeyFromBase58(minerPkStr)
 	block.GenPublicKey = pk
 	sk := crypto.MustSecretKeyFromBase58(minerSkStr)
-	err := block.Sign(sk)
+	err := block.Sign(scheme, sk)
 	assert.NoError(t, err)
 }
 
@@ -66,8 +66,8 @@ func customSettingsWithGenesis(t *testing.T, genesisPath string) *settings.Block
 	assert.NoError(t, err)
 	err = genesisFile.Close()
 	assert.NoError(t, err)
-	signBlock(t, genesis)
 	sets := settings.DefaultCustomSettings
+	signBlock(t, genesis, sets.AddressSchemeCharacter)
 	sets.Genesis = *genesis
 	// For compatibility with MainNet addresses we use the same AddressSchemeCharacter.
 	// This is needed because transactions from MainNet blockchain are used in tests' genesis blocks.

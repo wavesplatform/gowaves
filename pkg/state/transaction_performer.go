@@ -43,12 +43,12 @@ func (tp *transactionPerformer) performIssue(tx *proto.Issue, assetID crypto.Dig
 	return nil
 }
 
-func (tp *transactionPerformer) performIssueV1(transaction proto.Transaction, info *performerInfo) error {
-	tx, ok := transaction.(*proto.IssueV1)
+func (tp *transactionPerformer) performIssueWithSig(transaction proto.Transaction, info *performerInfo) error {
+	tx, ok := transaction.(*proto.IssueWithSig)
 	if !ok {
-		return errors.New("failed to convert interface to IssueV1 transaction")
+		return errors.New("failed to convert interface to IssueWithSig transaction")
 	}
-	txID, err := tx.GetID()
+	txID, err := tx.GetID(tp.settings.AddressSchemeCharacter)
 	if err != nil {
 		return errors.Errorf("failed to get transaction ID: %v\n", err)
 	}
@@ -59,12 +59,12 @@ func (tp *transactionPerformer) performIssueV1(transaction proto.Transaction, in
 	return tp.performIssue(&tx.Issue, assetID, info)
 }
 
-func (tp *transactionPerformer) performIssueV2(transaction proto.Transaction, info *performerInfo) error {
-	tx, ok := transaction.(*proto.IssueV2)
+func (tp *transactionPerformer) performIssueWithProofs(transaction proto.Transaction, info *performerInfo) error {
+	tx, ok := transaction.(*proto.IssueWithProofs)
 	if !ok {
-		return errors.New("failed to convert interface to IssueV2 transaction")
+		return errors.New("failed to convert interface to IssueWithProofs transaction")
 	}
-	txID, err := tx.GetID()
+	txID, err := tx.GetID(tp.settings.AddressSchemeCharacter)
 	if err != nil {
 		return errors.Errorf("failed to get transaction ID: %v\n", err)
 	}
@@ -92,18 +92,18 @@ func (tp *transactionPerformer) performReissue(tx *proto.Reissue, info *performe
 	return nil
 }
 
-func (tp *transactionPerformer) performReissueV1(transaction proto.Transaction, info *performerInfo) error {
-	tx, ok := transaction.(*proto.ReissueV1)
+func (tp *transactionPerformer) performReissueWithSig(transaction proto.Transaction, info *performerInfo) error {
+	tx, ok := transaction.(*proto.ReissueWithSig)
 	if !ok {
-		return errors.New("failed to convert interface to ReissueV1 transaction")
+		return errors.New("failed to convert interface to ReissueWithSig transaction")
 	}
 	return tp.performReissue(&tx.Reissue, info)
 }
 
-func (tp *transactionPerformer) performReissueV2(transaction proto.Transaction, info *performerInfo) error {
-	tx, ok := transaction.(*proto.ReissueV2)
+func (tp *transactionPerformer) performReissueWithProofs(transaction proto.Transaction, info *performerInfo) error {
+	tx, ok := transaction.(*proto.ReissueWithProofs)
 	if !ok {
-		return errors.New("failed to convert interface to ReissueV2 transaction")
+		return errors.New("failed to convert interface to ReissueWithProofs transaction")
 	}
 	return tp.performReissue(&tx.Reissue, info)
 }
@@ -119,18 +119,18 @@ func (tp *transactionPerformer) performBurn(tx *proto.Burn, info *performerInfo)
 	return nil
 }
 
-func (tp *transactionPerformer) performBurnV1(transaction proto.Transaction, info *performerInfo) error {
-	tx, ok := transaction.(*proto.BurnV1)
+func (tp *transactionPerformer) performBurnWithSig(transaction proto.Transaction, info *performerInfo) error {
+	tx, ok := transaction.(*proto.BurnWithSig)
 	if !ok {
-		return errors.New("failed to convert interface to BurnV1 transaction")
+		return errors.New("failed to convert interface to BurnWithSig transaction")
 	}
 	return tp.performBurn(&tx.Burn, info)
 }
 
-func (tp *transactionPerformer) performBurnV2(transaction proto.Transaction, info *performerInfo) error {
-	tx, ok := transaction.(*proto.BurnV2)
+func (tp *transactionPerformer) performBurnWithProofs(transaction proto.Transaction, info *performerInfo) error {
+	tx, ok := transaction.(*proto.BurnWithProofs)
 	if !ok {
-		return errors.New("failed to convert interface to BurnV2 transaction")
+		return errors.New("failed to convert interface to BurnWithProofs transaction")
 	}
 	return tp.performBurn(&tx.Burn, info)
 }
@@ -189,18 +189,18 @@ func (tp *transactionPerformer) performLease(tx *proto.Lease, id *crypto.Digest,
 	return nil
 }
 
-func (tp *transactionPerformer) performLeaseV1(transaction proto.Transaction, info *performerInfo) error {
-	tx, ok := transaction.(*proto.LeaseV1)
+func (tp *transactionPerformer) performLeaseWithSig(transaction proto.Transaction, info *performerInfo) error {
+	tx, ok := transaction.(*proto.LeaseWithSig)
 	if !ok {
-		return errors.New("failed to convert interface to LeaseV1 transaction")
+		return errors.New("failed to convert interface to LeaseWithSig transaction")
 	}
 	return tp.performLease(&tx.Lease, tx.ID, info)
 }
 
-func (tp *transactionPerformer) performLeaseV2(transaction proto.Transaction, info *performerInfo) error {
-	tx, ok := transaction.(*proto.LeaseV2)
+func (tp *transactionPerformer) performLeaseWithProofs(transaction proto.Transaction, info *performerInfo) error {
+	tx, ok := transaction.(*proto.LeaseWithProofs)
 	if !ok {
-		return errors.New("failed to convert interface to LeaseV2 transaction")
+		return errors.New("failed to convert interface to LeaseWithProofs transaction")
 	}
 	return tp.performLease(&tx.Lease, tx.ID, info)
 }
@@ -212,18 +212,18 @@ func (tp *transactionPerformer) performLeaseCancel(tx *proto.LeaseCancel, info *
 	return nil
 }
 
-func (tp *transactionPerformer) performLeaseCancelV1(transaction proto.Transaction, info *performerInfo) error {
-	tx, ok := transaction.(*proto.LeaseCancelV1)
+func (tp *transactionPerformer) performLeaseCancelWithSig(transaction proto.Transaction, info *performerInfo) error {
+	tx, ok := transaction.(*proto.LeaseCancelWithSig)
 	if !ok {
-		return errors.New("failed to convert interface to LeaseCancelV1 transaction")
+		return errors.New("failed to convert interface to LeaseCancelWithSig transaction")
 	}
 	return tp.performLeaseCancel(&tx.LeaseCancel, info)
 }
 
-func (tp *transactionPerformer) performLeaseCancelV2(transaction proto.Transaction, info *performerInfo) error {
-	tx, ok := transaction.(*proto.LeaseCancelV2)
+func (tp *transactionPerformer) performLeaseCancelWithProofs(transaction proto.Transaction, info *performerInfo) error {
+	tx, ok := transaction.(*proto.LeaseCancelWithProofs)
 	if !ok {
-		return errors.New("failed to convert interface to LeaseCancelV2 transaction")
+		return errors.New("failed to convert interface to LeaseCancelWithProofs transaction")
 	}
 	return tp.performLeaseCancel(&tx.LeaseCancel, info)
 }
@@ -244,26 +244,26 @@ func (tp *transactionPerformer) performCreateAlias(tx *proto.CreateAlias, info *
 	return nil
 }
 
-func (tp *transactionPerformer) performCreateAliasV1(transaction proto.Transaction, info *performerInfo) error {
-	tx, ok := transaction.(*proto.CreateAliasV1)
+func (tp *transactionPerformer) performCreateAliasWithSig(transaction proto.Transaction, info *performerInfo) error {
+	tx, ok := transaction.(*proto.CreateAliasWithSig)
 	if !ok {
-		return errors.New("failed to convert interface to CreateAliasV1 transaction")
+		return errors.New("failed to convert interface to CreateAliasWithSig transaction")
 	}
 	return tp.performCreateAlias(&tx.CreateAlias, info)
 }
 
-func (tp *transactionPerformer) performCreateAliasV2(transaction proto.Transaction, info *performerInfo) error {
-	tx, ok := transaction.(*proto.CreateAliasV2)
+func (tp *transactionPerformer) performCreateAliasWithProofs(transaction proto.Transaction, info *performerInfo) error {
+	tx, ok := transaction.(*proto.CreateAliasWithProofs)
 	if !ok {
-		return errors.New("failed to convert interface to CreateAliasV2 transaction")
+		return errors.New("failed to convert interface to CreateAliasWithProofs transaction")
 	}
 	return tp.performCreateAlias(&tx.CreateAlias, info)
 }
 
-func (tp *transactionPerformer) performDataV1(transaction proto.Transaction, info *performerInfo) error {
-	tx, ok := transaction.(*proto.DataV1)
+func (tp *transactionPerformer) performDataWithProofs(transaction proto.Transaction, info *performerInfo) error {
+	tx, ok := transaction.(*proto.DataWithProofs)
 	if !ok {
-		return errors.New("failed to convert interface to DataV1 transaction")
+		return errors.New("failed to convert interface to DataWithProofs transaction")
 	}
 	senderAddr, err := proto.NewAddressFromPublicKey(tp.settings.AddressSchemeCharacter, tx.SenderPK)
 	if err != nil {
@@ -277,10 +277,10 @@ func (tp *transactionPerformer) performDataV1(transaction proto.Transaction, inf
 	return nil
 }
 
-func (tp *transactionPerformer) performSponsorshipV1(transaction proto.Transaction, info *performerInfo) error {
-	tx, ok := transaction.(*proto.SponsorshipV1)
+func (tp *transactionPerformer) performSponsorshipWithProofs(transaction proto.Transaction, info *performerInfo) error {
+	tx, ok := transaction.(*proto.SponsorshipWithProofs)
 	if !ok {
-		return errors.New("failed to convert interface to SponsorshipV1 transaction")
+		return errors.New("failed to convert interface to SponsorshipWithProofs transaction")
 	}
 	if err := tp.stor.sponsoredAssets.sponsorAsset(tx.AssetID, tx.MinAssetFee, info.blockID); err != nil {
 		return errors.Wrap(err, "failed to sponsor asset")
@@ -288,10 +288,10 @@ func (tp *transactionPerformer) performSponsorshipV1(transaction proto.Transacti
 	return nil
 }
 
-func (tp *transactionPerformer) performSetScriptV1(transaction proto.Transaction, info *performerInfo) error {
-	tx, ok := transaction.(*proto.SetScriptV1)
+func (tp *transactionPerformer) performSetScriptWithProofs(transaction proto.Transaction, info *performerInfo) error {
+	tx, ok := transaction.(*proto.SetScriptWithProofs)
 	if !ok {
-		return errors.New("failed to convert interface to SetScriptV1 transaction")
+		return errors.New("failed to convert interface to SetScriptWithProofs transaction")
 	}
 	senderAddr, err := proto.NewAddressFromPublicKey(tp.settings.AddressSchemeCharacter, tx.SenderPK)
 	if err != nil {
@@ -303,10 +303,10 @@ func (tp *transactionPerformer) performSetScriptV1(transaction proto.Transaction
 	return nil
 }
 
-func (tp *transactionPerformer) performSetAssetScriptV1(transaction proto.Transaction, info *performerInfo) error {
-	tx, ok := transaction.(*proto.SetAssetScriptV1)
+func (tp *transactionPerformer) performSetAssetScriptWithProofs(transaction proto.Transaction, info *performerInfo) error {
+	tx, ok := transaction.(*proto.SetAssetScriptWithProofs)
 	if !ok {
-		return errors.New("failed to convert interface to SetAssetScriptV1 transaction")
+		return errors.New("failed to convert interface to SetAssetScriptWithProofs transaction")
 	}
 	if err := tp.stor.scriptsStorage.setAssetScript(tx.AssetID, tx.Script, info.blockID); err != nil {
 		return errors.Wrap(err, "failed to set asset script")

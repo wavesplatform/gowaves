@@ -69,7 +69,7 @@ func TestHandleReceive(t *testing.T) {
 		t.Logf("Error: %v\n", err)
 		wg.Done()
 	}()
-	remote.FromCh <- byte_helpers.TransferV1.MessageBytes
+	remote.FromCh <- byte_helpers.TransferWithSig.MessageBytes
 	assert.IsType(t, &proto.TransactionMessage{}, (<-parent.MessageCh).Message)
 	cancel()
 	wg.Wait()

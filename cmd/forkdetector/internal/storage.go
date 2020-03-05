@@ -148,9 +148,10 @@ func (k *heightBlockKey) fromBytes(data []byte) {
 type storage struct {
 	db      *leveldb.DB
 	genesis crypto.Signature
+	scheme  proto.Scheme
 }
 
-func NewStorage(path string, genesis crypto.Signature) (*storage, error) {
+func NewStorage(path string, genesis crypto.Signature, scheme proto.Scheme) (*storage, error) {
 	wrapError := func(err error) error {
 		return errors.Wrap(err, "failed to open storage")
 	}
@@ -158,7 +159,7 @@ func NewStorage(path string, genesis crypto.Signature) (*storage, error) {
 	if err != nil {
 		return nil, wrapError(err)
 	}
-	s := &storage{db: db, genesis: genesis}
+	s := &storage{db: db, genesis: genesis, scheme: scheme}
 
 	sn, err := s.db.GetSnapshot()
 	if err != nil {
@@ -406,7 +407,7 @@ func (s *storage) block(id crypto.Signature) (*proto.Block, bool, error) {
 		return nil, false, nil
 	}
 	var b proto.Block
-	err = b.UnmarshalBinary(v)
+	err = b.UnmarshalBinary(v, s.scheme)
 	if err != nil {
 		return nil, false, errors.Wrap(err, "failed to get block")
 	}

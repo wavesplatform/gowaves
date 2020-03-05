@@ -264,7 +264,7 @@ func (h *ConnHandler) OnReceive(conn *Conn, buf []byte) {
 		}
 		// Applying block
 		var b proto.Block
-		err = b.UnmarshalBinary(m.BlockBytes)
+		err = b.UnmarshalBinary(m.BlockBytes, h.scheme)
 		if err != nil {
 			zap.S().Warnf("[%s] Failed to unmarshal block: %v", conn.RawConn.RemoteAddr(), err)
 			return

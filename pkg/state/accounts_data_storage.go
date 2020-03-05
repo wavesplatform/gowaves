@@ -30,16 +30,16 @@ type accountsDataStorage struct {
 	dbBatch keyvalue.Batch
 	hs      *historyStorage
 
-	newestAddrToNum map[proto.Address]uint64
-	addrNum         uint64
+	addrToNumMem map[proto.Address]uint64
+	addrNum      uint64
 }
 
 func newAccountsDataStorage(db keyvalue.IterableKeyVal, dbBatch keyvalue.Batch, hs *historyStorage) (*accountsDataStorage, error) {
 	return &accountsDataStorage{
-		db:              db,
-		dbBatch:         dbBatch,
-		hs:              hs,
-		newestAddrToNum: make(map[proto.Address]uint64),
+		db:           db,
+		dbBatch:      dbBatch,
+		hs:           hs,
+		addrToNumMem: make(map[proto.Address]uint64),
 	}, nil
 }
 
@@ -61,10 +61,14 @@ func (s *accountsDataStorage) setLastAddrNum(lastAddrNum uint64) error {
 	return nil
 }
 
-func (s *accountsDataStorage) addrToNum(addr proto.Address) (uint64, error) {
-	if addrNum, ok := s.newestAddrToNum[addr]; ok {
+func (s *accountsDataStorage) newestAddrToNum(addr proto.Address) (uint64, error) {
+	if addrNum, ok := s.addrToNumMem[addr]; ok {
 		return addrNum, nil
 	}
+	return s.addrToNum(addr)
+}
+
+func (s *accountsDataStorage) addrToNum(addr proto.Address) (uint64, error) {
 	addrToNumKey := accountStorAddrToNumKey{addr}
 	addrNumBytes, err := s.db.Get(addrToNumKey.bytes())
 	if err != nil {
@@ -75,7 +79,7 @@ func (s *accountsDataStorage) addrToNum(addr proto.Address) (uint64, error) {
 }
 
 func (s *accountsDataStorage) appendAddr(addr proto.Address) (uint64, error) {
-	if addrNum, err := s.addrToNum(addr); err == nil {
+	if addrNum, err := s.newestAddrToNum(addr); err == nil {
 		// Already there.
 		return addrNum, nil
 	}
@@ -85,7 +89,7 @@ func (s *accountsDataStorage) appendAddr(addr proto.Address) (uint64, error) {
 	}
 	newAddrNum := lastAddrNum + uint64(s.addrNum)
 	s.addrNum++
-	s.newestAddrToNum[addr] = newAddrNum
+	s.addrToNumMem[addr] = newAddrNum
 	addrToNum := accountStorAddrToNumKey{addr}
 	newAddrNumBytes := make([]byte, 8)
 	binary.LittleEndian.PutUint64(newAddrNumBytes, newAddrNum)
@@ -115,7 +119,7 @@ func (s *accountsDataStorage) appendEntry(addr proto.Address, entry proto.DataEn
 }
 
 func (s *accountsDataStorage) newestEntryBytes(addr proto.Address, entryKey string, filter bool) ([]byte, error) {
-	addrNum, err := s.addrToNum(addr)
+	addrNum, err := s.newestAddrToNum(addr)
 	if err != nil {
 		return nil, err
 	}
@@ -333,6 +337,6 @@ func (s *accountsDataStorage) flush() error {
 }
 
 func (s *accountsDataStorage) reset() {
-	s.newestAddrToNum = make(map[proto.Address]uint64)
+	s.addrToNumMem = make(map[proto.Address]uint64)
 	s.addrNum = 0
 }
