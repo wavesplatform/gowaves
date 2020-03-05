@@ -794,7 +794,7 @@ func initLeaseCancelWithProofs() {
 }
 
 func initDataWithProofs() {
-	t := proto.NewUnsigneData(
+	t := proto.NewUnsignedData(
 		1,
 		pk,
 		10000,

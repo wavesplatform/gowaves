@@ -178,6 +178,9 @@ func NewUnsignedIssueWithProofs(v, chainID byte, senderPK crypto.PublicKey, name
 }
 
 func (tx IssueWithProofs) Valid() (bool, error) {
+	if tx.Version < 2 || tx.Version > MaxIssueTransactionVersion {
+		return false, errors.Errorf("unexpected version %d for IssueWithProofs", tx.Version)
+	}
 	ok, err := tx.Issue.Valid()
 	if !ok {
 		return false, err
@@ -490,6 +493,9 @@ func NewUnsignedTransferWithProofs(v byte, senderPK crypto.PublicKey, amountAsse
 }
 
 func (tx TransferWithProofs) Valid() (bool, error) {
+	if tx.Version < 2 || tx.Version > MaxTransferTransactionVersion {
+		return false, errors.Errorf("unexpected version %d for TransferWithProofs", tx.Version)
+	}
 	ok, err := tx.Transfer.Valid()
 	if !ok {
 		return false, err
@@ -796,6 +802,9 @@ func NewUnsignedReissueWithProofs(v, chainID byte, senderPK crypto.PublicKey, as
 }
 
 func (tx ReissueWithProofs) Valid() (bool, error) {
+	if tx.Version < 2 || tx.Version > MaxReissueTransactionVersion {
+		return false, errors.Errorf("unexpected version %d for ReissueWithProofs", tx.Version)
+	}
 	ok, err := tx.Reissue.Valid()
 	if !ok {
 		return false, err
@@ -1035,6 +1044,9 @@ func NewUnsignedBurnWithProofs(v, chainID byte, senderPK crypto.PublicKey, asset
 }
 
 func (tx BurnWithProofs) Valid() (bool, error) {
+	if tx.Version < 2 || tx.Version > MaxBurnTransactionVersion {
+		return false, errors.Errorf("unexpected version %d for BurnWithProofs", tx.Version)
+	}
 	ok, err := tx.Burn.Valid()
 	if !ok {
 		return false, err
@@ -1345,6 +1357,9 @@ func NewUnsignedExchangeWithProofs(v byte, buy, sell Order, price, amount, buyMa
 }
 
 func (tx ExchangeWithProofs) Valid() (bool, error) {
+	if tx.Version < 2 || tx.Version > MaxExchangeTransactionVersion {
+		return false, errors.Errorf("unexpected transaction version %d for ExchangeWithProofs transaction", tx.Version)
+	}
 	ok, err := tx.BuyOrder.Valid()
 	if !ok {
 		return false, errors.Wrap(err, "invalid buy order")
@@ -1564,9 +1579,6 @@ func (tx *ExchangeWithProofs) bodyUnmarshalBinary(data []byte) (int, error) {
 	}
 	n++
 	tx.Version = data[n]
-	if tx.Version < 2 {
-		return 0, errors.Errorf("unexpected transaction version %d for ExchangeWithProofs transaction", tx.Version)
-	}
 	n++
 	l, o, err := tx.unmarshalOrder(data[n:])
 	if err != nil {
@@ -1738,6 +1750,18 @@ type LeaseWithProofs struct {
 	Lease
 }
 
+func (tx LeaseWithProofs) Valid() (bool, error) {
+	if tx.Version < 2 || tx.Version > MaxLeaseTransactionVersion {
+		return false, errors.Errorf("unexpected transaction version %d for LeaseWithProofs transaction", tx.Version)
+	}
+	ok, err := tx.Lease.Valid()
+	if !ok {
+		return false, err
+	}
+	//TODO: add scheme validation
+	return true, nil
+}
+
 func (tx LeaseWithProofs) BinarySize() int {
 	return 4 + tx.Proofs.BinarySize() + tx.Lease.BinarySize()
 }
@@ -1872,9 +1896,6 @@ func (tx *LeaseWithProofs) bodyUnmarshalBinary(data []byte) error {
 		return errors.Errorf("unexpected transaction type %d for LeaseWithProofs transaction", tx.Type)
 	}
 	tx.Version = data[1]
-	if tx.Version < 2 {
-		return errors.Errorf("unexpected version %d for LeaseWithProofs transaction, expected 2", tx.Version)
-	}
 	var l Lease
 	err := l.UnmarshalBinary(data[3:])
 	if err != nil {
@@ -2080,6 +2101,9 @@ func NewUnsignedLeaseCancelWithProofs(v, chainID byte, senderPK crypto.PublicKey
 }
 
 func (tx LeaseCancelWithProofs) Valid() (bool, error) {
+	if tx.Version < 2 || tx.Version > MaxLeaseCancelTransactionVersion {
+		return false, errors.Errorf("unexpected version %d for LeaseCancelWithProofs", tx.Version)
+	}
 	ok, err := tx.LeaseCancel.Valid()
 	if !ok {
 		return false, err
@@ -2111,9 +2135,6 @@ func (tx *LeaseCancelWithProofs) bodyUnmarshalBinary(data []byte) error {
 
 	}
 	tx.Version = data[1]
-	if tx.Version < 2 {
-		return errors.Errorf("unexpected version %d for LeaseCancelWithProofs", tx.Version)
-	}
 	tx.ChainID = data[2]
 	var lc LeaseCancel
 	err := lc.UnmarshalBinary(data[3:])
@@ -2207,6 +2228,18 @@ type CreateAliasWithProofs struct {
 	ID      *crypto.Digest  `json:"id,omitempty"`
 	Proofs  *ProofsV1       `json:"proofs,omitempty"`
 	CreateAlias
+}
+
+func (tx CreateAliasWithProofs) Valid() (bool, error) {
+	if tx.Version < 2 || tx.Version > MaxCreateAliasTransactionVersion {
+		return false, errors.Errorf("unexpected version %d for CreateAliasWithProofs", tx.Version)
+	}
+	ok, err := tx.CreateAlias.Valid()
+	if !ok {
+		return false, err
+	}
+	//TODO: add script and scheme validations
+	return true, nil
 }
 
 func (tx CreateAliasWithProofs) BinarySize() int {
@@ -2345,9 +2378,6 @@ func (tx *CreateAliasWithProofs) bodyUnmarshalBinary(data []byte) error {
 		return errors.Errorf("unexpected transaction type %d for CreateAliasWithProofs transaction", tx.Type)
 	}
 	tx.Version = data[1]
-	if tx.Version < 2 {
-		return errors.Errorf("unexpected version %d for CreateAliasWithProofs transaction", tx.Version)
-	}
 	var ca CreateAlias
 	err := ca.UnmarshalBinary(data[2:])
 	if err != nil {
@@ -2584,6 +2614,9 @@ func NewUnsignedMassTransferWithProofs(v byte, senderPK crypto.PublicKey, asset 
 }
 
 func (tx MassTransferWithProofs) Valid() (bool, error) {
+	if tx.Version < 1 || tx.Version > MaxMassTransferTransactionVersion {
+		return false, errors.Errorf("unexpected version %d for MassTransferWithProofs", tx.Version)
+	}
 	if len(tx.Transfers) > maxTransfers {
 		return false, errors.Errorf("number of transfers is greater than %d", maxTransfers)
 	}
@@ -2674,9 +2707,6 @@ func (tx *MassTransferWithProofs) bodyUnmarshalBinary(data []byte) error {
 	}
 	if tx.Type != MassTransferTransaction {
 		return errors.Errorf("unexpected transaction type %d for MassTransferWithProofs transaction", tx.Type)
-	}
-	if tx.Version < 1 {
-		return errors.Errorf("unexpected version %d for MassTransferWithProofs transaction", tx.Version)
 	}
 	data = data[2:]
 	copy(tx.SenderPK[:], data[:crypto.PublicKeySize])
@@ -2963,11 +2993,14 @@ func (tx *DataWithProofs) Clone() *DataWithProofs {
 	return out
 }
 
-func NewUnsigneData(v byte, senderPK crypto.PublicKey, fee, timestamp uint64) *DataWithProofs {
+func NewUnsignedData(v byte, senderPK crypto.PublicKey, fee, timestamp uint64) *DataWithProofs {
 	return &DataWithProofs{Type: DataTransaction, Version: v, SenderPK: senderPK, Fee: fee, Timestamp: timestamp}
 }
 
 func (tx DataWithProofs) Valid() (bool, error) {
+	if tx.Version < 1 || tx.Version > MaxDataTransactionVersion {
+		return false, errors.Errorf("unexpected version %d for DataWithProofs", tx.Version)
+	}
 	if len(tx.Entries) > maxEntries {
 		return false, errors.Errorf("number of DataWithProofs entries is bigger than %d", maxEntries)
 	}
@@ -3050,9 +3083,6 @@ func (tx *DataWithProofs) bodyUnmarshalBinary(data []byte) error {
 	}
 	if tx.Type != DataTransaction {
 		return errors.Errorf("unexpected transaction type %d for DataWithProofs transaction", tx.Type)
-	}
-	if tx.Version < 1 {
-		return errors.Errorf("unexpected version %d for DataWithProofs transaction", tx.Version)
 	}
 	data = data[2:]
 	copy(tx.SenderPK[:], data[:crypto.PublicKeySize])
@@ -3329,6 +3359,9 @@ func NewUnsignedSetScriptWithProofs(v byte, chain byte, senderPK crypto.PublicKe
 }
 
 func (tx SetScriptWithProofs) Valid() (bool, error) {
+	if tx.Version < 1 || tx.Version > MaxSetScriptTransactionVersion {
+		return false, errors.Errorf("unexpected version %d for SetScriptWithProofs", tx.Version)
+	}
 	if tx.Fee == 0 {
 		return false, errors.New("fee should be positive")
 	}
@@ -3379,9 +3412,6 @@ func (tx *SetScriptWithProofs) bodyUnmarshalBinary(data []byte) error {
 	tx.ChainID = data[2]
 	if tx.Type != SetScriptTransaction {
 		return errors.Errorf("unexpected transaction type %d for SetScriptWithProofs transaction", tx.Type)
-	}
-	if tx.Version < 1 {
-		return errors.Errorf("unexpected version %d for SetScriptWithProofs transaction", tx.Version)
 	}
 	data = data[3:]
 	copy(tx.SenderPK[:], data[:crypto.PublicKeySize])
@@ -3619,6 +3649,9 @@ func NewUnsignedSponsorshipWithProofs(v byte, senderPK crypto.PublicKey, assetID
 }
 
 func (tx SponsorshipWithProofs) Valid() (bool, error) {
+	if tx.Version < 1 || tx.Version > MaxSponsorshipTransactionVersion {
+		return false, errors.Errorf("unexpected version %d for SponsorshipWithProofs", tx.Version)
+	}
 	if tx.Fee == 0 {
 		return false, errors.New("fee should be positive")
 	}
@@ -3658,9 +3691,6 @@ func (tx *SponsorshipWithProofs) bodyUnmarshalBinary(data []byte) error {
 	tx.Version = data[1]
 	if tx.Type != SponsorshipTransaction {
 		return errors.Errorf("unexpected transaction type %d for SponsorshipWithProofs transaction", tx.Type)
-	}
-	if tx.Version < 1 {
-		return errors.Errorf("unexpected version %d for SponsorshipWithProofs transaction", tx.Version)
 	}
 	data = data[2:]
 	copy(tx.SenderPK[:], data[:crypto.PublicKeySize])
@@ -3897,6 +3927,9 @@ func NewUnsignedSetAssetScriptWithProofs(v, chain byte, senderPK crypto.PublicKe
 }
 
 func (tx SetAssetScriptWithProofs) Valid() (bool, error) {
+	if tx.Version < 1 || tx.Version > MaxSetAssetScriptTransactionVersion {
+		return false, errors.Errorf("unexpected version %d for SetAssetScriptWithProofs", tx.Version)
+	}
 	if tx.Fee == 0 {
 		return false, errors.New("fee should be positive")
 	}
@@ -3950,9 +3983,6 @@ func (tx *SetAssetScriptWithProofs) bodyUnmarshalBinary(data []byte) error {
 	tx.ChainID = data[2]
 	if tx.Type != SetAssetScriptTransaction {
 		return errors.Errorf("unexpected transaction type %d for SetAssetScriptWithProofs transaction", tx.Type)
-	}
-	if tx.Version < 1 {
-		return errors.Errorf("unexpected version %d for SetAssetScriptWithProofs transaction", tx.Version)
 	}
 	data = data[3:]
 	copy(tx.SenderPK[:], data[:crypto.PublicKeySize])
@@ -4206,6 +4236,9 @@ func NewUnsignedInvokeScriptWithProofs(v, chain byte, senderPK crypto.PublicKey,
 }
 
 func (tx InvokeScriptWithProofs) Valid() (bool, error) {
+	if tx.Version < 1 || tx.Version > MaxInvokeScriptTransactionVersion {
+		return false, errors.Errorf("unexpected version %d for InvokeScriptWithProofs", tx.Version)
+	}
 	if tx.Fee == 0 {
 		return false, errors.New("fee should be positive")
 	}
@@ -4335,9 +4368,6 @@ func (tx *InvokeScriptWithProofs) bodyUnmarshalBinary(data []byte) error {
 	tx.ChainID = data[2]
 	if tx.Type != InvokeScriptTransaction {
 		return errors.Errorf("unexpected transaction type %d for InvokeScriptWithProofs transaction", tx.Type)
-	}
-	if tx.Version < 1 {
-		return errors.Errorf("unexpected version %d for InvokeScriptWithProofs transaction", tx.Version)
 	}
 	data = data[3:]
 	copy(tx.SenderPK[:], data[:crypto.PublicKeySize])
@@ -4538,6 +4568,199 @@ func (tx *InvokeScriptWithProofs) ToProtobuf(scheme Scheme) (*g.Transaction, err
 }
 
 func (tx *InvokeScriptWithProofs) ToProtobufSigned(scheme Scheme) (*g.SignedTransaction, error) {
+	unsigned, err := tx.ToProtobuf(scheme)
+	if err != nil {
+		return nil, err
+	}
+	if tx.Proofs == nil {
+		return nil, errors.New("no proofs provided")
+	}
+	return &g.SignedTransaction{
+		Transaction: unsigned,
+		Proofs:      tx.Proofs.Bytes(),
+	}, nil
+}
+
+type UpdateAssetInfoWithProofs struct {
+	Type        TransactionType  `json:"type"`
+	Version     byte             `json:"version,omitempty"`
+	ID          *crypto.Digest   `json:"id,omitempty"`
+	Proofs      *ProofsV1        `json:"proofs,omitempty"`
+	ChainID     SchemeJson       `json:"chainId"`
+	SenderPK    crypto.PublicKey `json:"senderPublicKey"`
+	AssetID     crypto.Digest    `json:"assetId"`
+	Name        string           `json:"name"`
+	Description string           `json:"description"`
+	FeeAsset    OptionalAsset    `json:"feeAssetId"`
+	Fee         uint64           `json:"fee"`
+	Timestamp   uint64           `json:"timestamp,omitempty"`
+}
+
+func (tx UpdateAssetInfoWithProofs) GetTypeInfo() TransactionTypeInfo {
+	return TransactionTypeInfo{tx.Type, Proof}
+}
+
+func (tx UpdateAssetInfoWithProofs) GetVersion() byte {
+	return tx.Version
+}
+
+func (tx UpdateAssetInfoWithProofs) GetID(scheme Scheme) ([]byte, error) {
+	if tx.ID == nil {
+		if err := tx.GenerateID(scheme); err != nil {
+			return nil, err
+		}
+	}
+	return tx.ID.Bytes(), nil
+}
+
+func (tx UpdateAssetInfoWithProofs) GetSenderPK() crypto.PublicKey {
+	return tx.SenderPK
+}
+
+func (tx UpdateAssetInfoWithProofs) GetFee() uint64 {
+	return tx.Fee
+}
+
+func (tx UpdateAssetInfoWithProofs) GetTimestamp() uint64 {
+	return tx.Timestamp
+}
+
+func (tx UpdateAssetInfoWithProofs) Valid() (bool, error) {
+	if tx.Version < 1 || tx.Version > MaxUpdateAssetInfoTransactionVersion {
+		return false, errors.Errorf("unexpected version %d for UpdateAssetInfoWithProofs", tx.Version)
+	}
+	if tx.Fee == 0 {
+		return false, errors.New("fee should be positive")
+	}
+	if !validJVMLong(tx.Fee) {
+		return false, errors.New("fee is too big")
+	}
+	if l := len(tx.Name); l < minAssetNameLen || l > maxAssetNameLen {
+		return false, errors.New("incorrect number of bytes in the asset's name")
+	}
+	if l := len(tx.Description); l > maxDescriptionLen {
+		return false, errors.New("incorrect number of bytes in the asset's description")
+	}
+	return true, nil
+}
+
+func (tx *UpdateAssetInfoWithProofs) GenerateID(scheme Scheme) error {
+	if tx.ID == nil {
+		body, err := MarshalTxBody(scheme, tx)
+		if err != nil {
+			return err
+		}
+		id := crypto.MustFastHash(body)
+		tx.ID = &id
+	}
+	return nil
+}
+
+func (tx *UpdateAssetInfoWithProofs) Sign(scheme Scheme, secretKey crypto.SecretKey) error {
+	b, err := MarshalTxBody(scheme, tx)
+	if err != nil {
+		return errors.Wrap(err, "failed to sign UpdateAssetInfoWithProofs transaction")
+	}
+	if tx.Proofs == nil {
+		tx.Proofs = &ProofsV1{proofsVersion, make([]B58Bytes, 0)}
+	}
+	err = tx.Proofs.Sign(0, secretKey, b)
+	if err != nil {
+		return errors.Wrap(err, "failed to sign UpdateAssetInfoWithProofs transaction")
+	}
+	d, err := crypto.FastHash(b)
+	tx.ID = &d
+	if err != nil {
+		return errors.Wrap(err, "failed to sign UpdateAssetInfoWithProofs transaction")
+	}
+	return nil
+}
+
+func (tx *UpdateAssetInfoWithProofs) Verify(scheme Scheme, publicKey crypto.PublicKey) (bool, error) {
+	b, err := MarshalTxBody(scheme, tx)
+	if err != nil {
+		return false, errors.Wrap(err, "failed to verify signature of UpdateAssetInfoWithProofs transaction")
+	}
+	return tx.Proofs.Verify(0, publicKey, b)
+}
+
+func NewUnsignedUpdateAssetInfoWithProofs(v, chainID byte, assetID crypto.Digest, senderPK crypto.PublicKey, name, description string, timestamp uint64, feeAsset OptionalAsset, fee uint64) *UpdateAssetInfoWithProofs {
+	return &UpdateAssetInfoWithProofs{
+		Type:        UpdateAssetInfoTransaction,
+		Version:     v,
+		ChainID:     SchemeJson(chainID),
+		SenderPK:    senderPK,
+		AssetID:     assetID,
+		Name:        name,
+		Description: description,
+		Timestamp:   timestamp,
+		FeeAsset:    feeAsset,
+		Fee:         fee,
+	}
+}
+
+func (tx *UpdateAssetInfoWithProofs) MarshalBinary() ([]byte, error) {
+	return nil, errors.New("binary format is not defined for UpdateAssetInfoTransaction")
+}
+
+func (tx *UpdateAssetInfoWithProofs) UnmarshalBinary(data []byte, scheme Scheme) error {
+	return errors.New("binary format is not defined for UpdateAssetInfoTransaction")
+}
+
+func (tx *UpdateAssetInfoWithProofs) BodyMarshalBinary() ([]byte, error) {
+	return nil, errors.New("binary format is not defined for UpdateAssetInfoTransaction")
+}
+
+func (tx *UpdateAssetInfoWithProofs) BinarySize() int {
+	return 0
+}
+
+func (tx *UpdateAssetInfoWithProofs) MarshalToProtobuf(scheme Scheme) ([]byte, error) {
+	return MarshalTxDeterministic(tx, scheme)
+}
+
+func (tx *UpdateAssetInfoWithProofs) UnmarshalFromProtobuf(data []byte) error {
+	t, err := TxFromProtobuf(data)
+	if err != nil {
+		return err
+	}
+	updateAssetInfoTx, ok := t.(*UpdateAssetInfoWithProofs)
+	if !ok {
+		return errors.New("failed to convert result to UpdateAssetInfoWithProofs")
+	}
+	*tx = *updateAssetInfoTx
+	return nil
+}
+
+func (tx *UpdateAssetInfoWithProofs) MarshalSignedToProtobuf(scheme Scheme) ([]byte, error) {
+	return MarshalSignedTxDeterministic(tx, scheme)
+}
+
+func (tx *UpdateAssetInfoWithProofs) UnmarshalSignedFromProtobuf(data []byte) error {
+	t, err := SignedTxFromProtobuf(data)
+	if err != nil {
+		return err
+	}
+	updateAssetInfoTx, ok := t.(*UpdateAssetInfoWithProofs)
+	if !ok {
+		return errors.New("failed to convert result to UpdateAssetInfoWithProofs")
+	}
+	*tx = *updateAssetInfoTx
+	return nil
+}
+
+func (tx *UpdateAssetInfoWithProofs) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
+	res := TransactionToProtobufCommon(scheme, tx)
+	txData := &g.Transaction_UpdateAssetInfo{
+		UpdateAssetInfo: &g.UpdateAssetInfoTransactionData{AssetId: tx.AssetID.Bytes(), Name: tx.Name, Description: tx.Description},
+	}
+	fee := &g.Amount{AssetId: tx.FeeAsset.ToID(), Amount: int64(tx.Fee)}
+	res.Fee = fee
+	res.Data = txData
+	return res, nil
+}
+
+func (tx *UpdateAssetInfoWithProofs) ToProtobufSigned(scheme Scheme) (*g.SignedTransaction, error) {
 	unsigned, err := tx.ToProtobuf(scheme)
 	if err != nil {
 		return nil, err
