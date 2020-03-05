@@ -96,15 +96,6 @@ func main() {
 		}
 	}
 
-	wal := wallet.NewEmbeddedWallet(wallet.NewLoader(*walletPath), wallet.NewWallet(), cfg.AddressSchemeCharacter)
-	if *walletPassword != "" {
-		err := wal.Load([]byte(*walletPassword))
-		if err != nil {
-			zap.S().Error(err)
-			return
-		}
-	}
-
 	limitConnections, err := strconv.ParseUint(*limitConnectionsS, 10, 64)
 	if err != nil {
 		zap.S().Error(err)

@@ -108,15 +108,6 @@ func main() {
 		}
 	}
 
-	wal := wallet.NewEmbeddedWallet(wallet.NewLoader(*walletPath), wallet.NewWallet(), custom.AddressSchemeCharacter)
-	if *walletPassword != "" {
-		err := wal.Load([]byte(*walletPassword))
-		if err != nil {
-			zap.S().Error(err)
-			return
-		}
-	}
-
 	limitConnections, err := strconv.ParseUint(*limitConnectionsS, 10, 64)
 	if err != nil {
 		zap.S().Error(err)
@@ -174,12 +165,6 @@ func main() {
 	}
 
 	features, err = miner.ValidateFeaturesWithLock(state, features)
-	if err != nil {
-		zap.S().Error(err)
-		return
-	}
-
-	minerDelaySecond, err := util.ParseDuration(*minerDelayParam)
 	if err != nil {
 		zap.S().Error(err)
 		return
