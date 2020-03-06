@@ -113,3 +113,75 @@ func TestBurnAsset(t *testing.T) {
 		t.Errorf("Assets after burn differ.")
 	}
 }
+
+func TestUpdateAssetInfo(t *testing.T) {
+	to, path, err := createAssets()
+	assert.NoError(t, err, "createAssets() failed")
+
+	defer func() {
+		to.stor.close(t)
+
+		err = util.CleanTemporaryDirs(path)
+		assert.NoError(t, err, "failed to clean test data dirs")
+	}()
+
+	to.stor.addBlock(t, blockID0)
+	assetID, err := crypto.NewDigestFromBytes(bytes.Repeat([]byte{0xff}, crypto.DigestSize))
+	assert.NoError(t, err, "failed to create digest from bytes")
+	asset := defaultAssetInfo(false)
+	err = to.assets.issueAsset(assetID, asset, blockID0)
+	assert.NoError(t, err, "failed to issue asset")
+	to.stor.flush(t)
+
+	to.stor.addBlock(t, blockID1)
+	ch := &assetInfoChange{newName: "newName", newDescription: "newDescription", newHeight: 1}
+	err = to.assets.updateAssetInfo(assetID, ch, blockID1, true)
+	assert.NoError(t, err, "failed to update asset info")
+
+	asset.name = ch.newName
+	asset.description = ch.newDescription
+
+	resAsset, err := to.assets.newestAssetInfo(assetID, true)
+	assert.NoError(t, err, "failed to get asset info")
+	assert.Equal(t, asset, resAsset)
+
+	to.stor.flush(t)
+
+	resAsset, err = to.assets.assetInfo(assetID, true)
+	assert.NoError(t, err, "failed to get asset info")
+	assert.Equal(t, asset, resAsset)
+}
+
+func TestNewestLastUpdateHeight(t *testing.T) {
+	to, path, err := createAssets()
+	assert.NoError(t, err, "createAssets() failed")
+
+	defer func() {
+		to.stor.close(t)
+
+		err = util.CleanTemporaryDirs(path)
+		assert.NoError(t, err, "failed to clean test data dirs")
+	}()
+
+	to.stor.addBlock(t, blockID0)
+	assetID, err := crypto.NewDigestFromBytes(bytes.Repeat([]byte{0xff}, crypto.DigestSize))
+	assert.NoError(t, err, "failed to create digest from bytes")
+	asset := defaultAssetInfo(false)
+	err = to.assets.issueAsset(assetID, asset, blockID0)
+	assert.NoError(t, err, "failed to issue asset")
+
+	lastUpdateHeight, err := to.assets.newestLastUpdateHeight(assetID, true)
+	assert.NoError(t, err, "failed to get last update height")
+	assert.Equal(t, uint64(1), lastUpdateHeight)
+
+	to.stor.flush(t)
+
+	to.stor.addBlock(t, blockID1)
+	ch := &assetInfoChange{newName: "newName", newDescription: "newDescription", newHeight: 2}
+	err = to.assets.updateAssetInfo(assetID, ch, blockID1, true)
+	assert.NoError(t, err, "failed to update asset info")
+
+	lastUpdateHeight, err = to.assets.newestLastUpdateHeight(assetID, true)
+	assert.NoError(t, err, "failed to get last update height")
+	assert.Equal(t, uint64(2), lastUpdateHeight)
+}

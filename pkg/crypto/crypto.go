@@ -169,6 +169,14 @@ func (k PublicKey) MarshalBinary() ([]byte, error) {
 	return b, nil
 }
 
+func (k PublicKey) WriteTo(buf []byte) error {
+	if len(buf) < PublicKeySize {
+		return errors.New("buffer is too small")
+	}
+	copy(buf, k[:])
+	return nil
+}
+
 func (k *PublicKey) UnmarshalBinary(data []byte) error {
 	if l := len(data); l < PublicKeySize {
 		return errors.Errorf("failed unmarshal PublicKey, required %d bytes, got %d", PublicKeySize, l)

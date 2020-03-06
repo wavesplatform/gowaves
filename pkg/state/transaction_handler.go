@@ -105,6 +105,9 @@ func buildHandles(tc *transactionChecker, tp *transactionPerformer, td *transact
 		proto.TransactionTypeInfo{Type: proto.InvokeScriptTransaction, ProofVersion: proto.Proof}: txHandleFuncs{
 			tc.checkInvokeScriptWithProofs, nil, td.createDiffInvokeScriptWithProofs, tf.minerFeeInvokeScriptWithProofs,
 		},
+		proto.TransactionTypeInfo{Type: proto.UpdateAssetInfoTransaction, ProofVersion: proto.Proof}: txHandleFuncs{
+			tc.checkUpdateAssetInfoWithProofs, tp.performUpdateAssetInfoWithProofs, td.createDiffUpdateAssetInfoWithProofs, tf.minerFeeUpdateAssetInfoWithProofs,
+		},
 	}
 }
 

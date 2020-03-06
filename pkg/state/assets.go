@@ -1,6 +1,7 @@
 package state
 
 import (
+	"encoding/binary"
 	"math/big"
 
 	"github.com/pkg/errors"
@@ -11,8 +12,7 @@ import (
 
 const (
 	// maxQuantityLen is maximum length of quantity (it's represented as big.Int) bytes in asset history records.
-	maxQuantityLen  = 16
-	assetRecordSize = maxQuantityLen + 1
+	maxQuantityLen = 16
 )
 
 type assetInfo struct {
@@ -26,24 +26,16 @@ func (ai *assetInfo) equal(ai1 *assetInfo) bool {
 
 // assetConstInfo is part of asset info which is constant.
 type assetConstInfo struct {
-	issuer      crypto.PublicKey
-	name        string
-	description string
-	decimals    int8
+	issuer   crypto.PublicKey
+	decimals int8
 }
 
 func (ai *assetConstInfo) marshalBinary() ([]byte, error) {
-	issuerBytes, err := ai.issuer.MarshalBinary()
-	if err != nil {
+	res := make([]byte, crypto.PublicKeySize+1)
+	if err := ai.issuer.WriteTo(res); err != nil {
 		return nil, err
 	}
-	nameBuf := make([]byte, 2+len(ai.name))
-	proto.PutStringWithUInt16Len(nameBuf, ai.name)
-	res := append(issuerBytes, nameBuf...)
-	descriptionBuf := make([]byte, 2+len(ai.description))
-	proto.PutStringWithUInt16Len(descriptionBuf, ai.description)
-	res = append(res, descriptionBuf...)
-	res = append(res, byte(ai.decimals))
+	res[crypto.PublicKeySize] = byte(ai.decimals)
 	return res, nil
 }
 
@@ -53,24 +45,17 @@ func (ai *assetConstInfo) unmarshalBinary(data []byte) error {
 		return err
 	}
 	data = data[crypto.PublicKeySize:]
-	ai.name, err = proto.StringWithUInt16Len(data)
-	if err != nil {
-		return err
-	}
-	data = data[2+len(ai.name):]
-	ai.description, err = proto.StringWithUInt16Len(data)
-	if err != nil {
-		return err
-	}
-	data = data[2+len(ai.description):]
 	ai.decimals = int8(data[0])
 	return nil
 }
 
 // assetChangeableInfo is part of asset info which can change.
 type assetChangeableInfo struct {
-	quantity   big.Int
-	reissuable bool
+	quantity                 big.Int
+	name                     string
+	description              string
+	lastNameDescChangeHeight uint64
+	reissuable               bool
 }
 
 func (r *assetChangeableInfo) equal(r1 *assetChangeableInfo) bool {
@@ -78,6 +63,15 @@ func (r *assetChangeableInfo) equal(r1 *assetChangeableInfo) bool {
 		return false
 	}
 	if r.reissuable != r1.reissuable {
+		return false
+	}
+	if r.name != r1.name {
+		return false
+	}
+	if r.description != r1.description {
+		return false
+	}
+	if r.lastNameDescChangeHeight != r1.lastNameDescChangeHeight {
 		return false
 	}
 	return true
@@ -88,24 +82,41 @@ type assetHistoryRecord struct {
 }
 
 func (r *assetHistoryRecord) marshalBinary() ([]byte, error) {
+	res := make([]byte, maxQuantityLen+4+len(r.name)+len(r.description)+8+1)
 	quantityBytes := r.quantity.Bytes()
 	l := len(quantityBytes)
 	if l > maxQuantityLen {
 		return nil, errors.Errorf("quantity length %d bytes exceeds maxQuantityLen of %d", l, maxQuantityLen)
 	}
-	res := make([]byte, assetRecordSize)
 	copy(res[maxQuantityLen-l:maxQuantityLen], quantityBytes)
-	proto.PutBool(res[maxQuantityLen:maxQuantityLen+1], r.reissuable)
+	pos := maxQuantityLen
+	proto.PutStringWithUInt16Len(res[pos:], r.name)
+	pos += len(r.name) + 2
+	proto.PutStringWithUInt16Len(res[pos:], r.description)
+	pos += len(r.description) + 2
+	binary.BigEndian.PutUint64(res[pos:], r.lastNameDescChangeHeight)
+	pos += 8
+	proto.PutBool(res[pos:], r.reissuable)
 	return res, nil
 }
 
 func (r *assetHistoryRecord) unmarshalBinary(data []byte) error {
-	if len(data) != assetRecordSize {
-		return errInvalidDataSize
-	}
 	r.quantity.SetBytes(data[:maxQuantityLen])
+	data = data[maxQuantityLen:]
 	var err error
-	r.reissuable, err = proto.Bool(data[maxQuantityLen : maxQuantityLen+1])
+	r.name, err = proto.StringWithUInt16Len(data)
+	if err != nil {
+		return err
+	}
+	data = data[2+len(r.name):]
+	r.description, err = proto.StringWithUInt16Len(data)
+	if err != nil {
+		return err
+	}
+	data = data[2+len(r.description):]
+	r.lastNameDescChangeHeight = binary.BigEndian.Uint64(data[:8])
+	data = data[8:]
+	r.reissuable, err = proto.Bool(data)
 	if err != nil {
 		return err
 	}
@@ -163,7 +174,8 @@ func (a *assets) reissueAsset(assetID crypto.Digest, ch *assetReissueChange, blo
 	}
 	quantityDiff := big.NewInt(ch.diff)
 	info.quantity.Add(&info.quantity, quantityDiff)
-	record := &assetHistoryRecord{assetChangeableInfo: assetChangeableInfo{info.quantity, ch.reissuable}}
+	info.reissuable = ch.reissuable
+	record := &assetHistoryRecord{assetChangeableInfo: *info}
 	return a.addNewRecord(assetID, record, blockID)
 }
 
@@ -181,8 +193,34 @@ func (a *assets) burnAsset(assetID crypto.Digest, ch *assetBurnChange, blockID c
 		return errors.New("trying to burn more assets than exist at all")
 	}
 	info.quantity.Sub(&info.quantity, quantityDiff)
-	record := &assetHistoryRecord{assetChangeableInfo: assetChangeableInfo{info.quantity, info.reissuable}}
+	record := &assetHistoryRecord{assetChangeableInfo: *info}
 	return a.addNewRecord(assetID, record, blockID)
+}
+
+type assetInfoChange struct {
+	newName        string
+	newDescription string
+	newHeight      uint64
+}
+
+func (a *assets) updateAssetInfo(assetID crypto.Digest, ch *assetInfoChange, blockID crypto.Signature, filter bool) error {
+	info, err := a.newestChangeableInfo(assetID, filter)
+	if err != nil {
+		return errors.Errorf("failed to get asset info: %v\n", err)
+	}
+	info.name = ch.newName
+	info.description = ch.newDescription
+	info.lastNameDescChangeHeight = ch.newHeight
+	record := &assetHistoryRecord{assetChangeableInfo: *info}
+	return a.addNewRecord(assetID, record, blockID)
+}
+
+func (a *assets) newestLastUpdateHeight(assetID crypto.Digest, filter bool) (uint64, error) {
+	assetInfo, err := a.newestAssetInfo(assetID, filter)
+	if err != nil {
+		return 0, err
+	}
+	return assetInfo.lastNameDescChangeHeight, nil
 }
 
 func (a *assets) constInfo(assetID crypto.Digest) (*assetConstInfo, error) {
