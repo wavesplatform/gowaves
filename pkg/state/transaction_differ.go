@@ -3,6 +3,7 @@ package state
 import (
 	"github.com/ericlagergren/decimal"
 	"github.com/ericlagergren/decimal/math"
+	"github.com/mr-tron/base58"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -661,6 +662,9 @@ func convertPrice(price int64, amountDecimals, priceDecimals int) (uint64, error
 	if !ok {
 		return 0, errors.New("int64 overflow")
 	}
+	if r <= 0 {
+		return 0, errors.New("price should be positive")
+	}
 	return uint64(r), nil
 }
 
@@ -686,8 +690,8 @@ func calculateAmount(matchAmount, matchPrice uint64, amountDecimal, priceDecimal
 	if !ok {
 		return 0, errors.New("int64 overflow")
 	}
-	if r <= 0 {
-		return 0, errors.New("result should be positive")
+	if r < 0 {
+		return 0, errors.New("result should not be negative")
 	}
 	return r, nil
 }
@@ -725,7 +729,8 @@ func (td *transactionDiffer) createDiffExchange(transaction proto.Transaction, i
 	// Perform exchange.
 	priceAssetDiff, err := calculateAmount(tx.GetAmount(), tx.GetPrice(), amountDecimals, priceDecimals)
 	if err != nil {
-		return txBalanceChanges{}, err
+		id, _ := transaction.GetID(td.settings.AddressSchemeCharacter)
+		return txBalanceChanges{}, errors.Wrapf(err, "invalid exchange transaction ('%s') amount", base58.Encode(id))
 	}
 	amountDiff := int64(tx.GetAmount())
 
