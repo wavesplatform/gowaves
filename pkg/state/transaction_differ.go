@@ -1,8 +1,6 @@
 package state
 
 import (
-	"fmt"
-
 	"github.com/ericlagergren/decimal"
 	"github.com/ericlagergren/decimal/math"
 	"github.com/pkg/errors"
@@ -676,7 +674,6 @@ func orderPrice(exchangeVersion byte, order proto.Order, amountDecimals, priceDe
 
 // amount = matchAmount * matchPrice * 10^(priceDecimals - amountDecimals - 8)
 func calculateAmount(matchAmount, matchPrice uint64, amountDecimal, priceDecimals int) (int64, error) {
-	fmt.Println("AD:", amountDecimal, "PD:", priceDecimals)
 	a := decimal.WithContext(decimal.Context128).SetUint64(matchAmount)
 	p := decimal.WithContext(decimal.Context128).SetUint64(matchPrice)
 	e := decimal.WithContext(decimal.Context128).SetMantScale(int64(priceDecimals-amountDecimal-8), 0)
@@ -685,9 +682,7 @@ func calculateAmount(matchAmount, matchPrice uint64, amountDecimal, priceDecimal
 	y := decimal.WithContext(decimal.Context128)
 	y.Mul(a, p)
 	y.Mul(y, x)
-	fmt.Println(y)
 	r, ok := y.Int64()
-	fmt.Println(r)
 	if !ok {
 		return 0, errors.New("int64 overflow")
 	}
