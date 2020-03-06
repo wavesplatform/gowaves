@@ -52,6 +52,20 @@ func (mr *MockPeerManagerMockRecorder) Connected(arg0 interface{}) *gomock.Call 
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Connected", reflect.TypeOf((*MockPeerManager)(nil).Connected), arg0)
 }
 
+// NewConnection mocks base method
+func (m *MockPeerManager) NewConnection(arg0 peer.Peer) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "NewConnection", arg0)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// NewConnection indicates an expected call of NewConnection
+func (mr *MockPeerManagerMockRecorder) NewConnection(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewConnection", reflect.TypeOf((*MockPeerManager)(nil).NewConnection), arg0)
+}
+
 // ConnectedCount mocks base method
 func (m *MockPeerManager) ConnectedCount() int {
 	m.ctrl.T.Helper()
@@ -64,6 +78,21 @@ func (m *MockPeerManager) ConnectedCount() int {
 func (mr *MockPeerManagerMockRecorder) ConnectedCount() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ConnectedCount", reflect.TypeOf((*MockPeerManager)(nil).ConnectedCount))
+}
+
+// InOutCount mocks base method
+func (m *MockPeerManager) InOutCount() (int, int) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "InOutCount")
+	ret0, _ := ret[0].(int)
+	ret1, _ := ret[1].(int)
+	return ret0, ret1
+}
+
+// InOutCount indicates an expected call of InOutCount
+func (mr *MockPeerManagerMockRecorder) InOutCount() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "InOutCount", reflect.TypeOf((*MockPeerManager)(nil).InOutCount))
 }
 
 // EachConnected mocks base method

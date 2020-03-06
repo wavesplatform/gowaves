@@ -195,26 +195,22 @@ func (a *Node) Close() {
 	locked.Unlock()
 }
 
-func (a *Node) handleNewConnection(peer peer.Peer) {
-	_, connected := a.peers.Connected(peer)
-	if connected {
-		peer.Close()
+func (a *Node) handleNewConnection(p peer.Peer) {
+	err := a.peers.NewConnection(p)
+	if err != nil {
 		return
 	}
-	if a.peers.IsSuspended(peer) {
-		peer.Close()
-		return
-	}
-	a.peers.AddConnected(peer)
 
 	// send score to new connected
 	go func() {
+		locked := a.state.Mutex().RLock()
 		score, err := a.state.CurrentScore()
+		locked.Unlock()
 		if err != nil {
 			zap.S().Error(err)
 			return
 		}
-		peer.SendMessage(&proto.ScoreMessage{
+		p.SendMessage(&proto.ScoreMessage{
 			Score: score.Bytes(),
 		})
 	}()
