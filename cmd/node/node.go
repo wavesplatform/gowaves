@@ -6,6 +6,7 @@ import (
 	"math/rand"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -54,6 +55,7 @@ var (
 	minerDelayParam   = flag.String("miner-delay", "4h", "Interval after last block then generation is allowed. example 1d4h30m")
 	walletPath        = flag.String("wallet-path", "", "Path to wallet, or ~/.waves by default")
 	walletPassword    = flag.String("wallet-password", "", "Pass password for wallet. Extremely insecure")
+	limitConnectionsS = flag.String("limit-connections", "30", "N incoming and outgoing connections")
 )
 
 func main() {
@@ -92,6 +94,12 @@ func main() {
 			zap.S().Error(err)
 			return
 		}
+	}
+
+	limitConnections, err := strconv.ParseUint(*limitConnectionsS, 10, 64)
+	if err != nil {
+		zap.S().Error(err)
+		return
 	}
 
 	path := *statePath
@@ -172,7 +180,7 @@ func main() {
 
 	peerSpawnerImpl := peer_manager.NewPeerSpawner(pool, parent, conf.WavesNetwork, declAddr, "gowaves", uint64(rand.Int()), version)
 
-	peerManager := peer_manager.NewPeerManager(peerSpawnerImpl, state)
+	peerManager := peer_manager.NewPeerManager(peerSpawnerImpl, state, int(limitConnections))
 	go peerManager.Run(ctx)
 
 	scheduler := scheduler.NewScheduler(
