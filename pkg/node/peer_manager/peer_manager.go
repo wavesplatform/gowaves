@@ -34,7 +34,9 @@ func (a byScore) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 
 type PeerManager interface {
 	Connected(peer.Peer) (peer.Peer, bool)
+	NewConnection(peer.Peer) error
 	ConnectedCount() int
+	InOutCount() (in int, out int)
 	EachConnected(func(peer.Peer, *proto.Score))
 	IsSuspended(peer.Peer) bool
 	Suspend(peer.Peer, string)
@@ -106,23 +108,25 @@ func (a suspended) Len() int {
 }
 
 type PeerManagerImpl struct {
-	spawner      PeerSpawner
-	active       map[peer.Peer]peerInfo
-	mu           sync.RWMutex
-	state        PeerStorage
-	spawned      map[proto.IpPort]struct{}
-	suspended    suspended
-	connectPeers bool // spawn outgoing
+	spawner          PeerSpawner
+	active           map[peer.Peer]peerInfo
+	mu               sync.RWMutex
+	state            PeerStorage
+	spawned          map[proto.IpPort]struct{}
+	suspended        suspended
+	connectPeers     bool // spawn outgoing
+	limitConnections int
 }
 
-func NewPeerManager(spawner PeerSpawner, storage PeerStorage) *PeerManagerImpl {
+func NewPeerManager(spawner PeerSpawner, storage PeerStorage, limitConnections int) *PeerManagerImpl {
 	return &PeerManagerImpl{
-		spawner:      spawner,
-		active:       make(map[peer.Peer]peerInfo),
-		state:        storage,
-		spawned:      make(map[proto.IpPort]struct{}),
-		suspended:    suspended{},
-		connectPeers: true,
+		spawner:          spawner,
+		active:           make(map[peer.Peer]peerInfo),
+		state:            storage,
+		spawned:          make(map[proto.IpPort]struct{}),
+		suspended:        suspended{},
+		connectPeers:     true,
+		limitConnections: limitConnections,
 	}
 }
 
@@ -153,7 +157,43 @@ func (a *PeerManagerImpl) Connected(p peer.Peer) (peer.Peer, bool) {
 func (a *PeerManagerImpl) ConnectedCount() int {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
+	return a.connectedCount()
+}
+
+// non thread safe
+func (a *PeerManagerImpl) connectedCount() int {
 	return len(a.active)
+}
+
+func (a *PeerManagerImpl) NewConnection(p peer.Peer) error {
+	_, connected := a.Connected(p)
+	if connected {
+		p.Close()
+		return errors.New("already connected")
+	}
+	if a.IsSuspended(p) {
+		p.Close()
+		return errors.New("peer is suspended")
+	}
+
+	in, out := a.InOutCount()
+	switch p.Direction() {
+	case peer.Incoming:
+		if in >= a.limitConnections {
+			_ = p.Close()
+			return errors.New("exceed incoming connections limit")
+		}
+	case peer.Outgoing:
+		if out >= a.limitConnections {
+			_ = p.Close()
+			return errors.New("exceed outgoing connections limit")
+		}
+	default:
+		_ = p.Close()
+		return errors.New("unknown connection direction")
+	}
+	a.AddConnected(p)
+	return nil
 }
 
 func (a *PeerManagerImpl) Run(ctx context.Context) {
@@ -208,6 +248,22 @@ func (a *PeerManagerImpl) IsSuspended(p peer.Peer) bool {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
 	return a.suspended.Blocked(p.RemoteAddr().ToIpPort(), time.Now())
+}
+
+// Count connected peers,
+// in - incoming connections
+// out - outgoing connections
+func (a *PeerManagerImpl) InOutCount() (in int, out int) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	for _, v := range a.active {
+		if v.peer.Direction() == peer.Outgoing {
+			out += 1
+		} else {
+			in += 1
+		}
+	}
+	return in, out
 }
 
 func (a *PeerManagerImpl) Suspend(p peer.Peer, reason string) {
@@ -277,6 +333,20 @@ func (a *PeerManagerImpl) Close() {
 func (a *PeerManagerImpl) SpawnOutgoingConnections(ctx context.Context) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
+
+	if a.connectedCount() > a.limitConnections*2 {
+		return
+	}
+	var outCnt int
+	for _, v := range a.active {
+		if v.peer.Direction() == peer.Outgoing {
+			outCnt += 1
+		}
+	}
+
+	if outCnt > a.limitConnections {
+		return
+	}
 
 	if !a.connectPeers {
 		return
