@@ -39,6 +39,10 @@ func TestAddNewEntry(t *testing.T) {
 	assert.NoError(t, err, "entriesDataInHeightRange() failed")
 	assert.Equal(t, [][]byte{val}, entries)
 
+	blockID, err := to.hs.freshBlockOfTheLatestEntry(key, true)
+	assert.NoError(t, err, "freshBlockOfTheLatestEntry() failed")
+	assert.Equal(t, blockID0, blockID)
+
 	to.flush(t)
 
 	entry, err = to.hs.latestEntry(key, true)
@@ -47,7 +51,7 @@ func TestAddNewEntry(t *testing.T) {
 	data, err = to.hs.latestEntryData(key, true)
 	assert.NoError(t, err, "latestEntryData() failed")
 	assert.Equal(t, val, data)
-	blockID, err := to.hs.blockOfTheLatestEntry(key, true)
+	blockID, err = to.hs.blockOfTheLatestEntry(key, true)
 	assert.NoError(t, err, "blockOfTheLatestEntry() failed")
 	assert.Equal(t, blockID0, blockID)
 

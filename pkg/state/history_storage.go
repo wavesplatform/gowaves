@@ -53,8 +53,7 @@ var properties = map[blockchainEntity]blockchainEntityProperties{
 	asset: {
 		needToFilter: true,
 		needToCut:    true,
-		fixedSize:    true,
-		recordSize:   assetRecordSize + 4,
+		fixedSize:    false,
 	},
 	lease: {
 		needToFilter: true,
@@ -467,6 +466,15 @@ func (hs *historyStorage) freshLatestEntryData(key []byte, filter bool) ([]byte,
 		return nil, err
 	}
 	return entry.data, nil
+}
+
+// freshBlockOfTheLatestEntry() returns block ID of the latest fresh (mem or DB) entry.
+func (hs *historyStorage) freshBlockOfTheLatestEntry(key []byte, filter bool) (crypto.Signature, error) {
+	entry, err := hs.freshLatestEntry(key, filter)
+	if err != nil {
+		return crypto.Signature{}, err
+	}
+	return hs.stateDB.blockNumToId(entry.blockNum)
 }
 
 // blockOfTheLatestEntry() returns block ID of the latest entry from DB.

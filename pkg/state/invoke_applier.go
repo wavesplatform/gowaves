@@ -347,14 +347,14 @@ func (ia *invokeApplier) applyInvokeScriptWithProofs(tx *proto.InvokeScriptWithP
 			// Create asset's info
 			assetInfo := &assetInfo{
 				assetConstInfo: assetConstInfo{
-					issuer:      scriptPK,
-					name:        a.Name,
-					description: a.Description,
-					decimals:    int8(a.Decimals),
+					issuer:   scriptPK,
+					decimals: int8(a.Decimals),
 				},
 				assetChangeableInfo: assetChangeableInfo{
-					quantity:   *big.NewInt(int64(a.Quantity)),
-					reissuable: a.Reissuable,
+					quantity:    *big.NewInt(int64(a.Quantity)),
+					name:        a.Name,
+					description: a.Description,
+					reissuable:  a.Reissuable,
 				},
 			}
 			if !info.validatingUtx {

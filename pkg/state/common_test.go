@@ -10,6 +10,7 @@ import (
 
 	"github.com/mr-tron/base58/base58"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -178,14 +179,15 @@ func defaultTestKeyValParams() keyvalue.KeyValParams {
 func defaultAssetInfo(reissuable bool) *assetInfo {
 	return &assetInfo{
 		assetConstInfo: assetConstInfo{
-			issuer:      testGlobal.issuerInfo.pk,
-			name:        "asset",
-			description: "description",
-			decimals:    2,
+			issuer:   testGlobal.issuerInfo.pk,
+			decimals: 2,
 		},
 		assetChangeableInfo: assetChangeableInfo{
-			quantity:   *big.NewInt(10000000),
-			reissuable: reissuable,
+			quantity:                 *big.NewInt(10000000),
+			name:                     "asset",
+			description:              "description",
+			lastNameDescChangeHeight: 1,
+			reissuable:               reissuable,
 		},
 	}
 }
@@ -256,13 +258,32 @@ func (s *testStorageObjects) addBlocks(t *testing.T, blocksNum int) {
 	s.flush(t)
 }
 
-func (s *testStorageObjects) createAsset(t *testing.T, assetID crypto.Digest) *assetInfo {
-	s.addBlock(t, blockID0)
+func (s *testStorageObjects) createAssetAtBlock(t *testing.T, assetID crypto.Digest, blockID crypto.Signature) *assetInfo {
+	s.addBlock(t, blockID)
 	assetInfo := defaultAssetInfo(true)
-	err := s.entities.assets.issueAsset(assetID, assetInfo, blockID0)
-	assert.NoError(t, err, "issueAset() failed")
+	err := s.entities.assets.issueAsset(assetID, assetInfo, blockID)
+	assert.NoError(t, err, "issueAsset() failed")
 	s.flush(t)
 	return assetInfo
+}
+
+func (s *testStorageObjects) createAssetWithDecimals(t *testing.T, assetID crypto.Digest, decimals int) *assetInfo {
+	s.addBlock(t, blockID0)
+	assetInfo := defaultAssetInfo(true)
+	require.True(t, decimals >= 0)
+	assetInfo.decimals = int8(decimals)
+	err := s.entities.assets.issueAsset(assetID, assetInfo, blockID0)
+	assert.NoError(t, err, "issueAsset() failed")
+	s.flush(t)
+	return assetInfo
+}
+
+func (s *testStorageObjects) createAssetUsingRandomBlock(t *testing.T, assetID crypto.Digest) *assetInfo {
+	return s.createAssetAtBlock(t, assetID, genRandBlockId(t))
+}
+
+func (s *testStorageObjects) createAsset(t *testing.T, assetID crypto.Digest) *assetInfo {
+	return s.createAssetAtBlock(t, assetID, blockID0)
 }
 
 func (s *testStorageObjects) createSmartAsset(t *testing.T, assetID crypto.Digest) {
@@ -305,16 +326,21 @@ func (s *testStorageObjects) close(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func genRandBlockId(t *testing.T) crypto.Signature {
+	id := make([]byte, crypto.SignatureSize)
+	_, err := rand.Read(id)
+	assert.NoError(t, err, "rand.Read() failed")
+	blockID, err := crypto.NewSignatureFromBytes(id)
+	assert.NoError(t, err, "NewSignatureFromBytes() failed")
+	return blockID
+}
+
 func genRandBlockIds(t *testing.T, number int) []crypto.Signature {
 	ids := make([]crypto.Signature, number)
 	idsDict := make(map[crypto.Signature]bool)
 	for i := 0; i < number; i++ {
 		for {
-			id := make([]byte, crypto.SignatureSize)
-			_, err := rand.Read(id)
-			assert.NoError(t, err, "rand.Read() failed")
-			blockID, err := crypto.NewSignatureFromBytes(id)
-			assert.NoError(t, err, "NewSignatureFromBytes() failed")
+			blockID := genRandBlockId(t)
 			if _, ok := idsDict[blockID]; ok {
 				continue
 			}

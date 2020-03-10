@@ -16,22 +16,23 @@ type TransactionType byte
 
 //All transaction types supported.
 const (
-	GenesisTransaction        TransactionType = iota + 1 // 1 - Genesis transaction
-	PaymentTransaction                                   // 2 - Payment transaction
-	IssueTransaction                                     // 3 - Issue transaction
-	TransferTransaction                                  // 4 - Transfer transaction
-	ReissueTransaction                                   // 5 - Reissue transaction
-	BurnTransaction                                      // 6 - Burn transaction
-	ExchangeTransaction                                  // 7 - Exchange transaction
-	LeaseTransaction                                     // 8 - Lease transaction
-	LeaseCancelTransaction                               // 9 - LeaseCancel transaction
-	CreateAliasTransaction                               // 10 - CreateAlias transaction
-	MassTransferTransaction                              // 11 - MassTransfer transaction
-	DataTransaction                                      // 12 - Data transaction
-	SetScriptTransaction                                 // 13 - SetScript transaction
-	SponsorshipTransaction                               // 14 - Sponsorship transaction
-	SetAssetScriptTransaction                            // 15 - SetAssetScript transaction
-	InvokeScriptTransaction                              // 16 - InvokeScript transaction
+	GenesisTransaction         TransactionType = iota + 1 // 1 - Genesis transaction
+	PaymentTransaction                                    // 2 - Payment transaction
+	IssueTransaction                                      // 3 - Issue transaction
+	TransferTransaction                                   // 4 - Transfer transaction
+	ReissueTransaction                                    // 5 - Reissue transaction
+	BurnTransaction                                       // 6 - Burn transaction
+	ExchangeTransaction                                   // 7 - Exchange transaction
+	LeaseTransaction                                      // 8 - Lease transaction
+	LeaseCancelTransaction                                // 9 - LeaseCancel transaction
+	CreateAliasTransaction                                // 10 - CreateAlias transaction
+	MassTransferTransaction                               // 11 - MassTransfer transaction
+	DataTransaction                                       // 12 - Data transaction
+	SetScriptTransaction                                  // 13 - SetScript transaction
+	SponsorshipTransaction                                // 14 - Sponsorship transaction
+	SetAssetScriptTransaction                             // 15 - SetAssetScript transaction
+	InvokeScriptTransaction                               // 16 - InvokeScript transaction
+	UpdateAssetInfoTransaction                            // 17 - UpdateAssetInfoTransaction
 )
 
 const (
@@ -51,6 +52,25 @@ const (
 	leaseLen       = crypto.PublicKeySize + 8 + 8 + 8
 	leaseCancelLen = crypto.PublicKeySize + 8 + 8 + crypto.DigestSize
 	createAliasLen = crypto.PublicKeySize + 2 + 8 + 8 + aliasFixedSize
+
+	// Max allowed versions of transactions.
+	MaxGenesisTransactionVersion         = 2
+	MaxPaymentTransactionVersion         = 2
+	MaxTransferTransactionVersion        = 3
+	MaxIssueTransactionVersion           = 3
+	MaxReissueTransactionVersion         = 3
+	MaxBurnTransactionVersion            = 3
+	MaxExchangeTransactionVersion        = 3
+	MaxLeaseTransactionVersion           = 3
+	MaxLeaseCancelTransactionVersion     = 3
+	MaxCreateAliasTransactionVersion     = 3
+	MaxMassTransferTransactionVersion    = 2
+	MaxDataTransactionVersion            = 2
+	MaxSetScriptTransactionVersion       = 2
+	MaxSponsorshipTransactionVersion     = 2
+	MaxSetAssetScriptTransactionVersion  = 2
+	MaxInvokeScriptTransactionVersion    = 2
+	MaxUpdateAssetInfoTransactionVersion = 1
 )
 
 var (
@@ -85,22 +105,23 @@ var (
 	}
 
 	ProtobufTransactionsVersions = map[TransactionType]byte{
-		GenesisTransaction:        2,
-		PaymentTransaction:        2,
-		TransferTransaction:       3,
-		IssueTransaction:          3,
-		ReissueTransaction:        3,
-		BurnTransaction:           3,
-		ExchangeTransaction:       3,
-		LeaseTransaction:          3,
-		LeaseCancelTransaction:    3,
-		CreateAliasTransaction:    3,
-		MassTransferTransaction:   2,
-		DataTransaction:           2,
-		SetScriptTransaction:      2,
-		SponsorshipTransaction:    2,
-		SetAssetScriptTransaction: 2,
-		InvokeScriptTransaction:   2,
+		GenesisTransaction:         2,
+		PaymentTransaction:         2,
+		TransferTransaction:        3,
+		IssueTransaction:           3,
+		ReissueTransaction:         3,
+		BurnTransaction:            3,
+		ExchangeTransaction:        3,
+		LeaseTransaction:           3,
+		LeaseCancelTransaction:     3,
+		CreateAliasTransaction:     3,
+		MassTransferTransaction:    2,
+		DataTransaction:            2,
+		SetScriptTransaction:       2,
+		SponsorshipTransaction:     2,
+		SetAssetScriptTransaction:  2,
+		InvokeScriptTransaction:    2,
+		UpdateAssetInfoTransaction: 1,
 	}
 )
 
@@ -393,6 +414,29 @@ type Genesis struct {
 	Amount    uint64            `json:"amount"`
 }
 
+func (tx *Genesis) UnmarshalJSON(data []byte) error {
+	tmp := struct {
+		Type      TransactionType   `json:"type"`
+		Version   byte              `json:"version,omitempty"`
+		ID        *crypto.Signature `json:"id,omitempty"`
+		Signature *crypto.Signature `json:"signature,omitempty"`
+		Timestamp uint64            `json:"timestamp"`
+		Recipient Address           `json:"recipient"`
+		Amount    uint64            `json:"amount"`
+	}{}
+	if err := json.Unmarshal(data, &tmp); err != nil {
+		return err
+	}
+	tx.Type = tmp.Type
+	tx.Version = 1
+	tx.ID = tmp.ID
+	tx.Signature = tmp.Signature
+	tx.Timestamp = tmp.Timestamp
+	tx.Recipient = tmp.Recipient
+	tx.Amount = tmp.Amount
+	return nil
+}
+
 func (tx Genesis) BinarySize() int {
 	return 1 + 8 + AddressSize + 8
 }
@@ -455,6 +499,9 @@ func NewUnsignedGenesis(recipient Address, amount, timestamp uint64) *Genesis {
 
 //Valid checks the validity of transaction parameters and it's signature.
 func (tx Genesis) Valid() (bool, error) {
+	if tx.Version < 1 || tx.Version > MaxGenesisTransactionVersion {
+		return false, errors.Errorf("bad version %d for Genesis transaction", tx.Version)
+	}
 	if tx.Amount == 0 {
 		return false, errors.New("amount should be positive")
 	}
@@ -622,6 +669,33 @@ type Payment struct {
 	Timestamp uint64            `json:"timestamp"`
 }
 
+func (tx *Payment) UnmarshalJSON(data []byte) error {
+	tmp := struct {
+		Type      TransactionType   `json:"type"`
+		Version   byte              `json:"version,omitempty"`
+		ID        *crypto.Signature `json:"id,omitempty"`
+		Signature *crypto.Signature `json:"signature,omitempty"`
+		SenderPK  crypto.PublicKey  `json:"senderPublicKey"`
+		Recipient Address           `json:"recipient"`
+		Amount    uint64            `json:"amount"`
+		Fee       uint64            `json:"fee"`
+		Timestamp uint64            `json:"timestamp"`
+	}{}
+	if err := json.Unmarshal(data, &tmp); err != nil {
+		return err
+	}
+	tx.Type = tmp.Type
+	tx.Version = 1
+	tx.ID = tmp.ID
+	tx.Signature = tmp.Signature
+	tx.SenderPK = tmp.SenderPK
+	tx.Recipient = tmp.Recipient
+	tx.Amount = tmp.Amount
+	tx.Fee = tmp.Fee
+	tx.Timestamp = tmp.Timestamp
+	return nil
+}
+
 func (tx Payment) BinarySize() int {
 	return 1 + crypto.SignatureSize + crypto.PublicKeySize + AddressSize + 24
 }
@@ -668,6 +742,9 @@ func NewUnsignedPayment(senderPK crypto.PublicKey, recipient Address, amount, fe
 }
 
 func (tx Payment) Valid() (bool, error) {
+	if tx.Version < 1 || tx.Version > MaxPaymentTransactionVersion {
+		return false, errors.Errorf("bad version %d for Payment transaction", tx.Version)
+	}
 	if ok, err := tx.Recipient.Valid(); !ok {
 		return false, errors.Wrapf(err, "invalid recipient address '%s'", tx.Recipient.String())
 	}
