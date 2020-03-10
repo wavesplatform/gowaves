@@ -830,6 +830,20 @@ func (c *ProtobufConverter) Transaction(tx *g.Transaction) (Transaction, error) 
 			Fee:             feeAmount,
 			Timestamp:       ts,
 		}
+	case *g.Transaction_UpdateAssetInfo:
+		feeAsset, feeAmount := c.convertAmount(tx.Fee)
+		rtx = &UpdateAssetInfoWithProofs{
+			Type:        UpdateAssetInfoTransaction,
+			Version:     v,
+			ChainID:     SchemeJson(scheme),
+			SenderPK:    c.publicKey(tx.SenderPublicKey),
+			AssetID:     c.digest(d.UpdateAssetInfo.AssetId),
+			Name:        d.UpdateAssetInfo.Name,
+			Description: d.UpdateAssetInfo.Description,
+			FeeAsset:    feeAsset,
+			Fee:         feeAmount,
+			Timestamp:   ts,
+		}
 	default:
 		c.reset()
 		return nil, errors.New("unsupported transaction")
@@ -967,6 +981,9 @@ func (c *ProtobufConverter) SignedTransaction(stx *g.SignedTransaction) (Transac
 		t.Proofs = proofs
 		return t, nil
 	case *InvokeScriptWithProofs:
+		t.Proofs = proofs
+		return t, nil
+	case *UpdateAssetInfoWithProofs:
 		t.Proofs = proofs
 		return t, nil
 	default:

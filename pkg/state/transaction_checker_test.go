@@ -1054,3 +1054,51 @@ func TestCheckInvokeScriptWithProofs(t *testing.T) {
 	_, err = to.tc.checkInvokeScriptWithProofs(tx, info)
 	assert.Error(t, err, "checkInvokeScriptWithProofs did not fail with invalid timestamp")
 }
+
+func TestCheckUpdateAssetInfoWithProofs(t *testing.T) {
+	to, path := createCheckerTestObjects(t)
+
+	defer func() {
+		to.stor.close(t)
+
+		err := util.CleanTemporaryDirs(path)
+		assert.NoError(t, err, "failed to clean test data dirs")
+	}()
+
+	tx := createUpdateAssetInfoWithProofs(t)
+	// We create asset using random block here on purpose, this way
+	// heights are not messed up in this test.
+	assetInfo := to.stor.createAssetUsingRandomBlock(t, tx.AssetID)
+	to.stor.createAsset(t, tx.FeeAsset.ID)
+	tx.SenderPK = assetInfo.issuer
+
+	info := defaultCheckerInfo(t)
+	info.height = 100001
+
+	// Check fail prior to activation.
+	_, err := to.tc.checkUpdateAssetInfoWithProofs(tx, info)
+	assert.EqualError(t, err, "BlockV5 must be activated for UpdateAssetInfo transaction")
+
+	to.stor.activateFeature(t, int16(settings.BlockV5))
+
+	// Check valid.
+	_, err = to.tc.checkUpdateAssetInfoWithProofs(tx, info)
+	assert.NoError(t, err, "checkUpdateAssetInfoWithProofs failed with valid tx")
+
+	// Check that smart assets are detected properly.
+	to.stor.createSmartAsset(t, tx.AssetID)
+	smartAssets, err := to.tc.checkUpdateAssetInfoWithProofs(tx, info)
+	assert.NoError(t, err)
+	assert.Equal(t, 1, len(smartAssets))
+	assert.Equal(t, tx.AssetID, smartAssets[0])
+
+	tx.SenderPK = testGlobal.recipientInfo.pk
+	_, err = to.tc.checkUpdateAssetInfoWithProofs(tx, info)
+	assert.EqualError(t, err, "asset was issued by other address")
+	tx.SenderPK = assetInfo.issuer
+
+	info.height = 99999
+	_, err = to.tc.checkUpdateAssetInfoWithProofs(tx, info)
+	correctError := fmt.Sprintf("can not update asset info of asset %s before height %d, current height is %d", tx.AssetID.String(), 1+to.tc.settings.MinUpdateAssetInfoInterval, info.height+1)
+	assert.EqualError(t, err, correctError)
+}

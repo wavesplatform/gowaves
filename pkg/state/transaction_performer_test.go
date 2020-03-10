@@ -24,7 +24,7 @@ func createPerformerTestObjects(t *testing.T) (*performerTestObjects, []string) 
 }
 
 func defaultPerformerInfo(t *testing.T) *performerInfo {
-	return &performerInfo{false, blockID0}
+	return &performerInfo{false, 0, blockID0}
 }
 
 func TestPerformIssueWithSig(t *testing.T) {
@@ -44,14 +44,15 @@ func TestPerformIssueWithSig(t *testing.T) {
 	to.stor.flush(t)
 	assetInfo := assetInfo{
 		assetConstInfo: assetConstInfo{
-			issuer:      tx.SenderPK,
-			name:        tx.Name,
-			description: tx.Description,
-			decimals:    int8(tx.Decimals),
+			issuer:   tx.SenderPK,
+			decimals: int8(tx.Decimals),
 		},
 		assetChangeableInfo: assetChangeableInfo{
-			quantity:   *big.NewInt(int64(tx.Quantity)),
-			reissuable: tx.Reissuable,
+			quantity:                 *big.NewInt(int64(tx.Quantity)),
+			name:                     tx.Name,
+			description:              tx.Description,
+			lastNameDescChangeHeight: 1,
+			reissuable:               tx.Reissuable,
 		},
 	}
 
@@ -78,14 +79,15 @@ func TestPerformIssueWithProofs(t *testing.T) {
 	to.stor.flush(t)
 	assetInfo := assetInfo{
 		assetConstInfo: assetConstInfo{
-			issuer:      tx.SenderPK,
-			name:        tx.Name,
-			description: tx.Description,
-			decimals:    int8(tx.Decimals),
+			issuer:   tx.SenderPK,
+			decimals: int8(tx.Decimals),
 		},
 		assetChangeableInfo: assetChangeableInfo{
-			quantity:   *big.NewInt(int64(tx.Quantity)),
-			reissuable: tx.Reissuable,
+			quantity:                 *big.NewInt(int64(tx.Quantity)),
+			name:                     tx.Name,
+			description:              tx.Description,
+			lastNameDescChangeHeight: 1,
+			reissuable:               tx.Reissuable,
 		},
 	}
 
@@ -640,4 +642,28 @@ func TestPerformSetAssetScriptWithProofs(t *testing.T) {
 	assert.Equal(t, false, isSmartAsset)
 	_, err = to.stor.entities.scriptsStorage.scriptByAsset(assetID, true)
 	assert.Error(t, err)
+}
+
+func TestPerformUpdateAssetInfoWithProofs(t *testing.T) {
+	to, path := createPerformerTestObjects(t)
+
+	defer func() {
+		to.stor.close(t)
+
+		err := util.CleanTemporaryDirs(path)
+		assert.NoError(t, err, "failed to clean test data dirs")
+	}()
+
+	assetInfo := to.stor.createAsset(t, testGlobal.asset0.asset.ID)
+	tx := createUpdateAssetInfoWithProofs(t)
+	err := to.tp.performUpdateAssetInfoWithProofs(tx, defaultPerformerInfo(t))
+	assert.NoError(t, err, "performUpdateAssetInfoWithProofs() failed")
+	to.stor.flush(t)
+	assetInfo.name = tx.Name
+	assetInfo.description = tx.Description
+
+	// Check asset info.
+	info, err := to.stor.entities.assets.assetInfo(tx.AssetID, true)
+	assert.NoError(t, err, "assetInfo() failed")
+	assert.Equal(t, *assetInfo, *info, "invalid asset info after performing UpdateAssetInfo transaction")
 }

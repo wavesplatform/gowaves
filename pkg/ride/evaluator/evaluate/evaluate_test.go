@@ -90,7 +90,7 @@ func scopeV1withDataTransaction() Scope {
 	if err != nil {
 		panic(err)
 	}
-	tx := proto.NewUnsigneData(1, pk, 100000, 1568640015000)
+	tx := proto.NewUnsignedData(1, pk, 100000, 1568640015000)
 	tx.Entries = append(tx.Entries, &proto.IntegerDataEntry{Key: "integer", Value: 100500})
 	tx.Entries = append(tx.Entries, &proto.BooleanDataEntry{Key: "boolean", Value: true})
 	tx.Entries = append(tx.Entries, &proto.BinaryDataEntry{Key: "binary", Value: []byte{0xCA, 0xFE, 0xBE, 0xBE, 0xDE, 0xAD, 0xBE, 0xEF}})
@@ -482,7 +482,7 @@ func TestSimpleFuncEvaluate(t *testing.T) {
 func TestDataFunctions(t *testing.T) {
 	secret, public, err := crypto.GenerateKeyPair([]byte(seed))
 	require.NoError(t, err)
-	data := proto.NewUnsigneData(1, public, 10000, 1544715621)
+	data := proto.NewUnsignedData(1, public, 10000, 1544715621)
 
 	require.NoError(t, data.AppendEntry(&proto.IntegerDataEntry{
 		Key:   "integer",
@@ -923,7 +923,7 @@ func TestMatchOverwrite(t *testing.T) {
 
 	pk := crypto.PublicKey{}
 	sig := crypto.Signature{}
-	tx := proto.NewUnsigneData(1, pk, 1400000, 1539113093702)
+	tx := proto.NewUnsignedData(1, pk, 1400000, 1539113093702)
 	tx.Entries = append(tx.Entries, &proto.IntegerDataEntry{Key: "x", Value: 2})
 	tx.ID = &crypto.Digest{}
 	tx.Proofs = proto.NewProofs()
@@ -963,7 +963,7 @@ func TestFailSript1(t *testing.T) {
 	id, err := crypto.NewDigestFromBase58("Eg5yoFwXcBrq3ik4JvbbhSg429b6HT2qdXTURAUMBTh9")
 	require.NoError(t, err)
 
-	tx := proto.NewUnsigneData(1, pk, 1400000, 1539113093702)
+	tx := proto.NewUnsignedData(1, pk, 1400000, 1539113093702)
 	tx.Entries = append(tx.Entries, &proto.IntegerDataEntry{Key: "command", Value: 1})
 	tx.Entries = append(tx.Entries, &proto.IntegerDataEntry{Key: "gameState", Value: 1})
 	tx.Entries = append(tx.Entries, &proto.StringDataEntry{Key: "player1", Value: ""})
