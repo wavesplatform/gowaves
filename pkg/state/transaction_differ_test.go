@@ -860,7 +860,7 @@ func TestCreateDiffMassTransferWithProofs(t *testing.T) {
 }
 
 func createDataWithProofs(t *testing.T, entriesNum int) *proto.DataWithProofs {
-	tx := proto.NewUnsigneData(1, testGlobal.senderInfo.pk, defaultFee, defaultTimestamp)
+	tx := proto.NewUnsignedData(1, testGlobal.senderInfo.pk, defaultFee, defaultTimestamp)
 	for i := 0; i < entriesNum; i++ {
 		entry := &proto.IntegerDataEntry{Key: "TheKey", Value: int64(666)}
 		tx.Entries = append(tx.Entries, entry)
@@ -1069,6 +1069,38 @@ func TestCreateDiffInvokeScriptWithProofs(t *testing.T) {
 		testGlobal.senderInfo.addr:    empty,
 		testGlobal.recipientInfo.addr: empty,
 		testGlobal.issuerInfo.addr:    empty,
+	}
+	assert.Equal(t, correctAddrs, ch.addrs)
+}
+
+func createUpdateAssetInfoWithProofs(t *testing.T) *proto.UpdateAssetInfoWithProofs {
+	tx := proto.NewUnsignedUpdateAssetInfoWithProofs(1, 'W', testGlobal.asset0.asset.ID, testGlobal.senderInfo.pk, "noname", "someDescription", defaultTimestamp, *(testGlobal.asset1.asset), defaultFee)
+	err := tx.Sign(proto.MainNetScheme, testGlobal.senderInfo.sk)
+	assert.NoError(t, err, "tx.Sign() failed")
+	return tx
+}
+
+func TestCreateDiffUpdateAssetInfoWithProofs(t *testing.T) {
+	to, path := createDifferTestObjects(t)
+
+	defer func() {
+		to.stor.close(t)
+
+		err := util.CleanTemporaryDirs(path)
+		assert.NoError(t, err, "failed to clean test data dirs")
+	}()
+
+	tx := createUpdateAssetInfoWithProofs(t)
+	ch, err := to.td.createDiffUpdateAssetInfoWithProofs(tx, defaultDifferInfo(t))
+	assert.NoError(t, err, "createDiffUpdateAssetInfoWithProofs() failed")
+
+	correctDiff := txDiff{
+		testGlobal.senderInfo.assetKeys[1]: newBalanceDiff(-int64(tx.Fee), 0, 0, false),
+		testGlobal.minerInfo.assetKeys[1]:  newBalanceDiff(int64(tx.Fee), 0, 0, false),
+	}
+	assert.Equal(t, correctDiff, ch.diff)
+	correctAddrs := map[proto.Address]struct{}{
+		testGlobal.senderInfo.addr: empty,
 	}
 	assert.Equal(t, correctAddrs, ch.addrs)
 }

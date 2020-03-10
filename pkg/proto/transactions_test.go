@@ -32,7 +32,7 @@ func TestGuessTransaction_Genesis(t *testing.T) {
 
 	buf := bytes.NewBufferString(genesisJson)
 	genesis := &Genesis{}
-	rs, err := GuessTransactionType(&TransactionTypeVersion{Type: TransactionType(1), Version: 0})
+	rs, err := GuessTransactionType(&TransactionTypeVersion{Type: TransactionType(1), Version: 1})
 	require.Nil(t, err)
 	err = json.NewDecoder(buf).Decode(genesis)
 	require.Nil(t, err)
@@ -4789,7 +4789,7 @@ func TestDataWithProofsValidations(t *testing.T) {
 	for _, tc := range tests {
 		spk, err := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
 		require.NoError(t, err)
-		tx := NewUnsigneData(1, spk, tc.fee, 0)
+		tx := NewUnsignedData(1, spk, tc.fee, 0)
 		tx.Entries = tc.entries
 		v, err := tx.Valid()
 		assert.False(t, v)
@@ -4822,7 +4822,7 @@ func TestDataWithProofsSizeLimit(t *testing.T) {
 	for _, tc := range tests {
 		spk, err := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
 		require.NoError(t, err)
-		tx := NewUnsigneData(1, spk, tc.fee, 0)
+		tx := NewUnsignedData(1, spk, tc.fee, 0)
 		tx.Entries = tc.entries
 		err = tx.Sign(MainNetScheme, sk)
 		require.NoError(t, err)
@@ -4858,7 +4858,7 @@ func TestDataWithProofsFromMainNet(t *testing.T) {
 		spk, _ := crypto.NewPublicKeyFromBase58(tc.pk)
 		id, _ := crypto.NewDigestFromBase58(tc.id)
 		sig, _ := crypto.NewSignatureFromBase58(tc.sig)
-		tx := NewUnsigneData(1, spk, tc.fee, tc.timestamp)
+		tx := NewUnsignedData(1, spk, tc.fee, tc.timestamp)
 		for i, k := range tc.keys {
 			e := &StringDataEntry{k, tc.values[i]}
 			err := tx.AppendEntry(e)
@@ -4888,7 +4888,7 @@ func TestDataWithProofsProtobufRoundTrip(t *testing.T) {
 	require.NoError(t, err)
 	for _, tc := range tests {
 		ts := uint64(time.Now().UnixNano() / 1000000)
-		tx := NewUnsigneData(1, pk, tc.fee, ts)
+		tx := NewUnsignedData(1, pk, tc.fee, ts)
 		for i, k := range tc.keys {
 			var e DataEntry
 			switch DataValueType(tc.types[i]) {
@@ -4946,7 +4946,7 @@ func TestDataWithProofsBinarySize(t *testing.T) {
 	require.NoError(t, err)
 	for _, tc := range tests {
 		ts := uint64(time.Now().UnixNano() / 1000000)
-		tx := NewUnsigneData(1, pk, tc.fee, ts)
+		tx := NewUnsignedData(1, pk, tc.fee, ts)
 		for i, k := range tc.keys {
 			var e DataEntry
 			switch DataValueType(tc.types[i]) {
@@ -4988,7 +4988,7 @@ func TestDataWithProofsBinaryRoundTrip(t *testing.T) {
 	require.NoError(t, err)
 	for _, tc := range tests {
 		ts := uint64(time.Now().UnixNano() / 1000000)
-		tx := NewUnsigneData(1, pk, tc.fee, ts)
+		tx := NewUnsignedData(1, pk, tc.fee, ts)
 		for i, k := range tc.keys {
 			var e DataEntry
 			switch DataValueType(tc.types[i]) {
@@ -5052,7 +5052,7 @@ func TestDataWithProofsToJSON(t *testing.T) {
 	require.NoError(t, err)
 	for _, tc := range tests {
 		ts := uint64(time.Now().UnixNano() / 1000000)
-		tx := NewUnsigneData(1, pk, tc.fee, ts)
+		tx := NewUnsignedData(1, pk, tc.fee, ts)
 		var sb strings.Builder
 		for i, k := range tc.keys {
 			if i != 0 {
@@ -5760,26 +5760,28 @@ func TestInvokeScriptWithProofsValidations(t *testing.T) {
 	require.NoError(t, err)
 
 	tests := []struct {
-		sps  ScriptPayments
-		name string
-		args Arguments
-		fee  uint64
-		err  string
+		sps     ScriptPayments
+		name    string
+		args    Arguments
+		fee     uint64
+		err     string
+		version byte
 	}{
-		{ScriptPayments{}, "foo", Arguments{IntegerArgument{Value: 1234567890}}, 0, "fee should be positive"},
-		{ScriptPayments{{12345, *a1}}, "foo", Arguments{StringArgument{Value: "some value should be ok"}}, math.MaxInt64 + 1, "fee is too big"},
-		{ScriptPayments{{12345, *a1}}, strings.Repeat("foo", 100), Arguments{}, 13245, "function name is too big"},
-		{ScriptPayments{{12345, *a1}}, "foo", repeat(StringArgument{Value: "some value should be ok"}, 100), 13245, "too many arguments"},
-		{ScriptPayments{{12345, *a1}, {67890, *a2}}, "foo", Arguments{}, 10000, "no more than one payment is allowed"},
-		{ScriptPayments{{0, *a1}}, "foo", Arguments{StringArgument{Value: "some value should be ok"}}, 1234, "at least one payment has a non-positive amount"},
-		{ScriptPayments{{math.MaxInt64 + 123, *a1}}, "foo", Arguments{StringArgument{Value: "some value should be ok"}}, 12345, "at least one payment has a too big amount"},
+		{ScriptPayments{}, "foo", Arguments{IntegerArgument{Value: 1234567890}}, 0, "fee should be positive", 1},
+		{ScriptPayments{{12345, *a1}}, "foo", Arguments{StringArgument{Value: "some value should be ok"}}, math.MaxInt64 + 1, "fee is too big", 1},
+		{ScriptPayments{{12345, *a1}}, strings.Repeat("foo", 100), Arguments{}, 13245, "function name is too big", 1},
+		{ScriptPayments{{12345, *a1}}, "foo", repeat(StringArgument{Value: "some value should be ok"}, 100), 13245, "too many arguments", 1},
+		{ScriptPayments{{12345, *a1}, {67890, *a2}}, "foo", Arguments{}, 10000, "no more than one payment is allowed", 1},
+		{ScriptPayments{{0, *a1}}, "foo", Arguments{StringArgument{Value: "some value should be ok"}}, 1234, "at least one payment has a non-positive amount", 1},
+		{ScriptPayments{{math.MaxInt64 + 123, *a1}}, "foo", Arguments{StringArgument{Value: "some value should be ok"}}, 12345, "at least one payment has a too big amount", 1},
+		{ScriptPayments{}, "foo", Arguments{IntegerArgument{Value: 1234567890}}, 1, "unexpected version 3 for InvokeScriptWithProofs", 3},
 		//TODO: add test on arguments evaluation
 	}
 	for _, tc := range tests {
 		spk, _ := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
 		ad, _ := NewAddressFromString("3MrDis17gyNSusZDg8Eo1PuFnm5SQMda3gu")
 		fc := FunctionCall{Name: tc.name, Arguments: tc.args}
-		tx := NewUnsignedInvokeScriptWithProofs(1, 'T', spk, NewRecipientFromAddress(ad), fc, tc.sps, *a2, tc.fee, 12345)
+		tx := NewUnsignedInvokeScriptWithProofs(tc.version, 'T', spk, NewRecipientFromAddress(ad), fc, tc.sps, *a2, tc.fee, 12345)
 		v, err := tx.Valid()
 		assert.False(t, v)
 		assert.EqualError(t, err, tc.err)
@@ -6039,6 +6041,156 @@ func TestInvokeScriptWithProofsToJSON(t *testing.T) {
 			}
 		}
 	}
+}
+
+func TestUpdateAssetInfoWithProofsValidations(t *testing.T) {
+	a1, err := NewOptionalAssetFromString("BXBUNddxTGTQc3G4qHYn5E67SBwMj18zLncUr871iuRD")
+	require.NoError(t, err)
+	a2, err := NewOptionalAssetFromString("WAVES")
+	require.NoError(t, err)
+
+	tests := []struct {
+		version     byte
+		chain       byte
+		name        string
+		description string
+		err         error
+		fee         uint64
+		feeAsset    *OptionalAsset
+		valid       bool
+	}{
+		{1, 'W', "newAssetName", "newDescription", nil, 1, a2, true},
+		{1, 'T', "newAssetName", "newDescription", nil, 1, a1, true},
+		{1, 'T', "newAssetName", "newDescription", errors.New("fee should be positive"), 0, a1, false},
+		{0, 'T', "newAssetName", "newDescription", errors.New("unexpected version 0 for UpdateAssetInfoWithProofs"), 1, a1, false},
+		{1, 'W', "newAssetName", "newDescription", errors.New("fee is too big"), math.MaxUint64, a1, false},
+		{1, 'W', "VERY_LONG_TOKEN_NAME", "This is a valid description for the token", errors.New("incorrect number of bytes in the asset's name"), 1, a1, false},
+		{1, 'W', "TOKEN", strings.Repeat("x", 1010), errors.New("incorrect number of bytes in the asset's description"), 1, a1, false},
+	}
+	for _, tc := range tests {
+		aid, err := crypto.NewDigestFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
+		require.NoError(t, err)
+		spk, _ := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
+		tx := NewUnsignedUpdateAssetInfoWithProofs(tc.version, tc.chain, aid, spk, tc.name, tc.description, 12345, *tc.feeAsset, tc.fee)
+		v, err := tx.Valid()
+		assert.Equal(t, tc.valid, v)
+		if !tc.valid {
+			assert.Equal(t, tc.err.Error(), err.Error())
+		}
+	}
+}
+
+func TestUpdateAssetInfoWithProofsProtobufRoundTrip(t *testing.T) {
+	a1, err := NewOptionalAssetFromString("BXBUNddxTGTQc3G4qHYn5E67SBwMj18zLncUr871iuRD")
+	require.NoError(t, err)
+	a2, err := NewOptionalAssetFromString("WAVES")
+	require.NoError(t, err)
+	seed, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
+	sk, pk, err := crypto.GenerateKeyPair(seed)
+	require.NoError(t, err)
+
+	tests := []struct {
+		version     byte
+		chain       byte
+		name        string
+		description string
+		fee         uint64
+		feeAsset    *OptionalAsset
+	}{
+		{1, 'W', "newAssetName", "newDescription", 1, a2},
+		{1, 'T', "NAME", "Description...", 1, a1},
+	}
+	for _, tc := range tests {
+		aid, err := crypto.NewDigestFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
+		require.NoError(t, err)
+		spk, _ := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
+		tx := NewUnsignedUpdateAssetInfoWithProofs(tc.version, tc.chain, aid, spk, tc.name, tc.description, 12345, *tc.feeAsset, tc.fee)
+		err = tx.GenerateID(tc.chain)
+		require.NoError(t, err)
+		if bb, err := tx.MarshalToProtobuf(tc.chain); assert.NoError(t, err) {
+			var atx UpdateAssetInfoWithProofs
+			if err := atx.UnmarshalFromProtobuf(bb); assert.NoError(t, err) {
+				assert.Equal(t, *tx, atx)
+			}
+		}
+		if err := tx.Sign(tc.chain, sk); assert.NoError(t, err) {
+			if r, err := tx.Verify(tc.chain, pk); assert.NoError(t, err) {
+				assert.True(t, r)
+			}
+		}
+		if b, err := tx.MarshalSignedToProtobuf(tc.chain); assert.NoError(t, err) {
+			var atx UpdateAssetInfoWithProofs
+			if err := atx.UnmarshalSignedFromProtobuf(b); assert.NoError(t, err) {
+				err = atx.GenerateID(tc.chain)
+				assert.NoError(t, err)
+				assert.Equal(t, *tx, atx)
+			}
+		}
+	}
+}
+
+func TestUpdateAssetInfoWithProofsToJSON(t *testing.T) {
+	tests := []struct {
+		chain       byte
+		name        string
+		description string
+		feeAsset    string
+		fee         uint64
+	}{
+		{'W', "AssetName", "description of asset", "J8shEVBrQ4BLqsuYw5j6vQGCFJGMLBxr5nu2XvUWFEAR", 1234567890},
+		{'T', "NAME", ".....", "9yCRXrptsYKnsfFv6E226MXXjjxSzm3kXKL2oquw3HrX", 9876543210},
+		{'T', "noname", "whatever", "WAVES", 9876543210},
+	}
+	seed, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
+	sk, pk, err := crypto.GenerateKeyPair(seed)
+	require.NoError(t, err)
+	for _, tc := range tests {
+		ts := uint64(time.Now().UnixNano() / 1000000)
+		a, err := NewOptionalAssetFromString(tc.feeAsset)
+		require.NoError(t, err)
+		aid, err := crypto.NewDigestFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
+		require.NoError(t, err)
+		feeAssetIDJSON := fmt.Sprintf("\"%s\"", tc.feeAsset)
+		if tc.feeAsset == "WAVES" {
+			feeAssetIDJSON = "null"
+		}
+		tx := NewUnsignedUpdateAssetInfoWithProofs(1, tc.chain, aid, pk, tc.name, tc.description, ts, *a, tc.fee)
+		if j, err := json.Marshal(tx); assert.NoError(t, err) {
+			ej := fmt.Sprintf("{\"type\":17,\"version\":1,\"chainId\":\"%c\",\"senderPublicKey\":\"%s\",\"assetId\":\"%s\",\"name\":\"%s\",\"description\":\"%s\",\"feeAssetId\":%s,\"fee\":%d,\"timestamp\":%d}", tc.chain, base58.Encode(pk[:]), aid.String(), tc.name, tc.description, feeAssetIDJSON, tc.fee, ts)
+			assert.Equal(t, ej, string(j))
+			if err := tx.Sign(tc.chain, sk); assert.NoError(t, err) {
+				if sj, err := json.Marshal(tx); assert.NoError(t, err) {
+					esj := fmt.Sprintf("{\"type\":17,\"version\":1,\"id\":\"%s\",\"proofs\":[\"%s\"],\"chainId\":\"%c\",\"senderPublicKey\":\"%s\",\"assetId\":\"%s\",\"name\":\"%s\",\"description\":\"%s\",\"feeAssetId\":%s,\"fee\":%d,\"timestamp\":%d}",
+
+						base58.Encode(tx.ID[:]), base58.Encode(tx.Proofs.Proofs[0]), tc.chain, base58.Encode(pk[:]), aid.String(), tc.name, tc.description, feeAssetIDJSON, tc.fee, ts)
+					assert.Equal(t, esj, string(sj))
+				}
+			}
+		}
+	}
+}
+
+func TestUpdateAssetInfoWithProofsFromJSON(t *testing.T) {
+	var js = `
+		{"type":17,"version":1,"id":"2Eikmt2YrNyXvDkHueHkzvxs7y9RMWyhrUcMpzg4G6dJ","proofs":["NRb2MtFkrJN9kZrCH6smgfMWXiuFiTaPn81ceWosWvL3ByX3YtqosK4iP3yeu2BBFVh1YT2yq3sAwjky5jEiXSo"],"chainId":"W","senderPublicKey":"3qTkgmBYFjdSEtib9C4b3yHiEexyJ59A5ZVjSvXsg569","assetId":"BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6","name":"AssetName","description":"description of asset","feeAssetId":"J8shEVBrQ4BLqsuYw5j6vQGCFJGMLBxr5nu2XvUWFEAR","fee":1234567890,"timestamp":1583406542756}
+	`
+	spk, err := crypto.NewPublicKeyFromBase58("3qTkgmBYFjdSEtib9C4b3yHiEexyJ59A5ZVjSvXsg569")
+	require.NoError(t, err)
+	var tx UpdateAssetInfoWithProofs
+	err = json.Unmarshal([]byte(js), &tx)
+	require.NoError(t, err)
+	assert.Equal(t, UpdateAssetInfoTransaction, tx.Type)
+	assert.Equal(t, 1, int(tx.Version))
+	assert.Equal(t, uint64(1583406542756), tx.Timestamp)
+	assert.Equal(t, 1234567890, int(tx.Fee))
+	assert.True(t, tx.FeeAsset.Present)
+	assert.Equal(t, 1, len(tx.Proofs.Proofs))
+	assert.Equal(t, MainNetScheme, Scheme(tx.ChainID))
+	assert.Equal(t, spk[:], tx.SenderPK[:])
+	assert.Equal(t, "AssetName", tx.Name)
+	assert.Equal(t, "description of asset", tx.Description)
+	assert.Equal(t, crypto.MustDigestFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6"), tx.AssetID)
+	assert.Equal(t, "J8shEVBrQ4BLqsuYw5j6vQGCFJGMLBxr5nu2XvUWFEAR", tx.FeeAsset.String())
 }
 
 func BenchmarkBytesToTransaction_WithReflection(b *testing.B) {

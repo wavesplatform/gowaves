@@ -42,6 +42,17 @@ type IssueWithSig struct {
 	Issue
 }
 
+func (tx IssueWithSig) Valid() (bool, error) {
+	if tx.Version != 1 {
+		return false, errors.Errorf("unexpected version %d for IssueWithSig", tx.Version)
+	}
+	ok, err := tx.Issue.Valid()
+	if !ok {
+		return false, err
+	}
+	return true, nil
+}
+
 func (tx IssueWithSig) BinarySize() int {
 	return 2 + crypto.SignatureSize + tx.Issue.BinarySize()
 }
@@ -256,6 +267,17 @@ type TransferWithSig struct {
 	ID        *crypto.Digest    `json:"id,omitempty"`
 	Signature *crypto.Signature `json:"signature,omitempty"`
 	Transfer
+}
+
+func (tx TransferWithSig) Valid() (bool, error) {
+	if tx.Version != 1 {
+		return false, errors.Errorf("unexpected version %d for TransferWithSig", tx.Version)
+	}
+	ok, err := tx.Transfer.Valid()
+	if !ok {
+		return false, err
+	}
+	return true, nil
 }
 
 func (tx TransferWithSig) BinarySize() int {
@@ -542,6 +564,17 @@ type ReissueWithSig struct {
 	Reissue
 }
 
+func (tx ReissueWithSig) Valid() (bool, error) {
+	if tx.Version != 1 {
+		return false, errors.Errorf("unexpected version %d for ReissueWithSig", tx.Version)
+	}
+	ok, err := tx.Reissue.Valid()
+	if !ok {
+		return false, err
+	}
+	return true, nil
+}
+
 func (tx ReissueWithSig) BinarySize() int {
 	return 2 + crypto.SignatureSize + tx.Reissue.BinarySize()
 }
@@ -758,6 +791,17 @@ type BurnWithSig struct {
 	ID        *crypto.Digest    `json:"id,omitempty"`
 	Signature *crypto.Signature `json:"signature,omitempty"`
 	Burn
+}
+
+func (tx BurnWithSig) Valid() (bool, error) {
+	if tx.Version != 1 {
+		return false, errors.Errorf("unexpected version %d for BurnWithSig", tx.Version)
+	}
+	ok, err := tx.Burn.Valid()
+	if !ok {
+		return false, err
+	}
+	return true, nil
 }
 
 func (tx BurnWithSig) BinarySize() int {
@@ -1075,6 +1119,9 @@ func NewUnsignedExchangeWithSig(buy, sell *OrderV1, price, amount, buyMatcherFee
 }
 
 func (tx ExchangeWithSig) Valid() (bool, error) {
+	if tx.Version != 1 {
+		return false, errors.Errorf("unexpected version %d for ExchangeWithSig", tx.Version)
+	}
 	ok, err := tx.BuyOrder.Valid()
 	if !ok {
 		return false, errors.Wrap(err, "invalid buy order")
@@ -1422,6 +1469,17 @@ type LeaseWithSig struct {
 	Lease
 }
 
+func (tx LeaseWithSig) Valid() (bool, error) {
+	if tx.Version != 1 {
+		return false, errors.Errorf("unexpected version %d for LeaseWithSig", tx.Version)
+	}
+	ok, err := tx.Lease.Valid()
+	if !ok {
+		return false, err
+	}
+	return true, nil
+}
+
 func (tx LeaseWithSig) BinarySize() int {
 	return 1 + crypto.SignatureSize + tx.Lease.BinarySize()
 }
@@ -1640,6 +1698,17 @@ type LeaseCancelWithSig struct {
 	LeaseCancel
 }
 
+func (tx LeaseCancelWithSig) Valid() (bool, error) {
+	if tx.Version != 1 {
+		return false, errors.Errorf("unexpected version %d for LeaseCancelWithSig", tx.Version)
+	}
+	ok, err := tx.LeaseCancel.Valid()
+	if !ok {
+		return false, err
+	}
+	return true, nil
+}
+
 func (tx LeaseCancelWithSig) BinarySize() int {
 	return 1 + crypto.SignatureSize + tx.LeaseCancel.BinarySize()
 }
@@ -1848,6 +1917,17 @@ type CreateAliasWithSig struct {
 	ID        *crypto.Digest    `json:"id,omitempty"`
 	Signature *crypto.Signature `json:"signature,omitempty"`
 	CreateAlias
+}
+
+func (tx CreateAliasWithSig) Valid() (bool, error) {
+	if tx.Version != 1 {
+		return false, errors.Errorf("unexpected version %d for CreateAliasWithSig", tx.Version)
+	}
+	ok, err := tx.CreateAlias.Valid()
+	if !ok {
+		return false, err
+	}
+	return true, nil
 }
 
 func (tx CreateAliasWithSig) BinarySize() int {

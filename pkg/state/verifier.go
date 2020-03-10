@@ -157,6 +157,10 @@ func checkTx(tx proto.Transaction, checkTxSig, checkSellOrder, checkBuyOrder boo
 		if ok, _ := t.Verify(scheme, t.SenderPK); !ok {
 			return errors.New("invokescript tx signature verification failed")
 		}
+	case *proto.UpdateAssetInfoWithProofs:
+		if ok, _ := t.Verify(scheme, t.SenderPK); !ok {
+			return errors.New("updateassetinfo tx signature verification failed")
+		}
 	default:
 		return errors.New("unknown transaction type")
 	}

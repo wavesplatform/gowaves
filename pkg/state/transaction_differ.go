@@ -1062,3 +1062,27 @@ func (td *transactionDiffer) createDiffInvokeScriptWithProofs(transaction proto.
 	}
 	return changes, nil
 }
+
+func (td *transactionDiffer) createDiffUpdateAssetInfoWithProofs(transaction proto.Transaction, info *differInfo) (txBalanceChanges, error) {
+	tx, ok := transaction.(*proto.UpdateAssetInfoWithProofs)
+	if !ok {
+		return txBalanceChanges{}, errors.New("failed to convert interface to UpdateAssetInfoWithProofs transaction")
+	}
+	diff := newTxDiff()
+	// Append sender diff.
+	senderAddr, err := proto.NewAddressFromPublicKey(td.settings.AddressSchemeCharacter, tx.SenderPK)
+	if err != nil {
+		return txBalanceChanges{}, err
+	}
+	senderFeeKey := byteKey(senderAddr, tx.FeeAsset.ToID())
+	senderFeeBalanceDiff := -int64(tx.Fee)
+	if err := diff.appendBalanceDiff(senderFeeKey, newBalanceDiff(senderFeeBalanceDiff, 0, 0, false)); err != nil {
+		return txBalanceChanges{}, err
+	}
+	addrs := []proto.Address{senderAddr}
+	changes := newTxBalanceChanges(addrs, diff)
+	if err := td.handleSponsorship(&changes, tx.Fee, tx.FeeAsset, info); err != nil {
+		return txBalanceChanges{}, err
+	}
+	return changes, nil
+}

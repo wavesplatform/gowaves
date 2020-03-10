@@ -65,6 +65,8 @@ type FunctionalitySettings struct {
 	InitialBlockReward      uint64 `json:"initial_block_reward"`
 	BlockRewardIncrement    uint64 `json:"block_reward_increment"`
 	BlockRewardVotingPeriod uint64 `json:"block_reward_voting_period"`
+
+	MinUpdateAssetInfoInterval uint64 `json:"min_update_asset_info_interval"`
 }
 
 func (f *FunctionalitySettings) VotesForFeatureElection(height uint64) uint64 {
@@ -96,13 +98,14 @@ var (
 	DefaultCustomSettings = &BlockchainSettings{
 		Type: Custom,
 		FunctionalitySettings: FunctionalitySettings{
-			FeaturesVotingPeriod:      5000,
-			VotesForFeatureActivation: 4000,
-			MaxTxTimeBackOffset:       120 * 60000,
-			MaxTxTimeForwardOffset:    90 * 60000,
-			AddressSchemeCharacter:    proto.CustomNetScheme,
-			AverageBlockDelaySeconds:  60,
-			MaxBaseTarget:             math.MaxUint64,
+			FeaturesVotingPeriod:       5000,
+			VotesForFeatureActivation:  4000,
+			MaxTxTimeBackOffset:        120 * 60000,
+			MaxTxTimeForwardOffset:     90 * 60000,
+			AddressSchemeCharacter:     proto.CustomNetScheme,
+			AverageBlockDelaySeconds:   60,
+			MaxBaseTarget:              math.MaxUint64,
+			MinUpdateAssetInfoInterval: 100000,
 		},
 	}
 )

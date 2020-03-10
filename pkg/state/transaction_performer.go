@@ -11,6 +11,7 @@ import (
 
 type performerInfo struct {
 	initialisation bool
+	height         uint64
 	blockID        crypto.Signature
 }
 
@@ -24,17 +25,19 @@ func newTransactionPerformer(stor *blockchainEntitiesStorage, settings *settings
 }
 
 func (tp *transactionPerformer) performIssue(tx *proto.Issue, assetID crypto.Digest, info *performerInfo) error {
+	blockHeight := info.height + 1
 	// Create new asset.
 	assetInfo := &assetInfo{
 		assetConstInfo: assetConstInfo{
-			issuer:      tx.SenderPK,
-			name:        tx.Name,
-			description: tx.Description,
-			decimals:    int8(tx.Decimals),
+			issuer:   tx.SenderPK,
+			decimals: int8(tx.Decimals),
 		},
 		assetChangeableInfo: assetChangeableInfo{
-			quantity:   *big.NewInt(int64(tx.Quantity)),
-			reissuable: tx.Reissuable,
+			quantity:                 *big.NewInt(int64(tx.Quantity)),
+			name:                     tx.Name,
+			description:              tx.Description,
+			lastNameDescChangeHeight: blockHeight,
+			reissuable:               tx.Reissuable,
 		},
 	}
 	if err := tp.stor.assets.issueAsset(assetID, assetInfo, info.blockID); err != nil {
@@ -310,6 +313,23 @@ func (tp *transactionPerformer) performSetAssetScriptWithProofs(transaction prot
 	}
 	if err := tp.stor.scriptsStorage.setAssetScript(tx.AssetID, tx.Script, info.blockID); err != nil {
 		return errors.Wrap(err, "failed to set asset script")
+	}
+	return nil
+}
+
+func (tp *transactionPerformer) performUpdateAssetInfoWithProofs(transaction proto.Transaction, info *performerInfo) error {
+	tx, ok := transaction.(*proto.UpdateAssetInfoWithProofs)
+	if !ok {
+		return errors.New("failed to convert interface to UpdateAssetInfoWithProofs transaction")
+	}
+	blockHeight := info.height + 1
+	ch := &assetInfoChange{
+		newName:        tx.Name,
+		newDescription: tx.Description,
+		newHeight:      blockHeight,
+	}
+	if err := tp.stor.assets.updateAssetInfo(tx.AssetID, ch, info.blockID, !info.initialisation); err != nil {
+		return errors.Wrap(err, "failed to update asset info")
 	}
 	return nil
 }

@@ -1082,3 +1082,49 @@ func (tc *transactionChecker) checkInvokeScriptWithProofs(transaction proto.Tran
 	}
 	return smartAssets, nil
 }
+
+func (tc *transactionChecker) checkUpdateAssetInfoWithProofs(transaction proto.Transaction, info *checkerInfo) ([]crypto.Digest, error) {
+	tx, ok := transaction.(*proto.UpdateAssetInfoWithProofs)
+	if !ok {
+		return nil, errors.New("failed to convert interface to UpdateAssetInfoWithProofs transaction")
+	}
+	if err := tc.checkTimestamps(tx.Timestamp, info.currentTimestamp, info.parentTimestamp); err != nil {
+		return nil, errors.Wrap(err, "invalid timestamp")
+	}
+	if err := tc.checkFeeAsset(&tx.FeeAsset, info.initialisation); err != nil {
+		return nil, errors.Wrap(err, "bad fee asset")
+	}
+	allAssets := []proto.OptionalAsset{*proto.NewOptionalAssetFromDigest(tx.AssetID)}
+	smartAssets, err := tc.smartAssets(allAssets, info.initialisation)
+	if err != nil {
+		return nil, err
+	}
+	assets := &txAssets{feeAsset: tx.FeeAsset, smartAssets: smartAssets}
+	if err := tc.checkFee(transaction, assets, info); err != nil {
+		return nil, errors.Errorf("checkFee(): %v", err)
+	}
+	activated, err := tc.stor.features.isActivated(int16(settings.BlockV5))
+	if err != nil {
+		return nil, err
+	}
+	if !activated {
+		return nil, errors.New("BlockV5 must be activated for UpdateAssetInfo transaction")
+	}
+	assetInfo, err := tc.stor.assets.newestAssetInfo(tx.AssetID, !info.initialisation)
+	if err != nil {
+		return nil, errors.Wrap(err, "unknown asset")
+	}
+	if !bytes.Equal(assetInfo.issuer[:], tx.SenderPK[:]) {
+		return nil, errors.New("asset was issued by other address")
+	}
+	lastUpdateHeight, err := tc.stor.assets.newestLastUpdateHeight(tx.AssetID, !info.initialisation)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to retrieve last update height")
+	}
+	updateAllowedAt := lastUpdateHeight + tc.settings.MinUpdateAssetInfoInterval
+	blockHeight := info.height + 1
+	if blockHeight < updateAllowedAt {
+		return nil, errors.Errorf("can not update asset info of asset %s before height %d, current height is %d", tx.AssetID.String(), updateAllowedAt, blockHeight)
+	}
+	return smartAssets, nil
+}

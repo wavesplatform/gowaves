@@ -152,7 +152,7 @@ func (a *txAppender) orderIsScripted(order proto.Order, initialisation bool) (bo
 	return a.txHandler.tc.orderScriptedAccount(order, initialisation)
 }
 
-func (a *txAppender) handleExchange(tx proto.Transaction, blockInfo *proto.BlockInfo, initialisation bool) (uint64, error) {
+func (a *txAppender) handleExchange(ride4DAppsActivated bool, tx proto.Transaction, blockInfo *proto.BlockInfo, initialisation bool) (uint64, error) {
 	// Smart account trading.
 	activated, err := a.stor.features.isActivated(int16(settings.SmartAccountTrading))
 	if err != nil {
@@ -189,11 +189,7 @@ func (a *txAppender) handleExchange(tx proto.Transaction, blockInfo *proto.Block
 		}
 		scriptsRuns++
 	}
-	activated, err = a.stor.features.isActivated(int16(settings.Ride4DApps))
-	if err != nil {
-		return 0, err
-	}
-	if !activated {
+	if !ride4DAppsActivated {
 		// Don't count before Ride4DApps activation.
 		scriptsRuns = 0
 	}
@@ -258,19 +254,23 @@ func (a *txAppender) checkTxAgainstState(tx proto.Transaction, accountScripted b
 	if err != nil {
 		return 0, err
 	}
+	ride4DAppsActivated, err := a.stor.features.isActivated(int16(settings.Ride4DApps))
+	if err != nil {
+		return 0, errors.Errorf("isActivated(): %v", err)
+	}
 	for _, smartAsset := range txSmartAssets {
-		if tx.GetTypeInfo().Type == proto.SetAssetScriptTransaction {
-			// Exception: don't count before Ride4DApps activation.
-			break
-		}
 		// Check smart asset's script.
 		if err := a.sc.callAssetScript(tx, smartAsset, blockInfo, checkerInfo.initialisation); err != nil {
 			return 0, errors.Errorf("callAssetScript(): %v", err)
 		}
+		if tx.GetTypeInfo().Type == proto.SetAssetScriptTransaction && !ride4DAppsActivated {
+			// Exception: don't count before Ride4DApps activation.
+			continue
+		}
 		scriptsRuns++
 	}
 	if tx.GetTypeInfo().Type == proto.ExchangeTransaction {
-		exchangeScripsRuns, err := a.handleExchange(tx, blockInfo, checkerInfo.initialisation)
+		exchangeScripsRuns, err := a.handleExchange(ride4DAppsActivated, tx, blockInfo, checkerInfo.initialisation)
 		if err != nil {
 			return 0, errors.Errorf("failed to handle exchange tx: %v", err)
 		}
@@ -444,6 +444,7 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 		// Perform state changes.
 		performerInfo := &performerInfo{
 			initialisation: params.initialisation,
+			height:         params.height,
 			blockID:        blockID,
 		}
 		if err := a.txHandler.performTx(tx, performerInfo); err != nil {
