@@ -10,6 +10,7 @@ import (
 
 	"github.com/mr-tron/base58/base58"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -261,7 +262,18 @@ func (s *testStorageObjects) createAssetAtBlock(t *testing.T, assetID crypto.Dig
 	s.addBlock(t, blockID)
 	assetInfo := defaultAssetInfo(true)
 	err := s.entities.assets.issueAsset(assetID, assetInfo, blockID)
-	assert.NoError(t, err, "issueAset() failed")
+	assert.NoError(t, err, "issueAsset() failed")
+	s.flush(t)
+	return assetInfo
+}
+
+func (s *testStorageObjects) createAssetWithDecimals(t *testing.T, assetID crypto.Digest, decimals int) *assetInfo {
+	s.addBlock(t, blockID0)
+	assetInfo := defaultAssetInfo(true)
+	require.True(t, decimals >= 0)
+	assetInfo.decimals = int8(decimals)
+	err := s.entities.assets.issueAsset(assetID, assetInfo, blockID0)
+	assert.NoError(t, err, "issueAsset() failed")
 	s.flush(t)
 	return assetInfo
 }

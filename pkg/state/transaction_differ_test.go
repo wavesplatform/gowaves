@@ -12,6 +12,11 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/util"
 )
 
+const (
+	// priceConstant is used for exchange calculations.
+	priceConstant = 10e7
+)
+
 var (
 	defaultTimestamp = settings.MainNetSettings.CheckTempNegativeAfterTime
 	defaultAmount    = uint64(100)
@@ -457,6 +462,20 @@ func createExchangeWithSig(t *testing.T) *proto.ExchangeWithSig {
 	return tx
 }
 
+//TODO: this function is used in test that is commented for now
+//func createExchangeWithSigParams(t *testing.T, price, amount uint64) *proto.ExchangeWithSig {
+//	bo := proto.NewUnsignedOrderV1(testGlobal.senderInfo.pk, testGlobal.matcherInfo.pk, *testGlobal.asset0.asset, *testGlobal.asset1.asset, proto.Buy, price, amount, 0, 0, 3)
+//	err := bo.Sign(proto.MainNetScheme, testGlobal.senderInfo.sk)
+//	assert.NoError(t, err, "bo.Sign() failed")
+//	so := proto.NewUnsignedOrderV1(testGlobal.recipientInfo.pk, testGlobal.matcherInfo.pk, *testGlobal.asset0.asset, *testGlobal.asset1.asset, proto.Sell, price, amount, 0, 0, 3)
+//	err = so.Sign(proto.MainNetScheme, testGlobal.recipientInfo.sk)
+//	assert.NoError(t, err, "so.Sign() failed")
+//	tx := proto.NewUnsignedExchangeWithSig(bo, so, bo.Price, bo.Amount, 1, 2, defaultFee, defaultTimestamp)
+//	err = tx.Sign(proto.MainNetScheme, testGlobal.senderInfo.sk)
+//	assert.NoError(t, err, "tx.Sign() failed")
+//	return tx
+//}
+
 func TestCreateDiffExchangeWithSig(t *testing.T) {
 	to, path := createDifferTestObjects(t)
 
@@ -551,6 +570,45 @@ func createExchangeWithProofsWithOrdersV3(t *testing.T) *proto.ExchangeWithProof
 	return tx
 }
 
+func createExchangeWithProofsWithOrdersV4(t *testing.T, price, amount uint64) *proto.ExchangeWithProofs {
+	bo := proto.NewUnsignedOrderV4(testGlobal.senderInfo.pk, testGlobal.matcherInfo.pk, *testGlobal.asset0.asset, *testGlobal.asset1.asset, proto.Buy, uint64(price), uint64(amount), 0, 0, 3, *testGlobal.asset2.asset)
+	err := bo.Sign(proto.MainNetScheme, testGlobal.senderInfo.sk)
+	require.NoError(t, err, "bo.Sign() failed")
+	so := proto.NewUnsignedOrderV4(testGlobal.recipientInfo.pk, testGlobal.matcherInfo.pk, *testGlobal.asset0.asset, *testGlobal.asset1.asset, proto.Sell, uint64(price), uint64(amount), 0, 0, 3, *testGlobal.asset2.asset)
+	err = so.Sign(proto.MainNetScheme, testGlobal.recipientInfo.sk)
+	require.NoError(t, err, "so.Sign() failed")
+	tx := proto.NewUnsignedExchangeWithProofs(3, bo, so, uint64(price), bo.Amount, 1, 2, defaultFee, defaultTimestamp)
+	err = tx.Sign(proto.MainNetScheme, testGlobal.matcherInfo.sk)
+	require.NoError(t, err, "tx.Sign() failed")
+	return tx
+}
+
+func createExchangeV3WithProofsWithMixedOrders(t *testing.T, price1, price2, amount uint64) *proto.ExchangeWithProofs {
+	bo := proto.NewUnsignedOrderV3(testGlobal.senderInfo.pk, testGlobal.matcherInfo.pk, *testGlobal.asset0.asset, *testGlobal.asset1.asset, proto.Buy, uint64(price1), uint64(amount), 0, 0, 3, *testGlobal.asset2.asset)
+	err := bo.Sign(proto.MainNetScheme, testGlobal.senderInfo.sk)
+	require.NoError(t, err, "bo.Sign() failed")
+	so := proto.NewUnsignedOrderV4(testGlobal.recipientInfo.pk, testGlobal.matcherInfo.pk, *testGlobal.asset0.asset, *testGlobal.asset1.asset, proto.Sell, uint64(price2), uint64(amount), 0, 0, 3, *testGlobal.asset2.asset)
+	err = so.Sign(proto.MainNetScheme, testGlobal.recipientInfo.sk)
+	require.NoError(t, err, "so.Sign() failed")
+	tx := proto.NewUnsignedExchangeWithProofs(3, bo, so, uint64(price2), bo.Amount, 1, 2, defaultFee, defaultTimestamp)
+	err = tx.Sign(proto.MainNetScheme, testGlobal.matcherInfo.sk)
+	require.NoError(t, err, "tx.Sign() failed")
+	return tx
+}
+
+func createExchangeV2WithProofsWithOrdersV3(t *testing.T, price, amount uint64) *proto.ExchangeWithProofs {
+	bo := proto.NewUnsignedOrderV3(testGlobal.senderInfo.pk, testGlobal.matcherInfo.pk, *testGlobal.asset0.asset, *testGlobal.asset1.asset, proto.Buy, uint64(price), uint64(amount), 0, 0, 3, *testGlobal.asset2.asset)
+	err := bo.Sign(proto.MainNetScheme, testGlobal.senderInfo.sk)
+	require.NoError(t, err, "bo.Sign() failed")
+	so := proto.NewUnsignedOrderV3(testGlobal.recipientInfo.pk, testGlobal.matcherInfo.pk, *testGlobal.asset0.asset, *testGlobal.asset1.asset, proto.Sell, uint64(price), uint64(amount), 0, 0, 3, *testGlobal.asset2.asset)
+	err = so.Sign(proto.MainNetScheme, testGlobal.recipientInfo.sk)
+	require.NoError(t, err, "so.Sign() failed")
+	tx := proto.NewUnsignedExchangeWithProofs(2, bo, so, uint64(price), bo.Amount, 1, 2, defaultFee, defaultTimestamp)
+	err = tx.Sign(proto.MainNetScheme, testGlobal.matcherInfo.sk)
+	require.NoError(t, err, "tx.Sign() failed")
+	return tx
+}
+
 func TestCreateDiffExchangeWithProofsWithOrdersV3(t *testing.T) {
 	to, path := createDifferTestObjects(t)
 
@@ -583,6 +641,102 @@ func TestCreateDiffExchangeWithProofsWithOrdersV3(t *testing.T) {
 		testGlobal.matcherInfo.addr:   empty,
 	}
 	assert.Equal(t, correctAddrs, ch.addrs)
+}
+
+//TODO: This test is based on real transaction from Testnet https://wavesexplorer.com/testnet/tx/6cEuK2q1FzhcVhiHUhYZXiZigroqTiRQ2Zswg139fcFW
+// and produces an incorrect or unexpected diff, should be fixes some how
+//func TestCreateDiffExchangeWithSignature(t *testing.T) {
+//	to, path := createDifferTestObjects(t)
+//
+//	defer func() {
+//		to.stor.close(t)
+//		err := util.CleanTemporaryDirs(path)
+//		assert.NoError(t, err, "failed to clean test data dirs")
+//	}()
+//
+//	to.stor.createAssetWithDecimals(t, testGlobal.asset0.asset.ID, 8)
+//	to.stor.createAssetWithDecimals(t, testGlobal.asset1.asset.ID, 8)
+//
+//	amount := uint64(394)
+//	price := uint64(251566)
+//
+//	tx := createExchangeWithSigParams(t, price, amount)
+//	ch, err := to.td.createDiffExchange(tx, defaultDifferInfo(t))
+//	assert.NoError(t, err, "createDiffExchange() failed")
+//
+//	priceAmount := price * amount
+//	correctDiff := txDiff{
+//		testGlobal.recipientInfo.assetKeys[0]: newBalanceDiff(-int64(amount), 0, 0, false),
+//		testGlobal.recipientInfo.assetKeys[1]: newBalanceDiff(int64(priceAmount), 0, 0, false),
+//		testGlobal.recipientInfo.assetKeys[2]: newBalanceDiff(-int64(tx.SellMatcherFee), 0, 0, false),
+//		testGlobal.senderInfo.assetKeys[0]:    newBalanceDiff(int64(amount), 0, 0, false),
+//		testGlobal.senderInfo.assetKeys[1]:    newBalanceDiff(-int64(priceAmount), 0, 0, false),
+//		testGlobal.senderInfo.assetKeys[2]:    newBalanceDiff(-int64(tx.BuyMatcherFee), 0, 0, false),
+//		testGlobal.minerInfo.wavesKey:         newBalanceDiff(int64(tx.Fee), 0, 0, false),
+//		testGlobal.matcherInfo.wavesKey:       newBalanceDiff(-int64(tx.Fee), 0, 0, false),
+//		testGlobal.matcherInfo.assetKeys[2]:   newBalanceDiff(int64(tx.SellMatcherFee+tx.BuyMatcherFee), 0, 0, false),
+//	}
+//	correctAddrs := map[proto.Address]struct{}{
+//		testGlobal.recipientInfo.addr: empty,
+//		testGlobal.senderInfo.addr:    empty,
+//		testGlobal.matcherInfo.addr:   empty,
+//	}
+//
+//	assert.Equal(t, correctDiff, ch.diff)
+//	assert.Equal(t, correctAddrs, ch.addrs)
+//}
+//
+func TestCreateDiffExchangeV3WithProofsWithOrdersV4(t *testing.T) {
+	to, path := createDifferTestObjects(t)
+
+	defer func() {
+		to.stor.close(t)
+		err := util.CleanTemporaryDirs(path)
+		assert.NoError(t, err, "failed to clean test data dirs")
+	}()
+
+	to.stor.createAssetWithDecimals(t, testGlobal.asset0.asset.ID, 0)
+	to.stor.createAssetWithDecimals(t, testGlobal.asset1.asset.ID, 8)
+
+	amount := uint64(1)
+	price := uint64(10 * priceConstant)
+
+	tx3o4 := createExchangeWithProofsWithOrdersV4(t, 10*priceConstant, amount)
+	ch1, err := to.td.createDiffExchange(tx3o4, defaultDifferInfo(t))
+	assert.NoError(t, err, "createDiffExchange() failed")
+
+	tx2o3 := createExchangeV2WithProofsWithOrdersV3(t, 10*priceConstant*priceConstant, amount)
+	ch2, err := to.td.createDiffExchange(tx2o3, defaultDifferInfo(t))
+	assert.NoError(t, err, "createDiffExchange() failed")
+
+	tx3mo := createExchangeV3WithProofsWithMixedOrders(t, 10*priceConstant*priceConstant, 10*priceConstant, amount)
+	ch3, err := to.td.createDiffExchange(tx3mo, defaultDifferInfo(t))
+	assert.NoError(t, err, "createDiffExchange() failed")
+
+	priceAmount := price * amount
+	correctDiff := txDiff{
+		testGlobal.recipientInfo.assetKeys[0]: newBalanceDiff(-int64(amount), 0, 0, false),
+		testGlobal.recipientInfo.assetKeys[1]: newBalanceDiff(int64(priceAmount), 0, 0, false),
+		testGlobal.recipientInfo.assetKeys[2]: newBalanceDiff(-int64(tx3o4.SellMatcherFee), 0, 0, false),
+		testGlobal.senderInfo.assetKeys[0]:    newBalanceDiff(int64(amount), 0, 0, false),
+		testGlobal.senderInfo.assetKeys[1]:    newBalanceDiff(-int64(priceAmount), 0, 0, false),
+		testGlobal.senderInfo.assetKeys[2]:    newBalanceDiff(-int64(tx3o4.BuyMatcherFee), 0, 0, false),
+		testGlobal.minerInfo.wavesKey:         newBalanceDiff(int64(tx3o4.Fee), 0, 0, false),
+		testGlobal.matcherInfo.wavesKey:       newBalanceDiff(-int64(tx3o4.Fee), 0, 0, false),
+		testGlobal.matcherInfo.assetKeys[2]:   newBalanceDiff(int64(tx3o4.SellMatcherFee+tx3o4.BuyMatcherFee), 0, 0, false),
+	}
+	correctAddrs := map[proto.Address]struct{}{
+		testGlobal.recipientInfo.addr: empty,
+		testGlobal.senderInfo.addr:    empty,
+		testGlobal.matcherInfo.addr:   empty,
+	}
+
+	assert.Equal(t, correctDiff, ch1.diff)
+	assert.Equal(t, correctAddrs, ch1.addrs)
+	assert.Equal(t, correctDiff, ch2.diff)
+	assert.Equal(t, correctAddrs, ch2.addrs)
+	assert.Equal(t, correctDiff, ch3.diff)
+	assert.Equal(t, correctAddrs, ch3.addrs)
 }
 
 func createLeaseWithSig(t *testing.T) *proto.LeaseWithSig {

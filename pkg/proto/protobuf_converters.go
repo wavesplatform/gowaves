@@ -648,7 +648,7 @@ func (c *ProtobufConverter) Transaction(tx *g.Transaction) (Transaction, error) 
 				Timestamp:      ts,
 			}
 		} else {
-			if bo.GetVersion() != 1 || so.GetVersion() != 1 {
+			if bo != nil && so != nil && (bo.GetVersion() != 1 || so.GetVersion() != 1) {
 				c.reset()
 				return nil, errors.New("unsupported order version")
 			}

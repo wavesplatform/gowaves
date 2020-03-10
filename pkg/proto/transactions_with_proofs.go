@@ -1232,8 +1232,8 @@ func (tx *ExchangeWithProofs) UnmarshalSignedFromProtobuf(data []byte) error {
 
 func (tx *ExchangeWithProofs) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
 	orders := make([]*g.Order, 2)
-	orders[0] = tx.BuyOrder.ToProtobuf(scheme)
-	orders[1] = tx.SellOrder.ToProtobuf(scheme)
+	orders[0] = tx.BuyOrder.ToProtobufSigned(scheme)
+	orders[1] = tx.SellOrder.ToProtobufSigned(scheme)
 	txData := &g.Transaction_Exchange{Exchange: &g.ExchangeTransactionData{
 		Amount:         int64(tx.Amount),
 		Price:          int64(tx.Price),

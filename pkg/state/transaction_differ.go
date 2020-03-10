@@ -1,18 +1,14 @@
 package state
 
 import (
-	"math/big"
-
+	"github.com/ericlagergren/decimal"
+	"github.com/ericlagergren/decimal/math"
+	"github.com/mr-tron/base58"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/util"
-)
-
-const (
-	// priceConstant is used for exchange calculations.
-	priceConstant = 10e7
 )
 
 func byteKey(addr proto.Address, assetID []byte) []byte {
@@ -244,16 +240,6 @@ func (diff txDiff) balancesChanges() []balanceChanges {
 	}
 	return changes
 }
-
-/* TODO: unused code, need to write tests if it is needed or otherwise remove it.
-func (diff txDiff) keys() []string {
-	keys := make([]string, 0, len(diff))
-	for k := range diff {
-		keys = append(keys, k)
-	}
-	return keys
-}
-*/
 
 func (diff txDiff) appendBalanceDiffStr(key string, balanceDiff balanceDiff) error {
 	if prevDiff, ok := diff[key]; ok {
@@ -632,6 +618,84 @@ func (td *transactionDiffer) orderFeeKey(address proto.Address, order proto.Orde
 	}
 }
 
+func (td *transactionDiffer) orderAssetDecimals(transaction proto.Transaction, priceAsset bool, filter bool) (int, error) {
+	exchange, ok := transaction.(proto.Exchange)
+	if !ok {
+		return 0, errors.Errorf("unsupported transaction type '%T'", transaction)
+	}
+	switch v := transaction.GetVersion(); v {
+	case 1, 2:
+		// For old transaction version function returns 8.
+		return 8, nil
+	case 3:
+		buy, err := exchange.GetBuyOrder()
+		if err != nil {
+			return 0, err
+		}
+		asset := buy.AssetPair.AmountAsset
+		if priceAsset {
+			asset = buy.AssetPair.PriceAsset
+		}
+		if asset.Present {
+			info, err := td.stor.assets.newestAssetInfo(asset.ID, filter)
+			if err != nil {
+				return 0, err
+			}
+			return int(info.decimals), nil
+		}
+		// Waves in pair, return 8
+		return 8, nil
+	default:
+		return 0, errors.Errorf("unsupported exchange transaction version %d", v)
+	}
+}
+
+var ten = decimal.WithContext(decimal.Context128).SetUint64(10)
+
+func convertPrice(price int64, amountDecimals, priceDecimals int) (uint64, error) {
+	p := decimal.WithContext(decimal.Context128).SetMantScale(price, 0)
+	e := decimal.WithContext(decimal.Context128).SetMantScale(int64(priceDecimals-amountDecimals), 0)
+	x := decimal.WithContext(decimal.Context128)
+	math.Pow(x, ten, e)
+	p.QuoInt(p, x)
+	r, ok := p.Int64()
+	if !ok {
+		return 0, errors.New("int64 overflow")
+	}
+	if r <= 0 {
+		return 0, errors.New("price should be positive")
+	}
+	return uint64(r), nil
+}
+
+func orderPrice(exchangeVersion byte, order proto.Order, amountDecimals, priceDecimals int) (uint64, error) {
+	price := order.GetPrice()
+	if exchangeVersion >= 3 && order.GetVersion() < 4 {
+		return convertPrice(int64(price), amountDecimals, priceDecimals)
+	}
+	return price, nil
+}
+
+// amount = matchAmount * matchPrice * 10^(priceDecimals - amountDecimals - 8)
+func calculateAmount(matchAmount, matchPrice uint64, amountDecimal, priceDecimals int) (int64, error) {
+	a := decimal.WithContext(decimal.Context128).SetUint64(matchAmount)
+	p := decimal.WithContext(decimal.Context128).SetUint64(matchPrice)
+	e := decimal.WithContext(decimal.Context128).SetMantScale(int64(priceDecimals-amountDecimal-8), 0)
+	x := decimal.WithContext(decimal.Context128)
+	math.Pow(x, ten, e)
+	y := decimal.WithContext(decimal.Context128)
+	y.Mul(a, p)
+	y.Mul(y, x)
+	r, ok := y.Int64()
+	if !ok {
+		return 0, errors.New("int64 overflow")
+	}
+	if r < 0 {
+		return 0, errors.New("result should not be negative")
+	}
+	return r, nil
+}
+
 func (td *transactionDiffer) createDiffExchange(transaction proto.Transaction, info *differInfo) (txBalanceChanges, error) {
 	tx, ok := transaction.(proto.Exchange)
 	if !ok {
@@ -642,24 +706,40 @@ func (td *transactionDiffer) createDiffExchange(transaction proto.Transaction, i
 	sellOrder := tx.GetSellOrderFull()
 	amountAsset := buyOrder.GetAssetPair().AmountAsset
 	priceAsset := buyOrder.GetAssetPair().PriceAsset
-	// Perform exchange.
-	var val, amount, price big.Int
-	priceConst := big.NewInt(priceConstant)
-	amount.SetUint64(tx.GetAmount())
-	price.SetUint64(tx.GetPrice())
-	val.Mul(&amount, &price)
-	val.Quo(&val, priceConst)
-	if !val.IsInt64() {
-		return txBalanceChanges{}, errors.New("price * amount exceeds MaxInt64")
+	amountDecimals, err := td.orderAssetDecimals(transaction, false, !info.initialisation)
+	if err != nil {
+		return txBalanceChanges{}, err
 	}
-	priceDiff := val.Int64()
+	priceDecimals, err := td.orderAssetDecimals(transaction, true, !info.initialisation)
+	if err != nil {
+		return txBalanceChanges{}, err
+	}
+	// For old orders and exchanges convert price to new formula
+	buyOrderPrice, err := orderPrice(transaction.GetVersion(), buyOrder, amountDecimals, priceDecimals)
+	if err != nil {
+		return txBalanceChanges{}, err
+	}
+	sellOrderPrice, err := orderPrice(transaction.GetVersion(), sellOrder, amountDecimals, priceDecimals)
+	if err != nil {
+		return txBalanceChanges{}, err
+	}
+	if tx.GetPrice() > buyOrderPrice || tx.GetPrice() < sellOrderPrice {
+		return txBalanceChanges{}, errors.Errorf("invalid exchange transaction price (%d), should be between %d and %d", tx.GetPrice(), sellOrderPrice, buyOrderPrice)
+	}
+	// Perform exchange.
+	priceAssetDiff, err := calculateAmount(tx.GetAmount(), tx.GetPrice(), amountDecimals, priceDecimals)
+	if err != nil {
+		id, _ := transaction.GetID(td.settings.AddressSchemeCharacter)
+		return txBalanceChanges{}, errors.Wrapf(err, "invalid exchange transaction ('%s') amount", base58.Encode(id))
+	}
 	amountDiff := int64(tx.GetAmount())
+
 	senderAddr, err := proto.NewAddressFromPublicKey(td.settings.AddressSchemeCharacter, sellOrder.GetSenderPK())
 	if err != nil {
 		return txBalanceChanges{}, err
 	}
 	senderPriceKey := byteKey(senderAddr, priceAsset.ToID())
-	if err := diff.appendBalanceDiff(senderPriceKey, newBalanceDiff(priceDiff, 0, 0, false)); err != nil {
+	if err := diff.appendBalanceDiff(senderPriceKey, newBalanceDiff(priceAssetDiff, 0, 0, false)); err != nil {
 		return txBalanceChanges{}, err
 	}
 	senderAmountKey := byteKey(senderAddr, amountAsset.ToID())
@@ -671,7 +751,7 @@ func (td *transactionDiffer) createDiffExchange(transaction proto.Transaction, i
 		return txBalanceChanges{}, err
 	}
 	receiverPriceKey := byteKey(receiverAddr, priceAsset.ToID())
-	if err := diff.appendBalanceDiff(receiverPriceKey, newBalanceDiff(-priceDiff, 0, 0, false)); err != nil {
+	if err := diff.appendBalanceDiff(receiverPriceKey, newBalanceDiff(-priceAssetDiff, 0, 0, false)); err != nil {
 		return txBalanceChanges{}, err
 	}
 	receiverAmountKey := byteKey(receiverAddr, amountAsset.ToID())

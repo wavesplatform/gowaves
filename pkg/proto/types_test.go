@@ -83,8 +83,8 @@ func TestOrderV1Validations(t *testing.T) {
 	require.NoError(t, err)
 	pa, err := NewOptionalAssetFromString("Ft8X1v1LTa1ABafufpaCWyVj8KkaxUWE6xBhW6sNFJck")
 	require.NoError(t, err)
-	waves, err := NewOptionalAssetFromString("WAVES")
-	require.NoError(t, err)
+	//waves, err := NewOptionalAssetFromString("WAVES")
+	//require.NoError(t, err)
 	tests := []struct {
 		amountAsset OptionalAsset
 		priceAsset  OptionalAsset
@@ -105,11 +105,12 @@ func TestOrderV1Validations(t *testing.T) {
 		{*aa, *pa, Buy, 10, 20, 0, 1, 1, "matcher's fee should be positive"},
 		{*aa, *pa, Sell, 10, 20, math.MaxInt64 + 2, 1, 1, "matcher's fee is too big"},
 		{*aa, *pa, Sell, 10, 20, MaxOrderAmount + 1, 1, 1, "matcher's fee is larger than maximum allowed"},
-		{*aa, *waves, Buy, math.MaxInt64, MaxOrderAmount, 1000, 1, 1, "spend amount is too large"},
-		{*aa, *waves, Buy, 1, 1, 1000, 1, 1, "spend amount should be positive"},
-		{*aa, *waves, Sell, math.MaxInt64, MaxOrderAmount, 1000, 1, 1, "receive amount is too large"},
-		{*aa, *waves, Sell, 1, 1, 1000, 1, 1, "receive amount should be positive"},
-		{*aa, *waves, Buy, math.MaxInt64 / (100 * PriceConstant), MaxOrderAmount, MaxOrderAmount, 1, 1, "sum of spend asset amount and matcher fee overflows JVM long"},
+		//TODO: move those validations to exchange transaction tests
+		//{*aa, *waves, Buy, math.MaxInt64, MaxOrderAmount, 1000, 1, 1, "spend amount is too large"},
+		//{*aa, *waves, Buy, 1, 1, 1000, 1, 1, "spend amount should be positive"},
+		//{*aa, *waves, Sell, math.MaxInt64, MaxOrderAmount, 1000, 1, 1, "receive amount is too large"},
+		//{*aa, *waves, Sell, 1, 1, 1000, 1, 1, "receive amount should be positive"},
+		//{*aa, *waves, Buy, math.MaxInt64 / (100 * PriceConstant), MaxOrderAmount, MaxOrderAmount, 1, 1, "sum of spend asset amount and matcher fee overflows JVM long"},
 		{*aa, *pa, Sell, 100000000, 20, 30, 0, 1, "timestamp should be positive"},
 		{*aa, *pa, Sell, 100000000, 20, 30, 1, 0, "expiration should be positive"},
 	}
@@ -333,8 +334,8 @@ func TestOrderV2Validations(t *testing.T) {
 	require.NoError(t, err)
 	pa, err := NewOptionalAssetFromString("Ft8X1v1LTa1ABafufpaCWyVj8KkaxUWE6xBhW6sNFJck")
 	require.NoError(t, err)
-	waves, err := NewOptionalAssetFromString("WAVES")
-	require.NoError(t, err)
+	//waves, err := NewOptionalAssetFromString("WAVES")
+	//require.NoError(t, err)
 	tests := []struct {
 		amountAsset OptionalAsset
 		priceAsset  OptionalAsset
@@ -355,11 +356,12 @@ func TestOrderV2Validations(t *testing.T) {
 		{*aa, *pa, Buy, 10, 20, 0, 1, 1, "matcher's fee should be positive"},
 		{*aa, *pa, Sell, 10, 20, math.MaxInt64 + 2, 1, 1, "matcher's fee is too big"},
 		{*aa, *pa, Sell, 10, 20, MaxOrderAmount + 1, 1, 1, "matcher's fee is larger than maximum allowed"},
-		{*aa, *waves, Buy, math.MaxInt64, MaxOrderAmount, 1000, 1, 1, "spend amount is too large"},
-		{*aa, *waves, Buy, 1, 1, 1000, 1, 1, "spend amount should be positive"},
-		{*aa, *waves, Sell, math.MaxInt64, MaxOrderAmount, 1000, 1, 1, "receive amount is too large"},
-		{*aa, *waves, Sell, 1, 1, 1000, 1, 1, "receive amount should be positive"},
-		{*aa, *waves, Buy, math.MaxInt64 / (100 * PriceConstant), MaxOrderAmount, MaxOrderAmount, 1, 1, "sum of spend asset amount and matcher fee overflows JVM long"},
+		//TODO: move validations to exchange transaction diff tests
+		//{*aa, *waves, Buy, math.MaxInt64, MaxOrderAmount, 1000, 1, 1, "spend amount is too large"},
+		//{*aa, *waves, Buy, 1, 1, 1000, 1, 1, "spend amount should be positive"},
+		//{*aa, *waves, Sell, math.MaxInt64, MaxOrderAmount, 1000, 1, 1, "receive amount is too large"},
+		//{*aa, *waves, Sell, 1, 1, 1000, 1, 1, "receive amount should be positive"},
+		//{*aa, *waves, Buy, math.MaxInt64 / (100 * PriceConstant), MaxOrderAmount, MaxOrderAmount, 1, 1, "sum of spend asset amount and matcher fee overflows JVM long"},
 		{*aa, *pa, Sell, 100000000, 20, 30, 0, 1, "timestamp should be positive"},
 		{*aa, *pa, Sell, 100000000, 20, 30, 1, 0, "expiration should be positive"},
 	}
@@ -535,11 +537,12 @@ func TestOrderV3Validations(t *testing.T) {
 		{*aa, *pa, Buy, 10, 20, 0, *waves, 1, 1, "matcher's fee should be positive"},
 		{*aa, *pa, Sell, 10, 20, math.MaxInt64 + 2, *fa, 1, 1, "matcher's fee is too big"},
 		{*aa, *pa, Sell, 10, 20, MaxOrderAmount + 1, *fa, 1, 1, "matcher's fee is larger than maximum allowed"},
-		{*aa, *waves, Buy, math.MaxInt64, MaxOrderAmount, 1000, *fa, 1, 1, "spend amount is too large"},
-		{*aa, *waves, Buy, 1, 1, 1000, *fa, 1, 1, "spend amount should be positive"},
-		{*aa, *waves, Sell, math.MaxInt64, MaxOrderAmount, 1000, *fa, 1, 1, "receive amount is too large"},
-		{*aa, *waves, Sell, 1, 1, 1000, *fa, 1, 1, "receive amount should be positive"},
-		{*aa, *waves, Buy, math.MaxInt64 / (100 * PriceConstant), MaxOrderAmount, MaxOrderAmount, *fa, 1, 1, "sum of spend asset amount and matcher fee overflows JVM long"},
+		//TODO: move validations to exchange transaction tests
+		//{*aa, *waves, Buy, math.MaxInt64, MaxOrderAmount, 1000, *fa, 1, 1, "spend amount is too large"},
+		//{*aa, *waves, Buy, 1, 1, 1000, *fa, 1, 1, "spend amount should be positive"},
+		//{*aa, *waves, Sell, math.MaxInt64, MaxOrderAmount, 1000, *fa, 1, 1, "receive amount is too large"},
+		//{*aa, *waves, Sell, 1, 1, 1000, *fa, 1, 1, "receive amount should be positive"},
+		//{*aa, *waves, Buy, math.MaxInt64 / (100 * PriceConstant), MaxOrderAmount, MaxOrderAmount, *fa, 1, 1, "sum of spend asset amount and matcher fee overflows JVM long"},
 		{*aa, *pa, Sell, 100000000, 20, 30, *waves, 0, 1, "timestamp should be positive"},
 		{*aa, *pa, Sell, 100000000, 20, 30, *waves, 1, 0, "expiration should be positive"},
 	}
