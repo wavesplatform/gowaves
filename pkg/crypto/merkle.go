@@ -69,7 +69,10 @@ func (t *MerkleTree) Root() Digest {
 
 func (t *MerkleTree) leafDigest(data []byte) Digest {
 	t.h.Reset()
-	t.h.Write(data)
+	_, err := t.h.Write(data)
+	if err != nil {
+		panic(err)
+	}
 	d := Digest{}
 	t.h.Sum(d[:0])
 	return d
@@ -77,8 +80,14 @@ func (t *MerkleTree) leafDigest(data []byte) Digest {
 
 func (t *MerkleTree) nodeDigest(a, b Digest) Digest {
 	t.h.Reset()
-	t.h.Write(a[:])
-	t.h.Write(b[:])
+	_, err := t.h.Write(a[:])
+	if err != nil {
+		panic(err)
+	}
+	_, err = t.h.Write(b[:])
+	if err != nil {
+		panic(err)
+	}
 	d := Digest{}
 	t.h.Sum(d[:0])
 	return d
