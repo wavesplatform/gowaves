@@ -26,13 +26,8 @@ type subTree struct {
 }
 
 type MerkleTree struct {
-	h            hash.Hash
-	stack        []subTree
-	currentIndex uint64
-	proofIndex   uint64
-	proofBase    []byte
-	proofSet     []Digest
-	proofTree    bool
+	h     hash.Hash
+	stack []subTree
 }
 
 func NewMerkleTree() (*MerkleTree, error) {
@@ -47,13 +42,8 @@ func NewMerkleTree() (*MerkleTree, error) {
 }
 
 func (t *MerkleTree) Push(data []byte) {
-	if t.currentIndex == t.proofIndex {
-		t.proofBase = data
-		t.proofSet = append(t.proofSet, t.leafDigest(data))
-	}
 	t.stack = append(t.stack, subTree{height: 0, digest: t.leafDigest(data)})
 	t.joinAllSubTrees()
-	t.currentIndex++
 }
 
 func (t *MerkleTree) Root() Digest {
@@ -61,6 +51,16 @@ func (t *MerkleTree) Root() Digest {
 		return ZeroDigest
 	}
 	current := t.stack[len(t.stack)-1]
+	if current.height != 0 {
+		return current.digest
+	}
+	h := 1
+	if len(t.stack) > 1 {
+		h = t.stack[len(t.stack)-2].height
+	}
+	for current.height < h {
+		current = t.joinSubTrees(current, subTree{height: 0, digest: ZeroDigest})
+	}
 	for i := len(t.stack) - 2; i >= 0; i-- {
 		current = t.joinSubTrees(t.stack[i], current)
 	}
@@ -95,15 +95,6 @@ func (t *MerkleTree) joinAllSubTrees() {
 	for len(t.stack) > 1 && t.stack[len(t.stack)-1].height == t.stack[len(t.stack)-2].height {
 		i := len(t.stack) - 1
 		j := len(t.stack) - 2
-		if t.stack[i].height == len(t.proofSet)-1 {
-			leaves := uint64(1 << uint(t.stack[i].height))
-			mid := (t.currentIndex / leaves) * leaves
-			if t.proofIndex < mid {
-				t.proofSet = append(t.proofSet, t.stack[i].digest)
-			} else {
-				t.proofSet = append(t.proofSet, t.stack[j].digest)
-			}
-		}
 		t.stack = append(t.stack[:j], t.joinSubTrees(t.stack[j], t.stack[i]))
 	}
 }
