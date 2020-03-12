@@ -4,6 +4,9 @@ import (
 	"context"
 	"flag"
 	"math/rand"
+	"net/http"
+	_ "net/http"
+	_ "net/http/pprof"
 	"os"
 	"os/signal"
 	"strconv"
@@ -49,14 +52,38 @@ var (
 	buildExtendedApi  = flag.Bool("build-extended-api", false, "Builds extended API. Note that state must be reimported in case it wasn't imported with similar flag set")
 	serveExtendedApi  = flag.Bool("serve-extended-api", false, "Serves extended API requests since the very beginning. The default behavior is to import until first block close to current time, and start serving at this point")
 	bindAddress       = flag.String("bind-address", "", "Bind address for incoming connections. If empty, will be same as declared address")
-	connectPeers      = flag.String("connect-peers", "true", "Spawn outgoing connections")
+	connectPeers      = flag.Bool("connect-peers", true, "Spawn outgoing connections")
 	minerVoteFeatures = flag.String("vote", "", "Miner vote features")
 	reward            = flag.String("reward", "", "Miner reward: for example 600000000")
 	minerDelayParam   = flag.String("miner-delay", "4h", "Interval after last block then generation is allowed. example 1d4h30m")
 	walletPath        = flag.String("wallet-path", "", "Path to wallet, or ~/.waves by default")
 	walletPassword    = flag.String("wallet-password", "", "Pass password for wallet. Extremely insecure")
 	limitConnectionsS = flag.String("limit-connections", "30", "N incoming and outgoing connections")
+	profiler          = flag.Bool("profiler", false, "Start built-in profiler on 'http://localhost:6060/debug/pprof/'")
 )
+
+func debugCommandLineParameters() {
+	zap.S().Debugf("log-level: %s", *logLevel)
+	zap.S().Debugf("state-path: %s", *statePath)
+	zap.S().Debugf("blockchain-type: %s", *blockchainType)
+	zap.S().Debugf("peers: %s", *peerAddresses)
+	zap.S().Debugf("declared-address: %s", *declAddr)
+	zap.S().Debugf("api-address: %s", *apiAddr)
+	zap.S().Debugf("api-key: %s", *apiKey)
+	zap.S().Debugf("grpc-address: %s", *grpcAddr)
+	zap.S().Debugf("enable-grpc-api: %v", *enableGrpcApi)
+	zap.S().Debugf("build-extended-api: %v", *buildExtendedApi)
+	zap.S().Debugf("serve-extended-api: %v", *serveExtendedApi)
+	zap.S().Debugf("bind-address: %s", *bindAddress)
+	zap.S().Debugf("connect-peers: %v", *connectPeers)
+	zap.S().Debugf("vote: %s", *minerVoteFeatures)
+	zap.S().Debugf("reward: %s", *reward)
+	zap.S().Debugf("miner-delay: %s", *minerDelayParam)
+	zap.S().Debugf("wallet-path: %s", *walletPath)
+	zap.S().Debugf("wallet-password: %s", *walletPassword)
+	zap.S().Debugf("limit-connections: %s", *limitConnectionsS)
+	zap.S().Debugf("profiler: %v", *profiler)
+}
 
 func main() {
 	err := setMaxOpenFiles(1024)
@@ -67,7 +94,14 @@ func main() {
 
 	util.SetupLogger(*logLevel)
 
-	zap.S().Info("connectPeers ", *connectPeers)
+	if *profiler {
+		zap.S().Infof("Starting built-in profiler on 'http://localhost:6060/debug/pprof/'")
+		go func() {
+			zap.S().Warn(http.ListenAndServe("localhost:6060", nil))
+		}()
+	}
+
+	debugCommandLineParameters()
 
 	cfg, err := settings.BlockchainSettingsByTypeName(*blockchainType)
 	if err != nil {
@@ -219,7 +253,7 @@ func main() {
 	})
 
 	mine := miner.NewMicroblockMiner(services, ngRuntime, cfg.AddressSchemeCharacter, features, reward)
-	peerManager.SetConnectPeers(!(*connectPeers == "false"))
+	peerManager.SetConnectPeers(*connectPeers)
 	go miner.Run(ctx, mine, scheduler)
 
 	stateSync := node.NewStateSync(services, scoreSender, node.NewBlocksApplier(state, ntptm))

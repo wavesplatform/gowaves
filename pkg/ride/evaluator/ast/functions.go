@@ -1099,7 +1099,7 @@ func NativeDataStringFromArray(s Scope, e Exprs) (Expr, error) {
 func NativeDataIntegerFromState(s Scope, e Exprs) (Expr, error) {
 	r, k, err := extractRecipientAndKey(s, e)
 	if err != nil {
-		return nil, errors.Wrap(err, "NativeDataIntegerFromState")
+		return NewUnit(), nil
 	}
 	entry, err := s.State().RetrieveNewestIntegerEntry(r, k)
 	if err != nil {
@@ -1112,7 +1112,7 @@ func NativeDataIntegerFromState(s Scope, e Exprs) (Expr, error) {
 func NativeDataBooleanFromState(s Scope, e Exprs) (Expr, error) {
 	r, k, err := extractRecipientAndKey(s, e)
 	if err != nil {
-		return nil, errors.Wrap(err, "NativeDataBooleanFromState")
+		return NewUnit(), nil
 	}
 	entry, err := s.State().RetrieveNewestBooleanEntry(r, k)
 	if err != nil {
@@ -1125,7 +1125,7 @@ func NativeDataBooleanFromState(s Scope, e Exprs) (Expr, error) {
 func NativeDataBinaryFromState(s Scope, e Exprs) (Expr, error) {
 	r, k, err := extractRecipientAndKey(s, e)
 	if err != nil {
-		return nil, errors.Wrap(err, "NativeDataBinaryFromState")
+		return NewUnit(), nil
 	}
 	entry, err := s.State().RetrieveNewestBinaryEntry(r, k)
 	if err != nil {
@@ -1138,7 +1138,7 @@ func NativeDataBinaryFromState(s Scope, e Exprs) (Expr, error) {
 func NativeDataStringFromState(s Scope, e Exprs) (Expr, error) {
 	r, k, err := extractRecipientAndKey(s, e)
 	if err != nil {
-		return nil, errors.Wrap(err, "NativeDataStringFromState")
+		return NewUnit(), nil
 	}
 	entry, err := s.State().RetrieveNewestStringEntry(r, k)
 	if err != nil {
