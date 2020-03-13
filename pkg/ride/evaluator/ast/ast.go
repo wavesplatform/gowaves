@@ -1780,13 +1780,16 @@ func (a *TransferSetExpr) InstanceOf() string {
 }
 
 func (a *TransferSetExpr) toProto() ([]proto.ScriptResultTransfer, error) {
-	res := make([]proto.ScriptResultTransfer, len(a.body))
-	for i, transferExpr := range a.body {
+	res := make([]proto.ScriptResultTransfer, 0, len(a.body))
+	for _, transferExpr := range a.body {
 		transfer, err := transferExpr.toProto()
 		if err != nil {
 			return nil, err
 		}
-		res[i] = *transfer
+		if transfer.Amount == 0 { // Skip empty
+			continue
+		}
+		res = append(res, *transfer)
 	}
 	return res, nil
 }

@@ -2118,7 +2118,7 @@ func extractRecipientAndKey(s Scope, e Exprs) (proto.Recipient, string, error) {
 	case *RecipientExpr:
 		r = proto.Recipient(*a)
 	default:
-		return proto.Recipient{}, "", errors.Errorf("expected first argument of types AliasExpr of AddressExpr, found %T", addOrAliasExpr)
+		return proto.Recipient{}, "", errors.Errorf("expected first argument of types *proto.AliasExpr of *proto.AddressExpr, found %T", addOrAliasExpr)
 	}
 	second, err := e[1].Evaluate(s)
 	if err != nil {
