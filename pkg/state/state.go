@@ -676,6 +676,22 @@ func (s *stateManager) addRewardVote(block *proto.Block, height uint64) error {
 	return nil
 }
 
+func (s *stateManager) validateTransactionsRoot(block *proto.Block) error {
+	mt, err := crypto.NewMerkleTree()
+	if err != nil {
+		return err
+	}
+	for _, t := range block.Transactions {
+		msg, err := t.ToProtobufSigned(s.settings.AddressSchemeCharacter)
+		if err != nil {
+			return err
+		}
+		b
+		mt.Push(msg)
+	}
+
+}
+
 func (s *stateManager) addNewBlock(block, parent *proto.Block, initialisation bool, chans *verifierChans, height uint64) error {
 	// Indicate new block for storage.
 	if err := s.rw.startBlock(block.BlockSignature); err != nil {
@@ -688,6 +704,9 @@ func (s *stateManager) addNewBlock(block, parent *proto.Block, initialisation bo
 	transactions := block.Transactions
 	if block.TransactionCount != transactions.Count() {
 		return errors.Errorf("block.TransactionCount != transactions.Count(), %d != %d", block.TransactionCount, transactions.Count())
+	}
+	if err := s.validateTransactionsRoot(block); err != nil {
+		return errors.Wrap(err, "invalid transactions root hash")
 	}
 	var parentHeader *proto.BlockHeader
 	if parent != nil {

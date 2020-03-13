@@ -37,7 +37,7 @@ func NewMerkleTree() (*MerkleTree, error) {
 	}
 	return &MerkleTree{
 		h:     h,
-		stack: make([]subTree, 0, 32),
+		stack: make([]subTree, 0, 16),
 	}, nil
 }
 

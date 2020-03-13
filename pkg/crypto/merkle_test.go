@@ -48,7 +48,7 @@ func TestMerkleTreeRoot(t *testing.T) {
 	}
 }
 
-func BenchmarkMerkleTree(b *testing.B) {
+func BenchmarkMerkleTreeEven(b *testing.B) {
 	a := make([][]byte, 2048)
 	for i := range a {
 		v := make([]byte, 2048)
@@ -58,6 +58,7 @@ func BenchmarkMerkleTree(b *testing.B) {
 	tree, err := NewMerkleTree()
 	require.NoError(b, err)
 	b.ResetTimer()
+	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
 		for _, v := range a {
 			tree.Push(v)
@@ -67,7 +68,27 @@ func BenchmarkMerkleTree(b *testing.B) {
 	}
 }
 
-func BenchmarkMerkleTreeRoot(b *testing.B) {
+func BenchmarkMerkleTreeOdd(b *testing.B) {
+	a := make([][]byte, 2123)
+	for i := range a {
+		v := make([]byte, 2048)
+		rand.Read(v)
+		a[i] = v
+	}
+	tree, err := NewMerkleTree()
+	require.NoError(b, err)
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		for _, v := range a {
+			tree.Push(v)
+		}
+		d := tree.Root()
+		_ = d
+	}
+}
+
+func BenchmarkMerkleTreeRootEven(b *testing.B) {
 	a := make([][]byte, 2048)
 	for i := range a {
 		v := make([]byte, 2048)
@@ -80,14 +101,15 @@ func BenchmarkMerkleTreeRoot(b *testing.B) {
 		tree.Push(v)
 	}
 	b.ResetTimer()
+	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
 		d := tree.Root()
 		_ = d
 	}
 }
 
-func BenchmarkMerkleTreePush(b *testing.B) {
-	a := make([][]byte, 2024)
+func BenchmarkMerkleTreeRootOdd(b *testing.B) {
+	a := make([][]byte, 2123)
 	for i := range a {
 		v := make([]byte, 2048)
 		rand.Read(v)
@@ -95,10 +117,13 @@ func BenchmarkMerkleTreePush(b *testing.B) {
 	}
 	tree, err := NewMerkleTree()
 	require.NoError(b, err)
+	for _, v := range a {
+		tree.Push(v)
+	}
 	b.ResetTimer()
+	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		for _, v := range a {
-			tree.Push(v)
-		}
+		d := tree.Root()
+		_ = d
 	}
 }
