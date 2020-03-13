@@ -10,6 +10,12 @@ func MineBlock(version proto.BlockVersion, nxt proto.NxtConsensus, pair proto.Ke
 	if err != nil {
 		return nil, err
 	}
+	if b.Version >= proto.ProtoBlockVersion {
+		err := b.SetTransactionsRoot(scheme)
+		if err != nil {
+			return nil, err
+		}
+	}
 	err = b.Sign(scheme, pair.Secret)
 	if err != nil {
 		return nil, err

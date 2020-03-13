@@ -238,9 +238,15 @@ func (a *MicroblockMiner) mineMicro(ctx context.Context, rest restLimits, blockA
 	}
 
 	priv := keyPair.Secret
+	if newBlock.Version >= proto.ProtoBlockVersion {
+		err = newBlock.SetTransactionsRoot(a.scheme)
+		if err != nil {
+			zap.S().Errorf("Failed to update transactions root of a block: %v", err)
+		}
+	}
 	err = newBlock.Sign(a.scheme, keyPair.Secret)
 	if err != nil {
-		zap.S().Error(err)
+		zap.S().Errorf("Failed to sing a block: %v", err)
 		return
 	}
 
