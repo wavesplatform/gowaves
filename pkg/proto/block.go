@@ -297,6 +297,15 @@ func (b *Block) Sign(scheme Scheme, secret crypto.SecretKey) error {
 	return nil
 }
 
+func (b *Block) SetTransactionsRoot(scheme Scheme) error {
+	rh, err := b.transactionsRoot(scheme)
+	if err != nil {
+		return err
+	}
+	b.TransactionsRoot = rh
+	return nil
+}
+
 func (b *Block) VerifySignature(scheme Scheme) (bool, error) {
 	var bb []byte
 	if b.Version >= ProtoBlockVersion {
@@ -314,6 +323,18 @@ func (b *Block) VerifySignature(scheme Scheme) (bool, error) {
 		bb = buf.Bytes()
 	}
 	return crypto.Verify(b.GenPublicKey, b.BlockSignature, bb), nil
+}
+
+func (b *Block) VerifyTransactionsRoot(scheme Scheme) (bool, error) {
+	// For old versions of Block always return true
+	if b.Version < ProtoBlockVersion {
+		return true, nil
+	}
+	rh, err := b.transactionsRoot(scheme)
+	if err != nil {
+		return false, err
+	}
+	return bytes.Equal(b.BlockHeader.TransactionsRoot, rh), nil
 }
 
 // MarshalBinary encodes Block to binary form
@@ -491,6 +512,24 @@ func (b *Block) UnmarshalBinary(data []byte, scheme Scheme) (err error) {
 	copy(b.BlockSignature[:], data[len(data)-64:])
 
 	return nil
+}
+
+func (b *Block) transactionsRoot(scheme Scheme) ([]byte, error) {
+	if b.Version < ProtoBlockVersion {
+		return nil, errors.Errorf("no transactions root prior block version %d", ProtoBlockVersion)
+	}
+	tree, err := crypto.NewMerkleTree()
+	if err != nil {
+		return nil, err
+	}
+	for _, tx := range b.Transactions {
+		b, err := tx.MarshalSignedToProtobuf(scheme)
+		if err != nil {
+			return nil, err
+		}
+		tree.Push(b)
+	}
+	return tree.Root().Bytes(), nil
 }
 
 func CreateBlock(transactions Transactions, timestamp Timestamp, parentSig crypto.Signature, publicKey crypto.PublicKey, nxtConsensus NxtConsensus, version BlockVersion, features []int16, rewardVote int64) (*Block, error) {

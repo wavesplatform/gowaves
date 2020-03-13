@@ -51,13 +51,13 @@ type ConsensusValidator struct {
 }
 
 func NewConsensusValidator(state stateInfoProvider, tm types.Time) (*ConsensusValidator, error) {
-	settings, err := state.BlockchainSettings()
+	s, err := state.BlockchainSettings()
 	if err != nil {
 		return nil, errors.Errorf("failed to get blockchain settings: %v\n", err)
 	}
 	return &ConsensusValidator{
 		state:    state,
-		settings: settings,
+		settings: s,
 		ntpTime:  tm,
 	}, nil
 
