@@ -101,7 +101,7 @@ func TestBlocks_PreviousRow(t *testing.T) {
 }
 
 func TestStorage(t *testing.T) {
-	s := newStorage()
+	s := newStorage(proto.TestNetScheme)
 
 	require.NoError(t, s.PushBlock(newBlock(sig1, emptySig)))
 	require.NoError(t, s.PushBlock(newBlock(sig2, sig1)))

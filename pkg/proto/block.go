@@ -532,7 +532,7 @@ func (b *Block) transactionsRoot(scheme Scheme) ([]byte, error) {
 	return tree.Root().Bytes(), nil
 }
 
-func CreateBlock(transactions Transactions, timestamp Timestamp, parentSig crypto.Signature, publicKey crypto.PublicKey, nxtConsensus NxtConsensus, version BlockVersion, features []int16, rewardVote int64) (*Block, error) {
+func CreateBlock(transactions Transactions, timestamp Timestamp, parentSig crypto.Signature, publicKey crypto.PublicKey, nxtConsensus NxtConsensus, version BlockVersion, features []int16, rewardVote int64, scheme Scheme) (*Block, error) {
 	consensusLength := nxtConsensus.BinarySize()
 	b := &Block{
 		BlockHeader: BlockHeader{
@@ -551,6 +551,12 @@ func CreateBlock(transactions Transactions, timestamp Timestamp, parentSig crypt
 	}
 	if version <= RewardBlockVersion {
 		b.TransactionBlockLength = uint32(transactions.BinarySize() + 4)
+	}
+	if version >= ProtoBlockVersion {
+		err := b.SetTransactionsRoot(scheme)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return b, nil
 }

@@ -6,15 +6,9 @@ import (
 )
 
 func MineBlock(version proto.BlockVersion, nxt proto.NxtConsensus, pair proto.KeyPair, validatedFeatured Features, t proto.Timestamp, parent crypto.Signature, reward int64, scheme proto.Scheme) (*proto.Block, error) {
-	b, err := proto.CreateBlock(proto.Transactions(nil), t, parent, pair.Public, nxt, version, FeaturesToInt16(validatedFeatured), reward)
+	b, err := proto.CreateBlock(proto.Transactions(nil), t, parent, pair.Public, nxt, version, FeaturesToInt16(validatedFeatured), reward, scheme)
 	if err != nil {
 		return nil, err
-	}
-	if b.Version >= proto.ProtoBlockVersion {
-		err := b.SetTransactionsRoot(scheme)
-		if err != nil {
-			return nil, err
-		}
 	}
 	err = b.Sign(scheme, pair.Secret)
 	if err != nil {
