@@ -4,7 +4,14 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	. "github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	storage "github.com/wavesplatform/gowaves/pkg/state"
 )
+
+const MINIMUM_COUNT = 50
+
+type BlocksApplier interface {
+	Apply(state storage.State, block []*proto.Block) error
+}
 
 type syncBlock struct {
 	lastSignatures      *Signatures
@@ -19,13 +26,15 @@ type syncBlock struct {
 }
 
 type SyncActions interface {
-	Signatures(peer Peer, sigs []crypto.Signature) (FSM, Async, error)
+	Signatures(peer Peer, sigs []crypto.Signature)
 }
 type SyncActionsImpl struct {
 	syncBlock syncBlock
+	storage   storage.State
+	applier   BlocksApplier
 }
 
-func (a *SyncActionsImpl) Signatures(peer Peer, sigs []crypto.Signature) (FSM, Async, error) {
+func (a *SyncActionsImpl) Signatures(peer Peer, sigs []crypto.Signature) {
 	var newSigs []crypto.Signature
 	for _, sig := range sigs {
 		if a.syncBlock.lastSignatures.Exists(sig) {
@@ -44,60 +53,52 @@ func (a *SyncActionsImpl) Block(peer Peer, block *proto.Block) {
 
 }
 
-func (a *SyncActionsImpl) syncAction(peer Peer, block *proto.Block) (FSM, Async, error) {
-	defer a.baseInfo.storage.Mutex().Lock().Unlock()
-	if a.syncBlock.peerSyncWith != peer {
-		return a, nil, nil
-	}
-	if !a.syncBlock.sigs.contains(block.BlockSignature) {
-		return a, nil, nil
-		//return FsmBlockRet{
-		//	Error: ErrUnexpectedBlock,
-		//	State: SYNC,
-		//}
-	}
-	a.syncBlock.sigs.SetBlock(block)
-
-	blocks := a.syncBlock.sigs.PopAll()
-	a.syncBlock.receivedBlocks = append(a.syncBlock.receivedBlocks, blocks...)
-	// apply block
-	if len(a.syncBlock.receivedBlocks) >= MINIMUM_COUNT {
-		//_, err := a.baseInfo.storage.AddNewDeserializedBlocks(a.syncBlock.receivedBlocks)
-		err := a.applier.Apply(a.baseInfo.storage, a.syncBlock.receivedBlocks)
-		a.syncBlock.receivedBlocks = nil
-		if err != nil {
-			zap.S().Error(err)
-			return NewIdleFsm(a.baseInfo), nil, err
-		}
-	}
-
-	if len(a.syncBlock.receivedBlocks) > 0 && len(a.syncBlock.lastSignatures.Signatures()) < 100 {
-		//_, err := a.baseInfo.storage.AddNewDeserializedBlocks(a.syncBlock.receivedBlocks)
-		err := a.applier.Apply(a.baseInfo.storage, a.syncBlock.receivedBlocks)
-		a.syncBlock.receivedBlocks = nil
-		if err != nil {
-			zap.S().Error(err)
-			return NewIdleFsm(a.baseInfo), nil, err
-		}
-	}
-
-	peerSyncWithScore, err := a.baseInfo.peers.Score(peer)
-	if err != nil {
-		return NewIdleFsm(a.baseInfo), nil, err
-	}
-	curScore, err := a.baseInfo.storage.CurrentScore()
-	if err != nil {
-		return NewIdleFsm(a.baseInfo), nil, err
-	}
-	// we are at the end
-	if curScore.Cmp(peerSyncWithScore) >= 0 {
-		return NewNGFsm(a.baseInfo)
-	}
-
-	a.requestSignatures(peer)
-
-	return a, nil, nil
-}
+//func (a *SyncActionsImpl) syncAction(peer Peer, block *proto.Block) error {
+//	defer a.storage.Mutex().Lock().Unlock()
+//	//if a.syncBlock.peerSyncWith != peer {
+//	//	return a, nil, nil
+//	//}
+//	if !a.syncBlock.sigs.contains(block.BlockSignature) {
+//		return nil
+//	}
+//	a.syncBlock.sigs.SetBlock(block)
+//
+//	blocks := a.syncBlock.sigs.PopAll()
+//	a.syncBlock.receivedBlocks = append(a.syncBlock.receivedBlocks, blocks...)
+//	// apply block
+//	if len(a.syncBlock.receivedBlocks) >= MINIMUM_COUNT {
+//		err := a.applier.Apply(a.storage, a.syncBlock.receivedBlocks)
+//		a.syncBlock.receivedBlocks = nil
+//		if err != nil {
+//			return err
+//		}
+//	}
+//
+//	if len(a.syncBlock.receivedBlocks) > 0 && len(a.syncBlock.lastSignatures.Signatures()) < 100 {
+//		err := a.applier.Apply(a.storage, a.syncBlock.receivedBlocks)
+//		a.syncBlock.receivedBlocks = nil
+//		if err != nil {
+//			return err
+//		}
+//	}
+//
+//	peerSyncWithScore, err := a.baseInfo.peers.Score(peer)
+//	if err != nil {
+//		return NewIdleFsm(a.baseInfo), nil, err
+//	}
+//	curScore, err := a.baseInfo.storage.CurrentScore()
+//	if err != nil {
+//		return NewIdleFsm(a.baseInfo), nil, err
+//	}
+//	// we are at the end
+//	if curScore.Cmp(peerSyncWithScore) >= 0 {
+//		return NewNGFsm(a.baseInfo)
+//	}
+//
+//	a.requestSignatures(peer)
+//
+//	return a, nil, nil
+//}
 
 type Signatures struct {
 	signatures []crypto.Signature
@@ -138,14 +139,12 @@ func LastSignatures(state storage.State) (*Signatures, error) {
 
 	height, err := state.Height()
 	if err != nil {
-		zap.S().Error(err)
 		return nil, err
 	}
 
 	for i := 0; i < 100 && height > 0; i++ {
 		sig, err := state.HeightToBlockID(height)
 		if err != nil {
-			zap.S().Error(err)
 			return nil, err
 		}
 		signatures = append(signatures, sig)

@@ -36,9 +36,9 @@ func TestInvCache(t *testing.T) {
 	require.Equal(t, sig1, rs.TotalBlockSig)
 }
 
-func TestKnownBlocks(t *testing.T) {
-	b := knownBlocks{}
-
-	require.Equal(t, true, b.add(&proto.Block{}))
-	require.Equal(t, false, b.add(&proto.Block{}))
-}
+//func TestKnownBlocks(t *testing.T) {
+//	b := knownBlocks{}
+//
+//	require.Equal(t, true, b.add(&proto.Block{}))
+//	require.Equal(t, false, b.add(&proto.Block{}))
+//}

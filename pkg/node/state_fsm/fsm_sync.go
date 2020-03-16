@@ -19,14 +19,7 @@ type syncBlock struct {
 	peerSyncWith        Peer
 	// list of blocks received from donor peer
 	receivedBlocks []*proto.Block
-	//minimum count of block to apply
-	//n int
-
 }
-
-//type BlocksApplier interface {
-//	Apply(state storage.State, blocks []*proto.Block) error
-//}
 
 type SyncFsm struct {
 	baseInfo  BaseInfo
@@ -112,10 +105,6 @@ func (a *SyncFsm) syncAction(peer Peer, block *proto.Block) (FSM, Async, error) 
 	}
 	if !a.syncBlock.sigs.contains(block.BlockSignature) {
 		return a, nil, nil
-		//return FsmBlockRet{
-		//	Error: ErrUnexpectedBlock,
-		//	State: SYNC,
-		//}
 	}
 	a.syncBlock.sigs.SetBlock(block)
 
@@ -123,7 +112,6 @@ func (a *SyncFsm) syncAction(peer Peer, block *proto.Block) (FSM, Async, error) 
 	a.syncBlock.receivedBlocks = append(a.syncBlock.receivedBlocks, blocks...)
 	// apply block
 	if len(a.syncBlock.receivedBlocks) >= MINIMUM_COUNT {
-		//_, err := a.baseInfo.storage.AddNewDeserializedBlocks(a.syncBlock.receivedBlocks)
 		err := a.applier.Apply(a.baseInfo.storage, a.syncBlock.receivedBlocks)
 		a.syncBlock.receivedBlocks = nil
 		if err != nil {
@@ -133,7 +121,6 @@ func (a *SyncFsm) syncAction(peer Peer, block *proto.Block) (FSM, Async, error) 
 	}
 
 	if len(a.syncBlock.receivedBlocks) > 0 && len(a.syncBlock.lastSignatures.Signatures()) < 100 {
-		//_, err := a.baseInfo.storage.AddNewDeserializedBlocks(a.syncBlock.receivedBlocks)
 		err := a.applier.Apply(a.baseInfo.storage, a.syncBlock.receivedBlocks)
 		a.syncBlock.receivedBlocks = nil
 		if err != nil {
