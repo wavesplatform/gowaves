@@ -18,7 +18,7 @@ Usage:
   wallet command [flags]
 
 Available Commands:
-  add          Add seed to wallet
+  add          NewConnection seed to wallet
   show         Print wallet data
 
 `

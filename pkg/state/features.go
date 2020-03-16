@@ -414,7 +414,7 @@ func (f *features) approveFeatures(curHeight uint64, blockID crypto.Signature) e
 			return err
 		}
 		if elected {
-			// Add feature to the list of approved.
+			// NewConnection feature to the list of approved.
 			r := &approvedFeaturesRecord{curHeight}
 			if err := f.approveFeature(k.featureID, r, blockID); err != nil {
 				return err
@@ -459,7 +459,7 @@ func (f *features) activateFeatures(curHeight uint64, blockID crypto.Signature) 
 			needToActivate = (curHeight - approvalHeight) >= f.settings.ActivationWindowSize(curHeight)
 		}
 		if needToActivate {
-			// Add feature to the list of activated.
+			// NewConnection feature to the list of activated.
 			r := &activatedFeaturesRecord{curHeight}
 			if err := f.activateFeature(k.featureID, r, blockID); err != nil {
 				return err

@@ -319,7 +319,7 @@ func (s *stateManager) setGenesisBlock(genesisBlock proto.Block) error {
 }
 
 func (s *stateManager) addGenesisBlock() error {
-	// Add score of genesis block.
+	// NewConnection score of genesis block.
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	genesisScore, err := CalculateScore(s.genesis.BaseTarget)
@@ -1180,7 +1180,7 @@ func (s *stateManager) addBlocks(blocks []*proto.Block, initialisation bool) (*p
 		case chans.tasksChan <- task:
 		}
 		lastBlock = block
-		// Add score.
+		// NewConnection score.
 		score, err := CalculateScore(block.BaseTarget)
 		if err != nil {
 			return nil, wrapErr(Other, err)

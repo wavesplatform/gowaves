@@ -68,7 +68,7 @@ func TestKeyVal(t *testing.T) {
 	assert.NoError(t, err, "Has() failed")
 	assert.Equal(t, has, false, "Has() returned true for value that was deleted from batch")
 
-	// Add another key-value pair directly.
+	// NewConnection another key-value pair directly.
 	err = kv.Put(key0, val0)
 	assert.NoError(t, err)
 

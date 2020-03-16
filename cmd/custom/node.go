@@ -19,7 +19,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/miner"
 	scheduler2 "github.com/wavesplatform/gowaves/pkg/miner/scheduler"
 	"github.com/wavesplatform/gowaves/pkg/miner/utxpool"
-	"github.com/wavesplatform/gowaves/pkg/ng"
 	"github.com/wavesplatform/gowaves/pkg/node"
 	"github.com/wavesplatform/gowaves/pkg/node/peer_manager"
 	"github.com/wavesplatform/gowaves/pkg/node/state_changed"
@@ -194,26 +193,26 @@ func main() {
 	utx := utxpool.New(10000, utxpool.NewValidator(state, ntptm), custom)
 
 	stateChanged := state_changed.NewStateChanged()
-	blockApplier := node.NewBlocksApplier(state, ntptm)
+	//blockApplier := blocks_applier.NewBlocksApplier()
 
 	services := services.Services{
-		State:              state,
-		Peers:              peerManager,
-		Scheduler:          scheduler,
-		BlocksApplier:      blockApplier,
+		State:     state,
+		Peers:     peerManager,
+		Scheduler: scheduler,
+		//BlocksApplier:      blockApplier,
 		UtxPool:            utx,
 		Scheme:             custom.AddressSchemeCharacter,
 		BlockAddedNotifier: stateChanged,
-		Subscribe:          node.NewSubscribeService(),
-		InvRequester:       ng.NewInvRequester(),
+		//Subscribe:          node.NewSubscribeService(),
+		InvRequester: node.NewInvRequester(),
 	}
 
 	utxClean := utxpool.NewCleaner(services)
 
-	ngState := ng.NewState(services)
-	ngRuntime := ng.NewRuntime(services, ngState)
+	//ngState := ng.NewState(services)
+	//ngRuntime := ng.NewRuntime(services, ngState)
 
-	Miner := miner.NewMicroblockMiner(services, ngRuntime, proto.CustomNetScheme, features, reward)
+	Miner := miner.NewMicroblockMiner(services, nil, proto.CustomNetScheme, features, reward)
 
 	async := runner.NewAsync()
 	scoreSender := scoresender.New(peerManager, state, 4*time.Second, async)
@@ -221,20 +220,20 @@ func main() {
 	stateChanged.AddHandler(state_changed.NewFuncHandler(func() {
 		scheduler.Reschedule()
 	}))
-	stateChanged.AddHandler(state_changed.NewFuncHandler(func() {
-		ngState.BlockApplied()
-	}))
+	//stateChanged.AddHandler(state_changed.NewFuncHandler(func() {
+	//	ngState.BlockApplied()
+	//}))
 	stateChanged.AddHandler(utxClean)
 
 	async.Go(func() {
 		scoreSender.Run(ctx)
 	})
-	stateSync := node.NewStateSync(services, scoreSender, blockApplier)
+	//stateSync := node.NewStateSync(services, scoreSender, blockApplier)
 
 	go miner.Run(ctx, Miner, scheduler)
 	go scheduler.Reschedule()
 
-	n := node.NewNode(services, declAddr, declAddr, ngRuntime, stateSync)
+	n := node.NewNode(services, declAddr, declAddr)
 
 	go n.Run(ctx, parent)
 
@@ -246,7 +245,7 @@ func main() {
 	}
 
 	// TODO hardcore
-	app, err := api.NewApp("integration-test-rest-api", scheduler, stateSync, services)
+	app, err := api.NewApp("integration-test-rest-api", scheduler, services)
 	if err != nil {
 		zap.S().Error(err)
 		cancel()

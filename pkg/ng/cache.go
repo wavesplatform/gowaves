@@ -30,31 +30,31 @@ func (a kvInv) Value() interface{} {
 	return a.inv
 }
 
-type NotifyNewMicroblock interface {
-	AddMicroblock(*proto.MicroBlock)
-}
+//type NotifyNewMicroblock interface {
+//	AddMicroblock(*proto.MicroBlock)
+//}
 
-type MicroblockCache struct {
-	cache *fifo_cache.FIFOCache
-}
-
-func NewMicroblockCache(cacheSize int) *MicroblockCache {
-	return &MicroblockCache{
-		cache: fifo_cache.New(cacheSize),
-	}
-}
-
-func (a *MicroblockCache) AddMicroBlock(microBlock *proto.MicroBlock) {
-	a.cache.Add(kvMicro{microBlock})
-}
-
-func (a MicroblockCache) MicroBlock(sig proto.MicroblockTotalSig) (*proto.MicroBlock, bool) {
-	rs, ok := a.cache.Get(sig.Bytes())
-	if ok {
-		return rs.(*proto.MicroBlock), ok
-	}
-	return nil, false
-}
+//type MicroblockCache struct {
+//	cache *fifo_cache.FIFOCache
+//}
+//
+//func NewMicroblockCache(cacheSize int) *MicroblockCache {
+//	return &MicroblockCache{
+//		cache: fifo_cache.New(cacheSize),
+//	}
+//}
+//
+//func (a *MicroblockCache) AddMicroBlock(microBlock *proto.MicroBlock) {
+//	a.cache.Add(kvMicro{microBlock})
+//}
+//
+//func (a MicroblockCache) MicroBlock(sig proto.MicroblockTotalSig) (*proto.MicroBlock, bool) {
+//	rs, ok := a.cache.Get(sig.Bytes())
+//	if ok {
+//		return rs.(*proto.MicroBlock), ok
+//	}
+//	return nil, false
+//}
 
 type InvCache struct {
 	cache *fifo_cache.FIFOCache

@@ -169,7 +169,7 @@ func (s *stateDB) addBlock(blockID crypto.Signature) error {
 	if _, ok := s.newestBlockNumToId[newBlockNum]; ok {
 		return errors.Errorf("block number %d is already taken by some block", newBlockNum)
 	}
-	// Add unique block number to the list of valid nums.
+	// NewConnection unique block number to the list of valid nums.
 	validBlocKey := validBlockNumKey{newBlockNum}
 	s.dbBatch.Put(validBlocKey.bytes(), void)
 	// Save block number for this ID.

@@ -137,7 +137,7 @@ func TestGetStatuses(t *testing.T) {
 	assert.NoError(t, err)
 	txBytes, err := tx.MarshalBinary()
 	assert.NoError(t, err)
-	// Add tx to UTX.
+	// NewConnection tx to UTX.
 	err = utx.AddWithBytes(tx, txBytes)
 	assert.NoError(t, err)
 
@@ -206,7 +206,7 @@ func TestGetUnconfirmed(t *testing.T) {
 	assert.NoError(t, err)
 	txBytes, err := tx.MarshalBinary()
 	assert.NoError(t, err)
-	// Add tx to UTX.
+	// NewConnection tx to UTX.
 	err = utx.AddWithBytes(tx, txBytes)
 	assert.NoError(t, err)
 

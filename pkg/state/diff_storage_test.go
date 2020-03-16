@@ -46,7 +46,7 @@ func TestSaveBlockDiff(t *testing.T) {
 	}
 	correctAllChanges := []balanceChanges{minerChange, recipientChange, senderChange}
 	assert.Equal(t, correctAllChanges, diffStor.allChanges())
-	// Add another block diff to inspect how diffs are appended.
+	// NewConnection another block diff to inspect how diffs are appended.
 	err = diffStor.saveBlockDiff(createBlockDiff(blockID1))
 	assert.NoError(t, err, "saveBlockDiff() failed")
 	minerTotalDiff1 := balanceDiff{minBalance: 60, balance: 200, blockID: blockID1}

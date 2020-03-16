@@ -153,12 +153,12 @@ func (b *BlockHeader) MarshalHeaderToBinary() ([]byte, error) {
 	copy(res[85:117], b.GenSignature[:])
 	binary.BigEndian.PutUint32(res[117:121], b.TransactionBlockLength)
 	if b.Version >= NgBlockVersion {
-		// Add tx count and features count.
+		// NewConnection tx count and features count.
 		buf := make([]byte, 8)
 		binary.BigEndian.PutUint32(buf[:4], uint32(b.TransactionCount))
 		binary.BigEndian.PutUint32(buf[4:], uint32(b.FeaturesCount))
 		res = append(res, buf...)
-		// Add features.
+		// NewConnection features.
 		fb, err := featuresToBinary(b.Features)
 		if err != nil {
 			return nil, err

@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
-	"github.com/wavesplatform/gowaves/pkg/node"
+	"github.com/wavesplatform/gowaves/pkg/node/blocks_applier"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/services"
 )
@@ -17,9 +17,9 @@ func TestApp_BlocksFirst(t *testing.T) {
 		},
 	}
 
-	s, err := node.NewMockStateManager(g)
+	s, err := blocks_applier.NewMockStateManager(g)
 	require.NoError(t, err)
-	app, err := NewApp("api-key", nil, nil, services.Services{State: s})
+	app, err := NewApp("api-key", nil, services.Services{State: s})
 	require.NoError(t, err)
 	first, err := app.BlocksFirst()
 	require.NoError(t, err)
@@ -32,9 +32,9 @@ func TestApp_BlocksLast(t *testing.T) {
 		},
 	}
 
-	s, err := node.NewMockStateManager(g)
+	s, err := blocks_applier.NewMockStateManager(g)
 	require.NoError(t, err)
-	app, err := NewApp("api-key", nil, nil, services.Services{State: s})
+	app, err := NewApp("api-key", nil, services.Services{State: s})
 	require.NoError(t, err)
 	first, err := app.BlocksLast()
 	require.NoError(t, err)

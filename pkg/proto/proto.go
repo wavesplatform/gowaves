@@ -1304,7 +1304,8 @@ func MessageByMicroBlock(mb *MicroBlock, scheme Scheme) (Message, error) {
 		}
 		return &PBMicroBlockMessage{bts}, nil
 	} else {
-		return &MicroBlockMessage{mb}, nil
+		panic("MessageByMicroBlock unimplemented ")
+		//return &MicroBlockMessage{mb}, nil
 	}
 }
 

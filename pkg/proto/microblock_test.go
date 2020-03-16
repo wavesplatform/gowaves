@@ -120,20 +120,25 @@ func TestMicroBlockRequest_Marshaling(t *testing.T) {
 	sig := crypto.MustSignatureFromBase58("rBA7qj1nvXCnD8puLzWBWDoyHVkm3TzooDJgwbiaum9oV3vGhxGs45DfqwoM9qAyu4xfP6j8gQL6avub1wrB2zX")
 
 	mess := MicroBlockRequestMessage{
-		Body: &MicroBlockRequest{
-			TotalBlockSig: sig,
-		},
+		Body: sig,
 	}
 
-	buf := new(bytes.Buffer)
-	_, err := mess.WriteTo(buf)
+	bts, err := mess.MarshalBinary()
 	require.NoError(t, err)
 
-	mess2 := MicroBlockRequestMessage{}
-	require.NoError(t, mess2.UnmarshalBinary(buf.Bytes()))
+	mess2 := &MicroBlockRequestMessage{}
+	err = mess2.UnmarshalBinary(bts)
+	require.NoError(t, err)
 
-	mreq := &MicroBlockRequest{}
-	require.NoError(t, mreq.UnmarshalBinary(mess2.Body.(Bytes)))
+	//buf := new(bytes.Buffer)
+	//_, err := mess.WriteTo(buf)
+	//require.NoError(t, err)
+	//
+	//mess2 := MicroBlockRequestMessage{}
+	//require.NoError(t, mess2.UnmarshalBinary(buf.Bytes()))
 
-	require.Equal(t, mess.Body, mreq)
+	//mreq := &MicroBlockRequest{}
+	//require.NoError(t, mreq.UnmarshalBinary(mess2.Body.(Bytes)))
+
+	require.Equal(t, mess2.Body, mess.Body)
 }

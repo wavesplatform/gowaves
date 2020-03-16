@@ -6,20 +6,21 @@ import (
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	//"github.com/wavesplatform/gowaves/pkg/state"
 )
 
 type Scheduler interface {
 	Reschedule()
 }
 
-type BlocksApplier interface {
-	Apply(block []*proto.Block) error
-}
+//type BlocksApplier interface {
+//	Apply(state state.State, block []*proto.Block) error
+//}
 
-// notify state that it must run synchronization
-type StateHistorySynchronizer interface {
-	Sync()
-}
+//// notify state that it must run synchronization
+//type StateHistorySynchronizer interface {
+//	Sync()
+//}
 
 // Abstract handler that called when event happens
 type Handler interface {
@@ -83,7 +84,7 @@ type MessageSender interface {
 }
 
 type InvRequester interface {
-	Request(MessageSender, crypto.Signature)
+	Request(MessageSender, *proto.MicroBlockInv)
 }
 
 type BaseTarget = uint64
@@ -109,4 +110,13 @@ type EmbeddedWallet interface {
 	SignTransactionWith(pk crypto.PublicKey, tx proto.Transaction) error
 	Load(password []byte) error
 	Seeds() [][]byte
+}
+
+type MicroblockRow struct {
+	KeyBlock    *proto.Block
+	MicroBlocks []*proto.MicroBlock
+}
+
+type BlockCreater interface {
+	FromMicroblockRow(seq MicroblockRow) (*proto.Block, error)
 }

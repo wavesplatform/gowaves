@@ -157,7 +157,7 @@ func (diff *balanceDiff) addInsideTx(prevDiff *balanceDiff) error {
 	if diff.updateMinIntermediateBalance {
 		// If updateMinIntermediateBalance is true, this tx may produce negative intermediate changes.
 		// It is only true for few tx types: Payment, Transfer, MassTransfer, InvokeScript.
-		// Add current diff to previous minBalance (aka intermediate change) to get newMinBalance.
+		// NewConnection current diff to previous minBalance (aka intermediate change) to get newMinBalance.
 		newMinBalance, err := util.AddInt64(diff.balance, prevDiff.minBalance)
 		if err != nil {
 			return errors.Errorf("failed to update min balance diff: %v\n", err)
@@ -176,7 +176,7 @@ func (diff *balanceDiff) addInsideTx(prevDiff *balanceDiff) error {
 // addInsideBlock() sums diffs inside block.
 // It also makes sure that minimum intermediate change gets updated properly.
 func (diff *balanceDiff) addInsideBlock(prevDiff *balanceDiff) error {
-	// Add previous cumulative diff to tx diff's minBalance to make it correspond to cumulative block diff.
+	// NewConnection previous cumulative diff to tx diff's minBalance to make it correspond to cumulative block diff.
 	newMinBalance, err := util.AddInt64(diff.minBalance, prevDiff.balance)
 	if err != nil {
 		return errors.Errorf("failed to update min balance diff: %v\n", err)

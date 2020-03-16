@@ -175,7 +175,7 @@ func (a *MicroBlock) WriteWithoutSignature(w io.Writer) (int64, error) {
 
 // MicroBlockMessage represents a MicroBlock message
 type MicroBlockMessage struct {
-	Body io.WriterTo
+	Body []byte
 }
 
 func (*MicroBlockMessage) ReadFrom(r io.Reader) (int64, error) {
@@ -183,29 +183,30 @@ func (*MicroBlockMessage) ReadFrom(r io.Reader) (int64, error) {
 }
 
 func (a *MicroBlockMessage) WriteTo(w io.Writer) (int64, error) {
-	buf := bytebufferpool.Get()
-	defer bytebufferpool.Put(buf)
-
-	n, err := a.Body.WriteTo(buf)
-	if err != nil {
-		return n, err
-	}
-
-	h, err := MakeHeader(ContentIDMicroblock, buf.Bytes())
-	if err != nil {
-		return 0, err
-	}
-
-	n1, err := h.WriteTo(w)
-	if err != nil {
-		return n1, err
-	}
-
-	n2, err := buf.WriteTo(w)
-	if err != nil {
-		return n1 + n2, err
-	}
-	return n1 + n2, nil
+	panic("implement me")
+	//buf := bytebufferpool.Get()
+	//defer bytebufferpool.Put(buf)
+	//
+	//n, err := a.Body.WriteTo(buf)
+	//if err != nil {
+	//	return n, err
+	//}
+	//
+	//h, err := MakeHeader(ContentIDMicroblock, buf.Bytes())
+	//if err != nil {
+	//	return 0, err
+	//}
+	//
+	//n1, err := h.WriteTo(w)
+	//if err != nil {
+	//	return n1, err
+	//}
+	//
+	//n2, err := buf.WriteTo(w)
+	//if err != nil {
+	//	return n1 + n2, err
+	//}
+	//return n1 + n2, nil
 }
 
 func (a *MicroBlockMessage) UnmarshalBinary(data []byte) error {
@@ -223,21 +224,23 @@ func (a *MicroBlockMessage) UnmarshalBinary(data []byte) error {
 	}
 	b := make([]byte, len(data[:h.PayloadLength]))
 	copy(b, data)
-	a.Body = Bytes(b)
+
+	a.Body = b
 	return nil
 }
 
 func (a *MicroBlockMessage) MarshalBinary() ([]byte, error) {
-	buf := bytebufferpool.Get()
-	defer bytebufferpool.Put(buf)
-
-	_, err := a.WriteTo(buf)
-	if err != nil {
-		return nil, err
-	}
-	out := make([]byte, buf.Len())
-	copy(out, buf.B)
-	return out, nil
+	//buf := bytebufferpool.Get()
+	//defer bytebufferpool.Put(buf)
+	//
+	//_, err := a.WriteTo(buf)
+	//if err != nil {
+	//	return nil, err
+	//}
+	//out := make([]byte, buf.Len())
+	//copy(out, buf.B)
+	//return out, nil
+	panic("MicroBlockMessage implement me")
 }
 
 type MicroBlockInvMessage struct {
@@ -283,7 +286,7 @@ func (a *MicroBlockInvMessage) MarshalBinary() ([]byte, error) {
 }
 
 type MicroBlockRequestMessage struct {
-	Body io.WriterTo
+	Body crypto.Signature
 }
 
 func (a *MicroBlockRequestMessage) ReadFrom(r io.Reader) (n int64, err error) {
@@ -291,19 +294,13 @@ func (a *MicroBlockRequestMessage) ReadFrom(r io.Reader) (n int64, err error) {
 }
 
 func (a *MicroBlockRequestMessage) WriteTo(w io.Writer) (int64, error) {
-	buf := bytebufferpool.Get()
-	defer bytebufferpool.Put(buf)
-	n, err := a.Body.WriteTo(buf)
-	if err != nil {
-		return n, err
-	}
-
+	bts := a.Body.Bytes()
 	var h Header
-	h.Length = MaxHeaderLength + uint32(buf.Len()) - 4
+	h.Length = MaxHeaderLength + uint32(len(bts)) - 4
 	h.Magic = headerMagic
 	h.ContentID = ContentIDMicroblockRequest
-	h.PayloadLength = uint32(buf.Len())
-	dig, err := crypto.FastHash(buf.B)
+	h.PayloadLength = uint32(len(bts))
+	dig, err := crypto.FastHash(bts)
 	if err != nil {
 		return 0, err
 	}
@@ -313,11 +310,11 @@ func (a *MicroBlockRequestMessage) WriteTo(w io.Writer) (int64, error) {
 		return 0, err
 	}
 
-	n3, err := buf.WriteTo(w)
+	n3, err := w.Write(bts)
 	if err != nil {
 		return 0, err
 	}
-	return n2 + n3, nil
+	return n2 + int64(n3), nil
 }
 
 func (a *MicroBlockRequestMessage) MarshalBinary() ([]byte, error) {
@@ -343,7 +340,11 @@ func (a *MicroBlockRequestMessage) UnmarshalBinary(data []byte) error {
 	data = data[17:]
 	body := make([]byte, h.PayloadLength)
 	copy(body, data)
-	a.Body = Bytes(body)
+	sig, err := crypto.NewSignatureFromBytes(body)
+	if err != nil {
+		return err
+	}
+	a.Body = sig
 	return nil
 }
 

@@ -1,16 +1,13 @@
-package ng
+package node
 
 import (
-	"sync"
-
-	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/types"
 	"github.com/wavesplatform/gowaves/pkg/util/fifo_cache"
 )
 
+// store only inv signatures to cache non requested
 type InvRequesterImpl struct {
-	mu    sync.Mutex
 	cache *fifo_cache.FIFOCache
 }
 
@@ -20,17 +17,13 @@ func NewInvRequester() *InvRequesterImpl {
 	}
 }
 
-func (a *InvRequesterImpl) Request(p types.MessageSender, signature crypto.Signature) {
-	a.mu.Lock()
-	defer a.mu.Unlock()
-	if a.cache.Exists(signature.Bytes()) {
+func (a *InvRequesterImpl) Request(p types.MessageSender, inv *proto.MicroBlockInv) {
+	if a.cache.Exists(inv.TotalBlockSig.Bytes()) {
 		return
 	}
-	a.cache.Add2(signature.Bytes(), struct{}{})
+	a.cache.Add2(inv.TotalBlockSig.Bytes(), struct{}{})
 
 	p.SendMessage(&proto.MicroBlockRequestMessage{
-		Body: &proto.MicroBlockRequest{
-			TotalBlockSig: signature,
-		},
+		Body: inv.TotalBlockSig,
 	})
 }

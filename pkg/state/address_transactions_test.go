@@ -28,7 +28,7 @@ func testIterImpl(t *testing.T, params StateParams) {
 	blockHeight := proto.Height(9900)
 	blocks, err := ReadMainnetBlocksToHeight(blockHeight)
 	assert.NoError(t, err)
-	// Add extra blocks and rollback to check that rollback scenario is handled correctly.
+	// NewConnection extra blocks and rollback to check that rollback scenario is handled correctly.
 	err = st.AddOldDeserializedBlocks(blocks)
 	assert.NoError(t, err)
 	err = st.RollbackToHeight(8000)

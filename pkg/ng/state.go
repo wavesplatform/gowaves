@@ -6,14 +6,17 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/services"
 	"github.com/wavesplatform/gowaves/pkg/state"
-	"github.com/wavesplatform/gowaves/pkg/types"
 	"go.uber.org/zap"
 )
+
+type BlocksApplier interface {
+	Apply(state state.State, block []*proto.Block) error
+}
 
 type State struct {
 	storage        *storage
 	prevAddedBlock *proto.Block
-	applier        types.BlocksApplier
+	applier        BlocksApplier
 	state          state.State
 	mu             sync.Mutex
 	knownBlocks    knownBlocks
@@ -91,13 +94,13 @@ func (a *State) AddBlock(block *proto.Block) {
 		}
 	}
 
-	err = a.applier.Apply([]*proto.Block{block})
+	err = a.applier.Apply(a.state, []*proto.Block{block})
 	if err != nil {
 		a.storage.Pop()
 
 		// return prev block, if possible
 		if a.prevAddedBlock != nil {
-			err := a.applier.Apply([]*proto.Block{a.prevAddedBlock})
+			err := a.applier.Apply(a.state, []*proto.Block{a.prevAddedBlock})
 			if err != nil {
 				zap.S().Error("NG: can't apply previous added block, maybe broken ngState ", err)
 			}
@@ -163,7 +166,7 @@ func (a *State) AddMicroblock(micro *proto.MicroBlock) {
 	locked.Unlock()
 	zap.S().Debug("After the rollback unlock")
 
-	err = a.applier.Apply([]*proto.Block{block})
+	err = a.applier.Apply(a.state, []*proto.Block{block})
 	if err != nil {
 		zap.S().Error(err)
 		// remove prev added micro

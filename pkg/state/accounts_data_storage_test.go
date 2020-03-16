@@ -46,7 +46,7 @@ func TestAppendEntry(t *testing.T) {
 	assert.Equal(t, entry0, newEntry)
 	to.stor.flush(t)
 	to.stor.addBlock(t, blockID1)
-	// Add entry with same key in diff block and check that the value changed.
+	// NewConnection entry with same key in diff block and check that the value changed.
 	entry1 := &proto.BooleanDataEntry{Key: "Whatever", Value: true}
 	err = to.accountsDataStor.appendEntry(addr0, entry1, blockID1)
 	assert.NoError(t, err)

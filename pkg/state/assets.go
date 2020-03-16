@@ -145,7 +145,7 @@ func (a *assets) addNewRecord(assetID crypto.Digest, record *assetHistoryRecord,
 	if err != nil {
 		return errors.Errorf("failed to marshal record: %v\n", err)
 	}
-	// Add new record to history.
+	// NewConnection new record to history.
 	histKey := assetHistKey{assetID: assetID}
 	return a.hs.addNewEntry(asset, histKey.bytes(), recordBytes, blockID)
 }

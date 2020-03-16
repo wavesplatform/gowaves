@@ -1,4 +1,4 @@
-package node
+package blocks_applier
 
 import (
 	"math/big"
@@ -37,8 +37,8 @@ func TestApply_NewBlock(t *testing.T) {
 
 	mockState, err := NewMockStateManager(genesis)
 	require.NoError(t, err)
-	ba := innerBlocksApplier{mockState}
-	_, height, err := ba.apply([]*proto.Block{block})
+	ba := innerBlocksApplier{}
+	_, height, err := ba.apply(mockState, []*proto.Block{block})
 	require.NoError(t, err)
 	require.EqualValues(t, 2, height)
 }
@@ -67,8 +67,8 @@ func TestApply_ValidBlockWithRollback(t *testing.T) {
 	mockState, err := NewMockStateManager(genesis, block1)
 	require.NoError(t, err)
 
-	ba := innerBlocksApplier{mockState}
-	_, height, err := ba.apply([]*proto.Block{block2})
+	ba := innerBlocksApplier{}
+	_, height, err := ba.apply(mockState, []*proto.Block{block2})
 	require.NoError(t, err)
 	require.EqualValues(t, 2, height)
 	newBlock, _ := mockState.BlockByHeight(2)
@@ -120,7 +120,7 @@ func TestApply_InvalidBlockWithRollback(t *testing.T) {
 	// return blocks
 	stateMock.EXPECT().AddNewDeserializedBlocks([]*proto.Block{block1}).Return(nil, nil)
 
-	ba := innerBlocksApplier{stateMock}
-	_, _, err := ba.apply([]*proto.Block{block2})
+	ba := innerBlocksApplier{}
+	_, _, err := ba.apply(stateMock, []*proto.Block{block2})
 	require.Equal(t, "failed add deserialized blocks, first block sig \"sV8beveiVKCiUn9BGZRgZj7V5tRRWPMRj1V9WWzKWnigtfQyZ2eErVXHi7vyGXj5hPuaxF9sGxowZr5XuD4UAwW\": error message", err.Error())
 }

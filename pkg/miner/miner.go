@@ -30,26 +30,26 @@ type MicroblockMiner struct {
 	peer        peer_manager.PeerManager
 	scheduler   types.Scheduler
 	constraints Constraints
-	ngRuntime   ng.Runtime
-	scheme      proto.Scheme
-	services    services.Services
-	features    Features
+	//ngRuntime   ng.Runtime
+	scheme   proto.Scheme
+	services services.Services
+	features Features
 	// reward vote 600000000
 	reward int64
 }
 
-func NewMicroblockMiner(services services.Services, ngRuntime ng.Runtime, scheme proto.Scheme, features Features, reward int64) *MicroblockMiner {
+func NewMicroblockMiner(services services.Services, scheme proto.Scheme, features Features, reward int64) *MicroblockMiner {
 	return &MicroblockMiner{
 		scheduler:   services.Scheduler,
 		utx:         services.UtxPool,
 		state:       services.State,
 		peer:        services.Peers,
 		constraints: DefaultConstraints(),
-		ngRuntime:   ngRuntime,
-		scheme:      scheme,
-		services:    services,
-		features:    features,
-		reward:      reward,
+		//ngRuntime:   ngRuntime,
+		scheme:   scheme,
+		services: services,
+		features: features,
+		reward:   reward,
 	}
 }
 
@@ -82,7 +82,7 @@ func (a *MicroblockMiner) Mine(ctx context.Context, t proto.Timestamp, k proto.K
 		return
 	}
 
-	err = a.services.BlocksApplier.Apply([]*proto.Block{b})
+	err = a.services.BlocksApplier.Apply(a.state, []*proto.Block{b})
 	if err != nil {
 		zap.S().Errorf("Miner: applying created block: %q, timestamp %d", err, t)
 		return
@@ -248,7 +248,7 @@ func (a *MicroblockMiner) mineMicro(ctx context.Context, rest restLimits, blockA
 	_ = a.state.RollbackTo(blockApplyOn.Parent)
 	locked.Unlock()
 
-	err = a.services.BlocksApplier.Apply([]*proto.Block{newBlock})
+	err = a.services.BlocksApplier.Apply(a.state, []*proto.Block{newBlock})
 	if err != nil {
 		zap.S().Error(err)
 		return
@@ -276,7 +276,8 @@ func (a *MicroblockMiner) mineMicro(ctx context.Context, rest restLimits, blockA
 		return
 	}
 
-	a.ngRuntime.MinedMicroblock(&micro, inv)
+	// TODO implement
+	//a.ngRuntime.MinedMicroblock(&micro, inv)
 
 	newRest := restLimits{
 		MaxScriptRunsInBlock:        rest.MaxScriptRunsInBlock,

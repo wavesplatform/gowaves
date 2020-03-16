@@ -160,36 +160,6 @@ func (mr *MockStateInfoMockRecorder) BlockByHeight(height interface{}) *gomock.C
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BlockByHeight", reflect.TypeOf((*MockStateInfo)(nil).BlockByHeight), height)
 }
 
-// BlockBytes mocks base method
-func (m *MockStateInfo) BlockBytes(blockID crypto.Signature) ([]byte, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "BlockBytes", blockID)
-	ret0, _ := ret[0].([]byte)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// BlockBytes indicates an expected call of BlockBytes
-func (mr *MockStateInfoMockRecorder) BlockBytes(blockID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BlockBytes", reflect.TypeOf((*MockStateInfo)(nil).BlockBytes), blockID)
-}
-
-// BlockBytesByHeight mocks base method
-func (m *MockStateInfo) BlockBytesByHeight(height proto.Height) ([]byte, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "BlockBytesByHeight", height)
-	ret0, _ := ret[0].([]byte)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// BlockBytesByHeight indicates an expected call of BlockBytesByHeight
-func (mr *MockStateInfoMockRecorder) BlockBytesByHeight(height interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BlockBytesByHeight", reflect.TypeOf((*MockStateInfo)(nil).BlockBytesByHeight), height)
-}
-
 // Header mocks base method
 func (m *MockStateInfo) Header(blockID crypto.Signature) (*proto.BlockHeader, error) {
 	m.ctrl.T.Helper()
@@ -218,36 +188,6 @@ func (m *MockStateInfo) HeaderByHeight(height proto.Height) (*proto.BlockHeader,
 func (mr *MockStateInfoMockRecorder) HeaderByHeight(height interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HeaderByHeight", reflect.TypeOf((*MockStateInfo)(nil).HeaderByHeight), height)
-}
-
-// HeaderBytes mocks base method
-func (m *MockStateInfo) HeaderBytes(blockID crypto.Signature) ([]byte, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "HeaderBytes", blockID)
-	ret0, _ := ret[0].([]byte)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// HeaderBytes indicates an expected call of HeaderBytes
-func (mr *MockStateInfoMockRecorder) HeaderBytes(blockID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HeaderBytes", reflect.TypeOf((*MockStateInfo)(nil).HeaderBytes), blockID)
-}
-
-// HeaderBytesByHeight mocks base method
-func (m *MockStateInfo) HeaderBytesByHeight(height proto.Height) ([]byte, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "HeaderBytesByHeight", height)
-	ret0, _ := ret[0].([]byte)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// HeaderBytesByHeight indicates an expected call of HeaderBytesByHeight
-func (mr *MockStateInfoMockRecorder) HeaderBytesByHeight(height interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HeaderBytesByHeight", reflect.TypeOf((*MockStateInfo)(nil).HeaderBytesByHeight), height)
 }
 
 // Height mocks base method
@@ -1107,36 +1047,6 @@ func (mr *MockStateMockRecorder) BlockByHeight(height interface{}) *gomock.Call 
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BlockByHeight", reflect.TypeOf((*MockState)(nil).BlockByHeight), height)
 }
 
-// BlockBytes mocks base method
-func (m *MockState) BlockBytes(blockID crypto.Signature) ([]byte, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "BlockBytes", blockID)
-	ret0, _ := ret[0].([]byte)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// BlockBytes indicates an expected call of BlockBytes
-func (mr *MockStateMockRecorder) BlockBytes(blockID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BlockBytes", reflect.TypeOf((*MockState)(nil).BlockBytes), blockID)
-}
-
-// BlockBytesByHeight mocks base method
-func (m *MockState) BlockBytesByHeight(height proto.Height) ([]byte, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "BlockBytesByHeight", height)
-	ret0, _ := ret[0].([]byte)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// BlockBytesByHeight indicates an expected call of BlockBytesByHeight
-func (mr *MockStateMockRecorder) BlockBytesByHeight(height interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BlockBytesByHeight", reflect.TypeOf((*MockState)(nil).BlockBytesByHeight), height)
-}
-
 // Header mocks base method
 func (m *MockState) Header(blockID crypto.Signature) (*proto.BlockHeader, error) {
 	m.ctrl.T.Helper()
@@ -1165,36 +1075,6 @@ func (m *MockState) HeaderByHeight(height proto.Height) (*proto.BlockHeader, err
 func (mr *MockStateMockRecorder) HeaderByHeight(height interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HeaderByHeight", reflect.TypeOf((*MockState)(nil).HeaderByHeight), height)
-}
-
-// HeaderBytes mocks base method
-func (m *MockState) HeaderBytes(blockID crypto.Signature) ([]byte, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "HeaderBytes", blockID)
-	ret0, _ := ret[0].([]byte)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// HeaderBytes indicates an expected call of HeaderBytes
-func (mr *MockStateMockRecorder) HeaderBytes(blockID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HeaderBytes", reflect.TypeOf((*MockState)(nil).HeaderBytes), blockID)
-}
-
-// HeaderBytesByHeight mocks base method
-func (m *MockState) HeaderBytesByHeight(height proto.Height) ([]byte, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "HeaderBytesByHeight", height)
-	ret0, _ := ret[0].([]byte)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// HeaderBytesByHeight indicates an expected call of HeaderBytesByHeight
-func (mr *MockStateMockRecorder) HeaderBytesByHeight(height interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HeaderBytesByHeight", reflect.TypeOf((*MockState)(nil).HeaderBytesByHeight), height)
 }
 
 // Height mocks base method

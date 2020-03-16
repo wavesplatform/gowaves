@@ -147,7 +147,7 @@ func TestFinishVoting(t *testing.T) {
 		to.stor.addBlock(t, nextBlockId)
 		err = to.features.resetVotes(nextBlockId)
 		assert.NoError(t, err, "resetVotes() failed")
-		// Add required amount of votes first.
+		// NewConnection required amount of votes first.
 		for i := uint64(0); i < tc.votesNum; i++ {
 			to.stor.addBlock(t, ids[heightCounter])
 			err = to.features.addVote(featureID, ids[heightCounter])
@@ -155,7 +155,7 @@ func TestFinishVoting(t *testing.T) {
 			heightCounter++
 		}
 		var lastBlockId crypto.Signature
-		// Add remaining blocks until curHeight.
+		// NewConnection remaining blocks until curHeight.
 		for ; heightCounter < tc.curHeight; heightCounter++ {
 			to.stor.addBlock(t, ids[heightCounter])
 			lastBlockId = ids[heightCounter]

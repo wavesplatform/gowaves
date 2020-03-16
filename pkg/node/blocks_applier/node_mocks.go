@@ -1,4 +1,4 @@
-package node
+package blocks_applier
 
 import (
 	"context"

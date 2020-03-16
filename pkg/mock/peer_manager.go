@@ -176,9 +176,11 @@ func (mr *MockPeerManagerMockRecorder) PeerWithHighestScore() *gomock.Call {
 }
 
 // UpdateScore mocks base method
-func (m *MockPeerManager) UpdateScore(p peer.Peer, score *proto.Score) {
+func (m *MockPeerManager) UpdateScore(p peer.Peer, score *proto.Score) error {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "UpdateScore", p, score)
+	ret := m.ctrl.Call(m, "UpdateScore", p, score)
+	ret0, _ := ret[0].(error)
+	return ret0
 }
 
 // UpdateScore indicates an expected call of UpdateScore

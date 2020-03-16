@@ -1,11 +1,12 @@
-package node
+package blocks_applier
 
 import (
+	"math/big"
+	"testing"
+
 	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"math/big"
-	"testing"
 )
 
 func TestMockStateManager_ScoreAtHeight(t *testing.T) {

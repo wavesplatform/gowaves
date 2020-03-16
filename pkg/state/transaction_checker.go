@@ -607,7 +607,7 @@ func (tc *transactionChecker) checkExchange(transaction proto.Transaction, info 
 	for a := range m {
 		allAssets = append(allAssets, a)
 	}
-	// Add matcher fee assets to map to checkAsset() them later.
+	// NewConnection matcher fee assets to map to checkAsset() them later.
 	if so3, ok := tx.GetSellOrderFull().(*proto.OrderV3); ok {
 		m[so3.MatcherFeeAsset] = struct{}{}
 	}

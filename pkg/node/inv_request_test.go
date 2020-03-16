@@ -1,10 +1,9 @@
-package ng
+package node
 
 import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
@@ -20,10 +19,10 @@ func TestInvRequesterImpl_Request(t *testing.T) {
 	buf := &messSender{}
 	n := NewInvRequester()
 
-	n.Request(buf, crypto.Signature{})
+	n.Request(buf, &proto.MicroBlockInv{})
 	require.Equal(t, 1, len(buf.messages))
 
-	n.Request(buf, crypto.Signature{})
+	n.Request(buf, &proto.MicroBlockInv{})
 	require.Equal(t, 1, len(buf.messages))
 
 }

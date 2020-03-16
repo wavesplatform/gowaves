@@ -392,7 +392,7 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 		if err := a.checkDuplicateTxIds(tx, a.recentTxIds, params.block.Timestamp); err != nil {
 			return err
 		}
-		// Add transaction ID.
+		// NewConnection transaction ID.
 		txID, err := tx.GetID(a.settings.AddressSchemeCharacter)
 		if err != nil {
 			return err
@@ -527,7 +527,7 @@ func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, pare
 	if err := a.checkDuplicateTxIds(tx, a.recentTxIds, currentTimestamp); err != nil {
 		return err
 	}
-	// Add transaction ID.
+	// NewConnection transaction ID.
 	txID, err := tx.GetID(a.settings.AddressSchemeCharacter)
 	if err != nil {
 		return err

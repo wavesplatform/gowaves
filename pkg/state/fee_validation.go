@@ -115,7 +115,7 @@ func scriptsCost(tx proto.Transaction, params *feeValidationParams) (uint64, err
 		scriptsCost += scriptExtraFee
 	}
 	if params.txAssets.smartAssets != nil {
-		// Add extra fee for each of smart assets found.
+		// NewConnection extra fee for each of smart assets found.
 		scriptsCost += scriptExtraFee * uint64(len(params.txAssets.smartAssets))
 	}
 	// TODO: the code below is wrong, because scripts for fee assets are never run.
