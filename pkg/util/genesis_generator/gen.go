@@ -19,6 +19,7 @@ func Genesis(timestamp proto.Timestamp, transactions proto.Transactions, scheme 
 		proto.GenesisBlockVersion,
 		nil,
 		-1,
+		scheme,
 	)
 
 	if err != nil {

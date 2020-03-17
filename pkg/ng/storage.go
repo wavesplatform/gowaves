@@ -133,12 +133,13 @@ func inf2micro(in []interface{}) []*proto.MicroBlock {
 type storage struct {
 	curState  Blocks
 	prevState Blocks
+	scheme    proto.Scheme
 	// TODO add validation
 	//validator validator
 }
 
-func newStorage() *storage {
-	return &storage{}
+func newStorage(scheme proto.Scheme) *storage {
+	return &storage{scheme: scheme}
 }
 
 func (a *storage) PushBlock(block *proto.Block) error {
@@ -212,7 +213,8 @@ func (a *storage) fromRow(seq Row) (*proto.Block, error) {
 		keyBlock.NxtConsensus,
 		keyBlock.Version,
 		keyBlock.Features,
-		keyBlock.RewardVote)
+		keyBlock.RewardVote,
+		a.scheme)
 	if err != nil {
 		return nil, err
 	}

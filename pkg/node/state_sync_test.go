@@ -66,7 +66,8 @@ func TestCreateBulkHandler(t *testing.T) {
 		proto.NxtConsensus{},
 		1,
 		nil,
-		100500)
+		100500,
+		proto.TestNetScheme)
 	require.NoError(t, err)
 	bts, err := block.MarshalBinary()
 	require.NoError(t, err)
