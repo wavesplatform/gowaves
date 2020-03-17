@@ -592,8 +592,13 @@ func (tc *transactionChecker) checkExchange(transaction proto.Transaction, info 
 	if err != nil {
 		return nil, err
 	}
-	if !blockV5Activated && tx.GetOrder1().GetOrderType() != proto.Buy && tx.GetOrder2().GetOrderType() != proto.Sell {
-		return nil, errors.New("sell order not allowed on first place in exchange transaction before an activation of Block V5")
+	if tx.GetOrder1().GetOrderType() != proto.Buy && tx.GetOrder2().GetOrderType() != proto.Sell {
+		if !proto.IsProtobufTx(transaction) {
+			return nil, errors.New("sell order not allowed on first place in exchange transaction of versions prior 4")
+		}
+		if !blockV5Activated {
+			return nil, errors.New("sell order not allowed on first place in exchange transaction before activation of BlockV5")
+		}
 	}
 	so, err := tx.GetSellOrder()
 	if err != nil {

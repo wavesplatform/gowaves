@@ -2442,6 +2442,8 @@ func TestExchangeWithSigValidations(t *testing.T) {
 		{sbo0, sso0, 950000000, 456, 789, 987, 654, 11, "sell order expiration should be earlier than 30 days"},
 		{sbo0, sso0, 950000000, 456, 789, 987, 654, MaxOrderTTL + 15, "invalid buy order expiration"},
 		{sbo0, sso3, 950000000, 456, 789, 987, 654, MaxOrderTTL + 10, "invalid sell order expiration"},
+		{sso0, sbo0, 123, 456, 789, 987, 654, 111, "incorrect order type of buy order"},
+		{sbo0, sbo0, 123, 456, 789, 987, 654, 111, "incorrect order type of sell order"},
 	}
 	for _, tc := range tests {
 		tx := NewUnsignedExchangeWithSig(&tc.buy, &tc.sell, tc.price, tc.amount, tc.buyFee, tc.sellFee, tc.fee, tc.ts)
@@ -2557,6 +2559,7 @@ func TestExchangeWithSigProtobufRoundTrip(t *testing.T) {
 	}{
 		{*bo, *so, 123, 456, 789, 987, 654},
 		{*bo, *so, 987654321, 544321, 9876, 8765, 13245},
+		{*so, *bo, 1234, 5678, 9012, 3456, 7890},
 	}
 	for _, tc := range tests {
 		ts := uint64(time.Now().UnixNano() / 1000000)
@@ -2905,6 +2908,10 @@ func TestExchangeWithProofsProtobufRoundTrip(t *testing.T) {
 		{bo2, so2, 987654321, 544321, 9876, 8765, 13245},
 		{bo1, so2, 123, 456, 789, 987, 654},
 		{bo2, so1, 987654321, 544321, 9876, 8765, 13245},
+		{so1, bo1, 123, 456, 789, 987, 654},
+		{so2, bo2, 987654321, 544321, 9876, 8765, 13245},
+		{so1, bo2, 123, 456, 789, 987, 654},
+		{so2, bo1, 987654321, 544321, 9876, 8765, 13245},
 	}
 	for _, tc := range tests {
 		ts := uint64(time.Now().UnixNano() / 1000000)

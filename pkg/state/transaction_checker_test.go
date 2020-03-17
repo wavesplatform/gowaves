@@ -599,6 +599,66 @@ func TestCheckExchangeWithProofs(t *testing.T) {
 	txOV2.Amount = bo.GetAmount()
 }
 
+func TestCheckUnorderedExchangeV2WithProofs(t *testing.T) {
+	to, path := createCheckerTestObjects(t)
+
+	defer func() {
+		to.stor.close(t)
+
+		err := util.CleanTemporaryDirs(path)
+		assert.NoError(t, err, "failed to clean test data dirs")
+	}()
+
+	tx := createUnorderedExchangeWithProofs(t, 2)
+	info := defaultCheckerInfo(t)
+
+	to.stor.createAsset(t, testGlobal.asset0.asset.ID)
+	to.stor.createAsset(t, testGlobal.asset1.asset.ID)
+	to.stor.createAsset(t, testGlobal.asset2.asset.ID)
+
+	to.stor.activateFeature(t, int16(settings.SmartAccountTrading))
+	to.stor.activateFeature(t, int16(settings.SmartAssets))
+	to.stor.activateFeature(t, int16(settings.OrderV3))
+
+	_, err := to.tc.checkExchangeWithProofs(tx, info)
+	assert.Errorf(t, err, "have to fail on incorrect order of orders before activation of BlockV5")
+
+	to.stor.activateFeature(t, int16(settings.BlockV5))
+
+	_, err = to.tc.checkExchangeWithProofs(tx, info)
+	assert.Errorf(t, err, "have to fail on incorrect order of orders after activation of BlockV5")
+}
+
+func TestCheckUnorderedExchangeV3WithProofs(t *testing.T) {
+	to, path := createCheckerTestObjects(t)
+
+	defer func() {
+		to.stor.close(t)
+
+		err := util.CleanTemporaryDirs(path)
+		assert.NoError(t, err, "failed to clean test data dirs")
+	}()
+
+	tx := createUnorderedExchangeWithProofs(t, 3)
+	info := defaultCheckerInfo(t)
+
+	to.stor.createAsset(t, testGlobal.asset0.asset.ID)
+	to.stor.createAsset(t, testGlobal.asset1.asset.ID)
+	to.stor.createAsset(t, testGlobal.asset2.asset.ID)
+
+	to.stor.activateFeature(t, int16(settings.SmartAccountTrading))
+	to.stor.activateFeature(t, int16(settings.SmartAssets))
+	to.stor.activateFeature(t, int16(settings.OrderV3))
+
+	_, err := to.tc.checkExchangeWithProofs(tx, info)
+	assert.Errorf(t, err, "have to fail on incorrect order of orders before activation of BlockV5")
+
+	to.stor.activateFeature(t, int16(settings.BlockV5))
+
+	_, err = to.tc.checkExchangeWithProofs(tx, info)
+	assert.NoErrorf(t, err, "failed on with incorrect order of orders after activation of BlockV5")
+}
+
 func TestCheckLeaseWithSig(t *testing.T) {
 	to, path := createCheckerTestObjects(t)
 
