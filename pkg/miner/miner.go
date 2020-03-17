@@ -118,10 +118,10 @@ func (a *MicroblockMiner) Mine(ctx context.Context, t proto.Timestamp, k proto.K
 		ClassicAmountOfTxsInBlock:   a.constraints.ClassicAmountOfTxsInBlock,
 		MaxTxsSizeInBytes:           a.constraints.MaxTxsSizeInBytes - 4,
 	}
-	go a.mineMicro(ctx, rest, b, ng.NewBlocksFromBlock(b), k, a.scheme)
+	go a.mineMicro(ctx, rest, b, ng.NewBlocksFromBlock(b), k)
 }
 
-func (a *MicroblockMiner) mineMicro(ctx context.Context, rest restLimits, blockApplyOn *proto.Block, blocks ng.Blocks, keyPair proto.KeyPair, scheme proto.Scheme) {
+func (a *MicroblockMiner) mineMicro(ctx context.Context, rest restLimits, blockApplyOn *proto.Block, blocks ng.Blocks, keyPair proto.KeyPair) {
 	select {
 	case <-ctx.Done():
 		return
@@ -203,7 +203,7 @@ func (a *MicroblockMiner) mineMicro(ctx context.Context, rest restLimits, blockA
 
 	// no transactions applied, skip
 	if cnt == 0 {
-		go a.mineMicro(ctx, rest, blockApplyOn, blocks, keyPair, scheme)
+		go a.mineMicro(ctx, rest, blockApplyOn, blocks, keyPair)
 		return
 	}
 
@@ -231,16 +231,17 @@ func (a *MicroblockMiner) mineMicro(ctx context.Context, rest restLimits, blockA
 		blockApplyOn.Version,
 		blockApplyOn.Features,
 		blockApplyOn.RewardVote,
+		a.scheme,
 	)
 	if err != nil {
 		zap.S().Error(err)
 		return
 	}
 
-	priv := keyPair.Secret
+	sk := keyPair.Secret
 	err = newBlock.Sign(a.scheme, keyPair.Secret)
 	if err != nil {
-		zap.S().Error(err)
+		zap.S().Errorf("Failed to sing a block: %v", err)
 		return
 	}
 
@@ -263,14 +264,14 @@ func (a *MicroblockMiner) mineMicro(ctx context.Context, rest restLimits, blockA
 		TotalResBlockSigField: newBlock.BlockSignature,
 	}
 
-	err = micro.Sign(priv)
+	err = micro.Sign(sk)
 	if err != nil {
 		zap.S().Error(err)
 		return
 	}
 
 	inv := proto.NewUnsignedMicroblockInv(micro.SenderPK, micro.TotalResBlockSigField, micro.PrevResBlockSigField)
-	err = inv.Sign(priv, scheme)
+	err = inv.Sign(sk, a.scheme)
 	if err != nil {
 		zap.S().Error(err)
 		return
@@ -291,7 +292,7 @@ func (a *MicroblockMiner) mineMicro(ctx context.Context, rest restLimits, blockA
 		return
 	}
 
-	go a.mineMicro(ctx, newRest, newBlock, newBlocks, keyPair, scheme)
+	go a.mineMicro(ctx, newRest, newBlock, newBlocks, keyPair)
 }
 
 func blockVersion(state state.State) (proto.BlockVersion, error) {

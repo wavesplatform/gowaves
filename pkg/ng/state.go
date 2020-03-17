@@ -22,7 +22,7 @@ type State struct {
 func NewState(services services.Services) *State {
 	return &State{
 		mu:          sync.Mutex{},
-		storage:     newStorage(),
+		storage:     newStorage(services.Scheme),
 		applier:     services.BlocksApplier,
 		state:       services.State,
 		knownBlocks: knownBlocks{},
