@@ -2,7 +2,6 @@ package utxpool
 
 import (
 	"errors"
-	"sync"
 	"testing"
 	"time"
 
@@ -11,7 +10,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/util/byte_helpers"
-	"github.com/wavesplatform/gowaves/pkg/util/lock"
 )
 
 func TestBulkValidator_Validate(t *testing.T) {
@@ -19,11 +17,9 @@ func TestBulkValidator_Validate(t *testing.T) {
 	defer ctrl.Finish()
 
 	emptyBlock := &proto.Block{}
-	mu := lock.NewRwMutex(&sync.RWMutex{})
 	now := time.Now()
 
 	m := NewMockstateWrapper(ctrl)
-	m.EXPECT().Mutex().Return(mu)
 	m.EXPECT().TopBlock().Return(emptyBlock)
 	m.EXPECT(). // first transaction returns err
 			ValidateNextTx(byte_helpers.TransferWithSig.Transaction, gomock.Any(), gomock.Any(), gomock.Any()).

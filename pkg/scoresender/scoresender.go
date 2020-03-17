@@ -8,14 +8,12 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/libs/runner"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"github.com/wavesplatform/gowaves/pkg/util/lock"
 	"go.uber.org/zap"
 )
 
 // state interface contains subset of State
 type state interface {
 	CurrentScore() (*big.Int, error)
-	Mutex() *lock.RwMutex
 }
 
 // eachConnected interface contains subset of PeerManager
@@ -80,9 +78,7 @@ func (a *sender) Priority() {
 
 // sendScore get and send score to peers.
 func (a *sender) sendScore() {
-	locked := a.state.Mutex().RLock()
 	curScore, err := a.state.CurrentScore()
-	locked.Unlock()
 	if err != nil {
 		zap.S().Debugf("ScoreSender: %q", err)
 		return

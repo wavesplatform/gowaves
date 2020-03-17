@@ -8,8 +8,6 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
-	"sync/atomic"
-	"unsafe"
 
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/consensus"
@@ -17,7 +15,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
-	"github.com/wavesplatform/gowaves/pkg/util/lock"
 	"go.uber.org/zap"
 )
 
@@ -170,10 +167,10 @@ func checkCompatibility(stateDB *stateDB, extendedApi bool) error {
 }
 
 type stateManager struct {
-	mu *sync.RWMutex // `mu` is used outside of state and returned in Mutex() function.
+	mtx sync.RWMutex
 
 	// Last added block.
-	lastBlock unsafe.Pointer
+	lastBlock *proto.Block
 
 	genesis proto.Block
 	stateDB *stateDB
@@ -274,7 +271,7 @@ func newStateManager(dataDir string, params StateParams, settings *settings.Bloc
 		return nil, wrapErr(Other, errors.Errorf("failed to create address transactions storage: %v", err))
 	}
 	state := &stateManager{
-		mu:                        &sync.RWMutex{},
+		mtx:                       sync.RWMutex{},
 		stateDB:                   stateDB,
 		stor:                      stor,
 		rw:                        rw,
@@ -305,11 +302,9 @@ func newStateManager(dataDir string, params StateParams, settings *settings.Bloc
 	return state, nil
 }
 
-func (s *stateManager) Mutex() *lock.RwMutex {
-	return lock.NewRwMutex(s.mu)
-}
-
 func (s *stateManager) Peers() ([]proto.TCPAddr, error) {
+	s.mtx.RLock()
+	defer s.mtx.RUnlock()
 	return s.peers.peers()
 }
 
@@ -372,7 +367,7 @@ func (s *stateManager) applyPreactivatedFeatures(features []int16, blockID crypt
 }
 
 func (s *stateManager) handleGenesisBlock(block proto.Block) error {
-	height, err := s.Height()
+	height, err := s.rw.currentHeight()
 	if err != nil {
 		return err
 	}
@@ -411,23 +406,28 @@ func (s *stateManager) checkProtobufActivation() error {
 }
 
 func (s *stateManager) loadLastBlock() error {
-	height, err := s.Height()
+	height, err := s.rw.currentHeight()
 	if err != nil {
 		return errors.Errorf("failed to retrieve height: %v", err)
 	}
-	lastBlock, err := s.BlockByHeight(height)
+	lastBlock, err := s.blockByHeightImpl(height)
 	if err != nil {
 		return errors.Errorf("failed to get block by height: %v", err)
 	}
-	atomic.StorePointer(&s.lastBlock, unsafe.Pointer(lastBlock))
+	s.lastBlock = lastBlock
 	return nil
 }
 
 func (s *stateManager) TopBlock() *proto.Block {
-	return (*proto.Block)(atomic.LoadPointer(&s.lastBlock))
+	s.mtx.RLock()
+	defer s.mtx.RUnlock()
+	cp := *s.lastBlock
+	return &cp
 }
 
 func (s *stateManager) Header(blockID crypto.Signature) (*proto.BlockHeader, error) {
+	s.mtx.RLock()
+	defer s.mtx.RUnlock()
 	header, err := s.rw.readBlockHeader(blockID)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
@@ -447,15 +447,39 @@ func (s *stateManager) NewestHeaderByHeight(height uint64) (*proto.BlockHeader, 
 	return header, nil
 }
 
-func (s *stateManager) HeaderByHeight(height uint64) (*proto.BlockHeader, error) {
-	blockID, err := s.HeightToBlockID(height)
+func (s *stateManager) HeaderByHeightInternal(height uint64) (*proto.BlockHeader, error) {
+	blockID, err := s.rw.blockIDByHeight(height)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
-	return s.Header(blockID)
+	header, err := s.rw.readBlockHeader(blockID)
+	if err != nil {
+		return nil, wrapErr(RetrievalError, err)
+	}
+	return header, nil
+}
+
+func (s *stateManager) HeaderByHeight(height uint64) (*proto.BlockHeader, error) {
+	s.mtx.RLock()
+	defer s.mtx.RUnlock()
+	return s.HeaderByHeightInternal(height)
 }
 
 func (s *stateManager) Block(blockID crypto.Signature) (*proto.Block, error) {
+	s.mtx.RLock()
+	defer s.mtx.RUnlock()
+	block, err := s.rw.readBlock(blockID)
+	if err != nil {
+		return nil, wrapErr(RetrievalError, err)
+	}
+	return block, nil
+}
+
+func (s *stateManager) blockByHeightImpl(height uint64) (*proto.Block, error) {
+	blockID, err := s.rw.blockIDByHeight(height)
+	if err != nil {
+		return nil, wrapErr(RetrievalError, err)
+	}
 	block, err := s.rw.readBlock(blockID)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
@@ -464,11 +488,9 @@ func (s *stateManager) Block(blockID crypto.Signature) (*proto.Block, error) {
 }
 
 func (s *stateManager) BlockByHeight(height uint64) (*proto.Block, error) {
-	blockID, err := s.HeightToBlockID(height)
-	if err != nil {
-		return nil, wrapErr(RetrievalError, err)
-	}
-	return s.Block(blockID)
+	s.mtx.RLock()
+	defer s.mtx.RUnlock()
+	return s.blockByHeightImpl(height)
 }
 
 func (s *stateManager) AddingBlockHeight() (uint64, error) {
@@ -480,6 +502,8 @@ func (s *stateManager) NewestHeight() (uint64, error) {
 }
 
 func (s *stateManager) Height() (uint64, error) {
+	s.mtx.RLock()
+	defer s.mtx.RUnlock()
 	height, err := s.rw.currentHeight()
 	if err != nil {
 		return 0, wrapErr(RetrievalError, err)
@@ -488,6 +512,8 @@ func (s *stateManager) Height() (uint64, error) {
 }
 
 func (s *stateManager) BlockIDToHeight(blockID crypto.Signature) (uint64, error) {
+	s.mtx.RLock()
+	defer s.mtx.RUnlock()
 	height, err := s.rw.heightByBlockID(blockID)
 	if err != nil {
 		return 0, wrapErr(RetrievalError, err)
@@ -496,7 +522,9 @@ func (s *stateManager) BlockIDToHeight(blockID crypto.Signature) (uint64, error)
 }
 
 func (s *stateManager) HeightToBlockID(height uint64) (crypto.Signature, error) {
-	maxHeight, err := s.Height()
+	s.mtx.RLock()
+	defer s.mtx.RUnlock()
+	maxHeight, err := s.rw.currentHeight()
 	if err != nil {
 		return crypto.Signature{}, wrapErr(RetrievalError, err)
 	}
@@ -557,7 +585,7 @@ func (s *stateManager) newestWavesBalance(addr proto.Address) (uint64, error) {
 }
 
 func (s *stateManager) GeneratingBalance(account proto.Recipient) (uint64, error) {
-	height, err := s.Height()
+	height, err := s.rw.currentHeight()
 	if err != nil {
 		return 0, wrapErr(RetrievalError, err)
 	}
@@ -566,6 +594,8 @@ func (s *stateManager) GeneratingBalance(account proto.Recipient) (uint64, error
 }
 
 func (s *stateManager) FullWavesBalance(account proto.Recipient) (*proto.FullWavesBalance, error) {
+	s.mtx.RLock()
+	defer s.mtx.RUnlock()
 	addr, err := s.recipientToAddress(account)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
@@ -612,6 +642,8 @@ func (s *stateManager) NewestAccountBalance(account proto.Recipient, asset []byt
 }
 
 func (s *stateManager) AccountBalance(account proto.Recipient, asset []byte) (uint64, error) {
+	s.mtx.RLock()
+	defer s.mtx.RUnlock()
 	addr, err := s.recipientToAddress(account)
 	if err != nil {
 		return 0, wrapErr(RetrievalError, err)
@@ -631,6 +663,8 @@ func (s *stateManager) AccountBalance(account proto.Recipient, asset []byte) (ui
 }
 
 func (s *stateManager) WavesAddressesNumber() (uint64, error) {
+	s.mtx.RLock()
+	defer s.mtx.RUnlock()
 	res, err := s.stor.balances.wavesAddressesNumber()
 	if err != nil {
 		return 0, wrapErr(RetrievalError, err)
@@ -639,12 +673,12 @@ func (s *stateManager) WavesAddressesNumber() (uint64, error) {
 }
 
 func (s *stateManager) topBlock() (*proto.Block, error) {
-	height, err := s.Height()
+	height, err := s.rw.currentHeight()
 	if err != nil {
 		return nil, err
 	}
 	// Heights start from 1.
-	return s.BlockByHeight(height)
+	return s.blockByHeightImpl(height)
 }
 
 func (s *stateManager) addFeaturesVotes(block *proto.Block) error {
@@ -665,7 +699,7 @@ func (s *stateManager) addFeaturesVotes(block *proto.Block) error {
 }
 
 func (s *stateManager) addRewardVote(block *proto.Block, height uint64) error {
-	activation, err := s.ActivationHeight(int16(settings.BlockReward))
+	activation, err := s.stor.features.activationHeight(int16(settings.BlockReward))
 	if err != nil {
 		return err
 	}
@@ -713,10 +747,7 @@ func (s *stateManager) addNewBlock(block, parent *proto.Block, initialisation bo
 	if err := s.addFeaturesVotes(block); err != nil {
 		return err
 	}
-	blockRewardActivated, err := s.IsActiveAtHeight(int16(settings.BlockReward), height)
-	if err != nil {
-		return err
-	}
+	blockRewardActivated := s.stor.features.isActivatedAtHeight(int16(settings.BlockReward), height)
 	// Count reward vote.
 	if blockRewardActivated {
 		err := s.addRewardVote(block, height)
@@ -765,6 +796,8 @@ func (s *stateManager) undoBlockAddition() error {
 }
 
 func (s *stateManager) AddBlock(block []byte) (*proto.Block, error) {
+	s.mtx.Lock()
+	defer s.mtx.Unlock()
 	b := &proto.Block{}
 	err := b.UnmarshalBinary(block, s.settings.AddressSchemeCharacter)
 	if err != nil {
@@ -796,10 +829,14 @@ func (s *stateManager) addBlock(block *proto.Block) (*proto.Block, error) {
 }
 
 func (s *stateManager) AddDeserializedBlock(block *proto.Block) (*proto.Block, error) {
+	s.mtx.Lock()
+	defer s.mtx.Unlock()
 	return s.addBlock(block)
 }
 
 func (s *stateManager) AddNewBlocks(blockBytes [][]byte) error {
+	s.mtx.Lock()
+	defer s.mtx.Unlock()
 	var blocks []*proto.Block
 	for _, bts := range blockBytes {
 		block := &proto.Block{}
@@ -821,6 +858,8 @@ func (s *stateManager) AddNewBlocks(blockBytes [][]byte) error {
 }
 
 func (s *stateManager) AddNewDeserializedBlocks(blocks []*proto.Block) (*proto.Block, error) {
+	s.mtx.Lock()
+	defer s.mtx.Unlock()
 	// Make sure appender doesn't store any diffs from previous validations (e.g. UTX).
 	s.appender.reset()
 	lastBlock, err := s.addBlocks(blocks, false)
@@ -834,6 +873,8 @@ func (s *stateManager) AddNewDeserializedBlocks(blocks []*proto.Block) (*proto.B
 }
 
 func (s *stateManager) AddOldBlocks(blockBytes [][]byte) error {
+	s.mtx.Lock()
+	defer s.mtx.Unlock()
 	var blocks []*proto.Block
 	for _, bts := range blockBytes {
 		block := &proto.Block{}
@@ -855,6 +896,8 @@ func (s *stateManager) AddOldBlocks(blockBytes [][]byte) error {
 }
 
 func (s *stateManager) AddOldDeserializedBlocks(blocks []*proto.Block) error {
+	s.mtx.Lock()
+	defer s.mtx.Unlock()
 	// Make sure appender doesn't store any diffs from previous validations (e.g. UTX).
 	s.appender.reset()
 	if _, err := s.addBlocks(blocks, true); err != nil {
@@ -881,12 +924,9 @@ func (s *stateManager) needToFinishVotingPeriod(blockchainHeight uint64) bool {
 
 func (s *stateManager) isBlockRewardTermOver(height uint64) (bool, error) {
 	feature := int16(settings.BlockReward)
-	activated, err := s.IsActiveAtHeight(feature, height)
-	if err != nil {
-		return false, err
-	}
+	activated := s.stor.features.isActivatedAtHeight(feature, height)
 	if activated {
-		activation, err := s.ActivationHeight(int16(settings.BlockReward))
+		activation, err := s.stor.features.activationHeight(int16(settings.BlockReward))
 		if err != nil {
 			return false, err
 		}
@@ -903,12 +943,9 @@ func (s *stateManager) needToResetStolenAliases(height uint64) (bool, error) {
 		// No need to reset stolen aliases in custom blockchains.
 		return false, nil
 	}
-	dataTxActivated, err := s.IsActiveAtHeight(int16(settings.DataTransaction), height)
-	if err != nil {
-		return false, err
-	}
+	dataTxActivated := s.stor.features.isActivatedAtHeight(int16(settings.DataTransaction), height)
 	if dataTxActivated {
-		dataTxHeight, err := s.ActivationHeight(int16(settings.DataTransaction))
+		dataTxHeight, err := s.stor.features.activationHeight(int16(settings.DataTransaction))
 		if err != nil {
 			return false, err
 		}
@@ -924,13 +961,11 @@ func (s *stateManager) needToCancelLeases(height uint64) (bool, error) {
 		// No need to cancel leases in custom blockchains.
 		return false, nil
 	}
-	dataTxActivated, err := s.IsActiveAtHeight(int16(settings.DataTransaction), height)
-	if err != nil {
-		return false, err
-	}
+	dataTxActivated := s.stor.features.isActivatedAtHeight(int16(settings.DataTransaction), height)
 	dataTxHeight := uint64(0)
 	if dataTxActivated {
-		dataTxHeight, err = s.ActivationHeight(int16(settings.DataTransaction))
+		var err error
+		dataTxHeight, err = s.stor.features.activationHeight(int16(settings.DataTransaction))
 		if err != nil {
 			return false, err
 		}
@@ -994,7 +1029,7 @@ func (s *stateManager) needToBreakAddingBlocks(curHeight uint64, task *breakerTa
 }
 
 func (s *stateManager) finishVoting(blockID crypto.Signature, initialisation bool) error {
-	height, err := s.Height()
+	height, err := s.rw.currentHeight()
 	if err != nil {
 		return err
 	}
@@ -1019,7 +1054,7 @@ func (s *stateManager) finishVoting(blockID crypto.Signature, initialisation boo
 }
 
 func (s *stateManager) updateBlockReward(blockID crypto.Signature, initialisation bool) error {
-	h, err := s.Height()
+	h, err := s.rw.currentHeight()
 	if err != nil {
 		return err
 	}
@@ -1037,17 +1072,14 @@ func (s *stateManager) updateBlockReward(blockID crypto.Signature, initialisatio
 }
 
 func (s *stateManager) cancelLeases(blockID crypto.Signature) error {
-	height, err := s.Height()
+	height, err := s.rw.currentHeight()
 	if err != nil {
 		return err
 	}
-	dataTxActivated, err := s.IsActiveAtHeight(int16(settings.DataTransaction), height)
-	if err != nil {
-		return err
-	}
+	dataTxActivated := s.stor.features.isActivatedAtHeight(int16(settings.DataTransaction), height)
 	dataTxHeight := uint64(0)
 	if dataTxActivated {
-		dataTxHeight, err = s.ActivationHeight(int16(settings.DataTransaction))
+		dataTxHeight, err = s.stor.features.activationHeight(int16(settings.DataTransaction))
 		if err != nil {
 			return err
 		}
@@ -1132,7 +1164,7 @@ func (s *stateManager) addBlocks(blocks []*proto.Block, initialisation bool) (*p
 		return nil, wrapErr(RetrievalError, err)
 	}
 	zap.S().Debugf("StateManager: parent (top) block signature: %s", parent.BlockSignature.String())
-	height, err := s.Height()
+	height, err := s.rw.currentHeight()
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
@@ -1244,12 +1276,8 @@ func (s *stateManager) addBlocks(blocks []*proto.Block, initialisation bool) (*p
 	return lastBlock, nil
 }
 
-func (s *stateManager) checkRollbackInput(blockID crypto.Signature) error {
-	height, err := s.BlockIDToHeight(blockID)
-	if err != nil {
-		return err
-	}
-	maxHeight, err := s.Height()
+func (s *stateManager) checkRollbackHeight(height uint64) error {
+	maxHeight, err := s.rw.currentHeight()
 	if err != nil {
 		return err
 	}
@@ -1263,16 +1291,29 @@ func (s *stateManager) checkRollbackInput(blockID crypto.Signature) error {
 	return nil
 }
 
+func (s *stateManager) checkRollbackInput(blockID crypto.Signature) error {
+	height, err := s.rw.heightByBlockID(blockID)
+	if err != nil {
+		return err
+	}
+	return s.checkRollbackHeight(height)
+}
+
 func (s *stateManager) RollbackToHeight(height uint64) error {
-	blockID, err := s.HeightToBlockID(height)
+	s.mtx.Lock()
+	defer s.mtx.Unlock()
+	if err := s.checkRollbackHeight(height); err != nil {
+		return wrapErr(InvalidInputError, err)
+	}
+	blockID, err := s.rw.blockIDByHeight(height)
 	if err != nil {
 		return wrapErr(RetrievalError, err)
 	}
-	if err := s.checkRollbackInput(blockID); err != nil {
-		return wrapErr(InvalidInputError, err)
-	}
-	if err := s.RollbackTo(blockID); err != nil {
-		return wrapErr(RollbackError, err)
+	if err := s.rollbackToImpl(blockID); err != nil {
+		if err1 := s.stateDB.syncRw(); err1 != nil {
+			zap.S().Fatalf("Failed to rollback and can not sync state components after failure: %v", err1)
+		}
+		return err
 	}
 	return nil
 }
@@ -1305,7 +1346,7 @@ func (s *stateManager) rollbackToImpl(removalEdge crypto.Signature) error {
 		return wrapErr(RollbackError, err)
 	}
 	// Remove scores of deleted blocks.
-	newHeight, err := s.Height()
+	newHeight, err := s.rw.currentHeight()
 	if err != nil {
 		return wrapErr(RetrievalError, err)
 	}
@@ -1324,6 +1365,8 @@ func (s *stateManager) rollbackToImpl(removalEdge crypto.Signature) error {
 }
 
 func (s *stateManager) RollbackTo(removalEdge crypto.Signature) error {
+	s.mtx.Lock()
+	defer s.mtx.Unlock()
 	if err := s.rollbackToImpl(removalEdge); err != nil {
 		if err1 := s.stateDB.syncRw(); err1 != nil {
 			zap.S().Fatalf("Failed to rollback and can not sync state components after failure: %v", err1)
@@ -1334,7 +1377,9 @@ func (s *stateManager) RollbackTo(removalEdge crypto.Signature) error {
 }
 
 func (s *stateManager) ScoreAtHeight(height uint64) (*big.Int, error) {
-	maxHeight, err := s.Height()
+	s.mtx.RLock()
+	defer s.mtx.RUnlock()
+	maxHeight, err := s.rw.currentHeight()
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
@@ -1349,11 +1394,17 @@ func (s *stateManager) ScoreAtHeight(height uint64) (*big.Int, error) {
 }
 
 func (s *stateManager) CurrentScore() (*big.Int, error) {
-	height, err := s.Height()
+	s.mtx.RLock()
+	defer s.mtx.RUnlock()
+	height, err := s.rw.currentHeight()
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
-	return s.ScoreAtHeight(height)
+	score, err := s.stor.scores.score(height)
+	if err != nil {
+		return nil, wrapErr(RetrievalError, err)
+	}
+	return score, nil
 }
 
 func (s *stateManager) newestRecipientToAddress(recipient proto.Recipient) (*proto.Address, error) {
@@ -1371,6 +1422,8 @@ func (s *stateManager) recipientToAddress(recipient proto.Recipient) (*proto.Add
 }
 
 func (s *stateManager) EffectiveBalanceStable(account proto.Recipient, startHeight, endHeight uint64) (uint64, error) {
+	s.mtx.RLock()
+	defer s.mtx.RUnlock()
 	addr, err := s.recipientToAddress(account)
 	if err != nil {
 		return 0, wrapErr(RetrievalError, err)
@@ -1394,22 +1447,34 @@ func (s *stateManager) EffectiveBalance(account proto.Recipient, startHeight, en
 	return effectiveBalance, nil
 }
 
-func (s *stateManager) BlockchainSettings() (*settings.BlockchainSettings, error) {
+func (s *stateManager) BlockchainSettingsInternal() (*settings.BlockchainSettings, error) {
 	cp := *s.settings
 	return &cp, nil
 }
 
+func (s *stateManager) BlockchainSettings() (*settings.BlockchainSettings, error) {
+	s.mtx.RLock()
+	defer s.mtx.RUnlock()
+	return s.BlockchainSettingsInternal()
+}
+
 func (s *stateManager) SavePeers(peers []proto.TCPAddr) error {
+	s.mtx.Lock()
+	defer s.mtx.Unlock()
 	return s.peers.savePeers(peers)
 
 }
 
 func (s *stateManager) ResetValidationList() {
+	s.mtx.Lock()
+	defer s.mtx.Unlock()
 	s.appender.resetValidationList()
 }
 
 // For UTX validation.
 func (s *stateManager) ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64, v proto.BlockVersion) error {
+	s.mtx.Lock()
+	defer s.mtx.Unlock()
 	if err := s.appender.validateNextTx(tx, currentTimestamp, parentTimestamp, v); err != nil {
 		return wrapErr(TxValidationError, err)
 	}
@@ -1425,6 +1490,8 @@ func (s *stateManager) NewestAddrByAlias(alias proto.Alias) (proto.Address, erro
 }
 
 func (s *stateManager) AddrByAlias(alias proto.Alias) (proto.Address, error) {
+	s.mtx.RLock()
+	defer s.mtx.RUnlock()
 	addr, err := s.stor.aliases.addrByAlias(alias.Alias, true)
 	if err != nil {
 		return proto.Address{}, wrapErr(RetrievalError, err)
@@ -1433,6 +1500,8 @@ func (s *stateManager) AddrByAlias(alias proto.Alias) (proto.Address, error) {
 }
 
 func (s *stateManager) VotesNumAtHeight(featureID int16, height proto.Height) (uint64, error) {
+	s.mtx.RLock()
+	defer s.mtx.RUnlock()
 	votesNum, err := s.stor.features.featureVotesAtHeight(featureID, height)
 	if err != nil {
 		return 0, wrapErr(RetrievalError, err)
@@ -1441,6 +1510,8 @@ func (s *stateManager) VotesNumAtHeight(featureID int16, height proto.Height) (u
 }
 
 func (s *stateManager) VotesNum(featureID int16) (uint64, error) {
+	s.mtx.RLock()
+	defer s.mtx.RUnlock()
 	votesNum, err := s.stor.features.featureVotesStable(featureID)
 	if err != nil {
 		return 0, wrapErr(RetrievalError, err)
@@ -1449,6 +1520,8 @@ func (s *stateManager) VotesNum(featureID int16) (uint64, error) {
 }
 
 func (s *stateManager) IsActivated(featureID int16) (bool, error) {
+	s.mtx.RLock()
+	defer s.mtx.RUnlock()
 	activated, err := s.stor.features.isActivated(featureID)
 	if err != nil {
 		return false, wrapErr(RetrievalError, err)
@@ -1456,11 +1529,19 @@ func (s *stateManager) IsActivated(featureID int16) (bool, error) {
 	return activated, nil
 }
 
-func (s *stateManager) IsActiveAtHeight(featureID int16, height proto.Height) (bool, error) {
+func (s *stateManager) IsActiveAtHeightInternal(featureID int16, height proto.Height) (bool, error) {
 	return s.stor.features.isActivatedAtHeight(featureID, height), nil
 }
 
+func (s *stateManager) IsActiveAtHeight(featureID int16, height proto.Height) (bool, error) {
+	s.mtx.RLock()
+	defer s.mtx.RUnlock()
+	return s.IsActiveAtHeightInternal(featureID, height)
+}
+
 func (s *stateManager) ActivationHeight(featureID int16) (uint64, error) {
+	s.mtx.RLock()
+	defer s.mtx.RUnlock()
 	height, err := s.stor.features.activationHeight(featureID)
 	if err != nil {
 		return 0, wrapErr(RetrievalError, err)
@@ -1469,6 +1550,8 @@ func (s *stateManager) ActivationHeight(featureID int16) (uint64, error) {
 }
 
 func (s *stateManager) IsApproved(featureID int16) (bool, error) {
+	s.mtx.RLock()
+	defer s.mtx.RUnlock()
 	approved, err := s.stor.features.isApproved(featureID)
 	if err != nil {
 		return false, wrapErr(RetrievalError, err)
@@ -1477,10 +1560,14 @@ func (s *stateManager) IsApproved(featureID int16) (bool, error) {
 }
 
 func (s *stateManager) IsApprovedAtHeight(featureID int16, height uint64) (bool, error) {
+	s.mtx.RLock()
+	defer s.mtx.RUnlock()
 	return s.stor.features.isApprovedAtHeight(featureID, height), nil
 }
 
 func (s *stateManager) ApprovalHeight(featureID int16) (uint64, error) {
+	s.mtx.RLock()
+	defer s.mtx.RUnlock()
 	height, err := s.stor.features.approvalHeight(featureID)
 	if err != nil {
 		return 0, wrapErr(RetrievalError, err)
@@ -1489,6 +1576,8 @@ func (s *stateManager) ApprovalHeight(featureID int16) (uint64, error) {
 }
 
 func (s *stateManager) AllFeatures() ([]int16, error) {
+	s.mtx.RLock()
+	defer s.mtx.RUnlock()
 	features, err := s.stor.features.allFeatures()
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
@@ -1511,6 +1600,8 @@ func (s *stateManager) RetrieveNewestEntry(account proto.Recipient, key string) 
 }
 
 func (s *stateManager) RetrieveEntries(account proto.Recipient) ([]proto.DataEntry, error) {
+	s.mtx.RLock()
+	defer s.mtx.RUnlock()
 	addr, err := s.recipientToAddress(account)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
@@ -1523,6 +1614,8 @@ func (s *stateManager) RetrieveEntries(account proto.Recipient) ([]proto.DataEnt
 }
 
 func (s *stateManager) RetrieveEntry(account proto.Recipient, key string) (proto.DataEntry, error) {
+	s.mtx.RLock()
+	defer s.mtx.RUnlock()
 	addr, err := s.recipientToAddress(account)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
@@ -1547,6 +1640,8 @@ func (s *stateManager) RetrieveNewestIntegerEntry(account proto.Recipient, key s
 }
 
 func (s *stateManager) RetrieveIntegerEntry(account proto.Recipient, key string) (*proto.IntegerDataEntry, error) {
+	s.mtx.RLock()
+	defer s.mtx.RUnlock()
 	addr, err := s.recipientToAddress(account)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
@@ -1571,6 +1666,8 @@ func (s *stateManager) RetrieveNewestBooleanEntry(account proto.Recipient, key s
 }
 
 func (s *stateManager) RetrieveBooleanEntry(account proto.Recipient, key string) (*proto.BooleanDataEntry, error) {
+	s.mtx.RLock()
+	defer s.mtx.RUnlock()
 	addr, err := s.recipientToAddress(account)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
@@ -1595,6 +1692,8 @@ func (s *stateManager) RetrieveNewestStringEntry(account proto.Recipient, key st
 }
 
 func (s *stateManager) RetrieveStringEntry(account proto.Recipient, key string) (*proto.StringDataEntry, error) {
+	s.mtx.RLock()
+	defer s.mtx.RUnlock()
 	addr, err := s.recipientToAddress(account)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
@@ -1619,6 +1718,8 @@ func (s *stateManager) RetrieveNewestBinaryEntry(account proto.Recipient, key st
 }
 
 func (s *stateManager) RetrieveBinaryEntry(account proto.Recipient, key string) (*proto.BinaryDataEntry, error) {
+	s.mtx.RLock()
+	defer s.mtx.RUnlock()
 	addr, err := s.recipientToAddress(account)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
@@ -1639,6 +1740,8 @@ func (s *stateManager) NewestTransactionByID(id []byte) (proto.Transaction, erro
 }
 
 func (s *stateManager) TransactionByID(id []byte) (proto.Transaction, error) {
+	s.mtx.RLock()
+	defer s.mtx.RUnlock()
 	tx, err := s.rw.readTransaction(id)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
@@ -1655,6 +1758,8 @@ func (s *stateManager) NewestTransactionHeightByID(id []byte) (uint64, error) {
 }
 
 func (s *stateManager) TransactionHeightByID(id []byte) (uint64, error) {
+	s.mtx.RLock()
+	defer s.mtx.RUnlock()
 	txHeight, err := s.rw.transactionHeightByID(id)
 	if err != nil {
 		return 0, wrapErr(RetrievalError, err)
@@ -1663,6 +1768,8 @@ func (s *stateManager) TransactionHeightByID(id []byte) (uint64, error) {
 }
 
 func (s *stateManager) NewAddrTransactionsIterator(addr proto.Address) (TransactionIterator, error) {
+	s.mtx.RLock()
+	defer s.mtx.RUnlock()
 	providesData, err := s.ProvidesExtendedApi()
 	if err != nil {
 		return nil, wrapErr(Other, err)
@@ -1686,6 +1793,8 @@ func (s *stateManager) NewestAssetIsSponsored(assetID crypto.Digest) (bool, erro
 }
 
 func (s *stateManager) AssetIsSponsored(assetID crypto.Digest) (bool, error) {
+	s.mtx.RLock()
+	defer s.mtx.RUnlock()
 	sponsored, err := s.stor.sponsoredAssets.isSponsored(assetID, true)
 	if err != nil {
 		return false, wrapErr(RetrievalError, err)
@@ -1726,6 +1835,8 @@ func (s *stateManager) NewestAssetInfo(assetID crypto.Digest) (*proto.AssetInfo,
 }
 
 func (s *stateManager) AssetInfo(assetID crypto.Digest) (*proto.AssetInfo, error) {
+	s.mtx.RLock()
+	defer s.mtx.RUnlock()
 	info, err := s.stor.assets.assetInfo(assetID, true)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
@@ -1758,6 +1869,8 @@ func (s *stateManager) AssetInfo(assetID crypto.Digest) (*proto.AssetInfo, error
 }
 
 func (s *stateManager) FullAssetInfo(assetID crypto.Digest) (*proto.FullAssetInfo, error) {
+	s.mtx.RLock()
+	defer s.mtx.RUnlock()
 	ai, err := s.AssetInfo(assetID)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
@@ -1807,6 +1920,8 @@ func (s *stateManager) FullAssetInfo(assetID crypto.Digest) (*proto.FullAssetInf
 }
 
 func (s *stateManager) ScriptInfoByAccount(account proto.Recipient) (*proto.ScriptInfo, error) {
+	s.mtx.RLock()
+	defer s.mtx.RUnlock()
 	addr, err := s.recipientToAddress(account)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
@@ -1834,6 +1949,8 @@ func (s *stateManager) ScriptInfoByAccount(account proto.Recipient) (*proto.Scri
 }
 
 func (s *stateManager) ScriptInfoByAsset(assetID crypto.Digest) (*proto.ScriptInfo, error) {
+	s.mtx.RLock()
+	defer s.mtx.RUnlock()
 	scriptBytes, err := s.stor.scriptsStorage.scriptBytesByAsset(assetID, true)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
@@ -1856,6 +1973,8 @@ func (s *stateManager) ScriptInfoByAsset(assetID crypto.Digest) (*proto.ScriptIn
 }
 
 func (s *stateManager) IsActiveLeasing(leaseID crypto.Digest) (bool, error) {
+	s.mtx.RLock()
+	defer s.mtx.RUnlock()
 	isActive, err := s.stor.leases.isActive(leaseID, true)
 	if err != nil {
 		return false, wrapErr(RetrievalError, err)
@@ -1864,6 +1983,8 @@ func (s *stateManager) IsActiveLeasing(leaseID crypto.Digest) (bool, error) {
 }
 
 func (s *stateManager) InvokeResultByID(invokeID crypto.Digest) (*proto.ScriptResult, error) {
+	s.mtx.RLock()
+	defer s.mtx.RUnlock()
 	hasData, err := s.storesExtendedApiData()
 	if err != nil {
 		return nil, wrapErr(Other, err)
@@ -1887,6 +2008,8 @@ func (s *stateManager) storesExtendedApiData() (bool, error) {
 }
 
 func (s *stateManager) ProvidesExtendedApi() (bool, error) {
+	s.mtx.RLock()
+	defer s.mtx.RUnlock()
 	hasData, err := s.storesExtendedApiData()
 	if err != nil {
 		return false, wrapErr(RetrievalError, err)
@@ -1904,6 +2027,8 @@ func (s *stateManager) IsNotFound(err error) bool {
 }
 
 func (s *stateManager) StartProvidingExtendedApi() error {
+	s.mtx.Lock()
+	defer s.mtx.Unlock()
 	if err := s.atx.startProvidingData(); err != nil {
 		return wrapErr(ModificationError, err)
 	}
@@ -1911,6 +2036,8 @@ func (s *stateManager) StartProvidingExtendedApi() error {
 }
 
 func (s *stateManager) Close() error {
+	s.mtx.Lock()
+	defer s.mtx.Unlock()
 	if err := s.atx.close(); err != nil {
 		return wrapErr(ClosureError, err)
 	}

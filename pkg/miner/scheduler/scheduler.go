@@ -57,7 +57,6 @@ func (a internalImpl) schedule(state state.State, keyPairs []proto.KeyPair, sche
 	}
 
 	fairPosActivated, vrfActivated, err := func() (bool, bool, error) {
-		defer state.Mutex().RLock().Unlock()
 		fairPosActivated, err := state.IsActiveAtHeight(int16(settings.FairPoS), confirmedBlockHeight)
 		if err != nil {
 			return false, false, errors.Wrap(err, "failed get fairPosActivated")
@@ -119,9 +118,7 @@ func (a internalImpl) schedule(state state.State, keyPairs []proto.KeyPair, sche
 			zap.S().Error(err)
 			continue
 		}
-		locked := state.Mutex().RLock()
 		effectiveBalance, err := state.EffectiveBalanceStable(proto.NewRecipientFromAddress(addr), confirmedBlockHeight-1000, confirmedBlockHeight)
-		locked.Unlock()
 		if err != nil {
 			zap.S().Error(err)
 			continue
@@ -194,23 +191,17 @@ func (a *SchedulerImpl) Reschedule() {
 		return
 	}
 
-	mu := a.state.Mutex()
-	locked := mu.RLock()
-
 	h, err := a.state.Height()
 	if err != nil {
 		zap.S().Error(err)
-		locked.Unlock()
 		return
 	}
 
 	block, err := a.state.BlockByHeight(h)
 	if err != nil {
 		zap.S().Error(err)
-		locked.Unlock()
 		return
 	}
-	locked.Unlock()
 
 	a.reschedule(a.state, block, h)
 }

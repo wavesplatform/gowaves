@@ -1,7 +1,6 @@
 package utxpool
 
 import (
-	"sync"
 	"testing"
 
 	"github.com/golang/mock/gomock"
@@ -13,7 +12,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/services"
 	"github.com/wavesplatform/gowaves/pkg/settings"
-	"github.com/wavesplatform/gowaves/pkg/util/lock"
 )
 
 func TestNewCleaner(t *testing.T) {
@@ -33,10 +31,8 @@ func TestCleaner_work(t *testing.T) {
 func TestCleaner_Handle(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
-	mu := lock.NewRwMutex(&sync.RWMutex{})
 
 	m := NewMockstateWrapper(ctrl)
-	m.EXPECT().Mutex().Return(mu)
 	m.EXPECT().Height().Return(uint64(0), errors.New("some err"))
 
 	c := newCleaner(m, noOnBulkValidator{})

@@ -190,9 +190,7 @@ func (a *Node) handlePeerError(p peer.Peer, err error) {
 func (a *Node) Close() {
 	a.peers.Close()
 	a.sync.Close()
-	locked := a.state.Mutex().Lock()
 	a.state.Close()
-	locked.Unlock()
 }
 
 func (a *Node) handleNewConnection(p peer.Peer) {
@@ -203,9 +201,7 @@ func (a *Node) handleNewConnection(p peer.Peer) {
 
 	// send score to new connected
 	go func() {
-		locked := a.state.Mutex().RLock()
 		score, err := a.state.CurrentScore()
-		locked.Unlock()
 		if err != nil {
 			zap.S().Error(err)
 			return

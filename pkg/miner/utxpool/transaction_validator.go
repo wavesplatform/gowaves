@@ -32,11 +32,8 @@ func (a *ValidatorImpl) Validate(t proto.Transaction) error {
 		return errors.New("state in sync, transaction not accepted")
 	}
 
-	mu := a.state.Mutex()
-	locked := mu.Lock()
 	err := a.state.ValidateNextTx(t, currentTimestamp, lastKnownBlock.Timestamp, lastKnownBlock.Version)
 	a.state.ResetValidationList()
-	locked.Unlock()
 	return err
 }
 

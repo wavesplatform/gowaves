@@ -41,9 +41,6 @@ func (a bulkValidator) validate() ([]*types.TransactionWithBytes, error) {
 	}
 	var transactions []*types.TransactionWithBytes
 	currentTimestamp := proto.NewTimestampFromTime(a.tm.Now())
-	mu := a.state.Mutex()
-	locked := mu.Lock()
-	defer locked.Unlock()
 
 	lastKnownBlock := a.state.TopBlock()
 

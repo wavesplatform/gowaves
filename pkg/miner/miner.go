@@ -62,12 +62,11 @@ func (a *MicroblockMiner) Mine(ctx context.Context, t proto.Timestamp, k proto.K
 	}
 
 	b, err := func() (*proto.Block, error) {
-		defer a.state.Mutex().RLock().Unlock()
 		v, err := blockVersion(a.state)
 		if err != nil {
 			return nil, err
 		}
-		validatedFeatured, err := ValidateFeaturesWithoutLock(a.state, a.features)
+		validatedFeatured, err := ValidateFeatures(a.state, a.features)
 		if err != nil {
 			return nil, err
 		}
@@ -88,9 +87,7 @@ func (a *MicroblockMiner) Mine(ctx context.Context, t proto.Timestamp, k proto.K
 		return
 	}
 
-	locked := a.state.Mutex().RLock()
 	curScore, err := a.state.CurrentScore()
-	locked.Unlock()
 	if err != nil {
 		zap.S().Error(err)
 		return
@@ -166,9 +163,6 @@ func (a *MicroblockMiner) mineMicro(ctx context.Context, rest restLimits, blockA
 
 	var unAppliedTransactions []*types.TransactionWithBytes
 
-	mu := a.state.Mutex()
-	locked := mu.Lock()
-
 	// 255 is max transactions count in microblock
 	for i := 0; i < 255; i++ {
 		t := a.utx.Pop()
@@ -194,7 +188,6 @@ func (a *MicroblockMiner) mineMicro(ctx context.Context, rest restLimits, blockA
 	}
 
 	a.state.ResetValidationList()
-	locked.Unlock()
 
 	// return unapplied transactions
 	for _, unapplied := range unAppliedTransactions {
@@ -244,9 +237,7 @@ func (a *MicroblockMiner) mineMicro(ctx context.Context, rest restLimits, blockA
 		return
 	}
 
-	locked = mu.Lock()
 	_ = a.state.RollbackTo(blockApplyOn.Parent)
-	locked.Unlock()
 
 	err = a.services.BlocksApplier.Apply([]*proto.Block{newBlock})
 	if err != nil {

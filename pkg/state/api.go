@@ -10,7 +10,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/types"
-	"github.com/wavesplatform/gowaves/pkg/util/lock"
 )
 
 // TransactionIterator can be used to iterate through transactions of given address.
@@ -112,10 +111,8 @@ type StateInfo interface {
 }
 
 // StateModifier contains all the methods needed to modify node's state.
-// Methods of this interface are not thread-safe.
+// Methods of this interface are thread-safe.
 type StateModifier interface {
-	// Global mutex of state.
-	Mutex() *lock.RwMutex
 	// AddBlock adds single block to state.
 	// It's not recommended to use this function when you are able to accumulate big blocks batch,
 	// since it's much more efficient to add many blocks at once.

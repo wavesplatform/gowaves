@@ -48,10 +48,7 @@ func (a *State) AddBlock(block *proto.Block) {
 		return
 	}
 
-	mu := a.state.Mutex()
-	locked := mu.Lock()
 	err = a.state.RollbackTo(block.Parent)
-	locked.Unlock()
 
 	if err != nil {
 		if state.IsNotFound(err) {
@@ -63,26 +60,21 @@ func (a *State) AddBlock(block *proto.Block) {
 					zap.S().Debug(err)
 					return
 				}
-				locked := mu.Lock()
 				height, err := a.state.Height()
 				if err != nil {
-					locked.Unlock()
 					zap.S().Debug(err)
 					return
 				}
 				err = a.state.RollbackToHeight(height - 1)
 				if err != nil {
-					locked.Unlock()
 					zap.S().Debug(err)
 					return
 				}
 				_, err = a.state.AddDeserializedBlock(prevBlock)
 				if err != nil {
-					locked.Unlock()
 					zap.S().Debug(err)
 					return
 				}
-				locked.Unlock()
 			}
 		} else {
 			zap.S().Infof("NG State: can't rollback to sig %s, initiator sig %s: %v", block.Parent, block.BlockSignature, err)
@@ -149,19 +141,12 @@ func (a *State) AddMicroblock(micro *proto.MicroBlock) {
 		return
 	}
 
-	lock := a.state.Mutex()
-	zap.S().Debug("Before the rollback lock()")
-	locked := lock.Lock()
-	zap.S().Debug("After the rollback lock()")
 	err = a.state.RollbackTo(curBlock.Parent)
 	if err != nil {
 		zap.S().Errorf("NG State: failed to rollback to sig %s: %v", curBlock.Parent, err)
-		locked.Unlock()
 		return
 	}
 	zap.S().Debug("Successfully rollbacked")
-	locked.Unlock()
-	zap.S().Debug("After the rollback unlock")
 
 	err = a.applier.Apply([]*proto.Block{block})
 	if err != nil {

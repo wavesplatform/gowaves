@@ -50,13 +50,7 @@ func ParseReward(s string) (int64, error) {
 	return strconv.ParseInt(s, 10, 64)
 }
 
-func ValidateFeaturesWithLock(state state.State, features Features) (Features, error) {
-	locked := state.Mutex().RLock()
-	defer locked.Unlock()
-	return ValidateFeaturesWithoutLock(state, features)
-}
-
-func ValidateFeaturesWithoutLock(state state.State, features Features) (Features, error) {
+func ValidateFeatures(state state.State, features Features) (Features, error) {
 	out := Features{}
 	for _, feature := range features {
 		info, ok := settings.FeaturesInfo[feature]

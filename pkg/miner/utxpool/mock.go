@@ -7,7 +7,6 @@ package utxpool
 import (
 	gomock "github.com/golang/mock/gomock"
 	proto "github.com/wavesplatform/gowaves/pkg/proto"
-	lock "github.com/wavesplatform/gowaves/pkg/util/lock"
 	reflect "reflect"
 )
 
@@ -87,18 +86,4 @@ func (m *MockstateWrapper) ResetValidationList() {
 func (mr *MockstateWrapperMockRecorder) ResetValidationList() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResetValidationList", reflect.TypeOf((*MockstateWrapper)(nil).ResetValidationList))
-}
-
-// Mutex mocks base method
-func (m *MockstateWrapper) Mutex() *lock.RwMutex {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Mutex")
-	ret0, _ := ret[0].(*lock.RwMutex)
-	return ret0
-}
-
-// Mutex indicates an expected call of Mutex
-func (mr *MockstateWrapperMockRecorder) Mutex() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Mutex", reflect.TypeOf((*MockstateWrapper)(nil).Mutex))
 }

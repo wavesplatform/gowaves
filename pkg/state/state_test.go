@@ -423,9 +423,6 @@ func TestStateManager_Mutex(t *testing.T) {
 		t.Fatalf("Failed to create state manager: %v.\n", err)
 	}
 	defer manager.Close()
-
-	mu := manager.Mutex()
-	mu.Lock().Unlock()
 }
 
 func TestStateManager_TopBlock(t *testing.T) {

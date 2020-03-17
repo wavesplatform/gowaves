@@ -119,9 +119,6 @@ func NewBlocksApplier(state state.State, tm types.Time) *BlocksApplier {
 // 1) notify peers about score
 // 2) reshedule
 func (a *BlocksApplier) Apply(blocks []*proto.Block) error {
-	locked := a.state.Mutex().Lock()
-	defer locked.Unlock()
-
 	lastBlock, _, err := a.inner.apply(blocks)
 	if err != nil {
 		return err
