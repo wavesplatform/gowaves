@@ -10,7 +10,7 @@ package ng
 //}
 //
 //type Initial struct {
-//	blocks Blocks
+//	blocks Signatures
 //}
 //
 //func (a *Initial) AppliedBlock(block *proto.Block) ng {

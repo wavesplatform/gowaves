@@ -132,7 +132,7 @@ func (s *synchronizer) requestSignatures() {
 		zap.S().Fatalf("[%s][SYN] Failed to request signatures: %v", s.conn.RawConn.RemoteAddr(), err)
 		return
 	}
-	m := proto.GetSignaturesMessage{Blocks: signatures}
+	m := proto.GetSignaturesMessage{Signatures: signatures}
 	buf := new(bytes.Buffer)
 	_, err = m.WriteTo(buf)
 	if err != nil {

@@ -1,6 +1,7 @@
 package proto
 
 import (
+	"bytes"
 	"io"
 
 	protobuf "github.com/golang/protobuf/proto"
@@ -173,6 +174,12 @@ func (a *MicroBlock) WriteWithoutSignature(w io.Writer) (int64, error) {
 	return s.N(), nil
 }
 
+func (a *MicroBlock) MarshalBinary() ([]byte, error) {
+	buf := &bytes.Buffer{}
+	_, err := a.WriteTo(buf)
+	return buf.Bytes(), err
+}
+
 // MicroBlockMessage represents a MicroBlock message
 type MicroBlockMessage struct {
 	Body []byte
@@ -183,30 +190,30 @@ func (*MicroBlockMessage) ReadFrom(r io.Reader) (int64, error) {
 }
 
 func (a *MicroBlockMessage) WriteTo(w io.Writer) (int64, error) {
-	panic("implement me")
-	//buf := bytebufferpool.Get()
-	//defer bytebufferpool.Put(buf)
-	//
-	//n, err := a.Body.WriteTo(buf)
-	//if err != nil {
-	//	return n, err
-	//}
-	//
-	//h, err := MakeHeader(ContentIDMicroblock, buf.Bytes())
-	//if err != nil {
-	//	return 0, err
-	//}
-	//
-	//n1, err := h.WriteTo(w)
-	//if err != nil {
-	//	return n1, err
-	//}
-	//
-	//n2, err := buf.WriteTo(w)
-	//if err != nil {
-	//	return n1 + n2, err
-	//}
-	//return n1 + n2, nil
+	//panic("implement me")
+	buf := bytebufferpool.Get()
+	defer bytebufferpool.Put(buf)
+
+	n, err := buf.Write(a.Body)
+	if err != nil {
+		return int64(n), err
+	}
+
+	h, err := MakeHeader(ContentIDMicroblock, buf.Bytes())
+	if err != nil {
+		return 0, err
+	}
+
+	n1, err := h.WriteTo(w)
+	if err != nil {
+		return n1, err
+	}
+
+	n2, err := buf.WriteTo(w)
+	if err != nil {
+		return n1 + n2, err
+	}
+	return n1 + n2, nil
 }
 
 func (a *MicroBlockMessage) UnmarshalBinary(data []byte) error {

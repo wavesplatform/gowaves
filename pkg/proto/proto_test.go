@@ -79,11 +79,11 @@ func (m *GetSignaturesMessage) Equal(d comparable) bool {
 	if !ok {
 		return false
 	}
-	if len(m.Blocks) != len(p.Blocks) {
+	if len(m.Signatures) != len(p.Signatures) {
 		return false
 	}
-	for i := 0; i < len(m.Blocks); i++ {
-		if m.Blocks[i] != p.Blocks[i] {
+	for i := 0; i < len(m.Signatures); i++ {
+		if m.Signatures[i] != p.Signatures[i] {
 			return false
 		}
 	}

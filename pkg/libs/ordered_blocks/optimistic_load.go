@@ -1,4 +1,4 @@
-package state_fsm
+package ordered_blocks
 
 import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
@@ -17,7 +17,7 @@ func NewOrderedBlocks() *OrderedBlocks {
 	}
 }
 
-func (a *OrderedBlocks) contains(sig crypto.Signature) bool {
+func (a *OrderedBlocks) Contains(sig crypto.Signature) bool {
 	_, ok := a.uniqSignatures[sig]
 	return ok
 }

@@ -3,14 +3,14 @@ package node
 import (
 	"context"
 	"fmt"
-	"math/big"
 	"net"
+	"reflect"
 	"time"
 
-	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/node/blocks_applier"
 	"github.com/wavesplatform/gowaves/pkg/node/peer_manager"
 	"github.com/wavesplatform/gowaves/pkg/node/state_fsm"
+	"github.com/wavesplatform/gowaves/pkg/node/state_fsm/tasks"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/services"
@@ -52,20 +52,13 @@ func NewNode(services services.Services, declAddr proto.TCPAddr, bindAddr proto.
 		state: services.State,
 		peers: services.Peers,
 		//subscribe: services.Subscribe,
-		declAddr:  declAddr,
-		bindAddr:  bindAddr,
-		scheduler: services.Scheduler,
-		utx:       services.UtxPool,
-		services:  services,
+		declAddr:        declAddr,
+		bindAddr:        bindAddr,
+		scheduler:       services.Scheduler,
+		utx:             services.UtxPool,
+		services:        services,
+		microblockCache: NewMicroblockCache(),
 	}
-}
-
-func (a *Node) State() state.State {
-	return a.state
-}
-
-func (a *Node) PeerManager() peer_manager.PeerManager {
-	return a.peers
 }
 
 //func (a *Node) HandleProtoMessage(mess peer.ProtoMessage) {
@@ -104,24 +97,6 @@ func (a *Node) PeerManager() peer_manager.PeerManager {
 //	}
 //}
 
-// TODO
-func (a *Node) handlePBBlockMessage(p peer.Peer, mess *proto.PBBlockMessage) {
-	//if !a.subscribe.Receive(p, mess) {
-	//	b := &proto.Block{}
-	//	err := b.UnmarshalFromProtobuf(mess.PBBlockBytes)
-	//	if err != nil {
-	//		zap.S().Debug(err)
-	//		return
-	//	}
-	//	a.ng.HandleBlockMessage(p, b)
-	//}
-}
-
-func (a *Node) handlePBMicroBlockMessage(p peer.Peer, mess *proto.PBMicroBlockMessage) {
-	//a.ng.HandlePBMicroBlockMessage(p, mess)
-	// TODO handle pb microblock mess
-}
-
 func (a *Node) handlePBTransactionMessage(_ peer.Peer, mess *proto.PBTransactionMessage) {
 	t, err := proto.SignedTxFromProtobuf(mess.Transaction)
 	if err != nil {
@@ -131,48 +106,48 @@ func (a *Node) handlePBTransactionMessage(_ peer.Peer, mess *proto.PBTransaction
 	_ = a.utx.AddWithBytes(t, util.Dup(mess.Transaction))
 }
 
-func (a *Node) handleTransactionMessage(_ peer.Peer, mess *proto.TransactionMessage) {
-	t, err := proto.BytesToTransaction(mess.Transaction, a.services.Scheme)
-	if err != nil {
-		zap.S().Debug(err)
-		return
-	}
-	_ = a.utx.AddWithBytes(t, util.Dup(mess.Transaction))
-}
+//func (a *Node) handleTransactionMessage(_ peer.Peer, mess *proto.TransactionMessage) {
+//	t, err := proto.BytesToTransaction(mess.Transaction, a.services.Scheme)
+//	if err != nil {
+//		zap.S().Debug(err)
+//		return
+//	}
+//	_ = a.utx.AddWithBytes(t, util.Dup(mess.Transaction))
+//}
 
-func (a *Node) handlePeersMessage(_ peer.Peer, peers *proto.PeersMessage) {
-	var prs []proto.TCPAddr
-	for _, p := range peers.Peers {
-		prs = append(prs, proto.NewTCPAddr(p.Addr, int(p.Port)))
-	}
-	err := a.peers.UpdateKnownPeers(prs)
-	if err != nil {
-		zap.S().Error(err)
-	}
-}
+//func (a *Node) handlePeersMessage(_ peer.Peer, peers *proto.PeersMessage) {
+//	var prs []proto.TCPAddr
+//	for _, p := range peers.Peers {
+//		prs = append(prs, proto.NewTCPAddr(p.Addr, int(p.Port)))
+//	}
+//	err := a.peers.UpdateKnownPeers(prs)
+//	if err != nil {
+//		zap.S().Error(err)
+//	}
+//}
 
-func (a *Node) handleGetPeersMessage(p peer.Peer, _ *proto.GetPeersMessage) {
-	rs, err := a.peers.KnownPeers()
-	if err != nil {
-		zap.L().Error("failed got known peers", zap.Error(err))
-		return
-	}
-	//_, ok := a.peers.Connected(p)
-	//if !ok {
-	//	// peer gone offline, skip
-	//	return
-	//}
-
-	var out []proto.PeerInfo
-	for _, r := range rs {
-		out = append(out, proto.PeerInfo{
-			Addr: net.IP(r.IP[:]),
-			Port: uint16(r.Port),
-		})
-	}
-
-	p.SendMessage(&proto.PeersMessage{Peers: out})
-}
+//func (a *Node) handleGetPeersMessage(p peer.Peer, _ *proto.GetPeersMessage) {
+//	rs, err := a.peers.KnownPeers()
+//	if err != nil {
+//		zap.L().Error("failed got known peers", zap.Error(err))
+//		return
+//	}
+//	//_, ok := a.peers.Connected(p)
+//	//if !ok {
+//	//	// peer gone offline, skip
+//	//	return
+//	//}
+//
+//	var out []proto.PeerInfo
+//	for _, r := range rs {
+//		out = append(out, proto.PeerInfo{
+//			Addr: net.IP(r.IP[:]),
+//			Port: uint16(r.Port),
+//		})
+//	}
+//
+//	p.SendMessage(&proto.PeersMessage{Peers: out})
+//}
 
 //func (a *Node) HandleInfoMessage(m peer.InfoMessage) {
 //	switch t := m.Value.(type) {
@@ -229,21 +204,21 @@ func (a *Node) Close() {
 //	}()
 //}
 
-func (a *Node) handleBlockBySignatureMessage(p peer.Peer, sig crypto.Signature) {
-	locked := a.state.Mutex().RLock()
-	block, err := a.state.Block(sig)
-	locked.Unlock()
-	if err != nil {
-		zap.S().Error(err)
-		return
-	}
-	bm, err := proto.MessageByBlock(block, a.services.Scheme)
-	if err != nil {
-		zap.S().Error(err)
-		return
-	}
-	p.SendMessage(bm)
-}
+//func (a *Node) handleBlockBySignatureMessage(p peer.Peer, sig crypto.Signature) {
+//	locked := a.state.Mutex().RLock()
+//	block, err := a.state.Block(sig)
+//	locked.Unlock()
+//	if err != nil {
+//		zap.S().Error(err)
+//		return
+//	}
+//	bm, err := proto.MessageByBlock(block, a.services.Scheme)
+//	if err != nil {
+//		zap.S().Error(err)
+//		return
+//	}
+//	p.SendMessage(bm)
+//}
 
 //func (a *Node) handleScoreMessage(p peer.Peer, score []byte) {
 //	b := new(big.Int)
@@ -269,18 +244,18 @@ func (a *Node) handleBlockBySignatureMessage(p peer.Peer, sig crypto.Signature) 
 //}
 //}
 
-func (a *Node) handleGetSignaturesMessage(p peer.Peer, mess *proto.GetSignaturesMessage) {
-	locked := a.state.Mutex().RLock()
-	defer locked.Unlock()
-	for _, sig := range mess.Blocks {
-		block, err := a.state.Header(sig)
-		if err != nil {
-			continue
-		}
-		a.sendSignatures(block, p)
-		return
-	}
-}
+//func (a *Node) handleGetSignaturesMessage(p peer.Peer, mess *proto.GetSignaturesMessage) {
+//	locked := a.state.Mutex().RLock()
+//	defer locked.Unlock()
+//	for _, sig := range mess.Signatures {
+//		block, err := a.state.Header(sig)
+//		if err != nil {
+//			continue
+//		}
+//		a.sendSignatures(block, p)
+//		return
+//	}
+//}
 
 //func sendSignatures(p Peer, storage storage.State, sigs []crypto.Signature) {
 //	for _, sig := range sigs {
@@ -293,45 +268,49 @@ func (a *Node) handleGetSignaturesMessage(p peer.Peer, mess *proto.GetSignatures
 //	}
 //	return fsm, nil, nil
 //}
-
-func (a *Node) sendSignatures(block *proto.BlockHeader, p peer.Peer) {
-	height, err := a.state.BlockIDToHeight(block.BlockSignature)
-	if err != nil {
-		zap.S().Error(err)
-		return
-	}
-
-	var out []crypto.Signature
-	out = append(out, block.BlockSignature)
-
-	for i := 1; i < 101; i++ {
-		b, err := a.state.HeaderByHeight(height + uint64(i))
-		if err != nil {
-			break
-		}
-		out = append(out, b.BlockSignature)
-	}
-
-	// if we put smth except first block
-	if len(out) > 1 {
-		p.SendMessage(&proto.SignaturesMessage{
-			Signatures: out,
-		})
-	}
-}
+//
+//func (a *Node) sendSignatures(block *proto.BlockHeader, p peer.Peer) {
+//	height, err := a.state.BlockIDToHeight(block.BlockSignature)
+//	if err != nil {
+//		zap.S().Error(err)
+//		return
+//	}
+//
+//	var out []crypto.Signature
+//	out = append(out, block.BlockSignature)
+//
+//	for i := 1; i < 101; i++ {
+//		b, err := a.state.HeaderByHeight(height + uint64(i))
+//		if err != nil {
+//			break
+//		}
+//		out = append(out, b.BlockSignature)
+//	}
+//
+//	// if we put smth except first block
+//	if len(out) > 1 {
+//		p.SendMessage(&proto.SignaturesMessage{
+//			Signatures: out,
+//		})
+//	}
+//}
 
 //func (a *Node) handleMicroblockInvMessage(p peer.Peer, mess *proto.MicroBlockInvMessage) {
 //	a.ng.HandleInvMessage(p, mess)
 //}
 
-// TODO implement
-func (a *Node) handleMicroBlockRequestMessage(p peer.Peer, mess *proto.MicroBlockRequestMessage) {
-	//micro, ok := a.microblockCache.Get(mess.Body)
-	//if ok {
-	panic("not implemented")
-	//p.SendMessage(&proto.MicroBlockMessage{})
-	//}
-}
+//func (a *Node) handleMicroBlockRequestMessage(p peer.Peer, mess *proto.MicroBlockRequestMessage) {
+//	micro, ok := a.microblockCache.Get(mess.Body)
+//	if ok {
+//
+//		bts, err := micro.MarshalBinary()
+//		if err != nil {
+//			zap.S().Error(err)
+//			return
+//		}
+//		p.SendMessage(&proto.MicroBlockMessage{Body: bts})
+//	}
+//}
 
 func (a *Node) SpawnOutgoingConnections(ctx context.Context) {
 	a.peers.SpawnOutgoingConnections(ctx)
@@ -432,7 +411,7 @@ func (a *Node) Run(ctx context.Context, p peer.Parent) {
 		}
 	}()
 
-	tasksCh := make(chan state_fsm.AsyncTask, 10)
+	tasksCh := make(chan tasks.AsyncTask, 10)
 
 	// TODO hardcode
 	outDatePeriod := 3600 /* hour */ * 4 * 1000 /* milliseconds */
@@ -446,6 +425,17 @@ func (a *Node) Run(ctx context.Context, p peer.Parent) {
 		return
 	}
 
+	for _, t := range async {
+		a.services.LoggableRunner.Named(fmt.Sprintf("Async Task %T", t), func() {
+			err := t.Run(ctx, tasksCh)
+			if err != nil {
+				zap.S().Errorf("Async Task %T, error %q", t, err)
+			}
+		})
+	}
+
+	actions := CreateActions()
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -456,7 +446,6 @@ func (a *Node) Run(ctx context.Context, p peer.Parent) {
 			//n.HandleInfoMessage(m)
 			switch t := m.Value.(type) {
 			case *peer.Connected:
-				//TODO async
 				fsm, async, err = fsm.NewPeer(t.Peer)
 				//if err != nil {
 				//	zap.S().Error(err)
@@ -470,77 +459,89 @@ func (a *Node) Run(ctx context.Context, p peer.Parent) {
 				fsm, async, err = fsm.PeerError(m.Peer, t)
 			}
 		case mess := <-p.MessageCh:
-			zap.S().Debugf("received proto Message %T", mess.Message)
+			//zap.S().Debugf("received proto Message %T", mess.Message)
+			action, ok := actions[reflect.TypeOf(mess.Message)]
+			if !ok {
+				zap.S().Errorf("unknown proto Message %T", mess.Message)
+				continue
+			}
+			fsm, async, err = action(a.services, mess, fsm)
 			//a.services.LoggableRunner.Named(fmt.Sprintf("Node.Run.Handler.%T", m.Message), func() {
 			//a.HandleProtoMessage(m)
-			switch t := mess.Message.(type) {
-			//case *proto.PeersMessage:
-			//	a.handlePeersMessage(mess.ID, t)
-			case *proto.GetPeersMessage:
-				a.handleGetPeersMessage(mess.ID, t)
-				//fsm, async, err = fsm.GetPeers(mess.ID)
-			case *proto.ScoreMessage:
-				//a.handleScoreMessage(mess.ID, t.Score)
-				b := new(big.Int)
-				b.SetBytes(t.Score)
-				fsm, async, err = fsm.Score(mess.ID, b)
-			case *proto.BlockMessage:
-				b := &proto.Block{}
-				err2 := b.UnmarshalBinary(t.BlockBytes, a.services.Scheme)
-				if err2 != nil {
-					zap.S().Debug(err2)
-					continue
-				}
-				fsm, async, err = fsm.Block(mess.ID, b)
-			case *proto.GetBlockMessage:
-				a.handleBlockBySignatureMessage(mess.ID, t.BlockID)
-			case *proto.SignaturesMessage:
-				//a.handleSignaturesMessage(mess.ID, t)
-				fsm, async, err = fsm.Signatures(mess.ID, t.Signatures)
-				//if err != nil {
-				//	zap.S().Error(err)
-				//}
-				//zap.S().Debugf("fsm %T", fsm)
-
-			case *proto.GetSignaturesMessage:
-				a.handleGetSignaturesMessage(mess.ID, t)
-			//case *proto.TransactionMessage:
-			//	a.handleTransactionMessage(mess.ID, t)
-			case *proto.MicroBlockInvMessage:
-				//a.handleMicroblockInvMessage(mess.ID, t)
-				//t.UnmarshalBinary()
-				//t.Body
-				inv := &proto.MicroBlockInv{}
-				err2 := inv.UnmarshalBinary(t.Body)
-				if err2 != nil {
-					zap.S().Error(err2)
-					continue
-				}
-				fsm, async, err = fsm.MicroBlockInv(mess.ID, inv)
-
-			case *proto.MicroBlockRequestMessage:
-				a.handleMicroBlockRequestMessage(mess.ID, t)
-			case *proto.MicroBlockMessage:
-				//a.handleMicroBlockMessage(mess.ID, t)
-
-				micro := &proto.MicroBlock{}
-				err2 := micro.UnmarshalBinary(t.Body, a.services.Scheme)
-				if err2 != nil {
-					zap.S().Error(err2)
-					continue
-				}
-				fsm, async, err = fsm.MicroBlock(mess.ID, micro)
-
+			//switch t := mess.Message.(type) {
+			////case *proto.PeersMessage:
+			////	a.handlePeersMessage(mess.ID, t)
+			//case *proto.GetPeersMessage:
+			//	a.handleGetPeersMessage(mess.ID, t)
+			//	//fsm, async, err = fsm.GetPeers(mess.ID)
+			//case *proto.ScoreMessage:
+			//	//a.handleScoreMessage(mess.ID, t.Score)
+			//	b := new(big.Int)
+			//	b.SetBytes(t.Score)
+			//	fsm, async, err = fsm.Score(mess.ID, b)
+			//case *proto.BlockMessage:
+			//	b := &proto.Block{}
+			//	err2 := b.UnmarshalBinary(t.BlockBytes, a.services.Scheme)
+			//	if err2 != nil {
+			//		zap.S().Debug(err2)
+			//		continue
+			//	}
+			//	fsm, async, err = fsm.Block(mess.ID, b)
+			//case *proto.GetBlockMessage:
+			//	a.handleBlockBySignatureMessage(mess.ID, t.BlockID)
+			//case *proto.SignaturesMessage:
+			//	//a.handleSignaturesMessage(mess.ID, t)
+			//	fsm, async, err = fsm.Signatures(mess.ID, t.Signatures)
+			//	//if err != nil {
+			//	//	zap.S().Error(err)
+			//	//}
+			//	//zap.S().Debugf("fsm %T", fsm)
+			//
+			//case *proto.GetSignaturesMessage:
+			//	a.handleGetSignaturesMessage(mess.ID, t)
+			////case *proto.TransactionMessage:
+			////	a.handleTransactionMessage(mess.ID, t)
+			//case *proto.MicroBlockInvMessage:
+			//	//a.handleMicroblockInvMessage(mess.ID, t)
+			//	//t.UnmarshalBinary()
+			//	//t.Body
+			//	inv := &proto.MicroBlockInv{}
+			//	err2 := inv.UnmarshalBinary(t.Body)
+			//	if err2 != nil {
+			//		zap.S().Error(err2)
+			//		continue
+			//	}
+			//	fsm, async, err = fsm.MicroBlockInv(mess.ID, inv)
+			//
+			//case *proto.MicroBlockRequestMessage:
+			//	//a.handleMicroBlockRequestMessage(mess.ID, t)
+			//case *proto.MicroBlockMessage:
+			//	//a.handleMicroBlockMessage(mess.ID, t)
+			//
+			//	micro := &proto.MicroBlock{}
+			//	err2 := micro.UnmarshalBinary(t.Body, a.services.Scheme)
+			//	if err2 != nil {
+			//		zap.S().Error(err2)
+			//		continue
+			//	}
+			//	a.microblockCache.Add(micro)
+			//	fsm, async, err = fsm.MicroBlock(mess.ID, micro)
+			//
 			//case *proto.PBBlockMessage:
-			//	a.handlePBBlockMessage(mess.ID, t)
+			//	b := &proto.Block{}
+			//	err := b.UnmarshalFromProtobuf(t.PBBlockBytes)
+			//	if err != nil {
+			//		zap.S().Debug(err)
+			//		return
+			//	}
 			//case *proto.PBMicroBlockMessage:
 			//	a.handlePBMicroBlockMessage(mess.ID, t)
-			//case *proto.PBTransactionMessage:
-			//	a.handlePBTransactionMessage(mess.ID, t)
-
-			default:
-				zap.S().Errorf("unknown proto Message %T", mess.Message)
-			}
+			////case *proto.PBTransactionMessage:
+			////	a.handlePBTransactionMessage(mess.ID, t)
+			//
+			//default:
+			//	zap.S().Errorf("unknown proto Message %T", mess.Message)
+			//}
 			//})
 		}
 		if err != nil {

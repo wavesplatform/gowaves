@@ -7,7 +7,7 @@ import (
 // historyFormatter formats histories. It can `cut` and `filter` histories.
 // `Cut` removes outdated blocks (blocks that are more than `rollbackMaxBlocks` in the past)
 // from the beginning of the history.
-// `Filter` removes invalid blocks from the end of the history. Blocks become invalid when they are rolled back.
+// `Filter` removes invalid blocks from the end of the history. Signatures become invalid when they are rolled back.
 // It simply looks at the list of valid blocks, and considers block as invalid if its unique number is not in this list.
 type historyFormatter struct {
 	db *stateDB

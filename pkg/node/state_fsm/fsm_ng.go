@@ -4,6 +4,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/node/state_fsm/ng"
+	. "github.com/wavesplatform/gowaves/pkg/node/state_fsm/tasks"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"

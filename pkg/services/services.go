@@ -12,6 +12,11 @@ type BlocksApplier interface {
 	Apply(state state.State, block []*proto.Block) error
 }
 
+type MicroBlockCache interface {
+	Add(micro *proto.MicroBlock)
+	Get(sig proto.MicroblockTotalSig) (*proto.MicroBlock, bool)
+}
+
 type Services struct {
 	State              state.State
 	Peers              peer_manager.PeerManager
@@ -20,10 +25,10 @@ type Services struct {
 	UtxPool            types.UtxPool
 	Scheme             proto.Scheme
 	BlockAddedNotifier types.Handler
-	//Subscribe          types.Subscribe
-	InvRequester   types.InvRequester
-	ScoreSender    types.Handler
-	LoggableRunner runner.LogRunner
-	Time           types.Time
-	Wallet         types.EmbeddedWallet
+	InvRequester       types.InvRequester
+	ScoreSender        types.Handler
+	LoggableRunner     runner.LogRunner
+	Time               types.Time
+	Wallet             types.EmbeddedWallet
+	MicroBlockCache    MicroBlockCache
 }

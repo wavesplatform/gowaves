@@ -1,7 +1,6 @@
 package state_fsm
 
 import (
-	//"github.com/wavesplatform/gowaves/pkg/node/peer_manager"
 	. "github.com/wavesplatform/gowaves/pkg/p2p/peer"
 )
 

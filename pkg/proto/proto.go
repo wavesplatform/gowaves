@@ -506,86 +506,6 @@ func (a *Handshake) WriteTo(w io.Writer) (int64, error) {
 	return c.Ret()
 }
 
-/* TODO: unused code, need to write tests if it is needed or otherwise remove it.
-func (h *Handshake) readApplicationName(buf []byte, r io.Reader) (int, error) {
-	n, err := io.ReadFull(r, buf[0:1])
-	if err != nil {
-		return 0, err
-	}
-
-	length := uint(buf[0])
-	n2, err := io.ReadFull(r, buf[1:1+length])
-	if err != nil {
-		return 0, err
-	}
-
-	return n + n2, nil
-}
-
-func (h *Handshake) readVersion(buf []byte, r io.Reader) (int, error) {
-	n, err := io.ReadFull(r, buf[:12])
-	if err != nil {
-		return 0, err
-	}
-	return n, nil
-}
-
-func (h *Handshake) readNodeName(buf []byte, r io.Reader) (int, error) {
-	n, err := io.ReadFull(r, buf[0:1])
-	if err != nil {
-		return 0, err
-	}
-
-	length := uint(buf[0])
-	n2, err := io.ReadFull(r, buf[1:1+length])
-	if err != nil {
-		return 0, err
-	}
-
-	return n + n2, nil
-}
-
-func (h *Handshake) readNonce(buf []byte, r io.Reader) (int, error) {
-	n, err := io.ReadFull(r, buf[:8])
-	if err != nil {
-		return 0, err
-	}
-	return n, nil
-}
-
-func (h *Handshake) readDeclAddr(buf []byte, r io.Reader) (int, error) {
-	n, err := io.ReadFull(r, buf[:4])
-	if err != nil {
-		return n, err
-	}
-
-	addrlen := binary.BigEndian.Uint32(buf[:4])
-	if addrlen > 8 {
-		return n, errors.Errorf("invalid declared address length, expected 0 or 8, got %d", addrlen)
-	}
-
-	if addrlen == 0 {
-		return n, nil
-	}
-
-	n2, err := io.ReadFull(r, buf[4:4+addrlen])
-	if err != nil {
-		return n + n2, err
-	}
-
-	return n + n2, nil
-}
-
-func (h *Handshake) readTimestamp(buf []byte, r io.Reader) (int, error) {
-	n, err := io.ReadFull(r, buf[:8])
-	if err != nil {
-		return n, err
-	}
-
-	return n, nil
-}
-*/
-
 // ReadFrom reads Handshake from io.Reader
 func (a *Handshake) ReadFrom(r io.Reader) (int64, error) {
 	// max Header size based on fields
@@ -1042,14 +962,14 @@ func (m *PeersMessage) ReadFrom(r io.Reader) (int64, error) {
 
 // GetSignaturesMessage represents the Get Signatures request
 type GetSignaturesMessage struct {
-	Blocks []crypto.Signature
+	Signatures []crypto.Signature
 }
 
 // MarshalBinary encodes GetSignaturesMessage to binary form
 func (m *GetSignaturesMessage) MarshalBinary() ([]byte, error) {
-	body := make([]byte, 4, 4+len(m.Blocks)*64)
-	binary.BigEndian.PutUint32(body[0:4], uint32(len(m.Blocks)))
-	for _, b := range m.Blocks {
+	body := make([]byte, 4, 4+len(m.Signatures)*64)
+	binary.BigEndian.PutUint32(body[0:4], uint32(len(m.Signatures)))
+	for _, b := range m.Signatures {
 		body = append(body, b[:]...)
 	}
 
@@ -1102,7 +1022,7 @@ func (m *GetSignaturesMessage) UnmarshalBinary(data []byte) error {
 			return fmt.Errorf("message too short %v", len(data))
 		}
 		copy(b[:], data[i:i+64])
-		m.Blocks = append(m.Blocks, b)
+		m.Signatures = append(m.Signatures, b)
 	}
 
 	return nil

@@ -104,8 +104,8 @@ func (a Blocks) Len() int {
 }
 
 //
-//func newBlocks() Blocks {
-//	return Blocks{}
+//func newBlocks() Signatures {
+//	return Signatures{}
 //}
 
 func NewBlocksFromBlock(block *proto.Block) Blocks {
@@ -151,8 +151,8 @@ func inf2micro(in []interface{}) []*proto.MicroBlock {
 
 //
 //type storage struct {
-//	curState  Blocks
-//	prevState Blocks
+//	curState  Signatures
+//	prevState Signatures
 //	// TODO add validation
 //	//validator validator
 //}

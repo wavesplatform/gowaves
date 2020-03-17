@@ -1,4 +1,4 @@
-package state_fsm_test
+package ordered_blocks_test
 
 import (
 	"testing"

@@ -1,42 +1,23 @@
 package state_fsm
 
 import (
-	"context"
 	"time"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/node/peer_manager"
+	. "github.com/wavesplatform/gowaves/pkg/node/state_fsm/tasks"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	storage "github.com/wavesplatform/gowaves/pkg/state"
 	"github.com/wavesplatform/gowaves/pkg/types"
 )
 
+type Async []Task
+
 // TODO send score
-
-const (
-	PING = iota + 1
-	ASK_PEERS
-
-	SYNC_WAIT_SIGNATURES_TIMEOUT
-	SYNC_WAIT_BLOCK_TIMEOUT
-)
 
 type BlocksApplier interface {
 	Apply(state storage.State, block []*proto.Block) error
-}
-
-type TaskType int
-
-type Async []Task
-
-type AsyncTask struct {
-	TaskType int
-	Data     interface{}
-}
-
-type Task interface {
-	Run(ctx context.Context, output chan AsyncTask) error
 }
 
 type BaseInfo struct {
@@ -113,6 +94,7 @@ func NewFsm(
 	tasks := Async{
 		// ask about peers for every 5 minutes
 		NewAskPeersTask(5 * time.Minute),
+		NewPingTask(),
 	}
 
 	return NewIdleFsm(b), tasks, nil

@@ -9,6 +9,7 @@ import (
 	//"go.uber.org/zap"
 
 	//"github.com/wavesplatform/gowaves/pkg/node/peer_manager"
+	. "github.com/wavesplatform/gowaves/pkg/node/state_fsm/tasks"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	//storage "github.com/wavesplatform/gowaves/pkg/state"
