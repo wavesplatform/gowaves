@@ -166,6 +166,7 @@ func main() {
 
 	features, err = miner.ValidateFeaturesWithLock(state, features)
 	if err != nil {
+		cancel()
 		zap.S().Error(err)
 		return
 	}

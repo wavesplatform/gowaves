@@ -1244,11 +1244,7 @@ func (s *stateManager) addBlocks(blocks []*proto.Block, initialisation bool) (*p
 	return lastBlock, nil
 }
 
-func (s *stateManager) checkRollbackInput(blockID crypto.Signature) error {
-	height, err := s.BlockIDToHeight(blockID)
-	if err != nil {
-		return err
-	}
+func (s *stateManager) checkRollbackHeight(height uint64) error {
 	maxHeight, err := s.Height()
 	if err != nil {
 		return err
@@ -1263,13 +1259,21 @@ func (s *stateManager) checkRollbackInput(blockID crypto.Signature) error {
 	return nil
 }
 
+func (s *stateManager) checkRollbackInput(blockID crypto.Signature) error {
+	height, err := s.BlockIDToHeight(blockID)
+	if err != nil {
+		return err
+	}
+	return s.checkRollbackHeight(height)
+}
+
 func (s *stateManager) RollbackToHeight(height uint64) error {
+	if err := s.checkRollbackHeight(height); err != nil {
+		return wrapErr(InvalidInputError, err)
+	}
 	blockID, err := s.HeightToBlockID(height)
 	if err != nil {
 		return wrapErr(RetrievalError, err)
-	}
-	if err := s.checkRollbackInput(blockID); err != nil {
-		return wrapErr(InvalidInputError, err)
 	}
 	if err := s.RollbackTo(blockID); err != nil {
 		return wrapErr(RollbackError, err)
