@@ -174,13 +174,20 @@ func handleTask(task *verifyTask, scheme proto.Scheme) error {
 		if !bytes.Equal(task.parentSig[:], task.block.Parent[:]) {
 			return errors.Errorf("incorrect parent: want: %s, have: %s", task.parentSig.String(), task.block.Parent.String())
 		}
-		// Check block signature.
+		// Check block signature and transactions root hash if applied
 		validSig, err := task.block.VerifySignature(scheme)
 		if err != nil {
-			return errors.Errorf("Sttate: handleTask: failed to verify block signature: %v", err)
+			return errors.Wrap(err, "State: handleTask: failed to verify block signature")
 		}
 		if !validSig {
 			return errors.New("State: handleTask: invalid block signature")
+		}
+		validRootHash, err := task.block.VerifyTransactionsRoot(scheme)
+		if err != nil {
+			return errors.Wrap(err, "State: handleTask: failed to verify transactions root hash")
+		}
+		if !validRootHash {
+			return errors.New("State: handleTask: invalid transaction root hash")
 		}
 	case verifyTx:
 		if err := checkTx(task.tx, task.checkTxSig, task.checkSellOrder, task.checkBuyOrder, scheme); err != nil {
