@@ -411,20 +411,6 @@ func TestTransactionByID(t *testing.T) {
 	assert.Equal(t, correctTx, tx)
 }
 
-func TestStateManager_Mutex(t *testing.T) {
-	dataDir, err := ioutil.TempDir(os.TempDir(), "dataDir")
-	if err != nil {
-		t.Fatalf("Failed to create temp dir for data: %v\n", err)
-	}
-	defer os.RemoveAll(dataDir)
-
-	manager, err := newStateManager(dataDir, DefaultTestingStateParams(), settings.MainNetSettings)
-	if err != nil {
-		t.Fatalf("Failed to create state manager: %v.\n", err)
-	}
-	defer manager.Close()
-}
-
 func TestStateManager_TopBlock(t *testing.T) {
 	blocksPath, err := blocksPath()
 	assert.NoError(t, err)
