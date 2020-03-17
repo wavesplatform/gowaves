@@ -479,13 +479,13 @@ func newVariablesFromMassTransferWithProofs(scheme proto.Scheme, tx *proto.MassT
 func newVariablesFromExchangeWithSig(scheme proto.Scheme, tx *proto.ExchangeWithSig) (map[string]Expr, error) {
 	funcName := "newVariablesFromExchangeWithSig"
 	out := make(map[string]Expr)
-	buy, err := NewVariablesFromOrder(scheme, tx.BuyOrder)
+	buy, err := NewVariablesFromOrder(scheme, tx.Order1)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
 	out["buyOrder"] = NewObject(buy)
 
-	sell, err := NewVariablesFromOrder(scheme, tx.SellOrder)
+	sell, err := NewVariablesFromOrder(scheme, tx.Order2)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
@@ -524,13 +524,13 @@ func newVariablesFromExchangeWithProofs(scheme proto.Scheme, tx *proto.ExchangeW
 	funcName := "newVariablesFromExchangeWithProofs"
 	out := make(map[string]Expr)
 
-	buy, err := NewVariablesFromOrder(scheme, tx.BuyOrder)
+	buy, err := NewVariablesFromOrder(scheme, tx.Order1)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
 	out["buyOrder"] = NewObject(buy)
 
-	sell, err := NewVariablesFromOrder(scheme, tx.SellOrder)
+	sell, err := NewVariablesFromOrder(scheme, tx.Order2)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
