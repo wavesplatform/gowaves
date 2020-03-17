@@ -1584,13 +1584,21 @@ func (tx *ExchangeWithProofs) bodyUnmarshalBinary(data []byte) (int, error) {
 	if err != nil {
 		return 0, errors.Wrap(err, "failed to unmarshal buy order")
 	}
-	tx.BuyOrder = Order(o)
+	if o.GetOrderType() == Buy {
+		tx.BuyOrder = o
+	} else {
+		tx.SellOrder = o
+	}
 	n += l
 	l, o, err = tx.unmarshalOrder(data[n:])
 	if err != nil {
 		return 0, errors.Wrap(err, "failed to unmarshal sell order")
 	}
-	tx.SellOrder = Order(o)
+	if o.GetOrderType() == Sell {
+		tx.SellOrder = o
+	} else {
+		tx.BuyOrder = o
+	}
 	n += l
 	tx.Price = binary.BigEndian.Uint64(data[n:])
 	n += 8
