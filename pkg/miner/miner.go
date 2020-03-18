@@ -2,11 +2,9 @@ package miner
 
 import (
 	"context"
-	"time"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/miner/scheduler"
-	"github.com/wavesplatform/gowaves/pkg/ng"
 	"github.com/wavesplatform/gowaves/pkg/node/peer_manager"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -118,183 +116,186 @@ func (a *MicroblockMiner) Mine(ctx context.Context, t proto.Timestamp, k proto.K
 		ClassicAmountOfTxsInBlock:   a.constraints.ClassicAmountOfTxsInBlock,
 		MaxTxsSizeInBytes:           a.constraints.MaxTxsSizeInBytes - 4,
 	}
-	go a.mineMicro(ctx, rest, b, ng.NewBlocksFromBlock(b), k)
+	_ = rest
+	//go a.mineMicro(ctx, rest, b, nil, k)
 }
 
-func (a *MicroblockMiner) mineMicro(ctx context.Context, rest restLimits, blockApplyOn *proto.Block, blocks ng.Blocks, keyPair proto.KeyPair) {
-	select {
-	case <-ctx.Done():
-		return
-	case <-time.After(5 * time.Second):
-	}
+// TODO reimplement
 
-	// way to stop mine microblocks
-	if blockApplyOn == nil {
-		return
-	}
-
-	height, err := a.state.Height()
-	if err != nil {
-		zap.S().Error(err)
-		return
-	}
-
-	lastBlock, err := a.state.BlockByHeight(height)
-	if err != nil {
-		zap.S().Error(err)
-		return
-	}
-
-	if lastBlock.BlockSignature != blockApplyOn.BlockSignature {
-		// block changed, exit
-		return
-	}
-	parentTimestamp := lastBlock.Timestamp
-	if height > 1 {
-		parent, err := a.state.BlockByHeight(height - 1)
-		if err != nil {
-			zap.S().Error(err)
-			return
-		}
-		parentTimestamp = parent.Timestamp
-	}
-
-	//
-	transactions := make([]proto.Transaction, 0)
-	cnt := 0
-	binSize := 0
-
-	var unAppliedTransactions []*types.TransactionWithBytes
-
-	mu := a.state.Mutex()
-	locked := mu.Lock()
-
-	// 255 is max transactions count in microblock
-	for i := 0; i < 255; i++ {
-		t := a.utx.Pop()
-		if t == nil {
-			break
-		}
-		binTr := t.B
-		transactionLenBytes := 4
-		if binSize+len(binTr)+transactionLenBytes > rest.MaxTxsSizeInBytes {
-			unAppliedTransactions = append(unAppliedTransactions, t)
-			continue
-		}
-
-		err = a.state.ValidateNextTx(t.T, blockApplyOn.Timestamp, parentTimestamp, blockApplyOn.Version)
-		if err != nil {
-			unAppliedTransactions = append(unAppliedTransactions, t)
-			continue
-		}
-
-		cnt += 1
-		binSize += len(binTr) + transactionLenBytes
-		transactions = append(transactions, t.T)
-	}
-
-	a.state.ResetValidationList()
-	locked.Unlock()
-
-	// return unapplied transactions
-	for _, unapplied := range unAppliedTransactions {
-		_ = a.utx.AddWithBytes(unapplied.T, unapplied.B)
-	}
-
-	// no transactions applied, skip
-	if cnt == 0 {
-		go a.mineMicro(ctx, rest, blockApplyOn, blocks, keyPair)
-		return
-	}
-
-	row, err := blocks.Row()
-	if err != nil {
-		zap.S().Error(err)
-		return
-	}
-
-	var lastsig crypto.Signature
-	if len(row.MicroBlocks) > 0 {
-		lastsig = row.MicroBlocks[len(row.MicroBlocks)-1].TotalResBlockSigField
-	} else {
-		lastsig = row.KeyBlock.BlockSignature
-	}
-
-	newTransactions := blockApplyOn.Transactions.Join(transactions)
-
-	newBlock, err := proto.CreateBlock(
-		newTransactions,
-		blockApplyOn.Timestamp,
-		blockApplyOn.Parent,
-		blockApplyOn.GenPublicKey,
-		blockApplyOn.NxtConsensus,
-		blockApplyOn.Version,
-		blockApplyOn.Features,
-		blockApplyOn.RewardVote,
-		a.scheme,
-	)
-	if err != nil {
-		zap.S().Error(err)
-		return
-	}
-
-	sk := keyPair.Secret
-	err = newBlock.Sign(a.scheme, keyPair.Secret)
-	if err != nil {
-		zap.S().Errorf("Failed to sing a block: %v", err)
-		return
-	}
-
-	locked = mu.Lock()
-	_ = a.state.RollbackTo(blockApplyOn.Parent)
-	locked.Unlock()
-
-	err = a.services.BlocksApplier.Apply(a.state, []*proto.Block{newBlock})
-	if err != nil {
-		zap.S().Error(err)
-		return
-	}
-
-	micro := proto.MicroBlock{
-		VersionField:          3,
-		SenderPK:              keyPair.Public,
-		Transactions:          transactions,
-		TransactionCount:      uint32(cnt),
-		PrevResBlockSigField:  lastsig,
-		TotalResBlockSigField: newBlock.BlockSignature,
-	}
-
-	err = micro.Sign(sk)
-	if err != nil {
-		zap.S().Error(err)
-		return
-	}
-
-	inv := proto.NewUnsignedMicroblockInv(micro.SenderPK, micro.TotalResBlockSigField, micro.PrevResBlockSigField)
-	err = inv.Sign(sk, a.scheme)
-	if err != nil {
-		zap.S().Error(err)
-		return
-	}
-
-	// TODO implement
-	//a.ngRuntime.MinedMicroblock(&micro, inv)
-
-	newRest := restLimits{
-		MaxScriptRunsInBlock:        rest.MaxScriptRunsInBlock,
-		MaxScriptsComplexityInBlock: rest.MaxScriptsComplexityInBlock,
-		ClassicAmountOfTxsInBlock:   rest.ClassicAmountOfTxsInBlock,
-		MaxTxsSizeInBytes:           rest.MaxTxsSizeInBytes - binSize,
-	}
-
-	newBlocks, err := blocks.AddMicro(&micro)
-	if err != nil {
-		zap.S().Error(err)
-		return
-	}
-
-	go a.mineMicro(ctx, newRest, newBlock, newBlocks, keyPair)
-}
+//func (a *MicroblockMiner) mineMicro(ctx context.Context, rest restLimits, blockApplyOn *proto.Block, blocks ng.Blocks, keyPair proto.KeyPair) {
+//	select {
+//	case <-ctx.Done():
+//		return
+//	case <-time.After(5 * time.Second):
+//	}
+//
+//	// way to stop mine microblocks
+//	if blockApplyOn == nil {
+//		return
+//	}
+//
+//	height, err := a.state.Height()
+//	if err != nil {
+//		zap.S().Error(err)
+//		return
+//	}
+//
+//	lastBlock, err := a.state.BlockByHeight(height)
+//	if err != nil {
+//		zap.S().Error(err)
+//		return
+//	}
+//
+//	if lastBlock.BlockSignature != blockApplyOn.BlockSignature {
+//		// block changed, exit
+//		return
+//	}
+//	parentTimestamp := lastBlock.Timestamp
+//	if height > 1 {
+//		parent, err := a.state.BlockByHeight(height - 1)
+//		if err != nil {
+//			zap.S().Error(err)
+//			return
+//		}
+//		parentTimestamp = parent.Timestamp
+//	}
+//
+//	//
+//	transactions := make([]proto.Transaction, 0)
+//	cnt := 0
+//	binSize := 0
+//
+//	var unAppliedTransactions []*types.TransactionWithBytes
+//
+//	mu := a.state.Mutex()
+//	locked := mu.Lock()
+//
+//	// 255 is max transactions count in microblock
+//	for i := 0; i < 255; i++ {
+//		t := a.utx.Pop()
+//		if t == nil {
+//			break
+//		}
+//		binTr := t.B
+//		transactionLenBytes := 4
+//		if binSize+len(binTr)+transactionLenBytes > rest.MaxTxsSizeInBytes {
+//			unAppliedTransactions = append(unAppliedTransactions, t)
+//			continue
+//		}
+//
+//		err = a.state.ValidateNextTx(t.T, blockApplyOn.Timestamp, parentTimestamp, blockApplyOn.Version)
+//		if err != nil {
+//			unAppliedTransactions = append(unAppliedTransactions, t)
+//			continue
+//		}
+//
+//		cnt += 1
+//		binSize += len(binTr) + transactionLenBytes
+//		transactions = append(transactions, t.T)
+//	}
+//
+//	a.state.ResetValidationList()
+//	locked.Unlock()
+//
+//	// return unapplied transactions
+//	for _, unapplied := range unAppliedTransactions {
+//		_ = a.utx.AddWithBytes(unapplied.T, unapplied.B)
+//	}
+//
+//	// no transactions applied, skip
+//	if cnt == 0 {
+//		go a.mineMicro(ctx, rest, blockApplyOn, blocks, keyPair)
+//		return
+//	}
+//
+//	row, err := blocks.Row()
+//	if err != nil {
+//		zap.S().Error(err)
+//		return
+//	}
+//
+//	var lastsig crypto.Signature
+//	if len(row.MicroBlocks) > 0 {
+//		lastsig = row.MicroBlocks[len(row.MicroBlocks)-1].TotalResBlockSigField
+//	} else {
+//		lastsig = row.KeyBlock.BlockSignature
+//	}
+//
+//	newTransactions := blockApplyOn.Transactions.Join(transactions)
+//
+//	newBlock, err := proto.CreateBlock(
+//		newTransactions,
+//		blockApplyOn.Timestamp,
+//		blockApplyOn.Parent,
+//		blockApplyOn.GenPublicKey,
+//		blockApplyOn.NxtConsensus,
+//		blockApplyOn.Version,
+//		blockApplyOn.Features,
+//		blockApplyOn.RewardVote,
+//		a.scheme,
+//	)
+//	if err != nil {
+//		zap.S().Error(err)
+//		return
+//	}
+//
+//	sk := keyPair.Secret
+//	err = newBlock.Sign(a.scheme, keyPair.Secret)
+//	if err != nil {
+//		zap.S().Errorf("Failed to sing a block: %v", err)
+//		return
+//	}
+//
+//	locked = mu.Lock()
+//	_ = a.state.RollbackTo(blockApplyOn.Parent)
+//	locked.Unlock()
+//
+//	err = a.services.BlocksApplier.Apply(a.state, []*proto.Block{newBlock})
+//	if err != nil {
+//		zap.S().Error(err)
+//		return
+//	}
+//
+//	micro := proto.MicroBlock{
+//		VersionField:          3,
+//		SenderPK:              keyPair.Public,
+//		Transactions:          transactions,
+//		TransactionCount:      uint32(cnt),
+//		PrevResBlockSigField:  lastsig,
+//		TotalResBlockSigField: newBlock.BlockSignature,
+//	}
+//
+//	err = micro.Sign(sk)
+//	if err != nil {
+//		zap.S().Error(err)
+//		return
+//	}
+//
+//	inv := proto.NewUnsignedMicroblockInv(micro.SenderPK, micro.TotalResBlockSigField, micro.PrevResBlockSigField)
+//	err = inv.Sign(sk, a.scheme)
+//	if err != nil {
+//		zap.S().Error(err)
+//		return
+//	}
+//
+//	// TODO implement
+//	//a.ngRuntime.MinedMicroblock(&micro, inv)
+//
+//	newRest := restLimits{
+//		MaxScriptRunsInBlock:        rest.MaxScriptRunsInBlock,
+//		MaxScriptsComplexityInBlock: rest.MaxScriptsComplexityInBlock,
+//		ClassicAmountOfTxsInBlock:   rest.ClassicAmountOfTxsInBlock,
+//		MaxTxsSizeInBytes:           rest.MaxTxsSizeInBytes - binSize,
+//	}
+//
+//	newBlocks, err := blocks.AddMicro(&micro)
+//	if err != nil {
+//		zap.S().Error(err)
+//		return
+//	}
+//
+//	go a.mineMicro(ctx, newRest, newBlock, newBlocks, keyPair)
+//}
 
 func blockVersion(state state.State) (proto.BlockVersion, error) {
 	blockV5Activated, err := state.IsActivated(int16(settings.BlockV5))
