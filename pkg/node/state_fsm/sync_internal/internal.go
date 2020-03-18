@@ -7,12 +7,11 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/libs/ordered_blocks"
 	"github.com/wavesplatform/gowaves/pkg/libs/signatures"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	storage "github.com/wavesplatform/gowaves/pkg/state"
 	"github.com/wavesplatform/gowaves/pkg/types"
 )
 
 type Blocks []*proto.Block
-type Eof bool
+type Eof = bool
 type BlockApplied bool
 
 const NoSignaturesExpected = false
@@ -21,28 +20,24 @@ const WaitingForSignatures = true
 var NoSignaturesExpectedErr = errors.New("no signatures expected")
 var UnexpectedBlockErr = errors.New("unexpected block")
 
-type SigFSM struct {
+type Internal struct {
 	respondedSignatures  *signatures.Signatures
 	orderedBlocks        *ordered_blocks.OrderedBlocks
 	waitingForSignatures bool
 	nearEnd              bool
 }
 
-func SigFsmFromLastSignatures(storage storage.State, p types.MessageSender, l signatures.LastSignatures) (SigFSM, error) {
-	sigs, err := l.LastSignatures(storage)
-	if err != nil {
-		return SigFSM{}, err
-	}
+func InternalFromLastSignatures(p types.MessageSender, sigs *signatures.ReverseOrdering) Internal {
 	p.SendMessage(&proto.GetSignaturesMessage{Signatures: sigs.Signatures()})
-	return NewSigFSM(
+	return NewInternal(
 		ordered_blocks.NewOrderedBlocks(),
-		signatures.NewSignatures(),
+		sigs,
 		WaitingForSignatures,
-		false), nil
+		false)
 }
 
-func NewSigFSM(orderedBlocks *ordered_blocks.OrderedBlocks, respondedSignatures *signatures.Signatures, waitingForSignatures bool, nearEnd bool) SigFSM {
-	return SigFSM{
+func NewInternal(orderedBlocks *ordered_blocks.OrderedBlocks, respondedSignatures *signatures.ReverseOrdering, waitingForSignatures bool, nearEnd bool) Internal {
+	return Internal{
 		respondedSignatures:  respondedSignatures,
 		orderedBlocks:        orderedBlocks,
 		waitingForSignatures: waitingForSignatures,
@@ -50,7 +45,7 @@ func NewSigFSM(orderedBlocks *ordered_blocks.OrderedBlocks, respondedSignatures 
 	}
 }
 
-func (a SigFSM) Signatures(p types.MessageSender, sigs []crypto.Signature) (SigFSM, error) {
+func (a Internal) Signatures(p types.MessageSender, sigs []crypto.Signature) (Internal, error) {
 	if !a.waitingForSignatures {
 		return a, NoSignaturesExpectedErr
 	}
@@ -65,18 +60,18 @@ func (a SigFSM) Signatures(p types.MessageSender, sigs []crypto.Signature) (SigF
 		}
 	}
 	respondedSignatures := signatures.NewSignatures(newSigs...).Revert()
-	return NewSigFSM(a.orderedBlocks, respondedSignatures, NoSignaturesExpected, respondedSignatures.Len() < 100), nil
+	return NewInternal(a.orderedBlocks, respondedSignatures, NoSignaturesExpected, respondedSignatures.Len() < 100), nil
 }
 
-func (a SigFSM) NearEnd() bool {
+func (a Internal) NearEnd() bool {
 	return a.nearEnd
 }
 
-func (a SigFSM) WaitingForSignatures() bool {
+func (a Internal) WaitingForSignatures() bool {
 	return a.waitingForSignatures
 }
 
-func (a SigFSM) Block(block *proto.Block) (SigFSM, error) {
+func (a Internal) Block(block *proto.Block) (Internal, error) {
 	if !a.orderedBlocks.Contains(block.BlockSignature) {
 		return a, UnexpectedBlockErr
 	}
@@ -84,21 +79,26 @@ func (a SigFSM) Block(block *proto.Block) (SigFSM, error) {
 	return a, nil
 }
 
-func (a SigFSM) Blocks(p types.MessageSender) (SigFSM, Blocks) {
-	blocks := a.orderedBlocks.PopAll()
+func (a Internal) Blocks(p types.MessageSender) (Internal, Blocks, Eof) {
 	if a.nearEnd {
-		return NewSigFSM(a.orderedBlocks, a.respondedSignatures, NoSignaturesExpected, a.nearEnd), blocks
+		return NewInternal(a.orderedBlocks, a.respondedSignatures, NoSignaturesExpected, a.nearEnd),
+			a.orderedBlocks.PopAll(),
+			a.orderedBlocks.WaitingCount() == 0
+	}
+	var blocks []*proto.Block
+	if a.orderedBlocks.AvailableCount() >= 50 {
+		blocks = a.orderedBlocks.PopAll()
 	}
 	if a.waitingForSignatures {
-		return NewSigFSM(a.orderedBlocks, a.respondedSignatures, a.waitingForSignatures, a.nearEnd), blocks
+		return NewInternal(a.orderedBlocks, a.respondedSignatures, a.waitingForSignatures, a.nearEnd), blocks, false
 	}
 	if a.orderedBlocks.WaitingCount() < 100 {
 		p.SendMessage(&proto.GetSignaturesMessage{Signatures: a.respondedSignatures.Signatures()})
-		return NewSigFSM(a.orderedBlocks, a.respondedSignatures, WaitingForSignatures, a.nearEnd), blocks
+		return NewInternal(a.orderedBlocks, a.respondedSignatures, WaitingForSignatures, a.nearEnd), blocks, false
 	}
-	return NewSigFSM(a.orderedBlocks, a.respondedSignatures, a.waitingForSignatures, a.nearEnd), blocks
+	return NewInternal(a.orderedBlocks, a.respondedSignatures, a.waitingForSignatures, a.nearEnd), blocks, false
 }
 
-func (a SigFSM) AvailableCount() int {
+func (a Internal) AvailableCount() int {
 	return a.orderedBlocks.AvailableCount()
 }

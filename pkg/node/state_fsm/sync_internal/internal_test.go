@@ -20,14 +20,14 @@ func TestSigFSM_Signatures(t *testing.T) {
 	sigs := signatures.NewSignatures()
 
 	t.Run("error on receive unexpected signatures", func(t *testing.T) {
-		fsm := NewSigFSM(or, sigs, NoSignaturesExpected, false)
+		fsm := NewInternal(or, sigs, NoSignaturesExpected, false)
 		rs2, err := fsm.Signatures(nil, []crypto.Signature{sig1, sig2})
 		require.Equal(t, NoSignaturesExpectedErr, err)
 		require.NotNil(t, rs2)
 	})
 
 	t.Run("successful receive signatures", func(t *testing.T) {
-		fsm := NewSigFSM(or, sigs, WaitingForSignatures, false)
+		fsm := NewInternal(or, sigs, WaitingForSignatures, false)
 		rs2, err := fsm.Signatures(mock.NoOpPeer{}, []crypto.Signature{sig1, sig2})
 		require.NoError(t, err)
 		require.NotNil(t, rs2)
@@ -47,7 +47,7 @@ func block(sig crypto.Signature) *proto.Block {
 func TestSigFSM_Block(t *testing.T) {
 	or := ordered_blocks.NewOrderedBlocks()
 	sigs := signatures.NewSignatures()
-	fsm := NewSigFSM(or, sigs, WaitingForSignatures, false)
+	fsm := NewInternal(or, sigs, WaitingForSignatures, false)
 	fsm, _ = fsm.Signatures(mock.NoOpPeer{}, []crypto.Signature{sig1, sig2})
 
 	fsm, _ = fsm.Block(block(sig1))
@@ -55,7 +55,7 @@ func TestSigFSM_Block(t *testing.T) {
 	require.Equal(t, 2, fsm.AvailableCount())
 
 	// no panic, cause `nearEnd` is True
-	fsm, blocks := fsm.Blocks(nil)
+	fsm, blocks, _ := fsm.Blocks(nil)
 	require.Equal(t, 2, len(blocks))
 
 }
@@ -64,6 +64,6 @@ func TestSigFSM_BlockGetSignatures(t *testing.T) {
 	or := ordered_blocks.NewOrderedBlocks()
 	sigs := signatures.NewSignatures()
 	require.Panics(t, func() {
-		NewSigFSM(or, sigs, NoSignaturesExpected, false).Blocks(nil)
+		NewInternal(or, sigs, NoSignaturesExpected, false).Blocks(nil)
 	})
 }

@@ -19,7 +19,7 @@ func (a *Signatures) Signatures() []crypto.Signature {
 	return a.signatures
 }
 
-func NewSignatures(signatures ...crypto.Signature) *Signatures {
+func NewSignatures(signatures ...crypto.Signature) *NaturalOrdering {
 	unique := make(map[crypto.Signature]struct{})
 	for _, v := range signatures {
 		unique[v] = struct{}{}
@@ -36,7 +36,7 @@ func (a *Signatures) Exists(sig crypto.Signature) bool {
 	return ok
 }
 
-func (a *Signatures) Revert() *Signatures {
+func (a *Signatures) Revert() *ReverseOrdering {
 	out := make([]crypto.Signature, len(a.signatures))
 	for k, v := range a.signatures {
 		out[len(a.signatures)-1-k] = v

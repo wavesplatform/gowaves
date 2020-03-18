@@ -5,33 +5,35 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
-	"github.com/wavesplatform/gowaves/pkg/libs/ordered_blocks"
 	"github.com/wavesplatform/gowaves/pkg/libs/signatures"
+	"github.com/wavesplatform/gowaves/pkg/mock"
+	"github.com/wavesplatform/gowaves/pkg/node/state_fsm/sync_internal"
 	. "github.com/wavesplatform/gowaves/pkg/node/state_fsm/tasks"
 	. "github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
 )
 
-const MINIMUM_COUNT = 50
-
-type syncBlock struct {
-	lastSignatures      *signatures.Signatures
-	signaturesRequested bool
-	sigs                *ordered_blocks.OrderedBlocks
-	peerSyncWith        Peer
-	// list of blocks received from donor peer
-	receivedBlocks []*proto.Block
-
+type conf struct {
+	peerSyncWith Peer
 	// if nothing happens more than N duration, means we stalled, so go to idle and again
 	lastReceiveTime time.Time
 
 	timeout time.Duration
 }
 
+func (c conf) Now() conf {
+	return conf{
+		peerSyncWith:    c.peerSyncWith,
+		lastReceiveTime: time.Now(),
+		timeout:         c.timeout,
+	}
+}
+
 type SyncFsm struct {
-	baseInfo  BaseInfo
-	syncBlock syncBlock
+	baseInfo BaseInfo
+	conf     conf
+	internal sync_internal.Internal
 }
 
 // ignore microblocks
@@ -51,7 +53,7 @@ func (a *SyncFsm) Task(task AsyncTask) (FSM, Async, error) {
 		a.baseInfo.peers.AskPeers()
 		return a, nil, nil
 	case PING:
-		timeout := a.syncBlock.lastReceiveTime.Add(a.syncBlock.timeout).Before(a.baseInfo.tm.Now())
+		timeout := a.conf.lastReceiveTime.Add(a.conf.timeout).Before(a.baseInfo.tm.Now())
 		if timeout {
 			return NewIdleFsm(a.baseInfo), nil, TimeoutErr
 		}
@@ -62,40 +64,28 @@ func (a *SyncFsm) Task(task AsyncTask) (FSM, Async, error) {
 }
 
 func (a *SyncFsm) PeerError(p Peer, e error) (FSM, Async, error) {
-	if a.syncBlock.peerSyncWith == p {
-		if len(a.syncBlock.receivedBlocks) > 0 {
-			locked := a.baseInfo.storage.Mutex().Lock()
-			zap.S().Debug("PeerError before")
-			err := a.baseInfo.blocksApplier.Apply(a.baseInfo.storage, a.syncBlock.receivedBlocks)
-			zap.S().Debug("PeerError after")
-			locked.Unlock()
-			if err != nil {
-				zap.S().Error(err)
-				return NewIdleFsm(a.baseInfo), nil, err
-			}
+	a.baseInfo.peers.Disconnect(p)
+	if a.conf.peerSyncWith == p {
+		_, blocks, _ := a.internal.Blocks(mock.NoOpPeer{})
+		if len(blocks) > 0 {
+			err := a.baseInfo.storage.Mutex().Map(func() error {
+				return a.baseInfo.blocksApplier.Apply(a.baseInfo.storage, blocks)
+			})
+			return NewIdleFsm(a.baseInfo), nil, err
 		}
 	}
-	a.baseInfo.peers.Disconnect(p)
 	return NewIdleFsm(a.baseInfo), nil, nil
 }
 
 func (a *SyncFsm) Signatures(peer Peer, sigs []crypto.Signature) (FSM, Async, error) {
-	if a.syncBlock.peerSyncWith == peer {
-		var newSigs []crypto.Signature
-		for _, sig := range sigs {
-			if a.syncBlock.lastSignatures.Exists(sig) {
-				continue
-			}
-			newSigs = append(newSigs, sig)
-			if a.syncBlock.sigs.Add(sig) {
-				peer.SendMessage(&proto.GetBlockMessage{BlockID: sig})
-			}
-		}
-		a.syncBlock.lastSignatures = signatures.NewSignatures(newSigs...).Revert()
-		a.syncBlock.signaturesRequested = false
-		a.syncBlock.lastReceiveTime = time.Now()
+	if a.conf.peerSyncWith != peer {
+		return a, nil, nil
 	}
-	return a, nil, nil
+	internal, err := a.internal.Signatures(peer, sigs)
+	if err != nil {
+		return newSyncFsm(a.baseInfo, a.conf, internal), nil, err
+	}
+	return newSyncFsm(a.baseInfo, a.conf.Now(), internal), nil, nil
 }
 
 func (a *SyncFsm) NewPeer(p Peer) (FSM, Async, error) {
@@ -112,114 +102,56 @@ func (a *SyncFsm) Score(p Peer, score *proto.Score) (FSM, Async, error) {
 	return a, nil, nil
 }
 
-func (a *SyncFsm) Block(peer Peer, block *proto.Block) (FSM, Async, error) {
-	return a.syncAction(peer, block)
+func (a *SyncFsm) Block(p Peer, block *proto.Block) (FSM, Async, error) {
+	if p != a.conf.peerSyncWith {
+		return a, nil, nil
+	}
+	internal, err := a.internal.Block(block)
+	if err != nil {
+		return newSyncFsm(a.baseInfo, a.conf, internal), nil, err
+	}
+	return a.applyBlocks(a.baseInfo, a.conf.Now(), internal)
 }
 
-func (a *SyncFsm) syncAction(peer Peer, block *proto.Block) (FSM, Async, error) {
-	if a.syncBlock.peerSyncWith != peer {
-		return a, nil, nil
+// TODO suspend peer on state error
+func (a *SyncFsm) applyBlocks(baseInfo BaseInfo, conf conf, internal sync_internal.Internal) (FSM, Async, error) {
+	internal, blocks, eof := internal.Blocks(conf.peerSyncWith)
+	if len(blocks) == 0 {
+		return newSyncFsm(baseInfo, conf, internal), nil, nil
 	}
-	if !a.syncBlock.sigs.Contains(block.BlockSignature) {
-		return a, nil, nil
-	}
-	a.syncBlock.sigs.SetBlock(block)
-	a.syncBlock.lastReceiveTime = time.Now()
-
-	blocks := a.syncBlock.sigs.PopAll()
-	a.syncBlock.receivedBlocks = append(a.syncBlock.receivedBlocks, blocks...)
-
-	// apply block
-	if len(a.syncBlock.receivedBlocks) >= MINIMUM_COUNT {
-		//zap.S().Debug("MINIMUM_COUNT before")
-		lock := a.baseInfo.storage.Mutex().Lock()
-		err := a.baseInfo.blocksApplier.Apply(a.baseInfo.storage, a.syncBlock.receivedBlocks)
-		lock.Unlock()
-		//zap.S().Debug("MINIMUM_COUNT after")
-		a.syncBlock.receivedBlocks = nil
-		if err != nil {
-			zap.S().Error(err)
-			return NewIdleFsm(a.baseInfo), nil, err
-		}
-	}
-
-	if len(a.syncBlock.receivedBlocks) > 0 && len(a.syncBlock.lastSignatures.Signatures()) < 100 {
-		//zap.S().Debug("sig < 100 before")
-		lock := a.baseInfo.storage.Mutex().Lock()
-		err := a.baseInfo.blocksApplier.Apply(a.baseInfo.storage, a.syncBlock.receivedBlocks)
-		lock.Unlock()
-		//zap.S().Debug("sig < 100 after")
-		a.syncBlock.receivedBlocks = nil
-		if err != nil {
-			zap.S().Error(err)
-			return NewIdleFsm(a.baseInfo), nil, err
-		}
-	}
-
-	peerSyncWithScore, err := a.baseInfo.peers.Score(peer)
+	err := a.baseInfo.storage.Mutex().Map(func() error {
+		return a.baseInfo.blocksApplier.Apply(a.baseInfo.storage, blocks)
+	})
 	if err != nil {
 		return NewIdleFsm(a.baseInfo), nil, err
 	}
-	rlock := a.baseInfo.storage.Mutex().RLock()
-	curScore, err := a.baseInfo.storage.CurrentScore()
-	rlock.Unlock()
-	if err != nil {
-		return NewIdleFsm(a.baseInfo), nil, err
+	if eof {
+		return NewIdleFsm(a.baseInfo), nil, nil
 	}
-	// we are at the end
-	if curScore.Cmp(peerSyncWithScore) >= 0 {
-		return NewNGFsm(a.baseInfo)
-	}
-
-	return a.requestSignatures(peer)
+	return newSyncFsm(baseInfo, conf, internal), nil, nil
 }
 
-func (a *SyncFsm) requestSignatures(peer Peer) (FSM, Async, error) {
-	if a.syncBlock.signaturesRequested {
-		return a, nil, nil
-	}
-	// check need to request new signatures, or enough
-	if a.syncBlock.sigs.WaitingCount() < 100 {
-		// seems we are near end of blockchain, so no need to ask more
-		if len(a.syncBlock.lastSignatures.Signatures()) < 100 {
-			return a, nil, nil
-		}
-		peer.SendMessage(&proto.GetSignaturesMessage{Signatures: a.syncBlock.lastSignatures.Signatures()})
-		a.syncBlock.signaturesRequested = true
-		return a, nil, nil
-	}
-	return a, nil, nil
+func NewSyncFsm(baseInfo BaseInfo, conf2 conf, internal sync_internal.Internal) (FSM, Async, error) {
+	return newSyncFsm(baseInfo, conf2, internal), nil, nil
 }
 
-func NewSyncFsm(baseInfo BaseInfo, p Peer) (FSM, Async, error) {
-	return NewSyncFsmExtended(baseInfo, p, signatures.LastSignaturesImpl{}, 30*time.Second)
-}
-
-func NewSyncFsmExtended(baseInfo BaseInfo, p Peer, lastSignatures signatures.LastSignatures, timeout time.Duration) (FSM, Async, error) {
-	lastSigs, err := lastSignatures.LastSignatures(baseInfo.storage)
-	if err != nil {
-		return NewIdleFsm(baseInfo), nil, err
-	}
-	p.SendMessage(&proto.GetSignaturesMessage{Signatures: lastSigs.Signatures()})
-
-	o := ordered_blocks.NewOrderedBlocks()
-	s := syncBlock{
-		lastSignatures:      lastSigs,
-		signaturesRequested: true,
-		sigs:                o,
-		peerSyncWith:        p,
-
-		lastReceiveTime: time.Now(),
-
-		timeout: timeout,
-	}
-
+func newSyncFsm(baseInfo BaseInfo, conf2 conf, internal sync_internal.Internal) FSM {
 	return &SyncFsm{
-		baseInfo:  baseInfo,
-		syncBlock: s,
-	}, nil, nil
+		baseInfo: baseInfo,
+		conf:     conf2,
+		internal: internal,
+	}
 }
 
 func NewIdleToSyncTransition(baseInfo BaseInfo, p Peer) (FSM, Async, error) {
-	return NewSyncFsm(baseInfo, p)
+	lastSigs, err := signatures.LastSignaturesImpl{}.LastSignatures(baseInfo.storage)
+	if err != nil {
+		return NewIdleFsm(baseInfo), nil, err
+	}
+	internal := sync_internal.InternalFromLastSignatures(p, lastSigs)
+	c := conf{
+		peerSyncWith: p,
+		timeout:      30 * time.Second,
+	}
+	return NewSyncFsm(baseInfo, c.Now(), internal)
 }
