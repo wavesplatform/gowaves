@@ -9,6 +9,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/libs/signatures"
 	"github.com/wavesplatform/gowaves/pkg/mock"
 	. "github.com/wavesplatform/gowaves/pkg/node/state_fsm/sync_internal"
+	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
 var sig1 = crypto.MustSignatureFromBase58("5syuWANDSgk8KyPxq2yQs2CYV23QfnrBoZMSv2LaciycxDYfBw6cLA2SqVnonnh1nFiFumzTgy2cPETnE7ZaZg5P")
@@ -31,5 +32,38 @@ func TestSigFSM_Signatures(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, rs2)
 		require.True(t, rs2.NearEnd())
+		require.False(t, rs2.WaitingForSignatures())
+	})
+}
+
+func block(sig crypto.Signature) *proto.Block {
+	return &proto.Block{
+		BlockHeader: proto.BlockHeader{
+			BlockSignature: sig,
+		},
+	}
+}
+
+func TestSigFSM_Block(t *testing.T) {
+	or := ordered_blocks.NewOrderedBlocks()
+	sigs := signatures.NewSignatures()
+	fsm := NewSigFSM(or, sigs, WaitingForSignatures, false)
+	fsm, _ = fsm.Signatures(mock.NoOpPeer{}, []crypto.Signature{sig1, sig2})
+
+	fsm, _ = fsm.Block(block(sig1))
+	fsm, _ = fsm.Block(block(sig2))
+	require.Equal(t, 2, fsm.AvailableCount())
+
+	// no panic, cause `nearEnd` is True
+	fsm, blocks := fsm.Blocks(nil)
+	require.Equal(t, 2, len(blocks))
+
+}
+
+func TestSigFSM_BlockGetSignatures(t *testing.T) {
+	or := ordered_blocks.NewOrderedBlocks()
+	sigs := signatures.NewSignatures()
+	require.Panics(t, func() {
+		NewSigFSM(or, sigs, NoSignaturesExpected, false).Blocks(nil)
 	})
 }

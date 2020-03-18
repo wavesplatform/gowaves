@@ -6,6 +6,10 @@ import (
 	"go.uber.org/zap"
 )
 
+// from small to big by height
+type NaturalOrdering = Signatures
+type ReverseOrdering = Signatures
+
 type Signatures struct {
 	signatures []crypto.Signature
 	unique     map[crypto.Signature]struct{}
@@ -45,13 +49,13 @@ func (a *Signatures) Len() int {
 }
 
 type LastSignatures interface {
-	LastSignatures(state storage.State) (*Signatures, error)
+	LastSignatures(state storage.State) (*ReverseOrdering, error)
 }
 
 type LastSignaturesImpl struct {
 }
 
-func (LastSignaturesImpl) LastSignatures(state storage.State) (*Signatures, error) {
+func (LastSignaturesImpl) LastSignatures(state storage.State) (*ReverseOrdering, error) {
 	var signatures []crypto.Signature
 
 	height, err := state.Height()

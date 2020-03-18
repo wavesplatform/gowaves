@@ -7,8 +7,8 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/libs/ordered_blocks"
 	"github.com/wavesplatform/gowaves/pkg/libs/signatures"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	storage "github.com/wavesplatform/gowaves/pkg/state"
 	"github.com/wavesplatform/gowaves/pkg/types"
-	//storage "github.com/wavesplatform/gowaves/pkg/state"
 )
 
 type Blocks []*proto.Block
@@ -26,6 +26,19 @@ type SigFSM struct {
 	orderedBlocks        *ordered_blocks.OrderedBlocks
 	waitingForSignatures bool
 	nearEnd              bool
+}
+
+func SigFsmFromLastSignatures(storage storage.State, p types.MessageSender, l signatures.LastSignatures) (SigFSM, error) {
+	sigs, err := l.LastSignatures(storage)
+	if err != nil {
+		return SigFSM{}, err
+	}
+	p.SendMessage(&proto.GetSignaturesMessage{Signatures: sigs.Signatures()})
+	return NewSigFSM(
+		ordered_blocks.NewOrderedBlocks(),
+		signatures.NewSignatures(),
+		WaitingForSignatures,
+		false), nil
 }
 
 func NewSigFSM(orderedBlocks *ordered_blocks.OrderedBlocks, respondedSignatures *signatures.Signatures, waitingForSignatures bool, nearEnd bool) SigFSM {
@@ -57,6 +70,10 @@ func (a SigFSM) Signatures(p types.MessageSender, sigs []crypto.Signature) (SigF
 
 func (a SigFSM) NearEnd() bool {
 	return a.nearEnd
+}
+
+func (a SigFSM) WaitingForSignatures() bool {
+	return a.waitingForSignatures
 }
 
 func (a SigFSM) Block(block *proto.Block) (SigFSM, error) {
