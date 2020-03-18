@@ -4,6 +4,9 @@ import (
 	"context"
 	"flag"
 	"math/rand"
+	"net/http"
+	_ "net/http"
+	_ "net/http/pprof"
 	"os"
 	"os/signal"
 	"strconv"
@@ -59,7 +62,31 @@ var (
 	walletPath        = flag.String("wallet-path", "", "Path to wallet, or ~/.waves by default")
 	walletPassword    = flag.String("wallet-password", "", "Pass password for wallet. Extremely insecure")
 	limitConnectionsS = flag.String("limit-connections", "30", "N incoming and outgoing connections")
+	profiler                   = flag.Bool("profiler", false, "Start built-in profiler on 'http://localhost:6060/debug/pprof/'")
 )
+
+func debugCommandLineParameters() {
+	zap.S().Debugf("log-level: %s", *logLevel)
+	zap.S().Debugf("state-path: %s", *statePath)
+	zap.S().Debugf("blockchain-type: %s", *blockchainType)
+	zap.S().Debugf("peers: %s", *peerAddresses)
+	zap.S().Debugf("declared-address: %s", *declAddr)
+	zap.S().Debugf("api-address: %s", *apiAddr)
+	zap.S().Debugf("api-key: %s", *apiKey)
+	zap.S().Debugf("grpc-address: %s", *grpcAddr)
+	zap.S().Debugf("enable-grpc-api: %v", *enableGrpcApi)
+	zap.S().Debugf("build-extended-api: %v", *buildExtendedApi)
+	zap.S().Debugf("serve-extended-api: %v", *serveExtendedApi)
+	zap.S().Debugf("bind-address: %s", *bindAddress)
+	zap.S().Debugf("no-connections: %v", *disableOutgoingConnections)
+	zap.S().Debugf("vote: %s", *minerVoteFeatures)
+	zap.S().Debugf("reward: %s", *reward)
+	zap.S().Debugf("miner-delay: %s", *minerDelayParam)
+	zap.S().Debugf("wallet-path: %s", *walletPath)
+	zap.S().Debugf("wallet-password: %s", *walletPassword)
+	zap.S().Debugf("limit-connections: %s", *limitConnectionsS)
+	zap.S().Debugf("profiler: %v", *profiler)
+}
 
 func main() {
 	err := setMaxOpenFiles(1024)
@@ -70,7 +97,14 @@ func main() {
 
 	util.SetupLogger(*logLevel)
 
-	zap.S().Info("connectPeers ", *connectPeers)
+	if *profiler {
+		zap.S().Infof("Starting built-in profiler on 'http://localhost:6060/debug/pprof/'")
+		go func() {
+			zap.S().Warn(http.ListenAndServe("localhost:6060", nil))
+		}()
+	}
+
+	debugCommandLineParameters()
 
 	cfg, err := settings.BlockchainSettingsByTypeName(*blockchainType)
 	if err != nil {

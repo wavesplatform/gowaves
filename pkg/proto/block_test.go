@@ -370,3 +370,78 @@ func TestEmptyBlockMarshall(t *testing.T) {
 	err = b2.UnmarshalBinary(bts, MainNetScheme)
 	require.NoError(t, err)
 }
+
+func TestBlockVerifyRootHash(t *testing.T) {
+	// Waves
+	waves := OptionalAsset{}
+
+	// Key pair
+	secret, public, err := crypto.GenerateKeyPair([]byte("test"))
+	require.NoError(t, err)
+
+	// Addresses
+	addr, err := NewAddressFromPublicKey(TestNetScheme, public)
+	require.NoError(t, err)
+	recipient := NewRecipientFromAddress(addr)
+
+	// Transactions
+	tx1 := NewUnsignedTransferWithProofs(MaxTransferTransactionVersion, public, waves, waves, 1, 2, 3, recipient, &LegacyAttachment{Value: []byte("aaa")})
+	err = tx1.Sign(TestNetScheme, secret)
+	assert.NoError(t, err)
+	tx2 := NewUnsignedTransferWithProofs(MaxTransferTransactionVersion, public, waves, waves, 4, 5, 6, recipient, &LegacyAttachment{Value: []byte("bbb")})
+	err = tx2.Sign(TestNetScheme, secret)
+	assert.NoError(t, err)
+
+	txs1 := Transactions{tx1}
+	txs2 := Transactions{tx1, tx2}
+
+	// Signatures
+	parent, err := crypto.NewSignatureFromBase58("3ov5nyERRYrNd8Uun7nuUWYwztXL8jjt3Cbr5HMfsGhoXAKkctAYVVmUFChz95fPHKyrWopuaygdirQ4kMa3fkwJ")
+	require.NoError(t, err)
+	gs, err := base58.Decode("5fkwJc2yZVT2WLDxXs8qFJHdzb2FXji5MC3PDdAFC145")
+	require.NoError(t, err)
+
+	// Block
+	block := Block{
+		BlockHeader: BlockHeader{
+			Version:              ProtoBlockVersion,
+			Timestamp:            1,
+			Parent:               parent,
+			FeaturesCount:        0,
+			Features:             nil,
+			RewardVote:           -1,
+			ConsensusBlockLength: 40,
+			NxtConsensus: NxtConsensus{
+				BaseTarget:   1010,
+				GenSignature: gs,
+			},
+			TransactionBlockLength: uint32(txs2.BinarySize() + 4),
+			TransactionCount:       len(txs2),
+			GenPublicKey:           public,
+			Height:                 0,
+		},
+		Transactions: txs2,
+	}
+	err = block.SetTransactionsRoot(TestNetScheme)
+	require.NoError(t, err)
+
+	err = block.Sign(TestNetScheme, secret)
+	require.NoError(t, err)
+
+	ok, err := block.VerifySignature(TestNetScheme)
+	require.NoError(t, err)
+	assert.True(t, ok)
+
+	ok, err = block.VerifyTransactionsRoot(TestNetScheme)
+	require.NoError(t, err)
+	assert.True(t, ok)
+
+	block.Transactions = txs1
+	ok, err = block.VerifySignature(TestNetScheme)
+	require.NoError(t, err)
+	assert.True(t, ok)
+
+	ok, err = block.VerifyTransactionsRoot(TestNetScheme)
+	require.NoError(t, err)
+	assert.False(t, ok)
+}

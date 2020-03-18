@@ -38,7 +38,7 @@ func genBlocks(t *testing.T, to *blockDifferTestObjects) (*proto.Block, *proto.B
 	txs := proto.Transactions{createTransferWithSig(t)}
 	randSig := genRandBlockIds(t, 1)[0]
 	genSig := crypto.MustBytesFromBase58(defaultGenSig)
-	parent, err := proto.CreateBlock(txs, 1565694219644, randSig, testGlobal.matcherInfo.pk, proto.NxtConsensus{BaseTarget: 65, GenSignature: genSig}, proto.NgBlockVersion, nil, -1)
+	parent, err := proto.CreateBlock(txs, 1565694219644, randSig, testGlobal.matcherInfo.pk, proto.NxtConsensus{BaseTarget: 65, GenSignature: genSig}, proto.NgBlockVersion, nil, -1, proto.MainNetScheme)
 	require.NoError(t, err, "CreateBlock() failed")
 	err = parent.Sign(proto.MainNetScheme, testGlobal.matcherInfo.sk)
 	require.NoError(t, err, "Block.Sign() failed")
@@ -47,7 +47,7 @@ func genBlocks(t *testing.T, to *blockDifferTestObjects) (*proto.Block, *proto.B
 	txs = []proto.Transaction{createIssueWithSig(t, 1000)}
 	genSig, err = to.gsp.GenerationSignature(testGlobal.minerInfo.pk, parent.GenSignature[:])
 	require.NoError(t, err, "GeneratorSignature() failed")
-	child, err := proto.CreateBlock(txs, 1565694219944, parent.BlockSignature, testGlobal.minerInfo.pk, proto.NxtConsensus{BaseTarget: 66, GenSignature: genSig}, proto.NgBlockVersion, nil, -1)
+	child, err := proto.CreateBlock(txs, 1565694219944, parent.BlockSignature, testGlobal.minerInfo.pk, proto.NxtConsensus{BaseTarget: 66, GenSignature: genSig}, proto.NgBlockVersion, nil, -1, proto.MainNetScheme)
 	require.NoError(t, err, "CreateBlock() failed")
 	err = child.Sign(proto.MainNetScheme, testGlobal.minerInfo.sk)
 	require.NoError(t, err, "Block.Sign() failed")
@@ -173,7 +173,7 @@ func genBlockWithSingleTransaction(t *testing.T, prevID crypto.Signature, prevGe
 	txs := proto.Transactions{genTransferWithWavesFee(t)}
 	genSig, err := to.gsp.GenerationSignature(testGlobal.minerInfo.pk, prevGenSig)
 	require.NoError(t, err)
-	block, err := proto.CreateBlock(txs, 1565694219944, prevID, testGlobal.minerInfo.pk, proto.NxtConsensus{BaseTarget: 66, GenSignature: genSig}, proto.RewardBlockVersion, nil, -1)
+	block, err := proto.CreateBlock(txs, 1565694219944, prevID, testGlobal.minerInfo.pk, proto.NxtConsensus{BaseTarget: 66, GenSignature: genSig}, proto.RewardBlockVersion, nil, -1, proto.MainNetScheme)
 	require.NoError(t, err)
 	block.BlockHeader.Version = proto.RewardBlockVersion
 	block.BlockHeader.RewardVote = 700000000
