@@ -62,7 +62,7 @@ var (
 	walletPath        = flag.String("wallet-path", "", "Path to wallet, or ~/.waves by default")
 	walletPassword    = flag.String("wallet-password", "", "Pass password for wallet. Extremely insecure")
 	limitConnectionsS = flag.String("limit-connections", "30", "N incoming and outgoing connections")
-	profiler                   = flag.Bool("profiler", false, "Start built-in profiler on 'http://localhost:6060/debug/pprof/'")
+	profiler          = flag.Bool("profiler", false, "Start built-in profiler on 'http://localhost:6060/debug/pprof/'")
 )
 
 func debugCommandLineParameters() {
@@ -78,7 +78,6 @@ func debugCommandLineParameters() {
 	zap.S().Debugf("build-extended-api: %v", *buildExtendedApi)
 	zap.S().Debugf("serve-extended-api: %v", *serveExtendedApi)
 	zap.S().Debugf("bind-address: %s", *bindAddress)
-	zap.S().Debugf("no-connections: %v", *disableOutgoingConnections)
 	zap.S().Debugf("vote: %s", *minerVoteFeatures)
 	zap.S().Debugf("reward: %s", *reward)
 	zap.S().Debugf("miner-delay: %s", *minerDelayParam)

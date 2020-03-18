@@ -64,7 +64,7 @@ func GetBlockAction(services services.Services, mess peer.ProtoMessage, fsm stat
 }
 
 // received asked earlier signatures
-func SignaturesActions(services services.Services, mess peer.ProtoMessage, fsm state_fsm.FSM) (state_fsm.FSM, state_fsm.Async, error) {
+func SignaturesAction(services services.Services, mess peer.ProtoMessage, fsm state_fsm.FSM) (state_fsm.FSM, state_fsm.Async, error) {
 	return fsm.Signatures(mess.ID, mess.Message.(*proto.SignaturesMessage).Signatures)
 }
 
@@ -169,7 +169,7 @@ func CreateActions() map[reflect.Type]Action {
 		reflect.TypeOf(&proto.GetPeersMessage{}):          GetPeersAction,
 		reflect.TypeOf(&proto.BlockMessage{}):             BlockAction,
 		reflect.TypeOf(&proto.GetBlockMessage{}):          GetBlockAction,
-		reflect.TypeOf(&proto.SignaturesMessage{}):        SignaturesActions,
+		reflect.TypeOf(&proto.SignaturesMessage{}):        SignaturesAction,
 		reflect.TypeOf(&proto.GetSignaturesMessage{}):     GetSignaturesAction,
 		reflect.TypeOf(&proto.MicroBlockInvMessage{}):     MicroBlockInvAction,
 		reflect.TypeOf(&proto.MicroBlockRequestMessage{}): MicroBlockRequestAction,

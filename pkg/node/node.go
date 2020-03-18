@@ -16,7 +16,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/services"
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"github.com/wavesplatform/gowaves/pkg/types"
-	"github.com/wavesplatform/gowaves/pkg/util"
 	"go.uber.org/zap"
 )
 
@@ -55,14 +54,15 @@ func NewNode(services services.Services, declAddr proto.TCPAddr, bindAddr proto.
 	}
 }
 
-func (a *Node) handlePBTransactionMessage(_ peer.Peer, mess *proto.PBTransactionMessage) {
-	t, err := proto.SignedTxFromProtobuf(mess.Transaction)
-	if err != nil {
-		zap.S().Debug(err)
-		return
-	}
-	_ = a.utx.AddWithBytes(t, util.Dup(mess.Transaction))
-}
+// TODO implement
+//func (a *Node) handlePBTransactionMessage(_ peer.Peer, mess *proto.PBTransactionMessage) {
+//	t, err := proto.SignedTxFromProtobuf(mess.Transaction)
+//	if err != nil {
+//		zap.S().Debug(err)
+//		return
+//	}
+//	_ = a.utx.AddWithBytes(t, util.Dup(mess.Transaction))
+//}
 
 func (a *Node) Close() {
 	a.peers.Close()
@@ -135,7 +135,7 @@ func (a *Node) Run(ctx context.Context, p peer.Parent) {
 	outDatePeriod := 3600 /* hour */ * 4 * 1000 /* milliseconds */
 	fsm, async, err := state_fsm.NewFsm(a.services,
 		uint64(outDatePeriod),
-		proto.BlockCreatorImpl{})
+		proto.NewBlockCreator(a.services.Scheme))
 	if err != nil {
 		zap.S().Error(err)
 		return
@@ -150,7 +150,6 @@ func (a *Node) Run(ctx context.Context, p peer.Parent) {
 		case task := <-tasksCh:
 			fsm, async, err = fsm.Task(task)
 		case m := <-p.InfoCh:
-			//n.HandleInfoMessage(m)
 			switch t := m.Value.(type) {
 			case *peer.Connected:
 				fsm, async, err = fsm.NewPeer(t.Peer)

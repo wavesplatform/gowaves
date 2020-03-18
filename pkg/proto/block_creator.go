@@ -6,6 +6,11 @@ type MicroblockRow struct {
 }
 
 type BlockCreatorImpl struct {
+	s Scheme
+}
+
+func NewBlockCreator(s Scheme) *BlockCreatorImpl {
+	return &BlockCreatorImpl{s: s}
 }
 
 func (a BlockCreatorImpl) FromMicroblockRow(seq MicroblockRow) (*Block, error) {
@@ -25,7 +30,8 @@ func (a BlockCreatorImpl) FromMicroblockRow(seq MicroblockRow) (*Block, error) {
 		keyBlock.NxtConsensus,
 		keyBlock.Version,
 		keyBlock.Features,
-		keyBlock.RewardVote)
+		keyBlock.RewardVote,
+		a.s)
 	if err != nil {
 		return nil, err
 	}
