@@ -20,8 +20,10 @@ import (
 	scheduler2 "github.com/wavesplatform/gowaves/pkg/miner/scheduler"
 	"github.com/wavesplatform/gowaves/pkg/miner/utxpool"
 	"github.com/wavesplatform/gowaves/pkg/node"
+	"github.com/wavesplatform/gowaves/pkg/node/blocks_applier"
 	"github.com/wavesplatform/gowaves/pkg/node/peer_manager"
 	"github.com/wavesplatform/gowaves/pkg/node/state_changed"
+	"github.com/wavesplatform/gowaves/pkg/node/state_fsm/ng"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/scoresender"
@@ -193,18 +195,17 @@ func main() {
 	utx := utxpool.New(10000, utxpool.NewValidator(state, ntptm), custom)
 
 	stateChanged := state_changed.NewStateChanged()
-	//blockApplier := blocks_applier.NewBlocksApplier()
+	blockApplier := blocks_applier.NewBlocksApplier()
 
 	services := services.Services{
-		State:     state,
-		Peers:     peerManager,
-		Scheduler: scheduler,
-		//BlocksApplier:      blockApplier,
+		State:              state,
+		Peers:              peerManager,
+		Scheduler:          scheduler,
+		BlocksApplier:      blockApplier,
 		UtxPool:            utx,
 		Scheme:             custom.AddressSchemeCharacter,
 		BlockAddedNotifier: stateChanged,
-		//Subscribe:          node.NewSubscribeService(),
-		InvRequester: node.NewInvRequester(),
+		InvRequester:       ng.NewInvRequester(),
 	}
 
 	utxClean := utxpool.NewCleaner(services)

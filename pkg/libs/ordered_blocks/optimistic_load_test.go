@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
-	"github.com/wavesplatform/gowaves/pkg/node/state_fsm"
+	"github.com/wavesplatform/gowaves/pkg/libs/ordered_blocks"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
@@ -21,7 +21,7 @@ func makeBlock(sig crypto.Signature) *proto.Block {
 }
 
 func TestOrderedBlocks(t *testing.T) {
-	o := state_fsm.NewOrderedBlocks()
+	o := ordered_blocks.NewOrderedBlocks()
 	o.Add(sig1)
 	require.Len(t, o.PopAll(), 0)
 

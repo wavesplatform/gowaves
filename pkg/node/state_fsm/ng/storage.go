@@ -6,7 +6,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"github.com/wavesplatform/gowaves/pkg/types"
 )
 
 type Blocks []interface{}
@@ -113,11 +112,11 @@ func NewBlocksFromBlock(block *proto.Block) Blocks {
 }
 
 // block should always contain at least 1 row
-func (a Blocks) Row() types.MicroblockRow {
+func (a Blocks) Row() proto.MicroblockRow {
 	for i := len(a) - 1; i >= 0; i-- {
 		switch t := a[i].(type) {
 		case *proto.Block:
-			return types.MicroblockRow{KeyBlock: t, MicroBlocks: append([]*proto.MicroBlock(nil), inf2micro(a[i+1:])...)}
+			return proto.MicroblockRow{KeyBlock: t, MicroBlocks: append([]*proto.MicroBlock(nil), inf2micro(a[i+1:])...)}
 		default:
 			continue
 		}
@@ -125,20 +124,20 @@ func (a Blocks) Row() types.MicroblockRow {
 	panic("no buildable row")
 }
 
-func (a Blocks) PreviousRow() (types.MicroblockRow, error) {
+func (a Blocks) PreviousRow() (proto.MicroblockRow, error) {
 	lastBlock := 0
 	for i := len(a) - 1; i >= 0; i-- {
 		switch t := a[i].(type) {
 		case *proto.Block:
 			if lastBlock != 0 {
-				return types.MicroblockRow{KeyBlock: t, MicroBlocks: append([]*proto.MicroBlock(nil), inf2micro(a[i+1:lastBlock])...)}, nil
+				return proto.MicroblockRow{KeyBlock: t, MicroBlocks: append([]*proto.MicroBlock(nil), inf2micro(a[i+1:lastBlock])...)}, nil
 			}
 			lastBlock = i
 		default:
 			continue
 		}
 	}
-	return types.MicroblockRow{}, errors.New("no buildable row")
+	return proto.MicroblockRow{}, errors.New("no buildable row")
 }
 
 func inf2micro(in []interface{}) []*proto.MicroBlock {
@@ -148,106 +147,3 @@ func inf2micro(in []interface{}) []*proto.MicroBlock {
 	}
 	return out
 }
-
-//
-//type storage struct {
-//	curState  Signatures
-//	prevState Signatures
-//	// TODO add validation
-//	//validator validator
-//}
-//
-//func newStorage() *storage {
-//	return &storage{}
-//}
-//
-//func (a *storage) PushBlock(block *proto.Block) error {
-//	state, err := a.curState.AddBlock(block)
-//	if err != nil {
-//		return err
-//	}
-//	a.prevState = a.curState
-//	a.curState = state
-//	return nil
-//}
-//
-//func (a *storage) PushMicro(m *proto.MicroBlock) error {
-//	state, err := a.curState.AddMicro(m)
-//	if err != nil {
-//		return err
-//	}
-//	/* wait for better times
-//	row, err := a.curState.Row()
-//	if err != nil {
-//		return err
-//	}
-//	err = a.validator.validateMicro(row)
-//	if err != nil {
-//		zap.S().Error(err)
-//		return err
-//	}
-//	*/
-//
-//	a.prevState = a.curState
-//	a.curState = state
-//	return nil
-//}
-//
-//func (a *storage) Block() (*proto.Block, error) {
-//	row, err := a.curState.Row()
-//	if err != nil {
-//		return nil, err
-//	}
-//	return a.fromRow(row)
-//}
-//
-//func (a *storage) PreviousBlock() (*proto.Block, error) {
-//	row, err := a.curState.PreviousRow()
-//	if err != nil {
-//		return nil, err
-//	}
-//	return a.fromRow(row)
-//}
-//
-//func (a *storage) ContainsSig(sig crypto.Signature) bool {
-//	return a.curState.ContainsSig(sig)
-//}
-//
-//func (a *storage) fromRow(seq Row) (*proto.Block, error) {
-//	var err error
-//
-//	keyBlock := seq.KeyBlock
-//	t := keyBlock.Transactions
-//	BlockSignature := keyBlock.BlockSignature
-//	for _, row := range seq.MicroBlocks {
-//		t = t.Join(row.Transactions)
-//		BlockSignature = row.TotalResBlockSigField
-//	}
-//
-//	block, err := proto.CreateBlock(
-//		t,
-//		keyBlock.Timestamp,
-//		keyBlock.Parent,
-//		keyBlock.GenPublicKey,
-//		keyBlock.NxtConsensus,
-//		keyBlock.Version,
-//		keyBlock.Features,
-//		keyBlock.RewardVote)
-//	if err != nil {
-//		return nil, err
-//	}
-//	block.BlockSignature = BlockSignature
-//	return block, nil
-//}
-//
-//func (a *storage) newFromBlock(block *proto.Block) *storage {
-//	return &storage{
-//		curState: NewBlocksFromBlock(block),
-//		//validator: a.validator,
-//	}
-//}
-//
-//func (a *storage) Pop() {
-//	a.curState = a.prevState
-//	a.prevState = newBlocks()
-//}

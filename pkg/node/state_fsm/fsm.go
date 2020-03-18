@@ -5,9 +5,11 @@ import (
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/node/peer_manager"
+	"github.com/wavesplatform/gowaves/pkg/node/state_fsm/ng"
 	. "github.com/wavesplatform/gowaves/pkg/node/state_fsm/tasks"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/services"
 	storage "github.com/wavesplatform/gowaves/pkg/state"
 	"github.com/wavesplatform/gowaves/pkg/types"
 )
@@ -40,7 +42,7 @@ type BaseInfo struct {
 
 	//
 	invRequester  InvRequester
-	blockCreater  types.BlockCreater
+	blockCreater  types.BlockCreator
 	blocksApplier BlocksApplier
 
 	// default behaviour
@@ -64,27 +66,22 @@ type FSM interface {
 }
 
 func NewFsm(
-	s storage.State,
-	peers peer_manager.PeerManager,
-	tm types.Time,
+	services services.Services,
 	outdatePeriod proto.Timestamp,
-	scheme proto.Scheme,
-	invRequester InvRequester,
-	blockCreater types.BlockCreater,
-	blocksApplier BlocksApplier,
+	blockCreator types.BlockCreator,
 
 ) (FSM, Async, error) {
 	b := BaseInfo{
-		peers:         peers,
-		storage:       s,
-		tm:            tm,
+		peers:         services.Peers,
+		storage:       services.State,
+		tm:            services.Time,
 		outdatePeriod: outdatePeriod,
-		scheme:        scheme,
+		scheme:        services.Scheme,
 
 		//
-		invRequester:  invRequester,
-		blockCreater:  blockCreater,
-		blocksApplier: blocksApplier,
+		invRequester:  ng.NewInvRequester(),
+		blockCreater:  blockCreator,
+		blocksApplier: services.BlocksApplier,
 
 		//
 		d: DefaultImpl{},

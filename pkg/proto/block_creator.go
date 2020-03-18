@@ -1,14 +1,14 @@
-package state_fsm
+package proto
 
-import (
-	"github.com/wavesplatform/gowaves/pkg/proto"
-	"github.com/wavesplatform/gowaves/pkg/types"
-)
-
-type BlockCreaterImpl struct {
+type MicroblockRow struct {
+	KeyBlock    *Block
+	MicroBlocks []*MicroBlock
 }
 
-func (a BlockCreaterImpl) FromMicroblockRow(seq types.MicroblockRow) (*proto.Block, error) {
+type BlockCreatorImpl struct {
+}
+
+func (a BlockCreatorImpl) FromMicroblockRow(seq MicroblockRow) (*Block, error) {
 	keyBlock := seq.KeyBlock
 	t := keyBlock.Transactions
 	BlockSignature := keyBlock.BlockSignature
@@ -17,7 +17,7 @@ func (a BlockCreaterImpl) FromMicroblockRow(seq types.MicroblockRow) (*proto.Blo
 		BlockSignature = row.TotalResBlockSigField
 	}
 
-	block, err := proto.CreateBlock(
+	block, err := CreateBlock(
 		t,
 		keyBlock.Timestamp,
 		keyBlock.Parent,

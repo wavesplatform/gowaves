@@ -19,6 +19,8 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/miner"
 	"github.com/wavesplatform/gowaves/pkg/miner/scheduler"
 	"github.com/wavesplatform/gowaves/pkg/miner/utxpool"
+	"github.com/wavesplatform/gowaves/pkg/node/blocks_applier"
+
 	//"github.com/wavesplatform/gowaves/pkg/ng"
 	"github.com/wavesplatform/gowaves/pkg/node"
 	//"github.com/wavesplatform/gowaves/pkg/node/blocks_applier"
@@ -193,27 +195,23 @@ func main() {
 		proto.NewTimestampFromUSeconds(outdatePeriod),
 	)
 	stateChanged := state_changed.NewStateChanged()
-	//blockApplier := blocks_applier.NewBlocksApplier(state, ntptm)
+	blockApplier := blocks_applier.NewBlocksApplier()
 
 	services := services.Services{
-		State:     state,
-		Peers:     peerManager,
-		Scheduler: scheduler,
-		//BlocksApplier:      blockApplier,
+		State:              state,
+		Peers:              peerManager,
+		Scheduler:          scheduler,
+		BlocksApplier:      blockApplier,
 		UtxPool:            utx,
 		Scheme:             cfg.AddressSchemeCharacter,
 		BlockAddedNotifier: stateChanged,
-		//Subscribe:          node.NewSubscribeService(),
-		//InvRequester:   ng.NewInvRequester(),
-		LoggableRunner: logRunner,
-		Time:           ntptm,
-		Wallet:         wal,
+		LoggableRunner:     logRunner,
+		Time:               ntptm,
+		Wallet:             wal,
 	}
 
 	utxClean := utxpool.NewCleaner(services)
 
-	//ngState := ng.NewState(services)
-	//ngRuntime := ng.NewRuntime(services, ngState)
 	scoreSender := scoresender.New(peerManager, state, 5*time.Second, async)
 	logRunner.Named("ScoreSender.Run", func() {
 		scoreSender.Run(ctx)

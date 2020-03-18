@@ -1,4 +1,4 @@
-package node
+package ng
 
 import (
 	"github.com/wavesplatform/gowaves/pkg/proto"

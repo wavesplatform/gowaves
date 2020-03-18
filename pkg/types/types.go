@@ -112,11 +112,6 @@ type EmbeddedWallet interface {
 	Seeds() [][]byte
 }
 
-type MicroblockRow struct {
-	KeyBlock    *proto.Block
-	MicroBlocks []*proto.MicroBlock
-}
-
-type BlockCreater interface {
-	FromMicroblockRow(seq MicroblockRow) (*proto.Block, error)
+type BlockCreator interface {
+	FromMicroblockRow(seq proto.MicroblockRow) (*proto.Block, error)
 }
