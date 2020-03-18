@@ -156,22 +156,23 @@ func TestNativeSigVerify(t *testing.T) {
 	pk, err := hex.DecodeString("ba9e7203ca62efbaa49098ec408bdf8a3dfed5a7fa7c200ece40aade905e535f")
 	require.NoError(t, err)
 
-	rs, err := NativeSigVerify(newEmptyScopeV1(), NewExprs(NewBytes(msg), NewBytes(sig), NewBytes(pk)))
+	f := limitedSigVerify(0)
+	rs, err := f(newEmptyScopeV1(), NewExprs(NewBytes(msg), NewBytes(sig), NewBytes(pk)))
 	require.NoError(t, err)
 	assert.Equal(t, NewBoolean(true), rs)
-	rs, err = NativeSigVerify(newEmptyScopeV1(), NewExprs(NewBytes(msg), NewBytes(bad), NewBytes(pk)))
+	rs, err = f(newEmptyScopeV1(), NewExprs(NewBytes(msg), NewBytes(bad), NewBytes(pk)))
 	require.NoError(t, err)
 	assert.Equal(t, NewBoolean(false), rs)
 
-	_, err = NativeSigVerify(newEmptyScopeV1(), nil)
+	_, err = f(newEmptyScopeV1(), nil)
 	require.Error(t, err)
-	_, err = NativeSigVerify(newEmptyScopeV1(), NewExprs(NewString("BAD"), NewBytes(sig), NewBytes(pk)))
+	_, err = f(newEmptyScopeV1(), NewExprs(NewString("BAD"), NewBytes(sig), NewBytes(pk)))
 	require.Error(t, err)
-	_, err = NativeSigVerify(newEmptyScopeV1(), NewExprs(NewBytes(msg), NewString("BAD"), NewBytes(pk)))
+	_, err = f(newEmptyScopeV1(), NewExprs(NewBytes(msg), NewString("BAD"), NewBytes(pk)))
 	require.Error(t, err)
-	_, err = NativeSigVerify(newEmptyScopeV1(), NewExprs(NewBytes(msg), NewBytes(sig), NewString("BAD")))
+	_, err = f(newEmptyScopeV1(), NewExprs(NewBytes(msg), NewBytes(sig), NewString("BAD")))
 	require.Error(t, err)
-	rs, err = NativeSigVerify(newEmptyScopeV1(), NewExprs(NewBytes(msg), NewBytes(sig), NewBytes(pk[:10])))
+	rs, err = f(newEmptyScopeV1(), NewExprs(NewBytes(msg), NewBytes(sig), NewBytes(pk[:10])))
 	require.NoError(t, err)
 	assert.Equal(t, NewBoolean(false), rs)
 }
@@ -180,7 +181,8 @@ func TestNativeSigVerifyLengthCheck(t *testing.T) {
 	msg := bytes.Repeat([]byte{0xCA, 0xFE, 0xBA, 0xBE}, 8193)
 	sig := bytes.Repeat([]byte{0xDE, 0xAD, 0xBE, 0xEF}, 8)
 	pk := bytes.Repeat([]byte{0x01}, 32)
-	_, err := NativeSigVerify(newEmptyScopeV3(), NewExprs(NewBytes(msg), NewBytes(sig), NewBytes(pk)))
+	f := limitedSigVerify(0)
+	_, err := f(newEmptyScopeV3(), NewExprs(NewBytes(msg), NewBytes(sig), NewBytes(pk)))
 	assert.Error(t, err, "NativeSigVerify: invalid message length")
 }
 
@@ -189,7 +191,8 @@ func TestNativeKeccak256(t *testing.T) {
 	data, err := hex.DecodeString(str)
 	require.NoError(t, err)
 	result := "8f54f1c2d0eb5771cd5bf67a6689fcd6eed9444d91a39e5ef32a9b4ae5ca14ff"
-	rs, err := NativeKeccak256(newEmptyScopeV1(), NewExprs(NewBytes(data)))
+	f := limitedKeccak256(0)
+	rs, err := f(newEmptyScopeV1(), NewExprs(NewBytes(data)))
 	require.NoError(t, err)
 
 	expected, err := hex.DecodeString(result)
@@ -202,7 +205,8 @@ func TestNativeBlake2b256(t *testing.T) {
 	data, err := hex.DecodeString(str)
 	require.NoError(t, err)
 	result := "a035872d6af8639ede962dfe7536b0c150b590f3234a922fb7064cd11971b58e"
-	rs, err := NativeBlake2b256(newEmptyScopeV1(), NewExprs(NewBytes(data)))
+	f := limitedBlake2b256(0)
+	rs, err := f(newEmptyScopeV1(), NewExprs(NewBytes(data)))
 	require.NoError(t, err)
 
 	expected, err := hex.DecodeString(result)
@@ -213,7 +217,8 @@ func TestNativeBlake2b256(t *testing.T) {
 func TestNativeSha256(t *testing.T) {
 	data := "123"
 	result := "A665A45920422F9D417E4867EFDC4FB8A04A1F3FFF1FA07E998E86F7F7A27AE3"
-	rs, err := NativeSha256(newEmptyScopeV1(), NewExprs(NewBytes([]byte(data))))
+	f := limitedSha256(0)
+	rs, err := f(newEmptyScopeV1(), NewExprs(NewBytes([]byte(data))))
 	require.NoError(t, err)
 
 	expected, err := hex.DecodeString(result)
@@ -861,7 +866,8 @@ func TestNativeRSAVerify(t *testing.T) {
 		require.NoError(t, err)
 		sig, err := base64.StdEncoding.DecodeString(test.sig)
 		require.NoErrorf(t, err, "#%d", i)
-		r, err := NativeRSAVerify(newEmptyScopeV1(), NewExprs(test.alg, NewBytes(msg), NewBytes(sig), NewBytes(pk)))
+		f := limitedRSAVerify(0)
+		r, err := f(newEmptyScopeV1(), NewExprs(test.alg, NewBytes(msg), NewBytes(sig), NewBytes(pk)))
 		require.NoErrorf(t, err, "#%d", i)
 		assert.Equalf(t, NewBoolean(test.ok), r, "#%d", i)
 	}
@@ -1545,5 +1551,86 @@ func TestMedian(t *testing.T) {
 			assert.NoError(t, err)
 			assert.Equal(t, test.median, res)
 		}
+	}
+}
+
+func TestGroth16VerifyLimits(t *testing.T) {
+	vk := bytes.Repeat([]byte{0x01}, 48)
+	proof := bytes.Repeat([]byte{0x02}, 192)
+	inp := bytes.Repeat([]byte{0x03}, 32)
+	for i := 1; i <= 15; i++ {
+		f := limitedGroth16Verify(i)
+		inputs := bytes.Repeat(inp, i)
+		key := bytes.Repeat(vk, i+8)
+		res, err := f(newEmptyScopeV4(), NewExprs(NewBytes(key), NewBytes(proof), NewBytes(inputs)))
+		assert.NoError(t, err)
+		assert.Equal(t, NewBoolean(true), res)
+		inputs = append(inputs, inp...)
+		res, err = f(newEmptyScopeV4(), NewExprs(NewBytes(key), NewBytes(proof), NewBytes(inputs)))
+		msg := fmt.Sprintf("Groth16Verify_%dinputs: invalid size of inputs %d bytes, must not exceed %d bytes", i, len(inputs), i*32)
+		assert.EqualError(t, err, msg)
+		assert.Nil(t, res)
+	}
+}
+
+func TestSigVerifyLimits(t *testing.T) {
+	pk := bytes.Repeat([]byte{0x01}, 32)
+	sig := bytes.Repeat([]byte{0x02}, 64)
+	kb := bytes.Repeat([]byte{0x03}, 1024)
+	for _, l := range []int{16, 32, 64, 128} {
+		f := limitedSigVerify(l)
+		data := bytes.Repeat(kb, l+1)
+		res, err := f(newEmptyScopeV4(), NewExprs(NewBytes(data), NewBytes(pk), NewBytes(sig)))
+		msg := fmt.Sprintf("SigVerify_%dKb: invalid message size %d", l, len(data))
+		assert.EqualError(t, err, msg)
+		assert.Nil(t, res)
+	}
+}
+
+func TestRSAVerifyLimits(t *testing.T) {
+	pk := bytes.Repeat([]byte{0x01}, 32)
+	sig := bytes.Repeat([]byte{0x02}, 64)
+	kb := bytes.Repeat([]byte{0x03}, 1024)
+	for _, l := range []int{16, 32, 64, 128} {
+		f := limitedRSAVerify(l)
+		data := bytes.Repeat(kb, l+1)
+		res, err := f(newEmptyScopeV4(), NewExprs(&NoAlgExpr{}, NewBytes(data), NewBytes(sig), NewBytes(pk)))
+		msg := fmt.Sprintf("RSAVerify_%dKb: invalid message size %d bytes", l, len(data))
+		assert.EqualError(t, err, msg)
+		assert.Nil(t, res)
+	}
+}
+
+func TestKeccak256Limits(t *testing.T) {
+	kb := bytes.Repeat([]byte{0x03}, 1024)
+	for _, l := range []int{16, 32, 64, 128} {
+		f := limitedKeccak256(l)
+		data := bytes.Repeat(kb, l+1)
+		res, err := f(newEmptyScopeV4(), NewExprs(NewBytes(data)))
+		msg := fmt.Sprintf("Keccak256_%dKb: invalid size of data %d bytes", l, len(data))
+		assert.EqualError(t, err, msg)
+		assert.Nil(t, res)
+	}
+}
+func TestBlake2b256Limits(t *testing.T) {
+	kb := bytes.Repeat([]byte{0x03}, 1024)
+	for _, l := range []int{16, 32, 64, 128} {
+		f := limitedBlake2b256(l)
+		data := bytes.Repeat(kb, l+1)
+		res, err := f(newEmptyScopeV4(), NewExprs(NewBytes(data)))
+		msg := fmt.Sprintf("Blake2b256_%dKb: invalid data size %d bytes", l, len(data))
+		assert.EqualError(t, err, msg)
+		assert.Nil(t, res)
+	}
+}
+func TestSha256Limits(t *testing.T) {
+	kb := bytes.Repeat([]byte{0x03}, 1024)
+	for _, l := range []int{16, 32, 64, 128} {
+		f := limitedSha256(l)
+		data := bytes.Repeat(kb, l+1)
+		res, err := f(newEmptyScopeV4(), NewExprs(NewBytes(data)))
+		msg := fmt.Sprintf("Sha256_%dKb: invalid data size %d bytes", l, len(data))
+		assert.EqualError(t, err, msg)
+		assert.Nil(t, res)
 	}
 }

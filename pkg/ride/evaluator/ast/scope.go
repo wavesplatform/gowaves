@@ -1,6 +1,8 @@
 package ast
 
 import (
+	"strconv"
+
 	"github.com/wavesplatform/gowaves/pkg/types"
 )
 
@@ -206,10 +208,10 @@ func functionsV2() map[string]Expr {
 	fns["420"] = FunctionFromPredefined(NativeLongToString, 1)
 	fns["421"] = FunctionFromPredefined(NativeBooleanToString, 1)
 
-	fns["500"] = FunctionFromPredefined(NativeSigVerify, 3)
-	fns["501"] = FunctionFromPredefined(NativeKeccak256, 1)
-	fns["502"] = FunctionFromPredefined(NativeBlake2b256, 1)
-	fns["503"] = FunctionFromPredefined(NativeSha256, 1)
+	fns["500"] = FunctionFromPredefined(limitedSigVerify(0), 3)
+	fns["501"] = FunctionFromPredefined(limitedKeccak256(0), 1)
+	fns["502"] = FunctionFromPredefined(limitedBlake2b256(0), 1)
+	fns["503"] = FunctionFromPredefined(limitedSha256(0), 1)
 
 	fns["600"] = FunctionFromPredefined(NativeToBase58, 1)
 	fns["601"] = FunctionFromPredefined(NativeFromBase58, 1)
@@ -268,7 +270,7 @@ func functionsV3() map[string]Expr {
 	s["108"] = FunctionFromPredefined(NativePowLong, 6)
 	s["109"] = FunctionFromPredefined(NativeLogLong, 6)
 
-	s["504"] = FunctionFromPredefined(NativeRSAVerify, 4)
+	s["504"] = FunctionFromPredefined(limitedRSAVerify(0), 4)
 	s["604"] = FunctionFromPredefined(NativeToBase16, 1)
 	s["605"] = FunctionFromPredefined(NativeFromBase16, 1)
 	s["700"] = FunctionFromPredefined(NativeCheckMerkleProof, 3)
@@ -361,8 +363,17 @@ func functionsV4() map[string]Expr {
 	s["1102"] = FunctionFromPredefined(Concat, 2)
 	s["405"] = FunctionFromPredefined(Median, 1)
 	s["1100"] = FunctionFromPredefined(LimitedCreateList, 2)
-	//s["800"] // Groth16 verify (complexity 1900)
-
+	s["800"] = FunctionFromPredefined(limitedGroth16Verify(0), 3)
+	for i, l := range []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15} {
+		s[strconv.Itoa(2400+i)] = FunctionFromPredefined(limitedGroth16Verify(l), 3)
+	}
+	for i, l := range []int{16, 32, 64, 128} {
+		s[strconv.Itoa(2500+i)] = FunctionFromPredefined(limitedSigVerify(l), 3)
+		s[strconv.Itoa(2600+i)] = FunctionFromPredefined(limitedRSAVerify(l), 4)
+		s[strconv.Itoa(2700+i)] = FunctionFromPredefined(limitedKeccak256(l), 1)
+		s[strconv.Itoa(2800+i)] = FunctionFromPredefined(limitedBlake2b256(l), 1)
+		s[strconv.Itoa(2900+i)] = FunctionFromPredefined(limitedSha256(l), 1)
+	}
 	return s
 }
 

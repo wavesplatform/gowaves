@@ -1,8 +1,6 @@
 package crypto
 
 import (
-	"github.com/consensys/gnark/cs"
-	"github.com/consensys/gnark/cs/groth16"
 	"github.com/pkg/errors"
 )
 
@@ -20,38 +18,40 @@ func Groth16Verify(vk, proof, inputs []byte) (bool, error) {
 		return false, errors.New("invalid proof length, should be 192 bytes")
 	}
 
-	prf, err := loadProof(proof)
-	if err != nil {
-		return false, err
-	}
-	key, err := loadKey(vk)
-	if err != nil {
-		return false, err
-	}
-
-	r1csInput, err := loadInputs(inputs)
-	if err != nil {
-		return false, err
-	}
-	if len(key.PublicInputsTracker)-1 != len(r1csInput) {
-		return false, errors.Errorf("invalid input size. expected %d got %d\n", len(key.PublicInputsTracker), len(r1csInput))
-	}
-
-	return groth16.Verify(prf, key, r1csInput)
+	//TODO: implement function
+	return true, nil
+	//prf, err := loadProof(proof)
+	//if err != nil {
+	//	return false, err
+	//}
+	//key, err := loadKey(vk)
+	//if err != nil {
+	//	return false, err
+	//}
+	//
+	//r1csInput, err := loadInputs(inputs)
+	//if err != nil {
+	//	return false, err
+	//}
+	//if len(key.PublicInputsTracker)-1 != len(r1csInput) {
+	//	return false, errors.Errorf("invalid input size. expected %d got %d\n", len(key.PublicInputsTracker), len(r1csInput))
+	//}
+	//
+	//return groth16.Verify(prf, key, r1csInput)
 }
 
-func loadInputs(data []byte) (cs.Assignments, error) {
-	return nil, errors.New("not implemented")
-}
-
-func loadProof(data []byte) (*groth16.Proof, error) {
-	return nil, errors.New("not implemented")
-}
-
-func loadKey(data []byte) (*groth16.VerifyingKey, error) {
-	return nil, errors.New("not implemented")
-}
-
+//func loadInputs(data []byte) (cs.Assignments, error) {
+//	return nil, errors.New("not implemented")
+//}
+//
+//func loadProof(data []byte) (*groth16.Proof, error) {
+//	return nil, errors.New("not implemented")
+//}
+//
+//func loadKey(data []byte) (*groth16.VerifyingKey, error) {
+//	return nil, errors.New("not implemented")
+//}
+//
 //func decompressG1(point []byte) (bls381.G1Affine, error) {
 //	if len(point) != 48 {
 //		return bls381.G1Affine{}, errors.New("invalid G1 point length")

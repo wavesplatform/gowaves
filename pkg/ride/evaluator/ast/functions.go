@@ -412,108 +412,136 @@ func NativeLogLong(s Scope, e Exprs) (Expr, error) {
 	return NewLong(r), nil
 }
 
-// Check signature
-// accepts Value, signature and public key
-func NativeSigVerify(s Scope, e Exprs) (Expr, error) {
-	const funcName = "NativeSigVerify"
-	if l := len(e); l != 3 {
-		return nil, errors.Errorf("%s: invalid params, expected 3, passed %d", funcName, l)
+func limitedSigVerify(limit int) Callable {
+	fn := "SigVerify"
+	if limit > 0 {
+		fn = fmt.Sprintf("%s_%dKb", fn, limit)
 	}
-	rs, err := e.EvaluateAll(s)
-	if err != nil {
-		return nil, errors.Wrap(err, funcName)
+	return func(s Scope, e Exprs) (Expr, error) {
+		if l := len(e); l != 3 {
+			return nil, errors.Errorf("%s: invalid number of parameters %d, expected 3", fn, l)
+		}
+		rs, err := e.EvaluateAll(s)
+		if err != nil {
+			return nil, errors.Wrap(err, fn)
+		}
+		messageExpr, ok := rs[0].(*BytesExpr)
+		if !ok {
+			return nil, errors.Errorf("%s: first argument expects to be *BytesExpr, found %T", fn, rs[0])
+		}
+		if l := len(messageExpr.Value); !s.validMessageLength(l) || limit > 0 && l > limit*1024 {
+			return nil, errors.Errorf("%s: invalid message size %d", fn, l)
+		}
+		signatureExpr, ok := rs[1].(*BytesExpr)
+		if !ok {
+			return nil, errors.Errorf("%s: second argument expects to be *BytesExpr, found %T", fn, rs[1])
+		}
+		pkExpr, ok := rs[2].(*BytesExpr)
+		if !ok {
+			return nil, errors.Errorf("%s: third argument expects to be *BytesExpr, found %T", fn, rs[2])
+		}
+		pk, err := crypto.NewPublicKeyFromBytes(pkExpr.Value)
+		if err != nil {
+			return NewBoolean(false), nil
+		}
+		signature, err := crypto.NewSignatureFromBytes(signatureExpr.Value)
+		if err != nil {
+			return NewBoolean(false), nil
+		}
+		out := crypto.Verify(pk, signature, messageExpr.Value)
+		return NewBoolean(out), nil
 	}
-	bytesExpr, ok := rs[0].(*BytesExpr)
-	if !ok {
-		return nil, errors.Errorf("%s: first argument expects to be *BytesExpr, found %T", funcName, rs[0])
-	}
-	if l := len(bytesExpr.Value); !s.validMessageLength(l) {
-		return nil, errors.Errorf("%s: invalid message size %d", funcName, l)
-	}
-	signatureExpr, ok := rs[1].(*BytesExpr)
-	if !ok {
-		return nil, errors.Errorf("%s: second argument expects to be *BytesExpr, found %T", funcName, rs[1])
-	}
-	pkExpr, ok := rs[2].(*BytesExpr)
-	if !ok {
-		return nil, errors.Errorf("%s: third argument expects to be *BytesExpr, found %T", funcName, rs[2])
-	}
-	pk, err := crypto.NewPublicKeyFromBytes(pkExpr.Value)
-	if err != nil {
-		return NewBoolean(false), nil
-	}
-	signature, err := crypto.NewSignatureFromBytes(signatureExpr.Value)
-	if err != nil {
-		return NewBoolean(false), nil
-	}
-	out := crypto.Verify(pk, signature, bytesExpr.Value)
-	return NewBoolean(out), nil
 }
 
-// 256 bit Keccak256
-func NativeKeccak256(s Scope, e Exprs) (Expr, error) {
-	if l := len(e); l != 1 {
-		return nil, errors.Errorf("NativeKeccak256: invalid params, expected 1, passed %d", l)
+func limitedKeccak256(limit int) Callable {
+	fn := "Keccak256"
+	if limit > 0 {
+		fn = fmt.Sprintf("%s_%dKb", fn, limit)
 	}
-	val, err := e[0].Evaluate(s)
-	if err != nil {
-		return nil, errors.Wrapf(err, "NativeKeccak256")
+	return func(s Scope, e Exprs) (Expr, error) {
+		if l := len(e); l != 1 {
+			return nil, errors.Errorf("%s: invalid number of parameters %d, expected 1", fn, l)
+		}
+		val, err := e[0].Evaluate(s)
+		if err != nil {
+			return nil, errors.Wrapf(err, fn)
+		}
+		dataExpr, ok := val.(*BytesExpr)
+		if !ok {
+			return nil, errors.Errorf("%s: expected first argument to be *BytesExpr, found %T", fn, val)
+		}
+		if l := len(dataExpr.Value); limit > 0 && l > limit {
+			return nil, errors.Errorf("%s: invalid size of data %d bytes", fn, l)
+		}
+		d, err := crypto.Keccak256(dataExpr.Value)
+		if err != nil {
+			return nil, errors.Wrap(err, fn)
+		}
+		return NewBytes(d.Bytes()), nil
 	}
-	bts, ok := val.(*BytesExpr)
-	if !ok {
-		return nil, errors.Errorf("NativeKeccak256: expected first argument to be *BytesExpr, found %T", val)
-	}
-	d, err := crypto.Keccak256(bts.Value)
-	if err != nil {
-		return nil, err
-	}
-	return NewBytes(d.Bytes()), nil
 }
 
-// 256 bit BLAKE
-func NativeBlake2b256(s Scope, e Exprs) (Expr, error) {
-	if l := len(e); l != 1 {
-		return nil, errors.Errorf("NativeBlake2b256: invalid params, expected 1, passed %d", l)
+func limitedBlake2b256(limit int) Callable {
+	fn := "Blake2b256"
+	if limit > 0 {
+		fn = fmt.Sprintf("%s_%dKb", fn, limit)
 	}
-	val, err := e[0].Evaluate(s)
-	if err != nil {
-		return nil, errors.Wrapf(err, "NativeBlake2b256")
+	return func(s Scope, e Exprs) (Expr, error) {
+		if l := len(e); l != 1 {
+			return nil, errors.Errorf("%s: invalid number of parameters %d, expected 1", fn, l)
+		}
+		val, err := e[0].Evaluate(s)
+		if err != nil {
+			return nil, errors.Wrapf(err, fn)
+		}
+		dataExpr, ok := val.(*BytesExpr)
+		if !ok {
+			return nil, errors.Errorf("%s: expected first argument to be *BytesExpr, found %T", fn, val)
+		}
+		if l := len(dataExpr.Value); limit > 0 && l > limit*1024 {
+			return nil, errors.Errorf("%s: invalid data size %d bytes", fn, l)
+		}
+		d, err := crypto.FastHash(dataExpr.Value)
+		if err != nil {
+			return nil, errors.Wrap(err, fn)
+		}
+		return NewBytes(d.Bytes()), nil
 	}
-	bts, ok := val.(*BytesExpr)
-	if !ok {
-		return nil, errors.Errorf("NativeBlake2b256: expected first argument to be *BytesExpr, found %T", val)
-	}
-	d, err := crypto.FastHash(bts.Value)
-	if err != nil {
-		return nil, errors.Wrap(err, "NativeBlake2b256")
-	}
-	return NewBytes(d.Bytes()), nil
 }
 
 // 256 bit SHA-2
-func NativeSha256(s Scope, e Exprs) (Expr, error) {
-	if l := len(e); l != 1 {
-		return nil, errors.Errorf("NativeSha256: invalid params, expected 1, passed %d", l)
+func limitedSha256(limit int) Callable {
+	fn := "Sha256"
+	if limit > 0 {
+		fn = fmt.Sprintf("%s_%dKb", fn, limit)
 	}
-	val, err := e[0].Evaluate(s)
-	if err != nil {
-		return nil, errors.Wrapf(err, "NativeSha256")
+	return func(s Scope, e Exprs) (Expr, error) {
+		if l := len(e); l != 1 {
+			return nil, errors.Errorf("%s: invalid number of parameters %d, expected 1", fn, l)
+		}
+		val, err := e[0].Evaluate(s)
+		if err != nil {
+			return nil, errors.Wrapf(err, fn)
+		}
+		var bytes []byte
+		switch s := val.(type) {
+		case *BytesExpr:
+			bytes = s.Value
+		case *StringExpr:
+			bytes = []byte(s.Value)
+		default:
+			return nil, errors.Errorf("%s: expected first argument to be *BytesExpr or *StringExpr, found %T", fn, val)
+		}
+		if l := len(bytes); limit > 0 && l > limit*1024 {
+			return nil, errors.Errorf("%s: invalid data size %d bytes", fn, l)
+		}
+		h := sha256.New()
+		if _, err = h.Write(bytes); err != nil {
+			return nil, errors.Wrap(err, fn)
+		}
+		d := h.Sum(nil)
+		return NewBytes(d), nil
 	}
-	var bytes []byte
-	switch s := val.(type) {
-	case *BytesExpr:
-		bytes = s.Value
-	case *StringExpr:
-		bytes = []byte(s.Value)
-	default:
-		return nil, errors.Errorf("NativeSha256: expected first argument to be *BytesExpr or *StringExpr, found %T", val)
-	}
-	h := sha256.New()
-	if _, err = h.Write(bytes); err != nil {
-		return nil, err
-	}
-	d := h.Sum(nil)
-	return NewBytes(d), nil
 }
 
 // Height when transaction was stored to blockchain
@@ -1737,53 +1765,58 @@ func UserWavesBalance(s Scope, e Exprs) (Expr, error) {
 	return NativeAssetBalance(s, append(e, NewUnit()))
 }
 
-func NativeRSAVerify(s Scope, e Exprs) (Expr, error) {
-	const funcName = "NativeRSAVerify"
-	if l := len(e); l != 4 {
-		return nil, errors.Errorf("%s: invalid number of parameters, expected 4, received %d", funcName, l)
+func limitedRSAVerify(limit int) Callable {
+	fn := "RSAVerify"
+	if limit > 0 {
+		fn = fmt.Sprintf("%s_%dKb", fn, limit)
 	}
-	rs, err := e.EvaluateAll(s)
-	if err != nil {
-		return nil, errors.Wrap(err, funcName)
+	return func(s Scope, e Exprs) (Expr, error) {
+		if l := len(e); l != 4 {
+			return nil, errors.Errorf("%s: invalid number of parameters, expected 4, received %d", fn, l)
+		}
+		rs, err := e.EvaluateAll(s)
+		if err != nil {
+			return nil, errors.Wrap(err, fn)
+		}
+		digest, err := digest(rs[0])
+		if err != nil {
+			return nil, errors.Wrapf(err, "%s: failed to get digest algorithm from first argument", fn)
+		}
+		message, ok := rs[1].(*BytesExpr)
+		if !ok {
+			return nil, errors.Errorf("%s: second argument expected to be *BytesExpr, found %T", fn, rs[1])
+		}
+		sig, ok := rs[2].(*BytesExpr)
+		if !ok {
+			return nil, errors.Errorf("%s: third argument expected to be *BytesExpr, found %T", fn, rs[2])
+		}
+		pk, ok := rs[3].(*BytesExpr)
+		if !ok {
+			return nil, errors.Errorf("%s: 4th argument expected to be *BytesExpr, found %T", fn, rs[3])
+		}
+		if l := len(message.Value); l > MaxBytesToVerify || limit > 0 && l > limit*1024 {
+			return nil, errors.Errorf("%s: invalid message size %d bytes", fn, l)
+		}
+		key, err := x509.ParsePKIXPublicKey(pk.Value)
+		if err != nil {
+			return nil, errors.Wrapf(err, "%s: invalid public key", fn)
+		}
+		k, ok := key.(*rsa.PublicKey)
+		if !ok {
+			return nil, errors.Errorf("%s: not an RSA key", fn)
+		}
+		d := message.Value
+		if digest != 0 {
+			h := digest.New()
+			_, _ = h.Write(message.Value)
+			d = h.Sum(nil)
+		}
+		ok, err = verifyPKCS1v15(k, digest, d, sig.Value)
+		if err != nil {
+			return nil, errors.Wrapf(err, "%s: failed to check RSA signature", fn)
+		}
+		return NewBoolean(ok), nil
 	}
-	digest, err := digest(rs[0])
-	if err != nil {
-		return nil, errors.Wrapf(err, "%s: failed to get digest algorithm from first argument", funcName)
-	}
-	message, ok := rs[1].(*BytesExpr)
-	if !ok {
-		return nil, errors.Errorf("%s: second argument expected to be *BytesExpr, found %T", funcName, rs[1])
-	}
-	sig, ok := rs[2].(*BytesExpr)
-	if !ok {
-		return nil, errors.Errorf("%s: third argument expected to be *BytesExpr, found %T", funcName, rs[2])
-	}
-	pk, ok := rs[3].(*BytesExpr)
-	if !ok {
-		return nil, errors.Errorf("%s: 4th argument expected to be *BytesExpr, found %T", funcName, rs[3])
-	}
-	if len(message.Value) > MaxBytesToVerify {
-		return nil, errors.Errorf("%s: message is too long, must be no longer than %d bytes", funcName, MaxBytesToVerify)
-	}
-	key, err := x509.ParsePKIXPublicKey(pk.Value)
-	if err != nil {
-		return nil, errors.Wrapf(err, "%s: invalid public key", funcName)
-	}
-	k, ok := key.(*rsa.PublicKey)
-	if !ok {
-		return nil, errors.Errorf("%s: not an RSA key", funcName)
-	}
-	d := message.Value
-	if digest != 0 {
-		h := digest.New()
-		_, _ = h.Write(message.Value)
-		d = h.Sum(nil)
-	}
-	ok, err = verifyPKCS1v15(k, digest, d, sig.Value)
-	if err != nil {
-		return nil, errors.Wrapf(err, "%s: failed to check RSA signature", funcName)
-	}
-	return NewBoolean(ok), nil
 }
 
 func NativeCheckMerkleProof(s Scope, e Exprs) (Expr, error) {
@@ -2355,6 +2388,42 @@ func CalculateAssetID(s Scope, e Exprs) (Expr, error) {
 	}
 	id := proto.GenerateIssueScriptActionID(issue.Name, issue.Description, issue.Decimals, issue.Quantity, issue.Reissuable, issue.Nonce, d)
 	return NewBytes(id.Bytes()), nil
+}
+
+func limitedGroth16Verify(limit int) Callable {
+	fn := "Groth16Verify"
+	if limit > 0 {
+		fn = fmt.Sprintf("%s_%dinputs", fn, limit)
+	}
+	return func(s Scope, e Exprs) (Expr, error) {
+		if l := len(e); l != 3 {
+			return nil, errors.Errorf("%s: invalid number of parameters %d, expected %d", fn, l, 3)
+		}
+		rs, err := e.EvaluateAll(s)
+		if err != nil {
+			return nil, errors.Wrap(err, fn)
+		}
+		key, ok := rs[0].(*BytesExpr)
+		if !ok {
+			return nil, errors.Errorf("%s: expected first argument of type *BytesExpr, received %T", fn, rs[0])
+		}
+		proof, ok := rs[1].(*BytesExpr)
+		if !ok {
+			return nil, errors.Errorf("%s: expected second argument of type *BytesExpr, received %T", fn, rs[1])
+		}
+		inputs, ok := rs[2].(*BytesExpr)
+		if !ok {
+			return nil, errors.Errorf("%s: expected third argument of type *BytesExpr, received %T", fn, rs[1])
+		}
+		if l := len(inputs.Value); l > 32*limit {
+			return nil, errors.Errorf("%s: invalid size of inputs %d bytes, must not exceed %d bytes", fn, l, limit*32)
+		}
+		ok, err = crypto.Groth16Verify(key.Value, proof.Value, inputs.Value)
+		if err != nil {
+			return nil, errors.Wrap(err, fn)
+		}
+		return NewBoolean(ok), nil
+	}
 }
 
 func wrapWithExtract(c Callable, name string) Callable {
