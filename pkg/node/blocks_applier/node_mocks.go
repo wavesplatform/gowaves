@@ -344,19 +344,6 @@ func (a *MockStateManager) StartProvidingExtendedApi() error {
 	panic("implement me")
 }
 
-func newMockStateWithGenesis() *MockStateManager {
-	sig, _ := crypto.NewSignatureFromBase58("5uqnLK3Z9eiot6FyYBfwUnbyid3abicQbAZjz38GQ1Q8XigQMxTK4C1zNkqS1SVw7FqSidbZKxWAKLVoEsp4nNqa")
-	block := &proto.Block{
-		BlockHeader: proto.BlockHeader{
-			BlockSignature: sig,
-		},
-	}
-	sig2Block := map[crypto.Signature]*proto.Block{sig: block}
-	return &MockStateManager{
-		sig2Block: sig2Block,
-	}
-}
-
 type mockPeerManager struct {
 	connected map[peer.Peer]struct{}
 }

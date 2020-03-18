@@ -6,17 +6,17 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/util/fifo_cache"
 )
 
-type kvMicro struct {
-	m *proto.MicroBlock
-}
-
-func (a kvMicro) Key() []byte {
-	return a.m.TotalResBlockSigField.Bytes()
-}
-
-func (a kvMicro) Value() interface{} {
-	return a.m
-}
+//type kvMicro struct {
+//	m *proto.MicroBlock
+//}
+//
+//func (a kvMicro) Key() []byte {
+//	return a.m.TotalResBlockSigField.Bytes()
+//}
+//
+//func (a kvMicro) Value() interface{} {
+//	return a.m
+//}
 
 type kvInv struct {
 	inv *proto.MicroBlockInv

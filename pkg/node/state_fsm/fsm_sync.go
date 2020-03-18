@@ -179,7 +179,7 @@ func (a *SyncFsm) requestSignatures(peer Peer) (FSM, Async, error) {
 		return a, nil, nil
 	}
 	// check need to request new signatures, or enough
-	if a.syncBlock.sigs.WaitingLen() < 100 {
+	if a.syncBlock.sigs.WaitingCount() < 100 {
 		// seems we are near end of blockchain, so no need to ask more
 		if len(a.syncBlock.lastSignatures.Signatures()) < 100 {
 			return a, nil, nil

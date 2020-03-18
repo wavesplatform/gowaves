@@ -31,8 +31,26 @@ func TestOrderedBlocks(t *testing.T) {
 	// second block arrived first, no sequence right now
 	o.SetBlock(makeBlock(sig2))
 	require.Len(t, o.PopAll(), 0)
+	//require.Equal(t, 0, o.AvailableCount())
 
 	// finally arrived first block, so seq contains 2 blocks
 	o.SetBlock(makeBlock(sig1))
+	//require.Equal(t, 2, o.AvailableCount())
 	require.Len(t, o.PopAll(), 2)
+}
+
+func TestOrderedBlocks_AvailableCount(t *testing.T) {
+	o := ordered_blocks.NewOrderedBlocks()
+	o.Add(sig1)
+	o.Add(sig2)
+	require.Equal(t, 0, o.AvailableCount())
+
+	o.SetBlock(makeBlock(sig1))
+	require.Equal(t, 1, o.AvailableCount())
+
+	o.SetBlock(makeBlock(sig2))
+	require.Equal(t, 2, o.AvailableCount())
+
+	o.PopAll()
+	require.Equal(t, 0, o.AvailableCount())
 }

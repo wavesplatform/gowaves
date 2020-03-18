@@ -62,6 +62,16 @@ func (a *OrderedBlocks) Add(sig crypto.Signature) bool {
 	return true
 }
 
-func (a *OrderedBlocks) WaitingLen() int {
+func (a *OrderedBlocks) WaitingCount() int {
+	return len(a.sigSequence)
+}
+
+// blocks count available for pop
+func (a *OrderedBlocks) AvailableCount() int {
+	for i, sig := range a.sigSequence {
+		if a.uniqSignatures[sig] == nil {
+			return i
+		}
+	}
 	return len(a.sigSequence)
 }

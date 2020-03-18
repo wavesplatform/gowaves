@@ -44,7 +44,7 @@ func noop(fsm FSM) (FSM, Async, error) {
 	return fsm, nil, nil
 }
 
-func isOutdate(period proto.Timestamp, lastBlock *proto.Block, tm types.Time) bool {
+func IsOutdate(period proto.Timestamp, lastBlock *proto.Block, tm types.Time) bool {
 	curTime := proto.NewTimestampFromTime(tm.Now())
 	return curTime-lastBlock.Timestamp > period
 }

@@ -1,80 +1,87 @@
 package sync_internal
 
 import (
+	"errors"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/libs/ordered_blocks"
 	"github.com/wavesplatform/gowaves/pkg/libs/signatures"
-	. "github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	storage "github.com/wavesplatform/gowaves/pkg/state"
+	"github.com/wavesplatform/gowaves/pkg/types"
+	//storage "github.com/wavesplatform/gowaves/pkg/state"
 )
 
 type Blocks []*proto.Block
 type Eof bool
 type BlockApplied bool
 
+const NoSignaturesExpected = false
+const WaitingForSignatures = true
+
+var NoSignaturesExpectedErr = errors.New("no signatures expected")
+var UnexpectedBlockErr = errors.New("unexpected block")
+
 type SigFSM struct {
-	storage        storage.State
-	lastSignatures *signatures.Signatures
-	sigs           *ordered_blocks.OrderedBlocks
-
-	signaturesRequested bool
+	respondedSignatures  *signatures.Signatures
+	orderedBlocks        *ordered_blocks.OrderedBlocks
+	waitingForSignatures bool
+	nearEnd              bool
 }
 
-func NewSigFSM(storage storage.State, p Peer) *SigFSM {
-	panic("implement me")
+func NewSigFSM(orderedBlocks *ordered_blocks.OrderedBlocks, respondedSignatures *signatures.Signatures, waitingForSignatures bool, nearEnd bool) SigFSM {
+	return SigFSM{
+		respondedSignatures:  respondedSignatures,
+		orderedBlocks:        orderedBlocks,
+		waitingForSignatures: waitingForSignatures,
+		nearEnd:              nearEnd,
+	}
 }
 
-func (a *SigFSM) Signatures(p Peer, sigs []crypto.Signature) *SigFSM {
-	panic("implement me")
-	//var newSigs []crypto.Signature
-	//for _, sig := range sigs {
-	//	if a.lastSignatures.Exists(sig) {
-	//		continue
-	//	}
-	//	newSigs = append(newSigs, sig)
-	//	if a.sigs.Add(sig) {
-	//		p.SendMessage(&proto.GetBlockMessage{BlockID: sig})
-	//	}
-	//
-	//}
-	//a.lastSignatures = signatures.NewSignatures(newSigs...).Revert()
-	//a.signaturesRequested = false
+func (a SigFSM) Signatures(p types.MessageSender, sigs []crypto.Signature) (SigFSM, error) {
+	if !a.waitingForSignatures {
+		return a, NoSignaturesExpectedErr
+	}
+	var newSigs []crypto.Signature
+	for _, sig := range sigs {
+		if a.respondedSignatures.Exists(sig) {
+			continue
+		}
+		newSigs = append(newSigs, sig)
+		if a.orderedBlocks.Add(sig) {
+			p.SendMessage(&proto.GetBlockMessage{BlockID: sig})
+		}
+	}
+	respondedSignatures := signatures.NewSignatures(newSigs...).Revert()
+	return NewSigFSM(a.orderedBlocks, respondedSignatures, NoSignaturesExpected, respondedSignatures.Len() < 100), nil
 }
 
-func (a *SigFSM) Block(p Peer, block *proto.Block) (*SigFSM, Blocks, BlockApplied, Eof) {
-	panic("implment me")
-	//if !a.sigs.Contains(block.BlockSignature) {
-	//	return a, nil, false, false
-	//}
-	//a.sigs.SetBlock(block)
-	//
-	//// seems we are near end of blockchain, so no need to ask more
-	//if a.lastSignatures.Len() < 100 {
-	//	blocks := a.sigs.PopAll()
-	//	if a.sigs.WaitingLen() == 0 {
-	//		// that is the end, halt
-	//		return nil, blocks, true, true
-	//	}
-	//	return a, blocks, true, false
-	//}
-	//
-	//blocks := a.sigs.PopAll()
-
+func (a SigFSM) NearEnd() bool {
+	return a.nearEnd
 }
 
-func (a *SigFSM) requestSignatures(peer Peer) *SigFSM {
-	panic("impleent me")
-	//if a.signaturesRequested {
-	//	return a
-	//}
-	//// check need to request new signatures, or enough
-	//if a.sigs.WaitingLen() < 100 {
-	//
-	//	peer.SendMessage(&proto.GetSignaturesMessage{Signatures: a.lastSignatures.Signatures()})
-	//	a.signaturesRequested = true
-	//	a.getSignaturesLastRequest = time.Now()
-	//	return a, nil
-	//}
-	//return a, nil, nil
+func (a SigFSM) Block(block *proto.Block) (SigFSM, error) {
+	if !a.orderedBlocks.Contains(block.BlockSignature) {
+		return a, UnexpectedBlockErr
+	}
+	a.orderedBlocks.SetBlock(block)
+	return a, nil
+}
+
+func (a SigFSM) Blocks(p types.MessageSender) (SigFSM, Blocks) {
+	blocks := a.orderedBlocks.PopAll()
+	if a.nearEnd {
+		return NewSigFSM(a.orderedBlocks, a.respondedSignatures, NoSignaturesExpected, a.nearEnd), blocks
+	}
+	if a.waitingForSignatures {
+		return NewSigFSM(a.orderedBlocks, a.respondedSignatures, a.waitingForSignatures, a.nearEnd), blocks
+	}
+	if a.orderedBlocks.WaitingCount() < 100 {
+		p.SendMessage(&proto.GetSignaturesMessage{Signatures: a.respondedSignatures.Signatures()})
+		return NewSigFSM(a.orderedBlocks, a.respondedSignatures, WaitingForSignatures, a.nearEnd), blocks
+	}
+	return NewSigFSM(a.orderedBlocks, a.respondedSignatures, a.waitingForSignatures, a.nearEnd), blocks
+}
+
+func (a SigFSM) AvailableCount() int {
+	return a.orderedBlocks.AvailableCount()
 }

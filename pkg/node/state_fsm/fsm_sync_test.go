@@ -49,18 +49,13 @@ func TestSyncFsm_SignaturesTimeout(t *testing.T) {
 	p := mock.NewMockPeer(ctrl)
 	p.EXPECT().SendMessage(gomock.Any())
 
-	//ch := make(chan AsyncTask, 1)
-
 	fsm, async, err := NewSyncFsmExtended(BaseInfo{tm: ntptime.Stub{}}, p, lastSignaturesMock{}, 0)
 	require.NoError(t, err)
 	require.Len(t, async, 0)
 	require.NotNil(t, fsm)
 
-	//async[0].Run(context.Background(), ch)
-
-	fsm, async, err = fsm.Task(AsyncTask{
+	fsm, _, _ = fsm.Task(AsyncTask{
 		TaskType: PING,
-		//Data:     nil,
 	})
 
 	require.IsType(t, &IdleFsm{}, fsm)
