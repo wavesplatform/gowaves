@@ -31,6 +31,7 @@ func TestMineMicroblock(t *testing.T) {
 		proto.RewardBlockVersion,
 		nil,
 		-1,
+		proto.TestNetScheme,
 	)
 	require.NoError(t, err)
 	err = keyBlock.Sign(proto.MainNetScheme, keyPair.Secret)
@@ -42,7 +43,7 @@ func TestMineMicroblock(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func createMicroBlock(keyBlock *proto.Block, tr proto.Transactions, keyPair proto.KeyPair, chainID proto.Scheme) (*proto.MicroBlock, error) {
+func createMicroBlock(keyBlock *proto.Block, tr proto.Transactions, keyPair proto.KeyPair, scheme proto.Scheme) (*proto.MicroBlock, error) {
 	blockApplyOn := keyBlock
 	transactions := blockApplyOn.Transactions.Join(tr)
 
@@ -55,6 +56,7 @@ func createMicroBlock(keyBlock *proto.Block, tr proto.Transactions, keyPair prot
 		blockApplyOn.Version,
 		blockApplyOn.Features,
 		blockApplyOn.RewardVote,
+		scheme,
 	)
 	if err != nil {
 		return nil, err

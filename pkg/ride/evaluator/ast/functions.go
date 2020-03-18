@@ -1187,7 +1187,7 @@ func NativeDataStringFromArray(s Scope, e Exprs) (Expr, error) {
 func NativeDataIntegerFromState(s Scope, e Exprs) (Expr, error) {
 	r, k, err := extractRecipientAndKey(s, e)
 	if err != nil {
-		return nil, errors.Wrap(err, "NativeDataIntegerFromState")
+		return NewUnit(), nil
 	}
 	entry, err := s.State().RetrieveNewestIntegerEntry(r, k)
 	if err != nil {
@@ -1200,7 +1200,7 @@ func NativeDataIntegerFromState(s Scope, e Exprs) (Expr, error) {
 func NativeDataBooleanFromState(s Scope, e Exprs) (Expr, error) {
 	r, k, err := extractRecipientAndKey(s, e)
 	if err != nil {
-		return nil, errors.Wrap(err, "NativeDataBooleanFromState")
+		return NewUnit(), nil
 	}
 	entry, err := s.State().RetrieveNewestBooleanEntry(r, k)
 	if err != nil {
@@ -1213,7 +1213,7 @@ func NativeDataBooleanFromState(s Scope, e Exprs) (Expr, error) {
 func NativeDataBinaryFromState(s Scope, e Exprs) (Expr, error) {
 	r, k, err := extractRecipientAndKey(s, e)
 	if err != nil {
-		return nil, errors.Wrap(err, "NativeDataBinaryFromState")
+		return NewUnit(), nil
 	}
 	entry, err := s.State().RetrieveNewestBinaryEntry(r, k)
 	if err != nil {
@@ -1226,7 +1226,7 @@ func NativeDataBinaryFromState(s Scope, e Exprs) (Expr, error) {
 func NativeDataStringFromState(s Scope, e Exprs) (Expr, error) {
 	r, k, err := extractRecipientAndKey(s, e)
 	if err != nil {
-		return nil, errors.Wrap(err, "NativeDataStringFromState")
+		return NewUnit(), nil
 	}
 	entry, err := s.State().RetrieveNewestStringEntry(r, k)
 	if err != nil {
@@ -2424,7 +2424,7 @@ func extractRecipientAndKey(s Scope, e Exprs) (proto.Recipient, string, error) {
 	case *RecipientExpr:
 		r = proto.Recipient(*a)
 	default:
-		return proto.Recipient{}, "", errors.Errorf("expected first argument of types AliasExpr of AddressExpr, found %T", addOrAliasExpr)
+		return proto.Recipient{}, "", errors.Errorf("expected first argument of types *proto.AliasExpr of *proto.AddressExpr, found %T", addOrAliasExpr)
 	}
 	second, err := e[1].Evaluate(s)
 	if err != nil {
