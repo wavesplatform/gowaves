@@ -166,26 +166,26 @@ func (a *txAppender) handleExchange(ride4DAppsActivated bool, tx proto.Transacti
 	if !ok {
 		return 0, errors.New("failed to convert tx to Exchange")
 	}
-	bo := exchange.GetBuyOrderFull()
-	so := exchange.GetSellOrderFull()
-	boScripted, err := a.orderIsScripted(bo, initialisation)
+	o1 := exchange.GetOrder1()
+	o2 := exchange.GetOrder2()
+	o1Scripted, err := a.orderIsScripted(o1, initialisation)
 	if err != nil {
 		return 0, err
 	}
-	soScripted, err := a.orderIsScripted(so, initialisation)
+	o2Scripted, err := a.orderIsScripted(o2, initialisation)
 	if err != nil {
 		return 0, err
 	}
 	scriptsRuns := uint64(0)
-	if boScripted {
-		if err := a.sc.callAccountScriptWithOrder(bo, blockInfo, initialisation); err != nil {
-			return 0, errors.Errorf("BUY ORDER: callAccountScriptWithOrder(): %v", err)
+	if o1Scripted {
+		if err := a.sc.callAccountScriptWithOrder(o1, blockInfo, initialisation); err != nil {
+			return 0, errors.Wrap(err, "Failed to call script on first order")
 		}
 		scriptsRuns++
 	}
-	if soScripted {
-		if err := a.sc.callAccountScriptWithOrder(so, blockInfo, initialisation); err != nil {
-			return 0, errors.Errorf("SELL ORDER: callAccountScriptWithOrder(): %v", err)
+	if o2Scripted {
+		if err := a.sc.callAccountScriptWithOrder(o2, blockInfo, initialisation); err != nil {
+			return 0, errors.Wrap(err, "Failed to call script on second order")
 		}
 		scriptsRuns++
 	}
@@ -306,15 +306,15 @@ func (a *txAppender) needToCheckOrdersSigs(transaction proto.Transaction, initia
 	if !ok {
 		return false, false, nil
 	}
-	soScripted, err := a.orderIsScripted(tx.GetSellOrderFull(), initialisation)
+	o1Scripted, err := a.orderIsScripted(tx.GetOrder1(), initialisation)
 	if err != nil {
 		return false, false, err
 	}
-	boScripted, err := a.orderIsScripted(tx.GetBuyOrderFull(), initialisation)
+	o2Scripted, err := a.orderIsScripted(tx.GetOrder2(), initialisation)
 	if err != nil {
 		return false, false, err
 	}
-	return !soScripted, !boScripted, nil
+	return !o1Scripted, !o2Scripted, nil
 }
 
 func (a *txAppender) saveTransactionIdByAddresses(
@@ -362,17 +362,17 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 			// For transaction with SmartAccount we don't check signatures.
 			checkTxSig = false
 		}
-		checkSellOrder, checkBuyOrder, err := a.needToCheckOrdersSigs(tx, params.initialisation)
+		checkOrder1, checkOrder2, err := a.needToCheckOrdersSigs(tx, params.initialisation)
 		if err != nil {
 			return err
 		}
 		// Send transaction for signature/data verification.
 		task := &verifyTask{
-			taskType:       verifyTx,
-			tx:             tx,
-			checkTxSig:     checkTxSig,
-			checkSellOrder: checkSellOrder,
-			checkBuyOrder:  checkBuyOrder,
+			taskType:    verifyTx,
+			tx:          tx,
+			checkTxSig:  checkTxSig,
+			checkOrder1: checkOrder1,
+			checkOrder2: checkOrder2,
 		}
 		select {
 		case verifyError := <-params.chans.errChan:
@@ -486,11 +486,11 @@ func (a *txAppender) applyAllDiffs(initialisation bool) error {
 
 func (a *txAppender) checkUtxTxSig(tx proto.Transaction, scripted bool) error {
 	// Check tx signature and data.
-	checkSellOrder, checkBuyOrder, err := a.needToCheckOrdersSigs(tx, false)
+	checkOrder1, checkOrder2, err := a.needToCheckOrdersSigs(tx, false)
 	if err != nil {
 		return err
 	}
-	if err := checkTx(tx, !scripted, checkSellOrder, checkBuyOrder, a.settings.AddressSchemeCharacter); err != nil {
+	if err := checkTx(tx, !scripted, checkOrder1, checkOrder2, a.settings.AddressSchemeCharacter); err != nil {
 		return err
 	}
 	return nil

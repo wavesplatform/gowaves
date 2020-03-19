@@ -2442,6 +2442,8 @@ func TestExchangeWithSigValidations(t *testing.T) {
 		{sbo0, sso0, 950000000, 456, 789, 987, 654, 11, "sell order expiration should be earlier than 30 days"},
 		{sbo0, sso0, 950000000, 456, 789, 987, 654, MaxOrderTTL + 15, "invalid buy order expiration"},
 		{sbo0, sso3, 950000000, 456, 789, 987, 654, MaxOrderTTL + 10, "invalid sell order expiration"},
+		{sso0, sbo0, 123, 456, 789, 987, 654, 111, "incorrect order type of buy order"},
+		{sbo0, sbo0, 123, 456, 789, 987, 654, 111, "incorrect order type of sell order"},
 	}
 	for _, tc := range tests {
 		tx := NewUnsignedExchangeWithSig(&tc.buy, &tc.sell, tc.price, tc.amount, tc.buyFee, tc.sellFee, tc.fee, tc.ts)
@@ -2557,6 +2559,7 @@ func TestExchangeWithSigProtobufRoundTrip(t *testing.T) {
 	}{
 		{*bo, *so, 123, 456, 789, 987, 654},
 		{*bo, *so, 987654321, 544321, 9876, 8765, 13245},
+		{*so, *bo, 1234, 5678, 9012, 3456, 7890},
 	}
 	for _, tc := range tests {
 		ts := uint64(time.Now().UnixNano() / 1000000)
@@ -2663,8 +2666,8 @@ func TestExchangeWithSigBinaryRoundTrip(t *testing.T) {
 				assert.Equal(t, tx.Type, atx.Type)
 				assert.Equal(t, tx.Version, atx.Version)
 				assert.Equal(t, tx.SenderPK, atx.SenderPK)
-				assert.Equal(t, tx.BuyOrder, atx.BuyOrder)
-				assert.Equal(t, tx.SellOrder, atx.SellOrder)
+				assert.Equal(t, tx.Order1, atx.Order1)
+				assert.Equal(t, tx.Order2, atx.Order2)
 				assert.Equal(t, tx.Price, atx.Price)
 				assert.Equal(t, tx.Amount, atx.Amount)
 				assert.Equal(t, tx.BuyMatcherFee, atx.BuyMatcherFee)
@@ -2685,8 +2688,8 @@ func TestExchangeWithSigBinaryRoundTrip(t *testing.T) {
 				assert.Equal(t, tx.Version, atx.Version)
 				assert.Equal(t, tx.Signature, atx.Signature)
 				assert.Equal(t, mpk, atx.SenderPK)
-				assert.Equal(t, bo.ID, atx.BuyOrder.ID)
-				assert.Equal(t, so.ID, atx.SellOrder.ID)
+				assert.Equal(t, bo.ID, atx.Order1.ID)
+				assert.Equal(t, so.ID, atx.Order2.ID)
 				assert.Equal(t, tc.price, atx.Price)
 				assert.Equal(t, tc.amount, atx.Amount)
 				assert.Equal(t, tc.buyFee, atx.BuyMatcherFee)
@@ -2777,8 +2780,8 @@ func TestExchangeWithProofsValidations(t *testing.T) {
 		ts      uint64
 		err     string
 	}{
-		{sbo1, sso0, 123, 456, 789, 987, 654, 111, "invalid buy order: price is too big"},
-		{sbo0, sso1, 123, 456, 789, 987, 654, 111, "invalid sell order: price is too big"},
+		{sbo1, sso0, 123, 456, 789, 987, 654, 111, "invalid first order: price is too big"},
+		{sbo0, sso1, 123, 456, 789, 987, 654, 111, "invalid second order: price is too big"},
 		{sbo0, sso0, 0, 456, 789, 987, 654, 111, "price should be positive"},
 		{sbo0, sso0, math.MaxInt64 + 1, 456, 789, 987, 654, 111, "price is too big"},
 		{sbo0, sso0, 950000000, 0, 789, 987, 654, 111, "amount should be positive"},
@@ -2787,16 +2790,16 @@ func TestExchangeWithProofsValidations(t *testing.T) {
 		{sbo0, sso0, 950000000, 456, 789, math.MaxInt64 + 1, 654, 111, "sell matcher's fee is too big"},
 		{sbo0, sso0, 950000000, 456, 789, 987, 0, 111, "fee should be positive"},
 		{sbo0, sso0, 950000000, 456, 789, 987, math.MaxInt64 + 1, 111, "fee is too big"},
-		{sso0, sso0, 950000000, 456, 789, 987, 654, 111, "incorrect order type of buy order"},
-		{sbo0, sbo0, 950000000, 456, 789, 987, 654, 111, "incorrect order type of sell order"},
+		{sso0, sso0, 950000000, 456, 789, 987, 654, 111, "incorrect combination of orders types"},
+		{sbo0, sbo0, 950000000, 456, 789, 987, 654, 111, "incorrect combination of orders types"},
 		{sbo0, sso2, 950000000, 456, 789, 987, 654, 111, "unmatched matcher's public keys"},
 		{sbo2, sso0, 950000000, 456, 789, 987, 654, 111, "different asset pairs"},
 		{sbo0, sso0, 890000000, 456, 789, 987, 654, 111, "invalid price"},
 		{sbo0, sso0, 1010000000, 456, 789, 987, 654, 111, "invalid price"},
-		{sbo0, sso0, 950000000, 456, 789, 987, 654, 1, "buy order expiration should be earlier than 30 days"},
-		{sbo0, sso0, 950000000, 456, 789, 987, 654, 11, "sell order expiration should be earlier than 30 days"},
-		{sbo0, sso0, 950000000, 456, 789, 987, 654, MaxOrderTTL + 15, "invalid buy order expiration"},
-		{sbo0, sso3, 950000000, 456, 789, 987, 654, MaxOrderTTL + 10, "invalid sell order expiration"},
+		{sbo0, sso0, 950000000, 456, 789, 987, 654, 1, "first order expiration should be earlier than 30 days"},
+		{sbo0, sso0, 950000000, 456, 789, 987, 654, 11, "second order expiration should be earlier than 30 days"},
+		{sbo0, sso0, 950000000, 456, 789, 987, 654, MaxOrderTTL + 15, "invalid first order expiration"},
+		{sbo0, sso3, 950000000, 456, 789, 987, 654, MaxOrderTTL + 10, "invalid second order expiration"},
 	}
 	for _, tc := range tests {
 		tx := NewUnsignedExchangeWithProofs(2, &tc.buy, &tc.sell, tc.price, tc.amount, tc.buyFee, tc.sellFee, tc.fee, tc.ts)
@@ -2905,6 +2908,10 @@ func TestExchangeWithProofsProtobufRoundTrip(t *testing.T) {
 		{bo2, so2, 987654321, 544321, 9876, 8765, 13245},
 		{bo1, so2, 123, 456, 789, 987, 654},
 		{bo2, so1, 987654321, 544321, 9876, 8765, 13245},
+		{so1, bo1, 123, 456, 789, 987, 654},
+		{so2, bo2, 987654321, 544321, 9876, 8765, 13245},
+		{so1, bo2, 123, 456, 789, 987, 654},
+		{so2, bo1, 987654321, 544321, 9876, 8765, 13245},
 	}
 	for _, tc := range tests {
 		ts := uint64(time.Now().UnixNano() / 1000000)
@@ -3027,8 +3034,8 @@ func TestExchangeWithProofsBinaryRoundTrip(t *testing.T) {
 				assert.Equal(t, tx.Type, atx.Type)
 				assert.Equal(t, tx.Version, atx.Version)
 				assert.ElementsMatch(t, tx.SenderPK, atx.SenderPK)
-				assert.Equal(t, tx.BuyOrder, atx.BuyOrder)
-				assert.Equal(t, tx.SellOrder, atx.SellOrder)
+				assert.Equal(t, tx.Order1, atx.Order1)
+				assert.Equal(t, tx.Order2, atx.Order2)
 				assert.Equal(t, tx.Price, atx.Price)
 				assert.Equal(t, tx.Amount, atx.Amount)
 				assert.Equal(t, tx.BuyMatcherFee, atx.BuyMatcherFee)
@@ -3049,8 +3056,8 @@ func TestExchangeWithProofsBinaryRoundTrip(t *testing.T) {
 				assert.Equal(t, tx.Version, atx.Version)
 				assert.ElementsMatch(t, tx.Proofs.Proofs[0], atx.Proofs.Proofs[0])
 				assert.Equal(t, mpk, atx.SenderPK)
-				assert.EqualValues(t, tc.buy, atx.BuyOrder)
-				assert.Equal(t, tc.sell, atx.SellOrder)
+				assert.EqualValues(t, tc.buy, atx.Order1)
+				assert.Equal(t, tc.sell, atx.Order2)
 				assert.Equal(t, tc.price, atx.Price)
 				assert.Equal(t, tc.amount, atx.Amount)
 				assert.Equal(t, tc.buyFee, atx.BuyMatcherFee)
@@ -3181,12 +3188,12 @@ func TestExchangeWithProofsFromJSON1(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, ExchangeTransaction, tx.Type)
 	assert.Equal(t, 2, int(tx.Version))
-	assert.Equal(t, 2, int(tx.BuyOrder.GetVersion()))
-	assert.Equal(t, 1, int(tx.SellOrder.GetVersion()))
-	bo, ok := tx.BuyOrder.(*OrderV2)
+	assert.Equal(t, 2, int(tx.Order1.GetVersion()))
+	assert.Equal(t, 1, int(tx.Order2.GetVersion()))
+	bo, ok := tx.Order1.(*OrderV2)
 	assert.True(t, ok)
 	assert.NotNil(t, bo)
-	so, ok := tx.SellOrder.(*OrderV1)
+	so, ok := tx.Order2.(*OrderV1)
 	assert.True(t, ok)
 	assert.NotNil(t, so)
 }
@@ -3257,10 +3264,10 @@ func TestExchangeWithProofsFromJSON2(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, ExchangeTransaction, tx.Type)
 	assert.Equal(t, 2, int(tx.Version))
-	bo, ok := tx.BuyOrder.(*OrderV1)
+	bo, ok := tx.Order1.(*OrderV1)
 	assert.True(t, ok)
 	assert.NotNil(t, bo)
-	so, ok := tx.SellOrder.(*OrderV1)
+	so, ok := tx.Order2.(*OrderV1)
 	assert.True(t, ok)
 	assert.NotNil(t, so)
 }
@@ -3332,10 +3339,10 @@ func TestExchangeWithProofsFromJSON3(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, ExchangeTransaction, tx.Type)
 	assert.Equal(t, 2, int(tx.Version))
-	bo, ok := tx.BuyOrder.(*OrderV1)
+	bo, ok := tx.Order1.(*OrderV1)
 	assert.True(t, ok)
 	assert.NotNil(t, bo)
-	so, ok := tx.SellOrder.(*OrderV1)
+	so, ok := tx.Order2.(*OrderV1)
 	assert.True(t, ok)
 	assert.NotNil(t, so)
 

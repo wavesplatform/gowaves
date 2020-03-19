@@ -1010,8 +1010,8 @@ type ExchangeWithSig struct {
 	ID             *crypto.Digest    `json:"id,omitempty"`
 	Signature      *crypto.Signature `json:"signature,omitempty"`
 	SenderPK       crypto.PublicKey  `json:"senderPublicKey"`
-	BuyOrder       *OrderV1          `json:"order1"`
-	SellOrder      *OrderV1          `json:"order2"`
+	Order1         *OrderV1          `json:"order1"`
+	Order2         *OrderV1          `json:"order2"`
 	Price          uint64            `json:"price"`
 	Amount         uint64            `json:"amount"`
 	BuyMatcherFee  uint64            `json:"buyMatcherFee"`
@@ -1021,7 +1021,7 @@ type ExchangeWithSig struct {
 }
 
 func (tx ExchangeWithSig) BinarySize() int {
-	return 1 + crypto.SignatureSize + 48 + 4 + tx.BuyOrder.BinarySize() + 4 + tx.SellOrder.BinarySize()
+	return 1 + crypto.SignatureSize + 48 + 4 + tx.Order1.BinarySize() + 4 + tx.Order2.BinarySize()
 }
 
 func (tx ExchangeWithSig) GetTypeInfo() TransactionTypeInfo {
@@ -1063,20 +1063,20 @@ func (tx ExchangeWithSig) GetSenderPK() crypto.PublicKey {
 	return tx.SenderPK
 }
 
-func (tx ExchangeWithSig) GetBuyOrder() (OrderBody, error) {
-	return tx.BuyOrder.OrderBody, nil
+func (tx ExchangeWithSig) GetBuyOrder() (Order, error) {
+	return tx.Order1, nil
 }
 
-func (tx ExchangeWithSig) GetSellOrder() (OrderBody, error) {
-	return tx.SellOrder.OrderBody, nil
+func (tx ExchangeWithSig) GetSellOrder() (Order, error) {
+	return tx.Order2, nil
 }
 
-func (tx ExchangeWithSig) GetBuyOrderFull() Order {
-	return tx.BuyOrder
+func (tx ExchangeWithSig) GetOrder1() Order {
+	return tx.Order1
 }
 
-func (tx ExchangeWithSig) GetSellOrderFull() Order {
-	return tx.SellOrder
+func (tx ExchangeWithSig) GetOrder2() Order {
+	return tx.Order2
 }
 
 func (tx ExchangeWithSig) GetPrice() uint64 {
@@ -1107,8 +1107,8 @@ func NewUnsignedExchangeWithSig(buy, sell *OrderV1, price, amount, buyMatcherFee
 		Type:           ExchangeTransaction,
 		Version:        1,
 		SenderPK:       buy.MatcherPK,
-		BuyOrder:       buy,
-		SellOrder:      sell,
+		Order1:         buy,
+		Order2:         sell,
 		Price:          price,
 		Amount:         amount,
 		BuyMatcherFee:  buyMatcherFee,
@@ -1122,24 +1122,24 @@ func (tx ExchangeWithSig) Valid() (bool, error) {
 	if tx.Version != 1 {
 		return false, errors.Errorf("unexpected version %d for ExchangeWithSig", tx.Version)
 	}
-	ok, err := tx.BuyOrder.Valid()
+	ok, err := tx.Order1.Valid()
 	if !ok {
 		return false, errors.Wrap(err, "invalid buy order")
 	}
-	ok, err = tx.SellOrder.Valid()
+	ok, err = tx.Order2.Valid()
 	if !ok {
 		return false, errors.Wrap(err, "invalid sell order")
 	}
-	if tx.BuyOrder.OrderType != Buy {
+	if tx.Order1.OrderType != Buy {
 		return false, errors.New("incorrect order type of buy order")
 	}
-	if tx.SellOrder.OrderType != Sell {
+	if tx.Order2.OrderType != Sell {
 		return false, errors.New("incorrect order type of sell order")
 	}
-	if tx.SellOrder.MatcherPK != tx.BuyOrder.MatcherPK {
+	if tx.Order2.MatcherPK != tx.Order1.MatcherPK {
 		return false, errors.New("unmatched matcher's public keys")
 	}
-	if tx.SellOrder.AssetPair != tx.BuyOrder.AssetPair {
+	if tx.Order2.AssetPair != tx.Order1.AssetPair {
 		return false, errors.New("different asset pairs")
 	}
 	if tx.Amount == 0 {
@@ -1154,7 +1154,7 @@ func (tx ExchangeWithSig) Valid() (bool, error) {
 	if !validJVMLong(tx.Price) {
 		return false, errors.New("price is too big")
 	}
-	if tx.Price > tx.BuyOrder.Price || tx.Price < tx.SellOrder.Price {
+	if tx.Price > tx.Order1.Price || tx.Price < tx.Order2.Price {
 		return false, errors.New("invalid price")
 	}
 	if tx.Fee == 0 {
@@ -1169,28 +1169,28 @@ func (tx ExchangeWithSig) Valid() (bool, error) {
 	if !validJVMLong(tx.SellMatcherFee) {
 		return false, errors.New("sell matcher's fee is too big")
 	}
-	if tx.BuyOrder.Expiration < tx.Timestamp {
+	if tx.Order1.Expiration < tx.Timestamp {
 		return false, errors.New("invalid buy order expiration")
 	}
-	if tx.BuyOrder.Expiration-tx.Timestamp > MaxOrderTTL {
+	if tx.Order1.Expiration-tx.Timestamp > MaxOrderTTL {
 		return false, errors.New("buy order expiration should be earlier than 30 days")
 	}
-	if tx.SellOrder.Expiration < tx.Timestamp {
+	if tx.Order2.Expiration < tx.Timestamp {
 		return false, errors.New("invalid sell order expiration")
 	}
-	if tx.SellOrder.Expiration-tx.Timestamp > MaxOrderTTL {
+	if tx.Order2.Expiration-tx.Timestamp > MaxOrderTTL {
 		return false, errors.New("sell order expiration should be earlier than 30 days")
 	}
 	return true, nil
 }
 
 func (tx *ExchangeWithSig) BodyMarshalBinary() ([]byte, error) {
-	bob, err := tx.BuyOrder.MarshalBinary()
+	bob, err := tx.Order1.MarshalBinary()
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to marshal ExchangeWithSig body to bytes")
 	}
 	bol := uint32(len(bob))
-	sob, err := tx.SellOrder.MarshalBinary()
+	sob, err := tx.Order2.MarshalBinary()
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to marshal ExchangeWithSig body to bytes")
 	}
@@ -1229,7 +1229,7 @@ func (tx *ExchangeWithSig) BodySerialize(s *serializer.Serializer) error {
 	bob := bytebufferpool.Get()
 	defer bytebufferpool.Put(bob)
 	s1 := serializer.New(bob)
-	err = tx.BuyOrder.Serialize(s1)
+	err = tx.Order1.Serialize(s1)
 	if err != nil {
 		return errors.Wrapf(err, "failed to marshal ExchangeWithSig body to bytes")
 	}
@@ -1238,7 +1238,7 @@ func (tx *ExchangeWithSig) BodySerialize(s *serializer.Serializer) error {
 	sob := bytebufferpool.Get()
 	defer bytebufferpool.Put(sob)
 	s2 := serializer.New(bob)
-	err = tx.SellOrder.Serialize(s2)
+	err = tx.Order2.Serialize(s2)
 	if err != nil {
 		return errors.Wrapf(err, "failed to marshal ExchangeWithSig body to bytes")
 	}
@@ -1302,14 +1302,14 @@ func (tx *ExchangeWithSig) bodyUnmarshalBinary(data []byte) (int, error) {
 	if err != nil {
 		return 0, errors.Wrapf(err, "failed to unmarshal ExchangeWithSig body from bytes")
 	}
-	tx.BuyOrder = &bo
+	tx.Order1 = &bo
 	n += int(bol)
 	var so OrderV1
 	err = so.UnmarshalBinary(data[n:])
 	if err != nil {
 		return 0, errors.Wrapf(err, "failed to unmarshal ExchangeWithSig body from bytes")
 	}
-	tx.SellOrder = &so
+	tx.Order2 = &so
 	n += int(sol)
 	tx.Price = binary.BigEndian.Uint64(data[n:])
 	n += 8
@@ -1323,7 +1323,7 @@ func (tx *ExchangeWithSig) bodyUnmarshalBinary(data []byte) (int, error) {
 	n += 8
 	tx.Timestamp = binary.BigEndian.Uint64(data[n:])
 	n += 8
-	tx.SenderPK = tx.BuyOrder.MatcherPK
+	tx.SenderPK = tx.Order1.MatcherPK
 	return n, nil
 }
 
@@ -1429,8 +1429,8 @@ func (tx *ExchangeWithSig) UnmarshalSignedFromProtobuf(data []byte) error {
 
 func (tx *ExchangeWithSig) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
 	orders := make([]*g.Order, 2)
-	orders[0] = tx.BuyOrder.ToProtobufSigned(scheme)
-	orders[1] = tx.SellOrder.ToProtobufSigned(scheme)
+	orders[0] = tx.Order1.ToProtobufSigned(scheme)
+	orders[1] = tx.Order2.ToProtobufSigned(scheme)
 	txData := &g.Transaction_Exchange{Exchange: &g.ExchangeTransactionData{
 		Amount:         int64(tx.Amount),
 		Price:          int64(tx.Price),

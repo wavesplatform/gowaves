@@ -27,7 +27,7 @@ func createCheckerTestObjects(t *testing.T) (*checkerTestObjects, []string) {
 	tc, err := newTransactionChecker(crypto.MustSignatureFromBase58(genesisSignature), stor.entities, settings.MainNetSettings)
 	assert.NoError(t, err, "newTransactionChecker() failed")
 	tp, err := newTransactionPerformer(stor.entities, settings.MainNetSettings)
-	assert.NoError(t, err, "newTransactionPerormer() failed")
+	assert.NoError(t, err, "newTransactionPerformer() failed")
 	return &checkerTestObjects{stor, tc, tp}, path
 }
 
@@ -454,7 +454,7 @@ func TestCheckExchangeWithSig(t *testing.T) {
 	// Set script.
 	to.stor.addBlock(t, blockID0)
 	addr := testGlobal.recipientInfo.addr
-	err = to.stor.entities.scriptsStorage.setAccountScript(addr, proto.Script(testGlobal.scriptBytes), blockID0)
+	err = to.stor.entities.scriptsStorage.setAccountScript(addr, testGlobal.scriptBytes, blockID0)
 	assert.NoError(t, err)
 
 	_, err = to.tc.checkExchangeWithSig(tx, info)
@@ -465,7 +465,7 @@ func TestCheckExchangeWithSig(t *testing.T) {
 	assert.NoError(t, err, "checkExchangeWithSig failed with valid exchange")
 
 	// Make one of involved assets smart.
-	smartAsset := tx.BuyOrder.AssetPair.AmountAsset.ID
+	smartAsset := tx.Order1.AssetPair.AmountAsset.ID
 	to.stor.createSmartAsset(t, smartAsset)
 
 	_, err = to.tc.checkExchangeWithSig(tx, info)
@@ -482,25 +482,25 @@ func TestCheckExchangeWithSig(t *testing.T) {
 	assert.Equal(t, smartAsset, smartAssets[0])
 
 	// Now overfill volume and make sure check fails.
-	tx.Amount = tx.SellOrder.Amount + 1
+	tx.Amount = tx.Order2.Amount + 1
 	_, err = to.tc.checkExchangeWithSig(tx, info)
 	assert.Error(t, err, "checkExchangeWithSig did not fail with exchange that overfills sell order amount volume")
-	tx.Amount = tx.SellOrder.Amount
+	tx.Amount = tx.Order2.Amount
 
-	tx.BuyMatcherFee = tx.SellOrder.MatcherFee + 1
+	tx.BuyMatcherFee = tx.Order2.MatcherFee + 1
 	_, err = to.tc.checkExchangeWithSig(tx, info)
 	assert.Error(t, err, "checkExchangeWithSig did not fail with exchange that overfills sell order matcher fee volume")
-	tx.BuyMatcherFee = tx.SellOrder.MatcherFee
+	tx.BuyMatcherFee = tx.Order2.MatcherFee
 
-	tx.BuyMatcherFee = tx.BuyOrder.MatcherFee + 1
+	tx.BuyMatcherFee = tx.Order1.MatcherFee + 1
 	_, err = to.tc.checkExchangeWithSig(tx, info)
 	assert.Error(t, err, "checkExchangeWithSig did not fail with exchange that overfills buy order matcher fee volume")
-	tx.BuyMatcherFee = tx.BuyOrder.MatcherFee
+	tx.BuyMatcherFee = tx.Order1.MatcherFee
 
-	tx.Amount = tx.BuyOrder.Amount + 1
+	tx.Amount = tx.Order1.Amount + 1
 	_, err = to.tc.checkExchangeWithSig(tx, info)
 	assert.Error(t, err, "checkExchangeWithSig did not fail with exchange that overfills buy order amount volume")
-	tx.Amount = tx.BuyOrder.Amount
+	tx.Amount = tx.Order1.Amount
 }
 
 func TestCheckExchangeWithProofs(t *testing.T) {
@@ -534,7 +534,7 @@ func TestCheckExchangeWithProofs(t *testing.T) {
 	assert.NoError(t, err, "checkExchangeWithProofs failed with valid exchange")
 
 	// Make one of involved assets smart.
-	smartAsset := txOV2.GetBuyOrderFull().GetAssetPair().AmountAsset.ID
+	smartAsset := txOV2.GetOrder1().GetAssetPair().AmountAsset.ID
 	to.stor.createSmartAsset(t, smartAsset)
 
 	_, err = to.tc.checkExchangeWithProofs(txOV2, info)
@@ -564,7 +564,7 @@ func TestCheckExchangeWithProofs(t *testing.T) {
 	txOV3 := createExchangeWithProofsWithOrdersV3(t)
 
 	// Matcher fee asset should not be added to the list of smart assets even if it is smart.
-	smartAsset2 := txOV3.GetBuyOrderFull().GetMatcherFeeAsset().ID
+	smartAsset2 := txOV3.GetOrder1().GetMatcherFeeAsset().ID
 	to.stor.createSmartAsset(t, smartAsset2)
 
 	_, err = to.tc.checkExchangeWithProofs(txOV3, info)
@@ -576,8 +576,8 @@ func TestCheckExchangeWithProofs(t *testing.T) {
 	assert.ElementsMatch(t, []crypto.Digest{smartAsset}, smartAssets)
 
 	// Now overfill volume and make sure check fails.
-	bo := txOV2.GetBuyOrderFull()
-	so := txOV2.GetSellOrderFull()
+	bo := txOV2.GetOrder1()
+	so := txOV2.GetOrder2()
 	txOV2.Amount = so.GetAmount() + 1
 	_, err = to.tc.checkExchangeWithProofs(txOV2, info)
 	assert.Error(t, err, "checkExchangeWithProofs did not fail with exchange that overfills sell order amount volume")
@@ -597,6 +597,58 @@ func TestCheckExchangeWithProofs(t *testing.T) {
 	_, err = to.tc.checkExchangeWithProofs(txOV2, info)
 	assert.Error(t, err, "checkExchangeWithProofs did not fail with exchange that overfills buy order amount volume")
 	txOV2.Amount = bo.GetAmount()
+}
+
+func TestCheckUnorderedExchangeV2WithProofs(t *testing.T) {
+	to, path := createCheckerTestObjects(t)
+
+	defer func() {
+		to.stor.close(t)
+
+		err := util.CleanTemporaryDirs(path)
+		assert.NoError(t, err, "failed to clean test data dirs")
+	}()
+
+	tx := createUnorderedExchangeWithProofs(t, 2)
+	info := defaultCheckerInfo(t)
+
+	to.stor.createAsset(t, testGlobal.asset0.asset.ID)
+	to.stor.createAsset(t, testGlobal.asset1.asset.ID)
+	to.stor.createAsset(t, testGlobal.asset2.asset.ID)
+
+	to.stor.activateFeature(t, int16(settings.SmartAccountTrading))
+	to.stor.activateFeature(t, int16(settings.SmartAssets))
+	to.stor.activateFeature(t, int16(settings.OrderV3))
+	to.stor.activateFeature(t, int16(settings.BlockV5))
+
+	_, err := to.tc.checkExchangeWithProofs(tx, info)
+	assert.Errorf(t, err, "have to fail on incorrect order of orders after activation of BlockV5")
+}
+
+func TestCheckUnorderedExchangeV3WithProofs(t *testing.T) {
+	to, path := createCheckerTestObjects(t)
+
+	defer func() {
+		to.stor.close(t)
+
+		err := util.CleanTemporaryDirs(path)
+		assert.NoError(t, err, "failed to clean test data dirs")
+	}()
+
+	tx := createUnorderedExchangeWithProofs(t, 3)
+	info := defaultCheckerInfo(t)
+
+	to.stor.createAsset(t, testGlobal.asset0.asset.ID)
+	to.stor.createAsset(t, testGlobal.asset1.asset.ID)
+	to.stor.createAsset(t, testGlobal.asset2.asset.ID)
+
+	to.stor.activateFeature(t, int16(settings.SmartAccountTrading))
+	to.stor.activateFeature(t, int16(settings.SmartAssets))
+	to.stor.activateFeature(t, int16(settings.OrderV3))
+	to.stor.activateFeature(t, int16(settings.BlockV5))
+
+	_, err := to.tc.checkExchangeWithProofs(tx, info)
+	assert.NoErrorf(t, err, "failed on with incorrect order of orders after activation of BlockV5")
 }
 
 func TestCheckLeaseWithSig(t *testing.T) {
@@ -945,7 +997,7 @@ func TestCheckSetScriptWithProofs(t *testing.T) {
 	scriptBytes, err := reader.ScriptBytesFromBase64(scriptBase64)
 	assert.NoError(t, err)
 	prevScript := tx.Script
-	tx.Script = proto.Script(scriptBytes)
+	tx.Script = scriptBytes
 	_, err = to.tc.checkSetScriptWithProofs(tx, info)
 	assert.Error(t, err, "checkSetScriptWithProofs did not fail with Script V3 before Ride4DApps activation")
 	tx.Script = prevScript
@@ -957,7 +1009,7 @@ func TestCheckSetScriptWithProofs(t *testing.T) {
 	assert.NoError(t, err)
 	scriptBytes, err = reader.ScriptBytesFromBase64(scriptBase64)
 	assert.NoError(t, err)
-	tx.Script = proto.Script(scriptBytes)
+	tx.Script = scriptBytes
 	_, err = to.tc.checkSetScriptWithProofs(tx, info)
 	assert.Error(t, err, "checkSetScriptWithProofs did not fail with Script that exceeds complexity limit")
 	tx.Script = prevScript

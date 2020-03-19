@@ -27,16 +27,16 @@ func newVerifierChans() *verifierChans {
 }
 
 type verifyTask struct {
-	taskType       verifyTaskType
-	parentSig      crypto.Signature
-	block          *proto.Block
-	tx             proto.Transaction
-	checkTxSig     bool
-	checkSellOrder bool
-	checkBuyOrder  bool
+	taskType    verifyTaskType
+	parentSig   crypto.Signature
+	block       *proto.Block
+	tx          proto.Transaction
+	checkTxSig  bool
+	checkOrder1 bool
+	checkOrder2 bool
 }
 
-func checkTx(tx proto.Transaction, checkTxSig, checkSellOrder, checkBuyOrder bool, scheme proto.Scheme) error {
+func checkTx(tx proto.Transaction, checkTxSig, checkOrder1, checkOrder2 bool, scheme proto.Scheme) error {
 	if ok, err := tx.Valid(); !ok {
 		return errors.Wrap(err, "invalid tx data")
 	}
@@ -85,28 +85,28 @@ func checkTx(tx proto.Transaction, checkTxSig, checkSellOrder, checkBuyOrder boo
 		if ok, _ := t.Verify(scheme, t.SenderPK); !ok {
 			return errors.New("exchange tx signature verification failed")
 		}
-		if checkSellOrder {
-			if ok, _ := t.SellOrder.Verify(scheme, t.SellOrder.SenderPK); !ok {
-				return errors.New("sell order signature verification failed")
+		if checkOrder1 {
+			if ok, _ := t.Order1.Verify(scheme, t.Order1.SenderPK); !ok {
+				return errors.New("first order signature verification failed")
 			}
 		}
-		if checkBuyOrder {
-			if ok, _ := t.BuyOrder.Verify(scheme, t.BuyOrder.SenderPK); !ok {
-				return errors.New("buy order signature verification failed")
+		if checkOrder2 {
+			if ok, _ := t.Order2.Verify(scheme, t.Order2.SenderPK); !ok {
+				return errors.New("second order signature verification failed")
 			}
 		}
 	case *proto.ExchangeWithProofs:
 		if ok, _ := t.Verify(scheme, t.SenderPK); !ok {
 			return errors.New("exchange tx signature verification failed")
 		}
-		if checkSellOrder {
-			if ok, _ := t.SellOrder.Verify(scheme, t.SellOrder.GetSenderPK()); !ok {
-				return errors.New("sell order signature verification failed")
+		if checkOrder1 {
+			if ok, _ := t.Order1.Verify(scheme, t.Order1.GetSenderPK()); !ok {
+				return errors.New("first order signature verification failed")
 			}
 		}
-		if checkBuyOrder {
-			if ok, _ := t.BuyOrder.Verify(scheme, t.BuyOrder.GetSenderPK()); !ok {
-				return errors.New("buy order signature verification failed")
+		if checkOrder2 {
+			if ok, _ := t.Order2.Verify(scheme, t.Order2.GetSenderPK()); !ok {
+				return errors.New("second order signature verification failed")
 			}
 		}
 	case *proto.LeaseWithSig:
@@ -190,7 +190,7 @@ func handleTask(task *verifyTask, scheme proto.Scheme) error {
 			return errors.New("State: handleTask: invalid transaction root hash")
 		}
 	case verifyTx:
-		if err := checkTx(task.tx, task.checkTxSig, task.checkSellOrder, task.checkBuyOrder, scheme); err != nil {
+		if err := checkTx(task.tx, task.checkTxSig, task.checkOrder1, task.checkOrder2, scheme); err != nil {
 			return err
 		}
 	}
