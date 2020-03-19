@@ -1634,3 +1634,27 @@ func TestSha256Limits(t *testing.T) {
 		assert.Nil(t, res)
 	}
 }
+
+func TestTransferFromProtobuf(t *testing.T) {
+	scope := newEmptyScopeV4()
+	seed, err := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
+	require.NoError(t, err)
+	sk, pk, err := crypto.GenerateKeyPair(seed)
+	require.NoError(t, err)
+	ts := uint64(time.Now().UnixNano() / 1000000)
+	addr, err := proto.NewAddressFromPublicKey(scope.Scheme(), pk)
+	require.NoError(t, err)
+	rcp := proto.NewRecipientFromAddress(addr)
+	att := proto.StringAttachment{Value: "some attachment"}
+	tx := proto.NewUnsignedTransferWithProofs(3, pk, proto.OptionalAsset{}, proto.OptionalAsset{}, ts, 1234500000000, 100000, rcp, &att)
+	err = tx.GenerateID(scope.Scheme())
+	require.NoError(t, err)
+	err = tx.Sign(scope.Scheme(), sk)
+	require.NoError(t, err)
+	bts, err := tx.MarshalSignedToProtobuf(scope.Scheme())
+	require.NoError(t, err)
+	expressions := NewExprs(NewBytes(bts))
+	rs, err := TransferFromProtobuf(scope, expressions)
+	require.NoError(t, err)
+	require.Equal(t, "TransferTransaction", rs.InstanceOf())
+}

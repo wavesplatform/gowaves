@@ -374,6 +374,7 @@ func functionsV4() map[string]Expr {
 		s[strconv.Itoa(2800+i)] = FunctionFromPredefined(limitedBlake2b256(l), 1)
 		s[strconv.Itoa(2900+i)] = FunctionFromPredefined(limitedSha256(l), 1)
 	}
+	s["1070"] = FunctionFromPredefined(TransferFromProtobuf, 1)
 	return s
 }
 

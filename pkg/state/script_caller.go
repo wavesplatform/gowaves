@@ -134,6 +134,7 @@ func (a *scriptCaller) callAssetScriptWithScriptTransfer(tr *proto.FullScriptTra
 
 func (a *scriptCaller) callAssetScript(tx proto.Transaction, assetID crypto.Digest, lastBlockInfo *proto.BlockInfo, initialisation bool) error {
 	obj, err := ast.NewVariablesFromTransaction(a.settings.AddressSchemeCharacter, tx)
+	obj["proofs"] = ast.NewUnit() // Proofs are not accessible from asset's script
 	if err != nil {
 		return errors.Wrap(err, "failed to convert transaction")
 	}

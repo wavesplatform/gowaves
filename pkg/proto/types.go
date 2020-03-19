@@ -31,7 +31,6 @@ const (
 	orderV1MinLen        = crypto.SignatureSize + orderLen
 	orderV2MinLen        = orderV2FixedBodyLen + proofsMinLen
 	orderV3MinLen        = orderV3FixedBodyLen + proofsMinLen
-	OrderProtobufVersion = 4
 	jsonNull             = "null"
 	integerArgumentLen   = 1 + 8
 	booleanArgumentLen   = 1

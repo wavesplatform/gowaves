@@ -2390,6 +2390,36 @@ func CalculateAssetID(s Scope, e Exprs) (Expr, error) {
 	return NewBytes(id.Bytes()), nil
 }
 
+func TransferFromProtobuf(s Scope, e Exprs) (Expr, error) {
+	const funcName = "TransferFromProtobuf"
+	if l := len(e); l != 1 {
+		return nil, errors.Errorf("%s: invalid number of parameters, expected 1, received %d", funcName, l)
+	}
+	rs, err := e.EvaluateAll(s)
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	bytesExpr, ok := rs[0].(*BytesExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: expected argument of type *BytesExpr, got '%T'", funcName, rs[0])
+	}
+	var tx proto.TransferWithProofs
+	err = tx.UnmarshalSignedFromProtobuf(bytesExpr.Value)
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	err = tx.GenerateID(s.Scheme())
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	//TODO: using scope's scheme is not quite correct here, because it should be possible to validate transfers from other networks
+	obj, err := newVariablesFromTransferWithProofs(s.Scheme(), &tx)
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	return NewObject(obj), nil
+}
+
 func limitedGroth16Verify(limit int) Callable {
 	fn := "Groth16Verify"
 	if limit > 0 {
