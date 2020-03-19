@@ -183,15 +183,6 @@ func (c *ProtobufConverter) publicKey(pk []byte) crypto.PublicKey {
 	return r
 }
 
-func (c *ProtobufConverter) script(script *g.Script) Script {
-	if c.err != nil {
-		return nil
-	}
-	resBytes := make([]byte, len(script.Bytes))
-	copy(resBytes, script.Bytes)
-	return Script(resBytes)
-}
-
 func (c *ProtobufConverter) alias(scheme byte, alias string) Alias {
 	if c.err != nil {
 		return Alias{}
@@ -426,6 +417,17 @@ func (c *ProtobufConverter) Entry(entry *g.DataTransactionData_DataEntry) (DataE
 		return nil, err
 	}
 	return e, nil
+}
+
+func (c *ProtobufConverter) script(script []byte) Script {
+	if c.err != nil {
+		return Script{}
+	}
+	res := Script{}
+	if script != nil {
+		res = Script(script)
+	}
+	return res
 }
 
 func (c *ProtobufConverter) entries(entries []*g.DataTransactionData_DataEntry) DataEntries {

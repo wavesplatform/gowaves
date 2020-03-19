@@ -2545,7 +2545,7 @@ type ScriptInfo struct {
 
 func (s ScriptInfo) ToProtobuf() *g.ScriptData {
 	return &g.ScriptData{
-		ScriptBytes: &g.Script{Bytes: s.Bytes, Version: s.Version},
+		ScriptBytes: s.Bytes,
 		ScriptText:  s.Base64,
 		Complexity:  int64(s.Complexity),
 	}
@@ -2567,17 +2567,6 @@ func VersionFromScriptBytes(scriptBytes []byte) (int32, error) {
 }
 
 type Script []byte
-
-func (s Script) ToProtobuf() (*g.Script, error) {
-	v, err := VersionFromScriptBytes(s)
-	if err != nil {
-		return nil, err
-	}
-	return &g.Script{
-		Version: v,
-		Bytes:   s,
-	}, nil
-}
 
 // String gives a string representation of Script bytes, script bytes encoded as BASE64 with prefix
 func (s Script) String() string {

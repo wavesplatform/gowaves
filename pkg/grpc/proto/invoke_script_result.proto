@@ -7,7 +7,6 @@ option go_package = "generated";
 
 import "transaction.proto";
 import "amount.proto";
-import "script.proto";
 
 message InvokeScriptResult {
     message Payment {
@@ -22,7 +21,7 @@ message InvokeScriptResult {
         int64 amount = 4;
         int32 decimals = 5;
         bool reissuable = 6;
-        Script script = 7;
+        bytes script = 7;
         int64 nonce = 8;
     }
 
