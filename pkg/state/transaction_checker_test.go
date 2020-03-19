@@ -619,13 +619,9 @@ func TestCheckUnorderedExchangeV2WithProofs(t *testing.T) {
 	to.stor.activateFeature(t, int16(settings.SmartAccountTrading))
 	to.stor.activateFeature(t, int16(settings.SmartAssets))
 	to.stor.activateFeature(t, int16(settings.OrderV3))
-
-	_, err := to.tc.checkExchangeWithProofs(tx, info)
-	assert.Errorf(t, err, "have to fail on incorrect order of orders before activation of BlockV5")
-
 	to.stor.activateFeature(t, int16(settings.BlockV5))
 
-	_, err = to.tc.checkExchangeWithProofs(tx, info)
+	_, err := to.tc.checkExchangeWithProofs(tx, info)
 	assert.Errorf(t, err, "have to fail on incorrect order of orders after activation of BlockV5")
 }
 
@@ -649,13 +645,9 @@ func TestCheckUnorderedExchangeV3WithProofs(t *testing.T) {
 	to.stor.activateFeature(t, int16(settings.SmartAccountTrading))
 	to.stor.activateFeature(t, int16(settings.SmartAssets))
 	to.stor.activateFeature(t, int16(settings.OrderV3))
-
-	_, err := to.tc.checkExchangeWithProofs(tx, info)
-	assert.Errorf(t, err, "have to fail on incorrect order of orders before activation of BlockV5")
-
 	to.stor.activateFeature(t, int16(settings.BlockV5))
 
-	_, err = to.tc.checkExchangeWithProofs(tx, info)
+	_, err := to.tc.checkExchangeWithProofs(tx, info)
 	assert.NoErrorf(t, err, "failed on with incorrect order of orders after activation of BlockV5")
 }
 

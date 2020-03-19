@@ -588,16 +588,9 @@ func (tc *transactionChecker) checkExchange(transaction proto.Transaction, info 
 	if err := tc.checkTimestamps(tx.GetTimestamp(), info.currentTimestamp, info.parentTimestamp); err != nil {
 		return nil, errors.Wrap(err, "invalid timestamp")
 	}
-	blockV5Activated, err := tc.stor.features.isActivated(int16(settings.BlockV5))
-	if err != nil {
-		return nil, err
-	}
 	if tx.GetOrder1().GetOrderType() != proto.Buy && tx.GetOrder2().GetOrderType() != proto.Sell {
 		if !proto.IsProtobufTx(transaction) {
 			return nil, errors.New("sell order not allowed on first place in exchange transaction of versions prior 4")
-		}
-		if !blockV5Activated {
-			return nil, errors.New("sell order not allowed on first place in exchange transaction before activation of BlockV5")
 		}
 	}
 	so, err := tx.GetSellOrder()
