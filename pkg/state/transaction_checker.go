@@ -590,7 +590,7 @@ func (tc *transactionChecker) checkExchange(transaction proto.Transaction, info 
 	}
 	if tx.GetOrder1().GetOrderType() != proto.Buy && tx.GetOrder2().GetOrderType() != proto.Sell {
 		if !proto.IsProtobufTx(transaction) {
-			return nil, errors.New("sell order not allowed on first place in exchange transaction of versions prior 4")
+			return nil, errors.New("sell order not allowed on first place in exchange transaction of versions prior 3")
 		}
 	}
 	so, err := tx.GetSellOrder()
