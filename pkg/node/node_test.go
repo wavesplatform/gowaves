@@ -22,5 +22,6 @@ func TestNode_HandleProtoMessage_GetBlockBySignature(t *testing.T) {
 
 	n := NewNode(services.Services{State: s, Peers: peers}, proto.TCPAddr{}, proto.TCPAddr{}, nil, nil)
 	sig, _ := crypto.NewSignatureFromBase58("5uqnLK3Z9eiot6FyYBfwUnbyid3abicQbAZjz38GQ1Q8XigQMxTK4C1zNkqS1SVw7FqSidbZKxWAKLVoEsp4nNqa")
-	n.handleBlockBySignatureMessage(peer, sig)
+	id := proto.NewBlockIDFromSignature(sig)
+	n.handleBlockBySignatureMessage(peer, id)
 }

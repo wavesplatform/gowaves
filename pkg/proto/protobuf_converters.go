@@ -255,6 +255,22 @@ func (c *ProtobufConverter) proof(proofs [][]byte) *crypto.Signature {
 	return &sig
 }
 
+func (c *ProtobufConverter) blockID(data []byte, v BlockVersion) BlockID {
+	if c.err != nil {
+		return BlockID{}
+	}
+	id, err := NewBlockIDFromBytes(data)
+	if err != nil {
+		c.err = err
+		return BlockID{}
+	}
+	if !id.IsValid(v) {
+		c.err = errors.Errorf("blockID has invalid length; block version: %v", v)
+		return BlockID{}
+	}
+	return id
+}
+
 func (c *ProtobufConverter) signature(data []byte) crypto.Signature {
 	if c.err != nil {
 		return crypto.Signature{}
@@ -998,9 +1014,10 @@ func (c *ProtobufConverter) MicroBlock(mb *g.SignedMicroBlock) (MicroBlock, erro
 	if err != nil {
 		return MicroBlock{}, err
 	}
+	v := c.byte(mb.MicroBlock.Version)
 	res := MicroBlock{
-		VersionField:          c.byte(mb.MicroBlock.Version),
-		PrevResBlockSigField:  c.signature(mb.MicroBlock.Reference),
+		VersionField:          v,
+		Reference:             c.blockID(mb.MicroBlock.Reference, BlockVersion(v)),
 		TotalResBlockSigField: c.signature(mb.MicroBlock.UpdatedBlockSignature),
 		TransactionCount:      uint32(len(mb.MicroBlock.Transactions)),
 		Transactions:          txs,
@@ -1072,10 +1089,11 @@ func (c *ProtobufConverter) consensus(header *g.Block_Header) NxtConsensus {
 func (c *ProtobufConverter) BlockHeader(block *g.Block) (BlockHeader, error) {
 	features := c.features(block.Header.FeatureVotes)
 	consensus := c.consensus(block.Header)
+	v := BlockVersion(c.byte(block.Header.Version))
 	header := BlockHeader{
-		Version:              BlockVersion(c.byte(block.Header.Version)),
+		Version:              v,
 		Timestamp:            c.uint64(block.Header.Timestamp),
-		Parent:               c.signature(block.Header.Reference),
+		Parent:               c.blockID(block.Header.Reference, v),
 		FeaturesCount:        len(features),
 		Features:             features,
 		RewardVote:           block.Header.RewardVote,
@@ -1086,13 +1104,12 @@ func (c *ProtobufConverter) BlockHeader(block *g.Block) (BlockHeader, error) {
 		BlockSignature:       c.signature(block.Signature),
 		TransactionsRoot:     block.Header.TransactionsRoot,
 	}
-	if header.Version < NgBlockVersion {
-		// For compatibility with custom format unmarshal.
-		header.Features = nil
-	}
 	if c.err != nil {
 		err := c.err
 		c.reset()
+		return BlockHeader{}, err
+	}
+	if err := header.GenerateBlockID(byte(block.Header.ChainId)); err != nil {
 		return BlockHeader{}, err
 	}
 	return header, nil

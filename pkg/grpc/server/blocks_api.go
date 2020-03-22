@@ -6,7 +6,6 @@ import (
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/golang/protobuf/ptypes/wrappers"
-	"github.com/wavesplatform/gowaves/pkg/crypto"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"google.golang.org/grpc/codes"
@@ -47,7 +46,7 @@ func (s *Server) headerOrBlockByHeight(height proto.Height, includeTransactions 
 func (s *Server) GetBlock(ctx context.Context, req *g.BlockRequest) (*g.BlockWithHeight, error) {
 	switch r := req.Request.(type) {
 	case *g.BlockRequest_BlockId:
-		id, err := crypto.NewSignatureFromBytes(r.BlockId)
+		id, err := proto.NewBlockIDFromBytes(r.BlockId)
 		if err != nil {
 			return nil, status.Errorf(codes.InvalidArgument, err.Error())
 		}
@@ -59,7 +58,7 @@ func (s *Server) GetBlock(ctx context.Context, req *g.BlockRequest) (*g.BlockWit
 	case *g.BlockRequest_Height:
 		return s.headerOrBlockByHeight(proto.Height(r.Height), req.IncludeTransactions)
 	case *g.BlockRequest_Reference:
-		id, err := crypto.NewSignatureFromBytes(r.Reference)
+		id, err := proto.NewBlockIDFromBytes(r.Reference)
 		if err != nil {
 			return nil, status.Errorf(codes.InvalidArgument, err.Error())
 		}

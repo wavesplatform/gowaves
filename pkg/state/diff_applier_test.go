@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
-	"github.com/wavesplatform/gowaves/pkg/util"
+	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
 type diffApplierTestObjects struct {
@@ -31,7 +31,7 @@ func TestDiffApplierWithWaves(t *testing.T) {
 	defer func() {
 		to.stor.close(t)
 
-		err := util.CleanTemporaryDirs(path)
+		err := common.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
@@ -94,7 +94,7 @@ func TestDiffApplierWithAssets(t *testing.T) {
 	defer func() {
 		to.stor.close(t)
 
-		err := util.CleanTemporaryDirs(path)
+		err := common.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
@@ -126,7 +126,7 @@ func TestTransferOverspend(t *testing.T) {
 	defer func() {
 		to.stor.close(t)
 
-		err := util.CleanTemporaryDirs(path)
+		err := common.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 

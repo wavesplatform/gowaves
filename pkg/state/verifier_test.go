@@ -32,9 +32,9 @@ func verifyBlocks(blocks []proto.Block, chans *verifierChans) error {
 	for i := 1; i < len(blocks); i++ {
 		block := blocks[i]
 		task := &verifyTask{
-			taskType:  verifyBlock,
-			parentSig: blocks[i-1].BlockSignature,
-			block:     &block,
+			taskType: verifyBlock,
+			parentID: blocks[i-1].BlockID(),
+			block:    &block,
 		}
 		select {
 		case verifyError := <-chans.errChan:
@@ -70,7 +70,7 @@ func TestVerifier(t *testing.T) {
 	go launchVerifier(context.Background(), chans, runtime.NumCPU(), proto.MainNetScheme)
 	// Spoil block parent.
 	backup := blocks[len(blocks)/2]
-	blocks[len(blocks)/2].Parent = crypto.Signature{}
+	blocks[len(blocks)/2].Parent = proto.NewBlockIDFromSignature(crypto.Signature{})
 	err = verifyBlocks(blocks, chans)
 	assert.Error(t, err, "verifyBlocks() did not fail with wrong parent")
 	chans = newVerifierChans()

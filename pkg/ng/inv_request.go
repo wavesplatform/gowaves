@@ -3,7 +3,6 @@ package ng
 import (
 	"sync"
 
-	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/types"
 	"github.com/wavesplatform/gowaves/pkg/util/fifo_cache"
@@ -20,17 +19,17 @@ func NewInvRequester() *InvRequesterImpl {
 	}
 }
 
-func (a *InvRequesterImpl) Request(p types.MessageSender, signature crypto.Signature) {
+func (a *InvRequesterImpl) Request(p types.MessageSender, id proto.BlockID) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	if a.cache.Exists(signature.Bytes()) {
+	if a.cache.Exists(id.Bytes()) {
 		return
 	}
-	a.cache.Add2(signature.Bytes(), struct{}{})
+	a.cache.Add2(id.Bytes(), struct{}{})
 
 	p.SendMessage(&proto.MicroBlockRequestMessage{
 		Body: &proto.MicroBlockRequest{
-			TotalBlockSig: signature,
+			TotalBlockID: id,
 		},
 	})
 }

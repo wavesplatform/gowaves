@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
@@ -20,13 +19,13 @@ type PeerForkInfo struct {
 }
 
 type Fork struct {
-	Longest          bool             `json:"longest"`            // Indicates that the fork is the longest
-	Height           int              `json:"height"`             // The height of the last block in the fork
-	HeadBlock        crypto.Signature `json:"head_block"`         // The last block of the fork
-	LastCommonHeight int              `json:"last_common_height"` // The height of the last common block
-	LastCommonBlock  crypto.Signature `json:"last_common_block"`  // The last common block with the longest fork
-	Length           int              `json:"length"`             // The number of blocks since the last common block
-	Peers            []PeerForkInfo   `json:"peers"`              // Peers that seen on the fork
+	Longest          bool           `json:"longest"`            // Indicates that the fork is the longest
+	Height           int            `json:"height"`             // The height of the last block in the fork
+	HeadBlock        proto.BlockID  `json:"head_block"`         // The last block of the fork
+	LastCommonHeight int            `json:"last_common_height"` // The height of the last common block
+	LastCommonBlock  proto.BlockID  `json:"last_common_block"`  // The last common block with the longest fork
+	Length           int            `json:"length"`             // The number of blocks since the last common block
+	Peers            []PeerForkInfo `json:"peers"`              // Peers that seen on the fork
 }
 
 type ForkByHeightLengthAndPeersCount []Fork

@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"net/http"
 	"net/url"
 	"os"
@@ -14,6 +13,7 @@ import (
 	"github.com/pkg/errors"
 	flag "github.com/spf13/pflag"
 	"github.com/wavesplatform/gowaves/pkg/client"
+	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
@@ -208,7 +208,7 @@ func findLastCommonHeight(interrupt <-chan struct{}, clients []*client.Client, s
 			return 0, errUserTermination
 		}
 		middle := (start + stop) / 2
-		c, err := differentSignaturesCount(clients, middle)
+		c, err := differentIdsCount(clients, middle)
 		if err != nil {
 			return 0, errors.Wrapf(err, "failed to get blocks signatures at height %d", middle)
 		}
@@ -229,10 +229,10 @@ type nodeHeader struct {
 	err    error
 }
 
-func differentSignaturesCount(clients []*client.Client, height int) (int, error) {
+func differentIdsCount(clients []*client.Client, height int) (int, error) {
 	ch := make(chan nodeHeader, len(clients))
 	info := make(map[int]*client.Headers)
-	m := make(map[crypto.Signature]bool)
+	m := make(map[proto.BlockID]bool)
 	for i, c := range clients {
 		go func(id int, cl *client.Client) {
 			ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
@@ -255,12 +255,12 @@ func differentSignaturesCount(clients []*client.Client, height int) (int, error)
 			return 0, errors.Wrapf(h.err, "failed to get block header from %dth client", h.id)
 		}
 		info[h.id] = h.header
-		m[h.header.Signature] = true
+		m[h.header.ID] = true
 	}
 	for i := 0; i < len(info); i++ {
 		v := info[i]
 		t := time.Unix(0, int64(v.Timestamp*1000000))
-		zap.S().Debugf("id: %d, h: %d, block: %s, generator: %s, time: %s", i, v.Height, v.Signature.String(), v.Generator.String(), t.String())
+		zap.S().Debugf("id: %d, h: %d, block: %s, generator: %s, time: %s", i, v.Height, v.ID.String(), v.Generator.String(), t.String())
 	}
 	return len(m), nil
 }

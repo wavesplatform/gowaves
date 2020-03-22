@@ -15,7 +15,7 @@ import (
 	"github.com/wavesplatform/gowaves/cmd/wmd/internal/state"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"github.com/wavesplatform/gowaves/pkg/util"
+	"github.com/wavesplatform/gowaves/pkg/util/common"
 	"go.uber.org/zap"
 )
 
@@ -46,7 +46,7 @@ func run() error {
 	flag.Parse()
 
 	// Set up log
-	logger, _ := util.SetupLogger(*logLevel)
+	logger, _ := common.SetupLogger(*logLevel)
 	defer func() {
 		err := logger.Sync()
 		if err != nil && err == os.ErrInvalid {

@@ -13,6 +13,7 @@ import (
 )
 
 var genesisSign = crypto.MustSignatureFromBase58("31oSQjtBqNjyj37qmrkocHvoazMtycbaw1shbznXoN66d3nfwczqTr4FKdGmqvaVGyxtrpiKdF6RGiZWNa9rEEkY")
+var genesisId = proto.NewBlockIDFromSignature(genesisSign)
 var genesis = &proto.Block{
 	BlockHeader: proto.BlockHeader{
 		Timestamp:      1558613307877,
@@ -27,7 +28,7 @@ var genesis = &proto.Block{
 func TestApply_NewBlock(t *testing.T) {
 	block := &proto.Block{
 		BlockHeader: proto.BlockHeader{
-			Parent: genesisSign,
+			Parent: genesisId,
 			NxtConsensus: proto.NxtConsensus{
 				BaseTarget: 100,
 			},
@@ -46,7 +47,7 @@ func TestApply_NewBlock(t *testing.T) {
 func TestApply_ValidBlockWithRollback(t *testing.T) {
 	block1 := &proto.Block{
 		BlockHeader: proto.BlockHeader{
-			Parent: genesisSign,
+			Parent: genesisId,
 			NxtConsensus: proto.NxtConsensus{
 				BaseTarget: 100,
 			},
@@ -55,7 +56,7 @@ func TestApply_ValidBlockWithRollback(t *testing.T) {
 	}
 	block2 := &proto.Block{
 		BlockHeader: proto.BlockHeader{
-			Parent: genesisSign,
+			Parent: genesisId,
 			NxtConsensus: proto.NxtConsensus{
 				BaseTarget: 50,
 			},
@@ -83,7 +84,7 @@ func TestApply_InvalidBlockWithRollback(t *testing.T) {
 
 	block1 := &proto.Block{
 		BlockHeader: proto.BlockHeader{
-			Parent: genesisSign,
+			Parent: genesisId,
 			NxtConsensus: proto.NxtConsensus{
 				BaseTarget: 100,
 			},
@@ -93,7 +94,7 @@ func TestApply_InvalidBlockWithRollback(t *testing.T) {
 	}
 	block2 := &proto.Block{
 		BlockHeader: proto.BlockHeader{
-			Parent: genesisSign,
+			Parent: genesisId,
 			NxtConsensus: proto.NxtConsensus{
 				BaseTarget: 50,
 			},
@@ -103,12 +104,12 @@ func TestApply_InvalidBlockWithRollback(t *testing.T) {
 	}
 
 	stateMock := mock.NewMockState(ctrl)
-	stateMock.EXPECT().Block(block2.BlockSignature).Return(nil, proto.ErrNotFound)
+	stateMock.EXPECT().Block(block2.BlockID()).Return(nil, proto.ErrNotFound)
 	stateMock.EXPECT().Height().Return(proto.Height(2), nil)
 	// this returns current height
 	stateMock.EXPECT().ScoreAtHeight(proto.Height(2)).Return(big.NewInt(2), nil)
 	// returns parent height for block we insert, it will be genesis height, 1
-	stateMock.EXPECT().BlockIDToHeight(genesisSign).Return(proto.Height(1), nil)
+	stateMock.EXPECT().BlockIDToHeight(genesisId).Return(proto.Height(1), nil)
 	// returns score for genesis block, it will be 1
 	stateMock.EXPECT().ScoreAtHeight(proto.Height(1)).Return(big.NewInt(1), nil)
 	// now we save block for rollback
@@ -122,5 +123,5 @@ func TestApply_InvalidBlockWithRollback(t *testing.T) {
 
 	ba := innerBlocksApplier{stateMock}
 	_, _, err := ba.apply([]*proto.Block{block2})
-	require.Equal(t, "failed add deserialized blocks, first block sig \"sV8beveiVKCiUn9BGZRgZj7V5tRRWPMRj1V9WWzKWnigtfQyZ2eErVXHi7vyGXj5hPuaxF9sGxowZr5XuD4UAwW\": error message", err.Error())
+	require.Equal(t, "failed add deserialized blocks, first block id sV8beveiVKCiUn9BGZRgZj7V5tRRWPMRj1V9WWzKWnigtfQyZ2eErVXHi7vyGXj5hPuaxF9sGxowZr5XuD4UAwW: error message", err.Error())
 }

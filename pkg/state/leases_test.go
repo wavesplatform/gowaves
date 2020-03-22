@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"github.com/wavesplatform/gowaves/pkg/util"
+	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
 type leasesTestObjects struct {
@@ -47,7 +47,7 @@ func TestCancelLeases(t *testing.T) {
 	defer func() {
 		to.stor.close(t)
 
-		err = util.CleanTemporaryDirs(path)
+		err = common.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
@@ -115,7 +115,7 @@ func TestValidLeaseIns(t *testing.T) {
 	defer func() {
 		to.stor.close(t)
 
-		err = util.CleanTemporaryDirs(path)
+		err = common.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
@@ -153,7 +153,7 @@ func TestAddLeasing(t *testing.T) {
 	defer func() {
 		to.stor.close(t)
 
-		err = util.CleanTemporaryDirs(path)
+		err = common.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
@@ -180,7 +180,7 @@ func TestCancelLeasing(t *testing.T) {
 	defer func() {
 		to.stor.close(t)
 
-		err = util.CleanTemporaryDirs(path)
+		err = common.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 

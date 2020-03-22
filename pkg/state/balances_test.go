@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"github.com/wavesplatform/gowaves/pkg/util"
+	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
 const (
@@ -50,7 +50,7 @@ func TestCancelAllLeases(t *testing.T) {
 	defer func() {
 		to.stor.close(t)
 
-		err = util.CleanTemporaryDirs(path)
+		err = common.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
@@ -59,7 +59,7 @@ func TestCancelAllLeases(t *testing.T) {
 	tests := []struct {
 		addr    string
 		profile balanceProfile
-		blockID crypto.Signature
+		blockID proto.BlockID
 	}{
 		{addr0, balanceProfile{100, 1, 1}, blockID0},
 		{addr1, balanceProfile{2500, 2, 0}, blockID0},
@@ -94,7 +94,7 @@ func TestCancelLeaseOverflows(t *testing.T) {
 	defer func() {
 		to.stor.close(t)
 
-		err = util.CleanTemporaryDirs(path)
+		err = common.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
@@ -103,7 +103,7 @@ func TestCancelLeaseOverflows(t *testing.T) {
 	tests := []struct {
 		addr    string
 		profile balanceProfile
-		blockID crypto.Signature
+		blockID proto.BlockID
 	}{
 		{addr0, balanceProfile{100, 0, 1}, blockID0},
 		{addr1, balanceProfile{2500, 2, 0}, blockID0},
@@ -148,7 +148,7 @@ func TestCancelInvalidLeaseIns(t *testing.T) {
 	defer func() {
 		to.stor.close(t)
 
-		err = util.CleanTemporaryDirs(path)
+		err = common.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
@@ -157,7 +157,7 @@ func TestCancelInvalidLeaseIns(t *testing.T) {
 	tests := []struct {
 		addr         string
 		profile      balanceProfile
-		blockID      crypto.Signature
+		blockID      proto.BlockID
 		validLeaseIn int64
 	}{
 		{addr0, balanceProfile{100, 0, 0}, blockID0, 1},
@@ -195,7 +195,7 @@ func TestMinBalanceInRange(t *testing.T) {
 	defer func() {
 		to.stor.close(t)
 
-		err = util.CleanTemporaryDirs(path)
+		err = common.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
@@ -233,7 +233,7 @@ func TestBalances(t *testing.T) {
 	defer func() {
 		to.stor.close(t)
 
-		err = util.CleanTemporaryDirs(path)
+		err = common.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
@@ -242,7 +242,7 @@ func TestBalances(t *testing.T) {
 	wavesTests := []struct {
 		addr    string
 		profile balanceProfile
-		blockID crypto.Signature
+		blockID proto.BlockID
 	}{
 		{addr0, balanceProfile{100, 0, 0}, blockID0},
 		{addr1, balanceProfile{2500, 0, 0}, blockID0},
@@ -269,7 +269,7 @@ func TestBalances(t *testing.T) {
 		addr    string
 		assetID []byte
 		balance uint64
-		blockID crypto.Signature
+		blockID proto.BlockID
 	}{
 		{addr0, genAsset(1), 100, blockID0},
 		{addr0, genAsset(1), 2500, blockID0},

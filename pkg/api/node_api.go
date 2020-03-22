@@ -11,7 +11,6 @@ import (
 
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
-	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/node"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/state"
@@ -135,19 +134,19 @@ func (a *NodeApi) DebugSyncEnabled(w http.ResponseWriter, r *http.Request) {
 	a.app.DebugSyncEnabled(id == 1)
 }
 
-func (a *NodeApi) BlockSignatureAt(w http.ResponseWriter, r *http.Request) {
-	s := chi.URLParam(r, "signature")
-	sig, err := crypto.NewSignatureFromBase58(s)
+func (a *NodeApi) BlockIDAt(w http.ResponseWriter, r *http.Request) {
+	s := chi.URLParam(r, "id")
+	id, err := proto.NewBlockIDFromBase58(s)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	block, err := a.state.Block(sig)
+	block, err := a.state.Block(id)
 	if err != nil {
 		handleError(w, err)
 		return
 	}
-	height, err := a.state.BlockIDToHeight(sig)
+	height, err := a.state.BlockIDToHeight(id)
 	if err != nil {
 		handleError(w, err)
 		return

@@ -52,6 +52,7 @@ var blocksHeadersAtJson = `
 
 func TestBlocks_HeadersAt(t *testing.T) {
 	reference, _ := crypto.NewSignatureFromBase58("2DqubQMMBt4ot7y8F37JKWLV9J1Fvn35b4TBLGc3A9gzRvL4DweknWghxYJLYf8edDtDZujCbu1Cwqr19kC8jy12")
+	ref := proto.NewBlockIDFromSignature(reference)
 	generator, _ := proto.NewAddressFromString("3N5GRqzDBhjVXnCn44baHcz2GoZy5qLxtTh")
 	signature, _ := crypto.NewSignatureFromBase58("4rnYtWNE8WV4heso4q86Uwbcf1XZR5ShfszaKzyRg7aELP2Su3sFUhcCrQCyBA9SbE4T8pkd2AnLKnwBHwhUKaDq")
 
@@ -66,7 +67,7 @@ func TestBlocks_HeadersAt(t *testing.T) {
 	headers := &Headers{
 		Version:   2,
 		Timestamp: 1485532386874,
-		Reference: reference,
+		Reference: ref,
 		NxtConsensus: NxtConsensus{
 			BaseTarget:          279,
 			GenerationSignature: "GdXMcQzP99TJMsKX37v6BqVDcbC1xd26fgk5LRjhQUhR",
@@ -209,13 +210,14 @@ var blocksDelayJson = `
 
 func TestBlocks_Delay(t *testing.T) {
 	sign, _ := crypto.NewSignatureFromBase58("2WKKGrsL4kyqWPST9ZL4if198V9qYP5NMa92rv9mxGW56iqhseqaQYv15A74ThwtwZC2idj8C5px1b35oyQLzUKt")
+	id := proto.NewBlockIDFromSignature(sign)
 	client, err := NewClient(Options{
 		BaseUrl: "https://testnode1.wavesnodes.com",
 		Client:  NewMockHttpRequestFromString(blocksDelayJson, 200),
 	})
 	require.Nil(t, err)
 	body, resp, err :=
-		client.Blocks.Delay(context.Background(), sign, 1)
+		client.Blocks.Delay(context.Background(), id, 1)
 	require.NoError(t, err)
 	assert.NotNil(t, resp)
 	assert.EqualValues(t, 33510, body)
@@ -224,13 +226,14 @@ func TestBlocks_Delay(t *testing.T) {
 
 func TestBlocks_Signature(t *testing.T) {
 	sign, _ := crypto.NewSignatureFromBase58("2WKKGrsL4kyqWPST9ZL4if198V9qYP5NMa92rv9mxGW56iqhseqaQYv15A74ThwtwZC2idj8C5px1b35oyQLzUKt")
+	id := proto.NewBlockIDFromSignature(sign)
 	client, err := NewClient(Options{
 		BaseUrl: "https://testnode1.wavesnodes.com",
 		Client:  NewMockHttpRequestFromString(blocksAtJson, 200),
 	})
 	require.Nil(t, err)
 	body, resp, err :=
-		client.Blocks.Signature(context.Background(), sign)
+		client.Blocks.Signature(context.Background(), id)
 	require.NoError(t, err)
 	assert.NotNil(t, resp)
 	require.Equal(t, 1, len(body.Transactions))
@@ -265,9 +268,10 @@ func TestBlocks_Child(t *testing.T) {
 		BaseUrl: "https://testnode1.wavesnodes.com",
 		Client:  NewMockHttpRequestFromString(blocksAtJson, 200),
 	})
+	id := proto.NewBlockIDFromSignature(sign)
 	require.Nil(t, err)
 	body, resp, err :=
-		client.Blocks.Child(context.Background(), sign)
+		client.Blocks.Child(context.Background(), id)
 	require.NoError(t, err)
 	assert.NotNil(t, resp)
 	require.Equal(t, 1, len(body.Transactions))

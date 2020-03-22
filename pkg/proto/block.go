@@ -8,11 +8,13 @@ import (
 
 	protobuf "github.com/golang/protobuf/proto"
 	"github.com/jinzhu/copier"
+	"github.com/mr-tron/base58/base58"
 	"github.com/pkg/errors"
 	"github.com/valyala/bytebufferpool"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated"
 	"github.com/wavesplatform/gowaves/pkg/libs/serializer"
+	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
 type BlockVersion byte
@@ -34,15 +36,124 @@ func (nc *NxtConsensus) BinarySize() int {
 	return 8 + len(nc.GenSignature)
 }
 
+type BlockIDType byte
+
+const (
+	SignatureID BlockIDType = iota
+	DigestID
+)
+
+type BlockID struct {
+	sig    crypto.Signature
+	dig    crypto.Digest
+	idType BlockIDType
+}
+
+func NewBlockIDFromBase58(s string) (BlockID, error) {
+	dig, err := crypto.NewDigestFromBase58(s)
+	if err != nil {
+		sig, err := crypto.NewSignatureFromBase58(s)
+		if err != nil {
+			return BlockID{}, err
+		}
+		return NewBlockIDFromSignature(sig), nil
+	}
+	return NewBlockIDFromDigest(dig), nil
+}
+
+func NewBlockIDFromSignature(sig crypto.Signature) BlockID {
+	return BlockID{sig: sig, idType: SignatureID}
+}
+
+func NewBlockIDFromDigest(dig crypto.Digest) BlockID {
+	return BlockID{dig: dig, idType: DigestID}
+}
+
+func NewBlockIDFromBytes(data []byte) (BlockID, error) {
+	res := BlockID{}
+	if len(data) == crypto.SignatureSize {
+		sig, err := crypto.NewSignatureFromBytes(data)
+		if err != nil {
+			return BlockID{}, err
+		}
+		res.sig = sig
+		res.idType = SignatureID
+	} else if len(data) == crypto.DigestSize {
+		dig, err := crypto.NewDigestFromBytes(data)
+		if err != nil {
+			return BlockID{}, err
+		}
+		res.dig = dig
+		res.idType = DigestID
+	} else {
+		return BlockID{}, errors.New("invalid data size")
+	}
+	return res, nil
+}
+
+func (id BlockID) IsValid(version BlockVersion) bool {
+	if version >= ProtoBlockVersion {
+		return id.idType == DigestID
+	}
+	return id.idType == SignatureID
+}
+
+func (id BlockID) Bytes() []byte {
+	if id.idType == SignatureID {
+		return id.sig.Bytes()
+	} else if id.idType == DigestID {
+		return id.dig.Bytes()
+	}
+	return nil
+}
+
+func (id BlockID) IsSignature() bool {
+	return id.idType == SignatureID
+}
+
+func (id BlockID) Signature() crypto.Signature {
+	return id.sig
+}
+
+func (id BlockID) ShortString() string {
+	if id.idType == SignatureID {
+		return id.sig.ShortString()
+	} else if id.idType == DigestID {
+		return id.dig.ShortString()
+	}
+	return ""
+}
+
+func (id BlockID) String() string {
+	return base58.Encode(id.Bytes())
+}
+
+func (id BlockID) MarshalJSON() ([]byte, error) {
+	return common.ToBase58JSON(id.Bytes()), nil
+}
+
+func (id *BlockID) UnmarshalJSON(value []byte) error {
+	b, err := common.FromBase58JSONUnsized(value, "BlockID")
+	if err != nil {
+		return err
+	}
+	res, err := NewBlockIDFromBytes(b)
+	if err != nil {
+		return err
+	}
+	*id = res
+	return nil
+}
+
 // Block info (except transactions)
 type BlockHeader struct {
-	Version                BlockVersion     `json:"version"`
-	Timestamp              uint64           `json:"timestamp"`
-	Parent                 crypto.Signature `json:"reference"`
-	FeaturesCount          int              `json:"-"`
-	Features               []int16          `json:"features,omitempty"`
-	RewardVote             int64            `json:"desiredReward"`
-	ConsensusBlockLength   uint32           `json:"-"`
+	Version                BlockVersion `json:"version"`
+	Timestamp              uint64       `json:"timestamp"`
+	Parent                 BlockID      `json:"reference"`
+	FeaturesCount          int          `json:"-"`
+	Features               []int16      `json:"features,omitempty"`
+	RewardVote             int64        `json:"desiredReward"`
+	ConsensusBlockLength   uint32       `json:"-"`
 	NxtConsensus           `json:"nxt-consensus"`
 	TransactionBlockLength uint32           `json:"transactionBlockLength,omitempty"`
 	TransactionCount       int              `json:"transactionCount"`
@@ -50,7 +161,8 @@ type BlockHeader struct {
 	BlockSignature         crypto.Signature `json:"signature"`
 	TransactionsRoot       B58Bytes         `json:"transactionsRoot,omitempty"`
 
-	Height uint64 `json:"height"`
+	ID     BlockID `json:"id"`
+	Height uint64  `json:"height"`
 }
 
 func featuresToBinary(features []int16) ([]byte, error) {
@@ -68,6 +180,30 @@ func featuresFromBinary(data []byte) ([]int16, error) {
 		return nil, err
 	}
 	return res, nil
+}
+
+func (b *BlockHeader) GenerateBlockID(scheme Scheme) error {
+	if b.Version < ProtoBlockVersion {
+		b.ID = NewBlockIDFromSignature(b.BlockSignature)
+		return nil
+	}
+	headerBytes, err := b.MarshalHeaderToProtobufWithoutSignature(scheme)
+	if err != nil {
+		return err
+	}
+	hash, err := crypto.FastHash(headerBytes)
+	if err != nil {
+		return err
+	}
+	b.ID = NewBlockIDFromDigest(hash)
+	return nil
+}
+
+func (b *BlockHeader) BlockID() BlockID {
+	if b.Version < ProtoBlockVersion {
+		return NewBlockIDFromSignature(b.BlockSignature)
+	}
+	return b.ID
 }
 
 func (b *BlockHeader) MarshalHeader(scheme Scheme) ([]byte, error) {
@@ -94,10 +230,7 @@ func (b *BlockHeader) MarshalHeaderToProtobuf(scheme Scheme) ([]byte, error) {
 }
 
 func (b *BlockHeader) HeaderToProtobufHeader(scheme Scheme) (*g.Block_Header, error) {
-	ref, err := b.Parent.MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
+	ref := b.Parent.Bytes()
 	pkBytes := b.GenPublicKey.Bytes()
 	features := make([]uint32, len(b.Features))
 	for i := range b.Features {
@@ -144,10 +277,17 @@ func (b *BlockHeader) HeaderToProtobufWithHeight(currentScheme Scheme, height ui
 }
 
 func (b *BlockHeader) MarshalHeaderToBinary() ([]byte, error) {
+	if b.Version >= ProtoBlockVersion {
+		return nil, errors.New("binary format is not defined for Block versions > 4")
+	}
 	res := make([]byte, 1+8+64+4+8+32+4)
 	res[0] = byte(b.Version)
 	binary.BigEndian.PutUint64(res[1:9], b.Timestamp)
-	copy(res[9:], b.Parent[:])
+	parentBytes := b.Parent.Bytes()
+	if len(parentBytes) != crypto.SignatureSize {
+		return nil, errors.New("bad parent length for non-protobuf block")
+	}
+	copy(res[9:], parentBytes)
 	binary.BigEndian.PutUint32(res[73:77], b.ConsensusBlockLength)
 	binary.BigEndian.PutUint64(res[77:85], b.BaseTarget)
 	copy(res[85:117], b.GenSignature[:])
@@ -178,7 +318,7 @@ func (b *BlockHeader) MarshalHeaderToBinary() ([]byte, error) {
 	return res, nil
 }
 
-func (b *BlockHeader) UnmarshalHeaderFromBinary(data []byte) (err error) {
+func (b *BlockHeader) UnmarshalHeaderFromBinary(data []byte, scheme Scheme) (err error) {
 	// TODO make benchmarks to figure out why multiple length checks slow down that much
 	// and (probably) get rid of recover().
 	defer func() {
@@ -188,8 +328,16 @@ func (b *BlockHeader) UnmarshalHeaderFromBinary(data []byte) (err error) {
 	}()
 
 	b.Version = BlockVersion(data[0])
+	if b.Version >= ProtoBlockVersion {
+		return errors.New("binary format is not defined for Block versions > 4")
+	}
 	b.Timestamp = binary.BigEndian.Uint64(data[1:9])
-	copy(b.Parent[:], data[9:73])
+	parentBytes := data[9:73]
+	parent, err := NewBlockIDFromBytes(parentBytes)
+	if err != nil {
+		return err
+	}
+	b.Parent = parent
 	b.ConsensusBlockLength = binary.BigEndian.Uint32(data[73:77])
 	b.BaseTarget = binary.BigEndian.Uint64(data[77:85])
 	b.GenSignature = make([]byte, crypto.DigestSize)
@@ -217,10 +365,13 @@ func (b *BlockHeader) UnmarshalHeaderFromBinary(data []byte) (err error) {
 			return errors.New("TransactionBlockLength is too small")
 		}
 		b.TransactionCount = int(data[121])
+		b.Features = []int16{}
 	}
 	copy(b.GenPublicKey[:], data[len(data)-64-32:len(data)-64])
 	copy(b.BlockSignature[:], data[len(data)-64:])
-
+	if err := b.GenerateBlockID(scheme); err != nil {
+		return errors.Wrap(err, "failed to generate block ID")
+	}
 	return nil
 }
 
@@ -339,6 +490,9 @@ func (b *Block) VerifyTransactionsRoot(scheme Scheme) (bool, error) {
 
 // MarshalBinary encodes Block to binary form
 func (b *Block) MarshalBinary() ([]byte, error) {
+	if b.Version >= ProtoBlockVersion {
+		return nil, errors.New("binary format is not defined for Block versions > 4")
+	}
 	buf := bytebufferpool.Get()
 	defer bytebufferpool.Put(buf)
 
@@ -353,6 +507,9 @@ func (b *Block) MarshalBinary() ([]byte, error) {
 }
 
 func (b *Block) WriteTo(w io.Writer) (int64, error) {
+	if b.Version >= ProtoBlockVersion {
+		return 0, errors.New("binary format is not defined for Block versions > 4")
+	}
 	n, err := b.WriteToWithoutSignature(w)
 	if err != nil {
 		return 0, err
@@ -417,10 +574,17 @@ func (b *Block) ToProtobufWithHeight(currentScheme Scheme, height uint64) (*g.Bl
 //WriteToWithoutSignature writes binary representation of block into Writer.
 //It does not sign and write signature.
 func (b *Block) WriteToWithoutSignature(w io.Writer) (int64, error) {
+	if b.Version >= ProtoBlockVersion {
+		return 0, errors.New("binary format is not defined for Block versions > 4")
+	}
 	s := serializer.NewNonFallable(w)
 	s.Byte(byte(b.Version))
 	s.Uint64(b.Timestamp)
-	s.Bytes(b.Parent[:])
+	parentBytes := b.Parent.Bytes()
+	if len(parentBytes) != crypto.SignatureSize {
+		return 0, errors.New("bad parent length for non-protobuf block")
+	}
+	s.Bytes(parentBytes)
 	s.Uint32(b.ConsensusBlockLength)
 	s.Uint64(b.BaseTarget)
 	s.Bytes(b.GenSignature[:])
@@ -464,8 +628,16 @@ func (b *Block) UnmarshalBinary(data []byte, scheme Scheme) (err error) {
 	}()
 
 	b.Version = BlockVersion(data[0])
+	if b.Version >= ProtoBlockVersion {
+		return errors.New("binary format is not defined for Block versions > 4")
+	}
 	b.Timestamp = binary.BigEndian.Uint64(data[1:9])
-	copy(b.Parent[:], data[9:73])
+	parentBytes := data[9:73]
+	parent, err := NewBlockIDFromBytes(parentBytes)
+	if err != nil {
+		return err
+	}
+	b.Parent = parent
 	b.ConsensusBlockLength = binary.BigEndian.Uint32(data[73:77])
 	b.BaseTarget = binary.BigEndian.Uint64(data[77:85])
 	b.GenSignature = make([]byte, crypto.DigestSize)
@@ -506,11 +678,14 @@ func (b *Block) UnmarshalBinary(data []byte, scheme Scheme) (err error) {
 		if err != nil {
 			return errors.Wrap(err, "failed to unmarshal transactions from bytes")
 		}
+		b.Features = []int16{}
 	}
 
 	copy(b.GenPublicKey[:], data[len(data)-64-32:len(data)-64])
 	copy(b.BlockSignature[:], data[len(data)-64:])
-
+	if err := b.GenerateBlockID(scheme); err != nil {
+		return errors.Wrap(err, "failed to generate block ID")
+	}
 	return nil
 }
 
@@ -532,13 +707,13 @@ func (b *Block) transactionsRoot(scheme Scheme) ([]byte, error) {
 	return tree.Root().Bytes(), nil
 }
 
-func CreateBlock(transactions Transactions, timestamp Timestamp, parentSig crypto.Signature, publicKey crypto.PublicKey, nxtConsensus NxtConsensus, version BlockVersion, features []int16, rewardVote int64, scheme Scheme) (*Block, error) {
+func CreateBlock(transactions Transactions, timestamp Timestamp, parentID BlockID, publicKey crypto.PublicKey, nxtConsensus NxtConsensus, version BlockVersion, features []int16, rewardVote int64, scheme Scheme) (*Block, error) {
 	consensusLength := nxtConsensus.BinarySize()
 	b := &Block{
 		BlockHeader: BlockHeader{
 			Version:              version,
 			Timestamp:            timestamp,
-			Parent:               parentSig,
+			Parent:               parentID,
 			FeaturesCount:        len(features),
 			Features:             features,
 			RewardVote:           rewardVote,
@@ -551,6 +726,9 @@ func CreateBlock(transactions Transactions, timestamp Timestamp, parentSig crypt
 	}
 	if version <= RewardBlockVersion {
 		b.TransactionBlockLength = uint32(transactions.BinarySize() + 4)
+	}
+	if err := b.GenerateBlockID(scheme); err != nil {
+		return nil, errors.Wrap(err, "failed to generate block ID")
 	}
 	if version >= ProtoBlockVersion {
 		err := b.SetTransactionsRoot(scheme)

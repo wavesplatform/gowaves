@@ -61,7 +61,7 @@ func TestCreateBulkHandler(t *testing.T) {
 	block, err := proto.CreateBlock(
 		proto.Transactions(nil),
 		100,
-		crypto.Signature{},
+		proto.BlockID{},
 		crypto.PublicKey{},
 		proto.NxtConsensus{},
 		1,

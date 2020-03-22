@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/settings"
-	"github.com/wavesplatform/gowaves/pkg/util"
+	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
 func TestBlockRewardRecord(t *testing.T) {
@@ -57,7 +57,7 @@ func TestAddVote(t *testing.T) {
 	require.NoError(t, err)
 	defer func() {
 		storage.close(t)
-		err = util.CleanTemporaryDirs(path)
+		err = common.CleanTemporaryDirs(path)
 		require.NoError(t, err)
 	}()
 
@@ -93,7 +93,7 @@ func TestRollbackVote(t *testing.T) {
 	require.NoError(t, err)
 	defer func() {
 		storage.close(t)
-		err = util.CleanTemporaryDirs(path)
+		err = common.CleanTemporaryDirs(path)
 		require.NoError(t, err)
 	}()
 
@@ -131,7 +131,7 @@ func TestFinishRewardVoting(t *testing.T) {
 	require.NoError(t, err)
 	defer func() {
 		storage.close(t)
-		err = util.CleanTemporaryDirs(path)
+		err = common.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 

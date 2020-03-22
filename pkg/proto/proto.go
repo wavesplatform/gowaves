@@ -42,6 +42,8 @@ const (
 	ContentIDPBBlock           = 29
 	ContentIDPBMicroBlock      = 30
 	ContentIDPBTransaction     = 31
+	ContentIDGetBlockIds       = 32
+	ContentIDBlockIds          = 33
 
 	HeaderContentIDPosition = 8
 )
@@ -1096,13 +1098,15 @@ func (m *GetSignaturesMessage) UnmarshalBinary(data []byte) error {
 	blockCount := binary.BigEndian.Uint32(data[0:4])
 	data = data[4:]
 
+	pos := 0
 	for i := uint32(0); i < blockCount; i++ {
 		var b crypto.Signature
-		if len(data[i:]) < 64 {
+		if len(data[pos:]) < 64 {
 			return fmt.Errorf("message too short %v", len(data))
 		}
-		copy(b[:], data[i:i+64])
+		copy(b[:], data[pos:pos+64])
 		m.Blocks = append(m.Blocks, b)
+		pos += 64
 	}
 
 	return nil
@@ -1222,13 +1226,12 @@ func (m *SignaturesMessage) WriteTo(w io.Writer) (int64, error) {
 
 // GetBlockMessage represents GetBlock message
 type GetBlockMessage struct {
-	BlockID crypto.Signature
+	BlockID BlockID
 }
 
 // MarshalBinary encodes GetBlockMessage to binary form
 func (m *GetBlockMessage) MarshalBinary() ([]byte, error) {
-	body := make([]byte, 0, 64)
-	body = append(body, m.BlockID[:]...)
+	body := m.BlockID.Bytes()
 
 	var h Header
 	h.Length = MaxHeaderLength + uint32(len(body)) - 4
@@ -1266,11 +1269,11 @@ func (m *GetBlockMessage) UnmarshalBinary(data []byte) error {
 		return fmt.Errorf("wrong ContentID in Header: %x", h.ContentID)
 	}
 	data = data[17:]
-	if len(data) < 64 {
-		return fmt.Errorf("message too short %v", len(data))
+	blockID, err := NewBlockIDFromBytes(data)
+	if err != nil {
+		return errors.New("invalid data size")
 	}
-
-	copy(m.BlockID[:], data[:64])
+	m.BlockID = blockID
 
 	return nil
 }
@@ -1302,7 +1305,8 @@ func MessageByMicroBlock(mb *MicroBlock, scheme Scheme) (Message, error) {
 		if err != nil {
 			return nil, err
 		}
-		return &PBMicroBlockMessage{bts}, nil
+		idBytes := mb.TotalBlockID.Bytes()
+		return &PBMicroBlockMessage{MicroBlockBytes: bts, TotalBlockID: idBytes}, nil
 	} else {
 		return &MicroBlockMessage{mb}, nil
 	}
@@ -1821,6 +1825,10 @@ func UnmarshalMessage(b []byte) (Message, error) {
 		m = &PBMicroBlockMessage{}
 	case ContentIDPBTransaction:
 		m = &PBTransactionMessage{}
+	case ContentIDGetBlockIds:
+		m = &GetBlockIdsMessage{}
+	case ContentIDBlockIds:
+		m = &BlockIdsMessage{}
 	default:
 		return nil, errors.Errorf(
 			"received unknown content id byte %d 0x%x", b[HeaderContentIDPosition], b[HeaderContentIDPosition])
@@ -1829,6 +1837,200 @@ func UnmarshalMessage(b []byte) (Message, error) {
 	err := m.UnmarshalBinary(b)
 	return m, err
 
+}
+
+// GetBlockIdsMessage is used for Signatures or hashes block ids
+type GetBlockIdsMessage struct {
+	Blocks []BlockID
+}
+
+func (m *GetBlockIdsMessage) MarshalBinary() ([]byte, error) {
+	body := make([]byte, 4)
+	binary.BigEndian.PutUint32(body[0:4], uint32(len(m.Blocks)))
+	for _, bl := range m.Blocks {
+		b := bl.Bytes()
+		idLen := len(b)
+		body = append(body, byte(idLen))
+		body = append(body, b...)
+	}
+
+	var h Header
+	h.Length = MaxHeaderLength + uint32(len(body)) - 4
+	h.Magic = headerMagic
+	h.ContentID = ContentIDGetBlockIds
+	h.PayloadLength = uint32(len(body))
+	dig, err := crypto.FastHash(body)
+	if err != nil {
+		return nil, err
+	}
+	copy(h.PayloadCsum[:], dig[:4])
+
+	hdr, err := h.MarshalBinary()
+	if err != nil {
+		return nil, err
+	}
+
+	body = append(hdr, body...)
+
+	return body, nil
+}
+
+func (m *GetBlockIdsMessage) UnmarshalBinary(data []byte) error {
+	if len(data) < 17 {
+		return errors.New("invalid data size")
+	}
+	var h Header
+	if err := h.UnmarshalBinary(data); err != nil {
+		return err
+	}
+	if h.Magic != headerMagic {
+		return fmt.Errorf("wrong magic in Header: %x", h.Magic)
+	}
+	if h.ContentID != ContentIDGetBlockIds {
+		return fmt.Errorf("wrong ContentID in Header: %x", h.ContentID)
+	}
+	data = data[17:]
+	if len(data) < 4 {
+		return fmt.Errorf("message too short %v", len(data))
+	}
+	blockCount := binary.BigEndian.Uint32(data[0:4])
+	data = data[4:]
+	pos := 0
+	for i := uint32(0); i < blockCount; i++ {
+		if len(data) < pos+1 {
+			return fmt.Errorf("message too short %v", len(data))
+		}
+		idLen := int(data[pos])
+		pos += 1
+		if len(data[pos:]) < idLen {
+			return fmt.Errorf("message too short %v", len(data))
+		}
+		id, err := NewBlockIDFromBytes(data[pos : pos+idLen])
+		if err != nil {
+			return errors.Wrap(err, "bad block id bytes")
+		}
+		m.Blocks = append(m.Blocks, id)
+		pos += idLen
+	}
+
+	return nil
+}
+
+func (m *GetBlockIdsMessage) ReadFrom(r io.Reader) (int64, error) {
+	packet, nn, err := readPacket(r)
+	if err != nil {
+		return nn, err
+	}
+
+	return nn, m.UnmarshalBinary(packet)
+}
+
+func (m *GetBlockIdsMessage) WriteTo(w io.Writer) (int64, error) {
+	buf, err := m.MarshalBinary()
+	if err != nil {
+		return 0, err
+	}
+	nn, err := w.Write(buf)
+	n := int64(nn)
+	return n, err
+}
+
+// BlockIdsMessage is used for Signatures or hashes block ids.
+type BlockIdsMessage struct {
+	Blocks []BlockID
+}
+
+func (m *BlockIdsMessage) MarshalBinary() ([]byte, error) {
+	body := make([]byte, 4)
+	binary.BigEndian.PutUint32(body[0:4], uint32(len(m.Blocks)))
+	for _, bl := range m.Blocks {
+		b := bl.Bytes()
+		idLen := len(b)
+		body = append(body, byte(idLen))
+		body = append(body, b...)
+	}
+
+	var h Header
+	h.Length = MaxHeaderLength + uint32(len(body)) - 4
+	h.Magic = headerMagic
+	h.ContentID = ContentIDBlockIds
+	h.PayloadLength = uint32(len(body))
+	dig, err := crypto.FastHash(body)
+	if err != nil {
+		return nil, err
+	}
+	copy(h.PayloadCsum[:], dig[:4])
+
+	hdr, err := h.MarshalBinary()
+	if err != nil {
+		return nil, err
+	}
+
+	body = append(hdr, body...)
+
+	return body, nil
+}
+
+func (m *BlockIdsMessage) UnmarshalBinary(data []byte) error {
+	if len(data) < 17 {
+		return errors.New("invalid data size")
+	}
+	var h Header
+
+	if err := h.UnmarshalBinary(data); err != nil {
+		return err
+	}
+	if h.Magic != headerMagic {
+		return fmt.Errorf("wrong magic in Header: %x", h.Magic)
+	}
+	if h.ContentID != ContentIDBlockIds {
+		return fmt.Errorf("wrong ContentID in Header: %x", h.ContentID)
+	}
+	data = data[17:]
+	if len(data) < 4 {
+		return fmt.Errorf("message too short %v", len(data))
+	}
+	idsCount := binary.BigEndian.Uint32(data[0:4])
+	data = data[4:]
+
+	offset := 0
+	for i := uint32(0); i < idsCount; i++ {
+		if len(data) < offset+1 {
+			return fmt.Errorf("message too short: %v", len(data))
+		}
+		idLen := int(data[offset])
+		offset += 1
+		if len(data[offset:]) < idLen {
+			return fmt.Errorf("message too short: %v", len(data))
+		}
+		id, err := NewBlockIDFromBytes(data[offset : offset+idLen])
+		if err != nil {
+			return errors.Wrap(err, "bad block id bytes")
+		}
+		m.Blocks = append(m.Blocks, id)
+		offset += idLen
+	}
+
+	return nil
+}
+
+func (m *BlockIdsMessage) ReadFrom(r io.Reader) (int64, error) {
+	packet, nn, err := readPacket(r)
+	if err != nil {
+		return nn, err
+	}
+
+	return nn, m.UnmarshalBinary(packet)
+}
+
+func (m *BlockIdsMessage) WriteTo(w io.Writer) (int64, error) {
+	buf, err := m.MarshalBinary()
+	if err != nil {
+		return 0, err
+	}
+	nn, err := w.Write(buf)
+	n := int64(nn)
+	return n, err
 }
 
 type BulkMessage []Message

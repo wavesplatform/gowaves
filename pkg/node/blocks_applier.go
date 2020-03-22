@@ -20,9 +20,9 @@ func (a *innerBlocksApplier) apply(blocks []*proto.Block) (*proto.Block, proto.H
 	}
 	firstBlock := blocks[0]
 	// check first block if exists
-	_, err := a.state.Block(firstBlock.BlockSignature)
+	_, err := a.state.Block(firstBlock.BlockID())
 	if err == nil {
-		return nil, 0, errors.Errorf("first block %s exists", firstBlock.BlockSignature.String())
+		return nil, 0, errors.Errorf("first block %s exists", firstBlock.BlockID().String())
 	}
 	if !state.IsNotFound(err) {
 		return nil, 0, errors.Wrap(err, "unknown error")
@@ -41,7 +41,7 @@ func (a *innerBlocksApplier) apply(blocks []*proto.Block) (*proto.Block, proto.H
 	// try to find parent. If not - we can't add blocks, skip it
 	parentHeight, err := a.state.BlockIDToHeight(firstBlock.Parent)
 	if err != nil {
-		return nil, 0, errors.Wrapf(err, "BlockApplier: failed get parent height, firstBlock sig %s, for firstBlock %s", firstBlock.Parent, firstBlock.BlockSignature)
+		return nil, 0, errors.Wrapf(err, "BlockApplier: failed get parent height, firstBlock id %s, for firstBlock %s", firstBlock.Parent.String(), firstBlock.BlockID().String())
 	}
 	// calculate score of all passed blocks
 	score, err := calcMultipleScore(blocks)
@@ -95,7 +95,7 @@ func (a *innerBlocksApplier) apply(blocks []*proto.Block) (*proto.Block, proto.H
 		if err2 != nil {
 			return nil, 0, errors.Wrap(err2, "failed rollback deserialized blocks")
 		}
-		return nil, 0, errors.Wrapf(err, "failed add deserialized blocks, first block sig %q", firstBlock.BlockSignature)
+		return nil, 0, errors.Wrapf(err, "failed add deserialized blocks, first block id %s", firstBlock.BlockID().String())
 	}
 	return newBlock, parentHeight + proto.Height(len(blocks)), nil
 }

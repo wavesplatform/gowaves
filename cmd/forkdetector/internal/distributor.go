@@ -3,7 +3,7 @@ package internal
 import (
 	"sync"
 
-	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
 )
 
@@ -17,7 +17,7 @@ type distributor struct {
 	newConnectionsCh    chan *Conn
 	closedConnectionsCh chan *Conn
 	scoreCh             chan *Conn
-	signaturesCh        chan signaturesEvent
+	idsCh               chan idsEvent
 }
 
 func NewDistributor(shutdown <-chan struct{}, drawer *drawer) (*distributor, error) {
@@ -33,7 +33,7 @@ func NewDistributor(shutdown <-chan struct{}, drawer *drawer) (*distributor, err
 		newConnectionsCh:    make(chan *Conn),
 		closedConnectionsCh: make(chan *Conn),
 		scoreCh:             make(chan *Conn),
-		signaturesCh:        make(chan signaturesEvent),
+		idsCh:               make(chan idsEvent),
 	}, nil
 }
 
@@ -57,10 +57,10 @@ func (l *distributor) Start() <-chan struct{} {
 				return
 
 			case conn := <-l.newConnectionsCh:
-				// Start a new signatures synchronizer
+				// Start a new ids synchronizer
 				_, ok := l.synchronizers[conn]
 				if ok {
-					zap.S().Errorf("[%s][DTR] Repetitive attempt to register signatures synchronizer", conn.RawConn.RemoteAddr())
+					zap.S().Errorf("[%s][DTR] Repetitive attempt to register ids synchronizer", conn.RawConn.RemoteAddr())
 					continue
 				}
 				s := newSynchronizer(l.wg, l.drawer, l.blocksRequestsSink(), conn)
@@ -69,11 +69,11 @@ func (l *distributor) Start() <-chan struct{} {
 				go s.start()
 
 			case conn := <-l.closedConnectionsCh:
-				// Shutting down signatures synchronizer
-				zap.S().Debugf("[%s][DTR] Connection closed, shutting down signatures synchronizer", conn.RawConn.RemoteAddr())
+				// Shutting down ids synchronizer
+				zap.S().Debugf("[%s][DTR] Connection closed, shutting down ids synchronizer", conn.RawConn.RemoteAddr())
 				s, ok := l.synchronizers[conn]
 				if !ok {
-					zap.S().Errorf("[%s][DTR] No signatures synchronizer found", conn.RawConn.RemoteAddr())
+					zap.S().Errorf("[%s][DTR] No ids synchronizer found", conn.RawConn.RemoteAddr())
 					continue
 				}
 				delete(l.synchronizers, conn)
@@ -83,31 +83,31 @@ func (l *distributor) Start() <-chan struct{} {
 				// New score on connection
 				s, ok := l.synchronizers[conn]
 				if !ok {
-					zap.S().Errorf("[%s][DTR] No signatures synchronizer", conn.RawConn.RemoteAddr())
+					zap.S().Errorf("[%s][DTR] No ids synchronizer", conn.RawConn.RemoteAddr())
 					continue
 				}
 				go func(s *synchronizer) {
 					s.score() <- struct{}{}
 				}(s)
 
-			case e := <-l.signaturesCh:
-				// Handle new signatures
-				zap.S().Debugf("[%s][DTR] Received %d signatures: %s", e.conn.RawConn.RemoteAddr(), len(e.signatures), logSignatures(e.signatures))
+			case e := <-l.idsCh:
+				// Handle new ids
+				zap.S().Debugf("[%s][DTR] Received %d ids: %s", e.conn.RawConn.RemoteAddr(), len(e.ids), logIds(e.ids))
 				s, ok := l.synchronizers[e.conn]
 				if !ok {
-					zap.S().Errorf("[%s][DTR] No signatures synchronizer", e.conn.RawConn.RemoteAddr())
+					zap.S().Errorf("[%s][DTR] No ids synchronizer", e.conn.RawConn.RemoteAddr())
 					continue
 				}
-				go func(sync *synchronizer, signatures []crypto.Signature) {
-					sync.signatures() <- signatures
-				}(s, e.signatures)
+				go func(sync *synchronizer, ids []proto.BlockID) {
+					sync.ids() <- ids
+				}(s, e.ids)
 
 			case e := <-l.blocksLoader.notificationsTap():
 				// Notify synchronizers about new block applied by blocks loader
 				zap.S().Debugf("[DTR] Notifying %d synchronizers about block %s", len(l.synchronizers), e.String())
 				for _, s := range l.synchronizers {
-					go func(sync *synchronizer, sig crypto.Signature) {
-						sync.block() <- sig
+					go func(sync *synchronizer, id proto.BlockID) {
+						sync.block() <- id
 					}(s, e)
 				}
 			}
@@ -128,14 +128,14 @@ func (l *distributor) ScoreSink() chan<- *Conn {
 	return l.scoreCh
 }
 
-func (l *distributor) SignaturesSink() chan<- signaturesEvent {
-	return l.signaturesCh
+func (l *distributor) IdsSink() chan<- idsEvent {
+	return l.idsCh
 }
 
 func (l *distributor) BlocksSink() chan<- blockEvent {
 	return l.blocksLoader.blocksSink()
 }
 
-func (l *distributor) blocksRequestsSink() chan<- signaturesEvent {
+func (l *distributor) blocksRequestsSink() chan<- idsEvent {
 	return l.blocksLoader.requestsSink()
 }

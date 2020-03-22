@@ -27,19 +27,19 @@ type checkerInfo struct {
 	initialisation   bool
 	currentTimestamp uint64
 	parentTimestamp  uint64
-	blockID          crypto.Signature
+	blockID          proto.BlockID
 	blockVersion     proto.BlockVersion
 	height           uint64
 }
 
 type transactionChecker struct {
-	genesis  crypto.Signature
+	genesis  proto.BlockID
 	stor     *blockchainEntitiesStorage
 	settings *settings.BlockchainSettings
 }
 
 func newTransactionChecker(
-	genesis crypto.Signature,
+	genesis proto.BlockID,
 	stor *blockchainEntitiesStorage,
 	settings *settings.BlockchainSettings,
 ) (*transactionChecker, error) {

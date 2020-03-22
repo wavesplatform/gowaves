@@ -49,7 +49,7 @@ func (ir *invokeResults) invokeResult(invokeID crypto.Digest, filter bool) (*pro
 	return record.res, nil
 }
 
-func (ir *invokeResults) saveResult(invokeID crypto.Digest, res *proto.ScriptResult, blockID crypto.Signature) error {
+func (ir *invokeResults) saveResult(invokeID crypto.Digest, res *proto.ScriptResult, blockID proto.BlockID) error {
 	key := invokeResultKey{invokeID}
 	record := &invokeResultRecord{res}
 	recordBytes, err := record.marshalBinary()

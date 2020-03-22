@@ -83,13 +83,13 @@ type MessageSender interface {
 }
 
 type InvRequester interface {
-	Request(MessageSender, crypto.Signature)
+	Request(MessageSender, proto.BlockID)
 }
 
 type BaseTarget = uint64
 
 type Miner interface {
-	Mine(ctx context.Context, t proto.Timestamp, k proto.KeyPair, parent crypto.Signature, baseTarget BaseTarget, GenSignature []byte)
+	Mine(ctx context.Context, t proto.Timestamp, k proto.KeyPair, parent proto.BlockID, baseTarget BaseTarget, GenSignature []byte)
 }
 
 type Time interface {

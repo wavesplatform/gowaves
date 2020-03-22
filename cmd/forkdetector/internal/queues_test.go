@@ -62,12 +62,15 @@ func TestRequestQueuePickRandomlyFromEmpty(t *testing.T) {
 }
 
 func TestRequestQueueOneConnection(t *testing.T) {
-	b1, err := crypto.NewSignatureFromBase58("3kSNeUztQ6HrTUGTmwWqoCANRy99s65RNyub7ENnWsMQVNNQYFLyfRYQycvshvpus7TazrnevxKvGgDw82D4yhMk")
+	sig1, err := crypto.NewSignatureFromBase58("3kSNeUztQ6HrTUGTmwWqoCANRy99s65RNyub7ENnWsMQVNNQYFLyfRYQycvshvpus7TazrnevxKvGgDw82D4yhMk")
 	require.NoError(t, err)
-	b2, err := crypto.NewSignatureFromBase58("443nnYBRjjt8AZApoYtf5zGgukaTdCfQfBhmZQ55nyVkBXmhjzbweBaDVX23D9b5mMMXzLR6YyGHqq14BppHvAQZ")
+	b1 := proto.NewBlockIDFromSignature(sig1)
+	sig2, err := crypto.NewSignatureFromBase58("443nnYBRjjt8AZApoYtf5zGgukaTdCfQfBhmZQ55nyVkBXmhjzbweBaDVX23D9b5mMMXzLR6YyGHqq14BppHvAQZ")
 	require.NoError(t, err)
-	b3, err := crypto.NewSignatureFromBase58("YAEPx9iMfjXwbfF7Uxsi18a4y9CNZbJsavmwtRmaXiS6gcsRWdzWeHQU9jDdUNdrwQb76s1mMZNMh7cZvmoyZxz")
+	b2 := proto.NewBlockIDFromSignature(sig2)
+	sig3, err := crypto.NewSignatureFromBase58("YAEPx9iMfjXwbfF7Uxsi18a4y9CNZbJsavmwtRmaXiS6gcsRWdzWeHQU9jDdUNdrwQb76s1mMZNMh7cZvmoyZxz")
 	require.NoError(t, err)
+	b3 := proto.NewBlockIDFromSignature(sig3)
 
 	conn := createConnectionWithMock("1")
 
@@ -102,16 +105,21 @@ func TestRequestQueueOneConnection(t *testing.T) {
 }
 
 func TestRequestQueueFewConnections(t *testing.T) {
-	b1, err := crypto.NewSignatureFromBase58("3kSNeUztQ6HrTUGTmwWqoCANRy99s65RNyub7ENnWsMQVNNQYFLyfRYQycvshvpus7TazrnevxKvGgDw82D4yhMk")
+	sig1, err := crypto.NewSignatureFromBase58("3kSNeUztQ6HrTUGTmwWqoCANRy99s65RNyub7ENnWsMQVNNQYFLyfRYQycvshvpus7TazrnevxKvGgDw82D4yhMk")
 	require.NoError(t, err)
-	b2, err := crypto.NewSignatureFromBase58("443nnYBRjjt8AZApoYtf5zGgukaTdCfQfBhmZQ55nyVkBXmhjzbweBaDVX23D9b5mMMXzLR6YyGHqq14BppHvAQZ")
+	b1 := proto.NewBlockIDFromSignature(sig1)
+	sig2, err := crypto.NewSignatureFromBase58("443nnYBRjjt8AZApoYtf5zGgukaTdCfQfBhmZQ55nyVkBXmhjzbweBaDVX23D9b5mMMXzLR6YyGHqq14BppHvAQZ")
 	require.NoError(t, err)
-	b3, err := crypto.NewSignatureFromBase58("YAEPx9iMfjXwbfF7Uxsi18a4y9CNZbJsavmwtRmaXiS6gcsRWdzWeHQU9jDdUNdrwQb76s1mMZNMh7cZvmoyZxz")
+	b2 := proto.NewBlockIDFromSignature(sig2)
+	sig3, err := crypto.NewSignatureFromBase58("YAEPx9iMfjXwbfF7Uxsi18a4y9CNZbJsavmwtRmaXiS6gcsRWdzWeHQU9jDdUNdrwQb76s1mMZNMh7cZvmoyZxz")
 	require.NoError(t, err)
-	b4, err := crypto.NewSignatureFromBase58("5UwsMWFNvuGEq9s72aYa4wXXDSaTbhtqFaG2Y9y1o6f3nskZ1rjwbZMA47hu8dQopvJ3ZeTFKRG6bo47WHYBvu9T")
+	b3 := proto.NewBlockIDFromSignature(sig3)
+	sig4, err := crypto.NewSignatureFromBase58("5UwsMWFNvuGEq9s72aYa4wXXDSaTbhtqFaG2Y9y1o6f3nskZ1rjwbZMA47hu8dQopvJ3ZeTFKRG6bo47WHYBvu9T")
 	require.NoError(t, err)
-	b5, err := crypto.NewSignatureFromBase58("5h3MqnsxhwPgHX281nLiC1oxVjTQn1ZYngk4Ef8EZ9s6zieVyuTpTyMLBkrzwG9jzTpM3CqhWD1szCkDRpMmidTj")
+	b4 := proto.NewBlockIDFromSignature(sig4)
+	sig5, err := crypto.NewSignatureFromBase58("5h3MqnsxhwPgHX281nLiC1oxVjTQn1ZYngk4Ef8EZ9s6zieVyuTpTyMLBkrzwG9jzTpM3CqhWD1szCkDRpMmidTj")
 	require.NoError(t, err)
+	b5 := proto.NewBlockIDFromSignature(sig5)
 
 	conn1 := createConnectionWithMock("1")
 	conn2 := createConnectionWithMock("2")
@@ -179,18 +187,24 @@ func TestRequestQueueFewConnections(t *testing.T) {
 }
 
 func TestRequestQueueEnqueueDequeue(t *testing.T) {
-	b0, err := crypto.NewSignatureFromBase58("5STx5DJDUo1PvhTvnk4Mb7tVniJvHMt6RrcHKhtMfsL5xD5mQGrPWesXGAYNpehreBe8sEoaJ8rErqcEyXGwpGBG")
+	sig0, err := crypto.NewSignatureFromBase58("5STx5DJDUo1PvhTvnk4Mb7tVniJvHMt6RrcHKhtMfsL5xD5mQGrPWesXGAYNpehreBe8sEoaJ8rErqcEyXGwpGBG")
 	require.NoError(t, err)
-	b1, err := crypto.NewSignatureFromBase58("3kSNeUztQ6HrTUGTmwWqoCANRy99s65RNyub7ENnWsMQVNNQYFLyfRYQycvshvpus7TazrnevxKvGgDw82D4yhMk")
+	b0 := proto.NewBlockIDFromSignature(sig0)
+	sig1, err := crypto.NewSignatureFromBase58("3kSNeUztQ6HrTUGTmwWqoCANRy99s65RNyub7ENnWsMQVNNQYFLyfRYQycvshvpus7TazrnevxKvGgDw82D4yhMk")
 	require.NoError(t, err)
-	b2, err := crypto.NewSignatureFromBase58("443nnYBRjjt8AZApoYtf5zGgukaTdCfQfBhmZQ55nyVkBXmhjzbweBaDVX23D9b5mMMXzLR6YyGHqq14BppHvAQZ")
+	b1 := proto.NewBlockIDFromSignature(sig1)
+	sig2, err := crypto.NewSignatureFromBase58("443nnYBRjjt8AZApoYtf5zGgukaTdCfQfBhmZQ55nyVkBXmhjzbweBaDVX23D9b5mMMXzLR6YyGHqq14BppHvAQZ")
 	require.NoError(t, err)
-	b3, err := crypto.NewSignatureFromBase58("YAEPx9iMfjXwbfF7Uxsi18a4y9CNZbJsavmwtRmaXiS6gcsRWdzWeHQU9jDdUNdrwQb76s1mMZNMh7cZvmoyZxz")
+	b2 := proto.NewBlockIDFromSignature(sig2)
+	sig3, err := crypto.NewSignatureFromBase58("YAEPx9iMfjXwbfF7Uxsi18a4y9CNZbJsavmwtRmaXiS6gcsRWdzWeHQU9jDdUNdrwQb76s1mMZNMh7cZvmoyZxz")
 	require.NoError(t, err)
-	b4, err := crypto.NewSignatureFromBase58("5UwsMWFNvuGEq9s72aYa4wXXDSaTbhtqFaG2Y9y1o6f3nskZ1rjwbZMA47hu8dQopvJ3ZeTFKRG6bo47WHYBvu9T")
+	b3 := proto.NewBlockIDFromSignature(sig3)
+	sig4, err := crypto.NewSignatureFromBase58("5UwsMWFNvuGEq9s72aYa4wXXDSaTbhtqFaG2Y9y1o6f3nskZ1rjwbZMA47hu8dQopvJ3ZeTFKRG6bo47WHYBvu9T")
 	require.NoError(t, err)
-	b5, err := crypto.NewSignatureFromBase58("5h3MqnsxhwPgHX281nLiC1oxVjTQn1ZYngk4Ef8EZ9s6zieVyuTpTyMLBkrzwG9jzTpM3CqhWD1szCkDRpMmidTj")
+	b4 := proto.NewBlockIDFromSignature(sig4)
+	sig5, err := crypto.NewSignatureFromBase58("5h3MqnsxhwPgHX281nLiC1oxVjTQn1ZYngk4Ef8EZ9s6zieVyuTpTyMLBkrzwG9jzTpM3CqhWD1szCkDRpMmidTj")
 	require.NoError(t, err)
+	b5 := proto.NewBlockIDFromSignature(sig5)
 
 	conn := createConnectionWithMock("1")
 
@@ -269,12 +283,15 @@ func TestRequestQueueEnqueueDequeue(t *testing.T) {
 }
 
 func TestRequestQueueReset(t *testing.T) {
-	b1, err := crypto.NewSignatureFromBase58("3kSNeUztQ6HrTUGTmwWqoCANRy99s65RNyub7ENnWsMQVNNQYFLyfRYQycvshvpus7TazrnevxKvGgDw82D4yhMk")
+	sig1, err := crypto.NewSignatureFromBase58("3kSNeUztQ6HrTUGTmwWqoCANRy99s65RNyub7ENnWsMQVNNQYFLyfRYQycvshvpus7TazrnevxKvGgDw82D4yhMk")
 	require.NoError(t, err)
-	b2, err := crypto.NewSignatureFromBase58("443nnYBRjjt8AZApoYtf5zGgukaTdCfQfBhmZQ55nyVkBXmhjzbweBaDVX23D9b5mMMXzLR6YyGHqq14BppHvAQZ")
+	b1 := proto.NewBlockIDFromSignature(sig1)
+	sig2, err := crypto.NewSignatureFromBase58("443nnYBRjjt8AZApoYtf5zGgukaTdCfQfBhmZQ55nyVkBXmhjzbweBaDVX23D9b5mMMXzLR6YyGHqq14BppHvAQZ")
 	require.NoError(t, err)
-	b3, err := crypto.NewSignatureFromBase58("YAEPx9iMfjXwbfF7Uxsi18a4y9CNZbJsavmwtRmaXiS6gcsRWdzWeHQU9jDdUNdrwQb76s1mMZNMh7cZvmoyZxz")
+	b2 := proto.NewBlockIDFromSignature(sig2)
+	sig3, err := crypto.NewSignatureFromBase58("YAEPx9iMfjXwbfF7Uxsi18a4y9CNZbJsavmwtRmaXiS6gcsRWdzWeHQU9jDdUNdrwQb76s1mMZNMh7cZvmoyZxz")
 	require.NoError(t, err)
+	b3 := proto.NewBlockIDFromSignature(sig3)
 
 	conn := createConnectionWithMock("1")
 
@@ -309,12 +326,15 @@ func TestRequestQueueReset(t *testing.T) {
 }
 
 func TestRequestQueueUnpick(t *testing.T) {
-	b1, err := crypto.NewSignatureFromBase58("3kSNeUztQ6HrTUGTmwWqoCANRy99s65RNyub7ENnWsMQVNNQYFLyfRYQycvshvpus7TazrnevxKvGgDw82D4yhMk")
+	sig1, err := crypto.NewSignatureFromBase58("3kSNeUztQ6HrTUGTmwWqoCANRy99s65RNyub7ENnWsMQVNNQYFLyfRYQycvshvpus7TazrnevxKvGgDw82D4yhMk")
 	require.NoError(t, err)
-	b2, err := crypto.NewSignatureFromBase58("443nnYBRjjt8AZApoYtf5zGgukaTdCfQfBhmZQ55nyVkBXmhjzbweBaDVX23D9b5mMMXzLR6YyGHqq14BppHvAQZ")
+	b1 := proto.NewBlockIDFromSignature(sig1)
+	sig2, err := crypto.NewSignatureFromBase58("443nnYBRjjt8AZApoYtf5zGgukaTdCfQfBhmZQ55nyVkBXmhjzbweBaDVX23D9b5mMMXzLR6YyGHqq14BppHvAQZ")
 	require.NoError(t, err)
-	b3, err := crypto.NewSignatureFromBase58("YAEPx9iMfjXwbfF7Uxsi18a4y9CNZbJsavmwtRmaXiS6gcsRWdzWeHQU9jDdUNdrwQb76s1mMZNMh7cZvmoyZxz")
+	b2 := proto.NewBlockIDFromSignature(sig2)
+	sig3, err := crypto.NewSignatureFromBase58("YAEPx9iMfjXwbfF7Uxsi18a4y9CNZbJsavmwtRmaXiS6gcsRWdzWeHQU9jDdUNdrwQb76s1mMZNMh7cZvmoyZxz")
 	require.NoError(t, err)
+	b3 := proto.NewBlockIDFromSignature(sig3)
 
 	conn := createConnectionWithMock("1")
 
@@ -339,12 +359,15 @@ func TestRequestQueueUnpick(t *testing.T) {
 }
 
 func TestRequestQueueExclusion(t *testing.T) {
-	b1, err := crypto.NewSignatureFromBase58("3kSNeUztQ6HrTUGTmwWqoCANRy99s65RNyub7ENnWsMQVNNQYFLyfRYQycvshvpus7TazrnevxKvGgDw82D4yhMk")
+	sig1, err := crypto.NewSignatureFromBase58("3kSNeUztQ6HrTUGTmwWqoCANRy99s65RNyub7ENnWsMQVNNQYFLyfRYQycvshvpus7TazrnevxKvGgDw82D4yhMk")
 	require.NoError(t, err)
-	b2, err := crypto.NewSignatureFromBase58("443nnYBRjjt8AZApoYtf5zGgukaTdCfQfBhmZQ55nyVkBXmhjzbweBaDVX23D9b5mMMXzLR6YyGHqq14BppHvAQZ")
+	b1 := proto.NewBlockIDFromSignature(sig1)
+	sig2, err := crypto.NewSignatureFromBase58("443nnYBRjjt8AZApoYtf5zGgukaTdCfQfBhmZQ55nyVkBXmhjzbweBaDVX23D9b5mMMXzLR6YyGHqq14BppHvAQZ")
 	require.NoError(t, err)
-	b3, err := crypto.NewSignatureFromBase58("YAEPx9iMfjXwbfF7Uxsi18a4y9CNZbJsavmwtRmaXiS6gcsRWdzWeHQU9jDdUNdrwQb76s1mMZNMh7cZvmoyZxz")
+	b2 := proto.NewBlockIDFromSignature(sig2)
+	sig3, err := crypto.NewSignatureFromBase58("YAEPx9iMfjXwbfF7Uxsi18a4y9CNZbJsavmwtRmaXiS6gcsRWdzWeHQU9jDdUNdrwQb76s1mMZNMh7cZvmoyZxz")
 	require.NoError(t, err)
+	b3 := proto.NewBlockIDFromSignature(sig3)
 
 	conn1 := createConnectionWithMock("1")
 	conn2 := createConnectionWithMock("2")
@@ -385,15 +408,18 @@ func TestPendingQueueEmpty(t *testing.T) {
 	assert.False(t, ok)
 }
 func TestPendingQueueEnqueueDequeue(t *testing.T) {
-	s1, err := crypto.NewSignatureFromBase58("3kSNeUztQ6HrTUGTmwWqoCANRy99s65RNyub7ENnWsMQVNNQYFLyfRYQycvshvpus7TazrnevxKvGgDw82D4yhMk")
+	sig1, err := crypto.NewSignatureFromBase58("3kSNeUztQ6HrTUGTmwWqoCANRy99s65RNyub7ENnWsMQVNNQYFLyfRYQycvshvpus7TazrnevxKvGgDw82D4yhMk")
 	require.NoError(t, err)
-	b1 := &proto.Block{BlockHeader: proto.BlockHeader{BlockSignature: s1}}
-	s2, err := crypto.NewSignatureFromBase58("443nnYBRjjt8AZApoYtf5zGgukaTdCfQfBhmZQ55nyVkBXmhjzbweBaDVX23D9b5mMMXzLR6YyGHqq14BppHvAQZ")
+	b1 := &proto.Block{BlockHeader: proto.BlockHeader{BlockSignature: sig1}}
+	s1 := proto.NewBlockIDFromSignature(sig1)
+	sig2, err := crypto.NewSignatureFromBase58("443nnYBRjjt8AZApoYtf5zGgukaTdCfQfBhmZQ55nyVkBXmhjzbweBaDVX23D9b5mMMXzLR6YyGHqq14BppHvAQZ")
 	require.NoError(t, err)
-	b2 := &proto.Block{BlockHeader: proto.BlockHeader{BlockSignature: s2}}
-	s3, err := crypto.NewSignatureFromBase58("YAEPx9iMfjXwbfF7Uxsi18a4y9CNZbJsavmwtRmaXiS6gcsRWdzWeHQU9jDdUNdrwQb76s1mMZNMh7cZvmoyZxz")
+	s2 := proto.NewBlockIDFromSignature(sig2)
+	b2 := &proto.Block{BlockHeader: proto.BlockHeader{BlockSignature: sig2}}
+	sig3, err := crypto.NewSignatureFromBase58("YAEPx9iMfjXwbfF7Uxsi18a4y9CNZbJsavmwtRmaXiS6gcsRWdzWeHQU9jDdUNdrwQb76s1mMZNMh7cZvmoyZxz")
 	require.NoError(t, err)
-	b3 := &proto.Block{BlockHeader: proto.BlockHeader{BlockSignature: s3}}
+	b3 := &proto.Block{BlockHeader: proto.BlockHeader{BlockSignature: sig3}}
+	s3 := proto.NewBlockIDFromSignature(sig3)
 
 	conn1 := createConnectionWithMock("1")
 	conn2 := createConnectionWithMock("2")
@@ -428,15 +454,18 @@ func TestPendingQueueEnqueueDequeue(t *testing.T) {
 }
 
 func TestPendingQueueUpdate1(t *testing.T) {
-	s1, err := crypto.NewSignatureFromBase58("3kSNeUztQ6HrTUGTmwWqoCANRy99s65RNyub7ENnWsMQVNNQYFLyfRYQycvshvpus7TazrnevxKvGgDw82D4yhMk")
+	sig1, err := crypto.NewSignatureFromBase58("3kSNeUztQ6HrTUGTmwWqoCANRy99s65RNyub7ENnWsMQVNNQYFLyfRYQycvshvpus7TazrnevxKvGgDw82D4yhMk")
 	require.NoError(t, err)
-	b1 := &proto.Block{BlockHeader: proto.BlockHeader{BlockSignature: s1}}
-	s2, err := crypto.NewSignatureFromBase58("443nnYBRjjt8AZApoYtf5zGgukaTdCfQfBhmZQ55nyVkBXmhjzbweBaDVX23D9b5mMMXzLR6YyGHqq14BppHvAQZ")
+	s1 := proto.NewBlockIDFromSignature(sig1)
+	b1 := &proto.Block{BlockHeader: proto.BlockHeader{BlockSignature: sig1}}
+	sig2, err := crypto.NewSignatureFromBase58("443nnYBRjjt8AZApoYtf5zGgukaTdCfQfBhmZQ55nyVkBXmhjzbweBaDVX23D9b5mMMXzLR6YyGHqq14BppHvAQZ")
 	require.NoError(t, err)
-	b2 := &proto.Block{BlockHeader: proto.BlockHeader{BlockSignature: s2}}
-	s3, err := crypto.NewSignatureFromBase58("YAEPx9iMfjXwbfF7Uxsi18a4y9CNZbJsavmwtRmaXiS6gcsRWdzWeHQU9jDdUNdrwQb76s1mMZNMh7cZvmoyZxz")
+	b2 := &proto.Block{BlockHeader: proto.BlockHeader{BlockSignature: sig2}}
+	s2 := proto.NewBlockIDFromSignature(sig2)
+	sig3, err := crypto.NewSignatureFromBase58("YAEPx9iMfjXwbfF7Uxsi18a4y9CNZbJsavmwtRmaXiS6gcsRWdzWeHQU9jDdUNdrwQb76s1mMZNMh7cZvmoyZxz")
 	require.NoError(t, err)
-	b3 := &proto.Block{BlockHeader: proto.BlockHeader{BlockSignature: s3}}
+	b3 := &proto.Block{BlockHeader: proto.BlockHeader{BlockSignature: sig3}}
+	s3 := proto.NewBlockIDFromSignature(sig3)
 
 	conn1 := createConnectionWithMock("1")
 	conn2 := createConnectionWithMock("2")
@@ -475,15 +504,18 @@ func TestPendingQueueUpdate1(t *testing.T) {
 }
 
 func TestPendingQueueUpdate2(t *testing.T) {
-	s1, err := crypto.NewSignatureFromBase58("3kSNeUztQ6HrTUGTmwWqoCANRy99s65RNyub7ENnWsMQVNNQYFLyfRYQycvshvpus7TazrnevxKvGgDw82D4yhMk")
+	sig1, err := crypto.NewSignatureFromBase58("3kSNeUztQ6HrTUGTmwWqoCANRy99s65RNyub7ENnWsMQVNNQYFLyfRYQycvshvpus7TazrnevxKvGgDw82D4yhMk")
 	require.NoError(t, err)
-	b1 := &proto.Block{BlockHeader: proto.BlockHeader{BlockSignature: s1}}
-	s2, err := crypto.NewSignatureFromBase58("443nnYBRjjt8AZApoYtf5zGgukaTdCfQfBhmZQ55nyVkBXmhjzbweBaDVX23D9b5mMMXzLR6YyGHqq14BppHvAQZ")
+	s1 := proto.NewBlockIDFromSignature(sig1)
+	b1 := &proto.Block{BlockHeader: proto.BlockHeader{BlockSignature: sig1}}
+	sig2, err := crypto.NewSignatureFromBase58("443nnYBRjjt8AZApoYtf5zGgukaTdCfQfBhmZQ55nyVkBXmhjzbweBaDVX23D9b5mMMXzLR6YyGHqq14BppHvAQZ")
 	require.NoError(t, err)
-	b2 := &proto.Block{BlockHeader: proto.BlockHeader{BlockSignature: s2}}
-	s3, err := crypto.NewSignatureFromBase58("YAEPx9iMfjXwbfF7Uxsi18a4y9CNZbJsavmwtRmaXiS6gcsRWdzWeHQU9jDdUNdrwQb76s1mMZNMh7cZvmoyZxz")
+	s2 := proto.NewBlockIDFromSignature(sig2)
+	b2 := &proto.Block{BlockHeader: proto.BlockHeader{BlockSignature: sig2}}
+	sig3, err := crypto.NewSignatureFromBase58("YAEPx9iMfjXwbfF7Uxsi18a4y9CNZbJsavmwtRmaXiS6gcsRWdzWeHQU9jDdUNdrwQb76s1mMZNMh7cZvmoyZxz")
 	require.NoError(t, err)
-	b3 := &proto.Block{BlockHeader: proto.BlockHeader{BlockSignature: s3}}
+	s3 := proto.NewBlockIDFromSignature(sig3)
+	b3 := &proto.Block{BlockHeader: proto.BlockHeader{BlockSignature: sig3}}
 
 	conn1 := createConnectionWithMock("1")
 	conn2 := createConnectionWithMock("2")
@@ -519,15 +551,18 @@ func TestPendingQueueUpdate2(t *testing.T) {
 }
 
 func TestPendingQueueConnections(t *testing.T) {
-	s1, err := crypto.NewSignatureFromBase58("3kSNeUztQ6HrTUGTmwWqoCANRy99s65RNyub7ENnWsMQVNNQYFLyfRYQycvshvpus7TazrnevxKvGgDw82D4yhMk")
+	sig1, err := crypto.NewSignatureFromBase58("3kSNeUztQ6HrTUGTmwWqoCANRy99s65RNyub7ENnWsMQVNNQYFLyfRYQycvshvpus7TazrnevxKvGgDw82D4yhMk")
 	require.NoError(t, err)
-	b1 := &proto.Block{BlockHeader: proto.BlockHeader{BlockSignature: s1}}
-	s2, err := crypto.NewSignatureFromBase58("443nnYBRjjt8AZApoYtf5zGgukaTdCfQfBhmZQ55nyVkBXmhjzbweBaDVX23D9b5mMMXzLR6YyGHqq14BppHvAQZ")
+	b1 := &proto.Block{BlockHeader: proto.BlockHeader{BlockSignature: sig1}}
+	s1 := proto.NewBlockIDFromSignature(sig1)
+	sig2, err := crypto.NewSignatureFromBase58("443nnYBRjjt8AZApoYtf5zGgukaTdCfQfBhmZQ55nyVkBXmhjzbweBaDVX23D9b5mMMXzLR6YyGHqq14BppHvAQZ")
 	require.NoError(t, err)
-	b2 := &proto.Block{BlockHeader: proto.BlockHeader{BlockSignature: s2}}
-	s3, err := crypto.NewSignatureFromBase58("YAEPx9iMfjXwbfF7Uxsi18a4y9CNZbJsavmwtRmaXiS6gcsRWdzWeHQU9jDdUNdrwQb76s1mMZNMh7cZvmoyZxz")
+	b2 := &proto.Block{BlockHeader: proto.BlockHeader{BlockSignature: sig2}}
+	s2 := proto.NewBlockIDFromSignature(sig2)
+	sig3, err := crypto.NewSignatureFromBase58("YAEPx9iMfjXwbfF7Uxsi18a4y9CNZbJsavmwtRmaXiS6gcsRWdzWeHQU9jDdUNdrwQb76s1mMZNMh7cZvmoyZxz")
 	require.NoError(t, err)
-	b3 := &proto.Block{BlockHeader: proto.BlockHeader{BlockSignature: s3}}
+	b3 := &proto.Block{BlockHeader: proto.BlockHeader{BlockSignature: sig3}}
+	s3 := proto.NewBlockIDFromSignature(sig3)
 
 	conn1 := createConnectionWithMock("1")
 	conn2 := createConnectionWithMock("2")

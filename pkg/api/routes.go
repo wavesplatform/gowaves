@@ -9,7 +9,7 @@ func (a *NodeApi) routes() chi.Router {
 	r.Get("/blocks/first", a.BlocksFirst)
 	r.Get("/blocks/at/{height:\\d+}", a.BlockAt)
 	r.Get("/blocks/score/at/{id:\\d+}", a.BlockScoreAt)
-	r.Get("/blocks/signature/{signature}", a.BlockSignatureAt)
+	r.Get("/blocks/id/{id}", a.BlockIDAt)
 	r.Get("/blocks/generators", a.BlocksGenerators)
 	r.Post("/blocks/rollback", RollbackToHeight(a.app))
 	r.Get("/pool/transactions", a.poolTransactions)
