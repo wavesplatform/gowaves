@@ -191,15 +191,25 @@ func FromTransferWithProofs(scheme byte, tx *proto.TransferWithProofs, miner cry
 func FromExchangeWithSig(scheme byte, tx *proto.ExchangeWithSig) ([]AccountChange, error) {
 	wrapError := func(err error) error { return errors.Wrapf(err, "failed to convert ExchangeWithSig to Change") }
 	r := make([]AccountChange, 0, 4)
-	ap := tx.SellOrder.AssetPair
+	bo, err := tx.GetBuyOrder()
+	if err != nil {
+		return nil, wrapError(err)
+	}
+	so, err := tx.GetSellOrder()
+	if err != nil {
+		return nil, wrapError(err)
+	}
+	buyer := bo.GetSenderPK()
+	seller := so.GetSenderPK()
+	ap := so.GetAssetPair()
 	if ap.AmountAsset.Present {
 		ch1 := AccountChange{Asset: ap.AmountAsset.ID, In: tx.Amount}
-		err := ch1.Account.SetFromPublicKey(scheme, tx.BuyOrder.SenderPK)
+		err := ch1.Account.SetFromPublicKey(scheme, buyer)
 		if err != nil {
 			return nil, wrapError(err)
 		}
 		ch2 := AccountChange{Asset: ap.AmountAsset.ID, Out: tx.Amount}
-		err = ch2.Account.SetFromPublicKey(scheme, tx.SellOrder.SenderPK)
+		err = ch2.Account.SetFromPublicKey(scheme, seller)
 		if err != nil {
 			return nil, wrapError(err)
 		}
@@ -209,12 +219,12 @@ func FromExchangeWithSig(scheme byte, tx *proto.ExchangeWithSig) ([]AccountChang
 	if ap.PriceAsset.Present {
 		priceAssetAmount := adjustAmount(tx.Amount, tx.Price)
 		ch1 := AccountChange{Asset: ap.PriceAsset.ID, Out: priceAssetAmount}
-		err := ch1.Account.SetFromPublicKey(scheme, tx.BuyOrder.SenderPK)
+		err := ch1.Account.SetFromPublicKey(scheme, buyer)
 		if err != nil {
 			return nil, wrapError(err)
 		}
 		ch2 := AccountChange{Asset: ap.PriceAsset.ID, In: priceAssetAmount}
-		err = ch2.Account.SetFromPublicKey(scheme, tx.SellOrder.SenderPK)
+		err = ch2.Account.SetFromPublicKey(scheme, seller)
 		if err != nil {
 			return nil, wrapError(err)
 		}
@@ -227,11 +237,19 @@ func FromExchangeWithSig(scheme byte, tx *proto.ExchangeWithSig) ([]AccountChang
 func FromExchangeWithProofs(scheme byte, tx *proto.ExchangeWithProofs) ([]AccountChange, error) {
 	wrapError := func(err error) error { return errors.Wrapf(err, "failed to convert ExchangeWithProofs to Change") }
 	r := make([]AccountChange, 0, 4)
-	ap, buyer, _, err := extractOrderParameters(tx.BuyOrder)
+	bo, err := tx.GetBuyOrder()
 	if err != nil {
 		return nil, wrapError(err)
 	}
-	_, seller, _, err := extractOrderParameters(tx.SellOrder)
+	ap, buyer, _, err := extractOrderParameters(bo)
+	if err != nil {
+		return nil, wrapError(err)
+	}
+	so, err := tx.GetSellOrder()
+	if err != nil {
+		return nil, wrapError(err)
+	}
+	_, seller, _, err := extractOrderParameters(so)
 	if err != nil {
 		return nil, wrapError(err)
 	}

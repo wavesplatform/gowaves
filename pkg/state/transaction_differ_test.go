@@ -523,6 +523,19 @@ func createExchangeWithProofs(t *testing.T) *proto.ExchangeWithProofs {
 	return tx
 }
 
+func createUnorderedExchangeWithProofs(t *testing.T, v int) *proto.ExchangeWithProofs {
+	bo := proto.NewUnsignedOrderV3(testGlobal.senderInfo.pk, testGlobal.matcherInfo.pk, *testGlobal.asset0.asset, *testGlobal.asset1.asset, proto.Buy, 10e8, 100, 0, 0, 3, *testGlobal.asset2.asset)
+	err := bo.Sign(proto.MainNetScheme, testGlobal.senderInfo.sk)
+	assert.NoError(t, err, "bo.Sign() failed")
+	so := proto.NewUnsignedOrderV3(testGlobal.recipientInfo.pk, testGlobal.matcherInfo.pk, *testGlobal.asset0.asset, *testGlobal.asset1.asset, proto.Sell, 10e8, 100, 0, 0, 3, *testGlobal.asset2.asset)
+	err = so.Sign(proto.MainNetScheme, testGlobal.recipientInfo.sk)
+	assert.NoError(t, err, "so.Sign() failed")
+	tx := proto.NewUnsignedExchangeWithProofs(byte(v), so, bo, bo.Price, bo.Amount, 1, 2, defaultFee, defaultTimestamp)
+	err = tx.Sign(proto.MainNetScheme, testGlobal.matcherInfo.sk)
+	assert.NoError(t, err, "tx.Sign() failed")
+	return tx
+}
+
 func TestCreateDiffExchangeWithProofs(t *testing.T) {
 	to, path := createDifferTestObjects(t)
 

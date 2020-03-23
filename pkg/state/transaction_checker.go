@@ -588,37 +588,46 @@ func (tc *transactionChecker) checkExchange(transaction proto.Transaction, info 
 	if err := tc.checkTimestamps(tx.GetTimestamp(), info.currentTimestamp, info.parentTimestamp); err != nil {
 		return nil, errors.Wrap(err, "invalid timestamp")
 	}
-	if err := tc.checkEnoughVolume(tx.GetSellOrderFull(), tx.GetSellMatcherFee(), tx.GetAmount(), info); err != nil {
+	if tx.GetOrder1().GetOrderType() != proto.Buy && tx.GetOrder2().GetOrderType() != proto.Sell {
+		if !proto.IsProtobufTx(transaction) {
+			return nil, errors.New("sell order not allowed on first place in exchange transaction of versions prior 3")
+		}
+	}
+	so, err := tx.GetSellOrder()
+	if err != nil {
+		return nil, errors.Wrap(err, "sell order")
+	}
+	if err := tc.checkEnoughVolume(so, tx.GetSellMatcherFee(), tx.GetAmount(), info); err != nil {
 		return nil, errors.Wrap(err, "exchange transaction; sell order")
 	}
-	if err := tc.checkEnoughVolume(tx.GetBuyOrderFull(), tx.GetBuyMatcherFee(), tx.GetAmount(), info); err != nil {
-		return nil, errors.Wrap(err, "exchange transaction; buy order")
-	}
-	sellOrder, err := tx.GetSellOrder()
+	bo, err := tx.GetBuyOrder()
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "buy order")
+	}
+	if err := tc.checkEnoughVolume(bo, tx.GetBuyMatcherFee(), tx.GetAmount(), info); err != nil {
+		return nil, errors.Wrap(err, "exchange transaction; buy order")
 	}
 	// Check assets.
 	m := make(map[proto.OptionalAsset]struct{})
-	m[sellOrder.AssetPair.AmountAsset] = struct{}{}
-	m[sellOrder.AssetPair.PriceAsset] = struct{}{}
+	m[so.GetAssetPair().AmountAsset] = struct{}{}
+	m[so.GetAssetPair().PriceAsset] = struct{}{}
 	// allAssets does not include matcher fee assets.
 	allAssets := make([]proto.OptionalAsset, 0, len(m))
 	for a := range m {
 		allAssets = append(allAssets, a)
 	}
 	// Add matcher fee assets to map to checkAsset() them later.
-	if so3, ok := tx.GetSellOrderFull().(*proto.OrderV3); ok {
-		m[so3.MatcherFeeAsset] = struct{}{}
+	if o2v3, ok := tx.GetOrder2().(*proto.OrderV3); ok {
+		m[o2v3.MatcherFeeAsset] = struct{}{}
 	}
-	if bo3, ok := tx.GetBuyOrderFull().(*proto.OrderV3); ok {
-		m[bo3.MatcherFeeAsset] = struct{}{}
+	if o1v3, ok := tx.GetOrder1().(*proto.OrderV3); ok {
+		m[o1v3.MatcherFeeAsset] = struct{}{}
 	}
-	if so4, ok := tx.GetSellOrderFull().(*proto.OrderV4); ok {
-		m[so4.MatcherFeeAsset] = struct{}{}
+	if o2v4, ok := tx.GetOrder2().(*proto.OrderV4); ok {
+		m[o2v4.MatcherFeeAsset] = struct{}{}
 	}
-	if bo4, ok := tx.GetBuyOrderFull().(*proto.OrderV4); ok {
-		m[bo4.MatcherFeeAsset] = struct{}{}
+	if o2v4, ok := tx.GetOrder1().(*proto.OrderV4); ok {
+		m[o2v4.MatcherFeeAsset] = struct{}{}
 	}
 	for a := range m {
 		if err := tc.checkAsset(&a, info.initialisation); err != nil {
@@ -645,19 +654,19 @@ func (tc *transactionChecker) checkExchange(transaction proto.Transaction, info 
 	if err != nil {
 		return nil, err
 	}
-	soScriptedAccount, err := tc.orderScriptedAccount(tx.GetSellOrderFull(), info.initialisation)
+	o1ScriptedAccount, err := tc.orderScriptedAccount(tx.GetOrder1(), info.initialisation)
 	if err != nil {
 		return nil, err
 	}
-	boScriptedAccount, err := tc.orderScriptedAccount(tx.GetBuyOrderFull(), info.initialisation)
+	o2ScriptedAccount, err := tc.orderScriptedAccount(tx.GetOrder2(), info.initialisation)
 	if err != nil {
 		return nil, err
 	}
-	if boScriptedAccount && !smartTradingActivated {
-		return nil, errors.New("buyer can't participate in Exchange because it is scripted, and smart trading is disabled")
+	if o1ScriptedAccount && !smartTradingActivated {
+		return nil, errors.New("first order is scripted, but smart trading is disabled")
 	}
-	if soScriptedAccount && !smartTradingActivated {
-		return nil, errors.New("seller can't participate in Exchange because it is scripted, and smart trading is disabled")
+	if o2ScriptedAccount && !smartTradingActivated {
+		return nil, errors.New("second order is scripted, but smart trading is disabled")
 	}
 	return smartAssets, nil
 }
@@ -690,7 +699,7 @@ func (tc *transactionChecker) checkExchangeWithProofs(transaction proto.Transact
 	if err != nil {
 		return nil, err
 	}
-	if (tx.BuyOrder.GetVersion() != 3) && (tx.SellOrder.GetVersion() != 3) {
+	if (tx.Order1.GetVersion() != 3) && (tx.Order2.GetVersion() != 3) {
 		return smartAssets, nil
 	}
 	activated, err = tc.stor.features.isActivated(int16(settings.OrderV3))

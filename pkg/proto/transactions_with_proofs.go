@@ -1174,8 +1174,8 @@ type ExchangeWithProofs struct {
 	ID             *crypto.Digest   `json:"id,omitempty"`
 	Proofs         *ProofsV1        `json:"proofs,omitempty"`
 	SenderPK       crypto.PublicKey `json:"senderPublicKey"`
-	BuyOrder       Order            `json:"order1"`
-	SellOrder      Order            `json:"order2"`
+	Order1         Order            `json:"order1"`
+	Order2         Order            `json:"order2"`
 	Price          uint64           `json:"price"`
 	Amount         uint64           `json:"amount"`
 	BuyMatcherFee  uint64           `json:"buyMatcherFee"`
@@ -1185,12 +1185,12 @@ type ExchangeWithProofs struct {
 }
 
 func (tx ExchangeWithProofs) BinarySize() int {
-	boSize := 4 + tx.BuyOrder.BinarySize()
-	soSize := 4 + tx.SellOrder.BinarySize()
-	if tx.BuyOrder.GetVersion() == 1 {
+	boSize := 4 + tx.Order1.BinarySize()
+	soSize := 4 + tx.Order2.BinarySize()
+	if tx.Order1.GetVersion() == 1 {
 		boSize += 1
 	}
-	if tx.SellOrder.GetVersion() == 1 {
+	if tx.Order2.GetVersion() == 1 {
 		soSize += 1
 	}
 	return 3 + tx.Proofs.BinarySize() + 48 + boSize + soSize
@@ -1232,8 +1232,8 @@ func (tx *ExchangeWithProofs) UnmarshalSignedFromProtobuf(data []byte) error {
 
 func (tx *ExchangeWithProofs) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
 	orders := make([]*g.Order, 2)
-	orders[0] = tx.BuyOrder.ToProtobufSigned(scheme)
-	orders[1] = tx.SellOrder.ToProtobufSigned(scheme)
+	orders[0] = tx.Order1.ToProtobufSigned(scheme)
+	orders[1] = tx.Order2.ToProtobufSigned(scheme)
 	txData := &g.Transaction_Exchange{Exchange: &g.ExchangeTransactionData{
 		Amount:         int64(tx.Amount),
 		Price:          int64(tx.Price),
@@ -1301,20 +1301,32 @@ func (tx ExchangeWithProofs) GetSenderPK() crypto.PublicKey {
 	return tx.SenderPK
 }
 
-func (tx ExchangeWithProofs) GetBuyOrder() (OrderBody, error) {
-	return OrderToOrderBody(tx.BuyOrder)
+func (tx ExchangeWithProofs) GetBuyOrder() (Order, error) {
+	if tx.Order1.GetOrderType() == Buy {
+		return tx.Order1, nil
+	}
+	if tx.Order2.GetOrderType() == Buy {
+		return tx.Order2, nil
+	}
+	return nil, errors.New("no buy order")
 }
 
-func (tx ExchangeWithProofs) GetSellOrder() (OrderBody, error) {
-	return OrderToOrderBody(tx.SellOrder)
+func (tx ExchangeWithProofs) GetSellOrder() (Order, error) {
+	if tx.Order2.GetOrderType() == Sell {
+		return tx.Order2, nil
+	}
+	if tx.Order1.GetOrderType() == Sell {
+		return tx.Order1, nil
+	}
+	return nil, errors.New("no sell order")
 }
 
-func (tx ExchangeWithProofs) GetBuyOrderFull() Order {
-	return tx.BuyOrder
+func (tx ExchangeWithProofs) GetOrder1() Order {
+	return tx.Order1
 }
 
-func (tx ExchangeWithProofs) GetSellOrderFull() Order {
-	return tx.SellOrder
+func (tx ExchangeWithProofs) GetOrder2() Order {
+	return tx.Order2
 }
 
 func (tx ExchangeWithProofs) GetPrice() uint64 {
@@ -1345,8 +1357,8 @@ func NewUnsignedExchangeWithProofs(v byte, buy, sell Order, price, amount, buyMa
 		Type:           ExchangeTransaction,
 		Version:        v,
 		SenderPK:       buy.GetMatcherPK(),
-		BuyOrder:       buy,
-		SellOrder:      sell,
+		Order1:         buy,
+		Order2:         sell,
 		Price:          price,
 		Amount:         amount,
 		BuyMatcherFee:  buyMatcherFee,
@@ -1360,24 +1372,21 @@ func (tx ExchangeWithProofs) Valid() (bool, error) {
 	if tx.Version < 2 || tx.Version > MaxExchangeTransactionVersion {
 		return false, errors.Errorf("unexpected transaction version %d for ExchangeWithProofs transaction", tx.Version)
 	}
-	ok, err := tx.BuyOrder.Valid()
+	ok, err := tx.Order1.Valid()
 	if !ok {
-		return false, errors.Wrap(err, "invalid buy order")
+		return false, errors.Wrap(err, "invalid first order")
 	}
-	ok, err = tx.SellOrder.Valid()
+	ok, err = tx.Order2.Valid()
 	if !ok {
-		return false, errors.Wrap(err, "invalid sell order")
+		return false, errors.Wrap(err, "invalid second order")
 	}
-	if tx.BuyOrder.GetOrderType() != Buy {
-		return false, errors.New("incorrect order type of buy order")
+	if (tx.Order1.GetOrderType() == Buy && tx.Order2.GetOrderType() != Sell) || (tx.Order1.GetOrderType() == Sell && tx.Order2.GetOrderType() != Buy) {
+		return false, errors.New("incorrect combination of orders types")
 	}
-	if tx.SellOrder.GetOrderType() != Sell {
-		return false, errors.New("incorrect order type of sell order")
-	}
-	if tx.SellOrder.GetMatcherPK() != tx.BuyOrder.GetMatcherPK() {
+	if tx.Order2.GetMatcherPK() != tx.Order1.GetMatcherPK() {
 		return false, errors.New("unmatched matcher's public keys")
 	}
-	if tx.SellOrder.GetAssetPair() != tx.BuyOrder.GetAssetPair() {
+	if tx.Order2.GetAssetPair() != tx.Order1.GetAssetPair() {
 		return false, errors.New("different asset pairs")
 	}
 	if tx.Amount == 0 {
@@ -1392,7 +1401,15 @@ func (tx ExchangeWithProofs) Valid() (bool, error) {
 	if !validJVMLong(tx.Price) {
 		return false, errors.New("price is too big")
 	}
-	if tx.Price > tx.BuyOrder.GetPrice() || tx.Price < tx.SellOrder.GetPrice() {
+	bo, err := tx.GetBuyOrder()
+	if err != nil {
+		return false, err
+	}
+	so, err := tx.GetSellOrder()
+	if err != nil {
+		return false, err
+	}
+	if tx.Price > bo.GetPrice() || tx.Price < so.GetPrice() {
 		return false, errors.New("invalid price")
 	}
 	if tx.Fee == 0 {
@@ -1407,17 +1424,17 @@ func (tx ExchangeWithProofs) Valid() (bool, error) {
 	if !validJVMLong(tx.SellMatcherFee) {
 		return false, errors.New("sell matcher's fee is too big")
 	}
-	if tx.BuyOrder.GetExpiration() < tx.Timestamp {
-		return false, errors.New("invalid buy order expiration")
+	if tx.Order1.GetExpiration() < tx.Timestamp {
+		return false, errors.New("invalid first order expiration")
 	}
-	if tx.BuyOrder.GetExpiration()-tx.Timestamp > MaxOrderTTL {
-		return false, errors.New("buy order expiration should be earlier than 30 days")
+	if tx.Order1.GetExpiration()-tx.Timestamp > MaxOrderTTL {
+		return false, errors.New("first order expiration should be earlier than 30 days")
 	}
-	if tx.SellOrder.GetExpiration() < tx.Timestamp {
-		return false, errors.New("invalid sell order expiration")
+	if tx.Order2.GetExpiration() < tx.Timestamp {
+		return false, errors.New("invalid second order expiration")
 	}
-	if tx.SellOrder.GetExpiration()-tx.Timestamp > MaxOrderTTL {
-		return false, errors.New("sell order expiration should be earlier than 30 days")
+	if tx.Order2.GetExpiration()-tx.Timestamp > MaxOrderTTL {
+		return false, errors.New("second order expiration should be earlier than 30 days")
 	}
 	return true, nil
 }
@@ -1472,47 +1489,47 @@ func (tx *ExchangeWithProofs) marshalAsOrderV3(order Order) ([]byte, error) {
 }
 
 func (tx *ExchangeWithProofs) BodyMarshalBinary() ([]byte, error) {
-	var bob []byte
-	var sob []byte
+	var o1b []byte
+	var o2b []byte
 	var err error
-	switch tx.BuyOrder.GetVersion() {
+	switch tx.Order1.GetVersion() {
 	case 1:
-		bob, err = tx.marshalAsOrderV1(tx.BuyOrder)
+		o1b, err = tx.marshalAsOrderV1(tx.Order1)
 	case 2:
-		bob, err = tx.marshalAsOrderV2(tx.BuyOrder)
+		o1b, err = tx.marshalAsOrderV2(tx.Order1)
 	case 3:
-		bob, err = tx.marshalAsOrderV3(tx.BuyOrder)
+		o1b, err = tx.marshalAsOrderV3(tx.Order1)
 	default:
-		err = errors.Errorf("invalid BuyOrder version %d", tx.BuyOrder.GetVersion())
+		err = errors.Errorf("invalid Order1 version %d", tx.Order1.GetVersion())
 	}
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal buy order to bytes")
 	}
-	bol := uint32(len(bob))
-	switch tx.SellOrder.GetVersion() {
+	o1l := uint32(len(o1b))
+	switch tx.Order2.GetVersion() {
 	case 1:
-		sob, err = tx.marshalAsOrderV1(tx.SellOrder)
+		o2b, err = tx.marshalAsOrderV1(tx.Order2)
 	case 2:
-		sob, err = tx.marshalAsOrderV2(tx.SellOrder)
+		o2b, err = tx.marshalAsOrderV2(tx.Order2)
 	case 3:
-		sob, err = tx.marshalAsOrderV3(tx.SellOrder)
+		o2b, err = tx.marshalAsOrderV3(tx.Order2)
 	default:
-		err = errors.Errorf("invalid SellOrder version %d", tx.SellOrder.GetVersion())
+		err = errors.Errorf("invalid Order2 version %d", tx.Order2.GetVersion())
 	}
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal sell order to bytes")
 	}
-	sol := uint32(len(sob))
+	o2l := uint32(len(o2b))
 	var p uint32
-	buf := make([]byte, exchangeWithProofsFixedBodyLen+(bol-4)+(sol-4))
+	buf := make([]byte, exchangeWithProofsFixedBodyLen+(o1l-4)+(o2l-4))
 	buf[0] = 0
 	buf[1] = byte(tx.Type)
 	buf[2] = tx.Version
 	p += 3
-	copy(buf[p:], bob)
-	p += bol
-	copy(buf[p:], sob)
-	p += sol
+	copy(buf[p:], o1b)
+	p += o1l
+	copy(buf[p:], o2b)
+	p += o2l
 	binary.BigEndian.PutUint64(buf[p:], tx.Price)
 	p += 8
 	binary.BigEndian.PutUint64(buf[p:], tx.Amount)
@@ -1584,13 +1601,13 @@ func (tx *ExchangeWithProofs) bodyUnmarshalBinary(data []byte) (int, error) {
 	if err != nil {
 		return 0, errors.Wrap(err, "failed to unmarshal buy order")
 	}
-	tx.BuyOrder = Order(o)
+	tx.Order1 = o
 	n += l
 	l, o, err = tx.unmarshalOrder(data[n:])
 	if err != nil {
 		return 0, errors.Wrap(err, "failed to unmarshal sell order")
 	}
-	tx.SellOrder = Order(o)
+	tx.Order2 = o
 	n += l
 	tx.Price = binary.BigEndian.Uint64(data[n:])
 	n += 8
@@ -1604,7 +1621,7 @@ func (tx *ExchangeWithProofs) bodyUnmarshalBinary(data []byte) (int, error) {
 	n += 8
 	tx.Timestamp = binary.BigEndian.Uint64(data[n:])
 	n += 8
-	tx.SenderPK = tx.BuyOrder.GetMatcherPK()
+	tx.SenderPK = tx.Order1.GetMatcherPK()
 	return n, nil
 }
 
@@ -1697,8 +1714,8 @@ func (tx *ExchangeWithProofs) UnmarshalJSON(data []byte) error {
 	}
 
 	orderVersions := struct {
-		BuyOrderVersion  OrderVersion `json:"order1"`
-		SellOrderVersion OrderVersion `json:"order2"`
+		Order1Version OrderVersion `json:"order1"`
+		Order2Version OrderVersion `json:"order2"`
 	}{}
 	if err := json.Unmarshal(data, &orderVersions); err != nil {
 		return errors.Wrap(err, "failed to unmarshal orders versions of ExchangeWithProofs transaction from JSON")
@@ -1709,8 +1726,8 @@ func (tx *ExchangeWithProofs) UnmarshalJSON(data []byte) error {
 		ID             *crypto.Digest   `json:"id,omitempty"`
 		Proofs         *ProofsV1        `json:"proofs,omitempty"`
 		SenderPK       crypto.PublicKey `json:"senderPublicKey"`
-		BuyOrder       Order            `json:"order1"`
-		SellOrder      Order            `json:"order2"`
+		Order1         Order            `json:"order1"`
+		Order2         Order            `json:"order2"`
 		Price          uint64           `json:"price"`
 		Amount         uint64           `json:"amount"`
 		BuyMatcherFee  uint64           `json:"buyMatcherFee"`
@@ -1718,8 +1735,8 @@ func (tx *ExchangeWithProofs) UnmarshalJSON(data []byte) error {
 		Fee            uint64           `json:"fee"`
 		Timestamp      uint64           `json:"timestamp,omitempty"`
 	}{}
-	tmp.BuyOrder = guessOrderVersion(orderVersions.BuyOrderVersion.Version)
-	tmp.SellOrder = guessOrderVersion(orderVersions.SellOrderVersion.Version)
+	tmp.Order1 = guessOrderVersion(orderVersions.Order1Version.Version)
+	tmp.Order2 = guessOrderVersion(orderVersions.Order2Version.Version)
 
 	err := json.Unmarshal(data, &tmp)
 	if err != nil {
@@ -1730,8 +1747,8 @@ func (tx *ExchangeWithProofs) UnmarshalJSON(data []byte) error {
 	tx.ID = tmp.ID
 	tx.Proofs = tmp.Proofs
 	tx.SenderPK = tmp.SenderPK
-	tx.BuyOrder = tmp.BuyOrder
-	tx.SellOrder = tmp.SellOrder
+	tx.Order1 = tmp.Order1
+	tx.Order2 = tmp.Order2
 	tx.Price = tmp.Price
 	tx.Amount = tmp.Amount
 	tx.BuyMatcherFee = tmp.BuyMatcherFee

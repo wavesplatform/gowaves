@@ -161,10 +161,18 @@ func (tp *transactionPerformer) performExchange(transaction proto.Transaction, i
 	if !ok {
 		return errors.New("failed to convert interface to Exchange transaction")
 	}
-	if err := tp.increaseOrderVolume(tx.GetSellOrderFull(), tx, info); err != nil {
+	so, err := tx.GetSellOrder()
+	if err != nil {
+		return errors.Wrap(err, "no sell order")
+	}
+	if err := tp.increaseOrderVolume(so, tx, info); err != nil {
 		return err
 	}
-	if err := tp.increaseOrderVolume(tx.GetBuyOrderFull(), tx, info); err != nil {
+	bo, err := tx.GetBuyOrder()
+	if err != nil {
+		return errors.Wrap(err, "no buy order")
+	}
+	if err := tp.increaseOrderVolume(bo, tx, info); err != nil {
 		return err
 	}
 	return nil

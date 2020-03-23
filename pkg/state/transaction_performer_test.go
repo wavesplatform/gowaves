@@ -206,7 +206,7 @@ func TestPerformExchange(t *testing.T) {
 	err := to.tp.performExchange(tx, defaultPerformerInfo(t))
 	assert.NoError(t, err, "performExchange() failed")
 
-	sellOrderId, err := tx.GetSellOrderFull().GetID()
+	sellOrderId, err := tx.GetOrder2().GetID()
 	assert.NoError(t, err)
 
 	filledFee, err := to.stor.entities.ordersVolumes.newestFilledFee(sellOrderId, true)
@@ -217,7 +217,7 @@ func TestPerformExchange(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, tx.GetAmount(), filledAmount)
 
-	buyOrderId, err := tx.GetBuyOrderFull().GetID()
+	buyOrderId, err := tx.GetOrder1().GetID()
 	assert.NoError(t, err)
 
 	filledFee, err = to.stor.entities.ordersVolumes.newestFilledFee(buyOrderId, true)
