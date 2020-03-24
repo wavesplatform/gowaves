@@ -2420,6 +2420,55 @@ func TransferFromProtobuf(s Scope, e Exprs) (Expr, error) {
 	return NewObject(obj), nil
 }
 
+func RebuildMerkleRoot(s Scope, e Exprs) (Expr, error) {
+	const funcName = "RebuildMerkleRoot"
+	if l := len(e); l != 3 {
+		return nil, errors.Errorf("%s: invalid number of parameters %d, expected 3", funcName, l)
+	}
+	rs, err := e.EvaluateAll(s)
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	proofsExpr, ok := rs[0].(Exprs)
+	if !ok {
+		return nil, errors.Errorf("%s: expected first argument of type Exprs, got '%T'", funcName, rs[0])
+	}
+	if l := len(proofsExpr); l > 16 {
+		return nil, errors.Errorf("%s: too many proofs %d, expected no more than 16", funcName, l)
+	}
+	proofs := make([]crypto.Digest, len(proofsExpr))
+	for i, x := range proofsExpr {
+		b, ok := x.(*BytesExpr)
+		if !ok {
+			return nil, errors.Errorf("%s: unexpected element of type '%T' of proofs array at position %d", funcName, x, i)
+		}
+		d, err := crypto.NewDigestFromBytes(b.Value)
+		if err != nil {
+			return nil, errors.Wrap(err, funcName)
+		}
+		proofs[i] = d
+	}
+	leafExpr, ok := rs[1].(*BytesExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: expected second argument of type *BytesExpr, got '%T'", funcName, rs[1])
+	}
+	leaf, err := crypto.NewDigestFromBytes(leafExpr.Value)
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	indexExpr, ok := rs[2].(*LongExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: expected third argument of type *LongExpr, got '%T'", funcName, rs[2])
+	}
+	index := uint64(indexExpr.Value)
+	tree, err := crypto.NewMerkleTree()
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	root := tree.RebuildRoot(leaf, proofs, index)
+	return NewBytes(root[:]), nil
+}
+
 func limitedGroth16Verify(limit int) Callable {
 	fn := "Groth16Verify"
 	if limit > 0 {

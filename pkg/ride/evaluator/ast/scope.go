@@ -375,6 +375,8 @@ func functionsV4() map[string]Expr {
 		s[strconv.Itoa(2900+i)] = FunctionFromPredefined(limitedSha256(l), 1)
 	}
 	s["1070"] = FunctionFromPredefined(TransferFromProtobuf, 1)
+	delete(s, "700") // remove CheckMerkleProof
+	s["701"] = FunctionFromPredefined(RebuildMerkleRoot, 3)
 	return s
 }
 

@@ -1658,3 +1658,24 @@ func TestTransferFromProtobuf(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "TransferTransaction", rs.InstanceOf())
 }
+
+func TestRebuildMerkleRoot(t *testing.T) {
+	scope := newEmptyScopeV4()
+	leaf, err := base58.Decode("7jsrwD9Xi7TjVoksaV1CDDUWYhFaz7HQmAoWwLEiZa6D")
+	require.NoError(t, err)
+	root, err := base58.Decode("6tt3obq44UqC4QwLhrKX2KsXV9GRBfhiNvzor2BQfgYZ")
+	require.NoError(t, err)
+	p1, err := base58.Decode("q1u2PJhro1cwZw5mUuujXm94f245tGS5vbP5yNwLbEv")
+	require.NoError(t, err)
+	p2, err := base58.Decode("75Aaexax3uEQNg5HAb137jC3TK64RG1S6xrBGvuupWXp")
+	require.NoError(t, err)
+	p3, err := base58.Decode("GemGCop1arCvTY447FLH8tDQF7knvzNCocNTHqKQBus9")
+	require.NoError(t, err)
+	args := NewExprs(NewExprs(NewBytes(p1), NewBytes(p2), NewBytes(p3)), NewBytes(leaf), NewLong(3))
+	res, err := RebuildMerkleRoot(scope, args)
+	assert.NoError(t, err)
+	assert.Equal(t, "ByteVector", res.InstanceOf())
+	r, ok := res.(*BytesExpr)
+	assert.True(t, ok)
+	assert.ElementsMatch(t, root, r.Value)
+}
