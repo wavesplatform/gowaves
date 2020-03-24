@@ -346,6 +346,10 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	}
 	curHeight := params.height + 1
 	scriptsRuns := uint64(0)
+	blockInfo, err := a.currentBlockInfo()
+	if err != nil {
+		return err
+	}
 	for _, tx := range params.transactions {
 		// Detect what signatures must be checked for this transaction.
 		senderAddr, err := proto.NewAddressFromPublicKey(a.settings.AddressSchemeCharacter, tx.GetSenderPK())
@@ -398,10 +402,6 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 		}
 		a.recentTxIds[string(txID)] = empty
 		// Check against state.
-		blockInfo, err := a.currentBlockInfo()
-		if err != nil {
-			return err
-		}
 		txScriptsRuns, err := a.checkTxAgainstState(tx, accountHasVerifierScript, checkerInfo, blockInfo)
 		if err != nil {
 			return err
