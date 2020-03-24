@@ -2189,8 +2189,6 @@ func ScriptResult(s Scope, e Exprs) (Expr, error) {
 }
 
 // Issue is a constructor of IssueExpr type
-//TODO: This is the incorrect but actual implementation of parameters order of Issue function
-//TODO: Should be removed and replaced with the following function
 func Issue(s Scope, e Exprs) (Expr, error) {
 	const funcName = "Issue"
 	if l := len(e); l != 7 {
@@ -2200,29 +2198,30 @@ func Issue(s Scope, e Exprs) (Expr, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
-	_, ok := rs[0].(*Unit)
+	name, ok := rs[0].(*StringExpr)
 	if !ok {
-		return nil, errors.Errorf("%s: expected first argument to be 'Unit', got '%T'", funcName, rs[0])
+		return nil, errors.Errorf("%s: expected first argument to be '*StringExpr', got '%T'", funcName, rs[0])
 	}
-	decimals, ok := rs[1].(*LongExpr)
+	description, ok := rs[1].(*StringExpr)
 	if !ok {
-		return nil, errors.Errorf("%s: expected second argument to be '*LongExpr', got '%T'", funcName, rs[1])
+		return nil, errors.Errorf("%s: expected second argument to be '*StringExpr', got '%T'", funcName, rs[1])
 	}
-	description, ok := rs[2].(*StringExpr)
+	quantity, ok := rs[2].(*LongExpr)
 	if !ok {
-		return nil, errors.Errorf("%s: expected third argument to be '*StringExpr', got '%T'", funcName, rs[2])
+		return nil, errors.Errorf("%s: expected third argument to be '*LongExpr', got '%T'", funcName, rs[2])
 	}
-	reissuable, ok := rs[3].(*BooleanExpr)
+	decimals, ok := rs[3].(*LongExpr)
 	if !ok {
-		return nil, errors.Errorf("%s: expected 4th argument to be '*BooleanExpr', got '%T'", funcName, rs[3])
+		return nil, errors.Errorf("%s: expected forth argument to be '*LongExpr', got '%T'", funcName, rs[3])
 	}
-	name, ok := rs[4].(*StringExpr)
+	reissuable, ok := rs[4].(*BooleanExpr)
 	if !ok {
-		return nil, errors.Errorf("%s: expected 5th argument to be '*StringExpr', got '%T'", funcName, rs[4])
+		return nil, errors.Errorf("%s: expected 5th argument to be '*BooleanExpr', got '%T'", funcName, rs[4])
 	}
-	quantity, ok := rs[5].(*LongExpr)
+	//TODO: in V4 parameter #5 "script" is always Unit, reserved for future use, here we just check the type
+	_, ok = rs[5].(*Unit)
 	if !ok {
-		return nil, errors.Errorf("%s: expected 6th argument to be '*LongExpr', got '%T'", funcName, rs[5])
+		return nil, errors.Errorf("%s: expected 6th argument to be 'Unit', got '%T'", funcName, rs[5])
 	}
 	nonce, ok := rs[6].(*LongExpr)
 	if !ok {
@@ -2230,48 +2229,6 @@ func Issue(s Scope, e Exprs) (Expr, error) {
 	}
 	return NewIssueExpr(name.Value, description.Value, quantity.Value, decimals.Value, reissuable.Value, nonce.Value), nil
 }
-
-// TODO: This is the correct implementation of Issue parameters order
-//func Issue(s Scope, e Exprs) (Expr, error) {
-//	const funcName = "Issue"
-//	if l := len(e); l != 7 {
-//		return nil, errors.Errorf("%s: invalid number of parameters, expected 7, received %d", funcName, l)
-//	}
-//	rs, err := e.EvaluateAll(s)
-//	if err != nil {
-//		return nil, errors.Wrap(err, funcName)
-//	}
-//	name, ok := rs[0].(*StringExpr)
-//	if !ok {
-//		return nil, errors.Errorf("%s: expected first argument to be '*StringExpr', got '%T'", funcName, rs[0])
-//	}
-//	description, ok := rs[1].(*StringExpr)
-//	if !ok {
-//		return nil, errors.Errorf("%s: expected second argument to be '*StringExpr', got '%T'", funcName, rs[1])
-//	}
-//	quantity, ok := rs[2].(*LongExpr)
-//	if !ok {
-//		return nil, errors.Errorf("%s: expected third argument to be '*LongExpr', got '%T'", funcName, rs[2])
-//	}
-//	decimals, ok := rs[3].(*LongExpr)
-//	if !ok {
-//		return nil, errors.Errorf("%s: expected forth argument to be '*LongExpr', got '%T'", funcName, rs[3])
-//	}
-//	reissuable, ok := rs[4].(*BooleanExpr)
-//	if !ok {
-//		return nil, errors.Errorf("%s: expected 5th argument to be '*BooleanExpr', got '%T'", funcName, rs[4])
-//	}
-//	//TODO: in V4 parameter #5 "script" is always Unit, reserved for future use, here we just check the type
-//	_, ok = rs[5].(*Unit)
-//	if !ok {
-//		return nil, errors.Errorf("%s: expected 6th argument to be 'Unit', got '%T'", funcName, rs[5])
-//	}
-//	nonce, ok := rs[6].(*LongExpr)
-//	if !ok {
-//		return nil, errors.Errorf("%s: expected 7th argument to be '*LongExpr', got '%T'", funcName, rs[6])
-//	}
-//	return NewIssueExpr(name.Value, description.Value, quantity.Value, decimals.Value, reissuable.Value, nonce.Value), nil
-//}
 
 // Reissue is a constructor of ReissueExpr type
 func Reissue(s Scope, e Exprs) (Expr, error) {
