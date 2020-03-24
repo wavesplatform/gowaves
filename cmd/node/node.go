@@ -250,7 +250,7 @@ func main() {
 		scoreSender.Run(ctx)
 	})
 
-	mine := miner.NewMicroblockMiner(services, cfg.AddressSchemeCharacter, features, reward)
+	mine := miner.NewMicroblockMiner(services, cfg.AddressSchemeCharacter, features, reward, parent.MessageCh)
 	peerManager.SetConnectPeers(!(*connectPeers == "false"))
 	go miner.Run(ctx, mine, scheduler)
 

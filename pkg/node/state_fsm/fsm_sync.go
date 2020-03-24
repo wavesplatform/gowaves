@@ -113,6 +113,15 @@ func (a *SyncFsm) Block(p Peer, block *proto.Block) (FSM, Async, error) {
 	return a.applyBlocks(a.baseInfo, a.conf.Now(), internal)
 }
 
+func (a *SyncFsm) MinedBlock(block *proto.Block, limits proto.MiningLimits, keyPair proto.KeyPair) (FSM, Async, error) {
+	err := a.baseInfo.blocksApplier.Apply(a.baseInfo.storage, []*proto.Block{block})
+	if err != nil {
+		return a, nil, err
+	}
+	a.baseInfo.Reschedule()
+	return a, Tasks(NewMineMicroTask(5*time.Second, block, limits, keyPair)), nil
+}
+
 // TODO suspend peer on state error
 func (a *SyncFsm) applyBlocks(baseInfo BaseInfo, conf conf, internal sync_internal.Internal) (FSM, Async, error) {
 	internal, blocks, eof := internal.Blocks(conf.peerSyncWith)
@@ -125,6 +134,7 @@ func (a *SyncFsm) applyBlocks(baseInfo BaseInfo, conf conf, internal sync_intern
 	if err != nil {
 		return NewIdleFsm(a.baseInfo), nil, err
 	}
+	a.baseInfo.Reschedule()
 	if eof {
 		return NewIdleFsm(a.baseInfo), nil, nil
 	}

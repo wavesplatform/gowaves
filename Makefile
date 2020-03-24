@@ -138,6 +138,10 @@ dist-importer: release-importer
 
 dist: clean dist-chaincmp dist-wmd dist-importer dist-node
 
+
+build-genconfig:
+	go build -o build/bin/darwin-amd64/genconfig ./cmd/genconfig
+
 mock:
 	mockgen -source pkg/miner/utxpool/cleaner.go -destination pkg/miner/utxpool/mock.go -package utxpool stateWrapper
 	mockgen -source pkg/node/peer_manager/peer_manager.go -destination pkg/mock/peer_manager.go -package mock PeerManagerMock

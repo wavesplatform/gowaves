@@ -18,6 +18,10 @@ type IdleFsm struct {
 	baseInfo BaseInfo
 }
 
+func (a *IdleFsm) MinedBlock(_ *proto.Block, _ proto.MiningLimits, _ proto.KeyPair) (FSM, Async, error) {
+	return noop(a)
+}
+
 func (a *IdleFsm) MicroBlock(p peer.Peer, micro *proto.MicroBlock) (FSM, Async, error) {
 	return a.baseInfo.d.Noop(a)
 }

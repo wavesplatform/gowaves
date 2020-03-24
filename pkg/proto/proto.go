@@ -1776,3 +1776,10 @@ func (a BulkMessage) MarshalBinary() (data []byte, err error) {
 	}
 	return out.Bytes(), nil
 }
+
+type MiningLimits struct {
+	MaxScriptRunsInBlock        int
+	MaxScriptsComplexityInBlock int
+	ClassicAmountOfTxsInBlock   int
+	MaxTxsSizeInBytes           int
+}

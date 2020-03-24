@@ -213,7 +213,7 @@ func main() {
 	//ngState := ng.NewState(services)
 	//ngRuntime := ng.NewRuntime(services, ngState)
 
-	Miner := miner.NewMicroblockMiner(services, proto.CustomNetScheme, features, reward)
+	Miner := miner.NewMicroblockMiner(services, features, reward)
 
 	async := runner.NewAsync()
 	scoreSender := scoresender.New(peerManager, state, 4*time.Second, async)

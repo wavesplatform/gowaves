@@ -1,8 +1,18 @@
 package proto
 
+import "github.com/wavesplatform/gowaves/pkg/crypto"
+
 type MicroblockRow struct {
 	KeyBlock    *Block
 	MicroBlocks []*MicroBlock
+}
+
+func (row MicroblockRow) LastSignature() crypto.Signature {
+	if len(row.MicroBlocks) > 0 {
+		return row.MicroBlocks[len(row.MicroBlocks)-1].TotalResBlockSigField
+	} else {
+		return row.KeyBlock.BlockSignature
+	}
 }
 
 type BlockCreatorImpl struct {

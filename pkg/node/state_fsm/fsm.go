@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/miner"
 	"github.com/wavesplatform/gowaves/pkg/node/peer_manager"
 	"github.com/wavesplatform/gowaves/pkg/node/state_fsm/ng"
 	. "github.com/wavesplatform/gowaves/pkg/node/state_fsm/tasks"
@@ -47,6 +48,17 @@ type BaseInfo struct {
 
 	// default behaviour
 	d Default
+
+	// scheduler
+	types.Scheduler
+
+	microMiner *miner.MicroMiner
+
+	MicroBlockCache services.MicroBlockCache
+}
+
+type FromBaseInfo interface {
+	FromBaseInfo(b BaseInfo) FSM
 }
 
 type FSM interface {
@@ -54,6 +66,7 @@ type FSM interface {
 	PeerError(peer.Peer, error) (FSM, Async, error)
 	Score(p peer.Peer, score *proto.Score) (FSM, Async, error)
 	Block(peer peer.Peer, block *proto.Block) (FSM, Async, error)
+	MinedBlock(block *proto.Block, limits proto.MiningLimits, keyPair proto.KeyPair) (FSM, Async, error)
 
 	// Received signatures after asking by GetSignatures
 	Signatures(peer peer.Peer, sigs []crypto.Signature) (FSM, Async, error)
@@ -85,6 +98,10 @@ func NewFsm(
 
 		//
 		d: DefaultImpl{},
+
+		//
+
+		MicroBlockCache: services.MicroBlockCache,
 	}
 
 	// default tasks

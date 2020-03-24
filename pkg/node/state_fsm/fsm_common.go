@@ -67,3 +67,13 @@ func handleScore(fsm FSM, info BaseInfo, p Peer, score *proto.Score) (FSM, Async
 	}
 	return fsm, nil, nil
 }
+
+// TODO send micro block
+//func handleMineMicro(a FromBaseInfo, base BaseInfo, minedBlock *proto.Block, rest miner.MiningLimits, blocks ng.Blocks, keyPair proto.KeyPair) (FSM, Async, error) {
+//	block, micro, rest, err := base.microMiner.Micro(rest, minedBlock, blocks, keyPair)
+//	if err != nil {
+//		return a, nil, err
+//	}
+//	base.
+//	return a.FromBaseInfo()
+//}

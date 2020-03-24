@@ -9,6 +9,7 @@ import (
 
 	"github.com/alecthomas/kong"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/util/genesis_generator"
 	"go.uber.org/zap"
 )
@@ -47,7 +48,10 @@ func main() {
 		zap.S().Fatal(err)
 	}
 
-	js, err := json.Marshal(genesis)
+	s := *settings.DefaultCustomSettings
+	s.Genesis = *genesis
+
+	js, err := json.Marshal(s)
 	if err != nil {
 		zap.S().Fatal(err)
 	}

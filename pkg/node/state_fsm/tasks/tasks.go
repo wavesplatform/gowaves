@@ -3,11 +3,15 @@ package tasks
 import (
 	"context"
 	"time"
+
+	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
 const (
 	PING = iota + 1
 	ASK_PEERS
+
+	MINE_MICRO
 )
 
 type TaskType int
@@ -90,6 +94,45 @@ func (PingTask) Run(ctx context.Context, output chan AsyncTask) error {
 			}
 		}
 	}
+}
+
+type MineMicroTaskData struct {
+	Block   *proto.Block
+	Limits  proto.MiningLimits
+	KeyPair proto.KeyPair
+}
+
+type MineMicroTask struct {
+	timeout           time.Duration
+	MineMicroTaskData MineMicroTaskData
+}
+
+func NewMineMicroTask(timeout time.Duration, block *proto.Block, limits proto.MiningLimits, keyPair proto.KeyPair) MineMicroTask {
+	return MineMicroTask{
+		timeout: timeout,
+		MineMicroTaskData: MineMicroTaskData{
+			Block:   block,
+			Limits:  limits,
+			KeyPair: keyPair,
+		},
+	}
+}
+
+func (MineMicroTask) Type() int {
+	return MINE_MICRO
+}
+
+func (a MineMicroTask) Run(ctx context.Context, output chan AsyncTask) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-time.After(a.timeout):
+		output <- AsyncTask{
+			TaskType: a.Type(),
+			Data:     a.MineMicroTaskData,
+		}
+	}
+	return nil
 }
 
 //type GetSignaturesTimoutTask struct {

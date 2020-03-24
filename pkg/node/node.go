@@ -54,16 +54,6 @@ func NewNode(services services.Services, declAddr proto.TCPAddr, bindAddr proto.
 	}
 }
 
-// TODO implement
-//func (a *Node) handlePBTransactionMessage(_ peer.Peer, mess *proto.PBTransactionMessage) {
-//	t, err := proto.SignedTxFromProtobuf(mess.Transaction)
-//	if err != nil {
-//		zap.S().Debug(err)
-//		return
-//	}
-//	_ = a.utx.AddWithBytes(t, util.Dup(mess.Transaction))
-//}
-
 func (a *Node) Close() {
 	a.peers.Close()
 	locked := a.state.Mutex().Lock()
@@ -130,6 +120,7 @@ func (a *Node) Run(ctx context.Context, p peer.Parent) {
 	}()
 
 	tasksCh := make(chan tasks.AsyncTask, 10)
+	InternalMessageCh := NewInternalChannel()
 
 	// TODO hardcode
 	outDatePeriod := 3600 /* hour */ * 4 * 1000 /* milliseconds */
@@ -147,6 +138,14 @@ func (a *Node) Run(ctx context.Context, p peer.Parent) {
 		select {
 		case <-ctx.Done():
 			return
+		case internalMess := <-InternalMessageCh:
+			switch t := internalMess.(type) {
+			case *MinedBlockInternalMessage:
+				fsm, async, err = fsm.MinedBlock(t.Block, t.Limits, t.KeyPair)
+			default:
+				zap.S().Errorf("unknown internalMess %T", t)
+				continue
+			}
 		case task := <-tasksCh:
 			fsm, async, err = fsm.Task(task)
 		case m := <-p.InfoCh:
@@ -184,4 +183,8 @@ func spawnAsync(ctx context.Context, ch chan tasks.AsyncTask, r runner.LogRunner
 			})
 		}(t)
 	}
+}
+
+func NewInternalChannel() chan InternalMessage {
+	return make(chan InternalMessage, 100)
 }
