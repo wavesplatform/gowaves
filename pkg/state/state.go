@@ -1922,3 +1922,7 @@ func (s *stateManager) Close() error {
 	}
 	return nil
 }
+
+func (s *stateManager) HitSource(height uint64) ([]byte, error) {
+	return s.cv.HitSource(height)
+}

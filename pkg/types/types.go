@@ -60,6 +60,8 @@ type SmartState interface {
 	NewestHeaderByHeight(height proto.Height) (*proto.BlockHeader, error)
 
 	IsNotFound(err error) bool
+
+	HitSource(height uint64) ([]byte, error)
 }
 
 type ID interface {

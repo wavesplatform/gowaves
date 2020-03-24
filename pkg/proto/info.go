@@ -12,9 +12,10 @@ type BlockInfo struct {
 	GenerationSignature B58Bytes
 	Generator           Address
 	GeneratorPublicKey  crypto.PublicKey
+	VRF                 B58Bytes
 }
 
-func BlockInfoFromHeader(scheme byte, header *BlockHeader, height uint64) (*BlockInfo, error) {
+func BlockInfoFromHeader(scheme byte, header *BlockHeader, height uint64, vrf []byte) (*BlockInfo, error) {
 	generator, err := NewAddressFromPublicKey(scheme, header.GenPublicKey)
 	if err != nil {
 		return nil, err
@@ -26,6 +27,7 @@ func BlockInfoFromHeader(scheme byte, header *BlockHeader, height uint64) (*Bloc
 		GenerationSignature: header.GenSignature,
 		Generator:           generator,
 		GeneratorPublicKey:  header.GenPublicKey,
+		VRF:                 vrf,
 	}, nil
 }
 

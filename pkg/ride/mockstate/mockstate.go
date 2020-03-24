@@ -138,3 +138,7 @@ func (a State) NewestAssetInfo(assetID crypto.Digest) (*proto.AssetInfo, error) 
 func (a State) IsNotFound(err error) bool {
 	return err == proto.ErrNotFound
 }
+
+func (a State) HitSource(height uint64) ([]byte, error) {
+	return nil, nil
+}

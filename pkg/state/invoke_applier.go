@@ -19,6 +19,7 @@ type invokeAddlInfo struct {
 	initialisation     bool
 	block              *proto.BlockHeader
 	height             uint64
+	hitSource          []byte
 
 	// When validatingUtx flag is true, it means that we should validate balance diffs
 	// before saving them to storage.
@@ -180,7 +181,7 @@ func (ia *invokeApplier) createTxDiff(tx *proto.InvokeScriptWithProofs, info *in
 			blockInfo:      &proto.BlockInfo{Timestamp: info.block.Timestamp},
 		})
 	}
-	return ia.blockDiffer.createTransactionDiff(tx, info.block, info.height, info.initialisation)
+	return ia.blockDiffer.createTransactionDiff(tx, info.block, info.height, info.hitSource, info.initialisation)
 }
 
 func (ia *invokeApplier) resolveAliases(actions []proto.ScriptAction, initialisation bool) error {
@@ -218,7 +219,7 @@ func (ia *invokeApplier) applyInvokeScriptWithProofs(tx *proto.InvokeScriptWithP
 		return txBalanceChanges{}, errors.New("no block is provided and not validating UTX")
 	}
 	// Call script function.
-	blockInfo, err := proto.BlockInfoFromHeader(ia.settings.AddressSchemeCharacter, info.block, info.height)
+	blockInfo, err := proto.BlockInfoFromHeader(ia.settings.AddressSchemeCharacter, info.block, info.height, info.hitSource)
 	if err != nil {
 		return txBalanceChanges{}, err
 	}

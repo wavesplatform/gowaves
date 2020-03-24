@@ -111,8 +111,8 @@ func (d *blockDiffer) createPrevBlockMinerFeeDiff(prevBlockID crypto.Signature, 
 	return diff, minerAddr, nil
 }
 
-func (d *blockDiffer) createTransactionDiff(tx proto.Transaction, block *proto.BlockHeader, height uint64, initialisation bool) (txBalanceChanges, error) {
-	blockInfo, err := proto.BlockInfoFromHeader(d.settings.AddressSchemeCharacter, block, height)
+func (d *blockDiffer) createTransactionDiff(tx proto.Transaction, block *proto.BlockHeader, height uint64, hitSource []byte, initialisation bool) (txBalanceChanges, error) {
+	blockInfo, err := proto.BlockInfoFromHeader(d.settings.AddressSchemeCharacter, block, height, hitSource)
 	if err != nil {
 		return txBalanceChanges{}, err
 	}

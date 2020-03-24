@@ -176,7 +176,10 @@ func NewObjectFromBlockInfo(info proto.BlockInfo) Expr {
 	m["generationSignature"] = NewBytes(info.GenerationSignature.Bytes())
 	m["generator"] = NewBytes(util.Dup(info.Generator.Bytes()))
 	m["generatorPublicKey"] = NewBytes(util.Dup(info.GeneratorPublicKey.Bytes()))
-	//TODO: m["vrf"]=NewBytes(util.Dup(info.VRF.Bytes()))
+	m["vfr"] = NewUnit()
+	if len(info.VRF) > 0 {
+		m["vrf"] = NewBytes(util.Dup(info.VRF.Bytes()))
+	}
 	return NewObject(m)
 }
 

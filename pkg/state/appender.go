@@ -220,7 +220,15 @@ func (a *txAppender) currentBlockInfo() (*proto.BlockInfo, error) {
 	if err != nil {
 		return nil, err
 	}
-	return proto.BlockInfoFromHeader(a.settings.AddressSchemeCharacter, curHeader, height)
+	var hs []byte = nil
+	if curHeader.Version >= proto.ProtoBlockVersion {
+		hs, err = a.state.HitSource(height)
+		if err != nil {
+			return nil, err
+		}
+
+	}
+	return proto.BlockInfoFromHeader(a.settings.AddressSchemeCharacter, curHeader, height, hs)
 }
 
 func (a *txAppender) checkProtobufVersion(tx proto.Transaction) error {
@@ -346,6 +354,13 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 		return err
 	}
 	curHeight := params.height + 1
+	var hs []byte = nil
+	if params.block.Version >= proto.ProtoBlockVersion {
+		hs, err = a.state.HitSource(curHeight)
+		if err != nil {
+			return err
+		}
+	}
 	scriptsRuns := uint64(0)
 	for _, tx := range params.transactions {
 		// Detect what signatures must be checked for this transaction.
@@ -420,6 +435,7 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 				initialisation:     params.initialisation,
 				block:              params.block,
 				height:             curHeight,
+				hitSource:          hs,
 				validatingUtx:      false,
 			}
 			txChanges, err = a.ia.applyInvokeScriptWithProofs(invokeTx, invokeInfo)
@@ -428,7 +444,7 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 			}
 		} else {
 			// Create balance diff of this tx.
-			txChanges, err = a.blockDiffer.createTransactionDiff(tx, params.block, curHeight, params.initialisation)
+			txChanges, err = a.blockDiffer.createTransactionDiff(tx, params.block, curHeight, hs, params.initialisation)
 			if err != nil {
 				return err
 			}
@@ -546,6 +562,13 @@ func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, pare
 	if err != nil {
 		return err
 	}
+	var hs []byte = nil
+	if version >= proto.ProtoBlockVersion {
+		hs, err = a.state.HitSource(height)
+		if err != nil {
+			return err
+		}
+	}
 	checkerInfo := &checkerInfo{
 		initialisation:   false,
 		currentTimestamp: currentTimestamp,
@@ -559,7 +582,7 @@ func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, pare
 	if err != nil {
 		return err
 	}
-	blockInfo, err := proto.BlockInfoFromHeader(a.settings.AddressSchemeCharacter, block, height)
+	blockInfo, err := proto.BlockInfoFromHeader(a.settings.AddressSchemeCharacter, block, height, hs)
 	if err != nil {
 		return err
 	}

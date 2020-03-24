@@ -264,31 +264,15 @@ func (cv *ConsensusValidator) validateBaseTarget(height uint64, header, parent, 
 }
 
 func (cv *ConsensusValidator) validateGeneratorSignature(height uint64, header *proto.BlockHeader) error {
-	var generationSignatureBlockHeader *proto.BlockHeader
-	vrf, err := cv.state.IsActiveAtHeight(int16(settings.BlockV5), height+1)
-	if err != nil {
-		return errors.Wrapf(err, "failed to validate generation signature")
-	}
-	pos, err := cv.posAlgo(height)
-	if err != nil {
-		return errors.Wrapf(err, "failed to validate generation signature")
-	}
-	if vrf {
-		generationSignatureBlockHeader, err = cv.headerByHeight(pos.HeightForHit(height))
-		if err != nil {
-			return errors.Wrapf(err, "failed to get block header")
-		}
-	} else {
-		generationSignatureBlockHeader, err = cv.headerByHeight(height)
-		if err != nil {
-			return errors.Wrapf(err, "failed to get last block header")
-		}
-	}
 	gsp, err := cv.generationSignatureProvider(height + 1)
 	if err != nil {
 		return errors.Wrap(err, "failed to get generation signature provider")
 	}
-	ok, err := gsp.VerifyGenerationSignature(header.GenPublicKey, generationSignatureBlockHeader.GenSignature, header.GenSignature)
+	hitSource, err := cv.HitSource(height)
+	if err != nil {
+		return err
+	}
+	ok, err := gsp.VerifyGenerationSignature(header.GenPublicKey, hitSource, header.GenSignature)
 	if err != nil {
 		return errors.Wrapf(err, "failed to verify generator signature")
 	}
@@ -296,6 +280,30 @@ func (cv *ConsensusValidator) validateGeneratorSignature(height uint64, header *
 		return errors.Errorf("invalid generation signature %s", header.GenSignature.String())
 	}
 	return nil
+}
+
+func (cv *ConsensusValidator) HitSource(height uint64) ([]byte, error) {
+	var generationSignatureBlockHeader *proto.BlockHeader
+	vrf, err := cv.state.IsActiveAtHeight(int16(settings.BlockV5), height+1)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to validate generation signature")
+	}
+	pos, err := cv.posAlgo(height)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to validate generation signature")
+	}
+	if vrf {
+		generationSignatureBlockHeader, err = cv.headerByHeight(pos.HeightForHit(height))
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to get block header")
+		}
+	} else {
+		generationSignatureBlockHeader, err = cv.headerByHeight(height)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to get last block header")
+		}
+	}
+	return generationSignatureBlockHeader.GenSignature, nil
 }
 
 func (cv *ConsensusValidator) validBlockDelay(height uint64, key crypto.PublicKey, parentTarget, effectiveBalance uint64) (uint64, error) {
