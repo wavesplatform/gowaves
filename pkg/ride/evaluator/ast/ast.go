@@ -144,7 +144,7 @@ func (a *Script) Verify(scheme byte, state types.SmartState, object map[string]E
 		if a.DApp.Verifier == nil {
 			return false, errors.New("verify function not defined")
 		}
-		scope := NewScope(3, scheme, state)
+		scope := NewScope(a.Version, scheme, state)
 		scope.SetThis(this)
 		scope.SetLastBlockInfo(lastBlock)
 		scope.SetHeight(height)
