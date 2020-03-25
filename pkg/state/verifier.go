@@ -1,12 +1,10 @@
 package state
 
 import (
-	"bytes"
 	"context"
 	"sync"
 
 	"github.com/pkg/errors"
-	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
@@ -28,7 +26,7 @@ func newVerifierChans() *verifierChans {
 
 type verifyTask struct {
 	taskType    verifyTaskType
-	parentSig   crypto.Signature
+	parentID    proto.BlockID
 	block       *proto.Block
 	tx          proto.Transaction
 	checkTxSig  bool
@@ -171,10 +169,10 @@ func handleTask(task *verifyTask, scheme proto.Scheme) error {
 	switch task.taskType {
 	case verifyBlock:
 		// Check parent.
-		if !bytes.Equal(task.parentSig[:], task.block.Parent[:]) {
-			return errors.Errorf("incorrect parent: want: %s, have: %s", task.parentSig.String(), task.block.Parent.String())
+		if task.parentID != task.block.Parent {
+			return errors.Errorf("incorrect parent: want: %s, have: %s", task.parentID.String(), task.block.Parent.String())
 		}
-		// Check block signature and transactions root hash if applied
+		// Check block signature and transactions root hash if applied.
 		validSig, err := task.block.VerifySignature(scheme)
 		if err != nil {
 			return errors.Wrap(err, "State: handleTask: failed to verify block signature")

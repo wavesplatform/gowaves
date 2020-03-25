@@ -4,7 +4,7 @@ import (
 	"encoding/binary"
 
 	"github.com/pkg/errors"
-	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
 const (
@@ -53,7 +53,7 @@ func (ov *ordersVolumes) newestVolumeById(orderId []byte, filter bool) (*orderVo
 	return &record, nil
 }
 
-func (ov *ordersVolumes) addNewRecord(orderId []byte, record *orderVolumeRecord, blockID crypto.Signature) error {
+func (ov *ordersVolumes) addNewRecord(orderId []byte, record *orderVolumeRecord, blockID proto.BlockID) error {
 	recordBytes, err := record.marshalBinary()
 	if err != nil {
 		return err
@@ -62,7 +62,7 @@ func (ov *ordersVolumes) addNewRecord(orderId []byte, record *orderVolumeRecord,
 	return ov.hs.addNewEntry(ordersVolume, key.bytes(), recordBytes, blockID)
 }
 
-func (ov *ordersVolumes) increaseFilledFee(orderId []byte, feeChange uint64, blockID crypto.Signature, filter bool) error {
+func (ov *ordersVolumes) increaseFilledFee(orderId []byte, feeChange uint64, blockID proto.BlockID, filter bool) error {
 	prevVolume, err := ov.newestVolumeById(orderId, filter)
 	if err != nil {
 		// New record.
@@ -72,7 +72,7 @@ func (ov *ordersVolumes) increaseFilledFee(orderId []byte, feeChange uint64, blo
 	return ov.addNewRecord(orderId, prevVolume, blockID)
 }
 
-func (ov *ordersVolumes) increaseFilledAmount(orderId []byte, amountChange uint64, blockID crypto.Signature, filter bool) error {
+func (ov *ordersVolumes) increaseFilledAmount(orderId []byte, amountChange uint64, blockID proto.BlockID, filter bool) error {
 	prevVolume, err := ov.newestVolumeById(orderId, filter)
 	if err != nil {
 		// New record.

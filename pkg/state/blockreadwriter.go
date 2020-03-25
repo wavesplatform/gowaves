@@ -85,21 +85,24 @@ func (r *recentDataStorage) reset() {
 type protobufInfo struct {
 	protobufTxStart      uint64
 	protobufHeadersStart uint64
+	protobufAfterHeight  uint64
 }
 
 func (info *protobufInfo) marshalBinary() []byte {
-	res := make([]byte, 16)
+	res := make([]byte, 24)
 	binary.BigEndian.PutUint64(res[:8], info.protobufTxStart)
-	binary.BigEndian.PutUint64(res[8:], info.protobufHeadersStart)
+	binary.BigEndian.PutUint64(res[8:16], info.protobufHeadersStart)
+	binary.BigEndian.PutUint64(res[16:24], info.protobufAfterHeight)
 	return res
 }
 
 func (info *protobufInfo) unmarshalBinary(data []byte) error {
-	if len(data) != 16 {
+	if len(data) != 24 {
 		return errInvalidDataSize
 	}
 	info.protobufTxStart = binary.BigEndian.Uint64(data[:8])
-	info.protobufHeadersStart = binary.BigEndian.Uint64(data[8:])
+	info.protobufHeadersStart = binary.BigEndian.Uint64(data[8:16])
+	info.protobufAfterHeight = binary.BigEndian.Uint64(data[16:24])
 	return nil
 }
 
@@ -123,7 +126,7 @@ type blockReadWriter struct {
 	// Storages for recent data that is not in persistent storage yet.
 	rtx            *recentDataStorage
 	rheaders       *recentDataStorage
-	height2IDCache map[uint64]crypto.Signature
+	height2IDCache map[uint64]proto.BlockID
 	blockInfo      map[blockOffsetKey][]byte
 
 	blockBounds  []byte
@@ -143,6 +146,7 @@ type blockReadWriter struct {
 	// Protobuf-related stuff.
 	protobufActivated                     bool
 	protobufTxStart, protobufHeadersStart uint64
+	protobufAfterHeight                   uint64
 
 	mtx sync.RWMutex
 }
@@ -228,7 +232,7 @@ func newBlockReadWriter(
 		blockHeight2IDBuf: bufio.NewWriter(blockHeight2ID),
 		rtx:               newRecentDataStorage(),
 		rheaders:          newRecentDataStorage(),
-		height2IDCache:    make(map[uint64]crypto.Signature),
+		height2IDCache:    make(map[uint64]proto.BlockID),
 		blockInfo:         make(map[blockOffsetKey][]byte),
 		txStarts:          make([]byte, offsetLen),
 		headerBounds:      make([]byte, headerOffsetLen*2),
@@ -281,11 +285,11 @@ func (rw *blockReadWriter) syncFiles() error {
 	return nil
 }
 
-func (rw *blockReadWriter) startBlock(blockID crypto.Signature) error {
+func (rw *blockReadWriter) startBlock(blockID proto.BlockID) error {
 	rw.mtx.Lock()
 	defer rw.mtx.Unlock()
 	rw.addingBlock = true
-	if _, err := rw.blockHeight2IDBuf.Write(blockID[:]); err != nil {
+	if _, err := rw.blockHeight2IDBuf.Write(blockID.Bytes()); err != nil {
 		return err
 	}
 	rw.height2IDCache[rw.height+1] = blockID
@@ -294,7 +298,7 @@ func (rw *blockReadWriter) startBlock(blockID crypto.Signature) error {
 	return nil
 }
 
-func (rw *blockReadWriter) finishBlock(blockID crypto.Signature) error {
+func (rw *blockReadWriter) finishBlock(blockID proto.BlockID) error {
 	rw.mtx.Lock()
 	defer rw.mtx.Unlock()
 	rw.addingBlock = false
@@ -358,7 +362,7 @@ func (rw *blockReadWriter) writeTransaction(tx proto.Transaction) error {
 func (rw *blockReadWriter) writeBlockHeader(header *proto.BlockHeader) error {
 	rw.mtx.Lock()
 	defer rw.mtx.Unlock()
-	blockID := header.BlockSignature
+	blockID := header.BlockID()
 	var err error
 	var headerBytes []byte
 	if rw.protobufActivated {
@@ -377,7 +381,7 @@ func (rw *blockReadWriter) writeBlockHeader(header *proto.BlockHeader) error {
 			return err
 		}
 	}
-	if err := rw.rheaders.appendBytes(blockID[:], headerBytes); err != nil {
+	if err := rw.rheaders.appendBytes(blockID.Bytes(), headerBytes); err != nil {
 		return err
 	}
 	rw.headersLen += uint64(len(headerBytes))
@@ -387,7 +391,7 @@ func (rw *blockReadWriter) writeBlockHeader(header *proto.BlockHeader) error {
 	return nil
 }
 
-func (rw *blockReadWriter) newestBlockIDByHeight(height uint64) (crypto.Signature, error) {
+func (rw *blockReadWriter) newestBlockIDByHeight(height uint64) (proto.BlockID, error) {
 	rw.mtx.RLock()
 	defer rw.mtx.RUnlock()
 	// For blockReadWriter, heights start from 0.
@@ -397,25 +401,46 @@ func (rw *blockReadWriter) newestBlockIDByHeight(height uint64) (crypto.Signatur
 	return rw.blockIDByHeightImpl(height)
 }
 
-func (rw *blockReadWriter) blockIDByHeight(height uint64) (crypto.Signature, error) {
+func (rw *blockReadWriter) blockIDByHeight(height uint64) (proto.BlockID, error) {
 	rw.mtx.RLock()
 	defer rw.mtx.RUnlock()
 	return rw.blockIDByHeightImpl(height)
 }
 
-func (rw *blockReadWriter) blockIDByHeightImpl(height uint64) (crypto.Signature, error) {
+func (rw *blockReadWriter) heightToIDSize(height uint64) int {
+	if !rw.protobufActivated {
+		return crypto.SignatureSize
+	}
+	if height >= rw.protobufAfterHeight {
+		return crypto.DigestSize
+	}
+	return crypto.SignatureSize
+}
+
+func (rw *blockReadWriter) heightToIDOffset(height uint64) uint64 {
+	if !rw.protobufActivated {
+		return height * crypto.SignatureSize
+	}
+	if height > rw.protobufAfterHeight {
+		offsetBeforeProtobuf := rw.protobufAfterHeight * crypto.SignatureSize
+		blocksAfterProtobuf := height - rw.protobufAfterHeight
+		offsetAfterProtobuf := blocksAfterProtobuf * crypto.DigestSize
+		return offsetBeforeProtobuf + offsetAfterProtobuf
+	}
+	return height * crypto.SignatureSize
+}
+
+func (rw *blockReadWriter) blockIDByHeightImpl(height uint64) (proto.BlockID, error) {
 	// For blockReadWriter, heights start from 0.
 	height -= 1
-	idBytes := make([]byte, crypto.SignatureSize)
-	readPos := int64(height * crypto.SignatureSize)
-	var res crypto.Signature
+	idBytes := make([]byte, rw.heightToIDSize(height))
+	readPos := int64(rw.heightToIDOffset(height))
 	if n, err := rw.blockHeight2ID.ReadAt(idBytes, readPos); err != nil {
-		return res, err
-	} else if n != crypto.SignatureSize {
-		return res, errors.New("blockIDByHeight(): invalid id size")
+		return proto.BlockID{}, err
+	} else if n != len(idBytes) {
+		return proto.BlockID{}, errors.New("blockIDByHeight(): invalid id size")
 	}
-	copy(res[:], idBytes)
-	return res, nil
+	return proto.NewBlockIDFromBytes(idBytes)
 }
 
 func (rw *blockReadWriter) heightFromBlockInfo(blockInfo []byte) (uint64, error) {
@@ -426,7 +451,7 @@ func (rw *blockReadWriter) heightFromBlockInfo(blockInfo []byte) (uint64, error)
 	return height, nil
 }
 
-func (rw *blockReadWriter) newestHeightByBlockID(blockID crypto.Signature) (uint64, error) {
+func (rw *blockReadWriter) newestHeightByBlockID(blockID proto.BlockID) (uint64, error) {
 	key := blockOffsetKey{blockID: blockID}
 	blockInfo, ok := rw.blockInfo[key]
 	if ok {
@@ -435,7 +460,7 @@ func (rw *blockReadWriter) newestHeightByBlockID(blockID crypto.Signature) (uint
 	return rw.heightByBlockID(blockID)
 }
 
-func (rw *blockReadWriter) heightByBlockID(blockID crypto.Signature) (uint64, error) {
+func (rw *blockReadWriter) heightByBlockID(blockID proto.BlockID) (uint64, error) {
 	key := blockOffsetKey{blockID: blockID}
 	blockInfo, err := rw.db.Get(key.bytes())
 	if err != nil {
@@ -556,23 +581,23 @@ func (rw *blockReadWriter) readTransactionByOffsetImpl(offset uint64) (proto.Tra
 	return rw.txByBounds(txStart, txEnd)
 }
 
-func (rw *blockReadWriter) readNewestBlockHeader(blockID crypto.Signature) (*proto.BlockHeader, error) {
+func (rw *blockReadWriter) readNewestBlockHeader(blockID proto.BlockID) (*proto.BlockHeader, error) {
 	rw.mtx.RLock()
 	defer rw.mtx.RUnlock()
-	headerBytes, err := rw.rheaders.bytesById(blockID[:])
+	headerBytes, err := rw.rheaders.bytesById(blockID.Bytes())
 	if err != nil {
 		return rw.readBlockHeaderImpl(blockID)
 	}
 	return rw.headerFromBytes(headerBytes, rw.protobufActivated)
 }
 
-func (rw *blockReadWriter) readBlockHeader(blockID crypto.Signature) (*proto.BlockHeader, error) {
+func (rw *blockReadWriter) readBlockHeader(blockID proto.BlockID) (*proto.BlockHeader, error) {
 	rw.mtx.RLock()
 	defer rw.mtx.RUnlock()
 	return rw.readBlockHeaderImpl(blockID)
 }
 
-func (rw *blockReadWriter) readBlockHeaderImpl(blockID crypto.Signature) (*proto.BlockHeader, error) {
+func (rw *blockReadWriter) readBlockHeaderImpl(blockID proto.BlockID) (*proto.BlockHeader, error) {
 	key := blockOffsetKey{blockID: blockID}
 	blockInfo, err := rw.db.Get(key.bytes())
 	if err != nil {
@@ -584,7 +609,7 @@ func (rw *blockReadWriter) readBlockHeaderImpl(blockID crypto.Signature) (*proto
 	return rw.headerByBounds(headerStart, headerEnd)
 }
 
-func (rw *blockReadWriter) readBlock(blockID crypto.Signature) (*proto.Block, error) {
+func (rw *blockReadWriter) readBlock(blockID proto.BlockID) (*proto.Block, error) {
 	rw.mtx.RLock()
 	defer rw.mtx.RUnlock()
 	header, err := rw.readBlockHeaderImpl(blockID)
@@ -629,17 +654,15 @@ func (rw *blockReadWriter) cleanIDs(oldHeight, newBlockchainLen uint64) error {
 		return err
 	}
 	// Clean block IDs.
-	offset := oldHeight
-	blocksIdsToRemove := int(oldHeight - newHeight)
-	for i := 0; i < blocksIdsToRemove; i++ {
-		readPos := int64((offset - 1) * crypto.SignatureSize)
-		idBytes := make([]byte, crypto.SignatureSize)
+	for h := oldHeight - 1; h >= newHeight; h-- {
+		readPos := int64(rw.heightToIDOffset(h))
+		idBytes := make([]byte, rw.heightToIDSize(h))
 		if n, err := rw.blockHeight2ID.ReadAt(idBytes, readPos); err != nil {
 			return err
-		} else if n != crypto.SignatureSize {
+		} else if n != len(idBytes) {
 			return errors.New("cleanIDs(): invalid id size")
 		}
-		blockID, err := crypto.NewSignatureFromBytes(idBytes)
+		blockID, err := proto.NewBlockIDFromBytes(idBytes)
 		if err != nil {
 			return err
 		}
@@ -647,7 +670,6 @@ func (rw *blockReadWriter) cleanIDs(oldHeight, newBlockchainLen uint64) error {
 		if err := rw.db.Delete(key.bytes()); err != nil {
 			return err
 		}
-		offset--
 	}
 	// Clean transaction IDs.
 	readPos := newBlockchainLen
@@ -662,11 +684,11 @@ func (rw *blockReadWriter) cleanIDs(oldHeight, newBlockchainLen uint64) error {
 		if _, err := rw.blockchain.ReadAt(txBytes, int64(readPos)); err != nil {
 			return err
 		}
-		readPos += uint64(txSize)
-		tx, err := proto.BytesToTransaction(txBytes, rw.scheme)
+		tx, err := rw.txByBounds(readPos, readPos+uint64(txSize))
 		if err != nil {
 			return err
 		}
+		readPos += uint64(txSize)
 		txID, err := tx.GetID(rw.scheme)
 		if err != nil {
 			return err
@@ -729,6 +751,7 @@ func (rw *blockReadWriter) removeEverything(cleanIDs bool) error {
 	rw.protobufActivated = false
 	rw.protobufTxStart = 0
 	rw.protobufHeadersStart = 0
+	rw.protobufAfterHeight = 0
 	// Reset buffers.
 	rw.blockchainBuf.Reset(rw.blockchain)
 	rw.headersBuf.Reset(rw.headers)
@@ -736,7 +759,7 @@ func (rw *blockReadWriter) removeEverything(cleanIDs bool) error {
 	return nil
 }
 
-func (rw *blockReadWriter) rollback(removalEdge crypto.Signature, cleanIDs bool) error {
+func (rw *blockReadWriter) rollback(removalEdge proto.BlockID, cleanIDs bool) error {
 	rw.mtx.Lock()
 	defer rw.mtx.Unlock()
 	key := blockOffsetKey{blockID: removalEdge}
@@ -781,7 +804,7 @@ func (rw *blockReadWriter) rollback(removalEdge crypto.Signature, cleanIDs bool)
 		return err
 	}
 	// Remove blockIDs from blockHeight2ID file.
-	newOffset := int64(newHeight * crypto.SignatureSize)
+	newOffset := int64(rw.heightToIDOffset(newHeight))
 	if err := rw.blockHeight2ID.Truncate(newOffset); err != nil {
 		return err
 	}
@@ -796,6 +819,7 @@ func (rw *blockReadWriter) rollback(removalEdge crypto.Signature, cleanIDs bool)
 		rw.protobufActivated = false
 		rw.protobufTxStart = 0
 		rw.protobufHeadersStart = 0
+		rw.protobufAfterHeight = 0
 	}
 	// Decrease counters.
 	rw.height = newHeight
@@ -813,7 +837,7 @@ func (rw *blockReadWriter) reset() {
 	rw.blockchainBuf.Reset(rw.blockchain)
 	rw.rheaders.reset()
 	rw.headersBuf.Reset(rw.headers)
-	rw.height2IDCache = make(map[uint64]crypto.Signature)
+	rw.height2IDCache = make(map[uint64]proto.BlockID)
 	rw.blockHeight2IDBuf.Reset(rw.blockHeight2ID)
 	rw.blockInfo = make(map[blockOffsetKey][]byte)
 }
@@ -865,7 +889,7 @@ func (rw *blockReadWriter) loadProtobufInfo() error {
 	if err := info.unmarshalBinary(infoBytes); err != nil {
 		return err
 	}
-	if info.protobufTxStart > rw.blockchainLen || info.protobufHeadersStart > rw.headersLen {
+	if info.protobufTxStart > rw.blockchainLen || info.protobufHeadersStart > rw.headersLen || info.protobufAfterHeight > rw.height {
 		// Might happen if rollback does not complete correctly.
 		if err := rw.db.Delete([]byte{rwProtobufInfoKeyPrefix}); err != nil {
 			return err
@@ -876,6 +900,7 @@ func (rw *blockReadWriter) loadProtobufInfo() error {
 	rw.protobufActivated = true
 	rw.protobufTxStart = info.protobufTxStart
 	rw.protobufHeadersStart = info.protobufHeadersStart
+	rw.protobufAfterHeight = info.protobufAfterHeight
 	return nil
 }
 
@@ -893,9 +918,11 @@ func (rw *blockReadWriter) setProtobufActivated() {
 	rw.protobufActivated = true
 	rw.protobufHeadersStart = rw.headersLen
 	rw.protobufTxStart = rw.blockchainLen
+	rw.protobufAfterHeight = rw.height
 	info := &protobufInfo{
 		protobufHeadersStart: rw.protobufHeadersStart,
 		protobufTxStart:      rw.protobufTxStart,
+		protobufAfterHeight:  rw.protobufAfterHeight,
 	}
 	rw.storeProtobufInfo(info)
 }
@@ -930,7 +957,7 @@ func (rw *blockReadWriter) headerFromBytes(headerBytes []byte, protobuf bool) (*
 		return &b.BlockHeader, nil
 	}
 	var header proto.BlockHeader
-	if err := header.UnmarshalHeaderFromBinary(headerBytes); err != nil {
+	if err := header.UnmarshalHeaderFromBinary(headerBytes, rw.scheme); err != nil {
 		return nil, err
 	}
 	return &header, nil

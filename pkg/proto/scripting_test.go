@@ -74,8 +74,8 @@ func TestScriptResultBinaryRoundTrip(t *testing.T) {
 			DataEntries: emptyDataEntries,
 			Transfers:   emptyTransfers,
 			Issues: []IssueScriptAction{
-				{ID: asset0.ID, Name: "xxx1", Description: "some asset", Quantity: 10000000, Decimals: 2, Reissuable: false, Script: nil, Nonce: 0},
-				{ID: asset1.ID, Name: strings.Repeat("x", 100), Description: strings.Repeat("s", 1000), Quantity: math.MaxUint32, Decimals: 0, Reissuable: true, Script: nil, Nonce: math.MaxInt64},
+				{ID: asset0.ID, Name: "xxx1", Description: "some asset", Quantity: 10000000, Decimals: 2, Reissuable: false, Script: Script{}, Nonce: 0},
+				{ID: asset1.ID, Name: strings.Repeat("x", 100), Description: strings.Repeat("s", 1000), Quantity: math.MaxUint32, Decimals: 0, Reissuable: true, Script: Script{}, Nonce: math.MaxInt64},
 			},
 			Reissues: emptyReissues,
 			Burns:    emptyBurns,
@@ -84,8 +84,8 @@ func TestScriptResultBinaryRoundTrip(t *testing.T) {
 			DataEntries: emptyDataEntries,
 			Transfers:   emptyTransfers,
 			Issues: []IssueScriptAction{
-				{ID: asset1.ID, Name: "xxx1", Description: "some asset", Quantity: 10000000, Decimals: 2, Reissuable: false, Script: nil, Nonce: 0},
-				{ID: asset0.ID, Name: strings.Repeat("x", 100), Description: strings.Repeat("s", 1000), Quantity: math.MaxUint32, Decimals: 0, Reissuable: true, Script: nil, Nonce: math.MaxInt64},
+				{ID: asset1.ID, Name: "xxx1", Description: "some asset", Quantity: 10000000, Decimals: 2, Reissuable: false, Script: Script{}, Nonce: 0},
+				{ID: asset0.ID, Name: strings.Repeat("x", 100), Description: strings.Repeat("s", 1000), Quantity: math.MaxUint32, Decimals: 0, Reissuable: true, Script: Script{}, Nonce: math.MaxInt64},
 			},
 			Reissues: []ReissueScriptAction{
 				{AssetID: asset0.ID, Quantity: 100000, Reissuable: false},

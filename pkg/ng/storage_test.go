@@ -9,16 +9,18 @@ import (
 )
 
 var sig1 = crypto.MustSignatureFromBase58("5djHxGcrueh8tP2aA1UUgcvGQ1Up5e9u65wTvap2P4igbUo1oFn5cV6rSNGzo15mxhEMY7JPnA3M645jLPES93ZC")
+var id1 = proto.NewBlockIDFromSignature(sig1)
 var sig2 = crypto.MustSignatureFromBase58("Me1vXm5e7jKoHQ165vHKvZLwU5xL7Y6PVKRmbKrD7T15hLnLvpkGukVUTVHsNzrLL9H7kqsrR38dVUA98V6qUdB")
 var sig3 = crypto.MustSignatureFromBase58("3yAvQJGneoczXz6aQPHKFE3z3DEuWp7MoSVqxz8y57huufanv3RJPncmaZWZN3hDc7can994ET2UxSbLNesKV29H")
 var sig4 = crypto.MustSignatureFromBase58("3k9YkeXviV4edXuBizn5pP8vRbHeyGHaRQwrVzTX6pHTCvUymRj4n3Ye1hWG1JwCypc4P34uHvag1uCTH9HRazUw")
 var emptySig = crypto.Signature{}
+var emptyId = proto.NewBlockIDFromSignature(emptySig)
 
 func newBlock(sig crypto.Signature, parent crypto.Signature) *proto.Block {
 	return &proto.Block{
 		BlockHeader: proto.BlockHeader{
 			BlockSignature: sig,
-			Parent:         parent,
+			Parent:         proto.NewBlockIDFromSignature(parent),
 		},
 		Transactions: proto.Transactions(nil),
 	}
@@ -27,13 +29,15 @@ func newBlock(sig crypto.Signature, parent crypto.Signature) *proto.Block {
 func newMicro(sig crypto.Signature, parent crypto.Signature) *proto.MicroBlock {
 	return &proto.MicroBlock{
 		TotalResBlockSigField: sig,
-		PrevResBlockSigField:  parent,
+		TotalBlockID:          proto.NewBlockIDFromSignature(sig),
+		Reference:             proto.NewBlockIDFromSignature(parent),
 	}
 }
 
 func newInv(sig crypto.Signature) *proto.MicroBlockInv {
+	id := proto.NewBlockIDFromSignature(sig)
 	return &proto.MicroBlockInv{
-		TotalBlockSig: sig,
+		TotalBlockID: id,
 	}
 }
 

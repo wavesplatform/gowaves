@@ -177,13 +177,14 @@ func (k *assetBalanceKey) unmarshal(data []byte) error {
 }
 
 type blockIdToNumKey struct {
-	blockID crypto.Signature
+	blockID proto.BlockID
 }
 
 func (k *blockIdToNumKey) bytes() []byte {
-	buf := make([]byte, 1+crypto.SignatureSize)
+	idBytes := k.blockID.Bytes()
+	buf := make([]byte, 1+len(idBytes))
 	buf[0] = blockIdToNumKeyPrefix
-	copy(buf[1:], k.blockID[:])
+	copy(buf[1:], idBytes)
 	return buf
 }
 
@@ -210,13 +211,14 @@ func (k *validBlockNumKey) bytes() []byte {
 }
 
 type blockOffsetKey struct {
-	blockID crypto.Signature
+	blockID proto.BlockID
 }
 
 func (k *blockOffsetKey) bytes() []byte {
-	buf := make([]byte, 1+crypto.SignatureSize)
+	idBytes := k.blockID.Bytes()
+	buf := make([]byte, 1+len(idBytes))
 	buf[0] = blockOffsetKeyPrefix
-	copy(buf[1:], k.blockID[:])
+	copy(buf[1:], idBytes)
 	return buf
 }
 
@@ -423,13 +425,14 @@ func (k *ordersVolumeKey) bytes() []byte {
 }
 
 type blocksInfoKey struct {
-	blockID crypto.Signature
+	blockID proto.BlockID
 }
 
 func (k *blocksInfoKey) bytes() []byte {
-	buf := make([]byte, 1+crypto.SignatureSize)
+	idBytes := k.blockID.Bytes()
+	buf := make([]byte, 1+len(idBytes))
 	buf[0] = blocksInfoKeyPrefix
-	copy(buf[1:], k.blockID[:])
+	copy(buf[1:], idBytes)
 	return buf
 }
 

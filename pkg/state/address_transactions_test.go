@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
-	"github.com/wavesplatform/gowaves/pkg/util"
+	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
 func testIterImpl(t *testing.T, params StateParams) {
@@ -122,7 +122,7 @@ func TestAddrTransactionsIdempotent(t *testing.T) {
 	defer func() {
 		stor.close(t)
 
-		err = util.CleanTemporaryDirs(path)
+		err = common.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 

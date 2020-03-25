@@ -130,7 +130,7 @@ func (s *Synchronizer) applyBlocks(start, end int) error {
 		if err != nil {
 			return err
 		}
-		err = s.applyBlock(h, header.BlockSignature, txs, len(txs), header.GenPublicKey)
+		err = s.applyBlock(h, header.BlockID(), txs, len(txs), header.GenPublicKey)
 		if err != nil {
 			return err
 		}
@@ -138,11 +138,11 @@ func (s *Synchronizer) applyBlocks(start, end int) error {
 	return nil
 }
 
-var emptySignature = crypto.Signature{}
+var emptyID = proto.BlockID{}
 
-func (s *Synchronizer) applyBlock(height int, id crypto.Signature, txs []proto.Transaction, count int, miner crypto.PublicKey) error {
-	if bytes.Equal(id[:], emptySignature[:]) {
-		return errors.Errorf("Empty block signature at height: %d", height)
+func (s *Synchronizer) applyBlock(height int, id proto.BlockID, txs []proto.Transaction, count int, miner crypto.PublicKey) error {
+	if id == emptyID {
+		return errors.Errorf("Empty block id at height: %d", height)
 	}
 	zap.S().Infof("Applying block '%s' at %d containing %d transactions", id.String(), height, count)
 	trades, issues, assets, accounts, aliases, err := s.extractTransactions(txs, miner)
@@ -178,17 +178,17 @@ func (s *Synchronizer) block(height int, full bool) (*g.BlockWithHeight, error) 
 	return g.NewBlocksApiClient(s.conn).GetBlock(ctx, &g.BlockRequest{IncludeTransactions: full, Request: &g.BlockRequest_Height{Height: int32(height)}}, grpc.EmptyCallOption{})
 }
 
-func (s *Synchronizer) nodeBlockSignature(height int) (crypto.Signature, error) {
+func (s *Synchronizer) nodeBlockID(height int) (proto.BlockID, error) {
 	cnv := proto.ProtobufConverter{}
 	res, err := s.block(height, false)
 	if err != nil {
-		return crypto.Signature{}, err
+		return proto.BlockID{}, err
 	}
 	header, err := cnv.BlockHeader(res.Block)
 	if err != nil {
-		return crypto.Signature{}, err
+		return proto.BlockID{}, err
 	}
-	return header.BlockSignature, nil
+	return header.BlockID(), nil
 }
 
 func (s *Synchronizer) nodeBlock(height int) (proto.BlockHeader, []proto.Transaction, error) {
@@ -215,9 +215,9 @@ func (s *Synchronizer) findLastCommonHeight(start, stop int) (int, error) {
 			return 0, errors.New("binary search was interrupted")
 		}
 		middle := (start + stop) / 2
-		ok, err := s.equalSignatures(middle)
+		ok, err := s.equalIDs(middle)
 		if err != nil {
-			return 0, errors.Wrapf(err, "failed to compare blocks signatures at height %d", middle)
+			return 0, errors.Wrapf(err, "failed to compare blocks ids at height %d", middle)
 		}
 		if !ok {
 			stop = middle - 1
@@ -233,8 +233,8 @@ func (s *Synchronizer) findLastCommonHeight(start, stop int) (int, error) {
 	return r, nil
 }
 
-func (s *Synchronizer) equalSignatures(height int) (bool, error) {
-	rbs, err := s.nodeBlockSignature(height)
+func (s *Synchronizer) equalIDs(height int) (bool, error) {
+	rbs, err := s.nodeBlockID(height)
 	if err != nil {
 		return false, err
 	}
@@ -242,7 +242,7 @@ func (s *Synchronizer) equalSignatures(height int) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	return bytes.Equal(rbs[:], lbs[:]), nil
+	return rbs == lbs, nil
 }
 
 func (s *Synchronizer) extractTransactions(txs []proto.Transaction, miner crypto.PublicKey) ([]data.Trade, []data.IssueChange, []data.AssetChange, []data.AccountChange, []data.AliasBind, error) {

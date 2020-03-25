@@ -114,7 +114,7 @@ func (a *StateSync) run(ctx context.Context) {
 
 func (a *StateSync) sync(ctx context.Context, p Peer) error {
 	ctx, cancel := context.WithCancel(ctx)
-	sigs, err := LastSignatures(a.stateManager)
+	ids, err := LastBlockIds(a.stateManager)
 	if err != nil {
 		zap.S().Error(err)
 		cancel()
@@ -122,12 +122,12 @@ func (a *StateSync) sync(ctx context.Context, p Peer) error {
 	}
 
 	errCh := make(chan error, 2)
-	incoming := make(chan nullable.Signature, 256)
+	incoming := make(chan nullable.BlockID, 256)
 
 	var wg sync.WaitGroup
 
-	a.services.LoggableRunner.Named("StateSync.PreloadSignatures", func() {
-		errCh <- PreloadSignatures(ctx, incoming, p, sigs, a.subscribe, &wg)
+	a.services.LoggableRunner.Named("StateSync.PreloadBlockIds", func() {
+		errCh <- PreloadBlockIds(ctx, incoming, p, ids, a.subscribe, &wg)
 	})
 	a.services.LoggableRunner.Named("StateSync.downloadBlocks", func() {
 		errCh <- a.downloadBlocks(ctx, incoming, p, &wg)
@@ -182,7 +182,7 @@ func (a *StateSync) Close() {
 	close(a.interrupt)
 }
 
-func (a *StateSync) downloadBlocks(ctx context.Context, signaturesCh chan nullable.Signature, p Peer, wg *sync.WaitGroup) error {
+func (a *StateSync) downloadBlocks(ctx context.Context, idsCh chan nullable.BlockID, p Peer, wg *sync.WaitGroup) error {
 	runner := a.services.LoggableRunner
 	defer a.services.Scheduler.Reschedule()
 	wg.Add(1)
@@ -191,7 +191,7 @@ func (a *StateSync) downloadBlocks(ctx context.Context, signaturesCh chan nullab
 	errCh := make(chan error, 3)
 	receivedBlocksCh := channel.NewChannel(128)
 
-	downloader := newBlockDownloader(128, p, a.subscribe, receivedBlocksCh)
+	downloader := newBlockDownloader(128, p, a.subscribe, receivedBlocksCh, a.services.Scheme)
 	runner.Named("StateSync.downloadBlocks.downloader.run", func() {
 		downloader.run(ctx, wg)
 	})
@@ -199,7 +199,7 @@ func (a *StateSync) downloadBlocks(ctx context.Context, signaturesCh chan nullab
 	const blockCnt = 50
 
 	wg.Add(1)
-	runner.Named("StateSync.downloadBlocks.receiveSignatures",
+	runner.Named("StateSync.downloadBlocks.receiveBlockIds",
 		func() {
 			defer wg.Done()
 			defer downloader.close()
@@ -208,12 +208,12 @@ func (a *StateSync) downloadBlocks(ctx context.Context, signaturesCh chan nullab
 				case <-ctx.Done():
 					return
 				case <-time.After(30 * time.Second):
-					zap.S().Infof("[%s] StateSync: DownloadBlocks: timeout waiting for SignaturesMessage", p.ID())
+					zap.S().Infof("[%s] StateSync: DownloadBlocks: timeout waiting for SignaturesMessage or BlockIdsMessage", p.ID())
 					errCh <- TimeoutErr
 					return
-				case sig := <-signaturesCh:
-					downloader.download(sig)
-					if sig.Null() {
+				case id := <-idsCh:
+					downloader.download(id)
+					if id.Null() {
 						return
 					}
 				}

@@ -112,7 +112,7 @@ func buildHandles(tc *transactionChecker, tp *transactionPerformer, td *transact
 }
 
 func newTransactionHandler(
-	genesis crypto.Signature,
+	genesis proto.BlockID,
 	stor *blockchainEntitiesStorage,
 	settings *settings.BlockchainSettings,
 ) (*transactionHandler, error) {

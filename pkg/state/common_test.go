@@ -241,7 +241,7 @@ func createStorageObjects() (*testStorageObjects, []string, error) {
 	return &testStorageObjects{db, dbBatch, rw, hs, stateDB, entities}, res, nil
 }
 
-func (s *testStorageObjects) addBlock(t *testing.T, blockID crypto.Signature) {
+func (s *testStorageObjects) addBlock(t *testing.T, blockID proto.BlockID) {
 	err := s.stateDB.addBlock(blockID)
 	assert.NoError(t, err, "stateDB.addBlock() failed")
 	err = s.rw.startBlock(blockID)
@@ -258,7 +258,7 @@ func (s *testStorageObjects) addBlocks(t *testing.T, blocksNum int) {
 	s.flush(t)
 }
 
-func (s *testStorageObjects) createAssetAtBlock(t *testing.T, assetID crypto.Digest, blockID crypto.Signature) *assetInfo {
+func (s *testStorageObjects) createAssetAtBlock(t *testing.T, assetID crypto.Digest, blockID proto.BlockID) *assetInfo {
 	s.addBlock(t, blockID)
 	assetInfo := defaultAssetInfo(true)
 	err := s.entities.assets.issueAsset(assetID, assetInfo, blockID)
@@ -326,18 +326,18 @@ func (s *testStorageObjects) close(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func genRandBlockId(t *testing.T) crypto.Signature {
+func genRandBlockId(t *testing.T) proto.BlockID {
 	id := make([]byte, crypto.SignatureSize)
 	_, err := rand.Read(id)
 	assert.NoError(t, err, "rand.Read() failed")
-	blockID, err := crypto.NewSignatureFromBytes(id)
-	assert.NoError(t, err, "NewSignatureFromBytes() failed")
+	blockID, err := proto.NewBlockIDFromBytes(id)
+	assert.NoError(t, err, "NewBlockIDFromBytes() failed")
 	return blockID
 }
 
-func genRandBlockIds(t *testing.T, number int) []crypto.Signature {
-	ids := make([]crypto.Signature, number)
-	idsDict := make(map[crypto.Signature]bool)
+func genRandBlockIds(t *testing.T, number int) []proto.BlockID {
+	ids := make([]proto.BlockID, number)
+	idsDict := make(map[proto.BlockID]bool)
 	for i := 0; i < number; i++ {
 		for {
 			blockID := genRandBlockId(t)
@@ -352,12 +352,12 @@ func genRandBlockIds(t *testing.T, number int) []crypto.Signature {
 	return ids
 }
 
-func genBlockId(fillWith byte) crypto.Signature {
-	var blockID crypto.Signature
+func genBlockId(fillWith byte) proto.BlockID {
+	var s crypto.Signature
 	for i := 0; i < crypto.SignatureSize; i++ {
-		blockID[i] = fillWith
+		s[i] = fillWith
 	}
-	return blockID
+	return proto.NewBlockIDFromSignature(s)
 }
 
 func generateRandomRecipient(t *testing.T) proto.Recipient {

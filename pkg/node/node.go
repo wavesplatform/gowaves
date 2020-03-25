@@ -7,7 +7,6 @@ import (
 	"net"
 	"time"
 
-	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/ng"
 	"github.com/wavesplatform/gowaves/pkg/node/peer_manager"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
@@ -15,7 +14,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/services"
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"github.com/wavesplatform/gowaves/pkg/types"
-	"github.com/wavesplatform/gowaves/pkg/util"
+	"github.com/wavesplatform/gowaves/pkg/util/common"
 	"go.uber.org/zap"
 )
 
@@ -95,6 +94,10 @@ func (a *Node) HandleProtoMessage(mess peer.ProtoMessage) {
 		a.handlePBMicroBlockMessage(mess.ID, t)
 	case *proto.PBTransactionMessage:
 		a.handlePBTransactionMessage(mess.ID, t)
+	case *proto.GetBlockIdsMessage:
+		a.handleGetBlockIdsMessage(mess.ID, t)
+	case *proto.BlockIdsMessage:
+		a.handleBlockIdsMessage(mess.ID, t)
 
 	default:
 		zap.S().Errorf("unknown proto Message %T", mess.Message)
@@ -123,7 +126,7 @@ func (a *Node) handlePBTransactionMessage(_ peer.Peer, mess *proto.PBTransaction
 		zap.S().Debug(err)
 		return
 	}
-	_ = a.utx.AddWithBytes(t, util.Dup(mess.Transaction))
+	_ = a.utx.AddWithBytes(t, common.Dup(mess.Transaction))
 }
 
 func (a *Node) handleTransactionMessage(_ peer.Peer, mess *proto.TransactionMessage) {
@@ -132,7 +135,7 @@ func (a *Node) handleTransactionMessage(_ peer.Peer, mess *proto.TransactionMess
 		zap.S().Debug(err)
 		return
 	}
-	_ = a.utx.AddWithBytes(t, util.Dup(mess.Transaction))
+	_ = a.utx.AddWithBytes(t, common.Dup(mess.Transaction))
 }
 
 func (a *Node) handlePeersMessage(_ peer.Peer, peers *proto.PeersMessage) {
@@ -216,8 +219,8 @@ func (a *Node) handleNewConnection(p peer.Peer) {
 	}()
 }
 
-func (a *Node) handleBlockBySignatureMessage(p peer.Peer, sig crypto.Signature) {
-	block, err := a.state.Block(sig)
+func (a *Node) handleBlockBySignatureMessage(p peer.Peer, id proto.BlockID) {
+	block, err := a.state.Block(id)
 	if err != nil {
 		zap.S().Error(err)
 		return
@@ -256,14 +259,29 @@ func (a *Node) handleBlockMessage(p peer.Peer, mess *proto.BlockMessage) {
 
 func (a *Node) handleGetSignaturesMessage(p peer.Peer, mess *proto.GetSignaturesMessage) {
 	for _, sig := range mess.Blocks {
-		block, err := a.state.Block(sig)
+		id := proto.NewBlockIDFromSignature(sig)
+		block, err := a.state.Block(id)
 		if err != nil {
 			continue
 		}
-		if block.BlockSignature != sig {
-			panic("signature error")
+		if block.BlockID() != id {
+			panic("id error")
 		}
-		sendSignatures(block, a.state, p)
+		sendBlockIdsFromBlock(block, a.state, p)
+		return
+	}
+}
+
+func (a *Node) handleGetBlockIdsMessage(p peer.Peer, mess *proto.GetBlockIdsMessage) {
+	for _, id := range mess.Blocks {
+		block, err := a.state.Block(id)
+		if err != nil {
+			continue
+		}
+		if block.BlockID() != id {
+			panic("id error")
+		}
+		sendBlockIdsFromBlock(block, a.state, p)
 		return
 	}
 }
@@ -321,6 +339,10 @@ func (a *Node) handleMicroBlockMessage(p peer.Peer, message *proto.MicroBlockMes
 }
 
 func (a *Node) handleSignaturesMessage(p peer.Peer, message *proto.SignaturesMessage) {
+	a.subscribe.Receive(p, message)
+}
+
+func (a *Node) handleBlockIdsMessage(p peer.Peer, message *proto.BlockIdsMessage) {
 	a.subscribe.Receive(p, message)
 }
 
@@ -387,36 +409,36 @@ func (n *Node) Run(ctx context.Context, p peer.Parent) {
 	}
 }
 
-type Signatures struct {
-	signatures []crypto.Signature
-	unique     map[crypto.Signature]struct{}
+type BlockIds struct {
+	ids    []proto.BlockID
+	unique map[proto.BlockID]struct{}
 }
 
-func (a *Signatures) Signatures() []crypto.Signature {
-	return a.signatures
+func (a *BlockIds) Ids() []proto.BlockID {
+	return a.ids
 }
 
-func NewSignatures(signatures ...crypto.Signature) *Signatures {
-	unique := make(map[crypto.Signature]struct{})
-	for _, v := range signatures {
+func NewBlockIds(ids ...proto.BlockID) *BlockIds {
+	unique := make(map[proto.BlockID]struct{})
+	for _, v := range ids {
 		unique[v] = struct{}{}
 	}
 
-	return &Signatures{
-		signatures: signatures,
-		unique:     unique,
+	return &BlockIds{
+		ids:    ids,
+		unique: unique,
 	}
 }
 
-func (a *Signatures) Exists(sig crypto.Signature) bool {
-	_, ok := a.unique[sig]
+func (a *BlockIds) Exists(id proto.BlockID) bool {
+	_, ok := a.unique[id]
 	return ok
 }
 
-func (a *Signatures) Revert() *Signatures {
-	out := make([]crypto.Signature, len(a.signatures))
-	for k, v := range a.signatures {
-		out[len(a.signatures)-1-k] = v
+func (a *BlockIds) Revert() *BlockIds {
+	out := make([]proto.BlockID, len(a.ids))
+	for k, v := range a.ids {
+		out[len(a.ids)-1-k] = v
 	}
-	return NewSignatures(out...)
+	return NewBlockIds(out...)
 }

@@ -42,8 +42,8 @@ func (a *Blocks) Height(ctx context.Context) (*BlocksHeight, *Response, error) {
 	return out, response, nil
 }
 
-func (a *Blocks) HeightBySignature(ctx context.Context, signature string) (*BlocksHeight, *Response, error) {
-	url, err := joinUrl(a.options.BaseUrl, fmt.Sprintf("/blocks/height/%s", signature))
+func (a *Blocks) HeightBySignature(ctx context.Context, id string) (*BlocksHeight, *Response, error) {
+	url, err := joinUrl(a.options.BaseUrl, fmt.Sprintf("/blocks/height/%s", id))
 	if err != nil {
 		return nil, nil, err
 	}
@@ -64,7 +64,7 @@ func (a *Blocks) HeightBySignature(ctx context.Context, signature string) (*Bloc
 type Headers struct {
 	Version          uint64           `json:"version"`
 	Timestamp        uint64           `json:"timestamp"`
-	Reference        crypto.Signature `json:"reference"`
+	Reference        proto.BlockID    `json:"reference"`
 	NxtConsensus     NxtConsensus     `json:"nxt-consensus"`
 	Features         []uint64         `json:"features"`
 	Generator        proto.Address    `json:"generator"`
@@ -72,6 +72,8 @@ type Headers struct {
 	Blocksize        uint64           `json:"blocksize"`
 	TransactionCount uint64           `json:"transactionCount"`
 	Height           uint64           `json:"height"`
+
+	ID proto.BlockID `json:"id"`
 }
 
 type NxtConsensus struct {
@@ -192,8 +194,8 @@ func (a *Blocks) At(ctx context.Context, height uint64) (*Block, *Response, erro
 	return out, response, nil
 }
 
-func (a *Blocks) Delay(ctx context.Context, signature crypto.Signature, blockNum uint64) (uint64, *Response, error) {
-	url, err := joinUrl(a.options.BaseUrl, fmt.Sprintf("/blocks/delay/%s/%d", signature.String(), blockNum))
+func (a *Blocks) Delay(ctx context.Context, id proto.BlockID, blockNum uint64) (uint64, *Response, error) {
+	url, err := joinUrl(a.options.BaseUrl, fmt.Sprintf("/blocks/delay/%s/%d", id.String(), blockNum))
 	if err != nil {
 		return 0, nil, err
 	}
@@ -216,8 +218,8 @@ func (a *Blocks) Delay(ctx context.Context, signature crypto.Signature, blockNum
 }
 
 // Get block by its signature
-func (a *Blocks) Signature(ctx context.Context, signature crypto.Signature) (*Block, *Response, error) {
-	url, err := joinUrl(a.options.BaseUrl, fmt.Sprintf("/blocks/signature/%s", signature.String()))
+func (a *Blocks) Signature(ctx context.Context, id proto.BlockID) (*Block, *Response, error) {
+	url, err := joinUrl(a.options.BaseUrl, fmt.Sprintf("/blocks/signature/%s", id.String()))
 	if err != nil {
 		return nil, nil, err
 	}
@@ -236,8 +238,8 @@ func (a *Blocks) Signature(ctx context.Context, signature crypto.Signature) (*Bl
 	return out, response, nil
 }
 
-func (a *Blocks) Child(ctx context.Context, signature crypto.Signature) (*Block, *Response, error) {
-	url, err := joinUrl(a.options.BaseUrl, fmt.Sprintf("/blocks/child/%s", signature.String()))
+func (a *Blocks) Child(ctx context.Context, id proto.BlockID) (*Block, *Response, error) {
+	url, err := joinUrl(a.options.BaseUrl, fmt.Sprintf("/blocks/child/%s", id.String()))
 	if err != nil {
 		return nil, nil, err
 	}

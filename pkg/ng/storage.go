@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/pkg/errors"
-	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
@@ -29,11 +28,11 @@ func (a Blocks) AddBlock(block *proto.Block) (Blocks, error) {
 	for i := len(a) - 1; i >= 0; i-- {
 		switch t := a[i].(type) {
 		case *proto.Block:
-			if t.BlockSignature == block.Parent {
+			if t.BlockID() == block.Parent {
 				return shrink(append(a[:i:i], t, block)), nil
 			}
 		case *proto.MicroBlock:
-			if t.TotalResBlockSigField == block.Parent {
+			if t.TotalBlockID == block.Parent {
 				return shrink(append(a[:i:i], t, block)), nil
 			}
 		default:
@@ -50,11 +49,11 @@ func (a Blocks) AddMicro(micro *proto.MicroBlock) (Blocks, error) {
 	for i := len(a) - 1; i >= 0; i-- {
 		switch t := a[i].(type) {
 		case *proto.Block:
-			if t.BlockSignature == micro.PrevResBlockSigField {
+			if t.BlockID() == micro.Reference {
 				return shrink(append(a[:i:i], t, micro)), nil
 			}
 		case *proto.MicroBlock:
-			if t.TotalResBlockSigField == micro.PrevResBlockSigField {
+			if t.TotalBlockID == micro.Reference {
 				return shrink(append(a[:i:i], t, micro)), nil
 			}
 		default:
@@ -64,15 +63,15 @@ func (a Blocks) AddMicro(micro *proto.MicroBlock) (Blocks, error) {
 	return nil, errors.New("parent not found")
 }
 
-func (a Blocks) ContainsSig(sig crypto.Signature) bool {
+func (a Blocks) ContainsID(blockID proto.BlockID) bool {
 	for i := len(a) - 1; i >= 0; i-- {
 		switch t := a[i].(type) {
 		case *proto.Block:
-			if t.BlockSignature == sig {
+			if t.BlockID() == blockID {
 				return true
 			}
 		case *proto.MicroBlock:
-			if t.TotalResBlockSigField == sig {
+			if t.TotalBlockID == blockID {
 				return true
 			}
 		default:
@@ -190,8 +189,8 @@ func (a *storage) PreviousBlock() (*proto.Block, error) {
 	return a.fromRow(row)
 }
 
-func (a *storage) ContainsSig(sig crypto.Signature) bool {
-	return a.curState.ContainsSig(sig)
+func (a *storage) ContainsID(id proto.BlockID) bool {
+	return a.curState.ContainsID(id)
 }
 
 func (a *storage) fromRow(seq Row) (*proto.Block, error) {

@@ -10,7 +10,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/types"
-	"github.com/wavesplatform/gowaves/pkg/util"
+	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
 const InstanceFieldName = "$instance"
@@ -830,7 +830,7 @@ func (a *InvalidAddressExpr) InstanceOf() string {
 func (a *InvalidAddressExpr) Get(name string) (Expr, error) {
 	switch name {
 	case "bytes":
-		return NewBytes(util.Dup(a.Value)), nil
+		return NewBytes(common.Dup(a.Value)), nil
 	default:
 		return nil, errors.Errorf("unknown fields '%s' on InvalidAddressExpr", name)
 	}
@@ -1092,7 +1092,7 @@ func (a *AddressExpr) InstanceOf() string {
 func (a *AddressExpr) Get(name string) (Expr, error) {
 	switch name {
 	case "bytes":
-		return NewBytes(util.Dup(proto.Address(*a).Bytes())), nil
+		return NewBytes(common.Dup(proto.Address(*a).Bytes())), nil
 	default:
 		return nil, errors.Errorf("unknown fields '%s' on AddressExpr", name)
 	}
@@ -1791,13 +1791,13 @@ func NewBlockInfo(scheme proto.Scheme, header *proto.BlockHeader, height proto.H
 	fields["timestamp"] = NewLong(int64(header.Timestamp))
 	fields["height"] = NewLong(int64(height))
 	fields["baseTarget"] = NewLong(int64(header.BaseTarget))
-	fields["generationSignature"] = NewBytes(util.Dup(header.GenSignature.Bytes()))
+	fields["generationSignature"] = NewBytes(common.Dup(header.GenSignature.Bytes()))
 	addr, err := proto.NewAddressFromPublicKey(scheme, header.GenPublicKey)
 	if err != nil {
 		return nil, err
 	}
 	fields["generator"] = NewAddressFromProtoAddress(addr)
-	fields["generatorPublicKey"] = NewBytes(util.Dup(header.GenPublicKey.Bytes()))
+	fields["generatorPublicKey"] = NewBytes(common.Dup(header.GenPublicKey.Bytes()))
 	return &BlockInfoExpr{
 		fields: fields,
 	}, nil

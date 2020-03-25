@@ -3,7 +3,6 @@ package state
 import (
 	"encoding/binary"
 
-	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
@@ -97,7 +96,7 @@ func (s *accountsDataStorage) appendAddr(addr proto.Address) (uint64, error) {
 	return newAddrNum, nil
 }
 
-func (s *accountsDataStorage) appendEntry(addr proto.Address, entry proto.DataEntry, blockID crypto.Signature) error {
+func (s *accountsDataStorage) appendEntry(addr proto.Address, entry proto.DataEntry, blockID proto.BlockID) error {
 	addrNum, err := s.appendAddr(addr)
 	if err != nil {
 		return err

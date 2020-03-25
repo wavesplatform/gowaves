@@ -8,7 +8,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
-	"github.com/wavesplatform/gowaves/pkg/util"
+	"github.com/wavesplatform/gowaves/pkg/util/common"
 	"go.uber.org/zap"
 )
 
@@ -19,7 +19,7 @@ func TestAssetScriptExtraFee(t *testing.T) {
 	defer func() {
 		to.stor.close(t)
 
-		err = util.CleanTemporaryDirs(path)
+		err = common.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
@@ -57,7 +57,7 @@ func TestAccountScriptExtraFee(t *testing.T) {
 	defer func() {
 		to.stor.close(t)
 
-		err = util.CleanTemporaryDirs(path)
+		err = common.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
@@ -90,7 +90,7 @@ func TestCheckMinFeeWaves(t *testing.T) {
 	defer func() {
 		to.stor.close(t)
 
-		err = util.CleanTemporaryDirs(path)
+		err = common.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
@@ -139,7 +139,7 @@ func TestCheckMinFeeAsset(t *testing.T) {
 	defer func() {
 		to.stor.close(t)
 
-		err = util.CleanTemporaryDirs(path)
+		err = common.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
@@ -172,7 +172,7 @@ func TestNFTMinFee(t *testing.T) {
 
 	defer func() {
 		storage.close(t)
-		err = util.CleanTemporaryDirs(path)
+		err = common.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
@@ -219,7 +219,7 @@ func TestReissueFeeReduction(t *testing.T) {
 
 	defer func() {
 		storage.close(t)
-		err = util.CleanTemporaryDirs(path)
+		err = common.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 

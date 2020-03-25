@@ -6,12 +6,12 @@ import (
 	"crypto/sha256"
 	"crypto/sha512"
 	"fmt"
-	"strconv"
 	"strings"
 
 	"github.com/mr-tron/base58/base58"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto/internal"
+	"github.com/wavesplatform/gowaves/pkg/util/common"
 	"golang.org/x/crypto/blake2b"
 	"golang.org/x/crypto/sha3"
 )
@@ -60,11 +60,11 @@ func (d *Digest) UnmarshalBinary(data []byte) error {
 }
 
 func (d Digest) MarshalJSON() ([]byte, error) {
-	return toBase58JSON(d[:]), nil
+	return common.ToBase58JSON(d[:]), nil
 }
 
 func (d *Digest) UnmarshalJSON(value []byte) error {
-	b, err := fromBase58JSON(value, DigestSize, "Digest")
+	b, err := common.FromBase58JSON(value, DigestSize, "Digest")
 	if err != nil {
 		return err
 	}
@@ -118,11 +118,11 @@ func (k *SecretKey) UnmarshalBinary(data []byte) error {
 }
 
 func (k SecretKey) MarshalJSON() ([]byte, error) {
-	return toBase58JSON(k[:]), nil
+	return common.ToBase58JSON(k[:]), nil
 }
 
 func (k *SecretKey) UnmarshalJSON(value []byte) error {
-	b, err := fromBase58JSON(value, SecretKeySize, "SecretKey")
+	b, err := common.FromBase58JSON(value, SecretKeySize, "SecretKey")
 	if err != nil {
 		return err
 	}
@@ -186,11 +186,11 @@ func (k *PublicKey) UnmarshalBinary(data []byte) error {
 }
 
 func (k PublicKey) MarshalJSON() ([]byte, error) {
-	return toBase58JSON(k[:]), nil
+	return common.ToBase58JSON(k[:]), nil
 }
 
 func (k *PublicKey) UnmarshalJSON(value []byte) error {
-	b, err := fromBase58JSON(value, PublicKeySize, "PublicKey")
+	b, err := common.FromBase58JSON(value, PublicKeySize, "PublicKey")
 	if err != nil {
 		return err
 	}
@@ -257,11 +257,11 @@ func (s *Signature) UnmarshalBinary(data []byte) error {
 }
 
 func (s Signature) MarshalJSON() ([]byte, error) {
-	return toBase58JSON(s[:]), nil
+	return common.ToBase58JSON(s[:]), nil
 }
 
 func (s *Signature) UnmarshalJSON(value []byte) error {
-	b, err := fromBase58JSON(value, SignatureSize, "Signature")
+	b, err := common.FromBase58JSON(value, SignatureSize, "Signature")
 	if err != nil {
 		return err
 	}
@@ -527,34 +527,6 @@ func verify(publicKey *[PublicKeySize]byte, message []byte, sig *[SignatureSize]
 	var checkR [32]byte
 	R.ToBytes(&checkR)
 	return bytes.Equal(sig[:32], checkR[:])
-}
-
-func toBase58JSON(b []byte) []byte {
-	s := base58.Encode(b)
-	var sb strings.Builder
-	sb.WriteRune('"')
-	sb.WriteString(s)
-	sb.WriteRune('"')
-	return []byte(sb.String())
-}
-
-func fromBase58JSON(value []byte, size int, name string) ([]byte, error) {
-	s := string(value)
-	if s == "null" {
-		return nil, nil
-	}
-	s, err := strconv.Unquote(s)
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to unmarshal %s from JSON", name)
-	}
-	v, err := base58.Decode(s)
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to decode %s from Base58 string", name)
-	}
-	if l := len(v); l != size {
-		return nil, errors.Errorf("incorrect length %d of %s value, expected %d", l, name, DigestSize)
-	}
-	return v[:size], nil
 }
 
 func array32FromBase58(s, name string) ([32]byte, error) {

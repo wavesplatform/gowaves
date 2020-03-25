@@ -58,7 +58,7 @@ func newLeases(db keyvalue.IterableKeyVal, hs *historyStorage) (*leases, error) 
 	return &leases{db, hs}, nil
 }
 
-func (l *leases) cancelLeases(bySenders map[proto.Address]struct{}, blockID crypto.Signature) error {
+func (l *leases) cancelLeases(bySenders map[proto.Address]struct{}, blockID proto.BlockID) error {
 	leaseIter, err := l.db.NewKeyIterator([]byte{leaseKeyPrefix})
 	if err != nil {
 		return errors.Errorf("failed to create key iterator to cancel leases: %v", err)
@@ -175,7 +175,7 @@ func (l *leases) isActive(id crypto.Digest, filter bool) (bool, error) {
 	return info.isActive, nil
 }
 
-func (l *leases) addLeasing(id crypto.Digest, leasing *leasing, blockID crypto.Signature) error {
+func (l *leases) addLeasing(id crypto.Digest, leasing *leasing, blockID proto.BlockID) error {
 	key := leaseKey{leaseID: id}
 	r := &leasingRecord{*leasing}
 	recordBytes, err := r.marshalBinary()
@@ -188,7 +188,7 @@ func (l *leases) addLeasing(id crypto.Digest, leasing *leasing, blockID crypto.S
 	return nil
 }
 
-func (l *leases) cancelLeasing(id crypto.Digest, blockID crypto.Signature, filter bool) error {
+func (l *leases) cancelLeasing(id crypto.Digest, blockID proto.BlockID, filter bool) error {
 	leasing, err := l.newestLeasingInfo(id, filter)
 	if err != nil {
 		return errors.Errorf("failed to get leasing info: %v", err)

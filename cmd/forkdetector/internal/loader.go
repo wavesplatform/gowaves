@@ -6,7 +6,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
 )
@@ -19,9 +18,9 @@ const (
 type loader struct {
 	wg              *sync.WaitGroup
 	drawer          *drawer
-	requestCh       chan signaturesEvent
+	requestCh       chan idsEvent
 	blockCh         chan blockEvent
-	notificationsCh chan crypto.Signature
+	notificationsCh chan proto.BlockID
 	shutdownCh      chan struct{}
 	queue           *requestQueue
 	pending         *pendingQueue
@@ -32,9 +31,9 @@ func newLoader(wg *sync.WaitGroup, drawer *drawer) *loader {
 	return &loader{
 		wg:              wg,
 		drawer:          drawer,
-		requestCh:       make(chan signaturesEvent),
+		requestCh:       make(chan idsEvent),
 		blockCh:         make(chan blockEvent),
-		notificationsCh: make(chan crypto.Signature),
+		notificationsCh: make(chan proto.BlockID),
 		shutdownCh:      make(chan struct{}),
 		queue:           new(requestQueue),
 		pending:         new(pendingQueue),
@@ -55,10 +54,10 @@ func (l *loader) start() {
 			zap.S().Debugf("[LDR] Shutdown complete")
 			return
 
-		case e := <-l.requestCh: // Signature synchronizer requested to download some blocks
-			zap.S().Debugf("[LDR] Blocks requested: %s", logSignatures(e.signatures))
+		case e := <-l.requestCh: // ID synchronizer requested to download some blocks
+			zap.S().Debugf("[LDR] Blocks requested: %s", logIds(e.ids))
 
-			for _, s := range e.signatures {
+			for _, s := range e.ids {
 				l.queue.enqueue(s, e.conn)
 			}
 			zap.S().Debugf("[LDR] ( REQUESTING BLOCKS 1")
@@ -77,7 +76,7 @@ func (l *loader) start() {
 			}
 
 		case e := <-l.blockCh:
-			zap.S().Debugf("[%s][LDR] Received block '%s'", e.conn.RawConn.RemoteAddr(), e.block.BlockSignature.String())
+			zap.S().Debugf("[%s][LDR] Received block '%s'", e.conn.RawConn.RemoteAddr(), e.block.BlockID().String())
 			zap.S().Debugf("[LDR] Pending blocks: %s", l.pending.String())
 			l.pending.update(e.block)
 			// Apply all sequentially received blocks
@@ -98,43 +97,43 @@ func (l *loader) start() {
 func (l *loader) requestBlocks(exclusion []*Conn) {
 	// Request `batchSize` blocks or less
 	for i := l.pending.len(); i < batchSize; i++ {
-		sig, conn, ok := l.queue.pickRandomly(exclusion)
+		id, conn, ok := l.queue.pickRandomly(exclusion)
 		if !ok {
 			break // No more blocks left in queue, aborting
 		}
 		// Request one block from the connection
-		err := l.requestBlock(sig, conn)
+		err := l.requestBlock(id, conn)
 		if err != nil {
 			// If there is an error, unpick the block, and try to pick it from another node (exclude currently selected node) on the next iteration.
 			exclusion = append(exclusion, conn)
 			l.queue.unpick()
 			i--
-			zap.S().Warnf("[LDR] Will request block '%s' again excluding peers %v", sig.String(), exclusion)
+			zap.S().Warnf("[LDR] Will request block '%s' again excluding peers %v", id.String(), exclusion)
 			continue
 		}
 		// If everything is OK, save information about requested block and connection to pending blocks storage
-		l.pending.enqueue(sig, conn)
+		l.pending.enqueue(id, conn)
 	}
 	// Reset the timer
 	l.requestTimer.Reset(blockReceiveTimeout)
 }
 
-func (l *loader) requestBlock(sig crypto.Signature, conn *Conn) error {
-	zap.S().Infof("[%s][LDR] Requesting block '%s'", conn.RawConn.RemoteAddr(), sig.String())
+func (l *loader) requestBlock(id proto.BlockID, conn *Conn) error {
+	zap.S().Infof("[%s][LDR] Requesting block '%s'", conn.RawConn.RemoteAddr(), id.String())
 	if conn == nil {
-		zap.S().Fatalf("Empty connection to request block '%s'", sig.String())
+		zap.S().Fatalf("Empty connection to request block '%s'", id.String())
 		return nil
 	}
 	buf := new(bytes.Buffer)
-	m := proto.GetBlockMessage{BlockID: sig}
+	m := proto.GetBlockMessage{BlockID: id}
 	_, err := m.WriteTo(buf)
 	if err != nil {
-		zap.S().Errorf("[%s][LDR] Failed to serialize block '%s': %v", conn.RawConn.RemoteAddr(), sig.String(), err)
+		zap.S().Errorf("[%s][LDR] Failed to serialize block '%s': %v", conn.RawConn.RemoteAddr(), id.String(), err)
 		return err
 	}
 	_, err = conn.Send(buf.Bytes())
 	if err != nil {
-		zap.S().Errorf("[%s][LDR] Failed to request block '%s': %v", conn.RawConn.RemoteAddr(), sig.String(), err)
+		zap.S().Errorf("[%s][LDR] Failed to request block '%s': %v", conn.RawConn.RemoteAddr(), id.String(), err)
 		return err
 	}
 	return nil
@@ -142,15 +141,15 @@ func (l *loader) requestBlock(sig crypto.Signature, conn *Conn) error {
 
 func (l *loader) applyBlocks() {
 	for block, ok := l.pending.dequeue(); ok; block, ok = l.pending.dequeue() {
-		zap.S().Infof("Applying block '%s", block.BlockSignature.String())
+		zap.S().Infof("Applying block '%s", block.BlockID().String())
 		err := l.drawer.appendBlock(block)
 		if err != nil {
-			zap.S().Fatalf("[LDR] Failed to apply block '%s': %v", block.BlockSignature.String(), err)
+			zap.S().Fatalf("[LDR] Failed to apply block '%s': %v", block.BlockID().String(), err)
 			return
 		}
-		zap.S().Debugf("[LDR] ( NOTIFYING ABOUT BLOCK '%s'", block.BlockSignature.String())
-		l.notificationsCh <- block.BlockSignature
-		zap.S().Debugf("[LDR] ) NOTIFICATIONS SENT '%s'", block.BlockSignature.String())
+		zap.S().Debugf("[LDR] ( NOTIFYING ABOUT BLOCK '%s'", block.BlockID().String())
+		l.notificationsCh <- block.BlockID()
+		zap.S().Debugf("[LDR] ) NOTIFICATIONS SENT '%s'", block.BlockID().String())
 	}
 }
 
@@ -158,7 +157,7 @@ func (l *loader) shutdownSink() chan<- struct{} {
 	return l.shutdownCh
 }
 
-func (l *loader) requestsSink() chan<- signaturesEvent {
+func (l *loader) requestsSink() chan<- idsEvent {
 	return l.requestCh
 }
 
@@ -166,14 +165,14 @@ func (l *loader) blocksSink() chan<- blockEvent {
 	return l.blockCh
 }
 
-func (l *loader) notificationsTap() <-chan crypto.Signature {
+func (l *loader) notificationsTap() <-chan proto.BlockID {
 	return l.notificationsCh
 }
 
-func logSignatures(signatures []crypto.Signature) string {
+func logIds(ids []proto.BlockID) string {
 	sb := strings.Builder{}
 	sb.WriteRune('[')
-	for i, s := range signatures {
+	for i, s := range ids {
 		if i != 0 {
 			sb.WriteRune(' ')
 		}

@@ -21,12 +21,12 @@ func notFound() state.StateError {
 
 type MockStateManager struct {
 	state           []*proto.Block
-	sig2Block       map[crypto.Signature]*proto.Block
+	id2Block        map[proto.BlockID]*proto.Block
 	Peers_          []proto.TCPAddr
-	blockIDToHeight map[crypto.Signature]proto.Height
+	blockIDToHeight map[proto.BlockID]proto.Height
 }
 
-func (a *MockStateManager) HeaderBytes(blockID crypto.Signature) ([]byte, error) {
+func (a *MockStateManager) HeaderBytes(blockID proto.BlockID) ([]byte, error) {
 	panic("implement me")
 }
 
@@ -40,7 +40,7 @@ func (a *MockStateManager) AddBlock([]byte) (*proto.Block, error) {
 
 func NewMockStateManager(blocks ...*proto.Block) (*MockStateManager, error) {
 	m := &MockStateManager{
-		blockIDToHeight: make(map[crypto.Signature]proto.Height),
+		blockIDToHeight: make(map[proto.BlockID]proto.Height),
 	}
 	for _, b := range blocks {
 		if _, err := m.AddDeserializedBlock(b); err != nil {
@@ -57,8 +57,8 @@ func (a *MockStateManager) TopBlock() *proto.Block {
 	return a.state[len(a.state)-1]
 }
 
-func (a *MockStateManager) Block(blockID crypto.Signature) (*proto.Block, error) {
-	if block, ok := a.sig2Block[blockID]; ok {
+func (a *MockStateManager) Block(blockID proto.BlockID) (*proto.Block, error) {
+	if block, ok := a.id2Block[blockID]; ok {
 		return block, nil
 	}
 	return nil, notFound()
@@ -71,7 +71,7 @@ func (a *MockStateManager) BlockByHeight(height proto.Height) (*proto.Block, err
 	return a.state[height-1], nil
 }
 
-func (a *MockStateManager) Header(block crypto.Signature) (*proto.BlockHeader, error) {
+func (a *MockStateManager) Header(block proto.BlockID) (*proto.BlockHeader, error) {
 	panic("implement me")
 }
 
@@ -91,14 +91,14 @@ func (a *MockStateManager) Height() (proto.Height, error) {
 	return proto.Height(len(a.state)), nil
 }
 
-func (a *MockStateManager) BlockIDToHeight(blockID crypto.Signature) (uint64, error) {
+func (a *MockStateManager) BlockIDToHeight(blockID proto.BlockID) (uint64, error) {
 	if height, ok := a.blockIDToHeight[blockID]; ok {
 		return height, nil
 	}
 	return 0, notFound()
 }
 
-func (a *MockStateManager) HeightToBlockID(height uint64) (crypto.Signature, error) {
+func (a *MockStateManager) HeightToBlockID(height uint64) (proto.BlockID, error) {
 	panic("implement me")
 }
 
@@ -130,12 +130,12 @@ func (a *MockStateManager) RollbackToHeight(height uint64) error {
 	for i := proto.Height(len(a.state)); i > height; i-- {
 		block := a.state[len(a.state)-1]
 		a.state = a.state[:len(a.state)-1]
-		delete(a.blockIDToHeight, block.BlockSignature)
+		delete(a.blockIDToHeight, block.BlockID())
 	}
 	return nil
 }
 
-func (a *MockStateManager) RollbackTo(removalEdge crypto.Signature) error {
+func (a *MockStateManager) RollbackTo(removalEdge proto.BlockID) error {
 	panic("implement me")
 }
 
@@ -274,11 +274,11 @@ func (a *MockStateManager) AccountBalance(account proto.Recipient, asset []byte)
 }
 
 func (a *MockStateManager) AddDeserializedBlock(block *proto.Block) (*proto.Block, error) {
-	if _, ok := a.blockIDToHeight[block.BlockSignature]; ok {
+	if _, ok := a.blockIDToHeight[block.BlockID()]; ok {
 		panic("duplicate block")
 	}
 	a.state = append(a.state, block)
-	a.blockIDToHeight[block.BlockSignature] = proto.Height(len(a.state))
+	a.blockIDToHeight[block.BlockID()] = proto.Height(len(a.state))
 	return block, nil
 }
 func (a *MockStateManager) AddNewDeserializedBlocks(blocks []*proto.Block) (*proto.Block, error) {
@@ -296,7 +296,7 @@ func (a *MockStateManager) AddOldDeserializedBlocks([]*proto.Block) error {
 	panic("implement me")
 }
 
-func (a *MockStateManager) BlockBytes(blockID crypto.Signature) ([]byte, error) {
+func (a *MockStateManager) BlockBytes(blockID proto.BlockID) ([]byte, error) {
 	panic("implement me")
 }
 
@@ -351,9 +351,10 @@ func newMockStateWithGenesis() *MockStateManager {
 			BlockSignature: sig,
 		},
 	}
-	sig2Block := map[crypto.Signature]*proto.Block{sig: block}
+	id := proto.NewBlockIDFromSignature(sig)
+	id2Block := map[proto.BlockID]*proto.Block{id: block}
 	return &MockStateManager{
-		sig2Block: sig2Block,
+		id2Block: id2Block,
 	}
 }
 

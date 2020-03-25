@@ -114,10 +114,10 @@ func TestApplyInvokeScriptWithProofsPaymentsAndData(t *testing.T) {
 	// Invoke applier object.
 	ia := to.state.appender.ia
 	info := &invokeAddlInfo{
-		block:  &proto.BlockHeader{BlockSignature: blockID0, Timestamp: to.state.settings.CheckTempNegativeAfterTime},
+		block:  &proto.BlockHeader{BlockSignature: blockID0.Signature(), Timestamp: to.state.settings.CheckTempNegativeAfterTime},
 		height: 1,
 	}
-	err := to.state.stateDB.addBlock(info.block.BlockSignature)
+	err := to.state.stateDB.addBlock(info.block.BlockID())
 	assert.NoError(t, err)
 	dir, err := getLocalDir()
 	assert.NoError(t, err, "getLocalDir() failed")
@@ -194,10 +194,10 @@ func TestApplyInvokeScriptWithProofsTransfers(t *testing.T) {
 	// Invoke applier object.
 	ia := to.state.appender.ia
 	info := &invokeAddlInfo{
-		block:  &proto.BlockHeader{BlockSignature: blockID0, Timestamp: to.state.settings.CheckTempNegativeAfterTime},
+		block:  &proto.BlockHeader{BlockSignature: blockID0.Signature(), Timestamp: to.state.settings.CheckTempNegativeAfterTime},
 		height: 1,
 	}
-	err := to.state.stateDB.addBlock(info.block.BlockSignature)
+	err := to.state.stateDB.addBlock(info.block.BlockID())
 	assert.NoError(t, err)
 	dir, err := getLocalDir()
 	assert.NoError(t, err, "getLocalDir() failed")
@@ -278,10 +278,10 @@ func TestApplyInvokeScriptWithProofsWithIssues(t *testing.T) {
 	// Invoke applier object.
 	ia := to.state.appender.ia
 	info := &invokeAddlInfo{
-		block:  &proto.BlockHeader{BlockSignature: blockID0, Timestamp: to.state.settings.CheckTempNegativeAfterTime},
+		block:  &proto.BlockHeader{ID: blockID0, BlockSignature: blockID0.Signature(), Timestamp: to.state.settings.CheckTempNegativeAfterTime},
 		height: 1,
 	}
-	err := to.state.stateDB.addBlock(info.block.BlockSignature)
+	err := to.state.stateDB.addBlock(info.block.ID)
 	require.NoError(t, err)
 	dir, err := getLocalDir()
 	require.NoError(t, err, "getLocalDir() failed")
@@ -346,10 +346,10 @@ func TestApplyInvokeScriptWithProofsWithIssuesThenReissue(t *testing.T) {
 	// Invoke applier object.
 	ia := to.state.appender.ia
 	info := &invokeAddlInfo{
-		block:  &proto.BlockHeader{BlockSignature: blockID0, Timestamp: to.state.settings.CheckTempNegativeAfterTime},
+		block:  &proto.BlockHeader{ID: blockID0, BlockSignature: blockID0.Signature(), Timestamp: to.state.settings.CheckTempNegativeAfterTime},
 		height: 1,
 	}
-	err := to.state.stateDB.addBlock(info.block.BlockSignature)
+	err := to.state.stateDB.addBlock(info.block.ID)
 	require.NoError(t, err)
 	dir, err := getLocalDir()
 	require.NoError(t, err, "getLocalDir() failed")
@@ -430,10 +430,10 @@ func TestApplyInvokeScriptWithProofsWithIssuesThenReissueThenBurn(t *testing.T) 
 	// Invoke applier object.
 	ia := to.state.appender.ia
 	info := &invokeAddlInfo{
-		block:  &proto.BlockHeader{BlockSignature: blockID0, Timestamp: to.state.settings.CheckTempNegativeAfterTime},
+		block:  &proto.BlockHeader{ID: blockID0, BlockSignature: blockID0.Signature(), Timestamp: to.state.settings.CheckTempNegativeAfterTime},
 		height: 1,
 	}
-	err := to.state.stateDB.addBlock(info.block.BlockSignature)
+	err := to.state.stateDB.addBlock(info.block.ID)
 	require.NoError(t, err)
 	dir, err := getLocalDir()
 	require.NoError(t, err, "getLocalDir() failed")
@@ -531,10 +531,10 @@ func TestApplyInvokeScriptWithProofsWithIssuesThenReissueThenFailOnReissue(t *te
 	// Invoke applier object.
 	ia := to.state.appender.ia
 	info := &invokeAddlInfo{
-		block:  &proto.BlockHeader{BlockSignature: blockID0, Timestamp: to.state.settings.CheckTempNegativeAfterTime},
+		block:  &proto.BlockHeader{ID: blockID0, BlockSignature: blockID0.Signature(), Timestamp: to.state.settings.CheckTempNegativeAfterTime},
 		height: 1,
 	}
-	err := to.state.stateDB.addBlock(info.block.BlockSignature)
+	err := to.state.stateDB.addBlock(info.block.ID)
 	require.NoError(t, err)
 	dir, err := getLocalDir()
 	require.NoError(t, err, "getLocalDir() failed")
@@ -612,10 +612,10 @@ func TestApplyInvokeScriptWithProofsWithIssuesThenFailOnBurnTooMuch(t *testing.T
 	// Invoke applier object.
 	ia := to.state.appender.ia
 	info := &invokeAddlInfo{
-		block:  &proto.BlockHeader{BlockSignature: blockID0, Timestamp: to.state.settings.CheckTempNegativeAfterTime},
+		block:  &proto.BlockHeader{ID: blockID0, BlockSignature: blockID0.Signature(), Timestamp: to.state.settings.CheckTempNegativeAfterTime},
 		height: 1,
 	}
-	err := to.state.stateDB.addBlock(info.block.BlockSignature)
+	err := to.state.stateDB.addBlock(info.block.ID)
 	require.NoError(t, err)
 	dir, err := getLocalDir()
 	require.NoError(t, err, "getLocalDir() failed")

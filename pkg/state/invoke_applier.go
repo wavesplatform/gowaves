@@ -275,7 +275,7 @@ func (ia *invokeApplier) applyInvokeScriptWithProofs(tx *proto.InvokeScriptWithP
 		if err != nil {
 			return txBalanceChanges{}, errors.Wrap(err, "failed to save script result")
 		}
-		if err := ia.stor.invokeResults.saveResult(*tx.ID, res, info.block.BlockSignature); err != nil {
+		if err := ia.stor.invokeResults.saveResult(*tx.ID, res, info.block.BlockID()); err != nil {
 			return txBalanceChanges{}, errors.Wrap(err, "failed to save script result")
 		}
 	}
@@ -299,7 +299,7 @@ func (ia *invokeApplier) applyInvokeScriptWithProofs(tx *proto.InvokeScriptWithP
 			if !info.validatingUtx {
 				// TODO: when UTX transactions are validated, there is no block,
 				// and we can not perform state changes.
-				if err := ia.stor.accountsDataStor.appendEntry(*scriptAddr, a.Entry, info.block.BlockSignature); err != nil {
+				if err := ia.stor.accountsDataStor.appendEntry(*scriptAddr, a.Entry, info.block.BlockID()); err != nil {
 					return txBalanceChanges{}, err
 				}
 			}
@@ -359,7 +359,7 @@ func (ia *invokeApplier) applyInvokeScriptWithProofs(tx *proto.InvokeScriptWithP
 				},
 			}
 			if !info.validatingUtx {
-				if err := ia.stor.assets.issueAsset(a.ID, assetInfo, info.block.BlockSignature); err != nil {
+				if err := ia.stor.assets.issueAsset(a.ID, assetInfo, info.block.ID); err != nil {
 					return txBalanceChanges{}, err
 				}
 			}
@@ -408,7 +408,7 @@ func (ia *invokeApplier) applyInvokeScriptWithProofs(tx *proto.InvokeScriptWithP
 					reissuable: a.Reissuable,
 					diff:       a.Quantity,
 				}
-				if err := ia.stor.assets.reissueAsset(a.AssetID, change, info.block.BlockSignature, !info.initialisation); err != nil {
+				if err := ia.stor.assets.reissueAsset(a.AssetID, change, info.block.ID, !info.initialisation); err != nil {
 					return txBalanceChanges{}, err
 				}
 			}
@@ -453,7 +453,7 @@ func (ia *invokeApplier) applyInvokeScriptWithProofs(tx *proto.InvokeScriptWithP
 				change := &assetBurnChange{
 					diff: int64(a.Quantity),
 				}
-				if err := ia.stor.assets.burnAsset(a.AssetID, change, info.block.BlockSignature, !info.initialisation); err != nil {
+				if err := ia.stor.assets.burnAsset(a.AssetID, change, info.block.ID, !info.initialisation); err != nil {
 					return txBalanceChanges{}, errors.Wrap(err, "failed to burn asset")
 				}
 			}

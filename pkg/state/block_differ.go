@@ -1,7 +1,6 @@
 package state
 
 import (
-	"bytes"
 	"math"
 
 	"github.com/pkg/errors"
@@ -21,7 +20,7 @@ type blockDiffer struct {
 
 	curDistr    feeDistribution
 	prevDistr   feeDistribution
-	prevBlockID crypto.Signature
+	prevBlockID proto.BlockID
 
 	handler *transactionHandler
 }
@@ -36,7 +35,7 @@ func newBlockDiffer(handler *transactionHandler, stor *blockchainEntitiesStorage
 	}, nil
 }
 
-func (d *blockDiffer) prevBlockFeeDistr(prevBlock crypto.Signature) (*feeDistribution, error) {
+func (d *blockDiffer) prevBlockFeeDistr(prevBlock proto.BlockID) (*feeDistribution, error) {
 	ngActivated, err := d.stor.features.isActivatedForNBlocks(int16(settings.NG), 2)
 	if err != nil {
 		return nil, err
@@ -47,7 +46,7 @@ func (d *blockDiffer) prevBlockFeeDistr(prevBlock crypto.Signature) (*feeDistrib
 		// miner does not get any fees from this (last) block, because it was all taken by the last non-NG miner.
 		return &feeDistribution{}, nil
 	}
-	if bytes.Equal(prevBlock[:], d.prevBlockID[:]) {
+	if prevBlock == d.prevBlockID {
 		// We already have distribution for this block.
 		return &d.prevDistr, nil
 	}
@@ -61,7 +60,7 @@ func (d *blockDiffer) appendBlockInfoToBalanceDiff(diff *balanceDiff, block *pro
 		allowLeasedTransfer = false
 	}
 	diff.allowLeasedTransfer = allowLeasedTransfer
-	diff.blockID = block.BlockSignature
+	diff.blockID = block.BlockID()
 }
 
 func (d *blockDiffer) appendBlockInfoToTxDiff(diff txDiff, block *proto.BlockHeader) {
@@ -95,7 +94,7 @@ func (d *blockDiffer) txDiffFromFees(addr proto.Address, distr *feeDistribution)
 	return diff, nil
 }
 
-func (d *blockDiffer) createPrevBlockMinerFeeDiff(prevBlockID crypto.Signature, minerPK crypto.PublicKey) (txDiff, proto.Address, error) {
+func (d *blockDiffer) createPrevBlockMinerFeeDiff(prevBlockID proto.BlockID, minerPK crypto.PublicKey) (txDiff, proto.Address, error) {
 	feeDistr, err := d.prevBlockFeeDistr(prevBlockID)
 	if err != nil {
 		return txDiff{}, proto.Address{}, err
@@ -134,12 +133,12 @@ func (d *blockDiffer) countMinerFee(tx proto.Transaction) error {
 
 func (d *blockDiffer) saveCurFeeDistr(block *proto.BlockHeader) error {
 	// Save fee distribution to DB.
-	if err := d.stor.blocksInfo.saveFeeDistribution(block.BlockSignature, &d.curDistr); err != nil {
+	if err := d.stor.blocksInfo.saveFeeDistribution(block.BlockID(), &d.curDistr); err != nil {
 		return err
 	}
 	// Update fee distribution.
 	d.prevDistr = d.curDistr
-	d.prevBlockID = block.BlockSignature
+	d.prevBlockID = block.BlockID()
 	d.curDistr = newFeeDistribution()
 	return nil
 }
@@ -190,5 +189,5 @@ func (d *blockDiffer) addBlockReward(diff txDiff, addr proto.Address, block *pro
 func (d *blockDiffer) reset() {
 	d.curDistr = newFeeDistribution()
 	d.prevDistr = newFeeDistribution()
-	d.prevBlockID = crypto.Signature{}
+	d.prevBlockID = proto.BlockID{}
 }

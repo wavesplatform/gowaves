@@ -25,7 +25,7 @@ func TestMineMicroblock(t *testing.T) {
 	keyBlock, err := proto.CreateBlock(
 		proto.Transactions(nil),
 		now,
-		noSig,
+		proto.NewBlockIDFromSignature(noSig),
 		keyPair.Public,
 		nxt,
 		proto.RewardBlockVersion,
@@ -73,7 +73,7 @@ func createMicroBlock(keyBlock *proto.Block, tr proto.Transactions, keyPair prot
 		SenderPK:              keyPair.Public,
 		Transactions:          tr,
 		TransactionCount:      uint32(tr.Count()),
-		PrevResBlockSigField:  keyBlock.BlockSignature,
+		Reference:             keyBlock.BlockID(),
 		TotalResBlockSigField: newBlock.BlockSignature,
 	}
 

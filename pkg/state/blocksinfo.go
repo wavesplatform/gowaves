@@ -5,6 +5,7 @@ import (
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
+	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
 var (
@@ -124,7 +125,7 @@ func newBlocksInfo(db keyvalue.KeyValue, dbBatch keyvalue.Batch) (*blocksInfo, e
 	return &blocksInfo{db, dbBatch}, nil
 }
 
-func (i *blocksInfo) feeDistribution(blockID crypto.Signature) (*feeDistribution, error) {
+func (i *blocksInfo) feeDistribution(blockID proto.BlockID) (*feeDistribution, error) {
 	key := blocksInfoKey{blockID}
 	distrBytes, err := i.db.Get(key.bytes())
 	if err != nil {
@@ -137,13 +138,13 @@ func (i *blocksInfo) feeDistribution(blockID crypto.Signature) (*feeDistribution
 	return &distr, nil
 }
 
-func (i *blocksInfo) saveFeeDistribution(blockID crypto.Signature, distr *feeDistribution) error {
+func (i *blocksInfo) saveFeeDistribution(blockID proto.BlockID, distr *feeDistribution) error {
 	key := blocksInfoKey{blockID}
 	i.dbBatch.Put(key.bytes(), distr.marshalBinary())
 	return nil
 }
 
-func (i *blocksInfo) rollback(blockID crypto.Signature) error {
+func (i *blocksInfo) rollback(blockID proto.BlockID) error {
 	key := blocksInfoKey{blockID}
 	if err := i.db.Delete(key.bytes()); err != nil {
 		return err

@@ -16,7 +16,8 @@ func TestMineBlock(t *testing.T) {
 	}
 	kp, err := proto.NewKeyPair([]byte("abc"))
 	require.NoError(t, err)
-	parent := crypto.MustSignatureFromBase58("4f6Nkihj7j3t2ohNPk69MUZzpdHHwXG9hM2qjgeRmKmDPFiRYeedv6ewc9dhvNo1BxvE5CTgTjTTyAYPfR42eBXP")
+	parentSig := crypto.MustSignatureFromBase58("4f6Nkihj7j3t2ohNPk69MUZzpdHHwXG9hM2qjgeRmKmDPFiRYeedv6ewc9dhvNo1BxvE5CTgTjTTyAYPfR42eBXP")
+	parent := proto.NewBlockIDFromSignature(parentSig)
 	b, err := MineBlock(4, nxt, kp, []settings.Feature{13, 14}, 1581610238465, parent, 600000000, proto.MainNetScheme)
 	require.NoError(t, err)
 

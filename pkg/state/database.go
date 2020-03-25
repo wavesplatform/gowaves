@@ -5,7 +5,6 @@ import (
 	"sync"
 
 	"github.com/pkg/errors"
-	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
@@ -74,8 +73,8 @@ type stateDB struct {
 	dbWriteLock *sync.Mutex // `dbWriteLock` is lock for writing to database.
 	rw          *blockReadWriter
 
-	newestBlockIdToNum map[crypto.Signature]uint32
-	newestBlockNumToId map[uint32]crypto.Signature
+	newestBlockIdToNum map[proto.BlockID]uint32
+	newestBlockNumToId map[uint32]proto.BlockID
 
 	blocksNum int
 }
@@ -111,8 +110,8 @@ func newStateDB(db keyvalue.KeyValue, dbBatch keyvalue.Batch, rw *blockReadWrite
 		dbBatch:            dbBatch,
 		dbWriteLock:        dbWriteLock,
 		rw:                 rw,
-		newestBlockIdToNum: make(map[crypto.Signature]uint32),
-		newestBlockNumToId: make(map[uint32]crypto.Signature),
+		newestBlockIdToNum: make(map[proto.BlockID]uint32),
+		newestBlockNumToId: make(map[uint32]proto.BlockID),
 	}, nil
 }
 
@@ -155,7 +154,7 @@ func (s *stateDB) syncRw() error {
 }
 
 // addBlock() makes block officially valid (but only after batch is flushed).
-func (s *stateDB) addBlock(blockID crypto.Signature) error {
+func (s *stateDB) addBlock(blockID proto.BlockID) error {
 	lastBlockNum, err := s.getLastBlockNum()
 	if err != nil {
 		return err
@@ -181,10 +180,7 @@ func (s *stateDB) addBlock(blockID crypto.Signature) error {
 	// Save ID for this block number.
 	s.newestBlockNumToId[newBlockNum] = blockID
 	numToIdKey := blockNumToIdKey{newBlockNum}
-	idBytes, err := blockID.MarshalBinary()
-	if err != nil {
-		return err
-	}
+	idBytes := blockID.Bytes()
 	s.dbBatch.Put(numToIdKey.bytes(), idBytes)
 	// Increase blocks counter.
 	s.blocksNum++
@@ -196,7 +192,7 @@ func (s *stateDB) isValidBlock(blockNum uint32) (bool, error) {
 	return s.db.Has(key.bytes())
 }
 
-func (s *stateDB) blockIdToNum(blockID crypto.Signature) (uint32, error) {
+func (s *stateDB) blockIdToNum(blockID proto.BlockID) (uint32, error) {
 	blockNum, ok := s.newestBlockIdToNum[blockID]
 	if ok {
 		return blockNum, nil
@@ -210,7 +206,7 @@ func (s *stateDB) blockIdToNum(blockID crypto.Signature) (uint32, error) {
 	return blockNum, nil
 }
 
-func (s *stateDB) blockNumToId(blockNum uint32) (crypto.Signature, error) {
+func (s *stateDB) blockNumToId(blockNum uint32) (proto.BlockID, error) {
 	blockId, ok := s.newestBlockNumToId[blockNum]
 	if ok {
 		return blockId, nil
@@ -218,11 +214,11 @@ func (s *stateDB) blockNumToId(blockNum uint32) (crypto.Signature, error) {
 	numToIdKey := blockNumToIdKey{blockNum}
 	blockIdBytes, err := s.db.Get(numToIdKey.bytes())
 	if err != nil {
-		return crypto.Signature{}, err
+		return proto.BlockID{}, err
 	}
-	blockId, err = crypto.NewSignatureFromBytes(blockIdBytes)
+	blockId, err = proto.NewBlockIDFromBytes(blockIdBytes)
 	if err != nil {
-		return crypto.Signature{}, err
+		return proto.BlockID{}, err
 	}
 	return blockId, nil
 }
@@ -243,7 +239,7 @@ func (s *stateDB) blockNumByHeight(height uint64) (uint32, error) {
 	return s.blockIdToNum(blockID)
 }
 
-func (s *stateDB) rollbackBlock(blockID crypto.Signature) error {
+func (s *stateDB) rollbackBlock(blockID proto.BlockID) error {
 	// Decrease DB's height (for sync/recovery).
 	height, err := s.getHeight()
 	if err != nil {
@@ -401,8 +397,8 @@ func (s *stateDB) flush() error {
 }
 
 func (s *stateDB) reset() {
-	s.newestBlockIdToNum = make(map[crypto.Signature]uint32)
-	s.newestBlockNumToId = make(map[uint32]crypto.Signature)
+	s.newestBlockIdToNum = make(map[proto.BlockID]uint32)
+	s.newestBlockNumToId = make(map[uint32]proto.BlockID)
 	s.blocksNum = 0
 	s.dbBatch.Reset()
 }

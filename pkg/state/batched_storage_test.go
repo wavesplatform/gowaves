@@ -5,8 +5,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/wavesplatform/gowaves/pkg/crypto"
-	"github.com/wavesplatform/gowaves/pkg/util"
+	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
 const (
@@ -27,7 +27,7 @@ type batchedStorageTestObjects struct {
 	stor        *testStorageObjects
 	batchedStor *batchedStorage
 
-	rollbackedIds map[crypto.Signature]bool
+	rollbackedIds map[proto.BlockID]bool
 }
 
 func createBatchedStorage(recordSize int) (*batchedStorageTestObjects, []string, error) {
@@ -43,7 +43,7 @@ func createBatchedStorage(recordSize int) (*batchedStorageTestObjects, []string,
 	return &batchedStorageTestObjects{
 		stor:          stor,
 		batchedStor:   batchedStor,
-		rollbackedIds: make(map[crypto.Signature]bool),
+		rollbackedIds: make(map[proto.BlockID]bool),
 	}, path, nil
 }
 
@@ -76,7 +76,7 @@ func (to *batchedStorageTestObjects) testIterator(t *testing.T, key []byte, data
 	assert.Equal(t, false, found)
 }
 
-func (to *batchedStorageTestObjects) rollbackBlock(t *testing.T, blockID crypto.Signature) {
+func (to *batchedStorageTestObjects) rollbackBlock(t *testing.T, blockID proto.BlockID) {
 	err := to.stor.stateDB.rollbackBlock(blockID)
 	assert.NoError(t, err)
 	to.rollbackedIds[blockID] = true
@@ -90,7 +90,7 @@ func (to *batchedStorageTestObjects) flush(t *testing.T) {
 }
 
 type testRecord struct {
-	blockID crypto.Signature
+	blockID proto.BlockID
 	record  []byte
 }
 
@@ -117,7 +117,7 @@ func (it *testIter) next() (*testRecord, bool) {
 	}
 }
 
-func genTestRecords(t *testing.T, ids []crypto.Signature) []testRecord {
+func genTestRecords(t *testing.T, ids []proto.BlockID) []testRecord {
 	res := make([]testRecord, len(ids))
 	for i, id := range ids {
 		record := make([]byte, testRecordSize)
@@ -136,7 +136,7 @@ func TestLastRecordByKeyWithRollback(t *testing.T) {
 	defer func() {
 		to.stor.close(t)
 
-		err = util.CleanTemporaryDirs(path)
+		err = common.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
@@ -167,7 +167,7 @@ func TestLastRecordByKey(t *testing.T) {
 	defer func() {
 		to.stor.close(t)
 
-		err = util.CleanTemporaryDirs(path)
+		err = common.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
@@ -234,7 +234,7 @@ func TestIterators(t *testing.T) {
 	defer func() {
 		to.stor.close(t)
 
-		err = util.CleanTemporaryDirs(path)
+		err = common.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 

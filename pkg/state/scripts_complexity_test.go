@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/wavesplatform/gowaves/pkg/util"
+	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
 type scriptsComplexityStorageObjects struct {
@@ -31,7 +31,7 @@ func TestSaveComplexityForAddr(t *testing.T) {
 	defer func() {
 		to.stor.close(t)
 
-		err = util.CleanTemporaryDirs(path)
+		err = common.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
@@ -62,7 +62,7 @@ func TestSaveComplexityForAsset(t *testing.T) {
 	defer func() {
 		to.stor.close(t)
 
-		err = util.CleanTemporaryDirs(path)
+		err = common.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 

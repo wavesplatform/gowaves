@@ -1,7 +1,6 @@
 package state
 
 import (
-	"bytes"
 	"context"
 	"encoding/base64"
 	"math/big"
@@ -351,7 +350,7 @@ func (s *stateManager) addGenesisBlock() error {
 	return nil
 }
 
-func (s *stateManager) applyPreactivatedFeatures(features []int16, blockID crypto.Signature) error {
+func (s *stateManager) applyPreactivatedFeatures(features []int16, blockID proto.BlockID) error {
 	for _, featureID := range features {
 		approvalRequest := &approvedFeaturesRecord{1}
 		if err := s.stor.features.approveFeature(featureID, approvalRequest, blockID); err != nil {
@@ -383,7 +382,7 @@ func (s *stateManager) handleGenesisBlock(block proto.Block) error {
 	// If the storage is new (data dir does not contain any data), genesis block must be applied.
 	if height == 0 {
 		// Assign unique block number for this block ID, add this number to the list of valid blocks.
-		if err := s.stateDB.addBlock(block.BlockSignature); err != nil {
+		if err := s.stateDB.addBlock(block.BlockID()); err != nil {
 			return err
 		}
 		if err := s.addGenesisBlock(); err != nil {
@@ -391,7 +390,7 @@ func (s *stateManager) handleGenesisBlock(block proto.Block) error {
 		}
 		// TODO: we apply preactivated features after genesis block, so they aren't active in genesis itself.
 		// Probably it makes sense though, because genesis must be block version 1.
-		if err := s.applyPreactivatedFeatures(s.settings.PreactivatedFeatures, block.BlockSignature); err != nil {
+		if err := s.applyPreactivatedFeatures(s.settings.PreactivatedFeatures, block.BlockID()); err != nil {
 			return errors.Errorf("failed to apply preactivated features: %v\n", err)
 		}
 	}
@@ -427,7 +426,7 @@ func (s *stateManager) TopBlock() *proto.Block {
 	return (*proto.Block)(atomic.LoadPointer(&s.lastBlock))
 }
 
-func (s *stateManager) Header(blockID crypto.Signature) (*proto.BlockHeader, error) {
+func (s *stateManager) Header(blockID proto.BlockID) (*proto.BlockHeader, error) {
 	header, err := s.rw.readBlockHeader(blockID)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
@@ -455,7 +454,7 @@ func (s *stateManager) HeaderByHeight(height uint64) (*proto.BlockHeader, error)
 	return s.Header(blockID)
 }
 
-func (s *stateManager) Block(blockID crypto.Signature) (*proto.Block, error) {
+func (s *stateManager) Block(blockID proto.BlockID) (*proto.Block, error) {
 	block, err := s.rw.readBlock(blockID)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
@@ -487,7 +486,7 @@ func (s *stateManager) Height() (uint64, error) {
 	return height, nil
 }
 
-func (s *stateManager) BlockIDToHeight(blockID crypto.Signature) (uint64, error) {
+func (s *stateManager) BlockIDToHeight(blockID proto.BlockID) (uint64, error) {
 	height, err := s.rw.heightByBlockID(blockID)
 	if err != nil {
 		return 0, wrapErr(RetrievalError, err)
@@ -495,17 +494,17 @@ func (s *stateManager) BlockIDToHeight(blockID crypto.Signature) (uint64, error)
 	return height, nil
 }
 
-func (s *stateManager) HeightToBlockID(height uint64) (crypto.Signature, error) {
+func (s *stateManager) HeightToBlockID(height uint64) (proto.BlockID, error) {
 	maxHeight, err := s.Height()
 	if err != nil {
-		return crypto.Signature{}, wrapErr(RetrievalError, err)
+		return proto.BlockID{}, wrapErr(RetrievalError, err)
 	}
 	if height < 1 || height > maxHeight {
-		return crypto.Signature{}, wrapErr(InvalidInputError, errors.New("HeightToBlockID: height out of valid range"))
+		return proto.BlockID{}, wrapErr(InvalidInputError, errors.New("HeightToBlockID: height out of valid range"))
 	}
 	blockID, err := s.rw.blockIDByHeight(height)
 	if err != nil {
-		return crypto.Signature{}, wrapErr(RetrievalError, err)
+		return proto.BlockID{}, wrapErr(RetrievalError, err)
 	}
 	return blockID, nil
 }
@@ -657,7 +656,7 @@ func (s *stateManager) addFeaturesVotes(block *proto.Block) error {
 		if approved {
 			continue
 		}
-		if err := s.stor.features.addVote(featureID, block.BlockSignature); err != nil {
+		if err := s.stor.features.addVote(featureID, block.BlockID()); err != nil {
 			return err
 		}
 	}
@@ -669,7 +668,7 @@ func (s *stateManager) addRewardVote(block *proto.Block, height uint64) error {
 	if err != nil {
 		return err
 	}
-	err = s.stor.monetaryPolicy.vote(block.RewardVote, height, activation, block.BlockSignature)
+	err = s.stor.monetaryPolicy.vote(block.RewardVote, height, activation, block.BlockID())
 	if err != nil {
 		return err
 	}
@@ -678,7 +677,7 @@ func (s *stateManager) addRewardVote(block *proto.Block, height uint64) error {
 
 func (s *stateManager) addNewBlock(block, parent *proto.Block, initialisation bool, chans *verifierChans, height uint64) error {
 	// Indicate new block for storage.
-	if err := s.rw.startBlock(block.BlockSignature); err != nil {
+	if err := s.rw.startBlock(block.BlockID()); err != nil {
 		return err
 	}
 	// Save block header to block storage.
@@ -706,7 +705,7 @@ func (s *stateManager) addNewBlock(block, parent *proto.Block, initialisation bo
 		return err
 	}
 	// Let block storage know that the current block is over.
-	if err := s.rw.finishBlock(block.BlockSignature); err != nil {
+	if err := s.rw.finishBlock(block.BlockID()); err != nil {
 		return err
 	}
 	// Count features votes.
@@ -951,7 +950,7 @@ func (s *stateManager) needToCancelLeases(height uint64) (bool, error) {
 
 type breakerTask struct {
 	// ID of latest block before performing task.
-	blockID crypto.Signature
+	blockID proto.BlockID
 	// Indicates that the task to perform before calling addBlocks() is to cancel leases.
 	cancelLeases bool
 	// Indicates that the task to perform before calling addBlocks() is to reset stolen aliases.
@@ -993,7 +992,7 @@ func (s *stateManager) needToBreakAddingBlocks(curHeight uint64, task *breakerTa
 	return false, nil
 }
 
-func (s *stateManager) finishVoting(blockID crypto.Signature, initialisation bool) error {
+func (s *stateManager) finishVoting(blockID proto.BlockID, initialisation bool) error {
 	height, err := s.Height()
 	if err != nil {
 		return err
@@ -1018,7 +1017,7 @@ func (s *stateManager) finishVoting(blockID crypto.Signature, initialisation boo
 	return nil
 }
 
-func (s *stateManager) updateBlockReward(blockID crypto.Signature, initialisation bool) error {
+func (s *stateManager) updateBlockReward(blockID proto.BlockID, initialisation bool) error {
 	h, err := s.Height()
 	if err != nil {
 		return err
@@ -1036,7 +1035,7 @@ func (s *stateManager) updateBlockReward(blockID crypto.Signature, initialisatio
 	return nil
 }
 
-func (s *stateManager) cancelLeases(blockID crypto.Signature) error {
+func (s *stateManager) cancelLeases(blockID proto.BlockID) error {
 	height, err := s.Height()
 	if err != nil {
 		return err
@@ -1131,7 +1130,7 @@ func (s *stateManager) addBlocks(blocks []*proto.Block, initialisation bool) (*p
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
-	zap.S().Debugf("StateManager: parent (top) block signature: %s", parent.BlockSignature.String())
+	zap.S().Debugf("StateManager: parent (top) block ID: %s", parent.BlockID().String())
 	height, err := s.Height()
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
@@ -1149,7 +1148,7 @@ func (s *stateManager) addBlocks(blocks []*proto.Block, initialisation bool) (*p
 	// After performing the event, addBlocks() calls itself with the rest of the blocks batch.
 	// blocksToFinish stores these blocks, breakerInfo specifies type of the event.
 	var blocksToFinish []*proto.Block
-	breakerInfo := &breakerTask{blockID: parent.BlockSignature}
+	breakerInfo := &breakerTask{blockID: parent.BlockID()}
 
 	// Launch verifier that checks signatures of blocks and transactions.
 	chans := newVerifierChans()
@@ -1167,12 +1166,12 @@ func (s *stateManager) addBlocks(blocks []*proto.Block, initialisation bool) (*p
 			blocksToFinish = blocks[i:]
 			break
 		}
-		breakerInfo.blockID = block.BlockSignature
+		breakerInfo.blockID = block.BlockID()
 		// Send block for signature verification, which works in separate goroutine.
 		task := &verifyTask{
-			taskType:  verifyBlock,
-			parentSig: parent.BlockSignature,
-			block:     block,
+			taskType: verifyBlock,
+			parentID: parent.BlockID(),
+			block:    block,
 		}
 		select {
 		case verifyError := <-chans.errChan:
@@ -1190,7 +1189,7 @@ func (s *stateManager) addBlocks(blocks []*proto.Block, initialisation bool) (*p
 		}
 		prevScore = score
 		// Assign unique block number for this block ID, add this number to the list of valid blocks.
-		if err := s.stateDB.addBlock(block.BlockSignature); err != nil {
+		if err := s.stateDB.addBlock(block.BlockID()); err != nil {
 			return nil, wrapErr(ModificationError, err)
 		}
 		if s.needToResetVotes(curHeight + 1) {
@@ -1198,7 +1197,7 @@ func (s *stateManager) addBlocks(blocks []*proto.Block, initialisation bool) (*p
 			// for all features at first (current) block.
 			// This is not handled as breaker task on purpose:
 			// featureVotes() operates with fresh records, so we do not need to flush() votes.
-			if err := s.stor.features.resetVotes(block.BlockSignature); err != nil {
+			if err := s.stor.features.resetVotes(block.BlockID()); err != nil {
 				return nil, wrapErr(ModificationError, err)
 			}
 		}
@@ -1240,15 +1239,11 @@ func (s *stateManager) addBlocks(blocks []*proto.Block, initialisation bool) (*p
 	if blocksToFinish != nil {
 		return s.handleBreak(blocksToFinish, initialisation, breakerInfo)
 	}
-	zap.S().Infof("State: blocks to height %d added, block sig: %s", height+uint64(blocksNumber), lastBlock.BlockSignature)
+	zap.S().Infof("State: blocks to height %d added, block id: %s", height+uint64(blocksNumber), lastBlock.BlockID().String())
 	return lastBlock, nil
 }
 
-func (s *stateManager) checkRollbackInput(blockID crypto.Signature) error {
-	height, err := s.BlockIDToHeight(blockID)
-	if err != nil {
-		return err
-	}
+func (s *stateManager) checkRollbackHeight(height uint64) error {
 	maxHeight, err := s.Height()
 	if err != nil {
 		return err
@@ -1263,13 +1258,21 @@ func (s *stateManager) checkRollbackInput(blockID crypto.Signature) error {
 	return nil
 }
 
+func (s *stateManager) checkRollbackInput(blockID proto.BlockID) error {
+	height, err := s.BlockIDToHeight(blockID)
+	if err != nil {
+		return err
+	}
+	return s.checkRollbackHeight(height)
+}
+
 func (s *stateManager) RollbackToHeight(height uint64) error {
+	if err := s.checkRollbackHeight(height); err != nil {
+		return wrapErr(InvalidInputError, err)
+	}
 	blockID, err := s.HeightToBlockID(height)
 	if err != nil {
 		return wrapErr(RetrievalError, err)
-	}
-	if err := s.checkRollbackInput(blockID); err != nil {
-		return wrapErr(InvalidInputError, err)
 	}
 	if err := s.RollbackTo(blockID); err != nil {
 		return wrapErr(RollbackError, err)
@@ -1277,7 +1280,7 @@ func (s *stateManager) RollbackToHeight(height uint64) error {
 	return nil
 }
 
-func (s *stateManager) rollbackToImpl(removalEdge crypto.Signature) error {
+func (s *stateManager) rollbackToImpl(removalEdge proto.BlockID) error {
 	if err := s.checkRollbackInput(removalEdge); err != nil {
 		return wrapErr(InvalidInputError, err)
 	}
@@ -1290,7 +1293,7 @@ func (s *stateManager) rollbackToImpl(removalEdge crypto.Signature) error {
 		if err != nil {
 			return wrapErr(RetrievalError, err)
 		}
-		if bytes.Equal(blockID[:], removalEdge[:]) {
+		if blockID == removalEdge {
 			break
 		}
 		if err := s.stateDB.rollbackBlock(blockID); err != nil {
@@ -1323,7 +1326,7 @@ func (s *stateManager) rollbackToImpl(removalEdge crypto.Signature) error {
 	return nil
 }
 
-func (s *stateManager) RollbackTo(removalEdge crypto.Signature) error {
+func (s *stateManager) RollbackTo(removalEdge proto.BlockID) error {
 	if err := s.rollbackToImpl(removalEdge); err != nil {
 		if err1 := s.stateDB.syncRw(); err1 != nil {
 			zap.S().Fatalf("Failed to rollback and can not sync state components after failure: %v", err1)

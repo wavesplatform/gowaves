@@ -3,8 +3,8 @@ package state
 import (
 	"encoding/binary"
 
-	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
+	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 )
 
@@ -97,7 +97,7 @@ func (m *monetaryPolicy) votes() (rewardVotesRecord, error) {
 	return record, nil
 }
 
-func (m *monetaryPolicy) vote(desired int64, height, activation uint64, blockID crypto.Signature) error {
+func (m *monetaryPolicy) vote(desired int64, height, activation uint64, blockID proto.BlockID) error {
 	if isStartOfTerm(height, activation, m.settings.FunctionalitySettings) {
 		rec := rewardVotesRecord{0, 0}
 		recordBytes, err := rec.marshalBinary()
@@ -136,7 +136,7 @@ func (m *monetaryPolicy) vote(desired int64, height, activation uint64, blockID 
 	return m.hs.addNewEntry(rewardVotes, rewardVotesKeyBytes, recordBytes, blockID)
 }
 
-func (m *monetaryPolicy) updateBlockReward(h uint64, blockID crypto.Signature) error {
+func (m *monetaryPolicy) updateBlockReward(h uint64, blockID proto.BlockID) error {
 	votes, err := m.votes()
 	if err != nil {
 		return err

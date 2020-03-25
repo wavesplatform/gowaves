@@ -12,7 +12,7 @@ import (
 type performerInfo struct {
 	initialisation bool
 	height         uint64
-	blockID        crypto.Signature
+	blockID        proto.BlockID
 }
 
 type transactionPerformer struct {
