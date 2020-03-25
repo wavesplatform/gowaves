@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/wavesplatform/gowaves/pkg/util"
+	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
 const (
@@ -37,7 +37,7 @@ func TestNormalizeFeatureVote(t *testing.T) {
 	defer func() {
 		to.stor.close(t)
 
-		err = util.CleanTemporaryDirs(path)
+		err = common.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
@@ -82,7 +82,7 @@ func TestNormalize(t *testing.T) {
 	defer func() {
 		to.stor.close(t)
 
-		err = util.CleanTemporaryDirs(path)
+		err = common.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
@@ -118,7 +118,7 @@ func TestNormalize(t *testing.T) {
 		blockID, err := to.stor.stateDB.blockNumToId(entry.blockNum)
 		assert.NoError(t, err, "blockNumToId() failed")
 		entryHeight, err := to.stor.rw.newestHeightByBlockID(blockID)
-		assert.NoError(t, err, "newestHeightByBlockID() failed")
+		assert.NoError(t, err, "newestHeightByBlockID failed")
 		if entryHeight < rollbackMinHeight {
 			oldRecordNumber++
 		}

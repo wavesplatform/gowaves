@@ -14,7 +14,6 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/cmd/forkdetector/internal"
-	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -30,7 +29,7 @@ type configuration struct {
 	logFile        string
 	dbPath         string
 	scheme         byte
-	genesis        crypto.Signature
+	genesis        proto.BlockID
 	apiBind        string
 	netBind        string
 	publicAddress  net.TCPAddr
@@ -117,7 +116,7 @@ func run() error {
 	}
 	distributorDone := distributor.Start()
 
-	h := internal.NewConnHandler(cfg.scheme, cfg.name, cfg.nonce, cfg.publicAddress, reg, distributor.NewConnectionsSink(), distributor.ClosedConnectionsSink(), distributor.ScoreSink(), distributor.SignaturesSink(), distributor.BlocksSink())
+	h := internal.NewConnHandler(cfg.scheme, cfg.name, cfg.nonce, cfg.publicAddress, reg, distributor.NewConnectionsSink(), distributor.ClosedConnectionsSink(), distributor.ScoreSink(), distributor.IdsSink(), distributor.BlocksSink())
 	opts := internal.NewOptions(h)
 	opts.ReadDeadline = time.Minute
 	opts.WriteDeadline = time.Minute
@@ -164,7 +163,7 @@ func parseConfiguration() (*configuration, error) {
 		logFile         = flag.String("log-file", "", "Path to log file. Log files are rotated at size 100MB. By default there is no log file.")
 		db              = flag.String("db", "", "Path to database folder. No default value.")
 		scheme          = flag.String("scheme", "W", "Blockchain scheme symbol. Defaults to \"W\" - MainNet scheme.")
-		genesis         = flag.String("genesis", "FSH8eAAzZNqnG8xgTZtz5xuLqXySsXgAjmFEC25hXMbEufiGjqWPnGCZFt6gLiVLJny16ipxRNAkkzjjhqTjBE2", "Genesis block signature in BASE58 encoding. Default value is MainNet's genesis block signature.")
+		genesis         = flag.String("genesis", "FSH8eAAzZNqnG8xgTZtz5xuLqXySsXgAjmFEC25hXMbEufiGjqWPnGCZFt6gLiVLJny16ipxRNAkkzjjhqTjBE2", "Genesis block ID in BASE58 encoding. Default value is MainNet's genesis block id.")
 		versions        = flag.String("versions", "1.0 0.17 0.16 0.15 0.14 0.13 0.10 0.9 0.8 0.7 0.6 0.3", "Space separated list of known node's versions. By default all MainNet versions are supported.")
 		apiBindAddress  = flag.String("api-bind", ":8080", "Local network address to bind the HTTP API of the service on. Default value is \":8080\".")
 		netBindAddress  = flag.String("net-bind", ":6868", "Local network address to bind the network server. Default value is \":6868 \".")
@@ -184,9 +183,9 @@ func parseConfiguration() (*configuration, error) {
 	if len(*scheme) != 1 {
 		return nil, errors.Errorf("invalid scheme '%s'", *scheme)
 	}
-	sig, err := crypto.NewSignatureFromBase58(*genesis)
+	id, err := proto.NewBlockIDFromBase58(*genesis)
 	if err != nil {
-		return nil, errors.Wrap(err, "invalid genesis block signature")
+		return nil, errors.Wrap(err, "invalid genesis block id")
 	}
 	vs, err := splitVersions(*versions)
 	if err != nil {
@@ -227,7 +226,7 @@ func parseConfiguration() (*configuration, error) {
 		logLevel:       *logLevel,
 		logFile:        *logFile,
 		scheme:         (byte)((*scheme)[0]),
-		genesis:        sig,
+		genesis:        id,
 		versions:       vs,
 		seedPeers:      peers,
 		name:           *netName,

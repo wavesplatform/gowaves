@@ -38,7 +38,7 @@ func (a *State) AddBlock(block *proto.Block) {
 		return
 	}
 	// same block
-	if a.prevAddedBlock != nil && a.prevAddedBlock.BlockSignature == block.BlockSignature {
+	if a.prevAddedBlock != nil && a.prevAddedBlock.BlockID() == block.BlockID() {
 		return
 	}
 
@@ -56,8 +56,8 @@ func (a *State) AddBlock(block *proto.Block) {
 	if err != nil {
 		if state.IsNotFound(err) {
 			zap.S().Debugf("NG State: not found block to rollback")
-			if a.storage.ContainsSig(block.Parent) {
-				zap.S().Debugf("NG State: sig contains %s", block.Parent)
+			if a.storage.ContainsID(block.Parent) {
+				zap.S().Debugf("NG State: sig contains %s", block.Parent.String())
 				prevBlock, err := a.storage.PreviousBlock()
 				if err != nil {
 					zap.S().Debug(err)
@@ -85,7 +85,7 @@ func (a *State) AddBlock(block *proto.Block) {
 				locked.Unlock()
 			}
 		} else {
-			zap.S().Infof("NG State: can't rollback to sig %s, initiator sig %s: %v", block.Parent, block.BlockSignature, err)
+			zap.S().Infof("NG State: can't rollback to id %s, initiator id %s: %v", block.Parent.String(), block.BlockID().String(), err)
 			a.storage.Pop()
 			return
 		}
@@ -199,7 +199,7 @@ func (a *State) blockApplied(block *proto.Block) {
 		return
 	}
 
-	if a.prevAddedBlock.BlockSignature == block.BlockSignature {
+	if a.prevAddedBlock.BlockID() == block.BlockID() {
 		return
 	}
 

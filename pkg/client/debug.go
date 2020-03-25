@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"net/http"
 )
@@ -135,8 +134,8 @@ func (a *Debug) MinerInfo(ctx context.Context) ([]*DebugMinerInfo, *Response, er
 }
 
 type DebugHistoryInfo struct {
-	LastBlockIds  []crypto.Signature `json:"lastBlockIds"`
-	MicroBlockIds []crypto.Signature `json:"microBlockIds"`
+	LastBlockIds  []proto.BlockID `json:"lastBlockIds"`
+	MicroBlockIds []proto.BlockID `json:"microBlockIds"`
 }
 
 // All history info you need to debug

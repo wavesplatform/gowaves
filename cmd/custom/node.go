@@ -29,7 +29,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/services"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/state"
-	"github.com/wavesplatform/gowaves/pkg/util"
+	"github.com/wavesplatform/gowaves/pkg/util/common"
 	"github.com/wavesplatform/gowaves/pkg/wallet"
 	"go.uber.org/zap"
 )
@@ -56,7 +56,7 @@ var (
 )
 
 func init() {
-	util.SetupLogger(*logLevel)
+	common.SetupLogger(*logLevel)
 }
 
 func main() {
@@ -116,7 +116,7 @@ func main() {
 
 	path := *statePath
 	if path == "" {
-		path, err = util.GetStatePath()
+		path, err = common.GetStatePath()
 		if err != nil {
 			zap.S().Error(err)
 			return
@@ -129,7 +129,7 @@ func main() {
 		return
 	}
 
-	minerDelaySecond, err := util.ParseDuration(*minerDelayParam)
+	minerDelaySecond, err := common.ParseDuration(*minerDelayParam)
 	if err != nil {
 		zap.S().Error(err)
 		return
@@ -166,6 +166,7 @@ func main() {
 
 	features, err = miner.ValidateFeaturesWithLock(state, features)
 	if err != nil {
+		cancel()
 		zap.S().Error(err)
 		return
 	}

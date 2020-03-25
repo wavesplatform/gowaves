@@ -2,7 +2,6 @@ package state
 
 import (
 	"github.com/pkg/errors"
-	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/types"
@@ -59,7 +58,7 @@ func newTxAppender(
 		return nil, err
 	}
 	genesis := settings.Genesis
-	txHandler, err := newTransactionHandler(genesis.BlockSignature, stor, settings)
+	txHandler, err := newTransactionHandler(genesis.BlockID(), stor, settings)
 	if err != nil {
 		return nil, err
 	}
@@ -320,7 +319,7 @@ func (a *txAppender) needToCheckOrdersSigs(transaction proto.Transaction, initia
 func (a *txAppender) saveTransactionIdByAddresses(
 	addrs []proto.Address,
 	txID []byte,
-	blockID crypto.Signature,
+	blockID proto.BlockID,
 	filter bool,
 ) error {
 	for _, addr := range addrs {
@@ -332,7 +331,7 @@ func (a *txAppender) saveTransactionIdByAddresses(
 }
 
 func (a *txAppender) appendBlock(params *appendBlockParams) error {
-	blockID := params.block.BlockSignature
+	blockID := params.block.BlockID()
 	hasParent := params.parent != nil
 	// Create miner balance diff.
 	// This adds 60% of prev block fees as very first balance diff of the current block
@@ -347,6 +346,10 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	}
 	curHeight := params.height + 1
 	scriptsRuns := uint64(0)
+	blockInfo, err := a.currentBlockInfo()
+	if err != nil {
+		return err
+	}
 	for _, tx := range params.transactions {
 		// Detect what signatures must be checked for this transaction.
 		senderAddr, err := proto.NewAddressFromPublicKey(a.settings.AddressSchemeCharacter, tx.GetSenderPK())
@@ -399,10 +402,6 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 		}
 		a.recentTxIds[string(txID)] = empty
 		// Check against state.
-		blockInfo, err := a.currentBlockInfo()
-		if err != nil {
-			return err
-		}
 		txScriptsRuns, err := a.checkTxAgainstState(tx, accountHasVerifierScript, checkerInfo, blockInfo)
 		if err != nil {
 			return err

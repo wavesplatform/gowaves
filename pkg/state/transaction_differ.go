@@ -8,7 +8,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
-	"github.com/wavesplatform/gowaves/pkg/util"
+	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
 func byteKey(addr proto.Address, assetID []byte) []byte {
@@ -54,7 +54,7 @@ type balanceDiff struct {
 	leaseIn int64
 	// LeaseOut change.
 	leaseOut int64
-	blockID  crypto.Signature
+	blockID  proto.BlockID
 }
 
 func newBalanceDiff(balance, leaseIn, leaseOut int64, updateMinIntermediateBalance bool) balanceDiff {
@@ -80,7 +80,7 @@ func newBalanceDiff(balance, leaseIn, leaseOut int64, updateMinIntermediateBalan
 // It also checks that it is legitimate to apply this diff to the profile (negative balances / overflows).
 func (diff *balanceDiff) applyTo(profile *balanceProfile) (*balanceProfile, error) {
 	// Check min intermediate change.
-	minBalance, err := util.AddInt64(diff.minBalance, int64(profile.balance))
+	minBalance, err := common.AddInt64(diff.minBalance, int64(profile.balance))
 	if err != nil {
 		return nil, errors.Errorf("failed to add balance and min balance diff: %v\n", err)
 	}
@@ -88,19 +88,19 @@ func (diff *balanceDiff) applyTo(profile *balanceProfile) (*balanceProfile, erro
 		return nil, errors.Errorf("negative intermediate balance: balance is %d; diff is: %d\n", profile.balance, diff.minBalance)
 	}
 	// Chech main balance diff.
-	newBalance, err := util.AddInt64(diff.balance, int64(profile.balance))
+	newBalance, err := common.AddInt64(diff.balance, int64(profile.balance))
 	if err != nil {
 		return nil, errors.Errorf("failed to add balance and balance diff: %v\n", err)
 	}
 	if newBalance < 0 {
 		return nil, errors.New("negative result balance")
 	}
-	newLeaseIn, err := util.AddInt64(diff.leaseIn, profile.leaseIn)
+	newLeaseIn, err := common.AddInt64(diff.leaseIn, profile.leaseIn)
 	if err != nil {
 		return nil, errors.Errorf("failed to add leaseIn and leaseIn diff: %v\n", err)
 	}
 	// Check leasing change.
-	newLeaseOut, err := util.AddInt64(diff.leaseOut, profile.leaseOut)
+	newLeaseOut, err := common.AddInt64(diff.leaseOut, profile.leaseOut)
 	if err != nil {
 		return nil, errors.Errorf("failed to add leaseOut and leaseOut diff: %v\n", err)
 	}
@@ -118,15 +118,15 @@ func (diff *balanceDiff) applyTo(profile *balanceProfile) (*balanceProfile, erro
 // applyToAssetBalance() is similar to applyTo() but does not deal with leasing.
 func (diff *balanceDiff) applyToAssetBalance(balance uint64) (uint64, error) {
 	// Check min intermediate change.
-	minBalance, err := util.AddInt64(diff.minBalance, int64(balance))
+	minBalance, err := common.AddInt64(diff.minBalance, int64(balance))
 	if err != nil {
 		return 0, errors.Errorf("failed to add balance and min balance diff: %v\n", err)
 	}
 	if minBalance < 0 {
 		return 0, errors.New("negative intermediate asset balance")
 	}
-	// Check main balance diff.
-	newBalance, err := util.AddInt64(diff.balance, int64(balance))
+	// Chech main balance diff.
+	newBalance, err := common.AddInt64(diff.balance, int64(balance))
 	if err != nil {
 		return 0, errors.Errorf("failed to add balance and balance diff: %v\n", err)
 	}
@@ -139,13 +139,13 @@ func (diff *balanceDiff) applyToAssetBalance(balance uint64) (uint64, error) {
 // addCommon() sums fields of any diffs.
 func (diff *balanceDiff) addCommon(prevDiff *balanceDiff) error {
 	var err error
-	if diff.balance, err = util.AddInt64(diff.balance, prevDiff.balance); err != nil {
+	if diff.balance, err = common.AddInt64(diff.balance, prevDiff.balance); err != nil {
 		return errors.Errorf("failed to add balance diffs: %v\n", err)
 	}
-	if diff.leaseIn, err = util.AddInt64(diff.leaseIn, prevDiff.leaseIn); err != nil {
+	if diff.leaseIn, err = common.AddInt64(diff.leaseIn, prevDiff.leaseIn); err != nil {
 		return errors.Errorf("failed to add LeaseIn diffs: %v\n", err)
 	}
-	if diff.leaseOut, err = util.AddInt64(diff.leaseOut, prevDiff.leaseOut); err != nil {
+	if diff.leaseOut, err = common.AddInt64(diff.leaseOut, prevDiff.leaseOut); err != nil {
 		return errors.Errorf("failed to add LeaseOut diffs: %v\n", err)
 	}
 	return nil
@@ -158,7 +158,7 @@ func (diff *balanceDiff) addInsideTx(prevDiff *balanceDiff) error {
 		// If updateMinIntermediateBalance is true, this tx may produce negative intermediate changes.
 		// It is only true for few tx types: Payment, Transfer, MassTransfer, InvokeScript.
 		// Add current diff to previous minBalance (aka intermediate change) to get newMinBalance.
-		newMinBalance, err := util.AddInt64(diff.balance, prevDiff.minBalance)
+		newMinBalance, err := common.AddInt64(diff.balance, prevDiff.minBalance)
 		if err != nil {
 			return errors.Errorf("failed to update min balance diff: %v\n", err)
 		}
@@ -177,7 +177,7 @@ func (diff *balanceDiff) addInsideTx(prevDiff *balanceDiff) error {
 // It also makes sure that minimum intermediate change gets updated properly.
 func (diff *balanceDiff) addInsideBlock(prevDiff *balanceDiff) error {
 	// Add previous cumulative diff to tx diff's minBalance to make it correspond to cumulative block diff.
-	newMinBalance, err := util.AddInt64(diff.minBalance, prevDiff.balance)
+	newMinBalance, err := common.AddInt64(diff.minBalance, prevDiff.balance)
 	if err != nil {
 		return errors.Errorf("failed to update min balance diff: %v\n", err)
 	}

@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
-	"github.com/wavesplatform/gowaves/pkg/util"
+	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
 type performerTestObjects struct {
@@ -33,7 +33,7 @@ func TestPerformIssueWithSig(t *testing.T) {
 	defer func() {
 		to.stor.close(t)
 
-		err := util.CleanTemporaryDirs(path)
+		err := common.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
@@ -68,7 +68,7 @@ func TestPerformIssueWithProofs(t *testing.T) {
 	defer func() {
 		to.stor.close(t)
 
-		err := util.CleanTemporaryDirs(path)
+		err := common.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
@@ -103,7 +103,7 @@ func TestPerformReissueWithSig(t *testing.T) {
 	defer func() {
 		to.stor.close(t)
 
-		err := util.CleanTemporaryDirs(path)
+		err := common.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
@@ -127,7 +127,7 @@ func TestPerformReissueWithProofs(t *testing.T) {
 	defer func() {
 		to.stor.close(t)
 
-		err := util.CleanTemporaryDirs(path)
+		err := common.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
@@ -151,7 +151,7 @@ func TestPerformBurnWithSig(t *testing.T) {
 	defer func() {
 		to.stor.close(t)
 
-		err := util.CleanTemporaryDirs(path)
+		err := common.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
@@ -174,7 +174,7 @@ func TestPerformBurnWithProofs(t *testing.T) {
 	defer func() {
 		to.stor.close(t)
 
-		err := util.CleanTemporaryDirs(path)
+		err := common.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
@@ -197,7 +197,7 @@ func TestPerformExchange(t *testing.T) {
 	defer func() {
 		to.stor.close(t)
 
-		err := util.CleanTemporaryDirs(path)
+		err := common.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
@@ -253,7 +253,7 @@ func TestPerformLeaseWithSig(t *testing.T) {
 	defer func() {
 		to.stor.close(t)
 
-		err := util.CleanTemporaryDirs(path)
+		err := common.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
@@ -280,7 +280,7 @@ func TestPerformLeaseWithProofs(t *testing.T) {
 	defer func() {
 		to.stor.close(t)
 
-		err := util.CleanTemporaryDirs(path)
+		err := common.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
@@ -307,7 +307,7 @@ func TestPerformLeaseCancelWithSig(t *testing.T) {
 	defer func() {
 		to.stor.close(t)
 
-		err := util.CleanTemporaryDirs(path)
+		err := common.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
@@ -337,7 +337,7 @@ func TestPerformLeaseCancelWithProofs(t *testing.T) {
 	defer func() {
 		to.stor.close(t)
 
-		err := util.CleanTemporaryDirs(path)
+		err := common.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
@@ -367,7 +367,7 @@ func TestPerformCreateAliasWithSig(t *testing.T) {
 	defer func() {
 		to.stor.close(t)
 
-		err := util.CleanTemporaryDirs(path)
+		err := common.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
@@ -397,7 +397,7 @@ func TestPerformCreateAliasWithProofs(t *testing.T) {
 	defer func() {
 		to.stor.close(t)
 
-		err := util.CleanTemporaryDirs(path)
+		err := common.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
@@ -427,7 +427,7 @@ func TestPerformDataWithProofs(t *testing.T) {
 	defer func() {
 		to.stor.close(t)
 
-		err := util.CleanTemporaryDirs(path)
+		err := common.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
@@ -452,7 +452,7 @@ func TestPerformSponsorshipWithProofs(t *testing.T) {
 	defer func() {
 		to.stor.close(t)
 
-		err := util.CleanTemporaryDirs(path)
+		err := common.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
@@ -499,7 +499,7 @@ func TestPerformSetScriptWithProofs(t *testing.T) {
 	defer func() {
 		to.stor.close(t)
 
-		err := util.CleanTemporaryDirs(path)
+		err := common.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
@@ -563,7 +563,7 @@ func TestPerformSetAssetScriptWithProofs(t *testing.T) {
 	defer func() {
 		to.stor.close(t)
 
-		err := util.CleanTemporaryDirs(path)
+		err := common.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
@@ -650,7 +650,7 @@ func TestPerformUpdateAssetInfoWithProofs(t *testing.T) {
 	defer func() {
 		to.stor.close(t)
 
-		err := util.CleanTemporaryDirs(path)
+		err := common.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 

@@ -35,7 +35,7 @@ func TestMockStateManager_RollbackToHeight(t *testing.T) {
 	}
 	block1 := &proto.Block{
 		BlockHeader: proto.BlockHeader{
-			Parent: genesisSign,
+			Parent: genesisId,
 			NxtConsensus: proto.NxtConsensus{
 				BaseTarget: 100,
 			},

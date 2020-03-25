@@ -26,6 +26,22 @@ func (a *Deserializer) Byte() (byte, error) {
 	return 0, errors.Errorf("not enough bytes, expected at least 1, found 0")
 }
 
+func (a *Deserializer) Digest() (crypto.Digest, error) {
+	if len(a.b) < crypto.DigestSize {
+		return crypto.Digest{},
+			errors.Errorf(
+				"not enough bytes to deserialize digest, expected at least %d, found %d",
+				crypto.DigestSize,
+				len(a.b))
+	}
+	rs, err := crypto.NewDigestFromBytes(a.b[:crypto.DigestSize])
+	if err != nil {
+		return crypto.Digest{}, errors.Wrap(err, "failed to parse Digest")
+	}
+	a.b = a.b[crypto.DigestSize:]
+	return rs, nil
+}
+
 func (a *Deserializer) Signature() (crypto.Signature, error) {
 	if len(a.b) < crypto.SignatureSize {
 		return crypto.Signature{},

@@ -13,7 +13,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/importer"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/state"
-	"github.com/wavesplatform/gowaves/pkg/util"
+	"github.com/wavesplatform/gowaves/pkg/util/common"
 	"go.uber.org/zap"
 )
 
@@ -44,7 +44,7 @@ func main() {
 	}
 	flag.Parse()
 
-	util.SetupLogger(*logLevel)
+	common.SetupLogger(*logLevel)
 
 	if *blockchainPath == "" {
 		zap.S().Fatalf("You must specify blockchain-path option.")

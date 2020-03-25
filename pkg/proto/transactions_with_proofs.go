@@ -106,7 +106,7 @@ func (tx *IssueWithProofs) UnmarshalSignedFromProtobuf(data []byte) error {
 func (tx *IssueWithProofs) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
 	res := TransactionToProtobufCommon(scheme, tx)
 	txData := tx.Issue.ToProtobuf()
-	txData.Issue.Script = &g.Script{Bytes: tx.Script}
+	txData.Issue.Script = tx.Script
 	fee := &g.Amount{AssetId: nil, Amount: int64(tx.Fee)}
 	res.Fee = fee
 	res.Data = txData
@@ -3568,12 +3568,8 @@ func (tx *SetScriptWithProofs) UnmarshalSignedFromProtobuf(data []byte) error {
 }
 
 func (tx *SetScriptWithProofs) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
-	pbScript, err := tx.Script.ToProtobuf()
-	if err != nil {
-		return nil, err
-	}
 	txData := &g.Transaction_SetScript{SetScript: &g.SetScriptTransactionData{
-		Script: pbScript,
+		Script: tx.Script,
 	}}
 	fee := &g.Amount{AssetId: nil, Amount: int64(tx.Fee)}
 	res := TransactionToProtobufCommon(scheme, tx)
@@ -4141,13 +4137,9 @@ func (tx *SetAssetScriptWithProofs) UnmarshalSignedFromProtobuf(data []byte) err
 }
 
 func (tx *SetAssetScriptWithProofs) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
-	pbScript, err := tx.Script.ToProtobuf()
-	if err != nil {
-		return nil, err
-	}
 	txData := &g.Transaction_SetAssetScript{SetAssetScript: &g.SetAssetScriptTransactionData{
 		AssetId: tx.AssetID.Bytes(),
-		Script:  pbScript,
+		Script:  tx.Script,
 	}}
 	fee := &g.Amount{AssetId: nil, Amount: int64(tx.Fee)}
 	res := TransactionToProtobufCommon(scheme, tx)

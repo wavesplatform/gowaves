@@ -14,7 +14,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"github.com/wavesplatform/gowaves/pkg/util"
+	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
 const (
@@ -37,13 +37,13 @@ const (
 type readTask struct {
 	taskType      readCommandType
 	txID          []byte
-	blockID       crypto.Signature
+	blockID       proto.BlockID
 	height        uint64
 	offset        uint64
 	correctTx     proto.Transaction
 	correctHeader proto.BlockHeader
 	correctBlock  proto.Block
-	correctID     crypto.Signature
+	correctID     proto.BlockID
 }
 
 func createBlockReadWriter(offsetLen, headerOffsetLen int) (*blockReadWriter, []string, error) {
@@ -74,7 +74,7 @@ func createBlockReadWriter(offsetLen, headerOffsetLen int) (*blockReadWriter, []
 }
 
 func writeBlock(t *testing.T, rw *blockReadWriter, block *proto.Block) {
-	blockID := block.BlockSignature
+	blockID := block.BlockID()
 	if err := rw.startBlock(blockID); err != nil {
 		t.Fatalf("startBlock(): %v", err)
 	}
@@ -99,7 +99,7 @@ func writeBlock(t *testing.T, rw *blockReadWriter, block *proto.Block) {
 
 func testSingleBlock(t *testing.T, rw *blockReadWriter, block *proto.Block) {
 	writeBlock(t, rw, block)
-	blockID := block.BlockSignature
+	blockID := block.BlockID()
 	resHeader, err := rw.readBlockHeader(blockID)
 	if err != nil {
 		t.Fatalf("readBlockHeader(): %v", err)
@@ -117,7 +117,7 @@ func writeBlocks(ctx context.Context, rw *blockReadWriter, blocks []proto.Block,
 	offset := 0
 	for _, block := range blocks {
 		var tasksBuf []*readTask
-		blockID := block.BlockSignature
+		blockID := block.BlockID()
 		if err := rw.startBlock(blockID); err != nil {
 			close(readTasks)
 			return err
@@ -231,7 +231,7 @@ func testNewestReader(rw *blockReadWriter, readTasks <-chan *readTask) error {
 				return err
 			}
 			if !assert.ObjectsAreEqual(task.correctID, id) {
-				return errors.New("block IDs are not equal")
+				return errors.Errorf("block IDs are not equal: correct: %s, actual: %s", task.correctID.String(), id.String())
 			}
 		}
 	}
@@ -287,7 +287,7 @@ func testReader(rw *blockReadWriter, readTasks <-chan *readTask) error {
 				return err
 			}
 			if !assert.ObjectsAreEqual(task.correctID, id) {
-				return errors.New("block IDs are not equal")
+				return errors.Errorf("block IDs are not equal: correct: %s, actual: %s", task.correctID.String(), id.String())
 			}
 		}
 	}
@@ -307,7 +307,7 @@ func TestSimpleReadWrite(t *testing.T) {
 		if err := rw.db.Close(); err != nil {
 			t.Fatalf("Failed to close DB: %v", err)
 		}
-		if err := util.CleanTemporaryDirs(path); err != nil {
+		if err := common.CleanTemporaryDirs(path); err != nil {
 			t.Fatalf("Failed to clean test data dirs: %v", err)
 		}
 	}()
@@ -334,7 +334,7 @@ func TestSimultaneousReadWrite(t *testing.T) {
 		if err := rw.db.Close(); err != nil {
 			t.Fatalf("Failed to close DB: %v", err)
 		}
-		if err := util.CleanTemporaryDirs(path); err != nil {
+		if err := common.CleanTemporaryDirs(path); err != nil {
 			t.Fatalf("Failed to clean test data dirs: %v", err)
 		}
 	}()
@@ -393,7 +393,7 @@ func TestReadNewest(t *testing.T) {
 		if err := rw.db.Close(); err != nil {
 			t.Fatalf("Failed to close DB: %v", err)
 		}
-		if err := util.CleanTemporaryDirs(path); err != nil {
+		if err := common.CleanTemporaryDirs(path); err != nil {
 			t.Fatalf("Failed to clean test data dirs: %v", err)
 		}
 	}()
@@ -452,7 +452,7 @@ func TestSimultaneousReadDelete(t *testing.T) {
 		if err := rw.db.Close(); err != nil {
 			t.Fatalf("Failed to close DB: %v", err)
 		}
-		if err := util.CleanTemporaryDirs(path); err != nil {
+		if err := common.CleanTemporaryDirs(path); err != nil {
 			t.Fatalf("Failed to clean test data dirs: %v", err)
 		}
 	}()
@@ -465,8 +465,8 @@ func TestSimultaneousReadDelete(t *testing.T) {
 	for _, block := range blocks {
 		writeBlock(t, rw, &block)
 	}
-	idToTest := blocks[blocksNumber-2].BlockSignature
-	prevId := blocks[blocksNumber-3].BlockSignature
+	idToTest := blocks[blocksNumber-2].BlockID()
+	prevId := blocks[blocksNumber-3].BlockID()
 	txs := blocks[blocksNumber-2].Transactions
 	txID, err := txs[0].GetID(proto.MainNetScheme)
 	if err != nil {
@@ -523,16 +523,35 @@ func TestProtobufReadWrite(t *testing.T) {
 		if err := rw.db.Close(); err != nil {
 			t.Fatalf("Failed to close DB: %v", err)
 		}
-		if err := util.CleanTemporaryDirs(path); err != nil {
+		if err := common.CleanTemporaryDirs(path); err != nil {
 			t.Fatalf("Failed to clean test data dirs: %v", err)
 		}
 	}()
 
+	// Activate protobuf and convert MainNet blocks to fake 'protobuf' ones.
+	// This is needed because blockReadWriter only accepts
+	// protobuf blocks after setProtobufActivated().
 	rw.setProtobufActivated()
 	blocks, err := readBlocksFromTestPath(blocksNumber)
 	if err != nil {
 		t.Fatalf("Can not read blocks from blockchain file: %v", err)
 	}
+	protobufBlocks := make([]proto.Block, len(blocks))
+	copy(protobufBlocks, blocks)
+	prevId := proto.NewBlockIDFromDigest(crypto.Digest{})
+	for i := range protobufBlocks {
+		// Change blocks version to protobuf since we activated protobuf.
+		protobufBlocks[i].Version = proto.ProtoBlockVersion
+		// Update parents.
+		protobufBlocks[i].Parent = prevId
+		// Regenerate ID.
+		err = protobufBlocks[i].GenerateBlockID(proto.MainNetScheme)
+		if err != nil {
+			t.Fatalf("GenerateBlockID() failed: %v", err)
+		}
+		prevId = protobufBlocks[i].BlockID()
+	}
+
 	var mtx sync.Mutex
 	var wg sync.WaitGroup
 	ctx, cancel := context.WithCancel(context.Background())
@@ -541,7 +560,7 @@ func TestProtobufReadWrite(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		err1 := writeBlocks(ctx, rw, blocks, readTasks, true, true)
+		err1 := writeBlocks(ctx, rw, protobufBlocks, readTasks, true, true)
 		if err1 != nil {
 			mtx.Lock()
 			errCounter++

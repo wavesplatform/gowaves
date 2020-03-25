@@ -153,7 +153,7 @@ func (sc *scriptsComplexity) scriptComplexityByAddress(addr proto.Address, filte
 	return &record, nil
 }
 
-func (sc *scriptsComplexity) saveComplexityForAddr(addr proto.Address, record *accountScriptComplexityRecord, blockID crypto.Signature) error {
+func (sc *scriptsComplexity) saveComplexityForAddr(addr proto.Address, record *accountScriptComplexityRecord, blockID proto.BlockID) error {
 	recordBytes, err := record.marshalBinary()
 	if err != nil {
 		return err
@@ -162,7 +162,7 @@ func (sc *scriptsComplexity) saveComplexityForAddr(addr proto.Address, record *a
 	return sc.hs.addNewEntry(accountScriptComplexity, key.bytes(), recordBytes, blockID)
 }
 
-func (sc *scriptsComplexity) saveComplexityForAsset(asset crypto.Digest, record *assetScriptComplexityRecord, blockID crypto.Signature) error {
+func (sc *scriptsComplexity) saveComplexityForAsset(asset crypto.Digest, record *assetScriptComplexityRecord, blockID proto.BlockID) error {
 	recordBytes, err := record.marshalBinary()
 	if err != nil {
 		return err

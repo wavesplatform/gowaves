@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 
 	"github.com/pkg/errors"
-	"github.com/wavesplatform/gowaves/pkg/util"
+	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
 const curVersion = 1
@@ -36,7 +36,7 @@ func NewWallet() *WalletImpl {
 }
 
 func (a *WalletImpl) AddSeed(seed []byte) error {
-	s := util.Dup(seed)
+	s := common.Dup(seed)
 	a.format.Seed = append(a.format.Seed, s)
 	return nil
 }

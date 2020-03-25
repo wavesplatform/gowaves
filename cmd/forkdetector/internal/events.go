@@ -1,21 +1,20 @@
 package internal
 
 import (
-	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
-type signaturesEvent struct {
-	conn       *Conn
-	signatures []crypto.Signature
+type idsEvent struct {
+	conn *Conn
+	ids  []proto.BlockID
 }
 
-func newSignaturesEvent(conn *Conn, signatures []crypto.Signature) signaturesEvent {
-	s := make([]crypto.Signature, len(signatures))
-	copy(s, signatures)
-	return signaturesEvent{
-		conn:       conn,
-		signatures: s,
+func newIdsEvent(conn *Conn, ids []proto.BlockID) idsEvent {
+	s := make([]proto.BlockID, len(ids))
+	copy(s, ids)
+	return idsEvent{
+		conn: conn,
+		ids:  s,
 	}
 }
 

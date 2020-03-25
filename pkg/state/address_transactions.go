@@ -11,7 +11,6 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/starius/emsort"
-	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
@@ -157,7 +156,7 @@ func newAddressTransactions(
 	return atx, nil
 }
 
-func (at *addressTransactions) saveTxIdByAddress(addr proto.Address, txID []byte, blockID crypto.Signature, filter bool) error {
+func (at *addressTransactions) saveTxIdByAddress(addr proto.Address, txID []byte, blockID proto.BlockID, filter bool) error {
 	if at.rw.offsetLen != 8 {
 		return errors.New("unsupported offset length")
 	}

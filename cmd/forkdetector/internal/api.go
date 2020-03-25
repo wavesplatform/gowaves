@@ -13,7 +13,7 @@ import (
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
 	"github.com/pkg/errors"
-	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
 )
 
@@ -297,12 +297,12 @@ func (a *api) blocksAtHeight(w http.ResponseWriter, r *http.Request) {
 
 func (a *api) block(w http.ResponseWriter, r *http.Request) {
 	p := chi.URLParam(r, "id")
-	sig, err := crypto.NewSignatureFromBase58(p)
+	id, err := proto.NewBlockIDFromBase58(p)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Invalid block signature: %v", err), http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("Invalid block id: %v", err), http.StatusBadRequest)
 		return
 	}
-	block, ok, err := a.storage.block(sig)
+	block, ok, err := a.storage.block(id)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to complete request: %v", err), http.StatusInternalServerError)
 		return

@@ -509,7 +509,7 @@ func NativeParseBlockHeader(s Scope, e Exprs) (Expr, error) {
 	}
 
 	h := proto.BlockHeader{}
-	err = h.UnmarshalHeaderFromBinary(bts.Value)
+	err = h.UnmarshalHeaderFromBinary(bts.Value, s.Scheme())
 	if err != nil {
 		return nil, errors.Wrapf(err, funcName)
 	}

@@ -1249,11 +1249,11 @@ func ok(e Expr, err error) Expr {
 
 func TestNativeBlockInfoByHeight(t *testing.T) {
 	_, publicKey, _ := crypto.GenerateKeyPair([]byte("test"))
-	parent := crypto.MustSignatureFromBase58("4sukfbjbbkBnFevQrGN7VvpBSwvufsuqvq5fmfiMdp1pBDMF5TanbFejRHhsiUQSWPkvWRdagwWD3oxnX3eEqzvM")
+	parentSig := crypto.MustSignatureFromBase58("4sukfbjbbkBnFevQrGN7VvpBSwvufsuqvq5fmfiMdp1pBDMF5TanbFejRHhsiUQSWPkvWRdagwWD3oxnX3eEqzvM")
 	addr := proto.MustAddressFromPublicKey(proto.MainNetScheme, publicKey)
 	signa := crypto.MustSignatureFromBase58("5X76YVeG8T6iTxFmD5WNSaR13hxtsgJPQ2oELeZUsrQfZWSXtnUbq1kRqqMjfBngPvaEKVVV2FSujdTXm3hTW172")
 	gensig := crypto.MustBytesFromBase58("6a1hWT8QNGw8wnacXQ8vT2YEFLuxRxVpEuaaSf6AbSvU")
-
+	parent := proto.NewBlockIDFromSignature(parentSig)
 	h := proto.BlockHeader{
 		Version:       3,
 		Timestamp:     1567506205718,
@@ -1306,10 +1306,10 @@ func TestNativeAssetInfo(t *testing.T) {
 
 func TestNativeParseBlockHeader(t *testing.T) {
 	_, publicKey, _ := crypto.GenerateKeyPair([]byte("test"))
-	parent := crypto.MustSignatureFromBase58("4sukfbjbbkBnFevQrGN7VvpBSwvufsuqvq5fmfiMdp1pBDMF5TanbFejRHhsiUQSWPkvWRdagwWD3oxnX3eEqzvM")
+	parentSig := crypto.MustSignatureFromBase58("4sukfbjbbkBnFevQrGN7VvpBSwvufsuqvq5fmfiMdp1pBDMF5TanbFejRHhsiUQSWPkvWRdagwWD3oxnX3eEqzvM")
 	signa := crypto.MustSignatureFromBase58("5X76YVeG8T6iTxFmD5WNSaR13hxtsgJPQ2oELeZUsrQfZWSXtnUbq1kRqqMjfBngPvaEKVVV2FSujdTXm3hTW172")
 	gensig := crypto.MustBytesFromBase58("6a1hWT8QNGw8wnacXQ8vT2YEFLuxRxVpEuaaSf6AbSvU")
-
+	parent := proto.NewBlockIDFromSignature(parentSig)
 	h := proto.BlockHeader{
 		Version:       3,
 		Timestamp:     1567506205718,

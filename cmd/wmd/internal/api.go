@@ -59,8 +59,8 @@ func Logger(l *zap.Logger) func(next http.Handler) http.Handler {
 }
 
 type status struct {
-	CurrentHeight int              `json:"current_height"`
-	LastBlockID   crypto.Signature `json:"last_block_id"`
+	CurrentHeight int           `json:"current_height"`
+	LastBlockID   proto.BlockID `json:"last_block_id"`
 }
 
 type DataFeedAPI struct {

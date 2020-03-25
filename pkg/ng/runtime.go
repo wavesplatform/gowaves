@@ -3,7 +3,6 @@ package ng
 import (
 	"sync"
 
-	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/services"
@@ -22,7 +21,7 @@ type RuntimeImpl struct {
 	ngState  *State
 
 	// we send request for this microblock and waiting for it
-	waitingOnMicroblock *crypto.Signature
+	waitingOnMicroblock *proto.BlockID
 }
 
 func NewRuntime(services services.Services, ngState *State) *RuntimeImpl {
@@ -39,7 +38,7 @@ func (a *RuntimeImpl) MinedMicroblock(block *proto.MicroBlock, inv *proto.MicroB
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	_, ok := a.blocks.MicroBlock(block.TotalResBlockSigField)
+	_, ok := a.blocks.MicroBlock(block.TotalBlockID)
 	if !ok {
 		a.blocks.AddMicroBlock(block)
 		a.inv.AddInv(inv)
@@ -66,7 +65,7 @@ func (a *RuntimeImpl) HandleInvMessage(p peer.Peer, mess *proto.MicroBlockInvMes
 		return
 	}
 
-	_, ok := a.inv.Inv(inv.TotalBlockSig)
+	_, ok := a.inv.Inv(inv.TotalBlockID)
 	if ok { //already exists
 		return
 	}
@@ -76,9 +75,9 @@ func (a *RuntimeImpl) HandleInvMessage(p peer.Peer, mess *proto.MicroBlockInvMes
 		return
 	}
 
-	a.waitingOnMicroblock = &inv.TotalBlockSig
+	a.waitingOnMicroblock = &inv.TotalBlockID
 
-	a.services.InvRequester.Request(p, inv.TotalBlockSig)
+	a.services.InvRequester.Request(p, inv.TotalBlockID)
 }
 
 func (a *RuntimeImpl) HandleMicroBlockRequestMessage(p peer.Peer, message *proto.MicroBlockRequestMessage) {
@@ -91,7 +90,7 @@ func (a *RuntimeImpl) HandleMicroBlockRequestMessage(p peer.Peer, message *proto
 		zap.S().Error(err)
 		return
 	}
-	microBlock, ok := a.blocks.MicroBlock(mess.TotalBlockSig)
+	microBlock, ok := a.blocks.MicroBlock(mess.TotalBlockID)
 	if !ok {
 		return
 	}
@@ -116,9 +115,9 @@ func (a *RuntimeImpl) handleMicroBlock(microblock *proto.MicroBlock) {
 		return
 	}
 
-	if *a.waitingOnMicroblock != microblock.TotalResBlockSigField {
+	if *a.waitingOnMicroblock != microblock.TotalBlockID {
 		// received microblock that we don't expect
-		zap.S().Debugf("received micro that we don't expect: need: %s, got: %s", a.waitingOnMicroblock.String(), microblock.TotalResBlockSigField.String())
+		zap.S().Debugf("received micro that we don't expect: need: %s, got: %s", a.waitingOnMicroblock.String(), microblock.TotalBlockID.String())
 		return
 	}
 
@@ -134,6 +133,15 @@ func (a *RuntimeImpl) HandlePBMicroBlockMessage(_ peer.Peer, message *proto.PBMi
 	err := microblock.UnmarshalFromProtobuf(message.MicroBlockBytes)
 	if err != nil {
 		zap.S().Error(err)
+		return
+	}
+	if proto.BlockVersion(microblock.VersionField) < proto.ProtoBlockVersion {
+		zap.S().Error("MicroBlockMessage must be used for non-protobuf microblocks")
+		return
+	}
+	microblock.TotalBlockID, err = proto.NewBlockIDFromBytes(message.TotalBlockID)
+	if err != nil {
+		zap.S().Errorf("NewBlockIDFromBytes(): %v", err)
 		return
 	}
 	a.handleMicroBlock(microblock)
@@ -158,12 +166,16 @@ func (a *RuntimeImpl) HandleMicroBlockMessage(_ peer.Peer, message *proto.MicroB
 		zap.S().Errorf("unknown *proto.MicroBlockMessage body type %T", t)
 		return
 	}
-
+	if proto.BlockVersion(microblock.VersionField) >= proto.ProtoBlockVersion {
+		zap.S().Error("PBMicroBlockMessage must be used for protobuf microblocks")
+		return
+	}
+	microblock.TotalBlockID = proto.NewBlockIDFromSignature(microblock.TotalResBlockSigField)
 	a.handleMicroBlock(microblock)
 }
 
 func (a *RuntimeImpl) HandleBlockMessage(_ peer.Peer, block *proto.Block) {
-	zap.S().Debugf("NG State: HandleBlockMessage: New block %s", block.BlockSignature.String())
+	zap.S().Debugf("NG State: HandleBlockMessage: New block %s", block.BlockID().String())
 	a.ngState.AddBlock(block)
 	go a.services.Scheduler.Reschedule()
 }

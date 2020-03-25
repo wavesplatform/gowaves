@@ -41,7 +41,7 @@ const (
 	maxLimit = 1000
 )
 
-func (s *Storage) PutTrades(height int, block crypto.Signature, trades []data.Trade) error {
+func (s *Storage) PutTrades(height int, block proto.BlockID, trades []data.Trade) error {
 	wrapError := func(err error) error {
 		return errors.Wrapf(err, "failed to store trades of block '%s' at height %d", block.String(), height)
 	}
@@ -63,7 +63,7 @@ func (s *Storage) PutTrades(height int, block crypto.Signature, trades []data.Tr
 	return nil
 }
 
-func (s *Storage) PutBalances(height int, block crypto.Signature, issues []data.IssueChange, assets []data.AssetChange, accounts []data.AccountChange, aliases []data.AliasBind) error {
+func (s *Storage) PutBalances(height int, block proto.BlockID, issues []data.IssueChange, assets []data.AssetChange, accounts []data.AccountChange, aliases []data.AliasBind) error {
 	h := uint32(height)
 	wrapError := func(err error) error {
 		return errors.Wrapf(err, "failed to store block '%s' at height %d", block.String(), height)
@@ -264,7 +264,7 @@ func (s *Storage) DayCandle(amountAsset, priceAsset crypto.Digest) (data.Candle,
 	return r, nil
 }
 
-func (s *Storage) HasBlock(height int, block crypto.Signature) (bool, error) {
+func (s *Storage) HasBlock(height int, block proto.BlockID) (bool, error) {
 	snapshot, err := s.db.GetSnapshot()
 	if err != nil {
 		return false, err
@@ -282,18 +282,18 @@ func (s *Storage) Markets() (map[data.MarketID]data.Market, error) {
 	return marketsMap(snapshot)
 }
 
-func (s *Storage) BlockID(height int) (crypto.Signature, error) {
+func (s *Storage) BlockID(height int) (proto.BlockID, error) {
 	snapshot, err := s.db.GetSnapshot()
 	if err != nil {
-		return crypto.Signature{}, err
+		return proto.BlockID{}, err
 	}
 	defer snapshot.Release()
 	b, ok, err := block(snapshot, uint32(height))
 	if err != nil {
-		return crypto.Signature{}, err
+		return proto.BlockID{}, err
 	}
 	if !ok {
-		return crypto.Signature{}, errors.Errorf("no block at height %d", height)
+		return proto.BlockID{}, errors.Errorf("no block at height %d", height)
 	}
 	return b, nil
 }

@@ -34,7 +34,7 @@ type task struct {
 
 type result struct {
 	height   int
-	id       crypto.Signature
+	id       proto.BlockID
 	trades   []data.Trade
 	issues   []data.IssueChange
 	assets   []data.AssetChange
@@ -147,11 +147,15 @@ func (im *Importer) readBlocks(f io.Reader) <-chan task {
 					zap.S().Errorf("Failed to unmarshal block: %s", err.Error())
 					return
 				}
-				if !crypto.Verify(t.block.GenPublicKey, t.block.BlockSignature, bb[:len(bb)-crypto.SignatureSize]) {
-					zap.S().Errorf("Block %s has invalid signature. Aborting.", t.block.BlockSignature.String())
+				validSig, err := t.block.VerifySignature(im.scheme)
+				if err != nil {
+					zap.S().Errorf("Failed to verify block signature: %s", err.Error())
+				}
+				if !validSig {
+					zap.S().Errorf("Block %s has invalid signature. Aborting.", t.block.BlockID().String())
 					return
 				}
-				blockExists, err := im.storage.HasBlock(h, t.block.BlockSignature)
+				blockExists, err := im.storage.HasBlock(h, t.block.BlockID())
 				if err != nil {
 					zap.S().Errorf("Failed to check block existence: %s", err.Error())
 					return
@@ -169,7 +173,7 @@ func (im *Importer) worker(tasks <-chan task) <-chan result {
 	results := make(chan result)
 
 	processTask := func(t task) result {
-		r := result{height: t.height, id: t.block.BlockSignature}
+		r := result{height: t.height, id: t.block.BlockID()}
 		r.trades, r.issues, r.assets, r.accounts, r.aliases, r.error = im.extractTransactions(t.block.Transactions, t.block.GenPublicKey)
 		return r
 	}

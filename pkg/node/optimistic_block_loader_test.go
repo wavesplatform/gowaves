@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/libs/nullable"
@@ -16,15 +17,17 @@ import (
 func TestExpectedBlocks(t *testing.T) {
 
 	s1, _ := crypto.NewSignatureFromBase58("22gRwjusnFYDoS31hRFEpFq21FjPCca2bUYtwicUH41GwzVkEAv7G22pAbRisu5s3bbhpzRRUpwF5png6ooKkb1n")
+	id1 := proto.NewBlockIDFromSignature(s1)
 	s2, _ := crypto.NewSignatureFromBase58("3YzRwee4k7ddfXK9FtMtZs9V4r8sxThVLUAF6ATfz1Efrxv29CjoHnw2oCz8uvjFhgPMgrsKMmgSyVZ3nw5Hswme")
+	id2 := proto.NewBlockIDFromSignature(s2)
 
 	ch := make(chan blockBytes, 2)
-	e := newExpectedBlocks([]crypto.Signature{s1, s2}, ch)
+	e := newExpectedBlocks([]proto.BlockID{id1, id2}, ch)
 
 	require.True(t, e.hasNext())
 
 	// first we add second bytes
-	require.NoError(t, e.add(s2.Bytes()))
+	require.NoError(t, e.add(id2, s2.Bytes()))
 	require.True(t, e.hasNext())
 
 	select {
@@ -34,7 +37,7 @@ func TestExpectedBlocks(t *testing.T) {
 	}
 
 	// then add first
-	require.NoError(t, e.add(s1.Bytes()))
+	require.NoError(t, e.add(id1, s1.Bytes()))
 	require.False(t, e.hasNext(), "we received all expected messages, no more should arrive")
 
 	select {
@@ -61,8 +64,13 @@ func (a *peerImpl) ID() string {
 
 func (a *peerImpl) SendMessage(message proto.Message) {}
 
+func (a *peerImpl) Handshake() proto.Handshake {
+	return proto.Handshake{}
+}
+
 type subscriberImpl struct {
-	ch chan proto.Message
+	ch  chan proto.Message
+	ch2 chan proto.Message
 }
 
 func (a subscriberImpl) Receive(p types.ID, responseMessage proto.Message) bool {
@@ -70,17 +78,25 @@ func (a subscriberImpl) Receive(p types.ID, responseMessage proto.Message) bool 
 }
 
 func (a subscriberImpl) Subscribe(p types.ID, responseMessage proto.Message) (chan proto.Message, func(), error) {
-	return a.ch, func() {}, nil
+	switch responseMessage.(type) {
+	case *proto.SignaturesMessage:
+		return a.ch, func() {}, nil
+	case *proto.BlockIdsMessage:
+		return a.ch2, func() {}, nil
+	default:
+		return nil, func() {}, errors.New("bad message type")
+	}
 }
 
-func TestPreloadSignatures(t *testing.T) {
+func TestPreloadBlockIds_Signatures(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	sig1 := crypto.MustSignatureFromBase58("3EQ3k2n8KtSVVSsNfYbGp2LLwTc45SYWEACcME9KjLKCZSSeuVbVtdxroVysAJRdpoP3tDpy9MNTJMj6TjZ4b4aV")
 	sig2 := crypto.MustSignatureFromBase58("ygSR7JmuxSN86VWLeaCx3mu8VtgRkUdh29s5ANtTAW7Lu5mans3WcNWGGWGu1mMxu9cS1HMRNMnr3bV9nWPEPKE")
+	id2 := proto.NewBlockIDFromSignature(sig2)
 
-	incoming := make(chan nullable.Signature, 10)
+	incoming := make(chan nullable.BlockID, 10)
 
-	last := NewSignatures(sig1)
+	last := NewBlockIds(proto.NewBlockIDFromSignature(sig1))
 	ch := make(chan proto.Message, 10)
 	subscribe := &subscriberImpl{ch: ch}
 
@@ -94,8 +110,36 @@ func TestPreloadSignatures(t *testing.T) {
 		<-time.After(500 * time.Millisecond)
 		cancel()
 	}()
-	_ = PreloadSignatures(ctx, incoming, &peerImpl{}, last, subscribe, &wg)
-	require.Equal(t, nullable.NewSignature(sig2), <-incoming)
-	require.Equal(t, nullable.NewNullSignature(), <-incoming)
+	_ = PreloadBlockIds(ctx, incoming, &peerImpl{}, last, subscribe, &wg)
+	require.Equal(t, nullable.NewBlockID(id2), <-incoming)
+	require.Equal(t, nullable.NewNullBlockID(), <-incoming)
+	wg.Wait()
+}
+
+func TestPreloadBlockIds_Ids(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	sig1 := crypto.MustSignatureFromBase58("3EQ3k2n8KtSVVSsNfYbGp2LLwTc45SYWEACcME9KjLKCZSSeuVbVtdxroVysAJRdpoP3tDpy9MNTJMj6TjZ4b4aV")
+	sig2 := crypto.MustSignatureFromBase58("ygSR7JmuxSN86VWLeaCx3mu8VtgRkUdh29s5ANtTAW7Lu5mans3WcNWGGWGu1mMxu9cS1HMRNMnr3bV9nWPEPKE")
+	id2 := proto.NewBlockIDFromSignature(sig2)
+
+	incoming := make(chan nullable.BlockID, 10)
+
+	last := NewBlockIds(proto.NewBlockIDFromSignature(sig1))
+	ch := make(chan proto.Message, 10)
+	subscribe := &subscriberImpl{ch: nil, ch2: ch}
+
+	ch <- &proto.BlockIdsMessage{
+		Blocks: []proto.BlockID{id2},
+	}
+
+	var wg sync.WaitGroup
+
+	go func() {
+		<-time.After(500 * time.Millisecond)
+		cancel()
+	}()
+	_ = PreloadBlockIds(ctx, incoming, &peerImpl{}, last, subscribe, &wg)
+	require.Equal(t, nullable.NewBlockID(id2), <-incoming)
+	require.Equal(t, nullable.NewNullBlockID(), <-incoming)
 	wg.Wait()
 }

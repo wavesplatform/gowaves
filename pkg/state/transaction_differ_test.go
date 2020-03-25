@@ -9,7 +9,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
-	"github.com/wavesplatform/gowaves/pkg/util"
+	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
 const (
@@ -64,7 +64,7 @@ func TestCreateDiffGenesis(t *testing.T) {
 	defer func() {
 		to.stor.close(t)
 
-		err := util.CleanTemporaryDirs(path)
+		err := common.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
@@ -92,7 +92,7 @@ func TestCreateDiffPayment(t *testing.T) {
 	defer func() {
 		to.stor.close(t)
 
-		err := util.CleanTemporaryDirs(path)
+		err := common.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
@@ -126,7 +126,7 @@ func TestCreateDiffTransferWithSig(t *testing.T) {
 	defer func() {
 		to.stor.close(t)
 
-		err := util.CleanTemporaryDirs(path)
+		err := common.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
@@ -188,7 +188,7 @@ func TestCreateDiffTransferWithProofs(t *testing.T) {
 	defer func() {
 		to.stor.close(t)
 
-		err := util.CleanTemporaryDirs(path)
+		err := common.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
@@ -257,7 +257,7 @@ func TestCreateDiffIssueWithSig(t *testing.T) {
 	defer func() {
 		to.stor.close(t)
 
-		err := util.CleanTemporaryDirs(path)
+		err := common.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
@@ -297,7 +297,7 @@ func TestCreateDiffIssueWithProofs(t *testing.T) {
 	defer func() {
 		to.stor.close(t)
 
-		err := util.CleanTemporaryDirs(path)
+		err := common.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
@@ -330,7 +330,7 @@ func TestCreateDiffReissueWithSig(t *testing.T) {
 	defer func() {
 		to.stor.close(t)
 
-		err := util.CleanTemporaryDirs(path)
+		err := common.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
@@ -363,7 +363,7 @@ func TestCreateDiffReissueWithProofs(t *testing.T) {
 	defer func() {
 		to.stor.close(t)
 
-		err := util.CleanTemporaryDirs(path)
+		err := common.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
@@ -396,7 +396,7 @@ func TestCreateDiffBurnWithSig(t *testing.T) {
 	defer func() {
 		to.stor.close(t)
 
-		err := util.CleanTemporaryDirs(path)
+		err := common.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
@@ -429,7 +429,7 @@ func TestCreateDiffBurnWithProofs(t *testing.T) {
 	defer func() {
 		to.stor.close(t)
 
-		err := util.CleanTemporaryDirs(path)
+		err := common.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
@@ -482,7 +482,7 @@ func TestCreateDiffExchangeWithSig(t *testing.T) {
 	defer func() {
 		to.stor.close(t)
 
-		err := util.CleanTemporaryDirs(path)
+		err := common.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
@@ -542,7 +542,7 @@ func TestCreateDiffExchangeWithProofs(t *testing.T) {
 	defer func() {
 		to.stor.close(t)
 
-		err := util.CleanTemporaryDirs(path)
+		err := common.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
@@ -627,7 +627,7 @@ func TestCreateDiffExchangeWithProofsWithOrdersV3(t *testing.T) {
 
 	defer func() {
 		to.stor.close(t)
-		err := util.CleanTemporaryDirs(path)
+		err := common.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
@@ -663,7 +663,7 @@ func TestCreateDiffExchangeWithProofsWithOrdersV3(t *testing.T) {
 //
 //	defer func() {
 //		to.stor.close(t)
-//		err := util.CleanTemporaryDirs(path)
+//		err := common.CleanTemporaryDirs(path)
 //		assert.NoError(t, err, "failed to clean test data dirs")
 //	}()
 //
@@ -704,7 +704,7 @@ func TestCreateDiffExchangeV3WithProofsWithOrdersV4(t *testing.T) {
 
 	defer func() {
 		to.stor.close(t)
-		err := util.CleanTemporaryDirs(path)
+		err := common.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
@@ -765,7 +765,7 @@ func TestCreateDiffLeaseWithSig(t *testing.T) {
 	defer func() {
 		to.stor.close(t)
 
-		err := util.CleanTemporaryDirs(path)
+		err := common.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
@@ -799,7 +799,7 @@ func TestCreateDiffLeaseWithProofs(t *testing.T) {
 	defer func() {
 		to.stor.close(t)
 
-		err := util.CleanTemporaryDirs(path)
+		err := common.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
@@ -833,7 +833,7 @@ func TestCreateDiffLeaseCancelWithSig(t *testing.T) {
 	defer func() {
 		to.stor.close(t)
 
-		err := util.CleanTemporaryDirs(path)
+		err := common.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
@@ -873,7 +873,7 @@ func TestCreateDiffLeaseCancelWithProofs(t *testing.T) {
 	defer func() {
 		to.stor.close(t)
 
-		err := util.CleanTemporaryDirs(path)
+		err := common.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
@@ -917,7 +917,7 @@ func TestCreateDiffCreateAliasWithSig(t *testing.T) {
 	defer func() {
 		to.stor.close(t)
 
-		err := util.CleanTemporaryDirs(path)
+		err := common.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
@@ -953,7 +953,7 @@ func TestCreateDiffCreateAliasWithProofs(t *testing.T) {
 	defer func() {
 		to.stor.close(t)
 
-		err := util.CleanTemporaryDirs(path)
+		err := common.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
@@ -996,7 +996,7 @@ func TestCreateDiffMassTransferWithProofs(t *testing.T) {
 	defer func() {
 		to.stor.close(t)
 
-		err := util.CleanTemporaryDirs(path)
+		err := common.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
@@ -1043,7 +1043,7 @@ func TestCreateDiffDataWithProofs(t *testing.T) {
 	defer func() {
 		to.stor.close(t)
 
-		err := util.CleanTemporaryDirs(path)
+		err := common.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
@@ -1077,7 +1077,7 @@ func TestCreateDiffSponsorshipWithProofs(t *testing.T) {
 	defer func() {
 		to.stor.close(t)
 
-		err := util.CleanTemporaryDirs(path)
+		err := common.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
@@ -1111,7 +1111,7 @@ func TestCreateDiffSetScriptWithProofs(t *testing.T) {
 	defer func() {
 		to.stor.close(t)
 
-		err := util.CleanTemporaryDirs(path)
+		err := common.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
@@ -1145,7 +1145,7 @@ func TestCreateDiffSetAssetScriptWithProofs(t *testing.T) {
 	defer func() {
 		to.stor.close(t)
 
-		err := util.CleanTemporaryDirs(path)
+		err := common.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
@@ -1186,7 +1186,7 @@ func TestCreateDiffInvokeScriptWithProofs(t *testing.T) {
 	defer func() {
 		to.stor.close(t)
 
-		err := util.CleanTemporaryDirs(path)
+		err := common.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
@@ -1253,7 +1253,7 @@ func TestCreateDiffUpdateAssetInfoWithProofs(t *testing.T) {
 	defer func() {
 		to.stor.close(t)
 
-		err := util.CleanTemporaryDirs(path)
+		err := common.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 

@@ -4,7 +4,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"github.com/wavesplatform/gowaves/pkg/util"
+	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
 func NewVariablesFromScriptTransfer(tx *proto.FullScriptTransfer) (map[string]Expr, error) {
@@ -12,7 +12,7 @@ func NewVariablesFromScriptTransfer(tx *proto.FullScriptTransfer) (map[string]Ex
 	out["amount"] = NewLong(int64(tx.Amount))
 	out["assetId"] = makeOptionalAsset(tx.Asset)
 	out["recipient"] = NewRecipientFromProtoRecipient(tx.Recipient)
-	out["id"] = NewBytes(util.Dup(tx.ID.Bytes()))
+	out["id"] = NewBytes(common.Dup(tx.ID.Bytes()))
 	out["timestamp"] = NewLong(int64(tx.Timestamp))
 	out["sender"] = NewAddressFromProtoAddress(tx.Sender)
 	out[InstanceFieldName] = NewString("TransferTransaction")
@@ -91,9 +91,9 @@ func NewVariablesFromOrder(scheme proto.Scheme, tx proto.Order) (map[string]Expr
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
-	out["id"] = NewBytes(util.Dup(id))
+	out["id"] = NewBytes(common.Dup(id))
 	matcherPk := tx.GetMatcherPK()
-	out["matcherPublicKey"] = NewBytes(util.Dup(matcherPk.Bytes()))
+	out["matcherPublicKey"] = NewBytes(common.Dup(matcherPk.Bytes()))
 	pair := tx.GetAssetPair()
 	out["assetPair"] = NewAssetPair(makeOptionalAsset(pair.AmountAsset), makeOptionalAsset(pair.PriceAsset))
 	out["orderType"] = makeOrderType(tx.GetOrderType())
@@ -109,7 +109,7 @@ func NewVariablesFromOrder(scheme proto.Scheme, tx proto.Order) (map[string]Expr
 	}
 	out["sender"] = NewAddressFromProtoAddress(addr)
 	pk := tx.GetSenderPK()
-	out["senderPublicKey"] = NewBytes(util.Dup(pk.Bytes()))
+	out["senderPublicKey"] = NewBytes(common.Dup(pk.Bytes()))
 	bts, err := proto.MarshalOrderBody(scheme, tx)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
@@ -131,8 +131,8 @@ func NewObjectFromBlockInfo(info proto.BlockInfo) Expr {
 	m["height"] = NewLong(int64(info.Height))
 	m["baseTarget"] = NewLong(int64(info.BaseTarget))
 	m["generationSignature"] = NewBytes(info.GenerationSignature.Bytes())
-	m["generator"] = NewBytes(util.Dup(info.Generator.Bytes()))
-	m["generatorPublicKey"] = NewBytes(util.Dup(info.GeneratorPublicKey.Bytes()))
+	m["generator"] = NewBytes(common.Dup(info.Generator.Bytes()))
+	m["generatorPublicKey"] = NewBytes(common.Dup(info.GeneratorPublicKey.Bytes()))
 	return NewObject(m)
 }
 
@@ -142,7 +142,7 @@ func newMapAssetInfo(info proto.AssetInfo) object {
 	obj["quantity"] = NewLong(int64(info.Quantity))
 	obj["decimals"] = NewLong(int64(info.Decimals))
 	obj["issuer"] = NewAddressFromProtoAddress(info.Issuer)
-	obj["issuerPublicKey"] = NewBytes(util.Dup(info.IssuerPublicKey.Bytes()))
+	obj["issuerPublicKey"] = NewBytes(common.Dup(info.IssuerPublicKey.Bytes()))
 	obj["reissuable"] = NewBoolean(info.Reissuable)
 	obj["scripted"] = NewBoolean(info.Scripted)
 	obj["sponsored"] = NewBoolean(info.Sponsored)
@@ -170,7 +170,7 @@ func makeProofs(proofs *proto.ProofsV1) Exprs {
 	pl := len(proofs.Proofs)
 	for i := 0; i < 8; i++ {
 		if i < pl {
-			out[i] = NewBytes(util.Dup(proofs.Proofs[i].Bytes()))
+			out[i] = NewBytes(common.Dup(proofs.Proofs[i].Bytes()))
 			continue
 		}
 		out[i] = NewBytes(nil)
@@ -208,7 +208,7 @@ func newVariablesFromPayment(scheme proto.Scheme, tx *proto.Payment) (map[string
 	out := make(map[string]Expr)
 	out["amount"] = NewLong(int64(tx.Amount))
 	out["recipient"] = NewRecipientFromProtoRecipient(proto.NewRecipientFromAddress(tx.Recipient))
-	out["id"] = NewBytes(util.Dup(tx.ID.Bytes()))
+	out["id"] = NewBytes(common.Dup(tx.ID.Bytes()))
 	out["fee"] = NewLong(int64(tx.Fee))
 	out["timestamp"] = NewLong(int64(tx.Timestamp))
 	out["version"] = NewLong(int64(tx.Version))
@@ -217,7 +217,7 @@ func newVariablesFromPayment(scheme proto.Scheme, tx *proto.Payment) (map[string
 		return nil, errors.Wrap(err, funcName)
 	}
 	out["sender"] = NewAddressFromProtoAddress(addr)
-	out["senderPublicKey"] = NewBytes(util.Dup(tx.SenderPK.Bytes()))
+	out["senderPublicKey"] = NewBytes(common.Dup(tx.SenderPK.Bytes()))
 	bts, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
@@ -241,7 +241,7 @@ func newVariablesFromTransferWithSig(scheme byte, tx *proto.TransferWithSig) (ma
 		return nil, errors.Wrap(err, funcName)
 	}
 	out["attachment"] = NewBytes(attachmentBytes)
-	out["id"] = NewBytes(util.Dup(tx.ID.Bytes()))
+	out["id"] = NewBytes(common.Dup(tx.ID.Bytes()))
 	out["fee"] = NewLong(int64(tx.Fee))
 	out["timestamp"] = NewLong(int64(tx.Timestamp))
 	out["version"] = NewLong(int64(tx.Version))
@@ -251,7 +251,7 @@ func newVariablesFromTransferWithSig(scheme byte, tx *proto.TransferWithSig) (ma
 		return nil, errors.Wrap(err, funcName)
 	}
 	out["sender"] = NewAddressFromProtoAddress(addr)
-	out["senderPublicKey"] = NewBytes(util.Dup(tx.SenderPK.Bytes()))
+	out["senderPublicKey"] = NewBytes(common.Dup(tx.SenderPK.Bytes()))
 
 	bts, err := tx.BodyMarshalBinary()
 	if err != nil {
@@ -277,7 +277,7 @@ func newVariablesFromTransferWithProofs(scheme byte, tx *proto.TransferWithProof
 		return nil, errors.Wrap(err, funcName)
 	}
 	out["attachment"] = NewBytes(attachmentBytes)
-	out["id"] = NewBytes(util.Dup(tx.ID.Bytes()))
+	out["id"] = NewBytes(common.Dup(tx.ID.Bytes()))
 	out["fee"] = NewLong(int64(tx.Fee))
 	out["timestamp"] = NewLong(int64(tx.Timestamp))
 	out["version"] = NewLong(int64(tx.Version))
@@ -287,7 +287,7 @@ func newVariablesFromTransferWithProofs(scheme byte, tx *proto.TransferWithProof
 		return nil, errors.Wrap(err, funcName)
 	}
 	out["sender"] = NewAddressFromProtoAddress(addr)
-	out["senderPublicKey"] = NewBytes(util.Dup(tx.SenderPK.Bytes()))
+	out["senderPublicKey"] = NewBytes(common.Dup(tx.SenderPK.Bytes()))
 
 	bts, err := tx.BodyMarshalBinary()
 	if err != nil {
@@ -305,13 +305,13 @@ func newVariablesFromReissueWithSig(scheme proto.Scheme, tx *proto.ReissueWithSi
 	out := make(map[string]Expr)
 
 	out["quantity"] = NewLong(int64(tx.Quantity))
-	out["assetId"] = NewBytes(util.Dup(tx.AssetID.Bytes()))
+	out["assetId"] = NewBytes(common.Dup(tx.AssetID.Bytes()))
 	out["reissuable"] = NewBoolean(tx.Reissuable)
 	id, err := tx.GetID(scheme)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
-	out["id"] = NewBytes(util.Dup(id))
+	out["id"] = NewBytes(common.Dup(id))
 	out["fee"] = NewLong(int64(tx.Fee))
 	out["timestamp"] = NewLong(int64(tx.Timestamp))
 	out["version"] = NewLong(int64(tx.Version))
@@ -321,7 +321,7 @@ func newVariablesFromReissueWithSig(scheme proto.Scheme, tx *proto.ReissueWithSi
 		return nil, errors.Wrap(err, funcName)
 	}
 	out["sender"] = NewAddressFromProtoAddress(addr)
-	out["senderPublicKey"] = NewBytes(util.Dup(tx.SenderPK.Bytes()))
+	out["senderPublicKey"] = NewBytes(common.Dup(tx.SenderPK.Bytes()))
 	bts, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
@@ -336,13 +336,13 @@ func newVariablesFromReissueWithProofs(scheme proto.Scheme, tx *proto.ReissueWit
 	funcName := "newVariablesFromReissueWithSig"
 	out := make(map[string]Expr)
 	out["quantity"] = NewLong(int64(tx.Quantity))
-	out["assetId"] = NewBytes(util.Dup(tx.AssetID.Bytes()))
+	out["assetId"] = NewBytes(common.Dup(tx.AssetID.Bytes()))
 	out["reissuable"] = NewBoolean(tx.Reissuable)
 	id, err := tx.GetID(scheme)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
-	out["id"] = NewBytes(util.Dup(id))
+	out["id"] = NewBytes(common.Dup(id))
 	out["fee"] = NewLong(int64(tx.Fee))
 	out["timestamp"] = NewLong(int64(tx.Timestamp))
 	out["version"] = NewLong(int64(tx.Version))
@@ -352,7 +352,7 @@ func newVariablesFromReissueWithProofs(scheme proto.Scheme, tx *proto.ReissueWit
 		return nil, errors.Wrap(err, funcName)
 	}
 	out["sender"] = NewAddressFromProtoAddress(addr)
-	out["senderPublicKey"] = NewBytes(util.Dup(tx.SenderPK.Bytes()))
+	out["senderPublicKey"] = NewBytes(common.Dup(tx.SenderPK.Bytes()))
 	bts, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
@@ -369,12 +369,12 @@ func newVariablesFromBurnWithSig(scheme proto.Scheme, tx *proto.BurnWithSig) (ma
 	out := make(map[string]Expr)
 
 	out["quantity"] = NewLong(int64(tx.Amount))
-	out["assetId"] = NewBytes(util.Dup(tx.AssetID.Bytes()))
+	out["assetId"] = NewBytes(common.Dup(tx.AssetID.Bytes()))
 	id, err := tx.GetID(scheme)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
-	out["id"] = NewBytes(util.Dup(id))
+	out["id"] = NewBytes(common.Dup(id))
 	out["fee"] = NewLong(int64(tx.Fee))
 	out["timestamp"] = NewLong(int64(tx.Timestamp))
 	out["version"] = NewLong(int64(tx.Version))
@@ -383,7 +383,7 @@ func newVariablesFromBurnWithSig(scheme proto.Scheme, tx *proto.BurnWithSig) (ma
 		return nil, errors.Wrap(err, funcName)
 	}
 	out["sender"] = NewAddressFromProtoAddress(addr)
-	out["senderPublicKey"] = NewBytes(util.Dup(tx.SenderPK.Bytes()))
+	out["senderPublicKey"] = NewBytes(common.Dup(tx.SenderPK.Bytes()))
 	bts, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
@@ -400,12 +400,12 @@ func newVariablesFromBurnWithProofs(scheme proto.Scheme, tx *proto.BurnWithProof
 	out := make(map[string]Expr)
 
 	out["quantity"] = NewLong(int64(tx.Amount))
-	out["assetId"] = NewBytes(util.Dup(tx.AssetID.Bytes()))
+	out["assetId"] = NewBytes(common.Dup(tx.AssetID.Bytes()))
 	id, err := tx.GetID(scheme)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
-	out["id"] = NewBytes(util.Dup(id))
+	out["id"] = NewBytes(common.Dup(id))
 	out["fee"] = NewLong(int64(tx.Fee))
 	out["timestamp"] = NewLong(int64(tx.Timestamp))
 	out["version"] = NewLong(int64(tx.Version))
@@ -414,7 +414,7 @@ func newVariablesFromBurnWithProofs(scheme proto.Scheme, tx *proto.BurnWithProof
 		return nil, errors.Wrap(err, funcName)
 	}
 	out["sender"] = NewAddressFromProtoAddress(addr)
-	out["senderPublicKey"] = NewBytes(util.Dup(tx.SenderPK.Bytes()))
+	out["senderPublicKey"] = NewBytes(common.Dup(tx.SenderPK.Bytes()))
 	bts, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
@@ -453,7 +453,7 @@ func newVariablesFromMassTransferWithProofs(scheme proto.Scheme, tx *proto.MassT
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
-	out["id"] = NewBytes(util.Dup(id))
+	out["id"] = NewBytes(common.Dup(id))
 	out["fee"] = NewLong(int64(tx.Fee))
 	out["timestamp"] = NewLong(int64(tx.Timestamp))
 	out["version"] = NewLong(int64(tx.Version))
@@ -463,7 +463,7 @@ func newVariablesFromMassTransferWithProofs(scheme proto.Scheme, tx *proto.MassT
 		return nil, errors.Wrap(err, funcName)
 	}
 	out["sender"] = NewAddressFromProtoAddress(addr)
-	out["senderPublicKey"] = NewBytes(util.Dup(tx.SenderPK.Bytes()))
+	out["senderPublicKey"] = NewBytes(common.Dup(tx.SenderPK.Bytes()))
 
 	bts, err := tx.BodyMarshalBinary()
 	if err != nil {
@@ -499,7 +499,7 @@ func newVariablesFromExchangeWithSig(scheme proto.Scheme, tx *proto.ExchangeWith
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
-	out["id"] = NewBytes(util.Dup(id))
+	out["id"] = NewBytes(common.Dup(id))
 	out["fee"] = NewLong(int64(tx.Fee))
 	out["timestamp"] = NewLong(int64(tx.Timestamp))
 	out["version"] = NewLong(int64(tx.Version))
@@ -509,7 +509,7 @@ func newVariablesFromExchangeWithSig(scheme proto.Scheme, tx *proto.ExchangeWith
 		return nil, errors.Wrap(err, funcName)
 	}
 	out["sender"] = NewAddressFromProtoAddress(addr)
-	out["senderPublicKey"] = NewBytes(util.Dup(tx.SenderPK.Bytes()))
+	out["senderPublicKey"] = NewBytes(common.Dup(tx.SenderPK.Bytes()))
 	bts, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
@@ -546,7 +546,7 @@ func newVariablesFromExchangeWithProofs(scheme proto.Scheme, tx *proto.ExchangeW
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
-	out["id"] = NewBytes(util.Dup(id))
+	out["id"] = NewBytes(common.Dup(id))
 	out["fee"] = NewLong(int64(tx.Fee))
 	out["timestamp"] = NewLong(int64(tx.Timestamp))
 	out["version"] = NewLong(int64(tx.Version))
@@ -556,7 +556,7 @@ func newVariablesFromExchangeWithProofs(scheme proto.Scheme, tx *proto.ExchangeW
 		return nil, errors.Wrap(err, funcName)
 	}
 	out["sender"] = NewAddressFromProtoAddress(addr)
-	out["senderPublicKey"] = NewBytes(util.Dup(tx.SenderPK.Bytes()))
+	out["senderPublicKey"] = NewBytes(common.Dup(tx.SenderPK.Bytes()))
 	bts, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
@@ -582,13 +582,13 @@ func newVariablesFromSetAssetScriptWithProofs(scheme proto.Scheme, tx *proto.Set
 
 	out := make(map[string]Expr)
 
-	out["script"] = NewBytes(util.Dup(tx.Script))
-	out["assetId"] = NewBytes(util.Dup(tx.AssetID.Bytes()))
+	out["script"] = NewBytes(common.Dup(tx.Script))
+	out["assetId"] = NewBytes(common.Dup(tx.AssetID.Bytes()))
 	id, err := tx.GetID(scheme)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
-	out["id"] = NewBytes(util.Dup(id))
+	out["id"] = NewBytes(common.Dup(id))
 	out["fee"] = NewLong(int64(tx.Fee))
 	out["timestamp"] = NewLong(int64(tx.Timestamp))
 	out["version"] = NewLong(int64(tx.Version))
@@ -597,7 +597,7 @@ func newVariablesFromSetAssetScriptWithProofs(scheme proto.Scheme, tx *proto.Set
 		return nil, errors.Wrap(err, funcName)
 	}
 	out["sender"] = NewAddressFromProtoAddress(addr)
-	out["senderPublicKey"] = NewBytes(util.Dup(tx.SenderPK.Bytes()))
+	out["senderPublicKey"] = NewBytes(common.Dup(tx.SenderPK.Bytes()))
 	bts, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
@@ -634,7 +634,7 @@ func newVariablesFromInvokeScriptWithProofs(scheme proto.Scheme, tx *proto.Invok
 		case *proto.StringArgument:
 			args = append(args, NewString(t.Value))
 		case *proto.BinaryArgument:
-			args = append(args, NewBytes(util.Dup(t.Value)))
+			args = append(args, NewBytes(common.Dup(t.Value)))
 		default:
 			return nil, errors.Errorf("%s: invalid argument type %T", funcName, arg)
 		}
@@ -644,7 +644,7 @@ func newVariablesFromInvokeScriptWithProofs(scheme proto.Scheme, tx *proto.Invok
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
-	out["id"] = NewBytes(util.Dup(id))
+	out["id"] = NewBytes(common.Dup(id))
 	out["fee"] = NewLong(int64(tx.Fee))
 	out["timestamp"] = NewLong(int64(tx.Timestamp))
 	out["version"] = NewLong(int64(tx.Version))
@@ -653,7 +653,7 @@ func newVariablesFromInvokeScriptWithProofs(scheme proto.Scheme, tx *proto.Invok
 		return nil, errors.Wrap(err, funcName)
 	}
 	out["sender"] = NewAddressFromProtoAddress(addr)
-	out["senderPublicKey"] = NewBytes(util.Dup(tx.SenderPK.Bytes()))
+	out["senderPublicKey"] = NewBytes(common.Dup(tx.SenderPK.Bytes()))
 	bts, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
@@ -679,7 +679,7 @@ func newVariablesFromIssueWithSig(scheme proto.Scheme, tx *proto.IssueWithSig) (
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
-	out["id"] = NewBytes(util.Dup(id))
+	out["id"] = NewBytes(common.Dup(id))
 	out["fee"] = NewLong(int64(tx.Fee))
 	out["timestamp"] = NewLong(int64(tx.Timestamp))
 	out["version"] = NewLong(int64(tx.Version))
@@ -689,7 +689,7 @@ func newVariablesFromIssueWithSig(scheme proto.Scheme, tx *proto.IssueWithSig) (
 		return nil, errors.Wrap(err, funcName)
 	}
 	out["sender"] = NewAddressFromProtoAddress(addr)
-	out["senderPublicKey"] = NewBytes(util.Dup(tx.SenderPK.Bytes()))
+	out["senderPublicKey"] = NewBytes(common.Dup(tx.SenderPK.Bytes()))
 	bts, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
@@ -712,13 +712,13 @@ func newVariablesFromIssueWithProofs(scheme proto.Scheme, tx *proto.IssueWithPro
 	out["decimals"] = NewLong(int64(tx.Decimals))
 	out["script"] = NewUnit()
 	if tx.NonEmptyScript() {
-		out["script"] = NewBytes(util.Dup(tx.Script))
+		out["script"] = NewBytes(common.Dup(tx.Script))
 	}
 	id, err := tx.GetID(scheme)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
-	out["id"] = NewBytes(util.Dup(id))
+	out["id"] = NewBytes(common.Dup(id))
 	out["fee"] = NewLong(int64(tx.Fee))
 	out["timestamp"] = NewLong(int64(tx.Timestamp))
 	out["version"] = NewLong(int64(tx.Version))
@@ -728,7 +728,7 @@ func newVariablesFromIssueWithProofs(scheme proto.Scheme, tx *proto.IssueWithPro
 		return nil, errors.Wrap(err, funcName)
 	}
 	out["sender"] = NewAddressFromProtoAddress(addr)
-	out["senderPublicKey"] = NewBytes(util.Dup(tx.SenderPK.Bytes()))
+	out["senderPublicKey"] = NewBytes(common.Dup(tx.SenderPK.Bytes()))
 	bts, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
@@ -750,7 +750,7 @@ func newVariablesFromLeaseWithSig(scheme proto.Scheme, tx *proto.LeaseWithSig) (
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
-	out["id"] = NewBytes(util.Dup(id))
+	out["id"] = NewBytes(common.Dup(id))
 	out["fee"] = NewLong(int64(tx.Fee))
 	out["timestamp"] = NewLong(int64(tx.Timestamp))
 	out["version"] = NewLong(int64(tx.Version))
@@ -760,7 +760,7 @@ func newVariablesFromLeaseWithSig(scheme proto.Scheme, tx *proto.LeaseWithSig) (
 		return nil, errors.Wrap(err, funcName)
 	}
 	out["sender"] = NewAddressFromProtoAddress(addr)
-	out["senderPublicKey"] = NewBytes(util.Dup(tx.SenderPK.Bytes()))
+	out["senderPublicKey"] = NewBytes(common.Dup(tx.SenderPK.Bytes()))
 	bts, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
@@ -782,7 +782,7 @@ func newVariablesFromLeaseWithProofs(scheme proto.Scheme, tx *proto.LeaseWithPro
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
-	out["id"] = NewBytes(util.Dup(id))
+	out["id"] = NewBytes(common.Dup(id))
 	out["fee"] = NewLong(int64(tx.Fee))
 	out["timestamp"] = NewLong(int64(tx.Timestamp))
 	out["version"] = NewLong(int64(tx.Version))
@@ -792,7 +792,7 @@ func newVariablesFromLeaseWithProofs(scheme proto.Scheme, tx *proto.LeaseWithPro
 		return nil, errors.Wrap(err, funcName)
 	}
 	out["sender"] = NewAddressFromProtoAddress(addr)
-	out["senderPublicKey"] = NewBytes(util.Dup(tx.SenderPK.Bytes()))
+	out["senderPublicKey"] = NewBytes(common.Dup(tx.SenderPK.Bytes()))
 	bts, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
@@ -807,12 +807,12 @@ func newVariablesFromLeaseCancelWithSig(scheme proto.Scheme, tx *proto.LeaseCanc
 	funcName := "newVariablesFromLeaseCancelWithSig"
 
 	out := make(map[string]Expr)
-	out["leaseId"] = NewBytes(util.Dup(tx.LeaseID.Bytes()))
+	out["leaseId"] = NewBytes(common.Dup(tx.LeaseID.Bytes()))
 	id, err := tx.GetID(scheme)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
-	out["id"] = NewBytes(util.Dup(id))
+	out["id"] = NewBytes(common.Dup(id))
 	out["fee"] = NewLong(int64(tx.Fee))
 	out["timestamp"] = NewLong(int64(tx.Timestamp))
 	out["version"] = NewLong(int64(tx.Version))
@@ -822,7 +822,7 @@ func newVariablesFromLeaseCancelWithSig(scheme proto.Scheme, tx *proto.LeaseCanc
 		return nil, errors.Wrap(err, funcName)
 	}
 	out["sender"] = NewAddressFromProtoAddress(addr)
-	out["senderPublicKey"] = NewBytes(util.Dup(tx.SenderPK.Bytes()))
+	out["senderPublicKey"] = NewBytes(common.Dup(tx.SenderPK.Bytes()))
 	bts, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
@@ -837,12 +837,12 @@ func newVariablesFromLeaseCancelWithProofs(scheme proto.Scheme, tx *proto.LeaseC
 	funcName := "newVariablesFromLeaseCancelWithProofs"
 
 	out := make(map[string]Expr)
-	out["leaseId"] = NewBytes(util.Dup(tx.LeaseID.Bytes()))
+	out["leaseId"] = NewBytes(common.Dup(tx.LeaseID.Bytes()))
 	id, err := tx.GetID(scheme)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
-	out["id"] = NewBytes(util.Dup(id))
+	out["id"] = NewBytes(common.Dup(id))
 	out["fee"] = NewLong(int64(tx.Fee))
 	out["timestamp"] = NewLong(int64(tx.Timestamp))
 	out["version"] = NewLong(int64(tx.Version))
@@ -852,7 +852,7 @@ func newVariablesFromLeaseCancelWithProofs(scheme proto.Scheme, tx *proto.LeaseC
 		return nil, errors.Wrap(err, funcName)
 	}
 	out["sender"] = NewAddressFromProtoAddress(addr)
-	out["senderPublicKey"] = NewBytes(util.Dup(tx.SenderPK.Bytes()))
+	out["senderPublicKey"] = NewBytes(common.Dup(tx.SenderPK.Bytes()))
 	bts, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
@@ -874,7 +874,7 @@ func newVariablesFromDataWithProofs(scheme proto.Scheme, tx *proto.DataWithProof
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
-	out["id"] = NewBytes(util.Dup(id))
+	out["id"] = NewBytes(common.Dup(id))
 	out["fee"] = NewLong(int64(tx.Fee))
 	out["timestamp"] = NewLong(int64(tx.Timestamp))
 	out["version"] = NewLong(int64(tx.Version))
@@ -884,7 +884,7 @@ func newVariablesFromDataWithProofs(scheme proto.Scheme, tx *proto.DataWithProof
 		return nil, errors.Wrap(err, funcName)
 	}
 	out["sender"] = NewAddressFromProtoAddress(addr)
-	out["senderPublicKey"] = NewBytes(util.Dup(tx.SenderPK.Bytes()))
+	out["senderPublicKey"] = NewBytes(common.Dup(tx.SenderPK.Bytes()))
 	bts, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
@@ -900,7 +900,7 @@ func newVariablesFromSponsorshipWithProofs(scheme proto.Scheme, tx *proto.Sponso
 
 	out := make(map[string]Expr)
 
-	out["assetId"] = NewBytes(util.Dup(tx.AssetID.Bytes()))
+	out["assetId"] = NewBytes(common.Dup(tx.AssetID.Bytes()))
 	out["minSponsoredAssetFee"] = NewUnit()
 	if tx.MinAssetFee > 0 {
 		out["minSponsoredAssetFee"] = NewLong(int64(tx.MinAssetFee))
@@ -910,7 +910,7 @@ func newVariablesFromSponsorshipWithProofs(scheme proto.Scheme, tx *proto.Sponso
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
-	out["id"] = NewBytes(util.Dup(id))
+	out["id"] = NewBytes(common.Dup(id))
 	out["fee"] = NewLong(int64(tx.Fee))
 	out["timestamp"] = NewLong(int64(tx.Timestamp))
 	out["version"] = NewLong(int64(tx.Version))
@@ -920,7 +920,7 @@ func newVariablesFromSponsorshipWithProofs(scheme proto.Scheme, tx *proto.Sponso
 		return nil, errors.Wrap(err, funcName)
 	}
 	out["sender"] = NewAddressFromProtoAddress(addr)
-	out["senderPublicKey"] = NewBytes(util.Dup(tx.SenderPK.Bytes()))
+	out["senderPublicKey"] = NewBytes(common.Dup(tx.SenderPK.Bytes()))
 	bts, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
@@ -942,7 +942,7 @@ func newVariablesFromCreateAliasWithSig(scheme proto.Scheme, tx *proto.CreateAli
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
-	out["id"] = NewBytes(util.Dup(id))
+	out["id"] = NewBytes(common.Dup(id))
 	out["fee"] = NewLong(int64(tx.Fee))
 	out["timestamp"] = NewLong(int64(tx.Timestamp))
 	out["version"] = NewLong(int64(tx.Version))
@@ -952,7 +952,7 @@ func newVariablesFromCreateAliasWithSig(scheme proto.Scheme, tx *proto.CreateAli
 		return nil, errors.Wrap(err, funcName)
 	}
 	out["sender"] = NewAddressFromProtoAddress(addr)
-	out["senderPublicKey"] = NewBytes(util.Dup(tx.SenderPK.Bytes()))
+	out["senderPublicKey"] = NewBytes(common.Dup(tx.SenderPK.Bytes()))
 	bts, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
@@ -974,7 +974,7 @@ func newVariablesFromCreateAliasWithProofs(scheme proto.Scheme, tx *proto.Create
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
-	out["id"] = NewBytes(util.Dup(id))
+	out["id"] = NewBytes(common.Dup(id))
 	out["fee"] = NewLong(int64(tx.Fee))
 	out["timestamp"] = NewLong(int64(tx.Timestamp))
 	out["version"] = NewLong(int64(tx.Version))
@@ -984,7 +984,7 @@ func newVariablesFromCreateAliasWithProofs(scheme proto.Scheme, tx *proto.Create
 		return nil, errors.Wrap(err, funcName)
 	}
 	out["sender"] = NewAddressFromProtoAddress(addr)
-	out["senderPublicKey"] = NewBytes(util.Dup(tx.SenderPK.Bytes()))
+	out["senderPublicKey"] = NewBytes(common.Dup(tx.SenderPK.Bytes()))
 	bts, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
@@ -1010,7 +1010,7 @@ func newVariablesFromSetScriptWithProofs(scheme proto.Scheme, tx *proto.SetScrip
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
-	out["id"] = NewBytes(util.Dup(id))
+	out["id"] = NewBytes(common.Dup(id))
 	out["fee"] = NewLong(int64(tx.Fee))
 	out["timestamp"] = NewLong(int64(tx.Timestamp))
 	out["version"] = NewLong(int64(tx.Version))
@@ -1020,7 +1020,7 @@ func newVariablesFromSetScriptWithProofs(scheme proto.Scheme, tx *proto.SetScrip
 		return nil, errors.Wrap(err, funcName)
 	}
 	out["sender"] = NewAddressFromProtoAddress(addr)
-	out["senderPublicKey"] = NewBytes(util.Dup(tx.SenderPK.Bytes()))
+	out["senderPublicKey"] = NewBytes(common.Dup(tx.SenderPK.Bytes()))
 	bts, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
