@@ -403,14 +403,14 @@ func (r Recipient) Eq(r2 Recipient) bool {
 }
 
 func (r Recipient) ToProtobuf() (*g.Recipient, error) {
+	if r.Address == nil {
+		return &g.Recipient{Recipient: &g.Recipient_Alias{Alias: r.Alias.Alias}}, nil
+	}
 	addrBody, err := r.Address.Body()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get address body")
 	}
-	if r.Address != nil {
-		return &g.Recipient{Recipient: &g.Recipient_PublicKeyHash{PublicKeyHash: addrBody}}, nil
-	}
-	return &g.Recipient{Recipient: &g.Recipient_Alias{Alias: r.Alias.Alias}}, nil
+	return &g.Recipient{Recipient: &g.Recipient_PublicKeyHash{PublicKeyHash: addrBody}}, nil
 }
 
 // Valid checks that either an Address or an Alias is set then checks the validity of the set field.

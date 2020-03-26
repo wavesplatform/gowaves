@@ -280,7 +280,7 @@ func createBulkWorker(ctx context.Context, blockCnt int, receivedBlocksCh chan b
 			return nil
 		case bts := <-receivedBlocksCh:
 			// it means that we at the end. halt
-			if bts == nil {
+			if bts.bytes == nil {
 				zap.S().Infof("[%s] StateSync: CreateBulk: exit with null bytes")
 				out := make([]*proto.Block, len(blocks))
 				copy(out, blocks)
@@ -288,9 +288,14 @@ func createBulkWorker(ctx context.Context, blockCnt int, receivedBlocksCh chan b
 				return nil
 			}
 			block := &proto.Block{}
-			err := block.UnmarshalBinary(bts, scheme)
-			if err != nil {
-				return err
+			if bts.isProtobuf {
+				if err := block.UnmarshalFromProtobuf(bts.bytes); err != nil {
+					return err
+				}
+			} else {
+				if err := block.UnmarshalBinary(bts.bytes, scheme); err != nil {
+					return err
+				}
 			}
 			blocks = append(blocks, block)
 			if l := len(blocks); l == blockCnt {
@@ -314,7 +319,7 @@ func createBulkWorker2(blockCnt int, receivedBlocksCh channel.Channel, blocksBul
 			return nil
 		}
 		bts := rs.(blockBytes)
-		if bts == nil {
+		if bts.bytes == nil {
 			zap.S().Infof("[%s] StateSync: CreateBulk: exit with null bytes")
 			out := make([]*proto.Block, len(blocks))
 			copy(out, blocks)
@@ -322,9 +327,14 @@ func createBulkWorker2(blockCnt int, receivedBlocksCh channel.Channel, blocksBul
 			return nil
 		}
 		block := &proto.Block{}
-		err := block.UnmarshalBinary(bts, scheme)
-		if err != nil {
-			return err
+		if bts.isProtobuf {
+			if err := block.UnmarshalFromProtobuf(bts.bytes); err != nil {
+				return err
+			}
+		} else {
+			if err := block.UnmarshalBinary(bts.bytes, scheme); err != nil {
+				return err
+			}
 		}
 		blocks = append(blocks, block)
 		if l := len(blocks); l == blockCnt {

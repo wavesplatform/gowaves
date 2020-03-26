@@ -27,7 +27,7 @@ func TestExpectedBlocks(t *testing.T) {
 	require.True(t, e.hasNext())
 
 	// first we add second bytes
-	require.NoError(t, e.add(id2, s2.Bytes()))
+	require.NoError(t, e.add(id2, blockBytes{s2.Bytes(), false}))
 	require.True(t, e.hasNext())
 
 	select {
@@ -37,19 +37,19 @@ func TestExpectedBlocks(t *testing.T) {
 	}
 
 	// then add first
-	require.NoError(t, e.add(id1, s1.Bytes()))
+	require.NoError(t, e.add(id1, blockBytes{s1.Bytes(), false}))
 	require.False(t, e.hasNext(), "we received all expected messages, no more should arrive")
 
 	select {
 	case rs := <-ch:
-		require.Equal(t, s1.Bytes(), []byte(rs))
+		require.Equal(t, s1.Bytes(), rs.bytes)
 	default:
 		t.Fatal("no block")
 	}
 
 	select {
 	case rs := <-ch:
-		require.Equal(t, s2.Bytes(), []byte(rs))
+		require.Equal(t, s2.Bytes(), rs.bytes)
 	default:
 		t.Fatal("no block")
 	}
