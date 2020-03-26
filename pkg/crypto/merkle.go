@@ -42,24 +42,26 @@ func (t *MerkleTree) Push(data []byte) {
 }
 
 func (t *MerkleTree) Root() Digest {
-	if len(t.stack) == 0 {
+	switch len(t.stack) {
+	case 0:
 		return ZeroDigest
-	}
-	current := t.stack[len(t.stack)-1]
-	if current.height != 0 {
+	case 1:
+		current := t.stack[0]
+		if current.height == 0 {
+			current = t.joinSubTrees(t.stack[0], subTree{0, ZeroDigest})
+		}
+		return current.digest
+	default:
+		current := t.stack[len(t.stack)-1]
+		for i := len(t.stack) - 2; i >= 0; i-- {
+			h := t.stack[i].height
+			for current.height < h {
+				current = t.joinSubTrees(current, subTree{height: 0, digest: ZeroDigest})
+			}
+			current = t.joinSubTrees(t.stack[i], current)
+		}
 		return current.digest
 	}
-	h := 1
-	if len(t.stack) > 1 {
-		h = t.stack[len(t.stack)-2].height
-	}
-	for current.height < h {
-		current = t.joinSubTrees(current, subTree{height: 0, digest: ZeroDigest})
-	}
-	for i := len(t.stack) - 2; i >= 0; i-- {
-		current = t.joinSubTrees(t.stack[i], current)
-	}
-	return current.digest
 }
 
 func (t *MerkleTree) RebuildRoot(leaf Digest, proofs []Digest, index uint64) Digest {
