@@ -14,7 +14,10 @@ import (
 	"go.uber.org/zap"
 )
 
-type blockBytes = []byte
+type blockBytes struct {
+	bytes      []byte
+	isProtobuf bool
+}
 
 type expectedBlocks struct {
 	curPosition     int
@@ -24,17 +27,17 @@ type expectedBlocks struct {
 	mu              sync.Mutex
 }
 
-func newExpectedBlocks(signatures []proto.BlockID, notify chan blockBytes) *expectedBlocks {
-	blockToPosition := make(map[proto.BlockID]int, len(signatures))
+func newExpectedBlocks(ids []proto.BlockID, notify chan blockBytes) *expectedBlocks {
+	blockToPosition := make(map[proto.BlockID]int, len(ids))
 
-	for idx, value := range signatures {
+	for idx, value := range ids {
 		blockToPosition[value] = idx
 	}
 
 	return &expectedBlocks{
 		blockToPosition: blockToPosition,
 		curPosition:     0,
-		lst:             make([]blockBytes, len(signatures)),
+		lst:             make([]blockBytes, len(ids)),
 		notify:          notify,
 	}
 }
@@ -51,7 +54,7 @@ func (a *expectedBlocks) add(id proto.BlockID, block blockBytes) error {
 	a.lst[n] = block
 
 	for a.curPosition < len(a.lst) {
-		if a.lst[a.curPosition] == nil {
+		if a.lst[a.curPosition].bytes == nil {
 			break
 		}
 		a.notify <- a.lst[a.curPosition]
@@ -98,20 +101,20 @@ func (a *ids) pop() (nullable.BlockID, blockBytes, bool) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	if len(a.idSequence) == 0 {
-		return nullable.BlockID{}, nil, false
+		return nullable.BlockID{}, blockBytes{}, false
 	}
 	firstId := a.idSequence[0]
 	if firstId.Null() {
 		a.idSequence = a.idSequence[1:]
-		return firstId, nil, true
+		return firstId, blockBytes{}, true
 	}
 	bts := a.uniqBlockIDs[firstId.ID()]
-	if bts != nil {
+	if bts.bytes != nil {
 		delete(a.uniqBlockIDs, firstId.ID())
 		a.idSequence = a.idSequence[1:]
 		return firstId, bts, true
 	}
-	return nullable.BlockID{}, nil, false
+	return nullable.BlockID{}, blockBytes{}, false
 }
 
 // true - added, false - not added
@@ -123,7 +126,7 @@ func (a *ids) add(id nullable.BlockID) bool {
 		return false
 	}
 	a.idSequence = append(a.idSequence, id)
-	a.uniqBlockIDs[id.ID()] = nil
+	a.uniqBlockIDs[id.ID()] = blockBytes{}
 	return true
 }
 
@@ -232,7 +235,7 @@ func (a *blockDownload) run(ctx context.Context, wg *sync.WaitGroup) {
 			if !a.ids.contains(id) {
 				continue
 			}
-			a.ids.setBytes(id, bb)
+			a.ids.setBytes(id, blockBytes{bb, false})
 			select {
 			case <-a.threads:
 			case <-ctx.Done():
@@ -246,7 +249,7 @@ func (a *blockDownload) run(ctx context.Context, wg *sync.WaitGroup) {
 						zap.S().Debug("Exit blockDownload, !a.out.Send(bts)")
 						return
 					}
-					if bts == nil {
+					if bts.bytes == nil {
 						return
 					}
 					continue
@@ -264,7 +267,7 @@ func (a *blockDownload) run(ctx context.Context, wg *sync.WaitGroup) {
 			if !a.ids.contains(id) {
 				continue
 			}
-			a.ids.setBytes(id, bb)
+			a.ids.setBytes(id, blockBytes{bb, true})
 			select {
 			case <-a.threads:
 			case <-ctx.Done():
@@ -278,7 +281,7 @@ func (a *blockDownload) run(ctx context.Context, wg *sync.WaitGroup) {
 						zap.S().Debug("Exit blockDownload, !a.out.Send(bts)")
 						return
 					}
-					if bts == nil {
+					if bts.bytes == nil {
 						return
 					}
 					continue

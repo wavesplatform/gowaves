@@ -72,8 +72,8 @@ func TestCreateBulkHandler(t *testing.T) {
 	bts, err := block.MarshalBinary()
 	require.NoError(t, err)
 
-	receivedBlocksCh <- bts
-	receivedBlocksCh <- bts
+	receivedBlocksCh <- blockBytes{bts, false}
+	receivedBlocksCh <- blockBytes{bts, false}
 	//receivedBlocksCh <- nil
 
 	require.NoError(t, createBulkWorker(ctx, 2, receivedBlocksCh, blocksBulk, proto.MainNetScheme))

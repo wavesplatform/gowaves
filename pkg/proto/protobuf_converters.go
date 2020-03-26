@@ -264,10 +264,6 @@ func (c *ProtobufConverter) blockID(data []byte, v BlockVersion) BlockID {
 		c.err = err
 		return BlockID{}
 	}
-	if !id.IsValid(v) {
-		c.err = errors.Errorf("blockID has invalid length; block version: %v", v)
-		return BlockID{}
-	}
 	return id
 }
 
